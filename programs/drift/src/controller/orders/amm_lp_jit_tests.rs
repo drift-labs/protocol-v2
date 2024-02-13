@@ -114,6 +114,28 @@ pub mod amm_lp_jit {
         let jit_base_asset_amount = crate::math::amm_jit::calculate_jit_base_asset_amount(
             &market,
             BASE_PRECISION_U64,
+            100 * PRICE_PRECISION_U64,
+            Some(100 * PRICE_PRECISION_I64),
+            PositionDirection::Long,
+            AMMLiquiditySplit::Shared,
+        )
+        .unwrap();
+        assert_eq!(jit_base_asset_amount, 500000000);
+
+        let jit_base_asset_amount = crate::math::amm_jit::calculate_jit_base_asset_amount(
+            &market,
+            BASE_PRECISION_U64,
+            99 * PRICE_PRECISION_U64,
+            Some(100 * PRICE_PRECISION_I64),
+            PositionDirection::Long,
+            AMMLiquiditySplit::Shared,
+        )
+        .unwrap();
+        assert_eq!(jit_base_asset_amount, 170000000);
+
+        let jit_base_asset_amount = crate::math::amm_jit::calculate_jit_base_asset_amount(
+            &market,
+            BASE_PRECISION_U64,
             101 * PRICE_PRECISION_U64,
             Some(100 * PRICE_PRECISION_I64),
             PositionDirection::Short,
