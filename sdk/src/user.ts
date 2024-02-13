@@ -1419,8 +1419,7 @@ export class User {
 			market,
 			userPosition,
 			oraclePriceData,
-			includeOpenOrders,
-			this.getOpenOrders()
+			includeOpenOrders
 		);
 	}
 
@@ -1930,9 +1929,29 @@ export class User {
 			signedTokenAmount
 		);
 
-		freeCollateralDelta = freeCollateralDelta.add(
-			this.calculateFreeCollateralDeltaForSpotMarketTrade(marketIndex)
-		);
+		const oracle = market.oracle;
+		const perpMarketWithSameOracle = this.driftClient
+			.getPerpMarketAccounts()
+			.find((market) => market.amm.oracle.equals(oracle));
+		if (perpMarketWithSameOracle) {
+			const perpPosition = this.getPerpPositionWithLPSettle(
+				perpMarketWithSameOracle.marketIndex,
+				undefined,
+				true
+			)[0];
+			if (perpPosition) {
+				const freeCollateralDeltaForPerp =
+					this.calculateFreeCollateralDeltaForPerp(
+						perpMarketWithSameOracle,
+						perpPosition,
+						ZERO
+					);
+
+				freeCollateralDelta = freeCollateralDelta.add(
+					freeCollateralDeltaForPerp || ZERO
+				);
+			}
+		}
 
 		if (freeCollateralDelta.eq(ZERO)) {
 			return new BN(-1);
@@ -2012,9 +2031,34 @@ export class User {
 			return new BN(-1);
 		}
 
-		freeCollateralDelta = freeCollateralDelta.add(
-			this.calculateFreeCollateralDeltaForPerpMarketTrade(marketIndex)
-		);
+		const spotMarketWithSameOracle = this.driftClient
+			.getSpotMarketAccounts()
+			.find((market) => market.oracle.equals(oracle));
+		if (spotMarketWithSameOracle) {
+			const spotPosition = this.getSpotPosition(
+				spotMarketWithSameOracle.marketIndex
+			);
+			if (spotPosition) {
+				const signedTokenAmount = getSignedTokenAmount(
+					getTokenAmount(
+						spotPosition.scaledBalance,
+						spotMarketWithSameOracle,
+						spotPosition.balanceType
+					),
+					spotPosition.balanceType
+				);
+
+				const spotFreeCollateralDelta =
+					this.calculateFreeCollateralDeltaForSpot(
+						spotMarketWithSameOracle,
+						signedTokenAmount,
+						marginCategory
+					);
+				freeCollateralDelta = freeCollateralDelta.add(
+					spotFreeCollateralDelta || ZERO
+				);
+			}
+		}
 
 		if (freeCollateralDelta.eq(ZERO)) {
 			return new BN(-1);
@@ -2053,6 +2097,8 @@ export class User {
 			if (positionBaseSizeChange.gt(ZERO)) {
 				freeCollateralChange = costBasis.sub(newPositionValue);
 			} else {
+				console.log('newPositionValue', newPositionValue.toString());
+				console.log('costBasis', costBasis.toString());
 				freeCollateralChange = newPositionValue.sub(costBasis);
 			}
 
@@ -2151,70 +2197,6 @@ export class User {
 		}
 
 		return freeCollateralDelta;
-	}
-
-	calculateFreeCollateralDeltaForPerpMarketTrade(perpMarketIndex: number): BN {
-		const oracle =
-			this.driftClient.getPerpMarketAccount(perpMarketIndex).amm.oracle;
-		const spotMarketWithSameOracle = this.driftClient
-			.getSpotMarketAccounts()
-			.find((market) => market.oracle.equals(oracle));
-		if (spotMarketWithSameOracle) {
-			const spotPosition = this.getSpotPosition(
-				spotMarketWithSameOracle.marketIndex
-			);
-			if (spotPosition) {
-				const signedTokenAmount = getSignedTokenAmount(
-					getTokenAmount(
-						spotPosition.scaledBalance,
-						spotMarketWithSameOracle,
-						spotPosition.balanceType
-					),
-					spotPosition.balanceType
-				);
-
-				const spotFreeCollateralDelta =
-					this.calculateFreeCollateralDeltaForSpot(
-						spotMarketWithSameOracle,
-						signedTokenAmount,
-						'Initial'
-					);
-
-				return spotFreeCollateralDelta || ZERO;
-			}
-		}
-
-		return ZERO;
-	}
-
-	calculateFreeCollateralDeltaForSpotMarketTrade(spotMarketIndex: number): BN {
-		const oracle =
-			this.driftClient.getSpotMarketAccount(spotMarketIndex).oracle;
-
-		const perpMarketWithSameOracle = this.driftClient
-			.getPerpMarketAccounts()
-			.find((market) => market.amm.oracle.equals(oracle));
-
-		if (perpMarketWithSameOracle) {
-			const perpPosition = this.getPerpPositionWithLPSettle(
-				perpMarketWithSameOracle.marketIndex,
-				undefined,
-				true
-			)[0];
-			if (perpPosition) {
-				const freeCollateralDeltaForPerp =
-					this.calculateFreeCollateralDeltaForPerp(
-						perpMarketWithSameOracle,
-						perpPosition,
-						ZERO,
-						'Initial'
-					);
-
-				return freeCollateralDeltaForPerp || ZERO;
-			}
-		}
-
-		return ZERO;
 	}
 
 	calculateFreeCollateralDeltaForSpot(
@@ -2343,15 +2325,6 @@ export class User {
 			: this.getPerpPositionValue(targetMarketIndex, oracleData);
 
 		let maxPositionSize = this.getPerpBuyingPower(targetMarketIndex, lpBuffer);
-
-		const freeCollateralDelta =
-			this.calculateFreeCollateralDeltaForPerpMarketTrade(targetMarketIndex);
-
-		if (freeCollateralDelta.gt(ZERO) && targetSide === 'short') {
-			maxPositionSize = maxPositionSize.add(
-				freeCollateralDelta.mul(QUOTE_PRECISION.div(MARGIN_PRECISION))
-			);
-		}
 
 		if (maxPositionSize.gte(ZERO)) {
 			if (oppositeSizeValueUSDC.eq(ZERO)) {
