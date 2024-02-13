@@ -44,6 +44,7 @@ pub enum UserStatus {
     BeingLiquidated = 0b00000001,
     Bankrupt = 0b00000010,
     ReduceOnly = 0b00000100,
+    AdvancedLp = 0b00001000,
 }
 
 // implement SIZE const for User
@@ -130,6 +131,10 @@ impl User {
 
     pub fn is_reduce_only(&self) -> bool {
         self.status & (UserStatus::ReduceOnly as u8) > 0
+    }
+
+    pub fn is_advanced_lp(&self) -> bool {
+        self.status & (UserStatus::AdvancedLp as u8) > 0
     }
 
     pub fn add_user_status(&mut self, status: UserStatus) {
@@ -391,6 +396,16 @@ impl User {
             self.add_user_status(UserStatus::ReduceOnly);
         } else {
             self.remove_user_status(UserStatus::ReduceOnly);
+        }
+
+        Ok(())
+    }
+
+    pub fn update_advanced_lp_status(&mut self, advanced_lp: bool) -> DriftResult {
+        if advanced_lp {
+            self.add_user_status(UserStatus::AdvancedLp);
+        } else {
+            self.remove_user_status(UserStatus::AdvancedLp);
         }
 
         Ok(())

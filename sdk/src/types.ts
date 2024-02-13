@@ -45,6 +45,7 @@ export enum UserStatus {
 	BEING_LIQUIDATED = 1,
 	BANKRUPT = 2,
 	REDUCE_ONLY = 4,
+	ADVANCED_LP = 8,
 }
 
 export class ContractType {
@@ -200,6 +201,7 @@ export class DepositExplanation {
 	static readonly NONE = { none: {} };
 	static readonly TRANSFER = { transfer: {} };
 	static readonly BORROW = { borrow: {} };
+	static readonly REPAY_BORROW = { repayBorrow: {} };
 }
 
 export class SettlePnlExplanation {
@@ -608,6 +610,7 @@ export type PerpMarketAccount = {
 	};
 	quoteSpotMarketIndex: number;
 	feeAdjustment: number;
+	pausedOperations: number;
 };
 
 export type HistoricalOracleData = {
@@ -699,6 +702,8 @@ export type SpotMarketAccount = {
 	flashLoanInitialTokenAmount: BN;
 
 	ordersEnabled: boolean;
+
+	pausedOperations: number;
 };
 
 export type PoolBalance = {
