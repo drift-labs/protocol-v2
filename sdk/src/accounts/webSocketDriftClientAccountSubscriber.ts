@@ -314,6 +314,9 @@ export class WebSocketDriftClientAccountSubscriber
 	private setPerpOracleMap() {
 		const perpMarkets = this.getMarketAccountsAndSlots();
 		for (const perpMarket of perpMarkets) {
+			if (!perpMarket) {
+				continue;
+			}
 			const perpMarketAccount = perpMarket.data;
 			const perpMarketIndex = perpMarketAccount.marketIndex;
 			const oracle = perpMarketAccount.amm.oracle;
@@ -324,6 +327,9 @@ export class WebSocketDriftClientAccountSubscriber
 	private setSpotOracleMap() {
 		const spotMarkets = this.getSpotMarketAccountsAndSlots();
 		for (const spotMarket of spotMarkets) {
+			if (!spotMarket) {
+				continue;
+			}
 			const spotMarketAccount = spotMarket.data;
 			const spotMarketIndex = spotMarketAccount.marketIndex;
 			const oracle = spotMarketAccount.oracle;
@@ -396,7 +402,7 @@ export class WebSocketDriftClientAccountSubscriber
 			// If the oracle has changed, we need to update the oracle map in background
 			this.addOracle({
 				source: perpMarketAccount.data.amm.oracleSource,
-				publicKey: oracle,
+				publicKey: perpMarketAccount.data.amm.oracle,
 			}).then(() => {
 				this.setPerpOracleMap();
 			});
@@ -418,7 +424,7 @@ export class WebSocketDriftClientAccountSubscriber
 			// If the oracle has changed, we need to update the oracle map in background
 			this.addOracle({
 				source: spotMarketAccount.data.oracleSource,
-				publicKey: oracle,
+				publicKey: spotMarketAccount.data.oracle,
 			}).then(() => {
 				this.setSpotOracleMap();
 			});

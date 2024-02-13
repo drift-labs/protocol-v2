@@ -489,7 +489,7 @@ export class PollingDriftClientAccountSubscriber
 			// If the oracle has changed, we need to update the oracle map in background
 			this.addOracle({
 				source: perpMarketAccount.data.amm.oracleSource,
-				publicKey: oracle,
+				publicKey: perpMarketAccount.data.amm.oracle,
 			}).then(() => {
 				this.setPerpOracleMap();
 			});
@@ -506,12 +506,11 @@ export class PollingDriftClientAccountSubscriber
 		if (!spotMarketAccount || !oracle) {
 			return undefined;
 		}
-
 		if (!spotMarketAccount.data.oracle.equals(oracle)) {
 			// If the oracle has changed, we need to update the oracle map in background
 			this.addOracle({
 				source: spotMarketAccount.data.oracleSource,
-				publicKey: oracle,
+				publicKey: spotMarketAccount.data.oracle,
 			}).then(() => {
 				this.setSpotOracleMap();
 			});
