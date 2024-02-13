@@ -209,6 +209,7 @@ pub fn settle_lp_position(
         .remainder_base_asset_amount
         .cast::<i64>()?
         .safe_add(lp_metrics.remainder_base_asset_amount.cast()?)?;
+    crate::dlog!(market.amm.base_asset_amount_with_unsettled_lp);
 
     let pnl = update_position_and_market(position, market, &position_delta)?;
 
@@ -223,7 +224,8 @@ pub fn settle_lp_position(
         lp_metrics.base_asset_amount = lp_metrics
             .base_asset_amount
             .safe_add(standardized_remainder_base_asset_amount)?;
-
+        crate::dlog!(lp_metrics.base_asset_amount);
+        crate::dlog!(standardized_remainder_base_asset_amount, remainder_base_asset_amount);
         // position.remainder_base_asset_amount = remainder_base_asset_amount.cast()?;
     } 
     // else {
@@ -232,10 +234,13 @@ pub fn settle_lp_position(
 
     // todo: name for this is confusing, but adding is correct as is
     // definition: net position of users in the market that has the LP as a counterparty (which have NOT settled)
+    crate::dlog!(market.amm.base_asset_amount_with_unsettled_lp);
+
     market.amm.base_asset_amount_with_unsettled_lp = market
         .amm
         .base_asset_amount_with_unsettled_lp
         .safe_add(lp_metrics.base_asset_amount.cast()?)?;
+    crate::dlog!(market.amm.base_asset_amount_with_unsettled_lp);
 
     position.last_base_asset_amount_per_lp = market.amm.base_asset_amount_per_lp.cast()?;
     position.last_quote_asset_amount_per_lp = market.amm.quote_asset_amount_per_lp.cast()?;

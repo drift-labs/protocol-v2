@@ -105,7 +105,6 @@ pub fn update_position_and_market(
     delta: &PositionDelta,
 ) -> DriftResult<i64> {
     if delta.base_asset_amount == 0
-        && position.remainder_base_asset_amount == 0
         && delta.remainder_base_asset_amount.unwrap_or(0) == 0
     {
         update_quote_asset_amount(position, market, delta.quote_asset_amount)?;
