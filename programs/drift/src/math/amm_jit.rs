@@ -4,7 +4,7 @@ use crate::math::casting::Cast;
 use crate::math::constants::{AMM_RESERVE_PRECISION, PERCENTAGE_PRECISION_U64};
 use crate::math::orders::standardize_base_asset_amount;
 use crate::math::safe_math::SafeMath;
-use crate::state::perp_market::{AMMLiquiditySplit, ContractTier, PerpMarket};
+use crate::state::perp_market::{AMMLiquiditySplit, PerpMarket};
 #[cfg(test)]
 mod tests;
 
@@ -41,18 +41,22 @@ pub fn calculate_jit_base_asset_amount(
                 .cast::<u64>()?;
 
             // shrink by at least 50% based on distance from oracle
-            let wash_shrink = if market
-                .contract_tier
-                .is_as_safe_as_contract(&ContractTier::B)
-            {
-                (PERCENTAGE_PRECISION_U64 / 2)
-                    .saturating_sub(percentage_from_baseline.safe_mul(20)?)
+
+            let direction_spread = if taker_direction == PositionDirection::Long {
+                market.amm.long_spread
             } else {
-                (PERCENTAGE_PRECISION_U64 / 2).saturating_sub(percentage_from_baseline.safe_mul(5)?)
-            };
+                market.amm.short_spread
+            }
+            .cast::<u64>()?;
+
+            let max_jit_amount_shrink = (PERCENTAGE_PRECISION_U64 / 2).saturating_sub(
+                percentage_from_baseline
+                    .saturating_sub(direction_spread)
+                    .safe_mul(20)?,
+            );
 
             max_jit_amount = max_jit_amount
-                .safe_mul(wash_shrink)?
+                .safe_mul(max_jit_amount_shrink)?
                 .safe_div(PERCENTAGE_PRECISION_U64)?;
         }
     } else {
