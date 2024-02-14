@@ -61,7 +61,7 @@ pub fn calculate_jit_base_asset_amount(
 
             max_jit_amount = max_jit_amount
                 .safe_mul(max_jit_amount_scale_numerator)?
-                .safe_div(opposite_spread_price)?;
+                .safe_div(opposite_spread_price.max(1))?;
         }
     } else {
         max_jit_amount = 0;
