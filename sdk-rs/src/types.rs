@@ -423,3 +423,18 @@ mod tests {
         )
     }
 }
+
+#[derive(Clone, Copy)]
+pub struct ComputeUnitParams {
+    pub compute_unit_limit: u32,
+    pub compute_unit_price_micro_lamports: u64,
+}
+
+impl ComputeUnitParams {
+    pub fn new(compute_unit_limit: u32, compute_unit_price_micro_lamports: u64) -> Self {
+        Self {
+            compute_unit_limit,
+            compute_unit_price_micro_lamports
+        }
+    }
+}

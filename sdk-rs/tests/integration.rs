@@ -4,7 +4,7 @@ use drift_program::math::constants::{
     BASE_PRECISION_I64, LAMPORTS_PER_SOL_I64, PRICE_PRECISION_U64,
 };
 use drift_sdk::{
-    types::{Context, MarketId, NewOrder},
+    types::{ComputeUnitParams, Context, MarketId, NewOrder},
     DriftClient, Pubkey, RpcAccountProvider, TransactionBuilder, Wallet,
 };
 use solana_sdk::signature::Keypair;
@@ -15,6 +15,7 @@ async fn get_oracle_prices() {
         Context::DevNet,
         RpcAccountProvider::new("https://api.devnet.solana.com"),
         Keypair::new(),
+        None,
         None,
         None
     )
@@ -35,7 +36,9 @@ async fn place_and_cancel_orders() {
         RpcAccountProvider::new("https://api.devnet.solana.com"),
         Keypair::new(),
         None,
-        None
+        None,
+    
+        Some(ComputeUnitParams::new(1_400_000, 50_000)),
     )
     .await
     .expect("connects");
@@ -67,7 +70,9 @@ async fn place_and_cancel_orders() {
         .cancel_all_orders()
         .build();
 
-    let result = client.sign_and_send(&wallet, tx).await;
+    dbg!(tx.clone());
+
+    let result = client.sign_and_send(tx).await;
     dbg!(&result);
     assert!(result.is_ok());
 }

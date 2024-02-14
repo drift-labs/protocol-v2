@@ -1,6 +1,6 @@
 //! Drift SDK
 
-use std::{borrow::Cow, sync::Arc, time::Duration};
+use std::{borrow::{Borrow, Cow}, sync::Arc, time::Duration};
 
 use anchor_lang::{AccountDeserialize, Discriminator, InstructionData, ToAccountMetas};
 use async_utils::{retry_policy, spawn_retry_task};
@@ -264,13 +264,21 @@ impl AccountProvider for WsAccountProvider {
 #[must_use]
 pub struct DriftClient<T: AccountProvider> {
     backend: &'static DriftClientBackend<T>,
-    pub wallet: Wallet,
+    wallet: Wallet,
     pub active_sub_account_id: u8,
     pub sub_account_ids: Vec<u8>,
+    compute_unit_params: Option<ComputeUnitParams>
 }
 
 impl<T: AccountProvider> DriftClient<T> {
-    pub async fn new(context: Context, account_provider: T, keypair: Keypair, active_sub_account_id: Option<u8>, sub_account_ids: Option<Vec<u8>>) -> SdkResult<Self> {
+    pub async fn new(
+        context: Context, 
+        account_provider: T, 
+        keypair: Keypair, 
+        active_sub_account_id: Option<u8>, 
+        sub_account_ids: Option<Vec<u8>>,
+        compute_unit_params: Option<ComputeUnitParams>
+    ) -> SdkResult<Self> {
         let sub_account_id = active_sub_account_id.unwrap_or(0);
         let sub_account_ids = sub_account_ids.unwrap_or(vec![sub_account_id]);
         Ok(Self {
@@ -280,6 +288,7 @@ impl<T: AccountProvider> DriftClient<T> {
             wallet: Wallet::new(keypair),
             active_sub_account_id: sub_account_id,
             sub_account_ids,
+            compute_unit_params
         })
     }
 
@@ -403,6 +412,11 @@ impl<T: AccountProvider> DriftClient<T> {
             .copied())
     }
 
+    /// Return the DriftClient's wallet
+    pub fn wallet(&self) -> &Wallet {
+        &self.wallet
+    }
+
     /// Get the user account data
     ///
     /// `account` the drift user PDA
@@ -417,11 +431,11 @@ impl<T: AccountProvider> DriftClient<T> {
     /// Returns the signature on success
     pub async fn sign_and_send(
         &self,
-        wallet: &Wallet,
         tx: VersionedMessage,
     ) -> SdkResult<Signature> {
+        
         self.backend
-            .sign_and_send(wallet, tx)
+            .sign_and_send(self.wallet(), tx)
             .await
             .map_err(|err| err.to_out_of_sol_error().unwrap_or(err))
     }
@@ -431,12 +445,11 @@ impl<T: AccountProvider> DriftClient<T> {
     /// Returns the signature on success
     pub async fn sign_and_send_with_config(
         &self,
-        wallet: &Wallet,
         tx: VersionedMessage,
         config: RpcSendTransactionConfig,
     ) -> SdkResult<Signature> {
         self.backend
-            .sign_and_send_with_config(wallet, tx, config)
+            .sign_and_send_with_config(self.wallet(), tx, config)
             .await
             .map_err(|err| err.to_out_of_sol_error().unwrap_or(err))
     }
@@ -500,6 +513,7 @@ impl<T: AccountProvider> DriftClient<T> {
             *account,
             Cow::Owned(account_data),
             delegated,
+            self.compute_unit_params,
         ))
     }
 
@@ -744,6 +758,8 @@ pub struct TransactionBuilder<'a> {
     legacy: bool,
     /// add additional lookup tables (v0 only)
     lookup_tables: Vec<AddressLookupTableAccount>,
+    /// ComputeUnitParams object for priority fees
+    compute_unit_params: Option<ComputeUnitParams>,
 }
 
 impl<'a> TransactionBuilder<'a> {
@@ -758,6 +774,7 @@ impl<'a> TransactionBuilder<'a> {
         sub_account: Pubkey,
         account_data: Cow<'b, User>,
         delegated: bool,
+        compute_unit_params: Option<ComputeUnitParams>,
     ) -> Self
     where
         'b: 'a,
@@ -774,6 +791,7 @@ impl<'a> TransactionBuilder<'a> {
             ixs: Default::default(),
             lookup_tables: vec![program_data.lookup_table.clone()],
             legacy: false,
+            compute_unit_params,
         }
     }
     /// Use legacy tx mode
@@ -1008,13 +1026,20 @@ impl<'a> TransactionBuilder<'a> {
 
     /// Build the transaction message ready for signing and sending
     pub fn build(self) -> VersionedMessage {
+        let mut ixs = self.ixs;
+        if let Some(cu_params) = self.compute_unit_params {
+            let cu_limit_ix = ComputeBudgetInstruction::set_compute_unit_limit(cu_params.compute_unit_limit);
+            let cu_price_ix = ComputeBudgetInstruction::set_compute_unit_price(cu_params.compute_unit_price_micro_lamports);
+            ixs.insert(0, cu_price_ix);
+            ixs.insert(0, cu_limit_ix);
+        }
         if self.legacy {
-            let message = Message::new(self.ixs.as_ref(), Some(&self.authority));
+            let message = Message::new(ixs.as_ref(), Some(&self.authority));
             VersionedMessage::Legacy(message)
         } else {
             let message = v0::Message::try_compile(
                 &self.authority,
-                self.ixs.as_slice(),
+                ixs.as_slice(),
                 self.lookup_tables.as_slice(),
                 Default::default(),
             )
@@ -1264,13 +1289,14 @@ mod tests {
             backend: Box::leak(Box::new(backend)),
             wallet: Wallet::new(keypair),
             active_sub_account_id: 0,
-            sub_account_ids: vec![0]
+            sub_account_ids: vec![0],
+            compute_unit_params: None
         }
     }
 
     #[tokio::test]
     async fn get_market_accounts() {
-        let client = DriftClient::new(Context::DevNet, RpcAccountProvider::new(DEVNET_ENDPOINT), Keypair::new(), None, None)
+        let client = DriftClient::new(Context::DevNet, RpcAccountProvider::new(DEVNET_ENDPOINT), Keypair::new(), None, None, None)
             .await
             .unwrap();
         let accounts: Vec<SpotMarket> = client
