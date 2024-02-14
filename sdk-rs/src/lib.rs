@@ -264,14 +264,16 @@ impl AccountProvider for WsAccountProvider {
 #[must_use]
 pub struct DriftClient<T: AccountProvider> {
     backend: &'static DriftClientBackend<T>,
+    wallet: Wallet,
 }
 
 impl<T: AccountProvider> DriftClient<T> {
-    pub async fn new(context: Context, account_provider: T) -> SdkResult<Self> {
+    pub async fn new(context: Context, account_provider: T, keypair: Keypair) -> SdkResult<Self> {
         Ok(Self {
             backend: Box::leak(Box::new(
                 DriftClientBackend::new(context, account_provider).await?,
             )),
+            wallet: Wallet::new(keypair)
         })
     }
 
@@ -1234,6 +1236,7 @@ mod tests {
     async fn setup(
         rpc_mocks: Mocks,
         account_provider_mocks: Mocks,
+        keypair: Keypair
     ) -> DriftClient<RpcAccountProvider> {
         let backend = DriftClientBackend {
             rpc_client: RpcClient::new_mock_with_mocks(DEVNET_ENDPOINT.to_string(), rpc_mocks),
@@ -1248,12 +1251,13 @@ mod tests {
 
         DriftClient {
             backend: Box::leak(Box::new(backend)),
+            wallet: Wallet::new(keypair)
         }
     }
 
     #[tokio::test]
     async fn get_market_accounts() {
-        let client = DriftClient::new(Context::DevNet, RpcAccountProvider::new(DEVNET_ENDPOINT))
+        let client = DriftClient::new(Context::DevNet, RpcAccountProvider::new(DEVNET_ENDPOINT), Keypair::new())
             .await
             .unwrap();
         let accounts: Vec<SpotMarket> = client
@@ -1292,7 +1296,7 @@ mod tests {
         });
         account_mocks.insert(RpcRequest::GetAccountInfo, account_response.clone());
 
-        let client = setup(Default::default(), account_mocks).await;
+        let client = setup(Default::default(), account_mocks, Keypair::new()).await;
 
         let orders = client.all_orders(&user).await.unwrap();
         assert_eq!(orders.len(), 3);
@@ -1318,7 +1322,7 @@ mod tests {
             })
         });
         account_mocks.insert(RpcRequest::GetAccountInfo, account_response.clone());
-        let client = setup(Default::default(), account_mocks).await;
+        let client = setup(Default::default(), account_mocks, Keypair::new()).await;
 
         let (spot, perp) = client.all_positions(&user).await.unwrap();
         assert_eq!(spot.len(), 1);
