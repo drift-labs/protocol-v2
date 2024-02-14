@@ -426,8 +426,8 @@ mod tests {
 
 #[derive(Clone, Copy)]
 pub struct ComputeUnitParams {
-    pub compute_unit_limit: u32,
-    pub compute_unit_price_micro_lamports: u64,
+    compute_unit_limit: u32,
+    compute_unit_price_micro_lamports: u64,
 }
 
 impl ComputeUnitParams {
@@ -435,6 +435,23 @@ impl ComputeUnitParams {
         Self {
             compute_unit_limit,
             compute_unit_price_micro_lamports
+        }
+    }
+
+    pub fn limit(&self) -> u32 {
+        self.compute_unit_limit
+    }
+
+    pub fn price(&self) -> u64 {
+        self.compute_unit_price_micro_lamports
+    }
+}
+
+impl Default for ComputeUnitParams {
+    fn default() -> Self {
+        Self {
+            compute_unit_limit: 600_000,
+            compute_unit_price_micro_lamports: 0
         }
     }
 }

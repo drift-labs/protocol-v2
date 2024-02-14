@@ -267,7 +267,7 @@ pub struct DriftClient<T: AccountProvider> {
     wallet: Wallet,
     pub active_sub_account_id: u8,
     pub sub_account_ids: Vec<u8>,
-    compute_unit_params: Option<ComputeUnitParams>
+    compute_unit_params: ComputeUnitParams
 }
 
 impl<T: AccountProvider> DriftClient<T> {
@@ -279,16 +279,17 @@ impl<T: AccountProvider> DriftClient<T> {
         sub_account_ids: Option<Vec<u8>>,
         compute_unit_params: Option<ComputeUnitParams>
     ) -> SdkResult<Self> {
-        let sub_account_id = active_sub_account_id.unwrap_or(0);
-        let sub_account_ids = sub_account_ids.unwrap_or(vec![sub_account_id]);
+        let active_sub_account_id = active_sub_account_id.unwrap_or(0);
+        let sub_account_ids = sub_account_ids.unwrap_or(vec![active_sub_account_id]);
+        let compute_unit_params = compute_unit_params.unwrap_or(ComputeUnitParams::default());
         Ok(Self {
             backend: Box::leak(Box::new(
                 DriftClientBackend::new(context, account_provider).await?,
             )),
             wallet: Wallet::new(keypair),
-            active_sub_account_id: sub_account_id,
+            active_sub_account_id,
             sub_account_ids,
-            compute_unit_params
+            compute_unit_params,
         })
     }
 
@@ -759,7 +760,7 @@ pub struct TransactionBuilder<'a> {
     /// add additional lookup tables (v0 only)
     lookup_tables: Vec<AddressLookupTableAccount>,
     /// ComputeUnitParams object for priority fees
-    compute_unit_params: Option<ComputeUnitParams>,
+    compute_unit_params: ComputeUnitParams,
 }
 
 impl<'a> TransactionBuilder<'a> {
@@ -774,7 +775,7 @@ impl<'a> TransactionBuilder<'a> {
         sub_account: Pubkey,
         account_data: Cow<'b, User>,
         delegated: bool,
-        compute_unit_params: Option<ComputeUnitParams>,
+        compute_unit_params: ComputeUnitParams,
     ) -> Self
     where
         'b: 'a,
@@ -1027,12 +1028,10 @@ impl<'a> TransactionBuilder<'a> {
     /// Build the transaction message ready for signing and sending
     pub fn build(self) -> VersionedMessage {
         let mut ixs = self.ixs;
-        if let Some(cu_params) = self.compute_unit_params {
-            let cu_limit_ix = ComputeBudgetInstruction::set_compute_unit_limit(cu_params.compute_unit_limit);
-            let cu_price_ix = ComputeBudgetInstruction::set_compute_unit_price(cu_params.compute_unit_price_micro_lamports);
-            ixs.insert(0, cu_price_ix);
-            ixs.insert(0, cu_limit_ix);
-        }
+        let cu_limit_ix = ComputeBudgetInstruction::set_compute_unit_limit(self.compute_unit_params.limit());
+        let cu_price_ix = ComputeBudgetInstruction::set_compute_unit_price(self.compute_unit_params.price());
+        ixs.insert(0, cu_price_ix);
+        ixs.insert(0, cu_limit_ix);
         if self.legacy {
             let message = Message::new(ixs.as_ref(), Some(&self.authority));
             VersionedMessage::Legacy(message)
@@ -1290,7 +1289,7 @@ mod tests {
             wallet: Wallet::new(keypair),
             active_sub_account_id: 0,
             sub_account_ids: vec![0],
-            compute_unit_params: None
+            compute_unit_params: ComputeUnitParams::default()
         }
     }
 
