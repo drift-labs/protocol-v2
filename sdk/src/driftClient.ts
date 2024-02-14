@@ -586,23 +586,25 @@ export class DriftClient {
 			? new Map([[this.authority.toString(), subAccountIds]])
 			: new Map<string, number[]>();
 
+		/* Reset user stats account */
+		if (this.userStats?.isSubscribed) {
+			await this.userStats.unsubscribe();
+		}
+
+		this.userStats = undefined;
+
+		this.userStats = new UserStats({
+			driftClient: this,
+			userStatsAccountPublicKey: this.getUserStatsAccountPublicKey(),
+			accountSubscription: this.userStatsAccountSubscriptionConfig,
+		});
+
+		await this.userStats.subscribe();
+
 		let success = true;
 
 		if (this.isSubscribed) {
 			await Promise.all(this.unsubscribeUsers());
-
-			if (this.userStats) {
-				await this.userStats.unsubscribe();
-
-				this.userStats = new UserStats({
-					driftClient: this,
-					userStatsAccountPublicKey: this.getUserStatsAccountPublicKey(),
-					accountSubscription: this.userStatsAccountSubscriptionConfig,
-				});
-
-				await this.userStats.subscribe();
-			}
-
 			this.users.clear();
 			success = await this.addAndSubscribeToUsers();
 		}
