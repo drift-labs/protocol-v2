@@ -210,7 +210,7 @@ pub fn place_perp_order(
 
     let oracle_price_data = oracle_map.get_price_data(&market.amm.oracle)?;
 
-    // updates auction params for crossing limit orders w/out auction duration
+    // updates auction params for aggressive market or crossing limit orders w/out auction duration
     params.update_perp_auction_params(market, oracle_price_data.price)?;
 
     let (auction_start_price, auction_end_price, auction_duration) = get_auction_params(
@@ -2720,9 +2720,11 @@ fn update_trigger_order_params(
         auction_end_price
     );
 
-    order.auction_duration = auction_duration;
-    order.auction_start_price = auction_start_price;
-    order.auction_end_price = auction_end_price;
+    if auction_duration > 0 {
+        order.auction_duration = auction_duration;
+        order.auction_start_price = auction_start_price;
+        order.auction_end_price = auction_end_price;
+    }
 
     Ok(())
 }

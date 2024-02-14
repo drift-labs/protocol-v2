@@ -8,7 +8,7 @@ mod get_auction_duration {
         let price = 100 * PRICE_PRECISION_U64;
 
         let duration = get_auction_duration(price_diff, price).unwrap();
-        assert_eq!(duration, 10);
+        assert_eq!(duration, 0);
 
         let price_diff = PRICE_PRECISION_U64 / 10;
         let price = 100 * PRICE_PRECISION_U64;
