@@ -162,7 +162,7 @@ export class User {
 		userAccount: UserAccount,
 		marketIndex: number
 	): PerpPosition | undefined {
-		return userAccount.perpPositions.find(
+		return this.getActivePerpPositionsForUserAccount(userAccount).find(
 			(position) => position.marketIndex === marketIndex
 		);
 	}
@@ -1848,6 +1848,10 @@ export class User {
 				(UserStatus.BEING_LIQUIDATED | UserStatus.BANKRUPT)) >
 			0
 		);
+	}
+
+	public hasStatus(status: UserStatus): boolean {
+		return (this.getUserAccount().status & status) > 0;
 	}
 
 	public isBankrupt(): boolean {

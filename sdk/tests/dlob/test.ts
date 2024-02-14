@@ -28,7 +28,6 @@ import {
 
 import { mockPerpMarkets, mockSpotMarkets, mockStateAccount } from './helpers';
 import { DLOBOrdersCoder } from '../../src/dlob/DLOBOrders';
-import { isAuctionComplete, isRestingLimitOrder } from '../../lib';
 
 function insertOrderToDLOB(
 	dlob: DLOB,
@@ -2696,60 +2695,6 @@ describe('DLOB Perp Tests', () => {
 		for (const [idx, n] of nodesToTrigger.entries()) {
 			expect(n.node.order?.orderId).to.equal(orderIdsToTrigger[idx]);
 		}
-	});
-
-	it('Test trigger limit isnt maker', () => {
-		const vAsk = new BN(15);
-		const vBid = new BN(8);
-
-		const user0 = Keypair.generate();
-
-		const dlob = new DLOB();
-		const marketIndex = 0;
-
-		const slot = 20;
-		const oracle = {
-			price: vBid.add(vAsk).div(new BN(2)),
-			slot: new BN(slot),
-			confidence: new BN(1),
-			hasSufficientNumberOfDataPoints: true,
-		};
-
-		// should trigger limit buy with above condition
-		insertTriggerOrderToDLOB(
-			dlob,
-			user0.publicKey,
-			OrderType.TRIGGER_LIMIT,
-			MarketType.PERP,
-			1, //orderId
-			marketIndex, // marketIndex
-			oracle.price.add(new BN(1)), // price
-			BASE_PRECISION, // baseAssetAmount: BN,
-			PositionDirection.LONG,
-			oracle.price.sub(new BN(1)), // triggerPrice: BN,
-			OrderTriggerCondition.TRIGGERED_ABOVE, // triggerCondition: OrderTriggerCondition,
-			vBid,
-			vAsk,
-			new BN(1) // slot
-		);
-
-		const restingLimitBids = Array.from(
-			dlob.getRestingLimitBids(marketIndex, slot, MarketType.PERP, oracle)
-		);
-		expect(restingLimitBids.length).to.equal(0);
-
-		const takingBids = Array.from(
-			dlob.getTakingBids(marketIndex, MarketType.PERP, slot, oracle)
-		);
-		expect(takingBids.length).to.equal(1);
-		const triggerLimitBid = takingBids[0];
-		expect(triggerLimitBid !== undefined);
-		expect(isAuctionComplete(triggerLimitBid.order as Order, slot)).to.equal(
-			true
-		);
-		expect(isRestingLimitOrder(triggerLimitBid.order as Order, slot)).to.equal(
-			false
-		);
 	});
 
 	it('Test will return expired market orders to fill', () => {

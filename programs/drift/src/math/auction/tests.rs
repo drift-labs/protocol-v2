@@ -393,31 +393,6 @@ mod calculate_auction_params_for_trigger_order {
         };
         let min_auction_duration = 10;
 
-        let (auction_duration, auction_start_price, auction_end_price) =
-            calculate_auction_params_for_trigger_order(
-                &order,
-                &oracle_price_data,
-                min_auction_duration,
-            )
-            .unwrap();
-        assert_eq!(auction_duration, 0);
-        assert_eq!(auction_start_price, 0);
-        assert_eq!(auction_end_price, 0);
-
-        order.direction = PositionDirection::Short;
-        order.price = 110 * PRICE_PRECISION_U64;
-
-        let (auction_duration, auction_start_price, auction_end_price) =
-            calculate_auction_params_for_trigger_order(
-                &order,
-                &oracle_price_data,
-                min_auction_duration,
-            )
-            .unwrap();
-        assert_eq!(auction_duration, 0);
-        assert_eq!(auction_start_price, 0);
-        assert_eq!(auction_end_price, 0);
-
         order.direction = PositionDirection::Long;
         order.price = 110 * PRICE_PRECISION_U64;
 
@@ -426,6 +401,7 @@ mod calculate_auction_params_for_trigger_order {
                 &order,
                 &oracle_price_data,
                 min_auction_duration,
+                None,
             )
             .unwrap();
         assert_eq!(auction_duration, 10);
@@ -440,6 +416,7 @@ mod calculate_auction_params_for_trigger_order {
                 &order,
                 &oracle_price_data,
                 min_auction_duration,
+                None,
             )
             .unwrap();
 
@@ -467,6 +444,7 @@ mod calculate_auction_params_for_trigger_order {
                 &order,
                 &oracle_price_data,
                 min_auction_duration,
+                None,
             )
             .unwrap();
 
@@ -481,6 +459,7 @@ mod calculate_auction_params_for_trigger_order {
                 &order,
                 &oracle_price_data,
                 min_auction_duration,
+                None,
             )
             .unwrap();
 

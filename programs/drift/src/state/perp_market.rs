@@ -354,6 +354,16 @@ impl PerpMarket {
         })
     }
 
+    pub fn get_auction_end_min_max_divisors(self) -> DriftResult<(u64, u64)> {
+        Ok(match self.contract_tier {
+            ContractTier::A => (1000, 50),          // 10 bps, 2%
+            ContractTier::B => (1000, 20),          // 10 bps, 5%
+            ContractTier::C => (500, 20),           // 50 bps, 5%
+            ContractTier::Speculative => (100, 10), // 1%, 10%
+            ContractTier::Isolated => (50, 5),      // 2%, 20%
+        })
+    }
+
     pub fn get_max_price_divergence_for_funding_rate(
         self,
         oracle_price_twap: i64,
