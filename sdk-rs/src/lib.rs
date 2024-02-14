@@ -264,16 +264,22 @@ impl AccountProvider for WsAccountProvider {
 #[must_use]
 pub struct DriftClient<T: AccountProvider> {
     backend: &'static DriftClientBackend<T>,
-    wallet: Wallet,
+    pub wallet: Wallet,
+    pub active_sub_account_id: u8,
+    pub sub_account_ids: Vec<u8>,
 }
 
 impl<T: AccountProvider> DriftClient<T> {
-    pub async fn new(context: Context, account_provider: T, keypair: Keypair) -> SdkResult<Self> {
+    pub async fn new(context: Context, account_provider: T, keypair: Keypair, active_sub_account_id: Option<u8>, sub_account_ids: Option<Vec<u8>>) -> SdkResult<Self> {
+        let sub_account_id = active_sub_account_id.unwrap_or(0);
+        let sub_account_ids = sub_account_ids.unwrap_or(vec![sub_account_id]);
         Ok(Self {
             backend: Box::leak(Box::new(
                 DriftClientBackend::new(context, account_provider).await?,
             )),
-            wallet: Wallet::new(keypair)
+            wallet: Wallet::new(keypair),
+            active_sub_account_id: sub_account_id,
+            sub_account_ids,
         })
     }
 
@@ -285,6 +291,11 @@ impl<T: AccountProvider> DriftClient<T> {
     /// Return on-chain program metadata
     pub fn program_data(&self) -> &ProgramData {
         &self.backend.program_data
+    }
+
+    /// Get the active sub account id
+    pub fn get_sub_account_id_for_ix(&self, sub_account_id: Option<u8>) -> u8 {
+        sub_account_id.unwrap_or(self.active_sub_account_id)
     }
 
     /// Get an account's open order by id
@@ -1251,13 +1262,15 @@ mod tests {
 
         DriftClient {
             backend: Box::leak(Box::new(backend)),
-            wallet: Wallet::new(keypair)
+            wallet: Wallet::new(keypair),
+            active_sub_account_id: 0,
+            sub_account_ids: vec![0]
         }
     }
 
     #[tokio::test]
     async fn get_market_accounts() {
-        let client = DriftClient::new(Context::DevNet, RpcAccountProvider::new(DEVNET_ENDPOINT), Keypair::new())
+        let client = DriftClient::new(Context::DevNet, RpcAccountProvider::new(DEVNET_ENDPOINT), Keypair::new(), None, None)
             .await
             .unwrap();
         let accounts: Vec<SpotMarket> = client
