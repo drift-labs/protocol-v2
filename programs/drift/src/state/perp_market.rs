@@ -11,9 +11,10 @@ use crate::math::constants::{
     AMM_RESERVE_PRECISION, MAX_CONCENTRATION_COEFFICIENT, PRICE_PRECISION_I64,
 };
 use crate::math::constants::{
-    AMM_RESERVE_PRECISION_I128, BID_ASK_SPREAD_PRECISION, BID_ASK_SPREAD_PRECISION_U128,
+    AMM_RESERVE_PRECISION_I128, AMM_TO_QUOTE_PRECISION_RATIO, BID_ASK_SPREAD_PRECISION,
+    BID_ASK_SPREAD_PRECISION_U128, DEFAULT_REVENUE_SINCE_LAST_FUNDING_SPREAD_RETREAT,
     LP_FEE_SLICE_DENOMINATOR, LP_FEE_SLICE_NUMERATOR, MARGIN_PRECISION_U128, PERCENTAGE_PRECISION,
-    SPOT_WEIGHT_PRECISION, TWENTY_FOUR_HOUR,
+    PERCENTAGE_PRECISION_I128, PRICE_PRECISION, SPOT_WEIGHT_PRECISION, TWENTY_FOUR_HOUR,
 };
 use crate::math::helpers::get_proportion_i128;
 
@@ -28,10 +29,6 @@ use crate::state::events::OrderActionExplanation;
 use crate::state::oracle::{HistoricalOracleData, OracleSource};
 use crate::state::spot_market::{AssetTier, SpotBalance, SpotBalanceType};
 use crate::state::traits::{MarketIndexOffset, Size};
-use crate::{
-    AMM_TO_QUOTE_PRECISION_RATIO, DEFAULT_REVENUE_SINCE_LAST_FUNDING_SPREAD_RETREAT,
-    PRICE_PRECISION,
-};
 use borsh::{BorshDeserialize, BorshSerialize};
 
 use crate::state::paused_operations::PerpOperation;
@@ -319,24 +316,22 @@ impl PerpMarket {
             let percent_drawdown = self
                 .amm
                 .net_revenue_since_last_funding
-                .safe_mul(PERCENTAGE_PRECISION.cast::<i64>()?)?
-                .safe_div(
-                    self.amm
-                        .total_fee_minus_distributions
-                        .cast::<i64>()
-                        .unwrap_or(i64::MAX)
-                        .max(1),
-                )?;
+                .cast::<i128>()?
+                .safe_mul(PERCENTAGE_PRECISION_I128)?
+                .safe_div(self.amm.total_fee_minus_distributions.max(1))?;
 
             let percent_drawdown_limit_breached = match self.contract_tier {
-                ContractTier::A => percent_drawdown <= -(PERCENTAGE_PRECISION as i64) / 33,
-                ContractTier::B => percent_drawdown <= -(PERCENTAGE_PRECISION as i64) / 25,
-                ContractTier::C => percent_drawdown <= -(PERCENTAGE_PRECISION as i64) / 20,
-                _ => percent_drawdown <= -(PERCENTAGE_PRECISION as i64) / 10,
+                ContractTier::A => percent_drawdown <= -PERCENTAGE_PRECISION_I128 / 33,
+                ContractTier::B => percent_drawdown <= -PERCENTAGE_PRECISION_I128 / 25,
+                ContractTier::C => percent_drawdown <= -PERCENTAGE_PRECISION_I128 / 20,
+                _ => percent_drawdown <= -PERCENTAGE_PRECISION_I128 / 10,
             };
 
             if percent_drawdown_limit_breached {
-                msg!("AMM has too much on-the-hour drawdown to accept fills");
+                msg!("AMM has too much on-the-hour drawdown (percentage={}, quote={}) to accept fills",
+                percent_drawdown,
+                self.amm.net_revenue_since_last_funding
+            );
                 return Ok(true);
             }
         }
