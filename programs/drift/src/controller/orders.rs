@@ -970,6 +970,7 @@ pub fn fill_perp_order(
     {
         let market = &mut perp_market_map.get_ref_mut(&market_index)?;
         amm_is_available &= !market.is_operation_paused(PerpOperation::AmmFill);
+        amm_is_available &= !market.has_too_much_drawdown()?;
         validation::perp_market::validate_perp_market(market)?;
         validate!(
             !market.is_in_settlement(now),
