@@ -1,6 +1,8 @@
 //! SDK utility functions
 
+use anchor_lang::AccountDeserialize;
 use serde_json::json;
+use solana_account_decoder::UiAccountData;
 use solana_sdk::{
     account::Account, address_lookup_table_account::AddressLookupTableAccount, bs58,
     pubkey::Pubkey, signature::Keypair,
@@ -95,6 +97,21 @@ pub fn dlob_subscribe_ws_json(market: &str) -> String {
         "market": market,
     })
     .to_string()
+}
+
+#[inline(always)]
+pub fn decode<T>(data: UiAccountData) -> SdkResult<T> 
+    where T: AccountDeserialize
+{
+    let data_str = match data {
+        UiAccountData::Binary(encoded, _) => encoded,
+        _ => return Err(SdkError::UnsupportedAccountData),
+    };
+
+    let decoded_data = base64::decode(data_str)?;
+    let mut decoded_data_slice = decoded_data.as_slice();
+
+    T::try_deserialize(&mut decoded_data_slice).map_err(|err| SdkError::Anchor(Box::new(err)))
 }
 
 #[cfg(test)]

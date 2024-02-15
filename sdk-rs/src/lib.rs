@@ -53,17 +53,27 @@ use crate::constants::{
     derive_spot_market_account, market_lookup_table, state_account, MarketExt, ProgramData,
 };
 
+// utils
 pub mod async_utils;
-pub mod constants;
-pub mod dlob;
-pub mod event_subscriber;
-pub mod types;
-use types::*;
-pub mod auction_subscriber;
 pub mod memcmp;
 pub mod utils;
-pub mod websocket_program_account_subscriber;
+
+// constants & types
+pub mod constants;
+pub mod types;
+
+// internal infra
 pub mod event_emitter;
+pub mod websocket_program_account_subscriber;
+
+// subscribers
+pub mod dlob;
+pub mod slot_subscriber;
+pub mod event_subscriber;
+pub mod auction_subscriber;
+
+use types::*;
+
 
 /// Provides solana Account fetching API
 pub trait AccountProvider: 'static + Sized + Send + Sync {
