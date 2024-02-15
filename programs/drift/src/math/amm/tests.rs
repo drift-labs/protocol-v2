@@ -52,7 +52,6 @@ fn calculate_amm_available_guards() {
     market.amm.total_fee_minus_distributions = 1_000_000;
 
     assert_eq!(!market.has_too_much_drawdown().unwrap(), true);
-
 }
 
 #[test]
