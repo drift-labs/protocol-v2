@@ -7,7 +7,8 @@ use drift_sdk::{
     types::{ComputeUnitParams, Context, MarketId, NewOrder},
     DriftClient, Pubkey, RpcAccountProvider, TransactionBuilder, Wallet,
 };
-use solana_sdk::signature::Keypair;
+use solana_sdk::{signature::Keypair, signer::Signer};
+use spl_associated_token_account::get_associated_token_address;
 
 #[tokio::test]
 async fn get_oracle_prices() {
@@ -37,8 +38,7 @@ async fn place_and_cancel_orders() {
         Keypair::new(),
         None,
         None,
-    
-        Some(ComputeUnitParams::new(1_400_000, 50_000)),
+        None
     )
     .await
     .expect("connects");

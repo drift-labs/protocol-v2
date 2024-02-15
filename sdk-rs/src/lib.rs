@@ -1,6 +1,6 @@
 //! Drift SDK
 
-use std::{borrow::{Borrow, Cow}, sync::Arc, time::Duration};
+use std::{borrow::{Borrow, Cow}, str::FromStr, sync::Arc, time::Duration};
 
 use anchor_lang::{AccountDeserialize, Discriminator, InstructionData, ToAccountMetas};
 use async_utils::{retry_policy, spawn_retry_task};
@@ -816,6 +816,74 @@ impl<'a> TransactionBuilder<'a> {
         self.ixs.push(ix);
         self
     }
+
+    /// Deposit collateral into account
+    pub fn deposit(mut self, amount: u64, spot_market_index: u16, user_token_account: Pubkey, reduce_only: Option<bool>) -> Self {
+
+        let accounts = build_accounts(
+            self.program_data,
+            drift_program::accounts::Deposit {
+                state: *state_account(),
+                user: self.sub_account,
+                user_stats: Wallet::derive_stats_account(&self.authority, &constants::PROGRAM_ID),
+                authority: self.authority,
+                spot_market_vault: constants::derive_spot_market_vault(spot_market_index),
+                user_token_account,
+                token_program: *constants::TOKEN_PROGRAM_ID,
+            },
+            self.account_data.as_ref(),
+            &[],
+            &[MarketId {index: spot_market_index, kind: MarketType::Spot}]
+        );
+
+        let ix = Instruction {
+            program_id: constants::PROGRAM_ID,
+            accounts,
+            data: InstructionData::data(&drift_program::instruction::Deposit {
+                market_index: spot_market_index,
+                amount,
+                reduce_only: reduce_only.unwrap_or(false)
+            })
+        };
+
+        self.ixs.push(ix);
+
+        self
+    }
+
+    pub fn withdraw(mut self, amount: u64, spot_market_index: u16, user_token_account: Pubkey, reduce_only: Option<bool>) -> Self {
+        let accounts = build_accounts(
+            self.program_data,
+            drift_program::accounts::Withdraw {
+                state: *state_account(),
+                user: self.sub_account,
+                user_stats: Wallet::derive_stats_account(&self.authority, &constants::PROGRAM_ID),
+                authority: self.authority,
+                spot_market_vault: constants::derive_spot_market_vault(spot_market_index),
+                user_token_account,
+                drift_signer: constants::derive_drift_signer(),
+                token_program: *constants::TOKEN_PROGRAM_ID
+            },
+            &self.account_data.as_ref(),
+            &[],
+            &[MarketId {index: spot_market_index, kind: MarketType::Spot}]
+        );
+
+        let ix = Instruction {
+            program_id: constants::PROGRAM_ID,
+            accounts,
+            data: InstructionData::data(&drift_program::instruction::Withdraw {
+                market_index: spot_market_index,
+                amount,
+                reduce_only: reduce_only.unwrap_or(false)
+            })
+        };
+
+        self.ixs.push(ix);
+
+        self
+    }
+
     /// Place new orders for account
     pub fn place_orders(mut self, orders: Vec<OrderParams>) -> Self {
         let readable_accounts: Vec<MarketId> = orders
@@ -1028,10 +1096,13 @@ impl<'a> TransactionBuilder<'a> {
     /// Build the transaction message ready for signing and sending
     pub fn build(self) -> VersionedMessage {
         let mut ixs = self.ixs;
+
+        // Insert CU instructions
         let cu_limit_ix = ComputeBudgetInstruction::set_compute_unit_limit(self.compute_unit_params.limit());
         let cu_price_ix = ComputeBudgetInstruction::set_compute_unit_price(self.compute_unit_params.price());
-        ixs.insert(0, cu_price_ix);
         ixs.insert(0, cu_limit_ix);
+        ixs.insert(1, cu_price_ix);
+
         if self.legacy {
             let message = Message::new(ixs.as_ref(), Some(&self.authority));
             VersionedMessage::Legacy(message)
@@ -1224,7 +1295,10 @@ impl Wallet {
         recent_block_hash: Hash,
     ) -> SdkResult<VersionedTransaction> {
         message.set_recent_blockhash(recent_block_hash);
-        VersionedTransaction::try_new(message, &[self.signer.as_ref()]).map_err(Into::into)
+        let signer: &dyn Signer = self.signer.as_ref();
+        VersionedTransaction::try_new(message, &[signer]).map_err(Into::into)
+
+        // VersionedTransaction::try_new(message, &[self.signer.as_ref()]).map_err(Into::into)
     }
     /// Return the wallet authority address
     pub fn authority(&self) -> &Pubkey {

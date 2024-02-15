@@ -1,6 +1,7 @@
 use std::sync::OnceLock;
+use std::str::FromStr;
 
-use drift_program::state::{perp_market::PerpMarket, spot_market::SpotMarket};
+use drift_program::state::{perp_market::PerpMarket, spot_market::SpotMarket, user::MarketType};
 pub use drift_program::{
     math::constants::{
         BASE_PRECISION_U64 as BASE_PRECISION, PRICE_PRECISION,
@@ -11,9 +12,18 @@ pub use drift_program::{
 use solana_sdk::{address_lookup_table_account::AddressLookupTableAccount, pubkey::Pubkey};
 use substreams_solana_macro::b58;
 
-use crate::types::Context;
+use crate::{types::Context, MarketId};
 
 static STATE_ACCOUNT: OnceLock<Pubkey> = OnceLock::new();
+
+lazy_static::lazy_static! {
+    pub static ref TOKEN_PROGRAM_ID: Pubkey = Pubkey::from_str("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA").unwrap();
+}
+
+pub const QUOTE_SPOT_MARKET_ID: MarketId = MarketId {
+    index: 0,
+    kind: MarketType::Spot
+};
 
 /// Return the market lookup table
 pub(crate) const fn market_lookup_table(context: Context) -> Pubkey {
@@ -40,6 +50,24 @@ pub fn state_account() -> &'static Pubkey {
 pub fn derive_spot_market_account(market_index: u16) -> Pubkey {
     let (account, _seed) = Pubkey::find_program_address(
         &[&b"spot_market"[..], &market_index.to_le_bytes()],
+        &PROGRAM_ID,
+    );
+    account
+}
+
+/// calculate the PDA for a drift spot market vault given index
+pub fn derive_spot_market_vault(market_index: u16) -> Pubkey {
+    let (account, _seed) = Pubkey::find_program_address(
+        &[&b"spot_market_vault"[..], &market_index.to_le_bytes()],
+        &PROGRAM_ID,
+    );
+    account
+}
+
+/// calculate the PDA for the drift signer
+pub fn derive_drift_signer() -> Pubkey {
+    let (account, _seed) = Pubkey::find_program_address(
+        &[&b"drift_signer"[..]],
         &PROGRAM_ID,
     );
     account

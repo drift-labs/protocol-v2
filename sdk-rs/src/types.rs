@@ -438,10 +438,12 @@ impl ComputeUnitParams {
         }
     }
 
+    // Get the compute unit limit
     pub fn limit(&self) -> u32 {
         self.compute_unit_limit
     }
 
+    /// Get the compute unit price (in micro lamports)
     pub fn price(&self) -> u64 {
         self.compute_unit_price_micro_lamports
     }
