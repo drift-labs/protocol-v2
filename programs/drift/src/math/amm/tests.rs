@@ -41,7 +41,7 @@ fn calculate_amm_available_guards() {
     market.amm.net_revenue_since_last_funding = -5_000_000_000;
     market.amm.total_fee_minus_distributions = 100_000_000_000;
 
-    assert_eq!(!market.has_too_much_drawdown().unwrap(), true);
+    assert_eq!(!market.has_too_much_drawdown().unwrap(), false);
 
     market.amm.net_revenue_since_last_funding = -1_000_000_000;
     market.amm.total_fee_minus_distributions = 100_000_000_000;
@@ -52,6 +52,21 @@ fn calculate_amm_available_guards() {
     market.amm.total_fee_minus_distributions = 1_000_000;
 
     assert_eq!(!market.has_too_much_drawdown().unwrap(), true);
+
+    market.amm.net_revenue_since_last_funding = -6_000_000_000;
+    market.amm.total_fee_minus_distributions = 1_000_000;
+
+    assert_eq!(!market.has_too_much_drawdown().unwrap(), false);
+
+    market.amm.net_revenue_since_last_funding = -5_000;
+    market.amm.total_fee_minus_distributions = -9279797219;
+
+    assert_eq!(!market.has_too_much_drawdown().unwrap(), true); // too small net_revenue_since_last_funding drawdown
+
+    market.amm.net_revenue_since_last_funding = -88_000_000_000;
+    market.amm.total_fee_minus_distributions = -9279797219;
+
+    assert_eq!(!market.has_too_much_drawdown().unwrap(), false); // too small net_revenue_since_last_funding drawdown
 }
 
 #[test]

@@ -11,6 +11,7 @@ import {
 	SpotOperation,
 	StateAccount,
 	ContractTier,
+	isVariant,
 } from '../types';
 import { BN } from '@coral-xyz/anchor';
 
@@ -73,26 +74,17 @@ export function isOperationPaused(
 export function isAmmDrawdownPause(market: PerpMarketAccount): boolean {
 	let quoteDrawdownLimitBreached: boolean;
 
-	switch (market.contractTier) {
-		case ContractTier.A:
-			quoteDrawdownLimitBreached = market.amm.netRevenueSinceLastFunding.lte(
-				DEFAULT_REVENUE_SINCE_LAST_FUNDING_SPREAD_RETREAT.muln(2000)
-			);
-			break;
-		case ContractTier.B:
-			quoteDrawdownLimitBreached = market.amm.netRevenueSinceLastFunding.lte(
-				DEFAULT_REVENUE_SINCE_LAST_FUNDING_SPREAD_RETREAT.muln(2000)
-			);
-			break;
-		case ContractTier.C:
-			quoteDrawdownLimitBreached = market.amm.netRevenueSinceLastFunding.lte(
-				DEFAULT_REVENUE_SINCE_LAST_FUNDING_SPREAD_RETREAT.muln(200)
-			);
-			break;
-		default:
-			quoteDrawdownLimitBreached = market.amm.netRevenueSinceLastFunding.lte(
-				DEFAULT_REVENUE_SINCE_LAST_FUNDING_SPREAD_RETREAT.muln(200)
-			);
+	if (
+		isVariant(market.contractTier, 'a') ||
+		isVariant(market.contractTier, 'b')
+	) {
+		quoteDrawdownLimitBreached = market.amm.netRevenueSinceLastFunding.lte(
+			DEFAULT_REVENUE_SINCE_LAST_FUNDING_SPREAD_RETREAT.muln(400)
+		);
+	} else {
+		quoteDrawdownLimitBreached = market.amm.netRevenueSinceLastFunding.lte(
+			DEFAULT_REVENUE_SINCE_LAST_FUNDING_SPREAD_RETREAT.muln(200)
+		);
 	}
 
 	if (quoteDrawdownLimitBreached) {
@@ -102,26 +94,24 @@ export function isAmmDrawdownPause(market: PerpMarketAccount): boolean {
 
 		let percentDrawdownLimitBreached: boolean;
 
-		switch (market.contractTier) {
-			case ContractTier.A:
-				percentDrawdownLimitBreached = percentDrawdown.lte(
-					PERCENTAGE_PRECISION.divn(33).mul(new BN(-1))
-				);
-				break;
-			case ContractTier.B:
-				percentDrawdownLimitBreached = percentDrawdown.lte(
-					PERCENTAGE_PRECISION.divn(25).mul(new BN(-1))
-				);
-				break;
-			case ContractTier.C:
-				percentDrawdownLimitBreached = percentDrawdown.lte(
-					PERCENTAGE_PRECISION.divn(20).mul(new BN(-1))
-				);
-				break;
-			default:
-				percentDrawdownLimitBreached = percentDrawdown.lte(
-					PERCENTAGE_PRECISION.divn(10).mul(new BN(-1))
-				);
+		if (isVariant(market.contractTier, 'a')) {
+			percentDrawdownLimitBreached = percentDrawdown.lte(
+				PERCENTAGE_PRECISION.divn(50).mul(new BN(-1))
+			);
+		}
+		if (isVariant(market.contractTier, 'b')) {
+			percentDrawdownLimitBreached = percentDrawdown.lte(
+				PERCENTAGE_PRECISION.divn(33).mul(new BN(-1))
+			);
+		}
+		if (isVariant(market.contractTier, 'c')) {
+			percentDrawdownLimitBreached = percentDrawdown.lte(
+				PERCENTAGE_PRECISION.divn(25).mul(new BN(-1))
+			);
+		} else {
+			percentDrawdownLimitBreached = percentDrawdown.lte(
+				PERCENTAGE_PRECISION.divn(20).mul(new BN(-1))
+			);
 		}
 
 		if (percentDrawdownLimitBreached) {

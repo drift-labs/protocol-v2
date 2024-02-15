@@ -294,18 +294,10 @@ impl PerpMarket {
 
     pub fn has_too_much_drawdown(&self) -> DriftResult<bool> {
         let quote_drawdown_limit_breached = match self.contract_tier {
-            ContractTier::A => {
+            ContractTier::A | ContractTier::B => {
                 self.amm.net_revenue_since_last_funding
-                    <= DEFAULT_REVENUE_SINCE_LAST_FUNDING_SPREAD_RETREAT * 2000
-            }
-            ContractTier::B => {
-                self.amm.net_revenue_since_last_funding
-                    <= DEFAULT_REVENUE_SINCE_LAST_FUNDING_SPREAD_RETREAT * 2000
-            }
-            ContractTier::C => {
-                self.amm.net_revenue_since_last_funding
-                    <= DEFAULT_REVENUE_SINCE_LAST_FUNDING_SPREAD_RETREAT * 200
-            }
+                    <= DEFAULT_REVENUE_SINCE_LAST_FUNDING_SPREAD_RETREAT * 400
+            } 
             _ => {
                 self.amm.net_revenue_since_last_funding
                     <= DEFAULT_REVENUE_SINCE_LAST_FUNDING_SPREAD_RETREAT * 200
@@ -321,12 +313,12 @@ impl PerpMarket {
                 .safe_div(self.amm.total_fee_minus_distributions.max(1))?;
 
             let percent_drawdown_limit_breached = match self.contract_tier {
-                ContractTier::A => percent_drawdown <= -PERCENTAGE_PRECISION_I128 / 33,
-                ContractTier::B => percent_drawdown <= -PERCENTAGE_PRECISION_I128 / 25,
-                ContractTier::C => percent_drawdown <= -PERCENTAGE_PRECISION_I128 / 20,
-                _ => percent_drawdown <= -PERCENTAGE_PRECISION_I128 / 10,
+                ContractTier::A => percent_drawdown <= -PERCENTAGE_PRECISION_I128 / 50,
+                ContractTier::B => percent_drawdown <= -PERCENTAGE_PRECISION_I128 / 33,
+                ContractTier::C => percent_drawdown <= -PERCENTAGE_PRECISION_I128 / 25,
+                _ => percent_drawdown <= -PERCENTAGE_PRECISION_I128 / 20,
             };
-
+            
             if percent_drawdown_limit_breached {
                 msg!("AMM has too much on-the-hour drawdown (percentage={}, quote={}) to accept fills",
                 percent_drawdown,
