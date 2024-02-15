@@ -3,7 +3,7 @@ use std::sync::{Arc, Mutex};
 
 // External Crate Imports
 use drift_program::state::user::User;
-use events_emitter::EventEmitter;
+use crate::event_emitter::EventEmitter;
 use solana_account_decoder::UiAccountEncoding;
 use solana_sdk::commitment_config::CommitmentConfig;
 
@@ -12,8 +12,7 @@ use crate::{
     memcmp::{get_user_filter, get_user_with_auction_filter},
     types::{DataAndSlot, SdkResult},
     websocket_program_account_subscriber::{
-        OnUpdate, SafeEventEmitter, WebsocketProgramAccountOptions,
-        WebsocketProgramAccountSubscriber,
+        ProgramAccountUpdate, WebsocketProgramAccountOptions, WebsocketProgramAccountSubscriber
     },
 };
 
@@ -23,19 +22,15 @@ pub struct AuctionSubscriberConfig {
     pub url: String,
 }
 
+/// To subscribe to auction updates, subscribe to the event_emitter's "auction" event type.
 pub struct AuctionSubscriber {
-    pub subscriber: WebsocketProgramAccountSubscriber<User>,
-    pub event_emitter: SafeEventEmitter<User>,
+    pub subscriber: WebsocketProgramAccountSubscriber,
+    pub event_emitter: EventEmitter,
 }
 
 impl AuctionSubscriber {
     pub fn new(config: AuctionSubscriberConfig) -> Self {
-        let safe_event_emitter: SafeEventEmitter<User> = Arc::new(Mutex::new(EventEmitter::new()));
-
-        let on_update_fn: OnUpdate<User> =
-            Arc::new(move |emitter, s: String, d: DataAndSlot<User>| {
-                Self::on_update(emitter, s, d);
-            });
+        let event_emitter = EventEmitter::new();
 
         let filters = vec![get_user_filter(), get_user_with_auction_filter()];
 
@@ -46,24 +41,15 @@ impl AuctionSubscriber {
         };
 
         let subscriber = WebsocketProgramAccountSubscriber::new(
-            "AuctionSubscriber".to_string(),
+            "auction".to_string(),
             config.url.clone(),
             websocket_options,
-            Some(on_update_fn),
-            Some(Arc::clone(&safe_event_emitter)),
-            config.resub_timeout_ms,
+            event_emitter.clone(),
         );
 
         AuctionSubscriber {
             subscriber,
-            event_emitter: safe_event_emitter.clone(),
-        }
-    }
-
-    fn on_update(emitter: Option<SafeEventEmitter<User>>, pubkey: String, data: DataAndSlot<User>) {
-        if let Some(emitter) = emitter.clone() {
-            let mut emitter = emitter.lock().unwrap();
-            emitter.emit("Auction", &(pubkey, data));
+            event_emitter: event_emitter.clone(),
         }
     }
 
@@ -72,7 +58,7 @@ impl AuctionSubscriber {
             return Ok(());
         }
 
-        self.subscriber.subscribe().await?;
+        self.subscriber.subscribe::<User>().await?;
 
         Ok(())
     }
@@ -110,14 +96,13 @@ mod tests {
 
         let mut auction_subscriber = AuctionSubscriber::new(config);
 
-        let mut emitter = auction_subscriber.event_emitter.lock().unwrap();
+        let emitter = auction_subscriber.event_emitter.clone();
 
-        emitter.on("Auction", |(p, d)| {
-            dbg!(p);
-            dbg!(d);
+        emitter.subscribe("auction", move |event| {
+            if let Some(event) = event.as_any().downcast_ref::<ProgramAccountUpdate<User>>() {
+                dbg!(event);
+            }
         });
-
-        drop(emitter);
 
         let _ = auction_subscriber.subscribe().await;
 

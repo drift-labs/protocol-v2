@@ -1,5 +1,6 @@
 use std::cmp::Ordering;
 
+use anchor_lang::AccountDeserialize;
 use drift_program::error::ErrorCode;
 // re-export types in public API
 pub use drift_program::{
@@ -36,7 +37,9 @@ pub enum Context {
 }
 
 #[derive(Debug, Clone)]
-pub struct DataAndSlot<T> {
+pub struct DataAndSlot<T>
+    where T: AccountDeserialize
+{
     pub slot: u64,
     pub data: T,
 }
