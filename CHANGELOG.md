@@ -16,6 +16,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixes
 
+- sdk: fix bug in changeWallet that doesn't reset the user stats account if switching from a wallet with drift account to one without
+
 ### Breaking
 
 ## [2.62.0] - 2023-02-14
