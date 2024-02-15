@@ -10,7 +10,6 @@ import {
 	SpotMarketAccount,
 	SpotOperation,
 	StateAccount,
-	ContractTier,
 	isVariant,
 } from '../types';
 import { BN } from '@coral-xyz/anchor';
