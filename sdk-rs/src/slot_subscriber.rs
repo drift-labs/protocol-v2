@@ -5,6 +5,7 @@ use futures_util::StreamExt;
 use log::{debug, error, warn};
 use solana_client::nonblocking::pubsub_client::PubsubClient;
 
+/// To subscribe to slot updates, subscribe to the event_emitter's "slot" event type.
 pub struct SlotSubscriber {
     current_slot: Arc<Mutex<u64>>,
     event_emitter: EventEmitter,
@@ -15,7 +16,7 @@ pub struct SlotSubscriber {
 
 #[derive(Clone, Debug)]
 pub struct SlotUpdate {
-    latest_slot: u64
+    pub latest_slot: u64
 }
 
 impl SlotUpdate {

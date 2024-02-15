@@ -22,6 +22,7 @@ pub struct AuctionSubscriberConfig {
     pub url: String,
 }
 
+/// To subscribe to auction updates, subscribe to the event_emitter's "auction" event type.
 pub struct AuctionSubscriber {
     pub subscriber: WebsocketProgramAccountSubscriber,
     pub event_emitter: EventEmitter,
