@@ -1,7 +1,8 @@
-use std::sync::{Arc, Mutex};
+use std::{any::Any, sync::{Arc, Mutex}};
 
 use anchor_lang::AccountDeserialize;
-use events_emitter::EventEmitter;
+use crate::event_emitter::{Event, EventEmitter};
+// use events_emitter::EventEmitter;
 use futures_util::StreamExt;
 use log::{debug, error, warn};
 use solana_account_decoder::{UiAccountData, UiAccountEncoding};
@@ -10,14 +11,38 @@ use solana_client::{
     rpc_config::{RpcAccountInfoConfig, RpcProgramAccountsConfig},
     rpc_filter::RpcFilterType,
 };
-use solana_sdk::commitment_config::CommitmentConfig;
-
+use solana_sdk::{commitment_config::CommitmentConfig};
 use crate::types::{DataAndSlot, SdkError, SdkResult};
 
-pub type OnUpdate<T> =
-    Arc<dyn Fn(Option<SafeEventEmitter<T>>, String, DataAndSlot<T>) + Send + Sync>;
+#[derive(Clone, Debug)]
+pub struct ProgramAccountUpdate<T: Clone + Send + 'static> {
+    pub pubkey: String,
+    pub data_and_slot: DataAndSlot<T>,
+}
 
-pub type SafeEventEmitter<T> = Arc<Mutex<EventEmitter<(String, DataAndSlot<T>)>>>;
+impl<T: Clone + Send + 'static> ProgramAccountUpdate<T> {
+    pub fn new(pubkey: String, data_and_slot: DataAndSlot<T>) -> Self {
+        Self {
+            pubkey,
+            data_and_slot
+        }
+    }
+}
+
+
+impl<T: Clone + Send + 'static> Event for ProgramAccountUpdate<T> {
+    fn box_clone(&self) -> Box<dyn Event> {
+        Box::new((*self).clone())
+    }
+
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+}
+
+pub type OnUpdate<T> =
+    Arc<dyn Fn(EventEmitter, ProgramAccountUpdate<T>) + Send + Sync>;
+
 
 pub struct WebsocketProgramAccountOptions {
     pub filters: Vec<RpcFilterType>,
@@ -27,7 +52,7 @@ pub struct WebsocketProgramAccountOptions {
 
 pub struct WebsocketProgramAccountSubscriber<T>
 where
-    T: AccountDeserialize + core::fmt::Debug + 'static,
+    T: AccountDeserialize + core::fmt::Debug + Send + Clone + 'static ,
 {
     subscription_name: String,
     url: String,
@@ -35,20 +60,20 @@ where
     on_update: Option<OnUpdate<T>>,
     _resub_timeout_ms: Option<u64>,
     pub subscribed: bool,
-    event_emitter: Option<SafeEventEmitter<T>>,
+    event_emitter: EventEmitter,
     unsubscriber: Option<tokio::sync::mpsc::Sender<()>>,
 }
 
 impl<T> WebsocketProgramAccountSubscriber<T>
 where
-    T: AccountDeserialize + core::fmt::Debug + 'static,
+    T: AccountDeserialize + core::fmt::Debug + Send + Clone + 'static ,
 {
     pub fn new(
         subscription_name: String,
         url: String,
         options: WebsocketProgramAccountOptions,
         on_update: Option<OnUpdate<T>>,
-        event_emitter: Option<SafeEventEmitter<T>>,
+        event_emitter: EventEmitter,
         resub_timeout_ms: Option<u64>,
     ) -> Self {
         WebsocketProgramAccountSubscriber {
@@ -131,7 +156,7 @@ where
                                         Ok(data) => {
                                             let data_and_slot = DataAndSlot { slot, data };
                                             if let Some(on_update_callback) = on_update_ref {
-                                                on_update_callback(event_emitter.clone(), pubkey, data_and_slot);
+                                                on_update_callback(event_emitter.clone(), ProgramAccountUpdate::new(pubkey, data_and_slot));
                                             }
                                         },
                                         Err(e) => {
@@ -202,16 +227,14 @@ mod tests {
         let subscription_name = "Test".to_string();
 
         fn on_update(
-            _emitter: Option<SafeEventEmitter<User>>,
-            pubkey: String,
-            data: DataAndSlot<User>,
+            emitter: EventEmitter,
+            update: ProgramAccountUpdate<User>
         ) {
-            dbg!(pubkey);
-            dbg!(data);
+            emitter.emit("ProgramAccountUpdate", Box::new(update));
         }
 
-        let on_update_fn: OnUpdate<User> = Arc::new(move |emitter, s, d| {
-            on_update(emitter, s, d);
+        let on_update_fn: OnUpdate<User> = Arc::new(move |emitter, update| {
+            on_update(emitter, update);
         });
 
         let mut ws_subscriber = WebsocketProgramAccountSubscriber::new(
@@ -219,12 +242,19 @@ mod tests {
             url,
             options,
             Some(on_update_fn),
-            None,
+            EventEmitter::new(),
             Some(resub_timeout_ms),
         );
 
         let _ = ws_subscriber.subscribe().await;
         dbg!("sub'd");
+
+        ws_subscriber.event_emitter.clone().subscribe("ProgramAccountUpdate", move |event| {
+            if let Some(event) = event.as_any().downcast_ref::<ProgramAccountUpdate<User>>() {
+                dbg!(event);
+            }
+        });
+
         tokio::time::sleep(tokio::time::Duration::from_secs(10)).await;
         let _ = ws_subscriber.unsubscribe().await;
         dbg!("unsub'd");

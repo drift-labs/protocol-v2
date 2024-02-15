@@ -63,6 +63,7 @@ pub mod auction_subscriber;
 pub mod memcmp;
 pub mod utils;
 pub mod websocket_program_account_subscriber;
+pub mod event_emitter;
 
 /// Provides solana Account fetching API
 pub trait AccountProvider: 'static + Sized + Send + Sync {
@@ -1130,7 +1131,7 @@ impl<'a> TransactionBuilder<'a> {
 ///
 /// # Panics
 ///  if the user has positions in an unknown market (i.e unsupported by the SDK)
-fn build_accounts(
+pub fn build_accounts(
     program_data: &ProgramData,
     base_accounts: impl ToAccountMetas,
     user: &User,
