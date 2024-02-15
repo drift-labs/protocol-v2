@@ -42,6 +42,11 @@ export class WebSocketProgramAccountSubscriber<T>
 		this.program = program;
 		this.decodeBuffer = decodeBufferFn;
 		this.resubTimeoutMs = resubTimeoutMs;
+		if (this.resubTimeoutMs < 1000) {
+			console.log(
+				'resubTimeoutMs should be at least 1000ms to avoid spamming resub'
+			);
+		}
 		this.options = options;
 		this.receivingData = false;
 	}
@@ -73,6 +78,7 @@ export class WebSocketProgramAccountSubscriber<T>
 		);
 
 		if (this.resubTimeoutMs) {
+			this.receivingData = true;
 			this.setTimeout();
 		}
 	}

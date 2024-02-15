@@ -45,6 +45,7 @@ export enum UserStatus {
 	BEING_LIQUIDATED = 1,
 	BANKRUPT = 2,
 	REDUCE_ONLY = 4,
+	ADVANCED_LP = 8,
 }
 
 export class ContractType {
@@ -174,6 +175,9 @@ export class OrderActionExplanation {
 	static readonly REDUCE_ONLY_ORDER_INCREASED_POSITION = {
 		reduceOnlyOrderIncreasedPosition: {},
 	};
+	static readonly DERISK_LP = {
+		deriskLp: {},
+	};
 }
 
 export class OrderTriggerCondition {
@@ -197,6 +201,7 @@ export class DepositExplanation {
 	static readonly NONE = { none: {} };
 	static readonly TRANSFER = { transfer: {} };
 	static readonly BORROW = { borrow: {} };
+	static readonly REPAY_BORROW = { repayBorrow: {} };
 }
 
 export class SettlePnlExplanation {
@@ -357,6 +362,7 @@ export class LPAction {
 	static readonly ADD_LIQUIDITY = { addLiquidity: {} };
 	static readonly REMOVE_LIQUIDITY = { removeLiquidity: {} };
 	static readonly SETTLE_LIQUIDITY = { settleLiquidity: {} };
+	static readonly REMOVE_LIQUIDITY_DERISK = { removeLiquidityDerisk: {} };
 }
 
 export type FundingRateRecord = {
@@ -604,6 +610,7 @@ export type PerpMarketAccount = {
 	};
 	quoteSpotMarketIndex: number;
 	feeAdjustment: number;
+	pausedOperations: number;
 };
 
 export type HistoricalOracleData = {
@@ -695,6 +702,8 @@ export type SpotMarketAccount = {
 	flashLoanInitialTokenAmount: BN;
 
 	ordersEnabled: boolean;
+
+	pausedOperations: number;
 };
 
 export type PoolBalance = {

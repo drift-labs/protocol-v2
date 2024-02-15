@@ -10488,8 +10488,14 @@ pub mod update_trigger_order_params {
         let slot = 10;
         let min_auction_duration = 10;
 
-        update_trigger_order_params(&mut order, &oracle_price_data, slot, min_auction_duration)
-            .unwrap();
+        update_trigger_order_params(
+            &mut order,
+            &oracle_price_data,
+            slot,
+            min_auction_duration,
+            None,
+        )
+        .unwrap();
 
         assert_eq!(order.slot, slot);
         assert_eq!(order.auction_duration, min_auction_duration);
@@ -10507,8 +10513,14 @@ pub mod update_trigger_order_params {
             ..Order::default()
         };
 
-        update_trigger_order_params(&mut order, &oracle_price_data, slot, min_auction_duration)
-            .unwrap();
+        update_trigger_order_params(
+            &mut order,
+            &oracle_price_data,
+            slot,
+            min_auction_duration,
+            None,
+        )
+        .unwrap();
 
         assert_eq!(order.slot, slot);
         assert_eq!(order.auction_duration, min_auction_duration);
@@ -10526,8 +10538,13 @@ pub mod update_trigger_order_params {
             ..Order::default()
         };
 
-        let err =
-            update_trigger_order_params(&mut order, &oracle_price_data, slot, min_auction_duration);
+        let err = update_trigger_order_params(
+            &mut order,
+            &oracle_price_data,
+            slot,
+            min_auction_duration,
+            None,
+        );
         assert!(err.is_err());
 
         let mut order = Order {
@@ -10537,8 +10554,13 @@ pub mod update_trigger_order_params {
             ..Order::default()
         };
 
-        let err =
-            update_trigger_order_params(&mut order, &oracle_price_data, slot, min_auction_duration);
+        let err = update_trigger_order_params(
+            &mut order,
+            &oracle_price_data,
+            slot,
+            min_auction_duration,
+            None,
+        );
         assert!(err.is_err());
     }
 }

@@ -28,6 +28,11 @@ export class SlotSubscriber {
 	) {
 		this.eventEmitter = new EventEmitter();
 		this.resubTimeoutMs = config?.resubTimeoutMs;
+		if (this.resubTimeoutMs < 1000) {
+			console.log(
+				'resubTimeoutMs should be at least 1000ms to avoid spamming resub'
+			);
+		}
 	}
 
 	public async subscribe(): Promise<void> {
@@ -50,6 +55,7 @@ export class SlotSubscriber {
 		});
 
 		if (this.resubTimeoutMs) {
+			this.receivingData = true;
 			this.setTimeout();
 		}
 	}

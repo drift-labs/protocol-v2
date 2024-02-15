@@ -1,5 +1,5 @@
 {
-  "version": "2.59.0",
+  "version": "2.62.0",
   "name": "drift",
   "instructions": [
     {
@@ -1143,6 +1143,31 @@
         },
         {
           "name": "reduceOnly",
+          "type": "bool"
+        }
+      ]
+    },
+    {
+      "name": "updateUserAdvancedLp",
+      "accounts": [
+        {
+          "name": "user",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": true
+        }
+      ],
+      "args": [
+        {
+          "name": "subAccountId",
+          "type": "u16"
+        },
+        {
+          "name": "advancedLp",
           "type": "bool"
         }
       ]
@@ -8364,6 +8389,9 @@
           },
           {
             "name": "Borrow"
+          },
+          {
+            "name": "RepayBorrow"
           }
         ]
       }
@@ -8463,6 +8491,9 @@
           },
           {
             "name": "OrderFilledWithLPJit"
+          },
+          {
+            "name": "DeriskLp"
           }
         ]
       }
@@ -8480,6 +8511,9 @@
           },
           {
             "name": "SettleLiquidity"
+          },
+          {
+            "name": "RemoveLiquidityDerisk"
           }
         ]
       }
@@ -8621,10 +8655,6 @@
           {
             "name": "Liquidation",
             "fields": [
-              {
-                "name": "margin_buffer",
-                "type": "u128"
-              },
               {
                 "name": "market_to_track_margin_requirement",
                 "type": {
@@ -8920,6 +8950,9 @@
           },
           {
             "name": "ReduceOnly"
+          },
+          {
+            "name": "AdvancedLp"
           }
         ]
       }
