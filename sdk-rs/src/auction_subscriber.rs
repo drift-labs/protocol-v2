@@ -40,7 +40,7 @@ impl AuctionSubscriber {
         };
 
         let subscriber = WebsocketProgramAccountSubscriber::new(
-            "Auction".to_string(),
+            "auction".to_string(),
             config.url.clone(),
             websocket_options,
             event_emitter.clone(),
@@ -81,7 +81,7 @@ mod tests {
     const MAINNET_ENDPOINT: &str =
         "https://mainnet.helius-rpc.com/?api-key=3a1ca16d-e181-4755-9fe7-eac27579b48c";
 
-    // #[cfg(feature = "rpc_tests")]
+    #[cfg(feature = "rpc_tests")]
     #[tokio::test]
     async fn test_auction_subscriber() {
         let cluster = Cluster::from_str(MAINNET_ENDPOINT).unwrap();
@@ -97,7 +97,7 @@ mod tests {
 
         let emitter = auction_subscriber.event_emitter.clone();
 
-        emitter.subscribe("Auction", move |event| {
+        emitter.subscribe("auction", move |event| {
             if let Some(event) = event.as_any().downcast_ref::<ProgramAccountUpdate<User>>() {
                 dbg!(event);
             }
