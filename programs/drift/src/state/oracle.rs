@@ -206,11 +206,16 @@ pub fn get_pyth_price(
         .cast::<i64>()?
         .safe_sub(price_data.valid_slot.cast()?)?;
 
+    #[cfg(feature = "mainnet-beta")]
+    let has_sufficient_number_of_data_points = publisher_count >= min_publishers;
+    #[cfg(not(feature = "mainnet-beta"))]
+    let has_sufficient_number_of_data_points = true;
+
     Ok(OraclePriceData {
         price: oracle_price_scaled,
         confidence: oracle_conf_scaled,
         delay: oracle_delay,
-        has_sufficient_number_of_data_points: publisher_count >= min_publishers,
+        has_sufficient_number_of_data_points,
     })
 }
 
