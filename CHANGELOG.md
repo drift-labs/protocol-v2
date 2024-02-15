@@ -9,6 +9,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Features
 
+- program: add more max spread baselines ([#858](https://github.com/drift-labs/protocol-v2/pull/858))
+
+### Fixes
+
+### Breaking
+
+## [2.62.0] - 2023-02-14
+
+### Features
+
+- program: more continuous calculation for calculate_jit_amount ([#882](https://github.com/drift-labs/protocol-v2/pull/882))
+
 ### Fixes
 
 ### Breaking
