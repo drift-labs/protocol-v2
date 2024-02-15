@@ -95,21 +95,19 @@ export function isAmmDrawdownPause(market: PerpMarketAccount): boolean {
 
 		if (isVariant(market.contractTier, 'a')) {
 			percentDrawdownLimitBreached = percentDrawdown.lte(
-				PERCENTAGE_PRECISION.divn(50).mul(new BN(-1))
+				PERCENTAGE_PRECISION.divn(50).neg()
 			);
-		}
-		if (isVariant(market.contractTier, 'b')) {
+		} else if (isVariant(market.contractTier, 'b')) {
 			percentDrawdownLimitBreached = percentDrawdown.lte(
-				PERCENTAGE_PRECISION.divn(33).mul(new BN(-1))
+				PERCENTAGE_PRECISION.divn(33).neg()
 			);
-		}
-		if (isVariant(market.contractTier, 'c')) {
+		} else if (isVariant(market.contractTier, 'c')) {
 			percentDrawdownLimitBreached = percentDrawdown.lte(
-				PERCENTAGE_PRECISION.divn(25).mul(new BN(-1))
+				PERCENTAGE_PRECISION.divn(25).neg()
 			);
 		} else {
 			percentDrawdownLimitBreached = percentDrawdown.lte(
-				PERCENTAGE_PRECISION.divn(20).mul(new BN(-1))
+				PERCENTAGE_PRECISION.divn(20).neg()
 			);
 		}
 
