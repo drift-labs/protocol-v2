@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Features
 
+- program: amm drawdown check ([#865](https://github.com/drift-labs/protocol-v2/pull/865))
 - program: relax oracle guardrail validity check for init margin calc for positive pnl ([#876](https://github.com/drift-labs/protocol-v2/pull/876))
 - program: add more max spread baselines ([#858](https://github.com/drift-labs/protocol-v2/pull/858))
 
