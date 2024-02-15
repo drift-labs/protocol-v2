@@ -831,6 +831,104 @@ fn test_lp_has_correct_entry_be_price() {
     assert_eq!(position.quote_asset_amount, 22749955);
 }
 
+
+#[test]
+fn test_lp_has_correct_entry_be_price_sim_no_remainders() {
+    let mut position = PerpPosition {
+        ..PerpPosition::default()
+    };
+
+    let amm = AMM {
+        order_step_size: BASE_PRECISION_U64 / 10,
+        sqrt_k: BASE_PRECISION_U64 as u128,
+        ..AMM::default_test()
+    };
+    let mut market = PerpMarket {
+        amm,
+        ..PerpMarket::default_test()
+    };
+
+    assert_eq!(market.amm.user_lp_shares, 0);
+    assert_eq!(market.amm.sqrt_k, 1000000000);
+
+    mint_lp_shares(&mut position, &mut market, BASE_PRECISION_U64).unwrap();
+    assert_eq!(market.amm.user_lp_shares, 1000000000);
+    assert_eq!(market.amm.sqrt_k, 2000000000);
+    assert_eq!(position.get_entry_price().unwrap(), 0);
+    assert_eq!(position.get_cost_basis().unwrap(), 0);
+    assert_eq!(position.get_be_price().unwrap(), 0);
+    assert_eq!(position.remainder_base_asset_amount, 0);
+    assert_eq!(position.base_asset_amount, 0);
+    let mut num_position_flips = 0;
+    let mut flip_indexes: Vec<i128> = Vec::new();
+
+    for i in 0..3000 {
+        if i % 3 == 0 {
+            let px = 100_000_000 - i;
+            let multi = i % 19 + 1;
+            let divisor = 10;
+            let base_delta = -BASE_PRECISION_I128 * multi / divisor;
+            market.amm.base_asset_amount_per_lp += base_delta;
+            market.amm.quote_asset_amount_per_lp += px * multi / divisor;
+            market.amm.base_asset_amount_with_unsettled_lp += base_delta;
+            market.amm.base_asset_amount_short += base_delta;
+        } else {
+            // buy
+            let px = 99_199_821 + i;
+            let multi = i % 5 + 1;
+            let divisor = 5;
+            let base_delta = BASE_PRECISION_I128 * multi / divisor;
+            market.amm.base_asset_amount_per_lp += base_delta;
+            market.amm.quote_asset_amount_per_lp -= px * multi / divisor;
+            market.amm.base_asset_amount_with_unsettled_lp += base_delta;
+            market.amm.base_asset_amount_long += base_delta;
+        }
+
+        let position_base_before = position.base_asset_amount;
+
+        settle_lp_position(&mut position, &mut market).unwrap();
+
+        if position_base_before.signum() != position.base_asset_amount.signum() {
+            num_position_flips += 1;
+            flip_indexes.push(i);
+        }
+
+        let entry = position.get_entry_price().unwrap();
+        let be = position.get_be_price().unwrap();
+        let cb = position.get_cost_basis().unwrap();
+
+        let iii = position
+            .base_asset_amount
+            .safe_add(position.remainder_base_asset_amount as i64)
+            .unwrap();
+        msg!(
+            "{}: entry: {}, be: {} cb:{} ({}/{})",
+            i,
+            entry,
+            be,
+            cb,
+            iii,
+            position.base_asset_amount,
+        );
+        assert_eq!(position.remainder_base_asset_amount, 0);
+
+        if position.get_current_base_with_remainder_abs().unwrap() != 0 {
+            assert!(entry <= 100 * PRICE_PRECISION as i128);
+            assert!(entry >= 99 * PRICE_PRECISION as i128);
+        }
+    }
+    let entry = position.get_entry_price().unwrap();
+    let be = position.get_be_price().unwrap();
+    let cb = position.get_cost_basis().unwrap();
+
+    assert_eq!(position.base_asset_amount, 200500000000);
+    assert_eq!(entry, 99202392);
+    assert_eq!(be, 99202392);
+    assert_eq!(cb, 95227357);
+    assert_eq!(num_position_flips, 4);
+    assert_eq!(flip_indexes, [0, 1, 18, 19]);
+}
+
 #[test]
 fn test_lp_has_correct_entry_be_price_sim() {
     let mut position = PerpPosition {
@@ -858,22 +956,24 @@ fn test_lp_has_correct_entry_be_price_sim() {
     assert_eq!(position.get_be_price().unwrap(), 0);
     assert_eq!(position.remainder_base_asset_amount, 0);
     assert_eq!(position.base_asset_amount, 0);
+    let mut num_position_flips = 0;
+    let mut flip_indexes: Vec<i128> = Vec::new();
 
     for i in 0..3000 {
         if i % 3 == 0 {
             let px = 100_000_000 - i;
-            let multi =  i % 19 + 1;
-            let divisor = 10;
-            let amt2 = -BASE_PRECISION_I128 * multi / divisor;
-            market.amm.base_asset_amount_per_lp += amt2;
+            let multi = i % 19 + 1;
+            let divisor = 11;
+            let base_delta = -BASE_PRECISION_I128 * multi / divisor;
+            market.amm.base_asset_amount_per_lp += base_delta;
             market.amm.quote_asset_amount_per_lp += px * multi / divisor;
-            market.amm.base_asset_amount_with_unsettled_lp += amt2;
-            market.amm.base_asset_amount_short += amt2;
+            market.amm.base_asset_amount_with_unsettled_lp += base_delta;
+            market.amm.base_asset_amount_short += base_delta;
         } else {
             // buy
             let px = 99_199_821 + i;
-            let multi =  i % 5 + 1;
-            let divisor = 5;
+            let multi = i % 5 + 1;
+            let divisor = 6;
             let base_delta = BASE_PRECISION_I128 * multi / divisor;
             market.amm.base_asset_amount_per_lp += base_delta;
             market.amm.quote_asset_amount_per_lp -= px * multi / divisor;
@@ -881,7 +981,14 @@ fn test_lp_has_correct_entry_be_price_sim() {
             market.amm.base_asset_amount_long += base_delta;
         }
 
+        let position_base_before = position.base_asset_amount;
+
         settle_lp_position(&mut position, &mut market).unwrap();
+
+        if position_base_before.signum() != position.base_asset_amount.signum() {
+            num_position_flips += 1;
+            flip_indexes.push(i);
+        }
 
         let entry = position.get_entry_price().unwrap();
         let be = position.get_be_price().unwrap();
@@ -899,17 +1006,10 @@ fn test_lp_has_correct_entry_be_price_sim() {
             cb,
             iii,
             position.base_asset_amount,
-            
         );
+        // assert_ne!(position.remainder_base_asset_amount, 0);
 
-        crate::dlog!(market.amm.base_asset_amount_with_unsettled_lp);
-        crate::dlog!(position.base_asset_amount);
-        crate::dlog!(position.remainder_base_asset_amount);
-        crate::dlog!(position.quote_asset_amount);
-        crate::dlog!(position.quote_entry_amount);
-        crate::dlog!(position.quote_break_even_amount);
-
-        if position.base_asset_amount != 0 {
+        if position.get_current_base_with_remainder_abs().unwrap() != 0 {
             assert!(entry <= 100 * PRICE_PRECISION as i128);
             assert!(entry >= 99 * PRICE_PRECISION as i128);
         }
@@ -918,8 +1018,113 @@ fn test_lp_has_correct_entry_be_price_sim() {
     let be = position.get_be_price().unwrap();
     let cb = position.get_cost_basis().unwrap();
 
-    assert_eq!(position.base_asset_amount, 200500000000);
-    assert_eq!(entry, 99202392);
-    assert_eq!(be, 99202392);
-    assert_eq!(cb, 95227357);
+    assert_eq!(entry, 99202570);
+    assert_eq!(be, 99202570);
+    assert_eq!(cb, 91336780);
+    assert_eq!(num_position_flips, 5);
+    assert_eq!(flip_indexes, [1, 18, 19, 36, 37]);
+    assert_eq!(position.base_asset_amount, 91300000000);
+
+}
+
+#[test]
+fn test_lp_has_correct_entry_be_price_sim_more_flips() {
+    let mut position = PerpPosition {
+        ..PerpPosition::default()
+    };
+
+    let amm = AMM {
+        order_step_size: BASE_PRECISION_U64 / 10,
+        sqrt_k: BASE_PRECISION_U64 as u128,
+        ..AMM::default_test()
+    };
+    let mut market = PerpMarket {
+        amm,
+        ..PerpMarket::default_test()
+    };
+
+    assert_eq!(market.amm.user_lp_shares, 0);
+    assert_eq!(market.amm.sqrt_k, 1000000000);
+
+    mint_lp_shares(&mut position, &mut market, BASE_PRECISION_U64).unwrap();
+    assert_eq!(market.amm.user_lp_shares, 1000000000);
+    assert_eq!(market.amm.sqrt_k, 2000000000);
+    assert_eq!(position.get_entry_price().unwrap(), 0);
+    assert_eq!(position.get_cost_basis().unwrap(), 0);
+    assert_eq!(position.get_be_price().unwrap(), 0);
+    assert_eq!(position.remainder_base_asset_amount, 0);
+    assert_eq!(position.base_asset_amount, 0);
+    let mut num_position_flips = 0;
+    let mut flip_indexes: Vec<i128> = Vec::new();
+
+    for i in 0..3000 {
+        if i % 2 == 0 {
+            let px = 99_800_000 - i * i % 4;
+            let multi = i % 7 + 1 + i;
+            let divisor = 10;
+            let amt2 = -BASE_PRECISION_I128 * multi / divisor;
+            market.amm.base_asset_amount_per_lp += amt2;
+            market.amm.quote_asset_amount_per_lp += px * multi / divisor;
+            market.amm.base_asset_amount_with_unsettled_lp += amt2;
+            market.amm.base_asset_amount_short += amt2;
+        } else {
+            // buy
+            let px = 99_199_821 + i * i % 4;
+            let multi = i % 7 + 1 + i;
+            let divisor = 10;
+            let base_delta = BASE_PRECISION_I128 * multi / divisor;
+            market.amm.base_asset_amount_per_lp += base_delta;
+            market.amm.quote_asset_amount_per_lp -= px * multi / divisor;
+            market.amm.base_asset_amount_with_unsettled_lp += base_delta;
+            market.amm.base_asset_amount_long += base_delta;
+        }
+
+        let position_base_before = position.base_asset_amount;
+
+        settle_lp_position(&mut position, &mut market).unwrap();
+
+        if position_base_before.signum() != position.base_asset_amount.signum() {
+            num_position_flips += 1;
+            flip_indexes.push(i);
+        }
+        assert_eq!(position.remainder_base_asset_amount, 0);
+
+        let entry = position.get_entry_price().unwrap();
+        let be = position.get_be_price().unwrap();
+        let cb = position.get_cost_basis().unwrap();
+
+        let iii = position
+            .base_asset_amount
+            .safe_add(position.remainder_base_asset_amount as i64)
+            .unwrap();
+        msg!(
+            "{}: entry: {}, be: {} cb:{} ({}/{})",
+            i,
+            entry,
+            be,
+            cb,
+            iii,
+            position.base_asset_amount,
+        );
+
+        if position.get_current_base_with_remainder_abs().unwrap() != 0 {
+            assert!(entry <= 99_800_000 as i128);
+            assert!(entry >= 99_199_820 as i128);
+        }
+    }
+
+    assert_eq!(num_position_flips, 3000);
+    // assert_eq!(flip_indexes, [0, 1, 18, 19]);
+
+    let entry = position.get_entry_price().unwrap();
+    let be = position.get_be_price().unwrap();
+    let cb = position.get_cost_basis().unwrap();
+
+    assert_eq!(position.base_asset_amount, 150200000000);
+    assert_eq!(position.remainder_base_asset_amount, 0);
+
+    assert_eq!(entry, 99199822);
+    assert_eq!(be, 99199822);
+    assert_eq!(cb, -801664962);
+
 }

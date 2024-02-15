@@ -10,9 +10,7 @@ use crate::get_struct_values;
 use crate::math::casting::Cast;
 use crate::math::cp_curve::{get_update_k_result, update_k};
 use crate::math::lp::calculate_settle_lp_metrics;
-use crate::math::position::{
-    calculate_base_asset_value_with_oracle_price, get_new_position_amounts,
-};
+use crate::math::position::calculate_base_asset_value_with_oracle_price;
 use crate::math::safe_math::SafeMath;
 
 use crate::state::events::{LPAction, LPRecord};
@@ -188,59 +186,41 @@ pub fn settle_lp_position(
     let mut lp_metrics: crate::math::lp::LPMetrics =
         calculate_settle_lp_metrics(&market.amm, position)?;
 
-    crate::dlog!(lp_metrics.base_asset_amount);
-    crate::dlog!(lp_metrics.remainder_base_asset_amount);
-    crate::dlog!(lp_metrics.quote_asset_amount);
-
     let position_delta = PositionDelta {
         base_asset_amount: lp_metrics.base_asset_amount.cast()?,
         quote_asset_amount: lp_metrics.quote_asset_amount.cast()?,
         remainder_base_asset_amount: Some(lp_metrics.remainder_base_asset_amount.cast::<i64>()?),
     };
 
-    // let (new_base_asset_amount, new_quote_asset_amount, new_remainder_base_asset_amount) =
-    //     get_new_position_amounts(position, &position_delta, market)?;
-    // crate::dlog!(
-    //     new_base_asset_amount,
-    //     lp_metrics.base_asset_amount,
-    //     market.amm.base_asset_amount_with_unsettled_lp
-    // );
     let new_remainder_base_asset_amount = position
         .remainder_base_asset_amount
         .cast::<i64>()?
         .safe_add(lp_metrics.remainder_base_asset_amount.cast()?)?;
-    crate::dlog!(market.amm.base_asset_amount_with_unsettled_lp);
+    crate::dlog!(market.amm.base_asset_amount_long, market.amm.base_asset_amount_short, market.amm.base_asset_amount_with_unsettled_lp);
+
 
     let pnl = update_position_and_market(position, market, &position_delta)?;
 
-
     if new_remainder_base_asset_amount.unsigned_abs() >= market.amm.order_step_size {
-        let (standardized_remainder_base_asset_amount, remainder_base_asset_amount) =
+        let (standardized_remainder_base_asset_amount, _remainder_base_asset_amount) =
             crate::math::orders::standardize_base_asset_amount_with_remainder_i128(
                 new_remainder_base_asset_amount.cast()?,
                 market.amm.order_step_size.cast()?,
             )?;
+        crate::dlog!(lp_metrics.base_asset_amount, standardized_remainder_base_asset_amount, _remainder_base_asset_amount);
 
         lp_metrics.base_asset_amount = lp_metrics
             .base_asset_amount
             .safe_add(standardized_remainder_base_asset_amount)?;
-        crate::dlog!(lp_metrics.base_asset_amount);
-        crate::dlog!(standardized_remainder_base_asset_amount, remainder_base_asset_amount);
-        // position.remainder_base_asset_amount = remainder_base_asset_amount.cast()?;
-    } 
-    // else {
-    //     position.remainder_base_asset_amount = new_remainder_base_asset_amount.cast()?;
-    // }
+        crate::dlog!(lp_metrics.base_asset_amount, standardized_remainder_base_asset_amount, _remainder_base_asset_amount);
 
-    // todo: name for this is confusing, but adding is correct as is
-    // definition: net position of users in the market that has the LP as a counterparty (which have NOT settled)
-    crate::dlog!(market.amm.base_asset_amount_with_unsettled_lp);
+    }
+
 
     market.amm.base_asset_amount_with_unsettled_lp = market
         .amm
         .base_asset_amount_with_unsettled_lp
         .safe_add(lp_metrics.base_asset_amount.cast()?)?;
-    crate::dlog!(market.amm.base_asset_amount_with_unsettled_lp);
 
     position.last_base_asset_amount_per_lp = market.amm.base_asset_amount_per_lp.cast()?;
     position.last_quote_asset_amount_per_lp = market.amm.quote_asset_amount_per_lp.cast()?;
@@ -307,9 +287,6 @@ pub fn burn_lp_shares(
         .base_asset_amount_with_unsettled_lp
         .safe_add(position.remainder_base_asset_amount.cast()?)?;
     if shares_to_burn as u128 == market.amm.user_lp_shares && unsettled_remainder != 0 {
-        crate::dlog!(unsettled_remainder);
-        crate::dlog!(position.remainder_base_asset_amount);
-        crate::dlog!(market.amm.base_asset_amount_with_unsettled_lp);
         crate::validate!(
             unsettled_remainder.unsigned_abs() <= market.amm.order_step_size as u128,
             ErrorCode::UnableToBurnLPTokens,

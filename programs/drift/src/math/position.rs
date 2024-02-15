@@ -215,8 +215,9 @@ pub fn get_new_position_amounts(
 
             new_base_asset_amount =
                 new_base_asset_amount.safe_add(standardized_remainder_base_asset_amount.cast()?)?;
-            
-            new_settled_base_asset_amount = new_settled_base_asset_amount.safe_add(standardized_remainder_base_asset_amount.cast()?)?;
+
+            new_settled_base_asset_amount = new_settled_base_asset_amount
+                .safe_add(standardized_remainder_base_asset_amount.cast()?)?;
 
             new_remainder_base_asset_amount = remainder_base_asset_amount.cast()?;
         } else {

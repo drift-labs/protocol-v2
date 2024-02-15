@@ -104,19 +104,20 @@ pub fn update_position_and_market(
     market: &mut PerpMarket,
     delta: &PositionDelta,
 ) -> DriftResult<i64> {
-    if delta.base_asset_amount == 0
-        && delta.remainder_base_asset_amount.unwrap_or(0) == 0
-    {
+    if delta.base_asset_amount == 0 && delta.remainder_base_asset_amount.unwrap_or(0) == 0 {
         update_quote_asset_amount(position, market, delta.quote_asset_amount)?;
-        msg!("ret early");
         return Ok(delta.quote_asset_amount);
     }
 
     let update_type = get_position_update_type(position, &delta)?;
 
     // Update User
-    let (new_base_asset_amount, new_settled_base_asset_amount, new_quote_asset_amount, new_remainder_base_asset_amount) =
-        get_new_position_amounts(position, &delta, market)?;
+    let (
+        new_base_asset_amount,
+        _new_settled_base_asset_amount,
+        new_quote_asset_amount,
+        new_remainder_base_asset_amount,
+    ) = get_new_position_amounts(position, &delta, market)?;
 
     let (new_quote_entry_amount, new_quote_break_even_amount, pnl) = match update_type {
         PositionUpdateType::Open | PositionUpdateType::Increase => {
