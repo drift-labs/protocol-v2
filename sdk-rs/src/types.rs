@@ -37,13 +37,6 @@ pub enum Context {
 }
 
 #[derive(Debug, Clone)]
-enum Data {
-    User(drift_program::state::user::User),
-    PerpMarket(drift_program::state::perp_market::PerpMarket),
-    SpotMarket(drift_program::state::spot_market::SpotMarket),
-}
-
-#[derive(Debug, Clone)]
 pub struct DataAndSlot<T>
     where T: AccountDeserialize
 {
