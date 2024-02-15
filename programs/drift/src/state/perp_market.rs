@@ -297,7 +297,7 @@ impl PerpMarket {
             ContractTier::A | ContractTier::B => {
                 self.amm.net_revenue_since_last_funding
                     <= DEFAULT_REVENUE_SINCE_LAST_FUNDING_SPREAD_RETREAT * 400
-            } 
+            }
             _ => {
                 self.amm.net_revenue_since_last_funding
                     <= DEFAULT_REVENUE_SINCE_LAST_FUNDING_SPREAD_RETREAT * 200
@@ -318,7 +318,7 @@ impl PerpMarket {
                 ContractTier::C => percent_drawdown <= -PERCENTAGE_PRECISION_I128 / 25,
                 _ => percent_drawdown <= -PERCENTAGE_PRECISION_I128 / 20,
             };
-            
+
             if percent_drawdown_limit_breached {
                 msg!("AMM has too much on-the-hour drawdown (percentage={}, quote={}) to accept fills",
                 percent_drawdown,
