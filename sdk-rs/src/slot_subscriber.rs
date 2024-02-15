@@ -47,6 +47,11 @@ impl SlotSubscriber {
         }
     }
 
+    pub fn current_slot(&self) -> u64 {
+        let slot_guard = self.current_slot.lock().unwrap();
+        *slot_guard
+    }
+
     pub async fn subscribe(&mut self) -> SdkResult<()>{
         if self.subscribed {
             return Ok(())
