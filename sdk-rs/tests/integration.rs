@@ -4,7 +4,7 @@ use drift_program::math::constants::{
     BASE_PRECISION_I64, LAMPORTS_PER_SOL_I64, PRICE_PRECISION_U64,
 };
 use drift_sdk::{
-    types::{ComputeUnitParams, Context, MarketId, NewOrder},
+    types::{ClientOpts, Context, MarketId, NewOrder},
     DriftClient, Pubkey, RpcAccountProvider, TransactionBuilder, Wallet,
 };
 use solana_sdk::{signature::Keypair, signer::Signer};
@@ -12,13 +12,11 @@ use spl_associated_token_account::get_associated_token_address;
 
 #[tokio::test]
 async fn get_oracle_prices() {
-    let client = DriftClient::new(
+    let client = DriftClient::new_with_opts(
         Context::DevNet,
         RpcAccountProvider::new("https://api.devnet.solana.com"),
         Keypair::new(),
-        None,
-        None,
-        None
+        ClientOpts::default(),
     )
     .await
     .expect("connects");
@@ -32,13 +30,11 @@ async fn get_oracle_prices() {
 
 #[tokio::test]
 async fn place_and_cancel_orders() {
-    let client = DriftClient::new(
+    let client = DriftClient::new_with_opts(
         Context::DevNet,
         RpcAccountProvider::new("https://api.devnet.solana.com"),
         Keypair::new(),
-        None,
-        None,
-        None
+        ClientOpts::default(),
     )
     .await
     .expect("connects");
@@ -76,37 +72,3 @@ async fn place_and_cancel_orders() {
     dbg!(&result);
     assert!(result.is_ok());
 }
-
-
-// TransactionBuilder::delegated is not a function anywhere that I can find on GitHub or in here.
-// #[tokio::test]
-// async fn cancel_delegated() {
-//     let client = DriftClient::new(
-//         Context::DevNet,
-//         RpcAccountProvider::new("https://api.devnet.solana.com"),
-//         Keypair::new()
-//     )
-//     .await
-//     .expect("connects");
-
-//     let mut wallet = Wallet::from_seed_bs58(
-//         "4ZT38mSeFhzzDRCMTMbwDp7VYWDqNfkvDR42Wv4Hu9cKzbZPJoVapQSrjLbs9aMPrpAMmN1cQinztnP2PzKVjzwX",
-//     );
-//     wallet.to_delegated(Pubkey::from_str("GiMXQkJXLVjScmQDkoLJShBJpTh9SDPvT2AZQq8NyEBf").unwrap());
-
-//     let account_data = client
-//         .get_user_account(&wallet.default_sub_account())
-//         .await
-//         .expect("ok");
-//     let tx = TransactionBuilder::delegated(
-//         client.program_data(),
-//         wallet.default_sub_account(),
-//         std::borrow::Cow::Borrowed(&account_data),
-//     )
-//     .cancel_all_orders()
-//     .build();
-
-//     let result = client.sign_and_send(&wallet, tx).await;
-//     dbg!(&result);
-//     assert!(result.is_ok());
-// }

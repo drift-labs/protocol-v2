@@ -63,6 +63,12 @@ impl MarketId {
             kind: MarketType::Spot,
         }
     }
+
+    /// `MarketId` for the USDC Spot Market
+    pub const QUOTE_SPOT: Self = Self {
+        index: 0,
+        kind: MarketType::Spot
+      };
 }
 
 impl From<(u16, MarketType)> for MarketId {
@@ -339,6 +345,40 @@ impl MarketPrecision for PerpMarket {
     }
 }
 
+#[derive(Clone)]
+pub struct ClientOpts {
+    active_sub_account_id: u8,
+    sub_account_ids: Vec<u8>,
+}
+
+impl Default for ClientOpts {
+    fn default() -> Self {
+        Self {
+            active_sub_account_id: 0,
+            sub_account_ids: vec![0]
+        }
+    }
+}
+
+impl ClientOpts {
+    pub fn new(active_sub_account_id: u8, sub_account_ids: Option<Vec<u8>>) -> Self {
+        let sub_account_ids = sub_account_ids.unwrap_or(vec![active_sub_account_id]);
+        Self {
+            active_sub_account_id,
+            sub_account_ids
+        }
+    }
+
+    pub fn active_sub_account_id(self) -> u8 {
+        self.active_sub_account_id
+    }
+
+    pub fn sub_account_ids(self) -> Vec<u8>  {
+        self.sub_account_ids
+    }
+}
+
+
 #[cfg(test)]
 mod tests {
     use drift_program::error::ErrorCode;
@@ -421,39 +461,5 @@ mod tests {
                 },
             ]
         )
-    }
-}
-
-#[derive(Clone, Copy)]
-pub struct ComputeUnitParams {
-    compute_unit_limit: u32,
-    compute_unit_price_micro_lamports: u64,
-}
-
-impl ComputeUnitParams {
-    pub fn new(compute_unit_limit: u32, compute_unit_price_micro_lamports: u64) -> Self {
-        Self {
-            compute_unit_limit,
-            compute_unit_price_micro_lamports
-        }
-    }
-
-    // Get the compute unit limit
-    pub fn limit(&self) -> u32 {
-        self.compute_unit_limit
-    }
-
-    /// Get the compute unit price (in micro lamports)
-    pub fn price(&self) -> u64 {
-        self.compute_unit_price_micro_lamports
-    }
-}
-
-impl Default for ComputeUnitParams {
-    fn default() -> Self {
-        Self {
-            compute_unit_limit: 600_000,
-            compute_unit_price_micro_lamports: 0
-        }
     }
 }

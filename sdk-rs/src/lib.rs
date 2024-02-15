@@ -1,6 +1,6 @@
 //! Drift SDK
 
-use std::{borrow::{Borrow, Cow}, str::FromStr, sync::Arc, time::Duration};
+use std::{borrow::Cow, sync::Arc, time::Duration};
 
 use anchor_lang::{AccountDeserialize, Discriminator, InstructionData, ToAccountMetas};
 use async_utils::{retry_policy, spawn_retry_task};
@@ -267,7 +267,6 @@ pub struct DriftClient<T: AccountProvider> {
     wallet: Wallet,
     pub active_sub_account_id: u8,
     pub sub_account_ids: Vec<u8>,
-    compute_unit_params: ComputeUnitParams
 }
 
 impl<T: AccountProvider> DriftClient<T> {
@@ -275,21 +274,30 @@ impl<T: AccountProvider> DriftClient<T> {
         context: Context, 
         account_provider: T, 
         keypair: Keypair, 
-        active_sub_account_id: Option<u8>, 
-        sub_account_ids: Option<Vec<u8>>,
-        compute_unit_params: Option<ComputeUnitParams>
     ) -> SdkResult<Self> {
-        let active_sub_account_id = active_sub_account_id.unwrap_or(0);
-        let sub_account_ids = sub_account_ids.unwrap_or(vec![active_sub_account_id]);
-        let compute_unit_params = compute_unit_params.unwrap_or(ComputeUnitParams::default());
         Ok(Self {
             backend: Box::leak(Box::new(
                 DriftClientBackend::new(context, account_provider).await?,
             )),
             wallet: Wallet::new(keypair),
-            active_sub_account_id,
-            sub_account_ids,
-            compute_unit_params,
+            active_sub_account_id: 0,
+            sub_account_ids: vec![0],
+        })
+    }
+
+    pub async fn new_with_opts(
+        context: Context,
+        account_provider: T,
+        keypair: Keypair,
+        opts: ClientOpts
+    ) -> SdkResult<Self> {
+        Ok(Self {
+            backend: Box::leak(Box::new(
+                DriftClientBackend::new(context, account_provider).await?
+                )),
+            wallet: Wallet::new(keypair),
+            active_sub_account_id: opts.clone().active_sub_account_id(),
+            sub_account_ids: opts.clone().sub_account_ids(),
         })
     }
 
@@ -514,7 +522,6 @@ impl<T: AccountProvider> DriftClient<T> {
             *account,
             Cow::Owned(account_data),
             delegated,
-            self.compute_unit_params,
         ))
     }
 
@@ -759,8 +766,6 @@ pub struct TransactionBuilder<'a> {
     legacy: bool,
     /// add additional lookup tables (v0 only)
     lookup_tables: Vec<AddressLookupTableAccount>,
-    /// ComputeUnitParams object for priority fees
-    compute_unit_params: ComputeUnitParams,
 }
 
 impl<'a> TransactionBuilder<'a> {
@@ -775,7 +780,6 @@ impl<'a> TransactionBuilder<'a> {
         sub_account: Pubkey,
         account_data: Cow<'b, User>,
         delegated: bool,
-        compute_unit_params: ComputeUnitParams,
     ) -> Self
     where
         'b: 'a,
@@ -792,7 +796,6 @@ impl<'a> TransactionBuilder<'a> {
             ixs: Default::default(),
             lookup_tables: vec![program_data.lookup_table.clone()],
             legacy: false,
-            compute_unit_params,
         }
     }
     /// Use legacy tx mode
@@ -811,9 +814,13 @@ impl<'a> TransactionBuilder<'a> {
     /// Set the priority fee of the tx
     ///
     /// `priority_fee` the price per unit of compute in µ-lamports, default = 5 µ-lamports
-    pub fn priority_fee(mut self, priority_fee: u64) -> Self {
-        let ix = ComputeBudgetInstruction::set_compute_unit_price(priority_fee);
-        self.ixs.push(ix);
+    pub fn with_priority_fee(mut self, microlamports_per_cu: u64, cu_limit: u32) -> Self {
+        let cu_limit_ix = ComputeBudgetInstruction::set_compute_unit_price(microlamports_per_cu);
+        let cu_price_ix = ComputeBudgetInstruction::set_compute_unit_limit(cu_limit);
+
+        self.ixs.insert(0, cu_limit_ix);
+        self.ixs.insert(1, cu_price_ix);
+
         self
     }
 
@@ -833,7 +840,7 @@ impl<'a> TransactionBuilder<'a> {
             },
             self.account_data.as_ref(),
             &[],
-            &[MarketId {index: spot_market_index, kind: MarketType::Spot}]
+            &[MarketId::spot(spot_market_index)]
         );
 
         let ix = Instruction {
@@ -866,7 +873,7 @@ impl<'a> TransactionBuilder<'a> {
             },
             &self.account_data.as_ref(),
             &[],
-            &[MarketId {index: spot_market_index, kind: MarketType::Spot}]
+            &[MarketId::spot(spot_market_index)]
         );
 
         let ix = Instruction {
@@ -1095,21 +1102,13 @@ impl<'a> TransactionBuilder<'a> {
 
     /// Build the transaction message ready for signing and sending
     pub fn build(self) -> VersionedMessage {
-        let mut ixs = self.ixs;
-
-        // Insert CU instructions
-        let cu_limit_ix = ComputeBudgetInstruction::set_compute_unit_limit(self.compute_unit_params.limit());
-        let cu_price_ix = ComputeBudgetInstruction::set_compute_unit_price(self.compute_unit_params.price());
-        ixs.insert(0, cu_limit_ix);
-        ixs.insert(1, cu_price_ix);
-
         if self.legacy {
-            let message = Message::new(ixs.as_ref(), Some(&self.authority));
+            let message = Message::new(self.ixs.as_ref(), Some(&self.authority));
             VersionedMessage::Legacy(message)
         } else {
             let message = v0::Message::try_compile(
                 &self.authority,
-                ixs.as_slice(),
+                self.ixs.as_slice(),
                 self.lookup_tables.as_slice(),
                 Default::default(),
             )
@@ -1297,9 +1296,8 @@ impl Wallet {
         message.set_recent_blockhash(recent_block_hash);
         let signer: &dyn Signer = self.signer.as_ref();
         VersionedTransaction::try_new(message, &[signer]).map_err(Into::into)
-
-        // VersionedTransaction::try_new(message, &[self.signer.as_ref()]).map_err(Into::into)
     }
+
     /// Return the wallet authority address
     pub fn authority(&self) -> &Pubkey {
         &self.authority
@@ -1363,13 +1361,12 @@ mod tests {
             wallet: Wallet::new(keypair),
             active_sub_account_id: 0,
             sub_account_ids: vec![0],
-            compute_unit_params: ComputeUnitParams::default()
         }
     }
 
     #[tokio::test]
     async fn get_market_accounts() {
-        let client = DriftClient::new(Context::DevNet, RpcAccountProvider::new(DEVNET_ENDPOINT), Keypair::new(), None, None, None)
+        let client = DriftClient::new(Context::DevNet, RpcAccountProvider::new(DEVNET_ENDPOINT), Keypair::new())
             .await
             .unwrap();
         let accounts: Vec<SpotMarket> = client

@@ -1,7 +1,7 @@
 use std::sync::OnceLock;
 use std::str::FromStr;
 
-use drift_program::state::{perp_market::PerpMarket, spot_market::SpotMarket, user::MarketType};
+use drift_program::state::{perp_market::PerpMarket, spot_market::SpotMarket};
 pub use drift_program::{
     math::constants::{
         BASE_PRECISION_U64 as BASE_PRECISION, PRICE_PRECISION,
@@ -12,18 +12,13 @@ pub use drift_program::{
 use solana_sdk::{address_lookup_table_account::AddressLookupTableAccount, pubkey::Pubkey};
 use substreams_solana_macro::b58;
 
-use crate::{types::Context, MarketId};
+use crate::types::Context;
 
 static STATE_ACCOUNT: OnceLock<Pubkey> = OnceLock::new();
 
 lazy_static::lazy_static! {
     pub static ref TOKEN_PROGRAM_ID: Pubkey = Pubkey::from_str("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA").unwrap();
 }
-
-pub const QUOTE_SPOT_MARKET_ID: MarketId = MarketId {
-    index: 0,
-    kind: MarketType::Spot
-};
 
 /// Return the market lookup table
 pub(crate) const fn market_lookup_table(context: Context) -> Pubkey {
