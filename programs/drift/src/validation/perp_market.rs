@@ -10,6 +10,16 @@ use solana_program::msg;
 
 #[allow(clippy::comparison_chain)]
 pub fn validate_perp_market(market: &PerpMarket) -> DriftResult {
+    let (_standardized_delta_base, _remainder_base_asset_amount) =
+        crate::math::orders::standardize_base_asset_amount_with_remainder_i128(
+            market.amm.base_asset_amount_long,
+            market.amm.order_step_size.cast()?,
+        )?;
+    validate!(
+        _remainder_base_asset_amount == 0,
+        ErrorCode::InvalidPositionDelta
+    )?;
+
     validate!(
         (market.amm.base_asset_amount_long + market.amm.base_asset_amount_short)
             == market.amm.base_asset_amount_with_amm

@@ -158,8 +158,8 @@ fn test_partial_short_settle() {
     market.amm.base_asset_amount_per_lp = -10;
     market.amm.quote_asset_amount_per_lp = 10;
 
-    market.amm.base_asset_amount_with_unsettled_lp = 10;
-    market.amm.base_asset_amount_long = 10;
+    market.amm.base_asset_amount_with_unsettled_lp = 9;
+    market.amm.base_asset_amount_long = 9;
 
     settle_lp_position(&mut position, &mut market).unwrap();
 
@@ -814,11 +814,18 @@ fn test_lp_has_correct_entry_be_price() {
     assert_eq!(position.quote_asset_amount, -2000000);
     assert_eq!(position.base_asset_amount, 500_000_000);
 
-    let amt2 = -BASE_PRECISION_I128 / 4;
-    market.amm.base_asset_amount_per_lp += amt2;
+    let base_delta = -BASE_PRECISION_I128 / 4;
+    market.amm.base_asset_amount_per_lp += base_delta;
     market.amm.quote_asset_amount_per_lp += 98_999_821 / 4;
-    market.amm.base_asset_amount_with_unsettled_lp -= amt2;
-    market.amm.base_asset_amount_long -= amt2;
+    let (update_base_delta, _) =
+        crate::math::orders::standardize_base_asset_amount_with_remainder_i128(
+            base_delta,
+            market.amm.order_step_size as u128,
+        )
+        .unwrap();
+
+    market.amm.base_asset_amount_with_unsettled_lp += update_base_delta;
+    market.amm.base_asset_amount_long += update_base_delta;
 
     settle_lp_position(&mut position, &mut market).unwrap();
     assert_eq!(position.get_entry_price().unwrap(), 99999824);
@@ -830,7 +837,6 @@ fn test_lp_has_correct_entry_be_price() {
     assert_eq!(position.quote_break_even_amount, -24999956);
     assert_eq!(position.quote_asset_amount, 22749955);
 }
-
 
 #[test]
 fn test_lp_has_correct_entry_be_price_sim_no_remainders() {
@@ -959,6 +965,7 @@ fn test_lp_has_correct_entry_be_price_sim() {
     let mut num_position_flips = 0;
     let mut flip_indexes: Vec<i128> = Vec::new();
 
+    let mut total_remainder = 0;
     for i in 0..3000 {
         if i % 3 == 0 {
             let px = 100_000_000 - i;
@@ -967,8 +974,29 @@ fn test_lp_has_correct_entry_be_price_sim() {
             let base_delta = -BASE_PRECISION_I128 * multi / divisor;
             market.amm.base_asset_amount_per_lp += base_delta;
             market.amm.quote_asset_amount_per_lp += px * multi / divisor;
-            market.amm.base_asset_amount_with_unsettled_lp += base_delta;
-            market.amm.base_asset_amount_short += base_delta;
+
+            let (update_base_delta, rr) =
+                crate::math::orders::standardize_base_asset_amount_with_remainder_i128(
+                    base_delta,
+                    market.amm.order_step_size as u128,
+                )
+                .unwrap();
+            total_remainder += rr;
+
+            let (total_remainder_f, _rr) =
+                crate::math::orders::standardize_base_asset_amount_with_remainder_i128(
+                    total_remainder,
+                    market.amm.order_step_size as u128,
+                )
+                .unwrap();
+            if total_remainder_f != 0 {
+                market.amm.base_asset_amount_long += total_remainder_f;
+                total_remainder -= total_remainder_f;
+                // msg!("total_remainder update {}", total_remainder);
+            }
+
+            market.amm.base_asset_amount_with_unsettled_lp += update_base_delta;
+            market.amm.base_asset_amount_long += update_base_delta;
         } else {
             // buy
             let px = 99_199_821 + i;
@@ -977,8 +1005,29 @@ fn test_lp_has_correct_entry_be_price_sim() {
             let base_delta = BASE_PRECISION_I128 * multi / divisor;
             market.amm.base_asset_amount_per_lp += base_delta;
             market.amm.quote_asset_amount_per_lp -= px * multi / divisor;
-            market.amm.base_asset_amount_with_unsettled_lp += base_delta;
-            market.amm.base_asset_amount_long += base_delta;
+
+            let (update_base_delta, rr) =
+                crate::math::orders::standardize_base_asset_amount_with_remainder_i128(
+                    base_delta,
+                    market.amm.order_step_size as u128,
+                )
+                .unwrap();
+            total_remainder += rr;
+
+            let (total_remainder_f, _rr) =
+                crate::math::orders::standardize_base_asset_amount_with_remainder_i128(
+                    total_remainder,
+                    market.amm.order_step_size as u128,
+                )
+                .unwrap();
+            if total_remainder_f != 0 {
+                market.amm.base_asset_amount_short += total_remainder_f;
+                total_remainder -= total_remainder_f;
+                // msg!("total_remainder update {}", total_remainder);
+            }
+
+            market.amm.base_asset_amount_with_unsettled_lp += update_base_delta;
+            market.amm.base_asset_amount_short += update_base_delta;
         }
 
         let position_base_before = position.base_asset_amount;
@@ -1024,7 +1073,6 @@ fn test_lp_has_correct_entry_be_price_sim() {
     assert_eq!(num_position_flips, 5);
     assert_eq!(flip_indexes, [1, 18, 19, 36, 37]);
     assert_eq!(position.base_asset_amount, 91300000000);
-
 }
 
 #[test]
@@ -1126,5 +1174,4 @@ fn test_lp_has_correct_entry_be_price_sim_more_flips() {
     assert_eq!(entry, 99199822);
     assert_eq!(be, 99199822);
     assert_eq!(cb, -801664962);
-
 }

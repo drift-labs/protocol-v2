@@ -945,8 +945,6 @@ impl PerpPosition {
         Ok(unrealized_pnl)
     }
 
-
-
     pub fn get_base_asset_amount_w_remainder(&self) -> DriftResult<i128> {
         if self.remainder_base_asset_amount != 0 {
             self.base_asset_amount

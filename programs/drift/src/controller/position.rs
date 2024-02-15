@@ -109,7 +109,20 @@ pub fn update_position_and_market(
         return Ok(delta.quote_asset_amount);
     }
 
-    let update_type = get_position_update_type(position, &delta)?;
+    let update_type = get_position_update_type(position, delta)?;
+
+    let (standardized_delta_base, _remainder_base_asset_amount) =
+        crate::math::orders::standardize_base_asset_amount_with_remainder_i128(
+            delta.base_asset_amount.cast()?,
+            market.amm.order_step_size.cast()?,
+        )?;
+    validate!(
+        _remainder_base_asset_amount == 0,
+        ErrorCode::InvalidPositionDelta
+    )?;
+
+    msg!("delta base");
+    crate::dlog!(standardized_delta_base, _remainder_base_asset_amount);
 
     // Update User
     let (
@@ -117,7 +130,7 @@ pub fn update_position_and_market(
         _new_settled_base_asset_amount,
         new_quote_asset_amount,
         new_remainder_base_asset_amount,
-    ) = get_new_position_amounts(position, &delta, market)?;
+    ) = get_new_position_amounts(position, delta, market)?;
 
     let (new_quote_entry_amount, new_quote_break_even_amount, pnl) = match update_type {
         PositionUpdateType::Open | PositionUpdateType::Increase => {
