@@ -11,9 +11,10 @@ use crate::math::constants::{
     AMM_RESERVE_PRECISION, MAX_CONCENTRATION_COEFFICIENT, PRICE_PRECISION_I64,
 };
 use crate::math::constants::{
-    AMM_RESERVE_PRECISION_I128, BID_ASK_SPREAD_PRECISION, BID_ASK_SPREAD_PRECISION_U128,
+    AMM_RESERVE_PRECISION_I128, AMM_TO_QUOTE_PRECISION_RATIO, BID_ASK_SPREAD_PRECISION,
+    BID_ASK_SPREAD_PRECISION_U128, DEFAULT_REVENUE_SINCE_LAST_FUNDING_SPREAD_RETREAT,
     LP_FEE_SLICE_DENOMINATOR, LP_FEE_SLICE_NUMERATOR, MARGIN_PRECISION_U128, PERCENTAGE_PRECISION,
-    SPOT_WEIGHT_PRECISION, TWENTY_FOUR_HOUR,
+    PERCENTAGE_PRECISION_I128, PRICE_PRECISION, SPOT_WEIGHT_PRECISION, TWENTY_FOUR_HOUR,
 };
 use crate::math::helpers::get_proportion_i128;
 
@@ -28,7 +29,6 @@ use crate::state::events::OrderActionExplanation;
 use crate::state::oracle::{HistoricalOracleData, OracleSource};
 use crate::state::spot_market::{AssetTier, SpotBalance, SpotBalanceType};
 use crate::state::traits::{MarketIndexOffset, Size};
-use crate::{AMM_TO_QUOTE_PRECISION_RATIO, PRICE_PRECISION};
 use borsh::{BorshDeserialize, BorshSerialize};
 
 use crate::state::paused_operations::PerpOperation;
@@ -290,6 +290,45 @@ impl PerpMarket {
 
     pub fn is_operation_paused(&self, operation: PerpOperation) -> bool {
         PerpOperation::is_operation_paused(self.paused_operations, operation)
+    }
+
+    pub fn has_too_much_drawdown(&self) -> DriftResult<bool> {
+        let quote_drawdown_limit_breached = match self.contract_tier {
+            ContractTier::A | ContractTier::B => {
+                self.amm.net_revenue_since_last_funding
+                    <= DEFAULT_REVENUE_SINCE_LAST_FUNDING_SPREAD_RETREAT * 400
+            }
+            _ => {
+                self.amm.net_revenue_since_last_funding
+                    <= DEFAULT_REVENUE_SINCE_LAST_FUNDING_SPREAD_RETREAT * 200
+            }
+        };
+
+        if quote_drawdown_limit_breached {
+            let percent_drawdown = self
+                .amm
+                .net_revenue_since_last_funding
+                .cast::<i128>()?
+                .safe_mul(PERCENTAGE_PRECISION_I128)?
+                .safe_div(self.amm.total_fee_minus_distributions.max(1))?;
+
+            let percent_drawdown_limit_breached = match self.contract_tier {
+                ContractTier::A => percent_drawdown <= -PERCENTAGE_PRECISION_I128 / 50,
+                ContractTier::B => percent_drawdown <= -PERCENTAGE_PRECISION_I128 / 33,
+                ContractTier::C => percent_drawdown <= -PERCENTAGE_PRECISION_I128 / 25,
+                _ => percent_drawdown <= -PERCENTAGE_PRECISION_I128 / 20,
+            };
+
+            if percent_drawdown_limit_breached {
+                msg!("AMM has too much on-the-hour drawdown (percentage={}, quote={}) to accept fills",
+                percent_drawdown,
+                self.amm.net_revenue_since_last_funding
+            );
+                return Ok(true);
+            }
+        }
+
+        Ok(false)
     }
 
     pub fn get_sanitize_clamp_denominator(self) -> DriftResult<Option<i64>> {
