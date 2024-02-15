@@ -264,14 +264,40 @@ impl AccountProvider for WsAccountProvider {
 #[must_use]
 pub struct DriftClient<T: AccountProvider> {
     backend: &'static DriftClientBackend<T>,
+    wallet: Wallet,
+    pub active_sub_account_id: u8,
+    pub sub_account_ids: Vec<u8>,
 }
 
 impl<T: AccountProvider> DriftClient<T> {
-    pub async fn new(context: Context, account_provider: T) -> SdkResult<Self> {
+    pub async fn new(
+        context: Context, 
+        account_provider: T, 
+        keypair: Keypair, 
+    ) -> SdkResult<Self> {
         Ok(Self {
             backend: Box::leak(Box::new(
                 DriftClientBackend::new(context, account_provider).await?,
             )),
+            wallet: Wallet::new(keypair),
+            active_sub_account_id: 0,
+            sub_account_ids: vec![0],
+        })
+    }
+
+    pub async fn new_with_opts(
+        context: Context,
+        account_provider: T,
+        keypair: Keypair,
+        opts: ClientOpts
+    ) -> SdkResult<Self> {
+        Ok(Self {
+            backend: Box::leak(Box::new(
+                DriftClientBackend::new(context, account_provider).await?
+                )),
+            wallet: Wallet::new(keypair),
+            active_sub_account_id: opts.clone().active_sub_account_id(),
+            sub_account_ids: opts.clone().sub_account_ids(),
         })
     }
 
@@ -283,6 +309,11 @@ impl<T: AccountProvider> DriftClient<T> {
     /// Return on-chain program metadata
     pub fn program_data(&self) -> &ProgramData {
         &self.backend.program_data
+    }
+
+    /// Get the active sub account id
+    pub fn get_sub_account_id_for_ix(&self, sub_account_id: Option<u8>) -> u8 {
+        sub_account_id.unwrap_or(self.active_sub_account_id)
     }
 
     /// Get an account's open order by id
@@ -390,6 +421,11 @@ impl<T: AccountProvider> DriftClient<T> {
             .copied())
     }
 
+    /// Return the DriftClient's wallet
+    pub fn wallet(&self) -> &Wallet {
+        &self.wallet
+    }
+
     /// Get the user account data
     ///
     /// `account` the drift user PDA
@@ -404,11 +440,11 @@ impl<T: AccountProvider> DriftClient<T> {
     /// Returns the signature on success
     pub async fn sign_and_send(
         &self,
-        wallet: &Wallet,
         tx: VersionedMessage,
     ) -> SdkResult<Signature> {
+        
         self.backend
-            .sign_and_send(wallet, tx)
+            .sign_and_send(self.wallet(), tx)
             .await
             .map_err(|err| err.to_out_of_sol_error().unwrap_or(err))
     }
@@ -418,12 +454,11 @@ impl<T: AccountProvider> DriftClient<T> {
     /// Returns the signature on success
     pub async fn sign_and_send_with_config(
         &self,
-        wallet: &Wallet,
         tx: VersionedMessage,
         config: RpcSendTransactionConfig,
     ) -> SdkResult<Signature> {
         self.backend
-            .sign_and_send_with_config(wallet, tx, config)
+            .sign_and_send_with_config(self.wallet(), tx, config)
             .await
             .map_err(|err| err.to_out_of_sol_error().unwrap_or(err))
     }
@@ -779,11 +814,83 @@ impl<'a> TransactionBuilder<'a> {
     /// Set the priority fee of the tx
     ///
     /// `priority_fee` the price per unit of compute in µ-lamports, default = 5 µ-lamports
-    pub fn priority_fee(mut self, priority_fee: u64) -> Self {
-        let ix = ComputeBudgetInstruction::set_compute_unit_price(priority_fee);
-        self.ixs.push(ix);
+    pub fn with_priority_fee(mut self, microlamports_per_cu: u64, cu_limit: u32) -> Self {
+        let cu_limit_ix = ComputeBudgetInstruction::set_compute_unit_price(microlamports_per_cu);
+        let cu_price_ix = ComputeBudgetInstruction::set_compute_unit_limit(cu_limit);
+
+        self.ixs.insert(0, cu_limit_ix);
+        self.ixs.insert(1, cu_price_ix);
+
         self
     }
+
+    /// Deposit collateral into account
+    pub fn deposit(mut self, amount: u64, spot_market_index: u16, user_token_account: Pubkey, reduce_only: Option<bool>) -> Self {
+
+        let accounts = build_accounts(
+            self.program_data,
+            drift_program::accounts::Deposit {
+                state: *state_account(),
+                user: self.sub_account,
+                user_stats: Wallet::derive_stats_account(&self.authority, &constants::PROGRAM_ID),
+                authority: self.authority,
+                spot_market_vault: constants::derive_spot_market_vault(spot_market_index),
+                user_token_account,
+                token_program: *constants::TOKEN_PROGRAM_ID,
+            },
+            self.account_data.as_ref(),
+            &[],
+            &[MarketId::spot(spot_market_index)]
+        );
+
+        let ix = Instruction {
+            program_id: constants::PROGRAM_ID,
+            accounts,
+            data: InstructionData::data(&drift_program::instruction::Deposit {
+                market_index: spot_market_index,
+                amount,
+                reduce_only: reduce_only.unwrap_or(false)
+            })
+        };
+
+        self.ixs.push(ix);
+
+        self
+    }
+
+    pub fn withdraw(mut self, amount: u64, spot_market_index: u16, user_token_account: Pubkey, reduce_only: Option<bool>) -> Self {
+        let accounts = build_accounts(
+            self.program_data,
+            drift_program::accounts::Withdraw {
+                state: *state_account(),
+                user: self.sub_account,
+                user_stats: Wallet::derive_stats_account(&self.authority, &constants::PROGRAM_ID),
+                authority: self.authority,
+                spot_market_vault: constants::derive_spot_market_vault(spot_market_index),
+                user_token_account,
+                drift_signer: constants::derive_drift_signer(),
+                token_program: *constants::TOKEN_PROGRAM_ID
+            },
+            &self.account_data.as_ref(),
+            &[],
+            &[MarketId::spot(spot_market_index)]
+        );
+
+        let ix = Instruction {
+            program_id: constants::PROGRAM_ID,
+            accounts,
+            data: InstructionData::data(&drift_program::instruction::Withdraw {
+                market_index: spot_market_index,
+                amount,
+                reduce_only: reduce_only.unwrap_or(false)
+            })
+        };
+
+        self.ixs.push(ix);
+
+        self
+    }
+
     /// Place new orders for account
     pub fn place_orders(mut self, orders: Vec<OrderParams>) -> Self {
         let readable_accounts: Vec<MarketId> = orders
@@ -1187,8 +1294,10 @@ impl Wallet {
         recent_block_hash: Hash,
     ) -> SdkResult<VersionedTransaction> {
         message.set_recent_blockhash(recent_block_hash);
-        VersionedTransaction::try_new(message, &[self.signer.as_ref()]).map_err(Into::into)
+        let signer: &dyn Signer = self.signer.as_ref();
+        VersionedTransaction::try_new(message, &[signer]).map_err(Into::into)
     }
+
     /// Return the wallet authority address
     pub fn authority(&self) -> &Pubkey {
         &self.authority
@@ -1234,6 +1343,7 @@ mod tests {
     async fn setup(
         rpc_mocks: Mocks,
         account_provider_mocks: Mocks,
+        keypair: Keypair
     ) -> DriftClient<RpcAccountProvider> {
         let backend = DriftClientBackend {
             rpc_client: RpcClient::new_mock_with_mocks(DEVNET_ENDPOINT.to_string(), rpc_mocks),
@@ -1248,12 +1358,15 @@ mod tests {
 
         DriftClient {
             backend: Box::leak(Box::new(backend)),
+            wallet: Wallet::new(keypair),
+            active_sub_account_id: 0,
+            sub_account_ids: vec![0],
         }
     }
 
     #[tokio::test]
     async fn get_market_accounts() {
-        let client = DriftClient::new(Context::DevNet, RpcAccountProvider::new(DEVNET_ENDPOINT))
+        let client = DriftClient::new(Context::DevNet, RpcAccountProvider::new(DEVNET_ENDPOINT), Keypair::new())
             .await
             .unwrap();
         let accounts: Vec<SpotMarket> = client
@@ -1292,7 +1405,7 @@ mod tests {
         });
         account_mocks.insert(RpcRequest::GetAccountInfo, account_response.clone());
 
-        let client = setup(Default::default(), account_mocks).await;
+        let client = setup(Default::default(), account_mocks, Keypair::new()).await;
 
         let orders = client.all_orders(&user).await.unwrap();
         assert_eq!(orders.len(), 3);
@@ -1318,7 +1431,7 @@ mod tests {
             })
         });
         account_mocks.insert(RpcRequest::GetAccountInfo, account_response.clone());
-        let client = setup(Default::default(), account_mocks).await;
+        let client = setup(Default::default(), account_mocks, Keypair::new()).await;
 
         let (spot, perp) = client.all_positions(&user).await.unwrap();
         assert_eq!(spot.len(), 1);
