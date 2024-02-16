@@ -5,7 +5,7 @@ use crate::math::constants::MAX_BASE_ASSET_AMOUNT_WITH_AMM;
 use crate::math::safe_math::SafeMath;
 
 use crate::state::perp_market::{MarketStatus, PerpMarket, AMM};
-use crate::validate;
+use crate::{validate, BID_ASK_SPREAD_PRECISION};
 use solana_program::msg;
 
 #[allow(clippy::comparison_chain)]
@@ -124,6 +124,20 @@ pub fn validate_perp_market(market: &PerpMarket) -> DriftResult {
         market.amm.long_spread,
         market.amm.short_spread,
         market.amm.base_spread
+    )?;
+
+    validate!(
+        market
+            .amm
+            .long_spread
+            .safe_add(market.amm.short_spread)?
+            .cast::<u64>()?
+            <= BID_ASK_SPREAD_PRECISION,
+        ErrorCode::InvalidAmmDetected,
+        "long_spread {} + short_spread {} > max bid-ask spread precision (max spread = {})",
+        market.amm.long_spread,
+        market.amm.short_spread,
+        market.amm.max_spread,
     )?;
 
     if market.amm.base_asset_amount_with_amm > 0 {
