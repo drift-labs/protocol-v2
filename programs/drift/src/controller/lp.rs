@@ -196,11 +196,7 @@ pub fn settle_lp_position(
         .remainder_base_asset_amount
         .cast::<i64>()?
         .safe_add(lp_metrics.remainder_base_asset_amount.cast()?)?;
-    crate::dlog!(
-        market.amm.base_asset_amount_long,
-        market.amm.base_asset_amount_short,
-        market.amm.base_asset_amount_with_unsettled_lp
-    );
+
 
     let pnl = update_position_and_market(position, market, &position_delta)?;
 
@@ -210,20 +206,10 @@ pub fn settle_lp_position(
                 new_remainder_base_asset_amount.cast()?,
                 market.amm.order_step_size.cast()?,
             )?;
-        crate::dlog!(
-            lp_metrics.base_asset_amount,
-            standardized_remainder_base_asset_amount,
-            _remainder_base_asset_amount
-        );
 
         lp_metrics.base_asset_amount = lp_metrics
             .base_asset_amount
             .safe_add(standardized_remainder_base_asset_amount)?;
-        crate::dlog!(
-            lp_metrics.base_asset_amount,
-            standardized_remainder_base_asset_amount,
-            _remainder_base_asset_amount
-        );
     }
 
     market.amm.base_asset_amount_with_unsettled_lp = market
