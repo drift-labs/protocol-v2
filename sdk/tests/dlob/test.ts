@@ -24,6 +24,7 @@ import {
 	QUOTE_PRECISION,
 	isVariant,
 	uncrossL2,
+	L2Level,
 } from '../../src';
 
 import { mockPerpMarkets, mockSpotMarkets, mockStateAccount } from './helpers';
@@ -6018,6 +6019,27 @@ describe('DLOB Spot Tests', () => {
 });
 
 describe('Uncross L2', () => {
+
+	// Returns true if asks are sorted ascending
+	const asksAreSortedAsc = (asks: L2Level[]) => {
+		return asks.every((ask, i) => {
+			if (i === 0) {
+				return true;
+			}
+			return ask.price.gt(asks[i - 1].price);
+		});
+	};
+	
+	// Returns true if asks are sorted descending
+	const bidsAreSortedDesc = (bids: L2Level[]) => {
+		return bids.every((bid, i) => {
+			if (i === 0) {
+				return true;
+			}
+			return bid.price.lt(bids[i - 1].price);
+		});
+	};
+
 	it('Bid crosses ask above oracle (no premium)', () => {
 		const bids = [
 			{
@@ -6071,6 +6093,9 @@ describe('Uncross L2', () => {
 			new Set<string>(),
 			new Set<string>()
 		);
+
+		expect(asksAreSortedAsc(newAsks)).to.be.true;
+		expect(bidsAreSortedDesc(newBids)).to.be.true;
 
 		expect(newBids[0].price.toString()).to.equal(
 			new BN(101).mul(QUOTE_PRECISION).sub(groupingSize).toString()
@@ -6170,6 +6195,9 @@ describe('Uncross L2', () => {
 			new Set<string>()
 		);
 
+		expect(asksAreSortedAsc(newAsks)).to.be.true;
+		expect(bidsAreSortedDesc(newBids)).to.be.true;
+
 		expect(newBids[0].price.toString()).to.equal(
 			new BN(99).mul(QUOTE_PRECISION).toString()
 		);
@@ -6263,6 +6291,9 @@ describe('Uncross L2', () => {
 			new Set<string>()
 		);
 
+		expect(asksAreSortedAsc(newAsks)).to.be.true;
+		expect(bidsAreSortedDesc(newBids)).to.be.true;
+
 		expect(newBids[0].price.toString()).to.equal(
 			new BN(99).mul(QUOTE_PRECISION).toString()
 		);
@@ -6347,6 +6378,9 @@ describe('Uncross L2', () => {
 			new Set<string>(),
 			new Set<string>()
 		);
+
+		expect(asksAreSortedAsc(newAsks)).to.be.true;
+		expect(bidsAreSortedDesc(newBids)).to.be.true;
 
 		const referencePrice = oraclePrice.add(markPrice5Min.sub(oraclePrice5Min));
 
@@ -6539,6 +6573,9 @@ describe('Uncross L2', () => {
 			userAsks
 		);
 
+		expect(asksAreSortedAsc(newAsks)).to.be.true;
+		expect(bidsAreSortedDesc(newBids)).to.be.true;
+
 		expect(newBids[0].price.toString()).to.equal(
 			new BN(99).mul(QUOTE_PRECISION).toString()
 		);
@@ -6591,5 +6628,73 @@ describe('Uncross L2', () => {
 		expect(newAsks[2].sources['vamm'].toString()).to.equal(
 			new BN(1).mul(BASE_PRECISION).toString()
 		);
+	});
+
+	it('Handles crossed liquidity where levels have price differences smaller than grouping size', () => {
+		const CORE_PRICE = 100;
+
+		// Test Case:
+		// One bid above the core price. Other bids decrementing down below it.
+		// One ask at the core price. Other asks incrementing up above it. (the top ask and the top bid are crossing)
+		// We're testing that the top bid/ask don't get bumped backwards to a price further away than the level behind them
+
+		const bids = [
+			{
+				price: new BN(CORE_PRICE).mul(QUOTE_PRECISION).add(new BN(1)),
+				size: new BN(1).mul(BASE_PRECISION),
+				sources: { vamm: new BN(1).mul(BASE_PRECISION) },
+			},
+			{
+				price: new BN(CORE_PRICE).mul(QUOTE_PRECISION).sub(new BN(1)),
+				size: new BN(1).mul(BASE_PRECISION),
+				sources: { vamm: new BN(1).mul(BASE_PRECISION) },
+			},
+			{
+				price: new BN(CORE_PRICE).mul(QUOTE_PRECISION).sub(new BN(2)),
+				size: new BN(1).mul(BASE_PRECISION),
+				sources: { vamm: new BN(1).mul(BASE_PRECISION) },
+			},
+		];
+
+		const asks = [
+			{
+				price: new BN(CORE_PRICE).mul(QUOTE_PRECISION),
+				size: new BN(1).mul(BASE_PRECISION),
+				sources: { vamm: new BN(1).mul(BASE_PRECISION) },
+			},
+			{
+				price: new BN(CORE_PRICE).mul(QUOTE_PRECISION).add(new BN(1)),
+				size: new BN(1).mul(BASE_PRECISION),
+				sources: { vamm: new BN(1).mul(BASE_PRECISION) },
+			},
+			{
+				price: new BN(CORE_PRICE).mul(QUOTE_PRECISION).add(new BN(2)),
+				size: new BN(1).mul(BASE_PRECISION),
+				sources: { vamm: new BN(1).mul(BASE_PRECISION) },
+			},
+		];
+
+		expect(asksAreSortedAsc(asks)).to.be.true;
+		expect(bidsAreSortedDesc(bids)).to.be.true;
+
+		const oraclePrice = new BN(100).mul(QUOTE_PRECISION);
+		const oraclePrice5Min = new BN(100).mul(QUOTE_PRECISION);
+		const markPrice5Min = new BN(100).mul(QUOTE_PRECISION);
+
+		const groupingSize = QUOTE_PRECISION.divn(10);
+
+		const { bids: newBids, asks: newAsks } = uncrossL2(
+			bids,
+			asks,
+			oraclePrice,
+			oraclePrice5Min,
+			markPrice5Min,
+			groupingSize,
+			new Set<string>(),
+			new Set<string>()
+		);
+
+		expect(asksAreSortedAsc(newAsks)).to.be.true;
+		expect(bidsAreSortedDesc(newBids)).to.be.true;
 	});
 });
