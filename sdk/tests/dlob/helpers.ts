@@ -181,6 +181,7 @@ export const mockPerpMarkets: Array<PerpMarketAccount> = [
 		},
 		quoteSpotMarketIndex: 0,
 		feeAdjustment: 0,
+		pausedOperations: 0,
 	},
 	{
 		status: MarketStatus.INITIALIZED,
@@ -219,6 +220,7 @@ export const mockPerpMarkets: Array<PerpMarketAccount> = [
 		},
 		quoteSpotMarketIndex: 0,
 		feeAdjustment: 0,
+		pausedOperations: 0,
 	},
 	{
 		status: MarketStatus.INITIALIZED,
@@ -257,6 +259,7 @@ export const mockPerpMarkets: Array<PerpMarketAccount> = [
 		},
 		quoteSpotMarketIndex: 0,
 		feeAdjustment: 0,
+		pausedOperations: 0,
 	},
 ];
 
@@ -341,6 +344,7 @@ export const mockSpotMarkets: Array<SpotMarketAccount> = [
 			lastIndexPriceTwap5Min: PRICE_PRECISION,
 			lastIndexPriceTwapTs: new BN(0),
 		},
+		pausedOperations: 0,
 	},
 	{
 		status: MarketStatus.ACTIVE,
@@ -422,6 +426,7 @@ export const mockSpotMarkets: Array<SpotMarketAccount> = [
 			lastIndexPriceTwap5Min: new BN(0),
 			lastIndexPriceTwapTs: new BN(0),
 		},
+		pausedOperations: 0,
 	},
 	{
 		status: MarketStatus.ACTIVE,
@@ -503,6 +508,7 @@ export const mockSpotMarkets: Array<SpotMarketAccount> = [
 			lastIndexPriceTwap5Min: new BN(0),
 			lastIndexPriceTwapTs: new BN(0),
 		},
+		pausedOperations: 0,
 	},
 ];
 

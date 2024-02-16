@@ -15,6 +15,7 @@ import {
 	DLOB,
 	OneShotUserAccountSubscriber,
 	BN,
+	UserSubscriptionConfig,
 } from '..';
 
 import {
@@ -131,12 +132,13 @@ export class UserMap implements UserMapInterface {
 	public async addPubkey(
 		userAccountPublicKey: PublicKey,
 		userAccount?: UserAccount,
-		slot?: number
+		slot?: number,
+		accountSubscription?: UserSubscriptionConfig
 	) {
 		const user = new User({
 			driftClient: this.driftClient,
 			userAccountPublicKey,
-			accountSubscription: {
+			accountSubscription: accountSubscription ?? {
 				type: 'custom',
 				userAccountSubscriber: new OneShotUserAccountSubscriber(
 					this.driftClient.program,
@@ -169,9 +171,17 @@ export class UserMap implements UserMapInterface {
 	 * @param key userAccountPublicKey to get User for
 	 * @returns  User
 	 */
-	public async mustGet(key: string): Promise<User> {
+	public async mustGet(
+		key: string,
+		accountSubscription?: UserSubscriptionConfig
+	): Promise<User> {
 		if (!this.has(key)) {
-			await this.addPubkey(new PublicKey(key));
+			await this.addPubkey(
+				new PublicKey(key),
+				undefined,
+				undefined,
+				accountSubscription
+			);
 		}
 		const user = this.userMap.get(key);
 		return user;

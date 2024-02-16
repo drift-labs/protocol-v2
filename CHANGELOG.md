@@ -9,6 +9,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Features
 
+- program: always try update market order auction durations ([#882](https://github.com/drift-labs/protocol-v2/pull/882))
+- program: amm drawdown check ([#865](https://github.com/drift-labs/protocol-v2/pull/865))
+- program: relax oracle guardrail validity check for init margin calc for positive pnl ([#876](https://github.com/drift-labs/protocol-v2/pull/876))
+- program: add more max spread baselines ([#858](https://github.com/drift-labs/protocol-v2/pull/858))
+
+### Fixes
+
+- sdk: fix bug in changeWallet that doesn't reset the user stats account if switching from a wallet with drift account to one without
+
+### Breaking
+
+## [2.62.0] - 2023-02-14
+
+### Features
+
+- program: more continuous calculation for calculate_jit_amount ([#882](https://github.com/drift-labs/protocol-v2/pull/882))
+
 ### Fixes
 
 ### Breaking
