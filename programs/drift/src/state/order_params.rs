@@ -130,6 +130,7 @@ impl OrderParams {
                 .safe_sub(self.auction_start_price.safe_unwrap()?)?
                 .unsigned_abs(),
             oracle_price.unsigned_abs(),
+            perp_market.contract_tier,
         )?;
         self.auction_duration = Some(
             auction_duration_before
@@ -255,6 +256,7 @@ impl OrderParams {
                 .safe_sub(self.auction_start_price.safe_unwrap()?)?
                 .unsigned_abs(),
             oracle_price.unsigned_abs(),
+            perp_market.contract_tier,
         )?;
         self.auction_duration = Some(
             auction_duration_before
@@ -305,6 +307,7 @@ impl OrderParams {
                 .safe_sub(auction_start_price)?
                 .unsigned_abs(),
             oracle_price.unsigned_abs(),
+            perp_market.contract_tier,
         )?;
 
         Ok((auction_start_price, auction_end_price, auction_duration))
@@ -341,6 +344,7 @@ impl OrderParams {
                 .safe_sub(auction_start_price)?
                 .unsigned_abs(),
             oracle_price.unsigned_abs(),
+            perp_market.contract_tier,
         )?;
 
         Ok((auction_start_price, auction_end_price, auction_duration))
@@ -517,11 +521,21 @@ impl OrderParams {
     }
 }
 
-fn get_auction_duration(price_diff: u64, price: u64) -> DriftResult<u8> {
+fn get_auction_duration(
+    price_diff: u64,
+    price: u64,
+    contract_tier: ContractTier,
+) -> DriftResult<u8> {
     let percent_diff = price_diff.safe_mul(PERCENTAGE_PRECISION_U64)?.div(price);
 
+    let slots_per_bp = if contract_tier.is_as_safe_as_contract(&ContractTier::B) {
+        100
+    } else {
+        60
+    };
+
     Ok(percent_diff
-        .safe_mul(60)?
+        .safe_mul(slots_per_bp)?
         .safe_div_ceil(PERCENTAGE_PRECISION_U64 / 100)? // 1% = 60 slots
         .clamp(10, 180) as u8) // 180 slots max
 }

@@ -1,37 +1,38 @@
 mod get_auction_duration {
     use crate::state::order_params::get_auction_duration;
-    use crate::PRICE_PRECISION_U64;
+    use crate::{ContractTier, PRICE_PRECISION_U64};
 
     #[test]
     fn test() {
         let price_diff = 0;
         let price = 100 * PRICE_PRECISION_U64;
+        let contract_tier = ContractTier::C;
 
-        let duration = get_auction_duration(price_diff, price).unwrap();
+        let duration = get_auction_duration(price_diff, price, contract_tier).unwrap();
         assert_eq!(duration, 10);
 
         let price_diff = PRICE_PRECISION_U64 / 10;
         let price = 100 * PRICE_PRECISION_U64;
 
-        let duration = get_auction_duration(price_diff, price).unwrap();
+        let duration = get_auction_duration(price_diff, price, contract_tier).unwrap();
         assert_eq!(duration, 10);
 
         let price_diff = PRICE_PRECISION_U64 / 2;
         let price = 100 * PRICE_PRECISION_U64;
 
-        let duration = get_auction_duration(price_diff, price).unwrap();
+        let duration = get_auction_duration(price_diff, price, contract_tier).unwrap();
         assert_eq!(duration, 30);
 
         let price_diff = PRICE_PRECISION_U64;
         let price = 100 * PRICE_PRECISION_U64;
 
-        let duration = get_auction_duration(price_diff, price).unwrap();
+        let duration = get_auction_duration(price_diff, price, contract_tier).unwrap();
         assert_eq!(duration, 60);
 
         let price_diff = 2 * PRICE_PRECISION_U64;
         let price = 100 * PRICE_PRECISION_U64;
 
-        let duration = get_auction_duration(price_diff, price).unwrap();
+        let duration = get_auction_duration(price_diff, price, contract_tier).unwrap();
         assert_eq!(duration, 120);
     }
 }
@@ -298,7 +299,7 @@ mod update_perp_auction_params {
         );
         assert_eq!(order_params_before.direction, order_params_after.direction);
 
-        assert_eq!(order_params_after.auction_duration, Some(61));
+        assert_eq!(order_params_after.auction_duration, Some(102));
     }
 
     #[test]
