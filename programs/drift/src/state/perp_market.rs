@@ -472,11 +472,10 @@ impl PerpMarket {
 
         let open_interest = self.get_open_interest();
 
-        let depth = self
-            .amm
-            .min_order_size
-            .safe_mul(1000)?
-            .max(open_interest.safe_div(500)?.cast::<u64>()?);
+        let depth = (open_interest.safe_div(1000)?.cast::<u64>()?).clamp(
+            self.amm.min_order_size.safe_mul(100)?,
+            self.amm.min_order_size.safe_mul(5000)?,
+        );
 
         Ok(depth)
     }

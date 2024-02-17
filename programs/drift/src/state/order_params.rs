@@ -376,13 +376,40 @@ impl OrderParams {
         perp_market: &PerpMarket,
         direction: PositionDirection,
     ) -> DriftResult<i64> {
-        // price offsets baselines for perp market auctions
-        let mark_twap_slow = perp_market
+        if perp_market
             .amm
-            .last_ask_price_twap
-            .safe_add(perp_market.amm.last_bid_price_twap)?
-            .safe_div(2)?
-            .cast::<i64>()?;
+            .historical_oracle_data
+            .last_oracle_price_twap_ts
+            .safe_sub(perp_market.amm.last_mark_price_twap_ts)?
+            .abs()
+            >= 60
+        {
+            // if uncertain with timestamp mismatch, enforce within N bps
+            let price_divisor = if perp_market
+                .contract_tier
+                .is_as_safe_as_contract(&ContractTier::B)
+            {
+                500
+            } else {
+                100
+            };
+
+            return Ok(match direction {
+                PositionDirection::Long => {
+                    perp_market.amm.last_bid_price_twap.cast::<i64>()? / price_divisor
+                }
+                PositionDirection::Short => {
+                    -(perp_market.amm.last_ask_price_twap.cast::<i64>()? / price_divisor)
+                }
+            });
+        }
+
+        // price offsets baselines for perp market auctions
+        let mark_twap_slow = match direction {
+            PositionDirection::Long => perp_market.amm.last_bid_price_twap,
+            PositionDirection::Short => perp_market.amm.last_ask_price_twap,
+        }
+        .cast::<i64>()?;
 
         let baseline_start_price_offset_slow = mark_twap_slow.safe_sub(
             perp_market
@@ -402,31 +429,27 @@ impl OrderParams {
                     .last_oracle_price_twap_5min,
             )?;
 
+        let frac_of_long_spread_in_price: i64 = perp_market
+            .amm
+            .long_spread
+            .cast::<i64>()?
+            .safe_mul(mark_twap_slow)?
+            .safe_div(PRICE_PRECISION_I64 * 10)?;
+
+        let frac_of_short_spread_in_price: i64 = perp_market
+            .amm
+            .short_spread
+            .cast::<i64>()?
+            .safe_mul(mark_twap_slow)?
+            .safe_div(PRICE_PRECISION_I64 * 10)?;
+
         let baseline_start_price_offset = match direction {
-            PositionDirection::Long => {
-                let frac_of_spread_in_price: i64 = perp_market
-                    .amm
-                    .long_spread
-                    .cast::<i64>()?
-                    .safe_mul(mark_twap_slow)?
-                    .safe_div(PRICE_PRECISION_I64 * 10)?;
-
-                baseline_start_price_offset_slow
-                    .max(baseline_start_price_offset_fast)
-                    .safe_add(frac_of_spread_in_price)?
-            }
-            PositionDirection::Short => {
-                let frac_of_spread_in_price: i64 = perp_market
-                    .amm
-                    .short_spread
-                    .cast::<i64>()?
-                    .safe_mul(mark_twap_slow)?
-                    .safe_div(PRICE_PRECISION_I64 * 10)?;
-
-                baseline_start_price_offset_slow
-                    .min(baseline_start_price_offset_fast)
-                    .safe_sub(frac_of_spread_in_price)?
-            }
+            PositionDirection::Long => baseline_start_price_offset_slow
+                .safe_add(frac_of_long_spread_in_price)?
+                .min(baseline_start_price_offset_fast.safe_sub(frac_of_short_spread_in_price)?),
+            PositionDirection::Short => baseline_start_price_offset_slow
+                .safe_sub(frac_of_short_spread_in_price)?
+                .max(baseline_start_price_offset_fast.safe_add(frac_of_long_spread_in_price)?),
         };
 
         Ok(baseline_start_price_offset)

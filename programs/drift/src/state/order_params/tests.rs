@@ -671,8 +671,10 @@ mod get_close_perp_params {
         let amm = AMM {
             last_ask_price_twap: 103 * PRICE_PRECISION_U64,
             last_bid_price_twap: 101 * PRICE_PRECISION_U64,
+            last_mark_price_twap_5min: 102 * PRICE_PRECISION_U64,
             historical_oracle_data: HistoricalOracleData {
                 last_oracle_price_twap: 100 * PRICE_PRECISION_I64,
+                last_oracle_price_twap_5min: 100 * PRICE_PRECISION_I64,
                 ..HistoricalOracleData::default()
             },
             mark_std: PRICE_PRECISION_U64,
