@@ -134,16 +134,17 @@ pub fn update_position_and_market(
             (new_quote_entry_amount, new_quote_break_even_amount, 0_i64)
         }
         PositionUpdateType::Reduce | PositionUpdateType::Close => {
-            let current_base_i128 = position.get_current_base_with_remainder_abs()?;
+            let current_base_i128 = position.get_base_asset_amount_with_remainder_abs()?;
             let delta_base_i128 = delta.get_delta_base_with_remainder_abs()?;
-            let ddd = position
-                .quote_entry_amount
-                .cast::<i128>()?
-                .safe_mul(delta_base_i128)?
-                .safe_div(current_base_i128)?
-                .cast()?;
 
-            let new_quote_entry_amount = position.quote_entry_amount.safe_sub(ddd)?;
+            let new_quote_entry_amount = position.quote_entry_amount.safe_sub(
+                position
+                    .quote_entry_amount
+                    .cast::<i128>()?
+                    .safe_mul(delta_base_i128)?
+                    .safe_div(current_base_i128)?
+                    .cast()?,
+            )?;
 
             let new_quote_break_even_amount = position.quote_break_even_amount.safe_sub(
                 position
@@ -162,7 +163,7 @@ pub fn update_position_and_market(
             (new_quote_entry_amount, new_quote_break_even_amount, pnl)
         }
         PositionUpdateType::Flip => {
-            let current_base_i128 = position.get_current_base_with_remainder_abs()?;
+            let current_base_i128 = position.get_base_asset_amount_with_remainder_abs()?;
             let delta_base_i128 = delta.get_delta_base_with_remainder_abs()?;
 
             // same calculation for new_quote_entry_amount

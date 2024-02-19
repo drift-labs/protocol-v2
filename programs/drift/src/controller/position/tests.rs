@@ -526,7 +526,7 @@ fn test_position_entry_sim() {
     assert_eq!(pnl, -20000);
     assert_eq!(existing_position.base_asset_amount, 300000000);
     assert_eq!(existing_position.get_entry_price().unwrap(), 99345000);
-    assert_eq!(existing_position.get_be_price().unwrap(), 99345000);
+    assert_eq!(existing_position.get_breakeven_price().unwrap(), 99345000);
 
     let position_delta_to_flip = PositionDelta {
         base_asset_amount: -BASE_PRECISION_I64,
@@ -541,7 +541,7 @@ fn test_position_entry_sim() {
     assert_eq!(pnl, 0);
     assert_eq!(existing_position.base_asset_amount, -700000000);
     assert_eq!(existing_position.get_entry_price().unwrap(), 99345000);
-    assert_eq!(existing_position.get_be_price().unwrap(), 99345000);
+    assert_eq!(existing_position.get_breakeven_price().unwrap(), 99345000);
 }
 
 #[test]

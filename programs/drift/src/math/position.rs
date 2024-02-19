@@ -149,7 +149,6 @@ pub fn get_position_update_type(
     delta: &PositionDelta,
 ) -> DriftResult<PositionUpdateType> {
     if position.base_asset_amount == 0 && position.remainder_base_asset_amount == 0 {
-        crate::msg!("open");
         return Ok(PositionUpdateType::Open);
     }
 

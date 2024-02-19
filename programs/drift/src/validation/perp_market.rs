@@ -10,14 +10,24 @@ use solana_program::msg;
 
 #[allow(clippy::comparison_chain)]
 pub fn validate_perp_market(market: &PerpMarket) -> DriftResult {
-    let (_standardized_delta_base, _remainder_base_asset_amount) =
+    let (_, remainder_base_asset_amount_long) =
         crate::math::orders::standardize_base_asset_amount_with_remainder_i128(
             market.amm.base_asset_amount_long,
             market.amm.order_step_size.cast()?,
         )?;
+
+    let (_, remainder_base_asset_amount_short) =
+        crate::math::orders::standardize_base_asset_amount_with_remainder_i128(
+            market.amm.base_asset_amount_short,
+            market.amm.order_step_size.cast()?,
+        )?;
+
     validate!(
-        _remainder_base_asset_amount == 0,
-        ErrorCode::InvalidPositionDelta
+        remainder_base_asset_amount_long == 0 && remainder_base_asset_amount_short == 0,
+        ErrorCode::InvalidPositionDelta,
+        "invalid base_asset_amount_long/short vs order_step_size, remainder={}/{}",
+        remainder_base_asset_amount_short,
+        market.amm.order_step_size
     )?;
 
     validate!(
@@ -163,13 +173,13 @@ pub fn validate_perp_market(market: &PerpMarket) -> DriftResult {
         // users are long = removed base and added quote = qar increased
         // bid quote/base < reserve q/b
         validate!(
-            market.amm.terminal_quote_asset_reserve < market.amm.quote_asset_reserve,
+            market.amm.terminal_quote_asset_reserve <= market.amm.quote_asset_reserve,
             ErrorCode::InvalidAmmDetected,
             "terminal_quote_asset_reserve out of wack"
         )?;
     } else if market.amm.base_asset_amount_with_amm < 0 {
         validate!(
-            market.amm.terminal_quote_asset_reserve > market.amm.quote_asset_reserve,
+            market.amm.terminal_quote_asset_reserve >= market.amm.quote_asset_reserve,
             ErrorCode::InvalidAmmDetected,
             "terminal_quote_asset_reserve out of wack (terminal <) {} > {}",
             market.amm.terminal_quote_asset_reserve,

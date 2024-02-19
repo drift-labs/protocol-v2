@@ -903,8 +903,8 @@ impl PerpPosition {
         }
     }
 
-    pub fn get_be_price(&self) -> DriftResult<i128> {
-        let base_with_remainder = self.get_base_asset_amount_w_remainder()?;
+    pub fn get_breakeven_price(&self) -> DriftResult<i128> {
+        let base_with_remainder = self.get_base_asset_amount_with_remainder()?;
         if base_with_remainder == 0 {
             return Ok(0);
         }
@@ -916,7 +916,7 @@ impl PerpPosition {
     }
 
     pub fn get_entry_price(&self) -> DriftResult<i128> {
-        let base_with_remainder = self.get_base_asset_amount_w_remainder()?;
+        let base_with_remainder = self.get_base_asset_amount_with_remainder()?;
         if base_with_remainder == 0 {
             return Ok(0);
         }
@@ -945,7 +945,7 @@ impl PerpPosition {
         Ok(unrealized_pnl)
     }
 
-    pub fn get_base_asset_amount_w_remainder(&self) -> DriftResult<i128> {
+    pub fn get_base_asset_amount_with_remainder(&self) -> DriftResult<i128> {
         if self.remainder_base_asset_amount != 0 {
             self.base_asset_amount
                 .cast::<i128>()?
@@ -955,8 +955,8 @@ impl PerpPosition {
         }
     }
 
-    pub fn get_current_base_with_remainder_abs(&self) -> DriftResult<i128> {
-        Ok(self.get_base_asset_amount_w_remainder()?.abs())
+    pub fn get_base_asset_amount_with_remainder_abs(&self) -> DriftResult<i128> {
+        Ok(self.get_base_asset_amount_with_remainder()?.abs())
     }
 
     pub fn get_claimable_pnl(&self, oracle_price: i64, pnl_pool_excess: i128) -> DriftResult<i128> {

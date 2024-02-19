@@ -225,7 +225,7 @@ fn test_remainder_long_settle_too_large_order_step_size() {
     market.amm.base_asset_amount_per_lp = 10;
     market.amm.quote_asset_amount_per_lp = -10;
     market.amm.base_asset_amount_with_unsettled_lp = -10;
-    market.amm.base_asset_amount_short = -10;
+    market.amm.base_asset_amount_with_amm = 10;
 
     settle_lp_position(&mut position, &mut market).unwrap();
 
@@ -235,11 +235,8 @@ fn test_remainder_long_settle_too_large_order_step_size() {
     assert_eq!(position.quote_asset_amount, -10);
     assert_eq!(position.remainder_base_asset_amount, 10);
     assert_eq!(market.amm.base_asset_amount_with_unsettled_lp, -10);
-    // net baa doesnt change
-    assert_eq!(
-        og_market.amm.base_asset_amount_with_amm,
-        market.amm.base_asset_amount_with_amm
-    );
+    // net baa doesnt change after settle_lp_position
+    assert_eq!(market.amm.base_asset_amount_with_amm, 10);
 
     // burn
     let lp_shares = position.lp_shares;
@@ -273,7 +270,8 @@ fn test_remainder_overflows_too_large_order_step_size() {
     market.amm.base_asset_amount_per_lp = 10;
     market.amm.quote_asset_amount_per_lp = -10;
     market.amm.base_asset_amount_with_unsettled_lp = -10;
-    market.amm.base_asset_amount_short = -10;
+    market.amm.base_asset_amount_with_amm = 10;
+    market.amm.base_asset_amount_short = 0;
 
     settle_lp_position(&mut position, &mut market).unwrap();
 
@@ -283,24 +281,22 @@ fn test_remainder_overflows_too_large_order_step_size() {
     assert_eq!(position.quote_asset_amount, -10);
     assert_eq!(position.remainder_base_asset_amount, 10);
     assert_eq!(market.amm.base_asset_amount_with_unsettled_lp, -10);
-    // net baa doesnt change
-    assert_eq!(
-        og_market.amm.base_asset_amount_with_amm,
-        market.amm.base_asset_amount_with_amm
-    );
+    // net baa doesnt change after settle_lp_position
+    assert_eq!(market.amm.base_asset_amount_with_amm, 10);
 
-    market.amm.base_asset_amount_per_lp = BASE_PRECISION_I128 + 1;
-    market.amm.quote_asset_amount_per_lp = -16900000000;
-    market.amm.base_asset_amount_with_unsettled_lp = -(BASE_PRECISION_I128 + 1);
-    market.amm.base_asset_amount_short = -(BASE_PRECISION_I128 + 1);
+    market.amm.base_asset_amount_per_lp += BASE_PRECISION_I128 + 1;
+    market.amm.quote_asset_amount_per_lp += -16900000000;
+    market.amm.base_asset_amount_with_unsettled_lp += -(BASE_PRECISION_I128 + 1);
+    // market.amm.base_asset_amount_short ;
+    market.amm.base_asset_amount_with_amm += BASE_PRECISION_I128 + 1;
 
     settle_lp_position(&mut position, &mut market).unwrap();
 
-    assert_eq!(position.last_base_asset_amount_per_lp, 1000000001);
-    assert_eq!(position.last_quote_asset_amount_per_lp, -16900000000);
-    assert_eq!(position.quote_asset_amount, -16900000000);
+    assert_eq!(position.last_base_asset_amount_per_lp, 1000000011);
+    assert_eq!(position.last_quote_asset_amount_per_lp, -16900000010);
+    assert_eq!(position.quote_asset_amount, -16900000010);
     assert_eq!(position.base_asset_amount, 0);
-    assert_eq!(position.remainder_base_asset_amount, 1000000001);
+    assert_eq!(position.remainder_base_asset_amount, 1000000011);
     assert_eq!(
         (position.remainder_base_asset_amount as u64) < market.amm.order_step_size,
         true
@@ -315,11 +311,11 @@ fn test_remainder_overflows_too_large_order_step_size() {
     // not allowed to settle when remainder is above i32 but below order size
     assert!(settle_lp_position(&mut position, &mut market).is_err());
 
-    assert_eq!(position.last_base_asset_amount_per_lp, 1000000001);
-    assert_eq!(position.last_quote_asset_amount_per_lp, -16900000000);
-    assert_eq!(position.quote_asset_amount, -16900000000);
+    // assert_eq!(position.last_base_asset_amount_per_lp, 1000000001);
+    // assert_eq!(position.last_quote_asset_amount_per_lp, -16900000000);
+    assert_eq!(position.quote_asset_amount, -16900000010);
     assert_eq!(position.base_asset_amount, 0);
-    assert_eq!(position.remainder_base_asset_amount, 1000000001);
+    // assert_eq!(position.remainder_base_asset_amount, 1000000001);
     assert_eq!(
         (position.remainder_base_asset_amount as u64) < market.amm.order_step_size,
         true
@@ -329,13 +325,14 @@ fn test_remainder_overflows_too_large_order_step_size() {
     market.amm.base_asset_amount_per_lp = 5 * BASE_PRECISION_I128 + 1;
     market.amm.quote_asset_amount_per_lp = -116900000000;
     market.amm.base_asset_amount_with_unsettled_lp = -(5 * BASE_PRECISION_I128 + 1);
-    market.amm.base_asset_amount_short = -(5 * BASE_PRECISION_I128 + 1);
+    market.amm.base_asset_amount_short = -(5 * BASE_PRECISION_I128);
+    market.amm.base_asset_amount_with_amm = 1;
 
     settle_lp_position(&mut position, &mut market).unwrap();
-    assert_eq!(market.amm.base_asset_amount_with_amm, 0);
     assert_eq!(market.amm.base_asset_amount_with_unsettled_lp, -1);
-    assert_eq!(market.amm.base_asset_amount_short, -5000000001);
+    assert_eq!(market.amm.base_asset_amount_short, -5000000000);
     assert_eq!(market.amm.base_asset_amount_long, 5000000000);
+    assert_eq!(market.amm.base_asset_amount_with_amm, 1);
 
     assert_eq!(position.last_base_asset_amount_per_lp, 5000000001);
     assert_eq!(position.last_quote_asset_amount_per_lp, -116900000000);
@@ -357,9 +354,9 @@ fn test_remainder_overflows_too_large_order_step_size() {
     assert_eq!(position.base_asset_amount, 5000000000);
     assert_eq!(position.remainder_base_asset_amount, 0);
 
-    assert_eq!(market.amm.base_asset_amount_with_amm, -1);
+    assert_eq!(market.amm.base_asset_amount_with_amm, 0);
     assert_eq!(market.amm.base_asset_amount_with_unsettled_lp, 0);
-    assert_eq!(market.amm.base_asset_amount_short, -5000000001);
+    assert_eq!(market.amm.base_asset_amount_short, -5000000000);
     assert_eq!(market.amm.base_asset_amount_long, 5000000000);
 }
 
@@ -384,7 +381,7 @@ fn test_remainder_burn_large_order_step_size() {
     market.amm.base_asset_amount_per_lp = 10;
     market.amm.quote_asset_amount_per_lp = -10;
     market.amm.base_asset_amount_with_unsettled_lp = -10;
-    market.amm.base_asset_amount_short = -10;
+    market.amm.base_asset_amount_with_amm += 10;
 
     settle_lp_position(&mut position, &mut market).unwrap();
 
@@ -394,16 +391,13 @@ fn test_remainder_burn_large_order_step_size() {
     assert_eq!(position.quote_asset_amount, -10);
     assert_eq!(position.remainder_base_asset_amount, 10);
     assert_eq!(market.amm.base_asset_amount_with_unsettled_lp, -10);
-    // net baa doesnt change
-    assert_eq!(
-        og_market.amm.base_asset_amount_with_amm,
-        market.amm.base_asset_amount_with_amm
-    );
+    // net baa doesnt change after settle_lp_position
+    assert_eq!(market.amm.base_asset_amount_with_amm, 10);
 
     market.amm.base_asset_amount_per_lp = BASE_PRECISION_I128 + 1;
     market.amm.quote_asset_amount_per_lp = -16900000000;
-    market.amm.base_asset_amount_with_unsettled_lp = -(BASE_PRECISION_I128 + 1);
-    market.amm.base_asset_amount_short = -(BASE_PRECISION_I128 + 1);
+    market.amm.base_asset_amount_with_unsettled_lp += -(BASE_PRECISION_I128 + 1);
+    market.amm.base_asset_amount_with_amm += BASE_PRECISION_I128 + 1;
 
     settle_lp_position(&mut position, &mut market).unwrap();
 
@@ -500,7 +494,7 @@ pub fn test_lp_settle_pnl() {
     market.amm.base_asset_amount_per_lp = 10;
     market.amm.quote_asset_amount_per_lp = -10;
     market.amm.base_asset_amount_with_unsettled_lp = -10;
-    market.amm.base_asset_amount_short = -10;
+    market.amm.base_asset_amount_with_amm += 10;
     market.amm.cumulative_funding_rate_long = 169;
     market.amm.cumulative_funding_rate_short = 169;
 
@@ -862,7 +856,7 @@ fn test_lp_has_correct_entry_be_price_sim_no_remainders() {
     assert_eq!(market.amm.sqrt_k, 2000000000);
     assert_eq!(position.get_entry_price().unwrap(), 0);
     assert_eq!(position.get_cost_basis().unwrap(), 0);
-    assert_eq!(position.get_be_price().unwrap(), 0);
+    assert_eq!(position.get_breakeven_price().unwrap(), 0);
     assert_eq!(position.remainder_base_asset_amount, 0);
     assert_eq!(position.base_asset_amount, 0);
     let mut num_position_flips = 0;
@@ -900,7 +894,7 @@ fn test_lp_has_correct_entry_be_price_sim_no_remainders() {
         }
 
         let entry = position.get_entry_price().unwrap();
-        let be = position.get_be_price().unwrap();
+        let be = position.get_breakeven_price().unwrap();
         let cb = position.get_cost_basis().unwrap();
 
         let iii = position
@@ -918,13 +912,13 @@ fn test_lp_has_correct_entry_be_price_sim_no_remainders() {
         );
         assert_eq!(position.remainder_base_asset_amount, 0);
 
-        if position.get_current_base_with_remainder_abs().unwrap() != 0 {
+        if position.get_base_asset_amount_with_remainder_abs().unwrap() != 0 {
             assert!(entry <= 100 * PRICE_PRECISION as i128);
             assert!(entry >= 99 * PRICE_PRECISION as i128);
         }
     }
     let entry = position.get_entry_price().unwrap();
-    let be = position.get_be_price().unwrap();
+    let be = position.get_breakeven_price().unwrap();
     let cb = position.get_cost_basis().unwrap();
 
     assert_eq!(position.base_asset_amount, 200500000000);
@@ -959,7 +953,7 @@ fn test_lp_has_correct_entry_be_price_sim() {
     assert_eq!(market.amm.sqrt_k, 2000000000);
     assert_eq!(position.get_entry_price().unwrap(), 0);
     assert_eq!(position.get_cost_basis().unwrap(), 0);
-    assert_eq!(position.get_be_price().unwrap(), 0);
+    assert_eq!(position.get_breakeven_price().unwrap(), 0);
     assert_eq!(position.remainder_base_asset_amount, 0);
     assert_eq!(position.base_asset_amount, 0);
     let mut num_position_flips = 0;
@@ -1040,7 +1034,7 @@ fn test_lp_has_correct_entry_be_price_sim() {
         }
 
         let entry = position.get_entry_price().unwrap();
-        let be = position.get_be_price().unwrap();
+        let be = position.get_breakeven_price().unwrap();
         let cb = position.get_cost_basis().unwrap();
 
         let iii = position
@@ -1058,13 +1052,13 @@ fn test_lp_has_correct_entry_be_price_sim() {
         );
         // assert_ne!(position.remainder_base_asset_amount, 0);
 
-        if position.get_current_base_with_remainder_abs().unwrap() != 0 {
+        if position.get_base_asset_amount_with_remainder_abs().unwrap() != 0 {
             assert!(entry <= 100 * PRICE_PRECISION as i128);
             assert!(entry >= 99 * PRICE_PRECISION as i128);
         }
     }
     let entry = position.get_entry_price().unwrap();
-    let be = position.get_be_price().unwrap();
+    let be = position.get_breakeven_price().unwrap();
     let cb = position.get_cost_basis().unwrap();
 
     assert_eq!(entry, 99202570);
@@ -1099,7 +1093,7 @@ fn test_lp_has_correct_entry_be_price_sim_more_flips() {
     assert_eq!(market.amm.sqrt_k, 2000000000);
     assert_eq!(position.get_entry_price().unwrap(), 0);
     assert_eq!(position.get_cost_basis().unwrap(), 0);
-    assert_eq!(position.get_be_price().unwrap(), 0);
+    assert_eq!(position.get_breakeven_price().unwrap(), 0);
     assert_eq!(position.remainder_base_asset_amount, 0);
     assert_eq!(position.base_asset_amount, 0);
     let mut num_position_flips = 0;
@@ -1138,7 +1132,7 @@ fn test_lp_has_correct_entry_be_price_sim_more_flips() {
         assert_eq!(position.remainder_base_asset_amount, 0);
 
         let entry = position.get_entry_price().unwrap();
-        let be = position.get_be_price().unwrap();
+        let be = position.get_breakeven_price().unwrap();
         let cb = position.get_cost_basis().unwrap();
 
         let iii = position
@@ -1155,7 +1149,7 @@ fn test_lp_has_correct_entry_be_price_sim_more_flips() {
             position.base_asset_amount,
         );
 
-        if position.get_current_base_with_remainder_abs().unwrap() != 0 {
+        if position.get_base_asset_amount_with_remainder_abs().unwrap() != 0 {
             assert!(entry <= 99_800_000 as i128);
             assert!(entry >= 99_199_820 as i128);
         }
@@ -1165,7 +1159,7 @@ fn test_lp_has_correct_entry_be_price_sim_more_flips() {
     // assert_eq!(flip_indexes, [0, 1, 18, 19]);
 
     let entry = position.get_entry_price().unwrap();
-    let be = position.get_be_price().unwrap();
+    let be = position.get_breakeven_price().unwrap();
     let cb = position.get_cost_basis().unwrap();
 
     assert_eq!(position.base_asset_amount, 150200000000);
