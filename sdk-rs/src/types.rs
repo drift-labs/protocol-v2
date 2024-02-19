@@ -381,6 +381,27 @@ impl ClientOpts {
     }
 }
 
+pub struct ReferrerInfo {
+    referrer: Pubkey,
+    referrer_stats: Pubkey
+}
+
+impl ReferrerInfo {
+    pub fn new(referrer: Pubkey, referrer_stats: Pubkey) -> Self {
+        Self {
+            referrer,
+            referrer_stats
+        }
+    }
+
+    pub fn referrer(&self) -> Pubkey {
+        self.referrer
+    }
+
+    pub fn referrer_stats(&self) -> Pubkey {
+        self.referrer_stats
+    }
+}
 
 #[cfg(test)]
 mod tests {

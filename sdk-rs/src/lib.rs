@@ -849,7 +849,7 @@ impl<'a> TransactionBuilder<'a> {
                 user_token_account,
                 token_program: *constants::TOKEN_PROGRAM_ID,
             },
-            self.account_data.as_ref(),
+            &[self.account_data.as_ref()],
             &[],
             &[MarketId::spot(spot_market_index)]
         );
@@ -882,7 +882,7 @@ impl<'a> TransactionBuilder<'a> {
                 drift_signer: constants::derive_drift_signer(),
                 token_program: *constants::TOKEN_PROGRAM_ID
             },
-            &self.account_data.as_ref(),
+            &[self.account_data.as_ref()],
             &[],
             &[MarketId::spot(spot_market_index)]
         );
@@ -916,7 +916,7 @@ impl<'a> TransactionBuilder<'a> {
                 authority: self.authority,
                 user: self.sub_account,
             },
-            self.account_data.as_ref(),
+            &[self.account_data.as_ref()],
             readable_accounts.as_ref(),
             &[],
         );
@@ -943,7 +943,7 @@ impl<'a> TransactionBuilder<'a> {
                 authority: self.authority,
                 user: self.sub_account,
             },
-            self.account_data.as_ref(),
+            &[self.account_data.as_ref()],
             &[],
             &[],
         );
@@ -980,7 +980,7 @@ impl<'a> TransactionBuilder<'a> {
                 authority: self.authority,
                 user: self.sub_account,
             },
-            self.account_data.as_ref(),
+            &[self.account_data.as_ref()],
             &[(idx, kind).into()],
             &[],
         );
@@ -1008,7 +1008,7 @@ impl<'a> TransactionBuilder<'a> {
                 authority: self.authority,
                 user: self.sub_account,
             },
-            self.account_data.as_ref(),
+            &[self.account_data.as_ref()],
             &[],
             &[],
         );
@@ -1034,7 +1034,7 @@ impl<'a> TransactionBuilder<'a> {
                 authority: self.authority,
                 user: self.sub_account,
             },
-            self.account_data.as_ref(),
+            &[self.account_data.as_ref()],
             &[],
             &[],
         );
@@ -1063,7 +1063,7 @@ impl<'a> TransactionBuilder<'a> {
                     authority: self.authority,
                     user: self.sub_account,
                 },
-                self.account_data.as_ref(),
+                &[self.account_data.as_ref()],
                 &[],
                 &[],
             );
@@ -1092,7 +1092,7 @@ impl<'a> TransactionBuilder<'a> {
                     authority: self.authority,
                     user: self.sub_account,
                 },
-                self.account_data.as_ref(),
+                &[self.account_data.as_ref()],
                 &[],
                 &[],
             );
@@ -1127,6 +1127,10 @@ impl<'a> TransactionBuilder<'a> {
             VersionedMessage::V0(message)
         }
     }
+
+    pub fn program_data(&self) -> &ProgramData {
+        self.program_data
+    }
 }
 
 /// Builds a set of required accounts from a user's open positions and additional given accounts
@@ -1144,7 +1148,7 @@ impl<'a> TransactionBuilder<'a> {
 pub fn build_accounts(
     program_data: &ProgramData,
     base_accounts: impl ToAccountMetas,
-    user: &User,
+    users: &[&User],
     markets_readable: &[MarketId],
     markets_writable: &[MarketId],
 ) -> Vec<AccountMeta> {
@@ -1205,14 +1209,15 @@ pub fn build_accounts(
         include_market(*index, *kind, false);
     }
 
-    // Drift program performs margin checks which requires reading user positions
-    for p in user.spot_positions.iter().filter(|p| !p.is_available()) {
-        include_market(p.market_index, MarketType::Spot, false);
+    for user in users {
+        // Drift program performs margin checks which requires reading user positions
+        for p in user.spot_positions.iter().filter(|p| !p.is_available()) {
+            include_market(p.market_index, MarketType::Spot, false);
+        }
+        for p in user.perp_positions.iter().filter(|p| !p.is_available()) {
+            include_market(p.market_index, MarketType::Perp, false);
+        }
     }
-    for p in user.perp_positions.iter().filter(|p| !p.is_available()) {
-        include_market(p.market_index, MarketType::Perp, false);
-    }
-
     // always manually try to include the quote (USDC) market
     // TODO: this is not exactly the same semantics as the TS sdk
     include_market(QUOTE_SPOT_MARKET_INDEX, MarketType::Spot, false);
