@@ -383,7 +383,11 @@ function groupL2Levels(
 			groupedLevels.length > 0 &&
 			groupedLevels[groupedLevels.length - 1].price.eq(price)
 		) {
-			const currentLevel = groupedLevels[groupedLevels.length - 1];
+			
+			// Clones things so we don't mutate the original
+			const currentLevel = {...groupedLevels[groupedLevels.length - 1], };
+			currentLevel.sources = {...currentLevel.sources};
+
 			currentLevel.size = currentLevel.size.add(size);
 			for (const [source, size] of Object.entries(level.sources)) {
 				if (currentLevel.sources[source]) {
