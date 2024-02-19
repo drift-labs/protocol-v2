@@ -323,7 +323,7 @@ impl<T: AccountProvider> DriftClient<T> {
     }
 
     /// Get the active sub account id
-    pub fn get_sub_account_id_for_ix(&self, sub_account_id: Option<u8>) -> u8 {
+    pub fn get_sub_account_id_for_ix(&self, sub_account_id: Option<u16>) -> u16 {
         sub_account_id.unwrap_or(self.active_sub_account_id)
     }
 
