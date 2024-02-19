@@ -276,8 +276,8 @@ impl AccountProvider for WsAccountProvider {
 pub struct DriftClient<T: AccountProvider> {
     backend: &'static DriftClientBackend<T>,
     wallet: Wallet,
-    pub active_sub_account_id: u8,
-    pub sub_account_ids: Vec<u8>,
+    pub active_sub_account_id: u16,
+    pub sub_account_ids: Vec<u16>,
 }
 
 impl<T: AccountProvider> DriftClient<T> {
@@ -444,6 +444,14 @@ impl<T: AccountProvider> DriftClient<T> {
     /// Returns the deserialized account data (`User`)
     pub async fn get_user_account(&self, account: &Pubkey) -> SdkResult<User> {
         self.backend.get_account(account).await
+    }
+
+    /// Get your user account data
+    ///
+    /// Returns the deserialized account data (`User`)
+    pub async fn get_user(&self) -> SdkResult<User> {
+        let user_pubkey = Wallet::derive_user_account(self.wallet().authority(), self.active_sub_account_id.into(), &constants::PROGRAM_ID);
+        self.backend.get_account(&user_pubkey).await
     }
 
     /// Sign and send a tx to the network
@@ -1131,6 +1139,10 @@ impl<'a> TransactionBuilder<'a> {
     pub fn program_data(&self) -> &ProgramData {
         self.program_data
     }
+
+    pub fn account_data(&self) -> &Cow<'_, User> {
+        &self.account_data
+    }
 }
 
 /// Builds a set of required accounts from a user's open positions and additional given accounts
@@ -1286,23 +1298,25 @@ impl Wallet {
         self.authority = authority;
     }
     /// Calculate the address of a drift user account/sub-account
-    pub fn derive_user_account(account: &Pubkey, sub_account_id: u16, program: &Pubkey) -> Pubkey {
+    pub fn derive_user_account(authority: &Pubkey, sub_account_id: u16, program: &Pubkey) -> Pubkey {
         let (account_drift_pda, _seed) = Pubkey::find_program_address(
             &[
                 &b"user"[..],
-                account.as_ref(),
+                authority.as_ref(),
                 &sub_account_id.to_le_bytes(),
             ],
             program,
         );
         account_drift_pda
     }
+
     /// Calculate the address of a drift stats account
     pub fn derive_stats_account(account: &Pubkey, program: &Pubkey) -> Pubkey {
         let (account_drift_pda, _seed) =
             Pubkey::find_program_address(&[&b"user_stats"[..], account.as_ref()], program);
         account_drift_pda
     }
+
     /// Signs the given tx `message` returning the tx on success
     pub fn sign_tx(
         &self,

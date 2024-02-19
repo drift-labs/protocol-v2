@@ -350,8 +350,8 @@ impl MarketPrecision for PerpMarket {
 
 #[derive(Clone)]
 pub struct ClientOpts {
-    active_sub_account_id: u8,
-    sub_account_ids: Vec<u8>,
+    active_sub_account_id: u16,
+    sub_account_ids: Vec<u16>,
 }
 
 impl Default for ClientOpts {
@@ -364,7 +364,7 @@ impl Default for ClientOpts {
 }
 
 impl ClientOpts {
-    pub fn new(active_sub_account_id: u8, sub_account_ids: Option<Vec<u8>>) -> Self {
+    pub fn new(active_sub_account_id: u16, sub_account_ids: Option<Vec<u16>>) -> Self {
         let sub_account_ids = sub_account_ids.unwrap_or(vec![active_sub_account_id]);
         Self {
             active_sub_account_id,
@@ -372,11 +372,11 @@ impl ClientOpts {
         }
     }
 
-    pub fn active_sub_account_id(self) -> u8 {
+    pub fn active_sub_account_id(self) -> u16 {
         self.active_sub_account_id
     }
 
-    pub fn sub_account_ids(self) -> Vec<u8>  {
+    pub fn sub_account_ids(self) -> Vec<u16>  {
         self.sub_account_ids
     }
 }
