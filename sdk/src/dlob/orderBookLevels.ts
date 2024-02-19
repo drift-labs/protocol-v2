@@ -369,13 +369,23 @@ export function groupL2(
 	};
 }
 
+function cloneL2Level(level: L2Level): L2Level {
+	if (!level) return level;
+
+	return {
+		price: level.price,
+		size: level.size,
+		sources: { ...level.sources },
+	};
+}
+
 function groupL2Levels(
 	levels: L2Level[],
 	grouping: BN,
 	direction: PositionDirection,
 	depth: number
 ): L2Level[] {
-	const groupedLevels = [];
+	const groupedLevels : L2Level[] = [];
 	for (const level of levels) {
 		const price = standardizePrice(level.price, grouping, direction);
 		const size = level.size;
@@ -385,8 +395,7 @@ function groupL2Levels(
 		) {
 			
 			// Clones things so we don't mutate the original
-			const currentLevel = {...groupedLevels[groupedLevels.length - 1], };
-			currentLevel.sources = {...currentLevel.sources};
+			const currentLevel = cloneL2Level(groupedLevels[groupedLevels.length - 1]);
 
 			currentLevel.size = currentLevel.size.add(size);
 			for (const [source, size] of Object.entries(level.sources)) {
@@ -483,8 +492,8 @@ export function uncrossL2(
 	let bidIndex = 0;
 	let askIndex = 0;
 	while (bidIndex < bids.length || askIndex < asks.length) {
-		const nextBid = bids[bidIndex];
-		const nextAsk = asks[askIndex];
+		const nextBid = cloneL2Level(bids[bidIndex]);
+		const nextAsk = cloneL2Level(asks[askIndex]);
 
 		if (!nextBid) {
 			newAsks.push(nextAsk);
