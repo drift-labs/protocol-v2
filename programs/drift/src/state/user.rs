@@ -903,41 +903,6 @@ impl PerpPosition {
         }
     }
 
-    pub fn get_breakeven_price(&self) -> DriftResult<i128> {
-        let base_with_remainder = self.get_base_asset_amount_with_remainder()?;
-        if base_with_remainder == 0 {
-            return Ok(0);
-        }
-
-        (-self.quote_break_even_amount.cast::<i128>()?)
-            .safe_mul(PRICE_PRECISION_I128)?
-            .safe_mul(AMM_TO_QUOTE_PRECISION_RATIO_I128)?
-            .safe_div(base_with_remainder)
-    }
-
-    pub fn get_entry_price(&self) -> DriftResult<i128> {
-        let base_with_remainder = self.get_base_asset_amount_with_remainder()?;
-        if base_with_remainder == 0 {
-            return Ok(0);
-        }
-
-        (-self.quote_entry_amount.cast::<i128>()?)
-            .safe_mul(PRICE_PRECISION_I128)?
-            .safe_mul(AMM_TO_QUOTE_PRECISION_RATIO_I128)?
-            .safe_div(base_with_remainder)
-    }
-
-    pub fn get_cost_basis(&self) -> DriftResult<i128> {
-        if self.base_asset_amount == 0 {
-            return Ok(0);
-        }
-
-        (-self.quote_asset_amount.cast::<i128>()?)
-            .safe_mul(PRICE_PRECISION_I128)?
-            .safe_mul(AMM_TO_QUOTE_PRECISION_RATIO_I128)?
-            .safe_div(self.base_asset_amount.cast()?)
-    }
-
     pub fn get_unrealized_pnl(&self, oracle_price: i64) -> DriftResult<i128> {
         let (_, unrealized_pnl) =
             calculate_base_asset_value_and_pnl_with_oracle_price(self, oracle_price)?;
@@ -985,6 +950,46 @@ impl PerpPosition {
             Ok(unrealized_pnl)
         }
     }
+}
+
+#[cfg(test)]
+impl PerpPosition {
+
+    pub fn get_breakeven_price(&self) -> DriftResult<i128> {
+        let base_with_remainder = self.get_base_asset_amount_with_remainder()?;
+        if base_with_remainder == 0 {
+            return Ok(0);
+        }
+
+        (-self.quote_break_even_amount.cast::<i128>()?)
+            .safe_mul(PRICE_PRECISION_I128)?
+            .safe_mul(AMM_TO_QUOTE_PRECISION_RATIO_I128)?
+            .safe_div(base_with_remainder)
+    }
+
+    pub fn get_entry_price(&self) -> DriftResult<i128> {
+        let base_with_remainder = self.get_base_asset_amount_with_remainder()?;
+        if base_with_remainder == 0 {
+            return Ok(0);
+        }
+
+        (-self.quote_entry_amount.cast::<i128>()?)
+            .safe_mul(PRICE_PRECISION_I128)?
+            .safe_mul(AMM_TO_QUOTE_PRECISION_RATIO_I128)?
+            .safe_div(base_with_remainder)
+    }
+
+    pub fn get_cost_basis(&self) -> DriftResult<i128> {
+        if self.base_asset_amount == 0 {
+            return Ok(0);
+        }
+
+        (-self.quote_asset_amount.cast::<i128>()?)
+            .safe_mul(PRICE_PRECISION_I128)?
+            .safe_mul(AMM_TO_QUOTE_PRECISION_RATIO_I128)?
+            .safe_div(self.base_asset_amount.cast()?)
+    }
+
 }
 
 pub type PerpPositions = [PerpPosition; 8];
