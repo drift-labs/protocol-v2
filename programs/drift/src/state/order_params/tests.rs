@@ -996,4 +996,63 @@ mod get_close_perp_params {
             padding: [0; 3],
         }
     }
+
+    #[test]
+    fn test_default_starts_on_perp_markets() {
+        // BTC style market
+        // ideally 60 above oracle is fill
+        let perp_market_str = String::from("Ct8MLGv1N/cV6vWLwJY+18dY2GsrmrNldgnISB7pmbcf7cn9S4FZ4OYt9si0qF/hpn20TcEt5dszD3rGa3LcZYr+3w9KQVtDQEK8LQwAAAAAAAAAAAAAAAIAAAAAAAAATR7OKQwAAACsuhItDAAAABqp1GUAAAAA/fzP2P///////////////99h9GQEAAAAAAAAAAAAAADXOjdJzWQAAAAAAAAAAAAAAAAAAAAAAAAuI6el0QEAAAAAAAAAAAAA9u9IVNEGAAAAAAAAAAAAAJxiDwAAAAAAAAAAAAAAAABVU808zgEAAAAAAAAAAAAACeF17dUBAAAAAAAAAAAAAM6XvYCFAwAAAAAAAAAAAACWxcs/AwAAAAAAAAAAAAAAN2QGws8GAAAAAAAAAAAAAMCk9S8+AAAAAAAAAAAAAADABV1mwv//////////////5QhrawAAAAAAAAAAAAAAAJuh5yoAAAAAAAAAAAAAAAAAoNshXQAAAAAAAAAAAAAAgruloUEAAAAAAAAAAAAAAIjHhpPh8//////////////C9GHQvgsAAAAAAAAAAAAApZ+7JMPz/////////////+Wma/v1CwAAAAAAAAAAAAAAMVw41QAAAAAAAAAAAAAAcUNyaAAAAABxQ3JoAAAAAHFDcmgAAAAArY7UlAAAAACt+g88fgAAAAAAAAAAAAAAznvNmTMAAAAAAAAAAAAAAPG3DURMAAAAAAAAAAAAAACBrvFTdAAAAAAAAAAAAAAA8tmZKi8AAAAAAAAAAAAAAHvRRkAjAAAAAAAAAAAAAADNFAJImwgAAAAAAAAAAAAA8oOQLJsIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA2eHJY0QEAAAAAAAAAAAAA+XzaddIGAAAAAAAAAAAAAOf5IqvRAQAAAAAAAAAAAACqVrs/0QYAAAAAAAAAAAAAQEK8LQwAAAAAAAAAAAAAAPDx7SoMAAAAnb+iLAwAAADGWMgrDAAAAIYLIy8MAAAA+dLcDgAAAABaAgAAAAAAALM+D/7/////VaLUZQAAAAAQDgAAAAAAAKCGAQAAAAAAoIYBAAAAAAAgoQcAAAAAAAAAAAAAAAAABeZ6i7gsAAAysGg95QAAAO7ctlC7AAAAGqnUZQAAAACpe6oBAAAAAPMj7gMAAAAAGqnUZQAAAAAyAAAAHCUAABAFAABcAAAAAAAAAK0DAADcBTIAZMgAAYCLLeUAAAAAvUntAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAFaHyO66xAIAAAAAAAAAAAAAAAAAAAAAAEJUQy1QRVJQICAgICAgICAgICAgICAgICAgICAgICAggA8F/f////+A8PoCAAAAAABcsuwiAAAAXd8ZJAAAAAAMo9RlAAAAAADh9QUAAAAAAAAAAAAAAAAAAAAAAAAAALgnGAAAAAAAwygAAAAAAAD5AwAAAAAAAEAfAAAAAAAATB0AANQwAAD0AQAALAEAAAAAAAAQJwAArwwAAOgWAAABAAEAAAAAALX/AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==");
+        let mut decoded_bytes = base64::decode(perp_market_str).unwrap();
+        let perp_market_bytes = decoded_bytes.as_mut_slice();
+
+        let key = Pubkey::default();
+        let owner = Pubkey::from_str("dRiftyHA39MWEi3m9aunc5MzRF1JYuBsbn6VPcn33UH").unwrap();
+        let mut lamports = 0;
+        let perp_market_account_info =
+            create_account_info(&key, true, &mut lamports, perp_market_bytes, &owner);
+
+        let perp_market_loader: AccountLoader<PerpMarket> =
+            AccountLoader::try_from(&perp_market_account_info).unwrap();
+        let perp_market = perp_market_loader.load_mut().unwrap();
+
+        let oracle_price = perp_market.amm.historical_oracle_data.last_oracle_price;
+        let slot = 249352956_u64;
+        let base_asset_amount = 100 * BASE_PRECISION_U64;
+
+        let (long_start, long_end) = OrderParams::get_perp_baseline_start_end_price_offset(
+            &perp_market,
+            PositionDirection::Long,
+        )
+        .unwrap();
+        assert_eq!(long_start, 25635886); // $25 above
+        assert_eq!(long_end, 115193672); //115
+
+        let (short_start, short_end) = OrderParams::get_perp_baseline_start_end_price_offset(
+            &perp_market,
+            PositionDirection::Short,
+        )
+        .unwrap();
+        assert_eq!(short_start, 47008307);
+        assert_eq!(short_end, -47075408);
+
+        let params = OrderParams::get_close_perp_params(
+            &perp_market,
+            PositionDirection::Long,
+            base_asset_amount,
+        )
+        .unwrap();
+
+        let auction_start_price = params.auction_start_price.unwrap();
+        let auction_end_price = params.auction_end_price.unwrap();
+        let oracle_price_offset = params.oracle_price_offset.unwrap();
+        let auction_duration = params.auction_duration.unwrap();
+        assert_eq!(auction_start_price, long_start); // $25 above
+        assert_eq!(auction_end_price, long_end); // 115
+        assert_eq!(oracle_price_offset, long_end as i32);
+        assert_eq!(auction_duration, 80);
+
+        let order = get_order(&params, slot);
+
+        validate_order(&order, &perp_market, Some(oracle_price), slot).unwrap();
+    }
 }
