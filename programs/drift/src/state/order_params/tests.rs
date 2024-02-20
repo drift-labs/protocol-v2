@@ -590,6 +590,39 @@ mod update_perp_auction_params {
         assert_eq!(order_params_after.auction_end_price.unwrap(), 1207026);
         assert_eq!(order_params_after.oracle_price_offset, None);
 
+        // test sanitize laxing on stale/mismatched mark/oracle twap timestamps
+
+        // not too late, should be the same
+        amm.historical_oracle_data.last_oracle_price_twap_ts = 17000000;
+        amm.last_mark_price_twap_ts = 17000000 - 55;
+        let mut order_params_after_2 = order_params_before;
+        order_params_after_2
+            .update_perp_auction_params(&perp_market, oracle_price)
+            .unwrap();
+        assert_eq!(
+            order_params_after.auction_start_price.unwrap(),
+            order_params_after_2.auction_start_price.unwrap()
+        );
+        assert_eq!(
+            order_params_after.auction_end_price.unwrap(),
+            order_params_after_2.auction_end_price.unwrap()
+        );
+        assert_eq!(
+            order_params_after.auction_duration.unwrap(),
+            order_params_after_2.auction_duration.unwrap()
+        );
+
+        // test sanitize skip on stale/mismatched mark/oracle twap timestamps
+        amm.historical_oracle_data.last_oracle_price_twap_ts = 17000000;
+        amm.last_mark_price_twap_ts = 17000000 - 65;
+        let mut order_params_after = order_params_before;
+        order_params_after
+            .update_perp_auction_params(&perp_market, oracle_price)
+            .unwrap();
+        assert_eq!(order_params_after.auction_start_price.unwrap(), 18698);
+        assert_eq!(order_params_after.auction_end_price.unwrap(), 1207026);
+
+        // test empty
         let order_params_before = OrderParams {
             order_type: OrderType::Oracle,
             direction: PositionDirection::Short,
@@ -628,6 +661,7 @@ mod update_perp_auction_params {
             .unwrap();
         assert_eq!(order_params_after.auction_start_price.unwrap(), 216738);
         assert_eq!(order_params_after.auction_end_price.unwrap(), -971789);
+        assert_eq!(order_params_after.auction_duration.unwrap(), 73);
     }
 }
 
