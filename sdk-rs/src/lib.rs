@@ -4,7 +4,7 @@ use std::{borrow::Cow, sync::Arc, time::Duration};
 
 use anchor_lang::{AccountDeserialize, Discriminator, InstructionData, ToAccountMetas};
 use async_utils::{retry_policy, spawn_retry_task};
-use drift_program::{
+use drift::{
     controller::position::PositionDirection,
     math::constants::QUOTE_SPOT_MARKET_INDEX,
     state::{
@@ -848,7 +848,7 @@ impl<'a> TransactionBuilder<'a> {
 
         let accounts = build_accounts(
             self.program_data,
-            drift_program::accounts::Deposit {
+            drift::accounts::Deposit {
                 state: *state_account(),
                 user: self.sub_account,
                 user_stats: Wallet::derive_stats_account(&self.authority, &constants::PROGRAM_ID),
@@ -865,7 +865,7 @@ impl<'a> TransactionBuilder<'a> {
         let ix = Instruction {
             program_id: constants::PROGRAM_ID,
             accounts,
-            data: InstructionData::data(&drift_program::instruction::Deposit {
+            data: InstructionData::data(&drift::instruction::Deposit {
                 market_index: spot_market_index,
                 amount,
                 reduce_only: reduce_only.unwrap_or(false)
@@ -880,7 +880,7 @@ impl<'a> TransactionBuilder<'a> {
     pub fn withdraw(mut self, amount: u64, spot_market_index: u16, user_token_account: Pubkey, reduce_only: Option<bool>) -> Self {
         let accounts = build_accounts(
             self.program_data,
-            drift_program::accounts::Withdraw {
+            drift::accounts::Withdraw {
                 state: *state_account(),
                 user: self.sub_account,
                 user_stats: Wallet::derive_stats_account(&self.authority, &constants::PROGRAM_ID),
@@ -898,7 +898,7 @@ impl<'a> TransactionBuilder<'a> {
         let ix = Instruction {
             program_id: constants::PROGRAM_ID,
             accounts,
-            data: InstructionData::data(&drift_program::instruction::Withdraw {
+            data: InstructionData::data(&drift::instruction::Withdraw {
                 market_index: spot_market_index,
                 amount,
                 reduce_only: reduce_only.unwrap_or(false)
@@ -919,7 +919,7 @@ impl<'a> TransactionBuilder<'a> {
 
         let accounts = build_accounts(
             self.program_data,
-            drift_program::accounts::PlaceOrder {
+            drift::accounts::PlaceOrder {
                 state: *state_account(),
                 authority: self.authority,
                 user: self.sub_account,
@@ -932,7 +932,7 @@ impl<'a> TransactionBuilder<'a> {
         let ix = Instruction {
             program_id: constants::PROGRAM_ID,
             accounts,
-            data: InstructionData::data(&drift_program::instruction::PlaceOrders {
+            data: InstructionData::data(&drift::instruction::PlaceOrders {
                 params: orders,
             }),
         };
@@ -946,7 +946,7 @@ impl<'a> TransactionBuilder<'a> {
     pub fn cancel_all_orders(mut self) -> Self {
         let accounts = build_accounts(
             self.program_data,
-            drift_program::accounts::CancelOrder {
+            drift::accounts::CancelOrder {
                 state: *state_account(),
                 authority: self.authority,
                 user: self.sub_account,
@@ -959,7 +959,7 @@ impl<'a> TransactionBuilder<'a> {
         let ix = Instruction {
             program_id: constants::PROGRAM_ID,
             accounts,
-            data: InstructionData::data(&drift_program::instruction::CancelOrders {
+            data: InstructionData::data(&drift::instruction::CancelOrders {
                 market_index: None,
                 market_type: None,
                 direction: None,
@@ -983,7 +983,7 @@ impl<'a> TransactionBuilder<'a> {
         let (idx, kind) = market;
         let accounts = build_accounts(
             self.program_data,
-            drift_program::accounts::CancelOrder {
+            drift::accounts::CancelOrder {
                 state: *state_account(),
                 authority: self.authority,
                 user: self.sub_account,
@@ -996,7 +996,7 @@ impl<'a> TransactionBuilder<'a> {
         let ix = Instruction {
             program_id: constants::PROGRAM_ID,
             accounts,
-            data: InstructionData::data(&drift_program::instruction::CancelOrders {
+            data: InstructionData::data(&drift::instruction::CancelOrders {
                 market_index: Some(idx),
                 market_type: Some(kind),
                 direction,
@@ -1011,7 +1011,7 @@ impl<'a> TransactionBuilder<'a> {
     pub fn cancel_orders_by_id(mut self, order_ids: Vec<u32>) -> Self {
         let accounts = build_accounts(
             self.program_data,
-            drift_program::accounts::CancelOrder {
+            drift::accounts::CancelOrder {
                 state: *state_account(),
                 authority: self.authority,
                 user: self.sub_account,
@@ -1024,7 +1024,7 @@ impl<'a> TransactionBuilder<'a> {
         let ix = Instruction {
             program_id: constants::PROGRAM_ID,
             accounts,
-            data: InstructionData::data(&drift_program::instruction::CancelOrdersByIds {
+            data: InstructionData::data(&drift::instruction::CancelOrdersByIds {
                 order_ids,
             }),
         };
@@ -1037,7 +1037,7 @@ impl<'a> TransactionBuilder<'a> {
     pub fn cancel_orders_by_user_id(mut self, user_order_ids: Vec<u8>) -> Self {
         let accounts = build_accounts(
             self.program_data,
-            drift_program::accounts::CancelOrder {
+            drift::accounts::CancelOrder {
                 state: *state_account(),
                 authority: self.authority,
                 user: self.sub_account,
@@ -1051,7 +1051,7 @@ impl<'a> TransactionBuilder<'a> {
             let ix = Instruction {
                 program_id: constants::PROGRAM_ID,
                 accounts: accounts.clone(),
-                data: InstructionData::data(&drift_program::instruction::CancelOrderByUserId {
+                data: InstructionData::data(&drift::instruction::CancelOrderByUserId {
                     user_order_id,
                 }),
             };
@@ -1066,7 +1066,7 @@ impl<'a> TransactionBuilder<'a> {
         for (order_id, params) in orders {
             let accounts = build_accounts(
                 self.program_data,
-                drift_program::accounts::PlaceOrder {
+                drift::accounts::PlaceOrder {
                     state: *state_account(),
                     authority: self.authority,
                     user: self.sub_account,
@@ -1079,7 +1079,7 @@ impl<'a> TransactionBuilder<'a> {
             let ix = Instruction {
                 program_id: constants::PROGRAM_ID,
                 accounts,
-                data: InstructionData::data(&drift_program::instruction::ModifyOrder {
+                data: InstructionData::data(&drift::instruction::ModifyOrder {
                     order_id: Some(*order_id),
                     modify_order_params: params.clone(),
                 }),
@@ -1095,7 +1095,7 @@ impl<'a> TransactionBuilder<'a> {
         for (user_order_id, params) in orders {
             let accounts = build_accounts(
                 self.program_data,
-                drift_program::accounts::PlaceOrder {
+                drift::accounts::PlaceOrder {
                     state: *state_account(),
                     authority: self.authority,
                     user: self.sub_account,
@@ -1108,7 +1108,7 @@ impl<'a> TransactionBuilder<'a> {
             let ix = Instruction {
                 program_id: constants::PROGRAM_ID,
                 accounts,
-                data: InstructionData::data(&drift_program::instruction::ModifyOrderByUserId {
+                data: InstructionData::data(&drift::instruction::ModifyOrderByUserId {
                     user_order_id: *user_order_id,
                     modify_order_params: params.clone(),
                 }),
@@ -1354,7 +1354,7 @@ impl Wallet {
 mod tests {
     use std::str::FromStr;
 
-    use drift_program::state::perp_market::PerpMarket;
+    use drift::state::perp_market::PerpMarket;
     use serde_json::json;
     use solana_account_decoder::{UiAccount, UiAccountData};
     use solana_client::{

@@ -7,7 +7,7 @@ use std::{
 };
 
 use anchor_lang::{AnchorDeserialize, Discriminator};
-use drift_program::{
+use drift::{
     controller::position::PositionDirection,
     state::{
         events::{OrderAction, OrderActionExplanation, OrderActionRecord, OrderRecord},
@@ -619,7 +619,7 @@ mod test {
     use std::io::Write;
 
     use anchor_lang::prelude::*;
-    use drift_program::state::{events::get_order_action_record, traits::Size};
+    use drift::state::{events::get_order_action_record, traits::Size};
     use fnv::FnvHashMap;
     use futures_util::future::ready;
     use solana_sdk::{

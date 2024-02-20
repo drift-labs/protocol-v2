@@ -1,6 +1,6 @@
 use std::str::FromStr;
 
-use drift_program::math::constants::{
+use drift::math::constants::{
     BASE_PRECISION_I64, LAMPORTS_PER_SOL_I64, PRICE_PRECISION_U64,
 };
 use drift_sdk::{

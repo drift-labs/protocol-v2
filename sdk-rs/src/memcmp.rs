@@ -1,5 +1,5 @@
 use anchor_lang::Discriminator;
-use drift_program::state::user::User;
+use drift::state::user::User;
 use solana_client::rpc_filter::{Memcmp, RpcFilterType};
 
 pub fn get_user_filter() -> RpcFilterType {

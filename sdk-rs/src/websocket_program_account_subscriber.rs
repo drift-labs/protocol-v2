@@ -113,7 +113,7 @@ impl WebsocketProgramAccountSubscriber {
 
         tokio::spawn(async move {
             let (mut accounts, unsubscriber) = pubsub
-                .program_subscribe(&drift_program::ID, Some(config))
+                .program_subscribe(&drift::ID, Some(config))
                 .await
                 .unwrap();
             loop {
@@ -174,7 +174,7 @@ mod tests {
     use std::str::FromStr;
 
     use anchor_client::Cluster;
-    use drift_program::state::user::User;
+    use drift::state::user::User;
 
     use super::*;
     use crate::memcmp::{get_non_idle_user_filter, get_user_filter};
