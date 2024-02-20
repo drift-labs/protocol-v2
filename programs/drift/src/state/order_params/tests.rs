@@ -531,7 +531,7 @@ mod update_perp_auction_params {
         amm.historical_oracle_data.last_oracle_price = oracle_price;
         amm.historical_oracle_data.last_oracle_price_twap = oracle_price - 97238;
         amm.historical_oracle_data.last_oracle_price_twap_5min =
-            amm.historical_oracle_data.last_oracle_price_twap;  
+            amm.historical_oracle_data.last_oracle_price_twap;
 
         let ask_twap_offset = 217999;
         amm.last_ask_price_twap =
@@ -542,8 +542,8 @@ mod update_perp_auction_params {
             (amm.historical_oracle_data.last_oracle_price_twap as u64) + bid_twap_offset;
 
         amm.last_mark_price_twap_5min =
-            (amm.historical_oracle_data.last_oracle_price_twap as u64) + (17238 + 217999)/2;
-                 
+            (amm.historical_oracle_data.last_oracle_price_twap as u64) + (17238 + 217999) / 2;
+
         let perp_market = PerpMarket {
             amm,
             ..PerpMarket::default()
