@@ -275,6 +275,7 @@ describe('lp risk mitigation', () => {
 			undefined,
 			bulkAccountLoader
 		);
+		await traderDriftClient.updateUserAdvancedLp(true);
 		[poorDriftClient, poorDriftClientUser] = await createNewUser(
 			chProgram,
 			provider,
@@ -284,6 +285,7 @@ describe('lp risk mitigation', () => {
 			undefined,
 			bulkAccountLoader
 		);
+		await poorDriftClient.updateUserAdvancedLp(true);
 	});
 
 	after(async () => {

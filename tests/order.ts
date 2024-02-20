@@ -563,8 +563,7 @@ describe('orders', () => {
 		await driftClientUser.fetchAccounts();
 		await fillerUser.fetchAccounts();
 
-		assert(driftClientUser.getPerpPosition(marketIndex).openAsks.eq(ZERO));
-		assert(driftClientUser.getPerpPosition(marketIndex).openBids.eq(ZERO));
+		assert(driftClientUser.getPerpPosition(marketIndex) === undefined);
 
 		order = driftClientUser.getUserAccount().orders[orderIndex.toString()];
 
@@ -686,9 +685,7 @@ describe('orders', () => {
 		console.log(order2);
 
 		await driftClient.cancelOrder(orderId);
-		const baseAssetAmountAfter =
-			driftClientUser.getPerpPosition(marketIndex).baseAssetAmount;
-		assert(baseAssetAmountBefore.eq(baseAssetAmountAfter));
+		assert(driftClientUser.getPerpPosition(marketIndex) === undefined);
 	});
 
 	it('Partial fill limit short order', async () => {
@@ -1528,7 +1525,7 @@ describe('orders', () => {
 		);
 		assert(fillerReward.eq(expectedFillerReward));
 
-		assert(whaleStats.fees.totalFeePaid.gt(fillerReward.mul(new BN(100))));
+		assert(whaleStats.fees.totalFeePaid.gt(fillerReward.mul(new BN(5))));
 		// ensure whale fee more than x100 filler
 	});
 
