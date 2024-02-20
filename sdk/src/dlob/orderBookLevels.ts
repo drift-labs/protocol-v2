@@ -385,7 +385,7 @@ function groupL2Levels(
 	direction: PositionDirection,
 	depth: number
 ): L2Level[] {
-	const groupedLevels : L2Level[] = [];
+	const groupedLevels: L2Level[] = [];
 	for (const level of levels) {
 		const price = standardizePrice(level.price, grouping, direction);
 		const size = level.size;
@@ -393,9 +393,10 @@ function groupL2Levels(
 			groupedLevels.length > 0 &&
 			groupedLevels[groupedLevels.length - 1].price.eq(price)
 		) {
-			
 			// Clones things so we don't mutate the original
-			const currentLevel = cloneL2Level(groupedLevels[groupedLevels.length - 1]);
+			const currentLevel = cloneL2Level(
+				groupedLevels[groupedLevels.length - 1]
+			);
 
 			currentLevel.size = currentLevel.size.add(size);
 			for (const [source, size] of Object.entries(level.sources)) {
