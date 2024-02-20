@@ -1,9 +1,9 @@
 use std::cmp::Ordering;
 
 use anchor_lang::AccountDeserialize;
-use drift_program::error::ErrorCode;
+use drift::error::ErrorCode;
 // re-export types in public API
-pub use drift_program::{
+pub use drift::{
     controller::position::PositionDirection,
     state::{
         order_params::{ModifyOrderParams, OrderParams, PostOnlyParam},
@@ -405,7 +405,7 @@ impl ReferrerInfo {
 
 #[cfg(test)]
 mod tests {
-    use drift_program::error::ErrorCode;
+    use drift::error::ErrorCode;
     use solana_client::{
         client_error::{ClientError, ClientErrorKind},
         rpc_request::{RpcError, RpcRequest},

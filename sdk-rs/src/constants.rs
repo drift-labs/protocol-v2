@@ -1,8 +1,8 @@
 use std::sync::OnceLock;
 use std::str::FromStr;
 
-use drift_program::state::{perp_market::PerpMarket, spot_market::SpotMarket};
-pub use drift_program::{
+use drift::state::{perp_market::PerpMarket, spot_market::SpotMarket};
+pub use drift::{
     math::constants::{
         BASE_PRECISION_U64 as BASE_PRECISION, PRICE_PRECISION,
         QUOTE_PRECISION_U64 as QUOTE_PRECISION, SPOT_BALANCE_PRECISION,

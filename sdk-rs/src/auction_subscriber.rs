@@ -2,7 +2,7 @@
 use std::sync::{Arc, Mutex};
 
 // External Crate Imports
-use drift_program::state::user::User;
+use drift::state::user::User;
 use crate::event_emitter::EventEmitter;
 use solana_account_decoder::UiAccountEncoding;
 use solana_sdk::commitment_config::CommitmentConfig;

@@ -2,7 +2,7 @@
 use std::{task::Poll, time::Duration};
 
 // External Crate Imports
-use drift_program::state::user::MarketType;
+use drift::state::user::MarketType;
 use futures_util::{SinkExt, Stream, StreamExt};
 use log::{error, info};
 use reqwest::Client;
