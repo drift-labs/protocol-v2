@@ -447,7 +447,6 @@ impl PerpMarket {
         delta: &PositionDelta,
         new_settled_base_asset_amount: i64,
     ) -> DriftResult {
-
         // indicates that position delta is settling lp counterparty
         if delta.remainder_base_asset_amount.is_some() {
             // todo: name for this is confusing, but adding is correct as is
@@ -457,8 +456,6 @@ impl PerpMarket {
                 .base_asset_amount_with_unsettled_lp
                 .safe_add(new_settled_base_asset_amount.cast()?)?;
         }
-
-        // other counterparty updates occur elsewhere
 
         Ok(())
     }
