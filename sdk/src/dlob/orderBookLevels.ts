@@ -544,10 +544,10 @@ export function uncrossL2(
 				askIndex++;
 			}
 		} else {
-				newAsks.push(nextAsk);
+			newAsks.push(nextAsk);
 			askIndex++;
 
-				newBids.push(nextBid);
+			newBids.push(nextBid);
 			bidIndex++;
 		}
 	}
