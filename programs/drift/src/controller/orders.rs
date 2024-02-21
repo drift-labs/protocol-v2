@@ -2953,17 +2953,19 @@ pub fn burn_user_lp_shares_for_risk_reduction(
 
     drop(market);
 
-    controller::orders::place_perp_order(
-        state,
-        user,
-        user_key,
-        perp_market_map,
-        spot_market_map,
-        oracle_map,
-        clock,
-        params,
-        PlaceOrderOptions::default().explanation(OrderActionExplanation::DeriskLp),
-    )?;
+    if user.has_room_for_new_order() {
+        controller::orders::place_perp_order(
+            state,
+            user,
+            user_key,
+            perp_market_map,
+            spot_market_map,
+            oracle_map,
+            clock,
+            params,
+            PlaceOrderOptions::default().explanation(OrderActionExplanation::DeriskLp),
+        )?;
+    }
 
     Ok(())
 }
