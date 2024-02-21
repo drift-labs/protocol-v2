@@ -6614,7 +6614,7 @@ describe('Uncross L2', () => {
 		);
 	});
 	
-	it('Handles bug seen in UI', () => {
+	it('Handles edge case bide and asks with large cross and an overlapping level', () => {
 
 		const bids = [
 			"104411000",
