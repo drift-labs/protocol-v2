@@ -508,7 +508,7 @@ export function uncrossL2(
 			continue;
 		}
 
-		if (nextBid.price.gt(nextAsk.price)) {
+		if (nextBid.price.gte(nextAsk.price)) {
 			if (userBids.has(nextBid.price.toString())) {
 				newBids.push(nextBid);
 				bidIndex++;
