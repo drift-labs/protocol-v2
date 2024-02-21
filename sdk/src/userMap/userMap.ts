@@ -42,8 +42,14 @@ export interface UserMapInterface {
 	has(key: string): boolean;
 	get(key: string): User | undefined;
 	getWithSlot(key: string): DataAndSlot<User> | undefined;
-	mustGet(key: string): Promise<User>;
-	mustGetWithSlot(key: string): Promise<DataAndSlot<User>>;
+	mustGet(
+		key: string,
+		accountSubscription?: UserSubscriptionConfig
+	): Promise<User>;
+	mustGetWithSlot(
+		key: string,
+		accountSubscription?: UserSubscriptionConfig
+	): Promise<DataAndSlot<User>>;
 	getUserAuthority(key: string): PublicKey | undefined;
 	updateWithOrderRecord(record: OrderRecord): Promise<void>;
 	values(): IterableIterator<User>;
@@ -158,7 +164,7 @@ export class UserMap implements UserMapInterface {
 		await user.subscribe(userAccount);
 		this.userMap.set(userAccountPublicKey.toString(), {
 			data: user,
-			slot: slot ?? -1,
+			slot: user.getUserAccountAndSlot().slot ?? -1,
 		});
 	}
 

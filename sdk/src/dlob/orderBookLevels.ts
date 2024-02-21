@@ -496,7 +496,7 @@ export function uncrossL2(
 	let maxBid: BN;
 	let minAsk: BN;
 
-	const getPriceAndSetBound = (newPrice: BN, direction : PositionDirection) => {
+	const getPriceAndSetBound = (newPrice: BN, direction: PositionDirection) => {
 		if (isVariant(direction, 'long')) {
 			maxBid = maxBid ? BN.min(maxBid, newPrice) : newPrice;
 			return maxBid;
@@ -565,7 +565,10 @@ export function uncrossL2(
 			}
 		} else {
 			if (minAsk && nextAsk.price.lte(minAsk)) {
-				const newAskPrice = getPriceAndSetBound(nextAsk.price, PositionDirection.SHORT);
+				const newAskPrice = getPriceAndSetBound(
+					nextAsk.price,
+					PositionDirection.SHORT
+				);
 				updateLevels(newAskPrice, nextAsk, newAsks);
 			} else {
 				newAsks.push(nextAsk);
@@ -573,7 +576,10 @@ export function uncrossL2(
 			askIndex++;
 
 			if (maxBid && nextBid.price.gte(maxBid)) {
-				const newBidPrice = getPriceAndSetBound(nextBid.price, PositionDirection.LONG);
+				const newBidPrice = getPriceAndSetBound(
+					nextBid.price,
+					PositionDirection.LONG
+				);
 				updateLevels(newBidPrice, nextBid, newBids);
 			} else {
 				newBids.push(nextBid);
