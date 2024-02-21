@@ -492,6 +492,9 @@ export function uncrossL2(
 
 	let bidIndex = 0;
 	let askIndex = 0;
+	
+	let maxBidPrice: BN; // While we're uncrossing, track the maximum acceptable bid price we've seen so far. We expect bids to be descending so following bids should be rounded down to this price if they are higher
+	let minAskPrice: BN; // Ditto
 	while (bidIndex < bids.length || askIndex < asks.length) {
 		const nextBid = cloneL2Level(bids[bidIndex]);
 		const nextAsk = cloneL2Level(asks[askIndex]);
@@ -507,6 +510,22 @@ export function uncrossL2(
 			bidIndex++;
 			continue;
 		}
+
+		const updateAndGetSafeNextBid = (newBidPrice: BN) => {
+			maxBidPrice = maxBidPrice ? (
+				BN.min(maxBidPrice, newBidPrice)
+			) : newBidPrice;
+
+			return maxBidPrice;
+		};
+
+		const updateAndGetSafeNextAsk = (newAskPrice: BN) => {
+			minAskPrice = minAskPrice ? (
+				BN.max(minAskPrice, newAskPrice)
+			) : newAskPrice;
+
+			return minAskPrice;
+		};
 
 		if (nextBid.price.gt(nextAsk.price)) {
 			if (userBids.has(nextBid.price.toString())) {
@@ -526,28 +545,47 @@ export function uncrossL2(
 				nextAsk.price.gt(referencePrice)
 			) {
 				const newBidPrice = nextAsk.price.sub(grouping);
-				updateLevels(newBidPrice, nextBid, newBids);
+
+				const nextBidPrice = updateAndGetSafeNextBid(newBidPrice);
+
+				updateLevels(nextBidPrice, nextBid, newBids);
 				bidIndex++;
 			} else if (
 				nextAsk.price.lt(referencePrice) &&
 				nextBid.price.lt(referencePrice)
 			) {
 				const newAskPrice = nextBid.price.add(grouping);
-				updateLevels(newAskPrice, nextAsk, newAsks);
+
+				const nextAskPrice = updateAndGetSafeNextAsk(newAskPrice);
+
+				updateLevels(nextAskPrice, nextAsk, newAsks);
 				askIndex++;
 			} else {
 				const newBidPrice = referencePrice.sub(grouping);
 				const newAskPrice = referencePrice.add(grouping);
-				updateLevels(newBidPrice, nextBid, newBids);
-				updateLevels(newAskPrice, nextAsk, newAsks);
+
+				const nextBidPrice = updateAndGetSafeNextBid(newBidPrice);
+				const nextAskPrice = updateAndGetSafeNextAsk(newAskPrice);
+
+				updateLevels(nextBidPrice, nextBid, newBids);
+				updateLevels(nextAskPrice, nextAsk, newAsks);
 				bidIndex++;
 				askIndex++;
 			}
 		} else {
-			newAsks.push(nextAsk);
+
+			if (minAskPrice && nextAsk.price.lt(minAskPrice)) {
+				updateLevels(minAskPrice, nextAsk, newAsks);
+			} else {
+				newAsks.push(nextAsk);
+			}
 			askIndex++;
 
-			newBids.push(nextBid);
+			if (maxBidPrice && nextBid.price.gt(maxBidPrice)) {
+				updateLevels(maxBidPrice, nextBid, newBids);
+			} else {
+				newBids.push(nextBid);
+			}
 			bidIndex++;
 		}
 	}

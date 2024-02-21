@@ -24,10 +24,31 @@ import {
 	QUOTE_PRECISION,
 	isVariant,
 	uncrossL2,
+	L2Level,
 } from '../../src';
 
 import { mockPerpMarkets, mockSpotMarkets, mockStateAccount } from './helpers';
 import { DLOBOrdersCoder } from '../../src/dlob/DLOBOrders';
+
+// Returns true if asks are sorted ascending
+const asksAreSortedAsc = (asks: L2Level[]) => {
+	return asks.every((ask, i) => {
+		if (i === 0) {
+			return true;
+		}
+		return ask.price.gt(asks[i - 1].price);
+	});
+};
+
+// Returns true if asks are sorted descending
+const bidsAreSortedDesc = (bids: L2Level[]) => {
+	return bids.every((bid, i) => {
+		if (i === 0) {
+			return true;
+		}
+		return bid.price.lt(bids[i - 1].price);
+	});
+};
 
 function insertOrderToDLOB(
 	dlob: DLOB,
@@ -6591,5 +6612,59 @@ describe('Uncross L2', () => {
 		expect(newAsks[2].sources['vamm'].toString()).to.equal(
 			new BN(1).mul(BASE_PRECISION).toString()
 		);
+	});
+	
+	it('Handles bug seen in UI', () => {
+
+		const bids = [
+			"104411000",
+			"103835800",
+			"103826259",
+			"103825000",
+			"103822000",
+		].map(priceStr => (
+			{
+				price: new BN(priceStr),
+				size: new BN(1).mul(BASE_PRECISION),
+				sources: { vamm: new BN(1).mul(BASE_PRECISION) },
+			}
+		));
+
+		const asks = [
+			"103822000",
+			"103838354",
+			"103843087",
+			"103843351",
+			"103843880",
+		].map(priceStr => ({
+			price: new BN(priceStr),
+			size: new BN(1).mul(BASE_PRECISION),
+			sources: { vamm: new BN(1).mul(BASE_PRECISION) },
+		}));
+
+		expect(asksAreSortedAsc(asks), "Input asks are ascending").to.be.true;
+		expect(bidsAreSortedDesc(bids), "Input bids are descending").to.be.true;
+
+		const oraclePrice = new BN("103649895");
+		const oraclePrice5Min = new BN("103285000");
+		const markPrice5Min = new BN("103371000");
+
+		const groupingSize = new BN("100");
+
+		const userAsks = new Set<string>();
+
+		const { bids: newBids, asks: newAsks } = uncrossL2(
+			bids,
+			asks,
+			oraclePrice,
+			oraclePrice5Min,
+			markPrice5Min,
+			groupingSize,
+			new Set<string>(),
+			userAsks
+		);
+
+		expect(asksAreSortedAsc(newAsks), "Uncrossed asks are ascending").to.be.true;
+		expect(bidsAreSortedDesc(newBids), "Uncrossed bids are descending").to.be.true;
 	});
 });
