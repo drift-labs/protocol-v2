@@ -216,7 +216,7 @@ pub fn update_position_and_market(
                 market.amm.base_asset_amount_long = market
                     .amm
                     .base_asset_amount_long
-                    .safe_add(delta.base_asset_amount.cast()?)?;
+                    .safe_add(new_settled_base_asset_amount.cast()?)?;
                 market.amm.quote_entry_amount_long = market
                     .amm
                     .quote_entry_amount_long
@@ -230,7 +230,7 @@ pub fn update_position_and_market(
                 market.amm.base_asset_amount_short = market
                     .amm
                     .base_asset_amount_short
-                    .safe_add(delta.base_asset_amount.cast()?)?;
+                    .safe_add(new_settled_base_asset_amount.cast()?)?;
                 market.amm.quote_entry_amount_short = market
                     .amm
                     .quote_entry_amount_short
@@ -246,7 +246,7 @@ pub fn update_position_and_market(
                 market.amm.base_asset_amount_long = market
                     .amm
                     .base_asset_amount_long
-                    .safe_add(delta.base_asset_amount.cast()?)?;
+                    .safe_add(new_settled_base_asset_amount.cast()?)?;
                 market.amm.quote_entry_amount_long = market.amm.quote_entry_amount_long.safe_sub(
                     position
                         .quote_entry_amount
@@ -264,7 +264,7 @@ pub fn update_position_and_market(
                 market.amm.base_asset_amount_short = market
                     .amm
                     .base_asset_amount_short
-                    .safe_add(delta.base_asset_amount.cast()?)?;
+                    .safe_add(new_settled_base_asset_amount.cast()?)?;
                 market.amm.quote_entry_amount_short =
                     market.amm.quote_entry_amount_short.safe_sub(
                         position

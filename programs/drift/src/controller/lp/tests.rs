@@ -2,6 +2,7 @@ use crate::controller::lp::*;
 use crate::controller::pnl::settle_pnl;
 use crate::state::perp_market::AMM;
 use crate::state::user::PerpPosition;
+use crate::BASE_PRECISION_I64;
 use crate::PRICE_PRECISION;
 use std::str::FromStr;
 
@@ -20,6 +21,11 @@ use crate::math::margin::{
     calculate_margin_requirement_and_total_collateral_and_liability_info,
     calculate_perp_position_value_and_pnl, meets_maintenance_margin_requirement,
     MarginRequirementType,
+};
+use crate::math::position::{
+    // get_new_position_amounts,
+    get_position_update_type,
+    PositionUpdateType,
 };
 use crate::state::margin_calculation::{MarginCalculation, MarginContext};
 use crate::state::oracle::{HistoricalOracleData, OracleSource};
@@ -331,7 +337,7 @@ fn test_remainder_overflows_too_large_order_step_size() {
     settle_lp_position(&mut position, &mut market).unwrap();
     assert_eq!(market.amm.base_asset_amount_with_unsettled_lp, -1);
     assert_eq!(market.amm.base_asset_amount_short, -5000000000);
-    assert_eq!(market.amm.base_asset_amount_long, 5000000000);
+    assert_eq!(market.amm.base_asset_amount_long, 5 * BASE_PRECISION_I128);
     assert_eq!(market.amm.base_asset_amount_with_amm, 1);
 
     assert_eq!(position.last_base_asset_amount_per_lp, 5000000001);
@@ -930,6 +936,149 @@ fn test_lp_has_correct_entry_be_price_sim_no_remainders() {
 }
 
 #[test]
+fn test_lp_remainder_position_updates() {
+    let mut position = PerpPosition {
+        ..PerpPosition::default()
+    };
+    let amm = AMM {
+        order_step_size: BASE_PRECISION_U64 / 10,
+        sqrt_k: BASE_PRECISION_U64 as u128,
+        ..AMM::default_test()
+    };
+    let mut market = PerpMarket {
+        amm,
+        ..PerpMarket::default_test()
+    };
+
+    assert_eq!(market.amm.user_lp_shares, 0);
+    assert_eq!(market.amm.sqrt_k, 1000000000);
+
+    mint_lp_shares(&mut position, &mut market, BASE_PRECISION_U64).unwrap();
+    assert_eq!(market.amm.user_lp_shares, 1000000000);
+
+    let position_delta = PositionDelta {
+        quote_asset_amount: 0,
+        base_asset_amount: 0,
+        remainder_base_asset_amount: Some(880),
+    };
+
+    let pnl: i64 = update_position_and_market(&mut position, &mut market, &position_delta).unwrap();
+    assert_eq!(pnl, 0);
+
+    let position_delta = PositionDelta {
+        quote_asset_amount: 0,
+        base_asset_amount: 0,
+        remainder_base_asset_amount: Some(-881),
+    };
+
+    let pnl: i64 = update_position_and_market(&mut position, &mut market, &position_delta).unwrap();
+    assert_eq!(pnl, 0);
+    assert_eq!(position.base_asset_amount, 0);
+    assert_eq!(position.remainder_base_asset_amount, -1);
+    crate::validation::perp_market::validate_perp_market(&market).unwrap();
+    crate::validation::position::validate_perp_position_with_perp_market(&position, &market)
+        .unwrap();
+
+    let position_delta = PositionDelta {
+        quote_asset_amount: -199 * 1000000,
+        base_asset_amount: BASE_PRECISION_I64,
+        remainder_base_asset_amount: Some(-BASE_PRECISION_I64 / 22),
+    };
+
+    let pnl: i64 = update_position_and_market(&mut position, &mut market, &position_delta).unwrap();
+    assert_eq!(pnl, 0);
+    assert_eq!(position.base_asset_amount, 1000000000);
+    assert_eq!(position.remainder_base_asset_amount, -45454546);
+
+    crate::validation::perp_market::validate_perp_market(&market).unwrap();
+    crate::validation::position::validate_perp_position_with_perp_market(&position, &market)
+        .unwrap();
+
+    let position_delta = PositionDelta {
+        quote_asset_amount: 199 * 1000000,
+        base_asset_amount: -BASE_PRECISION_I64 * 2,
+        remainder_base_asset_amount: Some(BASE_PRECISION_I64 / 23),
+    };
+
+    let pnl: i64 = update_position_and_market(&mut position, &mut market, &position_delta).unwrap();
+    assert_eq!(pnl, -101912122);
+    assert_eq!(position.base_asset_amount, -1000000000);
+    assert_eq!(position.remainder_base_asset_amount, -1976286);
+
+    crate::validation::perp_market::validate_perp_market(&market).unwrap();
+    crate::validation::position::validate_perp_position_with_perp_market(&position, &market)
+        .unwrap();
+}
+
+#[test]
+fn test_lp_remainder_position_updates_2() {
+    let mut position = PerpPosition {
+        ..PerpPosition::default()
+    };
+    let amm = AMM {
+        order_step_size: BASE_PRECISION_U64 / 10,
+        sqrt_k: BASE_PRECISION_U64 as u128,
+        ..AMM::default_test()
+    };
+    let mut market = PerpMarket {
+        amm,
+        ..PerpMarket::default_test()
+    };
+
+    assert_eq!(market.amm.user_lp_shares, 0);
+    assert_eq!(market.amm.sqrt_k, 1000000000);
+
+    mint_lp_shares(&mut position, &mut market, BASE_PRECISION_U64).unwrap();
+    assert_eq!(market.amm.user_lp_shares, 1000000000);
+
+    let position_delta = PositionDelta {
+        quote_asset_amount: 0,
+        base_asset_amount: 300000000,
+        remainder_base_asset_amount: Some(33333333),
+    };
+
+    let pnl: i64 = update_position_and_market(&mut position, &mut market, &position_delta).unwrap();
+    assert_eq!(pnl, 0);
+
+    crate::validation::perp_market::validate_perp_market(&market).unwrap();
+    crate::validation::position::validate_perp_position_with_perp_market(&position, &market)
+        .unwrap();
+
+    let position_delta = PositionDelta {
+        quote_asset_amount: 0,
+        base_asset_amount: 500000000,
+        remainder_base_asset_amount: Some(0),
+    };
+
+    let pnl: i64 = update_position_and_market(&mut position, &mut market, &position_delta).unwrap();
+    assert_eq!(pnl, 0);
+    assert_eq!(position.base_asset_amount, 800000000);
+    assert_eq!(position.remainder_base_asset_amount, 33333333);
+    crate::validation::perp_market::validate_perp_market(&market).unwrap();
+    crate::validation::position::validate_perp_position_with_perp_market(&position, &market)
+        .unwrap();
+
+    let position_delta = PositionDelta {
+        quote_asset_amount: 199 * 10000,
+        base_asset_amount: -300000000,
+        remainder_base_asset_amount: Some(-63636363),
+    };
+
+    let pnl: i64 = update_position_and_market(&mut position, &mut market, &position_delta).unwrap();
+    assert_eq!(pnl, 1990000);
+    assert_eq!(position.base_asset_amount, 500000000);
+    assert_eq!(position.remainder_base_asset_amount, -30303030);
+    assert_eq!(market.amm.base_asset_amount_long, 500000000);
+    assert_eq!(market.amm.base_asset_amount_short, 0);
+    assert_eq!(market.amm.base_asset_amount_with_unsettled_lp, 500000000);
+    assert_eq!(market.amm.base_asset_amount_with_amm, 0);
+
+    crate::validation::perp_market::validate_perp_market(&market).unwrap();
+    crate::validation::position::validate_perp_position_with_perp_market(&position, &market)
+        .unwrap();
+}
+
+#[test]
 fn test_lp_has_correct_entry_be_price_sim() {
     let mut position = PerpPosition {
         ..PerpPosition::default()
@@ -984,9 +1133,8 @@ fn test_lp_has_correct_entry_be_price_sim() {
                 )
                 .unwrap();
             if total_remainder_f != 0 {
-                market.amm.base_asset_amount_long += total_remainder_f;
                 total_remainder -= total_remainder_f;
-                // msg!("total_remainder update {}", total_remainder);
+                msg!("total_remainder update {}", total_remainder);
             }
 
             market.amm.base_asset_amount_with_unsettled_lp += update_base_delta;
@@ -1015,9 +1163,7 @@ fn test_lp_has_correct_entry_be_price_sim() {
                 )
                 .unwrap();
             if total_remainder_f != 0 {
-                market.amm.base_asset_amount_short += total_remainder_f;
                 total_remainder -= total_remainder_f;
-                // msg!("total_remainder update {}", total_remainder);
             }
 
             market.amm.base_asset_amount_with_unsettled_lp += update_base_delta;
@@ -1025,6 +1171,9 @@ fn test_lp_has_correct_entry_be_price_sim() {
         }
 
         let position_base_before = position.base_asset_amount;
+        crate::validation::perp_market::validate_perp_market(&market).unwrap();
+        crate::validation::position::validate_perp_position_with_perp_market(&position, &market)
+            .unwrap();
 
         settle_lp_position(&mut position, &mut market).unwrap();
 
@@ -1150,8 +1299,8 @@ fn test_lp_has_correct_entry_be_price_sim_more_flips() {
         );
 
         if position.get_base_asset_amount_with_remainder_abs().unwrap() != 0 {
-            assert!(entry <= 99_800_000 as i128);
-            assert!(entry >= 99_199_820 as i128);
+            assert!(entry <= 99_800_000_i128);
+            assert!(entry >= 99_199_820_i128);
         }
     }
 
@@ -1168,4 +1317,498 @@ fn test_lp_has_correct_entry_be_price_sim_more_flips() {
     assert_eq!(entry, 99199822);
     assert_eq!(be, 99199822);
     assert_eq!(cb, -801664962);
+}
+
+#[test]
+fn test_get_position_update_type_lp_opens() {
+    // position is empty, every inc must be open
+    let position = PerpPosition {
+        ..PerpPosition::default()
+    };
+
+    let delta = PositionDelta {
+        quote_asset_amount: 0,
+        base_asset_amount: 0,
+        remainder_base_asset_amount: Some(0),
+    };
+    assert_eq!(
+        get_position_update_type(&position, &delta).unwrap(),
+        PositionUpdateType::Open
+    );
+
+    let position = PerpPosition {
+        ..PerpPosition::default()
+    };
+
+    let delta = PositionDelta {
+        quote_asset_amount: 10000,
+        base_asset_amount: -898989,
+        remainder_base_asset_amount: Some(0),
+    };
+    assert_eq!(
+        get_position_update_type(&position, &delta).unwrap(),
+        PositionUpdateType::Open
+    );
+
+    let delta = PositionDelta {
+        quote_asset_amount: 10000,
+        base_asset_amount: 0,
+        remainder_base_asset_amount: Some(0),
+    };
+    assert_eq!(
+        get_position_update_type(&position, &delta).unwrap(),
+        PositionUpdateType::Open
+    );
+
+    let delta = PositionDelta {
+        quote_asset_amount: 0,
+        base_asset_amount: 0,
+        remainder_base_asset_amount: Some(1000),
+    };
+    assert_eq!(
+        get_position_update_type(&position, &delta).unwrap(),
+        PositionUpdateType::Open
+    );
+
+    let delta = PositionDelta {
+        quote_asset_amount: 0,
+        base_asset_amount: 0,
+        remainder_base_asset_amount: Some(-88881000),
+    };
+    assert_eq!(
+        get_position_update_type(&position, &delta).unwrap(),
+        PositionUpdateType::Open
+    );
+
+    let delta = PositionDelta {
+        quote_asset_amount: 1899990,
+        base_asset_amount: -8989898,
+        remainder_base_asset_amount: Some(-88881000),
+    };
+    assert_eq!(
+        get_position_update_type(&position, &delta).unwrap(),
+        PositionUpdateType::Open
+    );
+}
+
+#[test]
+fn test_get_position_update_type_lp_negative_position() {
+    // $119 short
+    let position = PerpPosition {
+        base_asset_amount: -1000000000 * 2,
+        quote_asset_amount: 119000000 * 2,
+        quote_entry_amount: 119000000 * 2,
+        quote_break_even_amount: 119000000 * 2,
+        ..PerpPosition::default()
+    };
+
+    assert_eq!(position.get_cost_basis().unwrap(), 119000000);
+    assert_eq!(position.get_breakeven_price().unwrap(), 119000000);
+    assert_eq!(position.get_entry_price().unwrap(), 119000000);
+
+    let delta = PositionDelta {
+        quote_asset_amount: 0,
+        base_asset_amount: 0,
+        remainder_base_asset_amount: Some(0),
+    };
+    assert_eq!(
+        get_position_update_type(&position, &delta).unwrap(),
+        PositionUpdateType::Reduce
+    ); // different signum but smaller
+
+    let delta = PositionDelta {
+        quote_asset_amount: 10000,
+        base_asset_amount: -898989,
+        remainder_base_asset_amount: Some(0),
+    };
+    assert_eq!(
+        get_position_update_type(&position, &delta).unwrap(),
+        PositionUpdateType::Increase
+    ); // more negative
+
+    let delta = PositionDelta {
+        quote_asset_amount: 10000,
+        base_asset_amount: 0,
+        remainder_base_asset_amount: Some(0),
+    };
+    assert_eq!(
+        get_position_update_type(&position, &delta).unwrap(),
+        PositionUpdateType::Reduce
+    );
+
+    let delta = PositionDelta {
+        quote_asset_amount: 0,
+        base_asset_amount: 0,
+        remainder_base_asset_amount: Some(1000),
+    };
+    assert_eq!(
+        get_position_update_type(&position, &delta).unwrap(),
+        PositionUpdateType::Reduce
+    );
+
+    let delta = PositionDelta {
+        quote_asset_amount: 0,
+        base_asset_amount: 0,
+        remainder_base_asset_amount: Some(-88881000),
+    };
+    assert_eq!(
+        get_position_update_type(&position, &delta).unwrap(),
+        PositionUpdateType::Increase
+    );
+
+    let delta = PositionDelta {
+        quote_asset_amount: 1899990,
+        base_asset_amount: -8989898,
+        remainder_base_asset_amount: Some(-88881000),
+    };
+    assert_eq!(
+        get_position_update_type(&position, &delta).unwrap(),
+        PositionUpdateType::Increase
+    );
+
+    // opposite sign remainder/base
+    let delta = PositionDelta {
+        quote_asset_amount: -88888,
+        base_asset_amount: 81,
+        remainder_base_asset_amount: Some(-81000),
+    };
+    assert_eq!(
+        get_position_update_type(&position, &delta).unwrap(),
+        PositionUpdateType::Increase
+    );
+
+    // opposite sign remainder/base
+    let delta = PositionDelta {
+        quote_asset_amount: -88888,
+        base_asset_amount: 81000,
+        remainder_base_asset_amount: Some(-81),
+    };
+    assert_eq!(
+        get_position_update_type(&position, &delta).unwrap(),
+        PositionUpdateType::Reduce
+    );
+}
+
+#[test]
+fn test_get_position_update_type_lp_positive_position() {
+    // $119 long
+    let position = PerpPosition {
+        base_asset_amount: 1000000000 * 2,
+        quote_asset_amount: -119000000 * 2,
+        quote_entry_amount: -119000000 * 2,
+        quote_break_even_amount: -119000000 * 2,
+        ..PerpPosition::default()
+    };
+
+    assert_eq!(position.get_cost_basis().unwrap(), 119000000);
+    assert_eq!(position.get_breakeven_price().unwrap(), 119000000);
+    assert_eq!(position.get_entry_price().unwrap(), 119000000);
+
+    let delta = PositionDelta {
+        quote_asset_amount: 0,
+        base_asset_amount: 0,
+        remainder_base_asset_amount: Some(0),
+    };
+    assert_eq!(
+        get_position_update_type(&position, &delta).unwrap(),
+        PositionUpdateType::Reduce
+    ); // different signum but smaller
+
+    let delta = PositionDelta {
+        quote_asset_amount: 10000,
+        base_asset_amount: -898989,
+        remainder_base_asset_amount: Some(0),
+    };
+    assert_eq!(
+        get_position_update_type(&position, &delta).unwrap(),
+        PositionUpdateType::Reduce
+    );
+
+    let delta = PositionDelta {
+        quote_asset_amount: 10000,
+        base_asset_amount: 0,
+        remainder_base_asset_amount: Some(0),
+    };
+    assert_eq!(
+        get_position_update_type(&position, &delta).unwrap(),
+        PositionUpdateType::Reduce
+    ); // no base/remainder is reduce (should be skipped earlier)
+
+    let delta = PositionDelta {
+        quote_asset_amount: 0,
+        base_asset_amount: 0,
+        remainder_base_asset_amount: Some(1000),
+    };
+    assert_eq!(
+        get_position_update_type(&position, &delta).unwrap(),
+        PositionUpdateType::Increase
+    );
+
+    let delta = PositionDelta {
+        quote_asset_amount: 0,
+        base_asset_amount: 0,
+        remainder_base_asset_amount: Some(-88881000),
+    };
+    assert_eq!(
+        get_position_update_type(&position, &delta).unwrap(),
+        PositionUpdateType::Reduce
+    );
+
+    let delta = PositionDelta {
+        quote_asset_amount: 1899990,
+        base_asset_amount: -8989898,
+        remainder_base_asset_amount: Some(-88881000),
+    };
+    assert_eq!(
+        get_position_update_type(&position, &delta).unwrap(),
+        PositionUpdateType::Reduce
+    );
+
+    // opposite sign remainder/base
+    let delta = PositionDelta {
+        quote_asset_amount: -88888,
+        base_asset_amount: 81,
+        remainder_base_asset_amount: Some(-81000),
+    };
+    assert_eq!(
+        get_position_update_type(&position, &delta).unwrap(),
+        PositionUpdateType::Reduce
+    );
+
+    // opposite sign remainder/base
+    let delta = PositionDelta {
+        quote_asset_amount: -88888,
+        base_asset_amount: 81000,
+        remainder_base_asset_amount: Some(-81),
+    };
+    assert_eq!(
+        get_position_update_type(&position, &delta).unwrap(),
+        PositionUpdateType::Increase
+    );
+}
+
+#[test]
+fn test_get_position_update_type_lp_positive_position_with_positive_remainder() {
+    // $119 long
+    let position = PerpPosition {
+        base_asset_amount: 1000000000 * 2,
+        remainder_base_asset_amount: 7809809,
+        quote_asset_amount: -119000000 * 2,
+        quote_entry_amount: -119000000 * 2,
+        quote_break_even_amount: -119000000 * 2,
+        ..PerpPosition::default()
+    };
+
+    assert_eq!(position.get_cost_basis().unwrap(), 119000000);
+    assert_eq!(position.get_breakeven_price().unwrap(), 118537123);
+    assert_eq!(position.get_entry_price().unwrap(), 118537123);
+
+    let delta = PositionDelta {
+        quote_asset_amount: 0,
+        base_asset_amount: -1000000001 * 2,
+        remainder_base_asset_amount: Some(0),
+    };
+    assert_eq!(
+        get_position_update_type(&position, &delta).unwrap(),
+        PositionUpdateType::Reduce
+    ); // different signum but smaller
+
+    let delta = PositionDelta {
+        quote_asset_amount: 0,
+        base_asset_amount: 0,
+        remainder_base_asset_amount: Some(-7809809),
+    };
+    assert_eq!(
+        get_position_update_type(&position, &delta).unwrap(),
+        PositionUpdateType::Reduce
+    );
+
+    let delta = PositionDelta {
+        quote_asset_amount: 0,
+        base_asset_amount: -1000000000 * 2,
+        remainder_base_asset_amount: Some(-7809809 - 1),
+    };
+    assert_eq!(
+        get_position_update_type(&position, &delta).unwrap(),
+        PositionUpdateType::Flip
+    ); // different signum but smaller
+
+    let delta = PositionDelta {
+        quote_asset_amount: 0,
+        base_asset_amount: 0,
+        remainder_base_asset_amount: Some(0),
+    };
+    assert_eq!(
+        get_position_update_type(&position, &delta).unwrap(),
+        PositionUpdateType::Reduce
+    ); // different signum but smaller
+
+    let delta = PositionDelta {
+        quote_asset_amount: 10000,
+        base_asset_amount: -898989,
+        remainder_base_asset_amount: Some(0),
+    };
+    assert_eq!(
+        get_position_update_type(&position, &delta).unwrap(),
+        PositionUpdateType::Reduce
+    );
+
+    let delta = PositionDelta {
+        quote_asset_amount: 10000,
+        base_asset_amount: 0,
+        remainder_base_asset_amount: Some(0),
+    };
+    assert_eq!(
+        get_position_update_type(&position, &delta).unwrap(),
+        PositionUpdateType::Reduce
+    ); // no base/remainder is reduce (should be skipped earlier)
+
+    let delta = PositionDelta {
+        quote_asset_amount: 0,
+        base_asset_amount: 0,
+        remainder_base_asset_amount: Some(1000),
+    };
+    assert_eq!(
+        get_position_update_type(&position, &delta).unwrap(),
+        PositionUpdateType::Increase
+    );
+
+    let delta = PositionDelta {
+        quote_asset_amount: 0,
+        base_asset_amount: 0,
+        remainder_base_asset_amount: Some(-88881000),
+    };
+    assert_eq!(
+        get_position_update_type(&position, &delta).unwrap(),
+        PositionUpdateType::Reduce
+    );
+
+    let delta = PositionDelta {
+        quote_asset_amount: 1899990,
+        base_asset_amount: -8989898,
+        remainder_base_asset_amount: Some(-88881000),
+    };
+    assert_eq!(
+        get_position_update_type(&position, &delta).unwrap(),
+        PositionUpdateType::Reduce
+    );
+
+    // opposite sign remainder/base
+    let delta = PositionDelta {
+        quote_asset_amount: -88888,
+        base_asset_amount: 81,
+        remainder_base_asset_amount: Some(-81000),
+    };
+    assert_eq!(
+        get_position_update_type(&position, &delta).unwrap(),
+        PositionUpdateType::Reduce
+    );
+
+    // opposite sign remainder/base
+    let delta = PositionDelta {
+        quote_asset_amount: -88888,
+        base_asset_amount: 81000,
+        remainder_base_asset_amount: Some(-81),
+    };
+    assert_eq!(
+        get_position_update_type(&position, &delta).unwrap(),
+        PositionUpdateType::Increase
+    );
+}
+
+#[test]
+fn test_get_position_update_type_positive_remainder() {
+    // $119 long (only a remainder size)
+    let position = PerpPosition {
+        base_asset_amount: 0,
+        remainder_base_asset_amount: 7809809,
+        quote_asset_amount: -119000000 * 7809809 / BASE_PRECISION_I64,
+        quote_entry_amount: -119000000 * 7809809 / BASE_PRECISION_I64,
+        quote_break_even_amount: -119000000 * 7809809 / BASE_PRECISION_I64,
+        ..PerpPosition::default()
+    };
+
+    assert_eq!(position.get_cost_basis().unwrap(), 0);
+    assert_eq!(position.get_breakeven_price().unwrap(), 118999965);
+    assert_eq!(position.get_entry_price().unwrap(), 118999965);
+
+    let delta = PositionDelta {
+        quote_asset_amount: 0,
+        base_asset_amount: -1000000001 * 2,
+        remainder_base_asset_amount: Some(0),
+    };
+    assert_eq!(
+        get_position_update_type(&position, &delta).unwrap(),
+        PositionUpdateType::Flip
+    );
+
+    let delta = PositionDelta {
+        quote_asset_amount: 0,
+        base_asset_amount: 0,
+        remainder_base_asset_amount: Some(1),
+    };
+    assert_eq!(
+        get_position_update_type(&position, &delta).unwrap(),
+        PositionUpdateType::Increase
+    ); // different signum but smaller
+
+    let delta = PositionDelta {
+        quote_asset_amount: 0,
+        base_asset_amount: 0,
+        remainder_base_asset_amount: Some(-8791),
+    };
+    assert_eq!(
+        get_position_update_type(&position, &delta).unwrap(),
+        PositionUpdateType::Reduce
+    ); // different signum but smaller
+
+    let delta = PositionDelta {
+        quote_asset_amount: 0,
+        base_asset_amount: 0,
+        remainder_base_asset_amount: Some(-7809809),
+    };
+    assert_eq!(
+        get_position_update_type(&position, &delta).unwrap(),
+        PositionUpdateType::Close
+    ); // different signum but smaller
+
+    let delta = PositionDelta {
+        quote_asset_amount: 0,
+        base_asset_amount: 0,
+        remainder_base_asset_amount: Some(-7809809 - 1),
+    };
+    assert_eq!(
+        get_position_update_type(&position, &delta).unwrap(),
+        PositionUpdateType::Flip
+    ); // different signum but smaller
+
+    let delta = PositionDelta {
+        quote_asset_amount: 0,
+        base_asset_amount: -1000000000 * 2,
+        remainder_base_asset_amount: Some(-7809809 - 1),
+    };
+    assert_eq!(
+        get_position_update_type(&position, &delta).unwrap(),
+        PositionUpdateType::Flip
+    ); // different signum but smaller
+
+    let delta = PositionDelta {
+        quote_asset_amount: 0,
+        base_asset_amount: -1000000000 * 2,
+        remainder_base_asset_amount: Some(0),
+    };
+    assert_eq!(
+        get_position_update_type(&position, &delta).unwrap(),
+        PositionUpdateType::Flip
+    ); // different signum but smaller
+
+    let delta = PositionDelta {
+        quote_asset_amount: 0,
+        base_asset_amount: -1000000000 * 2,
+        remainder_base_asset_amount: None,
+    };
+    assert_eq!(
+        get_position_update_type(&position, &delta).unwrap(),
+        PositionUpdateType::Flip
+    ); // different signum but smaller
 }

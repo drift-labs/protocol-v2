@@ -137,6 +137,7 @@ pub fn swap_direction_to_close_position(base_asset_amount: i128) -> SwapDirectio
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PositionUpdateType {
     Open,
     Increase,
@@ -152,6 +153,15 @@ pub fn get_position_update_type(
         return Ok(PositionUpdateType::Open);
     }
 
+    let position_base_with_remainder = if position.remainder_base_asset_amount != 0 {
+        position
+            .base_asset_amount
+            .safe_add(position.remainder_base_asset_amount.cast::<i64>()?)?
+    } else {
+        position.base_asset_amount
+    };
+
+    // let position_base_with_remainder =  position.base_asset_amount;
     let delta_base_with_remainder =
         if let Some(remainder_base_asset_amount) = delta.remainder_base_asset_amount {
             delta
@@ -160,12 +170,11 @@ pub fn get_position_update_type(
         } else {
             delta.base_asset_amount
         };
-
-    if position.base_asset_amount.signum() == delta_base_with_remainder.signum() {
+    if position_base_with_remainder.signum() == delta_base_with_remainder.signum() {
         Ok(PositionUpdateType::Increase)
-    } else if position.base_asset_amount.abs() > delta_base_with_remainder.abs() {
+    } else if position_base_with_remainder.abs() > delta_base_with_remainder.abs() {
         Ok(PositionUpdateType::Reduce)
-    } else if position.base_asset_amount.abs() == delta_base_with_remainder.abs() {
+    } else if position_base_with_remainder.abs() == delta_base_with_remainder.abs() {
         Ok(PositionUpdateType::Close)
     } else {
         Ok(PositionUpdateType::Flip)
