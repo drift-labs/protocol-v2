@@ -6677,4 +6677,67 @@ describe('Uncross L2', () => {
 		expect(asksAreSortedAsc(newAsks), "Uncrossed asks are ascending").to.be.true;
 		expect(bidsAreSortedDesc(newBids), "Uncrossed bids are descending").to.be.true;
 	});
+	
+	it('Crossing edge case : top bid and ask have a big cross, following ones dont - shouldnt get uncrossed out of order', () => {
+		const bids = [
+			"101825900",
+			"101783900",
+			"101783000",
+			"101782600",
+			"101770700",
+			"101770200",
+			"101749857",
+			"101735900",
+			"101729994",
+			"101726900",
+		  ].map(priceStr => (
+			{
+				price: new BN(priceStr),
+				size: new BN(1).mul(BASE_PRECISION),
+				sources: { vamm: new BN(1).mul(BASE_PRECISION) },
+			}
+		));
+
+		const asks = [
+			"101750700",
+			"101790467",
+			"101793400",
+			"101794116",
+			"101798548",
+			"101799532",
+			"101803500",
+			"101820927",
+			"101823900",
+			"101827638",
+		  ].map(priceStr => ({
+			price: new BN(priceStr),
+			size: new BN(1).mul(BASE_PRECISION),
+			sources: { vamm: new BN(1).mul(BASE_PRECISION) },
+		}));
+
+		expect(asksAreSortedAsc(asks), "Input asks are ascending").to.be.true;
+		expect(bidsAreSortedDesc(bids), "Input bids are descending").to.be.true;
+
+		const oraclePrice = new BN("101711384");
+		const oraclePrice5Min = new BN("101805000");
+		const markPrice5Min = new BN("101867000");
+
+		const groupingSize = new BN("100");
+
+		const userAsks = new Set<string>();
+
+		const { bids: newBids, asks: newAsks } = uncrossL2(
+			bids,
+			asks,
+			oraclePrice,
+			oraclePrice5Min,
+			markPrice5Min,
+			groupingSize,
+			new Set<string>(),
+			userAsks
+		);
+
+		expect(asksAreSortedAsc(newAsks), "Uncrossed asks are ascending").to.be.true;
+		expect(bidsAreSortedDesc(newBids), "Uncrossed bids are descending").to.be.true;
+	});
 });
