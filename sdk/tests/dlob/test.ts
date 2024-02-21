@@ -6622,7 +6622,12 @@ describe('Uncross L2', () => {
 			"103826259",
 			"103825000",
 			"103822000",
-		].map(priceStr => (
+			"103821500",
+			"103820283",
+			"103816900",
+			"103816000",
+			"103815121",
+		  ].map(priceStr => (
 			{
 				price: new BN(priceStr),
 				size: new BN(1).mul(BASE_PRECISION),
@@ -6636,7 +6641,12 @@ describe('Uncross L2', () => {
 			"103843087",
 			"103843351",
 			"103843880",
-		].map(priceStr => ({
+			"103845114",
+			"103846148",
+			"103850100",
+			"103851300",
+			"103854304",
+		  ].map(priceStr => ({
 			price: new BN(priceStr),
 			size: new BN(1).mul(BASE_PRECISION),
 			sources: { vamm: new BN(1).mul(BASE_PRECISION) },
