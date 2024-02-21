@@ -1034,6 +1034,7 @@ pub fn fill_perp_order(
 
     let referrer_info = get_referrer_info(
         user_stats,
+        &user_key,
         makers_and_referrer,
         makers_and_referrer_stats,
         slot,
@@ -1460,6 +1461,7 @@ fn insert_maker_order_info(
 
 fn get_referrer_info(
     user_stats: &UserStats,
+    user_key: &Pubkey,
     makers_and_referrer: &UserMap,
     makers_and_referrer_stats: &UserStatsMap,
     slot: u64,
@@ -1478,6 +1480,11 @@ fn get_referrer_info(
     let referrer_authority_key = user_stats.referrer;
     let mut referrer_user_key = Pubkey::default();
     for (referrer_key, referrer) in makers_and_referrer.0.iter() {
+        // if user is in makers and referrer map, skip to avoid invalid borrow
+        if referrer_key == user_key {
+            continue;
+        }
+
         let mut referrer = load_mut!(referrer)?;
         if referrer.authority != referrer_authority_key {
             continue;
