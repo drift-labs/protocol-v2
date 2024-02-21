@@ -52,7 +52,6 @@ use crate::state::order_params::{
     ModifyOrderParams, ModifyOrderPolicy, OrderParams, PlaceOrderOptions, PostOnlyParam,
 };
 
-use crate::math::amm::calculate_amm_available_liquidity;
 use crate::math::lp::calculate_lp_shares_to_burn_for_risk_reduction;
 use crate::math::safe_unwrap::SafeUnwrap;
 use crate::math::spot_swap::select_margin_type_for_swap;
@@ -1310,6 +1309,36 @@ fn get_maker_orders_info(
 
     let mut maker_orders_info = Vec::with_capacity(16);
 
+    let perp_market = perp_market_map.get_ref(&taker_order.market_index)?;
+    let (bid_price_band, ask_price_band) =
+        get_baseline_perp_price_bands(&perp_market, oracle_price)?;
+
+    let taker_order_price = if let Some(price) = taker_order.get_limit_price(
+        Some(oracle_price),
+        None,
+        slot,
+        perp_market.amm.order_tick_size,
+    )? {
+        price
+    } else {
+        calculate_fallback_taker_price(&perp_market, taker_order, oracle_price, now)?
+    };
+
+    let crosses_perp_price_bands = does_order_cross_perp_price_bands(
+        bid_price_band,
+        ask_price_band,
+        taker_order.direction,
+        taker_order_price,
+        taker_order.slot,
+        slot,
+    )?;
+
+    if crosses_perp_price_bands {
+        return Ok(maker_orders_info);
+    }
+
+    drop(perp_market);
+
     for (maker_key, user_account_loader) in makers_and_referrer.0.iter() {
         if maker_key == taker_key {
             continue;
@@ -1365,6 +1394,20 @@ fn get_maker_orders_info(
                 }
             }
 
+            let crosses_perp_price_bands = does_order_cross_perp_price_bands(
+                bid_price_band,
+                ask_price_band,
+                maker_order.direction,
+                maker_order_price,
+                maker_order.slot,
+                slot,
+            )?;
+
+            if crosses_perp_price_bands {
+                continue;
+            }
+
+            // todo can delete this?
             let breaches_oracle_price_limits = {
                 limit_price_breaches_maker_oracle_price_bands(
                     maker_order_price,
@@ -2121,14 +2164,7 @@ pub fn fulfill_perp_order_with_match(
     let taker_price = if let Some(taker_limit_price) = taker_limit_price {
         taker_limit_price
     } else {
-        let amm_available_liquidity =
-            calculate_amm_available_liquidity(&market.amm, &taker_direction)?;
-        market.amm.get_fallback_price(
-            &taker_direction,
-            amm_available_liquidity,
-            oracle_price,
-            taker.orders[taker_order_index].seconds_til_expiry(now),
-        )?
+        calculate_fallback_taker_price(market, &taker.orders[taker_order_index], oracle_price, now)?
     };
 
     let taker_existing_position = taker
