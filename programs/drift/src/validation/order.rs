@@ -10,6 +10,9 @@ use crate::state::perp_market::{PerpMarket, AMM};
 use crate::state::user::{Order, OrderTriggerCondition, OrderType};
 use crate::validate;
 
+#[cfg(test)]
+mod tests;
+
 pub fn validate_order(
     order: &Order,
     market: &PerpMarket,
