@@ -115,6 +115,22 @@ where
     T::try_deserialize(&mut decoded_data_slice).map_err(|err| SdkError::Anchor(Box::new(err)))
 }
 
+#[cfg(any(test, test_utils))]
+pub mod envs {
+    //! test env vars
+    use solana_sdk::signature::Keypair;
+
+    /// solana mainnet endpoint
+    pub fn mainnet_endpoint() -> String {
+        std::env::var("TEST_MAINNET_ENDPOINT").expect("TEST_MAINNET_ENDPOINT set")
+    }
+    /// keypair for integration tests
+    pub fn test_keypair() -> Keypair {
+        let private_key = std::env::var("TEST_PRIVATE_KEY").expect("TEST_PRIVATE_KEY set");
+        Keypair::from_base58_string(private_key.as_str())
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use solana_sdk::signer::Signer;

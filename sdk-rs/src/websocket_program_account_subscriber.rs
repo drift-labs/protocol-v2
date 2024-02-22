@@ -181,11 +181,10 @@ mod tests {
     use drift::state::user::User;
 
     use super::*;
-    use crate::memcmp::{get_non_idle_user_filter, get_user_filter};
-
-    // this is my (frank) free helius endpoint
-    const MAINNET_ENDPOINT: &str =
-        "https://mainnet.helius-rpc.com/?api-key=3a1ca16d-e181-4755-9fe7-eac27579b48c";
+    use crate::{
+        memcmp::{get_non_idle_user_filter, get_user_filter},
+        utils::envs::mainnet_endpoint,
+    };
 
     #[cfg(feature = "rpc_tests")]
     #[tokio::test]
@@ -197,7 +196,7 @@ mod tests {
             commitment,
             encoding: UiAccountEncoding::Base64,
         };
-        let cluster = Cluster::from_str(MAINNET_ENDPOINT).unwrap();
+        let cluster = Cluster::from_str(&mainnet_endpoint()).unwrap();
         let url = cluster.ws_url().to_string();
         let subscription_name = "Test".to_string();
 

@@ -408,7 +408,7 @@ impl<T: AccountProvider> DriftClient<T> {
         Ok(user
             .perp_positions
             .iter()
-            .find(|p| p.market_index == market_index)
+            .find(|p| p.market_index == market_index && !p.is_available())
             .copied())
     }
 
@@ -427,7 +427,7 @@ impl<T: AccountProvider> DriftClient<T> {
         Ok(user
             .spot_positions
             .iter()
-            .find(|p| p.market_index == market_index)
+            .find(|p| p.market_index == market_index && !p.is_available())
             .copied())
     }
 
@@ -445,13 +445,13 @@ impl<T: AccountProvider> DriftClient<T> {
         self.backend.get_account(account).await
     }
 
-    /// Get your user account data
+    /// Get the _active_ user account data
     ///
     /// Returns the deserialized account data (`User`)
     pub async fn get_user(&self) -> SdkResult<User> {
         let user_pubkey = Wallet::derive_user_account(
             self.wallet().authority(),
-            self.active_sub_account_id.into(),
+            self.active_sub_account_id,
             &constants::PROGRAM_ID,
         );
         self.backend.get_account(&user_pubkey).await

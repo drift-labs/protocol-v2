@@ -128,19 +128,15 @@ mod tests {
     use anchor_client::Cluster;
 
     use super::*;
-
-    // this is my (frank) free helius endpoint
-    const MAINNET_ENDPOINT: &str =
-        "https://mainnet.helius-rpc.com/?api-key=3a1ca16d-e181-4755-9fe7-eac27579b48c";
+    use crate::utils::envs::mainnet_endpoint;
 
     #[cfg(feature = "rpc_tests")]
     #[tokio::test]
     async fn test_subscribe() {
-        let cluster = Cluster::from_str(MAINNET_ENDPOINT).unwrap();
+        let cluster = Cluster::from_str(&mainnet_endpoint()).unwrap();
         let url = cluster.ws_url().to_string();
 
         let mut slot_subscriber = SlotSubscriber::new(url);
-
         let _ = slot_subscriber.subscribe().await;
 
         slot_subscriber

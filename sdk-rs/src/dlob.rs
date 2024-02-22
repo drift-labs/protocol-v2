@@ -259,13 +259,12 @@ where
 #[cfg(test)]
 mod tests {
     use futures_util::StreamExt;
+    use solana_sdk::signature::Keypair;
 
     use super::*;
-    use crate::{types::Context, DriftClient, MarketExt, RpcAccountProvider};
-
-    // this is my (frank) free helius endpoint
-    const MAINNET_ENDPOINT: &str =
-        "https://mainnet.helius-rpc.com/?api-key=3a1ca16d-e181-4755-9fe7-eac27579b48c";
+    use crate::{
+        types::Context, utils::envs::mainnet_endpoint, DriftClient, MarketExt, RpcAccountProvider,
+    };
 
     #[cfg(feature = "rpc_tests")]
     #[tokio::test]
@@ -318,8 +317,8 @@ mod tests {
     async fn subscribe_ws() {
         let client = DriftClient::new(
             Context::MainNet,
-            MAINNET_ENDPOINT,
-            RpcAccountProvider::new(MAINNET_ENDPOINT),
+            RpcAccountProvider::new(&mainnet_endpoint()),
+            Keypair::new().into(),
         )
         .await
         .unwrap();

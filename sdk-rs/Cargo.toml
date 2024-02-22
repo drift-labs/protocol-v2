@@ -5,12 +5,15 @@ edition = "2021"
 
 [features]
 rpc_tests = []
+test_utils = []
 
 [dependencies]
 anchor-lang = "0.27.0"
 bytemuck = "1.13.0"
 base64 = "0.13"
-drift = { git = "https://github.com/drift-labs/protocol-v2.git", tag = "v2.53.0", features = ["mainnet-beta"] }
+drift = { git = "https://github.com/drift-labs/protocol-v2.git", tag = "v2.53.0", features = [
+    "mainnet-beta",
+] }
 env_logger = "0.10.1"
 fnv = "1.0.7"
 futures-util = "0.3.29"

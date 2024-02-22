@@ -1,8 +1,7 @@
-use std::str::FromStr;
-
 use drift::math::constants::{BASE_PRECISION_I64, LAMPORTS_PER_SOL_I64, PRICE_PRECISION_U64};
 use drift_sdk::{
     types::{ClientOpts, Context, MarketId, NewOrder},
+    utils::envs::test_keypair,
     DriftClient, RpcAccountProvider, Wallet,
 };
 use solana_sdk::signature::Keypair;
@@ -36,10 +35,7 @@ async fn place_and_cancel_orders() {
     .await
     .expect("connects");
 
-    let wallet = Wallet::from_seed_bs58(
-        "4ZT38mSeFhzzDRCMTMbwDp7VYWDqNfkvDR42Wv4Hu9cKzbZPJoVapQSrjLbs9aMPrpAMmN1cQinztnP2PzKVjzwX",
-    );
-
+    let wallet: Wallet = test_keypair().into();
     let sol_perp = client.market_lookup("sol-perp").expect("exists");
     let sol_spot = client.market_lookup("sol").expect("exists");
 
