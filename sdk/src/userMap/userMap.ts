@@ -13,7 +13,6 @@ import {
 	LPRecord,
 	StateAccount,
 	DLOB,
-	OneShotUserAccountSubscriber,
 	BN,
 	UserSubscriptionConfig,
 	DataAndSlot,
@@ -38,7 +37,12 @@ import { decodeUser } from '../decode/user';
 export interface UserMapInterface {
 	subscribe(): Promise<void>;
 	unsubscribe(): Promise<void>;
-	addPubkey(userAccountPublicKey: PublicKey): Promise<void>;
+	addPubkey(
+		userAccountPublicKey: PublicKey,
+		userAccount?: UserAccount,
+		slot?: number,
+		accountSubscription?: UserSubscriptionConfig
+	): Promise<void>;
 	has(key: string): boolean;
 	get(key: string): User | undefined;
 	getWithSlot(key: string): DataAndSlot<User> | undefined;
@@ -150,21 +154,13 @@ export class UserMap implements UserMapInterface {
 		const user = new User({
 			driftClient: this.driftClient,
 			userAccountPublicKey,
-			accountSubscription: accountSubscription ?? {
-				type: 'custom',
-				userAccountSubscriber: new OneShotUserAccountSubscriber(
-					this.driftClient.program,
-					userAccountPublicKey,
-					userAccount,
-					slot,
-					this.commitment
-				),
-			},
+			accountSubscription:
+				accountSubscription ?? this.driftClient.userAccountSubscriptionConfig,
 		});
 		await user.subscribe(userAccount);
 		this.userMap.set(userAccountPublicKey.toString(), {
 			data: user,
-			slot: user.getUserAccountAndSlot().slot ?? -1,
+			slot: user.getUserAccountAndSlot().slot ?? slot ?? -1,
 		});
 	}
 
