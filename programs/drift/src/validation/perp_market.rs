@@ -29,18 +29,6 @@ pub fn validate_perp_market(market: &PerpMarket) -> DriftResult {
         remainder_base_asset_amount_short,
         market.amm.order_step_size
     )?;
-    msg!(
-        "Market NET_BAA check: 
-    market.amm.base_asset_amount_long={}, 
-    + market.amm.base_asset_amount_short={} 
-    ==? 
-    market.amm.base_asset_amount_with_amm={}
-    +  market.amm.base_asset_amount_with_unsettled_lp={}",
-        market.amm.base_asset_amount_long,
-        market.amm.base_asset_amount_short,
-        market.amm.base_asset_amount_with_amm,
-        market.amm.base_asset_amount_with_unsettled_lp,
-    );
     validate!(
         (market.amm.base_asset_amount_long + market.amm.base_asset_amount_short)
             == market.amm.base_asset_amount_with_amm
