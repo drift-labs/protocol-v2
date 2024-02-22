@@ -26,14 +26,11 @@ import {
 	mockOracle,
 	mockUSDCMint,
 	mockUserUSDCAccount,
-	printTxLogs,
 	setFeedPrice,
 } from './testHelpers';
 import {
 	AMM_RESERVE_PRECISION,
 	BulkAccountLoader,
-	calculateBidAskPrice,
-	fetchTransactionLogs,
 	OracleSource,
 	ZERO,
 } from '../sdk';

@@ -23,7 +23,8 @@ import {
 	mockOracle,
 	mockUSDCMint,
 	mockUserUSDCAccount,
-	printTxLogs, setFeedPrice,
+	printTxLogs,
+	setFeedPrice,
 } from './testHelpers';
 import { MARGIN_PRECISION, OrderType } from '../sdk';
 

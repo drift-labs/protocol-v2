@@ -10,7 +10,6 @@ import {
 	PRICE_PRECISION,
 	PositionDirection,
 	ZERO,
-	MarginCategory,
 	BN,
 	calculateAmmReservesAfterSwap,
 	calculatePrice,

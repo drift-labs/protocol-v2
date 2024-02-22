@@ -672,8 +672,6 @@ describe('orders', () => {
 		const orderId = 4;
 
 		await driftClientUser.fetchAccounts();
-		const baseAssetAmountBefore =
-			driftClientUser.getPerpPosition(marketIndex).baseAssetAmount;
 		order = driftClientUser.getOrder(orderId);
 		console.log(order);
 		await fillerDriftClient.fillPerpOrder(
