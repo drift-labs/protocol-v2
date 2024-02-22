@@ -1,6 +1,6 @@
 use std::any::Any;
+
 use anchor_lang::AccountDeserialize;
-use crate::event_emitter::{Event, EventEmitter};
 use futures_util::StreamExt;
 use log::{debug, error, warn};
 use solana_account_decoder::UiAccountEncoding;
@@ -9,9 +9,13 @@ use solana_client::{
     rpc_config::{RpcAccountInfoConfig, RpcProgramAccountsConfig},
     rpc_filter::RpcFilterType,
 };
-use solana_sdk::{commitment_config::CommitmentConfig};
-use crate::types::{DataAndSlot, SdkError, SdkResult};
-use crate::utils::decode;
+use solana_sdk::commitment_config::CommitmentConfig;
+
+use crate::{
+    event_emitter::{Event, EventEmitter},
+    types::{DataAndSlot, SdkError, SdkResult},
+    utils::decode,
+};
 
 #[derive(Clone, Debug)]
 pub struct ProgramAccountUpdate<T: Clone + Send + AccountDeserialize + 'static> {
@@ -23,11 +27,10 @@ impl<T: Clone + Send + AccountDeserialize + 'static> ProgramAccountUpdate<T> {
     pub fn new(pubkey: String, data_and_slot: DataAndSlot<T>) -> Self {
         Self {
             pubkey,
-            data_and_slot
+            data_and_slot,
         }
     }
 }
-
 
 impl<T: Clone + Send + AccountDeserialize + 'static> Event for ProgramAccountUpdate<T> {
     fn box_clone(&self) -> Box<dyn Event> {
@@ -71,9 +74,9 @@ impl WebsocketProgramAccountSubscriber {
         }
     }
 
-    pub async fn subscribe<T>(&mut self) -> SdkResult<()> 
-        where
-            T: AccountDeserialize + Clone + Send + 'static,
+    pub async fn subscribe<T>(&mut self) -> SdkResult<()>
+    where
+        T: AccountDeserialize + Clone + Send + 'static,
     {
         if self.subscribed {
             return Ok(());
@@ -85,8 +88,8 @@ impl WebsocketProgramAccountSubscriber {
     }
 
     async fn subscribe_ws<T>(&mut self) -> SdkResult<()>
-        where
-            T: AccountDeserialize + Clone + Send + 'static,
+    where
+        T: AccountDeserialize + Clone + Send + 'static,
     {
         let account_config = RpcAccountInfoConfig {
             commitment: Some(self.options.commitment),
@@ -109,7 +112,8 @@ impl WebsocketProgramAccountSubscriber {
         let (unsub_tx, mut unsub_rx) = tokio::sync::mpsc::channel::<()>(1);
 
         self.unsubscriber = Some(unsub_tx);
-        let subscription_name: &'static str = Box::leak(self.subscription_name.clone().into_boxed_str());
+        let subscription_name: &'static str =
+            Box::leak(self.subscription_name.clone().into_boxed_str());
 
         tokio::spawn(async move {
             let (mut accounts, unsubscriber) = pubsub
@@ -207,11 +211,14 @@ mod tests {
         let _ = ws_subscriber.subscribe::<User>().await;
         dbg!("sub'd");
 
-        ws_subscriber.event_emitter.clone().subscribe("Test", move |event| {
-            if let Some(event) = event.as_any().downcast_ref::<ProgramAccountUpdate<User>>() {
-                dbg!(event);
-            }
-        });
+        ws_subscriber
+            .event_emitter
+            .clone()
+            .subscribe("Test", move |event| {
+                if let Some(event) = event.as_any().downcast_ref::<ProgramAccountUpdate<User>>() {
+                    dbg!(event);
+                }
+            });
 
         tokio::time::sleep(tokio::time::Duration::from_secs(10)).await;
         let _ = ws_subscriber.unsubscribe().await;

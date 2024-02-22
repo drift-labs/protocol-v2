@@ -100,8 +100,9 @@ pub fn dlob_subscribe_ws_json(market: &str) -> String {
 }
 
 #[inline(always)]
-pub fn decode<T>(data: UiAccountData) -> SdkResult<T> 
-    where T: AccountDeserialize
+pub fn decode<T>(data: UiAccountData) -> SdkResult<T>
+where
+    T: AccountDeserialize,
 {
     let data_str = match data {
         UiAccountData::Binary(encoded, _) => encoded,

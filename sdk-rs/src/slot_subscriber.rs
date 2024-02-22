@@ -1,9 +1,13 @@
 use std::sync::{Arc, Mutex};
-use crate::event_emitter::{Event, EventEmitter};
-use crate::types::{SdkError, SdkResult};
+
 use futures_util::StreamExt;
 use log::{debug, error, warn};
 use solana_client::nonblocking::pubsub_client::PubsubClient;
+
+use crate::{
+    event_emitter::{Event, EventEmitter},
+    types::{SdkError, SdkResult},
+};
 
 /// To subscribe to slot updates, subscribe to the event_emitter's "slot" event type.
 pub struct SlotSubscriber {
@@ -16,7 +20,7 @@ pub struct SlotSubscriber {
 
 #[derive(Clone, Debug)]
 pub struct SlotUpdate {
-    pub latest_slot: u64
+    pub latest_slot: u64,
 }
 
 impl SlotUpdate {
@@ -35,7 +39,6 @@ impl Event for SlotUpdate {
     }
 }
 
-
 impl SlotSubscriber {
     pub fn new(url: String) -> Self {
         let event_emitter = EventEmitter::new();
@@ -53,9 +56,9 @@ impl SlotSubscriber {
         *slot_guard
     }
 
-    pub async fn subscribe(&mut self) -> SdkResult<()>{
+    pub async fn subscribe(&mut self) -> SdkResult<()> {
         if self.subscribed {
-            return Ok(())
+            return Ok(());
         }
         self.subscribed = true;
         self.subscribe_ws().await?;
@@ -74,10 +77,7 @@ impl SlotSubscriber {
         let current_slot = self.current_slot.clone();
 
         tokio::spawn(async move {
-            let (mut slot_updates, unsubscriber) = pubsub
-                .slot_subscribe()
-                .await
-                .unwrap();
+            let (mut slot_updates, unsubscriber) = pubsub.slot_subscribe().await.unwrap();
             loop {
                 tokio::select! {
                     message = slot_updates.next() => {
@@ -123,9 +123,11 @@ impl SlotSubscriber {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use std::str::FromStr;
+
     use anchor_client::Cluster;
+
+    use super::*;
 
     // this is my (frank) free helius endpoint
     const MAINNET_ENDPOINT: &str =
@@ -141,11 +143,14 @@ mod tests {
 
         let _ = slot_subscriber.subscribe().await;
 
-        slot_subscriber.event_emitter.clone().subscribe("slot", move |event| {
-            if let Some(event) = event.as_any().downcast_ref::<SlotUpdate>() {
-                dbg!(event);
-            }
-        });
+        slot_subscriber
+            .event_emitter
+            .clone()
+            .subscribe("slot", move |event| {
+                if let Some(event) = event.as_any().downcast_ref::<SlotUpdate>() {
+                    dbg!(event);
+                }
+            });
         dbg!("sub'd");
 
         tokio::time::sleep(tokio::time::Duration::from_secs(10)).await;
@@ -153,8 +158,3 @@ mod tests {
         dbg!("unsub'd");
     }
 }
-
-
-
-
-

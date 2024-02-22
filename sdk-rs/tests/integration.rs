@@ -1,21 +1,18 @@
 use std::str::FromStr;
 
-use drift::math::constants::{
-    BASE_PRECISION_I64, LAMPORTS_PER_SOL_I64, PRICE_PRECISION_U64,
-};
+use drift::math::constants::{BASE_PRECISION_I64, LAMPORTS_PER_SOL_I64, PRICE_PRECISION_U64};
 use drift_sdk::{
     types::{ClientOpts, Context, MarketId, NewOrder},
-    DriftClient, Pubkey, RpcAccountProvider, TransactionBuilder, Wallet,
+    DriftClient, RpcAccountProvider, Wallet,
 };
-use solana_sdk::{signature::Keypair, signer::Signer};
-use spl_associated_token_account::get_associated_token_address;
+use solana_sdk::signature::Keypair;
 
 #[tokio::test]
 async fn get_oracle_prices() {
     let client = DriftClient::new_with_opts(
         Context::DevNet,
         RpcAccountProvider::new("https://api.devnet.solana.com"),
-        Keypair::new(),
+        Keypair::new().into(),
         ClientOpts::default(),
     )
     .await
@@ -33,7 +30,7 @@ async fn place_and_cancel_orders() {
     let client = DriftClient::new_with_opts(
         Context::DevNet,
         RpcAccountProvider::new("https://api.devnet.solana.com"),
-        Keypair::new(),
+        Keypair::new().into(),
         ClientOpts::default(),
     )
     .await

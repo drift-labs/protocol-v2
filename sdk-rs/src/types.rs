@@ -38,7 +38,8 @@ pub enum Context {
 
 #[derive(Debug, Clone)]
 pub struct DataAndSlot<T>
-    where T: AccountDeserialize
+where
+    T: AccountDeserialize,
 {
     pub slot: u64,
     pub data: T,
@@ -70,8 +71,8 @@ impl MarketId {
     /// `MarketId` for the USDC Spot Market
     pub const QUOTE_SPOT: Self = Self {
         index: 0,
-        kind: MarketType::Spot
-      };
+        kind: MarketType::Spot,
+    };
 }
 
 impl From<(u16, MarketType)> for MarketId {
@@ -358,7 +359,7 @@ impl Default for ClientOpts {
     fn default() -> Self {
         Self {
             active_sub_account_id: 0,
-            sub_account_ids: vec![0]
+            sub_account_ids: vec![0],
         }
     }
 }
@@ -368,29 +369,29 @@ impl ClientOpts {
         let sub_account_ids = sub_account_ids.unwrap_or(vec![active_sub_account_id]);
         Self {
             active_sub_account_id,
-            sub_account_ids
+            sub_account_ids,
         }
     }
 
-    pub fn active_sub_account_id(self) -> u16 {
+    pub fn active_sub_account_id(&self) -> u16 {
         self.active_sub_account_id
     }
 
-    pub fn sub_account_ids(self) -> Vec<u16>  {
+    pub fn sub_account_ids(self) -> Vec<u16> {
         self.sub_account_ids
     }
 }
 
 pub struct ReferrerInfo {
     referrer: Pubkey,
-    referrer_stats: Pubkey
+    referrer_stats: Pubkey,
 }
 
 impl ReferrerInfo {
     pub fn new(referrer: Pubkey, referrer_stats: Pubkey) -> Self {
         Self {
             referrer,
-            referrer_stats
+            referrer_stats,
         }
     }
 
