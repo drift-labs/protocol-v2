@@ -688,29 +688,34 @@ export class DriftClient {
 					[...this.authoritySubAccountMap.values()][0][0] ?? 0,
 					new PublicKey(
 						[...this.authoritySubAccountMap.keys()][0] ??
-							this.authority.toString()
+						this.authority.toString()
 					)
 				);
 			}
 		} else {
-			const userAccounts =
-				(await this.getUserAccountsForAuthority(this.wallet.publicKey)) ?? [];
+			let userAccounts = [];
 			let delegatedAccounts = [];
 
+			const userAccountsPromise = this.getUserAccountsForAuthority(this.wallet.publicKey);
+
 			if (this.includeDelegates) {
-				delegatedAccounts =
-					(await this.getUserAccountsForDelegate(this.wallet.publicKey)) ?? [];
+				const delegatedAccountsPromise = this.getUserAccountsForDelegate(this.wallet.publicKey);
+				[userAccounts, delegatedAccounts] = await Promise.all([
+					userAccountsPromise,
+					delegatedAccountsPromise,
+				]);
+
+				!userAccounts && (userAccounts = []);
+				!delegatedAccounts && (delegatedAccounts = []);
+			} else {
+				userAccounts = (await userAccountsPromise) ?? [];
 			}
 
-			for (const account of userAccounts.concat(delegatedAccounts)) {
-				result =
-					result &&
-					(await this.addUser(
-						account.subAccountId,
-						account.authority,
-						account
-					));
-			}
+			const allAccounts = userAccounts.concat(delegatedAccounts);
+			const addAllAccountsPromise = allAccounts.map(acc => this.addUser(acc.subAccountId, acc.authority, acc));
+
+			const addAllAccountsResults = await Promise.all(addAllAccountsPromise);
+			result = addAllAccountsResults.every(res => !!res);
 
 			if (this.activeSubAccountId == undefined) {
 				this.switchActiveUser(

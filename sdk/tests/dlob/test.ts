@@ -6613,53 +6613,50 @@ describe('Uncross L2', () => {
 			new BN(1).mul(BASE_PRECISION).toString()
 		);
 	});
-	
+
 	it('Handles edge case bide and asks with large cross and an overlapping level', () => {
-
 		const bids = [
-			"104411000",
-			"103835800",
-			"103826259",
-			"103825000",
-			"103822000",
-			"103821500",
-			"103820283",
-			"103816900",
-			"103816000",
-			"103815121",
-		  ].map(priceStr => (
-			{
-				price: new BN(priceStr),
-				size: new BN(1).mul(BASE_PRECISION),
-				sources: { vamm: new BN(1).mul(BASE_PRECISION) },
-			}
-		));
-
-		const asks = [
-			"103822000",
-			"103838354",
-			"103843087",
-			"103843351",
-			"103843880",
-			"103845114",
-			"103846148",
-			"103850100",
-			"103851300",
-			"103854304",
-		  ].map(priceStr => ({
+			'104411000',
+			'103835800',
+			'103826259',
+			'103825000',
+			'103822000',
+			'103821500',
+			'103820283',
+			'103816900',
+			'103816000',
+			'103815121',
+		].map((priceStr) => ({
 			price: new BN(priceStr),
 			size: new BN(1).mul(BASE_PRECISION),
 			sources: { vamm: new BN(1).mul(BASE_PRECISION) },
 		}));
 
-		expect(asksAreSortedAsc(asks), "Input asks are ascending").to.be.true;
-		expect(bidsAreSortedDesc(bids), "Input bids are descending").to.be.true;
+		const asks = [
+			'103822000',
+			'103838354',
+			'103843087',
+			'103843351',
+			'103843880',
+			'103845114',
+			'103846148',
+			'103850100',
+			'103851300',
+			'103854304',
+		].map((priceStr) => ({
+			price: new BN(priceStr),
+			size: new BN(1).mul(BASE_PRECISION),
+			sources: { vamm: new BN(1).mul(BASE_PRECISION) },
+		}));
 
-		const oraclePrice = new BN("103649895");
-		const oraclePrice5Min = new BN("103285000");
-		const markPrice5Min = new BN("103371000");
+		expect(asksAreSortedAsc(asks), 'Input asks are ascending').to.be.true;
+		expect(bidsAreSortedDesc(bids), 'Input bids are descending').to.be.true;
 
-		const groupingSize = new BN("100");
+		const oraclePrice = new BN('103649895');
+		const oraclePrice5Min = new BN('103285000');
+		const markPrice5Min = new BN('103371000');
+
+		const groupingSize = new BN('100');
 
 		const userAsks = new Set<string>();
 
@@ -6674,55 +6671,55 @@ describe('Uncross L2', () => {
 			userAsks
 		);
 
-		expect(asksAreSortedAsc(newAsks), "Uncrossed asks are ascending").to.be.true;
-		expect(bidsAreSortedDesc(newBids), "Uncrossed bids are descending").to.be.true;
+		expect(asksAreSortedAsc(newAsks), 'Uncrossed asks are ascending').to.be
+			.true;
+		expect(bidsAreSortedDesc(newBids), 'Uncrossed bids are descending').to.be
+			.true;
 	});
-	
+
 	it('Crossing edge case : top bid and ask have a big cross, following ones dont - shouldnt get uncrossed out of order', () => {
 		const bids = [
-			"101825900",
-			"101783900",
-			"101783000",
-			"101782600",
-			"101770700",
-			"101770200",
-			"101749857",
-			"101735900",
-			"101729994",
-			"101726900",
-		  ].map(priceStr => (
-			{
-				price: new BN(priceStr),
-				size: new BN(1).mul(BASE_PRECISION),
-				sources: { vamm: new BN(1).mul(BASE_PRECISION) },
-			}
-		));
-
-		const asks = [
-			"101750700",
-			"101790467",
-			"101793400",
-			"101794116",
-			"101798548",
-			"101799532",
-			"101803500",
-			"101820927",
-			"101823900",
-			"101827638",
-		  ].map(priceStr => ({
+			'101825900',
+			'101783900',
+			'101783000',
+			'101782600',
+			'101770700',
+			'101770200',
+			'101749857',
+			'101735900',
+			'101729994',
+			'101726900',
+		].map((priceStr) => ({
 			price: new BN(priceStr),
 			size: new BN(1).mul(BASE_PRECISION),
 			sources: { vamm: new BN(1).mul(BASE_PRECISION) },
 		}));
 
-		expect(asksAreSortedAsc(asks), "Input asks are ascending").to.be.true;
-		expect(bidsAreSortedDesc(bids), "Input bids are descending").to.be.true;
+		const asks = [
+			'101750700',
+			'101790467',
+			'101793400',
+			'101794116',
+			'101798548',
+			'101799532',
+			'101803500',
+			'101820927',
+			'101823900',
+			'101827638',
+		].map((priceStr) => ({
+			price: new BN(priceStr),
+			size: new BN(1).mul(BASE_PRECISION),
+			sources: { vamm: new BN(1).mul(BASE_PRECISION) },
+		}));
 
-		const oraclePrice = new BN("101711384");
-		const oraclePrice5Min = new BN("101805000");
-		const markPrice5Min = new BN("101867000");
+		expect(asksAreSortedAsc(asks), 'Input asks are ascending').to.be.true;
+		expect(bidsAreSortedDesc(bids), 'Input bids are descending').to.be.true;
 
-		const groupingSize = new BN("100");
+		const oraclePrice = new BN('101711384');
+		const oraclePrice5Min = new BN('101805000');
+		const markPrice5Min = new BN('101867000');
+
+		const groupingSize = new BN('100');
 
 		const userAsks = new Set<string>();
 
@@ -6737,7 +6734,9 @@ describe('Uncross L2', () => {
 			userAsks
 		);
 
-		expect(asksAreSortedAsc(newAsks), "Uncrossed asks are ascending").to.be.true;
-		expect(bidsAreSortedDesc(newBids), "Uncrossed bids are descending").to.be.true;
+		expect(asksAreSortedAsc(newAsks), 'Uncrossed asks are ascending').to.be
+			.true;
+		expect(bidsAreSortedDesc(newBids), 'Uncrossed bids are descending').to.be
+			.true;
 	});
 });
