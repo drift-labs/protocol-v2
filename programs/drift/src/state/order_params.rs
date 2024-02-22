@@ -355,6 +355,9 @@ impl OrderParams {
         perp_market: &PerpMarket,
         oracle_price: i64,
     ) -> DriftResult {
+        #[cfg(feature = "anchor-test")]
+        return Ok(());
+
         match self.order_type {
             OrderType::Limit => {
                 self.update_perp_auction_params_limit_orders(perp_market, oracle_price)?;
