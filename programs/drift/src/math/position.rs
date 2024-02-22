@@ -161,7 +161,6 @@ pub fn get_position_update_type(
         position.base_asset_amount
     };
 
-    // let position_base_with_remainder =  position.base_asset_amount;
     let delta_base_with_remainder =
         if let Some(remainder_base_asset_amount) = delta.remainder_base_asset_amount {
             delta
@@ -170,6 +169,7 @@ pub fn get_position_update_type(
         } else {
             delta.base_asset_amount
         };
+        
     if position_base_with_remainder.signum() == delta_base_with_remainder.signum() {
         Ok(PositionUpdateType::Increase)
     } else if position_base_with_remainder.abs() > delta_base_with_remainder.abs() {
