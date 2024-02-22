@@ -10,6 +10,7 @@ import {
 	PRICE_PRECISION,
 	PositionDirection,
 	ZERO,
+	MarginCategory,
 	BN,
 	calculateAmmReservesAfterSwap,
 	calculatePrice,
@@ -275,7 +276,12 @@ describe('lp risk mitigation', () => {
 			undefined,
 			bulkAccountLoader
 		);
-		await traderDriftClient.updateUserAdvancedLp(true);
+		await traderDriftClient.updateUserAdvancedLp([
+			{
+				advancedLp: true,
+				subAccountId: 0,
+			},
+		]);
 		[poorDriftClient, poorDriftClientUser] = await createNewUser(
 			chProgram,
 			provider,
@@ -285,7 +291,12 @@ describe('lp risk mitigation', () => {
 			undefined,
 			bulkAccountLoader
 		);
-		await poorDriftClient.updateUserAdvancedLp(true);
+		await poorDriftClient.updateUserAdvancedLp([
+			{
+				advancedLp: true,
+				subAccountId: 0,
+			},
+		]);
 	});
 
 	after(async () => {
@@ -325,7 +336,7 @@ describe('lp risk mitigation', () => {
 		// assert(market.amm.targetBaseAssetAmountPerLp == BASE_PRECISION.toNumber());
 
 		const _sig = await driftClient.addPerpLpShares(
-			new BN(3000 * BASE_PRECISION.toNumber()),
+			new BN(1000 * BASE_PRECISION.toNumber()),
 			market.marketIndex
 		);
 		await delay(lpCooldown + 1000);
@@ -337,12 +348,12 @@ describe('lp risk mitigation', () => {
 			'/',
 			market.amm.sqrtK.toString()
 		);
-		assert(market.amm.sqrtK.eq(new BN('13000000000000')));
+		assert(market.amm.sqrtK.eq(new BN('11000000000000')));
 		assert(market.amm.baseAssetAmountPerLp.eq(ZERO));
 		assert(market.amm.targetBaseAssetAmountPerLp == BASE_PRECISION.toNumber());
 
 		let user = await driftClientUser.getUserAccount();
-		assert(user.perpPositions[0].lpShares.toString() == '3000000000000'); // 3000 * 1e9
+		assert(user.perpPositions[0].lpShares.toString() == '1000000000000'); // 1000 * 1e9
 
 		// lp goes short
 		const tradeSize = new BN(500 * BASE_PRECISION.toNumber());
@@ -364,8 +375,12 @@ describe('lp risk mitigation', () => {
 			'market.amm.baseAssetAmountPerLp:',
 			market.amm.baseAssetAmountPerLp.toString()
 		);
-		assert(market.amm.baseAssetAmountPerLp.eq(new BN('38461538')));
-
+		assert(market.amm.baseAssetAmountPerLp.eq(new BN('45454545')));
+		console.log(
+			'driftClientUser.getFreeCollateral()=',
+			driftClientUser.getFreeCollateral().toString()
+		);
+		assert(driftClientUser.getFreeCollateral().eq(new BN('4761073360')));
 		// some user goes long (lp should get more short)
 		try {
 			await adjustOraclePostSwap(tradeSize, SwapDirection.REMOVE, market);
@@ -454,6 +469,10 @@ describe('lp risk mitigation', () => {
 		await sleep(1000);
 		await driftClient.fetchAccounts();
 		await driftClientUser.fetchAccounts();
+		console.log(
+			'driftClientUser.getUserAccount().openOrders=',
+			driftClientUser.getUserAccount().openOrders
+		);
 		assert(driftClientUser.getUserAccount().openOrders == 0);
 
 		console.log('settling after margin ratio update...');
@@ -485,10 +504,11 @@ describe('lp risk mitigation', () => {
 		assert(isVariant(leOrder.direction, 'long'));
 		assert(isVariant(leOrder.existingPositionDirection, 'short'));
 
-		assert(
-			afterReduceOrdersAccount.perpPositions[0].lpShares.eq(
-				new BN(2000 * BASE_PRECISION.toNumber())
-			)
-		);
+		const afterReduceShares =
+			afterReduceOrdersAccount.perpPositions[0].lpShares;
+
+		console.log('afterReduceShares=', afterReduceShares.toString());
+		assert(afterReduceShares.lt(new BN(1000 * BASE_PRECISION.toNumber())));
+		assert(afterReduceShares.eq(new BN('400000000000')));
 	});
 });
