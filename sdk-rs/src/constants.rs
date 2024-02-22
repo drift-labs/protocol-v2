@@ -50,6 +50,15 @@ pub fn derive_spot_market_account(market_index: u16) -> Pubkey {
     account
 }
 
+/// calculate the PDA of a drift perp market given index
+pub fn derive_perp_market_account(market_index: u16) -> Pubkey {
+    let (account, _seed) = Pubkey::find_program_address(
+        &[&b"perp_market"[..], &market_index.to_le_bytes()],
+        &PROGRAM_ID,
+    );
+    account
+}
+
 /// calculate the PDA for a drift spot market vault given index
 pub fn derive_spot_market_vault(market_index: u16) -> Pubkey {
     let (account, _seed) = Pubkey::find_program_address(

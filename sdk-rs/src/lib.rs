@@ -4,6 +4,7 @@ use std::{borrow::Cow, sync::Arc, time::Duration};
 
 use anchor_lang::{AccountDeserialize, Discriminator, InstructionData, ToAccountMetas};
 use async_utils::{retry_policy, spawn_retry_task};
+use constants::derive_perp_market_account;
 use drift::{
     controller::position::PositionDirection,
     math::constants::QUOTE_SPOT_MARKET_INDEX,
@@ -485,6 +486,12 @@ impl<T: AccountProvider> DriftClient<T> {
     /// Get live info of a spot market
     pub async fn get_spot_market_info(&self, market_index: u16) -> SdkResult<SpotMarket> {
         let market = derive_spot_market_account(market_index);
+        self.backend.get_account(&market).await
+    }
+
+    /// Get live info of a perp market
+    pub async fn get_perp_market_info(&self, market_index: u16) -> SdkResult<PerpMarket> {
+        let market = derive_perp_market_account(market_index);
         self.backend.get_account(&market).await
     }
 
