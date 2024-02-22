@@ -4,10 +4,9 @@ use crate::controller::position::PositionDirection;
 use crate::error::{DriftResult, ErrorCode};
 
 use crate::math::casting::Cast;
-use crate::math::orders::{
-    calculate_base_asset_amount_to_fill_up_to_limit_price, is_multiple_of_step_size,
-};
-use crate::state::perp_market::PerpMarket;
+use crate::math::orders::is_multiple_of_step_size;
+use crate::math::safe_math::SafeMath;
+use crate::state::perp_market::{PerpMarket, AMM};
 use crate::state::user::{Order, OrderTriggerCondition, OrderType};
 use crate::validate;
 
@@ -220,25 +219,21 @@ fn validate_post_only_order(
     valid_oracle_price: Option<i64>,
     slot: u64,
 ) -> DriftResult {
-    // jit maker can fill against amm
-    if order.is_jit_maker() {
-        return Ok(());
-    }
-
     let limit_price =
         order.force_get_limit_price(valid_oracle_price, None, slot, market.amm.order_tick_size)?;
 
-    let base_asset_amount_market_can_fill = calculate_base_asset_amount_to_fill_up_to_limit_price(
-        order,
-        market,
-        Some(limit_price),
-        None,
-    )?;
+    let boundary = get_post_only_boundary(&market.amm, order.direction, order.immediate_or_cancel)?;
 
-    if base_asset_amount_market_can_fill != 0 {
+    let crosses_boundary = match order.direction {
+        PositionDirection::Long => limit_price > boundary,
+        PositionDirection::Short => limit_price < boundary,
+    };
+
+    if crosses_boundary {
         msg!(
-            "Post-only order can immediately fill {} base asset amount",
-            base_asset_amount_market_can_fill,
+            "Post-only order crosses boundary. limit_price={} boundary={}",
+            limit_price,
+            boundary
         );
 
         if market.amm.last_update_slot != slot {
@@ -266,6 +261,36 @@ fn validate_post_only_order(
     }
 
     Ok(())
+}
+
+pub fn get_post_only_boundary(
+    amm: &AMM,
+    direction: PositionDirection,
+    immediate_or_cancel: bool,
+) -> DriftResult<u64> {
+    let reserve_price = amm.reserve_price()?;
+    match direction {
+        PositionDirection::Long => {
+            if !immediate_or_cancel {
+                amm.ask_price(reserve_price)
+            } else {
+                amm.ask_price_from_spread(
+                    reserve_price,
+                    amm.long_spread.cast::<u128>()?.safe_mul(3)? / 2,
+                )
+            }
+        }
+        PositionDirection::Short => {
+            if !immediate_or_cancel {
+                amm.bid_price(reserve_price)
+            } else {
+                amm.bid_price_from_spread(
+                    reserve_price,
+                    amm.short_spread.cast::<u128>()?.safe_mul(3)? / 2,
+                )
+            }
+        }
+    }
 }
 
 fn validate_trigger_limit_order(order: &Order, step_size: u64, min_order_size: u64) -> DriftResult {

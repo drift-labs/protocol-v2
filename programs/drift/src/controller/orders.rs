@@ -253,6 +253,7 @@ pub fn place_perp_order(
             params.price,
             params.direction,
             params.post_only,
+            params.immediate_or_cancel,
             &market.amm,
         )?,
         existing_position_direction,
