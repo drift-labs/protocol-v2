@@ -10,6 +10,7 @@ pub enum PerpOperation {
     Fill = 0b00000100,
     SettlePnl = 0b00001000,
     SettlePnlWithPosition = 0b00010000,
+    Liquidation = 0b00100000,
 }
 
 const ALL_PERP_OPERATIONS: [PerpOperation; 5] = [
@@ -39,6 +40,7 @@ pub enum SpotOperation {
     UpdateCumulativeInterest = 0b00000001,
     Fill = 0b00000010,
     Withdraw = 0b00000100,
+    Liquidation = 0b00001000,
 }
 
 const ALL_SPOT_OPERATIONS: [SpotOperation; 3] = [
