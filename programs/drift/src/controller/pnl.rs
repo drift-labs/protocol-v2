@@ -364,6 +364,7 @@ pub fn settle_expired_position(
     let position_delta = PositionDelta {
         quote_asset_amount: base_asset_value,
         base_asset_amount: -user.perp_positions[position_index].base_asset_amount,
+        remainder_base_asset_amount: None,
     };
 
     update_position_and_market(

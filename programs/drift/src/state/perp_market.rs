@@ -479,6 +479,24 @@ impl PerpMarket {
 
         Ok(depth)
     }
+
+    pub fn update_market_with_counterparty(
+        &mut self,
+        delta: &PositionDelta,
+        new_settled_base_asset_amount: i64,
+    ) -> DriftResult {
+        // indicates that position delta is settling lp counterparty
+        if delta.remainder_base_asset_amount.is_some() {
+            // todo: name for this is confusing, but adding is correct as is
+            // definition: net position of users in the market that has the LP as a counterparty (which have NOT settled)
+            self.amm.base_asset_amount_with_unsettled_lp = self
+                .amm
+                .base_asset_amount_with_unsettled_lp
+                .safe_add(new_settled_base_asset_amount.cast()?)?;
+        }
+
+        Ok(())
+    }
 }
 
 #[cfg(test)]
