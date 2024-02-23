@@ -479,6 +479,24 @@ impl PerpMarket {
 
         Ok(depth)
     }
+
+    pub fn update_market_with_counterparty(
+        &mut self,
+        delta: &PositionDelta,
+        new_settled_base_asset_amount: i64,
+    ) -> DriftResult {
+        // indicates that position delta is settling lp counterparty
+        if delta.remainder_base_asset_amount.is_some() {
+            // todo: name for this is confusing, but adding is correct as is
+            // definition: net position of users in the market that has the LP as a counterparty (which have NOT settled)
+            self.amm.base_asset_amount_with_unsettled_lp = self
+                .amm
+                .base_asset_amount_with_unsettled_lp
+                .safe_add(new_settled_base_asset_amount.cast()?)?;
+        }
+
+        Ok(())
+    }
 }
 
 #[cfg(test)]
@@ -578,69 +596,100 @@ pub struct AMM {
     /// stores historically witnessed oracle data
     pub historical_oracle_data: HistoricalOracleData,
     /// accumulated base asset amount since inception per lp share
+    /// precision: QUOTE_PRECISION
     pub base_asset_amount_per_lp: i128,
     /// accumulated quote asset amount since inception per lp share
+    /// precision: QUOTE_PRECISION
     pub quote_asset_amount_per_lp: i128,
     /// partition of fees from perp market trading moved from pnl settlements
     pub fee_pool: PoolBalance,
     /// `x` reserves for constant product mm formula (x * y = k)
+    /// precision: AMM_RESERVE_PRECISION
     pub base_asset_reserve: u128,
     /// `y` reserves for constant product mm formula (x * y = k)
+    /// precision: AMM_RESERVE_PRECISION
     pub quote_asset_reserve: u128,
     /// determines how close the min/max base asset reserve sit vs base reserves
     /// allow for decreasing slippage without increasing liquidity and v.v.
+    /// precision: PERCENTAGE_PRECISION
     pub concentration_coef: u128,
     /// minimum base_asset_reserve allowed before AMM is unavailable
+    /// precision: AMM_RESERVE_PRECISION
     pub min_base_asset_reserve: u128,
     /// maximum base_asset_reserve allowed before AMM is unavailable
+    /// precision: AMM_RESERVE_PRECISION
     pub max_base_asset_reserve: u128,
     /// `sqrt(k)` in constant product mm formula (x * y = k). stored to avoid drift caused by integer math issues
+    /// precision: AMM_RESERVE_PRECISION
     pub sqrt_k: u128,
     /// normalizing numerical factor for y, its use offers lowest slippage in cp-curve when market is balanced
+    /// precision: PEG_PRECISION
     pub peg_multiplier: u128,
     /// y when market is balanced. stored to save computation
+    /// precision: AMM_RESERVE_PRECISION
     pub terminal_quote_asset_reserve: u128,
-    /// tracks number of total longs in market (regardless of counterparty)
+    /// always non-negative. tracks number of total longs in market (regardless of counterparty)
+    /// precision: BASE_PRECISION
     pub base_asset_amount_long: i128,
-    /// tracks number of total shorts in market (regardless of counterparty)
+    /// always non-positive. tracks number of total shorts in market (regardless of counterparty)
+    /// precision: BASE_PRECISION
     pub base_asset_amount_short: i128,
     /// tracks net position (longs-shorts) in market with AMM as counterparty
+    /// precision: BASE_PRECISION
     pub base_asset_amount_with_amm: i128,
     /// tracks net position (longs-shorts) in market with LPs as counterparty
+    /// precision: BASE_PRECISION
     pub base_asset_amount_with_unsettled_lp: i128,
     /// max allowed open interest, blocks trades that breach this value
+    /// precision: BASE_PRECISION
     pub max_open_interest: u128,
     /// sum of all user's perp quote_asset_amount in market
+    /// precision: QUOTE_PRECISION
     pub quote_asset_amount: i128,
     /// sum of all long user's quote_entry_amount in market
+    /// precision: QUOTE_PRECISION
     pub quote_entry_amount_long: i128,
     /// sum of all short user's quote_entry_amount in market
+    /// precision: QUOTE_PRECISION
     pub quote_entry_amount_short: i128,
     /// sum of all long user's quote_break_even_amount in market
+    /// precision: QUOTE_PRECISION
     pub quote_break_even_amount_long: i128,
     /// sum of all short user's quote_break_even_amount in market
+    /// precision: QUOTE_PRECISION
     pub quote_break_even_amount_short: i128,
     /// total user lp shares of sqrt_k (protocol owned liquidity = sqrt_k - last_funding_rate)
+    /// precision: AMM_RESERVE_PRECISION
     pub user_lp_shares: u128,
     /// last funding rate in this perp market (unit is quote per base)
+    /// precision: QUOTE_PRECISION
     pub last_funding_rate: i64,
     /// last funding rate for longs in this perp market (unit is quote per base)
+    /// precision: QUOTE_PRECISION
     pub last_funding_rate_long: i64,
     /// last funding rate for shorts in this perp market (unit is quote per base)
+    /// precision: QUOTE_PRECISION
     pub last_funding_rate_short: i64,
     /// estimate of last 24h of funding rate perp market (unit is quote per base)
+    /// precision: QUOTE_PRECISION
     pub last_24h_avg_funding_rate: i64,
     /// total fees collected by this perp market
+    /// precision: QUOTE_PRECISION
     pub total_fee: i128,
     /// total fees collected by the vAMM's bid/ask spread
+    /// precision: QUOTE_PRECISION
     pub total_mm_fee: i128,
     /// total fees collected by exchange fee schedule
+    /// precision: QUOTE_PRECISION
     pub total_exchange_fee: u128,
     /// total fees minus any recognized upnl and pool withdraws
+    /// precision: QUOTE_PRECISION
     pub total_fee_minus_distributions: i128,
     /// sum of all fees from fee pool withdrawn to revenue pool
+    /// precision: QUOTE_PRECISION
     pub total_fee_withdrawn: u128,
     /// all fees collected by market for liquidations
+    /// precision: QUOTE_PRECISION
     pub total_liquidation_fee: u128,
     /// accumulated funding rate for longs since inception in market
     pub cumulative_funding_rate_long: i128,
@@ -649,12 +698,16 @@ pub struct AMM {
     /// accumulated social loss paid by users since inception in market
     pub total_social_loss: u128,
     /// transformed base_asset_reserve for users going long
+    /// precision: AMM_RESERVE_PRECISION
     pub ask_base_asset_reserve: u128,
     /// transformed quote_asset_reserve for users going long
+    /// precision: AMM_RESERVE_PRECISION
     pub ask_quote_asset_reserve: u128,
     /// transformed base_asset_reserve for users going short
+    /// precision: AMM_RESERVE_PRECISION
     pub bid_base_asset_reserve: u128,
     /// transformed quote_asset_reserve for users going short
+    /// precision: AMM_RESERVE_PRECISION
     pub bid_quote_asset_reserve: u128,
     /// the last seen oracle price partially shrunk toward the amm reserve price
     /// precision: PRICE_PRECISION
