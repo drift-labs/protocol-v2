@@ -296,7 +296,7 @@ export class JupiterClient {
 		onlyDirectRoutes?: boolean;
 		excludeDexes?: string[];
 	}): Promise<QuoteResponse> {
-		const params = new URLSearchParams({
+		const params = {
 			inputMint: inputMint.toString(),
 			outputMint: outputMint.toString(),
 			amount: amount.toString(),
@@ -305,8 +305,17 @@ export class JupiterClient {
 			onlyDirectRoutes: onlyDirectRoutes.toString(),
 			maxAccounts: maxAccounts.toString(),
 			...(excludeDexes && { excludeDexes: excludeDexes.join(',') }),
-		}).toString();
-		const quote = await (await fetch(`${this.url}/v6/quote?${params}`)).json();
+		};
+
+		// ExactOut is not compatible with maxAccounts anymore apparently
+		if (swapMode === 'ExactOut') {
+			delete params.maxAccounts;
+		}
+
+		const paramsString = new URLSearchParams(params).toString();
+		const quote = await (
+			await fetch(`${this.url}/v6/quote?${paramsString}`)
+		).json();
 		return quote;
 	}
 
