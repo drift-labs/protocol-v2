@@ -31,6 +31,8 @@ import {
 	ContractTier,
 	isOracleValid,
 	OracleGuardRails,
+	getNewOracleConfPct,
+	// calculateReservePrice,
 } from '../../src';
 import { mockPerpMarkets } from '../dlob/helpers';
 
@@ -330,8 +332,8 @@ describe('AMM Tests', () => {
 			new BN(928097825691666),
 			new BN(907979542352912),
 			new BN(945977491145601),
-			new BN(161188),
-			new BN(1459632439),
+			new BN(161188), // mark std
+			new BN(145963), // oracle std
 			new BN(12358265776),
 			new BN(72230366233),
 			new BN(432067603632),
@@ -340,9 +342,9 @@ describe('AMM Tests', () => {
 
 		// console.log(terms2);
 		assert(terms2.effectiveLeverageCapped >= 1.0002);
-		assert(terms2.inventorySpreadScale == 1.73492);
-		assert(terms2.longSpread == 4262);
-		assert(terms2.shortSpread == 43238);
+		assert(terms2.inventorySpreadScale == 4.717646);
+		assert(terms2.longSpread == 160);
+		assert(terms2.shortSpread == 4430);
 
 		// add spread offset
 		// eslint-disable-next-line @typescript-eslint/ban-ts-comment
@@ -363,19 +365,19 @@ describe('AMM Tests', () => {
 			new BN(907979542352912),
 			new BN(945977491145601),
 			new BN(161188),
-			new BN(1459632439),
+			new BN(145963), // oracle std
 			new BN(12358265776),
 			new BN(72230366233),
 			new BN(432067603632),
 			true
 		);
 
-		console.log(terms3);
+		// console.log(terms3);
 		assert(terms3.effectiveLeverageCapped >= 1.0002);
-		assert(terms3.inventorySpreadScale == 1.73492);
-		assert(terms3.longSpread == 4262);
-		assert(terms3.shortSpread == 43238);
-		assert(terms3.longSpread + terms3.shortSpread == 47500);
+		assert(terms3.inventorySpreadScale == 4.717646);
+		assert(terms3.longSpread == 160);
+		assert(terms3.shortSpread == 4430);
+		assert(terms3.longSpread + terms3.shortSpread == 4430 + 160);
 
 		// add spread offset
 		// eslint-disable-next-line @typescript-eslint/ban-ts-comment
@@ -396,7 +398,7 @@ describe('AMM Tests', () => {
 			new BN(907979542352912),
 			new BN(945977491145601),
 			new BN(161188),
-			new BN(1459632439),
+			new BN(1459632439), // oracle std (unchanged)
 			new BN(12358265776),
 			new BN(72230366233),
 			new BN(432067603632),
@@ -406,9 +408,9 @@ describe('AMM Tests', () => {
 		console.log(terms4);
 		assert(terms4.effectiveLeverageCapped >= 1.0002);
 		assert(terms4.inventorySpreadScale == 1.73492);
-		assert(terms4.longSpread == 4262);
-		assert(terms4.shortSpread == 43238);
-		assert(terms4.longSpread + terms4.shortSpread == 47500);
+		assert(terms4.longSpread == 89746);
+		assert(terms4.shortSpread == 910254);
+		assert(terms4.longSpread + terms4.shortSpread == 1000000);
 	});
 
 	it('Corner Case Spreads', () => {
@@ -437,11 +439,242 @@ describe('AMM Tests', () => {
 			true
 		);
 
-		console.log(terms2);
+		// console.log(terms2);
 		assert(terms2.effectiveLeverageCapped <= 1.000001);
 		assert(terms2.inventorySpreadScale == 1.0306);
 		assert(terms2.longSpread == 515);
 		assert(terms2.shortSpread == 5668);
+
+		const suiExample = {
+			status: 'active',
+			contractType: 'perpetual',
+			contractTier: 'c',
+			expiryTs: '0',
+			expiryPrice: '0',
+			marketIndex: 9,
+			pubkey: '91NsaUmTNNdLGbYtwmoiYSn9SgWHCsZiChfMYMYZ2nQx',
+			name: 'SUI-PERP',
+			amm: {
+				baseAssetReserve: '234381482764434',
+				sqrtK: '109260723000000001',
+				lastFundingRate: '-16416',
+				lastFundingRateTs: '1705845755',
+				lastMarkPriceTwap: '1105972',
+				lastMarkPriceTwap5Min: '1101202',
+				lastMarkPriceTwapTs: '1705846920',
+				lastTradeTs: '1705846920',
+				oracle: '3Qub3HaAJaa2xNY7SUqPKd3vVwTqDfDDkEUMPjXD2c1q',
+				oracleSource: 'pyth',
+				historicalOracleData: {
+					lastOraclePrice: '1099778',
+					lastOracleDelay: '2',
+					lastOracleConf: '0',
+					lastOraclePriceTwap: '1106680',
+					lastOraclePriceTwap5Min: '1102634',
+					lastOraclePriceTwapTs: '1705846920',
+				},
+				lastOracleReservePriceSpreadPct: '-262785',
+				lastOracleConfPct: '1359',
+				fundingPeriod: '3600',
+				quoteAssetReserve: '50933655038273508156',
+				pegMultiplier: '4',
+				cumulativeFundingRateLong: '186069301',
+				cumulativeFundingRateShort: '186007157',
+				last24HAvgFundingRate: '35147',
+				lastFundingRateShort: '-16416',
+				lastFundingRateLong: '-16416',
+				totalLiquidationFee: '4889264000',
+				totalFeeMinusDistributions: '-29523583393',
+				totalFeeWithdrawn: '5251194706',
+				totalFee: '7896066035',
+				totalFeeEarnedPerLp: '77063238',
+				userLpShares: '109260723000000000',
+				baseAssetAmountWithUnsettledLp: '-762306519581',
+				orderStepSize: '1000000000',
+				orderTickSize: '100',
+				maxFillReserveFraction: '100',
+				maxSlippageRatio: '50',
+				baseSpread: '5000',
+				curveUpdateIntensity: '100',
+				baseAssetAmountWithAmm: '306519581',
+				baseAssetAmountLong: '223405000000000',
+				baseAssetAmountShort: '-224167000000000',
+				quoteAssetAmount: '57945607973',
+				terminalQuoteAssetReserve: '50933588428309274920',
+				concentrationCoef: '1207100',
+				feePool: '[object Object]',
+				totalExchangeFee: '10110336057',
+				totalMmFee: '-1870961568',
+				netRevenueSinceLastFunding: '-141830281',
+				lastUpdateSlot: '243204071',
+				lastOracleNormalisedPrice: '1098594',
+				lastOracleValid: 'true',
+				lastBidPriceTwap: '1105864',
+				lastAskPriceTwap: '1106081',
+				longSpread: '259471',
+				shortSpread: '3314',
+				maxSpread: '29500',
+				baseAssetAmountPerLp: '-11388426214145',
+				quoteAssetAmountPerLp: '13038990874',
+				targetBaseAssetAmountPerLp: '0',
+				ammJitIntensity: '200',
+				maxOpenInterest: '2000000000000000',
+				maxBaseAssetReserve: '282922257844734',
+				minBaseAssetReserve: '194169322578092',
+				totalSocialLoss: '0',
+				quoteBreakEvenAmountLong: '-237442196125',
+				quoteBreakEvenAmountShort: '243508341566',
+				quoteEntryAmountLong: '-234074123777',
+				quoteEntryAmountShort: '240215285058',
+				markStd: '237945',
+				oracleStd: '8086',
+				longIntensityCount: '0',
+				longIntensityVolume: '162204',
+				shortIntensityCount: '995',
+				shortIntensityVolume: '2797331131',
+				volume24H: '91370028405',
+				minOrderSize: '1000000000',
+				maxPositionSize: '0',
+				bidBaseAssetReserve: '234770820775670',
+				bidQuoteAssetReserve: '50849187948657797529',
+				askBaseAssetReserve: '205083797418879',
+				askQuoteAssetReserve: '58209891472312580749',
+				perLpBase: '4',
+			},
+			numberOfUsersWithBase: '279',
+			numberOfUsers: '436',
+			marginRatioInitial: '1000',
+			marginRatioMaintenance: '500',
+			nextFillRecordId: '69433',
+			nextFundingRateRecordId: '6221',
+			nextCurveRecordId: '1731',
+			pnlPool: {
+				scaledBalance: '61514197782399',
+				marketIndex: '0',
+			},
+			liquidatorFee: '10000',
+			ifLiquidationFee: '20000',
+			imfFactor: '450',
+			unrealizedPnlImfFactor: '450',
+			unrealizedPnlMaxImbalance: '200000000',
+			unrealizedPnlInitialAssetWeight: '0',
+			unrealizedPnlMaintenanceAssetWeight: '10000',
+			insuranceClaim: {
+				revenueWithdrawSinceLastSettle: '100000000',
+				maxRevenueWithdrawPerPeriod: '100000000',
+				lastRevenueWithdrawTs: '1705846454',
+				quoteSettledInsurance: '164388488',
+				quoteMaxInsurance: '1000000000',
+			},
+			quoteSpotMarketIndex: '0',
+			feeAdjustment: '0',
+		};
+
+		const reservePrice = calculatePrice(
+			new BN(suiExample.amm.baseAssetReserve),
+			new BN(suiExample.amm.quoteAssetReserve),
+			new BN(suiExample.amm.pegMultiplier)
+		);
+		console.log('reservePrice', reservePrice.toString());
+		assert(reservePrice.eq(new BN('869243')));
+
+		const reservePriceMod = calculatePrice(
+			new BN(suiExample.amm.baseAssetReserve),
+			new BN(suiExample.amm.quoteAssetReserve),
+			new BN(suiExample.amm.pegMultiplier).add(ONE)
+		);
+		console.log('reservePriceMod', reservePriceMod.toString());
+		assert(reservePriceMod.eq(new BN('1086554')));
+
+		// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+		// @ts-ignore
+		const termsSuiExample: AMMSpreadTerms = calculateSpreadBN(
+			Number(suiExample.amm.baseSpread.toString()),
+			new BN(suiExample.amm.lastOracleReservePriceSpreadPct),
+			new BN(suiExample.amm.lastOracleConfPct),
+			Number(suiExample.amm.maxSpread.toString()),
+			new BN(suiExample.amm.quoteAssetReserve),
+			new BN(suiExample.amm.terminalQuoteAssetReserve),
+			new BN(suiExample.amm.pegMultiplier),
+			new BN(suiExample.amm.baseAssetAmountWithAmm),
+			reservePrice, // reserve price
+			new BN(suiExample.amm.totalFeeMinusDistributions),
+			new BN(suiExample.amm.netRevenueSinceLastFunding),
+			new BN(suiExample.amm.baseAssetReserve),
+			new BN(suiExample.amm.minBaseAssetReserve),
+			new BN(suiExample.amm.maxBaseAssetReserve),
+			new BN(suiExample.amm.markStd),
+			new BN(suiExample.amm.oracleStd),
+			new BN(suiExample.amm.longIntensityVolume),
+			new BN(suiExample.amm.shortIntensityVolume),
+			new BN(suiExample.amm.volume24H),
+			true
+		);
+
+		// console.log(termsSuiExample);
+		assert(termsSuiExample.effectiveLeverageCapped <= 1.000001);
+		assert(termsSuiExample.inventorySpreadScale == 1.00007);
+		assert(termsSuiExample.longSpread == 259073);
+		assert(termsSuiExample.shortSpread == 3712);
+
+		// reset amm reserves/peg to balanced values s.t. liquidity/price is the same
+		// to avoid error prone int math
+
+		// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+		// @ts-ignore
+		const termsSuiExampleMod1: AMMSpreadTerms = calculateSpreadBN(
+			Number(suiExample.amm.baseSpread.toString()),
+			ZERO,
+			new BN(suiExample.amm.lastOracleConfPct),
+			Number(suiExample.amm.maxSpread.toString()),
+			new BN(suiExample.amm.quoteAssetReserve),
+			new BN(suiExample.amm.terminalQuoteAssetReserve),
+			new BN(suiExample.amm.pegMultiplier),
+			new BN(suiExample.amm.baseAssetAmountWithAmm),
+			reservePriceMod, // reserve price
+			new BN(suiExample.amm.totalFeeMinusDistributions),
+			new BN(suiExample.amm.netRevenueSinceLastFunding),
+			new BN(suiExample.amm.baseAssetReserve),
+			new BN(suiExample.amm.minBaseAssetReserve),
+			new BN(suiExample.amm.maxBaseAssetReserve),
+			new BN(suiExample.amm.markStd),
+			new BN(suiExample.amm.oracleStd),
+			new BN(suiExample.amm.longIntensityVolume),
+			new BN(suiExample.amm.shortIntensityVolume),
+			new BN(suiExample.amm.volume24H),
+			true
+		);
+		console.log(termsSuiExampleMod1);
+
+		// todo: add sdk recenter function?
+
+		// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+		// @ts-ignore
+		const termsSuiExampleMod2: AMMSpreadTerms = calculateSpreadBN(
+			Number(suiExample.amm.baseSpread.toString()),
+			ZERO,
+			new BN(suiExample.amm.lastOracleConfPct),
+			Number(suiExample.amm.maxSpread.toString()),
+			new BN(suiExample.amm.sqrtK),
+			new BN(suiExample.amm.terminalQuoteAssetReserve),
+			reservePriceMod, // peg
+			new BN(suiExample.amm.baseAssetAmountWithAmm),
+			reservePriceMod, // reserve price
+			new BN(suiExample.amm.totalFeeMinusDistributions),
+			new BN(suiExample.amm.netRevenueSinceLastFunding),
+			new BN(suiExample.amm.sqrtK),
+			new BN(suiExample.amm.sqrtK),
+			new BN(suiExample.amm.maxBaseAssetReserve),
+			new BN(suiExample.amm.markStd),
+			new BN(suiExample.amm.oracleStd),
+			new BN(suiExample.amm.longIntensityVolume),
+			new BN(suiExample.amm.shortIntensityVolume),
+			new BN(suiExample.amm.volume24H),
+			true
+		);
+
+		console.log(termsSuiExampleMod2);
+		// assert(_.isEqual(termsSuiExampleMod2, termsSuiExampleMod1));
 	});
 
 	it('Spread Reserves (with offset)', () => {
@@ -491,7 +724,7 @@ describe('AMM Tests', () => {
 		);
 
 		console.log('starting rr:');
-		let reservePrice = undefined;
+		let reservePrice: BN | undefined = undefined;
 		if (!reservePrice) {
 			reservePrice = calculatePrice(
 				mockAmm.baseAssetReserve,
@@ -516,7 +749,6 @@ describe('AMM Tests', () => {
 		console.log('reservePrice:', reservePrice.toString());
 		console.log('targetMarkSpreadPct:', targetMarkSpreadPct.toString());
 		console.log('confIntervalPct:', confIntervalPct.toString());
-
 		console.log('liveOracleStd:', liveOracleStd.toString());
 
 		const tt = calculateSpread(mockAmm, oraclePriceData, now);
@@ -905,6 +1137,22 @@ describe('AMM Tests', () => {
 		const liveOracleStd = calculateLiveOracleStd(mockAmm, oraclePriceData, now);
 		console.log('liveOracleStd:', liveOracleStd.toNumber());
 		assert(liveOracleStd.eq(new BN(192962)));
+
+		mockAmm.lastOracleConfPct = new BN(150000);
+		const reservePrice = new BN(13.553 * PRICE_PRECISION.toNumber());
+		const newConfPct = getNewOracleConfPct(
+			mockAmm,
+			oraclePriceData,
+			reservePrice,
+			now
+		);
+		console.log('newConfPct:', newConfPct.toString());
+
+		assert(
+			now.sub(mockAmm.historicalOracleData.lastOraclePriceTwapTs).gt(ZERO)
+		);
+
+		assert(newConfPct.eq(new BN(135000)));
 
 		const oracleGuardRails: OracleGuardRails = {
 			priceDivergence: {

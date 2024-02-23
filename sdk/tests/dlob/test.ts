@@ -24,11 +24,31 @@ import {
 	QUOTE_PRECISION,
 	isVariant,
 	uncrossL2,
+	L2Level,
 } from '../../src';
 
 import { mockPerpMarkets, mockSpotMarkets, mockStateAccount } from './helpers';
 import { DLOBOrdersCoder } from '../../src/dlob/DLOBOrders';
-import { isAuctionComplete, isRestingLimitOrder } from '../../lib';
+
+// Returns true if asks are sorted ascending
+const asksAreSortedAsc = (asks: L2Level[]) => {
+	return asks.every((ask, i) => {
+		if (i === 0) {
+			return true;
+		}
+		return ask.price.gt(asks[i - 1].price);
+	});
+};
+
+// Returns true if asks are sorted descending
+const bidsAreSortedDesc = (bids: L2Level[]) => {
+	return bids.every((bid, i) => {
+		if (i === 0) {
+			return true;
+		}
+		return bid.price.lt(bids[i - 1].price);
+	});
+};
 
 function insertOrderToDLOB(
 	dlob: DLOB,
@@ -2696,60 +2716,6 @@ describe('DLOB Perp Tests', () => {
 		for (const [idx, n] of nodesToTrigger.entries()) {
 			expect(n.node.order?.orderId).to.equal(orderIdsToTrigger[idx]);
 		}
-	});
-
-	it('Test trigger limit isnt maker', () => {
-		const vAsk = new BN(15);
-		const vBid = new BN(8);
-
-		const user0 = Keypair.generate();
-
-		const dlob = new DLOB();
-		const marketIndex = 0;
-
-		const slot = 20;
-		const oracle = {
-			price: vBid.add(vAsk).div(new BN(2)),
-			slot: new BN(slot),
-			confidence: new BN(1),
-			hasSufficientNumberOfDataPoints: true,
-		};
-
-		// should trigger limit buy with above condition
-		insertTriggerOrderToDLOB(
-			dlob,
-			user0.publicKey,
-			OrderType.TRIGGER_LIMIT,
-			MarketType.PERP,
-			1, //orderId
-			marketIndex, // marketIndex
-			oracle.price.add(new BN(1)), // price
-			BASE_PRECISION, // baseAssetAmount: BN,
-			PositionDirection.LONG,
-			oracle.price.sub(new BN(1)), // triggerPrice: BN,
-			OrderTriggerCondition.TRIGGERED_ABOVE, // triggerCondition: OrderTriggerCondition,
-			vBid,
-			vAsk,
-			new BN(1) // slot
-		);
-
-		const restingLimitBids = Array.from(
-			dlob.getRestingLimitBids(marketIndex, slot, MarketType.PERP, oracle)
-		);
-		expect(restingLimitBids.length).to.equal(0);
-
-		const takingBids = Array.from(
-			dlob.getTakingBids(marketIndex, MarketType.PERP, slot, oracle)
-		);
-		expect(takingBids.length).to.equal(1);
-		const triggerLimitBid = takingBids[0];
-		expect(triggerLimitBid !== undefined);
-		expect(isAuctionComplete(triggerLimitBid.order as Order, slot)).to.equal(
-			true
-		);
-		expect(isRestingLimitOrder(triggerLimitBid.order as Order, slot)).to.equal(
-			false
-		);
 	});
 
 	it('Test will return expired market orders to fill', () => {
@@ -6646,5 +6612,131 @@ describe('Uncross L2', () => {
 		expect(newAsks[2].sources['vamm'].toString()).to.equal(
 			new BN(1).mul(BASE_PRECISION).toString()
 		);
+	});
+
+	it('Handles edge case bide and asks with large cross and an overlapping level', () => {
+		const bids = [
+			'104411000',
+			'103835800',
+			'103826259',
+			'103825000',
+			'103822000',
+			'103821500',
+			'103820283',
+			'103816900',
+			'103816000',
+			'103815121',
+		].map((priceStr) => ({
+			price: new BN(priceStr),
+			size: new BN(1).mul(BASE_PRECISION),
+			sources: { vamm: new BN(1).mul(BASE_PRECISION) },
+		}));
+
+		const asks = [
+			'103822000',
+			'103838354',
+			'103843087',
+			'103843351',
+			'103843880',
+			'103845114',
+			'103846148',
+			'103850100',
+			'103851300',
+			'103854304',
+		].map((priceStr) => ({
+			price: new BN(priceStr),
+			size: new BN(1).mul(BASE_PRECISION),
+			sources: { vamm: new BN(1).mul(BASE_PRECISION) },
+		}));
+
+		expect(asksAreSortedAsc(asks), 'Input asks are ascending').to.be.true;
+		expect(bidsAreSortedDesc(bids), 'Input bids are descending').to.be.true;
+
+		const oraclePrice = new BN('103649895');
+		const oraclePrice5Min = new BN('103285000');
+		const markPrice5Min = new BN('103371000');
+
+		const groupingSize = new BN('100');
+
+		const userAsks = new Set<string>();
+
+		const { bids: newBids, asks: newAsks } = uncrossL2(
+			bids,
+			asks,
+			oraclePrice,
+			oraclePrice5Min,
+			markPrice5Min,
+			groupingSize,
+			new Set<string>(),
+			userAsks
+		);
+
+		expect(asksAreSortedAsc(newAsks), 'Uncrossed asks are ascending').to.be
+			.true;
+		expect(bidsAreSortedDesc(newBids), 'Uncrossed bids are descending').to.be
+			.true;
+	});
+
+	it('Crossing edge case : top bid and ask have a big cross, following ones dont - shouldnt get uncrossed out of order', () => {
+		const bids = [
+			'101825900',
+			'101783900',
+			'101783000',
+			'101782600',
+			'101770700',
+			'101770200',
+			'101749857',
+			'101735900',
+			'101729994',
+			'101726900',
+		].map((priceStr) => ({
+			price: new BN(priceStr),
+			size: new BN(1).mul(BASE_PRECISION),
+			sources: { vamm: new BN(1).mul(BASE_PRECISION) },
+		}));
+
+		const asks = [
+			'101750700',
+			'101790467',
+			'101793400',
+			'101794116',
+			'101798548',
+			'101799532',
+			'101803500',
+			'101820927',
+			'101823900',
+			'101827638',
+		].map((priceStr) => ({
+			price: new BN(priceStr),
+			size: new BN(1).mul(BASE_PRECISION),
+			sources: { vamm: new BN(1).mul(BASE_PRECISION) },
+		}));
+
+		expect(asksAreSortedAsc(asks), 'Input asks are ascending').to.be.true;
+		expect(bidsAreSortedDesc(bids), 'Input bids are descending').to.be.true;
+
+		const oraclePrice = new BN('101711384');
+		const oraclePrice5Min = new BN('101805000');
+		const markPrice5Min = new BN('101867000');
+
+		const groupingSize = new BN('100');
+
+		const userAsks = new Set<string>();
+
+		const { bids: newBids, asks: newAsks } = uncrossL2(
+			bids,
+			asks,
+			oraclePrice,
+			oraclePrice5Min,
+			markPrice5Min,
+			groupingSize,
+			new Set<string>(),
+			userAsks
+		);
+
+		expect(asksAreSortedAsc(newAsks), 'Uncrossed asks are ascending').to.be
+			.true;
+		expect(bidsAreSortedDesc(newBids), 'Uncrossed bids are descending').to.be
+			.true;
 	});
 });

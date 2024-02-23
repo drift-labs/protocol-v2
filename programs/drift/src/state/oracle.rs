@@ -169,6 +169,9 @@ pub fn get_pyth_price(
     let oracle_price = price_data.agg.price;
     let oracle_conf = price_data.agg.conf;
 
+    let min_publishers = price_data.num.min(3);
+    let publisher_count = price_data.num_qt;
+
     let oracle_precision = 10_u128.pow(price_data.expo.unsigned_abs());
 
     if oracle_precision <= multiple {
@@ -203,11 +206,16 @@ pub fn get_pyth_price(
         .cast::<i64>()?
         .safe_sub(price_data.valid_slot.cast()?)?;
 
+    #[cfg(feature = "mainnet-beta")]
+    let has_sufficient_number_of_data_points = publisher_count >= min_publishers;
+    #[cfg(not(feature = "mainnet-beta"))]
+    let has_sufficient_number_of_data_points = true;
+
     Ok(OraclePriceData {
         price: oracle_price_scaled,
         confidence: oracle_conf_scaled,
         delay: oracle_delay,
-        has_sufficient_number_of_data_points: true,
+        has_sufficient_number_of_data_points,
     })
 }
 

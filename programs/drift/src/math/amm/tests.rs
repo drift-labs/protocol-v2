@@ -8,6 +8,68 @@ use crate::state::perp_market::PerpMarket;
 use crate::state::user::PerpPosition;
 
 #[test]
+fn calculate_amm_available_guards() {
+    let prev = 1656682258;
+    let _now = prev + 2;
+
+    // let px = 32 * PRICE_PRECISION;
+
+    let mut market: PerpMarket = PerpMarket::default_btc_test();
+
+    let _oracle_price_data = OraclePriceData {
+        price: (34 * PRICE_PRECISION) as i64,
+        confidence: PRICE_PRECISION_U64 / 100,
+        delay: 1,
+        has_sufficient_number_of_data_points: true,
+    };
+
+    assert_eq!(market.amm.net_revenue_since_last_funding, 0);
+    assert_eq!(market.amm.total_fee_minus_distributions, 0);
+
+    assert_eq!(!market.has_too_much_drawdown().unwrap(), true);
+
+    market.amm.net_revenue_since_last_funding = -100_000_000_000;
+    market.amm.total_fee_minus_distributions = 100_000_000_000;
+
+    assert_eq!(!market.has_too_much_drawdown().unwrap(), false);
+
+    market.amm.net_revenue_since_last_funding = -10_000_000_000;
+    market.amm.total_fee_minus_distributions = 100_000_000_000;
+
+    assert_eq!(!market.has_too_much_drawdown().unwrap(), false);
+
+    market.amm.net_revenue_since_last_funding = -5_000_000_000;
+    market.amm.total_fee_minus_distributions = 100_000_000_000;
+
+    assert_eq!(!market.has_too_much_drawdown().unwrap(), false);
+
+    market.amm.net_revenue_since_last_funding = -1_000_000_000;
+    market.amm.total_fee_minus_distributions = 100_000_000_000;
+
+    assert_eq!(!market.has_too_much_drawdown().unwrap(), true);
+
+    market.amm.net_revenue_since_last_funding = -1_000_000_000;
+    market.amm.total_fee_minus_distributions = 1_000_000;
+
+    assert_eq!(!market.has_too_much_drawdown().unwrap(), true);
+
+    market.amm.net_revenue_since_last_funding = -6_000_000_000;
+    market.amm.total_fee_minus_distributions = 1_000_000;
+
+    assert_eq!(!market.has_too_much_drawdown().unwrap(), false);
+
+    market.amm.net_revenue_since_last_funding = -5_000;
+    market.amm.total_fee_minus_distributions = -9279797219;
+
+    assert_eq!(!market.has_too_much_drawdown().unwrap(), true); // too small net_revenue_since_last_funding drawdown
+
+    market.amm.net_revenue_since_last_funding = -88_000_000_000;
+    market.amm.total_fee_minus_distributions = -9279797219;
+
+    assert_eq!(!market.has_too_much_drawdown().unwrap(), false); // too small net_revenue_since_last_funding drawdown
+}
+
+#[test]
 fn calculate_net_user_pnl_test() {
     let prev = 1656682258;
     let _now = prev + 3600;
@@ -40,7 +102,7 @@ fn calculate_net_user_pnl_test() {
     let net_user_pnl = calculate_net_user_pnl(&amm, oracle_price_data.price).unwrap();
     assert_eq!(net_user_pnl, 0);
 
-    let market = PerpMarket::default_btc_test();
+    let market: PerpMarket = PerpMarket::default_btc_test();
     let net_user_pnl = calculate_net_user_pnl(
         &market.amm,
         market.amm.historical_oracle_data.last_oracle_price,
@@ -805,4 +867,65 @@ fn calc_oracle_twap_clamp_update_tests() {
         129_900_874
     );
     assert_eq!(amm.last_oracle_normalised_price, 129_900_873);
+}
+
+#[test]
+fn test_last_oracle_conf_update() {
+    let prev = 1667387000;
+    let now = prev + 1;
+
+    let mut amm = AMM {
+        quote_asset_reserve: 200 * AMM_RESERVE_PRECISION,
+        base_asset_reserve: 200 * AMM_RESERVE_PRECISION,
+        peg_multiplier: 13 * PEG_PRECISION,
+        base_spread: 0,
+        long_spread: 0,
+        short_spread: 0,
+        last_mark_price_twap: (13 * PRICE_PRECISION_U64),
+        last_bid_price_twap: (13 * PRICE_PRECISION_U64),
+        last_ask_price_twap: (13 * PRICE_PRECISION_U64),
+        last_mark_price_twap_ts: prev,
+        funding_period: 3600,
+        historical_oracle_data: HistoricalOracleData {
+            last_oracle_price: (13 * PRICE_PRECISION) as i64,
+            last_oracle_price_twap: (13 * PRICE_PRECISION) as i64,
+            last_oracle_price_twap_5min: (13 * PRICE_PRECISION) as i64,
+            last_oracle_price_twap_ts: prev,
+            ..HistoricalOracleData::default()
+        },
+        ..AMM::default()
+    };
+
+    // price jumps 10x
+    let oracle_price_data = OraclePriceData {
+        price: 130 * PRICE_PRECISION_I64 + 873,
+        confidence: PRICE_PRECISION_U64 / 10,
+        delay: 1,
+        has_sufficient_number_of_data_points: true,
+    };
+
+    update_oracle_price_twap(&mut amm, now, &oracle_price_data, None, None).unwrap();
+
+    assert_eq!(amm.last_oracle_conf_pct, 7692);
+
+    // price jumps 10x
+    let oracle_price_data = OraclePriceData {
+        price: 130 * PRICE_PRECISION_I64 + 873,
+        confidence: 1,
+        delay: 5,
+        has_sufficient_number_of_data_points: true,
+    };
+
+    // unchanged if now hasnt changed
+    update_oracle_price_twap(&mut amm, now, &oracle_price_data, None, None).unwrap();
+    assert_eq!(amm.last_oracle_conf_pct, 7692);
+
+    update_oracle_price_twap(&mut amm, now + 1, &oracle_price_data, None, None).unwrap();
+
+    assert_eq!(amm.last_oracle_conf_pct, 7692 - 7692 / 20); // 7287
+
+    // longer time between update means delay is faster
+    update_oracle_price_twap(&mut amm, now + 60, &oracle_price_data, None, None).unwrap();
+
+    assert_eq!(amm.last_oracle_conf_pct, 7307 - 7307 / 5 + 1); //5847
 }

@@ -270,6 +270,14 @@ pub mod drift {
         handle_update_user_reduce_only(ctx, _sub_account_id, reduce_only)
     }
 
+    pub fn update_user_advanced_lp(
+        ctx: Context<UpdateUser>,
+        _sub_account_id: u16,
+        advanced_lp: bool,
+    ) -> Result<()> {
+        handle_update_user_advanced_lp(ctx, _sub_account_id, advanced_lp)
+    }
+
     pub fn delete_user(ctx: Context<DeleteUser>) -> Result<()> {
         handle_delete_user(ctx)
     }
@@ -626,6 +634,14 @@ pub mod drift {
         handle_move_amm_price(ctx, base_asset_reserve, quote_asset_reserve, sqrt_k)
     }
 
+    pub fn recenter_perp_market_amm(
+        ctx: Context<AdminUpdatePerpMarket>,
+        peg_multiplier: u128,
+        sqrt_k: u128,
+    ) -> Result<()> {
+        handle_recenter_perp_market_amm(ctx, peg_multiplier, sqrt_k)
+    }
+
     pub fn update_perp_market_expiry(
         ctx: Context<AdminUpdatePerpMarket>,
         expiry_ts: i64,
@@ -744,6 +760,13 @@ pub mod drift {
         handle_update_spot_market_status(ctx, status)
     }
 
+    pub fn update_spot_market_paused_operations(
+        ctx: Context<AdminUpdateSpotMarket>,
+        paused_operations: u8,
+    ) -> Result<()> {
+        handle_update_spot_market_paused_operations(ctx, paused_operations)
+    }
+
     pub fn update_spot_market_asset_tier(
         ctx: Context<AdminUpdateSpotMarket>,
         asset_tier: AssetTier,
@@ -842,6 +865,13 @@ pub mod drift {
         status: MarketStatus,
     ) -> Result<()> {
         handle_update_perp_market_status(ctx, status)
+    }
+
+    pub fn update_perp_market_paused_operations(
+        ctx: Context<AdminUpdatePerpMarket>,
+        paused_operations: u8,
+    ) -> Result<()> {
+        handle_update_perp_market_paused_operations(ctx, paused_operations)
     }
 
     pub fn update_perp_market_contract_tier(
@@ -1123,7 +1153,7 @@ use solana_security_txt::security_txt;
 security_txt! {
     name: "Drift v2",
     project_url: "https://drift.trade",
-    contacts: "link:https://docs.drift.trade/bug-bounty",
+    contacts: "link:https://docs.drift.trade/security/bug-bounty",
     policy: "https://github.com/drift-labs/protocol-v2/blob/main/SECURITY.md",
     preferred_languages: "en",
     source_code: "https://github.com/drift-labs/protocol-v2"

@@ -7,13 +7,14 @@ import {
 } from '../types';
 import { calculateAssetWeight, calculateLiabilityWeight } from './spotBalance';
 import { MARGIN_PRECISION } from '../constants/numericConstants';
+import { numberToSafeBN } from './utils';
 
 export function castNumberToSpotPrecision(
 	value: number | BN,
 	spotMarket: SpotMarketAccount
 ): BN {
 	if (typeof value === 'number') {
-		return new BN(value * Math.pow(10, spotMarket.decimals));
+		return numberToSafeBN(value, new BN(Math.pow(10, spotMarket.decimals)));
 	} else {
 		return value.mul(new BN(Math.pow(10, spotMarket.decimals)));
 	}

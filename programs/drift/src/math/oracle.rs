@@ -10,7 +10,8 @@ use crate::math::constants::BID_ASK_SPREAD_PRECISION;
 use crate::math::safe_math::SafeMath;
 
 use crate::state::oracle::OraclePriceData;
-use crate::state::perp_market::{MarketStatus, PerpMarket, AMM};
+use crate::state::paused_operations::PerpOperation;
+use crate::state::perp_market::{PerpMarket, AMM};
 use crate::state::state::{OracleGuardRails, ValidityGuardRails};
 
 #[cfg(test)]
@@ -123,7 +124,7 @@ pub fn block_operation(
 
     let slots_since_amm_update = slot.saturating_sub(market.amm.last_update_slot);
 
-    let funding_paused_on_market = market.status == MarketStatus::FundingPaused;
+    let funding_paused_on_market = market.is_operation_paused(PerpOperation::UpdateFunding);
 
     let block = slots_since_amm_update > 10
         || !is_oracle_valid
@@ -178,6 +179,10 @@ pub fn oracle_validity(
         has_sufficient_number_of_data_points,
         ..
     } = *oracle_price_data;
+
+    if !has_sufficient_number_of_data_points {
+        msg!("Invalid Oracle: Insufficient Data Points");
+    }
 
     let is_oracle_price_nonpositive = oracle_price <= 0;
     if is_oracle_price_nonpositive {

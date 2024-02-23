@@ -1,6 +1,6 @@
 [package]
 name = "drift"
-version = "2.56.0"
+version = "2.64.0"
 description = "Created with Anchor"
 edition = "2018"
 
@@ -13,6 +13,7 @@ path = "src/lib.rs"
 no-entrypoint = []
 cpi = ["no-entrypoint"]
 mainnet-beta=[]
+anchor-test= []
 default=["mainnet-beta"]
 
 [dependencies]
@@ -31,7 +32,7 @@ arrayref = "0.3.6"
 base64 = "0.13.0"
 serum_dex = { git = "https://github.com/project-serum/serum-dex", rev = "85b4f14", version = "0.5.6", features = ["no-entrypoint"] }
 enumflags2 = "0.6.4"
-phoenix-v1 = { git = "https://github.com/drift-labs/phoenix-v1", rev = "4c65c9", version = "0.2.4", features = ["no-entrypoint"] }
+phoenix-v1 = { git = "https://github.com/drift-labs/phoenix-v1", rev = "bf6b84", version = "0.2.4", features = ["no-entrypoint"] }
 solana-security-txt = "1.1.0"
 static_assertions = "1.1.0"
 drift-macros = { git = "https://github.com/drift-labs/drift-macros.git", rev = "c57d87" }

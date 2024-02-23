@@ -448,11 +448,6 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
             market.amm.historical_oracle_data.last_oracle_price_twap,
         )?;
 
-        calculation.update_all_oracles_valid(is_oracle_valid_for_action(
-            oracle_validity,
-            Some(DriftAction::MarginCalc),
-        )?);
-
         let (
             perp_margin_requirement,
             weighted_pnl,
@@ -480,13 +475,22 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
 
         calculation.add_total_collateral(weighted_pnl)?;
 
-        if market_position.base_asset_amount != 0
+        let has_perp_liability = market_position.base_asset_amount != 0
             || market_position.quote_asset_amount < 0
             || market_position.has_open_order()
-        {
+            || market_position.is_lp();
+
+        if has_perp_liability {
             calculation.add_perp_liability()?;
             calculation
                 .update_with_isolated_liability(market.contract_tier == ContractTier::Isolated);
+        }
+
+        if has_perp_liability || calculation.context.margin_type != MarginRequirementType::Initial {
+            calculation.update_all_oracles_valid(is_oracle_valid_for_action(
+                oracle_validity,
+                Some(DriftAction::MarginCalc),
+            )?);
         }
     }
 

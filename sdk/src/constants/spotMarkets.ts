@@ -20,6 +20,7 @@ export type SpotMarketConfig = {
 	precisionExp: BN;
 	serumMarket?: PublicKey;
 	phoenixMarket?: PublicKey;
+	launchTs?: number;
 };
 
 export const WRAPPED_SOL_MINT = new PublicKey(
@@ -169,6 +170,35 @@ export const MainnetSpotMarkets: SpotMarketConfig[] = [
 		precision: new BN(10).pow(NINE),
 		precisionExp: NINE,
 		serumMarket: new PublicKey('H87FfmHABiZLRGrDsXRZtqq25YpARzaokCzL1vMYGiep'),
+		phoenixMarket: new PublicKey(
+			'BRLLmdtPGuuFn3BU6orYw4KHaohAEptBToi3dwRUnHQZ'
+		),
+	},
+	{
+		symbol: 'WIF',
+		marketIndex: 10,
+		oracle: new PublicKey('6ABgrEZk8urs6kJ1JNdC1sspH5zKXRqxy8sg3ZG2cQps'),
+		oracleSource: OracleSource.PYTH,
+		mint: new PublicKey('EKpQGSJtjMFqKZ9KQanSqYXRcF8fBopzLHYxdM65zcjm'),
+		precision: new BN(10).pow(SIX),
+		precisionExp: SIX,
+		serumMarket: new PublicKey('2BtDHBTCTUxvdur498ZEcMgimasaFrY5GzLv8wS8XgCb'),
+		phoenixMarket: new PublicKey(
+			'6ojSigXF7nDPyhFRgmn3V9ywhYseKF9J32ZrranMGVSX'
+		),
+	},
+	{
+		symbol: 'JUP',
+		marketIndex: 11,
+		oracle: new PublicKey('g6eRCbboSwK4tSWngn773RCMexr1APQr4uA9bGZBYfo'),
+		oracleSource: OracleSource.PYTH,
+		mint: new PublicKey('JUPyiwrYJFskUPiHa7hkeR8VUtAeFoSYbKedZNsDvCN'),
+		precision: new BN(10).pow(SIX),
+		precisionExp: SIX,
+		phoenixMarket: new PublicKey(
+			'2pspvjWWaf3dNgt3jsgSzFCNvMGPb7t8FrEYvLGjvcCe'
+		),
+		launchTs: 1706731200000,
 	},
 ];
 

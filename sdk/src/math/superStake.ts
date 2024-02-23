@@ -267,66 +267,59 @@ export async function findBestLstSuperStakeIxs({
 }
 
 export type JITO_SOL_METRICS_ENDPOINT_RESPONSE = {
-	data: {
-		getStakePoolStats: {
-			tvl: {
-				// TVL in SOL, BN
-				data: number;
-				date: string;
-			}[];
-			supply: {
-				// jitoSOL supply
-				data: number;
-				date: string;
-			}[];
-			apy: {
-				data: number;
-				date: string;
-			}[];
-		};
-	};
+	tvl: {
+		// TVL in SOL, BN
+		data: number;
+		date: string;
+	}[];
+	supply: {
+		// jitoSOL supply
+		data: number;
+		date: string;
+	}[];
+	apy: {
+		data: number;
+		date: string;
+	}[];
 };
 
-const JITO_SOL_START_DATE = '2022-10-31T00:00:00Z';
+/**
+ * Removes hours, minutes, seconds from a date, and returns the ISO string value (with milliseconds trimmed from the output (required by Jito API))
+ * @param inDate
+ * @returns
+ */
+const getNormalizedDateString = (inDate: Date) => {
+	const date = new Date(inDate.getTime());
+	date.setUTCHours(0, 0, 0, 0);
+	return date.toISOString().slice(0, 19) + 'Z';
+};
+
+const get30DAgo = () => {
+	const date = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+	return date;
+};
 
 export async function fetchJitoSolMetrics() {
-	const res = await fetch('https://kobe.mainnet.jito.network/', {
-		body: JSON.stringify({
-			operationName: 'QueryRoot',
-			variables: {
-				request: {
-					bucketType: 'DAILY',
-					rangeFilter: {
-						start: JITO_SOL_START_DATE,
-						end: new Date().toISOString(),
-					},
-					sortBy: {
-						order: 'ASC',
-						field: 'BLOCK_TIME',
-					},
-				},
+	const res = await fetch(
+		'https://kobe.mainnet.jito.network/api/v1/stake_pool_stats',
+		{
+			headers: {
+				'Content-Type': 'application/json',
 			},
-			query: `
-						query QueryRoot($request: GetStakePoolStatsRequest!) {
-								getStakePoolStats(req: $request) {
-										tvl {
-												data
-												date
-										}
-										apy {
-												data
-												date
-										}
-										supply {
-												data
-												date
-										}
-								}
-						}
-				`,
-		}),
-		method: 'POST',
-	});
+			body: JSON.stringify({
+				bucket_type: 'Daily',
+				range_filter: {
+					start: getNormalizedDateString(get30DAgo()),
+					end: getNormalizedDateString(new Date()),
+				},
+				sort_by: {
+					order: 'Asc',
+					field: 'BlockTime',
+				},
+			}),
+			method: 'POST',
+		}
+	);
 
 	const data: JITO_SOL_METRICS_ENDPOINT_RESPONSE = await res.json();
 
@@ -396,14 +389,11 @@ const getJitoSolHistoricalPriceMap = async (timestamps: number[]) => {
 		const jitoSolHistoricalPriceMap = new Map<number, number>();
 		const jitoSolHistoricalPriceInSol = [];
 
-		for (let i = 0; i < data.data.getStakePoolStats.supply.length; i++) {
-			const priceInSol =
-				data.data.getStakePoolStats.tvl[i].data /
-				10 ** 9 /
-				data.data.getStakePoolStats.supply[i].data;
+		for (let i = 0; i < data.supply.length; i++) {
+			const priceInSol = data.tvl[i].data / 10 ** 9 / data.supply[i].data;
 			jitoSolHistoricalPriceInSol.push({
 				price: priceInSol,
-				ts: data.data.getStakePoolStats.tvl[i].date,
+				ts: data.tvl[i].date,
 			});
 		}
 
