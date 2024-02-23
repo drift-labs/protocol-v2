@@ -399,7 +399,7 @@ const PROGRAM_DATA: &str = "Program data: ";
 
 /// Try deserialize a drift event type from raw log string
 /// https://github.com/coral-xyz/anchor/blob/9d947cb26b693e85e1fd26072bb046ff8f95bdcf/client/src/lib.rs#L552
-fn try_parse_log(raw: &str, signature: &str) -> Option<DriftEvent> {
+pub fn try_parse_log(raw: &str, signature: &str) -> Option<DriftEvent> {
     // Log emitted from the current program.
     if let Some(log) = raw
         .strip_prefix(PROGRAM_LOG)
