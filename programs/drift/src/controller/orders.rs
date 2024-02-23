@@ -4255,6 +4255,7 @@ pub fn fulfill_spot_order_with_match(
             filler.update_cumulative_spot_fees(filler_reward.cast()?)?;
         }
 
+        filler.update_last_active_slot(slot);
         filler_stats.update_filler_volume(quote_asset_amount, now)?;
     }
 
@@ -4551,6 +4552,7 @@ pub fn fulfill_spot_order_with_external_market(
             filler.update_cumulative_spot_fees(filler_reward.cast()?)?;
         }
 
+        filler.update_last_active_slot(slot);
         filler_stats.update_filler_volume(quote_asset_amount_filled.cast()?, now)?;
     }
 
