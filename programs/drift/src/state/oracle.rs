@@ -17,11 +17,13 @@ pub struct HistoricalOracleData {
     pub last_oracle_price: i64,
     /// precision: PRICE_PRECISION
     pub last_oracle_conf: u64,
+    /// number of slots since last update
     pub last_oracle_delay: i64,
     /// precision: PRICE_PRECISION
     pub last_oracle_price_twap: i64,
     /// precision: PRICE_PRECISION
     pub last_oracle_price_twap_5min: i64,
+    /// unix_timestamp of last snapshot
     pub last_oracle_price_twap_ts: i64,
 }
 
@@ -71,6 +73,7 @@ pub struct HistoricalIndexData {
     pub last_index_price_twap: u64,
     /// precision: PRICE_PRECISION
     pub last_index_price_twap_5min: u64,
+    /// unix_timestamp of last snapshot
     pub last_index_price_twap_ts: i64,
 }
 
