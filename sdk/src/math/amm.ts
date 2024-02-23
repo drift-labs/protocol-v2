@@ -658,8 +658,20 @@ export function calculateSpreadBN(
 	spreadTerms.longSpreadwPS = longSpread;
 	spreadTerms.shortSpreadwPS = shortSpread;
 
+	const maxSpreadBaseline = Math.min(
+		Math.max(
+			lastOracleReservePriceSpreadPct.abs().toNumber(),
+			lastOracleConfPct.muln(2).toNumber(),
+			BN.max(markStd, oracleStd)
+				.mul(PERCENTAGE_PRECISION)
+				.div(reservePrice)
+				.toNumber()
+		),
+		BID_ASK_SPREAD_PRECISION.toNumber()
+	);
+
 	const maxTargetSpread: number = Math.floor(
-		Math.max(maxSpread, lastOracleReservePriceSpreadPct.abs().toNumber())
+		Math.max(maxSpread, maxSpreadBaseline)
 	);
 
 	const inventorySpreadScale = calculateInventoryScale(

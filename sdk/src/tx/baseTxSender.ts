@@ -267,6 +267,7 @@ export abstract class BaseTxSender implements TxSender {
 	): Promise<RpcResponseAndContext<SignatureResult> | undefined> {
 		let totalTime = 0;
 		let backoffTime = 400; // approx block time
+		const start = Date.now();
 
 		while (totalTime < this.timeout) {
 			await new Promise((resolve) => setTimeout(resolve, backoffTime));
@@ -284,8 +285,11 @@ export abstract class BaseTxSender implements TxSender {
 
 		// Transaction not confirmed within 30 seconds
 		this.timeoutCount += 1;
+		const duration = (Date.now() - start) / 1000;
 		throw new Error(
-			`Transaction was not confirmed in 30 seconds. It is unknown if it succeeded or failed. Check signature ${signature} using the Solana Explorer or CLI tools.`
+			`Transaction was not confirmed in ${duration.toFixed(
+				2
+			)} seconds. It is unknown if it succeeded or failed. Check signature ${signature} using the Solana Explorer or CLI tools.`
 		);
 	}
 

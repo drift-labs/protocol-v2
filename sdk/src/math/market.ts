@@ -262,7 +262,7 @@ export function calculateNetUserPnlImbalance(
 		perpMarket.amm.feePool.scaledBalance,
 		spotMarket,
 		SpotBalanceType.DEPOSIT
-	);
+	).div(new BN(5));
 
 	const imbalance = netUserPnl.sub(pnlPool.add(feePool));
 

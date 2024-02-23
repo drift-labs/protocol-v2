@@ -180,6 +180,10 @@ pub fn oracle_validity(
         ..
     } = *oracle_price_data;
 
+    if !has_sufficient_number_of_data_points {
+        msg!("Invalid Oracle: Insufficient Data Points");
+    }
+
     let is_oracle_price_nonpositive = oracle_price <= 0;
     if is_oracle_price_nonpositive {
         msg!("Invalid Oracle: Non-positive (oracle_price <=0)");
