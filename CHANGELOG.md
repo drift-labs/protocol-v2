@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Features
 
+- program: add pause operation for liquidation ([#880](https://github.com/drift-labs/protocol-v2/pull/880))
+
 ### Fixes
 
 - program: invalid borrow in get_referrer_info when maker is refferer ([#900](https://github.com/drift-labs/protocol-v2/pull/900))
