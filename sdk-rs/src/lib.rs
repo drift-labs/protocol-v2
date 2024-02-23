@@ -13,7 +13,7 @@ use drift::{
         order_params::{ModifyOrderParams, OrderParams},
         perp_market::PerpMarket,
         spot_market::SpotMarket,
-        user::{MarketType, Order, OrderStatus, PerpPosition, SpotPosition, User},
+        user::{MarketType, Order, OrderStatus, PerpPosition, SpotPosition, User, UserStats},
     },
 };
 use fnv::FnvHashMap;
@@ -460,6 +460,14 @@ impl<T: AccountProvider> DriftClient<T> {
             &constants::PROGRAM_ID,
         );
         self.backend.get_account(&user_pubkey).await
+    }
+
+    /// Get your user stats account
+    ///
+    /// Returns the deserialize account data (`UserStats`)
+    pub async fn get_user_stats(&self, authority: &Pubkey) -> SdkResult<UserStats> {
+        let user_stats_pubkey = Wallet::derive_stats_account(authority, &constants::PROGRAM_ID);
+        self.backend.get_account(&user_stats_pubkey).await
     }
 
     /// Sign and send a tx to the network
