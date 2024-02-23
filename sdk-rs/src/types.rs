@@ -386,6 +386,7 @@ impl ClientOpts {
     }
 }
 
+#[derive(Copy, Clone)]
 pub struct ReferrerInfo {
     referrer: Pubkey,
     referrer_stats: Pubkey,
