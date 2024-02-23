@@ -408,14 +408,18 @@ impl ReferrerInfo {
         self.referrer_stats
     }
 
-    pub fn get_referrer_info(taker_stats: UserStats) -> Self {
+    pub fn get_referrer_info(taker_stats: UserStats) -> Option<Self> {
+        if taker_stats.referrer == Pubkey::default() {
+            return None;
+        }
+    
         let user_account_pubkey = Wallet::derive_user_account(&taker_stats.referrer, 0, &crate::constants::PROGRAM_ID);
         let user_stats_pubkey = Wallet::derive_stats_account(&taker_stats.referrer, &crate::constants::PROGRAM_ID);
-
-        Self {
+    
+        Some(Self {
             referrer: user_account_pubkey,
-            referrer_stats: user_stats_pubkey
-        }
+            referrer_stats: user_stats_pubkey,
+        })
     }
 }
 
