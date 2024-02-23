@@ -169,7 +169,7 @@ pub fn get_position_update_type(
         } else {
             delta.base_asset_amount
         };
-        
+
     if position_base_with_remainder.signum() == delta_base_with_remainder.signum() {
         Ok(PositionUpdateType::Increase)
     } else if position_base_with_remainder.abs() > delta_base_with_remainder.abs() {
