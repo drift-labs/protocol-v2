@@ -203,6 +203,8 @@ pub enum SdkError {
     InvalidSeed,
     #[error("invalid base58 value")]
     InvalidBase58,
+    #[error("user does not have position: {0}")]
+    NoPosiiton(u16),
     #[error("insufficient SOL balance for fees")]
     OutOfSOL,
     #[error("{0}")]

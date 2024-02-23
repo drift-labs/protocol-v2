@@ -40,15 +40,15 @@ impl AuctionSubscriber {
         };
 
         let subscriber = WebsocketProgramAccountSubscriber::new(
-            "auction".to_string(),
-            config.url.clone(),
+            "auction",
+            config.url,
             websocket_options,
             event_emitter.clone(),
         );
 
         AuctionSubscriber {
             subscriber,
-            event_emitter: event_emitter.clone(),
+            event_emitter,
         }
     }
 

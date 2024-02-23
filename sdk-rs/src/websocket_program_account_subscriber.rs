@@ -49,7 +49,7 @@ pub struct WebsocketProgramAccountOptions {
 }
 
 pub struct WebsocketProgramAccountSubscriber {
-    subscription_name: String,
+    subscription_name: &'static str,
     url: String,
     options: WebsocketProgramAccountOptions,
     pub subscribed: bool,
@@ -59,7 +59,7 @@ pub struct WebsocketProgramAccountSubscriber {
 
 impl WebsocketProgramAccountSubscriber {
     pub fn new(
-        subscription_name: String,
+        subscription_name: &'static str,
         url: String,
         options: WebsocketProgramAccountOptions,
         event_emitter: EventEmitter,
@@ -102,56 +102,52 @@ impl WebsocketProgramAccountSubscriber {
             ..RpcProgramAccountsConfig::default()
         };
 
-        let url = self.url.clone();
-        let mut latest_slot = 0;
-
-        let pubsub = PubsubClient::new(&url).await?;
-
-        let event_emitter = self.event_emitter.clone();
-
+        let pubsub = PubsubClient::new(&self.url).await?;
         let (unsub_tx, mut unsub_rx) = tokio::sync::mpsc::channel::<()>(1);
-
         self.unsubscriber = Some(unsub_tx);
-        let subscription_name: &'static str =
-            Box::leak(self.subscription_name.clone().into_boxed_str());
 
-        tokio::spawn(async move {
-            let (mut accounts, unsubscriber) = pubsub
-                .program_subscribe(&drift::ID, Some(config))
-                .await
-                .unwrap();
-            loop {
-                tokio::select! {
-                    message = accounts.next() => {
-                        match message {
-                            Some(message) => {
-                                let slot = message.context.slot;
-                                if slot >= latest_slot {
-                                    latest_slot = slot;
-                                    let pubkey = message.value.pubkey;
-                                    let account_data = message.value.account.data;
-                                    match decode(account_data) {
-                                        Ok(data) => {
-                                            let data_and_slot = DataAndSlot::<T> { slot, data };
-                                            event_emitter.emit(subscription_name, Box::new(ProgramAccountUpdate::new(pubkey, data_and_slot)));
-                                        },
-                                        Err(e) => {
-                                            error!("Error decoding account data {e}");
+        tokio::spawn({
+            let event_emitter = self.event_emitter.clone();
+            let mut latest_slot = 0;
+            let subscription_name = self.subscription_name;
+            async move {
+                let (mut accounts, unsubscriber) = pubsub
+                    .program_subscribe(&drift::ID, Some(config))
+                    .await
+                    .unwrap();
+                loop {
+                    tokio::select! {
+                        message = accounts.next() => {
+                            match message {
+                                Some(message) => {
+                                    let slot = message.context.slot;
+                                    if slot >= latest_slot {
+                                        latest_slot = slot;
+                                        let pubkey = message.value.pubkey;
+                                        let account_data = message.value.account.data;
+                                        match decode(account_data) {
+                                            Ok(data) => {
+                                                let data_and_slot = DataAndSlot::<T> { slot, data };
+                                                event_emitter.emit(subscription_name, Box::new(ProgramAccountUpdate::new(pubkey, data_and_slot)));
+                                            },
+                                            Err(e) => {
+                                                error!("Error decoding account data {e}");
+                                            }
                                         }
                                     }
                                 }
-                            }
-                            None => {
-                                warn!("{} stream ended", subscription_name);
-                                unsubscriber().await;
-                                break;
+                                None => {
+                                    warn!("{} stream ended", subscription_name);
+                                    unsubscriber().await;
+                                    break;
+                                }
                             }
                         }
-                    }
-                    _ = unsub_rx.recv() => {
-                        debug!("Unsubscribing.");
-                        unsubscriber().await;
-                        break;
+                        _ = unsub_rx.recv() => {
+                            debug!("Unsubscribing.");
+                            unsubscriber().await;
+                            break;
+                        }
                     }
                 }
             }

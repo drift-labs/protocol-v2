@@ -1,10 +1,15 @@
 use drift::math::constants::{BASE_PRECISION_I64, LAMPORTS_PER_SOL_I64, PRICE_PRECISION_U64};
 use drift_sdk::{
     types::{ClientOpts, Context, MarketId, NewOrder},
-    utils::envs::test_keypair,
     DriftClient, RpcAccountProvider, Wallet,
 };
 use solana_sdk::signature::Keypair;
+
+/// keypair for integration tests
+fn test_keypair() -> Keypair {
+    let private_key = std::env::var("TEST_PRIVATE_KEY").expect("TEST_PRIVATE_KEY set");
+    Keypair::from_base58_string(private_key.as_str())
+}
 
 #[tokio::test]
 async fn get_oracle_prices() {

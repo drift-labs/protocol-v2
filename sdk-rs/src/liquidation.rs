@@ -14,11 +14,12 @@ use drift::{
         },
         margin::{
             calculate_margin_requirement_and_total_collateral_and_liability_info,
-            MarginRequirementType,
+            calculate_perp_position_value_and_pnl, MarginRequirementType,
         },
     },
     state::{
         margin_calculation::MarginContext,
+        oracle::StrictOraclePrice,
         oracle_map::OracleMap,
         perp_market::PerpMarket,
         perp_market_map::{MarketSet, PerpMarketMap},
@@ -170,6 +171,95 @@ impl AccountMapBuilder {
     }
 }
 
+/// Info on a positions liquidation price and unrealized PnL
+pub struct LiquidationAndPnlInfo {
+    // PRICE_PRECISION
+    pub liquidation_price: i64,
+    // PRICE_PRECISION
+    pub unrealized_pnl: i128,
+}
+
+/// Calculate the liquidation price and unrealized PnL of a user's perp position (given by `market_index`)
+pub async fn calculate_liquidation_price_and_unrealized_pnl<'a, T: AccountProvider>(
+    client: &DriftClient<T>,
+    user: &User,
+    market_index: u16,
+) -> SdkResult<LiquidationAndPnlInfo> {
+    // TODO: this does a decent amount of rpc queries, it could make sense to cache it e.g. for calculating multiple perp positions
+    let mut accounts_builder = AccountMapBuilder::default();
+    let mut account_maps = accounts_builder.build(client, user).await?;
+    let position = user
+        .get_perp_position(market_index)
+        .map_err(|_| SdkError::NoPosiiton(market_index))?;
+    let unrealized_pnl = calculate_unrealized_pnl_inner(position, market_index, &mut account_maps)?;
+    let liquidation_price =
+        calculate_liquidation_price_inner(user, market_index, &mut account_maps)?;
+
+    Ok(LiquidationAndPnlInfo {
+        unrealized_pnl,
+        liquidation_price,
+    })
+}
+
+/// Calculate the unrealized pnl for user perp position, given by `market_index`
+pub async fn calculate_unrealized_pnl<T: AccountProvider>(
+    client: &DriftClient<T>,
+    user: &User,
+    market_index: u16,
+) -> SdkResult<i128> {
+    if let Ok(position) = user.get_perp_position(market_index) {
+        let mut accounts_builder = AccountMapBuilder::default();
+        let mut account_maps = accounts_builder.build(client, user).await?;
+        calculate_unrealized_pnl_inner(position, market_index, &mut account_maps)
+    } else {
+        Err(SdkError::NoPosiiton(market_index))
+    }
+}
+
+pub fn calculate_unrealized_pnl_inner(
+    position: &PerpPosition,
+    market_index: u16,
+    account_maps: &mut AccountMaps<'_>,
+) -> SdkResult<i128> {
+    let AccountMaps {
+        perp_market_map,
+        spot_market_map,
+        ref mut oracle_map,
+    } = account_maps;
+
+    let perp_market = perp_market_map
+        .get_ref(&market_index)
+        .map_err(|_| SdkError::InvalidAccount)?;
+    let quote_spot_market = spot_market_map
+        .get_quote_spot_market()
+        .map_err(|_| SdkError::InvalidAccount)?;
+    let strict_quote_price = StrictOraclePrice::new(
+        oracle_map
+            .get_price_data(&quote_spot_market.pubkey)
+            .map_err(|_| SdkError::InvalidOracle)?
+            .price,
+        quote_spot_market
+            .historical_oracle_data
+            .last_oracle_price_twap_5min,
+        false,
+    );
+
+    let (_perp_margin_requirement, weighted_pnl, _worst_case_base_asset_value) =
+        calculate_perp_position_value_and_pnl(
+            position,
+            &perp_market,
+            oracle_map
+                .get_price_data(&perp_market.amm.oracle)
+                .map_err(|_| SdkError::InvalidOracle)?,
+            &strict_quote_price,
+            MarginRequirementType::Maintenance,
+            0,
+        )
+        .map_err(|err| SdkError::Anchor(Box::new(err.into())))?;
+
+    Ok(weighted_pnl)
+}
+
 /// Calculate the liquidation price of a user's perp position (given by `market_index`)
 ///
 /// Returns the liquidaton price (PRICE_PRECISION / 1e6)
@@ -180,26 +270,26 @@ pub async fn calculate_liquidation_price<'a, T: AccountProvider>(
 ) -> SdkResult<i64> {
     // TODO: this does a decent amount of rpc queries, it could make sense to cache it e.g. for calculating multiple perp positions
     let mut accounts_builder = AccountMapBuilder::default();
-    let account_maps = accounts_builder.build(client, user).await?;
-    calculate_liquidation_price_inner(user, market_index, account_maps)
+    let mut account_maps = accounts_builder.build(client, user).await?;
+    calculate_liquidation_price_inner(user, market_index, &mut account_maps)
 }
 
-fn calculate_liquidation_price_inner(
+pub fn calculate_liquidation_price_inner(
     user: &User,
     market_index: u16,
-    account_maps: AccountMaps<'_>,
+    account_maps: &mut AccountMaps<'_>,
 ) -> SdkResult<i64> {
     let AccountMaps {
         perp_market_map,
         spot_market_map,
-        mut oracle_map,
+        ref mut oracle_map,
     } = account_maps;
 
     let margin_calculation = calculate_margin_requirement_and_total_collateral_and_liability_info(
         user,
         &perp_market_map,
         &spot_market_map,
-        &mut oracle_map,
+        oracle_map,
         MarginContext::standard(MarginRequirementType::Maintenance),
     )
     .map_err(|err| SdkError::Anchor(Box::new(err.into())))?;
@@ -209,7 +299,8 @@ fn calculate_liquidation_price_inner(
         .get_ref(&market_index)
         .map_err(|err| SdkError::Anchor(Box::new(err.into())))?;
     let perp_free_collateral_delta = calculate_perp_free_collateral_delta(
-        user.get_perp_position(market_index).unwrap(),
+        user.get_perp_position(market_index)
+            .map_err(|_| SdkError::NoPosiiton(market_index))?,
         &perp_market,
     );
     // user holding spot asset case
@@ -302,8 +393,9 @@ mod tests {
     use bytes::BytesMut;
     use drift::{
         math::constants::{
-            AMM_RESERVE_PRECISION, LIQUIDATION_FEE_PRECISION, PEG_PRECISION,
-            SPOT_BALANCE_PRECISION, SPOT_BALANCE_PRECISION_U64, SPOT_CUMULATIVE_INTEREST_PRECISION,
+            AMM_RESERVE_PRECISION, LIQUIDATION_FEE_PRECISION, PEG_PRECISION, PRICE_PRECISION,
+            PRICE_PRECISION_I64, SPOT_BALANCE_PRECISION, SPOT_BALANCE_PRECISION_U64,
+            SPOT_CUMULATIVE_INTEREST_PRECISION,
         },
         state::{
             oracle::{HistoricalOracleData, OracleSource},
@@ -356,6 +448,7 @@ mod tests {
             market_index: 0,
             margin_ratio_initial: 1000,
             margin_ratio_maintenance: 500,
+            unrealized_pnl_maintenance_asset_weight: SPOT_WEIGHT_PRECISION,
             status: MarketStatus::Initialized,
             ..PerpMarket::default()
         }
@@ -378,8 +471,8 @@ mod tests {
             margin_ratio_initial: 1000,
             margin_ratio_maintenance: 500,
             imf_factor: 1000, // 1_000/1_000_000 = .001
-            unrealized_pnl_initial_asset_weight: 10000,
-            unrealized_pnl_maintenance_asset_weight: 10000,
+            unrealized_pnl_initial_asset_weight: SPOT_WEIGHT_PRECISION,
+            unrealized_pnl_maintenance_asset_weight: SPOT_WEIGHT_PRECISION,
             status: MarketStatus::Initialized,
             ..PerpMarket::default()
         }
@@ -451,10 +544,11 @@ mod tests {
             PerpMarket,
             sol_perp
         );
-        let accounts_map = build_account_map(&mut [sol_perp], &mut [usdc_spot], &mut [sol_oracle]);
+        let mut accounts_map =
+            build_account_map(&mut [sol_perp], &mut [usdc_spot], &mut [sol_oracle]);
 
         let liquidation_price =
-            calculate_liquidation_price_inner(&user, sol_perp_index, accounts_map).unwrap();
+            calculate_liquidation_price_inner(&user, sol_perp_index, &mut accounts_map).unwrap();
         dbg!(liquidation_price);
         assert_eq!(liquidation_price, 119_047_619);
     }
@@ -487,9 +581,10 @@ mod tests {
             PerpMarket,
             sol_perp
         );
-        let accounts_map = build_account_map(&mut [sol_perp], &mut [usdc_spot], &mut [sol_oracle]);
+        let mut accounts_map =
+            build_account_map(&mut [sol_perp], &mut [usdc_spot], &mut [sol_oracle]);
         let liquidation_price =
-            calculate_liquidation_price_inner(&user, sol_perp_index, accounts_map).unwrap();
+            calculate_liquidation_price_inner(&user, sol_perp_index, &mut accounts_map).unwrap();
         dbg!(liquidation_price);
         assert_eq!(liquidation_price, 52_631_579);
     }
@@ -530,13 +625,13 @@ mod tests {
             PerpMarket,
             btc_perp
         );
-        let accounts_map = build_account_map(
+        let mut accounts_map = build_account_map(
             &mut [btc_perp],
             &mut [usdc_spot, sol_spot],
             &mut [sol_oracle, btc_oracle],
         );
         let liquidation_price =
-            calculate_liquidation_price_inner(&user, btc_perp_index, accounts_map).unwrap();
+            calculate_liquidation_price_inner(&user, btc_perp_index, &mut accounts_map).unwrap();
         assert_eq!(liquidation_price, 68_571_428_571);
     }
 
@@ -574,13 +669,13 @@ mod tests {
             PerpMarket,
             sol_perp
         );
-        let accounts_map = build_account_map(
+        let mut accounts_map = build_account_map(
             &mut [sol_perp],
             &mut [usdc_spot, sol_spot],
             &mut [sol_oracle],
         );
         let liquidation_price =
-            calculate_liquidation_price_inner(&user, sol_perp_index, accounts_map).unwrap();
+            calculate_liquidation_price_inner(&user, sol_perp_index, &mut accounts_map).unwrap();
         dbg!(liquidation_price);
         assert_eq!(liquidation_price, 76_335_878);
     }
@@ -588,8 +683,74 @@ mod tests {
     #[test]
     fn liquidation_price_no_positions() {
         let user = User::default();
-        let accounts_map = build_account_map(&mut [], &mut [], &mut []);
-        assert!(calculate_liquidation_price_inner(&user, 0, accounts_map).is_err());
+        let mut accounts_map = build_account_map(&mut [], &mut [], &mut []);
+        assert!(calculate_liquidation_price_inner(&user, 0, &mut accounts_map).is_err());
+    }
+
+    #[test]
+    fn unrealized_pnl_short() {
+        let sol_perp_index = 0;
+        let position = PerpPosition {
+            market_index: sol_perp_index,
+            base_asset_amount: -1 * BASE_PRECISION_I64,
+            quote_asset_amount: 80 * QUOTE_PRECISION_I64,
+            ..Default::default()
+        };
+        let mut sol_oracle_price = get_pyth_price(60, 6);
+
+        crate::create_account_info!(sol_oracle_price, &SOL_ORACLE, &pyth::ID, sol_oracle);
+        crate::create_anchor_account_info!(
+            usdc_spot_market(),
+            &constants::PROGRAM_ID,
+            SpotMarket,
+            usdc_spot
+        );
+        crate::create_anchor_account_info!(
+            sol_perp_market(),
+            &constants::PROGRAM_ID,
+            PerpMarket,
+            sol_perp
+        );
+        let mut accounts_map =
+            build_account_map(&mut [sol_perp], &mut [usdc_spot], &mut [sol_oracle]);
+        let unrealized_pnl =
+            calculate_unrealized_pnl_inner(&position, sol_perp_index, &mut accounts_map).unwrap();
+        dbg!(unrealized_pnl);
+        // entry at $80, upnl at $60
+        assert_eq!(unrealized_pnl, 20_i128 * QUOTE_PRECISION_I64 as i128);
+    }
+
+    #[test]
+    fn unrealized_pnl_long() {
+        let sol_perp_index = 0;
+        let position = PerpPosition {
+            market_index: sol_perp_index,
+            base_asset_amount: 1 * BASE_PRECISION_I64,
+            quote_asset_amount: -80 * QUOTE_PRECISION_I64,
+            ..Default::default()
+        };
+        let mut sol_oracle_price = get_pyth_price(100, 6);
+
+        crate::create_account_info!(sol_oracle_price, &SOL_ORACLE, &pyth::ID, sol_oracle);
+        crate::create_anchor_account_info!(
+            usdc_spot_market(),
+            &constants::PROGRAM_ID,
+            SpotMarket,
+            usdc_spot
+        );
+        crate::create_anchor_account_info!(
+            sol_perp_market(),
+            &constants::PROGRAM_ID,
+            PerpMarket,
+            sol_perp
+        );
+        let mut accounts_map =
+            build_account_map(&mut [sol_perp], &mut [usdc_spot], &mut [sol_oracle]);
+        let unrealized_pnl =
+            calculate_unrealized_pnl_inner(&position, sol_perp_index, &mut accounts_map).unwrap();
+        dbg!(unrealized_pnl);
+        // entry at $80, upnl at $100
+        assert_eq!(unrealized_pnl, 20_i128 * QUOTE_PRECISION_I64 as i128);
     }
 
     fn build_account_map<'a>(

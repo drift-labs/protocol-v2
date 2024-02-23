@@ -10,7 +10,10 @@ use anchor_lang::{AnchorDeserialize, Discriminator};
 use drift::{
     controller::position::PositionDirection,
     state::{
-        events::{OrderAction, OrderActionExplanation, OrderActionRecord, OrderRecord},
+        events::{
+            FundingPaymentRecord, OrderAction, OrderActionExplanation, OrderActionRecord,
+            OrderRecord,
+        },
         user::{MarketType, Order},
     },
 };
@@ -492,6 +495,12 @@ pub enum DriftEvent {
         ts: u64,
         signature: String,
     },
+    FundingPayment {
+        amount: i64,
+        market_index: u16,
+        user: Pubkey,
+        ts: u64,
+    },
 }
 
 impl DriftEvent {
@@ -505,6 +514,7 @@ impl DriftEvent {
             Self::OrderCreate { user, .. } => *user == sub_account,
             Self::OrderExpire { user, .. } => user == subject,
             Self::OrderCancelMissing { .. } => true,
+            Self::FundingPayment { user, .. } => *user == sub_account,
         }
     }
     /// Deserialize drift event by discriminant
@@ -519,10 +529,21 @@ impl DriftEvent {
                 OrderRecord::deserialize(data).expect("deserializes"),
                 signature,
             ),
+            FundingPaymentRecord::DISCRIMINATOR => Some(Self::from_funding_payment_record(
+                FundingPaymentRecord::deserialize(data).expect("deserializes"),
+            )),
             _ => {
                 debug!(target: LOG_TARGET, "unhandled event: {disc:?}");
                 None
             }
+        }
+    }
+    fn from_funding_payment_record(value: FundingPaymentRecord) -> Self {
+        Self::FundingPayment {
+            amount: value.funding_payment,
+            market_index: value.market_index,
+            ts: value.ts.unsigned_abs(),
+            user: value.user,
         }
     }
     fn from_order_record(value: OrderRecord, signature: &str) -> Option<Self> {

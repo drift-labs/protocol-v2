@@ -1058,7 +1058,7 @@ dependencies = [
  "num-derive",
  "num-integer",
  "num-traits",
- "phoenix-v1",
+ "phoenix-v1 0.2.4 (git+https://github.com/drift-labs/phoenix-v1?rev=4c65c9)",
  "pyth-client",
  "serum_dex",
  "solana-program",
@@ -1084,7 +1084,7 @@ dependencies = [
  "num-derive",
  "num-integer",
  "num-traits",
- "phoenix-v1",
+ "phoenix-v1 0.2.4 (git+https://github.com/drift-labs/phoenix-v1?rev=bf6b84)",
  "pyth",
  "pyth-client",
  "serum_dex",
@@ -2432,6 +2432,26 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2fd23b938276f14057220b707937bcb42fa76dda7560e57a2da30cb52d557937"
 dependencies = [
  "num",
+]
+
+[[package]]
+name = "phoenix-v1"
+version = "0.2.4"
+source = "git+https://github.com/drift-labs/phoenix-v1?rev=4c65c9#4c65c97cd62493e27425ea2830447c833152bed1"
+dependencies = [
+ "borsh",
+ "bytemuck",
+ "ellipsis-macros",
+ "itertools 0.10.5",
+ "lib-sokoban",
+ "num_enum",
+ "shank",
+ "solana-program",
+ "solana-security-txt",
+ "spl-associated-token-account",
+ "spl-token",
+ "static_assertions",
+ "thiserror",
 ]
 
 [[package]]
