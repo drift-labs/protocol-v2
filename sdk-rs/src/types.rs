@@ -1,7 +1,7 @@
 use std::cmp::Ordering;
 
 use anchor_lang::AccountDeserialize;
-use drift::error::ErrorCode;
+use drift::{error::ErrorCode, state::user::UserStats};
 // re-export types in public API
 pub use drift::{
     controller::position::PositionDirection,
@@ -23,6 +23,8 @@ use solana_sdk::{
 use thiserror::Error;
 use tokio::net::TcpStream;
 use tokio_tungstenite::{tungstenite, MaybeTlsStream, WebSocketStream};
+
+use crate::Wallet;
 
 pub type SdkResult<T> = Result<T, SdkError>;
 
@@ -400,6 +402,16 @@ impl ReferrerInfo {
 
     pub fn referrer_stats(&self) -> Pubkey {
         self.referrer_stats
+    }
+
+    pub fn get_referrer_info(taker_stats: UserStats) -> Self {
+        let user_account_pubkey = Wallet::derive_user_account(&taker_stats.referrer, 0, &crate::constants::PROGRAM_ID);
+        let user_stats_pubkey = Wallet::derive_stats_account(&taker_stats.referrer, &crate::constants::PROGRAM_ID);
+
+        Self {
+            referrer: user_account_pubkey,
+            referrer_stats: user_stats_pubkey
+        }
     }
 }
 
