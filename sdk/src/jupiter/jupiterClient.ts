@@ -305,9 +305,14 @@ export class JupiterClient {
 			onlyDirectRoutes: onlyDirectRoutes.toString(),
 			maxAccounts: maxAccounts.toString(),
 			...(excludeDexes && { excludeDexes: excludeDexes.join(',') }),
-		}).toString();
-		const quote = await (await fetch(`${this.url}/v6/quote?${params}`)).json();
-		return quote;
+		});
+		if (swapMode === 'ExactOut') {
+			params.delete('maxAccounts');
+		}
+		const quote = await (
+			await fetch(`${this.url}/v6/quote?${params.toString()}`)
+		).json();
+		return quote as QuoteResponse;
 	}
 
 	/**

@@ -1,5 +1,5 @@
 if [ "$1" != "--skip-build" ]; then
-  anchor build &&
+  anchor build -p drift -- --features anchor-test &&
     cp target/idl/drift.json sdk/src/idl/
 fi
 

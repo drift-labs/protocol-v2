@@ -7,6 +7,7 @@ import {
 	calculateSpreadReserves,
 	calculateUpdatedAMM,
 	DLOBNode,
+	isVariant,
 	OraclePriceData,
 	PerpMarketAccount,
 	PositionDirection,
@@ -492,6 +493,19 @@ export function uncrossL2(
 
 	let bidIndex = 0;
 	let askIndex = 0;
+	let maxBid: BN;
+	let minAsk: BN;
+
+	const getPriceAndSetBound = (newPrice: BN, direction: PositionDirection) => {
+		if (isVariant(direction, 'long')) {
+			maxBid = maxBid ? BN.min(maxBid, newPrice) : newPrice;
+			return maxBid;
+		} else {
+			minAsk = minAsk ? BN.max(minAsk, newPrice) : newPrice;
+			return minAsk;
+		}
+	};
+
 	while (bidIndex < bids.length || askIndex < asks.length) {
 		const nextBid = cloneL2Level(bids[bidIndex]);
 		const nextAsk = cloneL2Level(asks[askIndex]);
@@ -508,7 +522,7 @@ export function uncrossL2(
 			continue;
 		}
 
-		if (nextBid.price.gt(nextAsk.price)) {
+		if (nextBid.price.gte(nextAsk.price)) {
 			if (userBids.has(nextBid.price.toString())) {
 				newBids.push(nextBid);
 				bidIndex++;
@@ -525,29 +539,51 @@ export function uncrossL2(
 				nextBid.price.gt(referencePrice) &&
 				nextAsk.price.gt(referencePrice)
 			) {
-				const newBidPrice = nextAsk.price.sub(grouping);
+				let newBidPrice = nextAsk.price.sub(grouping);
+				newBidPrice = getPriceAndSetBound(newBidPrice, PositionDirection.LONG);
 				updateLevels(newBidPrice, nextBid, newBids);
 				bidIndex++;
 			} else if (
 				nextAsk.price.lt(referencePrice) &&
 				nextBid.price.lt(referencePrice)
 			) {
-				const newAskPrice = nextBid.price.add(grouping);
+				let newAskPrice = nextBid.price.add(grouping);
+				newAskPrice = getPriceAndSetBound(newAskPrice, PositionDirection.SHORT);
 				updateLevels(newAskPrice, nextAsk, newAsks);
 				askIndex++;
 			} else {
-				const newBidPrice = referencePrice.sub(grouping);
-				const newAskPrice = referencePrice.add(grouping);
+				let newBidPrice = referencePrice.sub(grouping);
+				let newAskPrice = referencePrice.add(grouping);
+
+				newBidPrice = getPriceAndSetBound(newBidPrice, PositionDirection.LONG);
+				newAskPrice = getPriceAndSetBound(newAskPrice, PositionDirection.SHORT);
+
 				updateLevels(newBidPrice, nextBid, newBids);
 				updateLevels(newAskPrice, nextAsk, newAsks);
 				bidIndex++;
 				askIndex++;
 			}
 		} else {
-			newAsks.push(nextAsk);
+			if (minAsk && nextAsk.price.lte(minAsk)) {
+				const newAskPrice = getPriceAndSetBound(
+					nextAsk.price,
+					PositionDirection.SHORT
+				);
+				updateLevels(newAskPrice, nextAsk, newAsks);
+			} else {
+				newAsks.push(nextAsk);
+			}
 			askIndex++;
 
-			newBids.push(nextBid);
+			if (maxBid && nextBid.price.gte(maxBid)) {
+				const newBidPrice = getPriceAndSetBound(
+					nextBid.price,
+					PositionDirection.LONG
+				);
+				updateLevels(newBidPrice, nextBid, newBids);
+			} else {
+				newBids.push(nextBid);
+			}
 			bidIndex++;
 		}
 	}

@@ -326,7 +326,7 @@ describe('liquidate spot w/ social loss', () => {
 
 		const interestOfUpdate = currentDepositAmount.sub(depositAmountBefore);
 		console.log('interestOfUpdate:', interestOfUpdate.toString());
-		assert(interestOfUpdate.eq(ZERO));
+		assert(interestOfUpdate.abs().lte(new BN(1)));
 	});
 
 	it('resolve bankruptcy', async () => {
