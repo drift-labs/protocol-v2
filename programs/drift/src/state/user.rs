@@ -410,6 +410,16 @@ impl User {
 
         Ok(())
     }
+
+    pub fn has_room_for_new_order(&self) -> bool {
+        for order in self.orders.iter() {
+            if order.status == OrderStatus::Init {
+                return true;
+            }
+        }
+
+        false
+    }
 }
 
 #[zero_copy(unsafe)]

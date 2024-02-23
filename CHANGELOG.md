@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixes
 
+- program: handle derisk lp when orders array full ([#899](https://github.com/drift-labs/protocol-v2/pull/899))
 - program: invalid borrow in get_referrer_info when maker is refferer ([#900](https://github.com/drift-labs/protocol-v2/pull/900))
 
 ### Breaking
