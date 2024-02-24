@@ -463,6 +463,11 @@ impl<T: AccountProvider> DriftClient<T> {
         self.backend.get_account(&user_stats_pubkey).await
     }
 
+    /// Get the latest recent_block_hash
+    pub async fn get_latest_blockhash(&self) -> SdkResult<Hash> {
+        self.backend.client().get_latest_blockhash().await.map_err(SdkError::Rpc)
+    }
+
     /// Sign and send a tx to the network
     ///
     /// Returns the signature on success
