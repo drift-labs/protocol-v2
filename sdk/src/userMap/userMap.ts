@@ -16,6 +16,7 @@ import {
 	BN,
 	UserSubscriptionConfig,
 	DataAndSlot,
+	OneShotUserAccountSubscriber,
 } from '..';
 
 import {
@@ -154,13 +155,22 @@ export class UserMap implements UserMapInterface {
 		const user = new User({
 			driftClient: this.driftClient,
 			userAccountPublicKey,
-			accountSubscription:
-				accountSubscription ?? this.driftClient.userAccountSubscriptionConfig,
+			accountSubscription: accountSubscription ?? {
+				type: 'custom',
+				// OneShotUserAccountSubscriber used here so we don't load up the RPC with AccountSubscribes
+				userAccountSubscriber: new OneShotUserAccountSubscriber(
+					this.driftClient.program,
+					userAccountPublicKey,
+					userAccount,
+					slot,
+					this.commitment
+				),
+			},
 		});
 		await user.subscribe(userAccount);
 		this.userMap.set(userAccountPublicKey.toString(), {
 			data: user,
-			slot: user.getUserAccountAndSlot().slot ?? slot ?? -1,
+			slot: slot ?? user.getUserAccountAndSlot()?.slot,
 		});
 	}
 
