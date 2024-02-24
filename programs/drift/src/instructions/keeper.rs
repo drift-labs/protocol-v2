@@ -1158,6 +1158,7 @@ pub fn handle_update_funding_rate(
     let now = clock.unix_timestamp;
     let clock_slot = clock.slot;
     let state = &ctx.accounts.state;
+    // todo try to update drift oracle
     let mut oracle_map = OracleMap::load_one(
         &ctx.accounts.oracle,
         clock_slot,
@@ -1224,6 +1225,7 @@ pub fn handle_update_perp_bid_ask_twap(ctx: Context<UpdatePerpBidAskTwap>) -> Re
     let now = clock.unix_timestamp;
     let slot = clock.slot;
     let state = &ctx.accounts.state;
+    // todo try update drift oracle
     let mut oracle_map =
         OracleMap::load_one(&ctx.accounts.oracle, slot, Some(state.oracle_guard_rails))?;
 

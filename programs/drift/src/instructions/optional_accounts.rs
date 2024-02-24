@@ -1,13 +1,15 @@
 use crate::error::{DriftResult, ErrorCode};
 
+use crate::math::casting::Cast;
 use crate::math::safe_unwrap::SafeUnwrap;
+use crate::state::oracle::DriftOracle;
 use crate::state::oracle_map::OracleMap;
 use crate::state::perp_market_map::{MarketSet, PerpMarketMap};
 use crate::state::spot_market_map::SpotMarketMap;
 use crate::state::state::OracleGuardRails;
 use crate::state::traits::Size;
 use crate::state::user::{User, UserStats};
-use crate::validate;
+use crate::{load_mut, validate, OracleSource};
 use anchor_lang::accounts::account::Account;
 use anchor_lang::prelude::AccountInfo;
 use anchor_lang::prelude::AccountLoader;
@@ -35,6 +37,24 @@ pub fn load_maps<'a, 'b>(
     let oracle_map = OracleMap::load(account_info_iter, slot, oracle_guard_rails)?;
     let spot_market_map = SpotMarketMap::load(writable_spot_markets, account_info_iter)?;
     let perp_market_map = PerpMarketMap::load(writable_perp_markets, account_info_iter)?;
+
+    for perp_market_index in writable_perp_markets.iter() {
+        let perp_market = perp_market_map.get_ref(perp_market_index).safe_unwrap()?;
+        if perp_market.amm.oracle_source != OracleSource::Drift {
+            continue;
+        }
+
+        // todo: nice error
+        let oracle_account_info = oracle_map.get_account_info(&perp_market.amm.oracle)?;
+
+        // todo: nice error
+        let oracle_account_loader: AccountLoader<DriftOracle> =
+            AccountLoader::try_from(&oracle_account_info).unwrap();
+
+        let mut oracle = load_mut!(oracle_account_loader)?;
+
+        oracle.price = perp_market.amm.last_mark_price_twap.cast()?;
+    }
 
     Ok(AccountMaps {
         perp_market_map,

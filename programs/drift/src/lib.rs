@@ -2,6 +2,8 @@
 #![allow(clippy::bool_assert_comparison)]
 #![allow(clippy::comparison_chain)]
 
+extern crate core;
+
 use anchor_lang::prelude::*;
 
 use instructions::*;
@@ -1144,6 +1146,14 @@ pub mod drift {
             whitelisted_signers,
             max_transfer_per_epoch,
         )
+    }
+
+    pub fn initialize_drift_oracle(
+        ctx: Context<InitializeDriftOracle>,
+        perp_market_index: u16,
+        price: i64,
+    ) -> Result<()> {
+        handle_initialize_drift_oracle(ctx, perp_market_index, price)
     }
 }
 

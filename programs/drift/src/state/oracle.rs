@@ -6,6 +6,7 @@ use crate::math::constants::{PRICE_PRECISION, PRICE_PRECISION_I64, PRICE_PRECISI
 use crate::math::safe_math::SafeMath;
 
 use crate::math::safe_unwrap::SafeUnwrap;
+use crate::state::traits::Size;
 use crate::validate;
 
 #[cfg(test)]
@@ -108,6 +109,7 @@ pub enum OracleSource {
     Pyth1K,
     Pyth1M,
     PythStableCoin,
+    Drift,
 }
 
 impl Default for OracleSource {
@@ -156,6 +158,7 @@ pub fn get_oracle_price(
             delay: 0,
             has_sufficient_number_of_data_points: true,
         }),
+        OracleSource::Drift => panic!(),
     }
 }
 
@@ -337,4 +340,17 @@ impl StrictOraclePrice {
             twap_5min: None,
         }
     }
+}
+
+#[account(zero_copy(unsafe))]
+#[derive(Default, Eq, PartialEq, Debug)]
+#[repr(C)]
+pub struct DriftOracle {
+    pub price: i64,
+    pub perp_market_index: u16,
+    pub padding: [u8; 6],
+}
+
+impl Size for DriftOracle {
+    const SIZE: usize = 24;
 }

@@ -1212,6 +1212,7 @@ impl AMM {
                 msg!("Can't get oracle twap for quote asset");
                 Err(ErrorCode::DefaultError)
             }
+            OracleSource::Drift => panic!(),
         }
     }
 

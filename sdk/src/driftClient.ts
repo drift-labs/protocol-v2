@@ -1566,10 +1566,11 @@ export class DriftClient {
 			isSigner: false,
 			isWritable: writable,
 		});
+		const oracleWritable = writable && isVariant(perpMarketAccount.amm.oracleSource, 'drift');
 		oracleAccountMap.set(perpMarketAccount.amm.oracle.toString(), {
 			pubkey: perpMarketAccount.amm.oracle,
 			isSigner: false,
-			isWritable: false,
+			isWritable: oracleWritable,
 		});
 		this.addSpotMarketToRemainingAccountMaps(
 			perpMarketAccount.quoteSpotMarketIndex,
