@@ -340,6 +340,7 @@ pub fn calculate_spread(
     long_intensity_volume: u64,
     short_intensity_volume: u64,
     volume_24h: u64,
+    base_asset_amount_lp_imbalance: i128,
 ) -> DriftResult<(u32, u32)> {
     let (long_vol_spread, short_vol_spread) = calculate_long_short_vol_spread(
         last_oracle_conf_pct,
@@ -405,6 +406,15 @@ pub fn calculate_spread(
         short_spread = short_spread
             .safe_mul(inventory_scale_capped)?
             .safe_div(BID_ASK_SPREAD_PRECISION)?;
+    }
+
+    // lp imbalance scale
+    if base_asset_amount_lp_imbalance.abs() > base_asset_amount_with_amm.abs() {
+        if base_asset_amount_lp_imbalance < 0 {
+            long_spread = long_spread.safe_mul(2)?;
+        } else {
+            short_spread = short_spread.safe_mul(2)?;
+        }
     }
 
     if total_fee_minus_distributions <= 0 {

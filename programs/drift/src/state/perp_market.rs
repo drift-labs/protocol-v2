@@ -1114,26 +1114,43 @@ impl AMM {
         Ok(amm_lp_wants_to_jit_make && self.amm_lp_jit_is_active())
     }
 
+    pub fn amm_calculate_min_side_liquidity(&self) -> DriftResult<i128> {
+        let (max_bids, max_asks) = amm::_calculate_market_open_bids_asks(
+            self.base_asset_reserve,
+            self.min_base_asset_reserve,
+            self.max_base_asset_reserve,
+        )?;
+
+        let min_side_liquidity = max_bids.min(max_asks.abs());
+        Ok(min_side_liquidity)
+    }
+
+    pub fn amm_calculate_protocol_owned_min_side_liquidity(&self) -> DriftResult<i128> {
+        let min_side_liquidity = self.amm_calculate_min_side_liquidity()?;
+        let protocol_owned_min_side_liquidity = get_proportion_i128(
+            min_side_liquidity,
+            self.sqrt_k.safe_sub(self.user_lp_shares)?,
+            self.sqrt_k,
+        )?;
+
+        Ok(protocol_owned_min_side_liquidity)
+    }
+
     pub fn amm_lp_allowed_to_jit_make(&self, amm_wants_to_jit_make: bool) -> DriftResult<bool> {
         // only allow lps to make when the amm inventory is below a certain level of available liquidity
         // i.e. 10%
         if amm_wants_to_jit_make {
-            // inventory scale
-            let (max_bids, max_asks) = amm::_calculate_market_open_bids_asks(
-                self.base_asset_reserve,
-                self.min_base_asset_reserve,
-                self.max_base_asset_reserve,
-            )?;
+            let protocol_owned_min_side_liquidity =
+                self.amm_calculate_protocol_owned_min_side_liquidity()?;
 
-            let min_side_liquidity = max_bids.min(max_asks.abs());
-            let protocol_owned_min_side_liquidity = get_proportion_i128(
-                min_side_liquidity,
-                self.sqrt_k.safe_sub(self.user_lp_shares)?,
-                self.sqrt_k,
-            )?;
+            let lp_base_imbalance = self.imbalanced_base_asset_amount_with_lp()?;
 
-            Ok(self.base_asset_amount_with_amm.abs()
-                < protocol_owned_min_side_liquidity.safe_div(10)?)
+            // allow lp if amm owned (and unsettled) imbalanced not too large
+            // or lp imbalance is excessive
+            let condition1 = self.base_asset_amount_with_amm.abs()
+                < protocol_owned_min_side_liquidity.safe_div(10)?;
+            let condition2 = lp_base_imbalance.abs() > protocol_owned_min_side_liquidity;
+            Ok(condition1 || condition2)
         } else {
             Ok(true)
         }
