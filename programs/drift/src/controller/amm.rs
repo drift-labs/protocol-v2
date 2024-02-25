@@ -818,3 +818,34 @@ pub fn recenter_perp_market_amm(amm: &mut AMM, peg_multiplier: u128, sqrt_k: u12
 
     Ok(())
 }
+
+// recalculate and update summary stats on amm which are prone too accumulating integer math errors
+pub fn calculate_perp_market_amm_summary_stats(
+    perp_market: &PerpMarket,
+    spot_market: &SpotMarket,
+    perp_market_oracle_price: i64,
+) -> DriftResult<i128> {
+    let pnl_pool_token_amount = get_token_amount(
+        perp_market.pnl_pool.scaled_balance,
+        spot_market,
+        perp_market.pnl_pool.balance_type(),
+    )?;
+
+    let fee_pool_token_amount = get_token_amount(
+        perp_market.amm.fee_pool.scaled_balance,
+        spot_market,
+        perp_market.amm.fee_pool.balance_type(),
+    )?;
+
+    // add a buffer from fee pool for pnl pool balance
+    let pnl_tokens_available: i128 = pnl_pool_token_amount
+        .safe_add(fee_pool_token_amount)?
+        .cast()?;
+
+    let net_user_pnl = amm::calculate_net_user_pnl(&perp_market.amm, perp_market_oracle_price)?;
+
+    // amm's mm_fee can be incorrect with drifting integer math error
+    let new_total_fee_minus_distributions = pnl_tokens_available.safe_sub(net_user_pnl)?;
+
+    Ok(new_total_fee_minus_distributions)
+}

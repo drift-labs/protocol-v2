@@ -886,12 +886,59 @@ pub fn handle_recenter_perp_market_amm(
 
 #[access_control(
     perp_market_valid(&ctx.accounts.perp_market)
+    valid_oracle_for_perp_market(&ctx.accounts.oracle, &ctx.accounts.perp_market)
+)]
+pub fn handle_update_perp_market_amm_summary_stats(
+    ctx: Context<AdminUpdatePerpMarketAmmSummaryStats>,
+) -> Result<()> {
+    let perp_market = &mut load_mut!(ctx.accounts.perp_market)?;
+    let spot_market: &mut std::cell::RefMut<'_, SpotMarket> =
+        &mut load_mut!(ctx.accounts.spot_market)?;
+    // let state = &ctx.accounts.state;
+
+    let clock = Clock::get()?;
+    // let now = clock.unix_timestamp;
+    let price_oracle = &ctx.accounts.oracle;
+
+    let OraclePriceData {
+        price: oracle_price,
+        ..
+    } = get_oracle_price(&perp_market.amm.oracle_source, price_oracle, clock.slot)?;
+
+    let new_total_fee_minus_distributions =
+        controller::amm::calculate_perp_market_amm_summary_stats(
+            &perp_market,
+            &spot_market,
+            oracle_price,
+        )?;
+
+    msg!(
+        "updating amm summary stats for market index = {}",
+        perp_market.market_index,
+    );
+
+    msg!(
+        "total_fee_minus_distributions: {:?} -> {:?}",
+        perp_market.amm.total_fee_minus_distributions,
+        new_total_fee_minus_distributions,
+    );
+
+    perp_market.amm.total_fee_minus_distributions = new_total_fee_minus_distributions;
+
+    validate_perp_market(perp_market)?;
+
+    Ok(())
+}
+
+#[access_control(
+    perp_market_valid(&ctx.accounts.perp_market)
 )]
 pub fn handle_settle_expired_market_pools_to_revenue_pool(
     ctx: Context<SettleExpiredMarketPoolsToRevenuePool>,
 ) -> Result<()> {
     let perp_market = &mut load_mut!(ctx.accounts.perp_market)?;
-    let spot_market = &mut load_mut!(ctx.accounts.spot_market)?;
+    let spot_market: &mut std::cell::RefMut<'_, SpotMarket> =
+        &mut load_mut!(ctx.accounts.spot_market)?;
     let state = &ctx.accounts.state;
 
     let clock = Clock::get()?;
@@ -2620,6 +2667,24 @@ pub struct AdminUpdatePerpMarket<'info> {
     pub state: Box<Account<'info, State>>,
     #[account(mut)]
     pub perp_market: AccountLoader<'info, PerpMarket>,
+}
+
+#[derive(Accounts)]
+pub struct AdminUpdatePerpMarketAmmSummaryStats<'info> {
+    pub admin: Signer<'info>,
+    #[account(
+    has_one = admin
+    )]
+    pub state: Box<Account<'info, State>>,
+    #[account(
+        seeds = [b"spot_market", 0_u16.to_le_bytes().as_ref()],
+        bump,
+    )]
+    pub spot_market: AccountLoader<'info, SpotMarket>,
+    #[account(mut)]
+    pub perp_market: AccountLoader<'info, PerpMarket>,
+    /// CHECK: checked in `admin_update_perp_market_summary_stats` ix constraint
+    pub oracle: AccountInfo<'info>,
 }
 
 #[derive(Accounts)]
