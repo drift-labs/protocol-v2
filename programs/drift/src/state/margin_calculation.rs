@@ -207,7 +207,7 @@ impl MarginCalculation {
     }
 
     pub fn update_with_isolated_liability(&mut self, isolated: bool) {
-        self.with_isolated_liability &= isolated;
+        self.with_isolated_liability |= isolated;
     }
 
     pub fn validate_num_spot_liabilities(&self) -> DriftResult {
