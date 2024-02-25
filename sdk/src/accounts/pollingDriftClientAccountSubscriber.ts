@@ -252,7 +252,8 @@ export class PollingDriftClientAccountSubscriber
 	async addOracleToAccountLoader(oracleToPoll: OraclesToPoll): Promise<void> {
 		const oracleClient = this.oracleClientCache.get(
 			oracleToPoll.source,
-			this.program.provider.connection
+			this.program.provider.connection,
+			this.program
 		);
 
 		oracleToPoll.callbackId = await this.accountLoader.addAccount(
@@ -311,7 +312,8 @@ export class PollingDriftClientAccountSubscriber
 			if (buffer) {
 				const oracleClient = this.oracleClientCache.get(
 					oracleToPoll.source,
-					this.program.provider.connection
+					this.program.provider.connection,
+					this.program
 				);
 				const oraclePriceData =
 					oracleClient.getOraclePriceDataFromBuffer(buffer);

@@ -96,6 +96,7 @@ export class OracleSource {
 	// static readonly SWITCHBOARD = { switchboard: {} };
 	static readonly QUOTE_ASSET = { quoteAsset: {} };
 	static readonly PYTH_STABLE_COIN = { pythStableCoin: {} };
+	static readonly DRIFT = { drift: {} };
 }
 
 export class OrderType {
@@ -1059,6 +1060,11 @@ export type OracleGuardRails = {
 		tooVolatileRatio: BN;
 	};
 };
+
+export type DriftOracle = {
+	price: BN;
+	perpMarketIndex: number;
+}
 
 export type MarginCategory = 'Initial' | 'Maintenance';
 
