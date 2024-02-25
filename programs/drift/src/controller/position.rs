@@ -6,8 +6,7 @@ use crate::controller;
 use crate::controller::amm::SwapDirection;
 use crate::error::{DriftResult, ErrorCode};
 use crate::math::casting::Cast;
-use crate::math::constants::{MAX_BASE_ASSET_AMOUNT_WITH_AMM, PERP_DECIMALS};
-// use crate::math::helpers::get_proportion_i128;
+use crate::math::constants::{MAX_BASE_ASSET_AMOUNT_WITH_AMM, PERP_DECIMALS, QUOTE_PRECISION_I128};
 use crate::math::orders::{
     calculate_quote_asset_amount_for_maker_order, get_position_delta_for_fill,
     is_multiple_of_step_size,
@@ -419,10 +418,6 @@ pub fn update_lp_market_position(
             .amm
             .calculate_per_lp_delta(delta, fee_to_market, liquidity_split, base_unit)?;
 
-    let lp_delta_base = market
-        .amm
-        .calculate_lp_base_delta(per_lp_delta_base, base_unit)?;
-
     market.amm.base_asset_amount_per_lp = market
         .amm
         .base_asset_amount_per_lp
@@ -443,6 +438,13 @@ pub fn update_lp_market_position(
     market.amm.quote_asset_amount_per_lp =
         market.amm.quote_asset_amount_per_lp.safe_add(per_lp_fee)?;
 
+    let lp_delta_base = market
+        .amm
+        .calculate_lp_base_delta(per_lp_delta_base, base_unit)?;
+    let lp_delta_quote = market
+        .amm
+        .calculate_lp_base_delta(per_lp_delta_quote, QUOTE_PRECISION_I128)?;
+
     market.amm.base_asset_amount_with_amm = market
         .amm
         .base_asset_amount_with_amm
@@ -452,6 +454,11 @@ pub fn update_lp_market_position(
         .amm
         .base_asset_amount_with_unsettled_lp
         .safe_add(lp_delta_base)?;
+
+    market.amm.quote_asset_amount_with_unsettled_lp = market
+        .amm
+        .quote_asset_amount_with_unsettled_lp
+        .safe_add(lp_delta_quote.cast()?)?;
 
     Ok(lp_delta_base)
 }

@@ -270,6 +270,12 @@ pub fn update_funding_rate(
             market.amm.last_funding_rate_ts,
             TWENTY_FOUR_HOUR,
         )?;
+
+        market.amm.net_unsettled_funding_pnl = market
+            .amm
+            .net_unsettled_funding_pnl
+            .safe_sub(funding_imbalance_revenue.cast()?)?;
+
         market.amm.last_funding_rate_ts = now;
 
         emit!(FundingRateRecord {
