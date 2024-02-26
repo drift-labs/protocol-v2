@@ -34,8 +34,7 @@ use crate::state::fulfillment_params::serum::SerumContext;
 use crate::state::fulfillment_params::serum::SerumV3FulfillmentConfig;
 use crate::state::insurance_fund_stake::ProtocolIfSharesTransferConfig;
 use crate::state::oracle::{
-    get_oracle_price, get_pyth_price, DriftOracle, HistoricalIndexData, HistoricalOracleData,
-    OraclePriceData, OracleSource,
+    get_oracle_price, get_pyth_price, DriftOracle, DriftOracleParams, HistoricalIndexData, HistoricalOracleData, OraclePriceData, OracleSource
 };
 use crate::state::paused_operations::{PerpOperation, SpotOperation};
 use crate::state::perp_market::{
@@ -2385,16 +2384,39 @@ pub fn handle_update_protocol_if_shares_transfer_config(
 
 pub fn handle_initialize_drift_oracle<'info>(
     ctx: Context<InitializeDriftOracle<'info>>,
-    perp_market_index: u16,
-    price: i64,
+    params: DriftOracleParams
 ) -> Result<()> {
     let mut oracle = ctx.accounts.drift_oracle.load_init()?;
 
-    oracle.perp_market_index = perp_market_index;
-    oracle.price = price;
+    oracle.perp_market_index = params.perp_market_index;
+    if let Some(price) = params.price {
+        oracle.price = price;
+    }
+    if let Some(max_price) = params.max_price {
+        oracle.max_price = max_price;
+    }
+    
+    Ok(())
+}
+
+pub fn handle_update_drift_oracle<'info>(
+    ctx: Context<UpdateDriftOracle<'info>>,
+    params: DriftOracleParams
+) -> Result<()> {
+    let mut oracle = ctx.accounts.drift_oracle.load_mut()?;
+
+    oracle.perp_market_index = params.perp_market_index;
+
+    if let Some(price) = params.price {
+        oracle.price = price;
+    }
+    if let Some(max_price) = params.max_price {
+        oracle.max_price = max_price;
+    }
 
     Ok(())
 }
+
 
 #[derive(Accounts)]
 pub struct Initialize<'info> {
@@ -2839,6 +2861,26 @@ pub struct InitializeDriftOracle<'info> {
         space = DriftOracle::SIZE,
         bump,
         payer = admin
+    )]
+    pub drift_oracle: AccountLoader<'info, DriftOracle>,
+    #[account(
+        has_one = admin
+    )]
+    pub state: Box<Account<'info, State>>,
+    pub rent: Sysvar<'info, Rent>,
+    pub system_program: Program<'info, System>,
+}
+
+
+#[derive(Accounts)]
+#[instruction(market_index: u16,)]
+pub struct UpdateDriftOracle<'info> {
+    #[account(mut)]
+    pub admin: Signer<'info>,
+    #[account(
+        mut,
+        seeds = [b"drift_oracle".as_ref(), market_index.to_le_bytes().as_ref()],
+        bump,
     )]
     pub drift_oracle: AccountLoader<'info, DriftOracle>,
     #[account(

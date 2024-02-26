@@ -20,6 +20,7 @@ use crate::state::spot_market::SpotFulfillmentConfigStatus;
 use crate::state::state::FeeStructure;
 use crate::state::state::*;
 use crate::state::user::MarketType;
+use crate::state::oracle::DriftOracleParams;
 
 pub mod controller;
 pub mod error;
@@ -1150,10 +1151,16 @@ pub mod drift {
 
     pub fn initialize_drift_oracle(
         ctx: Context<InitializeDriftOracle>,
-        perp_market_index: u16,
-        price: i64,
+        params: DriftOracleParams
     ) -> Result<()> {
-        handle_initialize_drift_oracle(ctx, perp_market_index, price)
+        handle_initialize_drift_oracle(ctx, params)
+    }
+
+    pub fn update_drift_oracle(
+        ctx: Context<UpdateDriftOracle>,
+        params: DriftOracleParams,
+    ) -> Result<()> {
+        handle_update_drift_oracle(ctx, params)
     }
 }
 

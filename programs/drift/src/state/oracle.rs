@@ -347,10 +347,18 @@ impl StrictOraclePrice {
 #[repr(C)]
 pub struct DriftOracle {
     pub price: i64,
+    pub max_price: i64,
     pub perp_market_index: u16,
     pub padding: [u8; 6],
 }
 
 impl Size for DriftOracle {
-    const SIZE: usize = 24;
+    const SIZE: usize = 24 + 8;
+}
+
+#[derive(Debug, Clone, Copy, AnchorSerialize, AnchorDeserialize, PartialEq, Eq)]
+pub struct DriftOracleParams {
+    pub perp_market_index: u16,
+    pub price: Option<i64>,
+    pub max_price: Option<i64>,
 }
