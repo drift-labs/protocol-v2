@@ -526,11 +526,13 @@ pub fn meets_withdraw_margin_requirement(
     }
 
     if calculation.get_num_of_liabilities()? > 1 {
-        validate!(
-            !calculation.with_isolated_liability,
-            ErrorCode::IsolatedAssetTierViolation,
-            "User attempting to increase number of liabilities above 1 with a isolated tier liability"
-        )?;
+        if !user.is_reduce_only() {
+            validate!(
+                !calculation.with_isolated_liability,
+                ErrorCode::IsolatedAssetTierViolation,
+                "User has more than 1 liability with a isolated tier liability. User must switch to reduce only mode."
+            )?;
+        }
     }
 
     validate!(
