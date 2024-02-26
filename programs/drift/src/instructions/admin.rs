@@ -34,7 +34,8 @@ use crate::state::fulfillment_params::serum::SerumContext;
 use crate::state::fulfillment_params::serum::SerumV3FulfillmentConfig;
 use crate::state::insurance_fund_stake::ProtocolIfSharesTransferConfig;
 use crate::state::oracle::{
-    get_oracle_price, get_pyth_price, DriftOracle, DriftOracleParams, HistoricalIndexData, HistoricalOracleData, OraclePriceData, OracleSource
+    get_oracle_price, get_pyth_price, DriftOracle, DriftOracleParams, HistoricalIndexData,
+    HistoricalOracleData, OraclePriceData, OracleSource,
 };
 use crate::state::paused_operations::{PerpOperation, SpotOperation};
 use crate::state::perp_market::{
@@ -2384,7 +2385,7 @@ pub fn handle_update_protocol_if_shares_transfer_config(
 
 pub fn handle_initialize_drift_oracle<'info>(
     ctx: Context<InitializeDriftOracle<'info>>,
-    params: DriftOracleParams
+    params: DriftOracleParams,
 ) -> Result<()> {
     let mut oracle = ctx.accounts.drift_oracle.load_init()?;
 
@@ -2395,13 +2396,13 @@ pub fn handle_initialize_drift_oracle<'info>(
     if let Some(max_price) = params.max_price {
         oracle.max_price = max_price;
     }
-    
+
     Ok(())
 }
 
 pub fn handle_update_drift_oracle<'info>(
     ctx: Context<UpdateDriftOracle<'info>>,
-    params: DriftOracleParams
+    params: DriftOracleParams,
 ) -> Result<()> {
     let mut oracle = ctx.accounts.drift_oracle.load_mut()?;
 
@@ -2416,7 +2417,6 @@ pub fn handle_update_drift_oracle<'info>(
 
     Ok(())
 }
-
 
 #[derive(Accounts)]
 pub struct Initialize<'info> {
@@ -2870,7 +2870,6 @@ pub struct InitializeDriftOracle<'info> {
     pub rent: Sysvar<'info, Rent>,
     pub system_program: Program<'info, System>,
 }
-
 
 #[derive(Accounts)]
 #[instruction(market_index: u16,)]

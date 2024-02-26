@@ -13,6 +13,7 @@ use math::{bn, constants::*};
 use state::oracle::OracleSource;
 
 use crate::controller::position::PositionDirection;
+use crate::state::oracle::DriftOracleParams;
 use crate::state::order_params::{ModifyOrderParams, OrderParams};
 use crate::state::perp_market::{ContractTier, MarketStatus};
 use crate::state::spot_market::AssetTier;
@@ -20,7 +21,6 @@ use crate::state::spot_market::SpotFulfillmentConfigStatus;
 use crate::state::state::FeeStructure;
 use crate::state::state::*;
 use crate::state::user::MarketType;
-use crate::state::oracle::DriftOracleParams;
 
 pub mod controller;
 pub mod error;
@@ -1151,7 +1151,7 @@ pub mod drift {
 
     pub fn initialize_drift_oracle(
         ctx: Context<InitializeDriftOracle>,
-        params: DriftOracleParams
+        params: DriftOracleParams,
     ) -> Result<()> {
         handle_initialize_drift_oracle(ctx, params)
     }
