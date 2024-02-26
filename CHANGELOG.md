@@ -19,6 +19,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Breaking
 
+## [2.65.0] - 2023-02-26
+
+### Features
+
+- program: add pause operation for liquidation ([#880](https://github.com/drift-labs/protocol-v2/pull/880))
+
+### Fixes
+
+- program: fix entry/breakeven price calculations for lp remainders ([#864](https://github.com/drift-labs/protocol-v2/pull/864))
+- program: handle derisk lp when orders array full ([#899](https://github.com/drift-labs/protocol-v2/pull/899))
+- program: invalid borrow in get_referrer_info when maker is refferer ([#900](https://github.com/drift-labs/protocol-v2/pull/900))
+
+### Breaking
+
 ## [2.64.0] - 2023-02-20
 
 ### Features
