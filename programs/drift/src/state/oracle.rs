@@ -18,11 +18,13 @@ pub struct HistoricalOracleData {
     pub last_oracle_price: i64,
     /// precision: PRICE_PRECISION
     pub last_oracle_conf: u64,
+    /// number of slots since last update
     pub last_oracle_delay: i64,
     /// precision: PRICE_PRECISION
     pub last_oracle_price_twap: i64,
     /// precision: PRICE_PRECISION
     pub last_oracle_price_twap_5min: i64,
+    /// unix_timestamp of last snapshot
     pub last_oracle_price_twap_ts: i64,
 }
 
@@ -72,6 +74,7 @@ pub struct HistoricalIndexData {
     pub last_index_price_twap: u64,
     /// precision: PRICE_PRECISION
     pub last_index_price_twap_5min: u64,
+    /// unix_timestamp of last snapshot
     pub last_index_price_twap_ts: i64,
 }
 
@@ -204,11 +207,16 @@ pub fn get_pyth_price(
         .cast::<i64>()?
         .safe_sub(price_data.valid_slot.cast()?)?;
 
+    #[cfg(feature = "mainnet-beta")]
+    let has_sufficient_number_of_data_points = publisher_count >= min_publishers;
+    #[cfg(not(feature = "mainnet-beta"))]
+    let has_sufficient_number_of_data_points = true;
+
     Ok(OraclePriceData {
         price: oracle_price_scaled,
         confidence: oracle_conf_scaled,
         delay: oracle_delay,
-        has_sufficient_number_of_data_points: publisher_count >= min_publishers,
+        has_sufficient_number_of_data_points,
     })
 }
 

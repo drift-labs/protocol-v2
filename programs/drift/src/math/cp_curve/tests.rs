@@ -322,7 +322,7 @@ fn calculate_k_with_lps_tests() {
             peg_multiplier: 50_000_000_000,
             base_asset_amount_with_amm: (AMM_RESERVE_PRECISION / 10) as i128,
             base_asset_amount_long: (AMM_RESERVE_PRECISION / 10) as i128,
-            order_step_size: 3,
+            order_step_size: 5,
             max_spread: 1000,
             ..AMM::default_test()
         },

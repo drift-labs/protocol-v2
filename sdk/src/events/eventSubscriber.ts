@@ -213,7 +213,7 @@ export class EventSubscriber {
 	): WrappedEvents {
 		const records = [];
 		// @ts-ignore
-		const events = parseLogs(this.program, slot, logs);
+		const events = parseLogs(this.program, logs);
 		let runningEventIndex = 0;
 		for (const event of events) {
 			// @ts-ignore

@@ -454,7 +454,7 @@ describe('liquidate perp and lp', () => {
 			'marketAfterBankruptcy.amm.totalSocialLoss:',
 			marketAfterBankruptcy.amm.totalSocialLoss.toString()
 		);
-		assert(marketAfterBankruptcy.amm.totalSocialLoss.eq(new BN(4430007)));
+		assert(marketAfterBankruptcy.amm.totalSocialLoss.eq(new BN(4447653)));
 
 		assert(
 			(driftClient.getUserAccount().status &
@@ -482,7 +482,7 @@ describe('liquidate perp and lp', () => {
 		);
 		assert(
 			perpBankruptcyRecord.perpBankruptcy.cumulativeFundingRateDelta.eq(
-				new BN(253144000)
+				new BN(254152000)
 			)
 		);
 
@@ -491,7 +491,7 @@ describe('liquidate perp and lp', () => {
 		// 	market.amm.cumulativeFundingRateLong.toString(),
 		// 	market.amm.cumulativeFundingRateShort.toString()
 		// );
-		assert(market.amm.cumulativeFundingRateLong.eq(new BN(253152333)));
-		assert(market.amm.cumulativeFundingRateShort.eq(new BN(-253135667)));
+		assert(market.amm.cumulativeFundingRateLong.eq(new BN(254160333)));
+		assert(market.amm.cumulativeFundingRateShort.eq(new BN(-254143667)));
 	});
 });

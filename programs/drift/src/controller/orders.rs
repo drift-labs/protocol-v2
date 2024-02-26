@@ -970,6 +970,7 @@ pub fn fill_perp_order(
     {
         let market = &mut perp_market_map.get_ref_mut(&market_index)?;
         amm_is_available &= !market.is_operation_paused(PerpOperation::AmmFill);
+        amm_is_available &= !market.has_too_much_drawdown()?;
         validation::perp_market::validate_perp_market(market)?;
         validate!(
             !market.is_in_settlement(now),
@@ -1033,6 +1034,7 @@ pub fn fill_perp_order(
 
     let referrer_info = get_referrer_info(
         user_stats,
+        &user_key,
         makers_and_referrer,
         makers_and_referrer_stats,
         slot,
@@ -1459,6 +1461,7 @@ fn insert_maker_order_info(
 
 fn get_referrer_info(
     user_stats: &UserStats,
+    user_key: &Pubkey,
     makers_and_referrer: &UserMap,
     makers_and_referrer_stats: &UserStatsMap,
     slot: u64,
@@ -1477,6 +1480,11 @@ fn get_referrer_info(
     let referrer_authority_key = user_stats.referrer;
     let mut referrer_user_key = Pubkey::default();
     for (referrer_key, referrer) in makers_and_referrer.0.iter() {
+        // if user is in makers and referrer map, skip to avoid invalid borrow
+        if referrer_key == user_key {
+            continue;
+        }
+
         let mut referrer = load_mut!(referrer)?;
         if referrer.authority != referrer_authority_key {
             continue;
@@ -2952,17 +2960,19 @@ pub fn burn_user_lp_shares_for_risk_reduction(
 
     drop(market);
 
-    controller::orders::place_perp_order(
-        state,
-        user,
-        user_key,
-        perp_market_map,
-        spot_market_map,
-        oracle_map,
-        clock,
-        params,
-        PlaceOrderOptions::default().explanation(OrderActionExplanation::DeriskLp),
-    )?;
+    if user.has_room_for_new_order() {
+        controller::orders::place_perp_order(
+            state,
+            user,
+            user_key,
+            perp_market_map,
+            spot_market_map,
+            oracle_map,
+            clock,
+            params,
+            PlaceOrderOptions::default().explanation(OrderActionExplanation::DeriskLp),
+        )?;
+    }
 
     Ok(())
 }
@@ -4254,6 +4264,7 @@ pub fn fulfill_spot_order_with_match(
             filler.update_cumulative_spot_fees(filler_reward.cast()?)?;
         }
 
+        filler.update_last_active_slot(slot);
         filler_stats.update_filler_volume(quote_asset_amount, now)?;
     }
 
@@ -4550,6 +4561,7 @@ pub fn fulfill_spot_order_with_external_market(
             filler.update_cumulative_spot_fees(filler_reward.cast()?)?;
         }
 
+        filler.update_last_active_slot(slot);
         filler_stats.update_filler_volume(quote_asset_amount_filled.cast()?, now)?;
     }
 

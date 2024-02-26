@@ -277,6 +277,10 @@ describe('stop limit', () => {
 		let order = driftClientUser.getOrder(orderId);
 
 		await setFeedPrice(anchor.workspace.Pyth, 1.01, solUsd);
+		await driftClient.moveAmmToPrice(
+			marketIndex,
+			new BN(1.01 * PRICE_PRECISION.toNumber())
+		);
 		await driftClient.triggerOrder(
 			userAccountPublicKey,
 			driftClientUser.getUserAccount(),
@@ -311,7 +315,7 @@ describe('stop limit', () => {
 		const orderRecord = eventSubscriber.getEventsArray('OrderActionRecord')[0];
 
 		assert.ok(orderRecord.baseAssetAmountFilled.eq(baseAssetAmount));
-		const expectedTradeQuoteAssetAmount = new BN(1000000);
+		const expectedTradeQuoteAssetAmount = new BN(1010000);
 		assert.ok(
 			orderRecord.quoteAssetAmountFilled.eq(expectedTradeQuoteAssetAmount)
 		);
@@ -363,6 +367,10 @@ describe('stop limit', () => {
 		let order = driftClientUser.getOrder(orderId);
 
 		await setFeedPrice(anchor.workspace.Pyth, 0.99, solUsd);
+		await driftClient.moveAmmToPrice(
+			marketIndex,
+			new BN(0.99 * PRICE_PRECISION.toNumber())
+		);
 		await driftClient.triggerOrder(
 			userAccountPublicKey,
 			driftClientUser.getUserAccount(),
@@ -394,7 +402,7 @@ describe('stop limit', () => {
 		const expectedQuoteAssetAmount = new BN(0);
 		assert(firstPosition.quoteBreakEvenAmount.eq(expectedQuoteAssetAmount));
 
-		const expectedTradeQuoteAssetAmount = new BN(1000001);
+		const expectedTradeQuoteAssetAmount = new BN(990001);
 		const orderRecord = eventSubscriber.getEventsArray('OrderActionRecord')[0];
 
 		const expectedOrderId = 4;

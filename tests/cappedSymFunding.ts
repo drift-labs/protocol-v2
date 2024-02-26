@@ -29,6 +29,7 @@ import {
 	BASE_PRECISION,
 	OracleSource,
 	isVariant,
+	ContractTier,
 } from '../sdk/src';
 
 import { Program } from '@coral-xyz/anchor';
@@ -203,6 +204,10 @@ async function cappedSymFundingScenario(
 		kSqrt,
 		periodicity,
 		new BN(priceAction[0] * PEG_PRECISION.toNumber())
+	);
+	await driftClient.updatePerpMarketContractTier(
+		rollingMarketNum,
+		ContractTier.A
 	);
 	await driftClient.accountSubscriber.addOracle({
 		source: OracleSource.PYTH,

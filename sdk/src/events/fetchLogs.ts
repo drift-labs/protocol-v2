@@ -9,6 +9,7 @@ import {
 } from '@solana/web3.js';
 import { WrappedEvents } from './types';
 import { promiseTimeout } from '../util/promiseTimeout';
+import { parseLogs } from './parse';
 
 type Log = { txSig: TransactionSignature; slot: number; logs: string[] };
 type FetchLogsResponse = {
@@ -153,17 +154,13 @@ export class LogParser {
 
 		if (!event.logs) return records;
 
-		// @ts-ignore
-		const eventGenerator = this.program._events._eventParser.parseLogs(
-			event.logs,
-			false
-		);
 		let runningEventIndex = 0;
-		for (const eventLog of eventGenerator) {
+		for (const eventLog of parseLogs(this.program, event.logs)) {
 			eventLog.data.txSig = event.txSig;
 			eventLog.data.slot = event.slot;
 			eventLog.data.eventType = eventLog.name;
 			eventLog.data.txSigIndex = runningEventIndex;
+			// @ts-ignore
 			records.push(eventLog.data);
 			runningEventIndex++;
 		}
