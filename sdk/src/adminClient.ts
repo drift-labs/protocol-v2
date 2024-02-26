@@ -25,7 +25,7 @@ import {
 	getSerumOpenOrdersPublicKey,
 	getSerumFulfillmentConfigPublicKey,
 	getPhoenixFulfillmentConfigPublicKey,
-	getProtocolIfSharesTransferConfigPublicKey,
+	getProtocolIfSharesTransferConfigPublicKey, getDriftOraclePublicKey,
 } from './addresses/pda';
 import { squareRootBN } from './math/utils';
 import { TOKEN_PROGRAM_ID } from '@solana/spl-token';
@@ -1688,5 +1688,22 @@ export class AdminClient extends DriftClient {
 				},
 			}
 		);
+	}
+
+	public async initializeDriftOracle(perpMarketIndex: number, price?: BN, maxPrice?: BN): Promise<TransactionSignature> {
+		const params = {
+			perpMarketIndex,
+			price: price || null,
+			maxPrice: maxPrice || null,
+		};
+		return await this.program.rpc.initializeDriftOracle(params, {
+			accounts: {
+				admin: this.wallet.publicKey,
+				state: await this.getStatePublicKey(),
+				driftOracle: await getDriftOraclePublicKey(this.program.programId, perpMarketIndex),
+				rent: SYSVAR_RENT_PUBKEY,
+				systemProgram: anchor.web3.SystemProgram.programId,
+			},
+		});
 	}
 }

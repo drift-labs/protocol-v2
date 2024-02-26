@@ -34,8 +34,8 @@ use crate::state::fulfillment_params::serum::SerumContext;
 use crate::state::fulfillment_params::serum::SerumV3FulfillmentConfig;
 use crate::state::insurance_fund_stake::ProtocolIfSharesTransferConfig;
 use crate::state::oracle::{
-    get_oracle_price, get_pyth_price, DriftOracle, DriftOracleParams, HistoricalIndexData,
-    HistoricalOracleData, OraclePriceData, OracleSource,
+    get_drift_oracle_price, get_oracle_price, get_pyth_price, DriftOracle, DriftOracleParams,
+    HistoricalIndexData, HistoricalOracleData, OraclePriceData, OracleSource,
 };
 use crate::state::paused_operations::{PerpOperation, SpotOperation};
 use crate::state::perp_market::{
@@ -575,7 +575,14 @@ pub fn handle_initialize_perp_market(
             msg!("Quote asset oracle cant be used for perp market");
             return Err(ErrorCode::InvalidOracle.into());
         }
-        OracleSource::Drift => panic!(),
+        OracleSource::Drift => {
+            let OraclePriceData {
+                price: oracle_price,
+                delay: oracle_delay,
+                ..
+            } = get_drift_oracle_price(&ctx.accounts.oracle)?;
+            (oracle_price, oracle_delay, oracle_price)
+        }
     };
 
     let max_spread = (margin_ratio_initial - margin_ratio_maintenance) * (100 - 5);
@@ -2851,13 +2858,13 @@ pub struct UpdateProtocolIfSharesTransferConfig<'info> {
 }
 
 #[derive(Accounts)]
-#[instruction(market_index: u16,)]
+#[instruction(params: DriftOracleParams,)]
 pub struct InitializeDriftOracle<'info> {
     #[account(mut)]
     pub admin: Signer<'info>,
     #[account(
         init,
-        seeds = [b"drift_oracle".as_ref(), market_index.to_le_bytes().as_ref()],
+        seeds = [b"drift_oracle".as_ref(), params.perp_market_index.to_le_bytes().as_ref()],
         space = DriftOracle::SIZE,
         bump,
         payer = admin

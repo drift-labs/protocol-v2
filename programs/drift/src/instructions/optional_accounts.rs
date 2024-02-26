@@ -54,6 +54,8 @@ pub fn load_maps<'a, 'b>(
         let mut oracle = load_mut!(oracle_account_loader)?;
 
         oracle.price = perp_market.amm.last_mark_price_twap.cast()?;
+
+        msg!("Setting oracle price to {}", oracle.price);
     }
 
     Ok(AccountMaps {

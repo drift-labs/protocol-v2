@@ -7,7 +7,7 @@ use crate::math::safe_math::SafeMath;
 
 use crate::math::safe_unwrap::SafeUnwrap;
 use crate::state::traits::Size;
-use crate::validate;
+use crate::{load, validate};
 
 #[cfg(test)]
 mod tests;
@@ -158,7 +158,7 @@ pub fn get_oracle_price(
             delay: 0,
             has_sufficient_number_of_data_points: true,
         }),
-        OracleSource::Drift => panic!(),
+        OracleSource::Drift => get_drift_oracle_price(price_oracle),
     }
 }
 
@@ -282,6 +282,20 @@ pub fn get_pyth_stable_coin_price(
 //         has_sufficient_number_of_data_points,
 //     })
 // }
+
+pub fn get_drift_oracle_price(price_oracle: &AccountInfo) -> DriftResult<OraclePriceData> {
+    let oracle_account_loader: AccountLoader<DriftOracle> =
+        AccountLoader::try_from(&price_oracle).unwrap();
+
+    let oracle = load!(oracle_account_loader)?;
+
+    Ok(OraclePriceData {
+        price: oracle.price,
+        confidence: 0,
+        delay: 0,
+        has_sufficient_number_of_data_points: true,
+    })
+}
 
 #[derive(Clone, Copy)]
 pub struct StrictOraclePrice {
