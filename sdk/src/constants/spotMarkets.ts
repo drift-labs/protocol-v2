@@ -203,6 +203,19 @@ export const MainnetSpotMarkets: SpotMarketConfig[] = [
 		),
 		launchTs: 1706731200000,
 	},
+	{
+		symbol: 'RNDR',
+		marketIndex: 12,
+		oracle: new PublicKey('CYGfrBJB9HgLf9iZyN4aH5HvUAi2htQ4MjPxeXMf4Egn'),
+		oracleSource: OracleSource.PYTH,
+		mint: new PublicKey('rndrizKT3MK1iimdxRdWabcF7Zg7AR5T4nud4EkHBof'),
+		precision: new BN(10).pow(EIGHT),
+		precisionExp: EIGHT,
+		serumMarket: new PublicKey(
+			'2m7ZLEKtxWF29727DSb5D91erpXPUY1bqhRWRC3wQX7u'
+		),
+		launchTs: 1708964021000,
+	},
 ];
 
 export const SpotMarkets: { [key in DriftEnv]: SpotMarketConfig[] } = {
