@@ -3,6 +3,7 @@ use crate::error::{DriftResult, ErrorCode};
 use crate::math::safe_unwrap::SafeUnwrap;
 use crate::state::oracle::DriftOracle;
 use crate::state::oracle_map::OracleMap;
+use crate::state::perp_market::PerpMarket;
 use crate::state::perp_market_map::{MarketSet, PerpMarketMap};
 use crate::state::spot_market_map::SpotMarketMap;
 use crate::state::state::OracleGuardRails;
@@ -18,6 +19,7 @@ use arrayref::array_ref;
 use solana_program::account_info::next_account_info;
 use solana_program::msg;
 use std::iter::Peekable;
+use std::ops::Deref;
 use std::slice::Iter;
 
 pub struct AccountMaps<'a> {
@@ -38,21 +40,11 @@ pub fn load_maps<'a, 'b>(
     let perp_market_map = PerpMarketMap::load(writable_perp_markets, account_info_iter)?;
 
     for perp_market_index in writable_perp_markets.iter() {
-        let perp_market = perp_market_map.get_ref(perp_market_index).safe_unwrap()?;
-        if perp_market.amm.oracle_source != OracleSource::Drift {
-            continue;
-        }
-
-        // todo: nice error
-        let oracle_account_info = oracle_map.get_account_info(&perp_market.amm.oracle)?;
-
-        // todo: nice error
-        let oracle_account_loader: AccountLoader<DriftOracle> =
-            AccountLoader::try_from(&oracle_account_info).unwrap();
-
-        let mut oracle = load_mut!(oracle_account_loader)?;
-
-        oracle.update(&perp_market, slot)?;
+        update_drift_oracle(
+            perp_market_map.get_ref(perp_market_index)?.deref(),
+            &oracle_map,
+            slot,
+        )?;
     }
 
     Ok(AccountMaps {
@@ -60,6 +52,29 @@ pub fn load_maps<'a, 'b>(
         spot_market_map,
         oracle_map,
     })
+}
+
+pub fn update_drift_oracle(
+    perp_market: &PerpMarket,
+    oracle_map: &OracleMap,
+    slot: u64,
+) -> DriftResult {
+    if perp_market.amm.oracle_source != OracleSource::Drift {
+        return Ok(());
+    }
+
+    // todo: nice error
+    let oracle_account_info = oracle_map.get_account_info(&perp_market.amm.oracle)?;
+
+    // todo: nice error
+    let oracle_account_loader: AccountLoader<DriftOracle> =
+        AccountLoader::try_from(&oracle_account_info).unwrap();
+
+    let mut oracle = load_mut!(oracle_account_loader)?;
+
+    oracle.update(&perp_market, slot)?;
+
+    Ok(())
 }
 
 pub fn get_maker_and_maker_stats<'a>(
