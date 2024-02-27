@@ -363,17 +363,25 @@ export class UserMap implements UserMapInterface {
 			];
 
 			// @ts-ignore
-			const rpcJSONResponse: any = await this.connection._rpcRequest('getProgramAccounts', rpcRequestArgs);
-			const rpcResponseAndContext: RpcResponseAndContext<Array<{ pubkey: PublicKey; account: { data: [string, string]; } }>> = rpcJSONResponse.result;
+			const rpcJSONResponse: any = await this.connection._rpcRequest(
+				'getProgramAccounts',
+				rpcRequestArgs
+			);
+			const rpcResponseAndContext: RpcResponseAndContext<
+				Array<{ pubkey: PublicKey; account: { data: [string, string] } }>
+			> = rpcJSONResponse.result;
 			const slot = rpcResponseAndContext.context.slot;
 			this.updateLatestSlot(slot);
 
 			const programAccountBufferMap = new Map<string, Buffer>();
-			rpcResponseAndContext.value.forEach(programAccount => {
+			rpcResponseAndContext.value.forEach((programAccount) => {
 				programAccountBufferMap.set(
 					programAccount.pubkey.toString(),
 					// @ts-ignore
-					Buffer.from(programAccount.account.data[0], programAccount.account.data[1])
+					Buffer.from(
+						programAccount.account.data[0],
+						programAccount.account.data[1]
+					)
 				);
 			});
 
@@ -391,12 +399,16 @@ export class UserMap implements UserMapInterface {
 				}
 			};
 
-			const promises = Array.from(programAccountBufferMap.entries()).map(async ([key, buffer]) => {
-				const index = await Promise.race(semaphore.map((p, index) => p.then(() => index)));
-				semaphore[index] = processAccount(key, buffer).then(() => {
-					return;
-				});
-			});
+			const promises = Array.from(programAccountBufferMap.entries()).map(
+				async ([key, buffer]) => {
+					const index = await Promise.race(
+						semaphore.map((p, index) => p.then(() => index))
+					);
+					semaphore[index] = processAccount(key, buffer).then(() => {
+						return;
+					});
+				}
+			);
 
 			await Promise.all(promises.concat(semaphore));
 
@@ -413,7 +425,6 @@ export class UserMap implements UserMapInterface {
 			this.syncPromise = undefined;
 		}
 	}
-
 
 	public async unsubscribe() {
 		await this.subscription.unsubscribe();
@@ -461,4 +472,3 @@ export class UserMap implements UserMapInterface {
 		return this.mostRecentSlot;
 	}
 }
-
