@@ -614,8 +614,14 @@ describe('AMM Tests', () => {
 		// console.log(termsSuiExample);
 		assert(termsSuiExample.effectiveLeverageCapped <= 1.000001);
 		assert(termsSuiExample.inventorySpreadScale == 1.00007);
-		assert(termsSuiExample.longSpread == 259073);
-		assert(termsSuiExample.shortSpread == 3712);
+		assert(
+			termsSuiExample.longSpread == 259073,
+			`SUI long spread got ${termsSuiExample.longSpread}`
+		);
+		assert(
+			termsSuiExample.shortSpread == 3712,
+			`SUI short spread got ${termsSuiExample.shortSpread}`
+		);
 
 		// reset amm reserves/peg to balanced values s.t. liquidity/price is the same
 		// to avoid error prone int math
