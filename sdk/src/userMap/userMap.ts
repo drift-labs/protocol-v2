@@ -385,32 +385,28 @@ export class UserMap implements UserMapInterface {
 				);
 			});
 
-			const concurrencyLimit = 20;
-			const semaphore = new Array(concurrencyLimit).fill(Promise.resolve());
-
 			const processAccount = async (key: string, buffer: Buffer) => {
-				if (!this.has(key)) {
-					const userAccount = this.decode('User', buffer);
-					await this.addPubkey(new PublicKey(key), userAccount, slot);
-					this.get(key).accountSubscriber.updateData(userAccount, slot);
+				const currAccountWithSlot = this.getWithSlot(key);
+				if (currAccountWithSlot) {
+					if (slot >= currAccountWithSlot.slot) {
+						const userAccount = this.decode('User', buffer);
+						currAccountWithSlot.data.accountSubscriber.updateData(
+							userAccount,
+							slot
+						);
+					}
 				} else {
 					const userAccount = this.decode('User', buffer);
+					await this.addPubkey(new PublicKey(key), userAccount, slot);
 					this.get(key).accountSubscriber.updateData(userAccount, slot);
 				}
 			};
 
-			const promises = Array.from(programAccountBufferMap.entries()).map(
-				async ([key, buffer]) => {
-					const index = await Promise.race(
-						semaphore.map((p, index) => p.then(() => index))
-					);
-					semaphore[index] = processAccount(key, buffer).then(() => {
-						return;
-					});
-				}
-			);
-
-			await Promise.all(promises.concat(semaphore));
+			const promises = Array<Promise<void>>();
+			programAccountBufferMap.forEach(async (buffer, key) => {
+				promises.push(processAccount(key, buffer));
+			});
+			await Promise.all(promises);
 
 			for (const [key, user] of this.entries()) {
 				if (!programAccountBufferMap.has(key)) {
@@ -451,16 +447,18 @@ export class UserMap implements UserMapInterface {
 		userAccount: UserAccount,
 		slot: number
 	) {
+		const userWithSlot = this.getWithSlot(key);
 		this.updateLatestSlot(slot);
-		if (!this.has(key)) {
-			this.addPubkey(new PublicKey(key), userAccount, slot);
+		if (userWithSlot) {
+			if (slot >= userWithSlot.slot) {
+				userWithSlot.data.accountSubscriber.updateData(userAccount, slot);
+				this.userMap.set(key, {
+					data: userWithSlot.data,
+					slot,
+				});
+			}
 		} else {
-			const user = this.get(key);
-			user.accountSubscriber.updateData(userAccount, slot);
-			this.userMap.set(key, {
-				data: user,
-				slot,
-			});
+			this.addPubkey(new PublicKey(key), userAccount, slot);
 		}
 	}
 
