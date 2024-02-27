@@ -578,12 +578,21 @@ pub fn meets_place_order_margin_requirement(
         return Err(ErrorCode::InsufficientCollateral);
     }
 
-    if calculation.get_num_of_liabilities()? > 1 {
-        validate!(
-            !calculation.with_isolated_liability,
-            ErrorCode::IsolatedAssetTierViolation,
-            "User attempting to increase number of liabilities above 1 with a isolated tier liability"
-        )?;
+    if calculation.with_isolated_liability {
+        if !user.is_reduce_only() {
+            validate!(
+                calculation.num_perp_liabilities <= 1,
+                ErrorCode::IsolatedAssetTierViolation,
+                "User attempting to increase number of liabilities above 1 with a isolated tier liability"
+            )?;
+
+            validate!(
+                calculation.num_spot_liabilities == 0 ||
+                (calculation.num_spot_liabilities == 1 && user.get_quote_spot_position().balance_type == SpotBalanceType::Borrow),
+                ErrorCode::IsolatedAssetTierViolation,
+                "User attempting to increase number of liabilities above 1 with a isolated tier liability"
+            )?;
+        }
     }
 
     Ok(())
