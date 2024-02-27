@@ -1,4 +1,9 @@
-import { ConfirmationStrategy, TxSender, TxSigAndSlot } from './types';
+import {
+	ConfirmationStrategy,
+	ExtraConfirmationOptions,
+	TxSender,
+	TxSigAndSlot,
+} from './types';
 import {
 	Commitment,
 	ConfirmOptions,
@@ -29,6 +34,7 @@ export abstract class BaseTxSender implements TxSender {
 	additionalConnections: Connection[];
 	timeoutCount = 0;
 	confirmationStrategy: ConfirmationStrategy;
+	additionalTxSenderCallbacks: ((base58EncodedTx: string) => void)[];
 
 	public constructor({
 		connection,
@@ -37,6 +43,7 @@ export abstract class BaseTxSender implements TxSender {
 		timeout = DEFAULT_TIMEOUT,
 		additionalConnections = new Array<Connection>(),
 		confirmationStrategy = ConfirmationStrategy.Combo,
+		additionalTxSenderCallbacks,
 	}: {
 		connection: Connection;
 		wallet: IWallet;
@@ -44,6 +51,7 @@ export abstract class BaseTxSender implements TxSender {
 		timeout?: number;
 		additionalConnections?;
 		confirmationStrategy?: ConfirmationStrategy;
+		additionalTxSenderCallbacks?: ((base58EncodedTx: string) => void)[];
 	}) {
 		this.connection = connection;
 		this.wallet = wallet;
@@ -51,13 +59,15 @@ export abstract class BaseTxSender implements TxSender {
 		this.timeout = timeout;
 		this.additionalConnections = additionalConnections;
 		this.confirmationStrategy = confirmationStrategy;
+		this.additionalTxSenderCallbacks = additionalTxSenderCallbacks;
 	}
 
 	async send(
 		tx: Transaction,
 		additionalSigners?: Array<Signer>,
 		opts?: ConfirmOptions,
-		preSigned?: boolean
+		preSigned?: boolean,
+		extraConfirmationOptions?: ExtraConfirmationOptions
 	): Promise<TxSigAndSlot> {
 		if (additionalSigners === undefined) {
 			additionalSigners = [];
@@ -69,6 +79,10 @@ export abstract class BaseTxSender implements TxSender {
 		const signedTx = preSigned
 			? tx
 			: await this.prepareTx(tx, additionalSigners, opts);
+
+		if (extraConfirmationOptions?.onSignedCb) {
+			extraConfirmationOptions.onSignedCb();
+		}
 
 		return this.sendRawTransaction(signedTx.serialize(), opts);
 	}
@@ -124,7 +138,8 @@ export abstract class BaseTxSender implements TxSender {
 		tx: VersionedTransaction,
 		additionalSigners?: Array<Signer>,
 		opts?: ConfirmOptions,
-		preSigned?: boolean
+		preSigned?: boolean,
+		extraConfirmationOptions?: ExtraConfirmationOptions
 	): Promise<TxSigAndSlot> {
 		let signedTx;
 		if (preSigned) {
@@ -142,6 +157,10 @@ export abstract class BaseTxSender implements TxSender {
 				});
 			// @ts-ignore
 			signedTx = await this.wallet.signTransaction(tx);
+		}
+
+		if (extraConfirmationOptions?.onSignedCb) {
+			extraConfirmationOptions.onSignedCb();
 		}
 
 		if (opts === undefined) {
@@ -247,9 +266,11 @@ export abstract class BaseTxSender implements TxSender {
 		commitment: Commitment = 'finalized'
 	): Promise<RpcResponseAndContext<SignatureResult> | undefined> {
 		let totalTime = 0;
-		let backoffTime = 250;
+		let backoffTime = 400; // approx block time
 
 		while (totalTime < this.timeout) {
+			await new Promise((resolve) => setTimeout(resolve, backoffTime));
+
 			const response = await this.connection.getSignatureStatus(signature);
 			const result = response && response.value?.[0];
 
@@ -257,7 +278,6 @@ export abstract class BaseTxSender implements TxSender {
 				return { context: result.context, value: { err: null } };
 			}
 
-			await new Promise((resolve) => setTimeout(resolve, backoffTime));
 			totalTime += backoffTime;
 			backoffTime = Math.min(backoffTime * 2, 5000);
 		}
@@ -316,6 +336,9 @@ export abstract class BaseTxSender implements TxSender {
 				);
 				console.error(e);
 			});
+		});
+		this.additionalTxSenderCallbacks?.map((callback) => {
+			callback(bs58.encode(rawTx));
 		});
 	}
 

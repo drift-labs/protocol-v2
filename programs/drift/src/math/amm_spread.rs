@@ -332,9 +332,10 @@ pub fn calculate_spread(
     let mut long_spread = max(half_base_spread_u64, long_vol_spread);
     let mut short_spread = max(half_base_spread_u64, short_vol_spread);
 
-    let max_target_spread = max_spread
-        .cast::<u64>()?
-        .max(last_oracle_reserve_price_spread_pct.unsigned_abs());
+    // todo add more baselines for max spread to increase
+    let max_spread_baseline = last_oracle_reserve_price_spread_pct.unsigned_abs();
+
+    let max_target_spread = max_spread.cast::<u64>()?.max(max_spread_baseline);
 
     // oracle retreat
     // if mark - oracle < 0 (mark below oracle) and user going long then increase spread

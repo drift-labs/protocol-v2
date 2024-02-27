@@ -9,6 +9,7 @@ test_files=(
   stopLimits.ts
   oracleFillPriceGuardrails.ts
   perpLpJit.ts
+  perpLpRiskMitigation.ts
   spotSwap.ts
   maxLeverageOrderParams.ts
   multipleMakerOrders.ts

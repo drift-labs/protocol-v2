@@ -20,6 +20,10 @@ export type TxSigAndSlot = {
 	slot: number;
 };
 
+export type ExtraConfirmationOptions = {
+	onSignedCb: () => void;
+};
+
 export interface TxSender {
 	wallet: IWallet;
 
@@ -27,14 +31,16 @@ export interface TxSender {
 		tx: Transaction,
 		additionalSigners?: Array<Signer>,
 		opts?: ConfirmOptions,
-		preSigned?: boolean
+		preSigned?: boolean,
+		extraConfirmationOptions?: ExtraConfirmationOptions
 	): Promise<TxSigAndSlot>;
 
 	sendVersionedTransaction(
 		tx: VersionedTransaction,
 		additionalSigners?: Array<Signer>,
 		opts?: ConfirmOptions,
-		preSigned?: boolean
+		preSigned?: boolean,
+		extraConfirmationOptions?: ExtraConfirmationOptions
 	): Promise<TxSigAndSlot>;
 
 	getVersionedTransaction(

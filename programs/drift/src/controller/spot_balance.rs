@@ -20,12 +20,12 @@ use crate::math::stats::{calculate_new_twap, calculate_weighted_average};
 
 use crate::state::events::SpotInterestRecord;
 use crate::state::oracle::OraclePriceData;
-use crate::state::perp_market::MarketStatus;
 use crate::state::spot_market::{SpotBalance, SpotBalanceType, SpotMarket};
 use crate::validate;
 
 use crate::math::oracle::{is_oracle_valid_for_action, DriftAction};
 use crate::math::safe_math::SafeMath;
+use crate::state::paused_operations::SpotOperation;
 
 #[cfg(test)]
 mod tests;
@@ -124,7 +124,7 @@ pub fn update_spot_market_cumulative_interest(
     oracle_price_data: Option<&OraclePriceData>,
     now: i64,
 ) -> DriftResult {
-    if spot_market.status == MarketStatus::FundingPaused {
+    if spot_market.is_operation_paused(SpotOperation::UpdateCumulativeInterest) {
         update_spot_market_twap_stats(spot_market, oracle_price_data, now)?;
         return Ok(());
     }
