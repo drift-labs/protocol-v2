@@ -1,5 +1,6 @@
 use crate::error::{DriftResult, ErrorCode};
 
+use crate::error::ErrorCode::UnableToLoadOracle;
 use crate::math::safe_unwrap::SafeUnwrap;
 use crate::state::oracle::DriftOracle;
 use crate::state::oracle_map::OracleMap;
@@ -63,12 +64,10 @@ pub fn update_drift_oracle(
         return Ok(());
     }
 
-    // todo: nice error
     let oracle_account_info = oracle_map.get_account_info(&perp_market.amm.oracle)?;
 
-    // todo: nice error
     let oracle_account_loader: AccountLoader<DriftOracle> =
-        AccountLoader::try_from(&oracle_account_info).unwrap();
+        AccountLoader::try_from(&oracle_account_info).or(Err(UnableToLoadOracle))?;
 
     let mut oracle = load_mut!(oracle_account_loader)?;
 

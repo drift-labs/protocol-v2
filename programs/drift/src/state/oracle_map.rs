@@ -1,3 +1,4 @@
+use crate::error::ErrorCode::UnableToLoadOracle;
 use crate::error::{DriftResult, ErrorCode};
 use crate::ids::{bonk_oracle, pepe_oracle, pyth_program, usdc_oracle, usdt_oracle_mainnet};
 use crate::math::constants::PRICE_PRECISION_I64;
@@ -187,8 +188,10 @@ impl<'a> OracleMap<'a> {
 
                 continue;
             } else if account_info.owner == &crate::id() {
-                // todo add nice error msg
-                let data = account_info.try_borrow_data().unwrap();
+                let data = account_info.try_borrow_data().map_err(|e| {
+                    msg!("Failed to borrow data while loading oracle map {:?}", e);
+                    UnableToLoadOracle
+                })?;
 
                 let expected_data_len = DriftOracle::SIZE;
                 if data.len() < expected_data_len {
@@ -261,19 +264,21 @@ impl<'a> OracleMap<'a> {
                 },
             );
         } else if account_info.owner == &crate::id() {
-            // todo add nice error msg
-            let data = account_info.try_borrow_data().unwrap();
+            let data = account_info.try_borrow_data().map_err(|e| {
+                msg!("Failed to borrow data while loading oracle map {:?}", e);
+                UnableToLoadOracle
+            })?;
 
             let expected_data_len = DriftOracle::SIZE;
             if data.len() < expected_data_len {
-                // todo nicer error msg
-                panic!();
+                msg!("Unexpected account data len loading oracle");
+                return Err(UnableToLoadOracle);
             }
 
             let account_discriminator = array_ref![data, 0, 8];
             if account_discriminator != &DriftOracle::discriminator() {
-                // todo nicer error msg
-                panic!();
+                msg!("Unexpected account discriminator");
+                return Err(UnableToLoadOracle);
             }
 
             let pubkey = account_info.key();
