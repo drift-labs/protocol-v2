@@ -13,6 +13,7 @@ use crate::state::oracle::OraclePriceData;
 use crate::state::paused_operations::PerpOperation;
 use crate::state::perp_market::{PerpMarket, AMM};
 use crate::state::state::{OracleGuardRails, ValidityGuardRails};
+use crate::state::user::MarketType;
 
 #[cfg(test)]
 mod tests;
@@ -148,6 +149,9 @@ pub fn get_oracle_status<'a>(
     precomputed_reserve_price: Option<u64>,
 ) -> DriftResult<OracleStatus> {
     let oracle_validity = oracle_validity(
+        MarketType::Perp,
+        0,
+        // market.market_index,
         amm.historical_oracle_data.last_oracle_price_twap,
         oracle_price_data,
         &guard_rails.validity,
@@ -168,6 +172,8 @@ pub fn get_oracle_status<'a>(
 }
 
 pub fn oracle_validity(
+    market_type: MarketType,
+    market_index: u16,
     last_oracle_twap: i64,
     oracle_price_data: &OraclePriceData,
     valid_oracle_guard_rails: &ValidityGuardRails,
@@ -181,12 +187,20 @@ pub fn oracle_validity(
     } = *oracle_price_data;
 
     if !has_sufficient_number_of_data_points {
-        msg!("Invalid Oracle: Insufficient Data Points");
+        msg!(
+            "Invalid {} {} Oracle: Insufficient Data Points",
+            market_type,
+            market_index
+        );
     }
 
     let is_oracle_price_nonpositive = oracle_price <= 0;
     if is_oracle_price_nonpositive {
-        msg!("Invalid Oracle: Non-positive (oracle_price <=0)");
+        msg!(
+            "Invalid {} {} Oracle: Non-positive (oracle_price <=0)",
+            market_type,
+            market_index
+        );
     }
 
     let is_oracle_price_too_volatile = (oracle_price.max(last_oracle_twap))
@@ -195,9 +209,11 @@ pub fn oracle_validity(
 
     if is_oracle_price_too_volatile {
         msg!(
-            "Invalid Oracle: Too Volatile (last_oracle_price_twap={:?} vs oracle_price={:?})",
+            "Invalid {} {} Oracle: Too Volatile (last_oracle_price_twap={:?} vs oracle_price={:?})",
+            market_type,
+            market_index,
             last_oracle_twap,
-            oracle_price
+            oracle_price,
         );
     }
 
@@ -210,7 +226,9 @@ pub fn oracle_validity(
         conf_pct_of_price.gt(&valid_oracle_guard_rails.confidence_interval_max_size);
     if is_conf_too_large {
         msg!(
-            "Invalid Oracle: Confidence Too Large (is_conf_too_large={:?})",
+            "Invalid {} {} Oracle: Confidence Too Large (is_conf_too_large={:?})",
+            market_type,
+            market_index,
             conf_pct_of_price
         );
     }
@@ -218,7 +236,12 @@ pub fn oracle_validity(
     let is_stale_for_margin =
         oracle_delay.gt(&valid_oracle_guard_rails.slots_before_stale_for_margin);
     if is_stale_for_amm || is_stale_for_margin {
-        msg!("Invalid Oracle: Stale (oracle_delay={:?})", oracle_delay);
+        msg!(
+            "Invalid {} {} Oracle: Stale (oracle_delay={:?})",
+            market_type,
+            market_index,
+            oracle_delay
+        );
     }
 
     let oracle_validity = if is_oracle_price_nonpositive {

@@ -980,6 +980,8 @@ pub fn fill_perp_order(
 
         let oracle_price_data = &oracle_map.get_price_data(&market.amm.oracle)?;
         oracle_validity = oracle::oracle_validity(
+            MarketType::Perp,
+            market.market_index,
             market.amm.historical_oracle_data.last_oracle_price_twap,
             oracle_price_data,
             &state.oracle_guard_rails.validity,
@@ -2577,6 +2579,8 @@ pub fn trigger_order(
     let oracle_price_data = &oracle_map.get_price_data(&perp_market.amm.oracle)?;
 
     let oracle_validity = oracle::oracle_validity(
+        MarketType::Perp,
+        perp_market.market_index,
         perp_market
             .amm
             .historical_oracle_data
@@ -4678,6 +4682,8 @@ pub fn trigger_spot_order(
 
     let spot_market = spot_market_map.get_ref(&market_index)?;
     let (oracle_price_data, oracle_validity) = oracle_map.get_price_data_and_validity(
+        MarketType::Spot,
+        spot_market.market_index,
         &spot_market.oracle,
         spot_market.historical_oracle_data.last_oracle_price_twap,
     )?;

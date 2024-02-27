@@ -46,6 +46,7 @@ use crate::state::spot_market::{
 };
 use crate::state::state::{ExchangeStatus, FeeStructure, OracleGuardRails, State};
 use crate::state::traits::Size;
+use crate::state::user::MarketType;
 use crate::state::user::UserStats;
 use crate::validate;
 use crate::validation::fee_structure::validate_fee_structure;
@@ -1341,7 +1342,9 @@ pub fn handle_reset_amm_oracle_twap(ctx: Context<RepegCurve>) -> Result<()> {
     let oracle_price_data =
         &get_oracle_price(&perp_market.amm.oracle_source, price_oracle, clock_slot)?;
 
-    let oracle_validity = oracle::oracle_validity(
+    let oracle_validity: oracle::OracleValidity = oracle::oracle_validity(
+        MarketType::Perp,
+        perp_market.market_index,
         perp_market
             .amm
             .historical_oracle_data
