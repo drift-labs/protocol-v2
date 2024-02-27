@@ -1,6 +1,5 @@
 use crate::error::{DriftResult, ErrorCode};
 
-use crate::math::casting::Cast;
 use crate::math::safe_unwrap::SafeUnwrap;
 use crate::state::oracle::DriftOracle;
 use crate::state::oracle_map::OracleMap;
@@ -53,9 +52,7 @@ pub fn load_maps<'a, 'b>(
 
         let mut oracle = load_mut!(oracle_account_loader)?;
 
-        oracle.price = perp_market.amm.last_mark_price_twap.cast()?;
-
-        msg!("Setting oracle price to {}", oracle.price);
+        oracle.update(&perp_market, slot)?;
     }
 
     Ok(AccountMaps {

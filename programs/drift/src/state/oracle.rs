@@ -6,6 +6,7 @@ use crate::math::constants::{PRICE_PRECISION, PRICE_PRECISION_I64, PRICE_PRECISI
 use crate::math::safe_math::SafeMath;
 
 use crate::math::safe_unwrap::SafeUnwrap;
+use crate::state::perp_market::PerpMarket;
 use crate::state::traits::Size;
 use crate::{load, validate};
 
@@ -291,7 +292,7 @@ pub fn get_drift_oracle_price(price_oracle: &AccountInfo) -> DriftResult<OracleP
 
     Ok(OraclePriceData {
         price: oracle.price,
-        confidence: 0,
+        confidence: oracle.confidence,
         delay: 0,
         has_sufficient_number_of_data_points: true,
     })
@@ -362,12 +363,51 @@ impl StrictOraclePrice {
 pub struct DriftOracle {
     pub price: i64,
     pub max_price: i64,
+    pub confidence: u64,
+    pub slot: u64,
     pub perp_market_index: u16,
     pub padding: [u8; 6],
 }
 
 impl Size for DriftOracle {
-    const SIZE: usize = 24 + 8;
+    const SIZE: usize = 36 + 8;
+}
+
+impl DriftOracle {
+    pub fn update(&mut self, perp_market: &PerpMarket, slot: u64) -> DriftResult {
+        let last_twap = perp_market.amm.last_mark_price_twap.cast::<i64>()?;
+        let new_price = if self.max_price <= last_twap {
+            msg!(
+                "mark twap {} >= max price {}, using max",
+                last_twap,
+                self.max_price
+            );
+            self.max_price
+        } else {
+            last_twap
+        };
+
+        self.price = new_price;
+
+        let confidence = perp_market
+            .amm
+            .last_ask_price_twap
+            .cast::<i64>()?
+            .safe_sub(perp_market.amm.last_bid_price_twap.cast()?)?
+            .unsigned_abs();
+
+        self.confidence = confidence;
+
+        self.slot = slot;
+
+        msg!(
+            "setting price = {} confidence = {}",
+            self.price,
+            self.confidence
+        );
+
+        Ok(())
+    }
 }
 
 #[derive(Debug, Clone, Copy, AnchorSerialize, AnchorDeserialize, PartialEq, Eq)]

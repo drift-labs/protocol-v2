@@ -220,6 +220,9 @@ pub fn update_mark_twap(
     precomputed_trade_price: Option<u64>,
     sanitize_clamp: Option<i64>,
 ) -> DriftResult<u64> {
+    msg!("bid price {}", bid_price);
+    msg!("ask price {}", bid_price);
+
     let (bid_price_capped_update, ask_price_capped_update) = (
         sanitize_new_price(
             bid_price.cast()?,
@@ -311,6 +314,7 @@ pub fn update_mark_twap(
     };
     update_amm_mark_std(amm, now, trade_price, amm.last_mark_price_twap)?;
 
+    msg!("updated mark twap: {}", mid_twap);
     amm.last_mark_price_twap = mid_twap.cast()?;
     amm.last_mark_price_twap_5min = calculate_new_twap(
         bid_price_capped_update
@@ -336,6 +340,7 @@ pub fn update_mark_twap_from_estimates(
     direction: Option<PositionDirection>,
     sanitize_clamp: Option<i64>,
 ) -> DriftResult<u64> {
+    msg!("precomputed_trade_price {:?}", precomputed_trade_price);
     let (bid_price, ask_price) =
         estimate_best_bid_ask_price(amm, precomputed_trade_price, direction)?;
     update_mark_twap(
