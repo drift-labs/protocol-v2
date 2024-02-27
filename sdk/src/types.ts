@@ -1064,6 +1064,8 @@ export type OracleGuardRails = {
 export type DriftOracle = {
 	price: BN;
 	maxPrice: BN;
+	confidence: BN;
+	slot: BN;
 	perpMarketIndex: number;
 }
 

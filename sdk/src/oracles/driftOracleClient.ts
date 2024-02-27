@@ -30,19 +30,8 @@ export class DriftOracleClient implements OracleClient {
 
 		return {
 			price: driftOracle.price,
-			// TODO figure out what to do w these
-			slot: ZERO,
-			confidence: ZERO,
-			// twap: convertPythPrice(
-			// 	priceData.twap.value,
-			// 	priceData.exponent,
-			// 	this.multiple
-			// ),
-			// twapConfidence: convertPythPrice(
-			// 	priceData.twac.value,
-			// 	priceData.exponent,
-			// 	this.multiple
-			// ),
+			slot: driftOracle.slot,
+			confidence: driftOracle.confidence,
 			hasSufficientNumberOfDataPoints: true,
 		};
 	}
