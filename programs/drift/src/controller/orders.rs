@@ -1,6 +1,6 @@
 use std::cell::RefMut;
 use std::collections::BTreeMap;
-use std::ops::{DerefMut, Div};
+use std::ops::DerefMut;
 use std::u64;
 
 use anchor_lang::prelude::*;
@@ -53,6 +53,7 @@ use crate::state::order_params::{
 };
 
 use crate::math::amm::calculate_amm_available_liquidity;
+use crate::math::lp::calculate_lp_shares_to_burn_for_risk_reduction;
 use crate::math::safe_unwrap::SafeUnwrap;
 use crate::math::spot_swap::select_margin_type_for_swap;
 use crate::print_error;
@@ -137,19 +138,6 @@ pub fn place_perp_order(
         )?;
     }
 
-    let max_ts = match params.max_ts {
-        Some(max_ts) => max_ts,
-        None => match params.order_type {
-            OrderType::Market | OrderType::Oracle => now.safe_add(30)?,
-            _ => 0_i64,
-        },
-    };
-
-    if max_ts != 0 && max_ts < now {
-        msg!("max_ts ({}) < now ({}), skipping order", max_ts, now);
-        return Ok(());
-    }
-
     let new_order_index = user
         .orders
         .iter()
@@ -231,6 +219,21 @@ pub fn place_perp_order(
         market.amm.order_tick_size,
         state.min_perp_auction_duration,
     )?;
+
+    let max_ts = match params.max_ts {
+        Some(max_ts) => max_ts,
+        None => match params.order_type {
+            OrderType::Market | OrderType::Oracle => {
+                now.safe_add(30_i64.max((auction_duration / 2) as i64))?
+            }
+            _ => 0_i64,
+        },
+    };
+
+    if max_ts != 0 && max_ts < now {
+        msg!("max_ts ({}) < now ({}), skipping order", max_ts, now);
+        return Ok(());
+    }
 
     validate!(
         params.market_type == MarketType::Perp,
@@ -354,7 +357,7 @@ pub fn place_perp_order(
     let order_action_record = get_order_action_record(
         now,
         OrderAction::Place,
-        OrderActionExplanation::None,
+        options.explanation,
         market_index,
         None,
         None,
@@ -967,6 +970,7 @@ pub fn fill_perp_order(
     {
         let market = &mut perp_market_map.get_ref_mut(&market_index)?;
         amm_is_available &= !market.is_operation_paused(PerpOperation::AmmFill);
+        amm_is_available &= !market.has_too_much_drawdown()?;
         validation::perp_market::validate_perp_market(market)?;
         validate!(
             !market.is_in_settlement(now),
@@ -1030,6 +1034,7 @@ pub fn fill_perp_order(
 
     let referrer_info = get_referrer_info(
         user_stats,
+        &user_key,
         makers_and_referrer,
         makers_and_referrer_stats,
         slot,
@@ -1456,6 +1461,7 @@ fn insert_maker_order_info(
 
 fn get_referrer_info(
     user_stats: &UserStats,
+    user_key: &Pubkey,
     makers_and_referrer: &UserMap,
     makers_and_referrer_stats: &UserStatsMap,
     slot: u64,
@@ -1474,6 +1480,11 @@ fn get_referrer_info(
     let referrer_authority_key = user_stats.referrer;
     let mut referrer_user_key = Pubkey::default();
     for (referrer_key, referrer) in makers_and_referrer.0.iter() {
+        // if user is in makers and referrer map, skip to avoid invalid borrow
+        if referrer_key == user_key {
+            continue;
+        }
+
         let mut referrer = load_mut!(referrer)?;
         if referrer.authority != referrer_authority_key {
             continue;
@@ -2595,7 +2606,8 @@ pub fn trigger_order(
             &mut user.orders[order_index],
             oracle_price_data,
             slot,
-            state.min_perp_auction_duration,
+            30,
+            Some(&perp_market),
         )?;
 
         if user.orders[order_index].has_auction() {
@@ -2689,6 +2701,7 @@ fn update_trigger_order_params(
     oracle_price_data: &OraclePriceData,
     slot: u64,
     min_auction_duration: u8,
+    perp_market: Option<&PerpMarket>,
 ) -> DriftResult {
     order.trigger_condition = match order.trigger_condition {
         OrderTriggerCondition::Above => OrderTriggerCondition::TriggeredAbove,
@@ -2701,7 +2714,19 @@ fn update_trigger_order_params(
     order.slot = slot;
 
     let (auction_duration, auction_start_price, auction_end_price) =
-        calculate_auction_params_for_trigger_order(order, oracle_price_data, min_auction_duration)?;
+        calculate_auction_params_for_trigger_order(
+            order,
+            oracle_price_data,
+            min_auction_duration,
+            perp_market,
+        )?;
+
+    msg!(
+        "new auction duration {} start price {} end price {}",
+        auction_duration,
+        auction_start_price,
+        auction_end_price
+    );
 
     order.auction_duration = auction_duration;
     order.auction_start_price = auction_start_price;
@@ -2834,8 +2859,8 @@ pub fn can_reward_user_with_perp_pnl(user: &mut Option<&mut User>, market_index:
 pub fn attempt_burn_user_lp_shares_for_risk_reduction(
     state: &State,
     user: &mut User,
-    margin_calc: MarginCalculation,
     user_key: Pubkey,
+    margin_calc: MarginCalculation,
     perp_market_map: &PerpMarketMap,
     spot_market_map: &SpotMarketMap,
     oracle_map: &mut OracleMap,
@@ -2843,24 +2868,21 @@ pub fn attempt_burn_user_lp_shares_for_risk_reduction(
     market_index: u16,
 ) -> DriftResult {
     let now = clock.unix_timestamp;
-    // attempt to burn lp shares if user has a custom margin ratio set and its breached with orders
-    if !margin_calc.positions_meets_margin_requirement()? {
-        let time_since_last_liquidity_change: i64 =
-            now.safe_sub(user.last_add_perp_lp_shares_ts)?;
-        // avoid spamming update if orders have already been set
-        if time_since_last_liquidity_change >= state.lp_cooldown_time.cast()? {
-            burn_user_lp_shares_for_risk_reduction(
-                state,
-                user,
-                user_key,
-                market_index,
-                perp_market_map,
-                spot_market_map,
-                oracle_map,
-                clock,
-            )?;
-            user.last_add_perp_lp_shares_ts = now;
-        }
+    let time_since_last_liquidity_change: i64 = now.safe_sub(user.last_add_perp_lp_shares_ts)?;
+    // avoid spamming update if orders have already been set
+    if time_since_last_liquidity_change >= state.lp_cooldown_time.cast()? {
+        burn_user_lp_shares_for_risk_reduction(
+            state,
+            user,
+            user_key,
+            market_index,
+            margin_calc,
+            perp_market_map,
+            spot_market_map,
+            oracle_map,
+            clock,
+        )?;
+        user.last_add_perp_lp_shares_ts = now;
     }
 
     Ok(())
@@ -2871,6 +2893,7 @@ pub fn burn_user_lp_shares_for_risk_reduction(
     user: &mut User,
     user_key: Pubkey,
     market_index: u16,
+    margin_calc: MarginCalculation,
     perp_market_map: &PerpMarketMap,
     spot_market_map: &SpotMarketMap,
     oracle_map: &mut OracleMap,
@@ -2882,9 +2905,13 @@ pub fn burn_user_lp_shares_for_risk_reduction(
         return Ok(());
     }
 
-    let lp_shares = user.perp_positions[position_index].lp_shares;
-
     let mut market = perp_market_map.get_ref_mut(&market_index)?;
+
+    let quote_oracle = spot_market_map
+        .get_ref(&market.quote_spot_market_index)?
+        .oracle;
+    let quote_oracle_price = oracle_map.get_price_data(&quote_oracle)?.price;
+
     let oracle_price_data = oracle_map.get_price_data(&market.amm.oracle)?;
 
     let oracle_price = if market.status == MarketStatus::Settlement {
@@ -2893,10 +2920,16 @@ pub fn burn_user_lp_shares_for_risk_reduction(
         oracle_price_data.price
     };
 
-    let order_step_size = market.amm.order_step_size;
-
-    let lp_shares_to_burn =
-        standardize_base_asset_amount(lp_shares.div(3), order_step_size)?.max(lp_shares);
+    let user_custom_margin_ratio = user.max_margin_ratio;
+    let (lp_shares_to_burn, base_asset_amount_to_close) =
+        calculate_lp_shares_to_burn_for_risk_reduction(
+            &user.perp_positions[position_index],
+            &market,
+            oracle_price,
+            quote_oracle_price,
+            margin_calc.margin_shortage()?,
+            user_custom_margin_ratio,
+        )?;
 
     let (position_delta, pnl) = burn_lp_shares(
         &mut user.perp_positions[position_index],
@@ -2908,7 +2941,7 @@ pub fn burn_user_lp_shares_for_risk_reduction(
     // emit LP record for shares removed
     emit_stack::<_, { LPRecord::SIZE }>(LPRecord {
         ts: clock.unix_timestamp,
-        action: LPAction::RemoveLiquidity,
+        action: LPAction::RemoveLiquidityDerisk,
         user: user_key,
         n_shares: lp_shares_to_burn,
         market_index,
@@ -2922,24 +2955,24 @@ pub fn burn_user_lp_shares_for_risk_reduction(
     let params = OrderParams::get_close_perp_params(
         &market,
         direction_to_close,
-        user.perp_positions[position_index]
-            .base_asset_amount
-            .unsigned_abs(),
+        base_asset_amount_to_close,
     )?;
 
     drop(market);
 
-    controller::orders::place_perp_order(
-        state,
-        user,
-        user_key,
-        perp_market_map,
-        spot_market_map,
-        oracle_map,
-        clock,
-        params,
-        PlaceOrderOptions::default(),
-    )?;
+    if user.has_room_for_new_order() {
+        controller::orders::place_perp_order(
+            state,
+            user,
+            user_key,
+            perp_market_map,
+            spot_market_map,
+            oracle_map,
+            clock,
+            params,
+            PlaceOrderOptions::default().explanation(OrderActionExplanation::DeriskLp),
+        )?;
+    }
 
     Ok(())
 }
@@ -4231,6 +4264,7 @@ pub fn fulfill_spot_order_with_match(
             filler.update_cumulative_spot_fees(filler_reward.cast()?)?;
         }
 
+        filler.update_last_active_slot(slot);
         filler_stats.update_filler_volume(quote_asset_amount, now)?;
     }
 
@@ -4527,6 +4561,7 @@ pub fn fulfill_spot_order_with_external_market(
             filler.update_cumulative_spot_fees(filler_reward.cast()?)?;
         }
 
+        filler.update_last_active_slot(slot);
         filler_stats.update_filler_volume(quote_asset_amount_filled.cast()?, now)?;
     }
 
@@ -4687,7 +4722,8 @@ pub fn trigger_spot_order(
             &mut user.orders[order_index],
             oracle_price_data,
             slot,
-            state.default_spot_auction_duration,
+            30,
+            None,
         )?;
 
         if user.orders[order_index].has_auction() {

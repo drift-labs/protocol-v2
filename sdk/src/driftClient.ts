@@ -124,6 +124,7 @@ import { getNonIdleUserFilter } from './memcmp';
 import { UserStatsSubscriptionConfig } from './userStatsConfig';
 import { getMarinadeDepositIx, getMarinadeFinanceProgram } from './marinade';
 import { getOrderParams } from './orderParams';
+import { numberToSafeBN } from './math/utils';
 
 type RemainingAccountParams = {
 	userAccounts: UserAccount[];
@@ -585,23 +586,25 @@ export class DriftClient {
 			? new Map([[this.authority.toString(), subAccountIds]])
 			: new Map<string, number[]>();
 
+		/* Reset user stats account */
+		if (this.userStats?.isSubscribed) {
+			await this.userStats.unsubscribe();
+		}
+
+		this.userStats = undefined;
+
+		this.userStats = new UserStats({
+			driftClient: this,
+			userStatsAccountPublicKey: this.getUserStatsAccountPublicKey(),
+			accountSubscription: this.userStatsAccountSubscriptionConfig,
+		});
+
+		await this.userStats.subscribe();
+
 		let success = true;
 
 		if (this.isSubscribed) {
 			await Promise.all(this.unsubscribeUsers());
-
-			if (this.userStats) {
-				await this.userStats.unsubscribe();
-
-				this.userStats = new UserStats({
-					driftClient: this,
-					userStatsAccountPublicKey: this.getUserStatsAccountPublicKey(),
-					accountSubscription: this.userStatsAccountSubscriptionConfig,
-				});
-
-				await this.userStats.subscribe();
-			}
-
 			this.users.clear();
 			success = await this.addAndSubscribeToUsers();
 		}
@@ -690,24 +693,35 @@ export class DriftClient {
 				);
 			}
 		} else {
-			const userAccounts =
-				(await this.getUserAccountsForAuthority(this.wallet.publicKey)) ?? [];
+			let userAccounts = [];
 			let delegatedAccounts = [];
 
+			const userAccountsPromise = this.getUserAccountsForAuthority(
+				this.wallet.publicKey
+			);
+
 			if (this.includeDelegates) {
-				delegatedAccounts =
-					(await this.getUserAccountsForDelegate(this.wallet.publicKey)) ?? [];
+				const delegatedAccountsPromise = this.getUserAccountsForDelegate(
+					this.wallet.publicKey
+				);
+				[userAccounts, delegatedAccounts] = await Promise.all([
+					userAccountsPromise,
+					delegatedAccountsPromise,
+				]);
+
+				!userAccounts && (userAccounts = []);
+				!delegatedAccounts && (delegatedAccounts = []);
+			} else {
+				userAccounts = (await userAccountsPromise) ?? [];
 			}
 
-			for (const account of userAccounts.concat(delegatedAccounts)) {
-				result =
-					result &&
-					(await this.addUser(
-						account.subAccountId,
-						account.authority,
-						account
-					));
-			}
+			const allAccounts = userAccounts.concat(delegatedAccounts);
+			const addAllAccountsPromise = allAccounts.map((acc) =>
+				this.addUser(acc.subAccountId, acc.authority, acc)
+			);
+
+			const addAllAccountsResults = await Promise.all(addAllAccountsPromise);
+			result = addAllAccountsResults.every((res) => !!res);
 
 			if (this.activeSubAccountId == undefined) {
 				this.switchActiveUser(
@@ -1021,6 +1035,43 @@ export class DriftClient {
 
 		const { txSig } = await this.sendTransaction(tx, [], this.opts);
 		return txSig;
+	}
+
+	public async updateUserAdvancedLp(
+		updates: { advancedLp: boolean; subAccountId: number }[]
+	): Promise<TransactionSignature> {
+		const ixs = await Promise.all(
+			updates.map(async ({ advancedLp, subAccountId }) => {
+				return await this.getUpdateAdvancedDlpIx(advancedLp, subAccountId);
+			})
+		);
+
+		const tx = await this.buildTransaction(ixs, this.txParams);
+
+		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+		return txSig;
+	}
+
+	public async getUpdateAdvancedDlpIx(
+		advancedLp: boolean,
+		subAccountId: number
+	) {
+		const ix = await this.program.instruction.updateUserAdvancedLp(
+			subAccountId,
+			advancedLp,
+			{
+				accounts: {
+					user: getUserAccountPublicKeySync(
+						this.program.programId,
+						this.wallet.publicKey,
+						subAccountId
+					),
+					authority: this.wallet.publicKey,
+				},
+			}
+		);
+
+		return ix;
 	}
 
 	public async fetchAllUserAccounts(
@@ -1339,8 +1390,11 @@ export class DriftClient {
 	 * @param amount
 	 */
 	public convertToPerpPrecision(amount: BN | number): BN {
-		amount = typeof amount === 'number' ? new BN(amount) : amount;
-		return amount.mul(BASE_PRECISION);
+		if (typeof amount === 'number') {
+			return numberToSafeBN(amount, BASE_PRECISION);
+		} else {
+			return amount.mul(BASE_PRECISION);
+		}
 	}
 
 	/**
@@ -1348,8 +1402,11 @@ export class DriftClient {
 	 * @param amount
 	 */
 	public convertToPricePrecision(amount: BN | number): BN {
-		amount = typeof amount === 'number' ? new BN(amount) : amount;
-		return amount.mul(PRICE_PRECISION);
+		if (typeof amount === 'number') {
+			return numberToSafeBN(amount, PRICE_PRECISION);
+		} else {
+			return amount.mul(BASE_PRECISION);
+		}
 	}
 
 	/**

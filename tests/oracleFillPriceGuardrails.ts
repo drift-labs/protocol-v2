@@ -172,6 +172,7 @@ describe('oracle fill guardrails', () => {
 
 		await makerDriftClient.deposit(usdcAmount, 0, makerUSDCAccount);
 
+		await setFeedPrice(anchor.workspace.Pyth, 14, solUsd);
 		await makerDriftClient.placePerpOrder({
 			marketIndex: 0,
 			direction: PositionDirection.SHORT,
@@ -180,9 +181,14 @@ describe('oracle fill guardrails', () => {
 			baseAssetAmount: BASE_PRECISION,
 		});
 
+		await setFeedPrice(anchor.workspace.Pyth, 31, solUsd);
+
 		await takerDriftClient.placePerpOrder({
 			marketIndex: 0,
 			orderType: OrderType.LIMIT,
+			auctionStartPrice: new BN(100).mul(PRICE_PRECISION),
+			auctionEndPrice: new BN(100).mul(PRICE_PRECISION),
+			auctionDuration: 100,
 			price: new BN(100).mul(PRICE_PRECISION),
 			direction: PositionDirection.LONG,
 			baseAssetAmount: BASE_PRECISION,

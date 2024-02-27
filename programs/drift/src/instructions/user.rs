@@ -297,6 +297,8 @@ pub fn handle_deposit(
 
     let position_index = user.force_get_spot_position_index(spot_market.market_index)?;
 
+    let is_borrow_before = user.spot_positions[position_index].is_borrow();
+
     let force_reduce_only = spot_market.is_reduce_only();
 
     // if reduce only, have to compare ix amount to current borrow amount
@@ -380,6 +382,11 @@ pub fn handle_deposit(
 
     let deposit_record_id = get_then_update_id!(spot_market, next_deposit_record_id);
     let oracle_price = oracle_price_data.price;
+    let explanation = if is_borrow_before {
+        DepositExplanation::RepayBorrow
+    } else {
+        DepositExplanation::None
+    };
     let deposit_record = DepositRecord {
         ts: now,
         deposit_record_id,
@@ -395,7 +402,7 @@ pub fn handle_deposit(
         total_deposits_after,
         total_withdraws_after,
         market_index,
-        explanation: DepositExplanation::None,
+        explanation,
         transfer_user: None,
     };
     emit!(deposit_record);
@@ -1071,6 +1078,7 @@ pub fn handle_place_orders(ctx: Context<PlaceOrder>, params: Vec<OrderParams>) -
             enforce_margin_check: i == num_orders - 1,
             try_expire_orders: i == 0,
             risk_increasing: false,
+            explanation: OrderActionExplanation::None,
         };
 
         if params.market_type == MarketType::Perp {
@@ -1860,9 +1868,22 @@ pub fn handle_update_user_reduce_only(
 ) -> Result<()> {
     let mut user = load_mut!(ctx.accounts.user)?;
 
-    validate!(user.is_being_liquidated(), ErrorCode::LiquidationsOngoing)?;
+    validate!(!user.is_being_liquidated(), ErrorCode::LiquidationsOngoing)?;
 
     user.update_reduce_only_status(reduce_only)?;
+    Ok(())
+}
+
+pub fn handle_update_user_advanced_lp(
+    ctx: Context<UpdateUser>,
+    _sub_account_id: u16,
+    advanced_lp: bool,
+) -> Result<()> {
+    let mut user = load_mut!(ctx.accounts.user)?;
+
+    validate!(!user.is_being_liquidated(), ErrorCode::LiquidationsOngoing)?;
+
+    user.update_advanced_lp_status(advanced_lp)?;
     Ok(())
 }
 

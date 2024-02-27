@@ -183,43 +183,16 @@ pub fn settle_lp_position(
 
     apply_lp_rebase_to_perp_position(market, position)?;
 
-    let mut lp_metrics: crate::math::lp::LPMetrics =
+    let lp_metrics: crate::math::lp::LPMetrics =
         calculate_settle_lp_metrics(&market.amm, position)?;
-
-    let new_remainder_base_asset_amount = position
-        .remainder_base_asset_amount
-        .cast::<i64>()?
-        .safe_add(lp_metrics.remainder_base_asset_amount.cast()?)?;
-
-    if new_remainder_base_asset_amount.unsigned_abs() >= market.amm.order_step_size {
-        let (standardized_remainder_base_asset_amount, remainder_base_asset_amount) =
-            crate::math::orders::standardize_base_asset_amount_with_remainder_i128(
-                new_remainder_base_asset_amount.cast()?,
-                market.amm.order_step_size.cast()?,
-            )?;
-
-        lp_metrics.base_asset_amount = lp_metrics
-            .base_asset_amount
-            .safe_add(standardized_remainder_base_asset_amount)?;
-
-        position.remainder_base_asset_amount = remainder_base_asset_amount.cast()?;
-    } else {
-        position.remainder_base_asset_amount = new_remainder_base_asset_amount.cast()?;
-    }
 
     let position_delta = PositionDelta {
         base_asset_amount: lp_metrics.base_asset_amount.cast()?,
         quote_asset_amount: lp_metrics.quote_asset_amount.cast()?,
+        remainder_base_asset_amount: Some(lp_metrics.remainder_base_asset_amount.cast::<i64>()?),
     };
 
-    let pnl = update_position_and_market(position, market, &position_delta)?;
-
-    // todo: name for this is confusing, but adding is correct as is
-    // definition: net position of users in the market that has the LP as a counterparty (which have NOT settled)
-    market.amm.base_asset_amount_with_unsettled_lp = market
-        .amm
-        .base_asset_amount_with_unsettled_lp
-        .safe_add(lp_metrics.base_asset_amount)?;
+    let pnl: i64 = update_position_and_market(position, market, &position_delta)?;
 
     position.last_base_asset_amount_per_lp = market.amm.base_asset_amount_per_lp.cast()?;
     position.last_quote_asset_amount_per_lp = market.amm.quote_asset_amount_per_lp.cast()?;
@@ -278,7 +251,7 @@ pub fn burn_lp_shares(
     oracle_price: i64,
 ) -> DriftResult<(PositionDelta, i64)> {
     // settle
-    let (position_delta, pnl) = settle_lp_position(position, market)?;
+    let (mut position_delta, mut pnl) = settle_lp_position(position, market)?;
 
     // clean up
     let unsettled_remainder = market
@@ -323,6 +296,17 @@ pub fn burn_lp_shares(
                 ?;
 
         update_quote_asset_amount(position, market, -dust_base_asset_value.cast()?)?;
+
+        msg!(
+            "perp {} remainder_base_asset_amount burn fee= {}",
+            position.market_index,
+            dust_base_asset_value
+        );
+
+        position_delta.quote_asset_amount = position_delta
+            .quote_asset_amount
+            .safe_sub(dust_base_asset_value.cast()?)?;
+        pnl = pnl.safe_sub(dust_base_asset_value.cast()?)?;
     }
 
     // update last_ metrics

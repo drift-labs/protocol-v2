@@ -5,11 +5,30 @@ use crate::math::constants::MAX_BASE_ASSET_AMOUNT_WITH_AMM;
 use crate::math::safe_math::SafeMath;
 
 use crate::state::perp_market::{MarketStatus, PerpMarket, AMM};
-use crate::validate;
+use crate::{validate, BID_ASK_SPREAD_PRECISION};
 use solana_program::msg;
 
 #[allow(clippy::comparison_chain)]
 pub fn validate_perp_market(market: &PerpMarket) -> DriftResult {
+    let (_, remainder_base_asset_amount_long) =
+        crate::math::orders::standardize_base_asset_amount_with_remainder_i128(
+            market.amm.base_asset_amount_long,
+            market.amm.order_step_size.cast()?,
+        )?;
+
+    let (_, remainder_base_asset_amount_short) =
+        crate::math::orders::standardize_base_asset_amount_with_remainder_i128(
+            market.amm.base_asset_amount_short,
+            market.amm.order_step_size.cast()?,
+        )?;
+
+    validate!(
+        remainder_base_asset_amount_long == 0 && remainder_base_asset_amount_short == 0,
+        ErrorCode::InvalidPositionDelta,
+        "invalid base_asset_amount_long/short vs order_step_size, remainder={}/{}",
+        remainder_base_asset_amount_short,
+        market.amm.order_step_size
+    )?;
     validate!(
         (market.amm.base_asset_amount_long + market.amm.base_asset_amount_short)
             == market.amm.base_asset_amount_with_amm
@@ -132,34 +151,25 @@ pub fn validate_perp_market(market: &PerpMarket) -> DriftResult {
             .long_spread
             .safe_add(market.amm.short_spread)?
             .cast::<u64>()?
-            <= market.amm.max_spread.cast::<u64>()?.max(
-                market
-                    .amm
-                    .last_oracle_reserve_price_spread_pct
-                    .unsigned_abs()
-            ),
+            <= BID_ASK_SPREAD_PRECISION,
         ErrorCode::InvalidAmmDetected,
-        "long_spread + short_spread > max_spread: {} + {} < {}.max({})",
+        "long_spread {} + short_spread {} > max bid-ask spread precision (max spread = {})",
         market.amm.long_spread,
         market.amm.short_spread,
         market.amm.max_spread,
-        market
-            .amm
-            .last_oracle_reserve_price_spread_pct
-            .unsigned_abs()
     )?;
 
     if market.amm.base_asset_amount_with_amm > 0 {
         // users are long = removed base and added quote = qar increased
         // bid quote/base < reserve q/b
         validate!(
-            market.amm.terminal_quote_asset_reserve < market.amm.quote_asset_reserve,
+            market.amm.terminal_quote_asset_reserve <= market.amm.quote_asset_reserve,
             ErrorCode::InvalidAmmDetected,
             "terminal_quote_asset_reserve out of wack"
         )?;
     } else if market.amm.base_asset_amount_with_amm < 0 {
         validate!(
-            market.amm.terminal_quote_asset_reserve > market.amm.quote_asset_reserve,
+            market.amm.terminal_quote_asset_reserve >= market.amm.quote_asset_reserve,
             ErrorCode::InvalidAmmDetected,
             "terminal_quote_asset_reserve out of wack (terminal <) {} > {}",
             market.amm.terminal_quote_asset_reserve,

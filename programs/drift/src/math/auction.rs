@@ -8,6 +8,8 @@ use crate::state::oracle::OraclePriceData;
 use crate::state::user::{Order, OrderType};
 use solana_program::msg;
 
+use crate::state::perp_market::PerpMarket;
+use crate::OrderParams;
 use std::cmp::min;
 
 #[cfg(test)]
@@ -218,23 +220,26 @@ pub fn calculate_auction_params_for_trigger_order(
     order: &Order,
     oracle_price_data: &OraclePriceData,
     min_auction_duration: u8,
+    perp_market: Option<&PerpMarket>,
 ) -> DriftResult<(u8, i64, i64)> {
-    // if trigger limit doesn't cross oracle, no auction
-    if order.order_type == OrderType::TriggerLimit {
-        let limit_doesnt_cross_trigger = match order.direction {
-            PositionDirection::Long => order.price < order.trigger_price,
-            PositionDirection::Short => order.price > order.trigger_price,
-        };
-
-        if limit_doesnt_cross_trigger {
-            return Ok((0, 0, 0));
-        }
-    }
-
     let auction_duration = min_auction_duration;
 
-    let (auction_start_price, auction_end_price) =
-        calculate_auction_prices(oracle_price_data, order.direction, order.price)?;
+    if let Some(perp_market) = perp_market {
+        let (auction_start_price, auction_end_price, derived_auction_duration) =
+            OrderParams::derive_market_order_auction_params(
+                perp_market,
+                order.direction,
+                oracle_price_data.price,
+                order.price,
+            )?;
 
-    Ok((auction_duration, auction_start_price, auction_end_price))
+        let auction_duration = auction_duration.max(derived_auction_duration);
+
+        Ok((auction_duration, auction_start_price, auction_end_price))
+    } else {
+        let (auction_start_price, auction_end_price) =
+            calculate_auction_prices(oracle_price_data, order.direction, order.price)?;
+
+        Ok((auction_duration, auction_start_price, auction_end_price))
+    }
 }
