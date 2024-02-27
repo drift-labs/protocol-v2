@@ -3,15 +3,12 @@ import { assert } from 'chai';
 
 import { Program } from '@coral-xyz/anchor';
 
-import { Keypair } from '@solana/web3.js';
-
 import {
 	BN,
 	PRICE_PRECISION,
 	TestClient,
 	PositionDirection,
 	User,
-	Wallet,
 	EventSubscriber,
 	BASE_PRECISION,
 	getLimitOrderParams,
@@ -20,13 +17,10 @@ import {
 
 import {
 	initializeQuoteSpotMarket,
-	mockOracle,
 	mockUSDCMint,
 	mockUserUSDCAccount,
-	printTxLogs,
-	sleep,
 } from './testHelpers';
-import { BulkAccountLoader, PEG_PRECISION, PostOnlyParams } from '../sdk';
+import {BID_ASK_SPREAD_PRECISION, BulkAccountLoader, PEG_PRECISION, PostOnlyParams} from '../sdk';
 
 describe('prelisting', () => {
 	const provider = anchor.AnchorProvider.local(undefined, {
@@ -60,7 +54,6 @@ describe('prelisting', () => {
 
 	const usdcAmount = new BN(100 * 10 ** 6);
 
-	let solUsd;
 	let driftOracle;
 	let marketIndexes;
 	let spotMarketIndexes;
@@ -99,7 +92,7 @@ describe('prelisting', () => {
 
 		await adminDriftClient.initializeDriftOracle(0, PRICE_PRECISION.muln(32));
 
-		const periodicity = new BN(0);
+		const periodicity = new BN(3600);
 		await adminDriftClient.initializePerpMarket(
 			0,
 			driftOracle,
@@ -109,6 +102,8 @@ describe('prelisting', () => {
 			new BN(32 * PEG_PRECISION.toNumber()),
 			OracleSource.DRIFT,
 		);
+
+		await adminDriftClient.updatePerpMarketBaseSpread(0, BID_ASK_SPREAD_PRECISION.divn(50));
 
 		await adminDriftClient.updatePerpAuctionDuration(0);
 
@@ -150,7 +145,12 @@ describe('prelisting', () => {
 
 		await adminDriftClient.fillPerpOrder(await adminDriftClient.getUserAccountPublicKey(), adminDriftClient.getUserAccount(), bidOrder);
 
+		// settle pnl to force oracle to update
 		await adminDriftClient.settlePNL(await adminDriftClient.getUserAccountPublicKey(), adminDriftClient.getUserAccount(), 0);
+
+		const oraclePriceDataAfterBuy = adminDriftClient.getOracleDataForPerpMarket(0);
+		const oraclePriceAfterBuy = oraclePriceDataAfterBuy.price;
+		assert(oraclePriceAfterBuy.eq(new BN(32000088)));
 
 		const askOrderParams = getLimitOrderParams({
 			marketIndex,
@@ -169,97 +169,11 @@ describe('prelisting', () => {
 
 		await adminDriftClient.fillPerpOrder(await adminDriftClient.getUserAccountPublicKey(), adminDriftClient.getUserAccount(), askOrder);
 
-		const oraclePriceData = adminDriftClient.getOracleDataForPerpMarket(0);
-		const oraclePrice = oraclePriceData.price;
-		console.log(oraclePrice.toString());
-	});
+		// settle pnl to force oracle to update
+		await adminDriftClient.settlePNL(await adminDriftClient.getUserAccountPublicKey(), adminDriftClient.getUserAccount(), 0);
 
-	// it('make', async () => {
-	// 	const keypair = new Keypair();
-	// 	await provider.connection.requestAirdrop(keypair.publicKey, 10 ** 9);
-	// 	await sleep(1000);
-	// 	const wallet = new Wallet(keypair);
-	// 	const userUSDCAccount = await mockUserUSDCAccount(
-	// 		usdcMint,
-	// 		usdcAmount,
-	// 		provider,
-	// 		keypair.publicKey
-	// 	);
-	// 	const takerDriftClient = new TestClient({
-	// 		connection,
-	// 		wallet,
-	// 		programID: chProgram.programId,
-	// 		opts: {
-	// 			commitment: 'confirmed',
-	// 		},
-	// 		activeSubAccountId: 0,
-	// 		perpMarketIndexes: marketIndexes,
-	// 		spotMarketIndexes: spotMarketIndexes,
-	// 		oracleInfos,
-	// 		userStats: true,
-	// 		accountSubscription: {
-	// 			type: 'polling',
-	// 			accountLoader: bulkAccountLoader,
-	// 		},
-	// 	});
-	// 	await takerDriftClient.subscribe();
-	// 	await takerDriftClient.initializeUserAccountAndDepositCollateral(
-	// 		usdcAmount,
-	// 		userUSDCAccount.publicKey
-	// 	);
-	// 	const takerDriftClientUser = new User({
-	// 		driftClient: takerDriftClient,
-	// 		userAccountPublicKey: await takerDriftClient.getUserAccountPublicKey(),
-	// 	});
-	// 	await takerDriftClientUser.subscribe();
-	//
-	// 	const marketIndex = 0;
-	// 	const baseAssetAmount = BASE_PRECISION;
-	// 	const takerOrderParams = getLimitOrderParams({
-	// 		marketIndex,
-	// 		direction: PositionDirection.LONG,
-	// 		baseAssetAmount,
-	// 		price: new BN(34).mul(PRICE_PRECISION),
-	// 		auctionStartPrice: new BN(33).mul(PRICE_PRECISION),
-	// 		auctionEndPrice: new BN(34).mul(PRICE_PRECISION),
-	// 		auctionDuration: 10,
-	// 		userOrderId: 1,
-	// 		postOnly: PostOnlyParams.NONE,
-	// 	});
-	// 	await takerDriftClient.placePerpOrder(takerOrderParams);
-	// 	await takerDriftClientUser.fetchAccounts();
-	// 	const order = takerDriftClientUser.getOrderByUserOrderId(1);
-	// 	assert(!order.postOnly);
-	//
-	// 	const makerOrderParams = getLimitOrderParams({
-	// 		marketIndex,
-	// 		direction: PositionDirection.SHORT,
-	// 		baseAssetAmount,
-	// 		price: new BN(33).mul(PRICE_PRECISION),
-	// 		userOrderId: 1,
-	// 		postOnly: PostOnlyParams.MUST_POST_ONLY,
-	// 		immediateOrCancel: true,
-	// 	});
-	//
-	// 	const txSig = await makerDriftClient.placeAndMakePerpOrder(
-	// 		makerOrderParams,
-	// 		{
-	// 			taker: await takerDriftClient.getUserAccountPublicKey(),
-	// 			order: takerDriftClient.getOrderByUserId(1),
-	// 			takerUserAccount: takerDriftClient.getUserAccount(),
-	// 			takerStats: takerDriftClient.getUserStatsAccountPublicKey(),
-	// 		}
-	// 	);
-	//
-	// 	await printTxLogs(connection, txSig);
-	//
-	// 	const makerPosition = makerDriftClient.getUser().getPerpPosition(0);
-	// 	assert(makerPosition.baseAssetAmount.eq(BASE_PRECISION.neg()));
-	//
-	// 	const takerPosition = takerDriftClient.getUser().getPerpPosition(0);
-	// 	assert(takerPosition.baseAssetAmount.eq(BASE_PRECISION));
-	//
-	// 	await takerDriftClientUser.unsubscribe();
-	// 	await takerDriftClient.unsubscribe();
-	// });
+		const oraclePriceDataAfterSell = adminDriftClient.getOracleDataForPerpMarket(0);
+		const oraclePriceAfterSell = oraclePriceDataAfterSell.price;
+		assert(oraclePriceAfterSell.eq(new BN(32000001)));
+	});
 });
