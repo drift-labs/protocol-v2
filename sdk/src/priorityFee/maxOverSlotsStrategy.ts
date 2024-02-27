@@ -1,8 +1,7 @@
-import { SolanaPriorityFeeResponse } from './solanaPriorityFeeMethod';
 import { PriorityFeeStrategy } from './types';
 
 export class MaxOverSlotsStrategy implements PriorityFeeStrategy {
-	calculate(samples: SolanaPriorityFeeResponse[]): number {
+	calculate(samples: { slot: number; prioritizationFee: number }[]): number {
 		if (samples.length === 0) {
 			return 0;
 		}

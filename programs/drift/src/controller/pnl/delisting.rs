@@ -142,12 +142,12 @@ pub mod delisting_test {
         )
         .is_err());
         assert_eq!(market.is_reduce_only().unwrap(), false);
-        assert_eq!(market.is_in_settlement(clock.unix_timestamp), false);
+        assert_eq!(market.is_active(clock.unix_timestamp).unwrap(), true);
 
         market.expiry_ts = clock.unix_timestamp + 100;
         assert_eq!(clock.unix_timestamp, 1662065595);
 
-        assert_eq!(market.is_in_settlement(clock.unix_timestamp), false);
+        assert_eq!(market.is_active(clock.unix_timestamp).unwrap(), true);
         assert_eq!(market.is_reduce_only().unwrap(), false); // isnt set like in update expiry ix
 
         market.status = MarketStatus::ReduceOnly;
@@ -255,7 +255,7 @@ pub mod delisting_test {
         assert_eq!(market.expiry_ts < clock.unix_timestamp, true);
         assert_eq!(market.status, MarketStatus::Initialized);
         assert_eq!(market.expiry_price, 0);
-        assert_eq!(market.is_in_settlement(clock.unix_timestamp), true);
+        assert_eq!(market.is_active(clock.unix_timestamp).unwrap(), false);
 
         // put in settlement mode
         settle_expired_market(
@@ -808,7 +808,8 @@ pub mod delisting_test {
             &market_map,
             &spot_market_map,
             &mut oracle_map,
-            &clock,
+            clock.unix_timestamp,
+            clock.slot,
             &state,
         )
         .unwrap();
@@ -1026,7 +1027,8 @@ pub mod delisting_test {
             &market_map,
             &spot_market_map,
             &mut oracle_map,
-            &clock,
+            clock.unix_timestamp,
+            clock.slot,
             &state,
         )
         .unwrap();
@@ -1231,7 +1233,8 @@ pub mod delisting_test {
             &market_map,
             &spot_market_map,
             &mut oracle_map,
-            &clock,
+            clock.unix_timestamp,
+            clock.slot,
             &state,
         )
         .unwrap();
@@ -1553,7 +1556,8 @@ pub mod delisting_test {
                 &market_map,
                 &spot_market_map,
                 &mut oracle_map,
-                &clock,
+                clock.unix_timestamp,
+                clock.slot,
                 &state,
             )
             .unwrap();
@@ -1611,7 +1615,8 @@ pub mod delisting_test {
             &market_map,
             &spot_market_map,
             &mut oracle_map,
-            &clock,
+            clock.unix_timestamp,
+            clock.slot,
             &state,
         )
         .unwrap();
@@ -1649,7 +1654,8 @@ pub mod delisting_test {
             &market_map,
             &spot_market_map,
             &mut oracle_map,
-            &clock,
+            clock.unix_timestamp,
+            clock.slot,
             &state,
         )
         .unwrap();
@@ -1906,7 +1912,7 @@ pub mod delisting_test {
 
         assert_eq!(total_collateral_short, 17_000_000_000);
         assert_eq!(margin_requirement_short, 16002510000);
-        assert_eq!(market.is_in_settlement(clock.unix_timestamp), true);
+        assert_eq!(market.is_active(clock.unix_timestamp).unwrap(), false);
         assert_eq!(market.is_reduce_only().unwrap(), false);
 
         // put in settlement mode
@@ -1920,7 +1926,7 @@ pub mod delisting_test {
         )
         .unwrap();
         assert_eq!(market.is_reduce_only().unwrap(), false);
-        assert_eq!(market.is_in_settlement(clock.unix_timestamp), true);
+        assert_eq!(market.is_active(clock.unix_timestamp).unwrap(), false);
 
         let market = market_map.get_ref_mut(&0).unwrap();
         assert_eq!(market.expiry_price != 0, true);
@@ -1962,7 +1968,8 @@ pub mod delisting_test {
                     &market_map,
                     &spot_market_map,
                     &mut oracle_map,
-                    &clock,
+                    clock.unix_timestamp,
+                    clock.slot,
                     &state
                 )
                 .is_err(),
@@ -2336,17 +2343,15 @@ pub mod delisting_test {
             let oracle_price_data = oracle_map.get_price_data(&market.amm.oracle).unwrap();
 
             let strict_quote_price = StrictOraclePrice::test(QUOTE_PRECISION_I64);
-            let (perp_margin_requirement, weighted_pnl, _, _) =
-                calculate_perp_position_value_and_pnl(
-                    &shorter.perp_positions[0],
-                    &market,
-                    oracle_price_data,
-                    &strict_quote_price,
-                    MarginRequirementType::Initial,
-                    0,
-                    false,
-                )
-                .unwrap();
+            let (perp_margin_requirement, weighted_pnl, _) = calculate_perp_position_value_and_pnl(
+                &shorter.perp_positions[0],
+                &market,
+                oracle_price_data,
+                &strict_quote_price,
+                MarginRequirementType::Initial,
+                0,
+            )
+            .unwrap();
 
             // short cant pay without bankruptcy
             assert_eq!(oracle_price_data.price, 100000000);
@@ -2363,7 +2368,8 @@ pub mod delisting_test {
                 &market_map,
                 &spot_market_map,
                 &mut oracle_map,
-                &clock,
+                clock.unix_timestamp,
+                clock.slot,
                 &state,
             )
             .is_err());
@@ -2415,7 +2421,7 @@ pub mod delisting_test {
                 let oracle_price_data = oracle_map.get_price_data(&market.amm.oracle).unwrap();
 
                 let strict_quote_price = StrictOraclePrice::test(QUOTE_PRECISION_I64);
-                let (perp_margin_requirement, weighted_pnl, _, _) =
+                let (perp_margin_requirement, weighted_pnl, _) =
                     calculate_perp_position_value_and_pnl(
                         &shorter.perp_positions[0],
                         &market,
@@ -2423,7 +2429,6 @@ pub mod delisting_test {
                         &strict_quote_price,
                         MarginRequirementType::Initial,
                         0,
-                        false,
                     )
                     .unwrap();
 
@@ -2502,7 +2507,7 @@ pub mod delisting_test {
                 assert_eq!(market.amm.cumulative_funding_rate_short, 0);
 
                 let strict_quote_price = StrictOraclePrice::test(QUOTE_PRECISION_I64);
-                let (perp_margin_requirement, weighted_pnl, _, _) =
+                let (perp_margin_requirement, weighted_pnl, _) =
                     calculate_perp_position_value_and_pnl(
                         &shorter.perp_positions[0],
                         &market,
@@ -2510,7 +2515,6 @@ pub mod delisting_test {
                         &strict_quote_price,
                         MarginRequirementType::Initial,
                         0,
-                        false,
                     )
                     .unwrap();
 
@@ -2593,7 +2597,7 @@ pub mod delisting_test {
                 assert_eq!(market.amm.cumulative_funding_rate_short, 0);
 
                 let strict_quote_price = StrictOraclePrice::test(QUOTE_PRECISION_I64);
-                let (perp_margin_requirement, weighted_pnl, _, _) =
+                let (perp_margin_requirement, weighted_pnl, _) =
                     calculate_perp_position_value_and_pnl(
                         &shorter.perp_positions[0],
                         &market,
@@ -2601,7 +2605,6 @@ pub mod delisting_test {
                         &strict_quote_price,
                         MarginRequirementType::Initial,
                         0,
-                        false,
                     )
                     .unwrap();
 
@@ -2678,7 +2681,8 @@ pub mod delisting_test {
                 &market_map,
                 &spot_market_map,
                 &mut oracle_map,
-                &clock,
+                clock.unix_timestamp,
+                clock.slot,
                 &state,
             )
             .unwrap();
@@ -2803,7 +2807,8 @@ pub mod delisting_test {
                 &market_map,
                 &spot_market_map,
                 &mut oracle_map,
-                &clock,
+                clock.unix_timestamp,
+                clock.slot,
                 &state,
             )
             .unwrap();

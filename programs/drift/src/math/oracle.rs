@@ -10,8 +10,7 @@ use crate::math::constants::BID_ASK_SPREAD_PRECISION;
 use crate::math::safe_math::SafeMath;
 
 use crate::state::oracle::OraclePriceData;
-use crate::state::paused_operations::PerpOperation;
-use crate::state::perp_market::{PerpMarket, AMM};
+use crate::state::perp_market::{MarketStatus, PerpMarket, AMM};
 use crate::state::state::{OracleGuardRails, ValidityGuardRails};
 
 #[cfg(test)]
@@ -124,7 +123,7 @@ pub fn block_operation(
 
     let slots_since_amm_update = slot.saturating_sub(market.amm.last_update_slot);
 
-    let funding_paused_on_market = market.is_operation_paused(PerpOperation::UpdateFunding);
+    let funding_paused_on_market = market.status == MarketStatus::FundingPaused;
 
     let block = slots_since_amm_update > 10
         || !is_oracle_valid

@@ -103,8 +103,7 @@ pub fn calculate_perp_position_value_and_pnl(
     strict_quote_price: &StrictOraclePrice,
     margin_requirement_type: MarginRequirementType,
     user_custom_margin_ratio: u32,
-    track_open_order_fraction: bool,
-) -> DriftResult<(u128, i128, u128, u128)> {
+) -> DriftResult<(u128, i128, u128)> {
     let valuation_price = if market.status == MarketStatus::Settlement {
         market.expiry_price
     } else {
@@ -190,22 +189,10 @@ pub fn calculate_perp_position_value_and_pnl(
         weighted_unrealized_pnl = weighted_unrealized_pnl.min(MAX_POSITIVE_UPNL_FOR_INITIAL_MARGIN);
     }
 
-    let open_order_margin_requirement =
-        if track_open_order_fraction && worst_case_base_asset_amount != 0 {
-            let worst_case_base_asset_amount = worst_case_base_asset_amount.unsigned_abs();
-            worst_case_base_asset_amount
-                .safe_sub(market_position.base_asset_amount.unsigned_abs().cast()?)?
-                .safe_mul(margin_requirement)?
-                .safe_div(worst_case_base_asset_amount)?
-        } else {
-            0_u128
-        };
-
     Ok((
         margin_requirement,
         weighted_unrealized_pnl,
         worse_case_base_asset_value,
-        open_order_margin_requirement,
     ))
 }
 
@@ -453,30 +440,21 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
             Some(DriftAction::MarginCalc),
         )?);
 
-        let (
-            perp_margin_requirement,
-            weighted_pnl,
-            worst_case_base_asset_value,
-            open_order_margin_requirement,
-        ) = calculate_perp_position_value_and_pnl(
-            market_position,
-            market,
-            oracle_price_data,
-            &strict_quote_price,
-            context.margin_type,
-            user_custom_margin_ratio,
-            calculation.track_open_orders_fraction(),
-        )?;
+        let (perp_margin_requirement, weighted_pnl, worst_case_base_asset_value) =
+            calculate_perp_position_value_and_pnl(
+                market_position,
+                market,
+                oracle_price_data,
+                &strict_quote_price,
+                context.margin_type,
+                user_custom_margin_ratio,
+            )?;
 
         calculation.add_margin_requirement(
             perp_margin_requirement,
             worst_case_base_asset_value,
             MarketIdentifier::perp(market.market_index),
         )?;
-
-        if calculation.track_open_orders_fraction() {
-            calculation.add_open_orders_margin_requirement(open_order_margin_requirement)?;
-        }
 
         calculation.add_total_collateral(weighted_pnl)?;
 

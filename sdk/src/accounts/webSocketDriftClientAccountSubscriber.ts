@@ -104,7 +104,7 @@ export class WebSocketDriftClientAccountSubscriber
 			this.program,
 			statePublicKey,
 			undefined,
-			undefined,
+			this.resubTimeoutMs,
 			this.commitment
 		);
 		await this.stateAccountSubscriber.subscribe((data: StateAccount) => {

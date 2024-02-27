@@ -76,7 +76,7 @@ describe('PriorityFeeStrategy', () => {
 			{ slot: 1, prioritizationFee: 1000 },
 		];
 		const maxOverSlots = maxOverSlotsStrategy.calculate(samples);
-		expect(maxOverSlots).to.equal(1000);
+		expect(maxOverSlots).to.equal(832);
 	});
 
 	it('AverageOverSlotsStrategy should calculate the average prioritization fee over slots', () => {
@@ -90,6 +90,6 @@ describe('PriorityFeeStrategy', () => {
 			{ slot: 1, prioritizationFee: 1000 },
 		];
 		const averageOverSlots = averageOverSlotsStrategy.calculate(samples);
-		expect(averageOverSlots).to.approximately(545.33333, 0.00001);
+		expect(averageOverSlots).to.equal(454.4);
 	});
 });

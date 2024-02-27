@@ -7,9 +7,7 @@ use anchor_lang::{prelude::*, solana_program::msg};
 
 #[derive(Clone, Copy, Debug)]
 pub enum MarginCalculationMode {
-    Standard {
-        track_open_orders_fraction: bool,
-    },
+    Standard,
     Liquidation {
         margin_buffer: u128,
         market_to_track_margin_requirement: Option<MarketIdentifier>,
@@ -49,9 +47,7 @@ impl MarginContext {
     pub fn standard(margin_type: MarginRequirementType) -> Self {
         Self {
             margin_type,
-            mode: MarginCalculationMode::Standard {
-                track_open_orders_fraction: false,
-            },
+            mode: MarginCalculationMode::Standard,
             strict: false,
         }
     }
@@ -59,21 +55,6 @@ impl MarginContext {
     pub fn strict(mut self, strict: bool) -> Self {
         self.strict = strict;
         self
-    }
-
-    pub fn track_open_orders_fraction(mut self) -> DriftResult<Self> {
-        match self.mode {
-            MarginCalculationMode::Standard {
-                track_open_orders_fraction: ref mut track,
-            } => {
-                *track = true;
-            }
-            _ => {
-                msg!("Cant track open orders fraction outside of standard mode");
-                return Err(ErrorCode::InvalidMarginCalculation);
-            }
-        }
-        Ok(self)
     }
 
     pub fn liquidation(margin_buffer: u32) -> Self {
@@ -123,7 +104,6 @@ pub struct MarginCalculation {
     pub total_spot_asset_value: i128,
     pub total_spot_liability_value: u128,
     pub total_perp_liability_value: u128,
-    pub open_orders_margin_requirement: u128,
     tracked_market_margin_requirement: u128,
 }
 
@@ -141,7 +121,6 @@ impl MarginCalculation {
             total_spot_asset_value: 0,
             total_spot_liability_value: 0,
             total_perp_liability_value: 0,
-            open_orders_margin_requirement: 0,
             tracked_market_margin_requirement: 0,
         }
     }
@@ -158,7 +137,6 @@ impl MarginCalculation {
         market_identifier: MarketIdentifier,
     ) -> DriftResult {
         self.margin_requirement = self.margin_requirement.safe_add(margin_requirement)?;
-
         if let MarginCalculationMode::Liquidation { margin_buffer, .. } = self.context.mode {
             self.margin_requirement_plus_buffer = self
                 .margin_requirement_plus_buffer
@@ -175,13 +153,6 @@ impl MarginCalculation {
             }
         }
 
-        Ok(())
-    }
-
-    pub fn add_open_orders_margin_requirement(&mut self, margin_requirement: u128) -> DriftResult {
-        self.open_orders_margin_requirement = self
-            .open_orders_margin_requirement
-            .safe_add(margin_requirement)?;
         Ok(())
     }
 
@@ -222,14 +193,6 @@ impl MarginCalculation {
 
     pub fn meets_margin_requirement(&self) -> bool {
         self.total_collateral >= self.margin_requirement as i128
-    }
-
-    pub fn positions_meets_margin_requirement(&self) -> DriftResult<bool> {
-        Ok(self.total_collateral
-            >= self
-                .margin_requirement
-                .safe_sub(self.open_orders_margin_requirement)?
-                .cast::<i128>()?)
     }
 
     pub fn can_exit_liquidation(&self) -> DriftResult<bool> {
@@ -290,14 +253,5 @@ impl MarginCalculation {
 
     fn is_liquidation_mode(&self) -> bool {
         matches!(self.context.mode, MarginCalculationMode::Liquidation { .. })
-    }
-
-    pub fn track_open_orders_fraction(&self) -> bool {
-        matches!(
-            self.context.mode,
-            MarginCalculationMode::Standard {
-                track_open_orders_fraction: true
-            }
-        )
     }
 }

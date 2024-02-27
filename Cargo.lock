@@ -642,7 +642,7 @@ dependencies = [
 
 [[package]]
 name = "drift"
-version = "2.59.0"
+version = "2.53.0"
 dependencies = [
  "anchor-lang",
  "anchor-spl",
@@ -1232,7 +1232,7 @@ dependencies = [
 [[package]]
 name = "phoenix-v1"
 version = "0.2.4"
-source = "git+https://github.com/drift-labs/phoenix-v1?rev=bf6b84#bf6b8447047aa16485d8d976528e43f5d53331d9"
+source = "git+https://github.com/drift-labs/phoenix-v1?rev=4c65c9#4c65c97cd62493e27425ea2830447c833152bed1"
 dependencies = [
  "borsh",
  "bytemuck",

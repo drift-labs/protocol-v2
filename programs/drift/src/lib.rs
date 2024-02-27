@@ -626,14 +626,6 @@ pub mod drift {
         handle_move_amm_price(ctx, base_asset_reserve, quote_asset_reserve, sqrt_k)
     }
 
-    pub fn recenter_perp_market_amm(
-        ctx: Context<AdminUpdatePerpMarket>,
-        peg_multiplier: u128,
-        sqrt_k: u128,
-    ) -> Result<()> {
-        handle_recenter_perp_market_amm(ctx, peg_multiplier, sqrt_k)
-    }
-
     pub fn update_perp_market_expiry(
         ctx: Context<AdminUpdatePerpMarket>,
         expiry_ts: i64,
@@ -752,13 +744,6 @@ pub mod drift {
         handle_update_spot_market_status(ctx, status)
     }
 
-    pub fn update_spot_market_paused_operations(
-        ctx: Context<AdminUpdateSpotMarket>,
-        paused_operations: u8,
-    ) -> Result<()> {
-        handle_update_spot_market_paused_operations(ctx, paused_operations)
-    }
-
     pub fn update_spot_market_asset_tier(
         ctx: Context<AdminUpdateSpotMarket>,
         asset_tier: AssetTier,
@@ -857,13 +842,6 @@ pub mod drift {
         status: MarketStatus,
     ) -> Result<()> {
         handle_update_perp_market_status(ctx, status)
-    }
-
-    pub fn update_perp_market_paused_operations(
-        ctx: Context<AdminUpdatePerpMarket>,
-        paused_operations: u8,
-    ) -> Result<()> {
-        handle_update_perp_market_paused_operations(ctx, paused_operations)
     }
 
     pub fn update_perp_market_contract_tier(

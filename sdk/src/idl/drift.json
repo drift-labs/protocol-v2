@@ -1,5 +1,5 @@
 {
-  "version": "2.59.0",
+  "version": "2.53.0",
   "name": "drift",
   "instructions": [
     {
@@ -2973,36 +2973,6 @@
       ]
     },
     {
-      "name": "recenterPerpMarketAmm",
-      "accounts": [
-        {
-          "name": "admin",
-          "isMut": false,
-          "isSigner": true
-        },
-        {
-          "name": "state",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "perpMarket",
-          "isMut": true,
-          "isSigner": false
-        }
-      ],
-      "args": [
-        {
-          "name": "pegMultiplier",
-          "type": "u128"
-        },
-        {
-          "name": "sqrtK",
-          "type": "u128"
-        }
-      ]
-    },
-    {
       "name": "updatePerpMarketExpiry",
       "accounts": [
         {
@@ -3525,32 +3495,6 @@
       ]
     },
     {
-      "name": "updateSpotMarketPausedOperations",
-      "accounts": [
-        {
-          "name": "admin",
-          "isMut": false,
-          "isSigner": true
-        },
-        {
-          "name": "state",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "spotMarket",
-          "isMut": true,
-          "isSigner": false
-        }
-      ],
-      "args": [
-        {
-          "name": "pausedOperations",
-          "type": "u8"
-        }
-      ]
-    },
-    {
       "name": "updateSpotMarketAssetTier",
       "accounts": [
         {
@@ -3881,32 +3825,6 @@
           "type": {
             "defined": "MarketStatus"
           }
-        }
-      ]
-    },
-    {
-      "name": "updatePerpMarketPausedOperations",
-      "accounts": [
-        {
-          "name": "admin",
-          "isMut": false,
-          "isSigner": true
-        },
-        {
-          "name": "state",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "perpMarket",
-          "isMut": true,
-          "isSigner": false
-        }
-      ],
-      "args": [
-        {
-          "name": "pausedOperations",
-          "type": "u8"
         }
       ]
     },
@@ -5310,7 +5228,7 @@
             }
           },
           {
-            "name": "pausedOperations",
+            "name": "padding1",
             "type": "u8"
           },
           {
@@ -5724,15 +5642,11 @@
             }
           },
           {
-            "name": "pausedOperations",
-            "type": "u8"
-          },
-          {
             "name": "padding1",
             "type": {
               "array": [
                 "u8",
-                5
+                6
               ]
             }
           },
@@ -8610,13 +8524,7 @@
         "kind": "enum",
         "variants": [
           {
-            "name": "Standard",
-            "fields": [
-              {
-                "name": "track_open_orders_fraction",
-                "type": "bool"
-              }
-            ]
+            "name": "Standard"
           },
           {
             "name": "Liquidation",
@@ -8694,46 +8602,6 @@
           },
           {
             "name": "MustModify"
-          }
-        ]
-      }
-    },
-    {
-      "name": "PerpOperation",
-      "type": {
-        "kind": "enum",
-        "variants": [
-          {
-            "name": "UpdateFunding"
-          },
-          {
-            "name": "AmmFill"
-          },
-          {
-            "name": "Fill"
-          },
-          {
-            "name": "SettlePnl"
-          },
-          {
-            "name": "SettlePnlWithPosition"
-          }
-        ]
-      }
-    },
-    {
-      "name": "SpotOperation",
-      "type": {
-        "kind": "enum",
-        "variants": [
-          {
-            "name": "UpdateCumulativeInterest"
-          },
-          {
-            "name": "Fill"
-          },
-          {
-            "name": "Withdraw"
           }
         ]
       }

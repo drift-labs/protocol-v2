@@ -43,10 +43,6 @@ export interface DriftClientAccountEvents {
 	error: (e: Error) => void;
 }
 
-export interface DriftClientMetricsEvents {
-	txSigned: void;
-}
-
 export interface DriftClientAccountSubscriber {
 	eventEmitter: StrictEventEmitter<EventEmitter, DriftClientAccountEvents>;
 	isSubscribed: boolean;

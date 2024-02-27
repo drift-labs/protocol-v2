@@ -86,10 +86,9 @@ import {
 	DriftClientAccountSubscriber,
 	DriftClientAccountEvents,
 	DataAndSlot,
-	DriftClientMetricsEvents,
 } from './accounts/types';
-import { ExtraConfirmationOptions, TxSender, TxSigAndSlot } from './tx/types';
-import { getSignedTransactionMap, wrapInTx } from './tx/utils';
+import { TxSender, TxSigAndSlot } from './tx/types';
+import { wrapInTx } from './tx/utils';
 import {
 	BASE_PRECISION,
 	PRICE_PRECISION,
@@ -151,10 +150,6 @@ export class DriftClient {
 	userStatsAccountSubscriptionConfig: UserStatsSubscriptionConfig;
 	accountSubscriber: DriftClientAccountSubscriber;
 	eventEmitter: StrictEventEmitter<EventEmitter, DriftClientAccountEvents>;
-	metricsEventEmitter: StrictEventEmitter<
-		EventEmitter,
-		DriftClientMetricsEvents
-	>;
 	_isSubscribed = false;
 	txSender: TxSender;
 	perpMarketLastSlotCache = new Map<number, number>();
@@ -169,7 +164,6 @@ export class DriftClient {
 	skipLoadUsers?: boolean;
 	txVersion: TransactionVersion;
 	txParams: TxParams;
-	enableMetricsEvents?: boolean;
 
 	public get isSubscribed() {
 		return this._isSubscribed && this.accountSubscriber.isSubscribed;
@@ -294,12 +288,6 @@ export class DriftClient {
 			);
 		}
 		this.eventEmitter = this.accountSubscriber.eventEmitter;
-
-		if (config.enableMetricsEvents) {
-			this.enableMetricsEvents = true;
-			this.metricsEventEmitter = new EventEmitter();
-		}
-
 		this.txSender =
 			config.txSender ??
 			new RetryTxSender({
@@ -904,8 +892,7 @@ export class DriftClient {
 	}
 
 	public async updateUserCustomMarginRatio(
-		updates: { marginRatio: number; subAccountId: number }[],
-		txParams?: TxParams
+		updates: { marginRatio: number; subAccountId: number }[]
 	): Promise<TransactionSignature> {
 		const ixs = await Promise.all(
 			updates.map(async ({ marginRatio, subAccountId }) => {
@@ -917,7 +904,7 @@ export class DriftClient {
 			})
 		);
 
-		const tx = await this.buildTransaction(ixs, txParams ?? this.txParams);
+		const tx = await this.buildTransaction(ixs, this.txParams);
 
 		const { txSig } = await this.sendTransaction(tx, [], this.opts);
 		return txSig;
@@ -1878,8 +1865,7 @@ export class DriftClient {
 		fromSubAccountId?: number,
 		referrerInfo?: ReferrerInfo,
 		donateAmount?: BN,
-		txParams?: TxParams,
-		customMaxMarginRatio?: number
+		txParams?: TxParams
 	): Promise<[TransactionSignature, PublicKey]> {
 		const ixs = [];
 
@@ -1971,15 +1957,6 @@ export class DriftClient {
 			);
 
 			ixs.push(donateIx);
-		}
-
-		// Set the max margin ratio to initialize account with if passed
-		if (customMaxMarginRatio) {
-			const customMarginRatioIx = await this.getUpdateUserCustomMarginRatioIx(
-				customMaxMarginRatio,
-				subAccountId
-			);
-			ixs.push(customMarginRatioIx);
 		}
 
 		// Close the wrapped sol account at the end of the transaction
@@ -2588,13 +2565,11 @@ export class DriftClient {
 		txParams?: TxParams,
 		bracketOrdersParams = new Array<OptionalOrderParams>(),
 		referrerInfo?: ReferrerInfo,
-		cancelExistingOrders?: boolean,
-		settlePnl?: boolean
+		cancelExistingOrders?: boolean
 	): Promise<{
 		txSig: TransactionSignature;
 		signedFillTx?: Transaction;
 		signedCancelExistingOrdersTx?: Transaction;
-		signedSettlePnlTx?: Transaction;
 	}> {
 		const marketIndex = orderParams.marketIndex;
 		const orderId = userAccount.nextOrderId;
@@ -2604,10 +2579,10 @@ export class DriftClient {
 			userAccount.subAccountId
 		);
 
-		/* Cancel open orders in market if requested */
-		let cancelExistingOrdersTx;
+		let cancelOrdersIx: TransactionInstruction;
+		let cancelExistingOrdersTx: Transaction;
 		if (cancelExistingOrders && isVariant(orderParams.marketType, 'perp')) {
-			const cancelOrdersIx = await this.getCancelOrdersIx(
+			cancelOrdersIx = await this.getCancelOrdersIx(
 				orderParams.marketType,
 				orderParams.marketIndex,
 				null,
@@ -2617,23 +2592,6 @@ export class DriftClient {
 			//@ts-ignore
 			cancelExistingOrdersTx = await this.buildTransaction(
 				[cancelOrdersIx],
-				txParams,
-				this.txVersion
-			);
-		}
-
-		/* Settle PnL after fill if requested */
-		let settlePnlTx;
-		if (settlePnl && isVariant(orderParams.marketType, 'perp')) {
-			const settlePnlIx = await this.settlePNLIx(
-				userAccountPublicKey,
-				userAccount,
-				marketIndex
-			);
-
-			//@ts-ignore
-			settlePnlTx = await this.buildTransaction(
-				[settlePnlIx],
 				txParams,
 				this.txVersion
 			);
@@ -2665,36 +2623,20 @@ export class DriftClient {
 				0
 			);
 
-			const allPossibleTxs = [
-				versionedMarketOrderTx,
-				versionedFillTx,
-				cancelExistingOrdersTx,
-				settlePnlTx,
-			];
-			const txKeys = [
-				'signedVersionedMarketOrderTx',
-				'signedVersionedFillTx',
-				'signedCancelExistingOrdersTx',
-				'signedSettlePnlTx',
-			];
-
-			const {
+			const [
 				signedVersionedMarketOrderTx,
 				signedVersionedFillTx,
 				signedCancelExistingOrdersTx,
-				signedSettlePnlTx,
-			} = await getSignedTransactionMap(
-				//@ts-ignore
-				this.provider.wallet,
-				allPossibleTxs,
-				txKeys
+			] = await this.provider.wallet.signAllTransactions(
+				[
+					versionedMarketOrderTx,
+					versionedFillTx,
+					cancelExistingOrdersTx,
+				].filter((tx) => tx !== undefined)
 			);
-
-			const { txSig, slot } = await this.sendTransaction(
-				signedVersionedMarketOrderTx,
-				[],
-				this.opts,
-				true
+			const { txSig, slot } = await this.txSender.sendRawTransaction(
+				signedVersionedMarketOrderTx.serialize(),
+				this.opts
 			);
 			this.perpMarketLastSlotCache.set(orderParams.marketIndex, slot);
 
@@ -2704,8 +2646,6 @@ export class DriftClient {
 				signedFillTx: signedVersionedFillTx,
 				// @ts-ignore
 				signedCancelExistingOrdersTx,
-				// @ts-ignore
-				signedSettlePnlTx,
 			};
 		} else {
 			const marketOrderTx = wrapInTx(
@@ -2727,33 +2667,12 @@ export class DriftClient {
 				cancelExistingOrdersTx.feePayer = userAccount.authority;
 			}
 
-			if (settlePnlTx) {
-				settlePnlTx.recentBlockhash = currentBlockHash;
-				settlePnlTx.feePayer = userAccount.authority;
-			}
-
-			const allPossibleTxs = [
-				marketOrderTx,
-				cancelExistingOrdersTx,
-				settlePnlTx,
-			];
-			const txKeys = [
-				'signedMarketOrderTx',
-				'signedCancelExistingOrdersTx',
-				'signedSettlePnlTx',
-			];
-
-			const {
-				signedMarketOrderTx,
-				signedCancelExistingOrdersTx,
-				signedSettlePnlTx,
-			} = await getSignedTransactionMap(
-				//@ts-ignore
-				this.provider.wallet,
-				allPossibleTxs,
-				txKeys
-			);
-
+			const [signedMarketOrderTx, signedCancelExistingOrdersTx] =
+				await this.provider.wallet.signAllTransactions(
+					[marketOrderTx, cancelExistingOrdersTx].filter(
+						(tx) => tx !== undefined
+					)
+				);
 			const { txSig, slot } = await this.sendTransaction(
 				signedMarketOrderTx,
 				[],
@@ -2762,14 +2681,7 @@ export class DriftClient {
 			);
 			this.perpMarketLastSlotCache.set(orderParams.marketIndex, slot);
 
-			return {
-				txSig,
-				signedFillTx: undefined,
-				//@ts-ignore
-				signedCancelExistingOrdersTx,
-				//@ts-ignore
-				signedSettlePnlTx,
-			};
+			return { txSig, signedFillTx: undefined, signedCancelExistingOrdersTx };
 		}
 	}
 
@@ -4418,14 +4330,13 @@ export class DriftClient {
 		bracketOrdersParams = new Array<OptionalOrderParams>(),
 		txParams?: TxParams,
 		subAccountId?: number,
-		cancelExistingOrders?: boolean,
-		settlePnl?: boolean
+		cancelExistingOrders?: boolean
 	): Promise<{
 		txSig: TransactionSignature;
 		signedCancelExistingOrdersTx?: Transaction;
-		signedSettlePnlTx?: Transaction;
 	}> {
-		let cancelExistingOrdersTx: Transaction;
+		let signedCancelExistingOrdersTx: Transaction;
+
 		if (cancelExistingOrders && isVariant(orderParams.marketType, 'perp')) {
 			const cancelOrdersIx = await this.getCancelOrdersIx(
 				orderParams.marketType,
@@ -4434,32 +4345,15 @@ export class DriftClient {
 				subAccountId
 			);
 
-			//@ts-ignore
-			cancelExistingOrdersTx = await this.buildTransaction(
+			const cancelExistingOrdersTx = await this.buildTransaction(
 				[cancelOrdersIx],
 				txParams,
 				this.txVersion
 			);
-		}
 
-		/* Settle PnL after fill if requested */
-		let settlePnlTx: Transaction;
-		if (settlePnl && isVariant(orderParams.marketType, 'perp')) {
-			const userAccountPublicKey = await this.getUserAccountPublicKey(
-				subAccountId
-			);
-
-			const settlePnlIx = await this.settlePNLIx(
-				userAccountPublicKey,
-				this.getUserAccount(subAccountId),
-				orderParams.marketIndex
-			);
-
-			//@ts-ignore
-			settlePnlTx = await this.buildTransaction(
-				[settlePnlIx],
-				txParams,
-				this.txVersion
+			// @ts-ignore
+			signedCancelExistingOrdersTx = await this.provider.wallet.signTransaction(
+				cancelExistingOrdersTx
 			);
 		}
 
@@ -4482,40 +4376,14 @@ export class DriftClient {
 			ixs.push(bracketOrdersIx);
 		}
 
-		const placeAndTakeTx = await this.buildTransaction(ixs, txParams);
-
-		const allPossibleTxs = [
-			placeAndTakeTx,
-			cancelExistingOrdersTx,
-			settlePnlTx,
-		];
-		const txKeys = [
-			'signedPlaceAndTakeTx',
-			'signedCancelExistingOrdersTx',
-			'signedSettlePnlTx',
-		];
-
-		const {
-			signedPlaceAndTakeTx,
-			signedCancelExistingOrdersTx,
-			signedSettlePnlTx,
-		} = await getSignedTransactionMap(
-			//@ts-ignore
-			this.provider.wallet,
-			allPossibleTxs,
-			txKeys
-		);
-
 		const { txSig, slot } = await this.sendTransaction(
-			signedPlaceAndTakeTx,
+			await this.buildTransaction(ixs, txParams),
 			[],
-			this.opts,
-			true
+			this.opts
 		);
 		this.perpMarketLastSlotCache.set(orderParams.marketIndex, slot);
 
-		//@ts-ignore
-		return { txSig, signedCancelExistingOrdersTx, signedSettlePnlTx };
+		return { txSig, signedCancelExistingOrdersTx };
 	}
 
 	public async getPlaceAndTakePerpOrderIx(
@@ -6347,38 +6215,25 @@ export class DriftClient {
 		return undefined;
 	}
 
-	private handleSignedTransaction() {
-		this.metricsEventEmitter.emit('txSigned');
-	}
-
 	sendTransaction(
 		tx: Transaction | VersionedTransaction,
 		additionalSigners?: Array<Signer>,
 		opts?: ConfirmOptions,
 		preSigned?: boolean
 	): Promise<TxSigAndSlot> {
-		const extraConfirmationOptions: ExtraConfirmationOptions = this
-			.enableMetricsEvents
-			? {
-					onSignedCb: this.handleSignedTransaction.bind(this),
-			  }
-			: undefined;
-
 		if (tx instanceof VersionedTransaction) {
 			return this.txSender.sendVersionedTransaction(
 				tx as VersionedTransaction,
 				additionalSigners,
 				opts,
-				preSigned,
-				extraConfirmationOptions
+				preSigned
 			);
 		} else {
 			return this.txSender.send(
 				tx as Transaction,
 				additionalSigners,
 				opts,
-				preSigned,
-				extraConfirmationOptions
+				preSigned
 			);
 		}
 	}

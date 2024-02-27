@@ -2,7 +2,7 @@ use anchor_lang::prelude::{msg, Pubkey};
 
 use crate::bn::U192;
 use crate::controller;
-use crate::controller::position::{get_position_index, PositionDelta};
+use crate::controller::position::PositionDelta;
 use crate::controller::position::{update_position_and_market, update_quote_asset_amount};
 use crate::emit;
 use crate::error::{DriftResult, ErrorCode};
@@ -357,13 +357,8 @@ pub fn remove_perp_lp_shares(
     market_index: u16,
     now: i64,
 ) -> DriftResult<()> {
-    let position_index = get_position_index(&user.perp_positions, market_index)?;
-
     // standardize n shares to burn
-    // account for issue where lp shares are smaller than step size
-    let shares_to_burn = if user.perp_positions[position_index].lp_shares == shares_to_burn {
-        shares_to_burn
-    } else {
+    let shares_to_burn: u64 = {
         let market = perp_market_map.get_ref(&market_index)?;
         crate::math::orders::standardize_base_asset_amount(
             shares_to_burn.cast()?,
@@ -387,7 +382,7 @@ pub fn remove_perp_lp_shares(
 
     controller::funding::settle_funding_payment(user, &user_key, &mut market, now)?;
 
-    let position = &mut user.perp_positions[position_index];
+    let position = user.get_perp_position_mut(market_index)?;
 
     validate!(
         position.lp_shares >= shares_to_burn,

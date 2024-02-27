@@ -92,66 +92,6 @@ impl OrderParams {
 
         Ok(())
     }
-
-    pub fn get_close_perp_params(
-        market: &PerpMarket,
-        direction_to_close: PositionDirection,
-        base_asset_amount: u64,
-    ) -> DriftResult<OrderParams> {
-        let auction_start_price = market
-            .amm
-            .last_ask_price_twap
-            .safe_add(market.amm.last_bid_price_twap)?
-            .safe_div(2)?
-            .cast::<i64>()?
-            .safe_sub(market.amm.historical_oracle_data.last_oracle_price_twap)?;
-
-        let oracle_twap_u64 = market
-            .amm
-            .historical_oracle_data
-            .last_oracle_price_twap
-            .unsigned_abs();
-        let auction_end_price_buffer = market
-            .amm
-            .mark_std
-            .max(market.amm.oracle_std)
-            .clamp(oracle_twap_u64 / 100, oracle_twap_u64 / 20);
-
-        let auction_end_price = if direction_to_close == PositionDirection::Short {
-            let auction_end_price = market
-                .amm
-                .last_bid_price_twap
-                .safe_sub(auction_end_price_buffer)?
-                .cast::<i64>()?
-                .safe_sub(market.amm.historical_oracle_data.last_oracle_price_twap)?;
-            auction_end_price.min(auction_start_price)
-        } else {
-            let auction_end_price = market
-                .amm
-                .last_ask_price_twap
-                .safe_add(auction_end_price_buffer)?
-                .cast::<i64>()?
-                .safe_sub(market.amm.historical_oracle_data.last_oracle_price_twap)?;
-
-            auction_end_price.max(auction_start_price)
-        };
-
-        let params = OrderParams {
-            market_type: MarketType::Perp,
-            direction: direction_to_close,
-            order_type: OrderType::Oracle,
-            market_index: market.market_index,
-            base_asset_amount,
-            reduce_only: true,
-            auction_start_price: Some(auction_start_price),
-            auction_end_price: Some(auction_end_price),
-            auction_duration: Some(80),
-            oracle_price_offset: Some(auction_end_price.cast()?),
-            ..OrderParams::default()
-        };
-
-        Ok(params)
-    }
 }
 
 fn get_auction_duration(price_diff: u64, price: u64) -> DriftResult<u8> {

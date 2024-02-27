@@ -8,75 +8,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Features
-
-### Fixes
-
-### Breaking
-
-
-## [2.59.0] - 2023-01-30
-
-### Features
-
-- program: separate out paused operations from market status ([#839](https://github.com/drift-labs/protocol-v2/pull/839))
-- program: use decayed last_oracle_conf_pct as lower bound for update ([#840](https://github.com/drift-labs/protocol-v2/pull/840))
-
-### Fixes
-
-### Breaking
-
-## [2.58.0] - 2023-01-27
-
-### Features
-
-### Fixes
-
-- program: AmmPaused doesnt block all fills
-
-### Breaking
-
-## [2.57.0] - 2023-01-25
-
-### Features
-
-- program: add recenter amm ix ([#836](https://github.com/drift-labs/protocol-v2/pull/836))
-
-### Fixes
-
-### Breaking
-
-## [2.56.0] - 2023-01-24
-
-### Features
-
-### Fixes
-
-- program: enable jit maker to fill same slot as taker placed ([#835](https://github.com/drift-labs/protocol-v2/pull/835))
-
-### Breaking
-
-## [2.55.0] - 2023-01-18
-
-### Features
-
-### Fixes
-
-- program: standardize lp shares in attempt_burn_user_lp_shares_for_risk_reduction ([#826](https://github.com/drift-labs/protocol-v2/pull/826))
-
-### Breaking
-
-## [2.54.0] - 2023-01-15
-
-### Features
 - sdk: move bracket orders into single instruction
 - sdk: add ability to do placeAndTake order with bracket orders attached
 - sdk: add option to cancel existing orders in market for place and take order
-- sdk: add option to get signed settlePnl tx back from a market order
-- program: auto derisk lp positions in settle pnl ([#766](https://github.com/drift-labs/protocol-v2/pull/766))
+
 - program: increase full perp liquidation threshold ([#807](https://github.com/drift-labs/protocol-v2/pull/807))
 - program: remove spot fee pool transfer ([#800](https://github.com/drift-labs/protocol-v2/pull/800))
 - program: increase insurance tier max ([#784](https://github.com/drift-labs/protocol-v2/pull/784))
-- sdk: can specify max custom margin ratio to initialize a new account with
 
 ### Fixes
 

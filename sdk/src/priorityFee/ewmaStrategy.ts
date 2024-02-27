@@ -1,4 +1,3 @@
-import { SolanaPriorityFeeResponse } from './solanaPriorityFeeMethod';
 import { PriorityFeeStrategy } from './types';
 
 class EwmaStrategy implements PriorityFeeStrategy {
@@ -12,7 +11,7 @@ class EwmaStrategy implements PriorityFeeStrategy {
 	}
 
 	// samples provided in desc slot order
-	calculate(samples: SolanaPriorityFeeResponse[]): number {
+	calculate(samples: { slot: number; prioritizationFee: number }[]): number {
 		if (samples.length === 0) {
 			return 0;
 		}

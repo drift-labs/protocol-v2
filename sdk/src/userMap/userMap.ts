@@ -303,58 +303,64 @@ export class UserMap implements UserMapInterface {
 				},
 			];
 
-			// @ts-ignore
-			const rpcJSONResponse: any = await this.connection._rpcRequest('getProgramAccounts', rpcRequestArgs);
-			const rpcResponseAndContext: RpcResponseAndContext<Array<{ pubkey: PublicKey; account: { data: [string, string]; } }>> = rpcJSONResponse.result;
+			const rpcJSONResponse: any =
+				// @ts-ignore
+				await this.connection._rpcRequest('getProgramAccounts', rpcRequestArgs);
+
+			const rpcResponseAndContext: RpcResponseAndContext<
+				Array<{
+					pubkey: PublicKey;
+					account: {
+						data: [string, string];
+					};
+				}>
+			> = rpcJSONResponse.result;
+
 			const slot = rpcResponseAndContext.context.slot;
+
 			this.updateLatestSlot(slot);
 
 			const programAccountBufferMap = new Map<string, Buffer>();
-			rpcResponseAndContext.value.forEach(programAccount => {
+			for (const programAccount of rpcResponseAndContext.value) {
 				programAccountBufferMap.set(
 					programAccount.pubkey.toString(),
 					// @ts-ignore
-					Buffer.from(programAccount.account.data[0], programAccount.account.data[1])
+					Buffer.from(
+						programAccount.account.data[0],
+						programAccount.account.data[1]
+					)
 				);
-			});
+			}
 
-			const concurrencyLimit = 20;
-			const semaphore = new Array(concurrencyLimit).fill(Promise.resolve());
-
-			const processAccount = async (key: string, buffer: Buffer) => {
+			for (const [key, buffer] of programAccountBufferMap.entries()) {
 				if (!this.has(key)) {
 					const userAccount = this.decode('User', buffer);
 					await this.addPubkey(new PublicKey(key), userAccount);
-					this.userMap.get(key)?.accountSubscriber.updateData(userAccount, slot);
+					this.userMap.get(key).accountSubscriber.updateData(userAccount, slot);
 				} else {
 					const userAccount = this.decode('User', buffer);
-					this.userMap.get(key)?.accountSubscriber.updateData(userAccount, slot);
+					this.userMap.get(key).accountSubscriber.updateData(userAccount, slot);
 				}
-			};
-
-			const promises = Array.from(programAccountBufferMap.entries()).map(async ([key, buffer]) => {
-				const index = await Promise.race(semaphore.map((p, index) => p.then(() => index)));
-				semaphore[index] = processAccount(key, buffer).then(() => {
-					return;
-				});
-			});
-
-			await Promise.all(promises.concat(semaphore));
+				// give event loop a chance to breathe
+				await new Promise((resolve) => setTimeout(resolve, 0));
+			}
 
 			for (const [key, user] of this.userMap.entries()) {
 				if (!programAccountBufferMap.has(key)) {
 					await user.unsubscribe();
 					this.userMap.delete(key);
 				}
+				// give event loop a chance to breathe
+				await new Promise((resolve) => setTimeout(resolve, 0));
 			}
 		} catch (e) {
-			console.error(`Error in UserMap.sync():`, e);
+			console.error(`Error in UserMap.sync():`);
+			console.error(e);
 		} finally {
 			this.syncPromiseResolver();
 			this.syncPromise = undefined;
 		}
 	}
-
 
 	public async unsubscribe() {
 		await this.subscription.unsubscribe();
@@ -398,4 +404,3 @@ export class UserMap implements UserMapInterface {
 		return this.mostRecentSlot;
 	}
 }
-

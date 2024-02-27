@@ -32,8 +32,6 @@ use crate::state::state::{OracleGuardRails, State, ValidityGuardRails};
 use crate::state::user::{SpotPosition, User};
 use crate::test_utils::*;
 use crate::test_utils::{get_positions, get_pyth_price, get_spot_positions};
-use anchor_lang::prelude::Clock;
-
 #[test]
 fn test_lp_wont_collect_improper_funding() {
     let mut position = PerpPosition {
@@ -435,14 +433,8 @@ pub fn test_lp_settle_pnl() {
         &pyth_program,
         oracle_account_info
     );
-    let clock = Clock {
-        slot: 0,
-        epoch_start_timestamp: 0,
-        epoch: 0,
-        leader_schedule_epoch: 0,
-        unix_timestamp: 0,
-    };
-    let mut oracle_map = OracleMap::load_one(&oracle_account_info, clock.slot, None).unwrap();
+    let slot = 0;
+    let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
 
     let mut market = PerpMarket {
         amm: AMM {
@@ -524,6 +516,8 @@ pub fn test_lp_settle_pnl() {
         ..User::default()
     };
 
+    let now = 1000000;
+
     let state = State {
         oracle_guard_rails: OracleGuardRails {
             validity: ValidityGuardRails {
@@ -561,7 +555,7 @@ pub fn test_lp_settle_pnl() {
         &market_map,
         &spot_market_map,
         &mut oracle_map,
-        &clock,
+        now,
         &state,
     );
 
@@ -734,21 +728,16 @@ fn test_lp_margin_calc() {
 
     let strict_quote_price = StrictOraclePrice::test(1000000);
     // ensure margin calc doesnt incorrectly count funding rate (funding pnl MUST come before settling lp)
-    let (
-        margin_requirement,
-        weighted_unrealized_pnl,
-        worse_case_base_asset_value,
-        _open_order_fraction,
-    ) = calculate_perp_position_value_and_pnl(
-        &user.perp_positions[0],
-        &market,
-        &oracle_price_data,
-        &strict_quote_price,
-        crate::math::margin::MarginRequirementType::Initial,
-        0,
-        false,
-    )
-    .unwrap();
+    let (margin_requirement, weighted_unrealized_pnl, worse_case_base_asset_value) =
+        calculate_perp_position_value_and_pnl(
+            &user.perp_positions[0],
+            &market,
+            &oracle_price_data,
+            &strict_quote_price,
+            crate::math::margin::MarginRequirementType::Initial,
+            0,
+        )
+        .unwrap();
 
     assert_eq!(margin_requirement, 1012000000); // $1010 + $2 mr for lp_shares
     assert_eq!(weighted_unrealized_pnl, -9916900000); // $-9900000000 upnl (+ -16900000 from old funding)

@@ -919,14 +919,6 @@ impl PerpPosition {
                 .map(|delta| delta.max(0))?
                 .safe_add(pnl_pool_excess.max(0))?;
 
-            if max_positive_pnl < unrealized_pnl {
-                msg!(
-                    "Claimable pnl below position upnl: {} < {}",
-                    max_positive_pnl,
-                    unrealized_pnl
-                );
-            }
-
             Ok(unrealized_pnl.min(max_positive_pnl))
         } else {
             Ok(unrealized_pnl)
