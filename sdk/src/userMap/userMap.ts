@@ -385,33 +385,33 @@ export class UserMap implements UserMapInterface {
 				);
 			});
 
-			const processAccount = async (key: string, buffer: Buffer) => {
-				const currAccountWithSlot = this.getWithSlot(key);
-				if (currAccountWithSlot) {
-					if (slot >= currAccountWithSlot.slot) {
-						const userAccount = this.decode('User', buffer);
-						currAccountWithSlot.data.accountSubscriber.updateData(
-							userAccount,
-							slot
-						);
-					}
-				} else {
-					const userAccount = this.decode('User', buffer);
-					await this.addPubkey(new PublicKey(key), userAccount, slot);
-					this.get(key).accountSubscriber.updateData(userAccount, slot);
-				}
-			};
+			const promises = Array.from(programAccountBufferMap.entries()).map(
+				([key, buffer]) =>
+					(async () => {
+						const currAccountWithSlot = this.getWithSlot(key);
+						if (currAccountWithSlot && slot >= currAccountWithSlot.slot) {
+							const userAccount = this.decode('User', buffer);
+							currAccountWithSlot.data.accountSubscriber.updateData(
+								userAccount,
+								slot
+							);
+						} else {
+							const userAccount = this.decode('User', buffer);
+							await this.addPubkey(new PublicKey(key), userAccount, slot);
+							this.get(key)?.accountSubscriber.updateData(userAccount, slot);
+						}
+					})()
+			);
 
-			const promises = Array<Promise<void>>();
-			programAccountBufferMap.forEach(async (buffer, key) => {
-				promises.push(processAccount(key, buffer));
-			});
 			await Promise.all(promises);
 
-			for (const [key, user] of this.entries()) {
+			for (const [key] of this.entries()) {
 				if (!programAccountBufferMap.has(key)) {
-					await user.unsubscribe();
-					this.userMap.delete(key);
+					const user = this.get(key);
+					if (user) {
+						await user.unsubscribe();
+						this.userMap.delete(key);
+					}
 				}
 			}
 		} catch (e) {
