@@ -46,6 +46,7 @@ pub enum DriftAction {
     MarginCalc,
     UpdateTwap,
     UpdateAMMCurve,
+    OracleOrderPrice,
 }
 
 pub fn is_oracle_valid_for_action(
@@ -61,6 +62,14 @@ pub fn is_oracle_valid_for_action(
                 matches!(
                     oracle_validity,
                     OracleValidity::Valid | OracleValidity::StaleForAMM
+                )
+            }
+            DriftAction::OracleOrderPrice => {
+                matches!(
+                    oracle_validity,
+                    OracleValidity::Valid
+                        | OracleValidity::StaleForAMM
+                        | OracleValidity::InsufficientDataPoints
                 )
             }
             DriftAction::MarginCalc => !matches!(
