@@ -5873,17 +5873,15 @@ export class DriftClient {
 	}
 
 	public getOracleDataForPerpMarket(marketIndex: number): OraclePriceData {
-		const oracleKey = this.getPerpMarketAccount(marketIndex).amm.oracle;
-		const oracleData = this.getOraclePriceDataAndSlot(oracleKey).data;
-
-		return oracleData;
+		return this.accountSubscriber.getOraclePriceDataAndSlotForPerpMarket(
+			marketIndex
+		).data;
 	}
 
 	public getOracleDataForSpotMarket(marketIndex: number): OraclePriceData {
-		const oracleKey = this.getSpotMarketAccount(marketIndex).oracle;
-		const oracleData = this.getOraclePriceDataAndSlot(oracleKey).data;
-
-		return oracleData;
+		return this.accountSubscriber.getOraclePriceDataAndSlotForSpotMarket(
+			marketIndex
+		).data;
 	}
 
 	public async initializeInsuranceFundStake(
