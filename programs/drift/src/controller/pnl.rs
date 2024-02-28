@@ -33,7 +33,7 @@ use crate::state::spot_market::{SpotBalance, SpotBalanceType};
 use crate::state::spot_market_map::SpotMarketMap;
 use crate::state::state::State;
 use crate::state::user::{MarketType, User};
-use crate::validate;
+use crate::{validate, OracleSource};
 use anchor_lang::prelude::Pubkey;
 use anchor_lang::prelude::*;
 use solana_program::msg;
@@ -162,6 +162,13 @@ pub fn settle_pnl(
             !perp_market.is_operation_paused(PerpOperation::SettlePnlWithPosition),
             ErrorCode::InvalidMarketStatusToSettlePnl,
             "Cannot settle pnl with position under current market status"
+        )?;
+
+        // todo should you be able to settle negative pnl at mark?
+        validate!(
+            perp_market.amm.oracle_source != OracleSource::Prelaunch,
+            ErrorCode::InvalidMarketStatusToSettlePnl,
+            "Cannot settle pnl with position for prelaunch oracle"
         )?;
     }
 
