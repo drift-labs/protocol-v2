@@ -5,7 +5,7 @@ use crate::math::casting::Cast;
 use crate::math::constants::{PRICE_PRECISION, PRICE_PRECISION_I64, PRICE_PRECISION_U64};
 use crate::math::safe_math::SafeMath;
 
-use crate::error::ErrorCode::UnableToLoadOracle;
+use crate::error::ErrorCode::{InvalidOracle, UnableToLoadOracle};
 use crate::math::safe_unwrap::SafeUnwrap;
 use crate::state::perp_market::PerpMarket;
 use crate::state::traits::Size;
@@ -406,6 +406,22 @@ impl PrelaunchOracle {
             self.price,
             self.confidence
         );
+
+        Ok(())
+    }
+
+    pub fn validate(&self) -> DriftResult {
+        validate!(self.price != 0, InvalidOracle, "price == 0",)?;
+
+        validate!(self.max_price != 0, InvalidOracle, "max price == 0",)?;
+
+        validate!(
+            self.price <= self.max_price,
+            InvalidOracle,
+            "price {} > max price {}",
+            self.price,
+            self.max_price
+        )?;
 
         Ok(())
     }

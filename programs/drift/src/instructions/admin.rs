@@ -2404,6 +2404,8 @@ pub fn handle_initialize_prelaunch_oracle<'info>(
         oracle.max_price = max_price;
     }
 
+    oracle.validate()?;
+
     Ok(())
 }
 
@@ -2421,6 +2423,8 @@ pub fn handle_update_prelaunch_oracle<'info>(
     if let Some(max_price) = params.max_price {
         oracle.max_price = max_price;
     }
+
+    oracle.validate()?;
 
     Ok(())
 }
