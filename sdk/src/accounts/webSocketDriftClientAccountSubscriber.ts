@@ -200,7 +200,7 @@ export class WebSocketDriftClientAccountSubscriber
 		const client = this.oracleClientCache.get(
 			oracleInfo.source,
 			this.program.provider.connection,
-			this.program,
+			this.program
 		);
 		const accountSubscriber = new WebSocketAccountSubscriber<OraclePriceData>(
 			'oracle',

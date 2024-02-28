@@ -1067,7 +1067,7 @@ export type PrelaunchOracle = {
 	confidence: BN;
 	slot: BN;
 	perpMarketIndex: number;
-}
+};
 
 export type MarginCategory = 'Initial' | 'Maintenance';
 

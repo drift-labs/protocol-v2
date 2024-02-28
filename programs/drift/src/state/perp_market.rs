@@ -26,7 +26,7 @@ use crate::math::safe_math::SafeMath;
 use crate::math::stats;
 use crate::state::events::OrderActionExplanation;
 
-use crate::state::oracle::{HistoricalOracleData, OracleSource};
+use crate::state::oracle::{get_prelaunch_price, HistoricalOracleData, OracleSource};
 use crate::state::spot_market::{AssetTier, SpotBalance, SpotBalanceType};
 use crate::state::traits::{MarketIndexOffset, Size};
 use borsh::{BorshDeserialize, BorshSerialize};
@@ -1212,7 +1212,8 @@ impl AMM {
                 msg!("Can't get oracle twap for quote asset");
                 Err(ErrorCode::DefaultError)
             }
-            OracleSource::Prelaunch => panic!(),
+            // todo is this correct?
+            OracleSource::Prelaunch => Ok(Some(get_prelaunch_price(price_oracle)?.price)),
         }
     }
 

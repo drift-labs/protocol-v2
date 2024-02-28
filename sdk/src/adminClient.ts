@@ -1691,7 +1691,11 @@ export class AdminClient extends DriftClient {
 		);
 	}
 
-	public async initializePrelaunchOracle(perpMarketIndex: number, price?: BN, maxPrice?: BN): Promise<TransactionSignature> {
+	public async initializePrelaunchOracle(
+		perpMarketIndex: number,
+		price?: BN,
+		maxPrice?: BN
+	): Promise<TransactionSignature> {
 		const params = {
 			perpMarketIndex,
 			price: price || null,
@@ -1701,7 +1705,10 @@ export class AdminClient extends DriftClient {
 			accounts: {
 				admin: this.wallet.publicKey,
 				state: await this.getStatePublicKey(),
-				prelaunchOracle: await getPrelaunchOraclePublicKey(this.program.programId, perpMarketIndex),
+				prelaunchOracle: await getPrelaunchOraclePublicKey(
+					this.program.programId,
+					perpMarketIndex
+				),
 				rent: SYSVAR_RENT_PUBKEY,
 				systemProgram: anchor.web3.SystemProgram.programId,
 			},

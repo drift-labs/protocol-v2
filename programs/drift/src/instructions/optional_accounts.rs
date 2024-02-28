@@ -71,7 +71,7 @@ pub fn update_prelaunch_oracle(
 
     let mut oracle = load_mut!(oracle_account_loader)?;
 
-    oracle.update(&perp_market, slot)?;
+    oracle.update(perp_market, slot)?;
 
     Ok(())
 }

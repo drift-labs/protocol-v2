@@ -12,7 +12,8 @@ import {
 	EventSubscriber,
 	BASE_PRECISION,
 	getLimitOrderParams,
-	OracleSource, getPrelaunchOraclePublicKey,
+	OracleSource,
+	getPrelaunchOraclePublicKey,
 } from '../sdk/src';
 
 import {
@@ -20,7 +21,12 @@ import {
 	mockUSDCMint,
 	mockUserUSDCAccount,
 } from './testHelpers';
-import {BID_ASK_SPREAD_PRECISION, BulkAccountLoader, PEG_PRECISION, PostOnlyParams} from '../sdk';
+import {
+	BID_ASK_SPREAD_PRECISION,
+	BulkAccountLoader,
+	PEG_PRECISION,
+	PostOnlyParams,
+} from '../sdk';
 
 describe('prelisting', () => {
 	const provider = anchor.AnchorProvider.local(undefined, {
@@ -67,7 +73,9 @@ describe('prelisting', () => {
 
 		marketIndexes = [0];
 		spotMarketIndexes = [0, 1];
-		oracleInfos = [{ publicKey: prelaunchOracle, source: OracleSource.Prelaunch }];
+		oracleInfos = [
+			{ publicKey: prelaunchOracle, source: OracleSource.Prelaunch },
+		];
 
 		adminDriftClient = new TestClient({
 			connection,
@@ -102,10 +110,13 @@ describe('prelisting', () => {
 			ammInitialQuoteAssetReserve,
 			periodicity,
 			new BN(32 * PEG_PRECISION.toNumber()),
-			OracleSource.Prelaunch,
+			OracleSource.Prelaunch
 		);
 
-		await adminDriftClient.updatePerpMarketBaseSpread(0, BID_ASK_SPREAD_PRECISION.divn(50));
+		await adminDriftClient.updatePerpMarketBaseSpread(
+			0,
+			BID_ASK_SPREAD_PRECISION.divn(50)
+		);
 
 		await adminDriftClient.updatePerpAuctionDuration(0);
 
@@ -145,12 +156,21 @@ describe('prelisting', () => {
 		await adminDriftClient.fetchAccounts();
 		const bidOrder = adminDriftClientUser.getOrderByUserOrderId(1);
 
-		await adminDriftClient.fillPerpOrder(await adminDriftClient.getUserAccountPublicKey(), adminDriftClient.getUserAccount(), bidOrder);
+		await adminDriftClient.fillPerpOrder(
+			await adminDriftClient.getUserAccountPublicKey(),
+			adminDriftClient.getUserAccount(),
+			bidOrder
+		);
 
 		// settle pnl to force oracle to update
-		await adminDriftClient.settlePNL(await adminDriftClient.getUserAccountPublicKey(), adminDriftClient.getUserAccount(), 0);
+		await adminDriftClient.settlePNL(
+			await adminDriftClient.getUserAccountPublicKey(),
+			adminDriftClient.getUserAccount(),
+			0
+		);
 
-		const oraclePriceDataAfterBuy = adminDriftClient.getOracleDataForPerpMarket(0);
+		const oraclePriceDataAfterBuy =
+			adminDriftClient.getOracleDataForPerpMarket(0);
 		const oraclePriceAfterBuy = oraclePriceDataAfterBuy.price;
 		assert(oraclePriceAfterBuy.gt(new BN(32000000)));
 
@@ -169,12 +189,21 @@ describe('prelisting', () => {
 		await adminDriftClient.fetchAccounts();
 		const askOrder = adminDriftClientUser.getOrderByUserOrderId(1);
 
-		await adminDriftClient.fillPerpOrder(await adminDriftClient.getUserAccountPublicKey(), adminDriftClient.getUserAccount(), askOrder);
+		await adminDriftClient.fillPerpOrder(
+			await adminDriftClient.getUserAccountPublicKey(),
+			adminDriftClient.getUserAccount(),
+			askOrder
+		);
 
 		// settle pnl to force oracle to update
-		await adminDriftClient.settlePNL(await adminDriftClient.getUserAccountPublicKey(), adminDriftClient.getUserAccount(), 0);
+		await adminDriftClient.settlePNL(
+			await adminDriftClient.getUserAccountPublicKey(),
+			adminDriftClient.getUserAccount(),
+			0
+		);
 
-		const oraclePriceDataAfterSell = adminDriftClient.getOracleDataForPerpMarket(0);
+		const oraclePriceDataAfterSell =
+			adminDriftClient.getOracleDataForPerpMarket(0);
 		const oraclePriceAfterSell = oraclePriceDataAfterSell.price;
 		assert(oraclePriceAfterSell.lt(oraclePriceAfterBuy));
 	});

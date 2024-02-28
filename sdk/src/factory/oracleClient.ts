@@ -4,13 +4,13 @@ import { OracleClient } from '../oracles/types';
 import { PythClient } from '../oracles/pythClient';
 // import { SwitchboardClient } from '../oracles/switchboardClient';
 import { QuoteAssetOracleClient } from '../oracles/quoteAssetOracleClient';
-import {BN, Program} from '@coral-xyz/anchor';
-import {PrelaunchOracleClient} from "../oracles/prelaunchOracleClient";
+import { BN, Program } from '@coral-xyz/anchor';
+import { PrelaunchOracleClient } from '../oracles/prelaunchOracleClient';
 
 export function getOracleClient(
 	oracleSource: OracleSource,
 	connection: Connection,
-	program: Program,
+	program: Program
 ): OracleClient {
 	if (isVariant(oracleSource, 'pyth')) {
 		return new PythClient(connection);

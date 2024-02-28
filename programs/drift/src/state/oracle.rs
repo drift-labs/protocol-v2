@@ -5,6 +5,7 @@ use crate::math::casting::Cast;
 use crate::math::constants::{PRICE_PRECISION, PRICE_PRECISION_I64, PRICE_PRECISION_U64};
 use crate::math::safe_math::SafeMath;
 
+use crate::error::ErrorCode::UnableToLoadOracle;
 use crate::math::safe_unwrap::SafeUnwrap;
 use crate::state::perp_market::PerpMarket;
 use crate::state::traits::Size;
@@ -286,7 +287,7 @@ pub fn get_pyth_stable_coin_price(
 
 pub fn get_prelaunch_price(price_oracle: &AccountInfo) -> DriftResult<OraclePriceData> {
     let oracle_account_loader: AccountLoader<PrelaunchOracle> =
-        AccountLoader::try_from(&price_oracle).unwrap();
+        AccountLoader::try_from(price_oracle).or(Err(UnableToLoadOracle))?;
 
     let oracle = load!(oracle_account_loader)?;
 

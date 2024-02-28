@@ -226,7 +226,7 @@ export function getProtocolIfSharesTransferConfigPublicKey(
 
 export function getPrelaunchOraclePublicKey(
 	programId: PublicKey,
-	marketIndex: number,
+	marketIndex: number
 ): PublicKey {
 	return PublicKey.findProgramAddressSync(
 		[
