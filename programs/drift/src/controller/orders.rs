@@ -997,11 +997,12 @@ pub fn fill_perp_order(
     }
 
     // allow oracle price to be used to calculate limit price if it's valid or stale for amm
-    let valid_oracle_price = if is_oracle_valid || oracle_validity == OracleValidity::StaleForAMM {
-        Some(oracle_price)
-    } else {
-        None
-    };
+    let valid_oracle_price =
+        if is_oracle_valid_for_action(oracle_validity, Some(DriftAction::OracleOrderPrice))? {
+            Some(oracle_price)
+        } else {
+            None
+        };
 
     let is_filler_taker = user_key == filler_key;
     let is_filler_maker = makers_and_referrer.0.contains_key(&filler_key);
