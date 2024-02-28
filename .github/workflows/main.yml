@@ -209,7 +209,6 @@ jobs:
         repo:
           [
             "jit-proxy",
-            "internal-keeper-bot",
             "dlob-server",
             "drift-competitions",
           ]

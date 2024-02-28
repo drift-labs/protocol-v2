@@ -33,7 +33,7 @@ import {
 	setFeedPrice,
 	sleep,
 } from './testHelpers';
-import { PostOnlyParams } from '../sdk';
+import { convertToNumber, PostOnlyParams } from '../sdk';
 
 describe('post only maker order w/ amm fulfillments', () => {
 	const provider = anchor.AnchorProvider.local(undefined, {
@@ -228,6 +228,11 @@ describe('post only maker order w/ amm fulfillments', () => {
 		const order2 = fillerDriftClient.getOrderByUserId(1);
 		assert(order2.postOnly);
 
+		await setFeedPrice(
+			anchor.workspace.Pyth,
+			convertToNumber(reservePrice),
+			solUsd
+		);
 		const makerOrderParams = getLimitOrderParams({
 			marketIndex,
 			direction: PositionDirection.LONG,
@@ -240,6 +245,8 @@ describe('post only maker order w/ amm fulfillments', () => {
 		await driftClientUser.fetchAccounts();
 		const order = driftClientUser.getOrderByUserOrderId(1);
 		assert(!order.postOnly);
+
+		await setFeedPrice(anchor.workspace.Pyth, newOraclePrice, solUsd);
 
 		const makerInfo = {
 			maker: await fillerDriftClient.getUserAccountPublicKey(),

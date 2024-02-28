@@ -46,6 +46,7 @@ pub enum DriftAction {
     MarginCalc,
     UpdateTwap,
     UpdateAMMCurve,
+    OracleOrderPrice,
 }
 
 pub fn is_oracle_valid_for_action(
@@ -61,6 +62,14 @@ pub fn is_oracle_valid_for_action(
                 matches!(
                     oracle_validity,
                     OracleValidity::Valid | OracleValidity::StaleForAMM
+                )
+            }
+            DriftAction::OracleOrderPrice => {
+                matches!(
+                    oracle_validity,
+                    OracleValidity::Valid
+                        | OracleValidity::StaleForAMM
+                        | OracleValidity::InsufficientDataPoints
                 )
             }
             DriftAction::MarginCalc => !matches!(
@@ -179,6 +188,10 @@ pub fn oracle_validity(
         has_sufficient_number_of_data_points,
         ..
     } = *oracle_price_data;
+
+    if !has_sufficient_number_of_data_points {
+        msg!("Invalid Oracle: Insufficient Data Points");
+    }
 
     let is_oracle_price_nonpositive = oracle_price <= 0;
     if is_oracle_price_nonpositive {

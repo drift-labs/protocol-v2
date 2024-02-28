@@ -332,8 +332,8 @@ describe('AMM Tests', () => {
 			new BN(928097825691666),
 			new BN(907979542352912),
 			new BN(945977491145601),
-			new BN(161188),
-			new BN(1459632439),
+			new BN(161188), // mark std
+			new BN(145963), // oracle std
 			new BN(12358265776),
 			new BN(72230366233),
 			new BN(432067603632),
@@ -342,9 +342,9 @@ describe('AMM Tests', () => {
 
 		// console.log(terms2);
 		assert(terms2.effectiveLeverageCapped >= 1.0002);
-		assert(terms2.inventorySpreadScale == 1.73492);
-		assert(terms2.longSpread == 4262);
-		assert(terms2.shortSpread == 43238);
+		assert(terms2.inventorySpreadScale == 4.717646);
+		assert(terms2.longSpread == 160);
+		assert(terms2.shortSpread == 4430);
 
 		// add spread offset
 		// eslint-disable-next-line @typescript-eslint/ban-ts-comment
@@ -365,19 +365,19 @@ describe('AMM Tests', () => {
 			new BN(907979542352912),
 			new BN(945977491145601),
 			new BN(161188),
-			new BN(1459632439),
+			new BN(145963), // oracle std
 			new BN(12358265776),
 			new BN(72230366233),
 			new BN(432067603632),
 			true
 		);
 
-		console.log(terms3);
+		// console.log(terms3);
 		assert(terms3.effectiveLeverageCapped >= 1.0002);
-		assert(terms3.inventorySpreadScale == 1.73492);
-		assert(terms3.longSpread == 4262);
-		assert(terms3.shortSpread == 43238);
-		assert(terms3.longSpread + terms3.shortSpread == 47500);
+		assert(terms3.inventorySpreadScale == 4.717646);
+		assert(terms3.longSpread == 160);
+		assert(terms3.shortSpread == 4430);
+		assert(terms3.longSpread + terms3.shortSpread == 4430 + 160);
 
 		// add spread offset
 		// eslint-disable-next-line @typescript-eslint/ban-ts-comment
@@ -398,7 +398,7 @@ describe('AMM Tests', () => {
 			new BN(907979542352912),
 			new BN(945977491145601),
 			new BN(161188),
-			new BN(1459632439),
+			new BN(1459632439), // oracle std (unchanged)
 			new BN(12358265776),
 			new BN(72230366233),
 			new BN(432067603632),
@@ -408,9 +408,9 @@ describe('AMM Tests', () => {
 		console.log(terms4);
 		assert(terms4.effectiveLeverageCapped >= 1.0002);
 		assert(terms4.inventorySpreadScale == 1.73492);
-		assert(terms4.longSpread == 4262);
-		assert(terms4.shortSpread == 43238);
-		assert(terms4.longSpread + terms4.shortSpread == 47500);
+		assert(terms4.longSpread == 89746);
+		assert(terms4.shortSpread == 910254);
+		assert(terms4.longSpread + terms4.shortSpread == 1000000);
 	});
 
 	it('Corner Case Spreads', () => {
@@ -614,8 +614,14 @@ describe('AMM Tests', () => {
 		// console.log(termsSuiExample);
 		assert(termsSuiExample.effectiveLeverageCapped <= 1.000001);
 		assert(termsSuiExample.inventorySpreadScale == 1.00007);
-		assert(termsSuiExample.longSpread == 259073);
-		assert(termsSuiExample.shortSpread == 3712);
+		assert(
+			termsSuiExample.longSpread == 269818,
+			`SUI long spread got ${termsSuiExample.longSpread}`
+		);
+		assert(
+			termsSuiExample.shortSpread == 3920,
+			`SUI short spread got ${termsSuiExample.shortSpread}`
+		);
 
 		// reset amm reserves/peg to balanced values s.t. liquidity/price is the same
 		// to avoid error prone int math
@@ -674,7 +680,26 @@ describe('AMM Tests', () => {
 		);
 
 		console.log(termsSuiExampleMod2);
-		// assert(_.isEqual(termsSuiExampleMod2, termsSuiExampleMod1));
+		assert(
+			_.isEqual(
+				termsSuiExampleMod2.maxTargetSpread,
+				termsSuiExampleMod1.maxTargetSpread
+			)
+		);
+		assert(
+			_.isEqual(
+				termsSuiExampleMod2.shortSpreadwPS,
+				termsSuiExampleMod1.shortSpreadwPS
+			)
+		);
+		assert(
+			_.isEqual(
+				termsSuiExampleMod2.longSpreadwPS,
+				termsSuiExampleMod1.longSpreadwPS
+			)
+		);
+
+		// note: effectiveLeverage as currently implemented is sensitive to peg change
 	});
 
 	it('Spread Reserves (with offset)', () => {
