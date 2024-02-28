@@ -1,9 +1,6 @@
 import { Connection, PublicKey } from '@solana/web3.js';
 import { OracleClient, OraclePriceData } from './types';
 import {Program} from '@coral-xyz/anchor';
-import {
-	ZERO,
-} from '../constants/numericConstants';
 import {DriftOracle} from "../types";
 
 export class DriftOracleClient implements OracleClient {
