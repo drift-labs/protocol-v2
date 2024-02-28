@@ -413,8 +413,9 @@ export class UserMap implements UserMapInterface {
 					}
 				}
 			}
-		} catch (e) {
-			console.error(`Error in UserMap.sync():`, e);
+		} catch (err) {
+			const e = err as Error;
+			console.error(`Error in UserMap.sync(): ${e.message} ${e.stack ?? ''}`);
 		} finally {
 			this.syncPromiseResolver();
 			this.syncPromise = undefined;
