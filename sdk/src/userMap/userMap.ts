@@ -371,6 +371,7 @@ export class UserMap implements UserMapInterface {
 				Array<{ pubkey: PublicKey; account: { data: [string, string] } }>
 			> = rpcJSONResponse.result;
 			const slot = rpcResponseAndContext.context.slot;
+
 			this.updateLatestSlot(slot);
 
 			const programAccountBufferMap = new Map<string, Buffer>();
@@ -389,16 +390,14 @@ export class UserMap implements UserMapInterface {
 				([key, buffer]) =>
 					(async () => {
 						const currAccountWithSlot = this.getWithSlot(key);
-						if (currAccountWithSlot && slot >= currAccountWithSlot.slot) {
-							const userAccount = this.decode('User', buffer);
-							currAccountWithSlot.data.accountSubscriber.updateData(
-								userAccount,
-								slot
-							);
+						if (currAccountWithSlot) {
+							if (slot >= currAccountWithSlot.slot) {
+								const userAccount = this.decode('User', buffer);
+								this.updateUserAccount(key, userAccount, slot);
+							}
 						} else {
 							const userAccount = this.decode('User', buffer);
 							await this.addPubkey(new PublicKey(key), userAccount, slot);
-							this.get(key)?.accountSubscriber.updateData(userAccount, slot);
 						}
 					})()
 			);

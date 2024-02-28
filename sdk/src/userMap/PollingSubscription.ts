@@ -23,20 +23,19 @@ export class PollingSubscription {
 	}
 
 	public async subscribe(): Promise<void> {
-		if (this.intervalId) {
+		if (this.intervalId || this.frequency <= 0) {
 			return;
 		}
 
-		if (this.frequency > 0) {
-			this.intervalId = setInterval(
-				this.userMap.sync.bind(this.userMap),
-				this.frequency
-			);
-		}
+		const executeSync = async () => {
+			await this.userMap.sync();
+			this.intervalId = setTimeout(executeSync, this.frequency);
+		};
 
 		if (!this.skipInitialLoad) {
 			await this.userMap.sync();
 		}
+		executeSync();
 	}
 
 	public async unsubscribe(): Promise<void> {
