@@ -362,25 +362,20 @@ export class UserMap implements UserMapInterface {
 				},
 			];
 
-			const rpcJSONResponse: any =
-				// @ts-ignore
-				await this.connection._rpcRequest('getProgramAccounts', rpcRequestArgs);
-
+			// @ts-ignore
+			const rpcJSONResponse: any = await this.connection._rpcRequest(
+				'getProgramAccounts',
+				rpcRequestArgs
+			);
 			const rpcResponseAndContext: RpcResponseAndContext<
-				Array<{
-					pubkey: PublicKey;
-					account: {
-						data: [string, string];
-					};
-				}>
+				Array<{ pubkey: PublicKey; account: { data: [string, string] } }>
 			> = rpcJSONResponse.result;
-
 			const slot = rpcResponseAndContext.context.slot;
 
 			this.updateLatestSlot(slot);
 
 			const programAccountBufferMap = new Map<string, Buffer>();
-			for (const programAccount of rpcResponseAndContext.value) {
+			rpcResponseAndContext.value.forEach((programAccount) => {
 				programAccountBufferMap.set(
 					programAccount.pubkey.toString(),
 					// @ts-ignore
@@ -389,32 +384,38 @@ export class UserMap implements UserMapInterface {
 						programAccount.account.data[1]
 					)
 				);
-			}
+			});
 
-			for (const [key, buffer] of programAccountBufferMap.entries()) {
-				if (!this.has(key)) {
-					const userAccount = this.decode('User', buffer);
-					await this.addPubkey(new PublicKey(key), userAccount, slot);
-					this.get(key).accountSubscriber.updateData(userAccount, slot);
-				} else {
-					const userAccount = this.decode('User', buffer);
-					this.get(key).accountSubscriber.updateData(userAccount, slot);
-				}
-				// give event loop a chance to breathe
-				await new Promise((resolve) => setTimeout(resolve, 0));
-			}
+			const promises = Array.from(programAccountBufferMap.entries()).map(
+				([key, buffer]) =>
+					(async () => {
+						const currAccountWithSlot = this.getWithSlot(key);
+						if (currAccountWithSlot) {
+							if (slot >= currAccountWithSlot.slot) {
+								const userAccount = this.decode('User', buffer);
+								this.updateUserAccount(key, userAccount, slot);
+							}
+						} else {
+							const userAccount = this.decode('User', buffer);
+							await this.addPubkey(new PublicKey(key), userAccount, slot);
+						}
+					})()
+			);
 
-			for (const [key, user] of this.entries()) {
+			await Promise.all(promises);
+
+			for (const [key] of this.entries()) {
 				if (!programAccountBufferMap.has(key)) {
-					await user.unsubscribe();
-					this.userMap.delete(key);
+					const user = this.get(key);
+					if (user) {
+						await user.unsubscribe();
+						this.userMap.delete(key);
+					}
 				}
-				// give event loop a chance to breathe
-				await new Promise((resolve) => setTimeout(resolve, 0));
 			}
-		} catch (e) {
-			console.error(`Error in UserMap.sync():`);
-			console.error(e);
+		} catch (err) {
+			const e = err as Error;
+			console.error(`Error in UserMap.sync(): ${e.message} ${e.stack ?? ''}`);
 		} finally {
 			this.syncPromiseResolver();
 			this.syncPromise = undefined;
@@ -446,16 +447,18 @@ export class UserMap implements UserMapInterface {
 		userAccount: UserAccount,
 		slot: number
 	) {
+		const userWithSlot = this.getWithSlot(key);
 		this.updateLatestSlot(slot);
-		if (!this.has(key)) {
-			this.addPubkey(new PublicKey(key), userAccount, slot);
+		if (userWithSlot) {
+			if (slot >= userWithSlot.slot) {
+				userWithSlot.data.accountSubscriber.updateData(userAccount, slot);
+				this.userMap.set(key, {
+					data: userWithSlot.data,
+					slot,
+				});
+			}
 		} else {
-			const user = this.get(key);
-			user.accountSubscriber.updateData(userAccount, slot);
-			this.userMap.set(key, {
-				data: user,
-				slot,
-			});
+			this.addPubkey(new PublicKey(key), userAccount, slot);
 		}
 	}
 

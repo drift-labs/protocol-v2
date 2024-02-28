@@ -2,13 +2,17 @@ import { Commitment, PublicKey } from '@solana/web3.js';
 import { UserAccount } from '../types';
 import { BasicUserAccountSubscriber } from './basicUserAccountSubscriber';
 import { Program } from '@coral-xyz/anchor';
+import { UserAccountSubscriber } from './types';
 
 /**
  * Simple implementation of UserAccountSubscriber. It will fetch the UserAccount
  * date on subscribe (or call to fetch) if no account data is provided on init.
  * Expect to use only 1 RPC call unless you call fetch repeatedly.
  */
-export class OneShotUserAccountSubscriber extends BasicUserAccountSubscriber {
+export class OneShotUserAccountSubscriber
+	extends BasicUserAccountSubscriber
+	implements UserAccountSubscriber
+{
 	program: Program;
 	commitment: Commitment;
 
