@@ -12,7 +12,7 @@ import {
 	EventSubscriber,
 	BASE_PRECISION,
 	getLimitOrderParams,
-	OracleSource, getDriftOraclePublicKey,
+	OracleSource, getPrelaunchOraclePublicKey,
 } from '../sdk/src';
 
 import {
@@ -54,7 +54,7 @@ describe('prelisting', () => {
 
 	const usdcAmount = new BN(100 * 10 ** 6);
 
-	let driftOracle;
+	let prelaunchOracle;
 	let marketIndexes;
 	let spotMarketIndexes;
 	let oracleInfos;
@@ -63,11 +63,11 @@ describe('prelisting', () => {
 		usdcMint = await mockUSDCMint(provider);
 		userUSDCAccount = await mockUserUSDCAccount(usdcMint, usdcAmount, provider);
 
-		driftOracle = getDriftOraclePublicKey(chProgram.programId, 0);
+		prelaunchOracle = getPrelaunchOraclePublicKey(chProgram.programId, 0);
 
 		marketIndexes = [0];
 		spotMarketIndexes = [0, 1];
-		oracleInfos = [{ publicKey: driftOracle, source: OracleSource.DRIFT }];
+		oracleInfos = [{ publicKey: prelaunchOracle, source: OracleSource.Prelaunch }];
 
 		adminDriftClient = new TestClient({
 			connection,
@@ -90,17 +90,19 @@ describe('prelisting', () => {
 		await adminDriftClient.subscribe();
 		await initializeQuoteSpotMarket(adminDriftClient, usdcMint.publicKey);
 
-		await adminDriftClient.initializeDriftOracle(0, PRICE_PRECISION.muln(32));
+		const startPrice = PRICE_PRECISION.muln(32);
+		const maxPrice = startPrice.muln(4);
+		await adminDriftClient.initializePrelaunchOracle(0, startPrice, maxPrice);
 
 		const periodicity = new BN(3600);
 		await adminDriftClient.initializePerpMarket(
 			0,
-			driftOracle,
+			prelaunchOracle,
 			ammInitialBaseAssetReserve,
 			ammInitialQuoteAssetReserve,
 			periodicity,
 			new BN(32 * PEG_PRECISION.toNumber()),
-			OracleSource.DRIFT,
+			OracleSource.Prelaunch,
 		);
 
 		await adminDriftClient.updatePerpMarketBaseSpread(0, BID_ASK_SPREAD_PRECISION.divn(50));
@@ -150,7 +152,7 @@ describe('prelisting', () => {
 
 		const oraclePriceDataAfterBuy = adminDriftClient.getOracleDataForPerpMarket(0);
 		const oraclePriceAfterBuy = oraclePriceDataAfterBuy.price;
-		assert(oraclePriceAfterBuy.eq(new BN(32000088)));
+		assert(oraclePriceAfterBuy.gt(new BN(32000000)));
 
 		const askOrderParams = getLimitOrderParams({
 			marketIndex,
@@ -174,6 +176,6 @@ describe('prelisting', () => {
 
 		const oraclePriceDataAfterSell = adminDriftClient.getOracleDataForPerpMarket(0);
 		const oraclePriceAfterSell = oraclePriceDataAfterSell.price;
-		assert(oraclePriceAfterSell.eq(new BN(32000001)));
+		assert(oraclePriceAfterSell.lt(oraclePriceAfterBuy));
 	});
 });

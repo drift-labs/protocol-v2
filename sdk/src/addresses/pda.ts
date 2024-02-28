@@ -224,13 +224,13 @@ export function getProtocolIfSharesTransferConfigPublicKey(
 	)[0];
 }
 
-export function getDriftOraclePublicKey(
+export function getPrelaunchOraclePublicKey(
 	programId: PublicKey,
 	marketIndex: number,
 ): PublicKey {
 	return PublicKey.findProgramAddressSync(
 		[
-			Buffer.from(anchor.utils.bytes.utf8.encode('drift_oracle')),
+			Buffer.from(anchor.utils.bytes.utf8.encode('prelaunch_oracle')),
 			new anchor.BN(marketIndex).toArrayLike(Buffer, 'le', 2),
 		],
 		programId

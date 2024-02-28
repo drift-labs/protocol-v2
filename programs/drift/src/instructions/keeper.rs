@@ -11,7 +11,7 @@ use crate::math::insurance::if_shares_to_vault_amount;
 use crate::math::margin::calculate_user_equity;
 use crate::math::orders::{estimate_price_from_side, find_bids_and_asks_from_users};
 use crate::math::spot_withdraw::validate_spot_market_vault_amount;
-use crate::optional_accounts::update_drift_oracle;
+use crate::optional_accounts::update_prelaunch_oracle;
 use crate::state::fill_mode::FillMode;
 use crate::state::fulfillment_params::drift::MatchFulfillmentParams;
 use crate::state::fulfillment_params::phoenix::PhoenixFulfillmentParams;
@@ -1166,7 +1166,7 @@ pub fn handle_update_funding_rate(
         Some(state.oracle_guard_rails),
     )?;
 
-    update_drift_oracle(perp_market, &oracle_map, clock_slot)?;
+    update_prelaunch_oracle(perp_market, &oracle_map, clock_slot)?;
 
     let oracle_price_data = &oracle_map.get_price_data(&perp_market.amm.oracle)?;
     controller::repeg::_update_amm(perp_market, oracle_price_data, state, now, clock_slot)?;
@@ -1231,7 +1231,7 @@ pub fn handle_update_perp_bid_ask_twap(ctx: Context<UpdatePerpBidAskTwap>) -> Re
     let mut oracle_map =
         OracleMap::load_one(&ctx.accounts.oracle, slot, Some(state.oracle_guard_rails))?;
 
-    update_drift_oracle(perp_market, &oracle_map, slot)?;
+    update_prelaunch_oracle(perp_market, &oracle_map, slot)?;
 
     let keeper_stats = load!(ctx.accounts.keeper_stats)?;
     validate!(

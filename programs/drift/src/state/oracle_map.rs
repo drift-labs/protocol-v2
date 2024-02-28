@@ -3,7 +3,7 @@ use crate::error::{DriftResult, ErrorCode};
 use crate::ids::{bonk_oracle, pepe_oracle, pyth_program, usdc_oracle, usdt_oracle_mainnet};
 use crate::math::constants::PRICE_PRECISION_I64;
 use crate::math::oracle::{oracle_validity, OracleValidity};
-use crate::state::oracle::{get_oracle_price, DriftOracle, OraclePriceData, OracleSource};
+use crate::state::oracle::{get_oracle_price, OraclePriceData, OracleSource, PrelaunchOracle};
 use crate::state::state::OracleGuardRails;
 use anchor_lang::prelude::{AccountInfo, Pubkey};
 use anchor_lang::Discriminator;
@@ -193,13 +193,13 @@ impl<'a> OracleMap<'a> {
                     UnableToLoadOracle
                 })?;
 
-                let expected_data_len = DriftOracle::SIZE;
+                let expected_data_len = PrelaunchOracle::SIZE;
                 if data.len() < expected_data_len {
                     break;
                 }
 
                 let account_discriminator = array_ref![data, 0, 8];
-                if account_discriminator != &DriftOracle::discriminator() {
+                if account_discriminator != &PrelaunchOracle::discriminator() {
                     break;
                 }
 
@@ -210,7 +210,7 @@ impl<'a> OracleMap<'a> {
                     pubkey,
                     AccountInfoAndOracleSource {
                         account_info: account_info.clone(),
-                        oracle_source: OracleSource::Drift,
+                        oracle_source: OracleSource::Prelaunch,
                     },
                 );
 
@@ -269,14 +269,14 @@ impl<'a> OracleMap<'a> {
                 UnableToLoadOracle
             })?;
 
-            let expected_data_len = DriftOracle::SIZE;
+            let expected_data_len = PrelaunchOracle::SIZE;
             if data.len() < expected_data_len {
                 msg!("Unexpected account data len loading oracle");
                 return Err(UnableToLoadOracle);
             }
 
             let account_discriminator = array_ref![data, 0, 8];
-            if account_discriminator != &DriftOracle::discriminator() {
+            if account_discriminator != &PrelaunchOracle::discriminator() {
                 msg!("Unexpected account discriminator");
                 return Err(UnableToLoadOracle);
             }
@@ -287,7 +287,7 @@ impl<'a> OracleMap<'a> {
                 pubkey,
                 AccountInfoAndOracleSource {
                     account_info: account_info.clone(),
-                    oracle_source: OracleSource::Drift,
+                    oracle_source: OracleSource::Prelaunch,
                 },
             );
         } else if account_info.key() != Pubkey::default() {

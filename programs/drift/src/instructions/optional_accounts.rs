@@ -2,7 +2,7 @@ use crate::error::{DriftResult, ErrorCode};
 
 use crate::error::ErrorCode::UnableToLoadOracle;
 use crate::math::safe_unwrap::SafeUnwrap;
-use crate::state::oracle::DriftOracle;
+use crate::state::oracle::PrelaunchOracle;
 use crate::state::oracle_map::OracleMap;
 use crate::state::perp_market::PerpMarket;
 use crate::state::perp_market_map::{MarketSet, PerpMarketMap};
@@ -41,7 +41,7 @@ pub fn load_maps<'a, 'b>(
     let perp_market_map = PerpMarketMap::load(writable_perp_markets, account_info_iter)?;
 
     for perp_market_index in writable_perp_markets.iter() {
-        update_drift_oracle(
+        update_prelaunch_oracle(
             perp_market_map.get_ref(perp_market_index)?.deref(),
             &oracle_map,
             slot,
@@ -55,18 +55,18 @@ pub fn load_maps<'a, 'b>(
     })
 }
 
-pub fn update_drift_oracle(
+pub fn update_prelaunch_oracle(
     perp_market: &PerpMarket,
     oracle_map: &OracleMap,
     slot: u64,
 ) -> DriftResult {
-    if perp_market.amm.oracle_source != OracleSource::Drift {
+    if perp_market.amm.oracle_source != OracleSource::Prelaunch {
         return Ok(());
     }
 
     let oracle_account_info = oracle_map.get_account_info(&perp_market.amm.oracle)?;
 
-    let oracle_account_loader: AccountLoader<DriftOracle> =
+    let oracle_account_loader: AccountLoader<PrelaunchOracle> =
         AccountLoader::try_from(&oracle_account_info).or(Err(UnableToLoadOracle))?;
 
     let mut oracle = load_mut!(oracle_account_loader)?;

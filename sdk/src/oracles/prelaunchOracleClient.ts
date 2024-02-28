@@ -1,9 +1,9 @@
 import { Connection, PublicKey } from '@solana/web3.js';
 import { OracleClient, OraclePriceData } from './types';
 import {Program} from '@coral-xyz/anchor';
-import {DriftOracle} from "../types";
+import {PrelaunchOracle} from "../types";
 
-export class DriftOracleClient implements OracleClient {
+export class PrelaunchOracleClient implements OracleClient {
 	private connection: Connection;
 	private program: Program;
 
@@ -23,12 +23,12 @@ export class DriftOracleClient implements OracleClient {
 	}
 
 	public getOraclePriceDataFromBuffer(buffer: Buffer): OraclePriceData {
-		const driftOracle = this.program.account.driftOracle.coder.accounts.decodeUnchecked('DriftOracle', buffer) as DriftOracle;
+		const prelaunchOracle = this.program.account.prelaunchOracle.coder.accounts.decodeUnchecked('PrelaunchOracle', buffer) as PrelaunchOracle;
 
 		return {
-			price: driftOracle.price,
-			slot: driftOracle.slot,
-			confidence: driftOracle.confidence,
+			price: prelaunchOracle.price,
+			slot: prelaunchOracle.slot,
+			confidence: prelaunchOracle.confidence,
 			hasSufficientNumberOfDataPoints: true,
 		};
 	}

@@ -1566,7 +1566,7 @@ export class DriftClient {
 			isSigner: false,
 			isWritable: writable,
 		});
-		const oracleWritable = writable && isVariant(perpMarketAccount.amm.oracleSource, 'drift');
+		const oracleWritable = writable && isVariant(perpMarketAccount.amm.oracleSource, 'prelaunch');
 		oracleAccountMap.set(perpMarketAccount.amm.oracle.toString(), {
 			pubkey: perpMarketAccount.amm.oracle,
 			isSigner: false,

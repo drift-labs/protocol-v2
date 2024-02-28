@@ -96,7 +96,7 @@ export class OracleSource {
 	// static readonly SWITCHBOARD = { switchboard: {} };
 	static readonly QUOTE_ASSET = { quoteAsset: {} };
 	static readonly PYTH_STABLE_COIN = { pythStableCoin: {} };
-	static readonly DRIFT = { drift: {} };
+	static readonly Prelaunch = { prelaunch: {} };
 }
 
 export class OrderType {
@@ -1061,7 +1061,7 @@ export type OracleGuardRails = {
 	};
 };
 
-export type DriftOracle = {
+export type PrelaunchOracle = {
 	price: BN;
 	maxPrice: BN;
 	confidence: BN;

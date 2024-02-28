@@ -5,7 +5,7 @@ import { PythClient } from '../oracles/pythClient';
 // import { SwitchboardClient } from '../oracles/switchboardClient';
 import { QuoteAssetOracleClient } from '../oracles/quoteAssetOracleClient';
 import {BN, Program} from '@coral-xyz/anchor';
-import {DriftOracleClient} from "../oracles/driftOracleClient";
+import {PrelaunchOracleClient} from "../oracles/prelaunchOracleClient";
 
 export function getOracleClient(
 	oracleSource: OracleSource,
@@ -32,8 +32,8 @@ export function getOracleClient(
 	// 	return new SwitchboardClient(connection);
 	// }
 
-	if (isVariant(oracleSource, 'drift')) {
-		return new DriftOracleClient(connection, program);
+	if (isVariant(oracleSource, 'prelaunch')) {
+		return new PrelaunchOracleClient(connection, program);
 	}
 
 	if (isVariant(oracleSource, 'quoteAsset')) {

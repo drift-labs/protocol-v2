@@ -13,7 +13,7 @@ use math::{bn, constants::*};
 use state::oracle::OracleSource;
 
 use crate::controller::position::PositionDirection;
-use crate::state::oracle::DriftOracleParams;
+use crate::state::oracle::PrelaunchOracleParams;
 use crate::state::order_params::{ModifyOrderParams, OrderParams};
 use crate::state::perp_market::{ContractTier, MarketStatus};
 use crate::state::spot_market::AssetTier;
@@ -1149,18 +1149,18 @@ pub mod drift {
         )
     }
 
-    pub fn initialize_drift_oracle(
-        ctx: Context<InitializeDriftOracle>,
-        params: DriftOracleParams,
+    pub fn initialize_prelaunch_oracle(
+        ctx: Context<InitializePrelaunchOracle>,
+        params: PrelaunchOracleParams,
     ) -> Result<()> {
-        handle_initialize_drift_oracle(ctx, params)
+        handle_initialize_prelaunch_oracle(ctx, params)
     }
 
-    pub fn update_drift_oracle(
-        ctx: Context<UpdateDriftOracle>,
-        params: DriftOracleParams,
+    pub fn update_prelaunch_oracle(
+        ctx: Context<UpdatePrelaunchOracle>,
+        params: PrelaunchOracleParams,
     ) -> Result<()> {
-        handle_update_drift_oracle(ctx, params)
+        handle_update_prelaunch_oracle(ctx, params)
     }
 }
 

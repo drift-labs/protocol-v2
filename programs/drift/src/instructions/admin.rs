@@ -34,8 +34,8 @@ use crate::state::fulfillment_params::serum::SerumContext;
 use crate::state::fulfillment_params::serum::SerumV3FulfillmentConfig;
 use crate::state::insurance_fund_stake::ProtocolIfSharesTransferConfig;
 use crate::state::oracle::{
-    get_drift_oracle_price, get_oracle_price, get_pyth_price, DriftOracle, DriftOracleParams,
-    HistoricalIndexData, HistoricalOracleData, OraclePriceData, OracleSource,
+    get_oracle_price, get_prelaunch_price, get_pyth_price, HistoricalIndexData,
+    HistoricalOracleData, OraclePriceData, OracleSource, PrelaunchOracle, PrelaunchOracleParams,
 };
 use crate::state::paused_operations::{PerpOperation, SpotOperation};
 use crate::state::perp_market::{
@@ -575,12 +575,12 @@ pub fn handle_initialize_perp_market(
             msg!("Quote asset oracle cant be used for perp market");
             return Err(ErrorCode::InvalidOracle.into());
         }
-        OracleSource::Drift => {
+        OracleSource::Prelaunch => {
             let OraclePriceData {
                 price: oracle_price,
                 delay: oracle_delay,
                 ..
-            } = get_drift_oracle_price(&ctx.accounts.oracle)?;
+            } = get_prelaunch_price(&ctx.accounts.oracle)?;
             (oracle_price, oracle_delay, oracle_price)
         }
     };
@@ -2390,11 +2390,11 @@ pub fn handle_update_protocol_if_shares_transfer_config(
     Ok(())
 }
 
-pub fn handle_initialize_drift_oracle<'info>(
-    ctx: Context<InitializeDriftOracle<'info>>,
-    params: DriftOracleParams,
+pub fn handle_initialize_prelaunch_oracle<'info>(
+    ctx: Context<InitializePrelaunchOracle<'info>>,
+    params: PrelaunchOracleParams,
 ) -> Result<()> {
-    let mut oracle = ctx.accounts.drift_oracle.load_init()?;
+    let mut oracle = ctx.accounts.prelaunch_oracle.load_init()?;
 
     oracle.perp_market_index = params.perp_market_index;
     if let Some(price) = params.price {
@@ -2407,11 +2407,11 @@ pub fn handle_initialize_drift_oracle<'info>(
     Ok(())
 }
 
-pub fn handle_update_drift_oracle<'info>(
-    ctx: Context<UpdateDriftOracle<'info>>,
-    params: DriftOracleParams,
+pub fn handle_update_prelaunch_oracle<'info>(
+    ctx: Context<UpdatePrelaunchOracle<'info>>,
+    params: PrelaunchOracleParams,
 ) -> Result<()> {
-    let mut oracle = ctx.accounts.drift_oracle.load_mut()?;
+    let mut oracle = ctx.accounts.prelaunch_oracle.load_mut()?;
 
     oracle.perp_market_index = params.perp_market_index;
 
@@ -2858,18 +2858,18 @@ pub struct UpdateProtocolIfSharesTransferConfig<'info> {
 }
 
 #[derive(Accounts)]
-#[instruction(params: DriftOracleParams,)]
-pub struct InitializeDriftOracle<'info> {
+#[instruction(params: PrelaunchOracleParams,)]
+pub struct InitializePrelaunchOracle<'info> {
     #[account(mut)]
     pub admin: Signer<'info>,
     #[account(
         init,
-        seeds = [b"drift_oracle".as_ref(), params.perp_market_index.to_le_bytes().as_ref()],
-        space = DriftOracle::SIZE,
+        seeds = [b"prelaunch_oracle".as_ref(), params.perp_market_index.to_le_bytes().as_ref()],
+        space = PrelaunchOracle::SIZE,
         bump,
         payer = admin
     )]
-    pub drift_oracle: AccountLoader<'info, DriftOracle>,
+    pub prelaunch_oracle: AccountLoader<'info, PrelaunchOracle>,
     #[account(
         has_one = admin
     )]
@@ -2879,16 +2879,16 @@ pub struct InitializeDriftOracle<'info> {
 }
 
 #[derive(Accounts)]
-#[instruction(market_index: u16,)]
-pub struct UpdateDriftOracle<'info> {
+#[instruction(params: PrelaunchOracleParams,)]
+pub struct UpdatePrelaunchOracle<'info> {
     #[account(mut)]
     pub admin: Signer<'info>,
     #[account(
         mut,
-        seeds = [b"drift_oracle".as_ref(), market_index.to_le_bytes().as_ref()],
+        seeds = [b"prelaunch_oracle".as_ref(), params.perp_market_index.to_le_bytes().as_ref()],
         bump,
     )]
-    pub drift_oracle: AccountLoader<'info, DriftOracle>,
+    pub prelaunch_oracle: AccountLoader<'info, PrelaunchOracle>,
     #[account(
         has_one = admin
     )]

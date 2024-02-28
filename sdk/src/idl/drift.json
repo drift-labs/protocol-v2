@@ -4896,7 +4896,7 @@
       ]
     },
     {
-      "name": "initializeDriftOracle",
+      "name": "initializePrelaunchOracle",
       "accounts": [
         {
           "name": "admin",
@@ -4904,7 +4904,7 @@
           "isSigner": true
         },
         {
-          "name": "driftOracle",
+          "name": "prelaunchOracle",
           "isMut": true,
           "isSigner": false
         },
@@ -4928,13 +4928,13 @@
         {
           "name": "params",
           "type": {
-            "defined": "DriftOracleParams"
+            "defined": "PrelaunchOracleParams"
           }
         }
       ]
     },
     {
-      "name": "updateDriftOracle",
+      "name": "updatePrelaunchOracle",
       "accounts": [
         {
           "name": "admin",
@@ -4942,7 +4942,7 @@
           "isSigner": true
         },
         {
-          "name": "driftOracle",
+          "name": "prelaunchOracle",
           "isMut": true,
           "isSigner": false
         },
@@ -4966,7 +4966,7 @@
         {
           "name": "params",
           "type": {
-            "defined": "DriftOracleParams"
+            "defined": "PrelaunchOracleParams"
           }
         }
       ]
@@ -5199,7 +5199,7 @@
       }
     },
     {
-      "name": "DriftOracle",
+      "name": "PrelaunchOracle",
       "type": {
         "kind": "struct",
         "fields": [
@@ -5210,6 +5210,14 @@
           {
             "name": "maxPrice",
             "type": "i64"
+          },
+          {
+            "name": "confidence",
+            "type": "u64"
+          },
+          {
+            "name": "slot",
+            "type": "u64"
           },
           {
             "name": "perpMarketIndex",
@@ -6757,7 +6765,7 @@
       }
     },
     {
-      "name": "DriftOracleParams",
+      "name": "PrelaunchOracleParams",
       "type": {
         "kind": "struct",
         "fields": [
@@ -8880,7 +8888,7 @@
             "name": "PythStableCoin"
           },
           {
-            "name": "Drift"
+            "name": "Prelaunch"
           }
         ]
       }

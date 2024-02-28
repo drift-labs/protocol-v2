@@ -110,7 +110,7 @@ pub enum OracleSource {
     Pyth1K,
     Pyth1M,
     PythStableCoin,
-    Drift,
+    Prelaunch,
 }
 
 impl Default for OracleSource {
@@ -159,7 +159,7 @@ pub fn get_oracle_price(
             delay: 0,
             has_sufficient_number_of_data_points: true,
         }),
-        OracleSource::Drift => get_drift_oracle_price(price_oracle),
+        OracleSource::Prelaunch => get_prelaunch_price(price_oracle),
     }
 }
 
@@ -284,8 +284,8 @@ pub fn get_pyth_stable_coin_price(
 //     })
 // }
 
-pub fn get_drift_oracle_price(price_oracle: &AccountInfo) -> DriftResult<OraclePriceData> {
-    let oracle_account_loader: AccountLoader<DriftOracle> =
+pub fn get_prelaunch_price(price_oracle: &AccountInfo) -> DriftResult<OraclePriceData> {
+    let oracle_account_loader: AccountLoader<PrelaunchOracle> =
         AccountLoader::try_from(&price_oracle).unwrap();
 
     let oracle = load!(oracle_account_loader)?;
@@ -360,7 +360,7 @@ impl StrictOraclePrice {
 #[account(zero_copy(unsafe))]
 #[derive(Default, Eq, PartialEq, Debug)]
 #[repr(C)]
-pub struct DriftOracle {
+pub struct PrelaunchOracle {
     pub price: i64,
     pub max_price: i64,
     pub confidence: u64,
@@ -369,11 +369,11 @@ pub struct DriftOracle {
     pub padding: [u8; 6],
 }
 
-impl Size for DriftOracle {
-    const SIZE: usize = 36 + 8;
+impl Size for PrelaunchOracle {
+    const SIZE: usize = 40 + 8;
 }
 
-impl DriftOracle {
+impl PrelaunchOracle {
     pub fn update(&mut self, perp_market: &PerpMarket, slot: u64) -> DriftResult {
         let last_twap = perp_market.amm.last_mark_price_twap.cast::<i64>()?;
         let new_price = if self.max_price <= last_twap {
@@ -411,7 +411,7 @@ impl DriftOracle {
 }
 
 #[derive(Debug, Clone, Copy, AnchorSerialize, AnchorDeserialize, PartialEq, Eq)]
-pub struct DriftOracleParams {
+pub struct PrelaunchOracleParams {
     pub perp_market_index: u16,
     pub price: Option<i64>,
     pub max_price: Option<i64>,
