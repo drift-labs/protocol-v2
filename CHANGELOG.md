@@ -15,6 +15,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Breaking
 
+## [2.66.0] - 2023-02-28
+
+### Features
+
+### Fixes
+
+- program: don't block oracle order prices when theres solely InsufficientDataPoints ([#919](https://github.com/drift-labs/protocol-v2/pull/919))
+
+### Breaking
+
 ## [2.65.0] - 2023-02-26
 
 ### Features
