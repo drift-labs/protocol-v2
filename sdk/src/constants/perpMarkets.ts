@@ -524,7 +524,7 @@ export const MainnetPerpMarkets: PerpMarketConfig[] = [
 		baseAssetSymbol: 'TAO',
 		marketIndex: 26,
 		oracle: new PublicKey('5NxzemFgGDhimYE3S5qmb5zkjZUmiHXb4up5WGXe7NLn'),
-		launchTs: 1709070892000,
+		launchTs: 1709136669000,
 		oracleSource: OracleSource.PYTH,
 	},
 ];
