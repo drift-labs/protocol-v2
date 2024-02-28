@@ -1307,9 +1307,9 @@ export class User {
 			const quoteSpotMarket = this.driftClient.getSpotMarketAccount(
 				market.quoteSpotMarketIndex
 			);
-			const quoteOraclePriceData = this.driftClient.getOraclePriceDataAndSlot(
-				quoteSpotMarket.oracle
-			).data;
+			const quoteOraclePriceData = this.driftClient.getOracleDataForSpotMarket(
+				QUOTE_SPOT_MARKET_INDEX
+			);
 
 			let quotePrice;
 			if (strict) {
@@ -2205,7 +2205,7 @@ export class User {
 		if (signedTokenAmount.gt(ZERO)) {
 			const assetWeight = calculateAssetWeight(
 				signedTokenAmount,
-				this.driftClient.getOraclePriceDataAndSlot(market.oracle).data.price,
+				this.driftClient.getOracleDataForSpotMarket(market.marketIndex).price,
 				market,
 				marginCategory
 			);
@@ -2388,9 +2388,8 @@ export class User {
 		currentSpotMarketNetValue?: BN
 	): BN {
 		const market = this.driftClient.getSpotMarketAccount(targetMarketIndex);
-		const oraclePrice = this.driftClient.getOraclePriceDataAndSlot(
-			market.oracle
-		).data.price;
+		const oraclePrice =
+			this.driftClient.getOracleDataForSpotMarket(targetMarketIndex).price;
 
 		currentQuoteAssetValue = this.getSpotMarketAssetValue(
 			QUOTE_SPOT_MARKET_INDEX
@@ -3401,9 +3400,9 @@ export class User {
 			const perpMarket = this.driftClient.getPerpMarketAccount(
 				perpPosition.marketIndex
 			);
-			const oraclePriceData = this.driftClient.getOraclePriceDataAndSlot(
-				perpMarket.amm.oracle
-			).data;
+			const oraclePriceData = this.driftClient.getOracleDataForPerpMarket(
+				perpMarket.marketIndex
+			);
 			const oraclePrice = oraclePriceData.price;
 			const worstCaseBaseAmount =
 				calculateWorstCaseBaseAssetAmount(settledLpPosition);
@@ -3420,9 +3419,9 @@ export class User {
 			const quoteSpotMarket = this.driftClient.getSpotMarketAccount(
 				perpMarket.quoteSpotMarketIndex
 			);
-			const quoteOraclePriceData = this.driftClient.getOraclePriceDataAndSlot(
-				quoteSpotMarket.oracle
-			).data;
+			const quoteOraclePriceData = this.driftClient.getOracleDataForSpotMarket(
+				QUOTE_SPOT_MARKET_INDEX
+			);
 
 			const baseAssetValue = worstCaseBaseAmount
 				.abs()
@@ -3645,20 +3644,10 @@ export class User {
 	}
 
 	private getOracleDataForPerpMarket(marketIndex: number): OraclePriceData {
-		const oracleKey =
-			this.driftClient.getPerpMarketAccount(marketIndex).amm.oracle;
-		const oracleData =
-			this.driftClient.getOraclePriceDataAndSlot(oracleKey).data;
-
-		return oracleData;
+		return this.driftClient.getOracleDataForPerpMarket(marketIndex);
 	}
 
 	private getOracleDataForSpotMarket(marketIndex: number): OraclePriceData {
-		const oracleKey = this.driftClient.getSpotMarketAccount(marketIndex).oracle;
-
-		const oracleData =
-			this.driftClient.getOraclePriceDataAndSlot(oracleKey).data;
-
-		return oracleData;
+		return this.driftClient.getOracleDataForSpotMarket(marketIndex);
 	}
 }

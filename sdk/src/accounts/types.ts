@@ -71,6 +71,12 @@ export interface DriftClientAccountSubscriber {
 	getOraclePriceDataAndSlot(
 		oraclePublicKey: PublicKey
 	): DataAndSlot<OraclePriceData> | undefined;
+	getOraclePriceDataAndSlotForPerpMarket(
+		marketIndex: number
+	): DataAndSlot<OraclePriceData> | undefined;
+	getOraclePriceDataAndSlotForSpotMarket(
+		marketIndex: number
+	): DataAndSlot<OraclePriceData> | undefined;
 
 	updateAccountLoaderPollingFrequency?: (pollingFrequency: number) => void;
 }
