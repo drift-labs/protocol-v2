@@ -396,15 +396,19 @@ export class PollingDriftClientAccountSubscriber
 	async addOracle(oracleInfo: OracleInfo): Promise<boolean> {
 		if (
 			oracleInfo.publicKey.equals(PublicKey.default) ||
-			this.oraclesToPoll.has(oracleInfo.publicKey.toString())
+			this.oracles.has(oracleInfo.publicKey.toBase58())
 		) {
 			return true;
 		}
 
-		this.addOracleToPoll(oracleInfo);
 		const oracleString = oracleInfo.publicKey.toBase58();
-		const oracleToPoll = this.oraclesToPoll.get(oracleString);
-		await this.addOracleToAccountLoader(oracleToPoll);
+		// this func can be called multiple times before the first pauseForOracleToBeAdded finishes
+		// avoid adding to oraclesToPoll multiple time
+		if (!this.oraclesToPoll.has(oracleString)) {
+			this.addOracleToPoll(oracleInfo);
+			const oracleToPoll = this.oraclesToPoll.get(oracleString);
+			await this.addOracleToAccountLoader(oracleToPoll);
+		}
 
 		await this.pauseForOracleToBeAdded(3, oracleString);
 
