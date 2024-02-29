@@ -6183,9 +6183,9 @@ export class DriftClient {
 			}
 		}
 
-		const userAccountExists = !!this.getUser()?.accountSubscriber?.isSubscribed && (await this.checkIfAccountExists(
-			this.getUser().userAccountPublicKey
-		));
+		const userAccountExists =
+			!!this.getUser()?.accountSubscriber?.isSubscribed &&
+			(await this.checkIfAccountExists(this.getUser().userAccountPublicKey));
 
 		const remainingAccounts = this.getRemainingAccounts({
 			userAccounts: userAccountExists ? [this.getUserAccount()] : [],
