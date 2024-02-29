@@ -587,8 +587,15 @@ pub fn meets_place_order_margin_requirement(
             )?;
 
             validate!(
+                !user.has_spot_bid_order()?,
+                ErrorCode::IsolatedAssetTierViolation,
+                "User attempting isolated tier liability with open spot market bids"
+            )?;
+
+            validate!(
                 calculation.num_spot_liabilities == 0 ||
-                (calculation.num_spot_liabilities == 1 && user.get_quote_spot_position().balance_type == SpotBalanceType::Borrow),
+                (calculation.num_spot_liabilities == 1 && user.get_quote_spot_position().balance_type == SpotBalanceType::Borrow
+                ),
                 ErrorCode::IsolatedAssetTierViolation,
                 "User attempting to increase spot liabilities beyond usdc with a isolated tier liability"
             )?;
