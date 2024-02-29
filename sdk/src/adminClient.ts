@@ -65,7 +65,7 @@ export class AdminClient extends DriftClient {
 
 		const tx = await this.buildTransaction(initializeIx);
 
-		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+		const { txSig } = await super.sendTransaction(tx, [], this.opts);
 
 		return [txSig];
 	}
