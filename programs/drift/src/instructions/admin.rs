@@ -2409,8 +2409,8 @@ pub fn handle_initialize_prelaunch_oracle<'info>(
     Ok(())
 }
 
-pub fn handle_update_prelaunch_oracle<'info>(
-    ctx: Context<UpdatePrelaunchOracle<'info>>,
+pub fn handle_update_prelaunch_oracle_params<'info>(
+    ctx: Context<UpdatePrelaunchOracleParams<'info>>,
     params: PrelaunchOracleParams,
 ) -> Result<()> {
     let mut oracle = ctx.accounts.prelaunch_oracle.load_mut()?;
@@ -2884,7 +2884,7 @@ pub struct InitializePrelaunchOracle<'info> {
 
 #[derive(Accounts)]
 #[instruction(params: PrelaunchOracleParams,)]
-pub struct UpdatePrelaunchOracle<'info> {
+pub struct UpdatePrelaunchOracleParams<'info> {
     #[account(mut)]
     pub admin: Signer<'info>,
     #[account(
@@ -2897,6 +2897,4 @@ pub struct UpdatePrelaunchOracle<'info> {
         has_one = admin
     )]
     pub state: Box<Account<'info, State>>,
-    pub rent: Sysvar<'info, Rent>,
-    pub system_program: Program<'info, System>,
 }

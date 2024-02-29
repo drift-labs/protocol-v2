@@ -447,6 +447,10 @@ pub mod drift {
         handle_update_funding_rate(ctx, market_index)
     }
 
+    pub fn update_prelaunch_oracle(ctx: Context<UpdatePrelaunchOracle>) -> Result<()> {
+        handle_update_prelaunch_oracle(ctx)
+    }
+
     pub fn update_perp_bid_ask_twap(ctx: Context<UpdatePerpBidAskTwap>) -> Result<()> {
         handle_update_perp_bid_ask_twap(ctx)
     }
@@ -1156,11 +1160,11 @@ pub mod drift {
         handle_initialize_prelaunch_oracle(ctx, params)
     }
 
-    pub fn update_prelaunch_oracle(
-        ctx: Context<UpdatePrelaunchOracle>,
+    pub fn update_prelaunch_oracle_params(
+        ctx: Context<UpdatePrelaunchOracleParams>,
         params: PrelaunchOracleParams,
     ) -> Result<()> {
-        handle_update_prelaunch_oracle(ctx, params)
+        handle_update_prelaunch_oracle_params(ctx, params)
     }
 }
 

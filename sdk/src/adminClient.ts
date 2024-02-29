@@ -1714,4 +1714,26 @@ export class AdminClient extends DriftClient {
 			},
 		});
 	}
+
+	public async updatePrelaunchOracleParams(
+		perpMarketIndex: number,
+		price?: BN,
+		maxPrice?: BN
+	): Promise<TransactionSignature> {
+		const params = {
+			perpMarketIndex,
+			price: price || null,
+			maxPrice: maxPrice || null,
+		};
+		return await this.program.rpc.updatePrelaunchOracleParams(params, {
+			accounts: {
+				admin: this.wallet.publicKey,
+				state: await this.getStatePublicKey(),
+				prelaunchOracle: await getPrelaunchOraclePublicKey(
+					this.program.programId,
+					perpMarketIndex
+				),
+			},
+		});
+	}
 }

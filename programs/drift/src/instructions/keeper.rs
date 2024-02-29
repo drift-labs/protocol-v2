@@ -33,7 +33,7 @@ use crate::state::state::State;
 use crate::state::user::{MarketType, OrderStatus, User, UserStats};
 use crate::state::user_map::load_user_maps;
 use crate::validation::user::validate_user_is_idle;
-use crate::{controller, load, math};
+use crate::{controller, load, math, OracleSource};
 use crate::{load_mut, QUOTE_PRECISION_U64};
 use crate::{validate, QUOTE_PRECISION_I128};
 
@@ -1159,14 +1159,11 @@ pub fn handle_update_funding_rate(
     let now = clock.unix_timestamp;
     let clock_slot = clock.slot;
     let state = &ctx.accounts.state;
-    // todo try to update drift oracle
     let mut oracle_map = OracleMap::load_one(
         &ctx.accounts.oracle,
         clock_slot,
         Some(state.oracle_guard_rails),
     )?;
-
-    update_prelaunch_oracle(perp_market, &oracle_map, clock_slot)?;
 
     let oracle_price_data = &oracle_map.get_price_data(&perp_market.amm.oracle)?;
     controller::repeg::_update_amm(perp_market, oracle_price_data, state, now, clock_slot)?;
@@ -1218,6 +1215,27 @@ pub fn handle_update_funding_rate(
 }
 
 #[access_control(
+    valid_oracle_for_perp_market(&ctx.accounts.oracle, &ctx.accounts.perp_market)
+)]
+pub fn handle_update_prelaunch_oracle(ctx: Context<UpdatePrelaunchOracle>) -> Result<()> {
+    let clock = Clock::get()?;
+    let clock_slot = clock.slot;
+    let mut oracle_map = OracleMap::load_one(&ctx.accounts.oracle, clock_slot, None)?;
+
+    let perp_market = &load!(ctx.accounts.perp_market)?;
+
+    validate!(
+        perp_market.amm.oracle_source == OracleSource::Prelaunch,
+        ErrorCode::DefaultError,
+        "wrong oracle source"
+    )?;
+
+    update_prelaunch_oracle(perp_market, &oracle_map, clock_slot)?;
+
+    Ok(())
+}
+
+#[access_control(
     perp_market_valid(&ctx.accounts.perp_market)
     funding_not_paused(&ctx.accounts.state)
     valid_oracle_for_perp_market(&ctx.accounts.oracle, &ctx.accounts.perp_market)
@@ -1230,8 +1248,6 @@ pub fn handle_update_perp_bid_ask_twap(ctx: Context<UpdatePerpBidAskTwap>) -> Re
     let state = &ctx.accounts.state;
     let mut oracle_map =
         OracleMap::load_one(&ctx.accounts.oracle, slot, Some(state.oracle_guard_rails))?;
-
-    update_prelaunch_oracle(perp_market, &oracle_map, slot)?;
 
     let keeper_stats = load!(ctx.accounts.keeper_stats)?;
     validate!(
@@ -1813,4 +1829,13 @@ pub struct UpdateUserQuoteAssetInsuranceStake<'info> {
         bump,
     )]
     pub insurance_fund_vault: Box<Account<'info, TokenAccount>>,
+}
+
+#[derive(Accounts)]
+pub struct UpdatePrelaunchOracle<'info> {
+    pub state: Box<Account<'info, State>>,
+    pub perp_market: AccountLoader<'info, PerpMarket>,
+    #[account(mut)]
+    /// CHECK: checked in ix
+    pub oracle: AccountInfo<'info>,
 }

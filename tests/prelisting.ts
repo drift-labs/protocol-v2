@@ -163,9 +163,7 @@ describe('prelisting', () => {
 		);
 
 		// settle pnl to force oracle to update
-		await adminDriftClient.settlePNL(
-			await adminDriftClient.getUserAccountPublicKey(),
-			adminDriftClient.getUserAccount(),
+		await adminDriftClient.updatePrelaunchOracle(
 			0
 		);
 
@@ -196,9 +194,7 @@ describe('prelisting', () => {
 		);
 
 		// settle pnl to force oracle to update
-		await adminDriftClient.settlePNL(
-			await adminDriftClient.getUserAccountPublicKey(),
-			adminDriftClient.getUserAccount(),
+		await adminDriftClient.updatePrelaunchOracle(
 			0
 		);
 
@@ -206,5 +202,16 @@ describe('prelisting', () => {
 			adminDriftClient.getOracleDataForPerpMarket(0);
 		const oraclePriceAfterSell = oraclePriceDataAfterSell.price;
 		assert(oraclePriceAfterSell.lt(oraclePriceAfterBuy));
+	});
+
+	it('update params', async () => {
+		const newPrice = PRICE_PRECISION.muln(40);
+		const maxPrice = newPrice.muln(4);
+		await adminDriftClient.updatePrelaunchOracleParams(0, newPrice, maxPrice);
+
+		await adminDriftClient.fetchAccounts();
+		const price =
+			adminDriftClient.getOracleDataForPerpMarket(0);
+		assert(price.price.eq(new BN(40000000)));
 	});
 });

@@ -5779,6 +5779,39 @@ export class DriftClient {
 		});
 	}
 
+	public async updatePrelaunchOracle(
+		perpMarketIndex: number,
+		txParams?: TxParams
+	): Promise<TransactionSignature> {
+		const { txSig } = await this.sendTransaction(
+			await this.buildTransaction(
+				await this.getUpdatePrelaunchOracleIx(perpMarketIndex),
+				txParams
+			),
+			[],
+			this.opts
+		);
+		return txSig;
+	}
+
+	public async getUpdatePrelaunchOracleIx(
+		perpMarketIndex: number,
+	): Promise<TransactionInstruction> {
+		const perpMarket = this.getPerpMarketAccount(perpMarketIndex);
+
+		if (!isVariant(perpMarket.amm.oracleSource, 'prelaunch')) {
+			throw new Error(`Wrong oracle source ${perpMarket.amm.oracleSource}`);
+		}
+
+		return await this.program.instruction.updatePrelaunchOracle({
+			accounts: {
+				state: await this.getStatePublicKey(),
+				perpMarket: perpMarket.pubkey,
+				oracle: perpMarket.amm.oracle,
+			},
+		});
+	}
+
 	public async updatePerpBidAskTwap(
 		perpMarketIndex: number,
 		makers: [PublicKey, PublicKey][],

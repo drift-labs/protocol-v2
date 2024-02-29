@@ -2040,6 +2040,27 @@
       ]
     },
     {
+      "name": "updatePrelaunchOracle",
+      "accounts": [
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "perpMarket",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "oracle",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": []
+    },
+    {
       "name": "updatePerpBidAskTwap",
       "accounts": [
         {
@@ -4934,7 +4955,7 @@
       ]
     },
     {
-      "name": "updatePrelaunchOracle",
+      "name": "updatePrelaunchOracleParams",
       "accounts": [
         {
           "name": "admin",
@@ -4948,16 +4969,6 @@
         },
         {
           "name": "state",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "rent",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "systemProgram",
           "isMut": false,
           "isSigner": false
         }
