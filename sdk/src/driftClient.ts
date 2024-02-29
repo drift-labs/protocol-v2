@@ -6183,9 +6183,13 @@ export class DriftClient {
 			}
 		}
 
+		const userAccountExists = !!this.getUser()?.accountSubscriber?.isSubscribed && (await this.checkIfAccountExists(
+			this.getUser().userAccountPublicKey
+		));
+
 		const remainingAccounts = this.getRemainingAccounts({
-			userAccounts: [this.getUserAccount()],
-			useMarketLastSlotCache: true,
+			userAccounts: userAccountExists ? [this.getUserAccount()] : [],
+			useMarketLastSlotCache: false,
 			writableSpotMarketIndexes: [marketIndex],
 		});
 
