@@ -962,7 +962,6 @@ pub fn fill_perp_order(
     }
 
     let reserve_price_before: u64;
-    let is_oracle_valid: bool;
     let oracle_validity: OracleValidity;
     let oracle_price: i64;
     let oracle_twap_5min: i64;
@@ -984,9 +983,6 @@ pub fn fill_perp_order(
             oracle_price_data,
             &state.oracle_guard_rails.validity,
         )?;
-
-        is_oracle_valid =
-            is_oracle_valid_for_action(oracle_validity, Some(DriftAction::FillOrderAmm))?;
 
         reserve_price_before = market.amm.reserve_price()?;
         oracle_price = oracle_price_data.price;
