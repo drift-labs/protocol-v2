@@ -11,6 +11,7 @@ export type PerpMarketConfig = {
 	launchTs: number;
 	oracle: PublicKey;
 	oracleSource: OracleSource;
+	preLaunch?:boolean;
 };
 
 export const DevnetPerpMarkets: PerpMarketConfig[] = [
@@ -123,6 +124,7 @@ export const DevnetPerpMarkets: PerpMarketConfig[] = [
 		oracle: new PublicKey('Gz9RfgDeAFSsH7BHDGyNTgCik74rjNwsodJpsCizzmkj'),
 		launchTs: 1683781239000,
 		oracleSource: OracleSource.PYTH_1M,
+		preLaunch: true,
 	},
 	{
 		fullName: 'OP',
