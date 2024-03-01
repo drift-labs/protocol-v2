@@ -1975,21 +1975,25 @@ export class User {
 	/**
 	 * Calculate the liquidation price of a perp position, with optional parameter to calculate the liquidation price after a trade
 	 * @param marketIndex
-	 * @param positionBaseSizeChange // change in position size to calculate liquidation price for : Precision 10^13
+	 * @param positionBaseSizeChange // change in position size to calculate liquidation price for : Precision 10^9
+	 * @param estimatedEntryPrice
 	 * @param marginCategory // allow Initial to be passed in if we are trying to calculate price for DLP de-risking
+	 * @param includeOpenOrders
 	 * @returns Precision : PRICE_PRECISION
 	 */
 	public liquidationPrice(
 		marketIndex: number,
 		positionBaseSizeChange: BN = ZERO,
 		estimatedEntryPrice: BN = ZERO,
-		marginCategory: MarginCategory = 'Maintenance'
+		marginCategory: MarginCategory = 'Maintenance',
+		includeOpenOrders = false
 	): BN {
 		const totalCollateral = this.getTotalCollateral(marginCategory);
 		const marginRequirement = this.getMarginRequirement(
 			marginCategory,
 			undefined,
-			false
+			false,
+			includeOpenOrders
 		);
 		let freeCollateral = BN.max(ZERO, totalCollateral.sub(marginRequirement));
 
@@ -2015,7 +2019,8 @@ export class User {
 				oraclePrice,
 				currentPerpPosition,
 				positionBaseSizeChange,
-				estimatedEntryPrice
+				estimatedEntryPrice,
+				includeOpenOrders
 			);
 
 		freeCollateral = freeCollateral.add(freeCollateralChangeFromNewPosition);
@@ -2024,7 +2029,8 @@ export class User {
 			market,
 			currentPerpPosition,
 			positionBaseSizeChange,
-			marginCategory
+			marginCategory,
+			includeOpenOrders
 		);
 
 		if (!freeCollateralDelta) {
@@ -2082,7 +2088,8 @@ export class User {
 		oraclePrice: BN,
 		perpPosition: PerpPosition,
 		positionBaseSizeChange: BN,
-		estimatedEntryPrice: BN
+		estimatedEntryPrice: BN,
+		includeOpenOrders: boolean
 	): BN {
 		let freeCollateralChange = ZERO;
 
@@ -2097,8 +2104,6 @@ export class User {
 			if (positionBaseSizeChange.gt(ZERO)) {
 				freeCollateralChange = costBasis.sub(newPositionValue);
 			} else {
-				console.log('newPositionValue', newPositionValue.toString());
-				console.log('costBasis', costBasis.toString());
 				freeCollateralChange = newPositionValue.sub(costBasis);
 			}
 
@@ -2111,24 +2116,23 @@ export class User {
 			freeCollateralChange = freeCollateralChange.sub(takerFee);
 		}
 
-		const worstCaseBaseAssetAmount =
-			calculateWorstCaseBaseAssetAmount(perpPosition);
+		const baseAssetAmount = includeOpenOrders
+			? calculateWorstCaseBaseAssetAmount(perpPosition)
+			: perpPosition.baseAssetAmount;
 
-		const newWorstCaseBaseAssetAmount = worstCaseBaseAssetAmount.add(
-			positionBaseSizeChange
-		);
+		const newBaseAssetAmount = baseAssetAmount.add(positionBaseSizeChange);
 
 		const newMarginRatio = calculateMarketMarginRatio(
 			market,
-			newWorstCaseBaseAssetAmount.abs(),
+			newBaseAssetAmount.abs(),
 			'Maintenance'
 		);
 
 		// update free collateral to account for new margin requirement from position change
 		freeCollateralChange = freeCollateralChange.sub(
-			newWorstCaseBaseAssetAmount
+			newBaseAssetAmount
 				.abs()
-				.sub(worstCaseBaseAssetAmount.abs())
+				.sub(baseAssetAmount.abs())
 				.mul(oraclePrice)
 				.div(BASE_PRECISION)
 				.mul(new BN(newMarginRatio))
@@ -2142,25 +2146,23 @@ export class User {
 		market: PerpMarketAccount,
 		perpPosition: PerpPosition,
 		positionBaseSizeChange: BN,
-		marginCategory: MarginCategory = 'Maintenance'
+		marginCategory: MarginCategory = 'Maintenance',
+		includeOpenOrders = false
 	): BN | undefined {
-		const currentBaseAssetAmount = perpPosition.baseAssetAmount;
+		const baseAssetAmount = includeOpenOrders
+			? calculateWorstCaseBaseAssetAmount(perpPosition)
+			: perpPosition.baseAssetAmount;
 
-		const worstCaseBaseAssetAmount =
-			calculateWorstCaseBaseAssetAmount(perpPosition);
-		const orderBaseAssetAmount = worstCaseBaseAssetAmount.sub(
-			currentBaseAssetAmount
+		// zero if include orders == false
+		const orderBaseAssetAmount = baseAssetAmount.sub(
+			perpPosition.baseAssetAmount
 		);
-		const proposedBaseAssetAmount = currentBaseAssetAmount.add(
-			positionBaseSizeChange
-		);
-		const proposedWorstCaseBaseAssetAmount = worstCaseBaseAssetAmount.add(
-			positionBaseSizeChange
-		);
+
+		const proposedBaseAssetAmount = baseAssetAmount.add(positionBaseSizeChange);
 
 		const marginRatio = calculateMarketMarginRatio(
 			market,
-			proposedWorstCaseBaseAssetAmount.abs(),
+			proposedBaseAssetAmount.abs(),
 			marginCategory,
 			this.getUserAccount().maxMarginRatio
 		);
@@ -2168,7 +2170,7 @@ export class User {
 			.mul(QUOTE_PRECISION)
 			.div(MARGIN_PRECISION);
 
-		if (proposedWorstCaseBaseAssetAmount.eq(ZERO)) {
+		if (proposedBaseAssetAmount.eq(ZERO)) {
 			return undefined;
 		}
 
