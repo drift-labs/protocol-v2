@@ -9,6 +9,7 @@ use crate::math::position::{
     calculate_base_asset_value_with_oracle_price,
 };
 
+use crate::state::spot_market::SpotBalance;
 use crate::{validate, PRICE_PRECISION_I128};
 use crate::{validation, PRICE_PRECISION_I64};
 
@@ -499,6 +500,42 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
     Ok(calculation)
 }
 
+pub fn validate_any_isolated_tier_requirements(
+    user: &User,
+    calculation: MarginCalculation,
+) -> DriftResult {
+    if calculation.with_isolated_liability {
+        if !user.is_reduce_only() {
+            validate!(
+                calculation.num_perp_liabilities <= 1,
+                ErrorCode::IsolatedAssetTierViolation,
+                "User attempting to increase perp liabilities above 1 with a isolated tier liability"
+            )?;
+
+            if user.is_margin_trading_enabled {
+                validate!(
+                    !user.has_spot_bid_order()?,
+                    ErrorCode::IsolatedAssetTierViolation,
+                    "User attempting isolated tier liability with margin trading enabled or open spot market bids"
+                )?;
+            }
+
+            if calculation.num_spot_liabilities > 0 {
+                let quote_spot_position = user.get_quote_spot_position();
+                validate!(
+                    (calculation.num_spot_liabilities == 1 && quote_spot_position.balance_type == SpotBalanceType::Borrow
+                        && quote_spot_position.balance() != 0
+                    ),
+                    ErrorCode::IsolatedAssetTierViolation,
+                    "User attempting to increase spot liabilities beyond usdc with a isolated tier liability"
+                )?;
+            }
+        }
+    }
+
+    Ok(())
+}
+
 pub fn meets_withdraw_margin_requirement(
     user: &User,
     perp_market_map: &PerpMarketMap,
@@ -525,15 +562,7 @@ pub fn meets_withdraw_margin_requirement(
         )?;
     }
 
-    if calculation.get_num_of_liabilities()? > 1 {
-        if !user.is_reduce_only() {
-            validate!(
-                !calculation.with_isolated_liability,
-                ErrorCode::IsolatedAssetTierViolation,
-                "User has more than 1 liability with a isolated tier liability. User must switch to reduce only mode."
-            )?;
-        }
-    }
+    validate_any_isolated_tier_requirements(user, calculation)?;
 
     validate!(
         calculation.meets_margin_requirement(),
@@ -578,29 +607,7 @@ pub fn meets_place_order_margin_requirement(
         return Err(ErrorCode::InsufficientCollateral);
     }
 
-    if calculation.with_isolated_liability {
-        if !user.is_reduce_only() {
-            validate!(
-                calculation.num_perp_liabilities <= 1,
-                ErrorCode::IsolatedAssetTierViolation,
-                "User attempting to increase perp liabilities above 1 with a isolated tier liability"
-            )?;
-
-            validate!(
-                !user.has_spot_bid_order()?,
-                ErrorCode::IsolatedAssetTierViolation,
-                "User attempting isolated tier liability with open spot market bids"
-            )?;
-
-            validate!(
-                calculation.num_spot_liabilities == 0 ||
-                (calculation.num_spot_liabilities == 1 && user.get_quote_spot_position().balance_type == SpotBalanceType::Borrow
-                ),
-                ErrorCode::IsolatedAssetTierViolation,
-                "User attempting to increase spot liabilities beyond usdc with a isolated tier liability"
-            )?;
-        }
-    }
+    validate_any_isolated_tier_requirements(user, calculation)?;
 
     Ok(())
 }
