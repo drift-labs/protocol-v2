@@ -432,7 +432,7 @@ export class PollingDriftClientAccountSubscriber
 		console.log(`Pausing to find oracle ${oracle} failed`);
 	}
 
-	private async setPerpOracleMap() {
+	async setPerpOracleMap() {
 		const perpMarkets = this.getMarketAccountsAndSlots();
 		for (const perpMarket of perpMarkets) {
 			const perpMarketAccount = perpMarket.data;
@@ -448,7 +448,7 @@ export class PollingDriftClientAccountSubscriber
 		}
 	}
 
-	private async setSpotOracleMap() {
+	async setSpotOracleMap() {
 		const spotMarkets = this.getSpotMarketAccountsAndSlots();
 		for (const spotMarket of spotMarkets) {
 			const spotMarketAccount = spotMarket.data;

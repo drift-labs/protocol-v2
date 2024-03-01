@@ -58,6 +58,8 @@ export interface DriftClientAccountSubscriber {
 	addPerpMarket(marketIndex: number): Promise<boolean>;
 	addSpotMarket(marketIndex: number): Promise<boolean>;
 	addOracle(oracleInfo: OracleInfo): Promise<boolean>;
+	setPerpOracleMap(): Promise<void>;
+	setSpotOracleMap(): Promise<void>;
 
 	getStateAccountAndSlot(): DataAndSlot<StateAccount>;
 	getMarketAccountAndSlot(

@@ -144,6 +144,7 @@ export class AdminClient extends DriftClient {
 			source: oracleSource,
 			publicKey: oracle,
 		});
+		await this.accountSubscriber.setSpotOracleMap();
 
 		return txSig;
 	}
@@ -283,6 +284,7 @@ export class AdminClient extends DriftClient {
 			source: oracleSource,
 			publicKey: priceOracle,
 		});
+		await this.accountSubscriber.setPerpOracleMap();
 
 		return txSig;
 	}
