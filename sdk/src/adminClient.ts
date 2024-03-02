@@ -30,7 +30,7 @@ import {
 import { squareRootBN } from './math/utils';
 import { TOKEN_PROGRAM_ID } from '@solana/spl-token';
 import { DriftClient } from './driftClient';
-import { PEG_PRECISION } from './constants/numericConstants';
+import { PEG_PRECISION, QUOTE_SPOT_MARKET_INDEX } from './constants/numericConstants';
 import { calculateTargetPriceTrade } from './math/trade';
 import { calculateAmmReservesAfterSwap, getSwapDirection } from './math/amm';
 import { PROGRAM_ID as PHOENIX_PROGRAM_ID } from '@ellipsis-labs/phoenix-sdk';
@@ -597,6 +597,30 @@ export class AdminClient extends DriftClient {
 						this.program.programId,
 						perpMarketIndex
 					),
+				},
+			}
+		);
+	}
+
+	public async updatePerpMarketAmmSummaryStats(
+		perpMarketIndex: number,
+		resetNewUnsettledStats?: false
+	): Promise<TransactionSignature> {
+		return await this.program.rpc.updatePerpMarketAmmSummaryStats(
+			resetNewUnsettledStats,
+			{
+				accounts: {
+					admin: this.wallet.publicKey,
+					state: await this.getStatePublicKey(),
+					perpMarket: await getPerpMarketPublicKey(
+						this.program.programId,
+						perpMarketIndex
+					),
+					spotMarket: await getSpotMarketPublicKey(
+						this.program.programId,
+						QUOTE_SPOT_MARKET_INDEX
+					),
+					oracle: this.getPerpMarketAccount(perpMarketIndex).amm.oracle,
 				},
 			}
 		);
