@@ -895,7 +895,7 @@ pub fn handle_recenter_perp_market_amm(
 )]
 pub fn handle_update_perp_market_amm_summary_stats(
     ctx: Context<AdminUpdatePerpMarketAmmSummaryStats>,
-    reset_new_summary_stats: bool,
+    reset_new_unsettled_stats: bool,
 ) -> Result<()> {
     let perp_market = &mut load_mut!(ctx.accounts.perp_market)?;
     let spot_market: &mut std::cell::RefMut<'_, SpotMarket> =
@@ -910,6 +910,13 @@ pub fn handle_update_perp_market_amm_summary_stats(
         price: oracle_price,
         ..
     } = get_oracle_price(&perp_market.amm.oracle_source, price_oracle, clock.slot)?;
+
+    if reset_new_unsettled_stats {
+        // given hard start problem, allow reset of these ephemeral unsettled stats (used in calculations below)
+        // when these are 0, calculations below follow legacy behavior
+        perp_market.amm.quote_asset_amount_with_unsettled_lp = 0;
+        perp_market.amm.net_unsettled_funding_pnl = 0;
+    }
 
     let new_total_fee_minus_distributions =
         controller::amm::calculate_perp_market_amm_summary_stats(

@@ -837,7 +837,6 @@ pub fn calculate_perp_market_amm_summary_stats(
         perp_market.amm.fee_pool.balance_type(),
     )?;
 
-    // add a buffer from fee pool for pnl pool balance
     let pnl_tokens_available: i128 = pnl_pool_token_amount
         .safe_add(fee_pool_token_amount)?
         .cast()?;
