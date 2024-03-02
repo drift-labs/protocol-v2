@@ -895,6 +895,7 @@ pub fn handle_recenter_perp_market_amm(
 )]
 pub fn handle_update_perp_market_amm_summary_stats(
     ctx: Context<AdminUpdatePerpMarketAmmSummaryStats>,
+    reset_new_summary_stats: bool,
 ) -> Result<()> {
     let perp_market = &mut load_mut!(ctx.accounts.perp_market)?;
     let spot_market: &mut std::cell::RefMut<'_, SpotMarket> =
@@ -927,7 +928,11 @@ pub fn handle_update_perp_market_amm_summary_stats(
         perp_market.amm.total_fee_minus_distributions,
         new_total_fee_minus_distributions,
     );
+    let fee_difference = new_total_fee_minus_distributions
+        .safe_sub(perp_market.amm.total_fee_minus_distributions)?;
 
+    perp_market.amm.total_fee = perp_market.amm.total_fee.saturating_add(fee_difference);
+    perp_market.amm.total_mm_fee = perp_market.amm.total_mm_fee.saturating_add(fee_difference);
     perp_market.amm.total_fee_minus_distributions = new_total_fee_minus_distributions;
 
     validate_perp_market(perp_market)?;
