@@ -9,6 +9,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Features
 
+### Fixes
+
+- program: add switchboard ([#878](https://github.com/drift-labs/protocol-v2/pull/878))
+- sdk: handle oracle failover when oracle is changed ([#875](https://github.com/drift-labs/protocol-v2/pull/875))
+
+### Breaking
+
+## [2.66.0] - 2023-02-28
+
+### Features
+
+### Fixes
+
+- program: don't block oracle order prices when theres solely InsufficientDataPoints ([#919](https://github.com/drift-labs/protocol-v2/pull/919))
+
+### Breaking
+
+## [2.65.0] - 2023-02-26
+
+### Features
+
 - program: add pause operation for liquidation ([#880](https://github.com/drift-labs/protocol-v2/pull/880))
 
 ### Fixes

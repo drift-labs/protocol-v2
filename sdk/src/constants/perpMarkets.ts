@@ -517,6 +517,16 @@ export const MainnetPerpMarkets: PerpMarketConfig[] = [
 		launchTs: 1708448765000,
 		oracleSource: OracleSource.PYTH,
 	},
+	{
+		fullName: 'BITTENSOR',
+		category: ['AI', 'Infra'],
+		symbol: 'TAO-PERP',
+		baseAssetSymbol: 'TAO',
+		marketIndex: 26,
+		oracle: new PublicKey('5NxzemFgGDhimYE3S5qmb5zkjZUmiHXb4up5WGXe7NLn'),
+		launchTs: 1709136669000,
+		oracleSource: OracleSource.PYTH,
+	},
 ];
 
 export const PerpMarkets: { [key in DriftEnv]: PerpMarketConfig[] } = {

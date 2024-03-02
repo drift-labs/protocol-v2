@@ -4,6 +4,7 @@ use crate::error::{DriftResult, ErrorCode};
 use crate::math::casting::Cast;
 use crate::math::constants::{PRICE_PRECISION, PRICE_PRECISION_I64, PRICE_PRECISION_U64};
 use crate::math::safe_math::SafeMath;
+use switchboard_solana::{AggregatorAccountData, SwitchboardDecimal};
 
 use crate::math::safe_unwrap::SafeUnwrap;
 use crate::validate;
@@ -146,10 +147,7 @@ pub fn get_oracle_price(
         OracleSource::Pyth1K => get_pyth_price(price_oracle, clock_slot, 1000),
         OracleSource::Pyth1M => get_pyth_price(price_oracle, clock_slot, 1000000),
         OracleSource::PythStableCoin => get_pyth_stable_coin_price(price_oracle, clock_slot),
-        OracleSource::Switchboard => {
-            msg!("Switchboard oracle not yet supported");
-            Err(crate::error::ErrorCode::InvalidOracle)
-        }
+        OracleSource::Switchboard => get_switchboard_price(price_oracle, clock_slot),
         OracleSource::QuoteAsset => Ok(OraclePriceData {
             price: PRICE_PRECISION_I64,
             confidence: 1,
@@ -239,46 +237,63 @@ pub fn get_pyth_stable_coin_price(
     Ok(oracle_price_data)
 }
 
-// pub fn get_switchboard_price(
-//     _price_oracle: &AccountInfo,
-//     _clock_slot: u64,
-// ) -> DriftResult<OraclePriceData> {
-//     updating solana/anchor cause this to make compiler complan
-//     fix when we're using switchboard again
-//     let aggregator_data = AggregatorAccountData::new(price_oracle)
-//         .or(Err(crate::error::ErrorCode::UnableToLoadOracle))?;
-//
-//     let price = convert_switchboard_decimal(&aggregator_data.latest_confirmed_round.result)?;
-//     let confidence =
-//         convert_switchboard_decimal(&aggregator_data.latest_confirmed_round.std_deviation)?;
-//
-//     // std deviation should always be positive, if we get a negative make it u128::MAX so it's flagged as bad value
-//     let confidence = if confidence < 0 {
-//         u128::MAX
-//     } else {
-//         let price_10bps = price
-//             .unsigned_abs()
-//             .safe_div(1000)
-//             ?;
-//         max(confidence.unsigned_abs(), price_10bps)
-//     };
-//
-//     let delay: i64 = cast_to_i64(clock_slot)?
-//         .safe_sub(cast(
-//             aggregator_data.latest_confirmed_round.round_open_slot,
-//         )?)
-//         ?;
-//
-//     let has_sufficient_number_of_data_points =
-//         aggregator_data.latest_confirmed_round.num_success >= aggregator_data.min_oracle_results;
-//
-//     Ok(OraclePriceData {
-//         price,
-//         confidence,
-//         delay,
-//         has_sufficient_number_of_data_points,
-//     })
-// }
+pub fn get_switchboard_price(
+    price_oracle: &AccountInfo,
+    clock_slot: u64,
+) -> DriftResult<OraclePriceData> {
+    let aggregator_data_loader: AccountLoader<AggregatorAccountData> =
+        AccountLoader::try_from(price_oracle).or(Err(ErrorCode::UnableToLoadOracle))?;
+    let aggregator_data = aggregator_data_loader
+        .load()
+        .or(Err(ErrorCode::UnableToLoadOracle))?;
+
+    let price = convert_switchboard_decimal(&aggregator_data.latest_confirmed_round.result)?
+        .cast::<i64>()?;
+    let confidence =
+        convert_switchboard_decimal(&aggregator_data.latest_confirmed_round.std_deviation)?
+            .cast::<i64>()?;
+
+    // std deviation should always be positive, if we get a negative make it u128::MAX so it's flagged as bad value
+    let confidence = if confidence < 0 {
+        u64::MAX
+    } else {
+        let price_10bps = price.unsigned_abs().safe_div(1000)?;
+        confidence.unsigned_abs().max(price_10bps)
+    };
+
+    let delay = clock_slot.cast::<i64>()?.safe_sub(
+        aggregator_data
+            .latest_confirmed_round
+            .round_open_slot
+            .cast()?,
+    )?;
+
+    let has_sufficient_number_of_data_points =
+        aggregator_data.latest_confirmed_round.num_success >= aggregator_data.min_oracle_results;
+
+    Ok(OraclePriceData {
+        price,
+        confidence,
+        delay,
+        has_sufficient_number_of_data_points,
+    })
+}
+
+/// Given a decimal number represented as a mantissa (the digits) plus an
+/// original_precision (10.pow(some number of decimals)), scale the
+/// mantissa/digits to make sense with a new_precision.
+fn convert_switchboard_decimal(switchboard_decimal: &SwitchboardDecimal) -> DriftResult<i128> {
+    let switchboard_precision = 10_u128.pow(switchboard_decimal.scale);
+    if switchboard_precision > PRICE_PRECISION {
+        switchboard_decimal
+            .mantissa
+            .safe_div((switchboard_precision / PRICE_PRECISION) as i128)
+    } else {
+        switchboard_decimal
+            .mantissa
+            .safe_mul((PRICE_PRECISION / switchboard_precision) as i128)
+    }
+}
 
 #[derive(Clone, Copy)]
 pub struct StrictOraclePrice {

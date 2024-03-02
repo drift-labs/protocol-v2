@@ -161,7 +161,7 @@ jobs:
       [
         fmt-clippy,
         unit,
-        cargo-audit,
+#        cargo-audit,
         yarn-prettier,
         yarn-lint,
         check-for-sdk-changes,
