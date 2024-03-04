@@ -1451,7 +1451,8 @@ mod calculate_margin_requirement_and_total_collateral_and_liability_info {
 
         assert_eq!(calculation.margin_requirement, QUOTE_PRECISION / 100);
         assert_eq!(calculation.get_num_of_liabilities().unwrap(), 1);
-        assert_eq!(calculation.with_isolated_liability, false);
+        assert_eq!(calculation.with_perp_isolated_liability, false);
+        assert_eq!(calculation.with_spot_isolated_liability, false);
     }
 
     #[test]
@@ -1566,7 +1567,8 @@ mod calculate_margin_requirement_and_total_collateral_and_liability_info {
 
         assert_eq!(calculation.margin_requirement, QUOTE_PRECISION / 100);
         assert_eq!(calculation.get_num_of_liabilities().unwrap(), 1);
-        assert_eq!(calculation.with_isolated_liability, true);
+        assert_eq!(calculation.with_spot_isolated_liability, false);
+        assert_eq!(calculation.with_perp_isolated_liability, true);
 
         // just usdc, long iso perp, resting limit order to close
         let mut spot_positions = [SpotPosition::default(); 8];
@@ -1607,7 +1609,7 @@ mod calculate_margin_requirement_and_total_collateral_and_liability_info {
 
         assert_eq!(calculation.margin_requirement, 110000);
         assert_eq!(calculation.get_num_of_liabilities().unwrap(), 1);
-        assert_eq!(calculation.with_isolated_liability, true);
+        assert_eq!(calculation.with_perp_isolated_liability, true);
     }
 
     #[test]

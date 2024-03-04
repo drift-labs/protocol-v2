@@ -9,7 +9,6 @@ use crate::math::position::{
     calculate_base_asset_value_with_oracle_price,
 };
 
-use crate::state::spot_market::SpotBalance;
 use crate::{validate, PRICE_PRECISION_I128};
 use crate::{validation, PRICE_PRECISION_I64};
 
@@ -384,14 +383,14 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
                     )?;
 
                     calculation.add_spot_liability()?;
-                    calculation.update_with_isolated_liability(
+                    calculation.update_with_spot_isolated_liability(
                         spot_market.asset_tier == AssetTier::Isolated,
                     );
                 }
                 Ordering::Equal => {
                     if spot_position.has_open_order() {
                         calculation.add_spot_liability()?;
-                        calculation.update_with_isolated_liability(
+                        calculation.update_with_spot_isolated_liability(
                             spot_market.asset_tier == AssetTier::Isolated,
                         );
                     }
@@ -483,8 +482,9 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
 
         if has_perp_liability {
             calculation.add_perp_liability()?;
-            calculation
-                .update_with_isolated_liability(market.contract_tier == ContractTier::Isolated);
+            calculation.update_with_perp_isolated_liability(
+                market.contract_tier == ContractTier::Isolated,
+            );
         }
 
         if has_perp_liability || calculation.context.margin_type != MarginRequirementType::Initial {
@@ -504,33 +504,36 @@ pub fn validate_any_isolated_tier_requirements(
     user: &User,
     calculation: MarginCalculation,
 ) -> DriftResult {
-    if calculation.with_isolated_liability {
-        if !user.is_reduce_only() {
+    if calculation.with_perp_isolated_liability && !user.is_reduce_only() {
+        validate!(
+            calculation.num_perp_liabilities <= 1,
+            ErrorCode::IsolatedAssetTierViolation,
+            "User attempting to increase perp liabilities above 1 with a isolated tier liability"
+        )?;
+
+        validate!(
+            !user.is_margin_trading_enabled,
+            ErrorCode::IsolatedAssetTierViolation,
+            "User attempting isolated tier liability with margin trading enabled"
+        )?;
+
+        if calculation.num_spot_liabilities > 0 {
+            let quote_spot_position = user.get_quote_spot_position();
             validate!(
-                calculation.num_perp_liabilities <= 1,
-                ErrorCode::IsolatedAssetTierViolation,
-                "User attempting to increase perp liabilities above 1 with a isolated tier liability"
-            )?;
-
-            if user.is_margin_trading_enabled {
-                validate!(
-                    !user.has_spot_bid_order()?,
-                    ErrorCode::IsolatedAssetTierViolation,
-                    "User attempting isolated tier liability with margin trading enabled or open spot market bids"
-                )?;
-            }
-
-            if calculation.num_spot_liabilities > 0 {
-                let quote_spot_position = user.get_quote_spot_position();
-                validate!(
-                    (calculation.num_spot_liabilities == 1 && quote_spot_position.balance_type == SpotBalanceType::Borrow
-                        && quote_spot_position.balance() != 0
+                    (calculation.num_spot_liabilities == 1 && quote_spot_position.is_borrow()
                     ),
                     ErrorCode::IsolatedAssetTierViolation,
                     "User attempting to increase spot liabilities beyond usdc with a isolated tier liability"
                 )?;
-            }
         }
+    }
+
+    if calculation.with_spot_isolated_liability && !user.is_reduce_only() {
+        validate!(
+            calculation.num_perp_liabilities == 0 && calculation.num_spot_liabilities == 1,
+            ErrorCode::IsolatedAssetTierViolation,
+            "User attempting to increase perp liabilities above 0 with a isolated tier liability"
+        )?;
     }
 
     Ok(())
