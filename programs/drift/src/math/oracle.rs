@@ -83,11 +83,12 @@ pub fn is_oracle_valid_for_action(
                 oracle_validity,
                 OracleValidity::Invalid | OracleValidity::TooVolatile
             ),
-            DriftAction::SettlePnl => !matches!(
+            DriftAction::SettlePnl => matches!(
                 oracle_validity,
-                OracleValidity::Invalid
-                    | OracleValidity::TooVolatile
-                    | OracleValidity::TooUncertain
+                OracleValidity::Valid
+                    | OracleValidity::StaleForAMM
+                    | OracleValidity::InsufficientDataPoints
+                    | OracleValidity::StaleForMargin
             ),
             DriftAction::FillOrderMatch => !matches!(
                 oracle_validity,
