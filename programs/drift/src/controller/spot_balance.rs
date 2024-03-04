@@ -76,6 +76,21 @@ pub fn update_spot_market_twap_stats(
     )?
     .cast()?;
 
+    if !spot_market.is_operation_paused(SpotOperation::DynamicParamUpdates) {
+        
+        if utilization >= spot_market.optimal_utilization.cast()? {
+            // increment 1% of max borrow rate per day
+            let increment: i64 = (spot_market.max_borrow_rate/100).cast::<i64>()?.safe_mul(since_last)?.safe_div(from_start)?;
+            spot_market.max_borrow_rate = spot_market.max_borrow_rate.safe_add(increment.cast()?)?;
+            spot_market.optimal_borrow_rate = spot_market.optimal_borrow_rate.safe_add(increment.cast()?)?;
+        } else {
+            // decrement 1% of optimal_borrow_rate per day
+            let decrement: i64 = (spot_market.optimal_borrow_rate/100).cast::<i64>()?.safe_mul(since_last)?.safe_div(from_start)?;
+            spot_market.optimal_borrow_rate = spot_market.optimal_borrow_rate.safe_sub(decrement.cast()?)?;
+            spot_market.max_borrow_rate = spot_market.max_borrow_rate.safe_sub(decrement.cast()?)?;
+        }
+    }
+
     if let Some(oracle_price_data) = oracle_price_data {
         let sanitize_clamp_denominator = spot_market.get_sanitize_clamp_denominator()?;
 
