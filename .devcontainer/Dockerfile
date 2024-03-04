@@ -23,8 +23,8 @@ RUN mkdir -p /workdir && mkdir -p /tmp && \
     build-essential git curl wget jq pkg-config python3-pip \
     libssl-dev libudev-dev
 
-#RUN wget http://nz2.archive.ubuntu.com/ubuntu/pool/main/o/openssl/libssl1.1_1.1.1f-1ubuntu2.19_amd64.deb
-#RUN dpkg -i libssl1.1_1.1.1f-1ubuntu2.19_amd64.deb
+RUN wget http://nz2.archive.ubuntu.com/ubuntu/pool/main/o/openssl/libssl1.1_1.1.1f-1ubuntu2.19_amd64.deb
+RUN dpkg -i libssl1.1_1.1.1f-1ubuntu2.19_amd64.deb
 
 # Install rust.
 RUN curl "https://sh.rustup.rs" -sfo rustup.sh && \
@@ -49,6 +49,7 @@ RUN cargo install --git https://github.com/coral-xyz/anchor avm --locked --force
 RUN avm install ${ANCHOR_CLI} && avm use ${ANCHOR_CLI}
 
 RUN solana-keygen new --no-bip39-passphrase
+RUN rustup default 1.62.0
 
 WORKDIR /workdir
 #be sure to add `/root/.avm/bin` to your PATH to be able to run the installed binaries
