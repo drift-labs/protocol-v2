@@ -23,8 +23,8 @@ RUN mkdir -p /workdir && mkdir -p /tmp && \
     build-essential git curl wget jq pkg-config python3-pip \
     libssl-dev libudev-dev
 
-#RUN wget http://nz2.archive.ubuntu.com/ubuntu/pool/main/o/openssl/libssl1.1_1.1.1f-1ubuntu2.19_amd64.deb
-#RUN dpkg -i libssl1.1_1.1.1f-1ubuntu2.19_amd64.deb
+RUN wget http://nz2.archive.ubuntu.com/ubuntu/pool/main/o/openssl/libssl1.1_1.1.1f-1ubuntu2_amd64.deb
+RUN dpkg -i libssl1.1_1.1.1f-1ubuntu2_amd64.deb
 
 # Install rust.
 RUN curl "https://sh.rustup.rs" -sfo rustup.sh && \
