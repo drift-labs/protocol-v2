@@ -197,6 +197,8 @@ impl<'a> OracleMap<'a> {
                         oracle_source,
                     },
                 );
+
+                continue;
             }
 
             break;
