@@ -765,6 +765,7 @@ fn check_fee_collection() {
         optimal_borrow_rate: SPOT_RATE_PRECISION_U32 * 20,
         max_borrow_rate: SPOT_RATE_PRECISION_U32 * 50,
         status: MarketStatus::Active,
+        paused_operations: SpotOperation::DynamicParamUpdates as u8,
 
         ..SpotMarket::default()
     };
@@ -788,6 +789,7 @@ fn check_fee_collection() {
             revenue_settle_period: 1,
             ..InsuranceFund::default()
         },
+        paused_operations: SpotOperation::DynamicParamUpdates as u8,
         status: MarketStatus::Active,
         ..SpotMarket::default()
     };
@@ -812,6 +814,8 @@ fn check_fee_collection() {
 
     spot_market.insurance_fund.user_factor = 900;
     spot_market.insurance_fund.total_factor = 1000; //1_000_000
+
+    assert!(spot_market.is_operation_paused(SpotOperation::DynamicParamUpdates));
 
     assert_eq!(spot_market.utilization_twap, 0);
     assert_eq!(spot_market.deposit_balance, 1000000000);

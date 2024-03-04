@@ -42,7 +42,6 @@ pub enum SpotOperation {
     Withdraw = 0b00000100,
     Liquidation = 0b00001000,
     DynamicParamUpdates = 0b00010000,
-
 }
 
 const ALL_SPOT_OPERATIONS: [SpotOperation; 3] = [

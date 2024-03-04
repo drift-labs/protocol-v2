@@ -21,7 +21,7 @@ use crate::math::stats::{calculate_new_twap, calculate_weighted_average};
 use crate::state::events::SpotInterestRecord;
 use crate::state::oracle::OraclePriceData;
 use crate::state::spot_market::{SpotBalance, SpotBalanceType, SpotMarket};
-use crate::validate;
+use crate::{validate, PERCENTAGE_PRECISION};
 
 use crate::math::oracle::{is_oracle_valid_for_action, DriftAction};
 use crate::math::safe_math::SafeMath;
@@ -77,17 +77,54 @@ pub fn update_spot_market_twap_stats(
     .cast()?;
 
     if !spot_market.is_operation_paused(SpotOperation::DynamicParamUpdates) {
-        
-        if utilization >= spot_market.optimal_utilization.cast()? {
-            // increment 1% of max borrow rate per day
-            let increment: i64 = (spot_market.max_borrow_rate/100).cast::<i64>()?.safe_mul(since_last)?.safe_div(from_start)?;
-            spot_market.max_borrow_rate = spot_market.max_borrow_rate.safe_add(increment.cast()?)?;
-            spot_market.optimal_borrow_rate = spot_market.optimal_borrow_rate.safe_add(increment.cast()?)?;
-        } else {
+        let min_optimal_rate = PERCENTAGE_PRECISION / 20;
+        let max_max_borrow_rate = PERCENTAGE_PRECISION * 20;
+        if utilization >= spot_market.optimal_utilization.cast()?
+            && spot_market.max_borrow_rate < max_max_borrow_rate.cast()?
+        {
+            // increment 10% of max borrow rate per day
+            let inc_size = utilization
+                .safe_sub(
+                    spot_market
+                        .utilization_twap
+                        .cast::<u128>()?
+                        .min(spot_market.optimal_utilization.cast::<u128>()?),
+                )?
+                .safe_mul((spot_market.max_borrow_rate / 10).cast()?)?
+                .safe_div(PERCENTAGE_PRECISION)?;
+
+            let increment: i64 = inc_size
+                .cast::<i64>()?
+                .safe_mul(since_last)?
+                .safe_div(from_start)?;
+            spot_market.max_borrow_rate =
+                spot_market.max_borrow_rate.safe_add(increment.cast()?)?;
+            spot_market.optimal_borrow_rate = spot_market
+                .optimal_borrow_rate
+                .safe_add(increment.cast()?)?;
+        }
+
+        if utilization < spot_market.optimal_utilization.cast()?
+            && spot_market.optimal_borrow_rate > min_optimal_rate.cast()?
+        {
             // decrement 1% of optimal_borrow_rate per day
-            let decrement: i64 = (spot_market.optimal_borrow_rate/100).cast::<i64>()?.safe_mul(since_last)?.safe_div(from_start)?;
-            spot_market.optimal_borrow_rate = spot_market.optimal_borrow_rate.safe_sub(decrement.cast()?)?;
-            spot_market.max_borrow_rate = spot_market.max_borrow_rate.safe_sub(decrement.cast()?)?;
+            let dec_size = spot_market
+                .utilization_twap
+                .cast::<u128>()?
+                .max(spot_market.optimal_utilization.cast::<u128>()?)
+                .safe_sub(utilization)?
+                .safe_mul((spot_market.optimal_borrow_rate / 10).cast()?)?
+                .safe_div(PERCENTAGE_PRECISION)?;
+
+            let decrement: i64 = dec_size
+                .cast::<i64>()?
+                .safe_mul(since_last)?
+                .safe_div(from_start)?;
+            spot_market.optimal_borrow_rate = spot_market
+                .optimal_borrow_rate
+                .safe_sub(decrement.cast()?)?;
+            spot_market.max_borrow_rate =
+                spot_market.max_borrow_rate.safe_sub(decrement.cast()?)?;
         }
     }
 
