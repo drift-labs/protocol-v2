@@ -161,13 +161,6 @@ impl User {
             .ok_or(ErrorCode::CouldNotFindSpotPosition)
     }
 
-    pub fn has_spot_bid_order(&self) -> DriftResult<bool> {
-        Ok(self
-            .spot_positions
-            .iter()
-            .any(|spot_position| spot_position.open_bids != 0))
-    }
-
     pub fn get_spot_position(&self, market_index: u16) -> DriftResult<&SpotPosition> {
         self.get_spot_position_index(market_index)
             .map(|market_index| &self.spot_positions[market_index])
