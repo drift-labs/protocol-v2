@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Features
 
+### Fixes
+
+### Breaking
+
+## [2.68.0] - 2023-03-05
+
+### Features
+
 - program: apply auction sanitizer to all contract tiers ([#932](https://github.com/drift-labs/protocol-v2/pull/932))
 
 ### Fixes
