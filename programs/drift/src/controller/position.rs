@@ -342,12 +342,9 @@ pub fn update_position_and_market(
         }
     }
 
-    let new_position_base_with_remainder =
-        new_base_asset_amount.safe_add(new_remainder_base_asset_amount)?;
-
     // Validate that user funding rate is up to date before modifying
     match position.get_direction() {
-        PositionDirection::Long if new_base_asset_amount != 0 => {
+        PositionDirection::Long if position.base_asset_amount != 0 => {
             validate!(
                 position.last_cumulative_funding_rate.cast::<i128>()? == market.amm.cumulative_funding_rate_long,
                 ErrorCode::InvalidPositionLastFundingRate,
@@ -367,6 +364,9 @@ pub fn update_position_and_market(
         }
         _ => {}
     }
+
+    let new_position_base_with_remainder =
+        new_base_asset_amount.safe_add(new_remainder_base_asset_amount)?;
 
     // Update user position
     if let PositionUpdateType::Close = update_type {
