@@ -365,14 +365,17 @@ pub fn update_position_and_market(
         _ => {}
     }
 
+    let new_position_base_with_remainder =
+        new_base_asset_amount.safe_add(new_remainder_base_asset_amount)?;
+
     // Update user position
     if let PositionUpdateType::Close = update_type {
         position.last_cumulative_funding_rate = 0;
     } else if matches!(
         update_type,
-        PositionUpdateType::Open | PositionUpdateType::Flip
+        PositionUpdateType::Open | PositionUpdateType::Increase | PositionUpdateType::Flip
     ) {
-        if new_base_asset_amount > 0 {
+        if new_position_base_with_remainder > 0 {
             position.last_cumulative_funding_rate =
                 market.amm.cumulative_funding_rate_long.cast()?;
         } else {
