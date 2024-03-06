@@ -93,7 +93,7 @@ export class OracleSource {
 	static readonly PYTH = { pyth: {} };
 	static readonly PYTH_1K = { pyth1K: {} };
 	static readonly PYTH_1M = { pyth1M: {} };
-	static readonly SWITCHBOARD = { switchboard: {} };
+	// static readonly SWITCHBOARD = { switchboard: {} };
 	static readonly QUOTE_ASSET = { quoteAsset: {} };
 	static readonly PYTH_STABLE_COIN = { pythStableCoin: {} };
 }
