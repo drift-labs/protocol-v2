@@ -234,9 +234,18 @@ fn calculate_optimal_peg_and_budget_2_test() {
     // test amm update
     assert_eq!(market.amm.last_update_slot, 0);
     let c = _update_amm(&mut market, &oracle_price_data, &state, 1, 1337).unwrap();
-    assert!(market.amm.is_last_update_recent_healthy_oracle(1337).unwrap());
-    assert!(!market.amm.is_last_update_recent_healthy_oracle(1338).unwrap());
-    assert!(!market.amm.is_last_update_recent_healthy_oracle(1336).unwrap());
+    assert!(market
+        .amm
+        .is_last_update_recent_healthy_oracle(1337)
+        .unwrap());
+    assert!(!market
+        .amm
+        .is_last_update_recent_healthy_oracle(1338)
+        .unwrap());
+    assert!(!market
+        .amm
+        .is_last_update_recent_healthy_oracle(1336)
+        .unwrap());
 
     assert_eq!(c, 442);
     assert_eq!(market.amm.last_update_slot, 1337);
