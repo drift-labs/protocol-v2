@@ -1351,6 +1351,7 @@ pub fn handle_reset_amm_oracle_twap(ctx: Context<RepegCurve>) -> Result<()> {
             .last_oracle_price_twap,
         oracle_price_data,
         &state.oracle_guard_rails.validity,
+        true,
     )?;
 
     let is_oracle_valid =

@@ -985,6 +985,7 @@ pub fn fill_perp_order(
             market.amm.historical_oracle_data.last_oracle_price_twap,
             oracle_price_data,
             &state.oracle_guard_rails.validity,
+            false,
         )?;
 
         is_oracle_valid =
@@ -2589,6 +2590,7 @@ pub fn trigger_order(
             .last_oracle_price_twap,
         oracle_price_data,
         &state.oracle_guard_rails.validity,
+        true,
     )?;
     let is_oracle_valid =
         is_oracle_valid_for_action(oracle_validity, Some(DriftAction::TriggerOrder))?;

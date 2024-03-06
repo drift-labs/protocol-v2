@@ -157,6 +157,7 @@ pub fn _update_amm(
         market.amm.historical_oracle_data.last_oracle_price_twap,
         oracle_price_data,
         &state.oracle_guard_rails.validity,
+        true
     )?;
 
     let mut amm_update_cost = 0;
@@ -238,6 +239,7 @@ pub fn update_amm_and_check_validity(
         risk_ema_price,
         oracle_price_data,
         &state.oracle_guard_rails.validity,
+        false,
     )?;
 
     validate!(

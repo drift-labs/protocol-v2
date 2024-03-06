@@ -42,6 +42,7 @@ pub fn calculate_repeg_validity_from_oracle_account(
         market.amm.historical_oracle_data.last_oracle_price_twap,
         &oracle_price_data,
         &oracle_guard_rails.validity,
+        true,
     )? == OracleValidity::Valid;
 
     let (oracle_is_valid, direction_valid, profitability_valid, price_impact_valid) =
