@@ -7,14 +7,14 @@ const PROGRAM_DATA = 'Program data: ';
 const PROGRAM_LOG_START_INDEX = PROGRAM_LOG.length;
 const PROGRAM_DATA_START_INDEX = PROGRAM_DATA.length;
 
-export function parseLogs(
-	program: Program,
-	slot: number,
-	logs: string[]
-): Event[] {
+export function parseLogs(program: Program, logs: string[]): Event[] {
 	const events = [];
 	const execution = new ExecutionContext();
 	for (const log of logs) {
+		if (log.startsWith('Log truncated')) {
+			break;
+		}
+
 		const [event, newProgram, didPop] = handleLog(execution, log, program);
 		if (event) {
 			events.push(event);

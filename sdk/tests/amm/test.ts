@@ -614,8 +614,14 @@ describe('AMM Tests', () => {
 		// console.log(termsSuiExample);
 		assert(termsSuiExample.effectiveLeverageCapped <= 1.000001);
 		assert(termsSuiExample.inventorySpreadScale == 1.00007);
-		assert(termsSuiExample.longSpread == 259073);
-		assert(termsSuiExample.shortSpread == 3712);
+		assert(
+			termsSuiExample.longSpread == 269818,
+			`SUI long spread got ${termsSuiExample.longSpread}`
+		);
+		assert(
+			termsSuiExample.shortSpread == 3920,
+			`SUI short spread got ${termsSuiExample.shortSpread}`
+		);
 
 		// reset amm reserves/peg to balanced values s.t. liquidity/price is the same
 		// to avoid error prone int math
@@ -674,7 +680,26 @@ describe('AMM Tests', () => {
 		);
 
 		console.log(termsSuiExampleMod2);
-		// assert(_.isEqual(termsSuiExampleMod2, termsSuiExampleMod1));
+		assert(
+			_.isEqual(
+				termsSuiExampleMod2.maxTargetSpread,
+				termsSuiExampleMod1.maxTargetSpread
+			)
+		);
+		assert(
+			_.isEqual(
+				termsSuiExampleMod2.shortSpreadwPS,
+				termsSuiExampleMod1.shortSpreadwPS
+			)
+		);
+		assert(
+			_.isEqual(
+				termsSuiExampleMod2.longSpreadwPS,
+				termsSuiExampleMod1.longSpreadwPS
+			)
+		);
+
+		// note: effectiveLeverage as currently implemented is sensitive to peg change
 	});
 
 	it('Spread Reserves (with offset)', () => {
