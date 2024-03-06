@@ -150,6 +150,8 @@ pub fn settle_pnl(
 
         if !healthy_oracle {
             let (_, oracle_validity) = oracle_map.get_price_data_and_validity(
+                MarketType::Perp,
+                perp_market.market_index,
                 &perp_market.amm.oracle,
                 perp_market
                     .amm
