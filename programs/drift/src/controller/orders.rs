@@ -42,7 +42,6 @@ use crate::math::matching::{
     are_orders_same_market_but_different_sides, calculate_fill_for_matched_orders,
     calculate_filler_multiplier_for_matched_orders, do_orders_cross, is_maker_for_taker,
 };
-use crate::math::oracle;
 use crate::math::oracle::{is_oracle_valid_for_action, DriftAction, OracleValidity};
 use crate::math::safe_math::SafeMath;
 use crate::math::spot_balance::{get_signed_token_amount, get_token_amount};
@@ -977,14 +976,11 @@ pub fn fill_perp_order(
             "Market is in settlement mode",
         )?;
 
-        let oracle_price_data = &oracle_map.get_price_data(&market.amm.oracle)?;
-        oracle_validity = oracle::oracle_validity(
+        let (oracle_price_data, _oracle_validity) = oracle_map.get_price_data_and_validity(
             MarketType::Perp,
             market.market_index,
+            &market.amm.oracle,
             market.amm.historical_oracle_data.last_oracle_price_twap,
-            oracle_price_data,
-            &state.oracle_guard_rails.validity,
-            false,
         )?;
 
         reserve_price_before = market.amm.reserve_price()?;
@@ -993,6 +989,7 @@ pub fn fill_perp_order(
             .amm
             .historical_oracle_data
             .last_oracle_price_twap_5min;
+        oracle_validity = _oracle_validity;
     }
 
     // allow oracle price to be used to calculate limit price if it's valid or stale for amm
@@ -2576,19 +2573,16 @@ pub fn trigger_order(
     validate!(!user.is_bankrupt(), ErrorCode::UserBankrupt)?;
 
     let mut perp_market = perp_market_map.get_ref_mut(&market_index)?;
-    let oracle_price_data = &oracle_map.get_price_data(&perp_market.amm.oracle)?;
-
-    let oracle_validity = oracle::oracle_validity(
+    let (oracle_price_data, oracle_validity) = oracle_map.get_price_data_and_validity(
         MarketType::Perp,
         perp_market.market_index,
+        &perp_market.amm.oracle,
         perp_market
             .amm
             .historical_oracle_data
             .last_oracle_price_twap,
-        oracle_price_data,
-        &state.oracle_guard_rails.validity,
-        true,
     )?;
+
     let is_oracle_valid =
         is_oracle_valid_for_action(oracle_validity, Some(DriftAction::TriggerOrder))?;
 

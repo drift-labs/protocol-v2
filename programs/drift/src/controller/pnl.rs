@@ -13,6 +13,7 @@ use crate::controller::spot_balance::{
 };
 use crate::error::{DriftResult, ErrorCode};
 use crate::math::amm::calculate_net_user_pnl;
+use crate::math::oracle::{is_oracle_valid_for_action, DriftAction};
 
 use crate::math::casting::Cast;
 use crate::math::margin::{
@@ -134,13 +135,6 @@ pub fn settle_pnl(
 
     if perp_market.amm.curve_update_intensity > 0 {
         validate!(
-            perp_market.amm.last_oracle_valid,
-            ErrorCode::InvalidOracle,
-            "Market={} Oracle Price detected as invalid",
-            market_index,
-        )?;
-
-        validate!(
             oracle_map.slot == perp_market.amm.last_update_slot,
             ErrorCode::AMMNotUpdatedInSameSlot,
             "Market={} AMM must be updated in a prior instruction within same slot (current={} != amm={}, last_oracle_valid={})",
@@ -149,6 +143,29 @@ pub fn settle_pnl(
             perp_market.amm.last_update_slot,
             perp_market.amm.last_oracle_valid
         )?;
+
+        if !perp_market.amm.last_oracle_valid {
+            let (_, oracle_validity) = oracle_map.get_price_data_and_validity(
+                MarketType::Perp,
+                perp_market.market_index,
+                &perp_market.amm.oracle,
+                perp_market
+                    .amm
+                    .historical_oracle_data
+                    .last_oracle_price_twap,
+            )?;
+
+            if !is_oracle_valid_for_action(oracle_validity, Some(DriftAction::SettlePnl))?
+                || !perp_market.is_price_divergence_ok_for_settle_pnl(oracle_price)?
+            {
+                validate!(
+                    perp_market.amm.last_oracle_valid,
+                    ErrorCode::InvalidOracle,
+                    "Oracle Price detected as invalid ({}) on last AMM update",
+                    oracle_validity
+                )?;
+            }
+        }
     }
 
     validate!(
