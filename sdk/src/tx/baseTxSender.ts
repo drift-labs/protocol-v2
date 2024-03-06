@@ -182,7 +182,7 @@ export abstract class BaseTxSender implements TxSender {
 	/* Simulate the tx and return a boolean for success value */
 	async simulateTransaction(tx: VersionedTransaction): Promise<boolean> {
 		const result = await this.connection.simulateTransaction(tx);
-		return !result.value.err;
+		return result.value.err != null;
 	}
 
 	async confirmTransactionWebSocket(
