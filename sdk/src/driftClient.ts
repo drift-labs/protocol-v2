@@ -3411,9 +3411,8 @@ export class DriftClient {
 		subAccountId?: number
 	): Promise<TransactionInstruction> {
 		orderParams = getOrderParams(orderParams, { marketType: MarketType.SPOT });
-		const userAccountPublicKey = await this.getUserAccountPublicKey(
-			subAccountId
-		);
+		const userAccountPublicKey =
+			await this.getUserAccountPublicKey(subAccountId);
 
 		const remainingAccounts = this.getRemainingAccounts({
 			userAccounts: [this.getUserAccount(subAccountId)],
@@ -4476,12 +4475,43 @@ export class DriftClient {
 		txParams?: TxParams,
 		subAccountId?: number,
 		cancelExistingOrders?: boolean,
-		settlePnl?: boolean
+		settlePnl?: boolean,
+		simulateFirst?: boolean
 	): Promise<{
 		txSig: TransactionSignature;
 		signedCancelExistingOrdersTx?: Transaction;
 		signedSettlePnlTx?: Transaction;
 	}> {
+		const ixs = [];
+
+		const placeAndTakeIx = await this.getPlaceAndTakePerpOrderIx(
+			orderParams,
+			makerInfo,
+			referrerInfo,
+			subAccountId
+		);
+
+		ixs.push(placeAndTakeIx);
+
+		if (bracketOrdersParams.length > 0) {
+			const bracketOrdersIx = await this.getPlaceOrdersIx(
+				bracketOrdersParams,
+				subAccountId
+			);
+			ixs.push(bracketOrdersIx);
+		}
+
+		const placeAndTakeTx = (await this.buildTransaction(
+			ixs,
+			txParams
+		)) as VersionedTransaction;
+
+		// if param is passed, return early before the tx fails so ui can fallback to placeOrder
+		if (simulateFirst) {
+			const success = await this.txSender.simulateTransaction(placeAndTakeTx);
+			if (!success) return;
+		}
+
 		let cancelExistingOrdersTx: Transaction;
 		if (cancelExistingOrders && isVariant(orderParams.marketType, 'perp')) {
 			const cancelOrdersIx = await this.getCancelOrdersIx(
@@ -4502,9 +4532,8 @@ export class DriftClient {
 		/* Settle PnL after fill if requested */
 		let settlePnlTx: Transaction;
 		if (settlePnl && isVariant(orderParams.marketType, 'perp')) {
-			const userAccountPublicKey = await this.getUserAccountPublicKey(
-				subAccountId
-			);
+			const userAccountPublicKey =
+				await this.getUserAccountPublicKey(subAccountId);
 
 			const settlePnlIx = await this.settlePNLIx(
 				userAccountPublicKey,
@@ -4519,27 +4548,6 @@ export class DriftClient {
 				this.txVersion
 			);
 		}
-
-		const ixs = [];
-
-		const placeAndTakeIx = await this.getPlaceAndTakePerpOrderIx(
-			orderParams,
-			makerInfo,
-			referrerInfo,
-			subAccountId
-		);
-
-		ixs.push(placeAndTakeIx);
-
-		if (bracketOrdersParams.length > 0) {
-			const bracketOrdersIx = await this.getPlaceOrdersIx(
-				bracketOrdersParams,
-				subAccountId
-			);
-			ixs.push(bracketOrdersIx);
-		}
-
-		const placeAndTakeTx = await this.buildTransaction(ixs, txParams);
 
 		const allPossibleTxs = [
 			placeAndTakeTx,
@@ -6027,9 +6035,8 @@ export class DriftClient {
 		}
 
 		if (initializeStakeAccount) {
-			const initializeIx = await this.getInitializeInsuranceFundStakeIx(
-				marketIndex
-			);
+			const initializeIx =
+				await this.getInitializeInsuranceFundStakeIx(marketIndex);
 			addIfStakeIxs.push(initializeIx);
 		}
 

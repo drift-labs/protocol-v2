@@ -179,6 +179,12 @@ export abstract class BaseTxSender implements TxSender {
 		throw new Error('Must be implemented by subclass');
 	}
 
+	/* Simulate the tx and return a boolean for success value */
+	async simulateTransaction(tx: VersionedTransaction): Promise<boolean> {
+		const result = await this.connection.simulateTransaction(tx);
+		return !result.value.err;
+	}
+
 	async confirmTransactionWebSocket(
 		signature: TransactionSignature,
 		commitment?: Commitment
@@ -235,9 +241,8 @@ export abstract class BaseTxSender implements TxSender {
 		if (response === null) {
 			if (this.confirmationStrategy === ConfirmationStrategy.Combo) {
 				try {
-					const rpcResponse = await this.connection.getSignatureStatus(
-						signature
-					);
+					const rpcResponse =
+						await this.connection.getSignatureStatus(signature);
 					if (rpcResponse?.value?.confirmationStatus) {
 						response = {
 							context: rpcResponse.context,
