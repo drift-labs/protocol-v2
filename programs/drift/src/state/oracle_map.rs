@@ -26,6 +26,7 @@ pub struct AccountInfoAndOracleSource<'a> {
 pub struct OracleMap<'a> {
     oracles: BTreeMap<Pubkey, AccountInfoAndOracleSource<'a>>,
     price_data: BTreeMap<Pubkey, OraclePriceData>,
+    validity: BTreeMap<Pubkey, OracleValidity>,
     pub slot: u64,
     pub oracle_guard_rails: OracleGuardRails,
     pub quote_asset_price_data: OraclePriceData,
@@ -89,14 +90,21 @@ impl<'a> OracleMap<'a> {
 
         if self.price_data.contains_key(pubkey) {
             let oracle_price_data = self.price_data.get(pubkey).safe_unwrap()?;
-            let oracle_validity = oracle_validity(
-                market_type,
-                market_index,
-                last_oracle_price_twap,
-                oracle_price_data,
-                &self.oracle_guard_rails.validity,
-                false,
-            )?;
+
+            let oracle_validity = if let Some(oracle_validity) = self.validity.get(pubkey) {
+                *oracle_validity
+            } else {
+                let oracle_validity = oracle_validity(
+                    market_type,
+                    market_index,
+                    last_oracle_price_twap,
+                    oracle_price_data,
+                    &self.oracle_guard_rails.validity,
+                    true,
+                )?;
+                self.validity.insert(*pubkey, oracle_validity);
+                oracle_validity
+            };
             return Ok((oracle_price_data, oracle_validity));
         }
 
@@ -122,8 +130,9 @@ impl<'a> OracleMap<'a> {
             last_oracle_price_twap,
             oracle_price_data,
             &self.oracle_guard_rails.validity,
-            false,
+            true,
         )?;
+        self.validity.insert(*pubkey, oracle_validity);
 
         Ok((oracle_price_data, oracle_validity))
     }
@@ -222,6 +231,7 @@ impl<'a> OracleMap<'a> {
         Ok(OracleMap {
             oracles,
             price_data: BTreeMap::new(),
+            validity: BTreeMap::new(),
             slot,
             oracle_guard_rails: ogr,
             quote_asset_price_data: OraclePriceData {
@@ -280,6 +290,7 @@ impl<'a> OracleMap<'a> {
         Ok(OracleMap {
             oracles,
             price_data: BTreeMap::new(),
+            validity: BTreeMap::new(),
             slot,
             oracle_guard_rails: ogr,
             quote_asset_price_data: OraclePriceData {
