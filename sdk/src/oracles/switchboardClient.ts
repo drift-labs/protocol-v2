@@ -45,11 +45,8 @@ export class SwitchboardClient implements OracleClient {
 			aggregatorAccountData.latestConfirmedRound.result
 		);
 
-		const confidence = BN.max(
-			convertSwitchboardDecimal(
-				aggregatorAccountData.latestConfirmedRound.stdDeviation
-			),
-			price.divn(1000)
+		const confidence = convertSwitchboardDecimal(
+			aggregatorAccountData.latestConfirmedRound.stdDeviation
 		);
 
 		const hasSufficientNumberOfDataPoints =
