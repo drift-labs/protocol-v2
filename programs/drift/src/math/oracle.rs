@@ -11,7 +11,7 @@ use crate::math::safe_math::SafeMath;
 
 use crate::state::oracle::OraclePriceData;
 use crate::state::paused_operations::PerpOperation;
-use crate::state::perp_market::{PerpMarket, AMM};
+use crate::state::perp_market::PerpMarket;
 use crate::state::state::{OracleGuardRails, ValidityGuardRails};
 use crate::state::user::MarketType;
 
@@ -115,7 +115,7 @@ pub fn block_operation(
         oracle_reserve_price_spread_pct: _,
         ..
     } = get_oracle_status(
-        &market.amm,
+        &market,
         oracle_price_data,
         guard_rails,
         precomputed_reserve_price,
@@ -143,22 +143,21 @@ pub struct OracleStatus {
 }
 
 pub fn get_oracle_status<'a>(
-    amm: &AMM,
+    market: &PerpMarket,
     oracle_price_data: &'a OraclePriceData,
     guard_rails: &OracleGuardRails,
     precomputed_reserve_price: Option<u64>,
 ) -> DriftResult<OracleStatus> {
     let oracle_validity = oracle_validity(
         MarketType::Perp,
-        0,
-        // market.market_index,
-        amm.historical_oracle_data.last_oracle_price_twap,
+        market.market_index,
+        market.amm.historical_oracle_data.last_oracle_price_twap,
         oracle_price_data,
         &guard_rails.validity,
         false,
     )?;
     let oracle_reserve_price_spread_pct =
-        amm::calculate_oracle_twap_5min_mark_spread_pct(amm, precomputed_reserve_price)?;
+        amm::calculate_oracle_twap_5min_mark_spread_pct(&market.amm, precomputed_reserve_price)?;
     let is_oracle_mark_too_divergent = amm::is_oracle_mark_too_divergent(
         oracle_reserve_price_spread_pct,
         &guard_rails.price_divergence,

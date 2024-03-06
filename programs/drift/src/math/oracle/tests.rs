@@ -5,6 +5,7 @@ use crate::math::constants::{
 use crate::math::oracle::*;
 use crate::state::oracle::HistoricalOracleData;
 use crate::state::state::{OracleGuardRails, PriceDivergenceGuardRails, State, ValidityGuardRails};
+use crate::state::perp_market::{PerpMarket, AMM};
 
 #[test]
 fn calculate_oracle_valid() {
@@ -12,8 +13,7 @@ fn calculate_oracle_valid() {
     let now = prev + 3600;
 
     let px = 32 * PRICE_PRECISION;
-
-    let mut amm = AMM {
+    let amm = AMM {
         base_asset_reserve: 2 * AMM_RESERVE_PRECISION,
         quote_asset_reserve: 2 * AMM_RESERVE_PRECISION,
         peg_multiplier: 33 * PEG_PRECISION,
@@ -34,6 +34,11 @@ fn calculate_oracle_valid() {
         delay: 1,
         has_sufficient_number_of_data_points: true,
     };
+    let mut market: PerpMarket = PerpMarket {
+        amm,
+        ..PerpMarket::default()
+    };
+
 
     let state = State {
         oracle_guard_rails: OracleGuardRails {
@@ -52,16 +57,16 @@ fn calculate_oracle_valid() {
     };
 
     let mut oracle_status =
-        get_oracle_status(&amm, &oracle_price_data, &state.oracle_guard_rails, None).unwrap();
+        get_oracle_status(&market, &oracle_price_data, &state.oracle_guard_rails, None).unwrap();
 
     assert!(oracle_status.oracle_validity == OracleValidity::Valid);
     assert_eq!(oracle_status.oracle_reserve_price_spread_pct, 30303); //0.030303 ()
     assert!(!oracle_status.mark_too_divergent);
 
     let _new_oracle_twap =
-        update_oracle_price_twap(&mut amm, now, &oracle_price_data, None, None).unwrap();
+        update_oracle_price_twap(&mut market.amm, now, &oracle_price_data, None, None).unwrap();
     assert_eq!(
-        amm.historical_oracle_data.last_oracle_price_twap,
+        market.amm.historical_oracle_data.last_oracle_price_twap,
         (34 * PRICE_PRECISION - PRICE_PRECISION / 100) as i64
     );
 
@@ -72,26 +77,26 @@ fn calculate_oracle_valid() {
         has_sufficient_number_of_data_points: true,
     };
     oracle_status =
-        get_oracle_status(&amm, &oracle_price_data, &state.oracle_guard_rails, None).unwrap();
+        get_oracle_status(&market, &oracle_price_data, &state.oracle_guard_rails, None).unwrap();
     assert!(oracle_status.oracle_validity != OracleValidity::Valid);
 
     oracle_price_data.delay = 8;
-    amm.historical_oracle_data.last_oracle_price_twap_5min = 32 * PRICE_PRECISION as i64;
-    amm.historical_oracle_data.last_oracle_price_twap = 21 * PRICE_PRECISION as i64;
+    market.amm.historical_oracle_data.last_oracle_price_twap_5min = 32 * PRICE_PRECISION as i64;
+    market.amm.historical_oracle_data.last_oracle_price_twap = 21 * PRICE_PRECISION as i64;
     oracle_status =
-        get_oracle_status(&amm, &oracle_price_data, &state.oracle_guard_rails, None).unwrap();
+        get_oracle_status(&market, &oracle_price_data, &state.oracle_guard_rails, None).unwrap();
     assert!(oracle_status.oracle_validity == OracleValidity::Valid);
     assert!(!oracle_status.mark_too_divergent);
 
-    amm.historical_oracle_data.last_oracle_price_twap_5min = 29 * PRICE_PRECISION as i64;
+    market.amm.historical_oracle_data.last_oracle_price_twap_5min = 29 * PRICE_PRECISION as i64;
     oracle_status =
-        get_oracle_status(&amm, &oracle_price_data, &state.oracle_guard_rails, None).unwrap();
+        get_oracle_status(&market, &oracle_price_data, &state.oracle_guard_rails, None).unwrap();
     assert!(oracle_status.mark_too_divergent);
     assert!(oracle_status.oracle_validity == OracleValidity::Valid);
 
     oracle_price_data.confidence = PRICE_PRECISION_U64;
     oracle_status =
-        get_oracle_status(&amm, &oracle_price_data, &state.oracle_guard_rails, None).unwrap();
+        get_oracle_status(&market, &oracle_price_data, &state.oracle_guard_rails, None).unwrap();
     assert!(oracle_status.mark_too_divergent);
     assert!(oracle_status.oracle_validity == OracleValidity::TooUncertain);
 }
