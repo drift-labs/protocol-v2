@@ -149,7 +149,7 @@ pub fn settle_pnl(
                 validate!(
                     perp_market.amm.last_oracle_valid,
                     ErrorCode::InvalidOracle,
-                    "Oracle Price detected as invalid"
+                    "Oracle Price detected as invalid on last AMM update"
                 )?;
 
                 validate!(
