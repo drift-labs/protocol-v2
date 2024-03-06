@@ -179,6 +179,21 @@ export abstract class BaseTxSender implements TxSender {
 		throw new Error('Must be implemented by subclass');
 	}
 
+	/* Simulate the tx and return a boolean for success value */
+	async simulateTransaction(tx: VersionedTransaction): Promise<boolean> {
+		try {
+			const result = await this.connection.simulateTransaction(tx);
+			if (result.value.err != null) {
+				console.error('Error in transaction simulation: ', result.value.err);
+				return false;
+			}
+			return true;
+		} catch (e) {
+			console.error('Error calling simulateTransaction: ', e);
+			return false;
+		}
+	}
+
 	async confirmTransactionWebSocket(
 		signature: TransactionSignature,
 		commitment?: Commitment

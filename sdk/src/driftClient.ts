@@ -4476,12 +4476,43 @@ export class DriftClient {
 		txParams?: TxParams,
 		subAccountId?: number,
 		cancelExistingOrders?: boolean,
-		settlePnl?: boolean
+		settlePnl?: boolean,
+		simulateFirst?: boolean
 	): Promise<{
 		txSig: TransactionSignature;
 		signedCancelExistingOrdersTx?: Transaction;
 		signedSettlePnlTx?: Transaction;
 	}> {
+		const ixs = [];
+
+		const placeAndTakeIx = await this.getPlaceAndTakePerpOrderIx(
+			orderParams,
+			makerInfo,
+			referrerInfo,
+			subAccountId
+		);
+
+		ixs.push(placeAndTakeIx);
+
+		if (bracketOrdersParams.length > 0) {
+			const bracketOrdersIx = await this.getPlaceOrdersIx(
+				bracketOrdersParams,
+				subAccountId
+			);
+			ixs.push(bracketOrdersIx);
+		}
+
+		const placeAndTakeTx = (await this.buildTransaction(
+			ixs,
+			txParams
+		)) as VersionedTransaction;
+
+		// if param is passed, return early before the tx fails so ui can fallback to placeOrder
+		if (simulateFirst) {
+			const success = await this.txSender.simulateTransaction(placeAndTakeTx);
+			if (!success) return;
+		}
+
 		let cancelExistingOrdersTx: Transaction;
 		if (cancelExistingOrders && isVariant(orderParams.marketType, 'perp')) {
 			const cancelOrdersIx = await this.getCancelOrdersIx(
@@ -4519,27 +4550,6 @@ export class DriftClient {
 				this.txVersion
 			);
 		}
-
-		const ixs = [];
-
-		const placeAndTakeIx = await this.getPlaceAndTakePerpOrderIx(
-			orderParams,
-			makerInfo,
-			referrerInfo,
-			subAccountId
-		);
-
-		ixs.push(placeAndTakeIx);
-
-		if (bracketOrdersParams.length > 0) {
-			const bracketOrdersIx = await this.getPlaceOrdersIx(
-				bracketOrdersParams,
-				subAccountId
-			);
-			ixs.push(bracketOrdersIx);
-		}
-
-		const placeAndTakeTx = await this.buildTransaction(ixs, txParams);
 
 		const allPossibleTxs = [
 			placeAndTakeTx,
