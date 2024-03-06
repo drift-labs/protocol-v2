@@ -14,7 +14,8 @@ use crate::math::constants::{
     AMM_RESERVE_PRECISION_I128, AMM_TO_QUOTE_PRECISION_RATIO, BID_ASK_SPREAD_PRECISION,
     BID_ASK_SPREAD_PRECISION_U128, DEFAULT_REVENUE_SINCE_LAST_FUNDING_SPREAD_RETREAT,
     LP_FEE_SLICE_DENOMINATOR, LP_FEE_SLICE_NUMERATOR, MARGIN_PRECISION_U128, PERCENTAGE_PRECISION,
-    PERCENTAGE_PRECISION_I128, PRICE_PRECISION, SPOT_WEIGHT_PRECISION, TWENTY_FOUR_HOUR,
+    PERCENTAGE_PRECISION_I128, PERCENTAGE_PRECISION_I64, PRICE_PRECISION, SPOT_WEIGHT_PRECISION,
+    TWENTY_FOUR_HOUR,
 };
 use crate::math::helpers::get_proportion_i128;
 
@@ -496,6 +497,23 @@ impl PerpMarket {
         }
 
         Ok(())
+    }
+
+    pub fn is_price_divergence_ok_for_settle_pnl(&self, oracle_price: i64) -> DriftResult<bool> {
+        let oracle_divergence = oracle_price
+            .safe_sub(self.amm.historical_oracle_data.last_oracle_price_twap_5min)?
+            .safe_mul(PERCENTAGE_PRECISION_I64)?
+            .safe_div(self.amm.historical_oracle_data.last_oracle_price_twap_5min)?;
+
+        let oracle_divergence_limit = match self.contract_tier {
+            ContractTier::A => PERCENTAGE_PRECISION_I64 / 200, // 50 bps
+            ContractTier::B => PERCENTAGE_PRECISION_I64 / 200, // 50 bps
+            ContractTier::C => PERCENTAGE_PRECISION_I64 / 100, // 100 bps
+            ContractTier::Speculative => PERCENTAGE_PRECISION_I64 / 40, // 250 bps
+            ContractTier::Isolated => PERCENTAGE_PRECISION_I64 / 40, // 250 bps
+        };
+
+        Ok(oracle_divergence < oracle_divergence_limit)
     }
 }
 
@@ -1298,6 +1316,10 @@ impl AMM {
             .safe_mul(BID_ASK_SPREAD_PRECISION)?
             .safe_div(reserve_price)?
             .max(confidence_lower_bound))
+    }
+
+    pub fn is_last_update_recent_healthy_oracle(&self, current_slot: u64) -> DriftResult<bool> {
+        Ok(self.last_oracle_valid && current_slot == self.last_update_slot)
     }
 }
 

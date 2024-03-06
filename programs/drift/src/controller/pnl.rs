@@ -16,7 +16,6 @@ use crate::math::amm::calculate_net_user_pnl;
 use crate::math::oracle::{is_oracle_valid_for_action, DriftAction};
 
 use crate::math::casting::Cast;
-use crate::math::constants::PERCENTAGE_PRECISION_I64;
 use crate::math::margin::{
     calculate_margin_requirement_and_total_collateral_and_liability_info,
     meets_maintenance_margin_requirement, MarginRequirementType,
@@ -131,10 +130,12 @@ pub fn settle_pnl(
     let perp_market = &mut perp_market_map.get_ref_mut(&market_index)?;
 
     if perp_market.amm.curve_update_intensity > 0 {
-        let healthy_oracle = perp_market.amm.last_oracle_valid
-            && oracle_map.slot == perp_market.amm.last_update_slot;
+        let healthy_oracle = perp_market
+            .amm
+            .is_last_update_recent_healthy_oracle(oracle_map.slot)?;
+
         if !healthy_oracle {
-            let (_oracle_price_data, oracle_validity) = oracle_map.get_price_data_and_validity(
+            let (_, oracle_validity) = oracle_map.get_price_data_and_validity(
                 &perp_market.amm.oracle,
                 perp_market
                     .amm
@@ -142,18 +143,8 @@ pub fn settle_pnl(
                     .last_oracle_price_twap,
             )?;
 
-            let oracle_divergence = oracle_price
-                .safe_sub(
-                    perp_market
-                        .amm
-                        .historical_oracle_data
-                        .last_oracle_price_twap_5min,
-                )?
-                .safe_mul(PERCENTAGE_PRECISION_I64)?
-                .safe_div(oracle_price)?;
-
             if is_oracle_valid_for_action(oracle_validity, Some(DriftAction::SettlePnl))?
-                && oracle_divergence < PERCENTAGE_PRECISION_I64 / 200
+                && perp_market.is_price_divergence_ok_for_settle_pnl(oracle_price)?
             {
                 validate!(
                     perp_market.amm.last_oracle_valid,
