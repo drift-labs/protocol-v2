@@ -100,7 +100,7 @@ impl<'a> OracleMap<'a> {
                     last_oracle_price_twap,
                     oracle_price_data,
                     &self.oracle_guard_rails.validity,
-                    false,
+                    true,
                 )?;
                 self.validity.insert(*pubkey, oracle_validity);
                 oracle_validity
@@ -130,7 +130,7 @@ impl<'a> OracleMap<'a> {
             last_oracle_price_twap,
             oracle_price_data,
             &self.oracle_guard_rails.validity,
-            false,
+            true,
         )?;
         self.validity.insert(*pubkey, oracle_validity);
 
