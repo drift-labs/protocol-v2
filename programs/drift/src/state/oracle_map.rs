@@ -281,6 +281,7 @@ impl<'a> OracleMap<'a> {
     pub fn empty() -> OracleMap<'a> {
         OracleMap {
             oracles: BTreeMap::new(),
+            validity: BTreeMap::new(),
             price_data: BTreeMap::new(),
             slot: 0,
             oracle_guard_rails: OracleGuardRails::default(),
