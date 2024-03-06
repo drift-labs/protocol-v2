@@ -149,6 +149,13 @@ export class FastSingleTxSender extends BaseTxSender {
 			console.error(e);
 		});
 		this.sendToAdditionalConnections(rawTransaction, opts);
+		this.connection
+			.getLatestBlockhash(this.blockhashCommitment)
+			.then((response) => {
+				if (response.blockhash) {
+					this.recentBlockhash = response.blockhash;
+				}
+			});
 
 		let slot: number;
 		if (!this.skipConfirmation) {
