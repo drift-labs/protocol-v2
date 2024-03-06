@@ -6,11 +6,6 @@ pub mod pyth_program {
     declare_id!("gSbePebfvPy7tRqimPoVecS2UsBvYv46ynrzWocc92s");
 }
 
-pub mod switchboard_program {
-    use solana_program::declare_id;
-    declare_id!("SW1TCH7qEPTdLsDHRgPuMQjbQxKdH2aBStViMFnt64f");
-}
-
 pub mod bonk_oracle {
     use solana_program::declare_id;
     #[cfg(feature = "mainnet-beta")]

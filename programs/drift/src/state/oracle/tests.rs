@@ -29,7 +29,7 @@ fn pyth_1k() {
         ..AMM::default()
     };
 
-    let twap = amm.get_oracle_twap(&oracle_account_info, 0).unwrap();
+    let twap = amm.get_oracle_twap(&oracle_account_info).unwrap();
     assert_eq!(twap, Some(839));
 }
 
@@ -55,6 +55,6 @@ fn pyth_1m() {
         ..AMM::default()
     };
 
-    let twap = amm.get_oracle_twap(&oracle_account_info, 0).unwrap();
+    let twap = amm.get_oracle_twap(&oracle_account_info).unwrap();
     assert_eq!(twap, Some(839400));
 }

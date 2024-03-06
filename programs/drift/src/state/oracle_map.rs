@@ -1,7 +1,5 @@
 use crate::error::{DriftResult, ErrorCode};
-use crate::ids::{
-    bonk_oracle, pepe_oracle, pyth_program, switchboard_program, usdc_oracle, usdt_oracle_mainnet,
-};
+use crate::ids::{bonk_oracle, pepe_oracle, pyth_program, usdc_oracle, usdt_oracle_mainnet};
 use crate::math::constants::PRICE_PRECISION_I64;
 use crate::math::oracle::{oracle_validity, OracleValidity};
 use crate::state::oracle::{get_oracle_price, OraclePriceData, OracleSource};
@@ -194,18 +192,6 @@ impl<'a> OracleMap<'a> {
                 );
 
                 continue;
-            } else if account_info.owner == &switchboard_program::id() {
-                let account_info = account_info_iter.next().safe_unwrap()?;
-                let pubkey = account_info.key();
-
-                let oracle_source = OracleSource::Switchboard;
-                oracles.insert(
-                    pubkey,
-                    AccountInfoAndOracleSource {
-                        account_info: account_info.clone(),
-                        oracle_source,
-                    },
-                );
             }
 
             break;
@@ -247,17 +233,6 @@ impl<'a> OracleMap<'a> {
             } else {
                 OracleSource::Pyth
             };
-            oracles.insert(
-                pubkey,
-                AccountInfoAndOracleSource {
-                    account_info: account_info.clone(),
-                    oracle_source,
-                },
-            );
-        } else if account_info.owner == &switchboard_program::id() {
-            let pubkey = account_info.key();
-
-            let oracle_source = OracleSource::Switchboard;
             oracles.insert(
                 pubkey,
                 AccountInfoAndOracleSource {

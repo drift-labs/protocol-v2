@@ -5,7 +5,6 @@ import { PythClient } from '../oracles/pythClient';
 // import { SwitchboardClient } from '../oracles/switchboardClient';
 import { QuoteAssetOracleClient } from '../oracles/quoteAssetOracleClient';
 import { BN } from '@coral-xyz/anchor';
-import { SwitchboardClient } from '../oracles/switchboardClient';
 
 export function getOracleClient(
 	oracleSource: OracleSource,
@@ -27,9 +26,9 @@ export function getOracleClient(
 		return new PythClient(connection, undefined, true);
 	}
 
-	if (isVariant(oracleSource, 'switchboard')) {
-		return new SwitchboardClient(connection);
-	}
+	// if (isVariant(oracleSource, 'switchboard')) {
+	// 	return new SwitchboardClient(connection);
+	// }
 
 	if (isVariant(oracleSource, 'quoteAsset')) {
 		return new QuoteAssetOracleClient();
