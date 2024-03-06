@@ -144,11 +144,7 @@ pub fn settle_pnl(
             perp_market.amm.last_oracle_valid
         )?;
 
-        let healthy_oracle = perp_market
-            .amm
-            .is_last_update_recent_healthy_oracle(oracle_map.slot)?;
-
-        if !healthy_oracle {
+        if !perp_market.amm.last_oracle_valid {
             let (_, oracle_validity) = oracle_map.get_price_data_and_validity(
                 MarketType::Perp,
                 perp_market.market_index,
@@ -165,7 +161,8 @@ pub fn settle_pnl(
                 validate!(
                     perp_market.amm.last_oracle_valid,
                     ErrorCode::InvalidOracle,
-                    "Oracle Price detected as invalid on last AMM update"
+                    "Oracle Price detected as invalid ({}) on last AMM update",
+                    oracle_validity
                 )?;
             }
         }

@@ -513,7 +513,17 @@ impl PerpMarket {
             ContractTier::Isolated => PERCENTAGE_PRECISION_I64 / 40, // 250 bps
         };
 
-        Ok(oracle_divergence < oracle_divergence_limit)
+        if oracle_divergence >= oracle_divergence_limit {
+            msg!(
+                "market_index={} price divergence too large to safely settle pnl: {} >= {}",
+                self.market_index,
+                oracle_divergence,
+                oracle_divergence_limit
+            );
+            return Ok(false);
+        }
+
+        Ok(true)
     }
 }
 
@@ -1316,10 +1326,6 @@ impl AMM {
             .safe_mul(BID_ASK_SPREAD_PRECISION)?
             .safe_div(reserve_price)?
             .max(confidence_lower_bound))
-    }
-
-    pub fn is_last_update_recent_healthy_oracle(&self, current_slot: u64) -> DriftResult<bool> {
-        Ok(self.last_oracle_valid && current_slot == self.last_update_slot)
     }
 }
 

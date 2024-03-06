@@ -14,6 +14,7 @@ use crate::state::paused_operations::PerpOperation;
 use crate::state::perp_market::PerpMarket;
 use crate::state::state::{OracleGuardRails, ValidityGuardRails};
 use crate::state::user::MarketType;
+use std::fmt;
 
 #[cfg(test)]
 mod tests;
@@ -33,6 +34,20 @@ pub enum OracleValidity {
 impl Default for OracleValidity {
     fn default() -> Self {
         OracleValidity::Valid
+    }
+}
+
+impl fmt::Display for OracleValidity {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            OracleValidity::Invalid => write!(f, "Invalid"),
+            OracleValidity::TooVolatile => write!(f, "TooVolatile"),
+            OracleValidity::TooUncertain => write!(f, "TooUncertain"),
+            OracleValidity::StaleForMargin => write!(f, "StaleForMargin"),
+            OracleValidity::InsufficientDataPoints => write!(f, "InsufficientDataPoints"),
+            OracleValidity::StaleForAMM => write!(f, "StaleForAMM"),
+            OracleValidity::Valid => write!(f, "Valid"),
+        }
     }
 }
 

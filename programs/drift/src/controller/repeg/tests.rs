@@ -223,10 +223,7 @@ pub fn update_amm_test_bad_oracle() {
     };
 
     let _cost_of_update = _update_amm(&mut market, &oracle_price_data, &state, now, slot).unwrap();
-    assert!(!market
-        .amm
-        .is_last_update_recent_healthy_oracle(slot)
-        .unwrap());
+    assert!(!market.amm.last_oracle_valid);
     assert!(market.amm.last_update_slot == 0);
 
     let is_oracle_valid = oracle::oracle_validity(
@@ -414,10 +411,6 @@ pub fn update_amm_larg_conf_w_neg_tfmd_test() {
     let prev_total_fee_minus_distributions = market.amm.total_fee_minus_distributions;
 
     let cost_of_update = _update_amm(&mut market, &oracle_price_data, &state, now, slot).unwrap();
-    assert!(market
-        .amm
-        .is_last_update_recent_healthy_oracle(slot)
-        .unwrap());
     assert_eq!(cost_of_update, -42992787); // amm wins when price increases
     assert_eq!(market.amm.sqrt_k, 64000000000);
     assert_eq!(market.amm.base_asset_reserve, 65000000000);
