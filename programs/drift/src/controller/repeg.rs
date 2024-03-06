@@ -31,6 +31,7 @@ use crate::state::perp_market_map::PerpMarketMap;
 use crate::state::spot_market::SpotBalanceType;
 use crate::state::spot_market_map::SpotMarketMap;
 use crate::state::state::{OracleGuardRails, State};
+use crate::state::user::MarketType;
 use crate::validate;
 
 #[cfg(test)]
@@ -151,9 +152,12 @@ pub fn _update_amm(
     }
 
     let oracle_validity = oracle::oracle_validity(
+        MarketType::Perp,
+        market.market_index,
         market.amm.historical_oracle_data.last_oracle_price_twap,
         oracle_price_data,
         &state.oracle_guard_rails.validity,
+        true,
     )?;
 
     let mut amm_update_cost = 0;
@@ -230,9 +234,12 @@ pub fn update_amm_and_check_validity(
     let risk_ema_price = market.amm.historical_oracle_data.last_oracle_price_twap;
 
     let oracle_validity = oracle_validity(
+        MarketType::Perp,
+        market.market_index,
         risk_ema_price,
         oracle_price_data,
         &state.oracle_guard_rails.validity,
+        false,
     )?;
 
     validate!(

@@ -88,7 +88,8 @@ pub fn settle_pnl(
         )?;
 
         if !margin_calc.meets_margin_requirement() {
-            msg!("lp does not meet initial margin requirement, attempting to burn shares for risk reduction");
+            msg!("market={} lp does not meet initial margin requirement, attempting to burn shares for risk reduction",
+            market_index);
             attempt_burn_user_lp_shares_for_risk_reduction(
                 state,
                 user,
@@ -110,7 +111,10 @@ pub fn settle_pnl(
                     oracle_map,
                 )?)
             {
-                msg!("Unable to settle negative pnl as user is in liquidation territory");
+                msg!(
+                    "Unable to settle market={} negative pnl as user is in liquidation territory",
+                    market_index
+                );
                 return Ok(());
             }
         }
@@ -133,7 +137,8 @@ pub fn settle_pnl(
         validate!(
             oracle_map.slot == perp_market.amm.last_update_slot,
             ErrorCode::AMMNotUpdatedInSameSlot,
-            "AMM must be updated in a prior instruction within same slot (current={} != amm={}, last_oracle_valid={})",
+            "Market={} AMM must be updated in a prior instruction within same slot (current={} != amm={}, last_oracle_valid={})",
+            market_index,
             oracle_map.slot,
             perp_market.amm.last_update_slot,
             perp_market.amm.last_oracle_valid
@@ -167,20 +172,23 @@ pub fn settle_pnl(
     validate!(
         perp_market.status == MarketStatus::Active,
         ErrorCode::InvalidMarketStatusToSettlePnl,
-        "Cannot settle pnl under current market status"
+        "Cannot settle pnl under current market = {} status",
+        market_index
     )?;
 
     validate!(
         !perp_market.is_operation_paused(PerpOperation::SettlePnl),
         ErrorCode::InvalidMarketStatusToSettlePnl,
-        "Cannot settle pnl under current market status"
+        "Cannot settle pnl under current market = {} status",
+        market_index
     )?;
 
     if user.perp_positions[position_index].base_asset_amount != 0 {
         validate!(
             !perp_market.is_operation_paused(PerpOperation::SettlePnlWithPosition),
             ErrorCode::InvalidMarketStatusToSettlePnl,
-            "Cannot settle pnl with position under current market status"
+            "Cannot settle pnl with position under current market = {} status",
+            market_index
         )?;
     }
 

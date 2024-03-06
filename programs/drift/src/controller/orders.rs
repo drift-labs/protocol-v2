@@ -979,9 +979,12 @@ pub fn fill_perp_order(
 
         let oracle_price_data = &oracle_map.get_price_data(&market.amm.oracle)?;
         oracle_validity = oracle::oracle_validity(
+            MarketType::Perp,
+            market.market_index,
             market.amm.historical_oracle_data.last_oracle_price_twap,
             oracle_price_data,
             &state.oracle_guard_rails.validity,
+            false,
         )?;
 
         reserve_price_before = market.amm.reserve_price()?;
@@ -1266,7 +1269,8 @@ pub fn validate_market_within_price_band(
 
     // if oracle-mark divergence pushed outside limit, block order
     if is_oracle_mark_too_divergent_after && !is_oracle_mark_too_divergent_before {
-        msg!("price pushed outside bounds: last_oracle_price_twap_5min={} vs mark_price={},(breach spread {})",
+        msg!("Perp market = {} price pushed outside bounds: last_oracle_price_twap_5min={} vs mark_price={},(breach spread {})",
+                market.market_index,
                 market.amm.historical_oracle_data.last_oracle_price_twap_5min,
                 reserve_price_after,
                 oracle_reserve_price_spread_pct_after,
@@ -1276,7 +1280,8 @@ pub fn validate_market_within_price_band(
 
     // if oracle-mark divergence outside limit and risk-increasing, block order
     if is_oracle_mark_too_divergent_after && breach_increases && potentially_risk_increasing {
-        msg!("risk-increasing outside bounds: last_oracle_price_twap_5min={} vs mark_price={}, (breach spread {})",
+        msg!("Perp market = {} risk-increasing outside bounds: last_oracle_price_twap_5min={} vs mark_price={}, (breach spread {})",
+                market.market_index,
                 market.amm.historical_oracle_data.last_oracle_price_twap_5min,
                 reserve_price_after,
                 oracle_reserve_price_spread_pct_after,
@@ -2574,12 +2579,15 @@ pub fn trigger_order(
     let oracle_price_data = &oracle_map.get_price_data(&perp_market.amm.oracle)?;
 
     let oracle_validity = oracle::oracle_validity(
+        MarketType::Perp,
+        perp_market.market_index,
         perp_market
             .amm
             .historical_oracle_data
             .last_oracle_price_twap,
         oracle_price_data,
         &state.oracle_guard_rails.validity,
+        true,
     )?;
     let is_oracle_valid =
         is_oracle_valid_for_action(oracle_validity, Some(DriftAction::TriggerOrder))?;
@@ -4675,6 +4683,8 @@ pub fn trigger_spot_order(
 
     let spot_market = spot_market_map.get_ref(&market_index)?;
     let (oracle_price_data, oracle_validity) = oracle_map.get_price_data_and_validity(
+        MarketType::Spot,
+        spot_market.market_index,
         &spot_market.oracle,
         spot_market.historical_oracle_data.last_oracle_price_twap,
     )?;

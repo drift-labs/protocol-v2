@@ -12,6 +12,7 @@ use crate::state::oracle::HistoricalOracleData;
 use crate::state::oracle::OraclePriceData;
 use crate::state::perp_market::{ContractTier, AMM};
 use crate::state::state::{PriceDivergenceGuardRails, ValidityGuardRails};
+use crate::state::user::MarketType;
 
 #[test]
 pub fn update_amm_test() {
@@ -98,9 +99,12 @@ pub fn update_amm_test() {
 
     assert_eq!(market.amm.sqrt_k, 63936000000);
     let is_oracle_valid = oracle::oracle_validity(
+        MarketType::Perp,
+        market.market_index,
         market.amm.historical_oracle_data.last_oracle_price_twap,
         &oracle_price_data,
         &state.oracle_guard_rails.validity,
+        false,
     )
     .unwrap()
         == OracleValidity::Valid;
@@ -226,9 +230,12 @@ pub fn update_amm_test_bad_oracle() {
     assert!(market.amm.last_update_slot == 0);
 
     let is_oracle_valid = oracle::oracle_validity(
+        MarketType::Perp,
+        market.market_index,
         market.amm.historical_oracle_data.last_oracle_price_twap,
         &oracle_price_data,
         &state.oracle_guard_rails.validity,
+        false,
     )
     .unwrap()
         == OracleValidity::Valid;

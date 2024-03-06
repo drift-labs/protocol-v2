@@ -6,6 +6,7 @@ use crate::math::constants::PRICE_PRECISION_I64;
 use crate::math::oracle::{oracle_validity, OracleValidity};
 use crate::state::oracle::{get_oracle_price, OraclePriceData, OracleSource};
 use crate::state::state::OracleGuardRails;
+use crate::state::user::MarketType;
 use anchor_lang::prelude::{AccountInfo, Pubkey};
 use anchor_lang::Key;
 use solana_program::msg;
@@ -77,6 +78,8 @@ impl<'a> OracleMap<'a> {
 
     pub fn get_price_data_and_validity(
         &mut self,
+        market_type: MarketType,
+        market_index: u16,
         pubkey: &Pubkey,
         last_oracle_price_twap: i64,
     ) -> DriftResult<(&OraclePriceData, OracleValidity)> {
@@ -87,9 +90,12 @@ impl<'a> OracleMap<'a> {
         if self.price_data.contains_key(pubkey) {
             let oracle_price_data = self.price_data.get(pubkey).safe_unwrap()?;
             let oracle_validity = oracle_validity(
+                market_type,
+                market_index,
                 last_oracle_price_twap,
                 oracle_price_data,
                 &self.oracle_guard_rails.validity,
+                false,
             )?;
             return Ok((oracle_price_data, oracle_validity));
         }
@@ -111,9 +117,12 @@ impl<'a> OracleMap<'a> {
 
         let oracle_price_data = self.price_data.get(pubkey).safe_unwrap()?;
         let oracle_validity = oracle_validity(
+            market_type,
+            market_index,
             last_oracle_price_twap,
             oracle_price_data,
             &self.oracle_guard_rails.validity,
+            false,
         )?;
 
         Ok((oracle_price_data, oracle_validity))

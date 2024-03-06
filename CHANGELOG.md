@@ -11,6 +11,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixes
 
+### Breaking
+
+## [2.68.0] - 2023-03-05
+
+### Features
+
+- program: apply auction sanitizer to all contract tiers ([#932](https://github.com/drift-labs/protocol-v2/pull/932))
+
+### Fixes
+
+- program: fix flipping funding rates ([#931](https://github.com/drift-labs/protocol-v2/pull/931))
+
+### Breaking
+
+## [2.67.0] - 2023-03-05
+
+### Features
+
+### Fixes
+
 - program: add switchboard ([#878](https://github.com/drift-labs/protocol-v2/pull/878))
 - sdk: handle oracle failover when oracle is changed ([#875](https://github.com/drift-labs/protocol-v2/pull/875))
 
