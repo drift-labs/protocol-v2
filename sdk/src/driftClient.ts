@@ -5985,6 +5985,7 @@ export class DriftClient {
 		collateralAccountPublicKey,
 		initializeStakeAccount,
 		fromSubaccount,
+		txParams,
 	}: {
 		/**
 		 * Spot market index
@@ -6003,6 +6004,7 @@ export class DriftClient {
 		 * Optional -- withdraw from current subaccount to fund stake amount, instead of wallet balance
 		 */
 		fromSubaccount?: boolean;
+		txParams?: TxParams;
 	}): Promise<TransactionSignature> {
 		const addIfStakeIxs = [];
 
@@ -6062,7 +6064,7 @@ export class DriftClient {
 			);
 		}
 
-		const tx = await this.buildTransaction(addIfStakeIxs);
+		const tx = await this.buildTransaction(addIfStakeIxs, txParams);
 
 		const { txSig } = await this.sendTransaction(
 			tx,
@@ -6075,7 +6077,8 @@ export class DriftClient {
 
 	public async requestRemoveInsuranceFundStake(
 		marketIndex: number,
-		amount: BN
+		amount: BN,
+		txParams?: TxParams
 	): Promise<TransactionSignature> {
 		const spotMarketAccount = this.getSpotMarketAccount(marketIndex);
 		const ifStakeAccountPublicKey = getInsuranceFundStakeAccountPublicKey(
@@ -6106,14 +6109,15 @@ export class DriftClient {
 			}
 		);
 
-		const tx = await this.buildTransaction(ix);
+		const tx = await this.buildTransaction(ix, txParams);
 
 		const { txSig } = await this.sendTransaction(tx, [], this.opts);
 		return txSig;
 	}
 
 	public async cancelRequestRemoveInsuranceFundStake(
-		marketIndex: number
+		marketIndex: number,
+		txParams?: TxParams
 	): Promise<TransactionSignature> {
 		const spotMarketAccount = this.getSpotMarketAccount(marketIndex);
 		const ifStakeAccountPublicKey = getInsuranceFundStakeAccountPublicKey(
@@ -6144,7 +6148,7 @@ export class DriftClient {
 				}
 			);
 
-		const tx = await this.buildTransaction(ix);
+		const tx = await this.buildTransaction(ix, txParams);
 
 		const { txSig } = await this.sendTransaction(tx, [], this.opts);
 		return txSig;
@@ -6152,7 +6156,8 @@ export class DriftClient {
 
 	public async removeInsuranceFundStake(
 		marketIndex: number,
-		collateralAccountPublicKey: PublicKey
+		collateralAccountPublicKey: PublicKey,
+		txParams?: TxParams
 	): Promise<TransactionSignature> {
 		const removeIfStakeIxs = [];
 		const spotMarketAccount = this.getSpotMarketAccount(marketIndex);
@@ -6233,7 +6238,7 @@ export class DriftClient {
 			);
 		}
 
-		const tx = await this.buildTransaction(removeIfStakeIxs);
+		const tx = await this.buildTransaction(removeIfStakeIxs, txParams);
 
 		const { txSig } = await this.sendTransaction(
 			tx,
