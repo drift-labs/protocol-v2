@@ -21,7 +21,7 @@ use crate::math::stats::{calculate_new_twap, calculate_weighted_average};
 use crate::state::events::SpotInterestRecord;
 use crate::state::oracle::OraclePriceData;
 use crate::state::spot_market::{SpotBalance, SpotBalanceType, SpotMarket};
-use crate::{validate, PERCENTAGE_PRECISION};
+use crate::{validate, PERCENTAGE_PRECISION, QUOTE_PRECISION_U64};
 
 use crate::math::oracle::{is_oracle_valid_for_action, DriftAction};
 use crate::math::safe_math::SafeMath;
@@ -76,58 +76,6 @@ pub fn update_spot_market_twap_stats(
     )?
     .cast()?;
 
-    if !spot_market.is_operation_paused(SpotOperation::DynamicParamUpdates) {
-        let min_optimal_rate = PERCENTAGE_PRECISION / 20;
-        let max_max_borrow_rate = PERCENTAGE_PRECISION * 20;
-        if utilization >= spot_market.optimal_utilization.cast()?
-            && spot_market.max_borrow_rate < max_max_borrow_rate.cast()?
-        {
-            // increment 10% of max borrow rate per day
-            let inc_size = utilization
-                .safe_sub(
-                    spot_market
-                        .utilization_twap
-                        .cast::<u128>()?
-                        .min(spot_market.optimal_utilization.cast::<u128>()?),
-                )?
-                .safe_mul((spot_market.max_borrow_rate / 10).cast()?)?
-                .safe_div(PERCENTAGE_PRECISION)?;
-
-            let increment: i64 = inc_size
-                .cast::<i64>()?
-                .safe_mul(since_last)?
-                .safe_div(from_start)?;
-            spot_market.max_borrow_rate =
-                spot_market.max_borrow_rate.safe_add(increment.cast()?)?;
-            spot_market.optimal_borrow_rate = spot_market
-                .optimal_borrow_rate
-                .safe_add(increment.cast()?)?;
-        }
-
-        if utilization < spot_market.optimal_utilization.cast()?
-            && spot_market.optimal_borrow_rate > min_optimal_rate.cast()?
-        {
-            // decrement 1% of optimal_borrow_rate per day
-            let dec_size = spot_market
-                .utilization_twap
-                .cast::<u128>()?
-                .max(spot_market.optimal_utilization.cast::<u128>()?)
-                .safe_sub(utilization)?
-                .safe_mul((spot_market.optimal_borrow_rate / 10).cast()?)?
-                .safe_div(PERCENTAGE_PRECISION)?;
-
-            let decrement: i64 = dec_size
-                .cast::<i64>()?
-                .safe_mul(since_last)?
-                .safe_div(from_start)?;
-            spot_market.optimal_borrow_rate = spot_market
-                .optimal_borrow_rate
-                .safe_sub(decrement.cast()?)?;
-            spot_market.max_borrow_rate =
-                spot_market.max_borrow_rate.safe_sub(decrement.cast()?)?;
-        }
-    }
-
     if let Some(oracle_price_data) = oracle_price_data {
         let sanitize_clamp_denominator = spot_market.get_sanitize_clamp_denominator()?;
 
@@ -164,6 +112,80 @@ pub fn update_spot_market_twap_stats(
         spot_market.historical_oracle_data.last_oracle_conf = oracle_price_data.confidence;
         spot_market.historical_oracle_data.last_oracle_delay = oracle_price_data.delay;
         spot_market.historical_oracle_data.last_oracle_price_twap_ts = now;
+
+        if !spot_market.is_operation_paused(SpotOperation::DynamicParamUpdates) {
+
+            // dynamically adjust interest rate between 5%-5000% based on distance from target utilization
+    
+            let min_optimal_rate = PERCENTAGE_PRECISION / 20;
+            let max_max_borrow_rate = PERCENTAGE_PRECISION * 50;
+            if utilization >= spot_market.optimal_utilization.cast()?
+                && spot_market.max_borrow_rate < max_max_borrow_rate.cast()?
+            {
+                // increment 10% of max borrow rate per day
+                let inc_size = utilization
+                    .safe_sub(
+                        spot_market
+                            .utilization_twap
+                            .cast::<u128>()?
+                            .min(spot_market.optimal_utilization.cast::<u128>()?),
+                    )?
+                    .safe_mul((spot_market.max_borrow_rate / 10).cast()?)?
+                    .safe_div(PERCENTAGE_PRECISION)?;
+    
+                let increment: i64 = inc_size
+                    .cast::<i64>()?
+                    .safe_mul(since_last)?
+                    .safe_div(from_start)?;
+                spot_market.max_borrow_rate =
+                    spot_market.max_borrow_rate.safe_add(increment.cast()?)?.min(max_max_borrow_rate.cast()?);
+                spot_market.optimal_borrow_rate = spot_market
+                    .optimal_borrow_rate
+                    .safe_add(increment.cast()?)?.min(max_max_borrow_rate.cast()?);
+            }
+
+            if utilization < spot_market.optimal_utilization.cast()?
+            {
+                if spot_market.optimal_borrow_rate > min_optimal_rate.cast()? {
+                    // decrement 10% of optimal_borrow_rate per day
+                    let dec_size = spot_market
+                        .utilization_twap
+                        .cast::<u128>()?
+                        .max(spot_market.optimal_utilization.cast::<u128>()?)
+                        .safe_sub(utilization)?
+                        .safe_mul((spot_market.optimal_borrow_rate / 10).cast()?)?
+                        .safe_div(PERCENTAGE_PRECISION)?;
+        
+                    let decrement: i64 = dec_size
+                        .cast::<i64>()?
+                        .safe_mul(since_last)?
+                        .safe_div(from_start)?;
+                    spot_market.optimal_borrow_rate = spot_market
+                        .optimal_borrow_rate
+                        .safe_sub(decrement.cast()?)?.max(min_optimal_rate.cast()?);
+                    spot_market.max_borrow_rate =
+                        spot_market.max_borrow_rate.safe_sub(decrement.cast()?)?.max(min_optimal_rate.cast()?);
+                }
+
+            }
+            let spot_deposits = spot_market.get_deposits()?;
+            // let scaled_weight = spot_market.get_scaled_initial_asset_weight(oracle_price_data.price)?;
+
+            if spot_deposits > spot_market.max_token_deposits.safe_mul(8)?.safe_div(10)?.cast::<u128>()? {
+                spot_market.max_token_deposits = spot_market.max_token_deposits.safe_add(spot_market.min_order_size)?;
+            } 
+            // else if scaled_weight < spot_market.initial_asset_weight / 2 {
+            //     let max_dollar_to_scale = since_last.cast::<u64>()?.safe_mul(QUOTE_PRECISION_U64)?;
+            //     spot_market.scale_initial_asset_weight_start = spot_market.scale_initial_asset_weight_start.safe_add(max_dollar_to_scale)?;
+            // } else if scaled_weight == spot_market.initial_asset_weight {
+            //     let max_dollar_to_scale = since_last.cast::<u64>()?.safe_mul(QUOTE_PRECISION_U64)?;
+            //     spot_market.scale_initial_asset_weight_start = spot_market.scale_initial_asset_weight_start.safe_sub(max_dollar_to_scale)?;
+            // }
+            
+
+        }
+
+
     }
 
     spot_market.last_twap_ts = now.cast()?;
