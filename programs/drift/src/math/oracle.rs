@@ -115,7 +115,7 @@ pub fn block_operation(
         oracle_reserve_price_spread_pct: _,
         ..
     } = get_oracle_status(
-        &market,
+        market,
         oracle_price_data,
         guard_rails,
         precomputed_reserve_price,

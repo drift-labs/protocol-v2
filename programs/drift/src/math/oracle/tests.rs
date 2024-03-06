@@ -4,8 +4,8 @@ use crate::math::constants::{
 };
 use crate::math::oracle::*;
 use crate::state::oracle::HistoricalOracleData;
-use crate::state::state::{OracleGuardRails, PriceDivergenceGuardRails, State, ValidityGuardRails};
 use crate::state::perp_market::{PerpMarket, AMM};
+use crate::state::state::{OracleGuardRails, PriceDivergenceGuardRails, State, ValidityGuardRails};
 
 #[test]
 fn calculate_oracle_valid() {
@@ -38,7 +38,6 @@ fn calculate_oracle_valid() {
         amm,
         ..PerpMarket::default()
     };
-
 
     let state = State {
         oracle_guard_rails: OracleGuardRails {
@@ -81,14 +80,20 @@ fn calculate_oracle_valid() {
     assert!(oracle_status.oracle_validity != OracleValidity::Valid);
 
     oracle_price_data.delay = 8;
-    market.amm.historical_oracle_data.last_oracle_price_twap_5min = 32 * PRICE_PRECISION as i64;
+    market
+        .amm
+        .historical_oracle_data
+        .last_oracle_price_twap_5min = 32 * PRICE_PRECISION as i64;
     market.amm.historical_oracle_data.last_oracle_price_twap = 21 * PRICE_PRECISION as i64;
     oracle_status =
         get_oracle_status(&market, &oracle_price_data, &state.oracle_guard_rails, None).unwrap();
     assert!(oracle_status.oracle_validity == OracleValidity::Valid);
     assert!(!oracle_status.mark_too_divergent);
 
-    market.amm.historical_oracle_data.last_oracle_price_twap_5min = 29 * PRICE_PRECISION as i64;
+    market
+        .amm
+        .historical_oracle_data
+        .last_oracle_price_twap_5min = 29 * PRICE_PRECISION as i64;
     oracle_status =
         get_oracle_status(&market, &oracle_price_data, &state.oracle_guard_rails, None).unwrap();
     assert!(oracle_status.mark_too_divergent);

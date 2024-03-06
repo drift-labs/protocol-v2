@@ -93,7 +93,7 @@ impl<'a> OracleMap<'a> {
                 last_oracle_price_twap,
                 oracle_price_data,
                 &self.oracle_guard_rails.validity,
-                false
+                false,
             )?;
             return Ok((oracle_price_data, oracle_validity));
         }
@@ -120,7 +120,7 @@ impl<'a> OracleMap<'a> {
             last_oracle_price_twap,
             oracle_price_data,
             &self.oracle_guard_rails.validity,
-            false
+            false,
         )?;
 
         Ok((oracle_price_data, oracle_validity))
