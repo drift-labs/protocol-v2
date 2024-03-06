@@ -223,6 +223,7 @@ pub fn update_amm_test_bad_oracle() {
     };
 
     let _cost_of_update = _update_amm(&mut market, &oracle_price_data, &state, now, slot).unwrap();
+    assert!(!market.amm.last_oracle_valid);
     assert!(market.amm.last_update_slot == 0);
 
     let is_oracle_valid = oracle::oracle_validity(

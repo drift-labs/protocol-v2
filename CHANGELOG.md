@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Features
 
+- program: allow settle pnl on oracle delays when price is stable ([#929](https://github.com/drift-labs/protocol-v2/pull/929))
 - program: cache validity in oracle map
 
 ### Fixes
