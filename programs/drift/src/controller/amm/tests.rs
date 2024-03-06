@@ -987,9 +987,14 @@ fn update_pool_balances_revenue_to_fee_test() {
 
     spot_market.insurance_fund.total_factor = 1;
     spot_market.insurance_fund.revenue_settle_period = 1;
-    let res =
-        settle_revenue_to_insurance_fund(spot_market_vault_amount, 0, &mut spot_market, now + 3600)
-            .unwrap();
+    let res = settle_revenue_to_insurance_fund(
+        spot_market_vault_amount,
+        0,
+        &mut spot_market,
+        now + 3600,
+        true,
+    )
+    .unwrap();
     assert_eq!(res, 9800000001);
 
     let spot_market_vault_amount = get_token_amount(

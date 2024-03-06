@@ -960,6 +960,7 @@ fn check_fee_collection() {
         if_tokens_3 as u64,
         &mut spot_market,
         now + 60,
+        true,
     )
     .unwrap();
 
@@ -1329,6 +1330,7 @@ fn check_fee_collection_larger_nums() {
         if_tokens_3 as u64,
         &mut spot_market,
         now + 60,
+        true,
     )
     .unwrap();
     assert_eq!(settle_amount, 229742506020);
