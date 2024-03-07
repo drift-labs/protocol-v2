@@ -250,7 +250,7 @@ export const DevnetPerpMarkets: PerpMarketConfig[] = [
 		symbol: 'W-PERP',
 		baseAssetSymbol: 'W',
 		marketIndex: 23,
-		oracle: new PublicKey('BM2UWqREbt7ktsPCA438dqAVqhU7UZFVg11CQyPXFr49'), // todo
+		oracle: new PublicKey('BM2UWqREbt7ktsPCA438dqAVqhU7UZFVg11CQyPXFr49'),
 		launchTs: 1709852537000,
 		oracleSource: OracleSource.Prelaunch,
 	},
