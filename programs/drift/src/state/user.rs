@@ -45,6 +45,7 @@ pub enum UserStatus {
     Bankrupt = 0b00000010,
     ReduceOnly = 0b00000100,
     AdvancedLp = 0b00001000,
+    EfficiencyMode = 0b00010000,
 }
 
 // implement SIZE const for User
@@ -131,6 +132,10 @@ impl User {
 
     pub fn is_reduce_only(&self) -> bool {
         self.status & (UserStatus::ReduceOnly as u8) > 0
+    }
+
+    pub fn is_efficiency_mode(&self) -> bool {
+        self.status & (UserStatus::EfficiencyMode as u8) > 0
     }
 
     pub fn is_advanced_lp(&self) -> bool {

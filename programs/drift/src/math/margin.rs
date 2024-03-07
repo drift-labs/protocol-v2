@@ -9,6 +9,7 @@ use crate::math::position::{
     calculate_base_asset_value_with_oracle_price,
 };
 
+use crate::state::oracle::OracleSource;
 use crate::{validate, PRICE_PRECISION_I128};
 use crate::{validation, PRICE_PRECISION_I64};
 
@@ -29,6 +30,7 @@ use crate::state::spot_market_map::SpotMarketMap;
 use crate::state::user::{MarketType, OrderFillSimulation, PerpPosition, User};
 use num_integer::Roots;
 use solana_program::msg;
+use solana_program::pubkey::Pubkey;
 use std::cmp::{max, min, Ordering};
 
 #[cfg(test)]
@@ -250,6 +252,7 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
     } else {
         0_u32
     };
+    let emode_oracle = Pubkey::default();
 
     for spot_position in user.spot_positions.iter() {
         validation::position::validate_spot_position(spot_position)?;
@@ -279,6 +282,25 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
             calculation.context.strict,
         );
         strict_oracle_price.validate()?;
+
+        if user.is_efficiency_mode() {
+            if emode_oracle == Pubkey::default() {
+                if spot_market.oracle_source != OracleSource::PythStableCoin
+                    && spot_market.oracle_source != OracleSource::QuoteAsset
+                {
+                    emode_oracle = spot_market.oracle;
+                }
+            } else {
+                validate!(
+                    spot_market.oracle_source == OracleSource::PythStableCoin
+                        || spot_market.oracle_source == OracleSource::QuoteAsset
+                        || spot_market.oracle == emode_oracle
+                        || user.is_reduce_only(),
+                    ErrorCode::DefaultError,
+                    "invalid emode state"
+                );
+            }
+        }
 
         if spot_market.market_index == 0 {
             let token_amount = spot_position.get_signed_token_amount(&spot_market)?;
