@@ -5805,7 +5805,7 @@ export class DriftClient {
 	}
 
 	public async getUpdatePrelaunchOracleIx(
-		perpMarketIndex: number,
+		perpMarketIndex: number
 	): Promise<TransactionInstruction> {
 		const perpMarket = this.getPerpMarketAccount(perpMarketIndex);
 
