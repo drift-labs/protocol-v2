@@ -294,7 +294,7 @@ pub fn get_prelaunch_price(price_oracle: &AccountInfo, slot: u64) -> DriftResult
     Ok(OraclePriceData {
         price: oracle.price,
         confidence: oracle.confidence,
-        delay: oracle.slot.saturating_sub(slot).cast()?,
+        delay: oracle.amm_last_update_slot.saturating_sub(slot).cast()?,
         has_sufficient_number_of_data_points: true,
     })
 }
@@ -365,17 +365,20 @@ pub struct PrelaunchOracle {
     pub price: i64,
     pub max_price: i64,
     pub confidence: u64,
-    pub slot: u64,
+    // last slot oracle was updated, should be greater than or equal to last_update_slot
+    pub last_update_slot: u64,
+    // amm.last_update_slot at time oracle was updated
+    pub amm_last_update_slot: u64,
     pub perp_market_index: u16,
     pub padding: [u8; 6],
 }
 
 impl Size for PrelaunchOracle {
-    const SIZE: usize = 40 + 8;
+    const SIZE: usize = 48 + 8;
 }
 
 impl PrelaunchOracle {
-    pub fn update(&mut self, perp_market: &PerpMarket) -> DriftResult {
+    pub fn update(&mut self, perp_market: &PerpMarket, slot: u64) -> DriftResult {
         let last_twap = perp_market.amm.last_mark_price_twap.cast::<i64>()?;
         let new_price = if self.max_price <= last_twap {
             msg!(
@@ -401,7 +404,8 @@ impl PrelaunchOracle {
 
         self.confidence = spread_twap.max(mark_std);
 
-        self.slot = perp_market.amm.last_update_slot;
+        self.amm_last_update_slot = perp_market.amm.last_update_slot;
+        self.last_update_slot = slot;
 
         msg!(
             "setting price = {} confidence = {}",

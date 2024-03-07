@@ -28,7 +28,7 @@ export class PrelaunchOracleClient implements OracleClient {
 
 		return {
 			price: prelaunchOracle.price,
-			slot: prelaunchOracle.slot,
+			slot: prelaunchOracle.ammLastUpdateSlot,
 			confidence: prelaunchOracle.confidence,
 			hasSufficientNumberOfDataPoints: true,
 		};

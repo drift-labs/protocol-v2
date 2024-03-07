@@ -5227,7 +5227,11 @@
             "type": "u64"
           },
           {
-            "name": "slot",
+            "name": "lastUpdateSlot",
+            "type": "u64"
+          },
+          {
+            "name": "ammLastUpdateSlot",
             "type": "u64"
           },
           {

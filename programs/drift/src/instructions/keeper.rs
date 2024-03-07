@@ -1230,7 +1230,7 @@ pub fn handle_update_prelaunch_oracle(ctx: Context<UpdatePrelaunchOracle>) -> Re
         "wrong oracle source"
     )?;
 
-    update_prelaunch_oracle(perp_market, &oracle_map)?;
+    update_prelaunch_oracle(perp_market, &oracle_map, clock_slot)?;
 
     Ok(())
 }

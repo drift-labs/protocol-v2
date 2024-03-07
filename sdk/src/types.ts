@@ -1065,7 +1065,8 @@ export type PrelaunchOracle = {
 	price: BN;
 	maxPrice: BN;
 	confidence: BN;
-	slot: BN;
+	ammLastUpdateSlot: BN;
+	lastUpdateSlot: BN;
 	perpMarketIndex: number;
 };
 
