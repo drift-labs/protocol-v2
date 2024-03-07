@@ -2106,13 +2106,15 @@ pub fn handle_update_amm_jit_intensity(
     amm_jit_intensity: u8,
 ) -> Result<()> {
     validate!(
-        (0..=200).contains(&amm_jit_intensity),
+        (0..=201).contains(&amm_jit_intensity),
         ErrorCode::DefaultError,
         "invalid amm_jit_intensity",
     )?;
 
-    // (0, 100) amm only jit
-    // (100, 200) lp jit
+    // (0, 100] => amm only jit
+    // (100, 200] => lp jit
+    // 201 => resest target base to jit every funding update
+
     let perp_market = &mut load_mut!(ctx.accounts.perp_market)?;
     perp_market.amm.amm_jit_intensity = amm_jit_intensity;
 
