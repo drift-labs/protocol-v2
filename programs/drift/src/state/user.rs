@@ -31,6 +31,7 @@ use anchor_lang::prelude::*;
 use borsh::{BorshDeserialize, BorshSerialize};
 use solana_program::msg;
 use std::cmp::max;
+use std::fmt;
 use std::ops::Neg;
 use std::panic::Location;
 
@@ -1372,6 +1373,15 @@ impl Default for OrderTriggerCondition {
 pub enum MarketType {
     Spot,
     Perp,
+}
+
+impl fmt::Display for MarketType {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            MarketType::Spot => write!(f, "Spot"),
+            MarketType::Perp => write!(f, "Perp"),
+        }
+    }
 }
 
 impl Default for MarketType {

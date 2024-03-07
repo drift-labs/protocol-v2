@@ -24,6 +24,7 @@ import {
 	SPOT_MARKET_CUMULATIVE_INTEREST_PRECISION,
 	SPOT_MARKET_WEIGHT_PRECISION,
 	PRICE_PRECISION,
+	DataAndSlot,
 } from '../../src';
 
 export const mockPerpPosition: PerpPosition = {
@@ -639,11 +640,25 @@ export class MockUserMap implements UserMapInterface {
 		return undefined;
 	}
 
+	public getWithSlot(_key: string): DataAndSlot<User> | undefined {
+		return undefined;
+	}
+
 	public async mustGet(_key: string): Promise<User> {
 		return new User({
 			driftClient: this.driftClient,
 			userAccountPublicKey: PublicKey.default,
 		});
+	}
+
+	public async mustGetWithSlot(_key: string): Promise<DataAndSlot<User>> {
+		return {
+			data: new User({
+				driftClient: this.driftClient,
+				userAccountPublicKey: PublicKey.default,
+			}),
+			slot: 0,
+		};
 	}
 
 	public getUserAuthority(key: string): PublicKey | undefined {
@@ -656,5 +671,30 @@ export class MockUserMap implements UserMapInterface {
 
 	public values(): IterableIterator<User> {
 		return this.userMap.values();
+	}
+
+	public *valuesWithSlot(): IterableIterator<DataAndSlot<User>> {
+		for (const user of this.userMap.values()) {
+			yield {
+				data: user,
+				slot: 0,
+			};
+		}
+	}
+
+	public entries(): IterableIterator<[string, User]> {
+		return this.userMap.entries();
+	}
+
+	public *entriesWithSlot(): IterableIterator<[string, DataAndSlot<User>]> {
+		for (const [key, user] of this.userMap.entries()) {
+			yield [
+				key,
+				{
+					data: user,
+					slot: 0,
+				},
+			];
+		}
 	}
 }

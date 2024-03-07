@@ -5,6 +5,7 @@ use crate::math::constants::PRICE_PRECISION_I64;
 use crate::math::oracle::{oracle_validity, OracleValidity};
 use crate::state::oracle::{get_oracle_price, OraclePriceData, OracleSource, PrelaunchOracle};
 use crate::state::state::OracleGuardRails;
+use crate::state::user::MarketType;
 use anchor_lang::prelude::{AccountInfo, Pubkey};
 use anchor_lang::Discriminator;
 use anchor_lang::Key;
@@ -27,6 +28,7 @@ pub struct AccountInfoAndOracleSource<'a> {
 pub struct OracleMap<'a> {
     oracles: BTreeMap<Pubkey, AccountInfoAndOracleSource<'a>>,
     price_data: BTreeMap<Pubkey, OraclePriceData>,
+    validity: BTreeMap<Pubkey, OracleValidity>,
     pub slot: u64,
     pub oracle_guard_rails: OracleGuardRails,
     pub quote_asset_price_data: OraclePriceData,
@@ -79,6 +81,8 @@ impl<'a> OracleMap<'a> {
 
     pub fn get_price_data_and_validity(
         &mut self,
+        market_type: MarketType,
+        market_index: u16,
         pubkey: &Pubkey,
         last_oracle_price_twap: i64,
     ) -> DriftResult<(&OraclePriceData, OracleValidity)> {
@@ -88,11 +92,21 @@ impl<'a> OracleMap<'a> {
 
         if self.price_data.contains_key(pubkey) {
             let oracle_price_data = self.price_data.get(pubkey).safe_unwrap()?;
-            let oracle_validity = oracle_validity(
-                last_oracle_price_twap,
-                oracle_price_data,
-                &self.oracle_guard_rails.validity,
-            )?;
+
+            let oracle_validity = if let Some(oracle_validity) = self.validity.get(pubkey) {
+                *oracle_validity
+            } else {
+                let oracle_validity = oracle_validity(
+                    market_type,
+                    market_index,
+                    last_oracle_price_twap,
+                    oracle_price_data,
+                    &self.oracle_guard_rails.validity,
+                    true,
+                )?;
+                self.validity.insert(*pubkey, oracle_validity);
+                oracle_validity
+            };
             return Ok((oracle_price_data, oracle_validity));
         }
 
@@ -113,10 +127,14 @@ impl<'a> OracleMap<'a> {
 
         let oracle_price_data = self.price_data.get(pubkey).safe_unwrap()?;
         let oracle_validity = oracle_validity(
+            market_type,
+            market_index,
             last_oracle_price_twap,
             oracle_price_data,
             &self.oracle_guard_rails.validity,
+            true,
         )?;
+        self.validity.insert(*pubkey, oracle_validity);
 
         Ok((oracle_price_data, oracle_validity))
     }
@@ -229,6 +247,7 @@ impl<'a> OracleMap<'a> {
         Ok(OracleMap {
             oracles,
             price_data: BTreeMap::new(),
+            validity: BTreeMap::new(),
             slot,
             oracle_guard_rails: ogr,
             quote_asset_price_data: OraclePriceData {
@@ -303,6 +322,7 @@ impl<'a> OracleMap<'a> {
         Ok(OracleMap {
             oracles,
             price_data: BTreeMap::new(),
+            validity: BTreeMap::new(),
             slot,
             oracle_guard_rails: ogr,
             quote_asset_price_data: OraclePriceData {
@@ -320,6 +340,7 @@ impl<'a> OracleMap<'a> {
     pub fn empty() -> OracleMap<'a> {
         OracleMap {
             oracles: BTreeMap::new(),
+            validity: BTreeMap::new(),
             price_data: BTreeMap::new(),
             slot: 0,
             oracle_guard_rails: OracleGuardRails::default(),

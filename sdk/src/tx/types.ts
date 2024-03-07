@@ -55,5 +55,7 @@ export interface TxSender {
 		opts: ConfirmOptions
 	): Promise<TxSigAndSlot>;
 
+	simulateTransaction(tx: VersionedTransaction): Promise<boolean>;
+
 	getTimeoutCount(): number;
 }

@@ -5,6 +5,7 @@ fi
 
 test_files=(
   prelisting.ts
+  switchOracle.ts
   surgePricing.ts
   triggerOrders.ts
   stopLimits.ts
