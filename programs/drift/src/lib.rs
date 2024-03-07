@@ -11,6 +11,7 @@ use math::{bn, constants::*};
 use state::oracle::OracleSource;
 
 use crate::controller::position::PositionDirection;
+use crate::state::oracle::PrelaunchOracleParams;
 use crate::state::order_params::{ModifyOrderParams, OrderParams};
 use crate::state::perp_market::{ContractTier, MarketStatus};
 use crate::state::spot_market::AssetTier;
@@ -442,6 +443,10 @@ pub mod drift {
 
     pub fn update_funding_rate(ctx: Context<UpdateFundingRate>, market_index: u16) -> Result<()> {
         handle_update_funding_rate(ctx, market_index)
+    }
+
+    pub fn update_prelaunch_oracle(ctx: Context<UpdatePrelaunchOracle>) -> Result<()> {
+        handle_update_prelaunch_oracle(ctx)
     }
 
     pub fn update_perp_bid_ask_twap(ctx: Context<UpdatePerpBidAskTwap>) -> Result<()> {
@@ -1144,6 +1149,20 @@ pub mod drift {
             whitelisted_signers,
             max_transfer_per_epoch,
         )
+    }
+
+    pub fn initialize_prelaunch_oracle(
+        ctx: Context<InitializePrelaunchOracle>,
+        params: PrelaunchOracleParams,
+    ) -> Result<()> {
+        handle_initialize_prelaunch_oracle(ctx, params)
+    }
+
+    pub fn update_prelaunch_oracle_params(
+        ctx: Context<UpdatePrelaunchOracleParams>,
+        params: PrelaunchOracleParams,
+    ) -> Result<()> {
+        handle_update_prelaunch_oracle_params(ctx, params)
     }
 }
 

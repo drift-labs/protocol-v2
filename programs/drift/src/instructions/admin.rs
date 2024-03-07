@@ -34,8 +34,8 @@ use crate::state::fulfillment_params::serum::SerumContext;
 use crate::state::fulfillment_params::serum::SerumV3FulfillmentConfig;
 use crate::state::insurance_fund_stake::ProtocolIfSharesTransferConfig;
 use crate::state::oracle::{
-    get_oracle_price, get_pyth_price, HistoricalIndexData, HistoricalOracleData, OraclePriceData,
-    OracleSource,
+    get_oracle_price, get_prelaunch_price, get_pyth_price, HistoricalIndexData,
+    HistoricalOracleData, OraclePriceData, OracleSource, PrelaunchOracle, PrelaunchOracleParams,
 };
 use crate::state::paused_operations::{PerpOperation, SpotOperation};
 use crate::state::perp_market::{
@@ -576,6 +576,14 @@ pub fn handle_initialize_perp_market(
             msg!("Quote asset oracle cant be used for perp market");
             return Err(ErrorCode::InvalidOracle.into());
         }
+        OracleSource::Prelaunch => {
+            let OraclePriceData {
+                price: oracle_price,
+                delay: oracle_delay,
+                ..
+            } = get_prelaunch_price(&ctx.accounts.oracle, clock_slot)?;
+            (oracle_price, oracle_delay, oracle_price)
+        }
     };
 
     let max_spread = (margin_ratio_initial - margin_ratio_maintenance) * (100 - 5);
@@ -1102,7 +1110,7 @@ pub fn handle_update_amm_oracle_twap(ctx: Context<RepegCurve>) -> Result<()> {
 
     let perp_market = &mut load_mut!(ctx.accounts.perp_market)?;
     let price_oracle = &ctx.accounts.oracle;
-    let oracle_twap = perp_market.amm.get_oracle_twap(price_oracle)?;
+    let oracle_twap = perp_market.amm.get_oracle_twap(price_oracle, clock.slot)?;
 
     if let Some(oracle_twap) = oracle_twap {
         let oracle_mark_gap_before = perp_market
@@ -2386,6 +2394,45 @@ pub fn handle_update_protocol_if_shares_transfer_config(
     Ok(())
 }
 
+pub fn handle_initialize_prelaunch_oracle<'info>(
+    ctx: Context<InitializePrelaunchOracle<'info>>,
+    params: PrelaunchOracleParams,
+) -> Result<()> {
+    let mut oracle = ctx.accounts.prelaunch_oracle.load_init()?;
+
+    oracle.perp_market_index = params.perp_market_index;
+    if let Some(price) = params.price {
+        oracle.price = price;
+    }
+    if let Some(max_price) = params.max_price {
+        oracle.max_price = max_price;
+    }
+
+    oracle.validate()?;
+
+    Ok(())
+}
+
+pub fn handle_update_prelaunch_oracle_params<'info>(
+    ctx: Context<UpdatePrelaunchOracleParams<'info>>,
+    params: PrelaunchOracleParams,
+) -> Result<()> {
+    let mut oracle = ctx.accounts.prelaunch_oracle.load_mut()?;
+
+    oracle.perp_market_index = params.perp_market_index;
+
+    if let Some(price) = params.price {
+        oracle.price = price;
+    }
+    if let Some(max_price) = params.max_price {
+        oracle.max_price = max_price;
+    }
+
+    oracle.validate()?;
+
+    Ok(())
+}
+
 #[derive(Accounts)]
 pub struct Initialize<'info> {
     #[account(mut)]
@@ -2812,6 +2859,44 @@ pub struct UpdateProtocolIfSharesTransferConfig<'info> {
         bump,
     )]
     pub protocol_if_shares_transfer_config: AccountLoader<'info, ProtocolIfSharesTransferConfig>,
+    #[account(
+        has_one = admin
+    )]
+    pub state: Box<Account<'info, State>>,
+}
+
+#[derive(Accounts)]
+#[instruction(params: PrelaunchOracleParams,)]
+pub struct InitializePrelaunchOracle<'info> {
+    #[account(mut)]
+    pub admin: Signer<'info>,
+    #[account(
+        init,
+        seeds = [b"prelaunch_oracle".as_ref(), params.perp_market_index.to_le_bytes().as_ref()],
+        space = PrelaunchOracle::SIZE,
+        bump,
+        payer = admin
+    )]
+    pub prelaunch_oracle: AccountLoader<'info, PrelaunchOracle>,
+    #[account(
+        has_one = admin
+    )]
+    pub state: Box<Account<'info, State>>,
+    pub rent: Sysvar<'info, Rent>,
+    pub system_program: Program<'info, System>,
+}
+
+#[derive(Accounts)]
+#[instruction(params: PrelaunchOracleParams,)]
+pub struct UpdatePrelaunchOracleParams<'info> {
+    #[account(mut)]
+    pub admin: Signer<'info>,
+    #[account(
+        mut,
+        seeds = [b"prelaunch_oracle".as_ref(), params.perp_market_index.to_le_bytes().as_ref()],
+        bump,
+    )]
+    pub prelaunch_oracle: AccountLoader<'info, PrelaunchOracle>,
     #[account(
         has_one = admin
     )]

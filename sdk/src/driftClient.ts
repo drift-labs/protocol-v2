@@ -1566,10 +1566,12 @@ export class DriftClient {
 			isSigner: false,
 			isWritable: writable,
 		});
+		const oracleWritable =
+			writable && isVariant(perpMarketAccount.amm.oracleSource, 'prelaunch');
 		oracleAccountMap.set(perpMarketAccount.amm.oracle.toString(), {
 			pubkey: perpMarketAccount.amm.oracle,
 			isSigner: false,
-			isWritable: false,
+			isWritable: oracleWritable,
 		});
 		this.addSpotMarketToRemainingAccountMaps(
 			perpMarketAccount.quoteSpotMarketIndex,
@@ -5783,6 +5785,39 @@ export class DriftClient {
 				state: await this.getStatePublicKey(),
 				perpMarket: perpMarketPublicKey,
 				oracle: oracle,
+			},
+		});
+	}
+
+	public async updatePrelaunchOracle(
+		perpMarketIndex: number,
+		txParams?: TxParams
+	): Promise<TransactionSignature> {
+		const { txSig } = await this.sendTransaction(
+			await this.buildTransaction(
+				await this.getUpdatePrelaunchOracleIx(perpMarketIndex),
+				txParams
+			),
+			[],
+			this.opts
+		);
+		return txSig;
+	}
+
+	public async getUpdatePrelaunchOracleIx(
+		perpMarketIndex: number
+	): Promise<TransactionInstruction> {
+		const perpMarket = this.getPerpMarketAccount(perpMarketIndex);
+
+		if (!isVariant(perpMarket.amm.oracleSource, 'prelaunch')) {
+			throw new Error(`Wrong oracle source ${perpMarket.amm.oracleSource}`);
+		}
+
+		return await this.program.instruction.updatePrelaunchOracle({
+			accounts: {
+				state: await this.getStatePublicKey(),
+				perpMarket: perpMarket.pubkey,
+				oracle: perpMarket.amm.oracle,
 			},
 		});
 	}

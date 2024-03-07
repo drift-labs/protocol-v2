@@ -1,13 +1,16 @@
 use crate::error::{DriftResult, ErrorCode};
 
+use crate::error::ErrorCode::UnableToLoadOracle;
 use crate::math::safe_unwrap::SafeUnwrap;
+use crate::state::oracle::PrelaunchOracle;
 use crate::state::oracle_map::OracleMap;
+use crate::state::perp_market::PerpMarket;
 use crate::state::perp_market_map::{MarketSet, PerpMarketMap};
 use crate::state::spot_market_map::SpotMarketMap;
 use crate::state::state::OracleGuardRails;
 use crate::state::traits::Size;
 use crate::state::user::{User, UserStats};
-use crate::validate;
+use crate::{load_mut, validate, OracleSource};
 use anchor_lang::accounts::account::Account;
 use anchor_lang::prelude::AccountInfo;
 use anchor_lang::prelude::AccountLoader;
@@ -17,6 +20,7 @@ use arrayref::array_ref;
 use solana_program::account_info::next_account_info;
 use solana_program::msg;
 use std::iter::Peekable;
+use std::ops::Deref;
 use std::slice::Iter;
 
 pub struct AccountMaps<'a> {
@@ -36,11 +40,40 @@ pub fn load_maps<'a, 'b>(
     let spot_market_map = SpotMarketMap::load(writable_spot_markets, account_info_iter)?;
     let perp_market_map = PerpMarketMap::load(writable_perp_markets, account_info_iter)?;
 
+    for perp_market_index in writable_perp_markets.iter() {
+        update_prelaunch_oracle(
+            perp_market_map.get_ref(perp_market_index)?.deref(),
+            &oracle_map,
+            slot,
+        )?;
+    }
+
     Ok(AccountMaps {
         perp_market_map,
         spot_market_map,
         oracle_map,
     })
+}
+
+pub fn update_prelaunch_oracle(
+    perp_market: &PerpMarket,
+    oracle_map: &OracleMap,
+    slot: u64,
+) -> DriftResult {
+    if perp_market.amm.oracle_source != OracleSource::Prelaunch {
+        return Ok(());
+    }
+
+    let oracle_account_info = oracle_map.get_account_info(&perp_market.amm.oracle)?;
+
+    let oracle_account_loader: AccountLoader<PrelaunchOracle> =
+        AccountLoader::try_from(&oracle_account_info).or(Err(UnableToLoadOracle))?;
+
+    let mut oracle = load_mut!(oracle_account_loader)?;
+
+    oracle.update(perp_market, slot)?;
+
+    Ok(())
 }
 
 pub fn get_maker_and_maker_stats<'a>(

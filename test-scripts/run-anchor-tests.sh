@@ -4,6 +4,7 @@ if [ "$1" != "--skip-build" ]; then
 fi
 
 test_files=(
+  prelisting.ts
   switchOracle.ts
   surgePricing.ts
   triggerOrders.ts

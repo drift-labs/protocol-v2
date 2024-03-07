@@ -2040,6 +2040,27 @@
       ]
     },
     {
+      "name": "updatePrelaunchOracle",
+      "accounts": [
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "perpMarket",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "oracle",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": []
+    },
+    {
       "name": "updatePerpBidAskTwap",
       "accounts": [
         {
@@ -4894,6 +4915,72 @@
           }
         }
       ]
+    },
+    {
+      "name": "initializePrelaunchOracle",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "prelaunchOracle",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "rent",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "systemProgram",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "params",
+          "type": {
+            "defined": "PrelaunchOracleParams"
+          }
+        }
+      ]
+    },
+    {
+      "name": "updatePrelaunchOracleParams",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "prelaunchOracle",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "params",
+          "type": {
+            "defined": "PrelaunchOracleParams"
+          }
+        }
+      ]
     }
   ],
   "accounts": [
@@ -5116,6 +5203,47 @@
               "array": [
                 "u128",
                 8
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "PrelaunchOracle",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "price",
+            "type": "i64"
+          },
+          {
+            "name": "maxPrice",
+            "type": "i64"
+          },
+          {
+            "name": "confidence",
+            "type": "u64"
+          },
+          {
+            "name": "lastUpdateSlot",
+            "type": "u64"
+          },
+          {
+            "name": "ammLastUpdateSlot",
+            "type": "u64"
+          },
+          {
+            "name": "perpMarketIndex",
+            "type": "u16"
+          },
+          {
+            "name": "padding",
+            "type": {
+              "array": [
+                "u8",
+                70
               ]
             }
           }
@@ -6340,6 +6468,9 @@
           },
           {
             "name": "lpShares",
+            "docs": [
+              "precision: AMM_RESERVE_PRECISION"
+            ],
             "type": "u64"
           },
           {
@@ -6356,10 +6487,16 @@
           },
           {
             "name": "liquidatorFee",
+            "docs": [
+              "precision: QUOTE_PRECISION"
+            ],
             "type": "u64"
           },
           {
             "name": "ifFee",
+            "docs": [
+              "precision: QUOTE_PRECISION"
+            ],
             "type": "u64"
           }
         ]
@@ -6392,10 +6529,16 @@
           },
           {
             "name": "liabilityTransfer",
+            "docs": [
+              "precision: token mint precision"
+            ],
             "type": "u128"
           },
           {
             "name": "ifFee",
+            "docs": [
+              "precision: token mint precision"
+            ],
             "type": "u64"
           }
         ]
@@ -6564,6 +6707,9 @@
           },
           {
             "name": "lastOracleDelay",
+            "docs": [
+              "number of slots since last update"
+            ],
             "type": "i64"
           },
           {
@@ -6582,6 +6728,9 @@
           },
           {
             "name": "lastOraclePriceTwapTs",
+            "docs": [
+              "unix_timestamp of last snapshot"
+            ],
             "type": "i64"
           }
         ]
@@ -6622,7 +6771,34 @@
           },
           {
             "name": "lastIndexPriceTwapTs",
+            "docs": [
+              "unix_timestamp of last snapshot"
+            ],
             "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "PrelaunchOracleParams",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "perpMarketIndex",
+            "type": "u16"
+          },
+          {
+            "name": "price",
+            "type": {
+              "option": "i64"
+            }
+          },
+          {
+            "name": "maxPrice",
+            "type": {
+              "option": "i64"
+            }
           }
         ]
       }
@@ -6931,14 +7107,16 @@
           {
             "name": "baseAssetAmountPerLp",
             "docs": [
-              "accumulated base asset amount since inception per lp share"
+              "accumulated base asset amount since inception per lp share",
+              "precision: QUOTE_PRECISION"
             ],
             "type": "i128"
           },
           {
             "name": "quoteAssetAmountPerLp",
             "docs": [
-              "accumulated quote asset amount since inception per lp share"
+              "accumulated quote asset amount since inception per lp share",
+              "precision: QUOTE_PRECISION"
             ],
             "type": "i128"
           },
@@ -6954,14 +7132,16 @@
           {
             "name": "baseAssetReserve",
             "docs": [
-              "`x` reserves for constant product mm formula (x * y = k)"
+              "`x` reserves for constant product mm formula (x * y = k)",
+              "precision: AMM_RESERVE_PRECISION"
             ],
             "type": "u128"
           },
           {
             "name": "quoteAssetReserve",
             "docs": [
-              "`y` reserves for constant product mm formula (x * y = k)"
+              "`y` reserves for constant product mm formula (x * y = k)",
+              "precision: AMM_RESERVE_PRECISION"
             ],
             "type": "u128"
           },
@@ -6969,189 +7149,216 @@
             "name": "concentrationCoef",
             "docs": [
               "determines how close the min/max base asset reserve sit vs base reserves",
-              "allow for decreasing slippage without increasing liquidity and v.v."
+              "allow for decreasing slippage without increasing liquidity and v.v.",
+              "precision: PERCENTAGE_PRECISION"
             ],
             "type": "u128"
           },
           {
             "name": "minBaseAssetReserve",
             "docs": [
-              "minimum base_asset_reserve allowed before AMM is unavailable"
+              "minimum base_asset_reserve allowed before AMM is unavailable",
+              "precision: AMM_RESERVE_PRECISION"
             ],
             "type": "u128"
           },
           {
             "name": "maxBaseAssetReserve",
             "docs": [
-              "maximum base_asset_reserve allowed before AMM is unavailable"
+              "maximum base_asset_reserve allowed before AMM is unavailable",
+              "precision: AMM_RESERVE_PRECISION"
             ],
             "type": "u128"
           },
           {
             "name": "sqrtK",
             "docs": [
-              "`sqrt(k)` in constant product mm formula (x * y = k). stored to avoid drift caused by integer math issues"
+              "`sqrt(k)` in constant product mm formula (x * y = k). stored to avoid drift caused by integer math issues",
+              "precision: AMM_RESERVE_PRECISION"
             ],
             "type": "u128"
           },
           {
             "name": "pegMultiplier",
             "docs": [
-              "normalizing numerical factor for y, its use offers lowest slippage in cp-curve when market is balanced"
+              "normalizing numerical factor for y, its use offers lowest slippage in cp-curve when market is balanced",
+              "precision: PEG_PRECISION"
             ],
             "type": "u128"
           },
           {
             "name": "terminalQuoteAssetReserve",
             "docs": [
-              "y when market is balanced. stored to save computation"
+              "y when market is balanced. stored to save computation",
+              "precision: AMM_RESERVE_PRECISION"
             ],
             "type": "u128"
           },
           {
             "name": "baseAssetAmountLong",
             "docs": [
-              "tracks number of total longs in market (regardless of counterparty)"
+              "always non-negative. tracks number of total longs in market (regardless of counterparty)",
+              "precision: BASE_PRECISION"
             ],
             "type": "i128"
           },
           {
             "name": "baseAssetAmountShort",
             "docs": [
-              "tracks number of total shorts in market (regardless of counterparty)"
+              "always non-positive. tracks number of total shorts in market (regardless of counterparty)",
+              "precision: BASE_PRECISION"
             ],
             "type": "i128"
           },
           {
             "name": "baseAssetAmountWithAmm",
             "docs": [
-              "tracks net position (longs-shorts) in market with AMM as counterparty"
+              "tracks net position (longs-shorts) in market with AMM as counterparty",
+              "precision: BASE_PRECISION"
             ],
             "type": "i128"
           },
           {
             "name": "baseAssetAmountWithUnsettledLp",
             "docs": [
-              "tracks net position (longs-shorts) in market with LPs as counterparty"
+              "tracks net position (longs-shorts) in market with LPs as counterparty",
+              "precision: BASE_PRECISION"
             ],
             "type": "i128"
           },
           {
             "name": "maxOpenInterest",
             "docs": [
-              "max allowed open interest, blocks trades that breach this value"
+              "max allowed open interest, blocks trades that breach this value",
+              "precision: BASE_PRECISION"
             ],
             "type": "u128"
           },
           {
             "name": "quoteAssetAmount",
             "docs": [
-              "sum of all user's perp quote_asset_amount in market"
+              "sum of all user's perp quote_asset_amount in market",
+              "precision: QUOTE_PRECISION"
             ],
             "type": "i128"
           },
           {
             "name": "quoteEntryAmountLong",
             "docs": [
-              "sum of all long user's quote_entry_amount in market"
+              "sum of all long user's quote_entry_amount in market",
+              "precision: QUOTE_PRECISION"
             ],
             "type": "i128"
           },
           {
             "name": "quoteEntryAmountShort",
             "docs": [
-              "sum of all short user's quote_entry_amount in market"
+              "sum of all short user's quote_entry_amount in market",
+              "precision: QUOTE_PRECISION"
             ],
             "type": "i128"
           },
           {
             "name": "quoteBreakEvenAmountLong",
             "docs": [
-              "sum of all long user's quote_break_even_amount in market"
+              "sum of all long user's quote_break_even_amount in market",
+              "precision: QUOTE_PRECISION"
             ],
             "type": "i128"
           },
           {
             "name": "quoteBreakEvenAmountShort",
             "docs": [
-              "sum of all short user's quote_break_even_amount in market"
+              "sum of all short user's quote_break_even_amount in market",
+              "precision: QUOTE_PRECISION"
             ],
             "type": "i128"
           },
           {
             "name": "userLpShares",
             "docs": [
-              "total user lp shares of sqrt_k (protocol owned liquidity = sqrt_k - last_funding_rate)"
+              "total user lp shares of sqrt_k (protocol owned liquidity = sqrt_k - last_funding_rate)",
+              "precision: AMM_RESERVE_PRECISION"
             ],
             "type": "u128"
           },
           {
             "name": "lastFundingRate",
             "docs": [
-              "last funding rate in this perp market (unit is quote per base)"
+              "last funding rate in this perp market (unit is quote per base)",
+              "precision: QUOTE_PRECISION"
             ],
             "type": "i64"
           },
           {
             "name": "lastFundingRateLong",
             "docs": [
-              "last funding rate for longs in this perp market (unit is quote per base)"
+              "last funding rate for longs in this perp market (unit is quote per base)",
+              "precision: QUOTE_PRECISION"
             ],
             "type": "i64"
           },
           {
             "name": "lastFundingRateShort",
             "docs": [
-              "last funding rate for shorts in this perp market (unit is quote per base)"
+              "last funding rate for shorts in this perp market (unit is quote per base)",
+              "precision: QUOTE_PRECISION"
             ],
             "type": "i64"
           },
           {
             "name": "last24hAvgFundingRate",
             "docs": [
-              "estimate of last 24h of funding rate perp market (unit is quote per base)"
+              "estimate of last 24h of funding rate perp market (unit is quote per base)",
+              "precision: QUOTE_PRECISION"
             ],
             "type": "i64"
           },
           {
             "name": "totalFee",
             "docs": [
-              "total fees collected by this perp market"
+              "total fees collected by this perp market",
+              "precision: QUOTE_PRECISION"
             ],
             "type": "i128"
           },
           {
             "name": "totalMmFee",
             "docs": [
-              "total fees collected by the vAMM's bid/ask spread"
+              "total fees collected by the vAMM's bid/ask spread",
+              "precision: QUOTE_PRECISION"
             ],
             "type": "i128"
           },
           {
             "name": "totalExchangeFee",
             "docs": [
-              "total fees collected by exchange fee schedule"
+              "total fees collected by exchange fee schedule",
+              "precision: QUOTE_PRECISION"
             ],
             "type": "u128"
           },
           {
             "name": "totalFeeMinusDistributions",
             "docs": [
-              "total fees minus any recognized upnl and pool withdraws"
+              "total fees minus any recognized upnl and pool withdraws",
+              "precision: QUOTE_PRECISION"
             ],
             "type": "i128"
           },
           {
             "name": "totalFeeWithdrawn",
             "docs": [
-              "sum of all fees from fee pool withdrawn to revenue pool"
+              "sum of all fees from fee pool withdrawn to revenue pool",
+              "precision: QUOTE_PRECISION"
             ],
             "type": "u128"
           },
           {
             "name": "totalLiquidationFee",
             "docs": [
-              "all fees collected by market for liquidations"
+              "all fees collected by market for liquidations",
+              "precision: QUOTE_PRECISION"
             ],
             "type": "u128"
           },
@@ -7179,28 +7386,32 @@
           {
             "name": "askBaseAssetReserve",
             "docs": [
-              "transformed base_asset_reserve for users going long"
+              "transformed base_asset_reserve for users going long",
+              "precision: AMM_RESERVE_PRECISION"
             ],
             "type": "u128"
           },
           {
             "name": "askQuoteAssetReserve",
             "docs": [
-              "transformed quote_asset_reserve for users going long"
+              "transformed quote_asset_reserve for users going long",
+              "precision: AMM_RESERVE_PRECISION"
             ],
             "type": "u128"
           },
           {
             "name": "bidBaseAssetReserve",
             "docs": [
-              "transformed base_asset_reserve for users going short"
+              "transformed base_asset_reserve for users going short",
+              "precision: AMM_RESERVE_PRECISION"
             ],
             "type": "u128"
           },
           {
             "name": "bidQuoteAssetReserve",
             "docs": [
-              "transformed quote_asset_reserve for users going short"
+              "transformed quote_asset_reserve for users going short",
+              "precision: AMM_RESERVE_PRECISION"
             ],
             "type": "u128"
           },
@@ -8690,6 +8901,9 @@
           },
           {
             "name": "PythStableCoin"
+          },
+          {
+            "name": "Prelaunch"
           }
         ]
       }
@@ -8747,6 +8961,9 @@
           },
           {
             "name": "SettlePnlWithPosition"
+          },
+          {
+            "name": "Liquidation"
           }
         ]
       }
@@ -8764,6 +8981,9 @@
           },
           {
             "name": "Withdraw"
+          },
+          {
+            "name": "Liquidation"
           }
         ]
       }

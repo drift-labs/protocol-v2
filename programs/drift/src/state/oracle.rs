@@ -5,8 +5,11 @@ use crate::math::casting::Cast;
 use crate::math::constants::{PRICE_PRECISION, PRICE_PRECISION_I64, PRICE_PRECISION_U64};
 use crate::math::safe_math::SafeMath;
 
+use crate::error::ErrorCode::{InvalidOracle, UnableToLoadOracle};
 use crate::math::safe_unwrap::SafeUnwrap;
-use crate::validate;
+use crate::state::perp_market::PerpMarket;
+use crate::state::traits::Size;
+use crate::{load, validate};
 
 #[cfg(test)]
 mod tests;
@@ -108,6 +111,7 @@ pub enum OracleSource {
     Pyth1K,
     Pyth1M,
     PythStableCoin,
+    Prelaunch,
 }
 
 impl Default for OracleSource {
@@ -156,6 +160,7 @@ pub fn get_oracle_price(
             delay: 0,
             has_sufficient_number_of_data_points: true,
         }),
+        OracleSource::Prelaunch => get_prelaunch_price(price_oracle, clock_slot),
     }
 }
 
@@ -280,6 +285,20 @@ pub fn get_pyth_stable_coin_price(
 //     })
 // }
 
+pub fn get_prelaunch_price(price_oracle: &AccountInfo, slot: u64) -> DriftResult<OraclePriceData> {
+    let oracle_account_loader: AccountLoader<PrelaunchOracle> =
+        AccountLoader::try_from(price_oracle).or(Err(UnableToLoadOracle))?;
+
+    let oracle = load!(oracle_account_loader)?;
+
+    Ok(OraclePriceData {
+        price: oracle.price,
+        confidence: oracle.confidence,
+        delay: oracle.amm_last_update_slot.saturating_sub(slot).cast()?,
+        has_sufficient_number_of_data_points: true,
+    })
+}
+
 #[derive(Clone, Copy)]
 pub struct StrictOraclePrice {
     pub current: i64,
@@ -337,4 +356,100 @@ impl StrictOraclePrice {
             twap_5min: None,
         }
     }
+}
+
+#[account(zero_copy(unsafe))]
+#[derive(Eq, PartialEq, Debug)]
+#[repr(C)]
+pub struct PrelaunchOracle {
+    pub price: i64,
+    pub max_price: i64,
+    pub confidence: u64,
+    // last slot oracle was updated, should be greater than or equal to last_update_slot
+    pub last_update_slot: u64,
+    // amm.last_update_slot at time oracle was updated
+    pub amm_last_update_slot: u64,
+    pub perp_market_index: u16,
+    pub padding: [u8; 70],
+}
+
+impl Default for PrelaunchOracle {
+    fn default() -> Self {
+        PrelaunchOracle {
+            price: 0,
+            max_price: 0,
+            confidence: 0,
+            last_update_slot: 0,
+            amm_last_update_slot: 0,
+            perp_market_index: 0,
+            padding: [0; 70],
+        }
+    }
+}
+
+impl Size for PrelaunchOracle {
+    const SIZE: usize = 112 + 8;
+}
+
+impl PrelaunchOracle {
+    pub fn update(&mut self, perp_market: &PerpMarket, slot: u64) -> DriftResult {
+        let last_twap = perp_market.amm.last_mark_price_twap.cast::<i64>()?;
+        let new_price = if self.max_price <= last_twap {
+            msg!(
+                "mark twap {} >= max price {}, using max",
+                last_twap,
+                self.max_price
+            );
+            self.max_price
+        } else {
+            last_twap
+        };
+
+        self.price = new_price;
+
+        let spread_twap = perp_market
+            .amm
+            .last_ask_price_twap
+            .cast::<i64>()?
+            .safe_sub(perp_market.amm.last_bid_price_twap.cast()?)?
+            .unsigned_abs();
+
+        let mark_std = perp_market.amm.mark_std;
+
+        self.confidence = spread_twap.max(mark_std);
+
+        self.amm_last_update_slot = perp_market.amm.last_update_slot;
+        self.last_update_slot = slot;
+
+        msg!(
+            "setting price = {} confidence = {}",
+            self.price,
+            self.confidence
+        );
+
+        Ok(())
+    }
+
+    pub fn validate(&self) -> DriftResult {
+        validate!(self.price != 0, InvalidOracle, "price == 0",)?;
+
+        validate!(self.max_price != 0, InvalidOracle, "max price == 0",)?;
+
+        validate!(
+            self.price <= self.max_price,
+            InvalidOracle,
+            "price {} > max price {}",
+            self.price,
+            self.max_price
+        )?;
+
+        Ok(())
+    }
+}
+
+#[derive(Debug, Clone, Copy, AnchorSerialize, AnchorDeserialize, PartialEq, Eq)]
+pub struct PrelaunchOracleParams {
+    pub perp_market_index: u16,
+    pub price: Option<i64>,
+    pub max_price: Option<i64>,
 }

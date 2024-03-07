@@ -96,6 +96,7 @@ export class OracleSource {
 	// static readonly SWITCHBOARD = { switchboard: {} };
 	static readonly QUOTE_ASSET = { quoteAsset: {} };
 	static readonly PYTH_STABLE_COIN = { pythStableCoin: {} };
+	static readonly Prelaunch = { prelaunch: {} };
 }
 
 export class OrderType {
@@ -1058,6 +1059,15 @@ export type OracleGuardRails = {
 		confidenceIntervalMaxSize: BN;
 		tooVolatileRatio: BN;
 	};
+};
+
+export type PrelaunchOracle = {
+	price: BN;
+	maxPrice: BN;
+	confidence: BN;
+	ammLastUpdateSlot: BN;
+	lastUpdateSlot: BN;
+	perpMarketIndex: number;
 };
 
 export type MarginCategory = 'Initial' | 'Maintenance';
