@@ -397,7 +397,7 @@ impl PrelaunchOracle {
             .safe_sub(perp_market.amm.last_bid_price_twap.cast()?)?
             .unsigned_abs();
 
-        self.confidence = confidence;
+        self.confidence = confidence.max(perp_market.amm.mark_std);
 
         self.slot = slot;
 
