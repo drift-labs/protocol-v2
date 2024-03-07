@@ -1697,8 +1697,6 @@ pub fn user_invalid_oracle_position() {
         unrealized_pnl_maintenance_asset_weight: SPOT_WEIGHT_PRECISION.cast().unwrap(),
         ..PerpMarket::default()
     };
-    create_anchor_account_info!(market, PerpMarket, market_account_info);
-
     let mut spot_market = SpotMarket {
         market_index: 0,
         oracle_source: OracleSource::QuoteAsset,
@@ -1744,6 +1742,7 @@ pub fn user_invalid_oracle_position() {
         / 33;
     create_anchor_account_info!(market, PerpMarket, market_account_info);
     let market_map = PerpMarketMap::load_one(&market_account_info, true).unwrap();
+    assert!(!market.is_price_divergence_ok_for_settle_pnl(oracle_price.agg.price).unwrap());
 
     let result = settle_pnl(
         0,
@@ -1765,6 +1764,7 @@ pub fn user_invalid_oracle_position() {
     market.amm.last_update_slot = clock.slot;
     create_anchor_account_info!(market, PerpMarket, market_account_info);
     let market_map = PerpMarketMap::load_one(&market_account_info, true).unwrap();
+    assert!(!market.is_price_divergence_ok_for_settle_pnl(oracle_price.agg.price).unwrap());
 
     let result = settle_pnl(
         0,
@@ -1786,6 +1786,7 @@ pub fn user_invalid_oracle_position() {
     market.amm.last_update_slot = clock.slot;
     create_anchor_account_info!(market, PerpMarket, market_account_info);
     let market_map = PerpMarketMap::load_one(&market_account_info, true).unwrap();
+    assert!(!market.is_price_divergence_ok_for_settle_pnl(oracle_price.agg.price).unwrap());
 
     let result = settle_pnl(
         0,
@@ -1806,6 +1807,7 @@ pub fn user_invalid_oracle_position() {
         .last_oracle_price_twap_5min = oracle_price.agg.price * 95 / 100;
     create_anchor_account_info!(market, PerpMarket, market_account_info);
     let market_map = PerpMarketMap::load_one(&market_account_info, true).unwrap();
+    assert!(!market.is_price_divergence_ok_for_settle_pnl(oracle_price.agg.price).unwrap());
 
     let result = settle_pnl(
         0,
@@ -1827,6 +1829,8 @@ pub fn user_invalid_oracle_position() {
     create_anchor_account_info!(market, PerpMarket, market_account_info);
     let market_map = PerpMarketMap::load_one(&market_account_info, true).unwrap();
 
+
+    assert!(market.is_price_divergence_ok_for_settle_pnl(oracle_price.agg.price).unwrap());
     let result = settle_pnl(
         0,
         &mut user,
@@ -1839,4 +1843,9 @@ pub fn user_invalid_oracle_position() {
         &state,
     );
     assert_eq!(result, Ok(()));
+
+
+
+
+
 }

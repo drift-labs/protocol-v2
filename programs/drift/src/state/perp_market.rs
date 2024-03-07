@@ -15,7 +15,7 @@ use crate::math::constants::{
     BID_ASK_SPREAD_PRECISION_U128, DEFAULT_REVENUE_SINCE_LAST_FUNDING_SPREAD_RETREAT,
     LP_FEE_SLICE_DENOMINATOR, LP_FEE_SLICE_NUMERATOR, MARGIN_PRECISION_U128, PERCENTAGE_PRECISION,
     PERCENTAGE_PRECISION_I128, PERCENTAGE_PRECISION_I64, PRICE_PRECISION, SPOT_WEIGHT_PRECISION,
-    TWENTY_FOUR_HOUR,
+    TWENTY_FOUR_HOUR, PERCENTAGE_PRECISION_U64
 };
 use crate::math::helpers::get_proportion_i128;
 
@@ -503,14 +503,15 @@ impl PerpMarket {
         let oracle_divergence = oracle_price
             .safe_sub(self.amm.historical_oracle_data.last_oracle_price_twap_5min)?
             .safe_mul(PERCENTAGE_PRECISION_I64)?
-            .safe_div(self.amm.historical_oracle_data.last_oracle_price_twap_5min)?;
+            .safe_div(self.amm.historical_oracle_data.last_oracle_price_twap_5min.min(oracle_price))?
+            .unsigned_abs();
 
         let oracle_divergence_limit = match self.contract_tier {
-            ContractTier::A => PERCENTAGE_PRECISION_I64 / 200, // 50 bps
-            ContractTier::B => PERCENTAGE_PRECISION_I64 / 200, // 50 bps
-            ContractTier::C => PERCENTAGE_PRECISION_I64 / 100, // 100 bps
-            ContractTier::Speculative => PERCENTAGE_PRECISION_I64 / 40, // 250 bps
-            ContractTier::Isolated => PERCENTAGE_PRECISION_I64 / 40, // 250 bps
+            ContractTier::A => PERCENTAGE_PRECISION_U64 / 200, // 50 bps
+            ContractTier::B => PERCENTAGE_PRECISION_U64 / 200, // 50 bps
+            ContractTier::C => PERCENTAGE_PRECISION_U64 / 100, // 100 bps
+            ContractTier::Speculative => PERCENTAGE_PRECISION_U64 / 40, // 250 bps
+            ContractTier::Isolated => PERCENTAGE_PRECISION_U64 / 40, // 250 bps
         };
 
         if oracle_divergence >= oracle_divergence_limit {
@@ -527,11 +528,11 @@ impl PerpMarket {
             oracle_price.min(self.amm.historical_oracle_data.last_oracle_price_twap_5min);
 
         let std_limit = match self.contract_tier {
-            ContractTier::A => min_price / 200,          // 50 bps
-            ContractTier::B => min_price / 200,          // 50 bps
-            ContractTier::C => min_price / 100,          // 100 bps
-            ContractTier::Speculative => min_price / 40, // 250 bps
-            ContractTier::Isolated => min_price / 40,    // 250 bps
+            ContractTier::A => min_price / 50,          // 200 bps
+            ContractTier::B => min_price / 50,          // 200 bps
+            ContractTier::C => min_price / 20,          // 500 bps
+            ContractTier::Speculative => min_price / 10, // 1000 bps
+            ContractTier::Isolated => min_price / 10,    // 1000 bps
         }
         .unsigned_abs();
 
