@@ -4476,12 +4476,43 @@ export class DriftClient {
 		txParams?: TxParams,
 		subAccountId?: number,
 		cancelExistingOrders?: boolean,
-		settlePnl?: boolean
+		settlePnl?: boolean,
+		simulateFirst?: boolean
 	): Promise<{
 		txSig: TransactionSignature;
 		signedCancelExistingOrdersTx?: Transaction;
 		signedSettlePnlTx?: Transaction;
 	}> {
+		const ixs = [];
+
+		const placeAndTakeIx = await this.getPlaceAndTakePerpOrderIx(
+			orderParams,
+			makerInfo,
+			referrerInfo,
+			subAccountId
+		);
+
+		ixs.push(placeAndTakeIx);
+
+		if (bracketOrdersParams.length > 0) {
+			const bracketOrdersIx = await this.getPlaceOrdersIx(
+				bracketOrdersParams,
+				subAccountId
+			);
+			ixs.push(bracketOrdersIx);
+		}
+
+		const placeAndTakeTx = (await this.buildTransaction(
+			ixs,
+			txParams
+		)) as VersionedTransaction;
+
+		// if param is passed, return early before the tx fails so ui can fallback to placeOrder
+		if (simulateFirst) {
+			const success = await this.txSender.simulateTransaction(placeAndTakeTx);
+			if (!success) return;
+		}
+
 		let cancelExistingOrdersTx: Transaction;
 		if (cancelExistingOrders && isVariant(orderParams.marketType, 'perp')) {
 			const cancelOrdersIx = await this.getCancelOrdersIx(
@@ -4519,27 +4550,6 @@ export class DriftClient {
 				this.txVersion
 			);
 		}
-
-		const ixs = [];
-
-		const placeAndTakeIx = await this.getPlaceAndTakePerpOrderIx(
-			orderParams,
-			makerInfo,
-			referrerInfo,
-			subAccountId
-		);
-
-		ixs.push(placeAndTakeIx);
-
-		if (bracketOrdersParams.length > 0) {
-			const bracketOrdersIx = await this.getPlaceOrdersIx(
-				bracketOrdersParams,
-				subAccountId
-			);
-			ixs.push(bracketOrdersIx);
-		}
-
-		const placeAndTakeTx = await this.buildTransaction(ixs, txParams);
 
 		const allPossibleTxs = [
 			placeAndTakeTx,
@@ -5873,17 +5883,15 @@ export class DriftClient {
 	}
 
 	public getOracleDataForPerpMarket(marketIndex: number): OraclePriceData {
-		const oracleKey = this.getPerpMarketAccount(marketIndex).amm.oracle;
-		const oracleData = this.getOraclePriceDataAndSlot(oracleKey).data;
-
-		return oracleData;
+		return this.accountSubscriber.getOraclePriceDataAndSlotForPerpMarket(
+			marketIndex
+		).data;
 	}
 
 	public getOracleDataForSpotMarket(marketIndex: number): OraclePriceData {
-		const oracleKey = this.getSpotMarketAccount(marketIndex).oracle;
-		const oracleData = this.getOraclePriceDataAndSlot(oracleKey).data;
-
-		return oracleData;
+		return this.accountSubscriber.getOraclePriceDataAndSlotForSpotMarket(
+			marketIndex
+		).data;
 	}
 
 	public async initializeInsuranceFundStake(
@@ -5977,6 +5985,7 @@ export class DriftClient {
 		collateralAccountPublicKey,
 		initializeStakeAccount,
 		fromSubaccount,
+		txParams,
 	}: {
 		/**
 		 * Spot market index
@@ -5995,6 +6004,7 @@ export class DriftClient {
 		 * Optional -- withdraw from current subaccount to fund stake amount, instead of wallet balance
 		 */
 		fromSubaccount?: boolean;
+		txParams?: TxParams;
 	}): Promise<TransactionSignature> {
 		const addIfStakeIxs = [];
 
@@ -6054,7 +6064,7 @@ export class DriftClient {
 			);
 		}
 
-		const tx = await this.buildTransaction(addIfStakeIxs);
+		const tx = await this.buildTransaction(addIfStakeIxs, txParams);
 
 		const { txSig } = await this.sendTransaction(
 			tx,
@@ -6067,7 +6077,8 @@ export class DriftClient {
 
 	public async requestRemoveInsuranceFundStake(
 		marketIndex: number,
-		amount: BN
+		amount: BN,
+		txParams?: TxParams
 	): Promise<TransactionSignature> {
 		const spotMarketAccount = this.getSpotMarketAccount(marketIndex);
 		const ifStakeAccountPublicKey = getInsuranceFundStakeAccountPublicKey(
@@ -6098,14 +6109,15 @@ export class DriftClient {
 			}
 		);
 
-		const tx = await this.buildTransaction(ix);
+		const tx = await this.buildTransaction(ix, txParams);
 
 		const { txSig } = await this.sendTransaction(tx, [], this.opts);
 		return txSig;
 	}
 
 	public async cancelRequestRemoveInsuranceFundStake(
-		marketIndex: number
+		marketIndex: number,
+		txParams?: TxParams
 	): Promise<TransactionSignature> {
 		const spotMarketAccount = this.getSpotMarketAccount(marketIndex);
 		const ifStakeAccountPublicKey = getInsuranceFundStakeAccountPublicKey(
@@ -6136,7 +6148,7 @@ export class DriftClient {
 				}
 			);
 
-		const tx = await this.buildTransaction(ix);
+		const tx = await this.buildTransaction(ix, txParams);
 
 		const { txSig } = await this.sendTransaction(tx, [], this.opts);
 		return txSig;
@@ -6144,7 +6156,8 @@ export class DriftClient {
 
 	public async removeInsuranceFundStake(
 		marketIndex: number,
-		collateralAccountPublicKey: PublicKey
+		collateralAccountPublicKey: PublicKey,
+		txParams?: TxParams
 	): Promise<TransactionSignature> {
 		const removeIfStakeIxs = [];
 		const spotMarketAccount = this.getSpotMarketAccount(marketIndex);
@@ -6185,9 +6198,13 @@ export class DriftClient {
 			}
 		}
 
+		const userAccountExists =
+			!!this.getUser()?.accountSubscriber?.isSubscribed &&
+			(await this.checkIfAccountExists(this.getUser().userAccountPublicKey));
+
 		const remainingAccounts = this.getRemainingAccounts({
-			userAccounts: [this.getUserAccount()],
-			useMarketLastSlotCache: true,
+			userAccounts: userAccountExists ? [this.getUserAccount()] : [],
+			useMarketLastSlotCache: false,
 			writableSpotMarketIndexes: [marketIndex],
 		});
 
@@ -6221,7 +6238,7 @@ export class DriftClient {
 			);
 		}
 
-		const tx = await this.buildTransaction(removeIfStakeIxs);
+		const tx = await this.buildTransaction(removeIfStakeIxs, txParams);
 
 		const { txSig } = await this.sendTransaction(
 			tx,

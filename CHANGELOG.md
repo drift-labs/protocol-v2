@@ -9,6 +9,70 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Features
 
+### Fixes
+
+### Breaking
+
+## [2.70.0] - 2023-03-07
+
+### Features
+
+### Fixes
+
+- program: fix allowing settle pnl on oracle delays when price is stable ([#940](https://github.com/drift-labs/protocol-v2/pull/940))
+
+### Breaking
+
+## [2.69.0] - 2023-03-06
+
+### Features
+
+- program: allow settle pnl on oracle delays when price is stable ([#929](https://github.com/drift-labs/protocol-v2/pull/929))
+- program: cache validity in oracle map
+
+### Fixes
+
+### Breaking
+
+- program: revert switchboard ([#935](https://github.com/drift-labs/protocol-v2/pull/935))
+
+## [2.68.0] - 2023-03-05
+
+### Features
+
+- program: apply auction sanitizer to all contract tiers ([#932](https://github.com/drift-labs/protocol-v2/pull/932))
+
+### Fixes
+
+- program: fix flipping funding rates ([#931](https://github.com/drift-labs/protocol-v2/pull/931))
+
+### Breaking
+
+## [2.67.0] - 2023-03-05
+
+### Features
+
+### Fixes
+
+- program: add switchboard ([#878](https://github.com/drift-labs/protocol-v2/pull/878))
+- sdk: handle oracle failover when oracle is changed ([#875](https://github.com/drift-labs/protocol-v2/pull/875))
+
+### Breaking
+
+## [2.66.0] - 2023-02-28
+
+### Features
+
+### Fixes
+
+- program: don't block oracle order prices when theres solely InsufficientDataPoints ([#919](https://github.com/drift-labs/protocol-v2/pull/919))
+
+### Breaking
+
+## [2.65.0] - 2023-02-26
+
+### Features
+
 - program: add pause operation for liquidation ([#880](https://github.com/drift-labs/protocol-v2/pull/880))
 
 ### Fixes

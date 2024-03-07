@@ -58,6 +58,8 @@ export interface DriftClientAccountSubscriber {
 	addPerpMarket(marketIndex: number): Promise<boolean>;
 	addSpotMarket(marketIndex: number): Promise<boolean>;
 	addOracle(oracleInfo: OracleInfo): Promise<boolean>;
+	setPerpOracleMap(): Promise<void>;
+	setSpotOracleMap(): Promise<void>;
 
 	getStateAccountAndSlot(): DataAndSlot<StateAccount>;
 	getMarketAccountAndSlot(
@@ -70,6 +72,12 @@ export interface DriftClientAccountSubscriber {
 	getSpotMarketAccountsAndSlots(): DataAndSlot<SpotMarketAccount>[];
 	getOraclePriceDataAndSlot(
 		oraclePublicKey: PublicKey
+	): DataAndSlot<OraclePriceData> | undefined;
+	getOraclePriceDataAndSlotForPerpMarket(
+		marketIndex: number
+	): DataAndSlot<OraclePriceData> | undefined;
+	getOraclePriceDataAndSlotForSpotMarket(
+		marketIndex: number
 	): DataAndSlot<OraclePriceData> | undefined;
 
 	updateAccountLoaderPollingFrequency?: (pollingFrequency: number) => void;
