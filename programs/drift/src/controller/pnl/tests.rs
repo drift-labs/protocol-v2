@@ -1698,7 +1698,6 @@ pub fn user_invalid_oracle_position() {
         ..PerpMarket::default()
     };
     create_anchor_account_info!(market, PerpMarket, market_account_info);
-    let market_map = PerpMarketMap::load_one(&market_account_info, true).unwrap();
 
     let mut spot_market = SpotMarket {
         market_index: 0,
