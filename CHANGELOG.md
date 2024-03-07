@@ -11,6 +11,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixes
 
+### Breaking
+
+## [2.70.0] - 2023-03-07
+
+### Features
+
+### Fixes
+
 - program: fix allowing settle pnl on oracle delays when price is stable ([#940](https://github.com/drift-labs/protocol-v2/pull/940))
 
 ### Breaking
