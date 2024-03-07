@@ -1735,6 +1735,17 @@ pub fn user_invalid_oracle_position() {
     let user_key = Pubkey::default();
     let authority = Pubkey::default();
 
+    market
+        .amm
+        .historical_oracle_data
+        .last_oracle_price_twap_5min -= market
+        .amm
+        .historical_oracle_data
+        .last_oracle_price_twap_5min
+        / 33;
+    create_anchor_account_info!(market, PerpMarket, market_account_info);
+    let market_map = PerpMarketMap::load_one(&market_account_info, true).unwrap();
+
     let result = settle_pnl(
         0,
         &mut user,
@@ -1752,6 +1763,27 @@ pub fn user_invalid_oracle_position() {
         .amm
         .historical_oracle_data
         .last_oracle_price_twap_5min /= 2;
+    market.amm.last_update_slot = clock.slot;
+    create_anchor_account_info!(market, PerpMarket, market_account_info);
+    let market_map = PerpMarketMap::load_one(&market_account_info, true).unwrap();
+
+    let result = settle_pnl(
+        0,
+        &mut user,
+        &authority,
+        &user_key,
+        &market_map,
+        &spot_market_map,
+        &mut oracle_map,
+        &clock,
+        &state,
+    );
+    assert_eq!(result, Err(ErrorCode::PriceBandsBreached));
+
+    market
+        .amm
+        .historical_oracle_data
+        .last_oracle_price_twap_5min *= 4;
     market.amm.last_update_slot = clock.slot;
     create_anchor_account_info!(market, PerpMarket, market_account_info);
     let market_map = PerpMarketMap::load_one(&market_account_info, true).unwrap();

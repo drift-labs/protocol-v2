@@ -523,6 +523,28 @@ impl PerpMarket {
             return Ok(false);
         }
 
+        let min_price =
+            oracle_price.min(self.amm.historical_oracle_data.last_oracle_price_twap_5min);
+
+        let std_limit = match self.contract_tier {
+            ContractTier::A => min_price / 200,          // 50 bps
+            ContractTier::B => min_price / 200,          // 50 bps
+            ContractTier::C => min_price / 100,          // 100 bps
+            ContractTier::Speculative => min_price / 40, // 250 bps
+            ContractTier::Isolated => min_price / 40,    // 250 bps
+        }
+        .unsigned_abs();
+
+        if self.amm.oracle_std.max(self.amm.mark_std) >= std_limit {
+            msg!(
+                "market_index={} std too large to safely settle pnl: {} >= {}",
+                self.market_index,
+                self.amm.oracle_std.max(self.amm.mark_std),
+                std_limit
+            );
+            return Ok(false);
+        }
+
         Ok(true)
     }
 }
@@ -1322,6 +1344,10 @@ impl AMM {
             .safe_mul(BID_ASK_SPREAD_PRECISION)?
             .safe_div(reserve_price)?
             .max(confidence_lower_bound))
+    }
+
+    pub fn is_last_update_recent_healthy_oracle(&self, current_slot: u64) -> DriftResult<bool> {
+        Ok(self.last_oracle_valid && current_slot == self.last_update_slot)
     }
 }
 
