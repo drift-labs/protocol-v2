@@ -130,6 +130,7 @@ pub struct MarginCalculation {
     pub total_spot_liability_value: u128,
     pub total_perp_liability_value: u128,
     pub open_orders_margin_requirement: u128,
+    pub net_position_value: i128,
     tracked_market_margin_requirement: u128,
 }
 

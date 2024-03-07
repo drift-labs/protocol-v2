@@ -238,6 +238,35 @@ pub fn calculate_user_safest_position_tiers(
     Ok((safest_tier_spot_liablity, safest_tier_perp_liablity))
 }
 
+pub fn margin_emode_checker(    
+    user: &User,
+    emode_oracle: Pubkey,
+    market_oracle: Pubkey,
+    market_oracle_source: OracleSource
+) -> DriftResult<Pubkey> {
+    if user.is_efficiency_mode() {
+        let is_stable_oracle_source = market_oracle_source == OracleSource::PythStableCoin
+        || market_oracle_source == OracleSource::QuoteAsset;
+
+        if emode_oracle == Pubkey::default() {
+            if !is_stable_oracle_source
+            {
+                return Ok(market_oracle)
+            }
+        } else {
+            validate!(
+                is_stable_oracle_source
+                    || market_oracle == emode_oracle
+                    || user.is_reduce_only(),
+                ErrorCode::DefaultError,
+                "invalid emode state"
+            )?;
+        }
+    }
+
+    Ok(Pubkey::default())
+}
+
 pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
     user: &User,
     perp_market_map: &PerpMarketMap,
@@ -252,7 +281,7 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
     } else {
         0_u32
     };
-    let emode_oracle = Pubkey::default();
+    let mut emode_oracle = Pubkey::default();
 
     for spot_position in user.spot_positions.iter() {
         validation::position::validate_spot_position(spot_position)?;
@@ -283,24 +312,7 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
         );
         strict_oracle_price.validate()?;
 
-        if user.is_efficiency_mode() {
-            if emode_oracle == Pubkey::default() {
-                if spot_market.oracle_source != OracleSource::PythStableCoin
-                    && spot_market.oracle_source != OracleSource::QuoteAsset
-                {
-                    emode_oracle = spot_market.oracle;
-                }
-            } else {
-                validate!(
-                    spot_market.oracle_source == OracleSource::PythStableCoin
-                        || spot_market.oracle_source == OracleSource::QuoteAsset
-                        || spot_market.oracle == emode_oracle
-                        || user.is_reduce_only(),
-                    ErrorCode::DefaultError,
-                    "invalid emode state"
-                );
-            }
-        }
+        emode_oracle = margin_emode_checker(user, emode_oracle, spot_market.oracle, spot_market.oracle_source)?;
 
         if spot_market.market_index == 0 {
             let token_amount = spot_position.get_signed_token_amount(&spot_market)?;
@@ -431,6 +443,7 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
                         worst_case_orders_value.unsigned_abs(),
                         MarketIdentifier::spot(0),
                     )?;
+                    
                 }
                 Ordering::Equal => {}
             }
@@ -475,6 +488,7 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
             &market.amm.oracle,
             market.amm.historical_oracle_data.last_oracle_price_twap,
         )?;
+        emode_oracle = margin_emode_checker(user, emode_oracle, market.amm.oracle, market.amm.oracle_source)?;
 
         let (
             perp_margin_requirement,
