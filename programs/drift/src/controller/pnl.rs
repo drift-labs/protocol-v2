@@ -134,17 +134,9 @@ pub fn settle_pnl(
     let perp_market = &mut perp_market_map.get_ref_mut(&market_index)?;
 
     if perp_market.amm.curve_update_intensity > 0 {
-        validate!(
-            oracle_map.slot == perp_market.amm.last_update_slot,
-            ErrorCode::AMMNotUpdatedInSameSlot,
-            "Market={} AMM must be updated in a prior instruction within same slot (current={} != amm={}, last_oracle_valid={})",
-            market_index,
-            oracle_map.slot,
-            perp_market.amm.last_update_slot,
-            perp_market.amm.last_oracle_valid
-        )?;
+        let healthy_oracle = perp_market.amm.is_recent_oracle_valid(oracle_map.slot)?;
 
-        if !perp_market.amm.last_oracle_valid {
+        if !healthy_oracle {
             let (_, oracle_validity) = oracle_map.get_price_data_and_validity(
                 MarketType::Perp,
                 perp_market.market_index,
@@ -158,6 +150,16 @@ pub fn settle_pnl(
             if !is_oracle_valid_for_action(oracle_validity, Some(DriftAction::SettlePnl))?
                 || !perp_market.is_price_divergence_ok_for_settle_pnl(oracle_price)?
             {
+                validate!(
+                    oracle_map.slot == perp_market.amm.last_update_slot,
+                    ErrorCode::AMMNotUpdatedInSameSlot,
+                    "Market={} AMM must be updated in a prior instruction within same slot (current={} != amm={}, last_oracle_valid={})",
+                    market_index,
+                    oracle_map.slot,
+                    perp_market.amm.last_update_slot,
+                    perp_market.amm.last_oracle_valid
+                )?;
+
                 validate!(
                     perp_market.amm.last_oracle_valid,
                     ErrorCode::InvalidOracle,
