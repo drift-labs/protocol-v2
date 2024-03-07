@@ -580,7 +580,7 @@ pub fn handle_initialize_perp_market(
                 price: oracle_price,
                 delay: oracle_delay,
                 ..
-            } = get_prelaunch_price(&ctx.accounts.oracle)?;
+            } = get_prelaunch_price(&ctx.accounts.oracle, clock_slot)?;
             (oracle_price, oracle_delay, oracle_price)
         }
     };
@@ -1109,7 +1109,7 @@ pub fn handle_update_amm_oracle_twap(ctx: Context<RepegCurve>) -> Result<()> {
 
     let perp_market = &mut load_mut!(ctx.accounts.perp_market)?;
     let price_oracle = &ctx.accounts.oracle;
-    let oracle_twap = perp_market.amm.get_oracle_twap(price_oracle)?;
+    let oracle_twap = perp_market.amm.get_oracle_twap(price_oracle, clock.slot)?;
 
     if let Some(oracle_twap) = oracle_twap {
         let oracle_mark_gap_before = perp_market

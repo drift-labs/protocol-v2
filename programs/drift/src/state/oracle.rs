@@ -160,7 +160,7 @@ pub fn get_oracle_price(
             delay: 0,
             has_sufficient_number_of_data_points: true,
         }),
-        OracleSource::Prelaunch => get_prelaunch_price(price_oracle),
+        OracleSource::Prelaunch => get_prelaunch_price(price_oracle, clock_slot),
     }
 }
 
@@ -285,7 +285,7 @@ pub fn get_pyth_stable_coin_price(
 //     })
 // }
 
-pub fn get_prelaunch_price(price_oracle: &AccountInfo) -> DriftResult<OraclePriceData> {
+pub fn get_prelaunch_price(price_oracle: &AccountInfo, slot: u64) -> DriftResult<OraclePriceData> {
     let oracle_account_loader: AccountLoader<PrelaunchOracle> =
         AccountLoader::try_from(price_oracle).or(Err(UnableToLoadOracle))?;
 
@@ -294,7 +294,7 @@ pub fn get_prelaunch_price(price_oracle: &AccountInfo) -> DriftResult<OraclePric
     Ok(OraclePriceData {
         price: oracle.price,
         confidence: oracle.confidence,
-        delay: 0,
+        delay: oracle.slot.saturating_sub(slot).cast()?,
         has_sufficient_number_of_data_points: true,
     })
 }

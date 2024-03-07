@@ -1200,7 +1200,11 @@ impl AMM {
         Ok(can_lower)
     }
 
-    pub fn get_oracle_twap(&self, price_oracle: &AccountInfo) -> DriftResult<Option<i64>> {
+    pub fn get_oracle_twap(
+        &self,
+        price_oracle: &AccountInfo,
+        slot: u64,
+    ) -> DriftResult<Option<i64>> {
         match self.oracle_source {
             OracleSource::Pyth | OracleSource::PythStableCoin => {
                 Ok(Some(self.get_pyth_twap(price_oracle, 1)?))
@@ -1212,8 +1216,7 @@ impl AMM {
                 msg!("Can't get oracle twap for quote asset");
                 Err(ErrorCode::DefaultError)
             }
-            // todo is this correct?
-            OracleSource::Prelaunch => Ok(Some(get_prelaunch_price(price_oracle)?.price)),
+            OracleSource::Prelaunch => Ok(Some(get_prelaunch_price(price_oracle, slot)?.price)),
         }
     }
 

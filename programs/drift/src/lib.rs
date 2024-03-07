@@ -2,8 +2,6 @@
 #![allow(clippy::bool_assert_comparison)]
 #![allow(clippy::comparison_chain)]
 
-extern crate core;
-
 use anchor_lang::prelude::*;
 
 use instructions::*;
