@@ -359,7 +359,7 @@ impl StrictOraclePrice {
 }
 
 #[account(zero_copy(unsafe))]
-#[derive(Default, Eq, PartialEq, Debug)]
+#[derive(Eq, PartialEq, Debug)]
 #[repr(C)]
 pub struct PrelaunchOracle {
     pub price: i64,
@@ -370,11 +370,25 @@ pub struct PrelaunchOracle {
     // amm.last_update_slot at time oracle was updated
     pub amm_last_update_slot: u64,
     pub perp_market_index: u16,
-    pub padding: [u8; 6],
+    pub padding: [u8; 70],
+}
+
+impl Default for PrelaunchOracle {
+    fn default() -> Self {
+        PrelaunchOracle {
+            price: 0,
+            max_price: 0,
+            confidence: 0,
+            last_update_slot: 0,
+            amm_last_update_slot: 0,
+            perp_market_index: 0,
+            padding: [0; 70],
+        }
+    }
 }
 
 impl Size for PrelaunchOracle {
-    const SIZE: usize = 48 + 8;
+    const SIZE: usize = 112 + 8;
 }
 
 impl PrelaunchOracle {
