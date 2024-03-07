@@ -1220,7 +1220,7 @@ pub fn handle_update_funding_rate(
 pub fn handle_update_prelaunch_oracle(ctx: Context<UpdatePrelaunchOracle>) -> Result<()> {
     let clock = Clock::get()?;
     let clock_slot = clock.slot;
-    let mut oracle_map = OracleMap::load_one(&ctx.accounts.oracle, clock_slot, None)?;
+    let oracle_map = OracleMap::load_one(&ctx.accounts.oracle, clock_slot, None)?;
 
     let perp_market = &load!(ctx.accounts.perp_market)?;
 
@@ -1230,7 +1230,7 @@ pub fn handle_update_prelaunch_oracle(ctx: Context<UpdatePrelaunchOracle>) -> Re
         "wrong oracle source"
     )?;
 
-    update_prelaunch_oracle(perp_market, &oracle_map, clock_slot)?;
+    update_prelaunch_oracle(perp_market, &oracle_map)?;
 
     Ok(())
 }

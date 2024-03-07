@@ -44,7 +44,6 @@ pub fn load_maps<'a, 'b>(
         update_prelaunch_oracle(
             perp_market_map.get_ref(perp_market_index)?.deref(),
             &oracle_map,
-            slot,
         )?;
     }
 
@@ -55,11 +54,7 @@ pub fn load_maps<'a, 'b>(
     })
 }
 
-pub fn update_prelaunch_oracle(
-    perp_market: &PerpMarket,
-    oracle_map: &OracleMap,
-    slot: u64,
-) -> DriftResult {
+pub fn update_prelaunch_oracle(perp_market: &PerpMarket, oracle_map: &OracleMap) -> DriftResult {
     if perp_market.amm.oracle_source != OracleSource::Prelaunch {
         return Ok(());
     }
@@ -71,7 +66,7 @@ pub fn update_prelaunch_oracle(
 
     let mut oracle = load_mut!(oracle_account_loader)?;
 
-    oracle.update(perp_market, slot)?;
+    oracle.update(perp_market)?;
 
     Ok(())
 }

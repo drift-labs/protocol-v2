@@ -375,7 +375,7 @@ impl Size for PrelaunchOracle {
 }
 
 impl PrelaunchOracle {
-    pub fn update(&mut self, perp_market: &PerpMarket, slot: u64) -> DriftResult {
+    pub fn update(&mut self, perp_market: &PerpMarket) -> DriftResult {
         let last_twap = perp_market.amm.last_mark_price_twap.cast::<i64>()?;
         let new_price = if self.max_price <= last_twap {
             msg!(
@@ -390,16 +390,18 @@ impl PrelaunchOracle {
 
         self.price = new_price;
 
-        let confidence = perp_market
+        let spread_twap = perp_market
             .amm
             .last_ask_price_twap
             .cast::<i64>()?
             .safe_sub(perp_market.amm.last_bid_price_twap.cast()?)?
             .unsigned_abs();
 
-        self.confidence = confidence.max(perp_market.amm.mark_std);
+        let mark_std = perp_market.amm.mark_std;
 
-        self.slot = slot;
+        self.confidence = spread_twap.max(mark_std);
+
+        self.slot = perp_market.amm.last_update_slot;
 
         msg!(
             "setting price = {} confidence = {}",
