@@ -134,9 +134,7 @@ pub fn settle_pnl(
     let perp_market = &mut perp_market_map.get_ref_mut(&market_index)?;
 
     if perp_market.amm.curve_update_intensity > 0 {
-        let healthy_oracle = perp_market
-            .amm
-            .is_last_update_recent_healthy_oracle(oracle_map.slot)?;
+        let healthy_oracle = perp_market.amm.is_recent_oracle_valid(oracle_map.slot)?;
 
         if !healthy_oracle {
             let (_, oracle_validity) = oracle_map.get_price_data_and_validity(
