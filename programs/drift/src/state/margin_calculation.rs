@@ -152,6 +152,7 @@ impl MarginCalculation {
             total_perp_liability_value: 0,
             open_orders_margin_requirement: 0,
             tracked_market_margin_requirement: 0,
+            net_position_value: 0
         }
     }
 
