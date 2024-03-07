@@ -1101,6 +1101,28 @@ impl AMM {
         Ok(target_base_asset_amount_per_lp)
     }
 
+    pub fn get_reset_target_base_asset_amount_per_lp(&self) -> DriftResult<i128> {
+        if self.target_base_asset_amount_per_lp == 0 {
+            return Ok(0_i128);
+        }
+
+        let reset_target_base_asset_amount_per_lp: i128 = if self.per_lp_base > 0 {
+            let rebase_divisor = 10_i128.pow(self.per_lp_base.abs().cast()?);
+            self.base_asset_amount_per_lp
+                .cast::<i128>()?
+                .safe_mul(rebase_divisor)?
+        } else if self.per_lp_base < 0 {
+            let rebase_divisor = 10_i128.pow(self.per_lp_base.abs().cast()?);
+            self.base_asset_amount_per_lp
+                .cast::<i128>()?
+                .safe_div(rebase_divisor)?
+        } else {
+            self.base_asset_amount_per_lp.cast::<i128>()?
+        };
+
+        Ok(reset_target_base_asset_amount_per_lp)
+    }
+
     pub fn imbalanced_base_asset_amount_with_lp(&self) -> DriftResult<i128> {
         let target_lp_gap = self
             .base_asset_amount_per_lp

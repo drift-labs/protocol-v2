@@ -925,6 +925,12 @@ pub mod drift {
         )
     }
 
+    pub fn reset_perp_market_target_base_asset_amount_per_lp(
+        ctx: Context<AdminUpdatePerpMarket>,
+    ) -> Result<()> {
+        handle_reset_perp_market_target_base_asset_amount_per_lp(ctx)
+    }
+
     pub fn update_perp_market_per_lp_base(
         ctx: Context<AdminUpdatePerpMarket>,
         per_lp_base: i8,

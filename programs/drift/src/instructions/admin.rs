@@ -1914,6 +1914,28 @@ pub fn handle_update_perp_market_curve_update_intensity(
 #[access_control(
     perp_market_valid(&ctx.accounts.perp_market)
 )]
+pub fn handle_reset_perp_market_target_base_asset_amount_per_lp(
+    ctx: Context<AdminUpdatePerpMarket>,
+) -> Result<()> {
+    let perp_market = &mut load_mut!(ctx.accounts.perp_market)?;
+
+    perp_market.amm.target_base_asset_amount_per_lp = perp_market
+        .amm
+        .get_reset_target_base_asset_amount_per_lp()?
+        .cast()?;
+
+    validate!(
+        perp_market.amm.imbalanced_base_asset_amount_with_lp()? == 0,
+        ErrorCode::DefaultError,
+        "target_base_asset_amount_per_lp not properly reset"
+    )?;
+
+    Ok(())
+}
+
+#[access_control(
+    perp_market_valid(&ctx.accounts.perp_market)
+)]
 pub fn handle_update_perp_market_target_base_asset_amount_per_lp(
     ctx: Context<AdminUpdatePerpMarket>,
     target_base_asset_amount_per_lp: i32,
@@ -2089,6 +2111,8 @@ pub fn handle_update_amm_jit_intensity(
         "invalid amm_jit_intensity",
     )?;
 
+    // (0, 100) amm only jit
+    // (100, 200) lp jit
     let perp_market = &mut load_mut!(ctx.accounts.perp_market)?;
     perp_market.amm.amm_jit_intensity = amm_jit_intensity;
 
