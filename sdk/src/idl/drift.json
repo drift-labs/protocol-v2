@@ -8560,6 +8560,9 @@
           },
           {
             "name": "UpdateAMMCurve"
+          },
+          {
+            "name": "OracleOrderPrice"
           }
         ]
       }
