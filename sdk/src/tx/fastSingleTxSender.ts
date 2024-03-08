@@ -141,7 +141,7 @@ export class FastSingleTxSender extends BaseTxSender {
 			txid = await this.connection.sendRawTransaction(rawTransaction, opts);
 			this.sendToAdditionalConnections(rawTransaction, opts);
 		} catch (e) {
-			console.error(e);
+			console.error("FastSingleTxSender ex:", e);
 			throw e;
 		}
 
