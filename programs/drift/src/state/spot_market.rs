@@ -268,6 +268,16 @@ impl SpotMarket {
             && !self.is_operation_paused(SpotOperation::Fill)
     }
 
+    pub fn get_max_confidence_interval_multiplier(&self) -> DriftResult<u64> {
+        Ok(match self.asset_tier {
+            AssetTier::Collateral => 1, // 2%
+            AssetTier::Protected => 1,  // 2%
+            AssetTier::Cross => 5,      // 20%
+            AssetTier::Isolated => 50,  // 100%
+            AssetTier::Unlisted => 50,
+        })
+    }
+
     pub fn get_sanitize_clamp_denominator(&self) -> DriftResult<Option<i64>> {
         Ok(match self.asset_tier {
             AssetTier::Collateral => Some(10), // 10%
