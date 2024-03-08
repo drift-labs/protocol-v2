@@ -1359,6 +1359,7 @@ pub fn handle_reset_amm_oracle_twap(ctx: Context<RepegCurve>) -> Result<()> {
             .last_oracle_price_twap,
         oracle_price_data,
         &state.oracle_guard_rails.validity,
+        perp_market.get_max_confidence_interval_multiplier()?,
         true,
     )?;
 

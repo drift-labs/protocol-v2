@@ -332,6 +332,17 @@ impl PerpMarket {
         Ok(false)
     }
 
+    pub fn get_max_confidence_interval_multiplier(self) -> DriftResult<u64> {
+        // assuming validity_guard_rails max confidence pct is 2%
+        Ok(match self.contract_tier {
+            ContractTier::A => 1,            // 2%
+            ContractTier::B => 1,            // 2%
+            ContractTier::C => 2,            // 4%
+            ContractTier::Speculative => 10, // 20%
+            ContractTier::Isolated => 50,    // 100%
+        })
+    }
+
     pub fn get_sanitize_clamp_denominator(self) -> DriftResult<Option<i64>> {
         Ok(match self.contract_tier {
             ContractTier::A => Some(10_i64),   // 10%
