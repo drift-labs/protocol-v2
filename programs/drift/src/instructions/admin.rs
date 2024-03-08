@@ -1365,6 +1365,7 @@ pub fn handle_reset_amm_oracle_twap(ctx: Context<RepegCurve>) -> Result<()> {
             .last_oracle_price_twap,
         oracle_price_data,
         &state.oracle_guard_rails.validity,
+        perp_market.get_max_confidence_interval_multiplier()?,
         true,
     )?;
 
@@ -1403,6 +1404,21 @@ pub fn handle_update_perp_market_margin_ratio(
 
     perp_market.margin_ratio_initial = margin_ratio_initial;
     perp_market.margin_ratio_maintenance = margin_ratio_maintenance;
+    Ok(())
+}
+
+#[access_control(
+    perp_market_valid(&ctx.accounts.perp_market)
+)]
+pub fn handle_update_perp_market_funding_period(
+    ctx: Context<AdminUpdatePerpMarket>,
+    funding_period: i64,
+) -> Result<()> {
+    let perp_market = &mut load_mut!(ctx.accounts.perp_market)?;
+
+    validate!(funding_period >= 0, ErrorCode::DefaultError)?;
+
+    perp_market.amm.funding_period = funding_period;
     Ok(())
 }
 

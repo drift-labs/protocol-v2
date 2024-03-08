@@ -4,7 +4,7 @@ use crate::math::constants::{
 };
 use crate::math::oracle::*;
 use crate::state::oracle::HistoricalOracleData;
-use crate::state::perp_market::{PerpMarket, AMM};
+use crate::state::perp_market::{ContractTier, PerpMarket, AMM};
 use crate::state::state::{OracleGuardRails, PriceDivergenceGuardRails, State, ValidityGuardRails};
 
 #[test]
@@ -36,6 +36,7 @@ fn calculate_oracle_valid() {
     };
     let mut market: PerpMarket = PerpMarket {
         amm,
+        contract_tier: ContractTier::B,
         ..PerpMarket::default()
     };
 
