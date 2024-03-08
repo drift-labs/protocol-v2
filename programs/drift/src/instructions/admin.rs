@@ -1403,6 +1403,21 @@ pub fn handle_update_perp_market_margin_ratio(
 #[access_control(
     perp_market_valid(&ctx.accounts.perp_market)
 )]
+pub fn handle_update_perp_market_funding_period(
+    ctx: Context<AdminUpdatePerpMarket>,
+    funding_period: i64,
+) -> Result<()> {
+    let perp_market = &mut load_mut!(ctx.accounts.perp_market)?;
+
+    validate!(funding_period >= 0, ErrorCode::DefaultError)?;
+
+    perp_market.amm.funding_period = funding_period;
+    Ok(())
+}
+
+#[access_control(
+    perp_market_valid(&ctx.accounts.perp_market)
+)]
 pub fn handle_update_perp_market_max_imbalances(
     ctx: Context<AdminUpdatePerpMarket>,
     unrealized_max_imbalance: u64,

@@ -698,6 +698,13 @@ pub mod drift {
         handle_update_perp_market_margin_ratio(ctx, margin_ratio_initial, margin_ratio_maintenance)
     }
 
+    pub fn update_perp_market_funding_period(
+        ctx: Context<AdminUpdatePerpMarket>,
+        funding_period: i64,
+    ) -> Result<()> {
+        handle_update_perp_market_funding_period(ctx, funding_period)
+    }
+
     pub fn update_perp_market_max_imbalances(
         ctx: Context<AdminUpdatePerpMarket>,
         unrealized_max_imbalance: u64,
