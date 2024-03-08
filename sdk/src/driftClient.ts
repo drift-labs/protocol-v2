@@ -6534,9 +6534,7 @@ export class DriftClient {
 			const message = new TransactionMessage({
 				payerKey: this.provider.wallet.publicKey,
 				recentBlockhash: (
-					await this.provider.connection.getRecentBlockhash(
-						this.opts.preflightCommitment
-					)
+					await this.connection.getLatestBlockhash(this.opts.preflightCommitment)
 				).blockhash,
 				instructions: allIx,
 			}).compileToV0Message(lookupTables);
