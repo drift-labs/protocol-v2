@@ -34,8 +34,9 @@ use crate::state::fulfillment_params::serum::SerumContext;
 use crate::state::fulfillment_params::serum::SerumV3FulfillmentConfig;
 use crate::state::insurance_fund_stake::ProtocolIfSharesTransferConfig;
 use crate::state::oracle::{
-    get_oracle_price, get_prelaunch_price, get_pyth_price, HistoricalIndexData,
-    HistoricalOracleData, OraclePriceData, OracleSource, PrelaunchOracle, PrelaunchOracleParams,
+    get_oracle_price, get_prelaunch_price, get_pyth_price, get_switchboard_price,
+    HistoricalIndexData, HistoricalOracleData, OraclePriceData, OracleSource, PrelaunchOracle,
+    PrelaunchOracleParams,
 };
 use crate::state::paused_operations::{PerpOperation, SpotOperation};
 use crate::state::perp_market::{
@@ -569,8 +570,13 @@ pub fn handle_initialize_perp_market(
             (oracle_price, oracle_delay, QUOTE_PRECISION_I64)
         }
         OracleSource::Switchboard => {
-            msg!("Switchboard oracle cant be used for perp market");
-            return Err(ErrorCode::InvalidOracle.into());
+            let OraclePriceData {
+                price: oracle_price,
+                delay: oracle_delay,
+                ..
+            } = get_switchboard_price(&ctx.accounts.oracle, clock_slot)?;
+
+            (oracle_price, oracle_delay, oracle_price)
         }
         OracleSource::QuoteAsset => {
             msg!("Quote asset oracle cant be used for perp market");
@@ -1359,6 +1365,7 @@ pub fn handle_reset_amm_oracle_twap(ctx: Context<RepegCurve>) -> Result<()> {
             .last_oracle_price_twap,
         oracle_price_data,
         &state.oracle_guard_rails.validity,
+        perp_market.get_max_confidence_interval_multiplier()?,
         true,
     )?;
 
@@ -1397,6 +1404,21 @@ pub fn handle_update_perp_market_margin_ratio(
 
     perp_market.margin_ratio_initial = margin_ratio_initial;
     perp_market.margin_ratio_maintenance = margin_ratio_maintenance;
+    Ok(())
+}
+
+#[access_control(
+    perp_market_valid(&ctx.accounts.perp_market)
+)]
+pub fn handle_update_perp_market_funding_period(
+    ctx: Context<AdminUpdatePerpMarket>,
+    funding_period: i64,
+) -> Result<()> {
+    let perp_market = &mut load_mut!(ctx.accounts.perp_market)?;
+
+    validate!(funding_period >= 0, ErrorCode::DefaultError)?;
+
+    perp_market.amm.funding_period = funding_period;
     Ok(())
 }
 

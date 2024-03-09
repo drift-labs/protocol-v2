@@ -104,6 +104,7 @@ pub fn update_amm_test() {
         market.amm.historical_oracle_data.last_oracle_price_twap,
         &oracle_price_data,
         &state.oracle_guard_rails.validity,
+        market.get_max_confidence_interval_multiplier().unwrap(),
         false,
     )
     .unwrap()
@@ -232,6 +233,7 @@ pub fn update_amm_test_bad_oracle() {
         market.amm.historical_oracle_data.last_oracle_price_twap,
         &oracle_price_data,
         &state.oracle_guard_rails.validity,
+        market.get_max_confidence_interval_multiplier().unwrap(),
         false,
     )
     .unwrap()

@@ -3337,6 +3337,32 @@
       ]
     },
     {
+      "name": "updatePerpMarketFundingPeriod",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "perpMarket",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "fundingPeriod",
+          "type": "i64"
+        }
+      ]
+    },
+    {
       "name": "updatePerpMarketMaxImbalances",
       "accounts": [
         {
@@ -8560,6 +8586,9 @@
           },
           {
             "name": "UpdateAMMCurve"
+          },
+          {
+            "name": "OracleOrderPrice"
           }
         ]
       }
