@@ -26,6 +26,7 @@ export type ExtraConfirmationOptions = {
 
 export interface TxSender {
 	wallet: IWallet;
+	recentBlockhash: string;
 
 	send(
 		tx: Transaction,

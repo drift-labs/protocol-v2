@@ -33,6 +33,7 @@ export abstract class BaseTxSender implements TxSender {
 	timeout: number;
 	additionalConnections: Connection[];
 	timeoutCount = 0;
+	recentBlockhash: string;
 	confirmationStrategy: ConfirmationStrategy;
 	additionalTxSenderCallbacks: ((base58EncodedTx: string) => void)[];
 
