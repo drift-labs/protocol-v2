@@ -66,17 +66,36 @@ describe('switchboard place orders cus', () => {
 		mantissaSqrtScale
 	);
 
-	const usdcAmount = new BN(10 * 10 ** 6);
+	const usdcAmount = new BN(10000 * 10 ** 6); //10k
 	const nLpShares = new BN(10000000);
 
-	let oracle: PublicKey;
 	const numMkts = 8;
+	let oracles: PublicKey[];
 
 	before(async () => {
 		usdcMint = await mockUSDCMint(provider);
 		userUSDCAccount = await mockUserUSDCAccount(usdcMint, usdcAmount, provider);
 
-		oracle = await mockOracle(1);
+		oracles = [];
+		const oracleInfos = [];
+		for (let i = 0; i < numMkts; i++) {
+			const oracle = await mockOracle(Math.round((1 + (i * 73) /100) * 100 )/100);
+			oracles.push(oracle);
+
+			let oracleSource;
+			if (i == 0) {
+				oracleSource = OracleSource.PYTH;
+			} else if (i % 2 == 0) {
+				oracleSource = OracleSource.PYTH_1M;
+			} else {
+				oracleSource = OracleSource.PYTH;
+			}
+
+			oracleInfos.push({
+				publicKey: oracle,
+				source: oracleSource,
+			});
+		}
 
 		driftClient = new TestClient({
 			connection,
@@ -88,12 +107,7 @@ describe('switchboard place orders cus', () => {
 			activeSubAccountId: 0,
 			perpMarketIndexes: [0],
 			spotMarketIndexes: [0],
-			oracleInfos: [
-				{
-					publicKey: oracle,
-					source: OracleSource.PYTH,
-				},
-			],
+			oracleInfos: oracleInfos,
 			accountSubscription: {
 				type: 'polling',
 				accountLoader: bulkAccountLoader,
@@ -115,7 +129,7 @@ describe('switchboard place orders cus', () => {
 		for (let i = 0; i < numMkts; i++) {
 			await driftClient.initializePerpMarket(
 				i,
-				oracle,
+				oracles[i],
 				ammInitialBaseAssetReserve,
 				ammInitialQuoteAssetReserve,
 				periodicity
@@ -158,12 +172,7 @@ describe('switchboard place orders cus', () => {
 			activeSubAccountId: 0,
 			perpMarketIndexes: [0, 1, 2, 3, 4, 5, 6, 7],
 			spotMarketIndexes: [0],
-			oracleInfos: [
-				{
-					publicKey: oracle,
-					source: OracleSource.PYTH,
-				},
-			],
+			oracleInfos: oracleInfos,
 			accountSubscription: {
 				type: 'polling',
 				accountLoader: bulkAccountLoader,
@@ -183,7 +192,7 @@ describe('switchboard place orders cus', () => {
 		await eventSubscriber.unsubscribe();
 	});
 
-	it('liquidate', async () => {
+	it('CU on placeOrders', async () => {
 		const orderParams: Array<OrderParams> = [];
 		for (let i = 0; i < 26; i++) {
 			orderParams.push(
@@ -212,5 +221,68 @@ describe('switchboard place orders cus', () => {
 		)[0];
 		console.log(cus);
 		assert(cus < 380000);
+	});
+
+	it('CU on fill', async () => {
+		const orderParams: Array<OrderParams> = [];
+		for (let i = 1; i < 3; i++) {
+			orderParams.push(
+				getOrderParams({
+					marketType: MarketType.PERP,
+					marketIndex: 0,
+					orderType: OrderType.LIMIT,
+					baseAssetAmount: BASE_PRECISION,
+					postOnly: PostOnlyParams.NONE,
+					direction: PositionDirection.LONG,
+					price: PRICE_PRECISION.add(new BN(i * 10000)),
+				})
+			);
+		}
+
+		await traderDriftClient.placeOrders(orderParams);
+
+		const orderParams2: Array<OrderParams> = [];
+		for (let i =1; i < 3; i++) {
+			orderParams2.push(
+				getOrderParams({
+					marketType: MarketType.PERP,
+					marketIndex: 0,
+					orderType: OrderType.LIMIT,
+					baseAssetAmount: BASE_PRECISION,
+					postOnly: PostOnlyParams.SLIDE,
+					direction: PositionDirection.SHORT,
+					price: PRICE_PRECISION.sub(new BN(i * 10000)),
+				})
+			);
+		}
+
+		await driftClient.placeOrders(orderParams);
+
+		const makerInfo = [
+			{
+				maker: await driftClient.getUserAccountPublicKey(),
+				makerUserAccount: driftClient.getUserAccount(),
+				makerStats: await driftClient.getUserStatsAccountPublicKey(),
+			},
+		];
+
+		const txCU = await traderDriftClient.fillPerpOrder(
+			await traderDriftClient.getUserAccountPublicKey(),
+			traderDriftClient.getUserAccount(),
+			traderDriftClient.getOrder(1),
+			makerInfo
+		)
+
+		await printTxLogs(connection, txCU);
+
+		const cus = (
+			await findComputeUnitConsumption(
+				driftClient.program.programId,
+				driftClient.connection,
+				txCU
+			)
+		)[0];
+		console.log(cus);
+		assert(cus < 40000); // no fill events
 	});
 });
