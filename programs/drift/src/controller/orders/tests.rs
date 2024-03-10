@@ -8105,6 +8105,7 @@ pub mod fulfill_spot_order {
     use crate::state::spot_market_map::SpotMarketMap;
     use crate::state::state::State;
     use crate::state::user::{MarketType, OrderStatus, OrderType, SpotPosition, User, UserStats};
+    use crate::state::user_map::{UserMap, UserStatsMap};
     use crate::test_utils::get_pyth_price;
     use crate::test_utils::*;
 
@@ -8460,6 +8461,8 @@ pub mod fulfill_spot_order {
         let maker_account_loader: AccountLoader<User> =
             AccountLoader::try_from(&maker_account_info).unwrap();
 
+        let makers_and_referrers = UserMap::load_one(&maker_account_info).unwrap();
+
         let mut maker_stats = UserStats {
             authority: Pubkey::from_str("My11111111111111111111111111111111111111112").unwrap(),
             ..UserStats::default()
@@ -8467,6 +8470,7 @@ pub mod fulfill_spot_order {
         create_anchor_account_info!(maker_stats, UserStats, maker_stats_account_info);
         let maker_stats_account_loader: AccountLoader<UserStats> =
             AccountLoader::try_from(&maker_stats_account_info).unwrap();
+        let maker_and_referrer_stats = UserStatsMap::load_one(&maker_stats_account_info).unwrap();
 
         let filler_key = Pubkey::from_str("My11111111111111111111111111111111111111111").unwrap();
         create_anchor_account_info!(User::default(), &filler_key, User, user_account_info);
@@ -8530,9 +8534,9 @@ pub mod fulfill_spot_order {
             &mut oracle_map,
             &filler_account_loader,
             &filler_stats_account_loader,
-            Some(&maker_account_loader),
-            Some(&maker_stats_account_loader),
-            Some(1),
+            &makers_and_referrers,
+            &maker_and_referrer_stats,
+            None,
             &clock,
             &mut TestFulfillmentParams {},
         )
@@ -8578,7 +8582,8 @@ pub mod fulfill_spot_order {
 
         let mut base_market = SpotMarket {
             market_index: 1,
-            deposit_balance: SPOT_BALANCE_PRECISION,
+            deposit_balance: 10 * SPOT_BALANCE_PRECISION,
+            deposit_token_twap: 10 * LAMPORTS_PER_SOL_U64,
             oracle: oracle_price_key,
             historical_oracle_data: HistoricalOracleData::default_price(100 * PRICE_PRECISION_I64),
             ..SpotMarket::default_base_market()
@@ -8670,16 +8675,14 @@ pub mod fulfill_spot_order {
 
         let maker_key = Pubkey::from_str("My11111111111111111111111111111111111111111").unwrap();
         create_anchor_account_info!(maker, &maker_key, User, maker_account_info);
-        let maker_account_loader: AccountLoader<User> =
-            AccountLoader::try_from(&maker_account_info).unwrap();
+        let makers_and_referrers = UserMap::load_one(&maker_account_info).unwrap();
 
         let mut maker_stats = UserStats {
             authority: Pubkey::from_str("My11111111111111111111111111111111111111112").unwrap(),
             ..UserStats::default()
         };
         create_anchor_account_info!(maker_stats, UserStats, maker_stats_account_info);
-        let maker_stats_account_loader: AccountLoader<UserStats> =
-            AccountLoader::try_from(&maker_stats_account_info).unwrap();
+        let maker_and_referrer_stats = UserStatsMap::load_one(&maker_stats_account_info).unwrap();
 
         let filler_key = Pubkey::from_str("My11111111111111111111111111111111111111111").unwrap();
         create_anchor_account_info!(User::default(), &filler_key, User, user_account_info);
@@ -8705,9 +8708,9 @@ pub mod fulfill_spot_order {
             &mut oracle_map,
             &filler_account_loader,
             &filler_stats_account_loader,
-            Some(&maker_account_loader),
-            Some(&maker_stats_account_loader),
-            Some(1),
+            &makers_and_referrers,
+            &maker_and_referrer_stats,
+            None,
             &clock,
             &mut TestFulfillmentParams {},
         );
@@ -8736,6 +8739,7 @@ pub mod fill_spot_order {
     use crate::state::spot_market_map::SpotMarketMap;
     use crate::state::state::State;
     use crate::state::user::{MarketType, OrderStatus, OrderType, SpotPosition, User, UserStats};
+    use crate::state::user_map::{UserMap, UserStatsMap};
     use crate::test_utils::*;
     use crate::test_utils::{create_account_info, get_orders, get_pyth_price};
 
@@ -8852,12 +8856,10 @@ pub mod fill_spot_order {
 
         let maker_key = Pubkey::from_str("My11111111111111111111111111111111111111111").unwrap();
         create_anchor_account_info!(maker, &maker_key, User, maker_account_info);
-        let maker_account_loader: AccountLoader<User> =
-            AccountLoader::try_from(&maker_account_info).unwrap();
+        let makers_and_referrers = UserMap::load_one(&maker_account_info).unwrap();
 
         create_anchor_account_info!(UserStats::default(), UserStats, maker_stats_account_info);
-        let maker_stats_account_loader: AccountLoader<UserStats> =
-            AccountLoader::try_from(&maker_stats_account_info).unwrap();
+        let maker_and_referrer_stats = UserStatsMap::load_one(&maker_stats_account_info).unwrap();
 
         let filler_key = Pubkey::from_str("My11111111111111111111111111111111111111111").unwrap();
         create_anchor_account_info!(User::default(), &filler_key, User, user_account_info);
@@ -8883,9 +8885,9 @@ pub mod fill_spot_order {
             &mut oracle_map,
             &filler_account_loader,
             &filler_stats_account_loader,
-            Some(&maker_account_loader),
-            Some(&maker_stats_account_loader),
-            Some(1),
+            &makers_and_referrers,
+            &maker_and_referrer_stats,
+            None,
             &clock,
             &mut TestFulfillmentParams {},
         )

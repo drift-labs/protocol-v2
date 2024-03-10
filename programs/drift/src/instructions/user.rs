@@ -17,8 +17,7 @@ use crate::ids::{
 };
 use crate::instructions::constraints::*;
 use crate::instructions::optional_accounts::{
-    get_maker_and_maker_stats, get_referrer_and_referrer_stats, get_whitelist_token, load_maps,
-    AccountMaps,
+    get_referrer_and_referrer_stats, get_whitelist_token, load_maps, AccountMaps,
 };
 use crate::instructions::SpotFulfillmentType;
 use crate::load_mut;
@@ -60,7 +59,7 @@ use crate::state::spot_market_map::{
 use crate::state::state::State;
 use crate::state::traits::Size;
 use crate::state::user::{MarketType, OrderType, ReferrerName, User, UserStats};
-use crate::state::user_map::load_user_maps;
+use crate::state::user_map::{load_user_maps, UserMap, UserStatsMap};
 use crate::validate;
 use crate::validation::user::validate_user_deletion;
 use crate::validation::whitelist::validate_whitelist_token;
@@ -1352,7 +1351,7 @@ pub fn handle_place_and_take_spot_order<'info>(
     ctx: Context<PlaceAndTake>,
     params: OrderParams,
     fulfillment_type: SpotFulfillmentType,
-    maker_order_id: Option<u32>,
+    _maker_order_id: Option<u32>,
 ) -> Result<()> {
     let clock = Clock::get()?;
     let market_index = params.market_index;
@@ -1375,15 +1374,10 @@ pub fn handle_place_and_take_spot_order<'info>(
         return Err(print_error!(ErrorCode::InvalidOrderPostOnly)().into());
     }
 
-    let (maker, maker_stats) = match maker_order_id {
-        Some(_) => {
-            let (user, user_stats) = get_maker_and_maker_stats(remaining_accounts_iter)?;
-            (Some(user), Some(user_stats))
-        }
-        None => (None, None),
+    let (makers_and_referrer, makers_and_referrer_stats) = match fulfillment_type {
+        SpotFulfillmentType::Match => load_user_maps(remaining_accounts_iter, true)?,
+        _ => (UserMap::empty(), UserStatsMap::empty()),
     };
-
-    let (_referrer, _referrer_stats) = get_referrer_and_referrer_stats(remaining_accounts_iter)?;
 
     let is_immediate_or_cancel = params.immediate_or_cancel;
 
@@ -1450,9 +1444,9 @@ pub fn handle_place_and_take_spot_order<'info>(
         &mut oracle_map,
         &user.clone(),
         &ctx.accounts.user_stats.clone(),
-        maker.as_ref(),
-        maker_stats.as_ref(),
-        maker_order_id,
+        &makers_and_referrer,
+        &makers_and_referrer_stats,
+        None,
         &clock,
         fulfillment_params.as_mut(),
     )?;
@@ -1552,6 +1546,7 @@ pub fn handle_place_and_make_spot_order<'info>(
 
     let user_key = ctx.accounts.user.key();
     let mut user = load_mut!(ctx.accounts.user)?;
+    let authority = user.authority;
 
     controller::orders::place_spot_order(
         state,
@@ -1569,6 +1564,11 @@ pub fn handle_place_and_make_spot_order<'info>(
 
     let order_id = load!(ctx.accounts.user)?.get_last_order_id();
 
+    let mut makers_and_referrer = UserMap::empty();
+    let mut makers_and_referrer_stats = UserStatsMap::empty();
+    makers_and_referrer.insert(ctx.accounts.user.key(), ctx.accounts.user.clone())?;
+    makers_and_referrer_stats.insert(authority, ctx.accounts.user_stats.clone())?;
+
     controller::orders::fill_spot_order(
         taker_order_id,
         state,
@@ -1579,8 +1579,8 @@ pub fn handle_place_and_make_spot_order<'info>(
         &mut oracle_map,
         &ctx.accounts.user.clone(),
         &ctx.accounts.user_stats.clone(),
-        Some(&ctx.accounts.user),
-        Some(&ctx.accounts.user_stats),
+        &makers_and_referrer,
+        &makers_and_referrer_stats,
         Some(order_id),
         clock,
         fulfillment_params.as_mut(),
