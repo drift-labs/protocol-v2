@@ -10755,6 +10755,1066 @@ pub mod get_maker_orders_info {
     }
 }
 
+pub mod get_spot_maker_orders_info {
+    use std::str::FromStr;
+
+    use anchor_lang::prelude::{AccountLoader, Clock};
+
+    use crate::controller::orders::get_spot_maker_orders_info;
+    use crate::controller::position::PositionDirection;
+    use crate::math::constants::{
+        BASE_PRECISION_U64, PRICE_PRECISION_I64, PRICE_PRECISION_U64, SPOT_BALANCE_PRECISION_U64,
+        SPOT_CUMULATIVE_INTEREST_PRECISION, SPOT_WEIGHT_PRECISION,
+    };
+    use crate::state::oracle::HistoricalOracleData;
+    use crate::state::oracle::OracleSource;
+    use crate::state::perp_market_map::PerpMarketMap;
+    use crate::state::spot_market::{SpotBalanceType, SpotMarket};
+    use crate::state::spot_market_map::SpotMarketMap;
+    use crate::state::user::{OrderStatus, OrderType, SpotPosition, User};
+    use crate::state::user_map::UserMap;
+    use crate::test_utils::*;
+    use crate::test_utils::{create_account_info, get_orders, get_pyth_price, get_spot_positions};
+    use crate::{
+        create_account_info, get_orders, LAMPORTS_PER_SOL_I64, QUOTE_PRECISION_U64,
+        SPOT_BALANCE_PRECISION,
+    };
+    use crate::{create_anchor_account_info, QUOTE_PRECISION_I64};
+
+    use super::*;
+
+    #[test]
+    fn one_maker_order_canceled_for_breaching_oracle_price_band() {
+        let clock = Clock {
+            slot: 56,
+            epoch_start_timestamp: 0,
+            epoch: 0,
+            leader_schedule_epoch: 0,
+            unix_timestamp: 0,
+        };
+
+        let mut pyth_price = get_pyth_price(100, 6);
+        let oracle_price = 100 * PRICE_PRECISION_I64;
+        let oracle_price_key =
+            Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
+        let pyth_program = crate::ids::pyth_program::id();
+        create_account_info!(
+            pyth_price,
+            &oracle_price_key,
+            &pyth_program,
+            oracle_account_info
+        );
+        let mut oracle_map = OracleMap::load_one(&oracle_account_info, clock.slot, None).unwrap();
+
+        let market_map = PerpMarketMap::empty();
+
+        let mut spot_market = SpotMarket {
+            market_index: 0,
+            oracle_source: OracleSource::QuoteAsset,
+            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+            decimals: 6,
+            initial_asset_weight: SPOT_WEIGHT_PRECISION,
+            maintenance_asset_weight: SPOT_WEIGHT_PRECISION,
+            historical_oracle_data: HistoricalOracleData::default_price(QUOTE_PRECISION_I64),
+            ..SpotMarket::default()
+        };
+        create_anchor_account_info!(spot_market, SpotMarket, spot_market_account_info);
+
+        let mut base_market = SpotMarket {
+            deposit_balance: 100 * SPOT_BALANCE_PRECISION,
+            oracle: oracle_price_key,
+            ..SpotMarket::default_base_market()
+        };
+
+        create_anchor_account_info!(base_market, SpotMarket, base_spot_market_account_info);
+
+        let spot_market_map = SpotMarketMap::load_multiple(
+            vec![&spot_market_account_info, &base_spot_market_account_info],
+            true,
+        )
+        .unwrap();
+
+        let taker_key = Pubkey::default();
+        let taker_authority =
+            Pubkey::from_str("My11111111111111111111111111111111111111111").unwrap();
+        let user = User {
+            authority: taker_authority,
+            orders: get_orders(Order {
+                market_index: 1,
+                order_id: 1,
+                status: OrderStatus::Open,
+                order_type: OrderType::Market,
+                market_type: MarketType::Spot,
+                direction: PositionDirection::Long,
+                base_asset_amount: BASE_PRECISION_U64,
+                slot: 0,
+                auction_start_price: 0,
+                auction_end_price: 50 * PRICE_PRECISION_I64,
+                auction_duration: 5,
+                price: 50 * PRICE_PRECISION_U64,
+                ..Order::default()
+            }),
+            spot_positions: get_spot_positions(SpotPosition {
+                market_index: 0,
+                balance_type: SpotBalanceType::Deposit,
+                scaled_balance: 100 * SPOT_BALANCE_PRECISION_U64,
+                ..SpotPosition::default()
+            }),
+            ..User::default()
+        };
+
+        let mut maker_orders = [Order::default(); 32];
+        maker_orders[0] = Order {
+            market_index: 1,
+            order_id: 1,
+            status: OrderStatus::Open,
+            order_type: OrderType::Limit,
+            market_type: MarketType::Spot,
+            direction: PositionDirection::Short,
+            base_asset_amount: BASE_PRECISION_U64,
+            slot: 0,
+            price: 50 * PRICE_PRECISION_U64,
+            post_only: true,
+            ..Order::default()
+        };
+        maker_orders[1] = Order {
+            market_index: 1,
+            order_id: 2,
+            status: OrderStatus::Open,
+            order_type: OrderType::Limit,
+            direction: PositionDirection::Short,
+            market_type: MarketType::Spot,
+            base_asset_amount: BASE_PRECISION_U64,
+            slot: 0,
+            price: 100 * PRICE_PRECISION_U64,
+            post_only: true,
+            ..Order::default()
+        };
+
+        let mut maker_spot_positions = get_spot_positions(SpotPosition {
+            market_index: 0,
+            balance_type: SpotBalanceType::Deposit,
+            scaled_balance: 100 * SPOT_BALANCE_PRECISION_U64,
+            ..SpotPosition::default()
+        });
+        maker_spot_positions[1] = SpotPosition {
+            market_index: 1,
+            balance_type: SpotBalanceType::Deposit,
+            open_orders: 2,
+            open_asks: -2 * LAMPORTS_PER_SOL_I64,
+            ..SpotPosition::default()
+        };
+        let mut maker = User {
+            orders: maker_orders,
+            spot_positions: maker_spot_positions,
+            ..User::default()
+        };
+        let maker_key = Pubkey::from_str("My11111111111111111111111111111111111111113").unwrap();
+        create_anchor_account_info!(maker, &maker_key, User, maker_account_info);
+
+        let makers_and_referrers = UserMap::load_one(&maker_account_info).unwrap();
+
+        let filler_key = Pubkey::from_str("My11111111111111111111111111111111111111111").unwrap();
+        let mut filler = User::default();
+
+        let maker_order_price_and_indexes = get_spot_maker_orders_info(
+            &market_map,
+            &spot_market_map,
+            &mut oracle_map,
+            &makers_and_referrers,
+            &taker_key,
+            &user.orders[0],
+            &mut Some(&mut filler),
+            &filler_key,
+            QUOTE_PRECISION_U64 / 100,
+            oracle_price,
+            None,
+            clock.unix_timestamp,
+            clock.slot,
+        )
+        .unwrap();
+
+        assert_eq!(
+            maker_order_price_and_indexes,
+            vec![(maker_key, 1, 100 * PRICE_PRECISION_U64)]
+        );
+    }
+
+    #[test]
+    fn one_maker_order_canceled_for_being_expired() {
+        let clock = Clock {
+            slot: 56,
+            epoch_start_timestamp: 0,
+            epoch: 0,
+            leader_schedule_epoch: 0,
+            unix_timestamp: 6,
+        };
+
+        let mut pyth_price = get_pyth_price(100, 6);
+        let oracle_price = 100 * PRICE_PRECISION_I64;
+        let oracle_price_key =
+            Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
+        let pyth_program = crate::ids::pyth_program::id();
+        create_account_info!(
+            pyth_price,
+            &oracle_price_key,
+            &pyth_program,
+            oracle_account_info
+        );
+        let mut oracle_map = OracleMap::load_one(&oracle_account_info, clock.slot, None).unwrap();
+
+        let market_map = PerpMarketMap::empty();
+
+        let mut spot_market = SpotMarket {
+            market_index: 0,
+            oracle_source: OracleSource::QuoteAsset,
+            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+            decimals: 6,
+            initial_asset_weight: SPOT_WEIGHT_PRECISION,
+            maintenance_asset_weight: SPOT_WEIGHT_PRECISION,
+            historical_oracle_data: HistoricalOracleData::default_price(QUOTE_PRECISION_I64),
+            ..SpotMarket::default()
+        };
+        create_anchor_account_info!(spot_market, SpotMarket, spot_market_account_info);
+
+        let mut base_market = SpotMarket {
+            deposit_balance: 100 * SPOT_BALANCE_PRECISION,
+            oracle: oracle_price_key,
+            ..SpotMarket::default_base_market()
+        };
+
+        create_anchor_account_info!(base_market, SpotMarket, base_spot_market_account_info);
+
+        let spot_market_map = SpotMarketMap::load_multiple(
+            vec![&spot_market_account_info, &base_spot_market_account_info],
+            true,
+        )
+        .unwrap();
+
+        let taker_key = Pubkey::default();
+        let taker_authority =
+            Pubkey::from_str("My11111111111111111111111111111111111111111").unwrap();
+        let user = User {
+            authority: taker_authority,
+            orders: get_orders(Order {
+                market_index: 1,
+                order_id: 1,
+                status: OrderStatus::Open,
+                order_type: OrderType::Market,
+                market_type: MarketType::Spot,
+                direction: PositionDirection::Long,
+                base_asset_amount: BASE_PRECISION_U64,
+                slot: 0,
+                auction_start_price: 0,
+                auction_end_price: 50 * PRICE_PRECISION_I64,
+                auction_duration: 5,
+                price: 100 * PRICE_PRECISION_U64,
+                ..Order::default()
+            }),
+            spot_positions: get_spot_positions(SpotPosition {
+                market_index: 0,
+                balance_type: SpotBalanceType::Deposit,
+                scaled_balance: 100 * SPOT_BALANCE_PRECISION_U64,
+                ..SpotPosition::default()
+            }),
+            ..User::default()
+        };
+
+        let mut maker_orders = [Order::default(); 32];
+        maker_orders[0] = Order {
+            market_index: 1,
+            order_id: 1,
+            status: OrderStatus::Open,
+            order_type: OrderType::Limit,
+            direction: PositionDirection::Short,
+            market_type: MarketType::Spot,
+            base_asset_amount: BASE_PRECISION_U64,
+            slot: 0,
+            price: 100 * PRICE_PRECISION_U64,
+            max_ts: 1,
+            post_only: true,
+            ..Order::default()
+        };
+        maker_orders[1] = Order {
+            market_index: 1,
+            order_id: 2,
+            status: OrderStatus::Open,
+            order_type: OrderType::Limit,
+            direction: PositionDirection::Short,
+            market_type: MarketType::Spot,
+            base_asset_amount: BASE_PRECISION_U64,
+            slot: 0,
+            price: 100 * PRICE_PRECISION_U64,
+            post_only: true,
+            ..Order::default()
+        };
+
+        let mut maker_spot_positions = get_spot_positions(SpotPosition {
+            market_index: 0,
+            balance_type: SpotBalanceType::Deposit,
+            scaled_balance: 100 * SPOT_BALANCE_PRECISION_U64,
+            ..SpotPosition::default()
+        });
+        maker_spot_positions[1] = SpotPosition {
+            market_index: 1,
+            balance_type: SpotBalanceType::Deposit,
+            open_orders: 2,
+            open_asks: -2 * LAMPORTS_PER_SOL_I64,
+            ..SpotPosition::default()
+        };
+
+        let mut maker = User {
+            orders: maker_orders,
+            spot_positions: maker_spot_positions,
+            ..User::default()
+        };
+        let maker_key = Pubkey::from_str("My11111111111111111111111111111111111111113").unwrap();
+        create_anchor_account_info!(maker, &maker_key, User, maker_account_info);
+
+        let makers_and_referrers = UserMap::load_one(&maker_account_info).unwrap();
+
+        let filler_key = Pubkey::from_str("My11111111111111111111111111111111111111111").unwrap();
+        let mut filler = User::default();
+
+        let maker_order_price_and_indexes = get_spot_maker_orders_info(
+            &market_map,
+            &spot_market_map,
+            &mut oracle_map,
+            &makers_and_referrers,
+            &taker_key,
+            &user.orders[0],
+            &mut Some(&mut filler),
+            &filler_key,
+            0,
+            oracle_price,
+            None,
+            clock.unix_timestamp,
+            clock.slot,
+        )
+        .unwrap();
+
+        assert_eq!(
+            maker_order_price_and_indexes,
+            vec![(maker_key, 1, 100 * PRICE_PRECISION_U64)]
+        );
+    }
+
+    #[test]
+    fn one_maker_order_canceled_for_being_reduce_only() {
+        let clock = Clock {
+            slot: 6,
+            epoch_start_timestamp: 0,
+            epoch: 0,
+            leader_schedule_epoch: 0,
+            unix_timestamp: 0,
+        };
+
+        let mut pyth_price = get_pyth_price(100, 6);
+        let oracle_price = 100 * PRICE_PRECISION_I64;
+        let oracle_price_key =
+            Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
+        let pyth_program = crate::ids::pyth_program::id();
+        create_account_info!(
+            pyth_price,
+            &oracle_price_key,
+            &pyth_program,
+            oracle_account_info
+        );
+        let mut oracle_map = OracleMap::load_one(&oracle_account_info, clock.slot, None).unwrap();
+
+        let market_map = PerpMarketMap::empty();
+
+        let mut spot_market = SpotMarket {
+            market_index: 0,
+            oracle_source: OracleSource::QuoteAsset,
+            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+            decimals: 6,
+            initial_asset_weight: SPOT_WEIGHT_PRECISION,
+            maintenance_asset_weight: SPOT_WEIGHT_PRECISION,
+            historical_oracle_data: HistoricalOracleData::default_price(QUOTE_PRECISION_I64),
+            ..SpotMarket::default()
+        };
+        create_anchor_account_info!(spot_market, SpotMarket, spot_market_account_info);
+
+        let mut base_market = SpotMarket {
+            deposit_balance: 100 * SPOT_BALANCE_PRECISION,
+            oracle: oracle_price_key,
+            ..SpotMarket::default_base_market()
+        };
+
+        create_anchor_account_info!(base_market, SpotMarket, base_spot_market_account_info);
+
+        let spot_market_map = SpotMarketMap::load_multiple(
+            vec![&spot_market_account_info, &base_spot_market_account_info],
+            true,
+        )
+        .unwrap();
+
+        let taker_key = Pubkey::default();
+        let taker_authority =
+            Pubkey::from_str("My11111111111111111111111111111111111111111").unwrap();
+        let user = User {
+            authority: taker_authority,
+            orders: get_orders(Order {
+                market_index: 1,
+                order_id: 1,
+                status: OrderStatus::Open,
+                order_type: OrderType::Market,
+                direction: PositionDirection::Long,
+                market_type: MarketType::Spot,
+                base_asset_amount: BASE_PRECISION_U64,
+                slot: 0,
+                auction_start_price: 0,
+                auction_end_price: 50 * PRICE_PRECISION_I64,
+                auction_duration: 5,
+                price: 100 * PRICE_PRECISION_U64,
+                max_ts: 1,
+                ..Order::default()
+            }),
+            spot_positions: get_spot_positions(SpotPosition {
+                market_index: 0,
+                balance_type: SpotBalanceType::Deposit,
+                scaled_balance: 100 * SPOT_BALANCE_PRECISION_U64,
+                ..SpotPosition::default()
+            }),
+            ..User::default()
+        };
+
+        let mut maker_orders = [Order::default(); 32];
+        maker_orders[0] = Order {
+            market_index: 1,
+            order_id: 1,
+            status: OrderStatus::Open,
+            order_type: OrderType::Limit,
+            direction: PositionDirection::Short,
+            market_type: MarketType::Spot,
+            base_asset_amount: BASE_PRECISION_U64,
+            slot: 0,
+            price: 100 * PRICE_PRECISION_U64,
+            reduce_only: true,
+            ..Order::default()
+        };
+
+        let mut maker_spot_positions = get_spot_positions(SpotPosition {
+            market_index: 0,
+            balance_type: SpotBalanceType::Deposit,
+            scaled_balance: 100 * SPOT_BALANCE_PRECISION_U64,
+            ..SpotPosition::default()
+        });
+        maker_spot_positions[1] = SpotPosition {
+            market_index: 1,
+            balance_type: SpotBalanceType::Deposit,
+            open_orders: 1,
+            open_asks: -LAMPORTS_PER_SOL_I64,
+            scaled_balance: 0,
+            ..SpotPosition::default()
+        };
+
+        let mut maker = User {
+            orders: maker_orders,
+            spot_positions: maker_spot_positions,
+            ..User::default()
+        };
+        let maker_key = Pubkey::from_str("My11111111111111111111111111111111111111113").unwrap();
+        create_anchor_account_info!(maker, &maker_key, User, maker_account_info);
+
+        let makers_and_referrers = UserMap::load_one(&maker_account_info).unwrap();
+
+        let filler_key = Pubkey::from_str("My11111111111111111111111111111111111111111").unwrap();
+        let mut filler = User::default();
+
+        let maker_order_price_and_indexes = get_spot_maker_orders_info(
+            &market_map,
+            &spot_market_map,
+            &mut oracle_map,
+            &makers_and_referrers,
+            &taker_key,
+            &user.orders[0],
+            &mut Some(&mut filler),
+            &filler_key,
+            0,
+            oracle_price,
+            None,
+            clock.unix_timestamp,
+            clock.slot,
+        )
+        .unwrap();
+
+        assert_eq!(maker_order_price_and_indexes, vec![],);
+    }
+
+    #[test]
+    fn two_makers() {
+        let clock = Clock {
+            slot: 6,
+            epoch_start_timestamp: 0,
+            epoch: 0,
+            leader_schedule_epoch: 0,
+            unix_timestamp: 0,
+        };
+
+        let mut pyth_price = get_pyth_price(100, 6);
+        let oracle_price = 100 * PRICE_PRECISION_I64;
+        let oracle_price_key =
+            Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
+        let pyth_program = crate::ids::pyth_program::id();
+        create_account_info!(
+            pyth_price,
+            &oracle_price_key,
+            &pyth_program,
+            oracle_account_info
+        );
+        let mut oracle_map = OracleMap::load_one(&oracle_account_info, clock.slot, None).unwrap();
+
+        let market_map = PerpMarketMap::empty();
+
+        let mut spot_market = SpotMarket {
+            market_index: 0,
+            oracle_source: OracleSource::QuoteAsset,
+            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+            decimals: 6,
+            initial_asset_weight: SPOT_WEIGHT_PRECISION,
+            maintenance_asset_weight: SPOT_WEIGHT_PRECISION,
+            historical_oracle_data: HistoricalOracleData::default_price(QUOTE_PRECISION_I64),
+            ..SpotMarket::default()
+        };
+        create_anchor_account_info!(spot_market, SpotMarket, spot_market_account_info);
+
+        let mut base_market = SpotMarket {
+            deposit_balance: 100 * SPOT_BALANCE_PRECISION,
+            oracle: oracle_price_key,
+            ..SpotMarket::default_base_market()
+        };
+
+        create_anchor_account_info!(base_market, SpotMarket, base_spot_market_account_info);
+
+        let spot_market_map = SpotMarketMap::load_multiple(
+            vec![&spot_market_account_info, &base_spot_market_account_info],
+            true,
+        )
+        .unwrap();
+
+        let taker_key = Pubkey::default();
+        let taker_authority =
+            Pubkey::from_str("My11111111111111111111111111111111111111111").unwrap();
+        let user = User {
+            authority: taker_authority,
+            orders: get_orders(Order {
+                market_index: 1,
+                order_id: 1,
+                status: OrderStatus::Open,
+                order_type: OrderType::Market,
+                market_type: MarketType::Spot,
+                direction: PositionDirection::Long,
+                base_asset_amount: BASE_PRECISION_U64,
+                slot: 0,
+                auction_start_price: 0,
+                auction_end_price: 50 * PRICE_PRECISION_I64,
+                auction_duration: 5,
+                price: 100 * PRICE_PRECISION_U64,
+                max_ts: 1,
+                ..Order::default()
+            }),
+            spot_positions: get_spot_positions(SpotPosition {
+                market_index: 0,
+                balance_type: SpotBalanceType::Deposit,
+                scaled_balance: 100 * SPOT_BALANCE_PRECISION_U64,
+                ..SpotPosition::default()
+            }),
+            ..User::default()
+        };
+
+        let mut maker_spot_positions = get_spot_positions(SpotPosition {
+            market_index: 0,
+            balance_type: SpotBalanceType::Deposit,
+            scaled_balance: 100 * SPOT_BALANCE_PRECISION_U64,
+            ..SpotPosition::default()
+        });
+        maker_spot_positions[1] = SpotPosition {
+            market_index: 1,
+            balance_type: SpotBalanceType::Deposit,
+            open_orders: 2,
+            ..SpotPosition::default()
+        };
+        let mut first_maker = User {
+            orders: get_orders!(
+                Order {
+                    market_index: 1,
+                    order_id: 1,
+                    status: OrderStatus::Open,
+                    order_type: OrderType::Limit,
+                    market_type: MarketType::Spot,
+                    direction: PositionDirection::Short,
+                    base_asset_amount: BASE_PRECISION_U64,
+                    slot: 0,
+                    price: 100 * PRICE_PRECISION_U64,
+                    ..Order::default()
+                },
+                Order {
+                    market_index: 1,
+                    order_id: 1,
+                    market_type: MarketType::Spot,
+                    status: OrderStatus::Open,
+                    order_type: OrderType::Limit,
+                    direction: PositionDirection::Short,
+                    base_asset_amount: BASE_PRECISION_U64,
+                    slot: 0,
+                    price: 102 * PRICE_PRECISION_U64,
+                    ..Order::default()
+                }
+            ),
+            spot_positions: maker_spot_positions,
+            ..User::default()
+        };
+        let first_maker_key =
+            Pubkey::from_str("My11111111111111111111111111111111111111113").unwrap();
+        create_anchor_account_info!(
+            first_maker,
+            &first_maker_key,
+            User,
+            first_maker_account_info
+        );
+
+        let mut second_maker_spot_positions = get_spot_positions(SpotPosition {
+            market_index: 0,
+            balance_type: SpotBalanceType::Deposit,
+            scaled_balance: 100 * SPOT_BALANCE_PRECISION_U64,
+            ..SpotPosition::default()
+        });
+        second_maker_spot_positions[1] = SpotPosition {
+            market_index: 1,
+            balance_type: SpotBalanceType::Deposit,
+            open_orders: 2,
+            ..SpotPosition::default()
+        };
+        let mut second_maker = User {
+            orders: get_orders!(
+                Order {
+                    market_index: 1,
+                    order_id: 1,
+                    status: OrderStatus::Open,
+                    order_type: OrderType::Limit,
+                    market_type: MarketType::Spot,
+                    direction: PositionDirection::Short,
+                    base_asset_amount: BASE_PRECISION_U64,
+                    slot: 0,
+                    price: 101 * PRICE_PRECISION_U64,
+                    ..Order::default()
+                },
+                Order {
+                    market_index: 1,
+                    order_id: 1,
+                    status: OrderStatus::Open,
+                    order_type: OrderType::Limit,
+                    market_type: MarketType::Spot,
+                    direction: PositionDirection::Short,
+                    base_asset_amount: BASE_PRECISION_U64,
+                    slot: 0,
+                    price: 103 * PRICE_PRECISION_U64,
+                    ..Order::default()
+                }
+            ),
+            spot_positions: second_maker_spot_positions,
+            ..User::default()
+        };
+        let second_maker_key =
+            Pubkey::from_str("My11111111111111111111111111111111111111112").unwrap();
+        create_anchor_account_info!(
+            second_maker,
+            &second_maker_key,
+            User,
+            second_maker_account_info
+        );
+
+        let mut makers_and_referrers = UserMap::load_one(&first_maker_account_info).unwrap();
+        makers_and_referrers
+            .insert(
+                second_maker_key,
+                AccountLoader::try_from(&second_maker_account_info).unwrap(),
+            )
+            .unwrap();
+
+        let filler_key = Pubkey::from_str("My11111111111111111111111111111111111111111").unwrap();
+        let mut filler = User::default();
+
+        let maker_order_price_and_indexes = get_spot_maker_orders_info(
+            &market_map,
+            &spot_market_map,
+            &mut oracle_map,
+            &makers_and_referrers,
+            &taker_key,
+            &user.orders[0],
+            &mut Some(&mut filler),
+            &filler_key,
+            0,
+            oracle_price,
+            None,
+            clock.unix_timestamp,
+            clock.slot,
+        )
+        .unwrap();
+
+        assert_eq!(
+            maker_order_price_and_indexes,
+            vec![
+                (first_maker_key, 0, 100000000),
+                (second_maker_key, 0, 101000000),
+                (first_maker_key, 1, 102000000),
+                (second_maker_key, 1, 103000000),
+            ],
+        );
+    }
+
+    #[test]
+    fn jit_maker_order_id() {
+        let clock = Clock {
+            slot: 6,
+            epoch_start_timestamp: 0,
+            epoch: 0,
+            leader_schedule_epoch: 0,
+            unix_timestamp: 0,
+        };
+
+        let mut pyth_price = get_pyth_price(100, 6);
+        let oracle_price = 100 * PRICE_PRECISION_I64;
+        let oracle_price_key =
+            Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
+        let pyth_program = crate::ids::pyth_program::id();
+        create_account_info!(
+            pyth_price,
+            &oracle_price_key,
+            &pyth_program,
+            oracle_account_info
+        );
+        let mut oracle_map = OracleMap::load_one(&oracle_account_info, clock.slot, None).unwrap();
+
+        let market_map = PerpMarketMap::empty();
+
+        let mut spot_market = SpotMarket {
+            market_index: 0,
+            oracle_source: OracleSource::QuoteAsset,
+            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+            decimals: 6,
+            initial_asset_weight: SPOT_WEIGHT_PRECISION,
+            maintenance_asset_weight: SPOT_WEIGHT_PRECISION,
+            historical_oracle_data: HistoricalOracleData::default_price(QUOTE_PRECISION_I64),
+            ..SpotMarket::default()
+        };
+        create_anchor_account_info!(spot_market, SpotMarket, spot_market_account_info);
+
+        let mut base_market = SpotMarket {
+            deposit_balance: 100 * SPOT_BALANCE_PRECISION,
+            oracle: oracle_price_key,
+            ..SpotMarket::default_base_market()
+        };
+
+        create_anchor_account_info!(base_market, SpotMarket, base_spot_market_account_info);
+
+        let spot_market_map = SpotMarketMap::load_multiple(
+            vec![&spot_market_account_info, &base_spot_market_account_info],
+            true,
+        )
+        .unwrap();
+
+        let taker_key = Pubkey::default();
+        let taker_authority =
+            Pubkey::from_str("My11111111111111111111111111111111111111111").unwrap();
+        let user = User {
+            authority: taker_authority,
+            orders: get_orders(Order {
+                market_index: 1,
+                order_id: 1,
+                status: OrderStatus::Open,
+                order_type: OrderType::Market,
+                market_type: MarketType::Spot,
+                direction: PositionDirection::Long,
+                base_asset_amount: BASE_PRECISION_U64,
+                slot: 0,
+                auction_start_price: 0,
+                auction_end_price: 50 * PRICE_PRECISION_I64,
+                auction_duration: 5,
+                price: 100 * PRICE_PRECISION_U64,
+                max_ts: 1,
+                ..Order::default()
+            }),
+            spot_positions: get_spot_positions(SpotPosition {
+                market_index: 0,
+                balance_type: SpotBalanceType::Deposit,
+                scaled_balance: 100 * SPOT_BALANCE_PRECISION_U64,
+                ..SpotPosition::default()
+            }),
+            ..User::default()
+        };
+
+        let mut maker_spot_positions = get_spot_positions(SpotPosition {
+            market_index: 0,
+            balance_type: SpotBalanceType::Deposit,
+            scaled_balance: 100 * SPOT_BALANCE_PRECISION_U64,
+            ..SpotPosition::default()
+        });
+        maker_spot_positions[1] = SpotPosition {
+            market_index: 1,
+            balance_type: SpotBalanceType::Deposit,
+            open_orders: 2,
+            open_asks: -2 * LAMPORTS_PER_SOL_I64,
+            ..SpotPosition::default()
+        };
+        let mut first_maker = User {
+            orders: get_orders!(
+                Order {
+                    market_index: 1,
+                    order_id: 1,
+                    status: OrderStatus::Open,
+                    order_type: OrderType::Limit,
+                    market_type: MarketType::Spot,
+                    direction: PositionDirection::Short,
+                    base_asset_amount: BASE_PRECISION_U64,
+                    slot: 0,
+                    price: 100 * PRICE_PRECISION_U64,
+                    ..Order::default()
+                },
+                Order {
+                    market_index: 1,
+                    order_id: 2,
+                    status: OrderStatus::Open,
+                    market_type: MarketType::Spot,
+                    order_type: OrderType::Limit,
+                    direction: PositionDirection::Short,
+                    base_asset_amount: BASE_PRECISION_U64,
+                    slot: 0,
+                    price: 102 * PRICE_PRECISION_U64,
+                    ..Order::default()
+                }
+            ),
+            spot_positions: maker_spot_positions,
+            ..User::default()
+        };
+        let first_maker_key =
+            Pubkey::from_str("My11111111111111111111111111111111111111113").unwrap();
+        create_anchor_account_info!(
+            first_maker,
+            &first_maker_key,
+            User,
+            first_maker_account_info
+        );
+
+        let makers_and_referrers = UserMap::load_one(&first_maker_account_info).unwrap();
+
+        let filler_key = Pubkey::from_str("My11111111111111111111111111111111111111111").unwrap();
+        let mut filler = User::default();
+
+        let maker_order_price_and_indexes = get_spot_maker_orders_info(
+            &market_map,
+            &spot_market_map,
+            &mut oracle_map,
+            &makers_and_referrers,
+            &taker_key,
+            &user.orders[0],
+            &mut Some(&mut filler),
+            &filler_key,
+            0,
+            oracle_price,
+            Some(2),
+            clock.unix_timestamp,
+            clock.slot,
+        )
+        .unwrap();
+
+        assert_eq!(
+            maker_order_price_and_indexes,
+            vec![(first_maker_key, 1, 102000000),],
+        );
+    }
+
+    #[test]
+    fn two_makers_with_max_orders() {
+        let clock = Clock {
+            slot: 6,
+            epoch_start_timestamp: 0,
+            epoch: 0,
+            leader_schedule_epoch: 0,
+            unix_timestamp: 0,
+        };
+
+        let mut pyth_price = get_pyth_price(100, 6);
+        let oracle_price = 100 * PRICE_PRECISION_I64;
+        let oracle_price_key =
+            Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
+        let pyth_program = crate::ids::pyth_program::id();
+        create_account_info!(
+            pyth_price,
+            &oracle_price_key,
+            &pyth_program,
+            oracle_account_info
+        );
+        let mut oracle_map = OracleMap::load_one(&oracle_account_info, clock.slot, None).unwrap();
+
+        let market_map = PerpMarketMap::empty();
+
+        let mut spot_market = SpotMarket {
+            market_index: 0,
+            oracle_source: OracleSource::QuoteAsset,
+            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+            decimals: 6,
+            initial_asset_weight: SPOT_WEIGHT_PRECISION,
+            maintenance_asset_weight: SPOT_WEIGHT_PRECISION,
+            historical_oracle_data: HistoricalOracleData::default_price(QUOTE_PRECISION_I64),
+            ..SpotMarket::default()
+        };
+        create_anchor_account_info!(spot_market, SpotMarket, spot_market_account_info);
+
+        let mut base_market = SpotMarket {
+            deposit_balance: 100 * SPOT_BALANCE_PRECISION,
+            oracle: oracle_price_key,
+            ..SpotMarket::default_base_market()
+        };
+
+        create_anchor_account_info!(base_market, SpotMarket, base_spot_market_account_info);
+
+        let spot_market_map = SpotMarketMap::load_multiple(
+            vec![&spot_market_account_info, &base_spot_market_account_info],
+            true,
+        )
+        .unwrap();
+
+        let taker_key = Pubkey::default();
+        let taker_authority =
+            Pubkey::from_str("My11111111111111111111111111111111111111111").unwrap();
+        let user = User {
+            authority: taker_authority,
+            orders: get_orders(Order {
+                market_index: 1,
+                order_id: 1,
+                status: OrderStatus::Open,
+                order_type: OrderType::Market,
+                market_type: MarketType::Spot,
+                direction: PositionDirection::Long,
+                base_asset_amount: BASE_PRECISION_U64,
+                slot: 0,
+                auction_start_price: 0,
+                auction_end_price: 50 * PRICE_PRECISION_I64,
+                auction_duration: 5,
+                price: 100 * PRICE_PRECISION_U64,
+                max_ts: 1,
+                ..Order::default()
+            }),
+            spot_positions: get_spot_positions(SpotPosition {
+                market_index: 0,
+                balance_type: SpotBalanceType::Deposit,
+                scaled_balance: 100 * SPOT_BALANCE_PRECISION_U64,
+                ..SpotPosition::default()
+            }),
+            ..User::default()
+        };
+
+        let mut first_maker_spot_positions = get_spot_positions(SpotPosition {
+            market_index: 0,
+            balance_type: SpotBalanceType::Deposit,
+            scaled_balance: 100 * SPOT_BALANCE_PRECISION_U64,
+            ..SpotPosition::default()
+        });
+        first_maker_spot_positions[1] = SpotPosition {
+            market_index: 1,
+            balance_type: SpotBalanceType::Deposit,
+            open_orders: 32,
+            open_asks: -32 * LAMPORTS_PER_SOL_I64,
+            ..SpotPosition::default()
+        };
+        let mut first_maker = User {
+            orders: [Order {
+                market_index: 1,
+                order_id: 1,
+                status: OrderStatus::Open,
+                market_type: MarketType::Spot,
+                order_type: OrderType::Limit,
+                direction: PositionDirection::Short,
+                base_asset_amount: BASE_PRECISION_U64,
+                slot: 0,
+                price: 100 * PRICE_PRECISION_U64,
+                ..Order::default()
+            }; 32],
+            spot_positions: first_maker_spot_positions,
+            ..User::default()
+        };
+        let first_maker_key =
+            Pubkey::from_str("My11111111111111111111111111111111111111113").unwrap();
+        create_anchor_account_info!(
+            first_maker,
+            &first_maker_key,
+            User,
+            first_maker_account_info
+        );
+
+        let mut second_maker_spot_positions = get_spot_positions(SpotPosition {
+            market_index: 0,
+            balance_type: SpotBalanceType::Deposit,
+            scaled_balance: 100 * SPOT_BALANCE_PRECISION_U64,
+            ..SpotPosition::default()
+        });
+        second_maker_spot_positions[1] = SpotPosition {
+            market_index: 1,
+            balance_type: SpotBalanceType::Deposit,
+            open_orders: 32,
+            open_asks: -32 * LAMPORTS_PER_SOL_I64,
+            ..SpotPosition::default()
+        };
+        let mut second_maker = User {
+            orders: [Order {
+                market_index: 1,
+                order_id: 1,
+                status: OrderStatus::Open,
+                order_type: OrderType::Limit,
+                market_type: MarketType::Spot,
+                direction: PositionDirection::Short,
+                base_asset_amount: BASE_PRECISION_U64,
+                slot: 0,
+                price: 101 * PRICE_PRECISION_U64,
+                ..Order::default()
+            }; 32],
+            spot_positions: second_maker_spot_positions,
+            ..User::default()
+        };
+        let second_maker_key =
+            Pubkey::from_str("My11111111111111111111111111111111111111112").unwrap();
+        create_anchor_account_info!(
+            second_maker,
+            &second_maker_key,
+            User,
+            second_maker_account_info
+        );
+
+        let mut makers_and_referrers = UserMap::load_one(&first_maker_account_info).unwrap();
+        makers_and_referrers
+            .insert(
+                second_maker_key,
+                AccountLoader::try_from(&second_maker_account_info).unwrap(),
+            )
+            .unwrap();
+
+        let filler_key = Pubkey::from_str("My11111111111111111111111111111111111111111").unwrap();
+        let mut filler = User::default();
+
+        let maker_order_price_and_indexes = get_spot_maker_orders_info(
+            &market_map,
+            &spot_market_map,
+            &mut oracle_map,
+            &makers_and_referrers,
+            &taker_key,
+            &user.orders[0],
+            &mut Some(&mut filler),
+            &filler_key,
+            0,
+            oracle_price,
+            None,
+            clock.unix_timestamp,
+            clock.slot,
+        )
+        .unwrap();
+
+        assert_eq!(maker_order_price_and_indexes.len(), 64);
+    }
+}
+
 pub mod update_trigger_order_params {
     use crate::controller::orders::update_trigger_order_params;
     use crate::state::oracle::OraclePriceData;
