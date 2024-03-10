@@ -1,7 +1,6 @@
 import * as anchor from '@coral-xyz/anchor';
-import { assert } from 'chai';
+// import { assert } from 'chai';
 import {
-	BASE_PRECISION,
 	BN,
 	OracleSource,
 	TestClient,
@@ -12,8 +11,6 @@ import {
 	LIQUIDATION_PCT_PRECISION,
 } from '../sdk/src';
 import {
-	clusterApiUrl,
-	Connection,
 	LAMPORTS_PER_SOL,
 	StakeProgram,
 	Authorized,
@@ -31,19 +28,12 @@ import {
 	mockUserUSDCAccount,
 	initializeQuoteSpotMarket,
 	initializeSolSpotMarket,
-	printTxLogs,
 } from './testHelpers';
 import {
 	BulkAccountLoader,
-	findComputeUnitConsumption,
-	getOrderParams,
-	MarketType,
-	OrderParams,
-	OrderType,
-	PostOnlyParams,
 } from '../sdk';
 
-describe('switchboard place orders cus', () => {
+describe('stake to solana validator', () => {
 	const provider = anchor.AnchorProvider.local(undefined, {
 		preflightCommitment: 'confirmed',
 		commitment: 'confirmed',
@@ -77,7 +67,6 @@ describe('switchboard place orders cus', () => {
 	);
 
 	const usdcAmount = new BN(10 * 10 ** 6);
-	const nLpShares = new BN(10000000);
 
 	let oracle: PublicKey;
 	let solUsd: PublicKey;

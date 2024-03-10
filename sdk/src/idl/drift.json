@@ -5950,11 +5950,15 @@
             "type": "u64"
           },
           {
+            "name": "stakedTokenAmount",
+            "type": "u64"
+          },
+          {
             "name": "padding",
             "type": {
               "array": [
                 "u8",
-                48
+                40
               ]
             }
           }
