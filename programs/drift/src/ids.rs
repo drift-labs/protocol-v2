@@ -43,6 +43,11 @@ pub mod serum_program {
     declare_id!("DESVgJVGajEgKGXhb6XmqDHGz3VjdgP7rEVESBgxmroY");
 }
 
+pub mod wsol_mint {
+    use solana_program::declare_id;
+    declare_id!("So11111111111111111111111111111111111111112");
+}
+
 pub mod srm_mint {
     use solana_program::declare_id;
     declare_id!("SRMuApVNdxXokk5GT7XD5cUUgXMBCoAz2LHeuAoKWRt");

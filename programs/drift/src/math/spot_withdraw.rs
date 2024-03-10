@@ -293,6 +293,39 @@ pub fn validate_spot_balances(spot_market: &SpotMarket) -> DriftResult<i64> {
     Ok(depositors_claim)
 }
 
+pub fn validate_spot_market_vault_and_stake_amount(
+    spot_market: &SpotMarket,
+    vault_amount: u64,
+    stake_amount: Option<u64>,
+) -> DriftResult<i64> {
+    let depositors_claim = validate_spot_balances(spot_market)?;
+
+    let mut total_amount = vault_amount;
+    if stake_amount.is_some() {
+        total_amount = total_amount.safe_add(stake_amount.unwrap_or(0))?;
+
+        validate!(
+            stake_amount.unwrap_or(0) >= spot_market.staked_token_amount,
+            ErrorCode::SpotMarketVaultInvariantViolated,
+            "spot market {} stake = {} holds less than registered stake = {}",
+            spot_market.market_index,
+            stake_amount.unwrap_or(0),
+            spot_market.staked_token_amount,
+        )?;
+    }
+
+    validate!(
+        total_amount.cast::<i64>()? >= depositors_claim,
+        ErrorCode::SpotMarketVaultInvariantViolated,
+        "spot market {} vault ={} holds less than remaining depositor claims = {}",
+        spot_market.market_index,
+        vault_amount,
+        depositors_claim
+    )?;
+
+    Ok(depositors_claim)
+}
+
 pub fn validate_spot_market_vault_amount(
     spot_market: &SpotMarket,
     vault_amount: u64,
@@ -302,9 +335,18 @@ pub fn validate_spot_market_vault_amount(
     validate!(
         vault_amount.cast::<i64>()? >= depositors_claim,
         ErrorCode::SpotMarketVaultInvariantViolated,
-        "spot market vault ={} holds less than remaining depositor claims = {}",
+        "spot market {} vault ={} holds less than remaining depositor claims = {}",
+        spot_market.market_index,
         vault_amount,
         depositors_claim
+    )?;
+
+    validate!(
+        spot_market.staked_token_amount == 0,
+        ErrorCode::SpotMarketVaultInvariantViolated,
+        "spot market {} holds stake_tokens={}",
+        spot_market.market_index,
+        spot_market.staked_token_amount
     )?;
 
     Ok(depositors_claim)
