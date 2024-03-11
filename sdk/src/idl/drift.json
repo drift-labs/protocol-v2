@@ -8873,7 +8873,11 @@
             "name": "ExternalMarket"
           },
           {
-            "name": "Match"
+            "name": "Match",
+            "fields": [
+              "publicKey",
+              "u16"
+            ]
           }
         ]
       }
