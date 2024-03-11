@@ -4,7 +4,7 @@ use crate::{
 };
 use anchor_lang::prelude::*;
 
-pub fn handle_initialize_admin_config(
+pub fn handle_initialize_admin_election_config(
     ctx: Context<InitializeElectionConfig>,
     election_signer: Pubkey,
 ) -> Result<()> {
@@ -12,6 +12,7 @@ pub fn handle_initialize_admin_config(
     election_config.election_signer = election_signer;
     Ok(())
 }
+
 pub fn handle_update_election_signer(
     ctx: Context<UpdateElectionSigner>,
     election_signer: Pubkey,
@@ -20,8 +21,9 @@ pub fn handle_update_election_signer(
     election_config.election_signer = election_signer;
     Ok(())
 }
-pub fn handle_update_admin(ctx: Context<UpdateAdmin>, admin: Pubkey) -> Result<()> {
-    let mut state = &mut ctx.accounts.state;
+
+pub fn handle_election_update_admin(ctx: Context<UpdateAdmin>, admin: Pubkey) -> Result<()> {
+    let state = &mut ctx.accounts.state;
     state.admin = admin;
     Ok(())
 }
@@ -61,14 +63,13 @@ pub struct UpdateElectionSigner<'info> {
 
 #[derive(Accounts)]
 pub struct UpdateAdmin<'info> {
+    #[account(mut)]
+    pub election_signer: Signer<'info>,
     #[account(
         mut,
-        constraint = admin_election_config.load()?.is_election_signer(signer.key()) || state.admin.eq(&signer.key())
-    )]
-    pub signer: Signer<'info>,
-    #[account(
         seeds = [b"admin_election_config".as_ref()],
         bump,
+        has_one = election_signer
     )]
     pub admin_election_config: AccountLoader<'info, AdminElectionConfig>,
     #[account(mut)]

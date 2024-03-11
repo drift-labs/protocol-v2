@@ -1171,6 +1171,24 @@ pub mod drift {
     ) -> Result<()> {
         handle_update_prelaunch_oracle_params(ctx, params)
     }
+
+    pub fn initialize_admin_election_config(
+        ctx: Context<InitializeElectionConfig>,
+        election_signer: Pubkey,
+    ) -> Result<()> {
+        handle_initialize_admin_election_config(ctx, election_signer)
+    }
+
+    pub fn update_election_signer(
+        ctx: Context<UpdateElectionSigner>,
+        election_signer: Pubkey,
+    ) -> Result<()> {
+        handle_update_election_signer(ctx, election_signer)
+    }
+
+    pub fn election_update_admin(ctx: Context<UpdateAdmin>, admin: Pubkey) -> Result<()> {
+        handle_election_update_admin(ctx, admin)
+    }
 }
 
 #[cfg(not(feature = "no-entrypoint"))]
