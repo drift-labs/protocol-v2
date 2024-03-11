@@ -32,9 +32,9 @@ mod test_utils;
 mod validation;
 
 #[cfg(feature = "mainnet-beta")]
-declare_id!("dRiftyHA39MWEi3m9aunc5MzRF1JYuBsbn6VPcn33UH");
+declare_id!("BiGZqo5yEyQB47zDZ8zDuzwF6BV7dVYkRe5YwU1hw61i");
 #[cfg(not(feature = "mainnet-beta"))]
-declare_id!("dRiftyHA39MWEi3m9aunc5MzRF1JYuBsbn6VPcn33UH");
+declare_id!("BiGZqo5yEyQB47zDZ8zDuzwF6BV7dVYkRe5YwU1hw61i");
 
 #[program]
 pub mod drift {

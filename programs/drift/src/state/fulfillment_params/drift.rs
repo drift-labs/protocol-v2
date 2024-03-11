@@ -31,6 +31,7 @@ impl<'a> MatchFulfillmentParams<'a> {
         let account_info_vec = account_info_iter.collect::<Vec<_>>();
         let account_infos = array_ref![account_info_vec, 0, 2];
         let [base_market_vault, quote_market_vault] = account_infos;
+        let a: i32 = 2;
 
         validate!(
             &base_market.vault == base_market_vault.key,
