@@ -19,6 +19,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Breaking
 
+- sdk: account for max confidence in isOracleValid ([#949](https://github.com/drift-labs/protocol-v2/pull/949))
+
 ## [2.70.0] - 2023-03-07
 
 ### Features
