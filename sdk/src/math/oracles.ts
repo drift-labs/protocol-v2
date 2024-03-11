@@ -27,7 +27,9 @@ export function oraclePriceBands(
 	return [oraclePriceData.price.sub(offset), oraclePriceData.price.add(offset)];
 }
 
-export function getMaxConfidenceIntervalMultiplier(market: PerpMarketAccount): BN {
+export function getMaxConfidenceIntervalMultiplier(
+	market: PerpMarketAccount
+): BN {
 	let maxConfidenceIntervalMultiplier;
 	if (isVariant(market.contractTier, 'a')) {
 		maxConfidenceIntervalMultiplier = new BN(1);
