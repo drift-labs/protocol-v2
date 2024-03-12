@@ -172,13 +172,6 @@ pub fn settle_pnl(
     }
 
     validate!(
-        perp_market.status == MarketStatus::Active,
-        ErrorCode::InvalidMarketStatusToSettlePnl,
-        "Cannot settle pnl under current market = {} status",
-        market_index
-    )?;
-
-    validate!(
         !perp_market.is_operation_paused(PerpOperation::SettlePnl),
         ErrorCode::InvalidMarketStatusToSettlePnl,
         "Cannot settle pnl under current market = {} status",
@@ -189,7 +182,14 @@ pub fn settle_pnl(
         validate!(
             !perp_market.is_operation_paused(PerpOperation::SettlePnlWithPosition),
             ErrorCode::InvalidMarketStatusToSettlePnl,
-            "Cannot settle pnl with position under current market = {} status",
+            "Cannot settle pnl with position under current market = {} operation paused",
+            market_index
+        )?;
+
+        validate!(
+            perp_market.status == MarketStatus::Active,
+            ErrorCode::InvalidMarketStatusToSettlePnl,
+            "Cannot settle pnl with position under non-Active current market = {} status",
             market_index
         )?;
     }
