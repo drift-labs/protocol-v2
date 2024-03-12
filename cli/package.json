@@ -1,22 +1,23 @@
 {
-	"name": "drift-v1-cli",
-	"version": "0.0.0",
-	"description": "",
-	"bin": {
-		"drift": "./build/cli.js"
-	},
-	"scripts": {},
-	"author": "crispheaney",
-	"license": "ISC",
-	"dependencies": {
-		"@drift-labs/sdk": "file:../sdk",
-		"@project-serum/anchor": "0.24.2",
-		"@solana/spl-token": "^0.1.8",
-		"@solana/web3.js": "^1.30.2",
-		"@types/node": "^16.7.10",
-		"colors": "^1.4.0",
-		"commander": "8.1.0",
-		"loglevel": "^1.7.1",
-		"promptly": "^3.2.0"
-	}
+  "name": "drift-v1-cli",
+  "version": "0.0.0",
+  "description": "",
+  "bin": {
+    "drift": "./build/cli.js"
+  },
+  "scripts": {},
+  "author": "crispheaney",
+  "license": "ISC",
+  "dependencies": {
+    "@drift-labs/sdk": "file:../sdk",
+    "@project-serum/anchor": "0.24.2",
+    "@solana/spl-token": "^0.1.8",
+    "@solana/web3.js": "^1.30.2",
+    "@types/node": "^16.7.10",
+    "colors": "^1.4.0",
+    "commander": "8.1.0",
+    "loglevel": "^1.7.1",
+    "promptly": "^3.2.0"
+  }
 }
+
