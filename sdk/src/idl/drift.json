@@ -4994,6 +4994,11 @@
           "isSigner": false
         },
         {
+          "name": "perpMarket",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
           "name": "state",
           "isMut": false,
           "isSigner": false

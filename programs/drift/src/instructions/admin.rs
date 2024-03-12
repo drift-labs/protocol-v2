@@ -2440,12 +2440,25 @@ pub fn handle_update_prelaunch_oracle_params<'info>(
     params: PrelaunchOracleParams,
 ) -> Result<()> {
     let mut oracle = ctx.accounts.prelaunch_oracle.load_mut()?;
-
-    oracle.perp_market_index = params.perp_market_index;
+    let mut perp_market = ctx.accounts.perp_market.load_mut()?;
+    let now = Clock::get()?.unix_timestamp;
 
     if let Some(price) = params.price {
         oracle.price = price;
+
+        msg!("before mark twap ts = {:?} mark twap = {:?} mark twap 5min = {:?} bid twap = {:?} ask twap {:?}", perp_market.amm.last_mark_price_twap_ts, perp_market.amm.last_mark_price_twap, perp_market.amm.last_mark_price_twap_5min, perp_market.amm.last_bid_price_twap, perp_market.amm.last_ask_price_twap);
+
+        perp_market.amm.last_mark_price_twap_ts = now;
+        perp_market.amm.last_mark_price_twap = price.cast()?;
+        perp_market.amm.last_mark_price_twap_5min = price.cast()?;
+        perp_market.amm.last_bid_price_twap =
+            perp_market.amm.last_bid_price_twap.min(price.cast()?);
+        perp_market.amm.last_ask_price_twap =
+            perp_market.amm.last_ask_price_twap.max(price.cast()?);
+
+        msg!("after mark twap ts = {:?} mark twap = {:?} mark twap 5min = {:?} bid twap = {:?} ask twap {:?}", perp_market.amm.last_mark_price_twap_ts, perp_market.amm.last_mark_price_twap, perp_market.amm.last_mark_price_twap_5min, perp_market.amm.last_bid_price_twap, perp_market.amm.last_ask_price_twap);
     }
+
     if let Some(max_price) = params.max_price {
         oracle.max_price = max_price;
     }
@@ -2919,6 +2932,11 @@ pub struct UpdatePrelaunchOracleParams<'info> {
         bump,
     )]
     pub prelaunch_oracle: AccountLoader<'info, PrelaunchOracle>,
+    #[account(
+        mut,
+        constraint = perp_market.load()?.market_index == params.perp_market_index
+    )]
+    pub perp_market: AccountLoader<'info, PerpMarket>,
     #[account(
         has_one = admin
     )]

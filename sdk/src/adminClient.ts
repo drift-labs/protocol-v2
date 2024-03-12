@@ -1864,6 +1864,10 @@ export class AdminClient extends DriftClient {
 					this.program.programId,
 					perpMarketIndex
 				),
+				perpMarket: await getPerpMarketPublicKey(
+					this.program.programId,
+					perpMarketIndex
+				),
 			},
 		});
 	}
