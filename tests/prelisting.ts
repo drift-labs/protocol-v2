@@ -208,5 +208,8 @@ describe('prelisting', () => {
 		await adminDriftClient.fetchAccounts();
 		const price = adminDriftClient.getOracleDataForPerpMarket(0);
 		assert(price.price.eq(new BN(40000000)));
+
+		const markTwap = adminDriftClient.getPerpMarketAccount(0).amm.lastMarkPriceTwap;
+		assert(markTwap.eq(new BN(40000000)));
 	});
 });
