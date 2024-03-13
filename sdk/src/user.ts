@@ -628,7 +628,7 @@ export class User {
 			true
 		)[0];
 		const worstCaseBaseAssetAmount = perpPosition
-			? calculateWorstCaseBaseAssetAmount(perpPosition)
+			? calculateWorstCaseBaseAssetAmount(perpPosition, this.getOpenOrders())
 			: ZERO;
 
 		const freeCollateral = this.getFreeCollateral().sub(collateralBuffer);
@@ -1278,7 +1278,7 @@ export class User {
 		}
 
 		const baseAssetAmount = includeOpenOrders
-			? calculateWorstCaseBaseAssetAmount(perpPosition)
+			? calculateWorstCaseBaseAssetAmount(perpPosition, this.getOpenOrders())
 			: perpPosition.baseAssetAmount;
 
 		let baseAssetValue = baseAssetAmount
@@ -2111,8 +2111,10 @@ export class User {
 			freeCollateralChange = freeCollateralChange.sub(takerFee);
 		}
 
-		const worstCaseBaseAssetAmount =
-			calculateWorstCaseBaseAssetAmount(perpPosition);
+		const worstCaseBaseAssetAmount = calculateWorstCaseBaseAssetAmount(
+			perpPosition,
+			this.getOpenOrders()
+		);
 
 		const newWorstCaseBaseAssetAmount = worstCaseBaseAssetAmount.add(
 			positionBaseSizeChange
@@ -2146,8 +2148,10 @@ export class User {
 	): BN | undefined {
 		const currentBaseAssetAmount = perpPosition.baseAssetAmount;
 
-		const worstCaseBaseAssetAmount =
-			calculateWorstCaseBaseAssetAmount(perpPosition);
+		const worstCaseBaseAssetAmount = calculateWorstCaseBaseAssetAmount(
+			perpPosition,
+			this.getOpenOrders()
+		);
 		const orderBaseAssetAmount = worstCaseBaseAssetAmount.sub(
 			currentBaseAssetAmount
 		);
@@ -3404,8 +3408,10 @@ export class User {
 				perpMarket.marketIndex
 			);
 			const oraclePrice = oraclePriceData.price;
-			const worstCaseBaseAmount =
-				calculateWorstCaseBaseAssetAmount(settledLpPosition);
+			const worstCaseBaseAmount = calculateWorstCaseBaseAssetAmount(
+				settledLpPosition,
+				this.getOpenOrders()
+			);
 
 			const marginRatio = new BN(
 				calculateMarketMarginRatio(

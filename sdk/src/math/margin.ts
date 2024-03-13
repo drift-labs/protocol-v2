@@ -8,7 +8,7 @@ import {
 } from '../constants/numericConstants';
 import { BN } from '@coral-xyz/anchor';
 import { OraclePriceData } from '../oracles/types';
-import { PerpMarketAccount, PerpPosition } from '..';
+import { Order, PerpMarketAccount, PerpPosition } from '..';
 import { isVariant } from '../types';
 import { assert } from '../assert/assert';
 
@@ -103,7 +103,8 @@ export function calculateBaseAssetValueWithOracle(
 	market: PerpMarketAccount,
 	perpPosition: PerpPosition,
 	oraclePriceData: OraclePriceData,
-	includeOpenOrders = false
+	includeOpenOrders = false,
+	openOrders?: Order[]
 ): BN {
 	let price = oraclePriceData.price;
 	if (isVariant(market.status, 'settlement')) {
@@ -111,17 +112,52 @@ export function calculateBaseAssetValueWithOracle(
 	}
 
 	const baseAssetAmount = includeOpenOrders
-		? calculateWorstCaseBaseAssetAmount(perpPosition)
+		? calculateWorstCaseBaseAssetAmount(perpPosition, openOrders)
 		: perpPosition.baseAssetAmount;
 
 	return baseAssetAmount.abs().mul(price).div(AMM_RESERVE_PRECISION);
 }
 
+/**
+ * Calculates the max position size that could be opened on a perp market given the current position and orders.
+ * If open orders array is passed, reduce only orders will be subtracted from the max bid/ask size
+ * @param perpPosition
+ * @param openOrders
+ * @returns : BN BASE_PRECISION
+ */
 export function calculateWorstCaseBaseAssetAmount(
-	perpPosition: PerpPosition
+	perpPosition: PerpPosition,
+	openOrders?: Order[]
 ): BN {
-	const allBids = perpPosition.baseAssetAmount.add(perpPosition.openBids);
-	const allAsks = perpPosition.baseAssetAmount.add(perpPosition.openAsks);
+	let bidsToAdd = perpPosition.openBids;
+	let asksToAdd = perpPosition.openAsks;
+
+	if (openOrders) {
+		const reduceOnlyTotalBids = openOrders
+			.filter(
+				(order) =>
+					order.marketIndex === perpPosition.marketIndex &&
+					isVariant(order.direction, 'long') &&
+					order.reduceOnly
+			)
+			.reduce((prev, order) => order.baseAssetAmount.add(prev), ZERO);
+
+		bidsToAdd = BN.max(bidsToAdd.sub(reduceOnlyTotalBids), ZERO);
+
+		const reduceOnlyTotalAsks = openOrders
+			.filter(
+				(order) =>
+					order.marketIndex === perpPosition.marketIndex &&
+					isVariant(order.direction, 'short') &&
+					order.reduceOnly
+			)
+			.reduce((prev, order) => order.baseAssetAmount.add(prev), ZERO);
+
+		asksToAdd = BN.min(asksToAdd.add(reduceOnlyTotalAsks), ZERO);
+	}
+
+	const allBids = perpPosition.baseAssetAmount.add(bidsToAdd);
+	const allAsks = perpPosition.baseAssetAmount.add(asksToAdd);
 
 	if (allBids.abs().gt(allAsks.abs())) {
 		return allBids;
