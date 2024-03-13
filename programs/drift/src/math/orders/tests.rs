@@ -3250,13 +3250,13 @@ pub mod get_price_for_perp_order {
         let direction = PositionDirection::Short;
 
         let limit_price =
-            get_price_for_perp_order(ask, direction, PostOnlyParam::Slide, &amm).unwrap();
+            get_price_for_perp_order(ask, direction, PostOnlyParam::Slide, false, &amm).unwrap();
 
         assert_eq!(limit_price, 99100000); // $99.1
 
         let ask = amm_bid_price;
         let limit_price =
-            get_price_for_perp_order(ask, direction, PostOnlyParam::Slide, &amm).unwrap();
+            get_price_for_perp_order(ask, direction, PostOnlyParam::Slide, false, &amm).unwrap();
 
         assert_eq!(limit_price, 99100000); // $99.1
     }
@@ -3281,7 +3281,7 @@ pub mod get_price_for_perp_order {
         let direction = PositionDirection::Short;
 
         let limit_price =
-            get_price_for_perp_order(ask, direction, PostOnlyParam::Slide, &amm).unwrap();
+            get_price_for_perp_order(ask, direction, PostOnlyParam::Slide, false, &amm).unwrap();
 
         assert_eq!(limit_price, ask); // $99.1
     }
@@ -3306,13 +3306,13 @@ pub mod get_price_for_perp_order {
         let direction = PositionDirection::Long;
 
         let limit_price =
-            get_price_for_perp_order(bid, direction, PostOnlyParam::Slide, &amm).unwrap();
+            get_price_for_perp_order(bid, direction, PostOnlyParam::Slide, false, &amm).unwrap();
 
         assert_eq!(limit_price, 100900000); // $100.9
 
         let bid = amm_ask_price;
         let limit_price =
-            get_price_for_perp_order(bid, direction, PostOnlyParam::Slide, &amm).unwrap();
+            get_price_for_perp_order(bid, direction, PostOnlyParam::Slide, false, &amm).unwrap();
 
         assert_eq!(limit_price, 100900000); // $100.9
     }
@@ -3337,7 +3337,7 @@ pub mod get_price_for_perp_order {
         let direction = PositionDirection::Long;
 
         let limit_price =
-            get_price_for_perp_order(bid, direction, PostOnlyParam::Slide, &amm).unwrap();
+            get_price_for_perp_order(bid, direction, PostOnlyParam::Slide, false, &amm).unwrap();
 
         assert_eq!(limit_price, bid); // $100.1
     }

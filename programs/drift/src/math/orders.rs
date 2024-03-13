@@ -37,6 +37,7 @@ use crate::state::user::{
 };
 use crate::state::user_map::UserMap;
 use crate::validate;
+use crate::validation::order::get_post_only_boundary;
 
 #[cfg(test)]
 mod tests;
@@ -274,23 +275,22 @@ pub fn get_price_for_perp_order(
     price: u64,
     direction: PositionDirection,
     post_only: PostOnlyParam,
+    immediate_or_cancel: bool,
     amm: &AMM,
 ) -> DriftResult<u64> {
     let mut limit_price = standardize_price(price, amm.order_tick_size, direction)?;
 
     if post_only == PostOnlyParam::Slide {
-        let reserve_price = amm.reserve_price()?;
+        let post_only_boundary = get_post_only_boundary(amm, direction, immediate_or_cancel)?;
         match direction {
             PositionDirection::Long => {
-                let amm_ask = amm.ask_price(reserve_price)?;
-                if limit_price >= amm_ask {
-                    limit_price = amm_ask.safe_sub(amm.order_tick_size)?;
+                if limit_price >= post_only_boundary {
+                    limit_price = post_only_boundary.safe_sub(amm.order_tick_size)?;
                 }
             }
             PositionDirection::Short => {
-                let amm_bid = amm.bid_price(reserve_price)?;
-                if limit_price <= amm_bid {
-                    limit_price = amm_bid.safe_add(amm.order_tick_size)?;
+                if limit_price <= post_only_boundary {
+                    limit_price = post_only_boundary.safe_add(amm.order_tick_size)?;
                 }
             }
         }
