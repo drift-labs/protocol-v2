@@ -8,8 +8,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Features
+- program: allow user to settle realized pnl in reduce only market status ([#954](https://github.com/drift-labs/protocol-v2/pull/954))
 
 ### Fixes
+
+- program: update spot index twap ts ([#948](https://github.com/drift-labs/protocol-v2/pull/948))
 
 ### Breaking
 

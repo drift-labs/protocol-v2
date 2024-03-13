@@ -6,7 +6,9 @@ use borsh::{BorshDeserialize, BorshSerialize};
 
 use crate::error::{DriftResult, ErrorCode};
 use crate::math::casting::Cast;
-use crate::math::constants::{AMM_RESERVE_PRECISION, MARGIN_PRECISION, SPOT_WEIGHT_PRECISION_U128};
+use crate::math::constants::{
+    AMM_RESERVE_PRECISION, FIVE_MINUTE, MARGIN_PRECISION, ONE_HOUR, SPOT_WEIGHT_PRECISION_U128,
+};
 #[cfg(test)]
 use crate::math::constants::{PRICE_PRECISION_I64, SPOT_CUMULATIVE_INTEREST_PRECISION};
 use crate::math::margin::{
@@ -16,6 +18,7 @@ use crate::math::margin::{
 use crate::math::safe_math::SafeMath;
 use crate::math::spot_balance::{calculate_utilization, get_token_amount, get_token_value};
 
+use crate::math::stats::calculate_new_twap;
 use crate::state::oracle::{HistoricalIndexData, HistoricalOracleData, OracleSource};
 use crate::state::paused_operations::SpotOperation;
 use crate::state::perp_market::{MarketStatus, PoolBalance};
@@ -445,6 +448,52 @@ impl SpotMarket {
         let unhealthy_utilization = 800000; // 80%
         let utilization: u64 = self.get_utilization()?.cast()?;
         Ok(self.utilization_twap <= unhealthy_utilization && utilization <= unhealthy_utilization)
+    }
+
+    pub fn update_historical_index_price(
+        &mut self,
+        best_bid: Option<u64>,
+        best_ask: Option<u64>,
+        now: i64,
+    ) -> DriftResult {
+        let mut mid_price = 0;
+        if let Some(best_bid) = best_bid {
+            self.historical_index_data.last_index_bid_price = best_bid;
+            mid_price += best_bid;
+        }
+
+        if let Some(best_ask) = best_ask {
+            self.historical_index_data.last_index_ask_price = best_ask;
+            mid_price = if mid_price == 0 {
+                best_ask
+            } else {
+                mid_price.safe_add(best_ask)?.safe_div(2)?
+            };
+        }
+
+        self.historical_index_data.last_index_price_twap = calculate_new_twap(
+            mid_price.cast()?,
+            now,
+            self.historical_index_data.last_index_price_twap.cast()?,
+            self.historical_index_data.last_index_price_twap_ts,
+            ONE_HOUR,
+        )?
+        .cast()?;
+
+        self.historical_index_data.last_index_price_twap_5min = calculate_new_twap(
+            mid_price.cast()?,
+            now,
+            self.historical_index_data
+                .last_index_price_twap_5min
+                .cast()?,
+            self.historical_index_data.last_index_price_twap_ts,
+            FIVE_MINUTE as i64,
+        )?
+        .cast()?;
+
+        self.historical_index_data.last_index_price_twap_ts = now;
+
+        Ok(())
     }
 }
 
