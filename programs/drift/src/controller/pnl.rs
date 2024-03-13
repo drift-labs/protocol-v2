@@ -177,7 +177,6 @@ pub fn settle_pnl(
         "Cannot settle pnl under current market = {} status",
         market_index
     )?;
-    
 
     if user.perp_positions[position_index].base_asset_amount != 0 {
         validate!(
@@ -195,7 +194,8 @@ pub fn settle_pnl(
         )?;
     } else {
         validate!(
-            perp_market.status == MarketStatus::Active || perp_market.status == MarketStatus::ReduceOnly,
+            perp_market.status == MarketStatus::Active
+                || perp_market.status == MarketStatus::ReduceOnly,
             ErrorCode::InvalidMarketStatusToSettlePnl,
             "Cannot settle pnl under current market = {} status (neither Active or ReduceOnly)",
             market_index
