@@ -3277,7 +3277,7 @@ pub fn place_spot_order(
         )?;
     }
 
-    validate_spot_margin_trading(user, spot_market_map, oracle_map)?;
+    validate_spot_margin_trading(user, perp_market_map, spot_market_map, oracle_map)?;
 
     if force_reduce_only {
         validate_order_for_force_reduce_only(
