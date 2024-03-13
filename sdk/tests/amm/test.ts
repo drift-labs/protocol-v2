@@ -1193,12 +1193,12 @@ describe('AMM Tests', () => {
 		};
 
 		// good oracle
-		assert(isOracleValid(mockAmm, oraclePriceData, oracleGuardRails, slot + 5));
+		assert(isOracleValid(mockMarket1, oraclePriceData, oracleGuardRails, slot + 5));
 
 		// conf too high
 		assert(
 			!isOracleValid(
-				mockAmm,
+				mockMarket1,
 				{
 					price: new BN(13.553 * PRICE_PRECISION.toNumber()),
 					slot: new BN(slot),
@@ -1213,7 +1213,7 @@ describe('AMM Tests', () => {
 		// not hasSufficientNumberOfDataPoints
 		assert(
 			!isOracleValid(
-				mockAmm,
+				mockMarket1,
 				{
 					price: new BN(13.553 * PRICE_PRECISION.toNumber()),
 					slot: new BN(slot),
@@ -1228,7 +1228,7 @@ describe('AMM Tests', () => {
 		// negative oracle price
 		assert(
 			!isOracleValid(
-				mockAmm,
+				mockMarket1,
 				{
 					price: new BN(-1 * PRICE_PRECISION.toNumber()),
 					slot: new BN(slot),
@@ -1243,7 +1243,7 @@ describe('AMM Tests', () => {
 		// too delayed for amm
 		assert(
 			!isOracleValid(
-				mockAmm,
+				mockMarket1,
 				{
 					price: new BN(13.553 * PRICE_PRECISION.toNumber()),
 					slot: new BN(slot),
@@ -1258,7 +1258,7 @@ describe('AMM Tests', () => {
 		// im passing stale slot (should not call oracle invalid)
 		assert(
 			isOracleValid(
-				mockAmm,
+				mockMarket1,
 				{
 					price: new BN(13.553 * PRICE_PRECISION.toNumber()),
 					slot: new BN(slot + 100),
@@ -1273,7 +1273,7 @@ describe('AMM Tests', () => {
 		// too volatile (more than 5x higher)
 		assert(
 			!isOracleValid(
-				mockAmm,
+				mockMarket1,
 				{
 					price: new BN(113.553 * PRICE_PRECISION.toNumber()),
 					slot: new BN(slot + 5),
@@ -1288,7 +1288,7 @@ describe('AMM Tests', () => {
 		// too volatile (more than 1/5 lower)
 		assert(
 			!isOracleValid(
-				mockAmm,
+				mockMarket1,
 				{
 					price: new BN(0.553 * PRICE_PRECISION.toNumber()),
 					slot: new BN(slot + 5),
