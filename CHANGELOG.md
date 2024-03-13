@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Features
 
+- program: check isolated perp market in validate spot margin trading ([#957](https://github.com/drift-labs/protocol-v2/pull/957))
 - program: improve update prelaunch oracles and add ability to delete ([#956](https://github.com/drift-labs/protocol-v2/pull/956))
 - program: allow user to settle realized pnl in reduce only market status ([#954](https://github.com/drift-labs/protocol-v2/pull/954))
 
