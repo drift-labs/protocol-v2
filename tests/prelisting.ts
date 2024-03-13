@@ -18,6 +18,7 @@ import {
 
 import {
 	initializeQuoteSpotMarket,
+	mockOracle,
 	mockUSDCMint,
 	mockUserUSDCAccount,
 } from './testHelpers';
@@ -209,7 +210,34 @@ describe('prelisting', () => {
 		const price = adminDriftClient.getOracleDataForPerpMarket(0);
 		assert(price.price.eq(new BN(40000000)));
 
-		const markTwap = adminDriftClient.getPerpMarketAccount(0).amm.lastMarkPriceTwap;
+		const markTwap =
+			adminDriftClient.getPerpMarketAccount(0).amm.lastMarkPriceTwap;
 		assert(markTwap.eq(new BN(40000000)));
+	});
+
+	it('delete', async () => {
+		try {
+			await adminDriftClient.deletePrelaunchOracle(0);
+			assert(false);
+		} catch (e) {
+			console.log('Delete successfully failed');
+		}
+
+		const oldOracleKey = adminDriftClient.getPerpMarketAccount(0).amm.oracle;
+
+		const newOracle = await mockOracle(40);
+		await adminDriftClient.updatePerpMarketOracle(
+			0,
+			newOracle,
+			OracleSource.PYTH
+		);
+
+		await adminDriftClient.deletePrelaunchOracle(0);
+
+		const result = await connection.getAccountInfoAndContext(
+			oldOracleKey,
+			'processed'
+		);
+		assert(result.value === null);
 	});
 });

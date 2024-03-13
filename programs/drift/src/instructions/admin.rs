@@ -2468,6 +2468,21 @@ pub fn handle_update_prelaunch_oracle_params<'info>(
     Ok(())
 }
 
+pub fn handle_delete_prelaunch_oracle<'info>(
+    ctx: Context<DeletePrelaunchOracle<'info>>,
+    _perp_market_index: u16,
+) -> Result<()> {
+    let perp_market = ctx.accounts.perp_market.load()?;
+
+    validate!(
+        perp_market.amm.oracle != ctx.accounts.prelaunch_oracle.key(),
+        ErrorCode::DefaultError,
+        "prelaunch oracle currently in use"
+    )?;
+
+    Ok(())
+}
+
 #[derive(Accounts)]
 pub struct Initialize<'info> {
     #[account(mut)]
@@ -2935,6 +2950,28 @@ pub struct UpdatePrelaunchOracleParams<'info> {
     #[account(
         mut,
         constraint = perp_market.load()?.market_index == params.perp_market_index
+    )]
+    pub perp_market: AccountLoader<'info, PerpMarket>,
+    #[account(
+        has_one = admin
+    )]
+    pub state: Box<Account<'info, State>>,
+}
+
+#[derive(Accounts)]
+#[instruction(perp_market_index: u16,)]
+pub struct DeletePrelaunchOracle<'info> {
+    #[account(mut)]
+    pub admin: Signer<'info>,
+    #[account(
+        mut,
+        seeds = [b"prelaunch_oracle".as_ref(), perp_market_index.to_le_bytes().as_ref()],
+        bump,
+        close = admin
+    )]
+    pub prelaunch_oracle: AccountLoader<'info, PrelaunchOracle>,
+    #[account(
+        constraint = perp_market.load()?.market_index == perp_market_index
     )]
     pub perp_market: AccountLoader<'info, PerpMarket>,
     #[account(

@@ -1871,4 +1871,23 @@ export class AdminClient extends DriftClient {
 			},
 		});
 	}
+
+	public async deletePrelaunchOracle(
+		perpMarketIndex: number
+	): Promise<TransactionSignature> {
+		return await this.program.rpc.deletePrelaunchOracle(perpMarketIndex, {
+			accounts: {
+				admin: this.wallet.publicKey,
+				state: await this.getStatePublicKey(),
+				prelaunchOracle: await getPrelaunchOraclePublicKey(
+					this.program.programId,
+					perpMarketIndex
+				),
+				perpMarket: await getPerpMarketPublicKey(
+					this.program.programId,
+					perpMarketIndex
+				),
+			},
+		});
+	}
 }

@@ -5012,6 +5012,37 @@
           }
         }
       ]
+    },
+    {
+      "name": "deletePrelaunchOracle",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "prelaunchOracle",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "perpMarket",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "perpMarketIndex",
+          "type": "u16"
+        }
+      ]
     }
   ],
   "accounts": [
