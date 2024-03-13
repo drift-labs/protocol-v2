@@ -747,7 +747,7 @@ pub fn validate_spot_margin_trading(
     }
 
     for perp_position in &user.perp_positions {
-        if perp_position.is_open_position() {
+        if !perp_position.is_available() {
             let perp_market = perp_market_map.get_ref(&perp_position.market_index)?;
 
             validate!(
