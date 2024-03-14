@@ -1575,18 +1575,17 @@ export class AdminClient extends DriftClient {
 	public async updatePerpAuctionDuration(
 		minDuration: BN | number
 	): Promise<TransactionSignature> {
-
-		const updatePerpAuctionDurationIx = 
+		const updatePerpAuctionDurationIx =
 			await this.program.instruction.updatePerpAuctionDuration(
 				typeof minDuration === 'number' ? minDuration : minDuration.toNumber(),
 				{
 					accounts: {
 						admin: this.wallet.publicKey,
-						state: await this.getStatePublicKey()
-					}
+						state: await this.getStatePublicKey(),
+					},
 				}
 			);
-		
+
 		const tx = await this.buildTransaction(updatePerpAuctionDurationIx);
 
 		const { txSig } = await this.sendTransaction(tx, [], this.opts);
@@ -1597,15 +1596,14 @@ export class AdminClient extends DriftClient {
 	public async updateSpotAuctionDuration(
 		defaultAuctionDuration: number
 	): Promise<TransactionSignature> {
-
-		const updateSpotAuctionDurationIx = 
+		const updateSpotAuctionDurationIx =
 			await this.program.instruction.updateSpotAuctionDuration(
 				defaultAuctionDuration,
 				{
 					accounts: {
 						admin: this.wallet.publicKey,
-						state: await this.getStatePublicKey()
-					}
+						state: await this.getStatePublicKey(),
+					},
 				}
 			);
 
@@ -1620,8 +1618,7 @@ export class AdminClient extends DriftClient {
 		perpMarketIndex: number,
 		maxBaseAssetAmountRatio: number
 	): Promise<TransactionSignature> {
-
-		const updatePerpMarketMaxFillReserveFractionIx = 
+		const updatePerpMarketMaxFillReserveFractionIx =
 			await this.program.instruction.updatePerpMarketMaxFillReserveFraction(
 				maxBaseAssetAmountRatio,
 				{
@@ -1632,11 +1629,13 @@ export class AdminClient extends DriftClient {
 							this.program.programId,
 							perpMarketIndex
 						),
-					}
+					},
 				}
 			);
-		
-		const tx = await this.buildTransaction(updatePerpMarketMaxFillReserveFractionIx);
+
+		const tx = await this.buildTransaction(
+			updatePerpMarketMaxFillReserveFractionIx
+		);
 
 		const { txSig } = await this.sendTransaction(tx, [], this.opts);
 
@@ -1647,8 +1646,7 @@ export class AdminClient extends DriftClient {
 		perpMarketIndex: number,
 		maxSlippageRatio: number
 	): Promise<TransactionSignature> {
-
-		const updateMaxSlippageRatioIx = 
+		const updateMaxSlippageRatioIx =
 			await this.program.instruction.updateMaxSlippageRatio(maxSlippageRatio, {
 				accounts: {
 					admin: this.wallet.publicKey,
@@ -1669,8 +1667,7 @@ export class AdminClient extends DriftClient {
 		unrealizedInitialAssetWeight: number,
 		unrealizedMaintenanceAssetWeight: number
 	): Promise<TransactionSignature> {
-
-		const updatePerpMarketUnrealizedAssetWeightIx = 
+		const updatePerpMarketUnrealizedAssetWeightIx =
 			await this.program.instruction.updatePerpMarketUnrealizedAssetWeight(
 				unrealizedInitialAssetWeight,
 				unrealizedMaintenanceAssetWeight,
@@ -1686,7 +1683,9 @@ export class AdminClient extends DriftClient {
 				}
 			);
 
-		const tx = await this.buildTransaction(updatePerpMarketUnrealizedAssetWeightIx);
+		const tx = await this.buildTransaction(
+			updatePerpMarketUnrealizedAssetWeightIx
+		);
 
 		const { txSig } = await this.sendTransaction(tx, [], this.opts);
 
@@ -1699,7 +1698,6 @@ export class AdminClient extends DriftClient {
 		maxRevenueWithdrawPerPeriod: BN,
 		quoteMaxInsurance: BN
 	): Promise<TransactionSignature> {
-
 		const updatePerpMarketMaxImabalancesIx =
 			await this.program.instruction.updatePerpMarketMaxImbalances(
 				unrealizedMaxImbalance,
@@ -1728,18 +1726,20 @@ export class AdminClient extends DriftClient {
 		perpMarketIndex: number,
 		maxOpenInterest: BN
 	): Promise<TransactionSignature> {
-
-		const updatePerpMarketMaxOpenInterestIx = 
-			await this.program.instruction.updatePerpMarketMaxOpenInterest(maxOpenInterest, {
-				accounts: {
-					admin: this.wallet.publicKey,
-					state: await this.getStatePublicKey(),
-					perpMarket: await getPerpMarketPublicKey(
-						this.program.programId,
-						perpMarketIndex
-					),
-				},
-			});
+		const updatePerpMarketMaxOpenInterestIx =
+			await this.program.instruction.updatePerpMarketMaxOpenInterest(
+				maxOpenInterest,
+				{
+					accounts: {
+						admin: this.wallet.publicKey,
+						state: await this.getStatePublicKey(),
+						perpMarket: await getPerpMarketPublicKey(
+							this.program.programId,
+							perpMarketIndex
+						),
+					},
+				}
+			);
 
 		const tx = await this.buildTransaction(updatePerpMarketMaxOpenInterestIx);
 
@@ -1752,18 +1752,20 @@ export class AdminClient extends DriftClient {
 		perpMarketIndex: number,
 		feeAdjustment: number
 	): Promise<TransactionSignature> {
-
-		const updatepPerpMarketFeeAdjustmentIx = 
-			await this.program.instruction.updatePerpMarketFeeAdjustment(feeAdjustment, {
-				accounts: {
-					admin: this.wallet.publicKey,
-					state: await this.getStatePublicKey(),
-					perpMarket: await getPerpMarketPublicKey(
-						this.program.programId,
-						perpMarketIndex
-					),
-				},
-			});
+		const updatepPerpMarketFeeAdjustmentIx =
+			await this.program.instruction.updatePerpMarketFeeAdjustment(
+				feeAdjustment,
+				{
+					accounts: {
+						admin: this.wallet.publicKey,
+						state: await this.getStatePublicKey(),
+						perpMarket: await getPerpMarketPublicKey(
+							this.program.programId,
+							perpMarketIndex
+						),
+					},
+				}
+			);
 
 		const tx = await this.buildTransaction(updatepPerpMarketFeeAdjustmentIx);
 
@@ -1775,15 +1777,16 @@ export class AdminClient extends DriftClient {
 	public async updateSerumVault(
 		srmVault: PublicKey
 	): Promise<TransactionSignature> {
-
-		const updateSerumVaultIx = 
-			await this.program.instruction.updateSerumVault(srmVault, {
+		const updateSerumVaultIx = await this.program.instruction.updateSerumVault(
+			srmVault,
+			{
 				accounts: {
 					admin: this.wallet.publicKey,
 					state: await this.getStatePublicKey(),
 					srmVault: srmVault,
 				},
-			});
+			}
+		);
 
 		const tx = await this.buildTransaction(updateSerumVaultIx);
 
@@ -1797,8 +1800,7 @@ export class AdminClient extends DriftClient {
 		liquidatorFee: number,
 		ifLiquidationFee: number
 	): Promise<TransactionSignature> {
-
-		const updatePerpMarketLiquidationFeeIx = 
+		const updatePerpMarketLiquidationFeeIx =
 			await this.program.instruction.updatePerpMarketLiquidationFee(
 				liquidatorFee,
 				ifLiquidationFee,
@@ -1826,8 +1828,7 @@ export class AdminClient extends DriftClient {
 		liquidatorFee: number,
 		ifLiquidationFee: number
 	): Promise<TransactionSignature> {
-
-		const updateSpotMarketLiquidationFeeIx = 
+		const updateSpotMarketLiquidationFeeIx =
 			await this.program.instruction.updateSpotMarketLiquidationFee(
 				liquidatorFee,
 				ifLiquidationFee,
@@ -1851,19 +1852,21 @@ export class AdminClient extends DriftClient {
 	}
 
 	public async initializeProtocolIfSharesTransferConfig(): Promise<TransactionSignature> {
-
-		const initializeProtocolIfSharesTransferConfigIx = 
+		const initializeProtocolIfSharesTransferConfigIx =
 			await this.program.instruction.initializeProtocolIfSharesTransferConfig({
 				accounts: {
 					admin: this.wallet.publicKey,
 					state: await this.getStatePublicKey(),
 					rent: SYSVAR_RENT_PUBKEY,
 					systemProgram: anchor.web3.SystemProgram.programId,
-					protocolIfSharesTransferConfig: getProtocolIfSharesTransferConfigPublicKey(this.program.programId),
+					protocolIfSharesTransferConfig:
+						getProtocolIfSharesTransferConfigPublicKey(this.program.programId),
 				},
 			});
 
-		const tx = await this.buildTransaction(initializeProtocolIfSharesTransferConfigIx);
+		const tx = await this.buildTransaction(
+			initializeProtocolIfSharesTransferConfigIx
+		);
 
 		const { txSig } = await this.sendTransaction(tx, [], this.opts);
 
@@ -1874,8 +1877,7 @@ export class AdminClient extends DriftClient {
 		whitelistedSigners?: PublicKey[],
 		maxTransferPerEpoch?: BN
 	): Promise<TransactionSignature> {
-
-		const updateProtocolIfSharesTransferConfigIx = 
+		const updateProtocolIfSharesTransferConfigIx =
 			await this.program.instruction.updateProtocolIfSharesTransferConfig(
 				whitelistedSigners || null,
 				maxTransferPerEpoch,
@@ -1883,12 +1885,17 @@ export class AdminClient extends DriftClient {
 					accounts: {
 						admin: this.wallet.publicKey,
 						state: await this.getStatePublicKey(),
-						protocolIfSharesTransferConfig: getProtocolIfSharesTransferConfigPublicKey(this.program.programId),
+						protocolIfSharesTransferConfig:
+							getProtocolIfSharesTransferConfigPublicKey(
+								this.program.programId
+							),
 					},
 				}
 			);
 
-		const tx = await this.buildTransaction(updateProtocolIfSharesTransferConfigIx);
+		const tx = await this.buildTransaction(
+			updateProtocolIfSharesTransferConfigIx
+		);
 
 		const { txSig } = await this.sendTransaction(tx, [], this.opts);
 
@@ -1906,7 +1913,7 @@ export class AdminClient extends DriftClient {
 			maxPrice: maxPrice || null,
 		};
 
-		const initializePrelaunchOracleIx = 
+		const initializePrelaunchOracleIx =
 			await this.program.instruction.initializePrelaunchOracle(params, {
 				accounts: {
 					admin: this.wallet.publicKey,
