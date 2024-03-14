@@ -145,6 +145,7 @@ pub fn settle_pnl(
                     .amm
                     .historical_oracle_data
                     .last_oracle_price_twap,
+                perp_market.get_max_confidence_interval_multiplier()?,
             )?;
 
             if !is_oracle_valid_for_action(oracle_validity, Some(DriftAction::SettlePnl))?
@@ -171,13 +172,6 @@ pub fn settle_pnl(
     }
 
     validate!(
-        perp_market.status == MarketStatus::Active,
-        ErrorCode::InvalidMarketStatusToSettlePnl,
-        "Cannot settle pnl under current market = {} status",
-        market_index
-    )?;
-
-    validate!(
         !perp_market.is_operation_paused(PerpOperation::SettlePnl),
         ErrorCode::InvalidMarketStatusToSettlePnl,
         "Cannot settle pnl under current market = {} status",
@@ -188,7 +182,22 @@ pub fn settle_pnl(
         validate!(
             !perp_market.is_operation_paused(PerpOperation::SettlePnlWithPosition),
             ErrorCode::InvalidMarketStatusToSettlePnl,
-            "Cannot settle pnl with position under current market = {} status",
+            "Cannot settle pnl with position under current market = {} operation paused",
+            market_index
+        )?;
+
+        validate!(
+            perp_market.status == MarketStatus::Active,
+            ErrorCode::InvalidMarketStatusToSettlePnl,
+            "Cannot settle pnl with position under non-Active current market = {} status",
+            market_index
+        )?;
+    } else {
+        validate!(
+            perp_market.status == MarketStatus::Active
+                || perp_market.status == MarketStatus::ReduceOnly,
+            ErrorCode::InvalidMarketStatusToSettlePnl,
+            "Cannot settle pnl under current market = {} status (neither Active or ReduceOnly)",
             market_index
         )?;
     }

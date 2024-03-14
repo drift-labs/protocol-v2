@@ -698,6 +698,13 @@ pub mod drift {
         handle_update_perp_market_margin_ratio(ctx, margin_ratio_initial, margin_ratio_maintenance)
     }
 
+    pub fn update_perp_market_funding_period(
+        ctx: Context<AdminUpdatePerpMarket>,
+        funding_period: i64,
+    ) -> Result<()> {
+        handle_update_perp_market_funding_period(ctx, funding_period)
+    }
+
     pub fn update_perp_market_max_imbalances(
         ctx: Context<AdminUpdatePerpMarket>,
         unrealized_max_imbalance: u64,
@@ -1163,6 +1170,13 @@ pub mod drift {
         params: PrelaunchOracleParams,
     ) -> Result<()> {
         handle_update_prelaunch_oracle_params(ctx, params)
+    }
+
+    pub fn delete_prelaunch_oracle(
+        ctx: Context<DeletePrelaunchOracle>,
+        perp_market_index: u16,
+    ) -> Result<()> {
+        handle_delete_prelaunch_oracle(ctx, perp_market_index)
     }
 }
 

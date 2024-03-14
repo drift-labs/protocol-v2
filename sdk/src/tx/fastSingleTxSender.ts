@@ -145,11 +145,6 @@ export class FastSingleTxSender extends BaseTxSender {
 			throw e;
 		}
 
-		this.connection.sendRawTransaction(rawTransaction, opts).catch((e) => {
-			console.error(e);
-		});
-		this.sendToAdditionalConnections(rawTransaction, opts);
-
 		let slot: number;
 		if (!this.skipConfirmation) {
 			try {

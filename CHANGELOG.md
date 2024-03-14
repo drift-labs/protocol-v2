@@ -8,13 +8,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Features
+- program: skip isolated tier for auction start/end sanitize ([#958](https://github.com/drift-labs/protocol-v2/pull/958))
 
+- program: check isolated perp market in validate spot margin trading ([#957](https://github.com/drift-labs/protocol-v2/pull/957))
+- program: improve update prelaunch oracles and add ability to delete ([#956](https://github.com/drift-labs/protocol-v2/pull/956))
+- program: allow user to settle realized pnl in reduce only market status ([#954](https://github.com/drift-labs/protocol-v2/pull/954))
+
+### Fixes
+
+- program: update spot index twap ts ([#948](https://github.com/drift-labs/protocol-v2/pull/948))
+
+### Breaking
+
+## [2.71.0] - 2023-03-11
+
+### Features
+
+- program: add back switchboard without cargo dependency ([#943](https://github.com/drift-labs/protocol-v2/pull/943))
+- program: add admin fn to update funding period
 - program: add prelaunch oracles ([#910](https://github.com/drift-labs/protocol-v2/pull/910))
 - program: make isolated perp contract tier more ergonomic ([#913](https://github.com/drift-labs/protocol-v2/pull/913))
+- program: add per market tier confidence interval guard ([#945](https://github.com/drift-labs/protocol-v2/pull/945))
 
 ### Fixes
 
 ### Breaking
+
+- sdk: account for max confidence in isOracleValid ([#949](https://github.com/drift-labs/protocol-v2/pull/949))
 
 ## [2.70.0] - 2023-03-07
 

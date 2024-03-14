@@ -34,8 +34,9 @@ use crate::state::fulfillment_params::serum::SerumContext;
 use crate::state::fulfillment_params::serum::SerumV3FulfillmentConfig;
 use crate::state::insurance_fund_stake::ProtocolIfSharesTransferConfig;
 use crate::state::oracle::{
-    get_oracle_price, get_prelaunch_price, get_pyth_price, HistoricalIndexData,
-    HistoricalOracleData, OraclePriceData, OracleSource, PrelaunchOracle, PrelaunchOracleParams,
+    get_oracle_price, get_prelaunch_price, get_pyth_price, get_switchboard_price,
+    HistoricalIndexData, HistoricalOracleData, OraclePriceData, OracleSource, PrelaunchOracle,
+    PrelaunchOracleParams,
 };
 use crate::state::paused_operations::{PerpOperation, SpotOperation};
 use crate::state::perp_market::{
@@ -569,8 +570,13 @@ pub fn handle_initialize_perp_market(
             (oracle_price, oracle_delay, QUOTE_PRECISION_I64)
         }
         OracleSource::Switchboard => {
-            msg!("Switchboard oracle cant be used for perp market");
-            return Err(ErrorCode::InvalidOracle.into());
+            let OraclePriceData {
+                price: oracle_price,
+                delay: oracle_delay,
+                ..
+            } = get_switchboard_price(&ctx.accounts.oracle, clock_slot)?;
+
+            (oracle_price, oracle_delay, oracle_price)
         }
         OracleSource::QuoteAsset => {
             msg!("Quote asset oracle cant be used for perp market");
@@ -1359,6 +1365,7 @@ pub fn handle_reset_amm_oracle_twap(ctx: Context<RepegCurve>) -> Result<()> {
             .last_oracle_price_twap,
         oracle_price_data,
         &state.oracle_guard_rails.validity,
+        perp_market.get_max_confidence_interval_multiplier()?,
         true,
     )?;
 
@@ -1397,6 +1404,21 @@ pub fn handle_update_perp_market_margin_ratio(
 
     perp_market.margin_ratio_initial = margin_ratio_initial;
     perp_market.margin_ratio_maintenance = margin_ratio_maintenance;
+    Ok(())
+}
+
+#[access_control(
+    perp_market_valid(&ctx.accounts.perp_market)
+)]
+pub fn handle_update_perp_market_funding_period(
+    ctx: Context<AdminUpdatePerpMarket>,
+    funding_period: i64,
+) -> Result<()> {
+    let perp_market = &mut load_mut!(ctx.accounts.perp_market)?;
+
+    validate!(funding_period >= 0, ErrorCode::DefaultError)?;
+
+    perp_market.amm.funding_period = funding_period;
     Ok(())
 }
 
@@ -2418,17 +2440,45 @@ pub fn handle_update_prelaunch_oracle_params<'info>(
     params: PrelaunchOracleParams,
 ) -> Result<()> {
     let mut oracle = ctx.accounts.prelaunch_oracle.load_mut()?;
-
-    oracle.perp_market_index = params.perp_market_index;
+    let mut perp_market = ctx.accounts.perp_market.load_mut()?;
+    let now = Clock::get()?.unix_timestamp;
 
     if let Some(price) = params.price {
         oracle.price = price;
+
+        msg!("before mark twap ts = {:?} mark twap = {:?} mark twap 5min = {:?} bid twap = {:?} ask twap {:?}", perp_market.amm.last_mark_price_twap_ts, perp_market.amm.last_mark_price_twap, perp_market.amm.last_mark_price_twap_5min, perp_market.amm.last_bid_price_twap, perp_market.amm.last_ask_price_twap);
+
+        perp_market.amm.last_mark_price_twap_ts = now;
+        perp_market.amm.last_mark_price_twap = price.cast()?;
+        perp_market.amm.last_mark_price_twap_5min = price.cast()?;
+        perp_market.amm.last_bid_price_twap =
+            perp_market.amm.last_bid_price_twap.min(price.cast()?);
+        perp_market.amm.last_ask_price_twap =
+            perp_market.amm.last_ask_price_twap.max(price.cast()?);
+
+        msg!("after mark twap ts = {:?} mark twap = {:?} mark twap 5min = {:?} bid twap = {:?} ask twap {:?}", perp_market.amm.last_mark_price_twap_ts, perp_market.amm.last_mark_price_twap, perp_market.amm.last_mark_price_twap_5min, perp_market.amm.last_bid_price_twap, perp_market.amm.last_ask_price_twap);
     }
+
     if let Some(max_price) = params.max_price {
         oracle.max_price = max_price;
     }
 
     oracle.validate()?;
+
+    Ok(())
+}
+
+pub fn handle_delete_prelaunch_oracle<'info>(
+    ctx: Context<DeletePrelaunchOracle<'info>>,
+    _perp_market_index: u16,
+) -> Result<()> {
+    let perp_market = ctx.accounts.perp_market.load()?;
+
+    validate!(
+        perp_market.amm.oracle != ctx.accounts.prelaunch_oracle.key(),
+        ErrorCode::DefaultError,
+        "prelaunch oracle currently in use"
+    )?;
 
     Ok(())
 }
@@ -2897,6 +2947,33 @@ pub struct UpdatePrelaunchOracleParams<'info> {
         bump,
     )]
     pub prelaunch_oracle: AccountLoader<'info, PrelaunchOracle>,
+    #[account(
+        mut,
+        constraint = perp_market.load()?.market_index == params.perp_market_index
+    )]
+    pub perp_market: AccountLoader<'info, PerpMarket>,
+    #[account(
+        has_one = admin
+    )]
+    pub state: Box<Account<'info, State>>,
+}
+
+#[derive(Accounts)]
+#[instruction(perp_market_index: u16,)]
+pub struct DeletePrelaunchOracle<'info> {
+    #[account(mut)]
+    pub admin: Signer<'info>,
+    #[account(
+        mut,
+        seeds = [b"prelaunch_oracle".as_ref(), perp_market_index.to_le_bytes().as_ref()],
+        bump,
+        close = admin
+    )]
+    pub prelaunch_oracle: AccountLoader<'info, PrelaunchOracle>,
+    #[account(
+        constraint = perp_market.load()?.market_index == perp_market_index
+    )]
+    pub perp_market: AccountLoader<'info, PerpMarket>,
     #[account(
         has_one = admin
     )]

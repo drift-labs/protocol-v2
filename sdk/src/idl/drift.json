@@ -1,5 +1,5 @@
 {
-  "version": "2.70.0",
+  "version": "2.71.0",
   "name": "drift",
   "instructions": [
     {
@@ -3337,6 +3337,32 @@
       ]
     },
     {
+      "name": "updatePerpMarketFundingPeriod",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "perpMarket",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "fundingPeriod",
+          "type": "i64"
+        }
+      ]
+    },
+    {
       "name": "updatePerpMarketMaxImbalances",
       "accounts": [
         {
@@ -4968,6 +4994,11 @@
           "isSigner": false
         },
         {
+          "name": "perpMarket",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
           "name": "state",
           "isMut": false,
           "isSigner": false
@@ -4979,6 +5010,37 @@
           "type": {
             "defined": "PrelaunchOracleParams"
           }
+        }
+      ]
+    },
+    {
+      "name": "deletePrelaunchOracle",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "prelaunchOracle",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "perpMarket",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "perpMarketIndex",
+          "type": "u16"
         }
       ]
     }
@@ -8560,6 +8622,9 @@
           },
           {
             "name": "UpdateAMMCurve"
+          },
+          {
+            "name": "OracleOrderPrice"
           }
         ]
       }

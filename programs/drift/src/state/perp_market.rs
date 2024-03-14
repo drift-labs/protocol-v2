@@ -27,7 +27,9 @@ use crate::math::safe_math::SafeMath;
 use crate::math::stats;
 use crate::state::events::OrderActionExplanation;
 
-use crate::state::oracle::{get_prelaunch_price, HistoricalOracleData, OracleSource};
+use crate::state::oracle::{
+    get_prelaunch_price, get_switchboard_price, HistoricalOracleData, OracleSource,
+};
 use crate::state::spot_market::{AssetTier, SpotBalance, SpotBalanceType};
 use crate::state::traits::{MarketIndexOffset, Size};
 use borsh::{BorshDeserialize, BorshSerialize};
@@ -330,6 +332,17 @@ impl PerpMarket {
         }
 
         Ok(false)
+    }
+
+    pub fn get_max_confidence_interval_multiplier(self) -> DriftResult<u64> {
+        // assuming validity_guard_rails max confidence pct is 2%
+        Ok(match self.contract_tier {
+            ContractTier::A => 1,            // 2%
+            ContractTier::B => 1,            // 2%
+            ContractTier::C => 2,            // 4%
+            ContractTier::Speculative => 10, // 20%
+            ContractTier::Isolated => 50,    // 100%
+        })
     }
 
     pub fn get_sanitize_clamp_denominator(self) -> DriftResult<Option<i64>> {
@@ -1267,7 +1280,7 @@ impl AMM {
             }
             OracleSource::Pyth1K => Ok(Some(self.get_pyth_twap(price_oracle, 1000)?)),
             OracleSource::Pyth1M => Ok(Some(self.get_pyth_twap(price_oracle, 1000000)?)),
-            OracleSource::Switchboard => Ok(None),
+            OracleSource::Switchboard => Ok(Some(get_switchboard_price(price_oracle, slot)?.price)),
             OracleSource::QuoteAsset => {
                 msg!("Can't get oracle twap for quote asset");
                 Err(ErrorCode::DefaultError)

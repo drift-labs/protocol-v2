@@ -527,6 +527,16 @@ export const MainnetPerpMarkets: PerpMarketConfig[] = [
 		launchTs: 1709136669000,
 		oracleSource: OracleSource.PYTH,
 	},
+	{
+		fullName: 'Wormhole',
+		category: ['Bridge'],
+		symbol: 'W-PERP',
+		baseAssetSymbol: 'W',
+		marketIndex: 27,
+		oracle: new PublicKey('GU6CA7a2KCyhpfqZNb36UAfc9uzKBM8jHjGdt245QhYX'),
+		launchTs: 1710418343000,
+		oracleSource: OracleSource.Prelaunch,
+	},
 ];
 
 export const PerpMarkets: { [key in DriftEnv]: PerpMarketConfig[] } = {

@@ -1,6 +1,6 @@
 [package]
 name = "drift"
-version = "2.70.0"
+version = "2.71.0"
 description = "Created with Anchor"
 edition = "2018"
 
@@ -36,6 +36,7 @@ phoenix-v1 = { git = "https://github.com/drift-labs/phoenix-v1", rev = "bf6b84",
 solana-security-txt = "1.1.0"
 static_assertions = "1.1.0"
 drift-macros = { git = "https://github.com/drift-labs/drift-macros.git", rev = "c57d87" }
+switchboard = { path = "../switchboard", features = ["no-entrypoint"] }
 
 [dev-dependencies]
 bytes = "1.2.0"

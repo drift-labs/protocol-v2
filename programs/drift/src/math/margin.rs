@@ -264,6 +264,7 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
             spot_market.market_index,
             &spot_market.oracle,
             spot_market.historical_oracle_data.last_oracle_price_twap,
+            spot_market.get_max_confidence_interval_multiplier()?,
         )?;
 
         calculation.update_all_oracles_valid(is_oracle_valid_for_action(
@@ -431,6 +432,7 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
                 quote_spot_market
                     .historical_oracle_data
                     .last_oracle_price_twap,
+                quote_spot_market.get_max_confidence_interval_multiplier()?,
             )?;
 
         calculation.update_all_oracles_valid(is_oracle_valid_for_action(
@@ -452,6 +454,7 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
             market.market_index,
             &market.amm.oracle,
             market.amm.historical_oracle_data.last_oracle_price_twap,
+            market.get_max_confidence_interval_multiplier()?,
         )?;
 
         let (
@@ -707,6 +710,7 @@ pub fn calculate_max_withdrawable_amount(
 
 pub fn validate_spot_margin_trading(
     user: &User,
+    perp_market_map: &PerpMarketMap,
     spot_market_map: &SpotMarketMap,
     oracle_map: &mut OracleMap,
 ) -> DriftResult {
@@ -739,6 +743,19 @@ pub fn validate_spot_margin_trading(
                 get_token_value(-bids as i128, spot_market.decimals, oracle_price_data.price)?;
 
             total_open_bids_value = total_open_bids_value.safe_add(open_bids_value)?;
+        }
+    }
+
+    for perp_position in &user.perp_positions {
+        if !perp_position.is_available() {
+            let perp_market = perp_market_map.get_ref(&perp_position.market_index)?;
+
+            validate!(
+                perp_market.contract_tier != ContractTier::Isolated,
+                ErrorCode::IsolatedAssetTierViolation,
+                "Isolated perpetual market = {} doesn't allow margin trading",
+                perp_market.market_index
+            )?;
         }
     }
 
@@ -779,6 +796,7 @@ pub fn calculate_user_equity(
             spot_market.market_index,
             &spot_market.oracle,
             spot_market.historical_oracle_data.last_oracle_price_twap,
+            spot_market.get_max_confidence_interval_multiplier()?,
         )?;
         all_oracles_valid &=
             is_oracle_valid_for_action(oracle_validity, Some(DriftAction::MarginCalc))?;
@@ -807,6 +825,7 @@ pub fn calculate_user_equity(
                     quote_spot_market
                         .historical_oracle_data
                         .last_oracle_price_twap,
+                    quote_spot_market.get_max_confidence_interval_multiplier()?,
                 )?;
 
             all_oracles_valid &=
@@ -820,6 +839,7 @@ pub fn calculate_user_equity(
             market.market_index,
             &market.amm.oracle,
             market.amm.historical_oracle_data.last_oracle_price_twap,
+            market.get_max_confidence_interval_multiplier()?,
         )?;
 
         all_oracles_valid &=

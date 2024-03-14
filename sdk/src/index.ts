@@ -39,6 +39,7 @@ export * from './events/eventSubscriber';
 export * from './events/fetchLogs';
 export * from './events/txEventCache';
 export * from './events/webSocketLogProvider';
+export * from './events/parse';
 export * from './events/pollingLogProvider';
 export * from './jupiter/jupiterClient';
 export * from './math/auction';

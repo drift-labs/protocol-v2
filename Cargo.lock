@@ -642,7 +642,7 @@ dependencies = [
 
 [[package]]
 name = "drift"
-version = "2.70.0"
+version = "2.71.0"
 dependencies = [
  "anchor-lang",
  "anchor-spl",
@@ -663,6 +663,7 @@ dependencies = [
  "solana-program",
  "solana-security-txt",
  "static_assertions",
+ "switchboard",
  "thiserror",
  "uint",
 ]
@@ -1963,6 +1964,14 @@ name = "subtle"
 version = "2.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6bdef32e8150c2a081110b42772ffe7d7c9032b606bc226c8260fd97e0976601"
+
+[[package]]
+name = "switchboard"
+version = "0.1.0"
+dependencies = [
+ "anchor-lang",
+ "base64 0.13.0",
+]
 
 [[package]]
 name = "syn"
