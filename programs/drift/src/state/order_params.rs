@@ -6,7 +6,7 @@ use crate::math::safe_unwrap::SafeUnwrap;
 use crate::state::events::OrderActionExplanation;
 use crate::state::perp_market::{ContractTier, PerpMarket};
 use crate::state::user::{MarketType, OrderTriggerCondition, OrderType};
-use crate::{PERCENTAGE_PRECISION_U64, PRICE_PRECISION_I64};
+use crate::{OracleSource, PERCENTAGE_PRECISION_U64, PRICE_PRECISION_I64};
 use anchor_lang::prelude::*;
 use borsh::{BorshDeserialize, BorshSerialize};
 use std::ops::Div;
@@ -208,7 +208,7 @@ impl OrderParams {
             return Ok(());
         }
         // only update auction start price if the contract tier isn't Isolated
-        if perp_market.contract_tier != ContractTier::Isolated {
+        if perp_market.amm.oracle_source != OracleSource::Prelaunch {
             let new_start_price_offset =
                 OrderParams::get_perp_baseline_start_price_offset(perp_market, self.direction)?;
             match self.direction {
