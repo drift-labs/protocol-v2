@@ -1446,7 +1446,7 @@ export class AdminClient extends DriftClient {
 		status: SpotFulfillmentConfigStatus
 	): Promise<TransactionSignature> {
 		const updatePhoenixFulfillmentConfigStatusIx = 
-			await this.program.instruction.updatePhoenixFulfillmentConfigStatus(status, {
+			await this.program.instruction.phoenixFulfillmentConfigStatus(status, {
 				accounts: {
 					admin: this.wallet.publicKey,
 					state: await this.getStatePublicKey(),
