@@ -11,6 +11,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixes
 
+### Breaking
+
+
+## [2.73.0] - 2023-03-15
+
+### Features
+
+### Fixes
+
 - program: fix checking isolated tier in validate spot margin trading
 
 ### Breaking
