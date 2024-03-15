@@ -1180,16 +1180,23 @@ export class AdminClient extends DriftClient {
 		perpMarketIndex: number,
 		orderSize: BN
 	): Promise<TransactionSignature> {
-		return await this.program.rpc.updatePerpMarketMinOrderSize(orderSize, {
-			accounts: {
-				admin: this.wallet.publicKey,
-				state: await this.getStatePublicKey(),
-				perpMarket: await getPerpMarketPublicKey(
-					this.program.programId,
-					perpMarketIndex
-				),
-			},
-		});
+		const updatePerpMarketMinOrderSizeIx =
+			await this.program.instruction.updatePerpMarketMinOrderSize(orderSize, {
+				accounts: {
+					admin: this.wallet.publicKey,
+					state: await this.getStatePublicKey(),
+					perpMarket: await getPerpMarketPublicKey(
+						this.program.programId,
+						perpMarketIndex
+					),
+				},
+			});
+
+		const tx = await this.buildTransaction(updatePerpMarketMinOrderSizeIx);
+
+		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+
+		return txSig;
 	}
 
 	public async updateSpotMarketStepSizeAndTickSize(
@@ -1197,10 +1204,37 @@ export class AdminClient extends DriftClient {
 		stepSize: BN,
 		tickSize: BN
 	): Promise<TransactionSignature> {
-		return await this.program.rpc.updateSpotMarketStepSizeAndTickSize(
-			stepSize,
-			tickSize,
-			{
+		const updateSpotMarketStepSizeAndTickSizeIx =
+			await this.program.instruction.updateSpotMarketStepSizeAndTickSize(
+				stepSize,
+				tickSize,
+				{
+					accounts: {
+						admin: this.wallet.publicKey,
+						state: await this.getStatePublicKey(),
+						spotMarket: await getSpotMarketPublicKey(
+							this.program.programId,
+							spotMarketIndex
+						),
+					},
+				}
+			);
+
+		const tx = await this.buildTransaction(
+			updateSpotMarketStepSizeAndTickSizeIx
+		);
+
+		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+
+		return txSig;
+	}
+
+	public async updateSpotMarketMinOrderSize(
+		spotMarketIndex: number,
+		orderSize: BN
+	): Promise<TransactionSignature> {
+		const updateSpotMarketMinOrderSizeIx =
+			await this.program.instruction.updateSpotMarketMinOrderSize(orderSize, {
 				accounts: {
 					admin: this.wallet.publicKey,
 					state: await this.getStatePublicKey(),
@@ -1209,40 +1243,35 @@ export class AdminClient extends DriftClient {
 						spotMarketIndex
 					),
 				},
-			}
-		);
-	}
+			});
 
-	public async updateSpotMarketMinOrderSize(
-		spotMarketIndex: number,
-		orderSize: BN
-	): Promise<TransactionSignature> {
-		return await this.program.rpc.updateSpotMarketMinOrderSize(orderSize, {
-			accounts: {
-				admin: this.wallet.publicKey,
-				state: await this.getStatePublicKey(),
-				spotMarket: await getSpotMarketPublicKey(
-					this.program.programId,
-					spotMarketIndex
-				),
-			},
-		});
+		const tx = await this.buildTransaction(updateSpotMarketMinOrderSizeIx);
+
+		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+
+		return txSig;
 	}
 
 	public async updatePerpMarketExpiry(
 		perpMarketIndex: number,
 		expiryTs: BN
 	): Promise<TransactionSignature> {
-		return await this.program.rpc.updatePerpMarketExpiry(expiryTs, {
-			accounts: {
-				admin: this.wallet.publicKey,
-				state: await this.getStatePublicKey(),
-				perpMarket: await getPerpMarketPublicKey(
-					this.program.programId,
-					perpMarketIndex
-				),
-			},
-		});
+		const updatePerpMarketExpiryIx =
+			await this.program.instruction.updatePerpMarketExpiry(expiryTs, {
+				accounts: {
+					admin: this.wallet.publicKey,
+					state: await this.getStatePublicKey(),
+					perpMarket: await getPerpMarketPublicKey(
+						this.program.programId,
+						perpMarketIndex
+					),
+				},
+			});
+		const tx = await this.buildTransaction(updatePerpMarketExpiryIx);
+
+		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+
+		return txSig;
 	}
 
 	public async updateSpotMarketOracle(
@@ -1945,11 +1974,17 @@ export class AdminClient extends DriftClient {
 			maxPrice: maxPrice || null,
 		};
 
+		const perpMarketPublicKey = await getPerpMarketPublicKey(
+			this.program.programId,
+			perpMarketIndex
+		);
+
 		const updatePrelaunchOracleParamsIx =
 			await this.program.instruction.updatePrelaunchOracleParams(params, {
 				accounts: {
 					admin: this.wallet.publicKey,
 					state: await this.getStatePublicKey(),
+					perpMarket: perpMarketPublicKey,
 					prelaunchOracle: await getPrelaunchOraclePublicKey(
 						this.program.programId,
 						perpMarketIndex
