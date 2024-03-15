@@ -3096,6 +3096,7 @@ mod validate_spot_margin_trading {
                 ..PerpPosition::default()
             }),
             spot_positions,
+            is_margin_trading_enabled: true,
             ..User::default()
         };
 

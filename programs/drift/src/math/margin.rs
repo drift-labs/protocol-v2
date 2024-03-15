@@ -715,6 +715,19 @@ pub fn validate_spot_margin_trading(
     oracle_map: &mut OracleMap,
 ) -> DriftResult {
     if user.is_margin_trading_enabled {
+        for perp_position in &user.perp_positions {
+            if !perp_position.is_available() {
+                let perp_market = perp_market_map.get_ref(&perp_position.market_index)?;
+
+                validate!(
+                    perp_market.contract_tier != ContractTier::Isolated,
+                    ErrorCode::IsolatedAssetTierViolation,
+                    "Isolated perpetual market = {} doesn't allow margin trading",
+                    perp_market.market_index
+                )?;
+            }
+        }
+
         return Ok(());
     }
 
@@ -743,19 +756,6 @@ pub fn validate_spot_margin_trading(
                 get_token_value(-bids as i128, spot_market.decimals, oracle_price_data.price)?;
 
             total_open_bids_value = total_open_bids_value.safe_add(open_bids_value)?;
-        }
-    }
-
-    for perp_position in &user.perp_positions {
-        if !perp_position.is_available() {
-            let perp_market = perp_market_map.get_ref(&perp_position.market_index)?;
-
-            validate!(
-                perp_market.contract_tier != ContractTier::Isolated,
-                ErrorCode::IsolatedAssetTierViolation,
-                "Isolated perpetual market = {} doesn't allow margin trading",
-                perp_market.market_index
-            )?;
         }
     }
 
