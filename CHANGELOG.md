@@ -13,6 +13,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Breaking
 
+
+## [2.73.0] - 2023-03-15
+
+### Features
+
+### Fixes
+
+- program: fix checking isolated tier in validate spot margin trading
+
+### Breaking
+
+
+## [2.72.0] - 2023-03-14
+
+### Features
+- program: skip isolated tier for auction start/end sanitize ([#958](https://github.com/drift-labs/protocol-v2/pull/958))
+
+- program: check isolated perp market in validate spot margin trading ([#957](https://github.com/drift-labs/protocol-v2/pull/957))
+- program: improve update prelaunch oracles and add ability to delete ([#956](https://github.com/drift-labs/protocol-v2/pull/956))
+- program: allow user to settle realized pnl in reduce only market status ([#954](https://github.com/drift-labs/protocol-v2/pull/954))
+
+### Fixes
+
+- program: update spot index twap ts ([#948](https://github.com/drift-labs/protocol-v2/pull/948))
+
+### Breaking
+
 ## [2.71.0] - 2023-03-11
 
 ### Features

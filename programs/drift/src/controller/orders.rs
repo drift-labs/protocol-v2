@@ -30,9 +30,7 @@ use crate::load_mut;
 use crate::math::amm_jit::calculate_amm_jit_liquidity;
 use crate::math::auction::{calculate_auction_params_for_trigger_order, calculate_auction_prices};
 use crate::math::casting::Cast;
-use crate::math::constants::{
-    BASE_PRECISION_U64, FIVE_MINUTE, ONE_HOUR, PERP_DECIMALS, QUOTE_SPOT_MARKET_INDEX,
-};
+use crate::math::constants::{BASE_PRECISION_U64, PERP_DECIMALS, QUOTE_SPOT_MARKET_INDEX};
 use crate::math::fees::{determine_user_fee_tier, ExternalFillFees, FillFees};
 use crate::math::fulfillment::{
     determine_perp_fulfillment_methods, determine_spot_fulfillment_methods,
@@ -45,7 +43,6 @@ use crate::math::matching::{
 use crate::math::oracle::{is_oracle_valid_for_action, DriftAction, OracleValidity};
 use crate::math::safe_math::SafeMath;
 use crate::math::spot_balance::{get_signed_token_amount, get_token_amount};
-use crate::math::stats::calculate_new_twap;
 use crate::math::{amm, fees, margin::*, orders::*};
 use crate::state::order_params::{
     ModifyOrderParams, ModifyOrderPolicy, OrderParams, PlaceOrderOptions, PostOnlyParam,
@@ -3277,7 +3274,7 @@ pub fn place_spot_order(
         )?;
     }
 
-    validate_spot_margin_trading(user, spot_market_map, oracle_map)?;
+    validate_spot_margin_trading(user, perp_market_map, spot_market_map, oracle_map)?;
 
     if force_reduce_only {
         validate_order_for_force_reduce_only(
@@ -4366,45 +4363,7 @@ pub fn fulfill_spot_order_with_external_market(
         taker_base_asset_amount.min(max_base_asset_amount.unwrap_or(u64::MAX));
 
     let (best_bid, best_ask) = fulfillment_params.get_best_bid_and_ask()?;
-
-    let mut mid_price = 0;
-    if let Some(best_bid) = best_bid {
-        base_market.historical_index_data.last_index_bid_price = best_bid;
-        mid_price += best_bid;
-    }
-
-    if let Some(best_ask) = best_ask {
-        base_market.historical_index_data.last_index_ask_price = best_ask;
-        mid_price = if mid_price == 0 {
-            best_ask
-        } else {
-            mid_price.safe_add(best_ask)?.safe_div(2)?
-        };
-    }
-
-    base_market.historical_index_data.last_index_price_twap = calculate_new_twap(
-        mid_price.cast()?,
-        now,
-        base_market
-            .historical_index_data
-            .last_index_price_twap
-            .cast()?,
-        base_market.historical_index_data.last_index_price_twap_ts,
-        ONE_HOUR,
-    )?
-    .cast()?;
-
-    base_market.historical_index_data.last_index_price_twap_5min = calculate_new_twap(
-        mid_price.cast()?,
-        now,
-        base_market
-            .historical_index_data
-            .last_index_price_twap_5min
-            .cast()?,
-        base_market.historical_index_data.last_index_price_twap_ts,
-        FIVE_MINUTE as i64,
-    )?
-    .cast()?;
+    base_market.update_historical_index_price(best_bid, best_ask, now)?;
 
     let taker_price = if let Some(price) = taker_price {
         price

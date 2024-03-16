@@ -122,6 +122,14 @@ export class PriorityFeeSubscriber {
 		return this.maxFeeMicroLamports;
 	}
 
+	public updateMaxPriorityFee(newMaxFee: number | undefined) {
+		this.maxFeeMicroLamports = newMaxFee;
+	}
+
+	public updateCustomStrategy(newStrategy: PriorityFeeStrategy) {
+		this.customStrategy = newStrategy;
+	}
+
 	public getHeliusPriorityFeeLevel(
 		level: HeliusPriorityLevel = HeliusPriorityLevel.MEDIUM
 	): number {

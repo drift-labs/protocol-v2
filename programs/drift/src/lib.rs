@@ -1171,6 +1171,13 @@ pub mod drift {
     ) -> Result<()> {
         handle_update_prelaunch_oracle_params(ctx, params)
     }
+
+    pub fn delete_prelaunch_oracle(
+        ctx: Context<DeletePrelaunchOracle>,
+        perp_market_index: u16,
+    ) -> Result<()> {
+        handle_delete_prelaunch_oracle(ctx, perp_market_index)
+    }
 }
 
 #[cfg(not(feature = "no-entrypoint"))]

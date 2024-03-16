@@ -710,10 +710,24 @@ pub fn calculate_max_withdrawable_amount(
 
 pub fn validate_spot_margin_trading(
     user: &User,
+    perp_market_map: &PerpMarketMap,
     spot_market_map: &SpotMarketMap,
     oracle_map: &mut OracleMap,
 ) -> DriftResult {
     if user.is_margin_trading_enabled {
+        for perp_position in &user.perp_positions {
+            if !perp_position.is_available() {
+                let perp_market = perp_market_map.get_ref(&perp_position.market_index)?;
+
+                validate!(
+                    perp_market.contract_tier != ContractTier::Isolated,
+                    ErrorCode::IsolatedAssetTierViolation,
+                    "Isolated perpetual market = {} doesn't allow margin trading",
+                    perp_market.market_index
+                )?;
+            }
+        }
+
         return Ok(());
     }
 

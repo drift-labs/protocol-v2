@@ -1,5 +1,5 @@
 {
-  "version": "2.71.0",
+  "version": "2.73.0",
   "name": "drift",
   "instructions": [
     {
@@ -4994,6 +4994,11 @@
           "isSigner": false
         },
         {
+          "name": "perpMarket",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
           "name": "state",
           "isMut": false,
           "isSigner": false
@@ -5005,6 +5010,37 @@
           "type": {
             "defined": "PrelaunchOracleParams"
           }
+        }
+      ]
+    },
+    {
+      "name": "deletePrelaunchOracle",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "prelaunchOracle",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "perpMarket",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "perpMarketIndex",
+          "type": "u16"
         }
       ]
     }
