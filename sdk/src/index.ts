@@ -99,5 +99,6 @@ export * from './auctionSubscriber';
 export * from './auctionSubscriber/types';
 export * from './memcmp';
 export * from './decode/user';
+export * from './blockhashSubscriber';
 
 export { BN, PublicKey, pyth };
