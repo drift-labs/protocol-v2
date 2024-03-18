@@ -2007,7 +2007,7 @@ pub fn fulfill_perp_order_with_amm(
     }
 
     if order_post_only {
-        user_stats.update_maker_volume_30d(quote_asset_amount, now)?;
+        user_stats.update_maker_volume(quote_asset_amount, now)?;
     } else {
         user_stats.update_taker_volume_30d(quote_asset_amount, now)?;
     }
@@ -2285,9 +2285,9 @@ pub fn fulfill_perp_order_with_match(
 
     // if maker is none, makes maker and taker authority was the same
     if let Some(maker_stats) = maker_stats {
-        maker_stats.update_maker_volume_30d(quote_asset_amount, now)?;
+        maker_stats.update_maker_volume(quote_asset_amount, now)?;
     } else {
-        taker_stats.update_maker_volume_30d(quote_asset_amount, now)?;
+        taker_stats.update_maker_volume(quote_asset_amount, now)?;
     };
 
     let taker_position_index = get_position_index(
@@ -4241,10 +4241,10 @@ pub fn fulfill_spot_order_with_match(
     )?;
 
     if let Some(maker_stats) = maker_stats {
-        maker_stats.update_maker_volume_30d(quote_asset_amount, now)?;
+        maker_stats.update_maker_volume(quote_asset_amount, now)?;
         maker_stats.increment_total_rebate(maker_rebate)?;
     } else {
-        taker_stats.update_maker_volume_30d(quote_asset_amount, now)?;
+        taker_stats.update_maker_volume(quote_asset_amount, now)?;
         taker_stats.increment_total_rebate(maker_rebate)?;
     }
 
