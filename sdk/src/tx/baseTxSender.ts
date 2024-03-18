@@ -112,7 +112,8 @@ export abstract class BaseTxSender implements TxSender {
 		ixs: TransactionInstruction[],
 		lookupTableAccounts: AddressLookupTableAccount[],
 		additionalSigners?: Array<Signer>,
-		opts?: ConfirmOptions
+		opts?: ConfirmOptions,
+		blockhash?: string
 	): Promise<VersionedTransaction> {
 		if (additionalSigners === undefined) {
 			additionalSigners = [];
@@ -121,11 +122,18 @@ export abstract class BaseTxSender implements TxSender {
 			opts = this.opts;
 		}
 
+		let recentBlockhash = '';
+		if (blockhash) {
+			recentBlockhash = blockhash;
+		} else {
+			recentBlockhash = (
+				await this.connection.getLatestBlockhash(opts.preflightCommitment)
+			).blockhash;
+		}
+
 		const message = new TransactionMessage({
 			payerKey: this.wallet.publicKey,
-			recentBlockhash: (
-				await this.connection.getLatestBlockhash(opts.preflightCommitment)
-			).blockhash,
+			recentBlockhash,
 			instructions: ixs,
 		}).compileToV0Message(lookupTableAccounts);
 
