@@ -1074,6 +1074,43 @@ export class DriftClient {
 		return ix;
 	}
 
+	public async updateUserReduceOnly(
+		updates: { reduceOnly: boolean; subAccountId: number }[]
+	): Promise<TransactionSignature> {
+		const ixs = await Promise.all(
+			updates.map(async ({ reduceOnly, subAccountId }) => {
+				return await this.getUpdateUserReduceOnlyIx(reduceOnly, subAccountId);
+			})
+		);
+
+		const tx = await this.buildTransaction(ixs, this.txParams);
+
+		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+		return txSig;
+	}
+
+	public async getUpdateUserReduceOnlyIx(
+		reduceOnly: boolean,
+		subAccountId: number
+	) {
+		const ix = await this.program.instruction.updateUserReduceOnly(
+			subAccountId,
+			reduceOnly,
+			{
+				accounts: {
+					user: getUserAccountPublicKeySync(
+						this.program.programId,
+						this.wallet.publicKey,
+						subAccountId
+					),
+					authority: this.wallet.publicKey,
+				},
+			}
+		);
+
+		return ix;
+	}
+
 	public async fetchAllUserAccounts(
 		includeIdle = true
 	): Promise<ProgramAccount<UserAccount>[]> {
@@ -3413,9 +3450,8 @@ export class DriftClient {
 		subAccountId?: number
 	): Promise<TransactionInstruction> {
 		orderParams = getOrderParams(orderParams, { marketType: MarketType.SPOT });
-		const userAccountPublicKey = await this.getUserAccountPublicKey(
-			subAccountId
-		);
+		const userAccountPublicKey =
+			await this.getUserAccountPublicKey(subAccountId);
 
 		const remainingAccounts = this.getRemainingAccounts({
 			userAccounts: [this.getUserAccount(subAccountId)],
@@ -4535,9 +4571,8 @@ export class DriftClient {
 		/* Settle PnL after fill if requested */
 		let settlePnlTx: Transaction;
 		if (settlePnl && isVariant(orderParams.marketType, 'perp')) {
-			const userAccountPublicKey = await this.getUserAccountPublicKey(
-				subAccountId
-			);
+			const userAccountPublicKey =
+				await this.getUserAccountPublicKey(subAccountId);
 
 			const settlePnlIx = await this.settlePNLIx(
 				userAccountPublicKey,
@@ -6074,9 +6109,8 @@ export class DriftClient {
 		}
 
 		if (initializeStakeAccount) {
-			const initializeIx = await this.getInitializeInsuranceFundStakeIx(
-				marketIndex
-			);
+			const initializeIx =
+				await this.getInitializeInsuranceFundStakeIx(marketIndex);
 			addIfStakeIxs.push(initializeIx);
 		}
 
