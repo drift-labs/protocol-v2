@@ -1,5 +1,5 @@
 import { DriftClient } from '../driftClient';
-import { UserAccount } from '../types';
+import { UserAccount, MarketType } from '../types';
 import { getUserFilter, getUserWithOrderFilter } from '../memcmp';
 import { Commitment, PublicKey, RpcResponseAndContext } from '@solana/web3.js';
 import { Buffer } from 'buffer';
@@ -28,6 +28,7 @@ export class OrderSubscriber {
 	hasUpdated: boolean;
 	dlob: DLOB;
 	lastSlot: number;
+	perpMarkeIndexs: Array<number>;
 
 	constructor(config: OrderSubscriberConfig) {
 		this.driftClient = config.driftClient;
@@ -236,7 +237,12 @@ export class OrderSubscriber {
 			const dlob = new DLOB();
 			for (const [key, { userAccount }] of this.usersAccounts.entries()) {
 				for (const order of userAccount.orders) {
-					dlob.insertOrder(order, key, slot);
+					if (
+						order.marketType == MarketType.PERP &&
+						this.perpMarkeIndexs.includes(order.marketIndex)
+					) {
+						dlob.insertOrder(order, key, slot);
+					}
 				}
 			}
 			this.dlob = dlob;
