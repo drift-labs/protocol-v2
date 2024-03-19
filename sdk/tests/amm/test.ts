@@ -1193,7 +1193,9 @@ describe('AMM Tests', () => {
 		};
 
 		// good oracle
-		assert(isOracleValid(mockMarket1, oraclePriceData, oracleGuardRails, slot + 5));
+		assert(
+			isOracleValid(mockMarket1, oraclePriceData, oracleGuardRails, slot + 5)
+		);
 
 		// conf too high
 		assert(
