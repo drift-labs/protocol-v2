@@ -25,7 +25,7 @@ use crate::load_mut;
 use crate::math::casting::Cast;
 use crate::math::liquidation::is_user_being_liquidated;
 use crate::math::margin::{
-    calculate_max_withdrawable_amount, meets_initial_margin_requirement,
+    calculate_max_withdrawable_amount, meets_place_order_margin_requirement,
     meets_withdraw_margin_requirement, validate_spot_margin_trading, MarginRequirementType,
 };
 use crate::math::safe_math::SafeMath;
@@ -1691,15 +1691,12 @@ pub fn handle_add_perp_lp_shares<'info>(
     }
 
     // check margin requirements
-    validate!(
-        meets_initial_margin_requirement(
-            user,
-            &perp_market_map,
-            &spot_market_map,
-            &mut oracle_map
-        )?,
-        ErrorCode::InsufficientCollateral,
-        "User does not meet initial margin requirement"
+    meets_place_order_margin_requirement(
+        user,
+        &perp_market_map,
+        &spot_market_map,
+        &mut oracle_map,
+        true,
     )?;
 
     user.update_last_active_slot(clock.slot);
