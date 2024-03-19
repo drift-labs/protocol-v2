@@ -430,7 +430,7 @@ pub fn liquidate_perp(
         .safe_div(LIQUIDATION_FEE_PRECISION_U128)?
         .cast::<i64>()?;
 
-    user_stats.update_taker_volume_30d(base_asset_value, now)?;
+    user_stats.update_taker_volume(base_asset_value, now)?;
     liquidator_stats.update_maker_volume(base_asset_value, now)?;
 
     let user_position_delta = get_position_delta_for_fill(

@@ -2009,7 +2009,7 @@ pub fn fulfill_perp_order_with_amm(
     if order_post_only {
         user_stats.update_maker_volume(quote_asset_amount, now)?;
     } else {
-        user_stats.update_taker_volume_30d(quote_asset_amount, now)?;
+        user_stats.update_taker_volume(quote_asset_amount, now)?;
     }
 
     if let Some(filler) = filler.as_mut() {
@@ -2307,7 +2307,7 @@ pub fn fulfill_perp_order_with_match(
         &taker_position_delta,
     )?;
 
-    taker_stats.update_taker_volume_30d(quote_asset_amount, now)?;
+    taker_stats.update_taker_volume(quote_asset_amount, now)?;
 
     let reward_referrer = can_reward_user_with_perp_pnl(referrer, market.market_index);
     let reward_filler = can_reward_user_with_perp_pnl(filler, market.market_index);
@@ -4197,7 +4197,7 @@ pub fn fulfill_spot_order_with_match(
         base_asset_amount,
     )?;
 
-    taker_stats.update_taker_volume_30d(quote_asset_amount, now)?;
+    taker_stats.update_taker_volume(quote_asset_amount, now)?;
 
     taker_stats.increment_total_fees(taker_fee)?;
 
@@ -4491,7 +4491,7 @@ pub fn fulfill_spot_order_with_external_market(
 
     taker.update_cumulative_spot_fees(-taker_fee.cast()?)?;
 
-    taker_stats.update_taker_volume_30d(quote_asset_amount_filled.cast()?, now)?;
+    taker_stats.update_taker_volume(quote_asset_amount_filled.cast()?, now)?;
 
     taker_stats.increment_total_fees(taker_fee.cast()?)?;
 

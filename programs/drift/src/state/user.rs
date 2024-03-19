@@ -1436,7 +1436,8 @@ pub struct UserStats {
     pub padding1: u16,
     pub cumulative_taker_volume: u64,
     pub cumulative_maker_volume: u64,
-    pub padding: [u8; 32],
+    pub cumulative_filler_volume: u64,
+    pub padding: [u8; 24],
 }
 
 impl Size for UserStats {
@@ -1464,7 +1465,7 @@ impl UserStats {
         Ok(())
     }
 
-    pub fn update_taker_volume_30d(&mut self, quote_asset_amount: u64, now: i64) -> DriftResult {
+    pub fn update_taker_volume(&mut self, quote_asset_amount: u64, now: i64) -> DriftResult {
         let since_last = max(1_i64, now.safe_sub(self.last_taker_volume_30d_ts)?);
 
         self.taker_volume_30d = calculate_rolling_sum(
@@ -1495,6 +1496,12 @@ impl UserStats {
         )?;
 
         self.last_filler_volume_30d_ts = now;
+
+        if now > CUMULATIVE_VOLUME_START_TS {
+            self.cumulative_filler_volume = self
+                .cumulative_filler_volume
+                .saturating_add(quote_asset_amount);
+        }
 
         Ok(())
     }
