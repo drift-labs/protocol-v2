@@ -204,7 +204,8 @@ export class WebSocketDriftClientAccountSubscriber
 	async subscribeToOracle(oracleInfo: OracleInfo): Promise<boolean> {
 		const client = this.oracleClientCache.get(
 			oracleInfo.source,
-			this.program.provider.connection
+			this.program.provider.connection,
+			this.program
 		);
 		const accountSubscriber = new WebSocketAccountSubscriber<OraclePriceData>(
 			'oracle',
@@ -311,7 +312,7 @@ export class WebSocketDriftClientAccountSubscriber
 		return this.subscribeToOracle(oracleInfo);
 	}
 
-	private async setPerpOracleMap() {
+	async setPerpOracleMap() {
 		const perpMarkets = this.getMarketAccountsAndSlots();
 		for (const perpMarket of perpMarkets) {
 			if (!perpMarket) {
@@ -330,7 +331,7 @@ export class WebSocketDriftClientAccountSubscriber
 		}
 	}
 
-	private async setSpotOracleMap() {
+	async setSpotOracleMap() {
 		const spotMarkets = this.getSpotMarketAccountsAndSlots();
 		for (const spotMarket of spotMarkets) {
 			if (!spotMarket) {

@@ -11,6 +11,7 @@ use crate::math::insurance::if_shares_to_vault_amount;
 use crate::math::margin::calculate_user_equity;
 use crate::math::orders::{estimate_price_from_side, find_bids_and_asks_from_users};
 use crate::math::spot_withdraw::validate_spot_market_vault_amount;
+use crate::optional_accounts::update_prelaunch_oracle;
 use crate::state::fill_mode::FillMode;
 use crate::state::fulfillment_params::drift::MatchFulfillmentParams;
 use crate::state::fulfillment_params::phoenix::PhoenixFulfillmentParams;
@@ -32,7 +33,7 @@ use crate::state::state::State;
 use crate::state::user::{MarketType, OrderStatus, User, UserStats};
 use crate::state::user_map::load_user_maps;
 use crate::validation::user::validate_user_is_idle;
-use crate::{controller, load, math};
+use crate::{controller, load, math, OracleSource};
 use crate::{load_mut, QUOTE_PRECISION_U64};
 use crate::{validate, QUOTE_PRECISION_I128};
 
@@ -1214,6 +1215,27 @@ pub fn handle_update_funding_rate(
 }
 
 #[access_control(
+    valid_oracle_for_perp_market(&ctx.accounts.oracle, &ctx.accounts.perp_market)
+)]
+pub fn handle_update_prelaunch_oracle(ctx: Context<UpdatePrelaunchOracle>) -> Result<()> {
+    let clock = Clock::get()?;
+    let clock_slot = clock.slot;
+    let oracle_map = OracleMap::load_one(&ctx.accounts.oracle, clock_slot, None)?;
+
+    let perp_market = &load!(ctx.accounts.perp_market)?;
+
+    validate!(
+        perp_market.amm.oracle_source == OracleSource::Prelaunch,
+        ErrorCode::DefaultError,
+        "wrong oracle source"
+    )?;
+
+    update_prelaunch_oracle(perp_market, &oracle_map, clock_slot)?;
+
+    Ok(())
+}
+
+#[access_control(
     perp_market_valid(&ctx.accounts.perp_market)
     funding_not_paused(&ctx.accounts.state)
     valid_oracle_for_perp_market(&ctx.accounts.oracle, &ctx.accounts.perp_market)
@@ -1807,4 +1829,13 @@ pub struct UpdateUserQuoteAssetInsuranceStake<'info> {
         bump,
     )]
     pub insurance_fund_vault: Box<Account<'info, TokenAccount>>,
+}
+
+#[derive(Accounts)]
+pub struct UpdatePrelaunchOracle<'info> {
+    pub state: Box<Account<'info, State>>,
+    pub perp_market: AccountLoader<'info, PerpMarket>,
+    #[account(mut)]
+    /// CHECK: checked in ix
+    pub oracle: AccountInfo<'info>,
 }

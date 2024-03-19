@@ -257,7 +257,8 @@ export class PollingDriftClientAccountSubscriber
 	async addOracleToAccountLoader(oracleToPoll: OraclesToPoll): Promise<void> {
 		const oracleClient = this.oracleClientCache.get(
 			oracleToPoll.source,
-			this.program.provider.connection
+			this.program.provider.connection,
+			this.program
 		);
 
 		oracleToPoll.callbackId = await this.accountLoader.addAccount(
@@ -316,7 +317,8 @@ export class PollingDriftClientAccountSubscriber
 			if (buffer) {
 				const oracleClient = this.oracleClientCache.get(
 					oracleToPoll.source,
-					this.program.provider.connection
+					this.program.provider.connection,
+					this.program
 				);
 				const oraclePriceData =
 					oracleClient.getOraclePriceDataFromBuffer(buffer);
@@ -432,7 +434,7 @@ export class PollingDriftClientAccountSubscriber
 		console.log(`Pausing to find oracle ${oracle} failed`);
 	}
 
-	private async setPerpOracleMap() {
+	async setPerpOracleMap() {
 		const perpMarkets = this.getMarketAccountsAndSlots();
 		for (const perpMarket of perpMarkets) {
 			const perpMarketAccount = perpMarket.data;
@@ -448,7 +450,7 @@ export class PollingDriftClientAccountSubscriber
 		}
 	}
 
-	private async setSpotOracleMap() {
+	async setSpotOracleMap() {
 		const spotMarkets = this.getSpotMarketAccountsAndSlots();
 		for (const spotMarket of spotMarkets) {
 			const spotMarketAccount = spotMarket.data;
