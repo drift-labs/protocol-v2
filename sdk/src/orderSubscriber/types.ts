@@ -39,4 +39,5 @@ export interface OrderSubscriberEvents {
 		slot: number,
 		dataType: 'raw' | 'decoded'
 	) => void;
+	orderUpdated: () => void;
 }

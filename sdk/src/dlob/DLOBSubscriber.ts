@@ -26,12 +26,15 @@ export class DLOBSubscriber {
 	dlob = new DLOB();
 	public eventEmitter: StrictEventEmitter<EventEmitter, DLOBSubscriberEvents>;
 
+	// private eventEmitterOrderSubscribe: EventEmitter;
+
 	constructor(config: DLOBSubscriptionConfig) {
 		this.driftClient = config.driftClient;
 		this.dlobSource = config.dlobSource;
 		this.slotSource = config.slotSource;
 		this.updateFrequency = config.updateFrequency;
 		this.eventEmitter = new EventEmitter();
+		// this.eventEmitterOrderSubscribe = new EventEmitter();
 	}
 
 	public async subscribe(): Promise<void> {
@@ -41,11 +44,30 @@ export class DLOBSubscriber {
 
 		await this.updateDLOB();
 
+		// console.log("orderUpdated....on begin....")
+		// this.eventEmitterOrderSubscribe.on('orderUpdated', () => {
+		// 	console.log("orderUpdated....on....")
+		// });
+		// console.log("orderUpdated....on end....")
+
 		this.intervalId = setInterval(async () => {
 			try {
+				// console.log(
+				// 	'setInterval for DLOBSubscriber-->updateDLOB:',
+				// 	Date.now(),
+				// 	this.updateFrequency
+				// );
+				// const startTime = Date.now();
 				await this.updateDLOB();
+				// console.log(
+				// 	'Time taken for DLOBSubscriber-->updateDLOB:',
+				// 	Date.now() - startTime,
+				// 	'ms'
+				// );
+
 				this.eventEmitter.emit('update', this.dlob);
 			} catch (e) {
+				console.log('updateDLOB error!!!....:', e);
 				this.eventEmitter.emit('error', e);
 			}
 		}, this.updateFrequency);
