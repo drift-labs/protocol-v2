@@ -6,7 +6,6 @@ use std::u64;
 use anchor_lang::prelude::*;
 use solana_program::msg;
 
-use crate::controller;
 use crate::controller::funding::settle_funding_payment;
 use crate::controller::lp::burn_lp_shares;
 use crate::controller::position;
@@ -47,6 +46,7 @@ use crate::math::{amm, fees, margin::*, orders::*};
 use crate::state::order_params::{
     ModifyOrderParams, ModifyOrderPolicy, OrderParams, PlaceOrderOptions, PostOnlyParam,
 };
+use crate::{controller, PRICE_TIMES_AMM_TO_QUOTE_PRECISION_RATIO};
 
 use crate::math::amm::calculate_amm_available_liquidity;
 use crate::math::lp::calculate_lp_shares_to_burn_for_risk_reduction;
@@ -2007,7 +2007,7 @@ pub fn fulfill_perp_order_with_amm(
     }
 
     if order_post_only {
-        user_stats.update_maker_volume(quote_asset_amount, now)?;
+        user_stats.update_maker_volume(quote_asset_amount as i64, None, now)?;
     } else {
         user_stats.update_taker_volume(quote_asset_amount, now)?;
     }
@@ -2283,11 +2283,37 @@ pub fn fulfill_perp_order_with_match(
         &maker_position_delta,
     )?;
 
+    let baseline_price = oracle_price.safe_add(
+        market
+            .amm
+            .last_mark_price_twap_5min
+            .cast::<i64>()?
+            .safe_sub(
+                market
+                    .amm
+                    .historical_oracle_data
+                    .last_oracle_price_twap_5min
+                    .cast::<i64>()?,
+            )?,
+    )?;
+    let baseline_quote = maker_position_delta
+        .base_asset_amount
+        .safe_mul(baseline_price)?
+        .safe_div(PRICE_TIMES_AMM_TO_QUOTE_PRECISION_RATIO as i64)?;
+
     // if maker is none, makes maker and taker authority was the same
     if let Some(maker_stats) = maker_stats {
-        maker_stats.update_maker_volume(quote_asset_amount, now)?;
+        maker_stats.update_maker_volume(
+            maker_position_delta.quote_asset_amount,
+            Some(baseline_quote),
+            now,
+        )?;
     } else {
-        taker_stats.update_maker_volume(quote_asset_amount, now)?;
+        taker_stats.update_maker_volume(
+            maker_position_delta.quote_asset_amount,
+            Some(baseline_quote),
+            now,
+        )?;
     };
 
     let taker_position_index = get_position_index(
@@ -4241,10 +4267,10 @@ pub fn fulfill_spot_order_with_match(
     )?;
 
     if let Some(maker_stats) = maker_stats {
-        maker_stats.update_maker_volume(quote_asset_amount, now)?;
+        maker_stats.update_maker_volume(quote_asset_amount as i64, None, now)?;
         maker_stats.increment_total_rebate(maker_rebate)?;
     } else {
-        taker_stats.update_maker_volume(quote_asset_amount, now)?;
+        taker_stats.update_maker_volume(quote_asset_amount as i64, None, now)?;
         taker_stats.increment_total_rebate(maker_rebate)?;
     }
 

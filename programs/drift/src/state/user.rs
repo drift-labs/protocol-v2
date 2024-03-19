@@ -1470,7 +1470,7 @@ impl UserStats {
 
         if quote_baseline_amount.is_some() {
             // baseline for quote amount filled
-            let resid = quote_asset_amount.safe_sub(quote_baseline_amount.unwrap())?;
+            let resid = quote_asset_amount.safe_sub(quote_baseline_amount.unwrap_or(0))?;
             self.fill_quality_surplus = self.fill_quality_surplus.saturating_add(resid);
         }
 

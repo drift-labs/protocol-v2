@@ -431,7 +431,7 @@ pub fn liquidate_perp(
         .cast::<i64>()?;
 
     user_stats.update_taker_volume(base_asset_value, now)?;
-    liquidator_stats.update_maker_volume(base_asset_value, now)?;
+    liquidator_stats.update_maker_volume(base_asset_value as i64, None, now)?;
 
     let user_position_delta = get_position_delta_for_fill(
         base_asset_amount,
