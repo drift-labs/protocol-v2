@@ -1074,6 +1074,43 @@ export class DriftClient {
 		return ix;
 	}
 
+	public async updateUserReduceOnly(
+		updates: { reduceOnly: boolean; subAccountId: number }[]
+	): Promise<TransactionSignature> {
+		const ixs = await Promise.all(
+			updates.map(async ({ reduceOnly, subAccountId }) => {
+				return await this.getUpdateUserReduceOnlyIx(reduceOnly, subAccountId);
+			})
+		);
+
+		const tx = await this.buildTransaction(ixs, this.txParams);
+
+		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+		return txSig;
+	}
+
+	public async getUpdateUserReduceOnlyIx(
+		reduceOnly: boolean,
+		subAccountId: number
+	) {
+		const ix = await this.program.instruction.updateUserReduceOnly(
+			subAccountId,
+			reduceOnly,
+			{
+				accounts: {
+					user: getUserAccountPublicKeySync(
+						this.program.programId,
+						this.wallet.publicKey,
+						subAccountId
+					),
+					authority: this.wallet.publicKey,
+				},
+			}
+		);
+
+		return ix;
+	}
+
 	public async fetchAllUserAccounts(
 		includeIdle = true
 	): Promise<ProgramAccount<UserAccount>[]> {
