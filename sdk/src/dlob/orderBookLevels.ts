@@ -219,6 +219,9 @@ export function getVammL2Generator({
 					);
 
 				baseSwapped = bidAmm.baseAssetReserve.sub(afterSwapBaseReserves).abs();
+				if (baseSwapped.eq(ZERO)) {
+					return;
+				}
 				if (remainingBaseLiquidity.lt(baseSwapped)) {
 					baseSwapped = remainingBaseLiquidity;
 					[afterSwapQuoteReserves, afterSwapBaseReserves] =
@@ -299,6 +302,9 @@ export function getVammL2Generator({
 					);
 
 				baseSwapped = askAmm.baseAssetReserve.sub(afterSwapBaseReserves).abs();
+				if (baseSwapped.eq(ZERO)) {
+					return;
+				}
 				if (remainingBaseLiquidity.lt(baseSwapped)) {
 					baseSwapped = remainingBaseLiquidity;
 					[afterSwapQuoteReserves, afterSwapBaseReserves] =
