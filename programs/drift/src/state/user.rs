@@ -1437,7 +1437,8 @@ pub struct UserStats {
     pub cumulative_taker_volume: u64,
     pub cumulative_maker_volume: u64,
     pub cumulative_filler_volume: u64,
-    pub padding: [u8; 24],
+    pub fill_quality_surplus: i64,
+    pub padding: [u8; 16],
 }
 
 impl Size for UserStats {
@@ -1445,12 +1446,17 @@ impl Size for UserStats {
 }
 
 impl UserStats {
-    pub fn update_maker_volume(&mut self, quote_asset_amount: u64, now: i64) -> DriftResult {
+    pub fn update_maker_volume(
+        &mut self,
+        quote_asset_amount: i64,
+        quote_baseline_amount: Option<i64>,
+        now: i64,
+    ) -> DriftResult {
         let since_last = max(1_i64, now.safe_sub(self.last_maker_volume_30d_ts)?);
 
         self.maker_volume_30d = calculate_rolling_sum(
             self.maker_volume_30d,
-            quote_asset_amount,
+            quote_asset_amount.unsigned_abs(),
             since_last,
             THIRTY_DAY,
         )?;
@@ -1459,7 +1465,13 @@ impl UserStats {
         if now > CUMULATIVE_VOLUME_START_TS {
             self.cumulative_maker_volume = self
                 .cumulative_maker_volume
-                .saturating_add(quote_asset_amount);
+                .saturating_add(quote_asset_amount.unsigned_abs());
+        }
+
+        if quote_baseline_amount.is_some() {
+            // baseline for quote amount filled
+            let resid = quote_asset_amount.safe_sub(quote_baseline_amount.unwrap())?;
+            self.fill_quality_surplus = self.fill_quality_surplus.saturating_add(resid);
         }
 
         Ok(())
