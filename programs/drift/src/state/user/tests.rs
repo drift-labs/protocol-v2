@@ -1940,3 +1940,31 @@ mod get_user_stats_age_ts {
         assert_eq!(age, 0);
     }
 }
+
+
+mod get_user_stats_maker_info {
+    use crate::{state::user::{CUMULATIVE_VOLUME_START_TS, UserStats}, ONE_HOUR};
+
+    #[test]
+    fn test() {
+        let mut user_stats = UserStats::default();
+
+        let mut now = 1;
+
+        user_stats.update_maker_volume(100000, None, now).unwrap();
+
+        assert_eq!(user_stats.maker_volume_30d, 100000);
+        assert_eq!(user_stats.last_maker_volume_30d_ts, 1);
+
+        now += ONE_HOUR;
+
+        user_stats.update_maker_volume(100000, None, now).unwrap();
+        assert_eq!(user_stats.maker_volume_30d, 199861);
+        assert_eq!(user_stats.last_maker_volume_30d_ts, 1 + ONE_HOUR);
+
+        assert!(now < CUMULATIVE_VOLUME_START_TS);
+        assert_eq!(user_stats.cumulative_maker_volume, 0);
+
+
+    }
+}
