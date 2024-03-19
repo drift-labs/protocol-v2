@@ -1,5 +1,5 @@
 import { DriftClient } from '../driftClient';
-import { UserAccount } from '../types';
+import { UserAccount, MarketType } from '../types';
 import { getUserFilter, getUserWithOrderFilter } from '../memcmp';
 import { Commitment, PublicKey, RpcResponseAndContext } from '@solana/web3.js';
 import { Buffer } from 'buffer';
@@ -24,6 +24,11 @@ export class OrderSubscriber {
 
 	mostRecentSlot: number;
 	decodeFn: (name: string, data: Buffer) => UserAccount;
+
+	hasUpdated: boolean;
+	dlob: DLOB;
+	lastSlot: number;
+	perpMarkeIndexs: Array<number>;
 
 	constructor(config: OrderSubscriberConfig) {
 		this.driftClient = config.driftClient;
@@ -51,6 +56,9 @@ export class OrderSubscriber {
 				);
 		}
 		this.eventEmitter = new EventEmitter();
+
+		this.hasUpdated = false;
+		this.dlob = undefined;
 	}
 
 	public async subscribe(): Promise<void> {
@@ -65,6 +73,8 @@ export class OrderSubscriber {
 		this.fetchPromise = new Promise((resolver) => {
 			this.fetchPromiseResolver = resolver;
 		});
+
+		const startTime = Date.now();
 
 		try {
 			const rpcRequestArgs = [
@@ -117,8 +127,14 @@ export class OrderSubscriber {
 				await new Promise((resolve) => setTimeout(resolve, 0));
 			}
 		} catch (e) {
-			console.error(e);
+			console.error('OrderSubscriber err:', e);
 		} finally {
+			console.log(
+				'OrderSubscriber-->fetch use time:',
+				Date.now() - startTime,
+				'ms'
+			);
+
 			this.fetchPromiseResolver();
 			this.fetchPromise = undefined;
 		}
@@ -194,17 +210,54 @@ export class OrderSubscriber {
 			} else {
 				this.usersAccounts.delete(key);
 			}
+
+			this.hasUpdated = true;
+
+			// if (dataType != 'raw'){
+			// 	console.log("orderUpdated....emit....")
+			// }
+			// this.eventEmitter.emit(
+			// 	'orderUpdated'
+			// );
 		}
 	}
 
 	public async getDLOB(slot: number): Promise<DLOB> {
-		const dlob = new DLOB();
-		for (const [key, { userAccount }] of this.usersAccounts.entries()) {
-			for (const order of userAccount.orders) {
-				dlob.insertOrder(order, key, slot);
+		if (this.hasUpdated || slot > this.lastSlot) {
+			// console.log(
+			// 	'orderUpdated....has update, recreate dlob begin....reason:',
+			// 	this.hasUpdated,
+			// 	slot,
+			// 	this.lastSlot,
+			// 	this.getSlot()
+			// );
+			this.hasUpdated = false;
+			this.lastSlot = slot;
+
+			const dlob = new DLOB();
+			for (const [key, { userAccount }] of this.usersAccounts.entries()) {
+				for (const order of userAccount.orders) {
+					if (
+						order.marketType == MarketType.PERP &&
+						this.perpMarkeIndexs.includes(order.marketIndex)
+					) {
+						dlob.insertOrder(order, key, slot);
+					}
+				}
 			}
+			this.dlob = dlob;
+			// console.log('orderUpdated....has update, recreate dlob end....');
+			return dlob;
+		} else {
+			// console.log(
+			// 	'orderUpdated....no update....reason:',
+			// 	this.hasUpdated,
+			// 	slot,
+			// 	this.lastSlot,
+			// 	this.getSlot()
+			// );
+			return this.dlob;
 		}
-		return dlob;
 	}
 
 	public getSlot(): number {

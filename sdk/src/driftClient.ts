@@ -6533,11 +6533,10 @@ export class DriftClient {
 				: [marketLookupTable];
 			const message = new TransactionMessage({
 				payerKey: this.provider.wallet.publicKey,
-				recentBlockhash: (
-					await this.provider.connection.getRecentBlockhash(
-						this.opts.preflightCommitment
-					)
-				).blockhash,
+				recentBlockhash:
+				this.txSender.recentBlockhash ??
+				(await this.connection.getLatestBlockhash(this.opts.preflightCommitment))
+					.blockhash,
 				instructions: allIx,
 			}).compileToV0Message(lookupTables);
 
