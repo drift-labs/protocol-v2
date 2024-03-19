@@ -2,6 +2,7 @@ import {
 	BlockhashWithExpiryBlockHeight,
 	Commitment,
 	Connection,
+	Context,
 } from '@solana/web3.js';
 import { BlockhashSubscriberConfig } from './types';
 
@@ -9,6 +10,7 @@ export class BlockhashSubscriber {
 	private connection: Connection;
 	private isSubscribed = false;
 	private latestBlockHeight: number;
+	private latestBlockHeightContext: Context | undefined;
 	private blockhashes: Array<BlockhashWithExpiryBlockHeight> = [];
 	private updateBlockhashIntervalId: NodeJS.Timeout | undefined;
 	private commitment: Commitment;
@@ -31,6 +33,10 @@ export class BlockhashSubscriber {
 
 	getLatestBlockHeight(): number {
 		return this.latestBlockHeight;
+	}
+
+	getLatestBlockHeightContext(): Context | undefined {
+		return this.latestBlockHeightContext;
 	}
 
 	getLatestBlockhash(
@@ -63,6 +69,7 @@ export class BlockhashSubscriber {
 			this.connection.getBlockHeight({ commitment: this.commitment }),
 		]);
 		this.latestBlockHeight = lastConfirmedBlockHeight;
+		this.latestBlockHeightContext = resp.context;
 
 		// avoid caching duplicate blockhashes
 		if (this.blockhashes.length > 0) {
