@@ -2652,8 +2652,38 @@
           "type": "u32"
         },
         {
+          "name": "ifLiquidationFee",
+          "type": "u32"
+        },
+        {
           "name": "activeStatus",
           "type": "bool"
+        },
+        {
+          "name": "assetTier",
+          "type": {
+            "defined": "AssetTier"
+          }
+        },
+        {
+          "name": "scaleInitialAssetWeightStart",
+          "type": "u64"
+        },
+        {
+          "name": "withdrawGuardThreshold",
+          "type": "u64"
+        },
+        {
+          "name": "orderTickSize",
+          "type": "u64"
+        },
+        {
+          "name": "orderStepSize",
+          "type": "u64"
+        },
+        {
+          "name": "ifTotalFactor",
+          "type": "u32"
         },
         {
           "name": "name",
@@ -2944,8 +2974,48 @@
           "type": "u32"
         },
         {
+          "name": "ifLiquidationFee",
+          "type": "u32"
+        },
+        {
+          "name": "imfFactor",
+          "type": "u32"
+        },
+        {
           "name": "activeStatus",
           "type": "bool"
+        },
+        {
+          "name": "baseSpread",
+          "type": "u32"
+        },
+        {
+          "name": "maxSpread",
+          "type": "u32"
+        },
+        {
+          "name": "maxOpenInterest",
+          "type": "u128"
+        },
+        {
+          "name": "maxRevenueWithdrawPerPeriod",
+          "type": "u64"
+        },
+        {
+          "name": "quoteMaxInsurance",
+          "type": "u64"
+        },
+        {
+          "name": "orderStepSize",
+          "type": "u64"
+        },
+        {
+          "name": "orderTickSize",
+          "type": "u64"
+        },
+        {
+          "name": "minOrderSize",
+          "type": "u64"
         },
         {
           "name": "name",

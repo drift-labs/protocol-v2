@@ -12,12 +12,12 @@ use crate::instructions::constraints::*;
 use crate::load_mut;
 use crate::math::casting::Cast;
 use crate::math::constants::{
-    DEFAULT_BASE_ASSET_AMOUNT_STEP_SIZE, DEFAULT_LIQUIDATION_MARGIN_BUFFER_RATIO,
-    DEFAULT_QUOTE_ASSET_AMOUNT_TICK_SIZE, FEE_POOL_TO_REVENUE_POOL_THRESHOLD, IF_FACTOR_PRECISION,
-    INSURANCE_A_MAX, INSURANCE_B_MAX, INSURANCE_C_MAX, INSURANCE_SPECULATIVE_MAX,
-    LIQUIDATION_FEE_PRECISION, MAX_CONCENTRATION_COEFFICIENT, MAX_SQRT_K,
-    MAX_UPDATE_K_PRICE_CHANGE, QUOTE_SPOT_MARKET_INDEX, SPOT_CUMULATIVE_INTEREST_PRECISION,
-    SPOT_IMF_PRECISION, SPOT_WEIGHT_PRECISION, THIRTEEN_DAY, TWENTY_FOUR_HOUR,
+    DEFAULT_LIQUIDATION_MARGIN_BUFFER_RATIO, FEE_POOL_TO_REVENUE_POOL_THRESHOLD,
+    IF_FACTOR_PRECISION, INSURANCE_A_MAX, INSURANCE_B_MAX, INSURANCE_C_MAX,
+    INSURANCE_SPECULATIVE_MAX, LIQUIDATION_FEE_PRECISION, MAX_CONCENTRATION_COEFFICIENT,
+    MAX_SQRT_K, MAX_UPDATE_K_PRICE_CHANGE, QUOTE_SPOT_MARKET_INDEX,
+    SPOT_CUMULATIVE_INTEREST_PRECISION, SPOT_IMF_PRECISION, SPOT_WEIGHT_PRECISION, THIRTEEN_DAY,
+    TWENTY_FOUR_HOUR,
 };
 use crate::math::cp_curve::get_update_k_result;
 use crate::math::oracle::{is_oracle_valid_for_action, DriftAction};
@@ -106,7 +106,14 @@ pub fn handle_initialize_spot_market(
     maintenance_liability_weight: u32,
     imf_factor: u32,
     liquidator_fee: u32,
+    if_liquidation_fee: u32,
     active_status: bool,
+    asset_tier: AssetTier,
+    scale_initial_asset_weight_start: u64,
+    withdraw_guard_threshold: u64,
+    order_tick_size: u64,
+    order_step_size: u64,
+    if_total_factor: u32,
     name: [u8; 32],
 ) -> Result<()> {
     let state = &mut ctx.accounts.state;
@@ -208,7 +215,6 @@ pub fn handle_initialize_spot_market(
         .or(Err(ErrorCode::UnableToCastUnixTime))?;
 
     let decimals = ctx.accounts.spot_market_mint.decimals.cast::<u32>()?;
-    let order_step_size = 10_u64.pow(2 + decimals - 6); // 10 for usdc/btc, 10000 for sol
 
     **spot_market = SpotMarket {
         market_index: spot_market_index,
@@ -219,11 +225,7 @@ pub fn handle_initialize_spot_market(
             MarketStatus::Initialized
         },
         name,
-        asset_tier: if spot_market_index == QUOTE_SPOT_MARKET_INDEX {
-            AssetTier::Collateral
-        } else {
-            AssetTier::Isolated
-        },
+        asset_tier,
         expiry_ts: 0,
         oracle: ctx.accounts.oracle.key(),
         oracle_source,
@@ -245,7 +247,7 @@ pub fn handle_initialize_spot_market(
         max_token_deposits: 0,
         deposit_token_twap: 0,
         borrow_token_twap: 0,
-        utilization_twap: 0, // todo: use for dynamic interest / additional guards
+        utilization_twap: 0,
         cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
         cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
         total_social_loss: 0,
@@ -258,10 +260,10 @@ pub fn handle_initialize_spot_market(
         maintenance_liability_weight,
         imf_factor,
         liquidator_fee,
-        if_liquidation_fee: LIQUIDATION_FEE_PRECISION / 100, // 1%
-        withdraw_guard_threshold: 0,
+        if_liquidation_fee, // 1%
+        withdraw_guard_threshold,
         order_step_size,
-        order_tick_size: DEFAULT_QUOTE_ASSET_AMOUNT_TICK_SIZE,
+        order_tick_size,
         min_order_size: order_step_size,
         max_position_size: 0,
         next_fill_record_id: 1,
@@ -274,11 +276,13 @@ pub fn handle_initialize_spot_market(
         flash_loan_amount: 0,
         flash_loan_initial_token_amount: 0,
         total_swap_fee: 0,
-        scale_initial_asset_weight_start: 0,
+        scale_initial_asset_weight_start,
         padding: [0; 48],
         insurance_fund: InsuranceFund {
             vault: *ctx.accounts.insurance_fund_vault.to_account_info().key,
             unstaking_period: THIRTEEN_DAY,
+            total_factor: if_total_factor,
+            user_factor: if_total_factor / 2,
             ..InsuranceFund::default()
         },
     };
@@ -499,7 +503,17 @@ pub fn handle_initialize_perp_market(
     margin_ratio_initial: u32,
     margin_ratio_maintenance: u32,
     liquidator_fee: u32,
+    if_liquidation_fee: u32,
+    imf_factor: u32,
     active_status: bool,
+    base_spread: u32,
+    max_spread: u32,
+    max_open_interest: u128,
+    max_revenue_withdraw_per_period: u64,
+    quote_max_insurance: u64,
+    order_step_size: u64,
+    order_tick_size: u64,
+    min_order_size: u64,
     name: [u8; 32],
 ) -> Result<()> {
     let perp_market_pubkey = ctx.accounts.perp_market.to_account_info().key;
@@ -592,18 +606,6 @@ pub fn handle_initialize_perp_market(
         }
     };
 
-    let max_spread = (margin_ratio_initial - margin_ratio_maintenance) * (100 - 5);
-
-    // todo? should ensure peg within 1 cent of current oracle?
-    // validate!(
-    //     amm_peg_multiplier.cast::<i128>()?
-    //         .safe_sub(oracle_price)
-    //         ?
-    //         .unsigned_abs()
-    //         < PRICE_PRECISION / 100,
-    //     ErrorCode::InvalidInitialPeg
-    // )?;
-
     validate_margin(
         margin_ratio_initial,
         margin_ratio_maintenance,
@@ -637,18 +639,22 @@ pub fn handle_initialize_perp_market(
         number_of_users: 0,
         margin_ratio_initial, // unit is 20% (+2 decimal places)
         margin_ratio_maintenance,
-        imf_factor: 0,
+        imf_factor,
         next_fill_record_id: 1,
         next_funding_rate_record_id: 1,
         next_curve_record_id: 1,
         pnl_pool: PoolBalance::default(),
-        insurance_claim: InsuranceClaim::default(),
-        unrealized_pnl_initial_asset_weight: SPOT_WEIGHT_PRECISION.cast()?, // 100%
+        insurance_claim: InsuranceClaim {
+            max_revenue_withdraw_per_period,
+            quote_max_insurance,
+            ..InsuranceClaim::default()
+        },
+        unrealized_pnl_initial_asset_weight: 0, // 100%
         unrealized_pnl_maintenance_asset_weight: SPOT_WEIGHT_PRECISION.cast()?, // 100%
         unrealized_pnl_imf_factor: 0,
         unrealized_pnl_max_imbalance: 0,
         liquidator_fee,
-        if_liquidation_fee: LIQUIDATION_FEE_PRECISION / 100, // 1%
+        if_liquidation_fee,
         paused_operations: 0,
         quote_spot_market_index: 0,
         fee_adjustment: 0,
@@ -698,13 +704,13 @@ pub fn handle_initialize_perp_market(
             last_oracle_normalised_price: oracle_price,
             last_oracle_conf_pct: 0,
             last_oracle_reserve_price_spread_pct: 0, // todo
-            order_step_size: DEFAULT_BASE_ASSET_AMOUNT_STEP_SIZE,
-            order_tick_size: DEFAULT_QUOTE_ASSET_AMOUNT_TICK_SIZE,
-            min_order_size: DEFAULT_BASE_ASSET_AMOUNT_STEP_SIZE,
+            order_step_size,
+            order_tick_size,
+            min_order_size,
             max_position_size: 0,
             max_slippage_ratio: 50,         // ~2%
             max_fill_reserve_fraction: 100, // moves price ~2%
-            base_spread: 0,
+            base_spread,
             long_spread: 0,
             short_spread: 0,
             max_spread,
@@ -718,7 +724,7 @@ pub fn handle_initialize_perp_market(
             quote_entry_amount_short: 0,
             quote_break_even_amount_long: 0,
             quote_break_even_amount_short: 0,
-            max_open_interest: 0,
+            max_open_interest,
             mark_std: 0,
             oracle_std: 0,
             volume_24h: 0,
@@ -727,7 +733,7 @@ pub fn handle_initialize_perp_market(
             short_intensity_count: 0,
             short_intensity_volume: 0,
             last_trade_ts: now,
-            curve_update_intensity: 0,
+            curve_update_intensity: 100,
             fee_pool: PoolBalance::default(),
             base_asset_amount_per_lp: 0,
             quote_asset_amount_per_lp: 0,
@@ -736,7 +742,7 @@ pub fn handle_initialize_perp_market(
             // lp stuff
             base_asset_amount_with_unsettled_lp: 0,
             user_lp_shares: 0,
-            amm_jit_intensity: 0, // turn it off at the start
+            amm_jit_intensity: 200, // turn it off at the start
 
             last_oracle_valid: false,
             target_base_asset_amount_per_lp: 0,
