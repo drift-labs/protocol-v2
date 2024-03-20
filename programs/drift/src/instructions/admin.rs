@@ -514,6 +514,7 @@ pub fn handle_initialize_perp_market(
     order_step_size: u64,
     order_tick_size: u64,
     min_order_size: u64,
+    concentration_coef_scale: u128,
     name: [u8; 32],
 ) -> Result<()> {
     let perp_market_pubkey = ctx.accounts.perp_market.to_account_info().key;
@@ -758,6 +759,8 @@ pub fn handle_initialize_perp_market(
     };
 
     safe_increment!(state.number_of_markets, 1);
+
+    controller::amm::update_concentration_coef(&mut perp_market.amm, concentration_coef_scale)?;
 
     Ok(())
 }

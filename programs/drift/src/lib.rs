@@ -629,6 +629,7 @@ pub mod drift {
         order_step_size: u64,
         order_tick_size: u64,
         min_order_size: u64,
+        concentration_coef_scale: u128,
         name: [u8; 32],
     ) -> Result<()> {
         handle_initialize_perp_market(
@@ -653,6 +654,7 @@ pub mod drift {
             order_step_size,
             order_tick_size,
             min_order_size,
+            concentration_coef_scale,
             name,
         )
     }

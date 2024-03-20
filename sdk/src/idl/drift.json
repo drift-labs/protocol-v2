@@ -3018,6 +3018,10 @@
           "type": "u64"
         },
         {
+          "name": "concentrationCoefScale",
+          "type": "u128"
+        },
+        {
           "name": "name",
           "type": {
             "array": [
