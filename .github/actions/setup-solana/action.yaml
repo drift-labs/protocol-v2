@@ -3,14 +3,14 @@ description: "Setup Solana"
 runs:
   using: "composite"
   steps:
-    - uses: actions/cache@v3
-      name: Cache Solana Tool Suite
-      id: cache-solana
-      with:
-        path: |
-          ~/.cache/solana/
-          ~/.local/share/solana/
-        key: solana-${{ runner.os }}-v0000-${{ env.SOLANA_VERSION }}
+#    - uses: actions/cache@v3
+#      name: Cache Solana Tool Suite
+#      id: cache-solana
+#      with:
+#        path: |
+#          ~/.cache/solana/
+#          ~/.local/share/solana/
+#        key: solana-${{ runner.os }}-v0000-${{ env.SOLANA_VERSION }}
     - name: Download Solana
       run: |
         echo Downloading Solana v${{ env.SOLANA_VERSION }}... 🧬
