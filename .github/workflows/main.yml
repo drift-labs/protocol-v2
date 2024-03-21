@@ -140,8 +140,8 @@ jobs:
       - name: build sdk
         run: cd sdk/ && yarn && yarn build && cd ..
 
-      - name: run validator
-        run: solana-test-validator
+#      - name: run validator
+#        run: solana-test-validator
 
       - name: run anchor tests
         run: bash test-scripts/run-anchor-tests.sh
