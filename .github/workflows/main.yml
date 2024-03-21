@@ -107,10 +107,10 @@ jobs:
           toolchain: ${{ env.RUST_TOOLCHAIN }}
           profile: minimal
           override: true
-      - name: Cache build artefacts
-        uses: Swatinem/rust-cache@v1
-        with:
-          cache-on-failure: "true"
+#      - name: Cache build artefacts
+#        uses: Swatinem/rust-cache@v1
+#        with:
+#          cache-on-failure: "true"
 
       - uses: ./.github/actions/setup-solana/
 
