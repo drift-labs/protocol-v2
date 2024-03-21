@@ -14,7 +14,7 @@ defaults:
 env:
   CARGO_TERM_COLOR: always
   RUST_TOOLCHAIN: 1.62.0
-  SOLANA_VERSION: "1.13.5"
+  SOLANA_VERSION: "1.14.16"
 
 jobs:
   fmt-clippy:
@@ -115,7 +115,7 @@ jobs:
       - uses: ./.github/actions/setup-solana/
 
       - name: install anchor cli
-        run: cargo install --git https://github.com/coral-xyz/anchor --tag v0.26.0 anchor-cli --locked
+        run: cargo install --git https://github.com/coral-xyz/anchor --tag v0.27.0 anchor-cli --locked
 
       - name: Setup node
         uses: actions/setup-node@v2
