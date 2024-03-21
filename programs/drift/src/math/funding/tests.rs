@@ -667,7 +667,7 @@ fn unsettled_funding_pnl() {
     assert_eq!(market.amm.last_update_slot, slot);
 
     now += 3600;
-    slot = slot + 3600 * 2;
+    slot += 3600 * 2;
 
     let cost = _update_amm(&mut market, oracle_price_data, &state, now, slot).unwrap();
     assert_eq!(cost, 0);

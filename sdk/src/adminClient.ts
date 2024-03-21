@@ -30,7 +30,10 @@ import {
 import { squareRootBN } from './math/utils';
 import { TOKEN_PROGRAM_ID } from '@solana/spl-token';
 import { DriftClient } from './driftClient';
-import { PEG_PRECISION, QUOTE_SPOT_MARKET_INDEX } from './constants/numericConstants';
+import {
+	PEG_PRECISION,
+	QUOTE_SPOT_MARKET_INDEX,
+} from './constants/numericConstants';
 import { calculateTargetPriceTrade } from './math/trade';
 import { calculateAmmReservesAfterSwap, getSwapDirection } from './math/amm';
 import { PROGRAM_ID as PHOENIX_PROGRAM_ID } from '@ellipsis-labs/phoenix-sdk';

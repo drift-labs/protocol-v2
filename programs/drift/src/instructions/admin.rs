@@ -640,7 +640,7 @@ pub fn handle_initialize_perp_market(
         liquidator_fee,
         if_liquidation_fee: LIQUIDATION_FEE_PRECISION / 100, // 1%
         paused_operations: 0,
-        quote_spot_market_index: 0,
+        quote_spot_market_index: QUOTE_SPOT_MARKET_INDEX,
         fee_adjustment: 0,
         padding: [0; 46],
         amm: AMM {
@@ -896,14 +896,12 @@ pub fn handle_recenter_perp_market_amm(
 pub fn handle_update_perp_market_amm_summary_stats(
     ctx: Context<AdminUpdatePerpMarketAmmSummaryStats>,
     reset_new_unsettled_stats: bool,
+    update_amm_summary_stats: bool,
 ) -> Result<()> {
     let perp_market = &mut load_mut!(ctx.accounts.perp_market)?;
-    let spot_market: &mut std::cell::RefMut<'_, SpotMarket> =
-        &mut load_mut!(ctx.accounts.spot_market)?;
-    // let state = &ctx.accounts.state;
+    let spot_market = &mut load_mut!(ctx.accounts.spot_market)?;
 
     let clock = Clock::get()?;
-    // let now = clock.unix_timestamp;
     let price_oracle = &ctx.accounts.oracle;
 
     let OraclePriceData {
@@ -918,30 +916,31 @@ pub fn handle_update_perp_market_amm_summary_stats(
         perp_market.amm.net_unsettled_funding_pnl = 0;
     }
 
-    let new_total_fee_minus_distributions =
-        controller::amm::calculate_perp_market_amm_summary_stats(
-            &perp_market,
-            &spot_market,
-            oracle_price,
-        )?;
+    if update_amm_summary_stats {
+        let new_total_fee_minus_distributions =
+            controller::amm::calculate_perp_market_amm_summary_stats(
+                perp_market,
+                spot_market,
+                oracle_price,
+            )?;
 
-    msg!(
-        "updating amm summary stats for market index = {}",
-        perp_market.market_index,
-    );
+        msg!(
+            "updating amm summary stats for market index = {}",
+            perp_market.market_index,
+        );
 
-    msg!(
-        "total_fee_minus_distributions: {:?} -> {:?}",
-        perp_market.amm.total_fee_minus_distributions,
-        new_total_fee_minus_distributions,
-    );
-    let fee_difference = new_total_fee_minus_distributions
-        .safe_sub(perp_market.amm.total_fee_minus_distributions)?;
+        msg!(
+            "total_fee_minus_distributions: {:?} -> {:?}",
+            perp_market.amm.total_fee_minus_distributions,
+            new_total_fee_minus_distributions,
+        );
+        let fee_difference = new_total_fee_minus_distributions
+            .safe_sub(perp_market.amm.total_fee_minus_distributions)?;
 
-    perp_market.amm.total_fee = perp_market.amm.total_fee.saturating_add(fee_difference);
-    perp_market.amm.total_mm_fee = perp_market.amm.total_mm_fee.saturating_add(fee_difference);
-    perp_market.amm.total_fee_minus_distributions = new_total_fee_minus_distributions;
-
+        perp_market.amm.total_fee = perp_market.amm.total_fee.saturating_add(fee_difference);
+        perp_market.amm.total_mm_fee = perp_market.amm.total_mm_fee.saturating_add(fee_difference);
+        perp_market.amm.total_fee_minus_distributions = new_total_fee_minus_distributions;
+    }
     validate_perp_market(perp_market)?;
 
     Ok(())
@@ -2679,7 +2678,7 @@ pub struct DeleteInitializedPerpMarket<'info> {
 pub struct AdminUpdatePerpMarket<'info> {
     pub admin: Signer<'info>,
     #[account(
-    has_one = admin
+        has_one = admin
     )]
     pub state: Box<Account<'info, State>>,
     #[account(mut)]
@@ -2690,16 +2689,16 @@ pub struct AdminUpdatePerpMarket<'info> {
 pub struct AdminUpdatePerpMarketAmmSummaryStats<'info> {
     pub admin: Signer<'info>,
     #[account(
-    has_one = admin
+        has_one = admin
     )]
     pub state: Box<Account<'info, State>>,
+    #[account(mut)]
+    pub perp_market: AccountLoader<'info, PerpMarket>,
     #[account(
-        seeds = [b"spot_market", 0_u16.to_le_bytes().as_ref()],
+        seeds = [b"spot_market", perp_market.load()?.quote_spot_market_index.to_le_bytes().as_ref()],
         bump,
     )]
     pub spot_market: AccountLoader<'info, SpotMarket>,
-    #[account(mut)]
-    pub perp_market: AccountLoader<'info, PerpMarket>,
     /// CHECK: checked in `admin_update_perp_market_summary_stats` ix constraint
     pub oracle: AccountInfo<'info>,
 }
