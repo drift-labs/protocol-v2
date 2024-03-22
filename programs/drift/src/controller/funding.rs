@@ -248,6 +248,14 @@ pub fn update_funding_rate(
             // if funding_imbalance_cost is positive, protocol spends.
             let funding_imbalance_cost = -funding_imbalance_revenue;
             formulaic_update_k(market, oracle_price_data, funding_imbalance_cost, now)?;
+
+            if market.amm.amm_jit_intensity > 200 {
+                // reset target base amount per lp
+                market.amm.target_base_asset_amount_per_lp = market
+                    .amm
+                    .get_reset_target_base_asset_amount_per_lp()?
+                    .cast()?;
+            }
         }
 
         market.amm.cumulative_funding_rate_long = market
