@@ -219,6 +219,9 @@ export function getVammL2Generator({
 					);
 
 				baseSwapped = bidAmm.baseAssetReserve.sub(afterSwapBaseReserves).abs();
+				if (baseSwapped.eq(ZERO)) {
+					return;
+				}
 				if (remainingBaseLiquidity.lt(baseSwapped)) {
 					baseSwapped = remainingBaseLiquidity;
 					[afterSwapQuoteReserves, afterSwapBaseReserves] =
@@ -299,6 +302,9 @@ export function getVammL2Generator({
 					);
 
 				baseSwapped = askAmm.baseAssetReserve.sub(afterSwapBaseReserves).abs();
+				if (baseSwapped.eq(ZERO)) {
+					return;
+				}
 				if (remainingBaseLiquidity.lt(baseSwapped)) {
 					baseSwapped = remainingBaseLiquidity;
 					[afterSwapQuoteReserves, afterSwapBaseReserves] =
@@ -424,6 +430,30 @@ function groupL2Levels(
 }
 
 /**
+ * Method to merge bids or asks by price
+ */
+const mergeByPrice = (bidsOrAsks: L2Level[]) => {
+	const merged = new Map<string, L2Level>();
+	for (const level of bidsOrAsks) {
+		const key = level.price.toString();
+		if (merged.has(key)) {
+			const existing = merged.get(key);
+			existing.size = existing.size.add(level.size);
+			for (const [source, size] of Object.entries(level.sources)) {
+				if (existing.sources[source]) {
+					existing.sources[source] = existing.sources[source].add(size);
+				} else {
+					existing.sources[source] = size;
+				}
+			}
+		} else {
+			merged.set(key, cloneL2Level(level));
+		}
+	}
+	return Array.from(merged.values());
+};
+
+/**
  * The purpose of this function is uncross the L2 orderbook by modifying the bid/ask price at the top of the book
  * This will make the liquidity look worse but more intuitive (users familiar with clob get confused w temporarily
  * crossing book)
@@ -461,8 +491,8 @@ export function uncrossL2(
 		return { bids, asks };
 	}
 
-	const newBids = [];
-	const newAsks = [];
+	const newBids: L2Level[] = [];
+	const newAsks: L2Level[] = [];
 
 	const updateLevels = (newPrice: BN, oldLevel: L2Level, levels: L2Level[]) => {
 		if (levels.length > 0 && levels[levels.length - 1].price.eq(newPrice)) {
@@ -522,19 +552,19 @@ export function uncrossL2(
 			continue;
 		}
 
+		if (userBids.has(nextBid.price.toString())) {
+			newBids.push(nextBid);
+			bidIndex++;
+			continue;
+		}
+
+		if (userAsks.has(nextAsk.price.toString())) {
+			newAsks.push(nextAsk);
+			askIndex++;
+			continue;
+		}
+
 		if (nextBid.price.gte(nextAsk.price)) {
-			if (userBids.has(nextBid.price.toString())) {
-				newBids.push(nextBid);
-				bidIndex++;
-				continue;
-			}
-
-			if (userAsks.has(nextAsk.price.toString())) {
-				newAsks.push(nextAsk);
-				askIndex++;
-				continue;
-			}
-
 			if (
 				nextBid.price.gt(referencePrice) &&
 				nextAsk.price.gt(referencePrice)
@@ -588,8 +618,14 @@ export function uncrossL2(
 		}
 	}
 
+	newBids.sort((a, b) => b.price.cmp(a.price));
+	newAsks.sort((a, b) => a.price.cmp(b.price));
+
+	const finalNewBids = mergeByPrice(newBids);
+	const finalNewAsks = mergeByPrice(newAsks);
+
 	return {
-		bids: newBids,
-		asks: newAsks,
+		bids: finalNewBids,
+		asks: finalNewAsks,
 	};
 }

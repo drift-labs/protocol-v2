@@ -52,20 +52,21 @@ jobs:
         run: cargo check # run package checks
       - name: Run unit tests
         run: cargo test --lib # run unit tests
-  cargo-audit:
-    name: Cargo audit
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v2
-      - name: Cache cargo-audit version
-        uses: Swatinem/rust-cache@v1
-      - name: Download cargo-audit
-        uses: actions-rs/install@v0.1
-        with:
-          crate: cargo-audit
-          version: latest
-      - name: Run cargo-audit # Using args from .cargo/audit.toml
-        run: cargo audit
+# disable until solana-client is upgraded
+#  cargo-audit:
+#    name: Cargo audit
+#    runs-on: ubuntu-latest
+#    steps:
+#      - uses: actions/checkout@v2
+#      - name: Cache cargo-audit version
+#        uses: Swatinem/rust-cache@v1
+#      - name: Download cargo-audit
+#        uses: actions-rs/install@v0.1
+#        with:
+#          crate: cargo-audit
+#          version: latest
+#      - name: Run cargo-audit # Using args from .cargo/audit.toml
+#        run: cargo audit
   yarn-prettier:
     runs-on: ubuntu-latest
     steps:

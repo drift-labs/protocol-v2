@@ -13,6 +13,7 @@ use crate::controller::spot_balance::{
 };
 use crate::error::{DriftResult, ErrorCode};
 use crate::math::amm::calculate_net_user_pnl;
+use crate::math::oracle::{is_oracle_valid_for_action, DriftAction};
 
 use crate::math::casting::Cast;
 use crate::math::margin::{
@@ -87,7 +88,8 @@ pub fn settle_pnl(
         )?;
 
         if !margin_calc.meets_margin_requirement() {
-            msg!("lp does not meet initial margin requirement, attempting to burn shares for risk reduction");
+            msg!("market={} lp does not meet initial margin requirement, attempting to burn shares for risk reduction",
+            market_index);
             attempt_burn_user_lp_shares_for_risk_reduction(
                 state,
                 user,
@@ -109,7 +111,10 @@ pub fn settle_pnl(
                     oracle_map,
                 )?)
             {
-                msg!("Unable to settle negative pnl as user is in liquidation territory");
+                msg!(
+                    "Unable to settle market={} negative pnl as user is in liquidation territory",
+                    market_index
+                );
                 return Ok(());
             }
         }
@@ -129,39 +134,71 @@ pub fn settle_pnl(
     let perp_market = &mut perp_market_map.get_ref_mut(&market_index)?;
 
     if perp_market.amm.curve_update_intensity > 0 {
-        validate!(
-            perp_market.amm.last_oracle_valid,
-            ErrorCode::InvalidOracle,
-            "Oracle Price detected as invalid"
-        )?;
+        let healthy_oracle = perp_market.amm.is_recent_oracle_valid(oracle_map.slot)?;
 
-        validate!(
-            oracle_map.slot == perp_market.amm.last_update_slot,
-            ErrorCode::AMMNotUpdatedInSameSlot,
-            "AMM must be updated in a prior instruction within same slot (current={} != amm={}, last_oracle_valid={})",
-            oracle_map.slot,
-            perp_market.amm.last_update_slot,
-            perp_market.amm.last_oracle_valid
-        )?;
+        if !healthy_oracle {
+            let (_, oracle_validity) = oracle_map.get_price_data_and_validity(
+                MarketType::Perp,
+                perp_market.market_index,
+                &perp_market.amm.oracle,
+                perp_market
+                    .amm
+                    .historical_oracle_data
+                    .last_oracle_price_twap,
+                perp_market.get_max_confidence_interval_multiplier()?,
+            )?;
+
+            if !is_oracle_valid_for_action(oracle_validity, Some(DriftAction::SettlePnl))?
+                || !perp_market.is_price_divergence_ok_for_settle_pnl(oracle_price)?
+            {
+                validate!(
+                    oracle_map.slot == perp_market.amm.last_update_slot,
+                    ErrorCode::AMMNotUpdatedInSameSlot,
+                    "Market={} AMM must be updated in a prior instruction within same slot (current={} != amm={}, last_oracle_valid={})",
+                    market_index,
+                    oracle_map.slot,
+                    perp_market.amm.last_update_slot,
+                    perp_market.amm.last_oracle_valid
+                )?;
+
+                validate!(
+                    perp_market.amm.last_oracle_valid,
+                    ErrorCode::InvalidOracle,
+                    "Oracle Price detected as invalid ({}) on last AMM update",
+                    oracle_validity
+                )?;
+            }
+        }
     }
-
-    validate!(
-        perp_market.status == MarketStatus::Active,
-        ErrorCode::InvalidMarketStatusToSettlePnl,
-        "Cannot settle pnl under current market status"
-    )?;
 
     validate!(
         !perp_market.is_operation_paused(PerpOperation::SettlePnl),
         ErrorCode::InvalidMarketStatusToSettlePnl,
-        "Cannot settle pnl under current market status"
+        "Cannot settle pnl under current market = {} status",
+        market_index
     )?;
 
     if user.perp_positions[position_index].base_asset_amount != 0 {
         validate!(
             !perp_market.is_operation_paused(PerpOperation::SettlePnlWithPosition),
             ErrorCode::InvalidMarketStatusToSettlePnl,
-            "Cannot settle pnl with position under current market status"
+            "Cannot settle pnl with position under current market = {} operation paused",
+            market_index
+        )?;
+
+        validate!(
+            perp_market.status == MarketStatus::Active,
+            ErrorCode::InvalidMarketStatusToSettlePnl,
+            "Cannot settle pnl with position under non-Active current market = {} status",
+            market_index
+        )?;
+    } else {
+        validate!(
+            perp_market.status == MarketStatus::Active
+                || perp_market.status == MarketStatus::ReduceOnly,
+            ErrorCode::InvalidMarketStatusToSettlePnl,
+            "Cannot settle pnl under current market = {} status (neither Active or ReduceOnly)",
+            market_index
         )?;
     }
 

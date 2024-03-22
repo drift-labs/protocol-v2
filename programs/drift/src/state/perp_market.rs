@@ -14,7 +14,8 @@ use crate::math::constants::{
     AMM_RESERVE_PRECISION_I128, AMM_TO_QUOTE_PRECISION_RATIO, BID_ASK_SPREAD_PRECISION,
     BID_ASK_SPREAD_PRECISION_U128, DEFAULT_REVENUE_SINCE_LAST_FUNDING_SPREAD_RETREAT,
     LP_FEE_SLICE_DENOMINATOR, LP_FEE_SLICE_NUMERATOR, MARGIN_PRECISION_U128, PERCENTAGE_PRECISION,
-    PERCENTAGE_PRECISION_I128, PRICE_PRECISION, SPOT_WEIGHT_PRECISION, TWENTY_FOUR_HOUR,
+    PERCENTAGE_PRECISION_I128, PERCENTAGE_PRECISION_I64, PERCENTAGE_PRECISION_U64, PRICE_PRECISION,
+    SPOT_WEIGHT_PRECISION, TWENTY_FOUR_HOUR,
 };
 use crate::math::helpers::get_proportion_i128;
 
@@ -26,7 +27,9 @@ use crate::math::safe_math::SafeMath;
 use crate::math::stats;
 use crate::state::events::OrderActionExplanation;
 
-use crate::state::oracle::{get_switchboard_price, HistoricalOracleData, OracleSource};
+use crate::state::oracle::{
+    get_prelaunch_price, get_switchboard_price, HistoricalOracleData, OracleSource,
+};
 use crate::state::spot_market::{AssetTier, SpotBalance, SpotBalanceType};
 use crate::state::traits::{MarketIndexOffset, Size};
 use borsh::{BorshDeserialize, BorshSerialize};
@@ -331,6 +334,17 @@ impl PerpMarket {
         Ok(false)
     }
 
+    pub fn get_max_confidence_interval_multiplier(self) -> DriftResult<u64> {
+        // assuming validity_guard_rails max confidence pct is 2%
+        Ok(match self.contract_tier {
+            ContractTier::A => 1,            // 2%
+            ContractTier::B => 1,            // 2%
+            ContractTier::C => 2,            // 4%
+            ContractTier::Speculative => 10, // 20%
+            ContractTier::Isolated => 50,    // 100%
+        })
+    }
+
     pub fn get_sanitize_clamp_denominator(self) -> DriftResult<Option<i64>> {
         Ok(match self.contract_tier {
             ContractTier::A => Some(10_i64),   // 10%
@@ -496,6 +510,61 @@ impl PerpMarket {
         }
 
         Ok(())
+    }
+
+    pub fn is_price_divergence_ok_for_settle_pnl(&self, oracle_price: i64) -> DriftResult<bool> {
+        let oracle_divergence = oracle_price
+            .safe_sub(self.amm.historical_oracle_data.last_oracle_price_twap_5min)?
+            .safe_mul(PERCENTAGE_PRECISION_I64)?
+            .safe_div(
+                self.amm
+                    .historical_oracle_data
+                    .last_oracle_price_twap_5min
+                    .min(oracle_price),
+            )?
+            .unsigned_abs();
+
+        let oracle_divergence_limit = match self.contract_tier {
+            ContractTier::A => PERCENTAGE_PRECISION_U64 / 200, // 50 bps
+            ContractTier::B => PERCENTAGE_PRECISION_U64 / 200, // 50 bps
+            ContractTier::C => PERCENTAGE_PRECISION_U64 / 100, // 100 bps
+            ContractTier::Speculative => PERCENTAGE_PRECISION_U64 / 40, // 250 bps
+            ContractTier::Isolated => PERCENTAGE_PRECISION_U64 / 40, // 250 bps
+        };
+
+        if oracle_divergence >= oracle_divergence_limit {
+            msg!(
+                "market_index={} price divergence too large to safely settle pnl: {} >= {}",
+                self.market_index,
+                oracle_divergence,
+                oracle_divergence_limit
+            );
+            return Ok(false);
+        }
+
+        let min_price =
+            oracle_price.min(self.amm.historical_oracle_data.last_oracle_price_twap_5min);
+
+        let std_limit = match self.contract_tier {
+            ContractTier::A => min_price / 50,           // 200 bps
+            ContractTier::B => min_price / 50,           // 200 bps
+            ContractTier::C => min_price / 20,           // 500 bps
+            ContractTier::Speculative => min_price / 10, // 1000 bps
+            ContractTier::Isolated => min_price / 10,    // 1000 bps
+        }
+        .unsigned_abs();
+
+        if self.amm.oracle_std.max(self.amm.mark_std) >= std_limit {
+            msg!(
+                "market_index={} std too large to safely settle pnl: {} >= {}",
+                self.market_index,
+                self.amm.oracle_std.max(self.amm.mark_std),
+                std_limit
+            );
+            return Ok(false);
+        }
+
+        Ok(true)
     }
 }
 
@@ -1216,6 +1285,7 @@ impl AMM {
                 msg!("Can't get oracle twap for quote asset");
                 Err(ErrorCode::DefaultError)
             }
+            OracleSource::Prelaunch => Ok(Some(get_prelaunch_price(price_oracle, slot)?.price)),
         }
     }
 
@@ -1298,6 +1368,10 @@ impl AMM {
             .safe_mul(BID_ASK_SPREAD_PRECISION)?
             .safe_div(reserve_price)?
             .max(confidence_lower_bound))
+    }
+
+    pub fn is_recent_oracle_valid(&self, current_slot: u64) -> DriftResult<bool> {
+        Ok(self.last_oracle_valid && current_slot == self.last_update_slot)
     }
 }
 

@@ -42,12 +42,12 @@ mod update_perp_auction_params {
     use crate::state::perp_market::{ContractTier, PerpMarket, AMM};
     use crate::state::user::OrderType;
     use crate::{
-        OrderParams, PositionDirection, AMM_RESERVE_PRECISION, BID_ASK_SPREAD_PRECISION,
-        PEG_PRECISION, PRICE_PRECISION_I64, PRICE_PRECISION_U64,
+        OracleSource, OrderParams, PositionDirection, AMM_RESERVE_PRECISION,
+        BID_ASK_SPREAD_PRECISION, PEG_PRECISION, PRICE_PRECISION_I64, PRICE_PRECISION_U64,
     };
 
     #[test]
-    fn test_limit() {
+    fn test_sanitize_limit() {
         let oracle_price = 100 * PRICE_PRECISION_I64;
         let mut amm = AMM {
             base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
@@ -237,7 +237,7 @@ mod update_perp_auction_params {
         amm.last_bid_price_twap =
             (amm.historical_oracle_data.last_oracle_price_twap as u64) + 17238;
 
-        let perp_market = PerpMarket {
+        let mut perp_market = PerpMarket {
             amm,
             contract_tier: ContractTier::B,
             ..PerpMarket::default()
@@ -279,6 +279,23 @@ mod update_perp_auction_params {
             .unwrap();
         assert_ne!(order_params_before, order_params_after);
         assert_eq!(order_params_after.auction_start_price.unwrap(), 99118879);
+
+        // skip for prelaunch oracle
+        perp_market.amm.oracle_source = OracleSource::Prelaunch;
+        let mut order_params_after = order_params_before;
+        order_params_after
+            .update_perp_auction_params(&perp_market, oracle_price)
+            .unwrap();
+        assert_eq!(
+            order_params_after.auction_start_price,
+            order_params_before.auction_start_price
+        );
+        assert_eq!(
+            order_params_after.auction_end_price,
+            order_params_before.auction_end_price
+        );
+
+        perp_market.contract_tier = ContractTier::B; // switch back
 
         let order_params_before = OrderParams {
             order_type: OrderType::Market,

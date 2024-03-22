@@ -4,7 +4,7 @@ use anchor_lang::Owner;
 use crate::state::oracle_map::OracleMap;
 use crate::state::perp_market::MarketStatus;
 use crate::state::state::{FeeStructure, FeeTier};
-use crate::state::user::{Order, PerpPosition};
+use crate::state::user::{MarketType, Order, PerpPosition};
 
 fn get_fee_structure() -> FeeStructure {
     let mut fee_tiers = [FeeTier::default(); 10];
@@ -1726,8 +1726,11 @@ pub mod fulfill_order_with_maker_order {
 
         let (opd, ov) = oracle_map
             .get_price_data_and_validity(
+                MarketType::Perp,
+                market.market_index,
                 &oracle_price_key,
                 market.amm.historical_oracle_data.last_oracle_price_twap,
+                market.get_max_confidence_interval_multiplier().unwrap(),
             )
             .unwrap();
 

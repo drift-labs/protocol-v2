@@ -29,7 +29,7 @@ fn calculate_funding_rate(
     //                 => lower funding rate payment per interval
     let period_adjustment = (24_i128)
         .safe_mul(ONE_HOUR_I128)?
-        .safe_div(max(ONE_HOUR_I128, funding_period as i128))?;
+        .safe_div(funding_period as i128)?;
 
     let price_spread = mid_price_twap.cast::<i128>()?.safe_sub(oracle_price_twap)?;
 
