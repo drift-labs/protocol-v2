@@ -31,7 +31,12 @@ import {
 import { squareRootBN } from './math/utils';
 import { TOKEN_PROGRAM_ID } from '@solana/spl-token';
 import { DriftClient } from './driftClient';
-import { PEG_PRECISION } from './constants/numericConstants';
+import {
+	BASE_PRECISION,
+	PEG_PRECISION,
+	ZERO,
+	ONE,
+} from './constants/numericConstants';
 import { calculateTargetPriceTrade } from './math/trade';
 import { calculateAmmReservesAfterSwap, getSwapDirection } from './math/amm';
 import { PROGRAM_ID as PHOENIX_PROGRAM_ID } from '@ellipsis-labs/phoenix-sdk';
@@ -84,7 +89,14 @@ export class AdminClient extends DriftClient {
 		maintenanceLiabilityWeight: number,
 		imfFactor = 0,
 		liquidatorFee = 0,
+		ifLiquidationFee = 0,
 		activeStatus = true,
+		assetTier = AssetTier.COLLATERAL,
+		scaleInitialAssetWeightStart = ZERO,
+		withdrawGuardThreshold = ZERO,
+		orderTickSize = ONE,
+		orderStepSize = ONE,
+		ifTotalFactor = 0,
 		name = DEFAULT_MARKET_NAME
 	): Promise<TransactionSignature> {
 		const spotMarketIndex = this.getStateAccount().numberOfSpotMarkets;
@@ -115,7 +127,14 @@ export class AdminClient extends DriftClient {
 			maintenanceLiabilityWeight,
 			imfFactor,
 			liquidatorFee,
+			ifLiquidationFee,
 			activeStatus,
+			assetTier,
+			scaleInitialAssetWeightStart,
+			withdrawGuardThreshold,
+			orderTickSize,
+			orderStepSize,
+			ifTotalFactor,
 			nameBuffer,
 			{
 				accounts: {
@@ -238,7 +257,18 @@ export class AdminClient extends DriftClient {
 		marginRatioInitial = 2000,
 		marginRatioMaintenance = 500,
 		liquidatorFee = 0,
+		ifLiquidatorFee = 0,
+		imfFactor = 0,
 		activeStatus = true,
+		baseSpread = 1000,
+		maxSpread = 50000,
+		maxOpenInterest = ZERO,
+		maxRevenueWithdrawPerPeriod = ZERO,
+		quoteMaxInsurance = ZERO,
+		orderStepSize = ONE,
+		orderTickSize = ONE,
+		minOrderSize = ONE,
+		concentrationCoefScale = ONE,
 		name = DEFAULT_MARKET_NAME
 	): Promise<TransactionSignature> {
 		const currentPerpMarketIndex = this.getStateAccount().numberOfMarkets;
@@ -259,7 +289,18 @@ export class AdminClient extends DriftClient {
 				marginRatioInitial,
 				marginRatioMaintenance,
 				liquidatorFee,
+				ifLiquidatorFee,
+				imfFactor,
 				activeStatus,
+				baseSpread,
+				maxSpread,
+				maxOpenInterest,
+				maxRevenueWithdrawPerPeriod,
+				quoteMaxInsurance,
+				orderStepSize,
+				orderTickSize,
+				minOrderSize,
+				concentrationCoefScale,
 				nameBuffer,
 				{
 					accounts: {
