@@ -638,10 +638,12 @@ export class AdminClient extends DriftClient {
 
 	public async updatePerpMarketAmmSummaryStats(
 		perpMarketIndex: number,
-		resetNewUnsettledStats?: false
+		resetNewUnsettledStats?: false,
+		updateAmmSummaryStats?: false,
 	): Promise<TransactionSignature> {
 		return await this.program.rpc.updatePerpMarketAmmSummaryStats(
 			resetNewUnsettledStats,
+			updateAmmSummaryStats
 			{
 				accounts: {
 					admin: this.wallet.publicKey,
