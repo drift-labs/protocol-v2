@@ -5,7 +5,6 @@ use anchor_lang::prelude::*;
 use anchor_spl::token::{Mint, Token, TokenAccount};
 use phoenix::quantities::WrapperU64;
 use serum_dex::state::ToAlignedBytes;
-use solana_program::msg;
 
 use crate::error::ErrorCode;
 use crate::instructions::constraints::*;
@@ -275,7 +274,8 @@ pub fn handle_initialize_spot_market(
         flash_loan_initial_token_amount: 0,
         total_swap_fee: 0,
         scale_initial_asset_weight_start: 0,
-        padding: [0; 48],
+        staked_token_amount: 0,
+        padding: [0; 40],
         insurance_fund: InsuranceFund {
             vault: *ctx.accounts.insurance_fund_vault.to_account_info().key,
             unstaking_period: THIRTEEN_DAY,

@@ -196,6 +196,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "75cc8066fbd45e0e03edf48342c79265aa34ca76cefeace48ef6c402b6946665"
 dependencies = [
  "anchor-lang",
+ "borsh",
  "solana-program",
  "spl-associated-token-account",
  "spl-token",

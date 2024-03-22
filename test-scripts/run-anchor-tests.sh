@@ -4,6 +4,7 @@ if [ "$1" != "--skip-build" ]; then
 fi
 
 test_files=(
+  solStaker.ts
   switchboardTxCus.ts
   prelisting.ts
   switchOracle.ts
