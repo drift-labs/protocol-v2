@@ -2831,7 +2831,9 @@ pub mod delisting_test {
             let oracle_price_data = oracle_map.get_price_data(&market.amm.oracle).unwrap();
             assert_eq!(oracle_price_data.price, 100 * PRICE_PRECISION_I64);
             let net_pnl = calculate_net_user_pnl(&market.amm, oracle_price_data.price).unwrap();
-            assert_eq!(net_pnl, 0);
+            assert_eq!(net_pnl, 3449991000);
+            assert_eq!(market.amm.net_unsettled_funding_pnl, 3449991000); //todo?
+            assert_eq!(market.amm.quote_asset_amount_per_lp, 0);
 
             drop(market);
 

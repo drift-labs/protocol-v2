@@ -955,7 +955,7 @@ pub fn handle_resolve_perp_bankruptcy(
     )?;
 
     validate!(
-        quote_spot_market_index == 0,
+        quote_spot_market_index == QUOTE_SPOT_MARKET_INDEX,
         ErrorCode::InvalidSpotMarketAccount
     )?;
 

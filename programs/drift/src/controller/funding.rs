@@ -79,6 +79,10 @@ pub fn settle_funding_payment(
 
         market_position.last_cumulative_funding_rate = amm_cumulative_funding_rate.cast()?;
         update_quote_asset_and_break_even_amount(market_position, market, market_funding_payment)?;
+        market.amm.net_unsettled_funding_pnl = market
+            .amm
+            .net_unsettled_funding_pnl
+            .safe_sub(market_funding_payment)?;
     }
 
     Ok(())
@@ -138,6 +142,10 @@ pub fn settle_funding_payments(
                 market,
                 market_funding_payment,
             )?;
+            market.amm.net_unsettled_funding_pnl = market
+                .amm
+                .net_unsettled_funding_pnl
+                .safe_sub(market_funding_payment)?;
         }
     }
 
@@ -270,6 +278,12 @@ pub fn update_funding_rate(
             market.amm.last_funding_rate_ts,
             TWENTY_FOUR_HOUR,
         )?;
+
+        market.amm.net_unsettled_funding_pnl = market
+            .amm
+            .net_unsettled_funding_pnl
+            .safe_sub(funding_imbalance_revenue.cast()?)?;
+
         market.amm.last_funding_rate_ts = now;
 
         emit!(FundingRateRecord {
