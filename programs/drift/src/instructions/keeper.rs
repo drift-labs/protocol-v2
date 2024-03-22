@@ -3,9 +3,7 @@ use anchor_spl::token::{Token, TokenAccount};
 
 use crate::error::ErrorCode;
 use crate::instructions::constraints::*;
-use crate::instructions::optional_accounts::{
-    get_maker_and_maker_stats, get_referrer_and_referrer_stats, load_maps, AccountMaps,
-};
+use crate::instructions::optional_accounts::{load_maps, AccountMaps};
 use crate::math::constants::QUOTE_SPOT_MARKET_INDEX;
 use crate::math::insurance::if_shares_to_vault_amount;
 use crate::math::margin::calculate_user_equity;
@@ -31,7 +29,7 @@ use crate::state::spot_market_map::{
 };
 use crate::state::state::State;
 use crate::state::user::{MarketType, OrderStatus, User, UserStats};
-use crate::state::user_map::load_user_maps;
+use crate::state::user_map::{load_user_maps, UserMap, UserStatsMap};
 use crate::validation::user::validate_user_is_idle;
 use crate::{controller, load, math, OracleSource};
 use crate::{load_mut, QUOTE_PRECISION_U64};
@@ -155,7 +153,7 @@ pub fn handle_fill_spot_order<'a, 'b, 'c, 'info>(
     ctx: Context<'a, 'b, 'c, 'info, FillOrder<'info>>,
     order_id: Option<u32>,
     fulfillment_type: Option<SpotFulfillmentType>,
-    maker_order_id: Option<u32>,
+    _maker_order_id: Option<u32>,
 ) -> Result<()> {
     let (order_id, market_index) = {
         let user = &load!(ctx.accounts.user)?;
@@ -175,7 +173,6 @@ pub fn handle_fill_spot_order<'a, 'b, 'c, 'info>(
         order_id,
         market_index,
         fulfillment_type.unwrap_or(SpotFulfillmentType::Match),
-        maker_order_id,
     )
     .map_err(|e| {
         msg!("Err filling order id {} for user {}", order_id, user_key);
@@ -190,7 +187,6 @@ fn fill_spot_order<'info>(
     order_id: u32,
     market_index: u16,
     fulfillment_type: SpotFulfillmentType,
-    maker_order_id: Option<u32>,
 ) -> Result<()> {
     let clock = Clock::get()?;
 
@@ -207,15 +203,10 @@ fn fill_spot_order<'info>(
         None,
     )?;
 
-    let (maker, maker_stats) = match maker_order_id {
-        Some(_) => {
-            let (user, user_stats) = get_maker_and_maker_stats(remaining_accounts_iter)?;
-            (Some(user), Some(user_stats))
-        }
-        None => (None, None),
+    let (makers_and_referrer, makers_and_referrer_stats) = match fulfillment_type {
+        SpotFulfillmentType::Match => load_user_maps(remaining_accounts_iter, true)?,
+        _ => (UserMap::empty(), UserStatsMap::empty()),
     };
-
-    let (_referrer, _referrer_stats) = get_referrer_and_referrer_stats(remaining_accounts_iter)?;
 
     let mut fulfillment_params: Box<dyn SpotFulfillmentParams> = match fulfillment_type {
         SpotFulfillmentType::SerumV3 => {
@@ -260,9 +251,9 @@ fn fill_spot_order<'info>(
         &mut oracle_map,
         &ctx.accounts.filler,
         &ctx.accounts.filler_stats,
-        maker.as_ref(),
-        maker_stats.as_ref(),
-        maker_order_id,
+        &makers_and_referrer,
+        &makers_and_referrer_stats,
+        None,
         &clock,
         fulfillment_params.as_mut(),
     )?;
