@@ -1447,6 +1447,7 @@ pub fn handle_update_perp_market_max_imbalances(
         ContractTier::B => INSURANCE_B_MAX,
         ContractTier::C => INSURANCE_C_MAX,
         ContractTier::Speculative => INSURANCE_SPECULATIVE_MAX,
+        ContractTier::HighlySpeculative => INSURANCE_SPECULATIVE_MAX,
         ContractTier::Isolated => INSURANCE_SPECULATIVE_MAX,
     };
 

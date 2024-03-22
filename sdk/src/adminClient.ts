@@ -2172,4 +2172,30 @@ export class AdminClient extends DriftClient {
 
 		return txSig;
 	}
+
+	public async deletePrelaunchOracle(
+		perpMarketIndex: number
+	): Promise<TransactionSignature> {
+		const deletePrelaunchOracleIx =
+			await this.program.instruction.deletePrelaunchOracle(perpMarketIndex, {
+				accounts: {
+					admin: this.wallet.publicKey,
+					state: await this.getStatePublicKey(),
+					prelaunchOracle: await getPrelaunchOraclePublicKey(
+						this.program.programId,
+						perpMarketIndex
+					),
+					perpMarket: await getPerpMarketPublicKey(
+						this.program.programId,
+						perpMarketIndex
+					),
+				},
+			});
+
+		const tx = await this.buildTransaction(deletePrelaunchOracleIx);
+
+		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+
+		return txSig;
+	}
 }

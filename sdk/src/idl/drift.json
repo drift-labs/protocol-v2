@@ -9194,6 +9194,9 @@
             "name": "Speculative"
           },
           {
+            "name": "HighlySpeculative"
+          },
+          {
             "name": "Isolated"
           }
         ]
