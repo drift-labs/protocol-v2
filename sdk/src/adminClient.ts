@@ -2174,9 +2174,8 @@ export class AdminClient extends DriftClient {
 	}
 
 	public async deletePrelaunchOracle(
-		perpMarketIndex: number,
+		perpMarketIndex: number
 	): Promise<TransactionSignature> {
-
 		const initializePrelaunchOracleIx =
 			await this.program.instruction.deletePrelaunchOracle(perpMarketIndex, {
 				accounts: {
@@ -2186,7 +2185,10 @@ export class AdminClient extends DriftClient {
 						this.program.programId,
 						perpMarketIndex
 					),
-					perpMarket: await getPerpMarketPublicKey(this.program.programId, perpMarketIndex),
+					perpMarket: await getPerpMarketPublicKey(
+						this.program.programId,
+						perpMarketIndex
+					),
 				},
 			});
 
