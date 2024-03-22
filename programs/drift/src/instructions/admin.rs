@@ -515,6 +515,8 @@ pub fn handle_initialize_perp_market(
     order_tick_size: u64,
     min_order_size: u64,
     concentration_coef_scale: u128,
+    curve_update_intensity: u16,
+    amm_jit_intensity: u16,
     name: [u8; 32],
 ) -> Result<()> {
     let perp_market_pubkey = ctx.accounts.perp_market.to_account_info().key;
@@ -526,6 +528,18 @@ pub fn handle_initialize_perp_market(
     if amm_base_asset_reserve != amm_quote_asset_reserve {
         return Err(ErrorCode::InvalidInitialPeg.into());
     }
+
+    validate!(
+        (0..=200).contains(&curve_update_intensity),
+        ErrorCode::DefaultError,
+        "invalid curve_update_intensity",
+    )?;
+
+    validate!(
+        (0..=200).contains(&amm_jit_intensity),
+        ErrorCode::DefaultError,
+        "invalid amm_jit_intensity",
+    )?;
 
     let init_reserve_price = amm::calculate_price(
         amm_quote_asset_reserve,
@@ -734,7 +748,7 @@ pub fn handle_initialize_perp_market(
             short_intensity_count: 0,
             short_intensity_volume: 0,
             last_trade_ts: now,
-            curve_update_intensity: 0,
+            curve_update_intensity,
             fee_pool: PoolBalance::default(),
             base_asset_amount_per_lp: 0,
             quote_asset_amount_per_lp: 0,
@@ -743,7 +757,7 @@ pub fn handle_initialize_perp_market(
             // lp stuff
             base_asset_amount_with_unsettled_lp: 0,
             user_lp_shares: 0,
-            amm_jit_intensity: 0, // turn it on at the start
+            amm_jit_intensity,
 
             last_oracle_valid: false,
             target_base_asset_amount_per_lp: 0,
@@ -1530,9 +1544,9 @@ pub fn handle_update_perp_liquidation_fee(
 ) -> Result<()> {
     let perp_market = &mut load_mut!(ctx.accounts.perp_market)?;
     validate!(
-        liquidator_fee < LIQUIDATION_FEE_PRECISION,
+        liquidator_fee.safe_add(if_liquidation_fee)? < LIQUIDATION_FEE_PRECISION,
         ErrorCode::DefaultError,
-        "Liquidation fee must be less than 100%"
+        "Total liquidation fee must be less than 100%"
     )?;
 
     validate!(

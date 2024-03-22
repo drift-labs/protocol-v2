@@ -270,6 +270,8 @@ export class AdminClient extends DriftClient {
 		orderTickSize = PRICE_PRECISION.divn(100000),
 		minOrderSize = BASE_PRECISION.divn(10000),
 		concentrationCoefScale = ONE,
+		curveUpdateIntensity = 0,
+		ammJitIntensity = 0,
 		name = DEFAULT_MARKET_NAME
 	): Promise<TransactionSignature> {
 		const currentPerpMarketIndex = this.getStateAccount().numberOfMarkets;
@@ -302,6 +304,8 @@ export class AdminClient extends DriftClient {
 				orderTickSize,
 				minOrderSize,
 				concentrationCoefScale,
+				curveUpdateIntensity,
+				ammJitIntensity,
 				nameBuffer,
 				{
 					accounts: {
