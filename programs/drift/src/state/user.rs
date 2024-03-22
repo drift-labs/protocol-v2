@@ -1103,12 +1103,9 @@ impl Order {
                 ErrorCode::OracleNotFound
             })?;
 
-            let limit_price = oracle_price.safe_add(self.oracle_price_offset.cast()?)?;
-
-            if limit_price <= 0 {
-                msg!("Oracle offset limit price below zero: {}", limit_price);
-                return Err(crate::error::ErrorCode::InvalidOracleOffset);
-            }
+            let limit_price = oracle_price
+                .safe_add(self.oracle_price_offset.cast()?)?
+                .max(tick_size.cast()?);
 
             Some(standardize_price(
                 limit_price.cast::<u64>()?,
