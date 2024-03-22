@@ -32,10 +32,11 @@ import { squareRootBN } from './math/utils';
 import { TOKEN_PROGRAM_ID } from '@solana/spl-token';
 import { DriftClient } from './driftClient';
 import {
-	BASE_PRECISION,
 	PEG_PRECISION,
 	ZERO,
 	ONE,
+	BASE_PRECISION,
+	PRICE_PRECISION,
 } from './constants/numericConstants';
 import { calculateTargetPriceTrade } from './math/trade';
 import { calculateAmmReservesAfterSwap, getSwapDirection } from './math/amm';
@@ -257,17 +258,17 @@ export class AdminClient extends DriftClient {
 		marginRatioInitial = 2000,
 		marginRatioMaintenance = 500,
 		liquidatorFee = 0,
-		ifLiquidatorFee = 0,
+		ifLiquidatorFee = 10000,
 		imfFactor = 0,
 		activeStatus = true,
-		baseSpread = 1000,
-		maxSpread = 50000,
+		baseSpread = 0,
+		maxSpread = 142500,
 		maxOpenInterest = ZERO,
 		maxRevenueWithdrawPerPeriod = ZERO,
 		quoteMaxInsurance = ZERO,
-		orderStepSize = ONE,
-		orderTickSize = ONE,
-		minOrderSize = ONE,
+		orderStepSize = BASE_PRECISION.divn(10000),
+		orderTickSize = PRICE_PRECISION.divn(100000),
+		minOrderSize = BASE_PRECISION.divn(10000),
 		concentrationCoefScale = ONE,
 		name = DEFAULT_MARKET_NAME
 	): Promise<TransactionSignature> {

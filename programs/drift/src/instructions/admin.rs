@@ -734,7 +734,7 @@ pub fn handle_initialize_perp_market(
             short_intensity_count: 0,
             short_intensity_volume: 0,
             last_trade_ts: now,
-            curve_update_intensity: 100,
+            curve_update_intensity: 0,
             fee_pool: PoolBalance::default(),
             base_asset_amount_per_lp: 0,
             quote_asset_amount_per_lp: 0,
@@ -743,7 +743,7 @@ pub fn handle_initialize_perp_market(
             // lp stuff
             base_asset_amount_with_unsettled_lp: 0,
             user_lp_shares: 0,
-            amm_jit_intensity: 200, // turn it on at the start
+            amm_jit_intensity: 0, // turn it on at the start
 
             last_oracle_valid: false,
             target_base_asset_amount_per_lp: 0,
