@@ -1575,15 +1575,15 @@ pub fn handle_update_spot_market_liquidation_fee(
 ) -> Result<()> {
     let spot_market = &mut load_mut!(ctx.accounts.spot_market)?;
     validate!(
-        liquidator_fee < LIQUIDATION_FEE_PRECISION,
+        liquidator_fee.safe_add(if_liquidation_fee)? < LIQUIDATION_FEE_PRECISION,
         ErrorCode::DefaultError,
-        "Liquidation fee must be less than 100%"
+        "Total liquidation fee must be less than 100%"
     )?;
 
     validate!(
-        if_liquidation_fee <= LIQUIDATION_FEE_PRECISION / 20,
+        if_liquidation_fee <= LIQUIDATION_FEE_PRECISION / 10,
         ErrorCode::DefaultError,
-        "if_liquidation_fee must be <= 5%"
+        "if_liquidation_fee must be <= 10%"
     )?;
 
     spot_market.liquidator_fee = liquidator_fee;
