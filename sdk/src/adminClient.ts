@@ -106,7 +106,6 @@ export class AdminClient extends DriftClient {
 		const spotMarketIndex = this.getStateAccount().numberOfSpotMarkets;
 
 		const initializeIx = await this.getInitializeSpotMarketIx(
-			this.wallet.publicKey,
 			mint,
 			optimalUtilization,
 			optimalRate,
@@ -234,7 +233,6 @@ export class AdminClient extends DriftClient {
 		serumProgram: PublicKey
 	): Promise<TransactionSignature> {
 		const initializeIx = await this.getInitializeSerumFulfillmentConfigIx(
-			this.wallet.publicKey,
 			marketIndex,
 			serumMarket,
 			serumProgram
