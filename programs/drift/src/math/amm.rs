@@ -175,7 +175,9 @@ pub fn estimate_best_bid_ask_price(
         let discount = min(base_spread_u64, amm.short_spread.cast::<u64>()? / 2);
         last_oracle_price_u64.safe_sub(discount.min(trade_premium.unsigned_abs()))?
     } else {
-        trade_price
+        // let est_bid_premium = amm.last_bid_price_twap.cast::<i64>()?.safe_sub(amm.historical_oracle_data.last_oracle_price_twap)?;
+        // let est_bid = (est_bid_premium.safe_add(amm.historical_oracle_data.last_oracle_price)?).max(0).cast::<u64>()?;
+        trade_price //.max(est_bid)
     }
     .max(amm_bid_price);
 
@@ -184,7 +186,9 @@ pub fn estimate_best_bid_ask_price(
         let premium = min(base_spread_u64, amm.long_spread.cast::<u64>()? / 2);
         last_oracle_price_u64.safe_add(premium.min(trade_premium.unsigned_abs()))?
     } else {
-        trade_price
+        // let est_ask_premium = amm.last_ask_price_twap.cast::<i64>()?.safe_sub(amm.historical_oracle_data.last_oracle_price_twap)?;
+        // let est_ask = (est_ask_premium.safe_add(amm.historical_oracle_data.last_oracle_price)?).max(0).cast::<u64>()?;
+        trade_price //.max(est_ask)
     }
     .min(amm_ask_price);
 
