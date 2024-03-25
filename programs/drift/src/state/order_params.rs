@@ -307,7 +307,7 @@ impl OrderParams {
         };
 
         if start_buffer != 0 {
-            let start_buffer_price = auction_start_price
+            let start_buffer_price = oracle_price
                 .safe_mul(start_buffer)?
                 .safe_div(PERCENTAGE_PRECISION_I64)?;
 
