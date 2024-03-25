@@ -630,8 +630,8 @@ pub mod drift {
         order_tick_size: u64,
         min_order_size: u64,
         concentration_coef_scale: u128,
-        curve_update_intensity: u16,
-        amm_jit_intensity: u16,
+        curve_update_intensity: u8,
+        amm_jit_intensity: u8,
         name: [u8; 32],
     ) -> Result<()> {
         handle_initialize_perp_market(
