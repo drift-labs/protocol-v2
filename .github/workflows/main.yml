@@ -14,7 +14,7 @@ defaults:
 env:
   CARGO_TERM_COLOR: always
   RUST_TOOLCHAIN: 1.62.0
-  SOLANA_VERSION: "1.14.16"
+  SOLANA_VERSION: "1.14.26"
 
 jobs:
   fmt-clippy:
@@ -101,16 +101,21 @@ jobs:
     steps:
       - uses: actions/checkout@v2
 
+      - name: Set env variables
+        run: |
+          export RUST_REED_SOLOMON_ERASURE_ARCH=native
+          export RUSTFLAGS="-C target-feature=-avx2"
+
       - name: Install Rust toolchain
         uses: actions-rs/toolchain@v1
         with:
           toolchain: ${{ env.RUST_TOOLCHAIN }}
           profile: minimal
           override: true
-      - name: Cache build artefacts
-        uses: Swatinem/rust-cache@v1
-        with:
-          cache-on-failure: "true"
+#      - name: Cache build artefacts
+#        uses: Swatinem/rust-cache@v1
+#        with:
+#          cache-on-failure: "true"
 
       - uses: ./.github/actions/setup-solana/
 
@@ -139,6 +144,9 @@ jobs:
 
       - name: build sdk
         run: cd sdk/ && yarn && yarn build && cd ..
+
+#      - name: run validator
+#        run: solana-test-validator
 
       - name: run anchor tests
         run: bash test-scripts/run-anchor-tests.sh
