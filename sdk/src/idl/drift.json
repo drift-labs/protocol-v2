@@ -2962,6 +2962,12 @@
           }
         },
         {
+          "name": "contractTier",
+          "type": {
+            "defined": "ContractTier"
+          }
+        },
+        {
           "name": "marginRatioInitial",
           "type": "u32"
         },

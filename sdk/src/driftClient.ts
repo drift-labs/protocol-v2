@@ -3029,7 +3029,9 @@ export class DriftClient {
 			await this.program.instruction.settleExpiredMarketPoolsToRevenuePool({
 				accounts: {
 					state: await this.getStatePublicKey(),
-					admin: this.wallet.publicKey,
+					admin: this.isSubscribed
+						? this.getStateAccount().admin
+						: this.wallet.publicKey,
 					spotMarket: spotMarketPublicKey,
 					perpMarket: perpMarketPublicKey,
 				},
