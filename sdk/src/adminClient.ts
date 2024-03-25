@@ -1,6 +1,7 @@
 import {
 	PublicKey,
 	SYSVAR_RENT_PUBKEY,
+	TransactionInstruction,
 	TransactionSignature,
 } from '@solana/web3.js';
 import {
@@ -101,6 +102,73 @@ export class AdminClient extends DriftClient {
 		name = DEFAULT_MARKET_NAME
 	): Promise<TransactionSignature> {
 		const spotMarketIndex = this.getStateAccount().numberOfSpotMarkets;
+
+		const initializeIx = await this.getInitializeSpotMarketIx(
+			this.wallet.publicKey,
+			mint,
+			optimalUtilization,
+			optimalRate,
+			maxRate,
+			oracle,
+			oracleSource,
+			initialAssetWeight,
+			maintenanceAssetWeight,
+			initialLiabilityWeight,
+			maintenanceLiabilityWeight,
+			imfFactor,
+			liquidatorFee,
+			ifLiquidationFee,
+			activeStatus,
+			assetTier,
+			scaleInitialAssetWeightStart,
+			withdrawGuardThreshold,
+			orderTickSize,
+			orderStepSize,
+			ifTotalFactor,
+			name
+		);
+
+		const tx = await this.buildTransaction(initializeIx);
+
+		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+
+		// const { txSig } = await this.sendTransaction(initializeTx, [], this.opts);
+
+		await this.accountSubscriber.addSpotMarket(spotMarketIndex);
+		await this.accountSubscriber.addOracle({
+			source: oracleSource,
+			publicKey: oracle,
+		});
+		await this.accountSubscriber.setSpotOracleMap();
+
+		return txSig;
+	}
+
+	public async getInitializeSpotMarketIx(
+		admin: PublicKey,
+		mint: PublicKey,
+		optimalUtilization: number,
+		optimalRate: number,
+		maxRate: number,
+		oracle: PublicKey,
+		oracleSource: OracleSource,
+		initialAssetWeight: number,
+		maintenanceAssetWeight: number,
+		initialLiabilityWeight: number,
+		maintenanceLiabilityWeight: number,
+		imfFactor = 0,
+		liquidatorFee = 0,
+		ifLiquidationFee = 0,
+		activeStatus = true,
+		assetTier = AssetTier.COLLATERAL,
+		scaleInitialAssetWeightStart = ZERO,
+		withdrawGuardThreshold = ZERO,
+		orderTickSize = ONE,
+		orderStepSize = ONE,
+		ifTotalFactor = 0,
+		name = DEFAULT_MARKET_NAME
+	): Promise<TransactionInstruction> {
+		const spotMarketIndex = this.getStateAccount().numberOfSpotMarkets;
 		const spotMarket = await getSpotMarketPublicKey(
 			this.program.programId,
 			spotMarketIndex
@@ -139,7 +207,7 @@ export class AdminClient extends DriftClient {
 			nameBuffer,
 			{
 				accounts: {
-					admin: this.wallet.publicKey,
+					admin,
 					state: await this.getStatePublicKey(),
 					spotMarket,
 					spotMarketVault,
@@ -154,20 +222,7 @@ export class AdminClient extends DriftClient {
 			}
 		);
 
-		const tx = await this.buildTransaction(initializeIx);
-
-		const { txSig } = await this.sendTransaction(tx, [], this.opts);
-
-		// const { txSig } = await this.sendTransaction(initializeTx, [], this.opts);
-
-		await this.accountSubscriber.addSpotMarket(spotMarketIndex);
-		await this.accountSubscriber.addOracle({
-			source: oracleSource,
-			publicKey: oracle,
-		});
-		await this.accountSubscriber.setSpotOracleMap();
-
-		return txSig;
+		return initializeIx;
 	}
 
 	public async initializeSerumFulfillmentConfig(
@@ -175,6 +230,26 @@ export class AdminClient extends DriftClient {
 		serumMarket: PublicKey,
 		serumProgram: PublicKey
 	): Promise<TransactionSignature> {
+		const initializeIx = await this.getInitializeSerumFulfillmentConfigIx(
+			this.wallet.publicKey,
+			marketIndex,
+			serumMarket,
+			serumProgram
+		);
+
+		const tx = await this.buildTransaction(initializeIx);
+
+		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+
+		return txSig;
+	}
+
+	public async getInitializeSerumFulfillmentConfigIx(
+		admin: PublicKey,
+		marketIndex: number,
+		serumMarket: PublicKey,
+		serumProgram: PublicKey
+	): Promise<TransactionInstruction> {
 		const serumOpenOrders = getSerumOpenOrdersPublicKey(
 			this.program.programId,
 			serumMarket
@@ -185,25 +260,35 @@ export class AdminClient extends DriftClient {
 			serumMarket
 		);
 
-		const initializeIx =
-			await this.program.instruction.initializeSerumFulfillmentConfig(
-				marketIndex,
-				{
-					accounts: {
-						admin: this.wallet.publicKey,
-						state: await this.getStatePublicKey(),
-						baseSpotMarket: this.getSpotMarketAccount(marketIndex).pubkey,
-						quoteSpotMarket: this.getQuoteSpotMarketAccount().pubkey,
-						driftSigner: this.getSignerPublicKey(),
-						serumProgram,
-						serumMarket,
-						serumOpenOrders,
-						rent: SYSVAR_RENT_PUBKEY,
-						systemProgram: anchor.web3.SystemProgram.programId,
-						serumFulfillmentConfig,
-					},
-				}
-			);
+		return await this.program.instruction.initializeSerumFulfillmentConfig(
+			marketIndex,
+			{
+				accounts: {
+					admin,
+					state: await this.getStatePublicKey(),
+					baseSpotMarket: this.getSpotMarketAccount(marketIndex).pubkey,
+					quoteSpotMarket: this.getQuoteSpotMarketAccount().pubkey,
+					driftSigner: this.getSignerPublicKey(),
+					serumProgram,
+					serumMarket,
+					serumOpenOrders,
+					rent: SYSVAR_RENT_PUBKEY,
+					systemProgram: anchor.web3.SystemProgram.programId,
+					serumFulfillmentConfig,
+				},
+			}
+		);
+	}
+
+	public async initializePhoenixFulfillmentConfig(
+		marketIndex: number,
+		phoenixMarket: PublicKey
+	): Promise<TransactionSignature> {
+		const initializeIx = await this.getInitializePhoenixFulfillmentConfigIx(
+			this.wallet.publicKey,
+			marketIndex,
+			phoenixMarket
+		);
 
 		const tx = await this.buildTransaction(initializeIx);
 
@@ -212,39 +297,33 @@ export class AdminClient extends DriftClient {
 		return txSig;
 	}
 
-	public async initializePhoenixFulfillmentConfig(
+	public async getInitializePhoenixFulfillmentConfigIx(
+		admin: PublicKey,
 		marketIndex: number,
 		phoenixMarket: PublicKey
-	): Promise<TransactionSignature> {
+	): Promise<TransactionInstruction> {
 		const phoenixFulfillmentConfig = getPhoenixFulfillmentConfigPublicKey(
 			this.program.programId,
 			phoenixMarket
 		);
 
-		const initializeIx =
-			await this.program.instruction.initializePhoenixFulfillmentConfig(
-				marketIndex,
-				{
-					accounts: {
-						admin: this.wallet.publicKey,
-						state: await this.getStatePublicKey(),
-						baseSpotMarket: this.getSpotMarketAccount(marketIndex).pubkey,
-						quoteSpotMarket: this.getQuoteSpotMarketAccount().pubkey,
-						driftSigner: this.getSignerPublicKey(),
-						phoenixMarket: phoenixMarket,
-						phoenixProgram: PHOENIX_PROGRAM_ID,
-						rent: SYSVAR_RENT_PUBKEY,
-						systemProgram: anchor.web3.SystemProgram.programId,
-						phoenixFulfillmentConfig,
-					},
-				}
-			);
-
-		const tx = await this.buildTransaction(initializeIx);
-
-		const { txSig } = await this.sendTransaction(tx, [], this.opts);
-
-		return txSig;
+		return await this.program.instruction.initializePhoenixFulfillmentConfig(
+			marketIndex,
+			{
+				accounts: {
+					admin,
+					state: await this.getStatePublicKey(),
+					baseSpotMarket: this.getSpotMarketAccount(marketIndex).pubkey,
+					quoteSpotMarket: this.getQuoteSpotMarketAccount().pubkey,
+					driftSigner: this.getSignerPublicKey(),
+					phoenixMarket: phoenixMarket,
+					phoenixProgram: PHOENIX_PROGRAM_ID,
+					rent: SYSVAR_RENT_PUBKEY,
+					systemProgram: anchor.web3.SystemProgram.programId,
+					phoenixFulfillmentConfig,
+				},
+			}
+		);
 	}
 
 	public async initializePerpMarket(
@@ -275,49 +354,35 @@ export class AdminClient extends DriftClient {
 		name = DEFAULT_MARKET_NAME
 	): Promise<TransactionSignature> {
 		const currentPerpMarketIndex = this.getStateAccount().numberOfMarkets;
-		const perpMarketPublicKey = await getPerpMarketPublicKey(
-			this.program.programId,
-			currentPerpMarketIndex
-		);
 
-		const nameBuffer = encodeName(name);
-		const initializeMarketIx =
-			await this.program.instruction.initializePerpMarket(
-				marketIndex,
-				baseAssetReserve,
-				quoteAssetReserve,
-				periodicity,
-				pegMultiplier,
-				oracleSource,
-				marginRatioInitial,
-				marginRatioMaintenance,
-				liquidatorFee,
-				ifLiquidatorFee,
-				imfFactor,
-				activeStatus,
-				baseSpread,
-				maxSpread,
-				maxOpenInterest,
-				maxRevenueWithdrawPerPeriod,
-				quoteMaxInsurance,
-				orderStepSize,
-				orderTickSize,
-				minOrderSize,
-				concentrationCoefScale,
-				curveUpdateIntensity,
-				ammJitIntensity,
-				nameBuffer,
-				{
-					accounts: {
-						state: await this.getStatePublicKey(),
-						admin: this.wallet.publicKey,
-						oracle: priceOracle,
-						perpMarket: perpMarketPublicKey,
-						rent: SYSVAR_RENT_PUBKEY,
-						systemProgram: anchor.web3.SystemProgram.programId,
-					},
-				}
-			);
+		const initializeMarketIx = await this.getInitializePerpMarketIx(
+			this.wallet.publicKey,
+			marketIndex,
+			priceOracle,
+			baseAssetReserve,
+			quoteAssetReserve,
+			periodicity,
+			pegMultiplier,
+			oracleSource,
+			marginRatioInitial,
+			marginRatioMaintenance,
+			liquidatorFee,
+			ifLiquidatorFee,
+			imfFactor,
+			activeStatus,
+			baseSpread,
+			maxSpread,
+			maxOpenInterest,
+			maxRevenueWithdrawPerPeriod,
+			quoteMaxInsurance,
+			orderStepSize,
+			orderTickSize,
+			minOrderSize,
+			concentrationCoefScale,
+			curveUpdateIntensity,
+			ammJitIntensity,
+			name
+		);
 		const tx = await this.buildTransaction(initializeMarketIx);
 
 		const { txSig } = await this.sendTransaction(tx, [], this.opts);
@@ -334,6 +399,79 @@ export class AdminClient extends DriftClient {
 		await this.accountSubscriber.setPerpOracleMap();
 
 		return txSig;
+	}
+
+	public async getInitializePerpMarketIx(
+		admin: PublicKey,
+		marketIndex: number,
+		priceOracle: PublicKey,
+		baseAssetReserve: BN,
+		quoteAssetReserve: BN,
+		periodicity: BN,
+		pegMultiplier: BN = PEG_PRECISION,
+		oracleSource: OracleSource = OracleSource.PYTH,
+		marginRatioInitial = 2000,
+		marginRatioMaintenance = 500,
+		liquidatorFee = 0,
+		ifLiquidatorFee = 10000,
+		imfFactor = 0,
+		activeStatus = true,
+		baseSpread = 0,
+		maxSpread = 142500,
+		maxOpenInterest = ZERO,
+		maxRevenueWithdrawPerPeriod = ZERO,
+		quoteMaxInsurance = ZERO,
+		orderStepSize = BASE_PRECISION.divn(10000),
+		orderTickSize = PRICE_PRECISION.divn(100000),
+		minOrderSize = BASE_PRECISION.divn(10000),
+		concentrationCoefScale = ONE,
+		curveUpdateIntensity = 0,
+		ammJitIntensity = 0,
+		name = DEFAULT_MARKET_NAME
+	): Promise<TransactionInstruction> {
+		const currentPerpMarketIndex = this.getStateAccount().numberOfMarkets;
+		const perpMarketPublicKey = await getPerpMarketPublicKey(
+			this.program.programId,
+			currentPerpMarketIndex
+		);
+
+		const nameBuffer = encodeName(name);
+		return await this.program.instruction.initializePerpMarket(
+			marketIndex,
+			baseAssetReserve,
+			quoteAssetReserve,
+			periodicity,
+			pegMultiplier,
+			oracleSource,
+			marginRatioInitial,
+			marginRatioMaintenance,
+			liquidatorFee,
+			ifLiquidatorFee,
+			imfFactor,
+			activeStatus,
+			baseSpread,
+			maxSpread,
+			maxOpenInterest,
+			maxRevenueWithdrawPerPeriod,
+			quoteMaxInsurance,
+			orderStepSize,
+			orderTickSize,
+			minOrderSize,
+			concentrationCoefScale,
+			curveUpdateIntensity,
+			ammJitIntensity,
+			nameBuffer,
+			{
+				accounts: {
+					state: await this.getStatePublicKey(),
+					admin,
+					oracle: priceOracle,
+					perpMarket: perpMarketPublicKey,
+					rent: SYSVAR_RENT_PUBKEY,
+					systemProgram: anchor.web3.SystemProgram.programId,
+				},
+			}
+		);
 	}
 
 	public async deleteInitializedPerpMarket(
