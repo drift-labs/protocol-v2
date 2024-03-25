@@ -500,6 +500,7 @@ pub fn handle_initialize_perp_market(
     amm_periodicity: i64,
     amm_peg_multiplier: u128,
     oracle_source: OracleSource,
+    contract_tier: ContractTier,
     margin_ratio_initial: u32,
     margin_ratio_maintenance: u32,
     liquidator_fee: u32,
@@ -639,7 +640,7 @@ pub fn handle_initialize_perp_market(
 
     **perp_market = PerpMarket {
         contract_type: ContractType::Perpetual,
-        contract_tier: ContractTier::Speculative, // default
+        contract_tier,
         status: if active_status {
             MarketStatus::Active
         } else {
