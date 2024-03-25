@@ -2294,25 +2294,13 @@ export class AdminClient extends DriftClient {
 		price?: BN,
 		maxPrice?: BN
 	): Promise<TransactionSignature> {
-		const params = {
-			perpMarketIndex,
-			price: price || null,
-			maxPrice: maxPrice || null,
-		};
-
 		const initializePrelaunchOracleIx =
-			await this.program.instruction.initializePrelaunchOracle(params, {
-				accounts: {
-					admin: this.wallet.publicKey,
-					state: await this.getStatePublicKey(),
-					prelaunchOracle: await getPrelaunchOraclePublicKey(
-						this.program.programId,
-						perpMarketIndex
-					),
-					rent: SYSVAR_RENT_PUBKEY,
-					systemProgram: anchor.web3.SystemProgram.programId,
-				},
-			});
+			await this.getInitializePrelaunchOracleIx(
+				this.wallet.publicKey,
+				perpMarketIndex,
+				price,
+				maxPrice
+			);
 
 		const tx = await this.buildTransaction(initializePrelaunchOracleIx);
 
@@ -2321,11 +2309,59 @@ export class AdminClient extends DriftClient {
 		return txSig;
 	}
 
+	public async getInitializePrelaunchOracleIx(
+		admin: PublicKey,
+		perpMarketIndex: number,
+		price?: BN,
+		maxPrice?: BN
+	): Promise<TransactionInstruction> {
+		const params = {
+			perpMarketIndex,
+			price: price || null,
+			maxPrice: maxPrice || null,
+		};
+
+		return await this.program.instruction.initializePrelaunchOracle(params, {
+			accounts: {
+				admin,
+				state: await this.getStatePublicKey(),
+				prelaunchOracle: await getPrelaunchOraclePublicKey(
+					this.program.programId,
+					perpMarketIndex
+				),
+				rent: SYSVAR_RENT_PUBKEY,
+				systemProgram: anchor.web3.SystemProgram.programId,
+			},
+		});
+	}
+
 	public async updatePrelaunchOracleParams(
+		admin: PublicKey,
 		perpMarketIndex: number,
 		price?: BN,
 		maxPrice?: BN
 	): Promise<TransactionSignature> {
+		const updatePrelaunchOracleParamsIx =
+			await this.getUpdatePrelaunchOracleParamsIx(
+				this.wallet.publicKey,
+				perpMarketIndex,
+				price,
+				maxPrice
+			);
+
+		const tx = await this.buildTransaction(updatePrelaunchOracleParamsIx);
+
+		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+
+		return txSig;
+	}
+
+	public async getUpdatePrelaunchOracleParamsIx(
+		admin: PublicKey,
+		perpMarketIndex: number,
+		price?: BN,
+		maxPrice?: BN
+	): Promise<TransactionInstruction> {
 		const params = {
 			perpMarketIndex,
 			price: price || null,
@@ -2337,24 +2373,17 @@ export class AdminClient extends DriftClient {
 			perpMarketIndex
 		);
 
-		const updatePrelaunchOracleParamsIx =
-			await this.program.instruction.updatePrelaunchOracleParams(params, {
-				accounts: {
-					admin: this.wallet.publicKey,
-					state: await this.getStatePublicKey(),
-					perpMarket: perpMarketPublicKey,
-					prelaunchOracle: await getPrelaunchOraclePublicKey(
-						this.program.programId,
-						perpMarketIndex
-					),
-				},
-			});
-
-		const tx = await this.buildTransaction(updatePrelaunchOracleParamsIx);
-
-		const { txSig } = await this.sendTransaction(tx, [], this.opts);
-
-		return txSig;
+		return await this.program.instruction.updatePrelaunchOracleParams(params, {
+			accounts: {
+				admin,
+				state: await this.getStatePublicKey(),
+				perpMarket: perpMarketPublicKey,
+				prelaunchOracle: await getPrelaunchOraclePublicKey(
+					this.program.programId,
+					perpMarketIndex
+				),
+			},
+		});
 	}
 
 	public async deletePrelaunchOracle(
