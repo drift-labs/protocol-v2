@@ -3023,11 +3023,11 @@
         },
         {
           "name": "curveUpdateIntensity",
-          "type": "u16"
+          "type": "u8"
         },
         {
-          "name": "ammJitUpdateIntensity",
-          "type": "u16"
+          "name": "ammJitIntensity",
+          "type": "u8"
         },
         {
           "name": "name",
@@ -11711,8 +11711,5 @@
       "name": "CantReclaimRent",
       "msg": "CantReclaimRent"
     }
-  ],
-  "metadata": {
-    "address": "dRiftyHA39MWEi3m9aunc5MzRF1JYuBsbn6VPcn33UH"
-  }
+  ]
 }
