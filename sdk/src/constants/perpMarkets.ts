@@ -254,6 +254,16 @@ export const DevnetPerpMarkets: PerpMarketConfig[] = [
 		launchTs: 1709852537000,
 		oracleSource: OracleSource.Prelaunch,
 	},
+	{
+		fullName: 'Kamino',
+		category: ['Lending'],
+		symbol: 'KMNO-PERP',
+		baseAssetSymbol: 'KMNO',
+		marketIndex: 24,
+		oracle: new PublicKey('FkAaa46aYdHn8QxxwmiUnJt3th8radB2GFXDMtyLALCY'),
+		launchTs: 1711475936000,
+		oracleSource: OracleSource.Prelaunch,
+	},
 ];
 
 export const MainnetPerpMarkets: PerpMarketConfig[] = [
