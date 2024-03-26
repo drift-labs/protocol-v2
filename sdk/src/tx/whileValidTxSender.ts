@@ -68,23 +68,31 @@ export class WhileValidTxSender extends BaseTxSender {
 	async prepareTx(
 		tx: Transaction,
 		additionalSigners: Array<Signer>,
-		opts: ConfirmOptions
+		opts: ConfirmOptions,
+		preSigned?: boolean
 	): Promise<Transaction> {
-		tx.feePayer = this.wallet.publicKey;
+		
 		const latestBlockhash = await this.connection.getLatestBlockhash(
 			opts.preflightCommitment
 		);
-		tx.recentBlockhash = latestBlockhash.blockhash;
 
-		additionalSigners
-			.filter((s): s is Signer => s !== undefined)
-			.forEach((kp) => {
-				tx.partialSign(kp);
-			});
+		// handle tx
+		let signedTx = tx;
+		if (!preSigned) {
+			tx.feePayer = this.wallet.publicKey;
+			tx.recentBlockhash = latestBlockhash.blockhash;
+	
+			additionalSigners
+				.filter((s): s is Signer => s !== undefined)
+				.forEach((kp) => {
+					tx.partialSign(kp);
+				});
+	
+			signedTx = await this.wallet.signTransaction(tx);
+		}
 
-		const signedTx = await this.wallet.signTransaction(tx);
-
-		const txSig = bs58.encode(tx.signatures[0].signature);
+		// handle subclass-specific side effects
+		const txSig = bs58.encode(tx.signatures[0]?.signature || tx.signatures[0]);
 		this.untilValid.set(txSig, latestBlockhash);
 
 		return signedTx;
