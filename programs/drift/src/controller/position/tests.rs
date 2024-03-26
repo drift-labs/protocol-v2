@@ -1,11 +1,11 @@
 use crate::controller::amm::{
     calculate_base_swap_output_with_spread, move_price, recenter_perp_market_amm, swap_base_asset,
 };
-use crate::controller::position::{
-    update_lp_market_position, update_position_and_market, PositionDelta,
-};
-
 use crate::controller::lp::{apply_lp_rebase_to_perp_market, settle_lp_position};
+use crate::controller::position::{
+    update_lp_market_position, update_position_and_market, PositionDelta, PositionDirection,
+};
+use crate::math::amm::estimate_best_bid_ask_price;
 
 use crate::controller::repeg::_update_amm;
 use crate::math::constants::{
@@ -181,6 +181,117 @@ fn amm_split_large_k() {
         243360075047
     );
     // assert_eq!(243360075047/9977763076 < 23, true); // ensure rounding in favor
+}
+
+#[test]
+fn est_bid_ask_amm() {
+    let perp_market_str = String::from("Ct8MLGv1N/dvAH3EF67yBqaUQerctpm4yqpK+QNSrXCQz76p+B+ka+8Ni2/aLOukHaFdQJXR2jkqDS+O0MbHvA9M+sjCgLVt+ZlACwAAAAAAAAAAAAAAAAsAAAAAAAAA7qpCCwAAAAC4pEILAAAAAM80A2YAAAAAw3D+Q3v//////////////140wCb9///////////////BxseW97wLAAAAAAAAAAAAAAAAAAAAAAAkJxFcfNoMAAAAAAAAAAAA1zaaHQfsLQAAAAAAAAAAAJxiDwAAAAAAAAAAAAAAAABA3MVuOsEMAAAAAAAAAAAAgQcQ9oz3DAAAAAAAAAAAAI2Es72RSxgAAAAAAAAAAAClRSYDAAAAAAAAAAAAAAAA04ZcWqHlLQAAAAAAAAAAAACCXOjX+gEAAAAAAAAAAAAAM8+xVAj+////////////rRDbp8oBAAAAAAAAAAAAAFOkUPJhAQAAAAAAAAAAAAAAwFdzpXwCAAAAAAAAAAAA7ChoURUDAAAAAAAAAAAAADgppSk1q/////////////8AvdVXzFEAAAAAAAAAAAAAm4q7HPmp/////////////1OqNxBzUwAAAAAAAAAAAABZaPEEvrgKAAAAAAAAAAAAmP0CAQAAAACY/QIBAAAAAJj9AgEAAAAADvGuAAAAAADk8/rI/wUAAAAAAAAAAAAAq3UYzAACAAAAAAAAAAAAAK6UWaIPBAAAAAAAAAAAAADE5UUQtAQAAAAAAAAAAAAAqk4rAFkBAAAAAAAAAAAAAIttLk+yAAAAAAAAAAAAAADSM6t1BQAAAAAAAAAAAAAAV9hgaQUAAAAAAAAAAAAAAMG4+QwBAAAAAAAAAAAAAAB1buJiZdEMAAAAAAAAAAAAp6DXzJcMLgAAAAAAAAAAAPWPB6Ka3gwAAAAAAAAAAAB0Ls4vVd0tAAAAAAAAAAAA+ZlACwAAAAAAAAAAAAAAAPVQRgsAAAAA37ZKCwAAAADqg0gLAAAAAPDpSAsAAAAAXcVLDwAAAAD3AQAAAAAAAAmH4Zv/////TikDZgAAAAAQDgAAAAAAAADh9QUAAAAAZAAAAAAAAAAA4fUFAAAAAAAAAAAAAAAAfbNpS6dGAAC/w9I8tgAAAORXqHOmAAAAzzQDZgAAAACIHQ8AAAAAAPUQAgAAAAAAzzQDZgAAAADECQAAqGEAAJcVAADECQAAAAAAADIMAADECTIAZMgAAMDIUt4DAAAAnfyXDgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAJPHxf64g0AAAAAAAAAAAAAAAAAAAAAAFNPTC1QRVJQICAgICAgICAgICAgICAgICAgICAgICAgAAAAAAAAAAAAwusLAAAAAABcsuwiAAAAa6PKbQQAAABWDQNmAAAAAADh9QUAAAAAAAAAAAAAAAAAAAAAAAAAAC8jSgAAAAAAVi8AAAAAAAAZBQAAAAAAAMgAAAAAAAAATB0AANQwAADoAwAA9AEAAAAAAAAQJwAA1S8AABxVAAAAAAEAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==");
+    let mut decoded_bytes = base64::decode(perp_market_str).unwrap();
+    let perp_market_bytes = decoded_bytes.as_mut_slice();
+
+    let key = Pubkey::default();
+    let owner = Pubkey::from_str("dRiftyHA39MWEi3m9aunc5MzRF1JYuBsbn6VPcn33UH").unwrap();
+    let mut lamports = 0;
+    let perp_market_account_info =
+        create_account_info(&key, true, &mut lamports, perp_market_bytes, &owner);
+
+    let perp_market_loader: AccountLoader<PerpMarket> =
+        AccountLoader::try_from(&perp_market_account_info).unwrap();
+    let mut perp_market = perp_market_loader.load_mut().unwrap();
+
+    assert_eq!(
+        perp_market.amm.historical_oracle_data.last_oracle_price,
+        188783097
+    );
+    assert_eq!(
+        perp_market
+            .amm
+            .historical_oracle_data
+            .last_oracle_price_twap_5min,
+        188916920
+    );
+    assert_eq!(perp_market.amm.last_bid_price_twap, 189157621);
+    assert_eq!(perp_market.amm.last_mark_price_twap, 189301738);
+    assert_eq!(perp_market.amm.last_mark_price_twap_5min, 189327856);
+    assert_eq!(perp_market.amm.last_ask_price_twap, 189445855);
+
+    assert_eq!(
+        perp_market
+            .amm
+            .historical_oracle_data
+            .last_oracle_price_twap_ts,
+        1711486159
+    );
+    assert_eq!(perp_market.amm.last_mark_price_twap_ts, 1711486159);
+    assert_eq!(
+        perp_market.amm.last_mark_price_twap_ts,
+        perp_market
+            .amm
+            .historical_oracle_data
+            .last_oracle_price_twap_ts
+    );
+
+    let (bid_og, ask_og) = estimate_best_bid_ask_price(&mut perp_market.amm, None, None).unwrap();
+
+    assert_eq!(bid_og, 188783097);
+    assert_eq!(ask_og, 188783097);
+
+    let (bid, ask) = estimate_best_bid_ask_price(
+        &mut perp_market.amm,
+        Some(ask_og),
+        Some(PositionDirection::Long),
+    )
+    .unwrap();
+
+    assert_eq!(bid, 188311140);
+    assert_eq!(ask, 188783097);
+
+    let (bid, ask) = estimate_best_bid_ask_price(
+        &mut perp_market.amm,
+        Some(bid_og),
+        Some(PositionDirection::Short),
+    )
+    .unwrap();
+
+    assert_eq!(bid, 188783097);
+    assert_eq!(ask, 189255054);
+
+    let (bid, ask) = estimate_best_bid_ask_price(
+        &mut perp_market.amm,
+        Some(188783097 + PRICE_PRECISION_U64 / 2),
+        Some(PositionDirection::Short),
+    )
+    .unwrap();
+
+    assert_eq!(bid, 189283097);
+    assert_eq!(ask, 189755054);
+
+    let amm_reserve_price = perp_market.amm.reserve_price().unwrap();
+    let (amm_bid_price, amm_ask_price) = perp_market.amm.bid_ask_price(amm_reserve_price).unwrap();
+
+    // wick order (short at $4 above oracle)
+    let (bid, ask) = estimate_best_bid_ask_price(
+        &mut perp_market.amm,
+        Some(188783097 + PRICE_PRECISION_U64 * 4),
+        Some(PositionDirection::Short),
+    )
+    .unwrap();
+
+    assert_eq!(bid, 189826069);
+    assert_eq!(ask, 189826069);
+
+    assert_eq!(bid, amm_ask_price);
+
+    // wick order (long at $4 below oracle)
+    let (bid, ask) = estimate_best_bid_ask_price(
+        &mut perp_market.amm,
+        Some(188783097 - PRICE_PRECISION_U64 * 4),
+        Some(PositionDirection::Long),
+    )
+    .unwrap();
+
+    assert_eq!(bid, amm_bid_price);
+    assert_eq!(ask, amm_bid_price);
 }
 
 #[test]

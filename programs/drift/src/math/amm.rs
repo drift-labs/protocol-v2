@@ -182,22 +182,28 @@ pub fn estimate_best_bid_ask_price(
     // estimation of bid/ask by looking at execution premium
 
     // trade is a long
-    let best_bid_estimate = if direction.is_some() && direction.unwrap() == PositionDirection::Long
-    {
-        trade_price.saturating_sub(est_market_spread)
+    let best_bid_estimate = if let Some(direction) = direction {
+        if direction == PositionDirection::Long {
+            trade_price.saturating_sub(est_market_spread)
+        } else {
+            trade_price
+        }
     } else {
         trade_price
     }
     .max(amm_bid_price);
 
     // trade is a short
-    let best_ask_estimate =
-        if direction.is_some() && direction.unwrap() == PositionDirection::Short {
+    let best_ask_estimate = if let Some(direction) = direction {
+        if direction == PositionDirection::Short {
             trade_price.saturating_add(est_market_spread)
         } else {
             trade_price
         }
-        .min(amm_ask_price);
+    } else {
+        trade_price
+    }
+    .min(amm_ask_price);
 
     let (bid_price, ask_price) = match direction {
         Some(direction) => match direction {
