@@ -156,10 +156,11 @@ pub fn estimate_best_bid_ask_price(
         Some(trade_price) => trade_price,
         None => last_oracle_price_u64,
     };
-
-    let trade_premium: i64 = trade_price
+    let est_market_spread = amm
+        .last_ask_price_twap
         .cast::<i64>()?
-        .safe_sub(amm.historical_oracle_data.last_oracle_price)?;
+        .safe_sub(amm.last_bid_price_twap.cast::<i64>()?)?.max(0);
+
     validate!(
         amm.historical_oracle_data.last_oracle_price > 0,
         ErrorCode::InvalidOracle,
@@ -171,24 +172,18 @@ pub fn estimate_best_bid_ask_price(
     // estimation of bid/ask by looking at execution premium
 
     // trade is a long
-    let best_bid_estimate = if trade_premium > 0 {
-        let discount = min(base_spread_u64, amm.short_spread.cast::<u64>()? / 2);
-        last_oracle_price_u64.safe_sub(discount.min(trade_premium.unsigned_abs()))?
+    let best_bid_estimate = if direction.is_some() && direction.unwrap() == PositionDirection::Long {
+        trade_price.safe_sub(est_market_spread.unsigned_abs())?
     } else {
-        // let est_bid_premium = amm.last_bid_price_twap.cast::<i64>()?.safe_sub(amm.historical_oracle_data.last_oracle_price_twap)?;
-        // let est_bid = (est_bid_premium.safe_add(amm.historical_oracle_data.last_oracle_price)?).max(0).cast::<u64>()?;
-        trade_price //.max(est_bid)
+        trade_price
     }
     .max(amm_bid_price);
 
     // trade is a short
-    let best_ask_estimate = if trade_premium < 0 {
-        let premium = min(base_spread_u64, amm.long_spread.cast::<u64>()? / 2);
-        last_oracle_price_u64.safe_add(premium.min(trade_premium.unsigned_abs()))?
+    let best_ask_estimate = if direction.is_some() && direction.unwrap() == PositionDirection::Short {
+        trade_price.safe_add(est_market_spread.unsigned_abs())?
     } else {
-        // let est_ask_premium = amm.last_ask_price_twap.cast::<i64>()?.safe_sub(amm.historical_oracle_data.last_oracle_price_twap)?;
-        // let est_ask = (est_ask_premium.safe_add(amm.historical_oracle_data.last_oracle_price)?).max(0).cast::<u64>()?;
-        trade_price //.max(est_ask)
+        trade_price
     }
     .min(amm_ask_price);
 
