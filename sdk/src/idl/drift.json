@@ -2652,8 +2652,38 @@
           "type": "u32"
         },
         {
+          "name": "ifLiquidationFee",
+          "type": "u32"
+        },
+        {
           "name": "activeStatus",
           "type": "bool"
+        },
+        {
+          "name": "assetTier",
+          "type": {
+            "defined": "AssetTier"
+          }
+        },
+        {
+          "name": "scaleInitialAssetWeightStart",
+          "type": "u64"
+        },
+        {
+          "name": "withdrawGuardThreshold",
+          "type": "u64"
+        },
+        {
+          "name": "orderTickSize",
+          "type": "u64"
+        },
+        {
+          "name": "orderStepSize",
+          "type": "u64"
+        },
+        {
+          "name": "ifTotalFactor",
+          "type": "u32"
         },
         {
           "name": "name",
@@ -2944,8 +2974,60 @@
           "type": "u32"
         },
         {
+          "name": "ifLiquidationFee",
+          "type": "u32"
+        },
+        {
+          "name": "imfFactor",
+          "type": "u32"
+        },
+        {
           "name": "activeStatus",
           "type": "bool"
+        },
+        {
+          "name": "baseSpread",
+          "type": "u32"
+        },
+        {
+          "name": "maxSpread",
+          "type": "u32"
+        },
+        {
+          "name": "maxOpenInterest",
+          "type": "u128"
+        },
+        {
+          "name": "maxRevenueWithdrawPerPeriod",
+          "type": "u64"
+        },
+        {
+          "name": "quoteMaxInsurance",
+          "type": "u64"
+        },
+        {
+          "name": "orderStepSize",
+          "type": "u64"
+        },
+        {
+          "name": "orderTickSize",
+          "type": "u64"
+        },
+        {
+          "name": "minOrderSize",
+          "type": "u64"
+        },
+        {
+          "name": "concentrationCoefScale",
+          "type": "u128"
+        },
+        {
+          "name": "curveUpdateIntensity",
+          "type": "u16"
+        },
+        {
+          "name": "ammJitUpdateIntensity",
+          "type": "u16"
         },
         {
           "name": "name",
@@ -11629,5 +11711,8 @@
       "name": "CantReclaimRent",
       "msg": "CantReclaimRent"
     }
-  ]
+  ],
+  "metadata": {
+    "address": "dRiftyHA39MWEi3m9aunc5MzRF1JYuBsbn6VPcn33UH"
+  }
 }

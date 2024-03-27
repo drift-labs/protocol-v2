@@ -5,6 +5,7 @@ use crate::controller::insurance::transfer_protocol_insurance_fund_stake;
 use crate::error::ErrorCode;
 use crate::instructions::constraints::*;
 use crate::state::insurance_fund_stake::{InsuranceFundStake, ProtocolIfSharesTransferConfig};
+use crate::state::perp_market::MarketStatus;
 use crate::state::spot_market::SpotMarket;
 use crate::state::state::State;
 use crate::state::traits::Size;
@@ -51,6 +52,13 @@ pub fn handle_add_insurance_fund_stake(
         insurance_fund_stake.market_index == market_index,
         ErrorCode::IncorrectSpotMarketAccountPassed,
         "insurance_fund_stake does not match market_index"
+    )?;
+
+    validate!(
+        spot_market.status != MarketStatus::Initialized,
+        ErrorCode::InvalidSpotMarketState,
+        "spot market = {} not active for insurance_fund_stake",
+        spot_market.market_index
     )?;
 
     validate!(
