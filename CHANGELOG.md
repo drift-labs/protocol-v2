@@ -8,6 +8,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Features
+- program: improve best bid/ask estimate in mark twap update  ([#975](https://github.com/drift-labs/protocol-v2/pull/975)) 
+
+### Fixes
+
+### Breaking
+
+## [2.74.0] - 2023-03-25
+
+### Features
 
 ### Fixes
 
