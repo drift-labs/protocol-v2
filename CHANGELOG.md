@@ -10,12 +10,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Features
 - program: add invariant check boolean for attempt settle revenue to insurance ([#937](https://github.com/drift-labs/protocol-v2/pull/937)) 
 - program: improve best bid/ask estimate in mark twap update  ([#975](https://github.com/drift-labs/protocol-v2/pull/975)) 
+- program: add optional margin calculations for drift-rs ([#978](https://github.com/drift-labs/protocol-v2/pull/978))
 
 ### Fixes
 
 ### Breaking
 
-## [2.74.0] - 2023-03-25
+## [2.74.0] - 2024-03-25
 
 ### Features
 
@@ -28,7 +29,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Breaking
 
-## [2.73.0] - 2023-03-15
+## [2.73.0] - 2024-03-15
 
 ### Features
 
@@ -38,7 +39,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Breaking
 
-## [2.72.0] - 2023-03-14
+## [2.72.0] - 2024-03-14
 
 ### Features
 
@@ -55,7 +56,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Breaking
 
-## [2.71.0] - 2023-03-11
+## [2.71.0] - 2024-03-11
 
 ### Features
 
@@ -71,7 +72,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - sdk: account for max confidence in isOracleValid ([#949](https://github.com/drift-labs/protocol-v2/pull/949))
 
-## [2.70.0] - 2023-03-07
+## [2.70.0] - 2024-03-07
 
 ### Features
 
@@ -81,7 +82,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Breaking
 
-## [2.69.0] - 2023-03-06
+## [2.69.0] - 2024-03-06
 
 ### Features
 
@@ -94,7 +95,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - program: revert switchboard ([#935](https://github.com/drift-labs/protocol-v2/pull/935))
 
-## [2.68.0] - 2023-03-05
+## [2.68.0] - 2024-03-05
 
 ### Features
 
@@ -106,7 +107,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Breaking
 
-## [2.67.0] - 2023-03-05
+## [2.67.0] - 2024-03-05
 
 ### Features
 
@@ -117,7 +118,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Breaking
 
-## [2.66.0] - 2023-02-28
+## [2.66.0] - 2024-02-28
 
 ### Features
 
@@ -127,7 +128,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Breaking
 
-## [2.65.0] - 2023-02-26
+## [2.65.0] - 2024-02-26
 
 ### Features
 
@@ -141,7 +142,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Breaking
 
-## [2.64.0] - 2023-02-20
+## [2.64.0] - 2024-02-20
 
 ### Features
 
@@ -151,7 +152,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Breaking
 
-## [2.63.0] - 2023-02-16
+## [2.63.0] - 2024-02-16
 
 ### Features
 
@@ -167,7 +168,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Breaking
 
-## [2.62.0] - 2023-02-14
+## [2.62.0] - 2024-02-14
 
 ### Features
 
@@ -177,7 +178,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Breaking
 
-## [2.61.0] - 2023-02-09
+## [2.61.0] - 2024-02-09
 
 ### Features
 
@@ -190,7 +191,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Breaking
 
-## [2.60.0] - 2023-02-07
+## [2.60.0] - 2024-02-07
 
 ### Features
 
@@ -202,7 +203,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Breaking
 
-## [2.59.0] - 2023-01-30
+## [2.59.0] - 2024-01-30
 
 ### Features
 
@@ -213,7 +214,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Breaking
 
-## [2.58.0] - 2023-01-27
+## [2.58.0] - 2024-01-27
 
 ### Features
 
@@ -223,7 +224,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Breaking
 
-## [2.57.0] - 2023-01-25
+## [2.57.0] - 2024-01-25
 
 ### Features
 
@@ -233,7 +234,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Breaking
 
-## [2.56.0] - 2023-01-24
+## [2.56.0] - 2024-01-24
 
 ### Features
 
@@ -243,7 +244,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Breaking
 
-## [2.55.0] - 2023-01-18
+## [2.55.0] - 2024-01-18
 
 ### Features
 
@@ -253,7 +254,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Breaking
 
-## [2.54.0] - 2023-01-15
+## [2.54.0] - 2024-01-15
 
 ### Features
 
