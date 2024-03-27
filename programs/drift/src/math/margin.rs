@@ -400,8 +400,7 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
                     );
 
                     #[cfg(drift_rs)]
-                    calculation
-                        .add_spot_liability_value(worst_case_token_value.unsigned_abs())?;
+                    calculation.add_spot_liability_value(worst_case_token_value.unsigned_abs())?;
                 }
                 Ordering::Equal => {
                     if spot_position.has_open_order() {
@@ -507,7 +506,6 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
         calculation.add_perp_liability_value(worst_case_base_asset_value)?;
         #[cfg(drift_rs)]
         calculation.add_perp_pnl(weighted_pnl)?;
-
 
         let has_perp_liability = market_position.base_asset_amount != 0
             || market_position.quote_asset_amount < 0
