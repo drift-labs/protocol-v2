@@ -4490,8 +4490,14 @@ export class DriftClient {
 		makerInfo?: MakerInfo | MakerInfo[],
 		referrerInfo?: ReferrerInfo,
 		txParams?: TxParams,
-		subAccountId?: number
+		subAccountId?: number,
+		skipPreflight = false,
 	): Promise<TransactionSignature> {
+		const opts = {
+			...this.opts,
+			skipPreflight
+		}
+
 		const { txSig, slot } = await this.sendTransaction(
 			await this.buildTransaction(
 				await this.getPlaceAndTakePerpOrderIx(
@@ -4503,7 +4509,7 @@ export class DriftClient {
 				txParams
 			),
 			[],
-			this.opts
+			opts
 		);
 		this.perpMarketLastSlotCache.set(orderParams.marketIndex, slot);
 		return txSig;
@@ -4518,7 +4524,8 @@ export class DriftClient {
 		subAccountId?: number,
 		cancelExistingOrders?: boolean,
 		settlePnl?: boolean,
-		simulateFirst?: boolean
+		simulateFirst?: boolean,
+		skipPreflight = false,
 	): Promise<{
 		txSig: TransactionSignature;
 		signedCancelExistingOrdersTx?: Transaction;
@@ -4614,10 +4621,15 @@ export class DriftClient {
 			txKeys
 		);
 
+		const opts = {
+			...this.opts,
+			skipPreflight
+		}
+
 		const { txSig, slot } = await this.sendTransaction(
 			signedPlaceAndTakeTx,
 			[],
-			this.opts,
+			opts,
 			true
 		);
 		this.perpMarketLastSlotCache.set(orderParams.marketIndex, slot);
