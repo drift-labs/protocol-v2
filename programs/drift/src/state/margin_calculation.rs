@@ -130,6 +130,7 @@ pub struct MarginCalculation {
     pub total_spot_asset_value: i128,
     pub total_spot_liability_value: u128,
     pub total_perp_liability_value: u128,
+    pub total_perp_pnl: i128,
     pub open_orders_margin_requirement: u128,
     tracked_market_margin_requirement: u128,
 }
@@ -149,6 +150,7 @@ impl MarginCalculation {
             total_spot_asset_value: 0,
             total_spot_liability_value: 0,
             total_perp_liability_value: 0,
+            total_perp_pnl: 0,
             open_orders_margin_requirement: 0,
             tracked_market_margin_requirement: 0,
         }
@@ -223,6 +225,12 @@ impl MarginCalculation {
         self.total_perp_liability_value = self
             .total_perp_liability_value
             .safe_add(perp_liability_value)?;
+        Ok(())
+    }
+
+    #[cfg(drift_rs)]
+    pub fn add_perp_pnl(&mut self, perp_upnl: i128) -> DriftResult {
+        self.total_perp_upnl = self.total_perp_upnl.safe_add(perp_upnl)?;
         Ok(())
     }
 
