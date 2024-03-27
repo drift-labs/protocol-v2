@@ -503,9 +503,9 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
 
         calculation.add_total_collateral(weighted_pnl)?;
 
+        #[cfg(full_margin_calculations)]
         match weighted_pnl.cmp(&0) {
             Ordering::Less => {
-                #[cfg(full_margin_calculations)]
                 calculation.add_perp_liability_value(weighted_pnl.unsigned_abs())?;
             }
             _ => {}
