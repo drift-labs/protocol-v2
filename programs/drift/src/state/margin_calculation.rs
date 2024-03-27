@@ -212,15 +212,17 @@ impl MarginCalculation {
 
     #[cfg(full_margin_calculations)]
     pub fn add_spot_liability_value(&mut self, spot_liability_value: u128) -> DriftResult {
-        self.total_spot_liability_value =
-            self.total_spot_liability_value.safe_add(spot_liability_value)?;
+        self.total_spot_liability_value = self
+            .total_spot_liability_value
+            .safe_add(spot_liability_value)?;
         Ok(())
     }
 
     #[cfg(full_margin_calculations)]
     pub fn add_perp_liability_value(&mut self, perp_liability_value: u128) -> DriftResult {
-        self.total_perp_liability_value =
-            self.total_perp_liability_value.safe_add(perp_liability_value)?;
+        self.total_perp_liability_value = self
+            .total_perp_liability_value
+            .safe_add(perp_liability_value)?;
         Ok(())
     }
 

@@ -400,7 +400,8 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
                     );
 
                     #[cfg(full_margin_calculations)]
-                    calculation.add_spot_liability_value(worst_case_weighted_token_value.unsigned_abs())?;
+                    calculation
+                        .add_spot_liability_value(worst_case_weighted_token_value.unsigned_abs())?;
                 }
                 Ordering::Equal => {
                     if spot_position.has_open_order() {
@@ -425,7 +426,7 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
                         worst_case_orders_value.unsigned_abs(),
                         MarketIdentifier::spot(0),
                     )?;
-                    
+
                     #[cfg(full_margin_calculations)]
                     calculation.add_spot_liability_value(worst_case_orders_value.unsigned_abs())?;
                 }
@@ -503,12 +504,11 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
         calculation.add_total_collateral(weighted_pnl)?;
 
         match weighted_pnl.cmp(&0) {
-            Ordering::Greater => {}
             Ordering::Less => {
                 #[cfg(full_margin_calculations)]
                 calculation.add_perp_liability_value(weighted_pnl.unsigned_abs())?;
             }
-            Ordering::Equal => {}
+            _ => {}
         }
 
         let has_perp_liability = market_position.base_asset_amount != 0

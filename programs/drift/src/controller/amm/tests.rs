@@ -825,26 +825,13 @@ fn update_pool_balances_revenue_to_fee_test() {
     assert_eq!(spot_market.insurance_fund.revenue_settle_period, 0);
 
     spot_market.insurance_fund.revenue_settle_period = 0;
-    let res = settle_revenue_to_insurance_fund(
-        0,
-        0,
-        &mut spot_market,
-        now + 3600,
-        true,
-    )
-    .unwrap();
+    let res = settle_revenue_to_insurance_fund(0, 0, &mut spot_market, now + 3600, true).unwrap();
     assert_eq!(res, 0);
     spot_market.insurance_fund.revenue_settle_period = 1;
 
     spot_market.revenue_pool.scaled_balance = 0;
-    let res = settle_revenue_to_insurance_fund(
-        200000000,
-        0,
-        &mut spot_market,
-        now + 1,
-        false,
-    )
-    .unwrap();
+    let res =
+        settle_revenue_to_insurance_fund(200000000, 0, &mut spot_market, now + 1, false).unwrap();
     assert_eq!(res, 0);
     spot_market.revenue_pool.scaled_balance = 100 * SPOT_BALANCE_PRECISION;
     now += 2;
