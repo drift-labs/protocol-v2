@@ -6,7 +6,9 @@ use crate::math::safe_unwrap::SafeUnwrap;
 use crate::state::events::OrderActionExplanation;
 use crate::state::perp_market::{ContractTier, PerpMarket};
 use crate::state::user::{MarketType, OrderTriggerCondition, OrderType};
-use crate::{OracleSource, PERCENTAGE_PRECISION_U64, PRICE_PRECISION_I64};
+use crate::{
+    OracleSource, PERCENTAGE_PRECISION_I64, PERCENTAGE_PRECISION_U64, PRICE_PRECISION_I64,
+};
 use anchor_lang::prelude::*;
 use borsh::{BorshDeserialize, BorshSerialize};
 use std::ops::Div;
@@ -112,7 +114,10 @@ impl OrderParams {
                     }
                 }
                 None => {
-                    msg!("Updating auction end price to {}", new_auction_start_price);
+                    msg!(
+                        "Updating auction start price to {}",
+                        new_auction_start_price
+                    );
                     self.auction_start_price = Some(new_auction_start_price);
                 }
             }
@@ -176,6 +181,7 @@ impl OrderParams {
                     self.direction,
                     oracle_price,
                     self.price,
+                    PERCENTAGE_PRECISION_I64 / 400, // 25 bps
                 )?
             } else {
                 OrderParams::derive_oracle_order_auction_params(
@@ -183,6 +189,7 @@ impl OrderParams {
                     self.direction,
                     oracle_price,
                     self.oracle_price_offset,
+                    PERCENTAGE_PRECISION_I64 / 400, // 25 bps
                 )?
             };
 
@@ -275,8 +282,9 @@ impl OrderParams {
         direction: PositionDirection,
         oracle_price: i64,
         limit_price: u64,
+        start_buffer: i64,
     ) -> DriftResult<(i64, i64, u8)> {
-        let (auction_start_price, auction_end_price) = if limit_price != 0 {
+        let (mut auction_start_price, auction_end_price) = if limit_price != 0 {
             let auction_start_price_offset =
                 OrderParams::get_perp_baseline_start_price_offset(perp_market, direction)?;
             let mut auction_start_price = oracle_price.safe_add(auction_start_price_offset)?;
@@ -298,6 +306,18 @@ impl OrderParams {
             (auction_start_price, auction_end_price)
         };
 
+        if start_buffer != 0 {
+            let start_buffer_price = oracle_price
+                .safe_mul(start_buffer)?
+                .safe_div(PERCENTAGE_PRECISION_I64)?;
+
+            if direction == PositionDirection::Long {
+                auction_start_price = auction_start_price.safe_sub(start_buffer_price)?;
+            } else {
+                auction_start_price = auction_start_price.safe_add(start_buffer_price)?;
+            }
+        }
+
         let auction_duration = get_auction_duration(
             auction_end_price
                 .safe_sub(auction_start_price)?
@@ -314,8 +334,9 @@ impl OrderParams {
         direction: PositionDirection,
         oracle_price: i64,
         oracle_price_offset: Option<i32>,
+        start_buffer: i64,
     ) -> DriftResult<(i64, i64, u8)> {
-        let (auction_start_price, auction_end_price) =
+        let (mut auction_start_price, auction_end_price) =
             if let Some(oracle_price_offset) = oracle_price_offset {
                 let mut auction_start_price_offset =
                     OrderParams::get_perp_baseline_start_price_offset(perp_market, direction)?;
@@ -334,6 +355,18 @@ impl OrderParams {
 
                 (auction_start_price_offset, auction_end_price_offset)
             };
+
+        if start_buffer != 0 {
+            let start_buffer_price = oracle_price
+                .safe_mul(start_buffer)?
+                .safe_div(PERCENTAGE_PRECISION_I64)?;
+
+            if direction == PositionDirection::Long {
+                auction_start_price = auction_start_price.safe_sub(start_buffer_price)?;
+            } else {
+                auction_start_price = auction_start_price.safe_add(start_buffer_price)?;
+            }
+        }
 
         let auction_duration = get_auction_duration(
             auction_end_price
