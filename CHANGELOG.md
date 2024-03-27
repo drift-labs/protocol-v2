@@ -18,6 +18,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Features
 
+### Fixes
+
+### Breaking
+
+## [2.74.0] - 2023-03-25
+
+### Features
+
 - program: add 'highly speculative' contract tier enum 4 ([#968](https://github.com/drift-labs/protocol-v2/pull/968)) 
 - program: expand initialize market parameters ([#969](https://github.com/drift-labs/protocol-v2/pull/969)) 
 
