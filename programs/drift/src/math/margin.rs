@@ -300,7 +300,7 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
                 SpotBalanceType::Deposit => {
                     calculation.add_total_collateral(token_value)?;
 
-                    #[cfg(full_margin_calculations)]
+                    #[cfg(drift_rs)]
                     calculation.add_spot_asset_value(token_value)?;
                 }
                 SpotBalanceType::Borrow => {
@@ -322,7 +322,7 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
 
                     calculation.add_spot_liability()?;
 
-                    #[cfg(full_margin_calculations)]
+                    #[cfg(drift_rs)]
                     calculation.add_spot_liability_value(token_value)?;
                 }
             }
@@ -369,7 +369,7 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
                     calculation
                         .add_total_collateral(worst_case_weighted_token_value.cast::<i128>()?)?;
 
-                    #[cfg(full_margin_calculations)]
+                    #[cfg(drift_rs)]
                     calculation.add_spot_asset_value(worst_case_weighted_token_value)?;
                 }
                 Ordering::Less => {
@@ -399,7 +399,7 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
                         spot_market.asset_tier == AssetTier::Isolated,
                     );
 
-                    #[cfg(full_margin_calculations)]
+                    #[cfg(drift_rs)]
                     calculation
                         .add_spot_liability_value(worst_case_weighted_token_value.unsigned_abs())?;
                 }
@@ -417,7 +417,7 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
                 Ordering::Greater => {
                     calculation.add_total_collateral(worst_case_orders_value.cast::<i128>()?)?;
 
-                    #[cfg(full_margin_calculations)]
+                    #[cfg(drift_rs)]
                     calculation.add_spot_asset_value(worst_case_orders_value)?;
                 }
                 Ordering::Less => {
@@ -427,7 +427,7 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
                         MarketIdentifier::spot(0),
                     )?;
 
-                    #[cfg(full_margin_calculations)]
+                    #[cfg(drift_rs)]
                     calculation.add_spot_liability_value(worst_case_orders_value.unsigned_abs())?;
                 }
                 Ordering::Equal => {}
@@ -503,7 +503,7 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
 
         calculation.add_total_collateral(weighted_pnl)?;
 
-        #[cfg(full_margin_calculations)]
+        #[cfg(drift_rs)]
         match weighted_pnl.cmp(&0) {
             Ordering::Less => {
                 calculation.add_perp_liability_value(weighted_pnl.unsigned_abs())?;
