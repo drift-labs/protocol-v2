@@ -1434,15 +1434,9 @@ export class AdminClient extends DriftClient {
 	public async updateOracleGuardRails(
 		oracleGuardRails: OracleGuardRails
 	): Promise<TransactionSignature> {
-		const updateOracleGuardRailsIx =
-			await this.program.instruction.updateOracleGuardRails(oracleGuardRails, {
-				accounts: {
-					admin: this.isSubscribed
-						? this.getStateAccount().admin
-						: this.wallet.publicKey,
-					state: await this.getStatePublicKey(),
-				},
-			});
+		const updateOracleGuardRailsIx = await this.getUpdateOracleGuardRailsIx(
+			oracleGuardRails
+		);
 
 		const tx = await this.buildTransaction(updateOracleGuardRailsIx);
 
@@ -1451,21 +1445,27 @@ export class AdminClient extends DriftClient {
 		return txSig;
 	}
 
+	public async getUpdateOracleGuardRailsIx(
+		oracleGuardRails: OracleGuardRails
+	): Promise<TransactionInstruction> {
+		return await this.program.instruction.updateOracleGuardRails(
+			oracleGuardRails,
+			{
+				accounts: {
+					admin: this.isSubscribed
+						? this.getStateAccount().admin
+						: this.wallet.publicKey,
+					state: await this.getStatePublicKey(),
+				},
+			}
+		);
+	}
+
 	public async updateStateSettlementDuration(
 		settlementDuration: number
 	): Promise<TransactionSignature> {
 		const updateStateSettlementDurationIx =
-			await this.program.instruction.updateStateSettlementDuration(
-				settlementDuration,
-				{
-					accounts: {
-						admin: this.isSubscribed
-							? this.getStateAccount().admin
-							: this.wallet.publicKey,
-						state: await this.getStatePublicKey(),
-					},
-				}
-			);
+			await this.getUpdateStateSettlementDurationIx(settlementDuration);
 
 		const tx = await this.buildTransaction(updateStateSettlementDurationIx);
 
@@ -1474,21 +1474,27 @@ export class AdminClient extends DriftClient {
 		return txSig;
 	}
 
+	public async getUpdateStateSettlementDurationIx(
+		settlementDuration: number
+	): Promise<TransactionInstruction> {
+		return await this.program.instruction.updateStateSettlementDuration(
+			settlementDuration,
+			{
+				accounts: {
+					admin: this.isSubscribed
+						? this.getStateAccount().admin
+						: this.wallet.publicKey,
+					state: await this.getStatePublicKey(),
+				},
+			}
+		);
+	}
+
 	public async updateStateMaxNumberOfSubAccounts(
 		maxNumberOfSubAccounts: number
 	): Promise<TransactionSignature> {
 		const updateStateMaxNumberOfSubAccountsIx =
-			await this.program.instruction.updateStateMaxNumberOfSubAccounts(
-				maxNumberOfSubAccounts,
-				{
-					accounts: {
-						admin: this.isSubscribed
-							? this.getStateAccount().admin
-							: this.wallet.publicKey,
-						state: await this.getStatePublicKey(),
-					},
-				}
-			);
+			await this.getUpdateStateMaxNumberOfSubAccountsIx(maxNumberOfSubAccounts);
 
 		const tx = await this.buildTransaction(updateStateMaxNumberOfSubAccountsIx);
 
@@ -1497,21 +1503,27 @@ export class AdminClient extends DriftClient {
 		return txSig;
 	}
 
+	public async getUpdateStateMaxNumberOfSubAccountsIx(
+		maxNumberOfSubAccounts: number
+	): Promise<TransactionInstruction> {
+		return await this.program.instruction.updateStateMaxNumberOfSubAccounts(
+			maxNumberOfSubAccounts,
+			{
+				accounts: {
+					admin: this.isSubscribed
+						? this.getStateAccount().admin
+						: this.wallet.publicKey,
+					state: await this.getStatePublicKey(),
+				},
+			}
+		);
+	}
+
 	public async updateStateMaxInitializeUserFee(
 		maxInitializeUserFee: number
 	): Promise<TransactionSignature> {
 		const updateStateMaxInitializeUserFeeIx =
-			await this.program.instruction.updateStateMaxInitializeUserFee(
-				maxInitializeUserFee,
-				{
-					accounts: {
-						admin: this.isSubscribed
-							? this.getStateAccount().admin
-							: this.wallet.publicKey,
-						state: await this.getStatePublicKey(),
-					},
-				}
-			);
+			await this.getUpdateStateMaxInitializeUserFeeIx(maxInitializeUserFee);
 
 		const tx = await this.buildTransaction(updateStateMaxInitializeUserFeeIx);
 
@@ -1520,25 +1532,30 @@ export class AdminClient extends DriftClient {
 		return txSig;
 	}
 
+	public async getUpdateStateMaxInitializeUserFeeIx(
+		maxInitializeUserFee: number
+	): Promise<TransactionInstruction> {
+		return await this.program.instruction.updateStateMaxInitializeUserFee(
+			maxInitializeUserFee,
+			{
+				accounts: {
+					admin: this.isSubscribed
+						? this.getStateAccount().admin
+						: this.wallet.publicKey,
+					state: await this.getStatePublicKey(),
+				},
+			}
+		);
+	}
+
 	public async updateWithdrawGuardThreshold(
 		spotMarketIndex: number,
 		withdrawGuardThreshold: BN
 	): Promise<TransactionSignature> {
 		const updateWithdrawGuardThresholdIx =
-			await this.program.instruction.updateWithdrawGuardThreshold(
-				withdrawGuardThreshold,
-				{
-					accounts: {
-						admin: this.isSubscribed
-							? this.getStateAccount().admin
-							: this.wallet.publicKey,
-						state: await this.getStatePublicKey(),
-						spotMarket: await getSpotMarketPublicKey(
-							this.program.programId,
-							spotMarketIndex
-						),
-					},
-				}
+			await this.getUpdateWithdrawGuardThresholdIx(
+				spotMarketIndex,
+				withdrawGuardThreshold
 			);
 
 		const tx = await this.buildTransaction(updateWithdrawGuardThresholdIx);
@@ -1548,29 +1565,37 @@ export class AdminClient extends DriftClient {
 		return txSig;
 	}
 
+	public async getUpdateWithdrawGuardThresholdIx(
+		spotMarketIndex: number,
+		withdrawGuardThreshold: BN
+	): Promise<TransactionInstruction> {
+		return await this.program.instruction.updateWithdrawGuardThreshold(
+			withdrawGuardThreshold,
+			{
+				accounts: {
+					admin: this.isSubscribed
+						? this.getStateAccount().admin
+						: this.wallet.publicKey,
+					state: await this.getStatePublicKey(),
+					spotMarket: await getSpotMarketPublicKey(
+						this.program.programId,
+						spotMarketIndex
+					),
+				},
+			}
+		);
+	}
+
 	public async updateSpotMarketIfFactor(
 		spotMarketIndex: number,
 		userIfFactor: BN,
 		totalIfFactor: BN
 	): Promise<TransactionSignature> {
-		const updateSpotMarketIfFactorIx =
-			await this.program.instruction.updateSpotMarketIfFactor(
-				spotMarketIndex,
-				userIfFactor,
-				totalIfFactor,
-				{
-					accounts: {
-						admin: this.isSubscribed
-							? this.getStateAccount().admin
-							: this.wallet.publicKey,
-						state: await this.getStatePublicKey(),
-						spotMarket: await getSpotMarketPublicKey(
-							this.program.programId,
-							spotMarketIndex
-						),
-					},
-				}
-			);
+		const updateSpotMarketIfFactorIx = await this.getUpdateSpotMarketIfFactorIx(
+			spotMarketIndex,
+			userIfFactor,
+			totalIfFactor
+		);
 
 		const tx = await this.buildTransaction(updateSpotMarketIfFactorIx);
 
@@ -1579,25 +1604,38 @@ export class AdminClient extends DriftClient {
 		return txSig;
 	}
 
+	public async getUpdateSpotMarketIfFactorIx(
+		spotMarketIndex: number,
+		userIfFactor: BN,
+		totalIfFactor: BN
+	): Promise<TransactionInstruction> {
+		return await this.program.instruction.updateSpotMarketIfFactor(
+			spotMarketIndex,
+			userIfFactor,
+			totalIfFactor,
+			{
+				accounts: {
+					admin: this.isSubscribed
+						? this.getStateAccount().admin
+						: this.wallet.publicKey,
+					state: await this.getStatePublicKey(),
+					spotMarket: await getSpotMarketPublicKey(
+						this.program.programId,
+						spotMarketIndex
+					),
+				},
+			}
+		);
+	}
+
 	public async updateSpotMarketRevenueSettlePeriod(
 		spotMarketIndex: number,
 		revenueSettlePeriod: BN
 	): Promise<TransactionSignature> {
 		const updateSpotMarketRevenueSettlePeriodIx =
-			await this.program.instruction.updateSpotMarketRevenueSettlePeriod(
-				revenueSettlePeriod,
-				{
-					accounts: {
-						admin: this.isSubscribed
-							? this.getStateAccount().admin
-							: this.wallet.publicKey,
-						state: await this.getStatePublicKey(),
-						spotMarket: await getSpotMarketPublicKey(
-							this.program.programId,
-							spotMarketIndex
-						),
-					},
-				}
+			await this.getUpdateSpotMarketRevenueSettlePeriodIx(
+				spotMarketIndex,
+				revenueSettlePeriod
 			);
 
 		const tx = await this.buildTransaction(
@@ -1609,25 +1647,35 @@ export class AdminClient extends DriftClient {
 		return txSig;
 	}
 
+	public async getUpdateSpotMarketRevenueSettlePeriodIx(
+		spotMarketIndex: number,
+		revenueSettlePeriod: BN
+	): Promise<TransactionInstruction> {
+		return await this.program.instruction.updateSpotMarketRevenueSettlePeriod(
+			revenueSettlePeriod,
+			{
+				accounts: {
+					admin: this.isSubscribed
+						? this.getStateAccount().admin
+						: this.wallet.publicKey,
+					state: await this.getStatePublicKey(),
+					spotMarket: await getSpotMarketPublicKey(
+						this.program.programId,
+						spotMarketIndex
+					),
+				},
+			}
+		);
+	}
+
 	public async updateSpotMarketMaxTokenDeposits(
 		spotMarketIndex: number,
 		maxTokenDeposits: BN
 	): Promise<TransactionSignature> {
 		const updateSpotMarketMaxTokenDepositsIx =
-			this.program.instruction.updateSpotMarketMaxTokenDeposits(
-				maxTokenDeposits,
-				{
-					accounts: {
-						admin: this.isSubscribed
-							? this.getStateAccount().admin
-							: this.wallet.publicKey,
-						state: await this.getStatePublicKey(),
-						spotMarket: await getSpotMarketPublicKey(
-							this.program.programId,
-							spotMarketIndex
-						),
-					},
-				}
+			this.getUpdateSpotMarketMaxTokenDepositsIx(
+				spotMarketIndex,
+				maxTokenDeposits
 			);
 
 		const tx = await this.buildTransaction(updateSpotMarketMaxTokenDepositsIx);
@@ -1637,25 +1685,35 @@ export class AdminClient extends DriftClient {
 		return txSig;
 	}
 
+	public async getUpdateSpotMarketMaxTokenDepositsIx(
+		spotMarketIndex: number,
+		maxTokenDeposits: BN
+	): Promise<TransactionInstruction> {
+		return this.program.instruction.updateSpotMarketMaxTokenDeposits(
+			maxTokenDeposits,
+			{
+				accounts: {
+					admin: this.isSubscribed
+						? this.getStateAccount().admin
+						: this.wallet.publicKey,
+					state: await this.getStatePublicKey(),
+					spotMarket: await getSpotMarketPublicKey(
+						this.program.programId,
+						spotMarketIndex
+					),
+				},
+			}
+		);
+	}
+
 	public async updateSpotMarketScaleInitialAssetWeightStart(
 		spotMarketIndex: number,
 		scaleInitialAssetWeightStart: BN
 	): Promise<TransactionSignature> {
 		const updateSpotMarketScaleInitialAssetWeightStartIx =
-			this.program.instruction.updateSpotMarketScaleInitialAssetWeightStart(
-				scaleInitialAssetWeightStart,
-				{
-					accounts: {
-						admin: this.isSubscribed
-							? this.getStateAccount().admin
-							: this.wallet.publicKey,
-						state: await this.getStatePublicKey(),
-						spotMarket: await getSpotMarketPublicKey(
-							this.program.programId,
-							spotMarketIndex
-						),
-					},
-				}
+			await this.getUpdateSpotMarketScaleInitialAssetWeightStartIx(
+				spotMarketIndex,
+				scaleInitialAssetWeightStart
 			);
 
 		const tx = await this.buildTransaction(
@@ -1667,25 +1725,35 @@ export class AdminClient extends DriftClient {
 		return txSig;
 	}
 
+	public async getUpdateSpotMarketScaleInitialAssetWeightStartIx(
+		spotMarketIndex: number,
+		scaleInitialAssetWeightStart: BN
+	): Promise<TransactionInstruction> {
+		return this.program.instruction.updateSpotMarketScaleInitialAssetWeightStart(
+			scaleInitialAssetWeightStart,
+			{
+				accounts: {
+					admin: this.isSubscribed
+						? this.getStateAccount().admin
+						: this.wallet.publicKey,
+					state: await this.getStatePublicKey(),
+					spotMarket: await getSpotMarketPublicKey(
+						this.program.programId,
+						spotMarketIndex
+					),
+				},
+			}
+		);
+	}
+
 	public async updateInsuranceFundUnstakingPeriod(
 		spotMarketIndex: number,
 		insuranceWithdrawEscrowPeriod: BN
 	): Promise<TransactionSignature> {
 		const updateInsuranceFundUnstakingPeriodIx =
-			await this.program.instruction.updateInsuranceFundUnstakingPeriod(
-				insuranceWithdrawEscrowPeriod,
-				{
-					accounts: {
-						admin: this.isSubscribed
-							? this.getStateAccount().admin
-							: this.wallet.publicKey,
-						state: await this.getStatePublicKey(),
-						spotMarket: await getSpotMarketPublicKey(
-							this.program.programId,
-							spotMarketIndex
-						),
-					},
-				}
+			await this.getUpdateInsuranceFundUnstakingPeriodIx(
+				spotMarketIndex,
+				insuranceWithdrawEscrowPeriod
 			);
 
 		const tx = await this.buildTransaction(
@@ -1697,18 +1765,33 @@ export class AdminClient extends DriftClient {
 		return txSig;
 	}
 
-	public async updateLpCooldownTime(
-		cooldownTime: BN
-	): Promise<TransactionSignature> {
-		const updateLpCooldownTimeIx =
-			await this.program.instruction.updateLpCooldownTime(cooldownTime, {
+	public async getUpdateInsuranceFundUnstakingPeriodIx(
+		spotMarketIndex: number,
+		insuranceWithdrawEscrowPeriod: BN
+	): Promise<TransactionInstruction> {
+		return await this.program.instruction.updateInsuranceFundUnstakingPeriod(
+			insuranceWithdrawEscrowPeriod,
+			{
 				accounts: {
 					admin: this.isSubscribed
 						? this.getStateAccount().admin
 						: this.wallet.publicKey,
 					state: await this.getStatePublicKey(),
+					spotMarket: await getSpotMarketPublicKey(
+						this.program.programId,
+						spotMarketIndex
+					),
 				},
-			});
+			}
+		);
+	}
+
+	public async updateLpCooldownTime(
+		cooldownTime: BN
+	): Promise<TransactionSignature> {
+		const updateLpCooldownTimeIx = await this.getUpdateLpCooldownTimeIx(
+			cooldownTime
+		);
 
 		const tx = await this.buildTransaction(updateLpCooldownTimeIx);
 
@@ -1717,29 +1800,29 @@ export class AdminClient extends DriftClient {
 		return txSig;
 	}
 
+	public async getUpdateLpCooldownTimeIx(
+		cooldownTime: BN
+	): Promise<TransactionInstruction> {
+		return await this.program.instruction.updateLpCooldownTime(cooldownTime, {
+			accounts: {
+				admin: this.isSubscribed
+					? this.getStateAccount().admin
+					: this.wallet.publicKey,
+				state: await this.getStatePublicKey(),
+			},
+		});
+	}
+
 	public async updatePerpMarketOracle(
 		perpMarketIndex: number,
 		oracle: PublicKey,
 		oracleSource: OracleSource
 	): Promise<TransactionSignature> {
-		const updatePerpMarketOracleIx =
-			await this.program.instruction.updatePerpMarketOracle(
-				oracle,
-				oracleSource,
-				{
-					accounts: {
-						admin: this.isSubscribed
-							? this.getStateAccount().admin
-							: this.wallet.publicKey,
-						state: await this.getStatePublicKey(),
-						perpMarket: await getPerpMarketPublicKey(
-							this.program.programId,
-							perpMarketIndex
-						),
-						oracle: oracle,
-					},
-				}
-			);
+		const updatePerpMarketOracleIx = await this.getUpdatePerpMarketOracleIx(
+			perpMarketIndex,
+			oracle,
+			oracleSource
+		);
 
 		const tx = await this.buildTransaction(updatePerpMarketOracleIx);
 
@@ -1748,27 +1831,40 @@ export class AdminClient extends DriftClient {
 		return txSig;
 	}
 
+	public async getUpdatePerpMarketOracleIx(
+		perpMarketIndex: number,
+		oracle: PublicKey,
+		oracleSource: OracleSource
+	): Promise<TransactionInstruction> {
+		return await this.program.instruction.updatePerpMarketOracle(
+			oracle,
+			oracleSource,
+			{
+				accounts: {
+					admin: this.isSubscribed
+						? this.getStateAccount().admin
+						: this.wallet.publicKey,
+					state: await this.getStatePublicKey(),
+					perpMarket: await getPerpMarketPublicKey(
+						this.program.programId,
+						perpMarketIndex
+					),
+					oracle: oracle,
+				},
+			}
+		);
+	}
+
 	public async updatePerpMarketStepSizeAndTickSize(
 		perpMarketIndex: number,
 		stepSize: BN,
 		tickSize: BN
 	): Promise<TransactionSignature> {
 		const updatePerpMarketStepSizeAndTickSizeIx =
-			await this.program.instruction.updatePerpMarketStepSizeAndTickSize(
+			await this.getUpdatePerpMarketStepSizeAndTickSizeIx(
+				perpMarketIndex,
 				stepSize,
-				tickSize,
-				{
-					accounts: {
-						admin: this.isSubscribed
-							? this.getStateAccount().admin
-							: this.wallet.publicKey,
-						state: await this.getStatePublicKey(),
-						perpMarket: await getPerpMarketPublicKey(
-							this.program.programId,
-							perpMarketIndex
-						),
-					},
-				}
+				tickSize
 			);
 
 		const tx = await this.buildTransaction(
@@ -1778,6 +1874,29 @@ export class AdminClient extends DriftClient {
 		const { txSig } = await this.sendTransaction(tx, [], this.opts);
 
 		return txSig;
+	}
+
+	public async getUpdatePerpMarketStepSizeAndTickSizeIx(
+		perpMarketIndex: number,
+		stepSize: BN,
+		tickSize: BN
+	): Promise<TransactionInstruction> {
+		return await this.program.instruction.updatePerpMarketStepSizeAndTickSize(
+			stepSize,
+			tickSize,
+			{
+				accounts: {
+					admin: this.isSubscribed
+						? this.getStateAccount().admin
+						: this.wallet.publicKey,
+					state: await this.getStatePublicKey(),
+					perpMarket: await getPerpMarketPublicKey(
+						this.program.programId,
+						perpMarketIndex
+					),
+				},
+			}
+		);
 	}
 
 	public async updatePerpMarketMinOrderSize(
