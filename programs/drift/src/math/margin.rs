@@ -264,6 +264,7 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
             spot_market.market_index,
             &spot_market.oracle,
             spot_market.historical_oracle_data.last_oracle_price_twap,
+            spot_market.get_max_confidence_interval_multiplier()?,
         )?;
 
         calculation.update_all_oracles_valid(is_oracle_valid_for_action(
@@ -385,14 +386,14 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
                     )?;
 
                     calculation.add_spot_liability()?;
-                    calculation.update_with_isolated_liability(
+                    calculation.update_with_spot_isolated_liability(
                         spot_market.asset_tier == AssetTier::Isolated,
                     );
                 }
                 Ordering::Equal => {
                     if spot_position.has_open_order() {
                         calculation.add_spot_liability()?;
-                        calculation.update_with_isolated_liability(
+                        calculation.update_with_spot_isolated_liability(
                             spot_market.asset_tier == AssetTier::Isolated,
                         );
                     }
@@ -431,6 +432,7 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
                 quote_spot_market
                     .historical_oracle_data
                     .last_oracle_price_twap,
+                quote_spot_market.get_max_confidence_interval_multiplier()?,
             )?;
 
         calculation.update_all_oracles_valid(is_oracle_valid_for_action(
@@ -452,6 +454,7 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
             market.market_index,
             &market.amm.oracle,
             market.amm.historical_oracle_data.last_oracle_price_twap,
+            market.get_max_confidence_interval_multiplier()?,
         )?;
 
         let (
@@ -488,8 +491,9 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
 
         if has_perp_liability {
             calculation.add_perp_liability()?;
-            calculation
-                .update_with_isolated_liability(market.contract_tier == ContractTier::Isolated);
+            calculation.update_with_perp_isolated_liability(
+                market.contract_tier == ContractTier::Isolated,
+            );
         }
 
         if has_perp_liability || calculation.context.margin_type != MarginRequirementType::Initial {
@@ -503,6 +507,45 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
     calculation.validate_num_spot_liabilities()?;
 
     Ok(calculation)
+}
+
+pub fn validate_any_isolated_tier_requirements(
+    user: &User,
+    calculation: MarginCalculation,
+) -> DriftResult {
+    if calculation.with_perp_isolated_liability && !user.is_reduce_only() {
+        validate!(
+            calculation.num_perp_liabilities <= 1,
+            ErrorCode::IsolatedAssetTierViolation,
+            "User attempting to increase perp liabilities above 1 with a isolated tier liability"
+        )?;
+
+        validate!(
+            !user.is_margin_trading_enabled,
+            ErrorCode::IsolatedAssetTierViolation,
+            "User attempting isolated tier liability with margin trading enabled"
+        )?;
+
+        if calculation.num_spot_liabilities > 0 {
+            let quote_spot_position = user.get_quote_spot_position();
+            validate!(
+                    (calculation.num_spot_liabilities == 1 && quote_spot_position.is_borrow()
+                    ),
+                    ErrorCode::IsolatedAssetTierViolation,
+                    "User attempting to increase spot liabilities beyond usdc with a isolated tier liability"
+                )?;
+        }
+    }
+
+    if calculation.with_spot_isolated_liability && !user.is_reduce_only() {
+        validate!(
+            calculation.num_perp_liabilities == 0 && calculation.num_spot_liabilities == 1,
+            ErrorCode::IsolatedAssetTierViolation,
+            "User attempting to increase perp liabilities above 0 with a isolated tier liability"
+        )?;
+    }
+
+    Ok(())
 }
 
 pub fn meets_withdraw_margin_requirement(
@@ -531,13 +574,7 @@ pub fn meets_withdraw_margin_requirement(
         )?;
     }
 
-    if calculation.get_num_of_liabilities()? > 1 {
-        validate!(
-            !calculation.with_isolated_liability,
-            ErrorCode::IsolatedAssetTierViolation,
-            "User attempting to increase number of liabilities above 1 with a isolated tier liability"
-        )?;
-    }
+    validate_any_isolated_tier_requirements(user, calculation)?;
 
     validate!(
         calculation.meets_margin_requirement(),
@@ -582,13 +619,7 @@ pub fn meets_place_order_margin_requirement(
         return Err(ErrorCode::InsufficientCollateral);
     }
 
-    if calculation.get_num_of_liabilities()? > 1 {
-        validate!(
-            !calculation.with_isolated_liability,
-            ErrorCode::IsolatedAssetTierViolation,
-            "User attempting to increase number of liabilities above 1 with a isolated tier liability"
-        )?;
-    }
+    validate_any_isolated_tier_requirements(user, calculation)?;
 
     Ok(())
 }
@@ -679,10 +710,24 @@ pub fn calculate_max_withdrawable_amount(
 
 pub fn validate_spot_margin_trading(
     user: &User,
+    perp_market_map: &PerpMarketMap,
     spot_market_map: &SpotMarketMap,
     oracle_map: &mut OracleMap,
 ) -> DriftResult {
     if user.is_margin_trading_enabled {
+        for perp_position in &user.perp_positions {
+            if !perp_position.is_available() {
+                let perp_market = perp_market_map.get_ref(&perp_position.market_index)?;
+
+                validate!(
+                    perp_market.contract_tier != ContractTier::Isolated,
+                    ErrorCode::IsolatedAssetTierViolation,
+                    "Isolated perpetual market = {} doesn't allow margin trading",
+                    perp_market.market_index
+                )?;
+            }
+        }
+
         return Ok(());
     }
 
@@ -751,6 +796,7 @@ pub fn calculate_user_equity(
             spot_market.market_index,
             &spot_market.oracle,
             spot_market.historical_oracle_data.last_oracle_price_twap,
+            spot_market.get_max_confidence_interval_multiplier()?,
         )?;
         all_oracles_valid &=
             is_oracle_valid_for_action(oracle_validity, Some(DriftAction::MarginCalc))?;
@@ -779,6 +825,7 @@ pub fn calculate_user_equity(
                     quote_spot_market
                         .historical_oracle_data
                         .last_oracle_price_twap,
+                    quote_spot_market.get_max_confidence_interval_multiplier()?,
                 )?;
 
             all_oracles_valid &=
@@ -792,6 +839,7 @@ pub fn calculate_user_equity(
             market.market_index,
             &market.amm.oracle,
             market.amm.historical_oracle_data.last_oracle_price_twap,
+            market.get_max_confidence_interval_multiplier()?,
         )?;
 
         all_oracles_valid &=

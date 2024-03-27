@@ -12,12 +12,12 @@ use crate::instructions::constraints::*;
 use crate::load_mut;
 use crate::math::casting::Cast;
 use crate::math::constants::{
-    DEFAULT_BASE_ASSET_AMOUNT_STEP_SIZE, DEFAULT_LIQUIDATION_MARGIN_BUFFER_RATIO,
-    DEFAULT_QUOTE_ASSET_AMOUNT_TICK_SIZE, FEE_POOL_TO_REVENUE_POOL_THRESHOLD, IF_FACTOR_PRECISION,
-    INSURANCE_A_MAX, INSURANCE_B_MAX, INSURANCE_C_MAX, INSURANCE_SPECULATIVE_MAX,
-    LIQUIDATION_FEE_PRECISION, MAX_CONCENTRATION_COEFFICIENT, MAX_SQRT_K,
-    MAX_UPDATE_K_PRICE_CHANGE, QUOTE_SPOT_MARKET_INDEX, SPOT_CUMULATIVE_INTEREST_PRECISION,
-    SPOT_IMF_PRECISION, SPOT_WEIGHT_PRECISION, THIRTEEN_DAY, TWENTY_FOUR_HOUR,
+    DEFAULT_LIQUIDATION_MARGIN_BUFFER_RATIO, FEE_POOL_TO_REVENUE_POOL_THRESHOLD,
+    IF_FACTOR_PRECISION, INSURANCE_A_MAX, INSURANCE_B_MAX, INSURANCE_C_MAX,
+    INSURANCE_SPECULATIVE_MAX, LIQUIDATION_FEE_PRECISION, MAX_CONCENTRATION_COEFFICIENT,
+    MAX_SQRT_K, MAX_UPDATE_K_PRICE_CHANGE, QUOTE_SPOT_MARKET_INDEX,
+    SPOT_CUMULATIVE_INTEREST_PRECISION, SPOT_IMF_PRECISION, SPOT_WEIGHT_PRECISION, THIRTEEN_DAY,
+    TWENTY_FOUR_HOUR,
 };
 use crate::math::cp_curve::get_update_k_result;
 use crate::math::oracle::{is_oracle_valid_for_action, DriftAction};
@@ -34,8 +34,9 @@ use crate::state::fulfillment_params::serum::SerumContext;
 use crate::state::fulfillment_params::serum::SerumV3FulfillmentConfig;
 use crate::state::insurance_fund_stake::ProtocolIfSharesTransferConfig;
 use crate::state::oracle::{
-    get_oracle_price, get_pyth_price, HistoricalIndexData, HistoricalOracleData, OraclePriceData,
-    OracleSource,
+    get_oracle_price, get_prelaunch_price, get_pyth_price, get_switchboard_price,
+    HistoricalIndexData, HistoricalOracleData, OraclePriceData, OracleSource, PrelaunchOracle,
+    PrelaunchOracleParams,
 };
 use crate::state::paused_operations::{PerpOperation, SpotOperation};
 use crate::state::perp_market::{
@@ -105,7 +106,14 @@ pub fn handle_initialize_spot_market(
     maintenance_liability_weight: u32,
     imf_factor: u32,
     liquidator_fee: u32,
+    if_liquidation_fee: u32,
     active_status: bool,
+    asset_tier: AssetTier,
+    scale_initial_asset_weight_start: u64,
+    withdraw_guard_threshold: u64,
+    order_tick_size: u64,
+    order_step_size: u64,
+    if_total_factor: u32,
     name: [u8; 32],
 ) -> Result<()> {
     let state = &mut ctx.accounts.state;
@@ -207,7 +215,6 @@ pub fn handle_initialize_spot_market(
         .or(Err(ErrorCode::UnableToCastUnixTime))?;
 
     let decimals = ctx.accounts.spot_market_mint.decimals.cast::<u32>()?;
-    let order_step_size = 10_u64.pow(2 + decimals - 6); // 10 for usdc/btc, 10000 for sol
 
     **spot_market = SpotMarket {
         market_index: spot_market_index,
@@ -218,11 +225,7 @@ pub fn handle_initialize_spot_market(
             MarketStatus::Initialized
         },
         name,
-        asset_tier: if spot_market_index == QUOTE_SPOT_MARKET_INDEX {
-            AssetTier::Collateral
-        } else {
-            AssetTier::Isolated
-        },
+        asset_tier,
         expiry_ts: 0,
         oracle: ctx.accounts.oracle.key(),
         oracle_source,
@@ -244,7 +247,7 @@ pub fn handle_initialize_spot_market(
         max_token_deposits: 0,
         deposit_token_twap: 0,
         borrow_token_twap: 0,
-        utilization_twap: 0, // todo: use for dynamic interest / additional guards
+        utilization_twap: 0,
         cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
         cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
         total_social_loss: 0,
@@ -257,10 +260,10 @@ pub fn handle_initialize_spot_market(
         maintenance_liability_weight,
         imf_factor,
         liquidator_fee,
-        if_liquidation_fee: LIQUIDATION_FEE_PRECISION / 100, // 1%
-        withdraw_guard_threshold: 0,
+        if_liquidation_fee, // 1%
+        withdraw_guard_threshold,
         order_step_size,
-        order_tick_size: DEFAULT_QUOTE_ASSET_AMOUNT_TICK_SIZE,
+        order_tick_size,
         min_order_size: order_step_size,
         max_position_size: 0,
         next_fill_record_id: 1,
@@ -273,11 +276,13 @@ pub fn handle_initialize_spot_market(
         flash_loan_amount: 0,
         flash_loan_initial_token_amount: 0,
         total_swap_fee: 0,
-        scale_initial_asset_weight_start: 0,
+        scale_initial_asset_weight_start,
         padding: [0; 48],
         insurance_fund: InsuranceFund {
             vault: *ctx.accounts.insurance_fund_vault.to_account_info().key,
             unstaking_period: THIRTEEN_DAY,
+            total_factor: if_total_factor,
+            user_factor: if_total_factor / 2,
             ..InsuranceFund::default()
         },
     };
@@ -495,10 +500,24 @@ pub fn handle_initialize_perp_market(
     amm_periodicity: i64,
     amm_peg_multiplier: u128,
     oracle_source: OracleSource,
+    contract_tier: ContractTier,
     margin_ratio_initial: u32,
     margin_ratio_maintenance: u32,
     liquidator_fee: u32,
+    if_liquidation_fee: u32,
+    imf_factor: u32,
     active_status: bool,
+    base_spread: u32,
+    max_spread: u32,
+    max_open_interest: u128,
+    max_revenue_withdraw_per_period: u64,
+    quote_max_insurance: u64,
+    order_step_size: u64,
+    order_tick_size: u64,
+    min_order_size: u64,
+    concentration_coef_scale: u128,
+    curve_update_intensity: u8,
+    amm_jit_intensity: u8,
     name: [u8; 32],
 ) -> Result<()> {
     let perp_market_pubkey = ctx.accounts.perp_market.to_account_info().key;
@@ -510,6 +529,18 @@ pub fn handle_initialize_perp_market(
     if amm_base_asset_reserve != amm_quote_asset_reserve {
         return Err(ErrorCode::InvalidInitialPeg.into());
     }
+
+    validate!(
+        (0..=200).contains(&curve_update_intensity),
+        ErrorCode::DefaultError,
+        "invalid curve_update_intensity",
+    )?;
+
+    validate!(
+        (0..=200).contains(&amm_jit_intensity),
+        ErrorCode::DefaultError,
+        "invalid amm_jit_intensity",
+    )?;
 
     let init_reserve_price = amm::calculate_price(
         amm_quote_asset_reserve,
@@ -569,26 +600,27 @@ pub fn handle_initialize_perp_market(
             (oracle_price, oracle_delay, QUOTE_PRECISION_I64)
         }
         OracleSource::Switchboard => {
-            msg!("Switchboard oracle cant be used for perp market");
-            return Err(ErrorCode::InvalidOracle.into());
+            let OraclePriceData {
+                price: oracle_price,
+                delay: oracle_delay,
+                ..
+            } = get_switchboard_price(&ctx.accounts.oracle, clock_slot)?;
+
+            (oracle_price, oracle_delay, oracle_price)
         }
         OracleSource::QuoteAsset => {
             msg!("Quote asset oracle cant be used for perp market");
             return Err(ErrorCode::InvalidOracle.into());
         }
+        OracleSource::Prelaunch => {
+            let OraclePriceData {
+                price: oracle_price,
+                delay: oracle_delay,
+                ..
+            } = get_prelaunch_price(&ctx.accounts.oracle, clock_slot)?;
+            (oracle_price, oracle_delay, oracle_price)
+        }
     };
-
-    let max_spread = (margin_ratio_initial - margin_ratio_maintenance) * (100 - 5);
-
-    // todo? should ensure peg within 1 cent of current oracle?
-    // validate!(
-    //     amm_peg_multiplier.cast::<i128>()?
-    //         .safe_sub(oracle_price)
-    //         ?
-    //         .unsigned_abs()
-    //         < PRICE_PRECISION / 100,
-    //     ErrorCode::InvalidInitialPeg
-    // )?;
 
     validate_margin(
         margin_ratio_initial,
@@ -608,7 +640,7 @@ pub fn handle_initialize_perp_market(
 
     **perp_market = PerpMarket {
         contract_type: ContractType::Perpetual,
-        contract_tier: ContractTier::Speculative, // default
+        contract_tier,
         status: if active_status {
             MarketStatus::Active
         } else {
@@ -623,18 +655,22 @@ pub fn handle_initialize_perp_market(
         number_of_users: 0,
         margin_ratio_initial, // unit is 20% (+2 decimal places)
         margin_ratio_maintenance,
-        imf_factor: 0,
+        imf_factor,
         next_fill_record_id: 1,
         next_funding_rate_record_id: 1,
         next_curve_record_id: 1,
         pnl_pool: PoolBalance::default(),
-        insurance_claim: InsuranceClaim::default(),
-        unrealized_pnl_initial_asset_weight: SPOT_WEIGHT_PRECISION.cast()?, // 100%
+        insurance_claim: InsuranceClaim {
+            max_revenue_withdraw_per_period,
+            quote_max_insurance,
+            ..InsuranceClaim::default()
+        },
+        unrealized_pnl_initial_asset_weight: 0, // 100%
         unrealized_pnl_maintenance_asset_weight: SPOT_WEIGHT_PRECISION.cast()?, // 100%
         unrealized_pnl_imf_factor: 0,
         unrealized_pnl_max_imbalance: 0,
         liquidator_fee,
-        if_liquidation_fee: LIQUIDATION_FEE_PRECISION / 100, // 1%
+        if_liquidation_fee,
         paused_operations: 0,
         quote_spot_market_index: 0,
         fee_adjustment: 0,
@@ -684,13 +720,13 @@ pub fn handle_initialize_perp_market(
             last_oracle_normalised_price: oracle_price,
             last_oracle_conf_pct: 0,
             last_oracle_reserve_price_spread_pct: 0, // todo
-            order_step_size: DEFAULT_BASE_ASSET_AMOUNT_STEP_SIZE,
-            order_tick_size: DEFAULT_QUOTE_ASSET_AMOUNT_TICK_SIZE,
-            min_order_size: DEFAULT_BASE_ASSET_AMOUNT_STEP_SIZE,
+            order_step_size,
+            order_tick_size,
+            min_order_size,
             max_position_size: 0,
             max_slippage_ratio: 50,         // ~2%
             max_fill_reserve_fraction: 100, // moves price ~2%
-            base_spread: 0,
+            base_spread,
             long_spread: 0,
             short_spread: 0,
             max_spread,
@@ -704,7 +740,7 @@ pub fn handle_initialize_perp_market(
             quote_entry_amount_short: 0,
             quote_break_even_amount_long: 0,
             quote_break_even_amount_short: 0,
-            max_open_interest: 0,
+            max_open_interest,
             mark_std: 0,
             oracle_std: 0,
             volume_24h: 0,
@@ -713,7 +749,7 @@ pub fn handle_initialize_perp_market(
             short_intensity_count: 0,
             short_intensity_volume: 0,
             last_trade_ts: now,
-            curve_update_intensity: 0,
+            curve_update_intensity,
             fee_pool: PoolBalance::default(),
             base_asset_amount_per_lp: 0,
             quote_asset_amount_per_lp: 0,
@@ -722,7 +758,7 @@ pub fn handle_initialize_perp_market(
             // lp stuff
             base_asset_amount_with_unsettled_lp: 0,
             user_lp_shares: 0,
-            amm_jit_intensity: 0, // turn it off at the start
+            amm_jit_intensity,
 
             last_oracle_valid: false,
             target_base_asset_amount_per_lp: 0,
@@ -738,6 +774,8 @@ pub fn handle_initialize_perp_market(
     };
 
     safe_increment!(state.number_of_markets, 1);
+
+    controller::amm::update_concentration_coef(&mut perp_market.amm, concentration_coef_scale)?;
 
     Ok(())
 }
@@ -1102,7 +1140,7 @@ pub fn handle_update_amm_oracle_twap(ctx: Context<RepegCurve>) -> Result<()> {
 
     let perp_market = &mut load_mut!(ctx.accounts.perp_market)?;
     let price_oracle = &ctx.accounts.oracle;
-    let oracle_twap = perp_market.amm.get_oracle_twap(price_oracle)?;
+    let oracle_twap = perp_market.amm.get_oracle_twap(price_oracle, clock.slot)?;
 
     if let Some(oracle_twap) = oracle_twap {
         let oracle_mark_gap_before = perp_market
@@ -1351,6 +1389,7 @@ pub fn handle_reset_amm_oracle_twap(ctx: Context<RepegCurve>) -> Result<()> {
             .last_oracle_price_twap,
         oracle_price_data,
         &state.oracle_guard_rails.validity,
+        perp_market.get_max_confidence_interval_multiplier()?,
         true,
     )?;
 
@@ -1395,6 +1434,21 @@ pub fn handle_update_perp_market_margin_ratio(
 #[access_control(
     perp_market_valid(&ctx.accounts.perp_market)
 )]
+pub fn handle_update_perp_market_funding_period(
+    ctx: Context<AdminUpdatePerpMarket>,
+    funding_period: i64,
+) -> Result<()> {
+    let perp_market = &mut load_mut!(ctx.accounts.perp_market)?;
+
+    validate!(funding_period >= 0, ErrorCode::DefaultError)?;
+
+    perp_market.amm.funding_period = funding_period;
+    Ok(())
+}
+
+#[access_control(
+    perp_market_valid(&ctx.accounts.perp_market)
+)]
 pub fn handle_update_perp_market_max_imbalances(
     ctx: Context<AdminUpdatePerpMarket>,
     unrealized_max_imbalance: u64,
@@ -1408,6 +1462,7 @@ pub fn handle_update_perp_market_max_imbalances(
         ContractTier::B => INSURANCE_B_MAX,
         ContractTier::C => INSURANCE_C_MAX,
         ContractTier::Speculative => INSURANCE_SPECULATIVE_MAX,
+        ContractTier::HighlySpeculative => INSURANCE_SPECULATIVE_MAX,
         ContractTier::Isolated => INSURANCE_SPECULATIVE_MAX,
     };
 
@@ -1490,9 +1545,9 @@ pub fn handle_update_perp_liquidation_fee(
 ) -> Result<()> {
     let perp_market = &mut load_mut!(ctx.accounts.perp_market)?;
     validate!(
-        liquidator_fee < LIQUIDATION_FEE_PRECISION,
+        liquidator_fee.safe_add(if_liquidation_fee)? < LIQUIDATION_FEE_PRECISION,
         ErrorCode::DefaultError,
-        "Liquidation fee must be less than 100%"
+        "Total liquidation fee must be less than 100%"
     )?;
 
     validate!(
@@ -1535,15 +1590,15 @@ pub fn handle_update_spot_market_liquidation_fee(
 ) -> Result<()> {
     let spot_market = &mut load_mut!(ctx.accounts.spot_market)?;
     validate!(
-        liquidator_fee < LIQUIDATION_FEE_PRECISION,
+        liquidator_fee.safe_add(if_liquidation_fee)? < LIQUIDATION_FEE_PRECISION,
         ErrorCode::DefaultError,
-        "Liquidation fee must be less than 100%"
+        "Total liquidation fee must be less than 100%"
     )?;
 
     validate!(
-        if_liquidation_fee <= LIQUIDATION_FEE_PRECISION / 20,
+        if_liquidation_fee <= LIQUIDATION_FEE_PRECISION / 10,
         ErrorCode::DefaultError,
-        "if_liquidation_fee must be <= 5%"
+        "if_liquidation_fee must be <= 10%"
     )?;
 
     spot_market.liquidator_fee = liquidator_fee;
@@ -2386,6 +2441,73 @@ pub fn handle_update_protocol_if_shares_transfer_config(
     Ok(())
 }
 
+pub fn handle_initialize_prelaunch_oracle<'info>(
+    ctx: Context<InitializePrelaunchOracle<'info>>,
+    params: PrelaunchOracleParams,
+) -> Result<()> {
+    let mut oracle = ctx.accounts.prelaunch_oracle.load_init()?;
+
+    oracle.perp_market_index = params.perp_market_index;
+    if let Some(price) = params.price {
+        oracle.price = price;
+    }
+    if let Some(max_price) = params.max_price {
+        oracle.max_price = max_price;
+    }
+
+    oracle.validate()?;
+
+    Ok(())
+}
+
+pub fn handle_update_prelaunch_oracle_params<'info>(
+    ctx: Context<UpdatePrelaunchOracleParams<'info>>,
+    params: PrelaunchOracleParams,
+) -> Result<()> {
+    let mut oracle = ctx.accounts.prelaunch_oracle.load_mut()?;
+    let mut perp_market = ctx.accounts.perp_market.load_mut()?;
+    let now = Clock::get()?.unix_timestamp;
+
+    if let Some(price) = params.price {
+        oracle.price = price;
+
+        msg!("before mark twap ts = {:?} mark twap = {:?} mark twap 5min = {:?} bid twap = {:?} ask twap {:?}", perp_market.amm.last_mark_price_twap_ts, perp_market.amm.last_mark_price_twap, perp_market.amm.last_mark_price_twap_5min, perp_market.amm.last_bid_price_twap, perp_market.amm.last_ask_price_twap);
+
+        perp_market.amm.last_mark_price_twap_ts = now;
+        perp_market.amm.last_mark_price_twap = price.cast()?;
+        perp_market.amm.last_mark_price_twap_5min = price.cast()?;
+        perp_market.amm.last_bid_price_twap =
+            perp_market.amm.last_bid_price_twap.min(price.cast()?);
+        perp_market.amm.last_ask_price_twap =
+            perp_market.amm.last_ask_price_twap.max(price.cast()?);
+
+        msg!("after mark twap ts = {:?} mark twap = {:?} mark twap 5min = {:?} bid twap = {:?} ask twap {:?}", perp_market.amm.last_mark_price_twap_ts, perp_market.amm.last_mark_price_twap, perp_market.amm.last_mark_price_twap_5min, perp_market.amm.last_bid_price_twap, perp_market.amm.last_ask_price_twap);
+    }
+
+    if let Some(max_price) = params.max_price {
+        oracle.max_price = max_price;
+    }
+
+    oracle.validate()?;
+
+    Ok(())
+}
+
+pub fn handle_delete_prelaunch_oracle<'info>(
+    ctx: Context<DeletePrelaunchOracle<'info>>,
+    _perp_market_index: u16,
+) -> Result<()> {
+    let perp_market = ctx.accounts.perp_market.load()?;
+
+    validate!(
+        perp_market.amm.oracle != ctx.accounts.prelaunch_oracle.key(),
+        ErrorCode::DefaultError,
+        "prelaunch oracle currently in use"
+    )?;
+
+    Ok(())
+}
+
 #[derive(Accounts)]
 pub struct Initialize<'info> {
     #[account(mut)]
@@ -2812,6 +2934,71 @@ pub struct UpdateProtocolIfSharesTransferConfig<'info> {
         bump,
     )]
     pub protocol_if_shares_transfer_config: AccountLoader<'info, ProtocolIfSharesTransferConfig>,
+    #[account(
+        has_one = admin
+    )]
+    pub state: Box<Account<'info, State>>,
+}
+
+#[derive(Accounts)]
+#[instruction(params: PrelaunchOracleParams,)]
+pub struct InitializePrelaunchOracle<'info> {
+    #[account(mut)]
+    pub admin: Signer<'info>,
+    #[account(
+        init,
+        seeds = [b"prelaunch_oracle".as_ref(), params.perp_market_index.to_le_bytes().as_ref()],
+        space = PrelaunchOracle::SIZE,
+        bump,
+        payer = admin
+    )]
+    pub prelaunch_oracle: AccountLoader<'info, PrelaunchOracle>,
+    #[account(
+        has_one = admin
+    )]
+    pub state: Box<Account<'info, State>>,
+    pub rent: Sysvar<'info, Rent>,
+    pub system_program: Program<'info, System>,
+}
+
+#[derive(Accounts)]
+#[instruction(params: PrelaunchOracleParams,)]
+pub struct UpdatePrelaunchOracleParams<'info> {
+    #[account(mut)]
+    pub admin: Signer<'info>,
+    #[account(
+        mut,
+        seeds = [b"prelaunch_oracle".as_ref(), params.perp_market_index.to_le_bytes().as_ref()],
+        bump,
+    )]
+    pub prelaunch_oracle: AccountLoader<'info, PrelaunchOracle>,
+    #[account(
+        mut,
+        constraint = perp_market.load()?.market_index == params.perp_market_index
+    )]
+    pub perp_market: AccountLoader<'info, PerpMarket>,
+    #[account(
+        has_one = admin
+    )]
+    pub state: Box<Account<'info, State>>,
+}
+
+#[derive(Accounts)]
+#[instruction(perp_market_index: u16,)]
+pub struct DeletePrelaunchOracle<'info> {
+    #[account(mut)]
+    pub admin: Signer<'info>,
+    #[account(
+        mut,
+        seeds = [b"prelaunch_oracle".as_ref(), perp_market_index.to_le_bytes().as_ref()],
+        bump,
+        close = admin
+    )]
+    pub prelaunch_oracle: AccountLoader<'info, PrelaunchOracle>,
+    #[account(
+        constraint = perp_market.load()?.market_index == perp_market_index
+    )]
+    pub perp_market: AccountLoader<'info, PerpMarket>,
     #[account(
         has_one = admin
     )]

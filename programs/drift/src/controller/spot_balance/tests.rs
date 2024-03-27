@@ -10,8 +10,8 @@ use crate::create_account_info;
 use crate::create_anchor_account_info;
 use crate::math::constants::{
     AMM_RESERVE_PRECISION, BASE_PRECISION_I128, BASE_PRECISION_I64, LIQUIDATION_FEE_PRECISION,
-    PEG_PRECISION, PRICE_PRECISION_I64, QUOTE_PRECISION, QUOTE_PRECISION_I128, QUOTE_PRECISION_I64,
-    QUOTE_PRECISION_U64, SPOT_BALANCE_PRECISION, SPOT_BALANCE_PRECISION_U64,
+    PEG_PRECISION, PRICE_PRECISION_I64, PRICE_PRECISION_U64, QUOTE_PRECISION, QUOTE_PRECISION_I128,
+    QUOTE_PRECISION_I64, QUOTE_PRECISION_U64, SPOT_BALANCE_PRECISION, SPOT_BALANCE_PRECISION_U64,
     SPOT_CUMULATIVE_INTEREST_PRECISION, SPOT_RATE_PRECISION_U32, SPOT_UTILIZATION_PRECISION,
     SPOT_UTILIZATION_PRECISION_U32, SPOT_WEIGHT_PRECISION,
 };
@@ -1611,4 +1611,63 @@ fn check_usdc_spot_market_twap() {
         calculate_weighted_average(PRICE_PRECISION_I64, PRICE_PRECISION_I64 + 1, 0, ONE_HOUR)
             .unwrap();
     assert_eq!(wa_res2, PRICE_PRECISION_I64 + 1);
+
+    assert_eq!(
+        spot_market.historical_index_data.last_index_price_twap_ts,
+        0
+    );
+
+    spot_market
+        .update_historical_index_price(None, None, 7898)
+        .unwrap();
+    assert_eq!(
+        spot_market.historical_index_data.last_index_price_twap_ts,
+        7898
+    );
+    assert_eq!(spot_market.historical_index_data.last_index_price_twap, 0);
+    assert_eq!(
+        spot_market.historical_index_data.last_index_price_twap_5min,
+        0
+    );
+
+    spot_market
+        .update_historical_index_price(
+            Some(PRICE_PRECISION_U64 - 79083),
+            Some(PRICE_PRECISION_U64 + 9174),
+            1710344006,
+        )
+        .unwrap();
+    assert_eq!(
+        spot_market.historical_index_data.last_index_price_twap_ts,
+        1710344006
+    );
+    assert_eq!(
+        spot_market.historical_index_data.last_index_price_twap_5min,
+        965044
+    );
+    assert_eq!(
+        spot_market.historical_index_data.last_index_price_twap,
+        965044
+    );
+
+    spot_market
+        .update_historical_index_price(
+            Some(PRICE_PRECISION_U64 - 7),
+            Some(PRICE_PRECISION_U64 + 9),
+            1710344006 + 150,
+        )
+        .unwrap();
+
+    assert_eq!(
+        spot_market.historical_index_data.last_index_price_twap_ts,
+        1710344006 + 150
+    );
+    assert_eq!(
+        spot_market.historical_index_data.last_index_price_twap_5min,
+        982521
+    );
+    assert_eq!(
+        spot_market.historical_index_data.last_index_price_twap,
+        966501
+    );
 }

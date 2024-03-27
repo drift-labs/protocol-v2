@@ -14,8 +14,8 @@ use crate::math::constants::{
     AMM_RESERVE_PRECISION_I128, AMM_TO_QUOTE_PRECISION_RATIO, BID_ASK_SPREAD_PRECISION,
     BID_ASK_SPREAD_PRECISION_U128, DEFAULT_REVENUE_SINCE_LAST_FUNDING_SPREAD_RETREAT,
     LP_FEE_SLICE_DENOMINATOR, LP_FEE_SLICE_NUMERATOR, MARGIN_PRECISION_U128, PERCENTAGE_PRECISION,
-    PERCENTAGE_PRECISION_I128, PERCENTAGE_PRECISION_I64, PRICE_PRECISION, SPOT_WEIGHT_PRECISION,
-    TWENTY_FOUR_HOUR,
+    PERCENTAGE_PRECISION_I128, PERCENTAGE_PRECISION_I64, PERCENTAGE_PRECISION_U64, PRICE_PRECISION,
+    SPOT_WEIGHT_PRECISION, TWENTY_FOUR_HOUR,
 };
 use crate::math::helpers::get_proportion_i128;
 
@@ -27,7 +27,9 @@ use crate::math::safe_math::SafeMath;
 use crate::math::stats;
 use crate::state::events::OrderActionExplanation;
 
-use crate::state::oracle::{HistoricalOracleData, OracleSource};
+use crate::state::oracle::{
+    get_prelaunch_price, get_switchboard_price, HistoricalOracleData, OracleSource,
+};
 use crate::state::spot_market::{AssetTier, SpotBalance, SpotBalanceType};
 use crate::state::traits::{MarketIndexOffset, Size};
 use borsh::{BorshDeserialize, BorshSerialize};
@@ -106,6 +108,8 @@ pub enum ContractTier {
     C,
     /// no insurance
     Speculative,
+    /// no insurance, another tranches below
+    HighlySpeculative,
     /// no insurance, only single position allowed
     Isolated,
 }
@@ -332,23 +336,37 @@ impl PerpMarket {
         Ok(false)
     }
 
+    pub fn get_max_confidence_interval_multiplier(self) -> DriftResult<u64> {
+        // assuming validity_guard_rails max confidence pct is 2%
+        Ok(match self.contract_tier {
+            ContractTier::A => 1,                  // 2%
+            ContractTier::B => 1,                  // 2%
+            ContractTier::C => 2,                  // 4%
+            ContractTier::Speculative => 10,       // 20%
+            ContractTier::HighlySpeculative => 50, // 100%
+            ContractTier::Isolated => 50,          // 100%
+        })
+    }
+
     pub fn get_sanitize_clamp_denominator(self) -> DriftResult<Option<i64>> {
         Ok(match self.contract_tier {
-            ContractTier::A => Some(10_i64),   // 10%
-            ContractTier::B => Some(5_i64),    // 20%
-            ContractTier::C => Some(2_i64),    // 50%
+            ContractTier::A => Some(10_i64),         // 10%
+            ContractTier::B => Some(5_i64),          // 20%
+            ContractTier::C => Some(2_i64),          // 50%
             ContractTier::Speculative => None, // DEFAULT_MAX_TWAP_UPDATE_PRICE_BAND_DENOMINATOR
-            ContractTier::Isolated => None,    // DEFAULT_MAX_TWAP_UPDATE_PRICE_BAND_DENOMINATOR
+            ContractTier::HighlySpeculative => None, // DEFAULT_MAX_TWAP_UPDATE_PRICE_BAND_DENOMINATOR
+            ContractTier::Isolated => None, // DEFAULT_MAX_TWAP_UPDATE_PRICE_BAND_DENOMINATOR
         })
     }
 
     pub fn get_auction_end_min_max_divisors(self) -> DriftResult<(u64, u64)> {
         Ok(match self.contract_tier {
-            ContractTier::A => (1000, 50),          // 10 bps, 2%
-            ContractTier::B => (1000, 20),          // 10 bps, 5%
-            ContractTier::C => (500, 20),           // 50 bps, 5%
-            ContractTier::Speculative => (100, 10), // 1%, 10%
-            ContractTier::Isolated => (50, 5),      // 2%, 20%
+            ContractTier::A => (1000, 50),              // 10 bps, 2%
+            ContractTier::B => (1000, 20),              // 10 bps, 5%
+            ContractTier::C => (500, 20),               // 50 bps, 5%
+            ContractTier::Speculative => (100, 10),     // 1%, 10%
+            ContractTier::HighlySpeculative => (50, 5), // 2%, 20%
+            ContractTier::Isolated => (50, 5),          // 2%, 20%
         })
     }
 
@@ -503,14 +521,21 @@ impl PerpMarket {
         let oracle_divergence = oracle_price
             .safe_sub(self.amm.historical_oracle_data.last_oracle_price_twap_5min)?
             .safe_mul(PERCENTAGE_PRECISION_I64)?
-            .safe_div(self.amm.historical_oracle_data.last_oracle_price_twap_5min)?;
+            .safe_div(
+                self.amm
+                    .historical_oracle_data
+                    .last_oracle_price_twap_5min
+                    .min(oracle_price),
+            )?
+            .unsigned_abs();
 
         let oracle_divergence_limit = match self.contract_tier {
-            ContractTier::A => PERCENTAGE_PRECISION_I64 / 200, // 50 bps
-            ContractTier::B => PERCENTAGE_PRECISION_I64 / 200, // 50 bps
-            ContractTier::C => PERCENTAGE_PRECISION_I64 / 100, // 100 bps
-            ContractTier::Speculative => PERCENTAGE_PRECISION_I64 / 40, // 250 bps
-            ContractTier::Isolated => PERCENTAGE_PRECISION_I64 / 40, // 250 bps
+            ContractTier::A => PERCENTAGE_PRECISION_U64 / 200, // 50 bps
+            ContractTier::B => PERCENTAGE_PRECISION_U64 / 200, // 50 bps
+            ContractTier::C => PERCENTAGE_PRECISION_U64 / 100, // 100 bps
+            ContractTier::Speculative => PERCENTAGE_PRECISION_U64 / 40, // 250 bps
+            ContractTier::HighlySpeculative => PERCENTAGE_PRECISION_U64 / 40, // 250 bps
+            ContractTier::Isolated => PERCENTAGE_PRECISION_U64 / 40, // 250 bps
         };
 
         if oracle_divergence >= oracle_divergence_limit {
@@ -519,6 +544,29 @@ impl PerpMarket {
                 self.market_index,
                 oracle_divergence,
                 oracle_divergence_limit
+            );
+            return Ok(false);
+        }
+
+        let min_price =
+            oracle_price.min(self.amm.historical_oracle_data.last_oracle_price_twap_5min);
+
+        let std_limit = match self.contract_tier {
+            ContractTier::A => min_price / 50,                 // 200 bps
+            ContractTier::B => min_price / 50,                 // 200 bps
+            ContractTier::C => min_price / 20,                 // 500 bps
+            ContractTier::Speculative => min_price / 10,       // 1000 bps
+            ContractTier::HighlySpeculative => min_price / 10, // 1000 bps
+            ContractTier::Isolated => min_price / 10,          // 1000 bps
+        }
+        .unsigned_abs();
+
+        if self.amm.oracle_std.max(self.amm.mark_std) >= std_limit {
+            msg!(
+                "market_index={} std too large to safely settle pnl: {} >= {}",
+                self.market_index,
+                self.amm.oracle_std.max(self.amm.mark_std),
+                std_limit
             );
             return Ok(false);
         }
@@ -1228,18 +1276,23 @@ impl AMM {
         Ok(can_lower)
     }
 
-    pub fn get_oracle_twap(&self, price_oracle: &AccountInfo) -> DriftResult<Option<i64>> {
+    pub fn get_oracle_twap(
+        &self,
+        price_oracle: &AccountInfo,
+        slot: u64,
+    ) -> DriftResult<Option<i64>> {
         match self.oracle_source {
             OracleSource::Pyth | OracleSource::PythStableCoin => {
                 Ok(Some(self.get_pyth_twap(price_oracle, 1)?))
             }
             OracleSource::Pyth1K => Ok(Some(self.get_pyth_twap(price_oracle, 1000)?)),
             OracleSource::Pyth1M => Ok(Some(self.get_pyth_twap(price_oracle, 1000000)?)),
-            OracleSource::Switchboard => Ok(None),
+            OracleSource::Switchboard => Ok(Some(get_switchboard_price(price_oracle, slot)?.price)),
             OracleSource::QuoteAsset => {
                 msg!("Can't get oracle twap for quote asset");
                 Err(ErrorCode::DefaultError)
             }
+            OracleSource::Prelaunch => Ok(Some(get_prelaunch_price(price_oracle, slot)?.price)),
         }
     }
 
@@ -1322,6 +1375,10 @@ impl AMM {
             .safe_mul(BID_ASK_SPREAD_PRECISION)?
             .safe_div(reserve_price)?
             .max(confidence_lower_bound))
+    }
+
+    pub fn is_recent_oracle_valid(&self, current_slot: u64) -> DriftResult<bool> {
+        Ok(self.last_oracle_valid && current_slot == self.last_update_slot)
     }
 }
 

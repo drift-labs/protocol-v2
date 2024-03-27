@@ -1,12 +1,17 @@
+use crate::error::ErrorCode::UnableToLoadOracle;
 use crate::error::{DriftResult, ErrorCode};
-use crate::ids::{bonk_oracle, pepe_oracle, pyth_program, usdc_oracle, usdt_oracle_mainnet};
+use crate::ids::{
+    bonk_oracle, pepe_oracle, pyth_program, switchboard_program, usdc_oracle, usdt_oracle_mainnet,
+};
 use crate::math::constants::PRICE_PRECISION_I64;
 use crate::math::oracle::{oracle_validity, OracleValidity};
-use crate::state::oracle::{get_oracle_price, OraclePriceData, OracleSource};
+use crate::state::oracle::{get_oracle_price, OraclePriceData, OracleSource, PrelaunchOracle};
 use crate::state::state::OracleGuardRails;
 use crate::state::user::MarketType;
 use anchor_lang::prelude::{AccountInfo, Pubkey};
+use anchor_lang::Discriminator;
 use anchor_lang::Key;
+use arrayref::array_ref;
 use solana_program::msg;
 use std::collections::BTreeMap;
 use std::iter::Peekable;
@@ -14,6 +19,7 @@ use std::slice::Iter;
 
 use super::state::ValidityGuardRails;
 use crate::math::safe_unwrap::SafeUnwrap;
+use crate::state::traits::Size;
 
 pub struct AccountInfoAndOracleSource<'a> {
     /// CHECK: ownders are validated in OracleMap::load
@@ -81,6 +87,7 @@ impl<'a> OracleMap<'a> {
         market_index: u16,
         pubkey: &Pubkey,
         last_oracle_price_twap: i64,
+        max_confidence_interval_multiplier: u64,
     ) -> DriftResult<(&OraclePriceData, OracleValidity)> {
         if self.should_get_quote_asset_price_data(pubkey) {
             return Ok((&self.quote_asset_price_data, OracleValidity::Valid));
@@ -98,6 +105,7 @@ impl<'a> OracleMap<'a> {
                     last_oracle_price_twap,
                     oracle_price_data,
                     &self.oracle_guard_rails.validity,
+                    max_confidence_interval_multiplier,
                     true,
                 )?;
                 self.validity.insert(*pubkey, oracle_validity);
@@ -128,6 +136,7 @@ impl<'a> OracleMap<'a> {
             last_oracle_price_twap,
             oracle_price_data,
             &self.oracle_guard_rails.validity,
+            max_confidence_interval_multiplier,
             true,
         )?;
         self.validity.insert(*pubkey, oracle_validity);
@@ -201,6 +210,47 @@ impl<'a> OracleMap<'a> {
                 );
 
                 continue;
+            } else if account_info.owner == &crate::id() {
+                let data = account_info.try_borrow_data().map_err(|e| {
+                    msg!("Failed to borrow data while loading oracle map {:?}", e);
+                    UnableToLoadOracle
+                })?;
+
+                let expected_data_len = PrelaunchOracle::SIZE;
+                if data.len() < expected_data_len {
+                    break;
+                }
+
+                let account_discriminator = array_ref![data, 0, 8];
+                if account_discriminator != &PrelaunchOracle::discriminator() {
+                    break;
+                }
+
+                let account_info = account_info_iter.next().safe_unwrap()?;
+                let pubkey = account_info.key();
+
+                oracles.insert(
+                    pubkey,
+                    AccountInfoAndOracleSource {
+                        account_info: account_info.clone(),
+                        oracle_source: OracleSource::Prelaunch,
+                    },
+                );
+
+                continue;
+            } else if account_info.owner == &switchboard_program::id() {
+                let account_info = account_info_iter.next().safe_unwrap()?;
+                let pubkey = account_info.key();
+
+                oracles.insert(
+                    pubkey,
+                    AccountInfoAndOracleSource {
+                        account_info: account_info.clone(),
+                        oracle_source: OracleSource::Switchboard,
+                    },
+                );
+
+                continue;
             }
 
             break;
@@ -248,6 +298,41 @@ impl<'a> OracleMap<'a> {
                 AccountInfoAndOracleSource {
                     account_info: account_info.clone(),
                     oracle_source,
+                },
+            );
+        } else if account_info.owner == &crate::id() {
+            let data = account_info.try_borrow_data().map_err(|e| {
+                msg!("Failed to borrow data while loading oracle map {:?}", e);
+                UnableToLoadOracle
+            })?;
+
+            let expected_data_len = PrelaunchOracle::SIZE;
+            if data.len() < expected_data_len {
+                msg!("Unexpected account data len loading oracle");
+                return Err(UnableToLoadOracle);
+            }
+
+            let account_discriminator = array_ref![data, 0, 8];
+            if account_discriminator != &PrelaunchOracle::discriminator() {
+                msg!("Unexpected account discriminator");
+                return Err(UnableToLoadOracle);
+            }
+
+            let pubkey = account_info.key();
+            oracles.insert(
+                pubkey,
+                AccountInfoAndOracleSource {
+                    account_info: account_info.clone(),
+                    oracle_source: OracleSource::Prelaunch,
+                },
+            );
+        } else if account_info.owner == &switchboard_program::id() {
+            let pubkey = account_info.key();
+            oracles.insert(
+                pubkey,
+                AccountInfoAndOracleSource {
+                    account_info: account_info.clone(),
+                    oracle_source: OracleSource::Switchboard,
                 },
             );
         } else if account_info.key() != Pubkey::default() {

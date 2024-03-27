@@ -1730,6 +1730,7 @@ pub mod fulfill_order_with_maker_order {
                 market.market_index,
                 &oracle_price_key,
                 market.amm.historical_oracle_data.last_oracle_price_twap,
+                market.get_max_confidence_interval_multiplier().unwrap(),
             )
             .unwrap();
 

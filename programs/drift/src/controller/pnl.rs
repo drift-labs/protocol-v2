@@ -134,17 +134,9 @@ pub fn settle_pnl(
     let perp_market = &mut perp_market_map.get_ref_mut(&market_index)?;
 
     if perp_market.amm.curve_update_intensity > 0 {
-        validate!(
-            oracle_map.slot == perp_market.amm.last_update_slot,
-            ErrorCode::AMMNotUpdatedInSameSlot,
-            "Market={} AMM must be updated in a prior instruction within same slot (current={} != amm={}, last_oracle_valid={})",
-            market_index,
-            oracle_map.slot,
-            perp_market.amm.last_update_slot,
-            perp_market.amm.last_oracle_valid
-        )?;
+        let healthy_oracle = perp_market.amm.is_recent_oracle_valid(oracle_map.slot)?;
 
-        if !perp_market.amm.last_oracle_valid {
+        if !healthy_oracle {
             let (_, oracle_validity) = oracle_map.get_price_data_and_validity(
                 MarketType::Perp,
                 perp_market.market_index,
@@ -153,11 +145,22 @@ pub fn settle_pnl(
                     .amm
                     .historical_oracle_data
                     .last_oracle_price_twap,
+                perp_market.get_max_confidence_interval_multiplier()?,
             )?;
 
             if !is_oracle_valid_for_action(oracle_validity, Some(DriftAction::SettlePnl))?
                 || !perp_market.is_price_divergence_ok_for_settle_pnl(oracle_price)?
             {
+                validate!(
+                    oracle_map.slot == perp_market.amm.last_update_slot,
+                    ErrorCode::AMMNotUpdatedInSameSlot,
+                    "Market={} AMM must be updated in a prior instruction within same slot (current={} != amm={}, last_oracle_valid={})",
+                    market_index,
+                    oracle_map.slot,
+                    perp_market.amm.last_update_slot,
+                    perp_market.amm.last_oracle_valid
+                )?;
+
                 validate!(
                     perp_market.amm.last_oracle_valid,
                     ErrorCode::InvalidOracle,
@@ -167,13 +170,6 @@ pub fn settle_pnl(
             }
         }
     }
-
-    validate!(
-        perp_market.status == MarketStatus::Active,
-        ErrorCode::InvalidMarketStatusToSettlePnl,
-        "Cannot settle pnl under current market = {} status",
-        market_index
-    )?;
 
     validate!(
         !perp_market.is_operation_paused(PerpOperation::SettlePnl),
@@ -186,7 +182,22 @@ pub fn settle_pnl(
         validate!(
             !perp_market.is_operation_paused(PerpOperation::SettlePnlWithPosition),
             ErrorCode::InvalidMarketStatusToSettlePnl,
-            "Cannot settle pnl with position under current market = {} status",
+            "Cannot settle pnl with position under current market = {} operation paused",
+            market_index
+        )?;
+
+        validate!(
+            perp_market.status == MarketStatus::Active,
+            ErrorCode::InvalidMarketStatusToSettlePnl,
+            "Cannot settle pnl with position under non-Active current market = {} status",
+            market_index
+        )?;
+    } else {
+        validate!(
+            perp_market.status == MarketStatus::Active
+                || perp_market.status == MarketStatus::ReduceOnly,
+            ErrorCode::InvalidMarketStatusToSettlePnl,
+            "Cannot settle pnl under current market = {} status (neither Active or ReduceOnly)",
             market_index
         )?;
     }

@@ -6614,6 +6614,63 @@ describe('Uncross L2', () => {
 		);
 	});
 
+	it('Handles user crossing bid in second level', () => {
+		const oraclePrice = new BN(190.3843 * PRICE_PRECISION.toNumber());
+		const bids = [
+			[190.59, 2],
+			[190.588, 58.3],
+			[190.5557, 5],
+			[190.5547, 5],
+			[190.5508, 5],
+			[190.541, 2],
+			[190.5099, 49.1],
+			[190.5, 60],
+		].map(([price, size]) => ({
+			price: new BN(price * PRICE_PRECISION.toNumber()),
+			size: new BN(size * BASE_PRECISION.toNumber()),
+			sources: { vamm: new BN(size * BASE_PRECISION.toNumber()) },
+		}));
+
+		const asks = [
+			[190.5, 86.5],
+			[190.6159, 1],
+			[190.656, 10.5],
+			[190.6561, 1],
+			[190.6585, 5],
+			[190.6595, 5],
+			[190.6596, 5],
+		].map(([price, size]) => ({
+			price: new BN(price * PRICE_PRECISION.toNumber()),
+			size: new BN(size * BASE_PRECISION.toNumber()),
+			sources: { vamm: new BN(size * BASE_PRECISION.toNumber()) },
+		}));
+
+		expect(asksAreSortedAsc(asks), 'Input asks are ascending').to.be.true;
+		expect(bidsAreSortedDesc(bids), 'Input bids are descending').to.be.true;
+
+		const groupingSize = new BN('100');
+
+		const userBidPrice = new BN(190.588 * PRICE_PRECISION.toNumber());
+		const userBids = new Set<string>([userBidPrice.toString()]);
+
+		const { bids: newBids, asks: newAsks } = uncrossL2(
+			bids,
+			asks,
+			oraclePrice,
+			oraclePrice,
+			oraclePrice,
+			groupingSize,
+			userBids,
+			new Set<string>()
+		);
+
+		expect(asksAreSortedAsc(newAsks), 'Uncrossed asks are ascending').to.be
+			.true;
+		expect(bidsAreSortedDesc(newBids), 'Uncrossed bids are descending').to.be
+			.true;
+		expect(newBids[0].price.toString()).to.equal(userBidPrice.toString());
+	});
+
 	it('Handles edge case bide and asks with large cross and an overlapping level', () => {
 		const bids = [
 			'104411000',

@@ -11,6 +11,7 @@ use math::{bn, constants::*};
 use state::oracle::OracleSource;
 
 use crate::controller::position::PositionDirection;
+use crate::state::oracle::PrelaunchOracleParams;
 use crate::state::order_params::{ModifyOrderParams, OrderParams};
 use crate::state::perp_market::{ContractTier, MarketStatus};
 use crate::state::spot_market::AssetTier;
@@ -444,6 +445,10 @@ pub mod drift {
         handle_update_funding_rate(ctx, market_index)
     }
 
+    pub fn update_prelaunch_oracle(ctx: Context<UpdatePrelaunchOracle>) -> Result<()> {
+        handle_update_prelaunch_oracle(ctx)
+    }
+
     pub fn update_perp_bid_ask_twap(ctx: Context<UpdatePerpBidAskTwap>) -> Result<()> {
         handle_update_perp_bid_ask_twap(ctx)
     }
@@ -536,7 +541,14 @@ pub mod drift {
         maintenance_liability_weight: u32,
         imf_factor: u32,
         liquidator_fee: u32,
+        if_liquidation_fee: u32,
         active_status: bool,
+        asset_tier: AssetTier,
+        scale_initial_asset_weight_start: u64,
+        withdraw_guard_threshold: u64,
+        order_tick_size: u64,
+        order_step_size: u64,
+        if_total_factor: u32,
         name: [u8; 32],
     ) -> Result<()> {
         handle_initialize_spot_market(
@@ -551,7 +563,14 @@ pub mod drift {
             maintenance_liability_weight,
             imf_factor,
             liquidator_fee,
+            if_liquidation_fee,
             active_status,
+            asset_tier,
+            scale_initial_asset_weight_start,
+            withdraw_guard_threshold,
+            order_tick_size,
+            order_step_size,
+            if_total_factor,
             name,
         )
     }
@@ -596,10 +615,24 @@ pub mod drift {
         amm_periodicity: i64,
         amm_peg_multiplier: u128,
         oracle_source: OracleSource,
+        contract_tier: ContractTier,
         margin_ratio_initial: u32,
         margin_ratio_maintenance: u32,
         liquidator_fee: u32,
+        if_liquidation_fee: u32,
+        imf_factor: u32,
         active_status: bool,
+        base_spread: u32,
+        max_spread: u32,
+        max_open_interest: u128,
+        max_revenue_withdraw_per_period: u64,
+        quote_max_insurance: u64,
+        order_step_size: u64,
+        order_tick_size: u64,
+        min_order_size: u64,
+        concentration_coef_scale: u128,
+        curve_update_intensity: u8,
+        amm_jit_intensity: u8,
         name: [u8; 32],
     ) -> Result<()> {
         handle_initialize_perp_market(
@@ -610,10 +643,24 @@ pub mod drift {
             amm_periodicity,
             amm_peg_multiplier,
             oracle_source,
+            contract_tier,
             margin_ratio_initial,
             margin_ratio_maintenance,
             liquidator_fee,
+            if_liquidation_fee,
+            imf_factor,
             active_status,
+            base_spread,
+            max_spread,
+            max_open_interest,
+            max_revenue_withdraw_per_period,
+            quote_max_insurance,
+            order_step_size,
+            order_tick_size,
+            min_order_size,
+            concentration_coef_scale,
+            curve_update_intensity,
+            amm_jit_intensity,
             name,
         )
     }
@@ -691,6 +738,13 @@ pub mod drift {
         margin_ratio_maintenance: u32,
     ) -> Result<()> {
         handle_update_perp_market_margin_ratio(ctx, margin_ratio_initial, margin_ratio_maintenance)
+    }
+
+    pub fn update_perp_market_funding_period(
+        ctx: Context<AdminUpdatePerpMarket>,
+        funding_period: i64,
+    ) -> Result<()> {
+        handle_update_perp_market_funding_period(ctx, funding_period)
     }
 
     pub fn update_perp_market_max_imbalances(
@@ -1144,6 +1198,27 @@ pub mod drift {
             whitelisted_signers,
             max_transfer_per_epoch,
         )
+    }
+
+    pub fn initialize_prelaunch_oracle(
+        ctx: Context<InitializePrelaunchOracle>,
+        params: PrelaunchOracleParams,
+    ) -> Result<()> {
+        handle_initialize_prelaunch_oracle(ctx, params)
+    }
+
+    pub fn update_prelaunch_oracle_params(
+        ctx: Context<UpdatePrelaunchOracleParams>,
+        params: PrelaunchOracleParams,
+    ) -> Result<()> {
+        handle_update_prelaunch_oracle_params(ctx, params)
+    }
+
+    pub fn delete_prelaunch_oracle(
+        ctx: Context<DeletePrelaunchOracle>,
+        perp_market_index: u16,
+    ) -> Result<()> {
+        handle_delete_prelaunch_oracle(ctx, perp_market_index)
     }
 }
 

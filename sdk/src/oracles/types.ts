@@ -9,6 +9,7 @@ export type OraclePriceData = {
 	hasSufficientNumberOfDataPoints: boolean;
 	twap?: BN;
 	twapConfidence?: BN;
+	maxPrice?: BN; // pre-launch markets only
 };
 
 export type OracleInfo = {

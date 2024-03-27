@@ -125,7 +125,8 @@ pub struct MarginCalculation {
     pub num_spot_liabilities: u8,
     pub num_perp_liabilities: u8,
     pub all_oracles_valid: bool,
-    pub with_isolated_liability: bool,
+    pub with_perp_isolated_liability: bool,
+    pub with_spot_isolated_liability: bool,
     pub total_spot_asset_value: i128,
     pub total_spot_liability_value: u128,
     pub total_perp_liability_value: u128,
@@ -143,7 +144,8 @@ impl MarginCalculation {
             num_spot_liabilities: 0,
             num_perp_liabilities: 0,
             all_oracles_valid: true,
-            with_isolated_liability: false,
+            with_perp_isolated_liability: false,
+            with_spot_isolated_liability: false,
             total_spot_asset_value: 0,
             total_spot_liability_value: 0,
             total_perp_liability_value: 0,
@@ -206,8 +208,12 @@ impl MarginCalculation {
         self.all_oracles_valid &= valid;
     }
 
-    pub fn update_with_isolated_liability(&mut self, isolated: bool) {
-        self.with_isolated_liability &= isolated;
+    pub fn update_with_spot_isolated_liability(&mut self, isolated: bool) {
+        self.with_spot_isolated_liability |= isolated;
+    }
+
+    pub fn update_with_perp_isolated_liability(&mut self, isolated: bool) {
+        self.with_perp_isolated_liability |= isolated;
     }
 
     pub fn validate_num_spot_liabilities(&self) -> DriftResult {

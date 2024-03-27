@@ -13,6 +13,72 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Breaking
 
+## [2.74.0] - 2023-03-25
+
+### Features
+
+- program: add 'highly speculative' contract tier enum 4 ([#968](https://github.com/drift-labs/protocol-v2/pull/968)) 
+- program: expand initialize market parameters ([#969](https://github.com/drift-labs/protocol-v2/pull/969)) 
+
+### Fixes
+
+- program: fix checking isolated tier in add_perp_lp_shares ([#965](https://github.com/drift-labs/protocol-v2/pull/965)) 
+
+### Breaking
+
+## [2.73.0] - 2023-03-15
+
+### Features
+
+### Fixes
+
+- program: fix checking isolated tier in validate spot margin trading
+
+### Breaking
+
+## [2.72.0] - 2023-03-14
+
+### Features
+
+- program: skip isolated tier for auction start/end sanitize ([#958](https://github.com/drift-labs/protocol-v2/pull/958))
+
+- program: check isolated perp market in validate spot margin trading ([#957](https://github.com/drift-labs/protocol-v2/pull/957))
+- program: improve update prelaunch oracles and add ability to delete ([#956](https://github.com/drift-labs/protocol-v2/pull/956))
+- program: allow user to settle realized pnl in reduce only market status ([#954](https://github.com/drift-labs/protocol-v2/pull/954))
+- sdk: add function for toggling user account to reduceOnly ([#966](https://github.com/drift-labs/protocol-v2/pull/966))
+
+### Fixes
+
+- program: update spot index twap ts ([#948](https://github.com/drift-labs/protocol-v2/pull/948))
+
+### Breaking
+
+## [2.71.0] - 2023-03-11
+
+### Features
+
+- program: add back switchboard without cargo dependency ([#943](https://github.com/drift-labs/protocol-v2/pull/943))
+- program: add admin fn to update funding period
+- program: add prelaunch oracles ([#910](https://github.com/drift-labs/protocol-v2/pull/910))
+- program: make isolated perp contract tier more ergonomic ([#913](https://github.com/drift-labs/protocol-v2/pull/913))
+- program: add per market tier confidence interval guard ([#945](https://github.com/drift-labs/protocol-v2/pull/945))
+
+### Fixes
+
+### Breaking
+
+- sdk: account for max confidence in isOracleValid ([#949](https://github.com/drift-labs/protocol-v2/pull/949))
+
+## [2.70.0] - 2023-03-07
+
+### Features
+
+### Fixes
+
+- program: fix allowing settle pnl on oracle delays when price is stable ([#940](https://github.com/drift-labs/protocol-v2/pull/940))
+
+### Breaking
+
 ## [2.69.0] - 2023-03-06
 
 ### Features

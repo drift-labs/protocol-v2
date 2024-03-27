@@ -9,7 +9,7 @@ export function getPerpMarketTierNumber(perpMarket: PerpMarketAccount): number {
 		return 2;
 	} else if (isVariant(perpMarket.contractTier, 'speculative')) {
 		return 3;
-	} else if (isVariant(perpMarket.contractTier, 'isolated')) {
+	} else if (isVariant(perpMarket.contractTier, 'highlySpeculative')) {
 		return 4;
 	} else {
 		return 5;

@@ -1,6 +1,7 @@
 import {
 	PublicKey,
 	SYSVAR_RENT_PUBKEY,
+	TransactionInstruction,
 	TransactionSignature,
 } from '@solana/web3.js';
 import {
@@ -26,11 +27,18 @@ import {
 	getSerumFulfillmentConfigPublicKey,
 	getPhoenixFulfillmentConfigPublicKey,
 	getProtocolIfSharesTransferConfigPublicKey,
+	getPrelaunchOraclePublicKey,
 } from './addresses/pda';
 import { squareRootBN } from './math/utils';
 import { TOKEN_PROGRAM_ID } from '@solana/spl-token';
 import { DriftClient } from './driftClient';
-import { PEG_PRECISION } from './constants/numericConstants';
+import {
+	PEG_PRECISION,
+	ZERO,
+	ONE,
+	BASE_PRECISION,
+	PRICE_PRECISION,
+} from './constants/numericConstants';
 import { calculateTargetPriceTrade } from './math/trade';
 import { calculateAmmReservesAfterSwap, getSwapDirection } from './math/amm';
 import { PROGRAM_ID as PHOENIX_PROGRAM_ID } from '@ellipsis-labs/phoenix-sdk';
@@ -53,7 +61,9 @@ export class AdminClient extends DriftClient {
 
 		const initializeIx = await this.program.instruction.initialize({
 			accounts: {
-				admin: this.wallet.publicKey,
+				admin: this.isSubscribed
+					? this.getStateAccount().admin
+					: this.wallet.publicKey,
 				state: driftStatePublicKey,
 				quoteAssetMint: usdcMint,
 				rent: SYSVAR_RENT_PUBKEY,
@@ -83,9 +93,81 @@ export class AdminClient extends DriftClient {
 		maintenanceLiabilityWeight: number,
 		imfFactor = 0,
 		liquidatorFee = 0,
+		ifLiquidationFee = 0,
 		activeStatus = true,
+		assetTier = AssetTier.COLLATERAL,
+		scaleInitialAssetWeightStart = ZERO,
+		withdrawGuardThreshold = ZERO,
+		orderTickSize = ONE,
+		orderStepSize = ONE,
+		ifTotalFactor = 0,
 		name = DEFAULT_MARKET_NAME
 	): Promise<TransactionSignature> {
+		const spotMarketIndex = this.getStateAccount().numberOfSpotMarkets;
+
+		const initializeIx = await this.getInitializeSpotMarketIx(
+			mint,
+			optimalUtilization,
+			optimalRate,
+			maxRate,
+			oracle,
+			oracleSource,
+			initialAssetWeight,
+			maintenanceAssetWeight,
+			initialLiabilityWeight,
+			maintenanceLiabilityWeight,
+			imfFactor,
+			liquidatorFee,
+			ifLiquidationFee,
+			activeStatus,
+			assetTier,
+			scaleInitialAssetWeightStart,
+			withdrawGuardThreshold,
+			orderTickSize,
+			orderStepSize,
+			ifTotalFactor,
+			name
+		);
+
+		const tx = await this.buildTransaction(initializeIx);
+
+		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+
+		// const { txSig } = await this.sendTransaction(initializeTx, [], this.opts);
+
+		await this.accountSubscriber.addSpotMarket(spotMarketIndex);
+		await this.accountSubscriber.addOracle({
+			source: oracleSource,
+			publicKey: oracle,
+		});
+		await this.accountSubscriber.setSpotOracleMap();
+
+		return txSig;
+	}
+
+	public async getInitializeSpotMarketIx(
+		mint: PublicKey,
+		optimalUtilization: number,
+		optimalRate: number,
+		maxRate: number,
+		oracle: PublicKey,
+		oracleSource: OracleSource,
+		initialAssetWeight: number,
+		maintenanceAssetWeight: number,
+		initialLiabilityWeight: number,
+		maintenanceLiabilityWeight: number,
+		imfFactor = 0,
+		liquidatorFee = 0,
+		ifLiquidationFee = 0,
+		activeStatus = true,
+		assetTier = AssetTier.COLLATERAL,
+		scaleInitialAssetWeightStart = ZERO,
+		withdrawGuardThreshold = ZERO,
+		orderTickSize = ONE,
+		orderStepSize = ONE,
+		ifTotalFactor = 0,
+		name = DEFAULT_MARKET_NAME
+	): Promise<TransactionInstruction> {
 		const spotMarketIndex = this.getStateAccount().numberOfSpotMarkets;
 		const spotMarket = await getSpotMarketPublicKey(
 			this.program.programId,
@@ -114,11 +196,20 @@ export class AdminClient extends DriftClient {
 			maintenanceLiabilityWeight,
 			imfFactor,
 			liquidatorFee,
+			ifLiquidationFee,
 			activeStatus,
+			assetTier,
+			scaleInitialAssetWeightStart,
+			withdrawGuardThreshold,
+			orderTickSize,
+			orderStepSize,
+			ifTotalFactor,
 			nameBuffer,
 			{
 				accounts: {
-					admin: this.wallet.publicKey,
+					admin: this.isSubscribed
+						? this.getStateAccount().admin
+						: this.wallet.publicKey,
 					state: await this.getStatePublicKey(),
 					spotMarket,
 					spotMarketVault,
@@ -133,20 +224,7 @@ export class AdminClient extends DriftClient {
 			}
 		);
 
-		const tx = await this.buildTransaction(initializeIx);
-
-		const { txSig } = await this.sendTransaction(tx, [], this.opts);
-
-		// const { txSig } = await this.sendTransaction(initializeTx, [], this.opts);
-
-		await this.accountSubscriber.addSpotMarket(spotMarketIndex);
-		await this.accountSubscriber.addOracle({
-			source: oracleSource,
-			publicKey: oracle,
-		});
-		await this.accountSubscriber.setSpotOracleMap();
-
-		return txSig;
+		return initializeIx;
 	}
 
 	public async initializeSerumFulfillmentConfig(
@@ -154,6 +232,24 @@ export class AdminClient extends DriftClient {
 		serumMarket: PublicKey,
 		serumProgram: PublicKey
 	): Promise<TransactionSignature> {
+		const initializeIx = await this.getInitializeSerumFulfillmentConfigIx(
+			marketIndex,
+			serumMarket,
+			serumProgram
+		);
+
+		const tx = await this.buildTransaction(initializeIx);
+
+		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+
+		return txSig;
+	}
+
+	public async getInitializeSerumFulfillmentConfigIx(
+		marketIndex: number,
+		serumMarket: PublicKey,
+		serumProgram: PublicKey
+	): Promise<TransactionInstruction> {
 		const serumOpenOrders = getSerumOpenOrdersPublicKey(
 			this.program.programId,
 			serumMarket
@@ -164,25 +260,36 @@ export class AdminClient extends DriftClient {
 			serumMarket
 		);
 
-		const initializeIx =
-			await this.program.instruction.initializeSerumFulfillmentConfig(
-				marketIndex,
-				{
-					accounts: {
-						admin: this.wallet.publicKey,
-						state: await this.getStatePublicKey(),
-						baseSpotMarket: this.getSpotMarketAccount(marketIndex).pubkey,
-						quoteSpotMarket: this.getQuoteSpotMarketAccount().pubkey,
-						driftSigner: this.getSignerPublicKey(),
-						serumProgram,
-						serumMarket,
-						serumOpenOrders,
-						rent: SYSVAR_RENT_PUBKEY,
-						systemProgram: anchor.web3.SystemProgram.programId,
-						serumFulfillmentConfig,
-					},
-				}
-			);
+		return await this.program.instruction.initializeSerumFulfillmentConfig(
+			marketIndex,
+			{
+				accounts: {
+					admin: this.isSubscribed
+						? this.getStateAccount().admin
+						: this.wallet.publicKey,
+					state: await this.getStatePublicKey(),
+					baseSpotMarket: this.getSpotMarketAccount(marketIndex).pubkey,
+					quoteSpotMarket: this.getQuoteSpotMarketAccount().pubkey,
+					driftSigner: this.getSignerPublicKey(),
+					serumProgram,
+					serumMarket,
+					serumOpenOrders,
+					rent: SYSVAR_RENT_PUBKEY,
+					systemProgram: anchor.web3.SystemProgram.programId,
+					serumFulfillmentConfig,
+				},
+			}
+		);
+	}
+
+	public async initializePhoenixFulfillmentConfig(
+		marketIndex: number,
+		phoenixMarket: PublicKey
+	): Promise<TransactionSignature> {
+		const initializeIx = await this.getInitializePhoenixFulfillmentConfigIx(
+			marketIndex,
+			phoenixMarket
+		);
 
 		const tx = await this.buildTransaction(initializeIx);
 
@@ -191,39 +298,34 @@ export class AdminClient extends DriftClient {
 		return txSig;
 	}
 
-	public async initializePhoenixFulfillmentConfig(
+	public async getInitializePhoenixFulfillmentConfigIx(
 		marketIndex: number,
 		phoenixMarket: PublicKey
-	): Promise<TransactionSignature> {
+	): Promise<TransactionInstruction> {
 		const phoenixFulfillmentConfig = getPhoenixFulfillmentConfigPublicKey(
 			this.program.programId,
 			phoenixMarket
 		);
 
-		const initializeIx =
-			await this.program.instruction.initializePhoenixFulfillmentConfig(
-				marketIndex,
-				{
-					accounts: {
-						admin: this.wallet.publicKey,
-						state: await this.getStatePublicKey(),
-						baseSpotMarket: this.getSpotMarketAccount(marketIndex).pubkey,
-						quoteSpotMarket: this.getQuoteSpotMarketAccount().pubkey,
-						driftSigner: this.getSignerPublicKey(),
-						phoenixMarket: phoenixMarket,
-						phoenixProgram: PHOENIX_PROGRAM_ID,
-						rent: SYSVAR_RENT_PUBKEY,
-						systemProgram: anchor.web3.SystemProgram.programId,
-						phoenixFulfillmentConfig,
-					},
-				}
-			);
-
-		const tx = await this.buildTransaction(initializeIx);
-
-		const { txSig } = await this.sendTransaction(tx, [], this.opts);
-
-		return txSig;
+		return await this.program.instruction.initializePhoenixFulfillmentConfig(
+			marketIndex,
+			{
+				accounts: {
+					admin: this.isSubscribed
+						? this.getStateAccount().admin
+						: this.wallet.publicKey,
+					state: await this.getStatePublicKey(),
+					baseSpotMarket: this.getSpotMarketAccount(marketIndex).pubkey,
+					quoteSpotMarket: this.getQuoteSpotMarketAccount().pubkey,
+					driftSigner: this.getSignerPublicKey(),
+					phoenixMarket: phoenixMarket,
+					phoenixProgram: PHOENIX_PROGRAM_ID,
+					rent: SYSVAR_RENT_PUBKEY,
+					systemProgram: anchor.web3.SystemProgram.programId,
+					phoenixFulfillmentConfig,
+				},
+			}
+		);
 	}
 
 	public async initializePerpMarket(
@@ -234,43 +336,56 @@ export class AdminClient extends DriftClient {
 		periodicity: BN,
 		pegMultiplier: BN = PEG_PRECISION,
 		oracleSource: OracleSource = OracleSource.PYTH,
+		contractTier: ContractTier = ContractTier.SPECULATIVE,
 		marginRatioInitial = 2000,
 		marginRatioMaintenance = 500,
 		liquidatorFee = 0,
+		ifLiquidatorFee = 10000,
+		imfFactor = 0,
 		activeStatus = true,
+		baseSpread = 0,
+		maxSpread = 142500,
+		maxOpenInterest = ZERO,
+		maxRevenueWithdrawPerPeriod = ZERO,
+		quoteMaxInsurance = ZERO,
+		orderStepSize = BASE_PRECISION.divn(10000),
+		orderTickSize = PRICE_PRECISION.divn(100000),
+		minOrderSize = BASE_PRECISION.divn(10000),
+		concentrationCoefScale = ONE,
+		curveUpdateIntensity = 0,
+		ammJitIntensity = 0,
 		name = DEFAULT_MARKET_NAME
 	): Promise<TransactionSignature> {
 		const currentPerpMarketIndex = this.getStateAccount().numberOfMarkets;
-		const perpMarketPublicKey = await getPerpMarketPublicKey(
-			this.program.programId,
-			currentPerpMarketIndex
-		);
 
-		const nameBuffer = encodeName(name);
-		const initializeMarketIx =
-			await this.program.instruction.initializePerpMarket(
-				marketIndex,
-				baseAssetReserve,
-				quoteAssetReserve,
-				periodicity,
-				pegMultiplier,
-				oracleSource,
-				marginRatioInitial,
-				marginRatioMaintenance,
-				liquidatorFee,
-				activeStatus,
-				nameBuffer,
-				{
-					accounts: {
-						state: await this.getStatePublicKey(),
-						admin: this.wallet.publicKey,
-						oracle: priceOracle,
-						perpMarket: perpMarketPublicKey,
-						rent: SYSVAR_RENT_PUBKEY,
-						systemProgram: anchor.web3.SystemProgram.programId,
-					},
-				}
-			);
+		const initializeMarketIx = await this.getInitializePerpMarketIx(
+			marketIndex,
+			priceOracle,
+			baseAssetReserve,
+			quoteAssetReserve,
+			periodicity,
+			pegMultiplier,
+			oracleSource,
+			contractTier,
+			marginRatioInitial,
+			marginRatioMaintenance,
+			liquidatorFee,
+			ifLiquidatorFee,
+			imfFactor,
+			activeStatus,
+			baseSpread,
+			maxSpread,
+			maxOpenInterest,
+			maxRevenueWithdrawPerPeriod,
+			quoteMaxInsurance,
+			orderStepSize,
+			orderTickSize,
+			minOrderSize,
+			concentrationCoefScale,
+			curveUpdateIntensity,
+			ammJitIntensity,
+			name
+		);
 		const tx = await this.buildTransaction(initializeMarketIx);
 
 		const { txSig } = await this.sendTransaction(tx, [], this.opts);
@@ -289,6 +404,82 @@ export class AdminClient extends DriftClient {
 		return txSig;
 	}
 
+	public async getInitializePerpMarketIx(
+		marketIndex: number,
+		priceOracle: PublicKey,
+		baseAssetReserve: BN,
+		quoteAssetReserve: BN,
+		periodicity: BN,
+		pegMultiplier: BN = PEG_PRECISION,
+		oracleSource: OracleSource = OracleSource.PYTH,
+		contractTier: ContractTier = ContractTier.SPECULATIVE,
+		marginRatioInitial = 2000,
+		marginRatioMaintenance = 500,
+		liquidatorFee = 0,
+		ifLiquidatorFee = 10000,
+		imfFactor = 0,
+		activeStatus = true,
+		baseSpread = 0,
+		maxSpread = 142500,
+		maxOpenInterest = ZERO,
+		maxRevenueWithdrawPerPeriod = ZERO,
+		quoteMaxInsurance = ZERO,
+		orderStepSize = BASE_PRECISION.divn(10000),
+		orderTickSize = PRICE_PRECISION.divn(100000),
+		minOrderSize = BASE_PRECISION.divn(10000),
+		concentrationCoefScale = ONE,
+		curveUpdateIntensity = 0,
+		ammJitIntensity = 0,
+		name = DEFAULT_MARKET_NAME
+	): Promise<TransactionInstruction> {
+		const currentPerpMarketIndex = this.getStateAccount().numberOfMarkets;
+		const perpMarketPublicKey = await getPerpMarketPublicKey(
+			this.program.programId,
+			currentPerpMarketIndex
+		);
+
+		const nameBuffer = encodeName(name);
+		return await this.program.instruction.initializePerpMarket(
+			marketIndex,
+			baseAssetReserve,
+			quoteAssetReserve,
+			periodicity,
+			pegMultiplier,
+			oracleSource,
+			contractTier,
+			marginRatioInitial,
+			marginRatioMaintenance,
+			liquidatorFee,
+			ifLiquidatorFee,
+			imfFactor,
+			activeStatus,
+			baseSpread,
+			maxSpread,
+			maxOpenInterest,
+			maxRevenueWithdrawPerPeriod,
+			quoteMaxInsurance,
+			orderStepSize,
+			orderTickSize,
+			minOrderSize,
+			concentrationCoefScale,
+			curveUpdateIntensity,
+			ammJitIntensity,
+			nameBuffer,
+			{
+				accounts: {
+					state: await this.getStatePublicKey(),
+					admin: this.isSubscribed
+						? this.getStateAccount().admin
+						: this.wallet.publicKey,
+					oracle: priceOracle,
+					perpMarket: perpMarketPublicKey,
+					rent: SYSVAR_RENT_PUBKEY,
+					systemProgram: anchor.web3.SystemProgram.programId,
+				},
+			}
+		);
+	}
+
 	public async deleteInitializedPerpMarket(
 		marketIndex: number
 	): Promise<TransactionSignature> {
@@ -301,7 +492,9 @@ export class AdminClient extends DriftClient {
 			await this.program.instruction.deleteInitializedPerpMarket(marketIndex, {
 				accounts: {
 					state: await this.getStatePublicKey(),
-					admin: this.wallet.publicKey,
+					admin: this.isSubscribed
+						? this.getStateAccount().admin
+						: this.wallet.publicKey,
 					perpMarket: perpMarketPublicKey,
 				},
 			});
@@ -335,7 +528,9 @@ export class AdminClient extends DriftClient {
 			{
 				accounts: {
 					state: await this.getStatePublicKey(),
-					admin: this.wallet.publicKey,
+					admin: this.isSubscribed
+						? this.getStateAccount().admin
+						: this.wallet.publicKey,
 					perpMarket: marketPublicKey,
 				},
 			}
@@ -355,7 +550,9 @@ export class AdminClient extends DriftClient {
 		const updateKIx = await this.program.instruction.updateK(sqrtK, {
 			accounts: {
 				state: await this.getStatePublicKey(),
-				admin: this.wallet.publicKey,
+				admin: this.isSubscribed
+					? this.getStateAccount().admin
+					: this.wallet.publicKey,
 				perpMarket: await getPerpMarketPublicKey(
 					this.program.programId,
 					perpMarketIndex
@@ -388,7 +585,9 @@ export class AdminClient extends DriftClient {
 				{
 					accounts: {
 						state: await this.getStatePublicKey(),
-						admin: this.wallet.publicKey,
+						admin: this.isSubscribed
+							? this.getStateAccount().admin
+							: this.wallet.publicKey,
 						perpMarket: marketPublicKey,
 					},
 				}
@@ -405,19 +604,28 @@ export class AdminClient extends DriftClient {
 		perpMarketIndex: number,
 		concentrationScale: BN
 	): Promise<TransactionSignature> {
-		return await this.program.rpc.updatePerpMarketConcentrationCoef(
-			concentrationScale,
-			{
-				accounts: {
-					state: await this.getStatePublicKey(),
-					admin: this.wallet.publicKey,
-					perpMarket: await getPerpMarketPublicKey(
-						this.program.programId,
-						perpMarketIndex
-					),
-				},
-			}
-		);
+		const updatePerpMarketConcentrationCoefIx =
+			await this.program.instruction.updatePerpMarketConcentrationCoef(
+				concentrationScale,
+				{
+					accounts: {
+						state: await this.getStatePublicKey(),
+						admin: this.isSubscribed
+							? this.getStateAccount().admin
+							: this.wallet.publicKey,
+						perpMarket: await getPerpMarketPublicKey(
+							this.program.programId,
+							perpMarketIndex
+						),
+					},
+				}
+			);
+
+		const tx = await this.buildTransaction(updatePerpMarketConcentrationCoefIx);
+
+		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+
+		return txSig;
 	}
 
 	public async moveAmmToPrice(
@@ -454,7 +662,9 @@ export class AdminClient extends DriftClient {
 			{
 				accounts: {
 					state: await this.getStatePublicKey(),
-					admin: this.wallet.publicKey,
+					admin: this.isSubscribed
+						? this.getStateAccount().admin
+						: this.wallet.publicKey,
 					perpMarket: perpMarketPublicKey,
 				},
 			}
@@ -482,7 +692,9 @@ export class AdminClient extends DriftClient {
 			{
 				accounts: {
 					state: await this.getStatePublicKey(),
-					admin: this.wallet.publicKey,
+					admin: this.isSubscribed
+						? this.getStateAccount().admin
+						: this.wallet.publicKey,
 					oracle: ammData.oracle,
 					perpMarket: perpMarketPublicKey,
 				},
@@ -505,14 +717,23 @@ export class AdminClient extends DriftClient {
 			perpMarketIndex
 		);
 
-		return await this.program.rpc.updatePerpMarketAmmOracleTwap({
-			accounts: {
-				state: await this.getStatePublicKey(),
-				admin: this.wallet.publicKey,
-				oracle: ammData.oracle,
-				perpMarket: perpMarketPublicKey,
-			},
-		});
+		const updatePerpMarketAmmOracleTwapIx =
+			await this.program.instruction.updatePerpMarketAmmOracleTwap({
+				accounts: {
+					state: await this.getStatePublicKey(),
+					admin: this.isSubscribed
+						? this.getStateAccount().admin
+						: this.wallet.publicKey,
+					oracle: ammData.oracle,
+					perpMarket: perpMarketPublicKey,
+				},
+			});
+
+		const tx = await this.buildTransaction(updatePerpMarketAmmOracleTwapIx);
+
+		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+
+		return txSig;
 	}
 
 	public async resetPerpMarketAmmOracleTwap(
@@ -524,14 +745,23 @@ export class AdminClient extends DriftClient {
 			perpMarketIndex
 		);
 
-		return await this.program.rpc.resetPerpMarketAmmOracleTwap({
-			accounts: {
-				state: await this.getStatePublicKey(),
-				admin: this.wallet.publicKey,
-				oracle: ammData.oracle,
-				perpMarket: perpMarketPublicKey,
-			},
-		});
+		const resetPerpMarketAmmOracleTwapIx =
+			await this.program.instruction.resetPerpMarketAmmOracleTwap({
+				accounts: {
+					state: await this.getStatePublicKey(),
+					admin: this.isSubscribed
+						? this.getStateAccount().admin
+						: this.wallet.publicKey,
+					oracle: ammData.oracle,
+					perpMarket: perpMarketPublicKey,
+				},
+			});
+
+		const tx = await this.buildTransaction(resetPerpMarketAmmOracleTwapIx);
+
+		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+
+		return txSig;
 	}
 
 	public async depositIntoPerpMarketFeePool(
@@ -544,7 +774,9 @@ export class AdminClient extends DriftClient {
 		const depositIntoPerpMarketFeePoolIx =
 			await this.program.instruction.depositIntoPerpMarketFeePool(amount, {
 				accounts: {
-					admin: this.wallet.publicKey,
+					admin: this.isSubscribed
+						? this.getStateAccount().admin
+						: this.wallet.publicKey,
 					state: await this.getStatePublicKey(),
 					perpMarket: await getPerpMarketPublicKey(
 						this.program.programId,
@@ -568,7 +800,9 @@ export class AdminClient extends DriftClient {
 	public async updateAdmin(admin: PublicKey): Promise<TransactionSignature> {
 		const updateAdminIx = await this.program.instruction.updateAdmin(admin, {
 			accounts: {
-				admin: this.wallet.publicKey,
+				admin: this.isSubscribed
+					? this.getStateAccount().admin
+					: this.wallet.publicKey,
 				state: await this.getStatePublicKey(),
 			},
 		});
@@ -587,38 +821,60 @@ export class AdminClient extends DriftClient {
 		// assert(curveUpdateIntensity >= 0 && curveUpdateIntensity <= 100);
 		// assert(Number.isInteger(curveUpdateIntensity));
 
-		return await this.program.rpc.updatePerpMarketCurveUpdateIntensity(
-			curveUpdateIntensity,
-			{
-				accounts: {
-					admin: this.wallet.publicKey,
-					state: await this.getStatePublicKey(),
-					perpMarket: await getPerpMarketPublicKey(
-						this.program.programId,
-						perpMarketIndex
-					),
-				},
-			}
+		const updatePerpMarketCurveUpdateIntensityIx =
+			await this.program.instruction.updatePerpMarketCurveUpdateIntensity(
+				curveUpdateIntensity,
+				{
+					accounts: {
+						admin: this.isSubscribed
+							? this.getStateAccount().admin
+							: this.wallet.publicKey,
+						state: await this.getStatePublicKey(),
+						perpMarket: await getPerpMarketPublicKey(
+							this.program.programId,
+							perpMarketIndex
+						),
+					},
+				}
+			);
+
+		const tx = await this.buildTransaction(
+			updatePerpMarketCurveUpdateIntensityIx
 		);
+
+		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+
+		return txSig;
 	}
 
 	public async updatePerpMarketTargetBaseAssetAmountPerLp(
 		perpMarketIndex: number,
 		targetBaseAssetAmountPerLP: number
 	): Promise<TransactionSignature> {
-		return await this.program.rpc.updatePerpMarketTargetBaseAssetAmountPerLp(
-			targetBaseAssetAmountPerLP,
-			{
-				accounts: {
-					admin: this.wallet.publicKey,
-					state: await this.getStatePublicKey(),
-					perpMarket: await getPerpMarketPublicKey(
-						this.program.programId,
-						perpMarketIndex
-					),
-				},
-			}
+		const updatePerpMarketTargetBaseAssetAmountPerLpIx =
+			await this.program.instruction.updatePerpMarketTargetBaseAssetAmountPerLp(
+				targetBaseAssetAmountPerLP,
+				{
+					accounts: {
+						admin: this.isSubscribed
+							? this.getStateAccount().admin
+							: this.wallet.publicKey,
+						state: await this.getStatePublicKey(),
+						perpMarket: await getPerpMarketPublicKey(
+							this.program.programId,
+							perpMarketIndex
+						),
+					},
+				}
+			);
+
+		const tx = await this.buildTransaction(
+			updatePerpMarketTargetBaseAssetAmountPerLpIx
 		);
+
+		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+
+		return txSig;
 	}
 
 	public async updatePerpMarketMarginRatio(
@@ -632,7 +888,9 @@ export class AdminClient extends DriftClient {
 				marginRatioMaintenance,
 				{
 					accounts: {
-						admin: this.wallet.publicKey,
+						admin: this.isSubscribed
+							? this.getStateAccount().admin
+							: this.wallet.publicKey,
 						state: await this.getStatePublicKey(),
 						perpMarket: await getPerpMarketPublicKey(
 							this.program.programId,
@@ -654,20 +912,29 @@ export class AdminClient extends DriftClient {
 		imfFactor: number,
 		unrealizedPnlImfFactor: number
 	): Promise<TransactionSignature> {
-		return await this.program.rpc.updatePerpMarketImfFactor(
-			imfFactor,
-			unrealizedPnlImfFactor,
-			{
-				accounts: {
-					admin: this.wallet.publicKey,
-					state: await this.getStatePublicKey(),
-					perpMarket: await getPerpMarketPublicKey(
-						this.program.programId,
-						perpMarketIndex
-					),
-				},
-			}
-		);
+		const updatePerpMarketImfFactorIx =
+			await this.program.instruction.updatePerpMarketImfFactor(
+				imfFactor,
+				unrealizedPnlImfFactor,
+				{
+					accounts: {
+						admin: this.isSubscribed
+							? this.getStateAccount().admin
+							: this.wallet.publicKey,
+						state: await this.getStatePublicKey(),
+						perpMarket: await getPerpMarketPublicKey(
+							this.program.programId,
+							perpMarketIndex
+						),
+					},
+				}
+			);
+
+		const tx = await this.buildTransaction(updatePerpMarketImfFactorIx);
+
+		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+
+		return txSig;
 	}
 
 	public async updatePerpMarketBaseSpread(
@@ -677,7 +944,9 @@ export class AdminClient extends DriftClient {
 		const updatePerpMarketBaseSpreadIx =
 			await this.program.instruction.updatePerpMarketBaseSpread(baseSpread, {
 				accounts: {
-					admin: this.wallet.publicKey,
+					admin: this.isSubscribed
+						? this.getStateAccount().admin
+						: this.wallet.publicKey,
 					state: await this.getStatePublicKey(),
 					perpMarket: await getPerpMarketPublicKey(
 						this.program.programId,
@@ -700,7 +969,9 @@ export class AdminClient extends DriftClient {
 		const updateAmmJitIntensityIx =
 			await this.program.instruction.updateAmmJitIntensity(ammJitIntensity, {
 				accounts: {
-					admin: this.wallet.publicKey,
+					admin: this.isSubscribed
+						? this.getStateAccount().admin
+						: this.wallet.publicKey,
 					state: await this.getStatePublicKey(),
 					perpMarket: await getPerpMarketPublicKey(
 						this.program.programId,
@@ -725,7 +996,9 @@ export class AdminClient extends DriftClient {
 		const updatePerpMarketNameIx =
 			await this.program.instruction.updatePerpMarketName(nameBuffer, {
 				accounts: {
-					admin: this.wallet.publicKey,
+					admin: this.isSubscribed
+						? this.getStateAccount().admin
+						: this.wallet.publicKey,
 					state: await this.getStatePublicKey(),
 					perpMarket: await getPerpMarketPublicKey(
 						this.program.programId,
@@ -747,16 +1020,25 @@ export class AdminClient extends DriftClient {
 	): Promise<TransactionSignature> {
 		const nameBuffer = encodeName(name);
 
-		return await this.program.rpc.updateSpotMarketName(nameBuffer, {
-			accounts: {
-				admin: this.wallet.publicKey,
-				state: await this.getStatePublicKey(),
-				spotMarket: await getSpotMarketPublicKey(
-					this.program.programId,
-					spotMarketIndex
-				),
-			},
-		});
+		const updateSpotMarketNameIx =
+			await this.program.instruction.updateSpotMarketName(nameBuffer, {
+				accounts: {
+					admin: this.isSubscribed
+						? this.getStateAccount().admin
+						: this.wallet.publicKey,
+					state: await this.getStatePublicKey(),
+					spotMarket: await getSpotMarketPublicKey(
+						this.program.programId,
+						spotMarketIndex
+					),
+				},
+			});
+
+		const tx = await this.buildTransaction(updateSpotMarketNameIx);
+
+		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+
+		return txSig;
 	}
 
 	public async updatePerpMarketPerLpBase(
@@ -768,13 +1050,22 @@ export class AdminClient extends DriftClient {
 			perpMarketIndex
 		);
 
-		return await this.program.rpc.updatePerpMarketPerLpBase(perLpBase, {
-			accounts: {
-				admin: this.wallet.publicKey,
-				state: await this.getStatePublicKey(),
-				perpMarket: perpMarketPublicKey,
-			},
-		});
+		const updatePerpMarketPerLpBaseIx =
+			await this.program.instruction.updatePerpMarketPerLpBase(perLpBase, {
+				accounts: {
+					admin: this.isSubscribed
+						? this.getStateAccount().admin
+						: this.wallet.publicKey,
+					state: await this.getStatePublicKey(),
+					perpMarket: perpMarketPublicKey,
+				},
+			});
+
+		const tx = await this.buildTransaction(updatePerpMarketPerLpBaseIx);
+
+		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+
+		return txSig;
 	}
 
 	public async updatePerpMarketMaxSpread(
@@ -786,13 +1077,22 @@ export class AdminClient extends DriftClient {
 			perpMarketIndex
 		);
 
-		return await this.program.rpc.updatePerpMarketMaxSpread(maxSpread, {
-			accounts: {
-				admin: this.wallet.publicKey,
-				state: await this.getStatePublicKey(),
-				perpMarket: perpMarketPublicKey,
-			},
-		});
+		const updatePerpMarketMaxSpreadIx =
+			await this.program.instruction.updatePerpMarketMaxSpread(maxSpread, {
+				accounts: {
+					admin: this.isSubscribed
+						? this.getStateAccount().admin
+						: this.wallet.publicKey,
+					state: await this.getStatePublicKey(),
+					perpMarket: perpMarketPublicKey,
+				},
+			});
+
+		const tx = await this.buildTransaction(updatePerpMarketMaxSpreadIx);
+
+		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+
+		return txSig;
 	}
 
 	public async updatePerpFeeStructure(
@@ -801,7 +1101,9 @@ export class AdminClient extends DriftClient {
 		const updatePerpFeeStructureIx =
 			this.program.instruction.updatePerpFeeStructure(feeStructure, {
 				accounts: {
-					admin: this.wallet.publicKey,
+					admin: this.isSubscribed
+						? this.getStateAccount().admin
+						: this.wallet.publicKey,
 					state: await this.getStatePublicKey(),
 				},
 			});
@@ -819,7 +1121,9 @@ export class AdminClient extends DriftClient {
 		const updateSpotFeeStructureIx =
 			await this.program.instruction.updateSpotFeeStructure(feeStructure, {
 				accounts: {
-					admin: this.wallet.publicKey,
+					admin: this.isSubscribed
+						? this.getStateAccount().admin
+						: this.wallet.publicKey,
 					state: await this.getStatePublicKey(),
 				},
 			});
@@ -834,43 +1138,72 @@ export class AdminClient extends DriftClient {
 	public async updateInitialPctToLiquidate(
 		initialPctToLiquidate: number
 	): Promise<TransactionSignature> {
-		return await this.program.rpc.updateInitialPctToLiquidate(
-			initialPctToLiquidate,
-			{
-				accounts: {
-					admin: this.wallet.publicKey,
-					state: await this.getStatePublicKey(),
-				},
-			}
-		);
+		const updateInitialPctToLiquidateIx =
+			await this.program.instruction.updateInitialPctToLiquidate(
+				initialPctToLiquidate,
+				{
+					accounts: {
+						admin: this.isSubscribed
+							? this.getStateAccount().admin
+							: this.wallet.publicKey,
+						state: await this.getStatePublicKey(),
+					},
+				}
+			);
+
+		const tx = await this.buildTransaction(updateInitialPctToLiquidateIx);
+
+		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+
+		return txSig;
 	}
 
 	public async updateLiquidationDuration(
 		liquidationDuration: number
 	): Promise<TransactionSignature> {
-		return await this.program.rpc.updateLiquidationDuration(
-			liquidationDuration,
-			{
-				accounts: {
-					admin: this.wallet.publicKey,
-					state: await this.getStatePublicKey(),
-				},
-			}
-		);
+		const updateLiquidationDurationIx =
+			await this.program.instruction.updateLiquidationDuration(
+				liquidationDuration,
+				{
+					accounts: {
+						admin: this.isSubscribed
+							? this.getStateAccount().admin
+							: this.wallet.publicKey,
+						state: await this.getStatePublicKey(),
+					},
+				}
+			);
+
+		const tx = await this.buildTransaction(updateLiquidationDurationIx);
+
+		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+
+		return txSig;
 	}
 
 	public async updateLiquidationMarginBufferRatio(
 		updateLiquidationMarginBufferRatio: number
 	): Promise<TransactionSignature> {
-		return await this.program.rpc.updateLiquidationMarginBufferRatio(
-			updateLiquidationMarginBufferRatio,
-			{
-				accounts: {
-					admin: this.wallet.publicKey,
-					state: await this.getStatePublicKey(),
-				},
-			}
+		const updateLiquidationMarginBufferRatioIx =
+			await this.program.instruction.updateLiquidationMarginBufferRatio(
+				updateLiquidationMarginBufferRatio,
+				{
+					accounts: {
+						admin: this.isSubscribed
+							? this.getStateAccount().admin
+							: this.wallet.publicKey,
+						state: await this.getStatePublicKey(),
+					},
+				}
+			);
+
+		const tx = await this.buildTransaction(
+			updateLiquidationMarginBufferRatioIx
 		);
+
+		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+
+		return txSig;
 	}
 
 	public async updateOracleGuardRails(
@@ -879,7 +1212,9 @@ export class AdminClient extends DriftClient {
 		const updateOracleGuardRailsIx =
 			await this.program.instruction.updateOracleGuardRails(oracleGuardRails, {
 				accounts: {
-					admin: this.wallet.publicKey,
+					admin: this.isSubscribed
+						? this.getStateAccount().admin
+						: this.wallet.publicKey,
 					state: await this.getStatePublicKey(),
 				},
 			});
@@ -894,43 +1229,70 @@ export class AdminClient extends DriftClient {
 	public async updateStateSettlementDuration(
 		settlementDuration: number
 	): Promise<TransactionSignature> {
-		return await this.program.rpc.updateStateSettlementDuration(
-			settlementDuration,
-			{
-				accounts: {
-					admin: this.wallet.publicKey,
-					state: await this.getStatePublicKey(),
-				},
-			}
-		);
+		const updateStateSettlementDurationIx =
+			await this.program.instruction.updateStateSettlementDuration(
+				settlementDuration,
+				{
+					accounts: {
+						admin: this.isSubscribed
+							? this.getStateAccount().admin
+							: this.wallet.publicKey,
+						state: await this.getStatePublicKey(),
+					},
+				}
+			);
+
+		const tx = await this.buildTransaction(updateStateSettlementDurationIx);
+
+		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+
+		return txSig;
 	}
 
 	public async updateStateMaxNumberOfSubAccounts(
 		maxNumberOfSubAccounts: number
 	): Promise<TransactionSignature> {
-		return await this.program.rpc.updateStateMaxNumberOfSubAccounts(
-			maxNumberOfSubAccounts,
-			{
-				accounts: {
-					admin: this.wallet.publicKey,
-					state: await this.getStatePublicKey(),
-				},
-			}
-		);
+		const updateStateMaxNumberOfSubAccountsIx =
+			await this.program.instruction.updateStateMaxNumberOfSubAccounts(
+				maxNumberOfSubAccounts,
+				{
+					accounts: {
+						admin: this.isSubscribed
+							? this.getStateAccount().admin
+							: this.wallet.publicKey,
+						state: await this.getStatePublicKey(),
+					},
+				}
+			);
+
+		const tx = await this.buildTransaction(updateStateMaxNumberOfSubAccountsIx);
+
+		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+
+		return txSig;
 	}
 
 	public async updateStateMaxInitializeUserFee(
 		maxInitializeUserFee: number
 	): Promise<TransactionSignature> {
-		return await this.program.rpc.updateStateMaxInitializeUserFee(
-			maxInitializeUserFee,
-			{
-				accounts: {
-					admin: this.wallet.publicKey,
-					state: await this.getStatePublicKey(),
-				},
-			}
-		);
+		const updateStateMaxInitializeUserFeeIx =
+			await this.program.instruction.updateStateMaxInitializeUserFee(
+				maxInitializeUserFee,
+				{
+					accounts: {
+						admin: this.isSubscribed
+							? this.getStateAccount().admin
+							: this.wallet.publicKey,
+						state: await this.getStatePublicKey(),
+					},
+				}
+			);
+
+		const tx = await this.buildTransaction(updateStateMaxInitializeUserFeeIx);
+
+		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+
+		return txSig;
 	}
 
 	public async updateWithdrawGuardThreshold(
@@ -942,7 +1304,9 @@ export class AdminClient extends DriftClient {
 				withdrawGuardThreshold,
 				{
 					accounts: {
-						admin: this.wallet.publicKey,
+						admin: this.isSubscribed
+							? this.getStateAccount().admin
+							: this.wallet.publicKey,
 						state: await this.getStatePublicKey(),
 						spotMarket: await getSpotMarketPublicKey(
 							this.program.programId,
@@ -971,7 +1335,9 @@ export class AdminClient extends DriftClient {
 				totalIfFactor,
 				{
 					accounts: {
-						admin: this.wallet.publicKey,
+						admin: this.isSubscribed
+							? this.getStateAccount().admin
+							: this.wallet.publicKey,
 						state: await this.getStatePublicKey(),
 						spotMarket: await getSpotMarketPublicKey(
 							this.program.programId,
@@ -997,7 +1363,9 @@ export class AdminClient extends DriftClient {
 				revenueSettlePeriod,
 				{
 					accounts: {
-						admin: this.wallet.publicKey,
+						admin: this.isSubscribed
+							? this.getStateAccount().admin
+							: this.wallet.publicKey,
 						state: await this.getStatePublicKey(),
 						spotMarket: await getSpotMarketPublicKey(
 							this.program.programId,
@@ -1025,7 +1393,9 @@ export class AdminClient extends DriftClient {
 				maxTokenDeposits,
 				{
 					accounts: {
-						admin: this.wallet.publicKey,
+						admin: this.isSubscribed
+							? this.getStateAccount().admin
+							: this.wallet.publicKey,
 						state: await this.getStatePublicKey(),
 						spotMarket: await getSpotMarketPublicKey(
 							this.program.programId,
@@ -1051,7 +1421,9 @@ export class AdminClient extends DriftClient {
 				scaleInitialAssetWeightStart,
 				{
 					accounts: {
-						admin: this.wallet.publicKey,
+						admin: this.isSubscribed
+							? this.getStateAccount().admin
+							: this.wallet.publicKey,
 						state: await this.getStatePublicKey(),
 						spotMarket: await getSpotMarketPublicKey(
 							this.program.programId,
@@ -1079,7 +1451,9 @@ export class AdminClient extends DriftClient {
 				insuranceWithdrawEscrowPeriod,
 				{
 					accounts: {
-						admin: this.wallet.publicKey,
+						admin: this.isSubscribed
+							? this.getStateAccount().admin
+							: this.wallet.publicKey,
 						state: await this.getStatePublicKey(),
 						spotMarket: await getSpotMarketPublicKey(
 							this.program.programId,
@@ -1104,7 +1478,9 @@ export class AdminClient extends DriftClient {
 		const updateLpCooldownTimeIx =
 			await this.program.instruction.updateLpCooldownTime(cooldownTime, {
 				accounts: {
-					admin: this.wallet.publicKey,
+					admin: this.isSubscribed
+						? this.getStateAccount().admin
+						: this.wallet.publicKey,
 					state: await this.getStatePublicKey(),
 				},
 			});
@@ -1127,7 +1503,9 @@ export class AdminClient extends DriftClient {
 				oracleSource,
 				{
 					accounts: {
-						admin: this.wallet.publicKey,
+						admin: this.isSubscribed
+							? this.getStateAccount().admin
+							: this.wallet.publicKey,
 						state: await this.getStatePublicKey(),
 						perpMarket: await getPerpMarketPublicKey(
 							this.program.programId,
@@ -1156,7 +1534,9 @@ export class AdminClient extends DriftClient {
 				tickSize,
 				{
 					accounts: {
-						admin: this.wallet.publicKey,
+						admin: this.isSubscribed
+							? this.getStateAccount().admin
+							: this.wallet.publicKey,
 						state: await this.getStatePublicKey(),
 						perpMarket: await getPerpMarketPublicKey(
 							this.program.programId,
@@ -1179,16 +1559,25 @@ export class AdminClient extends DriftClient {
 		perpMarketIndex: number,
 		orderSize: BN
 	): Promise<TransactionSignature> {
-		return await this.program.rpc.updatePerpMarketMinOrderSize(orderSize, {
-			accounts: {
-				admin: this.wallet.publicKey,
-				state: await this.getStatePublicKey(),
-				perpMarket: await getPerpMarketPublicKey(
-					this.program.programId,
-					perpMarketIndex
-				),
-			},
-		});
+		const updatePerpMarketMinOrderSizeIx =
+			await this.program.instruction.updatePerpMarketMinOrderSize(orderSize, {
+				accounts: {
+					admin: this.isSubscribed
+						? this.getStateAccount().admin
+						: this.wallet.publicKey,
+					state: await this.getStatePublicKey(),
+					perpMarket: await getPerpMarketPublicKey(
+						this.program.programId,
+						perpMarketIndex
+					),
+				},
+			});
+
+		const tx = await this.buildTransaction(updatePerpMarketMinOrderSizeIx);
+
+		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+
+		return txSig;
 	}
 
 	public async updateSpotMarketStepSizeAndTickSize(
@@ -1196,52 +1585,80 @@ export class AdminClient extends DriftClient {
 		stepSize: BN,
 		tickSize: BN
 	): Promise<TransactionSignature> {
-		return await this.program.rpc.updateSpotMarketStepSizeAndTickSize(
-			stepSize,
-			tickSize,
-			{
-				accounts: {
-					admin: this.wallet.publicKey,
-					state: await this.getStatePublicKey(),
-					spotMarket: await getSpotMarketPublicKey(
-						this.program.programId,
-						spotMarketIndex
-					),
-				},
-			}
+		const updateSpotMarketStepSizeAndTickSizeIx =
+			await this.program.instruction.updateSpotMarketStepSizeAndTickSize(
+				stepSize,
+				tickSize,
+				{
+					accounts: {
+						admin: this.isSubscribed
+							? this.getStateAccount().admin
+							: this.wallet.publicKey,
+						state: await this.getStatePublicKey(),
+						spotMarket: await getSpotMarketPublicKey(
+							this.program.programId,
+							spotMarketIndex
+						),
+					},
+				}
+			);
+
+		const tx = await this.buildTransaction(
+			updateSpotMarketStepSizeAndTickSizeIx
 		);
+
+		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+
+		return txSig;
 	}
 
 	public async updateSpotMarketMinOrderSize(
 		spotMarketIndex: number,
 		orderSize: BN
 	): Promise<TransactionSignature> {
-		return await this.program.rpc.updateSpotMarketMinOrderSize(orderSize, {
-			accounts: {
-				admin: this.wallet.publicKey,
-				state: await this.getStatePublicKey(),
-				spotMarket: await getSpotMarketPublicKey(
-					this.program.programId,
-					spotMarketIndex
-				),
-			},
-		});
+		const updateSpotMarketMinOrderSizeIx =
+			await this.program.instruction.updateSpotMarketMinOrderSize(orderSize, {
+				accounts: {
+					admin: this.isSubscribed
+						? this.getStateAccount().admin
+						: this.wallet.publicKey,
+					state: await this.getStatePublicKey(),
+					spotMarket: await getSpotMarketPublicKey(
+						this.program.programId,
+						spotMarketIndex
+					),
+				},
+			});
+
+		const tx = await this.buildTransaction(updateSpotMarketMinOrderSizeIx);
+
+		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+
+		return txSig;
 	}
 
 	public async updatePerpMarketExpiry(
 		perpMarketIndex: number,
 		expiryTs: BN
 	): Promise<TransactionSignature> {
-		return await this.program.rpc.updatePerpMarketExpiry(expiryTs, {
-			accounts: {
-				admin: this.wallet.publicKey,
-				state: await this.getStatePublicKey(),
-				perpMarket: await getPerpMarketPublicKey(
-					this.program.programId,
-					perpMarketIndex
-				),
-			},
-		});
+		const updatePerpMarketExpiryIx =
+			await this.program.instruction.updatePerpMarketExpiry(expiryTs, {
+				accounts: {
+					admin: this.isSubscribed
+						? this.getStateAccount().admin
+						: this.wallet.publicKey,
+					state: await this.getStatePublicKey(),
+					perpMarket: await getPerpMarketPublicKey(
+						this.program.programId,
+						perpMarketIndex
+					),
+				},
+			});
+		const tx = await this.buildTransaction(updatePerpMarketExpiryIx);
+
+		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+
+		return txSig;
 	}
 
 	public async updateSpotMarketOracle(
@@ -1249,75 +1666,134 @@ export class AdminClient extends DriftClient {
 		oracle: PublicKey,
 		oracleSource: OracleSource
 	): Promise<TransactionSignature> {
-		return await this.program.rpc.updateSpotMarketOracle(oracle, oracleSource, {
-			accounts: {
-				admin: this.wallet.publicKey,
-				state: await this.getStatePublicKey(),
-				spotMarket: await getSpotMarketPublicKey(
-					this.program.programId,
-					spotMarketIndex
-				),
-				oracle: oracle,
-			},
-		});
+		const updateSpotMarketOracleIx =
+			await this.program.instruction.updateSpotMarketOracle(
+				oracle,
+				oracleSource,
+				{
+					accounts: {
+						admin: this.isSubscribed
+							? this.getStateAccount().admin
+							: this.wallet.publicKey,
+						state: await this.getStatePublicKey(),
+						spotMarket: await getSpotMarketPublicKey(
+							this.program.programId,
+							spotMarketIndex
+						),
+						oracle: oracle,
+					},
+				}
+			);
+
+		const tx = await this.buildTransaction(updateSpotMarketOracleIx);
+
+		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+
+		return txSig;
 	}
 
 	public async updateSpotMarketOrdersEnabled(
 		spotMarketIndex: number,
 		ordersEnabled: boolean
 	): Promise<TransactionSignature> {
-		return await this.program.rpc.updateSpotMarketOrdersEnabled(ordersEnabled, {
-			accounts: {
-				admin: this.wallet.publicKey,
-				state: await this.getStatePublicKey(),
-				spotMarket: await getSpotMarketPublicKey(
-					this.program.programId,
-					spotMarketIndex
-				),
-			},
-		});
+		const updateSpotMarketOrdersEnabledIx =
+			await this.program.instruction.updateSpotMarketOrdersEnabled(
+				ordersEnabled,
+				{
+					accounts: {
+						admin: this.isSubscribed
+							? this.getStateAccount().admin
+							: this.wallet.publicKey,
+						state: await this.getStatePublicKey(),
+						spotMarket: await getSpotMarketPublicKey(
+							this.program.programId,
+							spotMarketIndex
+						),
+					},
+				}
+			);
+
+		const tx = await this.buildTransaction(updateSpotMarketOrdersEnabledIx);
+
+		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+
+		return txSig;
 	}
 
 	public async updateSerumFulfillmentConfigStatus(
 		serumFulfillmentConfig: PublicKey,
 		status: SpotFulfillmentConfigStatus
 	): Promise<TransactionSignature> {
-		return await this.program.rpc.updateSerumFulfillmentConfigStatus(status, {
-			accounts: {
-				admin: this.wallet.publicKey,
-				state: await this.getStatePublicKey(),
-				serumFulfillmentConfig,
-			},
-		});
+		const updateSerumFulfillmentConfigStatusIx =
+			await this.program.instruction.updateSerumFulfillmentConfigStatus(
+				status,
+				{
+					accounts: {
+						admin: this.isSubscribed
+							? this.getStateAccount().admin
+							: this.wallet.publicKey,
+						state: await this.getStatePublicKey(),
+						serumFulfillmentConfig,
+					},
+				}
+			);
+
+		const tx = await this.buildTransaction(
+			updateSerumFulfillmentConfigStatusIx
+		);
+
+		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+
+		return txSig;
 	}
 
 	public async updatePhoenixFulfillmentConfigStatus(
 		phoenixFulfillmentConfig: PublicKey,
 		status: SpotFulfillmentConfigStatus
 	): Promise<TransactionSignature> {
-		return await this.program.rpc.phoenixFulfillmentConfigStatus(status, {
-			accounts: {
-				admin: this.wallet.publicKey,
-				state: await this.getStatePublicKey(),
-				phoenixFulfillmentConfig,
-			},
-		});
+		const updatePhoenixFulfillmentConfigStatusIx =
+			await this.program.instruction.phoenixFulfillmentConfigStatus(status, {
+				accounts: {
+					admin: this.isSubscribed
+						? this.getStateAccount().admin
+						: this.wallet.publicKey,
+					state: await this.getStatePublicKey(),
+					phoenixFulfillmentConfig,
+				},
+			});
+
+		const tx = await this.buildTransaction(
+			updatePhoenixFulfillmentConfigStatusIx
+		);
+
+		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+
+		return txSig;
 	}
 
 	public async updateSpotMarketExpiry(
 		spotMarketIndex: number,
 		expiryTs: BN
 	): Promise<TransactionSignature> {
-		return await this.program.rpc.updateSpotMarketExpiry(expiryTs, {
-			accounts: {
-				admin: this.wallet.publicKey,
-				state: await this.getStatePublicKey(),
-				spotMarket: await getSpotMarketPublicKey(
-					this.program.programId,
-					spotMarketIndex
-				),
-			},
-		});
+		const updateSpotMarketExpiryIx =
+			await this.program.instruction.updateSpotMarketExpiry(expiryTs, {
+				accounts: {
+					admin: this.isSubscribed
+						? this.getStateAccount().admin
+						: this.wallet.publicKey,
+					state: await this.getStatePublicKey(),
+					spotMarket: await getSpotMarketPublicKey(
+						this.program.programId,
+						spotMarketIndex
+					),
+				},
+			});
+
+		const tx = await this.buildTransaction(updateSpotMarketExpiryIx);
+
+		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+
+		return txSig;
 	}
 
 	public async updateWhitelistMint(
@@ -1326,7 +1802,9 @@ export class AdminClient extends DriftClient {
 		const updateWhitelistMintIx =
 			await this.program.instruction.updateWhitelistMint(whitelistMint, {
 				accounts: {
-					admin: this.wallet.publicKey,
+					admin: this.isSubscribed
+						? this.getStateAccount().admin
+						: this.wallet.publicKey,
 					state: await this.getStatePublicKey(),
 				},
 			});
@@ -1344,7 +1822,9 @@ export class AdminClient extends DriftClient {
 		const updateDiscountMintIx =
 			await this.program.instruction.updateDiscountMint(discountMint, {
 				accounts: {
-					admin: this.wallet.publicKey,
+					admin: this.isSubscribed
+						? this.getStateAccount().admin
+						: this.wallet.publicKey,
 					state: await this.getStatePublicKey(),
 				},
 			});
@@ -1364,23 +1844,32 @@ export class AdminClient extends DriftClient {
 		maintenanceLiabilityWeight: number,
 		imfFactor = 0
 	): Promise<TransactionSignature> {
-		return await this.program.rpc.updateSpotMarketMarginWeights(
-			initialAssetWeight,
-			maintenanceAssetWeight,
-			initialLiabilityWeight,
-			maintenanceLiabilityWeight,
-			imfFactor,
-			{
-				accounts: {
-					admin: this.wallet.publicKey,
-					state: await this.getStatePublicKey(),
-					spotMarket: await getSpotMarketPublicKey(
-						this.program.programId,
-						spotMarketIndex
-					),
-				},
-			}
-		);
+		const updateSpotMarketMarginWeightsIx =
+			await this.program.instruction.updateSpotMarketMarginWeights(
+				initialAssetWeight,
+				maintenanceAssetWeight,
+				initialLiabilityWeight,
+				maintenanceLiabilityWeight,
+				imfFactor,
+				{
+					accounts: {
+						admin: this.isSubscribed
+							? this.getStateAccount().admin
+							: this.wallet.publicKey,
+						state: await this.getStatePublicKey(),
+						spotMarket: await getSpotMarketPublicKey(
+							this.program.programId,
+							spotMarketIndex
+						),
+					},
+				}
+			);
+
+		const tx = await this.buildTransaction(updateSpotMarketMarginWeightsIx);
+
+		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+
+		return txSig;
 	}
 
 	public async updateSpotMarketBorrowRate(
@@ -1389,21 +1878,30 @@ export class AdminClient extends DriftClient {
 		optimalBorrowRate: number,
 		optimalMaxRate: number
 	): Promise<TransactionSignature> {
-		return await this.program.rpc.updateSpotMarketBorrowRate(
-			optimalUtilization,
-			optimalBorrowRate,
-			optimalMaxRate,
-			{
-				accounts: {
-					admin: this.wallet.publicKey,
-					state: await this.getStatePublicKey(),
-					spotMarket: await getSpotMarketPublicKey(
-						this.program.programId,
-						spotMarketIndex
-					),
-				},
-			}
-		);
+		const updateSpotMarketBorrowRateIx =
+			await this.program.instruction.updateSpotMarketBorrowRate(
+				optimalUtilization,
+				optimalBorrowRate,
+				optimalMaxRate,
+				{
+					accounts: {
+						admin: this.isSubscribed
+							? this.getStateAccount().admin
+							: this.wallet.publicKey,
+						state: await this.getStatePublicKey(),
+						spotMarket: await getSpotMarketPublicKey(
+							this.program.programId,
+							spotMarketIndex
+						),
+					},
+				}
+			);
+
+		const tx = await this.buildTransaction(updateSpotMarketBorrowRateIx);
+
+		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+
+		return txSig;
 	}
 
 	public async updateSpotMarketAssetTier(
@@ -1413,7 +1911,9 @@ export class AdminClient extends DriftClient {
 		const updateSpotMarketAssetTierIx =
 			await this.program.instruction.updateSpotMarketAssetTier(assetTier, {
 				accounts: {
-					admin: this.wallet.publicKey,
+					admin: this.isSubscribed
+						? this.getStateAccount().admin
+						: this.wallet.publicKey,
 					state: await this.getStatePublicKey(),
 					spotMarket: await getSpotMarketPublicKey(
 						this.program.programId,
@@ -1436,7 +1936,9 @@ export class AdminClient extends DriftClient {
 		const updateSpotMarketStatusIx =
 			await this.program.instruction.updateSpotMarketStatus(marketStatus, {
 				accounts: {
-					admin: this.wallet.publicKey,
+					admin: this.isSubscribed
+						? this.getStateAccount().admin
+						: this.wallet.publicKey,
 					state: await this.getStatePublicKey(),
 					spotMarket: await getSpotMarketPublicKey(
 						this.program.programId,
@@ -1461,7 +1963,9 @@ export class AdminClient extends DriftClient {
 				pausedOperations,
 				{
 					accounts: {
-						admin: this.wallet.publicKey,
+						admin: this.isSubscribed
+							? this.getStateAccount().admin
+							: this.wallet.publicKey,
 						state: await this.getStatePublicKey(),
 						spotMarket: await getSpotMarketPublicKey(
 							this.program.programId,
@@ -1485,7 +1989,9 @@ export class AdminClient extends DriftClient {
 		const updatePerpMarketStatusIx =
 			await this.program.instruction.updatePerpMarketStatus(marketStatus, {
 				accounts: {
-					admin: this.wallet.publicKey,
+					admin: this.isSubscribed
+						? this.getStateAccount().admin
+						: this.wallet.publicKey,
 					state: await this.getStatePublicKey(),
 					perpMarket: await getPerpMarketPublicKey(
 						this.program.programId,
@@ -1510,7 +2016,9 @@ export class AdminClient extends DriftClient {
 				pausedOperations,
 				{
 					accounts: {
-						admin: this.wallet.publicKey,
+						admin: this.isSubscribed
+							? this.getStateAccount().admin
+							: this.wallet.publicKey,
 						state: await this.getStatePublicKey(),
 						perpMarket: await getPerpMarketPublicKey(
 							this.program.programId,
@@ -1536,7 +2044,9 @@ export class AdminClient extends DriftClient {
 				contractTier,
 				{
 					accounts: {
-						admin: this.wallet.publicKey,
+						admin: this.isSubscribed
+							? this.getStateAccount().admin
+							: this.wallet.publicKey,
 						state: await this.getStatePublicKey(),
 						perpMarket: await getPerpMarketPublicKey(
 							this.program.programId,
@@ -1559,7 +2069,9 @@ export class AdminClient extends DriftClient {
 		const updateExchangeStatusIx =
 			await this.program.instruction.updateExchangeStatus(exchangeStatus, {
 				accounts: {
-					admin: this.wallet.publicKey,
+					admin: this.isSubscribed
+						? this.getStateAccount().admin
+						: this.wallet.publicKey,
 					state: await this.getStatePublicKey(),
 				},
 			});
@@ -1574,61 +2086,99 @@ export class AdminClient extends DriftClient {
 	public async updatePerpAuctionDuration(
 		minDuration: BN | number
 	): Promise<TransactionSignature> {
-		return await this.program.rpc.updatePerpAuctionDuration(
-			typeof minDuration === 'number' ? minDuration : minDuration.toNumber(),
-			{
-				accounts: {
-					admin: this.wallet.publicKey,
-					state: await this.getStatePublicKey(),
-				},
-			}
-		);
+		const updatePerpAuctionDurationIx =
+			await this.program.instruction.updatePerpAuctionDuration(
+				typeof minDuration === 'number' ? minDuration : minDuration.toNumber(),
+				{
+					accounts: {
+						admin: this.isSubscribed
+							? this.getStateAccount().admin
+							: this.wallet.publicKey,
+						state: await this.getStatePublicKey(),
+					},
+				}
+			);
+
+		const tx = await this.buildTransaction(updatePerpAuctionDurationIx);
+
+		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+
+		return txSig;
 	}
 
 	public async updateSpotAuctionDuration(
 		defaultAuctionDuration: number
 	): Promise<TransactionSignature> {
-		return await this.program.rpc.updateSpotAuctionDuration(
-			defaultAuctionDuration,
-			{
-				accounts: {
-					admin: this.wallet.publicKey,
-					state: await this.getStatePublicKey(),
-				},
-			}
-		);
+		const updateSpotAuctionDurationIx =
+			await this.program.instruction.updateSpotAuctionDuration(
+				defaultAuctionDuration,
+				{
+					accounts: {
+						admin: this.isSubscribed
+							? this.getStateAccount().admin
+							: this.wallet.publicKey,
+						state: await this.getStatePublicKey(),
+					},
+				}
+			);
+
+		const tx = await this.buildTransaction(updateSpotAuctionDurationIx);
+
+		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+
+		return txSig;
 	}
 
 	public async updatePerpMarketMaxFillReserveFraction(
 		perpMarketIndex: number,
 		maxBaseAssetAmountRatio: number
 	): Promise<TransactionSignature> {
-		return await this.program.rpc.updatePerpMarketMaxFillReserveFraction(
-			maxBaseAssetAmountRatio,
-			{
-				accounts: {
-					admin: this.wallet.publicKey,
-					state: await this.getStatePublicKey(),
-					perpMarket: await getPerpMarketPublicKey(
-						this.program.programId,
-						perpMarketIndex
-					),
-				},
-			}
+		const updatePerpMarketMaxFillReserveFractionIx =
+			await this.program.instruction.updatePerpMarketMaxFillReserveFraction(
+				maxBaseAssetAmountRatio,
+				{
+					accounts: {
+						admin: this.isSubscribed
+							? this.getStateAccount().admin
+							: this.wallet.publicKey,
+						state: await this.getStatePublicKey(),
+						perpMarket: await getPerpMarketPublicKey(
+							this.program.programId,
+							perpMarketIndex
+						),
+					},
+				}
+			);
+
+		const tx = await this.buildTransaction(
+			updatePerpMarketMaxFillReserveFractionIx
 		);
+
+		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+
+		return txSig;
 	}
 
 	public async updateMaxSlippageRatio(
 		perpMarketIndex: number,
 		maxSlippageRatio: number
 	): Promise<TransactionSignature> {
-		return await this.program.rpc.updateMaxSlippageRatio(maxSlippageRatio, {
-			accounts: {
-				admin: this.wallet.publicKey,
-				state: await this.getStatePublicKey(),
-				perpMarket: this.getPerpMarketAccount(perpMarketIndex).pubkey,
-			},
-		});
+		const updateMaxSlippageRatioIx =
+			await this.program.instruction.updateMaxSlippageRatio(maxSlippageRatio, {
+				accounts: {
+					admin: this.isSubscribed
+						? this.getStateAccount().admin
+						: this.wallet.publicKey,
+					state: await this.getStatePublicKey(),
+					perpMarket: this.getPerpMarketAccount(perpMarketIndex).pubkey,
+				},
+			});
+
+		const tx = await this.buildTransaction(updateMaxSlippageRatioIx);
+
+		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+
+		return txSig;
 	}
 
 	public async updatePerpMarketUnrealizedAssetWeight(
@@ -1636,20 +2186,31 @@ export class AdminClient extends DriftClient {
 		unrealizedInitialAssetWeight: number,
 		unrealizedMaintenanceAssetWeight: number
 	): Promise<TransactionSignature> {
-		return await this.program.rpc.updatePerpMarketUnrealizedAssetWeight(
-			unrealizedInitialAssetWeight,
-			unrealizedMaintenanceAssetWeight,
-			{
-				accounts: {
-					admin: this.wallet.publicKey,
-					state: await this.getStatePublicKey(),
-					perpMarket: await getPerpMarketPublicKey(
-						this.program.programId,
-						perpMarketIndex
-					),
-				},
-			}
+		const updatePerpMarketUnrealizedAssetWeightIx =
+			await this.program.instruction.updatePerpMarketUnrealizedAssetWeight(
+				unrealizedInitialAssetWeight,
+				unrealizedMaintenanceAssetWeight,
+				{
+					accounts: {
+						admin: this.isSubscribed
+							? this.getStateAccount().admin
+							: this.wallet.publicKey,
+						state: await this.getStatePublicKey(),
+						perpMarket: await getPerpMarketPublicKey(
+							this.program.programId,
+							perpMarketIndex
+						),
+					},
+				}
+			);
+
+		const tx = await this.buildTransaction(
+			updatePerpMarketUnrealizedAssetWeightIx
 		);
+
+		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+
+		return txSig;
 	}
 
 	public async updatePerpMarketMaxImbalances(
@@ -1658,68 +2219,109 @@ export class AdminClient extends DriftClient {
 		maxRevenueWithdrawPerPeriod: BN,
 		quoteMaxInsurance: BN
 	): Promise<TransactionSignature> {
-		return await this.program.rpc.updatePerpMarketMaxImbalances(
-			unrealizedMaxImbalance,
-			maxRevenueWithdrawPerPeriod,
-			quoteMaxInsurance,
-			{
-				accounts: {
-					admin: this.wallet.publicKey,
-					state: await this.getStatePublicKey(),
-					perpMarket: await getPerpMarketPublicKey(
-						this.program.programId,
-						perpMarketIndex
-					),
-				},
-			}
-		);
+		const updatePerpMarketMaxImabalancesIx =
+			await this.program.instruction.updatePerpMarketMaxImbalances(
+				unrealizedMaxImbalance,
+				maxRevenueWithdrawPerPeriod,
+				quoteMaxInsurance,
+				{
+					accounts: {
+						admin: this.isSubscribed
+							? this.getStateAccount().admin
+							: this.wallet.publicKey,
+						state: await this.getStatePublicKey(),
+						perpMarket: await getPerpMarketPublicKey(
+							this.program.programId,
+							perpMarketIndex
+						),
+					},
+				}
+			);
+
+		const tx = await this.buildTransaction(updatePerpMarketMaxImabalancesIx);
+
+		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+
+		return txSig;
 	}
 
 	public async updatePerpMarketMaxOpenInterest(
 		perpMarketIndex: number,
 		maxOpenInterest: BN
 	): Promise<TransactionSignature> {
-		return await this.program.rpc.updatePerpMarketMaxOpenInterest(
-			maxOpenInterest,
-			{
-				accounts: {
-					admin: this.wallet.publicKey,
-					state: await this.getStatePublicKey(),
-					perpMarket: await getPerpMarketPublicKey(
-						this.program.programId,
-						perpMarketIndex
-					),
-				},
-			}
-		);
+		const updatePerpMarketMaxOpenInterestIx =
+			await this.program.instruction.updatePerpMarketMaxOpenInterest(
+				maxOpenInterest,
+				{
+					accounts: {
+						admin: this.isSubscribed
+							? this.getStateAccount().admin
+							: this.wallet.publicKey,
+						state: await this.getStatePublicKey(),
+						perpMarket: await getPerpMarketPublicKey(
+							this.program.programId,
+							perpMarketIndex
+						),
+					},
+				}
+			);
+
+		const tx = await this.buildTransaction(updatePerpMarketMaxOpenInterestIx);
+
+		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+
+		return txSig;
 	}
 
 	public async updatePerpMarketFeeAdjustment(
 		perpMarketIndex: number,
 		feeAdjustment: number
 	): Promise<TransactionSignature> {
-		return await this.program.rpc.updatePerpMarketFeeAdjustment(feeAdjustment, {
-			accounts: {
-				admin: this.wallet.publicKey,
-				state: await this.getStatePublicKey(),
-				perpMarket: await getPerpMarketPublicKey(
-					this.program.programId,
-					perpMarketIndex
-				),
-			},
-		});
+		const updatepPerpMarketFeeAdjustmentIx =
+			await this.program.instruction.updatePerpMarketFeeAdjustment(
+				feeAdjustment,
+				{
+					accounts: {
+						admin: this.isSubscribed
+							? this.getStateAccount().admin
+							: this.wallet.publicKey,
+						state: await this.getStatePublicKey(),
+						perpMarket: await getPerpMarketPublicKey(
+							this.program.programId,
+							perpMarketIndex
+						),
+					},
+				}
+			);
+
+		const tx = await this.buildTransaction(updatepPerpMarketFeeAdjustmentIx);
+
+		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+
+		return txSig;
 	}
 
 	public async updateSerumVault(
 		srmVault: PublicKey
 	): Promise<TransactionSignature> {
-		return await this.program.rpc.updateSerumVault({
-			accounts: {
-				admin: this.wallet.publicKey,
-				state: await this.getStatePublicKey(),
-				srmVault: srmVault,
-			},
-		});
+		const updateSerumVaultIx = await this.program.instruction.updateSerumVault(
+			srmVault,
+			{
+				accounts: {
+					admin: this.isSubscribed
+						? this.getStateAccount().admin
+						: this.wallet.publicKey,
+					state: await this.getStatePublicKey(),
+					srmVault: srmVault,
+				},
+			}
+		);
+
+		const tx = await this.buildTransaction(updateSerumVaultIx);
+
+		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+
+		return txSig;
 	}
 
 	public async updatePerpMarketLiquidationFee(
@@ -1727,20 +2329,29 @@ export class AdminClient extends DriftClient {
 		liquidatorFee: number,
 		ifLiquidationFee: number
 	): Promise<TransactionSignature> {
-		return await this.program.rpc.updatePerpMarketLiquidationFee(
-			liquidatorFee,
-			ifLiquidationFee,
-			{
-				accounts: {
-					admin: this.wallet.publicKey,
-					state: await this.getStatePublicKey(),
-					perpMarket: await getPerpMarketPublicKey(
-						this.program.programId,
-						perpMarketIndex
-					),
-				},
-			}
-		);
+		const updatePerpMarketLiquidationFeeIx =
+			await this.program.instruction.updatePerpMarketLiquidationFee(
+				liquidatorFee,
+				ifLiquidationFee,
+				{
+					accounts: {
+						admin: this.isSubscribed
+							? this.getStateAccount().admin
+							: this.wallet.publicKey,
+						state: await this.getStatePublicKey(),
+						perpMarket: await getPerpMarketPublicKey(
+							this.program.programId,
+							perpMarketIndex
+						),
+					},
+				}
+			);
+
+		const tx = await this.buildTransaction(updatePerpMarketLiquidationFeeIx);
+
+		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+
+		return txSig;
 	}
 
 	public async updateSpotMarketLiquidationFee(
@@ -1748,50 +2359,224 @@ export class AdminClient extends DriftClient {
 		liquidatorFee: number,
 		ifLiquidationFee: number
 	): Promise<TransactionSignature> {
-		return await this.program.rpc.updateSpotMarketLiquidationFee(
-			liquidatorFee,
-			ifLiquidationFee,
-			{
-				accounts: {
-					admin: this.wallet.publicKey,
-					state: await this.getStatePublicKey(),
-					spotMarket: await getSpotMarketPublicKey(
-						this.program.programId,
-						spotMarketIndex
-					),
-				},
-			}
-		);
+		const updateSpotMarketLiquidationFeeIx =
+			await this.program.instruction.updateSpotMarketLiquidationFee(
+				liquidatorFee,
+				ifLiquidationFee,
+				{
+					accounts: {
+						admin: this.isSubscribed
+							? this.getStateAccount().admin
+							: this.wallet.publicKey,
+						state: await this.getStatePublicKey(),
+						spotMarket: await getSpotMarketPublicKey(
+							this.program.programId,
+							spotMarketIndex
+						),
+					},
+				}
+			);
+
+		const tx = await this.buildTransaction(updateSpotMarketLiquidationFeeIx);
+
+		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+
+		return txSig;
 	}
 
 	public async initializeProtocolIfSharesTransferConfig(): Promise<TransactionSignature> {
-		return await this.program.rpc.initializeProtocolIfSharesTransferConfig({
-			accounts: {
-				admin: this.wallet.publicKey,
-				state: await this.getStatePublicKey(),
-				rent: SYSVAR_RENT_PUBKEY,
-				systemProgram: anchor.web3.SystemProgram.programId,
-				protocolIfSharesTransferConfig:
-					getProtocolIfSharesTransferConfigPublicKey(this.program.programId),
-			},
-		});
+		const initializeProtocolIfSharesTransferConfigIx =
+			await this.program.instruction.initializeProtocolIfSharesTransferConfig({
+				accounts: {
+					admin: this.isSubscribed
+						? this.getStateAccount().admin
+						: this.wallet.publicKey,
+					state: await this.getStatePublicKey(),
+					rent: SYSVAR_RENT_PUBKEY,
+					systemProgram: anchor.web3.SystemProgram.programId,
+					protocolIfSharesTransferConfig:
+						getProtocolIfSharesTransferConfigPublicKey(this.program.programId),
+				},
+			});
+
+		const tx = await this.buildTransaction(
+			initializeProtocolIfSharesTransferConfigIx
+		);
+
+		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+
+		return txSig;
 	}
 
 	public async updateProtocolIfSharesTransferConfig(
 		whitelistedSigners?: PublicKey[],
 		maxTransferPerEpoch?: BN
 	): Promise<TransactionSignature> {
-		return await this.program.rpc.updateProtocolIfSharesTransferConfig(
-			whitelistedSigners || null,
-			maxTransferPerEpoch,
-			{
-				accounts: {
-					admin: this.wallet.publicKey,
-					state: await this.getStatePublicKey(),
-					protocolIfSharesTransferConfig:
-						getProtocolIfSharesTransferConfigPublicKey(this.program.programId),
-				},
-			}
+		const updateProtocolIfSharesTransferConfigIx =
+			await this.program.instruction.updateProtocolIfSharesTransferConfig(
+				whitelistedSigners || null,
+				maxTransferPerEpoch,
+				{
+					accounts: {
+						admin: this.isSubscribed
+							? this.getStateAccount().admin
+							: this.wallet.publicKey,
+						state: await this.getStatePublicKey(),
+						protocolIfSharesTransferConfig:
+							getProtocolIfSharesTransferConfigPublicKey(
+								this.program.programId
+							),
+					},
+				}
+			);
+
+		const tx = await this.buildTransaction(
+			updateProtocolIfSharesTransferConfigIx
 		);
+
+		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+
+		return txSig;
+	}
+
+	public async initializePrelaunchOracle(
+		perpMarketIndex: number,
+		price?: BN,
+		maxPrice?: BN
+	): Promise<TransactionSignature> {
+		const initializePrelaunchOracleIx =
+			await this.getInitializePrelaunchOracleIx(
+				perpMarketIndex,
+				price,
+				maxPrice
+			);
+
+		const tx = await this.buildTransaction(initializePrelaunchOracleIx);
+
+		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+
+		return txSig;
+	}
+
+	public async getInitializePrelaunchOracleIx(
+		perpMarketIndex: number,
+		price?: BN,
+		maxPrice?: BN
+	): Promise<TransactionInstruction> {
+		const params = {
+			perpMarketIndex,
+			price: price || null,
+			maxPrice: maxPrice || null,
+		};
+
+		return await this.program.instruction.initializePrelaunchOracle(params, {
+			accounts: {
+				admin: this.isSubscribed
+					? this.getStateAccount().admin
+					: this.wallet.publicKey,
+				state: await this.getStatePublicKey(),
+				prelaunchOracle: await getPrelaunchOraclePublicKey(
+					this.program.programId,
+					perpMarketIndex
+				),
+				rent: SYSVAR_RENT_PUBKEY,
+				systemProgram: anchor.web3.SystemProgram.programId,
+			},
+		});
+	}
+
+	public async updatePrelaunchOracleParams(
+		perpMarketIndex: number,
+		price?: BN,
+		maxPrice?: BN
+	): Promise<TransactionSignature> {
+		const updatePrelaunchOracleParamsIx =
+			await this.getUpdatePrelaunchOracleParamsIx(
+				perpMarketIndex,
+				price,
+				maxPrice
+			);
+
+		const tx = await this.buildTransaction(updatePrelaunchOracleParamsIx);
+
+		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+
+		return txSig;
+	}
+
+	public async getUpdatePrelaunchOracleParamsIx(
+		perpMarketIndex: number,
+		price?: BN,
+		maxPrice?: BN
+	): Promise<TransactionInstruction> {
+		const params = {
+			perpMarketIndex,
+			price: price || null,
+			maxPrice: maxPrice || null,
+		};
+
+		const perpMarketPublicKey = await getPerpMarketPublicKey(
+			this.program.programId,
+			perpMarketIndex
+		);
+
+		return await this.program.instruction.updatePrelaunchOracleParams(params, {
+			accounts: {
+				admin: this.isSubscribed
+					? this.getStateAccount().admin
+					: this.wallet.publicKey,
+				state: await this.getStatePublicKey(),
+				perpMarket: perpMarketPublicKey,
+				prelaunchOracle: await getPrelaunchOraclePublicKey(
+					this.program.programId,
+					perpMarketIndex
+				),
+			},
+		});
+	}
+
+	public async deletePrelaunchOracle(
+		perpMarketIndex: number
+	): Promise<TransactionSignature> {
+		const deletePrelaunchOracleIx = await this.getDeletePrelaunchOracleIx(
+			perpMarketIndex
+		);
+
+		const tx = await this.buildTransaction(deletePrelaunchOracleIx);
+
+		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+
+		return txSig;
+	}
+
+	public async getDeletePrelaunchOracleIx(
+		perpMarketIndex: number,
+		price?: BN,
+		maxPrice?: BN
+	): Promise<TransactionInstruction> {
+		const params = {
+			perpMarketIndex,
+			price: price || null,
+			maxPrice: maxPrice || null,
+		};
+
+		const perpMarketPublicKey = await getPerpMarketPublicKey(
+			this.program.programId,
+			perpMarketIndex
+		);
+
+		return await this.program.instruction.getDeletePrelaunchOracleIx(params, {
+			accounts: {
+				admin: this.isSubscribed
+					? this.getStateAccount().admin
+					: this.wallet.publicKey,
+				state: await this.getStatePublicKey(),
+				perpMarket: perpMarketPublicKey,
+				prelaunchOracle: await getPrelaunchOraclePublicKey(
+					this.program.programId,
+					perpMarketIndex
+				),
+			},
+		});
 	}
 }

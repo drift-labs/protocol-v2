@@ -1697,9 +1697,6 @@ pub fn user_invalid_oracle_position() {
         unrealized_pnl_maintenance_asset_weight: SPOT_WEIGHT_PRECISION.cast().unwrap(),
         ..PerpMarket::default()
     };
-    create_anchor_account_info!(market, PerpMarket, market_account_info);
-    let market_map = PerpMarketMap::load_one(&market_account_info, true).unwrap();
-
     let mut spot_market = SpotMarket {
         market_index: 0,
         oracle_source: OracleSource::QuoteAsset,
@@ -1735,6 +1732,20 @@ pub fn user_invalid_oracle_position() {
     let user_key = Pubkey::default();
     let authority = Pubkey::default();
 
+    market
+        .amm
+        .historical_oracle_data
+        .last_oracle_price_twap_5min -= market
+        .amm
+        .historical_oracle_data
+        .last_oracle_price_twap_5min
+        / 33;
+    create_anchor_account_info!(market, PerpMarket, market_account_info);
+    let market_map = PerpMarketMap::load_one(&market_account_info, true).unwrap();
+    assert!(!market
+        .is_price_divergence_ok_for_settle_pnl(oracle_price.agg.price)
+        .unwrap());
+
     let result = settle_pnl(
         0,
         &mut user,
@@ -1755,6 +1766,33 @@ pub fn user_invalid_oracle_position() {
     market.amm.last_update_slot = clock.slot;
     create_anchor_account_info!(market, PerpMarket, market_account_info);
     let market_map = PerpMarketMap::load_one(&market_account_info, true).unwrap();
+    assert!(!market
+        .is_price_divergence_ok_for_settle_pnl(oracle_price.agg.price)
+        .unwrap());
+
+    let result = settle_pnl(
+        0,
+        &mut user,
+        &authority,
+        &user_key,
+        &market_map,
+        &spot_market_map,
+        &mut oracle_map,
+        &clock,
+        &state,
+    );
+    assert_eq!(result, Err(ErrorCode::PriceBandsBreached));
+
+    market
+        .amm
+        .historical_oracle_data
+        .last_oracle_price_twap_5min *= 4;
+    market.amm.last_update_slot = clock.slot;
+    create_anchor_account_info!(market, PerpMarket, market_account_info);
+    let market_map = PerpMarketMap::load_one(&market_account_info, true).unwrap();
+    assert!(!market
+        .is_price_divergence_ok_for_settle_pnl(oracle_price.agg.price)
+        .unwrap());
 
     let result = settle_pnl(
         0,
@@ -1775,6 +1813,9 @@ pub fn user_invalid_oracle_position() {
         .last_oracle_price_twap_5min = oracle_price.agg.price * 95 / 100;
     create_anchor_account_info!(market, PerpMarket, market_account_info);
     let market_map = PerpMarketMap::load_one(&market_account_info, true).unwrap();
+    assert!(!market
+        .is_price_divergence_ok_for_settle_pnl(oracle_price.agg.price)
+        .unwrap());
 
     let result = settle_pnl(
         0,
@@ -1796,6 +1837,9 @@ pub fn user_invalid_oracle_position() {
     create_anchor_account_info!(market, PerpMarket, market_account_info);
     let market_map = PerpMarketMap::load_one(&market_account_info, true).unwrap();
 
+    assert!(market
+        .is_price_divergence_ok_for_settle_pnl(oracle_price.agg.price)
+        .unwrap());
     let result = settle_pnl(
         0,
         &mut user,
@@ -1808,4 +1852,82 @@ pub fn user_invalid_oracle_position() {
         &state,
     );
     assert_eq!(result, Ok(()));
+}
+
+#[test]
+pub fn is_price_divergence_ok_on_invalid_oracle() {
+    let clock = Clock {
+        slot: 100000,
+        epoch_start_timestamp: 0,
+        epoch: 0,
+        leader_schedule_epoch: 0,
+        unix_timestamp: 19929299,
+    };
+
+    let mut oracle_price = get_pyth_price(100, 6);
+    oracle_price.curr_slot = clock.slot - 10;
+    let oracle_price_key =
+        Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
+
+    let mut market = PerpMarket {
+        amm: AMM {
+            base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
+            quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
+            bid_base_asset_reserve: 101 * AMM_RESERVE_PRECISION,
+            bid_quote_asset_reserve: 99 * AMM_RESERVE_PRECISION,
+            ask_base_asset_reserve: 99 * AMM_RESERVE_PRECISION,
+            ask_quote_asset_reserve: 101 * AMM_RESERVE_PRECISION,
+            sqrt_k: 100 * AMM_RESERVE_PRECISION,
+            peg_multiplier: 100 * PEG_PRECISION,
+            max_slippage_ratio: 50,
+            max_fill_reserve_fraction: 100,
+            order_step_size: 10000000,
+            quote_asset_amount: 150 * QUOTE_PRECISION_I128,
+            base_asset_amount_with_amm: BASE_PRECISION_I128,
+            base_asset_amount_long: BASE_PRECISION_I128,
+            oracle: oracle_price_key,
+            historical_oracle_data: HistoricalOracleData {
+                last_oracle_price: oracle_price.agg.price,
+                last_oracle_price_twap_5min: oracle_price.agg.price,
+                last_oracle_price_twap: oracle_price.agg.price,
+                ..HistoricalOracleData::default()
+            },
+            ..AMM::default()
+        },
+        margin_ratio_initial: 1000,
+        margin_ratio_maintenance: 500,
+        number_of_users_with_base: 1,
+        status: MarketStatus::Active,
+        liquidator_fee: LIQUIDATION_FEE_PRECISION / 100,
+        pnl_pool: PoolBalance {
+            scaled_balance: (50 * SPOT_BALANCE_PRECISION) as u128,
+            market_index: QUOTE_SPOT_MARKET_INDEX,
+            ..PoolBalance::default()
+        },
+        unrealized_pnl_maintenance_asset_weight: SPOT_WEIGHT_PRECISION.cast().unwrap(),
+        ..PerpMarket::default()
+    };
+
+    assert!(market
+        .is_price_divergence_ok_for_settle_pnl(oracle_price.agg.price)
+        .unwrap());
+
+    market.amm.mark_std = (oracle_price.agg.price / 100) as u64;
+    market.amm.oracle_std = (oracle_price.agg.price / 190) as u64;
+
+    assert!(market
+        .is_price_divergence_ok_for_settle_pnl(oracle_price.agg.price)
+        .unwrap());
+
+    market.amm.mark_std = (oracle_price.agg.price / 10) as u64;
+
+    assert!(!market
+        .is_price_divergence_ok_for_settle_pnl(oracle_price.agg.price)
+        .unwrap());
+
+    market.amm.oracle_std = (oracle_price.agg.price * 10) as u64;
+
+    assert!(!market
+        .is_price_divergence_ok_for_settle_pnl(oracle_price.agg.price)
+        .unwrap());
 }
