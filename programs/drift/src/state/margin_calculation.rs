@@ -204,6 +204,26 @@ impl MarginCalculation {
         Ok(())
     }
 
+    #[cfg(full_margin_calculations)]
+    pub fn add_spot_asset_value(&mut self, spot_asset_value: i128) -> DriftResult {
+        self.total_spot_asset_value = self.total_spot_asset_value.safe_add(spot_asset_value)?;
+        Ok(())
+    }
+
+    #[cfg(full_margin_calculations)]
+    pub fn add_spot_liability_value(&mut self, spot_liability_value: u128) -> DriftResult {
+        self.total_spot_liability_value =
+            self.total_spot_liability_value.safe_add(spot_liability_value)?;
+        Ok(())
+    }
+
+    #[cfg(full_margin_calculations)]
+    pub fn add_perp_liability_value(&mut self, perp_liability_value: u128) -> DriftResult {
+        self.total_perp_liability_value =
+            self.total_perp_liability_value.safe_add(perp_liability_value)?;
+        Ok(())
+    }
+
     pub fn update_all_oracles_valid(&mut self, valid: bool) {
         self.all_oracles_valid &= valid;
     }
