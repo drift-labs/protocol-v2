@@ -13,6 +13,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Breaking
 
+## [2.74.0] - 2023-03-25
+
+### Features
+
+- program: add 'highly speculative' contract tier enum 4 ([#968](https://github.com/drift-labs/protocol-v2/pull/968)) 
+- program: expand initialize market parameters ([#969](https://github.com/drift-labs/protocol-v2/pull/969)) 
+
+### Fixes
+
+- program: fix checking isolated tier in add_perp_lp_shares ([#965](https://github.com/drift-labs/protocol-v2/pull/965)) 
+
+### Breaking
 
 ## [2.73.0] - 2023-03-15
 
@@ -24,15 +36,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Breaking
 
-
 ## [2.72.0] - 2023-03-14
 
 ### Features
+
 - program: skip isolated tier for auction start/end sanitize ([#958](https://github.com/drift-labs/protocol-v2/pull/958))
 
 - program: check isolated perp market in validate spot margin trading ([#957](https://github.com/drift-labs/protocol-v2/pull/957))
 - program: improve update prelaunch oracles and add ability to delete ([#956](https://github.com/drift-labs/protocol-v2/pull/956))
 - program: allow user to settle realized pnl in reduce only market status ([#954](https://github.com/drift-labs/protocol-v2/pull/954))
+- sdk: add function for toggling user account to reduceOnly ([#966](https://github.com/drift-labs/protocol-v2/pull/966))
 
 ### Fixes
 

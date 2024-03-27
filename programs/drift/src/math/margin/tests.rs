@@ -49,6 +49,12 @@ mod test {
         assert!(!ContractTier::Speculative.is_as_safe_as(&ContractTier::B, &AssetTier::Collateral));
         assert!(!ContractTier::Speculative.is_as_safe_as(&ContractTier::B, &AssetTier::Cross));
         assert!(!ContractTier::Speculative.is_as_safe_as(&ContractTier::C, &AssetTier::Collateral));
+
+        assert!(!ContractTier::HighlySpeculative
+            .is_as_safe_as(&ContractTier::C, &AssetTier::Collateral));
+        assert!(!ContractTier::HighlySpeculative
+            .is_as_safe_as(&ContractTier::Speculative, &AssetTier::Isolated));
+
         assert!(!ContractTier::Speculative
             .is_as_safe_as(&ContractTier::Speculative, &AssetTier::Collateral));
         assert!(
@@ -62,7 +68,13 @@ mod test {
         assert!(
             !ContractTier::Speculative.is_as_safe_as(&ContractTier::Isolated, &AssetTier::Isolated)
         );
+        assert!(ContractTier::HighlySpeculative
+            .is_as_safe_as(&ContractTier::Isolated, &AssetTier::default()));
+
         assert!(!ContractTier::Isolated.is_as_safe_as(&ContractTier::A, &AssetTier::default()));
+        assert!(!ContractTier::Isolated
+            .is_as_safe_as(&ContractTier::HighlySpeculative, &AssetTier::default()));
+
         assert!(
             !ContractTier::Isolated.is_as_safe_as(&ContractTier::Isolated, &AssetTier::Isolated)
         );

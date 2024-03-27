@@ -95,7 +95,8 @@ export class FastSingleTxSender extends BaseTxSender {
 		ixs: TransactionInstruction[],
 		lookupTableAccounts: AddressLookupTableAccount[],
 		additionalSigners?: Array<Signer>,
-		opts?: ConfirmOptions
+		opts?: ConfirmOptions,
+		blockhash?: string
 	): Promise<VersionedTransaction> {
 		if (additionalSigners === undefined) {
 			additionalSigners = [];
@@ -104,12 +105,19 @@ export class FastSingleTxSender extends BaseTxSender {
 			opts = this.opts;
 		}
 
-		const message = new TransactionMessage({
-			payerKey: this.wallet.publicKey,
-			recentBlockhash:
+		let recentBlockhash = '';
+		if (blockhash) {
+			recentBlockhash = blockhash;
+		} else {
+			recentBlockhash =
 				this.recentBlockhash ??
 				(await this.connection.getLatestBlockhash(opts.preflightCommitment))
-					.blockhash,
+					.blockhash;
+		}
+
+		const message = new TransactionMessage({
+			payerKey: this.wallet.publicKey,
+			recentBlockhash,
 			instructions: ixs,
 		}).compileToV0Message(lookupTableAccounts);
 

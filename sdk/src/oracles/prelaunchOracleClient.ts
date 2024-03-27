@@ -31,6 +31,7 @@ export class PrelaunchOracleClient implements OracleClient {
 			slot: prelaunchOracle.ammLastUpdateSlot,
 			confidence: prelaunchOracle.confidence,
 			hasSufficientNumberOfDataPoints: true,
+			maxPrice: prelaunchOracle.maxPrice,
 		};
 	}
 }

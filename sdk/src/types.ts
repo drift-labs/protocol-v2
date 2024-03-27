@@ -58,6 +58,7 @@ export class ContractTier {
 	static readonly B = { b: {} };
 	static readonly C = { c: {} };
 	static readonly SPECULATIVE = { speculative: {} };
+	static readonly HIGHLY_SPECULATIVE = { highlySpeculative: {} };
 	static readonly ISOLATED = { isolated: {} };
 }
 
