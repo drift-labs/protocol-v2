@@ -1358,6 +1358,7 @@ pub fn handle_settle_revenue_to_insurance_fund(
         insurance_vault_amount,
         spot_market,
         now,
+        true,
     )?;
 
     spot_market.insurance_fund.last_revenue_settle_ts = now;
