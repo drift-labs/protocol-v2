@@ -229,8 +229,8 @@ impl MarginCalculation {
     }
 
     #[cfg(feature = "drift-rs")]
-    pub fn add_perp_pnl(&mut self, perp_upnl: i128) -> DriftResult {
-        self.total_perp_upnl = self.total_perp_upnl.safe_add(perp_upnl)?;
+    pub fn add_perp_pnl(&mut self, perp_pnl: i128) -> DriftResult {
+        self.total_perp_pnl = self.total_perp_pnl.safe_add(perp_pnl)?;
         Ok(())
     }
 
