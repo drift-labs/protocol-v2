@@ -42,12 +42,12 @@ mod update_perp_auction_params {
     use crate::state::perp_market::{ContractTier, PerpMarket, AMM};
     use crate::state::user::OrderType;
     use crate::{
-        OrderParams, PositionDirection, AMM_RESERVE_PRECISION, BID_ASK_SPREAD_PRECISION,
-        PEG_PRECISION, PRICE_PRECISION_I64, PRICE_PRECISION_U64,
+        OracleSource, OrderParams, PositionDirection, AMM_RESERVE_PRECISION,
+        BID_ASK_SPREAD_PRECISION, PEG_PRECISION, PRICE_PRECISION_I64, PRICE_PRECISION_U64,
     };
 
     #[test]
-    fn test_limit() {
+    fn test_sanitize_limit() {
         let oracle_price = 100 * PRICE_PRECISION_I64;
         let mut amm = AMM {
             base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
@@ -237,7 +237,7 @@ mod update_perp_auction_params {
         amm.last_bid_price_twap =
             (amm.historical_oracle_data.last_oracle_price_twap as u64) + 17238;
 
-        let perp_market = PerpMarket {
+        let mut perp_market = PerpMarket {
             amm,
             contract_tier: ContractTier::B,
             ..PerpMarket::default()
@@ -279,6 +279,23 @@ mod update_perp_auction_params {
             .unwrap();
         assert_ne!(order_params_before, order_params_after);
         assert_eq!(order_params_after.auction_start_price.unwrap(), 99118879);
+
+        // skip for prelaunch oracle
+        perp_market.amm.oracle_source = OracleSource::Prelaunch;
+        let mut order_params_after = order_params_before;
+        order_params_after
+            .update_perp_auction_params(&perp_market, oracle_price)
+            .unwrap();
+        assert_eq!(
+            order_params_after.auction_start_price,
+            order_params_before.auction_start_price
+        );
+        assert_eq!(
+            order_params_after.auction_end_price,
+            order_params_before.auction_end_price
+        );
+
+        perp_market.contract_tier = ContractTier::B; // switch back
 
         let order_params_before = OrderParams {
             order_type: OrderType::Market,
@@ -418,7 +435,7 @@ mod update_perp_auction_params {
             .update_perp_auction_params(&perp_market, oracle_price)
             .unwrap();
         assert_ne!(order_params_before, order_params_after);
-        assert_eq!(order_params_after.auction_start_price.unwrap(), 98901080);
+        assert_eq!(order_params_after.auction_start_price.unwrap(), 98653580);
 
         let order_params_before = OrderParams {
             order_type: OrderType::Market,
@@ -437,7 +454,7 @@ mod update_perp_auction_params {
         assert_ne!(order_params_before, order_params_after);
         assert_eq!(
             order_params_after.auction_start_price.unwrap(),
-            95 * PRICE_PRECISION_I64
+            95 * PRICE_PRECISION_I64 - oracle_price / 400
         );
 
         let order_params_before = OrderParams {
@@ -455,7 +472,10 @@ mod update_perp_auction_params {
             .update_perp_auction_params(&perp_market, oracle_price)
             .unwrap();
         assert_ne!(order_params_before, order_params_after);
-        assert_eq!(order_params_after.auction_start_price.unwrap(), 99118879);
+        assert_eq!(
+            order_params_after.auction_start_price.unwrap(),
+            99118879 + oracle_price / 400
+        );
 
         let order_params_before = OrderParams {
             order_type: OrderType::Market,
@@ -474,7 +494,7 @@ mod update_perp_auction_params {
         assert_ne!(order_params_before, order_params_after);
         assert_eq!(
             order_params_after.auction_start_price.unwrap(),
-            100 * PRICE_PRECISION_I64
+            100 * PRICE_PRECISION_I64 + oracle_price / 400
         );
 
         let order_params_before = OrderParams {
@@ -491,10 +511,13 @@ mod update_perp_auction_params {
         order_params_after
             .update_perp_auction_params(&perp_market, oracle_price)
             .unwrap();
-        assert_eq!(order_params_after.auction_start_price.unwrap(), 99118879);
+        assert_eq!(
+            order_params_after.auction_start_price.unwrap(),
+            99118879 + oracle_price / 400
+        );
         assert_eq!(order_params_after.auction_end_price.unwrap(), 98028211);
 
-        assert_eq!(order_params_after.auction_duration, Some(67));
+        assert_eq!(order_params_after.auction_duration, Some(82));
 
         let order_params_before = OrderParams {
             order_type: OrderType::Market,
@@ -510,10 +533,13 @@ mod update_perp_auction_params {
         order_params_after
             .update_perp_auction_params(&perp_market, oracle_price)
             .unwrap();
-        assert_eq!(order_params_after.auction_start_price.unwrap(), 98901080);
+        assert_eq!(
+            order_params_after.auction_start_price.unwrap(),
+            98901080 - oracle_price / 400
+        );
         assert_eq!(order_params_after.auction_end_price.unwrap(), 100207026);
 
-        assert_eq!(order_params_after.auction_duration, Some(80));
+        assert_eq!(order_params_after.auction_duration, Some(95));
     }
 
     #[test]
@@ -564,8 +590,11 @@ mod update_perp_auction_params {
             .update_perp_auction_params(&perp_market, oracle_price)
             .unwrap();
         assert_ne!(order_params_before, order_params_after);
-        assert_eq!(order_params_after.auction_start_price.unwrap(), 18698);
-        assert!(order_params_after.auction_start_price.unwrap() > bid_twap_offset as i64);
+        assert_eq!(order_params_after.auction_start_price.unwrap(), -228802);
+        assert!(
+            order_params_after.auction_start_price.unwrap()
+                > (bid_twap_offset as i64) - oracle_price / 400
+        ); // 25 bps buffer
         assert_eq!(
             order_params_after.auction_end_price.unwrap(),
             order_params_before.oracle_price_offset.unwrap() as i64
@@ -586,7 +615,10 @@ mod update_perp_auction_params {
             .update_perp_auction_params(&perp_market, oracle_price)
             .unwrap();
         assert_ne!(order_params_before, order_params_after);
-        assert_eq!(order_params_after.auction_start_price.unwrap(), 18698);
+        assert_eq!(
+            order_params_after.auction_start_price.unwrap(),
+            18698 - oracle_price / 400
+        );
         assert_eq!(order_params_after.auction_end_price.unwrap(), 1207026);
         assert_eq!(order_params_after.oracle_price_offset, None);
 
@@ -619,7 +651,10 @@ mod update_perp_auction_params {
         order_params_after
             .update_perp_auction_params(&perp_market, oracle_price)
             .unwrap();
-        assert_eq!(order_params_after.auction_start_price.unwrap(), 18698);
+        assert_eq!(
+            order_params_after.auction_start_price.unwrap(),
+            18698 - oracle_price / 400
+        );
         assert_eq!(order_params_after.auction_end_price.unwrap(), 1207026);
 
         // test empty
@@ -637,8 +672,14 @@ mod update_perp_auction_params {
         order_params_after
             .update_perp_auction_params(&perp_market, oracle_price)
             .unwrap();
-        assert_eq!(order_params_after.auction_start_price.unwrap(), 216738);
-        assert!(order_params_after.auction_start_price.unwrap() < (ask_twap_offset as i64));
+        assert_eq!(
+            order_params_after.auction_start_price.unwrap(),
+            216738 + oracle_price / 400
+        );
+        assert!(
+            order_params_after.auction_start_price.unwrap()
+                < (ask_twap_offset as i64) + oracle_price / 400
+        );
         assert_eq!(
             order_params_after.auction_end_price.unwrap(),
             order_params_before.oracle_price_offset.unwrap() as i64
@@ -659,9 +700,12 @@ mod update_perp_auction_params {
         order_params_after
             .update_perp_auction_params(&perp_market, oracle_price)
             .unwrap();
-        assert_eq!(order_params_after.auction_start_price.unwrap(), 216738);
+        assert_eq!(
+            order_params_after.auction_start_price.unwrap(),
+            216738 + oracle_price / 400
+        );
         assert_eq!(order_params_after.auction_end_price.unwrap(), -971789);
-        assert_eq!(order_params_after.auction_duration.unwrap(), 73);
+        assert_eq!(order_params_after.auction_duration.unwrap(), 88);
     }
 }
 

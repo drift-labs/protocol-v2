@@ -9,6 +9,59 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Features
 
+- ts-sdk: add fn to get admin ix  ([#980](https://github.com/drift-labs/protocol-v2/pull/980))
+- program: add invariant check boolean for attempt settle revenue to insurance ([#937](https://github.com/drift-labs/protocol-v2/pull/937)) 
+- program: improve best bid/ask estimate in mark twap update  ([#975](https://github.com/drift-labs/protocol-v2/pull/975)) 
+- program: add optional margin calculations for drift-rs ([#978](https://github.com/drift-labs/protocol-v2/pull/978))
+
+### Fixes
+
+### Breaking
+
+## [2.74.0] - 2024-03-25
+
+### Features
+
+- program: add 'highly speculative' contract tier enum 4 ([#968](https://github.com/drift-labs/protocol-v2/pull/968)) 
+- program: expand initialize market parameters ([#969](https://github.com/drift-labs/protocol-v2/pull/969)) 
+
+### Fixes
+
+- program: fix checking isolated tier in add_perp_lp_shares ([#965](https://github.com/drift-labs/protocol-v2/pull/965)) 
+
+### Breaking
+
+## [2.73.0] - 2024-03-15
+
+### Features
+
+### Fixes
+
+- program: fix checking isolated tier in validate spot margin trading
+
+### Breaking
+
+## [2.72.0] - 2024-03-14
+
+### Features
+
+- program: skip isolated tier for auction start/end sanitize ([#958](https://github.com/drift-labs/protocol-v2/pull/958))
+
+- program: check isolated perp market in validate spot margin trading ([#957](https://github.com/drift-labs/protocol-v2/pull/957))
+- program: improve update prelaunch oracles and add ability to delete ([#956](https://github.com/drift-labs/protocol-v2/pull/956))
+- program: allow user to settle realized pnl in reduce only market status ([#954](https://github.com/drift-labs/protocol-v2/pull/954))
+- sdk: add function for toggling user account to reduceOnly ([#966](https://github.com/drift-labs/protocol-v2/pull/966))
+
+### Fixes
+
+- program: update spot index twap ts ([#948](https://github.com/drift-labs/protocol-v2/pull/948))
+
+### Breaking
+
+## [2.71.0] - 2024-03-11
+
+### Features
+
 - program: add back switchboard without cargo dependency ([#943](https://github.com/drift-labs/protocol-v2/pull/943))
 - program: add admin fn to update funding period
 - program: add prelaunch oracles ([#910](https://github.com/drift-labs/protocol-v2/pull/910))
@@ -19,7 +72,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Breaking
 
-## [2.70.0] - 2023-03-07
+- sdk: account for max confidence in isOracleValid ([#949](https://github.com/drift-labs/protocol-v2/pull/949))
+
+## [2.70.0] - 2024-03-07
 
 ### Features
 
@@ -29,7 +84,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Breaking
 
-## [2.69.0] - 2023-03-06
+## [2.69.0] - 2024-03-06
 
 ### Features
 
@@ -42,7 +97,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - program: revert switchboard ([#935](https://github.com/drift-labs/protocol-v2/pull/935))
 
-## [2.68.0] - 2023-03-05
+## [2.68.0] - 2024-03-05
 
 ### Features
 
@@ -54,7 +109,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Breaking
 
-## [2.67.0] - 2023-03-05
+## [2.67.0] - 2024-03-05
 
 ### Features
 
@@ -65,7 +120,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Breaking
 
-## [2.66.0] - 2023-02-28
+## [2.66.0] - 2024-02-28
 
 ### Features
 
@@ -75,7 +130,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Breaking
 
-## [2.65.0] - 2023-02-26
+## [2.65.0] - 2024-02-26
 
 ### Features
 
@@ -89,7 +144,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Breaking
 
-## [2.64.0] - 2023-02-20
+## [2.64.0] - 2024-02-20
 
 ### Features
 
@@ -99,7 +154,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Breaking
 
-## [2.63.0] - 2023-02-16
+## [2.63.0] - 2024-02-16
 
 ### Features
 
@@ -115,7 +170,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Breaking
 
-## [2.62.0] - 2023-02-14
+## [2.62.0] - 2024-02-14
 
 ### Features
 
@@ -125,7 +180,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Breaking
 
-## [2.61.0] - 2023-02-09
+## [2.61.0] - 2024-02-09
 
 ### Features
 
@@ -138,7 +193,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Breaking
 
-## [2.60.0] - 2023-02-07
+## [2.60.0] - 2024-02-07
 
 ### Features
 
@@ -150,7 +205,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Breaking
 
-## [2.59.0] - 2023-01-30
+## [2.59.0] - 2024-01-30
 
 ### Features
 
@@ -161,7 +216,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Breaking
 
-## [2.58.0] - 2023-01-27
+## [2.58.0] - 2024-01-27
 
 ### Features
 
@@ -171,7 +226,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Breaking
 
-## [2.57.0] - 2023-01-25
+## [2.57.0] - 2024-01-25
 
 ### Features
 
@@ -181,7 +236,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Breaking
 
-## [2.56.0] - 2023-01-24
+## [2.56.0] - 2024-01-24
 
 ### Features
 
@@ -191,7 +246,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Breaking
 
-## [2.55.0] - 2023-01-18
+## [2.55.0] - 2024-01-18
 
 ### Features
 
@@ -201,7 +256,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Breaking
 
-## [2.54.0] - 2023-01-15
+## [2.54.0] - 2024-01-15
 
 ### Features
 

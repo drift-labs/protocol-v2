@@ -254,6 +254,16 @@ export const DevnetPerpMarkets: PerpMarketConfig[] = [
 		launchTs: 1709852537000,
 		oracleSource: OracleSource.Prelaunch,
 	},
+	{
+		fullName: 'Kamino',
+		category: ['Lending'],
+		symbol: 'KMNO-PERP',
+		baseAssetSymbol: 'KMNO',
+		marketIndex: 24,
+		oracle: new PublicKey('FkAaa46aYdHn8QxxwmiUnJt3th8radB2GFXDMtyLALCY'),
+		launchTs: 1711475936000,
+		oracleSource: OracleSource.Prelaunch,
+	},
 ];
 
 export const MainnetPerpMarkets: PerpMarketConfig[] = [
@@ -526,6 +536,16 @@ export const MainnetPerpMarkets: PerpMarketConfig[] = [
 		oracle: new PublicKey('5NxzemFgGDhimYE3S5qmb5zkjZUmiHXb4up5WGXe7NLn'),
 		launchTs: 1709136669000,
 		oracleSource: OracleSource.PYTH,
+	},
+	{
+		fullName: 'Wormhole',
+		category: ['Bridge'],
+		symbol: 'W-PERP',
+		baseAssetSymbol: 'W',
+		marketIndex: 27,
+		oracle: new PublicKey('GU6CA7a2KCyhpfqZNb36UAfc9uzKBM8jHjGdt245QhYX'),
+		launchTs: 1710418343000,
+		oracleSource: OracleSource.Prelaunch,
 	},
 ];
 

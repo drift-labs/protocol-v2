@@ -252,10 +252,6 @@ function getMaxPriceDivergenceForFundingRate(
 		return oracleTwap.divn(33);
 	} else if (isVariant(market.contractTier, 'c')) {
 		return oracleTwap.divn(20);
-	} else if (isVariant(market.contractTier, 'speculative')) {
-		return oracleTwap.divn(10);
-	} else if (isVariant(market.contractTier, 'isolated')) {
-		return oracleTwap.divn(10);
 	} else {
 		return oracleTwap.divn(10);
 	}

@@ -24,7 +24,7 @@ use crate::load_mut;
 use crate::math::casting::Cast;
 use crate::math::liquidation::is_user_being_liquidated;
 use crate::math::margin::{
-    calculate_max_withdrawable_amount, meets_initial_margin_requirement,
+    calculate_max_withdrawable_amount, meets_place_order_margin_requirement,
     meets_withdraw_margin_requirement, validate_spot_margin_trading, MarginRequirementType,
 };
 use crate::math::safe_math::SafeMath;
@@ -520,7 +520,7 @@ pub fn handle_withdraw(
         MarginRequirementType::Initial,
     )?;
 
-    validate_spot_margin_trading(user, &spot_market_map, &mut oracle_map)?;
+    validate_spot_margin_trading(user, &perp_market_map, &spot_market_map, &mut oracle_map)?;
 
     if user.is_being_liquidated() {
         user.exit_liquidation();
@@ -670,7 +670,12 @@ pub fn handle_transfer_deposit(
         MarginRequirementType::Initial,
     )?;
 
-    validate_spot_margin_trading(from_user, &spot_market_map, &mut oracle_map)?;
+    validate_spot_margin_trading(
+        from_user,
+        &perp_market_map,
+        &spot_market_map,
+        &mut oracle_map,
+    )?;
 
     if from_user.is_being_liquidated() {
         from_user.exit_liquidation();
@@ -1686,15 +1691,12 @@ pub fn handle_add_perp_lp_shares<'info>(
     }
 
     // check margin requirements
-    validate!(
-        meets_initial_margin_requirement(
-            user,
-            &perp_market_map,
-            &spot_market_map,
-            &mut oracle_map
-        )?,
-        ErrorCode::InsufficientCollateral,
-        "User does not meet initial margin requirement"
+    meets_place_order_margin_requirement(
+        user,
+        &perp_market_map,
+        &spot_market_map,
+        &mut oracle_map,
+        true,
     )?;
 
     user.update_last_active_slot(clock.slot);
@@ -1831,6 +1833,7 @@ pub fn handle_update_user_margin_trading_enabled(
 ) -> Result<()> {
     let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
     let AccountMaps {
+        perp_market_map,
         spot_market_map,
         mut oracle_map,
         ..
@@ -1845,7 +1848,7 @@ pub fn handle_update_user_margin_trading_enabled(
     let mut user = load_mut!(ctx.accounts.user)?;
     user.is_margin_trading_enabled = margin_trading_enabled;
 
-    validate_spot_margin_trading(&user, &spot_market_map, &mut oracle_map)
+    validate_spot_margin_trading(&user, &perp_market_map, &spot_market_map, &mut oracle_map)
         .map_err(|_| ErrorCode::MarginOrdersOpen)?;
 
     Ok(())

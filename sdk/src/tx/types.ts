@@ -47,7 +47,8 @@ export interface TxSender {
 		ixs: TransactionInstruction[],
 		lookupTableAccounts: AddressLookupTableAccount[],
 		additionalSigners?: Array<Signer>,
-		opts?: ConfirmOptions
+		opts?: ConfirmOptions,
+		blockhash?: string
 	): Promise<VersionedTransaction>;
 
 	sendRawTransaction(

@@ -85,31 +85,18 @@ export class FastSingleTxSender extends BaseTxSender {
 	async prepareTx(
 		tx: Transaction,
 		additionalSigners: Array<Signer>,
-		_opts: ConfirmOptions
+		_opts: ConfirmOptions,
+		preSigned?: boolean
 	): Promise<Transaction> {
-		tx.feePayer = this.wallet.publicKey;
-
-		tx.recentBlockhash =
-			this.recentBlockhash ??
-			(await this.connection.getLatestBlockhash(this.blockhashCommitment))
-				.blockhash;
-
-		additionalSigners
-			.filter((s): s is Signer => s !== undefined)
-			.forEach((kp) => {
-				tx.partialSign(kp);
-			});
-
-		const signedTx = await this.wallet.signTransaction(tx);
-
-		return signedTx;
+		return super.prepareTx(tx, additionalSigners, _opts, preSigned);
 	}
 
 	async getVersionedTransaction(
 		ixs: TransactionInstruction[],
 		lookupTableAccounts: AddressLookupTableAccount[],
 		additionalSigners?: Array<Signer>,
-		opts?: ConfirmOptions
+		opts?: ConfirmOptions,
+		blockhash?: string
 	): Promise<VersionedTransaction> {
 		if (additionalSigners === undefined) {
 			additionalSigners = [];
@@ -118,12 +105,19 @@ export class FastSingleTxSender extends BaseTxSender {
 			opts = this.opts;
 		}
 
-		const message = new TransactionMessage({
-			payerKey: this.wallet.publicKey,
-			recentBlockhash:
+		let recentBlockhash = '';
+		if (blockhash) {
+			recentBlockhash = blockhash;
+		} else {
+			recentBlockhash =
 				this.recentBlockhash ??
 				(await this.connection.getLatestBlockhash(opts.preflightCommitment))
-					.blockhash,
+					.blockhash;
+		}
+
+		const message = new TransactionMessage({
+			payerKey: this.wallet.publicKey,
+			recentBlockhash,
 			instructions: ixs,
 		}).compileToV0Message(lookupTableAccounts);
 
@@ -144,11 +138,6 @@ export class FastSingleTxSender extends BaseTxSender {
 			console.error(e);
 			throw e;
 		}
-
-		this.connection.sendRawTransaction(rawTransaction, opts).catch((e) => {
-			console.error(e);
-		});
-		this.sendToAdditionalConnections(rawTransaction, opts);
 
 		let slot: number;
 		if (!this.skipConfirmation) {

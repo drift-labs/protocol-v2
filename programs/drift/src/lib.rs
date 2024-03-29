@@ -541,7 +541,14 @@ pub mod drift {
         maintenance_liability_weight: u32,
         imf_factor: u32,
         liquidator_fee: u32,
+        if_liquidation_fee: u32,
         active_status: bool,
+        asset_tier: AssetTier,
+        scale_initial_asset_weight_start: u64,
+        withdraw_guard_threshold: u64,
+        order_tick_size: u64,
+        order_step_size: u64,
+        if_total_factor: u32,
         name: [u8; 32],
     ) -> Result<()> {
         handle_initialize_spot_market(
@@ -556,7 +563,14 @@ pub mod drift {
             maintenance_liability_weight,
             imf_factor,
             liquidator_fee,
+            if_liquidation_fee,
             active_status,
+            asset_tier,
+            scale_initial_asset_weight_start,
+            withdraw_guard_threshold,
+            order_tick_size,
+            order_step_size,
+            if_total_factor,
             name,
         )
     }
@@ -601,10 +615,24 @@ pub mod drift {
         amm_periodicity: i64,
         amm_peg_multiplier: u128,
         oracle_source: OracleSource,
+        contract_tier: ContractTier,
         margin_ratio_initial: u32,
         margin_ratio_maintenance: u32,
         liquidator_fee: u32,
+        if_liquidation_fee: u32,
+        imf_factor: u32,
         active_status: bool,
+        base_spread: u32,
+        max_spread: u32,
+        max_open_interest: u128,
+        max_revenue_withdraw_per_period: u64,
+        quote_max_insurance: u64,
+        order_step_size: u64,
+        order_tick_size: u64,
+        min_order_size: u64,
+        concentration_coef_scale: u128,
+        curve_update_intensity: u8,
+        amm_jit_intensity: u8,
         name: [u8; 32],
     ) -> Result<()> {
         handle_initialize_perp_market(
@@ -615,10 +643,24 @@ pub mod drift {
             amm_periodicity,
             amm_peg_multiplier,
             oracle_source,
+            contract_tier,
             margin_ratio_initial,
             margin_ratio_maintenance,
             liquidator_fee,
+            if_liquidation_fee,
+            imf_factor,
             active_status,
+            base_spread,
+            max_spread,
+            max_open_interest,
+            max_revenue_withdraw_per_period,
+            quote_max_insurance,
+            order_step_size,
+            order_tick_size,
+            min_order_size,
+            concentration_coef_scale,
+            curve_update_intensity,
+            amm_jit_intensity,
             name,
         )
     }
@@ -1170,6 +1212,13 @@ pub mod drift {
         params: PrelaunchOracleParams,
     ) -> Result<()> {
         handle_update_prelaunch_oracle_params(ctx, params)
+    }
+
+    pub fn delete_prelaunch_oracle(
+        ctx: Context<DeletePrelaunchOracle>,
+        perp_market_index: u16,
+    ) -> Result<()> {
+        handle_delete_prelaunch_oracle(ctx, perp_market_index)
     }
 }
 

@@ -2530,6 +2530,7 @@ pub mod fulfill_order {
                 order_tick_size: 1,
                 oracle: oracle_price_key,
                 base_spread: 100,
+                max_spread: 1000,
                 historical_oracle_data: HistoricalOracleData {
                     last_oracle_price: (100 * PRICE_PRECISION) as i64,
                     last_oracle_price_twap: (100 * PRICE_PRECISION) as i64,
