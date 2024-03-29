@@ -76,9 +76,7 @@ export abstract class BaseTxSender implements TxSender {
 			opts = this.opts;
 		}
 
-		const signedTx = preSigned
-			? tx
-			: await this.prepareTx(tx, additionalSigners, opts);
+		const signedTx = await this.prepareTx(tx, additionalSigners, opts, preSigned);
 
 		if (extraConfirmationOptions?.onSignedCb) {
 			extraConfirmationOptions.onSignedCb();
@@ -90,8 +88,14 @@ export abstract class BaseTxSender implements TxSender {
 	async prepareTx(
 		tx: Transaction,
 		additionalSigners: Array<Signer>,
-		opts: ConfirmOptions
+		opts: ConfirmOptions,
+		preSigned?: boolean
 	): Promise<Transaction> {
+
+		if (preSigned) {
+			return tx;
+		}
+
 		tx.feePayer = this.wallet.publicKey;
 		tx.recentBlockhash = (
 			await this.connection.getLatestBlockhash(opts.preflightCommitment)
