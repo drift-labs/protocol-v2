@@ -71,7 +71,6 @@ export class WhileValidTxSender extends BaseTxSender {
 		opts: ConfirmOptions,
 		preSigned?: boolean
 	): Promise<Transaction> {
-		
 		const latestBlockhash = await this.connection.getLatestBlockhash(
 			opts.preflightCommitment
 		);
@@ -81,13 +80,13 @@ export class WhileValidTxSender extends BaseTxSender {
 		if (!preSigned) {
 			tx.feePayer = this.wallet.publicKey;
 			tx.recentBlockhash = latestBlockhash.blockhash;
-	
+
 			additionalSigners
 				.filter((s): s is Signer => s !== undefined)
 				.forEach((kp) => {
 					tx.partialSign(kp);
 				});
-	
+
 			signedTx = await this.wallet.signTransaction(tx);
 		}
 
