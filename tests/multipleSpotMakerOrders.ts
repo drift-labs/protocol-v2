@@ -27,13 +27,9 @@ import {
 	printTxLogs,
 	setFeedPrice,
 } from './testHelpers';
-import {
-	MARGIN_PRECISION,
-	OrderType,
-	SpotOperation,
-} from '../sdk/src';
+import { MARGIN_PRECISION, OrderType, SpotOperation } from '../sdk/src';
 import { LAMPORTS_PER_SOL } from '@solana/web3.js';
-import {ContractTier} from "../sdk";
+import { ContractTier } from '../sdk';
 
 describe('multiple maker orders', () => {
 	const provider = anchor.AnchorProvider.local(undefined, {
