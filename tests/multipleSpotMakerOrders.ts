@@ -30,10 +30,10 @@ import {
 import {
 	MARGIN_PRECISION,
 	OrderType,
-	SpotFulfillmentType,
 	SpotOperation,
-} from '../sdk';
+} from '../sdk/src';
 import { LAMPORTS_PER_SOL } from '@solana/web3.js';
+import {ContractTier} from "../sdk";
 
 describe('multiple maker orders', () => {
 	const provider = anchor.AnchorProvider.local(undefined, {
@@ -130,6 +130,7 @@ describe('multiple maker orders', () => {
 			periodicity,
 			new BN(0.69 * PEG_PRECISION.toNumber()),
 			OracleSource.PYTH,
+			ContractTier.A,
 			MARGIN_PRECISION.toNumber() / 4, // 4x
 			MARGIN_PRECISION.toNumber() / 5 // 5x
 		);
