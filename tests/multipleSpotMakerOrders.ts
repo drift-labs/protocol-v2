@@ -27,7 +27,12 @@ import {
 	printTxLogs,
 	setFeedPrice,
 } from './testHelpers';
-import {MARGIN_PRECISION, OrderType, SpotFulfillmentType, SpotOperation} from '../sdk';
+import {
+	MARGIN_PRECISION,
+	OrderType,
+	SpotFulfillmentType,
+	SpotOperation,
+} from '../sdk';
 import { LAMPORTS_PER_SOL } from '@solana/web3.js';
 
 describe('multiple maker orders', () => {
@@ -162,7 +167,10 @@ describe('multiple maker orders', () => {
 			console.error(e);
 		}
 
-		await fillerDriftClient.updateSpotMarketPausedOperations(1, SpotOperation.UPDATE_CUMULATIVE_INTEREST);
+		await fillerDriftClient.updateSpotMarketPausedOperations(
+			1,
+			SpotOperation.UPDATE_CUMULATIVE_INTEREST
+		);
 	});
 
 	after(async () => {
