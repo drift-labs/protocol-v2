@@ -340,6 +340,90 @@ export class UserMap implements UserMapInterface {
 
 	public async sync() {
 		if (this.syncPromise) {
+			return this.syncPromise;
+		}
+		this.syncPromise = new Promise((resolver) => {
+			this.syncPromiseResolver = resolver;
+		});
+
+		try {
+			const filters = [getUserFilter()];
+			if (!this.includeIdle) {
+				filters.push(getNonIdleUserFilter());
+			}
+
+			const rpcRequestArgs = [
+				this.driftClient.program.programId.toBase58(),
+				{
+					commitment: this.commitment,
+					filters,
+					encoding: 'base64',
+					withContext: true,
+				},
+			];
+
+			// @ts-ignore
+			const rpcJSONResponse: any = await this.connection._rpcRequest(
+				'getProgramAccounts',
+				rpcRequestArgs
+			);
+			const rpcResponseAndContext: RpcResponseAndContext<
+				Array<{ pubkey: PublicKey; account: { data: [string, string] } }>
+			> = rpcJSONResponse.result;
+			const slot = rpcResponseAndContext.context.slot;
+
+			this.updateLatestSlot(slot);
+
+			const programAccountBufferMap = new Map<string, Buffer>();
+			rpcResponseAndContext.value.forEach((programAccount) => {
+				programAccountBufferMap.set(
+					programAccount.pubkey.toString(),
+					// @ts-ignore
+					Buffer.from(
+						programAccount.account.data[0],
+						programAccount.account.data[1]
+					)
+				);
+			});
+
+			const promises = Array.from(programAccountBufferMap.entries()).map(
+				([key, buffer]) =>
+					(async () => {
+						const currAccountWithSlot = this.getWithSlot(key);
+						if (currAccountWithSlot) {
+							if (slot >= currAccountWithSlot.slot) {
+								const userAccount = this.decode('User', buffer);
+								this.updateUserAccount(key, userAccount, slot);
+							}
+						} else {
+							const userAccount = this.decode('User', buffer);
+							await this.addPubkey(new PublicKey(key), userAccount, slot);
+						}
+					})()
+			);
+
+			await Promise.all(promises);
+
+			for (const [key] of this.entries()) {
+				if (!programAccountBufferMap.has(key)) {
+					const user = this.get(key);
+					if (user) {
+						await user.unsubscribe();
+						this.userMap.delete(key);
+					}
+				}
+			}
+		} catch (err) {
+			const e = err as Error;
+			console.error(`Error in UserMap.sync(): ${e.message} ${e.stack ?? ''}`);
+		} finally {
+			this.syncPromiseResolver();
+			this.syncPromise = undefined;
+		}
+	}
+	
+	public async paginatedSync() {
+		if (this.syncPromise) {
 		  return this.syncPromise;
 		}
 	 
@@ -372,8 +456,8 @@ export class UserMap implements UserMapInterface {
 		  }
 	 
 		  const promises = Array.from(programAccountBufferMap.entries()).map(async ([publicKeyString, buffer]) => {
-			 const decodedUser = this.decode('User', buffer); // Assuming `decode` handles Buffer -> User
-			 const slot = this.mostRecentSlot; // Update this based on actual slot info if available
+			 const decodedUser = this.decode('User', buffer); 
+			 const slot = this.mostRecentSlot; 
 			 
 			 const currAccountWithSlot = this.getWithSlot(publicKeyString);
 			 if (currAccountWithSlot && slot >= currAccountWithSlot.slot) {
