@@ -545,6 +545,14 @@ export class DLOB {
 			marketType
 		);
 
+		// for spot, multiple makers isn't supported, so don't merge
+		if (isVariant(marketType, 'spot')) {
+			return restingLimitOrderNodesToFill.concat(
+				takingOrderNodesToFill,
+				expiredNodesToFill
+			);
+		}
+
 		return this.mergeNodesToFill(
 			restingLimitOrderNodesToFill,
 			takingOrderNodesToFill
