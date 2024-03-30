@@ -9024,15 +9024,7 @@
             "name": "Liquidation",
             "fields": [
               {
-<<<<<<< HEAD
-                "name": "marginBuffer",
-                "type": "u128"
-              },
-              {
                 "name": "marketToTrackMarginRequirement",
-=======
-                "name": "market_to_track_margin_requirement",
->>>>>>> master
                 "type": {
                   "option": {
                     "defined": "MarketIdentifier"
