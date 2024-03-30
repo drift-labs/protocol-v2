@@ -13,6 +13,7 @@ no-idl = []
 cpi = ["no-entrypoint"]
 default = ["mainnet-beta"]
 mainnet-beta=[]
+anchor-test= []
 
 [dependencies]
 anchor-lang = "0.27.0"

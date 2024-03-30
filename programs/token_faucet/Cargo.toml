@@ -12,6 +12,7 @@ name = "token_faucet"
 no-entrypoint = []
 cpi = ["no-entrypoint"]
 mainnet-beta=[]
+anchor-test= []
 
 [dependencies]
 anchor-lang = "0.27.0"
