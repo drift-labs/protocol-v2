@@ -17,7 +17,5 @@ runs:
         sh -c "$(curl -sSfL https://release.solana.com/v${{ env.SOLANA_VERSION }}/install)"
         echo "$HOME/.local/share/solana/install/active_release/bin" >> $GITHUB_PATH
         export PATH="$HOME/.local/share/solana/install/active_release/bin:$PATH"
-#        echo Configuring bpf toolchain...
-#        (cd $HOME/.local/share/solana/install/active_release/bin/sdk/bpf/scripts; ./install.sh)
         echo "[41,242,37,42,13,160,221,13,242,224,230,17,141,228,35,40,57,231,71,8,239,32,226,165,181,216,231,245,170,229,117,123,39,103,128,179,245,168,230,228,127,219,58,249,69,6,251,148,173,190,191,217,50,67,123,105,121,215,242,41,242,85,71,109]" > $HOME/.config/solana/id.json
       shell: bash
