@@ -592,6 +592,7 @@ pub fn attempt_settle_revenue_to_insurance_fund<'info>(
             insurance_fund_vault_amount,
             spot_market,
             now,
+            false,
         )?;
 
         if token_amount > 0 {
@@ -626,14 +627,14 @@ pub fn settle_revenue_to_insurance_fund(
     insurance_vault_amount: u64,
     spot_market: &mut SpotMarket,
     now: i64,
+    check_invariants: bool,
 ) -> DriftResult<u64> {
     update_spot_market_cumulative_interest(spot_market, None, now)?;
 
-    validate!(
-        spot_market.insurance_fund.revenue_settle_period > 0,
-        ErrorCode::RevenueSettingsCannotSettleToIF,
-        "invalid revenue_settle_period settings on spot market"
-    )?;
+    if spot_market.insurance_fund.revenue_settle_period == 0 {
+        // revenue pool not configured to settle, ending early
+        return Ok(0);
+    }
 
     validate!(
         spot_market.insurance_fund.user_factor <= spot_market.insurance_fund.total_factor,
@@ -656,7 +657,7 @@ pub fn settle_revenue_to_insurance_fund(
     }
 
     if spot_market.insurance_fund.user_shares > 0 {
-        // only allow MAX_APR_PER_REVENUE_SETTLE_TO_INSURANCE_FUND_VAULT or half revenue pool to be settled
+        // only allow MAX_APR_PER_REVENUE_SETTLE_TO_INSURANCE_FUND_VAULT or 1/10th of revenue pool to be settled
         let capped_apr_amount = insurance_vault_amount
             .cast::<u128>()?
             .safe_mul(MAX_APR_PER_REVENUE_SETTLE_TO_INSURANCE_FUND_VAULT.cast::<u128>()?)?
@@ -677,11 +678,13 @@ pub fn settle_revenue_to_insurance_fund(
     )?
     .cast::<u64>()?;
 
-    validate!(
-        insurance_fund_token_amount != 0,
-        ErrorCode::NoRevenueToSettleToIF,
-        "no amount to settle to insurance fund"
-    )?;
+    if check_invariants {
+        validate!(
+            insurance_fund_token_amount != 0,
+            ErrorCode::NoRevenueToSettleToIF,
+            "no amount to settle to insurance fund"
+        )?;
+    }
 
     spot_market.insurance_fund.last_revenue_settle_ts = now;
 

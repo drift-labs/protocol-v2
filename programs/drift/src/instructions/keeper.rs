@@ -3,20 +3,20 @@ use anchor_spl::token::{Token, TokenAccount};
 
 use crate::error::ErrorCode;
 use crate::instructions::constraints::*;
-use crate::instructions::optional_accounts::{
-    get_maker_and_maker_stats, get_referrer_and_referrer_stats, load_maps, AccountMaps,
-};
+use crate::instructions::optional_accounts::{load_maps, AccountMaps};
 use crate::math::constants::QUOTE_SPOT_MARKET_INDEX;
 use crate::math::insurance::if_shares_to_vault_amount;
 use crate::math::margin::calculate_user_equity;
 use crate::math::orders::{estimate_price_from_side, find_bids_and_asks_from_users};
 use crate::math::spot_withdraw::validate_spot_market_vault_amount;
+use crate::optional_accounts::update_prelaunch_oracle;
 use crate::state::fill_mode::FillMode;
 use crate::state::fulfillment_params::drift::MatchFulfillmentParams;
 use crate::state::fulfillment_params::phoenix::PhoenixFulfillmentParams;
 use crate::state::fulfillment_params::serum::SerumFulfillmentParams;
 use crate::state::insurance_fund_stake::InsuranceFundStake;
 use crate::state::oracle_map::OracleMap;
+use crate::state::paused_operations::PerpOperation;
 use crate::state::perp_market::{MarketStatus, PerpMarket};
 use crate::state::perp_market_map::{
     get_market_set_for_user_positions, get_market_set_from_list, get_writable_perp_market_set,
@@ -29,9 +29,9 @@ use crate::state::spot_market_map::{
 };
 use crate::state::state::State;
 use crate::state::user::{MarketType, OrderStatus, User, UserStats};
-use crate::state::user_map::load_user_maps;
+use crate::state::user_map::{load_user_maps, UserMap, UserStatsMap};
 use crate::validation::user::validate_user_is_idle;
-use crate::{controller, load, math};
+use crate::{controller, load, math, OracleSource};
 use crate::{load_mut, QUOTE_PRECISION_U64};
 use crate::{validate, QUOTE_PRECISION_I128};
 
@@ -160,7 +160,7 @@ pub fn handle_fill_spot_order<'c: 'info, 'info>(
     ctx: Context<'_, '_, 'c, 'info, FillOrder<'info>>,
     order_id: Option<u32>,
     fulfillment_type: Option<SpotFulfillmentType>,
-    maker_order_id: Option<u32>,
+    _maker_order_id: Option<u32>,
 ) -> Result<()> {
     let (order_id, market_index) = {
         let user = &load!(ctx.accounts.user)?;
@@ -180,7 +180,6 @@ pub fn handle_fill_spot_order<'c: 'info, 'info>(
         order_id,
         market_index,
         fulfillment_type.unwrap_or(SpotFulfillmentType::Match),
-        maker_order_id,
     )
     .map_err(|e| {
         msg!("Err filling order id {} for user {}", order_id, user_key);
@@ -195,7 +194,6 @@ fn fill_spot_order<'c: 'info, 'info>(
     order_id: u32,
     market_index: u16,
     fulfillment_type: SpotFulfillmentType,
-    maker_order_id: Option<u32>,
 ) -> Result<()> {
     let clock = Clock::get()?;
 
@@ -212,15 +210,10 @@ fn fill_spot_order<'c: 'info, 'info>(
         None,
     )?;
 
-    let (maker, maker_stats) = match maker_order_id {
-        Some(_) => {
-            let (user, user_stats) = get_maker_and_maker_stats(remaining_accounts_iter)?;
-            (Some(user), Some(user_stats))
-        }
-        None => (None, None),
+    let (makers_and_referrer, makers_and_referrer_stats) = match fulfillment_type {
+        SpotFulfillmentType::Match => load_user_maps(remaining_accounts_iter, true)?,
+        _ => (UserMap::empty(), UserStatsMap::empty()),
     };
-
-    let (_referrer, _referrer_stats) = get_referrer_and_referrer_stats(remaining_accounts_iter)?;
 
     let mut fulfillment_params: Box<dyn SpotFulfillmentParams> = match fulfillment_type {
         SpotFulfillmentType::SerumV3 => {
@@ -265,9 +258,9 @@ fn fill_spot_order<'c: 'info, 'info>(
         &mut oracle_map,
         &ctx.accounts.filler,
         &ctx.accounts.filler_stats,
-        maker.as_ref(),
-        maker_stats.as_ref(),
-        maker_order_id,
+        &makers_and_referrer,
+        &makers_and_referrer_stats,
+        None,
         &clock,
         fulfillment_params.as_mut(),
     )?;
@@ -912,7 +905,7 @@ pub fn handle_resolve_perp_pnl_deficit<'c: 'info, 'info>(
         }
 
         validate!(
-            perp_market.is_active(now)?,
+            !perp_market.is_in_settlement(now),
             ErrorCode::MarketActionPaused,
             "Market is in settlement mode",
         )?;
@@ -1192,7 +1185,10 @@ pub fn handle_update_funding_rate(
     controller::repeg::_update_amm(perp_market, oracle_price_data, state, now, clock_slot)?;
 
     validate!(
-        matches!(perp_market.status, MarketStatus::Active),
+        matches!(
+            perp_market.status,
+            MarketStatus::Active | MarketStatus::ReduceOnly
+        ),
         ErrorCode::MarketActionPaused,
         "Market funding is paused",
     )?;
@@ -1204,6 +1200,9 @@ pub fn handle_update_funding_rate(
         "AMM must be updated in a prior instruction within same slot"
     )?;
 
+    let funding_paused =
+        state.funding_paused()? || perp_market.is_operation_paused(PerpOperation::UpdateFunding);
+
     let is_updated = controller::funding::update_funding_rate(
         perp_market_index,
         perp_market,
@@ -1211,7 +1210,7 @@ pub fn handle_update_funding_rate(
         now,
         clock_slot,
         &state.oracle_guard_rails,
-        state.funding_paused()?,
+        funding_paused,
         None,
     )?;
 
@@ -1227,6 +1226,27 @@ pub fn handle_update_funding_rate(
         );
         return Err(ErrorCode::FundingWasNotUpdated.into());
     }
+
+    Ok(())
+}
+
+#[access_control(
+    valid_oracle_for_perp_market(&ctx.accounts.oracle, &ctx.accounts.perp_market)
+)]
+pub fn handle_update_prelaunch_oracle(ctx: Context<UpdatePrelaunchOracle>) -> Result<()> {
+    let clock = Clock::get()?;
+    let clock_slot = clock.slot;
+    let oracle_map = OracleMap::load_one(&ctx.accounts.oracle, clock_slot, None)?;
+
+    let perp_market = &load!(ctx.accounts.perp_market)?;
+
+    validate!(
+        perp_market.amm.oracle_source == OracleSource::Prelaunch,
+        ErrorCode::DefaultError,
+        "wrong oracle source"
+    )?;
+
+    update_prelaunch_oracle(perp_market, &oracle_map, clock_slot)?;
 
     Ok(())
 }
@@ -1356,6 +1376,7 @@ pub fn handle_settle_revenue_to_insurance_fund(
         insurance_vault_amount,
         spot_market,
         now,
+        true,
     )?;
 
     spot_market.insurance_fund.last_revenue_settle_ts = now;
@@ -1830,4 +1851,13 @@ pub struct UpdateUserQuoteAssetInsuranceStake<'info> {
         bump,
     )]
     pub insurance_fund_vault: Box<Account<'info, TokenAccount>>,
+}
+
+#[derive(Accounts)]
+pub struct UpdatePrelaunchOracle<'info> {
+    pub state: Box<Account<'info, State>>,
+    pub perp_market: AccountLoader<'info, PerpMarket>,
+    #[account(mut)]
+    /// CHECK: checked in ix
+    pub oracle: AccountInfo<'info>,
 }

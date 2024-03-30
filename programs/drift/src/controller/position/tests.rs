@@ -1,20 +1,29 @@
-use crate::controller::position::{
-    update_lp_market_position, update_position_and_market, PositionDelta,
+use crate::controller::amm::{
+    calculate_base_swap_output_with_spread, move_price, recenter_perp_market_amm, swap_base_asset,
 };
-
 use crate::controller::lp::{apply_lp_rebase_to_perp_market, settle_lp_position};
+use crate::controller::position::{
+    update_lp_market_position, update_position_and_market, PositionDelta, PositionDirection,
+};
+use crate::math::amm::estimate_best_bid_ask_price;
 
 use crate::controller::repeg::_update_amm;
 use crate::math::constants::{
-    AMM_RESERVE_PRECISION, AMM_RESERVE_PRECISION_I128, BASE_PRECISION_I64, PRICE_PRECISION_I64,
-    PRICE_PRECISION_U64, QUOTE_PRECISION_I128,
+    AMM_RESERVE_PRECISION, AMM_RESERVE_PRECISION_I128, BASE_PRECISION, BASE_PRECISION_I64,
+    PRICE_PRECISION_I64, PRICE_PRECISION_U64, QUOTE_PRECISION_I128,
 };
+use crate::math::position::swap_direction_to_close_position;
 use crate::state::oracle::OraclePriceData;
 use crate::state::oracle_map::OracleMap;
 use crate::state::perp_market::{AMMLiquiditySplit, PerpMarket, AMM};
+use crate::state::perp_market_map::PerpMarketMap;
 use crate::state::state::State;
 use crate::state::user::PerpPosition;
-use crate::test_utils::create_account_info;
+use crate::test_utils::{create_account_info, get_account_bytes};
+
+use crate::bn::U192;
+use crate::math::cp_curve::{adjust_k_cost, get_update_k_result, update_k};
+use crate::test_utils::get_hardcoded_pyth_price;
 use anchor_lang::prelude::AccountLoader;
 use solana_program::pubkey::Pubkey;
 use std::str::FromStr;
@@ -24,6 +33,7 @@ fn full_amm_split() {
     let delta = PositionDelta {
         base_asset_amount: 10 * BASE_PRECISION_I64,
         quote_asset_amount: -10 * BASE_PRECISION_I64,
+        remainder_base_asset_amount: None,
     };
 
     let amm = AMM {
@@ -74,6 +84,7 @@ fn amm_split_large_k() {
     let delta = PositionDelta {
         base_asset_amount: BASE_PRECISION_I64 / 10,
         quote_asset_amount: -2300000,
+        remainder_base_asset_amount: None,
     };
 
     update_lp_market_position(&mut perp_market, &delta, 0, AMMLiquiditySplit::Shared).unwrap();
@@ -85,6 +96,7 @@ fn amm_split_large_k() {
     let delta = PositionDelta {
         base_asset_amount: -BASE_PRECISION_I64 / 10,
         quote_asset_amount: 2300000,
+        remainder_base_asset_amount: None,
     };
 
     update_lp_market_position(&mut perp_market, &delta, 0, AMMLiquiditySplit::Shared).unwrap();
@@ -115,6 +127,7 @@ fn amm_split_large_k() {
     let delta = PositionDelta {
         base_asset_amount: BASE_PRECISION_I64 * 10,
         quote_asset_amount: -230000000,
+        remainder_base_asset_amount: None,
     };
 
     update_lp_market_position(&mut perp_market, &delta, 0, AMMLiquiditySplit::Shared).unwrap();
@@ -145,6 +158,7 @@ fn amm_split_large_k() {
     let delta = PositionDelta {
         base_asset_amount: -BASE_PRECISION_I64 * 10,
         quote_asset_amount: 230000000,
+        remainder_base_asset_amount: None,
     };
 
     let og_baapl = perp_market.amm.base_asset_amount_per_lp;
@@ -167,6 +181,117 @@ fn amm_split_large_k() {
         243360075047
     );
     // assert_eq!(243360075047/9977763076 < 23, true); // ensure rounding in favor
+}
+
+#[test]
+fn est_bid_ask_amm() {
+    let perp_market_str = String::from("Ct8MLGv1N/dvAH3EF67yBqaUQerctpm4yqpK+QNSrXCQz76p+B+ka+8Ni2/aLOukHaFdQJXR2jkqDS+O0MbHvA9M+sjCgLVt+ZlACwAAAAAAAAAAAAAAAAsAAAAAAAAA7qpCCwAAAAC4pEILAAAAAM80A2YAAAAAw3D+Q3v//////////////140wCb9///////////////BxseW97wLAAAAAAAAAAAAAAAAAAAAAAAkJxFcfNoMAAAAAAAAAAAA1zaaHQfsLQAAAAAAAAAAAJxiDwAAAAAAAAAAAAAAAABA3MVuOsEMAAAAAAAAAAAAgQcQ9oz3DAAAAAAAAAAAAI2Es72RSxgAAAAAAAAAAAClRSYDAAAAAAAAAAAAAAAA04ZcWqHlLQAAAAAAAAAAAACCXOjX+gEAAAAAAAAAAAAAM8+xVAj+////////////rRDbp8oBAAAAAAAAAAAAAFOkUPJhAQAAAAAAAAAAAAAAwFdzpXwCAAAAAAAAAAAA7ChoURUDAAAAAAAAAAAAADgppSk1q/////////////8AvdVXzFEAAAAAAAAAAAAAm4q7HPmp/////////////1OqNxBzUwAAAAAAAAAAAABZaPEEvrgKAAAAAAAAAAAAmP0CAQAAAACY/QIBAAAAAJj9AgEAAAAADvGuAAAAAADk8/rI/wUAAAAAAAAAAAAAq3UYzAACAAAAAAAAAAAAAK6UWaIPBAAAAAAAAAAAAADE5UUQtAQAAAAAAAAAAAAAqk4rAFkBAAAAAAAAAAAAAIttLk+yAAAAAAAAAAAAAADSM6t1BQAAAAAAAAAAAAAAV9hgaQUAAAAAAAAAAAAAAMG4+QwBAAAAAAAAAAAAAAB1buJiZdEMAAAAAAAAAAAAp6DXzJcMLgAAAAAAAAAAAPWPB6Ka3gwAAAAAAAAAAAB0Ls4vVd0tAAAAAAAAAAAA+ZlACwAAAAAAAAAAAAAAAPVQRgsAAAAA37ZKCwAAAADqg0gLAAAAAPDpSAsAAAAAXcVLDwAAAAD3AQAAAAAAAAmH4Zv/////TikDZgAAAAAQDgAAAAAAAADh9QUAAAAAZAAAAAAAAAAA4fUFAAAAAAAAAAAAAAAAfbNpS6dGAAC/w9I8tgAAAORXqHOmAAAAzzQDZgAAAACIHQ8AAAAAAPUQAgAAAAAAzzQDZgAAAADECQAAqGEAAJcVAADECQAAAAAAADIMAADECTIAZMgAAMDIUt4DAAAAnfyXDgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAJPHxf64g0AAAAAAAAAAAAAAAAAAAAAAFNPTC1QRVJQICAgICAgICAgICAgICAgICAgICAgICAgAAAAAAAAAAAAwusLAAAAAABcsuwiAAAAa6PKbQQAAABWDQNmAAAAAADh9QUAAAAAAAAAAAAAAAAAAAAAAAAAAC8jSgAAAAAAVi8AAAAAAAAZBQAAAAAAAMgAAAAAAAAATB0AANQwAADoAwAA9AEAAAAAAAAQJwAA1S8AABxVAAAAAAEAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==");
+    let mut decoded_bytes = base64::decode(perp_market_str).unwrap();
+    let perp_market_bytes = decoded_bytes.as_mut_slice();
+
+    let key = Pubkey::default();
+    let owner = Pubkey::from_str("dRiftyHA39MWEi3m9aunc5MzRF1JYuBsbn6VPcn33UH").unwrap();
+    let mut lamports = 0;
+    let perp_market_account_info =
+        create_account_info(&key, true, &mut lamports, perp_market_bytes, &owner);
+
+    let perp_market_loader: AccountLoader<PerpMarket> =
+        AccountLoader::try_from(&perp_market_account_info).unwrap();
+    let mut perp_market = perp_market_loader.load_mut().unwrap();
+
+    assert_eq!(
+        perp_market.amm.historical_oracle_data.last_oracle_price,
+        188783097
+    );
+    assert_eq!(
+        perp_market
+            .amm
+            .historical_oracle_data
+            .last_oracle_price_twap_5min,
+        188916920
+    );
+    assert_eq!(perp_market.amm.last_bid_price_twap, 189157621);
+    assert_eq!(perp_market.amm.last_mark_price_twap, 189301738);
+    assert_eq!(perp_market.amm.last_mark_price_twap_5min, 189327856);
+    assert_eq!(perp_market.amm.last_ask_price_twap, 189445855);
+
+    assert_eq!(
+        perp_market
+            .amm
+            .historical_oracle_data
+            .last_oracle_price_twap_ts,
+        1711486159
+    );
+    assert_eq!(perp_market.amm.last_mark_price_twap_ts, 1711486159);
+    assert_eq!(
+        perp_market.amm.last_mark_price_twap_ts,
+        perp_market
+            .amm
+            .historical_oracle_data
+            .last_oracle_price_twap_ts
+    );
+
+    let (bid_og, ask_og) = estimate_best_bid_ask_price(&mut perp_market.amm, None, None).unwrap();
+
+    assert_eq!(bid_og, 188783097);
+    assert_eq!(ask_og, 188783097);
+
+    let (bid, ask) = estimate_best_bid_ask_price(
+        &mut perp_market.amm,
+        Some(ask_og),
+        Some(PositionDirection::Long),
+    )
+    .unwrap();
+
+    assert_eq!(bid, 188311140);
+    assert_eq!(ask, 188783097);
+
+    let (bid, ask) = estimate_best_bid_ask_price(
+        &mut perp_market.amm,
+        Some(bid_og),
+        Some(PositionDirection::Short),
+    )
+    .unwrap();
+
+    assert_eq!(bid, 188783097);
+    assert_eq!(ask, 189255054);
+
+    let (bid, ask) = estimate_best_bid_ask_price(
+        &mut perp_market.amm,
+        Some(188783097 + PRICE_PRECISION_U64 / 2),
+        Some(PositionDirection::Short),
+    )
+    .unwrap();
+
+    assert_eq!(bid, 189283097);
+    assert_eq!(ask, 189755054);
+
+    let amm_reserve_price = perp_market.amm.reserve_price().unwrap();
+    let (amm_bid_price, amm_ask_price) = perp_market.amm.bid_ask_price(amm_reserve_price).unwrap();
+
+    // wick order (short at $4 above oracle)
+    let (bid, ask) = estimate_best_bid_ask_price(
+        &mut perp_market.amm,
+        Some(188783097 + PRICE_PRECISION_U64 * 4),
+        Some(PositionDirection::Short),
+    )
+    .unwrap();
+
+    assert_eq!(bid, 189826069);
+    assert_eq!(ask, 189826069);
+
+    assert_eq!(bid, amm_ask_price);
+
+    // wick order (long at $4 below oracle)
+    let (bid, ask) = estimate_best_bid_ask_price(
+        &mut perp_market.amm,
+        Some(188783097 - PRICE_PRECISION_U64 * 4),
+        Some(PositionDirection::Long),
+    )
+    .unwrap();
+
+    assert_eq!(bid, amm_bid_price);
+    assert_eq!(ask, amm_bid_price);
 }
 
 #[test]
@@ -204,6 +329,7 @@ fn amm_split_large_k_with_rebase() {
     let delta = PositionDelta {
         base_asset_amount: 0,
         quote_asset_amount: 0,
+        remainder_base_asset_amount: None,
     };
 
     update_lp_market_position(&mut perp_market, &delta, 0, AMMLiquiditySplit::Shared).unwrap();
@@ -219,6 +345,7 @@ fn amm_split_large_k_with_rebase() {
     let delta = PositionDelta {
         base_asset_amount: BASE_PRECISION_I64 / 10,
         quote_asset_amount: -2300000,
+        remainder_base_asset_amount: None,
     };
 
     let u1 =
@@ -253,6 +380,7 @@ fn amm_split_large_k_with_rebase() {
     let delta = PositionDelta {
         base_asset_amount: -BASE_PRECISION_I64 / 10,
         quote_asset_amount: 2300000,
+        remainder_base_asset_amount: None,
     };
 
     update_lp_market_position(&mut perp_market, &delta, 0, AMMLiquiditySplit::Shared).unwrap();
@@ -300,6 +428,7 @@ fn amm_split_large_k_with_rebase() {
     let delta = PositionDelta {
         base_asset_amount: 0,
         quote_asset_amount: 0,
+        remainder_base_asset_amount: None,
     };
 
     // unchanged with rebase (even when target!=0)
@@ -323,6 +452,7 @@ fn amm_split_large_k_with_rebase() {
     let delta = PositionDelta {
         base_asset_amount: BASE_PRECISION_I64,
         quote_asset_amount: -23000000,
+        remainder_base_asset_amount: None,
     };
     assert_eq!(perp_market.amm.base_asset_amount_per_lp, -574054756000);
 
@@ -404,6 +534,7 @@ fn full_lp_split() {
     let delta = PositionDelta {
         base_asset_amount: 10 * BASE_PRECISION_I64,
         quote_asset_amount: -10 * BASE_PRECISION_I64,
+        remainder_base_asset_amount: None,
     };
 
     let amm = AMM {
@@ -439,6 +570,7 @@ fn half_half_amm_lp_split() {
     let delta = PositionDelta {
         base_asset_amount: 10 * BASE_PRECISION_I64,
         quote_asset_amount: -10 * BASE_PRECISION_I64,
+        remainder_base_asset_amount: None,
     };
 
     let amm = AMM {
@@ -465,11 +597,71 @@ fn half_half_amm_lp_split() {
 }
 
 #[test]
+fn test_position_entry_sim() {
+    let mut existing_position = PerpPosition::default();
+    let position_delta = PositionDelta {
+        base_asset_amount: BASE_PRECISION_I64 / 2,
+        quote_asset_amount: -99_345_000 / 2,
+        remainder_base_asset_amount: None,
+    };
+    let mut market = PerpMarket {
+        amm: AMM {
+            cumulative_funding_rate_long: 1,
+            sqrt_k: 1,
+            order_step_size: (BASE_PRECISION_I64 / 10) as u64,
+            ..AMM::default()
+        },
+        number_of_users_with_base: 0,
+        ..PerpMarket::default_test()
+    };
+
+    let pnl =
+        update_position_and_market(&mut existing_position, &mut market, &position_delta).unwrap();
+
+    assert_eq!(pnl, 0);
+    assert_eq!(existing_position.get_entry_price().unwrap(), 99345000);
+
+    let position_delta_to_reduce = PositionDelta {
+        base_asset_amount: -BASE_PRECISION_I64 / 5,
+        quote_asset_amount: 99_245_000 / 5,
+        remainder_base_asset_amount: None,
+    };
+
+    let pnl = update_position_and_market(
+        &mut existing_position,
+        &mut market,
+        &position_delta_to_reduce,
+    )
+    .unwrap();
+
+    assert_eq!(pnl, -20000);
+    assert_eq!(existing_position.base_asset_amount, 300000000);
+    assert_eq!(existing_position.get_entry_price().unwrap(), 99345000);
+    assert_eq!(existing_position.get_breakeven_price().unwrap(), 99345000);
+
+    let position_delta_to_flip = PositionDelta {
+        base_asset_amount: -BASE_PRECISION_I64,
+        quote_asset_amount: 99_345_000,
+        remainder_base_asset_amount: None,
+    };
+
+    let pnl =
+        update_position_and_market(&mut existing_position, &mut market, &position_delta_to_flip)
+            .unwrap();
+
+    assert_eq!(pnl, 0);
+    assert_eq!(existing_position.base_asset_amount, -700000000);
+    assert_eq!(existing_position.get_entry_price().unwrap(), 99345000);
+    assert_eq!(existing_position.get_breakeven_price().unwrap(), 99345000);
+}
+
+#[test]
 fn increase_long_from_no_position() {
     let mut existing_position = PerpPosition::default();
     let position_delta = PositionDelta {
         base_asset_amount: 1,
         quote_asset_amount: -1,
+        remainder_base_asset_amount: None,
     };
     let mut market = PerpMarket {
         amm: AMM {
@@ -509,6 +701,7 @@ fn increase_short_from_no_position() {
     let position_delta = PositionDelta {
         base_asset_amount: -1,
         quote_asset_amount: 1,
+        remainder_base_asset_amount: None,
     };
     let mut market = PerpMarket {
         amm: AMM {
@@ -552,6 +745,7 @@ fn increase_long() {
     let position_delta = PositionDelta {
         base_asset_amount: 1,
         quote_asset_amount: -1,
+        remainder_base_asset_amount: None,
     };
     let mut market = PerpMarket {
         amm: AMM {
@@ -603,6 +797,7 @@ fn increase_short() {
     let position_delta = PositionDelta {
         base_asset_amount: -1,
         quote_asset_amount: 1,
+        remainder_base_asset_amount: None,
     };
     let mut market = PerpMarket {
         amm: AMM {
@@ -651,6 +846,7 @@ fn reduce_long_profitable() {
     let position_delta = PositionDelta {
         base_asset_amount: -1,
         quote_asset_amount: 5,
+        remainder_base_asset_amount: None,
     };
     let mut market = PerpMarket {
         amm: AMM {
@@ -701,6 +897,7 @@ fn reduce_long_unprofitable() {
     let position_delta = PositionDelta {
         base_asset_amount: -1,
         quote_asset_amount: 5,
+        remainder_base_asset_amount: None,
     };
     let mut market = PerpMarket {
         amm: AMM {
@@ -751,6 +948,7 @@ fn flip_long_to_short_profitable() {
     let position_delta = PositionDelta {
         base_asset_amount: -11,
         quote_asset_amount: 22,
+        remainder_base_asset_amount: None,
     };
     let mut market = PerpMarket {
         amm: AMM {
@@ -802,6 +1000,7 @@ fn flip_long_to_short_unprofitable() {
     let position_delta = PositionDelta {
         base_asset_amount: -11,
         quote_asset_amount: 10,
+        remainder_base_asset_amount: None,
     };
     let mut market = PerpMarket {
         amm: AMM {
@@ -854,6 +1053,7 @@ fn reduce_short_profitable() {
     let position_delta = PositionDelta {
         base_asset_amount: 1,
         quote_asset_amount: -5,
+        remainder_base_asset_amount: None,
     };
     let mut market = PerpMarket {
         amm: AMM {
@@ -902,6 +1102,7 @@ fn decrease_short_unprofitable() {
     let position_delta = PositionDelta {
         base_asset_amount: 1,
         quote_asset_amount: -15,
+        remainder_base_asset_amount: None,
     };
     let mut market = PerpMarket {
         amm: AMM {
@@ -950,6 +1151,7 @@ fn flip_short_to_long_profitable() {
     let position_delta = PositionDelta {
         base_asset_amount: 11,
         quote_asset_amount: -60,
+        remainder_base_asset_amount: None,
     };
     let mut market = PerpMarket {
         amm: AMM {
@@ -1001,6 +1203,7 @@ fn flip_short_to_long_unprofitable() {
     let position_delta = PositionDelta {
         base_asset_amount: 11,
         quote_asset_amount: -120,
+        remainder_base_asset_amount: None,
     };
     let mut market = PerpMarket {
         amm: AMM {
@@ -1052,6 +1255,7 @@ fn close_long_profitable() {
     let position_delta = PositionDelta {
         base_asset_amount: -10,
         quote_asset_amount: 15,
+        remainder_base_asset_amount: None,
     };
     let mut market = PerpMarket {
         amm: AMM {
@@ -1102,6 +1306,7 @@ fn close_long_unprofitable() {
     let position_delta = PositionDelta {
         base_asset_amount: -10,
         quote_asset_amount: 5,
+        remainder_base_asset_amount: None,
     };
     let mut market = PerpMarket {
         amm: AMM {
@@ -1151,6 +1356,7 @@ fn close_short_profitable() {
     let position_delta = PositionDelta {
         base_asset_amount: 10,
         quote_asset_amount: -5,
+        remainder_base_asset_amount: None,
     };
     let mut market = PerpMarket {
         amm: AMM {
@@ -1198,6 +1404,7 @@ fn close_short_unprofitable() {
     let position_delta = PositionDelta {
         base_asset_amount: 10,
         quote_asset_amount: -15,
+        remainder_base_asset_amount: None,
     };
     let mut market = PerpMarket {
         amm: AMM {
@@ -1245,6 +1452,7 @@ fn close_long_with_quote_break_even_amount_less_than_quote_asset_amount() {
     let position_delta = PositionDelta {
         base_asset_amount: -10,
         quote_asset_amount: 5,
+        remainder_base_asset_amount: None,
     };
     let mut market = PerpMarket {
         amm: AMM {
@@ -1295,6 +1503,7 @@ fn close_short_with_quote_break_even_amount_more_than_quote_asset_amount() {
     let position_delta = PositionDelta {
         base_asset_amount: 10,
         quote_asset_amount: -15,
+        remainder_base_asset_amount: None,
     };
     let mut market = PerpMarket {
         amm: AMM {
@@ -1383,9 +1592,7 @@ fn update_amm_near_boundary2() {
     let mut lamports = 0;
     let perp_market_account_info =
         create_account_info(&key, true, &mut lamports, perp_market_bytes, &owner);
-
-    let perp_market_loader: AccountLoader<PerpMarket> =
-        AccountLoader::try_from(&perp_market_account_info).unwrap();
+    let market_map = PerpMarketMap::load_one(&perp_market_account_info, true).unwrap();
 
     let oracle_market_str = String::from("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AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA");
     let mut decoded_bytes = base64::decode(oracle_market_str).unwrap();
@@ -1401,7 +1608,51 @@ fn update_amm_near_boundary2() {
     let now = 1702120657;
     let mut oracle_map = OracleMap::load_one(&jto_market_account_info, slot, None).unwrap();
 
-    let mut perp_market = perp_market_loader.load_mut().unwrap();
+    // let perp_market_old = market_map.get_ref(&4).unwrap();
+
+    let mut perp_market = market_map.get_ref_mut(&4).unwrap();
+
+    println!("perp_market: {:?}", perp_market.amm.last_update_slot);
+
+    let oracle_price_data = oracle_map.get_price_data(&key).unwrap();
+
+    let state = State::default();
+
+    let cost: i128 = _update_amm(&mut perp_market, oracle_price_data, &state, now, slot).unwrap();
+    assert!(perp_market.amm.last_oracle_valid);
+    assert_eq!(cost, 2987010);
+}
+
+#[test]
+fn recenter_amm_1() {
+    let perp_market_str: String = String::from("Ct8MLGv1N/cU6tVVkVpIHdjrXil5+Blo7M7no01SEzFkvCN2nSnel3KwISF8o/5okioZqvmQEJy52E6a0AS00gJa1vUpMUQZIAjcAAAAAAAAAAAAAAAAAAEAAAAAAAAAuUnaAAAAAADDXNsAAAAAAP5xdGUAAAAAa4BQirD//////////////6fVQmsAAAAAAAAAAAAAAACar9SsB0sAAAAAAAAAAAAAAAAAAAAAAABBXO7/SWwLAAAAAAAAAAAAa0vYrBqvCwAAAAAAAAAAACaTDwAAAAAAAAAAAAAAAACHRTA1zkYLAAAAAAAAAAAAEkQuep2/CwAAAAAAAAAAAFAYOQmCjQsAAAAAAAAAAAC9r80AAAAAAAAAAAAAAAAANYB5EXeYCwAAAAAAAAAAAADqjJbciAAAAAAAAAAAAAAANiZLB47/////////////rEGjW00WAAAAAAAAAAAAAFTeD4aWAAAAAAAAAAAAAAAAQGNSv8YBAAAAAAAAAAAAUt/uyv7//////////////802zJqt/v/////////////PSTYa2wAAAAAAAAAAAAAAtPcalqL+/////////////xvHbwvuAAAAAAAAAAAAAAAAdsrWtPEAAAAAAAAAAAAAcbUT//////9xtRP//////3G1E///////Csx3AAAAAACVwjw2OgAAAAAAAAAAAAAAd/FNszYAAAAAAAAAAAAAALHQnZIDAAAAAAAAAAAAAAAA8z1QCQAAAAAAAAAAAAAAwY+XFgAAAAAAAAAAAAAAAEFTL9MIAAAAAAAAAAAAAAAHWeRpAAAAAAAAAAAAAAAAB1nkaQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADQlAeGCeEKAAAAAAAAAAAAME8Wz6hEDAAAAAAAAAAAABctSD9BbwsAAAAAAAAAAAA8T/PdEqwLAAAAAAAAAAAAMMvbAAAAAADpTP///////6NCywAAAAAA0yfeAAAAAAA7tdQAAAAAAJ3u2wAAAAAAwI8ADgAAAABrBAAAAAAAAA98N2D9////MTx0ZQAAAAAQDgAAAAAAAADKmjsAAAAAZAAAAAAAAAAA8gUqAQAAAAAAAAAAAAAA/9iJIUQBAAB7ga9oBQAAAADrzocBAAAAxXF0ZQAAAACI1QcAAAAAAHeBAQAAAAAA/nF0ZQAAAACUEQAAoIYBALV+AQDrBwAAAAAAAAAAAABkADIAZMgEAQAAAAAEAAAACvtTAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAZUL9UG/wAAAAAAAAAAAAAAAAAAAAAAADFNQk9OSy1QRVJQICAgICAgICAgICAgICAgICAgICAgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAHQNAgAAAAAA5xkAAAAAAACMAgAAAAAAACYCAADuAgAA+CQBAPgkAQDECQAA3AUAAAAAAAAQJwAAAgIAABwDAAAEAAIAAwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==");
+    let mut decoded_bytes = base64::decode(perp_market_str).unwrap();
+    let perp_market_bytes = decoded_bytes.as_mut_slice();
+
+    let key = Pubkey::from_str("2QeqpeJUVo2LBWNELRfcBwJgrNoxJQSd7gokcaM5nvaa").unwrap();
+    let owner = Pubkey::from_str("dRiftyHA39MWEi3m9aunc5MzRF1JYuBsbn6VPcn33UH").unwrap();
+    let mut lamports = 0;
+    let perp_market_account_info =
+        create_account_info(&key, true, &mut lamports, perp_market_bytes, &owner);
+    let market_map = PerpMarketMap::load_one(&perp_market_account_info, true).unwrap();
+
+    let oracle_market_str = String::from("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AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA");
+    let mut decoded_bytes = base64::decode(oracle_market_str).unwrap();
+    let oracle_market_bytes = decoded_bytes.as_mut_slice();
+
+    let key = Pubkey::from_str("8ihFLu5FimgTQ1Unh4dVyEHUGodJ5gJQCrQf4KUVB9bN").unwrap();
+    let owner = Pubkey::from_str("FsJ3A3u2vn5cTVofAjvy6y5kwABJAqYWpe4975bi2epH").unwrap();
+    let mut lamports = 0;
+    let jto_market_account_info =
+        create_account_info(&key, true, &mut lamports, oracle_market_bytes, &owner);
+
+    let slot = 234919073;
+    let now = 1702120657;
+    let mut oracle_map = OracleMap::load_one(&jto_market_account_info, slot, None).unwrap();
+
+    // let perp_market_old = market_map.get_ref(&4).unwrap();
+
+    let mut perp_market = market_map.get_ref_mut(&4).unwrap();
 
     println!("perp_market: {:?}", perp_market.amm.last_update_slot);
 
@@ -1412,4 +1663,260 @@ fn update_amm_near_boundary2() {
     let cost = _update_amm(&mut perp_market, oracle_price_data, &state, now, slot).unwrap();
 
     assert_eq!(cost, 2987010);
+
+    let inv = perp_market.amm.base_asset_amount_with_amm;
+    assert_eq!(inv, 24521505718700);
+
+    let (_, _, r1_orig, r2_orig) = calculate_base_swap_output_with_spread(
+        &perp_market.amm,
+        inv.unsigned_abs() as u64,
+        swap_direction_to_close_position(inv),
+    )
+    .unwrap();
+
+    assert_eq!(r1_orig, 334837204625);
+    assert_eq!(r2_orig, 703359043);
+
+    let current_k = perp_market.amm.sqrt_k;
+    let _current_peg = perp_market.amm.peg_multiplier;
+
+    let new_k = (current_k * 900000) / 100;
+    recenter_perp_market_amm(&mut perp_market.amm, oracle_price_data.price as u128, new_k).unwrap();
+
+    assert_eq!(perp_market.amm.sqrt_k, new_k);
+    assert_eq!(
+        perp_market.amm.peg_multiplier,
+        oracle_price_data.price as u128
+    );
+
+    let (_r1, _r2) = swap_base_asset(
+        &mut perp_market,
+        inv.unsigned_abs() as u64,
+        swap_direction_to_close_position(inv),
+    )
+    .unwrap();
+
+    // assert_eq!(r1, r1_orig); // 354919762322 w/o k adj
+    // assert_eq!(r2, r2_orig as i64);
+
+    // assert_eq!(perp_market.amm.peg_multiplier, current_peg);
+}
+
+#[test]
+fn recenter_amm_2() {
+    // sui example
+    let perp_market_str: String = String::from("Ct8MLGv1N/d29jnnLxPJWcgnELd2ICWqe/HjfUfvrt/0yq7vt4ipySPXMVET9bHTunqDYExEuU159P1pr3f4BPx/kgptxldEbY8QAAAAAAAAAAAAAAAAAAMAAAAAAAAABb8QAAAAAADCjBAAAAAAANnvrmUAAAAAA/UzhKT1/////////////+zWKQkDAAAAAAAAAAAAAADXxsbXggQAAAAAAAAAAAAAAAAAAAAAAAAm1aGXXBcBAAAAAAAAAAAA0bqOq60ZeX0DAAAAAAAAADxrEgAAAAAAAAAAAAAAAABWUcGPbucAAAAAAAAAAAAAixe+mDdRAQAAAAAAAAAAAAHgQW8bmvMBAAAAAAAAAAAFAAAAAAAAAAAAAAAAAAAAObJUKUBReX0DAAAAAAAAAAB82Wd71QAAAAAAAAAAAAAAvJautCf/////////////zNCf7v///////////////zRn0Ccw/f////////////8AAI1J/RoHAAAAAAAAAAAA2TrFMQwAAAAAAAAAAAAAAIasEJrH//////////////8CQy3yOAAAAAAAAAAAAAAA/Bzf4Mb//////////////9dAQLc5AAAAAAAAAAAAAAAA4EFvG5rzAQAAAAAAAAAA0Qb////////RBv///////9EG////////JaIAAAAAAADuHq3oAQAAAAAAAAAAAAAAZZBlmf///////////////2Y79WMCAAAAAAAAAAAAAACW6DzZ+f//////////////Ut/+OAEAAAAAAAAAAAAAAB0oBjUBAAAAAAAAAAAAAACR6S4LAAAAAAAAAAAAAAAAAOAtCwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACn0WwwyBIBAAAAAAAAAAAAmOidoYFAXYwDAAAAAAAAAFSG6vGvFwEAAAAAAAAAAACRR6oTndNufAMAAAAAAAAAbosQAAAAAAAGdf///////1+cEAAAAAAARMEQAAAAAADRrhAAAAAAAH5MEAAAAAAA6EqDDgAAAADQAwAAAAAAAI007gAAAAAAQeauZQAAAAAQDgAAAAAAAADKmjsAAAAAZAAAAAAAAAAAypo7AAAAAAAAAAAAAAAAjPDu4DcAAAAXm1qdAAAAALcGYAwDAAAAiu6uZQAAAACqcwAAAAAAAJczAAAAAAAA2e+uZQAAAACIEwAAPHMAAOKBAAAYCQAAAAAAAKEHAABkADIAZMgAAQAAAAAEAAAATu+XBAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAC3/spZrMwAAAAAAAAAAAAAAAAAAAAAAAFNVSS1QRVJQICAgICAgICAgICAgICAgICAgICAgICAgAOH1BQAAAAAA4fUFAAAAAADKmjsAAAAAiF7MCQAAAACH6a5lAAAAAADC6wsAAAAAAAAAAAAAAAAAAAAAAAAAAI0SAQAAAAAAbRgAAAAAAADDBgAAAAAAAMIBAADCAQAAECcAACBOAADoAwAA9AEAAAAAAAAQJwAAIAEAANEBAAAJAAEAAgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==");
+    let mut decoded_bytes = base64::decode(perp_market_str).unwrap();
+    let perp_market_bytes = decoded_bytes.as_mut_slice();
+
+    let key = Pubkey::from_str("91NsaUmTNNdLGbYtwmoiYSn9SgWHCsZiChfMYMYZ2nQx").unwrap();
+    let owner = Pubkey::from_str("dRiftyHA39MWEi3m9aunc5MzRF1JYuBsbn6VPcn33UH").unwrap();
+    let mut lamports = 0;
+    let perp_market_account_info =
+        create_account_info(&key, true, &mut lamports, perp_market_bytes, &owner);
+    let market_map = PerpMarketMap::load_one(&perp_market_account_info, true).unwrap();
+
+    // let oracle_market_str = String::from("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AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA");
+    // let mut decoded_bytes = base64::decode(oracle_market_str).unwrap();
+    // let oracle_market_bytes = decoded_bytes.as_mut_slice();
+
+    let mut oracle_price = get_hardcoded_pyth_price(1_120_000, 6);
+    let oracle_price_key =
+        Pubkey::from_str("3Qub3HaAJaa2xNY7SUqPKd3vVwTqDfDDkEUMPjXD2c1q").unwrap();
+    let pyth_program = crate::ids::pyth_program::id();
+    let mut data = get_account_bytes(&mut oracle_price);
+    let mut lamports2 = 0;
+
+    let oracle_account_info = create_account_info(
+        &oracle_price_key,
+        true,
+        &mut lamports2,
+        &mut data[..],
+        &pyth_program,
+    );
+
+    //https://explorer.solana.com/block/243485436
+    let slot = 243485436;
+    let now = 1705963488;
+    let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
+
+    // let perp_market_old = market_map.get_ref(&4).unwrap();
+
+    let mut perp_market = market_map.get_ref_mut(&9).unwrap();
+
+    println!(
+        "perp_market latest slot: {:?}",
+        perp_market.amm.last_update_slot
+    );
+
+    // previous values
+    assert_eq!(perp_market.amm.peg_multiplier, 5);
+    assert_eq!(perp_market.amm.quote_asset_reserve, 64381518181749930705);
+    assert_eq!(perp_market.amm.base_asset_reserve, 307161425106214);
+
+    let oracle_price_data = oracle_map.get_price_data(&oracle_price_key).unwrap();
+
+    let state = State::default();
+
+    let cost = _update_amm(&mut perp_market, oracle_price_data, &state, now, slot).unwrap();
+
+    assert_eq!(cost, 0);
+
+    let inv = perp_market.amm.base_asset_amount_with_amm;
+    assert_eq!(inv, -291516212);
+
+    let (_, _, r1_orig, r2_orig) = calculate_base_swap_output_with_spread(
+        &perp_market.amm,
+        inv.unsigned_abs() as u64,
+        swap_direction_to_close_position(inv),
+    )
+    .unwrap();
+
+    assert_eq!(r1_orig, 326219);
+    assert_eq!(r2_orig, 20707);
+
+    let current_k = perp_market.amm.sqrt_k;
+    let _current_peg = perp_market.amm.peg_multiplier;
+    let new_k = current_k * 2;
+
+    // refusal to decrease further
+    assert_eq!(current_k, current_k);
+    assert_eq!(perp_market.amm.user_lp_shares, current_k - 1);
+    assert_eq!(perp_market.amm.get_lower_bound_sqrt_k().unwrap(), current_k);
+
+    recenter_perp_market_amm(&mut perp_market.amm, oracle_price_data.price as u128, new_k).unwrap();
+
+    assert_eq!(perp_market.amm.sqrt_k, new_k);
+    assert_eq!(
+        perp_market.amm.peg_multiplier,
+        oracle_price_data.price as u128
+    );
+    assert_eq!(perp_market.amm.peg_multiplier, 1_120_000);
+    // assert_eq!(perp_market.amm.quote_asset_reserve, 140625455708483789 * 2);
+    // assert_eq!(perp_market.amm.base_asset_reserve, 140625456291516213 * 2);
+    assert_eq!(perp_market.amm.base_asset_reserve, 281250912291516214);
+    assert_eq!(perp_market.amm.quote_asset_reserve, 281250911708483790);
+
+    crate::validation::perp_market::validate_perp_market(&perp_market).unwrap();
+
+    let (r1, r2) = swap_base_asset(
+        &mut perp_market,
+        inv.unsigned_abs() as u64,
+        swap_direction_to_close_position(inv),
+    )
+    .unwrap();
+
+    // adjusted slightly
+    assert_eq!(r1, 348628); // 354919762322 w/o k adj
+    assert_eq!(r2, 22129);
+
+    let new_scale = 2;
+    let new_sqrt_k = perp_market.amm.sqrt_k * new_scale;
+    let update_k_result = get_update_k_result(&perp_market, U192::from(new_sqrt_k), false).unwrap();
+    let adjustment_cost = adjust_k_cost(&mut perp_market, &update_k_result).unwrap();
+    assert_eq!(adjustment_cost, 0);
+
+    update_k(&mut perp_market, &update_k_result).unwrap();
+
+    // higher lower bound now
+    assert_eq!(perp_market.amm.sqrt_k, new_sqrt_k);
+    assert_eq!(perp_market.amm.user_lp_shares, current_k - 1);
+    assert!(perp_market.amm.get_lower_bound_sqrt_k().unwrap() > current_k);
+    assert_eq!(
+        perp_market.amm.get_lower_bound_sqrt_k().unwrap(),
+        140766081456000000
+    );
+    // assert_eq!(perp_market.amm.peg_multiplier, current_peg);
+}
+
+#[test]
+fn test_move_amm() {
+    // sui example
+    let perp_market_str: String = String::from("Ct8MLGv1N/d29jnnLxPJWcgnELd2ICWqe/HjfUfvrt/0yq7vt4ipySPXMVET9bHTunqDYExEuU159P1pr3f4BPx/kgptxldEbY8QAAAAAAAAAAAAAAAAAAMAAAAAAAAABb8QAAAAAADCjBAAAAAAANnvrmUAAAAAA/UzhKT1/////////////+zWKQkDAAAAAAAAAAAAAADXxsbXggQAAAAAAAAAAAAAAAAAAAAAAAAm1aGXXBcBAAAAAAAAAAAA0bqOq60ZeX0DAAAAAAAAADxrEgAAAAAAAAAAAAAAAABWUcGPbucAAAAAAAAAAAAAixe+mDdRAQAAAAAAAAAAAAHgQW8bmvMBAAAAAAAAAAAFAAAAAAAAAAAAAAAAAAAAObJUKUBReX0DAAAAAAAAAAB82Wd71QAAAAAAAAAAAAAAvJautCf/////////////zNCf7v///////////////zRn0Ccw/f////////////8AAI1J/RoHAAAAAAAAAAAA2TrFMQwAAAAAAAAAAAAAAIasEJrH//////////////8CQy3yOAAAAAAAAAAAAAAA/Bzf4Mb//////////////9dAQLc5AAAAAAAAAAAAAAAA4EFvG5rzAQAAAAAAAAAA0Qb////////RBv///////9EG////////JaIAAAAAAADuHq3oAQAAAAAAAAAAAAAAZZBlmf///////////////2Y79WMCAAAAAAAAAAAAAACW6DzZ+f//////////////Ut/+OAEAAAAAAAAAAAAAAB0oBjUBAAAAAAAAAAAAAACR6S4LAAAAAAAAAAAAAAAAAOAtCwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACn0WwwyBIBAAAAAAAAAAAAmOidoYFAXYwDAAAAAAAAAFSG6vGvFwEAAAAAAAAAAACRR6oTndNufAMAAAAAAAAAbosQAAAAAAAGdf///////1+cEAAAAAAARMEQAAAAAADRrhAAAAAAAH5MEAAAAAAA6EqDDgAAAADQAwAAAAAAAI007gAAAAAAQeauZQAAAAAQDgAAAAAAAADKmjsAAAAAZAAAAAAAAAAAypo7AAAAAAAAAAAAAAAAjPDu4DcAAAAXm1qdAAAAALcGYAwDAAAAiu6uZQAAAACqcwAAAAAAAJczAAAAAAAA2e+uZQAAAACIEwAAPHMAAOKBAAAYCQAAAAAAAKEHAABkADIAZMgAAQAAAAAEAAAATu+XBAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAC3/spZrMwAAAAAAAAAAAAAAAAAAAAAAAFNVSS1QRVJQICAgICAgICAgICAgICAgICAgICAgICAgAOH1BQAAAAAA4fUFAAAAAADKmjsAAAAAiF7MCQAAAACH6a5lAAAAAADC6wsAAAAAAAAAAAAAAAAAAAAAAAAAAI0SAQAAAAAAbRgAAAAAAADDBgAAAAAAAMIBAADCAQAAECcAACBOAADoAwAA9AEAAAAAAAAQJwAAIAEAANEBAAAJAAEAAgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==");
+    let mut decoded_bytes = base64::decode(perp_market_str).unwrap();
+    let perp_market_bytes = decoded_bytes.as_mut_slice();
+
+    let key = Pubkey::from_str("91NsaUmTNNdLGbYtwmoiYSn9SgWHCsZiChfMYMYZ2nQx").unwrap();
+    let owner = Pubkey::from_str("dRiftyHA39MWEi3m9aunc5MzRF1JYuBsbn6VPcn33UH").unwrap();
+    let mut lamports = 0;
+    let perp_market_account_info =
+        create_account_info(&key, true, &mut lamports, perp_market_bytes, &owner);
+    let market_map = PerpMarketMap::load_one(&perp_market_account_info, true).unwrap();
+
+    // let oracle_market_str = String::from("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AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA");
+    // let mut decoded_bytes = base64::decode(oracle_market_str).unwrap();
+    // let oracle_market_bytes = decoded_bytes.as_mut_slice();
+
+    let mut oracle_price = get_hardcoded_pyth_price(1_120_000, 6);
+    let oracle_price_key =
+        Pubkey::from_str("3Qub3HaAJaa2xNY7SUqPKd3vVwTqDfDDkEUMPjXD2c1q").unwrap();
+    let pyth_program = crate::ids::pyth_program::id();
+    let mut data = get_account_bytes(&mut oracle_price);
+    let mut lamports2 = 0;
+
+    let oracle_account_info = create_account_info(
+        &oracle_price_key,
+        true,
+        &mut lamports2,
+        &mut data[..],
+        &pyth_program,
+    );
+
+    //https://explorer.solana.com/block/243485436
+    let slot = 243485436;
+    let now = 1705963488;
+    let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
+
+    // let perp_market_old = market_map.get_ref(&4).unwrap();
+
+    let mut perp_market = market_map.get_ref_mut(&9).unwrap();
+
+    println!(
+        "perp_market latest slot: {:?}",
+        perp_market.amm.last_update_slot
+    );
+
+    // previous values
+    assert_eq!(perp_market.amm.peg_multiplier, 5);
+    assert_eq!(perp_market.amm.quote_asset_reserve, 64381518181749930705);
+    assert_eq!(perp_market.amm.base_asset_reserve, 307161425106214);
+
+    let oracle_price_data = oracle_map.get_price_data(&oracle_price_key).unwrap();
+
+    let state = State::default();
+
+    let cost = _update_amm(&mut perp_market, oracle_price_data, &state, now, slot).unwrap();
+
+    assert_eq!(cost, 0);
+
+    let inv = perp_market.amm.base_asset_amount_with_amm;
+    assert_eq!(inv, -291516212);
+
+    let (_, _, r1_orig, r2_orig) = calculate_base_swap_output_with_spread(
+        &perp_market.amm,
+        inv.unsigned_abs() as u64,
+        swap_direction_to_close_position(inv),
+    )
+    .unwrap();
+
+    assert_eq!(r1_orig, 326219);
+    assert_eq!(r2_orig, 20707);
+    let current_bar = perp_market.amm.base_asset_reserve;
+    let _current_qar = perp_market.amm.quote_asset_reserve;
+    let current_k = perp_market.amm.sqrt_k;
+    let inc_numerator = BASE_PRECISION + BASE_PRECISION / 100;
+    let new_k = current_k * inc_numerator / BASE_PRECISION;
+
+    // test correction
+    move_price(
+        &mut perp_market.amm,
+        current_bar * inc_numerator / BASE_PRECISION,
+        // current_qar * inc_numerator / BASE_PRECISION,
+        65025333363567459347, // pass in exact amount that reconciles
+        new_k,
+    )
+    .unwrap();
+    crate::validation::perp_market::validate_perp_market(&perp_market).unwrap();
+    assert_eq!(perp_market.amm.sqrt_k, new_k);
+    assert_eq!(perp_market.amm.peg_multiplier, 5); // still same
 }

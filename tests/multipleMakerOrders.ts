@@ -24,6 +24,7 @@ import {
 	mockUSDCMint,
 	mockUserUSDCAccount,
 	printTxLogs,
+	setFeedPrice,
 } from './testHelpers';
 import { MARGIN_PRECISION, OrderType } from '../sdk';
 
@@ -301,6 +302,7 @@ describe('multiple maker orders', () => {
 			});
 		}
 
+		await setFeedPrice(anchor.workspace.Pyth, 90, solUsd);
 		await takerDriftClient.placePerpOrder({
 			marketIndex: 0,
 			orderType: OrderType.LIMIT,
@@ -422,6 +424,7 @@ describe('multiple maker orders', () => {
 			}
 		}
 
+		await setFeedPrice(anchor.workspace.Pyth, 0.675, dogUsd);
 		const takerBaseAssetAmount = new BN(600).mul(BASE_PRECISION);
 		await takerDriftClient.placePerpOrder({
 			marketIndex: 1,
@@ -473,7 +476,7 @@ describe('multiple maker orders', () => {
 			takerPosition.quoteAssetAmount.toString()
 		);
 		assert(takerPosition.baseAssetAmount.eq(new BN('-402388600000')));
-		assert(takerPosition.quoteAssetAmount.eq(new BN('273543161')));
+		assert(takerPosition.quoteAssetAmount.eq(new BN('273539365')));
 
 		const makerPosition = makerDriftClient.getUser().getPerpPosition(1);
 		console.log(
@@ -498,8 +501,8 @@ describe('multiple maker orders', () => {
 			'secondMakerPosition.quoteAssetAmount=',
 			secondMakerPosition.quoteAssetAmount.toString()
 		);
-		assert(secondMakerPosition.baseAssetAmount.eq(new BN('2000000000')));
-		assert(secondMakerPosition.quoteAssetAmount.eq(new BN('-1377725')));
+		assert(secondMakerPosition.baseAssetAmount.eq(new BN('3000000000')));
+		assert(secondMakerPosition.quoteAssetAmount.eq(new BN('-2063588')));
 
 		const thirdMakerPosition = thirdMakerDriftClient
 			.getUser()
@@ -512,8 +515,8 @@ describe('multiple maker orders', () => {
 			'thirdMakerPosition.quoteAssetAmount=',
 			thirdMakerPosition.quoteAssetAmount.toString()
 		);
-		assert(thirdMakerPosition.baseAssetAmount.eq(new BN('4000000000')));
-		assert(thirdMakerPosition.quoteAssetAmount.eq(new BN('-2753251')));
+		assert(thirdMakerPosition.baseAssetAmount.eq(new BN('3000000000')));
+		assert(thirdMakerPosition.quoteAssetAmount.eq(new BN('-2063588')));
 
 		const dogMarket = takerDriftClient.getPerpMarketAccount(1);
 		console.log(
@@ -544,6 +547,7 @@ describe('multiple maker orders', () => {
 			});
 		}
 
+		await setFeedPrice(anchor.workspace.Pyth, 0.75, dogUsd);
 		await takerDriftClient.placePerpOrder({
 			marketIndex: 1,
 			orderType: OrderType.LIMIT,

@@ -142,12 +142,12 @@ pub mod delisting_test {
         )
         .is_err());
         assert_eq!(market.is_reduce_only().unwrap(), false);
-        assert_eq!(market.is_active(clock.unix_timestamp).unwrap(), true);
+        assert_eq!(market.is_in_settlement(clock.unix_timestamp), false);
 
         market.expiry_ts = clock.unix_timestamp + 100;
         assert_eq!(clock.unix_timestamp, 1662065595);
 
-        assert_eq!(market.is_active(clock.unix_timestamp).unwrap(), true);
+        assert_eq!(market.is_in_settlement(clock.unix_timestamp), false);
         assert_eq!(market.is_reduce_only().unwrap(), false); // isnt set like in update expiry ix
 
         market.status = MarketStatus::ReduceOnly;
@@ -255,7 +255,7 @@ pub mod delisting_test {
         assert_eq!(market.expiry_ts < clock.unix_timestamp, true);
         assert_eq!(market.status, MarketStatus::Initialized);
         assert_eq!(market.expiry_price, 0);
-        assert_eq!(market.is_active(clock.unix_timestamp).unwrap(), false);
+        assert_eq!(market.is_in_settlement(clock.unix_timestamp), true);
 
         // put in settlement mode
         settle_expired_market(
@@ -1906,7 +1906,7 @@ pub mod delisting_test {
 
         assert_eq!(total_collateral_short, 17_000_000_000);
         assert_eq!(margin_requirement_short, 16002510000);
-        assert_eq!(market.is_active(clock.unix_timestamp).unwrap(), false);
+        assert_eq!(market.is_in_settlement(clock.unix_timestamp), true);
         assert_eq!(market.is_reduce_only().unwrap(), false);
 
         // put in settlement mode
@@ -1920,7 +1920,7 @@ pub mod delisting_test {
         )
         .unwrap();
         assert_eq!(market.is_reduce_only().unwrap(), false);
-        assert_eq!(market.is_active(clock.unix_timestamp).unwrap(), false);
+        assert_eq!(market.is_in_settlement(clock.unix_timestamp), true);
 
         let market = market_map.get_ref_mut(&0).unwrap();
         assert_eq!(market.expiry_price != 0, true);

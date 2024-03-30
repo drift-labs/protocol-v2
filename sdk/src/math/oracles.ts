@@ -1,4 +1,4 @@
-import { AMM, OracleGuardRails } from '../types';
+import { AMM, OracleGuardRails, isVariant } from '../types';
 import { OraclePriceData } from '../oracles/types';
 import {
 	BID_ASK_SPREAD_PRECISION,
@@ -27,12 +27,33 @@ export function oraclePriceBands(
 	return [oraclePriceData.price.sub(offset), oraclePriceData.price.add(offset)];
 }
 
+export function getMaxConfidenceIntervalMultiplier(
+	market: PerpMarketAccount
+): BN {
+	let maxConfidenceIntervalMultiplier;
+	if (isVariant(market.contractTier, 'a')) {
+		maxConfidenceIntervalMultiplier = new BN(1);
+	} else if (isVariant(market.contractTier, 'b')) {
+		maxConfidenceIntervalMultiplier = new BN(1);
+	} else if (isVariant(market.contractTier, 'c')) {
+		maxConfidenceIntervalMultiplier = new BN(2);
+	} else if (isVariant(market.contractTier, 'speculative')) {
+		maxConfidenceIntervalMultiplier = new BN(10);
+	} else {
+		maxConfidenceIntervalMultiplier = new BN(50);
+	}
+	return maxConfidenceIntervalMultiplier;
+}
+
 export function isOracleValid(
-	amm: AMM,
+	market: PerpMarketAccount,
 	oraclePriceData: OraclePriceData,
 	oracleGuardRails: OracleGuardRails,
 	slot: number
 ): boolean {
+	// checks if oracle is valid for an AMM only fill
+
+	const amm = market.amm;
 	const isOraclePriceNonPositive = oraclePriceData.price.lte(ZERO);
 	const isOraclePriceTooVolatile =
 		oraclePriceData.price
@@ -42,10 +63,16 @@ export function isOracleValid(
 			.div(BN.max(ONE, oraclePriceData.price))
 			.gt(oracleGuardRails.validity.tooVolatileRatio);
 
+	const maxConfidenceIntervalMultiplier =
+		getMaxConfidenceIntervalMultiplier(market);
 	const isConfidenceTooLarge = BN.max(ONE, oraclePriceData.confidence)
 		.mul(BID_ASK_SPREAD_PRECISION)
 		.div(oraclePriceData.price)
-		.gt(oracleGuardRails.validity.confidenceIntervalMaxSize);
+		.gt(
+			oracleGuardRails.validity.confidenceIntervalMaxSize.mul(
+				maxConfidenceIntervalMultiplier
+			)
+		);
 
 	const oracleIsStale = new BN(slot)
 		.sub(oraclePriceData.slot)
@@ -150,4 +177,35 @@ export function calculateLiveOracleStd(
 	);
 
 	return oracleStd;
+}
+
+export function getNewOracleConfPct(
+	amm: AMM,
+	oraclePriceData: OraclePriceData,
+	reservePrice: BN,
+	now: BN
+): BN {
+	const confInterval = oraclePriceData.confidence || ZERO;
+
+	const sinceLastUpdate = BN.max(
+		ZERO,
+		now.sub(amm.historicalOracleData.lastOraclePriceTwapTs)
+	);
+	let lowerBoundConfPct = amm.lastOracleConfPct;
+	if (sinceLastUpdate.gt(ZERO)) {
+		const lowerBoundConfDivisor = BN.max(
+			new BN(21).sub(sinceLastUpdate),
+			new BN(5)
+		);
+		lowerBoundConfPct = amm.lastOracleConfPct.sub(
+			amm.lastOracleConfPct.div(lowerBoundConfDivisor)
+		);
+	}
+	const confIntervalPct = confInterval
+		.mul(BID_ASK_SPREAD_PRECISION)
+		.div(reservePrice);
+
+	const confIntervalPctResult = BN.max(confIntervalPct, lowerBoundConfPct);
+
+	return confIntervalPctResult;
 }

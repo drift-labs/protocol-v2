@@ -500,7 +500,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4114279215a005bc675e386011e594e1d9b800918cea18fcadadcce864a2046b"
 dependencies = [
  "borsh-derive 0.10.3",
- "hashbrown 0.11.2",
+ "hashbrown 0.13.2",
 ]
 
 [[package]]
@@ -873,7 +873,7 @@ dependencies = [
 
 [[package]]
 name = "drift"
-version = "2.55.0"
+version = "2.74.0"
 dependencies = [
  "anchor-lang",
  "anchor-spl",
@@ -894,6 +894,7 @@ dependencies = [
  "solana-program",
  "solana-security-txt",
  "static_assertions",
+ "switchboard",
  "thiserror",
  "uint",
 ]
@@ -2472,6 +2473,14 @@ name = "subtle"
 version = "2.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6bdef32e8150c2a081110b42772ffe7d7c9032b606bc226c8260fd97e0976601"
+
+[[package]]
+name = "switchboard"
+version = "0.1.0"
+dependencies = [
+ "anchor-lang",
+ "base64 0.13.0",
+]
 
 [[package]]
 name = "syn"

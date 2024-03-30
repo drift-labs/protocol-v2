@@ -8,7 +8,7 @@ use crate::error::{DriftResult, ErrorCode};
 use crate::math::bn::U192;
 use crate::math::casting::Cast;
 use crate::math::constants::{
-    BID_ASK_SPREAD_PRECISION, BID_ASK_SPREAD_PRECISION_I128, CONCENTRATION_PRECISION,
+    BID_ASK_SPREAD_PRECISION_I128, CONCENTRATION_PRECISION,
     DEFAULT_MAX_TWAP_UPDATE_PRICE_BAND_DENOMINATOR, FIVE_MINUTE, ONE_HOUR, ONE_MINUTE,
     PRICE_TIMES_AMM_TO_QUOTE_PRECISION_RATIO, PRICE_TIMES_AMM_TO_QUOTE_PRECISION_RATIO_I128,
     PRICE_TO_PEG_PRECISION_RATIO, QUOTE_PRECISION_I64,
@@ -149,17 +149,28 @@ pub fn estimate_best_bid_ask_price(
     precomputed_trade_price: Option<u64>,
     direction: Option<PositionDirection>,
 ) -> DriftResult<(u64, u64)> {
-    let base_spread_u64 = amm.base_spread.cast::<u64>()?;
     let last_oracle_price_u64 = amm.historical_oracle_data.last_oracle_price.cast::<u64>()?;
+
+    // in price units
+    let base_spread_price_u64 = last_oracle_price_u64
+        .safe_mul(amm.base_spread.cast::<u64>()?)?
+        .safe_div(PERCENTAGE_PRECISION_U64)?;
+    let max_spread_price_u64 = last_oracle_price_u64
+        .safe_mul(amm.base_spread.max(amm.max_spread).cast::<u64>()?)?
+        .safe_div(PERCENTAGE_PRECISION_U64)?;
 
     let trade_price: u64 = match precomputed_trade_price {
         Some(trade_price) => trade_price,
         None => last_oracle_price_u64,
     };
-
-    let trade_premium: i64 = trade_price
+    let est_market_spread = amm
+        .last_ask_price_twap
         .cast::<i64>()?
-        .safe_sub(amm.historical_oracle_data.last_oracle_price)?;
+        .safe_sub(amm.last_bid_price_twap.cast::<i64>()?)?
+        .max(0)
+        .unsigned_abs()
+        .clamp(base_spread_price_u64, max_spread_price_u64);
+
     validate!(
         amm.historical_oracle_data.last_oracle_price > 0,
         ErrorCode::InvalidOracle,
@@ -168,21 +179,26 @@ pub fn estimate_best_bid_ask_price(
 
     let amm_reserve_price = amm.reserve_price()?;
     let (amm_bid_price, amm_ask_price) = amm.bid_ask_price(amm_reserve_price)?;
-    // estimation of bid/ask by looking at execution premium
 
-    // trade is a long
-    let best_bid_estimate = if trade_premium > 0 {
-        let discount = min(base_spread_u64, amm.short_spread.cast::<u64>()? / 2);
-        last_oracle_price_u64.safe_sub(discount.min(trade_premium.unsigned_abs()))?
+    let best_bid_estimate = if let Some(direction) = direction {
+        // taker is a long, hitting ask, assuming best bid is est_market_spread below
+        if direction == PositionDirection::Long {
+            trade_price.saturating_sub(est_market_spread)
+        } else {
+            trade_price
+        }
     } else {
         trade_price
     }
     .max(amm_bid_price);
 
-    // trade is a short
-    let best_ask_estimate = if trade_premium < 0 {
-        let premium = min(base_spread_u64, amm.long_spread.cast::<u64>()? / 2);
-        last_oracle_price_u64.safe_add(premium.min(trade_premium.unsigned_abs()))?
+    let best_ask_estimate = if let Some(direction) = direction {
+        // taker is a short, hitting bid, assuming best ask is est_market_spread above
+        if direction == PositionDirection::Short {
+            trade_price.saturating_add(est_market_spread)
+        } else {
+            trade_price
+        }
     } else {
         trade_price
     }
@@ -428,10 +444,11 @@ pub fn update_oracle_price_twap(
 
         amm.last_oracle_normalised_price = capped_oracle_update_price;
         amm.historical_oracle_data.last_oracle_price = oracle_price_data.price;
-        amm.last_oracle_conf_pct = oracle_price_data
-            .confidence
-            .safe_mul(BID_ASK_SPREAD_PRECISION)?
-            .safe_div(reserve_price)? as u64;
+
+        // use decayed last_oracle_conf_pct as lower bound
+        amm.last_oracle_conf_pct =
+            amm.get_new_oracle_conf_pct(oracle_price_data.confidence, reserve_price, now)?;
+
         amm.historical_oracle_data.last_oracle_delay = oracle_price_data.delay;
         amm.last_oracle_reserve_price_spread_pct =
             calculate_oracle_reserve_price_spread_pct(amm, oracle_price_data, Some(reserve_price))?;

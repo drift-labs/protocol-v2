@@ -1183,7 +1183,7 @@ mod test {
         )
         .unwrap();
         assert_eq!(long_spread, 195556);
-        assert_eq!(short_spread, max_spread - long_spread);
+        assert_eq!(short_spread, 4444);
 
         let (long_spread, short_spread) = calculate_spread(
             base_spread,
@@ -1427,8 +1427,8 @@ mod test {
             432067603632,
         )
         .unwrap();
-        assert_eq!(long_spread, 4262);
-        assert_eq!(short_spread, 43238);
+        assert_eq!(long_spread, 89746);
+        assert_eq!(short_spread, 910254);
 
         // terms 3
         let (long_spread, short_spread) = calculate_spread(
@@ -1453,8 +1453,8 @@ mod test {
             432067603632,
         )
         .unwrap();
-        assert_eq!(long_spread, 4262);
-        assert_eq!(short_spread, 43238);
+        assert_eq!(long_spread, 89746);
+        assert_eq!(short_spread, 910254);
 
         // terms 4
         let (long_spread, short_spread) = calculate_spread(
@@ -1479,8 +1479,8 @@ mod test {
             432067603632,
         )
         .unwrap();
-        assert_eq!(long_spread, 4262);
-        assert_eq!(short_spread, 43238);
+        assert_eq!(long_spread, 89746);
+        assert_eq!(short_spread, 910254);
 
         // extra one?
 
@@ -1506,7 +1506,7 @@ mod test {
             427588331503,
         )
         .unwrap();
-        assert_eq!(long_spread, 4390);
-        assert_eq!(short_spread, 43110);
+        assert_eq!(long_spread, 22137);
+        assert_eq!(short_spread, 217356);
     }
 }

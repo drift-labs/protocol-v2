@@ -1,0 +1,22 @@
+[package]
+name = "switchboard"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib", "lib"]
+name = "switchboard"
+
+[features]
+no-entrypoint = []
+no-idl = []
+cpi = ["no-entrypoint"]
+default = ["mainnet-beta"]
+mainnet-beta=[]
+
+[dependencies]
+anchor-lang = "0.29.0"
+
+[dev-dependencies]
+base64 = "0.13.0"
+

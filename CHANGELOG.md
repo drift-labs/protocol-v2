@@ -9,13 +9,245 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Features
 
+- program: allow multiple makers to be passed into for spot fills ([#946](https://github.com/drift-labs/protocol-v2/pull/946)) 
+- ts-sdk: add fn to get admin ix  ([#980](https://github.com/drift-labs/protocol-v2/pull/980))
+- program: add invariant check boolean for attempt settle revenue to insurance ([#937](https://github.com/drift-labs/protocol-v2/pull/937)) 
+- program: improve best bid/ask estimate in mark twap update  ([#975](https://github.com/drift-labs/protocol-v2/pull/975)) 
+- program: add optional margin calculations for drift-rs ([#978](https://github.com/drift-labs/protocol-v2/pull/978))
+
 ### Fixes
 
 ### Breaking
 
-## [2.55.0] - 2023-01-18
+## [2.74.0] - 2024-03-25
 
-## [Unreleased]
+### Features
+
+- program: add 'highly speculative' contract tier enum 4 ([#968](https://github.com/drift-labs/protocol-v2/pull/968)) 
+- program: expand initialize market parameters ([#969](https://github.com/drift-labs/protocol-v2/pull/969)) 
+
+### Fixes
+
+- program: fix checking isolated tier in add_perp_lp_shares ([#965](https://github.com/drift-labs/protocol-v2/pull/965)) 
+
+### Breaking
+
+## [2.73.0] - 2024-03-15
+
+### Features
+
+### Fixes
+
+- program: fix checking isolated tier in validate spot margin trading
+
+### Breaking
+
+## [2.72.0] - 2024-03-14
+
+### Features
+
+- program: skip isolated tier for auction start/end sanitize ([#958](https://github.com/drift-labs/protocol-v2/pull/958))
+
+- program: check isolated perp market in validate spot margin trading ([#957](https://github.com/drift-labs/protocol-v2/pull/957))
+- program: improve update prelaunch oracles and add ability to delete ([#956](https://github.com/drift-labs/protocol-v2/pull/956))
+- program: allow user to settle realized pnl in reduce only market status ([#954](https://github.com/drift-labs/protocol-v2/pull/954))
+- sdk: add function for toggling user account to reduceOnly ([#966](https://github.com/drift-labs/protocol-v2/pull/966))
+
+### Fixes
+
+- program: update spot index twap ts ([#948](https://github.com/drift-labs/protocol-v2/pull/948))
+
+### Breaking
+
+## [2.71.0] - 2024-03-11
+
+### Features
+
+- program: add back switchboard without cargo dependency ([#943](https://github.com/drift-labs/protocol-v2/pull/943))
+- program: add admin fn to update funding period
+- program: add prelaunch oracles ([#910](https://github.com/drift-labs/protocol-v2/pull/910))
+- program: make isolated perp contract tier more ergonomic ([#913](https://github.com/drift-labs/protocol-v2/pull/913))
+- program: add per market tier confidence interval guard ([#945](https://github.com/drift-labs/protocol-v2/pull/945))
+
+### Fixes
+
+### Breaking
+
+- sdk: account for max confidence in isOracleValid ([#949](https://github.com/drift-labs/protocol-v2/pull/949))
+
+## [2.70.0] - 2024-03-07
+
+### Features
+
+### Fixes
+
+- program: fix allowing settle pnl on oracle delays when price is stable ([#940](https://github.com/drift-labs/protocol-v2/pull/940))
+
+### Breaking
+
+## [2.69.0] - 2024-03-06
+
+### Features
+
+- program: allow settle pnl on oracle delays when price is stable ([#929](https://github.com/drift-labs/protocol-v2/pull/929))
+- program: cache validity in oracle map
+
+### Fixes
+
+### Breaking
+
+- program: revert switchboard ([#935](https://github.com/drift-labs/protocol-v2/pull/935))
+
+## [2.68.0] - 2024-03-05
+
+### Features
+
+- program: apply auction sanitizer to all contract tiers ([#932](https://github.com/drift-labs/protocol-v2/pull/932))
+
+### Fixes
+
+- program: fix flipping funding rates ([#931](https://github.com/drift-labs/protocol-v2/pull/931))
+
+### Breaking
+
+## [2.67.0] - 2024-03-05
+
+### Features
+
+### Fixes
+
+- program: add switchboard ([#878](https://github.com/drift-labs/protocol-v2/pull/878))
+- sdk: handle oracle failover when oracle is changed ([#875](https://github.com/drift-labs/protocol-v2/pull/875))
+
+### Breaking
+
+## [2.66.0] - 2024-02-28
+
+### Features
+
+### Fixes
+
+- program: don't block oracle order prices when theres solely InsufficientDataPoints ([#919](https://github.com/drift-labs/protocol-v2/pull/919))
+
+### Breaking
+
+## [2.65.0] - 2024-02-26
+
+### Features
+
+- program: add pause operation for liquidation ([#880](https://github.com/drift-labs/protocol-v2/pull/880))
+
+### Fixes
+
+- program: fix entry/breakeven price calculations for lp remainders ([#864](https://github.com/drift-labs/protocol-v2/pull/864))
+- program: handle derisk lp when orders array full ([#899](https://github.com/drift-labs/protocol-v2/pull/899))
+- program: invalid borrow in get_referrer_info when maker is refferer ([#900](https://github.com/drift-labs/protocol-v2/pull/900))
+
+### Breaking
+
+## [2.64.0] - 2024-02-20
+
+### Features
+
+- program: make derived auction start more passive ([#890](https://github.com/drift-labs/protocol-v2/pull/890))
+
+### Fixes
+
+### Breaking
+
+## [2.63.0] - 2024-02-16
+
+### Features
+
+- program: longer derived auction durations for contract tier B and safer ([#889](https://github.com/drift-labs/protocol-v2/pull/889))
+- program: always try update market order auction durations ([#882](https://github.com/drift-labs/protocol-v2/pull/882))
+- program: amm drawdown check ([#865](https://github.com/drift-labs/protocol-v2/pull/865))
+- program: relax oracle guardrail validity check for init margin calc for positive pnl ([#876](https://github.com/drift-labs/protocol-v2/pull/876))
+- program: add more max spread baselines ([#858](https://github.com/drift-labs/protocol-v2/pull/858))
+
+### Fixes
+
+- sdk: fix bug in changeWallet that doesn't reset the user stats account if switching from a wallet with drift account to one without
+
+### Breaking
+
+## [2.62.0] - 2024-02-14
+
+### Features
+
+- program: more continuous calculation for calculate_jit_amount ([#882](https://github.com/drift-labs/protocol-v2/pull/882))
+
+### Fixes
+
+### Breaking
+
+## [2.61.0] - 2024-02-09
+
+### Features
+
+- program: better derivation of perp auction params when missing and for triggers ([#869](https://github.com/drift-labs/protocol-v2/pull/869))
+- program: calculate whether oracle's num quoters sufficient ([#860](https://github.com/drift-labs/protocol-v2/pull/860))
+
+### Fixes
+
+- program: include derisk lp order action explanation
+
+### Breaking
+
+## [2.60.0] - 2024-02-07
+
+### Features
+
+- program: sanitize perp auction params ([#859](https://github.com/drift-labs/protocol-v2/pull/859))
+- program: add repay borrow explanation ([#862](https://github.com/drift-labs/protocol-v2/pull/862))
+- program: derisk lp more granularly ([#849](https://github.com/drift-labs/protocol-v2/pull/849))
+
+### Fixes
+
+### Breaking
+
+## [2.59.0] - 2024-01-30
+
+### Features
+
+- program: separate out paused operations from market status ([#839](https://github.com/drift-labs/protocol-v2/pull/839))
+- program: use decayed last_oracle_conf_pct as lower bound for update ([#840](https://github.com/drift-labs/protocol-v2/pull/840))
+
+### Fixes
+
+### Breaking
+
+## [2.58.0] - 2024-01-27
+
+### Features
+
+### Fixes
+
+- program: AmmPaused doesnt block all fills
+
+### Breaking
+
+## [2.57.0] - 2024-01-25
+
+### Features
+
+- program: add recenter amm ix ([#836](https://github.com/drift-labs/protocol-v2/pull/836))
+
+### Fixes
+
+### Breaking
+
+## [2.56.0] - 2024-01-24
+
+### Features
+
+### Fixes
+
+- program: enable jit maker to fill same slot as taker placed ([#835](https://github.com/drift-labs/protocol-v2/pull/835))
+
+### Breaking
+
+## [2.55.0] - 2024-01-18
 
 ### Features
 
@@ -25,9 +257,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Breaking
 
-## [2.54.0] - 2023-01-15
+## [2.54.0] - 2024-01-15
 
 ### Features
+
 - sdk: move bracket orders into single instruction
 - sdk: add ability to do placeAndTake order with bracket orders attached
 - sdk: add option to cancel existing orders in market for place and take order
@@ -44,7 +277,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - ts-sdk: fix oracle is valid ([#806](https://github.com/drift-labs/protocol-v2/pull/806))
 
 ### Breaking
-
 
 ## [2.53.0] - 2023-12-31
 
@@ -63,7 +295,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Features
 
-- program: add ability to reclaim rent without deleting account ([#763](https://github.com/drift-labs/protocol-v2/pull/763)) 
+- program: add ability to reclaim rent without deleting account ([#763](https://github.com/drift-labs/protocol-v2/pull/763))
 - program: add borrow explanation to DepositRecords ([#772](https://github.com/drift-labs/protocol-v2/pull/772))
 - sdk: OrderSubscriber has resync option ([#780](https://github.com/drift-labs/protocol-v2/pull/780))
 - program: only consider recent last_active_slot in qualifies_for_withdraw_feen ([#756](https://github.com/drift-labs/protocol-v2/pull/756))
@@ -72,7 +304,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixes
 
 - program: handle underflow in calculate_liability_transfer_to_cover_margin_shortage ([#774](https://github.com/drift-labs/protocol-v2/pull/774))
-- program:  flip auction flag when trigger order adds auction ([#775](https://github.com/drift-labs/protocol-v2/pull/775))
+- program: flip auction flag when trigger order adds auction ([#775](https://github.com/drift-labs/protocol-v2/pull/775))
 - program: don't perform funding rate updates when slots_since_amm_update is stale ([#757](https://github.com/drift-labs/protocol-v2/pull/757))
 - program: add update last slot for filler in pay_keeper_flat_reward_for_spot
 

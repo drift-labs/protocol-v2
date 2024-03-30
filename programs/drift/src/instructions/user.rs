@@ -17,15 +17,14 @@ use crate::ids::{
 };
 use crate::instructions::constraints::*;
 use crate::instructions::optional_accounts::{
-    get_maker_and_maker_stats, get_referrer_and_referrer_stats, get_whitelist_token, load_maps,
-    AccountMaps,
+    get_referrer_and_referrer_stats, get_whitelist_token, load_maps, AccountMaps,
 };
 use crate::instructions::SpotFulfillmentType;
 use crate::load_mut;
 use crate::math::casting::Cast;
 use crate::math::liquidation::is_user_being_liquidated;
 use crate::math::margin::{
-    calculate_max_withdrawable_amount, meets_initial_margin_requirement,
+    calculate_max_withdrawable_amount, meets_place_order_margin_requirement,
     meets_withdraw_margin_requirement, validate_spot_margin_trading, MarginRequirementType,
 };
 use crate::math::safe_math::SafeMath;
@@ -48,6 +47,7 @@ use crate::state::oracle::StrictOraclePrice;
 use crate::state::order_params::{
     ModifyOrderParams, OrderParams, PlaceOrderOptions, PostOnlyParam,
 };
+use crate::state::paused_operations::PerpOperation;
 use crate::state::perp_market::MarketStatus;
 use crate::state::perp_market_map::{get_writable_perp_market_set, MarketSet};
 use crate::state::spot_fulfillment_params::SpotFulfillmentParams;
@@ -59,7 +59,7 @@ use crate::state::spot_market_map::{
 use crate::state::state::State;
 use crate::state::traits::Size;
 use crate::state::user::{MarketType, OrderType, ReferrerName, User, UserStats};
-use crate::state::user_map::load_user_maps;
+use crate::state::user_map::{load_user_maps, UserMap, UserStatsMap};
 use crate::validate;
 use crate::validation::user::validate_user_deletion;
 use crate::validation::whitelist::validate_whitelist_token;
@@ -298,6 +298,8 @@ pub fn handle_deposit<'c: 'info, 'info>(
 
     let position_index = user.force_get_spot_position_index(spot_market.market_index)?;
 
+    let is_borrow_before = user.spot_positions[position_index].is_borrow();
+
     let force_reduce_only = spot_market.is_reduce_only();
 
     // if reduce only, have to compare ix amount to current borrow amount
@@ -344,16 +346,9 @@ pub fn handle_deposit<'c: 'info, 'info>(
 
     if spot_position.balance_type == SpotBalanceType::Deposit && spot_position.scaled_balance > 0 {
         validate!(
-            matches!(
-                spot_market.status,
-                MarketStatus::Active
-                    | MarketStatus::FundingPaused
-                    | MarketStatus::AmmPaused
-                    | MarketStatus::FillPaused
-                    | MarketStatus::WithdrawPaused
-            ),
+            matches!(spot_market.status, MarketStatus::Active),
             ErrorCode::MarketActionPaused,
-            "spot_market in reduce only mode",
+            "spot_market not active",
         )?;
     }
 
@@ -388,6 +383,11 @@ pub fn handle_deposit<'c: 'info, 'info>(
 
     let deposit_record_id = get_then_update_id!(spot_market, next_deposit_record_id);
     let oracle_price = oracle_price_data.price;
+    let explanation = if is_borrow_before {
+        DepositExplanation::RepayBorrow
+    } else {
+        DepositExplanation::None
+    };
     let deposit_record = DepositRecord {
         ts: now,
         deposit_record_id,
@@ -403,7 +403,7 @@ pub fn handle_deposit<'c: 'info, 'info>(
         total_deposits_after,
         total_withdraws_after,
         market_index,
-        explanation: DepositExplanation::None,
+        explanation,
         transfer_user: None,
     };
     emit!(deposit_record);
@@ -522,7 +522,7 @@ pub fn handle_withdraw<'c: 'info, 'info>(
         MarginRequirementType::Initial,
     )?;
 
-    validate_spot_margin_trading(user, &spot_market_map, &mut oracle_map)?;
+    validate_spot_margin_trading(user, &perp_market_map, &spot_market_map, &mut oracle_map)?;
 
     if user.is_being_liquidated() {
         user.exit_liquidation();
@@ -649,21 +649,6 @@ pub fn handle_transfer_deposit<'c: 'info, 'info>(
     {
         let spot_market = &mut spot_market_map.get_ref_mut(&market_index)?;
 
-        validate!(
-            matches!(
-                spot_market.status,
-                MarketStatus::Active
-                    | MarketStatus::AmmPaused
-                    | MarketStatus::FundingPaused
-                    | MarketStatus::FillPaused
-                    | MarketStatus::ReduceOnly
-                    | MarketStatus::Settlement
-            ),
-            ErrorCode::MarketWithdrawPaused,
-            "Spot Market {} withdraws are currently paused",
-            spot_market.market_index
-        )?;
-
         from_user.increment_total_withdraws(
             amount,
             oracle_price,
@@ -687,7 +672,12 @@ pub fn handle_transfer_deposit<'c: 'info, 'info>(
         MarginRequirementType::Initial,
     )?;
 
-    validate_spot_margin_trading(from_user, &spot_market_map, &mut oracle_map)?;
+    validate_spot_margin_trading(
+        from_user,
+        &perp_market_map,
+        &spot_market_map,
+        &mut oracle_map,
+    )?;
 
     if from_user.is_being_liquidated() {
         from_user.exit_liquidation();
@@ -1109,6 +1099,7 @@ pub fn handle_place_orders<'c: 'info, 'info>(
             enforce_margin_check: i == num_orders - 1,
             try_expire_orders: i == 0,
             risk_increasing: false,
+            explanation: OrderActionExplanation::None,
         };
 
         if params.market_type == MarketType::Perp {
@@ -1385,7 +1376,7 @@ pub fn handle_place_and_take_spot_order<'c: 'info, 'info>(
     ctx: Context<'_, '_, 'c, 'info, PlaceAndTake<'info>>,
     params: OrderParams,
     fulfillment_type: SpotFulfillmentType,
-    maker_order_id: Option<u32>,
+    _maker_order_id: Option<u32>,
 ) -> Result<()> {
     let clock = Clock::get()?;
     let market_index = params.market_index;
@@ -1408,15 +1399,10 @@ pub fn handle_place_and_take_spot_order<'c: 'info, 'info>(
         return Err(print_error!(ErrorCode::InvalidOrderPostOnly)().into());
     }
 
-    let (maker, maker_stats) = match maker_order_id {
-        Some(_) => {
-            let (user, user_stats) = get_maker_and_maker_stats(remaining_accounts_iter)?;
-            (Some(user), Some(user_stats))
-        }
-        None => (None, None),
+    let (makers_and_referrer, makers_and_referrer_stats) = match fulfillment_type {
+        SpotFulfillmentType::Match => load_user_maps(remaining_accounts_iter, true)?,
+        _ => (UserMap::empty(), UserStatsMap::empty()),
     };
-
-    let (_referrer, _referrer_stats) = get_referrer_and_referrer_stats(remaining_accounts_iter)?;
 
     let is_immediate_or_cancel = params.immediate_or_cancel;
 
@@ -1483,9 +1469,9 @@ pub fn handle_place_and_take_spot_order<'c: 'info, 'info>(
         &mut oracle_map,
         &user.clone(),
         &ctx.accounts.user_stats.clone(),
-        maker.as_ref(),
-        maker_stats.as_ref(),
-        maker_order_id,
+        &makers_and_referrer,
+        &makers_and_referrer_stats,
+        None,
         &clock,
         fulfillment_params.as_mut(),
     )?;
@@ -1585,6 +1571,7 @@ pub fn handle_place_and_make_spot_order<'c: 'info, 'info>(
 
     let user_key = ctx.accounts.user.key();
     let mut user = load_mut!(ctx.accounts.user)?;
+    let authority = user.authority;
 
     controller::orders::place_spot_order(
         state,
@@ -1602,6 +1589,11 @@ pub fn handle_place_and_make_spot_order<'c: 'info, 'info>(
 
     let order_id = load!(ctx.accounts.user)?.get_last_order_id();
 
+    let mut makers_and_referrer = UserMap::empty();
+    let mut makers_and_referrer_stats = UserStatsMap::empty();
+    makers_and_referrer.insert(ctx.accounts.user.key(), ctx.accounts.user.clone())?;
+    makers_and_referrer_stats.insert(authority, ctx.accounts.user_stats.clone())?;
+
     controller::orders::fill_spot_order(
         taker_order_id,
         state,
@@ -1612,8 +1604,8 @@ pub fn handle_place_and_make_spot_order<'c: 'info, 'info>(
         &mut oracle_map,
         &ctx.accounts.user.clone(),
         &ctx.accounts.user_stats.clone(),
-        Some(&ctx.accounts.user),
-        Some(&ctx.accounts.user_stats),
+        &makers_and_referrer,
+        &makers_and_referrer_stats,
         Some(order_id),
         clock,
         fulfillment_params.as_mut(),
@@ -1681,15 +1673,15 @@ pub fn handle_add_perp_lp_shares<'c: 'info, 'info>(
         let mut market = perp_market_map.get_ref_mut(&market_index)?;
 
         validate!(
-            matches!(
-                market.status,
-                MarketStatus::Active
-                    | MarketStatus::FundingPaused
-                    | MarketStatus::FillPaused
-                    | MarketStatus::WithdrawPaused
-            ),
+            matches!(market.status, MarketStatus::Active),
             ErrorCode::MarketStatusInvalidForNewLP,
             "Market Status doesn't allow for new LP liquidity"
+        )?;
+
+        validate!(
+            !market.is_operation_paused(PerpOperation::AmmFill),
+            ErrorCode::MarketStatusInvalidForNewLP,
+            "Market amm fills paused"
         )?;
 
         validate!(
@@ -1719,15 +1711,12 @@ pub fn handle_add_perp_lp_shares<'c: 'info, 'info>(
     }
 
     // check margin requirements
-    validate!(
-        meets_initial_margin_requirement(
-            user,
-            &perp_market_map,
-            &spot_market_map,
-            &mut oracle_map
-        )?,
-        ErrorCode::InsufficientCollateral,
-        "User does not meet initial margin requirement"
+    meets_place_order_margin_requirement(
+        user,
+        &perp_market_map,
+        &spot_market_map,
+        &mut oracle_map,
+        true,
     )?;
 
     user.update_last_active_slot(clock.slot);
@@ -1864,6 +1853,7 @@ pub fn handle_update_user_margin_trading_enabled<'c: 'info, 'info>(
 ) -> Result<()> {
     let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
     let AccountMaps {
+        perp_market_map,
         spot_market_map,
         mut oracle_map,
         ..
@@ -1878,7 +1868,7 @@ pub fn handle_update_user_margin_trading_enabled<'c: 'info, 'info>(
     let mut user = load_mut!(ctx.accounts.user)?;
     user.is_margin_trading_enabled = margin_trading_enabled;
 
-    validate_spot_margin_trading(&user, &spot_market_map, &mut oracle_map)
+    validate_spot_margin_trading(&user, &perp_market_map, &spot_market_map, &mut oracle_map)
         .map_err(|_| ErrorCode::MarginOrdersOpen)?;
 
     Ok(())
@@ -1901,9 +1891,22 @@ pub fn handle_update_user_reduce_only(
 ) -> Result<()> {
     let mut user = load_mut!(ctx.accounts.user)?;
 
-    validate!(user.is_being_liquidated(), ErrorCode::LiquidationsOngoing)?;
+    validate!(!user.is_being_liquidated(), ErrorCode::LiquidationsOngoing)?;
 
     user.update_reduce_only_status(reduce_only)?;
+    Ok(())
+}
+
+pub fn handle_update_user_advanced_lp(
+    ctx: Context<UpdateUser>,
+    _sub_account_id: u16,
+    advanced_lp: bool,
+) -> Result<()> {
+    let mut user = load_mut!(ctx.accounts.user)?;
+
+    validate!(!user.is_being_liquidated(), ErrorCode::LiquidationsOngoing)?;
+
+    user.update_advanced_lp_status(advanced_lp)?;
     Ok(())
 }
 
@@ -1980,7 +1983,7 @@ pub fn handle_deposit_into_spot_market_revenue_pool(
     let mut spot_market = load_mut!(ctx.accounts.spot_market)?;
 
     validate!(
-        spot_market.is_active(Clock::get()?.unix_timestamp)?,
+        !spot_market.is_in_settlement(Clock::get()?.unix_timestamp),
         ErrorCode::DefaultError,
         "spot market {} not active",
         spot_market.market_index

@@ -295,6 +295,30 @@ pub fn calculate_spread_revenue_retreat_amount(
     Ok(revenue_retreat_amount)
 }
 
+pub fn calculate_max_target_spread(
+    reserve_price: u64,
+    last_oracle_reserve_price_spread_pct: i64,
+    last_oracle_conf_pct: u64,
+    mark_std: u64,
+    oracle_std: u64,
+    max_spread: u32,
+) -> DriftResult<u64> {
+    let max_spread_baseline = last_oracle_reserve_price_spread_pct.unsigned_abs().max(
+        last_oracle_conf_pct
+            .safe_mul(2)?
+            .max(
+                mark_std
+                    .max(oracle_std)
+                    .safe_mul(PERCENTAGE_PRECISION_U64)?
+                    .safe_div(reserve_price)?,
+            )
+            .min(BID_ASK_SPREAD_PRECISION),
+    );
+
+    let max_target_spread = max_spread.cast::<u64>()?.max(max_spread_baseline);
+    Ok(max_target_spread)
+}
+
 #[allow(clippy::comparison_chain)]
 pub fn calculate_spread(
     base_spread: u32,
@@ -332,9 +356,14 @@ pub fn calculate_spread(
     let mut long_spread = max(half_base_spread_u64, long_vol_spread);
     let mut short_spread = max(half_base_spread_u64, short_vol_spread);
 
-    let max_target_spread = max_spread
-        .cast::<u64>()?
-        .max(last_oracle_reserve_price_spread_pct.unsigned_abs());
+    let max_target_spread = calculate_max_target_spread(
+        reserve_price,
+        last_oracle_reserve_price_spread_pct,
+        last_oracle_conf_pct,
+        mark_std,
+        oracle_std,
+        max_spread,
+    )?;
 
     // oracle retreat
     // if mark - oracle < 0 (mark below oracle) and user going long then increase spread
@@ -456,9 +485,11 @@ pub fn calculate_spread_reserves(
     };
 
     let quote_asset_reserve_delta = if spread_with_offset.abs() > 1 {
+        let quote_reserve_divisor =
+            BID_ASK_SPREAD_PRECISION_I128 / (spread_with_offset / 2).cast::<i128>()?;
         amm.quote_asset_reserve
             .cast::<i128>()?
-            .safe_div(BID_ASK_SPREAD_PRECISION_I128 / (spread_with_offset.cast::<i128>()? / 2))?
+            .safe_div(quote_reserve_divisor)?
     } else {
         0
     };

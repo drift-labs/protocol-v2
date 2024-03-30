@@ -27,10 +27,25 @@ export class MarketStatus {
 	static readonly DELISTED = { delisted: {} };
 }
 
+export enum PerpOperation {
+	UPDATE_FUNDING = 1,
+	AMM_FILL = 2,
+	FILL = 4,
+	SETTLE_PNL = 8,
+	SETTLE_PNL_WITH_POSITION = 16,
+}
+
+export enum SpotOperation {
+	UPDATE_CUMULATIVE_INTEREST = 1,
+	FILL = 2,
+	WITHDRAW = 4,
+}
+
 export enum UserStatus {
 	BEING_LIQUIDATED = 1,
 	BANKRUPT = 2,
 	REDUCE_ONLY = 4,
+	ADVANCED_LP = 8,
 }
 
 export class ContractType {
@@ -43,6 +58,7 @@ export class ContractTier {
 	static readonly B = { b: {} };
 	static readonly C = { c: {} };
 	static readonly SPECULATIVE = { speculative: {} };
+	static readonly HIGHLY_SPECULATIVE = { highlySpeculative: {} };
 	static readonly ISOLATED = { isolated: {} };
 }
 
@@ -78,9 +94,10 @@ export class OracleSource {
 	static readonly PYTH = { pyth: {} };
 	static readonly PYTH_1K = { pyth1K: {} };
 	static readonly PYTH_1M = { pyth1M: {} };
-	// static readonly SWITCHBOARD = { switchboard: {} };
+	static readonly SWITCHBOARD = { switchboard: {} };
 	static readonly QUOTE_ASSET = { quoteAsset: {} };
 	static readonly PYTH_STABLE_COIN = { pythStableCoin: {} };
+	static readonly Prelaunch = { prelaunch: {} };
 }
 
 export class OrderType {
@@ -160,6 +177,9 @@ export class OrderActionExplanation {
 	static readonly REDUCE_ONLY_ORDER_INCREASED_POSITION = {
 		reduceOnlyOrderIncreasedPosition: {},
 	};
+	static readonly DERISK_LP = {
+		deriskLp: {},
+	};
 }
 
 export class OrderTriggerCondition {
@@ -183,6 +203,7 @@ export class DepositExplanation {
 	static readonly NONE = { none: {} };
 	static readonly TRANSFER = { transfer: {} };
 	static readonly BORROW = { borrow: {} };
+	static readonly REPAY_BORROW = { repayBorrow: {} };
 }
 
 export class SettlePnlExplanation {
@@ -343,6 +364,7 @@ export class LPAction {
 	static readonly ADD_LIQUIDITY = { addLiquidity: {} };
 	static readonly REMOVE_LIQUIDITY = { removeLiquidity: {} };
 	static readonly SETTLE_LIQUIDITY = { settleLiquidity: {} };
+	static readonly REMOVE_LIQUIDITY_DERISK = { removeLiquidityDerisk: {} };
 }
 
 export type FundingRateRecord = {
@@ -590,6 +612,7 @@ export type PerpMarketAccount = {
 	};
 	quoteSpotMarketIndex: number;
 	feeAdjustment: number;
+	pausedOperations: number;
 };
 
 export type HistoricalOracleData = {
@@ -681,6 +704,8 @@ export type SpotMarketAccount = {
 	flashLoanInitialTokenAmount: BN;
 
 	ordersEnabled: boolean;
+
+	pausedOperations: number;
 };
 
 export type PoolBalance = {
@@ -1035,6 +1060,15 @@ export type OracleGuardRails = {
 		confidenceIntervalMaxSize: BN;
 		tooVolatileRatio: BN;
 	};
+};
+
+export type PrelaunchOracle = {
+	price: BN;
+	maxPrice: BN;
+	confidence: BN;
+	ammLastUpdateSlot: BN;
+	lastUpdateSlot: BN;
+	perpMarketIndex: number;
 };
 
 export type MarginCategory = 'Initial' | 'Maintenance';

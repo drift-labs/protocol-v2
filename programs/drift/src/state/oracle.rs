@@ -1,11 +1,17 @@
 use anchor_lang::prelude::*;
+use std::cell::Ref;
 
 use crate::error::{DriftResult, ErrorCode};
 use crate::math::casting::Cast;
 use crate::math::constants::{PRICE_PRECISION, PRICE_PRECISION_I64, PRICE_PRECISION_U64};
 use crate::math::safe_math::SafeMath;
+use switchboard::{AggregatorAccountData, SwitchboardDecimal};
 
+use crate::error::ErrorCode::{InvalidOracle, UnableToLoadOracle};
 use crate::math::safe_unwrap::SafeUnwrap;
+use crate::state::load_ref::load_ref;
+use crate::state::perp_market::PerpMarket;
+use crate::state::traits::Size;
 use crate::validate;
 
 #[cfg(test)]
@@ -17,11 +23,13 @@ pub struct HistoricalOracleData {
     pub last_oracle_price: i64,
     /// precision: PRICE_PRECISION
     pub last_oracle_conf: u64,
+    /// number of slots since last update
     pub last_oracle_delay: i64,
     /// precision: PRICE_PRECISION
     pub last_oracle_price_twap: i64,
     /// precision: PRICE_PRECISION
     pub last_oracle_price_twap_5min: i64,
+    /// unix_timestamp of last snapshot
     pub last_oracle_price_twap_ts: i64,
 }
 
@@ -71,6 +79,7 @@ pub struct HistoricalIndexData {
     pub last_index_price_twap: u64,
     /// precision: PRICE_PRECISION
     pub last_index_price_twap_5min: u64,
+    /// unix_timestamp of last snapshot
     pub last_index_price_twap_ts: i64,
 }
 
@@ -105,6 +114,7 @@ pub enum OracleSource {
     Pyth1K,
     Pyth1M,
     PythStableCoin,
+    Prelaunch,
 }
 
 impl Default for OracleSource {
@@ -143,16 +153,14 @@ pub fn get_oracle_price(
         OracleSource::Pyth1K => get_pyth_price(price_oracle, clock_slot, 1000),
         OracleSource::Pyth1M => get_pyth_price(price_oracle, clock_slot, 1000000),
         OracleSource::PythStableCoin => get_pyth_stable_coin_price(price_oracle, clock_slot),
-        OracleSource::Switchboard => {
-            msg!("Switchboard oracle not yet supported");
-            Err(crate::error::ErrorCode::InvalidOracle)
-        }
+        OracleSource::Switchboard => get_switchboard_price(price_oracle, clock_slot),
         OracleSource::QuoteAsset => Ok(OraclePriceData {
             price: PRICE_PRECISION_I64,
             confidence: 1,
             delay: 0,
             has_sufficient_number_of_data_points: true,
         }),
+        OracleSource::Prelaunch => get_prelaunch_price(price_oracle, clock_slot),
     }
 }
 
@@ -168,6 +176,9 @@ pub fn get_pyth_price(
 
     let oracle_price = price_data.agg.price;
     let oracle_conf = price_data.agg.conf;
+
+    let min_publishers = price_data.num.min(3);
+    let publisher_count = price_data.num_qt;
 
     let oracle_precision = 10_u128.pow(price_data.expo.unsigned_abs());
 
@@ -203,11 +214,16 @@ pub fn get_pyth_price(
         .cast::<i64>()?
         .safe_sub(price_data.valid_slot.cast()?)?;
 
+    #[cfg(feature = "mainnet-beta")]
+    let has_sufficient_number_of_data_points = publisher_count >= min_publishers;
+    #[cfg(not(feature = "mainnet-beta"))]
+    let has_sufficient_number_of_data_points = true;
+
     Ok(OraclePriceData {
         price: oracle_price_scaled,
         confidence: oracle_conf_scaled,
         delay: oracle_delay,
-        has_sufficient_number_of_data_points: true,
+        has_sufficient_number_of_data_points,
     })
 }
 
@@ -228,46 +244,71 @@ pub fn get_pyth_stable_coin_price(
     Ok(oracle_price_data)
 }
 
-// pub fn get_switchboard_price(
-//     _price_oracle: &AccountInfo,
-//     _clock_slot: u64,
-// ) -> DriftResult<OraclePriceData> {
-//     updating solana/anchor cause this to make compiler complan
-//     fix when we're using switchboard again
-//     let aggregator_data = AggregatorAccountData::new(price_oracle)
-//         .or(Err(crate::error::ErrorCode::UnableToLoadOracle))?;
-//
-//     let price = convert_switchboard_decimal(&aggregator_data.latest_confirmed_round.result)?;
-//     let confidence =
-//         convert_switchboard_decimal(&aggregator_data.latest_confirmed_round.std_deviation)?;
-//
-//     // std deviation should always be positive, if we get a negative make it u128::MAX so it's flagged as bad value
-//     let confidence = if confidence < 0 {
-//         u128::MAX
-//     } else {
-//         let price_10bps = price
-//             .unsigned_abs()
-//             .safe_div(1000)
-//             ?;
-//         max(confidence.unsigned_abs(), price_10bps)
-//     };
-//
-//     let delay: i64 = cast_to_i64(clock_slot)?
-//         .safe_sub(cast(
-//             aggregator_data.latest_confirmed_round.round_open_slot,
-//         )?)
-//         ?;
-//
-//     let has_sufficient_number_of_data_points =
-//         aggregator_data.latest_confirmed_round.num_success >= aggregator_data.min_oracle_results;
-//
-//     Ok(OraclePriceData {
-//         price,
-//         confidence,
-//         delay,
-//         has_sufficient_number_of_data_points,
-//     })
-// }
+pub fn get_switchboard_price(
+    price_oracle: &AccountInfo,
+    clock_slot: u64,
+) -> DriftResult<OraclePriceData> {
+    let aggregator_data: Ref<AggregatorAccountData> =
+        load_ref(price_oracle).or(Err(ErrorCode::UnableToLoadOracle))?;
+
+    let price = convert_switchboard_decimal(&aggregator_data.latest_confirmed_round.result)?
+        .cast::<i64>()?;
+    let confidence =
+        convert_switchboard_decimal(&aggregator_data.latest_confirmed_round.std_deviation)?
+            .cast::<i64>()?;
+
+    // std deviation should always be positive, if we get a negative make it u128::MAX so it's flagged as bad value
+    let confidence = if confidence < 0 {
+        u64::MAX
+    } else {
+        let price_10bps = price.unsigned_abs().safe_div(1000)?;
+        confidence.unsigned_abs().max(price_10bps)
+    };
+
+    let delay = clock_slot.cast::<i64>()?.safe_sub(
+        aggregator_data
+            .latest_confirmed_round
+            .round_open_slot
+            .cast()?,
+    )?;
+
+    let has_sufficient_number_of_data_points =
+        aggregator_data.latest_confirmed_round.num_success >= aggregator_data.min_oracle_results;
+
+    Ok(OraclePriceData {
+        price,
+        confidence,
+        delay,
+        has_sufficient_number_of_data_points,
+    })
+}
+
+/// Given a decimal number represented as a mantissa (the digits) plus an
+/// original_precision (10.pow(some number of decimals)), scale the
+/// mantissa/digits to make sense with a new_precision.
+fn convert_switchboard_decimal(switchboard_decimal: &SwitchboardDecimal) -> DriftResult<i128> {
+    let switchboard_precision = 10_u128.pow(switchboard_decimal.scale);
+    if switchboard_precision > PRICE_PRECISION {
+        switchboard_decimal
+            .mantissa
+            .safe_div((switchboard_precision / PRICE_PRECISION) as i128)
+    } else {
+        switchboard_decimal
+            .mantissa
+            .safe_mul((PRICE_PRECISION / switchboard_precision) as i128)
+    }
+}
+
+pub fn get_prelaunch_price(price_oracle: &AccountInfo, slot: u64) -> DriftResult<OraclePriceData> {
+    let oracle: Ref<PrelaunchOracle> = load_ref(price_oracle).or(Err(UnableToLoadOracle))?;
+
+    Ok(OraclePriceData {
+        price: oracle.price,
+        confidence: oracle.confidence,
+        delay: oracle.amm_last_update_slot.saturating_sub(slot).cast()?,
+        has_sufficient_number_of_data_points: true,
+    })
+}
 
 #[derive(Clone, Copy)]
 pub struct StrictOraclePrice {
@@ -326,4 +367,100 @@ impl StrictOraclePrice {
             twap_5min: None,
         }
     }
+}
+
+#[account(zero_copy(unsafe))]
+#[derive(Eq, PartialEq, Debug)]
+#[repr(C)]
+pub struct PrelaunchOracle {
+    pub price: i64,
+    pub max_price: i64,
+    pub confidence: u64,
+    // last slot oracle was updated, should be greater than or equal to last_update_slot
+    pub last_update_slot: u64,
+    // amm.last_update_slot at time oracle was updated
+    pub amm_last_update_slot: u64,
+    pub perp_market_index: u16,
+    pub padding: [u8; 70],
+}
+
+impl Default for PrelaunchOracle {
+    fn default() -> Self {
+        PrelaunchOracle {
+            price: 0,
+            max_price: 0,
+            confidence: 0,
+            last_update_slot: 0,
+            amm_last_update_slot: 0,
+            perp_market_index: 0,
+            padding: [0; 70],
+        }
+    }
+}
+
+impl Size for PrelaunchOracle {
+    const SIZE: usize = 112 + 8;
+}
+
+impl PrelaunchOracle {
+    pub fn update(&mut self, perp_market: &PerpMarket, slot: u64) -> DriftResult {
+        let last_twap = perp_market.amm.last_mark_price_twap.cast::<i64>()?;
+        let new_price = if self.max_price <= last_twap {
+            msg!(
+                "mark twap {} >= max price {}, using max",
+                last_twap,
+                self.max_price
+            );
+            self.max_price
+        } else {
+            last_twap
+        };
+
+        self.price = new_price;
+
+        let spread_twap = perp_market
+            .amm
+            .last_ask_price_twap
+            .cast::<i64>()?
+            .safe_sub(perp_market.amm.last_bid_price_twap.cast()?)?
+            .unsigned_abs();
+
+        let mark_std = perp_market.amm.mark_std;
+
+        self.confidence = spread_twap.max(mark_std);
+
+        self.amm_last_update_slot = perp_market.amm.last_update_slot;
+        self.last_update_slot = slot;
+
+        msg!(
+            "setting price = {} confidence = {}",
+            self.price,
+            self.confidence
+        );
+
+        Ok(())
+    }
+
+    pub fn validate(&self) -> DriftResult {
+        validate!(self.price != 0, InvalidOracle, "price == 0",)?;
+
+        validate!(self.max_price != 0, InvalidOracle, "max price == 0",)?;
+
+        validate!(
+            self.price <= self.max_price,
+            InvalidOracle,
+            "price {} > max price {}",
+            self.price,
+            self.max_price
+        )?;
+
+        Ok(())
+    }
+}
+
+#[derive(Debug, Clone, Copy, AnchorSerialize, AnchorDeserialize, PartialEq, Eq)]
+pub struct PrelaunchOracleParams {
+    pub perp_market_index: u16,
+    pub price: Option<i64>,
+    pub max_price: Option<i64>,
 }

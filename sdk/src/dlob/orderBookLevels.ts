@@ -7,6 +7,7 @@ import {
 	calculateSpreadReserves,
 	calculateUpdatedAMM,
 	DLOBNode,
+	isVariant,
 	OraclePriceData,
 	PerpMarketAccount,
 	PositionDirection,
@@ -218,6 +219,9 @@ export function getVammL2Generator({
 					);
 
 				baseSwapped = bidAmm.baseAssetReserve.sub(afterSwapBaseReserves).abs();
+				if (baseSwapped.eq(ZERO)) {
+					return;
+				}
 				if (remainingBaseLiquidity.lt(baseSwapped)) {
 					baseSwapped = remainingBaseLiquidity;
 					[afterSwapQuoteReserves, afterSwapBaseReserves] =
@@ -298,6 +302,9 @@ export function getVammL2Generator({
 					);
 
 				baseSwapped = askAmm.baseAssetReserve.sub(afterSwapBaseReserves).abs();
+				if (baseSwapped.eq(ZERO)) {
+					return;
+				}
 				if (remainingBaseLiquidity.lt(baseSwapped)) {
 					baseSwapped = remainingBaseLiquidity;
 					[afterSwapQuoteReserves, afterSwapBaseReserves] =
@@ -369,13 +376,23 @@ export function groupL2(
 	};
 }
 
+function cloneL2Level(level: L2Level): L2Level {
+	if (!level) return level;
+
+	return {
+		price: level.price,
+		size: level.size,
+		sources: { ...level.sources },
+	};
+}
+
 function groupL2Levels(
 	levels: L2Level[],
 	grouping: BN,
 	direction: PositionDirection,
 	depth: number
 ): L2Level[] {
-	const groupedLevels = [];
+	const groupedLevels: L2Level[] = [];
 	for (const level of levels) {
 		const price = standardizePrice(level.price, grouping, direction);
 		const size = level.size;
@@ -383,7 +400,11 @@ function groupL2Levels(
 			groupedLevels.length > 0 &&
 			groupedLevels[groupedLevels.length - 1].price.eq(price)
 		) {
-			const currentLevel = groupedLevels[groupedLevels.length - 1];
+			// Clones things so we don't mutate the original
+			const currentLevel = cloneL2Level(
+				groupedLevels[groupedLevels.length - 1]
+			);
+
 			currentLevel.size = currentLevel.size.add(size);
 			for (const [source, size] of Object.entries(level.sources)) {
 				if (currentLevel.sources[source]) {
@@ -407,6 +428,30 @@ function groupL2Levels(
 	}
 	return groupedLevels;
 }
+
+/**
+ * Method to merge bids or asks by price
+ */
+const mergeByPrice = (bidsOrAsks: L2Level[]) => {
+	const merged = new Map<string, L2Level>();
+	for (const level of bidsOrAsks) {
+		const key = level.price.toString();
+		if (merged.has(key)) {
+			const existing = merged.get(key);
+			existing.size = existing.size.add(level.size);
+			for (const [source, size] of Object.entries(level.sources)) {
+				if (existing.sources[source]) {
+					existing.sources[source] = existing.sources[source].add(size);
+				} else {
+					existing.sources[source] = size;
+				}
+			}
+		} else {
+			merged.set(key, cloneL2Level(level));
+		}
+	}
+	return Array.from(merged.values());
+};
 
 /**
  * The purpose of this function is uncross the L2 orderbook by modifying the bid/ask price at the top of the book
@@ -446,8 +491,8 @@ export function uncrossL2(
 		return { bids, asks };
 	}
 
-	const newBids = [];
-	const newAsks = [];
+	const newBids: L2Level[] = [];
+	const newAsks: L2Level[] = [];
 
 	const updateLevels = (newPrice: BN, oldLevel: L2Level, levels: L2Level[]) => {
 		if (levels.length > 0 && levels[levels.length - 1].price.eq(newPrice)) {
@@ -478,9 +523,22 @@ export function uncrossL2(
 
 	let bidIndex = 0;
 	let askIndex = 0;
+	let maxBid: BN;
+	let minAsk: BN;
+
+	const getPriceAndSetBound = (newPrice: BN, direction: PositionDirection) => {
+		if (isVariant(direction, 'long')) {
+			maxBid = maxBid ? BN.min(maxBid, newPrice) : newPrice;
+			return maxBid;
+		} else {
+			minAsk = minAsk ? BN.max(minAsk, newPrice) : newPrice;
+			return minAsk;
+		}
+	};
+
 	while (bidIndex < bids.length || askIndex < asks.length) {
-		const nextBid = bids[bidIndex];
-		const nextAsk = asks[askIndex];
+		const nextBid = cloneL2Level(bids[bidIndex]);
+		const nextAsk = cloneL2Level(asks[askIndex]);
 
 		if (!nextBid) {
 			newAsks.push(nextAsk);
@@ -494,52 +552,80 @@ export function uncrossL2(
 			continue;
 		}
 
-		if (nextBid.price.gt(nextAsk.price)) {
-			if (userBids.has(nextBid.price.toString())) {
-				newBids.push(nextBid);
-				bidIndex++;
-				continue;
-			}
+		if (userBids.has(nextBid.price.toString())) {
+			newBids.push(nextBid);
+			bidIndex++;
+			continue;
+		}
 
-			if (userAsks.has(nextAsk.price.toString())) {
-				newAsks.push(nextAsk);
-				askIndex++;
-				continue;
-			}
+		if (userAsks.has(nextAsk.price.toString())) {
+			newAsks.push(nextAsk);
+			askIndex++;
+			continue;
+		}
 
+		if (nextBid.price.gte(nextAsk.price)) {
 			if (
 				nextBid.price.gt(referencePrice) &&
 				nextAsk.price.gt(referencePrice)
 			) {
-				const newBidPrice = nextAsk.price.sub(grouping);
+				let newBidPrice = nextAsk.price.sub(grouping);
+				newBidPrice = getPriceAndSetBound(newBidPrice, PositionDirection.LONG);
 				updateLevels(newBidPrice, nextBid, newBids);
 				bidIndex++;
 			} else if (
 				nextAsk.price.lt(referencePrice) &&
 				nextBid.price.lt(referencePrice)
 			) {
-				const newAskPrice = nextBid.price.add(grouping);
+				let newAskPrice = nextBid.price.add(grouping);
+				newAskPrice = getPriceAndSetBound(newAskPrice, PositionDirection.SHORT);
 				updateLevels(newAskPrice, nextAsk, newAsks);
 				askIndex++;
 			} else {
-				const newBidPrice = referencePrice.sub(grouping);
-				const newAskPrice = referencePrice.add(grouping);
+				let newBidPrice = referencePrice.sub(grouping);
+				let newAskPrice = referencePrice.add(grouping);
+
+				newBidPrice = getPriceAndSetBound(newBidPrice, PositionDirection.LONG);
+				newAskPrice = getPriceAndSetBound(newAskPrice, PositionDirection.SHORT);
+
 				updateLevels(newBidPrice, nextBid, newBids);
 				updateLevels(newAskPrice, nextAsk, newAsks);
 				bidIndex++;
 				askIndex++;
 			}
 		} else {
-			newAsks.push(nextAsk);
+			if (minAsk && nextAsk.price.lte(minAsk)) {
+				const newAskPrice = getPriceAndSetBound(
+					nextAsk.price,
+					PositionDirection.SHORT
+				);
+				updateLevels(newAskPrice, nextAsk, newAsks);
+			} else {
+				newAsks.push(nextAsk);
+			}
 			askIndex++;
 
-			newBids.push(nextBid);
+			if (maxBid && nextBid.price.gte(maxBid)) {
+				const newBidPrice = getPriceAndSetBound(
+					nextBid.price,
+					PositionDirection.LONG
+				);
+				updateLevels(newBidPrice, nextBid, newBids);
+			} else {
+				newBids.push(nextBid);
+			}
 			bidIndex++;
 		}
 	}
 
+	newBids.sort((a, b) => b.price.cmp(a.price));
+	newAsks.sort((a, b) => a.price.cmp(b.price));
+
+	const finalNewBids = mergeByPrice(newBids);
+	const finalNewAsks = mergeByPrice(newAsks);
+
 	return {
-		bids: newBids,
-		asks: newAsks,
+		bids: finalNewBids,
+		asks: finalNewAsks,
 	};
 }

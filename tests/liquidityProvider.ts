@@ -507,6 +507,9 @@ describe('liquidity providing', () => {
 		);
 		assert(market.amm.baseAssetAmountPerLp.eq(new BN(12500000)));
 		assert(market.amm.quoteAssetAmountPerLp.eq(new BN(-12337)));
+		console.log(user.perpPositions[0].remainderBaseAssetAmount.toString()); // lp remainder
+		assert(user.perpPositions[0].remainderBaseAssetAmount != 0); // lp remainder
+		assert(user.perpPositions[0].remainderBaseAssetAmount == 250000000); // lp remainder
 
 		// remove
 		console.log('removing liquidity...');
@@ -524,9 +527,12 @@ describe('liquidity providing', () => {
 				await driftClient.getUserAccountPublicKey()
 			)
 		);
+		console.log(
+			'removeLiquidityRecord.deltaQuoteAssetAmount',
+			removeLiquidityRecord.deltaQuoteAssetAmount.toString()
+		);
 		assert(removeLiquidityRecord.deltaBaseAssetAmount.eq(ZERO));
-		assert(removeLiquidityRecord.deltaQuoteAssetAmount.eq(ZERO));
-
+		assert(removeLiquidityRecord.deltaQuoteAssetAmount.eq(new BN('-243866'))); // show pnl from burn in record
 		console.log('closing trader ...');
 		await adjustOraclePostSwap(tradeSize, SwapDirection.REMOVE, market);
 		await fullClosePosition(
@@ -642,6 +648,14 @@ describe('liquidity providing', () => {
 			settleLiquidityRecord.pnl.toString(),
 			sdkPnl.toString()
 		);
+		console.log(
+			'deltaBaseAssetAmount:',
+			settleLiquidityRecord.deltaBaseAssetAmount.toString()
+		);
+		console.log(
+			'deltaQuoteAssetAmount:',
+			settleLiquidityRecord.deltaQuoteAssetAmount.toString()
+		);
 
 		assert(settleLiquidityRecord.pnl.toString() === sdkPnl.toString());
 
@@ -669,6 +683,10 @@ describe('liquidity providing', () => {
 				position.remainderBaseAssetAmount
 		);
 
+		console.log(
+			position.baseAssetAmount.toString(),
+			position.quoteAssetAmount.toString()
+		);
 		assert(position.baseAssetAmount.lt(ZERO));
 		assert(position.quoteAssetAmount.gt(ZERO));
 		assert(position.lpShares.gt(ZERO));

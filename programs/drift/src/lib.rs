@@ -11,6 +11,7 @@ use math::{bn, constants::*};
 use state::oracle::OracleSource;
 
 use crate::controller::position::PositionDirection;
+use crate::state::oracle::PrelaunchOracleParams;
 use crate::state::order_params::{ModifyOrderParams, OrderParams};
 use crate::state::perp_market::{ContractTier, MarketStatus};
 use crate::state::spot_market::AssetTier;
@@ -290,6 +291,14 @@ pub mod drift {
         handle_update_user_reduce_only(ctx, _sub_account_id, reduce_only)
     }
 
+    pub fn update_user_advanced_lp(
+        ctx: Context<UpdateUser>,
+        _sub_account_id: u16,
+        advanced_lp: bool,
+    ) -> Result<()> {
+        handle_update_user_advanced_lp(ctx, _sub_account_id, advanced_lp)
+    }
+
     pub fn delete_user<'c: 'info, 'info>(
         ctx: Context<'_, '_, 'c, 'info, DeleteUser>,
     ) -> Result<()> {
@@ -476,6 +485,10 @@ pub mod drift {
         handle_update_funding_rate(ctx, market_index)
     }
 
+    pub fn update_prelaunch_oracle(ctx: Context<UpdatePrelaunchOracle>) -> Result<()> {
+        handle_update_prelaunch_oracle(ctx)
+    }
+
     pub fn update_perp_bid_ask_twap<'c: 'info, 'info>(
         ctx: Context<'_, '_, 'c, 'info, UpdatePerpBidAskTwap<'info>>,
     ) -> Result<()> {
@@ -573,7 +586,14 @@ pub mod drift {
         maintenance_liability_weight: u32,
         imf_factor: u32,
         liquidator_fee: u32,
+        if_liquidation_fee: u32,
         active_status: bool,
+        asset_tier: AssetTier,
+        scale_initial_asset_weight_start: u64,
+        withdraw_guard_threshold: u64,
+        order_tick_size: u64,
+        order_step_size: u64,
+        if_total_factor: u32,
         name: [u8; 32],
     ) -> Result<()> {
         handle_initialize_spot_market(
@@ -588,7 +608,14 @@ pub mod drift {
             maintenance_liability_weight,
             imf_factor,
             liquidator_fee,
+            if_liquidation_fee,
             active_status,
+            asset_tier,
+            scale_initial_asset_weight_start,
+            withdraw_guard_threshold,
+            order_tick_size,
+            order_step_size,
+            if_total_factor,
             name,
         )
     }
@@ -625,18 +652,32 @@ pub mod drift {
         handle_update_serum_vault(ctx)
     }
 
-    pub fn initialize_perp_market(
-        ctx: Context<InitializePerpMarket>,
+    pub fn initialize_perp_market<'c: 'info, 'info>(
+        ctx: Context<'_, '_, 'c, 'info, InitializePerpMarket<'info>>,
         market_index: u16,
         amm_base_asset_reserve: u128,
         amm_quote_asset_reserve: u128,
         amm_periodicity: i64,
         amm_peg_multiplier: u128,
         oracle_source: OracleSource,
+        contract_tier: ContractTier,
         margin_ratio_initial: u32,
         margin_ratio_maintenance: u32,
         liquidator_fee: u32,
+        if_liquidation_fee: u32,
+        imf_factor: u32,
         active_status: bool,
+        base_spread: u32,
+        max_spread: u32,
+        max_open_interest: u128,
+        max_revenue_withdraw_per_period: u64,
+        quote_max_insurance: u64,
+        order_step_size: u64,
+        order_tick_size: u64,
+        min_order_size: u64,
+        concentration_coef_scale: u128,
+        curve_update_intensity: u8,
+        amm_jit_intensity: u8,
         name: [u8; 32],
     ) -> Result<()> {
         handle_initialize_perp_market(
@@ -647,10 +688,24 @@ pub mod drift {
             amm_periodicity,
             amm_peg_multiplier,
             oracle_source,
+            contract_tier,
             margin_ratio_initial,
             margin_ratio_maintenance,
             liquidator_fee,
+            if_liquidation_fee,
+            imf_factor,
             active_status,
+            base_spread,
+            max_spread,
+            max_open_interest,
+            max_revenue_withdraw_per_period,
+            quote_max_insurance,
+            order_step_size,
+            order_tick_size,
+            min_order_size,
+            concentration_coef_scale,
+            curve_update_intensity,
+            amm_jit_intensity,
             name,
         )
     }
@@ -669,6 +724,14 @@ pub mod drift {
         sqrt_k: u128,
     ) -> Result<()> {
         handle_move_amm_price(ctx, base_asset_reserve, quote_asset_reserve, sqrt_k)
+    }
+
+    pub fn recenter_perp_market_amm(
+        ctx: Context<AdminUpdatePerpMarket>,
+        peg_multiplier: u128,
+        sqrt_k: u128,
+    ) -> Result<()> {
+        handle_recenter_perp_market_amm(ctx, peg_multiplier, sqrt_k)
     }
 
     pub fn update_perp_market_expiry(
@@ -720,6 +783,13 @@ pub mod drift {
         margin_ratio_maintenance: u32,
     ) -> Result<()> {
         handle_update_perp_market_margin_ratio(ctx, margin_ratio_initial, margin_ratio_maintenance)
+    }
+
+    pub fn update_perp_market_funding_period(
+        ctx: Context<AdminUpdatePerpMarket>,
+        funding_period: i64,
+    ) -> Result<()> {
+        handle_update_perp_market_funding_period(ctx, funding_period)
     }
 
     pub fn update_perp_market_max_imbalances(
@@ -787,6 +857,13 @@ pub mod drift {
         status: MarketStatus,
     ) -> Result<()> {
         handle_update_spot_market_status(ctx, status)
+    }
+
+    pub fn update_spot_market_paused_operations(
+        ctx: Context<AdminUpdateSpotMarket>,
+        paused_operations: u8,
+    ) -> Result<()> {
+        handle_update_spot_market_paused_operations(ctx, paused_operations)
     }
 
     pub fn update_spot_market_asset_tier(
@@ -887,6 +964,13 @@ pub mod drift {
         status: MarketStatus,
     ) -> Result<()> {
         handle_update_perp_market_status(ctx, status)
+    }
+
+    pub fn update_perp_market_paused_operations(
+        ctx: Context<AdminUpdatePerpMarket>,
+        paused_operations: u8,
+    ) -> Result<()> {
+        handle_update_perp_market_paused_operations(ctx, paused_operations)
     }
 
     pub fn update_perp_market_contract_tier(
@@ -1160,6 +1244,27 @@ pub mod drift {
             max_transfer_per_epoch,
         )
     }
+
+    pub fn initialize_prelaunch_oracle(
+        ctx: Context<InitializePrelaunchOracle>,
+        params: PrelaunchOracleParams,
+    ) -> Result<()> {
+        handle_initialize_prelaunch_oracle(ctx, params)
+    }
+
+    pub fn update_prelaunch_oracle_params(
+        ctx: Context<UpdatePrelaunchOracleParams>,
+        params: PrelaunchOracleParams,
+    ) -> Result<()> {
+        handle_update_prelaunch_oracle_params(ctx, params)
+    }
+
+    pub fn delete_prelaunch_oracle(
+        ctx: Context<DeletePrelaunchOracle>,
+        perp_market_index: u16,
+    ) -> Result<()> {
+        handle_delete_prelaunch_oracle(ctx, perp_market_index)
+    }
 }
 
 #[cfg(not(feature = "no-entrypoint"))]
@@ -1168,7 +1273,7 @@ use solana_security_txt::security_txt;
 security_txt! {
     name: "Drift v2",
     project_url: "https://drift.trade",
-    contacts: "link:https://docs.drift.trade/bug-bounty",
+    contacts: "link:https://docs.drift.trade/security/bug-bounty",
     policy: "https://github.com/drift-labs/protocol-v2/blob/main/SECURITY.md",
     preferred_languages: "en",
     source_code: "https://github.com/drift-labs/protocol-v2"
