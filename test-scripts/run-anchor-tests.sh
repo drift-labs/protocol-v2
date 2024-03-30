@@ -68,5 +68,12 @@ test_files=(
 )
 
 for test_file in ${test_files[@]}; do
-  export ANCHOR_TEST_FILE=${test_file} && anchor test --skip-build || exit 1
+  export ANCHOR_TEST_FILE=${test_file}
+  anchor test --skip-build
+  if [ $? -ne 0 ]; then
+      echo "anchor test failed, printing logs..."
+      # Print the contents of the log file
+      cat .anchor/test-ledger/test-ledger-log.txt
+      exit 1
+  fi
 done
