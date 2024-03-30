@@ -75,6 +75,7 @@ for test_file in ${test_files[@]}; do
       echo "anchor test failed, printing logs..."
       # Print the contents of the log file
       cat .anchor/test-ledger/test-ledger-log.txt
+      cat .anchor/test-ledger/validator.log
       exit 1
   fi
 done
