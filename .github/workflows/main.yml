@@ -13,7 +13,7 @@ defaults:
 
 env:
   CARGO_TERM_COLOR: always
-  RUST_TOOLCHAIN: 1.63.0
+  RUST_TOOLCHAIN: 1.70.0
   SOLANA_VERSION: "1.16.27"
 
 jobs:
