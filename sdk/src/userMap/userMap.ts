@@ -421,74 +421,88 @@ export class UserMap implements UserMapInterface {
 			this.syncPromise = undefined;
 		}
 	}
-	
+
 	public async paginatedSync() {
 		if (this.syncPromise) {
-		  return this.syncPromise;
+			return this.syncPromise;
 		}
-	 
+
 		this.syncPromise = new Promise<void>((resolve) => {
-		  this.syncPromiseResolver = resolve;
+			this.syncPromiseResolver = resolve;
 		});
-	 
+
 		try {
-		  const accountsPrefetch = await this.connection.getProgramAccounts(this.driftClient.program.programId, {
-			 dataSlice: { offset: 0, length: 0 },
-			 filters: [
-				getUserFilter(),
-				...(!this.includeIdle ? [getNonIdleUserFilter()] : []),
-			 ],
-		  });
-		  const accountPublicKeys = accountsPrefetch.map(account => account.pubkey);
-	 
-		  const programAccountBufferMap = new Map<string, Buffer>();
-		  const chunkSize = 100;
-	 
-		  for (let i = 0; i < accountPublicKeys.length; i += chunkSize) {
-			 const chunk = accountPublicKeys.slice(i, i + chunkSize);
-			 const accountInfos = await this.connection.getMultipleAccountsInfo(chunk);
-			 
-			 accountInfos.forEach((accountInfo, index) => {
-				if (accountInfo === null) return; // Skip null accounts
-				const publicKeyString = chunk[index].toString();
-				programAccountBufferMap.set(publicKeyString, Buffer.from(accountInfo.data));
-			 });
-		  }
-	 
-		  const promises = Array.from(programAccountBufferMap.entries()).map(async ([publicKeyString, buffer]) => {
-			 const decodedUser = this.decode('User', buffer); 
-			 const slot = this.mostRecentSlot; 
-			 
-			 const currAccountWithSlot = this.getWithSlot(publicKeyString);
-			 if (currAccountWithSlot && slot >= currAccountWithSlot.slot) {
-				this.updateUserAccount(publicKeyString, decodedUser, slot);
-			 } else {
-				await this.addPubkey(new PublicKey(publicKeyString), decodedUser, slot);
-			 }
-		  });
-	 
-		  await Promise.all(promises);
-	 
-		  for (const [publicKeyString] of this.entries()) {
-			 if (!programAccountBufferMap.has(publicKeyString)) {
-				const user = this.get(publicKeyString);
-				if (user) {
-				  await user.unsubscribe();
-				  this.userMap.delete(publicKeyString);
+			const accountsPrefetch = await this.connection.getProgramAccounts(
+				this.driftClient.program.programId,
+				{
+					dataSlice: { offset: 0, length: 0 },
+					filters: [
+						getUserFilter(),
+						...(!this.includeIdle ? [getNonIdleUserFilter()] : []),
+					],
 				}
-			 }
-		  }
+			);
+			const accountPublicKeys = accountsPrefetch.map(
+				(account) => account.pubkey
+			);
+
+			const programAccountBufferMap = new Map<string, Buffer>();
+			const chunkSize = 100;
+
+			for (let i = 0; i < accountPublicKeys.length; i += chunkSize) {
+				const chunk = accountPublicKeys.slice(i, i + chunkSize);
+				const accountInfos =
+					await this.connection.getMultipleAccountsInfo(chunk);
+
+				accountInfos.forEach((accountInfo, index) => {
+					if (accountInfo === null) return; // Skip null accounts
+					const publicKeyString = chunk[index].toString();
+					programAccountBufferMap.set(
+						publicKeyString,
+						Buffer.from(accountInfo.data)
+					);
+				});
+			}
+
+			const promises = Array.from(programAccountBufferMap.entries()).map(
+				async ([publicKeyString, buffer]) => {
+					const decodedUser = this.decode('User', buffer);
+					const slot = this.mostRecentSlot;
+
+					const currAccountWithSlot = this.getWithSlot(publicKeyString);
+					if (currAccountWithSlot && slot >= currAccountWithSlot.slot) {
+						this.updateUserAccount(publicKeyString, decodedUser, slot);
+					} else {
+						await this.addPubkey(
+							new PublicKey(publicKeyString),
+							decodedUser,
+							slot
+						);
+					}
+				}
+			);
+
+			await Promise.all(promises);
+
+			for (const [publicKeyString] of this.entries()) {
+				if (!programAccountBufferMap.has(publicKeyString)) {
+					const user = this.get(publicKeyString);
+					if (user) {
+						await user.unsubscribe();
+						this.userMap.delete(publicKeyString);
+					}
+				}
+			}
 		} catch (err) {
-		  const e = err as Error;
-		  console.error(`Error in UserMap.sync(): ${e.message} ${e.stack ?? ''}`);
+			const e = err as Error;
+			console.error(`Error in UserMap.sync(): ${e.message} ${e.stack ?? ''}`);
 		} finally {
-		  if (this.syncPromiseResolver) {
-			 this.syncPromiseResolver();
-		  }
-		  this.syncPromise = undefined;
+			if (this.syncPromiseResolver) {
+				this.syncPromiseResolver();
+			}
+			this.syncPromise = undefined;
 		}
-	 }
-	 
+	}
 
 	public async unsubscribe() {
 		await this.subscription.unsubscribe();
@@ -538,4 +552,3 @@ export class UserMap implements UserMapInterface {
 		return this.mostRecentSlot;
 	}
 }
-
