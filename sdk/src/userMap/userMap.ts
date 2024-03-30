@@ -26,6 +26,7 @@ import {
 	RpcResponseAndContext,
 } from '@solana/web3.js';
 import { Buffer } from 'buffer';
+import { ZSTDDecoder } from 'zstddec';
 import { getNonIdleUserFilter, getUserFilter } from '../memcmp';
 import {
 	UserAccountFilterCriteria as UserFilterCriteria,
@@ -34,6 +35,8 @@ import {
 import { WebsocketSubscription } from './WebsocketSubscription';
 import { PollingSubscription } from './PollingSubscription';
 import { decodeUser } from '../decode/user';
+
+const MAX_USER_ACCOUNT_SIZE_BYTES = 4528 * 2;
 
 export interface UserMapInterface {
 	subscribe(): Promise<void>;
@@ -357,7 +360,7 @@ export class UserMap implements UserMapInterface {
 				{
 					commitment: this.commitment,
 					filters,
-					encoding: 'base64',
+					encoding: 'base64+zstd',
 					withContext: true,
 				},
 			];
@@ -375,16 +378,26 @@ export class UserMap implements UserMapInterface {
 			this.updateLatestSlot(slot);
 
 			const programAccountBufferMap = new Map<string, Buffer>();
-			rpcResponseAndContext.value.forEach((programAccount) => {
-				programAccountBufferMap.set(
-					programAccount.pubkey.toString(),
-					// @ts-ignore
-					Buffer.from(
+			const decodingPromises = rpcResponseAndContext.value.map(
+				async (programAccount) => {
+					const compressedUserData = Buffer.from(
 						programAccount.account.data[0],
-						programAccount.account.data[1]
-					)
-				);
-			});
+						'base64'
+					);
+					const decoder = new ZSTDDecoder();
+					await decoder.init();
+					const userBuffer = decoder.decode(
+						compressedUserData,
+						MAX_USER_ACCOUNT_SIZE_BYTES
+					);
+					programAccountBufferMap.set(
+						programAccount.pubkey.toString(),
+						Buffer.from(userBuffer)
+					);
+				}
+			);
+
+			await Promise.all(decodingPromises);
 
 			const promises = Array.from(programAccountBufferMap.entries()).map(
 				([key, buffer]) =>
