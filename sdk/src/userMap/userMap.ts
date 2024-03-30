@@ -36,7 +36,7 @@ import { WebsocketSubscription } from './WebsocketSubscription';
 import { PollingSubscription } from './PollingSubscription';
 import { decodeUser } from '../decode/user';
 
-const MAX_USER_ACCOUNT_SIZE_BYTES = 4528 * 2;
+const MAX_USER_ACCOUNT_SIZE_BYTES = 4376;
 
 export interface UserMapInterface {
 	subscribe(): Promise<void>;
