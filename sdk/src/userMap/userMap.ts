@@ -473,11 +473,11 @@ export class UserMap implements UserMapInterface {
 			};
 
 			const chunkSize = 100;
-			let tasks = [];
+			const tasks = [];
 			for (let i = 0; i < accountPublicKeys.length; i += chunkSize) {
 				const chunk = accountPublicKeys.slice(i, i + chunkSize);
-				tasks.push(() => this.connection.getMultipleAccountsInfo(chunk));
-			}
+				tasks.push(() => this.connection.getMultipleAccountsInfo(chunk, { commitment: this.commitment }));
+			}	
 
 			const concurrencyLimit = 10; // Tested on cluster node
 			const chunkedAccountInfos = await limitConcurrency(
