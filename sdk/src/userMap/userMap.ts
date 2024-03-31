@@ -446,56 +446,97 @@ export class UserMap implements UserMapInterface {
 				(account) => account.pubkey
 			);
 
-			const programAccountBufferMap = new Map<string, Buffer>();
-			const chunkSize = 100;
+			const limitConcurrency = async (tasks, limit) => {
+				const executing = [];
+				const results = [];
 
+				for (let i = 0; i < tasks.length; i++) {
+					const executor = Promise.resolve().then(tasks[i]);
+					results.push(executor);
+
+					if (executing.length < limit) {
+						executing.push(executor);
+						executor.finally(() => {
+							const index = executing.indexOf(executor);
+							if (index > -1) {
+								executing.splice(index, 1);
+							}
+						});
+					}
+
+					if (executing.length >= limit) {
+						await Promise.race(executing);
+					}
+				}
+
+				return Promise.all(results);
+			};
+
+			const chunkSize = 100;
+			let tasks = [];
 			for (let i = 0; i < accountPublicKeys.length; i += chunkSize) {
 				const chunk = accountPublicKeys.slice(i, i + chunkSize);
-				const accountInfos =
-					await this.connection.getMultipleAccountsInfo(chunk);
-
-				accountInfos.forEach((accountInfo, index) => {
-					if (accountInfo === null) return; // Skip null accounts
-					const publicKeyString = chunk[index].toString();
-					programAccountBufferMap.set(
-						publicKeyString,
-						Buffer.from(accountInfo.data)
-					);
-				});
+				tasks.push(() => this.connection.getMultipleAccountsInfo(chunk));
 			}
 
-			const promises = Array.from(programAccountBufferMap.entries()).map(
-				async ([publicKeyString, buffer]) => {
+			const concurrencyLimit = 10; // Tested on cluster node
+			const chunkedAccountInfos = await limitConcurrency(
+				tasks,
+				concurrencyLimit
+			);
+
+			const programAccountBufferMap = new Map<string, Buffer>();
+
+			for (
+				let chunkIndex = 0;
+				chunkIndex < chunkedAccountInfos.length;
+				chunkIndex++
+			) {
+				const accountInfos = chunkedAccountInfos[chunkIndex];
+				if (!accountInfos) continue;
+
+				for (let index = 0; index < accountInfos.length; index++) {
+					const accountInfo = accountInfos[index];
+					if (accountInfo === null) continue;
+
+					const publicKeyIndex = chunkIndex * chunkSize + index;
+					const publicKeyString = accountPublicKeys[publicKeyIndex].toString();
+					const buffer = Buffer.from(accountInfo.data);
+					programAccountBufferMap.set(publicKeyString, buffer);
+
 					const decodedUser = this.decode('User', buffer);
-					const slot = this.mostRecentSlot;
 
 					const currAccountWithSlot = this.getWithSlot(publicKeyString);
-					if (currAccountWithSlot && slot >= currAccountWithSlot.slot) {
-						this.updateUserAccount(publicKeyString, decodedUser, slot);
+					if (
+						currAccountWithSlot &&
+						currAccountWithSlot.slot <= accountInfo.lamports
+					) {
+						this.updateUserAccount(
+							publicKeyString,
+							decodedUser,
+							accountInfo.lamports
+						);
 					} else {
 						await this.addPubkey(
 							new PublicKey(publicKeyString),
 							decodedUser,
-							slot
+							accountInfo.lamports
 						);
 					}
 				}
-			);
+			}
 
-			await Promise.all(promises);
-
-			for (const [publicKeyString] of this.entries()) {
-				if (!programAccountBufferMap.has(publicKeyString)) {
-					const user = this.get(publicKeyString);
+			for (const [key] of this.entries()) {
+				if (!programAccountBufferMap.has(key)) {
+					const user = this.get(key);
 					if (user) {
 						await user.unsubscribe();
-						this.userMap.delete(publicKeyString);
+						this.userMap.delete(key);
 					}
 				}
 			}
 		} catch (err) {
-			const e = err as Error;
-			console.error(`Error in UserMap.sync(): ${e.message} ${e.stack ?? ''}`);
+			console.error(`Error in UserMap.sync():`, err);
 		} finally {
 			if (this.syncPromiseResolver) {
 				this.syncPromiseResolver();
