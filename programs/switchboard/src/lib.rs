@@ -2,6 +2,11 @@ use anchor_lang::prelude::*;
 
 declare_id!("SW1TCH7qEPTdLsDHRgPuMQjbQxKdH2aBStViMFnt64f");
 
+#[program]
+pub mod switchboard {
+
+}
+
 #[zero_copy(unsafe)]
 #[repr(packed)]
 #[derive(Default, Debug, Eq, PartialEq, AnchorDeserialize)]
