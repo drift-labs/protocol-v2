@@ -136,7 +136,7 @@ impl<'a> PerpMarketMap<'a> {
 
 #[cfg(test)]
 impl<'a> PerpMarketMap<'a> {
-    pub fn load_one<'c>(
+    pub fn load_one<'c: 'a>(
         account_info: &'c AccountInfo<'a>,
         must_be_writable: bool,
     ) -> DriftResult<PerpMarketMap<'a>> {
@@ -177,7 +177,7 @@ impl<'a> PerpMarketMap<'a> {
         PerpMarketMap(BTreeMap::new())
     }
 
-    pub fn load_multiple<'c>(
+    pub fn load_multiple<'c: 'a>(
         account_infos: Vec<&'c AccountInfo<'a>>,
         must_be_writable: bool,
     ) -> DriftResult<PerpMarketMap<'a>> {

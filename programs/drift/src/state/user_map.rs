@@ -105,7 +105,7 @@ impl<'a> UserMap<'a> {
 
 #[cfg(test)]
 impl<'a> UserMap<'a> {
-    pub fn load_one<'b>(account_info: &'b AccountInfo<'a>) -> DriftResult<UserMap<'a>> {
+    pub fn load_one<'b: 'a>(account_info: &'b AccountInfo<'a>) -> DriftResult<UserMap<'a>> {
         let mut user_map = UserMap(BTreeMap::new());
 
         let user_discriminator: [u8; 8] = User::discriminator();
@@ -233,7 +233,7 @@ impl<'a> UserStatsMap<'a> {
 
 #[cfg(test)]
 impl<'a> UserStatsMap<'a> {
-    pub fn load_one<'b>(account_info: &'b AccountInfo<'a>) -> DriftResult<UserStatsMap<'a>> {
+    pub fn load_one<'b: 'a>(account_info: &'b AccountInfo<'a>) -> DriftResult<UserStatsMap<'a>> {
         let mut user_stats_map = UserStatsMap(BTreeMap::new());
 
         let user_stats_discriminator: [u8; 8] = UserStats::discriminator();

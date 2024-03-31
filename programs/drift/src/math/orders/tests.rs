@@ -3344,12 +3344,12 @@ pub mod get_price_for_perp_order {
 }
 
 pub mod estimate_price_from_side {
-    use crate::math::orders::{estimate_price_from_side, Level, Side};
+    use crate::math::orders::{estimate_price_from_side, Level};
     use crate::{BASE_PRECISION_U64, PRICE_PRECISION_U64};
 
     #[test]
     fn ask() {
-        let mut asks: Side = vec![];
+        let mut asks: Vec<Level> = vec![];
         for i in 0..11 {
             asks.push(Level {
                 price: (100 - i) * PRICE_PRECISION_U64,
@@ -3370,7 +3370,7 @@ pub mod estimate_price_from_side {
 
     #[test]
     fn bids() {
-        let mut bids: Side = vec![];
+        let mut bids: Vec<Level> = vec![];
         for i in 0..11 {
             bids.push(Level {
                 price: (90 + i) * PRICE_PRECISION_U64,

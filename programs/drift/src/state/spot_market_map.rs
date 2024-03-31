@@ -199,7 +199,7 @@ impl<'a> SpotMarketMap<'a> {
 
 #[cfg(test)]
 impl<'a> SpotMarketMap<'a> {
-    pub fn load_one<'c>(
+    pub fn load_one<'c: 'a>(
         account_info: &'c AccountInfo<'a>,
         must_be_writable: bool,
     ) -> DriftResult<SpotMarketMap<'a>> {
@@ -235,7 +235,7 @@ impl<'a> SpotMarketMap<'a> {
         Ok(spot_market_map)
     }
 
-    pub fn load_multiple<'c>(
+    pub fn load_multiple<'c: 'a>(
         account_info: Vec<&'c AccountInfo<'a>>,
         must_be_writable: bool,
     ) -> DriftResult<SpotMarketMap<'a>> {
