@@ -149,28 +149,17 @@ pub fn estimate_best_bid_ask_price(
     precomputed_trade_price: Option<u64>,
     direction: Option<PositionDirection>,
 ) -> DriftResult<(u64, u64)> {
+    let base_spread_u64 = amm.base_spread.cast::<u64>()?;
     let last_oracle_price_u64 = amm.historical_oracle_data.last_oracle_price.cast::<u64>()?;
-
-    // in price units
-    let base_spread_price_u64 = last_oracle_price_u64
-        .safe_mul(amm.base_spread.cast::<u64>()?)?
-        .safe_div(PERCENTAGE_PRECISION_U64)?;
-    let max_spread_price_u64 = last_oracle_price_u64
-        .safe_mul(amm.base_spread.max(amm.max_spread).cast::<u64>()?)?
-        .safe_div(PERCENTAGE_PRECISION_U64)?;
 
     let trade_price: u64 = match precomputed_trade_price {
         Some(trade_price) => trade_price,
         None => last_oracle_price_u64,
     };
-    let est_market_spread = amm
-        .last_ask_price_twap
-        .cast::<i64>()?
-        .safe_sub(amm.last_bid_price_twap.cast::<i64>()?)?
-        .max(0)
-        .unsigned_abs()
-        .clamp(base_spread_price_u64, max_spread_price_u64);
 
+    let trade_premium: i64 = trade_price
+        .cast::<i64>()?
+        .safe_sub(amm.historical_oracle_data.last_oracle_price)?;
     validate!(
         amm.historical_oracle_data.last_oracle_price > 0,
         ErrorCode::InvalidOracle,
@@ -179,26 +168,21 @@ pub fn estimate_best_bid_ask_price(
 
     let amm_reserve_price = amm.reserve_price()?;
     let (amm_bid_price, amm_ask_price) = amm.bid_ask_price(amm_reserve_price)?;
+    // estimation of bid/ask by looking at execution premium
 
-    let best_bid_estimate = if let Some(direction) = direction {
-        // taker is a long, hitting ask, assuming best bid is est_market_spread below
-        if direction == PositionDirection::Long {
-            trade_price.saturating_sub(est_market_spread)
-        } else {
-            trade_price
-        }
+    // trade is a long
+    let best_bid_estimate = if trade_premium > 0 {
+        let discount = min(base_spread_u64, amm.short_spread.cast::<u64>()? / 2);
+        last_oracle_price_u64.safe_sub(discount.min(trade_premium.unsigned_abs()))?
     } else {
         trade_price
     }
     .max(amm_bid_price);
 
-    let best_ask_estimate = if let Some(direction) = direction {
-        // taker is a short, hitting bid, assuming best ask is est_market_spread above
-        if direction == PositionDirection::Short {
-            trade_price.saturating_add(est_market_spread)
-        } else {
-            trade_price
-        }
+    // trade is a short
+    let best_ask_estimate = if trade_premium < 0 {
+        let premium = min(base_spread_u64, amm.long_spread.cast::<u64>()? / 2);
+        last_oracle_price_u64.safe_add(premium.min(trade_premium.unsigned_abs()))?
     } else {
         trade_price
     }
