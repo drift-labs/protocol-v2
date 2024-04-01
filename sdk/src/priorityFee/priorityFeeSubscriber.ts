@@ -23,6 +23,7 @@ export class PriorityFeeSubscriber {
 	priorityFeeMethod = PriorityFeeMethod.SOLANA;
 	lookbackDistance: number;
 	maxFeeMicroLamports?: number;
+	priorityFeeMultiplier?: number;
 
 	heliusRpcUrl?: string;
 	lastHeliusSample?: HeliusPriorityFeeLevels;
@@ -72,6 +73,7 @@ export class PriorityFeeSubscriber {
 		}
 
 		this.maxFeeMicroLamports = config.maxFeeMicroLamports;
+		this.priorityFeeMultiplier = config.priorityFeeMultiplier ?? 1.0;
 	}
 
 	public async subscribe(): Promise<void> {
@@ -126,6 +128,14 @@ export class PriorityFeeSubscriber {
 		this.maxFeeMicroLamports = newMaxFee;
 	}
 
+	public getPriorityFeeMultiplier(): number {
+		return this.priorityFeeMultiplier ?? 1.0;
+	}
+
+	public updatePriorityFeeMultiplier(newPriorityFeeMultiplier: number) {
+		this.priorityFeeMultiplier = newPriorityFeeMultiplier;
+	}
+
 	public updateCustomStrategy(newStrategy: PriorityFeeStrategy) {
 		this.customStrategy = newStrategy;
 	}
@@ -143,24 +153,28 @@ export class PriorityFeeSubscriber {
 	}
 
 	public getCustomStrategyResult(): number {
+		const result =
+			this.lastCustomStrategyResult * this.getPriorityFeeMultiplier();
 		if (this.maxFeeMicroLamports !== undefined) {
-			return Math.min(this.maxFeeMicroLamports, this.lastCustomStrategyResult);
+			return Math.min(this.maxFeeMicroLamports, result);
 		}
-		return this.lastCustomStrategyResult;
+		return result;
 	}
 
 	public getAvgStrategyResult(): number {
+		const result = this.lastAvgStrategyResult * this.getPriorityFeeMultiplier();
 		if (this.maxFeeMicroLamports !== undefined) {
-			return Math.min(this.maxFeeMicroLamports, this.lastAvgStrategyResult);
+			return Math.min(this.maxFeeMicroLamports, result);
 		}
-		return this.lastAvgStrategyResult;
+		return result;
 	}
 
 	public getMaxStrategyResult(): number {
+		const result = this.lastMaxStrategyResult * this.getPriorityFeeMultiplier();
 		if (this.maxFeeMicroLamports !== undefined) {
-			return Math.min(this.maxFeeMicroLamports, this.lastMaxStrategyResult);
+			return Math.min(this.maxFeeMicroLamports, result);
 		}
-		return this.lastMaxStrategyResult;
+		return result;
 	}
 
 	public async load(): Promise<void> {
