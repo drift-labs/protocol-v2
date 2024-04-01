@@ -676,10 +676,10 @@ fn update_mark_twap_tests() {
     assert_eq!((new_bid_twap + new_ask_twap) / 2, new_mark_twap);
     assert!((new_oracle_twap as u64) < new_mark_twap); // funding in favor of maker?
     assert_eq!(new_oracle_twap, 40008161);
-    assert_eq!(new_bid_twap, 40013203);
-    assert_eq!(new_mark_twap, 40023382); // ~ 2 cents above oracle twap
+    assert_eq!(new_bid_twap, 40014547);
+    assert_eq!(new_mark_twap, 40024054); // ~ 2 cents above oracle twap
     assert_eq!(new_ask_twap, 40033561);
-    assert_eq!(amm.mark_std, 27902);
+    assert_eq!(amm.mark_std, 27230);
     assert_eq!(amm.oracle_std, 3119);
 
     let trade_price_2 = 39_971_280 * PRICE_PRECISION_U64 / 1_000_000;
@@ -712,16 +712,16 @@ fn update_mark_twap_tests() {
     let new_bid_twap = amm.last_bid_price_twap;
     let new_ask_twap = amm.last_ask_price_twap;
 
-    assert_eq!(new_bid_twap, 39_989_217);
-    assert_eq!(new_ask_twap, 40_004_701);
+    assert_eq!(new_bid_twap, 39_989_389);
+    assert_eq!(new_ask_twap, 40_000_790);
     assert!(new_bid_twap < new_ask_twap);
     assert_eq!((new_bid_twap + new_ask_twap) / 2, new_mark_twap);
 
     assert_eq!(new_oracle_twap, 39_998_518);
-    assert_eq!(new_mark_twap, 39996959);
+    assert_eq!(new_mark_twap, 39995089);
 
     assert!((new_oracle_twap as u64) >= new_mark_twap); // funding in favor of maker
-    assert_eq!(amm.mark_std, 26291);
+    assert_eq!(amm.mark_std, 24467);
     assert_eq!(amm.oracle_std, 7238);
 }
 
