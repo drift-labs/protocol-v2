@@ -161,7 +161,9 @@ pub struct SpotMarket {
     /// The asset tier affects how a deposit can be used as collateral and the priority for a borrow being liquidated
     pub asset_tier: AssetTier,
     pub paused_operations: u8,
-    pub padding1: [u8; 5],
+    pub padding2: u8,
+    pub fee_adjustment: i16,
+    pub padding1: [u8; 2],
     /// For swaps, the amount of token loaned out in the begin_swap ix
     /// precision: token mint precision
     pub flash_loan_amount: u64,
@@ -230,7 +232,9 @@ impl Default for SpotMarket {
             status: MarketStatus::default(),
             asset_tier: AssetTier::default(),
             paused_operations: 0,
-            padding1: [0; 5],
+            padding2: 0,
+            fee_adjustment: 0,
+            padding1: [0; 2],
             flash_loan_amount: 0,
             flash_loan_initial_token_amount: 0,
             total_swap_fee: 0,
