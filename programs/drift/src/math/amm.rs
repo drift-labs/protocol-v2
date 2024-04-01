@@ -155,8 +155,18 @@ pub fn estimate_best_bid_ask_price(
     let base_spread_price_u64 = last_oracle_price_u64
         .safe_mul(amm.base_spread.cast::<u64>()?)?
         .safe_div(PERCENTAGE_PRECISION_U64)?;
+    let long_spread_price_u64 = last_oracle_price_u64
+        .safe_mul(amm.long_spread.cast::<u64>()?)?
+        .safe_div(PERCENTAGE_PRECISION_U64)?;
+    let short_spread_price_u64 = last_oracle_price_u64
+        .safe_mul(amm.short_spread.cast::<u64>()?)?
+        .safe_div(PERCENTAGE_PRECISION_U64)?;
     let max_spread_price_u64 = last_oracle_price_u64
-        .safe_mul(amm.base_spread.max(amm.max_spread).cast::<u64>()?)?
+        .safe_mul(
+            amm.base_spread
+                .max(amm.long_spread.safe_add(amm.short_spread)?)
+                .cast::<u64>()?,
+        )?
         .safe_div(PERCENTAGE_PRECISION_U64)?;
 
     let trade_price: u64 = match precomputed_trade_price {
@@ -169,7 +179,8 @@ pub fn estimate_best_bid_ask_price(
         .safe_sub(amm.last_bid_price_twap.cast::<i64>()?)?
         .max(0)
         .unsigned_abs()
-        .clamp(base_spread_price_u64, max_spread_price_u64);
+        .clamp(base_spread_price_u64, max_spread_price_u64)
+        .min(amm.mark_std.max(amm.oracle_std).saturating_mul(2));
 
     validate!(
         amm.historical_oracle_data.last_oracle_price > 0,
@@ -183,7 +194,9 @@ pub fn estimate_best_bid_ask_price(
     let best_bid_estimate = if let Some(direction) = direction {
         // taker is a long, hitting ask, assuming best bid is est_market_spread below
         if direction == PositionDirection::Long {
-            trade_price.saturating_sub(est_market_spread)
+            trade_price
+                .saturating_sub(est_market_spread.min(short_spread_price_u64))
+                .min(last_oracle_price_u64)
         } else {
             trade_price
         }
@@ -195,7 +208,9 @@ pub fn estimate_best_bid_ask_price(
     let best_ask_estimate = if let Some(direction) = direction {
         // taker is a short, hitting bid, assuming best ask is est_market_spread above
         if direction == PositionDirection::Short {
-            trade_price.saturating_add(est_market_spread)
+            trade_price
+                .saturating_add(est_market_spread.min(long_spread_price_u64))
+                .max(last_oracle_price_u64)
         } else {
             trade_price
         }
