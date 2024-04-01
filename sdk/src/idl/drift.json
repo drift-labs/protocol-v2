@@ -4785,6 +4785,32 @@
       ]
     },
     {
+      "name": "updateSpotMarketFeeAdjustment",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "spotMarket",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "feeAdjustment",
+          "type": "i16"
+        }
+      ]
+    },
+    {
       "name": "updateAdmin",
       "accounts": [
         {
@@ -6031,11 +6057,19 @@
             "type": "u8"
           },
           {
+            "name": "padding2",
+            "type": "u8"
+          },
+          {
+            "name": "feeAdjustment",
+            "type": "i16"
+          },
+          {
             "name": "padding1",
             "type": {
               "array": [
                 "u8",
-                5
+                2
               ]
             }
           },

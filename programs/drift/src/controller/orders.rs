@@ -4238,7 +4238,7 @@ pub fn fulfill_spot_order_with_match(
         false,
         &None,
         &MarketType::Spot,
-        0,
+        base_market.fee_adjustment,
     )?;
 
     // Update taker state
@@ -4528,7 +4528,7 @@ pub fn fulfill_spot_order_with_external_market(
         external_market_fee,
         unsettled_referrer_rebate,
         fee_pool_amount.cast()?,
-        0,
+        base_market.fee_adjustment,
     )?;
 
     let quote_spot_position_delta = match quote_update_direction {

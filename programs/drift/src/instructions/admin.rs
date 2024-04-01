@@ -272,7 +272,9 @@ pub fn handle_initialize_spot_market(
         total_spot_fee: 0,
         orders_enabled: spot_market_index != 0,
         paused_operations: 0,
-        padding1: [0; 5],
+        padding2: 0,
+        fee_adjustment: 0,
+        padding1: [0; 2],
         flash_loan_amount: 0,
         flash_loan_initial_token_amount: 0,
         total_swap_fee: 0,
@@ -2305,6 +2307,27 @@ pub fn handle_update_perp_market_fee_adjustment(
     )?;
 
     perp_market.fee_adjustment = fee_adjustment;
+    Ok(())
+}
+
+#[access_control(
+    spot_market_valid(&ctx.accounts.spot_market)
+)]
+pub fn handle_update_spot_market_fee_adjustment(
+    ctx: Context<AdminUpdateSpotMarket>,
+    fee_adjustment: i16,
+) -> Result<()> {
+    let spot = &mut load_mut!(ctx.accounts.spot_market)?;
+
+    validate!(
+        fee_adjustment.unsigned_abs().cast::<u64>()? <= FEE_ADJUSTMENT_MAX,
+        ErrorCode::DefaultError,
+        "fee adjustment {} greater than max {}",
+        fee_adjustment,
+        FEE_ADJUSTMENT_MAX
+    )?;
+
+    spot.fee_adjustment = fee_adjustment;
     Ok(())
 }
 

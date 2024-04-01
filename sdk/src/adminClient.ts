@@ -2943,6 +2943,44 @@ export class AdminClient extends DriftClient {
 		);
 	}
 
+	public async updateSpotMarketFeeAdjustment(
+		perpMarketIndex: number,
+		feeAdjustment: number
+	): Promise<TransactionSignature> {
+		const updateSpotMarketFeeAdjustmentIx =
+			await this.getUpdateSpotMarketFeeAdjustmentIx(
+				perpMarketIndex,
+				feeAdjustment
+			);
+
+		const tx = await this.buildTransaction(updateSpotMarketFeeAdjustmentIx);
+
+		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+
+		return txSig;
+	}
+
+	public async getUpdateSpotMarketFeeAdjustmentIx(
+		spotMarketIndex: number,
+		feeAdjustment: number
+	): Promise<TransactionInstruction> {
+		return await this.program.instruction.updateSpotMarketFeeAdjustment(
+			feeAdjustment,
+			{
+				accounts: {
+					admin: this.isSubscribed
+						? this.getStateAccount().admin
+						: this.wallet.publicKey,
+					state: await this.getStatePublicKey(),
+					spotMarket: await getSpotMarketPublicKey(
+						this.program.programId,
+						spotMarketIndex
+					),
+				},
+			}
+		);
+	}
+
 	public async updateSerumVault(
 		srmVault: PublicKey
 	): Promise<TransactionSignature> {
