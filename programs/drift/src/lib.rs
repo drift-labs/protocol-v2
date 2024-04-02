@@ -1181,14 +1181,6 @@ pub mod drift {
         handle_update_spot_auction_duration(ctx, default_spot_auction_duration)
     }
 
-    pub fn admin_remove_insurance_fund_stake(
-        ctx: Context<AdminRemoveInsuranceFundStake>,
-        market_index: u16,
-        amount: u64,
-    ) -> Result<()> {
-        handle_admin_remove_insurance_fund_stake(ctx, market_index, amount)
-    }
-
     pub fn initialize_protocol_if_shares_transfer_config(
         ctx: Context<InitializeProtocolIfSharesTransferConfig>,
     ) -> Result<()> {
