@@ -18,7 +18,12 @@ export class WebSocketProgramAccountSubscriber<T>
 	bufferAndSlot?: BufferAndSlot;
 	program: Program;
 	decodeBuffer: (accountName: string, ix: Buffer) => T;
-	onChange: (accountId: PublicKey, data: T, context: Context) => void;
+	onChange: (
+		accountId: PublicKey,
+		data: T,
+		context: Context,
+		buffer: Buffer
+	) => void;
 	listenerId?: number;
 	resubTimeoutMs?: number;
 	isUnsubscribing = false;
@@ -52,7 +57,12 @@ export class WebSocketProgramAccountSubscriber<T>
 	}
 
 	async subscribe(
-		onChange: (accountId: PublicKey, data: T, context: Context) => void
+		onChange: (
+			accountId: PublicKey,
+			data: T,
+			context: Context,
+			buffer: Buffer
+		) => void
 	): Promise<void> {
 		if (this.listenerId != null || this.isUnsubscribing) {
 			return;
@@ -126,7 +136,7 @@ export class WebSocketProgramAccountSubscriber<T>
 					slot: newSlot,
 					accountId: keyedAccountInfo.accountId,
 				};
-				this.onChange(keyedAccountInfo.accountId, account, context);
+				this.onChange(keyedAccountInfo.accountId, account, context, newBuffer);
 			}
 			return;
 		}
@@ -147,7 +157,7 @@ export class WebSocketProgramAccountSubscriber<T>
 				slot: newSlot,
 				accountId: keyedAccountInfo.accountId,
 			};
-			this.onChange(keyedAccountInfo.accountId, account, context);
+			this.onChange(keyedAccountInfo.accountId, account, context, newBuffer);
 		}
 	}
 
