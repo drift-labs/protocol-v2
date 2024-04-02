@@ -272,7 +272,7 @@ pub fn handle_initialize_spot_market(
         total_spot_fee: 0,
         orders_enabled: spot_market_index != 0,
         paused_operations: 0,
-        padding2: 0,
+        if_staking_disabled: 0,
         fee_adjustment: 0,
         padding1: [0; 2],
         flash_loan_amount: 0,
@@ -1819,6 +1819,18 @@ pub fn handle_update_spot_market_orders_enabled(
 ) -> Result<()> {
     let spot_market = &mut load_mut!(ctx.accounts.spot_market)?;
     spot_market.orders_enabled = orders_enabled;
+    Ok(())
+}
+
+#[access_control(
+    spot_market_valid(&ctx.accounts.spot_market)
+)]
+pub fn handle_update_spot_market_if_staking_disabled(
+    ctx: Context<AdminUpdateSpotMarket>,
+    disabled: bool,
+) -> Result<()> {
+    let spot_market = &mut load_mut!(ctx.accounts.spot_market)?;
+    spot_market.if_staking_disabled = disabled as u8;
     Ok(())
 }
 

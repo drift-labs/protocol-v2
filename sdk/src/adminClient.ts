@@ -2137,6 +2137,44 @@ export class AdminClient extends DriftClient {
 		);
 	}
 
+	public async updateSpotMarketIfStakingDisabled(
+		spotMarketIndex: number,
+		disabled: boolean
+	): Promise<TransactionSignature> {
+		const updateSpotMarketIfStakingDisabledIx =
+			await this.getUpdateSpotMarketIfStakingDisabledIx(
+				spotMarketIndex,
+				disabled
+			);
+
+		const tx = await this.buildTransaction(updateSpotMarketIfStakingDisabledIx);
+
+		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+
+		return txSig;
+	}
+
+	public async getUpdateSpotMarketIfStakingDisabledIx(
+		spotMarketIndex: number,
+		disabled: boolean
+	): Promise<TransactionInstruction> {
+		return await this.program.instruction.updateSpotMarketIfStakingDisabled(
+			disabled,
+			{
+				accounts: {
+					admin: this.isSubscribed
+						? this.getStateAccount().admin
+						: this.wallet.publicKey,
+					state: await this.getStatePublicKey(),
+					spotMarket: await getSpotMarketPublicKey(
+						this.program.programId,
+						spotMarketIndex
+					),
+				},
+			}
+		);
+	}
+
 	public async updateSerumFulfillmentConfigStatus(
 		serumFulfillmentConfig: PublicKey,
 		status: SpotFulfillmentConfigStatus

@@ -29,6 +29,14 @@ pub fn handle_initialize_insurance_fund_stake(
 
     *if_stake = InsuranceFundStake::new(*ctx.accounts.authority.key, market_index, now);
 
+    let spot_market = ctx.accounts.spot_market.load()?;
+
+    validate!(
+        spot_market.if_staking_disabled != 0,
+        ErrorCode::DefaultError,
+        "if staking disabled",
+    )?;
+
     Ok(())
 }
 

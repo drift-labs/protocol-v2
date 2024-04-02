@@ -907,6 +907,13 @@ pub mod drift {
         handle_update_spot_market_orders_enabled(ctx, orders_enabled)
     }
 
+    pub fn update_spot_market_if_staking_disabled(
+        ctx: Context<AdminUpdateSpotMarket>,
+        disabled: bool,
+    ) -> Result<()> {
+        handle_update_spot_market_if_staking_disabled(ctx, disabled)
+    }
+
     pub fn update_spot_market_name(
         ctx: Context<AdminUpdateSpotMarket>,
         name: [u8; 32],
