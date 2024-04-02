@@ -1135,6 +1135,13 @@ pub mod drift {
         handle_update_perp_market_fee_adjustment(ctx, fee_adjustment)
     }
 
+    pub fn update_spot_market_fee_adjustment(
+        ctx: Context<AdminUpdateSpotMarket>,
+        fee_adjustment: i16,
+    ) -> Result<()> {
+        handle_update_spot_market_fee_adjustment(ctx, fee_adjustment)
+    }
+
     pub fn update_admin(ctx: Context<AdminUpdateState>, admin: Pubkey) -> Result<()> {
         handle_update_admin(ctx, admin)
     }

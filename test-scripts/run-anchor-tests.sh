@@ -1,9 +1,10 @@
 if [ "$1" != "--skip-build" ]; then
-  anchor build -p drift -- --features anchor-test &&
+  anchor build -- --features anchor-test &&
     cp target/idl/drift.json sdk/src/idl/
 fi
 
 test_files=(
+  multipleSpotMakerOrders.ts
   switchboardTxCus.ts
   prelisting.ts
   switchOracle.ts
