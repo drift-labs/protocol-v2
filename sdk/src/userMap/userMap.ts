@@ -28,6 +28,7 @@ import {
 import { Buffer } from 'buffer';
 import { getNonIdleUserFilter, getUserFilter } from '../memcmp';
 import {
+	SyncConfig,
 	UserAccountFilterCriteria as UserFilterCriteria,
 	UserMapConfig,
 } from './userMapConfig';
@@ -80,6 +81,7 @@ export class UserMap implements UserMapInterface {
 	};
 	private decode;
 	private mostRecentSlot = 0;
+	private syncConfig: SyncConfig;
 
 	private syncPromise?: Promise<void>;
 	private syncPromiseResolver: () => void;
@@ -126,6 +128,10 @@ export class UserMap implements UserMapInterface {
 				decodeFn,
 			});
 		}
+
+		this.syncConfig = config.syncConfig ?? {
+			type: 'default',
+		};
 	}
 
 	public async subscribe() {
@@ -339,6 +345,14 @@ export class UserMap implements UserMapInterface {
 	}
 
 	public async sync() {
+		if (this.syncConfig.type === 'default') {
+			return this.defaultSync();
+		} else {
+			return this.paginatedSync();
+		}
+	}
+
+	private async defaultSync() {
 		if (this.syncPromise) {
 			return this.syncPromise;
 		}
@@ -422,7 +436,7 @@ export class UserMap implements UserMapInterface {
 		}
 	}
 
-	public async paginatedSync() {
+	private async paginatedSync() {
 		if (this.syncPromise) {
 			return this.syncPromise;
 		}
@@ -472,14 +486,20 @@ export class UserMap implements UserMapInterface {
 				return Promise.all(results);
 			};
 
-			const chunkSize = 100;
+			// @ts-ignore
+			const chunkSize = this.syncConfig.chunkSize ?? 100;
 			const tasks = [];
 			for (let i = 0; i < accountPublicKeys.length; i += chunkSize) {
 				const chunk = accountPublicKeys.slice(i, i + chunkSize);
-				tasks.push(() => this.connection.getMultipleAccountsInfo(chunk, { commitment: this.commitment }));
-			}	
+				tasks.push(() =>
+					this.connection.getMultipleAccountsInfo(chunk, {
+						commitment: this.commitment,
+					})
+				);
+			}
 
-			const concurrencyLimit = 10; // Tested on cluster node
+			// @ts-ignore
+			const concurrencyLimit = this.syncConfig.concurrencyLimit ?? 10;
 			const chunkedAccountInfos = await limitConcurrency(
 				tasks,
 				concurrencyLimit
