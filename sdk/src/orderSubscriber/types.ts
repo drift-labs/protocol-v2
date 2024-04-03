@@ -18,6 +18,7 @@ export type OrderSubscriberConfig = {
 				commitment?: Commitment;
 		  };
 	fastDecode?: boolean;
+	decodeData?: boolean;
 };
 
 export interface OrderSubscriberEvents {

@@ -24,6 +24,7 @@ export class OrderSubscriber {
 
 	mostRecentSlot: number;
 	decodeFn: (name: string, data: Buffer) => UserAccount;
+	decodeData?: boolean;
 
 	constructor(config: OrderSubscriberConfig) {
 		this.driftClient = config.driftClient;
@@ -40,6 +41,7 @@ export class OrderSubscriber {
 				skipInitialLoad: config.subscriptionConfig.skipInitialLoad,
 				resubTimeoutMs: config.subscriptionConfig.resubTimeoutMs,
 				resyncIntervalMs: config.subscriptionConfig.resyncIntervalMs,
+				decoded: config.decodeData,
 			});
 		}
 		if (config.fastDecode ?? true) {

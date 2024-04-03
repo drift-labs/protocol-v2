@@ -64,7 +64,7 @@ export class WebsocketSubscription {
 				buffer: Buffer
 			) => {
 				const userKey = accountId.toBase58();
-				if (this.decoded) {
+				if (this.decoded ?? true) {
 					this.orderSubscriber.tryUpdateUserAccount(
 						userKey,
 						'decoded',
