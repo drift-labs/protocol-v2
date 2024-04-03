@@ -26,17 +26,17 @@ export interface OrderSubscriberEvents {
 		updatedOrders: Order[],
 		pubkey: PublicKey,
 		slot: number,
-		dataType: 'raw' | 'decoded'
+		dataType: 'raw' | 'decoded' | 'buffer'
 	) => void;
 	userUpdated: (
 		account: UserAccount,
 		pubkey: PublicKey,
 		slot: number,
-		dataType: 'raw' | 'decoded'
+		dataType: 'raw' | 'decoded' | 'buffer'
 	) => void;
 	updateReceived: (
 		pubkey: PublicKey,
 		slot: number,
-		dataType: 'raw' | 'decoded'
+		dataType: 'raw' | 'decoded' | 'buffer'
 	) => void;
 }
