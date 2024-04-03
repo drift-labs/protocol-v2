@@ -250,9 +250,9 @@ export const DevnetPerpMarkets: PerpMarketConfig[] = [
 		symbol: 'W-PERP',
 		baseAssetSymbol: 'W',
 		marketIndex: 23,
-		oracle: new PublicKey('BM2UWqREbt7ktsPCA438dqAVqhU7UZFVg11CQyPXFr49'),
+		oracle: new PublicKey('A9665pJk2GAm7m3gA4f5qu99cWX8kDisDZtoSA9J4a3F'),
 		launchTs: 1709852537000,
-		oracleSource: OracleSource.Prelaunch,
+		oracleSource: OracleSource.PYTH,
 	},
 	{
 		fullName: 'Kamino',
@@ -543,9 +543,9 @@ export const MainnetPerpMarkets: PerpMarketConfig[] = [
 		symbol: 'W-PERP',
 		baseAssetSymbol: 'W',
 		marketIndex: 27,
-		oracle: new PublicKey('GU6CA7a2KCyhpfqZNb36UAfc9uzKBM8jHjGdt245QhYX'),
+		oracle: new PublicKey('H9j8CT1bFiWHaZUPMooEaxMRHdWdJ5T9CzFn41z96JHW'),
 		launchTs: 1710418343000,
-		oracleSource: OracleSource.Prelaunch,
+		oracleSource: OracleSource.PYTH,
 	},
 ];
 
