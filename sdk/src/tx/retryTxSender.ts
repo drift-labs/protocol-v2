@@ -5,7 +5,7 @@ import { IWallet } from '../types';
 import { BaseTxSender } from './baseTxSender';
 
 const DEFAULT_TIMEOUT = 35000;
-const DEFAULT_RETRY = 3000;
+const DEFAULT_RETRY = 2000;
 
 type ResolveReference = {
 	resolve?: () => void;

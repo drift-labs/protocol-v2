@@ -14,7 +14,7 @@ import { IWallet } from '../types';
 import { BaseTxSender } from './baseTxSender';
 import bs58 from 'bs58';
 
-const DEFAULT_RETRY = 3000;
+const DEFAULT_RETRY = 2000;
 
 type ResolveReference = {
 	resolve?: () => void;
