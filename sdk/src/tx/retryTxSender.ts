@@ -5,7 +5,7 @@ import { IWallet } from '../types';
 import { BaseTxSender } from './baseTxSender';
 
 const DEFAULT_TIMEOUT = 35000;
-const DEFAULT_RETRY = 8000;
+const DEFAULT_RETRY = 3000;
 
 type ResolveReference = {
 	resolve?: () => void;
@@ -23,7 +23,7 @@ export class RetryTxSender extends BaseTxSender {
 	public constructor({
 		connection,
 		wallet,
-		opts = AnchorProvider.defaultOptions(),
+		opts = { ...AnchorProvider.defaultOptions(), maxRetries: 0 },
 		timeout = DEFAULT_TIMEOUT,
 		retrySleep = DEFAULT_RETRY,
 		additionalConnections = new Array<Connection>(),
