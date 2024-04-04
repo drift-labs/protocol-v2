@@ -20,12 +20,11 @@ use crate::math::constants::{
     TWENTY_FOUR_HOUR,
 };
 use crate::math::cp_curve::get_update_k_result;
-use crate::math::oracle::{is_oracle_valid_for_action, DriftAction};
 use crate::math::orders::is_multiple_of_step_size;
 use crate::math::repeg::get_total_fee_lower_bound;
 use crate::math::safe_math::SafeMath;
 use crate::math::spot_balance::get_token_amount;
-use crate::math::{amm, bn, oracle};
+use crate::math::{amm, bn};
 use crate::math_error;
 use crate::state::events::CurveRecord;
 use crate::state::fulfillment_params::phoenix::PhoenixMarketContext;
@@ -47,7 +46,6 @@ use crate::state::spot_market::{
 };
 use crate::state::state::{ExchangeStatus, FeeStructure, OracleGuardRails, State};
 use crate::state::traits::Size;
-use crate::state::user::MarketType;
 use crate::state::user::UserStats;
 use crate::validate;
 use crate::validation::fee_structure::validate_fee_structure;
@@ -1369,45 +1367,18 @@ pub fn handle_update_k(ctx: Context<AdminUpdateK>, sqrt_k: u128) -> Result<()> {
     valid_oracle_for_perp_market(&ctx.accounts.oracle, &ctx.accounts.perp_market)
 )]
 pub fn handle_reset_amm_oracle_twap(ctx: Context<RepegCurve>) -> Result<()> {
-    // if oracle is invalid, failsafe to reset amm oracle_twap to the mark_twap
-
-    let state = &ctx.accounts.state;
-
-    let clock = Clock::get()?;
-    let now = clock.unix_timestamp;
-    let clock_slot = clock.slot;
+    // admin failsafe to reset amm oracle_twap to the mark_twap
 
     let perp_market = &mut load_mut!(ctx.accounts.perp_market)?;
-    let price_oracle = &ctx.accounts.oracle;
-    let oracle_price_data =
-        &get_oracle_price(&perp_market.amm.oracle_source, price_oracle, clock_slot)?;
 
-    let oracle_validity: oracle::OracleValidity = oracle::oracle_validity(
-        MarketType::Perp,
-        perp_market.market_index,
-        perp_market
-            .amm
-            .historical_oracle_data
-            .last_oracle_price_twap,
-        oracle_price_data,
-        &state.oracle_guard_rails.validity,
-        perp_market.get_max_confidence_interval_multiplier()?,
-        true,
-    )?;
-
-    let is_oracle_valid =
-        is_oracle_valid_for_action(oracle_validity, Some(DriftAction::UpdateFunding))?;
-
-    if !is_oracle_valid {
-        perp_market
-            .amm
-            .historical_oracle_data
-            .last_oracle_price_twap = perp_market.amm.last_mark_price_twap.cast::<i64>()?;
-        perp_market
-            .amm
-            .historical_oracle_data
-            .last_oracle_price_twap_ts = now;
-    }
+    perp_market
+        .amm
+        .historical_oracle_data
+        .last_oracle_price_twap = perp_market.amm.last_mark_price_twap.cast::<i64>()?;
+    perp_market
+        .amm
+        .historical_oracle_data
+        .last_oracle_price_twap_ts = perp_market.amm.last_mark_price_twap_ts;
 
     Ok(())
 }
