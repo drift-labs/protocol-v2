@@ -77,7 +77,9 @@ pub fn is_oracle_valid_for_action(
             DriftAction::UpdateFunding => {
                 matches!(
                     oracle_validity,
-                    OracleValidity::Valid | OracleValidity::StaleForAMM
+                    OracleValidity::Valid
+                        | OracleValidity::StaleForAMM
+                        | OracleValidity::InsufficientDataPoints
                 )
             }
             DriftAction::OracleOrderPrice => {
