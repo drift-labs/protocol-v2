@@ -32,4 +32,6 @@ export type PriorityFeeSubscriberConfig = {
 	heliusRpcUrl?: string;
 	/// clamp any returned priority fee value to this value.
 	maxFeeMicroLamports?: number;
+	/// multiplier applied to priority fee before maxFeeMicroLamports, defaults to 1.0
+	priorityFeeMultiplier?: number;
 };

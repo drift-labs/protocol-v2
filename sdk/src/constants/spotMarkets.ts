@@ -214,6 +214,19 @@ export const MainnetSpotMarkets: SpotMarketConfig[] = [
 		serumMarket: new PublicKey('2m7ZLEKtxWF29727DSb5D91erpXPUY1bqhRWRC3wQX7u'),
 		launchTs: 1708964021000,
 	},
+	{
+		symbol: 'W',
+		marketIndex: 13,
+		oracle: new PublicKey('H9j8CT1bFiWHaZUPMooEaxMRHdWdJ5T9CzFn41z96JHW'),
+		oracleSource: OracleSource.PYTH,
+		mint: new PublicKey('85VBFQZC9TZkfaptBWjvUw7YbZjy52A6mjtPGjstQAmQ'),
+		precision: new BN(10).pow(SIX),
+		precisionExp: SIX,
+		phoenixMarket: new PublicKey(
+			'8dFTCTAbtGuHsdDL8WEPrTU6pXFDrU1QSjBTutw8fwZk'
+		),
+		launchTs: 1712149014000,
+	},
 ];
 
 export const SpotMarkets: { [key in DriftEnv]: SpotMarketConfig[] } = {
