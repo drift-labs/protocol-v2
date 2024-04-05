@@ -76,6 +76,7 @@ export * from './tx/fastSingleTxSender';
 export * from './tx/retryTxSender';
 export * from './tx/whileValidTxSender';
 export * from './tx/priorityFeeCalculator';
+export * from './tx/forwardOnlyTxSender';
 export * from './tx/types';
 export * from './util/computeUnits';
 export * from './util/tps';
