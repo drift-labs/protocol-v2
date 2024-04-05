@@ -62,6 +62,15 @@ export class ForwardOnlyTxSender extends BaseTxSender {
 		});
 	}
 
+	sendToAdditionalConnections(
+		rawTx: Buffer | Uint8Array,
+		_opts: ConfirmOptions
+	): void {
+		this.additionalTxSenderCallbacks?.map((callback) => {
+			callback(bs58.encode(rawTx));
+		});
+	}
+
 	async sendRawTransaction(
 		rawTransaction: Buffer | Uint8Array,
 		opts: ConfirmOptions
