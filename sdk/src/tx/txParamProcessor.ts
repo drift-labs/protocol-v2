@@ -1,4 +1,4 @@
-import { AddressLookupTableAccount, Connection, RpcResponseAndContext, SimulatedTransactionResponse, Transaction, TransactionInstruction, TransactionVersion, VersionedTransaction } from "@solana/web3.js";
+import { AddressLookupTableAccount, Connection, RpcResponseAndContext, SimulatedTransactionResponse, TransactionInstruction, TransactionVersion, VersionedTransaction } from "@solana/web3.js";
 import { BaseTxParams, ProcessingTxParams } from "..";
 
 const COMPUTE_UNIT_BUFFER_FACTOR = 1.2;
@@ -21,40 +21,57 @@ export class TransactionProcessor {
 		txSim: RpcResponseAndContext<SimulatedTransactionResponse>
 	) {
 		if (txSim?.value?.unitsConsumed) {
-			return txSim?.value?.unitsConsumed * 1.2;
+			return txSim?.value?.unitsConsumed * COMPUTE_UNIT_BUFFER_FACTOR;
 		} 
 
 		return undefined;
 	}
 
-	private static async getTxSimComputeUnits(
+	public static async getTxSimComputeUnits(
 		tx : VersionedTransaction,
         connection: Connection
-	) {
+	) : Promise<{success: boolean, computeUnits: number}>{
 		try {
 
             if (TEST_SIMS_ALWAYS_FAIL) throw new Error('Test Error::SIMS_ALWAYS_FAIL');
 
-			const simTxResult = (await connection.simulateTransaction(
-				tx,
-				{
-					replaceRecentBlockhash: true,
-					commitment: 'confirmed',
-				}
-			));
+            // @ts-ignore
+            const version = tx?.version;
 
-			return this.getComputeUnitsFromSim(
+            let simTxResult : RpcResponseAndContext<SimulatedTransactionResponse>;
+
+            if (version === undefined || version==='legacy') {
+                console.debug(`🔧:: Running Simulation for LEGACY TX`);
+                simTxResult = (await connection.simulateTransaction(
+                    tx
+                ));
+            } else {
+                console.debug(`🔧:: Running Simulation for VERSIONED TX`);
+                simTxResult = (await connection.simulateTransaction(
+                    tx,
+                ));
+            }
+
+			const computeUnits = await this.getComputeUnitsFromSim(
 				simTxResult
 			);
+
+            return {
+                success: true,
+                computeUnits: computeUnits
+            };
 		} catch (e) {
-			return undefined;
+			return {
+                success: false,
+                computeUnits: undefined
+            };
 		}
 	}
 
     static async process(
         props : {
             txProps: TransactionProps,
-            txBuilder: (baseTransactionProps: TransactionProps) => Promise<Transaction|VersionedTransaction>,
+            txBuilder: (baseTransactionProps: TransactionProps) => Promise<VersionedTransaction>,
             processConfig: ProcessingTxParams,
             processParams: {
                 connection : Connection
@@ -84,20 +101,21 @@ export class TransactionProcessor {
 
         // # Run Processes
         if (processConfig.useSimulatedComputeUnits) {
-            const txSimComputeUnits = await this.getTxSimComputeUnits(
+
+            const txSimComputeUnitsResult = await this.getTxSimComputeUnits(
                 baseTransaction as VersionedTransaction,
                 processProps.connection
             );
 
-            if (txSimComputeUnits && txSimComputeUnits!==transactionProps?.txParams?.computeUnits) {
+            if (txSimComputeUnitsResult.success && txSimComputeUnitsResult.computeUnits!==transactionProps?.txParams?.computeUnits) {
                 // Adjust the transaction based on the simulated compute units
                 finalTxProps.txParams = {
                     ...transactionProps.txParams,
-                    computeUnits: txSimComputeUnits * COMPUTE_UNIT_BUFFER_FACTOR
+                    computeUnits: txSimComputeUnitsResult.computeUnits
                 };
                 baseTransactionHasChanged = true;
 
-                console.log(`🔧:: Adjusted Transaction Compute Units: ${txSimComputeUnits}`);
+                console.debug(`🔧:: Adjusted Transaction Compute Units: ${txSimComputeUnitsResult.computeUnits}`);
             }
         }
 

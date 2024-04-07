@@ -2253,10 +2253,7 @@ export class DriftClient {
 			);
 		}
 
-		const tx = await this.buildTransaction(withdrawIxs, {
-			...(txParams ?? this.txParams),
-			computeUnits: 1_400_000, // TODO : Is this still necessary?
-		});
+		const tx = await this.buildTransaction(withdrawIxs, txParams ?? this.txParams);
 
 		const { txSig, slot } = await this.sendTransaction(
 			tx,
@@ -4539,6 +4536,7 @@ export class DriftClient {
 		signedCancelExistingOrdersTx?: Transaction;
 		signedSettlePnlTx?: Transaction;
 	}> {
+
 		const ixs = [];
 
 		const placeAndTakeIx = await this.getPlaceAndTakePerpOrderIx(
@@ -4558,15 +4556,39 @@ export class DriftClient {
 			ixs.push(bracketOrdersIx);
 		}
 
-		const placeAndTakeTx = (await this.buildTransaction(
-			ixs,
-			txParams
-		)) as VersionedTransaction;
+		const shouldUseSimulationComputeUnits = txParams?.useSimulatedComputeUnits;
+		const shouldExitIfSimulationFails = simulateFirst;
 
-		// if param is passed, return early before the tx fails so ui can fallback to placeOrder
-		if (simulateFirst) {
-			const success = await this.txSender.simulateTransaction(placeAndTakeTx);
-			if (!success) return;
+		const txParamsWithoutImplicitSimulation = {
+			...txParams,
+			useSimulationComputeUnits: false,
+		};
+
+		let placeAndTakeTx = (await this.buildTransaction(
+			ixs,
+			txParamsWithoutImplicitSimulation
+		));
+
+		if (shouldUseSimulationComputeUnits || shouldExitIfSimulationFails) {
+			const simulationResult = await TransactionParamProcessor.getTxSimComputeUnits(
+				// @ts-ignore :: TODO - TEST WITH LEGACY TRANSACTION
+				placeAndTakeTx,
+				this.connection
+			);
+
+			if (shouldExitIfSimulationFails && !simulationResult.success) {
+				return;
+			}
+
+			if (shouldUseSimulationComputeUnits) {
+				placeAndTakeTx = await this.buildTransaction(
+					ixs,
+					{
+						...txParamsWithoutImplicitSimulation,
+						computeUnits: simulationResult.computeUnits,
+					}
+				);
+			}
 		}
 
 		let cancelExistingOrdersTx: Transaction;
@@ -6551,7 +6573,7 @@ export class DriftClient {
 		txParams?: TxParams,
 		txVersion?: TransactionVersion,
 		lookupTables?: AddressLookupTableAccount[]
-	): Promise<Transaction | VersionedTransaction> {
+	): Promise<VersionedTransaction> {
 
 		if (txParams?.useSimulatedComputeUnits) {
 			console.debug(`🔧:: Using simulated compute units`);
@@ -6602,8 +6624,20 @@ export class DriftClient {
 		console.debug(`🔧:: Building TX with computeUnits::${computeUnits} computeUnitsPrice::${computeUnitsPrice}`);
 
 		txVersion = txVersion ?? this.txVersion;
+
+		const latestBlockHashAndContext = await this.connection.getLatestBlockhashAndContext({
+			commitment: this.opts.preflightCommitment,
+		});
+
 		if (txVersion === 'legacy') {
-			return new Transaction().add(...allIx);
+
+			const message = new TransactionMessage({
+				payerKey: this.provider.wallet.publicKey,
+				recentBlockhash: latestBlockHashAndContext.value.blockhash,
+				instructions: allIx,
+			}).compileToLegacyMessage();
+
+			return new VersionedTransaction(message);
 		} else {
 			const marketLookupTable = await this.fetchMarketLookupTableAccount();
 			lookupTables = lookupTables
@@ -6611,11 +6645,7 @@ export class DriftClient {
 				: [marketLookupTable];
 			const message = new TransactionMessage({
 				payerKey: this.provider.wallet.publicKey,
-				recentBlockhash: (
-					await this.provider.connection.getRecentBlockhash(
-						this.opts.preflightCommitment
-					)
-				).blockhash,
+				recentBlockhash: latestBlockHashAndContext.value.blockhash,
 				instructions: allIx,
 			}).compileToV0Message(lookupTables);
 
