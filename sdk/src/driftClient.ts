@@ -6580,6 +6580,8 @@ export class DriftClient {
 		lookupTables?: AddressLookupTableAccount[]
 	): Promise<VersionedTransaction> {
 
+		txVersion = txVersion ?? this.txVersion;
+
 		if (txParams?.useSimulatedComputeUnits) {
 			console.debug(`🔧:: Using simulated compute units`);
 			
@@ -6627,8 +6629,6 @@ export class DriftClient {
 		}
 
 		console.debug(`🔧:: Building TX with computeUnits::${computeUnits} computeUnitsPrice::${computeUnitsPrice}`);
-
-		txVersion = txVersion ?? this.txVersion;
 
 		const latestBlockHashAndContext = await this.connection.getLatestBlockhashAndContext({
 			commitment: this.opts.preflightCommitment,
