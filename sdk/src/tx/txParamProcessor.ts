@@ -38,18 +38,21 @@ export class TransactionProcessor {
             // @ts-ignore
             const version = tx?.version;
 
-            let simTxResult : RpcResponseAndContext<SimulatedTransactionResponse>;
-
             if (version === undefined || version==='legacy') {
                 console.debug(`🔧:: Running Simulation for LEGACY TX`);
-                simTxResult = (await connection.simulateTransaction(
-                    tx
-                ));
             } else {
                 console.debug(`🔧:: Running Simulation for VERSIONED TX`);
-                simTxResult = (await connection.simulateTransaction(
-                    tx,
-                ));
+            }
+
+            const simTxResult = (await connection.simulateTransaction(
+                tx,
+                {
+                    replaceRecentBlockhash: true, // This is important to ensure that the blockhash is not too new.. Otherwise we will very often receive a "blockHashNotFound" error
+                }
+            ));
+
+            if (simTxResult?.value?.err) {
+                throw new Error(simTxResult?.value?.err?.toString());
             }
 
 			const computeUnits = await this.getComputeUnitsFromSim(
@@ -61,6 +64,8 @@ export class TransactionProcessor {
                 computeUnits: computeUnits
             };
 		} catch (e) {
+            console.warn(`Failed to get Simulated Compute Units`, e);
+
 			return {
                 success: false,
                 computeUnits: undefined

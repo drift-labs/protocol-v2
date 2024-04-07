@@ -122,17 +122,18 @@ export class WhileValidTxSender extends BaseTxSender {
 		extraConfirmationOptions?: ExtraConfirmationOptions
 	): Promise<TxSigAndSlot> {
 		const latestBlockhash = await this.connection.getLatestBlockhash();
-		tx.message.recentBlockhash = latestBlockhash.blockhash;
 
 		let signedTx;
 		if (preSigned) {
 			signedTx = tx;
 			// @ts-ignore
 		} else if (this.wallet.payer) {
+			tx.message.recentBlockhash = latestBlockhash.blockhash;
 			// @ts-ignore
 			tx.sign((additionalSigners ?? []).concat(this.wallet.payer));
 			signedTx = tx;
 		} else {
+			tx.message.recentBlockhash = latestBlockhash.blockhash;
 			additionalSigners
 				?.filter((s): s is Signer => s !== undefined)
 				.forEach((kp) => {

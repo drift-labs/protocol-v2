@@ -6549,7 +6549,11 @@ export class DriftClient {
 			  }
 			: undefined;
 
-		if (tx instanceof VersionedTransaction) {
+		const version = (tx as VersionedTransaction)?.version;
+		const isVersionedTx = ((tx instanceof VersionedTransaction || version !== undefined));
+
+		if (isVersionedTx) {
+			console.debug(`🔧:: Sending VERSIONED TX (version:${version})`);
 			return this.txSender.sendVersionedTransaction(
 				tx as VersionedTransaction,
 				additionalSigners,
@@ -6558,6 +6562,7 @@ export class DriftClient {
 				extraConfirmationOptions
 			);
 		} else {
+			console.debug(`🔧:: Sending LEGACY TX`);
 			return this.txSender.send(
 				tx as Transaction,
 				additionalSigners,
@@ -6637,6 +6642,7 @@ export class DriftClient {
 				instructions: allIx,
 			}).compileToLegacyMessage();
 
+			console.debug(`🔧:: Building LEGACY TX`);
 			return new VersionedTransaction(message);
 		} else {
 			const marketLookupTable = await this.fetchMarketLookupTableAccount();
@@ -6649,6 +6655,7 @@ export class DriftClient {
 				instructions: allIx,
 			}).compileToV0Message(lookupTables);
 
+			console.debug(`🔧:: Building V0 TX`);
 			return new VersionedTransaction(message);
 		}
 	}
