@@ -9,22 +9,24 @@ import {
 	BN,
 	OracleSource,
 	SPOT_MARKET_RATE_PRECISION,
-	SPOT_MARKET_WEIGHT_PRECISION
+	SPOT_MARKET_WEIGHT_PRECISION,
 } from '../sdk/src';
 
 import {
 	initializeQuoteSpotMarket,
 	mockOracle,
 	mockUSDCMint,
-	mockUserUSDCAccount, printTxLogs, sleep,
+	mockUserUSDCAccount,
+	printTxLogs,
+	sleep,
 } from './testHelpers';
 import {
 	BulkAccountLoader,
 	getInsuranceFundVaultPublicKey,
 	getSpotMarketPublicKey,
-	getSpotMarketVaultPublicKey
+	getSpotMarketVaultPublicKey,
 } from '../sdk';
-import {PublicKey} from "@solana/web3.js";
+import { PublicKey } from '@solana/web3.js';
 
 describe('max deposit', () => {
 	const provider = anchor.AnchorProvider.local(undefined, {
@@ -96,7 +98,7 @@ describe('max deposit', () => {
 			imfFactor,
 			undefined,
 			undefined,
-			false,
+			false
 		);
 	});
 
@@ -109,7 +111,10 @@ describe('max deposit', () => {
 
 		await printTxLogs(connection, txSig);
 
-		const spotMarketKey = await getSpotMarketPublicKey(driftClient.program.programId, 0);
+		const spotMarketKey = await getSpotMarketPublicKey(
+			driftClient.program.programId,
+			0
+		);
 
 		let result = await connection.getAccountInfoAndContext(
 			spotMarketKey,
@@ -117,8 +122,10 @@ describe('max deposit', () => {
 		);
 		assert(result.value === null);
 
-
-		const spotMarketVaultKey = await getSpotMarketVaultPublicKey(driftClient.program.programId, 0);
+		const spotMarketVaultKey = await getSpotMarketVaultPublicKey(
+			driftClient.program.programId,
+			0
+		);
 
 		result = await connection.getAccountInfoAndContext(
 			spotMarketVaultKey,
@@ -126,12 +133,12 @@ describe('max deposit', () => {
 		);
 		assert(result.value === null);
 
-		const ifVaultKey = await getInsuranceFundVaultPublicKey(driftClient.program.programId, 0);
-
-		result = await connection.getAccountInfoAndContext(
-			ifVaultKey,
-			'processed'
+		const ifVaultKey = await getInsuranceFundVaultPublicKey(
+			driftClient.program.programId,
+			0
 		);
+
+		result = await connection.getAccountInfoAndContext(ifVaultKey, 'processed');
 		assert(result.value === null);
 	});
 
@@ -162,7 +169,7 @@ describe('max deposit', () => {
 				imfFactor,
 				undefined,
 				undefined,
-				false,
+				false
 			);
 		} catch (e) {
 			console.error(e);
