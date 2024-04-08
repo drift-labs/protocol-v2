@@ -91,7 +91,9 @@ export class WhileValidTxSender extends BaseTxSender {
 		}
 
 		// handle subclass-specific side effects
-		const txSig = bs58.encode(signedTx.signatures[0]?.signature || signedTx.signatures[0]);
+		const txSig = bs58.encode(
+			signedTx.signatures[0]?.signature || signedTx.signatures[0]
+		);
 		this.untilValid.set(txSig, latestBlockhash);
 
 		return signedTx;
