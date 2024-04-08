@@ -737,7 +737,7 @@ export class DriftClient {
 		return result;
 	}
 
-	private async getTransactionWithProcessedParams(
+	private async getProcessedTransactionParams(
 		txParams: {
 			instructions: TransactionInstruction | TransactionInstruction[],
 			txParams?: BaseTxParams,
@@ -745,7 +745,7 @@ export class DriftClient {
 			lookupTables?: AddressLookupTableAccount[],
 		},
 		txParamProcessingParams: ProcessingTxParams
-	) {
+	) : Promise<BaseTxParams> {
 		const tx = await TransactionParamProcessor.process(
 			{
 				txProps: {
@@ -754,7 +754,7 @@ export class DriftClient {
 					txVersion: txParams.txVersion,
 					lookupTables: txParams.lookupTables,
 				},
-				txBuilder: updatedTxParams => this.buildTransaction(updatedTxParams.instructions, updatedTxParams?.txParams, updatedTxParams.txVersion, updatedTxParams.lookupTables),
+				txBuilder: updatedTxParams => this.buildTransaction(updatedTxParams.instructions, updatedTxParams?.txParams, updatedTxParams.txVersion, updatedTxParams.lookupTables, true) as Promise<VersionedTransaction>,
 				processConfig: txParamProcessingParams,
 				processParams: {
 					connection: this.connection,
@@ -6573,14 +6573,30 @@ export class DriftClient {
 		}
 	}
 
+	/**
+	 * 
+	 * @param instructions 
+	 * @param txParams 
+	 * @param txVersion 
+	 * @param lookupTables 
+	 * @param forceVersionedTransaction Return a VersionedTransaction instance even if the version of the transaction is Legacy
+	 * @returns 
+	 */
 	async buildTransaction(
 		instructions: TransactionInstruction | TransactionInstruction[],
 		txParams?: TxParams,
 		txVersion?: TransactionVersion,
-		lookupTables?: AddressLookupTableAccount[]
-	): Promise<VersionedTransaction> {
+		lookupTables?: AddressLookupTableAccount[],
+		forceVersionedTransaction?: boolean,
+	): Promise<Transaction | VersionedTransaction> {
 
 		txVersion = txVersion ?? this.txVersion;
+
+		// # Collect and process Tx Params
+		let baseTxParams : BaseTxParams = {
+			computeUnits: txParams?.computeUnits ?? this.txParams.computeUnits,
+			computeUnitsPrice: txParams?.computeUnitsPrice ?? this.txParams.computeUnitsPrice,
+		};
 
 		if (txParams?.useSimulatedComputeUnits) {
 			console.debug(`🔧:: Using simulated compute units`);
@@ -6595,16 +6611,22 @@ export class DriftClient {
 				}
 			};
 
-			return await this.getTransactionWithProcessedParams({
+			const processedTxParams = await this.getProcessedTransactionParams({
 				instructions,
 				txParams: splitTxParams.baseTxParams,
 				txVersion,
 				lookupTables,
 			}, splitTxParams.txParamProcessingParams);
+
+			baseTxParams = {
+				...baseTxParams,
+				...processedTxParams,
+			};
 		}
 
+		// # Create Tx Instructions
 		const allIx = [];
-		const computeUnits = txParams?.computeUnits ?? this.txParams.computeUnits;
+		const computeUnits = baseTxParams?.computeUnits;
 		if (computeUnits !== 200_000) {
 			allIx.push(
 				ComputeBudgetProgram.setComputeUnitLimit({
@@ -6613,7 +6635,7 @@ export class DriftClient {
 			);
 		}
 		const computeUnitsPrice =
-			txParams?.computeUnitsPrice ?? this.txParams.computeUnitsPrice;
+			baseTxParams?.computeUnitsPrice;
 		if (computeUnitsPrice !== 0) {
 			allIx.push(
 				ComputeBudgetProgram.setComputeUnitPrice({
@@ -6634,16 +6656,20 @@ export class DriftClient {
 			commitment: this.opts.preflightCommitment,
 		});
 
+		// # Create and return Transaction
 		if (txVersion === 'legacy') {
-
-			const message = new TransactionMessage({
-				payerKey: this.provider.wallet.publicKey,
-				recentBlockhash: latestBlockHashAndContext.value.blockhash,
-				instructions: allIx,
-			}).compileToLegacyMessage();
-
-			console.debug(`🔧:: Building LEGACY TX`);
-			return new VersionedTransaction(message);
+			if (forceVersionedTransaction) {
+				const message = new TransactionMessage({
+					payerKey: this.provider.wallet.publicKey,
+					recentBlockhash: latestBlockHashAndContext.value.blockhash,
+					instructions: allIx,
+				}).compileToLegacyMessage();
+	
+				console.debug(`🔧:: Building LEGACY TX`);
+				return new VersionedTransaction(message);
+			} else {
+				return new Transaction().add(...allIx);
+			}
 		} else {
 			const marketLookupTable = await this.fetchMarketLookupTableAccount();
 			lookupTables = lookupTables

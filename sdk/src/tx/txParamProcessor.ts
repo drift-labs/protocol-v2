@@ -10,6 +10,7 @@ type TransactionProps = {
     txParams?: BaseTxParams,
     txVersion?: TransactionVersion,
     lookupTables?: AddressLookupTableAccount[]
+    forceVersionedTransaction?: boolean
 }
 
 /**
@@ -82,53 +83,47 @@ export class TransactionProcessor {
                 connection : Connection
             }
         }
-    ) {
+    ) : Promise<BaseTxParams> {
+
+        // # Exit early if no process config is provided
+        if (!props.processConfig || Object.keys(props.processConfig).length===0) {
+            return props.txProps.txParams;
+        }
+
+        // # Setup
         const {
-            txProps: transactionProps,
-            txBuilder: transactionBuilder,
+            txProps: txProps,
+            txBuilder: txBuilder,
             processConfig,
             processParams: processProps
         } = props;
 
-        if (!processConfig || Object.keys(processConfig).length===0) {
-            return transactionBuilder(transactionProps);
-        }
-
-        // # Setup
-        const baseTransaction = await transactionBuilder(transactionProps);
-        let baseTransactionHasChanged = false;
-
-        let txToReturn = baseTransaction;
+        const baseTransaction = await txBuilder(txProps);
 
         const finalTxProps = {
-            ...transactionProps
+            ...txProps
         };
 
         // # Run Processes
         if (processConfig.useSimulatedComputeUnits) {
 
             const txSimComputeUnitsResult = await this.getTxSimComputeUnits(
-                baseTransaction as VersionedTransaction,
+                baseTransaction,
                 processProps.connection
             );
 
-            if (txSimComputeUnitsResult.success && txSimComputeUnitsResult.computeUnits!==transactionProps?.txParams?.computeUnits) {
+            if (txSimComputeUnitsResult.success && txSimComputeUnitsResult.computeUnits!==txProps?.txParams?.computeUnits) {
                 // Adjust the transaction based on the simulated compute units
                 finalTxProps.txParams = {
-                    ...transactionProps.txParams,
+                    ...txProps.txParams,
                     computeUnits: txSimComputeUnitsResult.computeUnits
                 };
-                baseTransactionHasChanged = true;
 
                 console.debug(`🔧:: Adjusted Transaction Compute Units: ${txSimComputeUnitsResult.computeUnits}`);
             }
         }
 
-        // # Return Processed Transaction
-        if (baseTransactionHasChanged) {
-            txToReturn = await transactionBuilder(finalTxProps);
-        }
-
-        return txToReturn;
+        // # Return Final Tx Params
+        return finalTxProps.txParams;
     }
 }
