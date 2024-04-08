@@ -1299,6 +1299,19 @@ pub fn handle_update_perp_bid_ask_twap(ctx: Context<UpdatePerpBidAskTwap>) -> Re
         perp_market.amm.last_mark_price_twap_ts
     );
 
+    let funding_paused =
+        state.funding_paused()? || perp_market.is_operation_paused(PerpOperation::UpdateFunding);
+    controller::funding::update_funding_rate(
+        perp_market.market_index,
+        perp_market,
+        &mut oracle_map,
+        now,
+        slot,
+        &state.oracle_guard_rails,
+        funding_paused,
+        None,
+    )?;
+
     Ok(())
 }
 
