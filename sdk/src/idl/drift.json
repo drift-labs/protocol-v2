@@ -4971,56 +4971,6 @@
       ]
     },
     {
-      "name": "adminRemoveInsuranceFundStake",
-      "accounts": [
-        {
-          "name": "admin",
-          "isMut": false,
-          "isSigner": true
-        },
-        {
-          "name": "state",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "spotMarket",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "insuranceFundVault",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "driftSigner",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "adminTokenAccount",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "tokenProgram",
-          "isMut": false,
-          "isSigner": false
-        }
-      ],
-      "args": [
-        {
-          "name": "marketIndex",
-          "type": "u16"
-        },
-        {
-          "name": "amount",
-          "type": "u64"
-        }
-      ]
-    },
-    {
       "name": "initializeProtocolIfSharesTransferConfig",
       "accounts": [
         {
