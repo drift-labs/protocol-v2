@@ -14,7 +14,7 @@ import { IWallet } from '../types';
 import { BaseTxSender } from './baseTxSender';
 import bs58 from 'bs58';
 
-const DEFAULT_RETRY = 8000;
+const DEFAULT_RETRY = 2000;
 
 type ResolveReference = {
 	resolve?: () => void;
@@ -36,7 +36,7 @@ export class WhileValidTxSender extends BaseTxSender {
 	public constructor({
 		connection,
 		wallet,
-		opts = AnchorProvider.defaultOptions(),
+		opts = { ...AnchorProvider.defaultOptions(), maxRetries: 0 },
 		retrySleep = DEFAULT_RETRY,
 		additionalConnections = new Array<Connection>(),
 		additionalTxSenderCallbacks = [],
@@ -91,7 +91,9 @@ export class WhileValidTxSender extends BaseTxSender {
 		}
 
 		// handle subclass-specific side effects
-		const txSig = bs58.encode(tx.signatures[0]?.signature || tx.signatures[0]);
+		const txSig = bs58.encode(
+			signedTx.signatures[0]?.signature || signedTx.signatures[0]
+		);
 		this.untilValid.set(txSig, latestBlockhash);
 
 		return signedTx;
