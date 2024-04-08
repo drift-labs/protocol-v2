@@ -6597,13 +6597,17 @@ export class DriftClient {
 		};
 
 		if (txParams?.useSimulatedComputeUnits) {
-			const splitTxParams = {
+			const splitTxParams : {
+				baseTxParams: BaseTxParams,
+				txParamProcessingParams: ProcessingTxParams
+			} = {
 				baseTxParams: {
 					computeUnits: txParams?.computeUnits,
 					computeUnitsPrice: txParams?.computeUnitsPrice,
 				},
 				txParamProcessingParams: {
 					useSimulatedComputeUnits: txParams?.useSimulatedComputeUnits,
+					computeUnitsBufferMultiplier: txParams?.computeUnitsBufferMultiplier,
 				}
 			};
 

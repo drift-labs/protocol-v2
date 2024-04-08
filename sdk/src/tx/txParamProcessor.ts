@@ -29,7 +29,7 @@ export class TransactionProcessor {
 		txSim: RpcResponseAndContext<SimulatedTransactionResponse>
 	) {
 		if (txSim?.value?.unitsConsumed) {
-			return txSim?.value?.unitsConsumed * COMPUTE_UNIT_BUFFER_FACTOR;
+			return txSim?.value?.unitsConsumed;
 		}
 
 		return undefined;
@@ -106,14 +106,16 @@ export class TransactionProcessor {
 				processProps.connection
 			);
 
-			if (
-				txSimComputeUnitsResult.success &&
-				txSimComputeUnitsResult.computeUnits !== txProps?.txParams?.computeUnits
-			) {
+			if (txSimComputeUnitsResult.success) {
+				const bufferedComputeUnits =
+					txSimComputeUnitsResult.computeUnits *
+					(processConfig?.computeUnitsBufferMultiplier ??
+						COMPUTE_UNIT_BUFFER_FACTOR);
+
 				// Adjust the transaction based on the simulated compute units
 				finalTxProps.txParams = {
 					...txProps.txParams,
-					computeUnits: txSimComputeUnitsResult.computeUnits,
+					computeUnits: bufferedComputeUnits,
 				};
 			}
 		}

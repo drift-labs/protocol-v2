@@ -1005,7 +1005,8 @@ export type BaseTxParams = {
 };
 
 export type ProcessingTxParams = {
-	useSimulatedComputeUnits?: boolean
+	useSimulatedComputeUnits?: boolean;
+	computeUnitsBufferMultiplier?: number;
 };
 
 export type TxParams = BaseTxParams & ProcessingTxParams;
