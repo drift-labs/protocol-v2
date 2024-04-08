@@ -1,5 +1,9 @@
 import { AnchorProvider } from '@coral-xyz/anchor';
-import { ConfirmOptions, Connection, VersionedTransaction } from '@solana/web3.js';
+import {
+	ConfirmOptions,
+	Connection,
+	VersionedTransaction,
+} from '@solana/web3.js';
 import bs58 from 'bs58';
 import { IWallet } from '../types';
 import { BaseTxSender } from './baseTxSender';
@@ -75,7 +79,6 @@ export class ForwardOnlyTxSender extends BaseTxSender {
 		rawTransaction: Buffer | Uint8Array,
 		opts: ConfirmOptions
 	): Promise<TxSigAndSlot> {
-
 		const deserializedTx = VersionedTransaction.deserialize(rawTransaction);
 
 		const txSig = deserializedTx.signatures[0];
@@ -107,7 +110,10 @@ export class ForwardOnlyTxSender extends BaseTxSender {
 
 		let slot: number;
 		try {
-			const result = await this.confirmTransaction(encodedTxSig, opts.commitment);
+			const result = await this.confirmTransaction(
+				encodedTxSig,
+				opts.commitment
+			);
 			slot = result.context.slot;
 			// eslint-disable-next-line no-useless-catch
 		} catch (e) {
