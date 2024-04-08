@@ -1135,6 +1135,14 @@ pub mod drift {
         handle_update_perp_market_max_open_interest(ctx, max_open_interest)
     }
 
+    pub fn update_perp_market_number_of_users(
+        ctx: Context<AdminUpdatePerpMarket>,
+        number_of_users: Option<u32>,
+        number_of_users_with_base: Option<u32>,
+    ) -> Result<()> {
+        handle_update_perp_market_number_of_users(ctx, number_of_users, number_of_users_with_base)
+    }
+
     pub fn update_perp_market_fee_adjustment(
         ctx: Context<AdminUpdatePerpMarket>,
         fee_adjustment: i16,
@@ -1186,14 +1194,6 @@ pub mod drift {
         default_spot_auction_duration: u8,
     ) -> Result<()> {
         handle_update_spot_auction_duration(ctx, default_spot_auction_duration)
-    }
-
-    pub fn admin_remove_insurance_fund_stake(
-        ctx: Context<AdminRemoveInsuranceFundStake>,
-        market_index: u16,
-        amount: u64,
-    ) -> Result<()> {
-        handle_admin_remove_insurance_fund_stake(ctx, market_index, amount)
     }
 
     pub fn initialize_protocol_if_shares_transfer_config(

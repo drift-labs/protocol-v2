@@ -2389,6 +2389,30 @@ pub fn handle_update_perp_market_fee_adjustment(
     Ok(())
 }
 
+pub fn handle_update_perp_market_number_of_users<'info>(
+    ctx: Context<AdminUpdatePerpMarket>,
+    number_of_users: Option<u32>,
+    number_of_users_with_base: Option<u32>,
+) -> Result<()> {
+    let perp_market = &mut load_mut!(ctx.accounts.perp_market)?;
+
+    if let Some(number_of_users) = number_of_users {
+        perp_market.number_of_users = number_of_users;
+    }
+
+    if let Some(number_of_users_with_base) = number_of_users_with_base {
+        perp_market.number_of_users_with_base = number_of_users_with_base;
+    }
+
+    validate!(
+        perp_market.number_of_users >= perp_market.number_of_users_with_base,
+        ErrorCode::DefaultError,
+        "number_of_users must be >= number_of_users_with_base "
+    )?;
+
+    Ok(())
+}
+
 #[access_control(
     spot_market_valid(&ctx.accounts.spot_market)
 )]
@@ -2452,54 +2476,6 @@ pub fn handle_update_spot_auction_duration(
     default_spot_auction_duration: u8,
 ) -> Result<()> {
     ctx.accounts.state.default_spot_auction_duration = default_spot_auction_duration;
-    Ok(())
-}
-
-pub fn handle_admin_remove_insurance_fund_stake(
-    ctx: Context<AdminRemoveInsuranceFundStake>,
-    market_index: u16,
-    amount: u64,
-) -> Result<()> {
-    let clock = Clock::get()?;
-    let now = clock.unix_timestamp;
-    let spot_market = &mut load_mut!(ctx.accounts.spot_market)?;
-    let state = &ctx.accounts.state;
-
-    validate!(
-        market_index == spot_market.market_index,
-        ErrorCode::DefaultError,
-        "market_index doesnt match spot_market"
-    )?;
-
-    let n_shares = math::insurance::vault_amount_to_if_shares(
-        amount,
-        spot_market.insurance_fund.total_shares,
-        ctx.accounts.insurance_fund_vault.amount,
-    )?;
-
-    let withdrawn_amount = controller::insurance::admin_remove_insurance_fund_stake(
-        ctx.accounts.insurance_fund_vault.amount,
-        n_shares,
-        spot_market,
-        now,
-        *ctx.accounts.admin.key,
-    )?;
-
-    controller::token::send_from_program_vault(
-        &ctx.accounts.token_program,
-        &ctx.accounts.insurance_fund_vault,
-        &ctx.accounts.admin_token_account,
-        &ctx.accounts.drift_signer,
-        state.signer_nonce,
-        withdrawn_amount,
-    )?;
-
-    validate!(
-        ctx.accounts.insurance_fund_vault.amount > 0,
-        ErrorCode::DefaultError,
-        "insurance_fund_vault.amount must remain > 0"
-    )?;
-
     Ok(())
 }
 
@@ -2989,39 +2965,6 @@ pub struct AdminUpdateSpotMarketOracle<'info> {
     pub spot_market: AccountLoader<'info, SpotMarket>,
     /// CHECK: checked in `initialize_spot_market`
     pub oracle: AccountInfo<'info>,
-}
-
-#[derive(Accounts)]
-#[instruction(market_index: u16,)]
-pub struct AdminRemoveInsuranceFundStake<'info> {
-    pub admin: Signer<'info>,
-    #[account(
-        has_one = admin
-    )]
-    pub state: Box<Account<'info, State>>,
-    #[account(
-        seeds = [b"spot_market", market_index.to_le_bytes().as_ref()],
-        bump
-    )]
-    pub spot_market: AccountLoader<'info, SpotMarket>,
-    #[account(
-        mut,
-        seeds = [b"insurance_fund_vault".as_ref(), market_index.to_le_bytes().as_ref()],
-        bump,
-    )]
-    pub insurance_fund_vault: Box<Account<'info, TokenAccount>>,
-    #[account(
-        constraint = state.signer.eq(&drift_signer.key())
-    )]
-    /// CHECK: forced drift_signer
-    pub drift_signer: AccountInfo<'info>,
-    #[account(
-        mut,
-        token::mint = insurance_fund_vault.mint,
-        token::authority = admin
-    )]
-    pub admin_token_account: Box<Account<'info, TokenAccount>>,
-    pub token_program: Program<'info, Token>,
 }
 
 #[derive(Accounts)]
