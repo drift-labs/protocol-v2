@@ -563,7 +563,7 @@ export const MainnetPerpMarkets: PerpMarketConfig[] = [
 		symbol: 'TNSR-PERP',
 		baseAssetSymbol: 'TNSR',
 		marketIndex: 29,
-		oracle: new PublicKey('sDAQaZQJQ4RXAxH3x526mbEXyQZT15ktkL84d7hmk7M'),
+		oracle: new PublicKey('9yq5YVt8pwpcF1mQfVAS8j2gwsMv8sa6QTFLJ7uGbdUC'),
 		launchTs: 1712593532000,
 		oracleSource: OracleSource.SWITCHBOARD,
 	},
