@@ -7,6 +7,7 @@ use phoenix::quantities::WrapperU64;
 use serum_dex::state::ToAlignedBytes;
 use solana_program::msg;
 
+use crate::controller::token::close_vault;
 use crate::error::ErrorCode;
 use crate::instructions::constraints::*;
 use crate::load_mut;
@@ -818,6 +819,84 @@ pub fn handle_delete_initialized_perp_market(
     )?;
 
     safe_decrement!(state.number_of_markets, 1);
+
+    Ok(())
+}
+
+pub fn handle_delete_initialized_spot_market(
+    ctx: Context<DeleteInitializedSpotMarket>,
+    market_index: u16,
+) -> Result<()> {
+    let mut spot_market = ctx.accounts.spot_market.load()?;
+    let state = &mut ctx.accounts.state;
+
+    // to preserve all protocol invariants, can only remove the last market if it hasn't been "activated"
+
+    validate!(
+        state.number_of_spot_markets - 1 == market_index,
+        ErrorCode::InvalidMarketAccountforDeletion,
+        "state.number_of_spot_markets={} != market_index={}",
+        state.number_of_markets,
+        market_index
+    )?;
+    validate!(
+        spot_market.status == MarketStatus::Initialized,
+        ErrorCode::InvalidMarketAccountforDeletion,
+        "spot_market.status != Initialized",
+    )?;
+    validate!(
+        spot_market.deposit_balance == 0,
+        ErrorCode::InvalidMarketAccountforDeletion,
+        "spot_market.number_of_users={} != 0",
+        spot_market.deposit_balance,
+    )?;
+    validate!(
+        spot_market.borrow_balance == 0,
+        ErrorCode::InvalidMarketAccountforDeletion,
+        "spot_market.borrow_balance={} != 0",
+        spot_market.borrow_balance,
+    )?;
+    validate!(
+        spot_market.market_index == market_index,
+        ErrorCode::InvalidMarketAccountforDeletion,
+        "market_index={} != spot_market.market_index={}",
+        market_index,
+        spot_market.market_index
+    )?;
+
+    safe_decrement!(state.number_of_spot_markets, 1);
+
+    drop(spot_market);
+
+    validate!(
+        ctx.accounts.spot_market_vault.amount == 0,
+        ErrorCode::InvalidMarketAccountforDeletion,
+        "ctx.accounts.spot_market_vault.amount={}",
+        ctx.accounts.spot_market_vault.amount
+    )?;
+
+    close_vault(
+        &ctx.accounts.token_program,
+        &ctx.accounts.spot_market_vault,
+        &ctx.accounts.admin.to_account_info(),
+        &ctx.accounts.drift_signer,
+        state.signer_nonce,
+    )?;
+
+    validate!(
+        ctx.accounts.insurance_fund_vault.amount == 0,
+        ErrorCode::InvalidMarketAccountforDeletion,
+        "ctx.accounts.insurance_fund_vault.amount={}",
+        ctx.accounts.insurance_fund_vault.amount
+    )?;
+
+    close_vault(
+        &ctx.accounts.token_program,
+        &ctx.accounts.insurance_fund_vault,
+        &ctx.accounts.admin.to_account_info(),
+        &ctx.accounts.drift_signer,
+        state.signer_nonce,
+    )?;
 
     Ok(())
 }
@@ -2572,6 +2651,35 @@ pub struct InitializeSpotMarket<'info> {
     pub admin: Signer<'info>,
     pub rent: Sysvar<'info, Rent>,
     pub system_program: Program<'info, System>,
+    pub token_program: Program<'info, Token>,
+}
+
+#[derive(Accounts)]
+#[instruction(market_index: u16)]
+pub struct DeleteInitializedSpotMarket<'info> {
+    #[account(mut)]
+    pub admin: Signer<'info>,
+    #[account(
+        mut,
+        has_one = admin
+    )]
+    pub state: Box<Account<'info, State>>,
+    #[account(mut, close = admin)]
+    pub spot_market: AccountLoader<'info, SpotMarket>,
+    #[account(
+        mut,
+        seeds = [b"spot_market_vault".as_ref(), market_index.to_le_bytes().as_ref()],
+        bump,
+    )]
+    pub spot_market_vault: Box<Account<'info, TokenAccount>>,
+    #[account(
+        mut,
+        seeds = [b"insurance_fund_vault".as_ref(), market_index.to_le_bytes().as_ref()],
+        bump,
+    )]
+    pub insurance_fund_vault: Box<Account<'info, TokenAccount>>,
+    /// CHECK: program signer
+    pub drift_signer: AccountInfo<'info>,
     pub token_program: Program<'info, Token>,
 }
 

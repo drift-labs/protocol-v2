@@ -575,6 +575,13 @@ pub mod drift {
         )
     }
 
+    pub fn delete_initialized_spot_market(
+        ctx: Context<DeleteInitializedSpotMarket>,
+        market_index: u16,
+    ) -> Result<()> {
+        handle_delete_initialized_spot_market(ctx, market_index)
+    }
+
     pub fn initialize_serum_fulfillment_config(
         ctx: Context<InitializeSerumFulfillmentConfig>,
         market_index: u16,

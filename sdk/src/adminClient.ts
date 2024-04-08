@@ -227,6 +227,55 @@ export class AdminClient extends DriftClient {
 		return initializeIx;
 	}
 
+	public async deleteInitializedSpotMarket(
+		marketIndex: number
+	): Promise<TransactionSignature> {
+		const deleteInitializeMarketIx =
+			await this.getDeleteInitializedSpotMarketIx(marketIndex);
+
+		const tx = await this.buildTransaction(deleteInitializeMarketIx);
+
+		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+
+		return txSig;
+	}
+
+	public async getDeleteInitializedSpotMarketIx(
+		marketIndex: number
+	): Promise<TransactionInstruction> {
+		const spotMarketPublicKey = await getSpotMarketPublicKey(
+			this.program.programId,
+			marketIndex
+		);
+
+		const spotMarketVaultPublicKey = await getSpotMarketVaultPublicKey(
+			this.program.programId,
+			marketIndex
+		);
+
+		const insuranceFundVaultPublicKey = await getInsuranceFundVaultPublicKey(
+			this.program.programId,
+			marketIndex
+		);
+
+		return await this.program.instruction.deleteInitializedSpotMarket(
+			marketIndex,
+			{
+				accounts: {
+					state: await this.getStatePublicKey(),
+					admin: this.isSubscribed
+						? this.getStateAccount().admin
+						: this.wallet.publicKey,
+					spotMarket: spotMarketPublicKey,
+					spotMarketVault: spotMarketVaultPublicKey,
+					insuranceFundVault: insuranceFundVaultPublicKey,
+					driftSigner: this.getSignerPublicKey(),
+					tokenProgram: TOKEN_PROGRAM_ID,
+				},
+			}
+		);
+	}
+
 	public async initializeSerumFulfillmentConfig(
 		marketIndex: number,
 		serumMarket: PublicKey,
