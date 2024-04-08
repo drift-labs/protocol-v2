@@ -5,7 +5,6 @@ import { Program } from '@coral-xyz/anchor';
 
 import {
 	TestClient,
-	QUOTE_PRECISION,
 	BN,
 	OracleSource,
 	SPOT_MARKET_RATE_PRECISION,
@@ -13,12 +12,10 @@ import {
 } from '../sdk/src';
 
 import {
-	initializeQuoteSpotMarket,
 	mockOracle,
 	mockUSDCMint,
 	mockUserUSDCAccount,
 	printTxLogs,
-	sleep,
 } from './testHelpers';
 import {
 	BulkAccountLoader,
@@ -41,13 +38,17 @@ describe('max deposit', () => {
 	let driftClient: TestClient;
 
 	let usdcMint;
-	let userUSDCAccount;
+	let _userUSDCAccount;
 
 	const usdcAmount = new BN(10 * 10 ** 6);
 
 	before(async () => {
 		usdcMint = await mockUSDCMint(provider);
-		userUSDCAccount = await mockUserUSDCAccount(usdcMint, usdcAmount, provider);
+		_userUSDCAccount = await mockUserUSDCAccount(
+			usdcMint,
+			usdcAmount,
+			provider
+		);
 
 		const bulkAccountLoader = new BulkAccountLoader(connection, 'confirmed', 1);
 
