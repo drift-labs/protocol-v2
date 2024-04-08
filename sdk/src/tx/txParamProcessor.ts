@@ -36,15 +36,6 @@ export class TransactionProcessor {
 
             if (TEST_SIMS_ALWAYS_FAIL) throw new Error('Test Error::SIMS_ALWAYS_FAIL');
 
-            // @ts-ignore
-            const version = tx?.version;
-
-            if (version === undefined || version==='legacy') {
-                console.debug(`🔧:: Running Simulation for LEGACY TX`);
-            } else {
-                console.debug(`🔧:: Running Simulation for VERSIONED TX`);
-            }
-
             const simTxResult = (await connection.simulateTransaction(
                 tx,
                 {
@@ -65,7 +56,7 @@ export class TransactionProcessor {
                 computeUnits: computeUnits
             };
 		} catch (e) {
-            console.warn(`Failed to get Simulated Compute Units`, e);
+            console.warn(`Failed to get Simulated Compute Units for txParamProcessor`, e);
 
 			return {
                 success: false,
@@ -118,8 +109,6 @@ export class TransactionProcessor {
                     ...txProps.txParams,
                     computeUnits: txSimComputeUnitsResult.computeUnits
                 };
-
-                console.debug(`🔧:: Adjusted Transaction Compute Units: ${txSimComputeUnitsResult.computeUnits}`);
             }
         }
 

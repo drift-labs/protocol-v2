@@ -6553,7 +6553,6 @@ export class DriftClient {
 		const isVersionedTx = ((tx instanceof VersionedTransaction || version !== undefined));
 
 		if (isVersionedTx) {
-			console.debug(`🔧:: Sending VERSIONED TX (version:${version})`);
 			return this.txSender.sendVersionedTransaction(
 				tx as VersionedTransaction,
 				additionalSigners,
@@ -6562,7 +6561,6 @@ export class DriftClient {
 				extraConfirmationOptions
 			);
 		} else {
-			console.debug(`🔧:: Sending LEGACY TX`);
 			return this.txSender.send(
 				tx as Transaction,
 				additionalSigners,
@@ -6599,8 +6597,6 @@ export class DriftClient {
 		};
 
 		if (txParams?.useSimulatedComputeUnits) {
-			console.debug(`🔧:: Using simulated compute units`);
-			
 			const splitTxParams = {
 				baseTxParams: {
 					computeUnits: txParams?.computeUnits,
@@ -6650,8 +6646,6 @@ export class DriftClient {
 			allIx.push(instructions);
 		}
 
-		console.debug(`🔧:: Building TX with computeUnits::${computeUnits} computeUnitsPrice::${computeUnitsPrice}`);
-
 		const latestBlockHashAndContext = await this.connection.getLatestBlockhashAndContext({
 			commitment: this.opts.preflightCommitment,
 		});
@@ -6664,8 +6658,7 @@ export class DriftClient {
 					recentBlockhash: latestBlockHashAndContext.value.blockhash,
 					instructions: allIx,
 				}).compileToLegacyMessage();
-	
-				console.debug(`🔧:: Building LEGACY TX`);
+
 				return new VersionedTransaction(message);
 			} else {
 				return new Transaction().add(...allIx);
@@ -6681,7 +6674,6 @@ export class DriftClient {
 				instructions: allIx,
 			}).compileToV0Message(lookupTables);
 
-			console.debug(`🔧:: Building V0 TX`);
 			return new VersionedTransaction(message);
 		}
 	}
