@@ -3558,19 +3558,6 @@ export class DriftClient {
 			});
 		}
 
-		if (referrerInfo) {
-			remainingAccounts.push({
-				pubkey: referrerInfo.referrer,
-				isWritable: true,
-				isSigner: false,
-			});
-			remainingAccounts.push({
-				pubkey: referrerInfo.referrerStats,
-				isWritable: true,
-				isSigner: false,
-			});
-		}
-
 		const orderId = order.orderId;
 
 		this.addSpotFulfillmentAccounts(
@@ -3579,14 +3566,10 @@ export class DriftClient {
 			fulfillmentConfig
 		);
 
-		// don't remove until program changes from 6c39b3d20b33f61fb1ca5a8502c9496c272a9ec4 are deployed
-		const makerOrderId =
-			makerInfo.length > 0 ? makerInfo[0].order.orderId : null;
-
 		return await this.program.instruction.fillSpotOrder(
 			orderId,
 			fulfillmentConfig ? fulfillmentConfig.fulfillmentType : null,
-			makerOrderId,
+			null,
 			{
 				accounts: {
 					state: await this.getStatePublicKey(),

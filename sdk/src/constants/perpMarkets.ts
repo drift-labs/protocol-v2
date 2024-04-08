@@ -250,9 +250,9 @@ export const DevnetPerpMarkets: PerpMarketConfig[] = [
 		symbol: 'W-PERP',
 		baseAssetSymbol: 'W',
 		marketIndex: 23,
-		oracle: new PublicKey('BM2UWqREbt7ktsPCA438dqAVqhU7UZFVg11CQyPXFr49'),
+		oracle: new PublicKey('A9665pJk2GAm7m3gA4f5qu99cWX8kDisDZtoSA9J4a3F'),
 		launchTs: 1709852537000,
-		oracleSource: OracleSource.Prelaunch,
+		oracleSource: OracleSource.PYTH,
 	},
 	{
 		fullName: 'Kamino',
@@ -269,7 +269,7 @@ export const DevnetPerpMarkets: PerpMarketConfig[] = [
 export const MainnetPerpMarkets: PerpMarketConfig[] = [
 	{
 		fullName: 'Solana',
-		category: ['L1', 'Infra'],
+		category: ['L1', 'Infra', 'Solana'],
 		symbol: 'SOL-PERP',
 		baseAssetSymbol: 'SOL',
 		marketIndex: 0,
@@ -309,7 +309,7 @@ export const MainnetPerpMarkets: PerpMarketConfig[] = [
 	},
 	{
 		fullName: 'Bonk',
-		category: ['Meme'],
+		category: ['Meme', 'Solana'],
 		symbol: '1MBONK-PERP',
 		baseAssetSymbol: '1MBONK',
 		marketIndex: 4,
@@ -389,7 +389,7 @@ export const MainnetPerpMarkets: PerpMarketConfig[] = [
 	},
 	{
 		fullName: 'RNDR',
-		category: ['Infra'],
+		category: ['Infra', 'Solana'],
 		symbol: 'RNDR-PERP',
 		baseAssetSymbol: 'RNDR',
 		marketIndex: 12,
@@ -409,7 +409,7 @@ export const MainnetPerpMarkets: PerpMarketConfig[] = [
 	},
 	{
 		fullName: 'HNT',
-		category: ['IoT'],
+		category: ['IoT', 'Solana'],
 		symbol: 'HNT-PERP',
 		baseAssetSymbol: 'HNT',
 		marketIndex: 14,
@@ -449,7 +449,7 @@ export const MainnetPerpMarkets: PerpMarketConfig[] = [
 	},
 	{
 		fullName: 'Pyth',
-		category: ['Oracle'],
+		category: ['Oracle', 'Solana'],
 		symbol: 'PYTH-PERP',
 		baseAssetSymbol: 'PYTH',
 		marketIndex: 18,
@@ -469,7 +469,7 @@ export const MainnetPerpMarkets: PerpMarketConfig[] = [
 	},
 	{
 		fullName: 'Jito',
-		category: ['MEV'],
+		category: ['MEV', 'Solana'],
 		symbol: 'JTO-PERP',
 		baseAssetSymbol: 'JTO',
 		marketIndex: 20,
@@ -499,7 +499,7 @@ export const MainnetPerpMarkets: PerpMarketConfig[] = [
 	},
 	{
 		fullName: 'WIF',
-		category: ['Meme', 'Dog'],
+		category: ['Meme', 'Dog', 'Solana'],
 		symbol: 'WIF-PERP',
 		baseAssetSymbol: 'WIF',
 		marketIndex: 23,
@@ -509,7 +509,7 @@ export const MainnetPerpMarkets: PerpMarketConfig[] = [
 	},
 	{
 		fullName: 'JUP',
-		category: ['Exchange', 'Infra'],
+		category: ['Exchange', 'Infra', 'Solana'],
 		symbol: 'JUP-PERP',
 		baseAssetSymbol: 'JUP',
 		marketIndex: 24,
@@ -543,8 +543,18 @@ export const MainnetPerpMarkets: PerpMarketConfig[] = [
 		symbol: 'W-PERP',
 		baseAssetSymbol: 'W',
 		marketIndex: 27,
-		oracle: new PublicKey('GU6CA7a2KCyhpfqZNb36UAfc9uzKBM8jHjGdt245QhYX'),
+		oracle: new PublicKey('H9j8CT1bFiWHaZUPMooEaxMRHdWdJ5T9CzFn41z96JHW'),
 		launchTs: 1710418343000,
+		oracleSource: OracleSource.PYTH,
+	},
+	{
+		fullName: 'Kamino',
+		category: ['Lending', 'Solana'],
+		symbol: 'KMNO-PERP',
+		baseAssetSymbol: 'KMNO',
+		marketIndex: 28,
+		oracle: new PublicKey('sDAQaZQJQ4RXAxH3x526mbEXyQZT15ktkL84d7hmk7M'),
+		launchTs: 1712240681000,
 		oracleSource: OracleSource.Prelaunch,
 	},
 ];

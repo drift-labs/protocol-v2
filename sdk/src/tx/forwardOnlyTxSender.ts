@@ -1,17 +1,22 @@
-import { ConfirmationStrategy, TxSigAndSlot } from './types';
-import { ConfirmOptions, Connection } from '@solana/web3.js';
 import { AnchorProvider } from '@coral-xyz/anchor';
+import {
+	ConfirmOptions,
+	Connection,
+	VersionedTransaction,
+} from '@solana/web3.js';
+import bs58 from 'bs58';
 import { IWallet } from '../types';
 import { BaseTxSender } from './baseTxSender';
+import { ConfirmationStrategy, TxSigAndSlot } from './types';
 
 const DEFAULT_TIMEOUT = 35000;
-const DEFAULT_RETRY = 2000;
+const DEFAULT_RETRY = 5000;
 
 type ResolveReference = {
 	resolve?: () => void;
 };
 
-export class RetryTxSender extends BaseTxSender {
+export class ForwardOnlyTxSender extends BaseTxSender {
 	connection: Connection;
 	wallet: IWallet;
 	opts: ConfirmOptions;
@@ -26,7 +31,6 @@ export class RetryTxSender extends BaseTxSender {
 		opts = { ...AnchorProvider.defaultOptions(), maxRetries: 0 },
 		timeout = DEFAULT_TIMEOUT,
 		retrySleep = DEFAULT_RETRY,
-		additionalConnections = new Array<Connection>(),
 		confirmationStrategy = ConfirmationStrategy.Combo,
 		additionalTxSenderCallbacks = [],
 	}: {
@@ -35,7 +39,6 @@ export class RetryTxSender extends BaseTxSender {
 		opts?: ConfirmOptions;
 		timeout?: number;
 		retrySleep?: number;
-		additionalConnections?;
 		confirmationStrategy?: ConfirmationStrategy;
 		additionalTxSenderCallbacks?: ((base58EncodedTx: string) => void)[];
 	}) {
@@ -44,7 +47,7 @@ export class RetryTxSender extends BaseTxSender {
 			wallet,
 			opts,
 			timeout,
-			additionalConnections,
+			additionalConnections: [],
 			confirmationStrategy,
 			additionalTxSenderCallbacks,
 		});
@@ -53,7 +56,7 @@ export class RetryTxSender extends BaseTxSender {
 		this.opts = opts;
 		this.timeout = timeout;
 		this.retrySleep = retrySleep;
-		this.additionalConnections = additionalConnections;
+		this.additionalConnections = [];
 	}
 
 	async sleep(reference: ResolveReference): Promise<void> {
@@ -63,13 +66,26 @@ export class RetryTxSender extends BaseTxSender {
 		});
 	}
 
+	sendToAdditionalConnections(
+		rawTx: Buffer | Uint8Array,
+		_opts: ConfirmOptions
+	): void {
+		this.additionalTxSenderCallbacks?.map((callback) => {
+			callback(bs58.encode(rawTx));
+		});
+	}
+
 	async sendRawTransaction(
 		rawTransaction: Buffer | Uint8Array,
 		opts: ConfirmOptions
 	): Promise<TxSigAndSlot> {
+		const deserializedTx = VersionedTransaction.deserialize(rawTransaction);
+
+		const txSig = deserializedTx.signatures[0];
+		const encodedTxSig = bs58.encode(txSig);
+
 		const startTime = this.getTimestamp();
 
-		const txid = await this.connection.sendRawTransaction(rawTransaction, opts);
 		this.sendToAdditionalConnections(rawTransaction, opts);
 
 		let done = false;
@@ -87,12 +103,6 @@ export class RetryTxSender extends BaseTxSender {
 			while (!done && this.getTimestamp() - startTime < this.timeout) {
 				await this.sleep(resolveReference);
 				if (!done) {
-					this.connection
-						.sendRawTransaction(rawTransaction, opts)
-						.catch((e) => {
-							console.error(e);
-							stopWaiting();
-						});
 					this.sendToAdditionalConnections(rawTransaction, opts);
 				}
 			}
@@ -100,7 +110,10 @@ export class RetryTxSender extends BaseTxSender {
 
 		let slot: number;
 		try {
-			const result = await this.confirmTransaction(txid, opts.commitment);
+			const result = await this.confirmTransaction(
+				encodedTxSig,
+				opts.commitment
+			);
 			slot = result.context.slot;
 			// eslint-disable-next-line no-useless-catch
 		} catch (e) {
@@ -109,6 +122,6 @@ export class RetryTxSender extends BaseTxSender {
 			stopWaiting();
 		}
 
-		return { txSig: txid, slot };
+		return { txSig: encodedTxSig, slot };
 	}
 }

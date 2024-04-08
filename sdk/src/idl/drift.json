@@ -4759,6 +4759,40 @@
       ]
     },
     {
+      "name": "updatePerpMarketNumberOfUsers",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "perpMarket",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "numberOfUsers",
+          "type": {
+            "option": "u32"
+          }
+        },
+        {
+          "name": "numberOfUsersWithBase",
+          "type": {
+            "option": "u32"
+          }
+        }
+      ]
+    },
+    {
       "name": "updatePerpMarketFeeAdjustment",
       "accounts": [
         {
