@@ -557,6 +557,16 @@ export const MainnetPerpMarkets: PerpMarketConfig[] = [
 		launchTs: 1712240681000,
 		oracleSource: OracleSource.Prelaunch,
 	},
+	{
+		fullName: 'Tensor',
+		category: ['NFT', 'Solana'],
+		symbol: 'TNSR-PERP',
+		baseAssetSymbol: 'TNSR',
+		marketIndex: 29,
+		oracle: new PublicKey('7Cfyymx49ipGsgEsCA2XygAB2DUsan4C6Cyb5c8oR5st'),
+		launchTs: 1712593532000,
+		oracleSource: OracleSource.SWITCHBOARD,
+	},
 ];
 
 export const PerpMarkets: { [key in DriftEnv]: PerpMarketConfig[] } = {

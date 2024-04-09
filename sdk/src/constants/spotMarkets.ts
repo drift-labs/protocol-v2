@@ -227,6 +227,19 @@ export const MainnetSpotMarkets: SpotMarketConfig[] = [
 		),
 		launchTs: 1712149014000,
 	},
+	{
+		symbol: 'TNSR',
+		marketIndex: 14,
+		oracle: new PublicKey('7Cfyymx49ipGsgEsCA2XygAB2DUsan4C6Cyb5c8oR5st'),
+		oracleSource: OracleSource.SWITCHBOARD,
+		mint: new PublicKey('TNSRxcUxoT9xBG3de7PiJyTDYu7kskLqcpddxnEJAS6'),
+		precision: new BN(10).pow(NINE),
+		precisionExp: NINE,
+		phoenixMarket: new PublicKey(
+			'AbJCZ9TAJiby5AY3cHcXS2gUdENC6mtsm6m7XpC2ZMvE'
+		),
+		launchTs: 1712593532000,
+	},
 ];
 
 export const SpotMarkets: { [key in DriftEnv]: SpotMarketConfig[] } = {

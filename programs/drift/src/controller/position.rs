@@ -554,7 +554,10 @@ pub fn update_quote_asset_amount(
         return Ok(());
     }
 
-    if position.quote_asset_amount == 0 && position.base_asset_amount == 0 {
+    if position.quote_asset_amount == 0
+        && position.base_asset_amount == 0
+        && position.remainder_base_asset_amount == 0
+    {
         market.number_of_users = market.number_of_users.safe_add(1)?;
     }
 
@@ -562,8 +565,11 @@ pub fn update_quote_asset_amount(
 
     market.amm.quote_asset_amount = market.amm.quote_asset_amount.safe_add(delta.cast()?)?;
 
-    if position.quote_asset_amount == 0 && position.base_asset_amount == 0 {
-        market.number_of_users = market.number_of_users.safe_sub(1)?;
+    if position.quote_asset_amount == 0
+        && position.base_asset_amount == 0
+        && position.remainder_base_asset_amount == 0
+    {
+        market.number_of_users = market.number_of_users.saturating_sub(1);
     }
 
     Ok(())

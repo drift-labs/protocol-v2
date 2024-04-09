@@ -7,6 +7,7 @@ use phoenix::quantities::WrapperU64;
 use serum_dex::state::ToAlignedBytes;
 use solana_program::msg;
 
+use crate::controller::token::close_vault;
 use crate::error::ErrorCode;
 use crate::instructions::constraints::*;
 use crate::load_mut;
@@ -20,12 +21,11 @@ use crate::math::constants::{
     TWENTY_FOUR_HOUR,
 };
 use crate::math::cp_curve::get_update_k_result;
-use crate::math::oracle::{is_oracle_valid_for_action, DriftAction};
 use crate::math::orders::is_multiple_of_step_size;
 use crate::math::repeg::get_total_fee_lower_bound;
 use crate::math::safe_math::SafeMath;
 use crate::math::spot_balance::get_token_amount;
-use crate::math::{amm, bn, oracle};
+use crate::math::{amm, bn};
 use crate::math_error;
 use crate::state::events::CurveRecord;
 use crate::state::fulfillment_params::phoenix::PhoenixMarketContext;
@@ -47,7 +47,6 @@ use crate::state::spot_market::{
 };
 use crate::state::state::{ExchangeStatus, FeeStructure, OracleGuardRails, State};
 use crate::state::traits::Size;
-use crate::state::user::MarketType;
 use crate::state::user::UserStats;
 use crate::validate;
 use crate::validation::fee_structure::validate_fee_structure;
@@ -822,6 +821,84 @@ pub fn handle_delete_initialized_perp_market(
     Ok(())
 }
 
+pub fn handle_delete_initialized_spot_market(
+    ctx: Context<DeleteInitializedSpotMarket>,
+    market_index: u16,
+) -> Result<()> {
+    let mut spot_market = ctx.accounts.spot_market.load()?;
+    let state = &mut ctx.accounts.state;
+
+    // to preserve all protocol invariants, can only remove the last market if it hasn't been "activated"
+
+    validate!(
+        state.number_of_spot_markets - 1 == market_index,
+        ErrorCode::InvalidMarketAccountforDeletion,
+        "state.number_of_spot_markets={} != market_index={}",
+        state.number_of_markets,
+        market_index
+    )?;
+    validate!(
+        spot_market.status == MarketStatus::Initialized,
+        ErrorCode::InvalidMarketAccountforDeletion,
+        "spot_market.status != Initialized",
+    )?;
+    validate!(
+        spot_market.deposit_balance == 0,
+        ErrorCode::InvalidMarketAccountforDeletion,
+        "spot_market.number_of_users={} != 0",
+        spot_market.deposit_balance,
+    )?;
+    validate!(
+        spot_market.borrow_balance == 0,
+        ErrorCode::InvalidMarketAccountforDeletion,
+        "spot_market.borrow_balance={} != 0",
+        spot_market.borrow_balance,
+    )?;
+    validate!(
+        spot_market.market_index == market_index,
+        ErrorCode::InvalidMarketAccountforDeletion,
+        "market_index={} != spot_market.market_index={}",
+        market_index,
+        spot_market.market_index
+    )?;
+
+    safe_decrement!(state.number_of_spot_markets, 1);
+
+    drop(spot_market);
+
+    validate!(
+        ctx.accounts.spot_market_vault.amount == 0,
+        ErrorCode::InvalidMarketAccountforDeletion,
+        "ctx.accounts.spot_market_vault.amount={}",
+        ctx.accounts.spot_market_vault.amount
+    )?;
+
+    close_vault(
+        &ctx.accounts.token_program,
+        &ctx.accounts.spot_market_vault,
+        &ctx.accounts.admin.to_account_info(),
+        &ctx.accounts.drift_signer,
+        state.signer_nonce,
+    )?;
+
+    validate!(
+        ctx.accounts.insurance_fund_vault.amount == 0,
+        ErrorCode::InvalidMarketAccountforDeletion,
+        "ctx.accounts.insurance_fund_vault.amount={}",
+        ctx.accounts.insurance_fund_vault.amount
+    )?;
+
+    close_vault(
+        &ctx.accounts.token_program,
+        &ctx.accounts.insurance_fund_vault,
+        &ctx.accounts.admin.to_account_info(),
+        &ctx.accounts.drift_signer,
+        state.signer_nonce,
+    )?;
+
+    Ok(())
+}
+
 #[access_control(
     spot_market_valid(&ctx.accounts.spot_market)
 )]
@@ -1369,45 +1446,18 @@ pub fn handle_update_k(ctx: Context<AdminUpdateK>, sqrt_k: u128) -> Result<()> {
     valid_oracle_for_perp_market(&ctx.accounts.oracle, &ctx.accounts.perp_market)
 )]
 pub fn handle_reset_amm_oracle_twap(ctx: Context<RepegCurve>) -> Result<()> {
-    // if oracle is invalid, failsafe to reset amm oracle_twap to the mark_twap
-
-    let state = &ctx.accounts.state;
-
-    let clock = Clock::get()?;
-    let now = clock.unix_timestamp;
-    let clock_slot = clock.slot;
+    // admin failsafe to reset amm oracle_twap to the mark_twap
 
     let perp_market = &mut load_mut!(ctx.accounts.perp_market)?;
-    let price_oracle = &ctx.accounts.oracle;
-    let oracle_price_data =
-        &get_oracle_price(&perp_market.amm.oracle_source, price_oracle, clock_slot)?;
 
-    let oracle_validity: oracle::OracleValidity = oracle::oracle_validity(
-        MarketType::Perp,
-        perp_market.market_index,
-        perp_market
-            .amm
-            .historical_oracle_data
-            .last_oracle_price_twap,
-        oracle_price_data,
-        &state.oracle_guard_rails.validity,
-        perp_market.get_max_confidence_interval_multiplier()?,
-        true,
-    )?;
-
-    let is_oracle_valid =
-        is_oracle_valid_for_action(oracle_validity, Some(DriftAction::UpdateFunding))?;
-
-    if !is_oracle_valid {
-        perp_market
-            .amm
-            .historical_oracle_data
-            .last_oracle_price_twap = perp_market.amm.last_mark_price_twap.cast::<i64>()?;
-        perp_market
-            .amm
-            .historical_oracle_data
-            .last_oracle_price_twap_ts = now;
-    }
+    perp_market
+        .amm
+        .historical_oracle_data
+        .last_oracle_price_twap = perp_market.amm.last_mark_price_twap.cast::<i64>()?;
+    perp_market
+        .amm
+        .historical_oracle_data
+        .last_oracle_price_twap_ts = perp_market.amm.last_mark_price_twap_ts;
 
     Ok(())
 }
@@ -2310,6 +2360,30 @@ pub fn handle_update_perp_market_fee_adjustment(
     Ok(())
 }
 
+pub fn handle_update_perp_market_number_of_users<'info>(
+    ctx: Context<AdminUpdatePerpMarket>,
+    number_of_users: Option<u32>,
+    number_of_users_with_base: Option<u32>,
+) -> Result<()> {
+    let perp_market = &mut load_mut!(ctx.accounts.perp_market)?;
+
+    if let Some(number_of_users) = number_of_users {
+        perp_market.number_of_users = number_of_users;
+    }
+
+    if let Some(number_of_users_with_base) = number_of_users_with_base {
+        perp_market.number_of_users_with_base = number_of_users_with_base;
+    }
+
+    validate!(
+        perp_market.number_of_users >= perp_market.number_of_users_with_base,
+        ErrorCode::DefaultError,
+        "number_of_users must be >= number_of_users_with_base "
+    )?;
+
+    Ok(())
+}
+
 #[access_control(
     spot_market_valid(&ctx.accounts.spot_market)
 )]
@@ -2373,54 +2447,6 @@ pub fn handle_update_spot_auction_duration(
     default_spot_auction_duration: u8,
 ) -> Result<()> {
     ctx.accounts.state.default_spot_auction_duration = default_spot_auction_duration;
-    Ok(())
-}
-
-pub fn handle_admin_remove_insurance_fund_stake(
-    ctx: Context<AdminRemoveInsuranceFundStake>,
-    market_index: u16,
-    amount: u64,
-) -> Result<()> {
-    let clock = Clock::get()?;
-    let now = clock.unix_timestamp;
-    let spot_market = &mut load_mut!(ctx.accounts.spot_market)?;
-    let state = &ctx.accounts.state;
-
-    validate!(
-        market_index == spot_market.market_index,
-        ErrorCode::DefaultError,
-        "market_index doesnt match spot_market"
-    )?;
-
-    let n_shares = math::insurance::vault_amount_to_if_shares(
-        amount,
-        spot_market.insurance_fund.total_shares,
-        ctx.accounts.insurance_fund_vault.amount,
-    )?;
-
-    let withdrawn_amount = controller::insurance::admin_remove_insurance_fund_stake(
-        ctx.accounts.insurance_fund_vault.amount,
-        n_shares,
-        spot_market,
-        now,
-        *ctx.accounts.admin.key,
-    )?;
-
-    controller::token::send_from_program_vault(
-        &ctx.accounts.token_program,
-        &ctx.accounts.insurance_fund_vault,
-        &ctx.accounts.admin_token_account,
-        &ctx.accounts.drift_signer,
-        state.signer_nonce,
-        withdrawn_amount,
-    )?;
-
-    validate!(
-        ctx.accounts.insurance_fund_vault.amount > 0,
-        ErrorCode::DefaultError,
-        "insurance_fund_vault.amount must remain > 0"
-    )?;
-
     Ok(())
 }
 
@@ -2596,6 +2622,35 @@ pub struct InitializeSpotMarket<'info> {
     pub admin: Signer<'info>,
     pub rent: Sysvar<'info, Rent>,
     pub system_program: Program<'info, System>,
+    pub token_program: Program<'info, Token>,
+}
+
+#[derive(Accounts)]
+#[instruction(market_index: u16)]
+pub struct DeleteInitializedSpotMarket<'info> {
+    #[account(mut)]
+    pub admin: Signer<'info>,
+    #[account(
+        mut,
+        has_one = admin
+    )]
+    pub state: Box<Account<'info, State>>,
+    #[account(mut, close = admin)]
+    pub spot_market: AccountLoader<'info, SpotMarket>,
+    #[account(
+        mut,
+        seeds = [b"spot_market_vault".as_ref(), market_index.to_le_bytes().as_ref()],
+        bump,
+    )]
+    pub spot_market_vault: Box<Account<'info, TokenAccount>>,
+    #[account(
+        mut,
+        seeds = [b"insurance_fund_vault".as_ref(), market_index.to_le_bytes().as_ref()],
+        bump,
+    )]
+    pub insurance_fund_vault: Box<Account<'info, TokenAccount>>,
+    /// CHECK: program signer
+    pub drift_signer: AccountInfo<'info>,
     pub token_program: Program<'info, Token>,
 }
 
@@ -2881,39 +2936,6 @@ pub struct AdminUpdateSpotMarketOracle<'info> {
     pub spot_market: AccountLoader<'info, SpotMarket>,
     /// CHECK: checked in `initialize_spot_market`
     pub oracle: AccountInfo<'info>,
-}
-
-#[derive(Accounts)]
-#[instruction(market_index: u16,)]
-pub struct AdminRemoveInsuranceFundStake<'info> {
-    pub admin: Signer<'info>,
-    #[account(
-        has_one = admin
-    )]
-    pub state: Box<Account<'info, State>>,
-    #[account(
-        seeds = [b"spot_market", market_index.to_le_bytes().as_ref()],
-        bump
-    )]
-    pub spot_market: AccountLoader<'info, SpotMarket>,
-    #[account(
-        mut,
-        seeds = [b"insurance_fund_vault".as_ref(), market_index.to_le_bytes().as_ref()],
-        bump,
-    )]
-    pub insurance_fund_vault: Box<Account<'info, TokenAccount>>,
-    #[account(
-        constraint = state.signer.eq(&drift_signer.key())
-    )]
-    /// CHECK: forced drift_signer
-    pub drift_signer: AccountInfo<'info>,
-    #[account(
-        mut,
-        token::mint = insurance_fund_vault.mint,
-        token::authority = admin
-    )]
-    pub admin_token_account: Box<Account<'info, TokenAccount>>,
-    pub token_program: Program<'info, Token>,
 }
 
 #[derive(Accounts)]
