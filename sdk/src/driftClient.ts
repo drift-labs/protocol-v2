@@ -739,28 +739,33 @@ export class DriftClient {
 
 	private async getProcessedTransactionParams(
 		txParams: {
-			instructions: TransactionInstruction | TransactionInstruction[],
-			txParams?: BaseTxParams,
-			txVersion?: TransactionVersion,
-			lookupTables?: AddressLookupTableAccount[],
+			instructions: TransactionInstruction | TransactionInstruction[];
+			txParams?: BaseTxParams;
+			txVersion?: TransactionVersion;
+			lookupTables?: AddressLookupTableAccount[];
 		},
 		txParamProcessingParams: ProcessingTxParams
-	) : Promise<BaseTxParams> {
-		const tx = await TransactionParamProcessor.process(
-			{
-				txProps: {
-					instructions: txParams.instructions,
-					txParams: txParams.txParams,
-					txVersion: txParams.txVersion,
-					lookupTables: txParams.lookupTables,
-				},
-				txBuilder: updatedTxParams => this.buildTransaction(updatedTxParams.instructions, updatedTxParams?.txParams, updatedTxParams.txVersion, updatedTxParams.lookupTables, true) as Promise<VersionedTransaction>,
-				processConfig: txParamProcessingParams,
-				processParams: {
-					connection: this.connection,
-				},
-			}
-		);
+	): Promise<BaseTxParams> {
+		const tx = await TransactionParamProcessor.process({
+			txProps: {
+				instructions: txParams.instructions,
+				txParams: txParams.txParams,
+				txVersion: txParams.txVersion,
+				lookupTables: txParams.lookupTables,
+			},
+			txBuilder: (updatedTxParams) =>
+				this.buildTransaction(
+					updatedTxParams.instructions,
+					updatedTxParams?.txParams,
+					updatedTxParams.txVersion,
+					updatedTxParams.lookupTables,
+					true
+				) as Promise<VersionedTransaction>,
+			processConfig: txParamProcessingParams,
+			processParams: {
+				connection: this.connection,
+			},
+		});
 
 		return tx;
 	}
@@ -2132,7 +2137,7 @@ export class DriftClient {
 		tokenFaucet: TokenFaucet,
 		amount: BN,
 		referrerInfo?: ReferrerInfo,
-		txParams?: TxParams,
+		txParams?: TxParams
 	): Promise<[TransactionSignature, PublicKey]> {
 		const ixs = [];
 
@@ -2253,7 +2258,10 @@ export class DriftClient {
 			);
 		}
 
-		const tx = await this.buildTransaction(withdrawIxs, txParams ?? this.txParams);
+		const tx = await this.buildTransaction(
+			withdrawIxs,
+			txParams ?? this.txParams
+		);
 
 		const { txSig, slot } = await this.sendTransaction(
 			tx,
@@ -4536,7 +4544,6 @@ export class DriftClient {
 		signedCancelExistingOrdersTx?: Transaction;
 		signedSettlePnlTx?: Transaction;
 	}> {
-
 		const ixs = [];
 
 		const placeAndTakeIx = await this.getPlaceAndTakePerpOrderIx(
@@ -4564,30 +4571,28 @@ export class DriftClient {
 			useSimulationComputeUnits: false,
 		};
 
-		let placeAndTakeTx = (await this.buildTransaction(
+		let placeAndTakeTx = await this.buildTransaction(
 			ixs,
 			txParamsWithoutImplicitSimulation
-		));
+		);
 
 		if (shouldUseSimulationComputeUnits || shouldExitIfSimulationFails) {
-			const simulationResult = await TransactionParamProcessor.getTxSimComputeUnits(
-				// @ts-ignore :: TODO - TEST WITH LEGACY TRANSACTION
-				placeAndTakeTx,
-				this.connection
-			);
+			const simulationResult =
+				await TransactionParamProcessor.getTxSimComputeUnits(
+					// @ts-ignore :: TODO - TEST WITH LEGACY TRANSACTION
+					placeAndTakeTx,
+					this.connection
+				);
 
 			if (shouldExitIfSimulationFails && !simulationResult.success) {
 				return;
 			}
 
 			if (shouldUseSimulationComputeUnits) {
-				placeAndTakeTx = await this.buildTransaction(
-					ixs,
-					{
-						...txParamsWithoutImplicitSimulation,
-						computeUnits: simulationResult.computeUnits,
-					}
-				);
+				placeAndTakeTx = await this.buildTransaction(ixs, {
+					...txParamsWithoutImplicitSimulation,
+					computeUnits: simulationResult.computeUnits,
+				});
 			}
 		}
 
@@ -6550,7 +6555,8 @@ export class DriftClient {
 			: undefined;
 
 		const version = (tx as VersionedTransaction)?.version;
-		const isVersionedTx = ((tx instanceof VersionedTransaction || version !== undefined));
+		const isVersionedTx =
+			tx instanceof VersionedTransaction || version !== undefined;
 
 		if (isVersionedTx) {
 			return this.txSender.sendVersionedTransaction(
@@ -6572,34 +6578,34 @@ export class DriftClient {
 	}
 
 	/**
-	 * 
-	 * @param instructions 
-	 * @param txParams 
-	 * @param txVersion 
-	 * @param lookupTables 
+	 *
+	 * @param instructions
+	 * @param txParams
+	 * @param txVersion
+	 * @param lookupTables
 	 * @param forceVersionedTransaction Return a VersionedTransaction instance even if the version of the transaction is Legacy
-	 * @returns 
+	 * @returns
 	 */
 	async buildTransaction(
 		instructions: TransactionInstruction | TransactionInstruction[],
 		txParams?: TxParams,
 		txVersion?: TransactionVersion,
 		lookupTables?: AddressLookupTableAccount[],
-		forceVersionedTransaction?: boolean,
+		forceVersionedTransaction?: boolean
 	): Promise<Transaction | VersionedTransaction> {
-
 		txVersion = txVersion ?? this.txVersion;
 
 		// # Collect and process Tx Params
-		let baseTxParams : BaseTxParams = {
+		let baseTxParams: BaseTxParams = {
 			computeUnits: txParams?.computeUnits ?? this.txParams.computeUnits,
-			computeUnitsPrice: txParams?.computeUnitsPrice ?? this.txParams.computeUnitsPrice,
+			computeUnitsPrice:
+				txParams?.computeUnitsPrice ?? this.txParams.computeUnitsPrice,
 		};
 
 		if (txParams?.useSimulatedComputeUnits) {
-			const splitTxParams : {
-				baseTxParams: BaseTxParams,
-				txParamProcessingParams: ProcessingTxParams
+			const splitTxParams: {
+				baseTxParams: BaseTxParams;
+				txParamProcessingParams: ProcessingTxParams;
 			} = {
 				baseTxParams: {
 					computeUnits: txParams?.computeUnits,
@@ -6608,15 +6614,18 @@ export class DriftClient {
 				txParamProcessingParams: {
 					useSimulatedComputeUnits: txParams?.useSimulatedComputeUnits,
 					computeUnitsBufferMultiplier: txParams?.computeUnitsBufferMultiplier,
-				}
+				},
 			};
 
-			const processedTxParams = await this.getProcessedTransactionParams({
-				instructions,
-				txParams: splitTxParams.baseTxParams,
-				txVersion,
-				lookupTables,
-			}, splitTxParams.txParamProcessingParams);
+			const processedTxParams = await this.getProcessedTransactionParams(
+				{
+					instructions,
+					txParams: splitTxParams.baseTxParams,
+					txVersion,
+					lookupTables,
+				},
+				splitTxParams.txParamProcessingParams
+			);
 
 			baseTxParams = {
 				...baseTxParams,
@@ -6634,8 +6643,7 @@ export class DriftClient {
 				})
 			);
 		}
-		const computeUnitsPrice =
-			baseTxParams?.computeUnitsPrice;
+		const computeUnitsPrice = baseTxParams?.computeUnitsPrice;
 		if (computeUnitsPrice !== 0) {
 			allIx.push(
 				ComputeBudgetProgram.setComputeUnitPrice({
@@ -6650,9 +6658,10 @@ export class DriftClient {
 			allIx.push(instructions);
 		}
 
-		const latestBlockHashAndContext = await this.connection.getLatestBlockhashAndContext({
-			commitment: this.opts.preflightCommitment,
-		});
+		const latestBlockHashAndContext =
+			await this.connection.getLatestBlockhashAndContext({
+				commitment: this.opts.preflightCommitment,
+			});
 
 		// # Create and return Transaction
 		if (txVersion === 'legacy') {
