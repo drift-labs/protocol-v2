@@ -999,10 +999,17 @@ export type ReferrerInfo = {
 	referrerStats: PublicKey;
 };
 
-export type TxParams = {
+export type BaseTxParams = {
 	computeUnits?: number;
 	computeUnitsPrice?: number;
 };
+
+export type ProcessingTxParams = {
+	useSimulatedComputeUnits?: boolean;
+	computeUnitsBufferMultiplier?: number;
+};
+
+export type TxParams = BaseTxParams & ProcessingTxParams;
 
 export class SwapReduceOnly {
 	static readonly In = { in: {} };
