@@ -5,11 +5,13 @@ export type DriftPriorityFeeResponse = HeliusPriorityFeeLevels[];
 
 export async function fetchDriftPriorityFee(
 	url: string,
-	marketType: string,
-	marketIndex: number
+	marketTypes: string[],
+	marketIndexs: number[]
 ): Promise<DriftPriorityFeeResponse> {
 	const response = await fetch(
-		`${url}?marketType=${marketType}&marketIndex=${marketIndex}`
+		`${url}/batchPriorityFees?marketType=${marketTypes.join(
+			','
+		)}&marketIndex=${marketIndexs.join(',')}`
 	);
 	return await response.json();
 }
