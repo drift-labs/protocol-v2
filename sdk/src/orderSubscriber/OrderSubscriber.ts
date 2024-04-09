@@ -41,7 +41,7 @@ export class OrderSubscriber {
 				skipInitialLoad: config.subscriptionConfig.skipInitialLoad,
 				resubOpts: {
 					resubTimeoutMs: config.subscriptionConfig?.resubTimeoutMs,
-					logResubMessages: config.subscriptionConfig?.logResubMessages
+					logResubMessages: config.subscriptionConfig?.logResubMessages,
 				},
 				resyncIntervalMs: config.subscriptionConfig.resyncIntervalMs,
 				decoded: config.decodeData,

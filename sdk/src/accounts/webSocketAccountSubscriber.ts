@@ -41,7 +41,7 @@ export class WebSocketAccountSubscriber<T> implements AccountSubscriber<T> {
 		this.accountPublicKey = accountPublicKey;
 		this.decodeBufferFn = decodeBuffer;
 		this.resubOpts = resubOpts;
-		if (this.resubOpts.resubTimeoutMs < 1000) {
+		if (this.resubOpts?.resubTimeoutMs < 1000) {
 			console.log(
 				'resubTimeoutMs should be at least 1000ms to avoid spamming resub'
 			);
@@ -76,7 +76,7 @@ export class WebSocketAccountSubscriber<T> implements AccountSubscriber<T> {
 			this.commitment
 		);
 
-		if (this.resubOpts.resubTimeoutMs) {
+		if (this.resubOpts?.resubTimeoutMs) {
 			this.receivingData = true;
 			this.setTimeout();
 		}

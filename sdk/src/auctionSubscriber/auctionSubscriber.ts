@@ -16,11 +16,16 @@ export class AuctionSubscriber {
 	eventEmitter: StrictEventEmitter<EventEmitter, AuctionSubscriberEvents>;
 	private subscriber: WebSocketProgramAccountSubscriber<UserAccount>;
 
-	constructor({ driftClient, opts, resubTimeoutMs, logResubMessages }: AuctionSubscriberConfig) {
+	constructor({
+		driftClient,
+		opts,
+		resubTimeoutMs,
+		logResubMessages,
+	}: AuctionSubscriberConfig) {
 		this.driftClient = driftClient;
 		this.opts = opts || this.driftClient.opts;
 		this.eventEmitter = new EventEmitter();
-		this.resubOpts = {resubTimeoutMs, logResubMessages};
+		this.resubOpts = { resubTimeoutMs, logResubMessages };
 	}
 
 	public async subscribe() {
