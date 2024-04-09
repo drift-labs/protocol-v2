@@ -120,6 +120,25 @@ export class TransactionProcessor {
 			}
 		}
 
+		if (processConfig?.useSimulatedComputeUnitsForCUPriceCalculation) {
+			if (!processConfig?.useSimulatedComputeUnits) {
+				throw new Error(
+					`encountered useSimulatedComputeUnitsForFees=true, but useSimulatedComputeUnits is false`
+				);
+			}
+			if (!processConfig?.getCUPriceFromComputeUnits) {
+				throw new Error(`encountered useSimulatedComputeUnitsForFees=true, but getComputeUnitPriceFromUnitsToUse helper method is undefined`);
+			}
+
+			const simulatedComputeUnits = finalTxProps.txParams.computeUnits;
+
+			const computeUnitPrice = processConfig.getCUPriceFromComputeUnits(simulatedComputeUnits);
+
+			console.debug(`🔧:: Adjusting compute unit price for simulated compute unit budget :: ${finalTxProps.txParams.computeUnitsPrice}=>${computeUnitPrice}`);
+
+			finalTxProps.txParams.computeUnitsPrice = computeUnitPrice;
+		}
+
 		// # Return Final Tx Params
 		return finalTxProps.txParams;
 	}

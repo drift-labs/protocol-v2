@@ -6608,6 +6608,8 @@ export class DriftClient {
 				txParamProcessingParams: {
 					useSimulatedComputeUnits: txParams?.useSimulatedComputeUnits,
 					computeUnitsBufferMultiplier: txParams?.computeUnitsBufferMultiplier,
+					useSimulatedComputeUnitsForCUPriceCalculation: txParams?.useSimulatedComputeUnitsForCUPriceCalculation,
+					getCUPriceFromComputeUnits: txParams?.getCUPriceFromComputeUnits,
 				}
 			};
 
