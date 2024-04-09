@@ -64,7 +64,7 @@ export class WebSocketAccountSubscriber<T> implements AccountSubscriber<T> {
 		this.listenerId = this.program.provider.connection.onAccountChange(
 			this.accountPublicKey,
 			(accountInfo, context) => {
-				if (this.resubOpts.resubTimeoutMs) {
+				if (this.resubOpts?.resubTimeoutMs) {
 					this.receivingData = true;
 					clearTimeout(this.timeoutId);
 					this.handleRpcResponse(context, accountInfo);
@@ -105,7 +105,7 @@ export class WebSocketAccountSubscriber<T> implements AccountSubscriber<T> {
 			}
 
 			if (this.receivingData) {
-				if (this.resubOpts.logResubMessages) {
+				if (this.resubOpts?.logResubMessages) {
 					console.log(
 						`No ws data from ${this.accountName} in ${this.resubOpts.resubTimeoutMs}ms, resubscribing`
 					);
@@ -114,7 +114,7 @@ export class WebSocketAccountSubscriber<T> implements AccountSubscriber<T> {
 				this.receivingData = false;
 				await this.subscribe(this.onChange);
 			}
-		}, this.resubOpts.resubTimeoutMs);
+		}, this.resubOpts?.resubTimeoutMs);
 	}
 
 	async fetch(): Promise<void> {
