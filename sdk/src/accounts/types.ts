@@ -184,6 +184,11 @@ export type DataAndSlot<T> = {
 	slot: number;
 };
 
+export type ResubOpts = {
+	resubTimeoutMs?: number;
+	logResubMessages?: boolean;
+};
+
 export interface UserStatsAccountEvents {
 	userStatsAccountUpdate: (payload: UserStatsAccount) => void;
 	update: void;

@@ -1,4 +1,9 @@
-import { DataAndSlot, BufferAndSlot, AccountSubscriber } from './types';
+import {
+	DataAndSlot,
+	BufferAndSlot,
+	AccountSubscriber,
+	ResubOpts,
+} from './types';
 import { AnchorProvider, Program } from '@coral-xyz/anchor';
 import { AccountInfo, Commitment, Context, PublicKey } from '@solana/web3.js';
 import { capitalize } from './utils';
@@ -13,7 +18,9 @@ export class WebSocketAccountSubscriber<T> implements AccountSubscriber<T> {
 	decodeBufferFn: (buffer: Buffer) => T;
 	onChange: (data: T) => void;
 	listenerId?: number;
-	resubTimeoutMs?: number;
+
+	resubOpts?: ResubOpts;
+
 	commitment?: Commitment;
 	isUnsubscribing = false;
 
@@ -26,15 +33,15 @@ export class WebSocketAccountSubscriber<T> implements AccountSubscriber<T> {
 		program: Program,
 		accountPublicKey: PublicKey,
 		decodeBuffer?: (buffer: Buffer) => T,
-		resubTimeoutMs?: number,
+		resubOpts?: ResubOpts,
 		commitment?: Commitment
 	) {
 		this.accountName = accountName;
 		this.program = program;
 		this.accountPublicKey = accountPublicKey;
 		this.decodeBufferFn = decodeBuffer;
-		this.resubTimeoutMs = resubTimeoutMs;
-		if (this.resubTimeoutMs < 1000) {
+		this.resubOpts = resubOpts;
+		if (this.resubOpts.resubTimeoutMs < 1000) {
 			console.log(
 				'resubTimeoutMs should be at least 1000ms to avoid spamming resub'
 			);
@@ -57,7 +64,7 @@ export class WebSocketAccountSubscriber<T> implements AccountSubscriber<T> {
 		this.listenerId = this.program.provider.connection.onAccountChange(
 			this.accountPublicKey,
 			(accountInfo, context) => {
-				if (this.resubTimeoutMs) {
+				if (this.resubOpts.resubTimeoutMs) {
 					this.receivingData = true;
 					clearTimeout(this.timeoutId);
 					this.handleRpcResponse(context, accountInfo);
@@ -69,7 +76,7 @@ export class WebSocketAccountSubscriber<T> implements AccountSubscriber<T> {
 			this.commitment
 		);
 
-		if (this.resubTimeoutMs) {
+		if (this.resubOpts.resubTimeoutMs) {
 			this.receivingData = true;
 			this.setTimeout();
 		}
@@ -98,14 +105,16 @@ export class WebSocketAccountSubscriber<T> implements AccountSubscriber<T> {
 			}
 
 			if (this.receivingData) {
-				console.log(
-					`No ws data from ${this.accountName} in ${this.resubTimeoutMs}ms, resubscribing`
-				);
+				if (this.resubOpts.logResubMessages) {
+					console.log(
+						`No ws data from ${this.accountName} in ${this.resubOpts.resubTimeoutMs}ms, resubscribing`
+					);
+				}
 				await this.unsubscribe(true);
 				this.receivingData = false;
 				await this.subscribe(this.onChange);
 			}
-		}, this.resubTimeoutMs);
+		}, this.resubOpts.resubTimeoutMs);
 	}
 
 	async fetch(): Promise<void> {
@@ -172,7 +181,7 @@ export class WebSocketAccountSubscriber<T> implements AccountSubscriber<T> {
 
 	unsubscribe(onResub = false): Promise<void> {
 		if (!onResub) {
-			this.resubTimeoutMs = undefined;
+			this.resubOpts.resubTimeoutMs = undefined;
 		}
 		this.isUnsubscribing = true;
 		clearTimeout(this.timeoutId);

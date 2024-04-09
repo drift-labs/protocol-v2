@@ -6,20 +6,21 @@ import { EventEmitter } from 'events';
 import { UserAccount } from '../types';
 import { ConfirmOptions, Context, PublicKey } from '@solana/web3.js';
 import { WebSocketProgramAccountSubscriber } from '../accounts/webSocketProgramAccountSubscriber';
+import { ResubOpts } from '../accounts/types';
 
 export class AuctionSubscriber {
 	private driftClient: DriftClient;
 	private opts: ConfirmOptions;
-	private resubTimeoutMs?: number;
+	private resubOpts?: ResubOpts;
 
 	eventEmitter: StrictEventEmitter<EventEmitter, AuctionSubscriberEvents>;
 	private subscriber: WebSocketProgramAccountSubscriber<UserAccount>;
 
-	constructor({ driftClient, opts, resubTimeoutMs }: AuctionSubscriberConfig) {
+	constructor({ driftClient, opts, resubTimeoutMs, logResubMessages }: AuctionSubscriberConfig) {
 		this.driftClient = driftClient;
 		this.opts = opts || this.driftClient.opts;
 		this.eventEmitter = new EventEmitter();
-		this.resubTimeoutMs = resubTimeoutMs;
+		this.resubOpts = {resubTimeoutMs, logResubMessages};
 	}
 
 	public async subscribe() {
@@ -35,7 +36,7 @@ export class AuctionSubscriber {
 					filters: [getUserFilter(), getUserWithAuctionFilter()],
 					commitment: this.opts.commitment,
 				},
-				this.resubTimeoutMs
+				this.resubOpts
 			);
 		}
 
