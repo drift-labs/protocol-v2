@@ -4,7 +4,6 @@ import {
 	NotSubscribedError,
 	InsuranceFundStakeAccountEvents,
 	InsuranceFundStakeAccountSubscriber,
-	ResubOpts,
 } from './types';
 import { Program } from '@coral-xyz/anchor';
 import StrictEventEmitter from 'strict-event-emitter-types';
@@ -17,7 +16,7 @@ export class WebSocketInsuranceFundStakeAccountSubscriber
 	implements InsuranceFundStakeAccountSubscriber
 {
 	isSubscribed: boolean;
-	resubOpts: ResubOpts;
+	resubTimeoutMs?: number;
 	commitment?: Commitment;
 	program: Program;
 	eventEmitter: StrictEventEmitter<
@@ -31,7 +30,7 @@ export class WebSocketInsuranceFundStakeAccountSubscriber
 	public constructor(
 		program: Program,
 		insuranceFundStakeAccountPublicKey: PublicKey,
-		resubOpts?: ResubOpts,
+		resubTimeoutMs?: number,
 		commitment?: Commitment
 	) {
 		this.isSubscribed = false;
@@ -39,7 +38,7 @@ export class WebSocketInsuranceFundStakeAccountSubscriber
 		this.insuranceFundStakeAccountPublicKey =
 			insuranceFundStakeAccountPublicKey;
 		this.eventEmitter = new EventEmitter();
-		this.resubOpts = resubOpts;
+		this.resubTimeoutMs = resubTimeoutMs;
 		this.commitment = commitment;
 	}
 
@@ -56,7 +55,9 @@ export class WebSocketInsuranceFundStakeAccountSubscriber
 				this.program,
 				this.insuranceFundStakeAccountPublicKey,
 				undefined,
-				this.resubOpts,
+				{
+					resubTimeoutMs: this.resubTimeoutMs,
+				},
 				this.commitment
 			);
 
