@@ -230,7 +230,7 @@ export const MainnetSpotMarkets: SpotMarketConfig[] = [
 	{
 		symbol: 'TNSR',
 		marketIndex: 14,
-		oracle: new PublicKey('9yq5YVt8pwpcF1mQfVAS8j2gwsMv8sa6QTFLJ7uGbdUC'),
+		oracle: new PublicKey('7Cfyymx49ipGsgEsCA2XygAB2DUsan4C6Cyb5c8oR5st'),
 		oracleSource: OracleSource.SWITCHBOARD,
 		mint: new PublicKey('TNSRxcUxoT9xBG3de7PiJyTDYu7kskLqcpddxnEJAS6'),
 		precision: new BN(10).pow(NINE),
