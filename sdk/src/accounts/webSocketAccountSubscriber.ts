@@ -98,23 +98,26 @@ export class WebSocketAccountSubscriber<T> implements AccountSubscriber<T> {
 		if (!this.onChange) {
 			throw new Error('onChange callback function must be set');
 		}
-		this.timeoutId = setTimeout(async () => {
-			if (this.isUnsubscribing) {
-				// If we are in the process of unsubscribing, do not attempt to resubscribe
-				return;
-			}
-
-			if (this.receivingData) {
-				if (this.resubOpts?.logResubMessages) {
-					console.log(
-						`No ws data from ${this.accountName} in ${this.resubOpts.resubTimeoutMs}ms, resubscribing`
-					);
+		this.timeoutId = setTimeout(
+			async () => {
+				if (this.isUnsubscribing) {
+					// If we are in the process of unsubscribing, do not attempt to resubscribe
+					return;
 				}
-				await this.unsubscribe(true);
-				this.receivingData = false;
-				await this.subscribe(this.onChange);
-			}
-		}, this.resubOpts?.resubTimeoutMs);
+
+				if (this.receivingData) {
+					if (this.resubOpts?.logResubMessages) {
+						console.log(
+							`No ws data from ${this.accountName} in ${this.resubOpts.resubTimeoutMs}ms, resubscribing`
+						);
+					}
+					await this.unsubscribe(true);
+					this.receivingData = false;
+					await this.subscribe(this.onChange);
+				}
+			},
+			this.resubOpts?.resubTimeoutMs
+		);
 	}
 
 	async fetch(): Promise<void> {
