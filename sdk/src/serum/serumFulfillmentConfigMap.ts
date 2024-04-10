@@ -14,8 +14,9 @@ export class SerumFulfillmentConfigMap {
 		marketIndex: number,
 		serumMarketAddress: PublicKey
 	): Promise<void> {
-		const account =
-			await this.driftClient.getSerumV3FulfillmentConfig(serumMarketAddress);
+		const account = await this.driftClient.getSerumV3FulfillmentConfig(
+			serumMarketAddress
+		);
 		this.map.set(marketIndex, account);
 	}
 
