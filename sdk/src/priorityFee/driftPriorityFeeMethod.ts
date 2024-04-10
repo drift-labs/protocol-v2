@@ -8,10 +8,16 @@ export async function fetchDriftPriorityFee(
 	marketTypes: string[],
 	marketIndexs: number[]
 ): Promise<DriftPriorityFeeResponse> {
-	const response = await fetch(
-		`${url}/batchPriorityFees?marketType=${marketTypes.join(
-			','
-		)}&marketIndex=${marketIndexs.join(',')}`
-	);
-	return await response.json();
+	try {
+		const response = await fetch(
+			`${url}/batchPriorityFees?marketType=${marketTypes.join(
+				','
+			)}&marketIndex=${marketIndexs.join(',')}`
+		);
+		return await response.json();
+	} catch (err) {
+		console.error(err);
+	}
+
+	return [];
 }

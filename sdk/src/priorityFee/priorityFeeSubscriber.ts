@@ -106,13 +106,15 @@ export class PriorityFeeSubscriber {
 			this.lookbackDistance,
 			this.addresses
 		);
-		this.latestPriorityFee = samples[0].prioritizationFee;
-		this.lastSlotSeen = samples[0].slot;
+		if (samples.length > 0) {
+			this.latestPriorityFee = samples[0].prioritizationFee;
+			this.lastSlotSeen = samples[0].slot;
 
-		this.lastAvgStrategyResult = this.averageStrategy.calculate(samples);
-		this.lastMaxStrategyResult = this.maxStrategy.calculate(samples);
-		if (this.customStrategy) {
-			this.lastCustomStrategyResult = this.customStrategy.calculate(samples);
+			this.lastAvgStrategyResult = this.averageStrategy.calculate(samples);
+			this.lastMaxStrategyResult = this.maxStrategy.calculate(samples);
+			if (this.customStrategy) {
+				this.lastCustomStrategyResult = this.customStrategy.calculate(samples);
+			}
 		}
 	}
 
