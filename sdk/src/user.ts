@@ -3123,8 +3123,13 @@ export class User {
 		let makerFee =
 			feeTier.makerRebateNumerator / feeTier.makerRebateDenominator;
 
-		if (marketIndex !== undefined && isVariant(marketType, 'perp')) {
-			const marketAccount = this.driftClient.getPerpMarketAccount(marketIndex);
+		if (marketIndex !== undefined) {
+			let marketAccount = null;
+			if (isVariant(marketType, 'perp')) {
+				marketAccount = this.driftClient.getPerpMarketAccount(marketIndex);
+			} else {
+				marketAccount = this.driftClient.getSpotMarketAccount(marketIndex);
+			}
 			takerFee += (takerFee * marketAccount.feeAdjustment) / 100;
 			makerFee += (makerFee * marketAccount.feeAdjustment) / 100;
 		}

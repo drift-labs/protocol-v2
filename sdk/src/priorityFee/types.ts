@@ -2,12 +2,16 @@ import { Connection, PublicKey } from '@solana/web3.js';
 import { SolanaPriorityFeeResponse } from './solanaPriorityFeeMethod';
 import { HeliusPriorityFeeResponse } from './heliusPriorityFeeMethod';
 import { DriftMarketInfo } from './priorityFeeSubscriber';
+import { DriftPriorityFeeResponse } from './driftPriorityFeeMethod';
 
 export interface PriorityFeeStrategy {
 	// calculate the priority fee for a given set of samples.
 	// expect samples to be sorted in descending order (by slot)
 	calculate(
-		samples: SolanaPriorityFeeResponse[] | HeliusPriorityFeeResponse
+		samples:
+			| SolanaPriorityFeeResponse[]
+			| HeliusPriorityFeeResponse
+			| DriftPriorityFeeResponse
 	): number;
 }
 
@@ -25,7 +29,7 @@ export type PriorityFeeSubscriberConfig = {
 	/// addresses you plan to write lock, used to determine priority fees
 	addresses?: PublicKey[];
 	/// drift market type and index, optionally provide at initialization time if using priorityFeeMethod.DRIFT
-	driftMarket?: DriftMarketInfo;
+	driftMarkets?: DriftMarketInfo[];
 	/// custom strategy to calculate priority fees, defaults to AVERAGE
 	customStrategy?: PriorityFeeStrategy;
 	/// method for fetching priority fee samples

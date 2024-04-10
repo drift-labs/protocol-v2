@@ -15,6 +15,7 @@ import { BaseTxSender } from './baseTxSender';
 import bs58 from 'bs58';
 
 const DEFAULT_RETRY = 2000;
+const PLACEHOLDER_BLOCKHASH = 'Fdum64WVeej6DeL85REV9NvfSxEJNPZ74DBk7A8kTrKP';
 
 type ResolveReference = {
 	resolve?: () => void;
@@ -103,11 +104,12 @@ export class WhileValidTxSender extends BaseTxSender {
 		ixs: TransactionInstruction[],
 		lookupTableAccounts: AddressLookupTableAccount[],
 		_additionalSigners?: Array<Signer>,
-		_opts?: ConfirmOptions
+		_opts?: ConfirmOptions,
+		blockhash?: string
 	): Promise<VersionedTransaction> {
 		const message = new TransactionMessage({
 			payerKey: this.wallet.publicKey,
-			recentBlockhash: '', // set blank and reset in sendVersionTransaction
+			recentBlockhash: blockhash ?? PLACEHOLDER_BLOCKHASH, // set blank and reset in sendVersionTransaction
 			instructions: ixs,
 		}).compileToV0Message(lookupTableAccounts);
 
