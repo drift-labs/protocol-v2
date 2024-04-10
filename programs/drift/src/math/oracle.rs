@@ -74,6 +74,7 @@ pub fn is_oracle_valid_for_action(
             DriftAction::FillOrderAmm => {
                 matches!(oracle_validity, OracleValidity::Valid)
             }
+            // relax oracle staleness, later checks for sufficiently recent amm slot update for funding update
             DriftAction::UpdateFunding => {
                 matches!(
                     oracle_validity,
