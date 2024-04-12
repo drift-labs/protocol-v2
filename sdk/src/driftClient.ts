@@ -4577,10 +4577,21 @@ export class DriftClient {
 		);
 
 		if (shouldUseSimulationComputeUnits || shouldExitIfSimulationFails) {
+			const versionedPlaceAndTakeTx = this.isVersionedTransaction(
+				placeAndTakeTx
+			)
+				? (placeAndTakeTx as VersionedTransaction)
+				: ((await this.buildTransaction(
+						ixs,
+						txParamsWithoutImplicitSimulation,
+						undefined,
+						undefined,
+						true
+				  )) as VersionedTransaction);
+
 			const simulationResult =
 				await TransactionParamProcessor.getTxSimComputeUnits(
-					// @ts-ignore :: TODO - TEST WITH LEGACY TRANSACTION
-					placeAndTakeTx,
+					versionedPlaceAndTakeTx,
 					this.connection
 				);
 
@@ -6541,6 +6552,16 @@ export class DriftClient {
 		this.metricsEventEmitter.emit('txSigned');
 	}
 
+	private isVersionedTransaction(
+		tx: Transaction | VersionedTransaction
+	): boolean {
+		const version = (tx as VersionedTransaction)?.version;
+		const isVersionedTx =
+			tx instanceof VersionedTransaction || version !== undefined;
+
+		return isVersionedTx;
+	}
+
 	sendTransaction(
 		tx: Transaction | VersionedTransaction,
 		additionalSigners?: Array<Signer>,
@@ -6554,9 +6575,7 @@ export class DriftClient {
 			  }
 			: undefined;
 
-		const version = (tx as VersionedTransaction)?.version;
-		const isVersionedTx =
-			tx instanceof VersionedTransaction || version !== undefined;
+		const isVersionedTx = this.isVersionedTransaction(tx);
 
 		if (isVersionedTx) {
 			return this.txSender.sendVersionedTransaction(
@@ -6614,6 +6633,9 @@ export class DriftClient {
 				txParamProcessingParams: {
 					useSimulatedComputeUnits: txParams?.useSimulatedComputeUnits,
 					computeUnitsBufferMultiplier: txParams?.computeUnitsBufferMultiplier,
+					useSimulatedComputeUnitsForCUPriceCalculation:
+						txParams?.useSimulatedComputeUnitsForCUPriceCalculation,
+					getCUPriceFromComputeUnits: txParams?.getCUPriceFromComputeUnits,
 				},
 			};
 
@@ -6643,7 +6665,9 @@ export class DriftClient {
 				})
 			);
 		}
+
 		const computeUnitsPrice = baseTxParams?.computeUnitsPrice;
+
 		if (computeUnitsPrice !== 0) {
 			allIx.push(
 				ComputeBudgetProgram.setComputeUnitPrice({
