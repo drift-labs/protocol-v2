@@ -1168,13 +1168,6 @@ pub fn handle_update_funding_rate(
         "Market funding is paused",
     )?;
 
-    validate!(
-        ((clock_slot == perp_market.amm.last_update_slot && perp_market.amm.last_oracle_valid)
-            || perp_market.amm.curve_update_intensity == 0),
-        ErrorCode::AMMNotUpdatedInSameSlot,
-        "AMM must be updated in a prior instruction within same slot"
-    )?;
-
     let funding_paused =
         state.funding_paused()? || perp_market.is_operation_paused(PerpOperation::UpdateFunding);
 
