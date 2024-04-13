@@ -86,7 +86,7 @@ pub fn calculate_liability_transfer_to_cover_margin_shortage(
         .safe_mul(asset_liquidation_multiplier.cast()?)?
         .safe_div(liability_liquidation_multiplier.cast()?)?;
 
-    if asset_weight_component > liability_weight_component {
+    if asset_weight_component >= liability_weight_component {
         return Ok(u128::MAX);
     }
 
