@@ -16,6 +16,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Breaking
 
+## [2.77.0] - 2024-04-13
+
+### Features
+- program: lax funding rate update oracle validity criteria ([#1009](https://github.com/drift-labs/protocol-v2/pull/1009))
+
+### Fixes
+
+- program: fix div by 0 in calculate_liability_transfer_to_cover_margin_shortage
+
+### Breaking
+
 ## [2.76.0] - 2024-04-09
 
 ### Features
