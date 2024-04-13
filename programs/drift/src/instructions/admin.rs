@@ -825,7 +825,7 @@ pub fn handle_delete_initialized_spot_market(
     ctx: Context<DeleteInitializedSpotMarket>,
     market_index: u16,
 ) -> Result<()> {
-    let mut spot_market = ctx.accounts.spot_market.load()?;
+    let spot_market = ctx.accounts.spot_market.load()?;
     let state = &mut ctx.accounts.state;
 
     // to preserve all protocol invariants, can only remove the last market if it hasn't been "activated"
@@ -2360,7 +2360,7 @@ pub fn handle_update_perp_market_fee_adjustment(
     Ok(())
 }
 
-pub fn handle_update_perp_market_number_of_users<'info>(
+pub fn handle_update_perp_market_number_of_users(
     ctx: Context<AdminUpdatePerpMarket>,
     number_of_users: Option<u32>,
     number_of_users_with_base: Option<u32>,

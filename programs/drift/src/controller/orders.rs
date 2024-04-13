@@ -961,6 +961,8 @@ pub fn fill_perp_order(
     let oracle_validity: OracleValidity;
     let oracle_price: i64;
     let oracle_twap_5min: i64;
+    let perp_market_index: u16;
+
     let mut amm_is_available = !state.amm_paused()?;
     {
         let market = &mut perp_market_map.get_ref_mut(&market_index)?;
@@ -988,6 +990,7 @@ pub fn fill_perp_order(
             .historical_oracle_data
             .last_oracle_price_twap_5min;
         oracle_validity = _oracle_validity;
+        perp_market_index = market.market_index;
     }
 
     // allow oracle price to be used to calculate limit price if it's valid or stale for amm
@@ -995,6 +998,7 @@ pub fn fill_perp_order(
         if is_oracle_valid_for_action(oracle_validity, Some(DriftAction::OracleOrderPrice))? {
             Some(oracle_price)
         } else {
+            msg!("Perp market = {} oracle deemed invalid", perp_market_index);
             None
         };
 

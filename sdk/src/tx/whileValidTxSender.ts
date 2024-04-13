@@ -1,6 +1,7 @@
 import { ExtraConfirmationOptions, TxSigAndSlot } from './types';
 import {
 	AddressLookupTableAccount,
+	Commitment,
 	ConfirmOptions,
 	Connection,
 	Signer,
@@ -33,6 +34,7 @@ export class WhileValidTxSender extends BaseTxSender {
 		string,
 		{ blockhash: string; lastValidBlockHeight: number }
 	>();
+	blockhashCommitment: Commitment;
 
 	public constructor({
 		connection,
@@ -41,6 +43,7 @@ export class WhileValidTxSender extends BaseTxSender {
 		retrySleep = DEFAULT_RETRY,
 		additionalConnections = new Array<Connection>(),
 		additionalTxSenderCallbacks = [],
+		blockhashCommitment = 'finalized',
 	}: {
 		connection: Connection;
 		wallet: IWallet;
@@ -48,6 +51,7 @@ export class WhileValidTxSender extends BaseTxSender {
 		retrySleep?: number;
 		additionalConnections?;
 		additionalTxSenderCallbacks?: ((base58EncodedTx: string) => void)[];
+		blockhashCommitment?: Commitment;
 	}) {
 		super({
 			connection,
@@ -57,6 +61,7 @@ export class WhileValidTxSender extends BaseTxSender {
 			additionalTxSenderCallbacks,
 		});
 		this.retrySleep = retrySleep;
+		this.blockhashCommitment = blockhashCommitment;
 	}
 
 	async sleep(reference: ResolveReference): Promise<void> {
@@ -73,7 +78,7 @@ export class WhileValidTxSender extends BaseTxSender {
 		preSigned?: boolean
 	): Promise<Transaction> {
 		const latestBlockhash = await this.connection.getLatestBlockhash(
-			opts.preflightCommitment
+			this.blockhashCommitment
 		);
 
 		// handle tx
@@ -125,7 +130,9 @@ export class WhileValidTxSender extends BaseTxSender {
 		preSigned?: boolean,
 		extraConfirmationOptions?: ExtraConfirmationOptions
 	): Promise<TxSigAndSlot> {
-		const latestBlockhash = await this.connection.getLatestBlockhash();
+		const latestBlockhash = await this.connection.getLatestBlockhash(
+			this.blockhashCommitment
+		);
 
 		let signedTx;
 		if (preSigned) {

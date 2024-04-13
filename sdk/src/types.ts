@@ -1008,7 +1008,7 @@ export type ProcessingTxParams = {
 	useSimulatedComputeUnits?: boolean;
 	computeUnitsBufferMultiplier?: number;
 	useSimulatedComputeUnitsForCUPriceCalculation?: boolean;
-    getCUPriceFromComputeUnits?: (computeUnits: number) => number;
+	getCUPriceFromComputeUnits?: (computeUnits: number) => number;
 };
 
 export type TxParams = BaseTxParams & ProcessingTxParams;
