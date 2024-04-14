@@ -3,7 +3,7 @@ use std::mem::size_of;
 
 use anchor_lang::prelude::*;
 use anchor_spl::token::{Mint, Token, TokenAccount};
-use phoenix::quantities::WrapperU64;
+// use phoenix::quantities::WrapperU64;
 use serum_dex::state::ToAlignedBytes;
 use solana_program::msg;
 
@@ -28,8 +28,8 @@ use crate::math::spot_balance::get_token_amount;
 use crate::math::{amm, bn};
 use crate::math_error;
 use crate::state::events::CurveRecord;
-use crate::state::fulfillment_params::phoenix::PhoenixMarketContext;
-use crate::state::fulfillment_params::phoenix::PhoenixV1FulfillmentConfig;
+// use crate::state::fulfillment_params::phoenix::PhoenixMarketContext;
+// use crate::state::fulfillment_params::phoenix::PhoenixV1FulfillmentConfig;
 use crate::state::fulfillment_params::serum::SerumContext;
 use crate::state::fulfillment_params::serum::SerumV3FulfillmentConfig;
 use crate::state::insurance_fund_stake::ProtocolIfSharesTransferConfig;
@@ -427,71 +427,71 @@ pub fn handle_update_serum_vault(ctx: Context<UpdateSerumVault>) -> Result<()> {
     Ok(())
 }
 
-pub fn handle_initialize_phoenix_fulfillment_config(
-    ctx: Context<InitializePhoenixFulfillmentConfig>,
-    market_index: u16,
-) -> Result<()> {
-    validate!(
-        market_index != QUOTE_SPOT_MARKET_INDEX,
-        ErrorCode::InvalidSpotMarketAccount,
-        "Cannot add phoenix market to quote asset"
-    )?;
+// pub fn handle_initialize_phoenix_fulfillment_config(
+//     ctx: Context<InitializePhoenixFulfillmentConfig>,
+//     market_index: u16,
+// ) -> Result<()> {
+//     validate!(
+//         market_index != QUOTE_SPOT_MARKET_INDEX,
+//         ErrorCode::InvalidSpotMarketAccount,
+//         "Cannot add phoenix market to quote asset"
+//     )?;
 
-    let base_spot_market = load!(&ctx.accounts.base_spot_market)?;
-    let quote_spot_market = load!(&ctx.accounts.quote_spot_market)?;
+//     let base_spot_market = load!(&ctx.accounts.base_spot_market)?;
+//     let quote_spot_market = load!(&ctx.accounts.quote_spot_market)?;
 
-    let phoenix_program_id = phoenix::id();
+//     let phoenix_program_id = phoenix::id();
 
-    validate!(
-        ctx.accounts.phoenix_program.key() == phoenix_program_id,
-        ErrorCode::InvalidPhoenixProgram
-    )?;
+//     validate!(
+//         ctx.accounts.phoenix_program.key() == phoenix_program_id,
+//         ErrorCode::InvalidPhoenixProgram
+//     )?;
 
-    let phoenix_market_context = PhoenixMarketContext::new(&ctx.accounts.phoenix_market)?;
+//     let phoenix_market_context = PhoenixMarketContext::new(&ctx.accounts.phoenix_market)?;
 
-    validate!(
-        phoenix_market_context.header.base_params.mint_key == base_spot_market.mint,
-        ErrorCode::InvalidPhoenixMarket,
-        "Invalid base mint"
-    )?;
+//     validate!(
+//         phoenix_market_context.header.base_params.mint_key == base_spot_market.mint,
+//         ErrorCode::InvalidPhoenixMarket,
+//         "Invalid base mint"
+//     )?;
 
-    validate!(
-        phoenix_market_context.header.quote_params.mint_key == quote_spot_market.mint,
-        ErrorCode::InvalidPhoenixMarket,
-        "Invalid quote mint"
-    )?;
+//     validate!(
+//         phoenix_market_context.header.quote_params.mint_key == quote_spot_market.mint,
+//         ErrorCode::InvalidPhoenixMarket,
+//         "Invalid quote mint"
+//     )?;
 
-    let market_step_size = phoenix_market_context.header.get_base_lot_size().as_u64();
-    let valid_step_size = base_spot_market.order_step_size >= market_step_size
-        && base_spot_market
-            .order_step_size
-            .rem_euclid(market_step_size)
-            == 0;
+//     let market_step_size = phoenix_market_context.header.get_base_lot_size().as_u64();
+//     let valid_step_size = base_spot_market.order_step_size >= market_step_size
+//         && base_spot_market
+//             .order_step_size
+//             .rem_euclid(market_step_size)
+//             == 0;
 
-    validate!(
-        valid_step_size,
-        ErrorCode::InvalidPhoenixMarket,
-        "base market step size ({}) not a multiple of Phoenix base lot size ({})",
-        base_spot_market.order_step_size,
-        market_step_size
-    )?;
+//     validate!(
+//         valid_step_size,
+//         ErrorCode::InvalidPhoenixMarket,
+//         "base market step size ({}) not a multiple of Phoenix base lot size ({})",
+//         base_spot_market.order_step_size,
+//         market_step_size
+//     )?;
 
-    let phoenix_fulfillment_config_key = ctx.accounts.phoenix_fulfillment_config.key();
-    let mut phoenix_fulfillment_config = ctx.accounts.phoenix_fulfillment_config.load_init()?;
-    *phoenix_fulfillment_config = phoenix_market_context
-        .to_phoenix_v1_fulfillment_config(&phoenix_fulfillment_config_key, market_index);
+//     let phoenix_fulfillment_config_key = ctx.accounts.phoenix_fulfillment_config.key();
+//     let mut phoenix_fulfillment_config = ctx.accounts.phoenix_fulfillment_config.load_init()?;
+//     *phoenix_fulfillment_config = phoenix_market_context
+//         .to_phoenix_v1_fulfillment_config(&phoenix_fulfillment_config_key, market_index);
 
-    Ok(())
-}
+//     Ok(())
+// }
 
-pub fn handle_update_phoenix_fulfillment_config_status(
-    ctx: Context<UpdatePhoenixFulfillmentConfig>,
-    status: SpotFulfillmentConfigStatus,
-) -> Result<()> {
-    let mut config = load_mut!(ctx.accounts.phoenix_fulfillment_config)?;
-    config.status = status;
-    Ok(())
-}
+// pub fn handle_update_phoenix_fulfillment_config_status(
+//     ctx: Context<UpdatePhoenixFulfillmentConfig>,
+//     status: SpotFulfillmentConfigStatus,
+// ) -> Result<()> {
+//     let mut config = load_mut!(ctx.accounts.phoenix_fulfillment_config)?;
+//     config.status = status;
+//     Ok(())
+// }
 
 pub fn handle_initialize_perp_market(
     ctx: Context<InitializePerpMarket>,
@@ -2714,58 +2714,58 @@ pub struct UpdateSerumFulfillmentConfig<'info> {
     pub admin: Signer<'info>,
 }
 
-#[derive(Accounts)]
-#[instruction(market_index: u16)]
-pub struct InitializePhoenixFulfillmentConfig<'info> {
-    #[account(
-        seeds = [b"spot_market", market_index.to_le_bytes().as_ref()],
-        bump,
-    )]
-    pub base_spot_market: AccountLoader<'info, SpotMarket>,
-    #[account(
-        seeds = [b"spot_market", 0_u16.to_le_bytes().as_ref()],
-        bump,
-    )]
-    pub quote_spot_market: AccountLoader<'info, SpotMarket>,
-    #[account(
-        mut,
-        has_one = admin
-    )]
-    pub state: Box<Account<'info, State>>,
-    /// CHECK: checked in ix
-    pub phoenix_program: AccountInfo<'info>,
-    /// CHECK: checked in ix
-    pub phoenix_market: AccountInfo<'info>,
-    #[account(
-        constraint = state.signer.eq(&drift_signer.key())
-    )]
-    /// CHECK: program signer
-    pub drift_signer: AccountInfo<'info>,
-    #[account(
-        init,
-        seeds = [b"phoenix_fulfillment_config".as_ref(), phoenix_market.key.as_ref()],
-        space = PhoenixV1FulfillmentConfig::SIZE,
-        bump,
-        payer = admin,
-    )]
-    pub phoenix_fulfillment_config: AccountLoader<'info, PhoenixV1FulfillmentConfig>,
-    #[account(mut)]
-    pub admin: Signer<'info>,
-    pub rent: Sysvar<'info, Rent>,
-    pub system_program: Program<'info, System>,
-}
+// #[derive(Accounts)]
+// #[instruction(market_index: u16)]
+// pub struct InitializePhoenixFulfillmentConfig<'info> {
+//     #[account(
+//         seeds = [b"spot_market", market_index.to_le_bytes().as_ref()],
+//         bump,
+//     )]
+//     pub base_spot_market: AccountLoader<'info, SpotMarket>,
+//     #[account(
+//         seeds = [b"spot_market", 0_u16.to_le_bytes().as_ref()],
+//         bump,
+//     )]
+//     pub quote_spot_market: AccountLoader<'info, SpotMarket>,
+//     #[account(
+//         mut,
+//         has_one = admin
+//     )]
+//     pub state: Box<Account<'info, State>>,
+//     /// CHECK: checked in ix
+//     pub phoenix_program: AccountInfo<'info>,
+//     /// CHECK: checked in ix
+//     pub phoenix_market: AccountInfo<'info>,
+//     #[account(
+//         constraint = state.signer.eq(&drift_signer.key())
+//     )]
+//     /// CHECK: program signer
+//     pub drift_signer: AccountInfo<'info>,
+//     #[account(
+//         init,
+//         seeds = [b"phoenix_fulfillment_config".as_ref(), phoenix_market.key.as_ref()],
+//         space = PhoenixV1FulfillmentConfig::SIZE,
+//         bump,
+//         payer = admin,
+//     )]
+//     pub phoenix_fulfillment_config: AccountLoader<'info, PhoenixV1FulfillmentConfig>,
+//     #[account(mut)]
+//     pub admin: Signer<'info>,
+//     pub rent: Sysvar<'info, Rent>,
+//     pub system_program: Program<'info, System>,
+// }
 
-#[derive(Accounts)]
-pub struct UpdatePhoenixFulfillmentConfig<'info> {
-    #[account(
-        has_one = admin
-    )]
-    pub state: Box<Account<'info, State>>,
-    #[account(mut)]
-    pub phoenix_fulfillment_config: AccountLoader<'info, PhoenixV1FulfillmentConfig>,
-    #[account(mut)]
-    pub admin: Signer<'info>,
-}
+// #[derive(Accounts)]
+// pub struct UpdatePhoenixFulfillmentConfig<'info> {
+//     #[account(
+//         has_one = admin
+//     )]
+//     pub state: Box<Account<'info, State>>,
+//     #[account(mut)]
+//     pub phoenix_fulfillment_config: AccountLoader<'info, PhoenixV1FulfillmentConfig>,
+//     #[account(mut)]
+//     pub admin: Signer<'info>,
+// }
 
 #[derive(Accounts)]
 pub struct UpdateSerumVault<'info> {

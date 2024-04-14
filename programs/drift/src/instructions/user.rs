@@ -41,7 +41,7 @@ use crate::state::events::{
 };
 use crate::state::fill_mode::FillMode;
 use crate::state::fulfillment_params::drift::MatchFulfillmentParams;
-use crate::state::fulfillment_params::phoenix::PhoenixFulfillmentParams;
+// use crate::state::fulfillment_params::phoenix::PhoenixFulfillmentParams;
 use crate::state::fulfillment_params::serum::SerumFulfillmentParams;
 use crate::state::oracle::StrictOraclePrice;
 use crate::state::order_params::{
@@ -1398,16 +1398,16 @@ pub fn handle_place_and_take_spot_order<'info>(
                 clock.unix_timestamp,
             )?)
         }
-        SpotFulfillmentType::PhoenixV1 => {
-            let base_market = spot_market_map.get_ref(&market_index)?;
-            let quote_market = spot_market_map.get_quote_spot_market()?;
-            Box::new(PhoenixFulfillmentParams::new(
-                remaining_accounts_iter,
-                &ctx.accounts.state,
-                &base_market,
-                &quote_market,
-            )?)
-        }
+        // SpotFulfillmentType::PhoenixV1 => {
+        //     let base_market = spot_market_map.get_ref(&market_index)?;
+        //     let quote_market = spot_market_map.get_quote_spot_market()?;
+        //     Box::new(PhoenixFulfillmentParams::new(
+        //         remaining_accounts_iter,
+        //         &ctx.accounts.state,
+        //         &base_market,
+        //         &quote_market,
+        //     )?)
+        // }
         SpotFulfillmentType::Match => {
             let base_market = spot_market_map.get_ref(&market_index)?;
             let quote_market = spot_market_map.get_quote_spot_market()?;
@@ -1528,16 +1528,16 @@ pub fn handle_place_and_make_spot_order<'info>(
                 clock.unix_timestamp,
             )?)
         }
-        SpotFulfillmentType::PhoenixV1 => {
-            let base_market = spot_market_map.get_ref(&market_index)?;
-            let quote_market = spot_market_map.get_quote_spot_market()?;
-            Box::new(PhoenixFulfillmentParams::new(
-                remaining_accounts_iter,
-                &ctx.accounts.state,
-                &base_market,
-                &quote_market,
-            )?)
-        }
+        // SpotFulfillmentType::PhoenixV1 => {
+        //     let base_market = spot_market_map.get_ref(&market_index)?;
+        //     let quote_market = spot_market_map.get_quote_spot_market()?;
+        //     Box::new(PhoenixFulfillmentParams::new(
+        //         remaining_accounts_iter,
+        //         &ctx.accounts.state,
+        //         &base_market,
+        //         &quote_market,
+        //     )?)
+        // }
         SpotFulfillmentType::Match => {
             let base_market = spot_market_map.get_ref(&market_index)?;
             let quote_market = spot_market_map.get_quote_spot_market()?;
@@ -2507,12 +2507,12 @@ pub fn handle_begin_swap(
             found_end = true;
 
             // must be the SwapEnd instruction
-            let discriminator = crate::instruction::EndSwap::discriminator();
-            validate!(
-                ix.data[0..8] == discriminator,
-                ErrorCode::InvalidSwap,
-                "last drift ix must be end of swap"
-            )?;
+            // let discriminator = crate::instruction::EndSwap::discriminator();
+            // validate!(
+            //     ix.data[0..8] == discriminator,
+            //     ErrorCode::InvalidSwap,
+            //     "last drift ix must be end of swap"
+            // )?;
 
             validate!(
                 ctx.accounts.user.key() == ix.accounts[1].pubkey,
