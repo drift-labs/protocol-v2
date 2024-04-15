@@ -116,7 +116,7 @@ pub enum ContractTier {
 
 impl ContractTier {
     pub fn default() -> Self {
-        ContractTier::Speculative
+        ContractTier::HighlySpeculative
     }
 
     pub fn is_as_safe_as(&self, best_contract: &ContractTier, best_asset: &AssetTier) -> bool {

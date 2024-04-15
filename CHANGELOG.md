@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixes
 
+- program: make default contract tier HighlySpeculative
 - program: avoid dust borrows not being transferred 
 
 ### Breaking
