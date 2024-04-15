@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixes
 
 - program: fix div by 0 in calculate_liability_transfer_to_cover_margin_shortage
+- program: set default ContractTier to HighlySpeculative
 
 ### Breaking
 
