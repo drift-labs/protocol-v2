@@ -2291,80 +2291,54 @@ export class DriftClient {
 		return txSig;
 	}
 
-	public withdrawAllDustPositions(
+	public async withdrawAllDustPositions(
 		subAccountId?: number,
-		txParams?: TxParams
-	): {
-		txSig: Promise<TransactionSignature>;
-		numDustPositions: Promise<number>;
-	} {
-		let txSigResolver: (value: TransactionSignature) => void;
-		let txSigErr: (err: any) => void;
-		const txSigPromise = new Promise<TransactionSignature>((resolve, err) => {
-			txSigResolver = resolve;
-			txSigErr = err;
-		});
+		txParams?: TxParams,
+		opts?: {
+			dustPositionCountCallback?: (count: number) => void;
+		}
+	): Promise<TransactionSignature> {
 
-		let numDustPositionsResolver: (value: number) => void;
-		let numDustPositionsErr: (err: any) => void;
-		const numDustPositionsPromise = new Promise<number>((resolve, err) => {
-			numDustPositionsResolver = resolve;
-			numDustPositionsErr = err;
-		});
+		const user = this.getUser(subAccountId);
 
-		(async () => {
-			try {
-				const user = this.getUser(subAccountId);
+		const dustPositions = user.getDustDepositPositions();
 
-				const dustPositions = user.getDustDepositPositions();
+		if (!dustPositions || dustPositions.length === 0) {
+			opts?.dustPositionCountCallback?.(0);
+			return undefined;
+		}
 
-				if (!dustPositions || dustPositions.length === 0) {
-					numDustPositionsResolver(0);
-					txSigResolver(undefined);
-					return;
-				}
+		opts?.dustPositionCountCallback?.(dustPositions.length);
 
-				numDustPositionsResolver(dustPositions.length);
+		let allWithdrawIxs: anchor.web3.TransactionInstruction[] = [];
 
-				let allWithdrawIxs: anchor.web3.TransactionInstruction[] = [];
+		for (const position of dustPositions) {
+			const tokenAccount = await getAssociatedTokenAddress(
+				position.mint,
+				this.wallet.publicKey
+			);
 
-				for (const position of dustPositions) {
-					const tokenAccount = await getAssociatedTokenAddress(
-						position.mint,
-						this.wallet.publicKey
-					);
+			const tokenAmount = await user.getTokenAmount(position.marketIndex);
 
-					const tokenAmount = await user.getTokenAmount(position.marketIndex);
+			const withdrawIxs = await this.getWithdrawalIxs(
+				tokenAmount.muln(2), //  2x to ensure all dust is withdrawn
+				position.marketIndex,
+				tokenAccount,
+				true, // reduce-only true to ensure all dust is withdrawn
+				subAccountId
+			);
 
-					const withdrawIxs = await this.getWithdrawalIxs(
-						tokenAmount.muln(2), //  2x to ensure all dust is withdrawn
-						position.marketIndex,
-						tokenAccount,
-						true, // reduce-only true to ensure all dust is withdrawn
-						subAccountId
-					);
+			allWithdrawIxs = allWithdrawIxs.concat(withdrawIxs);
+		}
 
-					allWithdrawIxs = allWithdrawIxs.concat(withdrawIxs);
-				}
+		const tx = await this.buildTransaction(
+			allWithdrawIxs,
+			txParams ?? this.txParams
+		);
 
-				const tx = await this.buildTransaction(
-					allWithdrawIxs,
-					txParams ?? this.txParams
-				);
+		const { txSig } = await this.sendTransaction(tx, [], this.opts);
 
-				const { txSig } = await this.sendTransaction(tx, [], this.opts);
-
-				txSigResolver(txSig);
-			} catch (e) {
-				numDustPositionsErr(e);
-				txSigErr(e);
-			}
-		})();
-
-		return {
-			txSig: txSigPromise,
-			numDustPositions: numDustPositionsPromise,
-		};
+		return txSig;
 	}
 
 	public async getWithdrawIx(
