@@ -128,6 +128,7 @@ import { getMarinadeDepositIx, getMarinadeFinanceProgram } from './marinade';
 import { getOrderParams } from './orderParams';
 import { numberToSafeBN } from './math/utils';
 import { TransactionProcessor as TransactionParamProcessor } from './tx/txParamProcessor';
+import { isOracleValid } from './math/oracles';
 
 type RemainingAccountParams = {
 	userAccounts: UserAccount[];
@@ -2188,9 +2189,9 @@ export class DriftClient {
 		marketIndex: number,
 		associatedTokenAddress: PublicKey,
 		reduceOnly = false,
-		subAccountId?: number,
+		subAccountId?: number
 	) {
-		const withdrawIxs : anchor.web3.TransactionInstruction[] = [];
+		const withdrawIxs: anchor.web3.TransactionInstruction[] = [];
 
 		const spotMarketAccount = this.getSpotMarketAccount(marketIndex);
 
@@ -2266,7 +2267,6 @@ export class DriftClient {
 		subAccountId?: number,
 		txParams?: TxParams
 	): Promise<TransactionSignature> {
-		
 		const additionalSigners: Array<Signer> = [];
 
 		const withdrawIxs = await this.getWithdrawalIxs(
@@ -2274,7 +2274,7 @@ export class DriftClient {
 			marketIndex,
 			associatedTokenAddress,
 			reduceOnly,
-			subAccountId,
+			subAccountId
 		);
 
 		const tx = await this.buildTransaction(
@@ -2290,41 +2290,45 @@ export class DriftClient {
 		this.spotMarketLastSlotCache.set(marketIndex, slot);
 		return txSig;
 	}
-	
+
 	public withdrawAllDustPositions(
 		subAccountId?: number,
 		txParams?: TxParams
 	): {
-		txSig: Promise<TransactionSignature>,
-		numDustPositions: Promise<number>,
+		txSig: Promise<TransactionSignature>;
+		numDustPositions: Promise<number>;
 	} {
-
 		let txSigResolver: (value: TransactionSignature) => void;
 		let txSigErr: (err: any) => void;
-		const txSigPromise = new Promise<TransactionSignature>((resolve, err) => {txSigResolver = resolve; txSigErr = err;});
+		const txSigPromise = new Promise<TransactionSignature>((resolve, err) => {
+			txSigResolver = resolve;
+			txSigErr = err;
+		});
 
 		let numDustPositionsResolver: (value: number) => void;
 		let numDustPositionsErr: (err: any) => void;
-		const numDustPositionsPromise = new Promise<number>((resolve, err) => {numDustPositionsResolver = resolve; numDustPositionsErr = err;});
+		const numDustPositionsPromise = new Promise<number>((resolve, err) => {
+			numDustPositionsResolver = resolve;
+			numDustPositionsErr = err;
+		});
 
 		(async () => {
 			try {
 				const user = this.getUser(subAccountId);
-	
+
 				const dustPositions = user.getDustDepositPositions();
-	
+
 				if (!dustPositions || dustPositions.length === 0) {
 					numDustPositionsResolver(0);
 					txSigResolver(undefined);
 					return;
 				}
-	
+
 				numDustPositionsResolver(dustPositions.length);
 
-				let allWithdrawIxs : anchor.web3.TransactionInstruction[]= [];
-	
-				for (const position of dustPositions) {
+				let allWithdrawIxs: anchor.web3.TransactionInstruction[] = [];
 
+				for (const position of dustPositions) {
 					const tokenAccount = await getAssociatedTokenAddress(
 						position.mint,
 						this.wallet.publicKey
@@ -2339,21 +2343,17 @@ export class DriftClient {
 						true, // reduce-only true to ensure all dust is withdrawn
 						subAccountId
 					);
-					
+
 					allWithdrawIxs = allWithdrawIxs.concat(withdrawIxs);
 				}
-	
+
 				const tx = await this.buildTransaction(
 					allWithdrawIxs,
 					txParams ?? this.txParams
 				);
-	
-				const { txSig } = await this.sendTransaction(
-					tx,
-					[],
-					this.opts
-				);
-	
+
+				const { txSig } = await this.sendTransaction(tx, [], this.opts);
+
 				txSigResolver(txSig);
 			} catch (e) {
 				numDustPositionsErr(e);
@@ -5443,6 +5443,29 @@ export class DriftClient {
 		}[],
 		marketIndexes: number[]
 	): Promise<TransactionSignature> {
+		// # Filter market indexes by markets with valid oracle
+		const marketIndexToSettle: number[] = [];
+
+		for (const marketIndex of marketIndexes) {
+			const perpMarketAccount = this.getPerpMarketAccount(marketIndex);
+			const oraclePriceData = this.getOracleDataForPerpMarket(marketIndex);
+			const stateAccountAndSlot =
+				this.accountSubscriber.getStateAccountAndSlot();
+			const oracleGuardRails = stateAccountAndSlot.data.oracleGuardRails;
+
+			const isValid = isOracleValid(
+				perpMarketAccount,
+				oraclePriceData,
+				oracleGuardRails,
+				stateAccountAndSlot.slot
+			);
+
+			if (isValid) {
+				marketIndexToSettle.push(marketIndex);
+			}
+		}
+
+		// # Settle filtered market indexes
 		const ixs = await this.getSettlePNLsIxs(users, marketIndexes);
 
 		const tx = await this.buildTransaction(ixs, { computeUnits: 1_000_000 });
