@@ -87,6 +87,8 @@ import { calculateLiveOracleTwap } from './math/oracles';
 import { getPerpMarketTierNumber, getSpotMarketTierNumber } from './math/tiers';
 import { StrictOraclePrice } from './oracles/strictOraclePrice';
 
+const DUST_POSITION_SIZE = QUOTE_PRECISION.divn(100); // Dust position is any position smaller than 1c
+
 export class User {
 	driftClient: DriftClient;
 	userAccountPublicKey: PublicKey;
@@ -1561,6 +1563,47 @@ export class User {
 			spotAssetValue,
 			spotLiabilityValue,
 		};
+	}
+
+	isDustDepositPosition(spotMarketAccount: SpotMarketAccount): boolean {
+		const marketIndex = spotMarketAccount.marketIndex;
+		const depositAmount = this.getTokenAmount(spotMarketAccount.marketIndex);
+
+		if (depositAmount.lte(ZERO)) {
+			return false;
+		}
+	
+		const oraclePriceData = this.getOracleDataForSpotMarket(marketIndex);
+
+		const strictOraclePrice = new StrictOraclePrice(
+			oraclePriceData.price,
+			oraclePriceData.twap
+		);
+
+		const balanceValue = this.getSpotAssetValue(depositAmount, strictOraclePrice, spotMarketAccount);
+
+		// TODO : check is balance above in quote precision??
+		// TODO : decide where to define the DUST definition
+		
+		if (balanceValue.lt(DUST_POSITION_SIZE)) {
+			return true;
+		}
+
+		return false;
+	}
+
+	getDustDepositPositions() {
+		const spotMarketAccounts = this.driftClient.getSpotMarketAccounts();
+
+		const dustPositions : SpotMarketAccount[] = [];
+
+		for (const spotMarketAccount of spotMarketAccounts) {
+			const isDust = this.isDustDepositPosition(spotMarketAccount);
+			if (isDust) {
+				dustPositions.push(spotMarketAccount);
+			}
+		}
+		return dustPositions;
 	}
 
 	getTotalLiabilityValue(marginCategory?: MarginCategory): BN {

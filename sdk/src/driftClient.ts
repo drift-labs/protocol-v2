@@ -2183,24 +2183,14 @@ export class DriftClient {
 		return [txSig, userAccountPublicKey];
 	}
 
-	/**
-	 * Withdraws from a user account. If deposit doesn't already exist, creates a borrow
-	 * @param amount
-	 * @param marketIndex
-	 * @param associatedTokenAddress - the token account to withdraw to. can be the wallet public key if using native sol
-	 * @param reduceOnly
-	 */
-	public async withdraw(
+	private async getWithdrawalIxs(
 		amount: BN,
 		marketIndex: number,
 		associatedTokenAddress: PublicKey,
 		reduceOnly = false,
 		subAccountId?: number,
-		txParams?: TxParams
-	): Promise<TransactionSignature> {
-		const withdrawIxs = [];
-
-		const additionalSigners: Array<Signer> = [];
+	) {
+		const withdrawIxs : anchor.web3.TransactionInstruction[] = [];
 
 		const spotMarketAccount = this.getSpotMarketAccount(marketIndex);
 
@@ -2258,6 +2248,35 @@ export class DriftClient {
 			);
 		}
 
+		return withdrawIxs;
+	}
+
+	/**
+	 * Withdraws from a user account. If deposit doesn't already exist, creates a borrow
+	 * @param amount
+	 * @param marketIndex
+	 * @param associatedTokenAddress - the token account to withdraw to. can be the wallet public key if using native sol
+	 * @param reduceOnly
+	 */
+	public async withdraw(
+		amount: BN,
+		marketIndex: number,
+		associatedTokenAddress: PublicKey,
+		reduceOnly = false,
+		subAccountId?: number,
+		txParams?: TxParams
+	): Promise<TransactionSignature> {
+		
+		const additionalSigners: Array<Signer> = [];
+
+		const withdrawIxs = await this.getWithdrawalIxs(
+			amount,
+			marketIndex,
+			associatedTokenAddress,
+			reduceOnly,
+			subAccountId,
+		);
+
 		const tx = await this.buildTransaction(
 			withdrawIxs,
 			txParams ?? this.txParams
@@ -2270,6 +2289,82 @@ export class DriftClient {
 		);
 		this.spotMarketLastSlotCache.set(marketIndex, slot);
 		return txSig;
+	}
+	
+	public withdrawAllDustPositions(
+		subAccountId?: number,
+		txParams?: TxParams
+	): {
+		txSig: Promise<TransactionSignature>,
+		numDustPositions: Promise<number>,
+	} {
+
+		let txSigResolver: (value: TransactionSignature) => void;
+		let txSigErr: (err: any) => void;
+		const txSigPromise = new Promise<TransactionSignature>((resolve, err) => {txSigResolver = resolve; txSigErr = err;});
+
+		let numDustPositionsResolver: (value: number) => void;
+		let numDustPositionsErr: (err: any) => void;
+		const numDustPositionsPromise = new Promise<number>((resolve, err) => {numDustPositionsResolver = resolve; numDustPositionsErr = err;});
+
+		(async () => {
+			try {
+				const user = this.getUser(subAccountId);
+	
+				const dustPositions = user.getDustDepositPositions();
+	
+				if (!dustPositions || dustPositions.length === 0) {
+					numDustPositionsResolver(0);
+					txSigResolver(undefined);
+					return;
+				}
+	
+				numDustPositionsResolver(dustPositions.length);
+
+				let allWithdrawIxs : anchor.web3.TransactionInstruction[]= [];
+	
+				for (const position of dustPositions) {
+
+					const tokenAccount = await getAssociatedTokenAddress(
+						position.mint,
+						this.wallet.publicKey
+					);
+
+					const tokenAmount = await user.getTokenAmount(position.marketIndex);
+
+					const withdrawIxs = await this.getWithdrawalIxs(
+						tokenAmount.muln(2), //  2x to ensure all dust is withdrawn
+						position.marketIndex,
+						tokenAccount,
+						true, // reduce-only true to ensure all dust is withdrawn
+						subAccountId
+					);
+					
+					allWithdrawIxs = allWithdrawIxs.concat(withdrawIxs);
+				}
+	
+				const tx = await this.buildTransaction(
+					allWithdrawIxs,
+					txParams ?? this.txParams
+				);
+	
+				const { txSig } = await this.sendTransaction(
+					tx,
+					[],
+					this.opts
+				);
+	
+				txSigResolver(txSig);
+			} catch (e) {
+				numDustPositionsErr(e);
+				txSigErr(e);
+			}
+		})();
+
+		return {
+			txSig: txSigPromise,
+			numDustPositions: numDustPositionsPromise,
+		};
 	}
 
 	public async getWithdrawIx(
