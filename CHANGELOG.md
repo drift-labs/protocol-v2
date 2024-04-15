@@ -11,6 +11,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixes
 
+### Breaking
+
+## [2.78.0] - 2024-04-15
+
+### Features
+
+### Fixes
+
 - program: set default ContractTier to HighlySpeculative ([#1013](https://github.com/drift-labs/protocol-v2/pull/1013))
 - program: avoid dust borrows not being transferred 
 
