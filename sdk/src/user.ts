@@ -21,6 +21,7 @@ import {
 	AMM_TO_QUOTE_PRECISION_RATIO,
 	BASE_PRECISION,
 	BN_MAX,
+	DUST_POSITION_SIZE,
 	FIVE_MINUTE,
 	MARGIN_PRECISION,
 	ONE,
@@ -1561,6 +1562,56 @@ export class User {
 			spotAssetValue,
 			spotLiabilityValue,
 		};
+	}
+
+	isDustDepositPosition(spotMarketAccount: SpotMarketAccount): boolean {
+		const marketIndex = spotMarketAccount.marketIndex;
+
+		const spotPosition = this.getSpotPosition(spotMarketAccount.marketIndex);
+
+		if (isSpotPositionAvailable(spotPosition)) {
+			return false;
+		}
+
+		const depositAmount = this.getTokenAmount(spotMarketAccount.marketIndex);
+
+		if (depositAmount.lte(ZERO)) {
+			return false;
+		}
+
+		const oraclePriceData = this.getOracleDataForSpotMarket(marketIndex);
+
+		const strictOraclePrice = new StrictOraclePrice(
+			oraclePriceData.price,
+			oraclePriceData.twap
+		);
+
+		const balanceValue = this.getSpotAssetValue(
+			depositAmount,
+			strictOraclePrice,
+			spotMarketAccount
+		);
+
+		if (balanceValue.lt(DUST_POSITION_SIZE)) {
+			return true;
+		}
+
+		return false;
+	}
+
+	getSpotMarketAccountsWithDustPosition() {
+		const spotMarketAccounts = this.driftClient.getSpotMarketAccounts();
+
+		const dustPositionAccounts: SpotMarketAccount[] = [];
+
+		for (const spotMarketAccount of spotMarketAccounts) {
+			const isDust = this.isDustDepositPosition(spotMarketAccount);
+			if (isDust) {
+				dustPositionAccounts.push(spotMarketAccount);
+			}
+		}
+		
+		return dustPositionAccounts;
 	}
 
 	getTotalLiabilityValue(marginCategory?: MarginCategory): BN {
