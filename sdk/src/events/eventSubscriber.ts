@@ -203,6 +203,11 @@ export class EventSubscriber {
 	}
 
 	public async unsubscribe(): Promise<boolean> {
+		this.eventListMap.clear();
+		this.txEventCache.clear();
+		this.awaitTxPromises.clear();
+		this.awaitTxResolver.clear();
+
 		return await this.logProvider.unsubscribe(true);
 	}
 
