@@ -1757,7 +1757,7 @@ pub fn user_invalid_oracle_position() {
         &clock,
         &state,
     );
-    assert_eq!(result, Err(ErrorCode::AMMNotUpdatedInSameSlot));
+    assert_eq!(result, Err(ErrorCode::InvalidOracle));
 
     market
         .amm
