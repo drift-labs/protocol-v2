@@ -1566,6 +1566,13 @@ export class User {
 
 	isDustDepositPosition(spotMarketAccount: SpotMarketAccount): boolean {
 		const marketIndex = spotMarketAccount.marketIndex;
+
+		const spotPosition = this.getSpotPosition(spotMarketAccount.marketIndex);
+
+		if (isSpotPositionAvailable(spotPosition)) {
+			return false;
+		}
+
 		const depositAmount = this.getTokenAmount(spotMarketAccount.marketIndex);
 
 		if (depositAmount.lte(ZERO)) {
@@ -1592,18 +1599,19 @@ export class User {
 		return false;
 	}
 
-	getDustDepositPositions() {
+	getSpotMarketAccountsWithDustPosition() {
 		const spotMarketAccounts = this.driftClient.getSpotMarketAccounts();
 
-		const dustPositions: SpotMarketAccount[] = [];
+		const dustPositionAccounts: SpotMarketAccount[] = [];
 
 		for (const spotMarketAccount of spotMarketAccounts) {
 			const isDust = this.isDustDepositPosition(spotMarketAccount);
 			if (isDust) {
-				dustPositions.push(spotMarketAccount);
+				dustPositionAccounts.push(spotMarketAccount);
 			}
 		}
-		return dustPositions;
+		
+		return dustPositionAccounts;
 	}
 
 	getTotalLiabilityValue(marginCategory?: MarginCategory): BN {

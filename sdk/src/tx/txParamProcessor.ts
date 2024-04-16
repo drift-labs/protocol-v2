@@ -93,16 +93,19 @@ export class TransactionProcessor {
 			processParams: processProps,
 		} = props;
 
-		const baseTransaction = await txBuilder(txProps);
-
 		const finalTxProps = {
 			...txProps,
 		};
 
 		// # Run Processes
 		if (processConfig.useSimulatedComputeUnits) {
+			const txToSim = await txBuilder({
+				...txProps,
+				txParams: { ...txProps.txParams, computeUnits: 1_400_000 },
+			});
+
 			const txSimComputeUnitsResult = await this.getTxSimComputeUnits(
-				baseTransaction,
+				txToSim,
 				processProps.connection
 			);
 
@@ -115,7 +118,7 @@ export class TransactionProcessor {
 				// Adjust the transaction based on the simulated compute units
 				finalTxProps.txParams = {
 					...txProps.txParams,
-					computeUnits: bufferedComputeUnits,
+					computeUnits: Math.ceil(bufferedComputeUnits), // Round the compute units to a whole number
 				};
 			}
 		}
