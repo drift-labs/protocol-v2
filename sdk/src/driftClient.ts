@@ -2301,18 +2301,18 @@ export class DriftClient {
 
 		const user = this.getUser(subAccountId);
 
-		const dustPositionSpotMarkets = user.getSpotMarketsWithDustPosition();
+		const dustPositionSpotMarketAccounts = user.getSpotMarketAccountsWithDustPosition();
 
-		if (!dustPositionSpotMarkets || dustPositionSpotMarkets.length === 0) {
+		if (!dustPositionSpotMarketAccounts || dustPositionSpotMarketAccounts.length === 0) {
 			opts?.dustPositionCountCallback?.(0);
 			return undefined;
 		}
 
-		opts?.dustPositionCountCallback?.(dustPositionSpotMarkets.length);
+		opts?.dustPositionCountCallback?.(dustPositionSpotMarketAccounts.length);
 
 		let allWithdrawIxs: anchor.web3.TransactionInstruction[] = [];
 
-		for (const position of dustPositionSpotMarkets) {
+		for (const position of dustPositionSpotMarketAccounts) {
 			const tokenAccount = await getAssociatedTokenAddress(
 				position.mint,
 				this.wallet.publicKey

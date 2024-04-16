@@ -1599,18 +1599,19 @@ export class User {
 		return false;
 	}
 
-	getSpotMarketsWithDustPosition() {
+	getSpotMarketAccountsWithDustPosition() {
 		const spotMarketAccounts = this.driftClient.getSpotMarketAccounts();
 
-		const dustPositions: SpotMarketAccount[] = [];
+		const dustPositionAccounts: SpotMarketAccount[] = [];
 
 		for (const spotMarketAccount of spotMarketAccounts) {
 			const isDust = this.isDustDepositPosition(spotMarketAccount);
 			if (isDust) {
-				dustPositions.push(spotMarketAccount);
+				dustPositionAccounts.push(spotMarketAccount);
 			}
 		}
-		return dustPositions;
+		
+		return dustPositionAccounts;
 	}
 
 	getTotalLiabilityValue(marginCategory?: MarginCategory): BN {
