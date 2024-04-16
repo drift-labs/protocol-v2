@@ -4646,17 +4646,20 @@ export class DriftClient {
 		);
 
 		if (shouldUseSimulationComputeUnits || shouldExitIfSimulationFails) {
-			const versionedPlaceAndTakeTx = this.isVersionedTransaction(
-				placeAndTakeTx
-			)
-				? (placeAndTakeTx as VersionedTransaction)
-				: ((await this.buildTransaction(
-						ixs,
-						txParamsWithoutImplicitSimulation,
-						undefined,
-						undefined,
-						true
-				  )) as VersionedTransaction);
+
+			let versionedPlaceAndTakeTx : VersionedTransaction;
+			
+			if (this.isVersionedTransaction(placeAndTakeTx)) {
+				versionedPlaceAndTakeTx = placeAndTakeTx as VersionedTransaction;
+			} else {
+				versionedPlaceAndTakeTx = await this.buildTransaction(
+				ixs,
+				txParamsWithoutImplicitSimulation,
+				undefined,
+				undefined,
+				true
+			) as VersionedTransaction;
+			}
 
 			const simulationResult =
 				await TransactionParamProcessor.getTxSimComputeUnits(
