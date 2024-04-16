@@ -1592,7 +1592,7 @@ export class User {
 		return false;
 	}
 
-	getDustDepositPositions() {
+	getSpotMarketsWithDustPosition() {
 		const spotMarketAccounts = this.driftClient.getSpotMarketAccounts();
 
 		const dustPositions: SpotMarketAccount[] = [];
