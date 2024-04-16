@@ -187,7 +187,11 @@ export class DriftClient {
 	public constructor(config: DriftClientConfig) {
 		this.connection = config.connection;
 		this.wallet = config.wallet;
-		this.opts = config.opts || AnchorProvider.defaultOptions();
+		this.opts = config.opts || {
+			...AnchorProvider.defaultOptions(),
+			commitment: config?.connection?.commitment,
+			preflightCommitment: config?.connection?.commitment, // At the moment this ensures that our transaction simulations (which use Connection object) will use the same commitment level as our Transaction blockhashes (which use these opts)
+		}; 
 		this.provider = new AnchorProvider(
 			config.connection,
 			// @ts-ignore
