@@ -152,6 +152,13 @@ pub fn settle_pnl(
                 || !perp_market.is_price_divergence_ok_for_settle_pnl(oracle_price)?
             {
                 validate!(
+                    perp_market.amm.last_oracle_valid,
+                    ErrorCode::InvalidOracle,
+                    "Oracle Price detected as invalid ({}) on last perp market update",
+                    oracle_validity
+                )?;
+
+                validate!(
                     oracle_map.slot == perp_market.amm.last_update_slot,
                     ErrorCode::AMMNotUpdatedInSameSlot,
                     "Market={} AMM must be updated in a prior instruction within same slot (current={} != amm={}, last_oracle_valid={})",
@@ -159,13 +166,6 @@ pub fn settle_pnl(
                     oracle_map.slot,
                     perp_market.amm.last_update_slot,
                     perp_market.amm.last_oracle_valid
-                )?;
-
-                validate!(
-                    perp_market.amm.last_oracle_valid,
-                    ErrorCode::InvalidOracle,
-                    "Oracle Price detected as invalid ({}) on last AMM update",
-                    oracle_validity
                 )?;
             }
         }
