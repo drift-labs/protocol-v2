@@ -1566,6 +1566,13 @@ export class User {
 
 	isDustDepositPosition(spotMarketAccount: SpotMarketAccount): boolean {
 		const marketIndex = spotMarketAccount.marketIndex;
+
+		const spotPosition = this.getSpotPosition(spotMarketAccount.marketIndex);
+
+		if (isSpotPositionAvailable(spotPosition)) {
+			return false;
+		}
+
 		const depositAmount = this.getTokenAmount(spotMarketAccount.marketIndex);
 
 		if (depositAmount.lte(ZERO)) {
