@@ -5461,7 +5461,6 @@ export class DriftClient {
 		const ixs = await this.getSettlePNLsIxs(users, marketIndexToSettle);
 
 		const tx = await this.buildTransaction(ixs, {
-			...this.txParams,
 			computeUnits: 1_400_000,
 		});
 
