@@ -646,6 +646,7 @@ export class DriftClient {
 		}
 	}
 
+	// 🐞 Encountered a bug where when we add a subaccount which doesn't actually exist, Drift Client can crash when trying to fetch all user accounts. It's not OBVIOUS part of the code is "at fault", although I do understand what is causing the problem.
 	public async addUser(
 		subAccountId: number,
 		authority?: PublicKey,
@@ -664,6 +665,7 @@ export class DriftClient {
 			authority
 		);
 
+		// 🐞 : Potentially the problem is here because subscribe ALWAYS returns true. The question is whether this addUser method should actually add an entry to the users set, if the account doesn't exist.
 		const result = await user.subscribe(userAccount);
 
 		if (result) {

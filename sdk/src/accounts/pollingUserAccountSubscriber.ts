@@ -35,6 +35,7 @@ export class PollingUserAccountSubscriber implements UserAccountSubscriber {
 		this.userAccountPublicKey = userAccountPublicKey;
 	}
 
+	// 🐞 This method always returns true .. consumers probably expect false to be a possibility if subscribing didn't succeed. The question is if subscribing should be able to not succeed ... is it acceptable to subscribe to an account before it exists expecting that the fetching interval will get it later? - that's the only reason I can imagine it makes sense to always return true
 	async subscribe(userAccount?: UserAccount): Promise<boolean> {
 		if (this.isSubscribed) {
 			return true;
@@ -86,6 +87,7 @@ export class PollingUserAccountSubscriber implements UserAccountSubscriber {
 		});
 	}
 
+	// 🐞 If the subscribe method SHOULDN'T always return true, then this is the offending meethod which should return false if the fetch fails. 
 	async fetchIfUnloaded(): Promise<void> {
 		if (this.user === undefined) {
 			await this.fetch();
@@ -142,6 +144,7 @@ export class PollingUserAccountSubscriber implements UserAccountSubscriber {
 
 	public getUserAccountAndSlot(): DataAndSlot<UserAccount> {
 		if (!this.doesAccountExist()) {
+			// 🐞 This is the line that throws when we run getUserAccount for an account that doesn't exist. It's reasonable for outside users to expect they can call getUserAccounts, because the driftClient and the userAccountSubscriber both say "subscribed=true" at this point.
 			throw new NotSubscribedError(
 				'You must call `subscribe` or `fetch` before using this function'
 			);
