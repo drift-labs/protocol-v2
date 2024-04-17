@@ -41,18 +41,8 @@ export class EventSubscriber {
 		this.address = this.options.address ?? program.programId;
 		this.txEventCache = new TxEventCache(this.options.maxTx);
 		this.eventListMap = new Map<EventType, EventList<EventType>>();
-		for (const eventType of this.options.eventTypes) {
-			this.eventListMap.set(
-				eventType,
-				new EventList(
-					eventType,
-					this.options.maxEventsPerType,
-					getSortFn(this.options.orderBy, this.options.orderDir),
-					this.options.orderDir
-				)
-			);
-		}
 		this.eventEmitter = new EventEmitter();
+
 		if (this.options.logProviderConfig.type === 'websocket') {
 			this.logProvider = new WebSocketLogProvider(
 				this.connection,
@@ -71,11 +61,27 @@ export class EventSubscriber {
 		}
 	}
 
+	private populateInitialEventListMap() {
+		for (const eventType of this.options.eventTypes) {
+			this.eventListMap.set(
+				eventType,
+				new EventList(
+					eventType,
+					this.options.maxEventsPerType,
+					getSortFn(this.options.orderBy, this.options.orderDir),
+					this.options.orderDir
+				)
+			);
+		}
+	}
+
 	public async subscribe(): Promise<boolean> {
 		try {
 			if (this.logProvider.isSubscribed()) {
 				return true;
 			}
+
+			this.populateInitialEventListMap();
 
 			if (this.options.logProviderConfig.type === 'websocket') {
 				if (this.options.logProviderConfig.resubTimeoutMs) {
