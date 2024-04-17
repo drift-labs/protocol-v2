@@ -229,6 +229,7 @@ export class OrderSubscriber {
 	}
 
 	public async unsubscribe(): Promise<void> {
+		this.usersAccounts.clear();
 		await this.subscription.unsubscribe();
 	}
 }
