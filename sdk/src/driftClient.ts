@@ -191,7 +191,7 @@ export class DriftClient {
 			...AnchorProvider.defaultOptions(),
 			commitment: config?.connection?.commitment,
 			preflightCommitment: config?.connection?.commitment, // At the moment this ensures that our transaction simulations (which use Connection object) will use the same commitment level as our Transaction blockhashes (which use these opts)
-		}; 
+		};
 		this.provider = new AnchorProvider(
 			config.connection,
 			// @ts-ignore
@@ -2302,12 +2302,15 @@ export class DriftClient {
 			dustPositionCountCallback?: (count: number) => void;
 		}
 	): Promise<TransactionSignature | undefined> {
-
 		const user = this.getUser(subAccountId);
 
-		const dustPositionSpotMarketAccounts = user.getSpotMarketAccountsWithDustPosition();
+		const dustPositionSpotMarketAccounts =
+			user.getSpotMarketAccountsWithDustPosition();
 
-		if (!dustPositionSpotMarketAccounts || dustPositionSpotMarketAccounts.length === 0) {
+		if (
+			!dustPositionSpotMarketAccounts ||
+			dustPositionSpotMarketAccounts.length === 0
+		) {
 			opts?.dustPositionCountCallback?.(0);
 			return undefined;
 		}
@@ -4650,19 +4653,18 @@ export class DriftClient {
 		);
 
 		if (shouldUseSimulationComputeUnits || shouldExitIfSimulationFails) {
+			let versionedPlaceAndTakeTx: VersionedTransaction;
 
-			let versionedPlaceAndTakeTx : VersionedTransaction;
-			
 			if (this.isVersionedTransaction(placeAndTakeTx)) {
 				versionedPlaceAndTakeTx = placeAndTakeTx as VersionedTransaction;
 			} else {
-				versionedPlaceAndTakeTx = await this.buildTransaction(
-				ixs,
-				txParamsWithoutImplicitSimulation,
-				undefined,
-				undefined,
-				true
-			) as VersionedTransaction;
+				versionedPlaceAndTakeTx = (await this.buildTransaction(
+					ixs,
+					txParamsWithoutImplicitSimulation,
+					undefined,
+					undefined,
+					true
+				)) as VersionedTransaction;
 			}
 
 			const simulationResult =
@@ -5427,11 +5429,12 @@ export class DriftClient {
 			filterInvalidMarkets?: boolean;
 		}
 	): Promise<TransactionSignature> {
-
 		const filterInvalidMarkets = opts?.filterInvalidMarkets;
 
 		// # Filter market indexes by markets with valid oracle
-		const marketIndexToSettle: number[] = filterInvalidMarkets ? [] : marketIndexes;
+		const marketIndexToSettle: number[] = filterInvalidMarkets
+			? []
+			: marketIndexes;
 
 		if (filterInvalidMarkets) {
 			for (const marketIndex of marketIndexes) {
@@ -5440,14 +5443,14 @@ export class DriftClient {
 				const stateAccountAndSlot =
 					this.accountSubscriber.getStateAccountAndSlot();
 				const oracleGuardRails = stateAccountAndSlot.data.oracleGuardRails;
-	
+
 				const isValid = isOracleValid(
 					perpMarketAccount,
 					oraclePriceData,
 					oracleGuardRails,
 					stateAccountAndSlot.slot
 				);
-	
+
 				if (isValid) {
 					marketIndexToSettle.push(marketIndex);
 				}
@@ -5457,7 +5460,9 @@ export class DriftClient {
 		// # Settle filtered market indexes
 		const ixs = await this.getSettlePNLsIxs(users, marketIndexToSettle);
 
-		const tx = await this.buildTransaction(ixs, { computeUnits: 1_000_000 });
+		const tx = await this.buildTransaction(ixs, {
+			computeUnits: 1_400_000,
+		});
 
 		const { txSig } = await this.sendTransaction(tx, [], this.opts);
 		return txSig;

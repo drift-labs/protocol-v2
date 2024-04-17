@@ -1610,7 +1610,7 @@ export class User {
 				dustPositionAccounts.push(spotMarketAccount);
 			}
 		}
-		
+
 		return dustPositionAccounts;
 	}
 
