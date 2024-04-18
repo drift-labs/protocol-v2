@@ -251,6 +251,7 @@ pub fn settle_pnl(
     validate!(
         pnl_to_settle_with_user < 0
             || max_pnl_pool_excess > 0
+            || (pnl_to_settle_with_user > 0 && user.is_being_liquidated())
             || (user.authority.eq(authority) || user.delegate.eq(authority)),
         ErrorCode::UserMustSettleTheirOwnPositiveUnsettledPNL,
         "User must settle their own unsettled pnl when its positive and pnl pool not in excess"
