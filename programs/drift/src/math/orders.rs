@@ -347,9 +347,9 @@ pub fn should_expire_order_before_fill(
 ) -> DriftResult<bool> {
     let should_order_be_expired = should_expire_order(user, order_index, now)?;
     if should_order_be_expired && user.orders[order_index].is_limit_order() {
-        let now_plus_buffer = now.safe_add(15)?;
-        if !should_expire_order(user, order_index, now_plus_buffer)? {
-            msg!("invalid fill. cant force expire limit order until 15s after max_ts. max ts {}, now {}, now plus buffer {}", user.orders[order_index].max_ts, now, now_plus_buffer);
+        let now_sub_buffer = now.safe_sub(15)?;
+        if !should_expire_order(user, order_index, now_sub_buffer)? {
+            msg!("invalid fill. cant force expire limit order until 15s after max_ts. max ts {}, now {}, now plus buffer {}", user.orders[order_index].max_ts, now, now_sub_buffer);
             return Err(ErrorCode::ImpossibleFill);
         }
     }
