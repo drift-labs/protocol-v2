@@ -1,11 +1,10 @@
 use crate::controller::amm::{
     calculate_base_swap_output_with_spread, move_price, recenter_perp_market_amm, swap_base_asset,
 };
+use crate::controller::lp::{apply_lp_rebase_to_perp_market, settle_lp_position};
 use crate::controller::position::{
     update_lp_market_position, update_position_and_market, PositionDelta,
 };
-
-use crate::controller::lp::{apply_lp_rebase_to_perp_market, settle_lp_position};
 
 use crate::controller::repeg::_update_amm;
 use crate::math::constants::{

@@ -108,13 +108,15 @@ pub enum ContractTier {
     C,
     /// no insurance
     Speculative,
+    /// no insurance, another tranches below
+    HighlySpeculative,
     /// no insurance, only single position allowed
     Isolated,
 }
 
 impl ContractTier {
     pub fn default() -> Self {
-        ContractTier::Speculative
+        ContractTier::HighlySpeculative
     }
 
     pub fn is_as_safe_as(&self, best_contract: &ContractTier, best_asset: &AssetTier) -> bool {
@@ -337,31 +339,34 @@ impl PerpMarket {
     pub fn get_max_confidence_interval_multiplier(self) -> DriftResult<u64> {
         // assuming validity_guard_rails max confidence pct is 2%
         Ok(match self.contract_tier {
-            ContractTier::A => 1,            // 2%
-            ContractTier::B => 1,            // 2%
-            ContractTier::C => 2,            // 4%
-            ContractTier::Speculative => 10, // 20%
-            ContractTier::Isolated => 50,    // 100%
+            ContractTier::A => 1,                  // 2%
+            ContractTier::B => 1,                  // 2%
+            ContractTier::C => 2,                  // 4%
+            ContractTier::Speculative => 10,       // 20%
+            ContractTier::HighlySpeculative => 50, // 100%
+            ContractTier::Isolated => 50,          // 100%
         })
     }
 
     pub fn get_sanitize_clamp_denominator(self) -> DriftResult<Option<i64>> {
         Ok(match self.contract_tier {
-            ContractTier::A => Some(10_i64),   // 10%
-            ContractTier::B => Some(5_i64),    // 20%
-            ContractTier::C => Some(2_i64),    // 50%
+            ContractTier::A => Some(10_i64),         // 10%
+            ContractTier::B => Some(5_i64),          // 20%
+            ContractTier::C => Some(2_i64),          // 50%
             ContractTier::Speculative => None, // DEFAULT_MAX_TWAP_UPDATE_PRICE_BAND_DENOMINATOR
-            ContractTier::Isolated => None,    // DEFAULT_MAX_TWAP_UPDATE_PRICE_BAND_DENOMINATOR
+            ContractTier::HighlySpeculative => None, // DEFAULT_MAX_TWAP_UPDATE_PRICE_BAND_DENOMINATOR
+            ContractTier::Isolated => None, // DEFAULT_MAX_TWAP_UPDATE_PRICE_BAND_DENOMINATOR
         })
     }
 
     pub fn get_auction_end_min_max_divisors(self) -> DriftResult<(u64, u64)> {
         Ok(match self.contract_tier {
-            ContractTier::A => (1000, 50),          // 10 bps, 2%
-            ContractTier::B => (1000, 20),          // 10 bps, 5%
-            ContractTier::C => (500, 20),           // 50 bps, 5%
-            ContractTier::Speculative => (100, 10), // 1%, 10%
-            ContractTier::Isolated => (50, 5),      // 2%, 20%
+            ContractTier::A => (1000, 50),              // 10 bps, 2%
+            ContractTier::B => (1000, 20),              // 10 bps, 5%
+            ContractTier::C => (500, 20),               // 50 bps, 5%
+            ContractTier::Speculative => (100, 10),     // 1%, 10%
+            ContractTier::HighlySpeculative => (50, 5), // 2%, 20%
+            ContractTier::Isolated => (50, 5),          // 2%, 20%
         })
     }
 
@@ -529,6 +534,7 @@ impl PerpMarket {
             ContractTier::B => PERCENTAGE_PRECISION_U64 / 200, // 50 bps
             ContractTier::C => PERCENTAGE_PRECISION_U64 / 100, // 100 bps
             ContractTier::Speculative => PERCENTAGE_PRECISION_U64 / 40, // 250 bps
+            ContractTier::HighlySpeculative => PERCENTAGE_PRECISION_U64 / 40, // 250 bps
             ContractTier::Isolated => PERCENTAGE_PRECISION_U64 / 40, // 250 bps
         };
 
@@ -546,11 +552,12 @@ impl PerpMarket {
             oracle_price.min(self.amm.historical_oracle_data.last_oracle_price_twap_5min);
 
         let std_limit = match self.contract_tier {
-            ContractTier::A => min_price / 50,           // 200 bps
-            ContractTier::B => min_price / 50,           // 200 bps
-            ContractTier::C => min_price / 20,           // 500 bps
-            ContractTier::Speculative => min_price / 10, // 1000 bps
-            ContractTier::Isolated => min_price / 10,    // 1000 bps
+            ContractTier::A => min_price / 50,                 // 200 bps
+            ContractTier::B => min_price / 50,                 // 200 bps
+            ContractTier::C => min_price / 20,                 // 500 bps
+            ContractTier::Speculative => min_price / 10,       // 1000 bps
+            ContractTier::HighlySpeculative => min_price / 10, // 1000 bps
+            ContractTier::Isolated => min_price / 10,          // 1000 bps
         }
         .unsigned_abs();
 

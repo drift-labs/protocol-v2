@@ -417,6 +417,7 @@ mod update_perp_auction_params {
 
         let perp_market = PerpMarket {
             amm,
+            contract_tier: ContractTier::Speculative,
             ..PerpMarket::default()
         };
 
@@ -435,7 +436,7 @@ mod update_perp_auction_params {
             .update_perp_auction_params(&perp_market, oracle_price)
             .unwrap();
         assert_ne!(order_params_before, order_params_after);
-        assert_eq!(order_params_after.auction_start_price.unwrap(), 98901080);
+        assert_eq!(order_params_after.auction_start_price.unwrap(), 98653580);
 
         let order_params_before = OrderParams {
             order_type: OrderType::Market,
@@ -454,7 +455,7 @@ mod update_perp_auction_params {
         assert_ne!(order_params_before, order_params_after);
         assert_eq!(
             order_params_after.auction_start_price.unwrap(),
-            95 * PRICE_PRECISION_I64
+            95 * PRICE_PRECISION_I64 - oracle_price / 400
         );
 
         let order_params_before = OrderParams {
@@ -472,7 +473,10 @@ mod update_perp_auction_params {
             .update_perp_auction_params(&perp_market, oracle_price)
             .unwrap();
         assert_ne!(order_params_before, order_params_after);
-        assert_eq!(order_params_after.auction_start_price.unwrap(), 99118879);
+        assert_eq!(
+            order_params_after.auction_start_price.unwrap(),
+            99118879 + oracle_price / 400
+        );
 
         let order_params_before = OrderParams {
             order_type: OrderType::Market,
@@ -491,7 +495,7 @@ mod update_perp_auction_params {
         assert_ne!(order_params_before, order_params_after);
         assert_eq!(
             order_params_after.auction_start_price.unwrap(),
-            100 * PRICE_PRECISION_I64
+            100 * PRICE_PRECISION_I64 + oracle_price / 400
         );
 
         let order_params_before = OrderParams {
@@ -508,10 +512,13 @@ mod update_perp_auction_params {
         order_params_after
             .update_perp_auction_params(&perp_market, oracle_price)
             .unwrap();
-        assert_eq!(order_params_after.auction_start_price.unwrap(), 99118879);
+        assert_eq!(
+            order_params_after.auction_start_price.unwrap(),
+            99118879 + oracle_price / 400
+        );
         assert_eq!(order_params_after.auction_end_price.unwrap(), 98028211);
 
-        assert_eq!(order_params_after.auction_duration, Some(67));
+        assert_eq!(order_params_after.auction_duration, Some(82));
 
         let order_params_before = OrderParams {
             order_type: OrderType::Market,
@@ -527,10 +534,13 @@ mod update_perp_auction_params {
         order_params_after
             .update_perp_auction_params(&perp_market, oracle_price)
             .unwrap();
-        assert_eq!(order_params_after.auction_start_price.unwrap(), 98901080);
+        assert_eq!(
+            order_params_after.auction_start_price.unwrap(),
+            98901080 - oracle_price / 400
+        );
         assert_eq!(order_params_after.auction_end_price.unwrap(), 100207026);
 
-        assert_eq!(order_params_after.auction_duration, Some(80));
+        assert_eq!(order_params_after.auction_duration, Some(95));
     }
 
     #[test]
@@ -563,6 +573,7 @@ mod update_perp_auction_params {
 
         let perp_market = PerpMarket {
             amm,
+            contract_tier: ContractTier::Speculative,
             ..PerpMarket::default()
         };
 
@@ -581,8 +592,11 @@ mod update_perp_auction_params {
             .update_perp_auction_params(&perp_market, oracle_price)
             .unwrap();
         assert_ne!(order_params_before, order_params_after);
-        assert_eq!(order_params_after.auction_start_price.unwrap(), 18698);
-        assert!(order_params_after.auction_start_price.unwrap() > bid_twap_offset as i64);
+        assert_eq!(order_params_after.auction_start_price.unwrap(), -228802);
+        assert!(
+            order_params_after.auction_start_price.unwrap()
+                > (bid_twap_offset as i64) - oracle_price / 400
+        ); // 25 bps buffer
         assert_eq!(
             order_params_after.auction_end_price.unwrap(),
             order_params_before.oracle_price_offset.unwrap() as i64
@@ -603,7 +617,10 @@ mod update_perp_auction_params {
             .update_perp_auction_params(&perp_market, oracle_price)
             .unwrap();
         assert_ne!(order_params_before, order_params_after);
-        assert_eq!(order_params_after.auction_start_price.unwrap(), 18698);
+        assert_eq!(
+            order_params_after.auction_start_price.unwrap(),
+            18698 - oracle_price / 400
+        );
         assert_eq!(order_params_after.auction_end_price.unwrap(), 1207026);
         assert_eq!(order_params_after.oracle_price_offset, None);
 
@@ -636,7 +653,10 @@ mod update_perp_auction_params {
         order_params_after
             .update_perp_auction_params(&perp_market, oracle_price)
             .unwrap();
-        assert_eq!(order_params_after.auction_start_price.unwrap(), 18698);
+        assert_eq!(
+            order_params_after.auction_start_price.unwrap(),
+            18698 - oracle_price / 400
+        );
         assert_eq!(order_params_after.auction_end_price.unwrap(), 1207026);
 
         // test empty
@@ -654,8 +674,14 @@ mod update_perp_auction_params {
         order_params_after
             .update_perp_auction_params(&perp_market, oracle_price)
             .unwrap();
-        assert_eq!(order_params_after.auction_start_price.unwrap(), 216738);
-        assert!(order_params_after.auction_start_price.unwrap() < (ask_twap_offset as i64));
+        assert_eq!(
+            order_params_after.auction_start_price.unwrap(),
+            216738 + oracle_price / 400
+        );
+        assert!(
+            order_params_after.auction_start_price.unwrap()
+                < (ask_twap_offset as i64) + oracle_price / 400
+        );
         assert_eq!(
             order_params_after.auction_end_price.unwrap(),
             order_params_before.oracle_price_offset.unwrap() as i64
@@ -676,9 +702,12 @@ mod update_perp_auction_params {
         order_params_after
             .update_perp_auction_params(&perp_market, oracle_price)
             .unwrap();
-        assert_eq!(order_params_after.auction_start_price.unwrap(), 216738);
+        assert_eq!(
+            order_params_after.auction_start_price.unwrap(),
+            216738 + oracle_price / 400
+        );
         assert_eq!(order_params_after.auction_end_price.unwrap(), -971789);
-        assert_eq!(order_params_after.auction_duration.unwrap(), 73);
+        assert_eq!(order_params_after.auction_duration.unwrap(), 88);
     }
 }
 
@@ -686,13 +715,12 @@ mod get_close_perp_params {
     use crate::state::oracle::HistoricalOracleData;
     use crate::state::order_params::PostOnlyParam;
     use crate::state::perp_market::{PerpMarket, AMM};
+    use crate::{ContractTier, PRICE_PRECISION_U64};
+
     use crate::state::user::{Order, OrderStatus};
     use crate::test_utils::create_account_info;
     use crate::validation::order::validate_order;
-    use crate::{
-        OrderParams, PositionDirection, BASE_PRECISION_U64, PRICE_PRECISION_I64,
-        PRICE_PRECISION_U64,
-    };
+    use crate::{OrderParams, PositionDirection, BASE_PRECISION_U64, PRICE_PRECISION_I64};
     use anchor_lang::prelude::AccountLoader;
     use solana_program::pubkey::Pubkey;
     use std::str::FromStr;
@@ -714,6 +742,7 @@ mod get_close_perp_params {
         };
         let perp_market = PerpMarket {
             amm,
+            contract_tier: ContractTier::Speculative,
             ..PerpMarket::default()
         };
 
@@ -750,6 +779,7 @@ mod get_close_perp_params {
         };
         let perp_market = PerpMarket {
             amm,
+            contract_tier: ContractTier::Speculative,
             ..PerpMarket::default()
         };
 
@@ -783,6 +813,7 @@ mod get_close_perp_params {
         };
         let perp_market = PerpMarket {
             amm,
+            contract_tier: ContractTier::Speculative,
             ..PerpMarket::default()
         };
 
@@ -819,6 +850,8 @@ mod get_close_perp_params {
         };
         let perp_market = PerpMarket {
             amm,
+            contract_tier: ContractTier::Speculative,
+
             ..PerpMarket::default()
         };
 
@@ -855,6 +888,8 @@ mod get_close_perp_params {
         };
         let perp_market = PerpMarket {
             amm,
+            contract_tier: ContractTier::Speculative,
+
             ..PerpMarket::default()
         };
 
@@ -889,6 +924,8 @@ mod get_close_perp_params {
         };
         let perp_market = PerpMarket {
             amm,
+            contract_tier: ContractTier::Speculative,
+
             ..PerpMarket::default()
         };
 

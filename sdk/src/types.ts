@@ -58,6 +58,7 @@ export class ContractTier {
 	static readonly B = { b: {} };
 	static readonly C = { c: {} };
 	static readonly SPECULATIVE = { speculative: {} };
+	static readonly HIGHLY_SPECULATIVE = { highlySpeculative: {} };
 	static readonly ISOLATED = { isolated: {} };
 }
 
@@ -998,10 +999,19 @@ export type ReferrerInfo = {
 	referrerStats: PublicKey;
 };
 
-export type TxParams = {
+export type BaseTxParams = {
 	computeUnits?: number;
 	computeUnitsPrice?: number;
 };
+
+export type ProcessingTxParams = {
+	useSimulatedComputeUnits?: boolean;
+	computeUnitsBufferMultiplier?: number;
+	useSimulatedComputeUnitsForCUPriceCalculation?: boolean;
+	getCUPriceFromComputeUnits?: (computeUnits: number) => number;
+};
+
+export type TxParams = BaseTxParams & ProcessingTxParams;
 
 export class SwapReduceOnly {
 	static readonly In = { in: {} };

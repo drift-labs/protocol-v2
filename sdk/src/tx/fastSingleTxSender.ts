@@ -33,7 +33,7 @@ export class FastSingleTxSender extends BaseTxSender {
 	public constructor({
 		connection,
 		wallet,
-		opts = AnchorProvider.defaultOptions(),
+		opts = { ...AnchorProvider.defaultOptions(), maxRetries: 0 },
 		timeout = DEFAULT_TIMEOUT,
 		blockhashRefreshInterval = DEFAULT_BLOCKHASH_REFRESH,
 		additionalConnections = new Array<Connection>(),
@@ -85,24 +85,10 @@ export class FastSingleTxSender extends BaseTxSender {
 	async prepareTx(
 		tx: Transaction,
 		additionalSigners: Array<Signer>,
-		_opts: ConfirmOptions
+		_opts: ConfirmOptions,
+		preSigned?: boolean
 	): Promise<Transaction> {
-		tx.feePayer = this.wallet.publicKey;
-
-		tx.recentBlockhash =
-			this.recentBlockhash ??
-			(await this.connection.getLatestBlockhash(this.blockhashCommitment))
-				.blockhash;
-
-		additionalSigners
-			.filter((s): s is Signer => s !== undefined)
-			.forEach((kp) => {
-				tx.partialSign(kp);
-			});
-
-		const signedTx = await this.wallet.signTransaction(tx);
-
-		return signedTx;
+		return super.prepareTx(tx, additionalSigners, _opts, preSigned);
 	}
 
 	async getVersionedTransaction(

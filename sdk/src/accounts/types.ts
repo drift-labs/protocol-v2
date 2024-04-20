@@ -24,7 +24,12 @@ export interface AccountSubscriber<T> {
 
 export interface ProgramAccountSubscriber<T> {
 	subscribe(
-		onChange: (accountId: PublicKey, data: T, context: Context) => void
+		onChange: (
+			accountId: PublicKey,
+			data: T,
+			context: Context,
+			buffer: Buffer
+		) => void
 	): Promise<void>;
 	unsubscribe(): Promise<void>;
 }

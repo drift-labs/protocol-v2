@@ -541,7 +541,14 @@ pub mod drift {
         maintenance_liability_weight: u32,
         imf_factor: u32,
         liquidator_fee: u32,
+        if_liquidation_fee: u32,
         active_status: bool,
+        asset_tier: AssetTier,
+        scale_initial_asset_weight_start: u64,
+        withdraw_guard_threshold: u64,
+        order_tick_size: u64,
+        order_step_size: u64,
+        if_total_factor: u32,
         name: [u8; 32],
     ) -> Result<()> {
         handle_initialize_spot_market(
@@ -556,9 +563,23 @@ pub mod drift {
             maintenance_liability_weight,
             imf_factor,
             liquidator_fee,
+            if_liquidation_fee,
             active_status,
+            asset_tier,
+            scale_initial_asset_weight_start,
+            withdraw_guard_threshold,
+            order_tick_size,
+            order_step_size,
+            if_total_factor,
             name,
         )
+    }
+
+    pub fn delete_initialized_spot_market(
+        ctx: Context<DeleteInitializedSpotMarket>,
+        market_index: u16,
+    ) -> Result<()> {
+        handle_delete_initialized_spot_market(ctx, market_index)
     }
 
     pub fn initialize_serum_fulfillment_config(
@@ -601,10 +622,24 @@ pub mod drift {
         amm_periodicity: i64,
         amm_peg_multiplier: u128,
         oracle_source: OracleSource,
+        contract_tier: ContractTier,
         margin_ratio_initial: u32,
         margin_ratio_maintenance: u32,
         liquidator_fee: u32,
+        if_liquidation_fee: u32,
+        imf_factor: u32,
         active_status: bool,
+        base_spread: u32,
+        max_spread: u32,
+        max_open_interest: u128,
+        max_revenue_withdraw_per_period: u64,
+        quote_max_insurance: u64,
+        order_step_size: u64,
+        order_tick_size: u64,
+        min_order_size: u64,
+        concentration_coef_scale: u128,
+        curve_update_intensity: u8,
+        amm_jit_intensity: u8,
         name: [u8; 32],
     ) -> Result<()> {
         handle_initialize_perp_market(
@@ -615,10 +650,24 @@ pub mod drift {
             amm_periodicity,
             amm_peg_multiplier,
             oracle_source,
+            contract_tier,
             margin_ratio_initial,
             margin_ratio_maintenance,
             liquidator_fee,
+            if_liquidation_fee,
+            imf_factor,
             active_status,
+            base_spread,
+            max_spread,
+            max_open_interest,
+            max_revenue_withdraw_per_period,
+            quote_max_insurance,
+            order_step_size,
+            order_tick_size,
+            min_order_size,
+            concentration_coef_scale,
+            curve_update_intensity,
+            amm_jit_intensity,
             name,
         )
     }
@@ -1093,11 +1142,26 @@ pub mod drift {
         handle_update_perp_market_max_open_interest(ctx, max_open_interest)
     }
 
+    pub fn update_perp_market_number_of_users(
+        ctx: Context<AdminUpdatePerpMarket>,
+        number_of_users: Option<u32>,
+        number_of_users_with_base: Option<u32>,
+    ) -> Result<()> {
+        handle_update_perp_market_number_of_users(ctx, number_of_users, number_of_users_with_base)
+    }
+
     pub fn update_perp_market_fee_adjustment(
         ctx: Context<AdminUpdatePerpMarket>,
         fee_adjustment: i16,
     ) -> Result<()> {
         handle_update_perp_market_fee_adjustment(ctx, fee_adjustment)
+    }
+
+    pub fn update_spot_market_fee_adjustment(
+        ctx: Context<AdminUpdateSpotMarket>,
+        fee_adjustment: i16,
+    ) -> Result<()> {
+        handle_update_spot_market_fee_adjustment(ctx, fee_adjustment)
     }
 
     pub fn update_admin(ctx: Context<AdminUpdateState>, admin: Pubkey) -> Result<()> {
@@ -1137,14 +1201,6 @@ pub mod drift {
         default_spot_auction_duration: u8,
     ) -> Result<()> {
         handle_update_spot_auction_duration(ctx, default_spot_auction_duration)
-    }
-
-    pub fn admin_remove_insurance_fund_stake(
-        ctx: Context<AdminRemoveInsuranceFundStake>,
-        market_index: u16,
-        amount: u64,
-    ) -> Result<()> {
-        handle_admin_remove_insurance_fund_stake(ctx, market_index, amount)
     }
 
     pub fn initialize_protocol_if_shares_transfer_config(

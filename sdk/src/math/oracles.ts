@@ -39,7 +39,7 @@ export function getMaxConfidenceIntervalMultiplier(
 		maxConfidenceIntervalMultiplier = new BN(2);
 	} else if (isVariant(market.contractTier, 'speculative')) {
 		maxConfidenceIntervalMultiplier = new BN(10);
-	} else if (isVariant(market.contractTier, 'isolated')) {
+	} else {
 		maxConfidenceIntervalMultiplier = new BN(50);
 	}
 	return maxConfidenceIntervalMultiplier;
