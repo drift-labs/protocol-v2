@@ -285,18 +285,21 @@ impl OrderParams {
         start_buffer: i64,
     ) -> DriftResult<(i64, i64, u8)> {
         let (mut auction_start_price, auction_end_price) = if limit_price != 0 {
-            let auction_start_price_offset =
-                OrderParams::get_perp_baseline_start_price_offset(perp_market, direction)?;
+            let (auction_start_price_offset, auction_end_price_offset) =
+                OrderParams::get_perp_baseline_start_end_price_offset(perp_market, direction)?;
             let mut auction_start_price = oracle_price.safe_add(auction_start_price_offset)?;
+            let mut auction_end_price = oracle_price.safe_add(auction_end_price_offset)?;
 
             let limit_price = limit_price as i64;
             if direction == PositionDirection::Long {
-                auction_start_price = auction_start_price.min(limit_price)
+                auction_start_price = auction_start_price.min(limit_price);
+                auction_end_price = auction_end_price.min(limit_price);
             } else {
-                auction_start_price = auction_start_price.max(limit_price)
+                auction_start_price = auction_start_price.max(limit_price);
+                auction_end_price = auction_end_price.max(limit_price);
             };
 
-            (auction_start_price, limit_price)
+            (auction_start_price, auction_end_price)
         } else {
             let (auction_start_price_offset, auction_end_price_offset) =
                 OrderParams::get_perp_baseline_start_end_price_offset(perp_market, direction)?;
