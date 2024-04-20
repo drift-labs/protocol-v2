@@ -9308,6 +9308,12 @@
             "name": "Init"
           },
           {
+            "name": "Add"
+          },
+          {
+            "name": "RequestRemove"
+          },
+          {
             "name": "Remove"
           }
         ]
