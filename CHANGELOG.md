@@ -9,7 +9,57 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Features
 
+- program: update auction end price in derive_market_order_auction_params ([#1022](https://github.com/drift-labs/protocol-v2/pull/1022))
+- program: admin amm summary stats update and/or reset ([#912](https://github.com/drift-labs/protocol-v2/pull/912))
+
 ### Fixes
+
+### Breaking
+
+## [2.79.0] - 2024-04-18
+
+### Features
+
+### Fixes
+
+- program: program: let user with positive pnl be settled if being liquidated ([#1020](https://github.com/drift-labs/protocol-v2/pull/1020))
+- program: fix should_expire_order_before_fill ([#1021](https://github.com/drift-labs/protocol-v2/pull/1021))
+
+### Breaking
+
+## [2.78.0] - 2024-04-15
+
+### Features
+
+### Fixes
+
+- program: set default ContractTier to HighlySpeculative ([#1013](https://github.com/drift-labs/protocol-v2/pull/1013))
+- program: avoid dust borrows not being transferred 
+
+### Breaking
+
+## [2.77.0] - 2024-04-13
+
+### Features
+- program: lax funding rate update oracle validity criteria ([#1009](https://github.com/drift-labs/protocol-v2/pull/1009))
+
+### Fixes
+
+- program: fix div by 0 in calculate_liability_transfer_to_cover_margin_shortage
+
+### Breaking
+
+## [2.76.0] - 2024-04-09
+
+### Features
+
+- program: rm admins ability to withdraw from if ([#990](https://github.com/drift-labs/protocol-v2/pull/990))
+- program: add add ability to delete initialized spot market ([#998](https://github.com/drift-labs/protocol-v2/pull/998))
+- program: more reliable oracle updates ([#1000](https://github.com/drift-labs/protocol-v2/pull/1000))
+
+### Fixes
+
+- program: avoid underflow in update pnl ([#1002](https://github.com/drift-labs/protocol-v2/pull/1002))
 
 ### Breaking
 

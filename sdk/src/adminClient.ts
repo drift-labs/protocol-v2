@@ -34,6 +34,7 @@ import { TOKEN_PROGRAM_ID } from '@solana/spl-token';
 import { DriftClient } from './driftClient';
 import {
 	PEG_PRECISION,
+	QUOTE_SPOT_MARKET_INDEX,
 	ZERO,
 	ONE,
 	BASE_PRECISION,
@@ -225,6 +226,55 @@ export class AdminClient extends DriftClient {
 		);
 
 		return initializeIx;
+	}
+
+	public async deleteInitializedSpotMarket(
+		marketIndex: number
+	): Promise<TransactionSignature> {
+		const deleteInitializeMarketIx =
+			await this.getDeleteInitializedSpotMarketIx(marketIndex);
+
+		const tx = await this.buildTransaction(deleteInitializeMarketIx);
+
+		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+
+		return txSig;
+	}
+
+	public async getDeleteInitializedSpotMarketIx(
+		marketIndex: number
+	): Promise<TransactionInstruction> {
+		const spotMarketPublicKey = await getSpotMarketPublicKey(
+			this.program.programId,
+			marketIndex
+		);
+
+		const spotMarketVaultPublicKey = await getSpotMarketVaultPublicKey(
+			this.program.programId,
+			marketIndex
+		);
+
+		const insuranceFundVaultPublicKey = await getInsuranceFundVaultPublicKey(
+			this.program.programId,
+			marketIndex
+		);
+
+		return await this.program.instruction.deleteInitializedSpotMarket(
+			marketIndex,
+			{
+				accounts: {
+					state: await this.getStatePublicKey(),
+					admin: this.isSubscribed
+						? this.getStateAccount().admin
+						: this.wallet.publicKey,
+					spotMarket: spotMarketPublicKey,
+					spotMarketVault: spotMarketVaultPublicKey,
+					insuranceFundVault: insuranceFundVaultPublicKey,
+					driftSigner: this.getSignerPublicKey(),
+					tokenProgram: TOKEN_PROGRAM_ID,
+				},
+			}
+		);
 	}
 
 	public async initializeSerumFulfillmentConfig(
@@ -969,6 +1019,36 @@ export class AdminClient extends DriftClient {
 		const { txSig } = await this.sendTransaction(tx, [], this.opts);
 
 		return txSig;
+	}
+
+	public async updatePerpMarketAmmSummaryStats(
+		perpMarketIndex: number,
+		updateAmmSummaryStats?: boolean,
+		quoteAssetAmountWithUnsettledLp?: BN,
+		netUnsettledFundingPnl?: BN,
+	): Promise<TransactionSignature> {
+		return await this.program.rpc.updatePerpMarketAmmSummaryStats(
+			{
+				updateAmmSummaryStats: updateAmmSummaryStats ?? null,
+				quoteAssetAmountWithUnsettledLp: quoteAssetAmountWithUnsettledLp ?? null,
+				netUnsettledFundingPnl: netUnsettledFundingPnl ?? null,
+			},
+			{
+				accounts: {
+					admin: this.wallet.publicKey,
+					state: await this.getStatePublicKey(),
+					perpMarket: await getPerpMarketPublicKey(
+						this.program.programId,
+						perpMarketIndex
+					),
+					spotMarket: await getSpotMarketPublicKey(
+						this.program.programId,
+						QUOTE_SPOT_MARKET_INDEX
+					),
+					oracle: this.getPerpMarketAccount(perpMarketIndex).amm.oracle,
+				},
+			}
+		);
 	}
 
 	public async getUpdatePerpMarketTargetBaseAssetAmountPerLpIx(
@@ -2928,6 +3008,48 @@ export class AdminClient extends DriftClient {
 	): Promise<TransactionInstruction> {
 		return await this.program.instruction.updatePerpMarketMaxOpenInterest(
 			maxOpenInterest,
+			{
+				accounts: {
+					admin: this.isSubscribed
+						? this.getStateAccount().admin
+						: this.wallet.publicKey,
+					state: await this.getStatePublicKey(),
+					perpMarket: await getPerpMarketPublicKey(
+						this.program.programId,
+						perpMarketIndex
+					),
+				},
+			}
+		);
+	}
+
+	public async updatePerpMarketNumberOfUser(
+		perpMarketIndex: number,
+		numberOfUsers?: number,
+		numberOfUsersWithBase?: number
+	): Promise<TransactionSignature> {
+		const updatepPerpMarketFeeAdjustmentIx =
+			await this.getUpdatePerpMarketNumberOfUsersIx(
+				perpMarketIndex,
+				numberOfUsers,
+				numberOfUsersWithBase
+			);
+
+		const tx = await this.buildTransaction(updatepPerpMarketFeeAdjustmentIx);
+
+		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+
+		return txSig;
+	}
+
+	public async getUpdatePerpMarketNumberOfUsersIx(
+		perpMarketIndex: number,
+		numberOfUsers?: number,
+		numberOfUsersWithBase?: number
+	): Promise<TransactionInstruction> {
+		return await this.program.instruction.updatePerpMarketNumberOfUsers(
+			numberOfUsers,
+			numberOfUsersWithBase,
 			{
 				accounts: {
 					admin: this.isSubscribed

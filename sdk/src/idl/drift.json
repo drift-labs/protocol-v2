@@ -1,5 +1,5 @@
 {
-  "version": "2.75.0",
+  "version": "2.79.0",
   "name": "drift",
   "instructions": [
     {
@@ -2697,6 +2697,52 @@
       ]
     },
     {
+      "name": "deleteInitializedSpotMarket",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "state",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "spotMarket",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "spotMarketVault",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "insuranceFundVault",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "driftSigner",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "tokenProgram",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "marketIndex",
+          "type": "u16"
+        }
+      ]
+    },
+    {
       "name": "initializeSerumFulfillmentConfig",
       "accounts": [
         {
@@ -3133,6 +3179,44 @@
         {
           "name": "sqrtK",
           "type": "u128"
+        }
+      ]
+    },
+    {
+      "name": "updatePerpMarketAmmSummaryStats",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "perpMarket",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "spotMarket",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "oracle",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "params",
+          "type": {
+            "defined": "UpdatePerpMarketSummaryStatsParams"
+          }
         }
       ]
     },
@@ -4759,6 +4843,40 @@
       ]
     },
     {
+      "name": "updatePerpMarketNumberOfUsers",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "perpMarket",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "numberOfUsers",
+          "type": {
+            "option": "u32"
+          }
+        },
+        {
+          "name": "numberOfUsersWithBase",
+          "type": {
+            "option": "u32"
+          }
+        }
+      ]
+    },
+    {
       "name": "updatePerpMarketFeeAdjustment",
       "accounts": [
         {
@@ -4933,56 +5051,6 @@
         {
           "name": "defaultSpotAuctionDuration",
           "type": "u8"
-        }
-      ]
-    },
-    {
-      "name": "adminRemoveInsuranceFundStake",
-      "accounts": [
-        {
-          "name": "admin",
-          "isMut": false,
-          "isSigner": true
-        },
-        {
-          "name": "state",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "spotMarket",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "insuranceFundVault",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "driftSigner",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "adminTokenAccount",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "tokenProgram",
-          "isMut": false,
-          "isSigner": false
-        }
-      ],
-      "args": [
-        {
-          "name": "marketIndex",
-          "type": "u16"
-        },
-        {
-          "name": "amount",
-          "type": "u64"
         }
       ]
     },
@@ -6629,6 +6697,32 @@
     }
   ],
   "types": [
+    {
+      "name": "UpdatePerpMarketSummaryStatsParams",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "quoteAssetAmountWithUnsettledLp",
+            "type": {
+              "option": "i64"
+            }
+          },
+          {
+            "name": "netUnsettledFundingPnl",
+            "type": {
+              "option": "i64"
+            }
+          },
+          {
+            "name": "updateAmmSummaryStats",
+            "type": {
+              "option": "bool"
+            }
+          }
+        ]
+      }
+    },
     {
       "name": "LiquidatePerpRecord",
       "type": {

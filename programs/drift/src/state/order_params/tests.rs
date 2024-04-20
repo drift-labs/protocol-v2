@@ -417,6 +417,7 @@ mod update_perp_auction_params {
 
         let perp_market = PerpMarket {
             amm,
+            contract_tier: ContractTier::Speculative,
             ..PerpMarket::default()
         };
 
@@ -572,6 +573,7 @@ mod update_perp_auction_params {
 
         let perp_market = PerpMarket {
             amm,
+            contract_tier: ContractTier::Speculative,
             ..PerpMarket::default()
         };
 
@@ -713,13 +715,12 @@ mod get_close_perp_params {
     use crate::state::oracle::HistoricalOracleData;
     use crate::state::order_params::PostOnlyParam;
     use crate::state::perp_market::{PerpMarket, AMM};
+    use crate::{ContractTier, PRICE_PRECISION_U64};
+
     use crate::state::user::{Order, OrderStatus};
     use crate::test_utils::create_account_info;
     use crate::validation::order::validate_order;
-    use crate::{
-        OrderParams, PositionDirection, BASE_PRECISION_U64, PRICE_PRECISION_I64,
-        PRICE_PRECISION_U64,
-    };
+    use crate::{OrderParams, PositionDirection, BASE_PRECISION_U64, PRICE_PRECISION_I64};
     use anchor_lang::prelude::AccountLoader;
     use solana_program::pubkey::Pubkey;
     use std::str::FromStr;
@@ -741,6 +742,7 @@ mod get_close_perp_params {
         };
         let perp_market = PerpMarket {
             amm,
+            contract_tier: ContractTier::Speculative,
             ..PerpMarket::default()
         };
 
@@ -777,6 +779,7 @@ mod get_close_perp_params {
         };
         let perp_market = PerpMarket {
             amm,
+            contract_tier: ContractTier::Speculative,
             ..PerpMarket::default()
         };
 
@@ -810,6 +813,7 @@ mod get_close_perp_params {
         };
         let perp_market = PerpMarket {
             amm,
+            contract_tier: ContractTier::Speculative,
             ..PerpMarket::default()
         };
 
@@ -846,6 +850,8 @@ mod get_close_perp_params {
         };
         let perp_market = PerpMarket {
             amm,
+            contract_tier: ContractTier::Speculative,
+
             ..PerpMarket::default()
         };
 
@@ -882,6 +888,8 @@ mod get_close_perp_params {
         };
         let perp_market = PerpMarket {
             amm,
+            contract_tier: ContractTier::Speculative,
+
             ..PerpMarket::default()
         };
 
@@ -916,6 +924,8 @@ mod get_close_perp_params {
         };
         let perp_market = PerpMarket {
             amm,
+            contract_tier: ContractTier::Speculative,
+
             ..PerpMarket::default()
         };
 
@@ -1066,6 +1076,7 @@ mod get_close_perp_params {
         let (long_start, long_end) = OrderParams::get_perp_baseline_start_end_price_offset(
             &perp_market,
             PositionDirection::Long,
+            1,
         )
         .unwrap();
         assert_eq!(long_start, 25635886); // $25 above
@@ -1074,6 +1085,7 @@ mod get_close_perp_params {
         let (short_start, short_end) = OrderParams::get_perp_baseline_start_end_price_offset(
             &perp_market,
             PositionDirection::Short,
+            1,
         )
         .unwrap();
         assert_eq!(short_start, 47008307);

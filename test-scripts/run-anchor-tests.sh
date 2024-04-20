@@ -4,6 +4,7 @@ if [ "$1" != "--skip-build" ]; then
 fi
 
 test_files=(
+  deleteInitializedSpotMarket.ts
   multipleSpotMakerOrders.ts
   switchboardTxCus.ts
   prelisting.ts

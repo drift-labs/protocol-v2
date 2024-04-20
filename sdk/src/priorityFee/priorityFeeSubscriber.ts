@@ -12,11 +12,18 @@ import {
 	HeliusPriorityLevel,
 	fetchHeliusPriorityFee,
 } from './heliusPriorityFeeMethod';
+import { fetchDriftPriorityFee } from './driftPriorityFeeMethod';
+
+export type DriftMarketInfo = {
+	marketType: string;
+	marketIndex: number;
+};
 
 export class PriorityFeeSubscriber {
 	connection: Connection;
 	frequencyMs: number;
 	addresses: string[];
+	driftMarkets?: DriftMarketInfo[];
 	customStrategy?: PriorityFeeStrategy;
 	averageStrategy = new AverageOverSlotsStrategy();
 	maxStrategy = new MaxOverSlotsStrategy();
@@ -25,6 +32,7 @@ export class PriorityFeeSubscriber {
 	maxFeeMicroLamports?: number;
 	priorityFeeMultiplier?: number;
 
+	driftPriorityFeeEndpoint?: string;
 	heliusRpcUrl?: string;
 	lastHeliusSample?: HeliusPriorityFeeLevels;
 
@@ -39,13 +47,18 @@ export class PriorityFeeSubscriber {
 	public constructor(config: PriorityFeeSubscriberConfig) {
 		this.connection = config.connection;
 		this.frequencyMs = config.frequencyMs;
-		this.addresses = config.addresses.map((address) => address.toBase58());
+		this.addresses = config.addresses
+			? config.addresses.map((address) => address.toBase58())
+			: [];
+		this.driftMarkets = config.driftMarkets;
+
 		if (config.customStrategy) {
 			this.customStrategy = config.customStrategy;
 		} else {
 			this.customStrategy = this.averageStrategy;
 		}
 		this.lookbackDistance = config.slotsToCheck ?? 50;
+
 		if (config.priorityFeeMethod) {
 			this.priorityFeeMethod = config.priorityFeeMethod;
 
@@ -61,6 +74,8 @@ export class PriorityFeeSubscriber {
 				} else {
 					this.heliusRpcUrl = config.heliusRpcUrl;
 				}
+			} else if (this.priorityFeeMethod === PriorityFeeMethod.DRIFT) {
+				this.driftPriorityFeeEndpoint = config.driftPriorityFeeEndpoint;
 			}
 		}
 
@@ -91,13 +106,15 @@ export class PriorityFeeSubscriber {
 			this.lookbackDistance,
 			this.addresses
 		);
-		this.latestPriorityFee = samples[0].prioritizationFee;
-		this.lastSlotSeen = samples[0].slot;
+		if (samples.length > 0) {
+			this.latestPriorityFee = samples[0].prioritizationFee;
+			this.lastSlotSeen = samples[0].slot;
 
-		this.lastAvgStrategyResult = this.averageStrategy.calculate(samples);
-		this.lastMaxStrategyResult = this.maxStrategy.calculate(samples);
-		if (this.customStrategy) {
-			this.lastCustomStrategyResult = this.customStrategy.calculate(samples);
+			this.lastAvgStrategyResult = this.averageStrategy.calculate(samples);
+			this.lastMaxStrategyResult = this.maxStrategy.calculate(samples);
+			if (this.customStrategy) {
+				this.lastCustomStrategyResult = this.customStrategy.calculate(samples);
+			}
 		}
 	}
 
@@ -111,11 +128,29 @@ export class PriorityFeeSubscriber {
 
 		if (this.lastHeliusSample) {
 			this.lastAvgStrategyResult =
-				this.heliusRpcUrl[HeliusPriorityLevel.MEDIUM];
+				this.lastHeliusSample[HeliusPriorityLevel.MEDIUM];
 			this.lastMaxStrategyResult =
-				this.heliusRpcUrl[HeliusPriorityLevel.UNSAFE_MAX];
+				this.lastHeliusSample[HeliusPriorityLevel.UNSAFE_MAX];
 			if (this.customStrategy) {
 				this.lastCustomStrategyResult = this.customStrategy.calculate(sample!);
+			}
+		}
+	}
+
+	private async loadForDrift(): Promise<void> {
+		if (!this.driftMarkets) {
+			return;
+		}
+		const sample = await fetchDriftPriorityFee(
+			this.driftPriorityFeeEndpoint!,
+			this.driftMarkets.map((m) => m.marketType),
+			this.driftMarkets.map((m) => m.marketIndex)
+		);
+		if (sample.length > 0) {
+			this.lastAvgStrategyResult = sample[HeliusPriorityLevel.MEDIUM];
+			this.lastMaxStrategyResult = sample[HeliusPriorityLevel.UNSAFE_MAX];
+			if (this.customStrategy) {
+				this.lastCustomStrategyResult = this.customStrategy.calculate(sample);
 			}
 		}
 	}
@@ -183,6 +218,8 @@ export class PriorityFeeSubscriber {
 				await this.loadForSolana();
 			} else if (this.priorityFeeMethod === PriorityFeeMethod.HELIUS) {
 				await this.loadForHelius();
+			} else if (this.priorityFeeMethod === PriorityFeeMethod.DRIFT) {
+				await this.loadForDrift();
 			} else {
 				throw new Error(`${this.priorityFeeMethod} load not implemented`);
 			}
@@ -206,5 +243,9 @@ export class PriorityFeeSubscriber {
 
 	public updateAddresses(addresses: PublicKey[]) {
 		this.addresses = addresses.map((k) => k.toBase58());
+	}
+
+	public updateMarketTypeAndIndex(driftMarkets: DriftMarketInfo[]) {
+		this.driftMarkets = driftMarkets;
 	}
 }

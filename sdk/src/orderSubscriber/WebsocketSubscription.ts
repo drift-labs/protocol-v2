@@ -14,24 +14,29 @@ export class WebsocketSubscription {
 	private subscriber?: WebSocketProgramAccountSubscriber<UserAccount>;
 	private resyncTimeoutId?: NodeJS.Timeout;
 
+	private decoded?: boolean;
+
 	constructor({
 		orderSubscriber,
 		commitment,
 		skipInitialLoad = false,
 		resubTimeoutMs,
 		resyncIntervalMs,
+		decoded = true,
 	}: {
 		orderSubscriber: OrderSubscriber;
 		commitment: Commitment;
 		skipInitialLoad?: boolean;
 		resubTimeoutMs?: number;
 		resyncIntervalMs?: number;
+		decoded?: boolean;
 	}) {
 		this.orderSubscriber = orderSubscriber;
 		this.commitment = commitment;
 		this.skipInitialLoad = skipInitialLoad;
 		this.resubTimeoutMs = resubTimeoutMs;
 		this.resyncIntervalMs = resyncIntervalMs;
+		this.decoded = decoded;
 	}
 
 	public async subscribe(): Promise<void> {
@@ -52,14 +57,28 @@ export class WebsocketSubscription {
 		);
 
 		await this.subscriber.subscribe(
-			(accountId: PublicKey, account: UserAccount, context: Context) => {
+			(
+				accountId: PublicKey,
+				account: UserAccount,
+				context: Context,
+				buffer: Buffer
+			) => {
 				const userKey = accountId.toBase58();
-				this.orderSubscriber.tryUpdateUserAccount(
-					userKey,
-					'decoded',
-					account,
-					context.slot
-				);
+				if (this.decoded ?? true) {
+					this.orderSubscriber.tryUpdateUserAccount(
+						userKey,
+						'decoded',
+						account,
+						context.slot
+					);
+				} else {
+					this.orderSubscriber.tryUpdateUserAccount(
+						userKey,
+						'buffer',
+						buffer,
+						context.slot
+					);
+				}
 			}
 		);
 
