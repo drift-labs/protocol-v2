@@ -1076,6 +1076,7 @@ mod get_close_perp_params {
         let (long_start, long_end) = OrderParams::get_perp_baseline_start_end_price_offset(
             &perp_market,
             PositionDirection::Long,
+            1,
         )
         .unwrap();
         assert_eq!(long_start, 25635886); // $25 above
@@ -1084,6 +1085,7 @@ mod get_close_perp_params {
         let (short_start, short_end) = OrderParams::get_perp_baseline_start_end_price_offset(
             &perp_market,
             PositionDirection::Short,
+            1,
         )
         .unwrap();
         assert_eq!(short_start, 47008307);
