@@ -16,7 +16,7 @@ mainnet-beta=[]
 anchor-test= []
 
 [dependencies]
-anchor-lang = "0.27.0"
+anchor-lang = "0.28.0"
 
 [dev-dependencies]
 base64 = "0.13.0"
