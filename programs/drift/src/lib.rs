@@ -921,11 +921,11 @@ pub mod drift {
         handle_update_spot_market_orders_enabled(ctx, orders_enabled)
     }
 
-    pub fn update_spot_market_if_staking_disabled(
+    pub fn update_spot_market_if_paused_operations(
         ctx: Context<AdminUpdateSpotMarket>,
-        disabled: bool,
+        paused_operations: u8,
     ) -> Result<()> {
-        handle_update_spot_market_if_staking_disabled(ctx, disabled)
+        handle_update_spot_market_if_paused_operations(ctx, paused_operations)
     }
 
     pub fn update_spot_market_name(

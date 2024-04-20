@@ -62,3 +62,25 @@ impl SpotOperation {
         }
     }
 }
+
+#[derive(Clone, Copy, PartialEq, Debug, Eq)]
+pub enum IFOperation {
+    Init = 0b00000001,
+    Remove = 0b00000010,
+}
+
+const ALL_IF_OPERATIONS: [IFOperation; 2] = [IFOperation::Init, IFOperation::Remove];
+
+impl IFOperation {
+    pub fn is_operation_paused(current: u8, operation: IFOperation) -> bool {
+        current & operation as u8 != 0
+    }
+
+    pub fn log_all_operations_paused(current: u8) {
+        for operation in ALL_IF_OPERATIONS.iter() {
+            if Self::is_operation_paused(current, *operation) {
+                msg!("{:?} is paused", operation);
+            }
+        }
+    }
+}

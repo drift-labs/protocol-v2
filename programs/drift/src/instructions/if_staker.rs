@@ -5,6 +5,7 @@ use crate::controller::insurance::transfer_protocol_insurance_fund_stake;
 use crate::error::ErrorCode;
 use crate::instructions::constraints::*;
 use crate::state::insurance_fund_stake::{InsuranceFundStake, ProtocolIfSharesTransferConfig};
+use crate::state::paused_operations::IFOperation;
 use crate::state::perp_market::MarketStatus;
 use crate::state::spot_market::SpotMarket;
 use crate::state::state::State;
@@ -32,9 +33,9 @@ pub fn handle_initialize_insurance_fund_stake(
     let spot_market = ctx.accounts.spot_market.load()?;
 
     validate!(
-        spot_market.if_staking_disabled != 0,
+        !spot_market.is_if_operation_paused(IFOperation::Init),
         ErrorCode::DefaultError,
-        "if staking disabled",
+        "if staking init disabled",
     )?;
 
     Ok(())
@@ -211,6 +212,12 @@ pub fn handle_remove_insurance_fund_stake(
     let user_stats = &mut load_mut!(ctx.accounts.user_stats)?;
     let spot_market = &mut load_mut!(ctx.accounts.spot_market)?;
     let state = &ctx.accounts.state;
+
+    validate!(
+        !spot_market.is_if_operation_paused(IFOperation::Remove),
+        ErrorCode::DefaultError,
+        "if staking remove disabled",
+    )?;
 
     validate!(
         insurance_fund_stake.market_index == market_index,
