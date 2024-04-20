@@ -66,10 +66,17 @@ impl SpotOperation {
 #[derive(Clone, Copy, PartialEq, Debug, Eq)]
 pub enum IFOperation {
     Init = 0b00000001,
-    Remove = 0b00000010,
+    Add = 0b00000010,
+    RequestRemove = 0b00000100,
+    Remove = 0b00001000,
 }
 
-const ALL_IF_OPERATIONS: [IFOperation; 2] = [IFOperation::Init, IFOperation::Remove];
+const ALL_IF_OPERATIONS: [IFOperation; 4] = [
+    IFOperation::Init,
+    IFOperation::Add,
+    IFOperation::RequestRemove,
+    IFOperation::Remove,
+];
 
 impl IFOperation {
     pub fn is_operation_paused(current: u8, operation: IFOperation) -> bool {

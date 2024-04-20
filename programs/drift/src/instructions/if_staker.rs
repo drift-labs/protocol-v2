@@ -58,6 +58,12 @@ pub fn handle_add_insurance_fund_stake(
     let state = &ctx.accounts.state;
 
     validate!(
+        !spot_market.is_if_operation_paused(IFOperation::Add),
+        ErrorCode::DefaultError,
+        "if staking add disabled",
+    )?;
+
+    validate!(
         insurance_fund_stake.market_index == market_index,
         ErrorCode::IncorrectSpotMarketAccountPassed,
         "insurance_fund_stake does not match market_index"
@@ -126,6 +132,12 @@ pub fn handle_request_remove_insurance_fund_stake(
     let insurance_fund_stake = &mut load_mut!(ctx.accounts.insurance_fund_stake)?;
     let user_stats = &mut load_mut!(ctx.accounts.user_stats)?;
     let spot_market = &mut load_mut!(ctx.accounts.spot_market)?;
+
+    validate!(
+        !spot_market.is_if_operation_paused(IFOperation::RequestRemove),
+        ErrorCode::DefaultError,
+        "if staking request remove disabled",
+    )?;
 
     validate!(
         insurance_fund_stake.market_index == market_index,
