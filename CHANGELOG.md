@@ -8,6 +8,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Features
+
+- program: update auction end price in derive_market_order_auction_params ([#1022](https://github.com/drift-labs/protocol-v2/pull/1022))
 - program: admin amm summary stats update and/or reset ([#912](https://github.com/drift-labs/protocol-v2/pull/912))
 
 ### Fixes
