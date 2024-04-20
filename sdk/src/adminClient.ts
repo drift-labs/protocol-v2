@@ -636,32 +636,6 @@ export class AdminClient extends DriftClient {
 		return txSig;
 	}
 
-	public async updatePerpMarketAmmSummaryStats(
-		perpMarketIndex: number,
-		resetNewUnsettledStats?: false,
-		updateAmmSummaryStats?: false,
-	): Promise<TransactionSignature> {
-		return await this.program.rpc.updatePerpMarketAmmSummaryStats(
-			resetNewUnsettledStats,
-			updateAmmSummaryStats
-			{
-				accounts: {
-					admin: this.wallet.publicKey,
-					state: await this.getStatePublicKey(),
-					perpMarket: await getPerpMarketPublicKey(
-						this.program.programId,
-						perpMarketIndex
-					),
-					spotMarket: await getSpotMarketPublicKey(
-						this.program.programId,
-						QUOTE_SPOT_MARKET_INDEX
-					),
-					oracle: this.getPerpMarketAccount(perpMarketIndex).amm.oracle,
-				},
-			}
-		);
-	}
-
 	public async updatePerpMarketTargetBaseAssetAmountPerLp(
 		perpMarketIndex: number,
 		targetBaseAssetAmountPerLP: number
@@ -688,6 +662,36 @@ export class AdminClient extends DriftClient {
 		const { txSig } = await this.sendTransaction(tx, [], this.opts);
 
 		return txSig;
+	}
+
+	public async updatePerpMarketAmmSummaryStats(
+		perpMarketIndex: number,
+		updateAmmSummaryStats = false,
+		quoteAssetAmountWithUnsettledLp?: BN,
+		netUnsettledFundingPnl?: BN,
+	): Promise<TransactionSignature> {
+		return await this.program.rpc.updatePerpMarketAmmSummaryStats(
+			{
+				updateAmmSummaryStats,
+				quoteAssetAmountWithUnsettledLp: quoteAssetAmountWithUnsettledLp ?? null,
+				netUnsettledFundingPnl: netUnsettledFundingPnl ?? null,
+			},
+			{
+				accounts: {
+					admin: this.wallet.publicKey,
+					state: await this.getStatePublicKey(),
+					perpMarket: await getPerpMarketPublicKey(
+						this.program.programId,
+						perpMarketIndex
+					),
+					spotMarket: await getSpotMarketPublicKey(
+						this.program.programId,
+						QUOTE_SPOT_MARKET_INDEX
+					),
+					oracle: this.getPerpMarketAccount(perpMarketIndex).amm.oracle,
+				},
+			}
+		);
 	}
 
 	public async updatePerpMarketMarginRatio(
