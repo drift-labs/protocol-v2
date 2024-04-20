@@ -2217,14 +2217,14 @@ export class AdminClient extends DriftClient {
 		);
 	}
 
-	public async updateSpotMarketIfStakingDisabled(
+	public async updateSpotMarketIfPausedOperations(
 		spotMarketIndex: number,
-		disabled: boolean
+		pausedOperations: number
 	): Promise<TransactionSignature> {
 		const updateSpotMarketIfStakingDisabledIx =
-			await this.getUpdateSpotMarketIfStakingDisabledIx(
+			await this.getUpdateSpotMarketIfPausedOperationsIx(
 				spotMarketIndex,
-				disabled
+				pausedOperations
 			);
 
 		const tx = await this.buildTransaction(updateSpotMarketIfStakingDisabledIx);
@@ -2234,12 +2234,12 @@ export class AdminClient extends DriftClient {
 		return txSig;
 	}
 
-	public async getUpdateSpotMarketIfStakingDisabledIx(
+	public async getUpdateSpotMarketIfPausedOperationsIx(
 		spotMarketIndex: number,
-		disabled: boolean
+		pausedOperations: number
 	): Promise<TransactionInstruction> {
-		return await this.program.instruction.updateSpotMarketIfStakingDisabled(
-			disabled,
+		return await this.program.instruction.updateSpotMarketIfPausedOperations(
+			pausedOperations,
 			{
 				accounts: {
 					admin: this.isSubscribed
