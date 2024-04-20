@@ -1,8 +1,8 @@
 use std::fmt;
 use std::fmt::{Display, Formatter};
 
-use anchor_lang::prelude::*;
 use anchor_lang::prelude::borsh::{BorshDeserialize, BorshSerialize};
+use anchor_lang::prelude::*;
 
 use crate::error::{DriftResult, ErrorCode};
 use crate::math::casting::Cast;

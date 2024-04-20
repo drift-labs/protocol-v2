@@ -1,3 +1,4 @@
+use anchor_lang::prelude::borsh::{BorshDeserialize, BorshSerialize};
 use anchor_lang::prelude::*;
 use anchor_lang::Discriminator;
 use anchor_spl::token::{Token, TokenAccount};
@@ -68,7 +69,6 @@ use crate::{get_then_update_id, QUOTE_SPOT_MARKET_INDEX};
 use crate::{load, THIRTEEN_DAY};
 use anchor_lang::solana_program::sysvar::instructions;
 use anchor_spl::associated_token::AssociatedToken;
-use anchor_lang::prelude::borsh::{BorshDeserialize, BorshSerialize};
 
 pub fn handle_initialize_user(
     ctx: Context<InitializeUser>,
