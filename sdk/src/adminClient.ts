@@ -666,13 +666,13 @@ export class AdminClient extends DriftClient {
 
 	public async updatePerpMarketAmmSummaryStats(
 		perpMarketIndex: number,
-		updateAmmSummaryStats = false,
+		updateAmmSummaryStats?: boolean,
 		quoteAssetAmountWithUnsettledLp?: BN,
 		netUnsettledFundingPnl?: BN,
 	): Promise<TransactionSignature> {
 		return await this.program.rpc.updatePerpMarketAmmSummaryStats(
 			{
-				updateAmmSummaryStats,
+				updateAmmSummaryStats: updateAmmSummaryStats ?? null,
 				quoteAssetAmountWithUnsettledLp: quoteAssetAmountWithUnsettledLp ?? null,
 				netUnsettledFundingPnl: netUnsettledFundingPnl ?? null,
 			},

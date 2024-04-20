@@ -6564,7 +6564,9 @@
           },
           {
             "name": "updateAmmSummaryStats",
-            "type": "bool"
+            "type": {
+              "option": "bool"
+            }
           }
         ]
       }

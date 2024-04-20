@@ -904,7 +904,7 @@ pub struct UpdatePerpMarketSummaryStatsParams {
     // new aggregate unsettled user stats
     pub quote_asset_amount_with_unsettled_lp: Option<i64>,
     pub net_unsettled_funding_pnl: Option<i64>,
-    pub update_amm_summary_stats: bool,
+    pub update_amm_summary_stats: Option<bool>,
 }
 
 #[access_control(
@@ -945,7 +945,7 @@ pub fn handle_update_perp_market_amm_summary_stats(
         perp_market.amm.net_unsettled_funding_pnl = net_unsettled_funding_pnl;
     }
 
-    if params.update_amm_summary_stats {
+    if params.update_amm_summary_stats == Some(true) {
         let new_total_fee_minus_distributions =
             controller::amm::calculate_perp_market_amm_summary_stats(
                 perp_market,
