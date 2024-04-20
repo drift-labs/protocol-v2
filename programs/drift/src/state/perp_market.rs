@@ -32,7 +32,7 @@ use crate::state::oracle::{
 };
 use crate::state::spot_market::{AssetTier, SpotBalance, SpotBalanceType};
 use crate::state::traits::{MarketIndexOffset, Size};
-use borsh::{BorshDeserialize, BorshSerialize};
+use anchor_lang::prelude::borsh::{BorshDeserialize, BorshSerialize};
 
 use crate::state::paused_operations::PerpOperation;
 use drift_macros::assert_no_slop;

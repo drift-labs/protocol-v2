@@ -10,7 +10,7 @@ use crate::{
     OracleSource, PERCENTAGE_PRECISION_I64, PERCENTAGE_PRECISION_U64, PRICE_PRECISION_I64,
 };
 use anchor_lang::prelude::*;
-use borsh::{BorshDeserialize, BorshSerialize};
+use anchor_lang::prelude::borsh::{BorshDeserialize, BorshSerialize};
 use std::ops::Div;
 
 #[cfg(test)]

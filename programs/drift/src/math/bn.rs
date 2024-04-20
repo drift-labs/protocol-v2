@@ -5,7 +5,7 @@
 #![allow(clippy::manual_range_contains)]
 
 use crate::error::ErrorCode::BnConversionError;
-use borsh::{BorshDeserialize, BorshSerialize};
+use anchor_lang::prelude::borsh::{BorshDeserialize, BorshSerialize};
 use std::borrow::BorrowMut;
 use std::convert::TryInto;
 use std::io::{Error, ErrorKind, Write};

@@ -1,6 +1,6 @@
 use std::cmp::max;
 
-use borsh::{BorshDeserialize, BorshSerialize};
+use anchor_lang::prelude::borsh::{BorshDeserialize, BorshSerialize};
 use solana_program::msg;
 
 use crate::error::DriftResult;

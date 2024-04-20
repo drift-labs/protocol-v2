@@ -1,4 +1,4 @@
-use borsh::{BorshDeserialize, BorshSerialize};
+use anchor_lang::prelude::borsh::{BorshDeserialize, BorshSerialize};
 use bytemuck::{Pod, Zeroable};
 use sokoban::node_allocator::ZeroCopy;
 use solana_program::pubkey::Pubkey;
@@ -69,7 +69,6 @@ impl ZeroCopy for Seat {}
 
 // By aliasing the BorshDeserialize and BorshSerialize traits, we prevent Shank from
 // writing structs with these annotations to the IDL.
-use borsh::{BorshDeserialize as Deserialize, BorshSerialize as Serialize};
 use std::fmt::Display;
 use std::iter::Sum;
 use std::ops::{Add, AddAssign, Div, Mul, Rem, Sub, SubAssign};
@@ -278,18 +277,18 @@ macro_rules! allow_mod {
 
 // These structs need to be explicitly defined outside of the macro generation because the
 // OrderPacket type (which contains these units) implements BorshSerialize and BorshDeserialize
-#[derive(Debug, Clone, Copy, PartialOrd, Ord, Zeroable, Pod, Deserialize, Serialize)]
+#[derive(Debug, Clone, Copy, PartialOrd, Ord, Zeroable, Pod, BorshDeserialize, BorshSerialize)]
 #[repr(transparent)]
 pub struct QuoteLots {
     inner: u64,
 }
-#[derive(Debug, Clone, Copy, PartialOrd, Ord, Zeroable, Pod, Deserialize, Serialize)]
+#[derive(Debug, Clone, Copy, PartialOrd, Ord, Zeroable, Pod, BorshDeserialize, BorshSerialize)]
 #[repr(transparent)]
 pub struct BaseLots {
     inner: u64,
 }
 
-#[derive(Debug, Clone, Copy, PartialOrd, Ord, Zeroable, Pod, Deserialize, Serialize)]
+#[derive(Debug, Clone, Copy, PartialOrd, Ord, Zeroable, Pod, BorshDeserialize, BorshSerialize)]
 #[repr(transparent)]
 pub struct Ticks {
     inner: u64,
