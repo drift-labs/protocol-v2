@@ -34,6 +34,7 @@ import { TOKEN_PROGRAM_ID } from '@solana/spl-token';
 import { DriftClient } from './driftClient';
 import {
 	PEG_PRECISION,
+	QUOTE_SPOT_MARKET_INDEX,
 	ZERO,
 	ONE,
 	BASE_PRECISION,
@@ -1018,6 +1019,36 @@ export class AdminClient extends DriftClient {
 		const { txSig } = await this.sendTransaction(tx, [], this.opts);
 
 		return txSig;
+	}
+
+	public async updatePerpMarketAmmSummaryStats(
+		perpMarketIndex: number,
+		updateAmmSummaryStats?: boolean,
+		quoteAssetAmountWithUnsettledLp?: BN,
+		netUnsettledFundingPnl?: BN,
+	): Promise<TransactionSignature> {
+		return await this.program.rpc.updatePerpMarketAmmSummaryStats(
+			{
+				updateAmmSummaryStats: updateAmmSummaryStats ?? null,
+				quoteAssetAmountWithUnsettledLp: quoteAssetAmountWithUnsettledLp ?? null,
+				netUnsettledFundingPnl: netUnsettledFundingPnl ?? null,
+			},
+			{
+				accounts: {
+					admin: this.wallet.publicKey,
+					state: await this.getStatePublicKey(),
+					perpMarket: await getPerpMarketPublicKey(
+						this.program.programId,
+						perpMarketIndex
+					),
+					spotMarket: await getSpotMarketPublicKey(
+						this.program.programId,
+						QUOTE_SPOT_MARKET_INDEX
+					),
+					oracle: this.getPerpMarketAccount(perpMarketIndex).amm.oracle,
+				},
+			}
+		);
 	}
 
 	public async getUpdatePerpMarketTargetBaseAssetAmountPerLpIx(

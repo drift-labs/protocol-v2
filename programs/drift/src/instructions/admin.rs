@@ -673,7 +673,7 @@ pub fn handle_initialize_perp_market(
         liquidator_fee,
         if_liquidation_fee,
         paused_operations: 0,
-        quote_spot_market_index: 0,
+        quote_spot_market_index: QUOTE_SPOT_MARKET_INDEX,
         fee_adjustment: 0,
         padding: [0; 46],
         amm: AMM {
@@ -1002,6 +1002,82 @@ pub fn handle_recenter_perp_market_amm(
     Ok(())
 }
 
+#[derive(Debug, Clone, Copy, AnchorSerialize, AnchorDeserialize, PartialEq, Eq)]
+pub struct UpdatePerpMarketSummaryStatsParams {
+    // new aggregate unsettled user stats
+    pub quote_asset_amount_with_unsettled_lp: Option<i64>,
+    pub net_unsettled_funding_pnl: Option<i64>,
+    pub update_amm_summary_stats: Option<bool>,
+}
+
+#[access_control(
+    perp_market_valid(&ctx.accounts.perp_market)
+    valid_oracle_for_perp_market(&ctx.accounts.oracle, &ctx.accounts.perp_market)
+)]
+pub fn handle_update_perp_market_amm_summary_stats(
+    ctx: Context<AdminUpdatePerpMarketAmmSummaryStats>,
+    params: UpdatePerpMarketSummaryStatsParams,
+) -> Result<()> {
+    let perp_market = &mut load_mut!(ctx.accounts.perp_market)?;
+    let spot_market = &mut load_mut!(ctx.accounts.spot_market)?;
+
+    let clock = Clock::get()?;
+    let price_oracle = &ctx.accounts.oracle;
+
+    let OraclePriceData {
+        price: oracle_price,
+        ..
+    } = get_oracle_price(&perp_market.amm.oracle_source, price_oracle, clock.slot)?;
+
+    if let Some(quote_asset_amount_with_unsettled_lp) = params.quote_asset_amount_with_unsettled_lp
+    {
+        msg!(
+            "quote_asset_amount_with_unsettled_lp {} -> {}",
+            perp_market.amm.quote_asset_amount_with_unsettled_lp,
+            quote_asset_amount_with_unsettled_lp
+        );
+        perp_market.amm.quote_asset_amount_with_unsettled_lp = quote_asset_amount_with_unsettled_lp;
+    }
+
+    if let Some(net_unsettled_funding_pnl) = params.net_unsettled_funding_pnl {
+        msg!(
+            "net_unsettled_funding_pnl {} -> {}",
+            perp_market.amm.net_unsettled_funding_pnl,
+            net_unsettled_funding_pnl
+        );
+        perp_market.amm.net_unsettled_funding_pnl = net_unsettled_funding_pnl;
+    }
+
+    if params.update_amm_summary_stats == Some(true) {
+        let new_total_fee_minus_distributions =
+            controller::amm::calculate_perp_market_amm_summary_stats(
+                perp_market,
+                spot_market,
+                oracle_price,
+            )?;
+
+        msg!(
+            "updating amm summary stats for market index = {}",
+            perp_market.market_index,
+        );
+
+        msg!(
+            "total_fee_minus_distributions: {:?} -> {:?}",
+            perp_market.amm.total_fee_minus_distributions,
+            new_total_fee_minus_distributions,
+        );
+        let fee_difference = new_total_fee_minus_distributions
+            .safe_sub(perp_market.amm.total_fee_minus_distributions)?;
+
+        perp_market.amm.total_fee = perp_market.amm.total_fee.saturating_add(fee_difference);
+        perp_market.amm.total_mm_fee = perp_market.amm.total_mm_fee.saturating_add(fee_difference);
+        perp_market.amm.total_fee_minus_distributions = new_total_fee_minus_distributions;
+    }
+    validate_perp_market(perp_market)?;
+
+    Ok(())
+}
+
 #[access_control(
     perp_market_valid(&ctx.accounts.perp_market)
 )]
@@ -1009,7 +1085,8 @@ pub fn handle_settle_expired_market_pools_to_revenue_pool(
     ctx: Context<SettleExpiredMarketPoolsToRevenuePool>,
 ) -> Result<()> {
     let perp_market = &mut load_mut!(ctx.accounts.perp_market)?;
-    let spot_market = &mut load_mut!(ctx.accounts.spot_market)?;
+    let spot_market: &mut std::cell::RefMut<'_, SpotMarket> =
+        &mut load_mut!(ctx.accounts.spot_market)?;
     let state = &ctx.accounts.state;
 
     let clock = Clock::get()?;
@@ -2819,11 +2896,29 @@ pub struct DeleteInitializedPerpMarket<'info> {
 pub struct AdminUpdatePerpMarket<'info> {
     pub admin: Signer<'info>,
     #[account(
-    has_one = admin
+        has_one = admin
     )]
     pub state: Box<Account<'info, State>>,
     #[account(mut)]
     pub perp_market: AccountLoader<'info, PerpMarket>,
+}
+
+#[derive(Accounts)]
+pub struct AdminUpdatePerpMarketAmmSummaryStats<'info> {
+    pub admin: Signer<'info>,
+    #[account(
+        has_one = admin
+    )]
+    pub state: Box<Account<'info, State>>,
+    #[account(mut)]
+    pub perp_market: AccountLoader<'info, PerpMarket>,
+    #[account(
+        seeds = [b"spot_market", perp_market.load()?.quote_spot_market_index.to_le_bytes().as_ref()],
+        bump,
+    )]
+    pub spot_market: AccountLoader<'info, SpotMarket>,
+    /// CHECK: checked in `admin_update_perp_market_summary_stats` ix constraint
+    pub oracle: AccountInfo<'info>,
 }
 
 #[derive(Accounts)]

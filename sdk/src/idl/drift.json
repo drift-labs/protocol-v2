@@ -3183,6 +3183,44 @@
       ]
     },
     {
+      "name": "updatePerpMarketAmmSummaryStats",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "perpMarket",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "spotMarket",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "oracle",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "params",
+          "type": {
+            "defined": "UpdatePerpMarketSummaryStatsParams"
+          }
+        }
+      ]
+    },
+    {
       "name": "updatePerpMarketExpiry",
       "accounts": [
         {
@@ -6659,6 +6697,32 @@
     }
   ],
   "types": [
+    {
+      "name": "UpdatePerpMarketSummaryStatsParams",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "quoteAssetAmountWithUnsettledLp",
+            "type": {
+              "option": "i64"
+            }
+          },
+          {
+            "name": "netUnsettledFundingPnl",
+            "type": {
+              "option": "i64"
+            }
+          },
+          {
+            "name": "updateAmmSummaryStats",
+            "type": {
+              "option": "bool"
+            }
+          }
+        ]
+      }
+    },
     {
       "name": "LiquidatePerpRecord",
       "type": {
