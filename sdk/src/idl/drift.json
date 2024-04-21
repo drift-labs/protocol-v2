@@ -9300,7 +9300,7 @@
       }
     },
     {
-      "name": "IFOperation",
+      "name": "InsuranceFundOperation",
       "type": {
         "kind": "enum",
         "variants": [
@@ -11894,6 +11894,11 @@
       "code": 6257,
       "name": "CantReclaimRent",
       "msg": "CantReclaimRent"
+    },
+    {
+      "code": 6258,
+      "name": "InsuranceFundOperationPaused",
+      "msg": "InsuranceFundOperationPaused"
     }
   ]
 }
