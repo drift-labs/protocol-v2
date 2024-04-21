@@ -5,7 +5,7 @@ use crate::controller::insurance::transfer_protocol_insurance_fund_stake;
 use crate::error::ErrorCode;
 use crate::instructions::constraints::*;
 use crate::state::insurance_fund_stake::{InsuranceFundStake, ProtocolIfSharesTransferConfig};
-use crate::state::paused_operations::IFOperation;
+use crate::state::paused_operations::InsuranceFundOperation;
 use crate::state::perp_market::MarketStatus;
 use crate::state::spot_market::SpotMarket;
 use crate::state::state::State;
@@ -33,8 +33,8 @@ pub fn handle_initialize_insurance_fund_stake(
     let spot_market = ctx.accounts.spot_market.load()?;
 
     validate!(
-        !spot_market.is_if_operation_paused(IFOperation::Init),
-        ErrorCode::DefaultError,
+        !spot_market.is_if_operation_paused(InsuranceFundOperation::Init),
+        ErrorCode::InsuranceFundOperationPaused,
         "if staking init disabled",
     )?;
 
@@ -58,8 +58,8 @@ pub fn handle_add_insurance_fund_stake(
     let state = &ctx.accounts.state;
 
     validate!(
-        !spot_market.is_if_operation_paused(IFOperation::Add),
-        ErrorCode::DefaultError,
+        !spot_market.is_if_operation_paused(InsuranceFundOperation::Add),
+        ErrorCode::InsuranceFundOperationPaused,
         "if staking add disabled",
     )?;
 
@@ -134,8 +134,8 @@ pub fn handle_request_remove_insurance_fund_stake(
     let spot_market = &mut load_mut!(ctx.accounts.spot_market)?;
 
     validate!(
-        !spot_market.is_if_operation_paused(IFOperation::RequestRemove),
-        ErrorCode::DefaultError,
+        !spot_market.is_if_operation_paused(InsuranceFundOperation::RequestRemove),
+        ErrorCode::InsuranceFundOperationPaused,
         "if staking request remove disabled",
     )?;
 
@@ -226,8 +226,8 @@ pub fn handle_remove_insurance_fund_stake(
     let state = &ctx.accounts.state;
 
     validate!(
-        !spot_market.is_if_operation_paused(IFOperation::Remove),
-        ErrorCode::DefaultError,
+        !spot_market.is_if_operation_paused(InsuranceFundOperation::Remove),
+        ErrorCode::InsuranceFundOperationPaused,
         "if staking remove disabled",
     )?;
 

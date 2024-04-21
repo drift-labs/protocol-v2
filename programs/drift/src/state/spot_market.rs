@@ -20,7 +20,7 @@ use crate::math::spot_balance::{calculate_utilization, get_token_amount, get_tok
 
 use crate::math::stats::calculate_new_twap;
 use crate::state::oracle::{HistoricalIndexData, HistoricalOracleData, OracleSource};
-use crate::state::paused_operations::{IFOperation, SpotOperation};
+use crate::state::paused_operations::{InsuranceFundOperation, SpotOperation};
 use crate::state::perp_market::{MarketStatus, PoolBalance};
 use crate::state::traits::{MarketIndexOffset, Size};
 use crate::validate;
@@ -270,8 +270,8 @@ impl SpotMarket {
         SpotOperation::is_operation_paused(self.paused_operations, operation)
     }
 
-    pub fn is_if_operation_paused(&self, operation: IFOperation) -> bool {
-        IFOperation::is_operation_paused(self.if_paused_operations, operation)
+    pub fn is_if_operation_paused(&self, operation: InsuranceFundOperation) -> bool {
+        InsuranceFundOperation::is_operation_paused(self.if_paused_operations, operation)
     }
 
     pub fn fills_enabled(&self) -> bool {
