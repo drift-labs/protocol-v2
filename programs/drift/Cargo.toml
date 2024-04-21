@@ -12,10 +12,10 @@ path = "src/lib.rs"
 [features]
 no-entrypoint = []
 cpi = ["no-entrypoint"]
-mainnet-beta=[]
-anchor-test= []
-default=["mainnet-beta"]
-drift-rs=[]
+mainnet-beta = []
+anchor-test = []
+default = ["mainnet-beta"]
+drift-rs = []
 
 [dependencies]
 anchor-lang = "0.28.0"
@@ -23,7 +23,7 @@ solana-program = ">=1.14, <1.17"
 anchor-spl = "0.28.0"
 pyth-client = "0.2.2"
 bytemuck = { version = "1.4.0" }
-borsh = "0.9.1"
+borsh = "0.9.3"
 num-traits = "0.2"
 uint = { version = "0.9.1", default-features = false }
 num-derive = "0.3"
@@ -31,10 +31,12 @@ thiserror = "1.0"
 num-integer = "0.1.44"
 arrayref = "0.3.6"
 base64 = "0.13.0"
-serum_dex = { git = "https://github.com/project-serum/serum-dex", rev = "85b4f14", version = "0.5.6", features = ["no-entrypoint"] }
+serum_dex = { git = "https://github.com/project-serum/serum-dex", rev = "85b4f14", version = "0.5.6", features = [
+    "no-entrypoint",
+] }
 enumflags2 = "0.6.4"
 # phoenix-v1 = { git = "https://github.com/drift-labs/phoenix-v1", rev = "bf6b84", version = "0.2.4", features = ["no-entrypoint"] }
-lib-sokoban = "=0.3.0" 
+lib-sokoban = "=0.3.0"
 solana-security-txt = "1.1.0"
 static_assertions = "1.1.0"
 drift-macros = { git = "https://github.com/drift-labs/drift-macros.git", rev = "c57d87" }
@@ -42,5 +44,5 @@ switchboard = { path = "../switchboard", features = ["no-entrypoint"] }
 
 [dev-dependencies]
 bytes = "1.2.0"
-pyth = { path = "../pyth", features = ["no-entrypoint"]}
+pyth = { path = "../pyth", features = ["no-entrypoint"] }
 base64 = "0.13.0"
