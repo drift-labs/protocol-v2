@@ -38,7 +38,7 @@ use crate::state::oracle::{
     HistoricalIndexData, HistoricalOracleData, OraclePriceData, OracleSource, PrelaunchOracle,
     PrelaunchOracleParams,
 };
-use crate::state::paused_operations::{PerpOperation, SpotOperation};
+use crate::state::paused_operations::{InsuranceFundOperation, PerpOperation, SpotOperation};
 use crate::state::perp_market::{
     ContractTier, ContractType, InsuranceClaim, MarketStatus, PerpMarket, PoolBalance, AMM,
 };
@@ -271,7 +271,7 @@ pub fn handle_initialize_spot_market(
         total_spot_fee: 0,
         orders_enabled: spot_market_index != 0,
         paused_operations: 0,
-        padding2: 0,
+        if_paused_operations: 0,
         fee_adjustment: 0,
         padding1: [0; 2],
         flash_loan_amount: 0,
@@ -1946,6 +1946,20 @@ pub fn handle_update_spot_market_orders_enabled(
 ) -> Result<()> {
     let spot_market = &mut load_mut!(ctx.accounts.spot_market)?;
     spot_market.orders_enabled = orders_enabled;
+    Ok(())
+}
+
+#[access_control(
+    spot_market_valid(&ctx.accounts.spot_market)
+)]
+pub fn handle_update_spot_market_if_paused_operations(
+    ctx: Context<AdminUpdateSpotMarket>,
+    paused_operations: u8,
+) -> Result<()> {
+    let spot_market = &mut load_mut!(ctx.accounts.spot_market)?;
+    spot_market.if_paused_operations = paused_operations;
+    msg!("spot market {}", spot_market.market_index);
+    InsuranceFundOperation::log_all_operations_paused(paused_operations);
     Ok(())
 }
 

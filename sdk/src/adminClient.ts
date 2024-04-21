@@ -2241,6 +2241,44 @@ export class AdminClient extends DriftClient {
 		);
 	}
 
+	public async updateSpotMarketIfPausedOperations(
+		spotMarketIndex: number,
+		pausedOperations: number
+	): Promise<TransactionSignature> {
+		const updateSpotMarketIfStakingDisabledIx =
+			await this.getUpdateSpotMarketIfPausedOperationsIx(
+				spotMarketIndex,
+				pausedOperations
+			);
+
+		const tx = await this.buildTransaction(updateSpotMarketIfStakingDisabledIx);
+
+		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+
+		return txSig;
+	}
+
+	public async getUpdateSpotMarketIfPausedOperationsIx(
+		spotMarketIndex: number,
+		pausedOperations: number
+	): Promise<TransactionInstruction> {
+		return await this.program.instruction.updateSpotMarketIfPausedOperations(
+			pausedOperations,
+			{
+				accounts: {
+					admin: this.isSubscribed
+						? this.getStateAccount().admin
+						: this.wallet.publicKey,
+					state: await this.getStatePublicKey(),
+					spotMarket: await getSpotMarketPublicKey(
+						this.program.programId,
+						spotMarketIndex
+					),
+				},
+			}
+		);
+	}
+
 	public async updateSerumFulfillmentConfigStatus(
 		serumFulfillmentConfig: PublicKey,
 		status: SpotFulfillmentConfigStatus

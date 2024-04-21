@@ -921,6 +921,13 @@ pub mod drift {
         handle_update_spot_market_orders_enabled(ctx, orders_enabled)
     }
 
+    pub fn update_spot_market_if_paused_operations(
+        ctx: Context<AdminUpdateSpotMarket>,
+        paused_operations: u8,
+    ) -> Result<()> {
+        handle_update_spot_market_if_paused_operations(ctx, paused_operations)
+    }
+
     pub fn update_spot_market_name(
         ctx: Context<AdminUpdateSpotMarket>,
         name: [u8; 32],

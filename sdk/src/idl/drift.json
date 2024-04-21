@@ -4070,6 +4070,32 @@
       ]
     },
     {
+      "name": "updateSpotMarketIfPausedOperations",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "spotMarket",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "pausedOperations",
+          "type": "u8"
+        }
+      ]
+    },
+    {
       "name": "updateSpotMarketName",
       "accounts": [
         {
@@ -6125,7 +6151,7 @@
             "type": "u8"
           },
           {
-            "name": "padding2",
+            "name": "ifPausedOperations",
             "type": "u8"
           },
           {
@@ -9274,6 +9300,26 @@
       }
     },
     {
+      "name": "InsuranceFundOperation",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "Init"
+          },
+          {
+            "name": "Add"
+          },
+          {
+            "name": "RequestRemove"
+          },
+          {
+            "name": "Remove"
+          }
+        ]
+      }
+    },
+    {
       "name": "MarketStatus",
       "type": {
         "kind": "enum",
@@ -11848,6 +11894,11 @@
       "code": 6257,
       "name": "CantReclaimRent",
       "msg": "CantReclaimRent"
+    },
+    {
+      "code": 6258,
+      "name": "InsuranceFundOperationPaused",
+      "msg": "InsuranceFundOperationPaused"
     }
   ]
 }
