@@ -19,7 +19,7 @@ drift-rs = []
 
 [dependencies]
 anchor-lang = "0.28.0"
-solana-program = ">=1.14, <1.17"
+solana-program = "~1.16.7"
 anchor-spl = "0.28.0"
 pyth-client = "0.2.2"
 bytemuck = { version = "1.4.0" }
