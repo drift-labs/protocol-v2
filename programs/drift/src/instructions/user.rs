@@ -1,6 +1,5 @@
-use anchor_lang::prelude::borsh::{BorshDeserialize, BorshSerialize};
+use ::borsh::{BorshDeserialize, BorshSerialize};
 use anchor_lang::prelude::*;
-use anchor_lang::Discriminator;
 use anchor_spl::token::{Token, TokenAccount};
 use solana_program::program::invoke;
 use solana_program::system_instruction::transfer;

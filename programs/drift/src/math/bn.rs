@@ -5,10 +5,10 @@
 #![allow(clippy::manual_range_contains)]
 
 use crate::error::ErrorCode::BnConversionError;
-use anchor_lang::prelude::borsh::{BorshDeserialize, BorshSerialize};
+use borsh::{BorshDeserialize, BorshSerialize};
 use std::borrow::BorrowMut;
 use std::convert::TryInto;
-use std::io::{Error, ErrorKind, Write};
+use std::io::{Error, ErrorKind, Read, Write};
 use std::mem::size_of;
 use uint::construct_uint;
 
@@ -39,6 +39,22 @@ macro_rules! impl_borsh_deserialize_for_bn {
                 }
                 let res = $type::from_le_bytes(buf[..size_of::<$type>()].try_into().unwrap());
                 *buf = &buf[size_of::<$type>()..];
+                Ok(res)
+            }
+            #[inline]
+            fn deserialize_reader<R: Read>(reader: &mut R) -> std::io::Result<Self> {
+                let mut buf = Vec::with_capacity(size_of::<$type>());
+
+                match reader.read_exact(&mut buf) {
+                    Ok(_) => (),
+                    Err(_) => {
+                        return Err(Error::new(
+                            ErrorKind::InvalidInput,
+                            "Unexpected length of input",
+                        ))
+                    }
+                };
+                let res = $type::from_le_bytes(buf[..size_of::<$type>()].try_into().unwrap());
                 Ok(res)
             }
         }
