@@ -33,7 +33,7 @@ pub fn handle_initialize_insurance_fund_stake(
     let spot_market = ctx.accounts.spot_market.load()?;
 
     validate!(
-        !spot_market.is_if_operation_paused(InsuranceFundOperation::Init),
+        !spot_market.is_insurance_fund_operation_paused(InsuranceFundOperation::Init),
         ErrorCode::InsuranceFundOperationPaused,
         "if staking init disabled",
     )?;
@@ -58,7 +58,7 @@ pub fn handle_add_insurance_fund_stake(
     let state = &ctx.accounts.state;
 
     validate!(
-        !spot_market.is_if_operation_paused(InsuranceFundOperation::Add),
+        !spot_market.is_insurance_fund_operation_paused(InsuranceFundOperation::Add),
         ErrorCode::InsuranceFundOperationPaused,
         "if staking add disabled",
     )?;
@@ -134,7 +134,7 @@ pub fn handle_request_remove_insurance_fund_stake(
     let spot_market = &mut load_mut!(ctx.accounts.spot_market)?;
 
     validate!(
-        !spot_market.is_if_operation_paused(InsuranceFundOperation::RequestRemove),
+        !spot_market.is_insurance_fund_operation_paused(InsuranceFundOperation::RequestRemove),
         ErrorCode::InsuranceFundOperationPaused,
         "if staking request remove disabled",
     )?;
@@ -226,7 +226,7 @@ pub fn handle_remove_insurance_fund_stake(
     let state = &ctx.accounts.state;
 
     validate!(
-        !spot_market.is_if_operation_paused(InsuranceFundOperation::Remove),
+        !spot_market.is_insurance_fund_operation_paused(InsuranceFundOperation::Remove),
         ErrorCode::InsuranceFundOperationPaused,
         "if staking remove disabled",
     )?;

@@ -270,7 +270,7 @@ impl SpotMarket {
         SpotOperation::is_operation_paused(self.paused_operations, operation)
     }
 
-    pub fn is_if_operation_paused(&self, operation: InsuranceFundOperation) -> bool {
+    pub fn is_insurance_fund_operation_paused(&self, operation: InsuranceFundOperation) -> bool {
         InsuranceFundOperation::is_operation_paused(self.if_paused_operations, operation)
     }
 
