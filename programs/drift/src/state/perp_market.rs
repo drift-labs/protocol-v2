@@ -1,5 +1,7 @@
-use anchor_lang::prelude::borsh::{BorshDeserialize, BorshSerialize};
-use anchor_lang::prelude::*;
+use anchor_lang::prelude::{
+    borsh::{BorshDeserialize, BorshSerialize},
+    msg, Pubkey, account, zero_copy, AccountInfo
+};
 
 use std::cmp::max;
 

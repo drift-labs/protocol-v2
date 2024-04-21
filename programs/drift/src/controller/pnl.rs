@@ -35,8 +35,7 @@ use crate::state::spot_market_map::SpotMarketMap;
 use crate::state::state::State;
 use crate::state::user::{MarketType, User};
 use crate::validate;
-use anchor_lang::prelude::Pubkey;
-use anchor_lang::prelude::*;
+use anchor_lang::prelude::{Pubkey, Clock, emit};
 use solana_program::msg;
 use std::ops::DerefMut;
 

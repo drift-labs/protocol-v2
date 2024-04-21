@@ -1,4 +1,4 @@
-use anchor_lang::prelude::*;
+use anchor_lang::prelude::{AnchorSerialize, AnchorDeserialize, AccountInfo, msg, account, AccountLoader, zero_copy, Pubkey};
 
 use crate::error::{DriftResult, ErrorCode};
 use crate::math::casting::Cast;

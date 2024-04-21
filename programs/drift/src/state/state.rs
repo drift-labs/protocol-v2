@@ -1,4 +1,4 @@
-use anchor_lang::prelude::*;
+use anchor_lang::prelude::{AnchorDeserialize, AnchorSerialize, Pubkey, account};
 use enumflags2::BitFlags;
 
 use crate::error::DriftResult;
