@@ -2,13 +2,10 @@ use std::fmt;
 use std::fmt::{Display, Formatter};
 
 use anchor_lang::{
-    prelude::{
-        borsh::{BorshDeserialize, BorshSerialize},
-        account, Pubkey,
-        msg
-    },
-    zero_copy
+    prelude::{account, msg, Pubkey},
+    zero_copy,
 };
+use borsh::{BorshDeserialize, BorshSerialize};
 
 use crate::error::{DriftResult, ErrorCode};
 use crate::math::casting::Cast;

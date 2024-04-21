@@ -1,8 +1,5 @@
-use anchor_lang::prelude::{
-    borsh::{BorshDeserialize, BorshSerialize},
-    event, AnchorDeserialize, AnchorSerialize, Pubkey,
-    msg
-};
+use anchor_lang::prelude::{event, msg, AnchorDeserialize, AnchorSerialize, Pubkey};
+use borsh::{BorshDeserialize, BorshSerialize};
 
 use crate::controller::position::PositionDirection;
 use crate::error::{DriftResult, ErrorCode::InvalidOrder};

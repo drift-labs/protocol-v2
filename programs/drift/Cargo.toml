@@ -23,7 +23,7 @@ solana-program = "~1.16.7"
 anchor-spl = "0.28.0"
 pyth-client = "0.2.2"
 bytemuck = { version = "1.4.0" }
-borsh = "0.9.3"
+borsh = "0.10.3"
 num-traits = "0.2"
 uint = { version = "0.9.1", default-features = false }
 num-derive = "0.3"

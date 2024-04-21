@@ -1,4 +1,4 @@
-use anchor_lang::prelude::borsh::{BorshDeserialize, BorshSerialize};
+use borsh::{BorshDeserialize, BorshSerialize};
 use solana_program::msg;
 
 use crate::controller;

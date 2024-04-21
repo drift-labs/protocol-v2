@@ -1,6 +1,3 @@
-use anchor_lang::prelude::{
-    account, zero_copy, Pubkey, AnchorDeserialize, AnchorSerialize
-};
 use crate::controller::lp::apply_lp_rebase_to_perp_position;
 use crate::controller::position::{add_new_position, get_position_index, PositionDirection};
 use crate::error::{DriftResult, ErrorCode};
@@ -30,7 +27,8 @@ use crate::validate;
 use crate::{get_then_update_id, QUOTE_PRECISION_U64};
 use crate::{math_error, SPOT_WEIGHT_PRECISION_I128};
 use crate::{safe_increment, SPOT_WEIGHT_PRECISION};
-use anchor_lang::prelude::borsh::{BorshDeserialize, BorshSerialize};
+use anchor_lang::prelude::{account, zero_copy, AnchorDeserialize, AnchorSerialize, Pubkey};
+use borsh::{BorshDeserialize, BorshSerialize};
 use solana_program::msg;
 use std::cmp::max;
 use std::fmt;
