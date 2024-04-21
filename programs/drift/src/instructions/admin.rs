@@ -1019,7 +1019,7 @@ pub fn handle_update_perp_market_amm_summary_stats(
     params: UpdatePerpMarketSummaryStatsParams,
 ) -> Result<()> {
     let perp_market = &mut load_mut!(ctx.accounts.perp_market)?;
-    let spot_market = &mut load_mut!(ctx.accounts.spot_market)?;
+    let spot_market = &mut load!(ctx.accounts.spot_market)?;
 
     let clock = Clock::get()?;
     let price_oracle = &ctx.accounts.oracle;

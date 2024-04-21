@@ -1025,17 +1025,41 @@ export class AdminClient extends DriftClient {
 		perpMarketIndex: number,
 		updateAmmSummaryStats?: boolean,
 		quoteAssetAmountWithUnsettledLp?: BN,
-		netUnsettledFundingPnl?: BN,
+		netUnsettledFundingPnl?: BN
 	): Promise<TransactionSignature> {
-		return await this.program.rpc.updatePerpMarketAmmSummaryStats(
+		const updatePerpMarketMarginRatioIx =
+			await this.getUpdatePerpMarketAmmSummaryStatsIx(
+				perpMarketIndex,
+				updateAmmSummaryStats,
+				quoteAssetAmountWithUnsettledLp,
+				netUnsettledFundingPnl
+			);
+
+		const tx = await this.buildTransaction(updatePerpMarketMarginRatioIx);
+
+		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+
+		return txSig;
+	}
+
+	public async getUpdatePerpMarketAmmSummaryStatsIx(
+		perpMarketIndex: number,
+		updateAmmSummaryStats?: boolean,
+		quoteAssetAmountWithUnsettledLp?: BN,
+		netUnsettledFundingPnl?: BN
+	): Promise<TransactionInstruction> {
+		return await this.program.instruction.updatePerpMarketAmmSummaryStats(
 			{
 				updateAmmSummaryStats: updateAmmSummaryStats ?? null,
-				quoteAssetAmountWithUnsettledLp: quoteAssetAmountWithUnsettledLp ?? null,
+				quoteAssetAmountWithUnsettledLp:
+					quoteAssetAmountWithUnsettledLp ?? null,
 				netUnsettledFundingPnl: netUnsettledFundingPnl ?? null,
 			},
 			{
 				accounts: {
-					admin: this.wallet.publicKey,
+					admin: this.isSubscribed
+						? this.getStateAccount().admin
+						: this.wallet.publicKey,
 					state: await this.getStatePublicKey(),
 					perpMarket: await getPerpMarketPublicKey(
 						this.program.programId,
