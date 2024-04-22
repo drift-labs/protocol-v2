@@ -23,6 +23,7 @@ use crate::test_utils::{create_account_info, get_account_bytes};
 use crate::bn::U192;
 use crate::math::cp_curve::{adjust_k_cost, get_update_k_result, update_k};
 use crate::test_utils::get_hardcoded_pyth_price;
+use crate::QUOTE_PRECISION_I64;
 use anchor_lang::prelude::AccountLoader;
 use solana_program::pubkey::Pubkey;
 use std::str::FromStr;
@@ -180,6 +181,77 @@ fn amm_split_large_k() {
         243360075047
     );
     // assert_eq!(243360075047/9977763076 < 23, true); // ensure rounding in favor
+}
+
+#[test]
+fn test_quote_unsettled_lp() {
+    let perp_market_str = String::from("Ct8MLGv1N/dvAH3EF67yBqaUQerctpm4yqpK+QNSrXCQz76p+B+ka+8Ni2/aLOukHaFdQJXR2jkqDS+O0MbHvA9M+sjCgLVtzjkqCQAAAAAAAAAAAAAAAAIAAAAAAAAAl44wCQAAAAD54C0JAAAAAGJ4JmYAAAAAyqMxdXz//////////////wV1ZyH9//////////////8Uy592jFYPAAAAAAAAAAAAAAAAAAAAAAD6zIP0/dAIAAAAAAAAAAAA+srqThjtHwAAAAAAAAAAAJxiDwAAAAAAAAAAAAAAAAByWgjyVb4IAAAAAAAAAAAAOpuf9pLjCAAAAAAAAAAAAMRfA6LzxhAAAAAAAAAAAABs6IcCAAAAAAAAAAAAAAAAeXyo6oHtHwAAAAAAAAAAAABngilYXAEAAAAAAAAAAAAAZMIneaP+////////////GeN71uL//////////////+fnyHru//////////////8AIA8MEgUDAAAAAAAAAAAAv1P8g/EBAAAAAAAAAAAAACNQgLCty/////////////+KMQ7JGjMAAAAAAAAAAAAA4DK7xH3K/////////////2grSsB0NQAAAAAAAAAAAACsBC7WWDkCAAAAAAAAAAAAsis3AAAAAACyKzcAAAAAALIrNwAAAAAATGc8AAAAAADH51Hn/wYAAAAAAAAAAAAANXNbBAgCAAAAAAAAAAAAAPNHO0UKBQAAAAAAAAAAAABiEweaqQUAAAAAAAAAAAAAg16F138BAAAAAAAAAAAAAFBZFMk0AQAAAAAAAAAAAACoA6JpBwAAAAAAAAAAAAAALahXXQcAAAAAAAAAAAAAAMG4+QwBAAAAAAAAAAAAAADr9qfqkdAIAAAAAAAAAAAAlBk2nZ/uHwAAAAAAAAAAAHPdcUR+0QgAAAAAAAAAAAAF+03DR+sfAAAAAAAAAAAAzjkqCQAAAAAAAAAAAAAAAJXnMAkAAAAAT9IxCQAAAADyXDEJAAAAAKlJLgkAAAAAyg2YDwAAAABfBwAAAAAAANVPrUEAAAAAZW0mZgAAAAAQDgAAAAAAAADh9QUAAAAAZAAAAAAAAAAA4fUFAAAAAAAAAAAAAAAAj0W2KSYpAABzqJhf6gAAAOD5o985AQAAS3gmZgAAAADxKQYAAAAAAMlUBgAAAAAAS3gmZgAAAADuAgAA7CwAAHcBAAC9AQAAAAAAAH0AAADECTIAZMgAAcDIUt4DAAAAFJMfEQAAAADBogAAAAAAAIneROQcpf//AAAAAAAAAAAAAAAAAAAAAFe4ynNxUwoAAAAAAAAAAAAAAAAAAAAAAFNPTC1QRVJQICAgICAgICAgICAgICAgICAgICAgICAgAJsy4v////8AZc0dAAAAAP8PpdToAAAANOVq3RYAAAB7cyZmAAAAAADh9QUAAAAAAAAAAAAAAAAAAAAAAAAAAEyBWwAAAAAA2DEAAAAAAABzBQAAAAAAAMgAAAAAAAAATB0AANQwAADoAwAA9AEAAAAAAAAQJwAAASoAACtgAAAAAAEAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==");
+    let mut decoded_bytes = base64::decode(perp_market_str).unwrap();
+    let perp_market_bytes = decoded_bytes.as_mut_slice();
+
+    let key = Pubkey::default();
+    let owner = Pubkey::from_str("dRiftyHA39MWEi3m9aunc5MzRF1JYuBsbn6VPcn33UH").unwrap();
+    let mut lamports = 0;
+    let perp_market_account_info =
+        create_account_info(&key, true, &mut lamports, perp_market_bytes, &owner);
+
+    let perp_market_loader: AccountLoader<PerpMarket> =
+        AccountLoader::try_from(&perp_market_account_info).unwrap();
+    let mut perp_market = perp_market_loader.load_mut().unwrap();
+    perp_market.amm.quote_asset_amount_with_unsettled_lp = 0;
+
+    let pos_delta = PositionDelta {
+        quote_asset_amount: QUOTE_PRECISION_I64 * 150,
+        base_asset_amount: -BASE_PRECISION_I64,
+        remainder_base_asset_amount: Some(-881),
+    };
+    assert_eq!(perp_market.amm.quote_asset_amount_with_unsettled_lp, 0);
+    let fee_to_market = 1000000; // uno doll
+    let liq_split = AMMLiquiditySplit::Shared;
+    let base_unit: i128 = perp_market.amm.get_per_lp_base_unit().unwrap();
+    assert_eq!(base_unit, 1000000000000);
+
+    let (per_lp_delta_base, per_lp_delta_quote, per_lp_fee) = perp_market
+        .amm
+        .calculate_per_lp_delta(&pos_delta, fee_to_market, liq_split, base_unit)
+        .unwrap();
+
+    assert_eq!(per_lp_delta_base, -211759);
+    assert_eq!(per_lp_delta_quote, 31764);
+    assert_eq!(per_lp_fee, 169);
+
+    let pos_delta2 = PositionDelta {
+        quote_asset_amount: -QUOTE_PRECISION_I64 * 150,
+        base_asset_amount: BASE_PRECISION_I64,
+        remainder_base_asset_amount: Some(881),
+    };
+    let (per_lp_delta_base, per_lp_delta_quote, per_lp_fee) = perp_market
+        .amm
+        .calculate_per_lp_delta(&pos_delta2, fee_to_market, liq_split, base_unit)
+        .unwrap();
+
+    assert_eq!(per_lp_delta_base, 211759);
+    assert_eq!(per_lp_delta_quote, -31763);
+    assert_eq!(per_lp_fee, 169);
+
+    let lp_delta_quote = perp_market
+        .amm
+        .calculate_lp_base_delta(per_lp_delta_quote, QUOTE_PRECISION_I128)
+        .unwrap();
+    assert_eq!(lp_delta_quote, -19883754464333);
+
+    let res =
+        update_lp_market_position(&mut perp_market, &pos_delta, fee_to_market, liq_split).unwrap();
+    assert_eq!(
+        perp_market.amm.user_lp_shares * 1000 / perp_market.amm.sqrt_k,
+        132
+    ); // 13.2 % of amm
+
+    assert_eq!(
+        perp_market.amm.quote_asset_amount_with_unsettled_lp,
+        19884380
+    ); // 19.884380/.132 ~= 150 (+ fee)
+    assert_eq!(res, -132561910);
 }
 
 #[test]
