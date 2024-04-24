@@ -1,5 +1,17 @@
 import fetch from 'node-fetch';
-import { DriftPriorityFeeLevels } from './heliusPriorityFeeMethod';
+import { HeliusPriorityLevel } from './heliusPriorityFeeMethod';
+
+export type DriftMarketInfo = {
+	marketType: string;
+	marketIndex: number;
+};
+
+export type DriftPriorityFeeLevels = {
+	[key in HeliusPriorityLevel]: number;
+} & {
+	marketType: 'perp' | 'spot';
+	marketIndex: number;
+};
 
 export type DriftPriorityFeeResponse = DriftPriorityFeeLevels[];
 

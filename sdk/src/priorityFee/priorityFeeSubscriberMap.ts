@@ -1,11 +1,11 @@
 import {
+	DriftMarketInfo,
+	DriftPriorityFeeLevels,
 	DriftPriorityFeeResponse,
 	fetchDriftPriorityFee,
 } from './driftPriorityFeeMethod';
-import { DriftPriorityFeeLevels } from './heliusPriorityFeeMethod';
 import {
 	DEFAULT_PRIORITY_FEE_MAP_FREQUENCY_MS,
-	DriftMarketInfo,
 	PriorityFeeSubscriberMapConfig,
 } from './types';
 

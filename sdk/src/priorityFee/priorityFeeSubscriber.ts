@@ -1,7 +1,6 @@
 import { Connection, PublicKey } from '@solana/web3.js';
 import {
 	DEFAULT_PRIORITY_FEE_MAP_FREQUENCY_MS,
-	DriftMarketInfo,
 	PriorityFeeMethod,
 	PriorityFeeStrategy,
 	PriorityFeeSubscriberConfig,
@@ -14,7 +13,10 @@ import {
 	HeliusPriorityLevel,
 	fetchHeliusPriorityFee,
 } from './heliusPriorityFeeMethod';
-import { fetchDriftPriorityFee } from './driftPriorityFeeMethod';
+import {
+	fetchDriftPriorityFee,
+	DriftMarketInfo,
+} from './driftPriorityFeeMethod';
 
 export class PriorityFeeSubscriber {
 	connection: Connection;

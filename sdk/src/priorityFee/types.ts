@@ -1,7 +1,10 @@
 import { Connection, PublicKey } from '@solana/web3.js';
 import { SolanaPriorityFeeResponse } from './solanaPriorityFeeMethod';
 import { HeliusPriorityFeeResponse } from './heliusPriorityFeeMethod';
-import { DriftPriorityFeeResponse } from './driftPriorityFeeMethod';
+import {
+	DriftMarketInfo,
+	DriftPriorityFeeResponse,
+} from './driftPriorityFeeMethod';
 
 export const DEFAULT_PRIORITY_FEE_MAP_FREQUENCY_MS = 10_000;
 
@@ -21,11 +24,6 @@ export enum PriorityFeeMethod {
 	HELIUS = 'helius',
 	DRIFT = 'drift',
 }
-
-export type DriftMarketInfo = {
-	marketType: string;
-	marketIndex: number;
-};
 
 export type PriorityFeeSubscriberConfig = {
 	/// rpc connection, optional if using priorityFeeMethod.HELIUS
