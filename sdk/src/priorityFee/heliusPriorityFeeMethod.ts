@@ -16,7 +16,7 @@ export type HeliusPriorityFeeLevels = {
 export type DriftPriorityFeeLevels = {
 	[key in HeliusPriorityLevel]: number;
 } & {
-	marketType: string;
+	marketType: 'perp' | 'spot';
 	marketIndex: number;
 };
 

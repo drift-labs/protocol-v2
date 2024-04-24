@@ -27,23 +27,13 @@ export class PriorityFeeSubscriberMap {
 		this.driftPriorityFeeEndpoint = config.driftPriorityFeeEndpoint;
 		this.driftMarkets = config.driftMarkets;
 		this.feesMap = new Map<string, Map<number, DriftPriorityFeeLevels>>();
-		this.initFeesMap();
-	}
-
-	private initFeesMap() {
-		this.driftMarkets?.forEach((market) => {
-			if (!this.feesMap.has(market.marketType)) {
-				this.feesMap.set(
-					market.marketType,
-					new Map<number, DriftPriorityFeeLevels>()
-				);
-			}
-		});
+		this.feesMap.set('perp', new Map<number, DriftPriorityFeeLevels>());
+		this.feesMap.set('spot', new Map<number, DriftPriorityFeeLevels>());
 	}
 
 	private updateFeesMap(driftPriorityFeeResponse: DriftPriorityFeeResponse) {
 		driftPriorityFeeResponse.forEach((fee: DriftPriorityFeeLevels) => {
-			this.feesMap.get(fee.marketType)?.set(fee.marketIndex, fee);
+			this.feesMap.get(fee.marketType)!.set(fee.marketIndex, fee);
 		});
 	}
 
@@ -81,7 +71,6 @@ export class PriorityFeeSubscriberMap {
 
 	public updateMarketTypeAndIndex(driftMarkets: DriftMarketInfo[]) {
 		this.driftMarkets = driftMarkets;
-		this.initFeesMap();
 	}
 
 	public getPriorityFees(
