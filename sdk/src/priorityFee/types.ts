@@ -1,8 +1,9 @@
 import { Connection, PublicKey } from '@solana/web3.js';
 import { SolanaPriorityFeeResponse } from './solanaPriorityFeeMethod';
 import { HeliusPriorityFeeResponse } from './heliusPriorityFeeMethod';
-import { DriftMarketInfo } from './priorityFeeSubscriber';
 import { DriftPriorityFeeResponse } from './driftPriorityFeeMethod';
+
+export const DEFAULT_PRIORITY_FEE_MAP_FREQUENCY_MS = 10_000;
 
 export interface PriorityFeeStrategy {
 	// calculate the priority fee for a given set of samples.
@@ -21,11 +22,16 @@ export enum PriorityFeeMethod {
 	DRIFT = 'drift',
 }
 
+export type DriftMarketInfo = {
+	marketType: string;
+	marketIndex: number;
+};
+
 export type PriorityFeeSubscriberConfig = {
 	/// rpc connection, optional if using priorityFeeMethod.HELIUS
 	connection?: Connection;
 	/// frequency to make RPC calls to update priority fee samples, in milliseconds
-	frequencyMs: number;
+	frequencyMs?: number;
 	/// addresses you plan to write lock, used to determine priority fees
 	addresses?: PublicKey[];
 	/// drift market type and index, optionally provide at initialization time if using priorityFeeMethod.DRIFT
@@ -44,4 +50,13 @@ export type PriorityFeeSubscriberConfig = {
 	maxFeeMicroLamports?: number;
 	/// multiplier applied to priority fee before maxFeeMicroLamports, defaults to 1.0
 	priorityFeeMultiplier?: number;
+};
+
+export type PriorityFeeSubscriberMapConfig = {
+	/// frequency to make RPC calls to update priority fee samples, in milliseconds
+	frequencyMs?: number;
+	/// drift market type and associated market index to query
+	driftMarkets?: DriftMarketInfo[];
+	/// url for drift cached priority fee endpoint
+	driftPriorityFeeEndpoint: string;
 };

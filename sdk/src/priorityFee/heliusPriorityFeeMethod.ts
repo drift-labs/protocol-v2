@@ -13,6 +13,13 @@ export type HeliusPriorityFeeLevels = {
 	[key in HeliusPriorityLevel]: number;
 };
 
+export type DriftPriorityFeeLevels = {
+	[key in HeliusPriorityLevel]: number;
+} & {
+	marketType: 'perp' | 'spot';
+	marketIndex: number;
+};
+
 export type HeliusPriorityFeeResponse = {
 	jsonrpc: string;
 	result: {

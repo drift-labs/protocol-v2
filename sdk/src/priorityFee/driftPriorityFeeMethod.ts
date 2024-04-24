@@ -1,18 +1,18 @@
 import fetch from 'node-fetch';
-import { HeliusPriorityFeeLevels } from './heliusPriorityFeeMethod';
+import { DriftPriorityFeeLevels } from './heliusPriorityFeeMethod';
 
-export type DriftPriorityFeeResponse = HeliusPriorityFeeLevels[];
+export type DriftPriorityFeeResponse = DriftPriorityFeeLevels[];
 
 export async function fetchDriftPriorityFee(
 	url: string,
 	marketTypes: string[],
-	marketIndexs: number[]
+	marketIndexes: number[]
 ): Promise<DriftPriorityFeeResponse> {
 	try {
 		const response = await fetch(
 			`${url}/batchPriorityFees?marketType=${marketTypes.join(
 				','
-			)}&marketIndex=${marketIndexs.join(',')}`
+			)}&marketIndex=${marketIndexes.join(',')}`
 		);
 		if (!response.ok) {
 			throw new Error(`HTTP error! status: ${response.status}`);

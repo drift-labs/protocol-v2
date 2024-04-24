@@ -1,5 +1,7 @@
 import { Connection, PublicKey } from '@solana/web3.js';
 import {
+	DEFAULT_PRIORITY_FEE_MAP_FREQUENCY_MS,
+	DriftMarketInfo,
 	PriorityFeeMethod,
 	PriorityFeeStrategy,
 	PriorityFeeSubscriberConfig,
@@ -13,11 +15,6 @@ import {
 	fetchHeliusPriorityFee,
 } from './heliusPriorityFeeMethod';
 import { fetchDriftPriorityFee } from './driftPriorityFeeMethod';
-
-export type DriftMarketInfo = {
-	marketType: string;
-	marketIndex: number;
-};
 
 export class PriorityFeeSubscriber {
 	connection: Connection;
@@ -46,7 +43,8 @@ export class PriorityFeeSubscriber {
 
 	public constructor(config: PriorityFeeSubscriberConfig) {
 		this.connection = config.connection;
-		this.frequencyMs = config.frequencyMs;
+		this.frequencyMs =
+			config.frequencyMs ?? DEFAULT_PRIORITY_FEE_MAP_FREQUENCY_MS;
 		this.addresses = config.addresses
 			? config.addresses.map((address) => address.toBase58())
 			: [];
