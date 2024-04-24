@@ -3163,44 +3163,16 @@ export class User {
 	}
 
 	/**
-	 * Calculates taker / maker fee (as a percentage, e.g. .001 = 10 basis points) for particular marketType
-	 * @param marketType
-	 * @param positionMarketIndex
-	 * @returns : {takerFee: number, makerFee: number} Precision None
-	 */
-	public getMarketFees(marketType: MarketType, marketIndex?: number) {
-		const feeTier = this.getUserFeeTier(marketType);
-		let takerFee = feeTier.feeNumerator / feeTier.feeDenominator;
-		let makerFee =
-			feeTier.makerRebateNumerator / feeTier.makerRebateDenominator;
-
-		if (marketIndex !== undefined) {
-			let marketAccount = null;
-			if (isVariant(marketType, 'perp')) {
-				marketAccount = this.driftClient.getPerpMarketAccount(marketIndex);
-			} else {
-				marketAccount = this.driftClient.getSpotMarketAccount(marketIndex);
-			}
-			takerFee += (takerFee * marketAccount.feeAdjustment) / 100;
-			makerFee += (makerFee * marketAccount.feeAdjustment) / 100;
-		}
-
-		return {
-			takerFee,
-			makerFee,
-		};
-	}
-
-	/**
 	 * Calculates how much perp fee will be taken for a given sized trade
 	 * @param quoteAmount
 	 * @returns feeForQuote : Precision QUOTE_PRECISION
 	 */
 	public calculateFeeForQuoteAmount(quoteAmount: BN, marketIndex?: number): BN {
 		if (marketIndex !== undefined) {
-			const takerFeeMultiplier = this.getMarketFees(
+			const takerFeeMultiplier = this.driftClient.getMarketFees(
 				MarketType.PERP,
-				marketIndex
+				marketIndex,
+				this
 			).takerFee;
 			const feeAmountNum =
 				BigNum.from(quoteAmount, QUOTE_PRECISION_EXP).toNum() *
