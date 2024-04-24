@@ -6488,18 +6488,33 @@ export class DriftClient {
 	}
 
 	public async settleRevenueToInsuranceFund(
-		marketIndex: number
+		spotMarketIndex: number,
+		subAccountId?: number,
+		txParams?: TxParams
 	): Promise<TransactionSignature> {
-		const spotMarketAccount = this.getSpotMarketAccount(marketIndex);
+		const tx = await this.buildTransaction(
+			await this.getSettleRevenueToInsuranceFundIx(
+				spotMarketIndex,
+				subAccountId
+			),
+			txParams
+		);
+		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+		return txSig;
+	}
 
+	public async getSettleRevenueToInsuranceFundIx(
+		spotMarketIndex: number,
+		subAccountId?: number
+	): Promise<TransactionInstruction> {
+		const spotMarketAccount = this.getSpotMarketAccount(spotMarketIndex);
 		const remainingAccounts = this.getRemainingAccounts({
-			userAccounts: [this.getUserAccount()],
+			userAccounts: [this.getUserAccount(subAccountId)],
 			useMarketLastSlotCache: true,
-			writableSpotMarketIndexes: [marketIndex],
+			writableSpotMarketIndexes: [spotMarketIndex],
 		});
-
 		const ix = await this.program.instruction.settleRevenueToInsuranceFund(
-			marketIndex,
+			spotMarketIndex,
 			{
 				accounts: {
 					state: await this.getStatePublicKey(),
@@ -6512,11 +6527,7 @@ export class DriftClient {
 				remainingAccounts,
 			}
 		);
-
-		const tx = await this.buildTransaction(ix);
-
-		const { txSig } = await this.sendTransaction(tx, [], this.opts);
-		return txSig;
+		return ix;
 	}
 
 	public async resolvePerpPnlDeficit(
