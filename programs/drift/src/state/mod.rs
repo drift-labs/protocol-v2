@@ -10,6 +10,7 @@ pub mod order_params;
 pub mod paused_operations;
 pub mod perp_market;
 pub mod perp_market_map;
+pub mod settle_pnl_mode;
 pub mod spot_fulfillment_params;
 pub mod spot_market;
 pub mod spot_market_map;
