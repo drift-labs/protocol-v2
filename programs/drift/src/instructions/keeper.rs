@@ -479,9 +479,9 @@ pub fn handle_settle_pnl(ctx: Context<SettlePNL>, market_index: u16) -> Result<(
 }
 
 #[access_control(
-settle_pnl_not_paused(&ctx.accounts.state)
+    settle_pnl_not_paused(&ctx.accounts.state)
 )]
-pub fn handle_settle_pnls(
+pub fn handle_settle_multiple_pnls(
     ctx: Context<SettlePNL>,
     market_indexes: Vec<u16>,
     mode: SettlePnlMode,

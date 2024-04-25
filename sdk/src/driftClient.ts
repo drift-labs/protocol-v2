@@ -43,7 +43,7 @@ import {
 	ModifyOrderPolicy,
 	SwapReduceOnly,
 	BaseTxParams,
-	ProcessingTxParams,
+	ProcessingTxParams, SettlePnlMode,
 } from './types';
 import * as anchor from '@coral-xyz/anchor';
 import driftIDL from './idl/drift.json';
@@ -5524,6 +5524,52 @@ export class DriftClient {
 		});
 
 		return await this.program.instruction.settlePnl(marketIndex, {
+			accounts: {
+				state: await this.getStatePublicKey(),
+				authority: this.wallet.publicKey,
+				user: settleeUserAccountPublicKey,
+				spotMarketVault: this.getQuoteSpotMarketAccount().vault,
+			},
+			remainingAccounts: remainingAccounts,
+		});
+	}
+
+	public async settleMultiplePNLs(
+		settleeUserAccountPublicKey: PublicKey,
+		settleeUserAccount: UserAccount,
+		marketIndexes: number[],
+		mode: SettlePnlMode,
+		txParams?: TxParams
+	): Promise<TransactionSignature> {
+		const { txSig } = await this.sendTransaction(
+			await this.buildTransaction(
+				await this.settleMultiplePNLsIx(
+					settleeUserAccountPublicKey,
+					settleeUserAccount,
+					marketIndexes,
+					mode,
+				),
+				txParams
+			),
+			[],
+			this.opts
+		);
+		return txSig;
+	}
+
+	public async settleMultiplePNLsIx(
+		settleeUserAccountPublicKey: PublicKey,
+		settleeUserAccount: UserAccount,
+		marketIndexes: number[],
+		mode: SettlePnlMode,
+	): Promise<TransactionInstruction> {
+		const remainingAccounts = this.getRemainingAccounts({
+			userAccounts: [settleeUserAccount],
+			writablePerpMarketIndexes: marketIndexes,
+			writableSpotMarketIndexes: [QUOTE_SPOT_MARKET_INDEX],
+		});
+
+		return await this.program.instruction.settleMultiplePnls(marketIndexes, mode, {
 			accounts: {
 				state: await this.getStatePublicKey(),
 				authority: this.wallet.publicKey,

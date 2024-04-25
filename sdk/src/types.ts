@@ -225,6 +225,11 @@ export class StakeAction {
 	static readonly STAKE_TRANSFER = { stakeTransfer: {} };
 }
 
+export class SettlePnlMode {
+	static readonly TRY_SETTLE = { trySettle: {} };
+	static readonly MUST_SETTLE = { mustSettle: {} };
+}
+
 export function isVariant(object: unknown, type: string) {
 	return object.hasOwnProperty(type);
 }
