@@ -6641,6 +6641,48 @@ export class DriftClient {
 	}
 
 	/**
+	 * Calculates taker / maker fee (as a percentage, e.g. .001 = 10 basis points) for particular marketType
+	 * @param marketType
+	 * @param positionMarketIndex
+	 * @returns : {takerFee: number, makerFee: number} Precision None
+	 */
+	public getMarketFees(
+		marketType: MarketType,
+		marketIndex?: number,
+		user?: User
+	) {
+		let feeTier;
+		if (user) {
+			feeTier = user.getUserFeeTier(marketType);
+		} else {
+			const state = this.getStateAccount();
+			feeTier = isVariant(marketType, 'perp')
+				? state.perpFeeStructure.feeTiers[0]
+				: state.spotFeeStructure.feeTiers[0];
+		}
+
+		let takerFee = feeTier.feeNumerator / feeTier.feeDenominator;
+		let makerFee =
+			feeTier.makerRebateNumerator / feeTier.makerRebateDenominator;
+
+		if (marketIndex !== undefined) {
+			let marketAccount = null;
+			if (isVariant(marketType, 'perp')) {
+				marketAccount = this.getPerpMarketAccount(marketIndex);
+			} else {
+				marketAccount = this.getSpotMarketAccount(marketIndex);
+			}
+			takerFee += (takerFee * marketAccount.feeAdjustment) / 100;
+			makerFee += (makerFee * marketAccount.feeAdjustment) / 100;
+		}
+
+		return {
+			takerFee,
+			makerFee,
+		};
+	}
+
+	/**
 	 * Returns the market index and type for a given market name
 	 * E.g. "SOL-PERP" -> { marketIndex: 0, marketType: MarketType.PERP }
 	 *
