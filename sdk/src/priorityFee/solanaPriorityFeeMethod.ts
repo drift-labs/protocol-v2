@@ -10,19 +10,25 @@ export async function fetchSolanaPriorityFee(
 	lookbackDistance: number,
 	addresses: string[]
 ): Promise<SolanaPriorityFeeResponse[]> {
-	// @ts-ignore
-	const rpcJSONResponse: any = await connection._rpcRequest(
-		'getRecentPrioritizationFees',
-		[addresses]
-	);
+	try {
+		// @ts-ignore
+		const rpcJSONResponse: any = await connection._rpcRequest(
+			'getRecentPrioritizationFees',
+			[addresses]
+		);
 
-	const results: SolanaPriorityFeeResponse[] = rpcJSONResponse?.result;
+		const results: SolanaPriorityFeeResponse[] = rpcJSONResponse?.result;
 
-	if (!results.length) return;
+		if (!results.length) return;
 
-	// Sort and filter results based on the slot lookback setting
-	const descResults = results.sort((a, b) => b.slot - a.slot);
-	const cutoffSlot = descResults[0].slot - lookbackDistance;
+		// Sort and filter results based on the slot lookback setting
+		const descResults = results.sort((a, b) => b.slot - a.slot);
+		const cutoffSlot = descResults[0].slot - lookbackDistance;
 
-	return descResults.filter((result) => result.slot >= cutoffSlot);
+		return descResults.filter((result) => result.slot >= cutoffSlot);
+	} catch (err) {
+		console.error(err);
+	}
+
+	return [];
 }

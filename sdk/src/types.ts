@@ -803,6 +803,9 @@ export type AMM = {
 	askQuoteAssetReserve: BN;
 
 	perLpBase: number; // i8
+	netUnsettledFundingPnl: BN;
+	quoteAssetAmountWithUnsettledLp: BN;
+	referencePriceOffset: number;
 };
 
 // # User Account Types
@@ -1007,6 +1010,8 @@ export type BaseTxParams = {
 export type ProcessingTxParams = {
 	useSimulatedComputeUnits?: boolean;
 	computeUnitsBufferMultiplier?: number;
+	useSimulatedComputeUnitsForCUPriceCalculation?: boolean;
+	getCUPriceFromComputeUnits?: (computeUnits: number) => number;
 };
 
 export type TxParams = BaseTxParams & ProcessingTxParams;

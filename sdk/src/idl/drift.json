@@ -1,5 +1,5 @@
 {
-  "version": "2.75.0",
+  "version": "2.81.0",
   "name": "drift",
   "instructions": [
     {
@@ -3183,6 +3183,44 @@
       ]
     },
     {
+      "name": "updatePerpMarketAmmSummaryStats",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "perpMarket",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "spotMarket",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "oracle",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "params",
+          "type": {
+            "defined": "UpdatePerpMarketSummaryStatsParams"
+          }
+        }
+      ]
+    },
+    {
       "name": "updatePerpMarketExpiry",
       "accounts": [
         {
@@ -4028,6 +4066,32 @@
         {
           "name": "ordersEnabled",
           "type": "bool"
+        }
+      ]
+    },
+    {
+      "name": "updateSpotMarketIfPausedOperations",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "spotMarket",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "pausedOperations",
+          "type": "u8"
         }
       ]
     },
@@ -6087,7 +6151,7 @@
             "type": "u8"
           },
           {
-            "name": "padding2",
+            "name": "ifPausedOperations",
             "type": "u8"
           },
           {
@@ -6659,6 +6723,32 @@
     }
   ],
   "types": [
+    {
+      "name": "UpdatePerpMarketSummaryStatsParams",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "quoteAssetAmountWithUnsettledLp",
+            "type": {
+              "option": "i64"
+            }
+          },
+          {
+            "name": "netUnsettledFundingPnl",
+            "type": {
+              "option": "i64"
+            }
+          },
+          {
+            "name": "updateAmmSummaryStats",
+            "type": {
+              "option": "bool"
+            }
+          }
+        ]
+      }
+    },
     {
       "name": "LiquidatePerpRecord",
       "type": {
@@ -9205,6 +9295,26 @@
           },
           {
             "name": "Liquidation"
+          }
+        ]
+      }
+    },
+    {
+      "name": "InsuranceFundOperation",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "Init"
+          },
+          {
+            "name": "Add"
+          },
+          {
+            "name": "RequestRemove"
+          },
+          {
+            "name": "Remove"
           }
         ]
       }
@@ -11784,6 +11894,11 @@
       "code": 6257,
       "name": "CantReclaimRent",
       "msg": "CantReclaimRent"
+    },
+    {
+      "code": 6258,
+      "name": "InsuranceFundOperationPaused",
+      "msg": "InsuranceFundOperationPaused"
     }
   ]
 }

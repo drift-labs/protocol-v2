@@ -29,23 +29,29 @@ export async function fetchHeliusPriorityFee(
 	lookbackDistance: number,
 	addresses: string[]
 ): Promise<HeliusPriorityFeeResponse> {
-	const response = await fetch(heliusRpcUrl, {
-		method: 'POST',
-		headers: { 'Content-Type': 'application/json' },
-		body: JSON.stringify({
-			jsonrpc: '2.0',
-			id: '1',
-			method: 'getPriorityFeeEstimate',
-			params: [
-				{
-					accountKeys: addresses,
-					options: {
-						includeAllPriorityFeeLevels: true,
-						lookbackSlots: lookbackDistance,
+	try {
+		const response = await fetch(heliusRpcUrl, {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({
+				jsonrpc: '2.0',
+				id: '1',
+				method: 'getPriorityFeeEstimate',
+				params: [
+					{
+						accountKeys: addresses,
+						options: {
+							includeAllPriorityFeeLevels: true,
+							lookbackSlots: lookbackDistance,
+						},
 					},
-				},
-			],
-		}),
-	});
-	return await response.json();
+				],
+			}),
+		});
+		return await response.json();
+	} catch (err) {
+		console.error(err);
+	}
+
+	return undefined;
 }

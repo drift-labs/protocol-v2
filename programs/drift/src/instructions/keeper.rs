@@ -946,7 +946,7 @@ pub fn handle_resolve_perp_bankruptcy(
     )?;
 
     validate!(
-        quote_spot_market_index == 0,
+        quote_spot_market_index == QUOTE_SPOT_MARKET_INDEX,
         ErrorCode::InvalidSpotMarketAccount
     )?;
 
@@ -1166,13 +1166,6 @@ pub fn handle_update_funding_rate(
         ),
         ErrorCode::MarketActionPaused,
         "Market funding is paused",
-    )?;
-
-    validate!(
-        ((clock_slot == perp_market.amm.last_update_slot && perp_market.amm.last_oracle_valid)
-            || perp_market.amm.curve_update_intensity == 0),
-        ErrorCode::AMMNotUpdatedInSameSlot,
-        "AMM must be updated in a prior instruction within same slot"
     )?;
 
     let funding_paused =

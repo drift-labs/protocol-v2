@@ -93,16 +93,19 @@ export class TransactionProcessor {
 			processParams: processProps,
 		} = props;
 
-		const baseTransaction = await txBuilder(txProps);
-
 		const finalTxProps = {
 			...txProps,
 		};
 
 		// # Run Processes
 		if (processConfig.useSimulatedComputeUnits) {
+			const txToSim = await txBuilder({
+				...txProps,
+				txParams: { ...txProps.txParams, computeUnits: 1_400_000 },
+			});
+
 			const txSimComputeUnitsResult = await this.getTxSimComputeUnits(
-				baseTransaction,
+				txToSim,
 				processProps.connection
 			);
 
@@ -115,9 +118,34 @@ export class TransactionProcessor {
 				// Adjust the transaction based on the simulated compute units
 				finalTxProps.txParams = {
 					...txProps.txParams,
-					computeUnits: bufferedComputeUnits,
+					computeUnits: Math.ceil(bufferedComputeUnits), // Round the compute units to a whole number
 				};
 			}
+		}
+
+		if (processConfig?.useSimulatedComputeUnitsForCUPriceCalculation) {
+			if (!processConfig?.useSimulatedComputeUnits) {
+				throw new Error(
+					`encountered useSimulatedComputeUnitsForFees=true, but useSimulatedComputeUnits is false`
+				);
+			}
+			if (!processConfig?.getCUPriceFromComputeUnits) {
+				throw new Error(
+					`encountered useSimulatedComputeUnitsForFees=true, but getComputeUnitPriceFromUnitsToUse helper method is undefined`
+				);
+			}
+
+			const simulatedComputeUnits = finalTxProps.txParams.computeUnits;
+
+			const computeUnitPrice = processConfig.getCUPriceFromComputeUnits(
+				simulatedComputeUnits
+			);
+
+			console.debug(
+				`🔧:: Adjusting compute unit price for simulated compute unit budget :: ${finalTxProps.txParams.computeUnitsPrice}=>${computeUnitPrice}`
+			);
+
+			finalTxProps.txParams.computeUnitsPrice = computeUnitPrice;
 		}
 
 		// # Return Final Tx Params

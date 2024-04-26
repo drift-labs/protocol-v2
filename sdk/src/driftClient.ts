@@ -128,6 +128,7 @@ import { getMarinadeDepositIx, getMarinadeFinanceProgram } from './marinade';
 import { getOrderParams } from './orderParams';
 import { numberToSafeBN } from './math/utils';
 import { TransactionProcessor as TransactionParamProcessor } from './tx/txParamProcessor';
+import { isOracleValid } from './math/oracles';
 
 type RemainingAccountParams = {
 	userAccounts: UserAccount[];
@@ -186,7 +187,11 @@ export class DriftClient {
 	public constructor(config: DriftClientConfig) {
 		this.connection = config.connection;
 		this.wallet = config.wallet;
-		this.opts = config.opts || AnchorProvider.defaultOptions();
+		this.opts = config.opts || {
+			...AnchorProvider.defaultOptions(),
+			commitment: config?.connection?.commitment,
+			preflightCommitment: config?.connection?.commitment, // At the moment this ensures that our transaction simulations (which use Connection object) will use the same commitment level as our Transaction blockhashes (which use these opts)
+		};
 		this.provider = new AnchorProvider(
 			config.connection,
 			// @ts-ignore
@@ -2188,24 +2193,14 @@ export class DriftClient {
 		return [txSig, userAccountPublicKey];
 	}
 
-	/**
-	 * Withdraws from a user account. If deposit doesn't already exist, creates a borrow
-	 * @param amount
-	 * @param marketIndex
-	 * @param associatedTokenAddress - the token account to withdraw to. can be the wallet public key if using native sol
-	 * @param reduceOnly
-	 */
-	public async withdraw(
+	private async getWithdrawalIxs(
 		amount: BN,
 		marketIndex: number,
 		associatedTokenAddress: PublicKey,
 		reduceOnly = false,
-		subAccountId?: number,
-		txParams?: TxParams
-	): Promise<TransactionSignature> {
-		const withdrawIxs = [];
-
-		const additionalSigners: Array<Signer> = [];
+		subAccountId?: number
+	) {
+		const withdrawIxs: anchor.web3.TransactionInstruction[] = [];
 
 		const spotMarketAccount = this.getSpotMarketAccount(marketIndex);
 
@@ -2263,6 +2258,34 @@ export class DriftClient {
 			);
 		}
 
+		return withdrawIxs;
+	}
+
+	/**
+	 * Withdraws from a user account. If deposit doesn't already exist, creates a borrow
+	 * @param amount
+	 * @param marketIndex
+	 * @param associatedTokenAddress - the token account to withdraw to. can be the wallet public key if using native sol
+	 * @param reduceOnly
+	 */
+	public async withdraw(
+		amount: BN,
+		marketIndex: number,
+		associatedTokenAddress: PublicKey,
+		reduceOnly = false,
+		subAccountId?: number,
+		txParams?: TxParams
+	): Promise<TransactionSignature> {
+		const additionalSigners: Array<Signer> = [];
+
+		const withdrawIxs = await this.getWithdrawalIxs(
+			amount,
+			marketIndex,
+			associatedTokenAddress,
+			reduceOnly,
+			subAccountId
+		);
+
 		const tx = await this.buildTransaction(
 			withdrawIxs,
 			txParams ?? this.txParams
@@ -2274,6 +2297,59 @@ export class DriftClient {
 			this.opts
 		);
 		this.spotMarketLastSlotCache.set(marketIndex, slot);
+		return txSig;
+	}
+
+	public async withdrawAllDustPositions(
+		subAccountId?: number,
+		txParams?: TxParams,
+		opts?: {
+			dustPositionCountCallback?: (count: number) => void;
+		}
+	): Promise<TransactionSignature | undefined> {
+		const user = this.getUser(subAccountId);
+
+		const dustPositionSpotMarketAccounts =
+			user.getSpotMarketAccountsWithDustPosition();
+
+		if (
+			!dustPositionSpotMarketAccounts ||
+			dustPositionSpotMarketAccounts.length === 0
+		) {
+			opts?.dustPositionCountCallback?.(0);
+			return undefined;
+		}
+
+		opts?.dustPositionCountCallback?.(dustPositionSpotMarketAccounts.length);
+
+		let allWithdrawIxs: anchor.web3.TransactionInstruction[] = [];
+
+		for (const position of dustPositionSpotMarketAccounts) {
+			const tokenAccount = await getAssociatedTokenAddress(
+				position.mint,
+				this.wallet.publicKey
+			);
+
+			const tokenAmount = await user.getTokenAmount(position.marketIndex);
+
+			const withdrawIxs = await this.getWithdrawalIxs(
+				tokenAmount.muln(2), //  2x to ensure all dust is withdrawn
+				position.marketIndex,
+				tokenAccount,
+				true, // reduce-only true to ensure all dust is withdrawn
+				subAccountId
+			);
+
+			allWithdrawIxs = allWithdrawIxs.concat(withdrawIxs);
+		}
+
+		const tx = await this.buildTransaction(
+			allWithdrawIxs,
+			txParams ?? this.txParams
+		);
+
+		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+
 		return txSig;
 	}
 
@@ -4582,10 +4658,23 @@ export class DriftClient {
 		);
 
 		if (shouldUseSimulationComputeUnits || shouldExitIfSimulationFails) {
+			let versionedPlaceAndTakeTx: VersionedTransaction;
+
+			if (this.isVersionedTransaction(placeAndTakeTx)) {
+				versionedPlaceAndTakeTx = placeAndTakeTx as VersionedTransaction;
+			} else {
+				versionedPlaceAndTakeTx = (await this.buildTransaction(
+					ixs,
+					txParamsWithoutImplicitSimulation,
+					undefined,
+					undefined,
+					true
+				)) as VersionedTransaction;
+			}
+
 			const simulationResult =
 				await TransactionParamProcessor.getTxSimComputeUnits(
-					// @ts-ignore :: TODO - TEST WITH LEGACY TRANSACTION
-					placeAndTakeTx,
+					versionedPlaceAndTakeTx,
 					this.connection
 				);
 
@@ -5340,11 +5429,45 @@ export class DriftClient {
 			settleeUserAccountPublicKey: PublicKey;
 			settleeUserAccount: UserAccount;
 		}[],
-		marketIndexes: number[]
+		marketIndexes: number[],
+		opts?: {
+			filterInvalidMarkets?: boolean;
+		}
 	): Promise<TransactionSignature> {
-		const ixs = await this.getSettlePNLsIxs(users, marketIndexes);
+		const filterInvalidMarkets = opts?.filterInvalidMarkets;
 
-		const tx = await this.buildTransaction(ixs, { computeUnits: 1_000_000 });
+		// # Filter market indexes by markets with valid oracle
+		const marketIndexToSettle: number[] = filterInvalidMarkets
+			? []
+			: marketIndexes;
+
+		if (filterInvalidMarkets) {
+			for (const marketIndex of marketIndexes) {
+				const perpMarketAccount = this.getPerpMarketAccount(marketIndex);
+				const oraclePriceData = this.getOracleDataForPerpMarket(marketIndex);
+				const stateAccountAndSlot =
+					this.accountSubscriber.getStateAccountAndSlot();
+				const oracleGuardRails = stateAccountAndSlot.data.oracleGuardRails;
+
+				const isValid = isOracleValid(
+					perpMarketAccount,
+					oraclePriceData,
+					oracleGuardRails,
+					stateAccountAndSlot.slot
+				);
+
+				if (isValid) {
+					marketIndexToSettle.push(marketIndex);
+				}
+			}
+		}
+
+		// # Settle filtered market indexes
+		const ixs = await this.getSettlePNLsIxs(users, marketIndexToSettle);
+
+		const tx = await this.buildTransaction(ixs, {
+			computeUnits: 1_400_000,
+		});
 
 		const { txSig } = await this.sendTransaction(tx, [], this.opts);
 		return txSig;
@@ -6370,18 +6493,33 @@ export class DriftClient {
 	}
 
 	public async settleRevenueToInsuranceFund(
-		marketIndex: number
+		spotMarketIndex: number,
+		subAccountId?: number,
+		txParams?: TxParams
 	): Promise<TransactionSignature> {
-		const spotMarketAccount = this.getSpotMarketAccount(marketIndex);
+		const tx = await this.buildTransaction(
+			await this.getSettleRevenueToInsuranceFundIx(
+				spotMarketIndex,
+				subAccountId
+			),
+			txParams
+		);
+		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+		return txSig;
+	}
 
+	public async getSettleRevenueToInsuranceFundIx(
+		spotMarketIndex: number,
+		subAccountId?: number
+	): Promise<TransactionInstruction> {
+		const spotMarketAccount = this.getSpotMarketAccount(spotMarketIndex);
 		const remainingAccounts = this.getRemainingAccounts({
-			userAccounts: [this.getUserAccount()],
+			userAccounts: [this.getUserAccount(subAccountId)],
 			useMarketLastSlotCache: true,
-			writableSpotMarketIndexes: [marketIndex],
+			writableSpotMarketIndexes: [spotMarketIndex],
 		});
-
 		const ix = await this.program.instruction.settleRevenueToInsuranceFund(
-			marketIndex,
+			spotMarketIndex,
 			{
 				accounts: {
 					state: await this.getStatePublicKey(),
@@ -6394,11 +6532,7 @@ export class DriftClient {
 				remainingAccounts,
 			}
 		);
-
-		const tx = await this.buildTransaction(ix);
-
-		const { txSig } = await this.sendTransaction(tx, [], this.opts);
-		return txSig;
+		return ix;
 	}
 
 	public async resolvePerpPnlDeficit(
@@ -6512,6 +6646,48 @@ export class DriftClient {
 	}
 
 	/**
+	 * Calculates taker / maker fee (as a percentage, e.g. .001 = 10 basis points) for particular marketType
+	 * @param marketType
+	 * @param positionMarketIndex
+	 * @returns : {takerFee: number, makerFee: number} Precision None
+	 */
+	public getMarketFees(
+		marketType: MarketType,
+		marketIndex?: number,
+		user?: User
+	) {
+		let feeTier;
+		if (user) {
+			feeTier = user.getUserFeeTier(marketType);
+		} else {
+			const state = this.getStateAccount();
+			feeTier = isVariant(marketType, 'perp')
+				? state.perpFeeStructure.feeTiers[0]
+				: state.spotFeeStructure.feeTiers[0];
+		}
+
+		let takerFee = feeTier.feeNumerator / feeTier.feeDenominator;
+		let makerFee =
+			feeTier.makerRebateNumerator / feeTier.makerRebateDenominator;
+
+		if (marketIndex !== undefined) {
+			let marketAccount = null;
+			if (isVariant(marketType, 'perp')) {
+				marketAccount = this.getPerpMarketAccount(marketIndex);
+			} else {
+				marketAccount = this.getSpotMarketAccount(marketIndex);
+			}
+			takerFee += (takerFee * marketAccount.feeAdjustment) / 100;
+			makerFee += (makerFee * marketAccount.feeAdjustment) / 100;
+		}
+
+		return {
+			takerFee,
+			makerFee,
+		};
+	}
+
+	/**
 	 * Returns the market index and type for a given market name
 	 * E.g. "SOL-PERP" -> { marketIndex: 0, marketType: MarketType.PERP }
 	 *
@@ -6546,6 +6722,16 @@ export class DriftClient {
 		this.metricsEventEmitter.emit('txSigned');
 	}
 
+	private isVersionedTransaction(
+		tx: Transaction | VersionedTransaction
+	): boolean {
+		const version = (tx as VersionedTransaction)?.version;
+		const isVersionedTx =
+			tx instanceof VersionedTransaction || version !== undefined;
+
+		return isVersionedTx;
+	}
+
 	sendTransaction(
 		tx: Transaction | VersionedTransaction,
 		additionalSigners?: Array<Signer>,
@@ -6559,9 +6745,7 @@ export class DriftClient {
 			  }
 			: undefined;
 
-		const version = (tx as VersionedTransaction)?.version;
-		const isVersionedTx =
-			tx instanceof VersionedTransaction || version !== undefined;
+		const isVersionedTx = this.isVersionedTransaction(tx);
 
 		if (isVersionedTx) {
 			return this.txSender.sendVersionedTransaction(
@@ -6619,6 +6803,9 @@ export class DriftClient {
 				txParamProcessingParams: {
 					useSimulatedComputeUnits: txParams?.useSimulatedComputeUnits,
 					computeUnitsBufferMultiplier: txParams?.computeUnitsBufferMultiplier,
+					useSimulatedComputeUnitsForCUPriceCalculation:
+						txParams?.useSimulatedComputeUnitsForCUPriceCalculation,
+					getCUPriceFromComputeUnits: txParams?.getCUPriceFromComputeUnits,
 				},
 			};
 
@@ -6648,7 +6835,9 @@ export class DriftClient {
 				})
 			);
 		}
+
 		const computeUnitsPrice = baseTxParams?.computeUnitsPrice;
+
 		if (computeUnitsPrice !== 0) {
 			allIx.push(
 				ComputeBudgetProgram.setComputeUnitPrice({

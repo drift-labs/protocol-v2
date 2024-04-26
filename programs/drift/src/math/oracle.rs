@@ -74,12 +74,14 @@ pub fn is_oracle_valid_for_action(
             DriftAction::FillOrderAmm => {
                 matches!(oracle_validity, OracleValidity::Valid)
             }
+            // relax oracle staleness, later checks for sufficiently recent amm slot update for funding update
             DriftAction::UpdateFunding => {
                 matches!(
                     oracle_validity,
                     OracleValidity::Valid
                         | OracleValidity::StaleForAMM
                         | OracleValidity::InsufficientDataPoints
+                        | OracleValidity::StaleForMargin
                 )
             }
             DriftAction::OracleOrderPrice => {
@@ -154,7 +156,8 @@ pub fn block_operation(
 
     let funding_paused_on_market = market.is_operation_paused(PerpOperation::UpdateFunding);
 
-    let block = slots_since_amm_update > 10
+    // block if amm hasnt been updated since over half the funding period (assuming slot ~= 500ms)
+    let block = slots_since_amm_update > market.amm.funding_period.cast()?
         || !is_oracle_valid
         || is_oracle_mark_too_divergent
         || funding_paused_on_market;

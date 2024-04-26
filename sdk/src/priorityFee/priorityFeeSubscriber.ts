@@ -1,5 +1,6 @@
 import { Connection, PublicKey } from '@solana/web3.js';
 import {
+	DEFAULT_PRIORITY_FEE_MAP_FREQUENCY_MS,
 	PriorityFeeMethod,
 	PriorityFeeStrategy,
 	PriorityFeeSubscriberConfig,
@@ -12,19 +13,16 @@ import {
 	HeliusPriorityLevel,
 	fetchHeliusPriorityFee,
 } from './heliusPriorityFeeMethod';
-import { fetchDriftPriorityFee } from './driftPriorityFeeMethod';
-import { getVariant, MarketType } from '..';
-
-export type DriftMarketInfo = {
-	marketType: string;
-	marketIndex: number;
-};
+import {
+	fetchDriftPriorityFee,
+	DriftMarketInfo,
+} from './driftPriorityFeeMethod';
 
 export class PriorityFeeSubscriber {
 	connection: Connection;
 	frequencyMs: number;
 	addresses: string[];
-	driftMarket?: DriftMarketInfo;
+	driftMarkets?: DriftMarketInfo[];
 	customStrategy?: PriorityFeeStrategy;
 	averageStrategy = new AverageOverSlotsStrategy();
 	maxStrategy = new MaxOverSlotsStrategy();
@@ -47,11 +45,12 @@ export class PriorityFeeSubscriber {
 
 	public constructor(config: PriorityFeeSubscriberConfig) {
 		this.connection = config.connection;
-		this.frequencyMs = config.frequencyMs;
+		this.frequencyMs =
+			config.frequencyMs ?? DEFAULT_PRIORITY_FEE_MAP_FREQUENCY_MS;
 		this.addresses = config.addresses
 			? config.addresses.map((address) => address.toBase58())
 			: [];
-		this.driftMarket = config.driftMarket;
+		this.driftMarkets = config.driftMarkets;
 
 		if (config.customStrategy) {
 			this.customStrategy = config.customStrategy;
@@ -107,13 +106,15 @@ export class PriorityFeeSubscriber {
 			this.lookbackDistance,
 			this.addresses
 		);
-		this.latestPriorityFee = samples[0].prioritizationFee;
-		this.lastSlotSeen = samples[0].slot;
+		if (samples.length > 0) {
+			this.latestPriorityFee = samples[0].prioritizationFee;
+			this.lastSlotSeen = samples[0].slot;
 
-		this.lastAvgStrategyResult = this.averageStrategy.calculate(samples);
-		this.lastMaxStrategyResult = this.maxStrategy.calculate(samples);
-		if (this.customStrategy) {
-			this.lastCustomStrategyResult = this.customStrategy.calculate(samples);
+			this.lastAvgStrategyResult = this.averageStrategy.calculate(samples);
+			this.lastMaxStrategyResult = this.maxStrategy.calculate(samples);
+			if (this.customStrategy) {
+				this.lastCustomStrategyResult = this.customStrategy.calculate(samples);
+			}
 		}
 	}
 
@@ -137,26 +138,19 @@ export class PriorityFeeSubscriber {
 	}
 
 	private async loadForDrift(): Promise<void> {
-		if (!this.driftMarket) {
+		if (!this.driftMarkets) {
 			return;
 		}
 		const sample = await fetchDriftPriorityFee(
 			this.driftPriorityFeeEndpoint!,
-			this.driftMarket.marketType,
-			this.driftMarket.marketIndex
+			this.driftMarkets.map((m) => m.marketType),
+			this.driftMarkets.map((m) => m.marketIndex)
 		);
 		if (sample.length > 0) {
 			this.lastAvgStrategyResult = sample[HeliusPriorityLevel.MEDIUM];
 			this.lastMaxStrategyResult = sample[HeliusPriorityLevel.UNSAFE_MAX];
 			if (this.customStrategy) {
-				// stay compatible with helius response
-				this.lastCustomStrategyResult = this.customStrategy.calculate({
-					jsonrpc: '',
-					result: {
-						priorityFeeLevels: sample[0],
-					},
-					id: '',
-				});
+				this.lastCustomStrategyResult = this.customStrategy.calculate(sample);
 			}
 		}
 	}
@@ -251,7 +245,7 @@ export class PriorityFeeSubscriber {
 		this.addresses = addresses.map((k) => k.toBase58());
 	}
 
-	public updateMarketTypeAndIndex(marketType: MarketType, marketIndex: number) {
-		this.driftMarket = { marketType: getVariant(marketType), marketIndex };
+	public updateMarketTypeAndIndex(driftMarkets: DriftMarketInfo[]) {
+		this.driftMarkets = driftMarkets;
 	}
 }

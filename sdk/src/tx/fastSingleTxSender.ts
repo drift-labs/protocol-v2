@@ -29,6 +29,7 @@ export class FastSingleTxSender extends BaseTxSender {
 	recentBlockhash: string;
 	skipConfirmation: boolean;
 	blockhashCommitment: Commitment;
+	blockhashIntervalId: NodeJS.Timer;
 
 	public constructor({
 		connection,
@@ -71,15 +72,17 @@ export class FastSingleTxSender extends BaseTxSender {
 	}
 
 	startBlockhashRefreshLoop(): void {
-		setInterval(async () => {
-			try {
-				this.recentBlockhash = (
-					await this.connection.getLatestBlockhash(this.blockhashCommitment)
-				).blockhash;
-			} catch (e) {
-				console.error('Error in startBlockhashRefreshLoop: ', e);
-			}
-		}, this.blockhashRefreshInterval);
+		if (this.blockhashRefreshInterval > 0) {
+			this.blockhashIntervalId = setInterval(async () => {
+				try {
+					this.recentBlockhash = (
+						await this.connection.getLatestBlockhash(this.blockhashCommitment)
+					).blockhash;
+				} catch (e) {
+					console.error('Error in startBlockhashRefreshLoop: ', e);
+				}
+			}, this.blockhashRefreshInterval);
+		}
 	}
 
 	async prepareTx(

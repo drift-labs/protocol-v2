@@ -696,6 +696,13 @@ pub mod drift {
         handle_recenter_perp_market_amm(ctx, peg_multiplier, sqrt_k)
     }
 
+    pub fn update_perp_market_amm_summary_stats(
+        ctx: Context<AdminUpdatePerpMarketAmmSummaryStats>,
+        params: UpdatePerpMarketSummaryStatsParams,
+    ) -> Result<()> {
+        handle_update_perp_market_amm_summary_stats(ctx, params)
+    }
+
     pub fn update_perp_market_expiry(
         ctx: Context<AdminUpdatePerpMarket>,
         expiry_ts: i64,
@@ -912,6 +919,13 @@ pub mod drift {
         orders_enabled: bool,
     ) -> Result<()> {
         handle_update_spot_market_orders_enabled(ctx, orders_enabled)
+    }
+
+    pub fn update_spot_market_if_paused_operations(
+        ctx: Context<AdminUpdateSpotMarket>,
+        paused_operations: u8,
+    ) -> Result<()> {
+        handle_update_spot_market_if_paused_operations(ctx, paused_operations)
     }
 
     pub fn update_spot_market_name(
