@@ -1,0 +1,23 @@
+[package]
+name = "drift-archive"
+version = "0.1.0"
+description = "Created with Anchor"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib", "lib"]
+name = "drift_archive"
+
+[features]
+no-entrypoint = []
+no-idl = []
+no-log-ix-name = []
+cpi = ["no-entrypoint"]
+default = []
+anchor-test= []
+
+[dependencies]
+anchor-lang = "0.27.0"
+static_assertions = "1.1.0"
+drift-macros = { git = "https://github.com/drift-labs/drift-macros.git", rev = "c57d87" }
+arrayref = "0.3.6"

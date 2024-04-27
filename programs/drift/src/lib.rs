@@ -287,6 +287,14 @@ pub mod drift {
         handle_reclaim_rent(ctx)
     }
 
+    pub fn archive_user(ctx: Context<ArchiveUser>) -> Result<()> {
+        handle_archive_user(ctx)
+    }
+
+    pub fn unarchive_user(ctx: Context<UnarchiveUser>, sub_account_id: u16) -> Result<()> {
+        handle_unarchive_user(ctx, sub_account_id)
+    }
+
     // Keeper Instructions
 
     pub fn fill_perp_order(

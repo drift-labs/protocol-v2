@@ -651,6 +651,7 @@ dependencies = [
  "borsh",
  "bytemuck",
  "bytes",
+ "drift-archive",
  "drift-macros",
  "enumflags2",
  "num-derive",
@@ -666,6 +667,16 @@ dependencies = [
  "switchboard",
  "thiserror",
  "uint",
+]
+
+[[package]]
+name = "drift-archive"
+version = "0.1.0"
+dependencies = [
+ "anchor-lang",
+ "arrayref",
+ "drift-macros",
+ "static_assertions",
 ]
 
 [[package]]

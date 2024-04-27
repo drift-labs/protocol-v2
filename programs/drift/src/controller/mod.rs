@@ -1,4 +1,5 @@
 pub mod amm;
+pub mod archive;
 pub mod funding;
 pub mod insurance;
 pub mod liquidation;

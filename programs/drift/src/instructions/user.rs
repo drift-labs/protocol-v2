@@ -4,6 +4,7 @@ use anchor_spl::token::{Token, TokenAccount};
 use solana_program::program::invoke;
 use solana_program::system_instruction::transfer;
 
+use crate::controller::archive::{archive, unarchive};
 use crate::controller::orders::{cancel_orders, ModifyOrderId};
 use crate::controller::position::PositionDirection;
 use crate::controller::spot_balance::update_revenue_pool_balances;
@@ -68,6 +69,7 @@ use crate::{get_then_update_id, QUOTE_SPOT_MARKET_INDEX};
 use crate::{load, THIRTEEN_DAY};
 use anchor_lang::solana_program::sysvar::instructions;
 use anchor_spl::associated_token::AssociatedToken;
+use arrayref::array_ref;
 use borsh::{BorshDeserialize, BorshSerialize};
 
 pub fn handle_initialize_user(
@@ -1950,6 +1952,97 @@ pub fn handle_reclaim_rent(ctx: Context<ReclaimRent>) -> Result<()> {
 }
 
 #[access_control(
+    exchange_not_paused(&ctx.accounts.state)
+)]
+pub fn handle_archive_user<'info>(ctx: Context<ArchiveUser>) -> Result<()> {
+    let user = load!(ctx.accounts.user)?;
+    let user_stats = &mut load_mut!(ctx.accounts.user_stats)?;
+
+    validate_user_deletion(
+        &user,
+        user_stats,
+        &ctx.accounts.state,
+        Clock::get()?.unix_timestamp,
+    )?;
+
+    safe_decrement!(user_stats.number_of_sub_accounts, 1);
+
+    let state = &mut ctx.accounts.state;
+    safe_decrement!(state.number_of_sub_accounts, 1);
+
+    let authority = user.authority;
+    let sub_account_id = user.sub_account_id;
+
+    drop(user);
+
+    // archive cpi
+    archive(
+        authority,
+        sub_account_id,
+        ctx.accounts.user.to_account_info().clone(),
+        ctx.accounts.authority.to_account_info().clone(),
+        ctx.accounts.archived_user.to_account_info().clone(),
+        ctx.accounts.rent.to_account_info().clone(),
+        ctx.accounts.system_program.to_account_info().clone(),
+        ctx.accounts.archive_program.clone(),
+    )?;
+
+    Ok(())
+}
+
+#[access_control(
+    exchange_not_paused(&ctx.accounts.state)
+)]
+pub fn handle_unarchive_user<'info>(
+    ctx: Context<UnarchiveUser>,
+    _sub_account_id: u16,
+) -> Result<()> {
+    // copy over data
+    {
+        let archived_data = ctx.accounts.archived_user.try_borrow_data()?;
+        let data = array_ref![archived_data, 8, 4368];
+
+        let user_account_info = ctx.accounts.user.to_account_info();
+        let mut user_data = user_account_info.try_borrow_mut_data()?;
+
+        for i in 0..data.len() {
+            user_data[i + 8] = data[i];
+        }
+    }
+
+    let user = ctx.accounts.user.load_init()?;
+    let user_stats = &mut load_mut!(ctx.accounts.user_stats)?;
+
+    validate_user_deletion(
+        &user,
+        user_stats,
+        &ctx.accounts.state,
+        Clock::get()?.unix_timestamp,
+    )?;
+
+    safe_increment!(user_stats.number_of_sub_accounts, 1);
+
+    let state = &mut ctx.accounts.state;
+    safe_increment!(state.number_of_sub_accounts, 1);
+
+    let authority = user.authority;
+    let sub_account_id = user.sub_account_id;
+
+    drop(user);
+
+    // unarchive cpi
+    unarchive(
+        authority,
+        sub_account_id,
+        ctx.accounts.payer.to_account_info().clone(),
+        ctx.accounts.archived_user.to_account_info().clone(),
+        ctx.accounts.archive_program.clone(),
+    )?;
+
+    Ok(())
+}
+
+#[access_control(
     deposit_not_paused(&ctx.accounts.state)
 )]
 pub fn handle_deposit_into_spot_market_revenue_pool(
@@ -2308,6 +2401,65 @@ pub struct ReclaimRent<'info> {
     pub state: Box<Account<'info, State>>,
     pub authority: Signer<'info>,
     pub rent: Sysvar<'info, Rent>,
+}
+
+#[derive(Accounts)]
+pub struct ArchiveUser<'info> {
+    #[account(mut)]
+    pub state: Box<Account<'info, State>>,
+    /// CHECK:
+    pub authority: Signer<'info>,
+    #[account(
+        mut,
+        has_one = authority,
+        close = authority
+    )]
+    pub user: AccountLoader<'info, User>,
+    #[account(
+        mut,
+        has_one = authority
+    )]
+    pub user_stats: AccountLoader<'info, UserStats>,
+    /// CHECK:
+    #[account(mut)]
+    pub archived_user: AccountInfo<'info>,
+    pub rent: Sysvar<'info, Rent>,
+    pub system_program: Program<'info, System>,
+    /// CHECK:
+    pub archive_program: AccountInfo<'info>,
+}
+
+#[derive(Accounts)]
+#[instruction(
+    sub_account_id: u16,
+)]
+pub struct UnarchiveUser<'info> {
+    #[account(mut)]
+    pub state: Box<Account<'info, State>>,
+    /// CHECK:
+    pub authority: Signer<'info>,
+    #[account(mut)]
+    pub payer: Signer<'info>,
+    #[account(
+        init,
+        seeds = [b"user", authority.key.as_ref(), sub_account_id.to_le_bytes().as_ref()],
+        space = User::SIZE,
+        bump,
+        payer = payer
+    )]
+    pub user: AccountLoader<'info, User>,
+    #[account(
+        mut,
+        has_one = authority
+    )]
+    pub user_stats: AccountLoader<'info, UserStats>,
+    /// CHECK:
+    #[account(mut)]
+    pub archived_user: AccountInfo<'info>,
+    pub rent: Sysvar<'info, Rent>,
+    pub system_program: Program<'info, System>,
+    /// CHECK:
+    pub archive_program: AccountInfo<'info>,
 }
 
 #[derive(Accounts)]
