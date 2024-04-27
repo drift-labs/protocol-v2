@@ -1238,6 +1238,11 @@
           "isSigner": false
         },
         {
+          "name": "driftSigner",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
           "name": "authority",
           "isMut": false,
           "isSigner": true
@@ -1281,6 +1286,11 @@
         {
           "name": "state",
           "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "driftSigner",
+          "isMut": false,
           "isSigner": false
         },
         {

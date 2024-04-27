@@ -21,3 +21,4 @@ anchor-lang = "0.27.0"
 static_assertions = "1.1.0"
 drift-macros = { git = "https://github.com/drift-labs/drift-macros.git", rev = "c57d87" }
 arrayref = "0.3.6"
+solana-program = "=1.14.16"

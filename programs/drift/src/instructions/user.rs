@@ -1982,6 +1982,8 @@ pub fn handle_archive_user<'info>(ctx: Context<ArchiveUser>) -> Result<()> {
         ctx.accounts.user.to_account_info().clone(),
         ctx.accounts.authority.to_account_info().clone(),
         ctx.accounts.archived_user.to_account_info().clone(),
+        ctx.accounts.drift_signer.clone(),
+        state.signer_nonce,
         ctx.accounts.rent.to_account_info().clone(),
         ctx.accounts.system_program.to_account_info().clone(),
         ctx.accounts.archive_program.clone(),
@@ -2036,6 +2038,8 @@ pub fn handle_unarchive_user<'info>(
         sub_account_id,
         ctx.accounts.payer.to_account_info().clone(),
         ctx.accounts.archived_user.to_account_info().clone(),
+        ctx.accounts.drift_signer.clone(),
+        state.signer_nonce,
         ctx.accounts.archive_program.clone(),
     )?;
 
@@ -2407,6 +2411,11 @@ pub struct ReclaimRent<'info> {
 pub struct ArchiveUser<'info> {
     #[account(mut)]
     pub state: Box<Account<'info, State>>,
+    /// CHECK: forced drift_signer
+    #[account(
+        address = state.signer,
+    )]
+    pub drift_signer: AccountInfo<'info>,
     /// CHECK:
     pub authority: Signer<'info>,
     #[account(
@@ -2436,6 +2445,11 @@ pub struct ArchiveUser<'info> {
 pub struct UnarchiveUser<'info> {
     #[account(mut)]
     pub state: Box<Account<'info, State>>,
+    /// CHECK: forced drift_signer
+    #[account(
+        address = state.signer,
+    )]
+    pub drift_signer: AccountInfo<'info>,
     /// CHECK:
     pub authority: Signer<'info>,
     #[account(mut)]

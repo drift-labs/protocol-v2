@@ -6,6 +6,11 @@ use instructions::*;
 
 declare_id!("4Vivs8x3dKt6PUsPpSJKDU3Gc6Y3MDc3J4GNm2LpxDz6");
 
+pub mod drift_signer {
+    use solana_program::declare_id;
+    declare_id!("JCNCMFXo5M5qwUPg2Utu1u6YWp3MbygxqBsBeXXJfrw");
+}
+
 #[program]
 pub mod drift_archive {
     use super::*;

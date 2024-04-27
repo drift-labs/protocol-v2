@@ -1,10 +1,10 @@
 use anchor_lang::prelude::*;
 
+use crate::drift_signer;
 use crate::state::ArchivedUser;
-use arrayref::array_ref;
 
 pub fn unarchive_user<'info>(
-    ctx: Context<'_, '_, '_, 'info, UnarchiveUser<'info>>,
+    _ctx: Context<'_, '_, '_, 'info, UnarchiveUser<'info>>,
     _authority: Pubkey,
     _sub_account_id: u16,
 ) -> Result<()> {
@@ -16,6 +16,10 @@ pub fn unarchive_user<'info>(
 pub struct UnarchiveUser<'info> {
     #[account(mut)]
     payer: Signer<'info>,
+    #[account(
+        address = drift_signer::id()
+    )]
+    pub drift_signer: Signer<'info>,
     #[account(
         mut,
         seeds = [b"user",  authority.as_ref(), sub_account_id.to_le_bytes().as_ref()],

@@ -676,6 +676,7 @@ dependencies = [
  "anchor-lang",
  "arrayref",
  "drift-macros",
+ "solana-program",
  "static_assertions",
 ]
 

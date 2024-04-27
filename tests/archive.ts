@@ -54,6 +54,7 @@ describe('drift-archive', () => {
 		try {
 			await adminClient.program.methods.archiveUser().accounts({
 				state: await adminClient.getStatePublicKey(),
+				driftSigner: adminClient.getStateAccount().signer,
 				user: userAccountPubkey,
 				userStats: userStatsAccountPubkey,
 				archivedUser: archivedUserAccountPubkey,
@@ -97,6 +98,7 @@ describe('drift-archive', () => {
 			console.log(await adminClient.getStatePublicKey());
 			await adminClient.program.methods.unarchiveUser(subAccountId).accounts({
 				state: await adminClient.getStatePublicKey(),
+				driftSigner: adminClient.getStateAccount().signer,
 				user: userAccountPubkey,
 				userStats: userStatsAccountPubkey,
 				archivedUser: archivedUserAccountPubkey,

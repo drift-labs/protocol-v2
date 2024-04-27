@@ -1,5 +1,6 @@
 use anchor_lang::prelude::*;
 
+use crate::drift_signer;
 use crate::state::ArchivedUser;
 use arrayref::array_ref;
 
@@ -26,6 +27,10 @@ pub struct ArchiveUser<'info> {
     pub drift_user: AccountInfo<'info>,
     #[account(mut)]
     payer: Signer<'info>,
+    #[account(
+        address = drift_signer::id()
+    )]
+    pub drift_signer: Signer<'info>,
     #[account(
         init,
         seeds = [b"user",  authority.as_ref(), sub_account_id.to_le_bytes().as_ref()],
