@@ -1982,7 +1982,7 @@ pub fn handle_archive_user<'info>(ctx: Context<ArchiveUser>) -> Result<()> {
         authority,
         sub_account_id,
         ctx.accounts.user.to_account_info().clone(),
-        ctx.accounts.authority.to_account_info().clone(),
+        ctx.accounts.payer.to_account_info().clone(),
         ctx.accounts.archived_user.to_account_info().clone(),
         ctx.accounts.drift_signer.clone(),
         state.signer_nonce,
@@ -2419,10 +2419,10 @@ pub struct ArchiveUser<'info> {
     )]
     pub drift_signer: AccountInfo<'info>,
     /// CHECK:
-    pub authority: Signer<'info>,
+    pub payer: Signer<'info>,
     #[account(
         mut,
-        close = authority
+        close = payer
     )]
     pub user: AccountLoader<'info, User>,
     #[account(
