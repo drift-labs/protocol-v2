@@ -4,6 +4,8 @@ use anchor_spl::token::{Token, TokenAccount};
 use solana_program::program::invoke;
 use solana_program::system_instruction::transfer;
 
+use drift_archive::program::DriftArchive;
+
 use crate::controller::archive::{archive, unarchive};
 use crate::controller::orders::{cancel_orders, ModifyOrderId};
 use crate::controller::position::PositionDirection;
@@ -1986,7 +1988,7 @@ pub fn handle_archive_user<'info>(ctx: Context<ArchiveUser>) -> Result<()> {
         state.signer_nonce,
         ctx.accounts.rent.to_account_info().clone(),
         ctx.accounts.system_program.to_account_info().clone(),
-        ctx.accounts.archive_program.clone(),
+        ctx.accounts.archive_program.to_account_info().clone(),
     )?;
 
     Ok(())
@@ -2040,7 +2042,7 @@ pub fn handle_unarchive_user<'info>(
         ctx.accounts.archived_user.to_account_info().clone(),
         ctx.accounts.drift_signer.clone(),
         state.signer_nonce,
-        ctx.accounts.archive_program.clone(),
+        ctx.accounts.archive_program.to_account_info().clone(),
     )?;
 
     Ok(())
@@ -2420,22 +2422,26 @@ pub struct ArchiveUser<'info> {
     pub authority: Signer<'info>,
     #[account(
         mut,
-        has_one = authority,
         close = authority
     )]
     pub user: AccountLoader<'info, User>,
     #[account(
         mut,
-        has_one = authority
+        constraint = is_stats_for_user(&user, &user_stats)?
     )]
     pub user_stats: AccountLoader<'info, UserStats>,
     /// CHECK:
-    #[account(mut)]
+    #[account(
+        mut,
+        seeds = [b"user", user.load()?.authority.as_ref(), user.load()?.sub_account_id.to_le_bytes().as_ref()],
+        seeds::program = DriftArchive::id(),
+        bump,
+        owner = System::id(),
+    )]
     pub archived_user: AccountInfo<'info>,
     pub rent: Sysvar<'info, Rent>,
     pub system_program: Program<'info, System>,
-    /// CHECK:
-    pub archive_program: AccountInfo<'info>,
+    pub archive_program: Program<'info, DriftArchive>,
 }
 
 #[derive(Accounts)]
@@ -2468,12 +2474,17 @@ pub struct UnarchiveUser<'info> {
     )]
     pub user_stats: AccountLoader<'info, UserStats>,
     /// CHECK:
-    #[account(mut)]
+    #[account(
+        mut,
+        seeds = [b"user", authority.key.as_ref(), sub_account_id.to_le_bytes().as_ref()],
+        seeds::program = DriftArchive::id(),
+        bump,
+        owner = DriftArchive::id()
+    )]
     pub archived_user: AccountInfo<'info>,
     pub rent: Sysvar<'info, Rent>,
     pub system_program: Program<'info, System>,
-    /// CHECK:
-    pub archive_program: AccountInfo<'info>,
+    pub archive_program: Program<'info, DriftArchive>,
 }
 
 #[derive(Accounts)]
