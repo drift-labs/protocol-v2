@@ -1243,7 +1243,7 @@
           "isSigner": false
         },
         {
-          "name": "authority",
+          "name": "payer",
           "isMut": false,
           "isSigner": true
         },

@@ -4,7 +4,7 @@ import { DriftArchive } from '../target/types/drift_archive';
 
 import {BN, AdminClient, getUserAccountPublicKey} from '../sdk/src';
 
-import {Keypair, PublicKey} from '@solana/web3.js';
+import {Keypair} from '@solana/web3.js';
 import {
 	initializeQuoteSpotMarket,
 	mockUSDCMint,
@@ -44,33 +44,12 @@ describe('drift-archive', () => {
 	});
 
 	it('archive user', async () => {
-		const userAccountPubkey = await adminClient.getUserAccountPublicKey();
-		const userStatsAccountPubkey = await adminClient.getUserStatsAccountPublicKey();
 		const userAccount = await adminClient.getUserAccount();
 
 		const archivedUserAccountPubkey = await getUserAccountPublicKey(program.programId, userAccount.authority, userAccount.subAccountId);
 
 		console.log('here');
-		try {
-			await adminClient.program.methods.archiveUser().accounts({
-				state: await adminClient.getStatePublicKey(),
-				driftSigner: adminClient.getStateAccount().signer,
-				user: userAccountPubkey,
-				userStats: userStatsAccountPubkey,
-				archivedUser: archivedUserAccountPubkey,
-				archiveProgram: new PublicKey("4Vivs8x3dKt6PUsPpSJKDU3Gc6Y3MDc3J4GNm2LpxDz6"),
-			}).rpc();
-			console.log('here2');
-		} catch (e) {
-			console.error(e);
-		}
-
-		const archivedUserAccount = await program.account.archivedUser.fetch(archivedUserAccountPubkey);
-
-		const buffer = Buffer.alloc(4376, 0);
-		for (let i = 0; i < archivedUserAccount.data.length; i++) {
-			buffer.writeUInt8(archivedUserAccount.data[i], 8 + i);
-		}
+		await adminClient.archiveUser(provider.wallet.publicKey, 0);
 
 		const archivedUserAccountInfo = await adminClient.connection.getAccountInfo(archivedUserAccountPubkey);
 		const decodedArchivedUserAccount = adminClient.program.account.user.coder.accounts.decodeUnchecked('User', archivedUserAccountInfo.data);
@@ -83,7 +62,6 @@ describe('drift-archive', () => {
 
 	it('unarchive user', async () => {
 		const userAccountPubkey = await adminClient.getUserAccountPublicKey();
-		const userStatsAccountPubkey = await adminClient.getUserStatsAccountPublicKey();
 
 		const authority = adminClient.wallet.publicKey;
 		const subAccountId = 0;
@@ -94,24 +72,11 @@ describe('drift-archive', () => {
 		const decodedArchivedUserAccountBefore = adminClient.program.account.user.coder.accounts.decodeUnchecked('User', archivedUserAccountInfoBefore.data);
 
 		console.log('here');
-		try {
-			console.log(await adminClient.getStatePublicKey());
-			await adminClient.program.methods.unarchiveUser(subAccountId).accounts({
-				state: await adminClient.getStatePublicKey(),
-				driftSigner: adminClient.getStateAccount().signer,
-				user: userAccountPubkey,
-				userStats: userStatsAccountPubkey,
-				archivedUser: archivedUserAccountPubkey,
-				archiveProgram: new PublicKey("4Vivs8x3dKt6PUsPpSJKDU3Gc6Y3MDc3J4GNm2LpxDz6"),
-			}).rpc();
-			console.log('here2');
-		} catch (e) {
-			console.error(e);
-		}
+		await adminClient.unarchiveUser(provider.wallet.publicKey, 0);
 
-		const userAccountAftre = await adminClient.program.account.user.fetch(userAccountPubkey);
+		const userAccountAfter = await adminClient.program.account.user.fetch(userAccountPubkey);
 
-		const stringifiedUserAccount = JSON.stringify(userAccountAftre);
+		const stringifiedUserAccount = JSON.stringify(userAccountAfter);
 		const stringifiedArchivedUserAccount = JSON.stringify(decodedArchivedUserAccountBefore);
 
 		assert(stringifiedUserAccount === stringifiedArchivedUserAccount, 'archived user account does not match user account');

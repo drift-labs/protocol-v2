@@ -109,7 +109,7 @@ import { WebSocketDriftClientAccountSubscriber } from './accounts/webSocketDrift
 import { RetryTxSender } from './tx/retryTxSender';
 import { User } from './user';
 import { UserSubscriptionConfig } from './userConfig';
-import { configs, DRIFT_PROGRAM_ID } from './config';
+import {configs, DRIFT_ARCHIVE_PROGRAM_ID, DRIFT_PROGRAM_ID} from './config';
 import { WRAPPED_SOL_MINT } from './constants/spotMarkets';
 import { UserStats } from './userStats';
 import { isSpotPositionAvailable } from './math/spotPosition';
@@ -1291,6 +1291,70 @@ export class DriftClient {
 		});
 
 		return ix;
+	}
+
+	public async archiveUser(
+		authority: PublicKey,
+		subAccountId: number,
+		txParams?: TxParams
+	): Promise<TransactionSignature> {
+		const ix = await this.getArchiveUserIx(authority, subAccountId);
+
+		const { txSig } = await this.sendTransaction(
+			await this.buildTransaction(ix, txParams),
+			[],
+			this.opts
+		);
+
+		return txSig;
+	}
+
+	public async getArchiveUserIx(authority: PublicKey, subAccountId: number) {
+		const archiveProgram = new PublicKey(DRIFT_ARCHIVE_PROGRAM_ID);
+		const archivedUserAccountPublicKey = await getUserAccountPublicKey(archiveProgram, authority, subAccountId);
+		const userAccountPublicKey = await getUserAccountPublicKey(this.program.programId, authority, subAccountId);
+		const userStatsPublicKey = await getUserStatsAccountPublicKey(this.program.programId, authority);
+
+		return await this.program.methods.archiveUser().accounts({
+			state: await this.getStatePublicKey(),
+			driftSigner: this.getStateAccount().signer,
+			user: userAccountPublicKey,
+			userStats: userStatsPublicKey,
+			archivedUser: archivedUserAccountPublicKey,
+			archiveProgram,
+		}).instruction();
+	}
+
+	public async unarchiveUser(
+		authority: PublicKey,
+		subAccountId: number,
+		txParams?: TxParams
+	): Promise<TransactionSignature> {
+		const ix = await this.getUnarchiveUserIx(authority, subAccountId);
+
+		const { txSig } = await this.sendTransaction(
+			await this.buildTransaction(ix, txParams),
+			[],
+			this.opts
+		);
+
+		return txSig;
+	}
+
+	public async getUnarchiveUserIx(authority: PublicKey, subAccountId: number) {
+		const archiveProgram = new PublicKey(DRIFT_ARCHIVE_PROGRAM_ID);
+		const archivedUserAccountPublicKey = await getUserAccountPublicKey(archiveProgram, authority, subAccountId);
+		const userAccountPublicKey = await getUserAccountPublicKey(this.program.programId, authority, subAccountId);
+		const userStatsPublicKey = await getUserStatsAccountPublicKey(this.program.programId, authority);
+
+		return await this.program.methods.unarchiveUser(subAccountId).accounts({
+			state: await this.getStatePublicKey(),
+			driftSigner: this.getStateAccount().signer,
+			user: userAccountPublicKey,
+			userStats: userStatsPublicKey,
+			archivedUser: archivedUserAccountPublicKey,
+			archiveProgram,
+		}).instruction();
 	}
 
 	public async reclaimRent(

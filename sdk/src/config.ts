@@ -33,6 +33,8 @@ export type DriftEnv = 'devnet' | 'mainnet-beta';
 
 export const DRIFT_PROGRAM_ID = 'dRiftyHA39MWEi3m9aunc5MzRF1JYuBsbn6VPcn33UH';
 
+export const DRIFT_ARCHIVE_PROGRAM_ID = '4Vivs8x3dKt6PUsPpSJKDU3Gc6Y3MDc3J4GNm2LpxDz6';
+
 export const configs: { [key in DriftEnv]: DriftConfig } = {
 	devnet: {
 		ENV: 'devnet',
