@@ -47,6 +47,144 @@ mod update_perp_auction_params {
     };
 
     #[test]
+    fn test_extreme_sanitize_oracle_order() {
+        let oracle_price = 145 * PRICE_PRECISION_I64;
+        let mut amm = AMM {
+            base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
+            quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
+            short_spread: (BID_ASK_SPREAD_PRECISION / 100) as u32,
+            long_spread: (BID_ASK_SPREAD_PRECISION / 100) as u32,
+            sqrt_k: 100 * AMM_RESERVE_PRECISION,
+            peg_multiplier: 100 * PEG_PRECISION,
+            ..AMM::default()
+        };
+        amm.last_bid_price_twap = (oracle_price - 192988) as u64;
+        amm.last_mark_price_twap_5min = oracle_price as u64;
+        amm.last_ask_price_twap = (oracle_price + 192988) as u64;
+        amm.historical_oracle_data.last_oracle_price_twap = oracle_price as i64;
+        amm.historical_oracle_data.last_oracle_price_twap_5min = oracle_price as i64;
+
+        amm.historical_oracle_data.last_oracle_price = oracle_price;
+        let perp_market = PerpMarket {
+            amm,
+            ..PerpMarket::default()
+        };
+
+        let order_params_before = OrderParams {
+            order_type: OrderType::Oracle,
+            auction_start_price: Some(amm.last_bid_price_twap as i64),
+            auction_end_price: Some((amm.last_bid_price_twap + 1000000) as i64),
+            auction_duration: Some(30),
+            direction: PositionDirection::Long,
+            ..OrderParams::default()
+        };
+
+        assert_eq!(order_params_before.auction_start_price, Some(144_807_012));
+        assert_eq!(order_params_before.auction_end_price, Some(145_807_012));
+
+        let mut order_params_after = order_params_before;
+        order_params_after
+            .update_perp_auction_params(&perp_market, oracle_price)
+            .unwrap();
+
+        assert_eq!(order_params_after.auction_start_price, Some(-144807));
+        assert_eq!(order_params_after.auction_end_price, Some(3_092_988));
+        assert_eq!(order_params_after.auction_duration, Some(134));
+
+        let order_params_before2 = OrderParams {
+            order_type: OrderType::Oracle,
+            auction_start_price: Some(amm.last_ask_price_twap as i64),
+            auction_end_price: Some((amm.last_bid_price_twap - 1000000) as i64),
+            auction_duration: Some(30),
+            direction: PositionDirection::Short,
+            ..OrderParams::default()
+        };
+
+        assert_eq!(order_params_before2.auction_start_price, Some(145192988));
+        assert_eq!(order_params_before2.auction_end_price, Some(143807012));
+
+        let mut order_params_after2 = order_params_before2;
+        order_params_after2
+            .update_perp_auction_params(&perp_market, oracle_price)
+            .unwrap();
+
+        assert_eq!(order_params_after2.auction_start_price, Some(145192988)); // will never fill kek
+        assert_eq!(order_params_after2.auction_end_price, Some(143807012));
+        assert_eq!(order_params_after2.auction_duration, Some(58));
+
+        // huge negative for short
+        let order_params_before3 = OrderParams {
+            order_type: OrderType::Oracle,
+            auction_start_price: Some(-(amm.last_ask_price_twap as i64)),
+            auction_end_price: Some(-((amm.last_bid_price_twap - 1000000) as i64)),
+            auction_duration: Some(30),
+            direction: PositionDirection::Short,
+            oracle_price_offset: Some(-((amm.last_bid_price_twap - 1000000) as i32)),
+            ..OrderParams::default()
+        };
+
+        assert_eq!(order_params_before3.auction_start_price, Some(-145192988));
+        assert_eq!(order_params_before3.auction_end_price, Some(-143807012));
+        assert_eq!(order_params_before3.oracle_price_offset, Some(-143807012));
+
+        let mut order_params_after3 = order_params_before3;
+        order_params_after3
+            .update_perp_auction_params(&perp_market, oracle_price)
+            .unwrap();
+
+        assert_eq!(order_params_after3.auction_start_price, Some(145192));
+        assert_eq!(order_params_after3.auction_end_price, Some(-3092988));
+        assert_eq!(order_params_after3.oracle_price_offset, Some(-143807012));
+
+        assert_eq!(order_params_after3.auction_duration, Some(134));
+    }
+
+    #[test]
+    fn test_extreme_sanitize_oracle_order_huge_market_prem() {
+        let oracle_price = 145 * PRICE_PRECISION_I64;
+        let mut amm = AMM {
+            base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
+            quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
+            short_spread: (BID_ASK_SPREAD_PRECISION / 100) as u32,
+            long_spread: (BID_ASK_SPREAD_PRECISION / 100) as u32,
+            sqrt_k: 100 * AMM_RESERVE_PRECISION,
+            peg_multiplier: 100 * PEG_PRECISION,
+            ..AMM::default()
+        };
+        amm.last_bid_price_twap = (oracle_price * 15 / 10 - 192988) as u64;
+        amm.last_mark_price_twap_5min = (oracle_price * 16 / 10) as u64;
+        amm.last_ask_price_twap = (oracle_price * 16 / 10 + 192988) as u64;
+        amm.historical_oracle_data.last_oracle_price_twap = oracle_price as i64;
+        amm.historical_oracle_data.last_oracle_price_twap_5min = oracle_price as i64;
+
+        amm.historical_oracle_data.last_oracle_price = oracle_price;
+        let perp_market = PerpMarket {
+            amm,
+            ..PerpMarket::default()
+        };
+
+        let order_params_before = OrderParams {
+            order_type: OrderType::Oracle,
+            auction_start_price: Some(amm.last_bid_price_twap as i64),
+            auction_end_price: Some((amm.last_bid_price_twap + 1000000) as i64),
+            auction_duration: Some(30),
+            ..OrderParams::default()
+        };
+
+        assert_eq!(order_params_before.auction_start_price, Some(217_307_012));
+        assert_eq!(order_params_before.auction_end_price, Some(218_307_012));
+
+        let mut order_params_after = order_params_before;
+        order_params_after
+            .update_perp_auction_params(&perp_market, oracle_price)
+            .unwrap();
+
+        assert_eq!(order_params_after.auction_start_price, Some(72_524_319));
+        assert_eq!(order_params_after.auction_end_price, Some(90_092_988));
+        assert_eq!(order_params_after.auction_duration, Some(180));
+    }
+
+    #[test]
     fn test_sanitize_limit() {
         let oracle_price = 100 * PRICE_PRECISION_I64;
         let mut amm = AMM {
