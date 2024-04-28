@@ -53,7 +53,11 @@ export async function getSignedTransactionMap(
 	});
 
 	const signedTxs = await wallet.signAllTransactions(
-		txsToSign.filter((tx) => tx !== undefined)
+		txsToSign
+			.map((tx) => {
+				return tx as Transaction;
+			})
+			.filter((tx) => tx !== undefined)
 	);
 
 	signedTxs.forEach((signedTx, index) => {

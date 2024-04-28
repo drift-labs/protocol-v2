@@ -251,11 +251,13 @@ export class DriftClient {
 			this.userAccountSubscriptionConfig = {
 				type: 'websocket',
 				resubTimeoutMs: config.accountSubscription?.resubTimeoutMs,
+				logResubMessages: config.accountSubscription?.logResubMessages,
 				commitment: config.accountSubscription?.commitment,
 			};
 			this.userStatsAccountSubscriptionConfig = {
 				type: 'websocket',
 				resubTimeoutMs: config.accountSubscription?.resubTimeoutMs,
+				logResubMessages: config.accountSubscription?.logResubMessages,
 				commitment: config.accountSubscription?.commitment,
 			};
 		}
@@ -298,7 +300,10 @@ export class DriftClient {
 				config.spotMarketIndexes ?? [],
 				config.oracleInfos ?? [],
 				noMarketsAndOraclesSpecified,
-				config.accountSubscription?.resubTimeoutMs,
+				{
+					resubTimeoutMs: config.accountSubscription?.resubTimeoutMs,
+					logResubMessages: config.accountSubscription?.logResubMessages,
+				},
 				config.accountSubscription?.commitment
 			);
 		}

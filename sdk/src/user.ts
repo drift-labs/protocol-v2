@@ -118,7 +118,10 @@ export class User {
 			this.accountSubscriber = new WebSocketUserAccountSubscriber(
 				config.driftClient.program,
 				config.userAccountPublicKey,
-				config.accountSubscription?.resubTimeoutMs,
+				{
+					resubTimeoutMs: config.accountSubscription?.resubTimeoutMs,
+					logResubMessages: config.accountSubscription?.logResubMessages,
+				},
 				config.accountSubscription?.commitment
 			);
 		}

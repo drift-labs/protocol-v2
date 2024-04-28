@@ -39,6 +39,7 @@ export type DriftClientSubscriptionConfig =
 	| {
 			type: 'websocket';
 			resubTimeoutMs?: number;
+			logResubMessages?: boolean;
 			commitment?: Commitment;
 	  }
 	| {

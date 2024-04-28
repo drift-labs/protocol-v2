@@ -39,7 +39,10 @@ export class OrderSubscriber {
 				orderSubscriber: this,
 				commitment: this.commitment,
 				skipInitialLoad: config.subscriptionConfig.skipInitialLoad,
-				resubTimeoutMs: config.subscriptionConfig.resubTimeoutMs,
+				resubOpts: {
+					resubTimeoutMs: config.subscriptionConfig?.resubTimeoutMs,
+					logResubMessages: config.subscriptionConfig?.logResubMessages,
+				},
 				resyncIntervalMs: config.subscriptionConfig.resyncIntervalMs,
 				decoded: config.decodeData,
 			});

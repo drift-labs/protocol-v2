@@ -3,12 +3,13 @@ import { getNonIdleUserFilter, getUserFilter } from '../memcmp';
 import { WebSocketProgramAccountSubscriber } from '../accounts/webSocketProgramAccountSubscriber';
 import { UserAccount } from '../types';
 import { Commitment, Context, PublicKey } from '@solana/web3.js';
+import { ResubOpts } from '../accounts/types';
 
 export class WebsocketSubscription {
 	private userMap: UserMap;
 	private commitment: Commitment;
 	private skipInitialLoad: boolean;
-	private resubTimeoutMs?: number;
+	private resubOpts?: ResubOpts;
 	private includeIdle?: boolean;
 	private decodeFn: (name: string, data: Buffer) => UserAccount;
 
@@ -18,21 +19,21 @@ export class WebsocketSubscription {
 		userMap,
 		commitment,
 		skipInitialLoad = false,
-		resubTimeoutMs,
+		resubOpts,
 		includeIdle = false,
 		decodeFn,
 	}: {
 		userMap: UserMap;
 		commitment: Commitment;
 		skipInitialLoad?: boolean;
-		resubTimeoutMs?: number;
+		resubOpts?: ResubOpts;
 		includeIdle?: boolean;
 		decodeFn: (name: string, data: Buffer) => UserAccount;
 	}) {
 		this.userMap = userMap;
 		this.commitment = commitment;
 		this.skipInitialLoad = skipInitialLoad;
-		this.resubTimeoutMs = resubTimeoutMs;
+		this.resubOpts = resubOpts;
 		this.includeIdle = includeIdle || false;
 		this.decodeFn = decodeFn;
 	}
@@ -52,7 +53,7 @@ export class WebsocketSubscription {
 					filters,
 					commitment: this.commitment,
 				},
-				this.resubTimeoutMs
+				this.resubOpts
 			);
 		}
 
