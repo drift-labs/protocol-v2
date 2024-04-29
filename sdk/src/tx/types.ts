@@ -60,3 +60,15 @@ export interface TxSender {
 
 	getTimeoutCount(): number;
 }
+
+export class TxSendError extends Error {
+	constructor(
+		public message: string,
+		public code: number
+	) {
+		super(message);
+		if (Error.captureStackTrace) {
+			Error.captureStackTrace(this, TxSendError);
+		}
+	}
+}
