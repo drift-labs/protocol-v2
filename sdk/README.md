@@ -19,6 +19,13 @@ npm i @drift-labs/sdk
 
 ## Getting Started
 
+Documentation:
+
+- [API docs](https://drift-labs.github.io/v2-teacher/)
+- [overview docs](https://docs.drift.trade/)
+
+The below is a light overview of using solana and drift's typescript sdk, but not as comprehensive as the [API docs](https://drift-labs.github.io/v2-teacher/).
+
 ### Setting up a wallet for your program
 
 ```bash
@@ -77,8 +84,10 @@ convertToNumber(new BN(10500), new BN(1000)); // = 10.5
 ### Setting up an account and making a trade
 
 ```typescript
-import { AnchorProvider, BN } from '@coral-xyz/anchor';
-import { Token, TOKEN_PROGRAM_ID } from '@solana/spl-token';
+import * as anchor from '@coral-xyz/anchor';
+import { AnchorProvider } from '@coral-xyz/anchor';
+import { getAssociatedTokenAddress, TOKEN_PROGRAM_ID } from '@solana/spl-token';
+
 import { Connection, Keypair, PublicKey } from '@solana/web3.js';
 import {
 	calculateReservePrice,
@@ -95,16 +104,17 @@ import {
 	BASE_PRECISION,
 	getMarketOrderParams,
 	BulkAccountLoader,
-	getMarketsAndOraclesForSubscription
+	BN,
+	calculateBidAskPrice,
+	getMarketsAndOraclesForSubscription,
+	calculateEstimatedPerpEntryPrice,
 } from '../sdk';
 
 export const getTokenAddress = (
 	mintAddress: string,
 	userPubKey: string
 ): Promise<PublicKey> => {
-	return Token.getAssociatedTokenAddress(
-		new PublicKey(`ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL`),
-		TOKEN_PROGRAM_ID,
+	return getAssociatedTokenAddress(
 		new PublicKey(mintAddress),
 		new PublicKey(userPubKey)
 	);
@@ -112,55 +122,64 @@ export const getTokenAddress = (
 
 const main = async () => {
 	const env = 'devnet';
+	// const env = 'mainnet-beta';
+
 	// Initialize Drift SDK
 	const sdkConfig = initialize({ env });
 
 	// Set up the Wallet and Provider
-	const privateKey = process.env.BOT_PRIVATE_KEY; // stored as an array string
-	const keypair = Keypair.fromSecretKey(
-		Uint8Array.from(JSON.parse(privateKey))
+	if (!process.env.ANCHOR_WALLET) {
+		throw new Error('ANCHOR_WALLET env var must be set.');
+	}
+
+	if (!process.env.ANCHOR_PROVIDER_URL) {
+		throw new Error('ANCHOR_PROVIDER_URL env var must be set.');
+	}
+
+	const provider = anchor.AnchorProvider.local(
+		process.env.ANCHOR_PROVIDER_URL,
+		{
+			preflightCommitment: 'confirmed',
+			skipPreflight: false,
+			commitment: 'confirmed',
+		}
 	);
-	const wallet = new Wallet(keypair);
-
-	// Set up the Connection
-	const rpcAddress = process.env.RPC_ADDRESS; // can use: https://api.devnet.solana.com for devnet; https://api.mainnet-beta.solana.com for mainnet;
-	const connection = new Connection(rpcAddress);
-
-	// Set up the Provider
-	const provider = new AnchorProvider(
-		connection,
-		wallet,
-		AnchorProvider.defaultOptions()
-	);
-
 	// Check SOL Balance
-	const lamportsBalance = await connection.getBalance(wallet.publicKey);
-	console.log('SOL balance:', lamportsBalance / 10 ** 9);
+	const lamportsBalance = await provider.connection.getBalance(
+		provider.wallet.publicKey
+	);
+	console.log(
+		provider.wallet.publicKey.toString(),
+		env,
+		'SOL balance:',
+		lamportsBalance / 10 ** 9
+	);
 
 	// Misc. other things to set up
 	const usdcTokenAddress = await getTokenAddress(
 		sdkConfig.USDC_MINT_ADDRESS,
-		wallet.publicKey.toString()
+		provider.wallet.publicKey.toString()
 	);
 
 	// Set up the Drift Client
 	const driftPublicKey = new PublicKey(sdkConfig.DRIFT_PROGRAM_ID);
 	const bulkAccountLoader = new BulkAccountLoader(
-		connection,
+		provider.connection,
 		'confirmed',
 		1000
 	);
 	const driftClient = new DriftClient({
-		connection,
+		connection: provider.connection,
 		wallet: provider.wallet,
 		programID: driftPublicKey,
-		...getMarketsAndOraclesForSubscription(env),
 		accountSubscription: {
 			type: 'polling',
 			accountLoader: bulkAccountLoader,
 		},
 	});
 	await driftClient.subscribe();
+
+	console.log('subscribed to driftClient');
 
 	// Set up user client
 	const user = new User({
@@ -176,13 +195,20 @@ const main = async () => {
 	const userAccountExists = await user.exists();
 
 	if (!userAccountExists) {
-		//// Create a Clearing House account by Depositing some USDC ($10,000 in this case)
+		console.log(
+			'initializing to',
+			env,
+			' drift account for',
+			provider.wallet.publicKey.toString()
+		);
+
+		//// Create a Drift V2 account by Depositing some USDC ($10,000 in this case)
 		const depositAmount = new BN(10000).mul(QUOTE_PRECISION);
 		await driftClient.initializeUserAccountAndDepositCollateral(
 			depositAmount,
 			await getTokenAddress(
 				usdcTokenAddress.toString(),
-				wallet.publicKey.toString()
+				provider.wallet.publicKey.toString()
 			)
 		);
 	}
@@ -194,6 +220,9 @@ const main = async () => {
 		(market) => market.baseAssetSymbol === 'SOL'
 	);
 
+	const marketIndex = solMarketInfo.marketIndex;
+
+	// Get vAMM bid and ask price
 	const [bid, ask] = calculateBidAskPrice(
 		driftClient.getPerpMarketAccount(marketIndex).amm,
 		driftClient.getOracleDataForPerpMarket(marketIndex)
@@ -203,35 +232,26 @@ const main = async () => {
 	const formattedAskPrice = convertToNumber(ask, PRICE_PRECISION);
 
 	console.log(
-		`Current amm bid and ask price are $${formattedBidPrice} and $${formattedAskPrice}`
+		env,
+		`vAMM bid: $${formattedBidPrice} and ask: $${formattedAskPrice}`
 	);
 
-	// Estimate the slippage for a $5000 LONG trade
 	const solMarketAccount = driftClient.getPerpMarketAccount(
 		solMarketInfo.marketIndex
 	);
+	console.log(env, `Placing a 1 SOL-PERP LONG order`);
 
-	const slippage = convertToNumber(
-		calculateTradeSlippage(
-			PositionDirection.LONG,
-			new BN(1).mul(BASE_PRECISION),
-			solMarketAccount,
-			'base',
-			driftClient.getOracleDataForPerpMarket(solMarketInfo.marketIndex)
-		)[0],
-		PRICE_PRECISION
-	);
-
-	console.log(`Slippage for a 1 SOL-PERP would be $${slippage}`);
-
-	await driftClient.placePerpOrder(
+	const txSig = await driftClient.placePerpOrder(
 		getMarketOrderParams({
 			baseAssetAmount: new BN(1).mul(BASE_PRECISION),
 			direction: PositionDirection.LONG,
 			marketIndex: solMarketAccount.marketIndex,
 		})
 	);
-	console.log(`Placed a 1 SOL-PERP LONG order`);
+	console.log(
+		env,
+		`Placed a 1 SOL-PERP LONG order. Tranaction signature: ${txSig}`
+	);
 };
 
 main();
@@ -244,5 +264,3 @@ Drift Protocol v2 is licensed under [Apache 2.0](./LICENSE).
 Unless you explicitly state otherwise, any contribution intentionally submitted
 for inclusion in Drift SDK by you, as defined in the Apache-2.0 license, shall be
 licensed as above, without any additional terms or conditions.
-
-
