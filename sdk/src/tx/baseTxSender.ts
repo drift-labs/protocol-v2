@@ -2,6 +2,7 @@ import {
 	ConfirmationStrategy,
 	ExtraConfirmationOptions,
 	TxSender,
+	TxSendError,
 	TxSigAndSlot,
 } from './types';
 import {
@@ -25,6 +26,7 @@ import bs58 from 'bs58';
 import { IWallet } from '../types';
 
 const DEFAULT_TIMEOUT = 35000;
+const NOT_CONFIRMED_ERROR_CODE = -1001;
 
 export abstract class BaseTxSender implements TxSender {
 	connection: Connection;
@@ -282,10 +284,11 @@ export abstract class BaseTxSender implements TxSender {
 			}
 			this.timeoutCount += 1;
 			const duration = (Date.now() - start) / 1000;
-			throw new Error(
+			throw new TxSendError(
 				`Transaction was not confirmed in ${duration.toFixed(
 					2
-				)} seconds. It is unknown if it succeeded or failed. Check signature ${signature} using the Solana Explorer or CLI tools.`
+				)} seconds. It is unknown if it succeeded or failed. Check signature ${signature} using the Solana Explorer or CLI tools.`,
+				NOT_CONFIRMED_ERROR_CODE
 			);
 		}
 
@@ -317,10 +320,11 @@ export abstract class BaseTxSender implements TxSender {
 		// Transaction not confirmed within 30 seconds
 		this.timeoutCount += 1;
 		const duration = (Date.now() - start) / 1000;
-		throw new Error(
+		throw new TxSendError(
 			`Transaction was not confirmed in ${duration.toFixed(
 				2
-			)} seconds. It is unknown if it succeeded or failed. Check signature ${signature} using the Solana Explorer or CLI tools.`
+			)} seconds. It is unknown if it succeeded or failed. Check signature ${signature} using the Solana Explorer or CLI tools.`,
+			NOT_CONFIRMED_ERROR_CODE
 		);
 	}
 
