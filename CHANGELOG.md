@@ -15,6 +15,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Breaking
 
+## [2.83.0] - 2024-04-30
+
+### Features
+
+- sdk: upgrade to node 18 and solana version 1.91.7
+
+### Fixes
+
+### Breaking
+
 ## [2.81.0] - 2024-04-22
 
 ### Features
