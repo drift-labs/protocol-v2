@@ -553,9 +553,9 @@ export const MainnetPerpMarkets: PerpMarketConfig[] = [
 		symbol: 'KMNO-PERP',
 		baseAssetSymbol: 'KMNO',
 		marketIndex: 28,
-		oracle: new PublicKey('sDAQaZQJQ4RXAxH3x526mbEXyQZT15ktkL84d7hmk7M'),
+		oracle: new PublicKey('6ynsvjkE2UoiRScbDx7ZxbBsyn7wyvg5P1vENvhtkG1C'),
 		launchTs: 1712240681000,
-		oracleSource: OracleSource.Prelaunch,
+		oracleSource: OracleSource.SWITCHBOARD,
 	},
 	{
 		fullName: 'Tensor',
