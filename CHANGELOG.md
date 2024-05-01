@@ -15,6 +15,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Breaking
 
+- ts-sdk: upgrade to node 18 and solana version 1.91.7 ([#1036](https://github.com/drift-labs/protocol-v2/pull/1036))
+
 ## [2.81.0] - 2024-04-22
 
 ### Features
