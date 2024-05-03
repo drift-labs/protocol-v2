@@ -114,7 +114,7 @@ impl Size for State {
     const SIZE: usize = 992;
 }
 
-#[derive(Copy, AnchorSerialize, AnchorDeserialize, Clone)]
+#[derive(Copy, AnchorSerialize, AnchorDeserialize, Clone, Debug)]
 pub struct OracleGuardRails {
     pub price_divergence: PriceDivergenceGuardRails,
     pub validity: ValidityGuardRails,
@@ -142,7 +142,7 @@ impl OracleGuardRails {
     }
 }
 
-#[derive(Copy, AnchorSerialize, AnchorDeserialize, Clone)]
+#[derive(Copy, AnchorSerialize, AnchorDeserialize, Clone, Debug)]
 pub struct PriceDivergenceGuardRails {
     pub mark_oracle_percent_divergence: u64,
     pub oracle_twap_5min_percent_divergence: u64,
@@ -157,7 +157,7 @@ impl Default for PriceDivergenceGuardRails {
     }
 }
 
-#[derive(Copy, AnchorSerialize, AnchorDeserialize, Clone, Default)]
+#[derive(Copy, AnchorSerialize, AnchorDeserialize, Clone, Default, Debug)]
 pub struct ValidityGuardRails {
     pub slots_before_stale_for_amm: i64,
     pub slots_before_stale_for_margin: i64,
@@ -165,7 +165,7 @@ pub struct ValidityGuardRails {
     pub too_volatile_ratio: i64,
 }
 
-#[derive(AnchorSerialize, AnchorDeserialize, Clone)]
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, Debug)]
 pub struct FeeStructure {
     pub fee_tiers: [FeeTier; 10],
     pub filler_reward_structure: OrderFillerRewardStructure,
@@ -179,7 +179,7 @@ impl Default for FeeStructure {
     }
 }
 
-#[derive(AnchorSerialize, AnchorDeserialize, Copy, Clone)]
+#[derive(AnchorSerialize, AnchorDeserialize, Copy, Clone, Debug)]
 pub struct FeeTier {
     pub fee_numerator: u32,
     pub fee_denominator: u32,
@@ -206,7 +206,7 @@ impl Default for FeeTier {
     }
 }
 
-#[derive(AnchorSerialize, AnchorDeserialize, Default, Clone)]
+#[derive(AnchorSerialize, AnchorDeserialize, Default, Clone, Debug)]
 pub struct OrderFillerRewardStructure {
     pub reward_numerator: u32,
     pub reward_denominator: u32,
