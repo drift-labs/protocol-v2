@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Features
 
 - program: sanitize extreme auction end prices ([#1031](https://github.com/drift-labs/protocol-v2/pull/1031))
+- program: add comprehensive admin function logging ([#1038](https://github.com/drift-labs/protocol-v2/pull/1038))
 
 ### Fixes
 
