@@ -219,12 +219,13 @@ export interface QuoteResponse {
 }
 
 export class JupiterClient {
-	url = 'https://quote-api.jup.ag';
+	url: string;
 	connection: Connection;
 	lookupTableCahce = new Map<string, AddressLookupTableAccount>();
 
-	constructor({ connection }: { connection: Connection }) {
+	constructor({ connection, url }: { connection: Connection; url?: string }) {
 		this.connection = connection;
+		this.url = url ?? 'https://quote-api.jup.ag';
 	}
 
 	/**
