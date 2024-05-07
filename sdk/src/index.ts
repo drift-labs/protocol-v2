@@ -102,5 +102,6 @@ export * from './auctionSubscriber/types';
 export * from './memcmp';
 export * from './decode/user';
 export * from './blockhashSubscriber';
+export * from './util/driftClock/index';
 
 export { BN, PublicKey, pyth };
