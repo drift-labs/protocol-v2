@@ -40,6 +40,7 @@ export enum SpotOperation {
 	UPDATE_CUMULATIVE_INTEREST = 1,
 	FILL = 2,
 	WITHDRAW = 4,
+	LIQUIDATION = 8,
 }
 
 export enum UserStatus {
