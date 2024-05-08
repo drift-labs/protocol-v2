@@ -33,6 +33,7 @@ export enum PerpOperation {
 	FILL = 4,
 	SETTLE_PNL = 8,
 	SETTLE_PNL_WITH_POSITION = 16,
+	LIQUIDATION = 32,
 }
 
 export enum SpotOperation {
