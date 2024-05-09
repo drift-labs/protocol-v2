@@ -1,6 +1,5 @@
 import {
 	ConfirmationStrategy,
-	ExtraConfirmationOptions,
 	TxSender,
 	TxSendError,
 	TxSigAndSlot,
@@ -16,7 +15,6 @@ import {
 	TransactionSignature,
 	Connection,
 	VersionedTransaction,
-	TransactionMessage,
 	TransactionInstruction,
 	AddressLookupTableAccount,
 } from '@solana/web3.js';
@@ -24,6 +22,8 @@ import { AnchorProvider } from '@coral-xyz/anchor';
 import assert from 'assert';
 import bs58 from 'bs58';
 import { IWallet } from '../types';
+import { TxHandler } from './txHandler';
+import { BlockHashAndValidSlot } from "./types";
 
 const DEFAULT_TIMEOUT = 35000;
 const NOT_CONFIRMED_ERROR_CODE = -1001;
@@ -37,6 +37,7 @@ export abstract class BaseTxSender implements TxSender {
 	timeoutCount = 0;
 	confirmationStrategy: ConfirmationStrategy;
 	additionalTxSenderCallbacks: ((base58EncodedTx: string) => void)[];
+	txHandler: TxHandler;
 
 	public constructor({
 		connection,
@@ -46,6 +47,7 @@ export abstract class BaseTxSender implements TxSender {
 		additionalConnections = new Array<Connection>(),
 		confirmationStrategy = ConfirmationStrategy.Combo,
 		additionalTxSenderCallbacks,
+		txHandler,
 	}: {
 		connection: Connection;
 		wallet: IWallet;
@@ -54,6 +56,7 @@ export abstract class BaseTxSender implements TxSender {
 		additionalConnections?;
 		confirmationStrategy?: ConfirmationStrategy;
 		additionalTxSenderCallbacks?: ((base58EncodedTx: string) => void)[];
+		txHandler: TxHandler;
 	}) {
 		this.connection = connection;
 		this.wallet = wallet;
@@ -62,6 +65,7 @@ export abstract class BaseTxSender implements TxSender {
 		this.additionalConnections = additionalConnections;
 		this.confirmationStrategy = confirmationStrategy;
 		this.additionalTxSenderCallbacks = additionalTxSenderCallbacks;
+		this.txHandler = txHandler;
 	}
 
 	async send(
@@ -69,7 +73,6 @@ export abstract class BaseTxSender implements TxSender {
 		additionalSigners?: Array<Signer>,
 		opts?: ConfirmOptions,
 		preSigned?: boolean,
-		extraConfirmationOptions?: ExtraConfirmationOptions
 	): Promise<TxSigAndSlot> {
 		if (additionalSigners === undefined) {
 			additionalSigners = [];
@@ -85,10 +88,6 @@ export abstract class BaseTxSender implements TxSender {
 			preSigned
 		);
 
-		if (extraConfirmationOptions?.onSignedCb) {
-			extraConfirmationOptions.onSignedCb();
-		}
-
 		return this.sendRawTransaction(signedTx.serialize(), opts);
 	}
 
@@ -98,56 +97,27 @@ export abstract class BaseTxSender implements TxSender {
 		opts: ConfirmOptions,
 		preSigned?: boolean
 	): Promise<Transaction> {
-		if (preSigned) {
-			return tx;
-		}
-
-		tx.feePayer = this.wallet.publicKey;
-		tx.recentBlockhash = (
-			await this.connection.getLatestBlockhash(opts.preflightCommitment)
-		).blockhash;
-
-		additionalSigners
-			.filter((s): s is Signer => s !== undefined)
-			.forEach((kp) => {
-				tx.partialSign(kp);
-			});
-
-		const signedTx = await this.wallet.signTransaction(tx);
-
-		return signedTx;
+		return this.txHandler.prepareTx(tx, additionalSigners, opts, preSigned);
 	}
 
+	/**
+	 * @deprecated :: use driftClient.txHandler.getVersionedTransaction instead
+	 */
 	async getVersionedTransaction(
 		ixs: TransactionInstruction[],
 		lookupTableAccounts: AddressLookupTableAccount[],
 		additionalSigners?: Array<Signer>,
 		opts?: ConfirmOptions,
-		blockhash?: string
+		blockhash?: BlockHashAndValidSlot
 	): Promise<VersionedTransaction> {
-		if (additionalSigners === undefined) {
-			additionalSigners = [];
-		}
-		if (opts === undefined) {
-			opts = this.opts;
-		}
 
-		let recentBlockhash = '';
-		if (blockhash) {
-			recentBlockhash = blockhash;
-		} else {
-			recentBlockhash = (
-				await this.connection.getLatestBlockhash(opts.preflightCommitment)
-			).blockhash;
-		}
-
-		const message = new TransactionMessage({
-			payerKey: this.wallet.publicKey,
-			recentBlockhash,
-			instructions: ixs,
-		}).compileToV0Message(lookupTableAccounts);
-
-		const tx = new VersionedTransaction(message);
+		const tx = this.txHandler.getVersionedTransaction(
+			ixs,
+			lookupTableAccounts,
+			additionalSigners,
+			opts,
+			blockhash
+		);
 
 		return tx;
 	}
@@ -157,9 +127,9 @@ export abstract class BaseTxSender implements TxSender {
 		additionalSigners?: Array<Signer>,
 		opts?: ConfirmOptions,
 		preSigned?: boolean,
-		extraConfirmationOptions?: ExtraConfirmationOptions
 	): Promise<TxSigAndSlot> {
 		let signedTx;
+
 		if (preSigned) {
 			signedTx = tx;
 			// @ts-ignore
@@ -168,17 +138,7 @@ export abstract class BaseTxSender implements TxSender {
 			tx.sign((additionalSigners ?? []).concat(this.wallet.payer));
 			signedTx = tx;
 		} else {
-			additionalSigners
-				?.filter((s): s is Signer => s !== undefined)
-				.forEach((kp) => {
-					tx.sign([kp]);
-				});
-			// @ts-ignore
-			signedTx = await this.wallet.signTransaction(tx);
-		}
-
-		if (extraConfirmationOptions?.onSignedCb) {
-			extraConfirmationOptions.onSignedCb();
+			signedTx = await this.txHandler.signVersionedTx(tx, additionalSigners);
 		}
 
 		if (opts === undefined) {

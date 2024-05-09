@@ -3,6 +3,7 @@ import { ConfirmOptions, Connection } from '@solana/web3.js';
 import { AnchorProvider } from '@coral-xyz/anchor';
 import { IWallet } from '../types';
 import { BaseTxSender } from './baseTxSender';
+import { TxHandler } from './txHandler';
 
 const DEFAULT_TIMEOUT = 35000;
 const DEFAULT_RETRY = 2000;
@@ -29,6 +30,7 @@ export class RetryTxSender extends BaseTxSender {
 		additionalConnections = new Array<Connection>(),
 		confirmationStrategy = ConfirmationStrategy.Combo,
 		additionalTxSenderCallbacks = [],
+		txHandler,
 	}: {
 		connection: Connection;
 		wallet: IWallet;
@@ -38,6 +40,7 @@ export class RetryTxSender extends BaseTxSender {
 		additionalConnections?;
 		confirmationStrategy?: ConfirmationStrategy;
 		additionalTxSenderCallbacks?: ((base58EncodedTx: string) => void)[];
+		txHandler: TxHandler;
 	}) {
 		super({
 			connection,
@@ -47,6 +50,7 @@ export class RetryTxSender extends BaseTxSender {
 			additionalConnections,
 			confirmationStrategy,
 			additionalTxSenderCallbacks,
+			txHandler,
 		});
 		this.connection = connection;
 		this.wallet = wallet;

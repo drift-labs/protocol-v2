@@ -20,10 +20,6 @@ export type TxSigAndSlot = {
 	slot: number;
 };
 
-export type ExtraConfirmationOptions = {
-	onSignedCb: () => void;
-};
-
 export interface TxSender {
 	wallet: IWallet;
 
@@ -32,7 +28,6 @@ export interface TxSender {
 		additionalSigners?: Array<Signer>,
 		opts?: ConfirmOptions,
 		preSigned?: boolean,
-		extraConfirmationOptions?: ExtraConfirmationOptions
 	): Promise<TxSigAndSlot>;
 
 	sendVersionedTransaction(
@@ -40,7 +35,6 @@ export interface TxSender {
 		additionalSigners?: Array<Signer>,
 		opts?: ConfirmOptions,
 		preSigned?: boolean,
-		extraConfirmationOptions?: ExtraConfirmationOptions
 	): Promise<TxSigAndSlot>;
 
 	getVersionedTransaction(
@@ -48,7 +42,7 @@ export interface TxSender {
 		lookupTableAccounts: AddressLookupTableAccount[],
 		additionalSigners?: Array<Signer>,
 		opts?: ConfirmOptions,
-		blockhash?: string
+		blockhash?: BlockHashAndValidSlot
 	): Promise<VersionedTransaction>;
 
 	sendRawTransaction(
@@ -72,3 +66,9 @@ export class TxSendError extends Error {
 		}
 	}
 }
+
+export type BlockHashAndValidSlot = {
+    blockhash: string;
+    lastValidBlockHeight: number;
+};
+

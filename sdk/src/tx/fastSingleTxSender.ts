@@ -2,11 +2,9 @@ import { ConfirmationStrategy, TxSigAndSlot } from './types';
 import {
 	ConfirmOptions,
 	Signer,
-	Transaction,
 	TransactionSignature,
 	Connection,
 	VersionedTransaction,
-	TransactionMessage,
 	TransactionInstruction,
 	AddressLookupTableAccount,
 	Commitment,
@@ -14,6 +12,8 @@ import {
 import { AnchorProvider } from '@coral-xyz/anchor';
 import { IWallet } from '../types';
 import { BaseTxSender } from './baseTxSender';
+import { TxHandler } from './txHandler';
+import { BlockHashAndValidSlot } from "./types";
 
 const DEFAULT_TIMEOUT = 35000;
 const DEFAULT_BLOCKHASH_REFRESH = 10000;
@@ -26,7 +26,7 @@ export class FastSingleTxSender extends BaseTxSender {
 	blockhashRefreshInterval: number;
 	additionalConnections: Connection[];
 	timoutCount = 0;
-	recentBlockhash: string;
+	recentBlockhash: BlockHashAndValidSlot;
 	skipConfirmation: boolean;
 	blockhashCommitment: Commitment;
 	blockhashIntervalId: NodeJS.Timer;
@@ -41,6 +41,7 @@ export class FastSingleTxSender extends BaseTxSender {
 		skipConfirmation = false,
 		blockhashCommitment = 'finalized',
 		confirmationStrategy = ConfirmationStrategy.Combo,
+		txHandler,
 	}: {
 		connection: Connection;
 		wallet: IWallet;
@@ -51,6 +52,7 @@ export class FastSingleTxSender extends BaseTxSender {
 		skipConfirmation?: boolean;
 		blockhashCommitment?: Commitment;
 		confirmationStrategy?: ConfirmationStrategy;
+		txHandler: TxHandler,
 	}) {
 		super({
 			connection,
@@ -59,6 +61,7 @@ export class FastSingleTxSender extends BaseTxSender {
 			timeout,
 			additionalConnections,
 			confirmationStrategy,
+			txHandler
 		});
 		this.connection = connection;
 		this.wallet = wallet;
@@ -77,7 +80,7 @@ export class FastSingleTxSender extends BaseTxSender {
 				try {
 					this.recentBlockhash = (
 						await this.connection.getLatestBlockhash(this.blockhashCommitment)
-					).blockhash;
+					);
 				} catch (e) {
 					console.error('Error in startBlockhashRefreshLoop: ', e);
 				}
@@ -85,21 +88,12 @@ export class FastSingleTxSender extends BaseTxSender {
 		}
 	}
 
-	async prepareTx(
-		tx: Transaction,
-		additionalSigners: Array<Signer>,
-		_opts: ConfirmOptions,
-		preSigned?: boolean
-	): Promise<Transaction> {
-		return super.prepareTx(tx, additionalSigners, _opts, preSigned);
-	}
-
 	async getVersionedTransaction(
 		ixs: TransactionInstruction[],
 		lookupTableAccounts: AddressLookupTableAccount[],
 		additionalSigners?: Array<Signer>,
 		opts?: ConfirmOptions,
-		blockhash?: string
+		blockhash?: BlockHashAndValidSlot
 	): Promise<VersionedTransaction> {
 		if (additionalSigners === undefined) {
 			additionalSigners = [];
@@ -108,25 +102,18 @@ export class FastSingleTxSender extends BaseTxSender {
 			opts = this.opts;
 		}
 
-		let recentBlockhash = '';
-		if (blockhash) {
-			recentBlockhash = blockhash;
-		} else {
-			recentBlockhash =
-				this.recentBlockhash ??
-				(await this.connection.getLatestBlockhash(opts.preflightCommitment))
-					.blockhash;
-		}
+		const recentBlockhash =
+			blockhash ??
+			this.recentBlockhash ??
+			(await this.connection.getLatestBlockhash(opts.preflightCommitment));
 
-		const message = new TransactionMessage({
-			payerKey: this.wallet.publicKey,
-			recentBlockhash,
-			instructions: ixs,
-		}).compileToV0Message(lookupTableAccounts);
-
-		const tx = new VersionedTransaction(message);
-
-		return tx;
+		return this.txHandler.getVersionedTransaction(
+			ixs,
+			lookupTableAccounts,
+			additionalSigners,
+			opts,
+			recentBlockhash
+		);
 	}
 
 	async sendRawTransaction(
