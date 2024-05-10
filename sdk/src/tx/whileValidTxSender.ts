@@ -1,19 +1,17 @@
 import { TxSigAndSlot } from './types';
 import {
-	AddressLookupTableAccount,
 	Commitment,
 	ConfirmOptions,
 	Connection,
 	Signer,
 	Transaction,
-	TransactionInstruction,
 	VersionedTransaction,
 } from '@solana/web3.js';
 import { AnchorProvider } from '@coral-xyz/anchor';
-import { IWallet } from '../types';
 import { BaseTxSender } from './baseTxSender';
 import bs58 from 'bs58';
 import { TxHandler } from './txHandler';
+import { Wallet } from '../wallet';
 
 const DEFAULT_RETRY = 2000;
 
@@ -23,7 +21,7 @@ type ResolveReference = {
 
 export class WhileValidTxSender extends BaseTxSender {
 	connection: Connection;
-	wallet: IWallet;
+	wallet: Wallet;
 	opts: ConfirmOptions;
 	timeout: number;
 	retrySleep: number;
@@ -46,7 +44,7 @@ export class WhileValidTxSender extends BaseTxSender {
 		txHandler,
 	}: {
 		connection: Connection;
-		wallet: IWallet;
+		wallet: Wallet;
 		opts?: ConfirmOptions;
 		retrySleep?: number;
 		additionalConnections?;
@@ -87,7 +85,7 @@ export class WhileValidTxSender extends BaseTxSender {
 		// handle tx
 		let signedTx = tx;
 		if (!preSigned) {
-			signedTx = await this.txHandler.prepareTx(tx, additionalSigners, opts, false, latestBlockhash);
+			signedTx = await this.txHandler.prepareTx(tx, additionalSigners, undefined, opts, false, latestBlockhash);
 		}
 
 		// handle subclass-specific side effects
@@ -97,26 +95,6 @@ export class WhileValidTxSender extends BaseTxSender {
 		this.untilValid.set(txSig, latestBlockhash);
 
 		return signedTx;
-	}
-
-	/**
-	 * @deprecated :: use driftClient.txHandler.getVersionedTransaction instead
-	 */
-	async getVersionedTransaction(
-		ixs: TransactionInstruction[],
-		lookupTableAccounts: AddressLookupTableAccount[],
-		_additionalSigners?: Array<Signer>,
-		_opts?: ConfirmOptions,
-	): Promise<VersionedTransaction> {
-
-		const tx = this.txHandler.getVersionedTransaction(
-			ixs,
-			lookupTableAccounts,
-			_additionalSigners,
-			_opts,
-		);
-
-		return tx;
 	}
 
 	async sendVersionedTransaction(

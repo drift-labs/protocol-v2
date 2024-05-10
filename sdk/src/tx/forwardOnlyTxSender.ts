@@ -5,10 +5,10 @@ import {
 	VersionedTransaction,
 } from '@solana/web3.js';
 import bs58 from 'bs58';
-import { IWallet } from '../types';
 import { BaseTxSender } from './baseTxSender';
 import { ConfirmationStrategy, TxSigAndSlot } from './types';
 import { TxHandler } from './txHandler';
+import { Wallet } from '../wallet';
 
 const DEFAULT_TIMEOUT = 35000;
 const DEFAULT_RETRY = 5000;
@@ -19,7 +19,7 @@ type ResolveReference = {
 
 export class ForwardOnlyTxSender extends BaseTxSender {
 	connection: Connection;
-	wallet: IWallet;
+	wallet: Wallet;
 	opts: ConfirmOptions;
 	timeout: number;
 	retrySleep: number;
@@ -37,7 +37,7 @@ export class ForwardOnlyTxSender extends BaseTxSender {
 		txHandler,
 	}: {
 		connection: Connection;
-		wallet: IWallet;
+		wallet: Wallet;
 		opts?: ConfirmOptions;
 		timeout?: number;
 		retrySleep?: number;

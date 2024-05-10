@@ -1,4 +1,4 @@
-import { ClockSubscriber } from "./baseClockSubscriber";
+import { ChainClockSubscriber } from "./baseClockSubscriber";
 
 /**
  * Best-Effort "clock" for tracking the on chain slot and timestamp. 
@@ -7,11 +7,11 @@ import { ClockSubscriber } from "./baseClockSubscriber";
  * - Self-contained subscriber that will poll the chain for the current slot and timestamp
  * - Passive subscriber which other components can pipe their updates into
  */
-export class DriftClock {
-    private subscriber: ClockSubscriber;
+export class ChainClock {
+    private subscriber: ChainClockSubscriber;
     
     constructor(
-        subscriber: ClockSubscriber,
+        subscriber: ChainClockSubscriber,
     ) {
         this.subscriber = subscriber;
     }

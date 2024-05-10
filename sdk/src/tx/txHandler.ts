@@ -1,24 +1,12 @@
-import { AnchorProvider, Wallet } from "@coral-xyz/anchor";
-import { BaseTxParams, ProcessingTxParams, TxParams } from "@drift-labs/sdk";
-import { AddressLookupTableAccount, Commitment, ComputeBudgetProgram, ConfirmOptions, Connection, Message, MessageV0, Signer, Transaction, TransactionInstruction, TransactionMessage, TransactionVersion, VersionedTransaction } from "@solana/web3.js";
-import { TransactionProcessor } from "./txParamProcessor";
+import { AnchorProvider } from "@coral-xyz/anchor";
+import { BaseTxParams, TxParams } from "@drift-labs/sdk";
+import { AddressLookupTableAccount, BlockhashWithExpiryBlockHeight, Commitment, ComputeBudgetProgram, ConfirmOptions, Connection, Message, MessageV0, Signer, Transaction, TransactionInstruction, TransactionMessage, TransactionVersion, VersionedTransaction } from "@solana/web3.js";
+import { TransactionParamProcessor } from "./txParamProcessor";
 import bs58 from 'bs58';
-import { BlockHashAndValidSlot } from "./types";
+import { DriftClientMetricsEvents, SignedTxData } from "../types";
+import { Wallet } from "../wallet";
 
 export const COMPUTE_UNITS_DEFAULT = 200_000;
-
-export type PreTxData = {
-    txSig: string;
-    signedTx: Transaction | VersionedTransaction,
-	blockHash: string,
-}
-
-export type PostTxData = {
-    txSig: string;
-    signedTx: Transaction | VersionedTransaction,
-    lastValidBlockHeight?: number,
-	blockHash: string,
-}
 
 export type TxBuildingProps = {
     instructions: TransactionInstruction | TransactionInstruction[],
@@ -37,63 +25,117 @@ export type TxBuildingProps = {
  */
 export class TxHandler {
 
-    public readonly signedTxData: Record<string, PostTxData> = {};
     private blockHashToLastValidBlockHeightLookup: Record<string, number> = {};
-    private storeSignedTxData = false;
-    private confirmOptions: ConfirmOptions;
+    private returnBlockHeightsWithSignedTxCallbackData = false;
+
     private connection: Connection;
-    private provider: AnchorProvider;
-    private onSignedCb?: () => void;
+    private wallet: Wallet;
+    private confirmationOptions: ConfirmOptions;
+
+    private onSignedCb?: (txSigs: DriftClientMetricsEvents['txSigned']) => void;
 
     constructor(
         props : {
-            confirmOptions: ConfirmOptions,
             connection: Connection,
-            provider: AnchorProvider,
+            wallet: Wallet,
+            confirmationOptions: ConfirmOptions,
             opts?: {
-                storeSignedTxData?: boolean;
-                onSignedCb?: () => void;
+                returnBlockHeightsWithSignedTxCallbackData?: boolean;
+                onSignedCb?: (txSigs: DriftClientMetricsEvents['txSigned']) => void;
             }
         },
     ) {
-        this.confirmOptions = props.confirmOptions;
         this.connection = props.connection;
-        this.storeSignedTxData = props.opts?.storeSignedTxData ?? false;
-        this.provider = props.provider;
+        this.wallet = props.wallet;
+        this.confirmationOptions = props.confirmationOptions;
+
+        // #Optionals
+        this.returnBlockHeightsWithSignedTxCallbackData = props.opts?.returnBlockHeightsWithSignedTxCallbackData ?? false;
         this.onSignedCb = props.opts?.onSignedCb;
     }
+
+    private addHashAndExpiryToLookup(hashAndExpiry: BlockhashWithExpiryBlockHeight) {
+        if (!this.returnBlockHeightsWithSignedTxCallbackData) return;
+
+        this.blockHashToLastValidBlockHeightLookup[hashAndExpiry.blockhash] = hashAndExpiry.lastValidBlockHeight;
+    }
+
+    private getProps = (wallet?:Wallet,  confirmationOpts?: ConfirmOptions) => [
+        wallet ?? this.wallet,
+        confirmationOpts ?? this.confirmationOptions
+    ] as [
+        Wallet,
+        ConfirmOptions
+    ]
+
+    public updateWallet(wallet: Wallet) {
+        this.wallet = wallet;
+    }
     
+    /**
+     * Applies recent blockhash and signs a given transaction
+     * @param tx 
+     * @param additionalSigners 
+     * @param wallet 
+     * @param confirmationOpts 
+     * @param preSigned 
+     * @param latestBlockhash 
+     * @returns 
+     */
     public async prepareTx(
 		tx: Transaction,
 		additionalSigners: Array<Signer>,
-		opts: ConfirmOptions,
+        wallet?: Wallet,
+		confirmationOpts?: ConfirmOptions,
 		preSigned?: boolean,
-        latestBlockhash?: {
-            blockhash: string;
-            lastValidBlockHeight: number;
-        }
+        latestBlockhash?: BlockhashWithExpiryBlockHeight
 	): Promise<Transaction> {
 		if (preSigned) {
 			return tx;
 		}
 
-		tx.feePayer = this.provider.wallet.publicKey;
+        [wallet, confirmationOpts] = this.getProps(wallet, confirmationOpts);
+
+		tx.feePayer = wallet.publicKey;
 		const recentBlockhash = latestBlockhash ? latestBlockhash : (
-			await this.connection.getLatestBlockhash(opts.preflightCommitment)
+			await this.connection.getLatestBlockhash(confirmationOpts.preflightCommitment)
 		);
 		tx.recentBlockhash = recentBlockhash.blockhash;
 
-        this.blockHashToLastValidBlockHeightLookup[recentBlockhash.blockhash] = recentBlockhash.lastValidBlockHeight;
+        this.addHashAndExpiryToLookup(recentBlockhash);
 
 		const signedTx = await this.signTx(tx, additionalSigners);
 
 		return signedTx;
 	}
 
-    public async signTx(
+    private isVersionedTransaction(tx: Transaction | VersionedTransaction) {
+        return (tx as VersionedTransaction)?.message && true;
+    }
+
+    private getTxSigFromSignedTx(signedTx: Transaction | VersionedTransaction) {
+        if (this.isVersionedTransaction(signedTx)) {
+            return bs58.encode(Buffer.from((signedTx as VersionedTransaction).signatures[0])) as string;
+        } else {
+            return bs58.encode(Buffer.from((signedTx as Transaction).signature)) as string;
+        }
+    }
+    
+    private getBlockhashFromSignedTx(signedTx: Transaction | VersionedTransaction) {
+        if (this.isVersionedTransaction(signedTx)) {
+            return (signedTx as VersionedTransaction).message.recentBlockhash;
+        } else {
+            return (signedTx as Transaction).recentBlockhash;
+        }
+    }
+
+    private async signTx(
 		tx: Transaction,
         additionalSigners: Array<Signer>,
+        wallet?: Wallet,
 	): Promise<Transaction> {
+
+        [wallet] = this.getProps(wallet);
 
         additionalSigners
 			.filter((s): s is Signer => s !== undefined)
@@ -101,36 +143,35 @@ export class TxHandler {
 				tx.partialSign(kp);
 			});
             
-		const signedTx = await this.provider.wallet.signTransaction(tx);
+		const signedTx = await wallet.signTransaction(tx);
 
         // Turn txSig Buffer into base58 string
-        const txSigBuffer = Buffer.from(signedTx.signature);
-        const txSig = bs58.encode(txSigBuffer) as string;
+        const txSig = this.getTxSigFromSignedTx(signedTx);
 
         this.handleSignedTxData([
             {
                 txSig,
                 signedTx,
-                blockHash: tx.recentBlockhash,
+                blockHash: this.getBlockhashFromSignedTx(signedTx),
             }
         ]);
 
 		return signedTx;
 	}
 
-    async signVersionedTx(
+    public async signVersionedTx(
 		tx: VersionedTransaction,
         additionalSigners: Array<Signer>,
-        latestBlockhashOverride?: {
-            blockhash: string;
-            lastValidBlockHeight: number;
-        }
+        latestBlockhashOverride?: BlockhashWithExpiryBlockHeight,
+        wallet?: Wallet,
 	): Promise<VersionedTransaction> {
+
+        [wallet] = this.getProps(wallet);
 
         if (latestBlockhashOverride) {
             tx.message.recentBlockhash = latestBlockhashOverride.blockhash;
 
-            this.blockHashToLastValidBlockHeightLookup[latestBlockhashOverride.blockhash] = latestBlockhashOverride.lastValidBlockHeight;
+            this.addHashAndExpiryToLookup(latestBlockhashOverride);
         }
 
         additionalSigners
@@ -139,86 +180,95 @@ export class TxHandler {
                 tx.sign([kp]);
             });
             
-		const signedTx = await this.provider.wallet.signTransaction(tx);
+		const signedTx = await wallet.signVersionedTransaction(tx);
 
         // Turn txSig Buffer into base58 string
-        const txSigBuffer = Buffer.from(signedTx.signatures[0]);
-        const txSig = bs58.encode(txSigBuffer) as string;
+        const txSig = this.getTxSigFromSignedTx(signedTx);
 
         this.handleSignedTxData([
             {
                 txSig,
                 signedTx,
-                blockHash: tx.message.recentBlockhash,
+                blockHash: this.getBlockhashFromSignedTx(signedTx),
             }
         ]);
 
 		return signedTx;
 	}
 
-    private handleSignedTxData(txData: PreTxData[]) {
-        if (!this.storeSignedTxData) {
+    private handleSignedTxData(txData: Omit<SignedTxData, 'lastValidBlockHeight'>[]) {
+        if (!this.returnBlockHeightsWithSignedTxCallbackData) {
+            
+            if (this.onSignedCb) {
+                this.onSignedCb(txData);
+            }
+
             return;
         }
 
-        txData.forEach((tx) => {
+        const fullTxData = txData.map((tx) => {
             const lastValidBlockHeight = this.blockHashToLastValidBlockHeightLookup[tx.blockHash];
 
-            this.signedTxData[tx.txSig] = {
+            return {
                 ...tx,
                 lastValidBlockHeight
             };
         });
 
         if (this.onSignedCb) {
-            this.onSignedCb();
+            this.onSignedCb(fullTxData);
         }
     }
 
     private async getProcessedTransactionParams(
-		txParams: TxBuildingProps,
-		txParamProcessingParams: ProcessingTxParams
+		txBuildingProps: TxBuildingProps,
 	): Promise<BaseTxParams> {
-		const tx = await TransactionProcessor.process({
-			txProps: {
-				instructions: txParams.instructions,
-				txParams: txParams.txParams,
-				txVersion: txParams.txVersion,
-				lookupTables: txParams.lookupTables,
-			},
+
+        const baseTxParams : BaseTxParams = {
+            computeUnits: txBuildingProps?.txParams?.computeUnits,
+            computeUnitsPrice: txBuildingProps?.txParams?.computeUnitsPrice,
+        };
+
+		const processedTxParams = await TransactionParamProcessor.process({
+            baseTxParams,
 			txBuilder: (updatedTxParams) =>
 				this.buildTransaction({
-                    ...txParams,
-                    instructions: updatedTxParams.instructions,
-                    txParams: updatedTxParams?.txParams,
-                    txVersion: updatedTxParams.txVersion,
-                    lookupTables: updatedTxParams.lookupTables,
+                    ...txBuildingProps,
+                    txParams: updatedTxParams.txParams ?? baseTxParams,
                     forceVersionedTransaction: true,
                 }) as Promise<VersionedTransaction>,
-			processConfig: txParamProcessingParams,
+			processConfig: {
+                useSimulatedComputeUnits: txBuildingProps.txParams.useSimulatedComputeUnits,
+                computeUnitsBufferMultiplier: txBuildingProps.txParams.computeUnitsBufferMultiplier,
+                useSimulatedComputeUnitsForCUPriceCalculation: txBuildingProps.txParams.useSimulatedComputeUnitsForCUPriceCalculation,
+                getCUPriceFromComputeUnits: txBuildingProps.txParams.getCUPriceFromComputeUnits,
+            },
 			processParams: {
-				connection: txParams.connection,
+				connection: this.connection,
 			},
 		});
 
-		return tx;
+		return processedTxParams;
 	}
 
     private _generateVersionedTransaction(
-        recentBlockHashAndLastValidBlockHeight: BlockHashAndValidSlot,
+        recentBlockHashAndLastValidBlockHeight: BlockhashWithExpiryBlockHeight,
         message: Message | MessageV0
     ) {
-        this.blockHashToLastValidBlockHeightLookup[recentBlockHashAndLastValidBlockHeight.blockhash] = recentBlockHashAndLastValidBlockHeight.lastValidBlockHeight;
+        this.addHashAndExpiryToLookup(recentBlockHashAndLastValidBlockHeight);
         
         return new VersionedTransaction(message);
     }
 
     public generateLegacyVersionedTransaction(
-        recentBlockHashAndLastValidBlockHeight: BlockHashAndValidSlot,
+        recentBlockHashAndLastValidBlockHeight: BlockhashWithExpiryBlockHeight,
         ixs: TransactionInstruction[],
+        wallet?: Wallet
     ) {
+        [wallet] = this.getProps(wallet);
+
         const message = new TransactionMessage({
-			payerKey: this.provider.wallet.publicKey,
+			payerKey: wallet.publicKey,
 			recentBlockhash: recentBlockHashAndLastValidBlockHeight.blockhash,
 			instructions: ixs,
 		}).compileToLegacyMessage();
@@ -232,10 +282,13 @@ export class TxHandler {
             lastValidBlockHeight: number;
         },
         ixs: TransactionInstruction[],
-        lookupTableAccounts: AddressLookupTableAccount[]
+        lookupTableAccounts: AddressLookupTableAccount[],
+        wallet?: Wallet
     ) {
+        [wallet] = this.getProps(wallet);
+
         const message = new TransactionMessage({
-			payerKey: this.provider.wallet.publicKey,
+			payerKey: wallet.publicKey,
 			recentBlockhash: recentBlockHashAndLastValidBlockHeight.blockhash,
 			instructions: ixs,
 		}).compileToV0Message(lookupTableAccounts);
@@ -246,35 +299,6 @@ export class TxHandler {
     public generateLegacyTransaction(ixs: TransactionInstruction[]) {
         return new Transaction().add(...ixs);
     }
-
-    public async getVersionedTransaction(
-		ixs: TransactionInstruction[],
-		lookupTableAccounts: AddressLookupTableAccount[],
-		additionalSigners?: Array<Signer>,
-		opts?: ConfirmOptions,
-        blockHashAndLastValidBlockHeight?: BlockHashAndValidSlot
-	): Promise<VersionedTransaction> {
-		if (additionalSigners === undefined) {
-			additionalSigners = [];
-		}
-		if (opts === undefined) {
-			opts = this.confirmOptions;
-		}
-
-		if (!blockHashAndLastValidBlockHeight) {
-			blockHashAndLastValidBlockHeight = (
-				await this.connection.getLatestBlockhash(opts.preflightCommitment)
-			);
-		}
-
-        const tx = this.generateVersionedTransaction(
-            blockHashAndLastValidBlockHeight,
-            ixs,
-            lookupTableAccounts
-        );
-
-		return tx;
-	}
 
     /**
 	 *
@@ -309,26 +333,9 @@ export class TxHandler {
 		};
 
 		if (txParams?.useSimulatedComputeUnits) {
-			const splitTxParams: {
-				baseTxParams: BaseTxParams;
-				txParamProcessingParams: ProcessingTxParams;
-			} = {
-				baseTxParams: {
-					computeUnits: txParams?.computeUnits,
-					computeUnitsPrice: txParams?.computeUnitsPrice,
-				},
-				txParamProcessingParams: {
-					useSimulatedComputeUnits: txParams?.useSimulatedComputeUnits,
-					computeUnitsBufferMultiplier: txParams?.computeUnitsBufferMultiplier,
-					useSimulatedComputeUnitsForCUPriceCalculation:
-						txParams?.useSimulatedComputeUnitsForCUPriceCalculation,
-					getCUPriceFromComputeUnits: txParams?.getCUPriceFromComputeUnits,
-				},
-			};
-
+			
 			const processedTxParams = await this.getProcessedTransactionParams(
-				props,
-				splitTxParams.txParamProcessingParams
+                props,
 			);
 
 			baseTxParams = {
@@ -419,16 +426,18 @@ export class TxHandler {
         return tx.add(instruction);
     }
 
-    /* Helper function for signing multiple transactions where some may be undefined and mapping the output */
     public async getSignedTransactionMap(
-        wallet: Wallet,
         txsToSign: (Transaction | VersionedTransaction | undefined)[],
-        keys: string[]
+        keys: string[],
+        wallet?: Wallet,
     ): Promise<{ [key: string]: Transaction | VersionedTransaction | undefined }> {
+
+        [wallet] = this.getProps(wallet);
+
         const signedTxMap: {
             [key: string]: Transaction | VersionedTransaction | undefined;
         } = {};
-
+    
         const keysWithTx = [];
         txsToSign.forEach((tx, index) => {
             if (tx == undefined) {
@@ -437,7 +446,7 @@ export class TxHandler {
                 keysWithTx.push(keys[index]);
             }
         });
-
+    
         const signedTxs = await wallet.signAllTransactions(
             txsToSign
                 .map((tx) => {
@@ -446,10 +455,20 @@ export class TxHandler {
                 .filter((tx) => tx !== undefined)
         );
 
+        this.handleSignedTxData(
+            signedTxs.map((signedTx) => {
+                return {
+                    txSig: this.getTxSigFromSignedTx(signedTx),
+                    signedTx,
+                    blockHash: this.getBlockhashFromSignedTx(signedTx),
+                };
+            })
+        );
+    
         signedTxs.forEach((signedTx, index) => {
             signedTxMap[keysWithTx[index]] = signedTx;
         });
-
+    
         return signedTxMap;
     }
 }

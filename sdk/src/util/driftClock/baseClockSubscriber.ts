@@ -1,16 +1,19 @@
-export interface ClockSubscriber {
+export interface ChainClockSubscriber {
+    blockHeight: number;
     slot: number;
     ts: number;
-
-    updateSlot(slot: number): void;
-    updateTs(ts: number): void;
 
     update(slot?:number, ts?:number): void;
 }
 
-export class BaseClockSubscriber implements ClockSubscriber {
+export class BaseChainClockSubscriber {
+    private _blockHeight: number;
     private _slot: number;
     private _ts: number;
+
+    public get blockHeight(): number {
+        return this._blockHeight;
+    }
 
     public get slot(): number {
         return this._slot;
@@ -25,20 +28,21 @@ export class BaseClockSubscriber implements ClockSubscriber {
         this._ts = ts;
     }
 
-    updateSlot(slot: number): void {
+    protected updateBlockHeight(blockHeight: number): void {
+        if (!this.blockHeight || blockHeight > this.blockHeight) this._blockHeight = blockHeight;
+    }
+
+    protected updateSlot(slot: number): void {
         if (!this.slot || slot > this.slot) this._slot = slot;
     }
 
-    updateTs(ts: number): void {
+    protected updateTs(ts: number): void {
         if (!this.ts || ts > this.ts) this._ts = ts;
     }
 
-    update(slot?:number, ts?:number): void {
-        if (slot !== undefined) {
-            this.updateSlot(slot);
-        }
-        if (ts !== undefined) {
-            this.updateTs(ts);
-        }
+    update(blockHeight?:number, slot?:number, ts?:number): void {
+        this.updateBlockHeight(blockHeight);
+        this.updateSlot(slot);
+        this.updateTs(ts);
     }
 }

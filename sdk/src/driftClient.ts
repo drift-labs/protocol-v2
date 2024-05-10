@@ -42,6 +42,7 @@ import {
 	PhoenixV1FulfillmentConfigAccount,
 	ModifyOrderPolicy,
 	SwapReduceOnly,
+	SignedTxData,
 } from './types';
 import * as anchor from '@coral-xyz/anchor';
 import driftIDL from './idl/drift.json';
@@ -84,8 +85,8 @@ import {
 	DriftClientAccountSubscriber,
 	DriftClientAccountEvents,
 	DataAndSlot,
-	DriftClientMetricsEvents,
 } from './accounts/types';
+import { DriftClientMetricsEvents } from './types';
 import { TxSender, TxSigAndSlot } from './tx/types';
 import {
 	BASE_PRECISION,
@@ -122,9 +123,10 @@ import { UserStatsSubscriptionConfig } from './userStatsConfig';
 import { getMarinadeDepositIx, getMarinadeFinanceProgram } from './marinade';
 import { getOrderParams } from './orderParams';
 import { numberToSafeBN } from './math/utils';
-import { TransactionProcessor as TransactionParamProcessor } from './tx/txParamProcessor';
+import { TransactionParamProcessor } from './tx/txParamProcessor';
 import { isOracleValid } from './math/oracles';
 import { TxHandler } from './tx/txHandler';
+import { Wallet } from './wallet';
 
 type RemainingAccountParams = {
 	userAccounts: UserAccount[];
@@ -211,13 +213,13 @@ export class DriftClient {
 			computeUnitsPrice: config.txParams?.computeUnitsPrice ?? 0,
 		};
 
-		this.txHandler = new TxHandler({
+		this.txHandler = config?.txHandler ?? new TxHandler({
 				connection: this.connection,
-				provider: this.provider,
-				confirmOptions: this.opts,
+				wallet: this.provider.wallet as Wallet,
+				confirmationOptions: this.opts,
 				opts: {
-					storeSignedTxData: config.enableMetricsEvents,
-					onSignedCb: this.handleSignedTransaction
+					returnBlockHeightsWithSignedTxCallbackData: config.enableMetricsEvents,
+					onSignedCb: this.handleSignedTransaction.bind(this)
 				}
 			},
 		);
@@ -327,7 +329,7 @@ export class DriftClient {
 			config.txSender ??
 			new RetryTxSender({
 				connection: this.connection,
-				wallet: this.wallet,
+				wallet: this.wallet as Wallet,
 				opts: this.opts,
 				txHandler: this.txHandler,
 			});
@@ -574,6 +576,7 @@ export class DriftClient {
 		// Update provider for txSender with new wallet details
 		this.txSender.wallet = newWallet;
 		this.wallet = newWallet;
+		this.txHandler.updateWallet(newWallet as Wallet);
 		this.provider = newProvider;
 		this.program = newProgram;
 		this.authority = newWallet.publicKey;
@@ -2866,10 +2869,9 @@ export class DriftClient {
 				signedCancelExistingOrdersTx,
 				signedSettlePnlTx,
 			} = await this.txHandler.getSignedTransactionMap(
-				//@ts-ignore
-				this.provider.wallet,
 				allPossibleTxs,
-				txKeys
+				txKeys,
+				this.provider.wallet as Wallet,
 			);
 
 			const { txSig, slot } = await this.sendTransaction(
@@ -6695,8 +6697,8 @@ export class DriftClient {
 		return undefined;
 	}
 
-	private handleSignedTransaction() {
-		this.metricsEventEmitter.emit('txSigned');
+	private handleSignedTransaction(signedTxs: SignedTxData[]) {
+		this.metricsEventEmitter.emit('txSigned', signedTxs);
 	}
 
 	private isVersionedTransaction(
@@ -6749,7 +6751,7 @@ export class DriftClient {
 			connection: this.connection,
 			provider: this.provider,
 			preFlightCommitment: this.opts.preflightCommitment,
-			fetchMarketLookupTableAccount: this.fetchMarketLookupTableAccount,
+			fetchMarketLookupTableAccount: this.fetchMarketLookupTableAccount.bind(this),
 			lookupTables,
 			forceVersionedTransaction,
 		});

@@ -1,32 +1,28 @@
 import { ConfirmationStrategy, TxSigAndSlot } from './types';
 import {
 	ConfirmOptions,
-	Signer,
 	TransactionSignature,
 	Connection,
-	VersionedTransaction,
-	TransactionInstruction,
-	AddressLookupTableAccount,
 	Commitment,
+	BlockhashWithExpiryBlockHeight,
 } from '@solana/web3.js';
 import { AnchorProvider } from '@coral-xyz/anchor';
-import { IWallet } from '../types';
 import { BaseTxSender } from './baseTxSender';
 import { TxHandler } from './txHandler';
-import { BlockHashAndValidSlot } from "./types";
+import { Wallet } from '@drift-labs/sdk';
 
 const DEFAULT_TIMEOUT = 35000;
 const DEFAULT_BLOCKHASH_REFRESH = 10000;
 
 export class FastSingleTxSender extends BaseTxSender {
 	connection: Connection;
-	wallet: IWallet;
+	wallet: Wallet;
 	opts: ConfirmOptions;
 	timeout: number;
 	blockhashRefreshInterval: number;
 	additionalConnections: Connection[];
 	timoutCount = 0;
-	recentBlockhash: BlockHashAndValidSlot;
+	recentBlockhash: BlockhashWithExpiryBlockHeight;
 	skipConfirmation: boolean;
 	blockhashCommitment: Commitment;
 	blockhashIntervalId: NodeJS.Timer;
@@ -44,7 +40,7 @@ export class FastSingleTxSender extends BaseTxSender {
 		txHandler,
 	}: {
 		connection: Connection;
-		wallet: IWallet;
+		wallet: Wallet;
 		opts?: ConfirmOptions;
 		timeout?: number;
 		blockhashRefreshInterval?: number;
@@ -86,34 +82,6 @@ export class FastSingleTxSender extends BaseTxSender {
 				}
 			}, this.blockhashRefreshInterval);
 		}
-	}
-
-	async getVersionedTransaction(
-		ixs: TransactionInstruction[],
-		lookupTableAccounts: AddressLookupTableAccount[],
-		additionalSigners?: Array<Signer>,
-		opts?: ConfirmOptions,
-		blockhash?: BlockHashAndValidSlot
-	): Promise<VersionedTransaction> {
-		if (additionalSigners === undefined) {
-			additionalSigners = [];
-		}
-		if (opts === undefined) {
-			opts = this.opts;
-		}
-
-		const recentBlockhash =
-			blockhash ??
-			this.recentBlockhash ??
-			(await this.connection.getLatestBlockhash(opts.preflightCommitment));
-
-		return this.txHandler.getVersionedTransaction(
-			ixs,
-			lookupTableAccounts,
-			additionalSigners,
-			opts,
-			recentBlockhash
-		);
 	}
 
 	async sendRawTransaction(

@@ -1,11 +1,8 @@
 import {
-	AddressLookupTableAccount,
 	Connection,
 	RpcResponseAndContext,
 	SimulatedTransactionResponse,
-	TransactionInstruction,
-	TransactionVersion,
-	VersionedTransaction,
+	VersionedTransaction
 } from '@solana/web3.js';
 import { BaseTxParams, ProcessingTxParams } from '..';
 
@@ -13,18 +10,14 @@ const COMPUTE_UNIT_BUFFER_FACTOR = 1.2;
 
 const TEST_SIMS_ALWAYS_FAIL = false;
 
-type TransactionProps = {
-	instructions: TransactionInstruction | TransactionInstruction[];
-	txParams?: BaseTxParams;
-	txVersion?: TransactionVersion;
-	lookupTables?: AddressLookupTableAccount[];
-	forceVersionedTransaction?: boolean;
+type TransactionBuildingProps = {
+	txParams: BaseTxParams;
 };
 
 /**
  * This class is responsible for running through a "processing" pipeline for a base transaction, to adjust the standard transaction parameters based on a given configuration.
  */
-export class TransactionProcessor {
+export class TransactionParamProcessor {
 	private static async getComputeUnitsFromSim(
 		txSim: RpcResponseAndContext<SimulatedTransactionResponse>
 	) {
@@ -71,37 +64,35 @@ export class TransactionProcessor {
 	}
 
 	static async process(props: {
-		txProps: TransactionProps;
-		txBuilder: (
-			baseTransactionProps: TransactionProps
-		) => Promise<VersionedTransaction>;
+		baseTxParams: BaseTxParams;
 		processConfig: ProcessingTxParams;
 		processParams: {
 			connection: Connection;
 		};
+		txBuilder: (
+			baseTransactionProps: TransactionBuildingProps
+		) => Promise<VersionedTransaction>;
 	}): Promise<BaseTxParams> {
 		// # Exit early if no process config is provided
 		if (!props.processConfig || Object.keys(props.processConfig).length === 0) {
-			return props.txProps.txParams;
+			return props.baseTxParams;
 		}
 
 		// # Setup
 		const {
-			txProps: txProps,
 			txBuilder: txBuilder,
 			processConfig,
 			processParams: processProps,
 		} = props;
 
-		const finalTxProps = {
-			...txProps,
+		const finalTxParams : BaseTxParams = {
+			...props.baseTxParams,
 		};
 
 		// # Run Processes
 		if (processConfig.useSimulatedComputeUnits) {
 			const txToSim = await txBuilder({
-				...txProps,
-				txParams: { ...txProps.txParams, computeUnits: 1_400_000 },
+				txParams: { ...finalTxParams, computeUnits: 1_400_000 },
 			});
 
 			const txSimComputeUnitsResult = await this.getTxSimComputeUnits(
@@ -116,10 +107,7 @@ export class TransactionProcessor {
 						COMPUTE_UNIT_BUFFER_FACTOR);
 
 				// Adjust the transaction based on the simulated compute units
-				finalTxProps.txParams = {
-					...txProps.txParams,
-					computeUnits: Math.ceil(bufferedComputeUnits), // Round the compute units to a whole number
-				};
+				finalTxParams.computeUnits = Math.ceil(bufferedComputeUnits); // Round the compute units to a whole number
 			}
 		}
 
@@ -135,20 +123,20 @@ export class TransactionProcessor {
 				);
 			}
 
-			const simulatedComputeUnits = finalTxProps.txParams.computeUnits;
+			const simulatedComputeUnits = finalTxParams.computeUnits;
 
 			const computeUnitPrice = processConfig.getCUPriceFromComputeUnits(
 				simulatedComputeUnits
 			);
 
 			console.debug(
-				`🔧:: Adjusting compute unit price for simulated compute unit budget :: ${finalTxProps.txParams.computeUnitsPrice}=>${computeUnitPrice}`
+				`🔧:: Adjusting compute unit price for simulated compute unit budget :: ${finalTxParams.computeUnitsPrice}=>${computeUnitPrice}`
 			);
 
-			finalTxProps.txParams.computeUnitsPrice = computeUnitPrice;
+			finalTxParams.computeUnitsPrice = computeUnitPrice;
 		}
 
 		// # Return Final Tx Params
-		return finalTxProps.txParams;
+		return finalTxParams;
 	}
 }

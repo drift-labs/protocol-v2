@@ -15,22 +15,19 @@ import {
 	TransactionSignature,
 	Connection,
 	VersionedTransaction,
-	TransactionInstruction,
-	AddressLookupTableAccount,
 } from '@solana/web3.js';
 import { AnchorProvider } from '@coral-xyz/anchor';
 import assert from 'assert';
 import bs58 from 'bs58';
-import { IWallet } from '../types';
 import { TxHandler } from './txHandler';
-import { BlockHashAndValidSlot } from "./types";
+import { Wallet } from '../wallet';
 
 const DEFAULT_TIMEOUT = 35000;
 const NOT_CONFIRMED_ERROR_CODE = -1001;
 
 export abstract class BaseTxSender implements TxSender {
 	connection: Connection;
-	wallet: IWallet;
+	wallet: Wallet;
 	opts: ConfirmOptions;
 	timeout: number;
 	additionalConnections: Connection[];
@@ -50,7 +47,7 @@ export abstract class BaseTxSender implements TxSender {
 		txHandler,
 	}: {
 		connection: Connection;
-		wallet: IWallet;
+		wallet: Wallet;
 		opts?: ConfirmOptions;
 		timeout?: number;
 		additionalConnections?;
@@ -97,29 +94,7 @@ export abstract class BaseTxSender implements TxSender {
 		opts: ConfirmOptions,
 		preSigned?: boolean
 	): Promise<Transaction> {
-		return this.txHandler.prepareTx(tx, additionalSigners, opts, preSigned);
-	}
-
-	/**
-	 * @deprecated :: use driftClient.txHandler.getVersionedTransaction instead
-	 */
-	async getVersionedTransaction(
-		ixs: TransactionInstruction[],
-		lookupTableAccounts: AddressLookupTableAccount[],
-		additionalSigners?: Array<Signer>,
-		opts?: ConfirmOptions,
-		blockhash?: BlockHashAndValidSlot
-	): Promise<VersionedTransaction> {
-
-		const tx = this.txHandler.getVersionedTransaction(
-			ixs,
-			lookupTableAccounts,
-			additionalSigners,
-			opts,
-			blockhash
-		);
-
-		return tx;
+		return this.txHandler.prepareTx(tx, additionalSigners, undefined, opts, preSigned);
 	}
 
 	async sendVersionedTransaction(
@@ -138,7 +113,7 @@ export abstract class BaseTxSender implements TxSender {
 			tx.sign((additionalSigners ?? []).concat(this.wallet.payer));
 			signedTx = tx;
 		} else {
-			signedTx = await this.txHandler.signVersionedTx(tx, additionalSigners);
+			signedTx = await this.txHandler.signVersionedTx(tx, additionalSigners, undefined, this.wallet);
 		}
 
 		if (opts === undefined) {
