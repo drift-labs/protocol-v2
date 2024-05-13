@@ -219,12 +219,13 @@ export interface QuoteResponse {
 }
 
 export class JupiterClient {
-	url = 'https://quote-api.jup.ag';
+	url: string;
 	connection: Connection;
 	lookupTableCahce = new Map<string, AddressLookupTableAccount>();
 
-	constructor({ connection }: { connection: Connection }) {
+	constructor({ connection, url }: { connection: Connection; url?: string }) {
 		this.connection = connection;
+		this.url = url ?? 'https://quote-api.jup.ag';
 	}
 
 	/**
@@ -261,8 +262,10 @@ export class JupiterClient {
 			onlyDirectRoutes: onlyDirectRoutes.toString(),
 		}).toString();
 
+		const apiVersionParam =
+			this.url === 'https://quote-api.jup.ag' ? '/v4' : '';
 		const { data: routes } = await (
-			await fetch(`${this.url}/v4/quote?${params}`)
+			await fetch(`${this.url}${apiVersionParam}/quote?${params}`)
 		).json();
 
 		return routes;
@@ -309,8 +312,10 @@ export class JupiterClient {
 		if (swapMode === 'ExactOut') {
 			params.delete('maxAccounts');
 		}
+		const apiVersionParam =
+			this.url === 'https://quote-api.jup.ag' ? '/v6' : '';
 		const quote = await (
-			await fetch(`${this.url}/v6/quote?${params.toString()}`)
+			await fetch(`${this.url}${apiVersionParam}/quote?${params.toString()}`)
 		).json();
 		return quote as QuoteResponse;
 	}
@@ -334,8 +339,10 @@ export class JupiterClient {
 			throw new Error('Jupiter swap quote not provided. Please try again.');
 		}
 
+		const apiVersionParam =
+			this.url === 'https://quote-api.jup.ag' ? '/v6' : '';
 		const resp = await (
-			await fetch(`${this.url}/v6/swap`, {
+			await fetch(`${this.url}${apiVersionParam}/swap`, {
 				method: 'POST',
 				headers: {
 					'Content-Type': 'application/json',
@@ -382,8 +389,10 @@ export class JupiterClient {
 		userPublicKey: PublicKey;
 		slippageBps?: number;
 	}): Promise<VersionedTransaction> {
+		const apiVersionParam =
+			this.url === 'https://quote-api.jup.ag' ? '/v4' : '';
 		const resp = await (
-			await fetch(`${this.url}/v4/swap`, {
+			await fetch(`${this.url}${apiVersionParam}/swap`, {
 				method: 'POST',
 				headers: {
 					'Content-Type': 'application/json',
