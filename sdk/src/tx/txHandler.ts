@@ -277,10 +277,7 @@ export class TxHandler {
     }
 
     public generateVersionedTransaction(
-        recentBlockHashAndLastValidBlockHeight:{
-            blockhash: string;
-            lastValidBlockHeight: number;
-        },
+        recentBlockHashAndLastValidBlockHeight:BlockhashWithExpiryBlockHeight,
         ixs: TransactionInstruction[],
         lookupTableAccounts: AddressLookupTableAccount[],
         wallet?: Wallet
@@ -424,6 +421,27 @@ export class TxHandler {
         }
     
         return tx.add(instruction);
+    }
+
+    public async prepAndSignTransactionMap(
+        txsToSign: (Transaction | undefined)[],
+        keys: string[],
+        wallet?: Wallet,
+        commitment?: Commitment,
+    ) {
+        const currentBlockHash = (
+            await this.connection.getLatestBlockhash(commitment ?? this.confirmationOptions.preflightCommitment)
+        );
+
+        this.addHashAndExpiryToLookup(currentBlockHash);
+
+        for (const tx of txsToSign) {
+            if (!tx) continue;
+            tx.recentBlockhash = currentBlockHash.blockhash;
+            tx.feePayer = wallet?.publicKey ?? wallet?.payer?.publicKey ?? this.wallet?.publicKey ?? this.wallet?.payer?.publicKey;
+        }
+
+        return this.getSignedTransactionMap(txsToSign, keys, wallet);
     }
 
     public async getSignedTransactionMap(

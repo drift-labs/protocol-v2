@@ -2899,28 +2899,13 @@ export class DriftClient {
 			);
 
 			// Apply the latest blockhash to the txs so that we can sign before sending them
-			const currentBlockHash = (
-				await this.connection.getLatestBlockhash('finalized')
-			).blockhash;
-			marketOrderTx.recentBlockhash = currentBlockHash;
-
-			marketOrderTx.feePayer = userAccount.authority;
-
-			if (cancelExistingOrdersTx) {
-				cancelExistingOrdersTx.recentBlockhash = currentBlockHash;
-				cancelExistingOrdersTx.feePayer = userAccount.authority;
-			}
-
-			if (settlePnlTx) {
-				settlePnlTx.recentBlockhash = currentBlockHash;
-				settlePnlTx.feePayer = userAccount.authority;
-			}
 
 			const allPossibleTxs = [
 				marketOrderTx,
 				cancelExistingOrdersTx,
 				settlePnlTx,
 			];
+
 			const txKeys = [
 				'signedMarketOrderTx',
 				'signedCancelExistingOrdersTx',
@@ -2931,10 +2916,11 @@ export class DriftClient {
 				signedMarketOrderTx,
 				signedCancelExistingOrdersTx,
 				signedSettlePnlTx,
-			} = await this.txHandler.getSignedTransactionMap(
+			} = await this.txHandler.prepAndSignTransactionMap(
 				allPossibleTxs,
 				txKeys,
 				this.provider.wallet as Wallet,
+				'finalized'
 			);
 
 			const { txSig, slot } = await this.sendTransaction(
