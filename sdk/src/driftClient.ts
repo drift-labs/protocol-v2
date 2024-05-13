@@ -2932,10 +2932,9 @@ export class DriftClient {
 				signedCancelExistingOrdersTx,
 				signedSettlePnlTx,
 			} = await this.txHandler.getSignedTransactionMap(
-				//@ts-ignore
-				this.provider.wallet,
 				allPossibleTxs,
-				txKeys
+				txKeys,
+				this.provider.wallet as Wallet,
 			);
 
 			const { txSig, slot } = await this.sendTransaction(
@@ -4723,10 +4722,9 @@ export class DriftClient {
 			signedCancelExistingOrdersTx,
 			signedSettlePnlTx,
 		} = await this.txHandler.getSignedTransactionMap(
-			//@ts-ignore
-			this.provider.wallet,
 			allPossibleTxs,
-			txKeys
+			txKeys,
+			this.provider.wallet as Wallet,
 		);
 
 		const { txSig, slot } = await this.sendTransaction(
