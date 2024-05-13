@@ -183,7 +183,7 @@ export class WebSocketAccountSubscriber<T> implements AccountSubscriber<T> {
 	}
 
 	unsubscribe(onResub = false): Promise<void> {
-		if (!onResub) {
+		if (!onResub && this.resubOpts) {
 			this.resubOpts.resubTimeoutMs = undefined;
 		}
 		this.isUnsubscribing = true;

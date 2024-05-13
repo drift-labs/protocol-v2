@@ -13,12 +13,13 @@ pub enum PerpOperation {
     Liquidation = 0b00100000,
 }
 
-const ALL_PERP_OPERATIONS: [PerpOperation; 5] = [
+const ALL_PERP_OPERATIONS: [PerpOperation; 6] = [
     PerpOperation::UpdateFunding,
     PerpOperation::AmmFill,
     PerpOperation::Fill,
     PerpOperation::SettlePnl,
     PerpOperation::SettlePnlWithPosition,
+    PerpOperation::Liquidation,
 ];
 
 impl PerpOperation {
@@ -43,10 +44,11 @@ pub enum SpotOperation {
     Liquidation = 0b00001000,
 }
 
-const ALL_SPOT_OPERATIONS: [SpotOperation; 3] = [
+const ALL_SPOT_OPERATIONS: [SpotOperation; 4] = [
     SpotOperation::UpdateCumulativeInterest,
     SpotOperation::Fill,
     SpotOperation::Withdraw,
+    SpotOperation::Liquidation,
 ];
 
 impl SpotOperation {
