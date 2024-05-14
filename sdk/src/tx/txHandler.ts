@@ -1,4 +1,3 @@
-import { AnchorProvider } from "@coral-xyz/anchor";
 import { BaseTxParams, TxParams } from "@drift-labs/sdk";
 import { AddressLookupTableAccount, BlockhashWithExpiryBlockHeight, Commitment, ComputeBudgetProgram, ConfirmOptions, Connection, Message, MessageV0, Signer, Transaction, TransactionInstruction, TransactionMessage, TransactionVersion, VersionedTransaction } from "@solana/web3.js";
 import { TransactionParamProcessor } from "./txParamProcessor";
@@ -12,12 +11,13 @@ export type TxBuildingProps = {
     instructions: TransactionInstruction | TransactionInstruction[],
     txVersion: TransactionVersion,
     connection: Connection,
-    provider: AnchorProvider,
     preFlightCommitment: Commitment,
     fetchMarketLookupTableAccount: () => Promise<AddressLookupTableAccount>,
     lookupTables?: AddressLookupTableAccount[],
     forceVersionedTransaction?: boolean
     txParams?: TxParams,
+    recentBlockHash?: BlockhashWithExpiryBlockHeight,
+    wallet?: Wallet,
 };
 
 /**
@@ -298,6 +298,29 @@ export class TxHandler {
     }
 
     /**
+     * Accepts multiple instructions and builds a transaction for each. Prevents needing to spam RPC with requests for the same blockhash.
+     * @param props 
+     * @returns 
+     */
+    public async buildBulkTransactions(
+        props: Omit<TxBuildingProps, 'instructions'> & {instructions: (TransactionInstruction | TransactionInstruction[])[]}
+    ) {
+        const recentBlockHash = props?.recentBlockHash ??
+			(await props.connection.getLatestBlockhashAndContext({
+				commitment: props.preFlightCommitment,
+			})).value;
+
+        return await Promise.all(props.instructions.map((ix) => {
+            if (!ix) return undefined;
+            return this.buildTransaction({
+                ...props,
+                instructions: ix,
+                recentBlockHash,
+            });
+        }));
+    }
+
+    /**
 	 *
 	 * @param instructions
 	 * @param txParams
@@ -368,16 +391,16 @@ export class TxHandler {
 			allIx.push(instructions);
 		}
 
-		const latestBlockHashAndContext =
-			await connection.getLatestBlockhashAndContext({
+		const recentBlockHash = props?.recentBlockHash ??
+			(await connection.getLatestBlockhashAndContext({
 				commitment: preFlightCommitment,
-			});
+			})).value;
 
 		// # Create and return Transaction
 		if (txVersion === 'legacy') {
 			if (forceVersionedTransaction) {
 				return this.generateLegacyVersionedTransaction(
-                    latestBlockHashAndContext.value,
+                    recentBlockHash,
                     allIx
                 );
 			} else {
@@ -391,7 +414,7 @@ export class TxHandler {
 				: [marketLookupTable];
 
             return this.generateVersionedTransaction(
-                latestBlockHashAndContext.value,
+                recentBlockHash,
                 allIx,
                 lookupTables
             );
@@ -423,7 +446,45 @@ export class TxHandler {
         return tx.add(instruction);
     }
 
-    public async prepAndSignTransactionMap(
+    /**
+     * Build a map of transactions from an array of instructions for multiple transactions.
+     * @param txsToSign 
+     * @param keys 
+     * @param wallet 
+     * @param commitment 
+     * @returns 
+     */
+    public async buildTransactionMap(
+        txsToSign: (Transaction | undefined)[],
+        keys: string[],
+        wallet?: Wallet,
+        commitment?: Commitment,
+    ) {
+        
+        const currentBlockHash = (
+            await this.connection.getLatestBlockhash(commitment ?? this.confirmationOptions.preflightCommitment)
+        );
+
+        this.addHashAndExpiryToLookup(currentBlockHash);
+
+        for (const tx of txsToSign) {
+            if (!tx) continue;
+            tx.recentBlockhash = currentBlockHash.blockhash;
+            tx.feePayer = wallet?.publicKey ?? wallet?.payer?.publicKey ?? this.wallet?.publicKey ?? this.wallet?.payer?.publicKey;
+        }
+
+        return this.getSignedTransactionMap(txsToSign, keys, wallet);
+    }
+
+    /**
+     * Get a map of signed and prepared transactions from an array of legacy transactions
+     * @param txsToSign 
+     * @param keys 
+     * @param wallet 
+     * @param commitment 
+     * @returns 
+     */
+    public async getPreparedAndSignedLegacyTransactionMap(
         txsToSign: (Transaction | undefined)[],
         keys: string[],
         wallet?: Wallet,
@@ -444,6 +505,13 @@ export class TxHandler {
         return this.getSignedTransactionMap(txsToSign, keys, wallet);
     }
 
+    /**
+     * Get a map of signed transactions from an array of transactions to sign.
+     * @param txsToSign 
+     * @param keys 
+     * @param wallet 
+     * @returns 
+     */
     public async getSignedTransactionMap(
         txsToSign: (Transaction | VersionedTransaction | undefined)[],
         keys: string[],
@@ -488,5 +556,29 @@ export class TxHandler {
         });
     
         return signedTxMap;
+    }
+
+    /**
+     * Builds and signs transactions from a given array of instructions for multiple transactions.
+     * @param props 
+     * @returns 
+     */
+    public async buildAndSignTransactionMap(
+        props: Omit<TxBuildingProps, 'instructions'> & {keys: string[], instructions: (TransactionInstruction | TransactionInstruction[])[]}
+    ) {
+        const transactions = await this.buildBulkTransactions(props);
+
+        const preppedTransactions = props.txVersion === 'legacy' ? this.getPreparedAndSignedLegacyTransactionMap(
+            transactions as Transaction[],
+            props.keys,
+            props.wallet,
+            props.preFlightCommitment
+        ) : this.getSignedTransactionMap(
+            transactions,
+            props.keys,
+            props.wallet
+        );
+
+       return preppedTransactions;
     }
 }
