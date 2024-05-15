@@ -14,13 +14,6 @@ export type ChainClockState = Map<Commitment, ChainClockProgress>;
 
 export type ChainClickInitialisationProps = ChainClockUpdateProps[];
 
-export interface ChainClockSubscriber {
-
-    state : ChainClockState;
-
-    update(props: ChainClockUpdateProps): void;
-}
-
 export class ChainClock {
     private _state: ChainClockState;
 
