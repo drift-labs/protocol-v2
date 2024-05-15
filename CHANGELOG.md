@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Features
 
 - program: sanitize extreme auction end prices ([#1031](https://github.com/drift-labs/protocol-v2/pull/1031))
+- program: use strict price for maintenance margin check in settle pnl ([#1045](https://github.com/drift-labs/protocol-v2/pull/1045))
 
 ### Fixes
 
