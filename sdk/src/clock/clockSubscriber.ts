@@ -32,7 +32,7 @@ export class ClockSubscriber {
 	) {
 		this.eventEmitter = new EventEmitter();
 		this.resubTimeoutMs = config?.resubTimeoutMs;
-		this.commitment = config?.commitment || 'finalized';
+		this.commitment = config?.commitment || 'confirmed';
 		if (this.resubTimeoutMs < 1000) {
 			console.log(
 				'resubTimeoutMs should be at least 1000ms to avoid spamming resub'
