@@ -350,6 +350,7 @@ export const mockSpotMarkets: Array<SpotMarketAccount> = [
 			lastIndexPriceTwapTs: new BN(0),
 		},
 		pausedOperations: 0,
+		ifPausedOperations: 0,
 	},
 	{
 		status: MarketStatus.ACTIVE,
@@ -432,6 +433,7 @@ export const mockSpotMarkets: Array<SpotMarketAccount> = [
 			lastIndexPriceTwapTs: new BN(0),
 		},
 		pausedOperations: 0,
+		ifPausedOperations: 0,
 	},
 	{
 		status: MarketStatus.ACTIVE,
@@ -514,6 +516,7 @@ export const mockSpotMarkets: Array<SpotMarketAccount> = [
 			lastIndexPriceTwapTs: new BN(0),
 		},
 		pausedOperations: 0,
+		ifPausedOperations: 0,
 	},
 ];
 
