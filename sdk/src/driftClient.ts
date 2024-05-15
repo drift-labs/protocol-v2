@@ -2744,11 +2744,11 @@ export class DriftClient {
 		);
 	}
 
-	public async sendSignedTx(tx: Transaction): Promise<TransactionSignature> {
+	public async sendSignedTx(tx: Transaction, opts?: ConfirmOptions): Promise<TransactionSignature> {
 		const { txSig } = await this.sendTransaction(
 			tx,
 			undefined,
-			this.opts,
+			opts ?? this.opts,
 			true
 		);
 

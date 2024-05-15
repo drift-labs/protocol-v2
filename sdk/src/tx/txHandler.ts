@@ -180,7 +180,9 @@ export class TxHandler {
                 tx.sign([kp]);
             });
             
-		const signedTx = await wallet.signVersionedTransaction(tx);
+        // @ts-ignore :: TODO : They were either busted before or I'e done something wrong. Wonderin crisp/will's input on this. I'm confused about diff between IWallet and Wallet types. Why does Wallet have methods (e.g. `signVersionedTransaction`) which aren't actually present on the wallet at runtime?
+        const signedTx = await wallet.signTransaction(tx) as VersionedTransaction;
+        // const signedTx = await wallet.signVersionedTransaction(tx);
 
         // Turn txSig Buffer into base58 string
         const txSig = this.getTxSigFromSignedTx(signedTx);
