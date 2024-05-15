@@ -14,17 +14,17 @@ export interface ClockSubscriberEvent {
 }
 
 export class ClockSubscriber {
-	latestSlot: number;
+	private latestSlot: number;
 	currentTs: number;
-	subscriptionId: number;
+	private subscriptionId: number;
 	commitment: Commitment;
 	eventEmitter: StrictEventEmitter<EventEmitter, ClockSubscriberEvent>;
 
 	// Reconnection
-	timeoutId?: NodeJS.Timeout;
-	resubTimeoutMs?: number;
-	isUnsubscribing = false;
-	receivingData = false;
+	private timeoutId?: NodeJS.Timeout;
+	private resubTimeoutMs?: number;
+	private isUnsubscribing = false;
+	private receivingData = false;
 
 	public constructor(
 		private connection: Connection,
