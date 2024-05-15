@@ -104,7 +104,7 @@ pub fn settle_pnl(
 
             // if the unrealized pnl is negative, return early after trying to burn shares
             if unrealized_pnl < 0
-                && !(meets_maintenance_margin_requirement(
+                && !(meets_settle_pnl_maintenance_margin_requirement(
                     user,
                     perp_market_map,
                     spot_market_map,
@@ -120,7 +120,7 @@ pub fn settle_pnl(
         }
     } else if unrealized_pnl < 0 {
         // cannot settle pnl this way on a user who is in liquidation territory
-        if !(meets_maintenance_margin_requirement(
+        if !(meets_settle_pnl_maintenance_margin_requirement(
             user,
             perp_market_map,
             spot_market_map,
