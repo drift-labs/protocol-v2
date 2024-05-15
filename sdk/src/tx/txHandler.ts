@@ -79,7 +79,7 @@ export class TxHandler {
      * @param wallet 
      * @param confirmationOpts 
      * @param preSigned 
-     * @param latestBlockhash 
+     * @param recentBlockhash 
      * @returns 
      */
     public async prepareTx(
@@ -88,7 +88,7 @@ export class TxHandler {
         wallet?: Wallet,
 		confirmationOpts?: ConfirmOptions,
 		preSigned?: boolean,
-        latestBlockhash?: BlockhashWithExpiryBlockHeight
+        recentBlockhash?: BlockhashWithExpiryBlockHeight
 	): Promise<Transaction> {
 		if (preSigned) {
 			return tx;
@@ -97,7 +97,7 @@ export class TxHandler {
         [wallet, confirmationOpts] = this.getProps(wallet, confirmationOpts);
 
 		tx.feePayer = wallet.publicKey;
-		const recentBlockhash = latestBlockhash ? latestBlockhash : (
+		recentBlockhash = recentBlockhash ? recentBlockhash : (
 			await this.connection.getLatestBlockhash(confirmationOpts.preflightCommitment)
 		);
 		tx.recentBlockhash = recentBlockhash.blockhash;
@@ -162,16 +162,16 @@ export class TxHandler {
     public async signVersionedTx(
 		tx: VersionedTransaction,
         additionalSigners: Array<Signer>,
-        latestBlockhashOverride?: BlockhashWithExpiryBlockHeight,
+        recentBlockHash?: BlockhashWithExpiryBlockHeight,
         wallet?: Wallet,
 	): Promise<VersionedTransaction> {
 
         [wallet] = this.getProps(wallet);
 
-        if (latestBlockhashOverride) {
-            tx.message.recentBlockhash = latestBlockhashOverride.blockhash;
+        if (recentBlockHash) {
+            tx.message.recentBlockhash = recentBlockHash.blockhash;
 
-            this.addHashAndExpiryToLookup(latestBlockhashOverride);
+            this.addHashAndExpiryToLookup(recentBlockHash);
         }
 
         additionalSigners
@@ -222,6 +222,11 @@ export class TxHandler {
         }
     }
 
+    /**
+     * Gets transaction params with extra processing applied, like using the simulated compute units or using a dynamically calculated compute unit price.
+     * @param txBuildingProps
+     * @returns 
+     */
     private async getProcessedTransactionParams(
 		txBuildingProps: TxBuildingProps,
 	): Promise<BaseTxParams> {
@@ -254,16 +259,16 @@ export class TxHandler {
 	}
 
     private _generateVersionedTransaction(
-        recentBlockHashAndLastValidBlockHeight: BlockhashWithExpiryBlockHeight,
+        recentBlockHash: BlockhashWithExpiryBlockHeight,
         message: Message | MessageV0
     ) {
-        this.addHashAndExpiryToLookup(recentBlockHashAndLastValidBlockHeight);
+        this.addHashAndExpiryToLookup(recentBlockHash);
         
         return new VersionedTransaction(message);
     }
 
     public generateLegacyVersionedTransaction(
-        recentBlockHashAndLastValidBlockHeight: BlockhashWithExpiryBlockHeight,
+        recentBlockhash: BlockhashWithExpiryBlockHeight,
         ixs: TransactionInstruction[],
         wallet?: Wallet
     ) {
@@ -271,15 +276,15 @@ export class TxHandler {
 
         const message = new TransactionMessage({
 			payerKey: wallet.publicKey,
-			recentBlockhash: recentBlockHashAndLastValidBlockHeight.blockhash,
+			recentBlockhash: recentBlockhash.blockhash,
 			instructions: ixs,
 		}).compileToLegacyMessage();
 
-		return this._generateVersionedTransaction(recentBlockHashAndLastValidBlockHeight, message);
+		return this._generateVersionedTransaction(recentBlockhash, message);
     }
 
     public generateVersionedTransaction(
-        recentBlockHashAndLastValidBlockHeight:BlockhashWithExpiryBlockHeight,
+        recentBlockhash:BlockhashWithExpiryBlockHeight,
         ixs: TransactionInstruction[],
         lookupTableAccounts: AddressLookupTableAccount[],
         wallet?: Wallet
@@ -288,11 +293,11 @@ export class TxHandler {
 
         const message = new TransactionMessage({
 			payerKey: wallet.publicKey,
-			recentBlockhash: recentBlockHashAndLastValidBlockHeight.blockhash,
+			recentBlockhash: recentBlockhash.blockhash,
 			instructions: ixs,
 		}).compileToV0Message(lookupTableAccounts);
 
-		return this._generateVersionedTransaction(recentBlockHashAndLastValidBlockHeight, message);
+		return this._generateVersionedTransaction(recentBlockhash, message);
     }
 
     public generateLegacyTransaction(ixs: TransactionInstruction[]) {
@@ -461,17 +466,18 @@ export class TxHandler {
         keys: string[],
         wallet?: Wallet,
         commitment?: Commitment,
+        recentBlockHash?: BlockhashWithExpiryBlockHeight
     ) {
         
-        const currentBlockHash = (
+        recentBlockHash = recentBlockHash ? recentBlockHash : (
             await this.connection.getLatestBlockhash(commitment ?? this.confirmationOptions.preflightCommitment)
         );
 
-        this.addHashAndExpiryToLookup(currentBlockHash);
+        this.addHashAndExpiryToLookup(recentBlockHash);
 
         for (const tx of txsToSign) {
             if (!tx) continue;
-            tx.recentBlockhash = currentBlockHash.blockhash;
+            tx.recentBlockhash = recentBlockHash.blockhash;
             tx.feePayer = wallet?.publicKey ?? wallet?.payer?.publicKey ?? this.wallet?.publicKey ?? this.wallet?.payer?.publicKey;
         }
 
@@ -491,16 +497,17 @@ export class TxHandler {
         keys: string[],
         wallet?: Wallet,
         commitment?: Commitment,
+        recentBlockHash?: BlockhashWithExpiryBlockHeight
     ) {
-        const currentBlockHash = (
+        recentBlockHash = recentBlockHash ? recentBlockHash : (
             await this.connection.getLatestBlockhash(commitment ?? this.confirmationOptions.preflightCommitment)
         );
 
-        this.addHashAndExpiryToLookup(currentBlockHash);
+        this.addHashAndExpiryToLookup(recentBlockHash);
 
         for (const tx of txsToSign) {
             if (!tx) continue;
-            tx.recentBlockhash = currentBlockHash.blockhash;
+            tx.recentBlockhash = recentBlockHash.blockhash;
             tx.feePayer = wallet?.publicKey ?? wallet?.payer?.publicKey ?? this.wallet?.publicKey ?? this.wallet?.payer?.publicKey;
         }
 
