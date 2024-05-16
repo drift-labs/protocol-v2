@@ -6,20 +6,28 @@ export function clampBN(x: BN, min: BN, max: BN): BN {
 
 export const squareRootBN = (n: BN): BN => {
 	if (n.lt(new BN(0))) {
-		throw new Error('Sqrt only works on non-negtiave inputs');
+		throw new Error('Sqrt only works on non-negative inputs');
 	}
 	if (n.lt(new BN(2))) {
 		return n;
 	}
 
-	const smallCand = squareRootBN(n.shrn(2)).shln(1);
-	const largeCand = smallCand.add(new BN(1));
+	let low = new BN(1);
+	let high = n;
+	const two = new BN(2);
 
-	if (largeCand.mul(largeCand).gt(n)) {
-		return smallCand;
-	} else {
-		return largeCand;
+	while (low.lt(high)) {
+		const mid = low.add(high).div(two);
+    		const midSquared = mid.mul(mid);
+		if (midSquared.eq(n)) {
+      			return mid;
+    		} else if (midSquared.lt(n)) {
+      			low = mid.add(new BN(1));
+    		} else {
+      			high = mid.sub(new BN(1));
+		}
 	}
+	return high;
 };
 
 export const divCeil = (a: BN, b: BN): BN => {
@@ -27,11 +35,7 @@ export const divCeil = (a: BN, b: BN): BN => {
 
 	const remainder = a.mod(b);
 
-	if (remainder.gt(ZERO)) {
-		return quotient.add(ONE);
-	} else {
-		return quotient;
-	}
+	return remainder.gt(ZERO) ? quotient.add(ONE) : quotient;
 };
 
 export const sigNum = (x: BN): BN => {
