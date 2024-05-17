@@ -1431,7 +1431,12 @@ pub struct UserStats {
     /// Whether the user is a referrer. Sub account 0 can not be deleted if user is a referrer
     pub is_referrer: bool,
     pub disable_update_perp_bid_ask_twap: bool,
-    pub padding: [u8; 50],
+    pub fuel_sub_account: u16,
+    /// The amount of tokens staked in the governance spot markets if
+    pub fuel_bonus: u64,
+    /// The amount of tokens staked in the governance spot markets if
+    pub if_staked_gov_token_amount: u64,
+    pub padding: [u8; 32],
 }
 
 impl Default for UserStats {
@@ -1452,7 +1457,10 @@ impl Default for UserStats {
             number_of_sub_accounts_created: 0,
             is_referrer: false,
             disable_update_perp_bid_ask_twap: false,
-            padding: [0; 50],
+            fuel_sub_account: 0,
+            fuel_bonus: 0,
+            if_staked_gov_token_amount: 0,
+            padding: [0; 32],
         }
     }
 }

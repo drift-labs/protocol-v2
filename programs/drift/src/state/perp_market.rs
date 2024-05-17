@@ -232,7 +232,16 @@ pub struct PerpMarket {
     /// E.g. if this is -50 and the fee is 5bps, the new fee will be 2.5bps
     /// if this is 50 and the fee is 5bps, the new fee will be 7.5bps
     pub fee_adjustment: i16,
-    pub padding: [u8; 46],
+    /// fuel multiplier for perp funding
+    /// precision: 10
+    pub fuel_boost_funding: u16,
+    /// fuel multiplier for perp taker
+    /// precision: 10
+    pub fuel_boost_taker: u16,
+    /// fuel multiplier for perp maker
+    /// precision: 10
+    pub fuel_boost_maker: u16,
+    pub padding: [u8; 38],
 }
 
 impl Default for PerpMarket {
@@ -266,7 +275,10 @@ impl Default for PerpMarket {
             paused_operations: 0,
             quote_spot_market_index: 0,
             fee_adjustment: 0,
-            padding: [0; 46],
+            fuel_boost_funding: 0,
+            fuel_boost_taker: 0,
+            fuel_boost_maker: 0,
+            padding: [0; 38],
         }
     }
 }
