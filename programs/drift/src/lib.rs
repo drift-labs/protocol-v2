@@ -155,12 +155,14 @@ pub mod drift {
         params: OrderParams,
         fulfillment_type: Option<SpotFulfillmentType>,
         maker_order_id: Option<u32>,
+        fill_or_kill: Option<bool>,
     ) -> Result<()> {
         handle_place_and_take_spot_order(
             ctx,
             params,
             fulfillment_type.unwrap_or(SpotFulfillmentType::Match),
             maker_order_id,
+            fill_or_kill
         )
     }
 

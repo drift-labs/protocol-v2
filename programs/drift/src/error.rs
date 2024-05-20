@@ -523,6 +523,8 @@ pub enum ErrorCode {
     CantReclaimRent,
     #[msg("InsuranceFundOperationPaused")]
     InsuranceFundOperationPaused,
+    #[msg("FillOrKillOrderNotFilled")]
+    FillOrKillOrderNotFilled
 }
 
 #[macro_export]

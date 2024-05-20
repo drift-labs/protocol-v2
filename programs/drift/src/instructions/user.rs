@@ -1357,6 +1357,7 @@ pub fn handle_place_and_take_spot_order<'info>(
     params: OrderParams,
     fulfillment_type: SpotFulfillmentType,
     _maker_order_id: Option<u32>,
+    fill_or_kill: Option<bool>,
 ) -> Result<()> {
     let clock = Clock::get()?;
     let market_index = params.market_index;
@@ -1385,6 +1386,7 @@ pub fn handle_place_and_take_spot_order<'info>(
     };
 
     let is_immediate_or_cancel = params.immediate_or_cancel;
+    let is_fill_or_kill = fill_or_kill.unwrap_or(false);
 
     let mut fulfillment_params: Box<dyn SpotFulfillmentParams> = match fulfillment_type {
         SpotFulfillmentType::SerumV3 => {
@@ -1460,6 +1462,10 @@ pub fn handle_place_and_take_spot_order<'info>(
         .orders
         .iter()
         .any(|order| order.order_id == order_id);
+
+    if is_fill_or_kill && order_exists {
+        return Err(print_error!(ErrorCode::FillOrKillOrderNotFilled)().into());
+    }
 
     if is_immediate_or_cancel && order_exists {
         controller::orders::cancel_order_by_order_id(

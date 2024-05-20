@@ -4917,7 +4917,8 @@ export class DriftClient {
 		makerInfo?: MakerInfo,
 		referrerInfo?: ReferrerInfo,
 		txParams?: TxParams,
-		subAccountId?: number
+		subAccountId?: number,
+		fillOrKill?: boolean,
 	): Promise<TransactionSignature> {
 		const { txSig, slot } = await this.sendTransaction(
 			await this.buildTransaction(
@@ -4926,7 +4927,8 @@ export class DriftClient {
 					fulfillmentConfig,
 					makerInfo,
 					referrerInfo,
-					subAccountId
+					subAccountId,
+					fillOrKill
 				),
 				txParams
 			),
@@ -4943,7 +4945,8 @@ export class DriftClient {
 		fulfillmentConfig?: SerumV3FulfillmentConfigAccount,
 		makerInfo?: MakerInfo,
 		referrerInfo?: ReferrerInfo,
-		subAccountId?: number
+		subAccountId?: number,
+		fillOrKill?: boolean,
 	): Promise<TransactionInstruction> {
 		orderParams = getOrderParams(orderParams, { marketType: MarketType.SPOT });
 		const userStatsPublicKey = this.getUserStatsAccountPublicKey();
@@ -5000,6 +5003,7 @@ export class DriftClient {
 			orderParams,
 			fulfillmentConfig ? fulfillmentConfig.fulfillmentType : null,
 			makerOrderId,
+			fillOrKill,
 			{
 				accounts: {
 					state: await this.getStatePublicKey(),
