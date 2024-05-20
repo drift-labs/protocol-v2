@@ -1475,6 +1475,18 @@ impl Size for UserStats {
 }
 
 impl UserStats {
+    pub fn get_fuel_bonus_update_numerator(self, now: i64) -> DriftResult<i64> {
+        let since_last = now.safe_sub(self.last_fuel_bonus_update_ts)?;
+        Ok(since_last)
+    }
+
+    pub fn update_fuel_bonus(&mut self, fuel_bonus: u64, now: i64) -> DriftResult {
+        self.fuel_bonus = self.fuel_bonus.saturating_add(fuel_bonus);
+        self.last_fuel_bonus_update_ts = now;
+
+        Ok(())
+    }
+
     pub fn update_maker_volume_30d(&mut self, quote_asset_amount: u64, now: i64) -> DriftResult {
         let since_last = max(1_i64, now.safe_sub(self.last_maker_volume_30d_ts)?);
 

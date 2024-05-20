@@ -21,6 +21,7 @@ pub struct MarginContext {
     pub mode: MarginCalculationMode,
     pub strict: bool,
     pub margin_buffer: u128,
+    pub fuel_bonus_numerator: i64,
 }
 
 #[derive(PartialEq, Eq, Copy, Clone, Debug, AnchorSerialize, AnchorDeserialize)]
@@ -54,6 +55,7 @@ impl MarginContext {
             },
             strict: false,
             margin_buffer: 0,
+            fuel_bonus_numerator: 0,
         }
     }
 
@@ -90,6 +92,7 @@ impl MarginContext {
             },
             margin_buffer: margin_buffer as u128,
             strict: false,
+            fuel_bonus_numerator: 0,
         }
     }
 
@@ -133,6 +136,7 @@ pub struct MarginCalculation {
     pub total_perp_pnl: i128,
     pub open_orders_margin_requirement: u128,
     tracked_market_margin_requirement: u128,
+    pub fuel_bonus: u64,
 }
 
 impl MarginCalculation {
@@ -153,6 +157,7 @@ impl MarginCalculation {
             total_perp_pnl: 0,
             open_orders_margin_requirement: 0,
             tracked_market_margin_requirement: 0,
+            fuel_bonus: 0,
         }
     }
 

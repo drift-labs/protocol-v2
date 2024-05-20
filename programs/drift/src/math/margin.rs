@@ -1,7 +1,7 @@
 use crate::error::DriftResult;
 use crate::error::ErrorCode;
 use crate::math::constants::{
-    MARGIN_PRECISION_U128, MAX_POSITIVE_UPNL_FOR_INITIAL_MARGIN, PRICE_PRECISION,
+    FUEL_WINDOW_U128, MARGIN_PRECISION_U128, MAX_POSITIVE_UPNL_FOR_INITIAL_MARGIN, PRICE_PRECISION,
     SPOT_IMF_PRECISION_U128, SPOT_WEIGHT_PRECISION, SPOT_WEIGHT_PRECISION_U128,
 };
 use crate::math::position::{
@@ -24,7 +24,7 @@ use crate::state::oracle::{OraclePriceData, StrictOraclePrice};
 use crate::state::oracle_map::OracleMap;
 use crate::state::perp_market::{ContractTier, MarketStatus, PerpMarket};
 use crate::state::perp_market_map::PerpMarketMap;
-use crate::state::spot_market::{AssetTier, SpotBalanceType};
+use crate::state::spot_market::{AssetTier, SpotBalanceType, SpotMarket};
 use crate::state::spot_market_map::SpotMarketMap;
 use crate::state::user::{MarketType, OrderFillSimulation, PerpPosition, User};
 use num_integer::Roots;
@@ -234,6 +234,51 @@ pub fn calculate_user_safest_position_tiers(
     }
 
     Ok((safest_tier_spot_liablity, safest_tier_perp_liablity))
+}
+
+pub fn calculate_perp_fuel_bonus(
+    perp_market: &PerpMarket,
+    base_asset_amount: i128,
+    fuel_bonus_numerator: i64,
+) -> DriftResult<u64> {
+    let result: u64 = if base_asset_amount == 0 {
+        0_u64
+    } else {
+        base_asset_amount
+            .unsigned_abs()
+            .safe_mul(fuel_bonus_numerator.cast()?)?
+            .safe_mul(perp_market.fuel_boost_funding.cast()?)?
+            .safe_div(FUEL_WINDOW_U128)?
+            .cast::<u64>()?
+    };
+
+    Ok(result)
+}
+
+pub fn calculate_spot_fuel_bonus(
+    spot_market: &SpotMarket,
+    signed_token_amount: i128,
+    fuel_bonus_numerator: i64,
+) -> DriftResult<u64> {
+    let result: u64 = if signed_token_amount == 0 {
+        0_u64
+    } else if signed_token_amount > 0 {
+        signed_token_amount
+            .unsigned_abs()
+            .safe_mul(fuel_bonus_numerator.cast()?)?
+            .safe_mul(spot_market.fuel_boost_deposits.cast()?)?
+            .safe_div(FUEL_WINDOW_U128)?
+            .cast::<u64>()?
+    } else {
+        signed_token_amount
+            .unsigned_abs()
+            .safe_mul(fuel_bonus_numerator.cast()?)?
+            .safe_mul(spot_market.fuel_boost_borrows.cast()?)?
+            .safe_div(FUEL_WINDOW_U128)?
+            .cast::<u64>()?
+    };
+
+    Ok(result)
 }
 
 pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
