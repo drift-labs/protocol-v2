@@ -2,7 +2,7 @@ import {
 	Connection,
 	RpcResponseAndContext,
 	SimulatedTransactionResponse,
-	VersionedTransaction
+	VersionedTransaction,
 } from '@solana/web3.js';
 import { BaseTxParams, ProcessingTxParams } from '..';
 
@@ -85,7 +85,7 @@ export class TransactionParamProcessor {
 			processParams: processProps,
 		} = props;
 
-		const finalTxParams : BaseTxParams = {
+		const finalTxParams: BaseTxParams = {
 			...props.baseTxParams,
 		};
 

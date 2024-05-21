@@ -77,13 +77,20 @@ export class WhileValidTxSender extends BaseTxSender {
 		opts: ConfirmOptions,
 		preSigned?: boolean
 	): Promise<Transaction> {
-		
-		const latestBlockhash = await this.txHandler.getLatestBlockhashForTransaction();
+		const latestBlockhash =
+			await this.txHandler.getLatestBlockhashForTransaction();
 
 		// handle tx
 		let signedTx = tx;
 		if (!preSigned) {
-			signedTx = await this.txHandler.prepareTx(tx, additionalSigners, undefined, opts, false, latestBlockhash);
+			signedTx = await this.txHandler.prepareTx(
+				tx,
+				additionalSigners,
+				undefined,
+				opts,
+				false,
+				latestBlockhash
+			);
 		}
 
 		// handle subclass-specific side effects
@@ -99,9 +106,10 @@ export class WhileValidTxSender extends BaseTxSender {
 		tx: VersionedTransaction,
 		additionalSigners?: Array<Signer>,
 		opts?: ConfirmOptions,
-		preSigned?: boolean,
+		preSigned?: boolean
 	): Promise<TxSigAndSlot> {
-		const latestBlockhash = await this.txHandler.getLatestBlockhashForTransaction();
+		const latestBlockhash =
+			await this.txHandler.getLatestBlockhashForTransaction();
 
 		let signedTx;
 		if (preSigned) {
@@ -119,7 +127,11 @@ export class WhileValidTxSender extends BaseTxSender {
 				.forEach((kp) => {
 					tx.sign([kp]);
 				});
-			signedTx = await this.txHandler.signVersionedTx(tx, additionalSigners, latestBlockhash);
+			signedTx = await this.txHandler.signVersionedTx(
+				tx,
+				additionalSigners,
+				latestBlockhash
+			);
 		}
 
 		if (opts === undefined) {

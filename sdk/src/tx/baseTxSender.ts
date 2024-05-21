@@ -69,7 +69,7 @@ export abstract class BaseTxSender implements TxSender {
 		tx: Transaction,
 		additionalSigners?: Array<Signer>,
 		opts?: ConfirmOptions,
-		preSigned?: boolean,
+		preSigned?: boolean
 	): Promise<TxSigAndSlot> {
 		if (additionalSigners === undefined) {
 			additionalSigners = [];
@@ -94,14 +94,20 @@ export abstract class BaseTxSender implements TxSender {
 		opts: ConfirmOptions,
 		preSigned?: boolean
 	): Promise<Transaction> {
-		return this.txHandler.prepareTx(tx, additionalSigners, undefined, opts, preSigned);
+		return this.txHandler.prepareTx(
+			tx,
+			additionalSigners,
+			undefined,
+			opts,
+			preSigned
+		);
 	}
 
 	async sendVersionedTransaction(
 		tx: VersionedTransaction,
 		additionalSigners?: Array<Signer>,
 		opts?: ConfirmOptions,
-		preSigned?: boolean,
+		preSigned?: boolean
 	): Promise<TxSigAndSlot> {
 		let signedTx;
 
@@ -113,7 +119,12 @@ export abstract class BaseTxSender implements TxSender {
 			tx.sign((additionalSigners ?? []).concat(this.wallet.payer));
 			signedTx = tx;
 		} else {
-			signedTx = await this.txHandler.signVersionedTx(tx, additionalSigners, undefined, this.wallet);
+			signedTx = await this.txHandler.signVersionedTx(
+				tx,
+				additionalSigners,
+				undefined,
+				this.wallet
+			);
 		}
 
 		if (opts === undefined) {
@@ -203,9 +214,8 @@ export abstract class BaseTxSender implements TxSender {
 		if (response === null) {
 			if (this.confirmationStrategy === ConfirmationStrategy.Combo) {
 				try {
-					const rpcResponse = await this.connection.getSignatureStatus(
-						signature
-					);
+					const rpcResponse =
+						await this.connection.getSignatureStatus(signature);
 					if (rpcResponse?.value?.confirmationStatus) {
 						response = {
 							context: rpcResponse.context,

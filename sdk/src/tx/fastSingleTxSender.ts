@@ -48,7 +48,7 @@ export class FastSingleTxSender extends BaseTxSender {
 		skipConfirmation?: boolean;
 		blockhashCommitment?: Commitment;
 		confirmationStrategy?: ConfirmationStrategy;
-		txHandler: TxHandler,
+		txHandler: TxHandler;
 	}) {
 		super({
 			connection,
@@ -57,7 +57,7 @@ export class FastSingleTxSender extends BaseTxSender {
 			timeout,
 			additionalConnections,
 			confirmationStrategy,
-			txHandler
+			txHandler,
 		});
 		this.connection = connection;
 		this.wallet = wallet;
@@ -74,8 +74,8 @@ export class FastSingleTxSender extends BaseTxSender {
 		if (this.blockhashRefreshInterval > 0) {
 			this.blockhashIntervalId = setInterval(async () => {
 				try {
-					this.recentBlockhash = (
-						await this.connection.getLatestBlockhash(this.blockhashCommitment)
+					this.recentBlockhash = await this.connection.getLatestBlockhash(
+						this.blockhashCommitment
 					);
 				} catch (e) {
 					console.error('Error in startBlockhashRefreshLoop: ', e);
