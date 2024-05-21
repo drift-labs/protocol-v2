@@ -11,6 +11,7 @@ import {
 	SpotOperation,
 	StateAccount,
 	isVariant,
+	InsuranceFundOperation,
 } from '../types';
 import { BN } from '@coral-xyz/anchor';
 
@@ -65,7 +66,7 @@ export function ammPaused(
 
 export function isOperationPaused(
 	pausedOperations: number,
-	operation: PerpOperation | SpotOperation
+	operation: PerpOperation | SpotOperation | InsuranceFundOperation
 ): boolean {
 	return (pausedOperations & operation) > 0;
 }

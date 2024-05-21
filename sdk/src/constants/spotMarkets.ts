@@ -240,6 +240,19 @@ export const MainnetSpotMarkets: SpotMarketConfig[] = [
 		),
 		launchTs: 1712593532000,
 	},
+	{
+		symbol: 'DRIFT',
+		marketIndex: 15,
+		oracle: new PublicKey('PeNpQeGEm9UEFJ6MBCMauY4WW4h3YxoESPWbsqVKucE'),
+		oracleSource: OracleSource.SWITCHBOARD,
+		mint: new PublicKey('DriFtupJYLTosbwoN8koMbEYSx54aFAVLddWsbksjwg7'),
+		precision: new BN(10).pow(SIX),
+		precisionExp: SIX,
+		phoenixMarket: new PublicKey(
+			'8BV6rrWsUabnTDA3dE6A69oUDJAj3hMhtBHTJyXB7czp'
+		),
+		launchTs: 1715860800000,
+	},
 ];
 
 export const SpotMarkets: { [key in DriftEnv]: SpotMarketConfig[] } = {

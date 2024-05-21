@@ -43,6 +43,13 @@ export enum SpotOperation {
 	LIQUIDATION = 8,
 }
 
+export enum InsuranceFundOperation {
+	INIT = 1,
+	ADD = 2,
+	REQUEST_REMOVE = 4,
+	REMOVE = 8,
+}
+
 export enum UserStatus {
 	BEING_LIQUIDATED = 1,
 	BANKRUPT = 2,
@@ -708,6 +715,8 @@ export type SpotMarketAccount = {
 	ordersEnabled: boolean;
 
 	pausedOperations: number;
+
+	ifPausedOperations: number;
 };
 
 export type PoolBalance = {
