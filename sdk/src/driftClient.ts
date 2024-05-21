@@ -4558,9 +4558,7 @@ export class DriftClient {
 		};
 
 		// Get recent block hash so that we can re-use it for all transactions. Makes this logic run faster with fewer RPC requests
-		const recentBlockHash = (await this.connection.getLatestBlockhashAndContext({
-			commitment: this.opts.commitment,
-		})).value;
+		const recentBlockHash = (await this.txHandler.getLatestBlockhashForTransaction());
 
 		if (shouldUseSimulationComputeUnits || shouldExitIfSimulationFails) {
 			const placeAndTakeTxToSim = (await this.buildTransaction(

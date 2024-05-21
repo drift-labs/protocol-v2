@@ -71,6 +71,17 @@ export class TxHandler {
     public updateWallet(wallet: Wallet) {
         this.wallet = wallet;
     }
+
+    /**
+     * Created this to prevent non-finalized blockhashes being used when building transactions. We want to always use finalized because otherwise it's easy to get the BlockHashNotFound error (RPC uses finalized to validate a transaction). Using an older blockhash when building transactions should never really be a problem right now.
+     * 
+     * https://www.helius.dev/blog/how-to-deal-with-blockhash-errors-on-solana#why-do-blockhash-errors-occur
+     * 
+     * @returns 
+     */
+    public getLatestBlockhashForTransaction() {
+        return this.connection.getLatestBlockhash('finalized');
+    }
     
     /**
      * Applies recent blockhash and signs a given transaction
@@ -98,7 +109,7 @@ export class TxHandler {
 
 		tx.feePayer = wallet.publicKey;
 		recentBlockhash = recentBlockhash ? recentBlockhash : (
-			await this.connection.getLatestBlockhash(confirmationOpts.preflightCommitment)
+			await this.getLatestBlockhashForTransaction()
 		);
 		tx.recentBlockhash = recentBlockhash.blockhash;
 
@@ -313,9 +324,7 @@ export class TxHandler {
         props: Omit<TxBuildingProps, 'instructions'> & {instructions: (TransactionInstruction | TransactionInstruction[])[]}
     ) {
         const recentBlockHash = props?.recentBlockHash ??
-			(await props.connection.getLatestBlockhashAndContext({
-				commitment: props.preFlightCommitment,
-			})).value;
+			(await this.getLatestBlockhashForTransaction());
 
         return await Promise.all(props.instructions.map((ix) => {
             if (!ix) return undefined;
@@ -344,8 +353,8 @@ export class TxHandler {
             instructions,
             txVersion,
             txParams,
-            connection,
-            preFlightCommitment,
+            connection:_connection,
+            preFlightCommitment:_preFlightCommitment,
             fetchMarketLookupTableAccount,
             forceVersionedTransaction,
         } = props;
@@ -399,9 +408,7 @@ export class TxHandler {
 		}
 
 		const recentBlockHash = props?.recentBlockHash ??
-			(await connection.getLatestBlockhashAndContext({
-				commitment: preFlightCommitment,
-			})).value;
+			(await this.getLatestBlockhashForTransaction());
 
 		// # Create and return Transaction
 		if (txVersion === 'legacy') {
@@ -470,7 +477,7 @@ export class TxHandler {
     ) {
         
         recentBlockHash = recentBlockHash ? recentBlockHash : (
-            await this.connection.getLatestBlockhash(commitment ?? this.confirmationOptions.preflightCommitment)
+            await this.getLatestBlockhashForTransaction()
         );
 
         this.addHashAndExpiryToLookup(recentBlockHash);
@@ -500,7 +507,7 @@ export class TxHandler {
         recentBlockHash?: BlockhashWithExpiryBlockHeight
     ) {
         recentBlockHash = recentBlockHash ? recentBlockHash : (
-            await this.connection.getLatestBlockhash(commitment ?? this.confirmationOptions.preflightCommitment)
+            await this.getLatestBlockhashForTransaction()
         );
 
         this.addHashAndExpiryToLookup(recentBlockHash);
