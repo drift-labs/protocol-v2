@@ -1013,10 +1013,12 @@ export type ReferrerInfo = {
 	referrerStats: PublicKey;
 };
 
-export type BaseTxParams = {
+type ExactType<T> = Pick<T, keyof T>;
+
+export type BaseTxParams = ExactType<{
 	computeUnits?: number;
 	computeUnitsPrice?: number;
-};
+}>;
 
 export type ProcessingTxParams = {
 	useSimulatedComputeUnits?: boolean;
@@ -1181,4 +1183,15 @@ export type HealthComponent = {
 	value: BN;
 	weight: BN;
 	weightedValue: BN;
+};
+
+export interface DriftClientMetricsEvents {
+	txSigned: SignedTxData[];
+}
+
+export type SignedTxData = {
+    txSig: string;
+    signedTx: Transaction | VersionedTransaction;
+    lastValidBlockHeight?: number;
+    blockHash: string;
 };
