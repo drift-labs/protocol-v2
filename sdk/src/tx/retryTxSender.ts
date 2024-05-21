@@ -3,7 +3,7 @@ import { ConfirmOptions, Connection } from '@solana/web3.js';
 import { AnchorProvider } from '@coral-xyz/anchor';
 import { BaseTxSender } from './baseTxSender';
 import { TxHandler } from './txHandler';
-import { Wallet } from '../wallet';
+import { IWallet } from '../types';
 
 const DEFAULT_TIMEOUT = 35000;
 const DEFAULT_RETRY = 2000;
@@ -14,7 +14,7 @@ type ResolveReference = {
 
 export class RetryTxSender extends BaseTxSender {
 	connection: Connection;
-	wallet: Wallet;
+	wallet: IWallet;
 	opts: ConfirmOptions;
 	timeout: number;
 	retrySleep: number;
@@ -33,7 +33,7 @@ export class RetryTxSender extends BaseTxSender {
 		txHandler,
 	}: {
 		connection: Connection;
-		wallet: Wallet;
+		wallet: IWallet;
 		opts?: ConfirmOptions;
 		timeout?: number;
 		retrySleep?: number;

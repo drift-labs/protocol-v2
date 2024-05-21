@@ -11,7 +11,7 @@ import { AnchorProvider } from '@coral-xyz/anchor';
 import { BaseTxSender } from './baseTxSender';
 import bs58 from 'bs58';
 import { TxHandler } from './txHandler';
-import { Wallet } from '../wallet';
+import { IWallet } from '../types';
 
 const DEFAULT_RETRY = 2000;
 
@@ -21,7 +21,7 @@ type ResolveReference = {
 
 export class WhileValidTxSender extends BaseTxSender {
 	connection: Connection;
-	wallet: Wallet;
+	wallet: IWallet;
 	opts: ConfirmOptions;
 	timeout: number;
 	retrySleep: number;
@@ -44,7 +44,7 @@ export class WhileValidTxSender extends BaseTxSender {
 		txHandler,
 	}: {
 		connection: Connection;
-		wallet: Wallet;
+		wallet: IWallet;
 		opts?: ConfirmOptions;
 		retrySleep?: number;
 		additionalConnections?;

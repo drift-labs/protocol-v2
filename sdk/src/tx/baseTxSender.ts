@@ -20,14 +20,14 @@ import { AnchorProvider } from '@coral-xyz/anchor';
 import assert from 'assert';
 import bs58 from 'bs58';
 import { TxHandler } from './txHandler';
-import { Wallet } from '../wallet';
+import { IWallet } from '../types';
 
 const DEFAULT_TIMEOUT = 35000;
 const NOT_CONFIRMED_ERROR_CODE = -1001;
 
 export abstract class BaseTxSender implements TxSender {
 	connection: Connection;
-	wallet: Wallet;
+	wallet: IWallet;
 	opts: ConfirmOptions;
 	timeout: number;
 	additionalConnections: Connection[];
@@ -47,7 +47,7 @@ export abstract class BaseTxSender implements TxSender {
 		txHandler,
 	}: {
 		connection: Connection;
-		wallet: Wallet;
+		wallet: IWallet;
 		opts?: ConfirmOptions;
 		timeout?: number;
 		additionalConnections?;

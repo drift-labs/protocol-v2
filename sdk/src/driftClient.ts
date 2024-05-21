@@ -127,7 +127,6 @@ import { numberToSafeBN } from './math/utils';
 import { TransactionParamProcessor } from './tx/txParamProcessor';
 import { isOracleValid } from './math/oracles';
 import { TxHandler } from './tx/txHandler';
-import { Wallet } from './wallet';
 
 type RemainingAccountParams = {
 	userAccounts: UserAccount[];
@@ -216,7 +215,7 @@ export class DriftClient {
 
 		this.txHandler = config?.txHandler ?? new TxHandler({
 				connection: this.connection,
-				wallet: this.provider.wallet as Wallet,
+				wallet: this.provider.wallet,
 				confirmationOptions: this.opts,
 				opts: {
 					returnBlockHeightsWithSignedTxCallbackData: config.enableMetricsEvents,
@@ -330,7 +329,7 @@ export class DriftClient {
 			config.txSender ??
 			new RetryTxSender({
 				connection: this.connection,
-				wallet: this.wallet as Wallet,
+				wallet: this.wallet,
 				opts: this.opts,
 				txHandler: this.txHandler,
 			});
@@ -577,7 +576,7 @@ export class DriftClient {
 		// Update provider for txSender with new wallet details
 		this.txSender.wallet = newWallet;
 		this.wallet = newWallet;
-		this.txHandler.updateWallet(newWallet as Wallet);
+		this.txHandler.updateWallet(newWallet);
 		this.provider = newProvider;
 		this.program = newProgram;
 		this.authority = newWallet.publicKey;
@@ -4655,7 +4654,7 @@ export class DriftClient {
 		const signedTxs = await this.txHandler.getSignedTransactionMap(
 			txsToSign.map((tx) => tx.tx),
 			txsToSign.map((tx) => tx.key),
-			this.provider.wallet as Wallet,
+			this.provider.wallet,
 		);
 
 		const { txSig, slot } = await this.sendTransaction(

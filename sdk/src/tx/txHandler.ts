@@ -1,9 +1,8 @@
-import { BaseTxParams, TxParams } from "@drift-labs/sdk";
+import { BaseTxParams, IWallet, TxParams } from "@drift-labs/sdk";
 import { AddressLookupTableAccount, BlockhashWithExpiryBlockHeight, Commitment, ComputeBudgetProgram, ConfirmOptions, Connection, Message, MessageV0, Signer, Transaction, TransactionInstruction, TransactionMessage, TransactionVersion, VersionedTransaction } from "@solana/web3.js";
 import { TransactionParamProcessor } from "./txParamProcessor";
 import bs58 from 'bs58';
 import { DriftClientMetricsEvents, SignedTxData } from "../types";
-import { Wallet } from "../wallet";
 
 export const COMPUTE_UNITS_DEFAULT = 200_000;
 
@@ -17,7 +16,7 @@ export type TxBuildingProps = {
     forceVersionedTransaction?: boolean
     txParams?: TxParams,
     recentBlockHash?: BlockhashWithExpiryBlockHeight,
-    wallet?: Wallet,
+    wallet?: IWallet,
 };
 
 /**
@@ -29,7 +28,7 @@ export class TxHandler {
     private returnBlockHeightsWithSignedTxCallbackData = false;
 
     private connection: Connection;
-    private wallet: Wallet;
+    private wallet: IWallet;
     private confirmationOptions: ConfirmOptions;
 
     private onSignedCb?: (txSigs: DriftClientMetricsEvents['txSigned']) => void;
@@ -37,7 +36,7 @@ export class TxHandler {
     constructor(
         props : {
             connection: Connection,
-            wallet: Wallet,
+            wallet: IWallet,
             confirmationOptions: ConfirmOptions,
             opts?: {
                 returnBlockHeightsWithSignedTxCallbackData?: boolean;
@@ -60,15 +59,15 @@ export class TxHandler {
         this.blockHashToLastValidBlockHeightLookup[hashAndExpiry.blockhash] = hashAndExpiry.lastValidBlockHeight;
     }
 
-    private getProps = (wallet?:Wallet,  confirmationOpts?: ConfirmOptions) => [
+    private getProps = (wallet?: IWallet,  confirmationOpts?: ConfirmOptions) => [
         wallet ?? this.wallet,
         confirmationOpts ?? this.confirmationOptions
     ] as [
-        Wallet,
+        IWallet,
         ConfirmOptions
     ]
 
-    public updateWallet(wallet: Wallet) {
+    public updateWallet(wallet: IWallet) {
         this.wallet = wallet;
     }
 
@@ -96,7 +95,7 @@ export class TxHandler {
     public async prepareTx(
 		tx: Transaction,
 		additionalSigners: Array<Signer>,
-        wallet?: Wallet,
+        wallet?: IWallet,
 		confirmationOpts?: ConfirmOptions,
 		preSigned?: boolean,
         recentBlockhash?: BlockhashWithExpiryBlockHeight
@@ -143,7 +142,7 @@ export class TxHandler {
     private async signTx(
 		tx: Transaction,
         additionalSigners: Array<Signer>,
-        wallet?: Wallet,
+        wallet?: IWallet,
 	): Promise<Transaction> {
 
         [wallet] = this.getProps(wallet);
@@ -174,7 +173,7 @@ export class TxHandler {
 		tx: VersionedTransaction,
         additionalSigners: Array<Signer>,
         recentBlockHash?: BlockhashWithExpiryBlockHeight,
-        wallet?: Wallet,
+        wallet?: IWallet,
 	): Promise<VersionedTransaction> {
 
         [wallet] = this.getProps(wallet);
@@ -191,9 +190,8 @@ export class TxHandler {
                 tx.sign([kp]);
             });
             
-        // @ts-ignore :: TODO : They were either busted before or I'e done something wrong. Wonderin crisp/will's input on this. I'm confused about diff between IWallet and Wallet types. Why does Wallet have methods (e.g. `signVersionedTransaction`) which aren't actually present on the wallet at runtime?
+        //@ts-ignore
         const signedTx = await wallet.signTransaction(tx) as VersionedTransaction;
-        // const signedTx = await wallet.signVersionedTransaction(tx);
 
         // Turn txSig Buffer into base58 string
         const txSig = this.getTxSigFromSignedTx(signedTx);
@@ -281,7 +279,7 @@ export class TxHandler {
     public generateLegacyVersionedTransaction(
         recentBlockhash: BlockhashWithExpiryBlockHeight,
         ixs: TransactionInstruction[],
-        wallet?: Wallet
+        wallet?: IWallet
     ) {
         [wallet] = this.getProps(wallet);
 
@@ -298,7 +296,7 @@ export class TxHandler {
         recentBlockhash:BlockhashWithExpiryBlockHeight,
         ixs: TransactionInstruction[],
         lookupTableAccounts: AddressLookupTableAccount[],
-        wallet?: Wallet
+        wallet?: IWallet
     ) {
         [wallet] = this.getProps(wallet);
 
@@ -471,7 +469,7 @@ export class TxHandler {
     public async buildTransactionMap(
         txsToSign: (Transaction | undefined)[],
         keys: string[],
-        wallet?: Wallet,
+        wallet?: IWallet,
         commitment?: Commitment,
         recentBlockHash?: BlockhashWithExpiryBlockHeight
     ) {
@@ -485,7 +483,7 @@ export class TxHandler {
         for (const tx of txsToSign) {
             if (!tx) continue;
             tx.recentBlockhash = recentBlockHash.blockhash;
-            tx.feePayer = wallet?.publicKey ?? wallet?.payer?.publicKey ?? this.wallet?.publicKey ?? this.wallet?.payer?.publicKey;
+            tx.feePayer = wallet?.publicKey ?? this.wallet?.publicKey;
         }
 
         return this.getSignedTransactionMap(txsToSign, keys, wallet);
@@ -502,7 +500,7 @@ export class TxHandler {
     public async getPreparedAndSignedLegacyTransactionMap(
         txsToSign: (Transaction | undefined)[],
         keys: string[],
-        wallet?: Wallet,
+        wallet?: IWallet,
         commitment?: Commitment,
         recentBlockHash?: BlockhashWithExpiryBlockHeight
     ) {
@@ -515,7 +513,7 @@ export class TxHandler {
         for (const tx of txsToSign) {
             if (!tx) continue;
             tx.recentBlockhash = recentBlockHash.blockhash;
-            tx.feePayer = wallet?.publicKey ?? wallet?.payer?.publicKey ?? this.wallet?.publicKey ?? this.wallet?.payer?.publicKey;
+            tx.feePayer = wallet?.publicKey ?? this.wallet?.publicKey;
         }
 
         return this.getSignedTransactionMap(txsToSign, keys, wallet);
@@ -531,7 +529,7 @@ export class TxHandler {
     public async getSignedTransactionMap(
         txsToSign: (Transaction | VersionedTransaction | undefined)[],
         keys: string[],
-        wallet?: Wallet,
+        wallet?: IWallet,
     ): Promise<{ [key: string]: Transaction | VersionedTransaction | undefined }> {
 
         [wallet] = this.getProps(wallet);
