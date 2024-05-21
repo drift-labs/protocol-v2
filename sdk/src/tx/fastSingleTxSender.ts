@@ -9,14 +9,14 @@ import {
 import { AnchorProvider } from '@coral-xyz/anchor';
 import { BaseTxSender } from './baseTxSender';
 import { TxHandler } from './txHandler';
-import { Wallet } from '@drift-labs/sdk';
+import { IWallet } from '../types';
 
 const DEFAULT_TIMEOUT = 35000;
 const DEFAULT_BLOCKHASH_REFRESH = 10000;
 
 export class FastSingleTxSender extends BaseTxSender {
 	connection: Connection;
-	wallet: Wallet;
+	wallet: IWallet;
 	opts: ConfirmOptions;
 	timeout: number;
 	blockhashRefreshInterval: number;
@@ -40,7 +40,7 @@ export class FastSingleTxSender extends BaseTxSender {
 		txHandler,
 	}: {
 		connection: Connection;
-		wallet: Wallet;
+		wallet: IWallet;
 		opts?: ConfirmOptions;
 		timeout?: number;
 		blockhashRefreshInterval?: number;
