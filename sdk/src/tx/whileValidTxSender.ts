@@ -78,9 +78,7 @@ export class WhileValidTxSender extends BaseTxSender {
 		preSigned?: boolean
 	): Promise<Transaction> {
 		
-		const latestBlockhash = await this.connection.getLatestBlockhash(
-			this.blockhashCommitment
-		);
+		const latestBlockhash = await this.txHandler.getLatestBlockhashForTransaction();
 
 		// handle tx
 		let signedTx = tx;
@@ -103,9 +101,7 @@ export class WhileValidTxSender extends BaseTxSender {
 		opts?: ConfirmOptions,
 		preSigned?: boolean,
 	): Promise<TxSigAndSlot> {
-		const latestBlockhash = await this.connection.getLatestBlockhash(
-			this.blockhashCommitment
-		);
+		const latestBlockhash = await this.txHandler.getLatestBlockhashForTransaction();
 
 		let signedTx;
 		if (preSigned) {
