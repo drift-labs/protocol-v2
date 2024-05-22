@@ -3989,7 +3989,7 @@ export class DriftClient {
 		const { beginSwapIx, endSwapIx } = await this.getSwapIx({
 			outMarketIndex,
 			inMarketIndex,
-			amountIn: amount,
+			amountIn: new BN(route.inAmount),
 			inTokenAccount: inAssociatedTokenAccount,
 			outTokenAccount: outAssociatedTokenAccount,
 			reduceOnly,
@@ -4119,7 +4119,7 @@ export class DriftClient {
 		const { beginSwapIx, endSwapIx } = await this.getSwapIx({
 			outMarketIndex,
 			inMarketIndex,
-			amountIn: amount,
+			amountIn: new BN(quote.inAmount),
 			inTokenAccount: inAssociatedTokenAccount,
 			outTokenAccount: outAssociatedTokenAccount,
 			reduceOnly,
