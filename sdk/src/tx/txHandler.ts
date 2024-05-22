@@ -45,6 +45,7 @@ export class TxHandler {
 	private wallet: IWallet;
 	private confirmationOptions: ConfirmOptions;
 
+	private preSignedCb?: () => void;
 	private onSignedCb?: (txSigs: DriftClientMetricsEvents['txSigned']) => void;
 
 	constructor(props: {
@@ -54,6 +55,7 @@ export class TxHandler {
 		opts?: {
 			returnBlockHeightsWithSignedTxCallbackData?: boolean;
 			onSignedCb?: (txSigs: DriftClientMetricsEvents['txSigned']) => void;
+			preSignedCb?: () => void;
 		};
 	}) {
 		this.connection = props.connection;
@@ -64,6 +66,7 @@ export class TxHandler {
 		this.returnBlockHeightsWithSignedTxCallbackData =
 			props.opts?.returnBlockHeightsWithSignedTxCallbackData ?? false;
 		this.onSignedCb = props.opts?.onSignedCb;
+		this.preSignedCb = props.opts?.preSignedCb;
 	}
 
 	private addHashAndExpiryToLookup(
@@ -172,6 +175,8 @@ export class TxHandler {
 				tx.partialSign(kp);
 			});
 
+		this.preSignedCb?.();
+
 		const signedTx = await wallet.signTransaction(tx);
 
 		// Turn txSig Buffer into base58 string
@@ -207,6 +212,8 @@ export class TxHandler {
 			.forEach((kp) => {
 				tx.sign([kp]);
 			});
+
+		this.preSignedCb?.();
 
 		//@ts-ignore
 		const signedTx = (await wallet.signTransaction(tx)) as VersionedTransaction;
@@ -566,6 +573,8 @@ export class TxHandler {
 				keysWithTx.push(keys[index]);
 			}
 		});
+
+		this.preSignedCb?.();
 
 		const signedTxs = await wallet.signAllTransactions(
 			txsToSign

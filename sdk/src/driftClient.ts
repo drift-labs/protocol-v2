@@ -219,7 +219,8 @@ export class DriftClient {
 				confirmationOptions: this.opts,
 				opts: {
 					returnBlockHeightsWithSignedTxCallbackData: config.enableMetricsEvents,
-					onSignedCb: this.handleSignedTransaction.bind(this)
+					onSignedCb: this.handleSignedTransaction.bind(this),
+					preSignedCb: this.handlePreSignedTransaction.bind(this),
 				}
 			},
 		);
@@ -6630,6 +6631,10 @@ export class DriftClient {
 
 	private handleSignedTransaction(signedTxs: SignedTxData[]) {
 		this.metricsEventEmitter.emit('txSigned', signedTxs);
+	}
+	
+	private handlePreSignedTransaction() {
+		this.metricsEventEmitter.emit('preTxSigned');
 	}
 
 	private isVersionedTransaction(
