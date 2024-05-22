@@ -6655,7 +6655,9 @@ export class DriftClient {
 	}
 	
 	private handlePreSignedTransaction() {
-		this.metricsEventEmitter.emit('preTxSigned');
+		if (this.enableMetricsEvents && this.metricsEventEmitter) {
+			this.metricsEventEmitter.emit('preTxSigned');
+		}
 	}
 
 	private isVersionedTransaction(
