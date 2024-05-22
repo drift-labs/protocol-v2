@@ -320,10 +320,11 @@ export class DriftClient {
 			);
 		}
 		this.eventEmitter = this.accountSubscriber.eventEmitter;
+		
+		this.metricsEventEmitter = new EventEmitter();
 
 		if (config.enableMetricsEvents) {
 			this.enableMetricsEvents = true;
-			this.metricsEventEmitter = new EventEmitter();
 		}
 
 		this.txSender =
@@ -6648,7 +6649,9 @@ export class DriftClient {
 	}
 
 	private handleSignedTransaction(signedTxs: SignedTxData[]) {
-		this.metricsEventEmitter.emit('txSigned', signedTxs);
+		if (this.enableMetricsEvents && this.metricsEventEmitter) {
+			this.metricsEventEmitter.emit('txSigned', signedTxs);
+		}
 	}
 	
 	private handlePreSignedTransaction() {
