@@ -413,6 +413,8 @@ function groupL2Levels(
 					currentLevel.sources[source] = size;
 				}
 			}
+
+			groupedLevels[groupedLevels.length - 1] = currentLevel;
 		} else {
 			const groupedLevel = {
 				price: price,
