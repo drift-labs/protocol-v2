@@ -1,4 +1,3 @@
-import { BaseTxParams, IWallet, TxParams } from '@drift-labs/sdk';
 import {
 	AddressLookupTableAccount,
 	BlockhashWithExpiryBlockHeight,
@@ -17,7 +16,7 @@ import {
 } from '@solana/web3.js';
 import { TransactionParamProcessor } from './txParamProcessor';
 import bs58 from 'bs58';
-import { DriftClientMetricsEvents, SignedTxData } from '../types';
+import { BaseTxParams, DriftClientMetricsEvents, IWallet, SignedTxData, TxParams } from '../types';
 
 export const COMPUTE_UNITS_DEFAULT = 200_000;
 
