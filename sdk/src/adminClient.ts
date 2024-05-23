@@ -3470,7 +3470,7 @@ export class AdminClient extends DriftClient {
 			perpMarketIndex
 		);
 
-		return await this.program.instruction.getDeletePrelaunchOracleIx(params, {
+		return await this.program.instruction.deletePrelaunchOracle(params, {
 			accounts: {
 				admin: this.isSubscribed
 					? this.getStateAccount().admin
