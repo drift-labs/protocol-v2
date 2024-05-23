@@ -962,6 +962,8 @@ impl PerpPosition {
     }
 }
 
+pub(crate) type PerpPositions = [PerpPosition; 8];
+
 #[cfg(test)]
 use crate::math::constants::{AMM_TO_QUOTE_PRECISION_RATIO_I128, PRICE_PRECISION_I128};
 #[cfg(test)]
@@ -1001,8 +1003,6 @@ impl PerpPosition {
             .safe_div(self.base_asset_amount.cast()?)
     }
 }
-
-pub type PerpPositions = [PerpPosition; 8];
 
 #[zero_copy(unsafe)]
 #[repr(C)]
