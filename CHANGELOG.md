@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Features
 
+- program: TransferProtocolIfShares constraint ([#1055](https://github.com/drift-labs/protocol-v2/pull/1055))
 - program: sanitize extreme auction end prices ([#1031](https://github.com/drift-labs/protocol-v2/pull/1031))
 
 ### Fixes
