@@ -142,17 +142,12 @@ export class WebSocketAccountSubscriber<T> implements AccountSubscriber<T> {
 				slot: newSlot,
 			};
 			if (newBuffer) {
-				try {
-					const account = this.decodeBuffer(newBuffer);
-					this.dataAndSlot = {
-						data: account,
-						slot: newSlot,
-					};
-					this.onChange(account);
-				} catch (e) {
-					console.log('Error decoding account', this.accountPublicKey.toString());
-				}
-				
+				const account = this.decodeBuffer(newBuffer);
+				this.dataAndSlot = {
+					data: account,
+					slot: newSlot,
+				};
+				this.onChange(account);
 			}
 			return;
 		}
