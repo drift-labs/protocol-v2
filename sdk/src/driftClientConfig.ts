@@ -10,6 +10,7 @@ import { OracleInfo } from './oracles/types';
 import { BulkAccountLoader } from './accounts/bulkAccountLoader';
 import { DriftEnv } from './config';
 import { TxSender } from './tx/types';
+import { TxHandler } from './tx/txHandler';
 
 export type DriftClientConfig = {
 	connection: Connection;
@@ -19,6 +20,7 @@ export type DriftClientConfig = {
 	accountSubscription?: DriftClientSubscriptionConfig;
 	opts?: ConfirmOptions;
 	txSender?: TxSender;
+	txHandler?: TxHandler;
 	subAccountIds?: number[];
 	activeSubAccountId?: number;
 	perpMarketIndexes?: number[];
