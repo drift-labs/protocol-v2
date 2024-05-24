@@ -4561,9 +4561,9 @@ export class DriftClient {
 		const shouldUseSimulationComputeUnits = txParams?.useSimulatedComputeUnits;
 		const shouldExitIfSimulationFails = simulateFirst;
 
-		const txParamsWithoutImplicitSimulation = {
+		const txParamsWithoutImplicitSimulation : TxParams = {
 			...txParams,
-			useSimulationComputeUnits: false,
+			useSimulatedComputeUnits: false,
 		};
 
 		// Get recent block hash so that we can re-use it for all transactions. Makes this logic run faster with fewer RPC requests
@@ -4583,7 +4583,8 @@ export class DriftClient {
 			const simulationResult =
 				await TransactionParamProcessor.getTxSimComputeUnits(
 					placeAndTakeTxToSim,
-					this.connection
+					this.connection,
+					txParams.computeUnitsBufferMultiplier ?? 1.2
 				);
 
 			if (shouldExitIfSimulationFails && !simulationResult.success) {
@@ -4609,7 +4610,7 @@ export class DriftClient {
 				key: keys.placeAndTakeIx,
 				tx: await this.buildTransaction(
 					placeAndTakeIxs,
-					txParamsWithoutImplicitSimulation,
+					txParams,
 					undefined,
 					undefined,
 					undefined,
@@ -6694,7 +6695,7 @@ export class DriftClient {
 		return this.txHandler.buildTransaction({
 			instructions,
 			txVersion: txVersion ?? this.txVersion,
-			txParams,
+			txParams: txParams ?? this.txParams,
 			connection: this.connection,
 			preFlightCommitment: this.opts.preflightCommitment,
 			fetchMarketLookupTableAccount:
@@ -6715,7 +6716,7 @@ export class DriftClient {
 		return this.txHandler.buildBulkTransactions({
 			instructions,
 			txVersion: txVersion ?? this.txVersion,
-			txParams,
+			txParams: txParams ?? this.txParams,
 			connection: this.connection,
 			preFlightCommitment: this.opts.preflightCommitment,
 			fetchMarketLookupTableAccount:
@@ -6736,7 +6737,7 @@ export class DriftClient {
 		return this.txHandler.buildAndSignTransactionMap({
 			instructions,
 			txVersion: txVersion ?? this.txVersion,
-			txParams,
+			txParams: txParams ?? this.txParams,
 			connection: this.connection,
 			preFlightCommitment: this.opts.preflightCommitment,
 			fetchMarketLookupTableAccount:
