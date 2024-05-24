@@ -567,6 +567,16 @@ export const MainnetPerpMarkets: PerpMarketConfig[] = [
 		launchTs: 1712593532000,
 		oracleSource: OracleSource.SWITCHBOARD,
 	},
+	{
+		fullName: 'Drift',
+		category: ['DEX', 'Solana'],
+		symbol: 'DRIFT-PERP',
+		baseAssetSymbol: 'DRIFT',
+		marketIndex: 30,
+		oracle: new PublicKey('PeNpQeGEm9UEFJ6MBCMauY4WW4h3YxoESPWbsqVKucE'),
+		launchTs: 1716595200000,
+		oracleSource: OracleSource.SWITCHBOARD,
+	},
 ];
 
 export const PerpMarkets: { [key in DriftEnv]: PerpMarketConfig[] } = {
