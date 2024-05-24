@@ -4,6 +4,7 @@ import {
 	NotSubscribedError,
 	UserAccountEvents,
 	UserAccountSubscriber,
+	ResubOpts,
 } from './types';
 import { Program } from '@coral-xyz/anchor';
 import StrictEventEmitter from 'strict-event-emitter-types';
@@ -14,7 +15,7 @@ import { UserAccount } from '../types';
 
 export class WebSocketUserAccountSubscriber implements UserAccountSubscriber {
 	isSubscribed: boolean;
-	reconnectTimeoutMs?: number;
+	resubOpts?: ResubOpts;
 	commitment?: Commitment;
 	program: Program;
 	eventEmitter: StrictEventEmitter<EventEmitter, UserAccountEvents>;
@@ -25,14 +26,14 @@ export class WebSocketUserAccountSubscriber implements UserAccountSubscriber {
 	public constructor(
 		program: Program,
 		userAccountPublicKey: PublicKey,
-		reconnectTimeoutMs?: number,
+		resubOpts?: ResubOpts,
 		commitment?: Commitment
 	) {
 		this.isSubscribed = false;
 		this.program = program;
+		this.resubOpts = resubOpts;
 		this.userAccountPublicKey = userAccountPublicKey;
 		this.eventEmitter = new EventEmitter();
-		this.reconnectTimeoutMs = reconnectTimeoutMs;
 		this.commitment = commitment;
 	}
 
@@ -46,7 +47,7 @@ export class WebSocketUserAccountSubscriber implements UserAccountSubscriber {
 			this.program,
 			this.userAccountPublicKey,
 			undefined,
-			this.reconnectTimeoutMs,
+			this.resubOpts,
 			this.commitment
 		);
 

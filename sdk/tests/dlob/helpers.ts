@@ -142,6 +142,10 @@ export const mockAMM: AMM = {
 	bidQuoteAssetReserve: new BN(0),
 	askBaseAssetReserve: new BN(0),
 	askQuoteAssetReserve: new BN(0),
+
+	netUnsettledFundingPnl: new BN(0),
+	quoteAssetAmountWithUnsettledLp: new BN(0),
+	referencePriceOffset: 0,
 };
 
 export const mockPerpMarkets: Array<PerpMarketAccount> = [
@@ -346,6 +350,7 @@ export const mockSpotMarkets: Array<SpotMarketAccount> = [
 			lastIndexPriceTwapTs: new BN(0),
 		},
 		pausedOperations: 0,
+		ifPausedOperations: 0,
 	},
 	{
 		status: MarketStatus.ACTIVE,
@@ -428,6 +433,7 @@ export const mockSpotMarkets: Array<SpotMarketAccount> = [
 			lastIndexPriceTwapTs: new BN(0),
 		},
 		pausedOperations: 0,
+		ifPausedOperations: 0,
 	},
 	{
 		status: MarketStatus.ACTIVE,
@@ -510,6 +516,7 @@ export const mockSpotMarkets: Array<SpotMarketAccount> = [
 			lastIndexPriceTwapTs: new BN(0),
 		},
 		pausedOperations: 0,
+		ifPausedOperations: 0,
 	},
 ];
 

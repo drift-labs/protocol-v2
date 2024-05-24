@@ -34,6 +34,7 @@ import { TOKEN_PROGRAM_ID } from '@solana/spl-token';
 import { DriftClient } from './driftClient';
 import {
 	PEG_PRECISION,
+	QUOTE_SPOT_MARKET_INDEX,
 	ZERO,
 	ONE,
 	BASE_PRECISION,
@@ -1018,6 +1019,60 @@ export class AdminClient extends DriftClient {
 		const { txSig } = await this.sendTransaction(tx, [], this.opts);
 
 		return txSig;
+	}
+
+	public async updatePerpMarketAmmSummaryStats(
+		perpMarketIndex: number,
+		updateAmmSummaryStats?: boolean,
+		quoteAssetAmountWithUnsettledLp?: BN,
+		netUnsettledFundingPnl?: BN
+	): Promise<TransactionSignature> {
+		const updatePerpMarketMarginRatioIx =
+			await this.getUpdatePerpMarketAmmSummaryStatsIx(
+				perpMarketIndex,
+				updateAmmSummaryStats,
+				quoteAssetAmountWithUnsettledLp,
+				netUnsettledFundingPnl
+			);
+
+		const tx = await this.buildTransaction(updatePerpMarketMarginRatioIx);
+
+		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+
+		return txSig;
+	}
+
+	public async getUpdatePerpMarketAmmSummaryStatsIx(
+		perpMarketIndex: number,
+		updateAmmSummaryStats?: boolean,
+		quoteAssetAmountWithUnsettledLp?: BN,
+		netUnsettledFundingPnl?: BN
+	): Promise<TransactionInstruction> {
+		return await this.program.instruction.updatePerpMarketAmmSummaryStats(
+			{
+				updateAmmSummaryStats: updateAmmSummaryStats ?? null,
+				quoteAssetAmountWithUnsettledLp:
+					quoteAssetAmountWithUnsettledLp ?? null,
+				netUnsettledFundingPnl: netUnsettledFundingPnl ?? null,
+			},
+			{
+				accounts: {
+					admin: this.isSubscribed
+						? this.getStateAccount().admin
+						: this.wallet.publicKey,
+					state: await this.getStatePublicKey(),
+					perpMarket: await getPerpMarketPublicKey(
+						this.program.programId,
+						perpMarketIndex
+					),
+					spotMarket: await getSpotMarketPublicKey(
+						this.program.programId,
+						QUOTE_SPOT_MARKET_INDEX
+					),
+					oracle: this.getPerpMarketAccount(perpMarketIndex).amm.oracle,
+				},
+			}
+		);
 	}
 
 	public async getUpdatePerpMarketTargetBaseAssetAmountPerLpIx(
@@ -2171,6 +2226,44 @@ export class AdminClient extends DriftClient {
 	): Promise<TransactionInstruction> {
 		return await this.program.instruction.updateSpotMarketOrdersEnabled(
 			ordersEnabled,
+			{
+				accounts: {
+					admin: this.isSubscribed
+						? this.getStateAccount().admin
+						: this.wallet.publicKey,
+					state: await this.getStatePublicKey(),
+					spotMarket: await getSpotMarketPublicKey(
+						this.program.programId,
+						spotMarketIndex
+					),
+				},
+			}
+		);
+	}
+
+	public async updateSpotMarketIfPausedOperations(
+		spotMarketIndex: number,
+		pausedOperations: number
+	): Promise<TransactionSignature> {
+		const updateSpotMarketIfStakingDisabledIx =
+			await this.getUpdateSpotMarketIfPausedOperationsIx(
+				spotMarketIndex,
+				pausedOperations
+			);
+
+		const tx = await this.buildTransaction(updateSpotMarketIfStakingDisabledIx);
+
+		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+
+		return txSig;
+	}
+
+	public async getUpdateSpotMarketIfPausedOperationsIx(
+		spotMarketIndex: number,
+		pausedOperations: number
+	): Promise<TransactionInstruction> {
+		return await this.program.instruction.updateSpotMarketIfPausedOperations(
+			pausedOperations,
 			{
 				accounts: {
 					admin: this.isSubscribed

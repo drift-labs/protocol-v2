@@ -14,6 +14,7 @@ export type OrderSubscriberConfig = {
 				type: 'websocket';
 				skipInitialLoad?: boolean;
 				resubTimeoutMs?: number;
+				logResubMessages?: boolean;
 				resyncIntervalMs?: number;
 				commitment?: Commitment;
 		  };

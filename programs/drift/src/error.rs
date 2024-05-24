@@ -521,6 +521,8 @@ pub enum ErrorCode {
     CantPayUserInitFee,
     #[msg("CantReclaimRent")]
     CantReclaimRent,
+    #[msg("InsuranceFundOperationPaused")]
+    InsuranceFundOperationPaused,
 }
 
 #[macro_export]

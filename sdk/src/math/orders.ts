@@ -287,7 +287,8 @@ function isSameDirection(
 export function isOrderExpired(
 	order: Order,
 	ts: number,
-	enforceBuffer = false
+	enforceBuffer = false,
+	bufferSeconds = 15
 ): boolean {
 	if (
 		mustBeTriggered(order) ||
@@ -299,7 +300,7 @@ export function isOrderExpired(
 
 	let maxTs;
 	if (enforceBuffer && isLimitOrder(order)) {
-		maxTs = order.maxTs.addn(15);
+		maxTs = order.maxTs.addn(bufferSeconds);
 	} else {
 		maxTs = order.maxTs;
 	}

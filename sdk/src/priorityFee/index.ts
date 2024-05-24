@@ -4,6 +4,8 @@ export * from './ewmaStrategy';
 export * from './maxOverSlotsStrategy';
 export * from './maxStrategy';
 export * from './priorityFeeSubscriber';
+export * from './priorityFeeSubscriberMap';
 export * from './solanaPriorityFeeMethod';
 export * from './heliusPriorityFeeMethod';
+export * from './driftPriorityFeeMethod';
 export * from './types';

@@ -48,10 +48,6 @@ export interface DriftClientAccountEvents {
 	error: (e: Error) => void;
 }
 
-export interface DriftClientMetricsEvents {
-	txSigned: void;
-}
-
 export interface DriftClientAccountSubscriber {
 	eventEmitter: StrictEventEmitter<EventEmitter, DriftClientAccountEvents>;
 	isSubscribed: boolean;
@@ -182,6 +178,11 @@ export type BufferAndSlot = {
 export type DataAndSlot<T> = {
 	data: T;
 	slot: number;
+};
+
+export type ResubOpts = {
+	resubTimeoutMs?: number;
+	logResubMessages?: boolean;
 };
 
 export interface UserStatsAccountEvents {

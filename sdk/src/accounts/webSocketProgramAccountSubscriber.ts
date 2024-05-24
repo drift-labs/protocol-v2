@@ -1,4 +1,9 @@
-import { DataAndSlot, BufferAndSlot, ProgramAccountSubscriber } from './types';
+import {
+	DataAndSlot,
+	BufferAndSlot,
+	ProgramAccountSubscriber,
+	ResubOpts,
+} from './types';
 import { AnchorProvider, Program } from '@coral-xyz/anchor';
 import {
 	Commitment,
@@ -25,7 +30,7 @@ export class WebSocketProgramAccountSubscriber<T>
 		buffer: Buffer
 	) => void;
 	listenerId?: number;
-	resubTimeoutMs?: number;
+	resubOpts?: ResubOpts;
 	isUnsubscribing = false;
 	timeoutId?: NodeJS.Timeout;
 	options: { filters: MemcmpFilter[]; commitment?: Commitment };
@@ -40,14 +45,14 @@ export class WebSocketProgramAccountSubscriber<T>
 		options: { filters: MemcmpFilter[]; commitment?: Commitment } = {
 			filters: [],
 		},
-		resubTimeoutMs?: number
+		resubOpts?: ResubOpts
 	) {
 		this.subscriptionName = subscriptionName;
 		this.accountDiscriminator = accountDiscriminator;
 		this.program = program;
 		this.decodeBuffer = decodeBufferFn;
-		this.resubTimeoutMs = resubTimeoutMs;
-		if (this.resubTimeoutMs < 1000) {
+		this.resubOpts = resubOpts;
+		if (this.resubOpts?.resubTimeoutMs < 1000) {
 			console.log(
 				'resubTimeoutMs should be at least 1000ms to avoid spamming resub'
 			);
@@ -73,7 +78,7 @@ export class WebSocketProgramAccountSubscriber<T>
 		this.listenerId = this.program.provider.connection.onProgramAccountChange(
 			this.program.programId,
 			(keyedAccountInfo, context) => {
-				if (this.resubTimeoutMs) {
+				if (this.resubOpts?.resubTimeoutMs) {
 					this.receivingData = true;
 					clearTimeout(this.timeoutId);
 					this.handleRpcResponse(context, keyedAccountInfo);
@@ -87,7 +92,7 @@ export class WebSocketProgramAccountSubscriber<T>
 			this.options.filters
 		);
 
-		if (this.resubTimeoutMs) {
+		if (this.resubOpts?.resubTimeoutMs) {
 			this.receivingData = true;
 			this.setTimeout();
 		}
@@ -97,21 +102,26 @@ export class WebSocketProgramAccountSubscriber<T>
 		if (!this.onChange) {
 			throw new Error('onChange callback function must be set');
 		}
-		this.timeoutId = setTimeout(async () => {
-			if (this.isUnsubscribing) {
-				// If we are in the process of unsubscribing, do not attempt to resubscribe
-				return;
-			}
+		this.timeoutId = setTimeout(
+			async () => {
+				if (this.isUnsubscribing) {
+					// If we are in the process of unsubscribing, do not attempt to resubscribe
+					return;
+				}
 
-			if (this.receivingData) {
-				console.log(
-					`No ws data from ${this.subscriptionName} in ${this.resubTimeoutMs}ms, resubscribing`
-				);
-				await this.unsubscribe(true);
-				this.receivingData = false;
-				await this.subscribe(this.onChange);
-			}
-		}, this.resubTimeoutMs);
+				if (this.receivingData) {
+					if (this.resubOpts?.logResubMessages) {
+						console.log(
+							`No ws data from ${this.subscriptionName} in ${this.resubOpts?.resubTimeoutMs}ms, resubscribing`
+						);
+					}
+					await this.unsubscribe(true);
+					this.receivingData = false;
+					await this.subscribe(this.onChange);
+				}
+			},
+			this.resubOpts?.resubTimeoutMs
+		);
 	}
 
 	handleRpcResponse(
@@ -163,7 +173,7 @@ export class WebSocketProgramAccountSubscriber<T>
 
 	unsubscribe(onResub = false): Promise<void> {
 		if (!onResub) {
-			this.resubTimeoutMs = undefined;
+			this.resubOpts.resubTimeoutMs = undefined;
 		}
 		this.isUnsubscribing = true;
 		clearTimeout(this.timeoutId);
