@@ -6694,7 +6694,7 @@ export class DriftClient {
 		return this.txHandler.buildTransaction({
 			instructions,
 			txVersion: txVersion ?? this.txVersion,
-			txParams,
+			txParams: txParams ?? this.txParams,
 			connection: this.connection,
 			preFlightCommitment: this.opts.preflightCommitment,
 			fetchMarketLookupTableAccount:
@@ -6715,7 +6715,7 @@ export class DriftClient {
 		return this.txHandler.buildBulkTransactions({
 			instructions,
 			txVersion: txVersion ?? this.txVersion,
-			txParams,
+			txParams: txParams ?? this.txParams,
 			connection: this.connection,
 			preFlightCommitment: this.opts.preflightCommitment,
 			fetchMarketLookupTableAccount:
@@ -6736,7 +6736,7 @@ export class DriftClient {
 		return this.txHandler.buildAndSignTransactionMap({
 			instructions,
 			txVersion: txVersion ?? this.txVersion,
-			txParams,
+			txParams: txParams ?? this.txParams,
 			connection: this.connection,
 			preFlightCommitment: this.opts.preflightCommitment,
 			fetchMarketLookupTableAccount:
