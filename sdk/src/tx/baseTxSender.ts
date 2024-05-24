@@ -214,8 +214,9 @@ export abstract class BaseTxSender implements TxSender {
 		if (response === null) {
 			if (this.confirmationStrategy === ConfirmationStrategy.Combo) {
 				try {
-					const rpcResponse =
-						await this.connection.getSignatureStatus(signature);
+					const rpcResponse = await this.connection.getSignatureStatus(
+						signature
+					);
 					if (rpcResponse?.value?.confirmationStatus) {
 						response = {
 							context: rpcResponse.context,

@@ -1191,8 +1191,8 @@ export interface DriftClientMetricsEvents {
 }
 
 export type SignedTxData = {
-    txSig: string;
-    signedTx: Transaction | VersionedTransaction;
-    lastValidBlockHeight?: number;
-    blockHash: string;
+	txSig: string;
+	signedTx: Transaction | VersionedTransaction;
+	lastValidBlockHeight?: number;
+	blockHash: string;
 };

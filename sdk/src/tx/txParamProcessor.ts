@@ -7,6 +7,7 @@ import {
 import { BaseTxParams, ProcessingTxParams } from '..';
 
 const COMPUTE_UNIT_BUFFER_FACTOR = 1.2;
+const MAX_COMPUTE_UNITS = 1_400_000;
 
 const TEST_SIMS_ALWAYS_FAIL = false;
 
@@ -30,7 +31,8 @@ export class TransactionParamProcessor {
 
 	public static async getTxSimComputeUnits(
 		tx: VersionedTransaction,
-		connection: Connection
+		connection: Connection,
+		bufferMultiplier: number, // Making this a mandatory param to force the user to remember that simulated CU's can be inaccurate and a buffer should be applied
 	): Promise<{ success: boolean; computeUnits: number }> {
 		try {
 			if (TEST_SIMS_ALWAYS_FAIL)
@@ -46,9 +48,12 @@ export class TransactionParamProcessor {
 
 			const computeUnits = await this.getComputeUnitsFromSim(simTxResult);
 
+			// Apply the buffer, but round down to the MAX_COMPUTE_UNITS, and round up to the nearest whole number
+			const bufferedComputeUnits = Math.ceil(Math.min(computeUnits * bufferMultiplier, MAX_COMPUTE_UNITS));
+
 			return {
 				success: true,
-				computeUnits: computeUnits,
+				computeUnits: bufferedComputeUnits,
 			};
 		} catch (e) {
 			console.warn(
@@ -92,22 +97,18 @@ export class TransactionParamProcessor {
 		// # Run Processes
 		if (processConfig.useSimulatedComputeUnits) {
 			const txToSim = await txBuilder({
-				txParams: { ...finalTxParams, computeUnits: 1_400_000 },
+				txParams: { ...finalTxParams, computeUnits: MAX_COMPUTE_UNITS },
 			});
 
 			const txSimComputeUnitsResult = await this.getTxSimComputeUnits(
 				txToSim,
-				processProps.connection
+				processProps.connection,
+				processConfig?.computeUnitsBufferMultiplier ?? COMPUTE_UNIT_BUFFER_FACTOR
 			);
 
 			if (txSimComputeUnitsResult.success) {
-				const bufferedComputeUnits =
-					txSimComputeUnitsResult.computeUnits *
-					(processConfig?.computeUnitsBufferMultiplier ??
-						COMPUTE_UNIT_BUFFER_FACTOR);
-
 				// Adjust the transaction based on the simulated compute units
-				finalTxParams.computeUnits = Math.ceil(bufferedComputeUnits); // Round the compute units to a whole number
+				finalTxParams.computeUnits = txSimComputeUnitsResult.computeUnits;
 			}
 		}
 
