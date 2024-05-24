@@ -16,7 +16,13 @@ import {
 } from '@solana/web3.js';
 import { TransactionParamProcessor } from './txParamProcessor';
 import bs58 from 'bs58';
-import { BaseTxParams, DriftClientMetricsEvents, IWallet, SignedTxData, TxParams } from '../types';
+import {
+	BaseTxParams,
+	DriftClientMetricsEvents,
+	IWallet,
+	SignedTxData,
+	TxParams,
+} from '../types';
 
 export const COMPUTE_UNITS_DEFAULT = 200_000;
 

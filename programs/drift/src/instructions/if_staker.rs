@@ -472,6 +472,8 @@ pub struct TransferProtocolIfShares<'info> {
     pub spot_market: AccountLoader<'info, SpotMarket>,
     #[account(
         mut,
+        seeds = [b"insurance_fund_stake", authority.key.as_ref(), market_index.to_le_bytes().as_ref()],
+        bump,
         has_one = authority,
     )]
     pub insurance_fund_stake: AccountLoader<'info, InsuranceFundStake>,
