@@ -4561,9 +4561,9 @@ export class DriftClient {
 		const shouldUseSimulationComputeUnits = txParams?.useSimulatedComputeUnits;
 		const shouldExitIfSimulationFails = simulateFirst;
 
-		const txParamsWithoutImplicitSimulation = {
+		const txParamsWithoutImplicitSimulation : TxParams = {
 			...txParams,
-			useSimulationComputeUnits: false,
+			useSimulatedComputeUnits: false,
 		};
 
 		// Get recent block hash so that we can re-use it for all transactions. Makes this logic run faster with fewer RPC requests
