@@ -4583,7 +4583,8 @@ export class DriftClient {
 			const simulationResult =
 				await TransactionParamProcessor.getTxSimComputeUnits(
 					placeAndTakeTxToSim,
-					this.connection
+					this.connection,
+					txParams.computeUnitsBufferMultiplier ?? 1.2
 				);
 
 			if (shouldExitIfSimulationFails && !simulationResult.success) {
@@ -4609,7 +4610,7 @@ export class DriftClient {
 				key: keys.placeAndTakeIx,
 				tx: await this.buildTransaction(
 					placeAndTakeIxs,
-					txParamsWithoutImplicitSimulation,
+					txParams,
 					undefined,
 					undefined,
 					undefined,
