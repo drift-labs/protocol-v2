@@ -43,7 +43,7 @@ export class ForwardOnlyTxSender extends BaseTxSender {
 		retrySleep?: number;
 		confirmationStrategy?: ConfirmationStrategy;
 		additionalTxSenderCallbacks?: ((base58EncodedTx: string) => void)[];
-		txHandler: TxHandler;
+		txHandler?: TxHandler;
 	}) {
 		super({
 			connection,
