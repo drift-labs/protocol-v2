@@ -4523,7 +4523,7 @@ export class DriftClient {
 		subAccountId?: number,
 		cancelExistingOrders?: boolean,
 		settlePnl?: boolean,
-		simulateFirst?: boolean
+		exitEarlyIfSimFails?: boolean
 	): Promise<{
 		txSig: TransactionSignature;
 		signedCancelExistingOrdersTx?: Transaction;
@@ -4546,6 +4546,8 @@ export class DriftClient {
 		const recentBlockHash =
 			await this.txHandler.getLatestBlockhashForTransaction();
 
+		let earlyExitFailedPlaceAndTakeSim = false;
+
 		const prepPlaceAndTakeTx = async () => {
 			const placeAndTakeIx = await this.getPlaceAndTakePerpOrderIx(
 				orderParams,
@@ -4565,7 +4567,7 @@ export class DriftClient {
 			}
 
 			const shouldUseSimulationComputeUnits = txParams?.useSimulatedComputeUnits;
-			const shouldExitIfSimulationFails = simulateFirst;
+			const shouldExitIfSimulationFails = exitEarlyIfSimFails;
 
 			const txParamsWithoutImplicitSimulation : TxParams = {
 				...txParams,
@@ -4590,6 +4592,7 @@ export class DriftClient {
 					);
 	
 				if (shouldExitIfSimulationFails && !simulationResult.success) {
+					earlyExitFailedPlaceAndTakeSim = true;
 					return;
 				}
 	
@@ -4680,6 +4683,10 @@ export class DriftClient {
 			prepCancelOrderTx(),
 			prepSettlePnlTx(),
 		]);
+
+		if (earlyExitFailedPlaceAndTakeSim) {
+			return null;
+		}
 
 		const signedTxs = await this.txHandler.getSignedTransactionMap(
 			txsToSign.map((tx) => tx.tx),
