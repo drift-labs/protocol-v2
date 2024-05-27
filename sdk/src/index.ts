@@ -78,6 +78,7 @@ export * from './tx/whileValidTxSender';
 export * from './tx/priorityFeeCalculator';
 export * from './tx/forwardOnlyTxSender';
 export * from './tx/types';
+export * from './tx/txHandler';
 export * from './util/computeUnits';
 export * from './util/tps';
 export * from './util/promiseTimeout';
