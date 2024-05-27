@@ -1,5 +1,6 @@
 import {
 	AddressLookupTableAccount,
+	BlockhashWithExpiryBlockHeight,
 	ConfirmOptions,
 	Signer,
 	Transaction,
@@ -42,7 +43,7 @@ export interface TxSender {
 		lookupTableAccounts: AddressLookupTableAccount[],
 		additionalSigners?: Array<Signer>,
 		opts?: ConfirmOptions,
-		blockhash?: string
+		blockhash?: BlockhashWithExpiryBlockHeight
 	): Promise<VersionedTransaction>;
 
 	sendRawTransaction(

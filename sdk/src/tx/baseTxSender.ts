@@ -17,6 +17,7 @@ import {
 	VersionedTransaction,
 	TransactionInstruction,
 	AddressLookupTableAccount,
+	BlockhashWithExpiryBlockHeight,
 } from '@solana/web3.js';
 import { AnchorProvider } from '@coral-xyz/anchor';
 import assert from 'assert';
@@ -116,17 +117,14 @@ export abstract class BaseTxSender implements TxSender {
 		lookupTableAccounts: AddressLookupTableAccount[],
 		_additionalSigners?: Array<Signer>,
 		opts?: ConfirmOptions,
-		_blockhash?: string
+		blockhash?: BlockhashWithExpiryBlockHeight
 	): Promise<VersionedTransaction> {
-		return (await this.txHandler.buildTransaction({
-			connection: this.connection,
-			instructions: ixs,
-			fetchMarketLookupTableAccount: undefined,
-			lookupTables: lookupTableAccounts,
-			preFlightCommitment: opts?.commitment ?? 'confirmed',
-			txVersion: 0,
-			forceVersionedTransaction: true,
-		})) as VersionedTransaction;
+		return this.txHandler.generateVersionedTransaction(
+			blockhash,
+			ixs,
+			lookupTableAccounts,
+			this.wallet
+		);
 	}
 
 	async sendVersionedTransaction(
