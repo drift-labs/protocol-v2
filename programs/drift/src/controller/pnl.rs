@@ -194,7 +194,8 @@ pub fn settle_pnl(
         return mode.result(ErrorCode::InvalidMarketStatusToSettlePnl, &msg);
     }
 
-    if user.perp_positions[position_index].base_asset_amount != 0 {
+    let base_asset_amount = user.perp_positions[position_index].base_asset_amount;
+    if base_asset_amount != 0 {
         if perp_market.is_operation_paused(PerpOperation::SettlePnlWithPosition) {
             let msg = format!(
                 "Cannot settle pnl with position under current market = {} operation paused",
@@ -269,11 +270,10 @@ pub fn settle_pnl(
         return mode.result(ErrorCode::PnlPoolCantSettleUser, &msg);
     }
 
-    let user_must_settle_themself = pnl_to_settle_with_user > 0
-        && max_pnl_pool_excess < 0
-        && !user.is_being_liquidated()
-        && !user.authority.eq(authority)
-        && !user.delegate.eq(authority);
+    let user_must_settle_themself = pnl_to_settle_with_user >= 0
+        && max_pnl_pool_excess <= 0
+        && !(pnl_to_settle_with_user > 0 && base_asset_amount == 0 && user.is_being_liquidated())
+        && !(user.authority.eq(authority) || user.delegate.eq(authority));
 
     if user_must_settle_themself {
         let msg = format!(
@@ -303,7 +303,6 @@ pub fn settle_pnl(
 
     update_settled_pnl(user, position_index, pnl_to_settle_with_user.cast()?)?;
 
-    let base_asset_amount = user.perp_positions[position_index].base_asset_amount;
     let quote_asset_amount_after = user.perp_positions[position_index].quote_asset_amount;
     let quote_entry_amount = user.perp_positions[position_index].quote_entry_amount;
 
