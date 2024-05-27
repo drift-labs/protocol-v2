@@ -4,7 +4,6 @@ use anchor_lang::Owner;
 use solana_program::pubkey::Pubkey;
 
 use crate::controller::pnl::settle_pnl;
-use crate::create_account_info;
 use crate::create_anchor_account_info;
 use crate::error::ErrorCode;
 use crate::math::casting::Cast;
@@ -24,6 +23,7 @@ use crate::state::state::{OracleGuardRails, State, ValidityGuardRails};
 use crate::state::user::{PerpPosition, SpotPosition, User};
 use crate::test_utils::*;
 use crate::test_utils::{get_positions, get_pyth_price, get_spot_positions};
+use crate::{create_account_info, SettlePnlMode};
 use anchor_lang::prelude::Clock;
 #[test]
 pub fn user_no_position() {
@@ -136,6 +136,8 @@ pub fn user_no_position() {
         &mut oracle_map,
         &clock,
         &state,
+        None,
+        SettlePnlMode::MustSettle,
     );
 
     assert_eq!(result, Err(ErrorCode::UserHasNoPositionInMarket));
@@ -259,6 +261,8 @@ pub fn user_does_not_meet_maintenance_requirement() {
         &mut oracle_map,
         &clock,
         &state,
+        None,
+        SettlePnlMode::MustSettle,
     );
 
     assert_eq!(result, Err(ErrorCode::InsufficientCollateralForSettlingPNL))
@@ -392,6 +396,8 @@ pub fn user_unsettled_negative_pnl() {
         &mut oracle_map,
         &clock,
         &state,
+        None,
+        SettlePnlMode::MustSettle,
     )
     .unwrap();
 
@@ -525,6 +531,8 @@ pub fn user_unsettled_positive_pnl_more_than_pool() {
         &mut oracle_map,
         &clock,
         &state,
+        None,
+        SettlePnlMode::MustSettle,
     )
     .unwrap();
 
@@ -660,6 +668,8 @@ pub fn user_unsettled_positive_pnl_less_than_pool() {
         &mut oracle_map,
         &clock,
         &state,
+        None,
+        SettlePnlMode::MustSettle,
     )
     .unwrap();
 
@@ -798,6 +808,8 @@ pub fn market_fee_pool_receives_portion() {
         &mut oracle_map,
         &clock,
         &state,
+        None,
+        SettlePnlMode::MustSettle,
     )
     .unwrap();
 
@@ -940,6 +952,8 @@ pub fn market_fee_pool_pays_back_to_pnl_pool() {
         &mut oracle_map,
         &clock,
         &state,
+        None,
+        SettlePnlMode::MustSettle,
     )
     .unwrap();
 
@@ -1076,6 +1090,8 @@ pub fn user_long_positive_unrealized_pnl_up_to_max_positive_pnl() {
         &mut oracle_map,
         &clock,
         &state,
+        None,
+        SettlePnlMode::MustSettle,
     )
     .unwrap();
 
@@ -1212,6 +1228,8 @@ pub fn user_long_positive_unrealized_pnl_up_to_max_positive_pnl_price_breached()
         &mut oracle_map,
         &clock,
         &state,
+        None,
+        SettlePnlMode::MustSettle
     )
     .is_err());
 }
@@ -1345,6 +1363,8 @@ pub fn user_long_negative_unrealized_pnl() {
         &mut oracle_map,
         &clock,
         &state,
+        None,
+        SettlePnlMode::MustSettle,
     )
     .unwrap();
 
@@ -1481,6 +1501,8 @@ pub fn user_short_positive_unrealized_pnl_up_to_max_positive_pnl() {
         &mut oracle_map,
         &clock,
         &state,
+        None,
+        SettlePnlMode::MustSettle,
     )
     .unwrap();
 
@@ -1617,6 +1639,8 @@ pub fn user_short_negative_unrealized_pnl() {
         &mut oracle_map,
         &clock,
         &state,
+        None,
+        SettlePnlMode::MustSettle,
     )
     .unwrap();
 
@@ -1756,6 +1780,8 @@ pub fn user_invalid_oracle_position() {
         &mut oracle_map,
         &clock,
         &state,
+        None,
+        SettlePnlMode::MustSettle,
     );
     assert_eq!(result, Err(ErrorCode::InvalidOracle));
 
@@ -1780,6 +1806,8 @@ pub fn user_invalid_oracle_position() {
         &mut oracle_map,
         &clock,
         &state,
+        None,
+        SettlePnlMode::MustSettle,
     );
     assert_eq!(result, Err(ErrorCode::PriceBandsBreached));
 
@@ -1804,6 +1832,8 @@ pub fn user_invalid_oracle_position() {
         &mut oracle_map,
         &clock,
         &state,
+        None,
+        SettlePnlMode::MustSettle,
     );
     assert_eq!(result, Err(ErrorCode::PriceBandsBreached));
 
@@ -1827,6 +1857,8 @@ pub fn user_invalid_oracle_position() {
         &mut oracle_map,
         &clock,
         &state,
+        None,
+        SettlePnlMode::MustSettle,
     );
     assert_eq!(result, Err(ErrorCode::InvalidOracle));
 
@@ -1850,6 +1882,8 @@ pub fn user_invalid_oracle_position() {
         &mut oracle_map,
         &clock,
         &state,
+        None,
+        SettlePnlMode::MustSettle,
     );
     assert_eq!(result, Ok(()));
 }
