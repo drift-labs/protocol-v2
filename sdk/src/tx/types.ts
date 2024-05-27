@@ -1,7 +1,9 @@
 import {
+	AddressLookupTableAccount,
 	ConfirmOptions,
 	Signer,
 	Transaction,
+	TransactionInstruction,
 	TransactionSignature,
 	VersionedTransaction,
 } from '@solana/web3.js';
@@ -34,6 +36,14 @@ export interface TxSender {
 		opts?: ConfirmOptions,
 		preSigned?: boolean
 	): Promise<TxSigAndSlot>;
+
+	getVersionedTransaction(
+		ixs: TransactionInstruction[],
+		lookupTableAccounts: AddressLookupTableAccount[],
+		additionalSigners?: Array<Signer>,
+		opts?: ConfirmOptions,
+		blockhash?: string
+	): Promise<VersionedTransaction>;
 
 	sendRawTransaction(
 		rawTransaction: Buffer | Uint8Array,
