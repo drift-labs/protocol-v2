@@ -14,6 +14,7 @@ use crate::controller::position::PositionDirection;
 use crate::state::oracle::PrelaunchOracleParams;
 use crate::state::order_params::{ModifyOrderParams, OrderParams};
 use crate::state::perp_market::{ContractTier, MarketStatus};
+use crate::state::settle_pnl_mode::SettlePnlMode;
 use crate::state::spot_market::AssetTier;
 use crate::state::spot_market::SpotFulfillmentConfigStatus;
 use crate::state::state::FeeStructure;
@@ -335,6 +336,14 @@ pub mod drift {
 
     pub fn settle_pnl(ctx: Context<SettlePNL>, market_index: u16) -> Result<()> {
         handle_settle_pnl(ctx, market_index)
+    }
+
+    pub fn settle_multiple_pnls(
+        ctx: Context<SettlePNL>,
+        market_indexes: Vec<u16>,
+        mode: SettlePnlMode,
+    ) -> Result<()> {
+        handle_settle_multiple_pnls(ctx, market_indexes, mode)
     }
 
     pub fn settle_funding_payment(ctx: Context<SettleFunding>) -> Result<()> {

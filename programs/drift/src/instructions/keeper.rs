@@ -6,7 +6,7 @@ use crate::instructions::constraints::*;
 use crate::instructions::optional_accounts::{load_maps, AccountMaps};
 use crate::math::constants::QUOTE_SPOT_MARKET_INDEX;
 use crate::math::insurance::if_shares_to_vault_amount;
-use crate::math::margin::calculate_user_equity;
+use crate::math::margin::{calculate_user_equity, meets_maintenance_margin_requirement};
 use crate::math::orders::{estimate_price_from_side, find_bids_and_asks_from_users};
 use crate::math::spot_withdraw::validate_spot_market_vault_amount;
 use crate::optional_accounts::update_prelaunch_oracle;
@@ -20,8 +20,9 @@ use crate::state::paused_operations::PerpOperation;
 use crate::state::perp_market::{MarketStatus, PerpMarket};
 use crate::state::perp_market_map::{
     get_market_set_for_user_positions, get_market_set_from_list, get_writable_perp_market_set,
-    MarketSet, PerpMarketMap,
+    get_writable_perp_market_set_from_vec, MarketSet, PerpMarketMap,
 };
+use crate::state::settle_pnl_mode::SettlePnlMode;
 use crate::state::spot_fulfillment_params::SpotFulfillmentParams;
 use crate::state::spot_market::SpotMarket;
 use crate::state::spot_market_map::{
@@ -463,10 +464,99 @@ pub fn handle_settle_pnl(ctx: Context<SettlePNL>, market_index: u16) -> Result<(
             &mut oracle_map,
             &clock,
             state,
+            None,
+            SettlePnlMode::MustSettle,
         )
         .map(|_| ErrorCode::InvalidOracleForSettlePnl)?;
 
         user.update_last_active_slot(clock.slot);
+    }
+
+    let spot_market = spot_market_map.get_quote_spot_market()?;
+    validate_spot_market_vault_amount(&spot_market, ctx.accounts.spot_market_vault.amount)?;
+
+    Ok(())
+}
+
+#[access_control(
+    settle_pnl_not_paused(&ctx.accounts.state)
+)]
+pub fn handle_settle_multiple_pnls(
+    ctx: Context<SettlePNL>,
+    market_indexes: Vec<u16>,
+    mode: SettlePnlMode,
+) -> Result<()> {
+    let clock = Clock::get()?;
+    let state = &ctx.accounts.state;
+
+    let user_key = ctx.accounts.user.key();
+    let user = &mut load_mut!(ctx.accounts.user)?;
+
+    let AccountMaps {
+        perp_market_map,
+        spot_market_map,
+        mut oracle_map,
+    } = load_maps(
+        &mut ctx.remaining_accounts.iter().peekable(),
+        &get_writable_perp_market_set_from_vec(&market_indexes),
+        &get_writable_spot_market_set(QUOTE_SPOT_MARKET_INDEX),
+        clock.slot,
+        Some(state.oracle_guard_rails),
+    )?;
+
+    let meets_margin_requirement = meets_maintenance_margin_requirement(
+        user,
+        &perp_market_map,
+        &spot_market_map,
+        &mut oracle_map,
+    )?;
+
+    for market_index in market_indexes.iter() {
+        let market_in_settlement =
+            perp_market_map.get_ref(market_index)?.status == MarketStatus::Settlement;
+
+        if market_in_settlement {
+            amm_not_paused(state)?;
+
+            controller::pnl::settle_expired_position(
+                *market_index,
+                user,
+                &user_key,
+                &perp_market_map,
+                &spot_market_map,
+                &mut oracle_map,
+                &clock,
+                state,
+            )?;
+
+            user.update_last_active_slot(clock.slot);
+        } else {
+            controller::repeg::update_amm(
+                *market_index,
+                &perp_market_map,
+                &mut oracle_map,
+                state,
+                &clock,
+            )
+            .map(|_| ErrorCode::InvalidOracleForSettlePnl)?;
+
+            controller::pnl::settle_pnl(
+                *market_index,
+                user,
+                ctx.accounts.authority.key,
+                &user_key,
+                &perp_market_map,
+                &spot_market_map,
+                &mut oracle_map,
+                &clock,
+                state,
+                Some(meets_margin_requirement),
+                mode,
+            )
+            .map(|_| ErrorCode::InvalidOracleForSettlePnl)?;
+
+            user.update_last_active_slot(clock.slot);
+        }
     }
 
     let spot_market = spot_market_map.get_quote_spot_market()?;
