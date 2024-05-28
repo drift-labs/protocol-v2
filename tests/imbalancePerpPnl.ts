@@ -227,6 +227,7 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 			periodicity,
 			new BN(42_500_000),
 			undefined,
+			ContractTier.A,
 			1000,
 			500
 		);
