@@ -15,6 +15,9 @@ import {
 	TransactionSignature,
 	Connection,
 	VersionedTransaction,
+	TransactionInstruction,
+	AddressLookupTableAccount,
+	BlockhashWithExpiryBlockHeight,
 } from '@solana/web3.js';
 import { AnchorProvider } from '@coral-xyz/anchor';
 import assert from 'assert';
@@ -53,7 +56,7 @@ export abstract class BaseTxSender implements TxSender {
 		additionalConnections?;
 		confirmationStrategy?: ConfirmationStrategy;
 		additionalTxSenderCallbacks?: ((base58EncodedTx: string) => void)[];
-		txHandler: TxHandler;
+		txHandler?: TxHandler;
 	}) {
 		this.connection = connection;
 		this.wallet = wallet;
@@ -62,7 +65,13 @@ export abstract class BaseTxSender implements TxSender {
 		this.additionalConnections = additionalConnections;
 		this.confirmationStrategy = confirmationStrategy;
 		this.additionalTxSenderCallbacks = additionalTxSenderCallbacks;
-		this.txHandler = txHandler;
+		this.txHandler =
+			txHandler ??
+			new TxHandler({
+				connection: this.connection,
+				wallet: this.wallet,
+				confirmationOptions: this.opts,
+			});
 	}
 
 	async send(
@@ -100,6 +109,21 @@ export abstract class BaseTxSender implements TxSender {
 			undefined,
 			opts,
 			preSigned
+		);
+	}
+
+	async getVersionedTransaction(
+		ixs: TransactionInstruction[],
+		lookupTableAccounts: AddressLookupTableAccount[],
+		_additionalSigners?: Array<Signer>,
+		opts?: ConfirmOptions,
+		blockhash?: BlockhashWithExpiryBlockHeight
+	): Promise<VersionedTransaction> {
+		return this.txHandler.generateVersionedTransaction(
+			blockhash,
+			ixs,
+			lookupTableAccounts,
+			this.wallet
 		);
 	}
 
