@@ -23,6 +23,7 @@ import {
 	SignedTxData,
 	TxParams,
 } from '../types';
+import { containsComputeUnitIxs } from '../util/computeUnits';
 
 export const COMPUTE_UNITS_DEFAULT = 200_000;
 
@@ -406,10 +407,16 @@ export class TxHandler {
 			};
 		}
 
+		const instructionsArray = Array.isArray(instructions)
+			? instructions
+			: [instructions];
+		const { hasSetComputeUnitLimitIx, hasSetComputeUnitPriceIx } =
+			containsComputeUnitIxs(instructionsArray);
+
 		// # Create Tx Instructions
 		const allIx = [];
 		const computeUnits = baseTxParams?.computeUnits;
-		if (computeUnits !== 200_000) {
+		if (computeUnits > 0 && !hasSetComputeUnitLimitIx) {
 			allIx.push(
 				ComputeBudgetProgram.setComputeUnitLimit({
 					units: computeUnits,
@@ -419,7 +426,7 @@ export class TxHandler {
 
 		const computeUnitsPrice = baseTxParams?.computeUnitsPrice;
 
-		if (computeUnitsPrice !== 0) {
+		if (computeUnitsPrice > 0 && !hasSetComputeUnitPriceIx) {
 			allIx.push(
 				ComputeBudgetProgram.setComputeUnitPrice({
 					microLamports: computeUnitsPrice,
@@ -427,11 +434,7 @@ export class TxHandler {
 			);
 		}
 
-		if (Array.isArray(instructions)) {
-			allIx.push(...instructions);
-		} else {
-			allIx.push(instructions);
-		}
+		allIx.push(...instructionsArray);
 
 		const recentBlockHash =
 			props?.recentBlockHash ?? (await this.getLatestBlockhashForTransaction());
