@@ -26,7 +26,7 @@ import {
 	printTxLogs,
 	setFeedPrice,
 } from './testHelpers';
-import { MARGIN_PRECISION, OrderType } from '../sdk';
+import {ContractTier, MARGIN_PRECISION, OrderType} from '../sdk';
 
 describe('multiple maker orders', () => {
 	const provider = anchor.AnchorProvider.local(undefined, {
@@ -122,6 +122,7 @@ describe('multiple maker orders', () => {
 			periodicity,
 			new BN(0.69 * PEG_PRECISION.toNumber()),
 			OracleSource.PYTH,
+			ContractTier.A,
 			MARGIN_PRECISION.toNumber() / 4, // 4x
 			MARGIN_PRECISION.toNumber() / 5 // 5x
 		);
