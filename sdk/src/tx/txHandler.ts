@@ -53,6 +53,8 @@ export class TxHandler {
 
 	private onSignedCb?: (txSigs: DriftClientMetricsEvents['txSigned']) => void;
 
+	private blockhashCommitment : Commitment = "finalized";
+
 	constructor(props: {
 		connection: Connection;
 		wallet: IWallet;
@@ -99,7 +101,7 @@ export class TxHandler {
 	 * @returns
 	 */
 	public getLatestBlockhashForTransaction() {
-		return this.connection.getLatestBlockhash('finalized');
+		return this.connection.getLatestBlockhash(this.blockhashCommitment);
 	}
 
 	/**
