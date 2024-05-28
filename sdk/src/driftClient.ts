@@ -4561,7 +4561,7 @@ export class DriftClient {
 		const shouldUseSimulationComputeUnits = txParams?.useSimulatedComputeUnits;
 		const shouldExitIfSimulationFails = simulateFirst;
 
-		const txParamsWithoutImplicitSimulation : TxParams = {
+		const txParamsWithoutImplicitSimulation: TxParams = {
 			...txParams,
 			useSimulatedComputeUnits: false,
 		};

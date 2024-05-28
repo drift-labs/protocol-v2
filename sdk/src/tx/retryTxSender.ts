@@ -40,7 +40,7 @@ export class RetryTxSender extends BaseTxSender {
 		additionalConnections?;
 		confirmationStrategy?: ConfirmationStrategy;
 		additionalTxSenderCallbacks?: ((base58EncodedTx: string) => void)[];
-		txHandler: TxHandler;
+		txHandler?: TxHandler;
 	}) {
 		super({
 			connection,

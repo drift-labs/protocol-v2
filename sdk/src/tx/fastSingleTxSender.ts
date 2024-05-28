@@ -48,7 +48,7 @@ export class FastSingleTxSender extends BaseTxSender {
 		skipConfirmation?: boolean;
 		blockhashCommitment?: Commitment;
 		confirmationStrategy?: ConfirmationStrategy;
-		txHandler: TxHandler;
+		txHandler?: TxHandler;
 	}) {
 		super({
 			connection,

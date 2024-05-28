@@ -32,7 +32,7 @@ export class TransactionParamProcessor {
 	public static async getTxSimComputeUnits(
 		tx: VersionedTransaction,
 		connection: Connection,
-		bufferMultiplier: number, // Making this a mandatory param to force the user to remember that simulated CU's can be inaccurate and a buffer should be applied
+		bufferMultiplier: number // Making this a mandatory param to force the user to remember that simulated CU's can be inaccurate and a buffer should be applied
 	): Promise<{ success: boolean; computeUnits: number }> {
 		try {
 			if (TEST_SIMS_ALWAYS_FAIL)
@@ -49,7 +49,9 @@ export class TransactionParamProcessor {
 			const computeUnits = await this.getComputeUnitsFromSim(simTxResult);
 
 			// Apply the buffer, but round down to the MAX_COMPUTE_UNITS, and round up to the nearest whole number
-			const bufferedComputeUnits = Math.ceil(Math.min(computeUnits * bufferMultiplier, MAX_COMPUTE_UNITS));
+			const bufferedComputeUnits = Math.ceil(
+				Math.min(computeUnits * bufferMultiplier, MAX_COMPUTE_UNITS)
+			);
 
 			return {
 				success: true,
@@ -103,7 +105,8 @@ export class TransactionParamProcessor {
 			const txSimComputeUnitsResult = await this.getTxSimComputeUnits(
 				txToSim,
 				processProps.connection,
-				processConfig?.computeUnitsBufferMultiplier ?? COMPUTE_UNIT_BUFFER_FACTOR
+				processConfig?.computeUnitsBufferMultiplier ??
+					COMPUTE_UNIT_BUFFER_FACTOR
 			);
 
 			if (txSimComputeUnitsResult.success) {

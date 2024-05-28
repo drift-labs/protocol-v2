@@ -50,7 +50,7 @@ export class WhileValidTxSender extends BaseTxSender {
 		additionalConnections?;
 		additionalTxSenderCallbacks?: ((base58EncodedTx: string) => void)[];
 		blockhashCommitment?: Commitment;
-		txHandler: TxHandler;
+		txHandler?: TxHandler;
 	}) {
 		super({
 			connection,
