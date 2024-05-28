@@ -43,7 +43,7 @@ import {
 	ModifyOrderPolicy,
 	SwapReduceOnly,
 	SettlePnlMode,
-	SignedTxData
+	SignedTxData,
 } from './types';
 import * as anchor from '@coral-xyz/anchor';
 import driftIDL from './idl/drift.json';
@@ -5478,7 +5478,7 @@ export class DriftClient {
 					settleeUserAccountPublicKey,
 					settleeUserAccount,
 					marketIndexes,
-					mode,
+					mode
 				),
 				txParams
 			),
@@ -5492,7 +5492,7 @@ export class DriftClient {
 		settleeUserAccountPublicKey: PublicKey,
 		settleeUserAccount: UserAccount,
 		marketIndexes: number[],
-		mode: SettlePnlMode,
+		mode: SettlePnlMode
 	): Promise<TransactionInstruction> {
 		const remainingAccounts = this.getRemainingAccounts({
 			userAccounts: [settleeUserAccount],
@@ -5500,15 +5500,19 @@ export class DriftClient {
 			writableSpotMarketIndexes: [QUOTE_SPOT_MARKET_INDEX],
 		});
 
-		return await this.program.instruction.settleMultiplePnls(marketIndexes, mode, {
-			accounts: {
-				state: await this.getStatePublicKey(),
-				authority: this.wallet.publicKey,
-				user: settleeUserAccountPublicKey,
-				spotMarketVault: this.getQuoteSpotMarketAccount().vault,
-			},
-			remainingAccounts: remainingAccounts,
-		});
+		return await this.program.instruction.settleMultiplePnls(
+			marketIndexes,
+			mode,
+			{
+				accounts: {
+					state: await this.getStatePublicKey(),
+					authority: this.wallet.publicKey,
+					user: settleeUserAccountPublicKey,
+					spotMarketVault: this.getQuoteSpotMarketAccount().vault,
+				},
+				remainingAccounts: remainingAccounts,
+			}
+		);
 	}
 
 	public async liquidatePerp(
