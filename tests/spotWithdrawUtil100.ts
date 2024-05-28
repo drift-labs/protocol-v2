@@ -47,6 +47,7 @@ import {
 	calculateUtilization,
 } from '../sdk/src/math/spotBalance';
 import { NATIVE_MINT } from '@solana/spl-token';
+import {ContractTier} from "../sdk";
 
 describe('test function when spot market at >= 100% util', () => {
 	const provider = anchor.AnchorProvider.local(undefined, {
@@ -226,6 +227,7 @@ describe('test function when spot market at >= 100% util', () => {
 			new BN(1),
 			new BN(30_000_000),
 			undefined,
+			ContractTier.A,
 			1000,
 			900 // easy to liq
 		);

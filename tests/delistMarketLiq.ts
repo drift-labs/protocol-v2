@@ -38,7 +38,7 @@ import {
 	sleep,
 } from './testHelpers';
 import { Keypair } from '@solana/web3.js';
-import { BulkAccountLoader, calculateReservePrice, UserStatus } from '../sdk';
+import {BulkAccountLoader, calculateReservePrice, ContractTier, UserStatus} from '../sdk';
 
 async function depositToFeePoolFromIF(
 	amount: number,
@@ -151,6 +151,7 @@ describe('delist market, liquidation of expired position', () => {
 			periodicity,
 			new BN(42_500_000),
 			undefined,
+			ContractTier.A,
 			1000,
 			900 // easy to liq
 		);
