@@ -135,10 +135,11 @@ pub fn settle_pnl(
 
         // cannot settle pnl this way on a user who is in liquidation territory
         if !meets_margin_requirement {
-            return mode.result(
-                ErrorCode::InsufficientCollateralForSettlingPNL,
-                "Does not meet margin requirement",
+            let msg = format!(
+                "Does not meet margin requirement while settling Market = {}",
+                market_index
             );
+            return mode.result(ErrorCode::InsufficientCollateralForSettlingPNL, &msg);
         }
     }
 
