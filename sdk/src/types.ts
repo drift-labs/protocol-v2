@@ -33,12 +33,21 @@ export enum PerpOperation {
 	FILL = 4,
 	SETTLE_PNL = 8,
 	SETTLE_PNL_WITH_POSITION = 16,
+	LIQUIDATION = 32,
 }
 
 export enum SpotOperation {
 	UPDATE_CUMULATIVE_INTEREST = 1,
 	FILL = 2,
 	WITHDRAW = 4,
+	LIQUIDATION = 8,
+}
+
+export enum InsuranceFundOperation {
+	INIT = 1,
+	ADD = 2,
+	REQUEST_REMOVE = 4,
+	REMOVE = 8,
 }
 
 export enum UserStatus {
@@ -711,6 +720,8 @@ export type SpotMarketAccount = {
 	ordersEnabled: boolean;
 
 	pausedOperations: number;
+
+	ifPausedOperations: number;
 };
 
 export type PoolBalance = {
@@ -1007,10 +1018,12 @@ export type ReferrerInfo = {
 	referrerStats: PublicKey;
 };
 
-export type BaseTxParams = {
+type ExactType<T> = Pick<T, keyof T>;
+
+export type BaseTxParams = ExactType<{
 	computeUnits?: number;
 	computeUnitsPrice?: number;
-};
+}>;
 
 export type ProcessingTxParams = {
 	useSimulatedComputeUnits?: boolean;
@@ -1175,4 +1188,15 @@ export type HealthComponent = {
 	value: BN;
 	weight: BN;
 	weightedValue: BN;
+};
+
+export interface DriftClientMetricsEvents {
+	txSigned: SignedTxData[];
+}
+
+export type SignedTxData = {
+	txSig: string;
+	signedTx: Transaction | VersionedTransaction;
+	lastValidBlockHeight?: number;
+	blockHash: string;
 };

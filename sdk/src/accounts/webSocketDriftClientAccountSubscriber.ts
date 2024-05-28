@@ -2,6 +2,7 @@ import {
 	DriftClientAccountSubscriber,
 	DriftClientAccountEvents,
 	DataAndSlot,
+	ResubOpts,
 } from './types';
 import { AccountSubscriber, NotSubscribedError } from './types';
 import { SpotMarketAccount, PerpMarketAccount, StateAccount } from '../types';
@@ -32,7 +33,7 @@ export class WebSocketDriftClientAccountSubscriber
 	oracleInfos: OracleInfo[];
 	oracleClientCache = new OracleClientCache();
 
-	resubTimeoutMs?: number;
+	resubOpts?: ResubOpts;
 	shouldFindAllMarketsAndOracles: boolean;
 
 	eventEmitter: StrictEventEmitter<EventEmitter, DriftClientAccountEvents>;
@@ -59,7 +60,7 @@ export class WebSocketDriftClientAccountSubscriber
 		spotMarketIndexes: number[],
 		oracleInfos: OracleInfo[],
 		shouldFindAllMarketsAndOracles: boolean,
-		resubTimeoutMs?: number,
+		resubOpts?: ResubOpts,
 		commitment?: Commitment
 	) {
 		this.isSubscribed = false;
@@ -69,7 +70,7 @@ export class WebSocketDriftClientAccountSubscriber
 		this.spotMarketIndexes = spotMarketIndexes;
 		this.oracleInfos = oracleInfos;
 		this.shouldFindAllMarketsAndOracles = shouldFindAllMarketsAndOracles;
-		this.resubTimeoutMs = resubTimeoutMs;
+		this.resubOpts = resubOpts;
 		this.commitment = commitment;
 	}
 
@@ -152,7 +153,7 @@ export class WebSocketDriftClientAccountSubscriber
 			this.program,
 			perpMarketPublicKey,
 			undefined,
-			this.resubTimeoutMs,
+			this.resubOpts,
 			this.commitment
 		);
 		await accountSubscriber.subscribe((data: PerpMarketAccount) => {
@@ -180,7 +181,7 @@ export class WebSocketDriftClientAccountSubscriber
 			this.program,
 			marketPublicKey,
 			undefined,
-			this.resubTimeoutMs,
+			this.resubOpts,
 			this.commitment
 		);
 		await accountSubscriber.subscribe((data: SpotMarketAccount) => {
@@ -214,7 +215,7 @@ export class WebSocketDriftClientAccountSubscriber
 			(buffer: Buffer) => {
 				return client.getOraclePriceDataFromBuffer(buffer);
 			},
-			this.resubTimeoutMs,
+			this.resubOpts,
 			this.commitment
 		);
 

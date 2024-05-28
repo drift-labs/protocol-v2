@@ -51,7 +51,7 @@ impl OrderParams {
             return Ok(());
         }
 
-        if self.oracle_price_offset.is_some() || self.price == 0 {
+        if self.oracle_price_offset.unwrap_or(0) != 0 || self.price == 0 {
             return Ok(());
         }
 
@@ -165,6 +165,18 @@ impl OrderParams {
         Ok(start_offset)
     }
 
+    pub fn get_auction_end_price_offset(self, oracle_price: i64) -> DriftResult<i64> {
+        let end_offset = if self.order_type == OrderType::Oracle {
+            self.auction_end_price.unwrap_or(0)
+        } else if let Some(auction_end_price) = self.auction_end_price {
+            auction_end_price.safe_sub(oracle_price)?
+        } else {
+            return Ok(0);
+        };
+
+        Ok(end_offset)
+    }
+
     pub fn update_perp_auction_params_market_and_oracle_orders(
         &mut self,
         perp_market: &PerpMarket,
@@ -216,12 +228,16 @@ impl OrderParams {
         }
         // only update auction start price if the contract tier isn't Isolated
         if perp_market.amm.oracle_source != OracleSource::Prelaunch {
-            let new_start_price_offset =
-                OrderParams::get_perp_baseline_start_price_offset(perp_market, self.direction)?;
+            let (new_start_price_offset, new_end_price_offset) =
+                OrderParams::get_perp_baseline_start_end_price_offset(
+                    perp_market,
+                    self.direction,
+                    2,
+                )?;
+            let current_start_price_offset = self.get_auction_start_price_offset(oracle_price)?;
+            let current_end_price_offset = self.get_auction_end_price_offset(oracle_price)?;
             match self.direction {
                 PositionDirection::Long => {
-                    let current_start_price_offset =
-                        self.get_auction_start_price_offset(oracle_price)?;
                     if current_start_price_offset > new_start_price_offset {
                         self.auction_start_price = if !is_market_order {
                             Some(new_start_price_offset)
@@ -233,10 +249,20 @@ impl OrderParams {
                             self.auction_start_price.safe_unwrap()?
                         );
                     }
+
+                    if current_end_price_offset > new_end_price_offset {
+                        self.auction_end_price = if !is_market_order {
+                            Some(new_end_price_offset)
+                        } else {
+                            Some(new_end_price_offset.safe_add(oracle_price)?)
+                        };
+                        msg!(
+                            "Updating auction end price to {}",
+                            self.auction_end_price.safe_unwrap()?
+                        );
+                    }
                 }
                 PositionDirection::Short => {
-                    let current_start_price_offset =
-                        self.get_auction_start_price_offset(oracle_price)?;
                     if current_start_price_offset < new_start_price_offset {
                         self.auction_start_price = if !is_market_order {
                             Some(new_start_price_offset)
@@ -246,6 +272,18 @@ impl OrderParams {
                         msg!(
                             "Updating auction start price to {}",
                             self.auction_start_price.safe_unwrap()?
+                        );
+                    }
+
+                    if current_end_price_offset < new_end_price_offset {
+                        self.auction_end_price = if !is_market_order {
+                            Some(new_end_price_offset)
+                        } else {
+                            Some(new_end_price_offset.safe_add(oracle_price)?)
+                        };
+                        msg!(
+                            "Updating auction end price to {}",
+                            self.auction_end_price.safe_unwrap()?
                         );
                     }
                 }

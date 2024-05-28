@@ -118,7 +118,10 @@ export class User {
 			this.accountSubscriber = new WebSocketUserAccountSubscriber(
 				config.driftClient.program,
 				config.userAccountPublicKey,
-				config.accountSubscription?.resubTimeoutMs,
+				{
+					resubTimeoutMs: config.accountSubscription?.resubTimeoutMs,
+					logResubMessages: config.accountSubscription?.logResubMessages,
+				},
 				config.accountSubscription?.commitment
 			);
 		}
@@ -705,7 +708,15 @@ export class User {
 	/**
 	 * @returns The maintenance margin requirement in USDC. : QUOTE_PRECISION
 	 */
-	public getMaintenanceMarginRequirement(liquidationBuffer?: BN): BN {
+	public getMaintenanceMarginRequirement(): BN {
+		// if user being liq'd, can continue to be liq'd until total collateral above the margin requirement plus buffer
+		let liquidationBuffer = undefined;
+		if (this.isBeingLiquidated()) {
+			liquidationBuffer = new BN(
+				this.driftClient.getStateAccount().liquidationMarginBufferRatio
+			);
+		}
+
 		return this.getMarginRequirement('Maintenance', liquidationBuffer);
 	}
 
@@ -1875,15 +1886,7 @@ export class User {
 	} {
 		const totalCollateral = this.getTotalCollateral('Maintenance');
 
-		// if user being liq'd, can continue to be liq'd until total collateral above the margin requirement plus buffer
-		let liquidationBuffer = undefined;
-		if (this.isBeingLiquidated()) {
-			liquidationBuffer = new BN(
-				this.driftClient.getStateAccount().liquidationMarginBufferRatio
-			);
-		}
-		const marginRequirement =
-			this.getMaintenanceMarginRequirement(liquidationBuffer);
+		const marginRequirement = this.getMaintenanceMarginRequirement();
 		const canBeLiquidated = totalCollateral.lt(marginRequirement);
 
 		return {
@@ -3163,44 +3166,16 @@ export class User {
 	}
 
 	/**
-	 * Calculates taker / maker fee (as a percentage, e.g. .001 = 10 basis points) for particular marketType
-	 * @param marketType
-	 * @param positionMarketIndex
-	 * @returns : {takerFee: number, makerFee: number} Precision None
-	 */
-	public getMarketFees(marketType: MarketType, marketIndex?: number) {
-		const feeTier = this.getUserFeeTier(marketType);
-		let takerFee = feeTier.feeNumerator / feeTier.feeDenominator;
-		let makerFee =
-			feeTier.makerRebateNumerator / feeTier.makerRebateDenominator;
-
-		if (marketIndex !== undefined) {
-			let marketAccount = null;
-			if (isVariant(marketType, 'perp')) {
-				marketAccount = this.driftClient.getPerpMarketAccount(marketIndex);
-			} else {
-				marketAccount = this.driftClient.getSpotMarketAccount(marketIndex);
-			}
-			takerFee += (takerFee * marketAccount.feeAdjustment) / 100;
-			makerFee += (makerFee * marketAccount.feeAdjustment) / 100;
-		}
-
-		return {
-			takerFee,
-			makerFee,
-		};
-	}
-
-	/**
 	 * Calculates how much perp fee will be taken for a given sized trade
 	 * @param quoteAmount
 	 * @returns feeForQuote : Precision QUOTE_PRECISION
 	 */
 	public calculateFeeForQuoteAmount(quoteAmount: BN, marketIndex?: number): BN {
 		if (marketIndex !== undefined) {
-			const takerFeeMultiplier = this.getMarketFees(
+			const takerFeeMultiplier = this.driftClient.getMarketFees(
 				MarketType.PERP,
-				marketIndex
+				marketIndex,
+				this
 			).takerFee;
 			const feeAmountNum =
 				BigNum.from(quoteAmount, QUOTE_PRECISION_EXP).toNum() *

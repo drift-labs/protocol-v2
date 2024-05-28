@@ -16,7 +16,7 @@ export class WebSocketInsuranceFundStakeAccountSubscriber
 	implements InsuranceFundStakeAccountSubscriber
 {
 	isSubscribed: boolean;
-	reconnectTimeoutMs?: number;
+	resubTimeoutMs?: number;
 	commitment?: Commitment;
 	program: Program;
 	eventEmitter: StrictEventEmitter<
@@ -30,7 +30,7 @@ export class WebSocketInsuranceFundStakeAccountSubscriber
 	public constructor(
 		program: Program,
 		insuranceFundStakeAccountPublicKey: PublicKey,
-		reconnectTimeoutMs?: number,
+		resubTimeoutMs?: number,
 		commitment?: Commitment
 	) {
 		this.isSubscribed = false;
@@ -38,7 +38,7 @@ export class WebSocketInsuranceFundStakeAccountSubscriber
 		this.insuranceFundStakeAccountPublicKey =
 			insuranceFundStakeAccountPublicKey;
 		this.eventEmitter = new EventEmitter();
-		this.reconnectTimeoutMs = reconnectTimeoutMs;
+		this.resubTimeoutMs = resubTimeoutMs;
 		this.commitment = commitment;
 	}
 
@@ -55,7 +55,9 @@ export class WebSocketInsuranceFundStakeAccountSubscriber
 				this.program,
 				this.insuranceFundStakeAccountPublicKey,
 				undefined,
-				this.reconnectTimeoutMs,
+				{
+					resubTimeoutMs: this.resubTimeoutMs,
+				},
 				this.commitment
 			);
 

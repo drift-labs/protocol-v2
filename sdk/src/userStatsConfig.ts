@@ -12,6 +12,7 @@ export type UserStatsSubscriptionConfig =
 	| {
 			type: 'websocket';
 			resubTimeoutMs?: number;
+			logResubMessages?: boolean;
 			commitment?: Commitment;
 	  }
 	| {

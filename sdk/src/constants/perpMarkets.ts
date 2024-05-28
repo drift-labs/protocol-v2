@@ -553,9 +553,9 @@ export const MainnetPerpMarkets: PerpMarketConfig[] = [
 		symbol: 'KMNO-PERP',
 		baseAssetSymbol: 'KMNO',
 		marketIndex: 28,
-		oracle: new PublicKey('sDAQaZQJQ4RXAxH3x526mbEXyQZT15ktkL84d7hmk7M'),
+		oracle: new PublicKey('6ynsvjkE2UoiRScbDx7ZxbBsyn7wyvg5P1vENvhtkG1C'),
 		launchTs: 1712240681000,
-		oracleSource: OracleSource.Prelaunch,
+		oracleSource: OracleSource.SWITCHBOARD,
 	},
 	{
 		fullName: 'Tensor',
@@ -565,6 +565,16 @@ export const MainnetPerpMarkets: PerpMarketConfig[] = [
 		marketIndex: 29,
 		oracle: new PublicKey('7Cfyymx49ipGsgEsCA2XygAB2DUsan4C6Cyb5c8oR5st'),
 		launchTs: 1712593532000,
+		oracleSource: OracleSource.SWITCHBOARD,
+	},
+	{
+		fullName: 'Drift',
+		category: ['DEX', 'Solana'],
+		symbol: 'DRIFT-PERP',
+		baseAssetSymbol: 'DRIFT',
+		marketIndex: 30,
+		oracle: new PublicKey('PeNpQeGEm9UEFJ6MBCMauY4WW4h3YxoESPWbsqVKucE'),
+		launchTs: 1716595200000,
 		oracleSource: OracleSource.SWITCHBOARD,
 	},
 ];

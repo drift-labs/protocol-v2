@@ -29,7 +29,10 @@ export class UserStats {
 			this.accountSubscriber = new WebSocketUserStatsAccountSubscriber(
 				config.driftClient.program,
 				config.userStatsAccountPublicKey,
-				config.accountSubscription.resubTimeoutMs,
+				{
+					resubTimeoutMs: config.accountSubscription?.resubTimeoutMs,
+					logResubMessages: config.accountSubscription?.logResubMessages,
+				},
 				config.accountSubscription.commitment
 			);
 		} else {

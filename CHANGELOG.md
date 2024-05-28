@@ -11,7 +11,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixes
 
+- program: update_perp_auction_params_limit_orders unwraps oracle_price_offset
+
 ### Breaking
+
+## [2.82.0] - 2024-05-23
+
+### Features
+
+- program: TransferProtocolIfShares constraint ([#1055](https://github.com/drift-labs/protocol-v2/pull/1055))
+- program: sanitize extreme auction end prices ([#1031](https://github.com/drift-labs/protocol-v2/pull/1031))
+- program: add comprehensive admin function logging ([#1038](https://github.com/drift-labs/protocol-v2/pull/1038))
+
+### Fixes
+
+### Breaking
+
+- ts-sdk: upgrade to node 18 and solana version 1.91.7 ([#1036](https://github.com/drift-labs/protocol-v2/pull/1036))
 
 ## [2.81.0] - 2024-04-22
 
