@@ -708,7 +708,15 @@ export class User {
 	/**
 	 * @returns The maintenance margin requirement in USDC. : QUOTE_PRECISION
 	 */
-	public getMaintenanceMarginRequirement(liquidationBuffer?: BN): BN {
+	public getMaintenanceMarginRequirement(): BN {
+		// if user being liq'd, can continue to be liq'd until total collateral above the margin requirement plus buffer
+		let liquidationBuffer = undefined;
+		if (this.isBeingLiquidated()) {
+			liquidationBuffer = new BN(
+				this.driftClient.getStateAccount().liquidationMarginBufferRatio
+			);
+		}
+
 		return this.getMarginRequirement('Maintenance', liquidationBuffer);
 	}
 
@@ -1878,15 +1886,7 @@ export class User {
 	} {
 		const totalCollateral = this.getTotalCollateral('Maintenance');
 
-		// if user being liq'd, can continue to be liq'd until total collateral above the margin requirement plus buffer
-		let liquidationBuffer = undefined;
-		if (this.isBeingLiquidated()) {
-			liquidationBuffer = new BN(
-				this.driftClient.getStateAccount().liquidationMarginBufferRatio
-			);
-		}
-		const marginRequirement =
-			this.getMaintenanceMarginRequirement(liquidationBuffer);
+		const marginRequirement = this.getMaintenanceMarginRequirement();
 		const canBeLiquidated = totalCollateral.lt(marginRequirement);
 
 		return {

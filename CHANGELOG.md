@@ -9,12 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Features
 
-
 ### Fixes
+
+- program: update_perp_auction_params_limit_orders unwraps oracle_price_offset
 
 ### Breaking
 
-## [2.81.0] - 2024-05-23
+## [2.82.0] - 2024-05-23
 
 ### Features
 
