@@ -22,6 +22,7 @@ pub struct MarginContext {
     pub strict: bool,
     pub margin_buffer: u128,
     pub fuel_bonus_numerator: i64,
+    pub fuel_bonus: u64,
 }
 
 #[derive(PartialEq, Eq, Copy, Clone, Debug, AnchorSerialize, AnchorDeserialize)]
@@ -56,6 +57,7 @@ impl MarginContext {
             strict: false,
             margin_buffer: 0,
             fuel_bonus_numerator: 0,
+            fuel_bonus: 0,
         }
     }
 
@@ -93,6 +95,7 @@ impl MarginContext {
             margin_buffer: margin_buffer as u128,
             strict: false,
             fuel_bonus_numerator: 0,
+            fuel_bonus: 0,
         }
     }
 

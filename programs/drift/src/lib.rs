@@ -476,6 +476,12 @@ pub mod drift {
         handle_update_user_quote_asset_insurance_stake(ctx)
     }
 
+    pub fn update_user_gov_token_insurance_stake(
+        ctx: Context<UpdateUserGovTokenInsuranceStake>,
+    ) -> Result<()> {
+        handle_update_user_gov_token_insurance_stake(ctx)
+    }
+
     // IF stakers
 
     pub fn initialize_insurance_fund_stake(

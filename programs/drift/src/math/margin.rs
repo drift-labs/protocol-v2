@@ -104,7 +104,7 @@ pub fn calculate_perp_position_value_and_pnl(
     margin_requirement_type: MarginRequirementType,
     user_custom_margin_ratio: u32,
     track_open_order_fraction: bool,
-) -> DriftResult<(u128, i128, u128, u128)> {
+) -> DriftResult<(u128, i128, u128, u128, u128)> {
     let valuation_price = if market.status == MarketStatus::Settlement {
         market.expiry_price
     } else {
@@ -123,7 +123,7 @@ pub fn calculate_perp_position_value_and_pnl(
 
     let market_position = market_position.simulate_settled_lp_position(market, valuation_price)?;
 
-    let (_, unrealized_pnl) =
+    let (base_asset_value, unrealized_pnl) =
         calculate_base_asset_value_and_pnl_with_oracle_price(&market_position, valuation_price)?;
 
     let total_unrealized_pnl = unrealized_pnl.safe_add(unrealized_funding.cast()?)?;
@@ -206,6 +206,7 @@ pub fn calculate_perp_position_value_and_pnl(
         weighted_unrealized_pnl,
         worse_case_base_asset_value,
         open_order_margin_requirement,
+        base_asset_value,
     ))
 }
 
@@ -238,13 +239,13 @@ pub fn calculate_user_safest_position_tiers(
 
 pub fn calculate_perp_fuel_bonus(
     perp_market: &PerpMarket,
-    base_asset_amount: i128,
+    base_asset_value: i128,
     fuel_bonus_numerator: i64,
 ) -> DriftResult<u64> {
-    let result: u64 = if base_asset_amount == 0 {
+    let result: u64 = if base_asset_value.unsigned_abs() < 1 {
         0_u64
     } else {
-        base_asset_amount
+        base_asset_value
             .unsigned_abs()
             .safe_mul(fuel_bonus_numerator.cast()?)?
             .safe_mul(perp_market.fuel_boost_funding.cast()?)?
@@ -257,20 +258,20 @@ pub fn calculate_perp_fuel_bonus(
 
 pub fn calculate_spot_fuel_bonus(
     spot_market: &SpotMarket,
-    signed_token_amount: i128,
+    signed_token_value: i128,
     fuel_bonus_numerator: i64,
 ) -> DriftResult<u64> {
-    let result: u64 = if signed_token_amount == 0 {
+    let result: u64 = if signed_token_value.unsigned_abs() < 1 {
         0_u64
-    } else if signed_token_amount > 0 {
-        signed_token_amount
+    } else if signed_token_value > 0 {
+        signed_token_value
             .unsigned_abs()
             .safe_mul(fuel_bonus_numerator.cast()?)?
             .safe_mul(spot_market.fuel_boost_deposits.cast()?)?
             .safe_div(FUEL_WINDOW_U128)?
             .cast::<u64>()?
     } else {
-        signed_token_amount
+        signed_token_value
             .unsigned_abs()
             .safe_mul(fuel_bonus_numerator.cast()?)?
             .safe_mul(spot_market.fuel_boost_borrows.cast()?)?
@@ -341,6 +342,15 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
             let token_value =
                 get_strict_token_value(token_amount, spot_market.decimals, &strict_oracle_price)?;
 
+            calculation.fuel_bonus =
+                calculation
+                    .fuel_bonus
+                    .saturating_add(calculate_spot_fuel_bonus(
+                        &spot_market,
+                        token_value,
+                        context.fuel_bonus_numerator,
+                    )?);
+
             match spot_position.balance_type {
                 SpotBalanceType::Deposit => {
                     calculation.add_total_collateral(token_value)?;
@@ -373,6 +383,19 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
             }
         } else {
             let signed_token_amount = spot_position.get_signed_token_amount(&spot_market)?;
+
+            calculation.fuel_bonus =
+                calculation
+                    .fuel_bonus
+                    .saturating_add(calculate_spot_fuel_bonus(
+                        &spot_market,
+                        get_strict_token_value(
+                            signed_token_amount,
+                            spot_market.decimals,
+                            &strict_oracle_price,
+                        )?,
+                        context.fuel_bonus_numerator,
+                    )?);
 
             let OrderFillSimulation {
                 token_amount: worst_case_token_amount,
@@ -525,6 +548,7 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
             weighted_pnl,
             worst_case_base_asset_value,
             open_order_margin_requirement,
+            base_asset_value,
         ) = calculate_perp_position_value_and_pnl(
             market_position,
             market,
@@ -534,6 +558,14 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
             user_custom_margin_ratio,
             calculation.track_open_orders_fraction(),
         )?;
+
+        calculation.fuel_bonus = calculation
+            .fuel_bonus
+            .saturating_add(calculate_perp_fuel_bonus(
+                &market,
+                base_asset_value as i128,
+                context.fuel_bonus_numerator,
+            )?);
 
         calculation.add_margin_requirement(
             perp_margin_requirement,

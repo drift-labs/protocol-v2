@@ -2011,9 +2011,9 @@ pub fn fulfill_perp_order_with_amm(
     }
 
     if order_post_only {
-        user_stats.update_maker_volume_30d(quote_asset_amount, now)?;
+        user_stats.update_maker_volume_30d(market.fuel_boost_maker, quote_asset_amount, now)?;
     } else {
-        user_stats.update_taker_volume_30d(quote_asset_amount, now)?;
+        user_stats.update_taker_volume_30d(market.fuel_boost_taker, quote_asset_amount, now)?;
     }
 
     if let Some(filler) = filler.as_mut() {
@@ -2289,9 +2289,9 @@ pub fn fulfill_perp_order_with_match(
 
     // if maker is none, makes maker and taker authority was the same
     if let Some(maker_stats) = maker_stats {
-        maker_stats.update_maker_volume_30d(quote_asset_amount, now)?;
+        maker_stats.update_maker_volume_30d(market.fuel_boost_maker, quote_asset_amount, now)?;
     } else {
-        taker_stats.update_maker_volume_30d(quote_asset_amount, now)?;
+        taker_stats.update_maker_volume_30d(market.fuel_boost_maker, quote_asset_amount, now)?;
     };
 
     let taker_position_index = get_position_index(
@@ -2311,7 +2311,7 @@ pub fn fulfill_perp_order_with_match(
         &taker_position_delta,
     )?;
 
-    taker_stats.update_taker_volume_30d(quote_asset_amount, now)?;
+    taker_stats.update_taker_volume_30d(market.fuel_boost_taker, quote_asset_amount, now)?;
 
     let reward_referrer = can_reward_user_with_perp_pnl(referrer, market.market_index);
     let reward_filler = can_reward_user_with_perp_pnl(filler, market.market_index);
@@ -4284,7 +4284,7 @@ pub fn fulfill_spot_order_with_match(
         base_asset_amount,
     )?;
 
-    taker_stats.update_taker_volume_30d(quote_asset_amount, now)?;
+    taker_stats.update_taker_volume_30d(base_market.fuel_boost_taker, quote_asset_amount, now)?;
 
     taker_stats.increment_total_fees(taker_fee)?;
 
@@ -4328,10 +4328,18 @@ pub fn fulfill_spot_order_with_match(
     )?;
 
     if let Some(maker_stats) = maker_stats {
-        maker_stats.update_maker_volume_30d(quote_asset_amount, now)?;
+        maker_stats.update_maker_volume_30d(
+            base_market.fuel_boost_maker,
+            quote_asset_amount,
+            now,
+        )?;
         maker_stats.increment_total_rebate(maker_rebate)?;
     } else {
-        taker_stats.update_maker_volume_30d(quote_asset_amount, now)?;
+        taker_stats.update_maker_volume_30d(
+            base_market.fuel_boost_maker,
+            quote_asset_amount,
+            now,
+        )?;
         taker_stats.increment_total_rebate(maker_rebate)?;
     }
 
@@ -4578,7 +4586,11 @@ pub fn fulfill_spot_order_with_external_market(
 
     taker.update_cumulative_spot_fees(-taker_fee.cast()?)?;
 
-    taker_stats.update_taker_volume_30d(quote_asset_amount_filled.cast()?, now)?;
+    taker_stats.update_taker_volume_30d(
+        base_market.fuel_boost_taker,
+        quote_asset_amount_filled.cast()?,
+        now,
+    )?;
 
     taker_stats.increment_total_fees(taker_fee.cast()?)?;
 

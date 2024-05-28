@@ -2791,7 +2791,11 @@ pub fn handle_end_swap(
             out_spot_market.decimals,
             out_oracle_price,
         )?;
-        user_stats.update_taker_volume_30d(amount_out_value.cast()?, now)?;
+        user_stats.update_taker_volume_30d(
+            out_spot_market.fuel_boost_taker,
+            amount_out_value.cast()?,
+            now,
+        )?;
     }
 
     validate!(

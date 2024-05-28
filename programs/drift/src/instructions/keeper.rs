@@ -31,7 +31,7 @@ use crate::state::state::State;
 use crate::state::user::{MarketType, OrderStatus, User, UserStats};
 use crate::state::user_map::{load_user_maps, UserMap, UserStatsMap};
 use crate::validation::user::validate_user_is_idle;
-use crate::{controller, load, math, OracleSource};
+use crate::{controller, load, math, OracleSource, GOV_SPOT_MARKET_INDEX};
 use crate::{load_mut, QUOTE_PRECISION_U64};
 use crate::{validate, QUOTE_PRECISION_I128};
 
@@ -1451,7 +1451,7 @@ pub fn handle_update_user_quote_asset_insurance_stake(
 ) -> Result<()> {
     let insurance_fund_stake = &mut load_mut!(ctx.accounts.insurance_fund_stake)?;
     let user_stats = &mut load_mut!(ctx.accounts.user_stats)?;
-    let quote_spot_market = &mut load_mut!(ctx.accounts.spot_market)?;
+    let spot_market = &mut load_mut!(ctx.accounts.spot_market)?;
 
     validate!(
         insurance_fund_stake.market_index == 0,
@@ -1459,11 +1459,40 @@ pub fn handle_update_user_quote_asset_insurance_stake(
         "insurance_fund_stake is not for quote market"
     )?;
 
-    user_stats.if_staked_quote_asset_amount = if_shares_to_vault_amount(
-        insurance_fund_stake.checked_if_shares(quote_spot_market)?,
-        quote_spot_market.insurance_fund.total_shares,
-        ctx.accounts.insurance_fund_vault.amount,
+    if insurance_fund_stake.market_index == 0 && spot_market.market_index == 0 {
+        user_stats.if_staked_quote_asset_amount = if_shares_to_vault_amount(
+            insurance_fund_stake.checked_if_shares(spot_market)?,
+            spot_market.insurance_fund.total_shares,
+            ctx.accounts.insurance_fund_vault.amount,
+        )?;
+    }
+
+    Ok(())
+}
+
+pub fn handle_update_user_gov_token_insurance_stake(
+    ctx: Context<UpdateUserGovTokenInsuranceStake>,
+) -> Result<()> {
+    let insurance_fund_stake = &mut load_mut!(ctx.accounts.insurance_fund_stake)?;
+    let user_stats = &mut load_mut!(ctx.accounts.user_stats)?;
+    let spot_market = &mut load_mut!(ctx.accounts.spot_market)?;
+
+    validate!(
+        insurance_fund_stake.market_index == GOV_SPOT_MARKET_INDEX,
+        ErrorCode::IncorrectSpotMarketAccountPassed,
+        "insurance_fund_stake is not for governance market index = {}",
+        GOV_SPOT_MARKET_INDEX
     )?;
+
+    if insurance_fund_stake.market_index == GOV_SPOT_MARKET_INDEX
+        && spot_market.market_index == GOV_SPOT_MARKET_INDEX
+    {
+        user_stats.if_staked_quote_asset_amount = if_shares_to_vault_amount(
+            insurance_fund_stake.checked_if_shares(spot_market)?,
+            spot_market.insurance_fund.total_shares,
+            ctx.accounts.insurance_fund_vault.amount,
+        )?;
+    }
 
     Ok(())
 }
@@ -1824,6 +1853,33 @@ pub struct UpdateUserQuoteAssetInsuranceStake<'info> {
     #[account(
         mut,
         seeds = [b"insurance_fund_vault".as_ref(), 0_u16.to_le_bytes().as_ref()],
+        bump,
+    )]
+    pub insurance_fund_vault: Box<Account<'info, TokenAccount>>,
+}
+
+#[derive(Accounts)]
+pub struct UpdateUserGovTokenInsuranceStake<'info> {
+    pub state: Box<Account<'info, State>>,
+    #[account(
+        seeds = [b"spot_market", 15_u16.to_le_bytes().as_ref()],
+        bump
+    )]
+    pub spot_market: AccountLoader<'info, SpotMarket>,
+    #[account(
+        mut,
+        has_one = authority,
+    )]
+    pub insurance_fund_stake: AccountLoader<'info, InsuranceFundStake>,
+    #[account(
+        mut,
+        has_one = authority,
+    )]
+    pub user_stats: AccountLoader<'info, UserStats>,
+    pub authority: Signer<'info>,
+    #[account(
+        mut,
+        seeds = [b"insurance_fund_vault".as_ref(), 15_u16.to_le_bytes().as_ref()],
         bump,
     )]
     pub insurance_fund_vault: Box<Account<'info, TokenAccount>>,

@@ -1487,8 +1487,17 @@ impl UserStats {
         Ok(())
     }
 
-    pub fn update_maker_volume_30d(&mut self, quote_asset_amount: u64, now: i64) -> DriftResult {
+    pub fn update_maker_volume_30d(
+        &mut self,
+        fuel_boost: u16,
+        quote_asset_amount: u64,
+        now: i64,
+    ) -> DriftResult {
         let since_last = max(1_i64, now.safe_sub(self.last_maker_volume_30d_ts)?);
+
+        self.fuel_bonus = self
+            .fuel_bonus
+            .saturating_add(fuel_boost.cast::<u64>()?.saturating_mul(quote_asset_amount)); // todo of ratio
 
         self.maker_volume_30d = calculate_rolling_sum(
             self.maker_volume_30d,
@@ -1501,8 +1510,17 @@ impl UserStats {
         Ok(())
     }
 
-    pub fn update_taker_volume_30d(&mut self, quote_asset_amount: u64, now: i64) -> DriftResult {
+    pub fn update_taker_volume_30d(
+        &mut self,
+        fuel_boost: u16,
+        quote_asset_amount: u64,
+        now: i64,
+    ) -> DriftResult {
         let since_last = max(1_i64, now.safe_sub(self.last_taker_volume_30d_ts)?);
+
+        self.fuel_bonus = self
+            .fuel_bonus
+            .saturating_add(fuel_boost.cast::<u64>()?.saturating_mul(quote_asset_amount)); // todo of ratio
 
         self.taker_volume_30d = calculate_rolling_sum(
             self.taker_volume_30d,
