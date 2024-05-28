@@ -56,7 +56,7 @@ export class PhoenixSubscriber implements L2OrderBookGenerator {
 		}
 		this.lastSlot = 0;
 		this.lastUnixTimestamp = 0;
-		this.fastDecode = config.fastDecode ?? false;
+		this.fastDecode = config.fastDecode ?? true;
 	}
 
 	public async subscribe(): Promise<void> {
