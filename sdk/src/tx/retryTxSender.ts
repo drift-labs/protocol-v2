@@ -105,6 +105,9 @@ export class RetryTxSender extends BaseTxSender {
 		let slot: number;
 		try {
 			const result = await this.confirmTransaction(txid, opts.commitment);
+
+			await this.checkConfirmationResultForError(txid, result);
+
 			slot = result.context.slot;
 			// eslint-disable-next-line no-useless-catch
 		} catch (e) {
