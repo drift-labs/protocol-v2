@@ -1192,6 +1192,7 @@ export type HealthComponent = {
 
 export interface DriftClientMetricsEvents {
 	txSigned: SignedTxData[];
+	preTxSigned: void;
 }
 
 export type SignedTxData = {

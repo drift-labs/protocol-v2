@@ -221,11 +221,12 @@ export class DriftClient {
 				wallet: this.provider.wallet,
 				confirmationOptions: this.opts,
 				opts: {
-					returnBlockHeightsWithSignedTxCallbackData:
-						config.enableMetricsEvents,
+					returnBlockHeightsWithSignedTxCallbackData: config.enableMetricsEvents,
 					onSignedCb: this.handleSignedTransaction.bind(this),
-				},
-			});
+					preSignedCb: this.handlePreSignedTransaction.bind(this),
+				}
+			},
+		);
 
 		if (config.includeDelegates && config.subAccountIds) {
 			throw new Error(
@@ -4523,7 +4524,7 @@ export class DriftClient {
 		subAccountId?: number,
 		cancelExistingOrders?: boolean,
 		settlePnl?: boolean,
-		simulateFirst?: boolean
+		exitEarlyIfSimFails?: boolean
 	): Promise<{
 		txSig: TransactionSignature;
 		signedCancelExistingOrdersTx?: Transaction;
@@ -4531,16 +4532,9 @@ export class DriftClient {
 	}> {
 		const placeAndTakeIxs: TransactionInstruction[] = [];
 
-		const placeAndTakeIx = await this.getPlaceAndTakePerpOrderIx(
-			orderParams,
-			makerInfo,
-			referrerInfo,
-			subAccountId
-		);
-
-		const txsToSign: {
-			key: string;
-			tx: Transaction | VersionedTransaction;
+		const txsToSign : {
+			key: string,
+			tx: Transaction | VersionedTransaction,
 		}[] = [];
 
 		const keys = {
@@ -4549,120 +4543,150 @@ export class DriftClient {
 			settlePnlTx: 'settlePnlTx',
 		};
 
-		placeAndTakeIxs.push(placeAndTakeIx);
-
-		if (bracketOrdersParams.length > 0) {
-			const bracketOrdersIx = await this.getPlaceOrdersIx(
-				bracketOrdersParams,
-				subAccountId
-			);
-			placeAndTakeIxs.push(bracketOrdersIx);
-		}
-
-		const shouldUseSimulationComputeUnits = txParams?.useSimulatedComputeUnits;
-		const shouldExitIfSimulationFails = simulateFirst;
-
-		const txParamsWithoutImplicitSimulation: TxParams = {
-			...txParams,
-			useSimulatedComputeUnits: false,
-		};
-
 		// Get recent block hash so that we can re-use it for all transactions. Makes this logic run faster with fewer RPC requests
 		const recentBlockHash =
 			await this.txHandler.getLatestBlockhashForTransaction();
 
-		if (shouldUseSimulationComputeUnits || shouldExitIfSimulationFails) {
-			const placeAndTakeTxToSim = (await this.buildTransaction(
-				placeAndTakeIxs,
-				txParamsWithoutImplicitSimulation,
-				undefined,
-				undefined,
-				true,
-				recentBlockHash
-			)) as VersionedTransaction;
+		let earlyExitFailedPlaceAndTakeSim = false;
 
-			const simulationResult =
-				await TransactionParamProcessor.getTxSimComputeUnits(
-					placeAndTakeTxToSim,
-					this.connection,
-					txParams.computeUnitsBufferMultiplier ?? 1.2
+		const prepPlaceAndTakeTx = async () => {
+			const placeAndTakeIx = await this.getPlaceAndTakePerpOrderIx(
+				orderParams,
+				makerInfo,
+				referrerInfo,
+				subAccountId
+			);
+
+			placeAndTakeIxs.push(placeAndTakeIx);
+
+			if (bracketOrdersParams.length > 0) {
+				const bracketOrdersIx = await this.getPlaceOrdersIx(
+					bracketOrdersParams,
+					subAccountId
 				);
-
-			if (shouldExitIfSimulationFails && !simulationResult.success) {
-				return;
+				placeAndTakeIxs.push(bracketOrdersIx);
 			}
 
-			txsToSign.push({
-				key: keys.placeAndTakeIx,
-				tx: await this.buildTransaction(
-					placeAndTakeIxs,
-					{
-						...txParamsWithoutImplicitSimulation,
-						computeUnits: simulationResult.computeUnits,
-					},
-					undefined,
-					undefined,
-					undefined,
-					recentBlockHash
-				),
-			});
-		} else {
-			txsToSign.push({
-				key: keys.placeAndTakeIx,
-				tx: await this.buildTransaction(
+			const shouldUseSimulationComputeUnits = txParams?.useSimulatedComputeUnits;
+			const shouldExitIfSimulationFails = exitEarlyIfSimFails;
+
+			const txParamsWithoutImplicitSimulation : TxParams = {
+				...txParams,
+				useSimulatedComputeUnits: false,
+			};
+
+			if (shouldUseSimulationComputeUnits || shouldExitIfSimulationFails) {
+				const placeAndTakeTxToSim = (await this.buildTransaction(
 					placeAndTakeIxs,
 					txParams,
 					undefined,
 					undefined,
-					undefined,
+					true,
 					recentBlockHash
-				),
-			});
-		}
+				)) as VersionedTransaction;
+	
+				const simulationResult =
+					await TransactionParamProcessor.getTxSimComputeUnits(
+						placeAndTakeTxToSim,
+						this.connection,
+						txParams.computeUnitsBufferMultiplier ?? 1.2
+					);
+	
+				if (shouldExitIfSimulationFails && !simulationResult.success) {
+					earlyExitFailedPlaceAndTakeSim = true;
+					return;
+				}
+	
+				txsToSign.push({
+					key: keys.placeAndTakeIx,
+					tx: await this.buildTransaction(placeAndTakeIxs,
+						{
+							...txParamsWithoutImplicitSimulation,
+							computeUnits: simulationResult.computeUnits,
+						}, 
+						undefined, 
+						undefined, 
+						undefined, 
+						recentBlockHash
+					),
+				});
+			} else {
+				txsToSign.push({
+					key: keys.placeAndTakeIx,
+					tx: await this.buildTransaction(
+						placeAndTakeIxs,
+						txParams,
+						undefined,
+						undefined,
+						undefined,
+						recentBlockHash
+					),
+				});
+			}
 
-		if (cancelExistingOrders && isVariant(orderParams.marketType, 'perp')) {
-			const cancelOrdersIx = await this.getCancelOrdersIx(
-				orderParams.marketType,
-				orderParams.marketIndex,
-				null,
-				subAccountId
-			);
+			return;
+		};
 
-			txsToSign.push({
-				key: keys.cancelExistingOrdersTx,
-				tx: await this.buildTransaction(
-					[cancelOrdersIx],
-					txParams,
-					this.txVersion,
-					undefined,
-					undefined,
-					recentBlockHash
-				),
-			});
-		}
+		const prepCancelOrderTx = async () => {
+			if (cancelExistingOrders && isVariant(orderParams.marketType, 'perp')) {
+				const cancelOrdersIx = await this.getCancelOrdersIx(
+					orderParams.marketType,
+					orderParams.marketIndex,
+					null,
+					subAccountId
+				);
+	
+				txsToSign.push({
+					key: keys.cancelExistingOrdersTx,
+					tx: await this.buildTransaction(
+						[cancelOrdersIx],
+						txParams,
+						this.txVersion,
+						undefined,
+						undefined,
+						recentBlockHash
+					),
+				});
+			}
 
-		if (settlePnl && isVariant(orderParams.marketType, 'perp')) {
-			const userAccountPublicKey = await this.getUserAccountPublicKey(
-				subAccountId
-			);
+			return;
+		};
 
-			const settlePnlIx = await this.settlePNLIx(
-				userAccountPublicKey,
-				this.getUserAccount(subAccountId),
-				orderParams.marketIndex
-			);
+		const prepSettlePnlTx = async () => {
+			if (settlePnl && isVariant(orderParams.marketType, 'perp')) {
+				const userAccountPublicKey = await this.getUserAccountPublicKey(
+					subAccountId
+				);
 
-			txsToSign.push({
-				key: keys.settlePnlTx,
-				tx: await this.buildTransaction(
-					[settlePnlIx],
-					txParams,
-					this.txVersion,
-					undefined,
-					undefined,
-					recentBlockHash
-				),
-			});
+				const settlePnlIx = await this.settlePNLIx(
+					userAccountPublicKey,
+					this.getUserAccount(subAccountId),
+					orderParams.marketIndex
+				);
+
+				txsToSign.push({
+					key: keys.settlePnlTx,
+					tx: await this.buildTransaction(
+						[settlePnlIx],
+						txParams,
+						this.txVersion,
+						undefined,
+						undefined,
+						recentBlockHash
+					)
+				});
+			}
+			return;
+		};
+
+		await Promise.all([
+			prepPlaceAndTakeTx(),
+			prepCancelOrderTx(),
+			prepSettlePnlTx(),
+		]);
+
+		if (earlyExitFailedPlaceAndTakeSim) {
+			return null;
 		}
 
 		const signedTxs = await this.txHandler.getSignedTransactionMap(
@@ -4677,6 +4701,7 @@ export class DriftClient {
 			this.opts,
 			true
 		);
+		
 		this.perpMarketLastSlotCache.set(orderParams.marketIndex, slot);
 
 		return {
@@ -6697,6 +6722,12 @@ export class DriftClient {
 	private handleSignedTransaction(signedTxs: SignedTxData[]) {
 		if (this.enableMetricsEvents && this.metricsEventEmitter) {
 			this.metricsEventEmitter.emit('txSigned', signedTxs);
+		}
+	}
+	
+	private handlePreSignedTransaction() {
+		if (this.enableMetricsEvents && this.metricsEventEmitter) {
+			this.metricsEventEmitter.emit('preTxSigned');
 		}
 	}
 
