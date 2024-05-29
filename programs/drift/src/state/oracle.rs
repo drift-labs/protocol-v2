@@ -1,6 +1,5 @@
 use anchor_lang::prelude::*;
 use std::cell::Ref;
-use std::ops::{Deref, DerefMut};
 
 use crate::error::{DriftResult, ErrorCode};
 use crate::math::casting::Cast;
@@ -13,6 +12,7 @@ use crate::math::safe_unwrap::SafeUnwrap;
 use crate::state::load_ref::load_ref;
 use crate::state::perp_market::PerpMarket;
 use crate::state::traits::Size;
+use std::ops::Deref;
 use crate::validate;
 
 #[cfg(test)]
@@ -119,7 +119,7 @@ pub enum OracleSource {
     PythPull,
     Pyth1KPull,
     Pyth1MPull,
-    PythStableCoinPull,
+    PythStableCoinPull
 }
 
 impl Default for OracleSource {
@@ -169,9 +169,7 @@ pub fn get_oracle_price(
         OracleSource::PythPull => get_pyth_price(price_oracle, clock_slot, 1, true),
         OracleSource::Pyth1KPull => get_pyth_price(price_oracle, clock_slot, 1000, true),
         OracleSource::Pyth1MPull => get_pyth_price(price_oracle, clock_slot, 1000000, true),
-        OracleSource::PythStableCoinPull => {
-            get_pyth_stable_coin_price(price_oracle, clock_slot, true)
-        }
+        OracleSource::PythStableCoinPull => get_pyth_stable_coin_price(price_oracle, clock_slot, true)
     }
 }
 
@@ -179,23 +177,20 @@ pub fn get_pyth_price(
     price_oracle: &AccountInfo,
     clock_slot: u64,
     multiple: u128,
-    is_pull_oracle: bool,
+    is_pull_oracle: bool
 ) -> DriftResult<OraclePriceData> {
     let pyth_price_data = price_oracle
         .try_borrow_data()
         .or(Err(crate::error::ErrorCode::UnableToLoadOracle))?;
 
-    let mut oracle_price: i64;
-    let mut oracle_conf: u64;
+    let oracle_price: i64;
+    let oracle_conf: u64;
     let mut has_sufficient_number_of_data_points: bool = true;
     let mut oracle_precision: u128;
-    let mut published_slot: u64;
+    let published_slot: u64;
 
-    if is_pull_oracle {
-        let price_message = pyth_solana_receiver_sdk::price_update::PriceUpdateV2::try_deserialize(
-            &mut &**pyth_price_data,
-        )
-        .or(Err(crate::error::ErrorCode::UnableToLoadOracle))?;
+    if is_pull_oracle {  
+        let price_message = pyth_solana_receiver_sdk::price_update::PriceUpdateV2::deserialize(&mut &**pyth_price_data.deref()).unwrap();
         oracle_price = price_message.price_message.price;
         oracle_conf = price_message.price_message.conf;
         oracle_precision = 10_u128.pow(price_message.price_message.exponent.unsigned_abs());
@@ -206,11 +201,14 @@ pub fn get_pyth_price(
         oracle_conf = price_data.agg.conf;
         let min_publishers = price_data.num.min(3);
         let publisher_count = price_data.num_qt;
-
-        #[cfg(feature = "mainnet-beta")]
-        let has_sufficient_number_of_data_points = publisher_count >= min_publishers;
-        #[cfg(not(feature = "mainnet-beta"))]
-        let has_sufficient_number_of_data_points = true;
+        
+        has_sufficient_number_of_data_points = {
+            if cfg!(feature = "mainnet-beta") {
+                publisher_count >= min_publishers
+            } else {
+                true
+            }
+        };
         oracle_precision = 10_u128.pow(price_data.expo.unsigned_abs());
         published_slot = price_data.valid_slot;
     }
@@ -242,7 +240,9 @@ pub fn get_pyth_price(
         .safe_div(oracle_scale_div)?
         .cast::<u64>()?;
 
-    let oracle_delay: i64 = clock_slot.cast::<i64>()?.safe_sub(published_slot.cast()?)?;
+    let oracle_delay: i64 = clock_slot
+        .cast::<i64>()?
+        .safe_sub(published_slot.cast()?)?;
 
     Ok(OraclePriceData {
         price: oracle_price_scaled,
@@ -255,7 +255,7 @@ pub fn get_pyth_price(
 pub fn get_pyth_stable_coin_price(
     price_oracle: &AccountInfo,
     clock_slot: u64,
-    is_pull_oracle: bool,
+    is_pull_oracle: bool
 ) -> DriftResult<OraclePriceData> {
     let mut oracle_price_data = get_pyth_price(price_oracle, clock_slot, 1, is_pull_oracle)?;
 

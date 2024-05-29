@@ -523,6 +523,8 @@ pub enum ErrorCode {
     CantReclaimRent,
     #[msg("InsuranceFundOperationPaused")]
     InsuranceFundOperationPaused,
+    #[msg("Unable to parse pull oracle message")]
+    UnableToParsePullOracleMessage,
 }
 
 #[macro_export]

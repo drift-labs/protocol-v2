@@ -1,7 +1,7 @@
 use anchor_lang::prelude::*;
 
 use std::cmp::max;
-use std::ops::{Deref, DerefMut};
+use std::ops::Deref;
 
 use crate::controller::position::{PositionDelta, PositionDirection};
 use crate::error::{DriftResult, ErrorCode};
@@ -1319,9 +1319,8 @@ impl AMM {
             .try_borrow_data()
             .or(Err(ErrorCode::UnableToLoadOracle))?;
 
-        let mut oracle_price: i64;
-        let mut oracle_twap: i64;
-        let mut oracle_precision: u128;
+        let oracle_price: i64;
+        let oracle_twap: i64;
         let oracle_exponent: i32;
 
         if is_pull_oracle {
@@ -1333,12 +1332,10 @@ impl AMM {
             oracle_price = price_message.price_message.price;
             oracle_twap = price_message.price_message.price;
             oracle_exponent = price_message.price_message.exponent;
-            oracle_precision = 10_u128.pow(price_message.price_message.exponent.unsigned_abs());
         } else {
             let price_data = pyth_client::cast::<pyth_client::Price>(&pyth_price_data);
             oracle_price = price_data.agg.price;
             oracle_twap = price_data.twap.val;
-            oracle_precision = 10_u128.pow(price_data.expo.unsigned_abs());
             oracle_exponent = price_data.expo;
         }
 
