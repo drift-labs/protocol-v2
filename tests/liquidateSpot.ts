@@ -311,7 +311,7 @@ describe('liquidate spot', () => {
 		// if fee costs 1/100th of liability transfer
 		assert(
 			liquidationRecord.liquidateSpot.ifFee.eq(
-				liquidationRecord.liquidateSpot.liabilityTransfer.div(new BN(100))
+				new BN(0)
 			)
 		);
 

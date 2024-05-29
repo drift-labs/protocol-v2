@@ -216,9 +216,7 @@ describe('liquidate spot w/ social loss', () => {
 
 		// if liq fee is 0 since user is bankrupt
 		assert(
-			liquidationRecord.liquidateSpot.ifFee.lt(
-				new BN(spotMarketBefore.ifLiquidationFee)
-			)
+			liquidationRecord.liquidateSpot.ifFee.eq(new BN(0))
 		);
 
 		// if liquidator fee is non-zero, it should be equal to that

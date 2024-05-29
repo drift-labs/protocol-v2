@@ -229,10 +229,14 @@ describe('test function when spot market at >= 100% util', () => {
 			undefined,
 			ContractTier.A,
 			1000,
-			900 // easy to liq
+			900, // easy to liq
+			undefined,
+			undefined,
+			undefined,
+			true,
+			2000,
+			5000
 		);
-		await admin.updatePerpMarketStatus(0, MarketStatus.ACTIVE);
-		await admin.updatePerpMarketBaseSpread(0, 2000);
 		await admin.updatePerpMarketCurveUpdateIntensity(0, 100);
 
 		const txSig = await admin.updateWithdrawGuardThreshold(
