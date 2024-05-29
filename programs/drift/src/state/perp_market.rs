@@ -1,6 +1,7 @@
 use anchor_lang::prelude::*;
 
 use std::cmp::max;
+use std::ops::{Deref, DerefMut};
 
 use crate::controller::position::{PositionDelta, PositionDirection};
 use crate::error::{DriftResult, ErrorCode};
@@ -1302,11 +1303,18 @@ impl AMM {
                 Ok(Some(self.get_pyth_twap(price_oracle, 1, true)?))
             }
             OracleSource::Pyth1KPull => Ok(Some(self.get_pyth_twap(price_oracle, 1000, true)?)),
-            OracleSource::Pyth1MPull => Ok(Some(self.get_pyth_twap(price_oracle, 1000000, true)?)),
+            OracleSource::Pyth1MPull => {
+                Ok(Some(self.get_pyth_twap(price_oracle, 1000000, true)?))
+            }
         }
     }
 
-    pub fn get_pyth_twap(&self, price_oracle: &AccountInfo, multiple: u128, is_pull_oracle: bool) -> DriftResult<i64> {
+    pub fn get_pyth_twap(
+        &self,
+        price_oracle: &AccountInfo,
+        multiple: u128,
+        is_pull_oracle: bool,
+    ) -> DriftResult<i64> {
         let pyth_price_data = price_oracle
             .try_borrow_data()
             .or(Err(ErrorCode::UnableToLoadOracle))?;
@@ -1317,7 +1325,11 @@ impl AMM {
         let oracle_exponent: i32;
 
         if is_pull_oracle {
-            let price_message = pyth_solana_receiver_sdk::price_update::PriceUpdateV2::try_deserialize(&mut *pyth_price_data).or(Err(crate::error::ErrorCode::UnableToLoadOracle))?;
+            let price_message =
+                pyth_solana_receiver_sdk::price_update::PriceUpdateV2::try_deserialize(
+                    &mut &**pyth_price_data.deref(),
+                )
+                .or(Err(crate::error::ErrorCode::UnableToLoadOracle))?;
             oracle_price = price_message.price_message.price;
             oracle_twap = price_message.price_message.price;
             oracle_exponent = price_message.price_message.exponent;
