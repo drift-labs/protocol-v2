@@ -229,10 +229,14 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 			undefined,
 			ContractTier.A,
 			1000,
-			500
+			500,
+			undefined,
+			undefined,
+			undefined,
+			true,
+			250,
+			500,
 		);
-		await driftClient.updatePerpMarketStatus(0, MarketStatus.ACTIVE);
-		await driftClient.updatePerpMarketBaseSpread(0, 250);
 		await driftClient.updatePerpMarketCurveUpdateIntensity(0, 100);
 		await sleep(100);
 		await driftClient.fetchAccounts();

@@ -153,7 +153,13 @@ describe('delist market, liquidation of expired position', () => {
 			undefined,
 			ContractTier.A,
 			1000,
-			900 // easy to liq
+			900, // easy to liq
+			undefined,
+			undefined,
+			undefined,
+			true,
+			250,
+			500,
 		);
 
 		await driftClient.updatePerpMarketMinOrderSize(0, new BN(1));

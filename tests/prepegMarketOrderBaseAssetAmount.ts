@@ -9,7 +9,7 @@ import {
 	calculatePrice,
 	PEG_PRECISION,
 	BASE_PRECISION,
-	BulkAccountLoader,
+	BulkAccountLoader, ContractTier,
 } from '../sdk';
 
 import { Program } from '@coral-xyz/anchor';
@@ -121,10 +121,12 @@ describe('prepeg', () => {
 		});
 
 		await driftClient.initialize(usdcMint.publicKey, true);
-		await driftClient.updatePerpAuctionDuration(0);
 
 		await driftClient.subscribe();
+
 		await initializeQuoteSpotMarket(driftClient, usdcMint.publicKey);
+
+		await driftClient.updatePerpAuctionDuration(0);
 
 		const periodicity = new BN(60 * 60); // 1 HOUR
 		await driftClient.initializePerpMarket(
@@ -135,9 +137,17 @@ describe('prepeg', () => {
 			periodicity,
 			PEG_PRECISION,
 			undefined,
-			1000
+			ContractTier.A,
+			1000,
+			500,
+			undefined,
+			undefined,
+			undefined,
+			true,
+			2000,
+			5000,
 		);
-		await driftClient.updatePerpMarketBaseSpread(0, 1000);
+		// await driftClient.updatePerpMarketBaseSpread(0, 1000);
 		await driftClient.updatePerpMarketCurveUpdateIntensity(0, 100);
 		await driftClient.updatePerpMarketStepSizeAndTickSize(
 			0,
@@ -156,7 +166,15 @@ describe('prepeg', () => {
 				periodicity,
 				new BN(1_000 * i),
 				undefined,
-				1000
+				ContractTier.A,
+				1000,
+				500,
+				undefined,
+				undefined,
+				undefined,
+				true,
+				2000,
+				5000,
 			);
 			await driftClient.updatePerpMarketBaseSpread(i, 2000);
 			await driftClient.updatePerpMarketCurveUpdateIntensity(i, 100);

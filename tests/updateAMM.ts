@@ -3,7 +3,7 @@ import { assert } from 'chai';
 import {
 	BASE_PRECISION,
 	BN,
-	BulkAccountLoader,
+	BulkAccountLoader, ContractTier,
 	getMarketOrderParams,
 	OracleSource,
 	PEG_PRECISION,
@@ -162,9 +162,9 @@ describe('update amm', () => {
 		});
 
 		await driftClient.initialize(usdcMint.publicKey, true);
-		await driftClient.updatePerpAuctionDuration(0);
 
 		await driftClient.subscribe();
+		await driftClient.updatePerpAuctionDuration(0);
 		await initializeQuoteSpotMarket(driftClient, usdcMint.publicKey);
 
 		const periodicity = new BN(60 * 60); // 1 HOUR
@@ -176,7 +176,15 @@ describe('update amm', () => {
 			periodicity,
 			new BN(1 * PEG_PRECISION.toNumber()),
 			undefined,
-			1000
+			ContractTier.A,
+			1000,
+			500,
+			undefined,
+			undefined,
+			undefined,
+			true,
+			2000,
+			5000,
 		);
 		await driftClient.updatePerpMarketBaseSpread(0, 2000);
 		await driftClient.updatePerpMarketCurveUpdateIntensity(0, 100);
@@ -192,7 +200,15 @@ describe('update amm', () => {
 				periodicity,
 				new BN(i * PEG_PRECISION.toNumber()),
 				undefined,
-				1000
+				ContractTier.A,
+				1000,
+				500,
+				undefined,
+				undefined,
+				undefined,
+				true,
+				2000,
+				5000,
 			);
 			await driftClient.updatePerpMarketBaseSpread(i, 2000);
 			await driftClient.updatePerpMarketCurveUpdateIntensity(i, 100);
