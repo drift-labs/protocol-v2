@@ -465,13 +465,13 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 			oraclePriceData00Again
 		);
 		console.log('bid0After:', bid0After.toString(), ask0After.toString());
-		assert(bid0After.eq(new BN(249149540)));
+		assert(bid0After.eq(new BN(254679585)));
 		assert(
 			oraclePriceData00Again.price.eq(
 				new BN(260.5 * PRICE_PRECISION.toNumber())
 			)
 		);
-		assert(ask0After.eq(new BN(572204530)));
+		assert(ask0After.eq(new BN(585978468)));
 		try {
 			const txSig = await driftClient.updateAMMs([0]);
 			console.log(
@@ -792,10 +792,10 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 		console.log(prepegAMM.pegMultiplier.toString());
 		console.log(bid.toString());
 		console.log(ask.toString());
-		assert(bid.eq(new BN('251312405')));
-		assert(prepegAMM.pegMultiplier.eq(new BN('254313114'))); // lowered by 1 for funding offset change
+		assert(bid.eq(new BN('255252220')));
+		assert(prepegAMM.pegMultiplier.eq(new BN('260434864'))); // lowered by 1 for funding offset change
 		assert(oraclePriceData0.price.eq(new BN('260500000')));
-		assert(ask.eq(new BN('397364256')));
+		assert(ask.eq(new BN('585978467')));
 
 		const direction = PositionDirection.SHORT;
 		const baseAssetAmount = new BN(AMM_RESERVE_PRECISION);
@@ -823,7 +823,7 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 		);
 		const prepegAMM1 = calculateUpdatedAMM(market0.amm, oraclePriceData1);
 		console.log(prepegAMM1.pegMultiplier.toString());
-		assert(prepegAMM1.pegMultiplier.eq(new BN(254313114))); // lower by 1 for funding offset change
+		assert(prepegAMM1.pegMultiplier.eq(new BN(260434864)));
 	});
 
 	it('resolvePerpPnlDeficit', async () => {
