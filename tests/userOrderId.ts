@@ -22,7 +22,7 @@ import {
 	mockUSDCMint,
 	mockUserUSDCAccount,
 } from './testHelpers';
-import { BulkAccountLoader, ExchangeStatus } from '../sdk';
+import {BulkAccountLoader, ContractTier, ExchangeStatus} from '../sdk';
 
 describe('user order id', () => {
 	const provider = anchor.AnchorProvider.local(undefined, {
@@ -121,6 +121,9 @@ describe('user order id', () => {
 			ammInitialQuoteAssetReserve.div(new BN(3000)),
 			periodicity,
 			new BN(60000000), // btc-ish price level
+			undefined,
+			ContractTier.A,
+			undefined,
 			undefined,
 			undefined,
 			undefined,

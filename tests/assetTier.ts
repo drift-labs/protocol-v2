@@ -39,7 +39,7 @@ import {
 	// getFeedData,
 	// sleep,
 } from './testHelpers';
-import { BulkAccountLoader } from '../sdk';
+import {BulkAccountLoader, ContractTier} from '../sdk';
 
 describe('asset tiers', () => {
 	const provider = anchor.AnchorProvider.local(undefined, {
@@ -126,10 +126,16 @@ describe('asset tiers', () => {
 			periodicity,
 			new BN(22500 * PEG_PRECISION.toNumber()),
 			undefined,
-			1000
+			ContractTier.A,
+			1000,
+			500,
+			undefined,
+			undefined,
+			undefined,
+			true,
+			2000,
+			5000
 		);
-		await driftClient.updatePerpMarketStatus(0, MarketStatus.ACTIVE);
-		await driftClient.updatePerpMarketBaseSpread(0, 2000);
 		await driftClient.updatePerpMarketCurveUpdateIntensity(0, 100);
 
 		const subAccountId = 0;
