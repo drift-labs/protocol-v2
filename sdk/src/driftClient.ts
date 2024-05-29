@@ -221,12 +221,12 @@ export class DriftClient {
 				wallet: this.provider.wallet,
 				confirmationOptions: this.opts,
 				opts: {
-					returnBlockHeightsWithSignedTxCallbackData: config.enableMetricsEvents,
+					returnBlockHeightsWithSignedTxCallbackData:
+						config.enableMetricsEvents,
 					onSignedCb: this.handleSignedTransaction.bind(this),
 					preSignedCb: this.handlePreSignedTransaction.bind(this),
-				}
-			},
-		);
+				},
+			});
 
 		if (config.includeDelegates && config.subAccountIds) {
 			throw new Error(
@@ -4532,9 +4532,9 @@ export class DriftClient {
 	}> {
 		const placeAndTakeIxs: TransactionInstruction[] = [];
 
-		const txsToSign : {
-			key: string,
-			tx: Transaction | VersionedTransaction,
+		const txsToSign: {
+			key: string;
+			tx: Transaction | VersionedTransaction;
 		}[] = [];
 
 		const keys = {
@@ -4567,10 +4567,11 @@ export class DriftClient {
 				placeAndTakeIxs.push(bracketOrdersIx);
 			}
 
-			const shouldUseSimulationComputeUnits = txParams?.useSimulatedComputeUnits;
+			const shouldUseSimulationComputeUnits =
+				txParams?.useSimulatedComputeUnits;
 			const shouldExitIfSimulationFails = exitEarlyIfSimFails;
 
-			const txParamsWithoutImplicitSimulation : TxParams = {
+			const txParamsWithoutImplicitSimulation: TxParams = {
 				...txParams,
 				useSimulatedComputeUnits: false,
 			};
@@ -4584,29 +4585,30 @@ export class DriftClient {
 					true,
 					recentBlockHash
 				)) as VersionedTransaction;
-	
+
 				const simulationResult =
 					await TransactionParamProcessor.getTxSimComputeUnits(
 						placeAndTakeTxToSim,
 						this.connection,
 						txParams.computeUnitsBufferMultiplier ?? 1.2
 					);
-	
+
 				if (shouldExitIfSimulationFails && !simulationResult.success) {
 					earlyExitFailedPlaceAndTakeSim = true;
 					return;
 				}
-	
+
 				txsToSign.push({
 					key: keys.placeAndTakeIx,
-					tx: await this.buildTransaction(placeAndTakeIxs,
+					tx: await this.buildTransaction(
+						placeAndTakeIxs,
 						{
 							...txParamsWithoutImplicitSimulation,
 							computeUnits: simulationResult.computeUnits,
-						}, 
-						undefined, 
-						undefined, 
-						undefined, 
+						},
+						undefined,
+						undefined,
+						undefined,
 						recentBlockHash
 					),
 				});
@@ -4635,7 +4637,7 @@ export class DriftClient {
 					null,
 					subAccountId
 				);
-	
+
 				txsToSign.push({
 					key: keys.cancelExistingOrdersTx,
 					tx: await this.buildTransaction(
@@ -4673,7 +4675,7 @@ export class DriftClient {
 						undefined,
 						undefined,
 						recentBlockHash
-					)
+					),
 				});
 			}
 			return;
@@ -4701,7 +4703,7 @@ export class DriftClient {
 			this.opts,
 			true
 		);
-		
+
 		this.perpMarketLastSlotCache.set(orderParams.marketIndex, slot);
 
 		return {
@@ -6724,7 +6726,7 @@ export class DriftClient {
 			this.metricsEventEmitter.emit('txSigned', signedTxs);
 		}
 	}
-	
+
 	private handlePreSignedTransaction() {
 		if (this.enableMetricsEvents && this.metricsEventEmitter) {
 			this.metricsEventEmitter.emit('preTxSigned');
