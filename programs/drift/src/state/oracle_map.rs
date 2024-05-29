@@ -2,6 +2,7 @@ use crate::error::ErrorCode::UnableToLoadOracle;
 use crate::error::{DriftResult, ErrorCode};
 use crate::ids::{
     bonk_oracle, pepe_oracle, pyth_program, switchboard_program, usdc_oracle, usdt_oracle_mainnet,
+    bonk_pull_oracle, usdc_pull_oracle, usdt_pull_oracle_mainnet, pyth_pull_program,
 };
 use crate::math::constants::PRICE_PRECISION_I64;
 use crate::math::oracle::{oracle_validity, OracleValidity};
@@ -190,7 +191,7 @@ impl<'a> OracleMap<'a> {
 
         while let Some(account_info) = account_info_iter.peek() {
             if account_info.owner == &pyth_program::id() {
-                let account_info = account_info_iter.next().safe_unwrap()?;
+                let account_info: &AccountInfo<'a> = account_info_iter.next().safe_unwrap()?;
                 let pubkey = account_info.key();
 
                 let oracle_source = if pubkey == bonk_oracle::id() || pubkey == pepe_oracle::id() {
@@ -199,6 +200,27 @@ impl<'a> OracleMap<'a> {
                     OracleSource::PythStableCoin
                 } else {
                     OracleSource::Pyth
+                };
+
+                oracles.insert(
+                    pubkey,
+                    AccountInfoAndOracleSource {
+                        account_info: account_info.clone(),
+                        oracle_source,
+                    },
+                );
+
+                continue;
+            } else if account_info.owner == &pyth_pull_program::id() {
+                let account_info: &AccountInfo<'a> = account_info_iter.next().safe_unwrap()?;
+                let pubkey = account_info.key();
+
+                let oracle_source = if pubkey == bonk_pull_oracle::id() {
+                    OracleSource::Pyth1MPull
+                } else if pubkey == usdc_pull_oracle::id() || pubkey == usdt_pull_oracle_mainnet::id() {
+                    OracleSource::PythStableCoinPull
+                } else {
+                    OracleSource::PythPull
                 };
 
                 oracles.insert(
@@ -292,6 +314,22 @@ impl<'a> OracleMap<'a> {
                 OracleSource::PythStableCoin
             } else {
                 OracleSource::Pyth
+            };
+            oracles.insert(
+                pubkey,
+                AccountInfoAndOracleSource {
+                    account_info: account_info.clone(),
+                    oracle_source,
+                },
+            );
+        } else if account_info.owner == &pyth_pull_program::id() {
+            let pubkey = account_info.key();
+            let oracle_source = if pubkey == bonk_pull_oracle::id() {
+                OracleSource::Pyth1MPull
+            } else if pubkey == usdc_pull_oracle::id() || pubkey == usdt_pull_oracle_mainnet::id() {
+                OracleSource::PythStableCoinPull
+            } else {
+                OracleSource::PythPull
             };
             oracles.insert(
                 pubkey,
