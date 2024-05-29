@@ -6,7 +6,7 @@ use crate::instructions::constraints::*;
 use crate::instructions::optional_accounts::{load_maps, AccountMaps};
 use crate::math::constants::QUOTE_SPOT_MARKET_INDEX;
 use crate::math::insurance::if_shares_to_vault_amount;
-use crate::math::margin::{calculate_user_equity, meets_maintenance_margin_requirement};
+use crate::math::margin::{calculate_user_equity, meets_settle_pnl_maintenance_margin_requirement};
 use crate::math::orders::{estimate_price_from_side, find_bids_and_asks_from_users};
 use crate::math::spot_withdraw::validate_spot_market_vault_amount;
 use crate::optional_accounts::update_prelaunch_oracle;
@@ -504,7 +504,7 @@ pub fn handle_settle_multiple_pnls(
         Some(state.oracle_guard_rails),
     )?;
 
-    let meets_margin_requirement = meets_maintenance_margin_requirement(
+    let meets_margin_requirement = meets_settle_pnl_maintenance_margin_requirement(
         user,
         &perp_market_map,
         &spot_market_map,

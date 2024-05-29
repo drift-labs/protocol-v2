@@ -18,7 +18,8 @@ use crate::math::oracle::{is_oracle_valid_for_action, DriftAction};
 use crate::math::casting::Cast;
 use crate::math::margin::{
     calculate_margin_requirement_and_total_collateral_and_liability_info,
-    meets_maintenance_margin_requirement, MarginRequirementType,
+    meets_maintenance_margin_requirement, meets_settle_pnl_maintenance_margin_requirement,
+    MarginRequirementType,
 };
 use crate::math::position::calculate_base_asset_value_with_expiry_price;
 use crate::math::safe_math::SafeMath;
@@ -107,7 +108,7 @@ pub fn settle_pnl(
 
             // if the unrealized pnl is negative, return early after trying to burn shares
             if unrealized_pnl < 0
-                && !(meets_maintenance_margin_requirement(
+                && !(meets_settle_pnl_maintenance_margin_requirement(
                     user,
                     perp_market_map,
                     spot_market_map,
@@ -125,7 +126,7 @@ pub fn settle_pnl(
         // may already be cached
         let meets_margin_requirement = match meets_margin_requirement {
             Some(meets_margin_requirement) => meets_margin_requirement,
-            None => meets_maintenance_margin_requirement(
+            None => meets_settle_pnl_maintenance_margin_requirement(
                 user,
                 perp_market_map,
                 spot_market_map,

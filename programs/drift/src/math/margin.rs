@@ -663,6 +663,22 @@ pub fn meets_initial_margin_requirement(
     .map(|calc| calc.meets_margin_requirement())
 }
 
+pub fn meets_settle_pnl_maintenance_margin_requirement(
+    user: &User,
+    perp_market_map: &PerpMarketMap,
+    spot_market_map: &SpotMarketMap,
+    oracle_map: &mut OracleMap,
+) -> DriftResult<bool> {
+    calculate_margin_requirement_and_total_collateral_and_liability_info(
+        user,
+        perp_market_map,
+        spot_market_map,
+        oracle_map,
+        MarginContext::standard(MarginRequirementType::Maintenance).strict(true),
+    )
+    .map(|calc| calc.meets_margin_requirement())
+}
+
 pub fn meets_maintenance_margin_requirement(
     user: &User,
     perp_market_map: &PerpMarketMap,

@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Features
 
 - program: add settle pnl mode ([#1030](https://github.com/drift-labs/protocol-v2/pull/1030))
+- program: use strict price for maintenance margin check in settle pnl ([#1045](https://github.com/drift-labs/protocol-v2/pull/1045))
 
 ### Fixes
 
