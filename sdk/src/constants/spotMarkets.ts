@@ -240,6 +240,39 @@ export const MainnetSpotMarkets: SpotMarketConfig[] = [
 		),
 		launchTs: 1712593532000,
 	},
+	{
+		symbol: 'DRIFT',
+		marketIndex: 15,
+		oracle: new PublicKey('PeNpQeGEm9UEFJ6MBCMauY4WW4h3YxoESPWbsqVKucE'),
+		oracleSource: OracleSource.SWITCHBOARD,
+		mint: new PublicKey('DriFtupJYLTosbwoN8koMbEYSx54aFAVLddWsbksjwg7'),
+		precision: new BN(10).pow(SIX),
+		precisionExp: SIX,
+		phoenixMarket: new PublicKey(
+			'8BV6rrWsUabnTDA3dE6A69oUDJAj3hMhtBHTJyXB7czp'
+		),
+		launchTs: 1715860800000,
+	},
+	{
+		symbol: 'INF',
+		marketIndex: 16,
+		oracle: new PublicKey('6AQHz9mpGNjyVafcWdqzzgsJq14Cs8gG6MiQKmdAgCuP'),
+		oracleSource: OracleSource.SWITCHBOARD,
+		mint: new PublicKey('5oVNBeEEQvYi1cX3ir8Dx5n1P7pdxydbGF2X4TxVusJm'),
+		precision: new BN(10).pow(NINE),
+		precisionExp: NINE,
+		launchTs: 1716595200000,
+	},
+	{
+		symbol: 'dSOL',
+		marketIndex: 17,
+		oracle: new PublicKey('HJ9K9AamqVMp86j3uQgpA1tdJNRAwfVuL75FD9P3QBrn'),
+		oracleSource: OracleSource.SWITCHBOARD,
+		mint: new PublicKey('Dso1bDeDjCQxTrWHqUUi63oBvV7Mdm6WaobLbQ7gnPQ'),
+		precision: new BN(10).pow(NINE),
+		precisionExp: NINE,
+		launchTs: 1716595200000,
+	},
 ];
 
 export const SpotMarkets: { [key in DriftEnv]: SpotMarketConfig[] } = {

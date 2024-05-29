@@ -5,9 +5,10 @@ import {
 	VersionedTransaction,
 } from '@solana/web3.js';
 import bs58 from 'bs58';
-import { IWallet } from '../types';
 import { BaseTxSender } from './baseTxSender';
 import { ConfirmationStrategy, TxSigAndSlot } from './types';
+import { TxHandler } from './txHandler';
+import { IWallet } from '../types';
 
 const DEFAULT_TIMEOUT = 35000;
 const DEFAULT_RETRY = 5000;
@@ -33,6 +34,7 @@ export class ForwardOnlyTxSender extends BaseTxSender {
 		retrySleep = DEFAULT_RETRY,
 		confirmationStrategy = ConfirmationStrategy.Combo,
 		additionalTxSenderCallbacks = [],
+		txHandler,
 	}: {
 		connection: Connection;
 		wallet: IWallet;
@@ -41,6 +43,7 @@ export class ForwardOnlyTxSender extends BaseTxSender {
 		retrySleep?: number;
 		confirmationStrategy?: ConfirmationStrategy;
 		additionalTxSenderCallbacks?: ((base58EncodedTx: string) => void)[];
+		txHandler?: TxHandler;
 	}) {
 		super({
 			connection,
@@ -50,6 +53,7 @@ export class ForwardOnlyTxSender extends BaseTxSender {
 			additionalConnections: [],
 			confirmationStrategy,
 			additionalTxSenderCallbacks,
+			txHandler,
 		});
 		this.connection = connection;
 		this.wallet = wallet;

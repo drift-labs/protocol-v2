@@ -1,22 +1,19 @@
-import { ExtraConfirmationOptions, TxSigAndSlot } from './types';
+import { TxSigAndSlot } from './types';
 import {
-	AddressLookupTableAccount,
 	Commitment,
 	ConfirmOptions,
 	Connection,
 	Signer,
 	Transaction,
-	TransactionInstruction,
-	TransactionMessage,
 	VersionedTransaction,
 } from '@solana/web3.js';
 import { AnchorProvider } from '@coral-xyz/anchor';
-import { IWallet } from '../types';
 import { BaseTxSender } from './baseTxSender';
 import bs58 from 'bs58';
+import { TxHandler } from './txHandler';
+import { IWallet } from '../types';
 
 const DEFAULT_RETRY = 2000;
-const PLACEHOLDER_BLOCKHASH = 'Fdum64WVeej6DeL85REV9NvfSxEJNPZ74DBk7A8kTrKP';
 
 type ResolveReference = {
 	resolve?: () => void;
@@ -44,6 +41,7 @@ export class WhileValidTxSender extends BaseTxSender {
 		additionalConnections = new Array<Connection>(),
 		additionalTxSenderCallbacks = [],
 		blockhashCommitment = 'finalized',
+		txHandler,
 	}: {
 		connection: Connection;
 		wallet: IWallet;
@@ -52,6 +50,7 @@ export class WhileValidTxSender extends BaseTxSender {
 		additionalConnections?;
 		additionalTxSenderCallbacks?: ((base58EncodedTx: string) => void)[];
 		blockhashCommitment?: Commitment;
+		txHandler?: TxHandler;
 	}) {
 		super({
 			connection,
@@ -59,6 +58,7 @@ export class WhileValidTxSender extends BaseTxSender {
 			opts,
 			additionalConnections,
 			additionalTxSenderCallbacks,
+			txHandler,
 		});
 		this.retrySleep = retrySleep;
 		this.blockhashCommitment = blockhashCommitment;
@@ -77,23 +77,20 @@ export class WhileValidTxSender extends BaseTxSender {
 		opts: ConfirmOptions,
 		preSigned?: boolean
 	): Promise<Transaction> {
-		const latestBlockhash = await this.connection.getLatestBlockhash(
-			this.blockhashCommitment
-		);
+		const latestBlockhash =
+			await this.txHandler.getLatestBlockhashForTransaction();
 
 		// handle tx
 		let signedTx = tx;
 		if (!preSigned) {
-			tx.feePayer = this.wallet.publicKey;
-			tx.recentBlockhash = latestBlockhash.blockhash;
-
-			additionalSigners
-				.filter((s): s is Signer => s !== undefined)
-				.forEach((kp) => {
-					tx.partialSign(kp);
-				});
-
-			signedTx = await this.wallet.signTransaction(tx);
+			signedTx = await this.txHandler.prepareTx(
+				tx,
+				additionalSigners,
+				undefined,
+				opts,
+				false,
+				latestBlockhash
+			);
 		}
 
 		// handle subclass-specific side effects
@@ -105,34 +102,14 @@ export class WhileValidTxSender extends BaseTxSender {
 		return signedTx;
 	}
 
-	async getVersionedTransaction(
-		ixs: TransactionInstruction[],
-		lookupTableAccounts: AddressLookupTableAccount[],
-		_additionalSigners?: Array<Signer>,
-		_opts?: ConfirmOptions,
-		blockhash?: string
-	): Promise<VersionedTransaction> {
-		const message = new TransactionMessage({
-			payerKey: this.wallet.publicKey,
-			recentBlockhash: blockhash ?? PLACEHOLDER_BLOCKHASH, // set blank and reset in sendVersionTransaction
-			instructions: ixs,
-		}).compileToV0Message(lookupTableAccounts);
-
-		const tx = new VersionedTransaction(message);
-
-		return tx;
-	}
-
 	async sendVersionedTransaction(
 		tx: VersionedTransaction,
 		additionalSigners?: Array<Signer>,
 		opts?: ConfirmOptions,
-		preSigned?: boolean,
-		extraConfirmationOptions?: ExtraConfirmationOptions
+		preSigned?: boolean
 	): Promise<TxSigAndSlot> {
-		const latestBlockhash = await this.connection.getLatestBlockhash(
-			this.blockhashCommitment
-		);
+		const latestBlockhash =
+			await this.txHandler.getLatestBlockhashForTransaction();
 
 		let signedTx;
 		if (preSigned) {
@@ -150,12 +127,11 @@ export class WhileValidTxSender extends BaseTxSender {
 				.forEach((kp) => {
 					tx.sign([kp]);
 				});
-			// @ts-ignore
-			signedTx = await this.wallet.signTransaction(tx);
-		}
-
-		if (extraConfirmationOptions?.onSignedCb) {
-			extraConfirmationOptions.onSignedCb();
+			signedTx = await this.txHandler.signVersionedTx(
+				tx,
+				additionalSigners,
+				latestBlockhash
+			);
 		}
 
 		if (opts === undefined) {
