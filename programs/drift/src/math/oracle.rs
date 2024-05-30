@@ -22,7 +22,7 @@ mod tests;
 // ordered by "severity"
 #[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Debug, Eq)]
 pub enum OracleValidity {
-    Invalid,
+    NonPositive,
     TooVolatile,
     TooUncertain,
     StaleForMargin,
@@ -40,7 +40,7 @@ impl Default for OracleValidity {
 impl OracleValidity {
     pub fn get_error_code(&self) -> ErrorCode {
         match self {
-            OracleValidity::Invalid => ErrorCode::OracleInvalid,
+            OracleValidity::NonPositive => ErrorCode::OracleNonPositive,
             OracleValidity::TooVolatile => ErrorCode::OracleTooVolatile,
             OracleValidity::TooUncertain => ErrorCode::OracleTooUncertain,
             OracleValidity::StaleForMargin => ErrorCode::OracleStaleForMargin,
@@ -54,7 +54,7 @@ impl OracleValidity {
 impl fmt::Display for OracleValidity {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            OracleValidity::Invalid => write!(f, "Invalid"),
+            OracleValidity::NonPositive => write!(f, "NonPositive"),
             OracleValidity::TooVolatile => write!(f, "TooVolatile"),
             OracleValidity::TooUncertain => write!(f, "TooUncertain"),
             OracleValidity::StaleForMargin => write!(f, "StaleForMargin"),
@@ -134,8 +134,8 @@ pub fn is_oracle_valid_for_action(
                 oracle_validity,
                 OracleValidity::Invalid | OracleValidity::TooVolatile
             ),
-            DriftAction::UpdateTwap => !matches!(oracle_validity, OracleValidity::Invalid),
-            DriftAction::UpdateAMMCurve => !matches!(oracle_validity, OracleValidity::Invalid),
+            DriftAction::UpdateTwap => !matches!(oracle_validity, OracleValidity::NonPositive),
+            DriftAction::UpdateAMMCurve => !matches!(oracle_validity, OracleValidity::NonPositive),
         },
         None => {
             matches!(oracle_validity, OracleValidity::Valid)
@@ -253,7 +253,7 @@ pub fn oracle_validity(
         oracle_delay.gt(&valid_oracle_guard_rails.slots_before_stale_for_margin);
 
     let oracle_validity = if is_oracle_price_nonpositive {
-        OracleValidity::Invalid
+        OracleValidity::NonPositive
     } else if is_oracle_price_too_volatile {
         OracleValidity::TooVolatile
     } else if is_conf_too_large {

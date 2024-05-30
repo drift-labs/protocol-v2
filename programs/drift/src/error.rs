@@ -528,7 +528,7 @@ pub enum ErrorCode {
     #[msg("PnlPoolCantSettleUser")]
     PnlPoolCantSettleUser,
     #[msg("OracleInvalid")]
-    OracleInvalid,
+    OracleNonPositive,
     #[msg("OracleTooVolatile")]
     OracleTooVolatile,
     #[msg("OracleTooUncertain")]
