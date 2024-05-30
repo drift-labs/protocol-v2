@@ -102,9 +102,11 @@ export class AdminClient extends DriftClient {
 		orderTickSize = ONE,
 		orderStepSize = ONE,
 		ifTotalFactor = 0,
-		name = DEFAULT_MARKET_NAME
+		name = DEFAULT_MARKET_NAME,
+		marketIndex?: number
 	): Promise<TransactionSignature> {
-		const spotMarketIndex = this.getStateAccount().numberOfSpotMarkets;
+		const spotMarketIndex =
+			marketIndex ?? this.getStateAccount().numberOfSpotMarkets;
 
 		const initializeIx = await this.getInitializeSpotMarketIx(
 			mint,
@@ -127,14 +129,13 @@ export class AdminClient extends DriftClient {
 			orderTickSize,
 			orderStepSize,
 			ifTotalFactor,
-			name
+			name,
+			marketIndex
 		);
 
 		const tx = await this.buildTransaction(initializeIx);
 
 		const { txSig } = await this.sendTransaction(tx, [], this.opts);
-
-		// const { txSig } = await this.sendTransaction(initializeTx, [], this.opts);
 
 		await this.accountSubscriber.addSpotMarket(spotMarketIndex);
 		await this.accountSubscriber.addOracle({
@@ -167,9 +168,11 @@ export class AdminClient extends DriftClient {
 		orderTickSize = ONE,
 		orderStepSize = ONE,
 		ifTotalFactor = 0,
-		name = DEFAULT_MARKET_NAME
+		name = DEFAULT_MARKET_NAME,
+		marketIndex?: number
 	): Promise<TransactionInstruction> {
-		const spotMarketIndex = this.getStateAccount().numberOfSpotMarkets;
+		const spotMarketIndex =
+			marketIndex ?? this.getStateAccount().numberOfSpotMarkets;
 		const spotMarket = await getSpotMarketPublicKey(
 			this.program.programId,
 			spotMarketIndex
@@ -444,7 +447,7 @@ export class AdminClient extends DriftClient {
 			await this.fetchAccounts();
 		}
 
-		await this.accountSubscriber.addPerpMarket(currentPerpMarketIndex);
+		await this.accountSubscriber.addPerpMarket(marketIndex);
 		await this.accountSubscriber.addOracle({
 			source: oracleSource,
 			publicKey: priceOracle,
@@ -482,10 +485,9 @@ export class AdminClient extends DriftClient {
 		ammJitIntensity = 0,
 		name = DEFAULT_MARKET_NAME
 	): Promise<TransactionInstruction> {
-		const currentPerpMarketIndex = this.getStateAccount().numberOfMarkets;
 		const perpMarketPublicKey = await getPerpMarketPublicKey(
 			this.program.programId,
-			currentPerpMarketIndex
+			marketIndex
 		);
 
 		const nameBuffer = encodeName(name);
