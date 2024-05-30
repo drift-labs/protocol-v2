@@ -103,9 +103,10 @@ export class AdminClient extends DriftClient {
 		orderStepSize = ONE,
 		ifTotalFactor = 0,
 		name = DEFAULT_MARKET_NAME,
-		marketIndex? : number,
+		marketIndex?: number
 	): Promise<TransactionSignature> {
-		const spotMarketIndex = marketIndex ?? this.getStateAccount().numberOfSpotMarkets;
+		const spotMarketIndex =
+			marketIndex ?? this.getStateAccount().numberOfSpotMarkets;
 
 		const initializeIx = await this.getInitializeSpotMarketIx(
 			mint,
@@ -129,7 +130,7 @@ export class AdminClient extends DriftClient {
 			orderStepSize,
 			ifTotalFactor,
 			name,
-			marketIndex,
+			marketIndex
 		);
 
 		const tx = await this.buildTransaction(initializeIx);
@@ -168,9 +169,10 @@ export class AdminClient extends DriftClient {
 		orderStepSize = ONE,
 		ifTotalFactor = 0,
 		name = DEFAULT_MARKET_NAME,
-		marketIndex? : number,
+		marketIndex?: number
 	): Promise<TransactionInstruction> {
-		const spotMarketIndex = marketIndex ?? this.getStateAccount().numberOfSpotMarkets;
+		const spotMarketIndex =
+			marketIndex ?? this.getStateAccount().numberOfSpotMarkets;
 		const spotMarket = await getSpotMarketPublicKey(
 			this.program.programId,
 			spotMarketIndex
