@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - program: update_perp_auction_params_limit_orders unwraps oracle_price_offset
 - ts-sdk: add market index to logging settle pnl error ([#1068](https://github.com/drift-labs/protocol-v2/pull/1068))
+- program: enforce min price for oracle offsets ([#874](https://github.com/drift-labs/protocol-v2/pull/874))
 
 ### Breaking
 

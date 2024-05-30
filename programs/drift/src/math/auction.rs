@@ -158,12 +158,9 @@ fn calculate_auction_price_for_oracle_offset_auction(
     let auction_end_price_offset = order.auction_end_price;
 
     if delta_denominator == 0 {
-        let price = oracle_price.safe_add(auction_end_price_offset)?;
-
-        if price <= 0 {
-            msg!("Oracle offset auction price below zero: {}", price);
-            return Err(ErrorCode::InvalidOracleOffset);
-        }
+        let price = oracle_price
+            .safe_add(auction_end_price_offset)?
+            .max(tick_size.cast()?);
 
         return standardize_price(price.cast()?, tick_size, order.direction);
     }
@@ -185,15 +182,13 @@ fn calculate_auction_price_for_oracle_offset_auction(
     };
 
     let price = standardize_price(
-        oracle_price.safe_add(price_offset)?.max(0).cast()?,
+        oracle_price
+            .safe_add(price_offset)?
+            .max(tick_size.cast()?)
+            .cast()?,
         tick_size,
         order.direction,
     )?;
-
-    if price == 0 {
-        msg!("Oracle offset auction price below zero: {}", price);
-        return Err(ErrorCode::InvalidOracleOffset);
-    }
 
     Ok(price)
 }
