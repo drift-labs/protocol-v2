@@ -24,7 +24,12 @@ export interface AccountSubscriber<T> {
 
 export interface ProgramAccountSubscriber<T> {
 	subscribe(
-		onChange: (accountId: PublicKey, data: T, context: Context) => void
+		onChange: (
+			accountId: PublicKey,
+			data: T,
+			context: Context,
+			buffer: Buffer
+		) => void
 	): Promise<void>;
 	unsubscribe(): Promise<void>;
 }
@@ -43,10 +48,6 @@ export interface DriftClientAccountEvents {
 	error: (e: Error) => void;
 }
 
-export interface DriftClientMetricsEvents {
-	txSigned: void;
-}
-
 export interface DriftClientAccountSubscriber {
 	eventEmitter: StrictEventEmitter<EventEmitter, DriftClientAccountEvents>;
 	isSubscribed: boolean;
@@ -58,6 +59,8 @@ export interface DriftClientAccountSubscriber {
 	addPerpMarket(marketIndex: number): Promise<boolean>;
 	addSpotMarket(marketIndex: number): Promise<boolean>;
 	addOracle(oracleInfo: OracleInfo): Promise<boolean>;
+	setPerpOracleMap(): Promise<void>;
+	setSpotOracleMap(): Promise<void>;
 
 	getStateAccountAndSlot(): DataAndSlot<StateAccount>;
 	getMarketAccountAndSlot(
@@ -70,6 +73,12 @@ export interface DriftClientAccountSubscriber {
 	getSpotMarketAccountsAndSlots(): DataAndSlot<SpotMarketAccount>[];
 	getOraclePriceDataAndSlot(
 		oraclePublicKey: PublicKey
+	): DataAndSlot<OraclePriceData> | undefined;
+	getOraclePriceDataAndSlotForPerpMarket(
+		marketIndex: number
+	): DataAndSlot<OraclePriceData> | undefined;
+	getOraclePriceDataAndSlotForSpotMarket(
+		marketIndex: number
 	): DataAndSlot<OraclePriceData> | undefined;
 
 	updateAccountLoaderPollingFrequency?: (pollingFrequency: number) => void;
@@ -169,6 +178,11 @@ export type BufferAndSlot = {
 export type DataAndSlot<T> = {
 	data: T;
 	slot: number;
+};
+
+export type ResubOpts = {
+	resubTimeoutMs?: number;
+	logResubMessages?: boolean;
 };
 
 export interface UserStatsAccountEvents {

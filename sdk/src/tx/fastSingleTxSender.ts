@@ -1,19 +1,15 @@
 import { ConfirmationStrategy, TxSigAndSlot } from './types';
 import {
 	ConfirmOptions,
-	Signer,
-	Transaction,
 	TransactionSignature,
 	Connection,
-	VersionedTransaction,
-	TransactionMessage,
-	TransactionInstruction,
-	AddressLookupTableAccount,
 	Commitment,
+	BlockhashWithExpiryBlockHeight,
 } from '@solana/web3.js';
 import { AnchorProvider } from '@coral-xyz/anchor';
-import { IWallet } from '../types';
 import { BaseTxSender } from './baseTxSender';
+import { TxHandler } from './txHandler';
+import { IWallet } from '../types';
 
 const DEFAULT_TIMEOUT = 35000;
 const DEFAULT_BLOCKHASH_REFRESH = 10000;
@@ -26,20 +22,22 @@ export class FastSingleTxSender extends BaseTxSender {
 	blockhashRefreshInterval: number;
 	additionalConnections: Connection[];
 	timoutCount = 0;
-	recentBlockhash: string;
+	recentBlockhash: BlockhashWithExpiryBlockHeight;
 	skipConfirmation: boolean;
 	blockhashCommitment: Commitment;
+	blockhashIntervalId: NodeJS.Timer;
 
 	public constructor({
 		connection,
 		wallet,
-		opts = AnchorProvider.defaultOptions(),
+		opts = { ...AnchorProvider.defaultOptions(), maxRetries: 0 },
 		timeout = DEFAULT_TIMEOUT,
 		blockhashRefreshInterval = DEFAULT_BLOCKHASH_REFRESH,
 		additionalConnections = new Array<Connection>(),
 		skipConfirmation = false,
 		blockhashCommitment = 'finalized',
 		confirmationStrategy = ConfirmationStrategy.Combo,
+		txHandler,
 	}: {
 		connection: Connection;
 		wallet: IWallet;
@@ -50,6 +48,7 @@ export class FastSingleTxSender extends BaseTxSender {
 		skipConfirmation?: boolean;
 		blockhashCommitment?: Commitment;
 		confirmationStrategy?: ConfirmationStrategy;
+		txHandler?: TxHandler;
 	}) {
 		super({
 			connection,
@@ -58,6 +57,7 @@ export class FastSingleTxSender extends BaseTxSender {
 			timeout,
 			additionalConnections,
 			confirmationStrategy,
+			txHandler,
 		});
 		this.connection = connection;
 		this.wallet = wallet;
@@ -71,65 +71,17 @@ export class FastSingleTxSender extends BaseTxSender {
 	}
 
 	startBlockhashRefreshLoop(): void {
-		setInterval(async () => {
-			try {
-				this.recentBlockhash = (
-					await this.connection.getLatestBlockhash(this.blockhashCommitment)
-				).blockhash;
-			} catch (e) {
-				console.error('Error in startBlockhashRefreshLoop: ', e);
-			}
-		}, this.blockhashRefreshInterval);
-	}
-
-	async prepareTx(
-		tx: Transaction,
-		additionalSigners: Array<Signer>,
-		_opts: ConfirmOptions
-	): Promise<Transaction> {
-		tx.feePayer = this.wallet.publicKey;
-
-		tx.recentBlockhash =
-			this.recentBlockhash ??
-			(await this.connection.getLatestBlockhash(this.blockhashCommitment))
-				.blockhash;
-
-		additionalSigners
-			.filter((s): s is Signer => s !== undefined)
-			.forEach((kp) => {
-				tx.partialSign(kp);
-			});
-
-		const signedTx = await this.wallet.signTransaction(tx);
-
-		return signedTx;
-	}
-
-	async getVersionedTransaction(
-		ixs: TransactionInstruction[],
-		lookupTableAccounts: AddressLookupTableAccount[],
-		additionalSigners?: Array<Signer>,
-		opts?: ConfirmOptions
-	): Promise<VersionedTransaction> {
-		if (additionalSigners === undefined) {
-			additionalSigners = [];
+		if (this.blockhashRefreshInterval > 0) {
+			this.blockhashIntervalId = setInterval(async () => {
+				try {
+					this.recentBlockhash = await this.connection.getLatestBlockhash(
+						this.blockhashCommitment
+					);
+				} catch (e) {
+					console.error('Error in startBlockhashRefreshLoop: ', e);
+				}
+			}, this.blockhashRefreshInterval);
 		}
-		if (opts === undefined) {
-			opts = this.opts;
-		}
-
-		const message = new TransactionMessage({
-			payerKey: this.wallet.publicKey,
-			recentBlockhash:
-				this.recentBlockhash ??
-				(await this.connection.getLatestBlockhash(opts.preflightCommitment))
-					.blockhash,
-			instructions: ixs,
-		}).compileToV0Message(lookupTableAccounts);
-
-		const tx = new VersionedTransaction(message);
-
-		return tx;
 	}
 
 	async sendRawTransaction(
@@ -145,15 +97,11 @@ export class FastSingleTxSender extends BaseTxSender {
 			throw e;
 		}
 
-		this.connection.sendRawTransaction(rawTransaction, opts).catch((e) => {
-			console.error(e);
-		});
-		this.sendToAdditionalConnections(rawTransaction, opts);
-
 		let slot: number;
 		if (!this.skipConfirmation) {
 			try {
 				const result = await this.confirmTransaction(txid, opts.commitment);
+				await this.checkConfirmationResultForError(txid, result);
 				slot = result.context.slot;
 			} catch (e) {
 				console.error(e);

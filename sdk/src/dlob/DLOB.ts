@@ -545,14 +545,6 @@ export class DLOB {
 			marketType
 		);
 
-		// for spot, multiple makers isn't supported, so don't merge
-		if (isVariant(marketType, 'spot')) {
-			return restingLimitOrderNodesToFill.concat(
-				takingOrderNodesToFill,
-				expiredNodesToFill
-			);
-		}
-
 		return this.mergeNodesToFill(
 			restingLimitOrderNodesToFill,
 			takingOrderNodesToFill
@@ -993,7 +985,7 @@ export class DLOB {
 
 		for (const bidGenerator of bidGenerators) {
 			for (const bid of bidGenerator) {
-				if (isOrderExpired(bid.order, ts, true)) {
+				if (isOrderExpired(bid.order, ts, true, 25)) {
 					nodesToFill.push({
 						node: bid,
 						makerNodes: [],
@@ -1004,7 +996,7 @@ export class DLOB {
 
 		for (const askGenerator of askGenerators) {
 			for (const ask of askGenerator) {
-				if (isOrderExpired(ask.order, ts, true)) {
+				if (isOrderExpired(ask.order, ts, true, 25)) {
 					nodesToFill.push({
 						node: ask,
 						makerNodes: [],

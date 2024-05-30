@@ -13,8 +13,10 @@ import {
 	LPRecord,
 	StateAccount,
 	DLOB,
-	OneShotUserAccountSubscriber,
 	BN,
+	UserSubscriptionConfig,
+	DataAndSlot,
+	OneShotUserAccountSubscriber,
 } from '..';
 
 import {
@@ -24,6 +26,7 @@ import {
 	RpcResponseAndContext,
 } from '@solana/web3.js';
 import { Buffer } from 'buffer';
+import { ZSTDDecoder } from 'zstddec';
 import { getNonIdleUserFilter, getUserFilter } from '../memcmp';
 import {
 	UserAccountFilterCriteria as UserFilterCriteria,
@@ -33,20 +36,38 @@ import { WebsocketSubscription } from './WebsocketSubscription';
 import { PollingSubscription } from './PollingSubscription';
 import { decodeUser } from '../decode/user';
 
+const MAX_USER_ACCOUNT_SIZE_BYTES = 4376;
+
 export interface UserMapInterface {
 	subscribe(): Promise<void>;
 	unsubscribe(): Promise<void>;
-	addPubkey(userAccountPublicKey: PublicKey): Promise<void>;
+	addPubkey(
+		userAccountPublicKey: PublicKey,
+		userAccount?: UserAccount,
+		slot?: number,
+		accountSubscription?: UserSubscriptionConfig
+	): Promise<void>;
 	has(key: string): boolean;
 	get(key: string): User | undefined;
-	mustGet(key: string): Promise<User>;
+	getWithSlot(key: string): DataAndSlot<User> | undefined;
+	mustGet(
+		key: string,
+		accountSubscription?: UserSubscriptionConfig
+	): Promise<User>;
+	mustGetWithSlot(
+		key: string,
+		accountSubscription?: UserSubscriptionConfig
+	): Promise<DataAndSlot<User>>;
 	getUserAuthority(key: string): PublicKey | undefined;
 	updateWithOrderRecord(record: OrderRecord): Promise<void>;
 	values(): IterableIterator<User>;
+	valuesWithSlot(): IterableIterator<DataAndSlot<User>>;
+	entries(): IterableIterator<[string, User]>;
+	entriesWithSlot(): IterableIterator<[string, DataAndSlot<User>]>;
 }
 
 export class UserMap implements UserMapInterface {
-	private userMap = new Map<string, User>();
+	private userMap = new Map<string, DataAndSlot<User>>();
 	driftClient: DriftClient;
 	private connection: Connection;
 	private commitment: Commitment;
@@ -103,7 +124,10 @@ export class UserMap implements UserMapInterface {
 			this.subscription = new WebsocketSubscription({
 				userMap: this,
 				commitment: this.commitment,
-				resubTimeoutMs: config.subscriptionConfig.resubTimeoutMs,
+				resubOpts: {
+					resubTimeoutMs: config.subscriptionConfig.resubTimeoutMs,
+					logResubMessages: config.subscriptionConfig.logResubMessages,
+				},
 				skipInitialLoad: config.skipInitialLoad,
 				decodeFn,
 			});
@@ -131,13 +155,15 @@ export class UserMap implements UserMapInterface {
 	public async addPubkey(
 		userAccountPublicKey: PublicKey,
 		userAccount?: UserAccount,
-		slot?: number
+		slot?: number,
+		accountSubscription?: UserSubscriptionConfig
 	) {
 		const user = new User({
 			driftClient: this.driftClient,
 			userAccountPublicKey,
-			accountSubscription: {
+			accountSubscription: accountSubscription ?? {
 				type: 'custom',
+				// OneShotUserAccountSubscriber used here so we don't load up the RPC with AccountSubscribes
 				userAccountSubscriber: new OneShotUserAccountSubscriber(
 					this.driftClient.program,
 					userAccountPublicKey,
@@ -148,7 +174,10 @@ export class UserMap implements UserMapInterface {
 			},
 		});
 		await user.subscribe(userAccount);
-		this.userMap.set(userAccountPublicKey.toString(), user);
+		this.userMap.set(userAccountPublicKey.toString(), {
+			data: user,
+			slot: slot ?? user.getUserAccountAndSlot()?.slot,
+		});
 	}
 
 	public has(key: string): boolean {
@@ -161,6 +190,9 @@ export class UserMap implements UserMapInterface {
 	 * @returns user User | undefined
 	 */
 	public get(key: string): User | undefined {
+		return this.userMap.get(key)?.data;
+	}
+	public getWithSlot(key: string): DataAndSlot<User> | undefined {
 		return this.userMap.get(key);
 	}
 
@@ -169,12 +201,33 @@ export class UserMap implements UserMapInterface {
 	 * @param key userAccountPublicKey to get User for
 	 * @returns  User
 	 */
-	public async mustGet(key: string): Promise<User> {
+	public async mustGet(
+		key: string,
+		accountSubscription?: UserSubscriptionConfig
+	): Promise<User> {
 		if (!this.has(key)) {
-			await this.addPubkey(new PublicKey(key));
+			await this.addPubkey(
+				new PublicKey(key),
+				undefined,
+				undefined,
+				accountSubscription
+			);
 		}
-		const user = this.userMap.get(key);
-		return user;
+		return this.userMap.get(key).data;
+	}
+	public async mustGetWithSlot(
+		key: string,
+		accountSubscription?: UserSubscriptionConfig
+	): Promise<DataAndSlot<User>> {
+		if (!this.has(key)) {
+			await this.addPubkey(
+				new PublicKey(key),
+				undefined,
+				undefined,
+				accountSubscription
+			);
+		}
+		return this.userMap.get(key);
 	}
 
 	/**
@@ -183,11 +236,11 @@ export class UserMap implements UserMapInterface {
 	 * @returns authority PublicKey | undefined
 	 */
 	public getUserAuthority(key: string): PublicKey | undefined {
-		const chUser = this.userMap.get(key);
-		if (!chUser) {
+		const user = this.userMap.get(key);
+		if (!user) {
 			return undefined;
 		}
-		return chUser.getUserAccount().authority;
+		return user.data.getUserAccount().authority;
 	}
 
 	/**
@@ -243,8 +296,22 @@ export class UserMap implements UserMapInterface {
 		}
 	}
 
-	public values(): IterableIterator<User> {
+	public *values(): IterableIterator<User> {
+		for (const dataAndSlot of this.userMap.values()) {
+			yield dataAndSlot.data;
+		}
+	}
+	public valuesWithSlot(): IterableIterator<DataAndSlot<User>> {
 		return this.userMap.values();
+	}
+
+	public *entries(): IterableIterator<[string, User]> {
+		for (const [key, dataAndSlot] of this.userMap.entries()) {
+			yield [key, dataAndSlot.data];
+		}
+	}
+	public entriesWithSlot(): IterableIterator<[string, DataAndSlot<User>]> {
+		return this.userMap.entries();
 	}
 
 	public size(): number {
@@ -259,15 +326,13 @@ export class UserMap implements UserMapInterface {
 	public getUniqueAuthorities(
 		filterCriteria?: UserFilterCriteria
 	): PublicKey[] {
-		const usersMeetingCriteria = Array.from(this.userMap.values()).filter(
-			(user) => {
-				let pass = true;
-				if (filterCriteria && filterCriteria.hasOpenOrders) {
-					pass = pass && user.getUserAccount().hasOpenOrder;
-				}
-				return pass;
+		const usersMeetingCriteria = Array.from(this.values()).filter((user) => {
+			let pass = true;
+			if (filterCriteria && filterCriteria.hasOpenOrders) {
+				pass = pass && user.getUserAccount().hasOpenOrder;
 			}
-		);
+			return pass;
+		});
 		const userAuths = new Set(
 			usersMeetingCriteria.map((user) =>
 				user.getUserAccount().authority.toBase58()
@@ -298,64 +363,75 @@ export class UserMap implements UserMapInterface {
 				{
 					commitment: this.commitment,
 					filters,
-					encoding: 'base64',
+					encoding: 'base64+zstd',
 					withContext: true,
 				},
 			];
 
-			const rpcJSONResponse: any =
-				// @ts-ignore
-				await this.connection._rpcRequest('getProgramAccounts', rpcRequestArgs);
-
+			// @ts-ignore
+			const rpcJSONResponse: any = await this.connection._rpcRequest(
+				'getProgramAccounts',
+				rpcRequestArgs
+			);
 			const rpcResponseAndContext: RpcResponseAndContext<
-				Array<{
-					pubkey: PublicKey;
-					account: {
-						data: [string, string];
-					};
-				}>
+				Array<{ pubkey: PublicKey; account: { data: [string, string] } }>
 			> = rpcJSONResponse.result;
-
 			const slot = rpcResponseAndContext.context.slot;
 
 			this.updateLatestSlot(slot);
 
 			const programAccountBufferMap = new Map<string, Buffer>();
-			for (const programAccount of rpcResponseAndContext.value) {
-				programAccountBufferMap.set(
-					programAccount.pubkey.toString(),
-					// @ts-ignore
-					Buffer.from(
+			const decodingPromises = rpcResponseAndContext.value.map(
+				async (programAccount) => {
+					const compressedUserData = Buffer.from(
 						programAccount.account.data[0],
-						programAccount.account.data[1]
-					)
-				);
-			}
-
-			for (const [key, buffer] of programAccountBufferMap.entries()) {
-				if (!this.has(key)) {
-					const userAccount = this.decode('User', buffer);
-					await this.addPubkey(new PublicKey(key), userAccount);
-					this.userMap.get(key).accountSubscriber.updateData(userAccount, slot);
-				} else {
-					const userAccount = this.decode('User', buffer);
-					this.userMap.get(key).accountSubscriber.updateData(userAccount, slot);
+						'base64'
+					);
+					const decoder = new ZSTDDecoder();
+					await decoder.init();
+					const userBuffer = decoder.decode(
+						compressedUserData,
+						MAX_USER_ACCOUNT_SIZE_BYTES
+					);
+					programAccountBufferMap.set(
+						programAccount.pubkey.toString(),
+						Buffer.from(userBuffer)
+					);
 				}
-				// give event loop a chance to breathe
-				await new Promise((resolve) => setTimeout(resolve, 0));
-			}
+			);
 
-			for (const [key, user] of this.userMap.entries()) {
+			await Promise.all(decodingPromises);
+
+			const promises = Array.from(programAccountBufferMap.entries()).map(
+				([key, buffer]) =>
+					(async () => {
+						const currAccountWithSlot = this.getWithSlot(key);
+						if (currAccountWithSlot) {
+							if (slot >= currAccountWithSlot.slot) {
+								const userAccount = this.decode('User', buffer);
+								this.updateUserAccount(key, userAccount, slot);
+							}
+						} else {
+							const userAccount = this.decode('User', buffer);
+							await this.addPubkey(new PublicKey(key), userAccount, slot);
+						}
+					})()
+			);
+
+			await Promise.all(promises);
+
+			for (const [key] of this.entries()) {
 				if (!programAccountBufferMap.has(key)) {
-					await user.unsubscribe();
-					this.userMap.delete(key);
+					const user = this.get(key);
+					if (user) {
+						await user.unsubscribe();
+						this.userMap.delete(key);
+					}
 				}
-				// give event loop a chance to breathe
-				await new Promise((resolve) => setTimeout(resolve, 0));
 			}
-		} catch (e) {
-			console.error(`Error in UserMap.sync():`);
-			console.error(e);
+		} catch (err) {
+			const e = err as Error;
+			console.error(`Error in UserMap.sync(): ${e.message} ${e.stack ?? ''}`);
 		} finally {
 			this.syncPromiseResolver();
 			this.syncPromise = undefined;
@@ -365,7 +441,7 @@ export class UserMap implements UserMapInterface {
 	public async unsubscribe() {
 		await this.subscription.unsubscribe();
 
-		for (const [key, user] of this.userMap.entries()) {
+		for (const [key, user] of this.entries()) {
 			await user.unsubscribe();
 			this.userMap.delete(key);
 		}
@@ -387,12 +463,18 @@ export class UserMap implements UserMapInterface {
 		userAccount: UserAccount,
 		slot: number
 	) {
+		const userWithSlot = this.getWithSlot(key);
 		this.updateLatestSlot(slot);
-		if (!this.userMap.has(key)) {
-			this.addPubkey(new PublicKey(key), userAccount, slot);
+		if (userWithSlot) {
+			if (slot >= userWithSlot.slot) {
+				userWithSlot.data.accountSubscriber.updateData(userAccount, slot);
+				this.userMap.set(key, {
+					data: userWithSlot.data,
+					slot,
+				});
+			}
 		} else {
-			const user = this.userMap.get(key);
-			user.accountSubscriber.updateData(userAccount, slot);
+			this.addPubkey(new PublicKey(key), userAccount, slot);
 		}
 	}
 

@@ -226,6 +226,7 @@ pub fn calculate_auction_params_for_trigger_order(
                 order.direction,
                 oracle_price_data.price,
                 order.price,
+                0,
             )?;
 
         let auction_duration = auction_duration.max(derived_auction_duration);

@@ -33,12 +33,21 @@ export enum PerpOperation {
 	FILL = 4,
 	SETTLE_PNL = 8,
 	SETTLE_PNL_WITH_POSITION = 16,
+	LIQUIDATION = 32,
 }
 
 export enum SpotOperation {
 	UPDATE_CUMULATIVE_INTEREST = 1,
 	FILL = 2,
 	WITHDRAW = 4,
+	LIQUIDATION = 8,
+}
+
+export enum InsuranceFundOperation {
+	INIT = 1,
+	ADD = 2,
+	REQUEST_REMOVE = 4,
+	REMOVE = 8,
 }
 
 export enum UserStatus {
@@ -58,6 +67,7 @@ export class ContractTier {
 	static readonly B = { b: {} };
 	static readonly C = { c: {} };
 	static readonly SPECULATIVE = { speculative: {} };
+	static readonly HIGHLY_SPECULATIVE = { highlySpeculative: {} };
 	static readonly ISOLATED = { isolated: {} };
 }
 
@@ -93,9 +103,10 @@ export class OracleSource {
 	static readonly PYTH = { pyth: {} };
 	static readonly PYTH_1K = { pyth1K: {} };
 	static readonly PYTH_1M = { pyth1M: {} };
-	// static readonly SWITCHBOARD = { switchboard: {} };
+	static readonly SWITCHBOARD = { switchboard: {} };
 	static readonly QUOTE_ASSET = { quoteAsset: {} };
 	static readonly PYTH_STABLE_COIN = { pythStableCoin: {} };
+	static readonly Prelaunch = { prelaunch: {} };
 }
 
 export class OrderType {
@@ -221,6 +232,11 @@ export class StakeAction {
 	static readonly UNSTAKE = { unstake: {} };
 	static readonly UNSTAKE_TRANSFER = { unstakeTransfer: {} };
 	static readonly STAKE_TRANSFER = { stakeTransfer: {} };
+}
+
+export class SettlePnlMode {
+	static readonly TRY_SETTLE = { trySettle: {} };
+	static readonly MUST_SETTLE = { mustSettle: {} };
 }
 
 export function isVariant(object: unknown, type: string) {
@@ -704,6 +720,8 @@ export type SpotMarketAccount = {
 	ordersEnabled: boolean;
 
 	pausedOperations: number;
+
+	ifPausedOperations: number;
 };
 
 export type PoolBalance = {
@@ -801,6 +819,9 @@ export type AMM = {
 	askQuoteAssetReserve: BN;
 
 	perLpBase: number; // i8
+	netUnsettledFundingPnl: BN;
+	quoteAssetAmountWithUnsettledLp: BN;
+	referencePriceOffset: number;
 };
 
 // # User Account Types
@@ -997,10 +1018,21 @@ export type ReferrerInfo = {
 	referrerStats: PublicKey;
 };
 
-export type TxParams = {
+type ExactType<T> = Pick<T, keyof T>;
+
+export type BaseTxParams = ExactType<{
 	computeUnits?: number;
 	computeUnitsPrice?: number;
+}>;
+
+export type ProcessingTxParams = {
+	useSimulatedComputeUnits?: boolean;
+	computeUnitsBufferMultiplier?: number;
+	useSimulatedComputeUnitsForCUPriceCalculation?: boolean;
+	getCUPriceFromComputeUnits?: (computeUnits: number) => number;
 };
+
+export type TxParams = BaseTxParams & ProcessingTxParams;
 
 export class SwapReduceOnly {
 	static readonly In = { in: {} };
@@ -1058,6 +1090,15 @@ export type OracleGuardRails = {
 		confidenceIntervalMaxSize: BN;
 		tooVolatileRatio: BN;
 	};
+};
+
+export type PrelaunchOracle = {
+	price: BN;
+	maxPrice: BN;
+	confidence: BN;
+	ammLastUpdateSlot: BN;
+	lastUpdateSlot: BN;
+	perpMarketIndex: number;
 };
 
 export type MarginCategory = 'Initial' | 'Maintenance';
@@ -1147,4 +1188,16 @@ export type HealthComponent = {
 	value: BN;
 	weight: BN;
 	weightedValue: BN;
+};
+
+export interface DriftClientMetricsEvents {
+	txSigned: SignedTxData[];
+	preTxSigned: void;
+}
+
+export type SignedTxData = {
+	txSig: string;
+	signedTx: Transaction | VersionedTransaction;
+	lastValidBlockHeight?: number;
+	blockHash: string;
 };

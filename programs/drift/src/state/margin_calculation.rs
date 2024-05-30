@@ -125,10 +125,12 @@ pub struct MarginCalculation {
     pub num_spot_liabilities: u8,
     pub num_perp_liabilities: u8,
     pub all_oracles_valid: bool,
-    pub with_isolated_liability: bool,
+    pub with_perp_isolated_liability: bool,
+    pub with_spot_isolated_liability: bool,
     pub total_spot_asset_value: i128,
     pub total_spot_liability_value: u128,
     pub total_perp_liability_value: u128,
+    pub total_perp_pnl: i128,
     pub open_orders_margin_requirement: u128,
     tracked_market_margin_requirement: u128,
 }
@@ -143,10 +145,12 @@ impl MarginCalculation {
             num_spot_liabilities: 0,
             num_perp_liabilities: 0,
             all_oracles_valid: true,
-            with_isolated_liability: false,
+            with_perp_isolated_liability: false,
+            with_spot_isolated_liability: false,
             total_spot_asset_value: 0,
             total_spot_liability_value: 0,
             total_perp_liability_value: 0,
+            total_perp_pnl: 0,
             open_orders_margin_requirement: 0,
             tracked_market_margin_requirement: 0,
         }
@@ -202,12 +206,44 @@ impl MarginCalculation {
         Ok(())
     }
 
+    #[cfg(feature = "drift-rs")]
+    pub fn add_spot_asset_value(&mut self, spot_asset_value: i128) -> DriftResult {
+        self.total_spot_asset_value = self.total_spot_asset_value.safe_add(spot_asset_value)?;
+        Ok(())
+    }
+
+    #[cfg(feature = "drift-rs")]
+    pub fn add_spot_liability_value(&mut self, spot_liability_value: u128) -> DriftResult {
+        self.total_spot_liability_value = self
+            .total_spot_liability_value
+            .safe_add(spot_liability_value)?;
+        Ok(())
+    }
+
+    #[cfg(feature = "drift-rs")]
+    pub fn add_perp_liability_value(&mut self, perp_liability_value: u128) -> DriftResult {
+        self.total_perp_liability_value = self
+            .total_perp_liability_value
+            .safe_add(perp_liability_value)?;
+        Ok(())
+    }
+
+    #[cfg(feature = "drift-rs")]
+    pub fn add_perp_pnl(&mut self, perp_pnl: i128) -> DriftResult {
+        self.total_perp_pnl = self.total_perp_pnl.safe_add(perp_pnl)?;
+        Ok(())
+    }
+
     pub fn update_all_oracles_valid(&mut self, valid: bool) {
         self.all_oracles_valid &= valid;
     }
 
-    pub fn update_with_isolated_liability(&mut self, isolated: bool) {
-        self.with_isolated_liability &= isolated;
+    pub fn update_with_spot_isolated_liability(&mut self, isolated: bool) {
+        self.with_spot_isolated_liability |= isolated;
+    }
+
+    pub fn update_with_perp_isolated_liability(&mut self, isolated: bool) {
+        self.with_perp_isolated_liability |= isolated;
     }
 
     pub fn validate_num_spot_liabilities(&self) -> DriftResult {

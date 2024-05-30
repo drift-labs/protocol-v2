@@ -1,5 +1,6 @@
 import {
 	AddressLookupTableAccount,
+	BlockhashWithExpiryBlockHeight,
 	ConfirmOptions,
 	Signer,
 	Transaction,
@@ -20,10 +21,6 @@ export type TxSigAndSlot = {
 	slot: number;
 };
 
-export type ExtraConfirmationOptions = {
-	onSignedCb: () => void;
-};
-
 export interface TxSender {
 	wallet: IWallet;
 
@@ -31,23 +28,22 @@ export interface TxSender {
 		tx: Transaction,
 		additionalSigners?: Array<Signer>,
 		opts?: ConfirmOptions,
-		preSigned?: boolean,
-		extraConfirmationOptions?: ExtraConfirmationOptions
+		preSigned?: boolean
 	): Promise<TxSigAndSlot>;
 
 	sendVersionedTransaction(
 		tx: VersionedTransaction,
 		additionalSigners?: Array<Signer>,
 		opts?: ConfirmOptions,
-		preSigned?: boolean,
-		extraConfirmationOptions?: ExtraConfirmationOptions
+		preSigned?: boolean
 	): Promise<TxSigAndSlot>;
 
 	getVersionedTransaction(
 		ixs: TransactionInstruction[],
 		lookupTableAccounts: AddressLookupTableAccount[],
 		additionalSigners?: Array<Signer>,
-		opts?: ConfirmOptions
+		opts?: ConfirmOptions,
+		blockhash?: BlockhashWithExpiryBlockHeight
 	): Promise<VersionedTransaction>;
 
 	sendRawTransaction(
@@ -55,5 +51,19 @@ export interface TxSender {
 		opts: ConfirmOptions
 	): Promise<TxSigAndSlot>;
 
+	simulateTransaction(tx: VersionedTransaction): Promise<boolean>;
+
 	getTimeoutCount(): number;
+}
+
+export class TxSendError extends Error {
+	constructor(
+		public message: string,
+		public code: number
+	) {
+		super(message);
+		if (Error.captureStackTrace) {
+			Error.captureStackTrace(this, TxSendError);
+		}
+	}
 }

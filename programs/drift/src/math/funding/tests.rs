@@ -1,4 +1,8 @@
 use crate::controller::funding::update_funding_rate;
+use crate::controller::repeg::_update_amm;
+use crate::math::helpers::on_the_hour_update;
+use crate::math::oracle::block_operation;
+
 use crate::math::constants::{
     AMM_RESERVE_PRECISION, ONE_HOUR_I128, PRICE_PRECISION, PRICE_PRECISION_U64, QUOTE_PRECISION,
 };
@@ -25,7 +29,7 @@ fn calculate_funding_rate(
     //                 => lower funding rate payment per interval
     let period_adjustment = (24_i128)
         .safe_mul(ONE_HOUR_I128)?
-        .safe_div(max(ONE_HOUR_I128, funding_period as i128))?;
+        .safe_div(funding_period as i128)?;
 
     let price_spread = mid_price_twap.cast::<i128>()?.safe_sub(oracle_price_twap)?;
 
@@ -572,4 +576,149 @@ fn max_funding_rates() {
     .unwrap();
 
     assert!(!did_succeed);
+}
+
+#[test]
+fn unsettled_funding_pnl() {
+    let mut now = 0_i64;
+    let mut slot = 0_u64;
+
+    let state = State {
+        oracle_guard_rails: OracleGuardRails {
+            validity: ValidityGuardRails {
+                slots_before_stale_for_amm: 10,     // 5s
+                slots_before_stale_for_margin: 120, // 60s
+                confidence_interval_max_size: 1000,
+                too_volatile_ratio: 5,
+            },
+            ..OracleGuardRails::default()
+        },
+        ..State::default()
+    };
+
+    let mut oracle_price = get_pyth_price(51, 6);
+    let oracle_price_key =
+        Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
+    let pyth_program = crate::ids::pyth_program::id();
+    create_account_info!(
+        oracle_price,
+        &oracle_price_key,
+        &pyth_program,
+        oracle_account_info
+    );
+    let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
+    let mut market = PerpMarket {
+        market_index: 0,
+        amm: AMM {
+            oracle: oracle_price_key,
+
+            base_asset_reserve: 512295081967,
+            quote_asset_reserve: 488 * AMM_RESERVE_PRECISION,
+            sqrt_k: 500 * AMM_RESERVE_PRECISION,
+            peg_multiplier: 50000000,
+            base_asset_amount_with_amm: -12295081967, //~12
+            base_asset_amount_long: 12295081967,
+            base_asset_amount_short: -12295081967 * 2,
+            base_asset_amount_with_unsettled_lp: -((AMM_RESERVE_PRECISION * 500) as i128), //wowsers
+            total_exchange_fee: QUOTE_PRECISION / 2,
+            total_fee_minus_distributions: ((QUOTE_PRECISION * 99999) as i128),
+
+            last_mark_price_twap: 50 * PRICE_PRECISION_U64,
+            historical_oracle_data: HistoricalOracleData {
+                last_oracle_price_twap: (49 * PRICE_PRECISION) as i64,
+
+                ..HistoricalOracleData::default()
+            },
+            funding_period: 3600,
+
+            ..AMM::default()
+        },
+        ..PerpMarket::default()
+    };
+    assert_eq!(market.amm.reserve_price().unwrap(), 47628800);
+    assert_eq!(market.amm.net_unsettled_funding_pnl, 0);
+
+    let time_until_next_update = on_the_hour_update(
+        now,
+        market.amm.last_funding_rate_ts,
+        market.amm.funding_period,
+    )
+    .unwrap();
+
+    assert_eq!(time_until_next_update, 3600);
+    let time_until_next_update = on_the_hour_update(
+        now + 3600,
+        market.amm.last_funding_rate_ts,
+        market.amm.funding_period,
+    )
+    .unwrap();
+    let oracle_price_data = oracle_map.get_price_data(&market.amm.oracle).unwrap();
+
+    assert_eq!(time_until_next_update, 0);
+    let block_funding_rate_update = block_operation(
+        &market,
+        oracle_price_data,
+        &state.oracle_guard_rails,
+        None,
+        slot,
+    )
+    .unwrap();
+    assert_eq!(block_funding_rate_update, true);
+    assert_eq!(market.amm.last_update_slot, slot);
+
+    now += 3600;
+    slot += 3600 * 2;
+
+    let cost = _update_amm(&mut market, oracle_price_data, &state, now, slot).unwrap();
+    assert_eq!(cost, 0);
+    assert_eq!(market.amm.last_update_slot, slot);
+    assert_eq!(market.amm.last_mark_price_twap, 50000000);
+    assert_eq!(
+        market.amm.historical_oracle_data.last_oracle_price_twap,
+        51000000
+    );
+    // oracle twap > mark, expect negative funding
+
+    let block_funding_rate_update = block_operation(
+        &market,
+        oracle_price_data,
+        &state.oracle_guard_rails,
+        None,
+        slot,
+    )
+    .unwrap();
+    assert_eq!(block_funding_rate_update, false);
+    assert_eq!(market.amm.total_fee_minus_distributions, 99999000000);
+
+    let did_succeed = update_funding_rate(
+        0,
+        &mut market,
+        &mut oracle_map,
+        now,
+        slot,
+        &state.oracle_guard_rails,
+        false,
+        None,
+    )
+    .unwrap();
+    assert!(did_succeed);
+    assert_eq!(market.amm.last_mark_price_twap, 47629736);
+    assert!(market.amm.last_mark_price_twap > market.amm.reserve_price().unwrap());
+
+    assert_eq!(
+        market.amm.historical_oracle_data.last_oracle_price_twap,
+        51000000
+    );
+
+    assert_eq!(market.amm.cumulative_funding_rate_long, -140002666); // negative funding
+    assert_eq!(market.amm.cumulative_funding_rate_short, -140002666);
+    assert_eq!(market.amm.last_funding_rate, -140002666);
+    assert_eq!(market.amm.last_24h_avg_funding_rate, -140002666 / 24 + 1);
+    assert_eq!(market.amm.last_funding_rate_ts, now);
+    assert_eq!(market.amm.net_revenue_since_last_funding, 0); // back to 0
+    assert_eq!(market.amm.total_fee_minus_distributions, 100070722677); //71.722677 gain
+    assert_eq!(market.amm.total_fee, 0);
+
+    assert_ne!(market.amm.net_unsettled_funding_pnl, 0); // important: imbalanced market adds funding rev
+    assert_eq!(market.amm.net_unsettled_funding_pnl, -71722677); // users up
 }

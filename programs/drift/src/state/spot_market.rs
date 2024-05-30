@@ -6,7 +6,9 @@ use borsh::{BorshDeserialize, BorshSerialize};
 
 use crate::error::{DriftResult, ErrorCode};
 use crate::math::casting::Cast;
-use crate::math::constants::{AMM_RESERVE_PRECISION, MARGIN_PRECISION, SPOT_WEIGHT_PRECISION_U128};
+use crate::math::constants::{
+    AMM_RESERVE_PRECISION, FIVE_MINUTE, MARGIN_PRECISION, ONE_HOUR, SPOT_WEIGHT_PRECISION_U128,
+};
 #[cfg(test)]
 use crate::math::constants::{PRICE_PRECISION_I64, SPOT_CUMULATIVE_INTEREST_PRECISION};
 use crate::math::margin::{
@@ -16,8 +18,9 @@ use crate::math::margin::{
 use crate::math::safe_math::SafeMath;
 use crate::math::spot_balance::{calculate_utilization, get_token_amount, get_token_value};
 
+use crate::math::stats::calculate_new_twap;
 use crate::state::oracle::{HistoricalIndexData, HistoricalOracleData, OracleSource};
-use crate::state::paused_operations::SpotOperation;
+use crate::state::paused_operations::{InsuranceFundOperation, SpotOperation};
 use crate::state::perp_market::{MarketStatus, PoolBalance};
 use crate::state::traits::{MarketIndexOffset, Size};
 use crate::validate;
@@ -158,7 +161,9 @@ pub struct SpotMarket {
     /// The asset tier affects how a deposit can be used as collateral and the priority for a borrow being liquidated
     pub asset_tier: AssetTier,
     pub paused_operations: u8,
-    pub padding1: [u8; 5],
+    pub if_paused_operations: u8,
+    pub fee_adjustment: i16,
+    pub padding1: [u8; 2],
     /// For swaps, the amount of token loaned out in the begin_swap ix
     /// precision: token mint precision
     pub flash_loan_amount: u64,
@@ -227,7 +232,9 @@ impl Default for SpotMarket {
             status: MarketStatus::default(),
             asset_tier: AssetTier::default(),
             paused_operations: 0,
-            padding1: [0; 5],
+            if_paused_operations: 0,
+            fee_adjustment: 0,
+            padding1: [0; 2],
             flash_loan_amount: 0,
             flash_loan_initial_token_amount: 0,
             total_swap_fee: 0,
@@ -263,9 +270,23 @@ impl SpotMarket {
         SpotOperation::is_operation_paused(self.paused_operations, operation)
     }
 
+    pub fn is_insurance_fund_operation_paused(&self, operation: InsuranceFundOperation) -> bool {
+        InsuranceFundOperation::is_operation_paused(self.if_paused_operations, operation)
+    }
+
     pub fn fills_enabled(&self) -> bool {
         matches!(self.status, MarketStatus::Active | MarketStatus::ReduceOnly)
             && !self.is_operation_paused(SpotOperation::Fill)
+    }
+
+    pub fn get_max_confidence_interval_multiplier(&self) -> DriftResult<u64> {
+        Ok(match self.asset_tier {
+            AssetTier::Collateral => 1, // 2%
+            AssetTier::Protected => 1,  // 2%
+            AssetTier::Cross => 5,      // 20%
+            AssetTier::Isolated => 50,  // 100%
+            AssetTier::Unlisted => 50,
+        })
     }
 
     pub fn get_sanitize_clamp_denominator(&self) -> DriftResult<Option<i64>> {
@@ -435,6 +456,52 @@ impl SpotMarket {
         let unhealthy_utilization = 800000; // 80%
         let utilization: u64 = self.get_utilization()?.cast()?;
         Ok(self.utilization_twap <= unhealthy_utilization && utilization <= unhealthy_utilization)
+    }
+
+    pub fn update_historical_index_price(
+        &mut self,
+        best_bid: Option<u64>,
+        best_ask: Option<u64>,
+        now: i64,
+    ) -> DriftResult {
+        let mut mid_price = 0;
+        if let Some(best_bid) = best_bid {
+            self.historical_index_data.last_index_bid_price = best_bid;
+            mid_price += best_bid;
+        }
+
+        if let Some(best_ask) = best_ask {
+            self.historical_index_data.last_index_ask_price = best_ask;
+            mid_price = if mid_price == 0 {
+                best_ask
+            } else {
+                mid_price.safe_add(best_ask)?.safe_div(2)?
+            };
+        }
+
+        self.historical_index_data.last_index_price_twap = calculate_new_twap(
+            mid_price.cast()?,
+            now,
+            self.historical_index_data.last_index_price_twap.cast()?,
+            self.historical_index_data.last_index_price_twap_ts,
+            ONE_HOUR,
+        )?
+        .cast()?;
+
+        self.historical_index_data.last_index_price_twap_5min = calculate_new_twap(
+            mid_price.cast()?,
+            now,
+            self.historical_index_data
+                .last_index_price_twap_5min
+                .cast()?,
+            self.historical_index_data.last_index_price_twap_ts,
+            FIVE_MINUTE as i64,
+        )?
+        .cast()?;
+
+        self.historical_index_data.last_index_price_twap_ts = now;
+
+        Ok(())
     }
 }
 

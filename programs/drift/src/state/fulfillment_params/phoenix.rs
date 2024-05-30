@@ -500,7 +500,7 @@ impl<'a, 'b> SpotFulfillmentParams for PhoenixFulfillmentParams<'a, 'b> {
         };
 
         if base_asset_amount_filled == 0 {
-            msg!("No base filled on serum");
+            msg!("No base filled on phoenix");
             return Ok(ExternalSpotFill::empty());
         }
 
