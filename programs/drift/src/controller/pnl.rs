@@ -175,7 +175,7 @@ pub fn settle_pnl(
                         oracle_validity,
                         market_index
                     );
-                    return mode.result(ErrorCode::InvalidOracle, market_index, &msg);
+                    return mode.result(oracle_validity.get_error_code(), market_index, &msg);
                 }
 
                 if oracle_map.slot != perp_market.amm.last_update_slot {

@@ -527,6 +527,18 @@ pub enum ErrorCode {
     NoUnsettledPnl,
     #[msg("PnlPoolCantSettleUser")]
     PnlPoolCantSettleUser,
+    #[msg("OracleInvalid")]
+    OracleInvalid,
+    #[msg("OracleTooVolatile")]
+    OracleTooVolatile,
+    #[msg("OracleTooUncertain")]
+    OracleTooUncertain,
+    #[msg("OracleStaleForMargin")]
+    OracleStaleForMargin,
+    #[msg("OracleInsufficientDataPoints")]
+    OracleInsufficientDataPoints,
+    #[msg("OracleStaleForAMM")]
+    OracleStaleForAMM,
 }
 
 #[macro_export]

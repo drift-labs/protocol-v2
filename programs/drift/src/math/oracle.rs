@@ -3,7 +3,7 @@ use std::cmp::max;
 use borsh::{BorshDeserialize, BorshSerialize};
 use solana_program::msg;
 
-use crate::error::DriftResult;
+use crate::error::{DriftResult, ErrorCode};
 use crate::math::amm;
 use crate::math::casting::Cast;
 use crate::math::constants::BID_ASK_SPREAD_PRECISION;
@@ -34,6 +34,20 @@ pub enum OracleValidity {
 impl Default for OracleValidity {
     fn default() -> Self {
         OracleValidity::Valid
+    }
+}
+
+impl OracleValidity {
+    pub fn get_error_code(&self) -> ErrorCode {
+        match self {
+            OracleValidity::Invalid => ErrorCode::OracleInvalid,
+            OracleValidity::TooVolatile => ErrorCode::OracleTooVolatile,
+            OracleValidity::TooUncertain => ErrorCode::OracleTooUncertain,
+            OracleValidity::StaleForMargin => ErrorCode::OracleStaleForMargin,
+            OracleValidity::InsufficientDataPoints => ErrorCode::OracleInsufficientDataPoints,
+            OracleValidity::StaleForAMM => ErrorCode::OracleStaleForAMM,
+            OracleValidity::Valid => unreachable!(),
+        }
     }
 }
 
