@@ -1315,7 +1315,7 @@ impl AMM {
         multiple: u128,
         is_pull_oracle: bool,
     ) -> DriftResult<i64> {
-        let pyth_price_data = price_oracle
+        let mut pyth_price_data: &[u8] = &price_oracle
             .try_borrow_data()
             .or(Err(ErrorCode::UnableToLoadOracle))?;
 
@@ -1326,14 +1326,14 @@ impl AMM {
         if is_pull_oracle {
             let price_message =
                 pyth_solana_receiver_sdk::price_update::PriceUpdateV2::try_deserialize(
-                    &mut &**pyth_price_data.deref(),
+                    &mut pyth_price_data,
                 )
                 .or(Err(crate::error::ErrorCode::UnableToLoadOracle))?;
             oracle_price = price_message.price_message.price;
             oracle_twap = price_message.price_message.price;
             oracle_exponent = price_message.price_message.exponent;
         } else {
-            let price_data = pyth_client::cast::<pyth_client::Price>(&pyth_price_data);
+            let price_data = pyth_client::cast::<pyth_client::Price>(pyth_price_data);
             oracle_price = price_data.agg.price;
             oracle_twap = price_data.twap.val;
             oracle_exponent = price_data.expo;

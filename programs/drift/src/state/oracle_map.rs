@@ -1,8 +1,9 @@
 use crate::error::ErrorCode::UnableToLoadOracle;
 use crate::error::{DriftResult, ErrorCode};
 use crate::ids::{
-    bonk_oracle, pepe_oracle, pyth_program, switchboard_program, usdc_oracle, usdt_oracle_mainnet,
-    bonk_pull_oracle, usdc_pull_oracle, usdt_pull_oracle_mainnet, pyth_pull_program,
+    bonk_oracle, bonk_pull_oracle, pepe_oracle, pyth_program, pyth_pull_program,
+    switchboard_program, usdc_oracle, usdc_pull_oracle, usdt_oracle_mainnet,
+    usdt_pull_oracle_mainnet,
 };
 use crate::math::constants::PRICE_PRECISION_I64;
 use crate::math::oracle::{oracle_validity, OracleValidity};
@@ -217,7 +218,9 @@ impl<'a> OracleMap<'a> {
 
                 let oracle_source = if pubkey == bonk_pull_oracle::id() {
                     OracleSource::Pyth1MPull
-                } else if pubkey == usdc_pull_oracle::id() || pubkey == usdt_pull_oracle_mainnet::id() {
+                } else if pubkey == usdc_pull_oracle::id()
+                    || pubkey == usdt_pull_oracle_mainnet::id()
+                {
                     OracleSource::PythStableCoinPull
                 } else {
                     OracleSource::PythPull
