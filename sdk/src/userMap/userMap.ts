@@ -489,9 +489,7 @@ export class UserMap implements UserMapInterface {
 								executing.splice(index, 1);
 							}
 						});
-					}
-
-					if (executing.length >= limit) {
+					} else {
 						await Promise.race(executing);
 					}
 				}
@@ -499,65 +497,55 @@ export class UserMap implements UserMapInterface {
 				return Promise.all(results);
 			};
 
+			const programAccountBufferMap = new Map<string, Buffer>();
+
 			// @ts-ignore
 			const chunkSize = this.syncConfig.chunkSize ?? 100;
 			const tasks = [];
 			for (let i = 0; i < accountPublicKeys.length; i += chunkSize) {
 				const chunk = accountPublicKeys.slice(i, i + chunkSize);
-				tasks.push(() =>
-					this.connection.getMultipleAccountsInfo(chunk, {
-						commitment: this.commitment,
-					})
-				);
+				tasks.push(async () => {
+					const accountInfos = await this.connection.getMultipleAccountsInfo(
+						chunk,
+						{
+							commitment: this.commitment,
+						}
+					);
+
+					for (let j = 0; j < accountInfos.length; j += 1) {
+						const accountInfo = accountInfos[j];
+						if (accountInfo === null) continue;
+
+						const publicKeyString = chunk[j].toString();
+						const buffer = Buffer.from(accountInfo.data);
+						programAccountBufferMap.set(publicKeyString, buffer);
+
+						const decodedUser = this.decode('User', buffer);
+
+						const currAccountWithSlot = this.getWithSlot(publicKeyString);
+						if (
+							currAccountWithSlot &&
+							currAccountWithSlot.slot <= accountInfo.lamports
+						) {
+							this.updateUserAccount(
+								publicKeyString,
+								decodedUser,
+								accountInfo.lamports
+							);
+						} else {
+							await this.addPubkey(
+								new PublicKey(publicKeyString),
+								decodedUser,
+								accountInfo.lamports
+							);
+						}
+					}
+				});
 			}
 
 			// @ts-ignore
 			const concurrencyLimit = this.syncConfig.concurrencyLimit ?? 10;
-			const chunkedAccountInfos = await limitConcurrency(
-				tasks,
-				concurrencyLimit
-			);
-
-			const programAccountBufferMap = new Map<string, Buffer>();
-
-			for (
-				let chunkIndex = 0;
-				chunkIndex < chunkedAccountInfos.length;
-				chunkIndex++
-			) {
-				const accountInfos = chunkedAccountInfos[chunkIndex];
-				if (!accountInfos) continue;
-
-				for (let index = 0; index < accountInfos.length; index++) {
-					const accountInfo = accountInfos[index];
-					if (accountInfo === null) continue;
-
-					const publicKeyIndex = chunkIndex * chunkSize + index;
-					const publicKeyString = accountPublicKeys[publicKeyIndex].toString();
-					const buffer = Buffer.from(accountInfo.data);
-					programAccountBufferMap.set(publicKeyString, buffer);
-
-					const decodedUser = this.decode('User', buffer);
-
-					const currAccountWithSlot = this.getWithSlot(publicKeyString);
-					if (
-						currAccountWithSlot &&
-						currAccountWithSlot.slot <= accountInfo.lamports
-					) {
-						this.updateUserAccount(
-							publicKeyString,
-							decodedUser,
-							accountInfo.lamports
-						);
-					} else {
-						await this.addPubkey(
-							new PublicKey(publicKeyString),
-							decodedUser,
-							accountInfo.lamports
-						);
-					}
-				}
-			}
+			await limitConcurrency(tasks, concurrencyLimit);
 
 			for (const [key] of this.entries()) {
 				if (!programAccountBufferMap.has(key)) {
