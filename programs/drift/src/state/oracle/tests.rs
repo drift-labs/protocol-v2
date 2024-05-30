@@ -89,5 +89,5 @@ fn pyth_pull_1m() {
     };
 
     let twap = amm.get_oracle_twap(&bonk_market_account_info, 0).unwrap();
-    assert_eq!(twap, Some(34552600));
+    assert_eq!(twap, Some(33576300));
 }

@@ -1,18 +1,25 @@
-import { parsePriceData } from '@pythnetwork/client';
-import { Connection, PublicKey } from '@solana/web3.js';
+import { Connection, Keypair, PublicKey } from '@solana/web3.js';
 import { OracleClient, OraclePriceData } from './types';
-import { BN } from '@coral-xyz/anchor';
+import { AnchorProvider, BN, Program, Wallet } from '@coral-xyz/anchor';
 import {
 	ONE,
 	PRICE_PRECISION,
 	QUOTE_PRECISION,
 	TEN,
 } from '../constants/numericConstants';
+import {
+	PythSolanaReceiverProgram,
+	DEFAULT_RECEIVER_PROGRAM_ID,
+	pythSolanaReceiverIdl,
+} from '@pythnetwork/pyth-solana-receiver';
+import { PriceUpdateAccount } from '@pythnetwork/pyth-solana-receiver/lib/PythSolanaReceiver';
 
-export class PythClient implements OracleClient {
+export class PythPullClient implements OracleClient {
 	private connection: Connection;
 	private multiple: BN;
 	private stableCoin: boolean;
+	readonly receiver: Program<PythSolanaReceiverProgram>;
+	readonly decodeFunc: (name: string, data: Buffer) => PriceUpdateAccount;
 
 	public constructor(
 		connection: Connection,
@@ -22,6 +29,22 @@ export class PythClient implements OracleClient {
 		this.connection = connection;
 		this.multiple = multiple;
 		this.stableCoin = stableCoin;
+		const provider = new AnchorProvider(
+			this.connection,
+			new Wallet(new Keypair()),
+			{
+				commitment: connection.commitment,
+			}
+		);
+		this.receiver = new Program<PythSolanaReceiverProgram>(
+			pythSolanaReceiverIdl as PythSolanaReceiverProgram,
+			DEFAULT_RECEIVER_PROGRAM_ID,
+			provider
+		);
+		this.decodeFunc =
+			this.receiver.account.priceUpdateV2.coder.accounts.decodeUnchecked.bind(
+				this.receiver.account.priceUpdateV2.coder.accounts
+			);
 	}
 
 	public async getOraclePriceData(
@@ -32,15 +55,15 @@ export class PythClient implements OracleClient {
 	}
 
 	public getOraclePriceDataFromBuffer(buffer: Buffer): OraclePriceData {
-		const priceData = parsePriceData(buffer);
+		const message = this.decodeFunc('priceUpdateV2', buffer);
+		const priceData = message.priceMessage;
 		const confidence = convertPythPrice(
-			priceData.confidence,
+			priceData.conf,
 			priceData.exponent,
 			this.multiple
 		);
-		const minPublishers = Math.min(priceData.numComponentPrices, 3);
 		let price = convertPythPrice(
-			priceData.aggregate.price,
+			priceData.price,
 			priceData.exponent,
 			this.multiple
 		);
@@ -50,33 +73,31 @@ export class PythClient implements OracleClient {
 
 		return {
 			price,
-			slot: new BN(priceData.lastSlot.toString()),
+			slot: message.postedSlot,
 			confidence,
 			twap: convertPythPrice(
-				priceData.twap.value,
+				priceData.price,
 				priceData.exponent,
 				this.multiple
 			),
 			twapConfidence: convertPythPrice(
-				priceData.twac.value,
+				priceData.price,
 				priceData.exponent,
 				this.multiple
 			),
-			hasSufficientNumberOfDataPoints: priceData.numQuoters >= minPublishers,
+			hasSufficientNumberOfDataPoints: true,
 		};
 	}
 }
 
 export function convertPythPrice(
-	price: number,
+	price: BN,
 	exponent: number,
 	multiple: BN
 ): BN {
 	exponent = Math.abs(exponent);
 	const pythPrecision = TEN.pow(new BN(exponent).abs()).div(multiple);
-	return new BN(price * Math.pow(10, exponent))
-		.mul(PRICE_PRECISION)
-		.div(pythPrecision);
+	return price.mul(PRICE_PRECISION).div(pythPrecision);
 }
 
 const fiveBPS = new BN(500);

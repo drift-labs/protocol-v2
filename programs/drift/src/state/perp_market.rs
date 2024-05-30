@@ -1329,7 +1329,7 @@ impl AMM {
                 )
                 .or(Err(crate::error::ErrorCode::UnableToLoadOracle))?;
             oracle_price = price_message.price_message.price;
-            oracle_twap = price_message.price_message.price;
+            oracle_twap = price_message.price_message.ema_price;
             oracle_exponent = price_message.price_message.exponent;
         } else {
             let price_data = pyth_client::cast::<pyth_client::Price>(pyth_price_data);
