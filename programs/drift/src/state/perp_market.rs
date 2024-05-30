@@ -1,7 +1,6 @@
 use anchor_lang::prelude::*;
 
 use std::cmp::max;
-use std::ops::Deref;
 
 use crate::controller::position::{PositionDelta, PositionDirection};
 use crate::error::{DriftResult, ErrorCode};

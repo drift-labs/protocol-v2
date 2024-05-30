@@ -13,7 +13,6 @@ use crate::state::load_ref::load_ref;
 use crate::state::perp_market::PerpMarket;
 use crate::state::traits::Size;
 use crate::validate;
-use std::ops::Deref;
 
 #[cfg(test)]
 mod tests;

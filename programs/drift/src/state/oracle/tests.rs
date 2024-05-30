@@ -81,7 +81,7 @@ fn pyth_pull_1m() {
         234919073,
     )
     .unwrap();
-    assert_eq!(oracle_price_data.price, 839400);
+    assert_eq!(oracle_price_data.price, 34552600);
 
     let amm = AMM {
         oracle_source: OracleSource::Pyth1MPull,
@@ -89,5 +89,5 @@ fn pyth_pull_1m() {
     };
 
     let twap = amm.get_oracle_twap(&bonk_market_account_info, 0).unwrap();
-    assert_eq!(twap, Some(839400));
+    assert_eq!(twap, Some(34552600));
 }
