@@ -235,11 +235,14 @@ export function calculateNetUserPnl(
 	oraclePriceData: OraclePriceData
 ): BN {
 	const netUserPositionValue = perpMarket.amm.baseAssetAmountWithAmm
+		.add(perpMarket.amm.baseAssetAmountWithUnsettledLp)
 		.mul(oraclePriceData.price)
 		.div(BASE_PRECISION)
 		.div(PRICE_TO_QUOTE_PRECISION);
 
-	const netUserCostBasis = perpMarket.amm.quoteAssetAmount;
+	const netUserCostBasis = perpMarket.amm.quoteAssetAmount
+		.add(perpMarket.amm.quoteAssetAmountWithUnsettledLp)
+		.add(perpMarket.amm.netUnsettledFundingPnl);
 
 	const netUserPnl = netUserPositionValue.add(netUserCostBasis);
 

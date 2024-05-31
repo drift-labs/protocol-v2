@@ -23,6 +23,7 @@ import {
 	SignedTxData,
 	TxParams,
 } from '../types';
+import { containsComputeUnitIxs } from '../util/computeUnits';
 
 export const COMPUTE_UNITS_DEFAULT = 200_000;
 
@@ -50,6 +51,7 @@ export class TxHandler {
 	private wallet: IWallet;
 	private confirmationOptions: ConfirmOptions;
 
+	private preSignedCb?: () => void;
 	private onSignedCb?: (txSigs: DriftClientMetricsEvents['txSigned']) => void;
 
 	constructor(props: {
@@ -59,6 +61,7 @@ export class TxHandler {
 		opts?: {
 			returnBlockHeightsWithSignedTxCallbackData?: boolean;
 			onSignedCb?: (txSigs: DriftClientMetricsEvents['txSigned']) => void;
+			preSignedCb?: () => void;
 		};
 	}) {
 		this.connection = props.connection;
@@ -69,6 +72,7 @@ export class TxHandler {
 		this.returnBlockHeightsWithSignedTxCallbackData =
 			props.opts?.returnBlockHeightsWithSignedTxCallbackData ?? false;
 		this.onSignedCb = props.opts?.onSignedCb;
+		this.preSignedCb = props.opts?.preSignedCb;
 	}
 
 	private addHashAndExpiryToLookup(
@@ -177,6 +181,8 @@ export class TxHandler {
 				tx.partialSign(kp);
 			});
 
+		this.preSignedCb?.();
+
 		const signedTx = await wallet.signTransaction(tx);
 
 		// Turn txSig Buffer into base58 string
@@ -212,6 +218,8 @@ export class TxHandler {
 			.forEach((kp) => {
 				tx.sign([kp]);
 			});
+
+		this.preSignedCb?.();
 
 		//@ts-ignore
 		const signedTx = (await wallet.signTransaction(tx)) as VersionedTransaction;
@@ -406,10 +414,16 @@ export class TxHandler {
 			};
 		}
 
+		const instructionsArray = Array.isArray(instructions)
+			? instructions
+			: [instructions];
+		const { hasSetComputeUnitLimitIx, hasSetComputeUnitPriceIx } =
+			containsComputeUnitIxs(instructionsArray);
+
 		// # Create Tx Instructions
 		const allIx = [];
 		const computeUnits = baseTxParams?.computeUnits;
-		if (computeUnits !== 200_000) {
+		if (computeUnits > 0 && !hasSetComputeUnitLimitIx) {
 			allIx.push(
 				ComputeBudgetProgram.setComputeUnitLimit({
 					units: computeUnits,
@@ -419,7 +433,7 @@ export class TxHandler {
 
 		const computeUnitsPrice = baseTxParams?.computeUnitsPrice;
 
-		if (computeUnitsPrice !== 0) {
+		if (computeUnitsPrice > 0 && !hasSetComputeUnitPriceIx) {
 			allIx.push(
 				ComputeBudgetProgram.setComputeUnitPrice({
 					microLamports: computeUnitsPrice,
@@ -427,11 +441,7 @@ export class TxHandler {
 			);
 		}
 
-		if (Array.isArray(instructions)) {
-			allIx.push(...instructions);
-		} else {
-			allIx.push(instructions);
-		}
+		allIx.push(...instructionsArray);
 
 		const recentBlockHash =
 			props?.recentBlockHash ?? (await this.getLatestBlockhashForTransaction());
@@ -571,6 +581,8 @@ export class TxHandler {
 				keysWithTx.push(keys[index]);
 			}
 		});
+
+		this.preSignedCb?.();
 
 		const signedTxs = await wallet.signAllTransactions(
 			txsToSign

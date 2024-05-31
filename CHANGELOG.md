@@ -9,7 +9,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Features
 
+- program: add settle pnl mode ([#1030](https://github.com/drift-labs/protocol-v2/pull/1030))
+- program: use strict price for maintenance margin check in settle pnl ([#1045](https://github.com/drift-labs/protocol-v2/pull/1045))
+
+### Fixes
+
+- program: update_perp_auction_params_limit_orders unwraps oracle_price_offset
+- ts-sdk: add market index to logging settle pnl error ([#1068](https://github.com/drift-labs/protocol-v2/pull/1068))
+- program: enforce min price for oracle offsets ([#874](https://github.com/drift-labs/protocol-v2/pull/874))
+
+### Breaking
+
+## [2.82.0] - 2024-05-23
+
+### Features
+
+- program: TransferProtocolIfShares constraint ([#1055](https://github.com/drift-labs/protocol-v2/pull/1055))
 - program: sanitize extreme auction end prices ([#1031](https://github.com/drift-labs/protocol-v2/pull/1031))
+- program: add comprehensive admin function logging ([#1038](https://github.com/drift-labs/protocol-v2/pull/1038))
 
 ### Fixes
 

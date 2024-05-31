@@ -523,6 +523,10 @@ pub enum ErrorCode {
     CantReclaimRent,
     #[msg("InsuranceFundOperationPaused")]
     InsuranceFundOperationPaused,
+    #[msg("NoUnsettledPnl")]
+    NoUnsettledPnl,
+    #[msg("PnlPoolCantSettleUser")]
+    PnlPoolCantSettleUser,
     #[msg("Unable to parse pull oracle message")]
     UnableToParsePullOracleMessage,
 }
