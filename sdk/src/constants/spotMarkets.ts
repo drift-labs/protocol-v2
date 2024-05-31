@@ -214,6 +214,65 @@ export const MainnetSpotMarkets: SpotMarketConfig[] = [
 		serumMarket: new PublicKey('2m7ZLEKtxWF29727DSb5D91erpXPUY1bqhRWRC3wQX7u'),
 		launchTs: 1708964021000,
 	},
+	{
+		symbol: 'W',
+		marketIndex: 13,
+		oracle: new PublicKey('H9j8CT1bFiWHaZUPMooEaxMRHdWdJ5T9CzFn41z96JHW'),
+		oracleSource: OracleSource.PYTH,
+		mint: new PublicKey('85VBFQZC9TZkfaptBWjvUw7YbZjy52A6mjtPGjstQAmQ'),
+		precision: new BN(10).pow(SIX),
+		precisionExp: SIX,
+		phoenixMarket: new PublicKey(
+			'8dFTCTAbtGuHsdDL8WEPrTU6pXFDrU1QSjBTutw8fwZk'
+		),
+		launchTs: 1712149014000,
+	},
+	{
+		symbol: 'TNSR',
+		marketIndex: 14,
+		oracle: new PublicKey('7Cfyymx49ipGsgEsCA2XygAB2DUsan4C6Cyb5c8oR5st'),
+		oracleSource: OracleSource.SWITCHBOARD,
+		mint: new PublicKey('TNSRxcUxoT9xBG3de7PiJyTDYu7kskLqcpddxnEJAS6'),
+		precision: new BN(10).pow(NINE),
+		precisionExp: NINE,
+		phoenixMarket: new PublicKey(
+			'AbJCZ9TAJiby5AY3cHcXS2gUdENC6mtsm6m7XpC2ZMvE'
+		),
+		launchTs: 1712593532000,
+	},
+	{
+		symbol: 'DRIFT',
+		marketIndex: 15,
+		oracle: new PublicKey('PeNpQeGEm9UEFJ6MBCMauY4WW4h3YxoESPWbsqVKucE'),
+		oracleSource: OracleSource.SWITCHBOARD,
+		mint: new PublicKey('DriFtupJYLTosbwoN8koMbEYSx54aFAVLddWsbksjwg7'),
+		precision: new BN(10).pow(SIX),
+		precisionExp: SIX,
+		phoenixMarket: new PublicKey(
+			'8BV6rrWsUabnTDA3dE6A69oUDJAj3hMhtBHTJyXB7czp'
+		),
+		launchTs: 1715860800000,
+	},
+	{
+		symbol: 'INF',
+		marketIndex: 16,
+		oracle: new PublicKey('6AQHz9mpGNjyVafcWdqzzgsJq14Cs8gG6MiQKmdAgCuP'),
+		oracleSource: OracleSource.SWITCHBOARD,
+		mint: new PublicKey('5oVNBeEEQvYi1cX3ir8Dx5n1P7pdxydbGF2X4TxVusJm'),
+		precision: new BN(10).pow(NINE),
+		precisionExp: NINE,
+		launchTs: 1716595200000,
+	},
+	{
+		symbol: 'dSOL',
+		marketIndex: 17,
+		oracle: new PublicKey('HJ9K9AamqVMp86j3uQgpA1tdJNRAwfVuL75FD9P3QBrn'),
+		oracleSource: OracleSource.SWITCHBOARD,
+		mint: new PublicKey('Dso1bDeDjCQxTrWHqUUi63oBvV7Mdm6WaobLbQ7gnPQ'),
+		precision: new BN(10).pow(NINE),
+		precisionExp: NINE,
+		launchTs: 1716595200000,
+	},
 ];
 
 export const SpotMarkets: { [key in DriftEnv]: SpotMarketConfig[] } = {

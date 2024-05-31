@@ -20,6 +20,7 @@ export type UserMapConfig = {
 		| {
 				type: 'websocket';
 				resubTimeoutMs?: number;
+				logResubMessages?: boolean;
 				commitment?: Commitment;
 		  };
 

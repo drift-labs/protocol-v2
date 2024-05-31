@@ -24,7 +24,12 @@ export interface AccountSubscriber<T> {
 
 export interface ProgramAccountSubscriber<T> {
 	subscribe(
-		onChange: (accountId: PublicKey, data: T, context: Context) => void
+		onChange: (
+			accountId: PublicKey,
+			data: T,
+			context: Context,
+			buffer: Buffer
+		) => void
 	): Promise<void>;
 	unsubscribe(): Promise<void>;
 }
@@ -41,10 +46,6 @@ export interface DriftClientAccountEvents {
 	userAccountUpdate: (payload: UserAccount) => void;
 	update: void;
 	error: (e: Error) => void;
-}
-
-export interface DriftClientMetricsEvents {
-	txSigned: void;
 }
 
 export interface DriftClientAccountSubscriber {
@@ -177,6 +178,11 @@ export type BufferAndSlot = {
 export type DataAndSlot<T> = {
 	data: T;
 	slot: number;
+};
+
+export type ResubOpts = {
+	resubTimeoutMs?: number;
+	logResubMessages?: boolean;
 };
 
 export interface UserStatsAccountEvents {

@@ -116,7 +116,7 @@ pub enum ContractTier {
 
 impl ContractTier {
     pub fn default() -> Self {
-        ContractTier::Speculative
+        ContractTier::HighlySpeculative
     }
 
     pub fn is_as_safe_as(&self, best_contract: &ContractTier, best_asset: &AssetTier) -> bool {
@@ -512,6 +512,11 @@ impl PerpMarket {
                 .amm
                 .base_asset_amount_with_unsettled_lp
                 .safe_add(new_settled_base_asset_amount.cast()?)?;
+
+            self.amm.quote_asset_amount_with_unsettled_lp = self
+                .amm
+                .quote_asset_amount_with_unsettled_lp
+                .safe_add(delta.quote_asset_amount.cast()?)?;
         }
 
         Ok(())

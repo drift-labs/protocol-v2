@@ -1,7 +1,7 @@
 import {
 	ConfirmationStrategy,
-	ExtraConfirmationOptions,
 	TxSender,
+	TxSendError,
 	TxSigAndSlot,
 } from './types';
 import {
@@ -15,16 +15,19 @@ import {
 	TransactionSignature,
 	Connection,
 	VersionedTransaction,
-	TransactionMessage,
+	SendTransactionError,
 	TransactionInstruction,
 	AddressLookupTableAccount,
+	BlockhashWithExpiryBlockHeight,
 } from '@solana/web3.js';
 import { AnchorProvider } from '@coral-xyz/anchor';
 import assert from 'assert';
 import bs58 from 'bs58';
+import { TxHandler } from './txHandler';
 import { IWallet } from '../types';
 
 const DEFAULT_TIMEOUT = 35000;
+const NOT_CONFIRMED_ERROR_CODE = -1001;
 
 export abstract class BaseTxSender implements TxSender {
 	connection: Connection;
@@ -35,6 +38,7 @@ export abstract class BaseTxSender implements TxSender {
 	timeoutCount = 0;
 	confirmationStrategy: ConfirmationStrategy;
 	additionalTxSenderCallbacks: ((base58EncodedTx: string) => void)[];
+	txHandler: TxHandler;
 
 	public constructor({
 		connection,
@@ -44,6 +48,7 @@ export abstract class BaseTxSender implements TxSender {
 		additionalConnections = new Array<Connection>(),
 		confirmationStrategy = ConfirmationStrategy.Combo,
 		additionalTxSenderCallbacks,
+		txHandler,
 	}: {
 		connection: Connection;
 		wallet: IWallet;
@@ -52,6 +57,7 @@ export abstract class BaseTxSender implements TxSender {
 		additionalConnections?;
 		confirmationStrategy?: ConfirmationStrategy;
 		additionalTxSenderCallbacks?: ((base58EncodedTx: string) => void)[];
+		txHandler?: TxHandler;
 	}) {
 		this.connection = connection;
 		this.wallet = wallet;
@@ -60,14 +66,20 @@ export abstract class BaseTxSender implements TxSender {
 		this.additionalConnections = additionalConnections;
 		this.confirmationStrategy = confirmationStrategy;
 		this.additionalTxSenderCallbacks = additionalTxSenderCallbacks;
+		this.txHandler =
+			txHandler ??
+			new TxHandler({
+				connection: this.connection,
+				wallet: this.wallet,
+				confirmationOptions: this.opts,
+			});
 	}
 
 	async send(
 		tx: Transaction,
 		additionalSigners?: Array<Signer>,
 		opts?: ConfirmOptions,
-		preSigned?: boolean,
-		extraConfirmationOptions?: ExtraConfirmationOptions
+		preSigned?: boolean
 	): Promise<TxSigAndSlot> {
 		if (additionalSigners === undefined) {
 			additionalSigners = [];
@@ -83,10 +95,6 @@ export abstract class BaseTxSender implements TxSender {
 			preSigned
 		);
 
-		if (extraConfirmationOptions?.onSignedCb) {
-			extraConfirmationOptions.onSignedCb();
-		}
-
 		return this.sendRawTransaction(signedTx.serialize(), opts);
 	}
 
@@ -96,68 +104,38 @@ export abstract class BaseTxSender implements TxSender {
 		opts: ConfirmOptions,
 		preSigned?: boolean
 	): Promise<Transaction> {
-		if (preSigned) {
-			return tx;
-		}
-
-		tx.feePayer = this.wallet.publicKey;
-		tx.recentBlockhash = (
-			await this.connection.getLatestBlockhash(opts.preflightCommitment)
-		).blockhash;
-
-		additionalSigners
-			.filter((s): s is Signer => s !== undefined)
-			.forEach((kp) => {
-				tx.partialSign(kp);
-			});
-
-		const signedTx = await this.wallet.signTransaction(tx);
-
-		return signedTx;
+		return this.txHandler.prepareTx(
+			tx,
+			additionalSigners,
+			undefined,
+			opts,
+			preSigned
+		);
 	}
 
 	async getVersionedTransaction(
 		ixs: TransactionInstruction[],
 		lookupTableAccounts: AddressLookupTableAccount[],
-		additionalSigners?: Array<Signer>,
+		_additionalSigners?: Array<Signer>,
 		opts?: ConfirmOptions,
-		blockhash?: string
+		blockhash?: BlockhashWithExpiryBlockHeight
 	): Promise<VersionedTransaction> {
-		if (additionalSigners === undefined) {
-			additionalSigners = [];
-		}
-		if (opts === undefined) {
-			opts = this.opts;
-		}
-
-		let recentBlockhash = '';
-		if (blockhash) {
-			recentBlockhash = blockhash;
-		} else {
-			recentBlockhash = (
-				await this.connection.getLatestBlockhash(opts.preflightCommitment)
-			).blockhash;
-		}
-
-		const message = new TransactionMessage({
-			payerKey: this.wallet.publicKey,
-			recentBlockhash,
-			instructions: ixs,
-		}).compileToV0Message(lookupTableAccounts);
-
-		const tx = new VersionedTransaction(message);
-
-		return tx;
+		return this.txHandler.generateVersionedTransaction(
+			blockhash,
+			ixs,
+			lookupTableAccounts,
+			this.wallet
+		);
 	}
 
 	async sendVersionedTransaction(
 		tx: VersionedTransaction,
 		additionalSigners?: Array<Signer>,
 		opts?: ConfirmOptions,
-		preSigned?: boolean,
-		extraConfirmationOptions?: ExtraConfirmationOptions
+		preSigned?: boolean
 	): Promise<TxSigAndSlot> {
 		let signedTx;
+
 		if (preSigned) {
 			signedTx = tx;
 			// @ts-ignore
@@ -166,17 +144,12 @@ export abstract class BaseTxSender implements TxSender {
 			tx.sign((additionalSigners ?? []).concat(this.wallet.payer));
 			signedTx = tx;
 		} else {
-			additionalSigners
-				?.filter((s): s is Signer => s !== undefined)
-				.forEach((kp) => {
-					tx.sign([kp]);
-				});
-			// @ts-ignore
-			signedTx = await this.wallet.signTransaction(tx);
-		}
-
-		if (extraConfirmationOptions?.onSignedCb) {
-			extraConfirmationOptions.onSignedCb();
+			signedTx = await this.txHandler.signVersionedTx(
+				tx,
+				additionalSigners,
+				undefined,
+				this.wallet
+			);
 		}
 
 		if (opts === undefined) {
@@ -282,10 +255,11 @@ export abstract class BaseTxSender implements TxSender {
 			}
 			this.timeoutCount += 1;
 			const duration = (Date.now() - start) / 1000;
-			throw new Error(
+			throw new TxSendError(
 				`Transaction was not confirmed in ${duration.toFixed(
 					2
-				)} seconds. It is unknown if it succeeded or failed. Check signature ${signature} using the Solana Explorer or CLI tools.`
+				)} seconds. It is unknown if it succeeded or failed. Check signature ${signature} using the Solana Explorer or CLI tools.`,
+				NOT_CONFIRMED_ERROR_CODE
 			);
 		}
 
@@ -317,10 +291,11 @@ export abstract class BaseTxSender implements TxSender {
 		// Transaction not confirmed within 30 seconds
 		this.timeoutCount += 1;
 		const duration = (Date.now() - start) / 1000;
-		throw new Error(
+		throw new TxSendError(
 			`Transaction was not confirmed in ${duration.toFixed(
 				2
-			)} seconds. It is unknown if it succeeded or failed. Check signature ${signature} using the Solana Explorer or CLI tools.`
+			)} seconds. It is unknown if it succeeded or failed. Check signature ${signature} using the Solana Explorer or CLI tools.`,
+			NOT_CONFIRMED_ERROR_CODE
 		);
 	}
 
@@ -391,5 +366,37 @@ export abstract class BaseTxSender implements TxSender {
 
 	public getTimeoutCount(): number {
 		return this.timeoutCount;
+	}
+
+	public async checkConfirmationResultForError(
+		txSig: string,
+		result: RpcResponseAndContext<SignatureResult>
+	) {
+		if (result.value.err) {
+			await this.reportTransactionError(txSig);
+		}
+
+		return;
+	}
+
+	public async reportTransactionError(txSig: string) {
+		const transactionResult = await this.connection.getTransaction(txSig, {
+			maxSupportedTransactionVersion: 0,
+		});
+
+		if (!transactionResult?.meta?.err) {
+			return undefined;
+		}
+
+		const logs = transactionResult.meta.logMessages;
+
+		const lastLog = logs[logs.length - 1];
+
+		const friendlyMessage = lastLog?.match(/(failed:) (.+)/)?.[2];
+
+		throw new SendTransactionError(
+			`Transaction Failed${friendlyMessage ? `: ${friendlyMessage}` : ''}`,
+			transactionResult.meta.logMessages
+		);
 	}
 }

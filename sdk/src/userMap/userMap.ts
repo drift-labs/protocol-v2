@@ -124,7 +124,10 @@ export class UserMap implements UserMapInterface {
 			this.subscription = new WebsocketSubscription({
 				userMap: this,
 				commitment: this.commitment,
-				resubTimeoutMs: config.subscriptionConfig.resubTimeoutMs,
+				resubOpts: {
+					resubTimeoutMs: config.subscriptionConfig.resubTimeoutMs,
+					logResubMessages: config.subscriptionConfig.logResubMessages,
+				},
 				skipInitialLoad: config.skipInitialLoad,
 				decodeFn,
 			});

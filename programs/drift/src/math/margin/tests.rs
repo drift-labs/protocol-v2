@@ -545,7 +545,6 @@ mod calculate_margin_requirement_and_total_collateral {
     use anchor_lang::Owner;
     use solana_program::pubkey::Pubkey;
 
-    use crate::create_account_info;
     use crate::create_anchor_account_info;
     use crate::math::constants::{
         AMM_RESERVE_PRECISION, BASE_PRECISION_I64, LIQUIDATION_FEE_PRECISION, MARGIN_PRECISION,
@@ -565,6 +564,7 @@ mod calculate_margin_requirement_and_total_collateral {
     use crate::state::user::{Order, PerpPosition, SpotPosition, User};
     use crate::test_utils::*;
     use crate::test_utils::{get_positions, get_pyth_price};
+    use crate::{create_account_info, PRICE_PRECISION_I64};
 
     #[test]
     pub fn usdc_deposit_and_5x_sol_bid() {
@@ -1324,6 +1324,103 @@ mod calculate_margin_requirement_and_total_collateral {
         assert_eq!(oracles_valid, false);
         assert_eq!(total_collateral, 0); // todo not 0
         assert_eq!(margin_requirement, 3);
+    }
+
+    #[test]
+    pub fn strict_maintenance() {
+        let slot = 0_u64;
+
+        let mut sol_oracle_price = get_pyth_price(100, 6);
+        let sol_oracle_price_key =
+            Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
+        let pyth_program = crate::ids::pyth_program::id();
+        create_account_info!(
+            sol_oracle_price,
+            &sol_oracle_price_key,
+            &pyth_program,
+            oracle_account_info
+        );
+        let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
+
+        let market_map = PerpMarketMap::empty();
+
+        let mut usdc_spot_market = SpotMarket {
+            market_index: 0,
+            oracle_source: OracleSource::QuoteAsset,
+            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+            decimals: 6,
+            initial_asset_weight: SPOT_WEIGHT_PRECISION,
+            maintenance_asset_weight: SPOT_WEIGHT_PRECISION,
+            deposit_balance: 10000 * SPOT_BALANCE_PRECISION,
+            liquidator_fee: 0,
+            historical_oracle_data: HistoricalOracleData {
+                last_oracle_price_twap_5min: PRICE_PRECISION_I64 * 9 / 10,
+                ..HistoricalOracleData::default_quote_oracle()
+            },
+            ..SpotMarket::default()
+        };
+        create_anchor_account_info!(usdc_spot_market, SpotMarket, usdc_spot_market_account_info);
+        let mut sol_spot_market = SpotMarket {
+            market_index: 1,
+            oracle_source: OracleSource::Pyth,
+            oracle: sol_oracle_price_key,
+            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+            cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+            decimals: 9,
+            initial_asset_weight: 8 * SPOT_WEIGHT_PRECISION / 10,
+            maintenance_asset_weight: 9 * SPOT_WEIGHT_PRECISION / 10,
+            initial_liability_weight: 12 * SPOT_WEIGHT_PRECISION / 10,
+            maintenance_liability_weight: 11 * SPOT_WEIGHT_PRECISION / 10,
+            liquidator_fee: LIQUIDATION_FEE_PRECISION / 1000,
+            historical_oracle_data: HistoricalOracleData {
+                last_oracle_price_twap_5min: 110 * PRICE_PRECISION_I64,
+                ..HistoricalOracleData::default_price(100 * PRICE_PRECISION_I64)
+            },
+            ..SpotMarket::default()
+        };
+        create_anchor_account_info!(sol_spot_market, SpotMarket, sol_spot_market_account_info);
+        let spot_market_account_infos = Vec::from([
+            &usdc_spot_market_account_info,
+            &sol_spot_market_account_info,
+        ]);
+        let spot_market_map =
+            SpotMarketMap::load_multiple(spot_market_account_infos, true).unwrap();
+
+        let mut spot_positions = [SpotPosition::default(); 8];
+        spot_positions[0] = SpotPosition {
+            market_index: 0,
+            balance_type: SpotBalanceType::Deposit,
+            scaled_balance: 10000 * SPOT_BALANCE_PRECISION_U64,
+            ..SpotPosition::default()
+        };
+        spot_positions[1] = SpotPosition {
+            market_index: 1,
+            balance_type: SpotBalanceType::Borrow,
+            scaled_balance: 100 * SPOT_BALANCE_PRECISION_U64,
+            ..SpotPosition::default()
+        };
+        let user = User {
+            orders: [Order::default(); 32],
+            perp_positions: [PerpPosition::default(); 8],
+            spot_positions,
+            ..User::default()
+        };
+
+        let MarginCalculation {
+            margin_requirement,
+            total_collateral,
+            ..
+        } = calculate_margin_requirement_and_total_collateral_and_liability_info(
+            &user,
+            &market_map,
+            &spot_market_map,
+            &mut oracle_map,
+            MarginContext::standard(MarginRequirementType::Maintenance).strict(true),
+        )
+        .unwrap();
+
+        assert_eq!(total_collateral, 9000000000);
+        assert_eq!(margin_requirement, 12100000000);
     }
 }
 

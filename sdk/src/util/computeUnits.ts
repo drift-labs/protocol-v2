@@ -1,4 +1,10 @@
-import { Connection, Finality, PublicKey } from '@solana/web3.js';
+import {
+	ComputeBudgetProgram,
+	Connection,
+	Finality,
+	PublicKey,
+	TransactionInstruction,
+} from '@solana/web3.js';
 
 export async function findComputeUnitConsumption(
 	programId: PublicKey,
@@ -18,4 +24,40 @@ export async function findComputeUnitConsumption(
 		}
 	});
 	return computeUnits;
+}
+
+export function isSetComputeUnitsIx(ix: TransactionInstruction): boolean {
+	// Compute budget program discriminator is first byte
+	// 2: set compute unit limit
+	// 3: set compute unit price
+	if (
+		ix.programId.equals(ComputeBudgetProgram.programId) &&
+		ix.data.at(0) === 2
+	) {
+		return true;
+	}
+	return false;
+}
+
+export function isSetComputeUnitPriceIx(ix: TransactionInstruction): boolean {
+	// Compute budget program discriminator is first byte
+	// 2: set compute unit limit
+	// 3: set compute unit price
+	if (
+		ix.programId.equals(ComputeBudgetProgram.programId) &&
+		ix.data.at(0) === 3
+	) {
+		return true;
+	}
+	return false;
+}
+
+export function containsComputeUnitIxs(ixs: TransactionInstruction[]): {
+	hasSetComputeUnitLimitIx: boolean;
+	hasSetComputeUnitPriceIx: boolean;
+} {
+	return {
+		hasSetComputeUnitLimitIx: ixs.some(isSetComputeUnitsIx),
+		hasSetComputeUnitPriceIx: ixs.some(isSetComputeUnitPriceIx),
+	};
 }

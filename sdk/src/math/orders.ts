@@ -7,7 +7,7 @@ import {
 	Order,
 	PositionDirection,
 } from '../types';
-import { ZERO, TWO } from '../constants/numericConstants';
+import { ZERO, TWO, ONE } from '../constants/numericConstants';
 import { BN } from '@coral-xyz/anchor';
 import { OraclePriceData } from '../oracles/types';
 import {
@@ -160,7 +160,10 @@ export function getLimitPrice(
 	if (hasAuctionPrice(order, slot)) {
 		limitPrice = getAuctionPrice(order, slot, oraclePriceData.price);
 	} else if (order.oraclePriceOffset !== 0) {
-		limitPrice = oraclePriceData.price.add(new BN(order.oraclePriceOffset));
+		limitPrice = BN.max(
+			oraclePriceData.price.add(new BN(order.oraclePriceOffset)),
+			ONE
+		);
 	} else if (order.price.eq(ZERO)) {
 		limitPrice = fallbackPrice;
 	} else {
@@ -287,7 +290,8 @@ function isSameDirection(
 export function isOrderExpired(
 	order: Order,
 	ts: number,
-	enforceBuffer = false
+	enforceBuffer = false,
+	bufferSeconds = 15
 ): boolean {
 	if (
 		mustBeTriggered(order) ||
@@ -299,7 +303,7 @@ export function isOrderExpired(
 
 	let maxTs;
 	if (enforceBuffer && isLimitOrder(order)) {
-		maxTs = order.maxTs.addn(15);
+		maxTs = order.maxTs.addn(bufferSeconds);
 	} else {
 		maxTs = order.maxTs;
 	}

@@ -86,7 +86,7 @@ pub fn calculate_liability_transfer_to_cover_margin_shortage(
         .safe_mul(asset_liquidation_multiplier.cast()?)?
         .safe_div(liability_liquidation_multiplier.cast()?)?;
 
-    if asset_weight_component > liability_weight_component {
+    if asset_weight_component >= liability_weight_component {
         return Ok(u128::MAX);
     }
 
@@ -161,7 +161,8 @@ pub fn calculate_asset_transfer_for_liability_transfer(
                 .cast::<u128>()?
                 .safe_mul(liability_liquidation_multiplier.cast()?)?,
         )?
-        .safe_div(denominator_scale)?;
+        .safe_div(denominator_scale)?
+        .max(1);
 
     // Need to check if asset_transfer should be rounded to asset amount
     let (asset_value_numerator_scale, asset_value_denominator_scale) = if asset_decimals > 6 {

@@ -14,6 +14,7 @@ use crate::controller::position::PositionDirection;
 use crate::state::oracle::PrelaunchOracleParams;
 use crate::state::order_params::{ModifyOrderParams, OrderParams};
 use crate::state::perp_market::{ContractTier, MarketStatus};
+use crate::state::settle_pnl_mode::SettlePnlMode;
 use crate::state::spot_market::AssetTier;
 use crate::state::spot_market::SpotFulfillmentConfigStatus;
 use crate::state::state::FeeStructure;
@@ -369,6 +370,14 @@ pub mod drift {
         handle_settle_pnl(ctx, market_index)
     }
 
+    pub fn settle_multiple_pnls<'c: 'info, 'info>(
+        ctx: Context<'_, '_, 'c, 'info, SettlePNL>,
+        market_indexes: Vec<u16>,
+        mode: SettlePnlMode,
+    ) -> Result<()> {
+        handle_settle_multiple_pnls(ctx, market_indexes, mode)
+    }
+
     pub fn settle_funding_payment<'c: 'info, 'info>(
         ctx: Context<'_, '_, 'c, 'info, SettleFunding>,
     ) -> Result<()> {
@@ -620,6 +629,13 @@ pub mod drift {
         )
     }
 
+    pub fn delete_initialized_spot_market(
+        ctx: Context<DeleteInitializedSpotMarket>,
+        market_index: u16,
+    ) -> Result<()> {
+        handle_delete_initialized_spot_market(ctx, market_index)
+    }
+
     pub fn initialize_serum_fulfillment_config(
         ctx: Context<InitializeSerumFulfillmentConfig>,
         market_index: u16,
@@ -732,6 +748,13 @@ pub mod drift {
         sqrt_k: u128,
     ) -> Result<()> {
         handle_recenter_perp_market_amm(ctx, peg_multiplier, sqrt_k)
+    }
+
+    pub fn update_perp_market_amm_summary_stats(
+        ctx: Context<AdminUpdatePerpMarketAmmSummaryStats>,
+        params: UpdatePerpMarketSummaryStatsParams,
+    ) -> Result<()> {
+        handle_update_perp_market_amm_summary_stats(ctx, params)
     }
 
     pub fn update_perp_market_expiry(
@@ -950,6 +973,13 @@ pub mod drift {
         orders_enabled: bool,
     ) -> Result<()> {
         handle_update_spot_market_orders_enabled(ctx, orders_enabled)
+    }
+
+    pub fn update_spot_market_if_paused_operations(
+        ctx: Context<AdminUpdateSpotMarket>,
+        paused_operations: u8,
+    ) -> Result<()> {
+        handle_update_spot_market_if_paused_operations(ctx, paused_operations)
     }
 
     pub fn update_spot_market_name(
@@ -1173,11 +1203,26 @@ pub mod drift {
         handle_update_perp_market_max_open_interest(ctx, max_open_interest)
     }
 
+    pub fn update_perp_market_number_of_users(
+        ctx: Context<AdminUpdatePerpMarket>,
+        number_of_users: Option<u32>,
+        number_of_users_with_base: Option<u32>,
+    ) -> Result<()> {
+        handle_update_perp_market_number_of_users(ctx, number_of_users, number_of_users_with_base)
+    }
+
     pub fn update_perp_market_fee_adjustment(
         ctx: Context<AdminUpdatePerpMarket>,
         fee_adjustment: i16,
     ) -> Result<()> {
         handle_update_perp_market_fee_adjustment(ctx, fee_adjustment)
+    }
+
+    pub fn update_spot_market_fee_adjustment(
+        ctx: Context<AdminUpdateSpotMarket>,
+        fee_adjustment: i16,
+    ) -> Result<()> {
+        handle_update_spot_market_fee_adjustment(ctx, fee_adjustment)
     }
 
     pub fn update_admin(ctx: Context<AdminUpdateState>, admin: Pubkey) -> Result<()> {
@@ -1217,14 +1262,6 @@ pub mod drift {
         default_spot_auction_duration: u8,
     ) -> Result<()> {
         handle_update_spot_auction_duration(ctx, default_spot_auction_duration)
-    }
-
-    pub fn admin_remove_insurance_fund_stake(
-        ctx: Context<AdminRemoveInsuranceFundStake>,
-        market_index: u16,
-        amount: u64,
-    ) -> Result<()> {
-        handle_admin_remove_insurance_fund_stake(ctx, market_index, amount)
     }
 
     pub fn initialize_protocol_if_shares_transfer_config(

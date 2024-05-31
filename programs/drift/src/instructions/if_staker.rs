@@ -5,6 +5,7 @@ use crate::controller::insurance::transfer_protocol_insurance_fund_stake;
 use crate::error::ErrorCode;
 use crate::instructions::constraints::*;
 use crate::state::insurance_fund_stake::{InsuranceFundStake, ProtocolIfSharesTransferConfig};
+use crate::state::paused_operations::InsuranceFundOperation;
 use crate::state::perp_market::MarketStatus;
 use crate::state::spot_market::SpotMarket;
 use crate::state::state::State;
@@ -29,6 +30,14 @@ pub fn handle_initialize_insurance_fund_stake(
 
     *if_stake = InsuranceFundStake::new(*ctx.accounts.authority.key, market_index, now);
 
+    let spot_market = ctx.accounts.spot_market.load()?;
+
+    validate!(
+        !spot_market.is_insurance_fund_operation_paused(InsuranceFundOperation::Init),
+        ErrorCode::InsuranceFundOperationPaused,
+        "if staking init disabled",
+    )?;
+
     Ok(())
 }
 
@@ -47,6 +56,12 @@ pub fn handle_add_insurance_fund_stake(
     let user_stats = &mut load_mut!(ctx.accounts.user_stats)?;
     let spot_market = &mut load_mut!(ctx.accounts.spot_market)?;
     let state = &ctx.accounts.state;
+
+    validate!(
+        !spot_market.is_insurance_fund_operation_paused(InsuranceFundOperation::Add),
+        ErrorCode::InsuranceFundOperationPaused,
+        "if staking add disabled",
+    )?;
 
     validate!(
         insurance_fund_stake.market_index == market_index,
@@ -117,6 +132,12 @@ pub fn handle_request_remove_insurance_fund_stake(
     let insurance_fund_stake = &mut load_mut!(ctx.accounts.insurance_fund_stake)?;
     let user_stats = &mut load_mut!(ctx.accounts.user_stats)?;
     let spot_market = &mut load_mut!(ctx.accounts.spot_market)?;
+
+    validate!(
+        !spot_market.is_insurance_fund_operation_paused(InsuranceFundOperation::RequestRemove),
+        ErrorCode::InsuranceFundOperationPaused,
+        "if staking request remove disabled",
+    )?;
 
     validate!(
         insurance_fund_stake.market_index == market_index,
@@ -203,6 +224,12 @@ pub fn handle_remove_insurance_fund_stake(
     let user_stats = &mut load_mut!(ctx.accounts.user_stats)?;
     let spot_market = &mut load_mut!(ctx.accounts.spot_market)?;
     let state = &ctx.accounts.state;
+
+    validate!(
+        !spot_market.is_insurance_fund_operation_paused(InsuranceFundOperation::Remove),
+        ErrorCode::InsuranceFundOperationPaused,
+        "if staking remove disabled",
+    )?;
 
     validate!(
         insurance_fund_stake.market_index == market_index,
@@ -445,6 +472,8 @@ pub struct TransferProtocolIfShares<'info> {
     pub spot_market: AccountLoader<'info, SpotMarket>,
     #[account(
         mut,
+        seeds = [b"insurance_fund_stake", authority.key.as_ref(), market_index.to_le_bytes().as_ref()],
+        bump,
         has_one = authority,
     )]
     pub insurance_fund_stake: AccountLoader<'info, InsuranceFundStake>,

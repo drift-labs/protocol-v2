@@ -200,7 +200,7 @@ pub struct OrderActionRecord {
     pub filler_reward: Option<u64>,
     pub fill_record_id: Option<u64>,
 
-    /// precision: BASE_PRECISION
+    /// precision: BASE_PRECISION (perp) or MINT_PRECISION (spot)
     pub base_asset_amount_filled: Option<u64>,
     /// precision: QUOTE_PRECISION
     pub quote_asset_amount_filled: Option<u64>,
@@ -218,9 +218,9 @@ pub struct OrderActionRecord {
     pub taker: Option<Pubkey>,
     pub taker_order_id: Option<u32>,
     pub taker_order_direction: Option<PositionDirection>,
-    /// precision: BASE_PRECISION
+    /// precision: BASE_PRECISION (perp) or MINT_PRECISION (spot)
     pub taker_order_base_asset_amount: Option<u64>,
-    /// precision: BASE_PRECISION
+    /// precision: BASE_PRECISION (perp) or MINT_PRECISION (spot)
     pub taker_order_cumulative_base_asset_amount_filled: Option<u64>,
     /// precision: QUOTE_PRECISION
     pub taker_order_cumulative_quote_asset_amount_filled: Option<u64>,
@@ -228,9 +228,9 @@ pub struct OrderActionRecord {
     pub maker: Option<Pubkey>,
     pub maker_order_id: Option<u32>,
     pub maker_order_direction: Option<PositionDirection>,
-    /// precision: BASE_PRECISION
+    /// precision: BASE_PRECISION (perp) or MINT_PRECISION (spot)
     pub maker_order_base_asset_amount: Option<u64>,
-    /// precision: BASE_PRECISION
+    /// precision: BASE_PRECISION (perp) or MINT_PRECISION (spot)
     pub maker_order_cumulative_base_asset_amount_filled: Option<u64>,
     /// precision: QUOTE_PRECISION
     pub maker_order_cumulative_quote_asset_amount_filled: Option<u64>,

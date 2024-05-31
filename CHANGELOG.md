@@ -9,6 +9,105 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Features
 
+- program: add settle pnl mode ([#1030](https://github.com/drift-labs/protocol-v2/pull/1030))
+- program: use strict price for maintenance margin check in settle pnl ([#1045](https://github.com/drift-labs/protocol-v2/pull/1045))
+
+### Fixes
+
+- program: update_perp_auction_params_limit_orders unwraps oracle_price_offset
+- ts-sdk: add market index to logging settle pnl error ([#1068](https://github.com/drift-labs/protocol-v2/pull/1068))
+- program: enforce min price for oracle offsets ([#874](https://github.com/drift-labs/protocol-v2/pull/874))
+
+### Breaking
+
+## [2.82.0] - 2024-05-23
+
+### Features
+
+- program: TransferProtocolIfShares constraint ([#1055](https://github.com/drift-labs/protocol-v2/pull/1055))
+- program: sanitize extreme auction end prices ([#1031](https://github.com/drift-labs/protocol-v2/pull/1031))
+- program: add comprehensive admin function logging ([#1038](https://github.com/drift-labs/protocol-v2/pull/1038))
+
+### Fixes
+
+### Breaking
+
+- ts-sdk: upgrade to node 18 and solana version 1.91.7 ([#1036](https://github.com/drift-labs/protocol-v2/pull/1036))
+
+## [2.81.0] - 2024-04-22
+
+### Features
+
+### Fixes
+
+- program: fix tracking unsettled quote for lp ([#1026](https://github.com/drift-labs/protocol-v2/pull/1026))
+
+### Breaking
+
+## [2.80.0] - 2024-04-20
+
+### Features
+
+- program: add ability to pause if operations ([#989](https://github.com/drift-labs/protocol-v2/pull/989))
+- program: update auction end price in derive_market_order_auction_params ([#1022](https://github.com/drift-labs/protocol-v2/pull/1022))
+- program: admin amm summary stats update and/or reset ([#912](https://github.com/drift-labs/protocol-v2/pull/912))
+
+### Fixes
+
+### Breaking
+
+## [2.79.0] - 2024-04-18
+
+### Features
+
+### Fixes
+
+- program: program: let user with positive pnl be settled if being liquidated ([#1020](https://github.com/drift-labs/protocol-v2/pull/1020))
+- program: fix should_expire_order_before_fill ([#1021](https://github.com/drift-labs/protocol-v2/pull/1021))
+
+### Breaking
+
+## [2.78.0] - 2024-04-15
+
+### Features
+
+### Fixes
+
+- program: set default ContractTier to HighlySpeculative ([#1013](https://github.com/drift-labs/protocol-v2/pull/1013))
+- program: avoid dust borrows not being transferred 
+
+### Breaking
+
+## [2.77.0] - 2024-04-13
+
+### Features
+- program: lax funding rate update oracle validity criteria ([#1009](https://github.com/drift-labs/protocol-v2/pull/1009))
+
+### Fixes
+
+- program: fix div by 0 in calculate_liability_transfer_to_cover_margin_shortage
+
+### Breaking
+
+## [2.76.0] - 2024-04-09
+
+### Features
+
+- program: rm admins ability to withdraw from if ([#990](https://github.com/drift-labs/protocol-v2/pull/990))
+- program: add add ability to delete initialized spot market ([#998](https://github.com/drift-labs/protocol-v2/pull/998))
+- program: more reliable oracle updates ([#1000](https://github.com/drift-labs/protocol-v2/pull/1000))
+
+### Fixes
+
+- program: avoid underflow in update pnl ([#1002](https://github.com/drift-labs/protocol-v2/pull/1002))
+
+### Breaking
+
+## [2.75.0] - 2024-04-01
+
+### Features
+
+- program: add fee adjustment to spot market ([#987](https://github.com/drift-labs/protocol-v2/pull/987))
 - program: allow multiple makers to be passed into for spot fills ([#946](https://github.com/drift-labs/protocol-v2/pull/946)) 
 - ts-sdk: add fn to get admin ix  ([#980](https://github.com/drift-labs/protocol-v2/pull/980))
 - program: add invariant check boolean for attempt settle revenue to insurance ([#937](https://github.com/drift-labs/protocol-v2/pull/937)) 

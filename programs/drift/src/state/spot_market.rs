@@ -20,7 +20,7 @@ use crate::math::spot_balance::{calculate_utilization, get_token_amount, get_tok
 
 use crate::math::stats::calculate_new_twap;
 use crate::state::oracle::{HistoricalIndexData, HistoricalOracleData, OracleSource};
-use crate::state::paused_operations::SpotOperation;
+use crate::state::paused_operations::{InsuranceFundOperation, SpotOperation};
 use crate::state::perp_market::{MarketStatus, PoolBalance};
 use crate::state::traits::{MarketIndexOffset, Size};
 use crate::validate;
@@ -161,7 +161,9 @@ pub struct SpotMarket {
     /// The asset tier affects how a deposit can be used as collateral and the priority for a borrow being liquidated
     pub asset_tier: AssetTier,
     pub paused_operations: u8,
-    pub padding1: [u8; 5],
+    pub if_paused_operations: u8,
+    pub fee_adjustment: i16,
+    pub padding1: [u8; 2],
     /// For swaps, the amount of token loaned out in the begin_swap ix
     /// precision: token mint precision
     pub flash_loan_amount: u64,
@@ -230,7 +232,9 @@ impl Default for SpotMarket {
             status: MarketStatus::default(),
             asset_tier: AssetTier::default(),
             paused_operations: 0,
-            padding1: [0; 5],
+            if_paused_operations: 0,
+            fee_adjustment: 0,
+            padding1: [0; 2],
             flash_loan_amount: 0,
             flash_loan_initial_token_amount: 0,
             total_swap_fee: 0,
@@ -264,6 +268,10 @@ impl SpotMarket {
 
     pub fn is_operation_paused(&self, operation: SpotOperation) -> bool {
         SpotOperation::is_operation_paused(self.paused_operations, operation)
+    }
+
+    pub fn is_insurance_fund_operation_paused(&self, operation: InsuranceFundOperation) -> bool {
+        InsuranceFundOperation::is_operation_paused(self.if_paused_operations, operation)
     }
 
     pub fn fills_enabled(&self) -> bool {
