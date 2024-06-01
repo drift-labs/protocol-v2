@@ -17,6 +17,8 @@
 npm i @drift-labs/sdk
 ```
 
+If you are using a gRPC flavored account subscriber, you will need an updated `protoc` installation, please refer to the Protobuf [installation guide](https://grpc.io/docs/protoc-installation/)
+
 ## Getting Started
 
 Documentation:
