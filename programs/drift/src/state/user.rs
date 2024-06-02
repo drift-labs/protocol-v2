@@ -1387,8 +1387,10 @@ impl Default for MarketType {
     }
 }
 
+pub const CUMULATIVE_VOLUME_START_TS: i64 = 1710771610;
+
 #[account(zero_copy(unsafe))]
-#[derive(Eq, PartialEq, Debug)]
+#[derive(Eq, PartialEq, Debug, Default)]
 #[repr(C)]
 pub struct UserStats {
     /// The authority for all of a users sub accounts
@@ -1428,30 +1430,11 @@ pub struct UserStats {
     /// Whether the user is a referrer. Sub account 0 can not be deleted if user is a referrer
     pub is_referrer: bool,
     pub disable_update_perp_bid_ask_twap: bool,
-    pub padding: [u8; 50],
-}
-
-impl Default for UserStats {
-    fn default() -> Self {
-        UserStats {
-            authority: Pubkey::default(),
-            referrer: Pubkey::default(),
-            fees: UserFees::default(),
-            next_epoch_ts: 0,
-            maker_volume_30d: 0,
-            taker_volume_30d: 0,
-            filler_volume_30d: 0,
-            last_maker_volume_30d_ts: 0,
-            last_taker_volume_30d_ts: 0,
-            last_filler_volume_30d_ts: 0,
-            if_staked_quote_asset_amount: 0,
-            number_of_sub_accounts: 0,
-            number_of_sub_accounts_created: 0,
-            is_referrer: false,
-            disable_update_perp_bid_ask_twap: false,
-            padding: [0; 50],
-        }
-    }
+    pub padding1: u16,
+    pub cumulative_taker_volume: u64,
+    pub cumulative_maker_volume: u64,
+    pub cumulative_filler_volume: u64,
+    pub padding: [u8; 24],
 }
 
 impl Size for UserStats {
@@ -1459,7 +1442,7 @@ impl Size for UserStats {
 }
 
 impl UserStats {
-    pub fn update_maker_volume_30d(&mut self, quote_asset_amount: u64, now: i64) -> DriftResult {
+    pub fn update_maker_volume(&mut self, quote_asset_amount: u64, now: i64) -> DriftResult {
         let since_last = max(1_i64, now.safe_sub(self.last_maker_volume_30d_ts)?);
 
         self.maker_volume_30d = calculate_rolling_sum(
@@ -1470,10 +1453,16 @@ impl UserStats {
         )?;
         self.last_maker_volume_30d_ts = now;
 
+        if now > CUMULATIVE_VOLUME_START_TS {
+            self.cumulative_maker_volume = self
+                .cumulative_maker_volume
+                .saturating_add(quote_asset_amount);
+        }
+
         Ok(())
     }
 
-    pub fn update_taker_volume_30d(&mut self, quote_asset_amount: u64, now: i64) -> DriftResult {
+    pub fn update_taker_volume(&mut self, quote_asset_amount: u64, now: i64) -> DriftResult {
         let since_last = max(1_i64, now.safe_sub(self.last_taker_volume_30d_ts)?);
 
         self.taker_volume_30d = calculate_rolling_sum(
@@ -1483,6 +1472,12 @@ impl UserStats {
             THIRTY_DAY,
         )?;
         self.last_taker_volume_30d_ts = now;
+
+        if now > CUMULATIVE_VOLUME_START_TS {
+            self.cumulative_taker_volume = self
+                .cumulative_taker_volume
+                .saturating_add(quote_asset_amount);
+        }
 
         Ok(())
     }
@@ -1498,6 +1493,12 @@ impl UserStats {
         )?;
 
         self.last_filler_volume_30d_ts = now;
+
+        if now > CUMULATIVE_VOLUME_START_TS {
+            self.cumulative_filler_volume = self
+                .cumulative_filler_volume
+                .saturating_add(quote_asset_amount);
+        }
 
         Ok(())
     }
