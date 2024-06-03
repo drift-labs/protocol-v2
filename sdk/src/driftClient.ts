@@ -5386,7 +5386,7 @@ export class DriftClient {
 		opts?: {
 			filterInvalidMarkets?: boolean;
 		},
-		txParams?: TxParams,
+		txParams?: TxParams
 	): Promise<TransactionSignature> {
 		const filterInvalidMarkets = opts?.filterInvalidMarkets;
 
@@ -5419,9 +5419,12 @@ export class DriftClient {
 		// # Settle filtered market indexes
 		const ixs = await this.getSettlePNLsIxs(users, marketIndexToSettle);
 
-		const tx = await this.buildTransaction(ixs, txParams ?? {
-			computeUnits: 1_400_000,
-		});
+		const tx = await this.buildTransaction(
+			ixs,
+			txParams ?? {
+				computeUnits: 1_400_000,
+			}
+		);
 
 		const { txSig } = await this.sendTransaction(tx, [], this.opts);
 		return txSig;
