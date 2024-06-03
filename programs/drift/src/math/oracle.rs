@@ -108,14 +108,14 @@ pub fn is_oracle_valid_for_action(
             }
             DriftAction::MarginCalc => !matches!(
                 oracle_validity,
-                OracleValidity::Invalid
+                OracleValidity::NonPositive
                     | OracleValidity::TooVolatile
                     | OracleValidity::TooUncertain
                     | OracleValidity::StaleForMargin
             ),
             DriftAction::TriggerOrder => !matches!(
                 oracle_validity,
-                OracleValidity::Invalid | OracleValidity::TooVolatile
+                OracleValidity::NonPositive | OracleValidity::TooVolatile
             ),
             DriftAction::SettlePnl => matches!(
                 oracle_validity,
@@ -126,13 +126,13 @@ pub fn is_oracle_valid_for_action(
             ),
             DriftAction::FillOrderMatch => !matches!(
                 oracle_validity,
-                OracleValidity::Invalid
+                OracleValidity::NonPositive
                     | OracleValidity::TooVolatile
                     | OracleValidity::TooUncertain
             ),
             DriftAction::Liquidate => !matches!(
                 oracle_validity,
-                OracleValidity::Invalid | OracleValidity::TooVolatile
+                OracleValidity::NonPositive | OracleValidity::TooVolatile
             ),
             DriftAction::UpdateTwap => !matches!(oracle_validity, OracleValidity::NonPositive),
             DriftAction::UpdateAMMCurve => !matches!(oracle_validity, OracleValidity::NonPositive),
