@@ -1231,10 +1231,10 @@ pub fn fill_perp_order(
 }
 
 pub fn validate_market_within_price_band(market: &PerpMarket, state: &State) -> DriftResult<bool> {
-    let reserve_price_after = market.amm.reserve_price()?;
+    let reserve_price = market.amm.reserve_price()?;
 
     let oracle_reserve_price_spread_pct_after =
-        amm::calculate_oracle_twap_5min_mark_spread_pct(&market.amm, Some(reserve_price_after))?;
+        amm::calculate_oracle_twap_5min_reserve_price_spread_pct(&market.amm, reserve_price)?;
 
     let is_oracle_mark_too_divergent = amm::is_oracle_mark_too_divergent(
         oracle_reserve_price_spread_pct_after,
@@ -1246,7 +1246,7 @@ pub fn validate_market_within_price_band(market: &PerpMarket, state: &State) -> 
         msg!("Perp market = {} price pushed outside bounds: last_oracle_price_twap_5min={} vs mark_price={},(breach spread {})",
                 market.market_index,
                 market.amm.historical_oracle_data.last_oracle_price_twap_5min,
-                reserve_price_after,
+                reserve_price,
                 oracle_reserve_price_spread_pct_after,
             );
         return Err(ErrorCode::PriceBandsBreached);

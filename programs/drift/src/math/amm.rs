@@ -762,14 +762,10 @@ pub fn calculate_oracle_reserve_price_spread_pct(
         .cast()
 }
 
-pub fn calculate_oracle_twap_5min_mark_spread_pct(
+pub fn calculate_oracle_twap_5min_reserve_price_spread_pct(
     amm: &AMM,
-    precomputed_reserve_price: Option<u64>,
+    reserve_price: u64,
 ) -> DriftResult<i64> {
-    let reserve_price = match precomputed_reserve_price {
-        Some(reserve_price) => reserve_price,
-        None => amm.reserve_price()?,
-    };
     let price_spread = reserve_price
         .cast::<i64>()?
         .safe_sub(amm.historical_oracle_data.last_oracle_price_twap_5min)?;

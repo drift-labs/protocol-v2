@@ -659,7 +659,7 @@ fn unsettled_funding_pnl() {
         &market,
         oracle_price_data,
         &state.oracle_guard_rails,
-        None,
+        market.amm.reserve_price().unwrap(),
         slot,
     )
     .unwrap();
@@ -683,7 +683,7 @@ fn unsettled_funding_pnl() {
         &market,
         oracle_price_data,
         &state.oracle_guard_rails,
-        None,
+        market.amm.reserve_price().unwrap(),
         slot,
     )
     .unwrap();
