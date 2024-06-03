@@ -70,7 +70,7 @@ pub fn settle_pnl(
 
     let mut market = perp_market_map.get_ref_mut(&market_index)?;
 
-    validate_market_within_price_band(&market, state, true, None)?;
+    validate_market_within_price_band(&market, state)?;
 
     crate::controller::lp::settle_funding_payment_then_lp(user, user_key, &mut market, now)?;
 
