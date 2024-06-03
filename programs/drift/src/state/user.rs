@@ -117,7 +117,9 @@ pub struct User {
     pub open_auctions: u8,
     /// Whether or not user has open order with auction
     pub has_open_auction: bool,
-    pub padding: [u8; 21],
+    pub padding1: [u8; 5],
+    pub last_fuel_bonus_update_ts: i64,
+    pub padding: [u8; 8],
 }
 
 impl User {
@@ -419,6 +421,18 @@ impl User {
         }
 
         false
+    }
+
+    pub fn increment_fuel_bonus(
+        &mut self,
+        fuel_bonus: u64,
+        user_stats: &mut UserStats,
+        now: i64,
+    ) -> DriftResult {
+        user_stats.update_fuel_bonus(fuel_bonus, now)?;
+        self.last_fuel_bonus_update_ts = now;
+
+        Ok(())
     }
 }
 
