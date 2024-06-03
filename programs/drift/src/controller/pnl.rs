@@ -140,7 +140,11 @@ pub fn settle_pnl(
                 "Does not meet margin requirement while settling Market = {}",
                 market_index
             );
-            return mode.result(ErrorCode::InsufficientCollateralForSettlingPNL, &msg);
+            return mode.result(
+                ErrorCode::InsufficientCollateralForSettlingPNL,
+                market_index,
+                &msg,
+            );
         }
     }
 
@@ -171,7 +175,7 @@ pub fn settle_pnl(
                         oracle_validity,
                         market_index
                     );
-                    return mode.result(ErrorCode::InvalidOracle, &msg);
+                    return mode.result(oracle_validity.get_error_code(), market_index, &msg);
                 }
 
                 if oracle_map.slot != perp_market.amm.last_update_slot {
@@ -182,7 +186,7 @@ pub fn settle_pnl(
                         perp_market.amm.last_update_slot,
                         perp_market.amm.last_oracle_valid
                     );
-                    return mode.result(ErrorCode::AMMNotUpdatedInSameSlot, &msg);
+                    return mode.result(ErrorCode::AMMNotUpdatedInSameSlot, market_index, &msg);
                 }
             }
         }
@@ -193,7 +197,11 @@ pub fn settle_pnl(
             "Cannot settle pnl under current market = {} status",
             market_index
         );
-        return mode.result(ErrorCode::InvalidMarketStatusToSettlePnl, &msg);
+        return mode.result(
+            ErrorCode::InvalidMarketStatusToSettlePnl,
+            market_index,
+            &msg,
+        );
     }
 
     let base_asset_amount = user.perp_positions[position_index].base_asset_amount;
@@ -203,7 +211,11 @@ pub fn settle_pnl(
                 "Cannot settle pnl with position under current market = {} operation paused",
                 market_index
             );
-            return mode.result(ErrorCode::InvalidMarketStatusToSettlePnl, &msg);
+            return mode.result(
+                ErrorCode::InvalidMarketStatusToSettlePnl,
+                market_index,
+                &msg,
+            );
         }
 
         if perp_market.status != MarketStatus::Active {
@@ -211,7 +223,11 @@ pub fn settle_pnl(
                 "Cannot settle pnl with position under non-Active current market = {} status",
                 market_index
             );
-            return mode.result(ErrorCode::InvalidMarketStatusToSettlePnl, &msg);
+            return mode.result(
+                ErrorCode::InvalidMarketStatusToSettlePnl,
+                market_index,
+                &msg,
+            );
         }
     } else {
         if perp_market.status != MarketStatus::Active
@@ -221,7 +237,11 @@ pub fn settle_pnl(
                 "Cannot settle pnl under current market = {} status (neither Active or ReduceOnly)",
                 market_index
             );
-            return mode.result(ErrorCode::InvalidMarketStatusToSettlePnl, &msg);
+            return mode.result(
+                ErrorCode::InvalidMarketStatusToSettlePnl,
+                market_index,
+                &msg,
+            );
         }
     }
 
@@ -263,13 +283,13 @@ pub fn settle_pnl(
 
     if user_unsettled_pnl == 0 {
         let msg = format!("User has no unsettled pnl for market {}", market_index);
-        return mode.result(ErrorCode::NoUnsettledPnl, &msg);
+        return mode.result(ErrorCode::NoUnsettledPnl, market_index, &msg);
     } else if pnl_to_settle_with_user == 0 {
         let msg = format!(
             "Pnl Pool cannot currently settle with user for market {}",
             market_index
         );
-        return mode.result(ErrorCode::PnlPoolCantSettleUser, &msg);
+        return mode.result(ErrorCode::PnlPoolCantSettleUser, market_index, &msg);
     }
 
     let user_must_settle_themself = pnl_to_settle_with_user >= 0
@@ -282,7 +302,11 @@ pub fn settle_pnl(
             "Market = {} user must settle their own unsettled pnl when its positive and pnl pool not in excess",
             market_index
         );
-        return mode.result(ErrorCode::UserMustSettleTheirOwnPositiveUnsettledPNL, &msg);
+        return mode.result(
+            ErrorCode::UserMustSettleTheirOwnPositiveUnsettledPNL,
+            market_index,
+            &msg,
+        );
     }
 
     update_spot_balances(

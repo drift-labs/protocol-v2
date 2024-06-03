@@ -15,12 +15,13 @@ pub enum SettlePnlMode {
 impl SettlePnlMode {
     #[track_caller]
     #[inline(always)]
-    pub fn result(self, error_code: ErrorCode, msg: &str) -> DriftResult {
+    pub fn result(self, error_code: ErrorCode, market_index: u16, msg: &str) -> DriftResult {
         let caller = Location::caller();
         msg!(msg);
         msg!(
-            "Error {:?} at {}:{}",
+            "Error {:?} for market {} at {}:{}",
             error_code,
+            market_index,
             caller.file(),
             caller.line()
         );
