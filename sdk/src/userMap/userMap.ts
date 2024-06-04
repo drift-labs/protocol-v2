@@ -505,15 +505,17 @@ export class UserMap implements UserMapInterface {
 			for (let i = 0; i < accountPublicKeys.length; i += chunkSize) {
 				const chunk = accountPublicKeys.slice(i, i + chunkSize);
 				tasks.push(async () => {
-					const accountInfos = await this.connection.getMultipleAccountsInfo(
+					const accountInfos = await this.connection.getMultipleAccountsInfoAndContext(
 						chunk,
 						{
 							commitment: this.commitment,
 						}
 					);
 
-					for (let j = 0; j < accountInfos.length; j += 1) {
-						const accountInfo = accountInfos[j];
+					const accountInfosSlot = accountInfos.context.slot;
+
+					for (let j = 0; j < accountInfos.value.length; j += 1) {
+						const accountInfo = accountInfos.value[j];
 						if (accountInfo === null) continue;
 
 						const publicKeyString = chunk[j].toString();
@@ -525,18 +527,18 @@ export class UserMap implements UserMapInterface {
 						const currAccountWithSlot = this.getWithSlot(publicKeyString);
 						if (
 							currAccountWithSlot &&
-							currAccountWithSlot.slot <= accountInfo.lamports
+							currAccountWithSlot.slot <= accountInfosSlot
 						) {
 							this.updateUserAccount(
 								publicKeyString,
 								decodedUser,
-								accountInfo.lamports
+								accountInfosSlot
 							);
 						} else {
 							await this.addPubkey(
 								new PublicKey(publicKeyString),
 								decodedUser,
-								accountInfo.lamports
+								accountInfosSlot
 							);
 						}
 					}
