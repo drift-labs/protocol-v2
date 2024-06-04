@@ -505,12 +505,10 @@ export class UserMap implements UserMapInterface {
 			for (let i = 0; i < accountPublicKeys.length; i += chunkSize) {
 				const chunk = accountPublicKeys.slice(i, i + chunkSize);
 				tasks.push(async () => {
-					const accountInfos = await this.connection.getMultipleAccountsInfoAndContext(
-						chunk,
-						{
+					const accountInfos =
+						await this.connection.getMultipleAccountsInfoAndContext(chunk, {
 							commitment: this.commitment,
-						}
-					);
+						});
 
 					const accountInfosSlot = accountInfos.context.slot;
 
