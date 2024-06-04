@@ -197,7 +197,7 @@ pub fn get_oracle_status<'a>(
         false,
     )?;
     let oracle_reserve_price_spread_pct =
-        amm::calculate_oracle_twap_5min_reserve_price_spread_pct(&market.amm, reserve_price)?;
+        amm::calculate_oracle_twap_5min_price_spread_pct(&market.amm, reserve_price)?;
     let is_oracle_mark_too_divergent = amm::is_oracle_mark_too_divergent(
         oracle_reserve_price_spread_pct,
         &guard_rails.price_divergence,

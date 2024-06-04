@@ -975,7 +975,8 @@ pub fn handle_resolve_perp_pnl_deficit(
             "Market is in settlement mode",
         )?;
 
-        controller::orders::validate_market_within_price_band(perp_market, state)?;
+        let oracle_price = oracle_map.get_price_data(&perp_market.amm.oracle)?.price;
+        controller::orders::validate_market_within_price_band(perp_market, state, oracle_price)?;
 
         controller::insurance::resolve_perp_pnl_deficit(
             spot_market_vault_amount,

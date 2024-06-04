@@ -1230,26 +1230,51 @@ pub fn fill_perp_order(
     Ok(base_asset_amount)
 }
 
-pub fn validate_market_within_price_band(market: &PerpMarket, state: &State) -> DriftResult<bool> {
+pub fn validate_market_within_price_band(
+    market: &PerpMarket,
+    state: &State,
+    oracle_price: i64,
+) -> DriftResult<bool> {
     let reserve_price = market.amm.reserve_price()?;
 
-    let oracle_reserve_price_spread_pct_after =
-        amm::calculate_oracle_twap_5min_reserve_price_spread_pct(&market.amm, reserve_price)?;
+    let reserve_spread_pct =
+        amm::calculate_oracle_twap_5min_price_spread_pct(&market.amm, reserve_price)?;
 
-    let is_oracle_mark_too_divergent = amm::is_oracle_mark_too_divergent(
-        oracle_reserve_price_spread_pct_after,
-        &state.oracle_guard_rails.price_divergence,
-    )?;
+    let oracle_spread_pct =
+        amm::calculate_oracle_twap_5min_price_spread_pct(&market.amm, oracle_price.unsigned_abs())?;
 
-    // if oracle-mark divergence pushed outside limit, block order
-    if is_oracle_mark_too_divergent {
-        msg!("Perp market = {} price pushed outside bounds: last_oracle_price_twap_5min={} vs mark_price={},(breach spread {})",
+    if reserve_spread_pct.abs() > oracle_spread_pct.abs() {
+        let is_reserve_too_divergent = amm::is_oracle_mark_too_divergent(
+            reserve_spread_pct,
+            &state.oracle_guard_rails.price_divergence,
+        )?;
+
+        // if oracle-mark divergence pushed outside limit, block order
+        if is_reserve_too_divergent {
+            msg!("Perp market = {} price pushed outside bounds: last_oracle_price_twap_5min={} vs reserve_price={},(breach spread {})",
                 market.market_index,
                 market.amm.historical_oracle_data.last_oracle_price_twap_5min,
                 reserve_price,
-                oracle_reserve_price_spread_pct_after,
+                reserve_spread_pct,
             );
-        return Err(ErrorCode::PriceBandsBreached);
+            return Err(ErrorCode::PriceBandsBreached);
+        }
+    } else {
+        let is_oracle_too_divergent = amm::is_oracle_mark_too_divergent(
+            oracle_spread_pct,
+            &state.oracle_guard_rails.price_divergence,
+        )?;
+
+        // if oracle-mark divergence pushed outside limit, block order
+        if is_oracle_too_divergent {
+            msg!("Perp market = {} price pushed outside bounds: last_oracle_price_twap_5min={} vs oracle_price={},(breach spread {})",
+                market.market_index,
+                market.amm.historical_oracle_data.last_oracle_price_twap_5min,
+                oracle_price,
+                oracle_spread_pct,
+            );
+            return Err(ErrorCode::PriceBandsBreached);
+        }
     }
 
     Ok(true)

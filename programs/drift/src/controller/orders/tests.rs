@@ -2561,29 +2561,31 @@ pub mod fulfill_order {
             ..State::default()
         };
 
+        let oracle_price = market.amm.historical_oracle_data.last_oracle_price;
+
         // valid initial state
-        assert!(validate_market_within_price_band(&market, &state).unwrap());
+        assert!(validate_market_within_price_band(&market, &state, oracle_price).unwrap());
 
         // twap_5min $50 and mark $100 breaches 10% divergence -> failure
         market
             .amm
             .historical_oracle_data
             .last_oracle_price_twap_5min = 50 * PRICE_PRECISION as i64;
-        assert!(validate_market_within_price_band(&market, &state).is_err());
+        assert!(validate_market_within_price_band(&market, &state, oracle_price).is_err());
 
         // within 60% ok -> success
         state
             .oracle_guard_rails
             .price_divergence
             .mark_oracle_percent_divergence = 6 * PERCENTAGE_PRECISION_U64 / 10;
-        assert!(validate_market_within_price_band(&market, &state).unwrap());
+        assert!(validate_market_within_price_band(&market, &state, oracle_price).unwrap());
 
         // twap_5min $20 and mark $100 breaches 60% divergence -> failure
         market
             .amm
             .historical_oracle_data
             .last_oracle_price_twap_5min = 20 * PRICE_PRECISION as i64;
-        assert!(validate_market_within_price_band(&market, &state).is_err());
+        assert!(validate_market_within_price_band(&market, &state, oracle_price).is_err());
     }
 
     #[test]
