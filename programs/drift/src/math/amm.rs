@@ -852,6 +852,9 @@ pub fn calculate_expiry_price(
         return Ok(target_price);
     }
 
+    // use crate::dlog!(amm
+    //     .quote_asset_amount, pnl_pool_amount, amm.base_asset_amount_with_amm);
+
     // net_baa * price + net_quote <= 0
     // net_quote/net_baa <= -price
 

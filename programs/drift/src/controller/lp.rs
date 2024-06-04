@@ -3,7 +3,7 @@ use anchor_lang::prelude::{msg, Pubkey};
 use crate::bn::U192;
 use crate::controller;
 use crate::controller::position::{get_position_index, PositionDelta};
-use crate::controller::position::{update_position_and_market, update_quote_asset_amount};
+use crate::controller::position::update_position_and_market;
 use crate::emit;
 use crate::error::{DriftResult, ErrorCode};
 use crate::get_struct_values;
@@ -289,13 +289,18 @@ pub fn burn_lp_shares(
             .base_asset_amount_with_unsettled_lp
             .safe_add(base_asset_amount)?;
 
-        position.remainder_base_asset_amount = 0;
 
         let dust_base_asset_value = calculate_base_asset_value_with_oracle_price(base_asset_amount, oracle_price)?
                 .safe_add(1) // round up
                 ?;
 
-        update_quote_asset_amount(position, market, -dust_base_asset_value.cast()?)?;
+        let dust_burn_position_delta = PositionDelta {
+            base_asset_amount: 0,
+            quote_asset_amount: -dust_base_asset_value.cast()?,
+            remainder_base_asset_amount: Some(-position.remainder_base_asset_amount.cast()?),
+        };
+    
+        update_position_and_market(position, market, &dust_burn_position_delta)?;
 
         msg!(
             "perp {} remainder_base_asset_amount burn fee= {}",

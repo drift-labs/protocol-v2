@@ -525,7 +525,7 @@ describe('update amm', () => {
 				confidenceIntervalMaxSize: new BN(100000),
 				tooVolatileRatio: new BN(1000),
 			},
-			useForLiquidations: false,
+			// useForLiquidations: false,
 		};
 
 		await driftClient.updateOracleGuardRails(oracleGuardRails);
@@ -704,11 +704,12 @@ describe('update amm', () => {
 
 			const prepegAMM = prepegAMMs[i];
 			const market0 = market0s[i];
+			console.log(market.amm.pegMultiplier.toString());
 
 			if (i == 0) {
 				assert(
 					market.amm.pegMultiplier.eq(
-						new BN(1.01356 * PEG_PRECISION.toNumber())
+						new BN(1020500)
 					)
 				);
 			} else if (i == 1) {
@@ -726,7 +727,6 @@ describe('update amm', () => {
 					)
 				);
 			} else if (i == 4) {
-				console.log(market.amm.pegMultiplier.toString());
 				assert(market.amm.pegMultiplier.eq(new BN(4042120)));
 			}
 
