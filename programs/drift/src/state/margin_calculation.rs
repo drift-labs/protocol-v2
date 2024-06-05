@@ -25,6 +25,7 @@ pub struct MarginContext {
     pub fuel_bonus: u64,
     pub fuel_perp_delta: Option<(u16, i64)>,
     pub fuel_spot_delta: Option<(u16, i128)>,
+    pub fuel_spot_delta_2: Option<(u16, i128)>,
 }
 
 #[derive(PartialEq, Eq, Copy, Clone, Debug, AnchorSerialize, AnchorDeserialize)]
@@ -62,6 +63,7 @@ impl MarginContext {
             fuel_bonus: 0,
             fuel_perp_delta: None,
             fuel_spot_delta: None,
+            fuel_spot_delta_2: None,
         }
     }
 
@@ -82,6 +84,11 @@ impl MarginContext {
 
     pub fn fuel_spot_diff(mut self, market_index: u16, delta: i128) -> Self {
         self.fuel_spot_delta = Some((market_index, delta));
+        self
+    }
+
+    pub fn fuel_spot_diff_2(mut self, market_index: u16, delta: i128) -> Self {
+        self.fuel_spot_delta_2 = Some((market_index, delta));
         self
     }
 
@@ -112,6 +119,7 @@ impl MarginContext {
             fuel_bonus: 0,
             fuel_perp_delta: None,
             fuel_spot_delta: None,
+            fuel_spot_delta_2: None,
         }
     }
 

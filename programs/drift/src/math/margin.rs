@@ -1,8 +1,9 @@
 use crate::error::DriftResult;
 use crate::error::ErrorCode;
 use crate::math::constants::{
-    FUEL_WINDOW_U128, MARGIN_PRECISION_U128, MAX_POSITIVE_UPNL_FOR_INITIAL_MARGIN, PRICE_PRECISION,
-    SPOT_IMF_PRECISION_U128, SPOT_WEIGHT_PRECISION, SPOT_WEIGHT_PRECISION_U128,
+    AMM_RESERVE_PRECISION_I128, FUEL_WINDOW_U128, MARGIN_PRECISION_U128,
+    MAX_POSITIVE_UPNL_FOR_INITIAL_MARGIN, PRICE_PRECISION, SPOT_IMF_PRECISION_U128,
+    SPOT_WEIGHT_PRECISION, SPOT_WEIGHT_PRECISION_U128,
 };
 use crate::math::position::{
     calculate_base_asset_value_and_pnl_with_oracle_price,
@@ -240,7 +241,7 @@ pub fn calculate_user_safest_position_tiers(
 pub fn calculate_perp_fuel_bonus(
     perp_market: &PerpMarket,
     base_asset_value: i128,
-    fuel_bonus_numerator: i64,
+    fuel_bonus_numerator: i64, // fuel_perp_delta: Option<(u16, i64)>
 ) -> DriftResult<u64> {
     let result: u64 = if base_asset_value.unsigned_abs() < 1 {
         0_u64
@@ -342,12 +343,24 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
             let token_value =
                 get_strict_token_value(token_amount, spot_market.decimals, &strict_oracle_price)?;
 
+            let token_value2 = if context.fuel_spot_delta.is_some()
+                && context.fuel_spot_delta.unwrap().0 == spot_market.market_index
+            {
+                get_strict_token_value(
+                    token_amount.safe_add(context.fuel_spot_delta.unwrap().1)?,
+                    spot_market.decimals,
+                    &strict_oracle_price,
+                )?
+            } else {
+                token_value
+            };
+
             calculation.fuel_bonus =
                 calculation
                     .fuel_bonus
                     .saturating_add(calculate_spot_fuel_bonus(
                         &spot_market,
-                        token_value,
+                        token_value2,
                         context.fuel_bonus_numerator,
                     )?);
 
@@ -559,11 +572,25 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
             calculation.track_open_orders_fraction(),
         )?;
 
+        let fuel_base_asset_value = if context.fuel_perp_delta.is_some()
+            && context.fuel_spot_delta.unwrap().0 == market.market_index
+        {
+            market_position
+                .base_asset_amount
+                .safe_add(context.fuel_perp_delta.unwrap().1)?
+                .cast::<i128>()?
+                .safe_mul(oracle_price_data.price.cast()?)?
+                .safe_div(AMM_RESERVE_PRECISION_I128)?
+                .unsigned_abs()
+        } else {
+            base_asset_value
+        };
+
         calculation.fuel_bonus = calculation
             .fuel_bonus
             .saturating_add(calculate_perp_fuel_bonus(
                 &market,
-                base_asset_value as i128,
+                fuel_base_asset_value as i128,
                 context.fuel_bonus_numerator,
             )?);
 

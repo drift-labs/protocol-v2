@@ -651,7 +651,9 @@ pub fn handle_liquidate_spot(
     )?;
 
     let user = &mut load_mut!(ctx.accounts.user)?;
+    let user_stats = &mut load_mut!(ctx.accounts.user_stats)?;
     let liquidator = &mut load_mut!(ctx.accounts.liquidator)?;
+    let liquidator_stats = &mut load_mut!(ctx.accounts.liquidator_stats)?;
 
     let AccountMaps {
         perp_market_map,
@@ -672,8 +674,10 @@ pub fn handle_liquidate_spot(
         limit_price,
         user,
         &user_key,
+        user_stats,
         liquidator,
         &liquidator_key,
+        liquidator_stats,
         &perp_market_map,
         &spot_market_map,
         &mut oracle_map,

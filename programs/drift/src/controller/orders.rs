@@ -1571,7 +1571,7 @@ fn fulfill_perp_order(
             break;
         }
         let mut market = perp_market_map.get_ref_mut(&market_index)?;
-        let user_order_direction = user.orders[user_order_index].direction;
+        let user_order_direction: PositionDirection = user.orders[user_order_index].direction;
 
         let (fill_base_asset_amount, fill_quote_asset_amount) = match fulfillment_method {
             PerpFulfillmentMethod::AMM(maker_price) => {
@@ -1685,6 +1685,12 @@ fn fulfill_perp_order(
         base_asset_amount
     )?;
 
+    let taker_base_asset_amount_signed = if maker_direction == PositionDirection::Long {
+        -(base_asset_amount as i64)
+    } else {
+        base_asset_amount as i64
+    };
+
     let taker_margin_calculation =
         calculate_margin_requirement_and_total_collateral_and_liability_info(
             user,
@@ -1695,8 +1701,12 @@ fn fulfill_perp_order(
                 MarginRequirementType::Maintenance
             } else {
                 MarginRequirementType::Fill
-            }),
-        )?;
+            })
+            .fuel_perp_diff(market_index, taker_base_asset_amount_signed as i64),
+        )?; // fueltodo side
+
+    user_stats.update_fuel_bonus(taker_margin_calculation.fuel_bonus, now)?;
+    user.last_fuel_bonus_update_ts = now;
 
     if !taker_margin_calculation.meets_margin_requirement() {
         msg!(
@@ -1708,7 +1718,14 @@ fn fulfill_perp_order(
     }
 
     for (maker_key, maker_base_asset_amount_filled) in maker_fills {
-        let maker = makers_and_referrer.get_ref(&maker_key)?;
+        // let maker = makers_and_referrer.get_ref(&maker_key)?;
+        let mut maker = makers_and_referrer.get_ref_mut(&maker_key)?;
+
+        let mut maker_stats = if maker.authority == user.authority {
+            None
+        } else {
+            Some(makers_and_referrer_stats.get_ref_mut(&maker.authority)?)
+        };
 
         let margin_type = select_margin_type_for_perp_maker(
             &maker,
@@ -1722,8 +1739,16 @@ fn fulfill_perp_order(
                 perp_market_map,
                 spot_market_map,
                 oracle_map,
-                MarginContext::standard(margin_type),
+                MarginContext::standard(margin_type)
+                    .fuel_perp_diff(market_index, -taker_base_asset_amount_signed as i64), // fueltodo: side
             )?;
+
+        if maker_stats.is_some() {
+            maker_stats
+                .unwrap()
+                .update_fuel_bonus(maker_margin_calculation.fuel_bonus, now)?;
+        }
+        maker.last_fuel_bonus_update_ts = now;
 
         if !maker_margin_calculation.meets_margin_requirement() {
             msg!(
@@ -4002,7 +4027,8 @@ fn fulfill_spot_order(
     }
 
     for (maker_key, _) in maker_fills {
-        let maker = makers_and_referrer.get_ref(&maker_key)?;
+        // let maker = makers_and_referrer.get_ref(&maker_key)?;
+        let mut maker = makers_and_referrer.get_ref_mut(&maker_key)?;
 
         let quote_market = spot_market_map.get_quote_spot_market()?;
         let base_market = spot_market_map.get_ref(&base_market_index)?;
