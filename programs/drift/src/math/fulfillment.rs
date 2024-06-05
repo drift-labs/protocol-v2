@@ -6,7 +6,6 @@ use crate::math::safe_unwrap::SafeUnwrap;
 use crate::state::fulfillment::{PerpFulfillmentMethod, SpotFulfillmentMethod};
 use crate::state::perp_market::AMM;
 use crate::state::user::Order;
-use solana_program::msg;
 use solana_program::pubkey::Pubkey;
 
 #[cfg(test)]
@@ -136,17 +135,12 @@ pub fn determine_spot_fulfillment_methods(
     maker_orders_info: &[(Pubkey, usize, u64)],
     limit_price: Option<u64>,
     external_fulfillment_params_available: bool,
-    withdraws_allowed: bool,
 ) -> DriftResult<Vec<SpotFulfillmentMethod>> {
     let mut fulfillment_methods = Vec::with_capacity(8);
 
     if !order.post_only && external_fulfillment_params_available {
-        if !withdraws_allowed {
-            msg!("External fulfillment not allowed as withdraws are paused");
-        } else {
-            fulfillment_methods.push(SpotFulfillmentMethod::ExternalMarket);
-            return Ok(fulfillment_methods);
-        }
+        fulfillment_methods.push(SpotFulfillmentMethod::ExternalMarket);
+        return Ok(fulfillment_methods);
     }
 
     let maker_direction = order.direction.opposite();

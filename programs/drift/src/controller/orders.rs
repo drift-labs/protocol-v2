@@ -3523,6 +3523,16 @@ pub fn fill_spot_order(
         return Ok(0);
     }
 
+    if fulfillment_params.is_external() {
+        let exchange_status = state.get_exchange_status()?;
+
+        validate!(
+            !exchange_status
+                .contains(ExchangeStatus::DepositPaused | ExchangeStatus::WithdrawPaused),
+            ErrorCode::ExchangePaused
+        )?;
+    }
+
     let (base_asset_amount, quote_asset_amount) = fulfill_spot_order(
         user,
         order_index,
@@ -3808,6 +3818,34 @@ fn fulfill_spot_order(
     let mut quote_market = spot_market_map.get_quote_spot_market_mut()?;
     let mut base_market = spot_market_map.get_ref_mut(&base_market_index)?;
 
+    if fulfillment_params.is_external() {
+        if order_direction == PositionDirection::Long {
+            validate!(
+                !quote_market.is_operation_paused(SpotOperation::Withdraw),
+                ErrorCode::MarketFillOrderPaused,
+                "withdraw from quote market paused"
+            )?;
+
+            validate!(
+                !quote_market.is_operation_paused(SpotOperation::Deposit),
+                ErrorCode::MarketFillOrderPaused,
+                "deposit to base market paused"
+            )?;
+        } else {
+            validate!(
+                !quote_market.is_operation_paused(SpotOperation::Deposit),
+                ErrorCode::MarketFillOrderPaused,
+                "deposit to quote market paused"
+            )?;
+
+            validate!(
+                !quote_market.is_operation_paused(SpotOperation::Withdraw),
+                ErrorCode::MarketFillOrderPaused,
+                "withdraw from base market paused"
+            )?;
+        }
+    }
+
     let quote_token_amount_before = user
         .get_quote_spot_position()
         .get_signed_token_amount(&quote_market)?;
@@ -3842,17 +3880,11 @@ fn fulfill_spot_order(
         base_market.order_tick_size,
     )?;
 
-    let withdraws_allowed = match order_direction {
-        PositionDirection::Long => !quote_market.is_operation_paused(SpotOperation::Withdraw),
-        PositionDirection::Short => !base_market.is_operation_paused(SpotOperation::Withdraw),
-    };
-
     let fulfillment_methods = determine_spot_fulfillment_methods(
         &user.orders[user_order_index],
         maker_orders_info,
         limit_price,
         fulfillment_params.is_external(),
-        withdraws_allowed,
     )?;
 
     let mut base_asset_amount = 0_u64;
