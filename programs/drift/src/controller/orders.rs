@@ -3827,7 +3827,7 @@ fn fulfill_spot_order(
             )?;
 
             validate!(
-                !quote_market.is_operation_paused(SpotOperation::Deposit),
+                !base_market.is_operation_paused(SpotOperation::Deposit),
                 ErrorCode::MarketFillOrderPaused,
                 "deposit to base market paused"
             )?;
@@ -3839,7 +3839,7 @@ fn fulfill_spot_order(
             )?;
 
             validate!(
-                !quote_market.is_operation_paused(SpotOperation::Withdraw),
+                !base_market.is_operation_paused(SpotOperation::Withdraw),
                 ErrorCode::MarketFillOrderPaused,
                 "withdraw from base market paused"
             )?;
