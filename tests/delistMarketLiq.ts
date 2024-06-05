@@ -565,7 +565,7 @@ describe('delist market, liquidation of expired position', () => {
 		console.log('liqBuf:', liqBuf0);
 
 		const loserMaintMarginReqWBuf0 =
-			driftClientLoserUser.getMaintenanceMarginRequirement(new BN(liqBuf0));
+			driftClientLoserUser.getMaintenanceMarginRequirement();
 		console.log(
 			'loserMaintMarginReqWBuf:',
 			loserMaintMarginReqWBuf0.toNumber()
@@ -628,7 +628,7 @@ describe('delist market, liquidation of expired position', () => {
 		console.log('liqBuf:', liqBuf);
 
 		const loserMaintMarginReqWBuf =
-			driftClientLoserUser.getMaintenanceMarginRequirement(new BN(liqBuf));
+			driftClientLoserUser.getMaintenanceMarginRequirement();
 		console.log('loserMaintMarginReqWBuf:', loserMaintMarginReqWBuf.toNumber());
 
 		assert(loserMaintMarginReq.eq(ZERO));

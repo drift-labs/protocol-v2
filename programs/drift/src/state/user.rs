@@ -4,9 +4,8 @@ use crate::error::{DriftResult, ErrorCode};
 use crate::math::auction::{calculate_auction_price, is_auction_complete};
 use crate::math::casting::Cast;
 use crate::math::constants::{
-    AMM_TO_QUOTE_PRECISION_RATIO_I128, EPOCH_DURATION, OPEN_ORDER_MARGIN_REQUIREMENT,
-    PRICE_PRECISION_I128, PRICE_TIMES_AMM_TO_QUOTE_PRECISION_RATIO, QUOTE_PRECISION,
-    QUOTE_SPOT_MARKET_INDEX, THIRTY_DAY,
+    EPOCH_DURATION, OPEN_ORDER_MARGIN_REQUIREMENT, PRICE_TIMES_AMM_TO_QUOTE_PRECISION_RATIO,
+    QUOTE_PRECISION, QUOTE_SPOT_MARKET_INDEX, THIRTY_DAY,
 };
 use crate::math::lp::{calculate_lp_open_bids_asks, calculate_settle_lp_metrics};
 use crate::math::margin::MarginRequirementType;
@@ -32,6 +31,7 @@ use anchor_lang::prelude::*;
 use borsh::{BorshDeserialize, BorshSerialize};
 use solana_program::msg;
 use std::cmp::max;
+use std::fmt;
 use std::ops::Neg;
 use std::panic::Location;
 
@@ -409,6 +409,16 @@ impl User {
         }
 
         Ok(())
+    }
+
+    pub fn has_room_for_new_order(&self) -> bool {
+        for order in self.orders.iter() {
+            if order.status == OrderStatus::Init {
+                return true;
+            }
+        }
+
+        false
     }
 }
 
@@ -903,22 +913,25 @@ impl PerpPosition {
         }
     }
 
-    pub fn get_cost_basis(&self) -> DriftResult<i128> {
-        if self.base_asset_amount == 0 {
-            return Ok(0);
-        }
-
-        (-self.quote_asset_amount.cast::<i128>()?)
-            .safe_mul(PRICE_PRECISION_I128)?
-            .safe_mul(AMM_TO_QUOTE_PRECISION_RATIO_I128)?
-            .safe_div(self.base_asset_amount.cast()?)
-    }
-
     pub fn get_unrealized_pnl(&self, oracle_price: i64) -> DriftResult<i128> {
         let (_, unrealized_pnl) =
             calculate_base_asset_value_and_pnl_with_oracle_price(self, oracle_price)?;
 
         Ok(unrealized_pnl)
+    }
+
+    pub fn get_base_asset_amount_with_remainder(&self) -> DriftResult<i128> {
+        if self.remainder_base_asset_amount != 0 {
+            self.base_asset_amount
+                .cast::<i128>()?
+                .safe_add(self.remainder_base_asset_amount.cast::<i128>()?)
+        } else {
+            self.base_asset_amount.cast::<i128>()
+        }
+    }
+
+    pub fn get_base_asset_amount_with_remainder_abs(&self) -> DriftResult<i128> {
+        Ok(self.get_base_asset_amount_with_remainder()?.abs())
     }
 
     pub fn get_claimable_pnl(&self, oracle_price: i64, pnl_pool_excess: i128) -> DriftResult<i128> {
@@ -946,6 +959,46 @@ impl PerpPosition {
         } else {
             Ok(unrealized_pnl)
         }
+    }
+}
+
+#[cfg(test)]
+use crate::math::constants::{AMM_TO_QUOTE_PRECISION_RATIO_I128, PRICE_PRECISION_I128};
+#[cfg(test)]
+impl PerpPosition {
+    pub fn get_breakeven_price(&self) -> DriftResult<i128> {
+        let base_with_remainder = self.get_base_asset_amount_with_remainder()?;
+        if base_with_remainder == 0 {
+            return Ok(0);
+        }
+
+        (-self.quote_break_even_amount.cast::<i128>()?)
+            .safe_mul(PRICE_PRECISION_I128)?
+            .safe_mul(AMM_TO_QUOTE_PRECISION_RATIO_I128)?
+            .safe_div(base_with_remainder)
+    }
+
+    pub fn get_entry_price(&self) -> DriftResult<i128> {
+        let base_with_remainder = self.get_base_asset_amount_with_remainder()?;
+        if base_with_remainder == 0 {
+            return Ok(0);
+        }
+
+        (-self.quote_entry_amount.cast::<i128>()?)
+            .safe_mul(PRICE_PRECISION_I128)?
+            .safe_mul(AMM_TO_QUOTE_PRECISION_RATIO_I128)?
+            .safe_div(base_with_remainder)
+    }
+
+    pub fn get_cost_basis(&self) -> DriftResult<i128> {
+        if self.base_asset_amount == 0 {
+            return Ok(0);
+        }
+
+        (-self.quote_asset_amount.cast::<i128>()?)
+            .safe_mul(PRICE_PRECISION_I128)?
+            .safe_mul(AMM_TO_QUOTE_PRECISION_RATIO_I128)?
+            .safe_div(self.base_asset_amount.cast()?)
     }
 }
 
@@ -1050,12 +1103,9 @@ impl Order {
                 ErrorCode::OracleNotFound
             })?;
 
-            let limit_price = oracle_price.safe_add(self.oracle_price_offset.cast()?)?;
-
-            if limit_price <= 0 {
-                msg!("Oracle offset limit price below zero: {}", limit_price);
-                return Err(crate::error::ErrorCode::InvalidOracleOffset);
-            }
+            let limit_price = oracle_price
+                .safe_add(self.oracle_price_offset.cast()?)?
+                .max(tick_size.cast()?);
 
             Some(standardize_price(
                 limit_price.cast::<u64>()?,
@@ -1320,6 +1370,15 @@ impl Default for OrderTriggerCondition {
 pub enum MarketType {
     Spot,
     Perp,
+}
+
+impl fmt::Display for MarketType {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            MarketType::Spot => write!(f, "Spot"),
+            MarketType::Perp => write!(f, "Perp"),
+        }
+    }
 }
 
 impl Default for MarketType {

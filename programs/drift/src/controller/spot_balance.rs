@@ -18,14 +18,14 @@ use crate::math::spot_balance::{
 };
 use crate::math::stats::{calculate_new_twap, calculate_weighted_average};
 
-use crate::state::events::SpotInterestRecord;
-use crate::state::oracle::OraclePriceData;
-use crate::state::spot_market::{SpotBalance, SpotBalanceType, SpotMarket};
-use crate::validate;
-
 use crate::math::oracle::{is_oracle_valid_for_action, DriftAction};
 use crate::math::safe_math::SafeMath;
+use crate::state::events::SpotInterestRecord;
+use crate::state::oracle::OraclePriceData;
 use crate::state::paused_operations::SpotOperation;
+use crate::state::spot_market::{SpotBalance, SpotBalanceType, SpotMarket};
+use crate::state::user::MarketType;
+use crate::validate;
 
 #[cfg(test)]
 mod tests;
@@ -395,7 +395,15 @@ pub fn update_spot_market_and_check_validity(
     // 1 hour EMA
     let risk_ema_price = spot_market.historical_oracle_data.last_oracle_price_twap;
 
-    let oracle_validity = oracle_validity(risk_ema_price, oracle_price_data, validity_guard_rails)?;
+    let oracle_validity = oracle_validity(
+        MarketType::Spot,
+        spot_market.market_index,
+        risk_ema_price,
+        oracle_price_data,
+        validity_guard_rails,
+        spot_market.get_max_confidence_interval_multiplier()?,
+        false,
+    )?;
 
     validate!(
         is_oracle_valid_for_action(oracle_validity, action)?,

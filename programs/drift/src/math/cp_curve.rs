@@ -232,8 +232,8 @@ pub fn get_update_k_result(
         .safe_mul(sqrt_k_ratio_precision)?
         .safe_div(old_sqrt_k)?;
 
-    // if decreasing k, max decrease ratio for single transaction is 2.5%
-    if bound_update && sqrt_k_ratio < U192::from(975_000_000_u128) {
+    // if decreasing k, max decrease ratio for single transaction is 50%
+    if bound_update && sqrt_k_ratio < U192::from(500_000_000_u128) {
         return Err(ErrorCode::InvalidUpdateK);
     }
 

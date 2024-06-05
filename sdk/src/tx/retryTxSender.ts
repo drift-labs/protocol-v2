@@ -1,11 +1,12 @@
 import { ConfirmationStrategy, TxSigAndSlot } from './types';
 import { ConfirmOptions, Connection } from '@solana/web3.js';
 import { AnchorProvider } from '@coral-xyz/anchor';
-import { IWallet } from '../types';
 import { BaseTxSender } from './baseTxSender';
+import { TxHandler } from './txHandler';
+import { IWallet } from '../types';
 
 const DEFAULT_TIMEOUT = 35000;
-const DEFAULT_RETRY = 8000;
+const DEFAULT_RETRY = 2000;
 
 type ResolveReference = {
 	resolve?: () => void;
@@ -23,12 +24,13 @@ export class RetryTxSender extends BaseTxSender {
 	public constructor({
 		connection,
 		wallet,
-		opts = AnchorProvider.defaultOptions(),
+		opts = { ...AnchorProvider.defaultOptions(), maxRetries: 0 },
 		timeout = DEFAULT_TIMEOUT,
 		retrySleep = DEFAULT_RETRY,
 		additionalConnections = new Array<Connection>(),
 		confirmationStrategy = ConfirmationStrategy.Combo,
 		additionalTxSenderCallbacks = [],
+		txHandler,
 	}: {
 		connection: Connection;
 		wallet: IWallet;
@@ -38,6 +40,7 @@ export class RetryTxSender extends BaseTxSender {
 		additionalConnections?;
 		confirmationStrategy?: ConfirmationStrategy;
 		additionalTxSenderCallbacks?: ((base58EncodedTx: string) => void)[];
+		txHandler?: TxHandler;
 	}) {
 		super({
 			connection,
@@ -47,6 +50,7 @@ export class RetryTxSender extends BaseTxSender {
 			additionalConnections,
 			confirmationStrategy,
 			additionalTxSenderCallbacks,
+			txHandler,
 		});
 		this.connection = connection;
 		this.wallet = wallet;
@@ -101,6 +105,9 @@ export class RetryTxSender extends BaseTxSender {
 		let slot: number;
 		try {
 			const result = await this.confirmTransaction(txid, opts.commitment);
+
+			await this.checkConfirmationResultForError(txid, result);
+
 			slot = result.context.slot;
 			// eslint-disable-next-line no-useless-catch
 		} catch (e) {

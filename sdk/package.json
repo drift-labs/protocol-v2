@@ -1,6 +1,6 @@
 {
 	"name": "@drift-labs/sdk",
-	"version": "2.62.0-beta.2",
+	"version": "2.83.0-beta.13",
 	"main": "lib/index.js",
 	"types": "lib/index.d.ts",
 	"author": "crispheaney",
@@ -39,12 +39,12 @@
 		"@project-serum/serum": "^0.13.38",
 		"@pythnetwork/client": "2.5.3",
 		"@solana/spl-token": "^0.3.7",
-		"@solana/web3.js": "1.73.2",
+		"@solana/web3.js": "1.91.7",
 		"strict-event-emitter-types": "^2.0.0",
-		"uuid": "^8.3.2"
+		"uuid": "^8.3.2",
+		"zstddec": "^0.1.0"
 	},
 	"devDependencies": {
-		"object-sizeof": "^2.6.3",
 		"@types/big.js": "^6.2.0",
 		"@types/bn.js": "^5.1.3",
 		"@types/chai": "^4.3.1",
@@ -59,12 +59,13 @@
 		"eslint-plugin-prettier": "^3.4.0",
 		"lodash": "^4.17.21",
 		"mocha": "^10.0.0",
+		"object-sizeof": "^2.6.3",
 		"prettier": "^3.0.1",
 		"ts-node": "^10.8.0",
 		"typescript": "^4.9.5"
 	},
 	"description": "SDK for Drift Protocol",
 	"engines": {
-		"node": ">=12"
+		"node": ">=18"
 	}
 }

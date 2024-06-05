@@ -9,11 +9,279 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Features
 
+- program: add settle pnl mode ([#1030](https://github.com/drift-labs/protocol-v2/pull/1030))
+- program: use strict price for maintenance margin check in settle pnl ([#1045](https://github.com/drift-labs/protocol-v2/pull/1045))
+- program: order w ioc can still get auction ([#1074](https://github.com/drift-labs/protocol-v2/pull/1074))
+
+### Fixes
+
+- program: update_perp_auction_params_limit_orders unwraps oracle_price_offset
+- ts-sdk: add market index to logging settle pnl error ([#1068](https://github.com/drift-labs/protocol-v2/pull/1068))
+- program: enforce min price for oracle offsets ([#874](https://github.com/drift-labs/protocol-v2/pull/874))
+
+### Breaking
+
+## [2.82.0] - 2024-05-23
+
+### Features
+
+- program: TransferProtocolIfShares constraint ([#1055](https://github.com/drift-labs/protocol-v2/pull/1055))
+- program: sanitize extreme auction end prices ([#1031](https://github.com/drift-labs/protocol-v2/pull/1031))
+- program: add comprehensive admin function logging ([#1038](https://github.com/drift-labs/protocol-v2/pull/1038))
+
 ### Fixes
 
 ### Breaking
 
-## [2.61.0] - 2023-02-09
+- ts-sdk: upgrade to node 18 and solana version 1.91.7 ([#1036](https://github.com/drift-labs/protocol-v2/pull/1036))
+
+## [2.81.0] - 2024-04-22
+
+### Features
+
+### Fixes
+
+- program: fix tracking unsettled quote for lp ([#1026](https://github.com/drift-labs/protocol-v2/pull/1026))
+
+### Breaking
+
+## [2.80.0] - 2024-04-20
+
+### Features
+
+- program: add ability to pause if operations ([#989](https://github.com/drift-labs/protocol-v2/pull/989))
+- program: update auction end price in derive_market_order_auction_params ([#1022](https://github.com/drift-labs/protocol-v2/pull/1022))
+- program: admin amm summary stats update and/or reset ([#912](https://github.com/drift-labs/protocol-v2/pull/912))
+
+### Fixes
+
+### Breaking
+
+## [2.79.0] - 2024-04-18
+
+### Features
+
+### Fixes
+
+- program: program: let user with positive pnl be settled if being liquidated ([#1020](https://github.com/drift-labs/protocol-v2/pull/1020))
+- program: fix should_expire_order_before_fill ([#1021](https://github.com/drift-labs/protocol-v2/pull/1021))
+
+### Breaking
+
+## [2.78.0] - 2024-04-15
+
+### Features
+
+### Fixes
+
+- program: set default ContractTier to HighlySpeculative ([#1013](https://github.com/drift-labs/protocol-v2/pull/1013))
+- program: avoid dust borrows not being transferred 
+
+### Breaking
+
+## [2.77.0] - 2024-04-13
+
+### Features
+- program: lax funding rate update oracle validity criteria ([#1009](https://github.com/drift-labs/protocol-v2/pull/1009))
+
+### Fixes
+
+- program: fix div by 0 in calculate_liability_transfer_to_cover_margin_shortage
+
+### Breaking
+
+## [2.76.0] - 2024-04-09
+
+### Features
+
+- program: rm admins ability to withdraw from if ([#990](https://github.com/drift-labs/protocol-v2/pull/990))
+- program: add add ability to delete initialized spot market ([#998](https://github.com/drift-labs/protocol-v2/pull/998))
+- program: more reliable oracle updates ([#1000](https://github.com/drift-labs/protocol-v2/pull/1000))
+
+### Fixes
+
+- program: avoid underflow in update pnl ([#1002](https://github.com/drift-labs/protocol-v2/pull/1002))
+
+### Breaking
+
+## [2.75.0] - 2024-04-01
+
+### Features
+
+- program: add fee adjustment to spot market ([#987](https://github.com/drift-labs/protocol-v2/pull/987))
+- program: allow multiple makers to be passed into for spot fills ([#946](https://github.com/drift-labs/protocol-v2/pull/946)) 
+- ts-sdk: add fn to get admin ix  ([#980](https://github.com/drift-labs/protocol-v2/pull/980))
+- program: add invariant check boolean for attempt settle revenue to insurance ([#937](https://github.com/drift-labs/protocol-v2/pull/937)) 
+- program: improve best bid/ask estimate in mark twap update  ([#975](https://github.com/drift-labs/protocol-v2/pull/975)) 
+- program: add optional margin calculations for drift-rs ([#978](https://github.com/drift-labs/protocol-v2/pull/978))
+
+### Fixes
+
+### Breaking
+
+## [2.74.0] - 2024-03-25
+
+### Features
+
+- program: add 'highly speculative' contract tier enum 4 ([#968](https://github.com/drift-labs/protocol-v2/pull/968)) 
+- program: expand initialize market parameters ([#969](https://github.com/drift-labs/protocol-v2/pull/969)) 
+
+### Fixes
+
+- program: fix checking isolated tier in add_perp_lp_shares ([#965](https://github.com/drift-labs/protocol-v2/pull/965)) 
+
+### Breaking
+
+## [2.73.0] - 2024-03-15
+
+### Features
+
+### Fixes
+
+- program: fix checking isolated tier in validate spot margin trading
+
+### Breaking
+
+## [2.72.0] - 2024-03-14
+
+### Features
+
+- program: skip isolated tier for auction start/end sanitize ([#958](https://github.com/drift-labs/protocol-v2/pull/958))
+
+- program: check isolated perp market in validate spot margin trading ([#957](https://github.com/drift-labs/protocol-v2/pull/957))
+- program: improve update prelaunch oracles and add ability to delete ([#956](https://github.com/drift-labs/protocol-v2/pull/956))
+- program: allow user to settle realized pnl in reduce only market status ([#954](https://github.com/drift-labs/protocol-v2/pull/954))
+- sdk: add function for toggling user account to reduceOnly ([#966](https://github.com/drift-labs/protocol-v2/pull/966))
+
+### Fixes
+
+- program: update spot index twap ts ([#948](https://github.com/drift-labs/protocol-v2/pull/948))
+
+### Breaking
+
+## [2.71.0] - 2024-03-11
+
+### Features
+
+- program: add back switchboard without cargo dependency ([#943](https://github.com/drift-labs/protocol-v2/pull/943))
+- program: add admin fn to update funding period
+- program: add prelaunch oracles ([#910](https://github.com/drift-labs/protocol-v2/pull/910))
+- program: make isolated perp contract tier more ergonomic ([#913](https://github.com/drift-labs/protocol-v2/pull/913))
+- program: add per market tier confidence interval guard ([#945](https://github.com/drift-labs/protocol-v2/pull/945))
+
+### Fixes
+
+### Breaking
+
+- sdk: account for max confidence in isOracleValid ([#949](https://github.com/drift-labs/protocol-v2/pull/949))
+
+## [2.70.0] - 2024-03-07
+
+### Features
+
+### Fixes
+
+- program: fix allowing settle pnl on oracle delays when price is stable ([#940](https://github.com/drift-labs/protocol-v2/pull/940))
+
+### Breaking
+
+## [2.69.0] - 2024-03-06
+
+### Features
+
+- program: allow settle pnl on oracle delays when price is stable ([#929](https://github.com/drift-labs/protocol-v2/pull/929))
+- program: cache validity in oracle map
+
+### Fixes
+
+### Breaking
+
+- program: revert switchboard ([#935](https://github.com/drift-labs/protocol-v2/pull/935))
+
+## [2.68.0] - 2024-03-05
+
+### Features
+
+- program: apply auction sanitizer to all contract tiers ([#932](https://github.com/drift-labs/protocol-v2/pull/932))
+
+### Fixes
+
+- program: fix flipping funding rates ([#931](https://github.com/drift-labs/protocol-v2/pull/931))
+
+### Breaking
+
+## [2.67.0] - 2024-03-05
+
+### Features
+
+### Fixes
+
+- program: add switchboard ([#878](https://github.com/drift-labs/protocol-v2/pull/878))
+- sdk: handle oracle failover when oracle is changed ([#875](https://github.com/drift-labs/protocol-v2/pull/875))
+
+### Breaking
+
+## [2.66.0] - 2024-02-28
+
+### Features
+
+### Fixes
+
+- program: don't block oracle order prices when theres solely InsufficientDataPoints ([#919](https://github.com/drift-labs/protocol-v2/pull/919))
+
+### Breaking
+
+## [2.65.0] - 2024-02-26
+
+### Features
+
+- program: add pause operation for liquidation ([#880](https://github.com/drift-labs/protocol-v2/pull/880))
+
+### Fixes
+
+- program: fix entry/breakeven price calculations for lp remainders ([#864](https://github.com/drift-labs/protocol-v2/pull/864))
+- program: handle derisk lp when orders array full ([#899](https://github.com/drift-labs/protocol-v2/pull/899))
+- program: invalid borrow in get_referrer_info when maker is refferer ([#900](https://github.com/drift-labs/protocol-v2/pull/900))
+
+### Breaking
+
+## [2.64.0] - 2024-02-20
+
+### Features
+
+- program: make derived auction start more passive ([#890](https://github.com/drift-labs/protocol-v2/pull/890))
+
+### Fixes
+
+### Breaking
+
+## [2.63.0] - 2024-02-16
+
+### Features
+
+- program: longer derived auction durations for contract tier B and safer ([#889](https://github.com/drift-labs/protocol-v2/pull/889))
+- program: always try update market order auction durations ([#882](https://github.com/drift-labs/protocol-v2/pull/882))
+- program: amm drawdown check ([#865](https://github.com/drift-labs/protocol-v2/pull/865))
+- program: relax oracle guardrail validity check for init margin calc for positive pnl ([#876](https://github.com/drift-labs/protocol-v2/pull/876))
+- program: add more max spread baselines ([#858](https://github.com/drift-labs/protocol-v2/pull/858))
+
+### Fixes
+
+- sdk: fix bug in changeWallet that doesn't reset the user stats account if switching from a wallet with drift account to one without
+
+### Breaking
+
+## [2.62.0] - 2024-02-14
+
+### Features
+
+- program: more continuous calculation for calculate_jit_amount ([#882](https://github.com/drift-labs/protocol-v2/pull/882))
+
+### Fixes
+
+### Breaking
+
+## [2.61.0] - 2024-02-09
 
 ### Features
 
@@ -26,7 +294,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Breaking
 
-## [2.60.0] - 2023-02-07
+## [2.60.0] - 2024-02-07
 
 ### Features
 
@@ -38,7 +306,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Breaking
 
-## [2.59.0] - 2023-01-30
+## [2.59.0] - 2024-01-30
 
 ### Features
 
@@ -49,7 +317,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Breaking
 
-## [2.58.0] - 2023-01-27
+## [2.58.0] - 2024-01-27
 
 ### Features
 
@@ -59,7 +327,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Breaking
 
-## [2.57.0] - 2023-01-25
+## [2.57.0] - 2024-01-25
 
 ### Features
 
@@ -69,7 +337,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Breaking
 
-## [2.56.0] - 2023-01-24
+## [2.56.0] - 2024-01-24
 
 ### Features
 
@@ -79,7 +347,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Breaking
 
-## [2.55.0] - 2023-01-18
+## [2.55.0] - 2024-01-18
 
 ### Features
 
@@ -89,7 +357,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Breaking
 
-## [2.54.0] - 2023-01-15
+## [2.54.0] - 2024-01-15
 
 ### Features
 

@@ -55,6 +55,7 @@ use crate::state::events::{
 };
 use crate::state::margin_calculation::{MarginCalculation, MarginContext, MarketIdentifier};
 use crate::state::oracle_map::OracleMap;
+use crate::state::paused_operations::{PerpOperation, SpotOperation};
 use crate::state::perp_market::MarketStatus;
 use crate::state::perp_market_map::PerpMarketMap;
 use crate::state::spot_market::SpotBalanceType;
@@ -99,6 +100,17 @@ pub fn liquidate_perp(
         ErrorCode::UserBankrupt,
         "liquidator bankrupt",
     )?;
+
+    let market = perp_market_map.get_ref(&market_index)?;
+
+    validate!(
+        !market.is_operation_paused(PerpOperation::Liquidation),
+        ErrorCode::InvalidLiquidation,
+        "Liquidation operation is paused for market {}",
+        market_index
+    )?;
+
+    drop(market);
 
     // Settle user's funding payments so that collateral is up to date
     settle_funding_payment(
@@ -668,6 +680,28 @@ pub fn liquidate_spot(
         "liquidator bankrupt",
     )?;
 
+    let asset_spot_market = spot_market_map.get_ref(&asset_market_index)?;
+
+    validate!(
+        !asset_spot_market.is_operation_paused(SpotOperation::Liquidation),
+        ErrorCode::InvalidLiquidation,
+        "Liquidation operation is paused for market {}",
+        asset_market_index
+    )?;
+
+    drop(asset_spot_market);
+
+    let liability_spot_market = spot_market_map.get_ref(&liability_market_index)?;
+
+    validate!(
+        !liability_spot_market.is_operation_paused(SpotOperation::Liquidation),
+        ErrorCode::InvalidLiquidation,
+        "Liquidation operation is paused for market {}",
+        liability_market_index
+    )?;
+
+    drop(liability_spot_market);
+
     // validate user and liquidator have spot balances
     user.get_spot_position(asset_market_index).map_err(|_| {
         msg!(
@@ -1167,6 +1201,28 @@ pub fn liquidate_borrow_for_perp_pnl(
         "liquidator bankrupt",
     )?;
 
+    let perp_market = perp_market_map.get_ref(&perp_market_index)?;
+
+    validate!(
+        !perp_market.is_operation_paused(PerpOperation::Liquidation),
+        ErrorCode::InvalidLiquidation,
+        "Liquidation operation is paused for perp market {}",
+        perp_market_index
+    )?;
+
+    drop(perp_market);
+
+    let liability_spot_market = spot_market_map.get_ref(&liability_market_index)?;
+
+    validate!(
+        !liability_spot_market.is_operation_paused(SpotOperation::Liquidation),
+        ErrorCode::InvalidLiquidation,
+        "Liquidation operation is paused for market {}",
+        liability_market_index
+    )?;
+
+    drop(liability_spot_market);
+
     user.get_perp_position(perp_market_index).map_err(|e| {
         msg!(
             "User does not have a position for perp market {}",
@@ -1613,6 +1669,28 @@ pub fn liquidate_perp_pnl_for_deposit(
         ErrorCode::UserBankrupt,
         "liquidator bankrupt",
     )?;
+
+    let asset_spot_market = spot_market_map.get_ref(&asset_market_index)?;
+
+    validate!(
+        !asset_spot_market.is_operation_paused(SpotOperation::Liquidation),
+        ErrorCode::InvalidLiquidation,
+        "Liquidation operation is paused for market {}",
+        asset_market_index
+    )?;
+
+    drop(asset_spot_market);
+
+    let perp_market = perp_market_map.get_ref(&perp_market_index)?;
+
+    validate!(
+        !perp_market.is_operation_paused(PerpOperation::Liquidation),
+        ErrorCode::InvalidLiquidation,
+        "Liquidation operation is paused for market {}",
+        perp_market_index
+    )?;
+
+    drop(perp_market);
 
     user.get_perp_position(perp_market_index).map_err(|e| {
         msg!(
@@ -2086,6 +2164,17 @@ pub fn resolve_perp_bankruptcy(
         "liquidator bankrupt",
     )?;
 
+    let market = perp_market_map.get_ref(&market_index)?;
+
+    validate!(
+        !market.is_operation_paused(PerpOperation::Liquidation),
+        ErrorCode::InvalidLiquidation,
+        "Liquidation operation is paused for market {}",
+        market_index
+    )?;
+
+    drop(market);
+
     user.get_perp_position(market_index).map_err(|e| {
         msg!(
             "User does not have a position for perp market {}",
@@ -2299,6 +2388,17 @@ pub fn resolve_spot_bankruptcy(
         ErrorCode::UserBankrupt,
         "liquidator bankrupt",
     )?;
+
+    let market = spot_market_map.get_ref(&market_index)?;
+
+    validate!(
+        !market.is_operation_paused(SpotOperation::Liquidation),
+        ErrorCode::InvalidLiquidation,
+        "Liquidation operation is paused for market {}",
+        market_index
+    )?;
+
+    drop(market);
 
     // validate user and liquidator have spot position balances
     user.get_spot_position(market_index).map_err(|_| {

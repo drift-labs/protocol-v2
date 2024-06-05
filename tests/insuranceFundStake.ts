@@ -43,7 +43,12 @@ import {
 	setFeedPrice,
 	sleep,
 } from './testHelpers';
-import { BulkAccountLoader, PERCENTAGE_PRECISION, UserStatus } from '../sdk';
+import {
+	BulkAccountLoader,
+	ContractTier,
+	PERCENTAGE_PRECISION,
+	UserStatus,
+} from '../sdk';
 
 describe('insurance fund stake', () => {
 	const provider = anchor.AnchorProvider.local(undefined, {
@@ -130,7 +135,7 @@ describe('insurance fund stake', () => {
 			periodicity,
 			new BN(22500 * PEG_PRECISION.toNumber()),
 			undefined,
-			1000
+			ContractTier.A
 		);
 		await driftClient.updatePerpMarketStatus(0, MarketStatus.ACTIVE);
 		await driftClient.updatePerpMarketBaseSpread(0, 2000);

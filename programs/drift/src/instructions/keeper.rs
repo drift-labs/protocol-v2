@@ -3,14 +3,13 @@ use anchor_spl::token::{Token, TokenAccount};
 
 use crate::error::ErrorCode;
 use crate::instructions::constraints::*;
-use crate::instructions::optional_accounts::{
-    get_maker_and_maker_stats, get_referrer_and_referrer_stats, load_maps, AccountMaps,
-};
+use crate::instructions::optional_accounts::{load_maps, AccountMaps};
 use crate::math::constants::QUOTE_SPOT_MARKET_INDEX;
 use crate::math::insurance::if_shares_to_vault_amount;
-use crate::math::margin::calculate_user_equity;
+use crate::math::margin::{calculate_user_equity, meets_settle_pnl_maintenance_margin_requirement};
 use crate::math::orders::{estimate_price_from_side, find_bids_and_asks_from_users};
 use crate::math::spot_withdraw::validate_spot_market_vault_amount;
+use crate::optional_accounts::update_prelaunch_oracle;
 use crate::state::fill_mode::FillMode;
 use crate::state::fulfillment_params::drift::MatchFulfillmentParams;
 use crate::state::fulfillment_params::phoenix::PhoenixFulfillmentParams;
@@ -21,8 +20,9 @@ use crate::state::paused_operations::PerpOperation;
 use crate::state::perp_market::{MarketStatus, PerpMarket};
 use crate::state::perp_market_map::{
     get_market_set_for_user_positions, get_market_set_from_list, get_writable_perp_market_set,
-    MarketSet, PerpMarketMap,
+    get_writable_perp_market_set_from_vec, MarketSet, PerpMarketMap,
 };
+use crate::state::settle_pnl_mode::SettlePnlMode;
 use crate::state::spot_fulfillment_params::SpotFulfillmentParams;
 use crate::state::spot_market::SpotMarket;
 use crate::state::spot_market_map::{
@@ -30,9 +30,9 @@ use crate::state::spot_market_map::{
 };
 use crate::state::state::State;
 use crate::state::user::{MarketType, OrderStatus, User, UserStats};
-use crate::state::user_map::load_user_maps;
+use crate::state::user_map::{load_user_maps, UserMap, UserStatsMap};
 use crate::validation::user::validate_user_is_idle;
-use crate::{controller, load, math};
+use crate::{controller, load, math, OracleSource};
 use crate::{load_mut, QUOTE_PRECISION_U64};
 use crate::{validate, QUOTE_PRECISION_I128};
 
@@ -154,7 +154,7 @@ pub fn handle_fill_spot_order<'a, 'b, 'c, 'info>(
     ctx: Context<'a, 'b, 'c, 'info, FillOrder<'info>>,
     order_id: Option<u32>,
     fulfillment_type: Option<SpotFulfillmentType>,
-    maker_order_id: Option<u32>,
+    _maker_order_id: Option<u32>,
 ) -> Result<()> {
     let (order_id, market_index) = {
         let user = &load!(ctx.accounts.user)?;
@@ -174,7 +174,6 @@ pub fn handle_fill_spot_order<'a, 'b, 'c, 'info>(
         order_id,
         market_index,
         fulfillment_type.unwrap_or(SpotFulfillmentType::Match),
-        maker_order_id,
     )
     .map_err(|e| {
         msg!("Err filling order id {} for user {}", order_id, user_key);
@@ -189,7 +188,6 @@ fn fill_spot_order<'info>(
     order_id: u32,
     market_index: u16,
     fulfillment_type: SpotFulfillmentType,
-    maker_order_id: Option<u32>,
 ) -> Result<()> {
     let clock = Clock::get()?;
 
@@ -206,15 +204,10 @@ fn fill_spot_order<'info>(
         None,
     )?;
 
-    let (maker, maker_stats) = match maker_order_id {
-        Some(_) => {
-            let (user, user_stats) = get_maker_and_maker_stats(remaining_accounts_iter)?;
-            (Some(user), Some(user_stats))
-        }
-        None => (None, None),
+    let (makers_and_referrer, makers_and_referrer_stats) = match fulfillment_type {
+        SpotFulfillmentType::Match => load_user_maps(remaining_accounts_iter, true)?,
+        _ => (UserMap::empty(), UserStatsMap::empty()),
     };
-
-    let (_referrer, _referrer_stats) = get_referrer_and_referrer_stats(remaining_accounts_iter)?;
 
     let mut fulfillment_params: Box<dyn SpotFulfillmentParams> = match fulfillment_type {
         SpotFulfillmentType::SerumV3 => {
@@ -259,9 +252,9 @@ fn fill_spot_order<'info>(
         &mut oracle_map,
         &ctx.accounts.filler,
         &ctx.accounts.filler_stats,
-        maker.as_ref(),
-        maker_stats.as_ref(),
-        maker_order_id,
+        &makers_and_referrer,
+        &makers_and_referrer_stats,
+        None,
         &clock,
         fulfillment_params.as_mut(),
     )?;
@@ -471,10 +464,99 @@ pub fn handle_settle_pnl(ctx: Context<SettlePNL>, market_index: u16) -> Result<(
             &mut oracle_map,
             &clock,
             state,
+            None,
+            SettlePnlMode::MustSettle,
         )
         .map(|_| ErrorCode::InvalidOracleForSettlePnl)?;
 
         user.update_last_active_slot(clock.slot);
+    }
+
+    let spot_market = spot_market_map.get_quote_spot_market()?;
+    validate_spot_market_vault_amount(&spot_market, ctx.accounts.spot_market_vault.amount)?;
+
+    Ok(())
+}
+
+#[access_control(
+    settle_pnl_not_paused(&ctx.accounts.state)
+)]
+pub fn handle_settle_multiple_pnls(
+    ctx: Context<SettlePNL>,
+    market_indexes: Vec<u16>,
+    mode: SettlePnlMode,
+) -> Result<()> {
+    let clock = Clock::get()?;
+    let state = &ctx.accounts.state;
+
+    let user_key = ctx.accounts.user.key();
+    let user = &mut load_mut!(ctx.accounts.user)?;
+
+    let AccountMaps {
+        perp_market_map,
+        spot_market_map,
+        mut oracle_map,
+    } = load_maps(
+        &mut ctx.remaining_accounts.iter().peekable(),
+        &get_writable_perp_market_set_from_vec(&market_indexes),
+        &get_writable_spot_market_set(QUOTE_SPOT_MARKET_INDEX),
+        clock.slot,
+        Some(state.oracle_guard_rails),
+    )?;
+
+    let meets_margin_requirement = meets_settle_pnl_maintenance_margin_requirement(
+        user,
+        &perp_market_map,
+        &spot_market_map,
+        &mut oracle_map,
+    )?;
+
+    for market_index in market_indexes.iter() {
+        let market_in_settlement =
+            perp_market_map.get_ref(market_index)?.status == MarketStatus::Settlement;
+
+        if market_in_settlement {
+            amm_not_paused(state)?;
+
+            controller::pnl::settle_expired_position(
+                *market_index,
+                user,
+                &user_key,
+                &perp_market_map,
+                &spot_market_map,
+                &mut oracle_map,
+                &clock,
+                state,
+            )?;
+
+            user.update_last_active_slot(clock.slot);
+        } else {
+            controller::repeg::update_amm(
+                *market_index,
+                &perp_market_map,
+                &mut oracle_map,
+                state,
+                &clock,
+            )
+            .map(|_| ErrorCode::InvalidOracleForSettlePnl)?;
+
+            controller::pnl::settle_pnl(
+                *market_index,
+                user,
+                ctx.accounts.authority.key,
+                &user_key,
+                &perp_market_map,
+                &spot_market_map,
+                &mut oracle_map,
+                &clock,
+                state,
+                Some(meets_margin_requirement),
+                mode,
+            )
+            .map(|_| ErrorCode::InvalidOracleForSettlePnl)?;
+
+            user.update_last_active_slot(clock.slot);
+        }
     }
 
     let spot_market = spot_market_map.get_quote_spot_market()?;
@@ -954,7 +1036,7 @@ pub fn handle_resolve_perp_bankruptcy(
     )?;
 
     validate!(
-        quote_spot_market_index == 0,
+        quote_spot_market_index == QUOTE_SPOT_MARKET_INDEX,
         ErrorCode::InvalidSpotMarketAccount
     )?;
 
@@ -1176,13 +1258,6 @@ pub fn handle_update_funding_rate(
         "Market funding is paused",
     )?;
 
-    validate!(
-        ((clock_slot == perp_market.amm.last_update_slot && perp_market.amm.last_oracle_valid)
-            || perp_market.amm.curve_update_intensity == 0),
-        ErrorCode::AMMNotUpdatedInSameSlot,
-        "AMM must be updated in a prior instruction within same slot"
-    )?;
-
     let funding_paused =
         state.funding_paused()? || perp_market.is_operation_paused(PerpOperation::UpdateFunding);
 
@@ -1209,6 +1284,27 @@ pub fn handle_update_funding_rate(
         );
         return Err(ErrorCode::FundingWasNotUpdated.into());
     }
+
+    Ok(())
+}
+
+#[access_control(
+    valid_oracle_for_perp_market(&ctx.accounts.oracle, &ctx.accounts.perp_market)
+)]
+pub fn handle_update_prelaunch_oracle(ctx: Context<UpdatePrelaunchOracle>) -> Result<()> {
+    let clock = Clock::get()?;
+    let clock_slot = clock.slot;
+    let oracle_map = OracleMap::load_one(&ctx.accounts.oracle, clock_slot, None)?;
+
+    let perp_market = &load!(ctx.accounts.perp_market)?;
+
+    validate!(
+        perp_market.amm.oracle_source == OracleSource::Prelaunch,
+        ErrorCode::DefaultError,
+        "wrong oracle source"
+    )?;
+
+    update_prelaunch_oracle(perp_market, &oracle_map, clock_slot)?;
 
     Ok(())
 }
@@ -1286,6 +1382,19 @@ pub fn handle_update_perp_bid_ask_twap(ctx: Context<UpdatePerpBidAskTwap>) -> Re
         perp_market.amm.last_mark_price_twap_ts
     );
 
+    let funding_paused =
+        state.funding_paused()? || perp_market.is_operation_paused(PerpOperation::UpdateFunding);
+    controller::funding::update_funding_rate(
+        perp_market.market_index,
+        perp_market,
+        &mut oracle_map,
+        now,
+        slot,
+        &state.oracle_guard_rails,
+        funding_paused,
+        None,
+    )?;
+
     Ok(())
 }
 
@@ -1336,6 +1445,7 @@ pub fn handle_settle_revenue_to_insurance_fund(
         insurance_vault_amount,
         spot_market,
         now,
+        true,
     )?;
 
     spot_market.insurance_fund.last_revenue_settle_ts = now;
@@ -1807,4 +1917,13 @@ pub struct UpdateUserQuoteAssetInsuranceStake<'info> {
         bump,
     )]
     pub insurance_fund_vault: Box<Account<'info, TokenAccount>>,
+}
+
+#[derive(Accounts)]
+pub struct UpdatePrelaunchOracle<'info> {
+    pub state: Box<Account<'info, State>>,
+    pub perp_market: AccountLoader<'info, PerpMarket>,
+    #[account(mut)]
+    /// CHECK: checked in ix
+    pub oracle: AccountInfo<'info>,
 }

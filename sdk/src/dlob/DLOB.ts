@@ -76,7 +76,7 @@ type OrderBookCallback = () => void;
  *  Receives a DLOBNode and is expected to return true if the node should
  *  be taken into account when generating, or false otherwise.
  *
- * Currently used in getRestingLimitBids and getRestingLimitAsks.
+ * Currently used in functions that rely on getBestNode
  */
 export type DLOBFilterFcn = (node: DLOBNode) => boolean;
 
@@ -545,14 +545,6 @@ export class DLOB {
 			marketType
 		);
 
-		// for spot, multiple makers isn't supported, so don't merge
-		if (isVariant(marketType, 'spot')) {
-			return restingLimitOrderNodesToFill.concat(
-				takingOrderNodesToFill,
-				expiredNodesToFill
-			);
-		}
-
 		return this.mergeNodesToFill(
 			restingLimitOrderNodesToFill,
 			takingOrderNodesToFill
@@ -993,7 +985,7 @@ export class DLOB {
 
 		for (const bidGenerator of bidGenerators) {
 			for (const bid of bidGenerator) {
-				if (isOrderExpired(bid.order, ts, true)) {
+				if (isOrderExpired(bid.order, ts, true, 25)) {
 					nodesToFill.push({
 						node: bid,
 						makerNodes: [],
@@ -1004,7 +996,7 @@ export class DLOB {
 
 		for (const askGenerator of askGenerators) {
 			for (const ask of askGenerator) {
-				if (isOrderExpired(ask.order, ts, true)) {
+				if (isOrderExpired(ask.order, ts, true, 25)) {
 					nodesToFill.push({
 						node: ask,
 						makerNodes: [],
@@ -1054,7 +1046,8 @@ export class DLOB {
 		marketIndex: number,
 		marketType: MarketType,
 		slot: number,
-		oraclePriceData: OraclePriceData
+		oraclePriceData: OraclePriceData,
+		filterFcn?: DLOBFilterFcn
 	): Generator<DLOBNode> {
 		const marketTypeStr = getVariant(marketType) as MarketTypeStr;
 		const orderLists = this.orderLists.get(marketTypeStr).get(marketIndex);
@@ -1075,7 +1068,8 @@ export class DLOB {
 			slot,
 			(bestNode, currentNode) => {
 				return bestNode.order.slot.lt(currentNode.order.slot);
-			}
+			},
+			filterFcn
 		);
 	}
 
@@ -1083,7 +1077,8 @@ export class DLOB {
 		marketIndex: number,
 		marketType: MarketType,
 		slot: number,
-		oraclePriceData: OraclePriceData
+		oraclePriceData: OraclePriceData,
+		filterFcn?: DLOBFilterFcn
 	): Generator<DLOBNode> {
 		const marketTypeStr = getVariant(marketType) as MarketTypeStr;
 		const orderLists = this.orderLists.get(marketTypeStr).get(marketIndex);
@@ -1104,7 +1099,8 @@ export class DLOB {
 			slot,
 			(bestNode, currentNode) => {
 				return bestNode.order.slot.lt(currentNode.order.slot);
-			}
+			},
+			filterFcn
 		);
 	}
 
@@ -1249,7 +1245,8 @@ export class DLOB {
 		fallbackAsk: BN | undefined,
 		slot: number,
 		marketType: MarketType,
-		oraclePriceData: OraclePriceData
+		oraclePriceData: OraclePriceData,
+		filterFcn?: DLOBFilterFcn
 	): Generator<DLOBNode> {
 		if (isVariant(marketType, 'spot') && !oraclePriceData) {
 			throw new Error('Must provide OraclePriceData to get spot asks');
@@ -1292,7 +1289,8 @@ export class DLOB {
 				return bestNode
 					.getPrice(oraclePriceData, slot)
 					.lt(currentNode.getPrice(oraclePriceData, slot));
-			}
+			},
+			filterFcn
 		);
 	}
 
@@ -1301,7 +1299,8 @@ export class DLOB {
 		fallbackBid: BN | undefined,
 		slot: number,
 		marketType: MarketType,
-		oraclePriceData: OraclePriceData
+		oraclePriceData: OraclePriceData,
+		filterFcn?: DLOBFilterFcn
 	): Generator<DLOBNode> {
 		if (isVariant(marketType, 'spot') && !oraclePriceData) {
 			throw new Error('Must provide OraclePriceData to get spot bids');
@@ -1344,7 +1343,8 @@ export class DLOB {
 				return bestNode
 					.getPrice(oraclePriceData, slot)
 					.gt(currentNode.getPrice(oraclePriceData, slot));
-			}
+			},
+			filterFcn
 		);
 	}
 

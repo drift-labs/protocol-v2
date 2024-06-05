@@ -9,5 +9,5 @@ pub enum PerpFulfillmentMethod {
 #[derive(Debug)]
 pub enum SpotFulfillmentMethod {
     ExternalMarket,
-    Match,
+    Match(Pubkey, u16),
 }

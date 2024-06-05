@@ -24,6 +24,7 @@ export class OrderSubscriber {
 
 	mostRecentSlot: number;
 	decodeFn: (name: string, data: Buffer) => UserAccount;
+	decodeData?: boolean;
 
 	constructor(config: OrderSubscriberConfig) {
 		this.driftClient = config.driftClient;
@@ -38,8 +39,12 @@ export class OrderSubscriber {
 				orderSubscriber: this,
 				commitment: this.commitment,
 				skipInitialLoad: config.subscriptionConfig.skipInitialLoad,
-				resubTimeoutMs: config.subscriptionConfig.resubTimeoutMs,
+				resubOpts: {
+					resubTimeoutMs: config.subscriptionConfig?.resubTimeoutMs,
+					logResubMessages: config.subscriptionConfig?.logResubMessages,
+				},
 				resyncIntervalMs: config.subscriptionConfig.resyncIntervalMs,
+				decoded: config.decodeData,
 			});
 		}
 		if (config.fastDecode ?? true) {
@@ -126,8 +131,8 @@ export class OrderSubscriber {
 
 	tryUpdateUserAccount(
 		key: string,
-		dataType: 'raw' | 'decoded',
-		data: string[] | UserAccount,
+		dataType: 'raw' | 'decoded' | 'buffer',
+		data: string[] | UserAccount | Buffer,
 		slot: number
 	): void {
 		if (!this.mostRecentSlot || slot > this.mostRecentSlot) {
@@ -162,6 +167,21 @@ export class OrderSubscriber {
 				}
 
 				userAccount = this.decodeFn('User', buffer) as UserAccount;
+			} else if (dataType === 'buffer') {
+				const buffer: Buffer = data as Buffer;
+				const newLastActiveSlot = new BN(
+					buffer.subarray(4328, 4328 + 8),
+					undefined,
+					'le'
+				);
+				if (
+					slotAndUserAccount &&
+					slotAndUserAccount.userAccount.lastActiveSlot.gt(newLastActiveSlot)
+				) {
+					return;
+				}
+
+				userAccount = this.decodeFn('User', data as Buffer) as UserAccount;
 			} else {
 				userAccount = data as UserAccount;
 			}
@@ -212,6 +232,7 @@ export class OrderSubscriber {
 	}
 
 	public async unsubscribe(): Promise<void> {
+		this.usersAccounts.clear();
 		await this.subscription.unsubscribe();
 	}
 }

@@ -800,7 +800,7 @@ fn update_pool_balances_revenue_to_fee_test() {
         },
         ..PerpMarket::default()
     };
-    let now = 33928058;
+    let mut now = 33928058;
 
     let mut spot_market = SpotMarket {
         deposit_balance: 200 * SPOT_BALANCE_PRECISION,
@@ -822,6 +822,19 @@ fn update_pool_balances_revenue_to_fee_test() {
     let prev_tfmd = market.amm.total_fee_minus_distributions;
 
     assert_eq!(market.amm.total_fee_withdrawn, 0);
+    assert_eq!(spot_market.insurance_fund.revenue_settle_period, 0);
+
+    spot_market.insurance_fund.revenue_settle_period = 0;
+    let res = settle_revenue_to_insurance_fund(0, 0, &mut spot_market, now + 3600, true).unwrap();
+    assert_eq!(res, 0);
+    spot_market.insurance_fund.revenue_settle_period = 1;
+
+    spot_market.revenue_pool.scaled_balance = 0;
+    let res =
+        settle_revenue_to_insurance_fund(200000000, 0, &mut spot_market, now + 1, false).unwrap();
+    assert_eq!(res, 0);
+    spot_market.revenue_pool.scaled_balance = 100 * SPOT_BALANCE_PRECISION;
+    now += 2;
 
     assert_eq!(
         get_token_amount(
@@ -892,7 +905,7 @@ fn update_pool_balances_revenue_to_fee_test() {
         market.insurance_claim.revenue_withdraw_since_last_settle,
         100000000
     );
-    assert_eq!(market.insurance_claim.last_revenue_withdraw_ts, 33928058);
+    assert_eq!(market.insurance_claim.last_revenue_withdraw_ts, now);
 
     let spot_market_vault_amount = get_token_amount(
         spot_market.deposit_balance,
@@ -953,7 +966,7 @@ fn update_pool_balances_revenue_to_fee_test() {
         market.insurance_claim.revenue_withdraw_since_last_settle,
         market.insurance_claim.max_revenue_withdraw_per_period as i64
     );
-    assert_eq!(market.insurance_claim.last_revenue_withdraw_ts, 33928058);
+    assert_eq!(market.insurance_claim.last_revenue_withdraw_ts, now);
 
     // calling again only does fee -> pnl pool
     update_pool_balances(&mut market, &mut spot_market, &spot_position, 0, now).unwrap();
@@ -966,7 +979,7 @@ fn update_pool_balances_revenue_to_fee_test() {
         market.insurance_claim.revenue_withdraw_since_last_settle,
         market.insurance_claim.max_revenue_withdraw_per_period as i64
     );
-    assert_eq!(market.insurance_claim.last_revenue_withdraw_ts, 33928058);
+    assert_eq!(market.insurance_claim.last_revenue_withdraw_ts, now);
 
     // calling again does nothing
     update_pool_balances(&mut market, &mut spot_market, &spot_position, 0, now).unwrap();
@@ -979,17 +992,22 @@ fn update_pool_balances_revenue_to_fee_test() {
         market.insurance_claim.revenue_withdraw_since_last_settle,
         market.insurance_claim.max_revenue_withdraw_per_period as i64
     );
-    assert_eq!(market.insurance_claim.last_revenue_withdraw_ts, 33928058);
+    assert_eq!(market.insurance_claim.last_revenue_withdraw_ts, now);
 
     // do a revenue settlement to allow up to max again
-    assert_eq!(spot_market.insurance_fund.last_revenue_settle_ts, 0);
+    assert_eq!(spot_market.insurance_fund.last_revenue_settle_ts, 33928059);
     assert_eq!(spot_market.deposit_balance, 10100000001000);
 
     spot_market.insurance_fund.total_factor = 1;
     spot_market.insurance_fund.revenue_settle_period = 1;
-    let res =
-        settle_revenue_to_insurance_fund(spot_market_vault_amount, 0, &mut spot_market, now + 3600)
-            .unwrap();
+    let res = settle_revenue_to_insurance_fund(
+        spot_market_vault_amount,
+        0,
+        &mut spot_market,
+        now + 3600,
+        true,
+    )
+    .unwrap();
     assert_eq!(res, 9800000001);
 
     let spot_market_vault_amount = get_token_amount(
@@ -1025,17 +1043,17 @@ fn update_pool_balances_revenue_to_fee_test() {
     assert_eq!(market.amm.total_fee_minus_distributions, -9800000000);
     assert_eq!(market.amm.total_fee_withdrawn, 0);
     assert_eq!(spot_market.revenue_pool.scaled_balance, 9800000001000);
-    assert_eq!(market.insurance_claim.last_revenue_withdraw_ts, 33928058);
+    assert_eq!(market.insurance_claim.last_revenue_withdraw_ts, 33928060);
     assert_eq!(
         spot_market.insurance_fund.last_revenue_settle_ts,
-        33928058 + 3600
+        33928060 + 3600
     );
 
     assert!(update_pool_balances(&mut market, &mut spot_market, &spot_position, 0, now).is_err()); // now timestamp passed is wrong
     update_pool_balances(&mut market, &mut spot_market, &spot_position, 0, now + 3600).unwrap();
 
-    assert_eq!(market.insurance_claim.last_revenue_withdraw_ts, 33931658);
-    assert_eq!(spot_market.insurance_fund.last_revenue_settle_ts, 33931658);
+    assert_eq!(market.insurance_claim.last_revenue_withdraw_ts, 33931660);
+    assert_eq!(spot_market.insurance_fund.last_revenue_settle_ts, 33931660);
     assert_eq!(market.amm.fee_pool.scaled_balance, 205000000000);
     assert_eq!(market.pnl_pool.scaled_balance, 295000000000);
     assert_eq!(market.amm.total_fee_minus_distributions, -9600000000);

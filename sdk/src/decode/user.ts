@@ -110,7 +110,7 @@ export function decodeUser(buffer: Buffer): UserAccount {
 		offset += 8;
 		const lastQuoteAssetAmountPerLp = readSignedBigInt64LE(buffer, offset);
 		offset += 8;
-		const remainderBaseAssetAmount = buffer.readUint32LE(offset);
+		const remainderBaseAssetAmount = buffer.readInt32LE(offset);
 		offset += 4;
 		const marketIndex = buffer.readUInt16LE(offset);
 		offset += 3;

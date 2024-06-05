@@ -88,7 +88,7 @@ export function getAuctionPriceForOracleOffsetAuction(
 	const deltaNumerator = BN.min(slotsElapsed, deltaDenominator);
 
 	if (deltaDenominator.eq(ZERO)) {
-		return oraclePrice.add(order.auctionEndPrice);
+		return BN.max(oraclePrice.add(order.auctionEndPrice), ONE);
 	}
 
 	let priceOffsetDelta;
@@ -111,7 +111,7 @@ export function getAuctionPriceForOracleOffsetAuction(
 		priceOffset = order.auctionStartPrice.sub(priceOffsetDelta);
 	}
 
-	return oraclePrice.add(priceOffset);
+	return BN.max(oraclePrice.add(priceOffset), ONE);
 }
 
 export function deriveOracleAuctionParams({
@@ -127,7 +127,14 @@ export function deriveOracleAuctionParams({
 	auctionEndPrice: BN;
 	limitPrice: BN;
 }): { auctionStartPrice: BN; auctionEndPrice: BN; oraclePriceOffset: number } {
-	let oraclePriceOffset = limitPrice.sub(oraclePrice);
+	let oraclePriceOffset;
+
+	if (limitPrice.eq(ZERO) || oraclePrice.eq(ZERO)) {
+		oraclePriceOffset = ZERO;
+	} else {
+		oraclePriceOffset = limitPrice.sub(oraclePrice);
+	}
+
 	if (oraclePriceOffset.eq(ZERO)) {
 		oraclePriceOffset = isVariant(direction, 'long')
 			? auctionEndPrice.sub(oraclePrice).add(ONE)

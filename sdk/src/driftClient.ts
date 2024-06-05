@@ -42,6 +42,8 @@ import {
 	PhoenixV1FulfillmentConfigAccount,
 	ModifyOrderPolicy,
 	SwapReduceOnly,
+	SettlePnlMode,
+	SignedTxData,
 } from './types';
 import * as anchor from '@coral-xyz/anchor';
 import driftIDL from './idl/drift.json';
@@ -58,11 +60,10 @@ import {
 	LAMPORTS_PER_SOL,
 	Signer,
 	SystemProgram,
-	ComputeBudgetProgram,
 	AddressLookupTableAccount,
 	TransactionVersion,
 	VersionedTransaction,
-	TransactionMessage,
+	BlockhashWithExpiryBlockHeight,
 } from '@solana/web3.js';
 
 import { TokenFaucet } from './tokenFaucet';
@@ -86,10 +87,9 @@ import {
 	DriftClientAccountSubscriber,
 	DriftClientAccountEvents,
 	DataAndSlot,
-	DriftClientMetricsEvents,
 } from './accounts/types';
-import { ExtraConfirmationOptions, TxSender, TxSigAndSlot } from './tx/types';
-import { getSignedTransactionMap, wrapInTx } from './tx/utils';
+import { DriftClientMetricsEvents } from './types';
+import { TxSender, TxSigAndSlot } from './tx/types';
 import {
 	BASE_PRECISION,
 	PRICE_PRECISION,
@@ -125,6 +125,9 @@ import { UserStatsSubscriptionConfig } from './userStatsConfig';
 import { getMarinadeDepositIx, getMarinadeFinanceProgram } from './marinade';
 import { getOrderParams } from './orderParams';
 import { numberToSafeBN } from './math/utils';
+import { TransactionParamProcessor } from './tx/txParamProcessor';
+import { isOracleValid } from './math/oracles';
+import { TxHandler } from './tx/txHandler';
 
 type RemainingAccountParams = {
 	userAccounts: UserAccount[];
@@ -172,6 +175,8 @@ export class DriftClient {
 	txParams: TxParams;
 	enableMetricsEvents?: boolean;
 
+	txHandler: TxHandler;
+
 	public get isSubscribed() {
 		return this._isSubscribed && this.accountSubscriber.isSubscribed;
 	}
@@ -183,7 +188,11 @@ export class DriftClient {
 	public constructor(config: DriftClientConfig) {
 		this.connection = config.connection;
 		this.wallet = config.wallet;
-		this.opts = config.opts || AnchorProvider.defaultOptions();
+		this.opts = config.opts || {
+			...AnchorProvider.defaultOptions(),
+			commitment: config?.connection?.commitment,
+			preflightCommitment: config?.connection?.commitment, // At the moment this ensures that our transaction simulations (which use Connection object) will use the same commitment level as our Transaction blockhashes (which use these opts)
+		};
 		this.provider = new AnchorProvider(
 			config.connection,
 			// @ts-ignore
@@ -204,6 +213,20 @@ export class DriftClient {
 			computeUnits: config.txParams?.computeUnits ?? 600_000,
 			computeUnitsPrice: config.txParams?.computeUnitsPrice ?? 0,
 		};
+
+		this.txHandler =
+			config?.txHandler ??
+			new TxHandler({
+				connection: this.connection,
+				wallet: this.provider.wallet,
+				confirmationOptions: this.opts,
+				opts: {
+					returnBlockHeightsWithSignedTxCallbackData:
+						config.enableMetricsEvents,
+					onSignedCb: this.handleSignedTransaction.bind(this),
+					preSignedCb: this.handlePreSignedTransaction.bind(this),
+				},
+			});
 
 		if (config.includeDelegates && config.subAccountIds) {
 			throw new Error(
@@ -243,11 +266,13 @@ export class DriftClient {
 			this.userAccountSubscriptionConfig = {
 				type: 'websocket',
 				resubTimeoutMs: config.accountSubscription?.resubTimeoutMs,
+				logResubMessages: config.accountSubscription?.logResubMessages,
 				commitment: config.accountSubscription?.commitment,
 			};
 			this.userStatsAccountSubscriptionConfig = {
 				type: 'websocket',
 				resubTimeoutMs: config.accountSubscription?.resubTimeoutMs,
+				logResubMessages: config.accountSubscription?.logResubMessages,
 				commitment: config.accountSubscription?.commitment,
 			};
 		}
@@ -290,15 +315,19 @@ export class DriftClient {
 				config.spotMarketIndexes ?? [],
 				config.oracleInfos ?? [],
 				noMarketsAndOraclesSpecified,
-				config.accountSubscription?.resubTimeoutMs,
+				{
+					resubTimeoutMs: config.accountSubscription?.resubTimeoutMs,
+					logResubMessages: config.accountSubscription?.logResubMessages,
+				},
 				config.accountSubscription?.commitment
 			);
 		}
 		this.eventEmitter = this.accountSubscriber.eventEmitter;
 
+		this.metricsEventEmitter = new EventEmitter();
+
 		if (config.enableMetricsEvents) {
 			this.enableMetricsEvents = true;
-			this.metricsEventEmitter = new EventEmitter();
 		}
 
 		this.txSender =
@@ -307,6 +336,7 @@ export class DriftClient {
 				connection: this.connection,
 				wallet: this.wallet,
 				opts: this.opts,
+				txHandler: this.txHandler,
 			});
 	}
 
@@ -551,6 +581,7 @@ export class DriftClient {
 		// Update provider for txSender with new wallet details
 		this.txSender.wallet = newWallet;
 		this.wallet = newWallet;
+		this.txHandler.updateWallet(newWallet);
 		this.provider = newProvider;
 		this.program = newProgram;
 		this.authority = newWallet.publicKey;
@@ -586,23 +617,25 @@ export class DriftClient {
 			? new Map([[this.authority.toString(), subAccountIds]])
 			: new Map<string, number[]>();
 
+		/* Reset user stats account */
+		if (this.userStats?.isSubscribed) {
+			await this.userStats.unsubscribe();
+		}
+
+		this.userStats = undefined;
+
+		this.userStats = new UserStats({
+			driftClient: this,
+			userStatsAccountPublicKey: this.getUserStatsAccountPublicKey(),
+			accountSubscription: this.userStatsAccountSubscriptionConfig,
+		});
+
+		await this.userStats.subscribe();
+
 		let success = true;
 
 		if (this.isSubscribed) {
 			await Promise.all(this.unsubscribeUsers());
-
-			if (this.userStats) {
-				await this.userStats.unsubscribe();
-
-				this.userStats = new UserStats({
-					driftClient: this,
-					userStatsAccountPublicKey: this.getUserStatsAccountPublicKey(),
-					accountSubscription: this.userStatsAccountSubscriptionConfig,
-				});
-
-				await this.userStats.subscribe();
-			}
-
 			this.users.clear();
 			success = await this.addAndSubscribeToUsers();
 		}
@@ -691,24 +724,35 @@ export class DriftClient {
 				);
 			}
 		} else {
-			const userAccounts =
-				(await this.getUserAccountsForAuthority(this.wallet.publicKey)) ?? [];
+			let userAccounts = [];
 			let delegatedAccounts = [];
 
+			const userAccountsPromise = this.getUserAccountsForAuthority(
+				this.wallet.publicKey
+			);
+
 			if (this.includeDelegates) {
-				delegatedAccounts =
-					(await this.getUserAccountsForDelegate(this.wallet.publicKey)) ?? [];
+				const delegatedAccountsPromise = this.getUserAccountsForDelegate(
+					this.wallet.publicKey
+				);
+				[userAccounts, delegatedAccounts] = await Promise.all([
+					userAccountsPromise,
+					delegatedAccountsPromise,
+				]);
+
+				!userAccounts && (userAccounts = []);
+				!delegatedAccounts && (delegatedAccounts = []);
+			} else {
+				userAccounts = (await userAccountsPromise) ?? [];
 			}
 
-			for (const account of userAccounts.concat(delegatedAccounts)) {
-				result =
-					result &&
-					(await this.addUser(
-						account.subAccountId,
-						account.authority,
-						account
-					));
-			}
+			const allAccounts = userAccounts.concat(delegatedAccounts);
+			const addAllAccountsPromise = allAccounts.map((acc) =>
+				this.addUser(acc.subAccountId, acc.authority, acc)
+			);
+
+			const addAllAccountsResults = await Promise.all(addAllAccountsPromise);
+			result = addAllAccountsResults.every((res) => !!res);
 
 			if (this.activeSubAccountId == undefined) {
 				this.switchActiveUser(
@@ -724,7 +768,8 @@ export class DriftClient {
 	public async initializeUserAccount(
 		subAccountId = 0,
 		name?: string,
-		referrerInfo?: ReferrerInfo
+		referrerInfo?: ReferrerInfo,
+		txParams?: TxParams
 	): Promise<[TransactionSignature, PublicKey]> {
 		const initializeIxs = [];
 
@@ -744,7 +789,7 @@ export class DriftClient {
 		}
 
 		initializeIxs.push(initializeUserAccountIx);
-		const tx = await this.buildTransaction(initializeIxs);
+		const tx = await this.buildTransaction(initializeIxs, txParams);
 
 		const { txSig } = await this.sendTransaction(tx, [], this.opts);
 
@@ -1046,6 +1091,43 @@ export class DriftClient {
 		const ix = await this.program.instruction.updateUserAdvancedLp(
 			subAccountId,
 			advancedLp,
+			{
+				accounts: {
+					user: getUserAccountPublicKeySync(
+						this.program.programId,
+						this.wallet.publicKey,
+						subAccountId
+					),
+					authority: this.wallet.publicKey,
+				},
+			}
+		);
+
+		return ix;
+	}
+
+	public async updateUserReduceOnly(
+		updates: { reduceOnly: boolean; subAccountId: number }[]
+	): Promise<TransactionSignature> {
+		const ixs = await Promise.all(
+			updates.map(async ({ reduceOnly, subAccountId }) => {
+				return await this.getUpdateUserReduceOnlyIx(reduceOnly, subAccountId);
+			})
+		);
+
+		const tx = await this.buildTransaction(ixs, this.txParams);
+
+		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+		return txSig;
+	}
+
+	public async getUpdateUserReduceOnlyIx(
+		reduceOnly: boolean,
+		subAccountId: number
+	) {
+		const ix = await this.program.instruction.updateUserReduceOnly(
+			subAccountId,
+			reduceOnly,
 			{
 				accounts: {
 					user: getUserAccountPublicKeySync(
@@ -1553,10 +1635,12 @@ export class DriftClient {
 			isSigner: false,
 			isWritable: writable,
 		});
+		const oracleWritable =
+			writable && isVariant(perpMarketAccount.amm.oracleSource, 'prelaunch');
 		oracleAccountMap.set(perpMarketAccount.amm.oracle.toString(), {
 			pubkey: perpMarketAccount.amm.oracle,
 			isSigner: false,
-			isWritable: false,
+			isWritable: oracleWritable,
 		});
 		this.addSpotMarketToRemainingAccountMaps(
 			perpMarketAccount.quoteSpotMarketIndex,
@@ -1940,17 +2024,6 @@ export class DriftClient {
 
 		const isSolMarket = spotMarket.mint.equals(WRAPPED_SOL_MINT);
 
-		let params: TxParams = {
-			computeUnits: txParams?.computeUnits ?? 600_000,
-		};
-
-		if (txParams?.computeUnitsPrice) {
-			params = {
-				...params,
-				computeUnitsPrice: txParams.computeUnitsPrice,
-			};
-		}
-
 		const authority = this.wallet.publicKey;
 
 		const isFromSubaccount =
@@ -2038,7 +2111,7 @@ export class DriftClient {
 			);
 		}
 
-		const tx = await this.buildTransaction(ixs, params);
+		const tx = await this.buildTransaction(ixs, txParams);
 
 		const { txSig, slot } = await this.sendTransaction(
 			tx,
@@ -2058,7 +2131,8 @@ export class DriftClient {
 		marketIndex: number,
 		tokenFaucet: TokenFaucet,
 		amount: BN,
-		referrerInfo?: ReferrerInfo
+		referrerInfo?: ReferrerInfo,
+		txParams?: TxParams
 	): Promise<[TransactionSignature, PublicKey]> {
 		const ixs = [];
 
@@ -2095,7 +2169,7 @@ export class DriftClient {
 		}
 		ixs.push(initializeUserAccountIx, depositCollateralIx);
 
-		const tx = await this.buildTransaction(ixs);
+		const tx = await this.buildTransaction(ixs, txParams);
 
 		const { txSig } = await this.sendTransaction(tx, [], this.opts);
 
@@ -2104,24 +2178,14 @@ export class DriftClient {
 		return [txSig, userAccountPublicKey];
 	}
 
-	/**
-	 * Withdraws from a user account. If deposit doesn't already exist, creates a borrow
-	 * @param amount
-	 * @param marketIndex
-	 * @param associatedTokenAddress - the token account to withdraw to. can be the wallet public key if using native sol
-	 * @param reduceOnly
-	 */
-	public async withdraw(
+	private async getWithdrawalIxs(
 		amount: BN,
 		marketIndex: number,
 		associatedTokenAddress: PublicKey,
 		reduceOnly = false,
-		subAccountId?: number,
-		txParams?: TxParams
-	): Promise<TransactionSignature> {
-		const withdrawIxs = [];
-
-		const additionalSigners: Array<Signer> = [];
+		subAccountId?: number
+	) {
+		const withdrawIxs: anchor.web3.TransactionInstruction[] = [];
 
 		const spotMarketAccount = this.getSpotMarketAccount(marketIndex);
 
@@ -2179,16 +2243,98 @@ export class DriftClient {
 			);
 		}
 
-		const tx = await this.buildTransaction(withdrawIxs, {
-			...(txParams ?? this.txParams),
-			computeUnits: 1_400_000,
-		});
+		return withdrawIxs;
+	}
+
+	/**
+	 * Withdraws from a user account. If deposit doesn't already exist, creates a borrow
+	 * @param amount
+	 * @param marketIndex
+	 * @param associatedTokenAddress - the token account to withdraw to. can be the wallet public key if using native sol
+	 * @param reduceOnly
+	 */
+	public async withdraw(
+		amount: BN,
+		marketIndex: number,
+		associatedTokenAddress: PublicKey,
+		reduceOnly = false,
+		subAccountId?: number,
+		txParams?: TxParams
+	): Promise<TransactionSignature> {
+		const additionalSigners: Array<Signer> = [];
+
+		const withdrawIxs = await this.getWithdrawalIxs(
+			amount,
+			marketIndex,
+			associatedTokenAddress,
+			reduceOnly,
+			subAccountId
+		);
+
+		const tx = await this.buildTransaction(
+			withdrawIxs,
+			txParams ?? this.txParams
+		);
+
 		const { txSig, slot } = await this.sendTransaction(
 			tx,
 			additionalSigners,
 			this.opts
 		);
 		this.spotMarketLastSlotCache.set(marketIndex, slot);
+		return txSig;
+	}
+
+	public async withdrawAllDustPositions(
+		subAccountId?: number,
+		txParams?: TxParams,
+		opts?: {
+			dustPositionCountCallback?: (count: number) => void;
+		}
+	): Promise<TransactionSignature | undefined> {
+		const user = this.getUser(subAccountId);
+
+		const dustPositionSpotMarketAccounts =
+			user.getSpotMarketAccountsWithDustPosition();
+
+		if (
+			!dustPositionSpotMarketAccounts ||
+			dustPositionSpotMarketAccounts.length === 0
+		) {
+			opts?.dustPositionCountCallback?.(0);
+			return undefined;
+		}
+
+		opts?.dustPositionCountCallback?.(dustPositionSpotMarketAccounts.length);
+
+		let allWithdrawIxs: anchor.web3.TransactionInstruction[] = [];
+
+		for (const position of dustPositionSpotMarketAccounts) {
+			const tokenAccount = await getAssociatedTokenAddress(
+				position.mint,
+				this.wallet.publicKey
+			);
+
+			const tokenAmount = await user.getTokenAmount(position.marketIndex);
+
+			const withdrawIxs = await this.getWithdrawalIxs(
+				tokenAmount.muln(2), //  2x to ensure all dust is withdrawn
+				position.marketIndex,
+				tokenAccount,
+				true, // reduce-only true to ensure all dust is withdrawn
+				subAccountId
+			);
+
+			allWithdrawIxs = allWithdrawIxs.concat(withdrawIxs);
+		}
+
+		const tx = await this.buildTransaction(
+			allWithdrawIxs,
+			txParams ?? this.txParams
+		);
+
+		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+
 		return txSig;
 	}
 
@@ -2602,11 +2748,14 @@ export class DriftClient {
 		);
 	}
 
-	public async sendSignedTx(tx: Transaction): Promise<TransactionSignature> {
+	public async sendSignedTx(
+		tx: Transaction,
+		opts?: ConfirmOptions
+	): Promise<TransactionSignature> {
 		const { txSig } = await this.sendTransaction(
 			tx,
 			undefined,
-			this.opts,
+			opts ?? this.opts,
 			true
 		);
 
@@ -2648,173 +2797,90 @@ export class DriftClient {
 			userAccount.subAccountId
 		);
 
-		/* Cancel open orders in market if requested */
-		let cancelExistingOrdersTx;
-		if (cancelExistingOrders && isVariant(orderParams.marketType, 'perp')) {
-			const cancelOrdersIx = await this.getCancelOrdersIx(
-				orderParams.marketType,
-				orderParams.marketIndex,
-				null,
-				userAccount.subAccountId
-			);
+		const ixsToSign: { key: string; ix: TransactionInstruction }[] = [];
 
-			//@ts-ignore
-			cancelExistingOrdersTx = await this.buildTransaction(
-				[cancelOrdersIx],
-				txParams,
-				this.txVersion
-			);
+		const keys = {
+			signedCancelExistingOrdersTx: 'signedCancelExistingOrdersTx',
+			signedSettlePnlTx: 'signedSettlePnlTx',
+			signedFillTx: 'signedFillTx',
+			signedMarketOrderTx: 'signedMarketOrderTx',
+		};
+
+		/* Cancel open orders in market if requested */
+
+		if (cancelExistingOrders && isVariant(orderParams.marketType, 'perp')) {
+			ixsToSign.push({
+				key: keys.signedCancelExistingOrdersTx,
+				ix: await this.getCancelOrdersIx(
+					orderParams.marketType,
+					orderParams.marketIndex,
+					null,
+					userAccount.subAccountId
+				),
+			});
 		}
 
 		/* Settle PnL after fill if requested */
-		let settlePnlTx;
 		if (settlePnl && isVariant(orderParams.marketType, 'perp')) {
-			const settlePnlIx = await this.settlePNLIx(
-				userAccountPublicKey,
-				userAccount,
-				marketIndex
-			);
-
-			//@ts-ignore
-			settlePnlTx = await this.buildTransaction(
-				[settlePnlIx],
-				txParams,
-				this.txVersion
-			);
+			ixsToSign.push({
+				key: keys.signedSettlePnlTx,
+				ix: await this.settlePNLIx(
+					userAccountPublicKey,
+					userAccount,
+					marketIndex
+				),
+			});
 		}
 
 		// use versioned transactions if there is a lookup table account and wallet is compatible
 		if (this.txVersion === 0) {
-			const versionedMarketOrderTx = await this.buildTransaction(
-				ordersIx,
-				txParams,
-				0
-			);
-
-			const fillPerpOrderIx = await this.getFillPerpOrderIx(
-				userAccountPublicKey,
-				userAccount,
-				{
-					orderId,
-					marketIndex,
-				},
-				makerInfo,
-				referrerInfo,
-				userAccount.subAccountId
-			);
-
-			const versionedFillTx = await this.buildTransaction(
-				[fillPerpOrderIx],
-				txParams,
-				0
-			);
-
-			const allPossibleTxs = [
-				versionedMarketOrderTx,
-				versionedFillTx,
-				cancelExistingOrdersTx,
-				settlePnlTx,
-			];
-			const txKeys = [
-				'signedVersionedMarketOrderTx',
-				'signedVersionedFillTx',
-				'signedCancelExistingOrdersTx',
-				'signedSettlePnlTx',
-			];
-
-			const {
-				signedVersionedMarketOrderTx,
-				signedVersionedFillTx,
-				signedCancelExistingOrdersTx,
-				signedSettlePnlTx,
-			} = await getSignedTransactionMap(
-				//@ts-ignore
-				this.provider.wallet,
-				allPossibleTxs,
-				txKeys
-			);
-
-			const { txSig, slot } = await this.sendTransaction(
-				signedVersionedMarketOrderTx,
-				[],
-				this.opts,
-				true
-			);
-			this.perpMarketLastSlotCache.set(orderParams.marketIndex, slot);
-
-			return {
-				txSig,
-				// @ts-ignore
-				signedFillTx: signedVersionedFillTx,
-				// @ts-ignore
-				signedCancelExistingOrdersTx,
-				// @ts-ignore
-				signedSettlePnlTx,
-			};
-		} else {
-			const marketOrderTx = wrapInTx(
-				ordersIx,
-				txParams?.computeUnits,
-				txParams?.computeUnitsPrice
-			);
-
-			// Apply the latest blockhash to the txs so that we can sign before sending them
-			const currentBlockHash = (
-				await this.connection.getLatestBlockhash('finalized')
-			).blockhash;
-			marketOrderTx.recentBlockhash = currentBlockHash;
-
-			marketOrderTx.feePayer = userAccount.authority;
-
-			if (cancelExistingOrdersTx) {
-				cancelExistingOrdersTx.recentBlockhash = currentBlockHash;
-				cancelExistingOrdersTx.feePayer = userAccount.authority;
-			}
-
-			if (settlePnlTx) {
-				settlePnlTx.recentBlockhash = currentBlockHash;
-				settlePnlTx.feePayer = userAccount.authority;
-			}
-
-			const allPossibleTxs = [
-				marketOrderTx,
-				cancelExistingOrdersTx,
-				settlePnlTx,
-			];
-			const txKeys = [
-				'signedMarketOrderTx',
-				'signedCancelExistingOrdersTx',
-				'signedSettlePnlTx',
-			];
-
-			const {
-				signedMarketOrderTx,
-				signedCancelExistingOrdersTx,
-				signedSettlePnlTx,
-			} = await getSignedTransactionMap(
-				//@ts-ignore
-				this.provider.wallet,
-				allPossibleTxs,
-				txKeys
-			);
-
-			const { txSig, slot } = await this.sendTransaction(
-				signedMarketOrderTx,
-				[],
-				this.opts,
-				true
-			);
-			this.perpMarketLastSlotCache.set(orderParams.marketIndex, slot);
-
-			return {
-				txSig,
-				signedFillTx: undefined,
-				//@ts-ignore
-				signedCancelExistingOrdersTx,
-				//@ts-ignore
-				signedSettlePnlTx,
-			};
+			ixsToSign.push({
+				key: keys.signedFillTx,
+				ix: await this.getFillPerpOrderIx(
+					userAccountPublicKey,
+					userAccount,
+					{
+						orderId,
+						marketIndex,
+					},
+					makerInfo,
+					referrerInfo,
+					userAccount.subAccountId
+				),
+			});
 		}
+
+		// Apply the latest blockhash to the txs so that we can sign before sending them
+		ixsToSign.push({
+			key: keys.signedMarketOrderTx,
+			ix: ordersIx,
+		});
+
+		const signedTransactions = await this.buildAndSignBulkTransactions(
+			ixsToSign.map((ix) => ix.ix),
+			ixsToSign.map((ix) => ix.key),
+			txParams
+		);
+
+		const { txSig, slot } = await this.sendTransaction(
+			signedTransactions[keys.signedMarketOrderTx],
+			[],
+			this.opts,
+			true
+		);
+
+		this.perpMarketLastSlotCache.set(orderParams.marketIndex, slot);
+
+		return {
+			txSig,
+			signedFillTx: signedTransactions?.[keys.signedFillTx] as Transaction,
+			signedCancelExistingOrdersTx: signedTransactions?.[
+				keys.signedCancelExistingOrdersTx
+			] as Transaction,
+			signedSettlePnlTx: signedTransactions?.[
+				keys.signedSettlePnlTx
+			] as Transaction,
+		};
 	}
 
 	public async placePerpOrder(
@@ -2977,7 +3043,9 @@ export class DriftClient {
 			await this.program.instruction.settleExpiredMarketPoolsToRevenuePool({
 				accounts: {
 					state: await this.getStatePublicKey(),
-					admin: this.wallet.publicKey,
+					admin: this.isSubscribed
+						? this.getStateAccount().admin
+						: this.wallet.publicKey,
 					spotMarket: spotMarketPublicKey,
 					perpMarket: perpMarketPublicKey,
 				},
@@ -3429,7 +3497,7 @@ export class DriftClient {
 		fulfillmentConfig?:
 			| SerumV3FulfillmentConfigAccount
 			| PhoenixV1FulfillmentConfigAccount,
-		makerInfo?: MakerInfo,
+		makerInfo?: MakerInfo | MakerInfo[],
 		referrerInfo?: ReferrerInfo,
 		txParams?: TxParams
 	): Promise<TransactionSignature> {
@@ -3458,7 +3526,7 @@ export class DriftClient {
 		fulfillmentConfig?:
 			| SerumV3FulfillmentConfigAccount
 			| PhoenixV1FulfillmentConfigAccount,
-		makerInfo?: MakerInfo,
+		makerInfo?: MakerInfo | MakerInfo[],
 		referrerInfo?: ReferrerInfo,
 		fillerPublicKey?: PublicKey
 	): Promise<TransactionInstruction> {
@@ -3476,43 +3544,35 @@ export class DriftClient {
 					(order) => order.orderId === userAccount.nextOrderId - 1
 			  ).marketIndex;
 
+		makerInfo = Array.isArray(makerInfo)
+			? makerInfo
+			: makerInfo
+			? [makerInfo]
+			: [];
+
 		const userAccounts = [userAccount];
-		if (makerInfo !== undefined) {
-			userAccounts.push(makerInfo.makerUserAccount);
+		for (const maker of makerInfo) {
+			userAccounts.push(maker.makerUserAccount);
 		}
 		const remainingAccounts = this.getRemainingAccounts({
 			userAccounts,
 			writableSpotMarketIndexes: [marketIndex, QUOTE_SPOT_MARKET_INDEX],
 		});
 
-		if (makerInfo) {
+		for (const maker of makerInfo) {
 			remainingAccounts.push({
-				pubkey: makerInfo.maker,
+				pubkey: maker.maker,
 				isWritable: true,
 				isSigner: false,
 			});
 			remainingAccounts.push({
-				pubkey: makerInfo.makerStats,
-				isWritable: true,
-				isSigner: false,
-			});
-		}
-
-		if (referrerInfo) {
-			remainingAccounts.push({
-				pubkey: referrerInfo.referrer,
-				isWritable: true,
-				isSigner: false,
-			});
-			remainingAccounts.push({
-				pubkey: referrerInfo.referrerStats,
+				pubkey: maker.makerStats,
 				isWritable: true,
 				isSigner: false,
 			});
 		}
 
 		const orderId = order.orderId;
-		const makerOrderId = makerInfo ? makerInfo.order.orderId : null;
 
 		this.addSpotFulfillmentAccounts(
 			marketIndex,
@@ -3523,7 +3583,7 @@ export class DriftClient {
 		return await this.program.instruction.fillSpotOrder(
 			orderId,
 			fulfillmentConfig ? fulfillmentConfig.fulfillmentType : null,
-			makerOrderId,
+			null,
 			{
 				accounts: {
 					state: await this.getStatePublicKey(),
@@ -3931,7 +3991,7 @@ export class DriftClient {
 		const { beginSwapIx, endSwapIx } = await this.getSwapIx({
 			outMarketIndex,
 			inMarketIndex,
-			amountIn: amount,
+			amountIn: new BN(route.inAmount),
 			inTokenAccount: inAssociatedTokenAccount,
 			outTokenAccount: outAssociatedTokenAccount,
 			reduceOnly,
@@ -4061,7 +4121,7 @@ export class DriftClient {
 		const { beginSwapIx, endSwapIx } = await this.getSwapIx({
 			outMarketIndex,
 			inMarketIndex,
-			amountIn: amount,
+			amountIn: new BN(quote.inAmount),
 			inTokenAccount: inAssociatedTokenAccount,
 			outTokenAccount: outAssociatedTokenAccount,
 			reduceOnly,
@@ -4463,103 +4523,196 @@ export class DriftClient {
 		txParams?: TxParams,
 		subAccountId?: number,
 		cancelExistingOrders?: boolean,
-		settlePnl?: boolean
+		settlePnl?: boolean,
+		exitEarlyIfSimFails?: boolean
 	): Promise<{
 		txSig: TransactionSignature;
 		signedCancelExistingOrdersTx?: Transaction;
 		signedSettlePnlTx?: Transaction;
 	}> {
-		let cancelExistingOrdersTx: Transaction;
-		if (cancelExistingOrders && isVariant(orderParams.marketType, 'perp')) {
-			const cancelOrdersIx = await this.getCancelOrdersIx(
-				orderParams.marketType,
-				orderParams.marketIndex,
-				null,
+		const placeAndTakeIxs: TransactionInstruction[] = [];
+
+		const txsToSign: {
+			key: string;
+			tx: Transaction | VersionedTransaction;
+		}[] = [];
+
+		const keys = {
+			placeAndTakeIx: 'placeAndTakeIx',
+			cancelExistingOrdersTx: 'cancelExistingOrdersTx',
+			settlePnlTx: 'settlePnlTx',
+		};
+
+		// Get recent block hash so that we can re-use it for all transactions. Makes this logic run faster with fewer RPC requests
+		const recentBlockHash =
+			await this.txHandler.getLatestBlockhashForTransaction();
+
+		let earlyExitFailedPlaceAndTakeSim = false;
+
+		const prepPlaceAndTakeTx = async () => {
+			const placeAndTakeIx = await this.getPlaceAndTakePerpOrderIx(
+				orderParams,
+				makerInfo,
+				referrerInfo,
 				subAccountId
 			);
 
-			//@ts-ignore
-			cancelExistingOrdersTx = await this.buildTransaction(
-				[cancelOrdersIx],
-				txParams,
-				this.txVersion
-			);
+			placeAndTakeIxs.push(placeAndTakeIx);
+
+			if (bracketOrdersParams.length > 0) {
+				const bracketOrdersIx = await this.getPlaceOrdersIx(
+					bracketOrdersParams,
+					subAccountId
+				);
+				placeAndTakeIxs.push(bracketOrdersIx);
+			}
+
+			const shouldUseSimulationComputeUnits =
+				txParams?.useSimulatedComputeUnits;
+			const shouldExitIfSimulationFails = exitEarlyIfSimFails;
+
+			const txParamsWithoutImplicitSimulation: TxParams = {
+				...txParams,
+				useSimulatedComputeUnits: false,
+			};
+
+			if (shouldUseSimulationComputeUnits || shouldExitIfSimulationFails) {
+				const placeAndTakeTxToSim = (await this.buildTransaction(
+					placeAndTakeIxs,
+					txParams,
+					undefined,
+					undefined,
+					true,
+					recentBlockHash
+				)) as VersionedTransaction;
+
+				const simulationResult =
+					await TransactionParamProcessor.getTxSimComputeUnits(
+						placeAndTakeTxToSim,
+						this.connection,
+						txParams.computeUnitsBufferMultiplier ?? 1.2
+					);
+
+				if (shouldExitIfSimulationFails && !simulationResult.success) {
+					earlyExitFailedPlaceAndTakeSim = true;
+					return;
+				}
+
+				txsToSign.push({
+					key: keys.placeAndTakeIx,
+					tx: await this.buildTransaction(
+						placeAndTakeIxs,
+						{
+							...txParamsWithoutImplicitSimulation,
+							computeUnits: simulationResult.computeUnits,
+						},
+						undefined,
+						undefined,
+						undefined,
+						recentBlockHash
+					),
+				});
+			} else {
+				txsToSign.push({
+					key: keys.placeAndTakeIx,
+					tx: await this.buildTransaction(
+						placeAndTakeIxs,
+						txParams,
+						undefined,
+						undefined,
+						undefined,
+						recentBlockHash
+					),
+				});
+			}
+
+			return;
+		};
+
+		const prepCancelOrderTx = async () => {
+			if (cancelExistingOrders && isVariant(orderParams.marketType, 'perp')) {
+				const cancelOrdersIx = await this.getCancelOrdersIx(
+					orderParams.marketType,
+					orderParams.marketIndex,
+					null,
+					subAccountId
+				);
+
+				txsToSign.push({
+					key: keys.cancelExistingOrdersTx,
+					tx: await this.buildTransaction(
+						[cancelOrdersIx],
+						txParams,
+						this.txVersion,
+						undefined,
+						undefined,
+						recentBlockHash
+					),
+				});
+			}
+
+			return;
+		};
+
+		const prepSettlePnlTx = async () => {
+			if (settlePnl && isVariant(orderParams.marketType, 'perp')) {
+				const userAccountPublicKey = await this.getUserAccountPublicKey(
+					subAccountId
+				);
+
+				const settlePnlIx = await this.settlePNLIx(
+					userAccountPublicKey,
+					this.getUserAccount(subAccountId),
+					orderParams.marketIndex
+				);
+
+				txsToSign.push({
+					key: keys.settlePnlTx,
+					tx: await this.buildTransaction(
+						[settlePnlIx],
+						txParams,
+						this.txVersion,
+						undefined,
+						undefined,
+						recentBlockHash
+					),
+				});
+			}
+			return;
+		};
+
+		await Promise.all([
+			prepPlaceAndTakeTx(),
+			prepCancelOrderTx(),
+			prepSettlePnlTx(),
+		]);
+
+		if (earlyExitFailedPlaceAndTakeSim) {
+			return null;
 		}
 
-		/* Settle PnL after fill if requested */
-		let settlePnlTx: Transaction;
-		if (settlePnl && isVariant(orderParams.marketType, 'perp')) {
-			const userAccountPublicKey = await this.getUserAccountPublicKey(
-				subAccountId
-			);
-
-			const settlePnlIx = await this.settlePNLIx(
-				userAccountPublicKey,
-				this.getUserAccount(subAccountId),
-				orderParams.marketIndex
-			);
-
-			//@ts-ignore
-			settlePnlTx = await this.buildTransaction(
-				[settlePnlIx],
-				txParams,
-				this.txVersion
-			);
-		}
-
-		const ixs = [];
-
-		const placeAndTakeIx = await this.getPlaceAndTakePerpOrderIx(
-			orderParams,
-			makerInfo,
-			referrerInfo,
-			subAccountId
-		);
-
-		ixs.push(placeAndTakeIx);
-
-		if (bracketOrdersParams.length > 0) {
-			const bracketOrdersIx = await this.getPlaceOrdersIx(
-				bracketOrdersParams,
-				subAccountId
-			);
-			ixs.push(bracketOrdersIx);
-		}
-
-		const placeAndTakeTx = await this.buildTransaction(ixs, txParams);
-
-		const allPossibleTxs = [
-			placeAndTakeTx,
-			cancelExistingOrdersTx,
-			settlePnlTx,
-		];
-		const txKeys = [
-			'signedPlaceAndTakeTx',
-			'signedCancelExistingOrdersTx',
-			'signedSettlePnlTx',
-		];
-
-		const {
-			signedPlaceAndTakeTx,
-			signedCancelExistingOrdersTx,
-			signedSettlePnlTx,
-		} = await getSignedTransactionMap(
-			//@ts-ignore
-			this.provider.wallet,
-			allPossibleTxs,
-			txKeys
+		const signedTxs = await this.txHandler.getSignedTransactionMap(
+			txsToSign.map((tx) => tx.tx),
+			txsToSign.map((tx) => tx.key),
+			this.provider.wallet
 		);
 
 		const { txSig, slot } = await this.sendTransaction(
-			signedPlaceAndTakeTx,
+			signedTxs[keys.placeAndTakeIx],
 			[],
 			this.opts,
 			true
 		);
+
 		this.perpMarketLastSlotCache.set(orderParams.marketIndex, slot);
 
-		//@ts-ignore
-		return { txSig, signedCancelExistingOrdersTx, signedSettlePnlTx };
+		return {
+			txSig,
+			signedCancelExistingOrdersTx: signedTxs[
+				keys.cancelExistingOrdersTx
+			] as Transaction,
+			signedSettlePnlTx: signedTxs[keys.settlePnlTx] as Transaction,
+		};
 	}
 
 	public async getPlaceAndTakePerpOrderIx(
@@ -5229,11 +5382,49 @@ export class DriftClient {
 			settleeUserAccountPublicKey: PublicKey;
 			settleeUserAccount: UserAccount;
 		}[],
-		marketIndexes: number[]
+		marketIndexes: number[],
+		opts?: {
+			filterInvalidMarkets?: boolean;
+		},
+		txParams?: TxParams
 	): Promise<TransactionSignature> {
-		const ixs = await this.getSettlePNLsIxs(users, marketIndexes);
+		const filterInvalidMarkets = opts?.filterInvalidMarkets;
 
-		const tx = await this.buildTransaction(ixs, { computeUnits: 1_000_000 });
+		// # Filter market indexes by markets with valid oracle
+		const marketIndexToSettle: number[] = filterInvalidMarkets
+			? []
+			: marketIndexes;
+
+		if (filterInvalidMarkets) {
+			for (const marketIndex of marketIndexes) {
+				const perpMarketAccount = this.getPerpMarketAccount(marketIndex);
+				const oraclePriceData = this.getOracleDataForPerpMarket(marketIndex);
+				const stateAccountAndSlot =
+					this.accountSubscriber.getStateAccountAndSlot();
+				const oracleGuardRails = stateAccountAndSlot.data.oracleGuardRails;
+
+				const isValid = isOracleValid(
+					perpMarketAccount,
+					oraclePriceData,
+					oracleGuardRails,
+					stateAccountAndSlot.slot
+				);
+
+				if (isValid) {
+					marketIndexToSettle.push(marketIndex);
+				}
+			}
+		}
+
+		// # Settle filtered market indexes
+		const ixs = await this.getSettlePNLsIxs(users, marketIndexToSettle);
+
+		const tx = await this.buildTransaction(
+			ixs,
+			txParams ?? {
+				computeUnits: 1_400_000,
+			}
+		);
 
 		const { txSig } = await this.sendTransaction(tx, [], this.opts);
 		return txSig;
@@ -5303,6 +5494,56 @@ export class DriftClient {
 			},
 			remainingAccounts: remainingAccounts,
 		});
+	}
+
+	public async settleMultiplePNLs(
+		settleeUserAccountPublicKey: PublicKey,
+		settleeUserAccount: UserAccount,
+		marketIndexes: number[],
+		mode: SettlePnlMode,
+		txParams?: TxParams
+	): Promise<TransactionSignature> {
+		const { txSig } = await this.sendTransaction(
+			await this.buildTransaction(
+				await this.settleMultiplePNLsIx(
+					settleeUserAccountPublicKey,
+					settleeUserAccount,
+					marketIndexes,
+					mode
+				),
+				txParams
+			),
+			[],
+			this.opts
+		);
+		return txSig;
+	}
+
+	public async settleMultiplePNLsIx(
+		settleeUserAccountPublicKey: PublicKey,
+		settleeUserAccount: UserAccount,
+		marketIndexes: number[],
+		mode: SettlePnlMode
+	): Promise<TransactionInstruction> {
+		const remainingAccounts = this.getRemainingAccounts({
+			userAccounts: [settleeUserAccount],
+			writablePerpMarketIndexes: marketIndexes,
+			writableSpotMarketIndexes: [QUOTE_SPOT_MARKET_INDEX],
+		});
+
+		return await this.program.instruction.settleMultiplePnls(
+			marketIndexes,
+			mode,
+			{
+				accounts: {
+					state: await this.getStatePublicKey(),
+					authority: this.wallet.publicKey,
+					user: settleeUserAccountPublicKey,
+					spotMarketVault: this.getQuoteSpotMarketAccount().vault,
+				},
+				remainingAccounts: remainingAccounts,
+			}
+		);
 	}
 
 	public async liquidatePerp(
@@ -5764,6 +6005,39 @@ export class DriftClient {
 		});
 	}
 
+	public async updatePrelaunchOracle(
+		perpMarketIndex: number,
+		txParams?: TxParams
+	): Promise<TransactionSignature> {
+		const { txSig } = await this.sendTransaction(
+			await this.buildTransaction(
+				await this.getUpdatePrelaunchOracleIx(perpMarketIndex),
+				txParams
+			),
+			[],
+			this.opts
+		);
+		return txSig;
+	}
+
+	public async getUpdatePrelaunchOracleIx(
+		perpMarketIndex: number
+	): Promise<TransactionInstruction> {
+		const perpMarket = this.getPerpMarketAccount(perpMarketIndex);
+
+		if (!isVariant(perpMarket.amm.oracleSource, 'prelaunch')) {
+			throw new Error(`Wrong oracle source ${perpMarket.amm.oracleSource}`);
+		}
+
+		return await this.program.instruction.updatePrelaunchOracle({
+			accounts: {
+				state: await this.getStatePublicKey(),
+				perpMarket: perpMarket.pubkey,
+				oracle: perpMarket.amm.oracle,
+			},
+		});
+	}
+
 	public async updatePerpBidAskTwap(
 		perpMarketIndex: number,
 		makers: [PublicKey, PublicKey][],
@@ -5860,17 +6134,15 @@ export class DriftClient {
 	}
 
 	public getOracleDataForPerpMarket(marketIndex: number): OraclePriceData {
-		const oracleKey = this.getPerpMarketAccount(marketIndex).amm.oracle;
-		const oracleData = this.getOraclePriceDataAndSlot(oracleKey).data;
-
-		return oracleData;
+		return this.accountSubscriber.getOraclePriceDataAndSlotForPerpMarket(
+			marketIndex
+		).data;
 	}
 
 	public getOracleDataForSpotMarket(marketIndex: number): OraclePriceData {
-		const oracleKey = this.getSpotMarketAccount(marketIndex).oracle;
-		const oracleData = this.getOraclePriceDataAndSlot(oracleKey).data;
-
-		return oracleData;
+		return this.accountSubscriber.getOraclePriceDataAndSlotForSpotMarket(
+			marketIndex
+		).data;
 	}
 
 	public async initializeInsuranceFundStake(
@@ -5964,6 +6236,7 @@ export class DriftClient {
 		collateralAccountPublicKey,
 		initializeStakeAccount,
 		fromSubaccount,
+		txParams,
 	}: {
 		/**
 		 * Spot market index
@@ -5982,6 +6255,7 @@ export class DriftClient {
 		 * Optional -- withdraw from current subaccount to fund stake amount, instead of wallet balance
 		 */
 		fromSubaccount?: boolean;
+		txParams?: TxParams;
 	}): Promise<TransactionSignature> {
 		const addIfStakeIxs = [];
 
@@ -6041,7 +6315,7 @@ export class DriftClient {
 			);
 		}
 
-		const tx = await this.buildTransaction(addIfStakeIxs);
+		const tx = await this.buildTransaction(addIfStakeIxs, txParams);
 
 		const { txSig } = await this.sendTransaction(
 			tx,
@@ -6054,7 +6328,8 @@ export class DriftClient {
 
 	public async requestRemoveInsuranceFundStake(
 		marketIndex: number,
-		amount: BN
+		amount: BN,
+		txParams?: TxParams
 	): Promise<TransactionSignature> {
 		const spotMarketAccount = this.getSpotMarketAccount(marketIndex);
 		const ifStakeAccountPublicKey = getInsuranceFundStakeAccountPublicKey(
@@ -6085,14 +6360,15 @@ export class DriftClient {
 			}
 		);
 
-		const tx = await this.buildTransaction(ix);
+		const tx = await this.buildTransaction(ix, txParams);
 
 		const { txSig } = await this.sendTransaction(tx, [], this.opts);
 		return txSig;
 	}
 
 	public async cancelRequestRemoveInsuranceFundStake(
-		marketIndex: number
+		marketIndex: number,
+		txParams?: TxParams
 	): Promise<TransactionSignature> {
 		const spotMarketAccount = this.getSpotMarketAccount(marketIndex);
 		const ifStakeAccountPublicKey = getInsuranceFundStakeAccountPublicKey(
@@ -6123,7 +6399,7 @@ export class DriftClient {
 				}
 			);
 
-		const tx = await this.buildTransaction(ix);
+		const tx = await this.buildTransaction(ix, txParams);
 
 		const { txSig } = await this.sendTransaction(tx, [], this.opts);
 		return txSig;
@@ -6131,7 +6407,8 @@ export class DriftClient {
 
 	public async removeInsuranceFundStake(
 		marketIndex: number,
-		collateralAccountPublicKey: PublicKey
+		collateralAccountPublicKey: PublicKey,
+		txParams?: TxParams
 	): Promise<TransactionSignature> {
 		const removeIfStakeIxs = [];
 		const spotMarketAccount = this.getSpotMarketAccount(marketIndex);
@@ -6172,9 +6449,13 @@ export class DriftClient {
 			}
 		}
 
+		const userAccountExists =
+			!!this.getUser()?.accountSubscriber?.isSubscribed &&
+			(await this.checkIfAccountExists(this.getUser().userAccountPublicKey));
+
 		const remainingAccounts = this.getRemainingAccounts({
-			userAccounts: [this.getUserAccount()],
-			useMarketLastSlotCache: true,
+			userAccounts: userAccountExists ? [this.getUserAccount()] : [],
+			useMarketLastSlotCache: false,
 			writableSpotMarketIndexes: [marketIndex],
 		});
 
@@ -6208,7 +6489,7 @@ export class DriftClient {
 			);
 		}
 
-		const tx = await this.buildTransaction(removeIfStakeIxs);
+		const tx = await this.buildTransaction(removeIfStakeIxs, txParams);
 
 		const { txSig } = await this.sendTransaction(
 			tx,
@@ -6219,18 +6500,33 @@ export class DriftClient {
 	}
 
 	public async settleRevenueToInsuranceFund(
-		marketIndex: number
+		spotMarketIndex: number,
+		subAccountId?: number,
+		txParams?: TxParams
 	): Promise<TransactionSignature> {
-		const spotMarketAccount = this.getSpotMarketAccount(marketIndex);
+		const tx = await this.buildTransaction(
+			await this.getSettleRevenueToInsuranceFundIx(
+				spotMarketIndex,
+				subAccountId
+			),
+			txParams
+		);
+		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+		return txSig;
+	}
 
+	public async getSettleRevenueToInsuranceFundIx(
+		spotMarketIndex: number,
+		subAccountId?: number
+	): Promise<TransactionInstruction> {
+		const spotMarketAccount = this.getSpotMarketAccount(spotMarketIndex);
 		const remainingAccounts = this.getRemainingAccounts({
-			userAccounts: [this.getUserAccount()],
+			userAccounts: [this.getUserAccount(subAccountId)],
 			useMarketLastSlotCache: true,
-			writableSpotMarketIndexes: [marketIndex],
+			writableSpotMarketIndexes: [spotMarketIndex],
 		});
-
 		const ix = await this.program.instruction.settleRevenueToInsuranceFund(
-			marketIndex,
+			spotMarketIndex,
 			{
 				accounts: {
 					state: await this.getStatePublicKey(),
@@ -6243,11 +6539,7 @@ export class DriftClient {
 				remainingAccounts,
 			}
 		);
-
-		const tx = await this.buildTransaction(ix);
-
-		const { txSig } = await this.sendTransaction(tx, [], this.opts);
-		return txSig;
+		return ix;
 	}
 
 	public async resolvePerpPnlDeficit(
@@ -6361,6 +6653,48 @@ export class DriftClient {
 	}
 
 	/**
+	 * Calculates taker / maker fee (as a percentage, e.g. .001 = 10 basis points) for particular marketType
+	 * @param marketType
+	 * @param positionMarketIndex
+	 * @returns : {takerFee: number, makerFee: number} Precision None
+	 */
+	public getMarketFees(
+		marketType: MarketType,
+		marketIndex?: number,
+		user?: User
+	) {
+		let feeTier;
+		if (user) {
+			feeTier = user.getUserFeeTier(marketType);
+		} else {
+			const state = this.getStateAccount();
+			feeTier = isVariant(marketType, 'perp')
+				? state.perpFeeStructure.feeTiers[0]
+				: state.spotFeeStructure.feeTiers[0];
+		}
+
+		let takerFee = feeTier.feeNumerator / feeTier.feeDenominator;
+		let makerFee =
+			feeTier.makerRebateNumerator / feeTier.makerRebateDenominator;
+
+		if (marketIndex !== undefined) {
+			let marketAccount = null;
+			if (isVariant(marketType, 'perp')) {
+				marketAccount = this.getPerpMarketAccount(marketIndex);
+			} else {
+				marketAccount = this.getSpotMarketAccount(marketIndex);
+			}
+			takerFee += (takerFee * marketAccount.feeAdjustment) / 100;
+			makerFee += (makerFee * marketAccount.feeAdjustment) / 100;
+		}
+
+		return {
+			takerFee,
+			makerFee,
+		};
+	}
+
+	/**
 	 * Returns the market index and type for a given market name
 	 * E.g. "SOL-PERP" -> { marketIndex: 0, marketType: MarketType.PERP }
 	 *
@@ -6391,8 +6725,26 @@ export class DriftClient {
 		return undefined;
 	}
 
-	private handleSignedTransaction() {
-		this.metricsEventEmitter.emit('txSigned');
+	private handleSignedTransaction(signedTxs: SignedTxData[]) {
+		if (this.enableMetricsEvents && this.metricsEventEmitter) {
+			this.metricsEventEmitter.emit('txSigned', signedTxs);
+		}
+	}
+
+	private handlePreSignedTransaction() {
+		if (this.enableMetricsEvents && this.metricsEventEmitter) {
+			this.metricsEventEmitter.emit('preTxSigned');
+		}
+	}
+
+	private isVersionedTransaction(
+		tx: Transaction | VersionedTransaction
+	): boolean {
+		const version = (tx as VersionedTransaction)?.version;
+		const isVersionedTx =
+			tx instanceof VersionedTransaction || version !== undefined;
+
+		return isVersionedTx;
 	}
 
 	sendTransaction(
@@ -6401,28 +6753,21 @@ export class DriftClient {
 		opts?: ConfirmOptions,
 		preSigned?: boolean
 	): Promise<TxSigAndSlot> {
-		const extraConfirmationOptions: ExtraConfirmationOptions = this
-			.enableMetricsEvents
-			? {
-					onSignedCb: this.handleSignedTransaction.bind(this),
-			  }
-			: undefined;
+		const isVersionedTx = this.isVersionedTransaction(tx);
 
-		if (tx instanceof VersionedTransaction) {
+		if (isVersionedTx) {
 			return this.txSender.sendVersionedTransaction(
 				tx as VersionedTransaction,
 				additionalSigners,
 				opts,
-				preSigned,
-				extraConfirmationOptions
+				preSigned
 			);
 		} else {
 			return this.txSender.send(
 				tx as Transaction,
 				additionalSigners,
 				opts,
-				preSigned,
-				extraConfirmationOptions
+				preSigned
 			);
 		}
 	}
@@ -6431,52 +6776,63 @@ export class DriftClient {
 		instructions: TransactionInstruction | TransactionInstruction[],
 		txParams?: TxParams,
 		txVersion?: TransactionVersion,
-		lookupTables?: AddressLookupTableAccount[]
+		lookupTables?: AddressLookupTableAccount[],
+		forceVersionedTransaction?: boolean,
+		recentBlockHash?: BlockhashWithExpiryBlockHeight
 	): Promise<Transaction | VersionedTransaction> {
-		const allIx = [];
-		const computeUnits = txParams?.computeUnits ?? this.txParams.computeUnits;
-		if (computeUnits !== 200_000) {
-			allIx.push(
-				ComputeBudgetProgram.setComputeUnitLimit({
-					units: computeUnits,
-				})
-			);
-		}
-		const computeUnitsPrice =
-			txParams?.computeUnitsPrice ?? this.txParams.computeUnitsPrice;
-		if (computeUnitsPrice !== 0) {
-			allIx.push(
-				ComputeBudgetProgram.setComputeUnitPrice({
-					microLamports: computeUnitsPrice,
-				})
-			);
-		}
+		return this.txHandler.buildTransaction({
+			instructions,
+			txVersion: txVersion ?? this.txVersion,
+			txParams: txParams ?? this.txParams,
+			connection: this.connection,
+			preFlightCommitment: this.opts.preflightCommitment,
+			fetchMarketLookupTableAccount:
+				this.fetchMarketLookupTableAccount.bind(this),
+			lookupTables,
+			forceVersionedTransaction,
+			recentBlockHash,
+		});
+	}
 
-		if (Array.isArray(instructions)) {
-			allIx.push(...instructions);
-		} else {
-			allIx.push(instructions);
-		}
+	async buildBulkTransactions(
+		instructions: (TransactionInstruction | TransactionInstruction[])[],
+		txParams?: TxParams,
+		txVersion?: TransactionVersion,
+		lookupTables?: AddressLookupTableAccount[],
+		forceVersionedTransaction?: boolean
+	): Promise<(Transaction | VersionedTransaction)[]> {
+		return this.txHandler.buildBulkTransactions({
+			instructions,
+			txVersion: txVersion ?? this.txVersion,
+			txParams: txParams ?? this.txParams,
+			connection: this.connection,
+			preFlightCommitment: this.opts.preflightCommitment,
+			fetchMarketLookupTableAccount:
+				this.fetchMarketLookupTableAccount.bind(this),
+			lookupTables,
+			forceVersionedTransaction,
+		});
+	}
 
-		txVersion = txVersion ?? this.txVersion;
-		if (txVersion === 'legacy') {
-			return new Transaction().add(...allIx);
-		} else {
-			const marketLookupTable = await this.fetchMarketLookupTableAccount();
-			lookupTables = lookupTables
-				? [...lookupTables, marketLookupTable]
-				: [marketLookupTable];
-			const message = new TransactionMessage({
-				payerKey: this.provider.wallet.publicKey,
-				recentBlockhash: (
-					await this.provider.connection.getRecentBlockhash(
-						this.opts.preflightCommitment
-					)
-				).blockhash,
-				instructions: allIx,
-			}).compileToV0Message(lookupTables);
-
-			return new VersionedTransaction(message);
-		}
+	async buildAndSignBulkTransactions(
+		instructions: (TransactionInstruction | TransactionInstruction[])[],
+		keys: string[],
+		txParams?: TxParams,
+		txVersion?: TransactionVersion,
+		lookupTables?: AddressLookupTableAccount[],
+		forceVersionedTransaction?: boolean
+	) {
+		return this.txHandler.buildAndSignTransactionMap({
+			instructions,
+			txVersion: txVersion ?? this.txVersion,
+			txParams: txParams ?? this.txParams,
+			connection: this.connection,
+			preFlightCommitment: this.opts.preflightCommitment,
+			fetchMarketLookupTableAccount:
+				this.fetchMarketLookupTableAccount.bind(this),
+			lookupTables,
+			forceVersionedTransaction,
+			keys,
+		});
 	}
 }

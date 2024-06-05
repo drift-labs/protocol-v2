@@ -521,6 +521,24 @@ pub enum ErrorCode {
     CantPayUserInitFee,
     #[msg("CantReclaimRent")]
     CantReclaimRent,
+    #[msg("InsuranceFundOperationPaused")]
+    InsuranceFundOperationPaused,
+    #[msg("NoUnsettledPnl")]
+    NoUnsettledPnl,
+    #[msg("PnlPoolCantSettleUser")]
+    PnlPoolCantSettleUser,
+    #[msg("OracleInvalid")]
+    OracleNonPositive,
+    #[msg("OracleTooVolatile")]
+    OracleTooVolatile,
+    #[msg("OracleTooUncertain")]
+    OracleTooUncertain,
+    #[msg("OracleStaleForMargin")]
+    OracleStaleForMargin,
+    #[msg("OracleInsufficientDataPoints")]
+    OracleInsufficientDataPoints,
+    #[msg("OracleStaleForAMM")]
+    OracleStaleForAMM,
 }
 
 #[macro_export]

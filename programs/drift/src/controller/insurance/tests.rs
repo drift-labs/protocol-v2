@@ -271,9 +271,14 @@ pub fn large_num_seeded_stake_if_test() {
     .unwrap() as u64;
     assert_eq!(spot_market_vault_amount, 111);
 
-    let flow =
-        settle_revenue_to_insurance_fund(spot_market_vault_amount, if_balance, &mut spot_market, 1)
-            .unwrap();
+    let flow = settle_revenue_to_insurance_fund(
+        spot_market_vault_amount,
+        if_balance,
+        &mut spot_market,
+        1,
+        true,
+    )
+    .unwrap();
     assert_eq!(flow, 11);
     assert_eq!(spot_market.revenue_pool.scaled_balance, 90099009901);
     let spot_market_vault_amount = get_token_amount(
