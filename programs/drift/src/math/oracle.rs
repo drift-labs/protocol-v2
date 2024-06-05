@@ -149,7 +149,7 @@ pub fn block_operation(
     market: &PerpMarket,
     oracle_price_data: &OraclePriceData,
     guard_rails: &OracleGuardRails,
-    precomputed_reserve_price: Option<u64>,
+    reserve_price: u64,
     slot: u64,
 ) -> DriftResult<bool> {
     let OracleStatus {
@@ -157,12 +157,7 @@ pub fn block_operation(
         mark_too_divergent: is_oracle_mark_too_divergent,
         oracle_reserve_price_spread_pct: _,
         ..
-    } = get_oracle_status(
-        market,
-        oracle_price_data,
-        guard_rails,
-        precomputed_reserve_price,
-    )?;
+    } = get_oracle_status(market, oracle_price_data, guard_rails, reserve_price)?;
     let is_oracle_valid =
         is_oracle_valid_for_action(oracle_validity, Some(DriftAction::UpdateFunding))?;
 
@@ -190,7 +185,7 @@ pub fn get_oracle_status<'a>(
     market: &PerpMarket,
     oracle_price_data: &'a OraclePriceData,
     guard_rails: &OracleGuardRails,
-    precomputed_reserve_price: Option<u64>,
+    reserve_price: u64,
 ) -> DriftResult<OracleStatus> {
     let oracle_validity = oracle_validity(
         MarketType::Perp,
@@ -202,7 +197,7 @@ pub fn get_oracle_status<'a>(
         false,
     )?;
     let oracle_reserve_price_spread_pct =
-        amm::calculate_oracle_twap_5min_mark_spread_pct(&market.amm, precomputed_reserve_price)?;
+        amm::calculate_oracle_twap_5min_price_spread_pct(&market.amm, reserve_price)?;
     let is_oracle_mark_too_divergent = amm::is_oracle_mark_too_divergent(
         oracle_reserve_price_spread_pct,
         &guard_rails.price_divergence,
