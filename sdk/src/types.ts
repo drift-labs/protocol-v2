@@ -39,8 +39,9 @@ export enum PerpOperation {
 export enum SpotOperation {
 	UPDATE_CUMULATIVE_INTEREST = 1,
 	FILL = 2,
-	WITHDRAW = 4,
-	LIQUIDATION = 8,
+	DEPOSIT = 4,
+	WITHDRAW = 8,
+	LIQUIDATION = 16,
 }
 
 export enum InsuranceFundOperation {
