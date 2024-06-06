@@ -178,7 +178,14 @@ pub struct SpotMarket {
     /// disabled when 0
     /// precision: QUOTE_PRECISION
     pub scale_initial_asset_weight_start: u64,
-    pub padding: [u8; 48],
+    /// When to begin scaling down the initial asset weight
+    /// disabled when 0
+    /// precision: QUOTE_PRECISION
+    pub max_token_borrows: u64,
+    /// The min borrow rate for this market when the market regardless of utilization
+    /// precision: SPOT_RATE_PRECISION
+    pub min_borrow_rate: u32,
+    pub padding: [u8; 36],
 }
 
 impl Default for SpotMarket {
@@ -239,7 +246,9 @@ impl Default for SpotMarket {
             flash_loan_initial_token_amount: 0,
             total_swap_fee: 0,
             scale_initial_asset_weight_start: 0,
-            padding: [0; 48],
+            max_token_borrows: 0,
+            min_borrow_rate: 0,
+            padding: [0; 36],
         }
     }
 }
@@ -425,6 +434,19 @@ impl SpotMarket {
             max_token_deposits,
             deposits,
         )?;
+
+        if self.max_token_borrows > 0 {
+            let borrows = self.get_borrows()?;
+            let max_token_borrows = self.max_token_borrows.cast::<u128>()?;
+
+            validate!(
+                max_token_borrows == 0 || borrows <= max_token_borrows,
+                ErrorCode::MaxDeposit,
+                "max token amount ({}) < borrows ({})",
+                max_token_borrows,
+                borrows,
+            )?;
+        }
 
         Ok(())
     }

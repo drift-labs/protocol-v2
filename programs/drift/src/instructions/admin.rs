@@ -128,7 +128,7 @@ pub fn handle_initialize_spot_market(
         return Err(ErrorCode::InvalidInsuranceFundAuthority.into());
     }
 
-    validate_borrow_rate(optimal_utilization, optimal_borrow_rate, max_borrow_rate)?;
+    validate_borrow_rate(optimal_utilization, optimal_borrow_rate, max_borrow_rate, 0)?;
 
     let spot_market_index = get_then_update_id!(state, number_of_spot_markets);
 
@@ -278,7 +278,9 @@ pub fn handle_initialize_spot_market(
         flash_loan_initial_token_amount: 0,
         total_swap_fee: 0,
         scale_initial_asset_weight_start,
-        padding: [0; 48],
+        max_token_borrows: 0,
+        min_borrow_rate: 0,
+        padding: [0; 36],
         insurance_fund: InsuranceFund {
             vault: *ctx.accounts.insurance_fund_vault.to_account_info().key,
             unstaking_period: THIRTEEN_DAY,
@@ -2243,9 +2245,15 @@ pub fn handle_update_spot_market_borrow_rate(
     optimal_utilization: u32,
     optimal_borrow_rate: u32,
     max_borrow_rate: u32,
+    min_borrow_rate: Option<u32>,
 ) -> Result<()> {
     let spot_market = &mut load_mut!(ctx.accounts.spot_market)?;
-    validate_borrow_rate(optimal_utilization, optimal_borrow_rate, max_borrow_rate)?;
+    validate_borrow_rate(
+        optimal_utilization,
+        optimal_borrow_rate,
+        max_borrow_rate,
+        min_borrow_rate.unwrap_or(spot_market.min_borrow_rate),
+    )?;
 
     msg!(
         "spot_market.optimal_utilization: {:?} -> {:?}",
@@ -2268,6 +2276,11 @@ pub fn handle_update_spot_market_borrow_rate(
     spot_market.optimal_utilization = optimal_utilization;
     spot_market.optimal_borrow_rate = optimal_borrow_rate;
     spot_market.max_borrow_rate = max_borrow_rate;
+
+    if min_borrow_rate.is_some() {
+        spot_market.min_borrow_rate = min_borrow_rate.unwrap();
+    }
+
     Ok(())
 }
 
@@ -2287,6 +2300,35 @@ pub fn handle_update_spot_market_max_token_deposits(
     );
 
     spot_market.max_token_deposits = max_token_deposits;
+    Ok(())
+}
+
+#[access_control(
+    spot_market_valid(&ctx.accounts.spot_market)
+)]
+pub fn handle_update_spot_market_max_token_borrows(
+    ctx: Context<AdminUpdateSpotMarket>,
+    max_token_borrows: u64,
+) -> Result<()> {
+    let spot_market = &mut load_mut!(ctx.accounts.spot_market)?;
+
+    msg!(
+        "spot_market.max_token_borrows: {:?} -> {:?}",
+        spot_market.max_token_borrows,
+        max_token_borrows
+    );
+
+    let current_spot_tokens_borrows: u64 = spot_market.get_borrows()?.cast()?;
+
+    validate!(
+        current_spot_tokens_borrows <= max_token_borrows,
+        ErrorCode::InvalidSpotMarketInitialization,
+        "spot borrows {} > max_token_borrows {}",
+        current_spot_tokens_borrows,
+        max_token_borrows
+    )?;
+
+    spot_market.max_token_borrows = max_token_borrows;
     Ok(())
 }
 
