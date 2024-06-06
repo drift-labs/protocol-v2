@@ -38,6 +38,7 @@ use crate::state::oracle::{
     HistoricalIndexData, HistoricalOracleData, OraclePriceData, OracleSource, PrelaunchOracle,
     PrelaunchOracleParams,
 };
+use crate::state::oracle_map::OracleMap;
 use crate::state::paused_operations::{InsuranceFundOperation, PerpOperation, SpotOperation};
 use crate::state::perp_market::{
     ContractTier, ContractType, InsuranceClaim, MarketStatus, PerpMarket, PoolBalance, AMM,
@@ -145,6 +146,8 @@ pub fn handle_initialize_spot_market(
             ErrorCode::InvalidSpotMarketInitialization,
             "For OracleSource::QuoteAsset, spot_market_index must be QUOTE_SPOT_MARKET_INDEX"
         )?;
+    } else {
+        OracleMap::validate_oracle_account_info(&ctx.accounts.oracle)?;
     }
 
     let oracle_price_data = get_oracle_price(
@@ -564,6 +567,8 @@ pub fn handle_initialize_perp_market(
     let (min_base_asset_reserve, max_base_asset_reserve) =
         amm::calculate_bid_ask_bounds(concentration_coef, amm_base_asset_reserve)?;
 
+    OracleMap::validate_oracle_account_info(&ctx.accounts.oracle)?;
+
     // Verify oracle is readable
     let (oracle_price, oracle_delay, last_oracle_price_twap) = match oracle_source {
         OracleSource::Pyth => {
@@ -913,6 +918,16 @@ pub fn handle_update_spot_market_oracle(
 ) -> Result<()> {
     let spot_market = &mut load_mut!(ctx.accounts.spot_market)?;
     let clock = Clock::get()?;
+
+    OracleMap::validate_oracle_account_info(&ctx.accounts.oracle)?;
+
+    validate!(
+        ctx.accounts.oracle.key == &oracle,
+        ErrorCode::DefaultError,
+        "oracle account info ({:?}) and ix data ({:?}) must match",
+        ctx.accounts.oracle.key,
+        oracle
+    )?;
 
     // Verify oracle is readable
     let OraclePriceData {
@@ -2740,6 +2755,16 @@ pub fn handle_update_perp_market_oracle(
 ) -> Result<()> {
     let perp_market = &mut load_mut!(ctx.accounts.perp_market)?;
     let clock = Clock::get()?;
+
+    OracleMap::validate_oracle_account_info(&ctx.accounts.oracle)?;
+
+    validate!(
+        ctx.accounts.oracle.key == &oracle,
+        ErrorCode::DefaultError,
+        "oracle account info ({:?}) and ix data ({:?}) must match",
+        ctx.accounts.oracle.key,
+        oracle
+    )?;
 
     // Verify oracle is readable
     let OraclePriceData {
