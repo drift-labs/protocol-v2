@@ -67,6 +67,7 @@ export * from './types';
 export * from './math/utils';
 export * from './config';
 export * from './constants/numericConstants';
+export * from './serum/serumSubscriber';
 export * from './serum/serumFulfillmentConfigMap';
 export * from './phoenix/phoenixSubscriber';
 export * from './priorityFee';
