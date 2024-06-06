@@ -69,6 +69,6 @@
 		"node": ">=18"
   },
   "resolutions": {
-	"@solana/web3.js": "<1.90.0",
+	"@solana/web3.js": "<1.90.0"
 	}
 }
