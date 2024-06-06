@@ -29,6 +29,7 @@ import { Buffer } from 'buffer';
 import { ZSTDDecoder } from 'zstddec';
 import { getNonIdleUserFilter, getUserFilter } from '../memcmp';
 import {
+	SyncConfig,
 	UserAccountFilterCriteria as UserFilterCriteria,
 	UserMapConfig,
 } from './userMapConfig';
@@ -83,6 +84,7 @@ export class UserMap implements UserMapInterface {
 	};
 	private decode;
 	private mostRecentSlot = 0;
+	private syncConfig: SyncConfig;
 
 	private syncPromise?: Promise<void>;
 	private syncPromiseResolver: () => void;
@@ -132,6 +134,10 @@ export class UserMap implements UserMapInterface {
 				decodeFn,
 			});
 		}
+
+		this.syncConfig = config.syncConfig ?? {
+			type: 'default',
+		};
 	}
 
 	public async subscribe() {
@@ -345,6 +351,14 @@ export class UserMap implements UserMapInterface {
 	}
 
 	public async sync() {
+		if (this.syncConfig.type === 'default') {
+			return this.defaultSync();
+		} else {
+			return this.paginatedSync();
+		}
+	}
+
+	private async defaultSync() {
 		if (this.syncPromise) {
 			return this.syncPromise;
 		}
@@ -434,6 +448,123 @@ export class UserMap implements UserMapInterface {
 			console.error(`Error in UserMap.sync(): ${e.message} ${e.stack ?? ''}`);
 		} finally {
 			this.syncPromiseResolver();
+			this.syncPromise = undefined;
+		}
+	}
+
+	private async paginatedSync() {
+		if (this.syncPromise) {
+			return this.syncPromise;
+		}
+
+		this.syncPromise = new Promise<void>((resolve) => {
+			this.syncPromiseResolver = resolve;
+		});
+
+		try {
+			const accountsPrefetch = await this.connection.getProgramAccounts(
+				this.driftClient.program.programId,
+				{
+					dataSlice: { offset: 0, length: 0 },
+					filters: [
+						getUserFilter(),
+						...(!this.includeIdle ? [getNonIdleUserFilter()] : []),
+					],
+				}
+			);
+			const accountPublicKeys = accountsPrefetch.map(
+				(account) => account.pubkey
+			);
+
+			const limitConcurrency = async (tasks, limit) => {
+				const executing = [];
+				const results = [];
+
+				for (let i = 0; i < tasks.length; i++) {
+					const executor = Promise.resolve().then(tasks[i]);
+					results.push(executor);
+
+					if (executing.length < limit) {
+						executing.push(executor);
+						executor.finally(() => {
+							const index = executing.indexOf(executor);
+							if (index > -1) {
+								executing.splice(index, 1);
+							}
+						});
+					} else {
+						await Promise.race(executing);
+					}
+				}
+
+				return Promise.all(results);
+			};
+
+			const programAccountBufferMap = new Map<string, Buffer>();
+
+			// @ts-ignore
+			const chunkSize = this.syncConfig.chunkSize ?? 100;
+			const tasks = [];
+			for (let i = 0; i < accountPublicKeys.length; i += chunkSize) {
+				const chunk = accountPublicKeys.slice(i, i + chunkSize);
+				tasks.push(async () => {
+					const accountInfos =
+						await this.connection.getMultipleAccountsInfoAndContext(chunk, {
+							commitment: this.commitment,
+						});
+
+					const accountInfosSlot = accountInfos.context.slot;
+
+					for (let j = 0; j < accountInfos.value.length; j += 1) {
+						const accountInfo = accountInfos.value[j];
+						if (accountInfo === null) continue;
+
+						const publicKeyString = chunk[j].toString();
+						const buffer = Buffer.from(accountInfo.data);
+						programAccountBufferMap.set(publicKeyString, buffer);
+
+						const decodedUser = this.decode('User', buffer);
+
+						const currAccountWithSlot = this.getWithSlot(publicKeyString);
+						if (
+							currAccountWithSlot &&
+							currAccountWithSlot.slot <= accountInfosSlot
+						) {
+							this.updateUserAccount(
+								publicKeyString,
+								decodedUser,
+								accountInfosSlot
+							);
+						} else {
+							await this.addPubkey(
+								new PublicKey(publicKeyString),
+								decodedUser,
+								accountInfosSlot
+							);
+						}
+					}
+				});
+			}
+
+			// @ts-ignore
+			const concurrencyLimit = this.syncConfig.concurrencyLimit ?? 10;
+			await limitConcurrency(tasks, concurrencyLimit);
+
+			for (const [key] of this.entries()) {
+				if (!programAccountBufferMap.has(key)) {
+					const user = this.get(key);
+					if (user) {
+						await user.unsubscribe();
+						this.userMap.delete(key);
+					}
+				}
+			}
+		} catch (err) {
+			console.error(`Error in UserMap.sync():`, err);
+		} finally {
+			if (this.syncPromiseResolver) {
+				this.syncPromiseResolver();
+			}
 			this.syncPromise = undefined;
 		}
 	}
