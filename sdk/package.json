@@ -66,5 +66,13 @@
   "description": "SDK for Drift Protocol",
   "engines": {
     "node": ">=18"
+  },
+  "overrides": {
+    "@solana/spl-token-metadata": {
+      "@solana/web3.js": "<1.90.0"
+    }
+  },
+  "resolutions": {
+    "@solana/spl-token-metadata/@solana/web3.js": "<1.90.0"
   }
 }
