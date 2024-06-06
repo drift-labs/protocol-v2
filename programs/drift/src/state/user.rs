@@ -509,6 +509,54 @@ impl User {
 
         Ok(())
     }
+
+    pub fn meets_withdraw_margin_requirement_and_increment_fuel_bonus(
+        &mut self,
+        perp_market_map: &PerpMarketMap,
+        spot_market_map: &SpotMarketMap,
+        oracle_map: &mut OracleMap,
+        margin_requirement_type: MarginRequirementType,
+        withdraw_market_index: u16,
+        withdraw_amount: u128,
+        user_stats: &mut UserStats,
+        now: i64,
+    ) -> DriftResult<bool> {
+        let strict = margin_requirement_type == MarginRequirementType::Initial;
+        let context = MarginContext::standard(margin_requirement_type)
+            .strict(strict)
+            .fuel_spot_diff(withdraw_market_index, withdraw_amount.cast::<i128>()?);
+
+        let calculation = calculate_margin_requirement_and_total_collateral_and_liability_info(
+            self,
+            perp_market_map,
+            spot_market_map,
+            oracle_map,
+            context,
+        )?;
+
+        if calculation.margin_requirement > 0 || calculation.get_num_of_liabilities()? > 0 {
+            validate!(
+                calculation.all_oracles_valid,
+                ErrorCode::InvalidOracle,
+                "User attempting to withdraw with outstanding liabilities when an oracle is invalid"
+            )?;
+        }
+
+        validate_any_isolated_tier_requirements(self, calculation)?;
+
+        validate!(
+            calculation.meets_margin_requirement(),
+            ErrorCode::InsufficientCollateral,
+            "User attempting to withdraw where total_collateral {} is below initial_margin_requirement {}",
+            calculation.total_collateral,
+            calculation.margin_requirement
+        )?;
+
+        user_stats.update_fuel_bonus(calculation.fuel_bonus, now)?;
+        self.last_fuel_bonus_update_ts = now;
+
+        Ok(true)
+    }
 }
 
 #[zero_copy(unsafe)]

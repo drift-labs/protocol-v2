@@ -3098,6 +3098,50 @@ pub fn handle_update_perp_market_number_of_users(
     Ok(())
 }
 
+pub fn handle_update_perp_market_fuel(
+    ctx: Context<AdminUpdatePerpMarket>,
+    fuel_boost_taker: Option<u16>,
+    fuel_boost_maker: Option<u16>,
+    fuel_boost_funding: Option<u16>,
+) -> Result<()> {
+    let perp_market = &mut load_mut!(ctx.accounts.perp_market)?;
+
+    if let Some(fuel_boost_taker) = fuel_boost_taker {
+        msg!(
+            "perp_market.fuel_boost_taker: {:?} -> {:?}",
+            perp_market.fuel_boost_taker,
+            fuel_boost_taker
+        );
+        perp_market.fuel_boost_taker = fuel_boost_taker;
+    } else {
+        msg!("perp_market.fuel_boost_taker: unchanged");
+    }
+
+    if let Some(fuel_boost_maker) = fuel_boost_maker {
+        msg!(
+            "perp_market.fuel_boost_maker: {:?} -> {:?}",
+            perp_market.fuel_boost_maker,
+            fuel_boost_maker
+        );
+        perp_market.fuel_boost_maker = fuel_boost_maker;
+    } else {
+        msg!("perp_market.fuel_boost_maker: unchanged");
+    }
+
+    if let Some(fuel_boost_funding) = fuel_boost_funding {
+        msg!(
+            "perp_market.fuel_boost_funding: {:?} -> {:?}",
+            perp_market.fuel_boost_funding,
+            fuel_boost_funding
+        );
+        perp_market.fuel_boost_funding = fuel_boost_funding;
+    } else {
+        msg!("perp_market.fuel_boost_funding: unchanged");
+    }
+
+    Ok(())
+}
+
 #[access_control(
     spot_market_valid(&ctx.accounts.spot_market)
 )]
@@ -3122,6 +3166,62 @@ pub fn handle_update_spot_market_fee_adjustment(
     );
 
     spot.fee_adjustment = fee_adjustment;
+    Ok(())
+}
+
+pub fn handle_update_spot_market_fuel(
+    ctx: Context<AdminUpdateSpotMarket>,
+    fuel_boost_deposits: Option<u16>,
+    fuel_boost_borrows: Option<u16>,
+    fuel_boost_taker: Option<u16>,
+    fuel_boost_maker: Option<u16>,
+) -> Result<()> {
+    let spot_market = &mut load_mut!(ctx.accounts.spot_market)?;
+
+    if let Some(fuel_boost_taker) = fuel_boost_taker {
+        msg!(
+            "perp_market.fuel_boost_taker: {:?} -> {:?}",
+            spot_market.fuel_boost_taker,
+            fuel_boost_taker
+        );
+        spot_market.fuel_boost_taker = fuel_boost_taker;
+    } else {
+        msg!("perp_market.fuel_boost_taker: unchanged");
+    }
+
+    if let Some(fuel_boost_maker) = fuel_boost_maker {
+        msg!(
+            "perp_market.fuel_boost_maker: {:?} -> {:?}",
+            spot_market.fuel_boost_maker,
+            fuel_boost_maker
+        );
+        spot_market.fuel_boost_maker = fuel_boost_maker;
+    } else {
+        msg!("perp_market.fuel_boost_maker: unchanged");
+    }
+
+    if let Some(fuel_boost_deposits) = fuel_boost_deposits {
+        msg!(
+            "perp_market.fuel_boost_deposits: {:?} -> {:?}",
+            spot_market.fuel_boost_deposits,
+            fuel_boost_deposits
+        );
+        spot_market.fuel_boost_deposits = fuel_boost_deposits;
+    } else {
+        msg!("perp_market.fuel_boost_deposits: unchanged");
+    }
+
+    if let Some(fuel_boost_borrows) = fuel_boost_borrows {
+        msg!(
+            "perp_market.fuel_boost_borrows: {:?} -> {:?}",
+            spot_market.fuel_boost_borrows,
+            fuel_boost_borrows
+        );
+        spot_market.fuel_boost_borrows = fuel_boost_borrows;
+    } else {
+        msg!("perp_market.fuel_boost_borrows: unchanged");
+    }
+
     Ok(())
 }
 

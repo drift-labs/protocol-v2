@@ -77,11 +77,15 @@ impl MarginContext {
         self
     }
 
+    // how to change the user's spot position to match how it was prior to instruction change
+    // i.e. diffs are ADDED to perp
     pub fn fuel_perp_diff(mut self, market_index: u16, delta: i64) -> Self {
         self.fuel_perp_delta = Some((market_index, delta));
         self
     }
 
+    // how to change the user's spot position to match how it was prior to instruction change
+    // i.e. diffs are ADDED to spot position in margin check, after a withdraw requires positive diff
     pub fn fuel_spot_diff(mut self, market_index: u16, delta: i128) -> Self {
         self.fuel_spot_delta = Some((market_index, delta));
         self

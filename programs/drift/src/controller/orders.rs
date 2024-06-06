@@ -4002,8 +4002,19 @@ fn fulfill_spot_order(
             perp_market_map,
             spot_market_map,
             oracle_map,
-            MarginContext::standard(margin_type),
+            MarginContext::standard(margin_type)
+                .fuel_spot_diff(
+                    base_market_index,
+                    base_token_amount_before.safe_sub(base_token_amount_after)?,
+                )
+                .fuel_spot_diff_2(
+                    QUOTE_SPOT_MARKET_INDEX,
+                    quote_token_amount_before.safe_sub(quote_token_amount_after)?,
+                ),
         )?;
+
+    user_stats.update_fuel_bonus(taker_margin_calculation.fuel_bonus, now)?;
+    user.last_fuel_bonus_update_ts = now;
 
     if !taker_margin_calculation.meets_margin_requirement() {
         msg!(
@@ -4016,7 +4027,12 @@ fn fulfill_spot_order(
 
     for (maker_key, _) in maker_fills {
         // let maker = makers_and_referrer.get_ref(&maker_key)?;
-        let mut maker = makers_and_referrer.get_ref_mut(&maker_key)?;
+        let mut maker: RefMut<User> = makers_and_referrer.get_ref_mut(&maker_key)?;
+        let mut maker_stats = if maker.authority == user.authority {
+            None
+        } else {
+            Some(makers_and_referrer_stats.get_ref_mut(&maker.authority)?)
+        };
 
         let quote_market = spot_market_map.get_quote_spot_market()?;
         let base_market = spot_market_map.get_ref(&base_market_index)?;
@@ -4068,8 +4084,23 @@ fn fulfill_spot_order(
                 perp_market_map,
                 spot_market_map,
                 oracle_map,
-                MarginContext::standard(margin_type),
+                MarginContext::standard(margin_type)
+                    .fuel_spot_diff(
+                        base_market_index,
+                        maker_base_token_amount_before.safe_sub(maker_base_token_amount_after)?,
+                    )
+                    .fuel_spot_diff_2(
+                        QUOTE_SPOT_MARKET_INDEX,
+                        maker_quote_token_amount_before.safe_sub(maker_quote_token_amount_after)?,
+                    ),
             )?;
+
+        if maker_stats.is_some() {
+            maker_stats
+                .unwrap()
+                .update_fuel_bonus(maker_margin_calculation.fuel_bonus, now)?;
+        }
+        maker.last_fuel_bonus_update_ts = now;
 
         if !maker_margin_calculation.meets_margin_requirement() {
             msg!(

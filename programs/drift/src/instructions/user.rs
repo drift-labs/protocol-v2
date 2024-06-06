@@ -512,12 +512,15 @@ pub fn handle_withdraw(
         amount
     };
 
-    meets_withdraw_margin_requirement(
-        user,
+    user.meets_withdraw_margin_requirement_and_increment_fuel_bonus(
         &perp_market_map,
         &spot_market_map,
         &mut oracle_map,
         MarginRequirementType::Initial,
+        market_index,
+        amount as u128,
+        &mut user_stats,
+        now,
     )?;
 
     validate_spot_margin_trading(user, &perp_market_map, &spot_market_map, &mut oracle_map)?;
