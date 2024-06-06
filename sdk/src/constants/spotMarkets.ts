@@ -273,6 +273,26 @@ export const MainnetSpotMarkets: SpotMarketConfig[] = [
 		precisionExp: NINE,
 		launchTs: 1716595200000,
 	},
+	{
+		symbol: 'JLP',
+		marketIndex: 18,
+		oracle: new PublicKey('J3GezCkKEZV9gJs2V6BAbNcmYY27fqCV1QjaPSZCyMhF'),
+		oracleSource: OracleSource.SWITCHBOARD,
+		mint: new PublicKey('27G8MtK7VtTcCHkpASjSDdkWWYfoqT6ggEuKidVJidD4'),
+		precision: new BN(10).pow(SIX),
+		precisionExp: SIX,
+		launchTs: 1716595200000,
+	},
+	{
+		symbol: 'META',
+		marketIndex: 19,
+		oracle: new PublicKey('6xgRE2DWvyfxKTF1vzHApDXf6zExDEorkwozHNcKBwRX'),
+		oracleSource: OracleSource.SWITCHBOARD,
+		mint: new PublicKey('METADDFL6wWMWEoKTFJwcThTbUmtarRJZjRpzUvkxhr'),
+		precision: new BN(10).pow(NINE),
+		precisionExp: NINE,
+		launchTs: 1716595200000,
+	},
 ];
 
 export const SpotMarkets: { [key in DriftEnv]: SpotMarketConfig[] } = {
