@@ -573,7 +573,7 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
         )?;
 
         let fuel_base_asset_value = if context.fuel_perp_delta.is_some()
-            && context.fuel_spot_delta.unwrap().0 == market.market_index
+            && context.fuel_perp_delta.unwrap().0 == market.market_index
         {
             market_position
                 .base_asset_amount
