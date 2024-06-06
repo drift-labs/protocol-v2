@@ -68,12 +68,8 @@
 	"engines": {
 		"node": ">=18"
   },
-  "overrides": {
-    "@solana/spl-token-metadata": {
-      "@solana/web3.js": "<1.90.0"
-    }
-  },
   "resolutions": {
+	"@solana/web3.js": "<1.90.0",
     "@solana/spl-token-metadata/@solana/web3.js": "<1.90.0"
 	}
 }
