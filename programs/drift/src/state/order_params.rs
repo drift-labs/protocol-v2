@@ -47,11 +47,7 @@ impl OrderParams {
             return Ok(());
         }
 
-        if self.immediate_or_cancel {
-            return Ok(());
-        }
-
-        if self.oracle_price_offset.is_some() || self.price == 0 {
+        if self.oracle_price_offset.unwrap_or(0) != 0 || self.price == 0 {
             return Ok(());
         }
 

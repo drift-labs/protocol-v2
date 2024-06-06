@@ -172,7 +172,7 @@ pub fn update_funding_rate(
         market,
         oracle_map.get_price_data(&market.amm.oracle)?,
         guard_rails,
-        Some(reserve_price),
+        reserve_price,
         slot,
     )?;
 

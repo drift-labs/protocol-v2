@@ -3,7 +3,7 @@ use std::cmp::max;
 use borsh::{BorshDeserialize, BorshSerialize};
 use solana_program::msg;
 
-use crate::error::DriftResult;
+use crate::error::{DriftResult, ErrorCode};
 use crate::math::amm;
 use crate::math::casting::Cast;
 use crate::math::constants::BID_ASK_SPREAD_PRECISION;
@@ -22,7 +22,7 @@ mod tests;
 // ordered by "severity"
 #[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Debug, Eq)]
 pub enum OracleValidity {
-    Invalid,
+    NonPositive,
     TooVolatile,
     TooUncertain,
     StaleForMargin,
@@ -37,10 +37,24 @@ impl Default for OracleValidity {
     }
 }
 
+impl OracleValidity {
+    pub fn get_error_code(&self) -> ErrorCode {
+        match self {
+            OracleValidity::NonPositive => ErrorCode::OracleNonPositive,
+            OracleValidity::TooVolatile => ErrorCode::OracleTooVolatile,
+            OracleValidity::TooUncertain => ErrorCode::OracleTooUncertain,
+            OracleValidity::StaleForMargin => ErrorCode::OracleStaleForMargin,
+            OracleValidity::InsufficientDataPoints => ErrorCode::OracleInsufficientDataPoints,
+            OracleValidity::StaleForAMM => ErrorCode::OracleStaleForAMM,
+            OracleValidity::Valid => unreachable!(),
+        }
+    }
+}
+
 impl fmt::Display for OracleValidity {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            OracleValidity::Invalid => write!(f, "Invalid"),
+            OracleValidity::NonPositive => write!(f, "NonPositive"),
             OracleValidity::TooVolatile => write!(f, "TooVolatile"),
             OracleValidity::TooUncertain => write!(f, "TooUncertain"),
             OracleValidity::StaleForMargin => write!(f, "StaleForMargin"),
@@ -94,14 +108,14 @@ pub fn is_oracle_valid_for_action(
             }
             DriftAction::MarginCalc => !matches!(
                 oracle_validity,
-                OracleValidity::Invalid
+                OracleValidity::NonPositive
                     | OracleValidity::TooVolatile
                     | OracleValidity::TooUncertain
                     | OracleValidity::StaleForMargin
             ),
             DriftAction::TriggerOrder => !matches!(
                 oracle_validity,
-                OracleValidity::Invalid | OracleValidity::TooVolatile
+                OracleValidity::NonPositive | OracleValidity::TooVolatile
             ),
             DriftAction::SettlePnl => matches!(
                 oracle_validity,
@@ -112,16 +126,16 @@ pub fn is_oracle_valid_for_action(
             ),
             DriftAction::FillOrderMatch => !matches!(
                 oracle_validity,
-                OracleValidity::Invalid
+                OracleValidity::NonPositive
                     | OracleValidity::TooVolatile
                     | OracleValidity::TooUncertain
             ),
             DriftAction::Liquidate => !matches!(
                 oracle_validity,
-                OracleValidity::Invalid | OracleValidity::TooVolatile
+                OracleValidity::NonPositive | OracleValidity::TooVolatile
             ),
-            DriftAction::UpdateTwap => !matches!(oracle_validity, OracleValidity::Invalid),
-            DriftAction::UpdateAMMCurve => !matches!(oracle_validity, OracleValidity::Invalid),
+            DriftAction::UpdateTwap => !matches!(oracle_validity, OracleValidity::NonPositive),
+            DriftAction::UpdateAMMCurve => !matches!(oracle_validity, OracleValidity::NonPositive),
         },
         None => {
             matches!(oracle_validity, OracleValidity::Valid)
@@ -135,7 +149,7 @@ pub fn block_operation(
     market: &PerpMarket,
     oracle_price_data: &OraclePriceData,
     guard_rails: &OracleGuardRails,
-    precomputed_reserve_price: Option<u64>,
+    reserve_price: u64,
     slot: u64,
 ) -> DriftResult<bool> {
     let OracleStatus {
@@ -143,12 +157,7 @@ pub fn block_operation(
         mark_too_divergent: is_oracle_mark_too_divergent,
         oracle_reserve_price_spread_pct: _,
         ..
-    } = get_oracle_status(
-        market,
-        oracle_price_data,
-        guard_rails,
-        precomputed_reserve_price,
-    )?;
+    } = get_oracle_status(market, oracle_price_data, guard_rails, reserve_price)?;
     let is_oracle_valid =
         is_oracle_valid_for_action(oracle_validity, Some(DriftAction::UpdateFunding))?;
 
@@ -176,7 +185,7 @@ pub fn get_oracle_status<'a>(
     market: &PerpMarket,
     oracle_price_data: &'a OraclePriceData,
     guard_rails: &OracleGuardRails,
-    precomputed_reserve_price: Option<u64>,
+    reserve_price: u64,
 ) -> DriftResult<OracleStatus> {
     let oracle_validity = oracle_validity(
         MarketType::Perp,
@@ -188,7 +197,7 @@ pub fn get_oracle_status<'a>(
         false,
     )?;
     let oracle_reserve_price_spread_pct =
-        amm::calculate_oracle_twap_5min_mark_spread_pct(&market.amm, precomputed_reserve_price)?;
+        amm::calculate_oracle_twap_5min_price_spread_pct(&market.amm, reserve_price)?;
     let is_oracle_mark_too_divergent = amm::is_oracle_mark_too_divergent(
         oracle_reserve_price_spread_pct,
         &guard_rails.price_divergence,
@@ -239,7 +248,7 @@ pub fn oracle_validity(
         oracle_delay.gt(&valid_oracle_guard_rails.slots_before_stale_for_margin);
 
     let oracle_validity = if is_oracle_price_nonpositive {
-        OracleValidity::Invalid
+        OracleValidity::NonPositive
     } else if is_oracle_price_too_volatile {
         OracleValidity::TooVolatile
     } else if is_conf_too_large {

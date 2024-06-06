@@ -14,11 +14,19 @@ export interface ClockSubscriberEvent {
 }
 
 export class ClockSubscriber {
-	private latestSlot: number;
-	currentTs: number;
+	private _latestSlot: number;
+	private _currentTs: number;
 	private subscriptionId: number;
 	commitment: Commitment;
 	eventEmitter: StrictEventEmitter<EventEmitter, ClockSubscriberEvent>;
+
+	public get latestSlot(): number {
+		return this._latestSlot;
+	}
+
+	public get currentTs(): number {
+		return this._currentTs;
+	}
 
 	// Reconnection
 	private timeoutId?: NodeJS.Timeout;
@@ -54,8 +62,8 @@ export class ClockSubscriber {
 						clearTimeout(this.timeoutId);
 						this.setTimeout();
 					}
-					this.latestSlot = context.slot;
-					this.currentTs = new BN(
+					this._latestSlot = context.slot;
+					this._currentTs = new BN(
 						acctInfo.data.subarray(32, 39),
 						undefined,
 						'le'

@@ -2,8 +2,8 @@ use crate::controller::lp::*;
 use crate::controller::pnl::settle_pnl;
 use crate::state::perp_market::AMM;
 use crate::state::user::PerpPosition;
-use crate::BASE_PRECISION_I64;
 use crate::PRICE_PRECISION;
+use crate::{SettlePnlMode, BASE_PRECISION_I64};
 use std::str::FromStr;
 
 use anchor_lang::Owner;
@@ -573,6 +573,8 @@ pub fn test_lp_settle_pnl() {
         &mut oracle_map,
         &clock,
         &state,
+        None,
+        SettlePnlMode::MustSettle,
     );
 
     assert_eq!(result, Ok(()));

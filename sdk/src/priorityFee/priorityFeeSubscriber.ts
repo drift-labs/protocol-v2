@@ -96,8 +96,8 @@ export class PriorityFeeSubscriber {
 			return;
 		}
 
+		this.intervalId = setInterval(this.load.bind(this), this.frequencyMs); // we set the intervalId first, preventing a side effect of unsubscribing failing during the race condition where unsubscribes happens before subscribe is finished
 		await this.load();
-		this.intervalId = setInterval(this.load.bind(this), this.frequencyMs);
 	}
 
 	private async loadForSolana(): Promise<void> {

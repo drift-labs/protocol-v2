@@ -225,6 +225,14 @@ pub fn get_writable_perp_market_set(market_index: u16) -> MarketSet {
     writable_markets
 }
 
+pub fn get_writable_perp_market_set_from_vec(market_indexes: &Vec<u16>) -> MarketSet {
+    let mut writable_markets = MarketSet::new();
+    for market_index in market_indexes.iter() {
+        writable_markets.insert(*market_index);
+    }
+    writable_markets
+}
+
 pub fn get_market_set_from_list(market_indexes: [u16; 5]) -> MarketSet {
     let mut writable_markets = MarketSet::new();
     for market_index in market_indexes.iter() {

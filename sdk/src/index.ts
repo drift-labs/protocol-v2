@@ -78,6 +78,7 @@ export * from './tx/whileValidTxSender';
 export * from './tx/priorityFeeCalculator';
 export * from './tx/forwardOnlyTxSender';
 export * from './tx/types';
+export * from './tx/txHandler';
 export * from './util/computeUnits';
 export * from './util/tps';
 export * from './util/promiseTimeout';
@@ -102,6 +103,7 @@ export * from './auctionSubscriber/types';
 export * from './memcmp';
 export * from './decode/user';
 export * from './blockhashSubscriber';
+export * from './util/chainClock';
 export * from './clock/clockSubscriber';
 
 export { BN, PublicKey, pyth };
