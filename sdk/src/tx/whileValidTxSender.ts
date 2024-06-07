@@ -15,6 +15,8 @@ import { Wallet } from '../wallet';
 
 const DEFAULT_RETRY = 2000;
 
+const VALID_BLOCK_HEIGHT_OFFSET = -150; // This is a bit of weirdness but the lastValidBlockHeight value returned from connection.getLatestBlockhash is always 300 blocks ahead of the current block, even though the transaction actually expires after 150 blocks. This accounts for that so that we can at least accuractely estimate the transaction expiry.
+
 type ResolveReference = {
 	resolve?: () => void;
 };
@@ -78,12 +80,15 @@ export class WhileValidTxSender extends BaseTxSender {
 		preSigned?: boolean
 	): Promise<Transaction> {
 		
-		const latestBlockhash = await this.txHandler.getLatestBlockhashForTransaction();
+		let latestBlockhash = await this.txHandler.getLatestBlockhashForTransaction();
 
 		// handle tx
 		let signedTx = tx;
 		if (!preSigned) {
 			signedTx = await this.txHandler.prepareTx(tx, additionalSigners, undefined, opts, false, latestBlockhash);
+		} else {
+			// @ts-ignore
+			latestBlockhash = tx.DRIFT_SIGNED_WITH_BLOCK_AND_EXP;
 		}
 
 		// handle subclass-specific side effects
@@ -101,11 +106,13 @@ export class WhileValidTxSender extends BaseTxSender {
 		opts?: ConfirmOptions,
 		preSigned?: boolean,
 	): Promise<TxSigAndSlot> {
-		const latestBlockhash = await this.txHandler.getLatestBlockhashForTransaction();
+		let latestBlockhash = await this.txHandler.getLatestBlockhashForTransaction();
 
 		let signedTx;
 		if (preSigned) {
 			signedTx = tx;
+			// @ts-ignore
+			latestBlockhash = tx.DRIFT_SIGNED_WITH_BLOCK_AND_EXP;
 			// @ts-ignore
 		} else if (this.wallet.payer) {
 			tx.message.recentBlockhash = latestBlockhash.blockhash;
@@ -170,10 +177,12 @@ export class WhileValidTxSender extends BaseTxSender {
 		let slot: number;
 		try {
 			const { blockhash, lastValidBlockHeight } = this.untilValid.get(txid);
+			// @ts-ignore
+			console.log(`⭐️:: confirming tx using blockheight : ${lastValidBlockHeight + VALID_BLOCK_HEIGHT_OFFSET}`);
 			const result = await this.connection.confirmTransaction(
 				{
 					signature: txid,
-					lastValidBlockHeight,
+					lastValidBlockHeight: lastValidBlockHeight + VALID_BLOCK_HEIGHT_OFFSET,
 					blockhash,
 				},
 				opts.commitment
