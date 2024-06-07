@@ -249,10 +249,6 @@ impl<'a, 'b> SpotFulfillmentParams for OpenbookV2FulfillmentParams<'a, 'b> {
     fn is_external(&self) -> bool {
         true
     }
-
-    // TODO to a
-
-    // TODO !!!!
     fn fulfill_order(&mut self,
                      taker_direction: PositionDirection,
                      taker_price: u64,
@@ -277,7 +273,6 @@ impl<'a, 'b> SpotFulfillmentParams for OpenbookV2FulfillmentParams<'a, 'b> {
             PositionDirection::Long => Side::Bid,
             PositionDirection::Short => Side::Ask,
         };
-        // TODO calculations ...
         // the openbook v2 will take care of what is better if the price_lots or max_base or max_quote
         let args = PlaceTakeOrder{
             side: openbook_v2_order_side,
