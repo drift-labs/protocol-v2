@@ -407,9 +407,6 @@ impl<'a, 'b> SpotFulfillmentParams for OpenbookV2FulfillmentParams<'a, 'b> {
         })
     }
     fn get_best_bid_and_ask(&self) -> DriftResult<(Option<u64>, Option<u64>)> {
-        // use pub struct BookSideIterItem<'a> { from
-        // https://github.com/openbook-dex/openbook-v2/blob/master/programs/openbook-v2/src/state/orderbook/bookside_iterator.rs
-        // https://github.com/openbook-dex/openbook-v2/blob/master/programs/openbook-v2/src/instructions/place_take_order.rs
         let bid_data =  self.openbook_v2_bids.data.borrow();
         let bid = bytemuck::try_from_bytes::<BookSide>(&bid_data[8..]).map_err(|_| {
             msg!("Failed to parse OpenbookV2 bids");
@@ -422,8 +419,6 @@ impl<'a, 'b> SpotFulfillmentParams for OpenbookV2FulfillmentParams<'a, 'b> {
             ErrorCode::FailedOpenbookV2CPI
         })?;
         let ask = ask.find_min();
-        // calculate_price_from_serum_limit_price
-        // TODO check inputs
         let market = self.openbook_v2_context.load_openbook_v2_market()?;
         let bid_price = calculate_price_from_serum_limit_price(
             bid,

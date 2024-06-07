@@ -124,15 +124,12 @@ pub struct BookSide {
     pub nodes: OrderTreeNodes,
 }
 
-// TODO find_min and find_max - remove expired!!!
 impl BookSide {
     pub fn find_min(&self) -> u64 {
         let mut p = 0_u64;
         for node in self.nodes.nodes.iter() {
             if node.tag == LEAF_NODE_TAG {
                 let leaf_node = LeafNode::try_from_slice(&node.try_to_vec().unwrap()).unwrap();
-                // TODO check if it is not expired or whatever leaf_node.time_in_force
-                // TODO check if node is valid!
                 let price = leaf_node.price_data();
                 if price < p || p == 0 {
                     p = price;
