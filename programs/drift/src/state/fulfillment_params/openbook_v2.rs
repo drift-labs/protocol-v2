@@ -22,12 +22,13 @@ use crate::math::serum::{calculate_price_from_serum_limit_price, calculate_serum
 use crate::math::spot_withdraw::validate_spot_market_vault_amount;
 use crate::signer::get_signer_seeds;
 use crate::state::events::OrderActionExplanation;
+use crate::state::fulfillment_params::phoenix::PhoenixV1FulfillmentConfig;
 use crate::state::fulfillment_params::serum::SerumV3FulfillmentConfig;
 use crate::state::spot_fulfillment_params::{ExternalSpotFill, SpotFulfillmentParams};
 use crate::state::spot_market::{SpotBalanceType, SpotFulfillmentConfigStatus, SpotMarket};
 use crate::state::state::State;
 use crate::state::traits::Size;
-use crate::validate;
+use crate::{load, validate};
 
 #[account(zero_copy(unsafe))]
 #[derive(Default, PartialEq, Eq, Debug)]
@@ -97,7 +98,6 @@ pub struct OpenbookV2FulfillmentParams<'a, 'b> {
     pub openbook_v2_context: OpenbookV2Context<'a, 'b>,
     pub openbook_v2_market_authority: &'a AccountInfo<'b>,
     pub openbook_v2_event_heap: &'a AccountInfo<'b>,
-    // pub openbook_v2_bids: &'a AccountInfo<'b>,
     pub openbook_v2_bids: &'a AccountInfo<'b>,
     pub openbook_v2_asks: &'a AccountInfo<'b>,
     pub openbook_v2_base_vault: &'a AccountInfo<'b>,
@@ -122,21 +122,83 @@ impl<'a, 'b> OpenbookV2FulfillmentParams<'a, 'b> {
         now: i64,
     ) -> DriftResult<Self> {
         let account_info_vec = account_info_iter.collect::<Vec<_>>();
-        let account_infos = array_ref![account_info_vec, 0, 13];
-        let [ drift_signer,
-        openbook_v2_program,
-        openbook_v2_market,
-        openbook_v2_market_authority,
-        openbook_v2_event_heap,
-        openbook_v2_bids,
-        openbook_v2_asks,
-        openbook_v2_base_vault,
-        openbook_v2_quote_vault,
-        base_market_vault,
-        quote_market_vault,
-        token_program,
-        system_program
-        ] = account_infos;
+        let account_infos = array_ref![account_info_vec, 0, 14];
+        let [
+            openbook_v2_fulfillment_config,
+            drift_signer,
+            openbook_v2_program,
+            openbook_v2_market,
+            openbook_v2_market_authority,
+            openbook_v2_event_heap,
+            openbook_v2_bids,
+            openbook_v2_asks,
+            openbook_v2_base_vault,
+            openbook_v2_quote_vault,
+            base_market_vault,
+            quote_market_vault,
+            token_program,
+            system_program
+            ] = account_infos;
+        let openbook_v2_fulfillment_config_loader: AccountLoader<OpenbookV2FulfillmentConfig> =
+            AccountLoader::try_from(openbook_v2_fulfillment_config).map_err(|e| {
+                msg!("{:?}", e);
+                ErrorCode::InvalidFulfillmentConfig
+            })?;
+        let openbook_v2_fulfillment_config = load!(openbook_v2_fulfillment_config_loader)?;
+        validate!(
+            &openbook_v2_fulfillment_config.openbook_v2_program_id == openbook_v2_program.key,
+            ErrorCode::InvalidFulfillmentConfig
+        )?;
+        validate!(
+            openbook_v2_fulfillment_config.status == SpotFulfillmentConfigStatus::Enabled,
+            ErrorCode::SpotFulfillmentConfigDisabled
+        )?;
+        validate!(
+            openbook_v2_fulfillment_config.market_index == base_market.market_index,
+            ErrorCode::InvalidFulfillmentConfig,
+            "config market index {} does not equal base asset index {}",
+            openbook_v2_fulfillment_config.market_index,
+            base_market.market_index
+        )?;
+        validate!(
+            &openbook_v2_fulfillment_config.openbook_v2_event_heap == openbook_v2_event_heap.key,
+            ErrorCode::InvalidFulfillmentConfig,
+            "Openbook V2 eventheap key does not match"
+        )?;
+        validate!(
+            &openbook_v2_fulfillment_config.openbook_v2_bids == openbook_v2_bids.key,
+            ErrorCode::InvalidFulfillmentConfig,
+            "Openbook V2 bids key does not match"
+        )?;
+        validate!(
+            &openbook_v2_fulfillment_config.openbook_v2_asks == openbook_v2_asks.key,
+            ErrorCode::InvalidFulfillmentConfig,
+            "Openbook V2 asks key does not match"
+        )?;
+        validate!(
+            &openbook_v2_fulfillment_config.openbook_v2_base_vault == openbook_v2_base_vault.key,
+            ErrorCode::InvalidFulfillmentConfig,
+            "OpenbookV2 quote vault key does not match"
+        )?;
+
+        validate!(
+            &openbook_v2_fulfillment_config.openbook_v2_quote_vault == openbook_v2_quote_vault.key,
+            ErrorCode::InvalidFulfillmentConfig,
+            "OpenbookV2 quote vault key does not match"
+        )?;
+
+        validate!(
+            &openbook_v2_fulfillment_config.openbook_v2_market == openbook_v2_market.key,
+            ErrorCode::InvalidFulfillmentConfig
+        )?;
+        validate!(
+            &quote_market.vault == quote_market_vault.key,
+            ErrorCode::InvalidFulfillmentConfig
+        )?;
+        validate!(
+            &base_market.vault == base_market_vault.key,
+            ErrorCode::InvalidFulfillmentConfig
+        )?;
         let base_market_vault: Box<Account<TokenAccount>> =
             Box::new(Account::try_from(base_market_vault).map_err(|e| {
                 msg!("{:?}", e);
@@ -345,8 +407,6 @@ impl<'a, 'b> SpotFulfillmentParams for OpenbookV2FulfillmentParams<'a, 'b> {
         })
     }
     fn get_best_bid_and_ask(&self) -> DriftResult<(Option<u64>, Option<u64>)> {
-        // TODO - is this best way how to get best bid and ask?
-        // TODO remove expired orders ...
         // use pub struct BookSideIterItem<'a> { from
         // https://github.com/openbook-dex/openbook-v2/blob/master/programs/openbook-v2/src/state/orderbook/bookside_iterator.rs
         // https://github.com/openbook-dex/openbook-v2/blob/master/programs/openbook-v2/src/instructions/place_take_order.rs
