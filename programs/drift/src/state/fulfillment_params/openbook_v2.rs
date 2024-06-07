@@ -184,9 +184,6 @@ impl<'a, 'b> OpenbookV2FulfillmentParams<'a, 'b> {
 
 // TODO
 impl<'a, 'b> OpenbookV2FulfillmentParams<'a, 'b> {
-    pub fn to_account_infos(&self) {
-        // TODO return account infos
-    }
 
     pub fn invoke_new_order(&self, data: Vec<u8>) -> DriftResult {
         let mut new_place_take_order_instruction = Instruction{
@@ -211,15 +208,32 @@ impl<'a, 'b> OpenbookV2FulfillmentParams<'a, 'b> {
             ],
             data,
         };
-        // TODO
-        // let account_infos = []
+        let account_infos = [
+            self.openbook_v2_context.openbook_v2_program.clone(),
+            self.drift_signer.clone(),
+            self.drift_signer.clone(),
+            self.openbook_v2_context.openbook_v2_market.clone(),
+            self.openbook_v2_market_authority.clone(),
+            self.openbook_v2_bids.clone(),
+            self.openbook_v2_asks.clone(),
+            self.openbook_v2_base_vault.clone(),
+            self.openbook_v2_quote_vault.clone(),
+            self.openbook_v2_event_heap.clone(),
+            self.base_market_vault.to_account_info(),
+            self.quote_market_vault.to_account_info(),
+            self.openbook_v2_context.openbook_v2_program.clone(),
+            self.openbook_v2_context.openbook_v2_program.clone(),
+            self.token_program.to_account_info(),
+            self.system_program.to_account_info(),
+            self.openbook_v2_context.openbook_v2_program.clone(),
+        ];
         let signer_seeds = get_signer_seeds(&self.signer_nonce);
         let signers_seeds = &[&signer_seeds[..]];
 
         invoke_signed_unchecked(
             &new_place_take_order_instruction,
             // TODO .to_account_infos()
-            &vec![],
+            &account_infos,
             signers_seeds,
         )
             .map_err(|e| {
