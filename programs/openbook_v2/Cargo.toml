@@ -1,0 +1,28 @@
+[package]
+name = "openbook-v2"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[lib]
+crate-type = ["cdylib", "lib"]
+name = "openbook_v2"
+path = "src/lib.rs"
+
+[features]
+default = ["cpi"]
+no-entrypoint = []
+no-idl = []
+no-log-ix-name = []
+cpi = ["no-entrypoint"]
+
+[dependencies]
+anchor-lang = {  version = "0.27.0", features = ["derive"] }
+borsh = {version = "0.9.1", features = ["const-generics", "default"]}
+bytemuck = {  version = "1.16.0" , features = ["derive", "min_const_generics"]}
+num_enum = "0.7.2"
+static_assertions = "1.1.0"
+
+[dev-dependencies]
+solana-sdk = "=1.14.16"
+solana-client = "=1.14.16"
