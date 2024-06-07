@@ -35,6 +35,7 @@ use crate::validation::user::validate_user_is_idle;
 use crate::{controller, load, math, OracleSource};
 use crate::{load_mut, QUOTE_PRECISION_U64};
 use crate::{validate, QUOTE_PRECISION_I128};
+use crate::state::fulfillment_params::openbook_v2::OpenbookV2FulfillmentParams;
 
 #[access_control(
     fill_not_paused(&ctx.accounts.state)
@@ -139,6 +140,7 @@ pub enum SpotFulfillmentType {
     SerumV3,
     Match,
     PhoenixV1,
+    OpenbookV2,
 }
 
 impl Default for SpotFulfillmentType {
@@ -229,6 +231,17 @@ fn fill_spot_order<'info>(
                 &ctx.accounts.state,
                 &base_market,
                 &quote_market,
+            )?)
+        }
+        SpotFulfillmentType::OpenbookV2 => {
+            let base_market = spot_market_map.get_ref(&market_index)?;
+            let quote_market = spot_market_map.get_quote_spot_market()?;
+            Box::new(OpenbookV2FulfillmentParams::new(
+                remaining_accounts_iter,
+                &ctx.accounts.state,
+                &base_market,
+                &quote_market,
+                clock.unix_timestamp,
             )?)
         }
         SpotFulfillmentType::Match => {
