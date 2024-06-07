@@ -3269,14 +3269,30 @@ export class DriftClient {
 		subAccountId?: number
 	): Promise<TransactionSignature> {
 		const { txSig } = await this.sendTransaction(
-			await this.buildTransaction(
-				await this.getPlaceOrdersIx(params, subAccountId),
-				txParams
-			),
+			(await this.prepPlaceOrdersTx(
+				params,
+				txParams,
+				subAccountId
+			)).placeOrdersTx,
 			[],
 			this.opts
 		);
 		return txSig;
+	}
+
+	public async prepPlaceOrdersTx(
+		params: OrderParams[],
+		txParams?: TxParams,
+		subAccountId?: number
+	) {
+		const tx = await this.buildTransaction(
+			await this.getPlaceOrdersIx(params, subAccountId),
+			txParams
+		);
+
+		return {
+			placeOrdersTx: tx,
+		};
 	}
 
 	public async getPlaceOrdersIx(
@@ -3449,16 +3465,28 @@ export class DriftClient {
 		subAccountId?: number
 	): Promise<TransactionSignature> {
 		const { txSig, slot } = await this.sendTransaction(
-			await this.buildTransaction(
-				await this.getPlaceSpotOrderIx(orderParams, subAccountId),
-				txParams
-			),
+			(await this.prepPlaceSpotOrderTx(orderParams, txParams, subAccountId)).placeSpotOrderTx,
 			[],
 			this.opts
 		);
 		this.spotMarketLastSlotCache.set(orderParams.marketIndex, slot);
 		this.spotMarketLastSlotCache.set(QUOTE_SPOT_MARKET_INDEX, slot);
 		return txSig;
+	}
+
+	public async prepPlaceSpotOrderTx(
+		orderParams: OptionalOrderParams,
+		txParams?: TxParams,
+		subAccountId?: number
+	) {
+		const tx = await this.buildTransaction(
+			await this.getPlaceSpotOrderIx(orderParams, subAccountId),
+			txParams
+		);
+
+		return {
+			placeSpotOrderTx: tx,
+		};
 	}
 
 	public async getPlaceSpotOrderIx(
@@ -4515,7 +4543,7 @@ export class DriftClient {
 		return txSig;
 	}
 
-	public async placeAndTakePerpWithAdditionalOrders(
+	public async preparePlaceAndTakePerpOrderWithAdditionalOrders(
 		orderParams: OptionalOrderParams,
 		makerInfo?: MakerInfo | MakerInfo[],
 		referrerInfo?: ReferrerInfo,
@@ -4525,22 +4553,21 @@ export class DriftClient {
 		cancelExistingOrders?: boolean,
 		settlePnl?: boolean,
 		exitEarlyIfSimFails?: boolean
-	): Promise<{
-		txSig: TransactionSignature;
-		signedCancelExistingOrdersTx?: Transaction;
-		signedSettlePnlTx?: Transaction;
+	) : Promise<{
+		placeAndTakeTx: Transaction | VersionedTransaction,
+		cancelExistingOrdersTx: Transaction | VersionedTransaction,
+		settlePnlTx: Transaction | VersionedTransaction,
 	}> {
 		const placeAndTakeIxs: TransactionInstruction[] = [];
 
 		const txsToSign: {
-			key: string;
-			tx: Transaction | VersionedTransaction;
-		}[] = [];
-
-		const keys = {
-			placeAndTakeIx: 'placeAndTakeIx',
-			cancelExistingOrdersTx: 'cancelExistingOrdersTx',
-			settlePnlTx: 'settlePnlTx',
+			placeAndTakeTx: Transaction | VersionedTransaction
+			cancelExistingOrdersTx: Transaction | VersionedTransaction
+			settlePnlTx: Transaction | VersionedTransaction
+		} = {
+			placeAndTakeTx: null,
+			cancelExistingOrdersTx: null,
+			settlePnlTx: null,
 		};
 
 		// Get recent block hash so that we can re-use it for all transactions. Makes this logic run faster with fewer RPC requests
@@ -4598,32 +4625,26 @@ export class DriftClient {
 					return;
 				}
 
-				txsToSign.push({
-					key: keys.placeAndTakeIx,
-					tx: await this.buildTransaction(
-						placeAndTakeIxs,
-						{
-							...txParamsWithoutImplicitSimulation,
-							computeUnits: simulationResult.computeUnits,
-						},
-						undefined,
-						undefined,
-						undefined,
-						recentBlockHash
-					),
-				});
+				txsToSign.placeAndTakeTx = await this.buildTransaction(
+					placeAndTakeIxs,
+					{
+						...txParamsWithoutImplicitSimulation,
+						computeUnits: simulationResult.computeUnits,
+					},
+					undefined,
+					undefined,
+					undefined,
+					recentBlockHash
+				);
 			} else {
-				txsToSign.push({
-					key: keys.placeAndTakeIx,
-					tx: await this.buildTransaction(
-						placeAndTakeIxs,
-						txParams,
-						undefined,
-						undefined,
-						undefined,
-						recentBlockHash
-					),
-				});
+				txsToSign.placeAndTakeTx = await this.buildTransaction(
+					placeAndTakeIxs,
+					txParams,
+					undefined,
+					undefined,
+					undefined,
+					recentBlockHash
+				);
 			}
 
 			return;
@@ -4638,17 +4659,14 @@ export class DriftClient {
 					subAccountId
 				);
 
-				txsToSign.push({
-					key: keys.cancelExistingOrdersTx,
-					tx: await this.buildTransaction(
-						[cancelOrdersIx],
-						txParams,
-						this.txVersion,
-						undefined,
-						undefined,
-						recentBlockHash
-					),
-				});
+				txsToSign.cancelExistingOrdersTx = await this.buildTransaction(
+					[cancelOrdersIx],
+					txParams,
+					this.txVersion,
+					undefined,
+					undefined,
+					recentBlockHash
+				);
 			}
 
 			return;
@@ -4666,17 +4684,14 @@ export class DriftClient {
 					orderParams.marketIndex
 				);
 
-				txsToSign.push({
-					key: keys.settlePnlTx,
-					tx: await this.buildTransaction(
-						[settlePnlIx],
-						txParams,
-						this.txVersion,
-						undefined,
-						undefined,
-						recentBlockHash
-					),
-				});
+				txsToSign.settlePnlTx = await this.buildTransaction(
+					[settlePnlIx],
+					txParams,
+					this.txVersion,
+					undefined,
+					undefined,
+					recentBlockHash
+				);
 			}
 			return;
 		};
@@ -4691,14 +4706,55 @@ export class DriftClient {
 			return null;
 		}
 
+		return txsToSign;
+	}
+
+	public async placeAndTakePerpWithAdditionalOrders(
+		orderParams: OptionalOrderParams,
+		makerInfo?: MakerInfo | MakerInfo[],
+		referrerInfo?: ReferrerInfo,
+		bracketOrdersParams = new Array<OptionalOrderParams>(),
+		txParams?: TxParams,
+		subAccountId?: number,
+		cancelExistingOrders?: boolean,
+		settlePnl?: boolean,
+		exitEarlyIfSimFails?: boolean
+	): Promise<{
+		txSig: TransactionSignature;
+		signedCancelExistingOrdersTx?: Transaction;
+		signedSettlePnlTx?: Transaction;
+	}> {
+
+		const txsToSign = await this.preparePlaceAndTakePerpOrderWithAdditionalOrders(
+			orderParams,
+			makerInfo,
+			referrerInfo,
+			bracketOrdersParams,
+			txParams,
+			subAccountId,
+			cancelExistingOrders,
+			settlePnl,
+			exitEarlyIfSimFails
+		);
+
+		// A typesafe lookup for the keys in txsToSign
+		const keys : Record<
+			keyof typeof txsToSign,
+			keyof typeof txsToSign
+		> = {
+			placeAndTakeTx: 'placeAndTakeTx',
+			cancelExistingOrdersTx: 'cancelExistingOrdersTx',
+			settlePnlTx: 'settlePnlTx',
+		};
+
 		const signedTxs = await this.txHandler.getSignedTransactionMap(
-			txsToSign.map((tx) => tx.tx),
-			txsToSign.map((tx) => tx.key),
+			Object.values(txsToSign),
+			Object.keys(txsToSign),
 			this.provider.wallet
 		);
 
 		const { txSig, slot } = await this.sendTransaction(
-			signedTxs[keys.placeAndTakeIx],
+			signedTxs[keys.placeAndTakeTx],
 			[],
 			this.opts,
 			true
@@ -4864,6 +4920,31 @@ export class DriftClient {
 		);
 	}
 
+	public async prepPlaceAndTakeSpotOrder(
+		orderParams: OptionalOrderParams,
+		fulfillmentConfig?: SerumV3FulfillmentConfigAccount,
+		makerInfo?: MakerInfo,
+		referrerInfo?: ReferrerInfo,
+		txParams?: TxParams,
+		subAccountId?: number
+	) {
+
+		const tx = await this.buildTransaction(
+			await this.getPlaceAndTakeSpotOrderIx(
+				orderParams,
+				fulfillmentConfig,
+				makerInfo,
+				referrerInfo,
+				subAccountId
+			),
+			txParams
+		);
+
+		return {
+			placeAndTakeSpotOrderTx: tx,
+		};
+	}
+
 	public async placeAndTakeSpotOrder(
 		orderParams: OptionalOrderParams,
 		fulfillmentConfig?: SerumV3FulfillmentConfigAccount,
@@ -4873,16 +4954,14 @@ export class DriftClient {
 		subAccountId?: number
 	): Promise<TransactionSignature> {
 		const { txSig, slot } = await this.sendTransaction(
-			await this.buildTransaction(
-				await this.getPlaceAndTakeSpotOrderIx(
-					orderParams,
-					fulfillmentConfig,
-					makerInfo,
-					referrerInfo,
-					subAccountId
-				),
-				txParams
-			),
+			(await this.prepPlaceAndTakeSpotOrder(
+				orderParams,
+				fulfillmentConfig,
+				makerInfo,
+				referrerInfo,
+				txParams,
+				subAccountId
+			)).placeAndTakeSpotOrderTx,
 			[],
 			this.opts
 		);
