@@ -26,6 +26,12 @@ import {
 import { containsComputeUnitIxs } from '../util/computeUnits';
 import dotenv from 'dotenv';
 
+/**
+ * Explanation for SIGNATURE_BLOCK_AND_EXPIRY:
+ * 
+ * When the whileValidTxSender waits for confirmation of a given transaction, it needs the last available blockheight and blockhash used in the signature to do so. For pre-signed transactions, these values aren't attached to the transaction object by default. For a "scrappy" workaround which doesn't break backwards compatibility, the SIGNATURE_BLOCK_AND_EXPIRY property is simply attached to the transaction objects as they are created or signed in this handler despite a mismatch in the typescript types. If the values are attached to the transaction when they reach the whileValidTxSender, it can opt-in to use these values.
+ */
+
 // Load environment variables
 dotenv.config();
 
@@ -146,7 +152,7 @@ export class TxHandler {
 		const signedTx = await this.signTx(tx, additionalSigners);
 
 		// @ts-ignore
-		signedTx.DRIFT_SIGNED_WITH_BLOCK_AND_EXP = recentBlockhash;
+		signedTx.SIGNATURE_BLOCK_AND_EXPIRY = recentBlockhash;
 
 		return signedTx;
 	}
@@ -194,11 +200,6 @@ export class TxHandler {
 
 		const signedTx = await wallet.signTransaction(tx);
 
-		console.log(
-			// @ts-ignore
-			`⭐️:: signing txs with last block height : ${tx.DRIFT_SIGNED_WITH_BLOCK_AND_EXP.lastValidBlockHeight}`
-		);
-
 		// Turn txSig Buffer into base58 string
 		const txSig = this.getTxSigFromSignedTx(signedTx);
 
@@ -227,7 +228,7 @@ export class TxHandler {
 			this.addHashAndExpiryToLookup(recentBlockhash);
 
 			// @ts-ignore
-			tx.DRIFT_SIGNED_WITH_BLOCK_AND_EXP = recentBlockhash;
+			tx.SIGNATURE_BLOCK_AND_EXPIRY = recentBlockhash;
 		}
 
 		additionalSigners
@@ -240,11 +241,6 @@ export class TxHandler {
 
 		//@ts-ignore
 		const signedTx = (await wallet.signTransaction(tx)) as VersionedTransaction;
-
-		console.log(
-			// @ts-ignore
-			`⭐️:: signing txs with last block height : ${tx.DRIFT_SIGNED_WITH_BLOCK_AND_EXP.lastValidBlockHeight}`
-		);
 
 		// Turn txSig Buffer into base58 string
 		const txSig = this.getTxSigFromSignedTx(signedTx);
@@ -351,7 +347,7 @@ export class TxHandler {
 		const tx = this._generateVersionedTransaction(recentBlockhash, message);
 
 		// @ts-ignore
-		tx.DRIFT_SIGNED_WITH_BLOCK_AND_EXP = recentBlockhash;
+		tx.SIGNATURE_BLOCK_AND_EXPIRY = recentBlockhash;
 
 		return tx;
 	}
@@ -373,7 +369,7 @@ export class TxHandler {
 		const tx = this._generateVersionedTransaction(recentBlockhash, message);
 
 		// @ts-ignore
-		tx.DRIFT_SIGNED_WITH_BLOCK_AND_EXP = recentBlockhash;
+		tx.SIGNATURE_BLOCK_AND_EXPIRY = recentBlockhash;
 
 		return tx;
 	}
@@ -564,7 +560,7 @@ export class TxHandler {
 			tx.feePayer = wallet?.publicKey ?? this.wallet?.publicKey;
 
 			// @ts-ignore
-			tx.DRIFT_SIGNED_WITH_BLOCK_AND_EXP = recentBlockhash;
+			tx.SIGNATURE_BLOCK_AND_EXPIRY = recentBlockhash;
 		}
 
 		return this.getSignedTransactionMap(txsToSign, keys, wallet);
@@ -597,7 +593,7 @@ export class TxHandler {
 			tx.feePayer = wallet?.publicKey ?? this.wallet?.publicKey;
 
 			// @ts-ignore
-			tx.DRIFT_SIGNED_WITH_BLOCK_AND_EXP = recentBlockhash;
+			tx.SIGNATURE_BLOCK_AND_EXPIRY = recentBlockhash;
 		}
 
 		return this.getSignedTransactionMap(txsToSign, keys, wallet);
@@ -644,15 +640,10 @@ export class TxHandler {
 
 		signedTxs.forEach((signedTx, index) => {
 			// @ts-ignore
-			signedTx.DRIFT_SIGNED_WITH_BLOCK_AND_EXP =
+			signedTx.SIGNATURE_BLOCK_AND_EXPIRY =
 				// @ts-ignore
-				txsToSign[index]?.DRIFT_SIGNED_WITH_BLOCK_AND_EXP;
+				txsToSign[index]?.SIGNATURE_BLOCK_AND_EXPIRY;
 		});
-
-		console.log(
-			// @ts-ignore
-			`⭐️:: signing txs with last block height : ${signedTxs[0].DRIFT_SIGNED_WITH_BLOCK_AND_EXP.lastValidBlockHeight}`
-		);
 
 		this.handleSignedTxData(
 			signedTxs.map((signedTx) => {

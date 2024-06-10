@@ -93,9 +93,13 @@ export class WhileValidTxSender extends BaseTxSender {
 				false,
 				latestBlockhash
 			);
-		} else {
+		}
+
+		// See SIGNATURE_BLOCK_AND_EXPIRY explanation in txHandler.ts if this is confusing
+		// @ts-ignore
+		if (preSigned && tx.SIGNATURE_BLOCK_AND_EXPIRY) {
 			// @ts-ignore
-			latestBlockhash = tx.DRIFT_SIGNED_WITH_BLOCK_AND_EXP;
+			latestBlockhash = tx.SIGNATURE_BLOCK_AND_EXPIRY;
 		}
 
 		// handle subclass-specific side effects
@@ -119,8 +123,14 @@ export class WhileValidTxSender extends BaseTxSender {
 		let signedTx;
 		if (preSigned) {
 			signedTx = tx;
+
+			// See SIGNATURE_BLOCK_AND_EXPIRY explanation in txHandler.ts if this is confusing
 			// @ts-ignore
-			latestBlockhash = tx.DRIFT_SIGNED_WITH_BLOCK_AND_EXP;
+			if (tx.SIGNATURE_BLOCK_AND_EXPIRY) {
+				// @ts-ignore
+				latestBlockhash = tx.SIGNATURE_BLOCK_AND_EXPIRY;
+			}
+			
 			// @ts-ignore
 		} else if (this.wallet.payer) {
 			tx.message.recentBlockhash = latestBlockhash.blockhash;
@@ -189,12 +199,6 @@ export class WhileValidTxSender extends BaseTxSender {
 		let slot: number;
 		try {
 			const { blockhash, lastValidBlockHeight } = this.untilValid.get(txid);
-			// @ts-ignore
-			console.log(
-				`⭐️:: confirming tx using blockheight : ${
-					lastValidBlockHeight + VALID_BLOCK_HEIGHT_OFFSET
-				}`
-			);
 			const result = await this.connection.confirmTransaction(
 				{
 					signature: txid,
