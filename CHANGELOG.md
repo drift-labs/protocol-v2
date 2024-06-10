@@ -9,8 +9,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Features
 
+### Fixes
+
+### Breaking
+
+## [2.83.0] - 2024-06-06
+
+### Features
+
+- program: settle pnl block looks at oracle vs oracle 5min twap ([#1072](https://github.com/drift-labs/protocol-v2/pull/1072))
 - program: add settle pnl mode ([#1030](https://github.com/drift-labs/protocol-v2/pull/1030))
 - program: use strict price for maintenance margin check in settle pnl ([#1045](https://github.com/drift-labs/protocol-v2/pull/1045))
+- program: order w ioc can still get auction ([#1074](https://github.com/drift-labs/protocol-v2/pull/1074))
 
 ### Fixes
 

@@ -1931,7 +1931,7 @@ pub fn user_invalid_oracle_position() {
         None,
         SettlePnlMode::MustSettle,
     );
-    assert_eq!(result, Err(ErrorCode::InvalidOracle));
+    assert_eq!(result, Err(ErrorCode::OracleStaleForMargin));
 
     market
         .amm
@@ -2008,7 +2008,7 @@ pub fn user_invalid_oracle_position() {
         None,
         SettlePnlMode::MustSettle,
     );
-    assert_eq!(result, Err(ErrorCode::InvalidOracle));
+    assert_eq!(result, Err(ErrorCode::OracleStaleForMargin));
 
     market
         .amm

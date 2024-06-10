@@ -577,6 +577,26 @@ export const MainnetPerpMarkets: PerpMarketConfig[] = [
 		launchTs: 1716595200000,
 		oracleSource: OracleSource.SWITCHBOARD,
 	},
+	{
+		fullName: 'Sanctum',
+		category: ['LST', 'Solana'],
+		symbol: 'CLOUD-PERP',
+		baseAssetSymbol: 'CLOUD',
+		marketIndex: 31,
+		oracle: new PublicKey('C7UxgCodaEy4yqwTe3a4QXfsG7LnpMGGQdEqaxDae4b8'),
+		launchTs: 1717597648000,
+		oracleSource: OracleSource.Prelaunch,
+	},
+	{
+		fullName: 'IO',
+		category: ['DePIN', 'Solana'],
+		symbol: 'IO-PERP',
+		baseAssetSymbol: 'IO',
+		marketIndex: 32,
+		oracle: new PublicKey('5sAqMGidMtztNFdUukyguz6jMFS8DvTmSUr4p5u5zsSg'),
+		launchTs: 1718021389000,
+		oracleSource: OracleSource.Prelaunch,
+	},
 ];
 
 export const PerpMarkets: { [key in DriftEnv]: PerpMarketConfig[] } = {
