@@ -1,311 +1,313 @@
 import * as anchor from '@coral-xyz/anchor';
 import { Program } from '@coral-xyz/anchor';
 import { assert } from 'chai';
-
+import { startAnchor } from "solana-bankrun";
 import {
-	BN,
-	ExchangeStatus,
-	OracleGuardRails,
-	OracleSource,
-	TestClient,
+    BN,
+    ExchangeStatus,
+    OracleGuardRails,
+    OracleSource,
+    TestClient,
 } from '../sdk/src';
 
 import { decodeName, DEFAULT_MARKET_NAME } from '../sdk/src/userName';
 
 import {
-	initializeQuoteSpotMarket,
-	mockOracle,
-	mockUSDCMint,
+    initializeQuoteSpotMarket,
+    mockOracle,
+    mockUSDCMint,
 } from './testHelpers';
 import { PublicKey } from '@solana/web3.js';
-import { BulkAccountLoader } from '../sdk';
+import { BankrunContextWrapper } from '../sdk/src/bankrunConnection';
+import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
 
 describe('admin', () => {
-	const provider = anchor.AnchorProvider.local(undefined, {
-		commitment: 'confirmed',
-		preflightCommitment: 'confirmed',
-	});
-	const connection = provider.connection;
-	anchor.setProvider(provider);
-	const chProgram = anchor.workspace.Drift as Program;
+    const chProgram = anchor.workspace.Drift as Program;
 
-	const bulkAccountLoader = new BulkAccountLoader(connection, 'confirmed', 1);
+    let bulkAccountLoader: TestBulkAccountLoader;
 
-	let driftClient: TestClient;
+    let driftClient: TestClient;
 
-	let usdcMint;
+    let usdcMint;
 
-	before(async () => {
-		usdcMint = await mockUSDCMint(provider);
+    before(async () => {
+        const context = await startAnchor("", [], []);
 
-		driftClient = new TestClient({
-			connection,
-			wallet: provider.wallet,
-			programID: chProgram.programId,
-			opts: {
-				commitment: 'confirmed',
-			},
-			activeSubAccountId: 0,
-			perpMarketIndexes: [0],
-			spotMarketIndexes: [0],
-			accountSubscription: {
-				type: 'polling',
-				accountLoader: bulkAccountLoader,
-			},
-		});
+		const bankrunContextWrapper = new BankrunContextWrapper(context);
+		
+        bulkAccountLoader = new TestBulkAccountLoader(bankrunContextWrapper.provider.connection, 'confirmed', 1);
 
-		await driftClient.initialize(usdcMint.publicKey, true);
-		await driftClient.subscribe();
-		await driftClient.fetchAccounts();
+        usdcMint = await mockUSDCMint(bankrunContextWrapper);
 
-		await initializeQuoteSpotMarket(driftClient, usdcMint.publicKey);
-		await driftClient.updatePerpAuctionDuration(new BN(0));
-		await driftClient.fetchAccounts();
+        driftClient = new TestClient({
+            connection: bankrunContextWrapper.connection,
+            wallet: bankrunContextWrapper.provider.wallet,
+            programID: chProgram.programId,
+            opts: {
+                commitment: 'confirmed',
+            },
+            activeSubAccountId: 0,
+            perpMarketIndexes: [0],
+            spotMarketIndexes: [0],
+            subAccountIds: [],
+            accountSubscription: {
+                type: 'polling',
+                accountLoader: bulkAccountLoader,
+            },
+        });
 
-		const solUsd = await mockOracle(1);
-		const periodicity = new BN(60 * 60); // 1 HOUR
+        await driftClient.initialize(usdcMint.publicKey, true);
+        await driftClient.subscribe();
+        console.log("initializing user account");
+        await driftClient.initializeUserAccount(0);
+        await driftClient.fetchAccounts();
 
-		await driftClient.initializePerpMarket(
-			0,
-			solUsd,
-			new BN(1000),
-			new BN(1000),
-			periodicity
-		);
-	});
+        await initializeQuoteSpotMarket(driftClient, usdcMint.publicKey);
+        await driftClient.updatePerpAuctionDuration(new BN(0));
+        await driftClient.fetchAccounts();
 
-	it('checks market name', async () => {
-		const market = driftClient.getPerpMarketAccount(0);
-		const name = decodeName(market.name);
-		assert(name == DEFAULT_MARKET_NAME);
+        const solUsd = await mockOracle(1);
+        const periodicity = new BN(60 * 60); // 1 HOUR
 
-		const newName = 'Glory t0 the DAmm';
-		await driftClient.updatePerpMarketName(0, newName);
+        await driftClient.initializePerpMarket(
+            0,
+            solUsd,
+            new BN(1000),
+            new BN(1000),
+            periodicity
+        );
+    });
 
-		await driftClient.fetchAccounts();
-		const newMarket = driftClient.getPerpMarketAccount(0);
-		assert(decodeName(newMarket.name) == newName);
-	});
+    it('checks market name', async () => {
+        const market = driftClient.getPerpMarketAccount(0);
+        const name = decodeName(market.name);
+        assert(name == DEFAULT_MARKET_NAME);
 
-	it('Update lp cooldown time', async () => {
-		await driftClient.updateLpCooldownTime(new BN(420));
-		await driftClient.fetchAccounts();
-		assert(driftClient.getStateAccount().lpCooldownTime.eq(new BN(420)));
-	});
+        const newName = 'Glory t0 the DAmm';
+        await driftClient.updatePerpMarketName(0, newName);
 
-	it('Update Amm Jit', async () => {
-		await driftClient.fetchAccounts();
-		assert(driftClient.getPerpMarketAccount(0).amm.ammJitIntensity == 0);
+        await driftClient.fetchAccounts();
+        const newMarket = driftClient.getPerpMarketAccount(0);
+        assert(decodeName(newMarket.name) == newName);
+    });
 
-		await driftClient.updateAmmJitIntensity(0, 100);
-		await driftClient.fetchAccounts();
-		assert(driftClient.getPerpMarketAccount(0).amm.ammJitIntensity == 100);
+    it('Update lp cooldown time', async () => {
+        await driftClient.updateLpCooldownTime(new BN(420));
+        await driftClient.fetchAccounts();
+        assert(driftClient.getStateAccount().lpCooldownTime.eq(new BN(420)));
+    });
 
-		await driftClient.updateAmmJitIntensity(0, 50);
-		await driftClient.fetchAccounts();
-		assert(driftClient.getPerpMarketAccount(0).amm.ammJitIntensity == 50);
-	});
+    it('Update Amm Jit', async () => {
+        await driftClient.fetchAccounts();
+        assert(driftClient.getPerpMarketAccount(0).amm.ammJitIntensity == 0);
 
-	it('Update Margin Ratio', async () => {
-		const marginRatioInitial = 3000;
-		const marginRatioMaintenance = 1000;
+        await driftClient.updateAmmJitIntensity(0, 100);
+        await driftClient.fetchAccounts();
+        assert(driftClient.getPerpMarketAccount(0).amm.ammJitIntensity == 100);
 
-		await driftClient.updatePerpMarketMarginRatio(
-			0,
-			marginRatioInitial,
-			marginRatioMaintenance
-		);
+        await driftClient.updateAmmJitIntensity(0, 50);
+        await driftClient.fetchAccounts();
+        assert(driftClient.getPerpMarketAccount(0).amm.ammJitIntensity == 50);
+    });
 
-		await driftClient.fetchAccounts();
-		const market = driftClient.getPerpMarketAccount(0);
+    it('Update Margin Ratio', async () => {
+        const marginRatioInitial = 3000;
+        const marginRatioMaintenance = 1000;
 
-		assert(market.marginRatioInitial === marginRatioInitial);
-		assert(market.marginRatioMaintenance === marginRatioMaintenance);
-	});
+        await driftClient.updatePerpMarketMarginRatio(
+            0,
+            marginRatioInitial,
+            marginRatioMaintenance
+        );
 
-	it('Update perp fee structure', async () => {
-		const newFeeStructure = driftClient.getStateAccount().perpFeeStructure;
-		newFeeStructure.flatFillerFee = new BN(0);
+        await driftClient.fetchAccounts();
+        const market = driftClient.getPerpMarketAccount(0);
 
-		await driftClient.updatePerpFeeStructure(newFeeStructure);
+        assert(market.marginRatioInitial === marginRatioInitial);
+        assert(market.marginRatioMaintenance === marginRatioMaintenance);
+    });
 
-		await driftClient.fetchAccounts();
-		const state = driftClient.getStateAccount();
+    it('Update perp fee structure', async () => {
+        const newFeeStructure = driftClient.getStateAccount().perpFeeStructure;
+        newFeeStructure.flatFillerFee = new BN(0);
 
-		assert(
-			JSON.stringify(newFeeStructure) === JSON.stringify(state.perpFeeStructure)
-		);
-	});
+        await driftClient.updatePerpFeeStructure(newFeeStructure);
 
-	it('Update spot fee structure', async () => {
-		const newFeeStructure = driftClient.getStateAccount().spotFeeStructure;
-		newFeeStructure.flatFillerFee = new BN(1);
+        await driftClient.fetchAccounts();
+        const state = driftClient.getStateAccount();
 
-		await driftClient.updateSpotFeeStructure(newFeeStructure);
+        assert(
+            JSON.stringify(newFeeStructure) === JSON.stringify(state.perpFeeStructure)
+        );
+    });
 
-		await driftClient.fetchAccounts();
-		const state = driftClient.getStateAccount();
+    it('Update spot fee structure', async () => {
+        const newFeeStructure = driftClient.getStateAccount().spotFeeStructure;
+        newFeeStructure.flatFillerFee = new BN(1);
 
-		assert(
-			JSON.stringify(newFeeStructure) === JSON.stringify(state.spotFeeStructure)
-		);
-	});
+        await driftClient.updateSpotFeeStructure(newFeeStructure);
 
-	it('Update oracle guard rails', async () => {
-		const oracleGuardRails: OracleGuardRails = {
-			priceDivergence: {
-				markOraclePercentDivergence: new BN(1000000),
-				oracleTwap5MinPercentDivergence: new BN(1000000),
-			},
-			validity: {
-				slotsBeforeStaleForAmm: new BN(1),
-				slotsBeforeStaleForMargin: new BN(1),
-				confidenceIntervalMaxSize: new BN(1),
-				tooVolatileRatio: new BN(1),
-			},
-		};
+        await driftClient.fetchAccounts();
+        const state = driftClient.getStateAccount();
 
-		await driftClient.updateOracleGuardRails(oracleGuardRails);
+        assert(
+            JSON.stringify(newFeeStructure) === JSON.stringify(state.spotFeeStructure)
+        );
+    });
 
-		await driftClient.fetchAccounts();
-		const state = driftClient.getStateAccount();
+    it('Update oracle guard rails', async () => {
+        const oracleGuardRails: OracleGuardRails = {
+            priceDivergence: {
+                markOraclePercentDivergence: new BN(1000000),
+                oracleTwap5MinPercentDivergence: new BN(1000000),
+            },
+            validity: {
+                slotsBeforeStaleForAmm: new BN(1),
+                slotsBeforeStaleForMargin: new BN(1),
+                confidenceIntervalMaxSize: new BN(1),
+                tooVolatileRatio: new BN(1),
+            },
+        };
 
-		assert(
-			JSON.stringify(oracleGuardRails) ===
-				JSON.stringify(state.oracleGuardRails)
-		);
-	});
+        await driftClient.updateOracleGuardRails(oracleGuardRails);
 
-	it('Update protocol mint', async () => {
-		const mint = new PublicKey('2fvh6hkCYfpNqke9N48x6HcrW92uZVU3QSiXZX4A5L27');
+        await driftClient.fetchAccounts();
+        const state = driftClient.getStateAccount();
 
-		await driftClient.updateDiscountMint(mint);
+        assert(
+            JSON.stringify(oracleGuardRails) ===
+                JSON.stringify(state.oracleGuardRails)
+        );
+    });
 
-		await driftClient.fetchAccounts();
-		const state = driftClient.getStateAccount();
+    it('Update protocol mint', async () => {
+        const mint = new PublicKey('2fvh6hkCYfpNqke9N48x6HcrW92uZVU3QSiXZX4A5L27');
 
-		assert(state.discountMint.equals(mint));
-	});
+        await driftClient.updateDiscountMint(mint);
 
-	// it('Update max deposit', async () => {
-	// 	const maxDeposit = new BN(10);
+        await driftClient.fetchAccounts();
+        const state = driftClient.getStateAccount();
 
-	// 	await driftClient.updateMaxDeposit(maxDeposit);
+        assert(state.discountMint.equals(mint));
+    });
 
-	// 	await driftClient.fetchAccounts();
-	// 	const state = driftClient.getStateAccount();
+    // it('Update max deposit', async () => {
+    //  const maxDeposit = new BN(10);
 
-	// 	assert(state.maxDeposit.eq(maxDeposit));
-	// });
+    //  await driftClient.updateMaxDeposit(maxDeposit);
 
-	it('Update market oracle', async () => {
-		const newOracle = PublicKey.default;
-		const newOracleSource = OracleSource.QUOTE_ASSET;
+    //  await driftClient.fetchAccounts();
+    //  const state = driftClient.getStateAccount();
 
-		await driftClient.updatePerpMarketOracle(0, newOracle, newOracleSource);
+    //  assert(state.maxDeposit.eq(maxDeposit));
+    // });
 
-		await driftClient.fetchAccounts();
-		const market = driftClient.getPerpMarketAccount(0);
-		assert(market.amm.oracle.equals(PublicKey.default));
-		assert(
-			JSON.stringify(market.amm.oracleSource) ===
-				JSON.stringify(newOracleSource)
-		);
-	});
+    it('Update market oracle', async () => {
+        const newOracle = PublicKey.default;
+        const newOracleSource = OracleSource.QUOTE_ASSET;
 
-	it('Update market base asset step size', async () => {
-		const stepSize = new BN(2);
-		const tickSize = new BN(2);
+        await driftClient.updatePerpMarketOracle(0, newOracle, newOracleSource);
 
-		await driftClient.updatePerpMarketStepSizeAndTickSize(
-			0,
-			stepSize,
-			tickSize
-		);
+        await driftClient.fetchAccounts();
+        const market = driftClient.getPerpMarketAccount(0);
+        assert(market.amm.oracle.equals(PublicKey.default));
+        assert(
+            JSON.stringify(market.amm.oracleSource) ===
+                JSON.stringify(newOracleSource)
+        );
+    });
 
-		await driftClient.fetchAccounts();
-		const market = driftClient.getPerpMarketAccount(0);
-		assert(market.amm.orderStepSize.eq(stepSize));
-		assert(market.amm.orderTickSize.eq(tickSize));
-	});
+    it('Update market base asset step size', async () => {
+        const stepSize = new BN(2);
+        const tickSize = new BN(2);
 
-	it('Pause liq', async () => {
-		await driftClient.updateExchangeStatus(ExchangeStatus.LIQ_PAUSED);
-		await driftClient.fetchAccounts();
-		const state = driftClient.getStateAccount();
-		assert(state.exchangeStatus === ExchangeStatus.LIQ_PAUSED);
+        await driftClient.updatePerpMarketStepSizeAndTickSize(
+            0,
+            stepSize,
+            tickSize
+        );
 
-		console.log('paused liq!');
-		// unpause
-		await driftClient.updateExchangeStatus(ExchangeStatus.ACTIVE);
-		await driftClient.fetchAccounts();
-		const state2 = driftClient.getStateAccount();
-		assert(state2.exchangeStatus === ExchangeStatus.ACTIVE);
-		console.log('unpaused liq!');
-	});
+        await driftClient.fetchAccounts();
+        const market = driftClient.getPerpMarketAccount(0);
+        assert(market.amm.orderStepSize.eq(stepSize));
+        assert(market.amm.orderTickSize.eq(tickSize));
+    });
 
-	it('Pause amm', async () => {
-		await driftClient.updateExchangeStatus(ExchangeStatus.AMM_PAUSED);
-		await driftClient.fetchAccounts();
-		const state = driftClient.getStateAccount();
-		assert(state.exchangeStatus === ExchangeStatus.AMM_PAUSED);
+    it('Pause liq', async () => {
+        await driftClient.updateExchangeStatus(ExchangeStatus.LIQ_PAUSED);
+        await driftClient.fetchAccounts();
+        const state = driftClient.getStateAccount();
+        assert(state.exchangeStatus === ExchangeStatus.LIQ_PAUSED);
 
-		console.log('paused amm!');
-		// unpause
-		await driftClient.updateExchangeStatus(ExchangeStatus.ACTIVE);
-		await driftClient.fetchAccounts();
-		const state2 = driftClient.getStateAccount();
-		assert(state2.exchangeStatus === ExchangeStatus.ACTIVE);
-		console.log('unpaused amm!');
-	});
+        console.log('paused liq!');
+        // unpause
+        await driftClient.updateExchangeStatus(ExchangeStatus.ACTIVE);
+        await driftClient.fetchAccounts();
+        const state2 = driftClient.getStateAccount();
+        assert(state2.exchangeStatus === ExchangeStatus.ACTIVE);
+        console.log('unpaused liq!');
+    });
 
-	it('Pause funding', async () => {
-		await driftClient.updateExchangeStatus(ExchangeStatus.FUNDING_PAUSED);
-		await driftClient.fetchAccounts();
-		const state = driftClient.getStateAccount();
-		assert(state.exchangeStatus === ExchangeStatus.FUNDING_PAUSED);
+    it('Pause amm', async () => {
+        await driftClient.updateExchangeStatus(ExchangeStatus.AMM_PAUSED);
+        await driftClient.fetchAccounts();
+        const state = driftClient.getStateAccount();
+        assert(state.exchangeStatus === ExchangeStatus.AMM_PAUSED);
 
-		console.log('paused funding!');
-		// unpause
-		await driftClient.updateExchangeStatus(ExchangeStatus.ACTIVE);
-		await driftClient.fetchAccounts();
-		const state2 = driftClient.getStateAccount();
-		assert(state2.exchangeStatus === ExchangeStatus.ACTIVE);
-		console.log('unpaused funding!');
-	});
+        console.log('paused amm!');
+        // unpause
+        await driftClient.updateExchangeStatus(ExchangeStatus.ACTIVE);
+        await driftClient.fetchAccounts();
+        const state2 = driftClient.getStateAccount();
+        assert(state2.exchangeStatus === ExchangeStatus.ACTIVE);
+        console.log('unpaused amm!');
+    });
 
-	it('Pause deposts and withdraws', async () => {
-		await driftClient.updateExchangeStatus(
-			ExchangeStatus.DEPOSIT_PAUSED | ExchangeStatus.WITHDRAW_PAUSED
-		);
-		await driftClient.fetchAccounts();
-		const state = driftClient.getStateAccount();
-		assert(
-			state.exchangeStatus ===
-				(ExchangeStatus.DEPOSIT_PAUSED | ExchangeStatus.WITHDRAW_PAUSED)
-		);
+    it('Pause funding', async () => {
+        await driftClient.updateExchangeStatus(ExchangeStatus.FUNDING_PAUSED);
+        await driftClient.fetchAccounts();
+        const state = driftClient.getStateAccount();
+        assert(state.exchangeStatus === ExchangeStatus.FUNDING_PAUSED);
 
-		console.log('paused deposits and withdraw!');
-		// unpause
-		await driftClient.updateExchangeStatus(ExchangeStatus.ACTIVE);
-		await driftClient.fetchAccounts();
-		const state2 = driftClient.getStateAccount();
-		assert(state2.exchangeStatus === ExchangeStatus.ACTIVE);
-		console.log('unpaused deposits and withdraws!');
-	});
+        console.log('paused funding!');
+        // unpause
+        await driftClient.updateExchangeStatus(ExchangeStatus.ACTIVE);
+        await driftClient.fetchAccounts();
+        const state2 = driftClient.getStateAccount();
+        assert(state2.exchangeStatus === ExchangeStatus.ACTIVE);
+        console.log('unpaused funding!');
+    });
 
-	it('Update admin', async () => {
-		const newAdminKey = PublicKey.default;
+    it('Pause deposts and withdraws', async () => {
+        await driftClient.updateExchangeStatus(
+            ExchangeStatus.DEPOSIT_PAUSED | ExchangeStatus.WITHDRAW_PAUSED
+        );
+        await driftClient.fetchAccounts();
+        const state = driftClient.getStateAccount();
+        assert(
+            state.exchangeStatus ===
+                (ExchangeStatus.DEPOSIT_PAUSED | ExchangeStatus.WITHDRAW_PAUSED)
+        );
 
-		await driftClient.updateAdmin(newAdminKey);
+        console.log('paused deposits and withdraw!');
+        // unpause
+        await driftClient.updateExchangeStatus(ExchangeStatus.ACTIVE);
+        await driftClient.fetchAccounts();
+        const state2 = driftClient.getStateAccount();
+        assert(state2.exchangeStatus === ExchangeStatus.ACTIVE);
+        console.log('unpaused deposits and withdraws!');
+    });
 
-		await driftClient.fetchAccounts();
-		const state = driftClient.getStateAccount();
+    it('Update admin', async () => {
+        const newAdminKey = PublicKey.default;
 
-		assert(state.admin.equals(newAdminKey));
-	});
+        await driftClient.updateAdmin(newAdminKey);
 
-	after(async () => {
-		await driftClient.unsubscribe();
-	});
+        await driftClient.fetchAccounts();
+        const state = driftClient.getStateAccount();
+
+        assert(state.admin.equals(newAdminKey));
+    });
+
+ 
 });

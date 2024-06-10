@@ -3,7 +3,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { BufferAndSlot } from './types';
 import { promiseTimeout } from '../util/promiseTimeout';
 
-type AccountToLoad = {
+export type AccountToLoad = {
 	publicKey: PublicKey;
 	callbacks: Map<string, (buffer: Buffer, slot: number) => void>;
 };
@@ -135,11 +135,11 @@ export class BulkAccountLoader {
 				})
 			);
 		} catch (e) {
-			console.error(`Error in bulkAccountLoader.load()`);
-			console.error(e);
-			for (const [_, callback] of this.errorCallbacks) {
-				callback(e);
-			}
+			// console.error(`Error in bulkAccountLoader.load()`);
+			// console.error(e);
+			// for (const [_, callback] of this.errorCallbacks) {
+			// 	callback(e);
+			// }
 		} finally {
 			this.loadPromiseResolver();
 			this.loadPromise = undefined;

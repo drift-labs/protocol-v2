@@ -39,6 +39,8 @@ import {
 	User,
 	OracleSource,
 } from '../sdk/src';
+import { BankrunProvider } from "anchor-bankrun";
+import { BankrunConnection, BankrunContextWrapper } from '../sdk/src/bankrunConnection';
 
 export async function mockOracle(
 	price: number = 50 * 10e7,
@@ -70,12 +72,12 @@ export async function mockOracle(
 	return priceFeedAddress;
 }
 
-export async function mockUSDCMint(provider: Provider): Promise<Keypair> {
+export async function mockUSDCMint(context: BankrunContextWrapper): Promise<Keypair> {
 	const fakeUSDCMint = anchor.web3.Keypair.generate();
 	const createUSDCMintAccountIx = SystemProgram.createAccount({
-		fromPubkey: provider.wallet.publicKey,
+		fromPubkey: context.provider.wallet.publicKey,
 		newAccountPubkey: fakeUSDCMint.publicKey,
-		lamports: await getMinimumBalanceForRentExemptMint(provider.connection),
+		lamports: 10_000_000_000,
 		space: MintLayout.span,
 		programId: TOKEN_PROGRAM_ID,
 	});
@@ -83,26 +85,26 @@ export async function mockUSDCMint(provider: Provider): Promise<Keypair> {
 		fakeUSDCMint.publicKey,
 		6,
 		// @ts-ignore
-		provider.wallet.publicKey,
+		context.provider.wallet.publicKey,
 		// @ts-ignore
-		provider.wallet.publicKey
+		context.provider.wallet.publicKey
 	);
 
 	const fakeUSDCTx = new Transaction();
 	fakeUSDCTx.add(createUSDCMintAccountIx);
 	fakeUSDCTx.add(initCollateralMintIx);
-
-	await sendAndConfirmTransaction(
-		provider.connection,
-		fakeUSDCTx,
-		// @ts-ignore
-		[provider.wallet.payer, fakeUSDCMint],
-		{
-			skipPreflight: false,
-			commitment: 'recent',
-			preflightCommitment: 'recent',
-		}
-	);
+	await context.sendTransaction(fakeUSDCTx, [fakeUSDCMint]);
+	// await sendAndConfirmTransaction(
+	// 	provider.connection,
+	// 	fakeUSDCTx,
+	// 	// @ts-ignore
+	// 	[provider.wallet.payer, fakeUSDCMint],
+	// 	{
+	// 		skipPreflight: false,
+	// 		commitment: 'recent',
+	// 		preflightCommitment: 'recent',
+	// 	}
+	// );
 	return fakeUSDCMint;
 }
 

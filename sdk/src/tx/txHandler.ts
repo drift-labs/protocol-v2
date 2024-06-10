@@ -24,6 +24,7 @@ import {
 	TxParams,
 } from '../types';
 import { containsComputeUnitIxs } from '../util/computeUnits';
+import { BankrunConnection } from '../bankrunConnection';
 
 export const COMPUTE_UNITS_DEFAULT = 200_000;
 
@@ -47,7 +48,7 @@ export class TxHandler {
 	private blockHashToLastValidBlockHeightLookup: Record<string, number> = {};
 	private returnBlockHeightsWithSignedTxCallbackData = false;
 
-	private connection: Connection;
+	private connection: Connection | BankrunConnection;
 	private wallet: IWallet;
 	private confirmationOptions: ConfirmOptions;
 
@@ -55,7 +56,7 @@ export class TxHandler {
 	private onSignedCb?: (txSigs: DriftClientMetricsEvents['txSigned']) => void;
 
 	constructor(props: {
-		connection: Connection;
+		connection: Connection | BankrunConnection;
 		wallet: IWallet;
 		confirmationOptions: ConfirmOptions;
 		opts?: {

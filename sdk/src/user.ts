@@ -108,7 +108,7 @@ export class User {
 		this.userAccountPublicKey = config.userAccountPublicKey;
 		if (config.accountSubscription?.type === 'polling') {
 			this.accountSubscriber = new PollingUserAccountSubscriber(
-				config.driftClient.program,
+				config.driftClient.connection,
 				config.userAccountPublicKey,
 				config.accountSubscription.accountLoader
 			);

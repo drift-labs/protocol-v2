@@ -11,9 +11,10 @@ import { BulkAccountLoader } from './accounts/bulkAccountLoader';
 import { DriftEnv } from './config';
 import { TxSender } from './tx/types';
 import { TxHandler } from './tx/txHandler';
+import { BankrunConnection } from './bankrunConnection';
 
 export type DriftClientConfig = {
-	connection: Connection;
+	connection: Connection | BankrunConnection;
 	wallet: IWallet;
 	env?: DriftEnv;
 	programID?: PublicKey;
