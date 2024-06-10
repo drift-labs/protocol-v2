@@ -545,7 +545,7 @@ export const createPriceFeedBankrun = async ({
 	expo?: number;
 }): Promise<PublicKey> => {
 	const conf = new BN(confidence) || new BN((initPrice / 10) * 10 ** -expo);
-	const collateralTokenFeed = new Keypair();
+	const collateralTokenFeed = new anchor.web3.Account();
 	const ix = oracleProgram.instruction.initialize(
 		new BN(initPrice * 10 ** -expo),
 		expo,
@@ -571,7 +571,6 @@ export const createPriceFeedBankrun = async ({
 	tx.recentBlockhash = context.context.lastBlockhash;
 	tx.sign(context.context.payer);
 	await context.connection.sendTransaction(tx);
-	// console.log(txid);
 	return collateralTokenFeed.publicKey;
 };
 export const setFeedPrice = async (

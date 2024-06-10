@@ -18,9 +18,17 @@ import {
     mockOracleNoProgram,
     mockUSDCMint,
 } from './testHelpers';
-import { PublicKey } from '@solana/web3.js';
+import { AccountInfo, PublicKey } from '@solana/web3.js';
 import { BankrunContextWrapper } from '../sdk/src/bankrunConnection';
 import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
+
+const MOCK_ORACLE: AccountInfo<Buffer> = {
+    data: Buffer.from(""),
+    executable: false,
+    lamports: 23942400,
+    owner: new PublicKey("FsJ3A3u2vn5cTVofAjvy6y5kwABJAqYWpe4975bi2epH"),
+    rentEpoch: 0
+}
 
 describe('admin', () => {
     const chProgram = anchor.workspace.Drift as Program;
@@ -31,8 +39,15 @@ describe('admin', () => {
 
     let usdcMint;
 
+    const solUsd = PublicKey.unique();
+
     before(async () => {
-        const context = await startAnchor("", [], []);
+        const context = await startAnchor("", [], [
+              {
+                address: solUsd,
+                info: MOCK_ORACLE
+              }
+        ]);
 
 		const bankrunContextWrapper = new BankrunContextWrapper(context);
 		
@@ -67,7 +82,7 @@ describe('admin', () => {
         await driftClient.updatePerpAuctionDuration(new BN(0));
         await driftClient.fetchAccounts();
 
-        const solUsd = await mockOracleNoProgram(bankrunContextWrapper, 1);
+        // const solUsd = await mockOracleNoProgram(bankrunContextWrapper, 1);
         const periodicity = new BN(60 * 60); // 1 HOUR
 
         await driftClient.initializePerpMarket(
