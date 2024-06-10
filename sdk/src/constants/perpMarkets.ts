@@ -587,6 +587,16 @@ export const MainnetPerpMarkets: PerpMarketConfig[] = [
 		launchTs: 1717597648000,
 		oracleSource: OracleSource.Prelaunch,
 	},
+	{
+		fullName: 'IO',
+		category: ['DePIN', 'Solana'],
+		symbol: 'IO-PERP',
+		baseAssetSymbol: 'IO',
+		marketIndex: 32,
+		oracle: new PublicKey('5sAqMGidMtztNFdUukyguz6jMFS8DvTmSUr4p5u5zsSg'),
+		launchTs: 1718021389000,
+		oracleSource: OracleSource.Prelaunch,
+	},
 ];
 
 export const PerpMarkets: { [key in DriftEnv]: PerpMarketConfig[] } = {
