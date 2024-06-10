@@ -130,7 +130,7 @@ export class WhileValidTxSender extends BaseTxSender {
 				// @ts-ignore
 				latestBlockhash = tx.SIGNATURE_BLOCK_AND_EXPIRY;
 			}
-			
+
 			// @ts-ignore
 		} else if (this.wallet.payer) {
 			tx.message.recentBlockhash = latestBlockhash.blockhash;
