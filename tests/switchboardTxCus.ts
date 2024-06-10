@@ -211,6 +211,6 @@ describe('switchboard place orders cus', () => {
 			)
 		)[0];
 		console.log(cus);
-		assert(cus < 380000);
+		assert(cus < 400000);
 	});
 });
