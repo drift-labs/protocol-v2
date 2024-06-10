@@ -37,20 +37,21 @@ pub struct OpenbookV2FulfillmentConfig {
     pub pubkey: Pubkey, //32
     pub openbook_v2_program_id: Pubkey, // 64
     pub openbook_v2_market: Pubkey,// 96
-    pub openbook_v2_event_heap: Pubkey, // 128
-    pub openbook_v2_bids: Pubkey, // 160
-    pub openbook_v2_asks: Pubkey, // 192
-    pub openbook_v2_base_vault: Pubkey, // 224
-    pub openbook_v2_quote_vault: Pubkey, // 256
-    pub market_index: u16, // 258
-    pub fulfillment_type: SpotFulfillmentType, // 259
-    pub status: SpotFulfillmentConfigStatus, // 260
-    pub padding: [u8; 4], // 264
+    pub openbook_v2_market_authority: Pubkey,// 128
+    pub openbook_v2_event_heap: Pubkey, // 160
+    pub openbook_v2_bids: Pubkey, // 192
+    pub openbook_v2_asks: Pubkey, // 224
+    pub openbook_v2_base_vault: Pubkey, // 256
+    pub openbook_v2_quote_vault: Pubkey, // 288
+    pub market_index: u16, // 290
+    pub fulfillment_type: SpotFulfillmentType, // 291
+    pub status: SpotFulfillmentConfigStatus, // 292
+    pub padding: [u8; 4], // 296
     // + denominator? 8
 }
 
 impl Size for OpenbookV2FulfillmentConfig {
-    const SIZE: usize = 272;
+    const SIZE: usize = 304;
 }
 
 pub struct OpenbookV2Context<'a, 'b> {
@@ -77,6 +78,7 @@ impl<'a, 'b> OpenbookV2Context<'a, 'b> {
             pubkey: *openbook_v2_fulfillment_config_key,
             openbook_v2_program_id: *self.openbook_v2_program.key,
             openbook_v2_market: *self.openbook_v2_market.key,
+            openbook_v2_market_authority: market.market_authority,
             openbook_v2_event_heap: market.event_heap,
             openbook_v2_bids: market.bids,
             openbook_v2_asks: market.asks,
@@ -181,6 +183,12 @@ impl<'a, 'b> OpenbookV2FulfillmentParams<'a, 'b> {
             openbook_v2_fulfillment_config.market_index,
             base_market.market_index
         )?;
+
+        validate!(
+            &openbook_v2_fulfillment_config.openbook_v2_market_authority == openbook_v2_market_authority.key,
+            ErrorCode::InvalidFulfillmentConfig
+        )?;
+
         validate!(
             &openbook_v2_fulfillment_config.openbook_v2_event_heap == openbook_v2_event_heap.key,
             ErrorCode::InvalidFulfillmentConfig,
