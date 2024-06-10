@@ -15,6 +15,7 @@ import { decodeName, DEFAULT_MARKET_NAME } from '../sdk/src/userName';
 import {
     initializeQuoteSpotMarket,
     mockOracle,
+    mockOracleNoProgram,
     mockUSDCMint,
 } from './testHelpers';
 import { PublicKey } from '@solana/web3.js';
@@ -66,7 +67,7 @@ describe('admin', () => {
         await driftClient.updatePerpAuctionDuration(new BN(0));
         await driftClient.fetchAccounts();
 
-        const solUsd = await mockOracle(1);
+        const solUsd = await mockOracleNoProgram(bankrunContextWrapper, 1);
         const periodicity = new BN(60 * 60); // 1 HOUR
 
         await driftClient.initializePerpMarket(

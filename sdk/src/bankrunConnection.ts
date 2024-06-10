@@ -75,7 +75,7 @@ export class BankrunConnection {
 
 	async getAccountInfoAndContext(
 		publicKey: PublicKey,
-		_commitment: Commitment
+		_commitment?: Commitment
 	): Promise<RpcResponseAndContext<null | AccountInfo<Buffer>>> {
 		return await this.getParsedAccountInfo(publicKey);
 	}

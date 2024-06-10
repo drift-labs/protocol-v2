@@ -39,8 +39,8 @@ import {
 	User,
 	OracleSource,
 } from '../sdk/src';
-import { BankrunProvider } from "anchor-bankrun";
 import { BankrunConnection, BankrunContextWrapper } from '../sdk/src/bankrunConnection';
+import pythIDL from "../sdk/src/idl/pyth.json";
 
 export async function mockOracle(
 	price: number = 50 * 10e7,
@@ -64,6 +64,36 @@ export async function mockOracle(
 	});
 
 	const feedData = await getFeedData(program, priceFeedAddress);
+	if (feedData.price !== price) {
+		console.log('mockOracle precision error:', feedData.price, '!=', price);
+	}
+	assert.ok(Math.abs(feedData.price - price) < 1e-10);
+
+	return priceFeedAddress;
+}
+
+export async function mockOracleNoProgram(
+	context: BankrunContextWrapper,
+	price: number = 50 * 10e7,
+	expo = -7,
+	confidence?: number
+): Promise<PublicKey> {
+	// const program = anchor.workspace.Pyth
+
+	const program = new Program(
+		pythIDL as anchor.Idl,
+		new PublicKey("FsJ3A3u2vn5cTVofAjvy6y5kwABJAqYWpe4975bi2epH")
+	);
+
+	const priceFeedAddress = await createPriceFeedBankrun({
+		oracleProgram: program,
+		context: context,
+		initPrice: price,
+		expo: expo,
+		confidence,
+	});
+
+	const feedData = await getFeedDataNoProgram(context.connection, priceFeedAddress);
 	if (feedData.price !== price) {
 		console.log('mockOracle precision error:', feedData.price, '!=', price);
 	}
@@ -476,7 +506,7 @@ export const createPriceFeed = async ({
 }): Promise<PublicKey> => {
 	const conf = new BN(confidence) || new BN((initPrice / 10) * 10 ** -expo);
 	const collateralTokenFeed = new anchor.web3.Account();
-	await oracleProgram.rpc.initialize(
+	const txid = await oracleProgram.rpc.initialize(
 		new BN(initPrice * 10 ** -expo),
 		expo,
 		conf,
@@ -497,9 +527,53 @@ export const createPriceFeed = async ({
 			],
 		}
 	);
+	console.log(txid);
 	return collateralTokenFeed.publicKey;
 };
 
+export const createPriceFeedBankrun = async ({
+	oracleProgram,
+	context,
+	initPrice,
+	confidence = undefined,
+	expo = -4,
+}: {
+	oracleProgram: Program;
+	context: BankrunContextWrapper;
+	initPrice: number;
+	confidence?: number;
+	expo?: number;
+}): Promise<PublicKey> => {
+	const conf = new BN(confidence) || new BN((initPrice / 10) * 10 ** -expo);
+	const collateralTokenFeed = new Keypair();
+	const ix = oracleProgram.instruction.initialize(
+		new BN(initPrice * 10 ** -expo),
+		expo,
+		conf,
+		{
+			accounts: { price: collateralTokenFeed.publicKey },
+			signers: [collateralTokenFeed],
+			instructions: [
+				anchor.web3.SystemProgram.createAccount({
+					fromPubkey: context.context.payer.publicKey,
+					newAccountPubkey: collateralTokenFeed.publicKey,
+					space: 3312,
+					lamports:
+						await oracleProgram.provider.connection.getMinimumBalanceForRentExemption(
+							3312
+						),
+					programId: oracleProgram.programId,
+				}),
+			],
+		}
+	);
+	const tx = new Transaction().add(ix);
+	tx.recentBlockhash = context.context.lastBlockhash;
+	tx.sign(context.context.payer);
+	await context.connection.sendTransaction(tx);
+	// console.log(txid);
+	return collateralTokenFeed.publicKey;
+};
 export const setFeedPrice = async (
 	oracleProgram: Program,
 	newPrice: number,
@@ -534,6 +608,14 @@ export const getFeedData = async (
 		priceFeed
 	);
 	return parsePriceData(info.data);
+};
+
+export const getFeedDataNoProgram = async (
+	connection: BankrunConnection,
+	priceFeed: PublicKey
+) => {
+	const info = await connection.getAccountInfoAndContext(priceFeed);
+	return parsePriceData(info.value.data);
 };
 
 export const getOraclePriceData = async (
