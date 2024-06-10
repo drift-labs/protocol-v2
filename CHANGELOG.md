@@ -13,6 +13,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Breaking
 
+- program: upgrade to anchor 0.29.0 and solana 1.16
+
 ## [2.83.0] - 2024-06-06
 
 ### Features
