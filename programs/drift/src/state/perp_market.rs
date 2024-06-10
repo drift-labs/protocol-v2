@@ -41,9 +41,10 @@ use static_assertions::const_assert_eq;
 #[cfg(test)]
 mod tests;
 
-#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Debug, Eq)]
+#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Debug, Eq, Default)]
 pub enum MarketStatus {
     /// warm up period for initialization, fills are paused
+    #[default]
     Initialized,
     /// all operations allowed
     Active,
@@ -63,12 +64,6 @@ pub enum MarketStatus {
     Delisted,
 }
 
-impl Default for MarketStatus {
-    fn default() -> Self {
-        MarketStatus::Initialized
-    }
-}
-
 impl MarketStatus {
     pub fn validate_not_deprecated(&self) -> DriftResult {
         if matches!(
@@ -86,19 +81,16 @@ impl MarketStatus {
     }
 }
 
-#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Debug, Eq)]
+#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Debug, Eq, Default)]
 pub enum ContractType {
+    #[default]
     Perpetual,
     Future,
 }
 
-impl Default for ContractType {
-    fn default() -> Self {
-        ContractType::Perpetual
-    }
-}
-
-#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Debug, Eq, PartialOrd, Ord)]
+#[derive(
+    Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Debug, Eq, PartialOrd, Ord, Default,
+)]
 pub enum ContractTier {
     /// max insurance capped at A level
     A,
@@ -109,16 +101,13 @@ pub enum ContractTier {
     /// no insurance
     Speculative,
     /// no insurance, another tranches below
+    #[default]
     HighlySpeculative,
     /// no insurance, only single position allowed
     Isolated,
 }
 
 impl ContractTier {
-    pub fn default() -> Self {
-        ContractTier::HighlySpeculative
-    }
-
     pub fn is_as_safe_as(&self, best_contract: &ContractTier, best_asset: &AssetTier) -> bool {
         self.is_as_safe_as_contract(best_contract) && self.is_as_safe_as_asset(best_asset)
     }

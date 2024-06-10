@@ -3331,8 +3331,8 @@ pub fn handle_update_protocol_if_shares_transfer_config(
     Ok(())
 }
 
-pub fn handle_initialize_prelaunch_oracle<'info>(
-    ctx: Context<InitializePrelaunchOracle<'info>>,
+pub fn handle_initialize_prelaunch_oracle(
+    ctx: Context<InitializePrelaunchOracle>,
     params: PrelaunchOracleParams,
 ) -> Result<()> {
     let mut oracle = ctx.accounts.prelaunch_oracle.load_init()?;
@@ -3350,8 +3350,8 @@ pub fn handle_initialize_prelaunch_oracle<'info>(
     Ok(())
 }
 
-pub fn handle_update_prelaunch_oracle_params<'info>(
-    ctx: Context<UpdatePrelaunchOracleParams<'info>>,
+pub fn handle_update_prelaunch_oracle_params(
+    ctx: Context<UpdatePrelaunchOracleParams>,
     params: PrelaunchOracleParams,
 ) -> Result<()> {
     let mut oracle = ctx.accounts.prelaunch_oracle.load_mut()?;
@@ -3388,8 +3388,8 @@ pub fn handle_update_prelaunch_oracle_params<'info>(
     Ok(())
 }
 
-pub fn handle_delete_prelaunch_oracle<'info>(
-    ctx: Context<DeletePrelaunchOracle<'info>>,
+pub fn handle_delete_prelaunch_oracle(
+    ctx: Context<DeletePrelaunchOracle>,
     _perp_market_index: u16,
 ) -> Result<()> {
     let perp_market = ctx.accounts.perp_market.load()?;

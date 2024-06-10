@@ -52,19 +52,13 @@ pub struct DepositRecord {
     pub transfer_user: Option<Pubkey>,
 }
 
-#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Eq)]
+#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Eq, Default)]
 pub enum DepositExplanation {
+    #[default]
     None,
     Transfer,
     Borrow,
     RepayBorrow,
-}
-
-impl Default for DepositExplanation {
-    // UpOnly
-    fn default() -> Self {
-        DepositExplanation::None
-    }
 }
 
 #[event]
@@ -87,17 +81,11 @@ pub struct SpotInterestRecord {
     pub max_borrow_rate: u32,
 }
 
-#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Eq)]
+#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Eq, Default)]
 pub enum DepositDirection {
+    #[default]
     Deposit,
     Withdraw,
-}
-
-impl Default for DepositDirection {
-    // UpOnly
-    fn default() -> Self {
-        DepositDirection::Deposit
-    }
 }
 
 #[event]
@@ -313,8 +301,9 @@ pub fn get_order_action_record(
     })
 }
 
-#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Eq)]
+#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Eq, Default)]
 pub enum OrderAction {
+    #[default]
     Place,
     Cancel,
     Fill,
@@ -346,13 +335,6 @@ pub enum OrderActionExplanation {
     OrderFilledWithOpenbookV2,
 }
 
-impl Default for OrderAction {
-    // UpOnly
-    fn default() -> Self {
-        OrderAction::Place
-    }
-}
-
 #[event]
 #[derive(Default)]
 pub struct LPRecord {
@@ -371,8 +353,9 @@ pub struct LPRecord {
     pub pnl: i64,
 }
 
-#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Eq)]
+#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Eq, Default)]
 pub enum LPAction {
+    #[default]
     AddLiquidity,
     RemoveLiquidity,
     SettleLiquidity,
@@ -381,12 +364,6 @@ pub enum LPAction {
 
 impl Size for LPRecord {
     const SIZE: usize = 112;
-}
-
-impl Default for LPAction {
-    fn default() -> Self {
-        LPAction::AddLiquidity
-    }
 }
 
 #[event]
@@ -410,21 +387,15 @@ pub struct LiquidationRecord {
     pub spot_bankruptcy: SpotBankruptcyRecord,
 }
 
-#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Eq)]
+#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Eq, Default)]
 pub enum LiquidationType {
+    #[default]
     LiquidatePerp,
     LiquidateSpot,
     LiquidateBorrowForPerpPnl,
     LiquidatePerpPnlForDeposit,
     PerpBankruptcy,
     SpotBankruptcy,
-}
-
-impl Default for LiquidationType {
-    // UpOnly
-    fn default() -> Self {
-        LiquidationType::LiquidatePerp
-    }
 }
 
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Debug, Default)]
@@ -509,17 +480,11 @@ pub struct SettlePnlRecord {
     pub explanation: SettlePnlExplanation,
 }
 
-#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Eq)]
+#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Eq, Default)]
 pub enum SettlePnlExplanation {
+    #[default]
     None,
     ExpiredPosition,
-}
-
-impl Default for SettlePnlExplanation {
-    // UpOnly
-    fn default() -> Self {
-        SettlePnlExplanation::None
-    }
 }
 
 #[event]
@@ -562,20 +527,15 @@ pub struct InsuranceFundStakeRecord {
     pub total_if_shares_after: u128,
 }
 
-#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Eq)]
+#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Eq, Default)]
 pub enum StakeAction {
+    #[default]
     Stake,
     UnstakeRequest,
     UnstakeCancelRequest,
     Unstake,
     UnstakeTransfer,
     StakeTransfer,
-}
-
-impl Default for StakeAction {
-    fn default() -> Self {
-        StakeAction::Stake
-    }
 }
 
 #[event]

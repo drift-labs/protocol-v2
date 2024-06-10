@@ -1,4 +1,5 @@
 use anchor_lang::prelude::*;
+use std::cell::Ref;
 
 use crate::error::{DriftResult, ErrorCode};
 use crate::math::casting::Cast;
@@ -8,9 +9,10 @@ use switchboard::{AggregatorAccountData, SwitchboardDecimal};
 
 use crate::error::ErrorCode::{InvalidOracle, UnableToLoadOracle};
 use crate::math::safe_unwrap::SafeUnwrap;
+use crate::state::load_ref::load_ref;
 use crate::state::perp_market::PerpMarket;
 use crate::state::traits::Size;
-use crate::{load, validate};
+use crate::validate;
 
 #[cfg(test)]
 mod tests;
@@ -104,8 +106,9 @@ impl HistoricalIndexData {
     }
 }
 
-#[derive(AnchorSerialize, AnchorDeserialize, Clone, Copy, Eq, PartialEq, Debug)]
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, Copy, Eq, PartialEq, Debug, Default)]
 pub enum OracleSource {
+    #[default]
     Pyth,
     Switchboard,
     QuoteAsset,
@@ -113,13 +116,6 @@ pub enum OracleSource {
     Pyth1M,
     PythStableCoin,
     Prelaunch,
-}
-
-impl Default for OracleSource {
-    // UpOnly
-    fn default() -> Self {
-        OracleSource::Pyth
-    }
 }
 
 #[derive(Default, Clone, Copy, Debug)]
@@ -246,11 +242,8 @@ pub fn get_switchboard_price(
     price_oracle: &AccountInfo,
     clock_slot: u64,
 ) -> DriftResult<OraclePriceData> {
-    let aggregator_data_loader: AccountLoader<AggregatorAccountData> =
-        AccountLoader::try_from(price_oracle).or(Err(ErrorCode::UnableToLoadOracle))?;
-    let aggregator_data = aggregator_data_loader
-        .load()
-        .or(Err(ErrorCode::UnableToLoadOracle))?;
+    let aggregator_data: Ref<AggregatorAccountData> =
+        load_ref(price_oracle).or(Err(ErrorCode::UnableToLoadOracle))?;
 
     let price = convert_switchboard_decimal(&aggregator_data.latest_confirmed_round.result)?
         .cast::<i64>()?;
@@ -301,10 +294,7 @@ fn convert_switchboard_decimal(switchboard_decimal: &SwitchboardDecimal) -> Drif
 }
 
 pub fn get_prelaunch_price(price_oracle: &AccountInfo, slot: u64) -> DriftResult<OraclePriceData> {
-    let oracle_account_loader: AccountLoader<PrelaunchOracle> =
-        AccountLoader::try_from(price_oracle).or(Err(UnableToLoadOracle))?;
-
-    let oracle = load!(oracle_account_loader)?;
+    let oracle: Ref<PrelaunchOracle> = load_ref(price_oracle).or(Err(UnableToLoadOracle))?;
 
     Ok(OraclePriceData {
         price: oracle.price,
