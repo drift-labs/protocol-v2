@@ -272,7 +272,7 @@ mod test {
 
         // oracle retreat * skew that increases long spread
         last_oracle_reserve_price_spread_pct = BID_ASK_SPREAD_PRECISION_I64 / 20; //5%
-        last_oracle_conf_pct = (BID_ASK_SPREAD_PRECISION / 100) as u64; //1%
+        last_oracle_conf_pct = BID_ASK_SPREAD_PRECISION / 100; //1%
         total_fee_minus_distributions = QUOTE_PRECISION as i128;
         let (long_spread3, short_spread3) = calculate_spread(
             base_spread,
@@ -961,7 +961,7 @@ mod test {
         // user long => bar < sqrt_k < qar => tqar < qar => peg < reserve_price
         let lscale = calculate_spread_leverage_scale(
             AMM_RESERVE_PRECISION * 1000,
-            (AMM_RESERVE_PRECISION * 9999 / 10000) as u128,
+            AMM_RESERVE_PRECISION * 9999 / 10000,
             12 * PEG_PRECISION,
             BASE_PRECISION_I128,
             (12.1 * PRICE_PRECISION as f64) as u64,

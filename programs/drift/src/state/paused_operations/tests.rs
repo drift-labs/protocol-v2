@@ -64,15 +64,15 @@ mod test {
         // Test with multiple operations
         let multiple_operations = PerpOperation::AmmFill as u8 | PerpOperation::SettlePnl as u8;
         assert!(PerpOperation::is_operation_paused(
-            multiple_operations as u8,
+            multiple_operations,
             PerpOperation::AmmFill
         ));
         assert!(PerpOperation::is_operation_paused(
-            multiple_operations as u8,
+            multiple_operations,
             PerpOperation::SettlePnl
         ));
         assert!(!PerpOperation::is_operation_paused(
-            multiple_operations as u8,
+            multiple_operations,
             PerpOperation::Fill
         ));
     }

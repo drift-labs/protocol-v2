@@ -141,17 +141,12 @@ pub fn handle_revert_fill<'info>(ctx: Context<RevertFill>) -> Result<()> {
     Ok(())
 }
 
-#[derive(Clone, Copy, AnchorSerialize, AnchorDeserialize, PartialEq, Debug, Eq)]
+#[derive(Clone, Copy, AnchorSerialize, AnchorDeserialize, PartialEq, Debug, Eq, Default)]
 pub enum SpotFulfillmentType {
+    #[default]
     SerumV3,
     Match,
     PhoenixV1,
-}
-
-impl Default for SpotFulfillmentType {
-    fn default() -> Self {
-        SpotFulfillmentType::SerumV3
-    }
 }
 
 #[access_control(

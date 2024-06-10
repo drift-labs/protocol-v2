@@ -4831,9 +4831,9 @@ pub mod fill_order {
                 long_spread: 0,
                 short_spread: 0,
                 historical_oracle_data: HistoricalOracleData {
-                    last_oracle_price_twap: oracle_price.twap as i64,
-                    last_oracle_price_twap_5min: oracle_price.twap as i64,
-                    last_oracle_price: oracle_price.agg.price as i64,
+                    last_oracle_price_twap: oracle_price.twap,
+                    last_oracle_price_twap_5min: oracle_price.twap,
+                    last_oracle_price: oracle_price.agg.price,
                     ..HistoricalOracleData::default()
                 },
                 ..AMM::default()
@@ -5036,9 +5036,9 @@ pub mod fill_order {
                 long_spread: 0,
                 short_spread: 0,
                 historical_oracle_data: HistoricalOracleData {
-                    last_oracle_price_twap: oracle_price.twap as i64,
-                    last_oracle_price_twap_5min: oracle_price.twap as i64,
-                    last_oracle_price: oracle_price.agg.price as i64,
+                    last_oracle_price_twap: oracle_price.twap,
+                    last_oracle_price_twap_5min: oracle_price.twap,
+                    last_oracle_price: oracle_price.agg.price,
                     ..HistoricalOracleData::default()
                 },
                 ..AMM::default()
@@ -5378,9 +5378,9 @@ pub mod fill_order {
                 long_spread: 0,
                 short_spread: 0,
                 historical_oracle_data: HistoricalOracleData {
-                    last_oracle_price_twap: oracle_price.twap as i64,
-                    last_oracle_price_twap_5min: oracle_price.twap as i64,
-                    last_oracle_price: oracle_price.agg.price as i64,
+                    last_oracle_price_twap: oracle_price.twap,
+                    last_oracle_price_twap_5min: oracle_price.twap,
+                    last_oracle_price: oracle_price.agg.price,
                     ..HistoricalOracleData::default()
                 },
                 ..AMM::default()
@@ -9256,9 +9256,9 @@ pub mod force_cancel_orders {
                 long_spread: 0,
                 short_spread: 0,
                 historical_oracle_data: HistoricalOracleData {
-                    last_oracle_price_twap: oracle_price.twap as i64,
-                    last_oracle_price_twap_5min: oracle_price.twap as i64,
-                    last_oracle_price: oracle_price.agg.price as i64,
+                    last_oracle_price_twap: oracle_price.twap,
+                    last_oracle_price_twap_5min: oracle_price.twap,
+                    last_oracle_price: oracle_price.agg.price,
                     ..HistoricalOracleData::default()
                 },
                 ..AMM::default()
@@ -9552,9 +9552,9 @@ pub mod get_maker_orders_info {
                 long_spread: 0,
                 short_spread: 0,
                 historical_oracle_data: HistoricalOracleData {
-                    last_oracle_price_twap: pyth_price.twap as i64,
-                    last_oracle_price_twap_5min: pyth_price.twap as i64,
-                    last_oracle_price: pyth_price.agg.price as i64,
+                    last_oracle_price_twap: pyth_price.twap,
+                    last_oracle_price_twap_5min: pyth_price.twap,
+                    last_oracle_price: pyth_price.agg.price,
                     ..HistoricalOracleData::default()
                 },
                 ..AMM::default()
@@ -9746,9 +9746,9 @@ pub mod get_maker_orders_info {
                 long_spread: 0,
                 short_spread: 0,
                 historical_oracle_data: HistoricalOracleData {
-                    last_oracle_price_twap: pyth_price.twap as i64,
-                    last_oracle_price_twap_5min: pyth_price.twap as i64,
-                    last_oracle_price: pyth_price.agg.price as i64,
+                    last_oracle_price_twap: pyth_price.twap,
+                    last_oracle_price_twap_5min: pyth_price.twap,
+                    last_oracle_price: pyth_price.agg.price,
                     ..HistoricalOracleData::default()
                 },
                 ..AMM::default()
@@ -9941,9 +9941,9 @@ pub mod get_maker_orders_info {
                 long_spread: 0,
                 short_spread: 0,
                 historical_oracle_data: HistoricalOracleData {
-                    last_oracle_price_twap: pyth_price.twap as i64,
-                    last_oracle_price_twap_5min: pyth_price.twap as i64,
-                    last_oracle_price: pyth_price.agg.price as i64,
+                    last_oracle_price_twap: pyth_price.twap,
+                    last_oracle_price_twap_5min: pyth_price.twap,
+                    last_oracle_price: pyth_price.agg.price,
                     ..HistoricalOracleData::default()
                 },
                 ..AMM::default()
@@ -10122,9 +10122,9 @@ pub mod get_maker_orders_info {
                 long_spread: 0,
                 short_spread: 0,
                 historical_oracle_data: HistoricalOracleData {
-                    last_oracle_price_twap: pyth_price.twap as i64,
-                    last_oracle_price_twap_5min: pyth_price.twap as i64,
-                    last_oracle_price: pyth_price.agg.price as i64,
+                    last_oracle_price_twap: pyth_price.twap,
+                    last_oracle_price_twap_5min: pyth_price.twap,
+                    last_oracle_price: pyth_price.agg.price,
                     ..HistoricalOracleData::default()
                 },
                 ..AMM::default()
@@ -10377,9 +10377,9 @@ pub mod get_maker_orders_info {
                 long_spread: 0,
                 short_spread: 0,
                 historical_oracle_data: HistoricalOracleData {
-                    last_oracle_price_twap: pyth_price.twap as i64,
-                    last_oracle_price_twap_5min: pyth_price.twap as i64,
-                    last_oracle_price: pyth_price.agg.price as i64,
+                    last_oracle_price_twap: pyth_price.twap,
+                    last_oracle_price_twap_5min: pyth_price.twap,
+                    last_oracle_price: pyth_price.agg.price,
                     ..HistoricalOracleData::default()
                 },
                 ..AMM::default()
@@ -10574,9 +10574,9 @@ pub mod get_maker_orders_info {
                 long_spread: 0,
                 short_spread: 0,
                 historical_oracle_data: HistoricalOracleData {
-                    last_oracle_price_twap: pyth_price.twap as i64,
-                    last_oracle_price_twap_5min: pyth_price.twap as i64,
-                    last_oracle_price: pyth_price.agg.price as i64,
+                    last_oracle_price_twap: pyth_price.twap,
+                    last_oracle_price_twap_5min: pyth_price.twap,
+                    last_oracle_price: pyth_price.agg.price,
                     ..HistoricalOracleData::default()
                 },
                 ..AMM::default()
