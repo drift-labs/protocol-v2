@@ -42,16 +42,15 @@ pub struct OpenbookV2FulfillmentConfig {
     pub openbook_v2_asks: Pubkey, // 192
     pub openbook_v2_base_vault: Pubkey, // 224
     pub openbook_v2_quote_vault: Pubkey, // 256
-    pub openbook_v2_signer_nonce: u64, // 264
-    pub market_index: u16, // 268
-    pub fulfillment_type: SpotFulfillmentType, // 269
-    pub status: SpotFulfillmentConfigStatus, // 270
-    pub padding: [u8; 4], // 274
+    pub market_index: u16, // 258
+    pub fulfillment_type: SpotFulfillmentType, // 259
+    pub status: SpotFulfillmentConfigStatus, // 260
+    pub padding: [u8; 4], // 264
     // + denominator? 8
 }
 
 impl Size for OpenbookV2FulfillmentConfig {
-    const SIZE: usize = 282;
+    const SIZE: usize = 272;
 }
 
 pub struct OpenbookV2Context<'a, 'b> {
@@ -83,7 +82,6 @@ impl<'a, 'b> OpenbookV2Context<'a, 'b> {
             openbook_v2_asks: market.asks,
             openbook_v2_base_vault: market.market_base_vault,
             openbook_v2_quote_vault: market.market_quote_vault,
-            openbook_v2_signer_nonce: 0,
             market_index,
             fulfillment_type: SpotFulfillmentType::OpenbookV2,
             status: SpotFulfillmentConfigStatus::Enabled,
@@ -107,7 +105,6 @@ pub struct OpenbookV2FulfillmentParams<'a, 'b> {
     pub token_program: Program<'b, Token>,
     pub system_program: Program<'b, System>,
     pub signer_nonce: u8,
-    pub base_mint_decimals: u32,
     pub now: i64,
 }
 
@@ -145,13 +142,37 @@ impl<'a, 'b> OpenbookV2FulfillmentParams<'a, 'b> {
                 ErrorCode::InvalidFulfillmentConfig
             })?;
         let openbook_v2_fulfillment_config = load!(openbook_v2_fulfillment_config_loader)?;
-        validate!(
-            &openbook_v2_fulfillment_config.openbook_v2_program_id == openbook_v2_program.key,
-            ErrorCode::InvalidFulfillmentConfig
-        )?;
+
         validate!(
             openbook_v2_fulfillment_config.status == SpotFulfillmentConfigStatus::Enabled,
             ErrorCode::SpotFulfillmentConfigDisabled
+        )?;
+
+        validate!(
+            &state.signer == drift_signer.key,
+            ErrorCode::InvalidFulfillmentConfig
+        )?;
+
+        validate!(
+            openbook_v2_fulfillment_config.market_index == base_market.market_index,
+            ErrorCode::InvalidFulfillmentConfig,
+            "config market index {} does not equal base asset index {}",
+            openbook_v2_fulfillment_config.market_index,
+            base_market.market_index
+        )?;
+
+        validate!(
+            &base_market.vault == base_market_vault.key,
+            ErrorCode::InvalidFulfillmentConfig
+        )?;
+
+        validate!(
+            &quote_market.vault == quote_market_vault.key,
+            ErrorCode::InvalidFulfillmentConfig
+        )?;
+        validate!(
+            &openbook_v2_fulfillment_config.openbook_v2_program_id == openbook_v2_program.key,
+            ErrorCode::InvalidFulfillmentConfig
         )?;
         validate!(
             openbook_v2_fulfillment_config.market_index == base_market.market_index,
@@ -191,14 +212,6 @@ impl<'a, 'b> OpenbookV2FulfillmentParams<'a, 'b> {
             &openbook_v2_fulfillment_config.openbook_v2_market == openbook_v2_market.key,
             ErrorCode::InvalidFulfillmentConfig
         )?;
-        validate!(
-            &quote_market.vault == quote_market_vault.key,
-            ErrorCode::InvalidFulfillmentConfig
-        )?;
-        validate!(
-            &base_market.vault == base_market_vault.key,
-            ErrorCode::InvalidFulfillmentConfig
-        )?;
         let base_market_vault: Box<Account<TokenAccount>> =
             Box::new(Account::try_from(base_market_vault).map_err(|e| {
                 msg!("{:?}", e);
@@ -209,10 +222,6 @@ impl<'a, 'b> OpenbookV2FulfillmentParams<'a, 'b> {
                 msg!("{:?}", e);
                 ErrorCode::InvalidFulfillmentConfig
             })?);
-        validate!(
-            &state.signer == drift_signer.key,
-            ErrorCode::InvalidFulfillmentConfig
-        )?;
         let token_program: Program<Token> = Program::try_from(*token_program).map_err(|e| {
             msg!("{:?}", e);
             ErrorCode::InvalidFulfillmentConfig
@@ -238,7 +247,6 @@ impl<'a, 'b> OpenbookV2FulfillmentParams<'a, 'b> {
             token_program: token_program,
             system_program: system_program,
             signer_nonce: state.signer_nonce,
-            base_mint_decimals: base_market.decimals,
             now,
         })
     }
