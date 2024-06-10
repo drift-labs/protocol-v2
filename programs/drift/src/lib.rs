@@ -638,7 +638,7 @@ pub mod drift {
     }
 
     pub fn initialize_perp_market(
-        ctx: Context<InitializePerpMarket>,
+        ctx: Context<'_, '_, 'c, 'info, InitializePerpMarket<'info>>,
         market_index: u16,
         amm_base_asset_reserve: u128,
         amm_quote_asset_reserve: u128,
