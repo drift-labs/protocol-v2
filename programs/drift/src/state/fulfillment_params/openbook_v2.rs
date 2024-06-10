@@ -423,32 +423,42 @@ impl<'a, 'b> SpotFulfillmentParams for OpenbookV2FulfillmentParams<'a, 'b> {
         })
     }
     fn get_best_bid_and_ask(&self) -> DriftResult<(Option<u64>, Option<u64>)> {
+        let market = self.openbook_v2_context.load_openbook_v2_market()?;
         let bid_data =  self.openbook_v2_bids.data.borrow();
         let bid = bytemuck::try_from_bytes::<BookSide>(&bid_data[8..]).map_err(|_| {
             msg!("Failed to parse OpenbookV2 bids");
             ErrorCode::FailedOpenbookV2CPI
         })?;
-        let bid = bid.find_max();
         let ask_data =  self.openbook_v2_asks.data.borrow();
         let ask = bytemuck::try_from_bytes::<BookSide>(&ask_data[8..]).map_err(|_| {
             msg!("Failed to parse OpenbookV2 asks");
             ErrorCode::FailedOpenbookV2CPI
         })?;
-        let ask = ask.find_min();
-        let market = self.openbook_v2_context.load_openbook_v2_market()?;
-        let bid_price = calculate_price_from_serum_limit_price(
-            bid,
-            market.quote_lot_size as u64,
-            market.base_decimals as u32,
-            market.base_lot_size as u64,
-        )?;
-        let ask_price = calculate_price_from_serum_limit_price(
-            ask,
-            market.quote_lot_size as u64,
-            market.base_decimals as u32,
-            market.base_lot_size as u64,
-        )?;
-        Ok((Some(bid_price),Some(ask_price)))
+        let bid_price: Option<u64> = match bid.find_max() {
+            Some(bid) => {
+                let bid_price = calculate_price_from_serum_limit_price(
+                   bid,
+                    market.quote_lot_size as u64,
+                    market.base_decimals as u32,
+                    market.base_lot_size as u64,
+                )?;
+                Some(bid_price)
+            }
+            None => None
+        };
+        let ask_price: Option<u64> = match ask.find_min() {
+            Some(ask) => {
+                let ask_price = calculate_price_from_serum_limit_price(
+                    ask,
+                    market.quote_lot_size as u64,
+                    market.base_decimals as u32,
+                    market.base_lot_size as u64,
+                )?;
+                Some(ask_price)
+            }
+            None => None
+        };
+        Ok((bid_price,ask_price))
     }
 
     fn get_order_action_explanation(&self) -> DriftResult<OrderActionExplanation> {

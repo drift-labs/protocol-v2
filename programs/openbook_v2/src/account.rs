@@ -125,7 +125,7 @@ pub struct BookSide {
 }
 
 impl BookSide {
-    pub fn find_min(&self) -> u64 {
+    pub fn find_min(&self) -> Option<u64> {
         let mut p = 0_u64;
         for node in self.nodes.nodes.iter() {
             if node.tag == LEAF_NODE_TAG {
@@ -136,10 +136,13 @@ impl BookSide {
                 }
             }
         }
-        return p
+        if p > 0 {
+            return Some(p)
+        }
+        return None
     }
 
-    pub fn find_max(&self) -> u64 {
+    pub fn find_max(&self) -> Option<u64> {
         let mut p = 0_u64;
         for node in self.nodes.nodes.iter() {
             if node.tag == LEAF_NODE_TAG {
@@ -150,7 +153,10 @@ impl BookSide {
                 }
             }
         }
-        return p;
+        if p > 0 {
+            return Some(p)
+        }
+        return None;
     }
 }
 
