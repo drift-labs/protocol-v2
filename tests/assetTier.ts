@@ -18,7 +18,6 @@ import {
 	// SPOT_MARKET_CUMULATIVE_INTEREST_PRECISION,
 	// OracleInfo,
 	AMM_RESERVE_PRECISION,
-	MarketStatus,
 	PEG_PRECISION,
 	QUOTE_SPOT_MARKET_INDEX,
 	AssetTier,
@@ -39,7 +38,7 @@ import {
 	// getFeedData,
 	// sleep,
 } from './testHelpers';
-import {BulkAccountLoader, ContractTier} from '../sdk';
+import { BulkAccountLoader, ContractTier } from '../sdk';
 
 describe('asset tiers', () => {
 	const provider = anchor.AnchorProvider.local(undefined, {

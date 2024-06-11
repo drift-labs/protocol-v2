@@ -26,7 +26,7 @@ import {
 	printTxLogs,
 	setFeedPrice,
 } from './testHelpers';
-import {ContractTier, MARGIN_PRECISION, OrderType} from '../sdk';
+import { ContractTier, MARGIN_PRECISION, OrderType } from '../sdk';
 
 describe('multiple maker orders', () => {
 	const provider = anchor.AnchorProvider.local(undefined, {

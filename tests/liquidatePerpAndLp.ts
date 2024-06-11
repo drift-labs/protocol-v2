@@ -297,7 +297,9 @@ describe('liquidate perp and lp', () => {
 
 		await driftClient.updateOracleGuardRails(oracleGuardRails);
 
-		console.log(driftClient.getUserAccount().perpPositions[0].lpShares.toString());
+		console.log(
+			driftClient.getUserAccount().perpPositions[0].lpShares.toString()
+		);
 
 		const txSig = await liquidatorDriftClient.liquidatePerp(
 			await driftClient.getUserAccountPublicKey(),

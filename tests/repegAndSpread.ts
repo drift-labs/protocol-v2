@@ -17,7 +17,8 @@ import {
 	OracleGuardRails,
 	BASE_PRECISION,
 	BulkAccountLoader,
-	PERCENTAGE_PRECISION, ContractTier,
+	PERCENTAGE_PRECISION,
+	ContractTier,
 } from '../sdk';
 import { Keypair } from '@solana/web3.js';
 import { Program } from '@coral-xyz/anchor';
@@ -230,7 +231,7 @@ describe('repeg and spread amm', () => {
 			undefined,
 			true,
 			250,
-			400,
+			400
 		);
 		await driftClient.updatePerpMarketBaseSpread(0, 250);
 		await driftClient.updatePerpMarketCurveUpdateIntensity(0, 100);

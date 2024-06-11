@@ -3,7 +3,8 @@ import { assert } from 'chai';
 import {
 	BASE_PRECISION,
 	BN,
-	BulkAccountLoader, ContractTier,
+	BulkAccountLoader,
+	ContractTier,
 	getMarketOrderParams,
 	OracleSource,
 	PEG_PRECISION,
@@ -184,7 +185,7 @@ describe('update amm', () => {
 			undefined,
 			true,
 			2000,
-			5000,
+			5000
 		);
 		await driftClient.updatePerpMarketBaseSpread(0, 2000);
 		await driftClient.updatePerpMarketCurveUpdateIntensity(0, 100);
@@ -208,7 +209,7 @@ describe('update amm', () => {
 				undefined,
 				true,
 				2000,
-				5000,
+				5000
 			);
 			await driftClient.updatePerpMarketBaseSpread(i, 2000);
 			await driftClient.updatePerpMarketCurveUpdateIntensity(i, 100);
@@ -707,11 +708,7 @@ describe('update amm', () => {
 			console.log(market.amm.pegMultiplier.toString());
 
 			if (i == 0) {
-				assert(
-					market.amm.pegMultiplier.eq(
-						new BN(1020500)
-					)
-				);
+				assert(market.amm.pegMultiplier.eq(new BN(1020500)));
 			} else if (i == 1) {
 				assert(
 					market.amm.pegMultiplier.eq(

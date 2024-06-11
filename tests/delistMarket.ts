@@ -240,10 +240,16 @@ describe('delist market', () => {
 		// }
 		const market001 = driftClient.getPerpMarketAccount(0);
 
-		console.log('market001 num users with base:', market001.numberOfUsersWithBase.toString());
-		console.log('market001 num users with quote:', market001.numberOfUsers.toString());
+		console.log(
+			'market001 num users with base:',
+			market001.numberOfUsersWithBase.toString()
+		);
+		console.log(
+			'market001 num users with quote:',
+			market001.numberOfUsers.toString()
+		);
 
-		assert(market001.numberOfUsersWithBase==1);
+		assert(market001.numberOfUsersWithBase == 1);
 		// todo
 		// try {
 		await driftClientLoser.fetchAccounts();
@@ -264,10 +270,16 @@ describe('delist market', () => {
 		const market00 = driftClient.getPerpMarketAccount(0);
 		assert(market00.amm.feePool.scaledBalance.eq(new BN(1000000000000)));
 
-		console.log('market00 num users with base:', market00.numberOfUsersWithBase.toString());
-		console.log('market00 num users with quote:', market00.numberOfUsers.toString());
+		console.log(
+			'market00 num users with base:',
+			market00.numberOfUsersWithBase.toString()
+		);
+		console.log(
+			'market00 num users with quote:',
+			market00.numberOfUsers.toString()
+		);
 
-		assert(market00.numberOfUsersWithBase==2);
+		assert(market00.numberOfUsersWithBase == 2);
 
 		const solAmount = new BN(1 * 10 ** 9);
 		[liquidatorDriftClient, liquidatorDriftClientWSOLAccount] =
@@ -337,10 +349,16 @@ describe('delist market', () => {
 
 		const marketBefore = driftClient.getPerpMarketAccount(0);
 
-		console.log('marketBefore num users with base:', marketBefore.numberOfUsersWithBase.toString());
-		console.log('marketBefore num users with quote:', marketBefore.numberOfUsers.toString());
-		assert(marketBefore.numberOfUsersWithBase==2);
-		assert(marketBefore.numberOfUsers==2);
+		console.log(
+			'marketBefore num users with base:',
+			marketBefore.numberOfUsersWithBase.toString()
+		);
+		console.log(
+			'marketBefore num users with quote:',
+			marketBefore.numberOfUsers.toString()
+		);
+		assert(marketBefore.numberOfUsersWithBase == 2);
+		assert(marketBefore.numberOfUsers == 2);
 
 		await liquidatorDriftClient.addPerpLpShares(BASE_PRECISION, marketIndex);
 		await driftClient.updateK(
@@ -357,10 +375,16 @@ describe('delist market', () => {
 
 		let marketBefore2 = driftClient.getPerpMarketAccount(0);
 
-		console.log('marketBefore num users with base:', marketBefore2.numberOfUsersWithBase.toString());
-		console.log('marketBefore num users with quote:', marketBefore2.numberOfUsers.toString());
-		assert(marketBefore2.numberOfUsersWithBase==1);
-		assert(marketBefore2.numberOfUsers==2);
+		console.log(
+			'marketBefore num users with base:',
+			marketBefore2.numberOfUsersWithBase.toString()
+		);
+		console.log(
+			'marketBefore num users with quote:',
+			marketBefore2.numberOfUsers.toString()
+		);
+		assert(marketBefore2.numberOfUsersWithBase == 1);
+		assert(marketBefore2.numberOfUsers == 2);
 
 		await driftClient.settlePNL(
 			await driftClient.getUserAccountPublicKey(),
@@ -369,10 +393,16 @@ describe('delist market', () => {
 		);
 		marketBefore2 = driftClient.getPerpMarketAccount(0);
 
-		console.log('marketBefore num users with base:', marketBefore2.numberOfUsersWithBase.toString());
-		console.log('marketBefore num users with quote:', marketBefore2.numberOfUsers.toString());
-		assert(marketBefore2.numberOfUsersWithBase==1);
-		assert(marketBefore2.numberOfUsers==1);
+		console.log(
+			'marketBefore num users with base:',
+			marketBefore2.numberOfUsersWithBase.toString()
+		);
+		console.log(
+			'marketBefore num users with quote:',
+			marketBefore2.numberOfUsers.toString()
+		);
+		assert(marketBefore2.numberOfUsersWithBase == 1);
+		assert(marketBefore2.numberOfUsers == 1);
 
 		await driftClient.updateK(marketIndex, perpMarket.amm.sqrtK);
 		await driftClient.openPosition(
@@ -383,22 +413,36 @@ describe('delist market', () => {
 		);
 		marketBefore2 = driftClient.getPerpMarketAccount(0);
 
-		console.log('marketBefore num users with base:', marketBefore2.numberOfUsersWithBase.toString());
-		console.log('marketBefore num users with quote:', marketBefore2.numberOfUsers.toString());
-		assert(marketBefore2.numberOfUsersWithBase==2);
-		assert(marketBefore2.numberOfUsers==2);
+		console.log(
+			'marketBefore num users with base:',
+			marketBefore2.numberOfUsersWithBase.toString()
+		);
+		console.log(
+			'marketBefore num users with quote:',
+			marketBefore2.numberOfUsers.toString()
+		);
+		assert(marketBefore2.numberOfUsersWithBase == 2);
+		assert(marketBefore2.numberOfUsers == 2);
 		await driftClient.updateFundingRate(marketIndex, solOracle);
 
 		await driftClient.fetchAccounts();
 		await liquidatorDriftClient.fetchAccounts();
 		marketBefore2 = driftClient.getPerpMarketAccount(0);
 
-		console.log('marketBefore num users with base:', marketBefore2.numberOfUsersWithBase.toString());
-		console.log('marketBefore num users with quote:', marketBefore2.numberOfUsers.toString());
-		assert(marketBefore2.numberOfUsersWithBase==2);
-		assert(marketBefore2.numberOfUsers==2);
+		console.log(
+			'marketBefore num users with base:',
+			marketBefore2.numberOfUsersWithBase.toString()
+		);
+		console.log(
+			'marketBefore num users with quote:',
+			marketBefore2.numberOfUsers.toString()
+		);
+		assert(marketBefore2.numberOfUsersWithBase == 2);
+		assert(marketBefore2.numberOfUsers == 2);
 		assert(
-			liquidatorDriftClient.getUserAccount().perpPositions[0].baseAssetAmount.eq(ZERO)
+			liquidatorDriftClient
+				.getUserAccount()
+				.perpPositions[0].baseAssetAmount.eq(ZERO)
 		);
 		// assert(
 		// 	liquidatorDriftClient.getUserAccount().perpPositions[0].remainderBaseAssetAmount != 0
@@ -421,20 +465,31 @@ describe('delist market', () => {
 
 		const market001 = driftClient.getPerpMarketAccount(0);
 
-		console.log('market001 num users with base:', market001.numberOfUsersWithBase.toString());
-		console.log('market001 num users with quote:', market001.numberOfUsers.toString());
-		assert(
-			liquidatorDriftClient.getUserAccount().perpPositions[0].baseAssetAmount.eq(ZERO)
+		console.log(
+			'market001 num users with base:',
+			market001.numberOfUsersWithBase.toString()
+		);
+		console.log(
+			'market001 num users with quote:',
+			market001.numberOfUsers.toString()
 		);
 		assert(
-			liquidatorDriftClient.getUserAccount().perpPositions[0].remainderBaseAssetAmount == 0 
+			liquidatorDriftClient
+				.getUserAccount()
+				.perpPositions[0].baseAssetAmount.eq(ZERO)
 		);
-		assert(market001.numberOfUsersWithBase==2);
-		assert(market001.numberOfUsers==3);
+		assert(
+			liquidatorDriftClient.getUserAccount().perpPositions[0]
+				.remainderBaseAssetAmount == 0
+		);
+		assert(market001.numberOfUsersWithBase == 2);
+		assert(market001.numberOfUsers == 3);
 
 		console.log(
 			'liquidatorDriftClient perps:',
-			liquidatorDriftClient.getUserAccount().perpPositions[0].baseAssetAmount.toString()
+			liquidatorDriftClient
+				.getUserAccount()
+				.perpPositions[0].baseAssetAmount.toString()
 		);
 		// await liquidatorDriftClient.closePosition(marketIndex);
 
@@ -665,7 +720,6 @@ describe('delist market', () => {
 		console.log(marketAfter0.pnlPool.scaledBalance.toString());
 		console.log(marketAfter0.pnlPool.scaledBalance.toString());
 
-
 		assert(marketAfter0.pnlPool.scaledBalance.gt(finalPnlResultMin0));
 		assert(
 			marketAfter0.pnlPool.scaledBalance.lt(new BN(1000020719000 + 1000000))
@@ -683,8 +737,14 @@ describe('delist market', () => {
 		assert(marketAfter0.amm.lastFundingRateLong.toString() === '79877208');
 		assert(marketAfter0.amm.lastFundingRateShort.toString() === '79877208');
 
-		console.log('marketAfter0 num users with base:', marketAfter0.numberOfUsersWithBase.toString());
-		console.log('marketAfter0 num users with quote:', marketAfter0.numberOfUsers.toString());
+		console.log(
+			'marketAfter0 num users with base:',
+			marketAfter0.numberOfUsersWithBase.toString()
+		);
+		console.log(
+			'marketAfter0 num users with quote:',
+			marketAfter0.numberOfUsers.toString()
+		);
 		const txSig2 = await driftClient.settlePNL(
 			await driftClient.getUserAccountPublicKey(),
 			driftClient.getUserAccount(),
@@ -704,8 +764,14 @@ describe('delist market', () => {
 		// );
 
 		const marketAfter = driftClient.getPerpMarketAccount(marketIndex);
-		console.log('marketAfter num users with base:', marketAfter.numberOfUsersWithBase.toString());
-		console.log('marketAfter num users with quote:', marketAfter.numberOfUsers.toString());
+		console.log(
+			'marketAfter num users with base:',
+			marketAfter.numberOfUsersWithBase.toString()
+		);
+		console.log(
+			'marketAfter num users with quote:',
+			marketAfter.numberOfUsers.toString()
+		);
 		const finalPnlResultMin = new BN(969643453000 - 109000);
 		console.log('pnlPool:', marketAfter.pnlPool.scaledBalance.toString());
 		assert(marketAfter.pnlPool.scaledBalance.gt(finalPnlResultMin));
@@ -729,11 +795,16 @@ describe('delist market', () => {
 
 		console.log('userCostBasisBefore:', userCostBasisBefore.toString());
 		assert(userCostBasisBefore.eq(new BN(-2))); // from LP burn
-		console.log('num users with base:', marketBefore.numberOfUsersWithBase.toString());
+		console.log(
+			'num users with base:',
+			marketBefore.numberOfUsersWithBase.toString()
+		);
 		console.log('num users with quote:', marketBefore.numberOfUsers.toString());
 		console.log(
 			'liquidatorDriftClient perps:',
-			liquidatorDriftClient.getUserAccount().perpPositions[0].baseAssetAmount.toString()
+			liquidatorDriftClient
+				.getUserAccount()
+				.perpPositions[0].baseAssetAmount.toString()
 		);
 
 		await liquidatorDriftClient.settlePNL(
@@ -744,11 +815,16 @@ describe('delist market', () => {
 		await driftClient.fetchAccounts();
 
 		assert(
-			liquidatorDriftClient.getUserAccount().perpPositions[0].baseAssetAmount.eq(ZERO)
+			liquidatorDriftClient
+				.getUserAccount()
+				.perpPositions[0].baseAssetAmount.eq(ZERO)
 		);
 		const market = driftClient.getPerpMarketAccount(marketIndex);
 
-		console.log('num users with base:', market.numberOfUsersWithBase.toString());
+		console.log(
+			'num users with base:',
+			market.numberOfUsersWithBase.toString()
+		);
 		console.log('num users with quote:', market.numberOfUsers.toString());
 
 		const userCostBasis = market.amm.quoteAssetAmount;
@@ -770,14 +846,13 @@ describe('delist market', () => {
 
 		await driftClient.updateStateSettlementDuration(1);
 		try {
-		await driftClient.settleExpiredMarketPoolsToRevenuePool(marketIndex);
+			await driftClient.settleExpiredMarketPoolsToRevenuePool(marketIndex);
+		} catch (e) {
+			console.log('settleExpiredMarketPoolsToRevenuePool err');
+
+			console.error(e);
+			return 0;
 		}
-		catch (e) {
-				console.log('settleExpiredMarketPoolsToRevenuePool err');
-	
-				console.error(e);
-				return 0;
-			}
 		await driftClient.fetchAccounts();
 		const marketAfter = driftClient.getPerpMarketAccount(marketIndex);
 

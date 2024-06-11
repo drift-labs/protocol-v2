@@ -38,7 +38,12 @@ import {
 	sleep,
 } from './testHelpers';
 import { Keypair } from '@solana/web3.js';
-import {BulkAccountLoader, calculateReservePrice, ContractTier, UserStatus} from '../sdk';
+import {
+	BulkAccountLoader,
+	calculateReservePrice,
+	ContractTier,
+	UserStatus,
+} from '../sdk';
 
 async function depositToFeePoolFromIF(
 	amount: number,
@@ -159,7 +164,7 @@ describe('delist market, liquidation of expired position', () => {
 			undefined,
 			true,
 			250,
-			500,
+			500
 		);
 
 		await driftClient.updatePerpMarketMinOrderSize(0, new BN(1));
@@ -505,7 +510,11 @@ describe('delist market, liquidation of expired position', () => {
 		const market = driftClient.getPerpMarketAccount(marketIndex);
 		console.log(market.status);
 		assert(isVariant(market.status, 'settlement'));
-		console.log('market.expiryPrice:', market.expiryPrice.toString(), convertToNumber(market.expiryPrice));
+		console.log(
+			'market.expiryPrice:',
+			market.expiryPrice.toString(),
+			convertToNumber(market.expiryPrice)
+		);
 
 		const curPrice = (await getFeedData(anchor.workspace.Pyth, solOracle))
 			.price;
@@ -520,7 +529,6 @@ describe('delist market, liquidation of expired position', () => {
 		);
 		assert(market.amm.lastMarkPriceTwap.gte(new BN(42503984 - 200)));
 		assert(market.amm.lastMarkPriceTwap.lte(new BN(42504249 + 200)));
-
 	});
 
 	it('liq and settle expired market position', async () => {

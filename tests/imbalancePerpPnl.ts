@@ -23,7 +23,6 @@ import {
 	oraclePriceBands,
 	InsuranceFundRecord,
 	OracleGuardRails,
-	MarketStatus,
 	AMM_RESERVE_PRECISION,
 	BID_ASK_SPREAD_PRECISION,
 	calculateBidAskPrice,
@@ -235,7 +234,7 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 			undefined,
 			true,
 			250,
-			500,
+			500
 		);
 		await driftClient.updatePerpMarketCurveUpdateIntensity(0, 100);
 		await sleep(100);

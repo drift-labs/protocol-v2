@@ -22,7 +22,7 @@ import {
 	mockUSDCMint,
 	mockUserUSDCAccount,
 } from './testHelpers';
-import {BulkAccountLoader, ContractTier, ExchangeStatus} from '../sdk';
+import { BulkAccountLoader, ContractTier, ExchangeStatus } from '../sdk';
 
 describe('user order id', () => {
 	const provider = anchor.AnchorProvider.local(undefined, {

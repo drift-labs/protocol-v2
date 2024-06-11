@@ -9,7 +9,8 @@ import {
 	calculatePrice,
 	PEG_PRECISION,
 	BASE_PRECISION,
-	BulkAccountLoader, ContractTier,
+	BulkAccountLoader,
+	ContractTier,
 } from '../sdk';
 
 import { Program } from '@coral-xyz/anchor';
@@ -145,7 +146,7 @@ describe('prepeg', () => {
 			undefined,
 			true,
 			2000,
-			5000,
+			5000
 		);
 		// await driftClient.updatePerpMarketBaseSpread(0, 1000);
 		await driftClient.updatePerpMarketCurveUpdateIntensity(0, 100);
@@ -174,7 +175,7 @@ describe('prepeg', () => {
 				undefined,
 				true,
 				2000,
-				5000,
+				5000
 			);
 			await driftClient.updatePerpMarketBaseSpread(i, 2000);
 			await driftClient.updatePerpMarketCurveUpdateIntensity(i, 100);
@@ -330,7 +331,7 @@ describe('prepeg', () => {
 		console.log(market.amm.totalExchangeFee.toNumber());
 		console.log(position0.quoteAssetAmount.toNumber());
 
-		assert.ok(position0.quoteAssetAmount.eq(new BN(-49874459-49875)));
+		assert.ok(position0.quoteAssetAmount.eq(new BN(-49874459 - 49875)));
 		assert.ok(
 			position0.quoteAssetAmount.eq(
 				position0.quoteEntryAmount.sub(market.amm.totalExchangeFee)
@@ -588,7 +589,7 @@ describe('prepeg', () => {
 			'position0.quoteEntryAmount:',
 			position0.quoteBreakEvenAmount.toNumber()
 		);
-		
+
 		console.log(
 			'acquiredQuoteAssetAmount:',
 			acquiredQuoteAssetAmount.toNumber()

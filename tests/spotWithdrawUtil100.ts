@@ -10,7 +10,6 @@ import {
 	BASE_PRECISION,
 	getLimitOrderParams,
 	PostOnlyParams,
-	MarketStatus,
 } from '../sdk/src';
 
 import {
@@ -47,7 +46,7 @@ import {
 	calculateUtilization,
 } from '../sdk/src/math/spotBalance';
 import { NATIVE_MINT } from '@solana/spl-token';
-import {ContractTier} from "../sdk";
+import { ContractTier } from '../sdk';
 
 describe('test function when spot market at >= 100% util', () => {
 	const provider = anchor.AnchorProvider.local(undefined, {
