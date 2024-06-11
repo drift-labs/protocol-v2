@@ -1,5 +1,5 @@
 {
-  "version": "2.82.0",
+  "version": "2.83.0",
   "name": "drift",
   "instructions": [
     {
@@ -1524,6 +1524,45 @@
         {
           "name": "marketIndex",
           "type": "u16"
+        }
+      ]
+    },
+    {
+      "name": "settleMultiplePnls",
+      "accounts": [
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "user",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "spotMarketVault",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "marketIndexes",
+          "type": {
+            "vec": "u16"
+          }
+        },
+        {
+          "name": "mode",
+          "type": {
+            "defined": "SettlePnlMode"
+          }
         }
       ]
     },
@@ -9169,7 +9208,7 @@
             "name": "Standard",
             "fields": [
               {
-                "name": "track_open_orders_fraction",
+                "name": "trackOpenOrdersFraction",
                 "type": "bool"
               }
             ]
@@ -9178,7 +9217,7 @@
             "name": "Liquidation",
             "fields": [
               {
-                "name": "market_to_track_margin_requirement",
+                "name": "marketToTrackMarginRequirement",
                 "type": {
                   "option": {
                     "defined": "MarketIdentifier"
@@ -9407,6 +9446,20 @@
           },
           {
             "name": "Shared"
+          }
+        ]
+      }
+    },
+    {
+      "name": "SettlePnlMode",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "MustSettle"
+          },
+          {
+            "name": "TrySettle"
           }
         ]
       }
@@ -11899,6 +11952,16 @@
       "code": 6258,
       "name": "InsuranceFundOperationPaused",
       "msg": "InsuranceFundOperationPaused"
+    },
+    {
+      "code": 6259,
+      "name": "NoUnsettledPnl",
+      "msg": "NoUnsettledPnl"
+    },
+    {
+      "code": 6260,
+      "name": "PnlPoolCantSettleUser",
+      "msg": "PnlPoolCantSettleUser"
     }
   ]
 }

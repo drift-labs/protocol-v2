@@ -2,8 +2,8 @@ use crate::controller::lp::*;
 use crate::controller::pnl::settle_pnl;
 use crate::state::perp_market::AMM;
 use crate::state::user::PerpPosition;
-use crate::BASE_PRECISION_I64;
 use crate::PRICE_PRECISION;
+use crate::{SettlePnlMode, BASE_PRECISION_I64};
 use std::str::FromStr;
 
 use anchor_lang::Owner;
@@ -487,7 +487,7 @@ pub fn test_lp_settle_pnl() {
         status: MarketStatus::Active,
         liquidator_fee: LIQUIDATION_FEE_PRECISION / 100,
         pnl_pool: PoolBalance {
-            scaled_balance: (50 * SPOT_BALANCE_PRECISION) as u128,
+            scaled_balance: (50 * SPOT_BALANCE_PRECISION),
             market_index: QUOTE_SPOT_MARKET_INDEX,
             ..PoolBalance::default()
         },
@@ -573,6 +573,8 @@ pub fn test_lp_settle_pnl() {
         &mut oracle_map,
         &clock,
         &state,
+        None,
+        SettlePnlMode::MustSettle,
     );
 
     assert_eq!(result, Ok(()));
@@ -632,7 +634,7 @@ fn test_lp_margin_calc() {
         status: MarketStatus::Active,
         liquidator_fee: LIQUIDATION_FEE_PRECISION / 100,
         pnl_pool: PoolBalance {
-            scaled_balance: (50 * SPOT_BALANCE_PRECISION) as u128,
+            scaled_balance: (50 * SPOT_BALANCE_PRECISION),
             market_index: QUOTE_SPOT_MARKET_INDEX,
             ..PoolBalance::default()
         },
@@ -695,7 +697,7 @@ fn test_lp_margin_calc() {
 
     // add move lower
     let oracle_price_data = OraclePriceData {
-        price: oracle_price.agg.price as i64,
+        price: oracle_price.agg.price,
         confidence: 100000,
         delay: 1,
         has_sufficient_number_of_data_points: true,

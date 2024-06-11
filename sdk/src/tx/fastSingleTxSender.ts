@@ -101,6 +101,7 @@ export class FastSingleTxSender extends BaseTxSender {
 		if (!this.skipConfirmation) {
 			try {
 				const result = await this.confirmTransaction(txid, opts.commitment);
+				await this.checkConfirmationResultForError(txid, result);
 				slot = result.context.slot;
 			} catch (e) {
 				console.error(e);

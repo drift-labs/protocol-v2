@@ -63,9 +63,9 @@ fn balanced_funding_test() {
 
         let mut market = PerpMarket {
             amm: AMM {
-                base_asset_reserve: sqrt_k as u128,
-                quote_asset_reserve: sqrt_k as u128,
-                sqrt_k: sqrt_k as u128,
+                base_asset_reserve: sqrt_k,
+                quote_asset_reserve: sqrt_k,
+                sqrt_k,
                 peg_multiplier: px,
                 base_asset_amount_with_amm: 0,
                 base_asset_amount_long: 12295081967,
@@ -115,9 +115,9 @@ fn balanced_funding_test() {
 
         let mut market = PerpMarket {
             amm: AMM {
-                base_asset_reserve: sqrt_k as u128,
-                quote_asset_reserve: sqrt_k as u128,
-                sqrt_k: sqrt_k as u128,
+                base_asset_reserve: sqrt_k,
+                quote_asset_reserve: sqrt_k,
+                sqrt_k,
                 peg_multiplier: px,
                 base_asset_amount_with_amm: 0,
                 base_asset_amount_long: 7845926098328,
@@ -659,7 +659,7 @@ fn unsettled_funding_pnl() {
         &market,
         oracle_price_data,
         &state.oracle_guard_rails,
-        None,
+        market.amm.reserve_price().unwrap(),
         slot,
     )
     .unwrap();
@@ -683,7 +683,7 @@ fn unsettled_funding_pnl() {
         &market,
         oracle_price_data,
         &state.oracle_guard_rails,
-        None,
+        market.amm.reserve_price().unwrap(),
         slot,
     )
     .unwrap();

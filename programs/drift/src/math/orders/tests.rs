@@ -139,7 +139,7 @@ mod order_breaches_oracle_price_limits {
     #[test]
     fn bid_does_not_breach() {
         let _market = PerpMarket {
-            margin_ratio_initial: (MARGIN_PRECISION / 10) as u32, // 10x
+            margin_ratio_initial: (MARGIN_PRECISION / 10), // 10x
             ..PerpMarket::default()
         };
 
@@ -169,7 +169,7 @@ mod order_breaches_oracle_price_limits {
     #[test]
     fn bid_does_not_breach_4_99_percent_move() {
         let _market = PerpMarket {
-            margin_ratio_initial: (MARGIN_PRECISION / 10) as u32, // 10x
+            margin_ratio_initial: (MARGIN_PRECISION / 10), // 10x
             ..PerpMarket::default()
         };
 
@@ -199,8 +199,8 @@ mod order_breaches_oracle_price_limits {
     #[test]
     fn bid_breaches() {
         let _market = PerpMarket {
-            margin_ratio_initial: (MARGIN_PRECISION / 10) as u32, // 10x
-            margin_ratio_maintenance: (MARGIN_PRECISION / 20) as u32, // 20x
+            margin_ratio_initial: (MARGIN_PRECISION / 10), // 10x
+            margin_ratio_maintenance: (MARGIN_PRECISION / 20), // 20x
             ..PerpMarket::default()
         };
 
@@ -231,8 +231,8 @@ mod order_breaches_oracle_price_limits {
     #[test]
     fn ask_does_not_breach() {
         let _market = PerpMarket {
-            margin_ratio_initial: (MARGIN_PRECISION / 10) as u32, // 10x
-            margin_ratio_maintenance: (MARGIN_PRECISION / 20) as u32, // 20x
+            margin_ratio_initial: (MARGIN_PRECISION / 10), // 10x
+            margin_ratio_maintenance: (MARGIN_PRECISION / 20), // 20x
             ..PerpMarket::default()
         };
 
@@ -263,8 +263,8 @@ mod order_breaches_oracle_price_limits {
     #[test]
     fn ask_does_not_breach_4_99_percent_move() {
         let _market = PerpMarket {
-            margin_ratio_initial: (MARGIN_PRECISION / 10) as u32, // 10x
-            margin_ratio_maintenance: (MARGIN_PRECISION / 20) as u32, // 20x
+            margin_ratio_initial: (MARGIN_PRECISION / 10), // 10x
+            margin_ratio_maintenance: (MARGIN_PRECISION / 20), // 20x
             ..PerpMarket::default()
         };
 
@@ -295,8 +295,8 @@ mod order_breaches_oracle_price_limits {
     #[test]
     fn ask_breaches() {
         let _market = PerpMarket {
-            margin_ratio_initial: (MARGIN_PRECISION / 10) as u32, // 10x
-            margin_ratio_maintenance: (MARGIN_PRECISION / 20) as u32, // 20x
+            margin_ratio_initial: (MARGIN_PRECISION / 10), // 10x
+            margin_ratio_maintenance: (MARGIN_PRECISION / 20), // 20x
             ..PerpMarket::default()
         };
 
@@ -3344,12 +3344,12 @@ pub mod get_price_for_perp_order {
 }
 
 pub mod estimate_price_from_side {
-    use crate::math::orders::{estimate_price_from_side, Level, Side};
+    use crate::math::orders::{estimate_price_from_side, Level};
     use crate::{BASE_PRECISION_U64, PRICE_PRECISION_U64};
 
     #[test]
     fn ask() {
-        let mut asks: Side = vec![];
+        let mut asks: Vec<Level> = vec![];
         for i in 0..11 {
             asks.push(Level {
                 price: (100 - i) * PRICE_PRECISION_U64,
@@ -3370,7 +3370,7 @@ pub mod estimate_price_from_side {
 
     #[test]
     fn bids() {
-        let mut bids: Side = vec![];
+        let mut bids: Vec<Level> = vec![];
         for i in 0..11 {
             bids.push(Level {
                 price: (90 + i) * PRICE_PRECISION_U64,

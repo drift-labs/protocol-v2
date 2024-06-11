@@ -89,7 +89,7 @@ impl<'a> PerpMarketMap<'a> {
 
     pub fn load<'b, 'c>(
         writable_markets: &'b MarketSet,
-        account_info_iter: &'c mut Peekable<Iter<AccountInfo<'a>>>,
+        account_info_iter: &'c mut Peekable<Iter<'a, AccountInfo<'a>>>,
     ) -> DriftResult<PerpMarketMap<'a>> {
         let mut perp_market_map: PerpMarketMap = PerpMarketMap(BTreeMap::new());
 
@@ -136,7 +136,7 @@ impl<'a> PerpMarketMap<'a> {
 
 #[cfg(test)]
 impl<'a> PerpMarketMap<'a> {
-    pub fn load_one<'c>(
+    pub fn load_one<'c: 'a>(
         account_info: &'c AccountInfo<'a>,
         must_be_writable: bool,
     ) -> DriftResult<PerpMarketMap<'a>> {
@@ -177,7 +177,7 @@ impl<'a> PerpMarketMap<'a> {
         PerpMarketMap(BTreeMap::new())
     }
 
-    pub fn load_multiple<'c>(
+    pub fn load_multiple<'c: 'a>(
         account_infos: Vec<&'c AccountInfo<'a>>,
         must_be_writable: bool,
     ) -> DriftResult<PerpMarketMap<'a>> {
@@ -217,11 +217,19 @@ impl<'a> PerpMarketMap<'a> {
     }
 }
 
-pub type MarketSet = BTreeSet<u16>;
+pub(crate) type MarketSet = BTreeSet<u16>;
 
 pub fn get_writable_perp_market_set(market_index: u16) -> MarketSet {
     let mut writable_markets = MarketSet::new();
     writable_markets.insert(market_index);
+    writable_markets
+}
+
+pub fn get_writable_perp_market_set_from_vec(market_indexes: &[u16]) -> MarketSet {
+    let mut writable_markets = MarketSet::new();
+    for market_index in market_indexes.iter() {
+        writable_markets.insert(*market_index);
+    }
     writable_markets
 }
 
@@ -241,18 +249,5 @@ pub fn get_market_set_for_user_positions(user_positions: &PerpPositions) -> Mark
     for position in user_positions.iter() {
         writable_markets.insert(position.market_index);
     }
-    writable_markets
-}
-
-pub fn get_market_set_for_user_positions_and_order(
-    user_positions: &PerpPositions,
-    market_index: u16,
-) -> MarketSet {
-    let mut writable_markets = MarketSet::new();
-    for position in user_positions.iter() {
-        writable_markets.insert(position.market_index);
-    }
-    writable_markets.insert(market_index);
-
     writable_markets
 }

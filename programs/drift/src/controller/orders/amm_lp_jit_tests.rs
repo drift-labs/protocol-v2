@@ -2742,7 +2742,7 @@ pub mod amm_lp_jit {
                     post_only: true,
                     order_type: OrderType::Limit,
                     direction: PositionDirection::Short,
-                    base_asset_amount: baa as u64,
+                    base_asset_amount: baa,
                     price: auction_price,
                     ..Order::default()
                 }),

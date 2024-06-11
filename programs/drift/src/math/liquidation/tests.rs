@@ -9,7 +9,7 @@ mod calculate_base_asset_amount_to_cover_margin_shortage {
     #[test]
     pub fn zero_percent_liquidation_fee() {
         let margin_shortage = 10 * QUOTE_PRECISION; // $10 shortage
-        let margin_ratio = MARGIN_PRECISION as u32 / 10; // 10x leverage
+        let margin_ratio = MARGIN_PRECISION / 10; // 10x leverage
         let liquidation_fee = 0; // 0 percent
         let oracle_price = 100 * PRICE_PRECISION_I64; // $100 / base
         let base_asset_amount = calculate_base_asset_amount_to_cover_margin_shortage(
@@ -28,7 +28,7 @@ mod calculate_base_asset_amount_to_cover_margin_shortage {
     #[test]
     pub fn usdc_not_one() {
         let margin_shortage = 10 * QUOTE_PRECISION; // $10 shortage
-        let margin_ratio = MARGIN_PRECISION as u32 / 10; // 10x leverage
+        let margin_ratio = MARGIN_PRECISION / 10; // 10x leverage
         let liquidation_fee = 0; // 0 percent
         let oracle_price = 100 * PRICE_PRECISION_I64; // $100 / base
         let quote_oracle_price = 99 * 10000;
@@ -61,7 +61,7 @@ mod calculate_base_asset_amount_to_cover_margin_shortage {
     #[test]
     pub fn one_percent_liquidation_fee() {
         let margin_shortage = 10 * QUOTE_PRECISION; // $10 shortage
-        let margin_ratio = MARGIN_PRECISION as u32 / 10; // 10x leverage
+        let margin_ratio = MARGIN_PRECISION / 10; // 10x leverage
         let liquidation_fee = LIQUIDATION_FEE_PRECISION / 100; // 1 percent
         let oracle_price = 100 * PRICE_PRECISION_I64; // $100 / base
         let base_asset_amount = calculate_base_asset_amount_to_cover_margin_shortage(
@@ -94,7 +94,7 @@ mod calculate_base_asset_amount_to_cover_margin_shortage {
     #[test]
     pub fn one_percent_liquidation_fee_and_one_percent_if_liquidation_fee() {
         let margin_shortage = 10 * QUOTE_PRECISION; // $10 shortage
-        let margin_ratio = MARGIN_PRECISION as u32 / 10; // 10x leverage
+        let margin_ratio = MARGIN_PRECISION / 10; // 10x leverage
         let liquidation_fee = LIQUIDATION_FEE_PRECISION / 100; // 1 percent
         let oracle_price = 100 * PRICE_PRECISION_I64; // $100 / base
         let if_liquidation_fee = LIQUIDATION_FEE_PRECISION / 100; // 1 percent

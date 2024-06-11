@@ -15,6 +15,7 @@ import {
 	TransactionSignature,
 	Connection,
 	VersionedTransaction,
+	SendTransactionError,
 	TransactionInstruction,
 	AddressLookupTableAccount,
 	BlockhashWithExpiryBlockHeight,
@@ -365,5 +366,37 @@ export abstract class BaseTxSender implements TxSender {
 
 	public getTimeoutCount(): number {
 		return this.timeoutCount;
+	}
+
+	public async checkConfirmationResultForError(
+		txSig: string,
+		result: RpcResponseAndContext<SignatureResult>
+	) {
+		if (result.value.err) {
+			await this.reportTransactionError(txSig);
+		}
+
+		return;
+	}
+
+	public async reportTransactionError(txSig: string) {
+		const transactionResult = await this.connection.getTransaction(txSig, {
+			maxSupportedTransactionVersion: 0,
+		});
+
+		if (!transactionResult?.meta?.err) {
+			return undefined;
+		}
+
+		const logs = transactionResult.meta.logMessages;
+
+		const lastLog = logs[logs.length - 1];
+
+		const friendlyMessage = lastLog?.match(/(failed:) (.+)/)?.[2];
+
+		throw new SendTransactionError(
+			`Transaction Failed${friendlyMessage ? `: ${friendlyMessage}` : ''}`,
+			transactionResult.meta.logMessages
+		);
 	}
 }
