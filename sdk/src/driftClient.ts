@@ -2762,18 +2762,7 @@ export class DriftClient {
 		return txSig;
 	}
 
-	/**
-	 * Sends a market order and returns a signed tx which can fill the order against the vamm, which the caller can use to fill their own order if required.
-	 * @param orderParams
-	 * @param userAccountPublicKey
-	 * @param userAccount
-	 * @param makerInfo
-	 * @param txParams
-	 * @param bracketOrdersParams
-	 * @param cancelExistingOrders - Builds and returns an extra transaciton to cancel the existing orders in the same perp market. Intended use is to auto-cancel TP/SL orders when closing a position. Ignored if orderParams.marketType is not MarketType.PERP
-	 * @returns
-	 */
-	public async sendMarketOrderAndGetSignedFillTx(
+	public async prepareMarketOrderTxs(
 		orderParams: OptionalOrderParams,
 		userAccountPublicKey: PublicKey,
 		userAccount: UserAccount,
@@ -2783,12 +2772,24 @@ export class DriftClient {
 		referrerInfo?: ReferrerInfo,
 		cancelExistingOrders?: boolean,
 		settlePnl?: boolean
-	): Promise<{
-		txSig: TransactionSignature;
-		signedFillTx?: Transaction;
-		signedCancelExistingOrdersTx?: Transaction;
-		signedSettlePnlTx?: Transaction;
+	) : Promise<{
+		signedCancelExistingOrdersTx: Transaction | VersionedTransaction,
+		signedSettlePnlTx: Transaction | VersionedTransaction,
+		signedFillTx: Transaction | VersionedTransaction,
+		signedMarketOrderTx: Transaction | VersionedTransaction,
 	}> {
+		const txsToSign: {
+			signedCancelExistingOrdersTx: Transaction | VersionedTransaction,
+			signedSettlePnlTx: Transaction | VersionedTransaction,
+			signedFillTx: Transaction | VersionedTransaction,
+			signedMarketOrderTx: Transaction | VersionedTransaction,
+		} = {
+			signedCancelExistingOrdersTx: null,
+			signedSettlePnlTx: null,
+			signedFillTx: null,
+			signedMarketOrderTx: null,
+		};
+
 		const marketIndex = orderParams.marketIndex;
 		const orderId = userAccount.nextOrderId;
 
@@ -2799,7 +2800,10 @@ export class DriftClient {
 
 		const ixsToSign: { key: string; ix: TransactionInstruction }[] = [];
 
-		const keys = {
+		const keys : Record<
+			keyof typeof txsToSign,
+			keyof typeof txsToSign
+		> = {
 			signedCancelExistingOrdersTx: 'signedCancelExistingOrdersTx',
 			signedSettlePnlTx: 'signedSettlePnlTx',
 			signedFillTx: 'signedFillTx',
@@ -2862,8 +2866,56 @@ export class DriftClient {
 			txParams
 		);
 
+		return {
+			signedCancelExistingOrdersTx: signedTransactions.signedCancelExistingOrdersTx,
+			signedSettlePnlTx: signedTransactions.signedSettlePnlTx,
+			signedFillTx: signedTransactions.signedFillTx,
+			signedMarketOrderTx: signedTransactions.signedMarketOrderTx,
+		};
+	}
+
+	/**
+	 * Sends a market order and returns a signed tx which can fill the order against the vamm, which the caller can use to fill their own order if required.
+	 * @param orderParams
+	 * @param userAccountPublicKey
+	 * @param userAccount
+	 * @param makerInfo
+	 * @param txParams
+	 * @param bracketOrdersParams
+	 * @param cancelExistingOrders - Builds and returns an extra transaciton to cancel the existing orders in the same perp market. Intended use is to auto-cancel TP/SL orders when closing a position. Ignored if orderParams.marketType is not MarketType.PERP
+	 * @returns
+	 */
+	public async sendMarketOrderAndGetSignedFillTx(
+		orderParams: OptionalOrderParams,
+		userAccountPublicKey: PublicKey,
+		userAccount: UserAccount,
+		makerInfo?: MakerInfo | MakerInfo[],
+		txParams?: TxParams,
+		bracketOrdersParams = new Array<OptionalOrderParams>(),
+		referrerInfo?: ReferrerInfo,
+		cancelExistingOrders?: boolean,
+		settlePnl?: boolean
+	): Promise<{
+		txSig: TransactionSignature;
+		signedFillTx?: Transaction;
+		signedCancelExistingOrdersTx?: Transaction;
+		signedSettlePnlTx?: Transaction;
+	}> {
+		
+		const preppedTxs = await this.prepareMarketOrderTxs(
+			orderParams,
+			userAccountPublicKey,
+			userAccount,
+			makerInfo,
+			txParams,
+			bracketOrdersParams,
+			referrerInfo,
+			cancelExistingOrders,
+			settlePnl
+		);
+
 		const { txSig, slot } = await this.sendTransaction(
-			signedTransactions[keys.signedMarketOrderTx],
+			preppedTxs.signedMarketOrderTx,
 			[],
 			this.opts,
 			true
@@ -2873,13 +2925,9 @@ export class DriftClient {
 
 		return {
 			txSig,
-			signedFillTx: signedTransactions?.[keys.signedFillTx] as Transaction,
-			signedCancelExistingOrdersTx: signedTransactions?.[
-				keys.signedCancelExistingOrdersTx
-			] as Transaction,
-			signedSettlePnlTx: signedTransactions?.[
-				keys.signedSettlePnlTx
-			] as Transaction,
+			signedFillTx: preppedTxs.signedFillTx as Transaction,
+			signedCancelExistingOrdersTx: preppedTxs.signedCancelExistingOrdersTx as Transaction,
+			signedSettlePnlTx: preppedTxs.signedSettlePnlTx as Transaction,
 		};
 	}
 
