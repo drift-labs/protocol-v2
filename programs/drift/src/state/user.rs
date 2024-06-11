@@ -453,6 +453,12 @@ impl User {
         user_stats: &mut UserStats,
         now: i64,
     ) -> DriftResult<MarginCalculation> {
+        validate!(
+            context.fuel_bonus_numerator == user_stats.get_fuel_bonus_numerator(now)?,
+            ErrorCode::DefaultError,
+            "Bad fuel bonus update attempt"
+        )?;
+
         let margin_calculation =
             calculate_margin_requirement_and_total_collateral_and_liability_info(
                 self,
@@ -1609,7 +1615,7 @@ impl Size for UserStats {
 }
 
 impl UserStats {
-    pub fn get_fuel_bonus_update_numerator(self, now: i64) -> DriftResult<i64> {
+    pub fn get_fuel_bonus_numerator(self, now: i64) -> DriftResult<i64> {
         let since_last = now.safe_sub(self.last_fuel_bonus_update_ts)?;
         Ok(since_last)
     }

@@ -87,8 +87,12 @@ mod tests;
 
 #[cfg(test)]
 mod amm_jit_tests;
+
 #[cfg(test)]
 mod amm_lp_jit_tests;
+
+#[cfg(test)]
+mod fuel_tests;
 
 pub fn place_perp_order(
     state: &State,
