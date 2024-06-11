@@ -18,6 +18,7 @@ import {
 	BASE_PRECISION,
 	BulkAccountLoader,
 	PERCENTAGE_PRECISION,
+	ContractTier,
 } from '../sdk';
 import { Keypair } from '@solana/web3.js';
 import { Program } from '@coral-xyz/anchor';
@@ -207,8 +208,8 @@ describe('repeg and spread amm', () => {
 		});
 
 		await driftClient.initialize(usdcMint.publicKey, true);
-		await driftClient.updatePerpAuctionDuration(0);
 		await driftClient.subscribe();
+		await driftClient.updatePerpAuctionDuration(0);
 
 		await initializeQuoteSpotMarket(driftClient, usdcMint.publicKey);
 
@@ -222,8 +223,15 @@ describe('repeg and spread amm', () => {
 			periodicity,
 			new BN(21966.868 * PEG_PRECISION.toNumber()),
 			undefined,
+			ContractTier.A,
 			500,
-			250
+			250,
+			undefined,
+			undefined,
+			undefined,
+			true,
+			250,
+			400
 		);
 		await driftClient.updatePerpMarketBaseSpread(0, 250);
 		await driftClient.updatePerpMarketCurveUpdateIntensity(0, 100);
