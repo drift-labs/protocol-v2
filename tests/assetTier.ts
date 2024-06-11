@@ -18,7 +18,6 @@ import {
 	// SPOT_MARKET_CUMULATIVE_INTEREST_PRECISION,
 	// OracleInfo,
 	AMM_RESERVE_PRECISION,
-	MarketStatus,
 	PEG_PRECISION,
 	QUOTE_SPOT_MARKET_INDEX,
 	AssetTier,
@@ -42,6 +41,7 @@ import {
 import { startAnchor } from "solana-bankrun";
 import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
 import { BankrunContextWrapper } from '../sdk/src/bankrunConnection';
+import { BulkAccountLoader, ContractTier } from '../sdk';
 
 describe('asset tiers', () => {
 	const chProgram = anchor.workspace.Drift as Program;
@@ -125,10 +125,16 @@ describe('asset tiers', () => {
 			periodicity,
 			new BN(22500 * PEG_PRECISION.toNumber()),
 			undefined,
-			1000
+			ContractTier.A,
+			1000,
+			500,
+			undefined,
+			undefined,
+			undefined,
+			true,
+			2000,
+			5000
 		);
-		await driftClient.updatePerpMarketStatus(0, MarketStatus.ACTIVE);
-		await driftClient.updatePerpMarketBaseSpread(0, 2000);
 		await driftClient.updatePerpMarketCurveUpdateIntensity(0, 100);
 
 		const subAccountId = 0;

@@ -5,7 +5,7 @@
 	"author": "",
 	"license": "ISC",
 	"devDependencies": {
-		"@coral-xyz/anchor": "0.28.1-beta.2",
+		"@coral-xyz/anchor": "0.29.0",
 		"@project-serum/common": "0.0.1-beta.3",
 		"@project-serum/serum": "^0.13.38",
 		"@pythnetwork/client": "^2.5.1",
@@ -27,7 +27,8 @@
 		"@ellipsis-labs/phoenix-sdk": "^1.4.2",
 		"chai-bn": "^0.2.2",
 		"csvtojson": "^2.0.10",
-		"json2csv": "^5.0.7"
+		"json2csv": "^5.0.7",
+		"zstddec": "^0.1.0"
 	},
 	"scripts": {
 		"generate-docs": "typedoc",

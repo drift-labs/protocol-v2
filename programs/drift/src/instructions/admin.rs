@@ -1267,7 +1267,10 @@ pub fn handle_settle_expired_market_pools_to_revenue_pool(
             && perp_market.amm.base_asset_amount_short == 0
             && perp_market.number_of_users_with_base == 0,
         ErrorCode::DefaultError,
-        "outstanding base_asset_amounts must be balanced"
+        "outstanding base_asset_amounts must be balanced {} {} {}",
+        perp_market.amm.base_asset_amount_long,
+        perp_market.amm.base_asset_amount_short,
+        perp_market.number_of_users_with_base
     )?;
 
     validate!(
@@ -3279,8 +3282,8 @@ pub fn handle_update_protocol_if_shares_transfer_config(
     Ok(())
 }
 
-pub fn handle_initialize_prelaunch_oracle<'info>(
-    ctx: Context<InitializePrelaunchOracle<'info>>,
+pub fn handle_initialize_prelaunch_oracle(
+    ctx: Context<InitializePrelaunchOracle>,
     params: PrelaunchOracleParams,
 ) -> Result<()> {
     let mut oracle = ctx.accounts.prelaunch_oracle.load_init()?;
@@ -3298,8 +3301,8 @@ pub fn handle_initialize_prelaunch_oracle<'info>(
     Ok(())
 }
 
-pub fn handle_update_prelaunch_oracle_params<'info>(
-    ctx: Context<UpdatePrelaunchOracleParams<'info>>,
+pub fn handle_update_prelaunch_oracle_params(
+    ctx: Context<UpdatePrelaunchOracleParams>,
     params: PrelaunchOracleParams,
 ) -> Result<()> {
     let mut oracle = ctx.accounts.prelaunch_oracle.load_mut()?;
@@ -3336,8 +3339,8 @@ pub fn handle_update_prelaunch_oracle_params<'info>(
     Ok(())
 }
 
-pub fn handle_delete_prelaunch_oracle<'info>(
-    ctx: Context<DeletePrelaunchOracle<'info>>,
+pub fn handle_delete_prelaunch_oracle(
+    ctx: Context<DeletePrelaunchOracle>,
     _perp_market_index: u16,
 ) -> Result<()> {
     let perp_market = ctx.accounts.perp_market.load()?;

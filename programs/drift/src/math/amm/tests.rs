@@ -458,7 +458,7 @@ fn calc_mark_std_tests() {
     update_amm_mark_std(&mut amm, now, PRICE_PRECISION_U64 * 23, 0).unwrap();
     assert_eq!(amm.mark_std, 23000000);
 
-    amm.mark_std = PRICE_PRECISION_U64 as u64;
+    amm.mark_std = PRICE_PRECISION_U64;
     amm.last_mark_price_twap_ts = now - 60;
     update_amm_mark_std(&mut amm, now, PRICE_PRECISION_U64 * 2, 0).unwrap();
     assert_eq!(amm.mark_std, 2000000);
