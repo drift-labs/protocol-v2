@@ -367,7 +367,7 @@ export async function createUserWithUSDCAndWSOLAccount(
 	marketIndexes: number[],
 	bankIndexes: number[],
 	oracleInfos: OracleInfo[] = [],
-	accountLoader?: BulkAccountLoader
+	accountLoader?: TestBulkAccountLoader
 ): Promise<[TestClient, PublicKey, PublicKey, Keypair]> {
 	const keypair = Keypair.generate();
 	await context.fundKeypair(keypair, LAMPORTS_PER_SOL * 3);

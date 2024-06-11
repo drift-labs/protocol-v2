@@ -42,6 +42,24 @@ import { startAnchor } from "solana-bankrun";
 import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
 import { BankrunContextWrapper } from '../sdk/src/bankrunConnection';
 import { BulkAccountLoader, ContractTier } from '../sdk';
+import { assetTierSolOracle, assetTierDogeOracle } from './mockOracles';
+
+const DOGE_ORACLE: AccountInfo<Buffer> = {
+	data: Buffer.from(assetTierDogeOracle, 'base64'),
+    executable: false,
+    lamports: 23942400,
+    owner: new PublicKey("FsJ3A3u2vn5cTVofAjvy6y5kwABJAqYWpe4975bi2epH"),
+    rentEpoch: 0
+};
+
+const SOL_ORACLE: AccountInfo<Buffer> = {
+	data: Buffer.from(assetTierSolOracle, 'base64'),
+    executable: false,
+    lamports: 23942400,
+    owner: new PublicKey("FsJ3A3u2vn5cTVofAjvy6y5kwABJAqYWpe4975bi2epH"),
+    rentEpoch: 0
+};
+
 
 describe('asset tiers', () => {
 	const chProgram = anchor.workspace.Drift as Program;
@@ -54,8 +72,8 @@ describe('asset tiers', () => {
 	let dogeMint;
 	let userUSDCAccount: Keypair;
 
-	let solOracle: PublicKey;
-	let dogeOracle: PublicKey;
+	const solOracle: PublicKey = PublicKey.unique();
+	const dogeOracle: PublicKey = PublicKey.unique();
 	const usdcAmount = new BN(1000000 * 10 ** 6); //1M
 
 	let secondUserDriftClient: TestClient;
@@ -67,22 +85,30 @@ describe('asset tiers', () => {
 	const solAmount = new BN(10000 * 10 ** 9);
 
 	before(async () => {
-		const context = await startAnchor("", [], []);
+		const context = await startAnchor("", [], [
+			{
+				address: solOracle,
+				info: SOL_ORACLE,
+			},
+			{
+				address: dogeOracle,
+				info: DOGE_ORACLE,
+			},
+		]);
 
 		const bankrunContextWrapper = new BankrunContextWrapper(context);
 
 		usdcMint = await mockUSDCMint(bankrunContextWrapper);
-		dogeMint = await mockUSDCMint(bankrunContextWrapper
+		dogeMint = await mockUSDCMint(bankrunContextWrapper);
 
-		);
 		userUSDCAccount = await mockUserUSDCAccount(
 			usdcMint,
 			usdcAmount.mul(new BN(2)), // 2x it
 			bankrunContextWrapper,
 		);
 
-		solOracle = await mockOracle(22500); // a future we all need to believe in
-		dogeOracle = await mockOracle(0.05);
+		// solOracle = await mockOracle(22500); // a future we all need to believe in
+		// dogeOracle = await mockOracle(0.05);
 
 		driftClient = new TestClient({
 			connection: bankrunContextWrapper.connection.toConnection(),
@@ -169,7 +195,7 @@ describe('asset tiers', () => {
 					source: OracleSource.PYTH,
 				},
 			],
-			bulkAccountLoader
+			// bulkAccountLoader
 		);
 
 		secondUserDriftClientDogeAccount = await createUSDCAccountForUser(
