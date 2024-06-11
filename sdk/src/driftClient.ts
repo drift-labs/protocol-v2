@@ -6857,7 +6857,7 @@ export class DriftClient {
 		txVersion?: TransactionVersion,
 		lookupTables?: AddressLookupTableAccount[],
 		forceVersionedTransaction?: boolean,
-		recentBlockHash?: BlockhashWithExpiryBlockHeight
+		recentBlockhash?: BlockhashWithExpiryBlockHeight
 	): Promise<Transaction | VersionedTransaction> {
 		return this.txHandler.buildTransaction({
 			instructions,
@@ -6869,7 +6869,7 @@ export class DriftClient {
 				this.fetchMarketLookupTableAccount.bind(this),
 			lookupTables,
 			forceVersionedTransaction,
-			recentBlockHash,
+			recentBlockhash,
 		});
 	}
 
