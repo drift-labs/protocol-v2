@@ -101,7 +101,6 @@ describe('asset tiers', () => {
 					source: OracleSource.PYTH,
 				},
 			],
-			userStats: true,
 			accountSubscription: {
 				type: 'polling',
 				accountLoader: bulkAccountLoader,

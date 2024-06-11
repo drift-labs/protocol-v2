@@ -60,7 +60,7 @@ export class PollingUserAccountSubscriber implements UserAccountSubscriber {
 		if (this.callbackId) {
 			return;
 		}
-
+		
 		this.callbackId = await this.accountLoader.addAccount(
 			this.userAccountPublicKey,
 			(buffer, slot: number) => {
