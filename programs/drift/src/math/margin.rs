@@ -397,18 +397,20 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
         } else {
             let signed_token_amount = spot_position.get_signed_token_amount(&spot_market)?;
 
+            let additional_fuel_bonus = calculate_spot_fuel_bonus(
+                &spot_market,
+                get_strict_token_value(
+                    signed_token_amount,
+                    spot_market.decimals,
+                    &strict_oracle_price,
+                )?,
+                context.fuel_bonus_numerator,
+            )?;
+            crate::dlog!(spot_market.market_index, additional_fuel_bonus);
             calculation.fuel_bonus =
                 calculation
                     .fuel_bonus
-                    .saturating_add(calculate_spot_fuel_bonus(
-                        &spot_market,
-                        get_strict_token_value(
-                            signed_token_amount,
-                            spot_market.decimals,
-                            &strict_oracle_price,
-                        )?,
-                        context.fuel_bonus_numerator,
-                    )?);
+                    .saturating_add(additional_fuel_bonus);
 
             let OrderFillSimulation {
                 token_amount: worst_case_token_amount,

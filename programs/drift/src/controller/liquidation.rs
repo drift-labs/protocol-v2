@@ -845,13 +845,15 @@ pub fn liquidate_spot(
     //     MarginContext::liquidation(liquidation_margin_buffer_ratio)
     //         .track_market_margin_requirement(MarketIdentifier::spot(liability_market_index))?,
     // )?;
-
+    let mut margin_context = MarginContext::liquidation(liquidation_margin_buffer_ratio)
+    .track_market_margin_requirement(MarketIdentifier::spot(liability_market_index))?;
+    margin_context.fuel_bonus_numerator = user_stats.get_fuel_bonus_numerator(now)?;
+    
     let margin_calculation = user.calculate_margin_and_increment_fuel_bonus(
         perp_market_map,
         spot_market_map,
         oracle_map,
-        MarginContext::liquidation(liquidation_margin_buffer_ratio)
-            .track_market_margin_requirement(MarketIdentifier::spot(liability_market_index))?,
+        margin_context,
         user_stats,
         now,
     )?;
@@ -1164,15 +1166,17 @@ pub fn liquidate_spot(
     //             .fuel_spot_diff_2(liability_market_index, liability_transfer as i128),
     //     )
     //     .map(|calc| calc.meets_margin_requirement())?;
-
+    let mut liq_margin_context = MarginContext::standard(MarginRequirementType::Initial)
+    .fuel_spot_diff(asset_market_index, -(asset_transfer as i128))
+    .fuel_spot_diff_2(liability_market_index, liability_transfer as i128);
+    liq_margin_context.fuel_bonus_numerator = liquidator_stats.get_fuel_bonus_numerator(now)?;
+    
     let liquidator_meets_initial_margin_requirement = liquidator
         .calculate_margin_and_increment_fuel_bonus(
             perp_market_map,
             spot_market_map,
             oracle_map,
-            MarginContext::standard(MarginRequirementType::Initial)
-                .fuel_spot_diff(asset_market_index, -(asset_transfer as i128))
-                .fuel_spot_diff_2(liability_market_index, liability_transfer as i128),
+            liq_margin_context,
             liquidator_stats,
             now,
         )

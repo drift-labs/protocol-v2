@@ -456,7 +456,11 @@ impl User {
         validate!(
             context.fuel_bonus_numerator == user_stats.get_fuel_bonus_numerator(now)?,
             ErrorCode::DefaultError,
-            "Bad fuel bonus update attempt"
+            "Bad fuel bonus update attempt {} != {} (last_fuel_bonus_update_ts = {} vs now = {})",
+            context.fuel_bonus_numerator,
+            user_stats.get_fuel_bonus_numerator(now)?,
+            user_stats.last_fuel_bonus_update_ts,
+            now
         )?;
 
         let margin_calculation =
