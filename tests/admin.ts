@@ -14,20 +14,13 @@ import { decodeName, DEFAULT_MARKET_NAME } from '../sdk/src/userName';
 
 import {
     initializeQuoteSpotMarket,
+    mockOracleNoProgram,
     mockUSDCMint,
 } from './testHelpers';
 import { AccountInfo, PublicKey } from '@solana/web3.js';
 import { BankrunContextWrapper } from '../sdk/src/bankrunConnection';
 import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
 import { mockOracleAdminData } from './mockOracles';
-
-const MOCK_ORACLE: AccountInfo<Buffer> = {
-    data: Buffer.from(mockOracleAdminData, "base64"),
-    executable: false,
-    lamports: 23942400,
-    owner: new PublicKey("FsJ3A3u2vn5cTVofAjvy6y5kwABJAqYWpe4975bi2epH"),
-    rentEpoch: 0
-};
 
 describe('admin', () => {
     const chProgram = anchor.workspace.Drift as Program;
@@ -38,15 +31,8 @@ describe('admin', () => {
 
     let usdcMint;
 
-    const solUsd = PublicKey.unique();
-
     before(async () => {
-        const context = await startAnchor("", [], [
-              {
-                address: solUsd,
-                info: MOCK_ORACLE
-              }
-        ]);
+        const context = await startAnchor("", [], []);
 
 		const bankrunContextWrapper = new BankrunContextWrapper(context);
 		
@@ -59,7 +45,7 @@ describe('admin', () => {
             wallet: bankrunContextWrapper.provider.wallet,
             programID: chProgram.programId,
             opts: {
-                commitment: 'processed',
+                commitment: 'confirmed',
             },
             activeSubAccountId: 0,
             perpMarketIndexes: [0],
@@ -82,6 +68,7 @@ describe('admin', () => {
 
         const periodicity = new BN(60 * 60); // 1 HOUR
 
+        const solUsd = await mockOracleNoProgram(bankrunContextWrapper, 1);
         await driftClient.initializePerpMarket(
             0,
             solUsd,
