@@ -2860,6 +2860,7 @@ export class DriftClient {
 			ix: ordersIx,
 		});
 
+		// TODO : Need to change this .. shouldn't be signing in the prep stage
 		const signedTransactions = await this.buildAndSignBulkTransactions(
 			ixsToSign.map((ix) => ix.ix),
 			ixsToSign.map((ix) => ix.key),
