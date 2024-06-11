@@ -288,12 +288,12 @@ export class PollingDriftClientAccountSubscriber
 	public async fetch(): Promise<void> {
 		await this.accountLoader.load();
 		for (const [_, accountToPoll] of this.accountsToPoll) {
-			console.log(accountToPoll);
 			const bufferAndSlot = this.accountLoader.getBufferAndSlot(
 				accountToPoll.publicKey
 			);
 
 			if (!bufferAndSlot) {
+				console.error(`Failed to fetch account ${accountToPoll.publicKey}`);
 				continue;
 			}
 
@@ -303,7 +303,6 @@ export class PollingDriftClientAccountSubscriber
 				const account = this.program.account[
 					accountToPoll.key
 				].coder.accounts.decodeUnchecked(capitalize(accountToPoll.key), buffer);
-
 				if (accountToPoll.mapKey != undefined) {
 					this[accountToPoll.key].set(accountToPoll.mapKey, {
 						data: account,

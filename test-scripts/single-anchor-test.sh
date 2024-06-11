@@ -4,7 +4,7 @@ if [ "$1" != "--skip-build" ]
     cp target/idl/drift.json sdk/src/idl/
 fi
 
-test_files=(admin.ts)
+test_files=(assetTier.ts)
 
 for test_file in ${test_files[@]}; do
   SBF_OUT_DIR=/target/deploy ANCHOR_TEST_FILE=${test_file} anchor test --arch sbf || exit 1;

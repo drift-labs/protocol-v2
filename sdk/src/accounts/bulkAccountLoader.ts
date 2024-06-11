@@ -1,7 +1,8 @@
-import { Commitment, Connection, PublicKey } from '@solana/web3.js';
+import { Commitment, PublicKey } from '@solana/web3.js';
 import { v4 as uuidv4 } from 'uuid';
 import { BufferAndSlot } from './types';
 import { promiseTimeout } from '../util/promiseTimeout';
+import { Connection } from '../bankrunConnection';
 
 export type AccountToLoad = {
 	publicKey: PublicKey;
@@ -135,11 +136,11 @@ export class BulkAccountLoader {
 				})
 			);
 		} catch (e) {
-			// console.error(`Error in bulkAccountLoader.load()`);
-			// console.error(e);
-			// for (const [_, callback] of this.errorCallbacks) {
-			// 	callback(e);
-			// }
+			console.error(`Error in bulkAccountLoader.load()`);
+			console.error(e);
+			for (const [_, callback] of this.errorCallbacks) {
+				callback(e);
+			}
 		} finally {
 			this.loadPromiseResolver();
 			this.loadPromise = undefined;

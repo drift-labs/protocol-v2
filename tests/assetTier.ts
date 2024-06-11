@@ -39,25 +39,16 @@ import {
 	// getFeedData,
 	// sleep,
 } from './testHelpers';
-import { BulkAccountLoader } from '../sdk';
+import { startAnchor } from "solana-bankrun";
+import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
+import { BankrunContextWrapper } from '../sdk/src/bankrunConnection';
 
 describe('asset tiers', () => {
-	const provider = anchor.AnchorProvider.local(undefined, {
-		preflightCommitment: 'confirmed',
-		skipPreflight: false,
-		commitment: 'confirmed',
-	});
-	const connection = provider.connection;
-	anchor.setProvider(provider);
 	const chProgram = anchor.workspace.Drift as Program;
 
 	let driftClient: TestClient;
-	const eventSubscriber = new EventSubscriber(connection, chProgram, {
-		commitment: 'recent',
-	});
-	eventSubscriber.subscribe();
 
-	const bulkAccountLoader = new BulkAccountLoader(connection, 'confirmed', 1);
+	let bulkAccountLoader: TestBulkAccountLoader;
 
 	let usdcMint;
 	let dogeMint;
@@ -76,27 +67,34 @@ describe('asset tiers', () => {
 	const solAmount = new BN(10000 * 10 ** 9);
 
 	before(async () => {
-		usdcMint = await mockUSDCMint(provider);
-		dogeMint = await mockUSDCMint(provider);
+		const context = await startAnchor("", [], []);
+
+		const bankrunContextWrapper = new BankrunContextWrapper(context);
+
+		usdcMint = await mockUSDCMint(bankrunContextWrapper);
+		dogeMint = await mockUSDCMint(bankrunContextWrapper
+
+		);
 		userUSDCAccount = await mockUserUSDCAccount(
 			usdcMint,
 			usdcAmount.mul(new BN(2)), // 2x it
-			provider
+			bankrunContextWrapper,
 		);
 
 		solOracle = await mockOracle(22500); // a future we all need to believe in
 		dogeOracle = await mockOracle(0.05);
 
 		driftClient = new TestClient({
-			connection,
-			wallet: provider.wallet,
+			connection: bankrunContextWrapper.connection.toConnection(),
+			wallet: bankrunContextWrapper.provider.wallet,
 			programID: chProgram.programId,
 			opts: {
 				commitment: 'confirmed',
 			},
-			activeSubAccountId: 0,
+			// activeSubAccountId: 0,
 			perpMarketIndexes: [0],
 			spotMarketIndexes: [0, 1],
+			subAccountIds: [],
 			oracleInfos: [
 				{
 					publicKey: solOracle,
@@ -112,6 +110,7 @@ describe('asset tiers', () => {
 
 		await driftClient.initialize(usdcMint.publicKey, true);
 		await driftClient.subscribe();
+		await driftClient.initializeUserAccount(0);
 
 		await initializeQuoteSpotMarket(driftClient, usdcMint.publicKey);
 		await initializeSolSpotMarket(driftClient, solOracle);
@@ -148,7 +147,7 @@ describe('asset tiers', () => {
 			secondUserDriftClientUSDCAccount,
 			secondUserKeyPair,
 		] = await createUserWithUSDCAndWSOLAccount(
-			provider,
+			bankrunContextWrapper,
 			usdcMint,
 			chProgram,
 			solAmount,
@@ -169,7 +168,7 @@ describe('asset tiers', () => {
 		);
 
 		secondUserDriftClientDogeAccount = await createUSDCAccountForUser(
-			provider,
+			bankrunContextWrapper,
 			secondUserKeyPair,
 			dogeMint,
 			usdcAmount
@@ -183,20 +182,14 @@ describe('asset tiers', () => {
 			marketIndex,
 			secondUserDriftClientWSOLAccount
 		);
-		await printTxLogs(connection, txSig);
+		// await printTxLogs(connection, txSig);
 
 		const txSig2 = await secondUserDriftClient.deposit(
 			usdcAmount,
 			2,
 			secondUserDriftClientDogeAccount
 		);
-		await printTxLogs(connection, txSig2);
-	});
-
-	after(async () => {
-		await eventSubscriber.unsubscribe();
-		await driftClient.unsubscribe();
-		await secondUserDriftClient.unsubscribe();
+		// await printTxLogs(connection, txSig2);
 	});
 
 	it('fail trying to borrow protected asset', async () => {
@@ -219,7 +212,7 @@ describe('asset tiers', () => {
 				secondUserDriftClientUSDCAccount,
 				false
 			);
-			await printTxLogs(connection, txSig);
+			// await printTxLogs(connection, txSig);
 
 			// assert(false);
 		} catch (err) {
@@ -263,7 +256,7 @@ describe('asset tiers', () => {
 			secondUserDriftClientDogeAccount,
 			false
 		);
-		await printTxLogs(connection, txSig);
+		// await printTxLogs(connection, txSig);
 
 		await secondUserDriftClient.fetchAccounts();
 
@@ -274,7 +267,7 @@ describe('asset tiers', () => {
 				secondUserDriftClientUSDCAccount,
 				false
 			);
-			await printTxLogs(connection, txSig);
+			// await printTxLogs(connection, txSig);
 
 			console.log('usdc borrow succeed (should have fail!)');
 			assert(false);
@@ -301,7 +294,7 @@ describe('asset tiers', () => {
 				secondUserDriftClientUSDCAccount,
 				false
 			);
-			await printTxLogs(connection, txSig2);
+			// await printTxLogs(connection, txSig2);
 		} catch (e) {
 			console.error(e);
 			assert(false);

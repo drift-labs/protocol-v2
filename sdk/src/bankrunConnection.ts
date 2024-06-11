@@ -19,6 +19,7 @@ import {
 	SignatureResultCallback,
 	ClientSubscriptionId,
 	Connection as SolanaConnection,
+	SystemProgram,
 } from '@solana/web3.js';
 import {
 	ProgramTestContext,
@@ -27,6 +28,7 @@ import {
 } from 'solana-bankrun';
 import { BankrunProvider } from 'anchor-bankrun';
 import bs58 from 'bs58';
+import { Wallet } from '@coral-xyz/anchor';
 
 export type Connection = SolanaConnection | BankrunConnection;
 
@@ -59,7 +61,22 @@ export class BankrunContextWrapper {
 		tx.recentBlockhash = this.context.lastBlockhash;
 		tx.feePayer = this.context.payer.publicKey;
 		tx.sign(this.context.payer, ...additionalSigners);
-		return this.connection.sendTransaction(tx);
+		return await this.connection.sendTransaction(tx);
+	}
+
+	async fundKeypair(
+		keypair: Keypair | Wallet,
+		lamports: number
+	): Promise<TransactionSignature> {
+		const ixs = [
+			SystemProgram.transfer({
+				fromPubkey: this.context.payer.publicKey,
+				toPubkey: keypair.publicKey,
+				lamports,
+			}),
+		];
+		const tx = new Transaction().add(...ixs);
+		return await this.sendTransaction(tx);
 	}
 }
 export class BankrunConnection {
@@ -71,6 +88,10 @@ export class BankrunConnection {
 
 	constructor(banksClient: BanksClient) {
 		this._banksClient = banksClient;
+	}
+
+	toConnection(): SolanaConnection {
+		return this as unknown as SolanaConnection;
 	}
 
 	async getAccountInfoAndContext(
@@ -85,15 +106,27 @@ export class BankrunConnection {
 		_options?: any
 	): Promise<TransactionSignature> {
 		const tx = Transaction.from(rawTransaction);
-		return await this.sendTransaction(tx);
+		const signature = await this.sendTransaction(tx);
+		return signature;
 	}
 
 	async sendTransaction(tx: Transaction): Promise<TransactionSignature> {
 		const banksTransactionMeta = await this._banksClient.tryProcessTransaction(
 			tx
 		);
+		if (banksTransactionMeta.result) {
+			throw new Error(banksTransactionMeta.result);
+		}
 		const signature = bs58.encode(tx.signatures[0].signature);
 		this.transactionToMeta.set(signature, banksTransactionMeta);
+		let finalizedCount = 0;
+		while (finalizedCount < 10) {
+			const signatureStatus = (await this.getSignatureStatus(signature)).value
+				.confirmationStatus;
+			if (signatureStatus.toString() == '"finalized"') {
+				finalizedCount += 1;
+			}
+		}
 		return signature;
 	}
 

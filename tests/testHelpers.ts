@@ -5,16 +5,20 @@ import {
 	MintLayout,
 	NATIVE_MINT,
 	TOKEN_PROGRAM_ID,
-	getMinimumBalanceForRentExemptMint,
 	getMinimumBalanceForRentExemptAccount,
 	createInitializeMintInstruction,
 	createInitializeAccountInstruction,
 	createMintToInstruction,
 	createWrappedNativeAccount,
+	getAssociatedTokenAddressSync,
+	createAssociatedTokenAccountIdempotentInstruction,
+	ACCOUNT_SIZE,
 } from '@solana/spl-token';
 import {
+	AccountInfo,
 	Connection,
 	Keypair,
+	LAMPORTS_PER_SOL,
 	PublicKey,
 	sendAndConfirmTransaction,
 	SystemProgram,
@@ -39,8 +43,10 @@ import {
 	User,
 	OracleSource,
 } from '../sdk/src';
-import { BankrunConnection, BankrunContextWrapper } from '../sdk/src/bankrunConnection';
+import { BankrunConnection } from '../sdk';
+import { BankrunContextWrapper } from '../sdk/src/bankrunConnection';
 import pythIDL from "../sdk/src/idl/pyth.json";
+import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
 
 export async function mockOracle(
 	price: number = 50 * 10e7,
@@ -141,20 +147,20 @@ export async function mockUSDCMint(context: BankrunContextWrapper): Promise<Keyp
 export async function mockUserUSDCAccount(
 	fakeUSDCMint: Keypair,
 	usdcMintAmount: BN,
-	provider: Provider,
+	context: BankrunContextWrapper,
 	owner?: PublicKey
 ): Promise<Keypair> {
 	const userUSDCAccount = anchor.web3.Keypair.generate();
 	const fakeUSDCTx = new Transaction();
 
 	if (owner === undefined) {
-		owner = provider.wallet.publicKey;
+		owner = context.context.payer.publicKey;
 	}
 
 	const createUSDCTokenAccountIx = SystemProgram.createAccount({
-		fromPubkey: provider.wallet.publicKey,
+		fromPubkey: context.context.payer.publicKey,
 		newAccountPubkey: userUSDCAccount.publicKey,
-		lamports: await getMinimumBalanceForRentExemptAccount(provider.connection),
+		lamports: 100_000_000,
 		space: AccountLayout.span,
 		programId: TOKEN_PROGRAM_ID,
 	});
@@ -167,27 +173,59 @@ export async function mockUserUSDCAccount(
 	);
 	fakeUSDCTx.add(initUSDCTokenAccountIx);
 
-	const mintToUserAccountTx = await createMintToInstruction(
+	const mintToUserAccountTx = createMintToInstruction(
 		fakeUSDCMint.publicKey,
 		userUSDCAccount.publicKey,
 		// @ts-ignore
-		provider.wallet.publicKey,
+		context.context.payer.publicKey,
 		usdcMintAmount.toNumber()
 	);
 	fakeUSDCTx.add(mintToUserAccountTx);
 
-	const _fakeUSDCTxResult = await sendAndConfirmTransaction(
-		provider.connection,
-		fakeUSDCTx,
-		// @ts-ignore
-		[provider.wallet.payer, userUSDCAccount],
-		{
-			skipPreflight: false,
-			commitment: 'recent',
-			preflightCommitment: 'recent',
-		}
-	);
+	await context.sendTransaction(fakeUSDCTx, [userUSDCAccount, fakeUSDCMint]);
+
 	return userUSDCAccount;
+}
+
+export function getMockUserUsdcAccountInfo(
+	fakeUSDCMint: Keypair,
+	usdcMintAmount: BN,
+	context: BankrunContextWrapper,
+	owner?: PublicKey
+): [PublicKey, AccountInfo<Buffer>] {
+	if (owner === undefined) {
+		owner = context.context.payer.publicKey;
+	}
+
+	const ata = getAssociatedTokenAddressSync(fakeUSDCMint.publicKey, owner);
+	const tokenAccData = Buffer.alloc(ACCOUNT_SIZE);
+
+	AccountLayout.encode(
+		{
+			mint: fakeUSDCMint.publicKey,
+			owner,
+			amount: BigInt(usdcMintAmount.toNumber()),
+			delegateOption: 0,
+			delegate: PublicKey.default,
+			delegatedAmount: BigInt(0),
+			state: 1,
+			isNativeOption: 0,
+			isNative: BigInt(0),
+			closeAuthorityOption: 0,
+			closeAuthority: PublicKey.default
+		},
+		tokenAccData
+	);
+
+	const accountInfo: AccountInfo<Buffer> = {
+		data: tokenAccData,
+		executable: false,
+		lamports: 100_000_000,
+		owner,
+		rentEpoch: 0,
+	};
+
+	return [ata, accountInfo];
 }
 
 export async function mintUSDCToUser(
@@ -220,15 +258,15 @@ export async function mintUSDCToUser(
 }
 
 export async function createFundedKeyPair(
-	connection: Connection
+	context: BankrunContextWrapper,
 ): Promise<Keypair> {
-	const userKeyPair = new Keypair();
-	await connection.requestAirdrop(userKeyPair.publicKey, 10 ** 9);
-	return userKeyPair;
+	const keypair = Keypair.generate();
+	await context.fundKeypair(keypair, 10_000_000_000);
+	return keypair;
 }
 
 export async function createUSDCAccountForUser(
-	provider: AnchorProvider,
+	context: BankrunContextWrapper,
 	userKeyPair: Keypair,
 	usdcMint: Keypair,
 	usdcAmount: BN
@@ -236,7 +274,7 @@ export async function createUSDCAccountForUser(
 	const userUSDCAccount = await mockUserUSDCAccount(
 		usdcMint,
 		usdcAmount,
-		provider,
+		context,
 		userKeyPair.publicKey
 	);
 	return userUSDCAccount.publicKey;
@@ -249,7 +287,7 @@ export async function initializeAndSubscribeDriftClient(
 	marketIndexes: number[],
 	bankIndexes: number[],
 	oracleInfos: OracleInfo[] = [],
-	accountLoader?: BulkAccountLoader
+	accountLoader?: TestBulkAccountLoader
 ): Promise<TestClient> {
 	const driftClient = new TestClient({
 		connection,
@@ -277,24 +315,24 @@ export async function initializeAndSubscribeDriftClient(
 }
 
 export async function createUserWithUSDCAccount(
-	provider: AnchorProvider,
+	context: BankrunContextWrapper,
 	usdcMint: Keypair,
 	chProgram: Program,
 	usdcAmount: BN,
 	marketIndexes: number[],
 	bankIndexes: number[],
 	oracleInfos: OracleInfo[] = [],
-	accountLoader?: BulkAccountLoader
+	accountLoader?: TestBulkAccountLoader
 ): Promise<[TestClient, PublicKey, Keypair]> {
-	const userKeyPair = await createFundedKeyPair(provider.connection);
+	const userKeyPair = await createFundedKeyPair(context);
 	const usdcAccount = await createUSDCAccountForUser(
-		provider,
+		context,
 		userKeyPair,
 		usdcMint,
 		usdcAmount
 	);
 	const driftClient = await initializeAndSubscribeDriftClient(
-		provider.connection,
+		context.connection.toConnection(),
 		chProgram,
 		userKeyPair,
 		marketIndexes,
@@ -307,26 +345,21 @@ export async function createUserWithUSDCAccount(
 }
 
 export async function createWSolTokenAccountForUser(
-	provider: AnchorProvider,
+	context: BankrunContextWrapper,
 	userKeypair: Keypair | Wallet,
 	amount: BN
 ): Promise<PublicKey> {
-	await provider.connection.requestAirdrop(
-		userKeypair.publicKey,
-		amount.toNumber() +
-			(await getMinimumBalanceForRentExemptAccount(provider.connection))
-	);
-	return await createWrappedNativeAccount(
-		provider.connection,
-		// @ts-ignore
-		provider.wallet.payer,
-		userKeypair.publicKey,
-		amount.toNumber()
-	);
+	// @ts-ignore
+	await context.fundKeypair(userKeypair, amount.toNumber());
+	const addr = getAssociatedTokenAddressSync(NATIVE_MINT, userKeypair.publicKey);
+	const ix = createAssociatedTokenAccountIdempotentInstruction(context.context.payer.publicKey, addr, userKeypair.publicKey, NATIVE_MINT);
+	const tx = new Transaction().add(ix);
+	await context.sendTransaction(tx);
+	return addr;
 }
 
 export async function createUserWithUSDCAndWSOLAccount(
-	provider: AnchorProvider,
+	context: BankrunContextWrapper,
 	usdcMint: Keypair,
 	chProgram: Program,
 	solAmount: BN,
@@ -336,29 +369,30 @@ export async function createUserWithUSDCAndWSOLAccount(
 	oracleInfos: OracleInfo[] = [],
 	accountLoader?: BulkAccountLoader
 ): Promise<[TestClient, PublicKey, PublicKey, Keypair]> {
-	const userKeyPair = await createFundedKeyPair(provider.connection);
+	const keypair = Keypair.generate();
+	await context.fundKeypair(keypair, LAMPORTS_PER_SOL * 3);
 	const solAccount = await createWSolTokenAccountForUser(
-		provider,
-		userKeyPair,
+		context,
+		keypair,
 		solAmount
 	);
 	const usdcAccount = await createUSDCAccountForUser(
-		provider,
-		userKeyPair,
+		context,
+		keypair,
 		usdcMint,
 		usdcAmount
 	);
 	const driftClient = await initializeAndSubscribeDriftClient(
-		provider.connection,
+		context.connection.toConnection(),
 		chProgram,
-		userKeyPair,
+		keypair,
 		marketIndexes,
 		bankIndexes,
 		oracleInfos,
 		accountLoader
 	);
 
-	return [driftClient, solAccount, usdcAccount, userKeyPair];
+	return [driftClient, solAccount, usdcAccount, keypair];
 }
 
 export async function printTxLogs(
