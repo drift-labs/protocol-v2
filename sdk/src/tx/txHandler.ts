@@ -31,7 +31,7 @@ import { containsComputeUnitIxs } from '../util/computeUnits';
  * When the whileValidTxSender waits for confirmation of a given transaction, it needs the last available blockheight and blockhash used in the signature to do so. For pre-signed transactions, these values aren't attached to the transaction object by default. For a "scrappy" workaround which doesn't break backwards compatibility, the SIGNATURE_BLOCK_AND_EXPIRY property is simply attached to the transaction objects as they are created or signed in this handler despite a mismatch in the typescript types. If the values are attached to the transaction when they reach the whileValidTxSender, it can opt-in to use these values.
  */
 
-const DEV_TRY_FORCE_TX_TIMEOUTS = false;
+const DEV_TRY_FORCE_TX_TIMEOUTS = (process.env.DEV_TRY_FORCE_TX_TIMEOUTS === 'true') || false;
 
 export const COMPUTE_UNITS_DEFAULT = 200_000;
 
@@ -457,7 +457,7 @@ export class TxHandler {
 
 		const computeUnitsPrice = baseTxParams?.computeUnitsPrice;
 
-		if (process.env.DEV_TRY_FORCE_TX_TIMEOUTS || DEV_TRY_FORCE_TX_TIMEOUTS) {
+		if (DEV_TRY_FORCE_TX_TIMEOUTS) {
 			allIx.push(
 				ComputeBudgetProgram.setComputeUnitPrice({
 					microLamports: 0,
@@ -512,7 +512,7 @@ export class TxHandler {
 			);
 		}
 
-		if (process.env.DEV_TRY_FORCE_TX_TIMEOUTS || DEV_TRY_FORCE_TX_TIMEOUTS) {
+		if (DEV_TRY_FORCE_TX_TIMEOUTS) {
 			tx.add(
 				ComputeBudgetProgram.setComputeUnitPrice({
 					microLamports: 0,
