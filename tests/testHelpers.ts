@@ -84,11 +84,18 @@ export async function mockOracleNoProgram(
 	expo = -7,
 	confidence?: number
 ): Promise<PublicKey> {
-	// const program = anchor.workspace.Pyth
+	const provider = new AnchorProvider(
+		context.connection.toConnection(),
+		context.provider.wallet,
+		{
+			commitment: "processed"
+		}
+	);
 
 	const program = new Program(
 		pythIDL as anchor.Idl,
-		new PublicKey("FsJ3A3u2vn5cTVofAjvy6y5kwABJAqYWpe4975bi2epH")
+		new PublicKey("FsJ3A3u2vn5cTVofAjvy6y5kwABJAqYWpe4975bi2epH"),
+		provider,
 	);
 
 	const priceFeedAddress = await createPriceFeedBankrun({
@@ -580,30 +587,25 @@ export const createPriceFeedBankrun = async ({
 }): Promise<PublicKey> => {
 	const conf = new BN(confidence) || new BN((initPrice / 10) * 10 ** -expo);
 	const collateralTokenFeed = new anchor.web3.Account();
+	const createAccountIx = anchor.web3.SystemProgram.createAccount({
+		fromPubkey: context.context.payer.publicKey,
+		newAccountPubkey: collateralTokenFeed.publicKey,
+		space: 3312,
+		lamports: LAMPORTS_PER_SOL / 20, // just hardcode based on mainnet
+		programId: oracleProgram.programId,
+	});
 	const ix = oracleProgram.instruction.initialize(
 		new BN(initPrice * 10 ** -expo),
 		expo,
 		conf,
 		{
 			accounts: { price: collateralTokenFeed.publicKey },
-			signers: [collateralTokenFeed],
-			instructions: [
-				anchor.web3.SystemProgram.createAccount({
-					fromPubkey: context.context.payer.publicKey,
-					newAccountPubkey: collateralTokenFeed.publicKey,
-					space: 3312,
-					lamports:
-						await oracleProgram.provider.connection.getMinimumBalanceForRentExemption(
-							3312
-						),
-					programId: oracleProgram.programId,
-				}),
-			],
 		}
 	);
-	const tx = new Transaction().add(ix);
+	const tx = new Transaction().add(createAccountIx).add(ix);
+	tx.feePayer = context.context.payer.publicKey;
 	tx.recentBlockhash = context.context.lastBlockhash;
-	tx.sign(context.context.payer);
+	tx.sign(...[collateralTokenFeed, context.context.payer]);
 	await context.connection.sendTransaction(tx);
 	return collateralTokenFeed.publicKey;
 };
