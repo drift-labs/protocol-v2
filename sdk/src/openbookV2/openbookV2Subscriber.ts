@@ -1,6 +1,6 @@
 import { Connection, PublicKey } from '@solana/web3.js';
 import { BulkAccountLoader } from '../accounts/bulkAccountLoader';
-import { Market, Orderbook } from '@openbook-dex/openbook-v2';
+import {Market, OpenBookV2Client, BookSide, BookSideAccount} from '@openbook-dex/openbook-v2';
 import { BN } from '@coral-xyz/anchor';
 import { PRICE_PRECISION } from '../constants/numericConstants';
 import { L2Level, L2OrderBookGenerator } from '../dlob/orderBookLevels';
@@ -34,12 +34,12 @@ export class OpenbookV2Subscriber implements L2OrderBookGenerator {
     subscribed: boolean;
 
     asksAddress: PublicKey;
-    asks: Orderbook;
+    asks: BookSide;
     asksCallbackId: string | number;
     lastAsksSlot: number;
 
     bidsAddress: PublicKey;
-    bids: Orderbook;
+    bids: BookSide;
     bidsCallbackId: string | number;
     lastBidsSlot: number;
 
@@ -59,23 +59,20 @@ export class OpenbookV2Subscriber implements L2OrderBookGenerator {
         if (this.subscribed) {
             return;
         }
-
+        let openbook_v2_client = new OpenBookV2Client(this.connection, this.programId, {});
         this.market = await Market.load(
-            this.connection,
+            openbook_v2_client,
             this.marketAddress,
-            undefined,
-            this.programId
         );
 
-        this.asksAddress = this.market.asksAddress;
-        this.asks = await this.market.loadAsks(this.connection);
-
+        this.asksAddress = this.market.asks.pubkey;
+        this.bidsAddress = this.market.bids.pubkey;
         if (this.subscriptionType === 'websocket') {
             this.asksCallbackId = this.connection.onAccountChange(
                 this.asksAddress,
                 (accountInfo, ctx) => {
                     this.lastAsksSlot = ctx.slot;
-                    this.asks = Orderbook.decode(this.market, accountInfo.data);
+                    this.asks = BookSide.decodeAccountfromBuffer(accountInfo.data);
                 }
             );
         } else {
@@ -83,12 +80,11 @@ export class OpenbookV2Subscriber implements L2OrderBookGenerator {
                 this.asksAddress,
                 (buffer, slot) => {
                     this.lastAsksSlot = slot;
-                    this.asks = Orderbook.decode(this.market, buffer);
+                    this.asks = BookSide.decodeAccountfromBuffer(this.market, buffer);
                 }
             );
         }
 
-        this.bidsAddress = this.market.bidsAddress;
         this.bids = await this.market.loadBids(this.connection);
 
         if (this.subscriptionType === 'websocket') {
@@ -96,7 +92,7 @@ export class OpenbookV2Subscriber implements L2OrderBookGenerator {
                 this.bidsAddress,
                 (accountInfo, ctx) => {
                     this.lastBidsSlot = ctx.slot;
-                    this.bids = Orderbook.decode(this.market, accountInfo.data);
+                    this.bids = BookSide.decodeAccountfromBuffer(accountInfo.data);
                 }
             );
         } else {
@@ -104,7 +100,7 @@ export class OpenbookV2Subscriber implements L2OrderBookGenerator {
                 this.bidsAddress,
                 (buffer, slot) => {
                     this.lastBidsSlot = slot;
-                    this.bids = Orderbook.decode(this.market, buffer);
+                    this.bids = BookSide.decodeAccountfromBuffer(accountInfo.data);
                 }
             );
         }
