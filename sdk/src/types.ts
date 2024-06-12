@@ -1,6 +1,10 @@
 import { PublicKey, Transaction, VersionedTransaction } from '@solana/web3.js';
 import { BN, ZERO } from '.';
 
+export type MappedRecord<A extends Record<string, unknown>, B> = {
+	[K in keyof A]: B;
+  };
+
 // # Utility Types / Enums / Constants
 
 export enum ExchangeStatus {
