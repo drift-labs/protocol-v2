@@ -62,8 +62,13 @@ export class EventSubscriber {
 				this.options.logProviderConfig.batchSize
 			);
 		}
+
 	}
 
+	public initializeForTests(): void {
+		this.populateInitialEventListMap();
+	}
+	
 	private populateInitialEventListMap() {
 		for (const eventType of this.options.eventTypes) {
 			this.eventListMap.set(
@@ -150,7 +155,7 @@ export class EventSubscriber {
 		const slot = resp.slot;
 		const logs = resp.meta.logMessages;
 
-		this.handleTxLogs(txSig, slot, logs, 0);
+		this.handleTxLogs(txSig, slot, logs, this.lastSeenBlockTime + 1);
 	}
 
 	private handleTxLogs(
@@ -159,12 +164,12 @@ export class EventSubscriber {
 		logs: string[],
 		mostRecentBlockTime: number | undefined
 	): void {
-		console.log(logs);
 		if (this.txEventCache.has(txSig)) {
 			return;
 		}
 
 		const wrappedEvents = this.parseEventsFromLogs(txSig, slot, logs);
+
 		for (const wrappedEvent of wrappedEvents) {
 			this.eventListMap.get(wrappedEvent.eventType).insert(wrappedEvent);
 		}
@@ -192,7 +197,6 @@ export class EventSubscriber {
 			this.lastSeenBlockTime = mostRecentBlockTime;
 		}
 
-		console.log(wrappedEvents);
 		this.txEventCache.add(txSig, wrappedEvents);
 	}
 

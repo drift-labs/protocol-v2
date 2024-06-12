@@ -103,7 +103,7 @@ export class BankrunConnection {
 		const parsedAccountInfo = await this.getParsedAccountInfo(publicKey);
 		return parsedAccountInfo ? parsedAccountInfo.value : null;
 	}
-	
+
 	async getAccountInfoAndContext(
 		publicKey: PublicKey,
 		_commitment?: Commitment
@@ -222,6 +222,26 @@ export class BankrunConnection {
 			slot: Number(transactionStatus.slot),
 			meta,
 		};
+	}
+
+	findComputeUnitConsumption(signature: string): bigint {
+		const txMeta = this.transactionToMeta.get(
+			signature as TransactionSignature
+		);
+		if (txMeta === undefined) {
+			throw new Error('Transaction not found');
+		}
+		return txMeta.meta.computeUnitsConsumed;
+	}
+
+	printTxLogs(signature: string): void {
+		const txMeta = this.transactionToMeta.get(
+			signature as TransactionSignature
+		);
+		if (txMeta === undefined) {
+			throw new Error('Transaction not found');
+		}
+		console.log(txMeta.meta.logMessages);
 	}
 
 	async simulateTransaction(
