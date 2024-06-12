@@ -1,4 +1,4 @@
-import { Connection, PublicKey, TransactionSignature } from '@solana/web3.js';
+import { PublicKey, TransactionSignature } from '@solana/web3.js';
 import { Program } from '@coral-xyz/anchor';
 import {
 	DefaultEventSubscriptionOptions,
@@ -19,6 +19,7 @@ import { EventEmitter } from 'events';
 import StrictEventEmitter from 'strict-event-emitter-types';
 import { getSortFn } from './sort';
 import { parseLogs } from './parse';
+import { Connection as Hybrid } from '../bankrunConnection';
 
 export class EventSubscriber {
 	private address: PublicKey;
@@ -33,7 +34,7 @@ export class EventSubscriber {
 	public lastSeenTxSig: string;
 
 	public constructor(
-		private connection: Connection,
+		private connection: Hybrid,
 		private program: Program,
 		private options: EventSubscriptionOptions = DefaultEventSubscriptionOptions
 	) {
@@ -45,6 +46,7 @@ export class EventSubscriber {
 
 		if (this.options.logProviderConfig.type === 'websocket') {
 			this.logProvider = new WebSocketLogProvider(
+				// @ts-ignore
 				this.connection,
 				this.address,
 				this.options.commitment,
@@ -52,6 +54,7 @@ export class EventSubscriber {
 			);
 		} else {
 			this.logProvider = new PollingLogProvider(
+				// @ts-ignore
 				this.connection,
 				this.address,
 				options.commitment,
@@ -101,6 +104,7 @@ export class EventSubscriber {
 									this.logProvider.eventEmitter.removeAllListeners('reconnect');
 									this.unsubscribe().then(() => {
 										this.logProvider = new PollingLogProvider(
+											// @ts-ignore
 											this.connection,
 											this.address,
 											this.options.commitment,
@@ -137,12 +141,25 @@ export class EventSubscriber {
 		}
 	}
 
+	public async getLogsFromSig(txSig: TransactionSignature): Promise<void> {
+		const resp = await this.connection.getTransaction(txSig);
+		if (!resp.meta) {
+			return;
+		}
+		
+		const slot = resp.slot;
+		const logs = resp.meta.logMessages;
+
+		this.handleTxLogs(txSig, slot, logs, 0);
+	}
+
 	private handleTxLogs(
 		txSig: TransactionSignature,
 		slot: number,
 		logs: string[],
 		mostRecentBlockTime: number | undefined
 	): void {
+		console.log(logs);
 		if (this.txEventCache.has(txSig)) {
 			return;
 		}
@@ -175,6 +192,7 @@ export class EventSubscriber {
 			this.lastSeenBlockTime = mostRecentBlockTime;
 		}
 
+		console.log(wrappedEvents);
 		this.txEventCache.add(txSig, wrappedEvents);
 	}
 
@@ -188,6 +206,7 @@ export class EventSubscriber {
 		const untilTx: TransactionSignature = this.options.untilTx;
 		while (txFetched < this.options.maxTx) {
 			const response = await fetchLogs(
+				// @ts-ignore
 				this.connection,
 				this.address,
 				this.options.commitment === 'finalized' ? 'finalized' : 'confirmed',

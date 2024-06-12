@@ -35,7 +35,9 @@ import {
 import { Program } from '@coral-xyz/anchor';
 
 import { Keypair, PublicKey } from '@solana/web3.js';
-import { BulkAccountLoader } from '../sdk';
+import { startAnchor } from "solana-bankrun";
+import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
+import { BankrunContextWrapper } from '../sdk/src/bankrunConnection';
 
 async function updateFundingRateHelper(
 	driftClient: TestClient,
@@ -447,17 +449,9 @@ async function cappedSymFundingScenario(
 }
 
 describe('capped funding', () => {
-	const provider = anchor.AnchorProvider.local(undefined, {
-		commitment: 'confirmed',
-		preflightCommitment: 'confirmed',
-	});
-	const connection = provider.connection;
-
-	anchor.setProvider(provider);
-
 	const chProgram = anchor.workspace.Drift as Program;
 
-	const bulkAccountLoader = new BulkAccountLoader(connection, 'confirmed', 1);
+	let bulkAccountLoader: TestBulkAccountLoader;
 
 	let driftClient: TestClient;
 	let driftClient2: TestClient;
@@ -475,20 +469,27 @@ describe('capped funding', () => {
 	let userAccount2: User;
 
 	let rollingMarketNum = 0;
+
 	before(async () => {
-		usdcMint = await mockUSDCMint(provider);
-		userUSDCAccount = await mockUserUSDCAccount(usdcMint, usdcAmount, provider);
+		const context = await startAnchor("", [], []);
+
+		const bankrunContextWrapper = new BankrunContextWrapper(context);
+
+        bulkAccountLoader = new TestBulkAccountLoader(bankrunContextWrapper.connection, 'processed', 1);
+
+		usdcMint = await mockUSDCMint(bankrunContextWrapper);
+		userUSDCAccount = await mockUserUSDCAccount(usdcMint, usdcAmount, bankrunContextWrapper);
 
 		const spotMarketIndexes = [0];
 		const marketIndexes = Array.from({ length: 15 }, (_, i) => i);
 		driftClient = new TestClient({
-			connection,
-			wallet: provider.wallet,
+			connection: bankrunContextWrapper.connection.toConnection(),
+			wallet: bankrunContextWrapper.provider.wallet,
 			programID: chProgram.programId,
 			opts: {
 				commitment: 'confirmed',
 			},
-			activeSubAccountId: 0,
+			subAccountIds: [],
 			perpMarketIndexes: marketIndexes,
 			spotMarketIndexes: spotMarketIndexes,
 			accountSubscription: {
@@ -501,14 +502,22 @@ describe('capped funding', () => {
 		await driftClient.subscribe();
 
 		await initializeQuoteSpotMarket(driftClient, usdcMint.publicKey);
+		await driftClient.fetchAccounts();
 		await driftClient.updatePerpAuctionDuration(new BN(0));
 
 		await driftClient.initializeUserAccount();
 		userAccount = new User({
 			driftClient,
 			userAccountPublicKey: await driftClient.getUserAccountPublicKey(),
+			accountSubscription: {
+				type: 'polling',
+				accountLoader: bulkAccountLoader,
+				},
 		});
 		await userAccount.subscribe();
+		await driftClient.fetchAccounts();
+
+		await driftClient.fetchAccounts();
 
 		await driftClient.deposit(
 			usdcAmount,
@@ -522,7 +531,7 @@ describe('capped funding', () => {
 				1,
 				usdcMint,
 				usdcAmount,
-				provider,
+				bankrunContextWrapper,
 				marketIndexes,
 				spotMarketIndexes,
 				[],
@@ -531,14 +540,6 @@ describe('capped funding', () => {
 
 		driftClient2 = driftClients[0];
 		userAccount2 = userAccountInfos[0];
-	});
-
-	after(async () => {
-		await driftClient.unsubscribe();
-		await userAccount.unsubscribe();
-
-		await driftClient2.unsubscribe();
-		await userAccount2.unsubscribe();
 	});
 
 	it('capped sym funding: ($1 long, $200 short, oracle < mark)', async () => {

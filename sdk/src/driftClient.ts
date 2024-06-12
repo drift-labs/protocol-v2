@@ -2210,6 +2210,8 @@ export class DriftClient {
 				associatedTokenAddress
 			);
 
+			console.log(`accountExists: ${accountExists}`);
+
 			if (!accountExists) {
 				const createAssociatedTokenAccountIx =
 					this.getAssociatedTokenAccountCreationIx(

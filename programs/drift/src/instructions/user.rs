@@ -255,6 +255,8 @@ pub fn handle_deposit<'c: 'info, 'info>(
     amount: u64,
     reduce_only: bool,
 ) -> Result<()> {
+    msg!("{:?}", market_index);
+    msg!("{:?}", amount);
     let user_key = ctx.accounts.user.key();
     let user = &mut load_mut!(ctx.accounts.user)?;
 

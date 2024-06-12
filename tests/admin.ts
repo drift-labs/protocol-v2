@@ -17,10 +17,9 @@ import {
     mockOracleNoProgram,
     mockUSDCMint,
 } from './testHelpers';
-import { AccountInfo, PublicKey } from '@solana/web3.js';
+import { PublicKey } from '@solana/web3.js';
 import { BankrunContextWrapper } from '../sdk/src/bankrunConnection';
 import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
-import { mockOracleAdminData } from './mockOracles';
 
 describe('admin', () => {
     const chProgram = anchor.workspace.Drift as Program;

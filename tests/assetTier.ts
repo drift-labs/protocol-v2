@@ -26,14 +26,13 @@ import {
 } from '../sdk/src';
 
 import {
-	mockOracle,
+	mockOracleNoProgram,
 	mockUSDCMint,
 	mockUserUSDCAccount,
 	// setFeedPrice,
 	initializeQuoteSpotMarket,
 	createUserWithUSDCAndWSOLAccount,
 	initializeSolSpotMarket,
-	printTxLogs,
 	createUSDCAccountForUser,
 	// getFeedData,
 	// sleep,
@@ -41,24 +40,7 @@ import {
 import { startAnchor } from "solana-bankrun";
 import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
 import { BankrunContextWrapper } from '../sdk/src/bankrunConnection';
-import { BulkAccountLoader, ContractTier } from '../sdk';
-import { assetTierSolOracle, assetTierDogeOracle } from './mockOracles';
-
-const DOGE_ORACLE: AccountInfo<Buffer> = {
-	data: Buffer.from(assetTierDogeOracle, 'base64'),
-    executable: false,
-    lamports: 23942400,
-    owner: new PublicKey("FsJ3A3u2vn5cTVofAjvy6y5kwABJAqYWpe4975bi2epH"),
-    rentEpoch: 0
-};
-
-const SOL_ORACLE: AccountInfo<Buffer> = {
-	data: Buffer.from(assetTierSolOracle, 'base64'),
-    executable: false,
-    lamports: 23942400,
-    owner: new PublicKey("FsJ3A3u2vn5cTVofAjvy6y5kwABJAqYWpe4975bi2epH"),
-    rentEpoch: 0
-};
+import { ContractTier } from '../sdk';
 
 
 describe('asset tiers', () => {
@@ -72,9 +54,9 @@ describe('asset tiers', () => {
 	let dogeMint;
 	let userUSDCAccount: Keypair;
 
-	const solOracle: PublicKey = PublicKey.unique();
-	const dogeOracle: PublicKey = PublicKey.unique();
-	const usdcAmount = new BN(1000000 * 10 ** 6); //1M
+	let solOracle: PublicKey;
+	let dogeOracle: PublicKey;
+	const usdcAmount = new BN(10000 * 10 ** 6); //1M
 
 	let secondUserDriftClient: TestClient;
 	let secondUserDriftClientWSOLAccount: PublicKey;
@@ -82,21 +64,14 @@ describe('asset tiers', () => {
 	let secondUserDriftClientDogeAccount: PublicKey;
 	let secondUserKeyPair: Keypair;
 
-	const solAmount = new BN(10000 * 10 ** 9);
+	const solAmount = new BN(100 * 10 ** 9);
 
 	before(async () => {
-		const context = await startAnchor("", [], [
-			{
-				address: solOracle,
-				info: SOL_ORACLE,
-			},
-			{
-				address: dogeOracle,
-				info: DOGE_ORACLE,
-			},
-		]);
+		const context = await startAnchor("", [], []);
 
 		const bankrunContextWrapper = new BankrunContextWrapper(context);
+
+        bulkAccountLoader = new TestBulkAccountLoader(bankrunContextWrapper.connection, 'processed', 1);
 
 		usdcMint = await mockUSDCMint(bankrunContextWrapper);
 		dogeMint = await mockUSDCMint(bankrunContextWrapper);
@@ -107,8 +82,8 @@ describe('asset tiers', () => {
 			bankrunContextWrapper,
 		);
 
-		// solOracle = await mockOracle(22500); // a future we all need to believe in
-		// dogeOracle = await mockOracle(0.05);
+		solOracle = await mockOracleNoProgram(bankrunContextWrapper, 22500); // a future we all need to believe in
+		dogeOracle = await mockOracleNoProgram(bankrunContextWrapper, 0.05);
 
 		driftClient = new TestClient({
 			connection: bankrunContextWrapper.connection.toConnection(),
@@ -127,6 +102,7 @@ describe('asset tiers', () => {
 					source: OracleSource.PYTH,
 				},
 			],
+			userStats: false,
 			accountSubscription: {
 				type: 'polling',
 				accountLoader: bulkAccountLoader,
@@ -135,7 +111,7 @@ describe('asset tiers', () => {
 
 		await driftClient.initialize(usdcMint.publicKey, true);
 		await driftClient.subscribe();
-		await driftClient.initializeUserAccount(0);
+		// await driftClient.initializeUserAccount(0);
 
 		await initializeQuoteSpotMarket(driftClient, usdcMint.publicKey);
 		await initializeSolSpotMarket(driftClient, solOracle);
@@ -165,9 +141,11 @@ describe('asset tiers', () => {
 		const subAccountId = 0;
 		const name = 'BIGZ';
 		await driftClient.initializeUserAccount(subAccountId, name);
+		const depositAmount = driftClient.convertToSpotPrecision(QUOTE_SPOT_MARKET_INDEX, 1);
+		console.log(`\n\n\n\n\n\n depositing here: ${depositAmount}`);
 		await driftClient.deposit(
 			// $10k
-			QUOTE_PRECISION.mul(new BN(10000)),
+			depositAmount,
 			QUOTE_SPOT_MARKET_INDEX,
 			userUSDCAccount.publicKey
 		);
@@ -195,7 +173,7 @@ describe('asset tiers', () => {
 					source: OracleSource.PYTH,
 				},
 			],
-			// bulkAccountLoader
+			bulkAccountLoader
 		);
 
 		secondUserDriftClientDogeAccount = await createUSDCAccountForUser(
@@ -208,6 +186,7 @@ describe('asset tiers', () => {
 		secondUserDriftClient.subscribe();
 
 		const marketIndex = 1;
+		console.log("\n\n\n\n\n\n\n\n\n\n FIRST depositing for second user: " + solAmount);
 		const txSig = await secondUserDriftClient.deposit(
 			solAmount,
 			marketIndex,
@@ -215,6 +194,7 @@ describe('asset tiers', () => {
 		);
 		// await printTxLogs(connection, txSig);
 
+		console.log("\n\n\n\n\n\n\n\n\n\n SECOND depositing for second user: " + usdcAmount)
 		const txSig2 = await secondUserDriftClient.deposit(
 			usdcAmount,
 			2,

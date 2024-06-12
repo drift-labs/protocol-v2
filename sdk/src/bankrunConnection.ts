@@ -60,13 +60,16 @@ export class BankrunContextWrapper {
 	): Promise<TransactionSignature> {
 		tx.recentBlockhash = this.context.lastBlockhash;
 		tx.feePayer = this.context.payer.publicKey;
+		if (!additionalSigners) {
+			additionalSigners = [];
+		}
 		tx.sign(this.context.payer, ...additionalSigners);
 		return await this.connection.sendTransaction(tx);
 	}
 
 	async fundKeypair(
 		keypair: Keypair | Wallet,
-		lamports: number
+		lamports: number | bigint
 	): Promise<TransactionSignature> {
 		const ixs = [
 			SystemProgram.transfer({
@@ -94,6 +97,13 @@ export class BankrunConnection {
 		return this as unknown as SolanaConnection;
 	}
 
+	async getAccountInfo(
+		publicKey: PublicKey
+	): Promise<null | AccountInfo<Buffer>> {
+		const parsedAccountInfo = await this.getParsedAccountInfo(publicKey);
+		return parsedAccountInfo ? parsedAccountInfo.value : null;
+	}
+	
 	async getAccountInfoAndContext(
 		publicKey: PublicKey,
 		_commitment?: Commitment

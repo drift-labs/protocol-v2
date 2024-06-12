@@ -13,6 +13,7 @@ import {
 	getAssociatedTokenAddressSync,
 	createAssociatedTokenAccountIdempotentInstruction,
 	ACCOUNT_SIZE,
+	createSyncNativeInstruction,
 } from '@solana/spl-token';
 import {
 	AccountInfo,
@@ -185,7 +186,7 @@ export async function mockUserUSDCAccount(
 		userUSDCAccount.publicKey,
 		// @ts-ignore
 		context.context.payer.publicKey,
-		usdcMintAmount.toNumber()
+		usdcMintAmount.toNumber() * 100_000
 	);
 	fakeUSDCTx.add(mintToUserAccountTx);
 
@@ -268,7 +269,7 @@ export async function createFundedKeyPair(
 	context: BankrunContextWrapper,
 ): Promise<Keypair> {
 	const keypair = Keypair.generate();
-	await context.fundKeypair(keypair, 10_000_000_000);
+	await context.fundKeypair(keypair, BigInt(100 * LAMPORTS_PER_SOL));
 	return keypair;
 }
 
@@ -303,10 +304,12 @@ export async function initializeAndSubscribeDriftClient(
 		opts: {
 			commitment: 'confirmed',
 		},
-		activeSubAccountId: 0,
+		// activeSubAccountId: 0,
 		perpMarketIndexes: marketIndexes,
 		spotMarketIndexes: bankIndexes,
 		oracleInfos,
+		subAccountIds: [],
+		userStats: false,
 		accountSubscription: accountLoader
 			? {
 					type: 'polling',
@@ -365,6 +368,26 @@ export async function createWSolTokenAccountForUser(
 	return addr;
 }
 
+export async function fundWsolTokenAccountForUser(
+	context: BankrunContextWrapper,
+	userKeypair: Keypair | Wallet,
+	amount: BN
+): Promise<void> {
+	// @ts-ignore
+	await context.fundKeypair(userKeypair, amount.toNumber());
+	const addr = getAssociatedTokenAddressSync(NATIVE_MINT, userKeypair.publicKey);
+	const ixs = [
+		SystemProgram.transfer({
+			fromPubkey: context.context.payer.publicKey,
+			toPubkey: addr,
+			lamports: amount.toNumber(),
+		}),
+		createSyncNativeInstruction(addr),
+	];
+	const tx = new Transaction().add(...ixs);
+	await context.sendTransaction(tx);
+}
+
 export async function createUserWithUSDCAndWSOLAccount(
 	context: BankrunContextWrapper,
 	usdcMint: Keypair,
@@ -377,7 +400,7 @@ export async function createUserWithUSDCAndWSOLAccount(
 	accountLoader?: TestBulkAccountLoader
 ): Promise<[TestClient, PublicKey, PublicKey, Keypair]> {
 	const keypair = Keypair.generate();
-	await context.fundKeypair(keypair, LAMPORTS_PER_SOL * 3);
+	await context.fundKeypair(keypair, BigInt(100 * LAMPORTS_PER_SOL));
 	const solAccount = await createWSolTokenAccountForUser(
 		context,
 		keypair,
@@ -447,11 +470,11 @@ export async function initUserAccounts(
 	NUM_USERS: number,
 	usdcMint: Keypair,
 	usdcAmount: BN,
-	provider: Provider,
+	context: BankrunContextWrapper,
 	marketIndexes: number[],
 	bankIndexes: number[],
 	oracleInfos: OracleInfo[],
-	accountLoader?: BulkAccountLoader
+	accountLoader?: TestBulkAccountLoader
 ) {
 	const user_keys = [];
 	const userUSDCAccounts = [];
@@ -465,29 +488,29 @@ export async function initUserAccounts(
 
 		const owner = anchor.web3.Keypair.generate();
 		const ownerWallet = new anchor.Wallet(owner);
-		await provider.connection.requestAirdrop(ownerWallet.publicKey, 100000000);
+		await context.fundKeypair(owner, BigInt(100 * LAMPORTS_PER_SOL));
 
 		const newUserAcct = await mockUserUSDCAccount(
 			usdcMint,
 			usdcAmount,
-			provider,
+			context,
 			ownerWallet.publicKey
 		);
 
 		const chProgram = anchor.workspace.Drift as anchor.Program; // this.program-ify
 
 		const driftClient1 = new TestClient({
-			connection: provider.connection,
+			connection: context.connection.toConnection(),
 			//@ts-ignore
 			wallet: ownerWallet,
 			programID: chProgram.programId,
 			opts: {
 				commitment: 'confirmed',
 			},
-			activeSubAccountId: 0,
 			perpMarketIndexes: marketIndexes,
 			spotMarketIndexes: bankIndexes,
 			oracleInfos,
+			subAccountIds: [],
 			accountSubscription: accountLoader
 				? {
 						type: 'polling',
@@ -622,6 +645,40 @@ export const setFeedPrice = async (
 		accounts: { price: priceFeed },
 	});
 };
+
+export const setFeedPriceNoProgram = async (
+	context: BankrunContextWrapper,
+	newPrice: number,
+	priceFeed: PublicKey
+) => {
+	const info = await context.connection.getAccountInfo(priceFeed);
+	const data = parsePriceData(info.data);
+
+	const provider = new AnchorProvider(
+		context.connection.toConnection(),
+		context.provider.wallet,
+		{
+			commitment: "processed"
+		}
+	);
+
+	const program = new Program(
+		pythIDL as anchor.Idl,
+		new PublicKey("FsJ3A3u2vn5cTVofAjvy6y5kwABJAqYWpe4975bi2epH"),
+		provider,
+	);
+
+	const ix = program.instruction.setPrice(new BN(newPrice * 10 ** -data.exponent), {
+		accounts: { price: priceFeed },
+	});
+	
+	const tx = new Transaction().add(ix);
+	tx.feePayer = context.context.payer.publicKey;
+	tx.recentBlockhash = context.context.lastBlockhash;
+	tx.sign(...[context.context.payer]);
+	await context.connection.sendTransaction(tx);
+};
+
 export const setFeedTwap = async (
 	oracleProgram: Program,
 	newTwap: number,
