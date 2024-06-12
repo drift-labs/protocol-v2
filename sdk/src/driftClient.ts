@@ -4596,11 +4596,12 @@ export class DriftClient {
 	}> {
 		const placeAndTakeIxs: TransactionInstruction[] = [];
 
-		const txsToSign: {
-			placeAndTakeTx: Transaction | VersionedTransaction
-			cancelExistingOrdersTx: Transaction | VersionedTransaction
-			settlePnlTx: Transaction | VersionedTransaction
-		} = {
+		type TxKeys = |
+			'placeAndTakeTx'
+			| 'cancelExistingOrdersTx'
+			| 'settlePnlTx';
+
+		const txsToSign: Record<TxKeys, Transaction | VersionedTransaction> = {
 			placeAndTakeTx: undefined,
 			cancelExistingOrdersTx: undefined,
 			settlePnlTx: undefined,
@@ -4773,23 +4774,13 @@ export class DriftClient {
 			exitEarlyIfSimFails
 		);
 
-		// A typesafe lookup for the keys in txsToSign
-		const keys : Record<
-			keyof typeof txsToSign,
-			keyof typeof txsToSign
-		> = {
-			placeAndTakeTx: 'placeAndTakeTx',
-			cancelExistingOrdersTx: 'cancelExistingOrdersTx',
-			settlePnlTx: 'settlePnlTx',
-		};
-
 		const signedTxs = (await this.txHandler.getSignedTransactionMap(
 			txsToSign,
 			this.provider.wallet
 		)).signedTxMap;
 
 		const { txSig, slot } = await this.sendTransaction(
-			signedTxs[keys.placeAndTakeTx],
+			signedTxs.placeAndTakeTx,
 			[],
 			this.opts,
 			true
@@ -4799,10 +4790,8 @@ export class DriftClient {
 
 		return {
 			txSig,
-			signedCancelExistingOrdersTx: signedTxs[
-				keys.cancelExistingOrdersTx
-			] as Transaction,
-			signedSettlePnlTx: signedTxs[keys.settlePnlTx] as Transaction,
+			signedCancelExistingOrdersTx: signedTxs.cancelExistingOrdersTx as Transaction,
+			signedSettlePnlTx: signedTxs.settlePnlTx as Transaction,
 		};
 	}
 
