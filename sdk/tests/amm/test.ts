@@ -1350,7 +1350,7 @@ describe('AMM Tests', () => {
 			_lowerboundEst,
 			_cappedAltEst,
 			_interpEst,
-		] = await calculateAllEstimatedFundingRate(
+		] = calculateAllEstimatedFundingRate(
 			mockMarket1,
 			oraclePriceData,
 			currentMarkPrice,
@@ -1423,7 +1423,7 @@ describe('AMM Tests', () => {
 			_lowerboundEst,
 			_cappedAltEst,
 			_interpEst,
-		] = await calculateAllEstimatedFundingRate(
+		] = calculateAllEstimatedFundingRate(
 			mockMarket1,
 			oraclePriceData,
 			currentMarkPrice,
