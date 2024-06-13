@@ -12,7 +12,6 @@ import {
 	PositionDirection,
 	User,
 	Wallet,
-	EventSubscriber,
 	BASE_PRECISION,
 	getLimitOrderParams,
 	OracleSource,
@@ -21,37 +20,30 @@ import {
 import {
 	initializeQuoteSpotMarket,
 	initializeSolSpotMarket,
-	mockOracle,
+	mockOracleNoProgram,
 	mockUSDCMint,
 	mockUserUSDCAccount,
-	printTxLogs,
 	sleep,
 } from './testHelpers';
 import {
-	BulkAccountLoader,
 	MARGIN_PRECISION,
 	PostOnlyParams,
 	ReferrerInfo,
 	ZERO,
 } from '../sdk';
+import { startAnchor } from "solana-bankrun";
+import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
+import { BankrunContextWrapper } from '../sdk/src/bankrunConnection';
 
 describe('place and fill spot order', () => {
-	const provider = anchor.AnchorProvider.local(undefined, {
-		commitment: 'confirmed',
-		preflightCommitment: 'confirmed',
-	});
-	const connection = provider.connection;
-	anchor.setProvider(provider);
 	const chProgram = anchor.workspace.Drift as Program;
 
 	let fillerDriftClient: TestClient;
 	let fillerDriftClientUser: User;
-	const eventSubscriber = new EventSubscriber(connection, chProgram, {
-		commitment: 'recent',
-	});
-	eventSubscriber.subscribe();
 
-	const bulkAccountLoader = new BulkAccountLoader(connection, 'confirmed', 1);
+	let bulkAccountLoader: TestBulkAccountLoader;
+
+	let bankrunContextWrapper: BankrunContextWrapper;
 
 	let usdcMint;
 	let userUSDCAccount;
@@ -67,17 +59,17 @@ describe('place and fill spot order', () => {
 		referrerInfo?: ReferrerInfo
 	): Promise<TestClient> => {
 		const keypair = new Keypair();
-		await provider.connection.requestAirdrop(keypair.publicKey, 10 ** 9);
+		await bankrunContextWrapper.fundKeypair(keypair, 10 ** 9);
 		await sleep(1000);
 		const wallet = new Wallet(keypair);
 		const userUSDCAccount = await mockUserUSDCAccount(
 			usdcMint,
 			usdcAmount,
-			provider,
+			bankrunContextWrapper,
 			keypair.publicKey
 		);
 		const driftClient = new TestClient({
-			connection,
+			connection: bankrunContextWrapper.connection.toConnection(),
 			wallet,
 			programID: chProgram.programId,
 			opts: {
@@ -86,6 +78,7 @@ describe('place and fill spot order', () => {
 			activeSubAccountId: 0,
 			perpMarketIndexes: marketIndexes,
 			spotMarketIndexes: spotMarketIndexes,
+			subAccountIds: [],
 			oracleInfos,
 			userStats: true,
 			accountSubscription: {
@@ -110,18 +103,24 @@ describe('place and fill spot order', () => {
 	};
 
 	before(async () => {
-		usdcMint = await mockUSDCMint(provider);
-		userUSDCAccount = await mockUserUSDCAccount(usdcMint, usdcAmount, provider);
+		const context = await startAnchor("", [], []);
 
-		solUsd = await mockOracle(32.821);
+		bankrunContextWrapper = new BankrunContextWrapper(context);
+
+        bulkAccountLoader = new TestBulkAccountLoader(bankrunContextWrapper.connection, 'processed', 1);
+
+		usdcMint = await mockUSDCMint(bankrunContextWrapper);
+		userUSDCAccount = await mockUserUSDCAccount(usdcMint, usdcAmount, bankrunContextWrapper);
+
+		solUsd = await mockOracleNoProgram(bankrunContextWrapper, 32.821);
 
 		marketIndexes = [];
 		spotMarketIndexes = [0, 1];
 		oracleInfos = [{ publicKey: solUsd, source: OracleSource.PYTH }];
 
 		fillerDriftClient = new TestClient({
-			connection,
-			wallet: provider.wallet,
+			connection: bankrunContextWrapper.connection.toConnection(),
+			wallet: bankrunContextWrapper.provider.wallet,
 			programID: chProgram.programId,
 			opts: {
 				commitment: 'confirmed',
@@ -129,6 +128,7 @@ describe('place and fill spot order', () => {
 			activeSubAccountId: 0,
 			perpMarketIndexes: marketIndexes,
 			spotMarketIndexes: spotMarketIndexes,
+			subAccountIds: [],
 			oracleInfos,
 			accountSubscription: {
 				type: 'polling',
@@ -154,20 +154,19 @@ describe('place and fill spot order', () => {
 		);
 
 		const oneSol = new BN(LAMPORTS_PER_SOL);
-		await fillerDriftClient.deposit(oneSol, 1, provider.wallet.publicKey);
+		await fillerDriftClient.deposit(oneSol, 1, bankrunContextWrapper.provider.wallet.publicKey);
 
 		fillerDriftClientUser = new User({
 			driftClient: fillerDriftClient,
 			userAccountPublicKey: await fillerDriftClient.getUserAccountPublicKey(),
+			accountSubscription: {
+				type: 'polling',
+				accountLoader: bulkAccountLoader,
+				},
 		});
 		await fillerDriftClientUser.subscribe();
 	});
 
-	after(async () => {
-		await fillerDriftClient.unsubscribe();
-		await fillerDriftClientUser.unsubscribe();
-		await eventSubscriber.unsubscribe();
-	});
 
 	it('fill via match', async () => {
 		const takerDriftClient = await createTestClient({
@@ -177,6 +176,10 @@ describe('place and fill spot order', () => {
 		const takerDriftClientUser = new User({
 			driftClient: takerDriftClient,
 			userAccountPublicKey: await takerDriftClient.getUserAccountPublicKey(),
+			accountSubscription: {
+				type: 'polling',
+				accountLoader: bulkAccountLoader,
+				},
 		});
 		await takerDriftClientUser.subscribe();
 
@@ -184,6 +187,10 @@ describe('place and fill spot order', () => {
 		const makerDriftClientUser = new User({
 			driftClient: makerDriftClient,
 			userAccountPublicKey: await makerDriftClient.getUserAccountPublicKey(),
+			accountSubscription: {
+				type: 'polling',
+				accountLoader: bulkAccountLoader,
+				},
 		});
 		await makerDriftClientUser.subscribe();
 
@@ -236,7 +243,8 @@ describe('place and fill spot order', () => {
 				referrerStats: fillerDriftClient.getUserStatsAccountPublicKey(),
 			}
 		);
-		await printTxLogs(connection, fillTx);
+
+		bankrunContextWrapper.connection.printTxLogs(fillTx);
 
 		// const makerUSDCAmount = makerDriftClient.getQuoteAssetTokenAmount();
 		// const makerSolAmount = makerDriftClient.getTokenAmount(1);

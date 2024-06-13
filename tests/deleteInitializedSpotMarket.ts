@@ -12,30 +12,28 @@ import {
 } from '../sdk/src';
 
 import {
-	mockOracle,
+	mockOracleNoProgram,
 	mockUSDCMint,
 	mockUserUSDCAccount,
-	printTxLogs,
 } from './testHelpers';
 import {
-	BulkAccountLoader,
 	getInsuranceFundVaultPublicKey,
 	getSpotMarketPublicKey,
 	getSpotMarketVaultPublicKey,
 } from '../sdk';
 import { PublicKey } from '@solana/web3.js';
+import { startAnchor } from "solana-bankrun";
+import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
+import { BankrunContextWrapper } from '../sdk/src/bankrunConnection';
 
 describe('max deposit', () => {
-	const provider = anchor.AnchorProvider.local(undefined, {
-		preflightCommitment: 'confirmed',
-		skipPreflight: false,
-		commitment: 'confirmed',
-	});
-	const connection = provider.connection;
-	anchor.setProvider(provider);
 	const chProgram = anchor.workspace.Drift as Program;
 
 	let driftClient: TestClient;
+
+	let bankrunContextWrapper: BankrunContextWrapper;
+
+	let bulkAccountLoader: TestBulkAccountLoader;
 
 	let usdcMint;
 	let _userUSDCAccount;
@@ -43,20 +41,24 @@ describe('max deposit', () => {
 	const usdcAmount = new BN(10 * 10 ** 6);
 
 	before(async () => {
-		usdcMint = await mockUSDCMint(provider);
+		const context = await startAnchor("", [], []);
+
+		bankrunContextWrapper = new BankrunContextWrapper(context);
+
+        bulkAccountLoader = new TestBulkAccountLoader(bankrunContextWrapper.connection, 'processed', 1);
+
+		usdcMint = await mockUSDCMint(bankrunContextWrapper);
 		_userUSDCAccount = await mockUserUSDCAccount(
 			usdcMint,
 			usdcAmount,
-			provider
+			bankrunContextWrapper
 		);
 
-		const bulkAccountLoader = new BulkAccountLoader(connection, 'confirmed', 1);
-
-		const solUsd = await mockOracle(1);
+		const solUsd = await mockOracleNoProgram(bankrunContextWrapper, 1);
 
 		driftClient = new TestClient({
-			connection,
-			wallet: provider.wallet,
+			connection: bankrunContextWrapper.connection.toConnection(),
+			wallet: bankrunContextWrapper.provider.wallet,
 			programID: chProgram.programId,
 			opts: {
 				commitment: 'confirmed',
@@ -64,6 +66,7 @@ describe('max deposit', () => {
 			activeSubAccountId: 0,
 			perpMarketIndexes: [0],
 			spotMarketIndexes: [0],
+			subAccountIds: [],
 			oracleInfos: [{ publicKey: solUsd, source: OracleSource.PYTH }],
 			userStats: true,
 			accountSubscription: {
@@ -110,14 +113,14 @@ describe('max deposit', () => {
 	it('delete', async () => {
 		const txSig = await driftClient.deleteInitializedSpotMarket(0);
 
-		await printTxLogs(connection, txSig);
+		bankrunContextWrapper.connection.printTxLogs(txSig);
 
 		const spotMarketKey = await getSpotMarketPublicKey(
 			driftClient.program.programId,
 			0
 		);
 
-		let result = await connection.getAccountInfoAndContext(
+		let result = await bankrunContextWrapper.connection.getAccountInfoAndContext(
 			spotMarketKey,
 			'processed'
 		);
@@ -128,7 +131,7 @@ describe('max deposit', () => {
 			0
 		);
 
-		result = await connection.getAccountInfoAndContext(
+		result = await bankrunContextWrapper.connection.getAccountInfoAndContext(
 			spotMarketVaultKey,
 			'processed'
 		);
@@ -139,7 +142,7 @@ describe('max deposit', () => {
 			0
 		);
 
-		result = await connection.getAccountInfoAndContext(ifVaultKey, 'processed');
+		result = await bankrunContextWrapper.connection.getAccountInfoAndContext(ifVaultKey, 'processed');
 		assert(result.value === null);
 	});
 

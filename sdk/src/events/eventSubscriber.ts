@@ -146,7 +146,7 @@ export class EventSubscriber {
 		}
 	}
 
-	public async getLogsFromSig(txSig: TransactionSignature): Promise<void> {
+	public async registerSig(txSig: TransactionSignature): Promise<void> {
 		const resp = await this.connection.getTransaction(txSig);
 		if (!resp.meta) {
 			return;

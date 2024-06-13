@@ -5,11 +5,9 @@ import {
 	MintLayout,
 	NATIVE_MINT,
 	TOKEN_PROGRAM_ID,
-	getMinimumBalanceForRentExemptAccount,
 	createInitializeMintInstruction,
 	createInitializeAccountInstruction,
 	createMintToInstruction,
-	createWrappedNativeAccount,
 	getAssociatedTokenAddressSync,
 	createAssociatedTokenAccountIdempotentInstruction,
 	ACCOUNT_SIZE,
@@ -33,7 +31,6 @@ import {
 	Wallet,
 	OraclePriceData,
 	OracleInfo,
-	BulkAccountLoader,
 } from '../sdk';
 import {
 	TestClient,
@@ -107,6 +104,7 @@ export async function mockOracleNoProgram(
 		confidence,
 	});
 
+	// @ts-ignore
 	const feedData = await getFeedDataNoProgram(context.connection, priceFeedAddress);
 	if (feedData.price !== price) {
 		console.log('mockOracle precision error:', feedData.price, '!=', price);
@@ -240,7 +238,7 @@ export async function mintUSDCToUser(
 	fakeUSDCMint: Keypair,
 	userUSDCAccount: PublicKey,
 	usdcMintAmount: BN,
-	provider: Provider
+	context: BankrunContextWrapper
 ): Promise<void> {
 	const tx = new Transaction();
 	const mintToUserAccountTx = await createMintToInstruction(
@@ -252,17 +250,7 @@ export async function mintUSDCToUser(
 	);
 	tx.add(mintToUserAccountTx);
 
-	await sendAndConfirmTransaction(
-		provider.connection,
-		tx,
-		// @ts-ignore
-		[provider.wallet.payer],
-		{
-			skipPreflight: false,
-			commitment: 'recent',
-			preflightCommitment: 'recent',
-		}
-	);
+	await context.sendTransaction(tx);
 }
 
 export async function createFundedKeyPair(
@@ -374,7 +362,7 @@ export async function fundWsolTokenAccountForUser(
 	amount: BN
 ): Promise<void> {
 	// @ts-ignore
-	await context.fundKeypair(userKeypair, amount.toNumber());
+	await context.fundKeypair(userKeypair, amount.toNumber() * 5);
 	const addr = getAssociatedTokenAddressSync(NATIVE_MINT, userKeypair.publicKey);
 	const ixs = [
 		SystemProgram.transfer({
@@ -579,6 +567,7 @@ export const createPriceFeed = async ({
 			signers: [collateralTokenFeed],
 			instructions: [
 				anchor.web3.SystemProgram.createAccount({
+					// @ts-ignore
 					fromPubkey: oracleProgram.provider.wallet.publicKey,
 					newAccountPubkey: collateralTokenFeed.publicKey,
 					space: 3312,
@@ -674,7 +663,7 @@ export const setFeedPriceNoProgram = async (
 	
 	const tx = new Transaction().add(ix);
 	tx.feePayer = context.context.payer.publicKey;
-	tx.recentBlockhash = context.context.lastBlockhash;
+	tx.recentBlockhash = (await context.getLatestBlockhash()).toString();
 	tx.sign(...[context.context.payer]);
 	await context.connection.sendTransaction(tx);
 };
@@ -706,6 +695,7 @@ export const getFeedDataNoProgram = async (
 	connection: BankrunConnection,
 	priceFeed: PublicKey
 ) => {
+	// @ts-ignore
 	const info = await connection.getAccountInfoAndContext(priceFeed);
 	return parsePriceData(info.value.data);
 };

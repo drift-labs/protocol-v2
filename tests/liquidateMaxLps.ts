@@ -36,11 +36,6 @@ describe('max lp liq', () => {
 
 	let bankrunContextWrapper: BankrunContextWrapper;
 
-	// const eventSubscriber = new EventSubscriber(connection, chProgram, {
-	// 	commitment: 'recent',
-	// });
-	// eventSubscriber.subscribe();
-
 	let bulkAccountLoader: TestBulkAccountLoader;
 
 	let usdcMint;

@@ -229,7 +229,7 @@ describe('liquidate borrow for perp pnl', () => {
 
 		eventSubscriber.initializeForTests();
 		
-		await eventSubscriber.getLogsFromSig(txSig);
+		await eventSubscriber.registerSig(txSig);
 
 		const liquidationRecord =
 			eventSubscriber.getEventsArray('LiquidationRecord')[0];

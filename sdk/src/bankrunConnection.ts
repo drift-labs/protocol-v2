@@ -20,6 +20,7 @@ import {
 	ClientSubscriptionId,
 	Connection as SolanaConnection,
 	SystemProgram,
+	Blockhash,
 } from '@solana/web3.js';
 import {
 	ProgramTestContext,
@@ -28,7 +29,8 @@ import {
 } from 'solana-bankrun';
 import { BankrunProvider } from 'anchor-bankrun';
 import bs58 from 'bs58';
-import { Wallet } from '@coral-xyz/anchor';
+import { BN, Wallet } from '@coral-xyz/anchor';
+import { Account, TOKEN_PROGRAM_ID, unpackAccount } from '@solana/spl-token';
 
 export type Connection = SolanaConnection | BankrunConnection;
 
@@ -58,7 +60,7 @@ export class BankrunContextWrapper {
 		tx: Transaction,
 		additionalSigners?: Keypair[]
 	): Promise<TransactionSignature> {
-		tx.recentBlockhash = this.context.lastBlockhash;
+		tx.recentBlockhash = (await this.getLatestBlockhash()).toString();
 		tx.feePayer = this.context.payer.publicKey;
 		if (!additionalSigners) {
 			additionalSigners = [];
@@ -81,6 +83,16 @@ export class BankrunContextWrapper {
 		const tx = new Transaction().add(...ixs);
 		return await this.sendTransaction(tx);
 	}
+
+	async getLatestBlockhash(): Promise<Blockhash> {
+		const blockhash = await this.connection.getLatestBlockhash("finalized");
+
+		return blockhash.blockhash;
+	}
+
+	printTxLogs(signature: string): void {
+		this.connection.printTxLogs(signature);
+	}
 }
 export class BankrunConnection {
 	private readonly _banksClient: BanksClient;
@@ -93,8 +105,17 @@ export class BankrunConnection {
 		this._banksClient = banksClient;
 	}
 
+	getSlot(): Promise<bigint> {
+		return this._banksClient.getSlot();
+	}
+
 	toConnection(): SolanaConnection {
 		return this as unknown as SolanaConnection;
+	}
+
+	async getTokenAccount(publicKey: PublicKey): Promise<Account> {
+		const info = await this.getAccountInfo(publicKey);
+		return unpackAccount(publicKey, info, TOKEN_PROGRAM_ID);
 	}
 
 	async getAccountInfo(
@@ -292,4 +313,8 @@ export class BankrunConnection {
 		// Nothing actually has to happen here! Pretty cool, huh?
 		// This function signature only exists to match the web3js interface
 	}
+}
+
+export function asBN(value: number | bigint): BN {
+	return new BN(Number(value));
 }

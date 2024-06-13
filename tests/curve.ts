@@ -21,41 +21,26 @@ import { liquidityBook } from './liquidityBook';
 
 import { assert } from '../sdk/src/assert/assert';
 import {
-	createPriceFeed,
+	mockOracleNoProgram,
 	initializeQuoteSpotMarket,
 	mockUSDCMint,
 	mockUserUSDCAccount,
 	setFeedPrice,
+	setFeedPriceNoProgram,
 } from './testHelpers';
-import { BulkAccountLoader } from '../sdk';
+import { startAnchor } from "solana-bankrun";
+import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
+import { BankrunContextWrapper } from '../sdk/src/bankrunConnection';
 
 describe('AMM Curve', () => {
-	const provider = anchor.AnchorProvider.local(undefined, {
-		preflightCommitment: 'confirmed',
-		skipPreflight: false,
-		commitment: 'confirmed',
-	});
-	const connection = provider.connection;
-	anchor.setProvider(provider);
 	const chProgram = anchor.workspace.Drift as Program;
 
-	const bulkAccountLoader = new BulkAccountLoader(connection, 'confirmed', 1);
 
-	const driftClient = new TestClient({
-		connection,
-		wallet: provider.wallet,
-		programID: chProgram.programId,
-		opts: {
-			commitment: 'confirmed',
-		},
-		activeSubAccountId: 0,
-		perpMarketIndexes: [0],
-		spotMarketIndexes: [0],
-		accountSubscription: {
-			type: 'polling',
-			accountLoader: bulkAccountLoader,
-		},
-	});
+	let bulkAccountLoader: TestBulkAccountLoader;
+
+	let bankrunContextWrapper: BankrunContextWrapper;
+
+	let driftClient: TestClient;
 
 	const ammInitialQuoteAssetAmount = new anchor.BN(10 ** 8).mul(BASE_PRECISION);
 	const ammInitialBaseAssetAmount = new anchor.BN(10 ** 8).mul(BASE_PRECISION);
@@ -76,8 +61,31 @@ describe('AMM Curve', () => {
 	let userAccount: User;
 
 	before(async () => {
-		usdcMint = await mockUSDCMint(provider);
-		userUSDCAccount = await mockUserUSDCAccount(usdcMint, usdcAmount, provider);
+		const context = await startAnchor("", [], []);
+
+		bankrunContextWrapper = new BankrunContextWrapper(context);
+
+        bulkAccountLoader = new TestBulkAccountLoader(bankrunContextWrapper.connection, 'processed', 1);
+
+		usdcMint = await mockUSDCMint(bankrunContextWrapper);
+		userUSDCAccount = await mockUserUSDCAccount(usdcMint, usdcAmount, bankrunContextWrapper);
+
+		driftClient = new TestClient({
+			connection: bankrunContextWrapper.connection.toConnection(),
+			wallet: bankrunContextWrapper.provider.wallet,
+			programID: chProgram.programId,
+			opts: {
+				commitment: 'confirmed',
+			},
+			activeSubAccountId: 0,
+			perpMarketIndexes: [0],
+			spotMarketIndexes: [0],
+			subAccountIds: [],
+			accountSubscription: {
+				type: 'polling',
+				accountLoader: bulkAccountLoader,
+			},
+		});
 
 		await driftClient.initialize(usdcMint.publicKey, true);
 		await driftClient.subscribe();
@@ -85,10 +93,8 @@ describe('AMM Curve', () => {
 		await initializeQuoteSpotMarket(driftClient, usdcMint.publicKey);
 		await driftClient.updatePerpAuctionDuration(new BN(0));
 
-		solUsdOracle = await createPriceFeed({
-			oracleProgram: anchor.workspace.Pyth,
-			initPrice: initialSOLPrice,
-		});
+		solUsdOracle = await mockOracleNoProgram(bankrunContextWrapper, initialSOLPrice);
+
 		const periodicity = new BN(60 * 60); // 1 HOUR
 
 		await driftClient.initializePerpMarket(
@@ -104,13 +110,12 @@ describe('AMM Curve', () => {
 		userAccount = new User({
 			driftClient,
 			userAccountPublicKey: await driftClient.getUserAccountPublicKey(),
+			accountSubscription: {
+				type: 'polling',
+				accountLoader: bulkAccountLoader,
+				},
 		});
 		await userAccount.subscribe();
-	});
-
-	after(async () => {
-		await driftClient.unsubscribe();
-		await userAccount.unsubscribe();
 	});
 
 	const showCurve = async (marketIndex) => {
@@ -230,7 +235,7 @@ describe('AMM Curve', () => {
 		const newOraclePriceWithMantissa = new BN(
 			newOraclePrice * PRICE_PRECISION.toNumber()
 		);
-		await setFeedPrice(anchor.workspace.Pyth, newOraclePrice, solUsdOracle);
+		await setFeedPriceNoProgram(bankrunContextWrapper, newOraclePrice, solUsdOracle);
 		// showCurve(marketIndex);
 
 		await driftClient.openPosition(
@@ -365,6 +370,7 @@ describe('AMM Curve', () => {
 		// unbalanced but no net position
 		console.log('netBaseAssetAmount:', amm.baseAssetAmountWithAmm.toString());
 		assert(!amm.baseAssetReserve.eq(amm.quoteAssetReserve));
+		console.log(amm.baseAssetAmountWithAmm);
 		assert(amm.baseAssetAmountWithAmm.eq(new BN(0)));
 
 		// check if balanced
