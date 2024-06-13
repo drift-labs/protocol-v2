@@ -321,7 +321,7 @@ describe('insurance fund stake', () => {
 		assert(ifStakeAccount.lastWithdrawRequestShares.eq(ZERO));
 	});
 
-	it.only('user request if unstake with escrow period (last half)', async () => {
+	it('user request if unstake with escrow period (last half)', async () => {
 		const txSig = await driftClient.updateInsuranceFundUnstakingPeriod(
 			0,
 			new BN(10)
@@ -389,6 +389,8 @@ describe('insurance fund stake', () => {
 
 		const spotMarket0Pre = driftClient.getSpotMarketAccount(marketIndex);
 		assert(spotMarket0Pre.insuranceFund.unstakingPeriod.eq(new BN(10)));
+
+		await bankrunContextWrapper.moveTimeForward(10);
 
 		// const nShares = usdcAmount.div(new BN(2));
 		const txSig = await driftClient.removeInsuranceFundStake(

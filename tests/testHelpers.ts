@@ -184,7 +184,7 @@ export async function mockUserUSDCAccount(
 		userUSDCAccount.publicKey,
 		// @ts-ignore
 		context.context.payer.publicKey,
-		usdcMintAmount.toNumber() * 100_000
+		usdcMintAmount.toNumber()
 	);
 	fakeUSDCTx.add(mintToUserAccountTx);
 
