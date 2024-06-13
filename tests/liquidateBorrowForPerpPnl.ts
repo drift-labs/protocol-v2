@@ -219,7 +219,7 @@ describe('liquidate borrow for perp pnl', () => {
 		assert(userAccount.status === UserStatus.BEING_LIQUIDATED);
 		assert(userAccount.nextLiquidationId === 2);
 		assert(
-			userAccount.perpPositions.length === 0
+			driftClient.getUserAccount().perpPositions[0].quoteAssetAmount.eq(ZERO)
 		);
 
 		const eventSubscriber = new EventSubscriber(
