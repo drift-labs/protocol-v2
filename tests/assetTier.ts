@@ -56,7 +56,7 @@ describe('asset tiers', () => {
 
 	let solOracle: PublicKey;
 	let dogeOracle: PublicKey;
-	const usdcAmount = new BN(10000 * 10 ** 6); //1M
+	const usdcAmount = new BN(1000000 * 10 ** 6); //1M
 
 	let secondUserDriftClient: TestClient;
 	let secondUserDriftClientWSOLAccount: PublicKey;
@@ -64,7 +64,7 @@ describe('asset tiers', () => {
 	let secondUserDriftClientDogeAccount: PublicKey;
 	let secondUserKeyPair: Keypair;
 
-	const solAmount = new BN(100 * 10 ** 9);
+	const solAmount = new BN(10000 * 10 ** 9);
 
 	before(async () => {
 		const context = await startAnchor("", [], []);
@@ -194,7 +194,7 @@ describe('asset tiers', () => {
 		);
 		// await printTxLogs(connection, txSig);
 
-		console.log("\n\n\n\n\n\n\n\n\n\n SECOND depositing for second user: " + usdcAmount)
+		console.log("\n\n\n\n\n\n\n\n\n\n SECOND depositing for second user: " + usdcAmount);
 		const txSig2 = await secondUserDriftClient.deposit(
 			usdcAmount,
 			2,
@@ -300,7 +300,7 @@ describe('asset tiers', () => {
 
 		try {
 			const txSig2 = await secondUserDriftClient.withdraw(
-				QUOTE_PRECISION,
+				QUOTE_PRECISION.divn(2),
 				0,
 				secondUserDriftClientUSDCAccount,
 				false

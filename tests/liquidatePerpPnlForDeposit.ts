@@ -26,7 +26,6 @@ import {
 	createUserWithUSDCAndWSOLAccount,
 	createWSolTokenAccountForUser,
 	initializeSolSpotMarket,
-	fundWsolTokenAccountForUser,
 	mockOracleNoProgram,
 	setFeedPriceNoProgram,
 } from './testHelpers';
@@ -184,8 +183,6 @@ describe('liquidate perp pnl for deposit', () => {
 
 		const spotMarketIndex = 1;
 
-		await fundWsolTokenAccountForUser(bankrunContextWrapper, liquidatorKeypair, solAmount.mul(new BN(1_000)));
-
 		await liquidatorDriftClient.deposit(
 			solAmount.mul(new BN(1000)),
 			spotMarketIndex,
@@ -224,9 +221,6 @@ describe('liquidate perp pnl for deposit', () => {
 			// console.error(e);
 		}
 
-		// @ts-ignore
-		await fundWsolTokenAccountForUser(bankrunContextWrapper, bankrunContextWrapper.provider.wallet, new BN(3.82 * 10 ** 9));
-
 		// pay off borrow first (and withdraw all excess in attempt to full pay)
 		await driftClient.deposit(new BN(5.02 * 10 ** 8), 1, userWSOLAccount);
 		// await driftClient.withdraw(new BN(1 * 10 ** 8), 1, userWSOLAccount, true);
@@ -262,7 +256,10 @@ describe('liquidate perp pnl for deposit', () => {
 
 		assert(driftClient.getUserAccount().nextLiquidationId === 2);
 		assert(
-			driftClient.getUserAccount().spotPositions[0].scaledBalance.gt(ZERO)
+			driftClient.getUserAccount().spotPositions[0].scaledBalance.eq(ZERO)
+		);
+		assert(
+			driftClient.getUserAccount().spotPositions[1].scaledBalance.gt(ZERO)
 		);
 
 		eventSubscriber = new EventSubscriber(

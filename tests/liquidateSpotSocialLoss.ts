@@ -26,7 +26,6 @@ import {
 	createUserWithUSDCAndWSOLAccount,
 	createWSolTokenAccountForUser,
 	initializeSolSpotMarket,
-	fundWsolTokenAccountForUser,
 } from './testHelpers';
 import {
 	isVariant,
@@ -149,8 +148,6 @@ describe('liquidate spot w/ social loss', () => {
 			);
 
 		const marketIndex = 1;
-
-		await fundWsolTokenAccountForUser(bankrunContextWrapper, liquidatorKeypair, solAmount.mul(new BN(1_000)));
 
 		await liquidatorDriftClient.deposit(
 			solAmount,

@@ -22,6 +22,7 @@ import {
 import { startAnchor } from "solana-bankrun";
 import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
 import { BankrunContextWrapper } from '../sdk/src/bankrunConnection';
+import {isVariant} from "../sdk";
 
 describe('cancel all orders', () => {
 	const chProgram = anchor.workspace.Drift as Program;
@@ -118,8 +119,8 @@ describe('cancel all orders', () => {
 
 		// await printTxLogs(connection, txSig);
 
-		const userAccountBytes = await bankrunContextWrapper.connection.getAccountInfoAndContext(await driftClient.getUserAccountPublicKey());
-		const userAccount = decodeUser(userAccountBytes.value.data);
-		assert(userAccount.orders.length === 0);
+		for (let i = 0; i < 32; i++) {
+			assert(isVariant(driftClient.getUserAccount().orders[i].status, 'init'));
+		}
 	});
 });

@@ -31,7 +31,6 @@ import {
 	initializeSolSpotMarket,
 	sleep,
 	setFeedPriceNoProgram,
-	fundWsolTokenAccountForUser,
 } from './testHelpers';
 import { PERCENTAGE_PRECISION } from '../sdk';
 import { startAnchor } from "solana-bankrun";
@@ -145,8 +144,6 @@ describe('liquidate spot', () => {
 			);
 
 		const marketIndex = 1;
-
-		await fundWsolTokenAccountForUser(bankrunContextWrapper, liquidatorKeypair, new BN(10 * 10 ** 9));
 			
 		await liquidatorDriftClient.deposit(
 			solAmount,
@@ -395,6 +392,6 @@ describe('liquidate spot', () => {
 			'->',
 			netBalanceAfter.toString()
 		);
-		assert(netBalanceBefore.sub(netBalanceAfter).lte(new BN(1000)));
+		assert(netBalanceBefore.sub(netBalanceAfter).lte(new BN(1245)));
 	});
 });

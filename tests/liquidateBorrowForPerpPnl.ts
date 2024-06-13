@@ -27,7 +27,6 @@ import {
 	createWSolTokenAccountForUser,
 	initializeSolSpotMarket,
 	mockOracleNoProgram,
-	fundWsolTokenAccountForUser,
 	setFeedPriceNoProgram,
 } from './testHelpers';
 import { isVariant, UserStatus } from '../sdk';
@@ -185,8 +184,6 @@ describe('liquidate borrow for perp pnl', () => {
 		await liquidatorDriftClient.subscribe();
 
 		const spotMarketIndex = 1;
-		
-		await fundWsolTokenAccountForUser(bankrunContextWrapper, liquidatorKeypair, new BN(25 * 10 ** 9));
 
 		await liquidatorDriftClient.deposit(
 			solAmount,
