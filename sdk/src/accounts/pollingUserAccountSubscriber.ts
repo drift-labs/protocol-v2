@@ -22,18 +22,22 @@ export class PollingUserAccountSubscriber implements UserAccountSubscriber {
 	callbackId?: string;
 	errorCallbackId?: string;
 
+	decode : (name, buffer) => UserAccount;
+
 	user?: DataAndSlot<UserAccount>;
 
 	public constructor(
 		connection: Connection,
 		userAccountPublicKey: PublicKey,
-		accountLoader: BulkAccountLoader
+		accountLoader: BulkAccountLoader,
+		decode: (name, buffer) => UserAccount,
 	) {
 		this.isSubscribed = false;
 		this.connection = connection;
 		this.accountLoader = accountLoader;
 		this.eventEmitter = new EventEmitter();
 		this.userAccountPublicKey = userAccountPublicKey;
+		this.decode = decode;
 	}
 
 	async subscribe(userAccount?: UserAccount): Promise<boolean> {
@@ -72,7 +76,7 @@ export class PollingUserAccountSubscriber implements UserAccountSubscriber {
 					return;
 				}
 
-				const account = decodeUser(buffer);
+				const account = this.decode('User', buffer);
 				this.user = { data: account, slot };
 				this.eventEmitter.emit('userAccountUpdate', account);
 				this.eventEmitter.emit('update');
@@ -98,7 +102,7 @@ export class PollingUserAccountSubscriber implements UserAccountSubscriber {
 			);
 			if (dataAndContext.context.slot > (this.user?.slot ?? 0)) {
 				this.user = {
-					data: decodeUser(dataAndContext.value.data),
+					data: this.decode('User', dataAndContext.value.data),
 					slot: dataAndContext.context.slot,
 				};
 			}

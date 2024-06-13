@@ -351,7 +351,15 @@ export async function createWSolTokenAccountForUser(
 	await context.fundKeypair(userKeypair, amount.toNumber());
 	const addr = getAssociatedTokenAddressSync(NATIVE_MINT, userKeypair.publicKey);
 	const ix = createAssociatedTokenAccountIdempotentInstruction(context.context.payer.publicKey, addr, userKeypair.publicKey, NATIVE_MINT);
-	const tx = new Transaction().add(ix);
+	const ixs = [
+		SystemProgram.transfer({
+			fromPubkey: context.context.payer.publicKey,
+			toPubkey: addr,
+			lamports: amount.toNumber(),
+		}),
+		createSyncNativeInstruction(addr),
+	];
+	const tx = new Transaction().add(ix).add(...ixs);
 	await context.sendTransaction(tx);
 	return addr;
 }
@@ -388,7 +396,7 @@ export async function createUserWithUSDCAndWSOLAccount(
 	accountLoader?: TestBulkAccountLoader
 ): Promise<[TestClient, PublicKey, PublicKey, Keypair]> {
 	const keypair = Keypair.generate();
-	await context.fundKeypair(keypair, BigInt(100 * LAMPORTS_PER_SOL));
+	await context.fundKeypair(keypair, BigInt(LAMPORTS_PER_SOL));
 	const solAccount = await createWSolTokenAccountForUser(
 		context,
 		keypair,
