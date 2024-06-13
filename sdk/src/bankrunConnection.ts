@@ -26,6 +26,7 @@ import {
 	ProgramTestContext,
 	BanksClient,
 	BanksTransactionResultWithMeta,
+	Clock,
 } from 'solana-bankrun';
 import { BankrunProvider } from 'anchor-bankrun';
 import bs58 from 'bs58';
@@ -53,7 +54,7 @@ export class BankrunContextWrapper {
 	constructor(context: ProgramTestContext) {
 		this.context = context;
 		this.provider = new BankrunProvider(context);
-		this.connection = new BankrunConnection(this.context.banksClient);
+		this.connection = new BankrunConnection(this.context.banksClient, this.context);
 	}
 
 	async sendTransaction(
@@ -93,16 +94,31 @@ export class BankrunContextWrapper {
 	printTxLogs(signature: string): void {
 		this.connection.printTxLogs(signature);
 	}
+
+	async moveTimeForward(increment: number) : Promise<void> {
+		const currentClock = await this.context.banksClient.getClock();
+		const newUnixTimestamp = currentClock.unixTimestamp + BigInt(increment);
+		const newClock = new Clock(
+			currentClock.slot,
+			currentClock.epochStartTimestamp,
+			currentClock.epoch,
+			currentClock.leaderScheduleEpoch,
+			newUnixTimestamp
+		);
+		await this.context.setClock(newClock);
+	}
 }
 export class BankrunConnection {
 	private readonly _banksClient: BanksClient;
+	private readonly context: ProgramTestContext;
 	private transactionToMeta: Map<
 		TransactionSignature,
 		BanksTransactionResultWithMeta
 	> = new Map();
 
-	constructor(banksClient: BanksClient) {
+	constructor(banksClient: BanksClient, context: ProgramTestContext) {
 		this._banksClient = banksClient;
+		this.context = context;
 	}
 
 	getSlot(): Promise<bigint> {
@@ -158,6 +174,20 @@ export class BankrunConnection {
 				finalizedCount += 1;
 			}
 		}
+
+		const currentSlot = await this.getSlot();
+		const nextSlot = currentSlot + BigInt(1);
+		await this.context.warpToSlot(nextSlot);
+		const currentClock = await this._banksClient.getClock();
+		const newClock = new Clock(
+			nextSlot,
+			currentClock.epochStartTimestamp,
+			currentClock.epoch,
+			currentClock.leaderScheduleEpoch,
+			currentClock.unixTimestamp + BigInt(1)
+		);
+		await this.context.setClock(newClock);
+
 		return signature;
 	}
 
