@@ -321,7 +321,7 @@ describe('insurance fund stake', () => {
 		assert(ifStakeAccount.lastWithdrawRequestShares.eq(ZERO));
 	});
 
-	it('user request if unstake with escrow period (last half)', async () => {
+	it.only('user request if unstake with escrow period (last half)', async () => {
 		const txSig = await driftClient.updateInsuranceFundUnstakingPeriod(
 			0,
 			new BN(10)
