@@ -1233,10 +1233,26 @@ impl AMM {
             .cast()
     }
 
+    pub fn bid_price_from_spread(&self, reserve_price: u64, spread: u128) -> DriftResult<u64> {
+        reserve_price
+            .cast::<u128>()?
+            .safe_mul(BID_ASK_SPREAD_PRECISION_U128.safe_sub(spread)?)?
+            .safe_div(BID_ASK_SPREAD_PRECISION_U128)?
+            .cast()
+    }
+
     pub fn ask_price(&self, reserve_price: u64) -> DriftResult<u64> {
         reserve_price
             .cast::<u128>()?
             .safe_mul(BID_ASK_SPREAD_PRECISION_U128.safe_add(self.long_spread.cast()?)?)?
+            .safe_div(BID_ASK_SPREAD_PRECISION_U128)?
+            .cast::<u64>()
+    }
+
+    pub fn ask_price_from_spread(&self, reserve_price: u64, spread: u128) -> DriftResult<u64> {
+        reserve_price
+            .cast::<u128>()?
+            .safe_mul(BID_ASK_SPREAD_PRECISION_U128.safe_add(spread)?)?
             .safe_div(BID_ASK_SPREAD_PRECISION_U128)?
             .cast::<u64>()
     }

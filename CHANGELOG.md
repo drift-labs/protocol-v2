@@ -247,6 +247,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Features
 
 - program: add pause operation for liquidation ([#880](https://github.com/drift-labs/protocol-v2/pull/880))
+- program: add post only boundary for jit makers([#906](https://github.com/drift-labs/protocol-v2/pull/906))
 
 ### Fixes
 
