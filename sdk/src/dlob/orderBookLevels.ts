@@ -10,6 +10,7 @@ import {
 	isVariant,
 	OraclePriceData,
 	PerpMarketAccount,
+	PerpOperation,
 	PositionDirection,
 	QUOTE_PRECISION,
 	standardizePrice,
@@ -18,6 +19,7 @@ import {
 } from '..';
 import { PublicKey } from '@solana/web3.js';
 import { assert } from '../assert/assert';
+import { isOperationPaused } from '@drift-labs/sdk';
 
 type liquiditySource = 'serum' | 'vamm' | 'dlob' | 'phoenix';
 
@@ -167,12 +169,19 @@ export function getVammL2Generator({
 
 	const updatedAmm = calculateUpdatedAMM(marketAccount.amm, oraclePriceData);
 
-	let [openBids, openAsks] = calculateMarketOpenBidAsk(
-		updatedAmm.baseAssetReserve,
-		updatedAmm.minBaseAssetReserve,
-		updatedAmm.maxBaseAssetReserve,
-		updatedAmm.orderStepSize
+	const vammFillsDisabled = isOperationPaused(
+		marketAccount.pausedOperations,
+		PerpOperation.AMM_FILL
 	);
+
+	let [openBids, openAsks] = vammFillsDisabled
+		? [ZERO, ZERO]
+		: calculateMarketOpenBidAsk(
+				updatedAmm.baseAssetReserve,
+				updatedAmm.minBaseAssetReserve,
+				updatedAmm.maxBaseAssetReserve,
+				updatedAmm.orderStepSize
+		  );
 
 	const minOrderSize = marketAccount.amm.minOrderSize;
 	if (openBids.lt(minOrderSize.muln(2))) {
