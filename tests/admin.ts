@@ -313,5 +313,7 @@ describe('admin', () => {
         assert(state.admin.equals(newAdminKey), `admin does not match \n actual: ${state.admin} \n expected: ${newAdminKey}`);
     });
 
- 
+    after(async () => {
+        await driftClient.unsubscribe();
+    });
 });

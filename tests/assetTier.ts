@@ -8,7 +8,6 @@ import { PublicKey, Keypair } from '@solana/web3.js';
 import {
 	TestClient,
 	BN,
-	EventSubscriber,
 	ZERO,
 	// SPOT_MARKET_RATE_PRECISION,
 	// SpotBalanceType,
@@ -310,5 +309,10 @@ describe('asset tiers', () => {
 			console.error(e);
 			assert(false);
 		}
+	});
+
+	after(async () => {
+		await driftClient.unsubscribe();
+		await secondUserDriftClient.unsubscribe();
 	});
 });
