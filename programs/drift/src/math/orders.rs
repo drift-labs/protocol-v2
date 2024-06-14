@@ -10,7 +10,7 @@ use crate::math::amm::calculate_amm_available_liquidity;
 use crate::math::auction::is_amm_available_liquidity_source;
 use crate::math::casting::Cast;
 use crate::{
-    load, math, FeeTier, State, BASE_PRECISION_I128, FEE_ADJUSTMENT_MAX,
+    load, math, FeeTier, OrderParams, State, BASE_PRECISION_I128, FEE_ADJUSTMENT_MAX,
     OPEN_ORDER_MARGIN_REQUIREMENT, PERCENTAGE_PRECISION, PERCENTAGE_PRECISION_U64,
     PRICE_PRECISION_I128, QUOTE_PRECISION_I128, SPOT_WEIGHT_PRECISION, SPOT_WEIGHT_PRECISION_I128,
 };
@@ -117,6 +117,22 @@ fn calculate_limit_price_with_buffer(
     } else {
         Ok(None)
     }
+}
+
+pub fn calculate_fallback_taker_price(
+    perp_market: &PerpMarket,
+    order: &Order,
+    oracle_price: i64,
+    now: i64,
+) -> DriftResult<u64> {
+    let amm_available_liquidity =
+        calculate_amm_available_liquidity(&perp_market.amm, &order.direction)?;
+    perp_market.amm.get_fallback_price(
+        &order.direction,
+        amm_available_liquidity,
+        oracle_price,
+        order.seconds_til_expiry(now),
+    )
 }
 
 pub fn calculate_base_asset_amount_to_fill_up_to_limit_price(
@@ -572,6 +588,36 @@ pub fn is_oracle_too_divergent_with_twap_5min(
     }
 
     Ok(too_divergent)
+}
+
+pub fn get_baseline_perp_price_bands(
+    perp_market: &PerpMarket,
+    oracle_price: i64,
+) -> DriftResult<(i64, i64)> {
+    let bid_baseline_offset =
+        OrderParams::get_perp_baseline_start_price_offset(perp_market, PositionDirection::Short)?;
+    let ask_baseline_offset =
+        OrderParams::get_perp_baseline_start_price_offset(perp_market, PositionDirection::Long)?;
+
+    let bid_price_band = oracle_price.safe_add(bid_baseline_offset)?;
+    let ask_price_band = oracle_price.safe_add(ask_baseline_offset)?;
+
+    Ok((bid_price_band, ask_price_band))
+}
+
+pub fn does_order_cross_perp_price_bands(
+    bid_price_band: i64,
+    ask_price_band: i64,
+    order_direction: PositionDirection,
+    _order_slot: u64,
+    order_price: u64,
+    _current_slot: u64,
+) -> DriftResult<bool> {
+    // todo: use order slot to expand price bands
+    return match order_direction {
+        PositionDirection::Long => Ok(order_price > ask_price_band.cast()?),
+        PositionDirection::Short => Ok(order_price < bid_price_band.cast()?),
+    };
 }
 
 pub fn order_satisfies_trigger_condition(order: &Order, oracle_price: u64) -> DriftResult<bool> {
