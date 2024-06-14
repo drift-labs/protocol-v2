@@ -170,7 +170,7 @@ export function getLimitPrice(
 		limitPrice = order.price;
 	}
 
-	return limitPrice;
+	return BN.max(ZERO, limitPrice);
 }
 
 export function hasLimitPrice(order: Order, slot: number): boolean {
