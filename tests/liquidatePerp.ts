@@ -70,15 +70,15 @@ describe('liquidate perp (no open orders)', () => {
 
         bulkAccountLoader = new TestBulkAccountLoader(bankrunContextWrapper.connection, 'processed', 1);
 
-		usdcMint = await mockUSDCMint(bankrunContextWrapper);
-		userUSDCAccount = await mockUserUSDCAccount(usdcMint, usdcAmount, bankrunContextWrapper);
-
 		eventSubscriber = new EventSubscriber(
 			bankrunContextWrapper.connection.toConnection(),
 			chProgram,
 		);
 
 		await eventSubscriber.subscribe();
+
+		usdcMint = await mockUSDCMint(bankrunContextWrapper);
+		userUSDCAccount = await mockUserUSDCAccount(usdcMint, usdcAmount, bankrunContextWrapper);
 
 		const oracle = await mockOracleNoProgram(bankrunContextWrapper, 1);
 
@@ -404,7 +404,7 @@ describe('liquidate perp (no open orders)', () => {
 		assert(fillRecord.makerFee.eq(new BN(ZERO)));
 		assert(isVariant(fillRecord.makerOrderDirection, 'long'));
 
-		const sig2 = await liquidatorDriftClient.liquidatePerpPnlForDeposit(
+		const _sig2 = await liquidatorDriftClient.liquidatePerpPnlForDeposit(
 			await driftClient.getUserAccountPublicKey(),
 			driftClient.getUserAccount(),
 			0,
@@ -458,7 +458,7 @@ describe('liquidate perp (no open orders)', () => {
 			)
 		);
 		assert(marketBeforeBankruptcy.amm.totalSocialLoss.eq(ZERO));
-		const sig = await liquidatorDriftClient.resolvePerpBankruptcy(
+		const _sig = await liquidatorDriftClient.resolvePerpBankruptcy(
 			await driftClient.getUserAccountPublicKey(),
 			driftClient.getUserAccount(),
 			0

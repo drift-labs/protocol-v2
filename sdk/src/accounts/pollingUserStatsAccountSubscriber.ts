@@ -63,8 +63,6 @@ export class PollingUserStatsAccountSubscriber
 			return;
 		}
 
-		console.log("\n\n\n\n\n\n\n\n\n" + this.accountLoader);
-
 		this.callbackId = await this.accountLoader.addAccount(
 			this.userStatsAccountPublicKey,
 			(buffer, slot: number) => {

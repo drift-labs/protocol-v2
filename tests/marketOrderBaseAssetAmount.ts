@@ -2,7 +2,6 @@ import * as anchor from '@coral-xyz/anchor';
 import { assert } from 'chai';
 import {
 	BN,
-	BulkAccountLoader,
 	getMarketOrderParams,
 	OracleSource,
 	ZERO,
@@ -17,28 +16,21 @@ import { TestClient, PositionDirection, EventSubscriber } from '../sdk/src';
 import {
 	mockUSDCMint,
 	mockUserUSDCAccount,
-	mockOracle,
 	initializeQuoteSpotMarket,
-	printTxLogs,
+	mockOracleNoProgram,
 } from './testHelpers';
+import { startAnchor } from "solana-bankrun";
+import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
+import { BankrunContextWrapper } from '../sdk/src/bankrunConnection';
 
 describe('market orders', () => {
-	const provider = anchor.AnchorProvider.local(undefined, {
-		preflightCommitment: 'confirmed',
-		skipPreflight: false,
-		commitment: 'confirmed',
-	});
-	const connection = provider.connection;
-	anchor.setProvider(provider);
 	const chProgram = anchor.workspace.Drift as Program;
 
 	let driftClient: TestClient;
-	const eventSubscriber = new EventSubscriber(connection, chProgram, {
-		commitment: 'recent',
-	});
-	eventSubscriber.subscribe();
+	let eventSubscriber: EventSubscriber;
 
-	const bulkAccountLoader = new BulkAccountLoader(connection, 'confirmed', 1);
+	let bulkAccountLoader: TestBulkAccountLoader;
+	let bankrunContextWrapper: BankrunContextWrapper;
 
 	let userAccountPublicKey: PublicKey;
 
@@ -61,17 +53,26 @@ describe('market orders', () => {
 	let oracleInfos;
 
 	before(async () => {
-		usdcMint = await mockUSDCMint(provider);
-		userUSDCAccount = await mockUserUSDCAccount(usdcMint, usdcAmount, provider);
+		const context = await startAnchor("", [], []);
 
-		const solUsd = await mockOracle(1);
+		bankrunContextWrapper = new BankrunContextWrapper(context);
+
+        bulkAccountLoader = new TestBulkAccountLoader(bankrunContextWrapper.connection, 'processed', 1);
+
+		eventSubscriber = new EventSubscriber(bankrunContextWrapper.connection, chProgram);
+		await eventSubscriber.subscribe();
+
+		usdcMint = await mockUSDCMint(bankrunContextWrapper);
+		userUSDCAccount = await mockUserUSDCAccount(usdcMint, usdcAmount, bankrunContextWrapper);
+
+		const solUsd = await mockOracleNoProgram(bankrunContextWrapper, 1);
 		marketIndexes = [0];
 		spotMarketIndexes = [0];
 		oracleInfos = [{ publicKey: solUsd, source: OracleSource.PYTH }];
 
 		driftClient = new TestClient({
-			connection,
-			wallet: provider.wallet,
+			connection: bankrunContextWrapper.connection.toConnection(),
+			wallet: bankrunContextWrapper.provider.wallet,
 			programID: chProgram.programId,
 			opts: {
 				commitment: 'confirmed',
@@ -79,6 +80,7 @@ describe('market orders', () => {
 			activeSubAccountId: 0,
 			perpMarketIndexes: marketIndexes,
 			spotMarketIndexes: spotMarketIndexes,
+			subAccountIds: [],
 			oracleInfos,
 			userStats: true,
 			accountSubscription: {
@@ -129,7 +131,7 @@ describe('market orders', () => {
 			driftClient.getUserAccount(),
 			marketIndex
 		);
-		await printTxLogs(connection, txSig);
+		bankrunContextWrapper.printTxLogs(txSig);
 
 		console.log(
 			driftClient.getQuoteAssetTokenAmount().toString(),
@@ -196,7 +198,7 @@ describe('market orders', () => {
 			baseAssetAmount,
 		});
 		const txSig = await driftClient.placeAndTakePerpOrder(orderParams);
-		await printTxLogs(connection, txSig);
+		bankrunContextWrapper.printTxLogs(txSig);
 
 		await driftClient.settlePNL(
 			await driftClient.getUserAccountPublicKey(),
