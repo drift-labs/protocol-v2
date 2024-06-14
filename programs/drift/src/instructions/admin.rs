@@ -525,56 +525,45 @@ pub fn handle_initialize_perp_market(
     amm_jit_intensity: u8,
     name: [u8; 32],
 ) -> Result<()> {
-    msg!("here1");
     let perp_market_pubkey = ctx.accounts.perp_market.to_account_info().key;
-    msg!("here2");
     let perp_market = &mut ctx.accounts.perp_market.load_init()?;
-    msg!("here3");
     let clock = Clock::get()?;
     let now = clock.unix_timestamp;
     let clock_slot = clock.slot;
 
-    msg!("here4");
     if amm_base_asset_reserve != amm_quote_asset_reserve {
         return Err(ErrorCode::InvalidInitialPeg.into());
     }
 
-    msg!("here5");
     validate!(
         (0..=200).contains(&curve_update_intensity),
         ErrorCode::DefaultError,
         "invalid curve_update_intensity",
     )?;
 
-    msg!("here6");
     validate!(
         (0..=200).contains(&amm_jit_intensity),
         ErrorCode::DefaultError,
         "invalid amm_jit_intensity",
     )?;
 
-    msg!("here7");
     let init_reserve_price = amm::calculate_price(
         amm_quote_asset_reserve,
         amm_base_asset_reserve,
         amm_peg_multiplier,
     )?;
 
-    msg!("here8");
     assert_eq!(amm_peg_multiplier, init_reserve_price.cast::<u128>()?);
 
     let concentration_coef = MAX_CONCENTRATION_COEFFICIENT;
 
-    msg!("here9");
     // Verify there's no overflow
     let _k =
         bn::U192::from(amm_base_asset_reserve).safe_mul(bn::U192::from(amm_quote_asset_reserve))?;
 
-    msg!("here10");
     let (min_base_asset_reserve, max_base_asset_reserve) =
         amm::calculate_bid_ask_bounds(concentration_coef, amm_base_asset_reserve)?;
 
-    msg!("here11"); 
     // Verify oracle is readable
     let (oracle_price, oracle_delay, last_oracle_price_twap) = match oracle_source {
         OracleSource::Pyth => {
@@ -638,7 +627,6 @@ pub fn handle_initialize_perp_market(
         }
     };
 
-    msg!("here12");
     validate_margin(
         margin_ratio_initial,
         margin_ratio_maintenance,
@@ -646,10 +634,7 @@ pub fn handle_initialize_perp_market(
         max_spread,
     )?;
 
-    msg!("here10");
     let state = &mut ctx.accounts.state;
-    msg!("here11");
-    msg!("market_index={} state.number_of_markets={}", market_index, state.number_of_markets);
     validate!(
         market_index == state.number_of_markets,
         ErrorCode::MarketIndexAlreadyInitialized,
@@ -658,7 +643,6 @@ pub fn handle_initialize_perp_market(
         state.number_of_markets
     )?;
 
-    msg!("here12");
     **perp_market = PerpMarket {
         contract_type: ContractType::Perpetual,
         contract_tier,
@@ -794,10 +778,8 @@ pub fn handle_initialize_perp_market(
         },
     };
 
-    msg!("here13");
     safe_increment!(state.number_of_markets, 1);
 
-    msg!("here14");
     controller::amm::update_concentration_coef(&mut perp_market.amm, concentration_coef_scale)?;
 
     Ok(())

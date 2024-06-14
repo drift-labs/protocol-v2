@@ -1,245 +1,248 @@
 {
-	"version": "2.0.0",
-	"name": "dlob",
-	"instructions": [],
-	"accounts": [],
-	"types": [
-		{
-			"name": "DLOBOrders",
-			"type": {
-				"vec": {
-					"defined": "DLOBOrder"
-				}
-			}
-		},
-		{
-			"name": "DLOBOrder",
-			"type": {
-				"kind": "struct",
-				"fields": [
-					{
-						"name": "user",
-						"type": "publicKey"
-					},
-					{
-						"name": "order",
-						"type": {
-							"defined": "Order"
-						}
-					}
-				]
-			}
-		},
-		{
-			"name": "Order",
-			"type": {
-				"kind": "struct",
-				"fields": [
-					{
-						"name": "slot",
-						"type": "u64"
-					},
-					{
-						"name": "price",
-						"type": "u64"
-					},
-					{
-						"name": "baseAssetAmount",
-						"type": "u64"
-					},
-					{
-						"name": "baseAssetAmountFilled",
-						"type": "u64"
-					},
-					{
-						"name": "quoteAssetAmountFilled",
-						"type": "u64"
-					},
-					{
-						"name": "triggerPrice",
-						"type": "u64"
-					},
-					{
-						"name": "auctionStartPrice",
-						"type": "u64"
-					},
-					{
-						"name": "auctionEndPrice",
-						"type": "u64"
-					},
-					{
-						"name": "maxTs",
-						"type": "i64"
-					},
-					{
-						"name": "oraclePriceOffset",
-						"type": "i32"
-					},
-					{
-						"name": "orderId",
-						"type": "u32"
-					},
-					{
-						"name": "marketIndex",
-						"type": "u16"
-					},
-					{
-						"name": "status",
-						"type": {
-							"defined": "OrderStatus"
-						}
-					},
-					{
-						"name": "orderType",
-						"type": {
-							"defined": "OrderType"
-						}
-					},
-					{
-						"name": "marketType",
-						"type": {
-							"defined": "MarketType"
-						}
-					},
-					{
-						"name": "userOrderId",
-						"type": "u8"
-					},
-					{
-						"name": "existingPositionDirection",
-						"type": {
-							"defined": "PositionDirection"
-						}
-					},
-					{
-						"name": "direction",
-						"type": {
-							"defined": "PositionDirection"
-						}
-					},
-					{
-						"name": "reduceOnly",
-						"type": "bool"
-					},
-					{
-						"name": "postOnly",
-						"type": "bool"
-					},
-					{
-						"name": "immediateOrCancel",
-						"type": "bool"
-					},
-					{
-						"name": "triggerCondition",
-						"type": {
-							"defined": "OrderTriggerCondition"
-						}
-					},
-					{
-						"name": "auctionDuration",
-						"type": "u8"
-					},
-					{
-						"name": "padding",
-						"type": {
-							"array": ["u8", 3]
-						}
-					}
-				]
-			}
-		},
-		{
-			"name": "OrderStatus",
-			"type": {
-				"kind": "enum",
-				"variants": [
-					{
-						"name": "Init"
-					},
-					{
-						"name": "Open"
-					},
-					{
-						"name": "Filled"
-					},
-					{
-						"name": "Canceled"
-					}
-				]
-			}
-		},
-		{
-			"name": "OrderType",
-			"type": {
-				"kind": "enum",
-				"variants": [
-					{
-						"name": "Market"
-					},
-					{
-						"name": "Limit"
-					},
-					{
-						"name": "TriggerMarket"
-					},
-					{
-						"name": "TriggerLimit"
-					},
-					{
-						"name": "Oracle"
-					}
-				]
-			}
-		},
-		{
-			"name": "OrderTriggerCondition",
-			"type": {
-				"kind": "enum",
-				"variants": [
-					{
-						"name": "Above"
-					},
-					{
-						"name": "Below"
-					},
-					{
-						"name": "TriggeredAbove"
-					},
-					{
-						"name": "TriggeredBelow"
-					}
-				]
-			}
-		},
-		{
-			"name": "MarketType",
-			"type": {
-				"kind": "enum",
-				"variants": [
-					{
-						"name": "Spot"
-					},
-					{
-						"name": "Perp"
-					}
-				]
-			}
-		},
-		{
-			"name": "PositionDirection",
-			"type": {
-				"kind": "enum",
-				"variants": [
-					{
-						"name": "Long"
-					},
-					{
-						"name": "Short"
-					}
-				]
-			}
-		}
-	],
-	"events": [],
-	"errors": []
+  "version": "2.0.0",
+  "name": "dlob",
+  "instructions": [],
+  "accounts": [],
+  "types": [
+    {
+      "name": "DLOBOrders",
+      "type": {
+        "vec": {
+          "defined": "DLOBOrder"
+        }
+      }
+    },
+    {
+      "name": "DLOBOrder",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "user",
+            "type": "publicKey"
+          },
+          {
+            "name": "order",
+            "type": {
+              "defined": "Order"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "Order",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "slot",
+            "type": "u64"
+          },
+          {
+            "name": "price",
+            "type": "u64"
+          },
+          {
+            "name": "baseAssetAmount",
+            "type": "u64"
+          },
+          {
+            "name": "baseAssetAmountFilled",
+            "type": "u64"
+          },
+          {
+            "name": "quoteAssetAmountFilled",
+            "type": "u64"
+          },
+          {
+            "name": "triggerPrice",
+            "type": "u64"
+          },
+          {
+            "name": "auctionStartPrice",
+            "type": "u64"
+          },
+          {
+            "name": "auctionEndPrice",
+            "type": "u64"
+          },
+          {
+            "name": "maxTs",
+            "type": "i64"
+          },
+          {
+            "name": "oraclePriceOffset",
+            "type": "i32"
+          },
+          {
+            "name": "orderId",
+            "type": "u32"
+          },
+          {
+            "name": "marketIndex",
+            "type": "u16"
+          },
+          {
+            "name": "status",
+            "type": {
+              "defined": "OrderStatus"
+            }
+          },
+          {
+            "name": "orderType",
+            "type": {
+              "defined": "OrderType"
+            }
+          },
+          {
+            "name": "marketType",
+            "type": {
+              "defined": "MarketType"
+            }
+          },
+          {
+            "name": "userOrderId",
+            "type": "u8"
+          },
+          {
+            "name": "existingPositionDirection",
+            "type": {
+              "defined": "PositionDirection"
+            }
+          },
+          {
+            "name": "direction",
+            "type": {
+              "defined": "PositionDirection"
+            }
+          },
+          {
+            "name": "reduceOnly",
+            "type": "bool"
+          },
+          {
+            "name": "postOnly",
+            "type": "bool"
+          },
+          {
+            "name": "immediateOrCancel",
+            "type": "bool"
+          },
+          {
+            "name": "triggerCondition",
+            "type": {
+              "defined": "OrderTriggerCondition"
+            }
+          },
+          {
+            "name": "auctionDuration",
+            "type": "u8"
+          },
+          {
+            "name": "padding",
+            "type": {
+              "array": [
+                "u8",
+                3
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "OrderStatus",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "Init"
+          },
+          {
+            "name": "Open"
+          },
+          {
+            "name": "Filled"
+          },
+          {
+            "name": "Canceled"
+          }
+        ]
+      }
+    },
+    {
+      "name": "OrderType",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "Market"
+          },
+          {
+            "name": "Limit"
+          },
+          {
+            "name": "TriggerMarket"
+          },
+          {
+            "name": "TriggerLimit"
+          },
+          {
+            "name": "Oracle"
+          }
+        ]
+      }
+    },
+    {
+      "name": "OrderTriggerCondition",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "Above"
+          },
+          {
+            "name": "Below"
+          },
+          {
+            "name": "TriggeredAbove"
+          },
+          {
+            "name": "TriggeredBelow"
+          }
+        ]
+      }
+    },
+    {
+      "name": "MarketType",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "Spot"
+          },
+          {
+            "name": "Perp"
+          }
+        ]
+      }
+    },
+    {
+      "name": "PositionDirection",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "Long"
+          },
+          {
+            "name": "Short"
+          }
+        ]
+      }
+    }
+  ],
+  "events": [],
+  "errors": []
 }

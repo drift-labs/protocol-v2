@@ -696,7 +696,6 @@ pub mod drift {
         amm_jit_intensity: u8,
         name: [u8; 32],
     ) -> Result<()> {
-        msg!("initialize_perp_market");
         handle_initialize_perp_market(
             ctx,
             market_index,

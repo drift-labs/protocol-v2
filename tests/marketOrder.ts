@@ -149,8 +149,6 @@ describe('market order', () => {
 		});
 		await driftClientUser.subscribe();
 
-		const createMintIx = getCreateMint
-
 		discountMint = await createMint(
 			connection,
 			// @ts-ignore
@@ -159,6 +157,10 @@ describe('market order', () => {
 			provider.wallet.publicKey,
 			6
 		);
+
+		const discountMintKeypair = await mockUSDCMint(bankrunContextWrapper);
+
+		
 
 		await driftClient.updateDiscountMint(discountMint);
 
