@@ -118,6 +118,7 @@ export class BankrunConnection {
 		TransactionSignature,
 		BanksTransactionResultWithMeta
 	> = new Map();
+	private clock: Clock;
 
 	private nextClientSubscriptionId = 0;
 	private onLogCallbacks = new Map<number, LogsCallback>();
@@ -184,7 +185,7 @@ export class BankrunConnection {
 		// update the clock slot/timestamp
 		const currentSlot = await this.getSlot();
 		const nextSlot = currentSlot + BigInt(1);
-		await this.context.warpToSlot(nextSlot);
+		this.context.warpToSlot(nextSlot);
 		const currentClock = await this._banksClient.getClock();
 		const newClock = new Clock(
 			nextSlot,
@@ -193,7 +194,8 @@ export class BankrunConnection {
 			currentClock.leaderScheduleEpoch,
 			currentClock.unixTimestamp + BigInt(1)
 		);
-		await this.context.setClock(newClock);
+		this.context.setClock(newClock);
+		this.clock = newClock;
 		
 		if (this.onLogCallbacks.size > 0) {
 			const transaction = await this.getTransaction(signature);
@@ -210,6 +212,10 @@ export class BankrunConnection {
 		}
 
 		return signature;
+	}
+
+	getTime(): number {
+		return Number(this.clock.unixTimestamp);
 	}
 
 	async getParsedAccountInfo(

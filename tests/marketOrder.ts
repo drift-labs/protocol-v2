@@ -18,13 +18,12 @@ import {
 
 import {
 	initializeQuoteSpotMarket,
-	mockOracle,
+	mockOracleNoProgram,
 	mockUSDCMint,
 	mockUserUSDCAccount,
 } from './testHelpers';
 import {
 	AMM_RESERVE_PRECISION,
-	BulkAccountLoader,
 	isVariant,
 	OracleSource,
 	PEG_PRECISION,
@@ -36,25 +35,18 @@ import {
 	getOrCreateAssociatedTokenAccount,
 	mintTo,
 } from '@solana/spl-token';
+import { startAnchor } from "solana-bankrun";
+import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
+import { BankrunContextWrapper } from '../sdk/src/bankrunConnection';
 
 describe('market order', () => {
-	const provider = anchor.AnchorProvider.local(undefined, {
-		skipPreflight: false,
-		preflightCommitment: 'confirmed',
-		commitment: 'confirmed',
-	});
-	const connection = provider.connection;
-	anchor.setProvider(provider);
 	const chProgram = anchor.workspace.Drift as Program;
 
 	let driftClient: TestClient;
 	let driftClientUser: User;
-	const eventSubscriber = new EventSubscriber(connection, chProgram, {
-		commitment: 'recent',
-	});
-	eventSubscriber.subscribe();
-
-	const bulkAccountLoader = new BulkAccountLoader(connection, 'confirmed', 1);
+	let eventSubscriber: EventSubscriber;
+	let bulkAccountLoader: TestBulkAccountLoader;
+	let bankrunContextWrapper: BankrunContextWrapper;
 
 	let usdcMint;
 	let userUSDCAccount;
@@ -82,11 +74,17 @@ describe('market order', () => {
 	let btcUsd;
 
 	before(async () => {
-		usdcMint = await mockUSDCMint(provider);
-		userUSDCAccount = await mockUserUSDCAccount(usdcMint, usdcAmount, provider);
+		const context = await startAnchor("", [], []);
 
-		solUsd = await mockOracle(1);
-		btcUsd = await mockOracle(60000);
+		bankrunContextWrapper = new BankrunContextWrapper(context);
+
+        bulkAccountLoader = new TestBulkAccountLoader(bankrunContextWrapper.connection, 'processed', 1);
+
+		usdcMint = await mockUSDCMint(bankrunContextWrapper);
+		userUSDCAccount = await mockUserUSDCAccount(usdcMint, usdcAmount, bankrunContextWrapper);
+
+		solUsd = await mockOracleNoProgram(bankrunContextWrapper, 1);
+		btcUsd = await mockOracleNoProgram(bankrunContextWrapper, 60000);
 
 		const marketIndexes = [0, 1];
 		const spotMarketIndexes = [0];
@@ -96,8 +94,8 @@ describe('market order', () => {
 		];
 
 		driftClient = new TestClient({
-			connection,
-			wallet: provider.wallet,
+			connection: bankrunContextWrapper.connection.toConnection(),
+			wallet: bankrunContextWrapper.provider.wallet,
 			programID: chProgram.programId,
 			opts: {
 				commitment: 'confirmed',
@@ -105,6 +103,7 @@ describe('market order', () => {
 			activeSubAccountId: 0,
 			perpMarketIndexes: marketIndexes,
 			spotMarketIndexes: spotMarketIndexes,
+			subAccountIds: [],
 			oracleInfos,
 			accountSubscription: {
 				type: 'polling',
@@ -143,8 +142,14 @@ describe('market order', () => {
 		driftClientUser = new User({
 			driftClient,
 			userAccountPublicKey: await driftClient.getUserAccountPublicKey(),
+			accountSubscription: {
+				type: 'polling',
+				accountLoader: bulkAccountLoader,
+				},
 		});
 		await driftClientUser.subscribe();
+
+		const createMintIx = getCreateMint
 
 		discountMint = await createMint(
 			connection,
@@ -176,15 +181,15 @@ describe('market order', () => {
 			1000 * 10 ** 6
 		);
 
-		provider.connection.requestAirdrop(fillerKeyPair.publicKey, 10 ** 9);
+		bankrunContextWrapper.fundKeypair(fillerKeyPair, 10 ** 9);
 		fillerUSDCAccount = await mockUserUSDCAccount(
 			usdcMint,
 			usdcAmount,
-			provider,
+			bankrunContextWrapper,
 			fillerKeyPair.publicKey
 		);
 		fillerDriftClient = new TestClient({
-			connection,
+			connection: bankrunContextWrapper.connection.toConnection(),
 			wallet: new Wallet(fillerKeyPair),
 			programID: chProgram.programId,
 			opts: {
