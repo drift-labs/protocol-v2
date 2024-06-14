@@ -78,7 +78,7 @@ describe('liquidate perp (no open orders)', () => {
 			chProgram,
 		);
 
-		eventSubscriber.initializeForTests();
+		await eventSubscriber.subscribe();
 
 		const oracle = await mockOracleNoProgram(bankrunContextWrapper, 1);
 
@@ -330,7 +330,9 @@ describe('liquidate perp (no open orders)', () => {
 
 		bankrunContextWrapper.connection.printTxLogs(txSig);
 
-		assert(driftClient.getUserAccount().orders.length === 0);
+		for (let i = 0; i < 32; i++) {
+			assert(isVariant(driftClient.getUserAccount().orders[i].status, 'init'));
+		}
 
 		assert(
 			liquidatorDriftClient
@@ -348,8 +350,6 @@ describe('liquidate perp (no open orders)', () => {
 		} catch (err) {
 			assert(err.message.includes('0x17e5'));
 		}
-
-		await eventSubscriber.registerSig(txSig);
 
 		const liquidationRecord =
 			eventSubscriber.getEventsArray('LiquidationRecord')[0];
@@ -406,8 +406,6 @@ describe('liquidate perp (no open orders)', () => {
 			driftClient.getUserAccount().perpPositions[0].quoteAssetAmount
 		);
 
-		await eventSubscriber.registerSig(sig2);
-
 		await driftClient.fetchAccounts();
 		assert(driftClient.getUserAccount().status === UserStatus.BANKRUPT);
 		console.log(
@@ -436,8 +434,6 @@ describe('liquidate perp (no open orders)', () => {
 			QUOTE_PRECISION
 		);
 		bankrunContextWrapper.connection.printTxLogs(tx1);
-
-		await eventSubscriber.registerSig(tx1);
 
 		await driftClient.fetchAccounts();
 		const marketBeforeBankruptcy =
@@ -495,10 +491,8 @@ describe('liquidate perp (no open orders)', () => {
 		// );
 		// assert(driftClient.getUserAccount().perpPositions[0].lpShares.eq(ZERO));
 
-		await eventSubscriber.registerSig(sig);
-
 		const perpBankruptcyRecord =
-			eventSubscriber.getEventsArray('LiquidationRecord')[2];
+			eventSubscriber.getEventsArray('LiquidationRecord')[0];
 		
 		assert(isVariant(perpBankruptcyRecord.liquidationType, 'perpBankruptcy'));
 		assert(perpBankruptcyRecord.perpBankruptcy.marketIndex === 0);

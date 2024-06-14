@@ -166,7 +166,7 @@ describe('liquidate perp and lp', () => {
 			chProgram,
 		);
 
-		eventSubscriber.initializeForTests();
+		await eventSubscriber.subscribe();
 
 		bankrunContextWrapper.fundKeypair(liquidatorKeyPair, 10 ** 9);
 		liquidatorUSDCAccount = await mockUserUSDCAccount(
@@ -264,8 +264,6 @@ describe('liquidate perp and lp', () => {
 			0
 		);
 
-		await eventSubscriber.registerSig(sigg);
-
 		await sleep(2000);
 		await driftClientUser.fetchAccounts();
 		await driftClient.fetchAccounts();
@@ -292,9 +290,7 @@ describe('liquidate perp and lp', () => {
 			0
 		);
 
-		await eventSubscriber.registerSig(sig);
-
-		const lpEventAfterSettle = eventSubscriber.getEventsArray('LPRecord')[1];
+		const lpEventAfterSettle = eventSubscriber.getEventsArray('LPRecord')[0];
 
 		console.log(eventSubscriber.getEventsArray('LPRecord'));
 
@@ -326,12 +322,12 @@ describe('liquidate perp and lp', () => {
 
 		bankrunContextWrapper.connection.printTxLogs(txSig);
 
-		await eventSubscriber.registerSig(txSig);
-
 		const lpEvent = eventSubscriber.getEventsArray('LPRecord')[0];
 		assert(lpEvent.nShares.eq(new BN(8100000)));
 
-		assert(driftClient.getUserAccount().orders.length === 0);
+		for (let i = 0; i < 32; i++) {
+			assert(isVariant(driftClient.getUserAccount().orders[i].status, 'init'));
+		}
 
 		assert(
 			liquidatorDriftClient
@@ -456,8 +452,6 @@ describe('liquidate perp and lp', () => {
 			0
 		);
 
-		await eventSubscriber.registerSig(bankruptcySig);
-
 		await driftClient.fetchAccounts();
 		// all social loss
 		const marketAfterBankruptcy = driftClient.getPerpMarketAccount(marketIndex);
@@ -487,10 +481,8 @@ describe('liquidate perp and lp', () => {
 				0
 		);
 
-		await eventSubscriber.registerSig(tx1);
-
 		const perpBankruptcyRecord =
-			eventSubscriber.getEventsArray('LiquidationRecord')[1];
+			eventSubscriber.getEventsArray('LiquidationRecord')[0];
 
 		console.log(eventSubscriber.getEventsArray('LiquidationRecord'));
 

@@ -88,6 +88,13 @@ describe('liquidate perp pnl for deposit', () => {
 			new BN(5 * 10 ** 9)
 		);
 
+		eventSubscriber = new EventSubscriber(
+			bankrunContextWrapper.connection.toConnection(),
+			chProgram,
+		);
+
+		await eventSubscriber.subscribe();
+
 		solOracle = await mockOracleNoProgram(bankrunContextWrapper, 1);
 
 		driftClient = new TestClient({
@@ -261,15 +268,6 @@ describe('liquidate perp pnl for deposit', () => {
 		assert(
 			driftClient.getUserAccount().spotPositions[1].scaledBalance.gt(ZERO)
 		);
-
-		eventSubscriber = new EventSubscriber(
-			bankrunContextWrapper.connection.toConnection(),
-			chProgram,
-		);
-
-		eventSubscriber.initializeForTests();
-
-		await eventSubscriber.registerSig(txSig);
 
 		const liquidationRecord =
 			eventSubscriber.getEventsArray('LiquidationRecord')[0];

@@ -67,10 +67,19 @@ describe('liquidate borrow for perp pnl', () => {
 
 	let _throwaway: PublicKey;
 
+	let eventSubscriber: EventSubscriber;
+
 	before(async () => {
 		const context = await startAnchor("", [], []);
 
 		bankrunContextWrapper = new BankrunContextWrapper(context);
+
+		eventSubscriber = new EventSubscriber(
+			bankrunContextWrapper.connection.toConnection(),
+			chProgram,
+		);
+
+		await eventSubscriber.subscribe();
 
         bulkAccountLoader = new TestBulkAccountLoader(bankrunContextWrapper.connection, 'processed', 1);
 
@@ -218,15 +227,6 @@ describe('liquidate borrow for perp pnl', () => {
 		assert(
 			driftClient.getUserAccount().perpPositions[0].quoteAssetAmount.eq(ZERO)
 		);
-
-		const eventSubscriber = new EventSubscriber(
-			bankrunContextWrapper.connection.toConnection(),
-			chProgram,
-		);
-
-		eventSubscriber.initializeForTests();
-		
-		await eventSubscriber.registerSig(txSig);
 
 		const liquidationRecord =
 			eventSubscriber.getEventsArray('LiquidationRecord')[0];

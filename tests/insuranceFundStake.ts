@@ -89,7 +89,7 @@ describe('insurance fund stake', () => {
 			chProgram,
 		);
 
-		eventSubscriber.initializeForTests();
+		await eventSubscriber.subscribe();
 
 		usdcMint = await mockUSDCMint(bankrunContextWrapper);
 		userUSDCAccount = await mockUserUSDCAccount(
@@ -878,8 +878,6 @@ describe('insurance fund stake', () => {
 			0,
 			new BN(6 * 10 ** 8)
 		);
-
-		await eventSubscriber.registerSig(txSig);
 
 		const computeUnits = bankrunContextWrapper.connection.findComputeUnitConsumption(txSig);
 		console.log('compute units', computeUnits);

@@ -83,7 +83,7 @@ describe('drift client', () => {
 			chProgram,
 		);
 
-		eventSubscriber.initializeForTests();
+		await eventSubscriber.subscribe();
 
 		driftClient = new TestClient({
 			connection: bankrunContextWrapper.connection.toConnection(),
@@ -170,7 +170,7 @@ describe('drift client', () => {
 		assert.ok(!ammD.historicalOracleData.lastOraclePriceTwapTs.eq(new BN(0)));
 	});
 
-	it.skip('Initialize user account and deposit collateral atomically', async () => {
+	it('Initialize user account and deposit collateral atomically', async () => {
 		let txSig: TransactionSignature;
 		[txSig, userAccountPublicKey] =
 			await driftClient.initializeUserAccountAndDepositCollateral(
@@ -232,9 +232,8 @@ describe('drift client', () => {
 		assert.ok(new BN(Number(quoteSpotVault.amount)).eq(ZERO));
 
 		const userUSDCtoken = await bankrunContextWrapper.connection.getTokenAccount(userUSDCAccount.publicKey);
-		assert.ok(new BN(Number(userUSDCtoken)).eq(usdcAmount));
+		assert.ok(new BN(Number(userUSDCtoken.amount)).eq(usdcAmount));
 
-		await eventSubscriber.registerSig(txSig);
 		const depositRecord = eventSubscriber.getEventsArray('DepositRecord')[0];
 
 		assert.ok(depositRecord.userAuthority.equals(bankrunContextWrapper.provider.wallet.publicKey));
@@ -267,7 +266,6 @@ describe('drift client', () => {
 		const marketData = driftClient.getPerpMarketAccount(0);
 		await setFeedPriceNoProgram(bankrunContextWrapper, 1.01, marketData.amm.oracle);
 
-		await eventSubscriber.registerSig(txSig);
 		const orderR = eventSubscriber.getEventsArray('OrderActionRecord')[0];
 		console.log(orderR.takerFee.toString());
 		console.log(orderR.baseAssetAmountFilled.toString());
@@ -308,7 +306,6 @@ describe('drift client', () => {
 		assert.ok(market.amm.totalFee.eq(new BN(48001)));
 		assert.ok(market.amm.totalFeeMinusDistributions.eq(new BN(48001)));
 
-		await eventSubscriber.registerSig(txSig);
 		const orderActionRecord =
 			eventSubscriber.getEventsArray('OrderActionRecord')[0];
 
@@ -399,7 +396,6 @@ describe('drift client', () => {
 		assert.ok(market.amm.totalFee.eq(new BN(72001)));
 		assert.ok(market.amm.totalFeeMinusDistributions.eq(new BN(72001)));
 
-		await eventSubscriber.registerSig(txSig);
 		const orderActionRecord =
 			eventSubscriber.getEventsArray('OrderActionRecord')[0];
 		assert.ok(orderActionRecord.taker.equals(userAccountPublicKey));
@@ -465,7 +461,6 @@ describe('drift client', () => {
 		assert.ok(market.amm.totalFee.eq(new BN(120001)));
 		assert.ok(market.amm.totalFeeMinusDistributions.eq(new BN(120001)));
 
-		await eventSubscriber.registerSig(txSig);
 		const orderActionRecord =
 			eventSubscriber.getEventsArray('OrderActionRecord')[1];
 		assert.ok(orderActionRecord.taker.equals(userAccountPublicKey));
@@ -512,7 +507,6 @@ describe('drift client', () => {
 		assert.ok(market.amm.totalFee.eq(new BN(144001)));
 		assert.ok(market.amm.totalFeeMinusDistributions.eq(new BN(144001)));
 
-		await eventSubscriber.registerSig(txSig);
 		const orderActionRecord =
 			eventSubscriber.getEventsArray('OrderActionRecord')[2];
 
@@ -548,7 +542,6 @@ describe('drift client', () => {
 		const market = driftClient.getPerpMarketAccount(0);
 		assert.ok(market.amm.baseAssetAmountWithAmm.eq(new BN(-48000000000)));
 
-		await eventSubscriber.registerSig(txSig);
 		const orderActionRecord =
 			eventSubscriber.getEventsArray('OrderActionRecord')[3];
 

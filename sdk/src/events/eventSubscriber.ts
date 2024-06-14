@@ -64,10 +64,6 @@ export class EventSubscriber {
 		}
 
 	}
-
-	public initializeForTests(): void {
-		this.populateInitialEventListMap();
-	}
 	
 	private populateInitialEventListMap() {
 		for (const eventType of this.options.eventTypes) {
@@ -144,18 +140,6 @@ export class EventSubscriber {
 			console.error(e);
 			return false;
 		}
-	}
-
-	public async registerSig(txSig: TransactionSignature): Promise<void> {
-		const resp = await this.connection.getTransaction(txSig);
-		if (!resp.meta) {
-			return;
-		}
-		
-		const slot = resp.slot;
-		const logs = resp.meta.logMessages;
-
-		this.handleTxLogs(txSig, slot, logs, this.lastSeenBlockTime + 1);
 	}
 
 	private handleTxLogs(

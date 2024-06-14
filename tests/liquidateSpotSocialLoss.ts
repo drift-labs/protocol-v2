@@ -104,7 +104,7 @@ describe('liquidate spot w/ social loss', () => {
 			chProgram,
 		);
 
-		eventSubscriber.initializeForTests();
+		await eventSubscriber.subscribe();
 
 		await driftClient.initialize(usdcMint.publicKey, true);
 		await driftClient.subscribe();
@@ -170,8 +170,6 @@ describe('liquidate spot w/ social loss', () => {
 			1,
 			new BN(6 * 10 ** 8)
 		);
-
-		await eventSubscriber.registerSig(txSig);
 
 		const computeUnits = bankrunContextWrapper.connection.findComputeUnitConsumption(txSig);
 		console.log('compute units', computeUnits);
@@ -334,8 +332,6 @@ describe('liquidate spot w/ social loss', () => {
 			driftClient.getUserAccount(),
 			1
 		);
-
-		await eventSubscriber.registerSig(sig);
 
 		await driftClient.fetchAccounts();
 

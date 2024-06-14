@@ -174,7 +174,7 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 			chProgram,
 		);
 
-		eventSubscriber.initializeForTests();
+		await eventSubscriber.subscribe();
 
 		usdcMint = await mockUSDCMint(bankrunContextWrapper);
 		userUSDCAccount = await mockUserUSDCAccount(
@@ -869,7 +869,6 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 		);
 		bankrunContextWrapper.connection.printTxLogs(txSig2);
 
-		await eventSubscriber.registerSig(txSig2);
 		const ifRecord: InsuranceFundRecord = eventSubscriber.getEventsArray(
 			'InsuranceFundRecord'
 		)[0];

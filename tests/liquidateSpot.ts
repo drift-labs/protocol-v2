@@ -77,6 +77,13 @@ describe('liquidate spot', () => {
 			ZERO
 		);
 
+		eventSubscriber = new EventSubscriber(
+			bankrunContextWrapper.connection.toConnection(),
+			chProgram,
+		);
+
+		await eventSubscriber.subscribe();
+
 		solOracle = await mockOracleNoProgram(bankrunContextWrapper, 100);
 
 		driftClient = new TestClient({
@@ -277,16 +284,7 @@ describe('liquidate spot', () => {
 		// );
 		console.log(
 			driftClient.getUserAccount().spotPositions[0].scaledBalance.toString()
-		);	
-
-		eventSubscriber = new EventSubscriber(
-			bankrunContextWrapper.connection.toConnection(),
-			chProgram,
 		);
-
-		eventSubscriber.initializeForTests();
-
-		await eventSubscriber.registerSig(txSig);
 
 		const liquidationRecord =
 			eventSubscriber.getEventsArray('LiquidationRecord')[0];

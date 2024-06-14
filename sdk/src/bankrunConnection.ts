@@ -21,6 +21,8 @@ import {
 	Connection as SolanaConnection,
 	SystemProgram,
 	Blockhash,
+	LogsFilter,
+	LogsCallback,
 } from '@solana/web3.js';
 import {
 	ProgramTestContext,
@@ -108,6 +110,7 @@ export class BankrunContextWrapper {
 		await this.context.setClock(newClock);
 	}
 }
+
 export class BankrunConnection {
 	private readonly _banksClient: BanksClient;
 	private readonly context: ProgramTestContext;
@@ -115,6 +118,9 @@ export class BankrunConnection {
 		TransactionSignature,
 		BanksTransactionResultWithMeta
 	> = new Map();
+
+	private nextClientSubscriptionId = 0;
+	private onLogCallbacks = new Map<number, LogsCallback>();
 
 	constructor(banksClient: BanksClient, context: ProgramTestContext) {
 		this._banksClient = banksClient;
@@ -175,6 +181,7 @@ export class BankrunConnection {
 			}
 		}
 
+		// update the clock slot/timestamp
 		const currentSlot = await this.getSlot();
 		const nextSlot = currentSlot + BigInt(1);
 		await this.context.warpToSlot(nextSlot);
@@ -187,6 +194,20 @@ export class BankrunConnection {
 			currentClock.unixTimestamp + BigInt(1)
 		);
 		await this.context.setClock(newClock);
+		
+		if (this.onLogCallbacks.size > 0) {
+			const transaction = await this.getTransaction(signature);
+
+			const context = {slot: transaction.slot};
+			const logs = {
+				logs: transaction.meta.logMessages,
+				err: transaction.meta.err,
+				signature
+			};
+			for (const logCallback of this.onLogCallbacks.values()) {
+				logCallback(logs, context);
+			}
+		}
 
 		return signature;
 	}
@@ -342,6 +363,26 @@ export class BankrunConnection {
 	async removeSignatureListener(_clientSubscriptionId: number): Promise<void> {
 		// Nothing actually has to happen here! Pretty cool, huh?
 		// This function signature only exists to match the web3js interface
+	}
+
+	onLogs(
+		filter: LogsFilter,
+		callback: LogsCallback,
+		_commitment?: Commitment,
+	): ClientSubscriptionId {
+		const subscriptId = this.nextClientSubscriptionId;
+
+		this.onLogCallbacks.set(subscriptId, callback);
+
+		this.nextClientSubscriptionId += 1;
+
+		return subscriptId;
+	}
+
+	async removeOnLogsListener(
+		clientSubscriptionId: ClientSubscriptionId,
+	): Promise<void> {
+		this.onLogCallbacks.delete(clientSubscriptionId);
 	}
 }
 
