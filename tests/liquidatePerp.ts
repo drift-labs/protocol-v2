@@ -189,6 +189,12 @@ describe('liquidate perp (no open orders)', () => {
 		);
 	});
 
+	after(async () => {
+		await driftClient.unsubscribe();
+		await liquidatorDriftClient.unsubscribe();
+		await eventSubscriber.unsubscribe();
+	});
+
 	it('liquidate', async () => {
 		const marketIndex = 0;
 		const lpShares = driftClient.getUserAccount().perpPositions[0].lpShares;
