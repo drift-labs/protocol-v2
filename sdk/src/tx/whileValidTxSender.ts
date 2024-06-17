@@ -79,7 +79,7 @@ export class WhileValidTxSender extends BaseTxSender {
 		opts: ConfirmOptions,
 		preSigned?: boolean
 	): Promise<Transaction> {
-		const latestBlockhash =
+		let latestBlockhash =
 			await this.txHandler.getLatestBlockhashForTransaction();
 
 		// handle tx

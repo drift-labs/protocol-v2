@@ -312,21 +312,6 @@ describe('liquidate perp (no open orders)', () => {
 
 		await setFeedPriceNoProgram(bankrunContextWrapper, 0.1, oracle);
 
-		// const oracleGuardRails: OracleGuardRails = {
-		// 	priceDivergence: {
-		// 		markOraclePercentDivergence: PERCENTAGE_PRECISION,
-		// 		oracleTwap5MinPercentDivergence: PERCENTAGE_PRECISION.muln(10),
-		// 	},
-		// 	validity: {
-		// 		slotsBeforeStaleForAmm: new BN(100),
-		// 		slotsBeforeStaleForMargin: new BN(100),
-		// 		confidenceIntervalMaxSize: new BN(100000),
-		// 		tooVolatileRatio: new BN(11), // allow 11x change
-		// 	},
-		// };
-
-		// await driftClient.updateOracleGuardRails(oracleGuardRails);
-
 		const txSig = await liquidatorDriftClient.liquidatePerp(
 			await driftClient.getUserAccountPublicKey(),
 			driftClient.getUserAccount(),

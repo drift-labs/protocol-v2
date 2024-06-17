@@ -21,7 +21,7 @@ import {
 	BASE_PRECISION,
 	OracleGuardRails,
 	isVariant,
-	MARGIN_PRECISION,
+	MARGIN_PRECISION, SettlePnlMode,
 } from '../sdk/src';
 
 import {
@@ -484,10 +484,11 @@ describe('lp risk mitigation', () => {
 
 		console.log('settling after margin ratio update...');
 		try {
-			const _txsigg = await driftClient.settlePNL(
+			const _txsigg = await driftClient.settleMultiplePNLs(
 				await driftClient.getUserAccountPublicKey(),
 				await driftClient.getUserAccount(),
-				0
+				[0],
+				SettlePnlMode.TRY_SETTLE,
 			);
 			await _viewLogs(_txsigg);
 		} catch (e) {

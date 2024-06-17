@@ -1,6 +1,6 @@
 {
 	"name": "@drift-labs/sdk",
-	"version": "2.84.0-beta.2",
+	"version": "2.84.0-beta.5",
 	"main": "lib/index.js",
 	"types": "lib/index.d.ts",
 	"author": "crispheaney",
@@ -39,7 +39,7 @@
 		"@project-serum/serum": "^0.13.38",
 		"@pythnetwork/client": "2.5.3",
 		"@solana/spl-token": "^0.3.7",
-		"@solana/web3.js": "1.91.7",
+		"@solana/web3.js": "1.92.3",
 		"strict-event-emitter-types": "^2.0.0",
 		"uuid": "^8.3.2",
 		"zstddec": "^0.1.0"
