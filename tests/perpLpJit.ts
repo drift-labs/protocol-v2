@@ -76,7 +76,7 @@ async function createNewUser(
 	let walletFlag = true;
 	if (wallet == undefined) {
 		const kp = new web3.Keypair();
-		context.fundKeypair(kp, 10 ** 9);
+		await context.fundKeypair(kp, 10 ** 9);
 		wallet = new Wallet(kp);
 		walletFlag = false;
 	}
@@ -138,19 +138,10 @@ async function createNewUser(
 }
 
 describe('lp jit', () => {
-	const provider = anchor.AnchorProvider.local(undefined, {
-		preflightCommitment: 'confirmed',
-		commitment: 'confirmed',
-	});
-	const connection = provider.connection;
-	anchor.setProvider(provider);
 	const chProgram = anchor.workspace.Drift as Program;
 
 	async function _viewLogs(txsig) {
-		const tx = await connection.getTransaction(txsig, {
-			commitment: 'confirmed',
-		});
-		console.log('tx logs', tx.meta.logMessages);
+		bankrunContextWrapper.printTxLogs(txsig);
 	}
 	async function delay(time) {
 		await new Promise((resolve) => setTimeout(resolve, time));
@@ -224,7 +215,7 @@ describe('lp jit', () => {
 			usdcMint,
 			usdcAmount,
 			oracleInfos,
-			provider.wallet,
+			bankrunContextWrapper.provider.wallet,
 			bulkAccountLoader
 		);
 		// used for trading / taking on baa
