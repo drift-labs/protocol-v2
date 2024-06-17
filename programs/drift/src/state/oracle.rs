@@ -200,13 +200,15 @@ pub fn get_pyth_price(
         let min_publishers = price_data.num.min(3);
         let publisher_count = price_data.num_qt;
 
-        has_sufficient_number_of_data_points = {
-            if cfg!(feature = "mainnet-beta") {
-                publisher_count >= min_publishers
-            } else {
-                true
-            }
-        };
+        #[cfg(feature = "mainnet-beta")]
+        {
+            has_sufficient_number_of_data_points = publisher_count >= min_publishers;
+        }
+        #[cfg(not(feature = "mainnet-beta"))]
+        {
+            has_sufficient_number_of_data_points = true;
+        }
+
         oracle_precision = 10_u128.pow(price_data.expo.unsigned_abs());
         published_slot = price_data.valid_slot;
     }
