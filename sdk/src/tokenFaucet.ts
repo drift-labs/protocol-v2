@@ -2,14 +2,12 @@ import * as anchor from '@coral-xyz/anchor';
 import { AnchorProvider, Idl, Program } from '@coral-xyz/anchor';
 import {
 	TOKEN_PROGRAM_ID,
-	getAccount,
 	Account,
 	createAssociatedTokenAccountInstruction,
 	getAssociatedTokenAddress,
 } from '@solana/spl-token';
 import {
 	ConfirmOptions,
-	Connection,
 	PublicKey,
 	SYSVAR_RENT_PUBKEY,
 	Transaction,
@@ -19,9 +17,10 @@ import {
 import { BN } from '.';
 import tokenFaucet from './idl/token_faucet.json';
 import { IWallet } from './types';
+import { BankrunContextWrapper } from './bankrunConnection';
 
 export class TokenFaucet {
-	connection: Connection;
+	context: BankrunContextWrapper;
 	wallet: IWallet;
 	public program: Program;
 	provider: AnchorProvider;
@@ -29,17 +28,17 @@ export class TokenFaucet {
 	opts?: ConfirmOptions;
 
 	public constructor(
-		connection: Connection,
+		context: BankrunContextWrapper,
 		wallet: IWallet,
 		programId: PublicKey,
 		mint: PublicKey,
 		opts?: ConfirmOptions
 	) {
-		this.connection = connection;
+		this.context = context;
 		this.wallet = wallet;
 		this.opts = opts || AnchorProvider.defaultOptions();
 		// @ts-ignore
-		const provider = new AnchorProvider(connection, wallet, this.opts);
+		const provider = new AnchorProvider(context.connection,toConnection(), wallet, this.opts);
 		this.provider = provider;
 		this.program = new Program(tokenFaucet as Idl, programId, provider);
 		this.mint = mint;
@@ -146,7 +145,7 @@ export class TokenFaucet {
 		let associatedTokenAccountExists = false;
 
 		try {
-			const assosciatedTokenAccount = await this.connection.getAccountInfo(
+			const assosciatedTokenAccount = await this.context.connection.getAccountInfo(
 				associatedTokenPublicKey
 			);
 
@@ -200,7 +199,7 @@ export class TokenFaucet {
 		userPubKey: PublicKey;
 	}): Promise<Account> {
 		const associatedKey = await this.getAssosciatedMockUSDMintAddress(props);
-		return await getAccount(this.connection, associatedKey);
+		return await this.context.connection.getTokenAccount(associatedKey);
 	}
 
 	public async subscribeToTokenAccount(props: {
@@ -215,7 +214,7 @@ export class TokenFaucet {
 			props.callback(await this.getTokenAccountInfo(props));
 
 			// Couldn't find a way to do it using anchor framework subscription, someone on serum discord recommended this way
-			this.connection.onAccountChange(
+			this.context.connection.onAccountChange(
 				tokenAccountKey,
 				async (
 					_accountInfo /* accountInfo is a buffer which we don't know how to deserialize */

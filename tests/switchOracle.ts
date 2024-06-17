@@ -18,36 +18,30 @@ import {
 	createUserWithUSDCAccount,
 	initializeQuoteSpotMarket,
 	initializeSolSpotMarket,
-	mockOracle,
+	mockOracleNoProgram,
 	mockUSDCMint,
 	mockUserUSDCAccount,
 	sleep,
 } from './testHelpers';
 import {
-	BulkAccountLoader,
 	PRICE_PRECISION,
 	PEG_PRECISION,
 	Wallet,
 	DriftClient,
 } from '../sdk';
+import { startAnchor } from "solana-bankrun";
+import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
+import { BankrunContextWrapper } from '../sdk/src/bankrunConnection';
 
 describe('switch oracles', () => {
-	const provider = anchor.AnchorProvider.local(undefined, {
-		preflightCommitment: 'confirmed',
-		skipPreflight: false,
-		commitment: 'confirmed',
-	});
-	const connection = provider.connection;
-	anchor.setProvider(provider);
 	const chProgram = anchor.workspace.Drift as Program;
 
 	let admin: TestClient;
-	const eventSubscriber = new EventSubscriber(connection, chProgram, {
-		commitment: 'recent',
-	});
-	eventSubscriber.subscribe();
+	let eventSubscriber: EventSubscriber;
 
-	const bulkAccountLoader = new BulkAccountLoader(connection, 'confirmed', 1);
+	let bulkAccountLoader: TestBulkAccountLoader;
+
+	let bankrunContextWrapper: BankrunContextWrapper;
 
 	let solOracle: PublicKey;
 
@@ -69,18 +63,31 @@ describe('switch oracles', () => {
 	let oracleInfos: OracleInfo[];
 
 	before(async () => {
-		usdcMint = await mockUSDCMint(provider);
-		await mockUserUSDCAccount(usdcMint, largeUsdcAmount, provider);
+		const context = await startAnchor("", [], []);
 
-		solOracle = await mockOracle(30);
+		bankrunContextWrapper = new BankrunContextWrapper(context);
+
+        bulkAccountLoader = new TestBulkAccountLoader(bankrunContextWrapper.connection, 'processed', 1);
+
+		eventSubscriber = new EventSubscriber(
+			bankrunContextWrapper.connection.toConnection(),
+			chProgram,
+		);
+
+		await eventSubscriber.subscribe();
+
+		usdcMint = await mockUSDCMint(bankrunContextWrapper);
+		await mockUserUSDCAccount(usdcMint, largeUsdcAmount, bankrunContextWrapper);
+
+		solOracle = await mockOracleNoProgram(bankrunContextWrapper, 30);
 
 		marketIndexes = [0];
 		spotMarketIndexes = [0, 1];
 		oracleInfos = [{ publicKey: solOracle, source: OracleSource.PYTH }];
 
 		admin = new TestClient({
-			connection,
-			wallet: provider.wallet,
+			connection: bankrunContextWrapper.connection.toConnection(),
+			wallet: bankrunContextWrapper.provider.wallet,
 			programID: chProgram.programId,
 			opts: {
 				commitment: 'confirmed',
@@ -88,6 +95,7 @@ describe('switch oracles', () => {
 			activeSubAccountId: 0,
 			perpMarketIndexes: marketIndexes,
 			spotMarketIndexes: spotMarketIndexes,
+			subAccountIds: [],
 			oracleInfos,
 			accountSubscription: {
 				type: 'polling',
@@ -125,7 +133,7 @@ describe('switch oracles', () => {
 	it('polling', async () => {
 		const [driftClient, _usdcAccount, _userKeyPair] =
 			await createUserWithUSDCAccount(
-				provider,
+				bankrunContextWrapper,
 				usdcMint,
 				chProgram,
 				usdcAmount,
@@ -135,7 +143,7 @@ describe('switch oracles', () => {
 				bulkAccountLoader
 			);
 
-		const newSolOracle = await mockOracle(100);
+		const newSolOracle = await mockOracleNoProgram(bankrunContextWrapper, 100);
 
 		await admin.updatePerpMarketOracle(0, newSolOracle, OracleSource.PYTH);
 
@@ -172,9 +180,9 @@ describe('switch oracles', () => {
 	});
 
 	it('ws', async () => {
-		const userKeyPair = await createFundedKeyPair(provider.connection);
+		const userKeyPair = await createFundedKeyPair(bankrunContextWrapper);
 		const driftClient = new DriftClient({
-			connection,
+			connection: bankrunContextWrapper.connection.toConnection(),
 			wallet: new Wallet(userKeyPair),
 			programID: admin.program.programId,
 			opts: {
@@ -183,6 +191,7 @@ describe('switch oracles', () => {
 			activeSubAccountId: 0,
 			perpMarketIndexes: marketIndexes,
 			spotMarketIndexes: spotMarketIndexes,
+			subAccountIds: [],
 			oracleInfos,
 			accountSubscription: {
 				type: 'websocket',
@@ -190,7 +199,7 @@ describe('switch oracles', () => {
 		});
 		await driftClient.subscribe();
 
-		const newSolOracle = await mockOracle(100);
+		const newSolOracle = await mockOracleNoProgram(bankrunContextWrapper, 100);
 
 		await admin.updatePerpMarketOracle(0, newSolOracle, OracleSource.PYTH);
 
@@ -200,7 +209,7 @@ describe('switch oracles', () => {
 		console.log('oraclePriceBefore', perpOraclePriceBefore.price.toNumber());
 		assert(perpOraclePriceBefore.price.eq(PRICE_PRECISION.muln(30)));
 
-		await sleep(5000);
+		await sleep(5_000);
 
 		const perpOraclePriceAfter = await driftClient.getOracleDataForPerpMarket(
 			0

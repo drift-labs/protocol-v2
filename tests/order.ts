@@ -856,7 +856,7 @@ describe('orders', () => {
 		const order = driftClientUser.getUserAccount().orders[0];
 		const amountToFill = calculateBaseAssetAmountForAmmToFulfill(
 			order,
-			market,
+			market, 
 			driftClient.getOracleDataForPerpMarket(order.marketIndex),
 			0
 		);

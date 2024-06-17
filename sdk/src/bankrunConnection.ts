@@ -23,6 +23,7 @@ import {
 	Blockhash,
 	LogsFilter,
 	LogsCallback,
+	AccountChangeCallback,
 } from '@solana/web3.js';
 import {
 	ProgramTestContext,
@@ -389,6 +390,19 @@ export class BankrunConnection {
 		clientSubscriptionId: ClientSubscriptionId,
 	): Promise<void> {
 		this.onLogCallbacks.delete(clientSubscriptionId);
+	}
+
+
+	onAccountChange(
+		_publicKey: PublicKey,
+		_callback: AccountChangeCallback,
+		_commitment?: Commitment
+	): ClientSubscriptionId {
+		const subscriptId = this.nextClientSubscriptionId;
+
+		this.nextClientSubscriptionId += 1;
+
+		return subscriptId;
 	}
 }
 

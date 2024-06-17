@@ -314,6 +314,7 @@ export class WebSocketDriftClientAccountSubscriber
 	}
 
 	async setPerpOracleMap() {
+		console.log("\n\n\n\n\n updating oracles \n\n\n\n");
 		const perpMarkets = this.getMarketAccountsAndSlots();
 		for (const perpMarket of perpMarkets) {
 			if (!perpMarket) {
