@@ -138,7 +138,7 @@ describe('place and make perp order', () => {
 
 	it('make', async () => {
 		const keypair = new Keypair();
-		await bankrunContextWrapper.fundKeypair(keypair, 10 ** 9)
+		await bankrunContextWrapper.fundKeypair(keypair, 10 ** 9);
 		await sleep(1000);
 		const wallet = new Wallet(keypair);
 		const userUSDCAccount = await mockUserUSDCAccount(
