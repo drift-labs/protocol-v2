@@ -7,6 +7,7 @@ import {
 	calculateSpreadReserves,
 	calculateUpdatedAMM,
 	DLOBNode,
+	isOperationPaused,
 	isVariant,
 	OraclePriceData,
 	PerpMarketAccount,
@@ -19,7 +20,6 @@ import {
 } from '..';
 import { PublicKey } from '@solana/web3.js';
 import { assert } from '../assert/assert';
-import { isOperationPaused } from '@drift-labs/sdk';
 
 type liquiditySource = 'serum' | 'vamm' | 'dlob' | 'phoenix';
 
