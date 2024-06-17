@@ -113,7 +113,7 @@ pub struct OpenbookV2FulfillmentParams<'a, 'b> {
 // TODO
 impl<'a, 'b> OpenbookV2FulfillmentParams<'a, 'b> {
     #[allow(clippy::type_complexity)]
-    pub fn new<'c>(
+    pub fn new<'c: 'b>(
         account_info_iter: &'a mut std::iter::Peekable<std::slice::Iter<'c, AccountInfo<'b>>>,
         state: &State,
         base_market: &SpotMarket,
