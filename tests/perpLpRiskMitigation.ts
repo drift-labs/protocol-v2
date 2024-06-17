@@ -361,8 +361,8 @@ describe('lp risk mitigation', () => {
 			const _txsig = await driftClient.openPosition(
 				PositionDirection.SHORT,
 				tradeSize,
-				market.marketIndex
-				// new BN(100 * BASE_PRECISION.toNumber())
+				market.marketIndex,
+				new BN(0.1 * PRICE_PRECISION.toNumber())
 			);
 			await _viewLogs(_txsig);
 		} catch (e) {

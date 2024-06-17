@@ -819,7 +819,7 @@ fn check_fee_collection() {
 
     let amount = QUOTE_PRECISION / 4;
     update_spot_balances_and_cumulative_deposits_with_limits(
-        (amount / 2) as u128,
+        amount / 2,
         &SpotBalanceType::Borrow,
         &mut spot_market,
         &mut user,
@@ -1188,7 +1188,7 @@ fn check_fee_collection_larger_nums() {
 
     let amount = 540510 * QUOTE_PRECISION;
     update_spot_balances(
-        amount as u128,
+        amount,
         &SpotBalanceType::Borrow,
         &mut spot_market,
         &mut user.spot_positions[1],
@@ -1400,7 +1400,7 @@ fn attempt_borrow_with_massive_upnl() {
             ..AMM::default()
         },
         unrealized_pnl_initial_asset_weight: 0,
-        unrealized_pnl_maintenance_asset_weight: SPOT_WEIGHT_PRECISION as u32,
+        unrealized_pnl_maintenance_asset_weight: SPOT_WEIGHT_PRECISION,
         margin_ratio_initial: 1000,    //10x
         margin_ratio_maintenance: 500, //20x
         number_of_users_with_base: 1,
@@ -1510,7 +1510,7 @@ fn attempt_borrow_with_massive_upnl() {
 
     let mut market = perp_market_map.get_ref_mut(&0).unwrap();
     // assert_eq!(market.pnl_pool.scaled_balance, 960549500000);
-    market.unrealized_pnl_initial_asset_weight = SPOT_WEIGHT_PRECISION as u32;
+    market.unrealized_pnl_initial_asset_weight = SPOT_WEIGHT_PRECISION;
     drop(market);
 
     let MarginCalculation {
