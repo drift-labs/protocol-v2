@@ -97,14 +97,10 @@ async function createNewUser(
 		spotMarketIndexes: [0],
 		subAccountIds: [],
 		oracleInfos,
-		accountSubscription: bulkAccountLoader
-			? {
-					type: 'polling',
-					accountLoader: bulkAccountLoader,
-			  }
-			: {
-					type: 'websocket',
-			  },
+		accountSubscription: {
+			type: 'polling',
+			accountLoader: bulkAccountLoader,
+	  }
 	});
 
 	if (walletFlag) {
@@ -385,7 +381,8 @@ describe('lp risk mitigation', () => {
 		);
 		assert(market.amm.baseAssetAmountPerLp.eq(new BN('45454545')));
 		await driftClientUser.fetchAccounts();
-		await sleep(1000);
+		await driftClient.accountSubscriber.setSpotOracleMap();
+
 		console.log(
 			'driftClientUser.getFreeCollateral()=',
 			driftClientUser.getFreeCollateral().toString()
@@ -441,7 +438,7 @@ describe('lp risk mitigation', () => {
 		} catch (e) {
 			console.log(e);
 		}
-		user = await await driftClientUser.getUserAccount();
+		user = driftClientUser.getUserAccount();
 
 		const settleLiquidityRecord: LPRecord =
 			eventSubscriber.getEventsArray('LPRecord')[0];
