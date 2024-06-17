@@ -124,7 +124,7 @@ const createWSOLAccount = async (
 		NATIVE_MINT,
 		owner
 	);
-	if (mintAmount > 0) {
+	if (mintAmount.gtn(0)) {
 		const transferIx = SystemProgram.transfer({
 			fromPubkey: provider.wallet.publicKey,
 			toPubkey: userWSOLAccount,
@@ -472,9 +472,8 @@ describe('phoenix spot market', () => {
 		assert(
 			spotFeePoolAmount.eq(
 				new BN(
-					orderActionRecord.takerFee -
-						makerDriftClient.getQuoteAssetTokenAmount() -
-						orderActionRecord.spotFulfillmentMethodFee
+					orderActionRecord.takerFee.sub(makerDriftClient.getQuoteAssetTokenAmount())
+					.sub(orderActionRecord.spotFulfillmentMethodFee)
 				)
 			)
 		);
@@ -615,7 +614,7 @@ describe('phoenix spot market', () => {
 		assert(orderActionRecord.takerFee.eq(new BN(100000)));
 
 		const keeperFee = new BN(
-			makerDriftClient.getQuoteAssetTokenAmount() - makerQuoteTokenAmountStart
+			makerDriftClient.getQuoteAssetTokenAmount().sub(makerQuoteTokenAmountStart)
 		);
 		assert(keeperFee.eq(new BN(11800)));
 
@@ -632,9 +631,7 @@ describe('phoenix spot market', () => {
 			spotFeePoolAmount.eq(
 				new BN(spotFeePoolAmountStart).add(
 					new BN(
-						orderActionRecord.takerFee -
-							keeperFee -
-							orderActionRecord.spotFulfillmentMethodFee
+						orderActionRecord.takerFee.sub(keeperFee).sub(orderActionRecord.spotFulfillmentMethodFee)
 					)
 				)
 			)
