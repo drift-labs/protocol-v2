@@ -43,7 +43,6 @@ import {
 	PRICE_PRECISION,
 	BulkAccountLoader,
 } from '../sdk';
-import { PRICE_PRECISION } from '@drift-labs/sdk';
 
 describe('spot deposit and withdraw', () => {
 	const provider = anchor.AnchorProvider.local(undefined, {
