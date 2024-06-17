@@ -110,11 +110,11 @@ impl HistoricalIndexData {
 pub enum OracleSource {
     #[default]
     Pyth,
+    Switchboard,
+    QuoteAsset,
     Pyth1K,
     Pyth1M,
     PythStableCoin,
-    Switchboard,
-    QuoteAsset,
     Prelaunch,
     PythPull,
     Pyth1KPull,
