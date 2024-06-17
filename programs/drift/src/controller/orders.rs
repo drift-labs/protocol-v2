@@ -3619,7 +3619,7 @@ pub fn fill_spot_order(
 
     spot_market_map
         .get_ref(&order_market_index)?
-        .validate_max_token_deposits()?;
+        .validate_max_token_deposits_and_borrows()?;
 
     user.update_last_active_slot(slot);
 
