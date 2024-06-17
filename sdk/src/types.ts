@@ -722,6 +722,9 @@ export type SpotMarketAccount = {
 	pausedOperations: number;
 
 	ifPausedOperations: number;
+
+	maxTokenBorrows: BN;
+	minBorrowRate: number;
 };
 
 export type PoolBalance = {

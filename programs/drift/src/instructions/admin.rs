@@ -2280,8 +2280,13 @@ pub fn handle_update_spot_market_borrow_rate(
     spot_market.optimal_borrow_rate = optimal_borrow_rate;
     spot_market.max_borrow_rate = max_borrow_rate;
 
-    if min_borrow_rate.is_some() {
-        spot_market.min_borrow_rate = min_borrow_rate.unwrap();
+    if let Some(min_borrow_rate) = min_borrow_rate {
+        msg!(
+            "spot_market.min_borrow_rate: {:?} -> {:?}",
+            spot_market.min_borrow_rate,
+            min_borrow_rate
+        );
+        spot_market.min_borrow_rate = min_borrow_rate
     }
 
     Ok(())

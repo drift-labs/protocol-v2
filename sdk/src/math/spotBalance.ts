@@ -363,6 +363,13 @@ export function calculateSpotMarketBorrowCapacity(
 		remainingCapacity = BN.max(ZERO, totalCapacity.sub(tokenBorrowAmount));
 	}
 
+	if (spotMarketAccount.maxTokenBorrows.gt(ZERO)) {
+		remainingCapacity = BN.min(
+			remainingCapacity,
+			BN.max(ZERO, spotMarketAccount.maxTokenBorrows.sub(tokenBorrowAmount))
+		);
+	}
+
 	return { totalCapacity, remainingCapacity };
 }
 
@@ -395,7 +402,7 @@ export function calculateInterestRate(
 			.div(SPOT_MARKET_UTILIZATION_PRECISION);
 	}
 
-	return interestRate;
+	return BN.max(interestRate, new BN(bank.minBorrowRate));
 }
 
 export function calculateDepositRate(
