@@ -1,6 +1,6 @@
 import * as anchor from '@coral-xyz/anchor';
 import { assert } from 'chai';
-import { BN, BulkAccountLoader, QUOTE_SPOT_MARKET_INDEX } from '../sdk';
+import { BN, QUOTE_SPOT_MARKET_INDEX } from '../sdk';
 
 import { Program } from '@coral-xyz/anchor';
 
@@ -13,25 +13,23 @@ import {
 } from '../sdk/src';
 
 import {
-	mockOracle,
+	mockOracleNoProgram,
 	mockUSDCMint,
 	mockUserUSDCAccount,
 	initializeQuoteSpotMarket,
 } from './testHelpers';
+import { startAnchor } from "solana-bankrun";
+import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
+import { BankrunContextWrapper } from '../sdk/src/bankrunConnection';
 
 describe('Pause exchange', () => {
-	const provider = anchor.AnchorProvider.local(undefined, {
-		preflightCommitment: 'confirmed',
-		skipPreflight: false,
-		commitment: 'confirmed',
-	});
-	const connection = provider.connection;
-	anchor.setProvider(provider);
 	const chProgram = anchor.workspace.Drift as Program;
 
 	let driftClient: TestClient;
 
-	const bulkAccountLoader = new BulkAccountLoader(connection, 'confirmed', 1);
+	let bulkAccountLoader: TestBulkAccountLoader;
+
+	let bankrunContextWrapper: BankrunContextWrapper;
 
 	let usdcMint;
 	let userUSDCAccount;
@@ -48,15 +46,22 @@ describe('Pause exchange', () => {
 	const usdcAmount = new BN(100 * 10 ** 6);
 
 	before(async () => {
-		usdcMint = await mockUSDCMint(provider);
-		userUSDCAccount = await mockUserUSDCAccount(usdcMint, usdcAmount, provider);
+		const context = await startAnchor("", [], []);
 
-		const solOracle = await mockOracle(30);
+		bankrunContextWrapper = new BankrunContextWrapper(context);
+
+        bulkAccountLoader = new TestBulkAccountLoader(bankrunContextWrapper.connection, 'processed', 1);
+
+
+		usdcMint = await mockUSDCMint(bankrunContextWrapper);
+		userUSDCAccount = await mockUserUSDCAccount(usdcMint, usdcAmount, bankrunContextWrapper);
+
+		const solOracle = await mockOracleNoProgram(bankrunContextWrapper, 30);
 		const periodicity = new BN(60 * 60); // 1 HOUR
 
 		driftClient = new TestClient({
-			connection,
-			wallet: provider.wallet,
+			connection: bankrunContextWrapper.connection.toConnection(),
+			wallet: bankrunContextWrapper.provider.wallet,
 			programID: chProgram.programId,
 			opts: {
 				commitment: 'confirmed',
@@ -64,6 +69,7 @@ describe('Pause exchange', () => {
 			activeSubAccountId: 0,
 			perpMarketIndexes: [0],
 			spotMarketIndexes: [0, 1],
+			subAccountIds: [],
 			oracleInfos: [
 				{
 					publicKey: solOracle,
