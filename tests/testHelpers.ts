@@ -41,8 +41,7 @@ import {
 	User,
 	OracleSource,
 } from '../sdk/src';
-import { BankrunConnection } from '../sdk';
-import { BankrunContextWrapper } from '../sdk/src/bankrunConnection';
+import { BankrunContextWrapper, BankrunConnection } from '../sdk/src/bankrunConnection';
 import pythIDL from "../sdk/src/idl/pyth.json";
 import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
 
@@ -536,6 +535,10 @@ export async function initUserAccounts(
 		const userAccount = new User({
 			driftClient: driftClient1,
 			userAccountPublicKey: await driftClient1.getUserAccountPublicKey(),
+			accountSubscription: {
+				type: 'polling',
+				accountLoader: accountLoader,
+				},
 		});
 		await userAccount.subscribe();
 
