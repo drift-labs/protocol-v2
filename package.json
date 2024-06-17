@@ -27,7 +27,8 @@
 		"@ellipsis-labs/phoenix-sdk": "^1.4.2",
 		"chai-bn": "^0.2.2",
 		"csvtojson": "^2.0.10",
-		"json2csv": "^5.0.7"
+		"json2csv": "^5.0.7",
+		"zstddec": "^0.1.0"
 	},
 	"scripts": {
 		"generate-docs": "typedoc",

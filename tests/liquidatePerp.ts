@@ -106,6 +106,21 @@ describe('liquidate perp (no open orders)', () => {
 		await initializeQuoteSpotMarket(driftClient, usdcMint.publicKey);
 		await driftClient.updatePerpAuctionDuration(new BN(0));
 
+		const oracleGuardRails: OracleGuardRails = {
+			priceDivergence: {
+				markOraclePercentDivergence: PERCENTAGE_PRECISION,
+				oracleTwap5MinPercentDivergence: PERCENTAGE_PRECISION.muln(100),
+			},
+			validity: {
+				slotsBeforeStaleForAmm: new BN(100),
+				slotsBeforeStaleForMargin: new BN(100),
+				confidenceIntervalMaxSize: new BN(100000),
+				tooVolatileRatio: new BN(11), // allow 11x change
+			},
+		};
+
+		await driftClient.updateOracleGuardRails(oracleGuardRails);
+
 		const periodicity = new BN(0);
 
 		await driftClient.initializePerpMarket(
@@ -283,21 +298,6 @@ describe('liquidate perp (no open orders)', () => {
 		await driftClientUser.unsubscribe();
 
 		await setFeedPrice(anchor.workspace.Pyth, 0.1, oracle);
-
-		const oracleGuardRails: OracleGuardRails = {
-			priceDivergence: {
-				markOraclePercentDivergence: PERCENTAGE_PRECISION,
-				oracleTwap5MinPercentDivergence: PERCENTAGE_PRECISION.muln(10),
-			},
-			validity: {
-				slotsBeforeStaleForAmm: new BN(100),
-				slotsBeforeStaleForMargin: new BN(100),
-				confidenceIntervalMaxSize: new BN(100000),
-				tooVolatileRatio: new BN(11), // allow 11x change
-			},
-		};
-
-		await driftClient.updateOracleGuardRails(oracleGuardRails);
 
 		const txSig = await liquidatorDriftClient.liquidatePerp(
 			await driftClient.getUserAccountPublicKey(),

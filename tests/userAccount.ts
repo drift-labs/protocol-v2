@@ -337,9 +337,9 @@ describe('User Account', () => {
 		);
 
 		const expectedPNL = new BN(4949472);
-		const expectedTotalCollateral = new BN(24949472);
-		const expectedBuyingPower = new BN(69747640);
-		const expectedFreeCollateral = new BN(13949528);
+		const expectedTotalCollateral = new BN(20000000);
+		const expectedBuyingPower = new BN(45000280);
+		const expectedFreeCollateral = new BN(9000056);
 		const expectedLeverage = new BN(22044);
 		const expectedMarginRatio = new BN(4536);
 
@@ -355,10 +355,10 @@ describe('User Account', () => {
 	it('Close Position', async () => {
 		await driftClient.closePosition(marketIndex);
 
-		const expectedBuyingPower = new BN(124472365);
-		const expectedFreeCollateral = new BN(24894473);
+		const expectedBuyingPower = new BN(100000000);
+		const expectedFreeCollateral = new BN(20000000);
 		const expectedPNL = new BN(4894473);
-		const expectedTotalCollateral = new BN(24894473);
+		const expectedTotalCollateral = new BN(20000000);
 		const expectedLeverage = new BN(0);
 		const expectedMarginRatio = new BN(Number.MAX_SAFE_INTEGER);
 

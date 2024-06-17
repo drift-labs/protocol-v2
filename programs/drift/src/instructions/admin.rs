@@ -1319,7 +1319,10 @@ pub fn handle_settle_expired_market_pools_to_revenue_pool(
             && perp_market.amm.base_asset_amount_short == 0
             && perp_market.number_of_users_with_base == 0,
         ErrorCode::DefaultError,
-        "outstanding base_asset_amounts must be balanced"
+        "outstanding base_asset_amounts must be balanced {} {} {}",
+        perp_market.amm.base_asset_amount_long,
+        perp_market.amm.base_asset_amount_short,
+        perp_market.number_of_users_with_base
     )?;
 
     validate!(

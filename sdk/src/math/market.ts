@@ -252,7 +252,8 @@ export function calculateNetUserPnl(
 export function calculateNetUserPnlImbalance(
 	perpMarket: PerpMarketAccount,
 	spotMarket: SpotMarketAccount,
-	oraclePriceData: OraclePriceData
+	oraclePriceData: OraclePriceData,
+	applyFeePoolDiscount = true
 ): BN {
 	const netUserPnl = calculateNetUserPnl(perpMarket, oraclePriceData);
 
@@ -261,11 +262,14 @@ export function calculateNetUserPnlImbalance(
 		spotMarket,
 		SpotBalanceType.DEPOSIT
 	);
-	const feePool = getTokenAmount(
+	let feePool = getTokenAmount(
 		perpMarket.amm.feePool.scaledBalance,
 		spotMarket,
 		SpotBalanceType.DEPOSIT
-	).div(new BN(5));
+	);
+	if (applyFeePoolDiscount) {
+		feePool = feePool.div(new BN(5));
+	}
 
 	const imbalance = netUserPnl.sub(pnlPool.add(feePool));
 
