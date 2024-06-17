@@ -5385,7 +5385,8 @@ export class DriftClient {
 		marketIndexes: number[],
 		opts?: {
 			filterInvalidMarkets?: boolean;
-		}
+		},
+		txParams?: TxParams
 	): Promise<TransactionSignature> {
 		const filterInvalidMarkets = opts?.filterInvalidMarkets;
 
@@ -5418,9 +5419,12 @@ export class DriftClient {
 		// # Settle filtered market indexes
 		const ixs = await this.getSettlePNLsIxs(users, marketIndexToSettle);
 
-		const tx = await this.buildTransaction(ixs, {
-			computeUnits: 1_400_000,
-		});
+		const tx = await this.buildTransaction(
+			ixs,
+			txParams ?? {
+				computeUnits: 1_400_000,
+			}
+		);
 
 		const { txSig } = await this.sendTransaction(tx, [], this.opts);
 		return txSig;
@@ -6774,7 +6778,7 @@ export class DriftClient {
 		txVersion?: TransactionVersion,
 		lookupTables?: AddressLookupTableAccount[],
 		forceVersionedTransaction?: boolean,
-		recentBlockHash?: BlockhashWithExpiryBlockHeight
+		recentBlockhash?: BlockhashWithExpiryBlockHeight
 	): Promise<Transaction | VersionedTransaction> {
 		return this.txHandler.buildTransaction({
 			instructions,
@@ -6786,7 +6790,7 @@ export class DriftClient {
 				this.fetchMarketLookupTableAccount.bind(this),
 			lookupTables,
 			forceVersionedTransaction,
-			recentBlockHash,
+			recentBlockhash,
 		});
 	}
 

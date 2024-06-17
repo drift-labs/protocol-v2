@@ -47,10 +47,6 @@ impl OrderParams {
             return Ok(());
         }
 
-        if self.immediate_or_cancel {
-            return Ok(());
-        }
-
         if self.oracle_price_offset.unwrap_or(0) != 0 || self.price == 0 {
             return Ok(());
         }
@@ -390,7 +386,7 @@ impl OrderParams {
                 auction_start_price_offset = auction_start_price_offset.max(oracle_price_offset)
             };
 
-            (auction_start_price_offset, oracle_price_offset as i64)
+            (auction_start_price_offset, oracle_price_offset)
         } else {
             let (auction_start_price_offset, auction_end_price_offset) =
                 OrderParams::get_perp_baseline_start_end_price_offset(perp_market, direction, 1)?;
@@ -642,18 +638,13 @@ fn get_auction_duration(
         .clamp(10, 180) as u8) // 180 slots max
 }
 
-#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Debug, Eq)]
+#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Debug, Eq, Default)]
 pub enum PostOnlyParam {
+    #[default]
     None,
     MustPostOnly, // Tx fails if order can't be post only
     TryPostOnly,  // Tx succeeds and order not placed if can't be post only
     Slide,        // Modify price to be post only if can't be post only
-}
-
-impl Default for PostOnlyParam {
-    fn default() -> Self {
-        PostOnlyParam::None
-    }
 }
 
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Default)]

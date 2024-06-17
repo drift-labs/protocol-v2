@@ -141,17 +141,12 @@ pub fn handle_revert_fill<'info>(ctx: Context<RevertFill>) -> Result<()> {
     Ok(())
 }
 
-#[derive(Clone, Copy, AnchorSerialize, AnchorDeserialize, PartialEq, Debug, Eq)]
+#[derive(Clone, Copy, AnchorSerialize, AnchorDeserialize, PartialEq, Debug, Eq, Default)]
 pub enum SpotFulfillmentType {
+    #[default]
     SerumV3,
     Match,
     PhoenixV1,
-}
-
-impl Default for SpotFulfillmentType {
-    fn default() -> Self {
-        SpotFulfillmentType::SerumV3
-    }
 }
 
 #[access_control(
@@ -1000,7 +995,8 @@ pub fn handle_resolve_perp_pnl_deficit<'c: 'info, 'info>(
             "Market is in settlement mode",
         )?;
 
-        controller::orders::validate_market_within_price_band(perp_market, state, true, None)?;
+        let oracle_price = oracle_map.get_price_data(&perp_market.amm.oracle)?.price;
+        controller::orders::validate_market_within_price_band(perp_market, state, oracle_price)?;
 
         controller::insurance::resolve_perp_pnl_deficit(
             spot_market_vault_amount,

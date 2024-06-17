@@ -95,7 +95,7 @@ pub fn user_no_position() {
         status: MarketStatus::Active,
         liquidator_fee: LIQUIDATION_FEE_PRECISION / 100,
         pnl_pool: PoolBalance {
-            scaled_balance: (50 * SPOT_BALANCE_PRECISION) as u128,
+            scaled_balance: (50 * SPOT_BALANCE_PRECISION),
             market_index: QUOTE_SPOT_MARKET_INDEX,
             ..PoolBalance::default()
         },
@@ -213,7 +213,7 @@ pub fn user_does_not_meet_maintenance_requirement() {
         status: MarketStatus::Active,
         liquidator_fee: LIQUIDATION_FEE_PRECISION / 100,
         pnl_pool: PoolBalance {
-            scaled_balance: (50 * SPOT_BALANCE_PRECISION) as u128,
+            scaled_balance: (50 * SPOT_BALANCE_PRECISION),
             market_index: QUOTE_SPOT_MARKET_INDEX,
             ..PoolBalance::default()
         },
@@ -338,7 +338,7 @@ pub fn user_does_not_meet_strict_maintenance_requirement() {
         status: MarketStatus::Active,
         liquidator_fee: LIQUIDATION_FEE_PRECISION / 100,
         pnl_pool: PoolBalance {
-            scaled_balance: (50 * SPOT_BALANCE_PRECISION) as u128,
+            scaled_balance: (50 * SPOT_BALANCE_PRECISION),
             market_index: QUOTE_SPOT_MARKET_INDEX,
             ..PoolBalance::default()
         },
@@ -481,7 +481,7 @@ pub fn user_unsettled_negative_pnl() {
         status: MarketStatus::Active,
         liquidator_fee: LIQUIDATION_FEE_PRECISION / 100,
         pnl_pool: PoolBalance {
-            scaled_balance: (50 * SPOT_BALANCE_PRECISION) as u128,
+            scaled_balance: (50 * SPOT_BALANCE_PRECISION),
             market_index: QUOTE_SPOT_MARKET_INDEX,
             ..PoolBalance::default()
         },
@@ -617,7 +617,7 @@ pub fn user_unsettled_positive_pnl_more_than_pool() {
         status: MarketStatus::Active,
         liquidator_fee: LIQUIDATION_FEE_PRECISION / 100,
         pnl_pool: PoolBalance {
-            scaled_balance: (50 * SPOT_BALANCE_PRECISION) as u128,
+            scaled_balance: (50 * SPOT_BALANCE_PRECISION),
             market_index: QUOTE_SPOT_MARKET_INDEX,
             ..PoolBalance::default()
         },
@@ -753,7 +753,7 @@ pub fn user_unsettled_positive_pnl_less_than_pool() {
         status: MarketStatus::Active,
         liquidator_fee: LIQUIDATION_FEE_PRECISION / 100,
         pnl_pool: PoolBalance {
-            scaled_balance: (50 * SPOT_BALANCE_PRECISION) as u128,
+            scaled_balance: (50 * SPOT_BALANCE_PRECISION),
             market_index: QUOTE_SPOT_MARKET_INDEX,
             ..PoolBalance::default()
         },
@@ -892,7 +892,7 @@ pub fn market_fee_pool_receives_portion() {
         status: MarketStatus::Active,
         liquidator_fee: LIQUIDATION_FEE_PRECISION / 100,
         pnl_pool: PoolBalance {
-            scaled_balance: (50 * SPOT_BALANCE_PRECISION) as u128,
+            scaled_balance: (50 * SPOT_BALANCE_PRECISION),
             market_index: QUOTE_SPOT_MARKET_INDEX,
             ..PoolBalance::default()
         },
@@ -1017,7 +1017,7 @@ pub fn market_fee_pool_pays_back_to_pnl_pool() {
             oracle: oracle_price_key,
             total_fee_minus_distributions: QUOTE_PRECISION_I128,
             fee_pool: PoolBalance {
-                scaled_balance: (2 * SPOT_BALANCE_PRECISION) as u128,
+                scaled_balance: (2 * SPOT_BALANCE_PRECISION),
                 market_index: QUOTE_SPOT_MARKET_INDEX,
                 ..PoolBalance::default()
             },
@@ -1036,7 +1036,7 @@ pub fn market_fee_pool_pays_back_to_pnl_pool() {
         status: MarketStatus::Active,
         liquidator_fee: LIQUIDATION_FEE_PRECISION / 100,
         pnl_pool: PoolBalance {
-            scaled_balance: (50 * SPOT_BALANCE_PRECISION) as u128,
+            scaled_balance: (50 * SPOT_BALANCE_PRECISION),
             market_index: QUOTE_SPOT_MARKET_INDEX,
             ..PoolBalance::default()
         },
@@ -1173,7 +1173,7 @@ pub fn user_long_positive_unrealized_pnl_up_to_max_positive_pnl() {
         status: MarketStatus::Active,
         liquidator_fee: LIQUIDATION_FEE_PRECISION / 100,
         pnl_pool: PoolBalance {
-            scaled_balance: (50 * SPOT_BALANCE_PRECISION) as u128,
+            scaled_balance: (50 * SPOT_BALANCE_PRECISION),
             market_index: QUOTE_SPOT_MARKET_INDEX,
             ..PoolBalance::default()
         },
@@ -1311,7 +1311,7 @@ pub fn user_long_positive_unrealized_pnl_up_to_max_positive_pnl_price_breached()
         status: MarketStatus::Active,
         liquidator_fee: LIQUIDATION_FEE_PRECISION / 100,
         pnl_pool: PoolBalance {
-            scaled_balance: (50 * SPOT_BALANCE_PRECISION) as u128,
+            scaled_balance: (50 * SPOT_BALANCE_PRECISION),
             market_index: QUOTE_SPOT_MARKET_INDEX,
             ..PoolBalance::default()
         },
@@ -1446,7 +1446,7 @@ pub fn user_long_negative_unrealized_pnl() {
         status: MarketStatus::Active,
         liquidator_fee: LIQUIDATION_FEE_PRECISION / 100,
         pnl_pool: PoolBalance {
-            scaled_balance: (50 * SPOT_BALANCE_PRECISION) as u128,
+            scaled_balance: (50 * SPOT_BALANCE_PRECISION),
             market_index: QUOTE_SPOT_MARKET_INDEX,
             ..PoolBalance::default()
         },
@@ -1584,7 +1584,7 @@ pub fn user_short_positive_unrealized_pnl_up_to_max_positive_pnl() {
         status: MarketStatus::Active,
         liquidator_fee: LIQUIDATION_FEE_PRECISION / 100,
         pnl_pool: PoolBalance {
-            scaled_balance: (50 * SPOT_BALANCE_PRECISION) as u128,
+            scaled_balance: (50 * SPOT_BALANCE_PRECISION),
             market_index: QUOTE_SPOT_MARKET_INDEX,
             ..PoolBalance::default()
         },
@@ -1722,7 +1722,7 @@ pub fn user_short_negative_unrealized_pnl() {
         status: MarketStatus::Active,
         liquidator_fee: LIQUIDATION_FEE_PRECISION / 100,
         pnl_pool: PoolBalance {
-            scaled_balance: (50 * SPOT_BALANCE_PRECISION) as u128,
+            scaled_balance: (50 * SPOT_BALANCE_PRECISION),
             market_index: QUOTE_SPOT_MARKET_INDEX,
             ..PoolBalance::default()
         },
@@ -1862,7 +1862,7 @@ pub fn user_invalid_oracle_position() {
         status: MarketStatus::Active,
         liquidator_fee: LIQUIDATION_FEE_PRECISION / 100,
         pnl_pool: PoolBalance {
-            scaled_balance: (50 * SPOT_BALANCE_PRECISION) as u128,
+            scaled_balance: (50 * SPOT_BALANCE_PRECISION),
             market_index: QUOTE_SPOT_MARKET_INDEX,
             ..PoolBalance::default()
         },
@@ -1931,7 +1931,7 @@ pub fn user_invalid_oracle_position() {
         None,
         SettlePnlMode::MustSettle,
     );
-    assert_eq!(result, Err(ErrorCode::InvalidOracle));
+    assert_eq!(result, Err(ErrorCode::OracleStaleForMargin));
 
     market
         .amm
@@ -2008,7 +2008,7 @@ pub fn user_invalid_oracle_position() {
         None,
         SettlePnlMode::MustSettle,
     );
-    assert_eq!(result, Err(ErrorCode::InvalidOracle));
+    assert_eq!(result, Err(ErrorCode::OracleStaleForMargin));
 
     market
         .amm
@@ -2082,7 +2082,7 @@ pub fn is_price_divergence_ok_on_invalid_oracle() {
         status: MarketStatus::Active,
         liquidator_fee: LIQUIDATION_FEE_PRECISION / 100,
         pnl_pool: PoolBalance {
-            scaled_balance: (50 * SPOT_BALANCE_PRECISION) as u128,
+            scaled_balance: (50 * SPOT_BALANCE_PRECISION),
             market_index: QUOTE_SPOT_MARKET_INDEX,
             ..PoolBalance::default()
         },

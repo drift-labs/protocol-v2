@@ -1119,13 +1119,6 @@ describe('insurance fund stake', () => {
 				.toString()
 		);
 
-		// if liq fee is 0 since user is bankrupt
-		assert(
-			liquidationRecord.liquidateSpot.ifFee.lt(
-				new BN(spotMarketBefore.ifLiquidationFee)
-			)
-		);
-
 		// if liquidator fee is non-zero, it should be equal to that
 		assert(
 			liquidationRecord.liquidateSpot.ifFee.eq(

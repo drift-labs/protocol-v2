@@ -1,5 +1,5 @@
 {
-  "version": "2.82.0",
+  "version": "2.83.0",
   "name": "drift",
   "instructions": [
     {
@@ -8849,7 +8849,7 @@
         "kind": "enum",
         "variants": [
           {
-            "name": "Invalid"
+            "name": "NonPositive"
           },
           {
             "name": "TooVolatile"
@@ -11962,6 +11962,36 @@
       "code": 6260,
       "name": "PnlPoolCantSettleUser",
       "msg": "PnlPoolCantSettleUser"
+    },
+    {
+      "code": 6261,
+      "name": "OracleNonPositive",
+      "msg": "OracleInvalid"
+    },
+    {
+      "code": 6262,
+      "name": "OracleTooVolatile",
+      "msg": "OracleTooVolatile"
+    },
+    {
+      "code": 6263,
+      "name": "OracleTooUncertain",
+      "msg": "OracleTooUncertain"
+    },
+    {
+      "code": 6264,
+      "name": "OracleStaleForMargin",
+      "msg": "OracleStaleForMargin"
+    },
+    {
+      "code": 6265,
+      "name": "OracleInsufficientDataPoints",
+      "msg": "OracleInsufficientDataPoints"
+    },
+    {
+      "code": 6266,
+      "name": "OracleStaleForAMM",
+      "msg": "OracleStaleForAMM"
     }
   ]
 }

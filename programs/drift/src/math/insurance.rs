@@ -57,7 +57,7 @@ pub fn if_shares_to_vault_amount(
         get_proportion_u128(
             insurance_fund_vault_balance as u128,
             n_shares,
-            total_if_shares as u128,
+            total_if_shares,
         )?
         .cast::<u64>()?
     } else {

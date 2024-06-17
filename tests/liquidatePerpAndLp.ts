@@ -210,7 +210,7 @@ describe('liquidate perp and lp', () => {
 		// const expectedLiqPrice = 0.521639;
 		const liqPrice = driftClientUser.liquidationPrice(0, ZERO);
 		console.log('liqPrice:', liqPrice.toString());
-		const expectedLiqPrice2 = new BN('500350');
+		const expectedLiqPrice2 = new BN('372792');
 		console.log('expected liqPrice:', expectedLiqPrice2.toString());
 
 		assert(liqPrice.eq(expectedLiqPrice2));
@@ -266,6 +266,9 @@ describe('liquidate perp and lp', () => {
 			0
 		);
 
+		const lpEventAfterSettle = eventSubscriber.getEventsArray('LPRecord')[0];
+		assert(lpEventAfterSettle.nShares.eq(new BN(900000)));
+
 		const liqPriceAfterRallySettlePnl = driftClientUser.liquidationPrice(
 			0,
 			ZERO
@@ -294,6 +297,10 @@ describe('liquidate perp and lp', () => {
 
 		await driftClient.updateOracleGuardRails(oracleGuardRails);
 
+		console.log(
+			driftClient.getUserAccount().perpPositions[0].lpShares.toString()
+		);
+
 		const txSig = await liquidatorDriftClient.liquidatePerp(
 			await driftClient.getUserAccountPublicKey(),
 			driftClient.getUserAccount(),
@@ -304,7 +311,7 @@ describe('liquidate perp and lp', () => {
 		await printTxLogs(connection, txSig);
 
 		const lpEvent = eventSubscriber.getEventsArray('LPRecord')[0];
-		assert(lpEvent.nShares.eq(nLpShares));
+		assert(lpEvent.nShares.eq(new BN(8100000)));
 
 		for (let i = 0; i < 32; i++) {
 			assert(isVariant(driftClient.getUserAccount().orders[i].status, 'init'));
@@ -345,7 +352,7 @@ describe('liquidate perp and lp', () => {
 		assert(
 			liquidationRecord.liquidatePerp.quoteAssetAmount.eq(new BN(1750000))
 		);
-		assert(liquidationRecord.liquidatePerp.lpShares.eq(nLpShares));
+		assert(liquidationRecord.liquidatePerp.lpShares.eq(new BN(8100000)));
 		assert(liquidationRecord.liquidatePerp.ifFee.eq(new BN(0)));
 		assert(liquidationRecord.liquidatePerp.liquidatorFee.eq(new BN(0)));
 
@@ -454,7 +461,7 @@ describe('liquidate perp and lp', () => {
 			'marketAfterBankruptcy.amm.totalSocialLoss:',
 			marketAfterBankruptcy.amm.totalSocialLoss.toString()
 		);
-		assert(marketAfterBankruptcy.amm.totalSocialLoss.eq(new BN(4447653)));
+		assert(marketAfterBankruptcy.amm.totalSocialLoss.eq(new BN(4430007)));
 
 		assert(
 			(driftClient.getUserAccount().status &
@@ -482,16 +489,16 @@ describe('liquidate perp and lp', () => {
 		);
 		assert(
 			perpBankruptcyRecord.perpBankruptcy.cumulativeFundingRateDelta.eq(
-				new BN(254152000)
+				new BN(253144000)
 			)
 		);
 
 		const market = driftClient.getPerpMarketAccount(0);
-		// console.log(
-		// 	market.amm.cumulativeFundingRateLong.toString(),
-		// 	market.amm.cumulativeFundingRateShort.toString()
-		// );
-		assert(market.amm.cumulativeFundingRateLong.eq(new BN(254160333)));
-		assert(market.amm.cumulativeFundingRateShort.eq(new BN(-254143667)));
+		console.log(
+			market.amm.cumulativeFundingRateLong.toString(),
+			market.amm.cumulativeFundingRateShort.toString()
+		);
+		assert(market.amm.cumulativeFundingRateLong.eq(new BN(253152333)));
+		assert(market.amm.cumulativeFundingRateShort.eq(new BN(-253135667)));
 	});
 });

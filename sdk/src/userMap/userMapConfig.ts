@@ -7,6 +7,16 @@ export type UserAccountFilterCriteria = {
 	hasOpenOrders: boolean;
 };
 
+export type SyncConfig =
+	| {
+			type: 'default';
+	  }
+	| {
+			type: 'paginated';
+			chunkSize?: number;
+			concurrencyLimit?: number;
+	  };
+
 export type UserMapConfig = {
 	driftClient: DriftClient;
 	// connection object to use specifically for the UserMap. If undefined, will use the driftClient's connection
@@ -36,4 +46,6 @@ export type UserMapConfig = {
 	// If true, will not do a full sync whenever StateAccount.numberOfSubAccounts changes.
 	// default behavior is to do a full sync on changes.
 	disableSyncOnTotalAccountsChange?: boolean;
+
+	syncConfig?: SyncConfig;
 };
