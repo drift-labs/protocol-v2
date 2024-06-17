@@ -361,6 +361,8 @@ describe('multiple maker orders', () => {
 
 		console.log('here3');
 
+		await fillerDriftClient.fetchAccounts();
+		
 		const txSig2 = await fillerDriftClient.fillSpotOrder(
 			await takerDriftClient.getUserAccountPublicKey(),
 			takerDriftClient.getUserAccount(),

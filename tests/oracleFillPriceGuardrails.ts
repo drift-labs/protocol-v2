@@ -14,36 +14,30 @@ import {
 	isVariant,
 	OracleSource,
 	PEG_PRECISION,
-	BulkAccountLoader,
 } from '../sdk/src';
 
 import {
 	createUserWithUSDCAccount,
 	initializeQuoteSpotMarket,
-	mockOracle,
+	mockOracleNoProgram,
 	mockUSDCMint,
 	mockUserUSDCAccount,
-	printTxLogs,
-	setFeedPrice,
+	setFeedPriceNoProgram,
 } from './testHelpers';
 import { MARGIN_PRECISION, OrderType, PostOnlyParams } from '../sdk';
+import { startAnchor } from "solana-bankrun";
+import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
+import { BankrunContextWrapper } from '../sdk/src/bankrunConnection';
 
 describe('oracle fill guardrails', () => {
-	const provider = anchor.AnchorProvider.local(undefined, {
-		commitment: 'confirmed',
-		preflightCommitment: 'confirmed',
-	});
-	const connection = provider.connection;
-	anchor.setProvider(provider);
 	const chProgram = anchor.workspace.Drift as Program;
 
 	let fillerDriftClient: TestClient;
-	const eventSubscriber = new EventSubscriber(connection, chProgram, {
-		commitment: 'recent',
-	});
-	eventSubscriber.subscribe();
+	let eventSubscriber: EventSubscriber;
 
-	const bulkAccountLoader = new BulkAccountLoader(connection, 'confirmed', 1);
+	let bulkAccountLoader: TestBulkAccountLoader;
+
+	let bankrunContextWrapper: BankrunContextWrapper;
 
 	let usdcMint;
 	let userUSDCAccount;
@@ -65,18 +59,31 @@ describe('oracle fill guardrails', () => {
 	let oracleInfos;
 
 	before(async () => {
-		usdcMint = await mockUSDCMint(provider);
-		userUSDCAccount = await mockUserUSDCAccount(usdcMint, usdcAmount, provider);
+		const context = await startAnchor("", [], []);
 
-		solUsd = await mockOracle(20);
+		bankrunContextWrapper = new BankrunContextWrapper(context);
+
+        bulkAccountLoader = new TestBulkAccountLoader(bankrunContextWrapper.connection, 'processed', 1);
+
+		eventSubscriber = new EventSubscriber(
+			bankrunContextWrapper.connection.toConnection(),
+			chProgram,
+		);
+
+		await eventSubscriber.subscribe();
+
+		usdcMint = await mockUSDCMint(bankrunContextWrapper);
+		userUSDCAccount = await mockUserUSDCAccount(usdcMint, usdcAmount, bankrunContextWrapper);
+
+		solUsd = await mockOracleNoProgram(bankrunContextWrapper, 20);
 
 		marketIndexes = [0, 1];
 		spotMarketIndexes = [0];
 		oracleInfos = [{ publicKey: solUsd, source: OracleSource.PYTH }];
 
 		fillerDriftClient = new TestClient({
-			connection,
-			wallet: provider.wallet,
+			connection: bankrunContextWrapper.connection.toConnection(),
+			wallet: bankrunContextWrapper.provider.wallet,
 			programID: chProgram.programId,
 			opts: {
 				commitment: 'confirmed',
@@ -84,6 +91,7 @@ describe('oracle fill guardrails', () => {
 			activeSubAccountId: 0,
 			perpMarketIndexes: marketIndexes,
 			spotMarketIndexes: spotMarketIndexes,
+			subAccountIds: [],
 			oracleInfos,
 			accountSubscription: {
 				type: 'polling',
@@ -146,7 +154,7 @@ describe('oracle fill guardrails', () => {
 	it('taker long solUsd', async () => {
 		const [takerDriftClient, takerUSDCAccount] =
 			await createUserWithUSDCAccount(
-				provider,
+				bankrunContextWrapper,
 				usdcMint,
 				chProgram,
 				usdcAmount,
@@ -160,7 +168,7 @@ describe('oracle fill guardrails', () => {
 
 		const [makerDriftClient, makerUSDCAccount] =
 			await createUserWithUSDCAccount(
-				provider,
+				bankrunContextWrapper,
 				usdcMint,
 				chProgram,
 				usdcAmount,
@@ -172,7 +180,7 @@ describe('oracle fill guardrails', () => {
 
 		await makerDriftClient.deposit(usdcAmount, 0, makerUSDCAccount);
 
-		await setFeedPrice(anchor.workspace.Pyth, 14, solUsd);
+		await setFeedPriceNoProgram(bankrunContextWrapper, 14, solUsd);
 		await makerDriftClient.placePerpOrder({
 			marketIndex: 0,
 			direction: PositionDirection.SHORT,
@@ -181,7 +189,7 @@ describe('oracle fill guardrails', () => {
 			baseAssetAmount: BASE_PRECISION,
 		});
 
-		await setFeedPrice(anchor.workspace.Pyth, 31, solUsd);
+		await setFeedPriceNoProgram(bankrunContextWrapper, 31, solUsd);
 
 		await takerDriftClient.placePerpOrder({
 			marketIndex: 0,
@@ -195,7 +203,7 @@ describe('oracle fill guardrails', () => {
 		});
 
 		// move price to $30
-		await setFeedPrice(anchor.workspace.Pyth, 30, solUsd);
+		await setFeedPriceNoProgram(bankrunContextWrapper, 30, solUsd);
 
 		const makerInfo = [
 			{
@@ -210,7 +218,7 @@ describe('oracle fill guardrails', () => {
 			takerDriftClient.getOrder(1),
 			makerInfo
 		);
-		await printTxLogs(connection, firstFillTxSig);
+		bankrunContextWrapper.printTxLogs(firstFillTxSig);
 
 		// assert that the
 		const orderActionRecord =
@@ -234,8 +242,7 @@ describe('oracle fill guardrails', () => {
 				takerDriftClient.getOrder(1),
 				makerInfo
 			);
-
-			await printTxLogs(connection, txSig);
+			bankrunContextWrapper.printTxLogs(txSig);
 		} catch (e) {
 			error = true;
 			assert(e.message.includes('0x1787'));
