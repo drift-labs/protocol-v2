@@ -4,7 +4,7 @@ use crate::math::constants::{
     PRICE_PRECISION_U64, QUOTE_PRECISION,
 };
 use crate::state::oracle::HistoricalOracleData;
-use crate::state::perp_market::PerpMarket;
+use crate::state::perp_market::{ContractTier, PerpMarket};
 use crate::state::user::PerpPosition;
 
 #[test]
@@ -15,6 +15,7 @@ fn calculate_amm_available_guards() {
     // let px = 32 * PRICE_PRECISION;
 
     let mut market: PerpMarket = PerpMarket::default_btc_test();
+    market.contract_tier = ContractTier::HighlySpeculative;
 
     let _oracle_price_data = OraclePriceData {
         price: (34 * PRICE_PRECISION) as i64,
@@ -656,7 +657,7 @@ fn update_mark_twap_tests() {
 
     while now < 3600 {
         now += 1;
-        update_oracle_price_twap(&mut amm, now, &oracle_price_data, None, None).unwrap();
+        update_oracle_price_twap(&mut amm, now, &oracle_price_data, None, Some(3)).unwrap();
         update_mark_twap_from_estimates(
             &mut amm,
             now,
@@ -675,12 +676,12 @@ fn update_mark_twap_tests() {
     assert!(new_bid_twap <= new_ask_twap);
     assert_eq!((new_bid_twap + new_ask_twap) / 2, new_mark_twap);
     assert!((new_oracle_twap as u64) < new_mark_twap); // funding in favor of maker?
-    assert_eq!(new_oracle_twap, 40008161);
+    assert_eq!(new_oracle_twap, 40008162);
     assert_eq!(new_bid_twap, 40014547);
     assert_eq!(new_mark_twap, 40024054); // ~ 2 cents above oracle twap
     assert_eq!(new_ask_twap, 40033561);
     assert_eq!(amm.mark_std, 27230);
-    assert_eq!(amm.oracle_std, 3119);
+    assert_eq!(amm.oracle_std, 3118);
 
     let trade_price_2 = 39_971_280 * PRICE_PRECISION_U64 / 1_000_000;
     let trade_direction_2 = PositionDirection::Short;
@@ -754,7 +755,7 @@ fn calc_oracle_twap_tests() {
     };
 
     let _new_oracle_twap =
-        update_oracle_price_twap(&mut amm, now, &oracle_price_data, None, None).unwrap();
+        update_oracle_price_twap(&mut amm, now, &oracle_price_data, None, Some(3)).unwrap();
     assert_eq!(
         amm.historical_oracle_data.last_oracle_price_twap,
         (34 * PRICE_PRECISION - PRICE_PRECISION / 100) as i64
@@ -880,7 +881,7 @@ fn calc_oracle_twap_clamp_update_tests() {
     assert_eq!(amm.last_oracle_normalised_price, 33_760_245);
 
     while now < prev + 3600 * 10 {
-        update_oracle_price_twap(&mut amm, now, &oracle_price_data, None, None).unwrap();
+        update_oracle_price_twap(&mut amm, now, &oracle_price_data, None, Some(3)).unwrap();
         now += 1;
     }
 
