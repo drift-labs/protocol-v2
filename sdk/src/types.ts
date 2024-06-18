@@ -535,7 +535,7 @@ export type OrderActionRecord = {
 	quoteAssetAmountFilled: BN | null;
 	takerFee: BN | null;
 	makerFee: BN | null;
-	referrerReward: number | null;
+	referrerReward: BN | null;
 	quoteAssetAmountSurplus: BN | null;
 	spotFulfillmentMethodFee: BN | null;
 	taker: PublicKey | null;
