@@ -539,6 +539,8 @@ pub enum ErrorCode {
     OracleInsufficientDataPoints,
     #[msg("OracleStaleForAMM")]
     OracleStaleForAMM,
+    #[msg("Unable to parse pull oracle message")]
+    UnableToParsePullOracleMessage,
 }
 
 #[macro_export]

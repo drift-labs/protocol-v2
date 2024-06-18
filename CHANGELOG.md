@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Features
 
+- program: add pyth pull oracles (https://github.com/drift-labs/protocol-v2/pull/1067)
+- ts-sdk: add pyth pull oracle clients
+
 ### Fixes
 
 ### Breaking
