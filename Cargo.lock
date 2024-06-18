@@ -875,6 +875,7 @@ dependencies = [
 name = "drift"
 version = "2.83.0"
 dependencies = [
+ "ahash 0.8.4",
  "anchor-lang",
  "anchor-spl",
  "arrayref",

@@ -39,6 +39,7 @@ solana-security-txt = "1.1.0"
 static_assertions = "1.1.0"
 drift-macros = { git = "https://github.com/drift-labs/drift-macros.git", rev = "c57d87" }
 switchboard = { path = "../switchboard", features = ["no-entrypoint"] }
+ahash = "0.8.4"
 
 [dev-dependencies]
 bytes = "1.2.0"
