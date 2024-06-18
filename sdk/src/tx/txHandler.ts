@@ -161,6 +161,10 @@ export class TxHandler {
 		return (tx as VersionedTransaction)?.message && true;
 	}
 
+	private isLegacyTransaction(tx: Transaction | VersionedTransaction) {
+		return !this.isVersionedTransaction(tx);
+	}
+
 	private getTxSigFromSignedTx(signedTx: Transaction | VersionedTransaction) {
 		if (this.isVersionedTransaction(signedTx)) {
 			return bs58.encode(
@@ -376,8 +380,12 @@ export class TxHandler {
 		return tx;
 	}
 
-	public generateLegacyTransaction(ixs: TransactionInstruction[]) {
-		return new Transaction().add(...ixs);
+	public generateLegacyTransaction(ixs: TransactionInstruction[], recentBlockhash?: BlockhashWithExpiryBlockHeight) {
+		const tx = new Transaction().add(...ixs);
+		if (recentBlockhash) {
+			tx.recentBlockhash = recentBlockhash.blockhash;
+		}
+		return tx;
 	}
 
 	/**
@@ -487,7 +495,7 @@ export class TxHandler {
 			if (forceVersionedTransaction) {
 				return this.generateLegacyVersionedTransaction(recentBlockhash, allIx);
 			} else {
-				return this.generateLegacyTransaction(allIx);
+				return this.generateLegacyTransaction(allIx, recentBlockhash);
 			}
 		} else {
 			const marketLookupTable = await fetchMarketLookupTableAccount();
@@ -598,6 +606,13 @@ export class TxHandler {
 		const filteredTxEntries = txsToSignEntries.filter(
 			([_, tx]) => !!tx
 		);
+
+		// Extra handling for legacy transactions
+		for (const [_key, tx] of filteredTxEntries) {
+			if (this.isLegacyTransaction(tx)) {
+				(tx as Transaction).feePayer = wallet.publicKey;
+			}
+		}
 
 		this.preSignedCb?.();
 
