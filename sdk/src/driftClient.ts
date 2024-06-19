@@ -5229,7 +5229,7 @@ export class DriftClient {
 			oraclePriceOffset: newOraclePriceOffset || null,
 			triggerPrice: newTriggerPrice || null,
 			triggerCondition: newTriggerCondition || null,
-			auctionDuration: auctionDuration || 0,
+			auctionDuration: auctionDuration || null,
 			auctionStartPrice: auctionStartPrice || null,
 			auctionEndPrice: auctionEndPrice || null,
 			reduceOnly: reduceOnly != undefined ? reduceOnly : null,
