@@ -1676,7 +1676,7 @@ fn check_usdc_spot_market_twap() {
 
 #[test]
 fn check_spot_market_max_borrow_fraction() {
-    let now = 30_i64;
+    let _now = 30_i64;
     let _slot = 0_u64;
 
     let _oracle_price = get_pyth_price(1, 6);
