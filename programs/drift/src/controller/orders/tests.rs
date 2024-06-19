@@ -4969,7 +4969,7 @@ pub mod fill_order {
             ..State::default()
         };
 
-        let base_asset_amount = fill_perp_order(
+        let (base_asset_amount, _) = fill_perp_order(
             1,
             &state,
             &user_account_loader,
@@ -5177,7 +5177,7 @@ pub mod fill_order {
             ..State::default()
         };
 
-        let base_asset_amount = fill_perp_order(
+        let (base_asset_amount, _) = fill_perp_order(
             1,
             &state,
             &user_account_loader,
@@ -5306,7 +5306,7 @@ pub mod fill_order {
             unix_timestamp: 11,
         };
 
-        let base_asset_amount = fill_perp_order(
+        let (base_asset_amount, _) = fill_perp_order(
             1,
             &state,
             &user_account_loader,
