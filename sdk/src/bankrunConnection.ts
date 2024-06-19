@@ -142,6 +142,19 @@ export class BankrunConnection {
 		return unpackAccount(publicKey, info, TOKEN_PROGRAM_ID);
 	}
 
+	async getMultipleAccountsInfo(
+		publicKeys: PublicKey[], _commitmentOrConfig?: Commitment
+	): Promise<AccountInfo<Buffer>[]> {
+		const accountInfos = [];
+
+		for (const publicKey of publicKeys) {
+			const accountInfo = await this.getAccountInfo(publicKey);
+			accountInfos.push(accountInfo);
+		}
+
+		return accountInfos;
+	}
+
 	async getAccountInfo(
 		publicKey: PublicKey
 	): Promise<null | AccountInfo<Buffer>> {
