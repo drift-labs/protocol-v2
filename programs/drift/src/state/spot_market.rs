@@ -163,7 +163,10 @@ pub struct SpotMarket {
     pub paused_operations: u8,
     pub if_paused_operations: u8,
     pub fee_adjustment: i16,
-    pub padding1: [u8; 2],
+    /// What fraction of max_token_deposits
+    /// disabled when 0, 1 => 1/10000 => .01% of max_token_deposits
+    /// precision: X/10000
+    pub max_token_borrows_fraction: u16,
     /// For swaps, the amount of token loaned out in the begin_swap ix
     /// precision: token mint precision
     pub flash_loan_amount: u64,
@@ -178,15 +181,11 @@ pub struct SpotMarket {
     /// disabled when 0
     /// precision: QUOTE_PRECISION
     pub scale_initial_asset_weight_start: u64,
-    /// What fraction of max_token_deposits
-    /// disabled when 0, 1 => 1/10000 => .01% of max_token_deposits
-    /// precision: X/10000
-    pub max_token_borrows_fraction: u16,
     /// The min borrow rate for this market when the market regardless of utilization
     /// 1 => 1/200 => .5%
     /// precision: X/200
     pub min_borrow_rate: u8,
-    pub padding: [u8; 45],
+    pub padding: [u8; 47],
 }
 
 impl Default for SpotMarket {
@@ -242,14 +241,13 @@ impl Default for SpotMarket {
             paused_operations: 0,
             if_paused_operations: 0,
             fee_adjustment: 0,
-            padding1: [0; 2],
+            max_token_borrows_fraction: 0,
             flash_loan_amount: 0,
             flash_loan_initial_token_amount: 0,
             total_swap_fee: 0,
             scale_initial_asset_weight_start: 0,
-            max_token_borrows_fraction: 0,
             min_borrow_rate: 0,
-            padding: [0; 45],
+            padding: [0; 47],
         }
     }
 }

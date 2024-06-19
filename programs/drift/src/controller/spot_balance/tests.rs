@@ -1672,8 +1672,6 @@ fn check_usdc_spot_market_twap() {
     );
 }
 
-
-
 #[test]
 fn check_spot_market_max_borrow_fraction() {
     let _now = 30_i64;
@@ -1703,29 +1701,44 @@ fn check_spot_market_max_borrow_fraction() {
         100_000_000 * QUOTE_PRECISION
     );
 
-    assert!(spot_market.validate_max_token_deposits_and_borrows().is_ok());
+    assert!(spot_market
+        .validate_max_token_deposits_and_borrows()
+        .is_ok());
 
     spot_market.borrow_balance = spot_market.deposit_balance;
-    assert!(spot_market.validate_max_token_deposits_and_borrows().is_ok());
+    assert!(spot_market
+        .validate_max_token_deposits_and_borrows()
+        .is_ok());
 
     spot_market.max_token_deposits = (100_000_000 * QUOTE_PRECISION) as u64;
 
-    assert!(spot_market.validate_max_token_deposits_and_borrows().is_err());
-    spot_market.borrow_balance = spot_market.deposit_balance/100;
-    assert!(spot_market.validate_max_token_deposits_and_borrows().is_err());
-    
-    spot_market.borrow_balance = spot_market.deposit_balance/(10000-2); // just above 10000th
-    assert!(spot_market.validate_max_token_deposits_and_borrows().is_err());
+    assert!(spot_market
+        .validate_max_token_deposits_and_borrows()
+        .is_err());
+    spot_market.borrow_balance = spot_market.deposit_balance / 100;
+    assert!(spot_market
+        .validate_max_token_deposits_and_borrows()
+        .is_err());
 
-    spot_market.borrow_balance = spot_market.deposit_balance/(10000); // exactly 10000th of deposit
-    assert!(spot_market.validate_max_token_deposits_and_borrows().is_ok());
+    spot_market.borrow_balance = spot_market.deposit_balance / (10000 - 2); // just above 10000th
+    assert!(spot_market
+        .validate_max_token_deposits_and_borrows()
+        .is_err());
 
-    spot_market.borrow_balance = spot_market.deposit_balance/(10000+1); // < 10000th of deposit
-    assert!(spot_market.validate_max_token_deposits_and_borrows().is_ok());
+    spot_market.borrow_balance = spot_market.deposit_balance / (10000); // exactly 10000th of deposit
+    assert!(spot_market
+        .validate_max_token_deposits_and_borrows()
+        .is_ok());
 
-    spot_market.borrow_balance = spot_market.deposit_balance/100000; // 1/10th of 10000
-    assert!(spot_market.validate_max_token_deposits_and_borrows().is_ok());
+    spot_market.borrow_balance = spot_market.deposit_balance / (10000 + 1); // < 10000th of deposit
+    assert!(spot_market
+        .validate_max_token_deposits_and_borrows()
+        .is_ok());
 
+    spot_market.borrow_balance = spot_market.deposit_balance / 100000; // 1/10th of 10000
+    assert!(spot_market
+        .validate_max_token_deposits_and_borrows()
+        .is_ok());
 }
 
 #[test]

@@ -732,7 +732,7 @@ export type SpotMarketAccount = {
 
 	ifPausedOperations: number;
 
-	maxTokenBorrows: BN;
+	maxTokenBorrowsFraction: number;
 	minBorrowRate: number;
 };
 
