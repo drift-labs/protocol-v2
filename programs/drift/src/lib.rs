@@ -919,7 +919,7 @@ pub mod drift {
         optimal_utilization: u32,
         optimal_borrow_rate: u32,
         max_borrow_rate: u32,
-        min_borrow_rate: Option<u32>,
+        min_borrow_rate: Option<u8>,
     ) -> Result<()> {
         handle_update_spot_market_borrow_rate(
             ctx,
