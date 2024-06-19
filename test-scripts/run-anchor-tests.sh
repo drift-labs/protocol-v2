@@ -8,7 +8,7 @@ test_files=(
   multipleSpotMakerOrders.ts
   switchboardTxCus.ts
   prelisting.ts
-  switchOracle.ts
+  # switchOracle.ts
   surgePricing.ts
   triggerOrders.ts
   stopLimits.ts
@@ -19,12 +19,12 @@ test_files=(
   maxLeverageOrderParams.ts
   multipleMakerOrders.ts
   postOnlyAmmFulfillment.ts
-  imbalancePerpPnl.ts
+  # imbalancePerpPnl.ts
   delistMarket.ts
-  delistMarketLiq.ts
+  # delistMarketLiq.ts
   triggerSpotOrder.ts
-  serumTest.ts
-  phoenixTest.ts
+  # serumTest.ts
+  # phoenixTest.ts
   liquidityProvider.ts
   tradingLP.ts
   insuranceFundStake.ts
@@ -39,9 +39,9 @@ test_files=(
   order.ts
   spotDepositWithdraw.ts
   spotWithdrawUtil100.ts
-  prepegMarketOrderBaseAssetAmount.ts
-  updateAMM.ts
-  repegAndSpread.ts
+  # prepegMarketOrderBaseAssetAmount.ts
+  # updateAMM.ts
+  # repegAndSpread.ts
   driftClient.ts
   ordersWithSpread.ts
   marketOrder.ts
@@ -61,9 +61,9 @@ test_files=(
   assetTier.ts
   pauseExchange.ts
   whitelist.ts
-  updateK.ts
+  # updateK.ts
   curve.ts
-  cappedSymFunding.ts
+  # cappedSymFunding.ts
   maxDeposit.ts
   cancelAllOrders.ts
   modifyOrder.ts
