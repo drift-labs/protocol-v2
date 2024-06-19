@@ -1036,13 +1036,18 @@ pub fn fill_perp_order(
         slot,
     )?;
 
-    let referrer_info = get_referrer_info(
-        user_stats,
-        &user_key,
-        makers_and_referrer,
-        makers_and_referrer_stats,
-        slot,
-    )?;
+    // no referrer bonus for liquidations
+    let referrer_info = if !fill_mode.is_liquidation() {
+        get_referrer_info(
+            user_stats,
+            &user_key,
+            makers_and_referrer,
+            makers_and_referrer_stats,
+            slot,
+        )?
+    } else {
+        None
+    };
 
     let oracle_too_divergent_with_twap_5min = is_oracle_too_divergent_with_twap_5min(
         oracle_price,
