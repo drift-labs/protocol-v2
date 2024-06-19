@@ -22,7 +22,8 @@ import {
 	OracleGuardRails,
 	BulkAccountLoader,
 	isVariant,
-	MARGIN_PRECISION, SettlePnlMode,
+	MARGIN_PRECISION,
+	SettlePnlMode,
 } from '../sdk/src';
 
 import {
@@ -480,7 +481,7 @@ describe('lp risk mitigation', () => {
 				await driftClient.getUserAccountPublicKey(),
 				await driftClient.getUserAccount(),
 				[0],
-				SettlePnlMode.TRY_SETTLE,
+				SettlePnlMode.TRY_SETTLE
 			);
 			await _viewLogs(_txsigg);
 		} catch (e) {
