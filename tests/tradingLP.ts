@@ -24,14 +24,17 @@ import {
 
 import {
 	initializeQuoteSpotMarket,
-	mockOracle,
+	mockOracleNoProgram,
 	mockUSDCMint,
 	mockUserUSDCAccount,
 } from './testHelpers';
+import { startAnchor } from "solana-bankrun";
+import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
+import { BankrunContextWrapper } from '../sdk/src/bankrunConnection';
 
 async function createNewUser(
 	program,
-	provider,
+	context: BankrunContextWrapper,
 	usdcMint,
 	usdcAmount,
 	oracleInfos,
@@ -41,8 +44,7 @@ async function createNewUser(
 	let walletFlag = true;
 	if (wallet == undefined) {
 		const kp = new web3.Keypair();
-		const sig = await provider.connection.requestAirdrop(kp.publicKey, 10 ** 9);
-		await provider.connection.confirmTransaction(sig);
+		const sig = await context.fundKeypair(kp, 10 ** 9);
 		wallet = new Wallet(kp);
 		walletFlag = false;
 	}
@@ -51,12 +53,12 @@ async function createNewUser(
 	const usdcAta = await mockUserUSDCAccount(
 		usdcMint,
 		usdcAmount,
-		provider,
+		context,
 		wallet.publicKey
 	);
 
 	const driftClient = new TestClient({
-		connection: provider.connection,
+		connection: context.connection.toConnection(),
 		wallet: wallet,
 		programID: program.programId,
 		opts: {
@@ -65,6 +67,7 @@ async function createNewUser(
 		activeSubAccountId: 0,
 		perpMarketIndexes: [0, 1],
 		spotMarketIndexes: [0],
+		subAccountIds: [],
 		oracleInfos,
 		accountSubscription: {
 			type: 'polling',
@@ -86,8 +89,13 @@ async function createNewUser(
 	);
 
 	const driftClientUser = new User({
+		// @ts-ignore
 		driftClient,
 		userAccountPublicKey: await driftClient.getUserAccountPublicKey(),
+		accountSubscription: {
+			type: 'polling',
+			accountLoader: bulkAccountLoader,
+			},
 	});
 	driftClientUser.subscribe();
 
@@ -95,12 +103,6 @@ async function createNewUser(
 }
 
 describe('trading liquidity providing', () => {
-	const provider = anchor.AnchorProvider.local(undefined, {
-		preflightCommitment: 'confirmed',
-		commitment: 'confirmed',
-	});
-	const connection = provider.connection;
-	anchor.setProvider(provider);
 	const chProgram = anchor.workspace.Drift as Program;
 
 	// ammInvariant == k == x * y
@@ -118,12 +120,10 @@ describe('trading liquidity providing', () => {
 	const usdcAmount = new BN(1_000_000_000 * 1e6);
 
 	let driftClient: TestClient;
-	const eventSubscriber = new EventSubscriber(connection, chProgram, {
-		commitment: 'recent',
-	});
-	eventSubscriber.subscribe();
 
-	const bulkAccountLoader = new BulkAccountLoader(connection, 'confirmed', 1);
+	let bulkAccountLoader: TestBulkAccountLoader;
+
+	let bankrunContextWrapper: BankrunContextWrapper;
 
 	let usdcMint: web3.Keypair;
 
@@ -135,21 +135,27 @@ describe('trading liquidity providing', () => {
 	let solusdc2;
 
 	before(async () => {
-		usdcMint = await mockUSDCMint(provider);
+		const context = await startAnchor("", [], []);
 
-		solusdc2 = await mockOracle(1, -7); // make invalid
-		solusdc = await mockOracle(1, -7); // make invalid
+		bankrunContextWrapper = new BankrunContextWrapper(context);
+
+        bulkAccountLoader = new TestBulkAccountLoader(bankrunContextWrapper.connection, 'processed', 1);
+
+		usdcMint = await mockUSDCMint(bankrunContextWrapper);
+
+		solusdc2 = await mockOracleNoProgram(bankrunContextWrapper, 1, -7); // make invalid
+		solusdc = await mockOracleNoProgram(bankrunContextWrapper, 1, -7); // make invalid
 		const oracleInfos = [
 			{ publicKey: solusdc, source: OracleSource.PYTH },
 			{ publicKey: solusdc2, source: OracleSource.PYTH },
 		];
 		[driftClient, driftClientUser] = await createNewUser(
 			chProgram,
-			provider,
+			bankrunContextWrapper,
 			usdcMint,
 			usdcAmount,
 			oracleInfos,
-			provider.wallet,
+			bankrunContextWrapper.provider.wallet,
 			bulkAccountLoader
 		);
 		// used for trading / taking on baa
@@ -198,7 +204,7 @@ describe('trading liquidity providing', () => {
 
 		[traderDriftClient, traderDriftClientUser] = await createNewUser(
 			chProgram,
-			provider,
+			bankrunContextWrapper,
 			usdcMint,
 			usdcAmount,
 			oracleInfos,
@@ -208,8 +214,6 @@ describe('trading liquidity providing', () => {
 	});
 
 	after(async () => {
-		await eventSubscriber.unsubscribe();
-
 		await driftClient.unsubscribe();
 		await driftClientUser.unsubscribe();
 
