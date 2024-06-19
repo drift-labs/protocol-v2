@@ -704,4 +704,8 @@ impl PlaceOrderOptions {
         self.explanation = explanation;
         self
     }
+
+    pub fn is_liquidation(&self) -> bool {
+        self.explanation == OrderActionExplanation::Liquidation
+    }
 }

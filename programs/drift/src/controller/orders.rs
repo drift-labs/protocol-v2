@@ -207,7 +207,10 @@ pub fn place_perp_order(
     let oracle_price_data = oracle_map.get_price_data(&market.amm.oracle)?;
 
     // updates auction params for crossing limit orders w/out auction duration
-    params.update_perp_auction_params(market, oracle_price_data.price)?;
+    // dont modify if it's a liquidation
+    if !options.is_liquidation() {
+        params.update_perp_auction_params(market, oracle_price_data.price)?;
+    }
 
     let (auction_start_price, auction_end_price, auction_duration) = get_auction_params(
         &params,
@@ -876,7 +879,7 @@ pub fn fill_perp_order(
     jit_maker_order_id: Option<u32>,
     clock: &Clock,
     fill_mode: FillMode,
-) -> DriftResult<u64> {
+) -> DriftResult<(u64, u64)> {
     let now = clock.unix_timestamp;
     let slot = clock.slot;
 
@@ -940,7 +943,7 @@ pub fn fill_perp_order(
 
     if user.is_bankrupt() {
         msg!("user is bankrupt");
-        return Ok(0);
+        return Ok((0, 0));
     }
 
     if !fill_mode.is_liquidation() {
@@ -954,7 +957,7 @@ pub fn fill_perp_order(
             Ok(_) => {}
             Err(_) => {
                 msg!("user is being liquidated");
-                return Ok(0);
+                return Ok((0, 0));
             }
         }
     }
@@ -1054,7 +1057,7 @@ pub fn fill_perp_order(
         if let Some(filler) = filler.as_deref_mut() {
             filler.update_last_active_slot(slot);
         }
-        return Ok(0);
+        return Ok((0, 0));
     }
 
     validate_perp_fill_possible(state, user, order_index, slot, makers_and_referrer.0.len())?;
@@ -1106,7 +1109,7 @@ pub fn fill_perp_order(
             false,
         )?;
 
-        return Ok(0);
+        return Ok((0, 0));
     }
 
     let (base_asset_amount, quote_asset_amount) = fulfill_perp_order(
@@ -1191,7 +1194,7 @@ pub fn fill_perp_order(
     }
 
     if base_asset_amount == 0 {
-        return Ok(0);
+        return Ok((base_asset_amount, quote_asset_amount));
     }
 
     {
@@ -1229,7 +1232,7 @@ pub fn fill_perp_order(
 
     user.update_last_active_slot(slot);
 
-    Ok(base_asset_amount)
+    Ok((base_asset_amount, quote_asset_amount))
 }
 
 pub fn validate_market_within_price_band(
