@@ -38,7 +38,7 @@ export class TokenFaucet {
 		this.wallet = wallet;
 		this.opts = opts || AnchorProvider.defaultOptions();
 		// @ts-ignore
-		const provider = new AnchorProvider(context.connection,toConnection(), wallet, this.opts);
+		const provider = new AnchorProvider(context.connection.toConnection(), wallet, this.opts);
 		this.provider = provider;
 		this.program = new Program(tokenFaucet as Idl, programId, provider);
 		this.mint = mint;
@@ -75,7 +75,7 @@ export class TokenFaucet {
 	public async initialize(): Promise<TransactionSignature> {
 		const [faucetConfigPublicKey] =
 			await this.getFaucetConfigPublicKeyAndNonce();
-		return await this.program.rpc.initialize({
+		const ix = this.program.instruction.initialize({
 			accounts: {
 				faucetConfig: faucetConfigPublicKey,
 				admin: this.wallet.publicKey,
@@ -85,6 +85,9 @@ export class TokenFaucet {
 				tokenProgram: TOKEN_PROGRAM_ID,
 			},
 		});
+		const tx = new Transaction().add(ix);
+		const txSig = await this.context.sendTransaction(tx);
+		return txSig;
 	}
 
 	public async fetchState(): Promise<any> {
@@ -113,13 +116,13 @@ export class TokenFaucet {
 
 		const tx = new Transaction().add(mintIx);
 
-		const txSig = await this.program.provider.sendAndConfirm(tx, [], this.opts);
+		const txSig = await this.context.sendTransaction(tx);
 
 		return txSig;
 	}
 
 	public async transferMintAuthority(): Promise<TransactionSignature> {
-		return await this.program.rpc.transferMintAuthority({
+		const ix = this.program.instruction.transferMintAuthority({
 			accounts: {
 				faucetConfig: await this.getFaucetConfigPublicKey(),
 				mintAccount: this.mint,
@@ -128,6 +131,9 @@ export class TokenFaucet {
 				admin: this.wallet.publicKey,
 			},
 		});
+		const tx = new Transaction().add(ix);
+		const txSig = await this.context.sendTransaction(tx);
+		return txSig;
 	}
 
 	public async createAssociatedTokenAccountAndMintTo(
@@ -161,7 +167,8 @@ export class TokenFaucet {
 
 		tx.add(mintToTx);
 
-		const txSig = await this.program.provider.sendAndConfirm(tx, [], this.opts);
+		const txSig = await this.context.sendTransaction(tx);
+
 		return [associatedTokenPublicKey, txSig];
 	}
 

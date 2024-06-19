@@ -5,7 +5,7 @@ import { TestClient, TokenFaucet } from '../sdk/src';
 import { BN } from '../sdk';
 import { Keypair, PublicKey } from '@solana/web3.js';
 import { initializeQuoteSpotMarket, mockUSDCMint } from './testHelpers';
-import { createAssociatedTokenAccountIdempotentInstruction, getAssociatedTokenAddressSync, getMint, getOrCreateAssociatedTokenAccount, unpackAccount, unpackMint } from '@solana/spl-token';
+import { createAssociatedTokenAccountIdempotentInstruction, getAssociatedTokenAddressSync, unpackAccount, unpackMint } from '@solana/spl-token';
 import { startAnchor } from "solana-bankrun";
 import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
 import { BankrunContextWrapper } from '../sdk/src/bankrunConnection';
@@ -37,6 +37,9 @@ describe('token faucet', () => {
 			connection: bankrunContextWrapper.connection.toConnection(),
 			wallet: bankrunContextWrapper.provider.wallet,
 			programID: chProgram.programId,
+			spotMarketIndexes: [],
+			perpMarketIndexes: [],
+			subAccountIds: [],
 			accountSubscription: {
 				type: 'polling',
 				accountLoader: bulkAccountLoader,
