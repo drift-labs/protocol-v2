@@ -274,16 +274,6 @@ export const MainnetSpotMarkets: SpotMarketConfig[] = [
 		launchTs: 1716595200000,
 	},
 	{
-		symbol: 'dSOL',
-		marketIndex: 17,
-		oracle: new PublicKey('HJ9K9AamqVMp86j3uQgpA1tdJNRAwfVuL75FD9P3QBrn'),
-		oracleSource: OracleSource.SWITCHBOARD,
-		mint: new PublicKey('Dso1bDeDjCQxTrWHqUUi63oBvV7Mdm6WaobLbQ7gnPQ'),
-		precision: new BN(10).pow(NINE),
-		precisionExp: NINE,
-		launchTs: 1716595200000,
-	},
-	{
 		symbol: 'USDY',
 		marketIndex: 18,
 		oracle: new PublicKey('DiqUGbq5CV8Tjcae1whjrX97qPo6gU7BKAvKNFc2vrX8'),
