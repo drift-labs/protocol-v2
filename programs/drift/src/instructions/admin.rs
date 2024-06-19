@@ -2330,7 +2330,7 @@ pub fn handle_update_spot_market_max_token_borrows(
     let new_max_token_borrows = spot_market
     .max_token_deposits
     .safe_mul(max_token_borrows_fraction.cast()?)?
-    .safe_div(200)?;
+    .safe_div(10000)?;
 
     validate!(
         current_spot_tokens_borrows <= new_max_token_borrows,

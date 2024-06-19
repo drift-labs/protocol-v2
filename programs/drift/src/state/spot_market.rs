@@ -23,7 +23,7 @@ use crate::state::oracle::{HistoricalIndexData, HistoricalOracleData, OracleSour
 use crate::state::paused_operations::{InsuranceFundOperation, SpotOperation};
 use crate::state::perp_market::{MarketStatus, PoolBalance};
 use crate::state::traits::{MarketIndexOffset, Size};
-use crate::validate;
+use crate::{validate, PERCENTAGE_PRECISION};
 
 #[account(zero_copy(unsafe))]
 #[derive(PartialEq, Eq, Debug)]
@@ -441,12 +441,12 @@ impl SpotMarket {
             let max_token_borrows = self
                 .max_token_deposits
                 .safe_mul(self.max_token_borrows_fraction.cast()?)?
-                .safe_div(200)?
+                .safe_div(10000)?
                 .cast::<u128>()?;
 
             validate!(
                 max_token_borrows == 0 || borrows <= max_token_borrows,
-                ErrorCode::MaxDeposit,
+                ErrorCode::MaxBorrows,
                 "max token amount ({}) < borrows ({})",
                 max_token_borrows,
                 borrows,
@@ -483,6 +483,12 @@ impl SpotMarket {
         let unhealthy_utilization = 800000; // 80%
         let utilization: u64 = self.get_utilization()?.cast()?;
         Ok(self.utilization_twap <= unhealthy_utilization && utilization <= unhealthy_utilization)
+    }
+
+    pub fn get_min_borrow_rate(self) -> DriftResult<u32> {
+        self.min_borrow_rate
+            .cast::<u32>()?
+            .safe_mul((PERCENTAGE_PRECISION / 200).cast()?)
     }
 
     pub fn update_historical_index_price(

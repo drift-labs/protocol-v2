@@ -159,7 +159,7 @@ pub fn calculate_accumulated_interest(
             .safe_mul(borrow_rate_slope)?
             .safe_div(SPOT_UTILIZATION_PRECISION)?
     }
-    .max(spot_market.min_borrow_rate.cast()?);
+    .max(spot_market.get_min_borrow_rate()?.cast()?);
 
     let time_since_last_update = now
         .cast::<u64>()

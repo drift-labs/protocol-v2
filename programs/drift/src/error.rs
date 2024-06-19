@@ -539,6 +539,8 @@ pub enum ErrorCode {
     OracleInsufficientDataPoints,
     #[msg("OracleStaleForAMM")]
     OracleStaleForAMM,
+    #[msg("Can not borow more than max borrows")]
+    MaxBorrows,
 }
 
 #[macro_export]
