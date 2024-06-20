@@ -1380,7 +1380,6 @@ describe('orders', () => {
 				confidenceIntervalMaxSize: new BN(100000),
 				tooVolatileRatio: new BN(2),
 			},
-			useForLiquidations: false,
 		};
 
 		await driftClient.updateOracleGuardRails(oracleGuardRails);
@@ -1421,11 +1420,11 @@ describe('orders', () => {
 		);
 		console.log('placeAndTake compute units', computeUnits[0]);
 
-		await driftClient.settlePNL(
-			await driftClient.getUserAccountPublicKey(),
-			driftClient.getUserAccount(),
-			marketIndex
-		);
+		// await driftClient.settlePNL(
+		// 	await driftClient.getUserAccountPublicKey(),
+		// 	driftClient.getUserAccount(),
+		// 	marketIndex
+		// );
 
 		await driftClient.fetchAccounts();
 		await driftClientUser.fetchAccounts();
@@ -1491,18 +1490,6 @@ describe('orders', () => {
 			whaleAccountPublicKey,
 			whaleUser.getUserAccount(),
 			order
-		);
-
-		await driftClient.settlePNL(
-			await driftClient.getUserAccountPublicKey(),
-			driftClient.getUserAccount(),
-			marketIndex
-		);
-
-		await fillerDriftClient.settlePNL(
-			await fillerDriftClient.getUserAccountPublicKey(),
-			fillerDriftClient.getUserAccount(),
-			marketIndex
 		);
 
 		await whaleDriftClient.fetchAccounts();
@@ -1571,13 +1558,6 @@ describe('orders', () => {
 			console.error(e);
 		}
 		console.log('4');
-
-		await driftClient.settlePNL(
-			await driftClient.getUserAccountPublicKey(),
-			driftClient.getUserAccount(),
-			marketIndex
-		);
-		console.log('5');
 
 		await driftClient.fetchAccounts();
 		await driftClientUser.fetchAccounts();
