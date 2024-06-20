@@ -198,7 +198,7 @@ export class BankrunConnection {
 
 		// update the clock slot/timestamp
 		const currentSlot = await this.getSlot();
-		const nextSlot = currentSlot + BigInt(1);
+		const nextSlot = currentSlot + BigInt(100);
 		this.context.warpToSlot(nextSlot);
 		const currentClock = await this._banksClient.getClock();
 		const newClock = new Clock(
@@ -206,7 +206,7 @@ export class BankrunConnection {
 			currentClock.epochStartTimestamp,
 			currentClock.epoch,
 			currentClock.leaderScheduleEpoch,
-			currentClock.unixTimestamp + BigInt(1)
+			currentClock.unixTimestamp + BigInt(100)
 		);
 		this.context.setClock(newClock);
 		this.clock = newClock;

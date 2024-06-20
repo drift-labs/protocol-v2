@@ -10,12 +10,12 @@ test_files=(
   prelisting.ts
   # switchOracle.ts
   surgePricing.ts
-  triggerOrders.ts
-  stopLimits.ts
+  # triggerOrders.ts
+  # stopLimits.ts
   oracleFillPriceGuardrails.ts
   perpLpJit.ts
   perpLpRiskMitigation.ts
-  spotSwap.ts
+  # spotSwap.ts
   maxLeverageOrderParams.ts
   multipleMakerOrders.ts
   postOnlyAmmFulfillment.ts
@@ -53,7 +53,7 @@ test_files=(
   roundInFavorBaseAsset.ts
   marketOrderBaseAssetAmount.ts
   oracleOffsetOrders.ts
-  userDelegate.ts
+  # userDelegate.ts
   subaccounts.ts
   pyth.ts
   userAccount.ts

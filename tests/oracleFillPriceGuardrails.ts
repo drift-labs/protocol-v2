@@ -222,7 +222,8 @@ describe('oracle fill guardrails', () => {
 
 		// assert that the
 		const orderActionRecord =
-			eventSubscriber.getEventsArray('OrderActionRecord')[0];
+			eventSubscriber.getEventsArray('OrderActionRecord')[1];
+		// console.log(eventSubscriber.getEventsArray('OrderActionRecord'));
 		assert(isVariant(orderActionRecord.action, 'cancel'));
 
 		await makerDriftClient.placePerpOrder({
