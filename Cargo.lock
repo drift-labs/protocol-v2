@@ -51,9 +51,9 @@ dependencies = [
 
 [[package]]
 name = "ahash"
-version = "0.8.11"
+version = "0.8.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e89da841a80418a9b391ebaea17f5c112ffaaa96f621d2c285b5174da76b9011"
+checksum = "91429305e9f0a25f6205c5b8e0d2db09e0708a7a6df0f42212bb56c32c8ac97a"
 dependencies = [
  "cfg-if",
  "getrandom 0.2.9",
@@ -875,7 +875,7 @@ dependencies = [
 name = "drift"
 version = "2.83.0"
 dependencies = [
- "ahash 0.8.11",
+ "ahash 0.8.6",
  "anchor-lang",
  "anchor-spl",
  "arrayref",
@@ -1081,7 +1081,7 @@ version = "0.13.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "43a3c133739dddd0d2990f9a4bdf8eb4b21ef50e4851ca85ab661199821d510e"
 dependencies = [
- "ahash 0.8.11",
+ "ahash 0.8.6",
 ]
 
 [[package]]
@@ -2152,7 +2152,7 @@ version = "1.16.25"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a7077f6495ccc313dff49c3e3f3ed03e49058258bae7fee77ac29ba0a474ba82"
 dependencies = [
- "ahash 0.8.11",
+ "ahash 0.8.6",
  "blake3",
  "block-buffer 0.10.4",
  "bs58 0.4.0",
