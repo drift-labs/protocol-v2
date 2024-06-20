@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Features
 
+- program: add spot borrow insurance limits ([#1080](https://github.com/drift-labs/protocol-v2/pull/1080))
 - program: maker can be rewarded filler returns when amm gets fill ([#1093](https://github.com/drift-labs/protocol-v2/pull/1093))
 - program: avoid overwriting 0 duration auction ([#1097](https://github.com/drift-labs/protocol-v2/pull/1097))
 - program: add pyth pull oracles ([#1067](https://github.com/drift-labs/protocol-v2/pull/1067))
