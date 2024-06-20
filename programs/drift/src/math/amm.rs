@@ -401,7 +401,12 @@ pub fn update_oracle_price_twap(
         None => amm.reserve_price()?,
     };
 
-    let oracle_price = normalise_oracle_price(amm, oracle_price_data, Some(reserve_price))?;
+    // only normalise high confidence interval oracle if contract tier is A or B
+    let oracle_price = if sanitize_clamp.unwrap_or(0) > 2 {
+        normalise_oracle_price(amm, oracle_price_data, Some(reserve_price))?
+    } else {
+        oracle_price_data.price
+    };
 
     let capped_oracle_update_price = sanitize_new_price(
         oracle_price,
