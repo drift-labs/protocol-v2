@@ -1570,6 +1570,22 @@ fn fulfill_perp_order(
                     None,
                 )?;
 
+                // maker may try to fill their own order (e.g. via jit)
+                // if amm takes fill, give maker filler reward
+                let (mut maker, mut maker_stats) =
+                    if makers_and_referrer.0.contains_key(filler_key) && filler.is_none() {
+                        let maker = makers_and_referrer.get_ref_mut(filler_key)?;
+                        if maker.authority == user.authority {
+                            (None, None)
+                        } else {
+                            let maker_stats =
+                                makers_and_referrer_stats.get_ref_mut(&maker.authority)?;
+                            (Some(maker), Some(maker_stats))
+                        }
+                    } else {
+                        (None, None)
+                    };
+
                 let (fill_base_asset_amount, fill_quote_asset_amount) =
                     fulfill_perp_order_with_amm(
                         user,
@@ -1584,6 +1600,8 @@ fn fulfill_perp_order(
                         filler_key,
                         filler,
                         filler_stats,
+                        &mut maker.as_deref_mut(),
+                        &mut maker_stats.as_deref_mut(),
                         &mut referrer.as_deref_mut(),
                         &mut referrer_stats.as_deref_mut(),
                         fee_structure,
@@ -1801,6 +1819,8 @@ pub fn fulfill_perp_order_with_amm(
     filler_key: &Pubkey,
     filler: &mut Option<&mut User>,
     filler_stats: &mut Option<&mut UserStats>,
+    maker: &mut Option<&mut User>,
+    maker_stats: &mut Option<&mut UserStats>,
     referrer: &mut Option<&mut User>,
     referrer_stats: &mut Option<&mut UserStats>,
     fee_structure: &FeeStructure,
@@ -1900,7 +1920,8 @@ pub fn fulfill_perp_order_with_amm(
     }
 
     let reward_referrer = can_reward_user_with_perp_pnl(referrer, market.market_index);
-    let reward_filler = can_reward_user_with_perp_pnl(filler, market.market_index);
+    let reward_filler = can_reward_user_with_perp_pnl(filler, market.market_index)
+        || can_reward_user_with_perp_pnl(maker, market.market_index);
 
     let FillFees {
         user_fee,
@@ -2005,22 +2026,25 @@ pub fn fulfill_perp_order_with_amm(
     }
 
     if let Some(filler) = filler.as_mut() {
-        if filler_reward > 0 {
-            let position_index = get_position_index(&filler.perp_positions, market.market_index)
-                .or_else(|_| add_new_position(&mut filler.perp_positions, market.market_index))?;
-
-            controller::position::update_quote_asset_amount(
-                &mut filler.perp_positions[position_index],
-                market,
-                filler_reward.cast()?,
-            )?;
-
-            filler_stats
-                .as_mut()
-                .safe_unwrap()?
-                .update_filler_volume(quote_asset_amount, now)?;
-        }
-        filler.update_last_active_slot(slot);
+        credit_filler_perp_pnl(
+            filler,
+            filler_stats,
+            market,
+            filler_reward,
+            quote_asset_amount,
+            now,
+            slot,
+        )?;
+    } else if let Some(maker) = maker.as_mut() {
+        credit_filler_perp_pnl(
+            maker,
+            maker_stats,
+            market,
+            filler_reward,
+            quote_asset_amount,
+            now,
+            slot,
+        )?;
     }
 
     update_order_after_fill(
@@ -2079,6 +2103,36 @@ pub fn fulfill_perp_order_with_amm(
     }
 
     Ok((base_asset_amount, quote_asset_amount))
+}
+
+pub fn credit_filler_perp_pnl(
+    filler: &mut User,
+    filler_stats: &mut Option<&mut UserStats>,
+    market: &mut PerpMarket,
+    filler_reward: u64,
+    quote_asset_amount: u64,
+    now: i64,
+    slot: u64,
+) -> DriftResult {
+    if filler_reward > 0 {
+        let position_index = get_position_index(&filler.perp_positions, market.market_index)
+            .or_else(|_| add_new_position(&mut filler.perp_positions, market.market_index))?;
+
+        controller::position::update_quote_asset_amount(
+            &mut filler.perp_positions[position_index],
+            market,
+            filler_reward.cast()?,
+        )?;
+
+        filler_stats
+            .as_mut()
+            .safe_unwrap()?
+            .update_filler_volume(quote_asset_amount, now)?;
+    }
+
+    filler.update_last_active_slot(slot);
+
+    Ok(())
 }
 
 pub fn fulfill_perp_order_with_match(
@@ -2207,6 +2261,8 @@ pub fn fulfill_perp_order_with_match(
                 filler_key,
                 filler,
                 filler_stats,
+                &mut None,
+                &mut None,
                 &mut None,
                 &mut None,
                 fee_structure,
