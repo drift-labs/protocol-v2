@@ -17,34 +17,31 @@ import {
 } from '../sdk/src';
 
 import {
-	mockOracle,
+	mockOracleNoProgram,
 	mockUSDCMint,
 	mockUserUSDCAccount,
-	setFeedPrice,
+	setFeedPriceNoProgram,
 	initializeQuoteSpotMarket,
 	initializeSolSpotMarket,
 } from './testHelpers';
 import {
 	BASE_PRECISION,
-	BulkAccountLoader,
 	isVariant,
 	OracleSource,
 } from '../sdk';
+import { startAnchor } from "solana-bankrun";
+import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
+import { BankrunContextWrapper } from '../sdk/src/bankrunConnection';
 
 describe('trigger orders', () => {
-	const provider = anchor.AnchorProvider.local(undefined, {
-		preflightCommitment: 'confirmed',
-		skipPreflight: false,
-		commitment: 'confirmed',
-	});
-	const connection = provider.connection;
-	anchor.setProvider(provider);
 	const chProgram = anchor.workspace.Drift as Program;
 
 	let fillerDriftClient: TestClient;
 	let fillerDriftClientUser: User;
 
-	const bulkAccountLoader = new BulkAccountLoader(connection, 'confirmed', 1);
+	let bulkAccountLoader: TestBulkAccountLoader;
+
+	let bankrunContextWrapper: BankrunContextWrapper;
 
 	let usdcMint;
 	let userUSDCAccount;
@@ -67,10 +64,16 @@ describe('trigger orders', () => {
 	let oracleInfos;
 
 	before(async () => {
-		usdcMint = await mockUSDCMint(provider);
-		userUSDCAccount = await mockUserUSDCAccount(usdcMint, usdcAmount, provider);
+		const context = await startAnchor("", [], []);
 
-		solUsd = await mockOracle(1);
+		bankrunContextWrapper = new BankrunContextWrapper(context);
+
+        bulkAccountLoader = new TestBulkAccountLoader(bankrunContextWrapper.connection, 'processed', 1);
+
+		usdcMint = await mockUSDCMint(bankrunContextWrapper);
+		userUSDCAccount = await mockUserUSDCAccount(usdcMint, usdcAmount, bankrunContextWrapper);
+
+		solUsd = await mockOracleNoProgram(bankrunContextWrapper, 1);
 		marketIndexes = [0];
 		spotMarketIndexes = [0, 1];
 		oracleInfos = [
@@ -81,8 +84,8 @@ describe('trigger orders', () => {
 		];
 
 		fillerDriftClient = new TestClient({
-			connection,
-			wallet: provider.wallet,
+			connection: bankrunContextWrapper.connection.toConnection(),
+			wallet: bankrunContextWrapper.provider.wallet,
 			programID: chProgram.programId,
 			opts: {
 				commitment: 'confirmed',
@@ -90,6 +93,7 @@ describe('trigger orders', () => {
 			activeSubAccountId: 0,
 			perpMarketIndexes: marketIndexes,
 			spotMarketIndexes: spotMarketIndexes,
+			subAccountIds: [],
 			oracleInfos,
 			accountSubscription: {
 				type: 'polling',
@@ -120,6 +124,10 @@ describe('trigger orders', () => {
 		fillerDriftClientUser = new User({
 			driftClient: fillerDriftClient,
 			userAccountPublicKey: await fillerDriftClient.getUserAccountPublicKey(),
+			accountSubscription: {
+				type: 'polling',
+				accountLoader: bulkAccountLoader,
+				},
 		});
 		await fillerDriftClientUser.subscribe();
 	});
@@ -130,7 +138,7 @@ describe('trigger orders', () => {
 			ammInitialBaseAssetReserve,
 			ammInitialQuoteAssetReserve
 		);
-		await setFeedPrice(anchor.workspace.Pyth, 1, solUsd);
+		await setFeedPriceNoProgram(bankrunContextWrapper, 1, solUsd);
 	});
 
 	after(async () => {
@@ -140,16 +148,16 @@ describe('trigger orders', () => {
 
 	it('trigger order with below condition', async () => {
 		const keypair = new Keypair();
-		await provider.connection.requestAirdrop(keypair.publicKey, 10 ** 9);
+		await bankrunContextWrapper.fundKeypair(keypair, 10 ** 9);
 		const wallet = new Wallet(keypair);
 		const userUSDCAccount = await mockUserUSDCAccount(
 			usdcMint,
 			usdcAmount,
-			provider,
+			bankrunContextWrapper,
 			keypair.publicKey
 		);
 		const driftClient = new TestClient({
-			connection,
+			connection: bankrunContextWrapper.connection.toConnection(),
 			wallet: wallet,
 			programID: chProgram.programId,
 			opts: {
@@ -158,6 +166,7 @@ describe('trigger orders', () => {
 			activeSubAccountId: 0,
 			perpMarketIndexes: marketIndexes,
 			spotMarketIndexes: spotMarketIndexes,
+			subAccountIds: [],
 			oracleInfos,
 			accountSubscription: {
 				type: 'polling',
@@ -172,6 +181,10 @@ describe('trigger orders', () => {
 		const driftClientUser = new User({
 			driftClient,
 			userAccountPublicKey: await driftClient.getUserAccountPublicKey(),
+			accountSubscription: {
+				type: 'polling',
+				accountLoader: bulkAccountLoader,
+				},
 		});
 		await driftClientUser.subscribe();
 
@@ -192,7 +205,7 @@ describe('trigger orders', () => {
 		let order = driftClientUser.getOrderByUserOrderId(1);
 
 		const newOraclePrice = 0.49;
-		await setFeedPrice(anchor.workspace.Pyth, newOraclePrice, solUsd);
+		await setFeedPriceNoProgram(bankrunContextWrapper, newOraclePrice, solUsd);
 
 		await fillerDriftClient.triggerOrder(
 			await driftClientUser.getUserAccountPublicKey(),
@@ -218,16 +231,16 @@ describe('trigger orders', () => {
 
 	it('trigger order with above condition', async () => {
 		const keypair = new Keypair();
-		await provider.connection.requestAirdrop(keypair.publicKey, 10 ** 9);
+		await bankrunContextWrapper.fundKeypair(keypair, 10 ** 9);
 		const wallet = new Wallet(keypair);
 		const userUSDCAccount = await mockUserUSDCAccount(
 			usdcMint,
 			usdcAmount,
-			provider,
+			bankrunContextWrapper,
 			keypair.publicKey
 		);
 		const driftClient = new TestClient({
-			connection,
+			connection: bankrunContextWrapper.connection.toConnection(),
 			wallet: wallet,
 			programID: chProgram.programId,
 			opts: {
@@ -236,6 +249,7 @@ describe('trigger orders', () => {
 			activeSubAccountId: 0,
 			perpMarketIndexes: marketIndexes,
 			spotMarketIndexes: spotMarketIndexes,
+			subAccountIds: [],
 			oracleInfos,
 			accountSubscription: {
 				type: 'polling',
@@ -250,6 +264,10 @@ describe('trigger orders', () => {
 		const driftClientUser = new User({
 			driftClient,
 			userAccountPublicKey: await driftClient.getUserAccountPublicKey(),
+			accountSubscription: {
+				type: 'polling',
+				accountLoader: bulkAccountLoader,
+				},
 		});
 		await driftClientUser.subscribe();
 
@@ -271,7 +289,7 @@ describe('trigger orders', () => {
 		let order = driftClientUser.getOrderByUserOrderId(1);
 
 		const newOraclePrice = 2.01;
-		await setFeedPrice(anchor.workspace.Pyth, newOraclePrice, solUsd);
+		await setFeedPriceNoProgram(bankrunContextWrapper, newOraclePrice, solUsd);
 		await fillerDriftClient.fetchAccounts();
 
 		await fillerDriftClient.triggerOrder(

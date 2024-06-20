@@ -159,6 +159,13 @@ describe('insurance fund stake', () => {
 		);
 	});
 
+	after(async () => {
+		await driftClient.unsubscribe();
+		await secondUserDriftClient.unsubscribe();
+		await eventSubscriber.unsubscribe();
+		await driftClientUser.unsubscribe();
+	});
+
 
 	it('initialize if stake', async () => {
 		const marketIndex = 0;

@@ -3,7 +3,7 @@ import { assert } from 'chai';
 
 import { Program } from '@coral-xyz/anchor';
 
-import { Keypair, PublicKey } from '@solana/web3.js';
+import { Keypair, PublicKey, Transaction } from '@solana/web3.js';
 
 import {
 	TestClient,
@@ -23,49 +23,37 @@ import {
 
 import {
 	initializeQuoteSpotMarket,
-	mockOracle,
+	mockOracleNoProgram,
 	mockUSDCMint,
 	mockUserUSDCAccount,
-	setFeedPrice,
+	setFeedPriceNoProgram,
 } from './testHelpers';
 import {
 	AMM_RESERVE_PRECISION,
-	BulkAccountLoader,
 	OracleSource,
 	ZERO,
+	isVariant,
 } from '../sdk';
 import {
 	Account,
-	createMint,
-	getOrCreateAssociatedTokenAccount,
-	mintTo,
+	createAssociatedTokenAccountIdempotentInstruction,
+	createMintToInstruction,
+	getAssociatedTokenAddressSync,
 } from '@solana/spl-token';
-
-const enumsAreEqual = (
-	actual: Record<string, unknown>,
-	expected: Record<string, unknown>
-): boolean => {
-	return JSON.stringify(actual) === JSON.stringify(expected);
-};
+import { startAnchor } from "solana-bankrun";
+import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
+import { BankrunContextWrapper } from '../sdk/src/bankrunConnection';
 
 describe('stop limit', () => {
-	const provider = anchor.AnchorProvider.local(undefined, {
-		skipPreflight: false,
-		preflightCommitment: 'confirmed',
-		commitment: 'confirmed',
-	});
-	const connection = provider.connection;
-	anchor.setProvider(provider);
 	const chProgram = anchor.workspace.Drift as Program;
 
 	let driftClient: TestClient;
 	let driftClientUser: User;
-	const eventSubscriber = new EventSubscriber(connection, chProgram, {
-		commitment: 'recent',
-	});
-	eventSubscriber.subscribe();
+	let eventSubscriber: EventSubscriber;
 
-	const bulkAccountLoader = new BulkAccountLoader(connection, 'confirmed', 1);
+	let bulkAccountLoader: TestBulkAccountLoader;
+
+	let bankrunContextWrapper: BankrunContextWrapper;
 
 	let userAccountPublicKey: PublicKey;
 
@@ -84,7 +72,6 @@ describe('stop limit', () => {
 	const usdcAmount = new BN(10 * 10 ** 6);
 
 	let discountMint: PublicKey;
-	let discountTokenAccount: Account;
 
 	const fillerKeyPair = new Keypair();
 	let fillerUSDCAccount: Keypair;
@@ -96,11 +83,24 @@ describe('stop limit', () => {
 	let btcUsd;
 
 	before(async () => {
-		usdcMint = await mockUSDCMint(provider);
-		userUSDCAccount = await mockUserUSDCAccount(usdcMint, usdcAmount, provider);
+		const context = await startAnchor("", [], []);
 
-		solUsd = await mockOracle(1);
-		btcUsd = await mockOracle(60000);
+		bankrunContextWrapper = new BankrunContextWrapper(context);
+
+        bulkAccountLoader = new TestBulkAccountLoader(bankrunContextWrapper.connection, 'processed', 1);
+
+		eventSubscriber = new EventSubscriber(
+			bankrunContextWrapper.connection.toConnection(),
+			chProgram,
+		);
+
+		await eventSubscriber.subscribe();
+
+		usdcMint = await mockUSDCMint(bankrunContextWrapper);
+		userUSDCAccount = await mockUserUSDCAccount(usdcMint, usdcAmount, bankrunContextWrapper);
+
+		solUsd = await mockOracleNoProgram(bankrunContextWrapper, 1);
+		btcUsd = await mockOracleNoProgram(bankrunContextWrapper, 60000);
 
 		const marketIndexes = [marketIndex];
 		const spotMarketIndexes = [0];
@@ -116,8 +116,8 @@ describe('stop limit', () => {
 		];
 
 		driftClient = new TestClient({
-			connection,
-			wallet: provider.wallet,
+			connection: bankrunContextWrapper.connection.toConnection(),
+			wallet: bankrunContextWrapper.provider.wallet,
 			programID: chProgram.programId,
 			opts: {
 				commitment: 'confirmed',
@@ -125,6 +125,7 @@ describe('stop limit', () => {
 			activeSubAccountId: 0,
 			perpMarketIndexes: marketIndexes,
 			spotMarketIndexes: spotMarketIndexes,
+			subAccountIds: [],
 			oracleInfos,
 			accountSubscription: {
 				type: 'polling',
@@ -166,48 +167,38 @@ describe('stop limit', () => {
 		driftClientUser = new User({
 			driftClient,
 			userAccountPublicKey: await driftClient.getUserAccountPublicKey(),
+			accountSubscription: {
+				type: 'polling',
+				accountLoader: bulkAccountLoader,
+				},
 		});
 		await driftClientUser.subscribe();
 
-		discountMint = await createMint(
-			connection,
-			// @ts-ignore
-			provider.wallet.payer,
-			provider.wallet.publicKey,
-			provider.wallet.publicKey,
-			6
-		);
+		const discountMintKeypair = await mockUSDCMint(bankrunContextWrapper);
+
+		discountMint = discountMintKeypair.publicKey;
 
 		await driftClient.updateDiscountMint(discountMint);
 
-		discountTokenAccount = await getOrCreateAssociatedTokenAccount(
-			connection,
-			// @ts-ignore
-			provider.wallet.payer,
+		const discountMintAta = getAssociatedTokenAddressSync(discountMint, bankrunContextWrapper.provider.wallet.publicKey);
+		const ix = createAssociatedTokenAccountIdempotentInstruction(bankrunContextWrapper.context.payer.publicKey, discountMintAta, bankrunContextWrapper.provider.wallet.publicKey, discountMint);
+		const mintToIx = createMintToInstruction(
 			discountMint,
-			provider.wallet.publicKey
-		);
-
-		await mintTo(
-			connection,
-			// @ts-ignore
-			provider.wallet.payer,
-			discountMint,
-			discountTokenAccount.address,
-			// @ts-ignore
-			provider.wallet.payer,
+			discountMintAta,
+			bankrunContextWrapper.provider.wallet.publicKey,
 			1000 * 10 ** 6
 		);
+		await bankrunContextWrapper.sendTransaction(new Transaction().add(ix, mintToIx));
 
-		provider.connection.requestAirdrop(fillerKeyPair.publicKey, 10 ** 9);
+		await bankrunContextWrapper.fundKeypair(fillerKeyPair, 10 ** 9);
 		fillerUSDCAccount = await mockUserUSDCAccount(
 			usdcMint,
 			usdcAmount,
-			provider,
+			bankrunContextWrapper,
 			fillerKeyPair.publicKey
 		);
 		fillerDriftClient = new TestClient({
-			connection,
+			connection: bankrunContextWrapper.connection.toConnection(),
 			wallet: new Wallet(fillerKeyPair),
 			programID: chProgram.programId,
 			opts: {
@@ -216,6 +207,7 @@ describe('stop limit', () => {
 			activeSubAccountId: 0,
 			perpMarketIndexes: marketIndexes,
 			spotMarketIndexes: spotMarketIndexes,
+			subAccountIds: [],
 			oracleInfos,
 			accountSubscription: {
 				type: 'polling',
@@ -232,6 +224,10 @@ describe('stop limit', () => {
 		fillerUser = new User({
 			driftClient: fillerDriftClient,
 			userAccountPublicKey: await fillerDriftClient.getUserAccountPublicKey(),
+			accountSubscription: {
+				type: 'polling',
+				accountLoader: bulkAccountLoader,
+				},
 		});
 		await fillerUser.subscribe();
 	});
@@ -276,7 +272,7 @@ describe('stop limit', () => {
 		await driftClientUser.fetchAccounts();
 		let order = driftClientUser.getOrder(orderId);
 
-		await setFeedPrice(anchor.workspace.Pyth, 1.01, solUsd);
+		await setFeedPriceNoProgram(bankrunContextWrapper, 1.01, solUsd);
 		await driftClient.moveAmmToPrice(
 			marketIndex,
 			new BN(1.01 * PRICE_PRECISION.toNumber())
@@ -302,8 +298,8 @@ describe('stop limit', () => {
 		assert(order.baseAssetAmount.eq(new BN(0)));
 		assert(order.price.eq(new BN(0)));
 		assert(order.marketIndex === 0);
-		assert(enumsAreEqual(order.direction, PositionDirection.LONG));
-		assert(enumsAreEqual(order.status, OrderStatus.INIT));
+		assert(isVariant(order.status, 'init'));
+		assert(isVariant(order.direction, 'long'));
 
 		const firstPosition = driftClientUser.getUserAccount().perpPositions[0];
 		const expectedBaseAssetAmount = new BN(0);
@@ -324,7 +320,7 @@ describe('stop limit', () => {
 		const expectedFillRecordId = new BN(2);
 		assert(orderRecord.ts.gt(ZERO));
 		assert(orderRecord.takerOrderId === expectedOrderId);
-		assert(enumsAreEqual(orderRecord.action, OrderAction.FILL));
+		assert(isVariant(orderRecord.action, 'fill'));
 		assert(
 			orderRecord.taker.equals(await driftClientUser.getUserAccountPublicKey())
 		);
@@ -366,7 +362,7 @@ describe('stop limit', () => {
 		driftClientUser.getUserAccount();
 		let order = driftClientUser.getOrder(orderId);
 
-		await setFeedPrice(anchor.workspace.Pyth, 0.99, solUsd);
+		await setFeedPriceNoProgram(bankrunContextWrapper, 0.99, solUsd);
 		await driftClient.moveAmmToPrice(
 			marketIndex,
 			new BN(0.99 * PRICE_PRECISION.toNumber())
@@ -392,8 +388,8 @@ describe('stop limit', () => {
 		assert(order.baseAssetAmount.eq(new BN(0)));
 		assert(order.price.eq(new BN(0)));
 		assert(order.marketIndex === 0);
-		assert(enumsAreEqual(order.direction, PositionDirection.LONG));
-		assert(enumsAreEqual(order.status, OrderStatus.INIT));
+		assert(isVariant(order.status, 'init'));
+		assert(isVariant(order.direction, 'long'));
 
 		const firstPosition = driftClientUser.getUserAccount().perpPositions[0];
 		const expectedBaseAssetAmount = new BN(0);
@@ -409,7 +405,7 @@ describe('stop limit', () => {
 		const expectedFillRecord = new BN(4);
 		assert(orderRecord.ts.gt(ZERO));
 		assert(orderRecord.takerOrderId === expectedOrderId);
-		assert(enumsAreEqual(orderRecord.action, OrderAction.FILL));
+		assert(isVariant(orderRecord.action, 'fill'));
 		assert(
 			orderRecord.taker.equals(await driftClientUser.getUserAccountPublicKey())
 		);

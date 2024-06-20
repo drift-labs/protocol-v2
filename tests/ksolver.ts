@@ -1,7 +1,7 @@
 import * as anchor from '@coral-xyz/anchor';
 import { Program } from '@coral-xyz/anchor';
 import { Keypair } from '@solana/web3.js';
-import { BN } from '../sdk';
+import { BN, OracleSource } from '../sdk';
 import {
 	TestClient,
 	PRICE_PRECISION,
@@ -13,15 +13,19 @@ import {
 	MAX_LEVERAGE,
 	QUOTE_PRECISION,
 	convertToNumber,
+	User
 } from '../sdk/src';
 
 import { liquidityBook } from './liquidityBook';
 
 import {
-	createPriceFeed,
+	mockOracleNoProgram,
 	mockUSDCMint,
 	mockUserUSDCAccount,
 } from './testHelpers';
+import { startAnchor } from "solana-bankrun";
+import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
+import { BankrunContextWrapper } from '../sdk/src/bankrunConnection';
 
 describe('AMM Curve', () => {
 	// K SOLVER: find opitimal k given exchange details
@@ -162,20 +166,14 @@ describe('AMM Curve', () => {
 	// 	return kSqrtI;
 	// }
 
-	const provider = anchor.AnchorProvider.local(undefined, {
-		preflightCommitment: 'confirmed',
-		skipPreflight: false,
-		commitment: 'confirmed',
-	});
-	const connection = provider.connection;
-	anchor.setProvider(provider);
 	const chProgram = anchor.workspace.Drift as Program;
 
-	const driftClient = new TestClient({
-		connection,
-		wallet: provider.wallet,
-		programID: chProgram.programId,
-	});
+	let driftClient: TestClient;
+	let eventSubscriber: EventSubscriber;
+
+	let bulkAccountLoader: TestBulkAccountLoader;
+
+	let bankrunContextWrapper: BankrunContextWrapper;
 
 	const kSqrt = new anchor.BN(2 * 10 ** 12);
 
@@ -195,16 +193,42 @@ describe('AMM Curve', () => {
 	let userAccount: User;
 
 	before(async () => {
-		usdcMint = await mockUSDCMint(provider);
-		userUSDCAccount = await mockUserUSDCAccount(usdcMint, usdcAmount, provider);
+		const context = await startAnchor("", [], []);
+
+		bankrunContextWrapper = new BankrunContextWrapper(context);
+
+        bulkAccountLoader = new TestBulkAccountLoader(bankrunContextWrapper.connection, 'processed', 1);
+
+		solUsdOracle = await mockOracleNoProgram(bankrunContextWrapper, initialSOLPrice);
+
+		driftClient = new TestClient({
+			connection: bankrunContextWrapper.connection.toConnection(),
+			wallet: bankrunContextWrapper.provider.wallet,
+			programID: chProgram.programId,
+			opts: {
+				commitment: 'confirmed',
+			},
+			perpMarketIndexes: [0],
+			spotMarketIndexes: [0],
+			subAccountIds: [],
+			oracleInfos: [
+				{
+					publicKey: solUsdOracle,
+					source: OracleSource.PYTH,
+				},
+			],
+			accountSubscription: {
+				type: 'polling',
+				accountLoader: bulkAccountLoader,
+			},
+		});
+		
+		usdcMint = await mockUSDCMint(bankrunContextWrapper);
+		userUSDCAccount = await mockUserUSDCAccount(usdcMint, usdcAmount, bankrunContextWrapper);
 
 		await driftClient.initialize(usdcMint.publicKey, true);
 		await driftClient.subscribe();
 
-		solUsdOracle = await createPriceFeed({
-			oracleProgram: anchor.workspace.Pyth,
-			initPrice: initialSOLPrice,
-		});
 		const periodicity = new BN(60 * 60); // 1 HOUR
 		const kSqrtNorm = normAssetAmount(kSqrt, initialSOLPriceBN);
 		await driftClient.initializePerpMarket(
@@ -220,6 +244,10 @@ describe('AMM Curve', () => {
 		userAccount = new User({
 			driftClient,
 			userAccountPublicKey: await driftClient.getUserAccountPublicKey(),
+			accountSubscription: {
+				type: 'polling',
+				accountLoader: bulkAccountLoader,
+				},
 		});
 		await userAccount.subscribe();
 	});
@@ -231,7 +259,8 @@ describe('AMM Curve', () => {
 
 	const showBook = (marketIndex) => {
 		const market = driftClient.getPerpMarketAccount(marketIndex);
-		const currentMark = calculateReservePrice(market);
+		const oraclePriceData = driftClient.getOracleDataForPerpMarket(marketIndex)
+		const currentMark = calculateReservePrice(market, oraclePriceData);
 
 		const [bidsPrice, bidsCumSize, asksPrice, asksCumSize] = liquidityBook(
 			market,

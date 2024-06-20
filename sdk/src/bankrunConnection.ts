@@ -197,19 +197,13 @@ export class BankrunConnection {
 		}
 
 		// update the clock slot/timestamp
-		const currentSlot = await this.getSlot();
-		const nextSlot = currentSlot + BigInt(100);
-		this.context.warpToSlot(nextSlot);
-		const currentClock = await this._banksClient.getClock();
-		const newClock = new Clock(
-			nextSlot,
-			currentClock.epochStartTimestamp,
-			currentClock.epoch,
-			currentClock.leaderScheduleEpoch,
-			currentClock.unixTimestamp + BigInt(100)
-		);
-		this.context.setClock(newClock);
-		this.clock = newClock;
+		// sometimes race condition causes failures so we retry
+		try {
+			await this.updateSlotAndClock();
+		} catch (e) {
+			await this.updateSlotAndClock();
+		}
+
 		
 		if (this.onLogCallbacks.size > 0) {
 			const transaction = await this.getTransaction(signature);
@@ -226,6 +220,22 @@ export class BankrunConnection {
 		}
 
 		return signature;
+	}
+
+	private async updateSlotAndClock() {
+		const currentSlot = await this.getSlot();
+		const nextSlot = currentSlot + BigInt(1);
+		this.context.warpToSlot(nextSlot);
+		const currentClock = await this._banksClient.getClock();
+		const newClock = new Clock(
+			nextSlot,
+			currentClock.epochStartTimestamp,
+			currentClock.epoch,
+			currentClock.leaderScheduleEpoch,
+			currentClock.unixTimestamp + BigInt(1)
+		);
+		this.context.setClock(newClock);
+		this.clock = newClock;
 	}
 
 	getTime(): number {

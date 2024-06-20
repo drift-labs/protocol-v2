@@ -150,16 +150,6 @@ describe('market order', () => {
 				},
 		});
 		await driftClientUser.subscribe();
-
-		// discountMint = await createMint(
-		// 	connection,
-		// 	// @ts-ignore
-		// 	provider.wallet.payer,
-		// 	provider.wallet.publicKey,
-		// 	provider.wallet.publicKey,
-		// 	6
-		// );
-
 		const discountMintKeypair = await mockUSDCMint(bankrunContextWrapper);
 
 		discountMint = discountMintKeypair.publicKey;
@@ -182,16 +172,6 @@ describe('market order', () => {
 		const tx2 = new Transaction().add(mintToIx);
 		await bankrunContextWrapper.sendTransaction(tx2);
 
-		// await mintTo(
-		// 	connection,
-		// 	// @ts-ignore
-		// 	provider.wallet.payer,
-		// 	discountMint,
-		// 	discountTokenAccountAddress,
-		// 	// @ts-ignore
-		// 	provider.wallet.payer,
-		// 	1000 * 10 ** 6
-		// );
 
 		bankrunContextWrapper.fundKeypair(fillerKeyPair, 10 ** 9);
 		fillerUSDCAccount = await mockUserUSDCAccount(

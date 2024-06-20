@@ -222,7 +222,7 @@ describe('oracle fill guardrails', () => {
 
 		// assert that the
 		const orderActionRecord =
-			eventSubscriber.getEventsArray('OrderActionRecord')[1];
+			eventSubscriber.getEventsArray('OrderActionRecord')[0];
 		// console.log(eventSubscriber.getEventsArray('OrderActionRecord'));
 		assert(isVariant(orderActionRecord.action, 'cancel'));
 
