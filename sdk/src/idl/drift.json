@@ -9254,6 +9254,18 @@
           },
           {
             "name": "Prelaunch"
+          },
+          {
+            "name": "PythPull"
+          },
+          {
+            "name": "Pyth1KPull"
+          },
+          {
+            "name": "Pyth1MPull"
+          },
+          {
+            "name": "PythStableCoinPull"
           }
         ]
       }
@@ -11992,6 +12004,11 @@
       "code": 6266,
       "name": "OracleStaleForAMM",
       "msg": "OracleStaleForAMM"
+    },
+    {
+      "code": 6267,
+      "name": "UnableToParsePullOracleMessage",
+      "msg": "Unable to parse pull oracle message"
     }
   ]
 }
