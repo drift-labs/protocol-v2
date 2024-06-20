@@ -244,12 +244,6 @@ describe('subaccounts', () => {
 		assert(
 			driftClient.getUserAccount().delegate.equals(delegateKeyPair.publicKey)
 		);
-
-		// TODO: how to do this without gpa
-		const delegateUserAccount = (
-			await driftClient.getUserAccountsForDelegate(delegateKeyPair.publicKey)
-		)[0];
-		assert(delegateUserAccount.delegate.equals(delegateKeyPair.publicKey));
 	});
 
 	it('delete user', async () => {

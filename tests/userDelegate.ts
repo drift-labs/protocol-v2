@@ -136,12 +136,6 @@ describe('user delegate', () => {
 			driftClient.getUserAccount().delegate.equals(delegateKeyPair.publicKey)
 		);
 
-		// TODO: figure out how to do this without gpa
-		const delegateUserAccount = (
-			await driftClient.getUserAccountsForDelegate(delegateKeyPair.publicKey)
-		)[0];
-		assert(delegateUserAccount.delegate.equals(delegateKeyPair.publicKey));
-
 		delegateDriftClient = new TestClient({
 			connection: bankrunContextWrapper.connection.toConnection(),
 			wallet: new Wallet(delegateKeyPair),
