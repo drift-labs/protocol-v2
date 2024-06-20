@@ -1041,11 +1041,7 @@ pub fn liquidate_perp_with_fill(
         return Err(ErrorCode::LiquidationOrderFailedToFill);
     }
 
-    let fill_value =
-        calculate_base_asset_value_with_oracle_price(fill_base_asset_amount.cast()?, oracle_price)?
-            .cast::<u64>()?;
-
-    let if_fee = -fill_value
+    let if_fee = -fill_quote_asset_amount
         .cast::<u128>()?
         .safe_mul(if_liquidation_fee.cast()?)?
         .safe_div(LIQUIDATION_FEE_PRECISION_U128)?
