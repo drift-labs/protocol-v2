@@ -1,6 +1,6 @@
 import { Connection, Keypair, PublicKey } from '@solana/web3.js';
 import { OracleClient, OraclePriceData } from './types';
-import { AnchorProvider, BN, Program, Wallet } from '@coral-xyz/anchor';
+import { AnchorProvider, BN, Program } from '@coral-xyz/anchor';
 import {
 	ONE,
 	PRICE_PRECISION,
@@ -13,6 +13,7 @@ import {
 	pythSolanaReceiverIdl,
 } from '@pythnetwork/pyth-solana-receiver';
 import { PriceUpdateAccount } from '@pythnetwork/pyth-solana-receiver/lib/PythSolanaReceiver';
+import { Wallet } from '..';
 
 export class PythPullClient implements OracleClient {
 	private connection: Connection;
@@ -31,6 +32,7 @@ export class PythPullClient implements OracleClient {
 		this.stableCoin = stableCoin;
 		const provider = new AnchorProvider(
 			this.connection,
+			//@ts-ignore
 			new Wallet(new Keypair()),
 			{
 				commitment: connection.commitment,

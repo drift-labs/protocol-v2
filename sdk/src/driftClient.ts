@@ -2773,26 +2773,22 @@ export class DriftClient {
 		referrerInfo?: ReferrerInfo,
 		cancelExistingOrders?: boolean,
 		settlePnl?: boolean
-	) : Promise<{
-		cancelExistingOrdersTx?: Transaction | VersionedTransaction,
-		settlePnlTx?: Transaction | VersionedTransaction,
-		fillTx?: Transaction | VersionedTransaction,
-		marketOrderTx: Transaction | VersionedTransaction,
+	): Promise<{
+		cancelExistingOrdersTx?: Transaction | VersionedTransaction;
+		settlePnlTx?: Transaction | VersionedTransaction;
+		fillTx?: Transaction | VersionedTransaction;
+		marketOrderTx: Transaction | VersionedTransaction;
 	}> {
+		type TxKeys =
+			| 'cancelExistingOrdersTx'
+			| 'settlePnlTx'
+			| 'fillTx'
+			| 'marketOrderTx';
 
-		type TxKeys = |
-		'cancelExistingOrdersTx'|
-		'settlePnlTx'|
-		'fillTx'|
-		'marketOrderTx';
-		
 		const marketIndex = orderParams.marketIndex;
 		const orderId = userAccount.nextOrderId;
 
-		const ixPromisesForTxs: Record<
-			TxKeys,
-			Promise<TransactionInstruction>
-		> = {
+		const ixPromisesForTxs: Record<TxKeys, Promise<TransactionInstruction>> = {
 			cancelExistingOrdersTx: undefined,
 			settlePnlTx: undefined,
 			fillTx: undefined,
@@ -2847,10 +2843,10 @@ export class DriftClient {
 			return acc;
 		}, {}) as MappedRecord<typeof ixPromisesForTxs, TransactionInstruction>;
 
-		const txsMap = await this.buildTransactionsMap(
+		const txsMap = (await this.buildTransactionsMap(
 			ixsMap,
 			txParams
-		) as MappedRecord<typeof ixsMap, Transaction | VersionedTransaction>;
+		)) as MappedRecord<typeof ixsMap, Transaction | VersionedTransaction>;
 
 		return txsMap;
 	}
@@ -2882,7 +2878,6 @@ export class DriftClient {
 		signedCancelExistingOrdersTx?: Transaction;
 		signedSettlePnlTx?: Transaction;
 	}> {
-		
 		const preppedTxs = await this.prepareMarketOrderTxs(
 			orderParams,
 			userAccountPublicKey,
@@ -2895,10 +2890,9 @@ export class DriftClient {
 			settlePnl
 		);
 
-		const signedTxs = (await this.txHandler.getSignedTransactionMap(
-			preppedTxs,
-			this.wallet
-		)).signedTxMap;
+		const signedTxs = (
+			await this.txHandler.getSignedTransactionMap(preppedTxs, this.wallet)
+		).signedTxMap;
 
 		const { txSig, slot } = await this.sendTransaction(
 			signedTxs.marketOrderTx,
@@ -2912,7 +2906,8 @@ export class DriftClient {
 		return {
 			txSig,
 			signedFillTx: signedTxs.fillTx as Transaction,
-			signedCancelExistingOrdersTx: signedTxs.cancelExistingOrdersTx as Transaction,
+			signedCancelExistingOrdersTx:
+				signedTxs.cancelExistingOrdersTx as Transaction,
 			signedSettlePnlTx: signedTxs.settlePnlTx as Transaction,
 		};
 	}
@@ -3303,11 +3298,8 @@ export class DriftClient {
 		subAccountId?: number
 	): Promise<TransactionSignature> {
 		const { txSig } = await this.sendTransaction(
-			(await this.preparePlaceOrdersTx(
-				params,
-				txParams,
-				subAccountId
-			)).placeOrdersTx,
+			(await this.preparePlaceOrdersTx(params, txParams, subAccountId))
+				.placeOrdersTx,
 			[],
 			this.opts,
 			false
@@ -3500,7 +3492,8 @@ export class DriftClient {
 		subAccountId?: number
 	): Promise<TransactionSignature> {
 		const { txSig, slot } = await this.sendTransaction(
-			(await this.preparePlaceSpotOrderTx(orderParams, txParams, subAccountId)).placeSpotOrderTx,
+			(await this.preparePlaceSpotOrderTx(orderParams, txParams, subAccountId))
+				.placeSpotOrderTx,
 			[],
 			this.opts,
 			false
@@ -4589,17 +4582,14 @@ export class DriftClient {
 		cancelExistingOrders?: boolean,
 		settlePnl?: boolean,
 		exitEarlyIfSimFails?: boolean
-	) : Promise<{
-		placeAndTakeTx: Transaction | VersionedTransaction,
-		cancelExistingOrdersTx: Transaction | VersionedTransaction,
-		settlePnlTx: Transaction | VersionedTransaction,
+	): Promise<{
+		placeAndTakeTx: Transaction | VersionedTransaction;
+		cancelExistingOrdersTx: Transaction | VersionedTransaction;
+		settlePnlTx: Transaction | VersionedTransaction;
 	}> {
 		const placeAndTakeIxs: TransactionInstruction[] = [];
 
-		type TxKeys = |
-			'placeAndTakeTx'
-			| 'cancelExistingOrdersTx'
-			| 'settlePnlTx';
+		type TxKeys = 'placeAndTakeTx' | 'cancelExistingOrdersTx' | 'settlePnlTx';
 
 		const txsToSign: Record<TxKeys, Transaction | VersionedTransaction> = {
 			placeAndTakeTx: undefined,
@@ -4761,23 +4751,25 @@ export class DriftClient {
 		signedCancelExistingOrdersTx?: Transaction;
 		signedSettlePnlTx?: Transaction;
 	}> {
+		const txsToSign =
+			await this.preparePlaceAndTakePerpOrderWithAdditionalOrders(
+				orderParams,
+				makerInfo,
+				referrerInfo,
+				bracketOrdersParams,
+				txParams,
+				subAccountId,
+				cancelExistingOrders,
+				settlePnl,
+				exitEarlyIfSimFails
+			);
 
-		const txsToSign = await this.preparePlaceAndTakePerpOrderWithAdditionalOrders(
-			orderParams,
-			makerInfo,
-			referrerInfo,
-			bracketOrdersParams,
-			txParams,
-			subAccountId,
-			cancelExistingOrders,
-			settlePnl,
-			exitEarlyIfSimFails
-		);
-
-		const signedTxs = (await this.txHandler.getSignedTransactionMap(
-			txsToSign,
-			this.provider.wallet
-		)).signedTxMap;
+		const signedTxs = (
+			await this.txHandler.getSignedTransactionMap(
+				txsToSign,
+				this.provider.wallet
+			)
+		).signedTxMap;
 
 		const { txSig, slot } = await this.sendTransaction(
 			signedTxs.placeAndTakeTx,
@@ -4790,7 +4782,8 @@ export class DriftClient {
 
 		return {
 			txSig,
-			signedCancelExistingOrdersTx: signedTxs.cancelExistingOrdersTx as Transaction,
+			signedCancelExistingOrdersTx:
+				signedTxs.cancelExistingOrdersTx as Transaction,
 			signedSettlePnlTx: signedTxs.settlePnlTx as Transaction,
 		};
 	}
@@ -4952,7 +4945,6 @@ export class DriftClient {
 		txParams?: TxParams,
 		subAccountId?: number
 	) {
-
 		const tx = await this.buildTransaction(
 			await this.getPlaceAndTakeSpotOrderIx(
 				orderParams,
@@ -4978,14 +4970,16 @@ export class DriftClient {
 		subAccountId?: number
 	): Promise<TransactionSignature> {
 		const { txSig, slot } = await this.sendTransaction(
-			(await this.preparePlaceAndTakeSpotOrder(
-				orderParams,
-				fulfillmentConfig,
-				makerInfo,
-				referrerInfo,
-				txParams,
-				subAccountId
-			)).placeAndTakeSpotOrderTx,
+			(
+				await this.preparePlaceAndTakeSpotOrder(
+					orderParams,
+					fulfillmentConfig,
+					makerInfo,
+					referrerInfo,
+					txParams,
+					subAccountId
+				)
+			).placeAndTakeSpotOrderTx,
 			[],
 			this.opts,
 			false
@@ -6917,9 +6911,12 @@ export class DriftClient {
 			forceVersionedTransaction,
 		});
 	}
-	
+
 	async buildTransactionsMap(
-		instructionsMap: Record<string, (TransactionInstruction | TransactionInstruction[])>,
+		instructionsMap: Record<
+			string,
+			TransactionInstruction | TransactionInstruction[]
+		>,
 		txParams?: TxParams,
 		txVersion?: TransactionVersion,
 		lookupTables?: AddressLookupTableAccount[],
@@ -6939,7 +6936,10 @@ export class DriftClient {
 	}
 
 	async buildAndSignTransactionsMap(
-		instructionsMap: Record<string, (TransactionInstruction | TransactionInstruction[])>,
+		instructionsMap: Record<
+			string,
+			TransactionInstruction | TransactionInstruction[]
+		>,
 		txParams?: TxParams,
 		txVersion?: TransactionVersion,
 		lookupTables?: AddressLookupTableAccount[],
