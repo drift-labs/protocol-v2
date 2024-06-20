@@ -104,13 +104,15 @@ pub fn place_perp_order(
     let now = clock.unix_timestamp;
     let slot = clock.slot;
 
-    validate_user_not_being_liquidated(
-        user,
-        perp_market_map,
-        spot_market_map,
-        oracle_map,
-        state.liquidation_margin_buffer_ratio,
-    )?;
+    if !options.is_liquidation() {
+        validate_user_not_being_liquidated(
+            user,
+            perp_market_map,
+            spot_market_map,
+            oracle_map,
+            state.liquidation_margin_buffer_ratio,
+        )?;
+    }
 
     validate!(!user.is_bankrupt(), ErrorCode::UserBankrupt)?;
 
@@ -309,7 +311,7 @@ pub fn place_perp_order(
     options.update_risk_increasing(risk_increasing);
 
     // when orders are placed in bulk, only need to check margin on last place
-    if options.enforce_margin_check {
+    if options.enforce_margin_check && !options.is_liquidation() {
         meets_place_order_margin_requirement(
             user,
             perp_market_map,

@@ -47,7 +47,7 @@ use crate::math::orders::{
 };
 use crate::math::position::calculate_base_asset_value_with_oracle_price;
 use crate::math::safe_math::SafeMath;
-use crate::math::safe_unwrap::SafeUnwrap;
+
 use crate::math::spot_balance::get_token_value;
 use crate::state::events::{
     emit_stack, LPAction, LPRecord, LiquidateBorrowForPerpPnlRecord,
@@ -667,10 +667,12 @@ pub fn liquidate_perp_with_fill(
     perp_market_map: &PerpMarketMap,
     spot_market_map: &SpotMarketMap,
     oracle_map: &mut OracleMap,
-    slot: u64,
-    now: i64,
+    clock: &Clock,
     state: &State,
 ) -> DriftResult {
+    let now = clock.unix_timestamp;
+    let slot = clock.slot;
+
     let mut user = load_mut!(user_loader)?;
     let mut liquidator = load_mut!(liquidator_loader)?;
 
@@ -983,7 +985,6 @@ pub fn liquidate_perp_with_fill(
 
     let order_id = user.next_order_id;
     let fill_record_id = perp_market_map.get_ref(&market_index)?.next_fill_record_id;
-    let clock = Clock::get().safe_unwrap()?;
     place_perp_order(
         state,
         &mut user,

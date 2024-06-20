@@ -746,8 +746,6 @@ pub fn handle_liquidate_perp_with_fill<'c: 'info, 'info>(
     market_index: u16,
 ) -> Result<()> {
     let clock = Clock::get()?;
-    let now = clock.unix_timestamp;
-    let slot = clock.slot;
     let state = &ctx.accounts.state;
 
     let user_key = ctx.accounts.user.key();
@@ -787,8 +785,7 @@ pub fn handle_liquidate_perp_with_fill<'c: 'info, 'info>(
         &perp_market_map,
         &spot_market_map,
         &mut oracle_map,
-        slot,
-        now,
+        &clock,
         state,
     )?;
 
