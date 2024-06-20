@@ -244,7 +244,7 @@ export async function mintUSDCToUser(
 		fakeUSDCMint.publicKey,
 		userUSDCAccount,
 		// @ts-ignore
-		provider.wallet.publicKey,
+		context.provider.wallet.publicKey,
 		usdcMintAmount.toNumber()
 	);
 	tx.add(mintToUserAccountTx);
