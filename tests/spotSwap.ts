@@ -20,7 +20,6 @@ import {
 	getTokenAmount,
 	SpotBalanceType,
 	ZERO,
-	BulkAccountLoader,
 	fetchUserStatsAccount,
 	getSerumSignerPublicKey,
 	QUOTE_PRECISION,
@@ -31,32 +30,28 @@ import {
 	createWSolTokenAccountForUser,
 	initializeQuoteSpotMarket,
 	initializeSolSpotMarket,
-	mockOracle,
+	mockOracleNoProgram,
 	mockUSDCMint,
 	mockUserUSDCAccount,
-	printTxLogs,
 } from './testHelpers';
 import { NATIVE_MINT } from '@solana/spl-token';
 import { DexInstructions, Market, OpenOrders } from '@project-serum/serum';
+import { startAnchor } from "solana-bankrun";
+import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
+import { BankrunContextWrapper } from '../sdk/src/bankrunConnection';
+
+
 describe('spot swap', () => {
-	const provider = anchor.AnchorProvider.local(undefined, {
-		commitment: 'confirmed',
-		skipPreflight: false,
-		preflightCommitment: 'confirmed',
-	});
-	const connection = provider.connection;
-	anchor.setProvider(provider);
 	const chProgram = anchor.workspace.Drift as Program;
 
 	let makerDriftClient: TestClient;
 	let makerWSOL: PublicKey;
+	let eventSubscriber: EventSubscriber;
 
-	const eventSubscriber = new EventSubscriber(connection, chProgram, {
-		commitment: 'recent',
-	});
-	eventSubscriber.subscribe();
+	let bulkAccountLoader: TestBulkAccountLoader;
 
-	const bulkAccountLoader = new BulkAccountLoader(connection, 'confirmed', 1);
+	let bankrunContextWrapper: BankrunContextWrapper;
+
 
 	let solOracle: PublicKey;
 
@@ -80,24 +75,37 @@ describe('spot swap', () => {
 	const solSpotMarketIndex = 1;
 
 	before(async () => {
-		usdcMint = await mockUSDCMint(provider);
-		makerUSDC = await mockUserUSDCAccount(usdcMint, usdcAmount, provider);
+		const context = await startAnchor("", [], []);
+
+		bankrunContextWrapper = new BankrunContextWrapper(context);
+
+        bulkAccountLoader = new TestBulkAccountLoader(bankrunContextWrapper.connection, 'processed', 1);
+
+		eventSubscriber = new EventSubscriber(
+			bankrunContextWrapper.connection.toConnection(),
+			chProgram,
+		);
+
+		await eventSubscriber.subscribe();
+
+		usdcMint = await mockUSDCMint(bankrunContextWrapper);
+		makerUSDC = await mockUserUSDCAccount(usdcMint, usdcAmount, bankrunContextWrapper);
 		makerWSOL = await createWSolTokenAccountForUser(
-			provider,
+			bankrunContextWrapper,
 			// @ts-ignore
-			provider.wallet,
+			bankrunContextWrapper.provider.wallet,
 			solAmount
 		);
 
-		solOracle = await mockOracle(100);
+		solOracle = await mockOracleNoProgram(bankrunContextWrapper, 100);
 
 		marketIndexes = [];
 		spotMarketIndexes = [0, 1];
 		oracleInfos = [{ publicKey: solOracle, source: OracleSource.PYTH }];
 
 		makerDriftClient = new TestClient({
-			connection,
-			wallet: provider.wallet,
+			connection: bankrunContextWrapper.connection.toConnection(),
+			wallet: bankrunContextWrapper.provider.wallet,
 			programID: chProgram.programId,
 			opts: {
 				commitment: 'confirmed',
@@ -105,6 +113,7 @@ describe('spot swap', () => {
 			activeSubAccountId: 0,
 			perpMarketIndexes: marketIndexes,
 			spotMarketIndexes: spotMarketIndexes,
+			subAccountIds: [],
 			oracleInfos,
 			accountSubscription: {
 				type: 'polling',
@@ -127,7 +136,7 @@ describe('spot swap', () => {
 
 		[takerDriftClient, takerWSOL, takerUSDC] =
 			await createUserWithUSDCAndWSOLAccount(
-				provider,
+				bankrunContextWrapper,
 				usdcMint,
 				chProgram,
 				solAmount,
