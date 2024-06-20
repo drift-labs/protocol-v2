@@ -524,6 +524,15 @@ export class DriftClient {
 		)) as SerumV3FulfillmentConfigAccount;
 	}
 
+	public async getSerumV3FulfillmentConfigs(): Promise<
+		SerumV3FulfillmentConfigAccount[]
+	> {
+		const accounts = await this.program.account.serumV3FulfillmentConfig.all();
+		return accounts.map(
+			(account) => account.account
+		) as SerumV3FulfillmentConfigAccount[];
+	}
+
 	public async getPhoenixV1FulfillmentConfig(
 		phoenixMarket: PublicKey
 	): Promise<PhoenixV1FulfillmentConfigAccount> {
@@ -534,6 +543,16 @@ export class DriftClient {
 		return (await this.program.account.phoenixV1FulfillmentConfig.fetch(
 			address
 		)) as PhoenixV1FulfillmentConfigAccount;
+	}
+
+	public async getPhoenixV1FulfillmentConfigs(): Promise<
+		PhoenixV1FulfillmentConfigAccount[]
+	> {
+		const accounts =
+			await this.program.account.phoenixV1FulfillmentConfig.all();
+		return accounts.map(
+			(account) => account.account
+		) as PhoenixV1FulfillmentConfigAccount[];
 	}
 
 	public async fetchMarketLookupTableAccount(): Promise<AddressLookupTableAccount> {

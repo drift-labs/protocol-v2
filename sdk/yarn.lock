@@ -32,7 +32,7 @@
     js-tokens "^4.0.0"
     picocolors "^1.0.0"
 
-"@babel/runtime@^7.10.5", "@babel/runtime@^7.12.5", "@babel/runtime@^7.24.6", "@babel/runtime@^7.24.7":
+"@babel/runtime@^7.10.5", "@babel/runtime@^7.12.5", "@babel/runtime@^7.17.2", "@babel/runtime@^7.24.6", "@babel/runtime@^7.24.7":
   version "7.24.7"
   resolved "https://registry.yarnpkg.com/@babel/runtime/-/runtime-7.24.7.tgz#f4f0d5530e8dbdf59b3451b9b3e594b6ba082e12"
   integrity sha512-UwgBRMjJP+xv857DCngvqXI3Iq6J4v0wXmwc6sapg+zyhbwmQX67LUEFrkK5tbyJ30jGuG3ZvWpBiB9LCy1kWw==
@@ -525,6 +525,15 @@
     "@solana/codecs" "2.0.0-preview.2"
     "@solana/spl-type-length-value" "0.1.0"
 
+"@solana/spl-token@0.3.7":
+  version "0.3.7"
+  resolved "https://registry.yarnpkg.com/@solana/spl-token/-/spl-token-0.3.7.tgz#6f027f9ad8e841f792c32e50920d9d2e714fc8da"
+  integrity sha512-bKGxWTtIw6VDdCBngjtsGlKGLSmiu/8ghSt/IOYJV24BsymRbgq7r12GToeetpxmPaZYLddKwAz7+EwprLfkfg==
+  dependencies:
+    "@solana/buffer-layout" "^4.0.0"
+    "@solana/buffer-layout-utils" "^0.2.0"
+    buffer "^6.0.3"
+
 "@solana/spl-token@^0.1.6":
   version "0.1.8"
   resolved "https://registry.yarnpkg.com/@solana/spl-token/-/spl-token-0.1.8.tgz#f06e746341ef8d04165e21fc7f555492a2a0faa6"
@@ -706,9 +715,9 @@
   integrity sha512-Z61JK7DKDtdKTWwLeElSEBcWGRLY8g95ic5FoQqI9CMx0ns/Ghep3B4DfcEimiKMvtamNVULVNKEsiwV3aQmXw==
 
 "@types/node@*", "@types/node@>=13.7.0":
-  version "20.14.6"
-  resolved "https://registry.yarnpkg.com/@types/node/-/node-20.14.6.tgz#f3c19ffc98c2220e18de259bb172dd4d892a6075"
-  integrity sha512-JbA0XIJPL1IiNnU7PFxDXyfAwcwVVrOoqyzzyQTyMeVhBzkJVMSkC1LlVsRQ2lpqiY4n6Bb9oCS6lzDKVQxbZw==
+  version "20.14.7"
+  resolved "https://registry.yarnpkg.com/@types/node/-/node-20.14.7.tgz#342cada27f97509eb8eb2dbc003edf21ce8ab5a8"
+  integrity sha512-uTr2m2IbJJucF3KUxgnGOZvYbN0QgkGyWxG6973HCpMYFy2KfcgYuIwkJQMQkt1VbBMlvWRbpshFTLxnxCZjKQ==
   dependencies:
     undici-types "~5.26.4"
 
@@ -718,9 +727,9 @@
   integrity sha512-J8xLz7q2OFulZ2cyGTLE1TbbZcjpno7FaN6zdJNrgAdrJ+DZzh/uFR6YrTb4C+nXakvud8Q4+rbhoIWlYQbUFQ==
 
 "@types/node@^18.11.13":
-  version "18.19.37"
-  resolved "https://registry.yarnpkg.com/@types/node/-/node-18.19.37.tgz#506ee89d6b5edd5a4c4e01b22162dd8309718a35"
-  integrity sha512-Pi53fdVMk7Ig5IfAMltQQMgtY7xLzHaEous8IQasYsdQbYK3v90FkxI3XYQCe/Qme58pqp14lXJIsFmGP8VoZQ==
+  version "18.19.38"
+  resolved "https://registry.yarnpkg.com/@types/node/-/node-18.19.38.tgz#cf4f04c1dab1fcaaa514ec789cf5125184c8c5d8"
+  integrity sha512-SApYXUF7si4JJ+lO2o6X60OPOnA6wPpbiB09GMCkQ+JAwpa9hxUVG8p7GzA08TKQn5OhzK57rj1wFj+185YsGg==
   dependencies:
     undici-types "~5.26.4"
 
@@ -2552,6 +2561,19 @@ rimraf@^3.0.2:
   integrity sha512-JZkJMZkAGFFPP2YqXZXPbMlMBgsxzE8ILs4lMIX/2o0L9UBw9O/Y3o6wFw/i9YLapcUJWwqbi3kdxIPdC62TIA==
   dependencies:
     glob "^7.1.3"
+
+rpc-websockets@7.5.1:
+  version "7.5.1"
+  resolved "https://registry.yarnpkg.com/rpc-websockets/-/rpc-websockets-7.5.1.tgz#e0a05d525a97e7efc31a0617f093a13a2e10c401"
+  integrity sha512-kGFkeTsmd37pHPMaHIgN1LVKXMi0JD782v4Ds9ZKtLlwdTKjn+CxM9A9/gLT2LaOuEcEFGL98h1QWQtlOIdW0w==
+  dependencies:
+    "@babel/runtime" "^7.17.2"
+    eventemitter3 "^4.0.7"
+    uuid "^8.3.2"
+    ws "^8.5.0"
+  optionalDependencies:
+    bufferutil "^4.0.1"
+    utf-8-validate "^5.0.2"
 
 rpc-websockets@^7.5.1:
   version "7.11.2"
