@@ -39,15 +39,28 @@ export class BlockhashSubscriber {
 		return this.latestBlockHeightContext;
 	}
 
+	/**
+	 * Returns the latest cached blockhash, based on an offset from the latest obtained
+	 * @param offset Offset to use, defaulting to 0
+	 * @param offsetType If 'seconds', it will use calculate the actual element offset based on the update interval; otherwise it will return a fixed index
+	 * @returns Cached blockhash at the given offset, or undefined
+	 */
 	getLatestBlockhash(
-		offset?: number
+		offset = 0,
+		offsetType: 'index' | 'seconds' = 'index'
 	): BlockhashWithExpiryBlockHeight | undefined {
 		if (this.blockhashes.length === 0) {
 			return undefined;
 		}
+
+		const elementOffset =
+			offsetType == 'seconds'
+				? Math.floor((offset * 1000) / this.updateIntervalMs)
+				: offset;
+
 		const clampedOffset = Math.max(
 			0,
-			Math.min(this.blockhashes.length - 1, offset ?? 0)
+			Math.min(this.blockhashes.length - 1, elementOffset)
 		);
 
 		return this.blockhashes[this.blockhashes.length - 1 - clampedOffset];
