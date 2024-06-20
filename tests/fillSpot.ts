@@ -167,6 +167,10 @@ describe('place and fill spot order', () => {
 		await fillerDriftClientUser.subscribe();
 	});
 
+	after(async () => {
+		await fillerDriftClient.unsubscribe();
+		await fillerDriftClientUser.unsubscribe();
+	});
 
 	it('fill via match', async () => {
 		const takerDriftClient = await createTestClient({
@@ -263,5 +267,7 @@ describe('place and fill spot order', () => {
 
 		await takerDriftClientUser.unsubscribe();
 		await takerDriftClient.unsubscribe();
+		await makerDriftClient.unsubscribe();
+		await makerDriftClientUser.unsubscribe();
 	});
 });

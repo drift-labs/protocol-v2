@@ -2,7 +2,7 @@ import * as anchor from '@coral-xyz/anchor';
 import { assert } from 'chai';
 
 import { Program } from '@coral-xyz/anchor';
-import { setFeedPrice } from './testHelpers';
+import { setFeedPriceNoProgram } from './testHelpers';
 import { PublicKey } from '@solana/web3.js';
 import {
 	PositionDirection,
@@ -112,6 +112,7 @@ describe('test function when spot market at >= 100% util', () => {
 			activeSubAccountId: 0,
 			perpMarketIndexes: marketIndexes,
 			spotMarketIndexes: spotMarketIndexes,
+			subAccountIds: [],
 			oracleInfos,
 			accountSubscription: {
 				type: 'polling',
@@ -556,6 +557,10 @@ describe('test function when spot market at >= 100% util', () => {
 			driftClient: firstUserDriftClient,
 			userAccountPublicKey:
 				await firstUserDriftClient.getUserAccountPublicKey(),
+				accountSubscription: {
+					type: 'polling',
+					accountLoader: bulkAccountLoader,
+					},
 		});
 		await takerDriftClientUser.subscribe();
 
@@ -670,6 +675,10 @@ describe('test function when spot market at >= 100% util', () => {
 			driftClient: firstUserDriftClient,
 			userAccountPublicKey:
 				await firstUserDriftClient.getUserAccountPublicKey(),
+				accountSubscription: {
+					type: 'polling',
+					accountLoader: bulkAccountLoader,
+					},
 		});
 		await takerDriftClientUser.subscribe();
 
@@ -742,7 +751,7 @@ describe('test function when spot market at >= 100% util', () => {
 
 		//ensure that borrow cant borrow more to settle pnl
 		console.log('set pyth price to 32.99');
-		await setFeedPrice(anchor.workspace.Pyth, 32.99, solOracle);
+		await setFeedPriceNoProgram(bankrunContextWrapper, 32.99, solOracle);
 		await firstUserDriftClient.fetchAccounts();
 		await secondUserDriftClient.fetchAccounts();
 
@@ -780,7 +789,7 @@ describe('test function when spot market at >= 100% util', () => {
 
 		//allow that deposit to settle negative pnl for borrow
 		console.log('set pyth price to 27.4');
-		await setFeedPrice(anchor.workspace.Pyth, 27.4, solOracle);
+		await setFeedPriceNoProgram(bankrunContextWrapper, 27.4, solOracle);
 		await firstUserDriftClient.fetchAccounts();
 		await secondUserDriftClient.fetchAccounts();
 

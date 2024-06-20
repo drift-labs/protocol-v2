@@ -161,6 +161,12 @@ describe('liquidate spot', () => {
 		await driftClient.withdraw(solBorrow, 1, userWSOLAccount);
 	});
 
+	after(async () => {
+		await driftClient.unsubscribe();
+		await liquidatorDriftClient.unsubscribe();
+		await eventSubscriber.unsubscribe();
+	});
+	
 	it('liquidate', async () => {
 		const user = new User({
 			driftClient: driftClient,

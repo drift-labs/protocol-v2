@@ -118,6 +118,11 @@ describe('AMM Curve', () => {
 		await userAccount.subscribe();
 	});
 
+	after(async () => {
+		await driftClient.unsubscribe();
+		await userAccount.unsubscribe();
+	});
+
 	const showCurve = async (marketIndex) => {
 		const marketData = driftClient.getPerpMarketAccount(marketIndex);
 		const ammAccountState = marketData.amm;

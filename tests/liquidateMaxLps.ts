@@ -178,6 +178,11 @@ describe('max lp liq', () => {
 		);
 	});
 
+	after(async () => {
+		await driftClient.unsubscribe();
+		await liquidatorDriftClient.unsubscribe();
+	});
+
 	it('liquidate', async () => {
 		await setFeedPriceNoProgram(bankrunContextWrapper, 0.1, oracle);
 

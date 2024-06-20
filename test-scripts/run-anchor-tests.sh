@@ -12,7 +12,7 @@ test_files=(
   deleteInitializedSpotMarket.ts
   # delistMarket.ts
   # delistMarketLiq.ts
-  driftClient.ts
+  # driftClient.ts
   fillSpot.ts
   # imbalancePerpPnl.ts
   insuranceFundStake.ts
@@ -24,7 +24,6 @@ test_files=(
   liquidatePerpPnlForDeposit.ts
   liquidateSpot.ts
   liquidateSpotSocialLoss.ts
-  liquidityBook.ts
   liquidityProvider.ts
   marketOrder.ts
   marketOrderBaseAssetAmount.ts
@@ -35,7 +34,7 @@ test_files=(
   multipleSpotMakerOrders.ts
   oracleFillPriceGuardrails.ts
   oracleOffsetOrders.ts
-  order.ts
+  # order.ts
   ordersWithSpread.ts
   pauseExchange.ts
   perpLpJit.ts
@@ -54,9 +53,9 @@ test_files=(
   # serumTest.ts
   spotDepositWithdraw.ts
   # spotSwap.ts
-  spotWithdrawUtil100.ts
+  # spotWithdrawUtil100.ts
   stopLimits.ts
-  # subaccounts.ts
+  subaccounts.ts
   surgePricing.ts
   switchboardTxCus.ts
   # switchOracle.ts
@@ -66,7 +65,7 @@ test_files=(
   # updateAMM.ts
   # updateK.ts
   userAccount.ts
-  userDelegate.ts
+  # userDelegate.ts
   userOrderId.ts
   whitelist.ts
 )

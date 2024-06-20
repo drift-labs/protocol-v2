@@ -158,6 +158,12 @@ describe('liquidate spot w/ social loss', () => {
 		await driftClient.withdraw(solBorrow, 1, userWSOLAccount);
 	});
 
+	after(async () => {
+		await driftClient.unsubscribe();
+		await liquidatorDriftClient.unsubscribe();
+		await eventSubscriber.unsubscribe();
+	});
+	
 	it('liquidate', async () => {
 		await setFeedPriceNoProgram(bankrunContextWrapper, 200, solOracle);
 		const spotMarketBefore = driftClient.getSpotMarketAccount(0);

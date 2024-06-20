@@ -103,6 +103,10 @@ describe('cancel all orders', () => {
 		);
 	});
 
+	after(async () => {
+		await driftClient.unsubscribe();
+	});
+
 	it('cancel all orders', async () => {
 		for (let i = 0; i < 32; i++) {
 			await driftClient.placePerpOrder(

@@ -208,6 +208,12 @@ describe('liquidate borrow for perp pnl', () => {
 		await driftClient.withdraw(solBorrow, 1, userWSOLAccount);
 	});
 
+	after(async () => {
+		await driftClient.unsubscribe();
+		await liquidatorDriftClient.unsubscribe();
+		await eventSubscriber.unsubscribe();
+	});
+
 	it('liquidate', async () => {
 		await setFeedPriceNoProgram(bankrunContextWrapper, 50, solOracle);
 
