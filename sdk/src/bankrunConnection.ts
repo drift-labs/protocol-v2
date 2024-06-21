@@ -120,6 +120,7 @@ export class BankrunConnection {
 		BanksTransactionResultWithMeta
 	> = new Map();
 	private clock: Clock;
+	private accountChangeSubs = new Map<number, NodeJS.Timeout>();
 
 	private nextClientSubscriptionId = 0;
 	private onLogCallbacks = new Map<number, LogsCallback>();
@@ -417,13 +418,29 @@ export class BankrunConnection {
 
 
 	onAccountChange(
-		_publicKey: PublicKey,
-		_callback: AccountChangeCallback,
-		_commitment?: Commitment
+		publicKey: PublicKey,
+		callback: AccountChangeCallback,
+		commitment?: Commitment
 	): ClientSubscriptionId {
 		const subscriptId = this.nextClientSubscriptionId;
 
+		let lastAccountInfo: AccountInfo<Buffer> | null = null;
+
+		// console.log("Registering callback");
+		const interval = setInterval(async () => {
+			// console.log("Polling");
+			const currentAccountInfo = await this.getAccountInfoAndContext(publicKey, commitment);
+			if (lastAccountInfo && !lastAccountInfo.data.equals(currentAccountInfo.value.data)) {
+				console.log("Invokign callbcak");
+				callback(currentAccountInfo.value, currentAccountInfo.context);
+			} 
+
+			lastAccountInfo = currentAccountInfo.value;
+		}, 1_000100);
+
 		this.nextClientSubscriptionId += 1;
+
+		this.accountChangeSubs.set(subscriptId, interval);
 
 		return subscriptId;
 	}

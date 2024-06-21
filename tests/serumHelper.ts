@@ -383,22 +383,3 @@ async function signTransactions({
 		transactionsAndSigners.map(({ transaction }) => transaction)
 	);
 }
-
-async function sendAndConfirmRawTransaction(
-	connection,
-	raw,
-	commitment = 'recent'
-) {
-	const tx = await connection.sendRawTransaction(raw, {
-		skipPreflight: true,
-	});
-	return await connection.confirmTransaction(tx, commitment);
-}
-
-module.exports = {
-	listMarket,
-	fundAccount,
-	setupMarket,
-	initOrderbook,
-	DEX_PID,
-};
