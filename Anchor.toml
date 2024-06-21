@@ -19,26 +19,26 @@ token_faucet = "V4v1mQiAdLz4qwckEb45WqHYceYizoib39cDBHSWfaB"
 address = "srmqPvymJeFKQ4zGQed1GFppgkRHL9kaELCbyksJtPX"
 program = "./deps/serum_dex.so"
 
-[[test.genesis]]
-address = "PhoeNiXZ8ByJGLkxNfZRnkUfjvmuYqLR89jjFHGqdXY"
-program = "./deps/phoenix_dex.so"
+# [[test.genesis]]
+# address = "PhoeNiXZ8ByJGLkxNfZRnkUfjvmuYqLR89jjFHGqdXY"
+# program = "./deps/phoenix_dex.so"
 
-[[test.validator.account]]
-address = "HhHRvLFvZid6FD7C96H93F2MkASjYfYAx8Y2P8KMAr6b"
-filename = "./deps/configs/phoenix_sol_usdc_market.json"
+# [[test.validator.account]]
+# address = "HhHRvLFvZid6FD7C96H93F2MkASjYfYAx8Y2P8KMAr6b"
+# filename = "./deps/configs/phoenix_sol_usdc_market.json"
 
-[[test.validator.account]]
-address = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"
-filename = "./deps/configs/usdc.json"
+# [[test.genesis]]
+# address = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"
+# filename = "./deps/configs/usdc.json"
 
-[[test.validator.account]]
-address = "GDqLPXfwDHXnqwfqtEJmqovA4KEy9XhoZxkg3MVyFK9N"
-filename = "./deps/configs/phoenix_sol_usdc_seat.json"
+# [[test.validator.account]]
+# address = "GDqLPXfwDHXnqwfqtEJmqovA4KEy9XhoZxkg3MVyFK9N"
+# filename = "./deps/configs/phoenix_sol_usdc_seat.json"
 
-[[test.validator.account]]
-address = "EyZsJZJWXuix6Zgw34JXb2fAbF4d62nfUgp4tzZBPxhW"
-filename = "./deps/configs/phoenix_sol_usdc_base_vault.json"
+# [[test.validator.account]]
+# address = "EyZsJZJWXuix6Zgw34JXb2fAbF4d62nfUgp4tzZBPxhW"
+# filename = "./deps/configs/phoenix_sol_usdc_base_vault.json"
 
-[[test.validator.account]]
-address = "B9SETfVeH1vx7sEJ7v41CRJncJnpMpGxHg4Mztc3sZKX"
-filename = "./deps/configs/phoenix_sol_usdc_quote_vault.json"
+# [[test.validator.account]]
+# address = "B9SETfVeH1vx7sEJ7v41CRJncJnpMpGxHg4Mztc3sZKX"
+# filename = "./deps/configs/phoenix_sol_usdc_quote_vault.json"
