@@ -450,7 +450,7 @@ describe('drift client', () => {
 		assert.ok(market.amm.totalFeeMinusDistributions.eq(new BN(120001)));
 
 		const orderActionRecord =
-			eventSubscriber.getEventsArray('OrderActionRecord')[1];
+			eventSubscriber.getEventsArray('OrderActionRecord')[0];
 		assert.ok(orderActionRecord.taker.equals(userAccountPublicKey));
 		assert.ok(orderActionRecord.fillRecordId.eq(new BN(3)));
 		console.log(orderActionRecord.baseAssetAmountFilled.toNumber());
@@ -496,7 +496,7 @@ describe('drift client', () => {
 		assert.ok(market.amm.totalFeeMinusDistributions.eq(new BN(144001)));
 
 		const orderActionRecord =
-			eventSubscriber.getEventsArray('OrderActionRecord')[2];
+			eventSubscriber.getEventsArray('OrderActionRecord')[0];
 
 		assert.ok(orderActionRecord.taker.equals(userAccountPublicKey));
 		assert.ok(orderActionRecord.fillRecordId.eq(new BN(4)));
@@ -531,7 +531,7 @@ describe('drift client', () => {
 		assert.ok(market.amm.baseAssetAmountWithAmm.eq(new BN(-48000000000)));
 
 		const orderActionRecord =
-			eventSubscriber.getEventsArray('OrderActionRecord')[3];
+			eventSubscriber.getEventsArray('OrderActionRecord')[0];
 
 		assert.ok(orderActionRecord.taker.equals(userAccountPublicKey));
 		assert.ok(orderActionRecord.fillRecordId.eq(new BN(5)));
