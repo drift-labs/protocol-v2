@@ -209,7 +209,7 @@ describe('switch oracles', () => {
 		console.log('oraclePriceBefore', perpOraclePriceBefore.price.toNumber());
 		assert(perpOraclePriceBefore.price.eq(PRICE_PRECISION.muln(30)));
 
-		await sleep(60_000);
+		await sleep(5000);
 
 		const perpOraclePriceAfter = await driftClient.getOracleDataForPerpMarket(
 			0

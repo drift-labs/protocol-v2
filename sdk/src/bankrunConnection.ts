@@ -124,6 +124,7 @@ export class BankrunConnection {
 
 	private nextClientSubscriptionId = 0;
 	private onLogCallbacks = new Map<number, LogsCallback>();
+	private onAccountChangeCallbacks = new Map<number, [PublicKey, AccountChangeCallback]>();
 
 	constructor(banksClient: BanksClient, context: ProgramTestContext) {
 		this._banksClient = banksClient;
@@ -218,6 +219,11 @@ export class BankrunConnection {
 			for (const logCallback of this.onLogCallbacks.values()) {
 				logCallback(logs, context);
 			}
+		}
+
+		for (const [publicKey, callback] of this.onAccountChangeCallbacks.values()) {
+			const accountInfo = await this.getParsedAccountInfo(publicKey);
+			callback(accountInfo.value, accountInfo.context);
 		}
 
 		return signature;
@@ -424,25 +430,17 @@ export class BankrunConnection {
 	): ClientSubscriptionId {
 		const subscriptId = this.nextClientSubscriptionId;
 
-		let lastAccountInfo: AccountInfo<Buffer> | null = null;
-
-		// console.log("Registering callback");
-		const interval = setInterval(async () => {
-			// console.log("Polling");
-			const currentAccountInfo = await this.getAccountInfoAndContext(publicKey, commitment);
-			if (lastAccountInfo && !lastAccountInfo.data.equals(currentAccountInfo.value.data)) {
-				console.log("Invokign callbcak");
-				callback(currentAccountInfo.value, currentAccountInfo.context);
-			} 
-
-			lastAccountInfo = currentAccountInfo.value;
-		}, 1_000100);
+		this.onAccountChangeCallbacks.set(subscriptId, [publicKey, callback]);
 
 		this.nextClientSubscriptionId += 1;
 
-		this.accountChangeSubs.set(subscriptId, interval);
-
 		return subscriptId;
+	}
+
+	async removeAccountChangeListener(
+		clientSubscriptionId: ClientSubscriptionId,
+	): Promise<void> {
+		this.onAccountChangeCallbacks.delete(clientSubscriptionId);
 	}
 }
 
