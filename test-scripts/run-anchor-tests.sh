@@ -12,7 +12,7 @@ test_files=(
   deleteInitializedSpotMarket.ts
   # delistMarket.ts
   # delistMarketLiq.ts
-  # driftClient.ts
+  driftClient.ts
   fillSpot.ts
   # imbalancePerpPnl.ts
   insuranceFundStake.ts
@@ -39,7 +39,7 @@ test_files=(
   pauseExchange.ts
   perpLpJit.ts
   perpLpRiskMitigation.ts
-  # phoenixTest.ts
+  phoenixTest.ts
   placeAndMakePerp.ts
   placeAndMakeSpotOrder.ts
   postOnly.ts

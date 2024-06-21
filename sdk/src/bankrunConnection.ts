@@ -24,6 +24,7 @@ import {
 	LogsFilter,
 	LogsCallback,
 	AccountChangeCallback,
+	LAMPORTS_PER_SOL,
 } from '@solana/web3.js';
 import {
 	ProgramTestContext,
@@ -71,6 +72,10 @@ export class BankrunContextWrapper {
 		}
 		tx.sign(this.context.payer, ...additionalSigners);
 		return await this.connection.sendTransaction(tx);
+	}
+
+	async getMinimumBalanceForRentExemption(_: number): Promise<number> {
+		return 10 * LAMPORTS_PER_SOL;
 	}
 
 	async fundKeypair(
