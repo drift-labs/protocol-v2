@@ -592,26 +592,26 @@ describe('drift client', () => {
 		await driftClient.closePosition(marketIndex);
 	});
 
-	// it('Long order succeeds due to realiziable limit price ', async () => {
-	// 	const baseAssetAmount = BASE_PRECISION;
-	// 	const marketIndex = 0;
-	// 	const market = driftClient.getPerpMarketAccount(marketIndex);
-	// 	const estTradePrice = calculateTradeSlippage(
-	// 		PositionDirection.LONG,
-	// 		baseAssetAmount,
-	// 		market,
-	// 		'base'
-	// 	)[2];
+	it('Long order succeeds due to realiziable limit price ', async () => {
+		const baseAssetAmount = BASE_PRECISION;
+		const marketIndex = 0;
+		const market = driftClient.getPerpMarketAccount(marketIndex);
+		const estTradePrice = calculateTradeSlippage(
+			PositionDirection.LONG,
+			baseAssetAmount,
+			market,
+			'base'
+		)[2];
 
-	// 	await driftClient.openPosition(
-	// 		PositionDirection.LONG,
-	// 		baseAssetAmount,
-	// 		marketIndex,
-	// 		estTradePrice.add(market.amm.orderTickSize)
-	// 	);
+		await driftClient.openPosition(
+			PositionDirection.LONG,
+			baseAssetAmount,
+			marketIndex,
+			estTradePrice.add(market.amm.orderTickSize)
+		);
 
-	// 	await driftClient.fetchAccounts();
+		await driftClient.fetchAccounts();
 
-	// 	await driftClient.closePosition(marketIndex);
-	// });
+		await driftClient.closePosition(marketIndex);
+	});
 });
