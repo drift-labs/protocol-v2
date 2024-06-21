@@ -966,8 +966,6 @@ pub fn fill_perp_order(
     let mut amm_is_available = !state.amm_paused()?;
     {
         let market = &mut perp_market_map.get_ref_mut(&market_index)?;
-        amm_is_available &= !market.is_operation_paused(PerpOperation::AmmFill);
-        amm_is_available &= !market.has_too_much_drawdown()?;
         validation::perp_market::validate_perp_market(market)?;
         validate!(
             !market.is_in_settlement(now),
@@ -982,6 +980,10 @@ pub fn fill_perp_order(
             market.amm.historical_oracle_data.last_oracle_price_twap,
             market.get_max_confidence_interval_multiplier()?,
         )?;
+
+        amm_is_available &= is_oracle_valid_for_action(_oracle_validity, Some(DriftAction::FillOrderAmm))?;
+        amm_is_available &= !market.is_operation_paused(PerpOperation::AmmFill);
+        amm_is_available &= !market.has_too_much_drawdown()?;
 
         reserve_price_before = market.amm.reserve_price()?;
         oracle_price = oracle_price_data.price;
