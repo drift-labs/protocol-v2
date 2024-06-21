@@ -75,6 +75,8 @@ describe('serum spot market', () => {
 
 	const solSpotMarketIndex = 1;
 
+	let openOrdersAccount : PublicKey;
+
 	before(async () => {
 		usdcMint = await mockUSDCMint(provider);
 		makerUSDC = await mockUserUSDCAccount(usdcMint, usdcAmount, provider);
@@ -175,7 +177,7 @@ describe('serum spot market', () => {
 	});
 
 	const crankMarkets = async () => {
-		const openOrderAccounts = [];
+		const openOrdersAccounts = [];
 
 		const market = await Market.load(
 			provider.connection,
@@ -183,20 +185,15 @@ describe('serum spot market', () => {
 			{ commitment: 'recent' },
 			serumHelper.DEX_PID
 		);
-		const makerOpenOrders = (
-			await market.findOpenOrdersAccountsForOwner(
-				connection,
-				provider.wallet.publicKey
-			)
-		)[0];
-		openOrderAccounts.push(makerOpenOrders.publicKey);
+
+		openOrdersAccounts.push(openOrdersAccount);
 
 		const serumFulfillmentConfigAccount =
 			await makerDriftClient.getSerumV3FulfillmentConfig(serumMarketPublicKey);
-		openOrderAccounts.push(serumFulfillmentConfigAccount.serumOpenOrders);
+		openOrdersAccounts.push(serumFulfillmentConfigAccount.serumOpenOrders);
 
 		const consumeEventsIx = await market.makeConsumeEventsInstruction(
-			openOrderAccounts,
+			openOrdersAccounts,
 			10
 		);
 
@@ -206,7 +203,7 @@ describe('serum spot market', () => {
 		// Open orders need to be sorted correctly but not sure how to do it in js, so will run this
 		// ix sorted in both direction
 		const consumeEventsIx2 = await market.makeConsumeEventsInstruction(
-			openOrderAccounts.reverse(),
+			openOrdersAccounts.reverse(),
 			10
 		);
 
@@ -262,6 +259,8 @@ describe('serum spot market', () => {
 				selfTradeBehavior: 'abortTransaction',
 			}
 		);
+
+		openOrdersAccount = signers[0].publicKey;
 
 		await provider.sendAndConfirm(transaction, signers);
 
