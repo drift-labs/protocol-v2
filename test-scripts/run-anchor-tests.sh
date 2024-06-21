@@ -65,7 +65,7 @@ test_files=(
   # updateAMM.ts
   # updateK.ts
   userAccount.ts
-  # userDelegate.ts 
+  userDelegate.ts 
   userOrderId.ts
   whitelist.ts
 )

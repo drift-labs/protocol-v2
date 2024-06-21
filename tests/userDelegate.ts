@@ -146,7 +146,6 @@ describe('user delegate', () => {
 			activeSubAccountId: 0,
 			perpMarketIndexes: marketIndexes,
 			spotMarketIndexes: spotMarketIndexes,
-			// subAccountIds: [],
 			oracleInfos: [
 				{
 					source: OracleSource.PYTH,
@@ -154,8 +153,7 @@ describe('user delegate', () => {
 				},
 			],
 			authority: bankrunContextWrapper.provider.wallet.publicKey,
-			authoritySubAccountMap: new Map().set(delegateKeyPair.publicKey, 0),
-			// includeDelegates: true,
+			authoritySubAccountMap: new Map().set(bankrunContextWrapper.provider.wallet.publicKey, [0]),
 			accountSubscription: {
 				type: 'polling',
 				accountLoader: bulkAccountLoader,
