@@ -274,13 +274,6 @@ describe('drift client', () => {
 		console.log(orderR.takerFee.toString());
 		console.log(orderR.baseAssetAmountFilled.toString());
 
-		const txSigSettlePnl = await driftClient.settlePNL(
-			await driftClient.getUserAccountPublicKey(),
-			driftClient.getUserAccount(),
-			marketIndex
-		);
-		await printTxLogs(connection, txSigSettlePnl);
-
 		const user: any = await driftClient.program.account.user.fetch(
 			userAccountPublicKey
 		);
@@ -358,12 +351,6 @@ describe('drift client', () => {
 		);
 
 		await driftClient.fetchAccounts();
-
-		await driftClient.settlePNL(
-			await driftClient.getUserAccountPublicKey(),
-			driftClient.getUserAccount(),
-			marketIndex
-		);
 
 		await driftClient.fetchAccounts();
 		const user = driftClient.getUserAccount();
