@@ -36,7 +36,6 @@ import {
 } from './testHelpers';
 import {
 	AMM_RESERVE_PRECISION,
-	BulkAccountLoader,
 	calculateReservePrice,
 	getMarketOrderParams,
 	isVariant,
@@ -49,6 +48,14 @@ import {
 import { startAnchor } from "solana-bankrun";
 import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
 import { BankrunContextWrapper } from '../sdk/src/bankrunConnection';
+
+const enumsAreEqual = (
+	actual: Record<string, unknown>,
+	expected: Record<string, unknown>
+): boolean => {
+	return JSON.stringify(actual) === JSON.stringify(expected);
+};
+
 
 describe('orders', () => {
 	const chProgram = anchor.workspace.Drift as Program;
@@ -120,7 +127,7 @@ describe('orders', () => {
 		ethUsd = await mockOracleNoProgram(bankrunContextWrapper, 1);
 
 		const marketIndexes = [marketIndex, marketIndexBTC, marketIndexEth];
-		const spotIndexes = [0];
+		const bankIndexes = [0];
 		const oracleInfos = [
 			{ publicKey: solUsd, source: OracleSource.PYTH },
 			{ publicKey: btcUsd, source: OracleSource.PYTH },
@@ -136,7 +143,7 @@ describe('orders', () => {
 			},
 			activeSubAccountId: 0,
 			perpMarketIndexes: marketIndexes,
-			spotMarketIndexes: spotIndexes,
+			spotMarketIndexes: bankIndexes,
 			subAccountIds: [],
 			oracleInfos,
 			accountSubscription: {
@@ -203,6 +210,10 @@ describe('orders', () => {
 		driftClientUser = new User({
 			driftClient,
 			userAccountPublicKey: await driftClient.getUserAccountPublicKey(),
+			accountSubscription: {
+				type: 'polling',
+				accountLoader: bulkAccountLoader,
+				},
 		});
 		await driftClientUser.subscribe();
 
@@ -222,7 +233,7 @@ describe('orders', () => {
 			},
 			activeSubAccountId: 0,
 			perpMarketIndexes: marketIndexes,
-			spotMarketIndexes: spotIndexes,
+			spotMarketIndexes: bankIndexes,
 			subAccountIds: [],
 			oracleInfos,
 			accountSubscription: {
@@ -262,7 +273,7 @@ describe('orders', () => {
 				commitment: 'confirmed',
 			},
 			perpMarketIndexes: marketIndexes,
-			spotMarketIndexes: spotIndexes,
+			spotMarketIndexes: bankIndexes,
 			oracleInfos,
 			subAccountIds: [],
 			userStats: true,
@@ -320,11 +331,7 @@ describe('orders', () => {
 		});
 
 		const txSig = await driftClient.placePerpOrder(orderParams);
-		console.log(
-			'tx logs',
-			(await connection.getTransaction(txSig, { commitment: 'confirmed' })).meta
-				.logMessages
-		);
+		bankrunContextWrapper.printTxLogs(txSig);
 
 		await driftClient.fetchAccounts();
 		await driftClientUser.fetchAccounts();
@@ -541,18 +548,9 @@ describe('orders', () => {
 			order
 		);
 
-		const computeUnits = await findComputeUnitConsumption(
-			driftClient.program.programId,
-			connection,
-			txSig,
-			'confirmed'
-		);
+		const computeUnits = bankrunContextWrapper.connection.findComputeUnitConsumption(txSig);
 		console.log('compute units', computeUnits);
-		console.log(
-			'tx logs',
-			(await connection.getTransaction(txSig, { commitment: 'confirmed' })).meta
-				.logMessages
-		);
+		bankrunContextWrapper.printTxLogs(txSig);
 
 		await fillerDriftClient.settlePNLs(
 			[
@@ -855,7 +853,7 @@ describe('orders', () => {
 			PRICE_PRECISION
 		);
 		// move price to make liquidity for order @ $1.05 (5%)
-		setFeedPrice(anchor.workspace.Pyth, newPrice, solUsd);
+		setFeedPriceNoProgram(bankrunContextWrapper, newPrice, solUsd);
 		await driftClient.moveAmmToPrice(
 			marketIndex,
 			new BN(newPrice * PRICE_PRECISION.toNumber())
@@ -975,7 +973,7 @@ describe('orders', () => {
 			PRICE_PRECISION
 		);
 		// move price to make liquidity for order @ $1.05 (5%)
-		setFeedPrice(anchor.workspace.Pyth, newPrice, solUsd);
+		setFeedPriceNoProgram(bankrunContextWrapper, newPrice, solUsd);
 		await driftClient.moveAmmToPrice(
 			marketIndex,
 			new BN(newPrice * PRICE_PRECISION.toNumber())
@@ -1129,7 +1127,7 @@ describe('orders', () => {
 			PRICE_PRECISION
 		);
 		// move price to make liquidity for order @ $1.05 (5%)
-		setFeedPrice(anchor.workspace.Pyth, newPrice, solUsd);
+		setFeedPriceNoProgram(bankrunContextWrapper, newPrice, solUsd);
 		try {
 			await driftClient.moveAmmToPrice(
 				marketIndex,
@@ -1318,7 +1316,7 @@ describe('orders', () => {
 				driftClientUser.getUserAccount(),
 				order
 			);
-			await printTxLogs(connection, txSig);
+			bankrunContextWrapper.printTxLogs(txSig);
 		} catch (e) {
 			console.error(e);
 			throw e;
@@ -1410,7 +1408,7 @@ describe('orders', () => {
 			price.mul(new BN(96)).div(new BN(100)),
 			PRICE_PRECISION
 		);
-		setFeedPrice(anchor.workspace.Pyth, newPrice, solUsd);
+		setFeedPriceNoProgram(bankrunContextWrapper, newPrice, solUsd);
 		await driftClient.moveAmmToPrice(
 			marketIndex,
 			new BN(newPrice * PRICE_PRECISION.toNumber())
@@ -1424,11 +1422,7 @@ describe('orders', () => {
 		});
 		const txSig = await driftClient.placeAndTakePerpOrder(orderParams);
 
-		const computeUnits = await findComputeUnitConsumption(
-			driftClient.program.programId,
-			connection,
-			txSig
-		);
+		const computeUnits = bankrunContextWrapper.connection.findComputeUnitConsumption(txSig);
 		console.log('placeAndTake compute units', computeUnits[0]);
 
 		// await driftClient.settlePNL(
@@ -1478,7 +1472,7 @@ describe('orders', () => {
 		});
 
 		const placeTxSig = await whaleDriftClient.placePerpOrder(orderParams);
-		await printTxLogs(connection, placeTxSig);
+		bankrunContextWrapper.printTxLogs(placeTxSig);
 
 		await whaleDriftClient.fetchAccounts();
 		await whaleUser.fetchAccounts();

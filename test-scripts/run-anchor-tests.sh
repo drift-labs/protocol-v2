@@ -34,7 +34,7 @@ test_files=(
   multipleSpotMakerOrders.ts
   oracleFillPriceGuardrails.ts
   oracleOffsetOrders.ts
-  # order.ts
+  order.ts
   ordersWithSpread.ts
   pauseExchange.ts
   perpLpJit.ts
@@ -65,7 +65,7 @@ test_files=(
   # updateAMM.ts
   # updateK.ts
   userAccount.ts
-  # userDelegate.ts
+  # userDelegate.ts 
   userOrderId.ts
   whitelist.ts
 )
