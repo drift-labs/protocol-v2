@@ -981,7 +981,8 @@ pub fn fill_perp_order(
             market.get_max_confidence_interval_multiplier()?,
         )?;
 
-        amm_is_available &= is_oracle_valid_for_action(_oracle_validity, Some(DriftAction::FillOrderAmm))?;
+        amm_is_available &=
+            is_oracle_valid_for_action(_oracle_validity, Some(DriftAction::FillOrderAmm))?;
         amm_is_available &= !market.is_operation_paused(PerpOperation::AmmFill);
         amm_is_available &= !market.has_too_much_drawdown()?;
 
