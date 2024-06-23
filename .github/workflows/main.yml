@@ -244,7 +244,7 @@ jobs:
 
       - name: Verifiable Build
         run: |
-          solana-verify build --library-name drift
+          solana-verify build --library-name drift --base-image ellipsislabs/solana:1.16.6
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v3
