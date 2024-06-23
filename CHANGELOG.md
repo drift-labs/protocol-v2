@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Features
 
+### Fixes
+
+### Breaking
+
+## [2.84.0] - 2024-06-23
+
+### Features
+
 - program: check FillOrderAmm for amm is available ([#1107](https://github.com/drift-labs/protocol-v2/pull/1107))
 - program: add spot borrow insurance limits ([#1080](https://github.com/drift-labs/protocol-v2/pull/1080))
 - program: maker can be rewarded filler returns when amm gets fill ([#1093](https://github.com/drift-labs/protocol-v2/pull/1093))
