@@ -239,7 +239,7 @@ jobs:
 
       - name: Install Solana Verify
         run: |
-          cargo install --version 0.2.3 solana-verify
+          cargo install --locked --version 0.2.11 solana-verify
           solana-verify --version
 
       - name: Verifiable Build
