@@ -3,21 +3,14 @@
 import {
 	TOKEN_PROGRAM_ID,
 } from '@solana/spl-token';
-import { LAMPORTS_PER_SOL } from '@solana/web3.js';
+import { Account, LAMPORTS_PER_SOL, PublicKey, Transaction, SystemProgram, Connection } from '@solana/web3.js';
+import { TokenInstructions, Market, DexInstructions, OpenOrders } from "@project-serum/serum";
+import { BN } from "@coral-xyz/anchor";
+import { WRAPPED_SOL_MINT } from '../sdk/lib';
 
-const TokenInstructions = require('@project-serum/serum').TokenInstructions;
-const Market = require('@project-serum/serum').Market;
-const DexInstructions = require('@project-serum/serum').DexInstructions;
-const web3 = require('@coral-xyz/anchor').web3;
-const BN = require('@coral-xyz/anchor').BN;
-const Account = web3.Account;
-const Transaction = web3.Transaction;
-const PublicKey = web3.PublicKey;
-const SystemProgram = web3.SystemProgram;
+export const SERUM = new PublicKey("srmqPvymJeFKQ4zGQed1GFppgkRHL9kaELCbyksJtPX");
 
-const DEX_PID = new PublicKey("srmqPvymJeFKQ4zGQed1GFppgkRHL9kaELCbyksJtPX");
-
-async function listMarket({
+export async function listMarket({
 	context,
 	wallet,
 	baseMint,
@@ -36,11 +29,22 @@ async function listMarket({
 	const quoteVault = new Account();
 	const quoteDustThreshold = new BN(100);
 
-	const vaultOwner = await PublicKey.createProgramAddress(
-		[market.publicKey.toBuffer(), Buffer.from(new BN(255))],
-		dexProgramId
-	);
-	const vaultSignerNonce = new BN(255);
+	async function getVaultOwnerAndNonce() {
+		const nonce = new BN(0);
+		while (nonce.lten(255)) {
+		  try {
+			const vaultOwner = await PublicKey.createProgramAddress(
+			  [market.publicKey.toBuffer(), nonce.toArrayLike(Buffer, 'le', 8)],
+			  dexProgramId,
+			);
+			return [vaultOwner, nonce];
+		  } catch (e) {
+			nonce.iaddn(1);
+		  }
+		}
+	  }
+	  const [vaultOwner, vaultSignerNonce] = await getVaultOwnerAndNonce();
+	
 
 	const tx1 = new Transaction();
 	tx1.add(
@@ -142,7 +146,7 @@ async function listMarket({
 		await context.connection.sendTransaction(signedTransaction);
 	}
 
-	await context.getAccountInfo(market.publicKey);
+	await context.connection.getAccountInfo(market.publicKey);
 
 	return market.publicKey;
 }
@@ -163,11 +167,158 @@ async function signTransactions({
 			transaction.partialSign(...signers);
 		}
 	});
+	
 	return await wallet.signAllTransactions(
 		transactionsAndSigners.map(({ transaction }) => transaction)
 	);
 }
 
-module.exports = {
-	listMarket,
-};
+export async function makePlaceOrderTransaction(
+    connection: Connection,
+	market: Market,
+    {
+      owner,
+      payer,
+      side,
+      price,
+      size,
+      orderType = 'limit',
+      clientId,
+      openOrdersAddressKey,
+      openOrdersAccount,
+      feeDiscountPubkey = undefined,
+      selfTradeBehavior = 'decrementTake',
+      maxTs,
+      replaceIfExists = false,
+	  openOrdersAccounts = [],
+    },
+    feeDiscountPubkeyCacheDurationMs = 0,
+  ) {
+    // @ts-ignore
+    const ownerAddress: PublicKey = owner.publicKey ?? owner;
+    // const openOrdersAccounts = await this.findOpenOrdersAccountsForOwner(
+    //   connection,
+    //   ownerAddress,
+    //   cacheDurationMs,
+    // );
+    const transaction = new Transaction();
+    const signers: Account[] = [];
+
+    // Fetch an SRM fee discount key if the market supports discounts and it is not supplied
+    let useFeeDiscountPubkey: PublicKey | null;
+    if (feeDiscountPubkey) {
+      useFeeDiscountPubkey = feeDiscountPubkey;
+    } else if (
+      feeDiscountPubkey === undefined &&
+      this.supportsSrmFeeDiscounts
+    ) {
+      useFeeDiscountPubkey = (
+        await market.findBestFeeDiscountKey(
+          connection,
+          ownerAddress,
+          feeDiscountPubkeyCacheDurationMs,
+        )
+      ).pubkey;
+    } else {
+      useFeeDiscountPubkey = null;
+    }
+
+    let openOrdersAddress: PublicKey;
+    if (openOrdersAccounts.length === 0) {
+      let account;
+      if (openOrdersAccount) {
+        account = openOrdersAccount;
+      } else {
+        account = new Account();
+      }
+      transaction.add(
+        await OpenOrders.makeCreateAccountTransaction(
+          connection,
+          market.address,
+          ownerAddress,
+          account.publicKey,
+          market._programId,
+        ),
+      );
+      openOrdersAddress = account.publicKey;
+      signers.push(account);
+      // refresh the cache of open order accounts on next fetch
+    //   market._openOrdersAccountsCache[ownerAddress.toBase58()].ts = 0;
+    } else if (openOrdersAccount) {
+      openOrdersAddress = openOrdersAccount.publicKey;
+    } else if (openOrdersAddressKey) {
+      openOrdersAddress = openOrdersAddressKey;
+    } else {
+      openOrdersAddress = openOrdersAccounts[0].address;
+    }
+
+    let wrappedSolAccount: Account | null = null;
+    if (payer.equals(ownerAddress)) {
+      if (
+        (side === 'buy' && this.quoteMintAddress.equals(WRAPPED_SOL_MINT)) ||
+        (side === 'sell' && this.baseMintAddress.equals(WRAPPED_SOL_MINT))
+      ) {
+        wrappedSolAccount = new Account();
+        let lamports;
+        if (side === 'buy') {
+          lamports = Math.round(price * size * 1.01 * LAMPORTS_PER_SOL);
+          if (openOrdersAccounts.length > 0) {
+            lamports -= openOrdersAccounts[0].quoteTokenFree.toNumber();
+          }
+        } else {
+          lamports = Math.round(size * LAMPORTS_PER_SOL);
+          if (openOrdersAccounts.length > 0) {
+            lamports -= openOrdersAccounts[0].baseTokenFree.toNumber();
+          }
+        }
+        lamports = Math.max(lamports, 0) + 1e7;
+        transaction.add(
+          SystemProgram.createAccount({
+            fromPubkey: ownerAddress,
+            newAccountPubkey: wrappedSolAccount.publicKey,
+            lamports,
+            space: 165,
+            programId: TOKEN_PROGRAM_ID,
+          }),
+        );
+        transaction.add(
+          TokenInstructions.initializeAccount({
+            account: wrappedSolAccount.publicKey,
+            mint: WRAPPED_SOL_MINT,
+            owner: ownerAddress,
+          }),
+        );
+        signers.push(wrappedSolAccount);
+      } else {
+        throw new Error('Invalid payer account');
+      }
+    }
+
+    const placeOrderInstruction = this.makePlaceOrderInstruction(connection, {
+      owner,
+      payer: wrappedSolAccount?.publicKey ?? payer,
+      side,
+      price,
+      size,
+      orderType,
+      clientId,
+      openOrdersAddressKey: openOrdersAddress,
+      feeDiscountPubkey: useFeeDiscountPubkey,
+      selfTradeBehavior,
+      maxTs,
+      replaceIfExists,
+    });
+    transaction.add(placeOrderInstruction);
+
+    if (wrappedSolAccount) {
+      transaction.add(
+        TokenInstructions.closeAccount({
+          source: wrappedSolAccount.publicKey,
+          destination: ownerAddress,
+          owner: ownerAddress,
+        }),
+      );
+    }
+
+    return { transaction, signers, payer: owner };
+  }

@@ -270,7 +270,6 @@ describe('drift client', () => {
 		console.log(orderR.takerFee.toString());
 		console.log(orderR.baseAssetAmountFilled.toString());
 
-
 		const user: any = await driftClient.program.account.user.fetch(
 			userAccountPublicKey
 		);

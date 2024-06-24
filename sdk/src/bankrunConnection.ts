@@ -125,7 +125,6 @@ export class BankrunConnection {
 		BanksTransactionResultWithMeta
 	> = new Map();
 	private clock: Clock;
-	private accountChangeSubs = new Map<number, NodeJS.Timeout>();
 
 	private nextClientSubscriptionId = 0;
 	private onLogCallbacks = new Map<number, LogsCallback>();

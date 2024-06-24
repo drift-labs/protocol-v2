@@ -51,9 +51,9 @@ dependencies = [
 
 [[package]]
 name = "ahash"
-version = "0.8.4"
+version = "0.8.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "72832d73be48bac96a5d7944568f305d829ed55b0ce3b483647089dfaf6cf704"
+checksum = "91429305e9f0a25f6205c5b8e0d2db09e0708a7a6df0f42212bb56c32c8ac97a"
 dependencies = [
  "cfg-if",
  "getrandom 0.2.9",
@@ -873,8 +873,9 @@ dependencies = [
 
 [[package]]
 name = "drift"
-version = "2.83.0"
+version = "2.84.0"
 dependencies = [
+ "ahash 0.8.6",
  "anchor-lang",
  "anchor-spl",
  "arrayref",
@@ -1080,7 +1081,7 @@ version = "0.13.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "43a3c133739dddd0d2990f9a4bdf8eb4b21ef50e4851ca85ab661199821d510e"
 dependencies = [
- "ahash 0.8.4",
+ "ahash 0.8.6",
 ]
 
 [[package]]
@@ -1530,9 +1531,9 @@ dependencies = [
 
 [[package]]
 name = "once_cell"
-version = "1.15.0"
+version = "1.19.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e82dad04139b71a90c080c8463fe0dc7902db5192d939bd0950f074d014339e1"
+checksum = "3fdb12b2476b595f9358c5161aa467c2438859caa136dec86c26fdd2efe17b92"
 
 [[package]]
 name = "opaque-debug"
@@ -2147,11 +2148,11 @@ checksum = "f2dd574626839106c320a323308629dcb1acfc96e32a8cba364ddc61ac23ee83"
 
 [[package]]
 name = "solana-frozen-abi"
-version = "1.16.27"
+version = "1.16.25"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "67a96a0a64cbc75e06c8eb49d6cd0a87054c48dbf59100d9959389aba51fb501"
+checksum = "a7077f6495ccc313dff49c3e3f3ed03e49058258bae7fee77ac29ba0a474ba82"
 dependencies = [
- "ahash 0.8.4",
+ "ahash 0.8.6",
  "blake3",
  "block-buffer 0.10.4",
  "bs58 0.4.0",
@@ -2180,9 +2181,9 @@ dependencies = [
 
 [[package]]
 name = "solana-frozen-abi-macro"
-version = "1.16.27"
+version = "1.16.25"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5ae9765c963bebbf609dcdc82cfb969746cbdf6d65cfc9d94112e984475ae4ac"
+checksum = "f516f992211a2ab70de5c367190575c97e02d156f9f1d8b76886d673f30e88a2"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -2192,9 +2193,9 @@ dependencies = [
 
 [[package]]
 name = "solana-logger"
-version = "1.16.27"
+version = "1.16.25"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9c039e4336890c7a0667207caeb452187efa0602d80eca61a854f2e39915e972"
+checksum = "7b64def674bfaa4a3f8be7ba19c03c9caec4ec028ba62b9a427ec1bf608a2486"
 dependencies = [
  "env_logger",
  "lazy_static",
@@ -2203,9 +2204,9 @@ dependencies = [
 
 [[package]]
 name = "solana-program"
-version = "1.16.27"
+version = "1.16.25"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "20c16757f43d4384907f6e81924e155b8bd8228efcdcf9ea38bd4e18ea100804"
+checksum = "3e92350aa5b42564681655331e7e0b9d5c99a442de317ceeb4741efbbe9a6c05"
 dependencies = [
  "ark-bn254",
  "ark-ec",
@@ -2258,9 +2259,9 @@ dependencies = [
 
 [[package]]
 name = "solana-sdk"
-version = "1.16.27"
+version = "1.16.25"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cdf179cda65775982e5f31da8d58dfa4349c3b5ae1573ceb507c7fc91df66690"
+checksum = "2087e15c92d4d6b3f085dc12fbe9614141c811f90a54cc418240ac30b608133f"
 dependencies = [
  "assert_matches",
  "base64 0.21.7",
@@ -2311,9 +2312,9 @@ dependencies = [
 
 [[package]]
 name = "solana-sdk-macro"
-version = "1.16.27"
+version = "1.16.25"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7f188d6fe76183137a4922274acbe76fc4fcc474b3fad860bb2612cb225e6e2a"
+checksum = "2e0e0e7ee984b0f9179a1d4f4e9e67ce675de2324b5a98b61d2bdb61be3c19bb"
 dependencies = [
  "bs58 0.4.0",
  "proc-macro2",
@@ -2330,9 +2331,9 @@ checksum = "7e0461f3afb29d8591300b3dd09b5472b3772d65688a2826ad960b8c0d5fa605"
 
 [[package]]
 name = "solana-zk-token-sdk"
-version = "1.16.27"
+version = "1.16.25"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9513c4f1595b61f8a39a14c27535da2b2145c20c6b35ab491a1830981972b2bd"
+checksum = "1457c85ab70a518438b9ac2b0c56037b9f6693060dfb617bbb93c7116e4f0c22"
 dependencies = [
  "aes-gcm-siv",
  "base64 0.21.7",

@@ -1382,7 +1382,7 @@ pub fn handle_update_perp_bid_ask_twap<'c: 'info, 'info>(
     );
 
     msg!(
-        "before amm ask twap = {} bid twap = {} ts = {}",
+        "before amm bid twap = {} ask twap = {} ts = {}",
         perp_market.amm.last_bid_price_twap,
         perp_market.amm.last_ask_price_twap,
         perp_market.amm.last_mark_price_twap_ts
@@ -1399,7 +1399,7 @@ pub fn handle_update_perp_bid_ask_twap<'c: 'info, 'info>(
     )?;
 
     msg!(
-        "after amm ask twap = {} bid twap = {} ts = {}",
+        "after amm bid twap = {} ask twap = {} ts = {}",
         perp_market.amm.last_bid_price_twap,
         perp_market.amm.last_ask_price_twap,
         perp_market.amm.last_mark_price_twap_ts

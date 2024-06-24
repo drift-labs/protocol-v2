@@ -4,8 +4,7 @@ import { assert } from 'chai';
 import { Program } from '@coral-xyz/anchor';
 
 import { Keypair, PublicKey, Transaction } from '@solana/web3.js';
-const serumHelper = require('./serumHelper');
-
+import { listMarket, makePlaceOrderTransaction, SERUM } from './serumHelper';
 import {
 	BN,
 	TestClient,
@@ -37,7 +36,6 @@ import { startAnchor } from "solana-bankrun";
 import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
 import { BankrunContextWrapper } from '../sdk/src/bankrunConnection';
 
-const SERUM = new PublicKey("srmqPvymJeFKQ4zGQed1GFppgkRHL9kaELCbyksJtPX");
 
 describe('serum spot market', () => {
 	const chProgram = anchor.workspace.Drift as Program;
@@ -71,7 +69,7 @@ describe('serum spot market', () => {
 
 	const solSpotMarketIndex = 1;
 
-	let openOrdersAccount : PublicKey;
+	let openOrdersAccount: PublicKey;
 
 	before(async () => {
 		const context = await startAnchor("", [
@@ -159,7 +157,7 @@ describe('serum spot market', () => {
 	});
 
 	it('Add Serum Market', async () => {
-		serumMarketPublicKey = await serumHelper.listMarket({
+		serumMarketPublicKey = await listMarket({
 			context: bankrunContextWrapper,
 			wallet: bankrunContextWrapper.provider.wallet,
 			baseMint: NATIVE_MINT,
@@ -252,11 +250,12 @@ describe('serum spot market', () => {
 		);
 
 		// @ts-ignore
-		const { transaction, signers } = await market.makePlaceOrderTransaction(
+		const { transaction, signers } = await makePlaceOrderTransaction(
 			bankrunContextWrapper.connection.toConnection(),
+			market,
 			{
 				// @ts-ignore
-				owner: provider.wallet,
+				owner: bankrunContextWrapper.provider.wallet,
 				payer: makerWSOL,
 				side: 'sell',
 				price: 100,
@@ -367,11 +366,12 @@ describe('serum spot market', () => {
 		);
 
 		// @ts-ignore
-		const { transaction, signers } = await market.makePlaceOrderTransaction(
+		const { transaction, signers } = await makePlaceOrderTransaction(
 			bankrunContextWrapper.connection.toConnection(),
+			market,
 			{
 				// @ts-ignore
-				owner: provider.wallet,
+				owner: bankrunContextWrapper.provider.wallet,
 				payer: makerUSDC.publicKey,
 				side: 'buy',
 				price: 100,
@@ -481,11 +481,12 @@ describe('serum spot market', () => {
 		);
 
 		// @ts-ignore
-		const { transaction, signers } = await market.makePlaceOrderTransaction(
+		const { transaction, signers } = await makePlaceOrderTransaction(
 			bankrunContextWrapper.connection.toConnection(),
+			market,
 			{
 				// @ts-ignore
-				owner: provider.wallet,
+				owner: bankrunContextWrapper.provider.wallet,
 				payer: makerWSOL,
 				side: 'sell',
 				price: 100,
@@ -573,11 +574,12 @@ describe('serum spot market', () => {
 		);
 
 		// @ts-ignore
-		const { transaction, signers } = await market.makePlaceOrderTransaction(
+		const { transaction, signers } = await makePlaceOrderTransaction(
 			bankrunContextWrapper.connection.toConnection(),
+			market,
 			{
 				// @ts-ignore
-				owner: provider.wallet,
+				owner: bankrunContextWrapper.provider.wallet,
 				payer: makerUSDC.publicKey,
 				side: 'buy',
 				price: 100,
