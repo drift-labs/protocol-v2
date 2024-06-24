@@ -3,7 +3,7 @@ import { assert } from 'chai';
 
 import { Program } from '@coral-xyz/anchor';
 
-import { Keypair, PublicKey } from '@solana/web3.js';
+import { PublicKey } from '@solana/web3.js';
 
 import {
 	BASE_PRECISION,
@@ -35,7 +35,7 @@ import {
 	QUOTE_PRECISION,
 	UserStatus,
 } from '../sdk';
-import { startAnchor } from "solana-bankrun";
+import { startAnchor } from 'solana-bankrun';
 import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
 import { BankrunContextWrapper } from '../sdk/src/bankrunConnection';
 
@@ -68,19 +68,26 @@ describe('liquidate perp pnl for deposit', () => {
 	);
 
 	const usdcAmount = new BN(10 * 10 ** 6);
-	let liquidatorKeypair: Keypair;
 
 	let _throwaway: PublicKey;
 
 	before(async () => {
-		const context = await startAnchor("", [], []);
+		const context = await startAnchor('', [], []);
 
 		bankrunContextWrapper = new BankrunContextWrapper(context);
 
-        bulkAccountLoader = new TestBulkAccountLoader(bankrunContextWrapper.connection, 'processed', 1);
+		bulkAccountLoader = new TestBulkAccountLoader(
+			bankrunContextWrapper.connection,
+			'processed',
+			1
+		);
 
 		usdcMint = await mockUSDCMint(bankrunContextWrapper);
-		userUSDCAccount = await mockUserUSDCAccount(usdcMint, usdcAmount, bankrunContextWrapper);
+		userUSDCAccount = await mockUserUSDCAccount(
+			usdcMint,
+			usdcAmount,
+			bankrunContextWrapper
+		);
 		userWSOLAccount = await createWSolTokenAccountForUser(
 			bankrunContextWrapper,
 			// @ts-ignore
@@ -90,7 +97,7 @@ describe('liquidate perp pnl for deposit', () => {
 
 		eventSubscriber = new EventSubscriber(
 			bankrunContextWrapper.connection.toConnection(),
-			chProgram,
+			chProgram
 		);
 
 		await eventSubscriber.subscribe();
@@ -169,7 +176,7 @@ describe('liquidate perp pnl for deposit', () => {
 		);
 
 		const solAmount = new BN(10 * 10 ** 9);
-		[liquidatorDriftClient, liquidatorDriftClientWSOLAccount, _throwaway, liquidatorKeypair] =
+		[liquidatorDriftClient, liquidatorDriftClientWSOLAccount, _throwaway] =
 			await createUserWithUSDCAndWSOLAccount(
 				bankrunContextWrapper,
 				usdcMint,
@@ -204,7 +211,7 @@ describe('liquidate perp pnl for deposit', () => {
 		await liquidatorDriftClient.unsubscribe();
 		await eventSubscriber.unsubscribe();
 	});
-	
+
 	it('liquidate', async () => {
 		await setFeedPriceNoProgram(bankrunContextWrapper, 50, solOracle);
 		await driftClient.updateInitialPctToLiquidate(
@@ -243,7 +250,7 @@ describe('liquidate perp pnl for deposit', () => {
 		// console.log(u.spotPositions[0]);
 		// console.log(u.spotPositions[1]);
 		// console.log(u.perpPositions[0]);
-		
+
 		const txSig = await liquidatorDriftClient.liquidatePerpPnlForDeposit(
 			await driftClient.getUserAccountPublicKey(),
 			driftClient.getUserAccount(),
@@ -252,7 +259,8 @@ describe('liquidate perp pnl for deposit', () => {
 			usdcAmount.mul(new BN(600))
 		);
 
-		const computeUnits = bankrunContextWrapper.connection.findComputeUnitConsumption(txSig);
+		const computeUnits =
+			bankrunContextWrapper.connection.findComputeUnitConsumption(txSig);
 		console.log('compute units', computeUnits);
 		bankrunContextWrapper.connection.printTxLogs(txSig);
 

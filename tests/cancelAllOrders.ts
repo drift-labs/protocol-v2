@@ -7,7 +7,6 @@ import {
 	TestClient,
 	PRICE_PRECISION,
 	PositionDirection,
-	decodeUser,
 } from '../sdk/src';
 import { assert } from 'chai';
 
@@ -19,10 +18,10 @@ import {
 	initializeQuoteSpotMarket,
 	mockOracleNoProgram,
 } from './testHelpers';
-import { startAnchor } from "solana-bankrun";
+import { startAnchor } from 'solana-bankrun';
 import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
 import { BankrunContextWrapper } from '../sdk/src/bankrunConnection';
-import {isVariant} from "../sdk";
+import { isVariant } from '../sdk';
 
 describe('cancel all orders', () => {
 	const chProgram = anchor.workspace.Drift as Program;
@@ -48,14 +47,22 @@ describe('cancel all orders', () => {
 	const usdcAmount = new BN(10 * 10 ** 6);
 
 	before(async () => {
-		const context = await startAnchor("", [], []);
+		const context = await startAnchor('', [], []);
 
 		bankrunContextWrapper = new BankrunContextWrapper(context);
 
-        bulkAccountLoader = new TestBulkAccountLoader(bankrunContextWrapper.connection, 'processed', 1);
+		bulkAccountLoader = new TestBulkAccountLoader(
+			bankrunContextWrapper.connection,
+			'processed',
+			1
+		);
 
 		usdcMint = await mockUSDCMint(bankrunContextWrapper);
-		userUSDCAccount = await mockUserUSDCAccount(usdcMint, usdcAmount, bankrunContextWrapper);
+		userUSDCAccount = await mockUserUSDCAccount(
+			usdcMint,
+			usdcAmount,
+			bankrunContextWrapper
+		);
 
 		const oracle = await mockOracleNoProgram(bankrunContextWrapper, 1);
 

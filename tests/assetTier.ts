@@ -36,11 +36,10 @@ import {
 	// getFeedData,
 	// sleep,
 } from './testHelpers';
-import { startAnchor } from "solana-bankrun";
+import { startAnchor } from 'solana-bankrun';
 import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
 import { BankrunContextWrapper } from '../sdk/src/bankrunConnection';
 import { ContractTier } from '../sdk';
-
 
 describe('asset tiers', () => {
 	const chProgram = anchor.workspace.Drift as Program;
@@ -66,11 +65,15 @@ describe('asset tiers', () => {
 	const solAmount = new BN(10000 * 10 ** 9);
 
 	before(async () => {
-		const context = await startAnchor("", [], []);
+		const context = await startAnchor('', [], []);
 
 		const bankrunContextWrapper = new BankrunContextWrapper(context);
 
-        bulkAccountLoader = new TestBulkAccountLoader(bankrunContextWrapper.connection, 'processed', 1);
+		bulkAccountLoader = new TestBulkAccountLoader(
+			bankrunContextWrapper.connection,
+			'processed',
+			1
+		);
 
 		usdcMint = await mockUSDCMint(bankrunContextWrapper);
 		dogeMint = await mockUSDCMint(bankrunContextWrapper);
@@ -78,7 +81,7 @@ describe('asset tiers', () => {
 		userUSDCAccount = await mockUserUSDCAccount(
 			usdcMint,
 			usdcAmount.mul(new BN(2)), // 2x it
-			bankrunContextWrapper,
+			bankrunContextWrapper
 		);
 
 		solOracle = await mockOracleNoProgram(bankrunContextWrapper, 22500); // a future we all need to believe in
@@ -140,7 +143,10 @@ describe('asset tiers', () => {
 		const subAccountId = 0;
 		const name = 'BIGZ';
 		await driftClient.initializeUserAccount(subAccountId, name);
-		const depositAmount = driftClient.convertToSpotPrecision(QUOTE_SPOT_MARKET_INDEX, 1);
+		const depositAmount = driftClient.convertToSpotPrecision(
+			QUOTE_SPOT_MARKET_INDEX,
+			1
+		);
 		console.log(`\n\n\n\n\n\n depositing here: ${depositAmount}`);
 		await driftClient.deposit(
 			// $10k
@@ -185,16 +191,20 @@ describe('asset tiers', () => {
 		secondUserDriftClient.subscribe();
 
 		const marketIndex = 1;
-		console.log("\n\n\n\n\n\n\n\n\n\n FIRST depositing for second user: " + solAmount);
-		const txSig = await secondUserDriftClient.deposit(
+		console.log(
+			'\n\n\n\n\n\n\n\n\n\n FIRST depositing for second user: ' + solAmount
+		);
+		await secondUserDriftClient.deposit(
 			solAmount,
 			marketIndex,
 			secondUserDriftClientWSOLAccount
 		);
 		// await printTxLogs(connection, txSig);
 
-		console.log("\n\n\n\n\n\n\n\n\n\n SECOND depositing for second user: " + usdcAmount);
-		const txSig2 = await secondUserDriftClient.deposit(
+		console.log(
+			'\n\n\n\n\n\n\n\n\n\n SECOND depositing for second user: ' + usdcAmount
+		);
+		await secondUserDriftClient.deposit(
 			usdcAmount,
 			2,
 			secondUserDriftClientDogeAccount
@@ -216,7 +226,7 @@ describe('asset tiers', () => {
 		console.log('updateSpotMarketAssetTier for USDC to PROTECTED');
 
 		try {
-			const txSig = await secondUserDriftClient.withdraw(
+			await secondUserDriftClient.withdraw(
 				usdcBorrowAmount,
 				0,
 				secondUserDriftClientUSDCAccount,
@@ -260,7 +270,7 @@ describe('asset tiers', () => {
 		assert(isVariant(dogeMarketAfter.assetTier, 'isolated'));
 		console.log('DOGE asset tier:', dogeMarketAfter.assetTier);
 
-		const txSig = await secondUserDriftClient.withdraw(
+		await secondUserDriftClient.withdraw(
 			new BN(1),
 			2,
 			secondUserDriftClientDogeAccount,
@@ -271,7 +281,7 @@ describe('asset tiers', () => {
 		await secondUserDriftClient.fetchAccounts();
 
 		try {
-			const txSig = await secondUserDriftClient.withdraw(
+			await secondUserDriftClient.withdraw(
 				usdcBorrowAmount,
 				0,
 				secondUserDriftClientUSDCAccount,
@@ -298,7 +308,7 @@ describe('asset tiers', () => {
 		console.log('USDC asset tier:', scQuoteMarketAfterAgain.assetTier);
 
 		try {
-			const txSig2 = await secondUserDriftClient.withdraw(
+			await secondUserDriftClient.withdraw(
 				QUOTE_PRECISION.divn(2),
 				0,
 				secondUserDriftClientUSDCAccount,

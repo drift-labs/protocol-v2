@@ -13,42 +13,42 @@ test_files=(
   # spotWithdrawUtil100.ts
   # updateAMM.ts
   # updateK.ts
-  # BROKEN ^^
-  # admin.ts
-  # assetTier.ts
-  # cancelAllOrders.ts
-  # curve.ts
-  # deleteInitializedSpotMarket.ts
-  # driftClient.ts
-  # fillSpot.ts
-  # insuranceFundStake.ts
-  # liquidateBorrowForPerpPnl.ts
-  # liquidateMaxLps.ts
-  # liquidatePerp.ts
-  # liquidatePerpAndLp.ts
-  # liquidatePerpPnlForDeposit.ts
-  # liquidateSpot.ts
-  # liquidateSpotSocialLoss.ts
-  # liquidityProvider.ts
-  # marketOrder.ts
-  # marketOrderBaseAssetAmount.ts
-  # maxDeposit.ts
-  # maxLeverageOrderParams.ts
-  # modifyOrder.ts
-  # multipleMakerOrders.ts
-  # multipleSpotMakerOrders.ts
-  # oracleFillPriceGuardrails.ts
-  # oracleOffsetOrders.ts
-  # order.ts
-  # ordersWithSpread.ts
-  # pauseExchange.ts
-  # perpLpJit.ts
-  # perpLpRiskMitigation.ts
-  # phoenixTest.ts
-  # placeAndMakePerp.ts
-  # placeAndMakeSpotOrder.ts
-  # postOnly.ts
-  postOnlyAmmFulfillment.ts
+  # postOnlyAmmFulfillment.ts
+  # TODO BROKEN ^^
+  admin.ts
+  assetTier.ts
+  cancelAllOrders.ts
+  curve.ts
+  deleteInitializedSpotMarket.ts
+  driftClient.ts
+  fillSpot.ts
+  insuranceFundStake.ts
+  liquidateBorrowForPerpPnl.ts
+  liquidateMaxLps.ts
+  liquidatePerp.ts
+  liquidatePerpAndLp.ts
+  liquidatePerpPnlForDeposit.ts
+  liquidateSpot.ts
+  liquidateSpotSocialLoss.ts
+  liquidityProvider.ts
+  marketOrder.ts
+  marketOrderBaseAssetAmount.ts
+  maxDeposit.ts
+  maxLeverageOrderParams.ts
+  modifyOrder.ts
+  multipleMakerOrders.ts
+  multipleSpotMakerOrders.ts
+  oracleFillPriceGuardrails.ts
+  oracleOffsetOrders.ts
+  order.ts
+  ordersWithSpread.ts
+  pauseExchange.ts
+  perpLpJit.ts
+  perpLpRiskMitigation.ts
+  phoenixTest.ts
+  placeAndMakePerp.ts
+  placeAndMakeSpotOrder.ts
+  postOnly.ts
   prelisting.ts
   pyth.ts
   pythPull.ts

@@ -38,7 +38,12 @@ export class TokenFaucet {
 		this.wallet = wallet;
 		this.opts = opts || AnchorProvider.defaultOptions();
 		// @ts-ignore
-		const provider = new AnchorProvider(context.connection.toConnection(), wallet, this.opts);
+		const provider = new AnchorProvider(
+			context.connection.toConnection(),
+			// @ts-ignore
+			wallet,
+			this.opts
+		);
 		this.provider = provider;
 		this.program = new Program(tokenFaucet as Idl, programId, provider);
 		this.mint = mint;
@@ -151,9 +156,8 @@ export class TokenFaucet {
 		let associatedTokenAccountExists = false;
 
 		try {
-			const assosciatedTokenAccount = await this.context.connection.getAccountInfo(
-				associatedTokenPublicKey
-			);
+			const assosciatedTokenAccount =
+				await this.context.connection.getAccountInfo(associatedTokenPublicKey);
 
 			associatedTokenAccountExists = !!assosciatedTokenAccount;
 		} catch (e) {

@@ -32,10 +32,9 @@ import {
 import { NATIVE_MINT } from '@solana/spl-token';
 import { Market } from '@project-serum/serum';
 import { getMarketOrderParams, ZERO } from '../sdk';
-import { startAnchor } from "solana-bankrun";
+import { startAnchor } from 'solana-bankrun';
 import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
 import { BankrunContextWrapper } from '../sdk/src/bankrunConnection';
-
 
 describe('serum spot market', () => {
 	const chProgram = anchor.workspace.Drift as Program;
@@ -72,26 +71,40 @@ describe('serum spot market', () => {
 	let openOrdersAccount: PublicKey;
 
 	before(async () => {
-		const context = await startAnchor("", [
-			{
-				name: "serum_dex",
-				programId: new PublicKey("srmqPvymJeFKQ4zGQed1GFppgkRHL9kaELCbyksJtPX"),
-			}
-		], []);
+		const context = await startAnchor(
+			'',
+			[
+				{
+					name: 'serum_dex',
+					programId: new PublicKey(
+						'srmqPvymJeFKQ4zGQed1GFppgkRHL9kaELCbyksJtPX'
+					),
+				},
+			],
+			[]
+		);
 
 		bankrunContextWrapper = new BankrunContextWrapper(context);
 
-        bulkAccountLoader = new TestBulkAccountLoader(bankrunContextWrapper.connection, 'processed', 1);
+		bulkAccountLoader = new TestBulkAccountLoader(
+			bankrunContextWrapper.connection,
+			'processed',
+			1
+		);
 
 		eventSubscriber = new EventSubscriber(
 			bankrunContextWrapper.connection.toConnection(),
-			chProgram,
+			chProgram
 		);
 
 		await eventSubscriber.subscribe();
 
 		usdcMint = await mockUSDCMint(bankrunContextWrapper);
-		makerUSDC = await mockUserUSDCAccount(usdcMint, usdcAmount, bankrunContextWrapper);
+		makerUSDC = await mockUserUSDCAccount(
+			usdcMint,
+			usdcAmount,
+			bankrunContextWrapper
+		);
 		makerWSOL = await createWSolTokenAccountForUser(
 			bankrunContextWrapper,
 			// @ts-ignore

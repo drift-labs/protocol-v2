@@ -23,13 +23,8 @@ import {
 	mockUserUSDCAccount,
 	sleep,
 } from './testHelpers';
-import {
-	PRICE_PRECISION,
-	PEG_PRECISION,
-	Wallet,
-	DriftClient,
-} from '../sdk';
-import { startAnchor } from "solana-bankrun";
+import { PRICE_PRECISION, PEG_PRECISION, Wallet, DriftClient } from '../sdk';
+import { startAnchor } from 'solana-bankrun';
 import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
 import { BankrunContextWrapper } from '../sdk/src/bankrunConnection';
 
@@ -63,15 +58,19 @@ describe('switch oracles', () => {
 	let oracleInfos: OracleInfo[];
 
 	before(async () => {
-		const context = await startAnchor("", [], []);
+		const context = await startAnchor('', [], []);
 
 		bankrunContextWrapper = new BankrunContextWrapper(context);
 
-        bulkAccountLoader = new TestBulkAccountLoader(bankrunContextWrapper.connection, 'processed', 1);
+		bulkAccountLoader = new TestBulkAccountLoader(
+			bankrunContextWrapper.connection,
+			'processed',
+			1
+		);
 
 		eventSubscriber = new EventSubscriber(
 			bankrunContextWrapper.connection.toConnection(),
-			chProgram,
+			chProgram
 		);
 
 		await eventSubscriber.subscribe();

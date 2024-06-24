@@ -29,7 +29,7 @@ import {
 	User,
 	QUOTE_SPOT_MARKET_INDEX,
 } from '../sdk/src';
-import { startAnchor } from "solana-bankrun";
+import { startAnchor } from 'solana-bankrun';
 import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
 import { BankrunContextWrapper } from '../sdk/src/bankrunConnection';
 
@@ -179,15 +179,22 @@ describe('pyth-oracle', () => {
 	let userAccount: User;
 	let userAccount2: User;
 	before(async () => {
-		const context = await startAnchor("", [], []);
+		const context = await startAnchor('', [], []);
 
 		bankrunContextWrapper = new BankrunContextWrapper(context);
 
-        bulkAccountLoader = new TestBulkAccountLoader(bankrunContextWrapper.connection, 'processed', 1);
-
+		bulkAccountLoader = new TestBulkAccountLoader(
+			bankrunContextWrapper.connection,
+			'processed',
+			1
+		);
 
 		usdcMint = await mockUSDCMint(bankrunContextWrapper);
-		userUSDCAccount = await mockUserUSDCAccount(usdcMint, usdcAmount, bankrunContextWrapper);
+		userUSDCAccount = await mockUserUSDCAccount(
+			usdcMint,
+			usdcAmount,
+			bankrunContextWrapper
+		);
 
 		const price = 50000;
 		await mockOracleNoProgram(bankrunContextWrapper, price, -6);
@@ -221,7 +228,7 @@ describe('pyth-oracle', () => {
 			accountSubscription: {
 				type: 'polling',
 				accountLoader: bulkAccountLoader,
-				},
+			},
 		});
 		await userAccount.subscribe();
 
@@ -265,21 +272,39 @@ describe('pyth-oracle', () => {
 	it('change feed price', async () => {
 		const price = 50000;
 		const expo = -9;
-		const priceFeedAddress = await mockOracleNoProgram(bankrunContextWrapper, price, expo);
+		const priceFeedAddress = await mockOracleNoProgram(
+			bankrunContextWrapper,
+			price,
+			expo
+		);
 
-		const feedDataBefore = await getFeedDataNoProgram(bankrunContextWrapper.connection, priceFeedAddress);
+		const feedDataBefore = await getFeedDataNoProgram(
+			bankrunContextWrapper.connection,
+			priceFeedAddress
+		);
 		assert.ok(feedDataBefore.price === price);
 		assert.ok(feedDataBefore.exponent === expo);
 		const newPrice = 55000;
 
-		await setFeedPriceNoProgram(bankrunContextWrapper, newPrice, priceFeedAddress);
-		const feedDataAfter = await getFeedDataNoProgram(bankrunContextWrapper.connection, priceFeedAddress);
+		await setFeedPriceNoProgram(
+			bankrunContextWrapper,
+			newPrice,
+			priceFeedAddress
+		);
+		const feedDataAfter = await getFeedDataNoProgram(
+			bankrunContextWrapper.connection,
+			priceFeedAddress
+		);
 		assert.ok(feedDataAfter.price === newPrice);
 		assert.ok(feedDataAfter.exponent === expo);
 	});
 
 	it('oracle/vamm: funding rate calc 0hour periodicity', async () => {
-		const priceFeedAddress = await mockOracleNoProgram(bankrunContextWrapper, 40, -10);
+		const priceFeedAddress = await mockOracleNoProgram(
+			bankrunContextWrapper,
+			40,
+			-10
+		);
 		const periodicity = new BN(0); // 1 HOUR
 		const marketIndex = 0;
 
@@ -293,13 +318,21 @@ describe('pyth-oracle', () => {
 		);
 		await driftClient.updatePerpMarketStatus(0, MarketStatus.ACTIVE);
 
-		await updateFundingRateHelper(driftClient, marketIndex, priceFeedAddress, [
-			42,
-		], bankrunContextWrapper);
+		await updateFundingRateHelper(
+			driftClient,
+			marketIndex,
+			priceFeedAddress,
+			[42],
+			bankrunContextWrapper
+		);
 	});
 
 	it('oracle/vamm: funding rate calc2 0hour periodicity', async () => {
-		const priceFeedAddress = await mockOracleNoProgram(bankrunContextWrapper, 40, -10);
+		const priceFeedAddress = await mockOracleNoProgram(
+			bankrunContextWrapper,
+			40,
+			-10
+		);
 		const periodicity = new BN(0);
 		const marketIndex = 1;
 
@@ -338,7 +371,10 @@ describe('pyth-oracle', () => {
 		console.log(
 			'PRICE',
 			convertToNumber(
-				calculateReservePrice(driftClient.getPerpMarketAccount(marketIndex), driftClient.getOracleDataForPerpMarket(marketIndex))
+				calculateReservePrice(
+					driftClient.getPerpMarketAccount(marketIndex),
+					driftClient.getOracleDataForPerpMarket(marketIndex)
+				)
 			)
 		);
 
@@ -357,7 +393,15 @@ describe('pyth-oracle', () => {
 
 		const market = driftClient.getPerpMarketAccount(marketIndex);
 
-		console.log('PRICE AFTER', convertToNumber(calculateReservePrice(market, driftClient.getOracleDataForPerpMarket(marketIndex))));
+		console.log(
+			'PRICE AFTER',
+			convertToNumber(
+				calculateReservePrice(
+					market,
+					driftClient.getOracleDataForPerpMarket(marketIndex)
+				)
+			)
+		);
 
 		await updateFundingRateHelper(
 			driftClient,

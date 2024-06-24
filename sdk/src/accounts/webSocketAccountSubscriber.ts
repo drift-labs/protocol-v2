@@ -36,7 +36,6 @@ export class WebSocketAccountSubscriber<T> implements AccountSubscriber<T> {
 		resubOpts?: ResubOpts,
 		commitment?: Commitment
 	) {
-		throw new Error("This should not be happening");
 		this.accountName = accountName;
 		this.program = program;
 		this.accountPublicKey = accountPublicKey;

@@ -13,7 +13,7 @@ import {
 	MAX_LEVERAGE,
 	QUOTE_PRECISION,
 	convertToNumber,
-	User
+	User,
 } from '../sdk/src';
 
 import { liquidityBook } from './liquidityBook';
@@ -23,7 +23,7 @@ import {
 	mockUSDCMint,
 	mockUserUSDCAccount,
 } from './testHelpers';
-import { startAnchor } from "solana-bankrun";
+import { startAnchor } from 'solana-bankrun';
 import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
 import { BankrunContextWrapper } from '../sdk/src/bankrunConnection';
 
@@ -169,7 +169,6 @@ describe('AMM Curve', () => {
 	const chProgram = anchor.workspace.Drift as Program;
 
 	let driftClient: TestClient;
-	let eventSubscriber: EventSubscriber;
 
 	let bulkAccountLoader: TestBulkAccountLoader;
 
@@ -193,13 +192,20 @@ describe('AMM Curve', () => {
 	let userAccount: User;
 
 	before(async () => {
-		const context = await startAnchor("", [], []);
+		const context = await startAnchor('', [], []);
 
 		bankrunContextWrapper = new BankrunContextWrapper(context);
 
-        bulkAccountLoader = new TestBulkAccountLoader(bankrunContextWrapper.connection, 'processed', 1);
+		bulkAccountLoader = new TestBulkAccountLoader(
+			bankrunContextWrapper.connection,
+			'processed',
+			1
+		);
 
-		solUsdOracle = await mockOracleNoProgram(bankrunContextWrapper, initialSOLPrice);
+		solUsdOracle = await mockOracleNoProgram(
+			bankrunContextWrapper,
+			initialSOLPrice
+		);
 
 		driftClient = new TestClient({
 			connection: bankrunContextWrapper.connection.toConnection(),
@@ -222,9 +228,13 @@ describe('AMM Curve', () => {
 				accountLoader: bulkAccountLoader,
 			},
 		});
-		
+
 		usdcMint = await mockUSDCMint(bankrunContextWrapper);
-		userUSDCAccount = await mockUserUSDCAccount(usdcMint, usdcAmount, bankrunContextWrapper);
+		userUSDCAccount = await mockUserUSDCAccount(
+			usdcMint,
+			usdcAmount,
+			bankrunContextWrapper
+		);
 
 		await driftClient.initialize(usdcMint.publicKey, true);
 		await driftClient.subscribe();
@@ -247,7 +257,7 @@ describe('AMM Curve', () => {
 			accountSubscription: {
 				type: 'polling',
 				accountLoader: bulkAccountLoader,
-				},
+			},
 		});
 		await userAccount.subscribe();
 	});
@@ -259,7 +269,7 @@ describe('AMM Curve', () => {
 
 	const showBook = (marketIndex) => {
 		const market = driftClient.getPerpMarketAccount(marketIndex);
-		const oraclePriceData = driftClient.getOracleDataForPerpMarket(marketIndex)
+		const oraclePriceData = driftClient.getOracleDataForPerpMarket(marketIndex);
 		const currentMark = calculateReservePrice(market, oraclePriceData);
 
 		const [bidsPrice, bidsCumSize, asksPrice, asksCumSize] = liquidityBook(

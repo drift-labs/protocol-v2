@@ -25,8 +25,6 @@ import {
 	LogsCallback,
 	AccountChangeCallback,
 	LAMPORTS_PER_SOL,
-	TokenAccountsFilter,
-	GetTokenAccountsByOwnerConfig,
 } from '@solana/web3.js';
 import {
 	ProgramTestContext,
@@ -60,7 +58,10 @@ export class BankrunContextWrapper {
 	constructor(context: ProgramTestContext) {
 		this.context = context;
 		this.provider = new BankrunProvider(context);
-		this.connection = new BankrunConnection(this.context.banksClient, this.context);
+		this.connection = new BankrunConnection(
+			this.context.banksClient,
+			this.context
+		);
 	}
 
 	async sendTransaction(
@@ -96,7 +97,7 @@ export class BankrunContextWrapper {
 	}
 
 	async getLatestBlockhash(): Promise<Blockhash> {
-		const blockhash = await this.connection.getLatestBlockhash("finalized");
+		const blockhash = await this.connection.getLatestBlockhash('finalized');
 
 		return blockhash.blockhash;
 	}
@@ -105,7 +106,7 @@ export class BankrunContextWrapper {
 		this.connection.printTxLogs(signature);
 	}
 
-	async moveTimeForward(increment: number) : Promise<void> {
+	async moveTimeForward(increment: number): Promise<void> {
 		const currentClock = await this.context.banksClient.getClock();
 		const newUnixTimestamp = currentClock.unixTimestamp + BigInt(increment);
 		const newClock = new Clock(
@@ -130,7 +131,10 @@ export class BankrunConnection {
 
 	private nextClientSubscriptionId = 0;
 	private onLogCallbacks = new Map<number, LogsCallback>();
-	private onAccountChangeCallbacks = new Map<number, [PublicKey, AccountChangeCallback]>();
+	private onAccountChangeCallbacks = new Map<
+		number,
+		[PublicKey, AccountChangeCallback]
+	>();
 
 	constructor(banksClient: BanksClient, context: ProgramTestContext) {
 		this._banksClient = banksClient;
@@ -151,7 +155,8 @@ export class BankrunConnection {
 	}
 
 	async getMultipleAccountsInfo(
-		publicKeys: PublicKey[], _commitmentOrConfig?: Commitment
+		publicKeys: PublicKey[],
+		_commitmentOrConfig?: Commitment
 	): Promise<AccountInfo<Buffer>[]> {
 		const accountInfos = [];
 
@@ -212,22 +217,24 @@ export class BankrunConnection {
 			await this.updateSlotAndClock();
 		}
 
-		
 		if (this.onLogCallbacks.size > 0) {
 			const transaction = await this.getTransaction(signature);
 
-			const context = {slot: transaction.slot};
+			const context = { slot: transaction.slot };
 			const logs = {
 				logs: transaction.meta.logMessages,
 				err: transaction.meta.err,
-				signature
+				signature,
 			};
 			for (const logCallback of this.onLogCallbacks.values()) {
 				logCallback(logs, context);
 			}
 		}
 
-		for (const [publicKey, callback] of this.onAccountChangeCallbacks.values()) {
+		for (const [
+			publicKey,
+			callback,
+		] of this.onAccountChangeCallbacks.values()) {
 			const accountInfo = await this.getParsedAccountInfo(publicKey);
 			callback(accountInfo.value, accountInfo.context);
 		}
@@ -411,7 +418,7 @@ export class BankrunConnection {
 	onLogs(
 		filter: LogsFilter,
 		callback: LogsCallback,
-		_commitment?: Commitment,
+		_commitment?: Commitment
 	): ClientSubscriptionId {
 		const subscriptId = this.nextClientSubscriptionId;
 
@@ -423,11 +430,10 @@ export class BankrunConnection {
 	}
 
 	async removeOnLogsListener(
-		clientSubscriptionId: ClientSubscriptionId,
+		clientSubscriptionId: ClientSubscriptionId
 	): Promise<void> {
 		this.onLogCallbacks.delete(clientSubscriptionId);
 	}
-
 
 	onAccountChange(
 		publicKey: PublicKey,
@@ -445,17 +451,9 @@ export class BankrunConnection {
 	}
 
 	async removeAccountChangeListener(
-		clientSubscriptionId: ClientSubscriptionId,
+		clientSubscriptionId: ClientSubscriptionId
 	): Promise<void> {
 		this.onAccountChangeCallbacks.delete(clientSubscriptionId);
-	}
-
-	async getTokenAccountsByOwner(
-		ownerAddress: PublicKey,
-		filter: TokenAccountsFilter,
-		commitmentOrConfig: Commitment | GetTokenAccountsByOwnerConfig
-	): Promise<any> {
-
 	}
 
 	async getMinimumBalanceForRentExemption(_: number): Promise<number> {

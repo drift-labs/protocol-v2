@@ -46,7 +46,7 @@ import {
 	sleep,
 } from './testHelpers';
 import { PERCENTAGE_PRECISION } from '../sdk';
-import { startAnchor } from "solana-bankrun";
+import { startAnchor } from 'solana-bankrun';
 import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
 import { BankrunContextWrapper } from '../sdk/src/bankrunConnection';
 
@@ -163,15 +163,19 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 	const userKeypair = new Keypair();
 
 	before(async () => {
-		const context = await startAnchor("", [], []);
+		const context = await startAnchor('', [], []);
 
 		bankrunContextWrapper = new BankrunContextWrapper(context);
 
-        bulkAccountLoader = new TestBulkAccountLoader(bankrunContextWrapper.connection, 'processed', 1);
+		bulkAccountLoader = new TestBulkAccountLoader(
+			bankrunContextWrapper.connection,
+			'processed',
+			1
+		);
 
 		eventSubscriber = new EventSubscriber(
 			bankrunContextWrapper.connection.toConnection(),
-			chProgram,
+			chProgram
 		);
 
 		await eventSubscriber.subscribe();
@@ -296,7 +300,7 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 			accountSubscription: {
 				type: 'polling',
 				accountLoader: bulkAccountLoader,
-				},
+			},
 		});
 		await driftClientLoserUser.subscribe();
 	});
@@ -811,7 +815,11 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 		const bankIndex = 0;
 		const marketIndex = 0;
 
-		const usdcbalance = (await bankrunContextWrapper.connection.getTokenAccount(userUSDCAccount.publicKey)).amount.toString();
+		const usdcbalance = (
+			await bankrunContextWrapper.connection.getTokenAccount(
+				userUSDCAccount.publicKey
+			)
+		).amount.toString();
 		console.log('usdc balance:', usdcbalance);
 		assert(usdcbalance == '9998000000000');
 
@@ -827,7 +835,11 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 				ifStakePublicKey
 			)) as InsuranceFundStake;
 		assert(ifStakeAccount.marketIndex === bankIndex);
-		assert(ifStakeAccount.authority.equals(bankrunContextWrapper.provider.wallet.publicKey));
+		assert(
+			ifStakeAccount.authority.equals(
+				bankrunContextWrapper.provider.wallet.publicKey
+			)
+		);
 
 		const txSig = await driftClient.addInsuranceFundStake({
 			marketIndex: bankIndex,

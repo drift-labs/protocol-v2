@@ -38,11 +38,10 @@ import {
 } from './testHelpers';
 import { NATIVE_MINT } from '@solana/spl-token';
 import { DexInstructions, Market, OpenOrders } from '@project-serum/serum';
-import { startAnchor } from "solana-bankrun";
+import { startAnchor } from 'solana-bankrun';
 import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
 import { BankrunContextWrapper } from '../sdk/src/bankrunConnection';
 import { DRIFT_PROGRAM_ID } from '../sdk/lib';
-
 
 describe('spot swap', () => {
 	const chProgram = anchor.workspace.Drift as Program;
@@ -54,7 +53,6 @@ describe('spot swap', () => {
 	let bulkAccountLoader: TestBulkAccountLoader;
 
 	let bankrunContextWrapper: BankrunContextWrapper;
-
 
 	let solOracle: PublicKey;
 
@@ -82,26 +80,40 @@ describe('spot swap', () => {
 	let takerKeypair: Keypair;
 
 	before(async () => {
-		const context = await startAnchor("", [
-			{
-				name: "serum_dex",
-				programId: new PublicKey("srmqPvymJeFKQ4zGQed1GFppgkRHL9kaELCbyksJtPX"),
-			}
-		], []);
+		const context = await startAnchor(
+			'',
+			[
+				{
+					name: 'serum_dex',
+					programId: new PublicKey(
+						'srmqPvymJeFKQ4zGQed1GFppgkRHL9kaELCbyksJtPX'
+					),
+				},
+			],
+			[]
+		);
 
 		bankrunContextWrapper = new BankrunContextWrapper(context);
 
-        bulkAccountLoader = new TestBulkAccountLoader(bankrunContextWrapper.connection, 'processed', 1);
+		bulkAccountLoader = new TestBulkAccountLoader(
+			bankrunContextWrapper.connection,
+			'processed',
+			1
+		);
 
 		eventSubscriber = new EventSubscriber(
 			bankrunContextWrapper.connection.toConnection(),
-			chProgram,
+			chProgram
 		);
 
 		await eventSubscriber.subscribe();
 
 		usdcMint = await mockUSDCMint(bankrunContextWrapper);
-		makerUSDC = await mockUserUSDCAccount(usdcMint, usdcAmount, bankrunContextWrapper);
+		makerUSDC = await mockUserUSDCAccount(
+			usdcMint,
+			usdcAmount,
+			bankrunContextWrapper
+		);
 		makerWSOL = await createWSolTokenAccountForUser(
 			bankrunContextWrapper,
 			// @ts-ignore
@@ -163,8 +175,11 @@ describe('spot swap', () => {
 				],
 				bulkAccountLoader
 			);
-		
-		await bankrunContextWrapper.fundKeypair(takerKeypair, 10 * LAMPORTS_PER_SOL);
+
+		await bankrunContextWrapper.fundKeypair(
+			takerKeypair,
+			10 * LAMPORTS_PER_SOL
+		);
 		await takerDriftClient.deposit(usdcAmount, 0, takerUSDC);
 	});
 
@@ -186,7 +201,7 @@ describe('spot swap', () => {
 			feeRateBps: 0,
 		});
 
-		console.log("\n\n\n\n\n here \n\n\n\n\n");
+		console.log('\n\n\n\n\n here \n\n\n\n\n');
 
 		await Market.load(
 			bankrunContextWrapper.connection.toConnection(),
@@ -195,15 +210,15 @@ describe('spot swap', () => {
 			SERUM
 		);
 
-		console.log("\n\n\n\n\n here \n\n\n\n\n");
+		console.log('\n\n\n\n\n here \n\n\n\n\n');
 
 		await makerDriftClient.initializeSerumFulfillmentConfig(
 			solSpotMarketIndex,
 			serumMarketPublicKey,
 			SERUM
-		);	
+		);
 
-		console.log("\n\n\n\n\n here \n\n\n\n\n");
+		console.log('\n\n\n\n\n here \n\n\n\n\n');
 
 		const market = await Market.load(
 			bankrunContextWrapper.connection.toConnection(),
@@ -212,7 +227,7 @@ describe('spot swap', () => {
 			SERUM
 		);
 
-		console.log("\n\n\n\n\n here \n\n\n\n\n");
+		console.log('\n\n\n\n\n here \n\n\n\n\n');
 
 		const openOrdersAccount = new Account();
 		const createOpenOrdersIx = await OpenOrders.makeCreateAccountTransaction(
@@ -227,12 +242,11 @@ describe('spot swap', () => {
 			[openOrdersAccount]
 		);
 
-		console.log("\n\n\n\n\n here \n\n\n\n\n");
+		console.log('\n\n\n\n\n here \n\n\n\n\n');
 
 		takerOpenOrders = openOrdersAccount.publicKey;
 	});
 
-	
 	const crankMarkets = async () => {
 		const openOrdersAccounts = [];
 
@@ -306,7 +320,7 @@ describe('spot swap', () => {
 		});
 
 		await bankrunContextWrapper.sendTransaction(transaction, signerKeypairs);
-		
+
 		const amountIn = new BN(200).mul(QUOTE_PRECISION);
 		const { beginSwapIx, endSwapIx } = await takerDriftClient.getSwapIx({
 			amountIn: amountIn,
@@ -317,19 +331,22 @@ describe('spot swap', () => {
 		});
 
 		// @ts-ignore
-		const serumBidIx = await market.makePlaceOrderInstruction(bankrunContextWrapper.connection.toConnection(), {
-			// @ts-ignore
-			owner: takerDriftClient.wallet,
-			payer: takerUSDC,
-			side: 'buy',
-			price: 100,
-			size: 2, // larger than maker orders so that entire maker order is taken
-			orderType: 'ioc',
-			clientId: new BN(1), // todo?
-			openOrdersAddressKey: takerOpenOrders,
-			feeDiscountPubkey: null,
-			selfTradeBehavior: 'abortTransaction',
-		});
+		const serumBidIx = await market.makePlaceOrderInstruction(
+			bankrunContextWrapper.connection.toConnection(),
+			{
+				// @ts-ignore
+				owner: takerDriftClient.wallet,
+				payer: takerUSDC,
+				side: 'buy',
+				price: 100,
+				size: 2, // larger than maker orders so that entire maker order is taken
+				orderType: 'ioc',
+				clientId: new BN(1), // todo?
+				openOrdersAddressKey: takerOpenOrders,
+				feeDiscountPubkey: null,
+				selfTradeBehavior: 'abortTransaction',
+			}
+		);
 
 		const serumConfig = await takerDriftClient.getSerumV3FulfillmentConfig(
 			market.publicKey
@@ -377,13 +394,15 @@ describe('spot swap', () => {
 			takerDriftClient.wallet.publicKey
 		);
 
-		const accountInfo = await bankrunContextWrapper.connection.getAccountInfo(userStatsPublicKey);
+		const accountInfo = await bankrunContextWrapper.connection.getAccountInfo(
+			userStatsPublicKey
+		);
 
 		const userStatsAccount = accountInfo
 			? (takerDriftClient.program.account.user.coder.accounts.decodeUnchecked(
 					'UserStats',
 					accountInfo.data
-			) as UserStatsAccount)
+			  ) as UserStatsAccount)
 			: undefined;
 
 		// assert(userStatsAccount.fees.totalFeePaid.eq(new BN(50000)));
@@ -440,7 +459,7 @@ describe('spot swap', () => {
 				selfTradeBehavior: 'abortTransaction',
 			}
 		);
-		
+
 		const signerKeypairs = signers.map((signer) => {
 			return Keypair.fromSecretKey(signer.secretKey);
 		});
@@ -459,19 +478,22 @@ describe('spot swap', () => {
 		});
 
 		// @ts-ignore
-		const serumAskIx = await market.makePlaceOrderInstruction(bankrunContextWrapper.connection.toConnection(), {
-			// @ts-ignore
-			owner: takerDriftClient.wallet,
-			payer: takerWSOL,
-			side: 'sell',
-			price: 100,
-			size: 1,
-			orderType: 'limit',
-			clientId: undefined, // todo?
-			openOrdersAddressKey: takerOpenOrders,
-			feeDiscountPubkey: null,
-			selfTradeBehavior: 'abortTransaction',
-		});
+		const serumAskIx = await market.makePlaceOrderInstruction(
+			bankrunContextWrapper.connection.toConnection(),
+			{
+				// @ts-ignore
+				owner: takerDriftClient.wallet,
+				payer: takerWSOL,
+				side: 'sell',
+				price: 100,
+				size: 1,
+				orderType: 'limit',
+				clientId: undefined, // todo?
+				openOrdersAddressKey: takerOpenOrders,
+				feeDiscountPubkey: null,
+				selfTradeBehavior: 'abortTransaction',
+			}
+		);
 
 		const serumConfig = await takerDriftClient.getSerumV3FulfillmentConfig(
 			market.publicKey
@@ -559,7 +581,7 @@ describe('spot swap', () => {
 			await takerDriftClient.sendTransaction(tx);
 		} catch (e) {
 			const err = e as Error;
-			if (err.toString().includes("0x1868")) {
+			if (err.toString().includes('0x1868')) {
 				failed = true;
 			}
 		}
@@ -570,13 +592,16 @@ describe('spot swap', () => {
 		failed = false;
 		try {
 			const txO = await takerDriftClient.sendTransaction(tx);
-			const txL = await bankrunContextWrapper.connection.getTransaction(txO.txSig, {
-				commitment: 'confirmed',
-			});
+			const txL = await bankrunContextWrapper.connection.getTransaction(
+				txO.txSig,
+				{
+					commitment: 'confirmed',
+				}
+			);
 			console.log('tx logs', txL.meta.logMessages);
 		} catch (e) {
 			const err = e as Error;
-			if (err.toString().includes("0x1868")) {
+			if (err.toString().includes('0x1868')) {
 				failed = true;
 			}
 		}
@@ -593,7 +618,7 @@ describe('spot swap', () => {
 			await takerDriftClient.sendTransaction(tx);
 		} catch (e) {
 			const err = e as Error;
-			if (err.toString().includes("0x1868")) {
+			if (err.toString().includes('0x1868')) {
 				failed = true;
 			}
 		}
@@ -606,7 +631,7 @@ describe('spot swap', () => {
 			await takerDriftClient.sendTransaction(tx);
 		} catch (e) {
 			const err = e as Error;
-			if (err.toString().includes("0x1868")) {
+			if (err.toString().includes('0x1868')) {
 				failed = true;
 			}
 		}
@@ -631,7 +656,7 @@ describe('spot swap', () => {
 			]);
 		} catch (e) {
 			const err = e as Error;
-			if (err.toString().includes("0x1868")) {
+			if (err.toString().includes('0x1868')) {
 				failed = true;
 			}
 		}

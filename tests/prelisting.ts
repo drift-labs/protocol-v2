@@ -27,7 +27,7 @@ import {
 	PEG_PRECISION,
 	PostOnlyParams,
 } from '../sdk';
-import { startAnchor } from "solana-bankrun";
+import { startAnchor } from 'solana-bankrun';
 import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
 import { BankrunContextWrapper } from '../sdk/src/bankrunConnection';
 
@@ -62,21 +62,29 @@ describe('prelisting', () => {
 	let oracleInfos;
 
 	before(async () => {
-		const context = await startAnchor("", [], []);
+		const context = await startAnchor('', [], []);
 
 		bankrunContextWrapper = new BankrunContextWrapper(context);
 
-        bulkAccountLoader = new TestBulkAccountLoader(bankrunContextWrapper.connection, 'processed', 1);
+		bulkAccountLoader = new TestBulkAccountLoader(
+			bankrunContextWrapper.connection,
+			'processed',
+			1
+		);
 
 		eventSubscriber = new EventSubscriber(
 			bankrunContextWrapper.connection.toConnection(),
-			chProgram,
+			chProgram
 		);
 
 		await eventSubscriber.subscribe();
 
 		usdcMint = await mockUSDCMint(bankrunContextWrapper);
-		userUSDCAccount = await mockUserUSDCAccount(usdcMint, usdcAmount, bankrunContextWrapper);
+		userUSDCAccount = await mockUserUSDCAccount(
+			usdcMint,
+			usdcAmount,
+			bankrunContextWrapper
+		);
 
 		prelaunchOracle = getPrelaunchOraclePublicKey(chProgram.programId, 0);
 
@@ -141,7 +149,7 @@ describe('prelisting', () => {
 			accountSubscription: {
 				type: 'polling',
 				accountLoader: bulkAccountLoader,
-				},
+			},
 		});
 		await adminDriftClientUser.subscribe();
 	});
@@ -247,10 +255,11 @@ describe('prelisting', () => {
 
 		await adminDriftClient.deletePrelaunchOracle(0);
 
-		const result = await bankrunContextWrapper.connection.getAccountInfoAndContext(
-			oldOracleKey,
-			'processed'
-		);
+		const result =
+			await bankrunContextWrapper.connection.getAccountInfoAndContext(
+				oldOracleKey,
+				'processed'
+			);
 
 		assert(result.value === null);
 	});

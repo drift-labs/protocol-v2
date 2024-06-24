@@ -23,7 +23,7 @@ import {
 } from './testHelpers';
 import { assert } from 'chai';
 import { Keypair } from '@solana/web3.js';
-import { startAnchor } from "solana-bankrun";
+import { startAnchor } from 'solana-bankrun';
 import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
 import { BankrunContextWrapper } from '../sdk/src/bankrunConnection';
 
@@ -60,15 +60,19 @@ describe('user delegate', () => {
 	);
 
 	before(async () => {
-		const context = await startAnchor("", [], []);
+		const context = await startAnchor('', [], []);
 
 		bankrunContextWrapper = new BankrunContextWrapper(context);
 
-        bulkAccountLoader = new TestBulkAccountLoader(bankrunContextWrapper.connection, 'processed', 1);
+		bulkAccountLoader = new TestBulkAccountLoader(
+			bankrunContextWrapper.connection,
+			'processed',
+			1
+		);
 
 		eventSubscriber = new EventSubscriber(
 			bankrunContextWrapper.connection.toConnection(),
-			chProgram,
+			chProgram
 		);
 
 		await eventSubscriber.subscribe();
@@ -118,7 +122,7 @@ describe('user delegate', () => {
 		const subAccountId = 0;
 		const name = 'CRISP';
 		await driftClient.initializeUserAccount(subAccountId, name);
-		
+
 		delegateKeyPair = await createFundedKeyPair(bankrunContextWrapper);
 	});
 
@@ -153,7 +157,10 @@ describe('user delegate', () => {
 				},
 			],
 			authority: bankrunContextWrapper.provider.wallet.publicKey,
-			authoritySubAccountMap: new Map().set(bankrunContextWrapper.provider.wallet.publicKey, [0]),
+			authoritySubAccountMap: new Map().set(
+				bankrunContextWrapper.provider.wallet.publicKey,
+				[0]
+			),
 			accountSubscription: {
 				type: 'polling',
 				accountLoader: bulkAccountLoader,

@@ -34,7 +34,7 @@ import {
 	sleep,
 	// sleep,
 } from './testHelpers';
-import { startAnchor } from "solana-bankrun";
+import { startAnchor } from 'solana-bankrun';
 import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
 import { BankrunContextWrapper } from '../sdk/src/bankrunConnection';
 
@@ -101,7 +101,7 @@ async function createNewUser(
 		accountSubscription: {
 			type: 'polling',
 			accountLoader: bulkAccountLoader,
-	  }
+		},
 	});
 
 	if (walletFlag) {
@@ -123,7 +123,7 @@ async function createNewUser(
 		accountSubscription: {
 			type: 'polling',
 			accountLoader: bulkAccountLoader,
-			},
+		},
 	});
 	driftClientUser.subscribe();
 
@@ -174,15 +174,19 @@ describe('lp risk mitigation', () => {
 	let btcusdc;
 
 	before(async () => {
-		const context = await startAnchor("", [], []);
+		const context = await startAnchor('', [], []);
 
 		bankrunContextWrapper = new BankrunContextWrapper(context);
 
-        bulkAccountLoader = new TestBulkAccountLoader(bankrunContextWrapper.connection, 'processed', 1);
+		bulkAccountLoader = new TestBulkAccountLoader(
+			bankrunContextWrapper.connection,
+			'processed',
+			1
+		);
 
 		eventSubscriber = new EventSubscriber(
 			bankrunContextWrapper.connection.toConnection(),
-			chProgram,
+			chProgram
 		);
 
 		await eventSubscriber.subscribe();
@@ -363,7 +367,12 @@ describe('lp risk mitigation', () => {
 		// lp goes short
 		const tradeSize = new BN(500 * BASE_PRECISION.toNumber());
 		try {
-			await adjustOraclePostSwap(tradeSize, SwapDirection.REMOVE, market, bankrunContextWrapper);
+			await adjustOraclePostSwap(
+				tradeSize,
+				SwapDirection.REMOVE,
+				market,
+				bankrunContextWrapper
+			);
 			const _txsig = await driftClient.openPosition(
 				PositionDirection.SHORT,
 				tradeSize,
@@ -391,7 +400,12 @@ describe('lp risk mitigation', () => {
 		assert(driftClientUser.getFreeCollateral().eq(new BN('4761073360')));
 		// some user goes long (lp should get more short)
 		try {
-			await adjustOraclePostSwap(tradeSize, SwapDirection.REMOVE, market, bankrunContextWrapper);
+			await adjustOraclePostSwap(
+				tradeSize,
+				SwapDirection.REMOVE,
+				market,
+				bankrunContextWrapper
+			);
 			const _txsig = await traderDriftClient.openPosition(
 				PositionDirection.LONG,
 				tradeSize,

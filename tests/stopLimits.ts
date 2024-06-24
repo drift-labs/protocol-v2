@@ -12,10 +12,8 @@ import {
 	PositionDirection,
 	User,
 	Wallet,
-	OrderAction,
 	getMarketOrderParams,
 	OrderTriggerCondition,
-	OrderStatus,
 	getTriggerLimitOrderParams,
 	EventSubscriber,
 	MarketStatus,
@@ -28,19 +26,13 @@ import {
 	mockUserUSDCAccount,
 	setFeedPriceNoProgram,
 } from './testHelpers';
+import { AMM_RESERVE_PRECISION, OracleSource, ZERO, isVariant } from '../sdk';
 import {
-	AMM_RESERVE_PRECISION,
-	OracleSource,
-	ZERO,
-	isVariant,
-} from '../sdk';
-import {
-	Account,
 	createAssociatedTokenAccountIdempotentInstruction,
 	createMintToInstruction,
 	getAssociatedTokenAddressSync,
 } from '@solana/spl-token';
-import { startAnchor } from "solana-bankrun";
+import { startAnchor } from 'solana-bankrun';
 import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
 import { BankrunContextWrapper } from '../sdk/src/bankrunConnection';
 
@@ -83,21 +75,29 @@ describe('stop limit', () => {
 	let btcUsd;
 
 	before(async () => {
-		const context = await startAnchor("", [], []);
+		const context = await startAnchor('', [], []);
 
 		bankrunContextWrapper = new BankrunContextWrapper(context);
 
-        bulkAccountLoader = new TestBulkAccountLoader(bankrunContextWrapper.connection, 'processed', 1);
+		bulkAccountLoader = new TestBulkAccountLoader(
+			bankrunContextWrapper.connection,
+			'processed',
+			1
+		);
 
 		eventSubscriber = new EventSubscriber(
 			bankrunContextWrapper.connection.toConnection(),
-			chProgram,
+			chProgram
 		);
 
 		await eventSubscriber.subscribe();
 
 		usdcMint = await mockUSDCMint(bankrunContextWrapper);
-		userUSDCAccount = await mockUserUSDCAccount(usdcMint, usdcAmount, bankrunContextWrapper);
+		userUSDCAccount = await mockUserUSDCAccount(
+			usdcMint,
+			usdcAmount,
+			bankrunContextWrapper
+		);
 
 		solUsd = await mockOracleNoProgram(bankrunContextWrapper, 1);
 		btcUsd = await mockOracleNoProgram(bankrunContextWrapper, 60000);
@@ -170,7 +170,7 @@ describe('stop limit', () => {
 			accountSubscription: {
 				type: 'polling',
 				accountLoader: bulkAccountLoader,
-				},
+			},
 		});
 		await driftClientUser.subscribe();
 
@@ -180,15 +180,25 @@ describe('stop limit', () => {
 
 		await driftClient.updateDiscountMint(discountMint);
 
-		const discountMintAta = getAssociatedTokenAddressSync(discountMint, bankrunContextWrapper.provider.wallet.publicKey);
-		const ix = createAssociatedTokenAccountIdempotentInstruction(bankrunContextWrapper.context.payer.publicKey, discountMintAta, bankrunContextWrapper.provider.wallet.publicKey, discountMint);
+		const discountMintAta = getAssociatedTokenAddressSync(
+			discountMint,
+			bankrunContextWrapper.provider.wallet.publicKey
+		);
+		const ix = createAssociatedTokenAccountIdempotentInstruction(
+			bankrunContextWrapper.context.payer.publicKey,
+			discountMintAta,
+			bankrunContextWrapper.provider.wallet.publicKey,
+			discountMint
+		);
 		const mintToIx = createMintToInstruction(
 			discountMint,
 			discountMintAta,
 			bankrunContextWrapper.provider.wallet.publicKey,
 			1000 * 10 ** 6
 		);
-		await bankrunContextWrapper.sendTransaction(new Transaction().add(ix, mintToIx));
+		await bankrunContextWrapper.sendTransaction(
+			new Transaction().add(ix, mintToIx)
+		);
 
 		await bankrunContextWrapper.fundKeypair(fillerKeyPair, 10 ** 9);
 		fillerUSDCAccount = await mockUserUSDCAccount(
@@ -227,7 +237,7 @@ describe('stop limit', () => {
 			accountSubscription: {
 				type: 'polling',
 				accountLoader: bulkAccountLoader,
-				},
+			},
 		});
 		await fillerUser.subscribe();
 	});

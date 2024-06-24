@@ -10,7 +10,6 @@ import { EventEmitter } from 'events';
 import { PublicKey } from '@solana/web3.js';
 import { UserAccount } from '../types';
 import { BulkAccountLoader } from './bulkAccountLoader';
-import { decodeUser } from '../decode/user';
 
 export class PollingUserAccountSubscriber implements UserAccountSubscriber {
 	isSubscribed: boolean;
@@ -22,7 +21,7 @@ export class PollingUserAccountSubscriber implements UserAccountSubscriber {
 	callbackId?: string;
 	errorCallbackId?: string;
 
-	decode : (name, buffer) => UserAccount;
+	decode: (name, buffer) => UserAccount;
 
 	user?: DataAndSlot<UserAccount>;
 
@@ -30,7 +29,7 @@ export class PollingUserAccountSubscriber implements UserAccountSubscriber {
 		connection: Connection,
 		userAccountPublicKey: PublicKey,
 		accountLoader: BulkAccountLoader,
-		decode: (name, buffer) => UserAccount,
+		decode: (name, buffer) => UserAccount
 	) {
 		this.isSubscribed = false;
 		this.connection = connection;
@@ -64,7 +63,7 @@ export class PollingUserAccountSubscriber implements UserAccountSubscriber {
 		if (this.callbackId) {
 			return;
 		}
-		
+
 		this.callbackId = await this.accountLoader.addAccount(
 			this.userAccountPublicKey,
 			(buffer, slot: number) => {

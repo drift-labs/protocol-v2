@@ -25,16 +25,14 @@ import {
 	initializeQuoteSpotMarket,
 	mockUSDCMint,
 	mockUserUSDCAccount,
-	setFeedPrice,
 	setFeedPriceNoProgram,
 } from './testHelpers';
-import { startAnchor } from "solana-bankrun";
+import { startAnchor } from 'solana-bankrun';
 import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
 import { BankrunContextWrapper } from '../sdk/src/bankrunConnection';
 
 describe('AMM Curve', () => {
 	const chProgram = anchor.workspace.Drift as Program;
-
 
 	let bulkAccountLoader: TestBulkAccountLoader;
 
@@ -61,14 +59,22 @@ describe('AMM Curve', () => {
 	let userAccount: User;
 
 	before(async () => {
-		const context = await startAnchor("", [], []);
+		const context = await startAnchor('', [], []);
 
 		bankrunContextWrapper = new BankrunContextWrapper(context);
 
-        bulkAccountLoader = new TestBulkAccountLoader(bankrunContextWrapper.connection, 'processed', 1);
+		bulkAccountLoader = new TestBulkAccountLoader(
+			bankrunContextWrapper.connection,
+			'processed',
+			1
+		);
 
 		usdcMint = await mockUSDCMint(bankrunContextWrapper);
-		userUSDCAccount = await mockUserUSDCAccount(usdcMint, usdcAmount, bankrunContextWrapper);
+		userUSDCAccount = await mockUserUSDCAccount(
+			usdcMint,
+			usdcAmount,
+			bankrunContextWrapper
+		);
 
 		driftClient = new TestClient({
 			connection: bankrunContextWrapper.connection.toConnection(),
@@ -93,7 +99,10 @@ describe('AMM Curve', () => {
 		await initializeQuoteSpotMarket(driftClient, usdcMint.publicKey);
 		await driftClient.updatePerpAuctionDuration(new BN(0));
 
-		solUsdOracle = await mockOracleNoProgram(bankrunContextWrapper, initialSOLPrice);
+		solUsdOracle = await mockOracleNoProgram(
+			bankrunContextWrapper,
+			initialSOLPrice
+		);
 
 		const periodicity = new BN(60 * 60); // 1 HOUR
 
@@ -113,7 +122,7 @@ describe('AMM Curve', () => {
 			accountSubscription: {
 				type: 'polling',
 				accountLoader: bulkAccountLoader,
-				},
+			},
 		});
 		await userAccount.subscribe();
 	});
@@ -240,7 +249,11 @@ describe('AMM Curve', () => {
 		const newOraclePriceWithMantissa = new BN(
 			newOraclePrice * PRICE_PRECISION.toNumber()
 		);
-		await setFeedPriceNoProgram(bankrunContextWrapper, newOraclePrice, solUsdOracle);
+		await setFeedPriceNoProgram(
+			bankrunContextWrapper,
+			newOraclePrice,
+			solUsdOracle
+		);
 		// showCurve(marketIndex);
 
 		await driftClient.openPosition(

@@ -32,7 +32,7 @@ import {
 	setFeedPriceNoProgram,
 } from './testHelpers';
 import { PERCENTAGE_PRECISION, UserStatus } from '../sdk';
-import { startAnchor } from "solana-bankrun";
+import { startAnchor } from 'solana-bankrun';
 import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
 import { BankrunContextWrapper } from '../sdk/src/bankrunConnection';
 
@@ -66,14 +66,22 @@ describe('liquidate perp and lp', () => {
 	const nLpShares = new BN(10000000);
 
 	before(async () => {
-		const context = await startAnchor("", [], []);
+		const context = await startAnchor('', [], []);
 
 		bankrunContextWrapper = new BankrunContextWrapper(context);
 
-        bulkAccountLoader = new TestBulkAccountLoader(bankrunContextWrapper.connection, 'processed', 1);
+		bulkAccountLoader = new TestBulkAccountLoader(
+			bankrunContextWrapper.connection,
+			'processed',
+			1
+		);
 
 		usdcMint = await mockUSDCMint(bankrunContextWrapper);
-		userUSDCAccount = await mockUserUSDCAccount(usdcMint, usdcAmount, bankrunContextWrapper);
+		userUSDCAccount = await mockUserUSDCAccount(
+			usdcMint,
+			usdcAmount,
+			bankrunContextWrapper
+		);
 
 		const oracle = await mockOracleNoProgram(bankrunContextWrapper, 1);
 
@@ -160,10 +168,9 @@ describe('liquidate perp and lp', () => {
 			);
 		}
 
-
 		eventSubscriber = new EventSubscriber(
 			bankrunContextWrapper.connection.toConnection(),
-			chProgram,
+			chProgram
 		);
 
 		await eventSubscriber.subscribe();
@@ -210,7 +217,7 @@ describe('liquidate perp and lp', () => {
 		await liquidatorDriftClient.unsubscribe();
 		await eventSubscriber.unsubscribe();
 	});
-	
+
 	it('liquidate', async () => {
 		const marketIndex = 0;
 		const lpShares = driftClient.getUserAccount().perpPositions[0].lpShares;
@@ -264,7 +271,7 @@ describe('liquidate perp and lp', () => {
 		console.log('pp.base0:', pp0.baseAssetAmount.toString());
 		assert(liqPriceAfterPxChange.eq(expectedLiqPrice2));
 
-		const sigg = await driftClient.settlePNL(
+		await driftClient.settlePNL(
 			driftClientUser.userAccountPublicKey,
 			driftClientUser.getUserAccount(),
 			0
@@ -290,7 +297,7 @@ describe('liquidate perp and lp', () => {
 		assert(liqPriceAfterSettlePnl.eq(expectedLiqPrice2));
 
 		await setFeedPriceNoProgram(bankrunContextWrapper, 1.1, oracle);
-		const sig = await driftClient.settlePNL(
+		await driftClient.settlePNL(
 			driftClientUser.userAccountPublicKey,
 			driftClientUser.getUserAccount(),
 			0
@@ -452,7 +459,7 @@ describe('liquidate perp and lp', () => {
 			)
 		);
 		assert(marketBeforeBankruptcy.amm.totalSocialLoss.eq(ZERO));
-		const bankruptcySig = await liquidatorDriftClient.resolvePerpBankruptcy(
+		await liquidatorDriftClient.resolvePerpBankruptcy(
 			await driftClient.getUserAccountPublicKey(),
 			driftClient.getUserAccount(),
 			0

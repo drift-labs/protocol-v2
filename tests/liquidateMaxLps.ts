@@ -22,10 +22,8 @@ import {
 	mockOracleNoProgram,
 	setFeedPriceNoProgram,
 } from './testHelpers';
-import {
-	PERCENTAGE_PRECISION,
-} from '../sdk';
-import { startAnchor } from "solana-bankrun";
+import { PERCENTAGE_PRECISION } from '../sdk';
+import { startAnchor } from 'solana-bankrun';
 import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
 import { BankrunContextWrapper } from '../sdk/src/bankrunConnection';
 
@@ -61,14 +59,22 @@ describe('max lp liq', () => {
 	const numMkts = 8;
 
 	before(async () => {
-		const context = await startAnchor("", [], []);
+		const context = await startAnchor('', [], []);
 
 		bankrunContextWrapper = new BankrunContextWrapper(context);
 
-        bulkAccountLoader = new TestBulkAccountLoader(bankrunContextWrapper.connection, 'processed', 1);
+		bulkAccountLoader = new TestBulkAccountLoader(
+			bankrunContextWrapper.connection,
+			'processed',
+			1
+		);
 
 		usdcMint = await mockUSDCMint(bankrunContextWrapper);
-		userUSDCAccount = await mockUserUSDCAccount(usdcMint, usdcAmount, bankrunContextWrapper);
+		userUSDCAccount = await mockUserUSDCAccount(
+			usdcMint,
+			usdcAmount,
+			bankrunContextWrapper
+		);
 
 		oracle = await mockOracleNoProgram(bankrunContextWrapper, 1);
 
@@ -214,7 +220,8 @@ describe('max lp liq', () => {
 
 		bankrunContextWrapper.connection.printTxLogs(txSig);
 
-		const cus = bankrunContextWrapper.connection.findComputeUnitConsumption(txSig);
+		const cus =
+			bankrunContextWrapper.connection.findComputeUnitConsumption(txSig);
 		console.log(cus);
 	});
 });

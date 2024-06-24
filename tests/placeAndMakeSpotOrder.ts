@@ -27,7 +27,7 @@ import {
 	sleep,
 } from './testHelpers';
 import { MARGIN_PRECISION, PostOnlyParams } from '../sdk';
-import { startAnchor } from "solana-bankrun";
+import { startAnchor } from 'solana-bankrun';
 import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
 import { BankrunContextWrapper } from '../sdk/src/bankrunConnection';
 
@@ -53,23 +53,31 @@ describe('place and make spot order', () => {
 	let oracleInfos;
 
 	before(async () => {
-		const context = await startAnchor("", [], []);
+		const context = await startAnchor('', [], []);
 
 		bankrunContextWrapper = new BankrunContextWrapper(context);
 
-        bulkAccountLoader = new TestBulkAccountLoader(bankrunContextWrapper.connection, 'processed', 1);
+		bulkAccountLoader = new TestBulkAccountLoader(
+			bankrunContextWrapper.connection,
+			'processed',
+			1
+		);
 
 		eventSubscriber = new EventSubscriber(
 			bankrunContextWrapper.connection.toConnection(),
-			chProgram,
+			chProgram
 		);
 
 		await eventSubscriber.subscribe();
 
 		usdcMint = await mockUSDCMint(bankrunContextWrapper);
-		userUSDCAccount = await mockUserUSDCAccount(usdcMint, usdcAmount, bankrunContextWrapper);
+		userUSDCAccount = await mockUserUSDCAccount(
+			usdcMint,
+			usdcAmount,
+			bankrunContextWrapper
+		);
 
-		solUsd = await mockOracleNoProgram(bankrunContextWrapper,32.821);
+		solUsd = await mockOracleNoProgram(bankrunContextWrapper, 32.821);
 
 		marketIndexes = [];
 		spotMarketIndexes = [0, 1];
@@ -111,7 +119,11 @@ describe('place and make spot order', () => {
 		);
 
 		const oneSol = new BN(LAMPORTS_PER_SOL);
-		await makerDriftClient.deposit(oneSol, 1, bankrunContextWrapper.provider.wallet.publicKey);
+		await makerDriftClient.deposit(
+			oneSol,
+			1,
+			bankrunContextWrapper.provider.wallet.publicKey
+		);
 
 		makerDriftClientUser = new User({
 			driftClient: makerDriftClient,
@@ -119,7 +131,7 @@ describe('place and make spot order', () => {
 			accountSubscription: {
 				type: 'polling',
 				accountLoader: bulkAccountLoader,
-				},
+			},
 		});
 		await makerDriftClientUser.subscribe();
 	});
@@ -170,7 +182,7 @@ describe('place and make spot order', () => {
 			accountSubscription: {
 				type: 'polling',
 				accountLoader: bulkAccountLoader,
-				},
+			},
 		});
 		await takerDriftClientUser.subscribe();
 

@@ -1,13 +1,6 @@
 import * as anchor from '@coral-xyz/anchor';
 import { assert } from 'chai';
-import {
-	BN,
-	User,
-	OracleSource,
-	Wallet,
-	BulkAccountLoader,
-	MARGIN_PRECISION,
-} from '../sdk';
+import { BN, User, OracleSource, Wallet, MARGIN_PRECISION } from '../sdk';
 
 import { Program } from '@coral-xyz/anchor';
 
@@ -15,7 +8,6 @@ import * as web3 from '@solana/web3.js';
 
 import {
 	TestClient,
-	EventSubscriber,
 	PRICE_PRECISION,
 	PositionDirection,
 	ZERO,
@@ -28,7 +20,7 @@ import {
 	mockUSDCMint,
 	mockUserUSDCAccount,
 } from './testHelpers';
-import { startAnchor } from "solana-bankrun";
+import { startAnchor } from 'solana-bankrun';
 import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
 import { BankrunContextWrapper } from '../sdk/src/bankrunConnection';
 
@@ -44,7 +36,7 @@ async function createNewUser(
 	let walletFlag = true;
 	if (wallet == undefined) {
 		const kp = new web3.Keypair();
-		const sig = await context.fundKeypair(kp, 10 ** 9);
+		await context.fundKeypair(kp, 10 ** 9);
 		wallet = new Wallet(kp);
 		walletFlag = false;
 	}
@@ -95,7 +87,7 @@ async function createNewUser(
 		accountSubscription: {
 			type: 'polling',
 			accountLoader: bulkAccountLoader,
-			},
+		},
 	});
 	driftClientUser.subscribe();
 
@@ -135,11 +127,15 @@ describe('trading liquidity providing', () => {
 	let solusdc2;
 
 	before(async () => {
-		const context = await startAnchor("", [], []);
+		const context = await startAnchor('', [], []);
 
 		bankrunContextWrapper = new BankrunContextWrapper(context);
 
-        bulkAccountLoader = new TestBulkAccountLoader(bankrunContextWrapper.connection, 'processed', 1);
+		bulkAccountLoader = new TestBulkAccountLoader(
+			bankrunContextWrapper.connection,
+			'processed',
+			1
+		);
 
 		usdcMint = await mockUSDCMint(bankrunContextWrapper);
 

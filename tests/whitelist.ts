@@ -4,7 +4,12 @@ import { BASE_PRECISION, BN, OracleSource } from '../sdk';
 
 import { Program } from '@coral-xyz/anchor';
 
-import { Keypair, PublicKey, SystemProgram, Transaction } from '@solana/web3.js';
+import {
+	Keypair,
+	PublicKey,
+	SystemProgram,
+	Transaction,
+} from '@solana/web3.js';
 import {
 	MINT_SIZE,
 	TOKEN_PROGRAM_ID,
@@ -22,7 +27,7 @@ import {
 	mockUSDCMint,
 	mockUserUSDCAccount,
 } from './testHelpers';
-import { startAnchor } from "solana-bankrun";
+import { startAnchor } from 'solana-bankrun';
 import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
 import { BankrunContextWrapper } from '../sdk/src/bankrunConnection';
 
@@ -54,14 +59,22 @@ describe('whitelist', () => {
 	let whitelistMint: PublicKey;
 
 	before(async () => {
-		const context = await startAnchor("", [], []);
+		const context = await startAnchor('', [], []);
 
 		bankrunContextWrapper = new BankrunContextWrapper(context);
 
-        bulkAccountLoader = new TestBulkAccountLoader(bankrunContextWrapper.connection, 'processed', 1);
+		bulkAccountLoader = new TestBulkAccountLoader(
+			bankrunContextWrapper.connection,
+			'processed',
+			1
+		);
 
 		usdcMint = await mockUSDCMint(bankrunContextWrapper);
-		userUSDCAccount = await mockUserUSDCAccount(usdcMint, usdcAmount, bankrunContextWrapper);
+		userUSDCAccount = await mockUserUSDCAccount(
+			usdcMint,
+			usdcAmount,
+			bankrunContextWrapper
+		);
 
 		const solUsd = await mockOracleNoProgram(bankrunContextWrapper, 1);
 		const periodicity = new BN(60 * 60); // 1 HOUR
@@ -105,7 +118,13 @@ describe('whitelist', () => {
 				lamports: 10_000_000_000,
 				programId: TOKEN_PROGRAM_ID,
 			}),
-			createInitializeMint2Instruction(keypair.publicKey, 0, bankrunContextWrapper.provider.wallet.publicKey, bankrunContextWrapper.provider.wallet.publicKey, TOKEN_PROGRAM_ID)
+			createInitializeMint2Instruction(
+				keypair.publicKey,
+				0,
+				bankrunContextWrapper.provider.wallet.publicKey,
+				bankrunContextWrapper.provider.wallet.publicKey,
+				TOKEN_PROGRAM_ID
+			)
 		);
 
 		await bankrunContextWrapper.sendTransaction(transaction, [keypair]);
@@ -143,15 +162,25 @@ describe('whitelist', () => {
 	});
 
 	it('successful initialize user', async () => {
-		const whitelistMintAta = getAssociatedTokenAddressSync(whitelistMint, bankrunContextWrapper.provider.wallet.publicKey)
-		const ix = createAssociatedTokenAccountIdempotentInstruction(bankrunContextWrapper.context.payer.publicKey, whitelistMintAta, bankrunContextWrapper.provider.wallet.publicKey, whitelistMint);
+		const whitelistMintAta = getAssociatedTokenAddressSync(
+			whitelistMint,
+			bankrunContextWrapper.provider.wallet.publicKey
+		);
+		const ix = createAssociatedTokenAccountIdempotentInstruction(
+			bankrunContextWrapper.context.payer.publicKey,
+			whitelistMintAta,
+			bankrunContextWrapper.provider.wallet.publicKey,
+			whitelistMint
+		);
 		const mintToIx = createMintToInstruction(
 			whitelistMint,
 			whitelistMintAta,
 			bankrunContextWrapper.provider.wallet.publicKey,
 			1
 		);
-		await bankrunContextWrapper.sendTransaction(new Transaction().add(ix, mintToIx));
+		await bankrunContextWrapper.sendTransaction(
+			new Transaction().add(ix, mintToIx)
+		);
 
 		[, userAccountPublicKey] =
 			await driftClient.initializeUserAccountAndDepositCollateral(
@@ -163,7 +192,9 @@ describe('whitelist', () => {
 			userAccountPublicKey
 		);
 
-		assert.ok(user.authority.equals(bankrunContextWrapper.provider.wallet.publicKey));
+		assert.ok(
+			user.authority.equals(bankrunContextWrapper.provider.wallet.publicKey)
+		);
 	});
 
 	it('disable whitelist mint', async () => {

@@ -23,12 +23,9 @@ import {
 	mockUserUSDCAccount,
 	sleep,
 } from './testHelpers';
-import {
-	QUOTE_PRECISION,
-	getUserAccountPublicKey,
-} from '../sdk';
+import { QUOTE_PRECISION, getUserAccountPublicKey } from '../sdk';
 import { calculateInitUserFee } from '../sdk/lib/math/state';
-import { startAnchor } from "solana-bankrun";
+import { startAnchor } from 'solana-bankrun';
 import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
 import { BankrunContextWrapper } from '../sdk/src/bankrunConnection';
 
@@ -54,15 +51,19 @@ describe('surge pricing', () => {
 	let oracleInfos: OracleInfo[];
 
 	before(async () => {
-		const context = await startAnchor("", [], []);
+		const context = await startAnchor('', [], []);
 
 		bankrunContextWrapper = new BankrunContextWrapper(context);
 
-        bulkAccountLoader = new TestBulkAccountLoader(bankrunContextWrapper.connection, 'processed', 1);
+		bulkAccountLoader = new TestBulkAccountLoader(
+			bankrunContextWrapper.connection,
+			'processed',
+			1
+		);
 
 		eventSubscriber = new EventSubscriber(
 			bankrunContextWrapper.connection.toConnection(),
-			chProgram,
+			chProgram
 		);
 
 		await eventSubscriber.subscribe();
@@ -177,7 +178,9 @@ describe('surge pricing', () => {
 				0
 			);
 
-			const accountInfo = await bankrunContextWrapper.connection.getAccountInfo(userAccount);
+			const accountInfo = await bankrunContextWrapper.connection.getAccountInfo(
+				userAccount
+			);
 			const baseLamports = 31347840;
 			console.log('expected fee', expectedFee.toNumber());
 			if (i === 4) {
@@ -190,9 +193,8 @@ describe('surge pricing', () => {
 			if (i === 4) {
 				await admin.updateStateMaxNumberOfSubAccounts(0);
 				await driftClient.reclaimRent(0);
-				const accountInfoAfterReclaim = await bankrunContextWrapper.connection.getAccountInfo(
-					userAccount
-				);
+				const accountInfoAfterReclaim =
+					await bankrunContextWrapper.connection.getAccountInfo(userAccount);
 				console.log(
 					'account info after reclaim',
 					accountInfoAfterReclaim.lamports

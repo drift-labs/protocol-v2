@@ -24,12 +24,8 @@ import {
 	initializeQuoteSpotMarket,
 	initializeSolSpotMarket,
 } from './testHelpers';
-import {
-	BASE_PRECISION,
-	isVariant,
-	OracleSource,
-} from '../sdk';
-import { startAnchor } from "solana-bankrun";
+import { BASE_PRECISION, isVariant, OracleSource } from '../sdk';
+import { startAnchor } from 'solana-bankrun';
 import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
 import { BankrunContextWrapper } from '../sdk/src/bankrunConnection';
 
@@ -64,14 +60,22 @@ describe('trigger orders', () => {
 	let oracleInfos;
 
 	before(async () => {
-		const context = await startAnchor("", [], []);
+		const context = await startAnchor('', [], []);
 
 		bankrunContextWrapper = new BankrunContextWrapper(context);
 
-        bulkAccountLoader = new TestBulkAccountLoader(bankrunContextWrapper.connection, 'processed', 1);
+		bulkAccountLoader = new TestBulkAccountLoader(
+			bankrunContextWrapper.connection,
+			'processed',
+			1
+		);
 
 		usdcMint = await mockUSDCMint(bankrunContextWrapper);
-		userUSDCAccount = await mockUserUSDCAccount(usdcMint, usdcAmount, bankrunContextWrapper);
+		userUSDCAccount = await mockUserUSDCAccount(
+			usdcMint,
+			usdcAmount,
+			bankrunContextWrapper
+		);
 
 		solUsd = await mockOracleNoProgram(bankrunContextWrapper, 1);
 		marketIndexes = [0];
@@ -127,7 +131,7 @@ describe('trigger orders', () => {
 			accountSubscription: {
 				type: 'polling',
 				accountLoader: bulkAccountLoader,
-				},
+			},
 		});
 		await fillerDriftClientUser.subscribe();
 	});
@@ -184,7 +188,7 @@ describe('trigger orders', () => {
 			accountSubscription: {
 				type: 'polling',
 				accountLoader: bulkAccountLoader,
-				},
+			},
 		});
 		await driftClientUser.subscribe();
 
@@ -267,7 +271,7 @@ describe('trigger orders', () => {
 			accountSubscription: {
 				type: 'polling',
 				accountLoader: bulkAccountLoader,
-				},
+			},
 		});
 		await driftClientUser.subscribe();
 

@@ -25,13 +25,8 @@ import {
 	mockUserUSDCAccount,
 	sleep,
 } from './testHelpers';
-import {
-	MARGIN_PRECISION,
-	PostOnlyParams,
-	ReferrerInfo,
-	ZERO,
-} from '../sdk';
-import { startAnchor } from "solana-bankrun";
+import { MARGIN_PRECISION, PostOnlyParams, ReferrerInfo, ZERO } from '../sdk';
+import { startAnchor } from 'solana-bankrun';
 import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
 import { BankrunContextWrapper } from '../sdk/src/bankrunConnection';
 
@@ -103,14 +98,22 @@ describe('place and fill spot order', () => {
 	};
 
 	before(async () => {
-		const context = await startAnchor("", [], []);
+		const context = await startAnchor('', [], []);
 
 		bankrunContextWrapper = new BankrunContextWrapper(context);
 
-        bulkAccountLoader = new TestBulkAccountLoader(bankrunContextWrapper.connection, 'processed', 1);
+		bulkAccountLoader = new TestBulkAccountLoader(
+			bankrunContextWrapper.connection,
+			'processed',
+			1
+		);
 
 		usdcMint = await mockUSDCMint(bankrunContextWrapper);
-		userUSDCAccount = await mockUserUSDCAccount(usdcMint, usdcAmount, bankrunContextWrapper);
+		userUSDCAccount = await mockUserUSDCAccount(
+			usdcMint,
+			usdcAmount,
+			bankrunContextWrapper
+		);
 
 		solUsd = await mockOracleNoProgram(bankrunContextWrapper, 32.821);
 
@@ -154,7 +157,11 @@ describe('place and fill spot order', () => {
 		);
 
 		const oneSol = new BN(LAMPORTS_PER_SOL);
-		await fillerDriftClient.deposit(oneSol, 1, bankrunContextWrapper.provider.wallet.publicKey);
+		await fillerDriftClient.deposit(
+			oneSol,
+			1,
+			bankrunContextWrapper.provider.wallet.publicKey
+		);
 
 		fillerDriftClientUser = new User({
 			driftClient: fillerDriftClient,
@@ -162,7 +169,7 @@ describe('place and fill spot order', () => {
 			accountSubscription: {
 				type: 'polling',
 				accountLoader: bulkAccountLoader,
-				},
+			},
 		});
 		await fillerDriftClientUser.subscribe();
 	});
@@ -183,7 +190,7 @@ describe('place and fill spot order', () => {
 			accountSubscription: {
 				type: 'polling',
 				accountLoader: bulkAccountLoader,
-				},
+			},
 		});
 		await takerDriftClientUser.subscribe();
 
@@ -194,7 +201,7 @@ describe('place and fill spot order', () => {
 			accountSubscription: {
 				type: 'polling',
 				accountLoader: bulkAccountLoader,
-				},
+			},
 		});
 		await makerDriftClientUser.subscribe();
 

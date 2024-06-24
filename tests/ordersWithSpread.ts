@@ -33,7 +33,7 @@ import {
 	OracleSource,
 	PEG_PRECISION,
 } from '../sdk';
-import { startAnchor } from "solana-bankrun";
+import { startAnchor } from 'solana-bankrun';
 import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
 import { BankrunContextWrapper } from '../sdk/src/bankrunConnection';
 
@@ -66,21 +66,29 @@ describe('amm spread: market order', () => {
 	let solUsd;
 
 	before(async () => {
-		const context = await startAnchor("", [], []);
+		const context = await startAnchor('', [], []);
 
 		bankrunContextWrapper = new BankrunContextWrapper(context);
 
-        bulkAccountLoader = new TestBulkAccountLoader(bankrunContextWrapper.connection, 'processed', 1);
+		bulkAccountLoader = new TestBulkAccountLoader(
+			bankrunContextWrapper.connection,
+			'processed',
+			1
+		);
 
 		eventSubscriber = new EventSubscriber(
 			bankrunContextWrapper.connection.toConnection(),
-			chProgram,
+			chProgram
 		);
 
 		await eventSubscriber.subscribe();
 
 		usdcMint = await mockUSDCMint(bankrunContextWrapper);
-		userUSDCAccount = await mockUserUSDCAccount(usdcMint, usdcAmount, bankrunContextWrapper);
+		userUSDCAccount = await mockUserUSDCAccount(
+			usdcMint,
+			usdcAmount,
+			bankrunContextWrapper
+		);
 
 		solUsd = await mockOracleNoProgram(bankrunContextWrapper, 1);
 
@@ -134,7 +142,7 @@ describe('amm spread: market order', () => {
 			accountSubscription: {
 				type: 'polling',
 				accountLoader: bulkAccountLoader,
-				},
+			},
 		});
 		await driftClientUser.subscribe();
 	});
@@ -204,7 +212,8 @@ describe('amm spread: market order', () => {
 			baseAssetAmount,
 		});
 		const txSig = await driftClient.placeAndTakePerpOrder(orderParams);
-		const computeUnits = bankrunContextWrapper.connection.findComputeUnitConsumption(txSig);
+		const computeUnits =
+			bankrunContextWrapper.connection.findComputeUnitConsumption(txSig);
 		console.log('compute units', computeUnits);
 		bankrunContextWrapper.printTxLogs(txSig);
 		await driftClient.fetchAccounts();
@@ -310,7 +319,8 @@ describe('amm spread: market order', () => {
 			baseAssetAmount,
 		});
 		const txSig = await driftClient.placeAndTakePerpOrder(orderParams);
-		const computeUnits = bankrunContextWrapper.connection.findComputeUnitConsumption(txSig);
+		const computeUnits =
+			bankrunContextWrapper.connection.findComputeUnitConsumption(txSig);
 		console.log('compute units', computeUnits);
 		bankrunContextWrapper.printTxLogs(txSig);
 
@@ -697,7 +707,8 @@ describe('amm spread: market order', () => {
 			baseAssetAmount,
 		});
 		const txSig = await driftClient.placeAndTakePerpOrder(orderParams);
-		const computeUnits = bankrunContextWrapper.connection.findComputeUnitConsumption(txSig);
+		const computeUnits =
+			bankrunContextWrapper.connection.findComputeUnitConsumption(txSig);
 		console.log('compute units', computeUnits);
 		bankrunContextWrapper.printTxLogs(txSig);
 

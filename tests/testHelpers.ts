@@ -26,12 +26,7 @@ import {
 } from '@solana/web3.js';
 import { assert } from 'chai';
 import buffer from 'buffer';
-import {
-	BN,
-	Wallet,
-	OraclePriceData,
-	OracleInfo,
-} from '../sdk';
+import { BN, Wallet, OraclePriceData, OracleInfo } from '../sdk';
 import {
 	TestClient,
 	SPOT_MARKET_RATE_PRECISION,
@@ -41,8 +36,11 @@ import {
 	User,
 	OracleSource,
 } from '../sdk/src';
-import { BankrunContextWrapper, BankrunConnection } from '../sdk/src/bankrunConnection';
-import pythIDL from "../sdk/src/idl/pyth.json";
+import {
+	BankrunContextWrapper,
+	BankrunConnection,
+} from '../sdk/src/bankrunConnection';
+import pythIDL from '../sdk/src/idl/pyth.json';
 import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
 
 export async function mockOracle(
@@ -85,14 +83,14 @@ export async function mockOracleNoProgram(
 		context.connection.toConnection(),
 		context.provider.wallet,
 		{
-			commitment: "processed"
+			commitment: 'processed',
 		}
 	);
 
 	const program = new Program(
 		pythIDL as anchor.Idl,
-		new PublicKey("FsJ3A3u2vn5cTVofAjvy6y5kwABJAqYWpe4975bi2epH"),
-		provider,
+		new PublicKey('FsJ3A3u2vn5cTVofAjvy6y5kwABJAqYWpe4975bi2epH'),
+		provider
 	);
 
 	const priceFeedAddress = await createPriceFeedBankrun({
@@ -104,7 +102,10 @@ export async function mockOracleNoProgram(
 	});
 
 	// @ts-ignore
-	const feedData = await getFeedDataNoProgram(context.connection, priceFeedAddress);
+	const feedData = await getFeedDataNoProgram(
+		context.connection,
+		priceFeedAddress
+	);
 	if (feedData.price !== price) {
 		console.log('mockOracle precision error:', feedData.price, '!=', price);
 	}
@@ -113,7 +114,9 @@ export async function mockOracleNoProgram(
 	return priceFeedAddress;
 }
 
-export async function mockUSDCMint(context: BankrunContextWrapper): Promise<Keypair> {
+export async function mockUSDCMint(
+	context: BankrunContextWrapper
+): Promise<Keypair> {
 	const fakeUSDCMint = anchor.web3.Keypair.generate();
 	const createUSDCMintAccountIx = SystemProgram.createAccount({
 		fromPubkey: context.provider.wallet.publicKey,
@@ -217,7 +220,7 @@ export function getMockUserUsdcAccountInfo(
 			isNativeOption: 0,
 			isNative: BigInt(0),
 			closeAuthorityOption: 0,
-			closeAuthority: PublicKey.default
+			closeAuthority: PublicKey.default,
 		},
 		tokenAccData
 	);
@@ -253,7 +256,7 @@ export async function mintUSDCToUser(
 }
 
 export async function createFundedKeyPair(
-	context: BankrunContextWrapper,
+	context: BankrunContextWrapper
 ): Promise<Keypair> {
 	const keypair = Keypair.generate();
 	await context.fundKeypair(keypair, BigInt(100 * LAMPORTS_PER_SOL));
@@ -348,8 +351,16 @@ export async function createWSolTokenAccountForUser(
 ): Promise<PublicKey> {
 	// @ts-ignore
 	await context.fundKeypair(userKeypair, amount.toNumber());
-	const addr = getAssociatedTokenAddressSync(NATIVE_MINT, userKeypair.publicKey);
-	const ix = createAssociatedTokenAccountIdempotentInstruction(context.context.payer.publicKey, addr, userKeypair.publicKey, NATIVE_MINT);
+	const addr = getAssociatedTokenAddressSync(
+		NATIVE_MINT,
+		userKeypair.publicKey
+	);
+	const ix = createAssociatedTokenAccountIdempotentInstruction(
+		context.context.payer.publicKey,
+		addr,
+		userKeypair.publicKey,
+		NATIVE_MINT
+	);
 	const ixs = [
 		SystemProgram.transfer({
 			fromPubkey: context.context.payer.publicKey,
@@ -370,7 +381,10 @@ export async function fundWsolTokenAccountForUser(
 ): Promise<void> {
 	// @ts-ignore
 	await context.fundKeypair(userKeypair, amount.toNumber() * 5);
-	const addr = getAssociatedTokenAddressSync(NATIVE_MINT, userKeypair.publicKey);
+	const addr = getAssociatedTokenAddressSync(
+		NATIVE_MINT,
+		userKeypair.publicKey
+	);
 	const ixs = [
 		SystemProgram.transfer({
 			fromPubkey: context.context.payer.publicKey,
@@ -538,7 +552,7 @@ export async function initUserAccounts(
 			accountSubscription: {
 				type: 'polling',
 				accountLoader: accountLoader,
-				},
+			},
 		});
 		await userAccount.subscribe();
 
@@ -658,20 +672,23 @@ export const setFeedPriceNoProgram = async (
 		context.connection.toConnection(),
 		context.provider.wallet,
 		{
-			commitment: "processed"
+			commitment: 'processed',
 		}
 	);
 
 	const program = new Program(
 		pythIDL as anchor.Idl,
-		new PublicKey("FsJ3A3u2vn5cTVofAjvy6y5kwABJAqYWpe4975bi2epH"),
-		provider,
+		new PublicKey('FsJ3A3u2vn5cTVofAjvy6y5kwABJAqYWpe4975bi2epH'),
+		provider
 	);
 
-	const ix = program.instruction.setPrice(new BN(newPrice * 10 ** -data.exponent), {
-		accounts: { price: priceFeed },
-	});
-	
+	const ix = program.instruction.setPrice(
+		new BN(newPrice * 10 ** -data.exponent),
+		{
+			accounts: { price: priceFeed },
+		}
+	);
+
 	const tx = new Transaction().add(ix);
 	tx.feePayer = context.context.payer.publicKey;
 	tx.recentBlockhash = (await context.getLatestBlockhash()).toString();

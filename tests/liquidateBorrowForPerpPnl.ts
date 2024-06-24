@@ -3,7 +3,7 @@ import { assert } from 'chai';
 
 import { Program } from '@coral-xyz/anchor';
 
-import { Keypair, PublicKey } from '@solana/web3.js';
+import { PublicKey } from '@solana/web3.js';
 
 import {
 	BASE_PRECISION,
@@ -30,7 +30,7 @@ import {
 	setFeedPriceNoProgram,
 } from './testHelpers';
 import { isVariant, UserStatus } from '../sdk';
-import { startAnchor } from "solana-bankrun";
+import { startAnchor } from 'solana-bankrun';
 import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
 import { BankrunContextWrapper } from '../sdk/src/bankrunConnection';
 
@@ -63,28 +63,34 @@ describe('liquidate borrow for perp pnl', () => {
 
 	const usdcAmount = new BN(10 * 10 ** 6);
 
-	let liquidatorKeypair: Keypair;
-
 	let _throwaway: PublicKey;
 
 	let eventSubscriber: EventSubscriber;
 
 	before(async () => {
-		const context = await startAnchor("", [], []);
+		const context = await startAnchor('', [], []);
 
 		bankrunContextWrapper = new BankrunContextWrapper(context);
 
 		eventSubscriber = new EventSubscriber(
 			bankrunContextWrapper.connection.toConnection(),
-			chProgram,
+			chProgram
 		);
 
 		await eventSubscriber.subscribe();
 
-        bulkAccountLoader = new TestBulkAccountLoader(bankrunContextWrapper.connection, 'processed', 1);
+		bulkAccountLoader = new TestBulkAccountLoader(
+			bankrunContextWrapper.connection,
+			'processed',
+			1
+		);
 
 		usdcMint = await mockUSDCMint(bankrunContextWrapper);
-		userUSDCAccount = await mockUserUSDCAccount(usdcMint, usdcAmount, bankrunContextWrapper);
+		userUSDCAccount = await mockUserUSDCAccount(
+			usdcMint,
+			usdcAmount,
+			bankrunContextWrapper
+		);
 		userWSOLAccount = await createWSolTokenAccountForUser(
 			bankrunContextWrapper,
 			// @ts-ignore
@@ -173,7 +179,7 @@ describe('liquidate borrow for perp pnl', () => {
 		await driftClient.closePosition(0);
 
 		const solAmount = new BN(10 * 10 ** 9);
-		[liquidatorDriftClient, liquidatorDriftClientWSOLAccount, _throwaway, liquidatorKeypair] =
+		[liquidatorDriftClient, liquidatorDriftClientWSOLAccount, _throwaway] =
 			await createUserWithUSDCAndWSOLAccount(
 				bankrunContextWrapper,
 				usdcMint,
@@ -201,7 +207,10 @@ describe('liquidate borrow for perp pnl', () => {
 		);
 		const solBorrow = new BN(5 * 10 ** 8);
 
-		const account = await bankrunContextWrapper.connection.getAccountInfoAndContext(userWSOLAccount);
+		const account =
+			await bankrunContextWrapper.connection.getAccountInfoAndContext(
+				userWSOLAccount
+			);
 
 		console.log(account);
 

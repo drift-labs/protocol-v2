@@ -1,11 +1,6 @@
 import * as anchor from '@coral-xyz/anchor';
 import { assert } from 'chai';
-import {
-	BN,
-	getMarketOrderParams,
-	OracleSource,
-	ZERO,
-} from '../sdk';
+import { BN, getMarketOrderParams, OracleSource, ZERO } from '../sdk';
 
 import { Program } from '@coral-xyz/anchor';
 
@@ -19,7 +14,7 @@ import {
 	initializeQuoteSpotMarket,
 	mockOracleNoProgram,
 } from './testHelpers';
-import { startAnchor } from "solana-bankrun";
+import { startAnchor } from 'solana-bankrun';
 import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
 import { BankrunContextWrapper } from '../sdk/src/bankrunConnection';
 
@@ -53,17 +48,28 @@ describe('market orders', () => {
 	let oracleInfos;
 
 	before(async () => {
-		const context = await startAnchor("", [], []);
+		const context = await startAnchor('', [], []);
 
 		bankrunContextWrapper = new BankrunContextWrapper(context);
 
-        bulkAccountLoader = new TestBulkAccountLoader(bankrunContextWrapper.connection, 'processed', 1);
+		bulkAccountLoader = new TestBulkAccountLoader(
+			bankrunContextWrapper.connection,
+			'processed',
+			1
+		);
 
-		eventSubscriber = new EventSubscriber(bankrunContextWrapper.connection, chProgram);
+		eventSubscriber = new EventSubscriber(
+			bankrunContextWrapper.connection,
+			chProgram
+		);
 		await eventSubscriber.subscribe();
 
 		usdcMint = await mockUSDCMint(bankrunContextWrapper);
-		userUSDCAccount = await mockUserUSDCAccount(usdcMint, usdcAmount, bankrunContextWrapper);
+		userUSDCAccount = await mockUserUSDCAccount(
+			usdcMint,
+			usdcAmount,
+			bankrunContextWrapper
+		);
 
 		const solUsd = await mockOracleNoProgram(bankrunContextWrapper, 1);
 		marketIndexes = [0];

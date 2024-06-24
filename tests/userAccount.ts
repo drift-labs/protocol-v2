@@ -29,7 +29,7 @@ import {
 	calculatePrice,
 	AMM_RESERVE_PRECISION,
 } from '../sdk/src';
-import { startAnchor } from "solana-bankrun";
+import { startAnchor } from 'solana-bankrun';
 import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
 import { BankrunContextWrapper } from '../sdk/src/bankrunConnection';
 
@@ -60,15 +60,22 @@ describe('User Account', () => {
 	let userAccount: User;
 
 	before(async () => {
-		const context = await startAnchor("", [], []);
+		const context = await startAnchor('', [], []);
 
 		bankrunContextWrapper = new BankrunContextWrapper(context);
 
-        bulkAccountLoader = new TestBulkAccountLoader(bankrunContextWrapper.connection, 'processed', 1);
+		bulkAccountLoader = new TestBulkAccountLoader(
+			bankrunContextWrapper.connection,
+			'processed',
+			1
+		);
 
-		
 		usdcMint = await mockUSDCMint(bankrunContextWrapper);
-		userUSDCAccount = await mockUserUSDCAccount(usdcMint, usdcAmount, bankrunContextWrapper);
+		userUSDCAccount = await mockUserUSDCAccount(
+			usdcMint,
+			usdcAmount,
+			bankrunContextWrapper
+		);
 
 		solUsdOracle = await mockOracleNoProgram(
 			bankrunContextWrapper,
@@ -254,7 +261,10 @@ describe('User Account', () => {
 		await sleep(5000);
 
 		await driftClient.fetchAccounts();
-		const oracleP2 = await getFeedDataNoProgram(bankrunContextWrapper.connection, solUsdOracle);
+		const oracleP2 = await getFeedDataNoProgram(
+			bankrunContextWrapper.connection,
+			solUsdOracle
+		);
 		console.log('oracleP2:', oracleP2.price);
 		const oraclePrice2 = driftClient.getOracleDataForPerpMarket(
 			market.marketIndex
@@ -333,7 +343,10 @@ describe('User Account', () => {
 		await sleep(5000);
 
 		await driftClient.fetchAccounts();
-		const oracleP2 = await getFeedDataNoProgram(bankrunContextWrapper.connection, solUsdOracle);
+		const oracleP2 = await getFeedDataNoProgram(
+			bankrunContextWrapper.connection,
+			solUsdOracle
+		);
 		console.log('oracleP2:', oracleP2.price);
 		const oraclePrice2 = driftClient.getOracleDataForPerpMarket(
 			market.marketIndex

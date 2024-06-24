@@ -30,7 +30,7 @@ import {
 	sleep,
 } from './testHelpers';
 import { PERCENTAGE_PRECISION, UserStatus } from '../sdk';
-import { startAnchor } from "solana-bankrun";
+import { startAnchor } from 'solana-bankrun';
 import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
 import { BankrunContextWrapper } from '../sdk/src/bankrunConnection';
 
@@ -64,21 +64,29 @@ describe('liquidate perp (no open orders)', () => {
 	const nLpShares = ZERO;
 
 	before(async () => {
-		const context = await startAnchor("", [], []);
+		const context = await startAnchor('', [], []);
 
 		bankrunContextWrapper = new BankrunContextWrapper(context);
 
-        bulkAccountLoader = new TestBulkAccountLoader(bankrunContextWrapper.connection, 'processed', 1);
+		bulkAccountLoader = new TestBulkAccountLoader(
+			bankrunContextWrapper.connection,
+			'processed',
+			1
+		);
 
 		eventSubscriber = new EventSubscriber(
 			bankrunContextWrapper.connection.toConnection(),
-			chProgram,
+			chProgram
 		);
 
 		await eventSubscriber.subscribe();
 
 		usdcMint = await mockUSDCMint(bankrunContextWrapper);
-		userUSDCAccount = await mockUserUSDCAccount(usdcMint, usdcAmount, bankrunContextWrapper);
+		userUSDCAccount = await mockUserUSDCAccount(
+			usdcMint,
+			usdcAmount,
+			bankrunContextWrapper
+		);
 
 		const oracle = await mockOracleNoProgram(bankrunContextWrapper, 1);
 
@@ -206,7 +214,7 @@ describe('liquidate perp (no open orders)', () => {
 			accountSubscription: {
 				type: 'polling',
 				accountLoader: bulkAccountLoader,
-				},
+			},
 		});
 		await driftClientUser.subscribe();
 
@@ -364,7 +372,6 @@ describe('liquidate perp (no open orders)', () => {
 		assert(liquidationRecord.liquidatePerp.ifFee.eq(new BN(0)));
 		assert(liquidationRecord.liquidatePerp.liquidatorFee.eq(new BN(0)));
 
-		
 		const fillRecord = eventSubscriber.getEventsArray('OrderActionRecord')[0];
 		assert(isVariant(fillRecord.action, 'fill'));
 		assert(fillRecord.marketIndex === 0);
@@ -484,7 +491,7 @@ describe('liquidate perp (no open orders)', () => {
 
 		const perpBankruptcyRecord =
 			eventSubscriber.getEventsArray('LiquidationRecord')[0];
-		
+
 		assert(isVariant(perpBankruptcyRecord.liquidationType, 'perpBankruptcy'));
 		assert(perpBankruptcyRecord.perpBankruptcy.marketIndex === 0);
 		console.log(perpBankruptcyRecord.perpBankruptcy.pnl.toString());

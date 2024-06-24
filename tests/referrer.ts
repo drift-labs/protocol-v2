@@ -29,7 +29,7 @@ import {
 	PositionDirection,
 } from '../sdk';
 import { decodeName } from '../sdk/lib/userName';
-import { startAnchor } from "solana-bankrun";
+import { startAnchor } from 'solana-bankrun';
 import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
 import { BankrunContextWrapper } from '../sdk/src/bankrunConnection';
 
@@ -67,15 +67,19 @@ describe('referrer', () => {
 	const usdcAmount = new BN(100 * 10 ** 6);
 
 	before(async () => {
-		const context = await startAnchor("", [], []);
+		const context = await startAnchor('', [], []);
 
 		bankrunContextWrapper = new BankrunContextWrapper(context);
 
-        bulkAccountLoader = new TestBulkAccountLoader(bankrunContextWrapper.connection, 'processed', 1);
+		bulkAccountLoader = new TestBulkAccountLoader(
+			bankrunContextWrapper.connection,
+			'processed',
+			1
+		);
 
 		eventSubscriber = new EventSubscriber(
 			bankrunContextWrapper.connection.toConnection(),
-			chProgram,
+			chProgram
 		);
 
 		await eventSubscriber.subscribe();
@@ -216,11 +220,19 @@ describe('referrer', () => {
 		await eventSubscriber.awaitTx(txSig);
 
 		const newUserRecord = eventSubscriber.getEventsArray('NewUserRecord')[0];
-		assert(newUserRecord.referrer.equals(bankrunContextWrapper.provider.wallet.publicKey));
+		assert(
+			newUserRecord.referrer.equals(
+				bankrunContextWrapper.provider.wallet.publicKey
+			)
+		);
 
 		await refereeDriftClient.fetchAccounts();
 		const refereeStats = refereeDriftClient.getUserStats().getAccount();
-		assert(refereeStats.referrer.equals(bankrunContextWrapper.provider.wallet.publicKey));
+		assert(
+			refereeStats.referrer.equals(
+				bankrunContextWrapper.provider.wallet.publicKey
+			)
+		);
 
 		const referrerStats = referrerDriftClient.getUserStats().getAccount();
 		assert(referrerStats.isReferrer == true);

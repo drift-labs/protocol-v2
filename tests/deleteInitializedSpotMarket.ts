@@ -22,7 +22,7 @@ import {
 	getSpotMarketVaultPublicKey,
 } from '../sdk';
 import { PublicKey } from '@solana/web3.js';
-import { startAnchor } from "solana-bankrun";
+import { startAnchor } from 'solana-bankrun';
 import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
 import { BankrunContextWrapper } from '../sdk/src/bankrunConnection';
 
@@ -41,11 +41,15 @@ describe('max deposit', () => {
 	const usdcAmount = new BN(10 * 10 ** 6);
 
 	before(async () => {
-		const context = await startAnchor("", [], []);
+		const context = await startAnchor('', [], []);
 
 		bankrunContextWrapper = new BankrunContextWrapper(context);
 
-        bulkAccountLoader = new TestBulkAccountLoader(bankrunContextWrapper.connection, 'processed', 1);
+		bulkAccountLoader = new TestBulkAccountLoader(
+			bankrunContextWrapper.connection,
+			'processed',
+			1
+		);
 
 		usdcMint = await mockUSDCMint(bankrunContextWrapper);
 		_userUSDCAccount = await mockUserUSDCAccount(
@@ -120,10 +124,11 @@ describe('max deposit', () => {
 			0
 		);
 
-		let result = await bankrunContextWrapper.connection.getAccountInfoAndContext(
-			spotMarketKey,
-			'processed'
-		);
+		let result =
+			await bankrunContextWrapper.connection.getAccountInfoAndContext(
+				spotMarketKey,
+				'processed'
+			);
 		assert(result.value === null);
 
 		const spotMarketVaultKey = await getSpotMarketVaultPublicKey(
@@ -142,7 +147,10 @@ describe('max deposit', () => {
 			0
 		);
 
-		result = await bankrunContextWrapper.connection.getAccountInfoAndContext(ifVaultKey, 'processed');
+		result = await bankrunContextWrapper.connection.getAccountInfoAndContext(
+			ifVaultKey,
+			'processed'
+		);
 		assert(result.value === null);
 	});
 

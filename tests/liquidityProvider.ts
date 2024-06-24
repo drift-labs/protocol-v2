@@ -36,7 +36,7 @@ import {
 	sleep,
 } from './testHelpers';
 import { PerpPosition } from '../sdk';
-import { startAnchor } from "solana-bankrun";
+import { startAnchor } from 'solana-bankrun';
 import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
 import { BankrunContextWrapper } from '../sdk/src/bankrunConnection';
 
@@ -129,7 +129,7 @@ async function createNewUser(
 		accountSubscription: {
 			type: 'polling',
 			accountLoader: bulkAccountLoader,
-			},
+		},
 	});
 	driftClientUser.subscribe();
 
@@ -198,15 +198,22 @@ describe('liquidity providing', () => {
 	let solusdc2;
 
 	before(async () => {
-		const context = await startAnchor("", [], []);
+		const context = await startAnchor('', [], []);
 
 		bankrunContextWrapper = new BankrunContextWrapper(context);
 
-        bulkAccountLoader = new TestBulkAccountLoader(bankrunContextWrapper.connection, 'processed', 1);
+		bulkAccountLoader = new TestBulkAccountLoader(
+			bankrunContextWrapper.connection,
+			'processed',
+			1
+		);
 
 		usdcMint = await mockUSDCMint(bankrunContextWrapper);
 
-		eventSubscriber = new EventSubscriber(bankrunContextWrapper.connection, chProgram);
+		eventSubscriber = new EventSubscriber(
+			bankrunContextWrapper.connection,
+			chProgram
+		);
 		await eventSubscriber.subscribe();
 
 		solusdc2 = await mockOracleNoProgram(bankrunContextWrapper, 1, -7); // make invalid
@@ -544,7 +551,12 @@ describe('liquidity providing', () => {
 		assert(removeLiquidityRecord.deltaBaseAssetAmount.eq(ZERO));
 		assert(removeLiquidityRecord.deltaQuoteAssetAmount.eq(new BN('-243866'))); // show pnl from burn in record
 		console.log('closing trader ...');
-		await adjustOraclePostSwap(tradeSize, SwapDirection.REMOVE, market, bankrunContextWrapper);
+		await adjustOraclePostSwap(
+			tradeSize,
+			SwapDirection.REMOVE,
+			market,
+			bankrunContextWrapper
+		);
 		await fullClosePosition(
 			traderDriftClient,
 			traderDriftClient.getUserAccount().perpPositions[0]
@@ -617,11 +629,16 @@ describe('liquidity providing', () => {
 		console.log('user trading...');
 		const tradeSize = new BN(5 * BASE_PRECISION.toNumber());
 		try {
-			await adjustOraclePostSwap(tradeSize, SwapDirection.REMOVE, market, bankrunContextWrapper);
+			await adjustOraclePostSwap(
+				tradeSize,
+				SwapDirection.REMOVE,
+				market,
+				bankrunContextWrapper
+			);
 			const _txsig = await traderDriftClient.openPosition(
 				PositionDirection.LONG,
 				tradeSize,
-				market.marketIndex,
+				market.marketIndex
 				// new BN(100 * BASE_PRECISION.toNumber())
 			);
 			await _viewLogs(_txsig);
@@ -718,7 +735,12 @@ describe('liquidity providing', () => {
 		);
 
 		console.log('closing trader ...');
-		await adjustOraclePostSwap(tradeSize, SwapDirection.REMOVE, market, bankrunContextWrapper);
+		await adjustOraclePostSwap(
+			tradeSize,
+			SwapDirection.REMOVE,
+			market,
+			bankrunContextWrapper
+		);
 		const _txsig = await fullClosePosition(
 			traderDriftClient,
 			trader.perpPositions[0]
@@ -860,7 +882,7 @@ describe('liquidity providing', () => {
 			'lp position:',
 			position3.baseAssetAmount.toString(),
 			position3.quoteAssetAmount.toString()
-		);	
+		);
 
 		const traderUserAccount0 = await traderDriftClient.getUserAccount();
 		const position0 = traderUserAccount0.perpPositions[0];
@@ -970,10 +992,15 @@ describe('liquidity providing', () => {
 		assert(user.perpPositions[0].quoteAssetAmount.eq(new BN(-9550985)));
 
 		console.log('closing trader ...');
-		await adjustOraclePostSwap(tradeSize, SwapDirection.REMOVE, market, bankrunContextWrapper);
+		await adjustOraclePostSwap(
+			tradeSize,
+			SwapDirection.REMOVE,
+			market,
+			bankrunContextWrapper
+		);
 		await fullClosePosition(
 			traderDriftClient,
-			traderUserAccount.perpPositions[0],
+			traderUserAccount.perpPositions[0]
 		);
 
 		console.log('closing lp ...');
@@ -1060,7 +1087,12 @@ describe('liquidity providing', () => {
 		assert(user.perpPositions[0].quoteEntryAmount.eq(new BN('11139500')));
 
 		console.log('closing trader...');
-		await adjustOraclePostSwap(tradeSize, SwapDirection.ADD, market, bankrunContextWrapper);
+		await adjustOraclePostSwap(
+			tradeSize,
+			SwapDirection.ADD,
+			market,
+			bankrunContextWrapper
+		);
 		await fullClosePosition(traderDriftClient, position);
 
 		console.log('closing lp ...');
@@ -1181,7 +1213,12 @@ describe('liquidity providing', () => {
 		assert(user.perpPositions[0].lpShares.eq(ZERO));
 
 		console.log('closing trader ...');
-		await adjustOraclePostSwap(tradeSize, SwapDirection.REMOVE, market, bankrunContextWrapper);
+		await adjustOraclePostSwap(
+			tradeSize,
+			SwapDirection.REMOVE,
+			market,
+			bankrunContextWrapper
+		);
 		// await traderDriftClient.closePosition(new BN(0));
 		const trader = await traderDriftClient.getUserAccount();
 		const _txsig = await fullClosePosition(
@@ -1190,7 +1227,12 @@ describe('liquidity providing', () => {
 		);
 
 		console.log('closing lp ...');
-		await adjustOraclePostSwap(baa, SwapDirection.ADD, market, bankrunContextWrapper);
+		await adjustOraclePostSwap(
+			baa,
+			SwapDirection.ADD,
+			market,
+			bankrunContextWrapper
+		);
 		await fullClosePosition(driftClient, user.perpPositions[0]);
 	});
 
@@ -1210,7 +1252,12 @@ describe('liquidity providing', () => {
 		// lp goes long
 		const tradeSize = new BN(5 * BASE_PRECISION.toNumber());
 		try {
-			await adjustOraclePostSwap(tradeSize, SwapDirection.REMOVE, market, bankrunContextWrapper);
+			await adjustOraclePostSwap(
+				tradeSize,
+				SwapDirection.REMOVE,
+				market,
+				bankrunContextWrapper
+			);
 			const _txsig = await driftClient.openPosition(
 				PositionDirection.LONG,
 				tradeSize,
@@ -1225,7 +1272,12 @@ describe('liquidity providing', () => {
 		// some user goes long (lp should get a short + pnl for closing long on settle)
 		console.log('user trading...');
 		try {
-			await adjustOraclePostSwap(tradeSize, SwapDirection.REMOVE, market, bankrunContextWrapper);
+			await adjustOraclePostSwap(
+				tradeSize,
+				SwapDirection.REMOVE,
+				market,
+				bankrunContextWrapper
+			);
 			const _txsig = await traderDriftClient.openPosition(
 				PositionDirection.LONG,
 				tradeSize,
@@ -1339,7 +1391,12 @@ describe('liquidity providing', () => {
 
 		console.log('user trading...');
 		try {
-			await adjustOraclePostSwap(tradeSize, SwapDirection.REMOVE, market, bankrunContextWrapper);
+			await adjustOraclePostSwap(
+				tradeSize,
+				SwapDirection.REMOVE,
+				market,
+				bankrunContextWrapper
+			);
 			const _txsig = await traderDriftClient.openPosition(
 				PositionDirection.LONG,
 				tradeSize,
@@ -1460,7 +1517,12 @@ describe('liquidity providing', () => {
 
 		console.log('user trading...');
 		try {
-			await adjustOraclePostSwap(tradeSize, SwapDirection.REMOVE, market, bankrunContextWrapper);
+			await adjustOraclePostSwap(
+				tradeSize,
+				SwapDirection.REMOVE,
+				market,
+				bankrunContextWrapper
+			);
 			const _txsig = await traderDriftClient.openPosition(
 				PositionDirection.SHORT,
 				tradeSize,
@@ -1517,7 +1579,12 @@ describe('liquidity providing', () => {
 		const market = driftClient.getPerpMarketAccount(0);
 
 		console.log('user trading...');
-		await adjustOraclePostSwap(tradeSize, SwapDirection.REMOVE, market, bankrunContextWrapper);
+		await adjustOraclePostSwap(
+			tradeSize,
+			SwapDirection.REMOVE,
+			market,
+			bankrunContextWrapper
+		);
 		const _txsig = await traderDriftClient.openPosition(
 			PositionDirection.SHORT,
 			tradeSize,

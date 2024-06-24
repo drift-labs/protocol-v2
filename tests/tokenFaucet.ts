@@ -5,8 +5,13 @@ import { TestClient, TokenFaucet } from '../sdk/src';
 import { BN } from '../sdk';
 import { Keypair, PublicKey } from '@solana/web3.js';
 import { initializeQuoteSpotMarket, mockUSDCMint } from './testHelpers';
-import { createAssociatedTokenAccountIdempotentInstruction, getAssociatedTokenAddressSync, unpackAccount, unpackMint } from '@solana/spl-token';
-import { startAnchor } from "solana-bankrun";
+import {
+	createAssociatedTokenAccountIdempotentInstruction,
+	getAssociatedTokenAddressSync,
+	unpackAccount,
+	unpackMint,
+} from '@solana/spl-token';
+import { startAnchor } from 'solana-bankrun';
 import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
 import { BankrunContextWrapper } from '../sdk/src/bankrunConnection';
 
@@ -27,11 +32,15 @@ describe('token faucet', () => {
 	const amount = new BN(10 * 10 ** 6);
 
 	before(async () => {
-		const context = await startAnchor("", [], []);
+		const context = await startAnchor('', [], []);
 
 		bankrunContextWrapper = new BankrunContextWrapper(context);
 
-        bulkAccountLoader = new TestBulkAccountLoader(bankrunContextWrapper.connection, 'processed', 1);
+		bulkAccountLoader = new TestBulkAccountLoader(
+			bankrunContextWrapper.connection,
+			'processed',
+			1
+		);
 
 		driftClient = new TestClient({
 			connection: bankrunContextWrapper.connection.toConnection(),
@@ -64,7 +73,9 @@ describe('token faucet', () => {
 		await tokenFaucet.initialize();
 		const state: any = await tokenFaucet.fetchState();
 
-		assert.ok(state.admin.equals(bankrunContextWrapper.provider.wallet.publicKey));
+		assert.ok(
+			state.admin.equals(bankrunContextWrapper.provider.wallet.publicKey)
+		);
 
 		const [mintAuthority, mintAuthorityNonce] =
 			await PublicKey.findProgramAddress(
@@ -78,31 +89,39 @@ describe('token faucet', () => {
 		assert.ok(state.mintAuthority.equals(mintAuthority));
 		assert.ok(mintAuthorityNonce === state.mintAuthorityNonce);
 
-		const mintInfoRaw = await bankrunContextWrapper.connection.getAccountInfo(tokenFaucet.mint);
+		const mintInfoRaw = await bankrunContextWrapper.connection.getAccountInfo(
+			tokenFaucet.mint
+		);
 		const mintInfo = unpackMint(tokenFaucet.mint, mintInfoRaw);
 		assert.ok(state.mintAuthority.equals(mintInfo.mintAuthority));
 	});
 
 	it('mint to user', async () => {
 		const keyPair = new Keypair();
-		const ata = getAssociatedTokenAddressSync(tokenFaucet.mint, keyPair.publicKey);
-		const userTokenAccountIx = await createAssociatedTokenAccountIdempotentInstruction(
-			bankrunContextWrapper.provider.wallet.publicKey,
-			ata,
-			keyPair.publicKey,
+		const ata = getAssociatedTokenAddressSync(
 			tokenFaucet.mint,
+			keyPair.publicKey
 		);
+		const userTokenAccountIx =
+			await createAssociatedTokenAccountIdempotentInstruction(
+				bankrunContextWrapper.provider.wallet.publicKey,
+				ata,
+				keyPair.publicKey,
+				tokenFaucet.mint
+			);
 		await bankrunContextWrapper.sendTransaction(
-			new anchor.web3.Transaction().add(userTokenAccountIx),
+			new anchor.web3.Transaction().add(userTokenAccountIx)
 		);
-		let userTokenAccountInfoRaw = await bankrunContextWrapper.connection.getAccountInfo(ata);
+		let userTokenAccountInfoRaw =
+			await bankrunContextWrapper.connection.getAccountInfo(ata);
 		let userTokenAccountInfo = unpackAccount(ata, userTokenAccountInfoRaw);
 		try {
 			await tokenFaucet.mintToUser(userTokenAccountInfo.address, amount);
 		} catch (e) {
 			console.error(e);
 		}
-		userTokenAccountInfoRaw = await bankrunContextWrapper.connection.getAccountInfo(ata);
+		userTokenAccountInfoRaw =
+			await bankrunContextWrapper.connection.getAccountInfo(ata);
 		userTokenAccountInfo = unpackAccount(ata, userTokenAccountInfoRaw);
 		assert.ok(new BN(userTokenAccountInfo.amount.toString()).eq(amount));
 	});
@@ -126,8 +145,14 @@ describe('token faucet', () => {
 
 	it('transfer mint authority back', async () => {
 		await tokenFaucet.transferMintAuthority();
-		const mintInfoRaw = await bankrunContextWrapper.connection.getAccountInfo(tokenFaucet.mint);
+		const mintInfoRaw = await bankrunContextWrapper.connection.getAccountInfo(
+			tokenFaucet.mint
+		);
 		const mintInfo = unpackMint(tokenFaucet.mint, mintInfoRaw);
-		assert.ok(bankrunContextWrapper.provider.wallet.publicKey.equals(mintInfo.mintAuthority));
+		assert.ok(
+			bankrunContextWrapper.provider.wallet.publicKey.equals(
+				mintInfo.mintAuthority
+			)
+		);
 	});
 });

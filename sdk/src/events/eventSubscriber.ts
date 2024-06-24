@@ -62,9 +62,8 @@ export class EventSubscriber {
 				this.options.logProviderConfig.batchSize
 			);
 		}
-
 	}
-	
+
 	private populateInitialEventListMap() {
 		for (const eventType of this.options.eventTypes) {
 			this.eventListMap.set(

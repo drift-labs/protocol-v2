@@ -40,7 +40,7 @@ import {
 	SPOT_MARKET_BALANCE_PRECISION,
 	PRICE_PRECISION,
 } from '../sdk';
-import { startAnchor } from "solana-bankrun";
+import { startAnchor } from 'solana-bankrun';
 import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
 import { BankrunContextWrapper } from '../sdk/src/bankrunConnection';
 
@@ -74,16 +74,20 @@ describe('spot deposit and withdraw', () => {
 	let spotMarketIndexes: number[];
 	let oracleInfos: OracleInfo[];
 
-	before(async () => {		
-		const context = await startAnchor("", [], []);
+	before(async () => {
+		const context = await startAnchor('', [], []);
 
 		bankrunContextWrapper = new BankrunContextWrapper(context);
 
-        bulkAccountLoader = new TestBulkAccountLoader(bankrunContextWrapper.connection, 'processed', 1);
+		bulkAccountLoader = new TestBulkAccountLoader(
+			bankrunContextWrapper.connection,
+			'processed',
+			1
+		);
 
 		eventSubscriber = new EventSubscriber(
 			bankrunContextWrapper.connection.toConnection(),
-			chProgram,
+			chProgram
 		);
 
 		await eventSubscriber.subscribe();
@@ -289,7 +293,11 @@ describe('spot deposit and withdraw', () => {
 			)
 		);
 
-		const vaultAmount = new BN((await bankrunContextWrapper.connection.getTokenAccount(spotMarket.vault)).amount.toString());
+		const vaultAmount = new BN(
+			(
+				await bankrunContextWrapper.connection.getTokenAccount(spotMarket.vault)
+			).amount.toString()
+		);
 		assert(vaultAmount.eq(usdcAmount));
 
 		const expectedBalance = getBalance(
@@ -349,7 +357,11 @@ describe('spot deposit and withdraw', () => {
 			)
 		);
 
-		const vaultAmount = new BN((await bankrunContextWrapper.connection.getTokenAccount(spotMarket.vault)).amount.toString());
+		const vaultAmount = new BN(
+			(
+				await bankrunContextWrapper.connection.getTokenAccount(spotMarket.vault)
+			).amount.toString()
+		);
 		assert(vaultAmount.eq(solAmount));
 
 		const expectedBalance = getBalance(
@@ -383,7 +395,11 @@ describe('spot deposit and withdraw', () => {
 		const expectedBorrowBalance = new BN(5000000001);
 		assert(spotMarket.borrowBalance.eq(expectedBorrowBalance));
 
-		const vaultAmount = new BN((await bankrunContextWrapper.connection.getTokenAccount(spotMarket.vault)).amount.toString());
+		const vaultAmount = new BN(
+			(
+				await bankrunContextWrapper.connection.getTokenAccount(spotMarket.vault)
+			).amount.toString()
+		);
 		const expectedVaultAmount = usdcAmount.sub(withdrawAmount);
 		assert(vaultAmount.eq(expectedVaultAmount));
 
@@ -398,7 +414,13 @@ describe('spot deposit and withdraw', () => {
 		assert(isVariant(spotPosition.balanceType, 'borrow'));
 		assert(spotPosition.scaledBalance.eq(expectedBalance));
 
-		const actualAmountWithdrawn = new BN((await bankrunContextWrapper.connection.getTokenAccount(secondUserDriftClientUSDCAccount)).amount.toString());
+		const actualAmountWithdrawn = new BN(
+			(
+				await bankrunContextWrapper.connection.getTokenAccount(
+					secondUserDriftClientUSDCAccount
+				)
+			).amount.toString()
+		);
 
 		assert(withdrawAmount.eq(actualAmountWithdrawn));
 
@@ -464,8 +486,13 @@ describe('spot deposit and withdraw', () => {
 		);
 		const spotMarketBorrowBalanceBefore = spotMarketAccount.borrowBalance;
 
-		const userUSDCAmountBefore = new BN((await bankrunContextWrapper.connection.getTokenAccount(secondUserDriftClientUSDCAccount)).amount.toString());
-
+		const userUSDCAmountBefore = new BN(
+			(
+				await bankrunContextWrapper.connection.getTokenAccount(
+					secondUserDriftClientUSDCAccount
+				)
+			).amount.toString()
+		);
 
 		const spotPositionBefore =
 			secondUserDriftClient.getSpotPosition(marketIndex).scaledBalance;
@@ -497,7 +524,13 @@ describe('spot deposit and withdraw', () => {
 		);
 
 		const expectedUserUSDCAmount = userUSDCAmountBefore.add(withdrawAmount);
-		const userUSDCAmountAfter = new BN((await bankrunContextWrapper.connection.getTokenAccount(secondUserDriftClientUSDCAccount)).amount.toString());
+		const userUSDCAmountAfter = new BN(
+			(
+				await bankrunContextWrapper.connection.getTokenAccount(
+					secondUserDriftClientUSDCAccount
+				)
+			).amount.toString()
+		);
 
 		assert(expectedUserUSDCAmount.eq(userUSDCAmountAfter));
 		assert(
@@ -514,8 +547,13 @@ describe('spot deposit and withdraw', () => {
 		);
 
 		const expectedVaultBalance = usdcAmount.sub(expectedUserUSDCAmount);
-		const vaultUSDCAmountAfter = new BN((await bankrunContextWrapper.connection.getTokenAccount(spotMarketAccount.vault)).amount.toString());
-
+		const vaultUSDCAmountAfter = new BN(
+			(
+				await bankrunContextWrapper.connection.getTokenAccount(
+					spotMarketAccount.vault
+				)
+			).amount.toString()
+		);
 
 		assert(expectedVaultBalance.eq(vaultUSDCAmountAfter));
 
@@ -595,7 +633,13 @@ describe('spot deposit and withdraw', () => {
 	it('Flip second user borrow to deposit', async () => {
 		const marketIndex = 0;
 		const mintAmount = new BN(2 * 10 ** 6); // $2
-		const userUSDCAmountBefore = new BN((await bankrunContextWrapper.connection.getTokenAccount(secondUserDriftClientUSDCAccount)).amount.toString());
+		const userUSDCAmountBefore = new BN(
+			(
+				await bankrunContextWrapper.connection.getTokenAccount(
+					secondUserDriftClientUSDCAccount
+				)
+			).amount.toString()
+		);
 
 		await mintUSDCToUser(
 			usdcMint,
@@ -710,7 +754,13 @@ describe('spot deposit and withdraw', () => {
 
 	it('Second user reduce only pay down borrow', async () => {
 		const marketIndex = 0;
-		const userUSDCAmountBefore = new BN((await bankrunContextWrapper.connection.getTokenAccount(secondUserDriftClientUSDCAccount)).amount.toString());
+		const userUSDCAmountBefore = new BN(
+			(
+				await bankrunContextWrapper.connection.getTokenAccount(
+					secondUserDriftClientUSDCAccount
+				)
+			).amount.toString()
+		);
 
 		const currentUserBorrowBalance =
 			secondUserDriftClient.getSpotPosition(marketIndex).scaledBalance;
@@ -735,7 +785,13 @@ describe('spot deposit and withdraw', () => {
 			SpotBalanceType.BORROW
 		);
 
-		const userUSDCAmountAfter = new BN((await bankrunContextWrapper.connection.getTokenAccount(secondUserDriftClientUSDCAccount)).amount.toString());
+		const userUSDCAmountAfter = new BN(
+			(
+				await bankrunContextWrapper.connection.getTokenAccount(
+					secondUserDriftClientUSDCAccount
+				)
+			).amount.toString()
+		);
 
 		const expectedUserUSDCAmount = userUSDCAmountBefore.sub(borrowToPayBack);
 		console.log(
@@ -755,7 +811,13 @@ describe('spot deposit and withdraw', () => {
 
 	it('Second user reduce only withdraw deposit', async () => {
 		const marketIndex = 1;
-		const userWSOLAmountBefore = new BN((await bankrunContextWrapper.connection.getTokenAccount(secondUserDriftClientWSOLAccount)).amount.toString());
+		const userWSOLAmountBefore = new BN(
+			(
+				await bankrunContextWrapper.connection.getTokenAccount(
+					secondUserDriftClientWSOLAccount
+				)
+			).amount.toString()
+		);
 
 		const currentUserDepositBalance =
 			secondUserDriftClient.getSpotPosition(marketIndex).scaledBalance;
@@ -777,7 +839,13 @@ describe('spot deposit and withdraw', () => {
 			SpotBalanceType.DEPOSIT
 		);
 
-		const userWSOLAmountAfter = new BN((await bankrunContextWrapper.connection.getTokenAccount(secondUserDriftClientWSOLAccount)).amount.toString());
+		const userWSOLAmountAfter = new BN(
+			(
+				await bankrunContextWrapper.connection.getTokenAccount(
+					secondUserDriftClientWSOLAccount
+				)
+			).amount.toString()
+		);
 
 		const expectedUserWSOLAmount =
 			amountAbleToWithdraw.sub(userWSOLAmountBefore);

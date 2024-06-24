@@ -44,50 +44,58 @@ import {
 import { deserializeMarketData, TokenConfig } from '@ellipsis-labs/phoenix-sdk';
 import * as Phoenix from '@ellipsis-labs/phoenix-sdk';
 import { assert } from 'chai';
-import { startAnchor } from "solana-bankrun";
+import { startAnchor } from 'solana-bankrun';
 import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
 import { BankrunContextWrapper } from '../sdk/src/bankrunConnection';
 import { BankrunProvider } from 'anchor-bankrun';
-import { seatAccountData, marketAccountData, baseVaultAccountData, quoteVaultAccountData } from './phoenixTestAccountData';
+import {
+	seatAccountData,
+	marketAccountData,
+	baseVaultAccountData,
+	quoteVaultAccountData,
+} from './phoenixTestAccountData';
 
 const PHOENIX_MARKET: AccountInfo<Buffer> = {
 	executable: false,
 	lamports: 6066670080,
-	owner: new PublicKey("PhoeNiXZ8ByJGLkxNfZRnkUfjvmuYqLR89jjFHGqdXY"),
+	owner: new PublicKey('PhoeNiXZ8ByJGLkxNfZRnkUfjvmuYqLR89jjFHGqdXY'),
 	rentEpoch: 0,
-	data: Buffer.from(marketAccountData, "base64"),
+	data: Buffer.from(marketAccountData, 'base64'),
 };
 
 const PHOENIX_SEAT: AccountInfo<Buffer> = {
 	executable: false,
 	lamports: 1781760,
-	owner: new PublicKey("PhoeNiXZ8ByJGLkxNfZRnkUfjvmuYqLR89jjFHGqdXY"),
+	owner: new PublicKey('PhoeNiXZ8ByJGLkxNfZRnkUfjvmuYqLR89jjFHGqdXY'),
 	rentEpoch: 0,
-	data: Buffer.from(seatAccountData, "base64")
+	data: Buffer.from(seatAccountData, 'base64'),
 };
 
 const PHOENIX_BASE_VAULT: AccountInfo<Buffer> = {
 	executable: false,
 	lamports: 2039280,
-	owner: new PublicKey("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"),
+	owner: new PublicKey('TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA'),
 	rentEpoch: 0,
-	data: Buffer.from(baseVaultAccountData, "base64")
+	data: Buffer.from(baseVaultAccountData, 'base64'),
 };
 
 const PHOENIX_QUOTE_VAULT: AccountInfo<Buffer> = {
 	executable: false,
 	lamports: 2039280,
-	owner: new PublicKey("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"),
+	owner: new PublicKey('TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA'),
 	rentEpoch: 0,
-	data: Buffer.from(quoteVaultAccountData, "base64")
+	data: Buffer.from(quoteVaultAccountData, 'base64'),
 };
 
 const USDC_MINT: AccountInfo<Buffer> = {
 	executable: false,
 	lamports: 1461600,
-	owner: new PublicKey("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"),
+	owner: new PublicKey('TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA'),
 	rentEpoch: 157,
-	data: Buffer.from("AQAAANuZX+JRadFByrm7upK6oB+fLh7OffTLKsBRkPN/zB+dAAAAAAAAAAAGAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==", "base64")
+	data: Buffer.from(
+		'AQAAANuZX+JRadFByrm7upK6oB+fLh7OffTLKsBRkPN/zB+dAAAAAAAAAAAGAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==',
+		'base64'
+	),
 };
 
 // DO NOT USE THIS PRIVATE KEY IN PRODUCTION
@@ -127,13 +135,13 @@ const tokenConfig: TokenConfig[] = [
 const createPhoenixClient = async (
 	connection: Connection
 ): Promise<Phoenix.Client> => {
-	console.log("Creating Phoenix client");
+	console.log('Creating Phoenix client');
 	const client = await Phoenix.Client.createWithoutConfig(connection, []);
-	console.log("Phoenix client created");
+	console.log('Phoenix client created');
 	client.tokenConfig = tokenConfig;
-	console.log("Token config set");
+	console.log('Token config set');
 	await client.addMarket(solMarketAddress.toBase58());
-	console.log("Market added");
+	console.log('Market added');
 	return client;
 };
 
@@ -181,7 +189,7 @@ const createWSOLAccount = async (
 	tx.add(createAta);
 
 	await context.sendTransaction(tx);
-	
+
 	return userWSOLAccount;
 };
 
@@ -252,59 +260,83 @@ describe('phoenix spot market', () => {
 	const solSpotMarketIndex = 1;
 
 	before(async () => {
-		const context = await startAnchor("", [
-			{
-				name: "phoenix_dex",
-				programId: new PublicKey("PhoeNiXZ8ByJGLkxNfZRnkUfjvmuYqLR89jjFHGqdXY")
-			}
-		], [
-			{
-				address: new PublicKey("HhHRvLFvZid6FD7C96H93F2MkASjYfYAx8Y2P8KMAr6b"),
-				info: PHOENIX_MARKET
-			},
-			{
-				address: new PublicKey("GDqLPXfwDHXnqwfqtEJmqovA4KEy9XhoZxkg3MVyFK9N"),
-				info: PHOENIX_SEAT
-			},
-			{
-				address: new PublicKey("EyZsJZJWXuix6Zgw34JXb2fAbF4d62nfUgp4tzZBPxhW"),
-				info: PHOENIX_BASE_VAULT
-			},
-			{
-				address: new PublicKey("B9SETfVeH1vx7sEJ7v41CRJncJnpMpGxHg4Mztc3sZKX"),
-				info: PHOENIX_QUOTE_VAULT
-			},
-			{
-				address: new PublicKey("EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"),
-				info: USDC_MINT
-			}
-		]);
+		const context = await startAnchor(
+			'',
+			[
+				{
+					name: 'phoenix_dex',
+					programId: new PublicKey(
+						'PhoeNiXZ8ByJGLkxNfZRnkUfjvmuYqLR89jjFHGqdXY'
+					),
+				},
+			],
+			[
+				{
+					address: new PublicKey(
+						'HhHRvLFvZid6FD7C96H93F2MkASjYfYAx8Y2P8KMAr6b'
+					),
+					info: PHOENIX_MARKET,
+				},
+				{
+					address: new PublicKey(
+						'GDqLPXfwDHXnqwfqtEJmqovA4KEy9XhoZxkg3MVyFK9N'
+					),
+					info: PHOENIX_SEAT,
+				},
+				{
+					address: new PublicKey(
+						'EyZsJZJWXuix6Zgw34JXb2fAbF4d62nfUgp4tzZBPxhW'
+					),
+					info: PHOENIX_BASE_VAULT,
+				},
+				{
+					address: new PublicKey(
+						'B9SETfVeH1vx7sEJ7v41CRJncJnpMpGxHg4Mztc3sZKX'
+					),
+					info: PHOENIX_QUOTE_VAULT,
+				},
+				{
+					address: new PublicKey(
+						'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v'
+					),
+					info: USDC_MINT,
+				},
+			]
+		);
 
 		bankrunContextWrapper = new BankrunContextWrapper(context);
 
-        bulkAccountLoader = new TestBulkAccountLoader(bankrunContextWrapper.connection, 'processed', 1);
+		bulkAccountLoader = new TestBulkAccountLoader(
+			bankrunContextWrapper.connection,
+			'processed',
+			1
+		);
 
 		eventSubscriber = new EventSubscriber(
 			bankrunContextWrapper.connection.toConnection(),
-			driftProgram,
+			driftProgram
 		);
 
 		await eventSubscriber.subscribe();
 
 		console.log('Event subscriber created');
 
-		const val = await bankrunContextWrapper.connection.getAccountInfo(solMarketAddress);
+		const val = await bankrunContextWrapper.connection.getAccountInfo(
+			solMarketAddress
+		);
 
 		console.log(val);
 
 		deserializeMarketData(val.data);
 
-		console.log("here");
+		console.log('here');
 
-		phoenixClient = await createPhoenixClient(bankrunContextWrapper.connection.toConnection());
+		phoenixClient = await createPhoenixClient(
+			bankrunContextWrapper.connection.toConnection()
+		);
 
 		console.log('Phoenix client created');
-	
+
 		const phoenixMarket = phoenixClient.markets.get(
 			solMarketAddress.toBase58()
 		);
@@ -364,7 +396,10 @@ describe('phoenix spot market', () => {
 			god.publicKey
 		);
 
-		takerWrappedSolTokenAccount = await createWSOLAccount(bankrunContextWrapper, solAmount);
+		takerWrappedSolTokenAccount = await createWSOLAccount(
+			bankrunContextWrapper,
+			solAmount
+		);
 		makerWrappedSolTokenAccount = await createWSOLAccount(
 			bankrunContextWrapper,
 			solAmount,
@@ -468,10 +503,14 @@ describe('phoenix spot market', () => {
 
 		const tx = new Transaction().add(placeAskInstruction);
 
-		tx.recentBlockhash = (await bankrunContextWrapper.getLatestBlockhash()).toString();
+		tx.recentBlockhash = (
+			await bankrunContextWrapper.getLatestBlockhash()
+		).toString();
 		tx.feePayer = god.publicKey;
 		tx.sign(god);
-		const placeTxId = await bankrunContextWrapper.connection.sendTransaction(tx);
+		const placeTxId = await bankrunContextWrapper.connection.sendTransaction(
+			tx
+		);
 
 		bankrunContextWrapper.printTxLogs(placeTxId);
 
@@ -537,8 +576,9 @@ describe('phoenix spot market', () => {
 		assert(
 			spotFeePoolAmount.eq(
 				new BN(
-					orderActionRecord.takerFee.sub(makerDriftClient.getQuoteAssetTokenAmount())
-					.sub(orderActionRecord.spotFulfillmentMethodFee)
+					orderActionRecord.takerFee
+						.sub(makerDriftClient.getQuoteAssetTokenAmount())
+						.sub(orderActionRecord.spotFulfillmentMethodFee)
 				)
 			)
 		);
@@ -623,14 +663,18 @@ describe('phoenix spot market', () => {
 			askOrderPacket,
 			solMarketAddress.toString(),
 			god.publicKey
-		);	
+		);
 
 		const tx = new Transaction().add(placeAskInstruction);
 
-		tx.recentBlockhash = (await bankrunContextWrapper.getLatestBlockhash()).toString();
+		tx.recentBlockhash = (
+			await bankrunContextWrapper.getLatestBlockhash()
+		).toString();
 		tx.feePayer = god.publicKey;
 		tx.sign(god);
-		const placeTxId = await bankrunContextWrapper.connection.sendTransaction(tx);
+		const placeTxId = await bankrunContextWrapper.connection.sendTransaction(
+			tx
+		);
 
 		bankrunContextWrapper.printTxLogs(placeTxId);
 
@@ -680,7 +724,9 @@ describe('phoenix spot market', () => {
 		assert(orderActionRecord.takerFee.eq(new BN(100000)));
 
 		const keeperFee = new BN(
-			makerDriftClient.getQuoteAssetTokenAmount().sub(makerQuoteTokenAmountStart)
+			makerDriftClient
+				.getQuoteAssetTokenAmount()
+				.sub(makerQuoteTokenAmountStart)
 		);
 		assert(keeperFee.eq(new BN(11800)));
 
@@ -697,7 +743,9 @@ describe('phoenix spot market', () => {
 			spotFeePoolAmount.eq(
 				new BN(spotFeePoolAmountStart).add(
 					new BN(
-						orderActionRecord.takerFee.sub(keeperFee).sub(orderActionRecord.spotFulfillmentMethodFee)
+						orderActionRecord.takerFee
+							.sub(keeperFee)
+							.sub(orderActionRecord.spotFulfillmentMethodFee)
 					)
 				)
 			)

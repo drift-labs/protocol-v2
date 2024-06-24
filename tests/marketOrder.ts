@@ -34,7 +34,7 @@ import {
 	createMintToInstruction,
 	getAssociatedTokenAddressSync,
 } from '@solana/spl-token';
-import { startAnchor } from "solana-bankrun";
+import { startAnchor } from 'solana-bankrun';
 import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
 import { BankrunContextWrapper } from '../sdk/src/bankrunConnection';
 
@@ -73,16 +73,27 @@ describe('market order', () => {
 	let btcUsd;
 
 	before(async () => {
-		const context = await startAnchor("", [], []);
+		const context = await startAnchor('', [], []);
 
 		bankrunContextWrapper = new BankrunContextWrapper(context);
 
-        bulkAccountLoader = new TestBulkAccountLoader(bankrunContextWrapper.connection, 'processed', 1);
+		bulkAccountLoader = new TestBulkAccountLoader(
+			bankrunContextWrapper.connection,
+			'processed',
+			1
+		);
 
 		usdcMint = await mockUSDCMint(bankrunContextWrapper);
-		userUSDCAccount = await mockUserUSDCAccount(usdcMint, usdcAmount, bankrunContextWrapper);
+		userUSDCAccount = await mockUserUSDCAccount(
+			usdcMint,
+			usdcAmount,
+			bankrunContextWrapper
+		);
 
-		eventSubscriber = new EventSubscriber(bankrunContextWrapper.connection.toConnection(), chProgram);
+		eventSubscriber = new EventSubscriber(
+			bankrunContextWrapper.connection.toConnection(),
+			chProgram
+		);
 		await eventSubscriber.subscribe();
 
 		solUsd = await mockOracleNoProgram(bankrunContextWrapper, 1);
@@ -147,7 +158,7 @@ describe('market order', () => {
 			accountSubscription: {
 				type: 'polling',
 				accountLoader: bulkAccountLoader,
-				},
+			},
 		});
 		await driftClientUser.subscribe();
 		const discountMintKeypair = await mockUSDCMint(bankrunContextWrapper);
@@ -156,8 +167,16 @@ describe('market order', () => {
 
 		await driftClient.updateDiscountMint(discountMint);
 
-		const discountTokenAccountAddress = getAssociatedTokenAddressSync(discountMint, bankrunContextWrapper.provider.wallet.publicKey);
-		const ix = createAssociatedTokenAccountIdempotentInstruction(bankrunContextWrapper.context.payer.publicKey, discountTokenAccountAddress, bankrunContextWrapper.provider.wallet.publicKey, discountMint);
+		const discountTokenAccountAddress = getAssociatedTokenAddressSync(
+			discountMint,
+			bankrunContextWrapper.provider.wallet.publicKey
+		);
+		const ix = createAssociatedTokenAccountIdempotentInstruction(
+			bankrunContextWrapper.context.payer.publicKey,
+			discountTokenAccountAddress,
+			bankrunContextWrapper.provider.wallet.publicKey,
+			discountMint
+		);
 
 		const tx = new Transaction().add(ix);
 		await bankrunContextWrapper.sendTransaction(tx);
@@ -171,7 +190,6 @@ describe('market order', () => {
 
 		const tx2 = new Transaction().add(mintToIx);
 		await bankrunContextWrapper.sendTransaction(tx2);
-
 
 		bankrunContextWrapper.fundKeypair(fillerKeyPair, 10 ** 9);
 		fillerUSDCAccount = await mockUserUSDCAccount(
@@ -210,7 +228,7 @@ describe('market order', () => {
 			accountSubscription: {
 				type: 'polling',
 				accountLoader: bulkAccountLoader,
-				},
+			},
 		});
 		await fillerUser.subscribe();
 	});
