@@ -28,12 +28,9 @@ import {
 	mockOracleNoProgram,
 	setFeedPriceNoProgram,
 	initializeQuoteSpotMarket,
-	getTokenAmountAsBN,
 	mintUSDCToUser,
-	printTxLogs,
 	sleep,
 } from './testHelpers';
-import { getAccount } from '@solana/spl-token';
 import { startAnchor } from "solana-bankrun";
 import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
 import { BankrunContextWrapper } from '../sdk/src/bankrunConnection';

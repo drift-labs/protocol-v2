@@ -25,6 +25,8 @@ import {
 	LogsCallback,
 	AccountChangeCallback,
 	LAMPORTS_PER_SOL,
+	TokenAccountsFilter,
+	GetTokenAccountsByOwnerConfig,
 } from '@solana/web3.js';
 import {
 	ProgramTestContext,
@@ -430,7 +432,8 @@ export class BankrunConnection {
 	onAccountChange(
 		publicKey: PublicKey,
 		callback: AccountChangeCallback,
-		commitment?: Commitment
+		// @ts-ignore
+		_commitment?: Commitment
 	): ClientSubscriptionId {
 		const subscriptId = this.nextClientSubscriptionId;
 
@@ -445,6 +448,18 @@ export class BankrunConnection {
 		clientSubscriptionId: ClientSubscriptionId,
 	): Promise<void> {
 		this.onAccountChangeCallbacks.delete(clientSubscriptionId);
+	}
+
+	async getTokenAccountsByOwner(
+		ownerAddress: PublicKey,
+		filter: TokenAccountsFilter,
+		commitmentOrConfig: Commitment | GetTokenAccountsByOwnerConfig
+	): Promise<any> {
+
+	}
+
+	async getMinimumBalanceForRentExemption(_: number): Promise<number> {
+		return 10 * LAMPORTS_PER_SOL;
 	}
 }
 

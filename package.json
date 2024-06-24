@@ -24,13 +24,9 @@
 		"typescript": "^4.9"
 	},
 	"dependencies": {
-<<<<<<< HEAD
-		"@ellipsis-labs/phoenix-sdk": "^1.4.2",
+		"@ellipsis-labs/phoenix-sdk": "1.4.2",
 		"@pythnetwork/pyth-solana-receiver": "^0.8.0",
 		"anchor-bankrun": "^0.3.0",
-=======
-		"@ellipsis-labs/phoenix-sdk": "1.4.2",
->>>>>>> upstream/master
 		"chai-bn": "^0.2.2",
 		"csvtojson": "^2.0.10",
 		"json2csv": "^5.0.7",

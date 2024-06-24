@@ -237,7 +237,7 @@ export async function makePlaceOrderTransaction(
           market.address,
           ownerAddress,
           account.publicKey,
-          market._programId,
+          SERUM,
         ),
       );
       openOrdersAddress = account.publicKey;
@@ -294,7 +294,7 @@ export async function makePlaceOrderTransaction(
       }
     }
 
-    const placeOrderInstruction = this.makePlaceOrderInstruction(connection, {
+    const placeOrderInstruction = market.makePlaceOrderInstruction(connection, {
       owner,
       payer: wrappedSolAccount?.publicKey ?? payer,
       side,
