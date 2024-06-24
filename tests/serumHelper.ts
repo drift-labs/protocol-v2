@@ -42,8 +42,6 @@ async function listMarket({
 	);
 	const vaultSignerNonce = new BN(255);
 
-	console.log("fdsafdsafdssafdssa");
-
 	const tx1 = new Transaction();
 	tx1.add(
 		SystemProgram.createAccount({
