@@ -50,15 +50,15 @@ test_files=(
   referrer.ts
   # repegAndSpread.ts
   roundInFavorBaseAsset.ts
-  # serumTest.ts
+  serumTest.ts
   spotDepositWithdraw.ts
-  # spotSwap.ts
+  spotSwap.ts
   # spotWithdrawUtil100.ts
   stopLimits.ts
   subaccounts.ts
   surgePricing.ts
   switchboardTxCus.ts
-  # switchOracle.ts
+  switchOracle.ts
   tradingLP.ts
   triggerOrders.ts
   triggerSpotOrder.ts
