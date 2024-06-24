@@ -3,13 +3,14 @@ use crate::error::ErrorCode;
 use crate::math::constants::{
     AMM_RESERVE_PRECISION_I128, FUEL_WINDOW_U128, MARGIN_PRECISION_U128,
     MAX_POSITIVE_UPNL_FOR_INITIAL_MARGIN, PRICE_PRECISION, SPOT_IMF_PRECISION_U128,
-    SPOT_WEIGHT_PRECISION, SPOT_WEIGHT_PRECISION_U128,
+    SPOT_WEIGHT_PRECISION, SPOT_WEIGHT_PRECISION_U128, QUOTE_PRECISION_U64
 };
 use crate::math::position::{
     calculate_base_asset_value_and_pnl_with_oracle_price,
     calculate_base_asset_value_with_oracle_price,
 };
 
+use crate::QUOTE_PRECISION;
 use crate::{validate, PRICE_PRECISION_I128};
 use crate::{validation, PRICE_PRECISION_I64};
 
@@ -270,14 +271,14 @@ pub fn calculate_spot_fuel_bonus(
             .safe_mul(fuel_bonus_numerator.cast()?)?
             .safe_mul(spot_market.fuel_boost_deposits.cast()?)?
             .safe_div(FUEL_WINDOW_U128)?
-            .cast::<u64>()?
+            .cast::<u64>()? / (QUOTE_PRECISION_U64/10)
     } else {
         signed_token_value
             .unsigned_abs()
             .safe_mul(fuel_bonus_numerator.cast()?)?
             .safe_mul(spot_market.fuel_boost_borrows.cast()?)?
             .safe_div(FUEL_WINDOW_U128)?
-            .cast::<u64>()?
+            .cast::<u64>()? / (QUOTE_PRECISION_U64/10)
     };
 
     Ok(result)

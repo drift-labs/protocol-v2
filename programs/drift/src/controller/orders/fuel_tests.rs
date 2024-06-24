@@ -579,9 +579,9 @@ pub mod fuel_scoring {
             )
             .unwrap();
 
-        assert_eq!(margin_calc_maker.total_collateral, 10000_000_000); // 10k
+        assert_eq!(margin_calc_maker.total_collateral, 10_000_000_000); // 10k
 
-        assert_eq!(margin_calc_maker.fuel_deposits, 10000 / 28);
+        assert_eq!(margin_calc_maker.fuel_deposits, 100_000 / 28);
         assert_eq!(maker_stats.fuel_deposits, margin_calc_maker.fuel_deposits);
 
         let mut margin_context = MarginContext::standard(MarginRequirementType::Initial);
@@ -602,7 +602,7 @@ pub mod fuel_scoring {
 
         assert_eq!(margin_calc.total_collateral, 100000000);
 
-        let borrow_fuel_addition = 3571428; // todo: calc by hand
+        let borrow_fuel_addition = 35; // todo: calc by hand
         assert_eq!(
             margin_calc.fuel_borrows,
             borrow_fuel_addition
@@ -828,9 +828,9 @@ pub mod fuel_scoring {
             )
             .unwrap();
 
-        assert_eq!(margin_calc_maker.total_collateral, 10000_000_000); // 10k
+        assert_eq!(margin_calc_maker.total_collateral, 10_000_000_000); // 10k
 
-        assert_eq!(margin_calc_maker.fuel_deposits, 100_000_u32 / 28);
+        assert_eq!(margin_calc_maker.fuel_deposits, 100_000 / 28);
         assert_eq!(maker_stats.fuel_deposits, margin_calc_maker.fuel_deposits);
 
         let mut margin_context = MarginContext::standard(MarginRequirementType::Initial);
@@ -851,7 +851,7 @@ pub mod fuel_scoring {
 
         assert_eq!(margin_calc.total_collateral, 100000000);
 
-        assert_eq!(margin_calc.fuel_deposits, 100000000 / 28);
+        assert_eq!(margin_calc.fuel_deposits, 1000 / 28);
         assert_eq!(taker_stats.fuel_deposits, margin_calc.fuel_deposits);
     }
 }
