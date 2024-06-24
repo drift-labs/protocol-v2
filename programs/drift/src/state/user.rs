@@ -1670,7 +1670,7 @@ impl UserStats {
         self.fuel_maker = self.fuel_maker.saturating_add(
             fuel_boost
                 .cast::<u64>()?
-                .saturating_mul(quote_asset_amount/QUOTE_PRECISION_U64)
+                .saturating_mul(quote_asset_amount / QUOTE_PRECISION_U64)
                 .cast::<u32>()?,
         ); // todo of ratio
         Ok(())
@@ -1684,7 +1684,7 @@ impl UserStats {
         self.fuel_taker = self.fuel_taker.saturating_add(
             fuel_boost
                 .cast::<u64>()?
-                .saturating_mul(quote_asset_amount/QUOTE_PRECISION_U64)
+                .saturating_mul(quote_asset_amount / QUOTE_PRECISION_U64)
                 .cast::<u32>()?,
         ); // todo of ratio
         Ok(())

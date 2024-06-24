@@ -2,8 +2,8 @@ use crate::error::DriftResult;
 use crate::error::ErrorCode;
 use crate::math::constants::{
     AMM_RESERVE_PRECISION_I128, FUEL_WINDOW_U128, MARGIN_PRECISION_U128,
-    MAX_POSITIVE_UPNL_FOR_INITIAL_MARGIN, PRICE_PRECISION, SPOT_IMF_PRECISION_U128,
-    SPOT_WEIGHT_PRECISION, SPOT_WEIGHT_PRECISION_U128, QUOTE_PRECISION_U64
+    MAX_POSITIVE_UPNL_FOR_INITIAL_MARGIN, PRICE_PRECISION, QUOTE_PRECISION_U64,
+    SPOT_IMF_PRECISION_U128, SPOT_WEIGHT_PRECISION, SPOT_WEIGHT_PRECISION_U128,
 };
 use crate::math::position::{
     calculate_base_asset_value_and_pnl_with_oracle_price,
@@ -271,14 +271,16 @@ pub fn calculate_spot_fuel_bonus(
             .safe_mul(fuel_bonus_numerator.cast()?)?
             .safe_mul(spot_market.fuel_boost_deposits.cast()?)?
             .safe_div(FUEL_WINDOW_U128)?
-            .cast::<u64>()? / (QUOTE_PRECISION_U64/10)
+            .cast::<u64>()?
+            / (QUOTE_PRECISION_U64 / 10)
     } else {
         signed_token_value
             .unsigned_abs()
             .safe_mul(fuel_bonus_numerator.cast()?)?
             .safe_mul(spot_market.fuel_boost_borrows.cast()?)?
             .safe_div(FUEL_WINDOW_U128)?
-            .cast::<u64>()? / (QUOTE_PRECISION_U64/10)
+            .cast::<u64>()?
+            / (QUOTE_PRECISION_U64 / 10)
     };
 
     Ok(result)
@@ -341,39 +343,55 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
                 )?;
             }
 
-            let token_value =
-                get_strict_token_value(token_amount, spot_market.decimals, &strict_oracle_price)?;
+            let token_value = get_strict_token_value(
+                token_amount,
+                spot_market.decimals,
+                &strict_oracle_price
+            )?;
+            
+            let mut updated_token_amount = token_amount;
+            let token_value2 = {
 
-            let token_value2 = if context.fuel_spot_delta.is_some()
-                && context.fuel_spot_delta.unwrap().0 == spot_market.market_index
-            {
+                // Check and add `fuel_spot_delta` if applicable
+                if let Some(fuel_spot_delta) = &context.fuel_spot_delta {
+                    if fuel_spot_delta.0 == spot_market.market_index {
+                        updated_token_amount = updated_token_amount.safe_add(fuel_spot_delta.1)?;
+                    }
+                }
+
+                // Check and add `fuel_spot_delta_2` if applicable
+                if let Some(fuel_spot_delta_2) = &context.fuel_spot_delta_2 {
+                    if fuel_spot_delta_2.0 == spot_market.market_index {
+                        updated_token_amount = updated_token_amount.safe_add(fuel_spot_delta_2.1)?;
+                    }
+                }
+
+                // Calculate the token value with the updated amount
                 get_strict_token_value(
-                    token_amount.safe_add(context.fuel_spot_delta.unwrap().1)?,
-                    spot_market.decimals,
-                    &strict_oracle_price,
+                    updated_token_amount,
+    spot_market.decimals,
+    &strict_oracle_price,
                 )?
-            } else {
-                token_value
             };
 
             if token_value2 > 0 {
-                calculation.fuel_deposits =
-                    calculation
-                        .fuel_deposits
-                        .saturating_add(calculate_spot_fuel_bonus(
-                            &spot_market,
-                            token_value2,
-                            context.fuel_bonus_numerator,
-                        )?.cast()?);
+                calculation.fuel_deposits = calculation.fuel_deposits.saturating_add(
+                    calculate_spot_fuel_bonus(
+                        &spot_market,
+                        token_value2,
+                        context.fuel_bonus_numerator,
+                    )?
+                    .cast()?,
+                );
             } else {
-                calculation.fuel_borrows =
-                    calculation
-                        .fuel_borrows
-                        .saturating_add(calculate_spot_fuel_bonus(
-                            &spot_market,
-                            token_value2,
-                            context.fuel_bonus_numerator,
-                        )?.cast()?);
+                calculation.fuel_borrows = calculation.fuel_borrows.saturating_add(
+                    calculate_spot_fuel_bonus(
+                        &spot_market,
+                        token_value2,
+                        context.fuel_bonus_numerator,
+                    )?
+                    .cast()?,
+                );
             }
 
             match spot_position.balance_type {
@@ -418,7 +436,8 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
                 &spot_market,
                 signed_token_value,
                 context.fuel_bonus_numerator,
-            )?.cast()?;
+            )?
+            .cast()?;
             if signed_token_value > 0 {
                 calculation.fuel_deposits = calculation
                     .fuel_deposits
@@ -591,29 +610,31 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
             calculation.track_open_orders_fraction(),
         )?;
 
-        let fuel_base_asset_value =  if let Some((market_index, perp_delta)) = context.fuel_perp_delta {  
-            if market_index == market.market_index {  
-                market_position  
-                    .base_asset_amount  
-                    .safe_add(perp_delta)?  
-                    .cast::<i128>()?  
-                    .safe_mul(oracle_price_data.price.cast()?)?  
-                    .safe_div(AMM_RESERVE_PRECISION_I128)?  
-                    .unsigned_abs()  
-            } else {  
-                base_asset_value  
-            }  
-        } else {  
-            base_asset_value  
-        };
+        let fuel_base_asset_value =
+            if let Some((market_index, perp_delta)) = context.fuel_perp_delta {
+                if market_index == market.market_index {
+                    market_position
+                        .base_asset_amount
+                        .safe_add(perp_delta)?
+                        .cast::<i128>()?
+                        .safe_mul(oracle_price_data.price.cast()?)?
+                        .safe_div(AMM_RESERVE_PRECISION_I128)?
+                        .unsigned_abs()
+                } else {
+                    base_asset_value
+                }
+            } else {
+                base_asset_value
+            };
 
-        calculation.fuel_oi = calculation
-            .fuel_oi
-            .saturating_add(calculate_perp_fuel_bonus(
+        calculation.fuel_oi = calculation.fuel_oi.saturating_add(
+            calculate_perp_fuel_bonus(
                 &market,
                 fuel_base_asset_value as i128,
                 context.fuel_bonus_numerator,
-            )?.cast()?);
+            )?
+            .cast()?,
+        );
 
         calculation.add_margin_requirement(
             perp_margin_requirement,

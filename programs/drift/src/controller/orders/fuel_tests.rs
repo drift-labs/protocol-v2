@@ -305,9 +305,9 @@ pub mod fuel_scoring {
             .is_err();
         assert!(is_errored_attempted);
 
-        margin_context.fuel_bonus_numerator = taker_stats.get_fuel_bonus_numerator(
-            taker.last_fuel_bonus_update_ts,
-            now).unwrap();
+        margin_context.fuel_bonus_numerator = taker_stats
+            .get_fuel_bonus_numerator(taker.last_fuel_bonus_update_ts, now)
+            .unwrap();
 
         let margin_calc: MarginCalculation = taker
             .calculate_margin_and_increment_fuel_bonus(
@@ -565,9 +565,9 @@ pub mod fuel_scoring {
 
         let mut margin_context = MarginContext::standard(MarginRequirementType::Initial);
 
-        margin_context.fuel_bonus_numerator = maker_stats.get_fuel_bonus_numerator(
-            maker.last_fuel_bonus_update_ts,
-            now).unwrap();
+        margin_context.fuel_bonus_numerator = maker_stats
+            .get_fuel_bonus_numerator(maker.last_fuel_bonus_update_ts, now)
+            .unwrap();
         let margin_calc_maker = maker
             .calculate_margin_and_increment_fuel_bonus(
                 &market_map,
@@ -586,9 +586,9 @@ pub mod fuel_scoring {
 
         let mut margin_context = MarginContext::standard(MarginRequirementType::Initial);
 
-        margin_context.fuel_bonus_numerator = taker_stats.get_fuel_bonus_numerator(
-            taker.last_fuel_bonus_update_ts,
-            now).unwrap();
+        margin_context.fuel_bonus_numerator = taker_stats
+            .get_fuel_bonus_numerator(taker.last_fuel_bonus_update_ts, now)
+            .unwrap();
         let margin_calc = taker
             .calculate_margin_and_increment_fuel_bonus(
                 &market_map,
@@ -603,10 +603,7 @@ pub mod fuel_scoring {
         assert_eq!(margin_calc.total_collateral, 100000000);
 
         let borrow_fuel_addition = 35; // todo: calc by hand
-        assert_eq!(
-            margin_calc.fuel_borrows,
-            borrow_fuel_addition
-        );
+        assert_eq!(margin_calc.fuel_borrows, borrow_fuel_addition);
         // assert_eq!(taker_stats.fuel_borrow, margin_calc.fuel_borrow);
     }
 

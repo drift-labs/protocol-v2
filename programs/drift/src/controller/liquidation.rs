@@ -847,7 +847,8 @@ pub fn liquidate_spot(
     // )?;
     let mut margin_context = MarginContext::liquidation(liquidation_margin_buffer_ratio)
         .track_market_margin_requirement(MarketIdentifier::spot(liability_market_index))?;
-    margin_context.fuel_bonus_numerator = user_stats.get_fuel_bonus_numerator(user.last_fuel_bonus_update_ts, now)?;
+    margin_context.fuel_bonus_numerator =
+        user_stats.get_fuel_bonus_numerator(user.last_fuel_bonus_update_ts, now)?;
 
     let margin_calculation = user.calculate_margin_and_increment_fuel_bonus(
         perp_market_map,
