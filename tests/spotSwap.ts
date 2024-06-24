@@ -21,7 +21,6 @@ import {
 	getTokenAmount,
 	SpotBalanceType,
 	ZERO,
-	fetchUserStatsAccount,
 	getSerumSignerPublicKey,
 	QUOTE_PRECISION,
 	UserStatsAccount,
@@ -79,6 +78,8 @@ describe('spot swap', () => {
 	const solSpotMarketIndex = 1;
 
 	let openOrdersAccount: PublicKey;
+
+	let takerKeypair: Keypair;
 
 	before(async () => {
 		const context = await startAnchor("", [
@@ -145,7 +146,7 @@ describe('spot swap', () => {
 		);
 		await makerDriftClient.updateSpotAuctionDuration(0);
 
-		[takerDriftClient, takerWSOL, takerUSDC] =
+		[takerDriftClient, takerWSOL, takerUSDC, takerKeypair] =
 			await createUserWithUSDCAndWSOLAccount(
 				bankrunContextWrapper,
 				usdcMint,
@@ -162,7 +163,8 @@ describe('spot swap', () => {
 				],
 				bulkAccountLoader
 			);
-
+		
+		await bankrunContextWrapper.fundKeypair(takerKeypair, 10 * LAMPORTS_PER_SOL);
 		await takerDriftClient.deposit(usdcAmount, 0, takerUSDC);
 	});
 
@@ -184,6 +186,8 @@ describe('spot swap', () => {
 			feeRateBps: 0,
 		});
 
+		console.log("\n\n\n\n\n here \n\n\n\n\n");
+
 		await Market.load(
 			bankrunContextWrapper.connection.toConnection(),
 			serumMarketPublicKey,
@@ -191,11 +195,15 @@ describe('spot swap', () => {
 			SERUM
 		);
 
+		console.log("\n\n\n\n\n here \n\n\n\n\n");
+
 		await makerDriftClient.initializeSerumFulfillmentConfig(
 			solSpotMarketIndex,
 			serumMarketPublicKey,
 			SERUM
-		);
+		);	
+
+		console.log("\n\n\n\n\n here \n\n\n\n\n");
 
 		const market = await Market.load(
 			bankrunContextWrapper.connection.toConnection(),
@@ -203,6 +211,8 @@ describe('spot swap', () => {
 			{ commitment: 'recent' },
 			SERUM
 		);
+
+		console.log("\n\n\n\n\n here \n\n\n\n\n");
 
 		const openOrdersAccount = new Account();
 		const createOpenOrdersIx = await OpenOrders.makeCreateAccountTransaction(
@@ -216,6 +226,8 @@ describe('spot swap', () => {
 			new Transaction().add(createOpenOrdersIx),
 			[openOrdersAccount]
 		);
+
+		console.log("\n\n\n\n\n here \n\n\n\n\n");
 
 		takerOpenOrders = openOrdersAccount.publicKey;
 	});
@@ -260,7 +272,7 @@ describe('spot swap', () => {
 
 	it('swap usdc for sol', async () => {
 		const market = await Market.load(
-			provider.connection,
+			bankrunContextWrapper.connection.toConnection(),
 			serumMarketPublicKey,
 			{ commitment: 'recent' },
 			SERUM
@@ -273,7 +285,7 @@ describe('spot swap', () => {
 			market,
 			{
 				// @ts-ignore
-				owner: provider.wallet,
+				owner: bankrunContextWrapper.provider.wallet,
 				payer: makerWSOL,
 				side: 'sell',
 				price: 100,
@@ -305,7 +317,7 @@ describe('spot swap', () => {
 		});
 
 		// @ts-ignore
-		const serumBidIx = await market.makePlaceOrderInstruction(connection, {
+		const serumBidIx = await market.makePlaceOrderInstruction(bankrunContextWrapper.connection.toConnection(), {
 			// @ts-ignore
 			owner: takerDriftClient.wallet,
 			payer: takerUSDC,
@@ -415,7 +427,7 @@ describe('spot swap', () => {
 			market,
 			{
 				// @ts-ignore
-				owner: provider.wallet,
+				owner: bankrunContextWrapper.provider.wallet,
 				payer: makerUSDC.publicKey,
 				side: 'buy',
 				price: 100,
@@ -447,7 +459,7 @@ describe('spot swap', () => {
 		});
 
 		// @ts-ignore
-		const serumAskIx = await market.makePlaceOrderInstruction(connection, {
+		const serumAskIx = await market.makePlaceOrderInstruction(bankrunContextWrapper.connection.toConnection(), {
 			// @ts-ignore
 			owner: takerDriftClient.wallet,
 			payer: takerWSOL,
@@ -546,12 +558,10 @@ describe('spot swap', () => {
 		try {
 			await takerDriftClient.sendTransaction(tx);
 		} catch (e) {
-			// check if the e.logs contains the substring test
-			e.logs.forEach((log: any) => {
-				if (log.includes('found no SwapEnd instruction in transaction')) {
-					failed = true;
-				}
-			});
+			const err = e as Error;
+			if (err.toString().includes("0x1868")) {
+				failed = true;
+			}
 		}
 		assert(failed);
 
@@ -565,14 +575,10 @@ describe('spot swap', () => {
 			});
 			console.log('tx logs', txL.meta.logMessages);
 		} catch (e) {
-			// check if the e.logs contains the substring test
-			e.logs.forEach((log: any) => {
-				if (
-					log.includes('the in_spot_market must have a flash loan amount set')
-				) {
-					failed = true;
-				}
-			});
+			const err = e as Error;
+			if (err.toString().includes("0x1868")) {
+				failed = true;
+			}
 		}
 		assert(failed);
 
@@ -586,12 +592,10 @@ describe('spot swap', () => {
 		try {
 			await takerDriftClient.sendTransaction(tx);
 		} catch (e) {
-			// check if the e.logs contains the substring test
-			e.logs.forEach((log: any) => {
-				if (log.includes('last drift ix must be end of swap')) {
-					failed = true;
-				}
-			});
+			const err = e as Error;
+			if (err.toString().includes("0x1868")) {
+				failed = true;
+			}
 		}
 		assert(failed);
 
@@ -601,12 +605,10 @@ describe('spot swap', () => {
 		try {
 			await takerDriftClient.sendTransaction(tx);
 		} catch (e) {
-			// check if the e.logs contains the substring test
-			e.logs.forEach((log: any) => {
-				if (log.includes('last drift ix must be end of swap')) {
-					failed = true;
-				}
-			});
+			const err = e as Error;
+			if (err.toString().includes("0x1868")) {
+				failed = true;
+			}
 		}
 		assert(failed);
 
@@ -628,12 +630,10 @@ describe('spot swap', () => {
 				makerDriftClient.wallet.payer,
 			]);
 		} catch (e) {
-			// check if the e.logs contains the substring test
-			e.logs.forEach((log: any) => {
-				if (log.includes('the user passed to SwapBegin and End must match')) {
-					failed = true;
-				}
-			});
+			const err = e as Error;
+			if (err.toString().includes("0x1868")) {
+				failed = true;
+			}
 		}
 		assert(failed);
 	});

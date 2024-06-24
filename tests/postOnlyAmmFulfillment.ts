@@ -312,6 +312,7 @@ describe('post only maker order w/ amm fulfillments', () => {
 		assert(orderRecords.length == 4);
 
 		const orderRecord = orderRecords[0];
+		// console.log(orderRecords);
 		console.log(orderRecord);
 		assert(isVariant(orderRecord.action, 'fill'));
 		assert(isVariant(orderRecord.actionExplanation, 'orderFilledWithAmm'));
