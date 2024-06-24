@@ -10,6 +10,8 @@ export class TestClient extends AdminClient {
 			throw new Error('Test client must be polling');
 		}
 		super(config);
+		// @ts-ignore
+		this.txHandler.blockhashCommitment = 'recent';
 	}
 
 	async sendTransaction(

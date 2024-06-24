@@ -41,9 +41,10 @@ use static_assertions::const_assert_eq;
 #[cfg(test)]
 mod tests;
 
-#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Debug, Eq)]
+#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Debug, Eq, Default)]
 pub enum MarketStatus {
     /// warm up period for initialization, fills are paused
+    #[default]
     Initialized,
     /// all operations allowed
     Active,
@@ -63,12 +64,6 @@ pub enum MarketStatus {
     Delisted,
 }
 
-impl Default for MarketStatus {
-    fn default() -> Self {
-        MarketStatus::Initialized
-    }
-}
-
 impl MarketStatus {
     pub fn validate_not_deprecated(&self) -> DriftResult {
         if matches!(
@@ -86,19 +81,16 @@ impl MarketStatus {
     }
 }
 
-#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Debug, Eq)]
+#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Debug, Eq, Default)]
 pub enum ContractType {
+    #[default]
     Perpetual,
     Future,
 }
 
-impl Default for ContractType {
-    fn default() -> Self {
-        ContractType::Perpetual
-    }
-}
-
-#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Debug, Eq, PartialOrd, Ord)]
+#[derive(
+    Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Debug, Eq, PartialOrd, Ord, Default,
+)]
 pub enum ContractTier {
     /// max insurance capped at A level
     A,
@@ -109,16 +101,13 @@ pub enum ContractTier {
     /// no insurance
     Speculative,
     /// no insurance, another tranches below
+    #[default]
     HighlySpeculative,
     /// no insurance, only single position allowed
     Isolated,
 }
 
 impl ContractTier {
-    pub fn default() -> Self {
-        ContractTier::HighlySpeculative
-    }
-
     pub fn is_as_safe_as(&self, best_contract: &ContractTier, best_asset: &AssetTier) -> bool {
         self.is_as_safe_as_contract(best_contract) && self.is_as_safe_as_asset(best_asset)
     }
@@ -1300,31 +1289,60 @@ impl AMM {
     ) -> DriftResult<Option<i64>> {
         match self.oracle_source {
             OracleSource::Pyth | OracleSource::PythStableCoin => {
-                Ok(Some(self.get_pyth_twap(price_oracle, 1)?))
+                Ok(Some(self.get_pyth_twap(price_oracle, 1, false)?))
             }
-            OracleSource::Pyth1K => Ok(Some(self.get_pyth_twap(price_oracle, 1000)?)),
-            OracleSource::Pyth1M => Ok(Some(self.get_pyth_twap(price_oracle, 1000000)?)),
+            OracleSource::Pyth1K => Ok(Some(self.get_pyth_twap(price_oracle, 1000, false)?)),
+            OracleSource::Pyth1M => Ok(Some(self.get_pyth_twap(price_oracle, 1000000, false)?)),
             OracleSource::Switchboard => Ok(Some(get_switchboard_price(price_oracle, slot)?.price)),
             OracleSource::QuoteAsset => {
                 msg!("Can't get oracle twap for quote asset");
                 Err(ErrorCode::DefaultError)
             }
             OracleSource::Prelaunch => Ok(Some(get_prelaunch_price(price_oracle, slot)?.price)),
+            OracleSource::PythPull | OracleSource::PythStableCoinPull => {
+                Ok(Some(self.get_pyth_twap(price_oracle, 1, true)?))
+            }
+            OracleSource::Pyth1KPull => Ok(Some(self.get_pyth_twap(price_oracle, 1000, true)?)),
+            OracleSource::Pyth1MPull => {
+                Ok(Some(self.get_pyth_twap(price_oracle, 1000000, true)?))
+            }
         }
     }
 
-    pub fn get_pyth_twap(&self, price_oracle: &AccountInfo, multiple: u128) -> DriftResult<i64> {
-        let pyth_price_data = price_oracle
+    pub fn get_pyth_twap(
+        &self,
+        price_oracle: &AccountInfo,
+        multiple: u128,
+        is_pull_oracle: bool,
+    ) -> DriftResult<i64> {
+        let mut pyth_price_data: &[u8] = &price_oracle
             .try_borrow_data()
             .or(Err(ErrorCode::UnableToLoadOracle))?;
-        let price_data = pyth_client::cast::<pyth_client::Price>(&pyth_price_data);
 
-        let oracle_twap = price_data.twap.val;
+        let oracle_price: i64;
+        let oracle_twap: i64;
+        let oracle_exponent: i32;
 
-        assert!(oracle_twap > price_data.agg.price / 10);
+        if is_pull_oracle {
+            let price_message =
+                pyth_solana_receiver_sdk::price_update::PriceUpdateV2::try_deserialize(
+                    &mut pyth_price_data,
+                )
+                .or(Err(crate::error::ErrorCode::UnableToLoadOracle))?;
+            oracle_price = price_message.price_message.price;
+            oracle_twap = price_message.price_message.ema_price;
+            oracle_exponent = price_message.price_message.exponent;
+        } else {
+            let price_data = pyth_client::cast::<pyth_client::Price>(pyth_price_data);
+            oracle_price = price_data.agg.price;
+            oracle_twap = price_data.twap.val;
+            oracle_exponent = price_data.expo;
+        }
+
+        assert!(oracle_twap > oracle_price / 10);
 
         let oracle_precision = 10_u128
-            .pow(price_data.expo.unsigned_abs())
+            .pow(oracle_exponent.unsigned_abs())
             .safe_div(multiple)?;
 
         let mut oracle_scale_mult = 1;

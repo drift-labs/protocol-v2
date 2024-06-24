@@ -20,7 +20,7 @@ use std::fmt;
 mod tests;
 
 // ordered by "severity"
-#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Debug, Eq)]
+#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Debug, Eq, Default)]
 pub enum OracleValidity {
     NonPositive,
     TooVolatile,
@@ -28,13 +28,8 @@ pub enum OracleValidity {
     StaleForMargin,
     InsufficientDataPoints,
     StaleForAMM,
+    #[default]
     Valid,
-}
-
-impl Default for OracleValidity {
-    fn default() -> Self {
-        OracleValidity::Valid
-    }
 }
 
 impl OracleValidity {
@@ -181,9 +176,9 @@ pub struct OracleStatus {
     pub oracle_validity: OracleValidity,
 }
 
-pub fn get_oracle_status<'a>(
+pub fn get_oracle_status(
     market: &PerpMarket,
-    oracle_price_data: &'a OraclePriceData,
+    oracle_price_data: &OraclePriceData,
     guard_rails: &OracleGuardRails,
     reserve_price: u64,
 ) -> DriftResult<OracleStatus> {

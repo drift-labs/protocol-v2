@@ -10,7 +10,6 @@ import {
 	BASE_PRECISION,
 	getLimitOrderParams,
 	PostOnlyParams,
-	MarketStatus,
 } from '../sdk/src';
 
 import {
@@ -47,6 +46,7 @@ import {
 	calculateUtilization,
 } from '../sdk/src/math/spotBalance';
 import { NATIVE_MINT } from '@solana/spl-token';
+import { ContractTier } from '../sdk';
 
 describe('test function when spot market at >= 100% util', () => {
 	const provider = anchor.AnchorProvider.local(undefined, {
@@ -226,11 +226,16 @@ describe('test function when spot market at >= 100% util', () => {
 			new BN(1),
 			new BN(30_000_000),
 			undefined,
+			ContractTier.A,
 			1000,
-			900 // easy to liq
+			900, // easy to liq
+			undefined,
+			undefined,
+			undefined,
+			true,
+			2000,
+			5000
 		);
-		await admin.updatePerpMarketStatus(0, MarketStatus.ACTIVE);
-		await admin.updatePerpMarketBaseSpread(0, 2000);
 		await admin.updatePerpMarketCurveUpdateIntensity(0, 100);
 
 		const txSig = await admin.updateWithdrawGuardThreshold(

@@ -23,6 +23,7 @@ import {
 	BulkAccountLoader,
 	isVariant,
 	MARGIN_PRECISION,
+	SettlePnlMode,
 } from '../sdk/src';
 
 import {
@@ -361,8 +362,8 @@ describe('lp risk mitigation', () => {
 			const _txsig = await driftClient.openPosition(
 				PositionDirection.SHORT,
 				tradeSize,
-				market.marketIndex
-				// new BN(100 * BASE_PRECISION.toNumber())
+				market.marketIndex,
+				new BN(0.1 * PRICE_PRECISION.toNumber())
 			);
 			await _viewLogs(_txsig);
 		} catch (e) {
@@ -476,10 +477,11 @@ describe('lp risk mitigation', () => {
 
 		console.log('settling after margin ratio update...');
 		try {
-			const _txsigg = await driftClient.settlePNL(
+			const _txsigg = await driftClient.settleMultiplePNLs(
 				await driftClient.getUserAccountPublicKey(),
 				await driftClient.getUserAccount(),
-				0
+				[0],
+				SettlePnlMode.TRY_SETTLE
 			);
 			await _viewLogs(_txsigg);
 		} catch (e) {

@@ -61,8 +61,8 @@ mod update_perp_auction_params {
         amm.last_bid_price_twap = (oracle_price - 192988) as u64;
         amm.last_mark_price_twap_5min = oracle_price as u64;
         amm.last_ask_price_twap = (oracle_price + 192988) as u64;
-        amm.historical_oracle_data.last_oracle_price_twap = oracle_price as i64;
-        amm.historical_oracle_data.last_oracle_price_twap_5min = oracle_price as i64;
+        amm.historical_oracle_data.last_oracle_price_twap = oracle_price;
+        amm.historical_oracle_data.last_oracle_price_twap_5min = oracle_price;
 
         amm.historical_oracle_data.last_oracle_price = oracle_price;
         let perp_market = PerpMarket {
@@ -154,8 +154,8 @@ mod update_perp_auction_params {
         amm.last_bid_price_twap = (oracle_price * 15 / 10 - 192988) as u64;
         amm.last_mark_price_twap_5min = (oracle_price * 16 / 10) as u64;
         amm.last_ask_price_twap = (oracle_price * 16 / 10 + 192988) as u64;
-        amm.historical_oracle_data.last_oracle_price_twap = oracle_price as i64;
-        amm.historical_oracle_data.last_oracle_price_twap_5min = oracle_price as i64;
+        amm.historical_oracle_data.last_oracle_price_twap = oracle_price;
+        amm.historical_oracle_data.last_oracle_price_twap_5min = oracle_price;
 
         amm.historical_oracle_data.last_oracle_price = oracle_price;
         let perp_market = PerpMarket {
@@ -199,8 +199,8 @@ mod update_perp_auction_params {
         amm.last_bid_price_twap = (oracle_price * 99 / 100) as u64;
         amm.last_mark_price_twap_5min = oracle_price as u64;
         amm.last_ask_price_twap = (oracle_price * 101 / 100) as u64;
-        amm.historical_oracle_data.last_oracle_price_twap = oracle_price as i64;
-        amm.historical_oracle_data.last_oracle_price_twap_5min = oracle_price as i64;
+        amm.historical_oracle_data.last_oracle_price_twap = oracle_price;
+        amm.historical_oracle_data.last_oracle_price_twap_5min = oracle_price;
 
         amm.historical_oracle_data.last_oracle_price = oracle_price;
         let perp_market = PerpMarket {

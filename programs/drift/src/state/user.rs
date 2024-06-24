@@ -816,7 +816,7 @@ impl SpotPosition {
                              token_amount: i128,
                              open_orders: i128| {
             let order_value = get_token_value(
-                -open_orders as i128,
+                -open_orders,
                 spot_market.decimals,
                 strict_oracle_price.max(),
             )?;
@@ -1109,6 +1109,8 @@ impl PerpPosition {
     }
 }
 
+pub(crate) type PerpPositions = [PerpPosition; 8];
+
 #[cfg(test)]
 use crate::math::constants::{AMM_TO_QUOTE_PRECISION_RATIO_I128, PRICE_PRECISION_I128};
 #[cfg(test)]
@@ -1148,8 +1150,6 @@ impl PerpPosition {
             .safe_div(self.base_asset_amount.cast()?)
     }
 }
-
-pub type PerpPositions = [PerpPosition; 8];
 
 #[zero_copy(unsafe)]
 #[repr(C)]
@@ -1483,9 +1483,10 @@ pub enum OrderStatus {
     Canceled,
 }
 
-#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Debug, Eq)]
+#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Debug, Eq, Default)]
 pub enum OrderType {
     Market,
+    #[default]
     Limit,
     TriggerMarket,
     TriggerLimit,
@@ -1493,28 +1494,18 @@ pub enum OrderType {
     Oracle,
 }
 
-impl Default for OrderType {
-    fn default() -> Self {
-        OrderType::Limit
-    }
-}
-
-#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Debug, Eq)]
+#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Debug, Eq, Default)]
 pub enum OrderTriggerCondition {
+    #[default]
     Above,
     Below,
     TriggeredAbove, // above condition has been triggered
     TriggeredBelow, // below condition has been triggered
 }
 
-impl Default for OrderTriggerCondition {
-    fn default() -> Self {
-        OrderTriggerCondition::Above
-    }
-}
-
-#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Debug, Eq)]
+#[derive(Default, Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Debug, Eq)]
 pub enum MarketType {
+    #[default]
     Spot,
     Perp,
 }
@@ -1525,12 +1516,6 @@ impl fmt::Display for MarketType {
             MarketType::Spot => write!(f, "Spot"),
             MarketType::Perp => write!(f, "Perp"),
         }
-    }
-}
-
-impl Default for MarketType {
-    fn default() -> Self {
-        MarketType::Spot
     }
 }
 

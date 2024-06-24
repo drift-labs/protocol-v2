@@ -16,7 +16,7 @@ use crate::math::constants::{
     DEFAULT_LIQUIDATION_MARGIN_BUFFER_RATIO, FEE_POOL_TO_REVENUE_POOL_THRESHOLD,
     IF_FACTOR_PRECISION, INSURANCE_A_MAX, INSURANCE_B_MAX, INSURANCE_C_MAX,
     INSURANCE_SPECULATIVE_MAX, LIQUIDATION_FEE_PRECISION, MAX_CONCENTRATION_COEFFICIENT,
-    MAX_SQRT_K, MAX_UPDATE_K_PRICE_CHANGE, QUOTE_SPOT_MARKET_INDEX,
+    MAX_SQRT_K, MAX_UPDATE_K_PRICE_CHANGE, PERCENTAGE_PRECISION, QUOTE_SPOT_MARKET_INDEX,
     SPOT_CUMULATIVE_INTEREST_PRECISION, SPOT_IMF_PRECISION, SPOT_WEIGHT_PRECISION, THIRTEEN_DAY,
     TWENTY_FOUR_HOUR,
 };
@@ -128,7 +128,7 @@ pub fn handle_initialize_spot_market(
         return Err(ErrorCode::InvalidInsuranceFundAuthority.into());
     }
 
-    validate_borrow_rate(optimal_utilization, optimal_borrow_rate, max_borrow_rate)?;
+    validate_borrow_rate(optimal_utilization, optimal_borrow_rate, max_borrow_rate, 0)?;
 
     let spot_market_index = get_then_update_id!(state, number_of_spot_markets);
 
@@ -273,16 +273,18 @@ pub fn handle_initialize_spot_market(
         paused_operations: 0,
         if_paused_operations: 0,
         fee_adjustment: 0,
-        padding1: [0; 2],
+        max_token_borrows_fraction: 0,
         flash_loan_amount: 0,
         flash_loan_initial_token_amount: 0,
         total_swap_fee: 0,
         scale_initial_asset_weight_start,
+        min_borrow_rate: 0,
+        padding1: [0; 7],
         fuel_boost_deposits: 0,
         fuel_boost_borrows: 0,
         fuel_boost_taker: 0,
         fuel_boost_maker: 0,
-        padding: [0; 40],
+        padding: [0; 32],
         insurance_fund: InsuranceFund {
             vault: *ctx.accounts.insurance_fund_vault.to_account_info().key,
             unstaking_period: THIRTEEN_DAY,
@@ -575,8 +577,11 @@ pub fn handle_initialize_perp_market(
                 price: oracle_price,
                 delay: oracle_delay,
                 ..
-            } = get_pyth_price(&ctx.accounts.oracle, clock_slot, 1)?;
-            let last_oracle_price_twap = perp_market.amm.get_pyth_twap(&ctx.accounts.oracle, 1)?;
+            } = get_pyth_price(&ctx.accounts.oracle, clock_slot, 1, false)?;
+            let last_oracle_price_twap =
+                perp_market
+                    .amm
+                    .get_pyth_twap(&ctx.accounts.oracle, 1, false)?;
             (oracle_price, oracle_delay, last_oracle_price_twap)
         }
         OracleSource::Pyth1K => {
@@ -584,9 +589,11 @@ pub fn handle_initialize_perp_market(
                 price: oracle_price,
                 delay: oracle_delay,
                 ..
-            } = get_pyth_price(&ctx.accounts.oracle, clock_slot, 1000)?;
+            } = get_pyth_price(&ctx.accounts.oracle, clock_slot, 1000, false)?;
             let last_oracle_price_twap =
-                perp_market.amm.get_pyth_twap(&ctx.accounts.oracle, 1000)?;
+                perp_market
+                    .amm
+                    .get_pyth_twap(&ctx.accounts.oracle, 1000, false)?;
             (oracle_price, oracle_delay, last_oracle_price_twap)
         }
         OracleSource::Pyth1M => {
@@ -594,10 +601,11 @@ pub fn handle_initialize_perp_market(
                 price: oracle_price,
                 delay: oracle_delay,
                 ..
-            } = get_pyth_price(&ctx.accounts.oracle, clock_slot, 1000000)?;
-            let last_oracle_price_twap = perp_market
-                .amm
-                .get_pyth_twap(&ctx.accounts.oracle, 1000000)?;
+            } = get_pyth_price(&ctx.accounts.oracle, clock_slot, 1000000, false)?;
+            let last_oracle_price_twap =
+                perp_market
+                    .amm
+                    .get_pyth_twap(&ctx.accounts.oracle, 1000000, false)?;
             (oracle_price, oracle_delay, last_oracle_price_twap)
         }
         OracleSource::PythStableCoin => {
@@ -605,7 +613,7 @@ pub fn handle_initialize_perp_market(
                 price: oracle_price,
                 delay: oracle_delay,
                 ..
-            } = get_pyth_price(&ctx.accounts.oracle, clock_slot, 1)?;
+            } = get_pyth_price(&ctx.accounts.oracle, clock_slot, 1, false)?;
             (oracle_price, oracle_delay, QUOTE_PRECISION_I64)
         }
         OracleSource::Switchboard => {
@@ -628,6 +636,50 @@ pub fn handle_initialize_perp_market(
                 ..
             } = get_prelaunch_price(&ctx.accounts.oracle, clock_slot)?;
             (oracle_price, oracle_delay, oracle_price)
+        }
+        OracleSource::PythPull => {
+            let OraclePriceData {
+                price: oracle_price,
+                delay: oracle_delay,
+                ..
+            } = get_pyth_price(&ctx.accounts.oracle, clock_slot, 1, true)?;
+            let last_oracle_price_twap =
+                perp_market
+                    .amm
+                    .get_pyth_twap(&ctx.accounts.oracle, 1, true)?;
+            (oracle_price, oracle_delay, last_oracle_price_twap)
+        }
+        OracleSource::Pyth1KPull => {
+            let OraclePriceData {
+                price: oracle_price,
+                delay: oracle_delay,
+                ..
+            } = get_pyth_price(&ctx.accounts.oracle, clock_slot, 1000, true)?;
+            let last_oracle_price_twap =
+                perp_market
+                    .amm
+                    .get_pyth_twap(&ctx.accounts.oracle, 1000, true)?;
+            (oracle_price, oracle_delay, last_oracle_price_twap)
+        }
+        OracleSource::Pyth1MPull => {
+            let OraclePriceData {
+                price: oracle_price,
+                delay: oracle_delay,
+                ..
+            } = get_pyth_price(&ctx.accounts.oracle, clock_slot, 1000000, true)?;
+            let last_oracle_price_twap =
+                perp_market
+                    .amm
+                    .get_pyth_twap(&ctx.accounts.oracle, 1000000, true)?;
+            (oracle_price, oracle_delay, last_oracle_price_twap)
+        }
+        OracleSource::PythStableCoinPull => {
+            let OraclePriceData {
+                price: oracle_price,
+                delay: oracle_delay,
+                ..
+            } = get_pyth_price(&ctx.accounts.oracle, clock_slot, 1, true)?;
+            (oracle_price, oracle_delay, QUOTE_PRECISION_I64)
         }
     };
 
@@ -1256,7 +1308,10 @@ pub fn handle_settle_expired_market_pools_to_revenue_pool(
             && perp_market.amm.base_asset_amount_short == 0
             && perp_market.number_of_users_with_base == 0,
         ErrorCode::DefaultError,
-        "outstanding base_asset_amounts must be balanced"
+        "outstanding base_asset_amounts must be balanced {} {} {}",
+        perp_market.amm.base_asset_amount_long,
+        perp_market.amm.base_asset_amount_short,
+        perp_market.number_of_users_with_base
     )?;
 
     validate!(
@@ -2250,9 +2305,18 @@ pub fn handle_update_spot_market_borrow_rate(
     optimal_utilization: u32,
     optimal_borrow_rate: u32,
     max_borrow_rate: u32,
+    min_borrow_rate: Option<u8>,
 ) -> Result<()> {
     let spot_market = &mut load_mut!(ctx.accounts.spot_market)?;
-    validate_borrow_rate(optimal_utilization, optimal_borrow_rate, max_borrow_rate)?;
+    validate_borrow_rate(
+        optimal_utilization,
+        optimal_borrow_rate,
+        max_borrow_rate,
+        min_borrow_rate
+            .unwrap_or(spot_market.min_borrow_rate)
+            .cast::<u32>()?
+            * ((PERCENTAGE_PRECISION / 200) as u32),
+    )?;
 
     msg!(
         "spot_market.optimal_utilization: {:?} -> {:?}",
@@ -2275,6 +2339,16 @@ pub fn handle_update_spot_market_borrow_rate(
     spot_market.optimal_utilization = optimal_utilization;
     spot_market.optimal_borrow_rate = optimal_borrow_rate;
     spot_market.max_borrow_rate = max_borrow_rate;
+
+    if let Some(min_borrow_rate) = min_borrow_rate {
+        msg!(
+            "spot_market.min_borrow_rate: {:?} -> {:?}",
+            spot_market.min_borrow_rate,
+            min_borrow_rate
+        );
+        spot_market.min_borrow_rate = min_borrow_rate
+    }
+
     Ok(())
 }
 
@@ -2294,6 +2368,39 @@ pub fn handle_update_spot_market_max_token_deposits(
     );
 
     spot_market.max_token_deposits = max_token_deposits;
+    Ok(())
+}
+
+#[access_control(
+    spot_market_valid(&ctx.accounts.spot_market)
+)]
+pub fn handle_update_spot_market_max_token_borrows(
+    ctx: Context<AdminUpdateSpotMarket>,
+    max_token_borrows_fraction: u16,
+) -> Result<()> {
+    let spot_market = &mut load_mut!(ctx.accounts.spot_market)?;
+
+    msg!(
+        "spot_market.max_token_borrows_fraction: {:?} -> {:?}",
+        spot_market.max_token_borrows_fraction,
+        max_token_borrows_fraction
+    );
+
+    let current_spot_tokens_borrows: u64 = spot_market.get_borrows()?.cast()?;
+    let new_max_token_borrows = spot_market
+        .max_token_deposits
+        .safe_mul(max_token_borrows_fraction.cast()?)?
+        .safe_div(10000)?;
+
+    validate!(
+        current_spot_tokens_borrows <= new_max_token_borrows,
+        ErrorCode::InvalidSpotMarketInitialization,
+        "spot borrows {} > max_token_borrows {}",
+        current_spot_tokens_borrows,
+        max_token_borrows_fraction
+    )?;
+
+    spot_market.max_token_borrows_fraction = max_token_borrows_fraction;
     Ok(())
 }
 
@@ -3368,8 +3475,8 @@ pub fn handle_update_protocol_if_shares_transfer_config(
     Ok(())
 }
 
-pub fn handle_initialize_prelaunch_oracle<'info>(
-    ctx: Context<InitializePrelaunchOracle<'info>>,
+pub fn handle_initialize_prelaunch_oracle(
+    ctx: Context<InitializePrelaunchOracle>,
     params: PrelaunchOracleParams,
 ) -> Result<()> {
     let mut oracle = ctx.accounts.prelaunch_oracle.load_init()?;
@@ -3387,8 +3494,8 @@ pub fn handle_initialize_prelaunch_oracle<'info>(
     Ok(())
 }
 
-pub fn handle_update_prelaunch_oracle_params<'info>(
-    ctx: Context<UpdatePrelaunchOracleParams<'info>>,
+pub fn handle_update_prelaunch_oracle_params(
+    ctx: Context<UpdatePrelaunchOracleParams>,
     params: PrelaunchOracleParams,
 ) -> Result<()> {
     let mut oracle = ctx.accounts.prelaunch_oracle.load_mut()?;
@@ -3425,8 +3532,8 @@ pub fn handle_update_prelaunch_oracle_params<'info>(
     Ok(())
 }
 
-pub fn handle_delete_prelaunch_oracle<'info>(
-    ctx: Context<DeletePrelaunchOracle<'info>>,
+pub fn handle_delete_prelaunch_oracle(
+    ctx: Context<DeletePrelaunchOracle>,
     _perp_market_index: u16,
 ) -> Result<()> {
     let perp_market = ctx.accounts.perp_market.load()?;

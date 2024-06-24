@@ -1,5 +1,5 @@
 {
-  "version": "2.82.0",
+  "version": "2.84.0",
   "name": "drift",
   "instructions": [
     {
@@ -8849,7 +8849,7 @@
         "kind": "enum",
         "variants": [
           {
-            "name": "Invalid"
+            "name": "NonPositive"
           },
           {
             "name": "TooVolatile"
@@ -9208,7 +9208,7 @@
             "name": "Standard",
             "fields": [
               {
-                "name": "track_open_orders_fraction",
+                "name": "trackOpenOrdersFraction",
                 "type": "bool"
               }
             ]
@@ -9217,7 +9217,7 @@
             "name": "Liquidation",
             "fields": [
               {
-                "name": "market_to_track_margin_requirement",
+                "name": "marketToTrackMarginRequirement",
                 "type": {
                   "option": {
                     "defined": "MarketIdentifier"
@@ -9254,6 +9254,18 @@
           },
           {
             "name": "Prelaunch"
+          },
+          {
+            "name": "PythPull"
+          },
+          {
+            "name": "Pyth1KPull"
+          },
+          {
+            "name": "Pyth1MPull"
+          },
+          {
+            "name": "PythStableCoinPull"
           }
         ]
       }
@@ -11962,6 +11974,41 @@
       "code": 6260,
       "name": "PnlPoolCantSettleUser",
       "msg": "PnlPoolCantSettleUser"
+    },
+    {
+      "code": 6261,
+      "name": "OracleNonPositive",
+      "msg": "OracleInvalid"
+    },
+    {
+      "code": 6262,
+      "name": "OracleTooVolatile",
+      "msg": "OracleTooVolatile"
+    },
+    {
+      "code": 6263,
+      "name": "OracleTooUncertain",
+      "msg": "OracleTooUncertain"
+    },
+    {
+      "code": 6264,
+      "name": "OracleStaleForMargin",
+      "msg": "OracleStaleForMargin"
+    },
+    {
+      "code": 6265,
+      "name": "OracleInsufficientDataPoints",
+      "msg": "OracleInsufficientDataPoints"
+    },
+    {
+      "code": 6266,
+      "name": "OracleStaleForAMM",
+      "msg": "OracleStaleForAMM"
+    },
+    {
+      "code": 6267,
+      "name": "UnableToParsePullOracleMessage",
+      "msg": "Unable to parse pull oracle message"
     }
   ]
 }

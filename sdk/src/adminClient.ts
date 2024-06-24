@@ -1812,6 +1812,44 @@ export class AdminClient extends DriftClient {
 		);
 	}
 
+	public async updateSpotMarketMaxTokenBorrows(
+		spotMarketIndex: number,
+		maxTokenBorrows: BN
+	): Promise<TransactionSignature> {
+		const updateSpotMarketMaxTokenBorrowsIx =
+			await this.getUpdateSpotMarketMaxTokenBorrowsIx(
+				spotMarketIndex,
+				maxTokenBorrows
+			);
+
+		const tx = await this.buildTransaction(updateSpotMarketMaxTokenBorrowsIx);
+
+		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+
+		return txSig;
+	}
+
+	public async getUpdateSpotMarketMaxTokenBorrowsIx(
+		spotMarketIndex: number,
+		maxTokenBorrows: BN
+	): Promise<TransactionInstruction> {
+		return this.program.instruction.updateSpotMarketMaxTokenBorrows(
+			maxTokenBorrows,
+			{
+				accounts: {
+					admin: this.isSubscribed
+						? this.getStateAccount().admin
+						: this.wallet.publicKey,
+					state: await this.getStatePublicKey(),
+					spotMarket: await getSpotMarketPublicKey(
+						this.program.programId,
+						spotMarketIndex
+					),
+				},
+			}
+		);
+	}
+
 	public async updateSpotMarketScaleInitialAssetWeightStart(
 		spotMarketIndex: number,
 		scaleInitialAssetWeightStart: BN
@@ -2506,14 +2544,16 @@ export class AdminClient extends DriftClient {
 		spotMarketIndex: number,
 		optimalUtilization: number,
 		optimalBorrowRate: number,
-		optimalMaxRate: number
+		optimalMaxRate: number,
+		minBorrowRate?: number | undefined
 	): Promise<TransactionSignature> {
 		const updateSpotMarketBorrowRateIx =
 			await this.getUpdateSpotMarketBorrowRateIx(
 				spotMarketIndex,
 				optimalUtilization,
 				optimalBorrowRate,
-				optimalMaxRate
+				optimalMaxRate,
+				minBorrowRate
 			);
 
 		const tx = await this.buildTransaction(updateSpotMarketBorrowRateIx);
@@ -2527,12 +2567,14 @@ export class AdminClient extends DriftClient {
 		spotMarketIndex: number,
 		optimalUtilization: number,
 		optimalBorrowRate: number,
-		optimalMaxRate: number
+		optimalMaxRate: number,
+		minBorrowRate?: number | undefined
 	): Promise<TransactionInstruction> {
 		return await this.program.instruction.updateSpotMarketBorrowRate(
 			optimalUtilization,
 			optimalBorrowRate,
 			optimalMaxRate,
+			minBorrowRate,
 			{
 				accounts: {
 					admin: this.isSubscribed
@@ -3472,7 +3514,7 @@ export class AdminClient extends DriftClient {
 			perpMarketIndex
 		);
 
-		return await this.program.instruction.getDeletePrelaunchOracleIx(params, {
+		return await this.program.instruction.deletePrelaunchOracle(params, {
 			accounts: {
 				admin: this.isSubscribed
 					? this.getStateAccount().admin
