@@ -108,8 +108,8 @@ pub mod fuel_scoring {
             margin_ratio_maintenance: 500,
             status: MarketStatus::Initialized,
             fuel_boost_funding: 250,
-            fuel_boost_maker: 1000,
-            fuel_boost_taker: 500,
+            fuel_boost_maker: 100,
+            fuel_boost_taker: 50,
             ..PerpMarket::default_test()
         };
         market.amm.max_base_asset_reserve = u64::MAX as u128;
@@ -284,8 +284,8 @@ pub mod fuel_scoring {
 
         assert!(maker_stats_after.fuel_maker > 0);
         assert!(taker_stats.fuel_taker > 0);
-        assert_eq!(maker_stats_after.fuel_maker, 50000);
-        assert_eq!(taker_stats.fuel_taker, 25000);
+        assert_eq!(maker_stats_after.fuel_maker, 5000);
+        assert_eq!(taker_stats.fuel_taker, 2500);
 
         now += 1000000;
 
@@ -308,7 +308,8 @@ pub mod fuel_scoring {
         margin_context.fuel_bonus_numerator = taker_stats.get_fuel_bonus_numerator(
             taker.last_fuel_bonus_update_ts,
             now).unwrap();
-        let margin_calc = taker
+
+        let margin_calc: MarginCalculation = taker
             .calculate_margin_and_increment_fuel_bonus(
                 &market_map,
                 &spot_market_map,
@@ -372,8 +373,8 @@ pub mod fuel_scoring {
             margin_ratio_maintenance: 500,
             status: MarketStatus::Initialized,
             fuel_boost_funding: 250,
-            fuel_boost_maker: 1000,
-            fuel_boost_taker: 500,
+            fuel_boost_maker: 100,
+            fuel_boost_taker: 50,
             ..PerpMarket::default_test()
         };
         market.amm.max_base_asset_reserve = u64::MAX as u128;
@@ -658,8 +659,8 @@ pub mod fuel_scoring {
             margin_ratio_maintenance: 500,
             status: MarketStatus::Initialized,
             fuel_boost_funding: 250,
-            fuel_boost_maker: 1000,
-            fuel_boost_taker: 500,
+            fuel_boost_maker: 100,
+            fuel_boost_taker: 50,
             ..PerpMarket::default_test()
         };
         market.amm.max_base_asset_reserve = u64::MAX as u128;
@@ -697,8 +698,8 @@ pub mod fuel_scoring {
 
             fuel_boost_deposits: 1,
             fuel_boost_borrows: 5,
-            fuel_boost_maker: 20000,
-            fuel_boost_taker: 9000,
+            fuel_boost_maker: 200,
+            fuel_boost_taker: 90,
             ..SpotMarket::default()
         };
 

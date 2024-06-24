@@ -1664,13 +1664,13 @@ impl UserStats {
 
     pub fn update_fuel_maker_bonus(
         &mut self,
-        fuel_boost: u16,
+        fuel_boost: u8,
         quote_asset_amount: u64,
     ) -> DriftResult {
         self.fuel_maker = self.fuel_maker.saturating_add(
             fuel_boost
                 .cast::<u64>()?
-                .saturating_mul(quote_asset_amount)
+                .saturating_mul(quote_asset_amount/QUOTE_PRECISION_U64)
                 .cast::<u32>()?,
         ); // todo of ratio
         Ok(())
@@ -1678,13 +1678,13 @@ impl UserStats {
 
     pub fn update_fuel_taker_bonus(
         &mut self,
-        fuel_boost: u16,
+        fuel_boost: u8,
         quote_asset_amount: u64,
     ) -> DriftResult {
         self.fuel_taker = self.fuel_taker.saturating_add(
             fuel_boost
                 .cast::<u64>()?
-                .saturating_mul(quote_asset_amount)
+                .saturating_mul(quote_asset_amount/QUOTE_PRECISION_U64)
                 .cast::<u32>()?,
         ); // todo of ratio
         Ok(())
@@ -1692,7 +1692,7 @@ impl UserStats {
 
     pub fn update_maker_volume_30d(
         &mut self,
-        fuel_boost: u16,
+        fuel_boost: u8,
         quote_asset_amount: u64,
         now: i64,
     ) -> DriftResult {
@@ -1713,7 +1713,7 @@ impl UserStats {
 
     pub fn update_taker_volume_30d(
         &mut self,
-        fuel_boost: u16,
+        fuel_boost: u8,
         quote_asset_amount: u64,
         now: i64,
     ) -> DriftResult {

@@ -284,7 +284,7 @@ pub fn handle_initialize_spot_market(
         fuel_boost_borrows: 0,
         fuel_boost_taker: 0,
         fuel_boost_maker: 0,
-        padding: [0; 32],
+        padding: [0; 36],
         insurance_fund: InsuranceFund {
             vault: *ctx.accounts.insurance_fund_vault.to_account_info().key,
             unstaking_period: THIRTEEN_DAY,
@@ -738,7 +738,7 @@ pub fn handle_initialize_perp_market(
         fuel_boost_funding: 0,
         fuel_boost_taker: 0,
         fuel_boost_maker: 0,
-        padding: [0; 38],
+        padding: [0; 41],
         amm: AMM {
             oracle: *ctx.accounts.oracle.key,
             oracle_source,
@@ -3207,9 +3207,9 @@ pub fn handle_update_perp_market_number_of_users(
 
 pub fn handle_update_perp_market_fuel(
     ctx: Context<AdminUpdatePerpMarket>,
-    fuel_boost_taker: Option<u16>,
-    fuel_boost_maker: Option<u16>,
-    fuel_boost_funding: Option<u16>,
+    fuel_boost_taker: Option<u8>,
+    fuel_boost_maker: Option<u8>,
+    fuel_boost_funding: Option<u8>,
 ) -> Result<()> {
     let perp_market = &mut load_mut!(ctx.accounts.perp_market)?;
 
@@ -3278,10 +3278,10 @@ pub fn handle_update_spot_market_fee_adjustment(
 
 pub fn handle_update_spot_market_fuel(
     ctx: Context<AdminUpdateSpotMarket>,
-    fuel_boost_deposits: Option<u16>,
-    fuel_boost_borrows: Option<u16>,
-    fuel_boost_taker: Option<u16>,
-    fuel_boost_maker: Option<u16>,
+    fuel_boost_deposits: Option<u8>,
+    fuel_boost_borrows: Option<u8>,
+    fuel_boost_taker: Option<u8>,
+    fuel_boost_maker: Option<u8>,
 ) -> Result<()> {
     let spot_market = &mut load_mut!(ctx.accounts.spot_market)?;
 

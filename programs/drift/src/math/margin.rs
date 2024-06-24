@@ -590,18 +590,20 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
             calculation.track_open_orders_fraction(),
         )?;
 
-        let fuel_base_asset_value = if context.fuel_perp_delta.is_some()
-            && context.fuel_perp_delta.unwrap().0 == market.market_index
-        {
-            market_position
-                .base_asset_amount
-                .safe_add(context.fuel_perp_delta.unwrap().1)?
-                .cast::<i128>()?
-                .safe_mul(oracle_price_data.price.cast()?)?
-                .safe_div(AMM_RESERVE_PRECISION_I128)?
-                .unsigned_abs()
-        } else {
-            base_asset_value
+        let fuel_base_asset_value =  if let Some((market_index, perp_delta)) = context.fuel_perp_delta {  
+            if market_index == market.market_index {  
+                market_position  
+                    .base_asset_amount  
+                    .safe_add(perp_delta)?  
+                    .cast::<i128>()?  
+                    .safe_mul(oracle_price_data.price.cast()?)?  
+                    .safe_div(AMM_RESERVE_PRECISION_I128)?  
+                    .unsigned_abs()  
+            } else {  
+                base_asset_value  
+            }  
+        } else {  
+            base_asset_value  
         };
 
         calculation.fuel_oi = calculation
