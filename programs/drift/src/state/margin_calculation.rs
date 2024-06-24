@@ -167,7 +167,9 @@ pub struct MarginCalculation {
     pub total_perp_pnl: i128,
     pub open_orders_margin_requirement: u128,
     tracked_market_margin_requirement: u128,
-    pub fuel_bonus: u64,
+    pub fuel_deposits: u32,
+    pub fuel_borrows: u32,
+    pub fuel_oi: u32,
 }
 
 impl MarginCalculation {
@@ -188,7 +190,9 @@ impl MarginCalculation {
             total_perp_pnl: 0,
             open_orders_margin_requirement: 0,
             tracked_market_margin_requirement: 0,
-            fuel_bonus: 0,
+            fuel_deposits: 0,
+            fuel_borrows: 0,
+            fuel_oi: 0,
         }
     }
 

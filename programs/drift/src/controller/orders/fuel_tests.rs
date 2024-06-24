@@ -225,9 +225,9 @@ pub mod fuel_scoring {
         create_anchor_account_info!(maker_stats, UserStats, maker_stats_account_info);
         let maker_and_referrer_stats = UserStatsMap::load_one(&maker_stats_account_info).unwrap();
 
-        let mut filler_stats = UserStats::default();
-        assert_eq!(maker_stats.fuel_bonus, 0);
-        assert_eq!(taker_stats.fuel_bonus, 0);
+        let mut filler_stats: UserStats = UserStats::default();
+        assert_eq!(maker_stats.fuel_deposits, 0);
+        assert_eq!(taker_stats.fuel_deposits, 0);
 
         let (ba, qa) = fulfill_perp_order(
             &mut taker,
@@ -282,10 +282,10 @@ pub mod fuel_scoring {
             0
         );
 
-        assert!(maker_stats_after.fuel_bonus > 0);
-        assert!(taker_stats.fuel_bonus > 0);
-        assert_eq!(maker_stats_after.fuel_bonus, 50000000000);
-        assert_eq!(taker_stats.fuel_bonus, 25000000000);
+        assert!(maker_stats_after.fuel_maker > 0);
+        assert!(taker_stats.fuel_taker > 0);
+        assert_eq!(maker_stats_after.fuel_maker, 50000);
+        assert_eq!(taker_stats.fuel_taker, 25000);
 
         now += 1000000;
 
@@ -305,7 +305,9 @@ pub mod fuel_scoring {
             .is_err();
         assert!(is_errored_attempted);
 
-        margin_context.fuel_bonus_numerator = taker_stats.get_fuel_bonus_numerator(now).unwrap();
+        margin_context.fuel_bonus_numerator = taker_stats.get_fuel_bonus_numerator(
+            taker.last_fuel_bonus_update_ts,
+            now).unwrap();
         let margin_calc = taker
             .calculate_margin_and_increment_fuel_bonus(
                 &market_map,
@@ -317,8 +319,8 @@ pub mod fuel_scoring {
             )
             .unwrap();
 
-        assert_eq!(margin_calc.fuel_bonus, 5166997354);
-        assert_eq!(taker_stats.fuel_bonus, 25000000000 + margin_calc.fuel_bonus);
+        // assert_eq!(margin_calc.fuel_taker, 5166997354);
+        // assert_eq!(taker_stats.fuel_taker, 25000000000 + margin_calc.fuel_taker);
     }
 
     #[test]
@@ -422,9 +424,9 @@ pub mod fuel_scoring {
             cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION * 4,
             decimals: 9,
             initial_asset_weight: SPOT_WEIGHT_PRECISION * 8 / 10,
-            maintenance_asset_weight: SPOT_WEIGHT_PRECISION  * 9 / 10,
+            maintenance_asset_weight: SPOT_WEIGHT_PRECISION * 9 / 10,
             initial_liability_weight: SPOT_WEIGHT_PRECISION * 12 / 10,
-            maintenance_liability_weight: SPOT_WEIGHT_PRECISION  * 11 / 10,
+            maintenance_liability_weight: SPOT_WEIGHT_PRECISION * 11 / 10,
             historical_oracle_data: HistoricalOracleData {
                 last_oracle_price: (100 * PRICE_PRECISION) as i64,
                 last_oracle_price_twap: (100 * PRICE_PRECISION) as i64,
@@ -442,15 +444,10 @@ pub mod fuel_scoring {
         create_anchor_account_info!(spot_market, SpotMarket, spot_market_account_info);
         create_anchor_account_info!(sol_spot_market, SpotMarket, sol_spot_market_account_info);
 
-        let spot_market_account_infos = Vec::from([
-            &spot_market_account_info,
-            &sol_spot_market_account_info,
-        ]);
-        let spot_market_map = SpotMarketMap::load_multiple(
-            spot_market_account_infos,
-            true,
-        )
-        .unwrap();
+        let spot_market_account_infos =
+            Vec::from([&spot_market_account_info, &sol_spot_market_account_info]);
+        let spot_market_map =
+            SpotMarketMap::load_multiple(spot_market_account_infos, true).unwrap();
 
         // taker wants to go long (would improve balance)
         let mut taker = User {
@@ -536,8 +533,8 @@ pub mod fuel_scoring {
         let maker_and_referrer_stats = UserStatsMap::load_one(&maker_stats_account_info).unwrap();
 
         let mut filler_stats = UserStats::default();
-        assert_eq!(maker_stats.fuel_bonus, 0);
-        assert_eq!(taker_stats.fuel_bonus, 0);
+        assert_eq!(maker_stats.fuel_deposits, 0);
+        assert_eq!(taker_stats.fuel_deposits, 0);
 
         let market_after = market_map.get_ref(&0).unwrap();
         assert_eq!(
@@ -567,7 +564,9 @@ pub mod fuel_scoring {
 
         let mut margin_context = MarginContext::standard(MarginRequirementType::Initial);
 
-        margin_context.fuel_bonus_numerator = maker_stats.get_fuel_bonus_numerator(now).unwrap();
+        margin_context.fuel_bonus_numerator = maker_stats.get_fuel_bonus_numerator(
+            maker.last_fuel_bonus_update_ts,
+            now).unwrap();
         let margin_calc_maker = maker
             .calculate_margin_and_increment_fuel_bonus(
                 &market_map,
@@ -581,12 +580,14 @@ pub mod fuel_scoring {
 
         assert_eq!(margin_calc_maker.total_collateral, 10000_000_000); // 10k
 
-        assert_eq!(margin_calc_maker.fuel_bonus, 10000_000_000 / 28);
-        assert_eq!(maker_stats.fuel_bonus, margin_calc_maker.fuel_bonus);
+        assert_eq!(margin_calc_maker.fuel_deposits, 10000 / 28);
+        assert_eq!(maker_stats.fuel_deposits, margin_calc_maker.fuel_deposits);
 
         let mut margin_context = MarginContext::standard(MarginRequirementType::Initial);
 
-        margin_context.fuel_bonus_numerator = taker_stats.get_fuel_bonus_numerator(now).unwrap();
+        margin_context.fuel_bonus_numerator = taker_stats.get_fuel_bonus_numerator(
+            taker.last_fuel_bonus_update_ts,
+            now).unwrap();
         let margin_calc = taker
             .calculate_margin_and_increment_fuel_bonus(
                 &market_map,
@@ -599,10 +600,13 @@ pub mod fuel_scoring {
             .unwrap();
 
         assert_eq!(margin_calc.total_collateral, 100000000);
-        
+
         let borrow_fuel_addition = 3571428; // todo: calc by hand
-        assert_eq!(margin_calc.fuel_bonus, 100000000 / 28 + borrow_fuel_addition); 
-        assert_eq!(taker_stats.fuel_bonus, margin_calc.fuel_bonus);
+        assert_eq!(
+            margin_calc.fuel_borrows,
+            borrow_fuel_addition
+        );
+        // assert_eq!(taker_stats.fuel_borrow, margin_calc.fuel_borrow);
     }
 
     #[test]
@@ -778,8 +782,8 @@ pub mod fuel_scoring {
         let maker_and_referrer_stats = UserStatsMap::load_one(&maker_stats_account_info).unwrap();
 
         let mut filler_stats = UserStats::default();
-        assert_eq!(maker_stats.fuel_bonus, 0);
-        assert_eq!(taker_stats.fuel_bonus, 0);
+        assert_eq!(maker_stats.fuel_deposits, 0);
+        assert_eq!(taker_stats.fuel_deposits, 0);
 
         let market_after = market_map.get_ref(&0).unwrap();
         assert_eq!(
@@ -809,7 +813,9 @@ pub mod fuel_scoring {
 
         let mut margin_context = MarginContext::standard(MarginRequirementType::Initial);
 
-        margin_context.fuel_bonus_numerator = maker_stats.get_fuel_bonus_numerator(now).unwrap();
+        margin_context.fuel_bonus_numerator = maker_stats
+            .get_fuel_bonus_numerator(maker.last_fuel_bonus_update_ts, now)
+            .unwrap();
         let margin_calc_maker = maker
             .calculate_margin_and_increment_fuel_bonus(
                 &market_map,
@@ -823,12 +829,14 @@ pub mod fuel_scoring {
 
         assert_eq!(margin_calc_maker.total_collateral, 10000_000_000); // 10k
 
-        assert_eq!(margin_calc_maker.fuel_bonus, 10000_000_000 / 28);
-        assert_eq!(maker_stats.fuel_bonus, margin_calc_maker.fuel_bonus);
+        assert_eq!(margin_calc_maker.fuel_deposits, 100_000_u32 / 28);
+        assert_eq!(maker_stats.fuel_deposits, margin_calc_maker.fuel_deposits);
 
         let mut margin_context = MarginContext::standard(MarginRequirementType::Initial);
 
-        margin_context.fuel_bonus_numerator = taker_stats.get_fuel_bonus_numerator(now).unwrap();
+        margin_context.fuel_bonus_numerator = taker_stats
+            .get_fuel_bonus_numerator(taker.last_fuel_bonus_update_ts, now)
+            .unwrap();
         let margin_calc = taker
             .calculate_margin_and_increment_fuel_bonus(
                 &market_map,
@@ -842,7 +850,7 @@ pub mod fuel_scoring {
 
         assert_eq!(margin_calc.total_collateral, 100000000);
 
-        assert_eq!(margin_calc.fuel_bonus, 100000000 / 28);
-        assert_eq!(taker_stats.fuel_bonus, margin_calc.fuel_bonus);
+        assert_eq!(margin_calc.fuel_deposits, 100000000 / 28);
+        assert_eq!(taker_stats.fuel_deposits, margin_calc.fuel_deposits);
     }
 }

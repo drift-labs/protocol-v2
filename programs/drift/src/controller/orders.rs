@@ -1718,7 +1718,12 @@ fn fulfill_perp_order(
             .fuel_perp_diff(market_index, taker_base_asset_amount_signed as i64),
         )?; // fueltodo side
 
-    user_stats.update_fuel_bonus(taker_margin_calculation.fuel_bonus, now)?;
+    user_stats.update_fuel_bonus(
+        taker_margin_calculation.fuel_deposits,
+        taker_margin_calculation.fuel_borrows,
+        taker_margin_calculation.fuel_oi,
+        now,
+    )?;
     user.last_fuel_bonus_update_ts = now;
 
     if !taker_margin_calculation.meets_margin_requirement() {
@@ -1753,13 +1758,16 @@ fn fulfill_perp_order(
                 spot_market_map,
                 oracle_map,
                 MarginContext::standard(margin_type)
-                    .fuel_perp_diff(market_index, -taker_base_asset_amount_signed as i64), // fueltodo: side
+                    .fuel_perp_diff(market_index, -maker_base_asset_amount_filled as i64), // fueltodo: side
             )?;
 
         if maker_stats.is_some() {
-            maker_stats
-                .unwrap()
-                .update_fuel_bonus(maker_margin_calculation.fuel_bonus, now)?;
+            maker_stats.unwrap().update_fuel_bonus(
+                maker_margin_calculation.fuel_deposits,
+                maker_margin_calculation.fuel_borrows,
+                maker_margin_calculation.fuel_oi,
+                now,
+            )?;
         }
         maker.last_fuel_bonus_update_ts = now;
 
@@ -4076,7 +4084,12 @@ fn fulfill_spot_order(
                 ),
         )?;
 
-    user_stats.update_fuel_bonus(taker_margin_calculation.fuel_bonus, now)?;
+    user_stats.update_fuel_bonus(
+        taker_margin_calculation.fuel_deposits,
+        taker_margin_calculation.fuel_borrows,
+        taker_margin_calculation.fuel_oi,
+        now,
+    )?;
     user.last_fuel_bonus_update_ts = now;
 
     if !taker_margin_calculation.meets_margin_requirement() {
@@ -4159,9 +4172,12 @@ fn fulfill_spot_order(
             )?;
 
         if maker_stats.is_some() {
-            maker_stats
-                .unwrap()
-                .update_fuel_bonus(maker_margin_calculation.fuel_bonus, now)?;
+            maker_stats.unwrap().update_fuel_bonus(
+                maker_margin_calculation.fuel_deposits,
+                maker_margin_calculation.fuel_borrows,
+                maker_margin_calculation.fuel_oi,
+                now,
+            )?;
         }
         maker.last_fuel_bonus_update_ts = now;
 

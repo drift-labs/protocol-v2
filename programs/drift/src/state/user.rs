@@ -434,11 +434,13 @@ impl User {
 
     pub fn increment_fuel_bonus(
         &mut self,
-        fuel_bonus: u64,
+        fuel_deposits: u32,
+        fuel_borrows: u32,
+        fuel_oi: u32,
         user_stats: &mut UserStats,
         now: i64,
     ) -> DriftResult {
-        user_stats.update_fuel_bonus(fuel_bonus, now)?;
+        user_stats.update_fuel_bonus(fuel_deposits, fuel_borrows, fuel_oi, now)?;
         self.last_fuel_bonus_update_ts = now;
 
         Ok(())
@@ -453,13 +455,15 @@ impl User {
         user_stats: &mut UserStats,
         now: i64,
     ) -> DriftResult<MarginCalculation> {
+        let fuel_bonus_numerator =
+            user_stats.get_fuel_bonus_numerator(self.last_fuel_bonus_update_ts, now)?;
         validate!(
-            context.fuel_bonus_numerator == user_stats.get_fuel_bonus_numerator(now)?,
+            context.fuel_bonus_numerator == fuel_bonus_numerator,
             ErrorCode::DefaultError,
             "Bad fuel bonus update attempt {} != {} (last_fuel_bonus_update_ts = {} vs now = {})",
             context.fuel_bonus_numerator,
-            user_stats.get_fuel_bonus_numerator(now)?,
-            user_stats.last_fuel_bonus_update_ts,
+            fuel_bonus_numerator,
+            self.last_fuel_bonus_update_ts,
             now
         )?;
 
@@ -472,7 +476,12 @@ impl User {
                 context,
             )?;
 
-        user_stats.update_fuel_bonus(margin_calculation.fuel_bonus, now)?;
+        user_stats.update_fuel_bonus(
+            margin_calculation.fuel_deposits,
+            margin_calculation.fuel_borrows,
+            margin_calculation.fuel_oi,
+            now,
+        )?;
         self.last_fuel_bonus_update_ts = now;
 
         Ok(margin_calculation)
@@ -514,7 +523,12 @@ impl User {
 
         validate_any_isolated_tier_requirements(self, calculation)?;
 
-        user_stats.update_fuel_bonus(calculation.fuel_bonus, now)?;
+        user_stats.update_fuel_bonus(
+            calculation.fuel_deposits,
+            calculation.fuel_borrows,
+            calculation.fuel_oi,
+            now,
+        )?;
         self.last_fuel_bonus_update_ts = now;
 
         Ok(())
@@ -562,7 +576,12 @@ impl User {
             calculation.margin_requirement
         )?;
 
-        user_stats.update_fuel_bonus(calculation.fuel_bonus, now)?;
+        user_stats.update_fuel_bonus(
+            calculation.fuel_deposits,
+            calculation.fuel_borrows,
+            calculation.fuel_oi,
+            now,
+        )?;
         self.last_fuel_bonus_update_ts = now;
 
         Ok(true)
@@ -1560,16 +1579,21 @@ pub struct UserStats {
     /// Whether the user is a referrer. Sub account 0 can not be deleted if user is a referrer
     pub is_referrer: bool,
     pub disable_update_perp_bid_ask_twap: bool,
+    pub padding1: [u8; 6],
     /// sub account id for spot deposit, borrow fuel tracking
-    pub fuel_sub_account: u16,
+    pub fuel_deposits: u32,
     /// accumulate fuel bonus for epoch
-    pub fuel_bonus: u64,
+    pub fuel_borrows: u32,
+    /// accumulate fuel bonus for epoch
+    pub fuel_taker: u32,
+    /// accumulate fuel bonus for epoch
+    pub fuel_maker: u32,
     /// last timestamp since fuel bonus accumulated
-    pub last_fuel_bonus_update_ts: i64,
+    pub fuel_oi: u32,
     /// The amount of tokens staked in the governance spot markets if
     pub if_staked_gov_token_amount: u64,
 
-    pub padding: [u8; 24],
+    pub padding: [u8; 20],
 }
 
 impl Default for UserStats {
@@ -1590,11 +1614,14 @@ impl Default for UserStats {
             number_of_sub_accounts_created: 0,
             is_referrer: false,
             disable_update_perp_bid_ask_twap: false,
-            fuel_sub_account: 0,
-            fuel_bonus: 0,
-            last_fuel_bonus_update_ts: 0,
+            padding1: [0; 6],
+            fuel_deposits: 0,
+            fuel_borrows: 0,
+            fuel_taker: 0,
+            fuel_maker: 0,
+            fuel_oi: 0,
             if_staked_gov_token_amount: 0,
-            padding: [0; 24],
+            padding: [0; 20],
         }
     }
 }
@@ -1604,15 +1631,62 @@ impl Size for UserStats {
 }
 
 impl UserStats {
-    pub fn get_fuel_bonus_numerator(self, now: i64) -> DriftResult<i64> {
-        let since_last = now.safe_sub(self.last_fuel_bonus_update_ts)?;
+    pub fn get_fuel_bonus_numerator(
+        self,
+        last_fuel_bonus_update_ts: i64,
+        now: i64,
+    ) -> DriftResult<i64> {
+        let since_last = now.safe_sub(last_fuel_bonus_update_ts)?;
         Ok(since_last)
     }
 
-    pub fn update_fuel_bonus(&mut self, fuel_bonus: u64, now: i64) -> DriftResult {
-        self.fuel_bonus = self.fuel_bonus.saturating_add(fuel_bonus);
-        self.last_fuel_bonus_update_ts = now;
+    pub fn update_fuel_bonus_trade(&mut self, fuel_taker: u32, fuel_maker: u32) -> DriftResult {
+        self.fuel_taker = self.fuel_taker.saturating_add(fuel_taker);
+        self.fuel_maker = self.fuel_maker.saturating_add(fuel_maker);
 
+        Ok(())
+    }
+
+    pub fn update_fuel_bonus(
+        &mut self,
+        fuel_deposits: u32,
+        fuel_borrows: u32,
+        fuel_oi: u32,
+        now: i64,
+    ) -> DriftResult {
+        self.fuel_deposits = self.fuel_deposits.saturating_add(fuel_deposits);
+        self.fuel_borrows = self.fuel_borrows.saturating_add(fuel_borrows);
+        self.fuel_oi = self.fuel_oi.saturating_add(fuel_oi);
+        // self.last_fuel_bonus_update_ts = now;
+
+        Ok(())
+    }
+
+    pub fn update_fuel_maker_bonus(
+        &mut self,
+        fuel_boost: u16,
+        quote_asset_amount: u64,
+    ) -> DriftResult {
+        self.fuel_maker = self.fuel_maker.saturating_add(
+            fuel_boost
+                .cast::<u64>()?
+                .saturating_mul(quote_asset_amount)
+                .cast::<u32>()?,
+        ); // todo of ratio
+        Ok(())
+    }
+
+    pub fn update_fuel_taker_bonus(
+        &mut self,
+        fuel_boost: u16,
+        quote_asset_amount: u64,
+    ) -> DriftResult {
+        self.fuel_taker = self.fuel_taker.saturating_add(
+            fuel_boost
+                .cast::<u64>()?
+                .saturating_mul(quote_asset_amount)
+                .cast::<u32>()?,
+        ); // todo of ratio
         Ok(())
     }
 
@@ -1624,9 +1698,7 @@ impl UserStats {
     ) -> DriftResult {
         let since_last = max(1_i64, now.safe_sub(self.last_maker_volume_30d_ts)?);
 
-        self.fuel_bonus = self
-            .fuel_bonus
-            .saturating_add(fuel_boost.cast::<u64>()?.saturating_mul(quote_asset_amount)); // todo of ratio
+        self.update_fuel_maker_bonus(fuel_boost, quote_asset_amount)?;
 
         self.maker_volume_30d = calculate_rolling_sum(
             self.maker_volume_30d,
@@ -1647,9 +1719,7 @@ impl UserStats {
     ) -> DriftResult {
         let since_last = max(1_i64, now.safe_sub(self.last_taker_volume_30d_ts)?);
 
-        self.fuel_bonus = self
-            .fuel_bonus
-            .saturating_add(fuel_boost.cast::<u64>()?.saturating_mul(quote_asset_amount)); // todo of ratio
+        self.update_fuel_taker_bonus(fuel_boost, quote_asset_amount)?;
 
         self.taker_volume_30d = calculate_rolling_sum(
             self.taker_volume_30d,

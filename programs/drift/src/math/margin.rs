@@ -355,14 +355,25 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
                 token_value
             };
 
-            calculation.fuel_bonus =
-                calculation
-                    .fuel_bonus
-                    .saturating_add(calculate_spot_fuel_bonus(
-                        &spot_market,
-                        token_value2,
-                        context.fuel_bonus_numerator,
-                    )?);
+            if token_value2 > 0 {
+                calculation.fuel_deposits =
+                    calculation
+                        .fuel_deposits
+                        .saturating_add(calculate_spot_fuel_bonus(
+                            &spot_market,
+                            token_value2,
+                            context.fuel_bonus_numerator,
+                        )?.cast()?);
+            } else {
+                calculation.fuel_borrows =
+                    calculation
+                        .fuel_borrows
+                        .saturating_add(calculate_spot_fuel_bonus(
+                            &spot_market,
+                            token_value2,
+                            context.fuel_bonus_numerator,
+                        )?.cast()?);
+            }
 
             match spot_position.balance_type {
                 SpotBalanceType::Deposit => {
@@ -396,21 +407,26 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
             }
         } else {
             let signed_token_amount = spot_position.get_signed_token_amount(&spot_market)?;
-
-            let additional_fuel_bonus = calculate_spot_fuel_bonus(
-                &spot_market,
-                get_strict_token_value(
-                    signed_token_amount,
-                    spot_market.decimals,
-                    &strict_oracle_price,
-                )?,
-                context.fuel_bonus_numerator,
+            let signed_token_value = get_strict_token_value(
+                signed_token_amount,
+                spot_market.decimals,
+                &strict_oracle_price,
             )?;
-            crate::dlog!(spot_market.market_index, additional_fuel_bonus);
-            calculation.fuel_bonus =
-                calculation
-                    .fuel_bonus
+
+            let additional_fuel_bonus: u32 = calculate_spot_fuel_bonus(
+                &spot_market,
+                signed_token_value,
+                context.fuel_bonus_numerator,
+            )?.cast()?;
+            if signed_token_value > 0 {
+                calculation.fuel_deposits = calculation
+                    .fuel_deposits
                     .saturating_add(additional_fuel_bonus);
+            } else {
+                calculation.fuel_borrows = calculation
+                    .fuel_borrows
+                    .saturating_add(additional_fuel_bonus);
+            }
 
             let OrderFillSimulation {
                 token_amount: worst_case_token_amount,
@@ -588,13 +604,13 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
             base_asset_value
         };
 
-        calculation.fuel_bonus = calculation
-            .fuel_bonus
+        calculation.fuel_oi = calculation
+            .fuel_oi
             .saturating_add(calculate_perp_fuel_bonus(
                 &market,
                 fuel_base_asset_value as i128,
                 context.fuel_bonus_numerator,
-            )?);
+            )?.cast()?);
 
         calculation.add_margin_requirement(
             perp_margin_requirement,
