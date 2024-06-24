@@ -566,7 +566,10 @@ describe('serum spot market', () => {
 			takerDriftClient.getQuoteSpotMarketAccount(),
 			SpotBalanceType.DEPOSIT
 		);
-		console.log(`\n\n\n\n\n\n ${spotFeePoolAmount.toString()} \n\n\n\n\n\n`);
+		console.log(`\n\n\n\n\n\n ${orderActionRecord.fillerReward}`);
+		console.log(`${solSpotMarket.cumulativeDepositInterest.toString()}`);
+		console.log(`${orderActionRecord.makerFee.toString()}`);
+		console.log(`${spotFeePoolAmount.toString()} \n\n\n\n\n\n`);
 		assert(spotFeePoolAmount.eq(new BN(184600)));
 
 		await crankMarkets();
@@ -669,7 +672,10 @@ describe('serum spot market', () => {
 			takerDriftClient.getQuoteSpotMarketAccount(),
 			SpotBalanceType.DEPOSIT
 		);
-		console.log(spotFeePoolAmount.toString());
+		console.log(`\n\n\n\n\n\n ${orderActionRecord.fillerReward.toString()}`);
+		console.log(`${solSpotMarket.cumulativeDepositInterest.toString()}`);
+		console.log(`${orderActionRecord.makerFee.toString()}`);
+		console.log(`${spotFeePoolAmount.toString()} \n\n\n\n\n\n`);
 		assert(spotFeePoolAmount.eq(new BN(264600)));
 
 		await crankMarkets();
