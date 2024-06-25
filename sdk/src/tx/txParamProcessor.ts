@@ -56,7 +56,10 @@ export class TransactionParamProcessor {
 
 			// If a lower bound CU is passed then enforce it
 			if (lowerBoundCu) {
-				bufferedComputeUnits = Math.max(bufferedComputeUnits, lowerBoundCu);
+				bufferedComputeUnits = Math.max(
+					bufferedComputeUnits,
+					Math.min(lowerBoundCu, MAX_COMPUTE_UNITS)
+				);
 			}
 
 			return {
