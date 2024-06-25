@@ -11,6 +11,8 @@ import { PublicKey } from '@solana/web3.js';
 import { UserAccount } from '../types';
 import { BulkAccountLoader } from './bulkAccountLoader';
 
+
+
 export class PollingUserAccountSubscriber implements UserAccountSubscriber {
 	isSubscribed: boolean;
 	program: Program;
