@@ -1527,6 +1527,7 @@ export class DriftClient {
 
 		if (params.useMarketLastSlotCache) {
 			const lastUserSlot = this.getUserAccountAndSlot()?.slot;
+
 			for (const [
 				marketIndex,
 				slot,
@@ -6306,7 +6307,8 @@ export class DriftClient {
 	public async getAddInsuranceFundStakeIx(
 		marketIndex: number,
 		amount: BN,
-		collateralAccountPublicKey: PublicKey
+		collateralAccountPublicKey: PublicKey,
+		fromSubAccount?: boolean
 	): Promise<TransactionInstruction> {
 		const spotMarket = this.getSpotMarketAccount(marketIndex);
 		const ifStakeAccountPublicKey = getInsuranceFundStakeAccountPublicKey(
@@ -6316,8 +6318,8 @@ export class DriftClient {
 		);
 
 		const remainingAccounts = this.getRemainingAccounts({
-			userAccounts: [this.getUserAccount()],
-			useMarketLastSlotCache: true,
+			userAccounts: fromSubAccount ? [this.getUserAccount()] : [],
+			useMarketLastSlotCache: fromSubAccount ? true : false,
 			writableSpotMarketIndexes: [marketIndex],
 		});
 
@@ -6416,7 +6418,8 @@ export class DriftClient {
 		const addFundsIx = await this.getAddInsuranceFundStakeIx(
 			marketIndex,
 			amount,
-			tokenAccount
+			tokenAccount,
+			fromSubaccount
 		);
 
 		addIfStakeIxs.push(addFundsIx);
@@ -6456,8 +6459,7 @@ export class DriftClient {
 		);
 
 		const remainingAccounts = this.getRemainingAccounts({
-			userAccounts: [this.getUserAccount()],
-			useMarketLastSlotCache: true,
+			userAccounts: [],
 			writableSpotMarketIndexes: [marketIndex],
 		});
 
@@ -6566,13 +6568,8 @@ export class DriftClient {
 			}
 		}
 
-		const userAccountExists =
-			!!this.getUser()?.accountSubscriber?.isSubscribed &&
-			(await this.checkIfAccountExists(this.getUser().userAccountPublicKey));
-
 		const remainingAccounts = this.getRemainingAccounts({
-			userAccounts: userAccountExists ? [this.getUserAccount()] : [],
-			useMarketLastSlotCache: false,
+			userAccounts: [],
 			writableSpotMarketIndexes: [marketIndex],
 		});
 
