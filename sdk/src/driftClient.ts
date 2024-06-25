@@ -1527,14 +1527,8 @@ export class DriftClient {
 			this.getRemainingAccountMapsForUsers(params.userAccounts);
 
 		if (params.useMarketLastSlotCache) {
-			let lastUserSlot = 0;
-
-			try {
-				lastUserSlot = this.getUserAccountAndSlot()?.slot;
-			} catch {
-				// Do nothing - allowed to have no user
-			}
-
+			const lastUserSlot = this.getUserAccountAndSlot()?.slot;
+			
 			for (const [
 				marketIndex,
 				slot,
@@ -6326,7 +6320,7 @@ export class DriftClient {
 
 		const remainingAccounts = this.getRemainingAccounts({
 			userAccounts: fromSubAccount ? [this.getUserAccount()] : [],
-			useMarketLastSlotCache: true,
+			useMarketLastSlotCache: fromSubAccount ? true : false,
 			writableSpotMarketIndexes: [marketIndex],
 		});
 
@@ -6467,7 +6461,6 @@ export class DriftClient {
 
 		const remainingAccounts = this.getRemainingAccounts({
 			userAccounts: [],
-			useMarketLastSlotCache: true,
 			writableSpotMarketIndexes: [marketIndex],
 		});
 
@@ -6578,7 +6571,6 @@ export class DriftClient {
 
 		const remainingAccounts = this.getRemainingAccounts({
 			userAccounts: [],
-			useMarketLastSlotCache: false,
 			writableSpotMarketIndexes: [marketIndex],
 		});
 
