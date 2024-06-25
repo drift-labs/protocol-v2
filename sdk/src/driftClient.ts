@@ -1522,13 +1522,12 @@ export class DriftClient {
 	}
 
 	getRemainingAccounts(params: RemainingAccountParams): AccountMeta[] {
-
 		const { oracleAccountMap, spotMarketAccountMap, perpMarketAccountMap } =
 			this.getRemainingAccountMapsForUsers(params.userAccounts);
 
 		if (params.useMarketLastSlotCache) {
 			const lastUserSlot = this.getUserAccountAndSlot()?.slot;
-			
+
 			for (const [
 				marketIndex,
 				slot,
