@@ -4664,7 +4664,8 @@ export class DriftClient {
 					await TransactionParamProcessor.getTxSimComputeUnits(
 						placeAndTakeTxToSim,
 						this.connection,
-						txParams.computeUnitsBufferMultiplier ?? 1.2
+						txParams.computeUnitsBufferMultiplier ?? 1.2,
+						txParams.lowerBoundCu
 					);
 
 				if (shouldExitIfSimulationFails && !simulationResult.success) {

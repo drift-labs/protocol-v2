@@ -1042,6 +1042,7 @@ export type ProcessingTxParams = {
 	computeUnitsBufferMultiplier?: number;
 	useSimulatedComputeUnitsForCUPriceCalculation?: boolean;
 	getCUPriceFromComputeUnits?: (computeUnits: number) => number;
+	lowerBoundCu?: number;
 };
 
 export type TxParams = BaseTxParams & ProcessingTxParams;
