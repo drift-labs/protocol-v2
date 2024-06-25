@@ -20,6 +20,11 @@ use crate::state::spot_market::SpotFulfillmentConfigStatus;
 use crate::state::state::FeeStructure;
 use crate::state::state::*;
 use crate::state::user::MarketType;
+use pyth_solana_receiver_sdk::{
+    price_update::FeedId,
+    PostUpdateParams,
+    PostUpdateAtomicParams,
+};
 
 pub mod controller;
 pub mod error;
@@ -575,6 +580,24 @@ pub mod drift {
         shares: u128,
     ) -> Result<()> {
         handle_transfer_protocol_if_shares(ctx, market_index, shares)
+    }
+
+    pub fn update_price_feed(
+        ctx: Context<UpdatePriceFeed>,
+        params: PostUpdateParams,
+        shard_id: u16,
+        feed_id: FeedId,
+    ) -> Result<()> {
+        handle_update_price_feed(ctx, params, shard_id, feed_id)
+    }
+
+    pub fn post_update_atomic (
+        ctx: Context<PostUpdateAtomicInfo>,
+        params: PostUpdateAtomicParams,
+        shard_id: u16,
+        feed_id: FeedId,
+    ) -> Result<()> {
+        handle_post_update_atomic(ctx, params, shard_id, feed_id)
     }
 
     // Admin Instructions
@@ -1304,6 +1327,15 @@ pub mod drift {
     ) -> Result<()> {
         handle_delete_prelaunch_oracle(ctx, perp_market_index)
     }
+
+    pub fn initialize_price_feed_account(
+        ctx: Context<InitPriceFeed>,
+        shard_id: u16,
+        feed_id: FeedId
+    ) -> Result<()> {
+        handle_initialize_price_feed_account(ctx, shard_id, feed_id)
+    }
+
 }
 
 #[cfg(not(feature = "no-entrypoint"))]

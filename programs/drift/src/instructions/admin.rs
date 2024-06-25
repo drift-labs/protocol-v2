@@ -4,6 +4,9 @@ use std::mem::size_of;
 use anchor_lang::prelude::*;
 use anchor_spl::token::{Mint, Token, TokenAccount};
 use phoenix::quantities::WrapperU64;
+use pyth_solana_receiver_sdk::cpi::accounts::InitPriceUpdate;
+use pyth_solana_receiver_sdk::program::PythSolanaReceiver;
+use pythnet_sdk::messages::FeedId;
 use serum_dex::state::ToAlignedBytes;
 use solana_program::msg;
 
@@ -3439,6 +3442,32 @@ pub fn handle_delete_prelaunch_oracle(
     Ok(())
 }
 
+pub fn handle_initialize_price_feed_account(
+    ctx: Context<InitPriceFeed>,
+    shard_id: u16,
+    feed_id: FeedId
+) -> Result<()> {
+    let cpi_program = ctx.accounts.pyth_solana_receiver.to_account_info().clone();
+    let cpi_accounts = InitPriceUpdate {
+        payer:                ctx.accounts.payer.to_account_info().clone(),
+        price_update_account: ctx.accounts.price_feed_account.to_account_info().clone(),
+        system_program:       ctx.accounts.system_program.to_account_info().clone(),
+        write_authority:      ctx.accounts.price_feed_account.to_account_info().clone(),
+    };
+
+    let seeds = &[
+        &shard_id.to_le_bytes(),
+        feed_id.as_ref(),
+        &[ctx.bumps.price_feed_account],
+    ];
+    let signer_seeds = &[&seeds[..]];
+    let cpi_context = CpiContext::new_with_signer(cpi_program, cpi_accounts, signer_seeds);
+
+    pyth_solana_receiver_sdk::cpi::init_price_update(cpi_context)?;
+
+    Ok(())
+}
+
 #[derive(Accounts)]
 pub struct Initialize<'info> {
     #[account(mut)]
@@ -3948,4 +3977,20 @@ pub struct DeletePrelaunchOracle<'info> {
         has_one = admin
     )]
     pub state: Box<Account<'info, State>>,
+}
+
+#[derive(Accounts)]
+#[instruction(shard_id : u16, feed_id : FeedId)]
+pub struct InitPriceFeed<'info> {
+    #[account(mut)]
+    pub admin: Signer<'info>,
+    #[account(mut)]
+    pub payer:                Signer<'info>,
+    pub pyth_solana_receiver: Program<'info, PythSolanaReceiver>,
+    /// CHECK: Checked by CPI into the Pyth Solana Receiver
+    pub config:               AccountInfo<'info>,
+    /// CHECK: This account's seeds are checked
+    #[account(mut, seeds = [&shard_id.to_le_bytes(), &feed_id], bump)]
+    pub price_feed_account:   AccountInfo<'info>,
+    pub system_program:       Program<'info, System>,
 }

@@ -543,6 +543,18 @@ pub enum ErrorCode {
     UnableToParsePullOracleMessage,
     #[msg("Can not borow more than max borrows")]
     MaxBorrows,
+    #[msg("Updates must be monotonically increasing")]
+    OracleUpdatesNotMonotonic,
+    #[msg("Trying to update price feed with the wrong feed id")]
+    OraclePriceFeedMessageMismatch,
+    #[msg("The message in the update must be a PriceFeedMessage")]
+    OracleUnsupportedMessageType,
+    #[msg("Could not deserialize the message in the update")]
+    OracleDeserializeMessageFailed,
+    #[msg("Wrong guardian set owner in update price atomic")]
+    OracleWrongGuardianSetOwner,
+    #[msg("Oracle post update atomic price feed account must be drift program")]
+    OracleWrongWriteAuthority,
 }
 
 #[macro_export]
