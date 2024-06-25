@@ -1522,11 +1522,19 @@ export class DriftClient {
 	}
 
 	getRemainingAccounts(params: RemainingAccountParams): AccountMeta[] {
+
 		const { oracleAccountMap, spotMarketAccountMap, perpMarketAccountMap } =
 			this.getRemainingAccountMapsForUsers(params.userAccounts);
 
 		if (params.useMarketLastSlotCache) {
-			const lastUserSlot = this.getUserAccountAndSlot()?.slot;
+			let lastUserSlot = 0;
+
+			try {
+				lastUserSlot = this.getUserAccountAndSlot()?.slot;
+			} catch {
+				// Do nothing - allowed to have no user
+			}
+
 			for (const [
 				marketIndex,
 				slot,
@@ -6306,7 +6314,8 @@ export class DriftClient {
 	public async getAddInsuranceFundStakeIx(
 		marketIndex: number,
 		amount: BN,
-		collateralAccountPublicKey: PublicKey
+		collateralAccountPublicKey: PublicKey,
+		fromSubAccount?: boolean
 	): Promise<TransactionInstruction> {
 		const spotMarket = this.getSpotMarketAccount(marketIndex);
 		const ifStakeAccountPublicKey = getInsuranceFundStakeAccountPublicKey(
@@ -6316,7 +6325,7 @@ export class DriftClient {
 		);
 
 		const remainingAccounts = this.getRemainingAccounts({
-			userAccounts: [this.getUserAccount()],
+			userAccounts: fromSubAccount ? [this.getUserAccount()] : [],
 			useMarketLastSlotCache: true,
 			writableSpotMarketIndexes: [marketIndex],
 		});
@@ -6416,7 +6425,8 @@ export class DriftClient {
 		const addFundsIx = await this.getAddInsuranceFundStakeIx(
 			marketIndex,
 			amount,
-			tokenAccount
+			tokenAccount,
+			fromSubaccount
 		);
 
 		addIfStakeIxs.push(addFundsIx);
@@ -6456,7 +6466,7 @@ export class DriftClient {
 		);
 
 		const remainingAccounts = this.getRemainingAccounts({
-			userAccounts: [this.getUserAccount()],
+			userAccounts: [],
 			useMarketLastSlotCache: true,
 			writableSpotMarketIndexes: [marketIndex],
 		});
@@ -6566,12 +6576,8 @@ export class DriftClient {
 			}
 		}
 
-		const userAccountExists =
-			!!this.getUser()?.accountSubscriber?.isSubscribed &&
-			(await this.checkIfAccountExists(this.getUser().userAccountPublicKey));
-
 		const remainingAccounts = this.getRemainingAccounts({
-			userAccounts: userAccountExists ? [this.getUserAccount()] : [],
+			userAccounts: [],
 			useMarketLastSlotCache: false,
 			writableSpotMarketIndexes: [marketIndex],
 		});
