@@ -457,6 +457,7 @@ impl User {
     ) -> DriftResult<MarginCalculation> {
         let fuel_bonus_numerator =
             user_stats.get_fuel_bonus_numerator(self.last_fuel_bonus_update_ts, now)?;
+
         validate!(
             context.fuel_bonus_numerator == fuel_bonus_numerator,
             ErrorCode::DefaultError,
@@ -482,6 +483,7 @@ impl User {
             margin_calculation.fuel_oi,
             now,
         )?;
+
         self.last_fuel_bonus_update_ts = now;
 
         Ok(margin_calculation)
@@ -1593,7 +1595,7 @@ pub struct UserStats {
     /// The amount of tokens staked in the governance spot markets if
     pub if_staked_gov_token_amount: u64,
 
-    pub padding: [u8; 20],
+    pub padding: [u8; 16],
 }
 
 impl Default for UserStats {
@@ -1621,7 +1623,7 @@ impl Default for UserStats {
             fuel_maker: 0,
             fuel_oi: 0,
             if_staked_gov_token_amount: 0,
-            padding: [0; 20],
+            padding: [0; 16],
         }
     }
 }

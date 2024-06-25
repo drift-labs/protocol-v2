@@ -107,7 +107,7 @@ pub mod fuel_scoring {
             margin_ratio_initial: 1000,
             margin_ratio_maintenance: 500,
             status: MarketStatus::Initialized,
-            fuel_boost_funding: 250,
+            fuel_boost_position: 250,
             fuel_boost_maker: 100,
             fuel_boost_taker: 50,
             ..PerpMarket::default_test()
@@ -308,6 +308,8 @@ pub mod fuel_scoring {
         margin_context.fuel_bonus_numerator = taker_stats
             .get_fuel_bonus_numerator(taker.last_fuel_bonus_update_ts, now)
             .unwrap();
+        assert_eq!(margin_context.fuel_bonus_numerator, now);
+        assert_eq!(taker.last_fuel_bonus_update_ts, 0);
 
         let margin_calc: MarginCalculation = taker
             .calculate_margin_and_increment_fuel_bonus(
@@ -320,8 +322,8 @@ pub mod fuel_scoring {
             )
             .unwrap();
 
-        // assert_eq!(margin_calc.fuel_taker, 5166997354);
-        // assert_eq!(taker_stats.fuel_taker, 25000000000 + margin_calc.fuel_taker);
+        assert_eq!(margin_calc.fuel_oi, 51669);
+        // assert_eq!(taker_stats.fuel_oi, 25000000000 + margin_calc.fuel_oi);
     }
 
     #[test]
@@ -372,7 +374,7 @@ pub mod fuel_scoring {
             margin_ratio_initial: 1000,
             margin_ratio_maintenance: 500,
             status: MarketStatus::Initialized,
-            fuel_boost_funding: 250,
+            fuel_boost_position: 250,
             fuel_boost_maker: 100,
             fuel_boost_taker: 50,
             ..PerpMarket::default_test()
@@ -655,7 +657,7 @@ pub mod fuel_scoring {
             margin_ratio_initial: 1000,
             margin_ratio_maintenance: 500,
             status: MarketStatus::Initialized,
-            fuel_boost_funding: 250,
+            fuel_boost_position: 250,
             fuel_boost_maker: 100,
             fuel_boost_taker: 50,
             ..PerpMarket::default_test()

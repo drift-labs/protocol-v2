@@ -244,15 +244,16 @@ pub fn calculate_perp_fuel_bonus(
     base_asset_value: i128,
     fuel_bonus_numerator: i64, // fuel_perp_delta: Option<(u16, i64)>
 ) -> DriftResult<u64> {
-    let result: u64 = if base_asset_value.unsigned_abs() < 1 {
+    let result: u64 = if base_asset_value.unsigned_abs() <= QUOTE_PRECISION {
         0_u64
     } else {
         base_asset_value
             .unsigned_abs()
             .safe_mul(fuel_bonus_numerator.cast()?)?
-            .safe_mul(perp_market.fuel_boost_funding.cast()?)?
+            .safe_mul(perp_market.fuel_boost_position.cast()?)?
             .safe_div(FUEL_WINDOW_U128)?
             .cast::<u64>()?
+            / (QUOTE_PRECISION_U64 / 10)
     };
 
     Ok(result)
@@ -343,15 +344,11 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
                 )?;
             }
 
-            let token_value = get_strict_token_value(
-                token_amount,
-                spot_market.decimals,
-                &strict_oracle_price
-            )?;
-            
+            let token_value =
+                get_strict_token_value(token_amount, spot_market.decimals, &strict_oracle_price)?;
+
             let mut updated_token_amount = token_amount;
             let token_value2 = {
-
                 // Check and add `fuel_spot_delta` if applicable
                 if let Some(fuel_spot_delta) = &context.fuel_spot_delta {
                     if fuel_spot_delta.0 == spot_market.market_index {
@@ -362,15 +359,16 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
                 // Check and add `fuel_spot_delta_2` if applicable
                 if let Some(fuel_spot_delta_2) = &context.fuel_spot_delta_2 {
                     if fuel_spot_delta_2.0 == spot_market.market_index {
-                        updated_token_amount = updated_token_amount.safe_add(fuel_spot_delta_2.1)?;
+                        updated_token_amount =
+                            updated_token_amount.safe_add(fuel_spot_delta_2.1)?;
                     }
                 }
 
                 // Calculate the token value with the updated amount
                 get_strict_token_value(
                     updated_token_amount,
-    spot_market.decimals,
-    &strict_oracle_price,
+                    spot_market.decimals,
+                    &strict_oracle_price,
                 )?
             };
 
@@ -626,14 +624,17 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
             } else {
                 base_asset_value
             };
+        
+        let perp_fuel_oi_bonus = calculate_perp_fuel_bonus(
+            &market,
+            fuel_base_asset_value as i128,
+            context.fuel_bonus_numerator,
+        )?;
+
+        crate::dlog!(perp_fuel_oi_bonus);
 
         calculation.fuel_oi = calculation.fuel_oi.saturating_add(
-            calculate_perp_fuel_bonus(
-                &market,
-                fuel_base_asset_value as i128,
-                context.fuel_bonus_numerator,
-            )?
-            .cast()?,
+            perp_fuel_oi_bonus.cast()?,
         );
 
         calculation.add_margin_requirement(

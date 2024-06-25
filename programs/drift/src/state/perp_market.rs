@@ -223,7 +223,7 @@ pub struct PerpMarket {
     pub fee_adjustment: i16,
     /// fuel multiplier for perp funding
     /// precision: 10
-    pub fuel_boost_funding: u8,
+    pub fuel_boost_position: u8,
     /// fuel multiplier for perp taker
     /// precision: 10
     pub fuel_boost_taker: u8,
@@ -264,7 +264,7 @@ impl Default for PerpMarket {
             paused_operations: 0,
             quote_spot_market_index: 0,
             fee_adjustment: 0,
-            fuel_boost_funding: 0,
+            fuel_boost_position: 0,
             fuel_boost_taker: 0,
             fuel_boost_maker: 0,
             padding: [0; 41],

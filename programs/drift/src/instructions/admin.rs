@@ -735,7 +735,7 @@ pub fn handle_initialize_perp_market(
         paused_operations: 0,
         quote_spot_market_index: QUOTE_SPOT_MARKET_INDEX,
         fee_adjustment: 0,
-        fuel_boost_funding: 0,
+        fuel_boost_position: 0,
         fuel_boost_taker: 0,
         fuel_boost_maker: 0,
         padding: [0; 41],
@@ -3209,7 +3209,7 @@ pub fn handle_update_perp_market_fuel(
     ctx: Context<AdminUpdatePerpMarket>,
     fuel_boost_taker: Option<u8>,
     fuel_boost_maker: Option<u8>,
-    fuel_boost_funding: Option<u8>,
+    fuel_boost_position: Option<u8>,
 ) -> Result<()> {
     let perp_market = &mut load_mut!(ctx.accounts.perp_market)?;
 
@@ -3235,15 +3235,15 @@ pub fn handle_update_perp_market_fuel(
         msg!("perp_market.fuel_boost_maker: unchanged");
     }
 
-    if let Some(fuel_boost_funding) = fuel_boost_funding {
+    if let Some(fuel_boost_position) = fuel_boost_position {
         msg!(
-            "perp_market.fuel_boost_funding: {:?} -> {:?}",
-            perp_market.fuel_boost_funding,
-            fuel_boost_funding
+            "perp_market.fuel_boost_position: {:?} -> {:?}",
+            perp_market.fuel_boost_position,
+            fuel_boost_position
         );
-        perp_market.fuel_boost_funding = fuel_boost_funding;
+        perp_market.fuel_boost_position = fuel_boost_position;
     } else {
-        msg!("perp_market.fuel_boost_funding: unchanged");
+        msg!("perp_market.fuel_boost_position: unchanged");
     }
 
     Ok(())
