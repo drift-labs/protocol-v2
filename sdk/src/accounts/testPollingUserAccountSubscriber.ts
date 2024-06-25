@@ -5,7 +5,7 @@ export class TestPollingUserAccountSubscriber extends PollingUserAccountSubscrib
 	async fetch(): Promise<void> {
 		try {
 			const dataAndContext =
-				await this.program.provider.connection.getAccountInfoAndContext(
+				await this.connection.getAccountInfoAndContext(
 					this.userAccountPublicKey,
 					this.accountLoader.commitment
 				);
