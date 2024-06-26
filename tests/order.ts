@@ -163,8 +163,6 @@ describe('orders', () => {
 		await initializeQuoteSpotMarket(driftClient, usdcMint.publicKey);
 		await driftClient.updatePerpAuctionDuration(new BN(0));
 
-		console.log(driftClient.getOracleDataForSpotMarket(0));
-
 		const periodicity = new BN(60 * 60); // 1 HOUR
 
 		await driftClient.initializePerpMarket(

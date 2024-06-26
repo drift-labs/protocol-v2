@@ -798,7 +798,6 @@ export class User {
 				const quoteSpotMarket = this.driftClient.getSpotMarketAccount(
 					market.quoteSpotMarketIndex
 				);
-				console.log(market.quoteSpotMarketIndex);
 				const quoteOraclePriceData = this.getOracleDataForSpotMarket(
 					market.quoteSpotMarketIndex
 				);
