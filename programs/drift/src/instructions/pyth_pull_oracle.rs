@@ -19,8 +19,8 @@ use crate::ids::{
 
 pub const PTYH_PRICE_FEED_SEED_PREFIX: &[u8] = b"pyth_pull_prefix";
 
-pub fn handle_update_price_feed(
-    ctx: Context<UpdatePriceFeed>,
+pub fn handle_update_pyth_pull_oracle(
+    ctx: Context<UpdatePythPullOraclePriceFeed>,
     params: PostUpdateParams,
     feed_id: FeedId,
 ) -> Result<()> {
@@ -62,8 +62,8 @@ pub fn handle_update_price_feed(
     Ok(())
 }
 
-pub fn handle_post_update_atomic(
-    ctx: Context<PostUpdateAtomicInfo>,
+pub fn handle_post_pyth_pull_oracle_update_atomic(
+    ctx: Context<PostPythPullOracleUpdateAtomic>,
     params: PostUpdateAtomicParams,
     feed_id: FeedId,
 ) -> Result<()> {
@@ -133,7 +133,7 @@ pub fn get_timestamp_from_price_update_message(
 
 #[derive(Accounts)]
 #[instruction(params : PostUpdateParams, feed_id : FeedId)]
-pub struct UpdatePriceFeed<'info> {
+pub struct UpdatePythPullOraclePriceFeed<'info> {
     #[account(mut)]
     pub keeper:                Signer<'info>,
     pub pyth_solana_receiver: Program<'info, PythSolanaReceiver>,
@@ -147,7 +147,7 @@ pub struct UpdatePriceFeed<'info> {
 
 #[derive(Accounts)]
 #[instruction(params: PostUpdateAtomicParams, feed_id : FeedId)]
-pub struct PostUpdateAtomicInfo <'info> {
+pub struct PostPythPullOracleUpdateAtomic <'info> {
     #[account(mut)]
     pub keeper:                Signer<'info>,
     pub pyth_solana_receiver: Program<'info, PythSolanaReceiver>,

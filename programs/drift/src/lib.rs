@@ -582,20 +582,20 @@ pub mod drift {
         handle_transfer_protocol_if_shares(ctx, market_index, shares)
     }
 
-    pub fn update_price_feed(
-        ctx: Context<UpdatePriceFeed>,
+    pub fn update_pyth_pull_oracle(
+        ctx: Context<UpdatePythPullOraclePriceFeed>,
         params: PostUpdateParams,
         feed_id: FeedId,
     ) -> Result<()> {
-        handle_update_price_feed(ctx, params, feed_id)
+        handle_update_pyth_pull_oracle(ctx, params, feed_id)
     }
 
-    pub fn post_update_atomic (
-        ctx: Context<PostUpdateAtomicInfo>,
+    pub fn post_pyth_pull_oracle_update_atomic (
+        ctx: Context<PostPythPullOracleUpdateAtomic>,
         params: PostUpdateAtomicParams,
         feed_id: FeedId,
     ) -> Result<()> {
-        handle_post_update_atomic(ctx, params, feed_id)
+        handle_post_pyth_pull_oracle_update_atomic(ctx, params, feed_id)
     }
 
     // Admin Instructions
