@@ -31,7 +31,8 @@
 		"csvtojson": "^2.0.10",
 		"json2csv": "^5.0.7",
 		"solana-bankrun": "^0.3.0",
-		"zstddec": "^0.1.0"
+		"zstddec": "^0.1.0",
+		"rpc-websockets": "7.5.1"
 	},
 	"scripts": {
 		"generate-docs": "typedoc",
