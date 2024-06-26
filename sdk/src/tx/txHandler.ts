@@ -25,7 +25,6 @@ import {
 	TxParams,
 } from '../types';
 import { containsComputeUnitIxs } from '../util/computeUnits';
-import { BankrunConnection } from '../bankrun/bankrunConnection';
 
 /**
  * Explanation for SIGNATURE_BLOCK_AND_EXPIRY:
@@ -58,7 +57,7 @@ export class TxHandler {
 	private blockHashToLastValidBlockHeightLookup: Record<string, number> = {};
 	private returnBlockHeightsWithSignedTxCallbackData = false;
 
-	private connection: Connection | BankrunConnection;
+	private connection: Connection;
 	private wallet: IWallet;
 	private confirmationOptions: ConfirmOptions;
 
@@ -68,7 +67,7 @@ export class TxHandler {
 	private blockhashCommitment: Commitment = 'finalized';
 
 	constructor(props: {
-		connection: Connection | BankrunConnection;
+		connection: Connection;
 		wallet: IWallet;
 		confirmationOptions: ConfirmOptions;
 		opts?: {

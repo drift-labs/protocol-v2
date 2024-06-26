@@ -597,6 +597,16 @@ export const MainnetPerpMarkets: PerpMarketConfig[] = [
 		launchTs: 1718021389000,
 		oracleSource: OracleSource.SWITCHBOARD,
 	},
+	{
+		fullName: 'ZEX',
+		category: ['DEX', 'Solana'],
+		symbol: 'ZEX-PERP',
+		baseAssetSymbol: 'ZEX',
+		marketIndex: 33,
+		oracle: new PublicKey('5P3hx3t85eZucSqzXF4KfqbeENx1hNGPbAbGDYxTTvqs'),
+		launchTs: 1719415157000,
+		oracleSource: OracleSource.Prelaunch,
+	},
 ];
 
 export const PerpMarkets: { [key in DriftEnv]: PerpMarketConfig[] } = {

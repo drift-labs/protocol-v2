@@ -5,7 +5,6 @@ import {
 	VersionedTransaction,
 } from '@solana/web3.js';
 import { BaseTxParams, ProcessingTxParams } from '..';
-import { BankrunConnection } from '../bankrun/bankrunConnection';
 
 const COMPUTE_UNIT_BUFFER_FACTOR = 1.2;
 const MAX_COMPUTE_UNITS = 1_400_000;
@@ -32,8 +31,9 @@ export class TransactionParamProcessor {
 
 	public static async getTxSimComputeUnits(
 		tx: VersionedTransaction,
-		connection: Connection | BankrunConnection,
-		bufferMultiplier: number // Making this a mandatory param to force the user to remember that simulated CU's can be inaccurate and a buffer should be applied
+		connection: Connection,
+		bufferMultiplier: number, // Making this a mandatory param to force the user to remember that simulated CU's can be inaccurate and a buffer should be applied
+		lowerBoundCu?: number
 	): Promise<{ success: boolean; computeUnits: number }> {
 		try {
 			if (TEST_SIMS_ALWAYS_FAIL)
@@ -50,9 +50,17 @@ export class TransactionParamProcessor {
 			const computeUnits = await this.getComputeUnitsFromSim(simTxResult);
 
 			// Apply the buffer, but round down to the MAX_COMPUTE_UNITS, and round up to the nearest whole number
-			const bufferedComputeUnits = Math.ceil(
+			let bufferedComputeUnits = Math.ceil(
 				Math.min(computeUnits * bufferMultiplier, MAX_COMPUTE_UNITS)
 			);
+
+			// If a lower bound CU is passed then enforce it
+			if (lowerBoundCu) {
+				bufferedComputeUnits = Math.max(
+					bufferedComputeUnits,
+					Math.min(lowerBoundCu, MAX_COMPUTE_UNITS)
+				);
+			}
 
 			return {
 				success: true,
@@ -75,7 +83,7 @@ export class TransactionParamProcessor {
 		baseTxParams: BaseTxParams;
 		processConfig: ProcessingTxParams;
 		processParams: {
-			connection: Connection | BankrunConnection;
+			connection: Connection;
 		};
 		txBuilder: (
 			baseTransactionProps: TransactionBuildingProps
