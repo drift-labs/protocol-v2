@@ -69,6 +69,7 @@ use crate::{load, THIRTEEN_DAY};
 use anchor_lang::solana_program::sysvar::instructions;
 use anchor_spl::associated_token::AssociatedToken;
 use borsh::{BorshDeserialize, BorshSerialize};
+use crate::state::fulfillment_params::openbook_v2::OpenbookV2FulfillmentParams;
 
 pub fn handle_initialize_user<'c: 'info, 'info>(
     ctx: Context<'_, '_, 'c, 'info, InitializeUser<'info>>,
@@ -1428,6 +1429,17 @@ pub fn handle_place_and_take_spot_order<'c: 'info, 'info>(
                 &quote_market,
             )?)
         }
+        SpotFulfillmentType::OpenbookV2 => {
+            let base_market = spot_market_map.get_ref(&market_index)?;
+            let quote_market = spot_market_map.get_quote_spot_market()?;
+            Box::new(OpenbookV2FulfillmentParams::new(
+                remaining_accounts_iter,
+                &ctx.accounts.state,
+                &base_market,
+                &quote_market,
+                clock.unix_timestamp,
+            )?)
+        }
         SpotFulfillmentType::Match => {
             let base_market = spot_market_map.get_ref(&market_index)?;
             let quote_market = spot_market_map.get_quote_spot_market()?;
@@ -1556,6 +1568,17 @@ pub fn handle_place_and_make_spot_order<'c: 'info, 'info>(
                 &ctx.accounts.state,
                 &base_market,
                 &quote_market,
+            )?)
+        }
+        SpotFulfillmentType::OpenbookV2 => {
+            let base_market = spot_market_map.get_ref(&market_index)?;
+            let quote_market = spot_market_map.get_quote_spot_market()?;
+            Box::new(OpenbookV2FulfillmentParams::new(
+                remaining_accounts_iter,
+                &ctx.accounts.state,
+                &base_market,
+                &quote_market,
+                clock.unix_timestamp,
             )?)
         }
         SpotFulfillmentType::Match => {

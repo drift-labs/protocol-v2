@@ -543,6 +543,12 @@ pub enum ErrorCode {
     UnableToParsePullOracleMessage,
     #[msg("Can not borow more than max borrows")]
     MaxBorrows,
+    #[msg("FailedOpenbookV2CPI")]
+    FailedOpenbookV2CPI,
+    #[msg("InvalidOpenbookV2Program")]
+    InvalidOpenbookV2Program,
+    #[msg("InvalidOpenbookV2Market")]
+    InvalidOpenbookV2Market,
 }
 
 #[macro_export]

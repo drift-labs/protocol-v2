@@ -2,6 +2,9 @@
 cluster = "localnet"
 wallet = "~/.config/solana/id.json"
 
+[workspace]
+exclude = ["programs/openbook_v2"]
+
 [scripts]
 test = "./test-scripts/run-ts-mocha"
 lint = "yarn prettify:fix && cargo fmt"

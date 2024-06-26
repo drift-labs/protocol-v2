@@ -57,6 +57,7 @@ use crate::{controller, QUOTE_PRECISION_I64};
 use crate::{get_then_update_id, EPOCH_DURATION};
 use crate::{load, FEE_ADJUSTMENT_MAX};
 use crate::{math, safe_decrement, safe_increment};
+use crate::state::fulfillment_params::openbook_v2::{OpenbookV2Context, OpenbookV2FulfillmentConfig};
 
 pub fn handle_initialize(ctx: Context<Initialize>) -> Result<()> {
     let (drift_signer, drift_signer_nonce) =
@@ -428,6 +429,75 @@ pub fn handle_update_serum_vault(ctx: Context<UpdateSerumVault>) -> Result<()> {
     msg!("state.srm_vault {:?} -> {:?}", state.srm_vault, vault.key());
     state.srm_vault = vault.key();
 
+    Ok(())
+}
+
+pub fn handle_initialize_openbook_v2_fulfillment_config(
+    ctx: Context<InitializeOpenbookV2FulfillmentConfig>,
+    market_index: u16,
+) -> Result<()> {
+    validate!(
+        market_index != QUOTE_SPOT_MARKET_INDEX,
+        ErrorCode::InvalidSpotMarketAccount,
+        "Cannot add openbook v2 market to quote asset"
+    )?;
+
+    let base_spot_market = load!(&ctx.accounts.base_spot_market)?;
+    let quote_spot_market = load!(&ctx.accounts.quote_spot_market)?;
+
+    let openbook_v2_program_id = openbook_v2_light::id();
+
+    validate!(
+        ctx.accounts.openbook_v2_program.key() == openbook_v2_program_id,
+        ErrorCode::InvalidOpenbookV2Program
+    )?;
+
+    let openbook_v2_market_context = OpenbookV2Context {
+        openbook_v2_program: &ctx.accounts.openbook_v2_program,
+        openbook_v2_market: &ctx.accounts.openbook_v2_market
+    };
+    let market = openbook_v2_market_context.load_openbook_v2_market()?;
+    validate!(
+        market.base_mint == base_spot_market.mint,
+        ErrorCode::InvalidOpenbookV2Market,
+        "Invalid base mint"
+    )?;
+
+    validate!(
+        market.quote_mint == quote_spot_market.mint,
+        ErrorCode::InvalidOpenbookV2Market,
+        "Invalid quote mint"
+    )?;
+
+    let market_step_size = market.base_lot_size as u64;
+    let valid_step_size = base_spot_market.order_step_size >= market_step_size
+        && base_spot_market
+        .order_step_size
+        .rem_euclid(market_step_size)
+        == 0;
+
+    validate!(
+        valid_step_size,
+        ErrorCode::InvalidOpenbookV2Market,
+        "base market step size ({}) not a multiple of Openbook V2 base lot size ({})",
+        base_spot_market.order_step_size,
+        market_step_size
+    )?;
+
+    let openbook_v2_fulfillment_config_key = ctx.accounts.openbook_v2_fulfillment_config.key();
+    let mut openbook_v2_fulfillment_config = ctx.accounts.openbook_v2_fulfillment_config.load_init()?;
+    *openbook_v2_fulfillment_config = openbook_v2_market_context
+        .to_openbook_v2_fulfillment_config(&openbook_v2_fulfillment_config_key, market_index)?;
+    Ok(())
+}
+
+pub fn handle_update_openbook_v2_fulfillment_config_status(
+    ctx: Context<UpdateOpenbookV2FulfillmentConfig>,
+    status: SpotFulfillmentConfigStatus,
+) -> Result<()> {
+    let mut config = load_mut!(ctx.accounts.openbook_v2_fulfillment_config)?;
+    msg!("config.status {:?} -> {:?}", config.status, status);
+    config.status = status;
     Ok(())
 }
 
@@ -3948,4 +4018,57 @@ pub struct DeletePrelaunchOracle<'info> {
         has_one = admin
     )]
     pub state: Box<Account<'info, State>>,
+}
+
+#[derive(Accounts)]
+#[instruction(market_index: u16)]
+pub struct InitializeOpenbookV2FulfillmentConfig<'info> {
+    #[account(
+        seeds = [b"spot_market", market_index.to_le_bytes().as_ref()],
+        bump,
+    )]
+    pub base_spot_market: AccountLoader<'info, SpotMarket>,
+    #[account(
+        seeds = [b"spot_market", 0_u16.to_le_bytes().as_ref()],
+        bump,
+    )]
+    pub quote_spot_market: AccountLoader<'info, SpotMarket>,
+    #[account(
+        mut,
+        has_one = admin
+    )]
+    pub state: Box<Account<'info, State>>,
+    /// CHECK: checked in ix
+    pub openbook_v2_program: AccountInfo<'info>,
+    /// CHECK: checked in ix
+    pub openbook_v2_market: AccountInfo<'info>,
+    #[account(
+        constraint = state.signer.eq(&drift_signer.key())
+    )]
+    /// CHECK: program signer
+    pub drift_signer: AccountInfo<'info>,
+    #[account(
+        init,
+        seeds = [b"openbook_v2_fulfillment_config".as_ref(), openbook_v2_market.key.as_ref()],
+        space = OpenbookV2FulfillmentConfig::SIZE,
+        bump,
+        payer = admin,
+    )]
+    pub openbook_v2_fulfillment_config: AccountLoader<'info, OpenbookV2FulfillmentConfig>,
+    #[account(mut)]
+    pub admin: Signer<'info>,
+    pub rent: Sysvar<'info, Rent>,
+    pub system_program: Program<'info, System>,
+}
+
+#[derive(Accounts)]
+pub struct UpdateOpenbookV2FulfillmentConfig<'info> {
+    #[account(
+        has_one = admin
+    )]
+    pub state: Box<Account<'info, State>>,
+    #[account(mut)]
+    pub openbook_v2_fulfillment_config: AccountLoader<'info, OpenbookV2FulfillmentConfig>,
+    #[account(mut)]
+    pub admin: Signer<'info>,
 }
