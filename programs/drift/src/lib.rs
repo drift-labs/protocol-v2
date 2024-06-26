@@ -585,19 +585,17 @@ pub mod drift {
     pub fn update_price_feed(
         ctx: Context<UpdatePriceFeed>,
         params: PostUpdateParams,
-        shard_id: u16,
         feed_id: FeedId,
     ) -> Result<()> {
-        handle_update_price_feed(ctx, params, shard_id, feed_id)
+        handle_update_price_feed(ctx, params, feed_id)
     }
 
     pub fn post_update_atomic (
         ctx: Context<PostUpdateAtomicInfo>,
         params: PostUpdateAtomicParams,
-        shard_id: u16,
         feed_id: FeedId,
     ) -> Result<()> {
-        handle_post_update_atomic(ctx, params, shard_id, feed_id)
+        handle_post_update_atomic(ctx, params, feed_id)
     }
 
     // Admin Instructions
@@ -1328,12 +1326,11 @@ pub mod drift {
         handle_delete_prelaunch_oracle(ctx, perp_market_index)
     }
 
-    pub fn initialize_price_feed_account(
+    pub fn initialize_pyth_pull_oracle(
         ctx: Context<InitPriceFeed>,
-        shard_id: u16,
         feed_id: FeedId
     ) -> Result<()> {
-        handle_initialize_price_feed_account(ctx, shard_id, feed_id)
+        handle_initialize_pyth_pull_oracle(ctx, feed_id)
     }
 
 }

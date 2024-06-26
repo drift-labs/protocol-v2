@@ -555,6 +555,8 @@ pub enum ErrorCode {
     OracleWrongGuardianSetOwner,
     #[msg("Oracle post update atomic price feed account must be drift program")]
     OracleWrongWriteAuthority,
+    #[msg("Oracle vaa owner must be wormhole program")]
+    OracleWrongVaaOwner,
 }
 
 #[macro_export]

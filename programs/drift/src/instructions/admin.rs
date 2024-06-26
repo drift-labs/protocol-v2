@@ -13,7 +13,7 @@ use solana_program::msg;
 use crate::controller::token::close_vault;
 use crate::error::ErrorCode;
 use crate::instructions::constraints::*;
-use crate::load_mut;
+use crate::{load_mut, PTYH_PRICE_FEED_SEED_PREFIX};
 use crate::math::casting::Cast;
 use crate::math::constants::{
     DEFAULT_LIQUIDATION_MARGIN_BUFFER_RATIO, FEE_POOL_TO_REVENUE_POOL_THRESHOLD,
@@ -3442,9 +3442,8 @@ pub fn handle_delete_prelaunch_oracle(
     Ok(())
 }
 
-pub fn handle_initialize_price_feed_account(
+pub fn handle_initialize_pyth_pull_oracle(
     ctx: Context<InitPriceFeed>,
-    shard_id: u16,
     feed_id: FeedId
 ) -> Result<()> {
     let cpi_program = ctx.accounts.pyth_solana_receiver.to_account_info().clone();
@@ -3456,7 +3455,7 @@ pub fn handle_initialize_price_feed_account(
     };
 
     let seeds = &[
-        &shard_id.to_le_bytes(),
+        PTYH_PRICE_FEED_SEED_PREFIX,
         feed_id.as_ref(),
         &[ctx.bumps.price_feed_account],
     ];
@@ -3980,7 +3979,7 @@ pub struct DeletePrelaunchOracle<'info> {
 }
 
 #[derive(Accounts)]
-#[instruction(shard_id : u16, feed_id : FeedId)]
+#[instruction(feed_id : FeedId)]
 pub struct InitPriceFeed<'info> {
     #[account(mut)]
     pub admin: Signer<'info>,
@@ -3990,7 +3989,11 @@ pub struct InitPriceFeed<'info> {
     /// CHECK: Checked by CPI into the Pyth Solana Receiver
     pub config:               AccountInfo<'info>,
     /// CHECK: This account's seeds are checked
-    #[account(mut, seeds = [&shard_id.to_le_bytes(), &feed_id], bump)]
+    #[account(mut, seeds = [PTYH_PRICE_FEED_SEED_PREFIX, &feed_id], bump)]
     pub price_feed_account:   AccountInfo<'info>,
     pub system_program:       Program<'info, System>,
+    #[account(
+        has_one = admin
+    )]
+    pub state: Box<Account<'info, State>>,
 }
