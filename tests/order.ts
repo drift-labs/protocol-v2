@@ -163,6 +163,10 @@ describe('orders', () => {
 		await initializeQuoteSpotMarket(driftClient, usdcMint.publicKey);
 		await driftClient.updatePerpAuctionDuration(new BN(0));
 
+		console.log('bufferAndSlotMap', bulkAccountLoader.bufferAndSlotMap);
+		console.log('quote oracle', bulkAccountLoader.getBufferAndSlot(driftClient.getSpotMarketAccount(0).oracle));
+
+
 		const periodicity = new BN(60 * 60); // 1 HOUR
 
 		await driftClient.initializePerpMarket(
