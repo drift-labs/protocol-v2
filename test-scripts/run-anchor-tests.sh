@@ -72,6 +72,4 @@ test_files=(
 )
 
 
-for test_file in ${test_files[@]}; do
-  export ANCHOR_TEST_FILE=${test_file} && anchor test --skip-build || exit 1
-done
+ts-mocha --parallel -t 300000 "${test_files[@]/#/./tests/}" || exit 1

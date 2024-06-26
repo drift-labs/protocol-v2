@@ -7,7 +7,7 @@ import { TestClient, QUOTE_PRECISION, BN, OracleSource } from '../sdk/src';
 
 import {
 	initializeQuoteSpotMarket,
-	mockOracle,
+	mockOracle, mockOracleNoProgram,
 	mockUSDCMint,
 	mockUserUSDCAccount,
 } from './testHelpers';
@@ -47,7 +47,7 @@ describe('max deposit', () => {
 			bankrunContextWrapper
 		);
 
-		const solUsd = await mockOracle(1);
+		const solUsd = await mockOracleNoProgram(bankrunContextWrapper, 1);
 
 		driftClient = new TestClient({
 			connection: bankrunContextWrapper.connection.toConnection(),

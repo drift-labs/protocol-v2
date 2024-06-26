@@ -4,8 +4,6 @@ if [ "$1" != "--skip-build" ]
     cp target/idl/drift.json sdk/src/idl/
 fi
 
-test_files=(tokenFaucet.ts)
+test_files=(maxDeposit.ts)
 
-for test_file in ${test_files[@]}; do
-  ANCHOR_TEST_FILE=${test_file} anchor test --skip-build || exit 1;
-done 
+ts-mocha --parallel -t 300000 "${test_files[@]/#/./tests/}" || exit 1
