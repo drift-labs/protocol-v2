@@ -632,11 +632,11 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
                 context.fuel_bonus_numerator,
             )?;
             crate::dlog!(perp_fuel_oi_bonus);
-        }
 
-        calculation.fuel_oi = calculation
-            .fuel_oi
-            .saturating_add(perp_fuel_oi_bonus.cast()?);
+            calculation.fuel_oi = calculation
+                .fuel_oi
+                .saturating_add(perp_fuel_oi_bonus.cast()?);
+        }
 
         calculation.add_margin_requirement(
             perp_margin_requirement,
