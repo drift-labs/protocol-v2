@@ -4785,6 +4785,10 @@ export class DriftClient {
 				exitEarlyIfSimFails
 			);
 
+		if (!txsToSign) {
+			return null;
+		}
+
 		const signedTxs = (
 			await this.txHandler.getSignedTransactionMap(
 				txsToSign,
