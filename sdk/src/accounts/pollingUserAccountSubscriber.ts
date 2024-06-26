@@ -4,7 +4,7 @@ import {
 	UserAccountEvents,
 	UserAccountSubscriber,
 } from './types';
-import { Connection } from '../bankrunConnection';
+import { Connection } from '../bankrun/bankrunConnection';
 import StrictEventEmitter from 'strict-event-emitter-types';
 import { EventEmitter } from 'events';
 import { PublicKey } from '@solana/web3.js';

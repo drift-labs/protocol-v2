@@ -1,4 +1,4 @@
-import { PublicKey, TransactionSignature } from '@solana/web3.js';
+import { Connection, PublicKey, TransactionSignature } from '@solana/web3.js';
 import { Program } from '@coral-xyz/anchor';
 import {
 	DefaultEventSubscriptionOptions,
@@ -19,7 +19,6 @@ import { EventEmitter } from 'events';
 import StrictEventEmitter from 'strict-event-emitter-types';
 import { getSortFn } from './sort';
 import { parseLogs } from './parse';
-import { Connection as Hybrid } from '../bankrunConnection';
 
 export class EventSubscriber {
 	private address: PublicKey;
@@ -34,7 +33,7 @@ export class EventSubscriber {
 	public lastSeenTxSig: string;
 
 	public constructor(
-		private connection: Hybrid,
+		private connection: Connection,
 		private program: Program,
 		private options: EventSubscriptionOptions = DefaultEventSubscriptionOptions
 	) {

@@ -27,7 +27,7 @@ import {
 import { ContractTier, MARGIN_PRECISION, OrderType } from '../sdk';
 import { startAnchor } from 'solana-bankrun';
 import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
-import { BankrunContextWrapper } from '../sdk/src/bankrunConnection';
+import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
 
 describe('multiple maker orders', () => {
 	const chProgram = anchor.workspace.Drift as Program;

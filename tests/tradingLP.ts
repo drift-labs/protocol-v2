@@ -22,7 +22,7 @@ import {
 } from './testHelpers';
 import { startAnchor } from 'solana-bankrun';
 import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
-import { BankrunContextWrapper } from '../sdk/src/bankrunConnection';
+import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
 
 async function createNewUser(
 	program,

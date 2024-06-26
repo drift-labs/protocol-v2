@@ -13,7 +13,7 @@ import {
 } from '@solana/spl-token';
 import { startAnchor } from 'solana-bankrun';
 import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
-import { BankrunContextWrapper } from '../sdk/src/bankrunConnection';
+import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
 
 describe('token faucet', () => {
 	const program = anchor.workspace.TokenFaucet as Program;
@@ -58,10 +58,12 @@ describe('token faucet', () => {
 		usdcMint = await mockUSDCMint(bankrunContextWrapper);
 
 		tokenFaucet = new TokenFaucet(
-			bankrunContextWrapper,
+			bankrunContextWrapper.connection.toConnection(),
 			bankrunContextWrapper.provider.wallet,
 			program.programId,
-			usdcMint.publicKey
+			usdcMint.publicKey,
+			undefined,
+			bankrunContextWrapper
 		);
 	});
 

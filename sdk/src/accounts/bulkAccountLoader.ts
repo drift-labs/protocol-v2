@@ -2,7 +2,7 @@ import { Commitment, PublicKey } from '@solana/web3.js';
 import { v4 as uuidv4 } from 'uuid';
 import { BufferAndSlot } from './types';
 import { promiseTimeout } from '../util/promiseTimeout';
-import { Connection } from '../bankrunConnection';
+import { Connection } from '../bankrun/bankrunConnection';
 
 export type AccountToLoad = {
 	publicKey: PublicKey;

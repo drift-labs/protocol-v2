@@ -39,7 +39,7 @@ import {
 import {
 	BankrunContextWrapper,
 	BankrunConnection,
-} from '../sdk/src/bankrunConnection';
+} from '../sdk/src/bankrun/bankrunConnection';
 import pythIDL from '../sdk/src/idl/pyth.json';
 import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
 

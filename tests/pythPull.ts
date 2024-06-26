@@ -8,7 +8,7 @@ import {
 	TestClient,
 } from '../sdk/src';
 import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
-import { BankrunContextWrapper } from '../sdk/src/bankrunConnection';
+import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
 import { startAnchor } from 'solana-bankrun';
 import { AccountInfo, LAMPORTS_PER_SOL, PublicKey } from '@solana/web3.js';
 import { DEFAULT_RECEIVER_PROGRAM_ID } from '@pythnetwork/pyth-solana-receiver';

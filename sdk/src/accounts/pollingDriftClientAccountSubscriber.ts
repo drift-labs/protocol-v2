@@ -293,7 +293,6 @@ export class PollingDriftClientAccountSubscriber
 			);
 
 			if (!bufferAndSlot) {
-				console.error(`Failed to fetch account ${accountToPoll.publicKey}`);
 				continue;
 			}
 

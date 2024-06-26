@@ -44,7 +44,10 @@ import {
 import { ContractTier, PERCENTAGE_PRECISION, UserStatus } from '../sdk';
 import { startAnchor } from 'solana-bankrun';
 import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
-import { BankrunContextWrapper, asBN } from '../sdk/src/bankrunConnection';
+import {
+	BankrunContextWrapper,
+	asBN,
+} from '../sdk/src/bankrun/bankrunConnection';
 
 describe('insurance fund stake', () => {
 	const chProgram = anchor.workspace.Drift as Program;

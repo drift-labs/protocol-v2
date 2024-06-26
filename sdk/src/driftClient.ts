@@ -195,7 +195,7 @@ export class DriftClient {
 			preflightCommitment: config?.connection?.commitment, // At the moment this ensures that our transaction simulations (which use Connection object) will use the same commitment level as our Transaction blockhashes (which use these opts)
 		};
 		this.provider = new AnchorProvider(
-			config.connection as Connection,
+			config.connection,
 			// @ts-ignore
 			config.wallet,
 			this.opts
@@ -2229,8 +2229,6 @@ export class DriftClient {
 			const accountExists = await this.checkIfAccountExists(
 				associatedTokenAddress
 			);
-
-			console.log(`accountExists: ${accountExists}`);
 
 			if (!accountExists) {
 				const createAssociatedTokenAccountIx =

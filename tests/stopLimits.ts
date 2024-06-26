@@ -34,7 +34,7 @@ import {
 } from '@solana/spl-token';
 import { startAnchor } from 'solana-bankrun';
 import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
-import { BankrunContextWrapper } from '../sdk/src/bankrunConnection';
+import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
 
 describe('stop limit', () => {
 	const chProgram = anchor.workspace.Drift as Program;

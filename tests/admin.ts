@@ -18,7 +18,7 @@ import {
 	mockUSDCMint,
 } from './testHelpers';
 import { PublicKey } from '@solana/web3.js';
-import { BankrunContextWrapper } from '../sdk/src/bankrunConnection';
+import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
 import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
 
 describe('admin', () => {

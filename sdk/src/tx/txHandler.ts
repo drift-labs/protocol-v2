@@ -25,7 +25,7 @@ import {
 	TxParams,
 } from '../types';
 import { containsComputeUnitIxs } from '../util/computeUnits';
-import { BankrunConnection } from '../bankrunConnection';
+import { BankrunConnection } from '../bankrun/bankrunConnection';
 
 /**
  * Explanation for SIGNATURE_BLOCK_AND_EXPIRY:

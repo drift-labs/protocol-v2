@@ -25,13 +25,13 @@ import assert from 'assert';
 import bs58 from 'bs58';
 import { TxHandler } from './txHandler';
 import { IWallet } from '../types';
-import { BankrunConnection } from '../bankrunConnection';
+import { BankrunConnection } from '../bankrun/bankrunConnection';
 
 const DEFAULT_TIMEOUT = 35000;
 const NOT_CONFIRMED_ERROR_CODE = -1001;
 
 export abstract class BaseTxSender implements TxSender {
-	connection: Connection | BankrunConnection;
+	connection: Connection;
 	wallet: IWallet;
 	opts: ConfirmOptions;
 	timeout: number;

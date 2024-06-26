@@ -5,9 +5,11 @@ import {
 	Account,
 	createAssociatedTokenAccountInstruction,
 	getAssociatedTokenAddress,
+	getAccount,
 } from '@solana/spl-token';
 import {
 	ConfirmOptions,
+	Connection,
 	PublicKey,
 	SYSVAR_RENT_PUBKEY,
 	Transaction,
@@ -17,10 +19,11 @@ import {
 import { BN } from '.';
 import tokenFaucet from './idl/token_faucet.json';
 import { IWallet } from './types';
-import { BankrunContextWrapper } from './bankrunConnection';
+import { BankrunContextWrapper } from './bankrun/bankrunConnection';
 
 export class TokenFaucet {
-	context: BankrunContextWrapper;
+	context?: BankrunContextWrapper;
+	connection: Connection;
 	wallet: IWallet;
 	public program: Program;
 	provider: AnchorProvider;
@@ -28,18 +31,20 @@ export class TokenFaucet {
 	opts?: ConfirmOptions;
 
 	public constructor(
-		context: BankrunContextWrapper,
+		connection: Connection,
 		wallet: IWallet,
 		programId: PublicKey,
 		mint: PublicKey,
-		opts?: ConfirmOptions
+		opts?: ConfirmOptions,
+		context?: BankrunContextWrapper
 	) {
+		this.connection = connection;
 		this.context = context;
 		this.wallet = wallet;
 		this.opts = opts || AnchorProvider.defaultOptions();
 		// @ts-ignore
 		const provider = new AnchorProvider(
-			context.connection.toConnection(),
+			context ? context.connection.toConnection() : this.connection,
 			// @ts-ignore
 			wallet,
 			this.opts
@@ -121,13 +126,30 @@ export class TokenFaucet {
 
 		const tx = new Transaction().add(mintIx);
 
-		const txSig = await this.context.sendTransaction(tx);
-
-		return txSig;
+		if (this.context) {
+			return await this.context.sendTransaction(tx);
+		} else {
+			return await this.program.provider.sendAndConfirm(tx, [], this.opts);
+		}
 	}
 
 	public async transferMintAuthority(): Promise<TransactionSignature> {
-		const ix = this.program.instruction.transferMintAuthority({
+		if (this.context) {
+			const ix = this.program.instruction.transferMintAuthority({
+				accounts: {
+					faucetConfig: await this.getFaucetConfigPublicKey(),
+					mintAccount: this.mint,
+					mintAuthority: await this.getMintAuthority(),
+					tokenProgram: TOKEN_PROGRAM_ID,
+					admin: this.wallet.publicKey,
+				},
+			});
+			const tx = new Transaction().add(ix);
+			const txSig = await this.context.sendTransaction(tx);
+			return txSig;
+		}
+
+		return await this.program.rpc.transferMintAuthority({
 			accounts: {
 				faucetConfig: await this.getFaucetConfigPublicKey(),
 				mintAccount: this.mint,
@@ -136,9 +158,6 @@ export class TokenFaucet {
 				admin: this.wallet.publicKey,
 			},
 		});
-		const tx = new Transaction().add(ix);
-		const txSig = await this.context.sendTransaction(tx);
-		return txSig;
 	}
 
 	public async createAssociatedTokenAccountAndMintTo(
@@ -171,7 +190,12 @@ export class TokenFaucet {
 
 		tx.add(mintToTx);
 
-		const txSig = await this.context.sendTransaction(tx);
+		let txSig;
+		if (this.context) {
+			txSig = await this.context.sendTransaction(tx);
+		} else {
+			txSig = await this.program.provider.sendAndConfirm(tx, [], this.opts);
+		}
 
 		return [associatedTokenPublicKey, txSig];
 	}
@@ -210,7 +234,10 @@ export class TokenFaucet {
 		userPubKey: PublicKey;
 	}): Promise<Account> {
 		const associatedKey = await this.getAssosciatedMockUSDMintAddress(props);
-		return await this.context.connection.getTokenAccount(associatedKey);
+		if (this.context) {
+			return await this.context.connection.getTokenAccount(associatedKey);
+		}
+		return await getAccount(this.connection, associatedKey);
 	}
 
 	public async subscribeToTokenAccount(props: {

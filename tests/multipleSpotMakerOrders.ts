@@ -30,7 +30,7 @@ import { LAMPORTS_PER_SOL } from '@solana/web3.js';
 import { ContractTier } from '../sdk';
 import { startAnchor } from 'solana-bankrun';
 import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
-import { BankrunContextWrapper } from '../sdk/src/bankrunConnection';
+import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
 
 describe('multiple maker orders', () => {
 	const chProgram = anchor.workspace.Drift as Program;
