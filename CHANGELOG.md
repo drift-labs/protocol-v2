@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Features
 
+- program: check 5 min oracle twap divergence in trigger order ([#1116](https://github.com/drift-labs/protocol-v2/pull/1116))
+
 ### Fixes
 
 ### Breaking
