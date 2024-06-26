@@ -861,7 +861,7 @@ describe('orders', () => {
 			PRICE_PRECISION
 		);
 		// move price to make liquidity for order @ $1.05 (5%)
-		setFeedPriceNoProgram(bankrunContextWrapper, newPrice, solUsd);
+		await setFeedPriceNoProgram(bankrunContextWrapper, newPrice, solUsd);
 		await driftClient.moveAmmToPrice(
 			marketIndex,
 			new BN(newPrice * PRICE_PRECISION.toNumber())
@@ -981,7 +981,7 @@ describe('orders', () => {
 			PRICE_PRECISION
 		);
 		// move price to make liquidity for order @ $1.05 (5%)
-		setFeedPriceNoProgram(bankrunContextWrapper, newPrice, solUsd);
+		await setFeedPriceNoProgram(bankrunContextWrapper, newPrice, solUsd);
 		await driftClient.moveAmmToPrice(
 			marketIndex,
 			new BN(newPrice * PRICE_PRECISION.toNumber())
@@ -1135,7 +1135,7 @@ describe('orders', () => {
 			PRICE_PRECISION
 		);
 		// move price to make liquidity for order @ $1.05 (5%)
-		setFeedPriceNoProgram(bankrunContextWrapper, newPrice, solUsd);
+		await setFeedPriceNoProgram(bankrunContextWrapper, newPrice, solUsd);
 		try {
 			await driftClient.moveAmmToPrice(
 				marketIndex,
@@ -1416,7 +1416,7 @@ describe('orders', () => {
 			price.mul(new BN(96)).div(new BN(100)),
 			PRICE_PRECISION
 		);
-		setFeedPriceNoProgram(bankrunContextWrapper, newPrice, solUsd);
+		await setFeedPriceNoProgram(bankrunContextWrapper, newPrice, solUsd);
 		await driftClient.moveAmmToPrice(
 			marketIndex,
 			new BN(newPrice * PRICE_PRECISION.toNumber())
