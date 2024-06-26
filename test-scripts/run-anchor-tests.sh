@@ -3,6 +3,8 @@ if [ "$1" != "--skip-build" ]; then
     cp target/idl/drift.json sdk/src/idl/
 fi
 
+export ANCHOR_WALLET=~/.config/solana/id.json
+
 test_files=(
   # cappedSymFunding.ts
   # delistMarket.ts
