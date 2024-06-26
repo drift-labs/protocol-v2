@@ -3,7 +3,7 @@ cluster = "localnet"
 wallet = "~/.config/solana/id.json"
 
 [scripts]
-test = "./test-scripts/run-ts-mocha"
+test = "echo" # need to call anchor test to update metadata field in idl before running tests, so just do a noop
 lint = "yarn prettify:fix && cargo fmt"
 fulltest = 'cargo test && bash ./test-scripts/run-anchor-tests.sh'
 watch_ts = 'find ./programs/clearing_house/src/* ./tests ./sdk/src | entr -c bash ./test-scripts/single-anchor-test.sh'

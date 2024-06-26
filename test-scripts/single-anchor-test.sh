@@ -7,5 +7,5 @@ fi
 test_files=(tokenFaucet.ts)
 
 for test_file in ${test_files[@]}; do
-  ANCHOR_TEST_FILE=${test_file} anchor test --skip-build || exit 1;
+  ts-mocha -t 300000 ./tests/${test_file} || exit 1
 done 
