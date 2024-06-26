@@ -72,4 +72,4 @@ test_files=(
 for test_file in ${test_files[@]}; do
   export ANCHOR_TEST_FILE=${test_file} && anchor test --skip-build || exit 1
 done
-cargo test-sbf --test integration
+cargo test --test integration
