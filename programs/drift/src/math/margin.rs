@@ -608,34 +608,35 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
             calculation.track_open_orders_fraction(),
         )?;
 
-        let fuel_base_asset_value =
-            if let Some((market_index, perp_delta)) = context.fuel_perp_delta {
-                if market_index == market.market_index {
-                    market_position
-                        .base_asset_amount
-                        .safe_add(perp_delta)?
-                        .cast::<i128>()?
-                        .safe_mul(oracle_price_data.price.cast()?)?
-                        .safe_div(AMM_RESERVE_PRECISION_I128)?
-                        .unsigned_abs()
+        if market.fuel_boost_position > 0 {
+            let fuel_base_asset_value =
+                if let Some((market_index, perp_delta)) = context.fuel_perp_delta {
+                    if market_index == market.market_index {
+                        market_position
+                            .base_asset_amount
+                            .safe_add(perp_delta)?
+                            .cast::<i128>()?
+                            .safe_mul(oracle_price_data.price.cast()?)?
+                            .safe_div(AMM_RESERVE_PRECISION_I128)?
+                            .unsigned_abs()
+                    } else {
+                        base_asset_value
+                    }
                 } else {
                     base_asset_value
-                }
-            } else {
-                base_asset_value
-            };
-        
-        let perp_fuel_oi_bonus = calculate_perp_fuel_bonus(
-            &market,
-            fuel_base_asset_value as i128,
-            context.fuel_bonus_numerator,
-        )?;
+                };
 
-        crate::dlog!(perp_fuel_oi_bonus);
+            let perp_fuel_oi_bonus = calculate_perp_fuel_bonus(
+                &market,
+                fuel_base_asset_value as i128,
+                context.fuel_bonus_numerator,
+            )?;
+            crate::dlog!(perp_fuel_oi_bonus);
+        }
 
-        calculation.fuel_oi = calculation.fuel_oi.saturating_add(
-            perp_fuel_oi_bonus.cast()?,
-        );
+        calculation.fuel_oi = calculation
+            .fuel_oi
+            .saturating_add(perp_fuel_oi_bonus.cast()?);
 
         calculation.add_margin_requirement(
             perp_margin_requirement,

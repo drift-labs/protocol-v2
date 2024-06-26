@@ -432,6 +432,10 @@ impl User {
         false
     }
 
+    pub fn get_fuel_bonus_numerator(&self, now: i64) -> DriftResult<i64> {
+        now.safe_sub(self.last_fuel_bonus_update_ts)
+    }
+
     pub fn increment_fuel_bonus(
         &mut self,
         fuel_deposits: u32,
@@ -455,8 +459,7 @@ impl User {
         user_stats: &mut UserStats,
         now: i64,
     ) -> DriftResult<MarginCalculation> {
-        let fuel_bonus_numerator =
-            user_stats.get_fuel_bonus_numerator(self.last_fuel_bonus_update_ts, now)?;
+        let fuel_bonus_numerator = self.get_fuel_bonus_numerator(now)?;
 
         validate!(
             context.fuel_bonus_numerator == fuel_bonus_numerator,

@@ -2,6 +2,7 @@ use crate::error::{DriftResult, ErrorCode};
 use crate::math::casting::Cast;
 use crate::math::margin::MarginRequirementType;
 use crate::math::safe_math::SafeMath;
+use crate::state::user::User;
 use crate::{validate, MarketType, MARGIN_PRECISION_U128};
 use anchor_lang::{prelude::*, solana_program::msg};
 
@@ -93,6 +94,11 @@ impl MarginContext {
 
     pub fn fuel_spot_diff_2(mut self, market_index: u16, delta: i128) -> Self {
         self.fuel_spot_delta_2 = Some((market_index, delta));
+        self
+    }
+
+    pub fn fuel_numerator(mut self, user: User, now: i64) -> Self {
+        self.fuel_bonus_numerator = user.get_fuel_bonus_numerator(now).unwrap();
         self
     }
 

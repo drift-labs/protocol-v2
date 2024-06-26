@@ -565,11 +565,9 @@ pub mod fuel_scoring {
             0
         );
 
-        let mut margin_context = MarginContext::standard(MarginRequirementType::Initial);
+        let mut margin_context =
+            MarginContext::standard(MarginRequirementType::Initial).fuel_numerator(maker, now);
 
-        margin_context.fuel_bonus_numerator = maker_stats
-            .get_fuel_bonus_numerator(maker.last_fuel_bonus_update_ts, now)
-            .unwrap();
         let margin_calc_maker = maker
             .calculate_margin_and_increment_fuel_bonus(
                 &market_map,
@@ -586,11 +584,9 @@ pub mod fuel_scoring {
         assert_eq!(margin_calc_maker.fuel_deposits, 100_000 / 28);
         assert_eq!(maker_stats.fuel_deposits, margin_calc_maker.fuel_deposits);
 
-        let mut margin_context = MarginContext::standard(MarginRequirementType::Initial);
+        let mut margin_context =
+            MarginContext::standard(MarginRequirementType::Initial).fuel_numerator(taker, now);
 
-        margin_context.fuel_bonus_numerator = taker_stats
-            .get_fuel_bonus_numerator(taker.last_fuel_bonus_update_ts, now)
-            .unwrap();
         let margin_calc = taker
             .calculate_margin_and_increment_fuel_bonus(
                 &market_map,
@@ -766,12 +762,6 @@ pub mod fuel_scoring {
         create_anchor_account_info!(maker, &maker_key, User, maker_account_info);
         let makers_and_referrers = UserMap::load_one(&maker_account_info).unwrap();
 
-        let mut filler = User::default();
-
-        let fee_structure = get_fee_structure();
-
-        let (taker_key, _, filler_key) = get_user_keys();
-
         let mut taker_stats = UserStats::default();
 
         let mut maker_stats = UserStats {
@@ -781,7 +771,6 @@ pub mod fuel_scoring {
         create_anchor_account_info!(maker_stats, UserStats, maker_stats_account_info);
         let maker_and_referrer_stats = UserStatsMap::load_one(&maker_stats_account_info).unwrap();
 
-        let mut filler_stats = UserStats::default();
         assert_eq!(maker_stats.fuel_deposits, 0);
         assert_eq!(taker_stats.fuel_deposits, 0);
 
@@ -811,11 +800,9 @@ pub mod fuel_scoring {
             0
         );
 
-        let mut margin_context = MarginContext::standard(MarginRequirementType::Initial);
+        let mut margin_context =
+            MarginContext::standard(MarginRequirementType::Initial).fuel_numerator(maker, now);
 
-        margin_context.fuel_bonus_numerator = maker_stats
-            .get_fuel_bonus_numerator(maker.last_fuel_bonus_update_ts, now)
-            .unwrap();
         let margin_calc_maker = maker
             .calculate_margin_and_increment_fuel_bonus(
                 &market_map,
@@ -832,11 +819,9 @@ pub mod fuel_scoring {
         assert_eq!(margin_calc_maker.fuel_deposits, 100_000 / 28);
         assert_eq!(maker_stats.fuel_deposits, margin_calc_maker.fuel_deposits);
 
-        let mut margin_context = MarginContext::standard(MarginRequirementType::Initial);
+        let mut margin_context =
+            MarginContext::standard(MarginRequirementType::Initial).fuel_numerator(taker, now);
 
-        margin_context.fuel_bonus_numerator = taker_stats
-            .get_fuel_bonus_numerator(taker.last_fuel_bonus_update_ts, now)
-            .unwrap();
         let margin_calc = taker
             .calculate_margin_and_increment_fuel_bonus(
                 &market_map,
