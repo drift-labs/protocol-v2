@@ -25,6 +25,7 @@ import {
 	TxParams,
 } from '../types';
 import { containsComputeUnitIxs } from '../util/computeUnits';
+import { CachedBlockhashFetcher } from './cachedBlockhashFetcher';
 
 /**
  * Explanation for SIGNATURE_BLOCK_AND_EXPIRY:
@@ -36,6 +37,10 @@ const DEV_TRY_FORCE_TX_TIMEOUTS =
 	process.env.DEV_TRY_FORCE_TX_TIMEOUTS === 'true' || false;
 
 export const COMPUTE_UNITS_DEFAULT = 200_000;
+
+const BLOCKHASH_FETCH_RETRY_COUNT = 3;
+const BLOCKHASH_FETCH_RETRY_SLEEP = 200;
+const RECENT_BLOCKHASH_STALE_TIME_MS = 2_000; // Reuse blockhashes within this timeframe during bursts of tx contruction
 
 export type TxBuildingProps = {
 	instructions: TransactionInstruction | TransactionInstruction[];
@@ -65,6 +70,7 @@ export class TxHandler {
 	private onSignedCb?: (txSigs: DriftClientMetricsEvents['txSigned']) => void;
 
 	private blockhashCommitment: Commitment = 'finalized';
+	private blockHashFetcher : CachedBlockhashFetcher;
 
 	constructor(props: {
 		connection: Connection;
@@ -79,6 +85,7 @@ export class TxHandler {
 		this.connection = props.connection;
 		this.wallet = props.wallet;
 		this.confirmationOptions = props.confirmationOptions;
+		this.blockHashFetcher = new CachedBlockhashFetcher(this.connection, this.blockhashCommitment, BLOCKHASH_FETCH_RETRY_COUNT, BLOCKHASH_FETCH_RETRY_SLEEP, RECENT_BLOCKHASH_STALE_TIME_MS);
 
 		// #Optionals
 		this.returnBlockHeightsWithSignedTxCallbackData =
@@ -113,8 +120,8 @@ export class TxHandler {
 	 *
 	 * @returns
 	 */
-	public getLatestBlockhashForTransaction() {
-		return this.connection.getLatestBlockhash(this.blockhashCommitment);
+	public async getLatestBlockhashForTransaction() {
+		return this.blockHashFetcher.getLatestBlockhash();
 	}
 
 	/**
