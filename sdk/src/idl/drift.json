@@ -5384,17 +5384,7 @@
           "isSigner": true
         },
         {
-          "name": "payer",
-          "isMut": true,
-          "isSigner": true
-        },
-        {
           "name": "pythSolanaReceiver",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "config",
           "isMut": false,
           "isSigner": false
         },

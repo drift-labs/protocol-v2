@@ -76,6 +76,7 @@ import {
 	getInsuranceFundStakeAccountPublicKey,
 	getPerpMarketPublicKey,
 	getPhoenixFulfillmentConfigPublicKey,
+	getPythPullOraclePublicKey,
 	getReferrerNamePublicKeySync,
 	getSerumFulfillmentConfigPublicKey,
 	getSerumSignerPublicKey,
@@ -129,6 +130,15 @@ import { numberToSafeBN } from './math/utils';
 import { TransactionParamProcessor } from './tx/txParamProcessor';
 import { isOracleValid } from './math/oracles';
 import { TxHandler } from './tx/txHandler';
+import {
+	DEFAULT_RECEIVER_PROGRAM_ID,
+	wormholeCoreBridgeIdl,
+} from '@pythnetwork/pyth-solana-receiver';
+import { parseAccumulatorUpdateData } from '@pythnetwork/price-service-sdk';
+import {
+	DEFAULT_WORMHOLE_PROGRAM_ID,
+	getGuardianSetPda,
+} from '@pythnetwork/pyth-solana-receiver/lib/address';
 
 type RemainingAccountParams = {
 	userAccounts: UserAccount[];
@@ -6840,6 +6850,213 @@ export class DriftClient {
 		}
 
 		return undefined;
+	}
+
+	public trimSignatures(vaa: Buffer, n = 3): Buffer {
+		const currentNumSignatures = vaa[5];
+		if (n > currentNumSignatures) {
+			throw new Error(
+				"Resulting VAA can't have more signatures than the original VAA"
+			);
+		}
+
+		const trimmedVaa = Buffer.concat([
+			vaa.subarray(0, 6 + n * 66),
+			vaa.subarray(6 + currentNumSignatures * 66),
+		]);
+
+		trimmedVaa[5] = n;
+		return trimmedVaa;
+	}
+
+	public async postPythPullOracleUpdateAtomic(
+		vaaString: string,
+		feedId: string
+	): Promise<TransactionSignature> {
+		const accumulatorUpdateData = parseAccumulatorUpdateData(
+			Buffer.from(vaaString, 'base64')
+		);
+		const guardianSetIndex = accumulatorUpdateData.vaa.readUInt32BE(1);
+		const guardianSet = getGuardianSetPda(
+			guardianSetIndex,
+			DEFAULT_WORMHOLE_PROGRAM_ID
+		);
+		const trimmedVaa = this.trimSignatures(accumulatorUpdateData.vaa);
+
+		const postIxs: TransactionInstruction[] = [];
+		for (const update of accumulatorUpdateData.updates) {
+			postIxs.push(
+				await this.getPostPythPullOracleAtomicIx(
+					{
+						vaa: trimmedVaa,
+						merklePriceUpdate: update,
+						treasuryId: 0,
+					},
+					feedId,
+					guardianSet
+				)
+			);
+		}
+
+		const tx = await this.buildTransaction(postIxs);
+		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+
+		return txSig;
+	}
+
+	public async getPostPythPullOracleAtomicIx(
+		params: {
+			vaa: Buffer;
+			merklePriceUpdate: {
+				message: Buffer;
+				proof: number[][];
+			};
+			treasuryId: number;
+		},
+		feedId: string,
+		guardianSet: PublicKey
+	): Promise<TransactionInstruction> {
+		return this.program.instruction.postPythPullOracleUpdateAtomic(
+			params,
+			feedId,
+			{
+				accounts: {
+					keeper: this.wallet.publicKey,
+					pythSolanaReceiver: DEFAULT_RECEIVER_PROGRAM_ID,
+					guardianSet,
+					priceFeed: getPythPullOraclePublicKey(this.program.programId, feedId),
+				},
+			}
+		);
+	}
+
+	public async updatePythPullOracle(
+		vaaString: string,
+		feedId: string
+	): Promise<TransactionSignature> {
+		const accumulatorUpdateData = parseAccumulatorUpdateData(
+			Buffer.from(vaaString, 'base64')
+		);
+		const guardianSetIndex = accumulatorUpdateData.vaa.readUInt32BE(1);
+		const guardianSet = getGuardianSetPda(
+			guardianSetIndex,
+			DEFAULT_WORMHOLE_PROGRAM_ID
+		);
+
+		const [postIxs, encodedVaaAddress] = await this.getBuildEncodedVaaIxs(
+			accumulatorUpdateData.vaa,
+			guardianSet
+		);
+
+		for (const update of accumulatorUpdateData.updates) {
+			postIxs.push(
+				await this.getUpdatePythPullOracleIx(
+					{
+						merklePriceUpdate: update,
+						treasuryId: 0,
+					},
+					feedId,
+					encodedVaaAddress.publicKey
+				)
+			);
+		}
+
+		const tx = await this.buildTransaction(postIxs);
+		const { txSig } = await this.sendTransaction(
+			tx,
+			[encodedVaaAddress],
+			this.opts
+		);
+
+		return txSig;
+	}
+
+	public async getUpdatePythPullOracleIx(
+		params: {
+			merklePriceUpdate: {
+				message: Buffer;
+				proof: number[][];
+			};
+			treasuryId: number;
+		},
+		feedId: string,
+		encodedVaaAddress: PublicKey
+	): Promise<TransactionInstruction> {
+		return this.program.instruction.updatePythPullOracle(params, feedId, {
+			accounts: {
+				keeper: this.wallet.publicKey,
+				pythSolanaReceiver: DEFAULT_RECEIVER_PROGRAM_ID,
+				encodedVaa: encodedVaaAddress,
+				priceFeed: getPythPullOraclePublicKey(this.program.programId, feedId),
+			},
+		});
+	}
+
+	public async getBuildEncodedVaaIxs(
+		vaa: Buffer,
+		guardianSet: PublicKey
+	): Promise<[TransactionInstruction[], Keypair]> {
+		const postIxs: TransactionInstruction[] = [];
+
+		const wormholeProgram = new Program(
+			wormholeCoreBridgeIdl,
+			DEFAULT_WORMHOLE_PROGRAM_ID
+		);
+		const encodedVaaKeypair = new Keypair();
+		postIxs.push(
+			await wormholeProgram.account.encodedVaa.createInstruction(
+				encodedVaaKeypair,
+				vaa.length + 46
+			)
+		);
+
+		// Why do we need this too?
+		postIxs.push(
+			await wormholeProgram.methods
+				.initEncodedVaa()
+				.accounts({
+					encodedVaa: encodedVaaKeypair.publicKey,
+				})
+				.instruction()
+		);
+
+		// Split the write into two ixs
+		postIxs.push(
+			await wormholeProgram.methods
+				.writeEncodedVaa({
+					index: 0,
+					data: vaa.subarray(0, 755),
+				})
+				.accounts({
+					draftVaa: encodedVaaKeypair.publicKey,
+				})
+				.instruction()
+		);
+
+		postIxs.push(
+			await wormholeProgram.methods
+				.writeEncodedVaa({
+					index: 755,
+					data: vaa.subarray(755),
+				})
+				.accounts({
+					draftVaa: encodedVaaKeypair.publicKey,
+				})
+				.instruction()
+		);
+
+		// Verify
+		postIxs.push(
+			await wormholeProgram.methods
+				.verifyEncodedVaaV1()
+				.accounts({
+					guardianSet,
+					draftVaa: encodedVaaKeypair.publicKey,
+				})
+				.instruction()
+		);
+
+		return [postIxs, encodedVaaKeypair];
 	}
 
 	private handleSignedTransaction(signedTxs: SignedTxData[]) {
