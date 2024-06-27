@@ -2573,16 +2573,17 @@
       ],
       "args": [
         {
-          "name": "params",
+          "name": "feedId",
           "type": {
-            "defined": "PostUpdateParams"
+            "array": [
+              "u8",
+              32
+            ]
           }
         },
         {
-          "name": "feedId",
-          "type": {
-            "defined": "FeedId"
-          }
+          "name": "params",
+          "type": "bytes"
         }
       ]
     },
@@ -2612,16 +2613,17 @@
       ],
       "args": [
         {
-          "name": "params",
+          "name": "feedId",
           "type": {
-            "defined": "PostUpdateAtomicParams"
+            "array": [
+              "u8",
+              32
+            ]
           }
         },
         {
-          "name": "feedId",
-          "type": {
-            "defined": "FeedId"
-          }
+          "name": "params",
+          "type": "bytes"
         }
       ]
     },
@@ -5408,7 +5410,10 @@
         {
           "name": "feedId",
           "type": {
-            "defined": "FeedId"
+            "array": [
+              "u8",
+              32
+            ]
           }
         }
       ]

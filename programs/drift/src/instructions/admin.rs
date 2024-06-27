@@ -13,7 +13,6 @@ use solana_program::msg;
 use crate::controller::token::close_vault;
 use crate::error::ErrorCode;
 use crate::instructions::constraints::*;
-use crate::{load_mut, PTYH_PRICE_FEED_SEED_PREFIX};
 use crate::math::casting::Cast;
 use crate::math::constants::{
     DEFAULT_LIQUIDATION_MARGIN_BUFFER_RATIO, FEE_POOL_TO_REVENUE_POOL_THRESHOLD,
@@ -59,6 +58,7 @@ use crate::validation::spot_market::validate_borrow_rate;
 use crate::{controller, QUOTE_PRECISION_I64};
 use crate::{get_then_update_id, EPOCH_DURATION};
 use crate::{load, FEE_ADJUSTMENT_MAX};
+use crate::{load_mut, PTYH_PRICE_FEED_SEED_PREFIX};
 use crate::{math, safe_decrement, safe_increment};
 
 pub fn handle_initialize(ctx: Context<Initialize>) -> Result<()> {
@@ -3444,14 +3444,14 @@ pub fn handle_delete_prelaunch_oracle(
 
 pub fn handle_initialize_pyth_pull_oracle(
     ctx: Context<InitPythPullPriceFeed>,
-    feed_id: FeedId
+    feed_id: [u8; 32],
 ) -> Result<()> {
     let cpi_program = ctx.accounts.pyth_solana_receiver.to_account_info().clone();
     let cpi_accounts = InitPriceUpdate {
-        payer:                ctx.accounts.admin.to_account_info().clone(),
+        payer: ctx.accounts.admin.to_account_info().clone(),
         price_update_account: ctx.accounts.price_feed.to_account_info().clone(),
-        system_program:       ctx.accounts.system_program.to_account_info().clone(),
-        write_authority:      ctx.accounts.price_feed.to_account_info().clone(),
+        system_program: ctx.accounts.system_program.to_account_info().clone(),
+        write_authority: ctx.accounts.price_feed.to_account_info().clone(),
     };
 
     let seeds = &[
@@ -3986,8 +3986,8 @@ pub struct InitPythPullPriceFeed<'info> {
     pub pyth_solana_receiver: Program<'info, PythSolanaReceiver>,
     /// CHECK: This account's seeds are checked
     #[account(mut, seeds = [PTYH_PRICE_FEED_SEED_PREFIX, &feed_id], bump)]
-    pub price_feed:   AccountInfo<'info>,
-    pub system_program:       Program<'info, System>,
+    pub price_feed: AccountInfo<'info>,
+    pub system_program: Program<'info, System>,
     #[account(
         has_one = admin
     )]

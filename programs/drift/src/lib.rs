@@ -20,11 +20,6 @@ use crate::state::spot_market::SpotFulfillmentConfigStatus;
 use crate::state::state::FeeStructure;
 use crate::state::state::*;
 use crate::state::user::MarketType;
-use pyth_solana_receiver_sdk::{
-    price_update::FeedId,
-    PostUpdateParams,
-    PostUpdateAtomicParams,
-};
 
 pub mod controller;
 pub mod error;
@@ -584,18 +579,18 @@ pub mod drift {
 
     pub fn update_pyth_pull_oracle(
         ctx: Context<UpdatePythPullOraclePriceFeed>,
-        params: PostUpdateParams,
-        feed_id: FeedId,
+        feed_id: [u8; 32],
+        params: Vec<u8>,
     ) -> Result<()> {
-        handle_update_pyth_pull_oracle(ctx, params, feed_id)
+        handle_update_pyth_pull_oracle(ctx, feed_id, params)
     }
 
-    pub fn post_pyth_pull_oracle_update_atomic (
+    pub fn post_pyth_pull_oracle_update_atomic(
         ctx: Context<PostPythPullOracleUpdateAtomic>,
-        params: PostUpdateAtomicParams,
-        feed_id: FeedId,
+        feed_id: [u8; 32],
+        params: Vec<u8>,
     ) -> Result<()> {
-        handle_post_pyth_pull_oracle_update_atomic(ctx, params, feed_id)
+        handle_post_pyth_pull_oracle_update_atomic(ctx, feed_id, params)
     }
 
     // Admin Instructions
@@ -1328,11 +1323,10 @@ pub mod drift {
 
     pub fn initialize_pyth_pull_oracle(
         ctx: Context<InitPythPullPriceFeed>,
-        feed_id: FeedId
+        feed_id: [u8; 32],
     ) -> Result<()> {
         handle_initialize_pyth_pull_oracle(ctx, feed_id)
     }
-
 }
 
 #[cfg(not(feature = "no-entrypoint"))]
