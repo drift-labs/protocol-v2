@@ -1690,7 +1690,7 @@ checksum = "44de48029c54ec1ca570786b5baeb906b0fc2409c8e0145585e287ee7a526c72"
 [[package]]
 name = "pyth-solana-receiver-sdk"
 version = "0.3.0"
-source = "git+https://github.com/drift-labs/pyth-crosschain?branch=crispheaney/shave-rcvr#40352541d1d1db5d6902e20a4ae18298c3511062"
+source = "git+https://github.com/drift-labs/pyth-crosschain?branch=master#c42f6e41060ed8746259c597fec0587228efd61d"
 dependencies = [
  "anchor-lang",
  "hex",
@@ -1701,7 +1701,7 @@ dependencies = [
 [[package]]
 name = "pythnet-sdk"
 version = "2.1.0"
-source = "git+https://github.com/drift-labs/pyth-crosschain?branch=crispheaney/shave-rcvr#40352541d1d1db5d6902e20a4ae18298c3511062"
+source = "git+https://github.com/drift-labs/pyth-crosschain?branch=master#c42f6e41060ed8746259c597fec0587228efd61d"
 dependencies = [
  "anchor-lang",
  "bincode",

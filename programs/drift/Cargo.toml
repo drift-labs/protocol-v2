@@ -22,8 +22,8 @@ anchor-lang = "0.29.0"
 solana-program = "1.16"
 anchor-spl = "0.29.0"
 pyth-client = "0.2.2"
-pythnet-sdk = { git = "https://github.com/drift-labs/pyth-crosschain", branch = "crispheaney/shave-rcvr"}
-pyth-solana-receiver-sdk = { git = "https://github.com/drift-labs/pyth-crosschain", branch = "crispheaney/shave-rcvr"}
+pythnet-sdk = { git = "https://github.com/drift-labs/pyth-crosschain", branch = "master"}
+pyth-solana-receiver-sdk = { git = "https://github.com/drift-labs/pyth-crosschain", branch = "master"}
 bytemuck = { version = "1.4.0" }
 borsh = "0.10.3"
 num-traits = "0.2"
