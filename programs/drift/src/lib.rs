@@ -1327,7 +1327,7 @@ pub mod drift {
     }
 
     pub fn initialize_pyth_pull_oracle(
-        ctx: Context<InitPriceFeed>,
+        ctx: Context<InitPythPullPriceFeed>,
         feed_id: FeedId
     ) -> Result<()> {
         handle_initialize_pyth_pull_oracle(ctx, feed_id)

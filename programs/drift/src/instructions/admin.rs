@@ -3443,7 +3443,7 @@ pub fn handle_delete_prelaunch_oracle(
 }
 
 pub fn handle_initialize_pyth_pull_oracle(
-    ctx: Context<InitPriceFeed>,
+    ctx: Context<InitPythPullPriceFeed>,
     feed_id: FeedId
 ) -> Result<()> {
     let cpi_program = ctx.accounts.pyth_solana_receiver.to_account_info().clone();
@@ -3980,7 +3980,7 @@ pub struct DeletePrelaunchOracle<'info> {
 
 #[derive(Accounts)]
 #[instruction(feed_id : [u8; 32])]
-pub struct InitPriceFeed<'info> {
+pub struct InitPythPullPriceFeed<'info> {
     #[account(mut)]
     pub admin: Signer<'info>,
     pub pyth_solana_receiver: Program<'info, PythSolanaReceiver>,
