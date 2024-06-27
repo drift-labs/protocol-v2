@@ -45,6 +45,7 @@ pub fn handle_update_pyth_pull_oracle(
     // Only update the price feed if the message contains a newer price. Pushing a stale price
     // suceeds without changing the on-chain state.
     if next_timestamp > current_timestamp {
+        pyth_solana_receiver_sdk::cpi::post_update(cpi_context, params)?;
         {
             let price_feed_account_data = ctx.accounts.price_feed.try_borrow_data()?;
             let price_feed_account =
@@ -55,7 +56,6 @@ pub fn handle_update_pyth_pull_oracle(
                 ErrorCode::OraclePriceFeedMessageMismatch
             );
         }
-        pyth_solana_receiver_sdk::cpi::post_update(cpi_context, params)?;
     }
     Ok(())
 }
@@ -89,6 +89,8 @@ pub fn handle_post_pyth_pull_oracle_update_atomic(
         get_timestamp_from_price_update_message(&params.merkle_price_update.message)?;
 
     if next_timestamp > current_timestamp {
+        pyth_solana_receiver_sdk::cpi::post_update_atomic(cpi_context, params)?;
+
         {
             let price_feed_account_data = ctx.accounts.price_feed.try_borrow_data()?;
             let price_feed_account =
@@ -99,7 +101,6 @@ pub fn handle_post_pyth_pull_oracle_update_atomic(
                 ErrorCode::OraclePriceFeedMessageMismatch
             );
         }
-        pyth_solana_receiver_sdk::cpi::post_update_atomic(cpi_context, params)?;
     }
     Ok(())
 }
