@@ -6913,7 +6913,6 @@ export class DriftClient {
 					{
 						vaa: trimmedVaa,
 						merklePriceUpdate: update,
-						treasuryId: 0, // only for cpi struct conforming -- is this necessary?
 					},
 					feedId,
 					guardianSet
@@ -6931,7 +6930,6 @@ export class DriftClient {
 				message: Buffer;
 				proof: number[][];
 			};
-			treasuryId: number;
 		},
 		feedId: string,
 		guardianSet: PublicKey
@@ -6992,7 +6990,6 @@ export class DriftClient {
 				await this.getUpdatePythPullOracleIxs(
 					{
 						merklePriceUpdate: update,
-						treasuryId: 0,
 					},
 					feedId,
 					encodedVaaAddress.publicKey
@@ -7016,7 +7013,6 @@ export class DriftClient {
 				message: Buffer;
 				proof: number[][];
 			};
-			treasuryId: number;
 		},
 		feedId: string,
 		encodedVaaAddress: PublicKey
