@@ -1,6 +1,7 @@
 import { PublicKey } from '@solana/web3.js';
 import * as anchor from '@coral-xyz/anchor';
 import { BN } from '@coral-xyz/anchor';
+import * as crypto from 'crypto';
 
 export async function getDriftStateAccountPublicKeyAndNonce(
 	programId: PublicKey
@@ -241,11 +242,12 @@ export function getPythPullOraclePublicKey(
 	progarmId: PublicKey,
 	feedId: string
 ): PublicKey {
+	if (feedId.startsWith('0x')) {
+		feedId = feedId.slice(2);
+	}
+	const hash = crypto.createHash('sha256').update(feedId).digest();
 	return PublicKey.findProgramAddressSync(
-		[
-			Buffer.from(anchor.utils.bytes.utf8.encode('pyth_pull_prefix')),
-			Buffer.from(feedId),
-		],
+		[Buffer.from(anchor.utils.bytes.utf8.encode('pyth_pull')), hash],
 		progarmId
 	)[0];
 }

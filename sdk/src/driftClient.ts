@@ -130,15 +130,13 @@ import { numberToSafeBN } from './math/utils';
 import { TransactionParamProcessor } from './tx/txParamProcessor';
 import { isOracleValid } from './math/oracles';
 import { TxHandler } from './tx/txHandler';
-import {
-	DEFAULT_RECEIVER_PROGRAM_ID,
-	wormholeCoreBridgeIdl,
-} from '@pythnetwork/pyth-solana-receiver';
+import { wormholeCoreBridgeIdl } from '@pythnetwork/pyth-solana-receiver';
 import { parseAccumulatorUpdateData } from '@pythnetwork/price-service-sdk';
 import {
 	DEFAULT_WORMHOLE_PROGRAM_ID,
 	getGuardianSetPda,
 } from '@pythnetwork/pyth-solana-receiver/lib/address';
+import { DRIFT_ORACLE_RECEIVER_ID } from './config';
 
 type RemainingAccountParams = {
 	userAccounts: UserAccount[];
@@ -6934,7 +6932,7 @@ export class DriftClient {
 			{
 				accounts: {
 					keeper: this.wallet.publicKey,
-					pythSolanaReceiver: DEFAULT_RECEIVER_PROGRAM_ID,
+					pythSolanaReceiver: DRIFT_ORACLE_RECEIVER_ID,
 					guardianSet,
 					priceFeed: getPythPullOraclePublicKey(this.program.programId, feedId),
 				},
@@ -6998,7 +6996,7 @@ export class DriftClient {
 		return this.program.instruction.updatePythPullOracle(params, feedIdBuffer, {
 			accounts: {
 				keeper: this.wallet.publicKey,
-				pythSolanaReceiver: DEFAULT_RECEIVER_PROGRAM_ID,
+				pythSolanaReceiver: DRIFT_ORACLE_RECEIVER_ID,
 				encodedVaa: encodedVaaAddress,
 				priceFeed: getPythPullOraclePublicKey(this.program.programId, feedId),
 			},

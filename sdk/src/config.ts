@@ -19,6 +19,7 @@ type DriftConfig = {
 	PYTH_ORACLE_MAPPING_ADDRESS: string;
 	DRIFT_PROGRAM_ID: string;
 	JIT_PROXY_PROGRAM_ID?: string;
+	DRIFT_ORACLE_RECEIVER_ID: string;
 	USDC_MINT_ADDRESS: string;
 	SERUM_V3: string;
 	PHOENIX: string;
@@ -32,6 +33,8 @@ type DriftConfig = {
 export type DriftEnv = 'devnet' | 'mainnet-beta';
 
 export const DRIFT_PROGRAM_ID = 'dRiftyHA39MWEi3m9aunc5MzRF1JYuBsbn6VPcn33UH';
+export const DRIFT_ORACLE_RECEIVER_ID =
+	'G6EoTTTgpkNBtVXo96EQp2m6uwwVh2Kt6YidjkmQqoha';
 
 export const configs: { [key in DriftEnv]: DriftConfig } = {
 	devnet: {
@@ -47,6 +50,7 @@ export const configs: { [key in DriftEnv]: DriftConfig } = {
 		PERP_MARKETS: DevnetPerpMarkets,
 		SPOT_MARKETS: DevnetSpotMarkets,
 		MARKET_LOOKUP_TABLE: 'FaMS3U4uBojvGn5FSDEPimddcXsCfwkKsFgMVVnDdxGb',
+		DRIFT_ORACLE_RECEIVER_ID,
 	},
 	'mainnet-beta': {
 		ENV: 'mainnet-beta',
@@ -62,6 +66,7 @@ export const configs: { [key in DriftEnv]: DriftConfig } = {
 		SPOT_MARKETS: MainnetSpotMarkets,
 		MARKET_LOOKUP_TABLE: 'D9cnvzswDikQDf53k4HpQ3KJ9y1Fv3HGGDFYMXnK5T6c',
 		SERUM_LOOKUP_TABLE: 'GPZkp76cJtNL2mphCvT6FXkJCVPpouidnacckR6rzKDN',
+		DRIFT_ORACLE_RECEIVER_ID,
 	},
 };
 

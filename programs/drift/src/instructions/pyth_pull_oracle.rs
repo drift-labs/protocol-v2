@@ -6,23 +6,20 @@ use pyth_solana_receiver_sdk::{
     }, price_update::PriceUpdateV2, program::PythSolanaReceiver, PostUpdateAtomicParams, PostUpdateParams,
 };
 use pythnet_sdk::{
-    messages::{
-        FeedId,
-        Message,
-    }, wire::{from_slice, PrefixedVec}
+    messages::Message, wire::{from_slice, PrefixedVec}
 };
 use crate::error::ErrorCode;
 use crate::ids::{
     wormhole_program,
-    pyth_pull_program
+    drift_oracle_receiver_program
 };
 
-pub const PTYH_PRICE_FEED_SEED_PREFIX: &[u8] = b"pyth_pull_prefix";
+pub const PTYH_PRICE_FEED_SEED_PREFIX: &[u8] = b"pyth_pull";
 
 pub fn handle_update_pyth_pull_oracle(
     ctx: Context<UpdatePythPullOraclePriceFeed>,
     params: PostUpdateParams,
-    feed_id: FeedId,
+    feed_id: [u8; 32],
 ) -> Result<()> {
     let cpi_program = ctx.accounts.pyth_solana_receiver.to_account_info().clone();
     let cpi_accounts = PostUpdate {
@@ -65,7 +62,7 @@ pub fn handle_update_pyth_pull_oracle(
 pub fn handle_post_pyth_pull_oracle_update_atomic(
     ctx: Context<PostPythPullOracleUpdateAtomic>,
     params: PostUpdateAtomicParams,
-    feed_id: FeedId,
+    feed_id: [u8; 32],
 ) -> Result<()> {
     let cpi_program = ctx.accounts.pyth_solana_receiver.to_account_info().clone();
     let cpi_accounts = PostUpdateAtomic {
@@ -132,7 +129,7 @@ pub fn get_timestamp_from_price_update_message(
 }
 
 #[derive(Accounts)]
-#[instruction(params : PostUpdateParams, feed_id : FeedId)]
+#[instruction(params : PostUpdateParams, feed_id : [u8; 32])]
 pub struct UpdatePythPullOraclePriceFeed<'info> {
     #[account(mut)]
     pub keeper:                Signer<'info>,
@@ -146,7 +143,7 @@ pub struct UpdatePythPullOraclePriceFeed<'info> {
 }
 
 #[derive(Accounts)]
-#[instruction(params: PostUpdateAtomicParams, feed_id : FeedId)]
+#[instruction(params: PostUpdateAtomicParams, feed_id : [u8; 32])]
 pub struct PostPythPullOracleUpdateAtomic <'info> {
     #[account(mut)]
     pub keeper:                Signer<'info>,
@@ -157,6 +154,6 @@ pub struct PostPythPullOracleUpdateAtomic <'info> {
     pub guardian_set:         AccountInfo<'info>,
 
     /// CHECK: This account's seeds are checked
-    #[account(mut, owner = pyth_pull_program::id(), seeds = [PTYH_PRICE_FEED_SEED_PREFIX, &feed_id], bump)]
+    #[account(mut, owner = drift_oracle_receiver_program::id(), seeds = [PTYH_PRICE_FEED_SEED_PREFIX, &feed_id], bump)]
     pub price_feed: AccountInfo<'info>,
 }
