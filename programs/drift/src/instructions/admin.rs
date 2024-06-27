@@ -8,10 +8,7 @@ use pyth_solana_receiver_sdk::cpi::accounts::InitPriceUpdate;
 use pyth_solana_receiver_sdk::program::PythSolanaReceiver;
 use pythnet_sdk::messages::FeedId;
 use serum_dex::state::ToAlignedBytes;
-use solana_program::{
-    msg,
-    system_program
-};
+use solana_program::msg;
 
 use crate::controller::token::close_vault;
 use crate::error::ErrorCode;
@@ -3990,7 +3987,6 @@ pub struct InitPriceFeed<'info> {
     /// CHECK: This account's seeds are checked
     #[account(mut, seeds = [PTYH_PRICE_FEED_SEED_PREFIX, &feed_id], bump)]
     pub price_feed:   AccountInfo<'info>,
-    #[account(constraint=system_program.key == &system_program::ID)]
     pub system_program:       Program<'info, System>,
     #[account(
         has_one = admin
