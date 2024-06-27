@@ -45,7 +45,7 @@ import {
 import { calculateTargetPriceTrade } from './math/trade';
 import { calculateAmmReservesAfterSwap, getSwapDirection } from './math/amm';
 import { PROGRAM_ID as PHOENIX_PROGRAM_ID } from '@ellipsis-labs/phoenix-sdk';
-import { DEFAULT_RECEIVER_PROGRAM_ID } from '@pythnetwork/pyth-solana-receiver';
+import { DRIFT_ORACLE_RECEIVER_ID } from './config';
 
 export class AdminClient extends DriftClient {
 	public async initialize(
@@ -3559,8 +3559,7 @@ export class AdminClient extends DriftClient {
 				state: await this.getStatePublicKey(),
 				systemProgram: SystemProgram.programId,
 				priceFeed: getPythPullOraclePublicKey(this.program.programId, feedIdBuffer),
-				// Need to change when we create our own receiver program
-				pythSolanaReceiver: new PublicKey("G6EoTTTgpkNBtVXo96EQp2m6uwwVh2Kt6YidjkmQqoha"),
+				pythSolanaReceiver: DRIFT_ORACLE_RECEIVER_ID,
 			},
 		});
 	}
