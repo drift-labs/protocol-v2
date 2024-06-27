@@ -1800,25 +1800,14 @@ export class DriftClient {
 		});
 	}
 
-	/**
-	 * Deposit funds into the given spot market
-	 *
-	 * @param amount to deposit
-	 * @param marketIndex spot market index to deposit into
-	 * @param associatedTokenAccount can be the wallet public key if using native sol
-	 * @param subAccountId subaccountId to deposit
-	 * @param reduceOnly if true, deposit must not increase account risk
-	 */
-	public async deposit(
+	public async createDepositTxn(
 		amount: BN,
 		marketIndex: number,
 		associatedTokenAccount: PublicKey,
 		subAccountId?: number,
 		reduceOnly = false,
 		txParams?: TxParams
-	): Promise<TransactionSignature> {
-		const additionalSigners: Array<Signer> = [];
-
+	): Promise<ReturnType<typeof this.buildTransaction>> {
 		const spotMarketAccount = this.getSpotMarketAccount(marketIndex);
 
 		const isSolMarket = spotMarketAccount.mint.equals(WRAPPED_SOL_MINT);
@@ -1868,9 +1857,38 @@ export class DriftClient {
 
 		const tx = await this.buildTransaction(instructions, txParams);
 
+		return tx;
+	}
+
+	/**
+	 * Deposit funds into the given spot market
+	 *
+	 * @param amount to deposit
+	 * @param marketIndex spot market index to deposit into
+	 * @param associatedTokenAccount can be the wallet public key if using native sol
+	 * @param subAccountId subaccountId to deposit
+	 * @param reduceOnly if true, deposit must not increase account risk
+	 */
+	public async deposit(
+		amount: BN,
+		marketIndex: number,
+		associatedTokenAccount: PublicKey,
+		subAccountId?: number,
+		reduceOnly = false,
+		txParams?: TxParams
+	): Promise<TransactionSignature> {
+		const tx = await this.createDepositTxn(
+			amount,
+			marketIndex,
+			associatedTokenAccount,
+			subAccountId,
+			reduceOnly,
+			txParams
+		);
+
 		const { txSig, slot } = await this.sendTransaction(
 			tx,
-			additionalSigners,
+			[],
 			this.opts
 		);
 		this.spotMarketLastSlotCache.set(marketIndex, slot);
