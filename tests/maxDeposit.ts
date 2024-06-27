@@ -7,7 +7,7 @@ import { TestClient, QUOTE_PRECISION, BN, OracleSource } from '../sdk/src';
 
 import {
 	initializeQuoteSpotMarket,
-	mockOracle, mockOracleNoProgram,
+	mockOracleNoProgram,
 	mockUSDCMint,
 	mockUserUSDCAccount,
 } from './testHelpers';

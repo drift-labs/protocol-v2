@@ -136,7 +136,7 @@ describe('orders', () => {
 		const marketIndexes = [marketIndex, marketIndexBTC, marketIndexEth];
 		const bankIndexes = [0];
 		const oracleInfos = [
-			{ publicKey: PublicKey.default, source: OracleSource.QUOTE_ASSET }
+			{ publicKey: PublicKey.default, source: OracleSource.QUOTE_ASSET },
 			{ publicKey: solUsd, source: OracleSource.PYTH },
 			{ publicKey: btcUsd, source: OracleSource.PYTH },
 			{ publicKey: ethUsd, source: OracleSource.PYTH },
