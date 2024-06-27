@@ -133,7 +133,7 @@ import { TxHandler } from './tx/txHandler';
 import {
 	wormholeCoreBridgeIdl,
 	pythSolanaReceiverIdl,
-	DEFAULT_RECEIVER_PROGRAM_ID
+	DEFAULT_RECEIVER_PROGRAM_ID,
 } from '@pythnetwork/pyth-solana-receiver';
 import { parseAccumulatorUpdateData } from '@pythnetwork/price-service-sdk';
 import {
@@ -6888,6 +6888,9 @@ export class DriftClient {
 		vaaString: string,
 		feedId: string
 	): Promise<TransactionSignature> {
+		if (feedId.startsWith('0x')) {
+			feedId = feedId.slice(2);
+		}
 		const accumulatorUpdateData = parseAccumulatorUpdateData(
 			Buffer.from(vaaString, 'base64')
 		);
@@ -6931,14 +6934,20 @@ export class DriftClient {
 		feedId: string,
 		guardianSet: PublicKey
 	): Promise<TransactionInstruction> {
+		if (feedId.startsWith('0x')) {
+			feedId = feedId.slice(2);
+		}
 		const feedIdBuffer = this.hexToUint8Array(feedId);
 
 		const receiverProgram = new Program(
 			pythSolanaReceiverIdl,
-			DEFAULT_RECEIVER_PROGRAM_ID,
+			DEFAULT_RECEIVER_PROGRAM_ID
 		);
 
-		const encodedParams = receiverProgram.coder.types.encode('PostUpdateAtomicParams', params);
+		const encodedParams = receiverProgram.coder.types.encode(
+			'PostUpdateAtomicParams',
+			params
+		);
 
 		return this.program.instruction.postPythPullOracleUpdateAtomic(
 			feedIdBuffer,
@@ -6958,6 +6967,9 @@ export class DriftClient {
 		vaaString: string,
 		feedId: string
 	): Promise<TransactionSignature> {
+		if (feedId.startsWith('0x')) {
+			feedId = feedId.slice(2);
+		}
 		const accumulatorUpdateData = parseAccumulatorUpdateData(
 			Buffer.from(vaaString, 'base64')
 		);
@@ -7006,23 +7018,33 @@ export class DriftClient {
 		feedId: string,
 		encodedVaaAddress: PublicKey
 	): Promise<TransactionInstruction> {
+		if (feedId.startsWith('0x')) {
+			feedId = feedId.slice(2);
+		}
 		const feedIdBuffer = this.hexToUint8Array(feedId);
 
 		const receiverProgram = new Program(
 			pythSolanaReceiverIdl,
-			DEFAULT_RECEIVER_PROGRAM_ID,
+			DEFAULT_RECEIVER_PROGRAM_ID
 		);
 
-		const encodedParams = receiverProgram.coder.types.encode('PostUpdateParams', params);
+		const encodedParams = receiverProgram.coder.types.encode(
+			'PostUpdateParams',
+			params
+		);
 
-		return this.program.instruction.updatePythPullOracle(feedIdBuffer, encodedParams, {
-			accounts: {
-				keeper: this.wallet.publicKey,
-				pythSolanaReceiver: DRIFT_ORACLE_RECEIVER_ID,
-				encodedVaa: encodedVaaAddress,
-				priceFeed: getPythPullOraclePublicKey(this.program.programId, feedId),
-			},
-		});
+		return this.program.instruction.updatePythPullOracle(
+			feedIdBuffer,
+			encodedParams,
+			{
+				accounts: {
+					keeper: this.wallet.publicKey,
+					pythSolanaReceiver: DRIFT_ORACLE_RECEIVER_ID,
+					encodedVaa: encodedVaaAddress,
+					priceFeed: getPythPullOraclePublicKey(this.program.programId, feedId),
+				},
+			}
+		);
 	}
 
 	public async getBuildEncodedVaaIxs(
