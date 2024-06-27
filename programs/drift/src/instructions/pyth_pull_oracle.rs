@@ -139,7 +139,7 @@ pub struct UpdatePythPullOraclePriceFeed<'info> {
     #[account(owner = wormhole_program::id() @ ErrorCode::OracleWrongVaaOwner)]
     pub encoded_vaa: AccountInfo<'info>,
     /// CHECK: This account's seeds are checked
-    #[account(mut, seeds = [PTYH_PRICE_FEED_SEED_PREFIX, &feed_id], bump)]
+    #[account(mut, seeds = [PTYH_PRICE_FEED_SEED_PREFIX, &feed_id], bump, owner = drift_oracle_receiver_program::id())]
     pub price_feed: AccountInfo<'info>,
 }
 

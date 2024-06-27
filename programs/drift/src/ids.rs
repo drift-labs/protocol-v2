@@ -1,4 +1,3 @@
-
 pub mod pyth_program {
     use solana_program::declare_id;
     #[cfg(feature = "mainnet-beta")]

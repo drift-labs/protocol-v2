@@ -128,7 +128,7 @@ import { getMarinadeDepositIx, getMarinadeFinanceProgram } from './marinade';
 import { getOrderParams } from './orderParams';
 import { numberToSafeBN } from './math/utils';
 import { TransactionParamProcessor } from './tx/txParamProcessor';
-import { isOracleValid } from './math/oracles';
+import { isOracleValid, trimVaaSignatures } from './math/oracles';
 import { TxHandler } from './tx/txHandler';
 import {
 	wormholeCoreBridgeIdl,
@@ -141,6 +141,9 @@ import {
 	getGuardianSetPda,
 } from '@pythnetwork/pyth-solana-receiver/lib/address';
 import { DRIFT_ORACLE_RECEIVER_ID } from './config';
+import { WormholeCoreBridgeSolana } from '@pythnetwork/pyth-solana-receiver/lib/idl/wormhole_core_bridge_solana';
+import { PythSolanaReceiver } from '@pythnetwork/pyth-solana-receiver/lib/idl/pyth_solana_receiver';
+import { getFeedIdUint8Array, trimFeedId } from './util/pythPullOracleUtils';
 
 type RemainingAccountParams = {
 	userAccounts: UserAccount[];
@@ -189,6 +192,9 @@ export class DriftClient {
 	enableMetricsEvents?: boolean;
 
 	txHandler: TxHandler;
+
+	receiverProgram?: Program<PythSolanaReceiver>;
+	wormholeProgram?: Program<WormholeCoreBridgeSolana>;
 
 	public get isSubscribed() {
 		return this._isSubscribed && this.accountSubscriber.isSubscribed;
@@ -6856,33 +6862,25 @@ export class DriftClient {
 		return undefined;
 	}
 
-	private trimSignatures(vaa: Buffer, n = 3): Buffer {
-		const currentNumSignatures = vaa[5];
-		if (n > currentNumSignatures) {
-			throw new Error(
-				"Resulting VAA can't have more signatures than the original VAA"
+	public getReceiverProgram(): Program<PythSolanaReceiver> {
+		if (this.receiverProgram === undefined) {
+			this.receiverProgram = new Program(
+				pythSolanaReceiverIdl,
+				DEFAULT_RECEIVER_PROGRAM_ID,
+				this.provider
 			);
 		}
-
-		const trimmedVaa = Buffer.concat([
-			vaa.subarray(0, 6 + n * 66),
-			vaa.subarray(6 + currentNumSignatures * 66),
-		]);
-
-		trimmedVaa[5] = n;
-		return trimmedVaa;
-	}
-
-	public hexToUint8Array(hex: string): Uint8Array {
-		return Uint8Array.from(Buffer.from(hex, 'hex'));
+		return this.receiverProgram;
 	}
 
 	public async postPythPullOracleUpdateAtomic(
 		vaaString: string,
 		feedId: string
 	): Promise<TransactionSignature> {
-
-		const postIxs = await this.getPostPythPullOracleUpdateAtomicIxs(vaaString, feedId);
+		const postIxs = await this.getPostPythPullOracleUpdateAtomicIxs(
+			vaaString,
+			feedId
+		);
 		const tx = await this.buildTransaction(postIxs);
 		const { txSig } = await this.sendTransaction(tx, [], this.opts);
 
@@ -6893,9 +6891,7 @@ export class DriftClient {
 		vaaString: string,
 		feedId: string
 	): Promise<TransactionInstruction[]> {
-		if (feedId.startsWith('0x')) {
-			feedId = feedId.slice(2);
-		}
+		feedId = trimFeedId(feedId);
 		const accumulatorUpdateData = parseAccumulatorUpdateData(
 			Buffer.from(vaaString, 'base64')
 		);
@@ -6904,7 +6900,7 @@ export class DriftClient {
 			guardianSetIndex,
 			DEFAULT_WORMHOLE_PROGRAM_ID
 		);
-		const trimmedVaa = this.trimSignatures(accumulatorUpdateData.vaa);
+		const trimmedVaa = trimVaaSignatures(accumulatorUpdateData.vaa);
 
 		const postIxs: TransactionInstruction[] = [];
 		for (const update of accumulatorUpdateData.updates) {
@@ -6934,16 +6930,8 @@ export class DriftClient {
 		feedId: string,
 		guardianSet: PublicKey
 	): Promise<TransactionInstruction> {
-		if (feedId.startsWith('0x')) {
-			feedId = feedId.slice(2);
-		}
-		const feedIdBuffer = this.hexToUint8Array(feedId);
-
-		const receiverProgram = new Program(
-			pythSolanaReceiverIdl,
-			DEFAULT_RECEIVER_PROGRAM_ID,
-			this.provider
-		);
+		const feedIdBuffer = getFeedIdUint8Array(feedId);
+		const receiverProgram = this.getReceiverProgram();
 
 		const encodedParams = receiverProgram.coder.types.encode(
 			'PostUpdateAtomicParams',
@@ -6958,7 +6946,10 @@ export class DriftClient {
 					keeper: this.wallet.publicKey,
 					pythSolanaReceiver: DRIFT_ORACLE_RECEIVER_ID,
 					guardianSet,
-					priceFeed: getPythPullOraclePublicKey(this.program.programId, feedIdBuffer),
+					priceFeed: getPythPullOraclePublicKey(
+						this.program.programId,
+						feedIdBuffer
+					),
 				},
 			}
 		);
@@ -6968,9 +6959,7 @@ export class DriftClient {
 		vaaString: string,
 		feedId: string
 	): Promise<TransactionSignature> {
-		if (feedId.startsWith('0x')) {
-			feedId = feedId.slice(2);
-		}
+		feedId = trimFeedId(feedId);
 		const accumulatorUpdateData = parseAccumulatorUpdateData(
 			Buffer.from(vaaString, 'base64')
 		);
@@ -7017,16 +7006,8 @@ export class DriftClient {
 		feedId: string,
 		encodedVaaAddress: PublicKey
 	): Promise<TransactionInstruction> {
-		if (feedId.startsWith('0x')) {
-			feedId = feedId.slice(2);
-		}
-		const feedIdBuffer = this.hexToUint8Array(feedId);
-
-		const receiverProgram = new Program(
-			pythSolanaReceiverIdl,
-			DEFAULT_RECEIVER_PROGRAM_ID,
-			this.provider
-		);
+		const feedIdBuffer = getFeedIdUint8Array(feedId);
+		const receiverProgram = this.getReceiverProgram();
 
 		const encodedParams = receiverProgram.coder.types.encode(
 			'PostUpdateParams',
@@ -7041,7 +7022,10 @@ export class DriftClient {
 					keeper: this.wallet.publicKey,
 					pythSolanaReceiver: DRIFT_ORACLE_RECEIVER_ID,
 					encodedVaa: encodedVaaAddress,
-					priceFeed: getPythPullOraclePublicKey(this.program.programId, feedIdBuffer),
+					priceFeed: getPythPullOraclePublicKey(
+						this.program.programId,
+						feedIdBuffer
+					),
 				},
 			}
 		);
@@ -7053,14 +7037,17 @@ export class DriftClient {
 	): Promise<[TransactionInstruction[], Keypair]> {
 		const postIxs: TransactionInstruction[] = [];
 
-		const wormholeProgram = new Program(
-			wormholeCoreBridgeIdl,
-			DEFAULT_WORMHOLE_PROGRAM_ID,
-			this.provider
-		);
+		if (this.wormholeProgram === undefined) {
+			this.wormholeProgram = new Program(
+				wormholeCoreBridgeIdl,
+				DEFAULT_WORMHOLE_PROGRAM_ID,
+				this.provider
+			);
+		}
+
 		const encodedVaaKeypair = new Keypair();
 		postIxs.push(
-			await wormholeProgram.account.encodedVaa.createInstruction(
+			await this.wormholeProgram.account.encodedVaa.createInstruction(
 				encodedVaaKeypair,
 				vaa.length + 46
 			)
@@ -7068,7 +7055,7 @@ export class DriftClient {
 
 		// Why do we need this too?
 		postIxs.push(
-			await wormholeProgram.methods
+			await this.wormholeProgram.methods
 				.initEncodedVaa()
 				.accounts({
 					encodedVaa: encodedVaaKeypair.publicKey,
@@ -7078,7 +7065,7 @@ export class DriftClient {
 
 		// Split the write into two ixs
 		postIxs.push(
-			await wormholeProgram.methods
+			await this.wormholeProgram.methods
 				.writeEncodedVaa({
 					index: 0,
 					data: vaa.subarray(0, 755),
@@ -7090,7 +7077,7 @@ export class DriftClient {
 		);
 
 		postIxs.push(
-			await wormholeProgram.methods
+			await this.wormholeProgram.methods
 				.writeEncodedVaa({
 					index: 755,
 					data: vaa.subarray(755),
@@ -7103,7 +7090,7 @@ export class DriftClient {
 
 		// Verify
 		postIxs.push(
-			await wormholeProgram.methods
+			await this.wormholeProgram.methods
 				.verifyEncodedVaaV1()
 				.accounts({
 					guardianSet,

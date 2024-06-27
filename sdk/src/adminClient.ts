@@ -46,6 +46,7 @@ import { calculateTargetPriceTrade } from './math/trade';
 import { calculateAmmReservesAfterSwap, getSwapDirection } from './math/amm';
 import { PROGRAM_ID as PHOENIX_PROGRAM_ID } from '@ellipsis-labs/phoenix-sdk';
 import { DRIFT_ORACLE_RECEIVER_ID } from './config';
+import { getFeedIdUint8Array } from './util/pythPullOracleUtils';
 
 export class AdminClient extends DriftClient {
 	public async initialize(
@@ -3547,20 +3548,23 @@ export class AdminClient extends DriftClient {
 	public async getInitializePythPullOracleIx(
 		feedId: string
 	): Promise<TransactionInstruction> {
-		if (feedId.startsWith('0x')) {
-			feedId = feedId.slice(2);
-		}
-		const feedIdBuffer = this.hexToUint8Array(feedId);
-		return await this.program.instruction.initializePythPullOracle(feedIdBuffer, {
-			accounts: {
-				admin: this.isSubscribed
-					? this.getStateAccount().admin
-					: this.wallet.publicKey,
-				state: await this.getStatePublicKey(),
-				systemProgram: SystemProgram.programId,
-				priceFeed: getPythPullOraclePublicKey(this.program.programId, feedIdBuffer),
-				pythSolanaReceiver: DRIFT_ORACLE_RECEIVER_ID,
-			},
-		});
+		const feedIdBuffer = getFeedIdUint8Array(feedId);
+		return await this.program.instruction.initializePythPullOracle(
+			feedIdBuffer,
+			{
+				accounts: {
+					admin: this.isSubscribed
+						? this.getStateAccount().admin
+						: this.wallet.publicKey,
+					state: await this.getStatePublicKey(),
+					systemProgram: SystemProgram.programId,
+					priceFeed: getPythPullOraclePublicKey(
+						this.program.programId,
+						feedIdBuffer
+					),
+					pythSolanaReceiver: DRIFT_ORACLE_RECEIVER_ID,
+				},
+			}
+		);
 	}
 }
