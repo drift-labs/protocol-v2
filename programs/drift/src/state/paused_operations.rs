@@ -40,13 +40,15 @@ impl PerpOperation {
 pub enum SpotOperation {
     UpdateCumulativeInterest = 0b00000001,
     Fill = 0b00000010,
-    Withdraw = 0b00000100,
-    Liquidation = 0b00001000,
+    Deposit = 0b00000100,
+    Withdraw = 0b00001000,
+    Liquidation = 0b00010000,
 }
 
-const ALL_SPOT_OPERATIONS: [SpotOperation; 4] = [
+const ALL_SPOT_OPERATIONS: [SpotOperation; 5] = [
     SpotOperation::UpdateCumulativeInterest,
     SpotOperation::Fill,
+    SpotOperation::Deposit,
     SpotOperation::Withdraw,
     SpotOperation::Liquidation,
 ];
