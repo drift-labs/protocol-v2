@@ -151,10 +151,12 @@ pub struct PostPythPullOracleUpdateAtomic <'info> {
     #[account(mut)]
     pub keeper:                Signer<'info>,
     pub pyth_solana_receiver: Program<'info, PythSolanaReceiver>,
+    /// CHECK: We can't use AccountVariant::<GuardianSet> here because its owner is hardcoded as the "official" Wormhole program
     #[account(
         owner = wormhole_program::id() @ ErrorCode::OracleWrongGuardianSetOwner)]
     pub guardian_set:         AccountInfo<'info>,
 
+    /// CHECK: This account's seeds are checked
     #[account(mut, owner = pyth_pull_program::id(), seeds = [PTYH_PRICE_FEED_SEED_PREFIX, &feed_id], bump)]
     pub price_feed: AccountInfo<'info>,
 }
