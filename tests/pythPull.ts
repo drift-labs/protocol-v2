@@ -1,22 +1,19 @@
 import * as anchor from '@coral-xyz/anchor';
 import { Program } from '@coral-xyz/anchor';
 import {
-	BASE_PRECISION,
-	BN,
-	MarketStatus,
 	OracleSource,
 	TestClient,
+	getPythPullOraclePublicKey
 } from '../sdk/src';
 import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
 import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
 import { startAnchor } from 'solana-bankrun';
 import { AccountInfo, LAMPORTS_PER_SOL, PublicKey } from '@solana/web3.js';
-import {DEFAULT_RECEIVER_PROGRAM_ID, DEFAULT_WORMHOLE_PROGRAM_ID} from '@pythnetwork/pyth-solana-receiver';
+import {DEFAULT_WORMHOLE_PROGRAM_ID} from '@pythnetwork/pyth-solana-receiver';
 import {
-	PYTH_ORACLE_ONE_DATA,
-	PYTH_ORACLE_TWO_DATA, WORMHOLE_DATA,
+	WORMHOLE_DATA,
 } from './pythPullOracleData';
-import { initializeQuoteSpotMarket, mockUSDCMint } from './testHelpers';
+import {initializeQuoteSpotMarket, mockUSDCMint} from './testHelpers';
 
 // set up account infos to load into banks client
 const GUARDIAN_SET_ACCOUNT_INFO: AccountInfo<Buffer> = {
@@ -29,14 +26,6 @@ const GUARDIAN_SET_ACCOUNT_INFO: AccountInfo<Buffer> = {
 
 const GUARDIAN_SET_KEY = new PublicKey("5gxPdahvSzcKySxXxPuRXZZ9s6h8hZ88XDVKavWpaQGn");
 
-// const PYTH_ORACLE_TWO: AccountInfo<Buffer> = {
-// 	executable: false,
-// 	lamports: LAMPORTS_PER_SOL,
-// 	owner: DEFAULT_RECEIVER_PROGRAM_ID,
-// 	rentEpoch: 0,
-// 	data: Buffer.from(PYTH_ORACLE_TWO_DATA, 'base64'),
-// };
-
 describe('pyth pull oracles', () => {
 	const chProgram = anchor.workspace.Drift as Program;
 
@@ -47,7 +36,8 @@ describe('pyth pull oracles', () => {
 	let bankrunContextWrapper: BankrunContextWrapper;
 	let usdcMint;
 
-	const feedId = "0xef0d8b6fda2ceba41da15d4095d1da392a0d2f8ed0c6c7bc0f4cfac8c280b56d";
+	const feedId = "0x2f2d17abbc1e781bd87b4a5d52c8b2856886f5c482fa3593cebf6795040ab0b6";
+	let feedAddress : PublicKey;
 
 	before(async () => {
 		// use bankrun builtin function to start solana program test
@@ -82,6 +72,9 @@ describe('pyth pull oracles', () => {
 
 		usdcMint = await mockUSDCMint(bankrunContextWrapper);
 
+		const feedIdBuffer = Uint8Array.from(Buffer.from(feedId, 'hex'));
+		feedAddress = getPythPullOraclePublicKey(chProgram.programId, feedIdBuffer);
+
 		driftClient = new TestClient({
 			// call toConnection to avoid annoying type error
 			connection: bankrunContextWrapper.connection.toConnection(),
@@ -95,7 +88,10 @@ describe('pyth pull oracles', () => {
 			perpMarketIndexes: [],
 			spotMarketIndexes: [0],
 			subAccountIds: [], // make sure to add [] for subaccounts or client will gpa
-			oracleInfos: [],
+			oracleInfos: [{
+				publicKey: feedAddress,
+				source: OracleSource.PYTH_PULL,
+			}],
 			// BANKRUN DOES NOT WORK WITH WEBSOCKET
 			accountSubscription: {
 				type: 'polling',
@@ -121,8 +117,7 @@ describe('pyth pull oracles', () => {
 
 
 	it('post atomic', async () => {
-		const vaa = "UE5BVQEAAAADuAEAAAAEDQHtSV9qUiGA0667/a8yaVhJgFJAbgXat0dffZzMrziwXFWsv0bIyuabmIDu6Lz5sucPfb5FVz3g/GieoOuoEi0CAQIxhffzXsCxksZqK7W4rqeetfV5WR6ycitojPYKF5FFcQzcBmC/QbUx6dvnSjCD1kVgpNP89WJD43cu88pq5IDJAANiocdw/C2DV+9BvOTNy2y1DMdYQWyd93FAO6CalGvdOF4dW5xPXvCq4rkmba/mkifiNhy6ZHrPe0C4Oh3mMI3zAQYIriW8Hkw9FmZ0XociAX3nKcJjvldx3ZwAhzD/CN+N6RuOzFqv5c9ClCGkj30P9OBrXXBNY+W02gJBOuVQlpawAQiGEJBui+1uqD6hKIlV75K5lQiIToHQzPs45qN+jwtIgyNp/8Hairu5HeRPJYw1EfFENbSw61+TOcymMrel5NWjAQmmvp4C21quaPzGjgVN1sOrKVowA+HRL+Sr8AYMFH3HOExI/BYah2+7PRzSDvHvtzdKXr/cQDx+/VamAB5qYSjGAQrnmpyA2sEI9EyELjUi52xlq/toCSLal5je6XOPDEojBniVe2k9aO4qqChGljyzA6xkBSE31NCV05B2eC9PTzQsAQtPom+dHqkIPOrbhTo0rC374id9UMN5honjp6EmZS2R5QrAlf1YOTcu4IIWBJAOOZIbaXF6mGqf3sZCCdUi5v7mAQwlrDajCXVIsrL2WwN6N9Y068MFaNy5SjRuHWEtKevLblTpGUJMiM8SBzy5l1U0XT2ZC1O0nQN0SMbCGjM6Z4DeAA1bzwhpCjosflUFHsQKtD09NrbFGVWr1GbGGSFqhcdqqQKRNIkasBWL6g+qp+hbWNXRr/qv+9n5Z34owHvgXFWIAQ7cQKeYakG/4m/jsM8hNHZn365ltJP4ztUzkVYELQmq8xBUPQQcxtGfmBv6n2udCkDTPiYT7EqR+8JCSUVPabF7AQ8hMWVKllzBuchlBApmtDajU5IVzBISyf++Wpcxpxgm9xauwQ+PvjrWvtvx+9N2Yz+RYaHADxuPVaPMLEEnMppZABIkj9D+/a4PrxxZr4esAzgVkSK+cuDfvNQoZoFegVZoaCNk8Uqqi9l5B1SfIyMmr6sVPl2jurXvkiu9+YwLCNC1AGZ9sbAAAAAAABrhAfrtrFhR4yubI7X5QRqMK6xKrj7U3XuBHdGnLqSqcQAAAAAD6ZL2AUFVV1YAAAAAAAj0BocAACcQHNRwd10gWTV1FL3k32AsTNWGzDcBAFUA7w2Lb9os66QdoV1AldHaOSoNL47Qxse8D0z6yMKAtW0AAAADeWdFoQAAAAAA711x////+AAAAABmfbGwAAAAAGZ9sa8AAAADcw3KXAAAAAAA9OK8Ch4X9U0GnbZwLpKjKNOs1iJG5YohNxlISRULzOMZHYrl35DKqiSZ1CIrRlFrOPKYubaeHlY2PtWm7J9Xw7IB2ZpB2PyhEc+diLa/gpzxMW19m6O2zCK5ONcdQTKRJO9iAPb+J9oLIhRfJnH3rMHprU2ZSsQzchIfVGATjhgkCpBRpiw3hTID3V02VG5pLooDIbj3R3IGY6pLZ+gL+Wyn9UAy/d+jrKHl7mKRk5XihiC4SsY88oPW6HG4llj1nkijxFS8LlkePZm3";
-		const txsig = await driftClient.postPythPullOracleUpdateAtomic(vaa, feedId);
-		console.log(txsig);
+		const vaa = "UE5BVQEAAAADuAEAAAAEDQBCMgHU9FQcIQcDeFlahVuIjFTV3Ga+h+mLNrjNtGudAVhCNf7nJQPI7+N+x5o9B52zFhydj5NfeiDVGyTTcgmBAQKIAWC+ENn58snD+mQy/n62kpDJKXgnRQsa34HzoqqGihWeG5E2ZuFsf3CRv8vAqi7OLnHvAUr0Iyh+ZqOC63HhAQOYwX+xZDyah05YVSJ8WRpcvGb5/ILnQBtaE+hLBhsQtQqzN+dnGPva5uHiU9HV4MheEacJgris2qbSQKXQI2QPAAS5TlKWIBEf61jOB4nUwywXTD8s4S71SnuMNzDb7EmgLzVn56Xi2+BHluI3mH70DLrdFeKtdN7/VWa8rHX/exAnAQai3i3ofNfIkakObv7GP0DVN6tqCetbt57oP5Ioer0Fo3rfNPTZfpeqixhu6Yg0TdjCTavB3S3pQD4r1BeFccagAQvsV3AkXvUWwspj30bGc+/yZKTaSwRkFsAdgGXGCVS/J0V40eGhqvx+EIuZlQnnWthtA83PELrOQ56WU7UivnFSAAwMd3AjpNMGEnrnsvupYSX6GUq5q8zff85LYJikJ3miQxLfc77QepaTmubOI/iTAtUbocy1cS7h7paqXR9NMf2AAA1sKdfW8d1tFsr0zJoEwBjCSMWnRIpiT/tOa4sKPnzF1zN6G0F1sEauCFMuIqKpgHUN0BZEiytiSEK8Xu4yVuuVAQ6s27zlTsMMy+Ku0pfFiVefhhJwdI8IdWLHIG0NaIJjHVYbVPA26kwBkpz2AMlcYM+bs5bELlAcStv5PKC5U2+nAA/TcNr+b77ui5+OBoIrnqL4k+5Q0ZNm58KQml+aDBwzuiCNm1um+RdZLbsYAtERItJ3o/2DV5mxK453KupXNrB8ARD/27EL0Csf7fWQlZKIDZPebny5jdW8LSLPqG0yU0/xCVaXjnyA7CktfW1N2aUP6SaRU7yk/z9iKoFv5tE+Ti+EARHZHKSGL3Q9e6dshpquRBo0kGQ0mihXeUuEEXFbrrS8UjnjcWoS/liligFYFyN9jE/JDBamEeXV9ZHl9tHYYQKgABLhScEt52h+pdTAeHH/kECTj5IeTRqcklzgD3dmVNymdGE4eXcjmvFxh7hXLSbSx/EpILAyzHRaKfe03N/1oFpNAGZ90fcAAAAAABrhAfrtrFhR4yubI7X5QRqMK6xKrj7U3XuBHdGnLqSqcQAAAAAD6d6rAUFVV1YAAAAAAAj0UkIAACcQILdMyJ7aEHG/UrkKF0N32va/y3ABAFUALy0Xq7weeBvYe0pdUsiyhWiG9cSC+jWTzr9nlQQKsLYAAAAAAHjmhQAAAAAAAHZV////+AAAAABmfdH3AAAAAGZ90fcAAAAAAHkdDQAAAAAAAI4BCp6vPuZHQJAkw6QVYM8r5LckP6y7M0O90/+uxk99a+3XUEcOu2o4iF2pu2Pfy+g3/hULrluX11aWCwkhjQIT8U3BApQtpkDlT0sGXKZCcaGmyuFVsVxcgoH6zxzEZ35ibCXKjFZgnfbSCyzF299o4VxAWBd0WA8XXTX6QpfKc3y8xgQ1tPn6OO2466XWD6ywYkZe7a2n52XCC6Vq0iG+cCY2G9eoZEPULNWAcamTIu6Xzbm+zTcv6ULsnbjhPAQ/8kcbpmYQPKRY";
+		await driftClient.postPythPullOracleUpdateAtomic(vaa, feedId);
 	});
 });
