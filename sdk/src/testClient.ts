@@ -10,8 +10,6 @@ export class TestClient extends AdminClient {
 			throw new Error('Test client must be polling');
 		}
 		super(config);
-		// @ts-ignore
-		this.txHandler.blockhashCommitment = 'recent';
 	}
 
 	async sendTransaction(
@@ -30,6 +28,7 @@ export class TestClient extends AdminClient {
 		let lastFetchedSlot = (
 			this.accountSubscriber as PollingDriftClientAccountSubscriber
 		).accountLoader.mostRecentSlot;
+		await this.fetchAccounts();
 		while (lastFetchedSlot < slot) {
 			await this.fetchAccounts();
 			lastFetchedSlot = (
