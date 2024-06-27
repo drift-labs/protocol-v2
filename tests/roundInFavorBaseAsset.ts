@@ -17,23 +17,20 @@ import { Keypair } from '@solana/web3.js';
 
 import {
 	initializeQuoteSpotMarket,
-	mockOracle,
+	mockOracleNoProgram,
 	mockUSDCMint,
 	mockUserUSDCAccount,
 } from './testHelpers';
-import { BulkAccountLoader } from '../sdk';
+import { startAnchor } from 'solana-bankrun';
+import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
+import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
 
 describe('round in favor', () => {
-	const provider = anchor.AnchorProvider.local(undefined, {
-		preflightCommitment: 'confirmed',
-		skipPreflight: false,
-		commitment: 'confirmed',
-	});
-	const connection = provider.connection;
-	anchor.setProvider(provider);
 	const chProgram = anchor.workspace.Drift as Program;
 
-	const bulkAccountLoader = new BulkAccountLoader(connection, 'confirmed', 1);
+	let bulkAccountLoader: TestBulkAccountLoader;
+
+	let bankrunContextWrapper: BankrunContextWrapper;
 
 	let usdcMint;
 
@@ -54,17 +51,27 @@ describe('round in favor', () => {
 	let oracleInfos;
 
 	before(async () => {
-		usdcMint = await mockUSDCMint(provider);
+		const context = await startAnchor('', [], []);
 
-		const solUsd = await mockOracle(63000);
+		bankrunContextWrapper = new BankrunContextWrapper(context);
+
+		bulkAccountLoader = new TestBulkAccountLoader(
+			bankrunContextWrapper.connection,
+			'processed',
+			1
+		);
+
+		usdcMint = await mockUSDCMint(bankrunContextWrapper);
+
+		const solUsd = await mockOracleNoProgram(bankrunContextWrapper, 63000);
 
 		marketIndexes = [0];
 		spotMarketIndexes = [0];
 		oracleInfos = [{ publicKey: solUsd, source: OracleSource.PYTH }];
 
 		primaryDriftClient = new TestClient({
-			connection,
-			wallet: provider.wallet,
+			connection: bankrunContextWrapper.connection.toConnection(),
+			wallet: bankrunContextWrapper.provider.wallet,
 			programID: chProgram.programId,
 			opts: {
 				commitment: 'confirmed',
@@ -72,6 +79,7 @@ describe('round in favor', () => {
 			activeSubAccountId: 0,
 			perpMarketIndexes: marketIndexes,
 			spotMarketIndexes: spotMarketIndexes,
+			subAccountIds: [],
 			oracleInfos,
 			accountSubscription: {
 				type: 'polling',
@@ -103,16 +111,16 @@ describe('round in favor', () => {
 
 	it('short', async () => {
 		const keypair = new Keypair();
-		await provider.connection.requestAirdrop(keypair.publicKey, 10 ** 9);
+		await bankrunContextWrapper.fundKeypair(keypair, 10 ** 9);
 		const wallet = new Wallet(keypair);
 		const userUSDCAccount = await mockUserUSDCAccount(
 			usdcMint,
 			usdcAmount,
-			provider,
+			bankrunContextWrapper,
 			keypair.publicKey
 		);
 		const driftClient = new TestClient({
-			connection,
+			connection: bankrunContextWrapper.connection.toConnection(),
 			wallet,
 			programID: chProgram.programId,
 			opts: {
@@ -121,6 +129,7 @@ describe('round in favor', () => {
 			activeSubAccountId: 0,
 			perpMarketIndexes: marketIndexes,
 			spotMarketIndexes: spotMarketIndexes,
+			subAccountIds: [],
 			oracleInfos,
 			accountSubscription: {
 				type: 'polling',
@@ -163,16 +172,16 @@ describe('round in favor', () => {
 
 	it('long', async () => {
 		const keypair = new Keypair();
-		await provider.connection.requestAirdrop(keypair.publicKey, 10 ** 9);
+		await bankrunContextWrapper.fundKeypair(keypair, 10 ** 9);
 		const wallet = new Wallet(keypair);
 		const userUSDCAccount = await mockUserUSDCAccount(
 			usdcMint,
 			usdcAmount,
-			provider,
+			bankrunContextWrapper,
 			keypair.publicKey
 		);
 		const driftClient = new TestClient({
-			connection,
+			connection: bankrunContextWrapper.connection.toConnection(),
 			wallet,
 			programID: chProgram.programId,
 			opts: {
@@ -181,6 +190,7 @@ describe('round in favor', () => {
 			activeSubAccountId: 0,
 			perpMarketIndexes: marketIndexes,
 			spotMarketIndexes: spotMarketIndexes,
+			subAccountIds: [],
 			oracleInfos,
 			accountSubscription: {
 				type: 'polling',

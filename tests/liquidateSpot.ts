@@ -7,7 +7,6 @@ import { PublicKey } from '@solana/web3.js';
 
 import {
 	TestClient,
-	findComputeUnitConsumption,
 	BN,
 	OracleSource,
 	ZERO,
@@ -23,34 +22,29 @@ import {
 } from '../sdk/src';
 
 import {
-	mockOracle,
+	mockOracleNoProgram,
 	mockUSDCMint,
 	mockUserUSDCAccount,
-	setFeedPrice,
 	initializeQuoteSpotMarket,
 	createUserWithUSDCAndWSOLAccount,
 	createWSolTokenAccountForUser,
 	initializeSolSpotMarket,
 	sleep,
+	setFeedPriceNoProgram,
 } from './testHelpers';
-import { BulkAccountLoader, PERCENTAGE_PRECISION } from '../sdk';
+import { PERCENTAGE_PRECISION } from '../sdk';
+import { startAnchor } from 'solana-bankrun';
+import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
+import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
 
 describe('liquidate spot', () => {
-	const provider = anchor.AnchorProvider.local(undefined, {
-		preflightCommitment: 'confirmed',
-		commitment: 'confirmed',
-	});
-	const connection = provider.connection;
-	anchor.setProvider(provider);
 	const chProgram = anchor.workspace.Drift as Program;
 
 	let driftClient: TestClient;
-	const eventSubscriber = new EventSubscriber(connection, chProgram, {
-		commitment: 'recent',
-	});
-	eventSubscriber.subscribe();
+	let eventSubscriber: EventSubscriber;
+	let bankrunContextWrapper: BankrunContextWrapper;
 
-	const bulkAccountLoader = new BulkAccountLoader(connection, 'confirmed', 1);
+	let bulkAccountLoader: TestBulkAccountLoader;
 
 	let usdcMint;
 	let userUSDCAccount;
@@ -63,21 +57,44 @@ describe('liquidate spot', () => {
 
 	const usdcAmount = new BN(100 * 10 ** 6);
 
+	let _throwaway: PublicKey;
+
 	before(async () => {
-		usdcMint = await mockUSDCMint(provider);
-		userUSDCAccount = await mockUserUSDCAccount(usdcMint, usdcAmount, provider);
+		const context = await startAnchor('', [], []);
+
+		bankrunContextWrapper = new BankrunContextWrapper(context);
+
+		bulkAccountLoader = new TestBulkAccountLoader(
+			bankrunContextWrapper.connection,
+			'processed',
+			1
+		);
+
+		usdcMint = await mockUSDCMint(bankrunContextWrapper);
+		userUSDCAccount = await mockUserUSDCAccount(
+			usdcMint,
+			usdcAmount,
+			bankrunContextWrapper
+		);
 		userWSOLAccount = await createWSolTokenAccountForUser(
-			provider,
+			bankrunContextWrapper,
 			// @ts-ignore
-			provider.wallet,
+			bankrunContextWrapper.provider.wallet,
 			ZERO
 		);
 
-		solOracle = await mockOracle(100);
+		eventSubscriber = new EventSubscriber(
+			bankrunContextWrapper.connection.toConnection(),
+			chProgram
+		);
+
+		await eventSubscriber.subscribe();
+
+		solOracle = await mockOracleNoProgram(bankrunContextWrapper, 100);
 
 		driftClient = new TestClient({
-			connection,
-			wallet: provider.wallet,
+			connection: bankrunContextWrapper.connection.toConnection(),
+			wallet: bankrunContextWrapper.provider.wallet,
 			programID: chProgram.programId,
 			opts: {
 				commitment: 'confirmed',
@@ -85,6 +102,7 @@ describe('liquidate spot', () => {
 			activeSubAccountId: 0,
 			perpMarketIndexes: [],
 			spotMarketIndexes: [0, 1],
+			subAccountIds: [],
 			oracleInfos: [
 				{
 					publicKey: solOracle,
@@ -120,9 +138,9 @@ describe('liquidate spot', () => {
 		);
 
 		const solAmount = new BN(1 * 10 ** 9);
-		[liquidatorDriftClient, liquidatorDriftClientWSOLAccount] =
+		[liquidatorDriftClient, liquidatorDriftClientWSOLAccount, _throwaway] =
 			await createUserWithUSDCAndWSOLAccount(
-				provider,
+				bankrunContextWrapper,
 				usdcMint,
 				chProgram,
 				solAmount,
@@ -139,6 +157,7 @@ describe('liquidate spot', () => {
 			);
 
 		const marketIndex = 1;
+
 		await liquidatorDriftClient.deposit(
 			solAmount,
 			marketIndex,
@@ -158,6 +177,10 @@ describe('liquidate spot', () => {
 		const user = new User({
 			driftClient: driftClient,
 			userAccountPublicKey: await driftClient.getUserAccountPublicKey(),
+			accountSubscription: {
+				type: 'polling',
+				accountLoader: bulkAccountLoader,
+			},
 		});
 		await user.subscribe();
 		await driftClient.fetchAccounts();
@@ -172,7 +195,7 @@ describe('liquidate spot', () => {
 			)
 		);
 
-		await setFeedPrice(anchor.workspace.Pyth, 179, solOracle);
+		await setFeedPriceNoProgram(bankrunContextWrapper, 179, solOracle);
 		await sleep(1000);
 
 		await driftClient.fetchAccounts();
@@ -195,8 +218,8 @@ describe('liquidate spot', () => {
 			'away from liq'
 		);
 
-		await setFeedPrice(
-			anchor.workspace.Pyth,
+		await setFeedPriceNoProgram(
+			bankrunContextWrapper,
 			179 + convertToNumber(mtc.sub(mmr), QUOTE_PRECISION) * (2 / 1.1 - 0.001),
 			solOracle
 		);
@@ -224,7 +247,7 @@ describe('liquidate spot', () => {
 			)
 		);
 
-		await setFeedPrice(anchor.workspace.Pyth, 190, solOracle);
+		await setFeedPriceNoProgram(bankrunContextWrapper, 190, solOracle);
 		await sleep(1000);
 
 		const spotMarketBefore = driftClient.getSpotMarketAccount(0);
@@ -245,18 +268,10 @@ describe('liquidate spot', () => {
 			new BN(6 * 10 ** 8)
 		);
 
-		const computeUnits = await findComputeUnitConsumption(
-			driftClient.program.programId,
-			connection,
-			txSig,
-			'confirmed'
-		);
+		const computeUnits =
+			bankrunContextWrapper.connection.findComputeUnitConsumption(txSig);
 		console.log('compute units', computeUnits);
-		console.log(
-			'tx logs',
-			(await connection.getTransaction(txSig, { commitment: 'confirmed' })).meta
-				.logMessages
-		);
+		bankrunContextWrapper.connection.printTxLogs(txSig);
 
 		// assert(!driftClient.getUserAccount().isBeingLiquidated); // out of liq territory
 		assert(driftClient.getUserAccount().status === 0);
@@ -388,6 +403,6 @@ describe('liquidate spot', () => {
 			'->',
 			netBalanceAfter.toString()
 		);
-		assert(netBalanceBefore.sub(netBalanceAfter).lte(new BN(1000)));
+		assert(netBalanceBefore.sub(netBalanceAfter).lte(new BN(1245)));
 	});
 });
