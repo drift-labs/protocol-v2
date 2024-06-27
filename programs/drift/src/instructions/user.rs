@@ -93,7 +93,7 @@ pub fn handle_initialize_user<'c: 'info, 'info>(
     user_stats.number_of_sub_accounts = user_stats.number_of_sub_accounts.safe_add(1)?;
 
     // Only try to add referrer if it is the first user
-    if user_stats.number_of_sub_accounts == 1 {
+    if user_stats.number_of_sub_accounts_created == 0 {
         let (referrer, referrer_stats) = get_referrer_and_referrer_stats(remaining_accounts_iter)?;
         let referrer = if let (Some(referrer), Some(referrer_stats)) = (referrer, referrer_stats) {
             let referrer = load!(referrer)?;
