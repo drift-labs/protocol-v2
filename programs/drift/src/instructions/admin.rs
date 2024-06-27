@@ -3449,15 +3449,15 @@ pub fn handle_initialize_pyth_pull_oracle(
     let cpi_program = ctx.accounts.pyth_solana_receiver.to_account_info().clone();
     let cpi_accounts = InitPriceUpdate {
         payer:                ctx.accounts.payer.to_account_info().clone(),
-        price_update_account: ctx.accounts.price_feed_account.to_account_info().clone(),
+        price_update_account: ctx.accounts.price_feed.to_account_info().clone(),
         system_program:       ctx.accounts.system_program.to_account_info().clone(),
-        write_authority:      ctx.accounts.price_feed_account.to_account_info().clone(),
+        write_authority:      ctx.accounts.price_feed.to_account_info().clone(),
     };
 
     let seeds = &[
         PTYH_PRICE_FEED_SEED_PREFIX,
         feed_id.as_ref(),
-        &[ctx.bumps.price_feed_account],
+        &[ctx.bumps.price_feed],
     ];
     let signer_seeds = &[&seeds[..]];
     let cpi_context = CpiContext::new_with_signer(cpi_program, cpi_accounts, signer_seeds);
@@ -3979,7 +3979,7 @@ pub struct DeletePrelaunchOracle<'info> {
 }
 
 #[derive(Accounts)]
-#[instruction(feed_id : FeedId)]
+#[instruction(feed_id : [u8; 32])]
 pub struct InitPriceFeed<'info> {
     #[account(mut)]
     pub admin: Signer<'info>,
@@ -3990,7 +3990,7 @@ pub struct InitPriceFeed<'info> {
     pub config:               AccountInfo<'info>,
     /// CHECK: This account's seeds are checked
     #[account(mut, seeds = [PTYH_PRICE_FEED_SEED_PREFIX, &feed_id], bump)]
-    pub price_feed_account:   AccountInfo<'info>,
+    pub price_feed:   AccountInfo<'info>,
     pub system_program:       Program<'info, System>,
     #[account(
         has_one = admin
