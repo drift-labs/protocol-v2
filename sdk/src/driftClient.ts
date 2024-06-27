@@ -6890,7 +6890,7 @@ export class DriftClient {
 					{
 						vaa: trimmedVaa,
 						merklePriceUpdate: update,
-						treasuryId: 0,
+						treasuryId: 0, // only for cpi struct conforming -- is this necessary?
 					},
 					feedId,
 					guardianSet
@@ -6950,7 +6950,7 @@ export class DriftClient {
 
 		for (const update of accumulatorUpdateData.updates) {
 			postIxs.push(
-				await this.getUpdatePythPullOracleIx(
+				await this.getUpdatePythPullOracleIxs(
 					{
 						merklePriceUpdate: update,
 						treasuryId: 0,
@@ -6971,7 +6971,7 @@ export class DriftClient {
 		return txSig;
 	}
 
-	public async getUpdatePythPullOracleIx(
+	public async getUpdatePythPullOracleIxs(
 		params: {
 			merklePriceUpdate: {
 				message: Buffer;
