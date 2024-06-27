@@ -130,7 +130,11 @@ import { numberToSafeBN } from './math/utils';
 import { TransactionParamProcessor } from './tx/txParamProcessor';
 import { isOracleValid } from './math/oracles';
 import { TxHandler } from './tx/txHandler';
-import { wormholeCoreBridgeIdl } from '@pythnetwork/pyth-solana-receiver';
+import {
+	wormholeCoreBridgeIdl,
+	pythSolanaReceiverIdl,
+	DEFAULT_RECEIVER_PROGRAM_ID
+} from '@pythnetwork/pyth-solana-receiver';
 import { parseAccumulatorUpdateData } from '@pythnetwork/price-service-sdk';
 import {
 	DEFAULT_WORMHOLE_PROGRAM_ID,
@@ -6928,9 +6932,17 @@ export class DriftClient {
 		guardianSet: PublicKey
 	): Promise<TransactionInstruction> {
 		const feedIdBuffer = this.hexToUint8Array(feedId);
+
+		const receiverProgram = new Program(
+			pythSolanaReceiverIdl,
+			DEFAULT_RECEIVER_PROGRAM_ID,
+		);
+
+		const encodedParams = receiverProgram.coder.types.encode('PostUpdateAtomicParams', params);
+
 		return this.program.instruction.postPythPullOracleUpdateAtomic(
-			params,
 			feedIdBuffer,
+			encodedParams,
 			{
 				accounts: {
 					keeper: this.wallet.publicKey,
@@ -6995,7 +7007,15 @@ export class DriftClient {
 		encodedVaaAddress: PublicKey
 	): Promise<TransactionInstruction> {
 		const feedIdBuffer = this.hexToUint8Array(feedId);
-		return this.program.instruction.updatePythPullOracle(params, feedIdBuffer, {
+
+		const receiverProgram = new Program(
+			pythSolanaReceiverIdl,
+			DEFAULT_RECEIVER_PROGRAM_ID,
+		);
+
+		const encodedParams = receiverProgram.coder.types.encode('PostUpdateParams', params);
+
+		return this.program.instruction.updatePythPullOracle(feedIdBuffer, encodedParams, {
 			accounts: {
 				keeper: this.wallet.publicKey,
 				pythSolanaReceiver: DRIFT_ORACLE_RECEIVER_ID,
