@@ -1,6 +1,6 @@
 if [ "$1" != "--skip-build" ]
   then
-    anchor build -- --features anchor-test && anchor test --skip-build &&
+    anchor build -- --features anchor-test && anchor test --skip-build --skip-local-validator &&
     cp target/idl/drift.json sdk/src/idl/
 fi
 
