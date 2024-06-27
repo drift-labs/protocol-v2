@@ -70,7 +70,7 @@ export class TxHandler {
 	private onSignedCb?: (txSigs: DriftClientMetricsEvents['txSigned']) => void;
 
 	private blockhashCommitment: Commitment = 'finalized';
-	private blockHashFetcher : CachedBlockhashFetcher;
+	private blockHashFetcher: CachedBlockhashFetcher;
 
 	constructor(props: {
 		connection: Connection;
@@ -85,7 +85,13 @@ export class TxHandler {
 		this.connection = props.connection;
 		this.wallet = props.wallet;
 		this.confirmationOptions = props.confirmationOptions;
-		this.blockHashFetcher = new CachedBlockhashFetcher(this.connection, this.blockhashCommitment, BLOCKHASH_FETCH_RETRY_COUNT, BLOCKHASH_FETCH_RETRY_SLEEP, RECENT_BLOCKHASH_STALE_TIME_MS);
+		this.blockHashFetcher = new CachedBlockhashFetcher(
+			this.connection,
+			this.blockhashCommitment,
+			BLOCKHASH_FETCH_RETRY_COUNT,
+			BLOCKHASH_FETCH_RETRY_SLEEP,
+			RECENT_BLOCKHASH_STALE_TIME_MS
+		);
 
 		// #Optionals
 		this.returnBlockHeightsWithSignedTxCallbackData =
