@@ -22,6 +22,7 @@ use std::slice::Iter;
 use super::state::ValidityGuardRails;
 use crate::math::safe_unwrap::SafeUnwrap;
 use crate::state::traits::Size;
+use crate::validate;
 
 pub struct AccountInfoAndOracleSource<'a> {
     /// CHECK: ownders are validated in OracleMap::load
@@ -399,6 +400,14 @@ impl<'a> OracleMap<'a> {
                 has_sufficient_number_of_data_points: true,
             },
         })
+    }
+
+    pub fn validate_oracle_account_info<'c>(account_info: &'c AccountInfo<'a>) -> DriftResult {
+        validate!(
+            OracleMap::load_one(account_info, 0, None)?.oracles.len() == 1,
+            ErrorCode::InvalidOracle,
+            "oracle owner not recognizable"
+        )
     }
 }
 
