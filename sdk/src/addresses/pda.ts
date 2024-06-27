@@ -240,14 +240,10 @@ export function getPrelaunchOraclePublicKey(
 
 export function getPythPullOraclePublicKey(
 	progarmId: PublicKey,
-	feedId: string
+	feedId: Uint8Array
 ): PublicKey {
-	if (feedId.startsWith('0x')) {
-		feedId = feedId.slice(2);
-	}
-	const hash = crypto.createHash('sha256').update(feedId).digest();
 	return PublicKey.findProgramAddressSync(
-		[Buffer.from(anchor.utils.bytes.utf8.encode('pyth_pull')), hash],
+		[Buffer.from(anchor.utils.bytes.utf8.encode('pyth_pull')), Buffer.from(feedId)],
 		progarmId
 	)[0];
 }

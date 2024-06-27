@@ -3547,16 +3547,20 @@ export class AdminClient extends DriftClient {
 	public async getInitializePythPullOracleIx(
 		feedId: string
 	): Promise<TransactionInstruction> {
-		return await this.program.instruction.initializePythPullOracle(feedId, {
+		if (feedId.startsWith('0x')) {
+			feedId = feedId.slice(2);
+		}
+		const feedIdBuffer = this.hexToUint8Array(feedId);
+		return await this.program.instruction.initializePythPullOracle(feedIdBuffer, {
 			accounts: {
 				admin: this.isSubscribed
 					? this.getStateAccount().admin
 					: this.wallet.publicKey,
 				state: await this.getStatePublicKey(),
 				systemProgram: SystemProgram.programId,
-				priceFeed: getPythPullOraclePublicKey(this.program.programId, feedId),
+				priceFeed: getPythPullOraclePublicKey(this.program.programId, feedIdBuffer),
 				// Need to change when we create our own receiver program
-				pythSolanaReceiver: DEFAULT_RECEIVER_PROGRAM_ID,
+				pythSolanaReceiver: new PublicKey("G6EoTTTgpkNBtVXo96EQp2m6uwwVh2Kt6YidjkmQqoha"),
 			},
 		});
 	}

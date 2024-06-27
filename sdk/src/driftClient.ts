@@ -6873,15 +6873,8 @@ export class DriftClient {
 		return trimmedVaa;
 	}
 
-	private hexToUint8Array(hex: string): Uint8Array {
-		if (hex.length !== 64) {
-			throw new Error('Invalid hex length for FeedId');
-		}
-		const arr = new Uint8Array(32);
-		for (let i = 0; i < 32; i++) {
-			arr[i] = parseInt(hex.slice(i * 2, 2), 16);
-		}
-		return arr;
+	public hexToUint8Array(hex: string): Uint8Array {
+		return Uint8Array.from(Buffer.from(hex, 'hex'));
 	}
 
 	public async postPythPullOracleUpdateAtomic(
@@ -6957,7 +6950,7 @@ export class DriftClient {
 					keeper: this.wallet.publicKey,
 					pythSolanaReceiver: DRIFT_ORACLE_RECEIVER_ID,
 					guardianSet,
-					priceFeed: getPythPullOraclePublicKey(this.program.programId, feedId),
+					priceFeed: getPythPullOraclePublicKey(this.program.programId, feedIdBuffer),
 				},
 			}
 		);
@@ -7041,7 +7034,7 @@ export class DriftClient {
 					keeper: this.wallet.publicKey,
 					pythSolanaReceiver: DRIFT_ORACLE_RECEIVER_ID,
 					encodedVaa: encodedVaaAddress,
-					priceFeed: getPythPullOraclePublicKey(this.program.programId, feedId),
+					priceFeed: getPythPullOraclePublicKey(this.program.programId, feedIdBuffer),
 				},
 			}
 		);
