@@ -6852,7 +6852,7 @@ export class DriftClient {
 		return undefined;
 	}
 
-	public trimSignatures(vaa: Buffer, n = 3): Buffer {
+	private trimSignatures(vaa: Buffer, n = 3): Buffer {
 		const currentNumSignatures = vaa[5];
 		if (n > currentNumSignatures) {
 			throw new Error(
@@ -6867,6 +6867,17 @@ export class DriftClient {
 
 		trimmedVaa[5] = n;
 		return trimmedVaa;
+	}
+
+	private hexToUint8Array(hex: string): Uint8Array {
+		if (hex.length !== 64) {
+			throw new Error('Invalid hex length for FeedId');
+		}
+		const arr = new Uint8Array(32);
+		for (let i = 0; i < 32; i++) {
+			arr[i] = parseInt(hex.slice(i * 2, 2), 16);
+		}
+		return arr;
 	}
 
 	public async postPythPullOracleUpdateAtomic(
@@ -6916,9 +6927,10 @@ export class DriftClient {
 		feedId: string,
 		guardianSet: PublicKey
 	): Promise<TransactionInstruction> {
+		const feedIdBuffer = this.hexToUint8Array(feedId);
 		return this.program.instruction.postPythPullOracleUpdateAtomic(
 			params,
-			feedId,
+			feedIdBuffer,
 			{
 				accounts: {
 					keeper: this.wallet.publicKey,
@@ -6982,7 +6994,8 @@ export class DriftClient {
 		feedId: string,
 		encodedVaaAddress: PublicKey
 	): Promise<TransactionInstruction> {
-		return this.program.instruction.updatePythPullOracle(params, feedId, {
+		const feedIdBuffer = this.hexToUint8Array(feedId);
+		return this.program.instruction.updatePythPullOracle(params, feedIdBuffer, {
 			accounts: {
 				keeper: this.wallet.publicKey,
 				pythSolanaReceiver: DEFAULT_RECEIVER_PROGRAM_ID,
