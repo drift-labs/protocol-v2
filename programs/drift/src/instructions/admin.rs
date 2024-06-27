@@ -8,7 +8,10 @@ use pyth_solana_receiver_sdk::cpi::accounts::InitPriceUpdate;
 use pyth_solana_receiver_sdk::program::PythSolanaReceiver;
 use pythnet_sdk::messages::FeedId;
 use serum_dex::state::ToAlignedBytes;
-use solana_program::msg;
+use solana_program::{
+    msg,
+    system_program
+};
 
 use crate::controller::token::close_vault;
 use crate::error::ErrorCode;
@@ -3448,7 +3451,7 @@ pub fn handle_initialize_pyth_pull_oracle(
 ) -> Result<()> {
     let cpi_program = ctx.accounts.pyth_solana_receiver.to_account_info().clone();
     let cpi_accounts = InitPriceUpdate {
-        payer:                ctx.accounts.payer.to_account_info().clone(),
+        payer:                ctx.accounts.admin.to_account_info().clone(),
         price_update_account: ctx.accounts.price_feed.to_account_info().clone(),
         system_program:       ctx.accounts.system_program.to_account_info().clone(),
         write_authority:      ctx.accounts.price_feed.to_account_info().clone(),
@@ -3983,14 +3986,11 @@ pub struct DeletePrelaunchOracle<'info> {
 pub struct InitPriceFeed<'info> {
     #[account(mut)]
     pub admin: Signer<'info>,
-    #[account(mut)]
-    pub payer:                Signer<'info>,
     pub pyth_solana_receiver: Program<'info, PythSolanaReceiver>,
-    /// CHECK: Checked by CPI into the Pyth Solana Receiver
-    pub config:               AccountInfo<'info>,
     /// CHECK: This account's seeds are checked
     #[account(mut, seeds = [PTYH_PRICE_FEED_SEED_PREFIX, &feed_id], bump)]
     pub price_feed:   AccountInfo<'info>,
+    #[account(constraint=system_program.key == &system_program::ID)]
     pub system_program:       Program<'info, System>,
     #[account(
         has_one = admin

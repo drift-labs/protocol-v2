@@ -1,5 +1,6 @@
 import {
 	PublicKey,
+	SystemProgram,
 	SYSVAR_RENT_PUBKEY,
 	TransactionInstruction,
 	TransactionSignature,
@@ -28,6 +29,7 @@ import {
 	getPhoenixFulfillmentConfigPublicKey,
 	getProtocolIfSharesTransferConfigPublicKey,
 	getPrelaunchOraclePublicKey,
+	getPythPullOraclePublicKey,
 } from './addresses/pda';
 import { squareRootBN } from './math/utils';
 import { TOKEN_PROGRAM_ID } from '@solana/spl-token';
@@ -43,6 +45,7 @@ import {
 import { calculateTargetPriceTrade } from './math/trade';
 import { calculateAmmReservesAfterSwap, getSwapDirection } from './math/amm';
 import { PROGRAM_ID as PHOENIX_PROGRAM_ID } from '@ellipsis-labs/phoenix-sdk';
+import { DEFAULT_RECEIVER_PROGRAM_ID } from '@pythnetwork/pyth-solana-receiver';
 
 export class AdminClient extends DriftClient {
 	public async initialize(
@@ -3525,6 +3528,35 @@ export class AdminClient extends DriftClient {
 					this.program.programId,
 					perpMarketIndex
 				),
+			},
+		});
+	}
+
+	public async initializePythPullOracle(
+		feedId: string
+	): Promise<TransactionSignature> {
+		const initializePythPullOracleIx = await this.getInitializePythPullOracleIx(
+			feedId
+		);
+		const tx = await this.buildTransaction(initializePythPullOracleIx);
+		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+
+		return txSig;
+	}
+
+	public async getInitializePythPullOracleIx(
+		feedId: string
+	): Promise<TransactionInstruction> {
+		return await this.program.instruction.initializePythPullOracle(feedId, {
+			accounts: {
+				admin: this.isSubscribed
+					? this.getStateAccount().admin
+					: this.wallet.publicKey,
+				state: await this.getStatePublicKey(),
+				systemProgram: SystemProgram.programId,
+				priceFeed: getPythPullOraclePublicKey(this.program.programId, feedId),
+				// Need to change when we create our own receiver program
+				pythSolanaReceiver: DEFAULT_RECEIVER_PROGRAM_ID,
 			},
 		});
 	}
