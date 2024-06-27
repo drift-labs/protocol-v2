@@ -4,6 +4,13 @@ import {
     Connection
 } from '@solana/web3.js';
 
+/**
+ * Fetches the latest blockhash and caches it for a configurable amount of time.
+ * 
+ * - Prevents RPC spam by reusing cached values
+ * - Retries on failure with exponential backoff
+ * - Prevents concurrent requests for the same blockhash
+ */
 export class CachedBlockhashFetcher {
     private recentBlockhashCache: {
       value: BlockhashWithExpiryBlockHeight | undefined;
