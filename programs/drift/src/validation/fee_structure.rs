@@ -31,7 +31,7 @@ pub fn validate_fee_structure(fee_structure: &FeeStructure) -> DriftResult {
     )?;
 
     validate!(
-        fee_structure.flat_filler_fee <= OPEN_ORDER_MARGIN_REQUIREMENT as u64,
+        fee_structure.flat_filler_fee < OPEN_ORDER_MARGIN_REQUIREMENT as u64 / 2,
         ErrorCode::InvalidFeeStructure,
         "invalid flat filler fee {}",
         fee_structure.flat_filler_fee
