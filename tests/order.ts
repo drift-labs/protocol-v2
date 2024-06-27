@@ -136,6 +136,7 @@ describe('orders', () => {
 		const marketIndexes = [marketIndex, marketIndexBTC, marketIndexEth];
 		const bankIndexes = [0];
 		const oracleInfos = [
+			{ publicKey: PublicKey.default, source: OracleSource.QUOTE_ASSET }
 			{ publicKey: solUsd, source: OracleSource.PYTH },
 			{ publicKey: btcUsd, source: OracleSource.PYTH },
 			{ publicKey: ethUsd, source: OracleSource.PYTH },
@@ -164,9 +165,6 @@ describe('orders', () => {
 		await driftClient.updatePerpAuctionDuration(new BN(0));
 
 		console.log(bulkAccountLoader.mostRecentSlot);
-		console.log('quote oracle', driftClient.getSpotMarketAccount(0).oracle.toBase58());
-		console.log('quote oracle buffer', bulkAccountLoader.getBufferAndSlot(driftClient.getSpotMarketAccount(0).oracle));
-
 
 		const periodicity = new BN(60 * 60); // 1 HOUR
 
@@ -817,10 +815,6 @@ describe('orders', () => {
 	});
 
 	it('Max leverage fill limit short order', async () => {
-		console.log(bulkAccountLoader.mostRecentSlot);
-		console.log('quote oracle', driftClient.getSpotMarketAccount(0).oracle.toBase58());
-		console.log('quote oracle buffer', bulkAccountLoader.getBufferAndSlot(driftClient.getSpotMarketAccount(0).oracle));
-		
 		//todo, partial fill wont work on order too large
 		const userLeverage0 = driftClientUser.getLeverage();
 		console.log(
