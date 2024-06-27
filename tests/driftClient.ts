@@ -7,7 +7,6 @@ import {
 	PerpMarketAccount,
 	OracleSource,
 	ZERO,
-	BulkAccountLoader,
 } from '../sdk';
 
 import { Program } from '@coral-xyz/anchor';
@@ -26,33 +25,25 @@ import {
 import {
 	mockUSDCMint,
 	mockUserUSDCAccount,
-	mockOracle,
-	setFeedPrice,
+	mockOracleNoProgram,
+	setFeedPriceNoProgram,
 	initializeQuoteSpotMarket,
-	getTokenAmountAsBN,
 	mintUSDCToUser,
-	printTxLogs,
 	sleep,
 } from './testHelpers';
-import { getAccount } from '@solana/spl-token';
+import { startAnchor } from 'solana-bankrun';
+import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
+import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
 
 describe('drift client', () => {
-	const provider = anchor.AnchorProvider.local(undefined, {
-		preflightCommitment: 'confirmed',
-		skipPreflight: false,
-		commitment: 'confirmed',
-	});
-	const connection = provider.connection;
-	anchor.setProvider(provider);
 	const chProgram = anchor.workspace.Drift as Program;
 
 	let driftClient: TestClient;
-	const eventSubscriber = new EventSubscriber(connection, chProgram, {
-		commitment: 'recent',
-	});
-	eventSubscriber.subscribe();
+	let eventSubscriber: EventSubscriber;
 
-	const bulkAccountLoader = new BulkAccountLoader(connection, 'confirmed', 1);
+	let bankrunContextWrapper: BankrunContextWrapper;
+
+	let bulkAccountLoader: TestBulkAccountLoader;
 
 	let userAccountPublicKey: PublicKey;
 
@@ -73,14 +64,35 @@ describe('drift client', () => {
 	const usdcAmount = new BN(10 * 10 ** 6);
 
 	before(async () => {
-		usdcMint = await mockUSDCMint(provider);
-		userUSDCAccount = await mockUserUSDCAccount(usdcMint, usdcAmount, provider);
+		const context = await startAnchor('', [], []);
 
-		solUsd = await mockOracle(1);
+		bankrunContextWrapper = new BankrunContextWrapper(context);
+
+		bulkAccountLoader = new TestBulkAccountLoader(
+			bankrunContextWrapper.connection,
+			'processed',
+			1
+		);
+
+		usdcMint = await mockUSDCMint(bankrunContextWrapper);
+		userUSDCAccount = await mockUserUSDCAccount(
+			usdcMint,
+			usdcAmount,
+			bankrunContextWrapper
+		);
+
+		solUsd = await mockOracleNoProgram(bankrunContextWrapper, 1);
+
+		eventSubscriber = new EventSubscriber(
+			bankrunContextWrapper.connection.toConnection(),
+			chProgram
+		);
+
+		await eventSubscriber.subscribe();
 
 		driftClient = new TestClient({
-			connection,
-			wallet: provider.wallet,
+			connection: bankrunContextWrapper.connection.toConnection(),
+			wallet: bankrunContextWrapper.provider.wallet,
 			programID: chProgram.programId,
 			opts: {
 				commitment: 'confirmed',
@@ -88,6 +100,7 @@ describe('drift client', () => {
 			activeSubAccountId: 0,
 			perpMarketIndexes: [0],
 			spotMarketIndexes: [0],
+			subAccountIds: [],
 			oracleInfos: [{ publicKey: solUsd, source: OracleSource.PYTH }],
 			userStats: true,
 			accountSubscription: {
@@ -109,7 +122,9 @@ describe('drift client', () => {
 		const state = driftClient.getStateAccount();
 		await driftClient.updatePerpAuctionDuration(new BN(0));
 
-		assert.ok(state.admin.equals(provider.wallet.publicKey));
+		assert.ok(
+			state.admin.equals(bankrunContextWrapper.provider.wallet.publicKey)
+		);
 
 		const expectedSigner = driftClient.getSignerPublicKey();
 		assert(state.signer.equals(expectedSigner));
@@ -135,11 +150,7 @@ describe('drift client', () => {
 			new BN(1)
 		);
 
-		console.log(
-			'tx logs',
-			(await connection.getTransaction(txSig, { commitment: 'confirmed' })).meta
-				.logMessages
-		);
+		bankrunContextWrapper.connection.printTxLogs(txSig);
 
 		const marketPublicKey = await getPerpMarketPublicKey(
 			driftClient.program.programId,
@@ -178,7 +189,9 @@ describe('drift client', () => {
 			userAccountPublicKey
 		);
 
-		assert.ok(user.authority.equals(provider.wallet.publicKey));
+		assert.ok(
+			user.authority.equals(bankrunContextWrapper.provider.wallet.publicKey)
+		);
 		const depositTokenAmount = driftClient.getQuoteAssetTokenAmount();
 		assert(depositTokenAmount.eq(usdcAmount));
 		assert(
@@ -189,11 +202,12 @@ describe('drift client', () => {
 		);
 
 		// Check that drift collateral account has proper collateral
-		const quoteSpotVault = await getAccount(
-			connection,
-			driftClient.getQuoteSpotMarketAccount().vault
-		);
-		assert.ok(new BN(quoteSpotVault.amount).eq(usdcAmount));
+		const quoteSpotVault =
+			await bankrunContextWrapper.connection.getTokenAccount(
+				driftClient.getQuoteSpotMarketAccount().vault
+			);
+
+		assert.ok(new BN(Number(quoteSpotVault.amount)).eq(usdcAmount));
 
 		assert.ok(user.perpPositions.length == 8);
 		assert.ok(user.perpPositions[0].baseAssetAmount.toNumber() === 0);
@@ -203,7 +217,11 @@ describe('drift client', () => {
 		await eventSubscriber.awaitTx(txSig);
 		const depositRecord = eventSubscriber.getEventsArray('DepositRecord')[0];
 
-		assert.ok(depositRecord.userAuthority.equals(provider.wallet.publicKey));
+		assert.ok(
+			depositRecord.userAuthority.equals(
+				bankrunContextWrapper.provider.wallet.publicKey
+			)
+		);
 		assert.ok(depositRecord.user.equals(userAccountPublicKey));
 
 		assert.ok(
@@ -214,7 +232,7 @@ describe('drift client', () => {
 	});
 
 	it('Withdraw Collateral', async () => {
-		const txSig = await driftClient.withdraw(
+		await driftClient.withdraw(
 			usdcAmount,
 			QUOTE_SPOT_MARKET_INDEX,
 			userUSDCAccount.publicKey,
@@ -225,22 +243,26 @@ describe('drift client', () => {
 		assert(driftClient.getQuoteAssetTokenAmount().eq(ZERO));
 
 		// Check that drift collateral account has proper collateral]
-		const quoteSpotVaultAmount = await getTokenAmountAsBN(
-			connection,
-			driftClient.getQuoteSpotMarketAccount().vault
-		);
-		assert.ok(quoteSpotVaultAmount.eq(ZERO));
+		const quoteSpotVault =
+			await bankrunContextWrapper.connection.getTokenAccount(
+				driftClient.getQuoteSpotMarketAccount().vault
+			);
 
-		const userUSDCtoken = await getTokenAmountAsBN(
-			connection,
-			userUSDCAccount.publicKey
-		);
-		assert.ok(userUSDCtoken.eq(usdcAmount));
+		assert.ok(new BN(Number(quoteSpotVault.amount)).eq(ZERO));
 
-		await eventSubscriber.awaitTx(txSig);
+		const userUSDCtoken =
+			await bankrunContextWrapper.connection.getTokenAccount(
+				userUSDCAccount.publicKey
+			);
+		assert.ok(new BN(Number(userUSDCtoken.amount)).eq(usdcAmount));
+
 		const depositRecord = eventSubscriber.getEventsArray('DepositRecord')[0];
 
-		assert.ok(depositRecord.userAuthority.equals(provider.wallet.publicKey));
+		assert.ok(
+			depositRecord.userAuthority.equals(
+				bankrunContextWrapper.provider.wallet.publicKey
+			)
+		);
 		assert.ok(depositRecord.user.equals(userAccountPublicKey));
 
 		assert.ok(
@@ -265,11 +287,15 @@ describe('drift client', () => {
 			baseAssetAmount,
 			marketIndex
 		);
-		await printTxLogs(connection, txSig);
-		const marketData = driftClient.getPerpMarketAccount(0);
-		await setFeedPrice(anchor.workspace.Pyth, 1.01, marketData.amm.oracle);
+		bankrunContextWrapper.connection.printTxLogs(txSig);
 
-		await eventSubscriber.awaitTx(txSig);
+		const marketData = driftClient.getPerpMarketAccount(0);
+		await setFeedPriceNoProgram(
+			bankrunContextWrapper,
+			1.01,
+			marketData.amm.oracle
+		);
+
 		const orderR = eventSubscriber.getEventsArray('OrderActionRecord')[0];
 		console.log(orderR.takerFee.toString());
 		console.log(orderR.baseAssetAmountFilled.toString());
@@ -303,7 +329,6 @@ describe('drift client', () => {
 		assert.ok(market.amm.totalFee.eq(new BN(48001)));
 		assert.ok(market.amm.totalFeeMinusDistributions.eq(new BN(48001)));
 
-		await eventSubscriber.awaitTx(txSig);
 		const orderActionRecord =
 			eventSubscriber.getEventsArray('OrderActionRecord')[0];
 
@@ -344,7 +369,7 @@ describe('drift client', () => {
 	it('Reduce long position', async () => {
 		const marketIndex = 0;
 		const baseAssetAmount = new BN(24000000000);
-		const txSig = await driftClient.openPosition(
+		await driftClient.openPosition(
 			PositionDirection.SHORT,
 			baseAssetAmount,
 			marketIndex
@@ -388,7 +413,6 @@ describe('drift client', () => {
 		assert.ok(market.amm.totalFee.eq(new BN(72001)));
 		assert.ok(market.amm.totalFeeMinusDistributions.eq(new BN(72001)));
 
-		await eventSubscriber.awaitTx(txSig);
 		const orderActionRecord =
 			eventSubscriber.getEventsArray('OrderActionRecord')[0];
 		assert.ok(orderActionRecord.taker.equals(userAccountPublicKey));
@@ -400,14 +424,14 @@ describe('drift client', () => {
 
 	it('Reverse long position', async () => {
 		const marketData = driftClient.getPerpMarketAccount(0);
-		await setFeedPrice(anchor.workspace.Pyth, 1.0, marketData.amm.oracle);
+		await setFeedPriceNoProgram(
+			bankrunContextWrapper,
+			1.0,
+			marketData.amm.oracle
+		);
 
 		const baseAssetAmount = new BN(48000000000);
-		const txSig = await driftClient.openPosition(
-			PositionDirection.SHORT,
-			baseAssetAmount,
-			0
-		);
+		await driftClient.openPosition(PositionDirection.SHORT, baseAssetAmount, 0);
 
 		await driftClient.fetchAccounts();
 		await driftClient.settlePNL(
@@ -454,7 +478,6 @@ describe('drift client', () => {
 		assert.ok(market.amm.totalFee.eq(new BN(120001)));
 		assert.ok(market.amm.totalFeeMinusDistributions.eq(new BN(120001)));
 
-		await eventSubscriber.awaitTx(txSig);
 		const orderActionRecord =
 			eventSubscriber.getEventsArray('OrderActionRecord')[0];
 		assert.ok(orderActionRecord.taker.equals(userAccountPublicKey));
@@ -468,7 +491,7 @@ describe('drift client', () => {
 
 	it('Close position', async () => {
 		const marketIndex = 0;
-		const txSig = await driftClient.closePosition(marketIndex);
+		await driftClient.closePosition(marketIndex);
 
 		await driftClient.settlePNL(
 			await driftClient.getUserAccountPublicKey(),
@@ -501,7 +524,6 @@ describe('drift client', () => {
 		assert.ok(market.amm.totalFee.eq(new BN(144001)));
 		assert.ok(market.amm.totalFeeMinusDistributions.eq(new BN(144001)));
 
-		await eventSubscriber.awaitTx(txSig);
 		const orderActionRecord =
 			eventSubscriber.getEventsArray('OrderActionRecord')[0];
 
@@ -514,11 +536,7 @@ describe('drift client', () => {
 
 	it('Open short position', async () => {
 		const baseAssetAmount = new BN(48000000000);
-		const txSig = await driftClient.openPosition(
-			PositionDirection.SHORT,
-			baseAssetAmount,
-			0
-		);
+		await driftClient.openPosition(PositionDirection.SHORT, baseAssetAmount, 0);
 
 		await driftClient.settlePNL(
 			await driftClient.getUserAccountPublicKey(),
@@ -537,7 +555,6 @@ describe('drift client', () => {
 		const market = driftClient.getPerpMarketAccount(0);
 		assert.ok(market.amm.baseAssetAmountWithAmm.eq(new BN(-48000000000)));
 
-		await eventSubscriber.awaitTx(txSig);
 		const orderActionRecord =
 			eventSubscriber.getEventsArray('OrderActionRecord')[0];
 
@@ -553,7 +570,7 @@ describe('drift client', () => {
 			usdcMint,
 			userUSDCAccount.publicKey,
 			usdcAmount,
-			provider
+			bankrunContextWrapper
 		);
 
 		await sleep(2000);
