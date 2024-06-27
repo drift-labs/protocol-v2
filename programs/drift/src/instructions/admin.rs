@@ -6,7 +6,6 @@ use anchor_spl::token::{Mint, Token, TokenAccount};
 use phoenix::quantities::WrapperU64;
 use pyth_solana_receiver_sdk::cpi::accounts::InitPriceUpdate;
 use pyth_solana_receiver_sdk::program::PythSolanaReceiver;
-use pythnet_sdk::messages::FeedId;
 use serum_dex::state::ToAlignedBytes;
 use solana_program::msg;
 

@@ -6881,6 +6881,18 @@ export class DriftClient {
 		vaaString: string,
 		feedId: string
 	): Promise<TransactionSignature> {
+
+		const postIxs = await this.getPostPythPullOracleUpdateAtomicIxs(vaaString, feedId);
+		const tx = await this.buildTransaction(postIxs);
+		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+
+		return txSig;
+	}
+
+	public async getPostPythPullOracleUpdateAtomicIxs(
+		vaaString: string,
+		feedId: string
+	): Promise<TransactionInstruction[]> {
 		if (feedId.startsWith('0x')) {
 			feedId = feedId.slice(2);
 		}
@@ -6897,7 +6909,7 @@ export class DriftClient {
 		const postIxs: TransactionInstruction[] = [];
 		for (const update of accumulatorUpdateData.updates) {
 			postIxs.push(
-				await this.getPostPythPullOracleAtomicIx(
+				await this.getSinglePostPythPullOracleAtomicIx(
 					{
 						vaa: trimmedVaa,
 						merklePriceUpdate: update,
@@ -6909,13 +6921,10 @@ export class DriftClient {
 			);
 		}
 
-		const tx = await this.buildTransaction(postIxs);
-		const { txSig } = await this.sendTransaction(tx, [], this.opts);
-
-		return txSig;
+		return postIxs;
 	}
 
-	public async getPostPythPullOracleAtomicIx(
+	public async getSinglePostPythPullOracleAtomicIx(
 		params: {
 			vaa: Buffer;
 			merklePriceUpdate: {
@@ -6934,7 +6943,8 @@ export class DriftClient {
 
 		const receiverProgram = new Program(
 			pythSolanaReceiverIdl,
-			DEFAULT_RECEIVER_PROGRAM_ID
+			DEFAULT_RECEIVER_PROGRAM_ID,
+			this.provider
 		);
 
 		const encodedParams = receiverProgram.coder.types.encode(
@@ -7018,7 +7028,8 @@ export class DriftClient {
 
 		const receiverProgram = new Program(
 			pythSolanaReceiverIdl,
-			DEFAULT_RECEIVER_PROGRAM_ID
+			DEFAULT_RECEIVER_PROGRAM_ID,
+			this.provider
 		);
 
 		const encodedParams = receiverProgram.coder.types.encode(
@@ -7048,7 +7059,8 @@ export class DriftClient {
 
 		const wormholeProgram = new Program(
 			wormholeCoreBridgeIdl,
-			DEFAULT_WORMHOLE_PROGRAM_ID
+			DEFAULT_WORMHOLE_PROGRAM_ID,
+			this.provider
 		);
 		const encodedVaaKeypair = new Keypair();
 		postIxs.push(
