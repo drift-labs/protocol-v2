@@ -288,14 +288,20 @@ export class PollingDriftClientAccountSubscriber
 	public async fetch(): Promise<void> {
 		await this.accountLoader.load();
 		for (const [_, accountToPoll] of this.accountsToPoll) {
-			const { buffer, slot } = this.accountLoader.getBufferAndSlot(
+			const bufferAndSlot = this.accountLoader.getBufferAndSlot(
 				accountToPoll.publicKey
 			);
+
+			if (!bufferAndSlot) {
+				continue;
+			}
+
+			const { buffer, slot } = bufferAndSlot;
+
 			if (buffer) {
 				const account = this.program.account[
 					accountToPoll.key
 				].coder.accounts.decodeUnchecked(capitalize(accountToPoll.key), buffer);
-
 				if (accountToPoll.mapKey != undefined) {
 					this[accountToPoll.key].set(accountToPoll.mapKey, {
 						data: account,
@@ -311,9 +317,16 @@ export class PollingDriftClientAccountSubscriber
 		}
 
 		for (const [_, oracleToPoll] of this.oraclesToPoll) {
-			const { buffer, slot } = this.accountLoader.getBufferAndSlot(
+			const bufferAndSlot = this.accountLoader.getBufferAndSlot(
 				oracleToPoll.publicKey
 			);
+
+			if (!bufferAndSlot) {
+				continue;
+			}
+
+			const { buffer, slot } = bufferAndSlot;
+
 			if (buffer) {
 				const oracleClient = this.oracleClientCache.get(
 					oracleToPoll.source,
