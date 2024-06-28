@@ -483,7 +483,7 @@ impl User {
         user_stats.update_fuel_bonus(
             margin_calculation.fuel_deposits,
             margin_calculation.fuel_borrows,
-            margin_calculation.fuel_oi,
+            margin_calculation.fuel_positions,
             now,
         )?;
 
@@ -531,7 +531,7 @@ impl User {
         user_stats.update_fuel_bonus(
             calculation.fuel_deposits,
             calculation.fuel_borrows,
-            calculation.fuel_oi,
+            calculation.fuel_positions,
             now,
         )?;
         self.last_fuel_bonus_update_ts = now;
@@ -584,7 +584,7 @@ impl User {
         user_stats.update_fuel_bonus(
             calculation.fuel_deposits,
             calculation.fuel_borrows,
-            calculation.fuel_oi,
+            calculation.fuel_positions,
             now,
         )?;
         self.last_fuel_bonus_update_ts = now;
