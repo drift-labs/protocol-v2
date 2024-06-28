@@ -631,10 +631,9 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
                 fuel_base_asset_value as i128,
                 context.fuel_bonus_numerator,
             )?;
-            crate::dlog!(perp_fuel_oi_bonus);
 
-            calculation.fuel_oi = calculation
-                .fuel_oi
+            calculation.fuel_positions = calculation
+                .fuel_positions
                 .saturating_add(perp_fuel_oi_bonus.cast()?);
         }
 

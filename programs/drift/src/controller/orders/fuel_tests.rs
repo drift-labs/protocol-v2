@@ -2,11 +2,8 @@ use anchor_lang::prelude::Pubkey;
 use anchor_lang::Owner;
 
 use crate::math::constants::ONE_BPS_DENOMINATOR;
-use crate::math::margin::{
-    calculate_margin_requirement_and_total_collateral_and_liability_info,
-    calculate_user_safest_position_tiers, meets_initial_margin_requirement, MarginRequirementType,
-};
-use crate::state::margin_calculation::{MarginCalculation, MarginContext, MarketIdentifier};
+use crate::math::margin::MarginRequirementType;
+use crate::state::margin_calculation::{MarginCalculation, MarginContext};
 use crate::state::oracle_map::OracleMap;
 use crate::state::state::{FeeStructure, FeeTier};
 use crate::state::user::{Order, PerpPosition};
@@ -40,15 +37,15 @@ pub mod fuel_scoring {
     use crate::create_anchor_account_info;
     use crate::math::constants::{PRICE_PRECISION_I64, QUOTE_PRECISION_I64};
 
+    use crate::math::constants::PRICE_PRECISION_U64;
     use crate::math::constants::{
-        AMM_RESERVE_PRECISION, BASE_PRECISION_I128, BASE_PRECISION_I64, BASE_PRECISION_U64,
-        PEG_PRECISION, PRICE_PRECISION, SPOT_BALANCE_PRECISION_U64,
-        SPOT_CUMULATIVE_INTEREST_PRECISION, SPOT_WEIGHT_PRECISION,
+        AMM_RESERVE_PRECISION, BASE_PRECISION_I64, BASE_PRECISION_U64, PEG_PRECISION,
+        PRICE_PRECISION, SPOT_BALANCE_PRECISION_U64, SPOT_CUMULATIVE_INTEREST_PRECISION,
+        SPOT_WEIGHT_PRECISION,
     };
-    use crate::math::constants::{CONCENTRATION_PRECISION, PRICE_PRECISION_U64};
     use crate::state::fill_mode::FillMode;
     use crate::state::oracle::{HistoricalOracleData, OracleSource};
-    use crate::state::perp_market::{AMMLiquiditySplit, MarketStatus, PerpMarket, AMM};
+    use crate::state::perp_market::{MarketStatus, PerpMarket, AMM};
     use crate::state::perp_market_map::PerpMarketMap;
     use crate::state::spot_market::{SpotBalanceType, SpotMarket};
     use crate::state::spot_market_map::SpotMarketMap;
@@ -520,12 +517,6 @@ pub mod fuel_scoring {
         create_anchor_account_info!(maker, &maker_key, User, maker_account_info);
         let makers_and_referrers = UserMap::load_one(&maker_account_info).unwrap();
 
-        let mut filler = User::default();
-
-        let fee_structure = get_fee_structure();
-
-        let (taker_key, _, filler_key) = get_user_keys();
-
         let mut taker_stats = UserStats::default();
 
         let mut maker_stats = UserStats {
@@ -535,7 +526,6 @@ pub mod fuel_scoring {
         create_anchor_account_info!(maker_stats, UserStats, maker_stats_account_info);
         let maker_and_referrer_stats = UserStatsMap::load_one(&maker_stats_account_info).unwrap();
 
-        let mut filler_stats = UserStats::default();
         assert_eq!(maker_stats.fuel_deposits, 0);
         assert_eq!(taker_stats.fuel_deposits, 0);
 
@@ -565,7 +555,7 @@ pub mod fuel_scoring {
             0
         );
 
-        let mut margin_context =
+        let margin_context =
             MarginContext::standard(MarginRequirementType::Initial).fuel_numerator(maker, now);
 
         let margin_calc_maker = maker
@@ -584,7 +574,7 @@ pub mod fuel_scoring {
         assert_eq!(margin_calc_maker.fuel_deposits, 100_000 / 28);
         assert_eq!(maker_stats.fuel_deposits, margin_calc_maker.fuel_deposits);
 
-        let mut margin_context =
+        let margin_context =
             MarginContext::standard(MarginRequirementType::Initial).fuel_numerator(taker, now);
 
         let margin_calc = taker
@@ -800,7 +790,7 @@ pub mod fuel_scoring {
             0
         );
 
-        let mut margin_context =
+        let margin_context =
             MarginContext::standard(MarginRequirementType::Initial).fuel_numerator(maker, now);
 
         let margin_calc_maker = maker

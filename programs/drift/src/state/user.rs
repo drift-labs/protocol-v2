@@ -1589,12 +1589,13 @@ pub struct UserStats {
     pub fuel_deposits: u32,
     /// accumulate fuel bonus for epoch
     pub fuel_borrows: u32,
+    /// accumulated fuel for perp open interest
+    pub fuel_positions: u32,
     /// accumulate fuel bonus for epoch
     pub fuel_taker: u32,
     /// accumulate fuel bonus for epoch
     pub fuel_maker: u32,
-    /// last timestamp since fuel bonus accumulated
-    pub fuel_oi: u32,
+
     /// The amount of tokens staked in the governance spot markets if
     pub if_staked_gov_token_amount: u64,
 
@@ -1624,7 +1625,7 @@ impl Default for UserStats {
             fuel_borrows: 0,
             fuel_taker: 0,
             fuel_maker: 0,
-            fuel_oi: 0,
+            fuel_positions: 0,
             if_staked_gov_token_amount: 0,
             padding: [0; 16],
         }
@@ -1657,11 +1658,11 @@ impl UserStats {
         fuel_deposits: u32,
         fuel_borrows: u32,
         fuel_oi: u32,
-        now: i64,
+        _now: i64,
     ) -> DriftResult {
         self.fuel_deposits = self.fuel_deposits.saturating_add(fuel_deposits);
         self.fuel_borrows = self.fuel_borrows.saturating_add(fuel_borrows);
-        self.fuel_oi = self.fuel_oi.saturating_add(fuel_oi);
+        self.fuel_positions = self.fuel_positions.saturating_add(fuel_oi);
         // self.last_fuel_bonus_update_ts = now;
 
         Ok(())

@@ -4104,7 +4104,7 @@ fn fulfill_spot_order(
     for (maker_key, _) in maker_fills {
         // let maker = makers_and_referrer.get_ref(&maker_key)?;
         let mut maker: RefMut<User> = makers_and_referrer.get_ref_mut(&maker_key)?;
-        let mut maker_stats = if maker.authority == user.authority {
+        let maker_stats = if maker.authority == user.authority {
             None
         } else {
             Some(makers_and_referrer_stats.get_ref_mut(&maker.authority)?)
