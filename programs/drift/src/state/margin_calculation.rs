@@ -2,6 +2,7 @@ use crate::error::{DriftResult, ErrorCode};
 use crate::math::casting::Cast;
 use crate::math::margin::MarginRequirementType;
 use crate::math::safe_math::SafeMath;
+use crate::state::user::User;
 use crate::{validate, MarketType, MARGIN_PRECISION_U128};
 use anchor_lang::{prelude::*, solana_program::msg};
 
@@ -21,6 +22,11 @@ pub struct MarginContext {
     pub mode: MarginCalculationMode,
     pub strict: bool,
     pub margin_buffer: u128,
+    pub fuel_bonus_numerator: i64,
+    pub fuel_bonus: u64,
+    pub fuel_perp_delta: Option<(u16, i64)>,
+    pub fuel_spot_delta: Option<(u16, i128)>,
+    pub fuel_spot_delta_2: Option<(u16, i128)>,
 }
 
 #[derive(PartialEq, Eq, Copy, Clone, Debug, AnchorSerialize, AnchorDeserialize)]
@@ -54,6 +60,11 @@ impl MarginContext {
             },
             strict: false,
             margin_buffer: 0,
+            fuel_bonus_numerator: 0,
+            fuel_bonus: 0,
+            fuel_perp_delta: None,
+            fuel_spot_delta: None,
+            fuel_spot_delta_2: None,
         }
     }
 
@@ -64,6 +75,30 @@ impl MarginContext {
 
     pub fn margin_buffer(mut self, margin_buffer: u32) -> Self {
         self.margin_buffer = margin_buffer as u128;
+        self
+    }
+
+    // how to change the user's spot position to match how it was prior to instruction change
+    // i.e. diffs are ADDED to perp
+    pub fn fuel_perp_diff(mut self, market_index: u16, delta: i64) -> Self {
+        self.fuel_perp_delta = Some((market_index, delta));
+        self
+    }
+
+    // how to change the user's spot position to match how it was prior to instruction change
+    // i.e. diffs are ADDED to spot position in margin check, after a withdraw requires positive diff
+    pub fn fuel_spot_diff(mut self, market_index: u16, delta: i128) -> Self {
+        self.fuel_spot_delta = Some((market_index, delta));
+        self
+    }
+
+    pub fn fuel_spot_diff_2(mut self, market_index: u16, delta: i128) -> Self {
+        self.fuel_spot_delta_2 = Some((market_index, delta));
+        self
+    }
+
+    pub fn fuel_numerator(mut self, user: User, now: i64) -> Self {
+        self.fuel_bonus_numerator = user.get_fuel_bonus_numerator(now).unwrap();
         self
     }
 
@@ -90,6 +125,11 @@ impl MarginContext {
             },
             margin_buffer: margin_buffer as u128,
             strict: false,
+            fuel_bonus_numerator: 0,
+            fuel_bonus: 0,
+            fuel_perp_delta: None,
+            fuel_spot_delta: None,
+            fuel_spot_delta_2: None,
         }
     }
 
@@ -133,6 +173,9 @@ pub struct MarginCalculation {
     pub total_perp_pnl: i128,
     pub open_orders_margin_requirement: u128,
     tracked_market_margin_requirement: u128,
+    pub fuel_deposits: u32,
+    pub fuel_borrows: u32,
+    pub fuel_positions: u32,
 }
 
 impl MarginCalculation {
@@ -153,6 +196,9 @@ impl MarginCalculation {
             total_perp_pnl: 0,
             open_orders_margin_requirement: 0,
             tracked_market_margin_requirement: 0,
+            fuel_deposits: 0,
+            fuel_borrows: 0,
+            fuel_positions: 0,
         }
     }
 

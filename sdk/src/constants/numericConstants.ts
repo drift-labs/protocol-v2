@@ -105,3 +105,5 @@ export const IDLE_TIME_SLOTS = 9000;
 export const SLOT_TIME_ESTIMATE_MS = 400;
 
 export const DUST_POSITION_SIZE = QUOTE_PRECISION.divn(100); // Dust position is any position smaller than 1c
+
+export const FUEL_WINDOW = new BN(60 * 60 * 24 * 28); // 28 days

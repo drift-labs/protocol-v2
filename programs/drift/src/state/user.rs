@@ -35,6 +35,15 @@ use std::fmt;
 use std::ops::Neg;
 use std::panic::Location;
 
+use crate::math::margin::{
+    calculate_margin_requirement_and_total_collateral_and_liability_info,
+    validate_any_isolated_tier_requirements,
+};
+use crate::state::margin_calculation::{MarginCalculation, MarginContext};
+use crate::state::oracle_map::OracleMap;
+use crate::state::perp_market_map::PerpMarketMap;
+use crate::state::spot_market_map::SpotMarketMap;
+
 #[cfg(test)]
 mod tests;
 
@@ -117,7 +126,9 @@ pub struct User {
     pub open_auctions: u8,
     /// Whether or not user has open order with auction
     pub has_open_auction: bool,
-    pub padding: [u8; 21],
+    pub padding1: [u8; 5],
+    pub last_fuel_bonus_update_ts: i64,
+    pub padding: [u8; 8],
 }
 
 impl User {
@@ -419,6 +430,166 @@ impl User {
         }
 
         false
+    }
+
+    pub fn get_fuel_bonus_numerator(&self, now: i64) -> DriftResult<i64> {
+        now.safe_sub(self.last_fuel_bonus_update_ts)
+    }
+
+    pub fn increment_fuel_bonus(
+        &mut self,
+        fuel_deposits: u32,
+        fuel_borrows: u32,
+        fuel_oi: u32,
+        user_stats: &mut UserStats,
+        now: i64,
+    ) -> DriftResult {
+        user_stats.update_fuel_bonus(fuel_deposits, fuel_borrows, fuel_oi, now)?;
+        self.last_fuel_bonus_update_ts = now;
+
+        Ok(())
+    }
+
+    pub fn calculate_margin_and_increment_fuel_bonus(
+        &mut self,
+        perp_market_map: &PerpMarketMap,
+        spot_market_map: &SpotMarketMap,
+        oracle_map: &mut OracleMap,
+        context: MarginContext,
+        user_stats: &mut UserStats,
+        now: i64,
+    ) -> DriftResult<MarginCalculation> {
+        let fuel_bonus_numerator = self.get_fuel_bonus_numerator(now)?;
+
+        validate!(
+            context.fuel_bonus_numerator == fuel_bonus_numerator,
+            ErrorCode::DefaultError,
+            "Bad fuel bonus update attempt {} != {} (last_fuel_bonus_update_ts = {} vs now = {})",
+            context.fuel_bonus_numerator,
+            fuel_bonus_numerator,
+            self.last_fuel_bonus_update_ts,
+            now
+        )?;
+
+        let margin_calculation =
+            calculate_margin_requirement_and_total_collateral_and_liability_info(
+                self,
+                perp_market_map,
+                spot_market_map,
+                oracle_map,
+                context,
+            )?;
+
+        user_stats.update_fuel_bonus(
+            margin_calculation.fuel_deposits,
+            margin_calculation.fuel_borrows,
+            margin_calculation.fuel_positions,
+            now,
+        )?;
+
+        self.last_fuel_bonus_update_ts = now;
+
+        Ok(margin_calculation)
+    }
+
+    pub fn meets_place_order_margin_requirement_and_increment_fuel_bonus(
+        &mut self,
+        perp_market_map: &PerpMarketMap,
+        spot_market_map: &SpotMarketMap,
+        oracle_map: &mut OracleMap,
+        risk_increasing: bool,
+        user_stats: &mut UserStats,
+        now: i64,
+    ) -> DriftResult {
+        let margin_type = if risk_increasing {
+            MarginRequirementType::Initial
+        } else {
+            MarginRequirementType::Maintenance
+        };
+        let context = MarginContext::standard(margin_type).strict(true);
+
+        let calculation = calculate_margin_requirement_and_total_collateral_and_liability_info(
+            self,
+            perp_market_map,
+            spot_market_map,
+            oracle_map,
+            context,
+        )?;
+
+        if !calculation.meets_margin_requirement() {
+            msg!(
+                "total_collateral={}, margin_requirement={} margin type = {:?}",
+                calculation.total_collateral,
+                calculation.margin_requirement,
+                margin_type
+            );
+            return Err(ErrorCode::InsufficientCollateral);
+        }
+
+        validate_any_isolated_tier_requirements(self, calculation)?;
+
+        user_stats.update_fuel_bonus(
+            calculation.fuel_deposits,
+            calculation.fuel_borrows,
+            calculation.fuel_positions,
+            now,
+        )?;
+        self.last_fuel_bonus_update_ts = now;
+
+        Ok(())
+    }
+
+    pub fn meets_withdraw_margin_requirement_and_increment_fuel_bonus(
+        &mut self,
+        perp_market_map: &PerpMarketMap,
+        spot_market_map: &SpotMarketMap,
+        oracle_map: &mut OracleMap,
+        margin_requirement_type: MarginRequirementType,
+        withdraw_market_index: u16,
+        withdraw_amount: u128,
+        user_stats: &mut UserStats,
+        now: i64,
+    ) -> DriftResult<bool> {
+        let strict = margin_requirement_type == MarginRequirementType::Initial;
+        let context = MarginContext::standard(margin_requirement_type)
+            .strict(strict)
+            .fuel_spot_diff(withdraw_market_index, withdraw_amount.cast::<i128>()?);
+
+        let calculation = calculate_margin_requirement_and_total_collateral_and_liability_info(
+            self,
+            perp_market_map,
+            spot_market_map,
+            oracle_map,
+            context,
+        )?;
+
+        if calculation.margin_requirement > 0 || calculation.get_num_of_liabilities()? > 0 {
+            validate!(
+                calculation.all_oracles_valid,
+                ErrorCode::InvalidOracle,
+                "User attempting to withdraw with outstanding liabilities when an oracle is invalid"
+            )?;
+        }
+
+        validate_any_isolated_tier_requirements(self, calculation)?;
+
+        validate!(
+            calculation.meets_margin_requirement(),
+            ErrorCode::InsufficientCollateral,
+            "User attempting to withdraw where total_collateral {} is below initial_margin_requirement {}",
+            calculation.total_collateral,
+            calculation.margin_requirement
+        )?;
+
+        user_stats.update_fuel_bonus(
+            calculation.fuel_deposits,
+            calculation.fuel_borrows,
+            calculation.fuel_positions,
+            now,
+        )?;
+        self.last_fuel_bonus_update_ts = now;
+
+        Ok(true)
     }
 }
 
@@ -1413,7 +1584,22 @@ pub struct UserStats {
     /// Whether the user is a referrer. Sub account 0 can not be deleted if user is a referrer
     pub is_referrer: bool,
     pub disable_update_perp_bid_ask_twap: bool,
-    pub padding: [u8; 50],
+    pub padding1: [u8; 6],
+    /// sub account id for spot deposit, borrow fuel tracking
+    pub fuel_deposits: u32,
+    /// accumulate fuel bonus for epoch
+    pub fuel_borrows: u32,
+    /// accumulated fuel for perp open interest
+    pub fuel_positions: u32,
+    /// accumulate fuel bonus for epoch
+    pub fuel_taker: u32,
+    /// accumulate fuel bonus for epoch
+    pub fuel_maker: u32,
+
+    /// The amount of tokens staked in the governance spot markets if
+    pub if_staked_gov_token_amount: u64,
+
+    pub padding: [u8; 16],
 }
 
 impl Default for UserStats {
@@ -1434,7 +1620,14 @@ impl Default for UserStats {
             number_of_sub_accounts_created: 0,
             is_referrer: false,
             disable_update_perp_bid_ask_twap: false,
-            padding: [0; 50],
+            padding1: [0; 6],
+            fuel_deposits: 0,
+            fuel_borrows: 0,
+            fuel_taker: 0,
+            fuel_maker: 0,
+            fuel_positions: 0,
+            if_staked_gov_token_amount: 0,
+            padding: [0; 16],
         }
     }
 }
@@ -1444,8 +1637,74 @@ impl Size for UserStats {
 }
 
 impl UserStats {
-    pub fn update_maker_volume_30d(&mut self, quote_asset_amount: u64, now: i64) -> DriftResult {
+    pub fn get_fuel_bonus_numerator(
+        self,
+        last_fuel_bonus_update_ts: i64,
+        now: i64,
+    ) -> DriftResult<i64> {
+        let since_last = now.safe_sub(last_fuel_bonus_update_ts)?;
+        Ok(since_last)
+    }
+
+    pub fn update_fuel_bonus_trade(&mut self, fuel_taker: u32, fuel_maker: u32) -> DriftResult {
+        self.fuel_taker = self.fuel_taker.saturating_add(fuel_taker);
+        self.fuel_maker = self.fuel_maker.saturating_add(fuel_maker);
+
+        Ok(())
+    }
+
+    pub fn update_fuel_bonus(
+        &mut self,
+        fuel_deposits: u32,
+        fuel_borrows: u32,
+        fuel_oi: u32,
+        _now: i64,
+    ) -> DriftResult {
+        self.fuel_deposits = self.fuel_deposits.saturating_add(fuel_deposits);
+        self.fuel_borrows = self.fuel_borrows.saturating_add(fuel_borrows);
+        self.fuel_positions = self.fuel_positions.saturating_add(fuel_oi);
+        // self.last_fuel_bonus_update_ts = now;
+
+        Ok(())
+    }
+
+    pub fn update_fuel_maker_bonus(
+        &mut self,
+        fuel_boost: u8,
+        quote_asset_amount: u64,
+    ) -> DriftResult {
+        self.fuel_maker = self.fuel_maker.saturating_add(
+            fuel_boost
+                .cast::<u64>()?
+                .saturating_mul(quote_asset_amount / QUOTE_PRECISION_U64)
+                .cast::<u32>()?,
+        ); // todo of ratio
+        Ok(())
+    }
+
+    pub fn update_fuel_taker_bonus(
+        &mut self,
+        fuel_boost: u8,
+        quote_asset_amount: u64,
+    ) -> DriftResult {
+        self.fuel_taker = self.fuel_taker.saturating_add(
+            fuel_boost
+                .cast::<u64>()?
+                .saturating_mul(quote_asset_amount / QUOTE_PRECISION_U64)
+                .cast::<u32>()?,
+        ); // todo of ratio
+        Ok(())
+    }
+
+    pub fn update_maker_volume_30d(
+        &mut self,
+        fuel_boost: u8,
+        quote_asset_amount: u64,
+        now: i64,
+    ) -> DriftResult {
         let since_last = max(1_i64, now.safe_sub(self.last_maker_volume_30d_ts)?);
+
+        self.update_fuel_maker_bonus(fuel_boost, quote_asset_amount)?;
 
         self.maker_volume_30d = calculate_rolling_sum(
             self.maker_volume_30d,
@@ -1458,8 +1717,15 @@ impl UserStats {
         Ok(())
     }
 
-    pub fn update_taker_volume_30d(&mut self, quote_asset_amount: u64, now: i64) -> DriftResult {
+    pub fn update_taker_volume_30d(
+        &mut self,
+        fuel_boost: u8,
+        quote_asset_amount: u64,
+        now: i64,
+    ) -> DriftResult {
         let since_last = max(1_i64, now.safe_sub(self.last_taker_volume_30d_ts)?);
+
+        self.update_fuel_taker_bonus(fuel_boost, quote_asset_amount)?;
 
         self.taker_volume_30d = calculate_rolling_sum(
             self.taker_volume_30d,

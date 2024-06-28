@@ -514,12 +514,15 @@ pub fn handle_withdraw<'c: 'info, 'info>(
         amount
     };
 
-    meets_withdraw_margin_requirement(
-        user,
+    user.meets_withdraw_margin_requirement_and_increment_fuel_bonus(
         &perp_market_map,
         &spot_market_map,
         &mut oracle_map,
         MarginRequirementType::Initial,
+        market_index,
+        amount as u128,
+        &mut user_stats,
+        now,
     )?;
 
     validate_spot_margin_trading(user, &perp_market_map, &spot_market_map, &mut oracle_map)?;
@@ -2811,7 +2814,11 @@ pub fn handle_end_swap<'c: 'info, 'info>(
             out_spot_market.decimals,
             out_oracle_price,
         )?;
-        user_stats.update_taker_volume_30d(amount_out_value.cast()?, now)?;
+        user_stats.update_taker_volume_30d(
+            out_spot_market.fuel_boost_taker,
+            amount_out_value.cast()?,
+            now,
+        )?;
     }
 
     validate!(

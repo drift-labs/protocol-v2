@@ -30,7 +30,7 @@ use crate::state::perp_market::PerpMarket;
 use crate::state::spot_market::{SpotBalanceType, SpotMarket};
 use crate::state::state::State;
 use crate::state::user::UserStats;
-use crate::{emit, validate};
+use crate::{emit, validate, GOV_SPOT_MARKET_INDEX, QUOTE_SPOT_MARKET_INDEX};
 
 #[cfg(test)]
 mod tests;
@@ -77,8 +77,14 @@ pub fn add_insurance_fund_stake(
     spot_market.insurance_fund.user_shares =
         spot_market.insurance_fund.user_shares.safe_add(n_shares)?;
 
-    if spot_market.market_index == 0 {
+    if spot_market.market_index == QUOTE_SPOT_MARKET_INDEX {
         user_stats.if_staked_quote_asset_amount = if_shares_to_vault_amount(
+            insurance_fund_stake.checked_if_shares(spot_market)?,
+            spot_market.insurance_fund.total_shares,
+            insurance_vault_amount.safe_add(amount)?,
+        )?;
+    } else if spot_market.market_index == GOV_SPOT_MARKET_INDEX {
+        user_stats.if_staked_gov_token_amount = if_shares_to_vault_amount(
             insurance_fund_stake.checked_if_shares(spot_market)?,
             spot_market.insurance_fund.total_shares,
             insurance_vault_amount.safe_add(amount)?,
@@ -231,8 +237,14 @@ pub fn request_remove_insurance_fund_stake(
 
     let if_shares_after = insurance_fund_stake.checked_if_shares(spot_market)?;
 
-    if spot_market.market_index == 0 {
+    if spot_market.market_index == QUOTE_SPOT_MARKET_INDEX {
         user_stats.if_staked_quote_asset_amount = if_shares_to_vault_amount(
+            insurance_fund_stake.checked_if_shares(spot_market)?,
+            spot_market.insurance_fund.total_shares,
+            insurance_vault_amount,
+        )?;
+    } else if spot_market.market_index == GOV_SPOT_MARKET_INDEX {
+        user_stats.if_staked_gov_token_amount = if_shares_to_vault_amount(
             insurance_fund_stake.checked_if_shares(spot_market)?,
             spot_market.insurance_fund.total_shares,
             insurance_vault_amount,
@@ -305,6 +317,12 @@ pub fn cancel_request_remove_insurance_fund_stake(
     if spot_market.market_index == 0 {
         user_stats.if_staked_quote_asset_amount = if_shares_to_vault_amount(
             if_shares_after,
+            spot_market.insurance_fund.total_shares,
+            insurance_vault_amount,
+        )?;
+    } else if spot_market.market_index == GOV_SPOT_MARKET_INDEX {
+        user_stats.if_staked_gov_token_amount = if_shares_to_vault_amount(
+            insurance_fund_stake.checked_if_shares(spot_market)?,
             spot_market.insurance_fund.total_shares,
             insurance_vault_amount,
         )?;
@@ -397,8 +415,14 @@ pub fn remove_insurance_fund_stake(
 
     let if_shares_after = insurance_fund_stake.checked_if_shares(spot_market)?;
 
-    if spot_market.market_index == 0 {
+    if spot_market.market_index == QUOTE_SPOT_MARKET_INDEX {
         user_stats.if_staked_quote_asset_amount = if_shares_to_vault_amount(
+            if_shares_after,
+            spot_market.insurance_fund.total_shares,
+            insurance_vault_amount.safe_sub(amount)?,
+        )?;
+    } else if spot_market.market_index == GOV_SPOT_MARKET_INDEX {
+        user_stats.if_staked_gov_token_amount = if_shares_to_vault_amount(
             if_shares_after,
             spot_market.insurance_fund.total_shares,
             insurance_vault_amount.safe_sub(amount)?,
@@ -508,8 +532,14 @@ pub fn transfer_protocol_insurance_fund_stake(
 
     let target_if_shares_after = target_insurance_fund_stake.checked_if_shares(spot_market)?;
 
-    if spot_market.market_index == 0 {
+    if spot_market.market_index == QUOTE_SPOT_MARKET_INDEX {
         user_stats.if_staked_quote_asset_amount = if_shares_to_vault_amount(
+            target_if_shares_after,
+            spot_market.insurance_fund.total_shares,
+            insurance_vault_amount,
+        )?;
+    } else if spot_market.market_index == GOV_SPOT_MARKET_INDEX {
+        user_stats.if_staked_gov_token_amount = if_shares_to_vault_amount(
             target_if_shares_after,
             spot_market.insurance_fund.total_shares,
             insurance_vault_amount,
