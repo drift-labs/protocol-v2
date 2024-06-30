@@ -20,12 +20,11 @@ cpi = ["no-entrypoint"]
 [dependencies]
 anchor-lang = {  version = "0.29.0", features = ["derive"] }
 borsh = {version = "0.10.3", features = ["const-generics", "default"]}
-bytemuck = {  version = "1.4.0" , features = ["derive", "min_const_generics"]}\
+bytemuck = {  version = "1.4.0" , features = ["derive", "min_const_generics"]}
 
 [dev-dependencies]
 anyhow = "1.0.70"
 solana-sdk = "1.16"
-solana-client = "1.16"
 solana-program-test = "1.16"
 solana-program = "1.16"
 spl-associated-token-account = "1.1.3"
