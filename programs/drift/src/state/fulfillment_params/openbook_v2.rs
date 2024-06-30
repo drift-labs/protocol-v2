@@ -56,10 +56,8 @@ pub struct OpenbookV2Context<'a, 'b> {
 }
 
 impl<'a, 'b> OpenbookV2Context<'a, 'b> {
-    //  TODO load
     pub fn load_openbook_v2_market(&self) -> DriftResult<Market> {
         let data = self.openbook_v2_market.data.borrow();
-        // TODO change to proper ErrorCode
         let market: &Market = bytemuck::try_from_bytes::<Market>(&data[8..]).map_err(|_| ErrorCode::FailedOpenbookV2CPI)?;
         Ok(*market)
     }
@@ -171,13 +169,6 @@ impl<'a, 'b> OpenbookV2FulfillmentParams<'a, 'b> {
         validate!(
             &openbook_v2_fulfillment_config.openbook_v2_program_id == openbook_v2_program.key,
             ErrorCode::InvalidFulfillmentConfig
-        )?;
-        validate!(
-            openbook_v2_fulfillment_config.market_index == base_market.market_index,
-            ErrorCode::InvalidFulfillmentConfig,
-            "config market index {} does not equal base asset index {}",
-            openbook_v2_fulfillment_config.market_index,
-            base_market.market_index
         )?;
 
         validate!(
