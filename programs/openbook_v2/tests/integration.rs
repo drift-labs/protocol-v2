@@ -72,7 +72,7 @@ async fn test_program() -> anyhow::Result<()>{
     };
     // create open_orders_account ( and open_orders_indexer too)
     let (ooa, _ooi) =  setup_open_orders_account(&mut banks_client, &keypair, &market ).await?;
-    // place bid
+    // market maker place bid
     place_order_and_execute(&mut banks_client,
                             &keypair,
                             PlaceOrder        {
@@ -90,7 +90,7 @@ async fn test_program() -> anyhow::Result<()>{
                             &ooa,
                             &quote_mint,
     ).await?;
-    // place ask
+    // market maker place ask
     place_order_and_execute(&mut banks_client,
                             &keypair,
                             PlaceOrder{
