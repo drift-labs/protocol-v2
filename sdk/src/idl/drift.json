@@ -2876,6 +2876,95 @@
       ]
     },
     {
+      "name": "initializeOpenbookV2FulfillmentConfig",
+      "accounts": [
+        {
+          "name": "baseSpotMarket",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "quoteSpotMarket",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "state",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "openbookV2Program",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "openbookV2Market",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "driftSigner",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "openbookV2FulfillmentConfig",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "admin",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "rent",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "systemProgram",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "marketIndex",
+          "type": "u16"
+        }
+      ]
+    },
+    {
+      "name": "openbookV2FulfillmentConfigStatus",
+      "accounts": [
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "openbookV2FulfillmentConfig",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "admin",
+          "isMut": true,
+          "isSigner": true
+        }
+      ],
+      "args": [
+        {
+          "name": "status",
+          "type": {
+            "defined": "SpotFulfillmentConfigStatus"
+          }
+        }
+      ]
+    },
+    {
       "name": "initializePhoenixFulfillmentConfig",
       "accounts": [
         {
@@ -3934,6 +4023,12 @@
         {
           "name": "maxBorrowRate",
           "type": "u32"
+        },
+        {
+          "name": "minBorrowRate",
+          "type": {
+            "option": "u8"
+          }
         }
       ]
     },
@@ -5294,6 +5389,75 @@
   ],
   "accounts": [
     {
+      "name": "OpenbookV2FulfillmentConfig",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "pubkey",
+            "type": "publicKey"
+          },
+          {
+            "name": "openbookV2ProgramId",
+            "type": "publicKey"
+          },
+          {
+            "name": "openbookV2Market",
+            "type": "publicKey"
+          },
+          {
+            "name": "openbookV2MarketAuthority",
+            "type": "publicKey"
+          },
+          {
+            "name": "openbookV2EventHeap",
+            "type": "publicKey"
+          },
+          {
+            "name": "openbookV2Bids",
+            "type": "publicKey"
+          },
+          {
+            "name": "openbookV2Asks",
+            "type": "publicKey"
+          },
+          {
+            "name": "openbookV2BaseVault",
+            "type": "publicKey"
+          },
+          {
+            "name": "openbookV2QuoteVault",
+            "type": "publicKey"
+          },
+          {
+            "name": "marketIndex",
+            "type": "u16"
+          },
+          {
+            "name": "fulfillmentType",
+            "type": {
+              "defined": "SpotFulfillmentType"
+            }
+          },
+          {
+            "name": "status",
+            "type": {
+              "defined": "SpotFulfillmentConfigStatus"
+            }
+          },
+          {
+            "name": "padding",
+            "type": {
+              "array": [
+                "u8",
+                4
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
       "name": "PhoenixV1FulfillmentConfig",
       "type": {
         "kind": "struct",
@@ -6198,13 +6362,13 @@
             "type": "i16"
           },
           {
-            "name": "padding1",
-            "type": {
-              "array": [
-                "u8",
-                2
-              ]
-            }
+            "name": "maxTokenBorrowsFraction",
+            "docs": [
+              "What fraction of max_token_deposits",
+              "disabled when 0, 1 => 1/10000 => .01% of max_token_deposits",
+              "precision: X/10000"
+            ],
+            "type": "u16"
           },
           {
             "name": "flashLoanAmount",
@@ -6241,11 +6405,20 @@
             "type": "u64"
           },
           {
+            "name": "minBorrowRate",
+            "docs": [
+              "The min borrow rate for this market when the market regardless of utilization",
+              "1 => 1/200 => .5%",
+              "precision: X/200"
+            ],
+            "type": "u8"
+          },
+          {
             "name": "padding",
             "type": {
               "array": [
                 "u8",
-                48
+                47
               ]
             }
           }
@@ -8780,6 +8953,9 @@
           },
           {
             "name": "PhoenixV1"
+          },
+          {
+            "name": "OpenbookV2"
           }
         ]
       }
@@ -9051,6 +9227,9 @@
           },
           {
             "name": "DeriskLp"
+          },
+          {
+            "name": "OrderFilledWithOpenbookV2"
           }
         ]
       }
@@ -12009,6 +12188,26 @@
       "code": 6267,
       "name": "UnableToParsePullOracleMessage",
       "msg": "Unable to parse pull oracle message"
+    },
+    {
+      "code": 6268,
+      "name": "MaxBorrows",
+      "msg": "Can not borow more than max borrows"
+    },
+    {
+      "code": 6269,
+      "name": "FailedOpenbookV2CPI",
+      "msg": "FailedOpenbookV2CPI"
+    },
+    {
+      "code": 6270,
+      "name": "InvalidOpenbookV2Program",
+      "msg": "InvalidOpenbookV2Program"
+    },
+    {
+      "code": 6271,
+      "name": "InvalidOpenbookV2Market",
+      "msg": "InvalidOpenbookV2Market"
     }
   ]
 }
