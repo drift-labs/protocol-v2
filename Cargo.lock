@@ -2688,15 +2688,12 @@ dependencies = [
  "borsh 0.10.3",
  "bytemuck",
  "drift",
- "num_enum 0.7.2",
  "pyth",
- "solana-client",
  "solana-program",
  "solana-program-test",
  "solana-sdk",
  "spl-associated-token-account 1.1.3",
  "spl-token 3.5.0",
- "static_assertions",
 ]
 
 [[package]]

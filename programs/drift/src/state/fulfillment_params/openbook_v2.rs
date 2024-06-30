@@ -256,7 +256,6 @@ impl<'a, 'b> OpenbookV2FulfillmentParams<'a, 'b> {
     }
 }
 
-// TODO
 impl<'a, 'b> OpenbookV2FulfillmentParams<'a, 'b> {
 
     pub fn invoke_new_order(&self, data: Vec<u8>) -> DriftResult {
@@ -306,7 +305,6 @@ impl<'a, 'b> OpenbookV2FulfillmentParams<'a, 'b> {
 
         invoke_signed_unchecked(
             &new_place_take_order_instruction,
-            // TODO .to_account_infos()
             &account_infos,
             signers_seeds,
         )
@@ -377,9 +375,6 @@ impl<'a, 'b> SpotFulfillmentParams for OpenbookV2FulfillmentParams<'a, 'b> {
         let quote_before = self.quote_market_vault.amount;
 
         self.invoke_new_order(data)?;
-
-        // Reload market data
-        // self.openbook_v2_context.openbook_v2_market.reload();
 
         self.base_market_vault.reload().map_err(|_e| {
             msg!("Failed to reload base_market_vault");
@@ -489,7 +484,6 @@ impl<'a, 'b> SpotFulfillmentParams for OpenbookV2FulfillmentParams<'a, 'b> {
 mod openbook_v2_test {
     use crate::math::serum::calculate_price_from_serum_limit_price;
 
-    // TODO fill the tests
     #[test]
     fn test_calculate_price_from_serum_limit_price() {
         // price +- 6.6.2024 170.0
