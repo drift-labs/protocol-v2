@@ -1,12 +1,12 @@
 import * as anchor from '@coral-xyz/anchor';
 import { Program } from '@coral-xyz/anchor';
 import {
-	createPriceFeed,
-	setFeedPrice,
+	mockOracleNoProgram,
+	setFeedPriceNoProgram,
 	mockUSDCMint,
 	mockUserUSDCAccount,
 	initializeQuoteSpotMarket,
-	getFeedData,
+	getFeedDataNoProgram,
 	sleep,
 } from './testHelpers';
 import { Keypair } from '@solana/web3.js';
@@ -29,21 +29,18 @@ import {
 	calculatePrice,
 	AMM_RESERVE_PRECISION,
 } from '../sdk/src';
-import { BulkAccountLoader } from '../sdk';
+import { startAnchor } from 'solana-bankrun';
+import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
+import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
 
 describe('User Account', () => {
-	const provider = anchor.AnchorProvider.local(undefined, {
-		preflightCommitment: 'confirmed',
-		skipPreflight: false,
-		commitment: 'confirmed',
-	});
-	const connection = provider.connection;
-	anchor.setProvider(provider);
 	const chProgram = anchor.workspace.Drift as Program;
 
 	let driftClient;
 
-	const bulkAccountLoader = new BulkAccountLoader(connection, 'confirmed', 1);
+	let bulkAccountLoader: TestBulkAccountLoader;
+
+	let bankrunContextWrapper: BankrunContextWrapper;
 
 	const ammInitialQuoteAssetAmount = new anchor.BN(2 * 10 ** 9).mul(
 		new BN(10 ** 5)
@@ -63,19 +60,33 @@ describe('User Account', () => {
 	let userAccount: User;
 
 	before(async () => {
-		usdcMint = await mockUSDCMint(provider);
-		userUSDCAccount = await mockUserUSDCAccount(usdcMint, usdcAmount, provider);
+		const context = await startAnchor('', [], []);
 
-		solUsdOracle = await createPriceFeed({
-			oracleProgram: anchor.workspace.Pyth,
-			initPrice: initialSOLPrice,
-			confidence: 0.0005,
-			expo: -10,
-		});
+		bankrunContextWrapper = new BankrunContextWrapper(context);
+
+		bulkAccountLoader = new TestBulkAccountLoader(
+			bankrunContextWrapper.connection,
+			'processed',
+			1
+		);
+
+		usdcMint = await mockUSDCMint(bankrunContextWrapper);
+		userUSDCAccount = await mockUserUSDCAccount(
+			usdcMint,
+			usdcAmount,
+			bankrunContextWrapper
+		);
+
+		solUsdOracle = await mockOracleNoProgram(
+			bankrunContextWrapper,
+			initialSOLPrice,
+			-10,
+			0.0005
+		);
 
 		driftClient = new TestClient({
-			connection,
-			wallet: provider.wallet,
+			connection: bankrunContextWrapper.connection.toConnection(),
+			wallet: bankrunContextWrapper.provider.wallet,
 			programID: chProgram.programId,
 			opts: {
 				commitment: 'confirmed',
@@ -83,6 +94,7 @@ describe('User Account', () => {
 			activeSubAccountId: 0,
 			perpMarketIndexes: [0],
 			spotMarketIndexes: [0],
+			subAccountIds: [],
 			oracleInfos: [{ publicKey: solUsdOracle, source: OracleSource.PYTH }],
 			accountSubscription: {
 				type: 'polling',
@@ -111,6 +123,10 @@ describe('User Account', () => {
 		userAccount = new User({
 			driftClient,
 			userAccountPublicKey: await driftClient.getUserAccountPublicKey(),
+			accountSubscription: {
+				type: 'polling',
+				accountLoader: bulkAccountLoader,
+			},
 		});
 		await userAccount.subscribe();
 	});
@@ -237,15 +253,18 @@ describe('User Account', () => {
 			convertToNumber(reservePrice),
 			convertToNumber(oraclePrice)
 		);
-		await setFeedPrice(
-			anchor.workspace.Pyth,
+		await setFeedPriceNoProgram(
+			bankrunContextWrapper,
 			convertToNumber(reservePrice.sub(new BN(250))),
 			solUsdOracle
 		);
 		await sleep(5000);
 
 		await driftClient.fetchAccounts();
-		const oracleP2 = await getFeedData(anchor.workspace.Pyth, solUsdOracle);
+		const oracleP2 = await getFeedDataNoProgram(
+			bankrunContextWrapper.connection,
+			solUsdOracle
+		);
 		console.log('oracleP2:', oracleP2.price);
 		const oraclePrice2 = driftClient.getOracleDataForPerpMarket(
 			market.marketIndex
@@ -316,15 +335,18 @@ describe('User Account', () => {
 			convertToNumber(reservePrice),
 			convertToNumber(oraclePrice)
 		);
-		await setFeedPrice(
-			anchor.workspace.Pyth,
+		await setFeedPriceNoProgram(
+			bankrunContextWrapper,
 			convertToNumber(reservePrice.sub(new BN(275))),
 			solUsdOracle
 		);
 		await sleep(5000);
 
 		await driftClient.fetchAccounts();
-		const oracleP2 = await getFeedData(anchor.workspace.Pyth, solUsdOracle);
+		const oracleP2 = await getFeedDataNoProgram(
+			bankrunContextWrapper.connection,
+			solUsdOracle
+		);
 		console.log('oracleP2:', oracleP2.price);
 		const oraclePrice2 = driftClient.getOracleDataForPerpMarket(
 			market.marketIndex

@@ -25,10 +25,14 @@
 	},
 	"dependencies": {
 		"@ellipsis-labs/phoenix-sdk": "1.4.2",
+		"@pythnetwork/pyth-solana-receiver": "^0.8.0",
+		"anchor-bankrun": "^0.3.0",
 		"chai-bn": "^0.2.2",
 		"csvtojson": "^2.0.10",
 		"json2csv": "^5.0.7",
-		"zstddec": "^0.1.0"
+		"solana-bankrun": "^0.3.0",
+		"zstddec": "^0.1.0",
+		"rpc-websockets": "7.5.1"
 	},
 	"scripts": {
 		"generate-docs": "typedoc",

@@ -4,7 +4,7 @@ import {
 	UserAccountEvents,
 	UserAccountSubscriber,
 } from './types';
-import { Program } from '@coral-xyz/anchor';
+import { Connection } from '../bankrun/bankrunConnection';
 import StrictEventEmitter from 'strict-event-emitter-types';
 import { EventEmitter } from 'events';
 import { PublicKey } from '@solana/web3.js';
@@ -13,7 +13,7 @@ import { BulkAccountLoader } from './bulkAccountLoader';
 
 export class PollingUserAccountSubscriber implements UserAccountSubscriber {
 	isSubscribed: boolean;
-	program: Program;
+	connection: Connection;
 	eventEmitter: StrictEventEmitter<EventEmitter, UserAccountEvents>;
 	userAccountPublicKey: PublicKey;
 
@@ -21,18 +21,22 @@ export class PollingUserAccountSubscriber implements UserAccountSubscriber {
 	callbackId?: string;
 	errorCallbackId?: string;
 
+	decode: (name, buffer) => UserAccount;
+
 	user?: DataAndSlot<UserAccount>;
 
 	public constructor(
-		program: Program,
+		connection: Connection,
 		userAccountPublicKey: PublicKey,
-		accountLoader: BulkAccountLoader
+		accountLoader: BulkAccountLoader,
+		decode: (name, buffer) => UserAccount
 	) {
 		this.isSubscribed = false;
-		this.program = program;
+		this.connection = connection;
 		this.accountLoader = accountLoader;
 		this.eventEmitter = new EventEmitter();
 		this.userAccountPublicKey = userAccountPublicKey;
+		this.decode = decode;
 	}
 
 	async subscribe(userAccount?: UserAccount): Promise<boolean> {
@@ -71,10 +75,7 @@ export class PollingUserAccountSubscriber implements UserAccountSubscriber {
 					return;
 				}
 
-				const account = this.program.account.user.coder.accounts.decode(
-					'User',
-					buffer
-				);
+				const account = this.decode('User', buffer);
 				this.user = { data: account, slot };
 				this.eventEmitter.emit('userAccountUpdate', account);
 				this.eventEmitter.emit('update');
@@ -94,19 +95,19 @@ export class PollingUserAccountSubscriber implements UserAccountSubscriber {
 
 	async fetch(): Promise<void> {
 		try {
-			const dataAndContext = await this.program.account.user.fetchAndContext(
+			const dataAndContext = await this.connection.getAccountInfoAndContext(
 				this.userAccountPublicKey,
 				this.accountLoader.commitment
 			);
 			if (dataAndContext.context.slot > (this.user?.slot ?? 0)) {
 				this.user = {
-					data: dataAndContext.data as UserAccount,
+					data: this.decode('User', dataAndContext.value.data),
 					slot: dataAndContext.context.slot,
 				};
 			}
 		} catch (e) {
 			console.log(
-				`PollingUserAccountSubscriber.fetch() UserAccount does not exist: ${e.message}`
+				`PollingUserAccountSubscriber.fetch() UserAccount does not exist: ${e.message}-${e.stack}`
 			);
 		}
 	}

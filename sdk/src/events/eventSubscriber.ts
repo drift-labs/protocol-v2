@@ -45,6 +45,7 @@ export class EventSubscriber {
 
 		if (this.options.logProviderConfig.type === 'websocket') {
 			this.logProvider = new WebSocketLogProvider(
+				// @ts-ignore
 				this.connection,
 				this.address,
 				this.options.commitment,
@@ -52,6 +53,7 @@ export class EventSubscriber {
 			);
 		} else {
 			this.logProvider = new PollingLogProvider(
+				// @ts-ignore
 				this.connection,
 				this.address,
 				options.commitment,
@@ -101,6 +103,7 @@ export class EventSubscriber {
 									this.logProvider.eventEmitter.removeAllListeners('reconnect');
 									this.unsubscribe().then(() => {
 										this.logProvider = new PollingLogProvider(
+											// @ts-ignore
 											this.connection,
 											this.address,
 											this.options.commitment,
@@ -148,6 +151,7 @@ export class EventSubscriber {
 		}
 
 		const wrappedEvents = this.parseEventsFromLogs(txSig, slot, logs);
+
 		for (const wrappedEvent of wrappedEvents) {
 			this.eventListMap.get(wrappedEvent.eventType).insert(wrappedEvent);
 		}
@@ -188,6 +192,7 @@ export class EventSubscriber {
 		const untilTx: TransactionSignature = this.options.untilTx;
 		while (txFetched < this.options.maxTx) {
 			const response = await fetchLogs(
+				// @ts-ignore
 				this.connection,
 				this.address,
 				this.options.commitment === 'finalized' ? 'finalized' : 'confirmed',
