@@ -1,10 +1,11 @@
-use std::cell::Ref;
+use std::cell::{Ref, RefMut};
 use std::convert::TryFrom;
 use anchor_lang::prelude::*;
 use anchor_lang::{account, InstructionData, Key};
 use anchor_lang::prelude::{Account, Program, System};
 use anchor_spl::token::{Token, TokenAccount};
 use arrayref::array_ref;
+use bytemuck::{cast_slice_mut, from_bytes_mut};
 use solana_program::account_info::AccountInfo;
 use solana_program::instruction::{AccountMeta, Instruction};
 use solana_program::msg;
@@ -57,9 +58,19 @@ pub struct OpenbookV2Context<'a, 'b> {
 
 impl<'a, 'b> OpenbookV2Context<'a, 'b> {
     pub fn load_openbook_v2_market(&self) -> DriftResult<Market> {
-        let data = self.openbook_v2_market.data.borrow();
-        let market: &Market = bytemuck::try_from_bytes::<Market>(&data[8..]).map_err(|_| ErrorCode::FailedOpenbookV2CPI)?;
+        let mut account_data: RefMut<'a, [u8]>;
+        let market: RefMut<'a, Market>;
+        let data = self.openbook_v2_market.try_borrow_mut_data().map_err(|_| ErrorCode::FailedOpenbookV2CPI)?;
+        account_data = RefMut::map(data, |data| *data);
+
+        market = RefMut::map(account_data, |data| {
+            from_bytes_mut(data)
+        });
+
         Ok(*market)
+        // let data = self.openbook_v2_market.data.borrow();
+        // let market: &Market = bytemuck::try_from_bytes::<Market>(&data[8..]).map_err(|_| ErrorCode::FailedOpenbookV2CPI)?;
+        // Ok(*market)
     }
 
     pub fn to_openbook_v2_fulfillment_config(
