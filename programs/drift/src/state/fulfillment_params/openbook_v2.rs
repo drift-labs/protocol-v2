@@ -66,11 +66,7 @@ impl<'a, 'b> OpenbookV2Context<'a, 'b> {
         market = RefMut::map(account_data, |data| {
             from_bytes_mut(data)
         });
-
         Ok(*market)
-        // let data = self.openbook_v2_market.data.borrow();
-        // let market: &Market = bytemuck::try_from_bytes::<Market>(&data[8..]).map_err(|_| ErrorCode::FailedOpenbookV2CPI)?;
-        // Ok(*market)
     }
 
     pub fn to_openbook_v2_fulfillment_config(
