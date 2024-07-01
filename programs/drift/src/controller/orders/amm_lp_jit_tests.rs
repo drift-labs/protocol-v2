@@ -5,6 +5,7 @@ use crate::math::constants::ONE_BPS_DENOMINATOR;
 use crate::state::oracle_map::OracleMap;
 use crate::state::state::{FeeStructure, FeeTier};
 use crate::state::user::{Order, PerpPosition};
+use anchor_lang::prelude::AccountLoader;
 
 fn get_fee_structure() -> FeeStructure {
     let mut fee_tiers = [FeeTier::default(); 10];
@@ -27,6 +28,7 @@ fn get_user_keys() -> (Pubkey, Pubkey, Pubkey) {
 
 #[cfg(test)]
 pub mod amm_lp_jit {
+    use crate::controller::lp::*;
     use std::str::FromStr;
 
     use crate::controller::orders::fulfill_perp_order;
@@ -336,6 +338,142 @@ pub mod amm_lp_jit {
         .unwrap();
         assert_eq!(amm_liquidity_split, AMMLiquiditySplit::ProtocolOwned);
         assert_eq!(jit_base_asset_amount, 500000000);
+    }
+
+    #[test]
+    fn amm_lp_jit_growing_imbalance() {
+        let perp_market_str = String::from("Ct8MLGv1N/dvAH3EF67yBqaUQerctpm4yqpK+QNSrXCQz76p+B+ka+8Ni2/aLOukHaFdQJXR2jkqDS+O0MbHvA9M+sjCgLVtKqIvBgAAAAAAAAAAAAAAAAEAAAAAAAAAMqMtBgAAAAAqbjAGAAAAANxO2mUAAAAAaBTIHi///////////////34O6QELAAAAAAAAAAAAAAAHKz/PDT4FAAAAAAAAAAAAAAAAAAAAAADzvPFIhE01AAAAAAAAAAAANoephjOQsQAAAAAAAAAAAJxiDwAAAAAAAAAAAAAAAAARaobcn940AAAAAAAAAAAA6b4/gMu/NQAAAAAAAAAAAMdhlaZJSWEAAAAAAAAAAABAZNsBAAAAAAAAAAAAAAAAzoRK7BuMsQAAAAAAAAAAAACfEqfXmwEAAAAAAAAAAAAApdkrM2X+////////////hiw7gjoBAAAAAAAAAAAAAHoXsVDQ//////////////8AgN1isiECAAAAAAAAAAAAs7guTNIAAAAAAAAAAAAAADxyybCD1f////////////+V7RVJ5SkAAAAAAAAAAAAA55F6aszU/////////////83gymajKgAAAAAAAAAAAAB6iZF3N6JVAAAAAAAAAAAA6uImAAAAAADq4iYAAAAAAOriJgAAAAAAydkiAAAAAACypVczGQQAAAAAAAAAAAAAWXyK3qsBAAAAAAAAAAAAAJ7Xpox5AgAAAAAAAAAAAAChtlqoGgMAAAAAAAAAAAAA3F0kpEABAAAAAAAAAAAAAK/xpvOOAAAAAAAAAAAAAABYFDN8AwAAAAAAAAAAAAAA3bjobwMAAAAAAAAAAAAAAMG4+QwBAAAAAAAAAAAAAAC6akQFKEs1AAAAAAAAAAAA1tmhzxCYsQAAAAAAAAAAANrADI7+TTUAAAAAAAAAAADyYns7nI6xAAAAAAAAAAAAKqIvBgAAAAAAAAAAAAAAALLvLQYAAAAAQ2ouBgAAAAD6LC4GAAAAAKS+MAYAAAAAqiDqDgAAAADDAgAAAAAAALsz/SUAAAAAwUraZQAAAAAQDgAAAAAAAADh9QUAAAAAZAAAAAAAAAAA4fUFAAAAAAAAAAAAAAAABCMpInEaAAA+IKFxagAAAGHpPG2JAAAA3E7aZQAAAADTtwAAAAAAAPj+AQAAAAAA3E7aZQAAAABkAAAAqGEAAFoBAABGAAAAZwAAAAAAAADECTIAZMgAAcDIUt4DAAAAKre0CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAP3nh/L7DwUAAAAAAAAAAAAAAAAAAAAAAFNPTC1QRVJQICAgICAgICAgICAgICAgICAgICAgICAgAD4U9P////8AwusLAAAAAABcsuwiAAAAjV0QSQQAAAAsTNplAAAAAADh9QUAAAAAAAAAAAAAAAAAAAAAAAAAAODAMQAAAAAAbiwAAAAAAACQBAAAAAAAAMgAAAAAAAAATB0AANQwAADoAwAA9AEAAAAAAAAQJwAAmisAAHBCAAAAAAEAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==");
+        let mut decoded_bytes = base64::decode(perp_market_str).unwrap();
+        let perp_market_bytes = decoded_bytes.as_mut_slice();
+
+        let key = Pubkey::default();
+        let owner = Pubkey::from_str("dRiftyHA39MWEi3m9aunc5MzRF1JYuBsbn6VPcn33UH").unwrap();
+        let mut lamports = 0;
+        let perp_market_account_info =
+            create_account_info(&key, true, &mut lamports, perp_market_bytes, &owner);
+        let perp_market_loader: AccountLoader<PerpMarket> =
+            AccountLoader::try_from(&perp_market_account_info).unwrap();
+        let mut perp_market = perp_market_loader.load_mut().unwrap();
+
+        let oracle_price = 100 * PRICE_PRECISION_I64;
+
+        let prev_lp_base_imbalance = -8_005_614_396_558_846; // -8_005_614 base
+        assert_eq!(
+            perp_market
+                .amm
+                .imbalanced_base_asset_amount_with_lp()
+                .unwrap(),
+            prev_lp_base_imbalance
+        );
+        // should stay constant
+        assert_eq!(
+            perp_market.amm.base_asset_amount_per_lp
+                - perp_market
+                    .amm
+                    .get_target_base_asset_amount_per_lp()
+                    .unwrap(),
+            -332131735960
+        );
+
+        let prev_user_shares = 24103732133333370;
+        assert_eq!(perp_market.amm.user_lp_shares, prev_user_shares);
+
+        let mut new_lp_position = PerpPosition {
+            ..PerpPosition::default()
+        };
+        let new_lp_mint_amt = 1_000_000 * BASE_PRECISION_U64;
+        mint_lp_shares(&mut new_lp_position, &mut perp_market, new_lp_mint_amt).unwrap();
+        assert_eq!(
+            perp_market.amm.user_lp_shares,
+            prev_user_shares + new_lp_mint_amt as u128
+        );
+
+        // increases with new mint
+        assert!(
+            perp_market
+                .amm
+                .imbalanced_base_asset_amount_with_lp()
+                .unwrap()
+                .abs()
+                > prev_lp_base_imbalance.abs()
+        );
+
+        // unchanged
+        assert_eq!(
+            perp_market.amm.base_asset_amount_per_lp
+                - perp_market
+                    .amm
+                    .get_target_base_asset_amount_per_lp()
+                    .unwrap(),
+            -332131735960
+        );
+
+        let mut whale_old_lp_position = PerpPosition {
+            lp_shares: (prev_user_shares / 10) as u64,
+            ..PerpPosition::default()
+        };
+        burn_lp_shares(
+            &mut whale_old_lp_position,
+            &mut perp_market,
+            (prev_user_shares / 10) as u64,
+            oracle_price,
+        )
+        .unwrap();
+        assert_eq!(
+            perp_market.amm.user_lp_shares,
+            (prev_user_shares - prev_user_shares / 10 + new_lp_mint_amt as u128)
+        );
+
+        // decreases with new burn
+        assert!(
+            perp_market
+                .amm
+                .imbalanced_base_asset_amount_with_lp()
+                .unwrap()
+                .abs()
+                < prev_lp_base_imbalance.abs()
+        );
+
+        assert!(!perp_market
+            .amm
+            .amm_lp_wants_to_jit_make(PositionDirection::Long)
+            .unwrap());
+        assert!(perp_market
+            .amm
+            .amm_lp_wants_to_jit_make(PositionDirection::Short)
+            .unwrap());
+        assert!(perp_market.amm.amm_lp_allowed_to_jit_make(true).unwrap());
+        assert!(perp_market.amm.amm_lp_allowed_to_jit_make(false).unwrap());
+
+        assert_eq!(perp_market.amm.base_asset_amount_per_lp, -897131735960);
+        assert_eq!(perp_market.amm.target_base_asset_amount_per_lp, -565000000);
+        assert_eq!(perp_market.amm.per_lp_base, 3);
+        assert_eq!(
+            perp_market
+                .amm
+                .get_target_base_asset_amount_per_lp()
+                .unwrap(),
+            -565000000000
+        );
+        assert_eq!(
+            perp_market.amm.base_asset_amount_per_lp
+                - perp_market
+                    .amm
+                    .get_target_base_asset_amount_per_lp()
+                    .unwrap(),
+            -332131735960
+        );
+
+        assert!(!perp_market
+            .amm
+            .amm_lp_wants_to_jit_make(PositionDirection::Long)
+            .unwrap());
+        assert!(perp_market
+            .amm
+            .amm_lp_wants_to_jit_make(PositionDirection::Short)
+            .unwrap());
+        assert!(perp_market.amm.amm_lp_allowed_to_jit_make(true).unwrap());
+        assert!(perp_market.amm.amm_lp_allowed_to_jit_make(false).unwrap());
     }
 
     #[test]
