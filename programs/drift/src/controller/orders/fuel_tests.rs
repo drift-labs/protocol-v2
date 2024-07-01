@@ -319,8 +319,8 @@ pub mod fuel_scoring {
             )
             .unwrap();
 
-        assert_eq!(margin_calc.fuel_oi, 51669);
-        // assert_eq!(taker_stats.fuel_oi, 25000000000 + margin_calc.fuel_oi);
+        assert_eq!(margin_calc.fuel_positions, 51669);
+        // assert_eq!(taker_stats.fuel_positions, 25000000000 + margin_calc.fuel_positions);
     }
 
     #[test]
@@ -809,7 +809,7 @@ pub mod fuel_scoring {
         assert_eq!(margin_calc_maker.fuel_deposits, 100_000 / 28);
         assert_eq!(maker_stats.fuel_deposits, margin_calc_maker.fuel_deposits);
 
-        let mut margin_context =
+        let margin_context =
             MarginContext::standard(MarginRequirementType::Initial).fuel_numerator(taker, now);
 
         let margin_calc = taker

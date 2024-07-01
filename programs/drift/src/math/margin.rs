@@ -626,7 +626,7 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
                     base_asset_value
                 };
 
-            let perp_fuel_oi_bonus = calculate_perp_fuel_bonus(
+            let perp_fuel_positions_bonus = calculate_perp_fuel_bonus(
                 &market,
                 fuel_base_asset_value as i128,
                 context.fuel_bonus_numerator,
@@ -634,7 +634,7 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
 
             calculation.fuel_positions = calculation
                 .fuel_positions
-                .saturating_add(perp_fuel_oi_bonus.cast()?);
+                .saturating_add(perp_fuel_positions_bonus.cast()?);
         }
 
         calculation.add_margin_requirement(

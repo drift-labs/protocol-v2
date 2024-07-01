@@ -1607,7 +1607,7 @@ pub fn handle_update_user_gov_token_insurance_stake(
     if insurance_fund_stake.market_index == GOV_SPOT_MARKET_INDEX
         && spot_market.market_index == GOV_SPOT_MARKET_INDEX
     {
-        user_stats.if_staked_quote_asset_amount = if_shares_to_vault_amount(
+        user_stats.if_staked_gov_token_amount = if_shares_to_vault_amount(
             insurance_fund_stake.checked_if_shares(spot_market)?,
             spot_market.insurance_fund.total_shares,
             ctx.accounts.insurance_fund_vault.amount,

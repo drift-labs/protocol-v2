@@ -1721,7 +1721,7 @@ fn fulfill_perp_order(
     user_stats.update_fuel_bonus(
         taker_margin_calculation.fuel_deposits,
         taker_margin_calculation.fuel_borrows,
-        taker_margin_calculation.fuel_oi,
+        taker_margin_calculation.fuel_positions,
         now,
     )?;
     user.last_fuel_bonus_update_ts = now;
@@ -1736,10 +1736,9 @@ fn fulfill_perp_order(
     }
 
     for (maker_key, maker_base_asset_amount_filled) in maker_fills {
-        // let maker = makers_and_referrer.get_ref(&maker_key)?;
         let mut maker = makers_and_referrer.get_ref_mut(&maker_key)?;
 
-        let mut maker_stats = if maker.authority == user.authority {
+        let maker_stats = if maker.authority == user.authority {
             None
         } else {
             Some(makers_and_referrer_stats.get_ref_mut(&maker.authority)?)
@@ -1765,7 +1764,7 @@ fn fulfill_perp_order(
             maker_stats.unwrap().update_fuel_bonus(
                 maker_margin_calculation.fuel_deposits,
                 maker_margin_calculation.fuel_borrows,
-                maker_margin_calculation.fuel_oi,
+                maker_margin_calculation.fuel_positions,
                 now,
             )?;
         }
@@ -4087,7 +4086,7 @@ fn fulfill_spot_order(
     user_stats.update_fuel_bonus(
         taker_margin_calculation.fuel_deposits,
         taker_margin_calculation.fuel_borrows,
-        taker_margin_calculation.fuel_oi,
+        taker_margin_calculation.fuel_positions,
         now,
     )?;
     user.last_fuel_bonus_update_ts = now;
@@ -4102,7 +4101,6 @@ fn fulfill_spot_order(
     }
 
     for (maker_key, _) in maker_fills {
-        // let maker = makers_and_referrer.get_ref(&maker_key)?;
         let mut maker: RefMut<User> = makers_and_referrer.get_ref_mut(&maker_key)?;
         let maker_stats = if maker.authority == user.authority {
             None
@@ -4175,7 +4173,7 @@ fn fulfill_spot_order(
             maker_stats.unwrap().update_fuel_bonus(
                 maker_margin_calculation.fuel_deposits,
                 maker_margin_calculation.fuel_borrows,
-                maker_margin_calculation.fuel_oi,
+                maker_margin_calculation.fuel_positions,
                 now,
             )?;
         }

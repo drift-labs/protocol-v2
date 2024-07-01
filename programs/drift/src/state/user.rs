@@ -440,11 +440,11 @@ impl User {
         &mut self,
         fuel_deposits: u32,
         fuel_borrows: u32,
-        fuel_oi: u32,
+        fuel_positions: u32,
         user_stats: &mut UserStats,
         now: i64,
     ) -> DriftResult {
-        user_stats.update_fuel_bonus(fuel_deposits, fuel_borrows, fuel_oi, now)?;
+        user_stats.update_fuel_bonus(fuel_deposits, fuel_borrows, fuel_positions, now)?;
         self.last_fuel_bonus_update_ts = now;
 
         Ok(())
@@ -1657,12 +1657,12 @@ impl UserStats {
         &mut self,
         fuel_deposits: u32,
         fuel_borrows: u32,
-        fuel_oi: u32,
+        fuel_positions: u32,
         _now: i64,
     ) -> DriftResult {
         self.fuel_deposits = self.fuel_deposits.saturating_add(fuel_deposits);
         self.fuel_borrows = self.fuel_borrows.saturating_add(fuel_borrows);
-        self.fuel_positions = self.fuel_positions.saturating_add(fuel_oi);
+        self.fuel_positions = self.fuel_positions.saturating_add(fuel_positions);
         // self.last_fuel_bonus_update_ts = now;
 
         Ok(())
