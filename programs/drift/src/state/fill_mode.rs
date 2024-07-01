@@ -12,6 +12,7 @@ pub enum FillMode {
     Fill,
     PlaceAndMake,
     PlaceAndTake,
+    Liquidation,
 }
 
 impl FillMode {
@@ -23,7 +24,7 @@ impl FillMode {
         tick_size: u64,
     ) -> DriftResult<Option<u64>> {
         match self {
-            FillMode::Fill | FillMode::PlaceAndMake => {
+            FillMode::Fill | FillMode::PlaceAndMake | FillMode::Liquidation => {
                 order.get_limit_price(valid_oracle_price, None, slot, tick_size)
             }
             FillMode::PlaceAndTake => {
@@ -40,5 +41,9 @@ impl FillMode {
                 }
             }
         }
+    }
+
+    pub fn is_liquidation(&self) -> bool {
+        self == &FillMode::Liquidation
     }
 }

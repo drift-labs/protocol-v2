@@ -543,6 +543,9 @@ pub enum ErrorCode {
     UnableToParsePullOracleMessage,
     #[msg("Can not borow more than max borrows")]
     MaxBorrows,
+    #[msg("Liquidation order failed to fill")]
+    LiquidationOrderFailedToFill,
+  
 }
 
 #[macro_export]

@@ -412,6 +412,13 @@ pub mod drift {
         )
     }
 
+    pub fn liquidate_perp_with_fill<'c: 'info, 'info>(
+        ctx: Context<'_, '_, 'c, 'info, LiquidatePerp<'info>>,
+        market_index: u16,
+    ) -> Result<()> {
+        handle_liquidate_perp_with_fill(ctx, market_index)
+    }
+
     pub fn liquidate_spot<'c: 'info, 'info>(
         ctx: Context<'_, '_, 'c, 'info, LiquidateSpot<'info>>,
         asset_market_index: u16,

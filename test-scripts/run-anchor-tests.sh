@@ -29,6 +29,7 @@ test_files=(
   liquidateMaxLps.ts
   liquidatePerp.ts
   liquidatePerpAndLp.ts
+  liquidatePerpWithFill.ts
   liquidatePerpPnlForDeposit.ts
   liquidateSpot.ts
   liquidateSpotSocialLoss.ts
