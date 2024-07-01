@@ -209,3 +209,20 @@ export function getNewOracleConfPct(
 
 	return confIntervalPctResult;
 }
+
+export function trimVaaSignatures(vaa: Buffer, n = 3): Buffer {
+	const currentNumSignatures = vaa[5];
+	if (n > currentNumSignatures) {
+		throw new Error(
+			"Resulting VAA can't have more signatures than the original VAA"
+		);
+	}
+
+	const trimmedVaa = Buffer.concat([
+		vaa.subarray(0, 6 + n * 66),
+		vaa.subarray(6 + currentNumSignatures * 66),
+	]);
+
+	trimmedVaa[5] = n;
+	return trimmedVaa;
+}

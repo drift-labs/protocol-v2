@@ -1,7 +1,7 @@
 use crate::error::ErrorCode::UnableToLoadOracle;
 use crate::error::{DriftResult, ErrorCode};
 use crate::ids::{
-    bonk_oracle, bonk_pull_oracle, pepe_oracle, pyth_program, pyth_pull_program,
+    bonk_oracle, bonk_pull_oracle, drift_oracle_receiver_program, pepe_oracle, pyth_program,
     switchboard_program, usdc_oracle, usdc_pull_oracle, usdt_oracle_mainnet,
     usdt_pull_oracle_mainnet,
 };
@@ -212,7 +212,7 @@ impl<'a> OracleMap<'a> {
                 );
 
                 continue;
-            } else if account_info.owner == &pyth_pull_program::id() {
+            } else if account_info.owner == &drift_oracle_receiver_program::id() {
                 let account_info: &AccountInfo<'a> = account_info_iter.next().safe_unwrap()?;
                 let pubkey = account_info.key();
 
@@ -325,7 +325,7 @@ impl<'a> OracleMap<'a> {
                     oracle_source,
                 },
             );
-        } else if account_info.owner == &pyth_pull_program::id() {
+        } else if account_info.owner == &drift_oracle_receiver_program::id() {
             let pubkey = account_info.key();
             let oracle_source = if pubkey == bonk_pull_oracle::id() {
                 OracleSource::Pyth1MPull
