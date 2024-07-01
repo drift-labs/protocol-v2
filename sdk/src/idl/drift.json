@@ -12073,6 +12073,14 @@
       "code": 6268,
       "name": "MaxBorrows",
       "msg": "Can not borow more than max borrows"
+    },
+    {
+      "code": 6269,
+      "name": "LiquidationOrderFailedToFill",
+      "msg": "Liquidation order failed to fill"
     }
-  ]
+  ],
+  "metadata": {
+    "address": "dRiftyHA39MWEi3m9aunc5MzRF1JYuBsbn6VPcn33UH"
+  }
 }
