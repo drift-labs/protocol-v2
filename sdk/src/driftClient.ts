@@ -129,6 +129,7 @@ import { numberToSafeBN } from './math/utils';
 import { TransactionParamProcessor } from './tx/txParamProcessor';
 import { isOracleValid } from './math/oracles';
 import { TxHandler } from './tx/txHandler';
+import { isVersionedTransaction } from './tx/utils';
 
 type RemainingAccountParams = {
 	userAccounts: UserAccount[];
@@ -6863,11 +6864,7 @@ export class DriftClient {
 	private isVersionedTransaction(
 		tx: Transaction | VersionedTransaction
 	): boolean {
-		const version = (tx as VersionedTransaction)?.version;
-		const isVersionedTx =
-			tx instanceof VersionedTransaction || version !== undefined;
-
-		return isVersionedTx;
+		return isVersionedTransaction(tx);
 	}
 
 	sendTransaction(
