@@ -187,7 +187,6 @@ pub struct SpotMarket {
     pub min_borrow_rate: u8,
     /// fuel multiplier for spot deposits
     /// precision: 10
-    pub padding1: [u8; 7],
     pub fuel_boost_deposits: u8,
     /// fuel multiplier for spot borrows
     /// precision: 10
@@ -198,7 +197,7 @@ pub struct SpotMarket {
     /// fuel multiplier for spot maker
     /// precision: 10
     pub fuel_boost_maker: u8,
-    pub padding: [u8; 36],
+    pub padding: [u8; 43],
 }
 
 impl Default for SpotMarket {
@@ -260,12 +259,11 @@ impl Default for SpotMarket {
             total_swap_fee: 0,
             scale_initial_asset_weight_start: 0,
             min_borrow_rate: 0,
-            padding1: [0; 7],
             fuel_boost_deposits: 0,
             fuel_boost_borrows: 0,
             fuel_boost_taker: 0,
             fuel_boost_maker: 0,
-            padding: [0; 36],
+            padding: [0; 43],
         }
     }
 }

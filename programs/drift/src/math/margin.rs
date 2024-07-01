@@ -242,7 +242,7 @@ pub fn calculate_user_safest_position_tiers(
 pub fn calculate_perp_fuel_bonus(
     perp_market: &PerpMarket,
     base_asset_value: i128,
-    fuel_bonus_numerator: i64, // fuel_perp_delta: Option<(u16, i64)>
+    fuel_bonus_numerator: i64,
 ) -> DriftResult<u64> {
     let result: u64 = if base_asset_value.unsigned_abs() <= QUOTE_PRECISION {
         0_u64

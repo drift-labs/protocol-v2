@@ -883,6 +883,8 @@ export class User {
 		depositFuel;
 		borrowFuel;
 		positionFuel;
+		takerFuel;
+		makerFuel;
 	} {
 		const userAccount: UserAccount = this.getUserAccount();
 
@@ -946,7 +948,7 @@ export class User {
 						)
 					);
 				} else {
-					result['borrowFuel'] = result['depositFuel'].add(
+					result['borrowFuel'] = result['borrowFuel'].add(
 						calculateSpotFuelBonus(
 							spotMarketAccount,
 							signedTokenValue,

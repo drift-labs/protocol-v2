@@ -1715,7 +1715,7 @@ fn fulfill_perp_order(
             } else {
                 MarginRequirementType::Fill
             })
-            .fuel_perp_diff(market_index, taker_base_asset_amount_signed as i64),
+            .fuel_perp_delta(market_index, taker_base_asset_amount_signed as i64),
         )?; // fueltodo side
 
     user_stats.update_fuel_bonus(
@@ -1738,7 +1738,7 @@ fn fulfill_perp_order(
     for (maker_key, maker_base_asset_amount_filled) in maker_fills {
         let mut maker = makers_and_referrer.get_ref_mut(&maker_key)?;
 
-        let maker_stats = if maker.authority == user.authority {
+        let mut maker_stats = if maker.authority == user.authority {
             None
         } else {
             Some(makers_and_referrer_stats.get_ref_mut(&maker.authority)?)
@@ -1757,11 +1757,11 @@ fn fulfill_perp_order(
                 spot_market_map,
                 oracle_map,
                 MarginContext::standard(margin_type)
-                    .fuel_perp_diff(market_index, -maker_base_asset_amount_filled as i64), // fueltodo: side
+                    .fuel_perp_delta(market_index, -maker_base_asset_amount_filled as i64), // fueltodo: side
             )?;
 
-        if maker_stats.is_some() {
-            maker_stats.unwrap().update_fuel_bonus(
+        if let Some(mut maker_stats) = maker_stats {
+            maker_stats.update_fuel_bonus(
                 maker_margin_calculation.fuel_deposits,
                 maker_margin_calculation.fuel_borrows,
                 maker_margin_calculation.fuel_positions,
@@ -4073,7 +4073,7 @@ fn fulfill_spot_order(
             spot_market_map,
             oracle_map,
             MarginContext::standard(margin_type)
-                .fuel_spot_diff(
+                .fuel_spot_delta(
                     base_market_index,
                     base_token_amount_before.safe_sub(base_token_amount_after)?,
                 )
@@ -4102,7 +4102,7 @@ fn fulfill_spot_order(
 
     for (maker_key, _) in maker_fills {
         let mut maker: RefMut<User> = makers_and_referrer.get_ref_mut(&maker_key)?;
-        let maker_stats = if maker.authority == user.authority {
+        let mut maker_stats = if maker.authority == user.authority {
             None
         } else {
             Some(makers_and_referrer_stats.get_ref_mut(&maker.authority)?)
@@ -4159,7 +4159,7 @@ fn fulfill_spot_order(
                 spot_market_map,
                 oracle_map,
                 MarginContext::standard(margin_type)
-                    .fuel_spot_diff(
+                    .fuel_spot_delta(
                         base_market_index,
                         maker_base_token_amount_before.safe_sub(maker_base_token_amount_after)?,
                     )
@@ -4169,8 +4169,8 @@ fn fulfill_spot_order(
                     ),
             )?;
 
-        if maker_stats.is_some() {
-            maker_stats.unwrap().update_fuel_bonus(
+        if let Some(mut maker_stats) = maker_stats {
+            maker_stats.update_fuel_bonus(
                 maker_margin_calculation.fuel_deposits,
                 maker_margin_calculation.fuel_borrows,
                 maker_margin_calculation.fuel_positions,

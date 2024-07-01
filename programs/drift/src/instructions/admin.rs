@@ -279,12 +279,11 @@ pub fn handle_initialize_spot_market(
         total_swap_fee: 0,
         scale_initial_asset_weight_start,
         min_borrow_rate: 0,
-        padding1: [0; 7],
         fuel_boost_deposits: 0,
         fuel_boost_borrows: 0,
         fuel_boost_taker: 0,
         fuel_boost_maker: 0,
-        padding: [0; 36],
+        padding: [0; 43],
         insurance_fund: InsuranceFund {
             vault: *ctx.accounts.insurance_fund_vault.to_account_info().key,
             unstaking_period: THIRTEEN_DAY,

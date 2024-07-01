@@ -556,7 +556,7 @@ pub mod fuel_scoring {
         );
 
         let margin_context =
-            MarginContext::standard(MarginRequirementType::Initial).fuel_numerator(maker, now);
+            MarginContext::standard(MarginRequirementType::Initial).fuel_numerator(&maker, now);
 
         let margin_calc_maker = maker
             .calculate_margin_and_increment_fuel_bonus(
@@ -575,7 +575,7 @@ pub mod fuel_scoring {
         assert_eq!(maker_stats.fuel_deposits, margin_calc_maker.fuel_deposits);
 
         let margin_context =
-            MarginContext::standard(MarginRequirementType::Initial).fuel_numerator(taker, now);
+            MarginContext::standard(MarginRequirementType::Initial).fuel_numerator(&taker, now);
 
         let margin_calc = taker
             .calculate_margin_and_increment_fuel_bonus(
@@ -791,7 +791,7 @@ pub mod fuel_scoring {
         );
 
         let margin_context =
-            MarginContext::standard(MarginRequirementType::Initial).fuel_numerator(maker, now);
+            MarginContext::standard(MarginRequirementType::Initial).fuel_numerator(&maker, now);
 
         let margin_calc_maker = maker
             .calculate_margin_and_increment_fuel_bonus(
@@ -810,7 +810,7 @@ pub mod fuel_scoring {
         assert_eq!(maker_stats.fuel_deposits, margin_calc_maker.fuel_deposits);
 
         let margin_context =
-            MarginContext::standard(MarginRequirementType::Initial).fuel_numerator(taker, now);
+            MarginContext::standard(MarginRequirementType::Initial).fuel_numerator(&taker, now);
 
         let margin_calc = taker
             .calculate_margin_and_increment_fuel_bonus(
