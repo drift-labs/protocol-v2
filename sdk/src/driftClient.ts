@@ -4118,6 +4118,10 @@ export class DriftClient {
 		const outMarket = this.getSpotMarketAccount(outMarketIndex);
 		const inMarket = this.getSpotMarketAccount(inMarketIndex);
 
+		const isExactOut = swapMode === 'ExactOut' || quote.swapMode === 'ExactOut';
+		const amountIn = new BN(quote.inAmount);
+		const exactOutBufferedAmountIn = amountIn.muln(1001).divn(1000); // Add 10bp buffer
+
 		if (!quote) {
 			const fetchedQuote = await jupiterClient.getQuote({
 				inputMint: inMarket.mint,
@@ -4198,7 +4202,7 @@ export class DriftClient {
 		const { beginSwapIx, endSwapIx } = await this.getSwapIx({
 			outMarketIndex,
 			inMarketIndex,
-			amountIn: new BN(quote.inAmount),
+			amountIn: isExactOut ? exactOutBufferedAmountIn : amountIn,
 			inTokenAccount: inAssociatedTokenAccount,
 			outTokenAccount: outAssociatedTokenAccount,
 			reduceOnly,
