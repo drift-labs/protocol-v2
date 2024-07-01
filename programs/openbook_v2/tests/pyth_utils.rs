@@ -1,14 +1,18 @@
-use std::str::FromStr;
 use anchor_lang::InstructionData;
+use pyth::instruction::Initialize;
 use solana_program::instruction::{AccountMeta, Instruction};
 use solana_program::pubkey::Pubkey;
 use solana_program_test::BanksClient;
 use solana_sdk::signature::Keypair;
 use solana_sdk::signer::Signer;
 use solana_sdk::transaction::Transaction;
-use pyth::instruction::Initialize;
+use std::str::FromStr;
 
-pub async fn initialize_pyth_oracle(banks_client: &mut BanksClient, keypair: &Keypair, args: Initialize) -> anyhow::Result<Pubkey> {
+pub async fn initialize_pyth_oracle(
+    banks_client: &mut BanksClient,
+    keypair: &Keypair,
+    args: Initialize,
+) -> anyhow::Result<Pubkey> {
     let data = args.data();
     let len = 3312;
     let rent = banks_client.get_rent().await.unwrap().minimum_balance(len);
@@ -20,11 +24,9 @@ pub async fn initialize_pyth_oracle(banks_client: &mut BanksClient, keypair: &Ke
         len as u64,
         &Pubkey::from_str("FsJ3A3u2vn5cTVofAjvy6y5kwABJAqYWpe4975bi2epH").unwrap(),
     );
-    let set_ix = Instruction{
+    let set_ix = Instruction {
         program_id: Pubkey::from_str("FsJ3A3u2vn5cTVofAjvy6y5kwABJAqYWpe4975bi2epH").unwrap(),
-        accounts: vec![
-            AccountMeta::new(oracle_feed.pubkey(), true),
-        ],
+        accounts: vec![AccountMeta::new(oracle_feed.pubkey(), true)],
         data,
     };
     let tx = Transaction::new_signed_with_payer(

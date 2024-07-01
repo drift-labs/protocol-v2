@@ -1,23 +1,11 @@
-use std::cell::{Ref, RefMut};
-use std::convert::TryFrom;
-use anchor_lang::prelude::*;
-use anchor_lang::{account, InstructionData, Key};
-use anchor_lang::prelude::{Account, Program, System};
-use anchor_spl::token::{Token, TokenAccount};
-use arrayref::array_ref;
-use bytemuck::{cast_slice_mut, from_bytes_mut};
-use solana_program::account_info::AccountInfo;
-use solana_program::instruction::{AccountMeta, Instruction};
-use solana_program::msg;
-use solana_program::program::invoke_signed_unchecked;
-use solana_program::pubkey::Pubkey;
-use openbook_v2_light::{Market, PlaceOrderType, Side, BookSide};
-use openbook_v2_light::instruction::PlaceTakeOrder;
 use crate::controller::position::PositionDirection;
 use crate::error::{DriftResult, ErrorCode};
 use crate::instructions::SpotFulfillmentType;
 use crate::math::safe_math::SafeMath;
-use crate::math::serum::{calculate_price_from_serum_limit_price, calculate_serum_limit_price, calculate_serum_max_coin_qty, calculate_serum_max_native_pc_quantity};
+use crate::math::serum::{
+    calculate_price_from_serum_limit_price, calculate_serum_limit_price,
+    calculate_serum_max_coin_qty, calculate_serum_max_native_pc_quantity,
+};
 use crate::math::spot_withdraw::validate_spot_market_vault_amount;
 use crate::signer::get_signer_seeds;
 use crate::state::events::OrderActionExplanation;
@@ -26,25 +14,40 @@ use crate::state::spot_market::{SpotBalanceType, SpotFulfillmentConfigStatus, Sp
 use crate::state::state::State;
 use crate::state::traits::Size;
 use crate::{load, validate};
+use anchor_lang::prelude::*;
+use anchor_lang::prelude::{Account, Program, System};
+use anchor_lang::{account, InstructionData, Key};
+use anchor_spl::token::{Token, TokenAccount};
+use arrayref::array_ref;
+use bytemuck::{cast_slice_mut, from_bytes_mut};
+use openbook_v2_light::instruction::PlaceTakeOrder;
+use openbook_v2_light::{BookSide, Market, PlaceOrderType, Side};
+use solana_program::account_info::AccountInfo;
+use solana_program::instruction::{AccountMeta, Instruction};
+use solana_program::msg;
+use solana_program::program::invoke_signed_unchecked;
+use solana_program::pubkey::Pubkey;
+use std::cell::{Ref, RefMut};
+use std::convert::TryFrom;
 
 #[account(zero_copy(unsafe))]
 #[derive(Default, PartialEq, Eq, Debug)]
 #[repr(C)]
 pub struct OpenbookV2FulfillmentConfig {
-    pub pubkey: Pubkey, //32
-    pub openbook_v2_program_id: Pubkey, // 64
-    pub openbook_v2_market: Pubkey,// 96
-    pub openbook_v2_market_authority: Pubkey,// 128
-    pub openbook_v2_event_heap: Pubkey, // 160
-    pub openbook_v2_bids: Pubkey, // 192
-    pub openbook_v2_asks: Pubkey, // 224
-    pub openbook_v2_base_vault: Pubkey, // 256
-    pub openbook_v2_quote_vault: Pubkey, // 288
-    pub market_index: u16, // 290
+    pub pubkey: Pubkey,                        //32
+    pub openbook_v2_program_id: Pubkey,        // 64
+    pub openbook_v2_market: Pubkey,            // 96
+    pub openbook_v2_market_authority: Pubkey,  // 128
+    pub openbook_v2_event_heap: Pubkey,        // 160
+    pub openbook_v2_bids: Pubkey,              // 192
+    pub openbook_v2_asks: Pubkey,              // 224
+    pub openbook_v2_base_vault: Pubkey,        // 256
+    pub openbook_v2_quote_vault: Pubkey,       // 288
+    pub market_index: u16,                     // 290
     pub fulfillment_type: SpotFulfillmentType, // 291
-    pub status: SpotFulfillmentConfigStatus, // 292
-    pub padding: [u8; 4], // 296
-    // + denominator? 8
+    pub status: SpotFulfillmentConfigStatus,   // 292
+    pub padding: [u8; 4],                      // 296
+                                               // + denominator? 8
 }
 
 impl Size for OpenbookV2FulfillmentConfig {
@@ -53,19 +56,20 @@ impl Size for OpenbookV2FulfillmentConfig {
 
 pub struct OpenbookV2Context<'a, 'b> {
     pub openbook_v2_program: &'a AccountInfo<'b>,
-    pub openbook_v2_market:  &'a AccountInfo<'b>,
+    pub openbook_v2_market: &'a AccountInfo<'b>,
 }
 
 impl<'a, 'b> OpenbookV2Context<'a, 'b> {
     pub fn load_openbook_v2_market(&self) -> DriftResult<Market> {
         let mut account_data: RefMut<'a, [u8]>;
         let market: RefMut<'a, Market>;
-        let data = self.openbook_v2_market.try_borrow_mut_data().map_err(|_| ErrorCode::FailedOpenbookV2CPI)?;
+        let data = self
+            .openbook_v2_market
+            .try_borrow_mut_data()
+            .map_err(|_| ErrorCode::FailedOpenbookV2CPI)?;
         account_data = RefMut::map(data, |data| *data);
 
-        market = RefMut::map(account_data, |data| {
-            from_bytes_mut(data)
-        });
+        market = RefMut::map(account_data, |data| from_bytes_mut(data));
         Ok(*market)
     }
 
@@ -74,7 +78,9 @@ impl<'a, 'b> OpenbookV2Context<'a, 'b> {
         openbook_v2_fulfillment_config_key: &Pubkey,
         market_index: u16,
     ) -> DriftResult<OpenbookV2FulfillmentConfig> {
-        let market = self.load_openbook_v2_market().map_err(|_| ErrorCode::FailedOpenbookV2CPI)?;
+        let market = self
+            .load_openbook_v2_market()
+            .map_err(|_| ErrorCode::FailedOpenbookV2CPI)?;
         Ok(OpenbookV2FulfillmentConfig {
             pubkey: *openbook_v2_fulfillment_config_key,
             openbook_v2_program_id: *self.openbook_v2_program.key,
@@ -92,7 +98,6 @@ impl<'a, 'b> OpenbookV2Context<'a, 'b> {
         })
     }
 }
-
 
 pub struct OpenbookV2FulfillmentParams<'a, 'b> {
     pub drift_signer: &'a AccountInfo<'b>, // same as penalty payer
@@ -123,22 +128,8 @@ impl<'a, 'b> OpenbookV2FulfillmentParams<'a, 'b> {
     ) -> DriftResult<Self> {
         let account_info_vec = account_info_iter.collect::<Vec<_>>();
         let account_infos = array_ref![account_info_vec, 0, 14];
-        let [
-            openbook_v2_fulfillment_config,
-            drift_signer,
-            openbook_v2_program,
-            openbook_v2_market,
-            openbook_v2_market_authority,
-            openbook_v2_event_heap,
-            openbook_v2_bids,
-            openbook_v2_asks,
-            openbook_v2_base_vault,
-            openbook_v2_quote_vault,
-            base_market_vault,
-            quote_market_vault,
-            token_program,
-            system_program
-            ] = account_infos;
+        let [openbook_v2_fulfillment_config, drift_signer, openbook_v2_program, openbook_v2_market, openbook_v2_market_authority, openbook_v2_event_heap, openbook_v2_bids, openbook_v2_asks, openbook_v2_base_vault, openbook_v2_quote_vault, base_market_vault, quote_market_vault, token_program, system_program] =
+            account_infos;
         let openbook_v2_fulfillment_config_loader: AccountLoader<OpenbookV2FulfillmentConfig> =
             AccountLoader::try_from(openbook_v2_fulfillment_config).map_err(|e| {
                 msg!("{:?}", e);
@@ -179,7 +170,8 @@ impl<'a, 'b> OpenbookV2FulfillmentParams<'a, 'b> {
         )?;
 
         validate!(
-            &openbook_v2_fulfillment_config.openbook_v2_market_authority == openbook_v2_market_authority.key,
+            &openbook_v2_fulfillment_config.openbook_v2_market_authority
+                == openbook_v2_market_authority.key,
             ErrorCode::InvalidFulfillmentConfig
         )?;
 
@@ -232,11 +224,11 @@ impl<'a, 'b> OpenbookV2FulfillmentParams<'a, 'b> {
             msg!("{:?}", e);
             ErrorCode::InvalidFulfillmentConfig
         })?;
-        Ok(OpenbookV2FulfillmentParams{
+        Ok(OpenbookV2FulfillmentParams {
             drift_signer: drift_signer,
             openbook_v2_context: OpenbookV2Context {
                 openbook_v2_program: openbook_v2_program,
-                openbook_v2_market: openbook_v2_market
+                openbook_v2_market: openbook_v2_market,
             },
             openbook_v2_market_authority: openbook_v2_market_authority,
             openbook_v2_event_heap: openbook_v2_event_heap,
@@ -255,9 +247,8 @@ impl<'a, 'b> OpenbookV2FulfillmentParams<'a, 'b> {
 }
 
 impl<'a, 'b> OpenbookV2FulfillmentParams<'a, 'b> {
-
     pub fn invoke_new_order(&self, data: Vec<u8>) -> DriftResult {
-        let new_place_take_order_instruction = Instruction{
+        let new_place_take_order_instruction = Instruction {
             program_id: *self.openbook_v2_context.openbook_v2_program.key,
             accounts: vec![
                 AccountMeta::new(*self.drift_signer.key, true),
@@ -306,10 +297,10 @@ impl<'a, 'b> OpenbookV2FulfillmentParams<'a, 'b> {
             &account_infos,
             signers_seeds,
         )
-            .map_err(|e| {
-                msg!("{:?}", e);
-                ErrorCode::FailedOpenbookV2CPI
-            })?;
+        .map_err(|e| {
+            msg!("{:?}", e);
+            ErrorCode::FailedOpenbookV2CPI
+        })?;
 
         Ok(())
     }
@@ -319,21 +310,20 @@ impl<'a, 'b> SpotFulfillmentParams for OpenbookV2FulfillmentParams<'a, 'b> {
     fn is_external(&self) -> bool {
         true
     }
-    fn fulfill_order(&mut self,
-                     taker_direction: PositionDirection,
-                     taker_price: u64,
-                     taker_base_asset_amount: u64,
-                     taker_max_quote_asset_amount: u64,
+    fn fulfill_order(
+        &mut self,
+        taker_direction: PositionDirection,
+        taker_price: u64,
+        taker_base_asset_amount: u64,
+        taker_max_quote_asset_amount: u64,
     ) -> DriftResult<ExternalSpotFill> {
         // load openbook v2 market
         let market = self.openbook_v2_context.load_openbook_v2_market()?;
         // coin - base
         // pc - quote
 
-        let serum_max_coin_qty = calculate_serum_max_coin_qty(
-            taker_base_asset_amount,
-            market.base_lot_size as u64,
-        )?;
+        let serum_max_coin_qty =
+            calculate_serum_max_coin_qty(taker_base_asset_amount, market.base_lot_size as u64)?;
 
         let price_lots = calculate_serum_limit_price(
             taker_price,
@@ -346,10 +336,10 @@ impl<'a, 'b> SpotFulfillmentParams for OpenbookV2FulfillmentParams<'a, 'b> {
         let max_quote_lots_including_fees = calculate_serum_max_native_pc_quantity(
             price_lots,
             serum_max_coin_qty,
-           market.quote_lot_size as u64,
+            market.quote_lot_size as u64,
         )?
-            .min(taker_max_quote_asset_amount) as i64;
-        let max_base_lots = taker_base_asset_amount as i64/market.base_lot_size;
+        .min(taker_max_quote_asset_amount) as i64;
+        let max_base_lots = taker_base_asset_amount as i64 / market.base_lot_size;
         // let max_quote_lots_including_fees = if taker_max_quote_asset_amount == u64::MAX { (price_lots as i64 * max_base_lots)/market.quote_lot_size } else {taker_max_quote_asset_amount as i64/market.quote_lot_size};
 
         let openbook_v2_order_side = match taker_direction {
@@ -357,18 +347,21 @@ impl<'a, 'b> SpotFulfillmentParams for OpenbookV2FulfillmentParams<'a, 'b> {
             PositionDirection::Short => Side::Ask,
         };
         // the openbook v2 will take care of what is better if the price_lots or max_base or max_quote
-        let args = PlaceTakeOrder{
+        let args = PlaceTakeOrder {
             side: openbook_v2_order_side,
             price_lots: price_lots as i64, // i64::MAX, // 8
             // price_lots: i64::MAX,
             max_base_lots: max_base_lots, // 8
-            max_quote_lots_including_fees:  max_quote_lots_including_fees, // 8
+            max_quote_lots_including_fees: max_quote_lots_including_fees, // 8
             order_type: PlaceOrderType::Market, // 1
-            limit: 20, // why 50?
-            // total - 27
+            limit: 20,                    // why 50?
+                                          // total - 27
         };
         let data = args.data();
-        let market_accrued_fees_before = self.openbook_v2_context.load_openbook_v2_market()?.fees_accrued;
+        let market_accrued_fees_before = self
+            .openbook_v2_context
+            .load_openbook_v2_market()?
+            .fees_accrued;
         let base_before = self.base_market_vault.amount;
         let quote_before = self.quote_market_vault.amount;
 
@@ -397,8 +390,12 @@ impl<'a, 'b> SpotFulfillmentParams for OpenbookV2FulfillmentParams<'a, 'b> {
             return Ok(ExternalSpotFill::empty());
         }
 
-        let market_accrued_fees_after = self.openbook_v2_context.load_openbook_v2_market()?.fees_accrued;
-        let openbook_v2_fee = market_accrued_fees_after.safe_sub(market_accrued_fees_before)? as u64;
+        let market_accrued_fees_after = self
+            .openbook_v2_context
+            .load_openbook_v2_market()?
+            .fees_accrued;
+        let openbook_v2_fee =
+            market_accrued_fees_after.safe_sub(market_accrued_fees_before)? as u64;
 
         let (quote_update_direction, quote_asset_amount_filled) =
             if base_update_direction == SpotBalanceType::Borrow {
@@ -426,12 +423,12 @@ impl<'a, 'b> SpotFulfillmentParams for OpenbookV2FulfillmentParams<'a, 'b> {
     }
     fn get_best_bid_and_ask(&self) -> DriftResult<(Option<u64>, Option<u64>)> {
         let market = self.openbook_v2_context.load_openbook_v2_market()?;
-        let bid_data =  self.openbook_v2_bids.data.borrow();
+        let bid_data = self.openbook_v2_bids.data.borrow();
         let bid = bytemuck::try_from_bytes::<BookSide>(&bid_data[8..]).map_err(|_| {
             msg!("Failed to parse OpenbookV2 bids");
             ErrorCode::FailedOpenbookV2CPI
         })?;
-        let ask_data =  self.openbook_v2_asks.data.borrow();
+        let ask_data = self.openbook_v2_asks.data.borrow();
         let ask = bytemuck::try_from_bytes::<BookSide>(&ask_data[8..]).map_err(|_| {
             msg!("Failed to parse OpenbookV2 asks");
             ErrorCode::FailedOpenbookV2CPI
@@ -439,14 +436,14 @@ impl<'a, 'b> SpotFulfillmentParams for OpenbookV2FulfillmentParams<'a, 'b> {
         let bid_price: Option<u64> = match bid.find_max() {
             Some(bid) => {
                 let bid_price = calculate_price_from_serum_limit_price(
-                   bid,
+                    bid,
                     market.quote_lot_size as u64,
                     market.base_decimals as u32,
                     market.base_lot_size as u64,
                 )?;
                 Some(bid_price)
             }
-            None => None
+            None => None,
         };
         let ask_price: Option<u64> = match ask.find_min() {
             Some(ask) => {
@@ -458,9 +455,9 @@ impl<'a, 'b> SpotFulfillmentParams for OpenbookV2FulfillmentParams<'a, 'b> {
                 )?;
                 Some(ask_price)
             }
-            None => None
+            None => None,
         };
-        Ok((bid_price,ask_price))
+        Ok((bid_price, ask_price))
     }
 
     fn get_order_action_explanation(&self) -> DriftResult<OrderActionExplanation> {
@@ -489,10 +486,11 @@ mod openbook_v2_test {
         // values from https://solscan.io/account/CFSMrBssNG8Ud1edW59jNLnq2cwrQ9uY5cM3wXmqRJj3#anchorData
         let price = calculate_price_from_serum_limit_price(
             openbook_v2_price,
-            1, // quote_lot_size
-            9, // base decimals
+            1,       // quote_lot_size
+            9,       // base decimals
             1000000, // base_lot_size
-        ).unwrap();
+        )
+        .unwrap();
         assert_eq!(170_000_000, price);
     }
 }

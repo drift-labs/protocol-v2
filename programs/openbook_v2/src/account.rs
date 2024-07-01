@@ -1,7 +1,7 @@
 #![allow(dead_code)]
 
-use bytemuck::Zeroable;
 use crate::*;
+use bytemuck::Zeroable;
 
 #[zero_copy]
 #[derive(AnchorDeserialize, AnchorSerialize, Debug)]
@@ -15,8 +15,8 @@ pub struct OracleConfig {
     Debug,
     Copy,
     Clone,
-// bytemuck::Pod,
-// bytemuck::Zeroable,
+    // bytemuck::Pod,
+    // bytemuck::Zeroable,
     AnchorSerialize,
     AnchorDeserialize,
 )]
@@ -183,9 +183,9 @@ impl BookSide {
             }
         }
         if p > 0 {
-            return Some(p)
+            return Some(p);
         }
-        return None
+        return None;
     }
 
     pub fn find_max(&self) -> Option<u64> {
@@ -200,7 +200,7 @@ impl BookSide {
             }
         }
         if p > 0 {
-            return Some(p)
+            return Some(p);
         }
         return None;
     }
@@ -242,8 +242,8 @@ pub struct OrderTreeRoot {
     Clone,
     PartialEq,
     Eq,
-// bytemuck::Pod,
-// bytemuck::Zeroable,
+    // bytemuck::Pod,
+    // bytemuck::Zeroable,
     AnchorSerialize,
     AnchorDeserialize,
 )]
@@ -345,8 +345,8 @@ pub trait NonZeroKey {
 }
 
 impl<T> NonZeroKey for Option<T>
-    where
-        T: Key,
+where
+    T: Key,
 {
     fn non_zero_key(&self) -> NonZeroPubkeyOption {
         self.as_ref().map(|this| this.key()).into()

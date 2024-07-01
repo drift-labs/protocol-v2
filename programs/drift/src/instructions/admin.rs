@@ -28,6 +28,9 @@ use crate::math::spot_balance::get_token_amount;
 use crate::math::{amm, bn};
 use crate::math_error;
 use crate::state::events::CurveRecord;
+use crate::state::fulfillment_params::openbook_v2::{
+    OpenbookV2Context, OpenbookV2FulfillmentConfig,
+};
 use crate::state::fulfillment_params::phoenix::PhoenixMarketContext;
 use crate::state::fulfillment_params::phoenix::PhoenixV1FulfillmentConfig;
 use crate::state::fulfillment_params::serum::SerumContext;
@@ -57,7 +60,6 @@ use crate::{controller, QUOTE_PRECISION_I64};
 use crate::{get_then_update_id, EPOCH_DURATION};
 use crate::{load, FEE_ADJUSTMENT_MAX};
 use crate::{math, safe_decrement, safe_increment};
-use crate::state::fulfillment_params::openbook_v2::{OpenbookV2Context, OpenbookV2FulfillmentConfig};
 
 pub fn handle_initialize(ctx: Context<Initialize>) -> Result<()> {
     let (drift_signer, drift_signer_nonce) =
@@ -454,7 +456,7 @@ pub fn handle_initialize_openbook_v2_fulfillment_config(
 
     let openbook_v2_market_context = OpenbookV2Context {
         openbook_v2_program: &ctx.accounts.openbook_v2_program,
-        openbook_v2_market: &ctx.accounts.openbook_v2_market
+        openbook_v2_market: &ctx.accounts.openbook_v2_market,
     };
     let market = openbook_v2_market_context.load_openbook_v2_market()?;
     validate!(
@@ -472,9 +474,9 @@ pub fn handle_initialize_openbook_v2_fulfillment_config(
     let market_step_size = market.base_lot_size as u64;
     let valid_step_size = base_spot_market.order_step_size >= market_step_size
         && base_spot_market
-        .order_step_size
-        .rem_euclid(market_step_size)
-        == 0;
+            .order_step_size
+            .rem_euclid(market_step_size)
+            == 0;
 
     validate!(
         valid_step_size,
@@ -485,7 +487,8 @@ pub fn handle_initialize_openbook_v2_fulfillment_config(
     )?;
 
     let openbook_v2_fulfillment_config_key = ctx.accounts.openbook_v2_fulfillment_config.key();
-    let mut openbook_v2_fulfillment_config = ctx.accounts.openbook_v2_fulfillment_config.load_init()?;
+    let mut openbook_v2_fulfillment_config =
+        ctx.accounts.openbook_v2_fulfillment_config.load_init()?;
     *openbook_v2_fulfillment_config = openbook_v2_market_context
         .to_openbook_v2_fulfillment_config(&openbook_v2_fulfillment_config_key, market_index)?;
     Ok(())

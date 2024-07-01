@@ -41,6 +41,7 @@ use crate::state::events::{
 };
 use crate::state::fill_mode::FillMode;
 use crate::state::fulfillment_params::drift::MatchFulfillmentParams;
+use crate::state::fulfillment_params::openbook_v2::OpenbookV2FulfillmentParams;
 use crate::state::fulfillment_params::phoenix::PhoenixFulfillmentParams;
 use crate::state::fulfillment_params::serum::SerumFulfillmentParams;
 use crate::state::oracle::StrictOraclePrice;
@@ -69,7 +70,6 @@ use crate::{load, THIRTEEN_DAY};
 use anchor_lang::solana_program::sysvar::instructions;
 use anchor_spl::associated_token::AssociatedToken;
 use borsh::{BorshDeserialize, BorshSerialize};
-use crate::state::fulfillment_params::openbook_v2::OpenbookV2FulfillmentParams;
 
 pub fn handle_initialize_user<'c: 'info, 'info>(
     ctx: Context<'_, '_, 'c, 'info, InitializeUser<'info>>,

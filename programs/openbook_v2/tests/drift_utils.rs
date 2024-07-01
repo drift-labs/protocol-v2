@@ -1,21 +1,25 @@
 use anchor_lang::{InstructionData, Key};
-use solana_program::instruction::{AccountMeta, Instruction};
-use solana_program::pubkey::Pubkey;
-use solana_program::system_program;
-use solana_program_test::BanksClient;
-use solana_sdk::{signature::Keypair, signer::Signer};
-use solana_sdk::transaction::Transaction;
 use drift::instruction::{Deposit, Initialize, InitializeSpotMarket};
 use drift::state::oracle::OracleSource;
 use drift::state::order_params::OrderParams;
 use drift::state::spot_market::AssetTier;
+use solana_program::instruction::{AccountMeta, Instruction};
+use solana_program::pubkey::Pubkey;
+use solana_program::system_program;
+use solana_program_test::BanksClient;
+use solana_sdk::transaction::Transaction;
+use solana_sdk::{signature::Keypair, signer::Signer};
 
-pub async fn initialize_drift(banks_client: &mut BanksClient, keypair: &Keypair, quote_mint: &Pubkey) -> anyhow::Result<(Pubkey,Pubkey)>{
-    let state = Pubkey::find_program_address(&[b"drift_state".as_ref(),], &drift::id()).0;
-    let drift_signer = Pubkey::find_program_address(&[b"drift_signer".as_ref(),], &drift::id()).0;
+pub async fn initialize_drift(
+    banks_client: &mut BanksClient,
+    keypair: &Keypair,
+    quote_mint: &Pubkey,
+) -> anyhow::Result<(Pubkey, Pubkey)> {
+    let state = Pubkey::find_program_address(&[b"drift_state".as_ref()], &drift::id()).0;
+    let drift_signer = Pubkey::find_program_address(&[b"drift_signer".as_ref()], &drift::id()).0;
 
-    let init_data = Initialize{}.data();
-    let initialize_ix = Instruction{
+    let init_data = Initialize {}.data();
+    let initialize_ix = Instruction {
         program_id: drift::id(),
         accounts: vec![
             AccountMeta::new(keypair.pubkey(), true),
@@ -39,17 +43,31 @@ pub async fn initialize_drift(banks_client: &mut BanksClient, keypair: &Keypair,
 }
 
 // imitates USDC market
-pub async fn init_quote_market( banks_client: &mut BanksClient,
-                         keypair: &Keypair,
-                         quote_mint: &Pubkey,
-                         drift_signer: &Pubkey,
-                         state: &Pubkey) -> anyhow::Result<(Pubkey, Pubkey, Pubkey)>{
+pub async fn init_quote_market(
+    banks_client: &mut BanksClient,
+    keypair: &Keypair,
+    quote_mint: &Pubkey,
+    drift_signer: &Pubkey,
+    state: &Pubkey,
+) -> anyhow::Result<(Pubkey, Pubkey, Pubkey)> {
     let data = initialize_quote_market_data();
     let spot_index = 0_u16;
-    let spot_market = Pubkey::find_program_address(&[b"spot_market".as_ref(), &spot_index.to_le_bytes()], &drift::id()).0;
-    let spot_market_vault = Pubkey::find_program_address(&[b"spot_market_vault".as_ref(), &spot_index.to_le_bytes()], &drift::id()).0;
-    let insurance_fund_vault = Pubkey::find_program_address(&[b"insurance_fund_vault".as_ref(), &spot_index.to_le_bytes()], &drift::id()).0;
-    let init_quote_market = Instruction{
+    let spot_market = Pubkey::find_program_address(
+        &[b"spot_market".as_ref(), &spot_index.to_le_bytes()],
+        &drift::id(),
+    )
+    .0;
+    let spot_market_vault = Pubkey::find_program_address(
+        &[b"spot_market_vault".as_ref(), &spot_index.to_le_bytes()],
+        &drift::id(),
+    )
+    .0;
+    let insurance_fund_vault = Pubkey::find_program_address(
+        &[b"insurance_fund_vault".as_ref(), &spot_index.to_le_bytes()],
+        &drift::id(),
+    )
+    .0;
+    let init_quote_market = Instruction {
         program_id: drift::id(),
         accounts: vec![
             AccountMeta::new(spot_market, false),
@@ -77,19 +95,32 @@ pub async fn init_quote_market( banks_client: &mut BanksClient,
 }
 
 // initialize spot market - index 1, imitating wsol market
-pub async fn init_spot_market( banks_client: &mut BanksClient,
-                               keypair: &Keypair,
-                               mint: &Pubkey,
-                               drift_signer: &Pubkey,
-                               state: &Pubkey,
-                               oracle_feed: &Pubkey,
-) -> anyhow::Result<(Pubkey, Pubkey, Pubkey)>{
+pub async fn init_spot_market(
+    banks_client: &mut BanksClient,
+    keypair: &Keypair,
+    mint: &Pubkey,
+    drift_signer: &Pubkey,
+    state: &Pubkey,
+    oracle_feed: &Pubkey,
+) -> anyhow::Result<(Pubkey, Pubkey, Pubkey)> {
     let data = initialize_spot_market_data();
     let spot_index = 1_u16;
-    let spot_market = Pubkey::find_program_address(&[b"spot_market".as_ref(), &spot_index.to_le_bytes()], &drift::id()).0;
-    let spot_market_vault = Pubkey::find_program_address(&[b"spot_market_vault".as_ref(), &spot_index.to_le_bytes()], &drift::id()).0;
-    let insurance_fund_vault = Pubkey::find_program_address(&[b"insurance_fund_vault".as_ref(), &spot_index.to_le_bytes()], &drift::id()).0;
-    let init_spot_market = Instruction{
+    let spot_market = Pubkey::find_program_address(
+        &[b"spot_market".as_ref(), &spot_index.to_le_bytes()],
+        &drift::id(),
+    )
+    .0;
+    let spot_market_vault = Pubkey::find_program_address(
+        &[b"spot_market_vault".as_ref(), &spot_index.to_le_bytes()],
+        &drift::id(),
+    )
+    .0;
+    let insurance_fund_vault = Pubkey::find_program_address(
+        &[b"insurance_fund_vault".as_ref(), &spot_index.to_le_bytes()],
+        &drift::id(),
+    )
+    .0;
+    let init_spot_market = Instruction {
         program_id: drift::id(),
         accounts: vec![
             AccountMeta::new(spot_market, false),
@@ -120,43 +151,59 @@ pub async fn create_user(
     banks_client: &mut BanksClient,
     keypair: &Keypair,
     state: &Pubkey,
-) -> anyhow::Result<(Pubkey, Pubkey)>{
-    let user_stats = Pubkey::find_program_address(&[b"user_stats".as_ref(), &keypair.pubkey().as_ref(), ], &drift::id()).0;
-    let data = drift::instruction::InitializeUserStats{}.data();
+) -> anyhow::Result<(Pubkey, Pubkey)> {
+    let user_stats = Pubkey::find_program_address(
+        &[b"user_stats".as_ref(), &keypair.pubkey().as_ref()],
+        &drift::id(),
+    )
+    .0;
+    let data = drift::instruction::InitializeUserStats {}.data();
     let init_user_stats = Instruction {
-    program_id: drift::id(),
-    accounts: vec![
-        AccountMeta::new(user_stats, false),
-        AccountMeta::new(*state, false),
-        AccountMeta::new(keypair.pubkey(), true),
-        AccountMeta::new(keypair.pubkey(), true),
-        AccountMeta::new_readonly(solana_program::sysvar::rent::id(), false),
-        AccountMeta::new_readonly(system_program::id(), false),
-    ],
-    data: data,
+        program_id: drift::id(),
+        accounts: vec![
+            AccountMeta::new(user_stats, false),
+            AccountMeta::new(*state, false),
+            AccountMeta::new(keypair.pubkey(), true),
+            AccountMeta::new(keypair.pubkey(), true),
+            AccountMeta::new_readonly(solana_program::sysvar::rent::id(), false),
+            AccountMeta::new_readonly(system_program::id(), false),
+        ],
+        data: data,
     };
     // the name is arbitrary!
-    let data = drift::instruction::InitializeUser{ sub_account_id: 0, name: [35;32] }.data();
-    let user = Pubkey::find_program_address(&[b"user".as_ref(), &keypair.pubkey().as_ref(), 0_u16.to_le_bytes().as_ref()], &drift::id()).0;
+    let data = drift::instruction::InitializeUser {
+        sub_account_id: 0,
+        name: [35; 32],
+    }
+    .data();
+    let user = Pubkey::find_program_address(
+        &[
+            b"user".as_ref(),
+            &keypair.pubkey().as_ref(),
+            0_u16.to_le_bytes().as_ref(),
+        ],
+        &drift::id(),
+    )
+    .0;
     let init_user = Instruction {
-    program_id: drift::id(),
-    accounts: vec![
-        AccountMeta::new(user, false),
-        AccountMeta::new(user_stats, false),
-        AccountMeta::new(*state, false),
-        AccountMeta::new(keypair.pubkey(), true),
-        AccountMeta::new(keypair.pubkey(), true),
-        AccountMeta::new_readonly(solana_program::sysvar::rent::id(), false),
-        AccountMeta::new_readonly(system_program::id(), false),
-    ],
-    data: data,
+        program_id: drift::id(),
+        accounts: vec![
+            AccountMeta::new(user, false),
+            AccountMeta::new(user_stats, false),
+            AccountMeta::new(*state, false),
+            AccountMeta::new(keypair.pubkey(), true),
+            AccountMeta::new(keypair.pubkey(), true),
+            AccountMeta::new_readonly(solana_program::sysvar::rent::id(), false),
+            AccountMeta::new_readonly(system_program::id(), false),
+        ],
+        data: data,
     };
 
     let tx = Transaction::new_signed_with_payer(
-    &[init_user_stats, init_user],
-    Some(&keypair.pubkey()),
-    &[keypair],
-    banks_client.get_latest_blockhash().await.unwrap(),
+        &[init_user_stats, init_user],
+        Some(&keypair.pubkey()),
+        &[keypair],
+        banks_client.get_latest_blockhash().await.unwrap(),
     );
     banks_client.process_transaction(tx).await?;
     Ok((user, user_stats))
@@ -164,7 +211,7 @@ pub async fn create_user(
 
 // imitates drift quote market - USDC
 pub fn initialize_quote_market_data() -> Vec<u8> {
-    InitializeSpotMarket{
+    InitializeSpotMarket {
         optimal_utilization: 700000,
         optimal_borrow_rate: 150000,
         max_borrow_rate: 2000000,
@@ -184,45 +231,16 @@ pub fn initialize_quote_market_data() -> Vec<u8> {
         order_step_size: 0,
         if_total_factor: 0,
         name: [
-            85,
-            83,
-            68,
-            67,
-            32,
-            32,
-            32,
-            32,
-            32,
-            32,
-            32,
-            32,
-            32,
-            32,
-            32,
-            32,
-            32,
-            32,
-            32,
-            32,
-            32,
-            32,
-            32,
-            32,
-            32,
-            32,
-            32,
-            32,
-            32,
-            32,
-            32,
-            32
+            85, 83, 68, 67, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32,
+            32, 32, 32, 32, 32, 32, 32, 32, 32, 32,
         ],
-    }.data()
+    }
+    .data()
 }
 
 // will init with values for SOL market
 pub fn initialize_spot_market_data() -> Vec<u8> {
-    InitializeSpotMarket{
+    InitializeSpotMarket {
         optimal_utilization: 700000,
         optimal_borrow_rate: 150000,
         max_borrow_rate: 2000000,
@@ -242,58 +260,44 @@ pub fn initialize_spot_market_data() -> Vec<u8> {
         order_step_size: 1000000,
         if_total_factor: 0,
         name: [
-            83,
-            79,
-            76,
-            32,
-            32,
-            32,
-            32,
-            32,
-            32,
-            32,
-            32,
-            32,
-            32,
-            32,
-            32,
-            32,
-            32,
-            32,
-            32,
-            32,
-            32,
-            32,
-            32,
-            32,
-            32,
-            32,
-            32,
-            32,
-            32,
-            32,
-            32,
-            32
+            83, 79, 76, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32,
+            32, 32, 32, 32, 32, 32, 32, 32, 32, 32,
         ],
-    }.data()
+    }
+    .data()
 }
 
-pub async fn deposit_and_execute(banks_client: &mut BanksClient,
-                                 keypair: &Keypair,
-                                 args: Deposit,
-                                 state: &Pubkey,
-                                 user: &Pubkey,
-                                 user_stats: &Pubkey,
-                                 mint: &Pubkey,
-                                 remaining_accounts: &mut Vec<AccountMeta>
-) -> anyhow::Result<()>{
+pub async fn deposit_and_execute(
+    banks_client: &mut BanksClient,
+    keypair: &Keypair,
+    args: Deposit,
+    state: &Pubkey,
+    user: &Pubkey,
+    user_stats: &Pubkey,
+    mint: &Pubkey,
+    remaining_accounts: &mut Vec<AccountMeta>,
+) -> anyhow::Result<()> {
     let mut accounts = vec![
         AccountMeta::new(*state, false),
         AccountMeta::new(*user, false),
         AccountMeta::new(*user_stats, false),
         AccountMeta::new(keypair.pubkey(), true),
-        AccountMeta::new(Pubkey::find_program_address(&[b"spot_market_vault".as_ref(), &args.market_index.to_le_bytes()], &drift::id()).0, false),
-        AccountMeta::new(spl_associated_token_account::get_associated_token_address(&keypair.pubkey(), &mint).key(), false),
+        AccountMeta::new(
+            Pubkey::find_program_address(
+                &[
+                    b"spot_market_vault".as_ref(),
+                    &args.market_index.to_le_bytes(),
+                ],
+                &drift::id(),
+            )
+            .0,
+            false,
+        ),
+        AccountMeta::new(
+            spl_associated_token_account::get_associated_token_address(&keypair.pubkey(), &mint)
+                .key(),
+            false,
+        ),
         AccountMeta::new_readonly(spl_token::id(), false),
     ];
     accounts.append(remaining_accounts);
@@ -322,9 +326,19 @@ pub async fn initialize_openbook_v2_config(
     state: &Pubkey,
     drift_signer: &Pubkey,
     market_index: u16,
-) -> anyhow::Result<(Pubkey)>{
-    let config = Pubkey::find_program_address(&[ b"openbook_v2_fulfillment_config".as_ref(), openbook_v2_market.as_ref()], &drift::id()).0;
-    let data = drift::instruction::InitializeOpenbookV2FulfillmentConfig{ market_index: market_index }.data();
+) -> anyhow::Result<(Pubkey)> {
+    let config = Pubkey::find_program_address(
+        &[
+            b"openbook_v2_fulfillment_config".as_ref(),
+            openbook_v2_market.as_ref(),
+        ],
+        &drift::id(),
+    )
+    .0;
+    let data = drift::instruction::InitializeOpenbookV2FulfillmentConfig {
+        market_index: market_index,
+    }
+    .data();
     let init_fulfillment_config = Instruction {
         program_id: drift::id(),
         accounts: vec![
@@ -361,8 +375,8 @@ pub async fn place_spot_order_and_execute(
     quote_market: &Pubkey,
     state: &Pubkey,
     oracle_feed: &Pubkey,
-) -> anyhow::Result<()>{
-    let data = drift::instruction::PlaceSpotOrder{ params: args }.data();
+) -> anyhow::Result<()> {
+    let data = drift::instruction::PlaceSpotOrder { params: args }.data();
     let place_order_ix = Instruction {
         program_id: drift::id(),
         accounts: vec![
@@ -382,5 +396,5 @@ pub async fn place_spot_order_and_execute(
         banks_client.get_latest_blockhash().await?,
     );
     banks_client.process_transaction(tx).await?;
-   Ok(())
+    Ok(())
 }

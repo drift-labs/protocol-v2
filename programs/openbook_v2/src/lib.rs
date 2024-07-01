@@ -7,12 +7,12 @@ declare_id!("opnb2LAfJYbRMAHHvqjCwQxanZn7ReEHp1k81EohpZb");
 
 pub mod account;
 // pub mod order;
-pub mod context;
 pub mod constants;
+pub mod context;
 
 pub use crate::account::*;
-pub use crate::context::*;
 pub use crate::constants::*;
+pub use crate::context::*;
 
 #[program]
 mod openbook_v2 {
@@ -42,14 +42,12 @@ mod openbook_v2 {
         base_lot_size: i64,
         maker_fee: i64,
         taker_fee: i64,
-        time_expiry: i64
+        time_expiry: i64,
     ) -> Result<()> {
         Ok(())
     }
 
-    pub(crate) fn create_open_orders_indexer(
-        ctx: Context<CreateOpenOrdersIndexer>
-    ) -> Result<()> {
+    pub(crate) fn create_open_orders_indexer(ctx: Context<CreateOpenOrdersIndexer>) -> Result<()> {
         Ok(())
     }
 

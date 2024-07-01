@@ -332,7 +332,7 @@ pub enum OrderActionExplanation {
     OrderFilledWithAMMJitLPSplit,
     OrderFilledWithLPJit,
     DeriskLp,
-    OrderFilledWithOpenbookV2
+    OrderFilledWithOpenbookV2,
 }
 
 #[event]

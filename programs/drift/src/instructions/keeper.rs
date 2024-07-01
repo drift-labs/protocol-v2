@@ -12,6 +12,7 @@ use crate::math::spot_withdraw::validate_spot_market_vault_amount;
 use crate::optional_accounts::update_prelaunch_oracle;
 use crate::state::fill_mode::FillMode;
 use crate::state::fulfillment_params::drift::MatchFulfillmentParams;
+use crate::state::fulfillment_params::openbook_v2::OpenbookV2FulfillmentParams;
 use crate::state::fulfillment_params::phoenix::PhoenixFulfillmentParams;
 use crate::state::fulfillment_params::serum::SerumFulfillmentParams;
 use crate::state::insurance_fund_stake::InsuranceFundStake;
@@ -35,7 +36,6 @@ use crate::validation::user::validate_user_is_idle;
 use crate::{controller, load, math, OracleSource};
 use crate::{load_mut, QUOTE_PRECISION_U64};
 use crate::{validate, QUOTE_PRECISION_I128};
-use crate::state::fulfillment_params::openbook_v2::OpenbookV2FulfillmentParams;
 
 #[access_control(
     fill_not_paused(&ctx.accounts.state)
