@@ -1,11 +1,13 @@
 if [ "$1" != "--skip-build" ]
   then
-    anchor build -- --features anchor-test &&
+    anchor build -- --features anchor-test && anchor test --skip-build &&
     cp target/idl/drift.json sdk/src/idl/
 fi
 
-test_files=(perpLpRiskMitigation.ts)
+export ANCHOR_WALLET=~/.config/solana/id.json
+
+test_files=(curve.ts)
 
 for test_file in ${test_files[@]}; do
-  ANCHOR_TEST_FILE=${test_file} anchor test --skip-build || exit 1;
-done
+  ts-mocha -t 300000 ./tests/${test_file}
+done 

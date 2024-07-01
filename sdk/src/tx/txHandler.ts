@@ -380,7 +380,10 @@ export class TxHandler {
 		return tx;
 	}
 
-	public generateLegacyTransaction(ixs: TransactionInstruction[], recentBlockhash?: BlockhashWithExpiryBlockHeight) {
+	public generateLegacyTransaction(
+		ixs: TransactionInstruction[],
+		recentBlockhash?: BlockhashWithExpiryBlockHeight
+	) {
 		const tx = new Transaction().add(...ixs);
 		if (recentBlockhash) {
 			tx.recentBlockhash = recentBlockhash.blockhash;
@@ -603,9 +606,7 @@ export class TxHandler {
 			return acc;
 		}, {}) as T;
 
-		const filteredTxEntries = txsToSignEntries.filter(
-			([_, tx]) => !!tx
-		);
+		const filteredTxEntries = txsToSignEntries.filter(([_, tx]) => !!tx);
 
 		// Extra handling for legacy transactions
 		for (const [_key, tx] of filteredTxEntries) {
@@ -643,7 +644,7 @@ export class TxHandler {
 			signedTxMap[key] = signedTx;
 		});
 
-		return {signedTxMap, signedTxData};
+		return { signedTxMap, signedTxData };
 	}
 
 	/**

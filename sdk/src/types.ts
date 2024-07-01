@@ -4,7 +4,7 @@ import { BN, ZERO } from '.';
 // Utility type which lets you denote record with values of type A mapped to a record with the same keys but values of type B
 export type MappedRecord<A extends Record<string, unknown>, B> = {
 	[K in keyof A]: B;
-  };
+};
 
 // # Utility Types / Enums / Constants
 
@@ -731,6 +731,9 @@ export type SpotMarketAccount = {
 	pausedOperations: number;
 
 	ifPausedOperations: number;
+
+	maxTokenBorrowsFraction: number;
+	minBorrowRate: number;
 };
 
 export type PoolBalance = {
@@ -1039,6 +1042,7 @@ export type ProcessingTxParams = {
 	computeUnitsBufferMultiplier?: number;
 	useSimulatedComputeUnitsForCUPriceCalculation?: boolean;
 	getCUPriceFromComputeUnits?: (computeUnits: number) => number;
+	lowerBoundCu?: number;
 };
 
 export type TxParams = BaseTxParams & ProcessingTxParams;

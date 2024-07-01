@@ -16,7 +16,7 @@ use crate::math::constants::{
     DEFAULT_LIQUIDATION_MARGIN_BUFFER_RATIO, FEE_POOL_TO_REVENUE_POOL_THRESHOLD,
     IF_FACTOR_PRECISION, INSURANCE_A_MAX, INSURANCE_B_MAX, INSURANCE_C_MAX,
     INSURANCE_SPECULATIVE_MAX, LIQUIDATION_FEE_PRECISION, MAX_CONCENTRATION_COEFFICIENT,
-    MAX_SQRT_K, MAX_UPDATE_K_PRICE_CHANGE, QUOTE_SPOT_MARKET_INDEX,
+    MAX_SQRT_K, MAX_UPDATE_K_PRICE_CHANGE, PERCENTAGE_PRECISION, QUOTE_SPOT_MARKET_INDEX,
     SPOT_CUMULATIVE_INTEREST_PRECISION, SPOT_IMF_PRECISION, SPOT_WEIGHT_PRECISION, THIRTEEN_DAY,
     TWENTY_FOUR_HOUR,
 };
@@ -128,7 +128,7 @@ pub fn handle_initialize_spot_market(
         return Err(ErrorCode::InvalidInsuranceFundAuthority.into());
     }
 
-    validate_borrow_rate(optimal_utilization, optimal_borrow_rate, max_borrow_rate)?;
+    validate_borrow_rate(optimal_utilization, optimal_borrow_rate, max_borrow_rate, 0)?;
 
     let spot_market_index = get_then_update_id!(state, number_of_spot_markets);
 
@@ -273,12 +273,13 @@ pub fn handle_initialize_spot_market(
         paused_operations: 0,
         if_paused_operations: 0,
         fee_adjustment: 0,
-        padding1: [0; 2],
+        max_token_borrows_fraction: 0,
         flash_loan_amount: 0,
         flash_loan_initial_token_amount: 0,
         total_swap_fee: 0,
         scale_initial_asset_weight_start,
-        padding: [0; 48],
+        min_borrow_rate: 0,
+        padding: [0; 47],
         insurance_fund: InsuranceFund {
             vault: *ctx.accounts.insurance_fund_vault.to_account_info().key,
             unstaking_period: THIRTEEN_DAY,
@@ -2296,9 +2297,18 @@ pub fn handle_update_spot_market_borrow_rate(
     optimal_utilization: u32,
     optimal_borrow_rate: u32,
     max_borrow_rate: u32,
+    min_borrow_rate: Option<u8>,
 ) -> Result<()> {
     let spot_market = &mut load_mut!(ctx.accounts.spot_market)?;
-    validate_borrow_rate(optimal_utilization, optimal_borrow_rate, max_borrow_rate)?;
+    validate_borrow_rate(
+        optimal_utilization,
+        optimal_borrow_rate,
+        max_borrow_rate,
+        min_borrow_rate
+            .unwrap_or(spot_market.min_borrow_rate)
+            .cast::<u32>()?
+            * ((PERCENTAGE_PRECISION / 200) as u32),
+    )?;
 
     msg!(
         "spot_market.optimal_utilization: {:?} -> {:?}",
@@ -2321,6 +2331,16 @@ pub fn handle_update_spot_market_borrow_rate(
     spot_market.optimal_utilization = optimal_utilization;
     spot_market.optimal_borrow_rate = optimal_borrow_rate;
     spot_market.max_borrow_rate = max_borrow_rate;
+
+    if let Some(min_borrow_rate) = min_borrow_rate {
+        msg!(
+            "spot_market.min_borrow_rate: {:?} -> {:?}",
+            spot_market.min_borrow_rate,
+            min_borrow_rate
+        );
+        spot_market.min_borrow_rate = min_borrow_rate
+    }
+
     Ok(())
 }
 
@@ -2340,6 +2360,39 @@ pub fn handle_update_spot_market_max_token_deposits(
     );
 
     spot_market.max_token_deposits = max_token_deposits;
+    Ok(())
+}
+
+#[access_control(
+    spot_market_valid(&ctx.accounts.spot_market)
+)]
+pub fn handle_update_spot_market_max_token_borrows(
+    ctx: Context<AdminUpdateSpotMarket>,
+    max_token_borrows_fraction: u16,
+) -> Result<()> {
+    let spot_market = &mut load_mut!(ctx.accounts.spot_market)?;
+
+    msg!(
+        "spot_market.max_token_borrows_fraction: {:?} -> {:?}",
+        spot_market.max_token_borrows_fraction,
+        max_token_borrows_fraction
+    );
+
+    let current_spot_tokens_borrows: u64 = spot_market.get_borrows()?.cast()?;
+    let new_max_token_borrows = spot_market
+        .max_token_deposits
+        .safe_mul(max_token_borrows_fraction.cast()?)?
+        .safe_div(10000)?;
+
+    validate!(
+        current_spot_tokens_borrows <= new_max_token_borrows,
+        ErrorCode::InvalidSpotMarketInitialization,
+        "spot borrows {} > max_token_borrows {}",
+        current_spot_tokens_borrows,
+        max_token_borrows_fraction
+    )?;
+
+    spot_market.max_token_borrows_fraction = max_token_borrows_fraction;
     Ok(())
 }
 

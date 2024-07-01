@@ -541,8 +541,11 @@ pub enum ErrorCode {
     OracleStaleForAMM,
     #[msg("Unable to parse pull oracle message")]
     UnableToParsePullOracleMessage,
+    #[msg("Can not borow more than max borrows")]
+    MaxBorrows,
     #[msg("Liquidation order failed to fill")]
     LiquidationOrderFailedToFill,
+  
 }
 
 #[macro_export]

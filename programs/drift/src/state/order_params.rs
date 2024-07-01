@@ -55,7 +55,7 @@ impl OrderParams {
             OrderParams::get_perp_baseline_start_price_offset(perp_market, self.direction)?;
         let new_auction_start_price = oracle_price.safe_add(auction_start_price_offset)?;
 
-        if self.auction_duration.is_none() {
+        if self.auction_duration.unwrap_or(0) == 0 {
             match self.direction {
                 PositionDirection::Long => {
                     let ask_premium = perp_market.amm.last_ask_premium()?;

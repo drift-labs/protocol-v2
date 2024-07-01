@@ -9,8 +9,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Features
 
-- program: add pyth pull oracles (https://github.com/drift-labs/protocol-v2/pull/1067)
-- ts-sdk: add pyth pull oracle clients
+- program: migrate all integration tests to bankrun ([#1090](https://github.com/drift-labs/protocol-v2/pull/1090))
+
+### Fixes
+
+### Breaking
+
+## [2.84.0] - 2024-06-23
+
+### Features
+
+- program: check FillOrderAmm for amm is available ([#1107](https://github.com/drift-labs/protocol-v2/pull/1107))
+- program: add spot borrow insurance limits ([#1080](https://github.com/drift-labs/protocol-v2/pull/1080))
+- program: maker can be rewarded filler returns when amm gets fill ([#1093](https://github.com/drift-labs/protocol-v2/pull/1093))
+- program: avoid overwriting 0 duration auction ([#1097](https://github.com/drift-labs/protocol-v2/pull/1097))
+- program: add pyth pull oracles ([#1067](https://github.com/drift-labs/protocol-v2/pull/1067))
 
 ### Fixes
 
