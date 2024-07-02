@@ -185,7 +185,7 @@ impl BookSide {
         if p > 0 {
             return Some(p);
         }
-        return None;
+        None
     }
 
     pub fn find_max(&self) -> Option<u64> {
@@ -202,7 +202,7 @@ impl BookSide {
         if p > 0 {
             return Some(p);
         }
-        return None;
+        None
     }
 }
 

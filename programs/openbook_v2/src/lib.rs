@@ -1,3 +1,5 @@
+#![allow(clippy::too_many_arguments)]
+
 use anchor_lang::prelude::{
     borsh::{BorshDeserialize, BorshSerialize},
     *,
@@ -18,7 +20,6 @@ pub use crate::context::*;
 mod openbook_v2 {
     #![allow(dead_code)]
     #![allow(unused_variables)]
-    #![allow(clippy::too_many_arguments)]
 
     use super::*;
 
