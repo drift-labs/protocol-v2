@@ -3528,4 +3528,55 @@ export class AdminClient extends DriftClient {
 			},
 		});
 	}
+
+	public async updateSpotMarketFuel(
+		spotMarketIndex: number
+	): Promise<TransactionSignature> {
+		const updateSpotMarketFuelIx = await this.getUpdateSpotMarketFuelIx(
+			spotMarketIndex
+		);
+
+		const tx = await this.buildTransaction(updateSpotMarketFuelIx);
+
+		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+
+		return txSig;
+	}
+
+	public async getUpdateSpotMarketFuelIx(
+		spotMarketIndex: number,
+		fuelBoostDeposits?: number,
+		fuelBoostBorrows?: number,
+		fuelBoostTaker?: number,
+		fuelBoostMaker?: number,
+	): Promise<TransactionInstruction> {
+		const params = {
+			spotMarketIndex,
+			fuelBoostDeposits: fuelBoostDeposits || null,
+			fuelBoostBorrows: fuelBoostBorrows || null,
+			fuelBoostTaker: fuelBoostTaker || null,
+			fuelBoostMaker: fuelBoostMaker || null,
+
+		};
+
+		const spotMarketPublicKey = await getSpotMarketPublicKey(
+			this.program.programId,
+			spotMarketIndex
+		);
+
+		return await this.program.instruction.updateSpotMarketFuelIx(
+			fuelBoostDeposits || null,
+			fuelBoostBorrows || null,
+			fuelBoostTaker || null,
+			fuelBoostMaker || null,
+			 {
+			accounts: {
+				admin: this.isSubscribed
+					? this.getStateAccount().admin
+					: this.wallet.publicKey,
+				state: await this.getStatePublicKey(),
+				spotMarket: spotMarketPublicKey,
+			},
+		});
+	}
 }
