@@ -170,9 +170,21 @@ async fn test_program() -> anyhow::Result<()> {
     // assert deposited amounts
     let account = banks_client.get_account(user).await?.unwrap().data;
     let user_data = User::try_deserialize(&mut &account[..]).unwrap();
-    let base_spot_position = *user_data.spot_positions.iter().filter(|position| position.market_index == 1).collect::<Vec<&SpotPosition>>().first().unwrap();
-    let quote_spot_position = *user_data.spot_positions.iter().filter(|position| position.market_index == 0 && position.cumulative_deposits > 0).collect::<Vec<&SpotPosition>>().first().unwrap();
-    assert_eq!(base_spot_position.cumulative_deposits,1_000_000_000_000);
+    let base_spot_position = *user_data
+        .spot_positions
+        .iter()
+        .filter(|position| position.market_index == 1)
+        .collect::<Vec<&SpotPosition>>()
+        .first()
+        .unwrap();
+    let quote_spot_position = *user_data
+        .spot_positions
+        .iter()
+        .filter(|position| position.market_index == 0 && position.cumulative_deposits > 0)
+        .collect::<Vec<&SpotPosition>>()
+        .first()
+        .unwrap();
+    assert_eq!(base_spot_position.cumulative_deposits, 1_000_000_000_000);
     assert_eq!(quote_spot_position.cumulative_deposits, 1_000_000_000);
     assert_eq!(base_spot_position.scaled_balance, 1_000_000_000_000);
     assert_eq!(quote_spot_position.scaled_balance, 1_000_000_000_000);
@@ -277,11 +289,23 @@ async fn test_program() -> anyhow::Result<()> {
     // check spot amounts
     let account = banks_client.get_account(user).await?.unwrap().data;
     let user_data = User::try_deserialize(&mut &account[..]).unwrap();
-    let base_spot_position = *user_data.spot_positions.iter().filter(|position| position.market_index == 1).collect::<Vec<&SpotPosition>>().first().unwrap();
-    let quote_spot_position = *user_data.spot_positions.iter().filter(|position| position.market_index == 0 && position.cumulative_deposits > 0).collect::<Vec<&SpotPosition>>().first().unwrap();
+    let base_spot_position = *user_data
+        .spot_positions
+        .iter()
+        .filter(|position| position.market_index == 1)
+        .collect::<Vec<&SpotPosition>>()
+        .first()
+        .unwrap();
+    let quote_spot_position = *user_data
+        .spot_positions
+        .iter()
+        .filter(|position| position.market_index == 0 && position.cumulative_deposits > 0)
+        .collect::<Vec<&SpotPosition>>()
+        .first()
+        .unwrap();
     // 1 mock Sol exchanged for +- 153.8 mock USDC
-    assert_eq!(base_spot_position.cumulative_deposits,1_001_000_000_000);
-    assert_eq!(quote_spot_position.cumulative_deposits,  846_154_000);
+    assert_eq!(base_spot_position.cumulative_deposits, 1_001_000_000_000);
+    assert_eq!(quote_spot_position.cumulative_deposits, 846_154_000);
     assert_eq!(base_spot_position.scaled_balance, 1_001_000_000_000);
     assert_eq!(quote_spot_position.scaled_balance, 845_999_999_999);
 
@@ -394,11 +418,23 @@ async fn test_program() -> anyhow::Result<()> {
     // check spot amounts
     let account = banks_client.get_account(user).await?.unwrap().data;
     let user_data = User::try_deserialize(&mut &account[..]).unwrap();
-    let base_spot_position = *user_data.spot_positions.iter().filter(|position| position.market_index == 1).collect::<Vec<&SpotPosition>>().first().unwrap();
-    let quote_spot_position = *user_data.spot_positions.iter().filter(|position| position.market_index == 0 && position.cumulative_deposits > 0).collect::<Vec<&SpotPosition>>().first().unwrap();
+    let base_spot_position = *user_data
+        .spot_positions
+        .iter()
+        .filter(|position| position.market_index == 1)
+        .collect::<Vec<&SpotPosition>>()
+        .first()
+        .unwrap();
+    let quote_spot_position = *user_data
+        .spot_positions
+        .iter()
+        .filter(|position| position.market_index == 0 && position.cumulative_deposits > 0)
+        .collect::<Vec<&SpotPosition>>()
+        .first()
+        .unwrap();
     // buy 1 mock Sol exchanged for +- 15x mock USDC
-    assert_eq!(base_spot_position.cumulative_deposits,  1_000_000_000_000);
-    assert_eq!(quote_spot_position.cumulative_deposits,  1_001_309_000);
+    assert_eq!(base_spot_position.cumulative_deposits, 1_000_000_000_000);
+    assert_eq!(quote_spot_position.cumulative_deposits, 1_001_309_000);
     assert_eq!(base_spot_position.scaled_balance, 999_999_999_999);
     assert_eq!(quote_spot_position.scaled_balance, 1_000_999_844_999);
 
