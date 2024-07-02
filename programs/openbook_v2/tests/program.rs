@@ -11,7 +11,7 @@ pub fn setup_programs(validator: &mut ProgramTest) -> anyhow::Result<()> {
     add_program(
         validator,
         openbook_v2_light::id(),
-        &format!("{}/deps/openbook_v2.so", path),
+        &format!("{}/tests/fixtures/openbook_v2.so", path),
     )?;
     // add drift
     add_program(
