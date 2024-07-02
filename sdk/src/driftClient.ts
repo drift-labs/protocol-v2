@@ -227,6 +227,7 @@ export class DriftClient {
 					onSignedCb: this.handleSignedTransaction.bind(this),
 					preSignedCb: this.handlePreSignedTransaction.bind(this),
 				},
+				config: config.txHandlerConfig,
 			});
 
 		if (config.includeDelegates && config.subAccountIds) {
