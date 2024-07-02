@@ -25,7 +25,9 @@ import {
 	TxParams,
 } from '../types';
 import { containsComputeUnitIxs } from '../util/computeUnits';
-import { CachedBlockhashFetcher } from './cachedBlockhashFetcher';
+import { CachedBlockhashFetcher } from './blockhashFetcher/cachedBlockhashFetcher';
+import { BaseBlockhashFetcher } from './blockhashFetcher/baseBlockhashFetcher';
+import { BlockhashFetcher } from './blockhashFetcher/types';
 
 /**
  * Explanation for SIGNATURE_BLOCK_AND_EXPIRY:
@@ -55,6 +57,15 @@ export type TxBuildingProps = {
 	wallet?: IWallet;
 };
 
+export type TxHandlerConfig = {
+	blockhashCachingEnabled?: boolean;
+	blockhashCachingConfig?: {
+		retryCount: number;
+		retrySleepTimeMs: number;
+		staleCacheTimeMs: number;
+	};
+};
+
 /**
  * This class is responsible for creating and signing transactions.
  */
@@ -70,7 +81,7 @@ export class TxHandler {
 	private onSignedCb?: (txSigs: DriftClientMetricsEvents['txSigned']) => void;
 
 	private blockhashCommitment: Commitment = 'finalized';
-	private blockHashFetcher: CachedBlockhashFetcher;
+	private blockHashFetcher: BlockhashFetcher;
 
 	constructor(props: {
 		connection: Connection;
@@ -81,17 +92,24 @@ export class TxHandler {
 			onSignedCb?: (txSigs: DriftClientMetricsEvents['txSigned']) => void;
 			preSignedCb?: () => void;
 		};
+		config?: TxHandlerConfig;
 	}) {
 		this.connection = props.connection;
 		this.wallet = props.wallet;
 		this.confirmationOptions = props.confirmationOptions;
-		this.blockHashFetcher = new CachedBlockhashFetcher(
-			this.connection,
-			this.blockhashCommitment,
-			BLOCKHASH_FETCH_RETRY_COUNT,
-			BLOCKHASH_FETCH_RETRY_SLEEP,
-			RECENT_BLOCKHASH_STALE_TIME_MS
-		);
+
+		this.blockHashFetcher = props?.config?.blockhashCachingEnabled
+			? new CachedBlockhashFetcher(
+					this.connection,
+					this.blockhashCommitment,
+					props?.config?.blockhashCachingConfig?.retryCount ??
+						BLOCKHASH_FETCH_RETRY_COUNT,
+					props?.config?.blockhashCachingConfig?.retrySleepTimeMs ??
+						BLOCKHASH_FETCH_RETRY_SLEEP,
+					props?.config?.blockhashCachingConfig?.staleCacheTimeMs ??
+						RECENT_BLOCKHASH_STALE_TIME_MS
+			  )
+			: new BaseBlockhashFetcher(this.connection, this.blockhashCommitment);
 
 		// #Optionals
 		this.returnBlockHeightsWithSignedTxCallbackData =

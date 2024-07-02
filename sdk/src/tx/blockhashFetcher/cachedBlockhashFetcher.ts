@@ -3,6 +3,7 @@ import {
 	Commitment,
 	Connection,
 } from '@solana/web3.js';
+import { BlockhashFetcher } from './types';
 
 /**
  * Fetches the latest blockhash and caches it for a configurable amount of time.
@@ -11,7 +12,7 @@ import {
  * - Retries on failure with exponential backoff
  * - Prevents concurrent requests for the same blockhash
  */
-export class CachedBlockhashFetcher {
+export class CachedBlockhashFetcher implements BlockhashFetcher {
 	private recentBlockhashCache: {
 		value: BlockhashWithExpiryBlockHeight | undefined;
 		lastUpdated: number;
