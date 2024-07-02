@@ -5,7 +5,7 @@ use drift::instruction::Deposit;
 use drift::instructions::SpotFulfillmentType;
 use drift::state::order_params::OrderParams;
 use drift::state::user::OrderTriggerCondition::{TriggeredAbove, TriggeredBelow};
-use drift::state::user::{MarketType, OrderType, User};
+use drift::state::user::{MarketType, OrderType, SpotPosition, User};
 use openbook_v2_light::instruction::PlaceOrder;
 use openbook_v2_light::{PlaceOrderType, SelfTradeBehavior, Side};
 use pyth::instruction::Initialize as PythInitialize;
@@ -70,26 +70,6 @@ async fn test_program() -> anyhow::Result<()> {
     };
     // create open_orders_account ( and open_orders_indexer too)
     let (ooa, _ooi) = setup_open_orders_account(&mut banks_client, &keypair, &market).await?;
-    // market maker place bid
-    place_order_and_execute(
-        &mut banks_client,
-        &keypair,
-        PlaceOrder {
-            side: Side::Bid,
-            price_lots: 150_000,
-            max_base_lots: 1000,
-            max_quote_lots_including_fees: 500_000_000,
-            client_order_id: 0,
-            order_type: PlaceOrderType::Limit,
-            expiry_timestamp: 0,
-            self_trade_behavior: SelfTradeBehavior::DecrementTake,
-            limit: 10,
-        },
-        &market_keys,
-        &ooa,
-        &quote_mint,
-    )
-    .await?;
     // market maker place ask
     place_order_and_execute(
         &mut banks_client,
@@ -187,6 +167,15 @@ async fn test_program() -> anyhow::Result<()> {
     )
     .await?;
 
+    // assert deposited amounts
+    let account = banks_client.get_account(user).await?.unwrap().data;
+    let user_data = User::try_deserialize(&mut &account[..]).unwrap();
+    let base_spot_position = *user_data.spot_positions.iter().filter(|position| position.market_index == 1).collect::<Vec<&SpotPosition>>().first().unwrap();
+    let quote_spot_position = *user_data.spot_positions.iter().filter(|position| position.market_index == 0 && position.cumulative_deposits > 0).collect::<Vec<&SpotPosition>>().first().unwrap();
+    assert_eq!(base_spot_position.cumulative_deposits,1_000_000_000_000);
+    assert_eq!(quote_spot_position.cumulative_deposits, 1_000_000_000);
+    assert_eq!(base_spot_position.scaled_balance, 1_000_000_000_000);
+    assert_eq!(quote_spot_position.scaled_balance, 1_000_000_000_000);
     // create OpenbookV2 fulfillment config
     let config = initialize_openbook_v2_config(
         &mut banks_client,
@@ -285,6 +274,16 @@ async fn test_program() -> anyhow::Result<()> {
             banks_client.process_transaction(tx).await?;
         }
     }
+    // check spot amounts
+    let account = banks_client.get_account(user).await?.unwrap().data;
+    let user_data = User::try_deserialize(&mut &account[..]).unwrap();
+    let base_spot_position = *user_data.spot_positions.iter().filter(|position| position.market_index == 1).collect::<Vec<&SpotPosition>>().first().unwrap();
+    let quote_spot_position = *user_data.spot_positions.iter().filter(|position| position.market_index == 0 && position.cumulative_deposits > 0).collect::<Vec<&SpotPosition>>().first().unwrap();
+    // 1 mock Sol exchanged for +- 153.8 mock USDC
+    assert_eq!(base_spot_position.cumulative_deposits,1_001_000_000_000);
+    assert_eq!(quote_spot_position.cumulative_deposits,  846_154_000);
+    assert_eq!(base_spot_position.scaled_balance, 1_001_000_000_000);
+    assert_eq!(quote_spot_position.scaled_balance, 845_999_999_999);
 
     // add buy before
     place_order_and_execute(
@@ -292,9 +291,9 @@ async fn test_program() -> anyhow::Result<()> {
         &keypair,
         PlaceOrder {
             side: Side::Bid,
-            price_lots: 156_000,
-            max_base_lots: 2000,
-            max_quote_lots_including_fees: 1_000_000_000,
+            price_lots: 155_000,
+            max_base_lots: 1000,
+            max_quote_lots_including_fees: 10_000_000_000,
             client_order_id: 0,
             order_type: PlaceOrderType::Limit,
             expiry_timestamp: 0,
@@ -315,7 +314,7 @@ async fn test_program() -> anyhow::Result<()> {
             market_type: MarketType::Spot,
             direction: PositionDirection::Short,
             user_order_id: 0,
-            base_asset_amount: 1_00_000_000, // 0.1 wsol
+            base_asset_amount: 1_000_000_000, // 0.1 wsol
             price: 154_000_000,
             market_index: 1,
             reduce_only: false,
@@ -336,6 +335,7 @@ async fn test_program() -> anyhow::Result<()> {
         &oracle_feed,
     )
     .await?;
+
     // fulfillment
     let account = banks_client.get_account(user).await?.unwrap().data;
     let user_data = User::try_deserialize(&mut &account[..]).unwrap();
@@ -390,5 +390,17 @@ async fn test_program() -> anyhow::Result<()> {
             banks_client.process_transaction(tx).await?;
         }
     }
+
+    // check spot amounts
+    let account = banks_client.get_account(user).await?.unwrap().data;
+    let user_data = User::try_deserialize(&mut &account[..]).unwrap();
+    let base_spot_position = *user_data.spot_positions.iter().filter(|position| position.market_index == 1).collect::<Vec<&SpotPosition>>().first().unwrap();
+    let quote_spot_position = *user_data.spot_positions.iter().filter(|position| position.market_index == 0 && position.cumulative_deposits > 0).collect::<Vec<&SpotPosition>>().first().unwrap();
+    // buy 1 mock Sol exchanged for +- 15x mock USDC
+    assert_eq!(base_spot_position.cumulative_deposits,  1_000_000_000_000);
+    assert_eq!(quote_spot_position.cumulative_deposits,  1_001_309_000);
+    assert_eq!(base_spot_position.scaled_balance, 999_999_999_999);
+    assert_eq!(quote_spot_position.scaled_balance, 1_000_999_844_999);
+
     Ok(())
 }
