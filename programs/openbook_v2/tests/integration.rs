@@ -1,19 +1,3 @@
-use anchor_lang::InstructionData;
-use anchor_lang::{AccountDeserialize, Key};
-use drift::controller::position::PositionDirection;
-use drift::instruction::Deposit;
-use drift::instructions::SpotFulfillmentType;
-use drift::state::order_params::OrderParams;
-use drift::state::user::OrderTriggerCondition::{TriggeredAbove, TriggeredBelow};
-use drift::state::user::{MarketType, OrderType, SpotPosition, User};
-use openbook_v2_light::instruction::PlaceOrder;
-use openbook_v2_light::{PlaceOrderType, SelfTradeBehavior, Side};
-use pyth::instruction::Initialize as PythInitialize;
-use solana_program::instruction::{AccountMeta, Instruction};
-use solana_program::system_program;
-use solana_program_test::{tokio, ProgramTest};
-use solana_sdk::{signer::Signer, transaction::Transaction};
-
 use crate::drift_utils::{
     create_user, deposit_and_execute, init_quote_market, init_spot_market, initialize_drift,
     initialize_openbook_v2_config, place_spot_order_and_execute,
@@ -24,6 +8,25 @@ use crate::market::{
 use crate::ooa::setup_open_orders_account;
 use crate::pyth_utils::initialize_pyth_oracle;
 use crate::token::init_mint;
+use anchor_lang::InstructionData;
+use anchor_lang::{AccountDeserialize, Key};
+use drift::controller::position::PositionDirection;
+use drift::instruction::Deposit;
+use drift::instructions::SpotFulfillmentType;
+use drift::math::spot_balance::get_token_amount;
+use drift::state::order_params::OrderParams;
+use drift::state::spot_market::{SpotBalanceType, SpotMarket};
+use drift::state::user::OrderTriggerCondition::{TriggeredAbove, TriggeredBelow};
+use drift::state::user::{MarketType, OrderType, SpotPosition, User};
+use drift::{load, load_mut};
+use openbook_v2_light::instruction::PlaceOrder;
+use openbook_v2_light::{PlaceOrderType, SelfTradeBehavior, Side};
+use pyth::instruction::Initialize as PythInitialize;
+use solana_program::instruction::{AccountMeta, Instruction};
+use solana_program::system_program;
+use solana_program_test::{tokio, ProgramTest};
+use solana_sdk::{signer::Signer, transaction::Transaction};
+use std::{iter, mem};
 
 mod drift_utils;
 mod market;
@@ -92,7 +95,7 @@ async fn test_program() -> anyhow::Result<()> {
     .await?;
     // init drift
     let (state, drift_signer) = initialize_drift(&mut banks_client, &keypair, &quote_mint).await?;
-    println!("state: {} drift signer: {}", state, drift_signer);
+
     // init quote market
     let (quote_market, quote_market_vault, _quote_insurance_fund_vault) = init_quote_market(
         &mut banks_client,
@@ -114,7 +117,6 @@ async fn test_program() -> anyhow::Result<()> {
         },
     )
     .await?;
-    println!("{}", oracle_feed);
 
     // create spot market
     let (spot_market, spot_market_vault, _spot_insurance_fund_vault) = init_spot_market(
@@ -416,8 +418,8 @@ async fn test_program() -> anyhow::Result<()> {
     }
 
     // check spot amounts
-    let account = banks_client.get_account(user).await?.unwrap().data;
-    let user_data = User::try_deserialize(&mut &account[..]).unwrap();
+    let data = banks_client.get_account(user).await?.unwrap().data;
+    let user_data = User::try_deserialize(&mut &data[..]).unwrap();
     let base_spot_position = *user_data
         .spot_positions
         .iter()
@@ -437,6 +439,5 @@ async fn test_program() -> anyhow::Result<()> {
     assert_eq!(quote_spot_position.cumulative_deposits, 1_001_309_000);
     assert_eq!(base_spot_position.scaled_balance, 999_999_999_999);
     assert_eq!(quote_spot_position.scaled_balance, 1_000_999_844_999);
-
     Ok(())
 }
