@@ -22,24 +22,20 @@ use crate::market::{
     create_bids_asks_event_heap, create_default_market, place_order_and_execute, MarketKeys,
 };
 use crate::ooa::setup_open_orders_account;
-use crate::program::setup_programs;
 use crate::pyth_utils::initialize_pyth_oracle;
 use crate::token::init_mint;
 
 mod drift_utils;
 mod market;
 mod ooa;
-mod program;
 mod pyth_utils;
 mod token;
 
 #[tokio::test]
 async fn test_program() -> anyhow::Result<()> {
-    let mut validator = ProgramTest::default();
-    // SBF shared object depending on the `BPF_OUT_DIR` environment variable.
-    // read openbook_v2.so
-    // this will add openbook v2, drift and pyth programs to validator
-    setup_programs(&mut validator)?;
+    let mut validator = ProgramTest::new("drift", drift::id(), None);
+    validator.add_program("pyth", pyth::id(), None);
+    validator.add_program("openbook_v2", openbook_v2_light::id(), None);
 
     // init Drift spot account
     // init drift fulfillment

@@ -1,9 +1,10 @@
 
 Openbook V2 integration to add ability to fulfill via openbook v2 liquidity 
 
-to run integration test - integration.rs you need to build .so libraries by running:
+to run integration test - integration.rs you need to build .so libraries by running and run in root directory of repo:
 ```
 anchor build
+cargo test-sbf --package openbook-v2-light --test integration
 ```
 
 TODOs:
