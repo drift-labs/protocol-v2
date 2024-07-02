@@ -52,7 +52,6 @@ export const configs: { [key in DriftEnv]: DriftConfig } = {
 		SPOT_MARKETS: DevnetSpotMarkets,
 		MARKET_LOOKUP_TABLE: 'FaMS3U4uBojvGn5FSDEPimddcXsCfwkKsFgMVVnDdxGb',
 		DRIFT_ORACLE_RECEIVER_ID,
-		PYTH_PULL_ORACLE_LOOKUP_TABLE: 'HSmbo85ueThzvgYvAVy1JtjANTooqHafoorBNFA9vk9M',
 	},
 	'mainnet-beta': {
 		ENV: 'mainnet-beta',

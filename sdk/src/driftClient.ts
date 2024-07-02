@@ -6889,7 +6889,8 @@ export class DriftClient {
 
 	public async getPostPythPullOracleUpdateAtomicIxs(
 		vaaString: string,
-		feedId: string
+		feedId: string,
+		numSignatures = 2
 	): Promise<TransactionInstruction[]> {
 		feedId = trimFeedId(feedId);
 		const accumulatorUpdateData = parseAccumulatorUpdateData(
@@ -6900,7 +6901,10 @@ export class DriftClient {
 			guardianSetIndex,
 			DEFAULT_WORMHOLE_PROGRAM_ID
 		);
-		const trimmedVaa = trimVaaSignatures(accumulatorUpdateData.vaa);
+		const trimmedVaa = trimVaaSignatures(
+			accumulatorUpdateData.vaa,
+			numSignatures
+		);
 
 		const postIxs: TransactionInstruction[] = [];
 		for (const update of accumulatorUpdateData.updates) {
