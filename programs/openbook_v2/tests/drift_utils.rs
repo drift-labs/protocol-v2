@@ -326,7 +326,7 @@ pub async fn initialize_openbook_v2_config(
     state: &Pubkey,
     drift_signer: &Pubkey,
     market_index: u16,
-) -> anyhow::Result<(Pubkey)> {
+) -> anyhow::Result<Pubkey> {
     let config = Pubkey::find_program_address(
         &[
             b"openbook_v2_fulfillment_config".as_ref(),

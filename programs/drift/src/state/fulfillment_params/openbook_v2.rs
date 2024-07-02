@@ -9,6 +9,7 @@ use crate::math::serum::{
 use crate::math::spot_withdraw::validate_spot_market_vault_amount;
 use crate::signer::get_signer_seeds;
 use crate::state::events::OrderActionExplanation;
+use crate::state::load_ref::load_ref;
 use crate::state::spot_fulfillment_params::{ExternalSpotFill, SpotFulfillmentParams};
 use crate::state::spot_market::{SpotBalanceType, SpotFulfillmentConfigStatus, SpotMarket};
 use crate::state::state::State;
@@ -19,7 +20,6 @@ use anchor_lang::prelude::{Account, Program, System};
 use anchor_lang::{account, InstructionData, Key};
 use anchor_spl::token::{Token, TokenAccount};
 use arrayref::array_ref;
-use bytemuck::{cast_slice_mut, from_bytes_mut};
 use openbook_v2_light::instruction::PlaceTakeOrder;
 use openbook_v2_light::{BookSide, Market, PlaceOrderType, Side};
 use solana_program::account_info::AccountInfo;
@@ -27,7 +27,7 @@ use solana_program::instruction::{AccountMeta, Instruction};
 use solana_program::msg;
 use solana_program::program::invoke_signed_unchecked;
 use solana_program::pubkey::Pubkey;
-use std::cell::{Ref, RefMut};
+use std::cell::Ref;
 use std::convert::TryFrom;
 
 #[account(zero_copy(unsafe))]
@@ -61,15 +61,8 @@ pub struct OpenbookV2Context<'a, 'b> {
 
 impl<'a, 'b> OpenbookV2Context<'a, 'b> {
     pub fn load_openbook_v2_market(&self) -> DriftResult<Market> {
-        let mut account_data: RefMut<'a, [u8]>;
-        let market: RefMut<'a, Market>;
-        let data = self
-            .openbook_v2_market
-            .try_borrow_mut_data()
-            .map_err(|_| ErrorCode::FailedOpenbookV2CPI)?;
-        account_data = RefMut::map(data, |data| *data);
-
-        market = RefMut::map(account_data, |data| from_bytes_mut(data));
+        let market =
+            load_ref(self.openbook_v2_market).map_err(|_| ErrorCode::FailedOpenbookV2CPI)?;
         Ok(*market)
     }
 
@@ -225,21 +218,21 @@ impl<'a, 'b> OpenbookV2FulfillmentParams<'a, 'b> {
             ErrorCode::InvalidFulfillmentConfig
         })?;
         Ok(OpenbookV2FulfillmentParams {
-            drift_signer: drift_signer,
+            drift_signer,
             openbook_v2_context: OpenbookV2Context {
-                openbook_v2_program: openbook_v2_program,
-                openbook_v2_market: openbook_v2_market,
+                openbook_v2_program,
+                openbook_v2_market,
             },
-            openbook_v2_market_authority: openbook_v2_market_authority,
-            openbook_v2_event_heap: openbook_v2_event_heap,
-            openbook_v2_bids: openbook_v2_bids,
-            openbook_v2_asks: openbook_v2_asks,
-            openbook_v2_base_vault: openbook_v2_base_vault,
-            openbook_v2_quote_vault: openbook_v2_quote_vault,
-            base_market_vault: base_market_vault,
-            quote_market_vault: quote_market_vault,
-            token_program: token_program,
-            system_program: system_program,
+            openbook_v2_market_authority,
+            openbook_v2_event_heap,
+            openbook_v2_bids,
+            openbook_v2_asks,
+            openbook_v2_base_vault,
+            openbook_v2_quote_vault,
+            base_market_vault,
+            quote_market_vault,
+            token_program,
+            system_program,
             signer_nonce: state.signer_nonce,
             now,
         })
@@ -351,11 +344,11 @@ impl<'a, 'b> SpotFulfillmentParams for OpenbookV2FulfillmentParams<'a, 'b> {
             side: openbook_v2_order_side,
             price_lots: price_lots as i64, // i64::MAX, // 8
             // price_lots: i64::MAX,
-            max_base_lots: max_base_lots, // 8
-            max_quote_lots_including_fees: max_quote_lots_including_fees, // 8
+            max_base_lots,                      // 8
+            max_quote_lots_including_fees,      // 8
             order_type: PlaceOrderType::Market, // 1
-            limit: 20,                    // why 50?
-                                          // total - 27
+            limit: 20,                          // why 50?
+                                                // total - 27
         };
         let data = args.data();
         let market_accrued_fees_before = self

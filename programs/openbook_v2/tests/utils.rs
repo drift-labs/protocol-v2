@@ -1,9 +1,7 @@
-use solana_program::instruction::Instruction;
 use solana_program::pubkey::Pubkey;
 use solana_program_test::BanksClient;
 use solana_sdk::transaction::Transaction;
 use solana_sdk::{signature::Keypair, signer::Signer};
-use std::ffi::OsStr;
 
 // trying to find direction to protocol-v2
 pub fn get_paths() -> String {
@@ -28,7 +26,7 @@ pub fn get_paths() -> String {
 pub async fn create_account_for_type<T>(
     banks_client: &mut BanksClient,
     keypair: &Keypair,
-) -> Pubkey {
+) -> anyhow::Result<Pubkey> {
     let key = Keypair::new();
     let len = 8 + std::mem::size_of::<T>();
     let rent = banks_client.get_rent().await.unwrap().minimum_balance(len);
@@ -45,22 +43,6 @@ pub async fn create_account_for_type<T>(
         &[&keypair, &key],
         banks_client.get_latest_blockhash().await.unwrap(),
     );
-    banks_client.process_transaction(tx).await;
-    key.pubkey()
-}
-
-pub async fn process(
-    banks_client: &mut BanksClient,
-    ixs: Vec<Instruction>,
-    payer: &Pubkey,
-    signers: &Vec<&Keypair>,
-) -> anyhow::Result<()> {
-    let tx = Transaction::new_signed_with_payer(
-        &ixs,
-        Some(&payer),
-        &signers[..],
-        banks_client.get_latest_blockhash().await.unwrap(),
-    );
     banks_client.process_transaction(tx).await?;
-    Ok(())
+    Ok(key.pubkey())
 }

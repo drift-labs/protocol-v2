@@ -1,6 +1,5 @@
 use anchor_lang::InstructionData;
-use anchor_lang::{AccountDeserialize, Accounts, Key};
-use bytemuck::Zeroable;
+use anchor_lang::{AccountDeserialize, Key};
 use drift::controller::position::PositionDirection;
 use drift::instruction::Deposit;
 use drift::instructions::SpotFulfillmentType;
@@ -11,11 +10,9 @@ use openbook_v2_light::instruction::PlaceOrder;
 use openbook_v2_light::{PlaceOrderType, SelfTradeBehavior, Side};
 use pyth::instruction::Initialize as PythInitialize;
 use solana_program::instruction::{AccountMeta, Instruction};
-use solana_program::program_pack::Pack;
 use solana_program::system_program;
-use solana_program_test::{tokio, ProgramTest, ProgramTestBanksClientExt};
+use solana_program_test::{tokio, ProgramTest};
 use solana_sdk::{signer::Signer, transaction::Transaction};
-use std::str::FromStr;
 
 use crate::drift_utils::{
     create_user, deposit_and_execute, init_quote_market, init_spot_market, initialize_drift,
@@ -41,21 +38,21 @@ mod utils;
 #[tokio::test]
 async fn test_program() -> anyhow::Result<()> {
     let mut validator = ProgramTest::default();
-    /// SBF shared object depending on the `BPF_OUT_DIR` environment variable.
-    /// read openbook_v2.so
+    // SBF shared object depending on the `BPF_OUT_DIR` environment variable.
+    // read openbook_v2.so
     // this will add openbook v2, drift and pyth programs to validator
-    setup_programs(&mut validator);
+    setup_programs(&mut validator)?;
 
     // init Drift spot account
     // init drift fulfillment
     // order on drift
     // fulfill via openbook v2
-    let (mut banks_client, keypair, hash) = validator.start().await;
+    let (mut banks_client, keypair, _hash) = validator.start().await;
     // mock wsol
-    let base_mint = init_mint(&mut banks_client, &keypair, 9, 1000_000_000_000_000).await;
+    let base_mint = init_mint(&mut banks_client, &keypair, 9, 1000_000_000_000_000).await?;
     // mock usdc
-    let quote_mint = init_mint(&mut banks_client, &keypair, 6, 1_000_000_000_000).await;
-    let (bids, asks, event_heap) = create_bids_asks_event_heap(&mut banks_client, &keypair).await;
+    let quote_mint = init_mint(&mut banks_client, &keypair, 6, 1_000_000_000_000).await?;
+    let (bids, asks, event_heap) = create_bids_asks_event_heap(&mut banks_client, &keypair).await?;
     let (market, event_authority, market_authority, market_base_vault, market_quote_vault) =
         create_default_market(
             &mut banks_client,
@@ -123,7 +120,7 @@ async fn test_program() -> anyhow::Result<()> {
     let (state, drift_signer) = initialize_drift(&mut banks_client, &keypair, &quote_mint).await?;
     println!("state: {} drift signer: {}", state, drift_signer);
     // init quote market
-    let (quote_market, quote_market_vault, quote_insurance_fund_vault) = init_quote_market(
+    let (quote_market, quote_market_vault, _quote_insurance_fund_vault) = init_quote_market(
         &mut banks_client,
         &keypair,
         &quote_mint,
@@ -146,7 +143,7 @@ async fn test_program() -> anyhow::Result<()> {
     println!("{}", oracle_feed);
 
     // create spot market
-    let (spot_market, spot_market_vault, spot_insurance_fund_vault) = init_spot_market(
+    let (spot_market, spot_market_vault, _spot_insurance_fund_vault) = init_spot_market(
         &mut banks_client,
         &keypair,
         &base_mint,

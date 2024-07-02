@@ -1,7 +1,7 @@
 use crate::utils::create_account_for_type;
 use anchor_lang::{InstructionData, Key};
 use bytemuck::Zeroable;
-use openbook_v2_light::instruction::{CreateMarket, PlaceOrder, PlaceTakeOrder};
+use openbook_v2_light::instruction::{CreateMarket, PlaceOrder};
 use openbook_v2_light::{BookSide, EventHeap, OracleConfigParams, Side};
 use solana_program::instruction::{AccountMeta, Instruction};
 use solana_program::pubkey::Pubkey;
@@ -22,7 +22,7 @@ pub struct MarketKeys {
 }
 
 pub async fn place_order_and_execute(
-    mut banks_client: &mut BanksClient,
+    banks_client: &mut BanksClient,
     keypair: &Keypair,
     args: PlaceOrder,
     market_keys: &MarketKeys,
@@ -72,11 +72,11 @@ pub async fn place_order_and_execute(
 pub async fn create_bids_asks_event_heap(
     mut banks_client: &mut BanksClient,
     keypair: &Keypair,
-) -> (Pubkey, Pubkey, Pubkey) {
-    let bids = create_account_for_type::<BookSide>(&mut banks_client, keypair).await;
-    let asks = create_account_for_type::<BookSide>(&mut banks_client, keypair).await;
-    let event_heap = create_account_for_type::<EventHeap>(&mut banks_client, keypair).await;
-    return (bids, asks, event_heap);
+) -> anyhow::Result<(Pubkey, Pubkey, Pubkey)> {
+    let bids = create_account_for_type::<BookSide>(&mut banks_client, keypair).await?;
+    let asks = create_account_for_type::<BookSide>(&mut banks_client, keypair).await?;
+    let event_heap = create_account_for_type::<EventHeap>(&mut banks_client, keypair).await?;
+    Ok((bids, asks, event_heap))
 }
 
 // imitates wsol/usdc market CFSMrBssNG8Ud1edW59jNLnq2cwrQ9uY5cM3wXmqRJj3
