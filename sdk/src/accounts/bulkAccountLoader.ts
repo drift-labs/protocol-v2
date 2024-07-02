@@ -1,9 +1,10 @@
-import { Commitment, Connection, PublicKey } from '@solana/web3.js';
+import { Commitment, PublicKey } from '@solana/web3.js';
 import { v4 as uuidv4 } from 'uuid';
 import { BufferAndSlot } from './types';
 import { promiseTimeout } from '../util/promiseTimeout';
+import { Connection } from '../bankrun/bankrunConnection';
 
-type AccountToLoad = {
+export type AccountToLoad = {
 	publicKey: PublicKey;
 	callbacks: Map<string, (buffer: Buffer, slot: number) => void>;
 };

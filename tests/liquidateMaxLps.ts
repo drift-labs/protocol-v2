@@ -5,7 +5,6 @@ import {
 	OracleSource,
 	OracleGuardRails,
 	TestClient,
-	EventSubscriber,
 	PRICE_PRECISION,
 	PositionDirection,
 	Wallet,
@@ -14,38 +13,28 @@ import {
 
 import { Program } from '@coral-xyz/anchor';
 
-import { Keypair, PublicKey } from '@solana/web3.js';
+import { Keypair, LAMPORTS_PER_SOL, PublicKey } from '@solana/web3.js';
 
 import {
-	mockOracle,
 	mockUSDCMint,
 	mockUserUSDCAccount,
-	setFeedPrice,
 	initializeQuoteSpotMarket,
-	printTxLogs,
+	mockOracleNoProgram,
+	setFeedPriceNoProgram,
 } from './testHelpers';
-import {
-	BulkAccountLoader,
-	findComputeUnitConsumption,
-	PERCENTAGE_PRECISION,
-} from '../sdk';
+import { PERCENTAGE_PRECISION } from '../sdk';
+import { startAnchor } from 'solana-bankrun';
+import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
+import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
 
 describe('max lp liq', () => {
-	const provider = anchor.AnchorProvider.local(undefined, {
-		preflightCommitment: 'confirmed',
-		commitment: 'confirmed',
-	});
-	const connection = provider.connection;
-	anchor.setProvider(provider);
 	const chProgram = anchor.workspace.Drift as Program;
 
 	let driftClient: TestClient;
-	const eventSubscriber = new EventSubscriber(connection, chProgram, {
-		commitment: 'recent',
-	});
-	eventSubscriber.subscribe();
 
-	const bulkAccountLoader = new BulkAccountLoader(connection, 'confirmed', 1);
+	let bankrunContextWrapper: BankrunContextWrapper;
+
+	let bulkAccountLoader: TestBulkAccountLoader;
 
 	let usdcMint;
 	let userUSDCAccount;
@@ -70,21 +59,35 @@ describe('max lp liq', () => {
 	const numMkts = 8;
 
 	before(async () => {
-		usdcMint = await mockUSDCMint(provider);
-		userUSDCAccount = await mockUserUSDCAccount(usdcMint, usdcAmount, provider);
+		const context = await startAnchor('', [], []);
 
-		oracle = await mockOracle(1);
+		bankrunContextWrapper = new BankrunContextWrapper(context);
+
+		bulkAccountLoader = new TestBulkAccountLoader(
+			bankrunContextWrapper.connection,
+			'processed',
+			1
+		);
+
+		usdcMint = await mockUSDCMint(bankrunContextWrapper);
+		userUSDCAccount = await mockUserUSDCAccount(
+			usdcMint,
+			usdcAmount,
+			bankrunContextWrapper
+		);
+
+		oracle = await mockOracleNoProgram(bankrunContextWrapper, 1);
 
 		driftClient = new TestClient({
-			connection,
-			wallet: provider.wallet,
+			connection: bankrunContextWrapper.connection.toConnection(),
+			wallet: bankrunContextWrapper.provider.wallet,
 			programID: chProgram.programId,
 			opts: {
 				commitment: 'confirmed',
 			},
-			activeSubAccountId: 0,
 			perpMarketIndexes: [0],
 			spotMarketIndexes: [0],
+			subAccountIds: [],
 			oracleInfos: [
 				{
 					publicKey: oracle,
@@ -139,18 +142,20 @@ describe('max lp liq', () => {
 				nLpShares.divn(numMkts * 4),
 				i
 			);
-			await printTxLogs(connection, txSig);
+
+			bankrunContextWrapper.connection.printTxLogs(txSig);
 		}
 
-		provider.connection.requestAirdrop(liquidatorKeyPair.publicKey, 10 ** 9);
+		// provider.connection.requestAirdrop(liquidatorKeyPair.publicKey, 10 ** 9);
+		bankrunContextWrapper.fundKeypair(liquidatorKeyPair, LAMPORTS_PER_SOL);
 		liquidatorUSDCAccount = await mockUserUSDCAccount(
 			usdcMint,
 			usdcAmount,
-			provider,
+			bankrunContextWrapper,
 			liquidatorKeyPair.publicKey
 		);
 		liquidatorDriftClient = new TestClient({
-			connection,
+			connection: bankrunContextWrapper.connection.toConnection(),
 			wallet: new Wallet(liquidatorKeyPair),
 			programID: chProgram.programId,
 			opts: {
@@ -159,6 +164,7 @@ describe('max lp liq', () => {
 			activeSubAccountId: 0,
 			perpMarketIndexes: [0, 1, 2, 3, 4, 5, 6, 7],
 			spotMarketIndexes: [0],
+			subAccountIds: [],
 			oracleInfos: [
 				{
 					publicKey: oracle,
@@ -181,11 +187,10 @@ describe('max lp liq', () => {
 	after(async () => {
 		await driftClient.unsubscribe();
 		await liquidatorDriftClient.unsubscribe();
-		await eventSubscriber.unsubscribe();
 	});
 
 	it('liquidate', async () => {
-		await setFeedPrice(anchor.workspace.Pyth, 0.1, oracle);
+		await setFeedPriceNoProgram(bankrunContextWrapper, 0.1, oracle);
 
 		const oracleGuardRails: OracleGuardRails = {
 			priceDivergence: {
@@ -213,15 +218,10 @@ describe('max lp liq', () => {
 			}
 		);
 
-		await printTxLogs(connection, txSig);
+		bankrunContextWrapper.connection.printTxLogs(txSig);
 
-		const cus = (
-			await findComputeUnitConsumption(
-				driftClient.program.programId,
-				driftClient.connection,
-				txSig
-			)
-		)[0];
+		const cus =
+			bankrunContextWrapper.connection.findComputeUnitConsumption(txSig);
 		console.log(cus);
 	});
 });

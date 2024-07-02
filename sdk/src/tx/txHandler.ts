@@ -28,6 +28,7 @@ import { containsComputeUnitIxs } from '../util/computeUnits';
 import { CachedBlockhashFetcher } from './blockhashFetcher/cachedBlockhashFetcher';
 import { BaseBlockhashFetcher } from './blockhashFetcher/baseBlockhashFetcher';
 import { BlockhashFetcher } from './blockhashFetcher/types';
+import { isVersionedTransaction } from './utils';
 
 /**
  * Explanation for SIGNATURE_BLOCK_AND_EXPIRY:
@@ -188,8 +189,10 @@ export class TxHandler {
 		return signedTx;
 	}
 
-	private isVersionedTransaction(tx: Transaction | VersionedTransaction) {
-		return (tx as VersionedTransaction)?.message && true;
+	private isVersionedTransaction(
+		tx: Transaction | VersionedTransaction
+	): boolean {
+		return isVersionedTransaction(tx);
 	}
 
 	private isLegacyTransaction(tx: Transaction | VersionedTransaction) {
