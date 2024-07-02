@@ -276,6 +276,19 @@ impl<'a> OracleMap<'a> {
                 );
 
                 continue;
+            } else if account_info.owner == &switchboard_on_demand::id() {
+                let account_info = account_info_iter.next().safe_unwrap()?;
+                let pubkey = account_info.key();
+
+                oracles.insert(
+                    pubkey,
+                    AccountInfoAndOracleSource {
+                        account_info: account_info.clone(),
+                        oracle_source: OracleSource::SwitchboardOnDemand,
+                    },
+                );
+
+                continue;
             }
 
             break;
