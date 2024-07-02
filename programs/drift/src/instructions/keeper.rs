@@ -12,6 +12,7 @@ use crate::math::spot_withdraw::validate_spot_market_vault_amount;
 use crate::optional_accounts::update_prelaunch_oracle;
 use crate::state::fill_mode::FillMode;
 use crate::state::fulfillment_params::drift::MatchFulfillmentParams;
+use crate::state::fulfillment_params::openbook_v2::OpenbookV2FulfillmentParams;
 use crate::state::fulfillment_params::phoenix::PhoenixFulfillmentParams;
 use crate::state::fulfillment_params::serum::SerumFulfillmentParams;
 use crate::state::insurance_fund_stake::InsuranceFundStake;
@@ -147,6 +148,7 @@ pub enum SpotFulfillmentType {
     SerumV3,
     Match,
     PhoenixV1,
+    OpenbookV2,
 }
 
 #[access_control(
@@ -231,6 +233,17 @@ fn fill_spot_order<'c: 'info, 'info>(
                 &ctx.accounts.state,
                 &base_market,
                 &quote_market,
+            )?)
+        }
+        SpotFulfillmentType::OpenbookV2 => {
+            let base_market = spot_market_map.get_ref(&market_index)?;
+            let quote_market = spot_market_map.get_quote_spot_market()?;
+            Box::new(OpenbookV2FulfillmentParams::new(
+                remaining_accounts_iter,
+                &ctx.accounts.state,
+                &base_market,
+                &quote_market,
+                clock.unix_timestamp,
             )?)
         }
         SpotFulfillmentType::Match => {
