@@ -603,9 +603,9 @@ export const MainnetPerpMarkets: PerpMarketConfig[] = [
 		symbol: 'ZEX-PERP',
 		baseAssetSymbol: 'ZEX',
 		marketIndex: 33,
-		oracle: new PublicKey('5P3hx3t85eZucSqzXF4KfqbeENx1hNGPbAbGDYxTTvqs'),
+		oracle: new PublicKey('4gdbqxkMrF1bYVeEJKRmTqCCvJjRCZrRhxvriGY6SwLj'),
 		launchTs: 1719415157000,
-		oracleSource: OracleSource.Prelaunch,
+		oracleSource: OracleSource.SWITCHBOARD,
 	},
 ];
 

@@ -75,27 +75,32 @@ export class BlockhashSubscriber {
 	}
 
 	async updateBlockhash() {
-		const [resp, lastConfirmedBlockHeight] = await Promise.all([
-			this.connection.getLatestBlockhashAndContext({
-				commitment: this.commitment,
-			}),
-			this.connection.getBlockHeight({ commitment: this.commitment }),
-		]);
-		this.latestBlockHeight = lastConfirmedBlockHeight;
-		this.latestBlockHeightContext = resp.context;
+		try {
+			const [resp, lastConfirmedBlockHeight] = await Promise.all([
+				this.connection.getLatestBlockhashAndContext({
+					commitment: this.commitment,
+				}),
+				this.connection.getBlockHeight({ commitment: this.commitment }),
+			]);
+			this.latestBlockHeight = lastConfirmedBlockHeight;
+			this.latestBlockHeightContext = resp.context;
 
-		// avoid caching duplicate blockhashes
-		if (this.blockhashes.length > 0) {
-			if (
-				resp.value.blockhash ===
-				this.blockhashes[this.blockhashes.length - 1].blockhash
-			) {
-				return;
+			// avoid caching duplicate blockhashes
+			if (this.blockhashes.length > 0) {
+				if (
+					resp.value.blockhash ===
+					this.blockhashes[this.blockhashes.length - 1].blockhash
+				) {
+					return;
+				}
 			}
-		}
 
-		this.blockhashes.push(resp.value);
-		this.pruneBlockhashes();
+			this.blockhashes.push(resp.value);
+		} catch (e) {
+			console.error('Error updating blockhash:\n', e);
+		} finally {
+			this.pruneBlockhashes();
+		}
 	}
 
 	async subscribe() {

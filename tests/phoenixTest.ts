@@ -1,5 +1,4 @@
 import * as anchor from '@coral-xyz/anchor';
-import { AnchorProvider } from '@coral-xyz/anchor';
 import { Program } from '@coral-xyz/anchor';
 
 import {
@@ -7,9 +6,9 @@ import {
 	Transaction,
 	PublicKey,
 	SystemProgram,
-	sendAndConfirmTransaction,
 	TransactionInstruction,
 	Connection,
+	AccountInfo,
 } from '@solana/web3.js';
 
 import {
@@ -30,11 +29,9 @@ import {
 import {
 	initializeQuoteSpotMarket,
 	initializeSolSpotMarket,
-	mockOracle,
-	printTxLogs,
+	mockOracleNoProgram,
 } from './testHelpers';
 import {
-	BulkAccountLoader,
 	castNumberToSpotPrecision,
 	getLimitOrderParams,
 	getTokenAmount,
@@ -44,9 +41,62 @@ import {
 	SpotBalanceType,
 	Wallet,
 } from '../sdk';
-import { TokenConfig } from '@ellipsis-labs/phoenix-sdk';
+import { deserializeMarketData, TokenConfig } from '@ellipsis-labs/phoenix-sdk';
 import * as Phoenix from '@ellipsis-labs/phoenix-sdk';
 import { assert } from 'chai';
+import { startAnchor } from 'solana-bankrun';
+import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
+import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
+import { BankrunProvider } from 'anchor-bankrun';
+import {
+	seatAccountData,
+	marketAccountData,
+	baseVaultAccountData,
+	quoteVaultAccountData,
+} from './phoenixTestAccountData';
+
+const PHOENIX_MARKET: AccountInfo<Buffer> = {
+	executable: false,
+	lamports: 6066670080,
+	owner: new PublicKey('PhoeNiXZ8ByJGLkxNfZRnkUfjvmuYqLR89jjFHGqdXY'),
+	rentEpoch: 0,
+	data: Buffer.from(marketAccountData, 'base64'),
+};
+
+const PHOENIX_SEAT: AccountInfo<Buffer> = {
+	executable: false,
+	lamports: 1781760,
+	owner: new PublicKey('PhoeNiXZ8ByJGLkxNfZRnkUfjvmuYqLR89jjFHGqdXY'),
+	rentEpoch: 0,
+	data: Buffer.from(seatAccountData, 'base64'),
+};
+
+const PHOENIX_BASE_VAULT: AccountInfo<Buffer> = {
+	executable: false,
+	lamports: 2039280,
+	owner: new PublicKey('TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA'),
+	rentEpoch: 0,
+	data: Buffer.from(baseVaultAccountData, 'base64'),
+};
+
+const PHOENIX_QUOTE_VAULT: AccountInfo<Buffer> = {
+	executable: false,
+	lamports: 2039280,
+	owner: new PublicKey('TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA'),
+	rentEpoch: 0,
+	data: Buffer.from(quoteVaultAccountData, 'base64'),
+};
+
+const USDC_MINT: AccountInfo<Buffer> = {
+	executable: false,
+	lamports: 1461600,
+	owner: new PublicKey('TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA'),
+	rentEpoch: 157,
+	data: Buffer.from(
+		'AQAAANuZX+JRadFByrm7upK6oB+fLh7OffTLKsBRkPN/zB+dAAAAAAAAAAAGAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==',
+		'base64'
+	),
+};
 
 // DO NOT USE THIS PRIVATE KEY IN PRODUCTION
 // This key is the market authority as well as the market maker
@@ -85,14 +135,18 @@ const tokenConfig: TokenConfig[] = [
 const createPhoenixClient = async (
 	connection: Connection
 ): Promise<Phoenix.Client> => {
+	console.log('Creating Phoenix client');
 	const client = await Phoenix.Client.createWithoutConfig(connection, []);
+	console.log('Phoenix client created');
 	client.tokenConfig = tokenConfig;
+	console.log('Token config set');
 	await client.addMarket(solMarketAddress.toBase58());
+	console.log('Market added');
 	return client;
 };
 
 const createTokenAccountInstructions = async (
-	provider: AnchorProvider,
+	provider: BankrunProvider,
 	tokenMintAddress: PublicKey,
 	owner?: PublicKey
 ): Promise<[PublicKey, TransactionInstruction]> => {
@@ -114,41 +168,33 @@ const createTokenAccountInstructions = async (
 };
 
 const createWSOLAccount = async (
-	provider: AnchorProvider,
+	context: BankrunContextWrapper,
 	mintAmount?: BN,
 	owner?: PublicKey
 ): Promise<PublicKey> => {
 	const tx = new Transaction();
 	const [userWSOLAccount, createAta] = await createTokenAccountInstructions(
-		provider,
+		context.provider,
 		NATIVE_MINT,
 		owner
 	);
-	if (mintAmount > 0) {
+	if (mintAmount.gtn(0)) {
 		const transferIx = SystemProgram.transfer({
-			fromPubkey: provider.wallet.publicKey,
+			fromPubkey: context.provider.wallet.publicKey,
 			toPubkey: userWSOLAccount,
 			lamports: mintAmount.toNumber(),
 		});
 		tx.add(transferIx);
 	}
 	tx.add(createAta);
-	await sendAndConfirmTransaction(
-		provider.connection,
-		tx,
-		// @ts-ignore
-		[provider.wallet.payer],
-		{
-			skipPreflight: false,
-			commitment: 'recent',
-			preflightCommitment: 'recent',
-		}
-	);
+
+	await context.sendTransaction(tx);
+
 	return userWSOLAccount;
 };
 
 const createTokenAccountAndMintTokens = async (
-	provider: AnchorProvider,
+	context: BankrunContextWrapper,
 	tokenMintAddress: PublicKey,
 	mintAmount: BN,
 	mintAuthority: Keypair,
@@ -157,7 +203,7 @@ const createTokenAccountAndMintTokens = async (
 	const tx = new Transaction();
 
 	const [userTokenAccount, createAta] = await createTokenAccountInstructions(
-		provider,
+		context.provider,
 		tokenMintAddress,
 		owner
 	);
@@ -172,29 +218,15 @@ const createTokenAccountAndMintTokens = async (
 	);
 	tx.add(mintToUserAccountTx);
 
-	await sendAndConfirmTransaction(
-		provider.connection,
-		tx,
-		// @ts-ignore
-		[provider.wallet.payer, mintAuthority],
-		{
-			skipPreflight: false,
-			commitment: 'recent',
-			preflightCommitment: 'recent',
-		}
-	);
+	tx.recentBlockhash = (await context.getLatestBlockhash()).toString();
+	tx.feePayer = mintAuthority.publicKey;
+	tx.sign(context.provider.wallet.payer, mintAuthority);
+	await context.connection.sendTransaction(tx);
 
 	return userTokenAccount;
 };
 
 describe('phoenix spot market', () => {
-	const provider = anchor.AnchorProvider.local(undefined, {
-		commitment: 'confirmed',
-		skipPreflight: false,
-		preflightCommitment: 'confirmed',
-	});
-	const connection = provider.connection;
-	anchor.setProvider(provider);
 	const driftProgram = anchor.workspace.Drift as Program;
 
 	let phoenixClient: Phoenix.Client;
@@ -208,12 +240,11 @@ describe('phoenix spot market', () => {
 	let makerDriftClient: TestClient;
 	let takerDriftClient: TestClient;
 
-	const eventSubscriber = new EventSubscriber(connection, driftProgram, {
-		commitment: 'recent',
-	});
-	eventSubscriber.subscribe();
+	let eventSubscriber: EventSubscriber;
 
-	const bulkAccountLoader = new BulkAccountLoader(connection, 'confirmed', 1);
+	let bulkAccountLoader: TestBulkAccountLoader;
+
+	let bankrunContextWrapper: BankrunContextWrapper;
 
 	let solOracle: PublicKey;
 
@@ -229,35 +260,99 @@ describe('phoenix spot market', () => {
 	const solSpotMarketIndex = 1;
 
 	before(async () => {
-		phoenixClient = await createPhoenixClient(connection);
+		const context = await startAnchor(
+			'',
+			[
+				{
+					name: 'phoenix_dex',
+					programId: new PublicKey(
+						'PhoeNiXZ8ByJGLkxNfZRnkUfjvmuYqLR89jjFHGqdXY'
+					),
+				},
+			],
+			[
+				{
+					address: new PublicKey(
+						'HhHRvLFvZid6FD7C96H93F2MkASjYfYAx8Y2P8KMAr6b'
+					),
+					info: PHOENIX_MARKET,
+				},
+				{
+					address: new PublicKey(
+						'GDqLPXfwDHXnqwfqtEJmqovA4KEy9XhoZxkg3MVyFK9N'
+					),
+					info: PHOENIX_SEAT,
+				},
+				{
+					address: new PublicKey(
+						'EyZsJZJWXuix6Zgw34JXb2fAbF4d62nfUgp4tzZBPxhW'
+					),
+					info: PHOENIX_BASE_VAULT,
+				},
+				{
+					address: new PublicKey(
+						'B9SETfVeH1vx7sEJ7v41CRJncJnpMpGxHg4Mztc3sZKX'
+					),
+					info: PHOENIX_QUOTE_VAULT,
+				},
+				{
+					address: new PublicKey(
+						'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v'
+					),
+					info: USDC_MINT,
+				},
+			]
+		);
+
+		bankrunContextWrapper = new BankrunContextWrapper(context);
+
+		bulkAccountLoader = new TestBulkAccountLoader(
+			bankrunContextWrapper.connection,
+			'processed',
+			1
+		);
+
+		eventSubscriber = new EventSubscriber(
+			bankrunContextWrapper.connection.toConnection(),
+			driftProgram
+		);
+
+		await eventSubscriber.subscribe();
+
+		console.log('Event subscriber created');
+
+		const val = await bankrunContextWrapper.connection.getAccountInfo(
+			solMarketAddress
+		);
+
+		console.log(val);
+
+		deserializeMarketData(val.data);
+
+		console.log('here');
+
+		phoenixClient = await createPhoenixClient(
+			bankrunContextWrapper.connection.toConnection()
+		);
+
+		console.log('Phoenix client created');
+
 		const phoenixMarket = phoenixClient.markets.get(
 			solMarketAddress.toBase58()
 		);
 		assert(phoenixMarket.data.header.authority.equals(god.publicKey));
 		assert(phoenixMarket.data.traders.has(god.publicKey.toBase58()));
 
-		solOracle = await mockOracle(100);
+		solOracle = await mockOracleNoProgram(bankrunContextWrapper, 100);
 		marketIndexes = [];
 		spotMarketIndexes = [0, 1];
 		oracleInfos = [{ publicKey: solOracle, source: OracleSource.PYTH }];
 
 		// Top-up god key's SOL balance
-		await sendAndConfirmTransaction(
-			connection,
-			new Transaction().add(
-				SystemProgram.transfer({
-					fromPubkey: provider.wallet.publicKey,
-					toPubkey: god.publicKey,
-					lamports: 10000000000000,
-				})
-			),
-			// @ts-ignore
-			[provider.wallet.payer],
-			{ commitment: 'confirmed' }
-		);
+		await bankrunContextWrapper.fundKeypair(god, 10 * 10 ** 9);
 
 		makerDriftClient = new TestClient({
-			connection,
+			connection: bankrunContextWrapper.connection.toConnection(),
 			wallet: new Wallet(god),
 			programID: driftProgram.programId,
 			opts: {
@@ -266,6 +361,7 @@ describe('phoenix spot market', () => {
 			activeSubAccountId: 0,
 			perpMarketIndexes: marketIndexes,
 			spotMarketIndexes: spotMarketIndexes,
+			subAccountIds: [],
 			oracleInfos,
 			accountSubscription: {
 				type: 'polling',
@@ -287,22 +383,25 @@ describe('phoenix spot market', () => {
 		await makerDriftClient.updateSpotAuctionDuration(0);
 
 		takerUsdcTokenAccount = await createTokenAccountAndMintTokens(
-			provider,
+			bankrunContextWrapper,
 			usdcMint,
 			usdcAmount,
 			god
 		);
 		makerUsdcTokenAccount = await createTokenAccountAndMintTokens(
-			provider,
+			bankrunContextWrapper,
 			usdcMint,
 			usdcAmount,
 			god,
 			god.publicKey
 		);
 
-		takerWrappedSolTokenAccount = await createWSOLAccount(provider, solAmount);
+		takerWrappedSolTokenAccount = await createWSOLAccount(
+			bankrunContextWrapper,
+			solAmount
+		);
 		makerWrappedSolTokenAccount = await createWSOLAccount(
-			provider,
+			bankrunContextWrapper,
 			solAmount,
 			god.publicKey
 		);
@@ -320,8 +419,8 @@ describe('phoenix spot market', () => {
 		);
 
 		takerDriftClient = new TestClient({
-			connection,
-			wallet: provider.wallet,
+			connection: bankrunContextWrapper.connection.toConnection(),
+			wallet: bankrunContextWrapper.provider.wallet,
 			programID: driftProgram.programId,
 			opts: {
 				commitment: 'confirmed',
@@ -329,6 +428,7 @@ describe('phoenix spot market', () => {
 			activeSubAccountId: 0,
 			perpMarketIndexes: marketIndexes,
 			spotMarketIndexes: spotMarketIndexes,
+			subAccountIds: [],
 			oracleInfos,
 			accountSubscription: {
 				type: 'polling',
@@ -401,14 +501,18 @@ describe('phoenix spot market', () => {
 			god.publicKey
 		);
 
-		const placeTxId = await sendAndConfirmTransaction(
-			connection,
-			new Transaction().add(placeAskInstruction),
-			[god],
-			{ skipPreflight: true, commitment: 'confirmed' }
+		const tx = new Transaction().add(placeAskInstruction);
+
+		tx.recentBlockhash = (
+			await bankrunContextWrapper.getLatestBlockhash()
+		).toString();
+		tx.feePayer = god.publicKey;
+		tx.sign(god);
+		const placeTxId = await bankrunContextWrapper.connection.sendTransaction(
+			tx
 		);
 
-		await printTxLogs(connection, placeTxId);
+		bankrunContextWrapper.printTxLogs(placeTxId);
 
 		await phoenixClient.refreshAllMarkets();
 
@@ -423,7 +527,7 @@ describe('phoenix spot market', () => {
 
 		await eventSubscriber.awaitTx(txSig);
 
-		await printTxLogs(connection, txSig);
+		bankrunContextWrapper.printTxLogs(txSig);
 
 		await takerDriftClient.fetchAccounts();
 
@@ -472,9 +576,9 @@ describe('phoenix spot market', () => {
 		assert(
 			spotFeePoolAmount.eq(
 				new BN(
-					orderActionRecord.takerFee -
-						makerDriftClient.getQuoteAssetTokenAmount() -
-						orderActionRecord.spotFulfillmentMethodFee
+					orderActionRecord.takerFee
+						.sub(makerDriftClient.getQuoteAssetTokenAmount())
+						.sub(orderActionRecord.spotFulfillmentMethodFee)
 				)
 			)
 		);
@@ -561,13 +665,18 @@ describe('phoenix spot market', () => {
 			god.publicKey
 		);
 
-		const placeTxId = await sendAndConfirmTransaction(
-			connection,
-			new Transaction().add(placeAskInstruction),
-			[god],
-			{ skipPreflight: true, commitment: 'confirmed' }
+		const tx = new Transaction().add(placeAskInstruction);
+
+		tx.recentBlockhash = (
+			await bankrunContextWrapper.getLatestBlockhash()
+		).toString();
+		tx.feePayer = god.publicKey;
+		tx.sign(god);
+		const placeTxId = await bankrunContextWrapper.connection.sendTransaction(
+			tx
 		);
-		await printTxLogs(connection, placeTxId);
+
+		bankrunContextWrapper.printTxLogs(placeTxId);
 
 		await phoenixClient.refreshAllMarkets();
 
@@ -582,7 +691,7 @@ describe('phoenix spot market', () => {
 
 		await eventSubscriber.awaitTx(txSig);
 
-		await printTxLogs(connection, txSig);
+		bankrunContextWrapper.printTxLogs(txSig);
 
 		await takerDriftClient.fetchAccounts();
 
@@ -615,7 +724,9 @@ describe('phoenix spot market', () => {
 		assert(orderActionRecord.takerFee.eq(new BN(100000)));
 
 		const keeperFee = new BN(
-			makerDriftClient.getQuoteAssetTokenAmount() - makerQuoteTokenAmountStart
+			makerDriftClient
+				.getQuoteAssetTokenAmount()
+				.sub(makerQuoteTokenAmountStart)
 		);
 		assert(keeperFee.eq(new BN(11800)));
 
@@ -632,9 +743,9 @@ describe('phoenix spot market', () => {
 			spotFeePoolAmount.eq(
 				new BN(spotFeePoolAmountStart).add(
 					new BN(
-						orderActionRecord.takerFee -
-							keeperFee -
-							orderActionRecord.spotFulfillmentMethodFee
+						orderActionRecord.takerFee
+							.sub(keeperFee)
+							.sub(orderActionRecord.spotFulfillmentMethodFee)
 					)
 				)
 			)
