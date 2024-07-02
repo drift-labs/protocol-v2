@@ -25,6 +25,9 @@ import {
 	TxParams,
 } from '../types';
 import { containsComputeUnitIxs } from '../util/computeUnits';
+import { CachedBlockhashFetcher } from './blockhashFetcher/cachedBlockhashFetcher';
+import { BaseBlockhashFetcher } from './blockhashFetcher/baseBlockhashFetcher';
+import { BlockhashFetcher } from './blockhashFetcher/types';
 import { isVersionedTransaction } from './utils';
 
 /**
@@ -38,6 +41,10 @@ const DEV_TRY_FORCE_TX_TIMEOUTS =
 
 export const COMPUTE_UNITS_DEFAULT = 200_000;
 
+const BLOCKHASH_FETCH_RETRY_COUNT = 3;
+const BLOCKHASH_FETCH_RETRY_SLEEP = 200;
+const RECENT_BLOCKHASH_STALE_TIME_MS = 2_000; // Reuse blockhashes within this timeframe during bursts of tx contruction
+
 export type TxBuildingProps = {
 	instructions: TransactionInstruction | TransactionInstruction[];
 	txVersion: TransactionVersion;
@@ -49,6 +56,15 @@ export type TxBuildingProps = {
 	txParams?: TxParams;
 	recentBlockhash?: BlockhashWithExpiryBlockHeight;
 	wallet?: IWallet;
+};
+
+export type TxHandlerConfig = {
+	blockhashCachingEnabled?: boolean;
+	blockhashCachingConfig?: {
+		retryCount: number;
+		retrySleepTimeMs: number;
+		staleCacheTimeMs: number;
+	};
 };
 
 /**
@@ -66,6 +82,7 @@ export class TxHandler {
 	private onSignedCb?: (txSigs: DriftClientMetricsEvents['txSigned']) => void;
 
 	private blockhashCommitment: Commitment = 'finalized';
+	private blockHashFetcher: BlockhashFetcher;
 
 	constructor(props: {
 		connection: Connection;
@@ -76,10 +93,24 @@ export class TxHandler {
 			onSignedCb?: (txSigs: DriftClientMetricsEvents['txSigned']) => void;
 			preSignedCb?: () => void;
 		};
+		config?: TxHandlerConfig;
 	}) {
 		this.connection = props.connection;
 		this.wallet = props.wallet;
 		this.confirmationOptions = props.confirmationOptions;
+
+		this.blockHashFetcher = props?.config?.blockhashCachingEnabled
+			? new CachedBlockhashFetcher(
+					this.connection,
+					this.blockhashCommitment,
+					props?.config?.blockhashCachingConfig?.retryCount ??
+						BLOCKHASH_FETCH_RETRY_COUNT,
+					props?.config?.blockhashCachingConfig?.retrySleepTimeMs ??
+						BLOCKHASH_FETCH_RETRY_SLEEP,
+					props?.config?.blockhashCachingConfig?.staleCacheTimeMs ??
+						RECENT_BLOCKHASH_STALE_TIME_MS
+			  )
+			: new BaseBlockhashFetcher(this.connection, this.blockhashCommitment);
 
 		// #Optionals
 		this.returnBlockHeightsWithSignedTxCallbackData =
@@ -114,8 +145,8 @@ export class TxHandler {
 	 *
 	 * @returns
 	 */
-	public getLatestBlockhashForTransaction() {
-		return this.connection.getLatestBlockhash(this.blockhashCommitment);
+	public async getLatestBlockhashForTransaction() {
+		return this.blockHashFetcher.getLatestBlockhash();
 	}
 
 	/**

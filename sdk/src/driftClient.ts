@@ -228,6 +228,7 @@ export class DriftClient {
 					onSignedCb: this.handleSignedTransaction.bind(this),
 					preSignedCb: this.handlePreSignedTransaction.bind(this),
 				},
+				config: config.txHandlerConfig,
 			});
 
 		if (config.includeDelegates && config.subAccountIds) {
@@ -1887,11 +1888,7 @@ export class DriftClient {
 			txParams
 		);
 
-		const { txSig, slot } = await this.sendTransaction(
-			tx,
-			[],
-			this.opts
-		);
+		const { txSig, slot } = await this.sendTransaction(tx, [], this.opts);
 		this.spotMarketLastSlotCache.set(marketIndex, slot);
 		return txSig;
 	}
@@ -2045,7 +2042,6 @@ export class DriftClient {
 				referrerInfo
 			);
 
-
 		const spotMarket = this.getSpotMarketAccount(marketIndex);
 
 		const isSolMarket = spotMarket.mint.equals(WRAPPED_SOL_MINT);
@@ -2167,18 +2163,19 @@ export class DriftClient {
 		txParams?: TxParams,
 		customMaxMarginRatio?: number
 	): Promise<[TransactionSignature, PublicKey]> {
-		const [tx, userAccountPublicKey] = await this.createInitializeUserAccountAndDepositCollateral(
-			amount,
-			userTokenAccount,
-			marketIndex,
-			subAccountId,
-			name,
-			fromSubAccountId,
-			referrerInfo,
-			donateAmount,
-			txParams,
-			customMaxMarginRatio
-		);
+		const [tx, userAccountPublicKey] =
+			await this.createInitializeUserAccountAndDepositCollateral(
+				amount,
+				userTokenAccount,
+				marketIndex,
+				subAccountId,
+				name,
+				fromSubAccountId,
+				referrerInfo,
+				donateAmount,
+				txParams,
+				customMaxMarginRatio
+			);
 		const additionalSigners: Array<Signer> = [];
 
 		const { txSig, slot } = await this.sendTransaction(
