@@ -359,7 +359,7 @@ pub fn load_user_maps<'a: 'b, 'b>(
 pub fn load_user_map<'a: 'b, 'b>(
     account_info_iter: &mut Peekable<Iter<'a, AccountInfo<'b>>>,
     must_be_writable: bool,
-) -> DriftResult<(UserMap<'b>, UserStatsMap<'b>)> {
+) -> DriftResult<UserMap<'b>> {
     let mut user_map = UserMap::empty();
 
     let user_discriminator: [u8; 8] = User::discriminator();
@@ -402,5 +402,5 @@ pub fn load_user_map<'a: 'b, 'b>(
         user_map.0.insert(*user_key, user_account_loader);
     }
 
-    Ok((user_map, user_stats_map))
+    Ok(user_map)
 }
