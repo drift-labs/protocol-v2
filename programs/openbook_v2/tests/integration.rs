@@ -234,6 +234,62 @@ async fn test_program() -> anyhow::Result<()> {
         &oracle_feed,
     )
     .await?;
+
+    // fulfillment
+    let account = banks_client.get_account(user).await?.unwrap().data;
+    let user_data = User::try_deserialize(&mut &account[..]).unwrap();
+    for order in user_data.orders.iter() {
+        if order.market_index == 1 {
+            let order_id = order.order_id;
+            let data = drift::instruction::FillSpotOrder {
+                order_id: Some(order_id),
+                fulfillment_type: Option::from(SpotFulfillmentType::OpenbookV2),
+                maker_order_id: None,
+            }
+            .data();
+            let fill_ix = Instruction {
+                program_id: drift::id(),
+                accounts: vec![
+                    // AccountMeta::new_readonly(spot_market, false),
+                    // AccountMeta::new_readonly(quote_market, false),
+                    AccountMeta::new_readonly(state, false),
+                    AccountMeta::new(keypair.pubkey(), true),
+                    AccountMeta::new(user, false),
+                    AccountMeta::new(user_stats, false),
+                    AccountMeta::new(user, false),
+                    AccountMeta::new(user_stats, false),
+                    AccountMeta::new_readonly(oracle_feed.key(), false),
+                    AccountMeta::new(quote_market, false),
+                    AccountMeta::new(spot_market, false),
+                    AccountMeta::new_readonly(config, false),
+                    AccountMeta::new(drift_signer, false),
+                    AccountMeta::new_readonly(openbook_v2_light::id(), false),
+                    AccountMeta::new(market, false),
+                    AccountMeta::new_readonly(market_authority, false),
+                    AccountMeta::new(event_heap, false),
+                    AccountMeta::new(bids, false),
+                    AccountMeta::new(asks, false),
+                    AccountMeta::new(market_base_vault, false),
+                    AccountMeta::new(market_quote_vault, false),
+                    AccountMeta::new(spot_market_vault, false),
+                    AccountMeta::new(quote_market_vault, false),
+                    AccountMeta::new_readonly(spl_token::id(), false),
+                    AccountMeta::new_readonly(system_program::id(), false),
+                    AccountMeta::new(quote_market, false),
+                    AccountMeta::new(spot_market, false),
+                ],
+                data: data,
+            };
+            let tx = Transaction::new_signed_with_payer(
+                &[fill_ix],
+                Some(&keypair.pubkey()),
+                &[&keypair],
+                banks_client.get_latest_blockhash().await.unwrap(),
+            );
+            banks_client.process_transaction(tx).await?;
+        }
+    }
+
     // add buy before
     place_order_and_execute(
         &mut banks_client,
@@ -284,7 +340,7 @@ async fn test_program() -> anyhow::Result<()> {
         &oracle_feed,
     )
     .await?;
-    // todo fulfillment
+    // fulfillment
     let account = banks_client.get_account(user).await?.unwrap().data;
     let user_data = User::try_deserialize(&mut &account[..]).unwrap();
     for order in user_data.orders.iter() {
