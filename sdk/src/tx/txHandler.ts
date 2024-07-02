@@ -20,10 +20,15 @@ import {
 	BaseTxParams,
 	DriftClientMetricsEvents,
 	IWallet,
+	MappedRecord,
 	SignedTxData,
 	TxParams,
 } from '../types';
 import { containsComputeUnitIxs } from '../util/computeUnits';
+import { CachedBlockhashFetcher } from './blockhashFetcher/cachedBlockhashFetcher';
+import { BaseBlockhashFetcher } from './blockhashFetcher/baseBlockhashFetcher';
+import { BlockhashFetcher } from './blockhashFetcher/types';
+import { isVersionedTransaction } from './utils';
 
 /**
  * Explanation for SIGNATURE_BLOCK_AND_EXPIRY:
@@ -31,9 +36,14 @@ import { containsComputeUnitIxs } from '../util/computeUnits';
  * When the whileValidTxSender waits for confirmation of a given transaction, it needs the last available blockheight and blockhash used in the signature to do so. For pre-signed transactions, these values aren't attached to the transaction object by default. For a "scrappy" workaround which doesn't break backwards compatibility, the SIGNATURE_BLOCK_AND_EXPIRY property is simply attached to the transaction objects as they are created or signed in this handler despite a mismatch in the typescript types. If the values are attached to the transaction when they reach the whileValidTxSender, it can opt-in to use these values.
  */
 
-const DEV_TRY_FORCE_TX_TIMEOUTS = false;
+const DEV_TRY_FORCE_TX_TIMEOUTS =
+	process.env.DEV_TRY_FORCE_TX_TIMEOUTS === 'true' || false;
 
 export const COMPUTE_UNITS_DEFAULT = 200_000;
+
+const BLOCKHASH_FETCH_RETRY_COUNT = 3;
+const BLOCKHASH_FETCH_RETRY_SLEEP = 200;
+const RECENT_BLOCKHASH_STALE_TIME_MS = 2_000; // Reuse blockhashes within this timeframe during bursts of tx contruction
 
 export type TxBuildingProps = {
 	instructions: TransactionInstruction | TransactionInstruction[];
@@ -46,6 +56,15 @@ export type TxBuildingProps = {
 	txParams?: TxParams;
 	recentBlockhash?: BlockhashWithExpiryBlockHeight;
 	wallet?: IWallet;
+};
+
+export type TxHandlerConfig = {
+	blockhashCachingEnabled?: boolean;
+	blockhashCachingConfig?: {
+		retryCount: number;
+		retrySleepTimeMs: number;
+		staleCacheTimeMs: number;
+	};
 };
 
 /**
@@ -62,6 +81,9 @@ export class TxHandler {
 	private preSignedCb?: () => void;
 	private onSignedCb?: (txSigs: DriftClientMetricsEvents['txSigned']) => void;
 
+	private blockhashCommitment: Commitment = 'finalized';
+	private blockHashFetcher: BlockhashFetcher;
+
 	constructor(props: {
 		connection: Connection;
 		wallet: IWallet;
@@ -71,10 +93,24 @@ export class TxHandler {
 			onSignedCb?: (txSigs: DriftClientMetricsEvents['txSigned']) => void;
 			preSignedCb?: () => void;
 		};
+		config?: TxHandlerConfig;
 	}) {
 		this.connection = props.connection;
 		this.wallet = props.wallet;
 		this.confirmationOptions = props.confirmationOptions;
+
+		this.blockHashFetcher = props?.config?.blockhashCachingEnabled
+			? new CachedBlockhashFetcher(
+					this.connection,
+					this.blockhashCommitment,
+					props?.config?.blockhashCachingConfig?.retryCount ??
+						BLOCKHASH_FETCH_RETRY_COUNT,
+					props?.config?.blockhashCachingConfig?.retrySleepTimeMs ??
+						BLOCKHASH_FETCH_RETRY_SLEEP,
+					props?.config?.blockhashCachingConfig?.staleCacheTimeMs ??
+						RECENT_BLOCKHASH_STALE_TIME_MS
+			  )
+			: new BaseBlockhashFetcher(this.connection, this.blockhashCommitment);
 
 		// #Optionals
 		this.returnBlockHeightsWithSignedTxCallbackData =
@@ -109,8 +145,8 @@ export class TxHandler {
 	 *
 	 * @returns
 	 */
-	public getLatestBlockhashForTransaction() {
-		return this.connection.getLatestBlockhash('finalized');
+	public async getLatestBlockhashForTransaction() {
+		return this.blockHashFetcher.getLatestBlockhash();
 	}
 
 	/**
@@ -153,8 +189,14 @@ export class TxHandler {
 		return signedTx;
 	}
 
-	private isVersionedTransaction(tx: Transaction | VersionedTransaction) {
-		return (tx as VersionedTransaction)?.message && true;
+	private isVersionedTransaction(
+		tx: Transaction | VersionedTransaction
+	): boolean {
+		return isVersionedTransaction(tx);
+	}
+
+	private isLegacyTransaction(tx: Transaction | VersionedTransaction) {
+		return !this.isVersionedTransaction(tx);
 	}
 
 	private getTxSigFromSignedTx(signedTx: Transaction | VersionedTransaction) {
@@ -263,7 +305,7 @@ export class TxHandler {
 			return;
 		}
 
-		const fullTxData = txData.map((tx) => {
+		const signedTxData = txData.map((tx) => {
 			const lastValidBlockHeight =
 				this.blockHashToLastValidBlockHeightLookup[tx.blockHash];
 
@@ -274,8 +316,10 @@ export class TxHandler {
 		});
 
 		if (this.onSignedCb) {
-			this.onSignedCb(fullTxData);
+			this.onSignedCb(signedTxData);
 		}
+
+		return signedTxData;
 	}
 
 	/**
@@ -370,8 +414,15 @@ export class TxHandler {
 		return tx;
 	}
 
-	public generateLegacyTransaction(ixs: TransactionInstruction[]) {
-		return new Transaction().add(...ixs);
+	public generateLegacyTransaction(
+		ixs: TransactionInstruction[],
+		recentBlockhash?: BlockhashWithExpiryBlockHeight
+	) {
+		const tx = new Transaction().add(...ixs);
+		if (recentBlockhash) {
+			tx.recentBlockhash = recentBlockhash.blockhash;
+		}
+		return tx;
 	}
 
 	/**
@@ -457,7 +508,7 @@ export class TxHandler {
 
 		const computeUnitsPrice = baseTxParams?.computeUnitsPrice;
 
-		if (process.env.DEV_TRY_FORCE_TX_TIMEOUTS || DEV_TRY_FORCE_TX_TIMEOUTS) {
+		if (DEV_TRY_FORCE_TX_TIMEOUTS) {
 			allIx.push(
 				ComputeBudgetProgram.setComputeUnitPrice({
 					microLamports: 0,
@@ -481,7 +532,7 @@ export class TxHandler {
 			if (forceVersionedTransaction) {
 				return this.generateLegacyVersionedTransaction(recentBlockhash, allIx);
 			} else {
-				return this.generateLegacyTransaction(allIx);
+				return this.generateLegacyTransaction(allIx, recentBlockhash);
 			}
 		} else {
 			const marketLookupTable = await fetchMarketLookupTableAccount();
@@ -512,7 +563,7 @@ export class TxHandler {
 			);
 		}
 
-		if (process.env.DEV_TRY_FORCE_TX_TIMEOUTS || DEV_TRY_FORCE_TX_TIMEOUTS) {
+		if (DEV_TRY_FORCE_TX_TIMEOUTS) {
 			tx.add(
 				ComputeBudgetProgram.setComputeUnitPrice({
 					microLamports: 0,
@@ -530,39 +581,6 @@ export class TxHandler {
 	}
 
 	/**
-	 * Build a map of transactions from an array of instructions for multiple transactions.
-	 * @param txsToSign
-	 * @param keys
-	 * @param wallet
-	 * @param commitment
-	 * @returns
-	 */
-	public async buildTransactionMap(
-		txsToSign: (Transaction | undefined)[],
-		keys: string[],
-		wallet?: IWallet,
-		commitment?: Commitment,
-		recentBlockhash?: BlockhashWithExpiryBlockHeight
-	) {
-		recentBlockhash = recentBlockhash
-			? recentBlockhash
-			: await this.getLatestBlockhashForTransaction();
-
-		this.addHashAndExpiryToLookup(recentBlockhash);
-
-		for (const tx of txsToSign) {
-			if (!tx) continue;
-			tx.recentBlockhash = recentBlockhash.blockhash;
-			tx.feePayer = wallet?.publicKey ?? this.wallet?.publicKey;
-
-			// @ts-ignore
-			tx.SIGNATURE_BLOCK_AND_EXPIRY = recentBlockhash;
-		}
-
-		return this.getSignedTransactionMap(txsToSign, keys, wallet);
-	}
-
-	/**
 	 * Get a map of signed and prepared transactions from an array of legacy transactions
 	 * @param txsToSign
 	 * @param keys
@@ -570,9 +588,10 @@ export class TxHandler {
 	 * @param commitment
 	 * @returns
 	 */
-	public async getPreparedAndSignedLegacyTransactionMap(
-		txsToSign: (Transaction | undefined)[],
-		keys: string[],
+	public async getPreparedAndSignedLegacyTransactionMap<
+		T extends Record<string, Transaction | undefined>,
+	>(
+		txsMap: T,
 		wallet?: IWallet,
 		commitment?: Commitment,
 		recentBlockhash?: BlockhashWithExpiryBlockHeight
@@ -583,7 +602,7 @@ export class TxHandler {
 
 		this.addHashAndExpiryToLookup(recentBlockhash);
 
-		for (const tx of txsToSign) {
+		for (const tx of Object.values(txsMap)) {
 			if (!tx) continue;
 			tx.recentBlockhash = recentBlockhash.blockhash;
 			tx.feePayer = wallet?.publicKey ?? this.wallet?.publicKey;
@@ -592,7 +611,7 @@ export class TxHandler {
 			tx.SIGNATURE_BLOCK_AND_EXPIRY = recentBlockhash;
 		}
 
-		return this.getSignedTransactionMap(txsToSign, keys, wallet);
+		return this.getSignedTransactionMap(txsMap, wallet);
 	}
 
 	/**
@@ -602,47 +621,49 @@ export class TxHandler {
 	 * @param wallet
 	 * @returns
 	 */
-	public async getSignedTransactionMap(
-		txsToSign: (Transaction | VersionedTransaction | undefined)[],
-		keys: string[],
+	public async getSignedTransactionMap<
+		T extends Record<string, Transaction | VersionedTransaction | undefined>,
+	>(
+		txsToSignMap: T,
 		wallet?: IWallet
 	): Promise<{
-		[key: string]: Transaction | VersionedTransaction | undefined;
+		signedTxMap: T;
+		signedTxData: SignedTxData[];
 	}> {
 		[wallet] = this.getProps(wallet);
 
-		const signedTxMap: {
-			[key: string]: Transaction | VersionedTransaction | undefined;
-		} = {};
+		const txsToSignEntries = Object.entries(txsToSignMap);
 
-		const keysWithTx = [];
-		txsToSign.forEach((tx, index) => {
-			if (tx == undefined) {
-				signedTxMap[keys[index]] = undefined;
-			} else {
-				keysWithTx.push(keys[index]);
+		// Create a map of the same keys as the input map, but with the values set to undefined. We'll populate the filtered (non-undefined) values with signed transactions.
+		const signedTxMap = txsToSignEntries.reduce((acc, [key]) => {
+			acc[key] = undefined;
+			return acc;
+		}, {}) as T;
+
+		const filteredTxEntries = txsToSignEntries.filter(([_, tx]) => !!tx);
+
+		// Extra handling for legacy transactions
+		for (const [_key, tx] of filteredTxEntries) {
+			if (this.isLegacyTransaction(tx)) {
+				(tx as Transaction).feePayer = wallet.publicKey;
 			}
-		});
+		}
 
 		this.preSignedCb?.();
 
-		const filteredTxs = txsToSign
-			.map((tx) => {
-				return tx as Transaction;
-			})
-			.filter((tx) => tx !== undefined);
+		const signedFilteredTxs = await wallet.signAllTransactions(
+			filteredTxEntries.map(([_, tx]) => tx as Transaction)
+		);
 
-		const signedTxs = await wallet.signAllTransactions(filteredTxs);
-
-		signedTxs.forEach((signedTx, index) => {
+		signedFilteredTxs.forEach((signedTx, index) => {
 			// @ts-ignore
 			signedTx.SIGNATURE_BLOCK_AND_EXPIRY =
 				// @ts-ignore
-				txsToSign[index]?.SIGNATURE_BLOCK_AND_EXPIRY;
+				filteredTxEntries[index][1]?.SIGNATURE_BLOCK_AND_EXPIRY;
 		});
 
-		this.handleSignedTxData(
-			signedTxs.map((signedTx) => {
+		const signedTxData = this.handleSignedTxData(
+			signedFilteredTxs.map((signedTx) => {
 				return {
 					txSig: this.getTxSigFromSignedTx(signedTx),
 					signedTx,
@@ -651,11 +672,36 @@ export class TxHandler {
 			})
 		);
 
-		signedTxs.forEach((signedTx, index) => {
-			signedTxMap[keysWithTx[index]] = signedTx;
+		filteredTxEntries.forEach(([key], index) => {
+			const signedTx = signedFilteredTxs[index];
+			// @ts-ignore
+			signedTxMap[key] = signedTx;
 		});
 
-		return signedTxMap;
+		return { signedTxMap, signedTxData };
+	}
+
+	/**
+	 * Accepts multiple instructions and builds a transaction for each. Prevents needing to spam RPC with requests for the same blockhash.
+	 * @param props
+	 * @returns
+	 */
+	public async buildTransactionsMap<
+		T extends Record<string, TransactionInstruction | TransactionInstruction[]>,
+	>(
+		props: Omit<TxBuildingProps, 'instructions'> & {
+			instructionsMap: T;
+		}
+	): Promise<MappedRecord<T, Transaction | VersionedTransaction>> {
+		const builtTxs = await this.buildBulkTransactions({
+			...props,
+			instructions: Object.values(props.instructionsMap),
+		});
+
+		return Object.keys(props.instructionsMap).reduce((acc, key, index) => {
+			acc[key] = builtTxs[index];
+			return acc;
+		}, {}) as MappedRecord<T, Transaction | VersionedTransaction>;
 	}
 
 	/**
@@ -663,22 +709,22 @@ export class TxHandler {
 	 * @param props
 	 * @returns
 	 */
-	public async buildAndSignTransactionMap(
+	public async buildAndSignTransactionMap<
+		T extends Record<string, TransactionInstruction | TransactionInstruction[]>,
+	>(
 		props: Omit<TxBuildingProps, 'instructions'> & {
-			keys: string[];
-			instructions: (TransactionInstruction | TransactionInstruction[])[];
+			instructionsMap: T;
 		}
 	) {
-		const transactions = await this.buildBulkTransactions(props);
+		const builtTxs = await this.buildTransactionsMap(props);
 
 		const preppedTransactions = await (props.txVersion === 'legacy'
 			? this.getPreparedAndSignedLegacyTransactionMap(
-					transactions as Transaction[],
-					props.keys,
+					builtTxs as Record<string, Transaction>,
 					props.wallet,
 					props.preFlightCommitment
 			  )
-			: this.getSignedTransactionMap(transactions, props.keys, props.wallet));
+			: this.getSignedTransactionMap(builtTxs, props.wallet));
 
 		return preppedTransactions;
 	}

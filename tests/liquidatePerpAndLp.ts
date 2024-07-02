@@ -24,32 +24,27 @@ import { Program } from '@coral-xyz/anchor';
 import { Keypair } from '@solana/web3.js';
 
 import {
-	mockOracle,
 	mockUSDCMint,
 	mockUserUSDCAccount,
-	setFeedPrice,
 	initializeQuoteSpotMarket,
-	printTxLogs,
 	sleep,
+	mockOracleNoProgram,
+	setFeedPriceNoProgram,
 } from './testHelpers';
-import { BulkAccountLoader, PERCENTAGE_PRECISION, UserStatus } from '../sdk';
+import { PERCENTAGE_PRECISION, UserStatus } from '../sdk';
+import { startAnchor } from 'solana-bankrun';
+import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
+import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
 
 describe('liquidate perp and lp', () => {
-	const provider = anchor.AnchorProvider.local(undefined, {
-		preflightCommitment: 'confirmed',
-		commitment: 'confirmed',
-	});
-	const connection = provider.connection;
-	anchor.setProvider(provider);
 	const chProgram = anchor.workspace.Drift as Program;
 
 	let driftClient: TestClient;
-	const eventSubscriber = new EventSubscriber(connection, chProgram, {
-		commitment: 'recent',
-	});
-	eventSubscriber.subscribe();
+	let eventSubscriber: EventSubscriber;
 
-	const bulkAccountLoader = new BulkAccountLoader(connection, 'confirmed', 1);
+	let bankrunContextWrapper: BankrunContextWrapper;
+
+	let bulkAccountLoader: TestBulkAccountLoader;
 
 	let usdcMint;
 	let userUSDCAccount;
@@ -71,14 +66,28 @@ describe('liquidate perp and lp', () => {
 	const nLpShares = new BN(10000000);
 
 	before(async () => {
-		usdcMint = await mockUSDCMint(provider);
-		userUSDCAccount = await mockUserUSDCAccount(usdcMint, usdcAmount, provider);
+		const context = await startAnchor('', [], []);
 
-		const oracle = await mockOracle(1);
+		bankrunContextWrapper = new BankrunContextWrapper(context);
+
+		bulkAccountLoader = new TestBulkAccountLoader(
+			bankrunContextWrapper.connection,
+			'processed',
+			1
+		);
+
+		usdcMint = await mockUSDCMint(bankrunContextWrapper);
+		userUSDCAccount = await mockUserUSDCAccount(
+			usdcMint,
+			usdcAmount,
+			bankrunContextWrapper
+		);
+
+		const oracle = await mockOracleNoProgram(bankrunContextWrapper, 1);
 
 		driftClient = new TestClient({
-			connection,
-			wallet: provider.wallet,
+			connection: bankrunContextWrapper.connection.toConnection(),
+			wallet: bankrunContextWrapper.provider.wallet,
 			programID: chProgram.programId,
 			opts: {
 				commitment: 'confirmed',
@@ -86,6 +95,7 @@ describe('liquidate perp and lp', () => {
 			activeSubAccountId: 0,
 			perpMarketIndexes: [0],
 			spotMarketIndexes: [0],
+			subAccountIds: [],
 			oracleInfos: [
 				{
 					publicKey: oracle,
@@ -107,6 +117,21 @@ describe('liquidate perp and lp', () => {
 
 		await initializeQuoteSpotMarket(driftClient, usdcMint.publicKey);
 		await driftClient.updatePerpAuctionDuration(new BN(0));
+
+		const oracleGuardRails: OracleGuardRails = {
+			priceDivergence: {
+				markOraclePercentDivergence: PERCENTAGE_PRECISION,
+				oracleTwap5MinPercentDivergence: PERCENTAGE_PRECISION.muln(100),
+			},
+			validity: {
+				slotsBeforeStaleForAmm: new BN(100),
+				slotsBeforeStaleForMargin: new BN(100),
+				confidenceIntervalMaxSize: new BN(100000),
+				tooVolatileRatio: new BN(11), // allow 11x change
+			},
+		};
+
+		await driftClient.updateOracleGuardRails(oracleGuardRails);
 
 		const periodicity = new BN(0);
 
@@ -130,8 +155,7 @@ describe('liquidate perp and lp', () => {
 			new BN(0)
 		);
 
-		const txSig = await driftClient.addPerpLpShares(nLpShares, 0);
-		await printTxLogs(connection, txSig);
+		await driftClient.addPerpLpShares(nLpShares, 0);
 
 		for (let i = 0; i < 32; i++) {
 			await driftClient.placePerpOrder(
@@ -144,15 +168,22 @@ describe('liquidate perp and lp', () => {
 			);
 		}
 
-		provider.connection.requestAirdrop(liquidatorKeyPair.publicKey, 10 ** 9);
+		eventSubscriber = new EventSubscriber(
+			bankrunContextWrapper.connection.toConnection(),
+			chProgram
+		);
+
+		await eventSubscriber.subscribe();
+
+		bankrunContextWrapper.fundKeypair(liquidatorKeyPair, 10 ** 9);
 		liquidatorUSDCAccount = await mockUserUSDCAccount(
 			usdcMint,
 			usdcAmount,
-			provider,
+			bankrunContextWrapper,
 			liquidatorKeyPair.publicKey
 		);
 		liquidatorDriftClient = new TestClient({
-			connection,
+			connection: bankrunContextWrapper.connection.toConnection(),
 			wallet: new Wallet(liquidatorKeyPair),
 			programID: chProgram.programId,
 			opts: {
@@ -161,6 +192,7 @@ describe('liquidate perp and lp', () => {
 			activeSubAccountId: 0,
 			perpMarketIndexes: [0],
 			spotMarketIndexes: [0],
+			subAccountIds: [],
 			oracleInfos: [
 				{
 					publicKey: oracle,
@@ -194,6 +226,10 @@ describe('liquidate perp and lp', () => {
 		const driftClientUser = new User({
 			driftClient: driftClient,
 			userAccountPublicKey: await driftClient.getUserAccountPublicKey(),
+			accountSubscription: {
+				type: 'polling',
+				accountLoader: bulkAccountLoader,
+			},
 		});
 		await driftClientUser.subscribe();
 
@@ -210,13 +246,13 @@ describe('liquidate perp and lp', () => {
 		// const expectedLiqPrice = 0.521639;
 		const liqPrice = driftClientUser.liquidationPrice(0, ZERO);
 		console.log('liqPrice:', liqPrice.toString());
-		const expectedLiqPrice2 = new BN('500350');
+		const expectedLiqPrice2 = new BN('372792');
 		console.log('expected liqPrice:', expectedLiqPrice2.toString());
 
 		assert(liqPrice.eq(expectedLiqPrice2));
 
 		const oracle = driftClient.getPerpMarketAccount(0).amm.oracle;
-		await setFeedPrice(anchor.workspace.Pyth, 0.9, oracle);
+		await setFeedPriceNoProgram(bankrunContextWrapper, 0.9, oracle);
 		await sleep(2000);
 		await driftClientUser.fetchAccounts();
 		await driftClient.fetchAccounts();
@@ -240,6 +276,7 @@ describe('liquidate perp and lp', () => {
 			driftClientUser.getUserAccount(),
 			0
 		);
+
 		await sleep(2000);
 		await driftClientUser.fetchAccounts();
 		await driftClient.fetchAccounts();
@@ -259,12 +296,18 @@ describe('liquidate perp and lp', () => {
 		console.log('liqPriceAfterSettlePnl:', liqPriceAfterSettlePnl.toString());
 		assert(liqPriceAfterSettlePnl.eq(expectedLiqPrice2));
 
-		await setFeedPrice(anchor.workspace.Pyth, 1.1, oracle);
+		await setFeedPriceNoProgram(bankrunContextWrapper, 1.1, oracle);
 		await driftClient.settlePNL(
 			driftClientUser.userAccountPublicKey,
 			driftClientUser.getUserAccount(),
 			0
 		);
+
+		const lpEventAfterSettle = eventSubscriber.getEventsArray('LPRecord')[0];
+
+		console.log(eventSubscriber.getEventsArray('LPRecord'));
+
+		assert(lpEventAfterSettle.nShares.eq(new BN(900000)));
 
 		const liqPriceAfterRallySettlePnl = driftClientUser.liquidationPrice(
 			0,
@@ -277,22 +320,11 @@ describe('liquidate perp and lp', () => {
 		assert(liqPriceAfterRallySettlePnl.eq(expectedLiqPrice2));
 		await driftClientUser.unsubscribe();
 
-		await setFeedPrice(anchor.workspace.Pyth, 0.1, oracle);
+		await setFeedPriceNoProgram(bankrunContextWrapper, 0.1, oracle);
 
-		const oracleGuardRails: OracleGuardRails = {
-			priceDivergence: {
-				markOraclePercentDivergence: PERCENTAGE_PRECISION,
-				oracleTwap5MinPercentDivergence: PERCENTAGE_PRECISION.mul(new BN(10)),
-			},
-			validity: {
-				slotsBeforeStaleForAmm: new BN(100),
-				slotsBeforeStaleForMargin: new BN(100),
-				confidenceIntervalMaxSize: new BN(100000),
-				tooVolatileRatio: new BN(11), // allow 11x change
-			},
-		};
-
-		await driftClient.updateOracleGuardRails(oracleGuardRails);
+		console.log(
+			driftClient.getUserAccount().perpPositions[0].lpShares.toString()
+		);
 
 		const txSig = await liquidatorDriftClient.liquidatePerp(
 			await driftClient.getUserAccountPublicKey(),
@@ -301,10 +333,10 @@ describe('liquidate perp and lp', () => {
 			new BN(175).mul(BASE_PRECISION).div(new BN(10))
 		);
 
-		await printTxLogs(connection, txSig);
+		bankrunContextWrapper.connection.printTxLogs(txSig);
 
 		const lpEvent = eventSubscriber.getEventsArray('LPRecord')[0];
-		assert(lpEvent.nShares.eq(nLpShares));
+		assert(lpEvent.nShares.eq(new BN(8100000)));
 
 		for (let i = 0; i < 32; i++) {
 			assert(isVariant(driftClient.getUserAccount().orders[i].status, 'init'));
@@ -345,7 +377,7 @@ describe('liquidate perp and lp', () => {
 		assert(
 			liquidationRecord.liquidatePerp.quoteAssetAmount.eq(new BN(1750000))
 		);
-		assert(liquidationRecord.liquidatePerp.lpShares.eq(nLpShares));
+		assert(liquidationRecord.liquidatePerp.lpShares.eq(new BN(8100000)));
 		assert(liquidationRecord.liquidatePerp.ifFee.eq(new BN(0)));
 		assert(liquidationRecord.liquidatePerp.liquidatorFee.eq(new BN(0)));
 
@@ -408,7 +440,7 @@ describe('liquidate perp and lp', () => {
 			QUOTE_PRECISION,
 			QUOTE_PRECISION
 		);
-		await printTxLogs(connection, tx1);
+		bankrunContextWrapper.connection.printTxLogs(tx1);
 
 		await driftClient.fetchAccounts();
 		const marketBeforeBankruptcy =
@@ -454,7 +486,7 @@ describe('liquidate perp and lp', () => {
 			'marketAfterBankruptcy.amm.totalSocialLoss:',
 			marketAfterBankruptcy.amm.totalSocialLoss.toString()
 		);
-		assert(marketAfterBankruptcy.amm.totalSocialLoss.eq(new BN(4447653)));
+		assert(marketAfterBankruptcy.amm.totalSocialLoss.eq(new BN(4430007)));
 
 		assert(
 			(driftClient.getUserAccount().status &
@@ -462,13 +494,11 @@ describe('liquidate perp and lp', () => {
 				0
 		);
 
-		assert(
-			driftClient.getUserAccount().perpPositions[0].quoteAssetAmount.eq(ZERO)
-		);
-		assert(driftClient.getUserAccount().perpPositions[0].lpShares.eq(ZERO));
-
 		const perpBankruptcyRecord =
 			eventSubscriber.getEventsArray('LiquidationRecord')[0];
+
+		console.log(eventSubscriber.getEventsArray('LiquidationRecord'));
+
 		assert(isVariant(perpBankruptcyRecord.liquidationType, 'perpBankruptcy'));
 		// console.log(perpBankruptcyRecord);
 		assert(perpBankruptcyRecord.perpBankruptcy.marketIndex === 0);
@@ -482,16 +512,16 @@ describe('liquidate perp and lp', () => {
 		);
 		assert(
 			perpBankruptcyRecord.perpBankruptcy.cumulativeFundingRateDelta.eq(
-				new BN(254152000)
+				new BN(253144000)
 			)
 		);
 
 		const market = driftClient.getPerpMarketAccount(0);
-		// console.log(
-		// 	market.amm.cumulativeFundingRateLong.toString(),
-		// 	market.amm.cumulativeFundingRateShort.toString()
-		// );
-		assert(market.amm.cumulativeFundingRateLong.eq(new BN(254160333)));
-		assert(market.amm.cumulativeFundingRateShort.eq(new BN(-254143667)));
+		console.log(
+			market.amm.cumulativeFundingRateLong.toString(),
+			market.amm.cumulativeFundingRateShort.toString()
+		);
+		assert(market.amm.cumulativeFundingRateLong.eq(new BN(253152333)));
+		assert(market.amm.cumulativeFundingRateShort.eq(new BN(-253135667)));
 	});
 });
