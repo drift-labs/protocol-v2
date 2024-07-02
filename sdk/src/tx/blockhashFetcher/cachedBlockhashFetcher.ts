@@ -36,7 +36,7 @@ export class CachedBlockhashFetcher implements BlockhashFetcher {
 				);
 			} catch (err) {
 				if (i === this.retryCount - 1) {
-					throw err;
+					throw new Error('Failed to fetch blockhash after maximum retries');
 				}
 				await this.sleep(this.retrySleepTimeMs * 2 ** i);
 			}
