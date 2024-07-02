@@ -1,10 +1,8 @@
-use crate::utils::get_paths;
 use solana_program::pubkey::Pubkey;
 use solana_program::rent::Rent;
 use solana_program_test::ProgramTest;
 use solana_sdk::account::Account;
 use std::fs;
-
 pub fn setup_programs(validator: &mut ProgramTest) -> anyhow::Result<()> {
     let path = get_paths();
     // add openbook v2
@@ -41,4 +39,23 @@ pub fn add_program(validator: &mut ProgramTest, id: Pubkey, path: &str) -> anyho
         },
     );
     Ok(())
+}
+
+pub fn get_paths() -> String {
+    let mut path_buf = std::env::current_dir().unwrap();
+    loop {
+        let option_path = path_buf.iter().last();
+        match option_path {
+            None => {
+                panic!("not found directory protocol-v2 in current working directory");
+            }
+            Some(path) => {
+                if path.to_str().unwrap().contains("protocol-v2") {
+                    return path_buf.to_str().unwrap().to_string();
+                } else {
+                    path_buf = path_buf.parent().unwrap().to_path_buf();
+                }
+            }
+        }
+    }
 }

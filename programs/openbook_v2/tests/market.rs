@@ -1,4 +1,3 @@
-use crate::utils::create_account_for_type;
 use anchor_lang::{InstructionData, Key};
 use bytemuck::Zeroable;
 use openbook_v2_light::instruction::{CreateMarket, PlaceOrder};
@@ -161,4 +160,28 @@ pub async fn create_default_market(
         market_base_vault,
         market_quote_vault,
     ));
+}
+
+pub async fn create_account_for_type<T>(
+    banks_client: &mut BanksClient,
+    keypair: &Keypair,
+) -> anyhow::Result<Pubkey> {
+    let key = Keypair::new();
+    let len = 8 + std::mem::size_of::<T>();
+    let rent = banks_client.get_rent().await.unwrap().minimum_balance(len);
+    let create_account_instr = solana_sdk::system_instruction::create_account(
+        &keypair.pubkey(),
+        &key.pubkey(),
+        rent,
+        len as u64,
+        &openbook_v2_light::id(),
+    );
+    let tx = Transaction::new_signed_with_payer(
+        &[create_account_instr],
+        Some(&keypair.pubkey()),
+        &[&keypair, &key],
+        banks_client.get_latest_blockhash().await.unwrap(),
+    );
+    banks_client.process_transaction(tx).await?;
+    Ok(key.pubkey())
 }

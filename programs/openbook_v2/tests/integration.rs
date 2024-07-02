@@ -25,7 +25,6 @@ use crate::ooa::setup_open_orders_account;
 use crate::program::setup_programs;
 use crate::pyth_utils::initialize_pyth_oracle;
 use crate::token::init_mint;
-use crate::utils::get_paths;
 
 mod drift_utils;
 mod market;
@@ -33,7 +32,6 @@ mod ooa;
 mod program;
 mod pyth_utils;
 mod token;
-mod utils;
 
 #[tokio::test]
 async fn test_program() -> anyhow::Result<()> {
@@ -340,7 +338,5 @@ async fn test_program() -> anyhow::Result<()> {
             banks_client.process_transaction(tx).await?;
         }
     }
-    let path = get_paths();
-    println!("path: {}", path);
     Ok(())
 }
