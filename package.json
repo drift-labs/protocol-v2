@@ -44,5 +44,8 @@
 	},
 	"engines": {
 		"node": ">=12"
+	},
+	"resolutions": {
+		"@solana/errors":"2.0.0-preview.3.20240701083225.ffcfc631e7b6588082115bddafc22d7a23139115"
 	}
 }
