@@ -1677,7 +1677,8 @@ impl UserStats {
             fuel_boost
                 .cast::<u64>()?
                 .saturating_mul(quote_asset_amount / QUOTE_PRECISION_U64)
-                .cast::<u32>()?,
+                .cast::<u32>()
+                .unwrap_or(u32::MAX),
         ); // todo of ratio
         Ok(())
     }
@@ -1691,7 +1692,8 @@ impl UserStats {
             fuel_boost
                 .cast::<u64>()?
                 .saturating_mul(quote_asset_amount / QUOTE_PRECISION_U64)
-                .cast::<u32>()?,
+                .cast::<u32>()
+                .unwrap_or(u32::MAX),
         ); // todo of ratio
         Ok(())
     }
