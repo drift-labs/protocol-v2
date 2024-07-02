@@ -147,8 +147,12 @@ pub fn handle_initialize_user<'c: 'info, 'info>(
         ErrorCode::MaxNumberOfUsers
     )?;
 
+    let now_ts = Clock::get()?.unix_timestamp;
+
+    user.last_fuel_bonus_update_ts = now_ts;
+
     emit!(NewUserRecord {
-        ts: Clock::get()?.unix_timestamp,
+        ts: now_ts,
         user_authority: ctx.accounts.authority.key(),
         user: user_key,
         sub_account_id,

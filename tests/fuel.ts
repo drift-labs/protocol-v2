@@ -180,9 +180,6 @@ describe('place and fill spot order', () => {
 	});
 
 	it('fill via match', async () => {
-
-
-
 		const takerDriftClient = await createTestClient({
 			referrer: fillerDriftClientUser.getUserAccount().authority,
 			referrerStats: fillerDriftClient.getUserStatsAccountPublicKey(),
@@ -211,20 +208,47 @@ describe('place and fill spot order', () => {
 		const marketIndex = 1;
 		const baseAssetAmount = BASE_PRECISION;
 
+		assert(takerDriftClientUser.getTokenAmount(0).gt(ZERO));
+		const currentClock =
+			await bankrunContextWrapper.context.banksClient.getClock();
+		// console.log('current ts:', currentClock.unixTimestamp.toString());
+		assert(new BN(currentClock.unixTimestamp.toString()).gt(ZERO));
 
-        assert(takerDriftClientUser.getTokenAmount(0).gt(ZERO));
+		await fillerDriftClient.updateSpotMarketFuel(0, 2);
 
+		const fuelDictOGZERO = takerDriftClientUser.getFuelBonus(
+			new BN(currentClock.unixTimestamp.toString()),
+			true,
+			true
+		);
+		console.log(fuelDictOGZERO);
+		assert(fuelDictOGZERO['depositFuel'].eq(ZERO));
 
-        await fillerDriftClient.updateSpotMarketFuel(100);
+		const fuelDictOG = takerDriftClientUser.getFuelBonus(
+			new BN(currentClock.unixTimestamp.toString()).addn(3600),
+			true,
+			true
+		);
+		console.log(fuelDictOG);
+		assert(fuelDictOG['depositFuel'].gt(ZERO));
+		assert(fuelDictOG['depositFuel'].eqn(2));
 
-		await bankrunContextWrapper.moveTimeForward(10);
+		const timeProgress = 2592000; // 30 days in seconds
 
+		await bankrunContextWrapper.moveTimeForward(timeProgress);
 
-        const fuelDict = takerDriftClientUser.getFuelBonus(new BN(1000000), true, true);
-        console.log(fuelDict);
-        assert(fuelDict['depositFuel'].gt(ZERO));
-        return 0;
+		const currentClock2 =
+			await bankrunContextWrapper.context.banksClient.getClock();
 
+		const fuelDict = takerDriftClientUser.getFuelBonus(
+			new BN(currentClock2.unixTimestamp.toString()),
+			true,
+			true
+		);
+		console.log(fuelDict);
+		assert(fuelDict['depositFuel'].gt(ZERO));
+		assert(fuelDict['depositFuel'].eqn(2142));
+		return 0;
 
 		await makerDriftClient.placeSpotOrder(
 			getLimitOrderParams({

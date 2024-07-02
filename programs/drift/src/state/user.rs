@@ -433,7 +433,11 @@ impl User {
     }
 
     pub fn get_fuel_bonus_numerator(&self, now: i64) -> DriftResult<i64> {
-        now.safe_sub(self.last_fuel_bonus_update_ts)
+        if self.last_fuel_bonus_update_ts > 0 {
+            now.safe_sub(self.last_fuel_bonus_update_ts)
+        } else {
+            return Ok(now.safe_sub(1715745600_i64)?.max(0));
+        }
     }
 
     pub fn increment_fuel_bonus(

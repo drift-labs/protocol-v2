@@ -2245,6 +2245,42 @@
       "args": []
     },
     {
+      "name": "updateUserGovTokenInsuranceStake",
+      "accounts": [
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "spotMarket",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "insuranceFundStake",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "userStats",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "insuranceFundVault",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": []
+    },
+    {
       "name": "initializeInsuranceFundStake",
       "accounts": [
         {
@@ -5000,6 +5036,52 @@
       ]
     },
     {
+      "name": "updateSpotMarketFuel",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "spotMarket",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "fuelBoostDeposits",
+          "type": {
+            "option": "u8"
+          }
+        },
+        {
+          "name": "fuelBoostBorrows",
+          "type": {
+            "option": "u8"
+          }
+        },
+        {
+          "name": "fuelBoostTaker",
+          "type": {
+            "option": "u8"
+          }
+        },
+        {
+          "name": "fuelBoostMaker",
+          "type": {
+            "option": "u8"
+          }
+        }
+      ]
+    },
+    {
       "name": "updateAdmin",
       "accounts": [
         {
@@ -5798,11 +5880,35 @@
             "type": "i16"
           },
           {
+            "name": "fuelBoostPosition",
+            "docs": [
+              "fuel multiplier for perp funding",
+              "precision: 10"
+            ],
+            "type": "u8"
+          },
+          {
+            "name": "fuelBoostTaker",
+            "docs": [
+              "fuel multiplier for perp taker",
+              "precision: 10"
+            ],
+            "type": "u8"
+          },
+          {
+            "name": "fuelBoostMaker",
+            "docs": [
+              "fuel multiplier for perp maker",
+              "precision: 10"
+            ],
+            "type": "u8"
+          },
+          {
             "name": "padding",
             "type": {
               "array": [
                 "u8",
-                46
+                43
               ]
             }
           }
@@ -6256,11 +6362,43 @@
             "type": "u8"
           },
           {
+            "name": "fuelBoostDeposits",
+            "docs": [
+              "fuel multiplier for spot deposits",
+              "precision: 10"
+            ],
+            "type": "u8"
+          },
+          {
+            "name": "fuelBoostBorrows",
+            "docs": [
+              "fuel multiplier for spot borrows",
+              "precision: 10"
+            ],
+            "type": "u8"
+          },
+          {
+            "name": "fuelBoostTaker",
+            "docs": [
+              "fuel multiplier for spot taker",
+              "precision: 10"
+            ],
+            "type": "u8"
+          },
+          {
+            "name": "fuelBoostMaker",
+            "docs": [
+              "fuel multiplier for spot maker",
+              "precision: 10"
+            ],
+            "type": "u8"
+          },
+          {
             "name": "padding",
             "type": {
               "array": [
                 "u8",
-                47
+                43
               ]
             }
           }
@@ -6609,11 +6747,24 @@
             "type": "bool"
           },
           {
+            "name": "padding1",
+            "type": {
+              "array": [
+                "u8",
+                5
+              ]
+            }
+          },
+          {
+            "name": "lastFuelBonusUpdateTs",
+            "type": "i64"
+          },
+          {
             "name": "padding",
             "type": {
               "array": [
                 "u8",
-                21
+                8
               ]
             }
           }
@@ -6735,11 +6886,62 @@
             "type": "bool"
           },
           {
+            "name": "padding1",
+            "type": {
+              "array": [
+                "u8",
+                6
+              ]
+            }
+          },
+          {
+            "name": "fuelDeposits",
+            "docs": [
+              "sub account id for spot deposit, borrow fuel tracking"
+            ],
+            "type": "u32"
+          },
+          {
+            "name": "fuelBorrows",
+            "docs": [
+              "accumulate fuel bonus for epoch"
+            ],
+            "type": "u32"
+          },
+          {
+            "name": "fuelPositions",
+            "docs": [
+              "accumulated fuel for perp open interest"
+            ],
+            "type": "u32"
+          },
+          {
+            "name": "fuelTaker",
+            "docs": [
+              "accumulate fuel bonus for epoch"
+            ],
+            "type": "u32"
+          },
+          {
+            "name": "fuelMaker",
+            "docs": [
+              "accumulate fuel bonus for epoch"
+            ],
+            "type": "u32"
+          },
+          {
+            "name": "ifStakedGovTokenAmount",
+            "docs": [
+              "The amount of tokens staked in the governance spot markets if"
+            ],
+            "type": "u64"
+          },
+          {
             "name": "padding",
             "type": {
               "array": [
                 "u8",
-                50
+                16
               ]
             }
           }
@@ -12030,5 +12232,8 @@
       "name": "MaxBorrows",
       "msg": "Can not borow more than max borrows"
     }
-  ]
+  ],
+  "metadata": {
+    "address": "dRiftyHA39MWEi3m9aunc5MzRF1JYuBsbn6VPcn33UH"
+  }
 }

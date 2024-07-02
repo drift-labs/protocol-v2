@@ -3530,10 +3530,18 @@ export class AdminClient extends DriftClient {
 	}
 
 	public async updateSpotMarketFuel(
-		spotMarketIndex: number
+		spotMarketIndex: number,
+		fuelBoostDeposits?: number,
+		fuelBoostBorrows?: number,
+		fuelBoostTaker?: number,
+		fuelBoostMaker?: number
 	): Promise<TransactionSignature> {
 		const updateSpotMarketFuelIx = await this.getUpdateSpotMarketFuelIx(
-			spotMarketIndex
+			spotMarketIndex,
+			fuelBoostDeposits || null,
+			fuelBoostBorrows || null,
+			fuelBoostTaker || null,
+			fuelBoostMaker || null
 		);
 
 		const tx = await this.buildTransaction(updateSpotMarketFuelIx);
@@ -3548,35 +3556,35 @@ export class AdminClient extends DriftClient {
 		fuelBoostDeposits?: number,
 		fuelBoostBorrows?: number,
 		fuelBoostTaker?: number,
-		fuelBoostMaker?: number,
+		fuelBoostMaker?: number
 	): Promise<TransactionInstruction> {
-		const params = {
-			spotMarketIndex,
-			fuelBoostDeposits: fuelBoostDeposits || null,
-			fuelBoostBorrows: fuelBoostBorrows || null,
-			fuelBoostTaker: fuelBoostTaker || null,
-			fuelBoostMaker: fuelBoostMaker || null,
-
-		};
+		// const params = {
+		// 	spotMarketIndex,
+		// 	fuelBoostDeposits: fuelBoostDeposits || null,
+		// 	fuelBoostBorrows: fuelBoostBorrows || null,
+		// 	fuelBoostTaker: fuelBoostTaker || null,
+		// 	fuelBoostMaker: fuelBoostMaker || null,
+		// };
 
 		const spotMarketPublicKey = await getSpotMarketPublicKey(
 			this.program.programId,
 			spotMarketIndex
 		);
 
-		return await this.program.instruction.updateSpotMarketFuelIx(
+		return await this.program.instruction.updateSpotMarketFuel(
 			fuelBoostDeposits || null,
 			fuelBoostBorrows || null,
 			fuelBoostTaker || null,
 			fuelBoostMaker || null,
-			 {
-			accounts: {
-				admin: this.isSubscribed
-					? this.getStateAccount().admin
-					: this.wallet.publicKey,
-				state: await this.getStatePublicKey(),
-				spotMarket: spotMarketPublicKey,
-			},
-		});
+			{
+				accounts: {
+					admin: this.isSubscribed
+						? this.getStateAccount().admin
+						: this.wallet.publicKey,
+					state: await this.getStatePublicKey(),
+					spotMarket: spotMarketPublicKey,
+				},
+			}
+		);
 	}
 }

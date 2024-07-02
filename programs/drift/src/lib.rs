@@ -1233,6 +1233,22 @@ pub mod drift {
         handle_update_spot_market_fee_adjustment(ctx, fee_adjustment)
     }
 
+    pub fn update_spot_market_fuel(
+        ctx: Context<AdminUpdateSpotMarket>,
+        fuel_boost_deposits: Option<u8>,
+        fuel_boost_borrows: Option<u8>,
+        fuel_boost_taker: Option<u8>,
+        fuel_boost_maker: Option<u8>,
+    ) -> Result<()> {
+        handle_update_spot_market_fuel(
+            ctx,
+            fuel_boost_deposits,
+            fuel_boost_borrows,
+            fuel_boost_taker,
+            fuel_boost_maker,
+        )
+    }
+
     pub fn update_admin(ctx: Context<AdminUpdateState>, admin: Pubkey) -> Result<()> {
         handle_update_admin(ctx, admin)
     }
