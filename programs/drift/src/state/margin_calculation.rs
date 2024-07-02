@@ -1,9 +1,14 @@
 use crate::error::{DriftResult, ErrorCode};
 use crate::math::casting::Cast;
+use crate::math::fuel::{calculate_perp_fuel_bonus, calculate_spot_fuel_bonus};
 use crate::math::margin::MarginRequirementType;
 use crate::math::safe_math::SafeMath;
-use crate::state::user::User;
-use crate::{validate, MarketType, MARGIN_PRECISION_U128};
+use crate::math::spot_balance::get_strict_token_value;
+use crate::state::oracle::StrictOraclePrice;
+use crate::state::perp_market::PerpMarket;
+use crate::state::spot_market::SpotMarket;
+use crate::state::user::{PerpPosition, User};
+use crate::{validate, MarketType, AMM_RESERVE_PRECISION_I128, MARGIN_PRECISION_U128};
 use anchor_lang::{prelude::*, solana_program::msg};
 
 #[derive(Clone, Copy, Debug)]
@@ -388,5 +393,103 @@ impl MarginCalculation {
                 track_open_orders_fraction: true
             }
         )
+    }
+
+    pub fn update_fuel_position_bonus(
+        &mut self,
+        perp_market: &PerpMarket,
+        perp_position: &PerpPosition,
+        base_asset_value: u128,
+        oracle_price: i64,
+    ) -> DriftResult {
+        if perp_market.fuel_boost_position == 0 {
+            return Ok(());
+        }
+
+        let fuel_base_asset_value =
+            if let Some((market_index, perp_delta)) = self.context.fuel_perp_delta {
+                if market_index == perp_market.market_index {
+                    perp_position
+                        .base_asset_amount
+                        .safe_add(perp_delta)?
+                        .cast::<i128>()?
+                        .safe_mul(oracle_price.cast()?)?
+                        .safe_div(AMM_RESERVE_PRECISION_I128)?
+                        .unsigned_abs()
+                } else {
+                    base_asset_value
+                }
+            } else {
+                base_asset_value
+            };
+
+        let perp_fuel_oi_bonus = calculate_perp_fuel_bonus(
+            perp_market,
+            fuel_base_asset_value as i128,
+            self.context.fuel_bonus_numerator,
+        )?;
+
+        self.fuel_positions = self
+            .fuel_positions
+            .saturating_add(perp_fuel_oi_bonus.cast().unwrap_or(u32::MAX));
+
+        Ok(())
+    }
+
+    pub fn update_fuel_spot_bonus(
+        &mut self,
+        spot_market: &SpotMarket,
+        signed_token_amount: i128,
+        strict_price: &StrictOraclePrice,
+    ) -> DriftResult {
+        if spot_market.fuel_boost_deposits == 0 && spot_market.fuel_boost_borrows == 0 {
+            return Ok(());
+        }
+
+        let signed_token_amount =
+            if let Some((market_index, spot_delta)) = self.context.fuel_spot_delta {
+                if spot_market.market_index == market_index {
+                    signed_token_amount.safe_add(spot_delta)?
+                } else {
+                    signed_token_amount
+                }
+            } else if let Some((market_index, spot_delta)) = self.context.fuel_spot_delta_2 {
+                if spot_market.market_index == market_index {
+                    signed_token_amount.safe_add(spot_delta)?
+                } else {
+                    signed_token_amount
+                }
+            } else {
+                signed_token_amount
+            };
+
+        if spot_market.fuel_boost_deposits > 0 && signed_token_amount > 0 {
+            let signed_token_value =
+                get_strict_token_value(signed_token_amount, spot_market.decimals, strict_price)?;
+
+            let fuel_bonus = calculate_spot_fuel_bonus(
+                spot_market,
+                signed_token_value,
+                self.context.fuel_bonus_numerator,
+            )?;
+            self.fuel_deposits = self
+                .fuel_deposits
+                .saturating_add(fuel_bonus.cast().unwrap_or(u32::MAX));
+        } else if spot_market.fuel_boost_borrows > 0 && signed_token_amount < 0 {
+            let signed_token_value =
+                get_strict_token_value(signed_token_amount, spot_market.decimals, strict_price)?;
+
+            let fuel_bonus = calculate_spot_fuel_bonus(
+                spot_market,
+                signed_token_value,
+                self.context.fuel_bonus_numerator,
+            )?;
+
+            self.fuel_borrows = self
+                .fuel_borrows
+                .saturating_add(fuel_bonus.cast().unwrap_or(u32::MAX));
+        }
+
+        Ok(())
     }
 }
