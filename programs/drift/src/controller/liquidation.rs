@@ -1149,8 +1149,10 @@ pub fn liquidate_spot(
     }
 
     let mut liq_margin_context = MarginContext::standard(MarginRequirementType::Initial)
-        .fuel_spot_delta(asset_market_index, -(asset_transfer as i128))
-        .fuel_spot_diff_2(liability_market_index, liability_transfer as i128)
+        .fuel_spot_deltas([
+            (asset_market_index, -(asset_transfer as i128)),
+            (liability_market_index, liability_transfer as i128),
+        ])
         .fuel_numerator(liquidator, now);
 
     let liquidator_meets_initial_margin_requirement = liquidator

@@ -500,7 +500,7 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
             calculation.track_open_orders_fraction(),
         )?;
 
-        calculation.update_fuel_position_bonus(
+        calculation.update_fuel_perp_bonus(
             market,
             &market_position,
             base_asset_value,

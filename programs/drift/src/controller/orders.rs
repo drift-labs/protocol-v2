@@ -4072,15 +4072,16 @@ fn fulfill_spot_order(
             perp_market_map,
             spot_market_map,
             oracle_map,
-            MarginContext::standard(margin_type)
-                .fuel_spot_delta(
+            MarginContext::standard(margin_type).fuel_spot_deltas([
+                (
                     base_market_index,
                     base_token_amount_before.safe_sub(base_token_amount_after)?,
-                )
-                .fuel_spot_diff_2(
+                ),
+                (
                     QUOTE_SPOT_MARKET_INDEX,
                     quote_token_amount_before.safe_sub(quote_token_amount_after)?,
                 ),
+            ]),
         )?;
 
     user_stats.update_fuel_bonus(
@@ -4158,15 +4159,16 @@ fn fulfill_spot_order(
                 perp_market_map,
                 spot_market_map,
                 oracle_map,
-                MarginContext::standard(margin_type)
-                    .fuel_spot_delta(
+                MarginContext::standard(margin_type).fuel_spot_deltas([
+                    (
                         base_market_index,
                         maker_base_token_amount_before.safe_sub(maker_base_token_amount_after)?,
-                    )
-                    .fuel_spot_diff_2(
+                    ),
+                    (
                         QUOTE_SPOT_MARKET_INDEX,
                         maker_quote_token_amount_before.safe_sub(maker_quote_token_amount_after)?,
                     ),
+                ]),
             )?;
 
         if let Some(mut maker_stats) = maker_stats {

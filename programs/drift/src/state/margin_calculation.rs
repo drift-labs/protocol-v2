@@ -30,8 +30,7 @@ pub struct MarginContext {
     pub fuel_bonus_numerator: i64,
     pub fuel_bonus: u64,
     pub fuel_perp_delta: Option<(u16, i64)>,
-    pub fuel_spot_delta: Option<(u16, i128)>,
-    pub fuel_spot_delta_2: Option<(u16, i128)>,
+    pub fuel_spot_deltas: [(u16, i128); 2],
 }
 
 #[derive(PartialEq, Eq, Copy, Clone, Debug, AnchorSerialize, AnchorDeserialize)]
@@ -68,8 +67,7 @@ impl MarginContext {
             fuel_bonus_numerator: 0,
             fuel_bonus: 0,
             fuel_perp_delta: None,
-            fuel_spot_delta: None,
-            fuel_spot_delta_2: None,
+            fuel_spot_deltas: [(0, 0); 2],
         }
     }
 
@@ -90,15 +88,13 @@ impl MarginContext {
         self
     }
 
-    // how to change the user's spot position to match how it was prior to instruction change
-    // i.e. diffs are ADDED to spot position in margin check, after a withdraw requires positive diff
     pub fn fuel_spot_delta(mut self, market_index: u16, delta: i128) -> Self {
-        self.fuel_spot_delta = Some((market_index, delta));
+        self.fuel_spot_deltas[0] = (market_index, delta);
         self
     }
 
-    pub fn fuel_spot_diff_2(mut self, market_index: u16, delta: i128) -> Self {
-        self.fuel_spot_delta_2 = Some((market_index, delta));
+    pub fn fuel_spot_deltas(mut self, deltas: [(u16, i128); 2]) -> Self {
+        self.fuel_spot_deltas = deltas;
         self
     }
 
@@ -133,8 +129,7 @@ impl MarginContext {
             fuel_bonus_numerator: 0,
             fuel_bonus: 0,
             fuel_perp_delta: None,
-            fuel_spot_delta: None,
-            fuel_spot_delta_2: None,
+            fuel_spot_deltas: [(0, 0); 2],
         }
     }
 
@@ -395,7 +390,7 @@ impl MarginCalculation {
         )
     }
 
-    pub fn update_fuel_position_bonus(
+    pub fn update_fuel_perp_bonus(
         &mut self,
         perp_market: &PerpMarket,
         perp_position: &PerpPosition,
@@ -439,29 +434,18 @@ impl MarginCalculation {
     pub fn update_fuel_spot_bonus(
         &mut self,
         spot_market: &SpotMarket,
-        signed_token_amount: i128,
+        mut signed_token_amount: i128,
         strict_price: &StrictOraclePrice,
     ) -> DriftResult {
         if spot_market.fuel_boost_deposits == 0 && spot_market.fuel_boost_borrows == 0 {
             return Ok(());
         }
 
-        let signed_token_amount =
-            if let Some((market_index, spot_delta)) = self.context.fuel_spot_delta {
-                if spot_market.market_index == market_index {
-                    signed_token_amount.safe_add(spot_delta)?
-                } else {
-                    signed_token_amount
-                }
-            } else if let Some((market_index, spot_delta)) = self.context.fuel_spot_delta_2 {
-                if spot_market.market_index == market_index {
-                    signed_token_amount.safe_add(spot_delta)?
-                } else {
-                    signed_token_amount
-                }
-            } else {
-                signed_token_amount
-            };
+        for &(market_index, delta) in &self.context.fuel_spot_deltas {
+            if spot_market.market_index == market_index && delta != 0 {
+                signed_token_amount = signed_token_amount.safe_add(delta)?;
+            }
+        }
 
         if spot_market.fuel_boost_deposits > 0 && signed_token_amount > 0 {
             let signed_token_value =
