@@ -144,6 +144,7 @@ import { DRIFT_ORACLE_RECEIVER_ID } from './config';
 import { WormholeCoreBridgeSolana } from '@pythnetwork/pyth-solana-receiver/lib/idl/wormhole_core_bridge_solana';
 import { PythSolanaReceiver } from '@pythnetwork/pyth-solana-receiver/lib/idl/pyth_solana_receiver';
 import { getFeedIdUint8Array, trimFeedId } from './util/pythPullOracleUtils';
+import { isVersionedTransaction } from './tx/utils';
 
 type RemainingAccountParams = {
 	userAccounts: UserAccount[];
@@ -245,6 +246,7 @@ export class DriftClient {
 					onSignedCb: this.handleSignedTransaction.bind(this),
 					preSignedCb: this.handlePreSignedTransaction.bind(this),
 				},
+				config: config.txHandlerConfig,
 			});
 
 		if (config.includeDelegates && config.subAccountIds) {
@@ -1818,25 +1820,14 @@ export class DriftClient {
 		});
 	}
 
-	/**
-	 * Deposit funds into the given spot market
-	 *
-	 * @param amount to deposit
-	 * @param marketIndex spot market index to deposit into
-	 * @param associatedTokenAccount can be the wallet public key if using native sol
-	 * @param subAccountId subaccountId to deposit
-	 * @param reduceOnly if true, deposit must not increase account risk
-	 */
-	public async deposit(
+	public async createDepositTxn(
 		amount: BN,
 		marketIndex: number,
 		associatedTokenAccount: PublicKey,
 		subAccountId?: number,
 		reduceOnly = false,
 		txParams?: TxParams
-	): Promise<TransactionSignature> {
-		const additionalSigners: Array<Signer> = [];
-
+	): Promise<ReturnType<typeof this.buildTransaction>> {
 		const spotMarketAccount = this.getSpotMarketAccount(marketIndex);
 
 		const isSolMarket = spotMarketAccount.mint.equals(WRAPPED_SOL_MINT);
@@ -1886,11 +1877,36 @@ export class DriftClient {
 
 		const tx = await this.buildTransaction(instructions, txParams);
 
-		const { txSig, slot } = await this.sendTransaction(
-			tx,
-			additionalSigners,
-			this.opts
+		return tx;
+	}
+
+	/**
+	 * Deposit funds into the given spot market
+	 *
+	 * @param amount to deposit
+	 * @param marketIndex spot market index to deposit into
+	 * @param associatedTokenAccount can be the wallet public key if using native sol
+	 * @param subAccountId subaccountId to deposit
+	 * @param reduceOnly if true, deposit must not increase account risk
+	 */
+	public async deposit(
+		amount: BN,
+		marketIndex: number,
+		associatedTokenAccount: PublicKey,
+		subAccountId?: number,
+		reduceOnly = false,
+		txParams?: TxParams
+	): Promise<TransactionSignature> {
+		const tx = await this.createDepositTxn(
+			amount,
+			marketIndex,
+			associatedTokenAccount,
+			subAccountId,
+			reduceOnly,
+			txParams
 		);
+
+		const { txSig, slot } = await this.sendTransaction(tx, [], this.opts);
 		this.spotMarketLastSlotCache.set(marketIndex, slot);
 		return txSig;
 	}
@@ -2023,20 +2039,7 @@ export class DriftClient {
 		);
 	}
 
-	/**
-	 * Creates the User account for a user, and deposits some initial collateral
-	 * @param amount
-	 * @param userTokenAccount
-	 * @param marketIndex
-	 * @param subAccountId
-	 * @param name
-	 * @param fromSubAccountId
-	 * @param referrerInfo
-	 * @param donateAmount
-	 * @param txParams
-	 * @returns
-	 */
-	public async initializeUserAccountAndDepositCollateral(
+	public async createInitializeUserAccountAndDepositCollateral(
 		amount: BN,
 		userTokenAccount: PublicKey,
 		marketIndex = 0,
@@ -2047,7 +2050,7 @@ export class DriftClient {
 		donateAmount?: BN,
 		txParams?: TxParams,
 		customMaxMarginRatio?: number
-	): Promise<[TransactionSignature, PublicKey]> {
+	): Promise<[Transaction | VersionedTransaction, PublicKey]> {
 		const ixs = [];
 
 		const [userAccountPublicKey, initializeUserAccountIx] =
@@ -2056,8 +2059,6 @@ export class DriftClient {
 				name,
 				referrerInfo
 			);
-
-		const additionalSigners: Array<Signer> = [];
 
 		const spotMarket = this.getSpotMarketAccount(marketIndex);
 
@@ -2151,6 +2152,49 @@ export class DriftClient {
 		}
 
 		const tx = await this.buildTransaction(ixs, txParams);
+
+		return [tx, userAccountPublicKey];
+	}
+
+	/**
+	 * Creates the User account for a user, and deposits some initial collateral
+	 * @param amount
+	 * @param userTokenAccount
+	 * @param marketIndex
+	 * @param subAccountId
+	 * @param name
+	 * @param fromSubAccountId
+	 * @param referrerInfo
+	 * @param donateAmount
+	 * @param txParams
+	 * @returns
+	 */
+	public async initializeUserAccountAndDepositCollateral(
+		amount: BN,
+		userTokenAccount: PublicKey,
+		marketIndex = 0,
+		subAccountId = 0,
+		name?: string,
+		fromSubAccountId?: number,
+		referrerInfo?: ReferrerInfo,
+		donateAmount?: BN,
+		txParams?: TxParams,
+		customMaxMarginRatio?: number
+	): Promise<[TransactionSignature, PublicKey]> {
+		const [tx, userAccountPublicKey] =
+			await this.createInitializeUserAccountAndDepositCollateral(
+				amount,
+				userTokenAccount,
+				marketIndex,
+				subAccountId,
+				name,
+				fromSubAccountId,
+				referrerInfo,
+				donateAmount,
+				txParams,
+				customMaxMarginRatio
+			);
+		const additionalSigners: Array<Signer> = [];
 
 		const { txSig, slot } = await this.sendTransaction(
 			tx,
@@ -2788,7 +2832,7 @@ export class DriftClient {
 	}
 
 	public async sendSignedTx(
-		tx: Transaction,
+		tx: Transaction | VersionedTransaction,
 		opts?: ConfirmOptions
 	): Promise<TransactionSignature> {
 		const { txSig } = await this.sendTransaction(
@@ -4136,6 +4180,10 @@ export class DriftClient {
 		const outMarket = this.getSpotMarketAccount(outMarketIndex);
 		const inMarket = this.getSpotMarketAccount(inMarketIndex);
 
+		const isExactOut = swapMode === 'ExactOut' || quote.swapMode === 'ExactOut';
+		const amountIn = new BN(quote.inAmount);
+		const exactOutBufferedAmountIn = amountIn.muln(1001).divn(1000); // Add 10bp buffer
+
 		if (!quote) {
 			const fetchedQuote = await jupiterClient.getQuote({
 				inputMint: inMarket.mint,
@@ -4216,7 +4264,7 @@ export class DriftClient {
 		const { beginSwapIx, endSwapIx } = await this.getSwapIx({
 			outMarketIndex,
 			inMarketIndex,
-			amountIn: new BN(quote.inAmount),
+			amountIn: isExactOut ? exactOutBufferedAmountIn : amountIn,
 			inTokenAccount: inAssociatedTokenAccount,
 			outTokenAccount: outAssociatedTokenAccount,
 			reduceOnly,
@@ -7121,11 +7169,7 @@ export class DriftClient {
 	private isVersionedTransaction(
 		tx: Transaction | VersionedTransaction
 	): boolean {
-		const version = (tx as VersionedTransaction)?.version;
-		const isVersionedTx =
-			tx instanceof VersionedTransaction || version !== undefined;
-
-		return isVersionedTx;
+		return isVersionedTransaction(tx);
 	}
 
 	sendTransaction(
