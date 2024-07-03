@@ -243,7 +243,7 @@ jobs:
         with:
           filters: |
             program:
-              - 'programs/drift/src/Cargo.toml'
+              - 'programs/drift/Cargo.toml'
   verified-build:
     name: Build Verifiable Artifact
     runs-on: ubuntu-latest
