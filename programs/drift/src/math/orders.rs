@@ -12,7 +12,8 @@ use crate::math::casting::Cast;
 use crate::{
     load, math, FeeTier, State, BASE_PRECISION_I128, FEE_ADJUSTMENT_MAX,
     OPEN_ORDER_MARGIN_REQUIREMENT, PERCENTAGE_PRECISION, PERCENTAGE_PRECISION_U64,
-    PRICE_PRECISION_I128, QUOTE_PRECISION_I128, SPOT_WEIGHT_PRECISION, SPOT_WEIGHT_PRECISION_I128,
+    PRICE_PRECISION_I128, PRICE_PRECISION_U64, QUOTE_PRECISION_I128, SPOT_WEIGHT_PRECISION,
+    SPOT_WEIGHT_PRECISION_I128,
 };
 
 use crate::math::constants::MARGIN_PRECISION_U128;
@@ -28,7 +29,7 @@ use crate::state::margin_calculation::{MarginCalculation, MarginContext};
 use crate::state::oracle::{OraclePriceData, StrictOraclePrice};
 use crate::state::oracle_map::OracleMap;
 use crate::state::order_params::PostOnlyParam;
-use crate::state::perp_market::{PerpMarket, AMM};
+use crate::state::perp_market::{ContractType, PerpMarket, AMM};
 use crate::state::perp_market_map::PerpMarketMap;
 use crate::state::spot_market::SpotMarket;
 use crate::state::spot_market_map::SpotMarketMap;
@@ -466,7 +467,18 @@ pub fn validate_fill_price_within_price_bands(
     oracle_twap_5min: i64,
     margin_ratio_initial: u32,
     oracle_twap_5min_percent_divergence: u64,
+    contract_type: ContractType,
 ) -> DriftResult {
+    if contract_type == ContractType::Prediction {
+        validate!(
+            fill_price <= PRICE_PRECISION_U64 + 1,
+            ErrorCode::PriceBandsBreached,
+            "Fill Price Breaches Prediction Market Price Bands: (fill: {} >= oracle: {})",
+            fill_price,
+            PRICE_PRECISION_U64 + 1
+        )?;
+    }
+
     let oracle_price = oracle_price.unsigned_abs();
     let oracle_twap_5min = oracle_twap_5min.unsigned_abs();
 
@@ -546,7 +558,6 @@ pub fn validate_fill_price_within_price_bands(
             oracle_twap_5min
         )?;
     }
-
     Ok(())
 }
 

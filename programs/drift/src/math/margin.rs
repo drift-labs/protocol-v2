@@ -22,7 +22,7 @@ use crate::math::safe_math::SafeMath;
 use crate::state::margin_calculation::{MarginCalculation, MarginContext, MarketIdentifier};
 use crate::state::oracle::{OraclePriceData, StrictOraclePrice};
 use crate::state::oracle_map::OracleMap;
-use crate::state::perp_market::{ContractTier, MarketStatus, PerpMarket};
+use crate::state::perp_market::{ContractTier, ContractType, MarketStatus, PerpMarket};
 use crate::state::perp_market_map::PerpMarketMap;
 use crate::state::spot_market::{AssetTier, SpotBalanceType};
 use crate::state::spot_market_map::SpotMarketMap;
@@ -94,6 +94,105 @@ pub fn calculate_size_discount_asset_weight(
     let min_asset_weight = min(asset_weight, size_discount_asset_weight);
 
     Ok(min_asset_weight)
+}
+
+pub fn calculate_prediction_market_position_value_and_pnl(
+    market_position: &PerpPosition,
+    market: &PerpMarket,
+    oracle_price_data: &OraclePriceData,
+    strict_quote_price: &StrictOraclePrice,
+    margin_requirement_type: MarginRequirementType,
+    user_custom_margin_ratio: u32,
+    track_open_order_fraction: bool,
+) -> DriftResult<(u128, i128, u128, u128)> {
+    let valuation_price = if market.status == MarketStatus::Settlement {
+        market.expiry_price
+    } else {
+        oracle_price_data.price
+    };
+
+    let max_price = PRICE_PRECISION_I64;
+    let market_position = market_position.simulate_settled_lp_position(market, max_price)?;
+
+    let (_, unrealized_pnl) = calculate_base_asset_value_and_pnl_with_oracle_price(
+        &market_position,
+        oracle_price_data.price,
+    )?;
+
+    let total_unrealized_pnl = unrealized_pnl;
+
+    let worst_case_base_asset_amount = market_position.worst_case_base_asset_amount()?;
+    let worse_case_base_asset_value = market_position
+        .worst_case_prediction_market_value(valuation_price)?
+        .unsigned_abs()
+        .safe_mul(strict_quote_price.max().cast()?)?
+        .safe_div(PRICE_PRECISION)?;
+
+    let margin_ratio = user_custom_margin_ratio
+        .max(market.get_margin_ratio(worse_case_base_asset_value, margin_requirement_type)?);
+
+    let mut margin_requirement = if market.status == MarketStatus::Settlement {
+        0
+    } else {
+        worse_case_base_asset_value
+            .safe_mul(margin_ratio.cast()?)?
+            .safe_div(MARGIN_PRECISION_U128)?
+    };
+
+    // add small margin requirement for every open order
+    margin_requirement = margin_requirement
+        .safe_add(market_position.margin_requirement_for_open_orders()?)?
+        .safe_add(
+            market_position
+                .margin_requirement_for_lp_shares(market.amm.order_step_size, valuation_price)?,
+        )?;
+
+    let unrealized_asset_weight =
+        market.get_unrealized_asset_weight(total_unrealized_pnl, margin_requirement_type)?;
+
+    let quote_price = if total_unrealized_pnl > 0 {
+        strict_quote_price.min()
+    } else if total_unrealized_pnl < 0 {
+        strict_quote_price.max()
+    } else {
+        strict_quote_price.current
+    };
+
+    let mut weighted_unrealized_pnl = total_unrealized_pnl;
+
+    if unrealized_asset_weight != SPOT_WEIGHT_PRECISION {
+        weighted_unrealized_pnl = weighted_unrealized_pnl
+            .safe_mul(unrealized_asset_weight.cast()?)?
+            .safe_div(SPOT_WEIGHT_PRECISION.cast()?)?;
+    }
+    if quote_price != PRICE_PRECISION_I64 {
+        weighted_unrealized_pnl = weighted_unrealized_pnl
+            .safe_mul(quote_price.cast()?)?
+            .safe_div(PRICE_PRECISION_I128)?;
+    }
+
+    if margin_requirement_type == MarginRequirementType::Initial {
+        // safety guard for dangerously configured perp market
+        weighted_unrealized_pnl = weighted_unrealized_pnl.min(MAX_POSITIVE_UPNL_FOR_INITIAL_MARGIN);
+    }
+
+    let open_order_margin_requirement =
+        if track_open_order_fraction && worst_case_base_asset_amount != 0 {
+            let worst_case_base_asset_amount = worst_case_base_asset_amount.unsigned_abs();
+            worst_case_base_asset_amount
+                .safe_sub(market_position.base_asset_amount.unsigned_abs().cast()?)?
+                .safe_mul(margin_requirement)?
+                .safe_div(worst_case_base_asset_amount)?
+        } else {
+            0_u128
+        };
+
+    Ok((
+        margin_requirement,
+        weighted_unrealized_pnl,
+        worse_case_base_asset_value,
+        open_order_margin_requirement,
+    ))
 }
 
 pub fn calculate_perp_position_value_and_pnl(
@@ -480,15 +579,27 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
             weighted_pnl,
             worst_case_base_asset_value,
             open_order_margin_requirement,
-        ) = calculate_perp_position_value_and_pnl(
-            market_position,
-            market,
-            oracle_price_data,
-            &strict_quote_price,
-            context.margin_type,
-            user_custom_margin_ratio,
-            calculation.track_open_orders_fraction(),
-        )?;
+        ) = if market.contract_type != ContractType::Prediction {
+            calculate_perp_position_value_and_pnl(
+                market_position,
+                market,
+                oracle_price_data,
+                &strict_quote_price,
+                context.margin_type,
+                user_custom_margin_ratio,
+                calculation.track_open_orders_fraction(),
+            )?
+        } else {
+            calculate_prediction_market_position_value_and_pnl(
+                market_position,
+                market,
+                oracle_price_data,
+                &strict_quote_price,
+                context.margin_type,
+                user_custom_margin_ratio,
+                calculation.track_open_orders_fraction(),
+            )?
+        };
 
         calculation.add_margin_requirement(
             perp_margin_requirement,
@@ -507,7 +618,7 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
         #[cfg(feature = "drift-rs")]
         calculation.add_perp_pnl(weighted_pnl)?;
 
-        let has_perp_liability = market_position.base_asset_amount != 0
+        let has_perp_liability: bool = market_position.base_asset_amount != 0
             || market_position.quote_asset_amount < 0
             || market_position.has_open_order()
             || market_position.is_lp();

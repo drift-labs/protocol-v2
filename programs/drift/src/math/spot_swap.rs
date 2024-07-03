@@ -5,6 +5,7 @@ use crate::math::orders::{calculate_fill_price, validate_fill_price_within_price
 use crate::math::safe_math::SafeMath;
 use crate::math::spot_balance::{get_strict_token_value, get_token_value};
 use crate::state::oracle::StrictOraclePrice;
+use crate::state::perp_market::ContractType;
 use crate::state::spot_market::SpotMarket;
 use crate::{PositionDirection, PRICE_PRECISION, SPOT_WEIGHT_PRECISION_U128};
 
@@ -141,6 +142,7 @@ pub fn validate_price_bands_for_swap(
         oracle_twap_5min,
         margin_ratio,
         oracle_twap_5min_percent_divergence,
+        ContractType::Spot,
     )?;
 
     Ok(())

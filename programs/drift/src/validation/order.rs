@@ -7,9 +7,9 @@ use crate::math::casting::Cast;
 use crate::math::orders::{
     calculate_base_asset_amount_to_fill_up_to_limit_price, is_multiple_of_step_size,
 };
-use crate::state::perp_market::PerpMarket;
+use crate::state::perp_market::{ContractType, PerpMarket};
 use crate::state::user::{Order, OrderTriggerCondition, OrderType};
-use crate::validate;
+use crate::{validate, PRICE_PRECISION_U64};
 
 pub fn validate_order(
     order: &Order,
@@ -35,6 +35,13 @@ pub fn validate_order(
         OrderType::Oracle => {
             validate_oracle_order(order, market.amm.order_step_size, market.amm.min_order_size)?
         }
+    }
+
+    if market.contract_type == ContractType::Prediction {
+        validate!(
+            order.price <= PRICE_PRECISION_U64 + 1,
+            ErrorCode::InvalidOrderLimitPrice
+        )?;
     }
 
     Ok(())

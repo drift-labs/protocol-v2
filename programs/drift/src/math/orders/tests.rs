@@ -2892,6 +2892,7 @@ mod calculate_max_perp_order_size {
 
 pub mod validate_fill_price_within_price_bands {
     use crate::math::orders::validate_fill_price_within_price_bands;
+    use crate::state::perp_market::ContractType;
     use crate::{
         PositionDirection, MARGIN_PRECISION, PERCENTAGE_PRECISION, PRICE_PRECISION_I64,
         PRICE_PRECISION_U64,
@@ -2912,6 +2913,7 @@ pub mod validate_fill_price_within_price_bands {
             twap,
             margin_ratio_initial,
             (PERCENTAGE_PRECISION / 2) as u64,
+            ContractType::Perpetual
         )
         .is_ok())
     }
@@ -2931,6 +2933,7 @@ pub mod validate_fill_price_within_price_bands {
             twap,
             margin_ratio_initial,
             (PERCENTAGE_PRECISION / 2) as u64,
+            ContractType::Perpetual
         )
         .is_ok())
     }
@@ -2951,6 +2954,7 @@ pub mod validate_fill_price_within_price_bands {
             twap,
             margin_ratio_initial,
             (PERCENTAGE_PRECISION / 2) as u64,
+            ContractType::Perpetual
         )
         .is_err())
     }
@@ -2971,6 +2975,7 @@ pub mod validate_fill_price_within_price_bands {
             twap,
             margin_ratio_initial,
             (PERCENTAGE_PRECISION / 2) as u64,
+            ContractType::Perpetual
         )
         .is_err())
     }
@@ -2991,6 +2996,7 @@ pub mod validate_fill_price_within_price_bands {
             twap,
             margin_ratio_initial,
             (PERCENTAGE_PRECISION / 2) as u64,
+            ContractType::Perpetual,
         )
         .is_err())
     }
@@ -3011,6 +3017,7 @@ pub mod validate_fill_price_within_price_bands {
             twap,
             margin_ratio_initial,
             (PERCENTAGE_PRECISION / 2) as u64,
+            ContractType::Perpetual
         )
         .is_err())
     }
