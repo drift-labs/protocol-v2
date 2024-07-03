@@ -11,11 +11,6 @@ pub mod wormhole_program {
     declare_id!("HDwcJBJXjL9FpJ7UBsYBtaDjsBUhuLCUYoz3zr8SWWaQ");
 }
 
-pub mod pyth_pull_program {
-    use solana_program::declare_id;
-    declare_id!("rec5EKMGg6MxZYaMdyBfgwp4d5rB9T1VQH5pJv5LtFJ");
-}
-
 pub mod drift_oracle_receiver_program {
     use solana_program::declare_id;
     declare_id!("G6EoTTTgpkNBtVXo96EQp2m6uwwVh2Kt6YidjkmQqoha");
