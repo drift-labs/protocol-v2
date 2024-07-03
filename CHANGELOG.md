@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Features
 
+### Fixes
+
+### Breaking
+
+## [2.85.0] - 2024-07-02
+
+### Features
+
 - program: add tx optimized pyth pull ([#1111](https://github.com/drift-labs/protocol-v2/pull/1111))
 - program: migrate all integration tests to bankrun ([#1090](https://github.com/drift-labs/protocol-v2/pull/1090))
 
