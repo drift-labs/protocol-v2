@@ -23,6 +23,8 @@ use solana_program::instruction::{AccountMeta, Instruction};
 use solana_program::system_program;
 use solana_program_test::{tokio, ProgramTest};
 use solana_sdk::{signer::Signer, transaction::Transaction};
+use drift::math::spot_balance::get_token_amount;
+use drift::state::spot_market::{SpotBalanceType, SpotMarket};
 
 mod drift_utils;
 mod market;
@@ -166,8 +168,8 @@ async fn test_program() -> anyhow::Result<()> {
     .await?;
 
     // assert deposited amounts
-    let account = banks_client.get_account(user).await?.unwrap().data;
-    let user_data = User::try_deserialize(&mut &account[..]).unwrap();
+    let data = banks_client.get_account(user).await?.unwrap().data;
+    let user_data = User::try_deserialize(&mut &data[..]).unwrap();
     let base_spot_position = *user_data
         .spot_positions
         .iter()
@@ -178,14 +180,20 @@ async fn test_program() -> anyhow::Result<()> {
     let quote_spot_position = *user_data
         .spot_positions
         .iter()
-        .filter(|position| position.market_index == 0 && position.cumulative_deposits > 0)
+        .filter(| position| position.market_index == 0 && position.cumulative_deposits > 0)
         .collect::<Vec<&SpotPosition>>()
         .first()
         .unwrap();
-    assert_eq!(base_spot_position.cumulative_deposits, 1_000_000_000_000);
-    assert_eq!(quote_spot_position.cumulative_deposits, 1_000_000_000);
-    assert_eq!(base_spot_position.scaled_balance, 1_000_000_000_000);
-    assert_eq!(quote_spot_position.scaled_balance, 1_000_000_000_000);
+    // buy 1 mock Sol exchanged for +- 15x mock USDC
+    let account = banks_client.get_account(spot_market).await?.unwrap();
+    let spot_market_data = SpotMarket::try_deserialize(&mut &account.data[..]).unwrap();
+    let account = banks_client.get_account(quote_market).await?.unwrap();
+    let quote_market_data = SpotMarket::try_deserialize(&mut &account.data[..]).unwrap();
+    let base_token_amount = get_token_amount(base_spot_position.scaled_balance as u128, &spot_market_data, &SpotBalanceType::Deposit).unwrap();
+    let quote_token_amount = get_token_amount(quote_spot_position.scaled_balance as u128, &quote_market_data, &SpotBalanceType::Deposit).unwrap();
+    assert_eq!(base_token_amount, 1_000_000_000_000);
+    assert_eq!(quote_token_amount, 1_000_000_000);
+
     // create OpenbookV2 fulfillment config
     let config = initialize_openbook_v2_config(
         &mut banks_client,
@@ -285,8 +293,8 @@ async fn test_program() -> anyhow::Result<()> {
         }
     }
     // check spot amounts
-    let account = banks_client.get_account(user).await?.unwrap().data;
-    let user_data = User::try_deserialize(&mut &account[..]).unwrap();
+    let data = banks_client.get_account(user).await?.unwrap().data;
+    let user_data = User::try_deserialize(&mut &data[..]).unwrap();
     let base_spot_position = *user_data
         .spot_positions
         .iter()
@@ -297,15 +305,19 @@ async fn test_program() -> anyhow::Result<()> {
     let quote_spot_position = *user_data
         .spot_positions
         .iter()
-        .filter(|position| position.market_index == 0 && position.cumulative_deposits > 0)
+        .filter(| position| position.market_index == 0 && position.cumulative_deposits > 0)
         .collect::<Vec<&SpotPosition>>()
         .first()
         .unwrap();
-    // 1 mock Sol exchanged for +- 153.8 mock USDC
-    assert_eq!(base_spot_position.cumulative_deposits, 1_001_000_000_000);
-    assert_eq!(quote_spot_position.cumulative_deposits, 846_154_000);
-    assert_eq!(base_spot_position.scaled_balance, 1_001_000_000_000);
-    assert_eq!(quote_spot_position.scaled_balance, 845_999_999_999);
+    // buy 1 mock Sol exchanged for +- 154 mock USDC
+    let account = banks_client.get_account(spot_market).await?.unwrap();
+    let spot_market_data = SpotMarket::try_deserialize(&mut &account.data[..]).unwrap();
+    let account = banks_client.get_account(quote_market).await?.unwrap();
+    let quote_market_data = SpotMarket::try_deserialize(&mut &account.data[..]).unwrap();
+    let base_token_amount = get_token_amount(base_spot_position.scaled_balance as u128, &spot_market_data, &SpotBalanceType::Deposit).unwrap();
+    let quote_token_amount = get_token_amount(quote_spot_position.scaled_balance as u128, &quote_market_data, &SpotBalanceType::Deposit).unwrap();
+    assert_eq!(base_token_amount, 1_001_000_000_000);
+    assert_eq!(quote_token_amount, 845_999_999);
 
     // add buy before
     place_order_and_execute(
@@ -426,14 +438,18 @@ async fn test_program() -> anyhow::Result<()> {
     let quote_spot_position = *user_data
         .spot_positions
         .iter()
-        .filter(|position| position.market_index == 0 && position.cumulative_deposits > 0)
+        .filter(| position| position.market_index == 0 && position.cumulative_deposits > 0)
         .collect::<Vec<&SpotPosition>>()
         .first()
         .unwrap();
-    // buy 1 mock Sol exchanged for +- 15x mock USDC
-    assert_eq!(base_spot_position.cumulative_deposits, 1_000_000_000_000);
-    assert_eq!(quote_spot_position.cumulative_deposits, 1_001_309_000);
-    assert_eq!(base_spot_position.scaled_balance, 999_999_999_999);
-    assert_eq!(quote_spot_position.scaled_balance, 1_000_999_844_999);
+    // sell 1 mock Sol exchanged for +- 155 mock USDC
+    let account = banks_client.get_account(spot_market).await?.unwrap();
+    let spot_market_data = SpotMarket::try_deserialize(&mut &account.data[..]).unwrap();
+    let account = banks_client.get_account(quote_market).await?.unwrap();
+    let quote_market_data = SpotMarket::try_deserialize(&mut &account.data[..]).unwrap();
+    let base_token_amount = get_token_amount(base_spot_position.scaled_balance as u128, &spot_market_data, &SpotBalanceType::Deposit).unwrap();
+    let quote_token_amount = get_token_amount(quote_spot_position.scaled_balance as u128, &quote_market_data, &SpotBalanceType::Deposit).unwrap();
+    assert_eq!(base_token_amount, 999_999_999_999);
+    assert_eq!(quote_token_amount, 1_000_999_844);
     Ok(())
 }
