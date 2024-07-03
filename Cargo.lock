@@ -882,6 +882,7 @@ dependencies = [
  "base64 0.13.0",
  "borsh 0.10.3",
  "bytemuck",
+ "byteorder",
  "bytes",
  "drift-macros",
  "enumflags2",
@@ -892,6 +893,7 @@ dependencies = [
  "pyth",
  "pyth-client",
  "pyth-solana-receiver-sdk",
+ "pythnet-sdk",
  "serum_dex",
  "solana-program",
  "solana-security-txt",
@@ -1688,8 +1690,7 @@ checksum = "44de48029c54ec1ca570786b5baeb906b0fc2409c8e0145585e287ee7a526c72"
 [[package]]
 name = "pyth-solana-receiver-sdk"
 version = "0.3.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "91e6559643f0b377b6f293269251f6a804ae7332c37f7310371f50c833453cd0"
+source = "git+https://github.com/drift-labs/pyth-crosschain?rev=04cf2c#04cf2c01642a2ce0a0f620652034755d3e81d576"
 dependencies = [
  "anchor-lang",
  "hex",
@@ -1700,8 +1701,7 @@ dependencies = [
 [[package]]
 name = "pythnet-sdk"
 version = "2.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3bbbc0456f9f27c9ad16b6c3bf1b2a7fea61eebf900f4d024a0468b9a84fe0c1"
+source = "git+https://github.com/drift-labs/pyth-crosschain?rev=04cf2c#04cf2c01642a2ce0a0f620652034755d3e81d576"
 dependencies = [
  "anchor-lang",
  "bincode",

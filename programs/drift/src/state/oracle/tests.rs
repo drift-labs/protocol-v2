@@ -66,7 +66,7 @@ fn pyth_pull_1m() {
     let mut decoded_bytes = base64::decode(oracle_market_str).unwrap();
     let oracle_market_bytes = decoded_bytes.as_mut_slice();
     let mut lamports = 0;
-    let pyth_program = crate::ids::pyth_pull_program::id();
+    let pyth_program = crate::ids::drift_oracle_receiver_program::id();
     let bonk_market_account_info = create_account_info(
         &oracle_price_key,
         true,

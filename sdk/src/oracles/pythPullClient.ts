@@ -9,11 +9,10 @@ import {
 } from '../constants/numericConstants';
 import {
 	PythSolanaReceiverProgram,
-	DEFAULT_RECEIVER_PROGRAM_ID,
 	pythSolanaReceiverIdl,
 } from '@pythnetwork/pyth-solana-receiver';
 import { PriceUpdateAccount } from '@pythnetwork/pyth-solana-receiver/lib/PythSolanaReceiver';
-import { Wallet } from '..';
+import { DRIFT_ORACLE_RECEIVER_ID, Wallet } from '..';
 
 export class PythPullClient implements OracleClient {
 	private connection: Connection;
@@ -40,7 +39,7 @@ export class PythPullClient implements OracleClient {
 		);
 		this.receiver = new Program<PythSolanaReceiverProgram>(
 			pythSolanaReceiverIdl as PythSolanaReceiverProgram,
-			DEFAULT_RECEIVER_PROGRAM_ID,
+			DRIFT_ORACLE_RECEIVER_ID,
 			provider
 		);
 		this.decodeFunc =

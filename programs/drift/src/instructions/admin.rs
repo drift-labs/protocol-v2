@@ -4,13 +4,14 @@ use std::mem::size_of;
 use anchor_lang::prelude::*;
 use anchor_spl::token::{Mint, Token, TokenAccount};
 use phoenix::quantities::WrapperU64;
+use pyth_solana_receiver_sdk::cpi::accounts::InitPriceUpdate;
+use pyth_solana_receiver_sdk::program::PythSolanaReceiver;
 use serum_dex::state::ToAlignedBytes;
 use solana_program::msg;
 
 use crate::controller::token::close_vault;
 use crate::error::ErrorCode;
 use crate::instructions::constraints::*;
-use crate::load_mut;
 use crate::math::casting::Cast;
 use crate::math::constants::{
     DEFAULT_LIQUIDATION_MARGIN_BUFFER_RATIO, FEE_POOL_TO_REVENUE_POOL_THRESHOLD,
@@ -56,6 +57,7 @@ use crate::validation::spot_market::validate_borrow_rate;
 use crate::{controller, QUOTE_PRECISION_I64};
 use crate::{get_then_update_id, EPOCH_DURATION};
 use crate::{load, FEE_ADJUSTMENT_MAX};
+use crate::{load_mut, PTYH_PRICE_FEED_SEED_PREFIX};
 use crate::{math, safe_decrement, safe_increment};
 
 pub fn handle_initialize(ctx: Context<Initialize>) -> Result<()> {
@@ -3439,6 +3441,31 @@ pub fn handle_delete_prelaunch_oracle(
     Ok(())
 }
 
+pub fn handle_initialize_pyth_pull_oracle(
+    ctx: Context<InitPythPullPriceFeed>,
+    feed_id: [u8; 32],
+) -> Result<()> {
+    let cpi_program = ctx.accounts.pyth_solana_receiver.to_account_info().clone();
+    let cpi_accounts = InitPriceUpdate {
+        payer: ctx.accounts.admin.to_account_info().clone(),
+        price_update_account: ctx.accounts.price_feed.to_account_info().clone(),
+        system_program: ctx.accounts.system_program.to_account_info().clone(),
+        write_authority: ctx.accounts.price_feed.to_account_info().clone(),
+    };
+
+    let seeds = &[
+        PTYH_PRICE_FEED_SEED_PREFIX,
+        feed_id.as_ref(),
+        &[ctx.bumps.price_feed],
+    ];
+    let signer_seeds = &[&seeds[..]];
+    let cpi_context = CpiContext::new_with_signer(cpi_program, cpi_accounts, signer_seeds);
+
+    pyth_solana_receiver_sdk::cpi::init_price_update(cpi_context)?;
+
+    Ok(())
+}
+
 #[derive(Accounts)]
 pub struct Initialize<'info> {
     #[account(mut)]
@@ -3944,6 +3971,22 @@ pub struct DeletePrelaunchOracle<'info> {
         constraint = perp_market.load()?.market_index == perp_market_index
     )]
     pub perp_market: AccountLoader<'info, PerpMarket>,
+    #[account(
+        has_one = admin
+    )]
+    pub state: Box<Account<'info, State>>,
+}
+
+#[derive(Accounts)]
+#[instruction(feed_id : [u8; 32])]
+pub struct InitPythPullPriceFeed<'info> {
+    #[account(mut)]
+    pub admin: Signer<'info>,
+    pub pyth_solana_receiver: Program<'info, PythSolanaReceiver>,
+    /// CHECK: This account's seeds are checked
+    #[account(mut, seeds = [PTYH_PRICE_FEED_SEED_PREFIX, &feed_id], bump)]
+    pub price_feed: AccountInfo<'info>,
+    pub system_program: Program<'info, System>,
     #[account(
         has_one = admin
     )]
