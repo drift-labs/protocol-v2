@@ -722,6 +722,16 @@ export const MainnetPerpMarkets: PerpMarketConfig[] = [
 		launchTs: 1719415157000,
 		oracleSource: OracleSource.SWITCHBOARD,
 	},
+	{
+		fullName: 'POPCAT',
+		category: ['Meme', 'Solana'],
+		symbol: 'POPCAT-PERP',
+		baseAssetSymbol: 'POPCAT',
+		marketIndex: 34,
+		oracle: new PublicKey('2stQe1XLGkuTZ22gQrgZKsb93iG9mWXSLfANMPRjs5Ky'),
+		launchTs: 1720013054000,
+		oracleSource: OracleSource.SWITCHBOARD,
+	},
 ];
 
 export const PerpMarkets: { [key in DriftEnv]: PerpMarketConfig[] } = {

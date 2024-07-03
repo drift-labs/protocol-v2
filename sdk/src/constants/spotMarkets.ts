@@ -334,6 +334,16 @@ export const MainnetSpotMarkets: SpotMarketConfig[] = [
 		precisionExp: SIX,
 		launchTs: 1719415157000,
 	},
+	{
+		symbol: 'POPCAT',
+		marketIndex: 20,
+		oracle: new PublicKey('2stQe1XLGkuTZ22gQrgZKsb93iG9mWXSLfANMPRjs5Ky'),
+		oracleSource: OracleSource.SWITCHBOARD,
+		mint: new PublicKey('7GCihgDB8fe6KNjn2MYtkzZcRjQy3t9GHdC8uHYmW2hr'),
+		precision: new BN(10).pow(NINE),
+		precisionExp: NINE,
+		launchTs: 1720013054000,
+	},
 ];
 
 export const SpotMarkets: { [key in DriftEnv]: SpotMarketConfig[] } = {
