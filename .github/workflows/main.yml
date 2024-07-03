@@ -230,9 +230,28 @@ jobs:
           GH_PAT: ${{ secrets.GH_PAT }}
           VERSION: ${{ needs.release.outputs.version }}
         working-directory: ./sdk
+  check-for-program-version-changes:
+    runs-on: ubuntu-latest
+    # Set job outputs to values from filter step
+    outputs:
+      sdk: ${{ steps.filter.outputs.program }}
+    steps:
+      # For pull requests it's not necessary to checkout the code
+      - uses: actions/checkout@v2
+      - uses: dorny/paths-filter@v2
+        id: filter
+        with:
+          filters: |
+            program:
+              - 'program/drift/src/Cargo.toml'
   verified-build:
     name: Build Verifiable Artifact
     runs-on: ubuntu-latest
+    needs:
+      [
+          check-for-program-version-changes,
+      ]
+    if: ${{ needs.check-for-program-version-changes.outputs.program == 'true' }}
     steps:
       - name: Checkout
         uses: actions/checkout@v3
