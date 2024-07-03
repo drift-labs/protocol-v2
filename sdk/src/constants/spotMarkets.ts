@@ -343,6 +343,9 @@ export const MainnetSpotMarkets: SpotMarketConfig[] = [
 		precision: new BN(10).pow(NINE),
 		precisionExp: NINE,
 		launchTs: 1720013054000,
+		phoenixMarket: new PublicKey(
+			'31XgvAQ1HgFQEk31KdszbPkVXKaQqB1bgYZPoDrFpSR2'
+		),
 	},
 ];
 
