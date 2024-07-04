@@ -1,5 +1,5 @@
 {
-  "version": "2.84.0",
+  "version": "2.85.0",
   "name": "drift",
   "instructions": [
     {
@@ -2580,6 +2580,86 @@
         {
           "name": "shares",
           "type": "u128"
+        }
+      ]
+    },
+    {
+      "name": "updatePythPullOracle",
+      "accounts": [
+        {
+          "name": "keeper",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "pythSolanaReceiver",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "encodedVaa",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "priceFeed",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "feedId",
+          "type": {
+            "array": [
+              "u8",
+              32
+            ]
+          }
+        },
+        {
+          "name": "params",
+          "type": "bytes"
+        }
+      ]
+    },
+    {
+      "name": "postPythPullOracleUpdateAtomic",
+      "accounts": [
+        {
+          "name": "keeper",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "pythSolanaReceiver",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "guardianSet",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "priceFeed",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "feedId",
+          "type": {
+            "array": [
+              "u8",
+              32
+            ]
+          }
+        },
+        {
+          "name": "params",
+          "type": "bytes"
         }
       ]
     },
@@ -5376,6 +5456,47 @@
         {
           "name": "perpMarketIndex",
           "type": "u16"
+        }
+      ]
+    },
+    {
+      "name": "initializePythPullOracle",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "pythSolanaReceiver",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "priceFeed",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "systemProgram",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "feedId",
+          "type": {
+            "array": [
+              "u8",
+              32
+            ]
+          }
         }
       ]
     }
@@ -12231,6 +12352,41 @@
       "code": 6268,
       "name": "MaxBorrows",
       "msg": "Can not borow more than max borrows"
+    },
+    {
+      "code": 6269,
+      "name": "OracleUpdatesNotMonotonic",
+      "msg": "Updates must be monotonically increasing"
+    },
+    {
+      "code": 6270,
+      "name": "OraclePriceFeedMessageMismatch",
+      "msg": "Trying to update price feed with the wrong feed id"
+    },
+    {
+      "code": 6271,
+      "name": "OracleUnsupportedMessageType",
+      "msg": "The message in the update must be a PriceFeedMessage"
+    },
+    {
+      "code": 6272,
+      "name": "OracleDeserializeMessageFailed",
+      "msg": "Could not deserialize the message in the update"
+    },
+    {
+      "code": 6273,
+      "name": "OracleWrongGuardianSetOwner",
+      "msg": "Wrong guardian set owner in update price atomic"
+    },
+    {
+      "code": 6274,
+      "name": "OracleWrongWriteAuthority",
+      "msg": "Oracle post update atomic price feed account must be drift program"
+    },
+    {
+      "code": 6275,
+      "name": "OracleWrongVaaOwner",
+      "msg": "Oracle vaa owner must be wormhole program"
     }
   ],
   "metadata": {

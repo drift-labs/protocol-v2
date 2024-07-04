@@ -1,5 +1,6 @@
 import {
 	PublicKey,
+	SystemProgram,
 	SYSVAR_RENT_PUBKEY,
 	TransactionInstruction,
 	TransactionSignature,
@@ -28,6 +29,7 @@ import {
 	getPhoenixFulfillmentConfigPublicKey,
 	getProtocolIfSharesTransferConfigPublicKey,
 	getPrelaunchOraclePublicKey,
+	getPythPullOraclePublicKey,
 } from './addresses/pda';
 import { squareRootBN } from './math/utils';
 import { TOKEN_PROGRAM_ID } from '@solana/spl-token';
@@ -43,6 +45,8 @@ import {
 import { calculateTargetPriceTrade } from './math/trade';
 import { calculateAmmReservesAfterSwap, getSwapDirection } from './math/amm';
 import { PROGRAM_ID as PHOENIX_PROGRAM_ID } from '@ellipsis-labs/phoenix-sdk';
+import { DRIFT_ORACLE_RECEIVER_ID } from './config';
+import { getFeedIdUint8Array } from './util/pythPullOracleUtils';
 
 export class AdminClient extends DriftClient {
 	public async initialize(
@@ -3545,7 +3549,6 @@ export class AdminClient extends DriftClient {
 		);
 
 		const tx = await this.buildTransaction(updateSpotMarketFuelIx);
-
 		const { txSig } = await this.sendTransaction(tx, [], this.opts);
 
 		return txSig;
@@ -3583,6 +3586,41 @@ export class AdminClient extends DriftClient {
 						: this.wallet.publicKey,
 					state: await this.getStatePublicKey(),
 					spotMarket: spotMarketPublicKey,
+				},
+			}
+		);
+	}
+
+	public async initializePythPullOracle(
+		feedId: string
+	): Promise<TransactionSignature> {
+		const initializePythPullOracleIx = await this.getInitializePythPullOracleIx(
+			feedId
+		);
+		const tx = await this.buildTransaction(initializePythPullOracleIx);
+		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+
+		return txSig;
+	}
+
+	public async getInitializePythPullOracleIx(
+		feedId: string
+	): Promise<TransactionInstruction> {
+		const feedIdBuffer = getFeedIdUint8Array(feedId);
+		return await this.program.instruction.initializePythPullOracle(
+			feedIdBuffer,
+			{
+				accounts: {
+					admin: this.isSubscribed
+						? this.getStateAccount().admin
+						: this.wallet.publicKey,
+					state: await this.getStatePublicKey(),
+					systemProgram: SystemProgram.programId,
+					priceFeed: getPythPullOraclePublicKey(
+						this.program.programId,
+						feedIdBuffer
+					),
+					pythSolanaReceiver: DRIFT_ORACLE_RECEIVER_ID,
 				},
 			}
 		);

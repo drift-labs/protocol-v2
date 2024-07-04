@@ -76,6 +76,7 @@ import {
 	getInsuranceFundStakeAccountPublicKey,
 	getPerpMarketPublicKey,
 	getPhoenixFulfillmentConfigPublicKey,
+	getPythPullOraclePublicKey,
 	getReferrerNamePublicKeySync,
 	getSerumFulfillmentConfigPublicKey,
 	getSerumSignerPublicKey,
@@ -127,8 +128,23 @@ import { getMarinadeDepositIx, getMarinadeFinanceProgram } from './marinade';
 import { getOrderParams } from './orderParams';
 import { numberToSafeBN } from './math/utils';
 import { TransactionParamProcessor } from './tx/txParamProcessor';
-import { isOracleValid } from './math/oracles';
+import { isOracleValid, trimVaaSignatures } from './math/oracles';
 import { TxHandler } from './tx/txHandler';
+import {
+	wormholeCoreBridgeIdl,
+	pythSolanaReceiverIdl,
+	DEFAULT_RECEIVER_PROGRAM_ID,
+} from '@pythnetwork/pyth-solana-receiver';
+import { parseAccumulatorUpdateData } from '@pythnetwork/price-service-sdk';
+import {
+	DEFAULT_WORMHOLE_PROGRAM_ID,
+	getGuardianSetPda,
+} from '@pythnetwork/pyth-solana-receiver/lib/address';
+import { DRIFT_ORACLE_RECEIVER_ID } from './config';
+import { WormholeCoreBridgeSolana } from '@pythnetwork/pyth-solana-receiver/lib/idl/wormhole_core_bridge_solana';
+import { PythSolanaReceiver } from '@pythnetwork/pyth-solana-receiver/lib/idl/pyth_solana_receiver';
+import { getFeedIdUint8Array, trimFeedId } from './util/pythPullOracleUtils';
+import { isVersionedTransaction } from './tx/utils';
 
 type RemainingAccountParams = {
 	userAccounts: UserAccount[];
@@ -177,6 +193,9 @@ export class DriftClient {
 	enableMetricsEvents?: boolean;
 
 	txHandler: TxHandler;
+
+	receiverProgram?: Program<PythSolanaReceiver>;
+	wormholeProgram?: Program<WormholeCoreBridgeSolana>;
 
 	public get isSubscribed() {
 		return this._isSubscribed && this.accountSubscriber.isSubscribed;
@@ -227,6 +246,7 @@ export class DriftClient {
 					onSignedCb: this.handleSignedTransaction.bind(this),
 					preSignedCb: this.handlePreSignedTransaction.bind(this),
 				},
+				config: config.txHandlerConfig,
 			});
 
 		if (config.includeDelegates && config.subAccountIds) {
@@ -1800,25 +1820,14 @@ export class DriftClient {
 		});
 	}
 
-	/**
-	 * Deposit funds into the given spot market
-	 *
-	 * @param amount to deposit
-	 * @param marketIndex spot market index to deposit into
-	 * @param associatedTokenAccount can be the wallet public key if using native sol
-	 * @param subAccountId subaccountId to deposit
-	 * @param reduceOnly if true, deposit must not increase account risk
-	 */
-	public async deposit(
+	public async createDepositTxn(
 		amount: BN,
 		marketIndex: number,
 		associatedTokenAccount: PublicKey,
 		subAccountId?: number,
 		reduceOnly = false,
 		txParams?: TxParams
-	): Promise<TransactionSignature> {
-		const additionalSigners: Array<Signer> = [];
-
+	): Promise<ReturnType<typeof this.buildTransaction>> {
 		const spotMarketAccount = this.getSpotMarketAccount(marketIndex);
 
 		const isSolMarket = spotMarketAccount.mint.equals(WRAPPED_SOL_MINT);
@@ -1868,11 +1877,36 @@ export class DriftClient {
 
 		const tx = await this.buildTransaction(instructions, txParams);
 
-		const { txSig, slot } = await this.sendTransaction(
-			tx,
-			additionalSigners,
-			this.opts
+		return tx;
+	}
+
+	/**
+	 * Deposit funds into the given spot market
+	 *
+	 * @param amount to deposit
+	 * @param marketIndex spot market index to deposit into
+	 * @param associatedTokenAccount can be the wallet public key if using native sol
+	 * @param subAccountId subaccountId to deposit
+	 * @param reduceOnly if true, deposit must not increase account risk
+	 */
+	public async deposit(
+		amount: BN,
+		marketIndex: number,
+		associatedTokenAccount: PublicKey,
+		subAccountId?: number,
+		reduceOnly = false,
+		txParams?: TxParams
+	): Promise<TransactionSignature> {
+		const tx = await this.createDepositTxn(
+			amount,
+			marketIndex,
+			associatedTokenAccount,
+			subAccountId,
+			reduceOnly,
+			txParams
 		);
+
+		const { txSig, slot } = await this.sendTransaction(tx, [], this.opts);
 		this.spotMarketLastSlotCache.set(marketIndex, slot);
 		return txSig;
 	}
@@ -2005,20 +2039,7 @@ export class DriftClient {
 		);
 	}
 
-	/**
-	 * Creates the User account for a user, and deposits some initial collateral
-	 * @param amount
-	 * @param userTokenAccount
-	 * @param marketIndex
-	 * @param subAccountId
-	 * @param name
-	 * @param fromSubAccountId
-	 * @param referrerInfo
-	 * @param donateAmount
-	 * @param txParams
-	 * @returns
-	 */
-	public async initializeUserAccountAndDepositCollateral(
+	public async createInitializeUserAccountAndDepositCollateral(
 		amount: BN,
 		userTokenAccount: PublicKey,
 		marketIndex = 0,
@@ -2029,7 +2050,7 @@ export class DriftClient {
 		donateAmount?: BN,
 		txParams?: TxParams,
 		customMaxMarginRatio?: number
-	): Promise<[TransactionSignature, PublicKey]> {
+	): Promise<[Transaction | VersionedTransaction, PublicKey]> {
 		const ixs = [];
 
 		const [userAccountPublicKey, initializeUserAccountIx] =
@@ -2038,8 +2059,6 @@ export class DriftClient {
 				name,
 				referrerInfo
 			);
-
-		const additionalSigners: Array<Signer> = [];
 
 		const spotMarket = this.getSpotMarketAccount(marketIndex);
 
@@ -2133,6 +2152,49 @@ export class DriftClient {
 		}
 
 		const tx = await this.buildTransaction(ixs, txParams);
+
+		return [tx, userAccountPublicKey];
+	}
+
+	/**
+	 * Creates the User account for a user, and deposits some initial collateral
+	 * @param amount
+	 * @param userTokenAccount
+	 * @param marketIndex
+	 * @param subAccountId
+	 * @param name
+	 * @param fromSubAccountId
+	 * @param referrerInfo
+	 * @param donateAmount
+	 * @param txParams
+	 * @returns
+	 */
+	public async initializeUserAccountAndDepositCollateral(
+		amount: BN,
+		userTokenAccount: PublicKey,
+		marketIndex = 0,
+		subAccountId = 0,
+		name?: string,
+		fromSubAccountId?: number,
+		referrerInfo?: ReferrerInfo,
+		donateAmount?: BN,
+		txParams?: TxParams,
+		customMaxMarginRatio?: number
+	): Promise<[TransactionSignature, PublicKey]> {
+		const [tx, userAccountPublicKey] =
+			await this.createInitializeUserAccountAndDepositCollateral(
+				amount,
+				userTokenAccount,
+				marketIndex,
+				subAccountId,
+				name,
+				fromSubAccountId,
+				referrerInfo,
+				donateAmount,
+				txParams,
+				customMaxMarginRatio
+			);
+		const additionalSigners: Array<Signer> = [];
 
 		const { txSig, slot } = await this.sendTransaction(
 			tx,
@@ -2770,7 +2832,7 @@ export class DriftClient {
 	}
 
 	public async sendSignedTx(
-		tx: Transaction,
+		tx: Transaction | VersionedTransaction,
 		opts?: ConfirmOptions
 	): Promise<TransactionSignature> {
 		const { txSig } = await this.sendTransaction(
@@ -4118,6 +4180,10 @@ export class DriftClient {
 		const outMarket = this.getSpotMarketAccount(outMarketIndex);
 		const inMarket = this.getSpotMarketAccount(inMarketIndex);
 
+		const isExactOut = swapMode === 'ExactOut' || quote.swapMode === 'ExactOut';
+		const amountIn = new BN(quote.inAmount);
+		const exactOutBufferedAmountIn = amountIn.muln(1001).divn(1000); // Add 10bp buffer
+
 		if (!quote) {
 			const fetchedQuote = await jupiterClient.getQuote({
 				inputMint: inMarket.mint,
@@ -4198,7 +4264,7 @@ export class DriftClient {
 		const { beginSwapIx, endSwapIx } = await this.getSwapIx({
 			outMarketIndex,
 			inMarketIndex,
-			amountIn: new BN(quote.inAmount),
+			amountIn: isExactOut ? exactOutBufferedAmountIn : amountIn,
 			inTokenAccount: inAssociatedTokenAccount,
 			outTokenAccount: outAssociatedTokenAccount,
 			reduceOnly,
@@ -6844,6 +6910,250 @@ export class DriftClient {
 		return undefined;
 	}
 
+	public getReceiverProgram(): Program<PythSolanaReceiver> {
+		if (this.receiverProgram === undefined) {
+			this.receiverProgram = new Program(
+				pythSolanaReceiverIdl,
+				DEFAULT_RECEIVER_PROGRAM_ID,
+				this.provider
+			);
+		}
+		return this.receiverProgram;
+	}
+
+	public async postPythPullOracleUpdateAtomic(
+		vaaString: string,
+		feedId: string
+	): Promise<TransactionSignature> {
+		const postIxs = await this.getPostPythPullOracleUpdateAtomicIxs(
+			vaaString,
+			feedId
+		);
+		const tx = await this.buildTransaction(postIxs);
+		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+
+		return txSig;
+	}
+
+	public async getPostPythPullOracleUpdateAtomicIxs(
+		vaaString: string,
+		feedId: string,
+		numSignatures = 2
+	): Promise<TransactionInstruction[]> {
+		feedId = trimFeedId(feedId);
+		const accumulatorUpdateData = parseAccumulatorUpdateData(
+			Buffer.from(vaaString, 'base64')
+		);
+		const guardianSetIndex = accumulatorUpdateData.vaa.readUInt32BE(1);
+		const guardianSet = getGuardianSetPda(
+			guardianSetIndex,
+			DEFAULT_WORMHOLE_PROGRAM_ID
+		);
+		const trimmedVaa = trimVaaSignatures(
+			accumulatorUpdateData.vaa,
+			numSignatures
+		);
+
+		const postIxs: TransactionInstruction[] = [];
+		for (const update of accumulatorUpdateData.updates) {
+			postIxs.push(
+				await this.getSinglePostPythPullOracleAtomicIx(
+					{
+						vaa: trimmedVaa,
+						merklePriceUpdate: update,
+					},
+					feedId,
+					guardianSet
+				)
+			);
+		}
+
+		return postIxs;
+	}
+
+	public async getSinglePostPythPullOracleAtomicIx(
+		params: {
+			vaa: Buffer;
+			merklePriceUpdate: {
+				message: Buffer;
+				proof: number[][];
+			};
+		},
+		feedId: string,
+		guardianSet: PublicKey
+	): Promise<TransactionInstruction> {
+		const feedIdBuffer = getFeedIdUint8Array(feedId);
+		const receiverProgram = this.getReceiverProgram();
+
+		const encodedParams = receiverProgram.coder.types.encode(
+			'PostUpdateAtomicParams',
+			params
+		);
+
+		return this.program.instruction.postPythPullOracleUpdateAtomic(
+			feedIdBuffer,
+			encodedParams,
+			{
+				accounts: {
+					keeper: this.wallet.publicKey,
+					pythSolanaReceiver: DRIFT_ORACLE_RECEIVER_ID,
+					guardianSet,
+					priceFeed: getPythPullOraclePublicKey(
+						this.program.programId,
+						feedIdBuffer
+					),
+				},
+			}
+		);
+	}
+
+	public async updatePythPullOracle(
+		vaaString: string,
+		feedId: string
+	): Promise<TransactionSignature> {
+		feedId = trimFeedId(feedId);
+		const accumulatorUpdateData = parseAccumulatorUpdateData(
+			Buffer.from(vaaString, 'base64')
+		);
+		const guardianSetIndex = accumulatorUpdateData.vaa.readUInt32BE(1);
+		const guardianSet = getGuardianSetPda(
+			guardianSetIndex,
+			DEFAULT_WORMHOLE_PROGRAM_ID
+		);
+
+		const [postIxs, encodedVaaAddress] = await this.getBuildEncodedVaaIxs(
+			accumulatorUpdateData.vaa,
+			guardianSet
+		);
+
+		for (const update of accumulatorUpdateData.updates) {
+			postIxs.push(
+				await this.getUpdatePythPullOracleIxs(
+					{
+						merklePriceUpdate: update,
+					},
+					feedId,
+					encodedVaaAddress.publicKey
+				)
+			);
+		}
+
+		const tx = await this.buildTransaction(postIxs);
+		const { txSig } = await this.sendTransaction(
+			tx,
+			[encodedVaaAddress],
+			this.opts
+		);
+
+		return txSig;
+	}
+
+	public async getUpdatePythPullOracleIxs(
+		params: {
+			merklePriceUpdate: {
+				message: Buffer;
+				proof: number[][];
+			};
+		},
+		feedId: string,
+		encodedVaaAddress: PublicKey
+	): Promise<TransactionInstruction> {
+		const feedIdBuffer = getFeedIdUint8Array(feedId);
+		const receiverProgram = this.getReceiverProgram();
+
+		const encodedParams = receiverProgram.coder.types.encode(
+			'PostUpdateParams',
+			params
+		);
+
+		return this.program.instruction.updatePythPullOracle(
+			feedIdBuffer,
+			encodedParams,
+			{
+				accounts: {
+					keeper: this.wallet.publicKey,
+					pythSolanaReceiver: DRIFT_ORACLE_RECEIVER_ID,
+					encodedVaa: encodedVaaAddress,
+					priceFeed: getPythPullOraclePublicKey(
+						this.program.programId,
+						feedIdBuffer
+					),
+				},
+			}
+		);
+	}
+
+	public async getBuildEncodedVaaIxs(
+		vaa: Buffer,
+		guardianSet: PublicKey
+	): Promise<[TransactionInstruction[], Keypair]> {
+		const postIxs: TransactionInstruction[] = [];
+
+		if (this.wormholeProgram === undefined) {
+			this.wormholeProgram = new Program(
+				wormholeCoreBridgeIdl,
+				DEFAULT_WORMHOLE_PROGRAM_ID,
+				this.provider
+			);
+		}
+
+		const encodedVaaKeypair = new Keypair();
+		postIxs.push(
+			await this.wormholeProgram.account.encodedVaa.createInstruction(
+				encodedVaaKeypair,
+				vaa.length + 46
+			)
+		);
+
+		// Why do we need this too?
+		postIxs.push(
+			await this.wormholeProgram.methods
+				.initEncodedVaa()
+				.accounts({
+					encodedVaa: encodedVaaKeypair.publicKey,
+				})
+				.instruction()
+		);
+
+		// Split the write into two ixs
+		postIxs.push(
+			await this.wormholeProgram.methods
+				.writeEncodedVaa({
+					index: 0,
+					data: vaa.subarray(0, 755),
+				})
+				.accounts({
+					draftVaa: encodedVaaKeypair.publicKey,
+				})
+				.instruction()
+		);
+
+		postIxs.push(
+			await this.wormholeProgram.methods
+				.writeEncodedVaa({
+					index: 755,
+					data: vaa.subarray(755),
+				})
+				.accounts({
+					draftVaa: encodedVaaKeypair.publicKey,
+				})
+				.instruction()
+		);
+
+		// Verify
+		postIxs.push(
+			await this.wormholeProgram.methods
+				.verifyEncodedVaaV1()
+				.accounts({
+					guardianSet,
+					draftVaa: encodedVaaKeypair.publicKey,
+				})
+				.instruction()
+		);
+
+		return [postIxs, encodedVaaKeypair];
+	}
+
 	private handleSignedTransaction(signedTxs: SignedTxData[]) {
 		if (this.enableMetricsEvents && this.metricsEventEmitter) {
 			this.metricsEventEmitter.emit('txSigned', signedTxs);
@@ -6859,11 +7169,7 @@ export class DriftClient {
 	private isVersionedTransaction(
 		tx: Transaction | VersionedTransaction
 	): boolean {
-		const version = (tx as VersionedTransaction)?.version;
-		const isVersionedTx =
-			tx instanceof VersionedTransaction || version !== undefined;
-
-		return isVersionedTx;
+		return isVersionedTransaction(tx);
 	}
 
 	sendTransaction(

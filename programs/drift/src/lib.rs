@@ -583,6 +583,22 @@ pub mod drift {
         handle_transfer_protocol_if_shares(ctx, market_index, shares)
     }
 
+    pub fn update_pyth_pull_oracle(
+        ctx: Context<UpdatePythPullOraclePriceFeed>,
+        feed_id: [u8; 32],
+        params: Vec<u8>,
+    ) -> Result<()> {
+        handle_update_pyth_pull_oracle(ctx, feed_id, params)
+    }
+
+    pub fn post_pyth_pull_oracle_update_atomic(
+        ctx: Context<PostPythPullOracleUpdateAtomic>,
+        feed_id: [u8; 32],
+        params: Vec<u8>,
+    ) -> Result<()> {
+        handle_post_pyth_pull_oracle_update_atomic(ctx, feed_id, params)
+    }
+
     // Admin Instructions
 
     pub fn initialize(ctx: Context<Initialize>) -> Result<()> {
@@ -1325,6 +1341,13 @@ pub mod drift {
         perp_market_index: u16,
     ) -> Result<()> {
         handle_delete_prelaunch_oracle(ctx, perp_market_index)
+    }
+
+    pub fn initialize_pyth_pull_oracle(
+        ctx: Context<InitPythPullPriceFeed>,
+        feed_id: [u8; 32],
+    ) -> Result<()> {
+        handle_initialize_pyth_pull_oracle(ctx, feed_id)
     }
 }
 
