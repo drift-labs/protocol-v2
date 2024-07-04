@@ -1677,13 +1677,15 @@ impl UserStats {
         fuel_boost: u8,
         quote_asset_amount: u64,
     ) -> DriftResult {
-        self.fuel_maker = self.fuel_maker.saturating_add(
-            fuel_boost
-                .cast::<u64>()?
-                .saturating_mul(quote_asset_amount / QUOTE_PRECISION_U64)
-                .cast::<u32>()
-                .unwrap_or(u32::MAX),
-        ); // todo of ratio
+        if fuel_boost > 0 {
+            self.fuel_maker = self.fuel_maker.saturating_add(
+                fuel_boost
+                    .cast::<u64>()?
+                    .saturating_mul(quote_asset_amount / QUOTE_PRECISION_U64)
+                    .cast::<u32>()
+                    .unwrap_or(u32::MAX),
+            ); // todo of ratio
+        }
         Ok(())
     }
 
@@ -1692,13 +1694,15 @@ impl UserStats {
         fuel_boost: u8,
         quote_asset_amount: u64,
     ) -> DriftResult {
-        self.fuel_taker = self.fuel_taker.saturating_add(
-            fuel_boost
-                .cast::<u64>()?
-                .saturating_mul(quote_asset_amount / QUOTE_PRECISION_U64)
-                .cast::<u32>()
-                .unwrap_or(u32::MAX),
-        ); // todo of ratio
+        if fuel_boost > 0 {
+            self.fuel_taker = self.fuel_taker.saturating_add(
+                fuel_boost
+                    .cast::<u64>()?
+                    .saturating_mul(quote_asset_amount / QUOTE_PRECISION_U64)
+                    .cast::<u32>()
+                    .unwrap_or(u32::MAX),
+            ); // todo of ratio
+        }
         Ok(())
     }
 
