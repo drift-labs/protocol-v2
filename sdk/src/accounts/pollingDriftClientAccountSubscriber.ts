@@ -116,10 +116,7 @@ export class PollingDriftClientAccountSubscriber
 			this.eventEmitter.emit('update');
 		}
 
-		await Promise.all([
-			this.setPerpOracleMap(),
-			this.setSpotOracleMap()
-		]);
+		await Promise.all([this.setPerpOracleMap(), this.setSpotOracleMap()]);
 
 		this.isSubscribing = false;
 		this.isSubscribed = subscriptionSucceeded;
@@ -145,14 +142,16 @@ export class PollingDriftClientAccountSubscriber
 
 		await Promise.all([
 			this.updatePerpMarketAccountsToPoll(),
-			this.updateSpotMarketAccountsToPoll()
+			this.updateSpotMarketAccountsToPoll(),
 		]);
 	}
 
 	async updatePerpMarketAccountsToPoll(): Promise<boolean> {
-		await Promise.all(this.perpMarketIndexes.map((marketIndex) => {
-			return this.addPerpMarketAccountToPoll(marketIndex);
-		}));
+		await Promise.all(
+			this.perpMarketIndexes.map((marketIndex) => {
+				return this.addPerpMarketAccountToPoll(marketIndex);
+			})
+		);
 		return true;
 	}
 
@@ -173,9 +172,11 @@ export class PollingDriftClientAccountSubscriber
 	}
 
 	async updateSpotMarketAccountsToPoll(): Promise<boolean> {
-		await Promise.all(this.spotMarketIndexes.map(async (marketIndex) => {
-			await this.addSpotMarketAccountToPoll(marketIndex);
-		}));
+		await Promise.all(
+			this.spotMarketIndexes.map(async (marketIndex) => {
+				await this.addSpotMarketAccountToPoll(marketIndex);
+			})
+		);
 
 		return true;
 	}
