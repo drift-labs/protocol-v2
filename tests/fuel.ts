@@ -179,7 +179,7 @@ describe('place and fill spot order', () => {
 		await fillerDriftClientUser.unsubscribe();
 	});
 
-	it('fill via match', async () => {
+	it('fuel for deposit', async () => {
 		const takerDriftClient = await createTestClient({
 			referrer: fillerDriftClientUser.getUserAccount().authority,
 			referrerStats: fillerDriftClient.getUserStatsAccountPublicKey(),
@@ -249,6 +249,41 @@ describe('place and fill spot order', () => {
 		assert(fuelDict['depositFuel'].gt(ZERO));
 		assert(fuelDict['depositFuel'].eqn(2142));
 
+		await takerDriftClientUser.unsubscribe();
+		await takerDriftClient.unsubscribe();
+		await makerDriftClient.unsubscribe();
+		await makerDriftClientUser.unsubscribe();
+	});
+
+	it('fuel for spot trade', async () => {
+		const takerDriftClient = await createTestClient({
+			referrer: fillerDriftClientUser.getUserAccount().authority,
+			referrerStats: fillerDriftClient.getUserStatsAccountPublicKey(),
+		});
+		const takerDriftClientUser = new User({
+			driftClient: takerDriftClient,
+			userAccountPublicKey: await takerDriftClient.getUserAccountPublicKey(),
+			accountSubscription: {
+				type: 'polling',
+				accountLoader: bulkAccountLoader,
+			},
+		});
+		await takerDriftClientUser.subscribe();
+
+		const makerDriftClient = await createTestClient();
+		const makerDriftClientUser = new User({
+			driftClient: makerDriftClient,
+			userAccountPublicKey: await makerDriftClient.getUserAccountPublicKey(),
+			accountSubscription: {
+				type: 'polling',
+				accountLoader: bulkAccountLoader,
+			},
+		});
+		await makerDriftClientUser.subscribe();
+
+		const marketIndex = 1;
+		const baseAssetAmount = BASE_PRECISION;
+
 		await makerDriftClient.placeSpotOrder(
 			getLimitOrderParams({
 				marketIndex,
@@ -261,6 +296,8 @@ describe('place and fill spot order', () => {
 		);
 		await makerDriftClientUser.fetchAccounts();
 		assert(!makerDriftClientUser.getOrderByUserOrderId(2).postOnly);
+
+		await fillerDriftClient.updateSpotMarketFuel(1, null, null, 100, 200);
 
 		await takerDriftClient.placeSpotOrder(
 			getLimitOrderParams({
@@ -298,20 +335,45 @@ describe('place and fill spot order', () => {
 
 		bankrunContextWrapper.connection.printTxLogs(fillTx);
 
-		// const makerUSDCAmount = makerDriftClient.getQuoteAssetTokenAmount();
-		// const makerSolAmount = makerDriftClient.getTokenAmount(1);
-		// assert(makerUSDCAmount.eq(new BN(140008000)));
-		// assert(makerSolAmount.eq(new BN(0)));
+		const makerUSDCAmount = makerDriftClient.getQuoteAssetTokenAmount();
+		const makerSolAmount = makerDriftClient.getTokenAmount(1);
+		console.log(makerUSDCAmount.toString(), makerSolAmount.toString());
+		assert(makerUSDCAmount.eq(new BN(140008000)));
+		assert(makerSolAmount.eq(new BN(-1000000001))); // round borrows up
 
-		// const takerUSDCAmount = takerDriftClient.getQuoteAssetTokenAmount();
-		// const takerSolAmount = takerDriftClient.getTokenAmount(1);
-		// assert(takerUSDCAmount.eq(new BN(59960000)));
-		// assert(takerSolAmount.eq(new BN(1000000000)));
+		const takerUSDCAmount = takerDriftClient.getQuoteAssetTokenAmount();
+		const takerSolAmount = takerDriftClient.getTokenAmount(1);
+		console.log(takerUSDCAmount.toString(), takerSolAmount.toString());
+
+		assert(takerUSDCAmount.eq(new BN(59960000)));
+		assert(takerSolAmount.eq(new BN(1000000000)));
 
 		console.log(fillerDriftClient.getQuoteAssetTokenAmount().toNumber());
 
 		// successful fill
 		assert(fillerDriftClient.getQuoteAssetTokenAmount().gt(ZERO));
+
+		const currentClock2 =
+			await bankrunContextWrapper.context.banksClient.getClock();
+
+		const fuelDictTaker = takerDriftClientUser.getFuelBonus(
+			new BN(currentClock2.unixTimestamp.toString()),
+			true,
+			true
+		);
+		// console.log(fuelDictTaker);
+		assert(fuelDictTaker['takerFuel'].gt(ZERO));
+		assert(fuelDictTaker['takerFuel'].eqn(4000));
+
+		const fuelDictMaker = makerDriftClientUser.getFuelBonus(
+			new BN(currentClock2.unixTimestamp.toString()),
+			true,
+			true
+		);
+		// console.log(fuelDictMaker);
+		assert(fuelDictMaker['takerFuel'].eq(ZERO));
+		assert(fuelDictMaker['makerFuel'].gt(ZERO));
+		assert(fuelDictMaker['makerFuel'].eqn(4000 * 2));
 
 		await takerDriftClientUser.unsubscribe();
 		await takerDriftClient.unsubscribe();
