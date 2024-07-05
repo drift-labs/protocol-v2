@@ -17,6 +17,7 @@ test_files=(
   # updateK.ts
   # postOnlyAmmFulfillment.ts
   # TODO BROKEN ^^
+  fuel.ts
   admin.ts
   assetTier.ts
   cancelAllOrders.ts

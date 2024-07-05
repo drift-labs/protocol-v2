@@ -436,6 +436,7 @@ impl User {
         if self.last_fuel_bonus_update_ts > 0 {
             now.safe_sub(self.last_fuel_bonus_update_ts)
         } else {
+            // start ts for exisiting accounts for when fuel accumulates from
             return Ok(now.safe_sub(1715745600_i64)?.max(0));
         }
     }
@@ -448,7 +449,7 @@ impl User {
         user_stats: &mut UserStats,
         now: i64,
     ) -> DriftResult {
-        user_stats.update_fuel_bonus(fuel_deposits, fuel_borrows, fuel_positions, now)?;
+        user_stats.update_fuel_bonus(fuel_deposits, fuel_borrows, fuel_positions)?;
         self.last_fuel_bonus_update_ts = now;
 
         Ok(())
@@ -488,7 +489,6 @@ impl User {
             margin_calculation.fuel_deposits,
             margin_calculation.fuel_borrows,
             margin_calculation.fuel_positions,
-            now,
         )?;
 
         self.last_fuel_bonus_update_ts = now;
@@ -542,7 +542,6 @@ impl User {
             calculation.fuel_deposits,
             calculation.fuel_borrows,
             calculation.fuel_positions,
-            now,
         )?;
         self.last_fuel_bonus_update_ts = now;
 
@@ -1615,12 +1614,10 @@ impl UserStats {
         fuel_deposits: u32,
         fuel_borrows: u32,
         fuel_positions: u32,
-        _now: i64,
     ) -> DriftResult {
         self.fuel_deposits = self.fuel_deposits.saturating_add(fuel_deposits);
         self.fuel_borrows = self.fuel_borrows.saturating_add(fuel_borrows);
         self.fuel_positions = self.fuel_positions.saturating_add(fuel_positions);
-        // self.last_fuel_bonus_update_ts = now;
 
         Ok(())
     }

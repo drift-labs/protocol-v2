@@ -3561,14 +3561,6 @@ export class AdminClient extends DriftClient {
 		fuelBoostTaker?: number,
 		fuelBoostMaker?: number
 	): Promise<TransactionInstruction> {
-		// const params = {
-		// 	spotMarketIndex,
-		// 	fuelBoostDeposits: fuelBoostDeposits || null,
-		// 	fuelBoostBorrows: fuelBoostBorrows || null,
-		// 	fuelBoostTaker: fuelBoostTaker || null,
-		// 	fuelBoostMaker: fuelBoostMaker || null,
-		// };
-
 		const spotMarketPublicKey = await getSpotMarketPublicKey(
 			this.program.programId,
 			spotMarketIndex

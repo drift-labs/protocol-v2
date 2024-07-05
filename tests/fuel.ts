@@ -248,7 +248,6 @@ describe('place and fill spot order', () => {
 		console.log(fuelDict);
 		assert(fuelDict['depositFuel'].gt(ZERO));
 		assert(fuelDict['depositFuel'].eqn(2142));
-		return 0;
 
 		await makerDriftClient.placeSpotOrder(
 			getLimitOrderParams({

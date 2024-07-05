@@ -1722,7 +1722,6 @@ fn fulfill_perp_order(
         taker_margin_calculation.fuel_deposits,
         taker_margin_calculation.fuel_borrows,
         taker_margin_calculation.fuel_positions,
-        now,
     )?;
     user.last_fuel_bonus_update_ts = now;
 
@@ -1765,7 +1764,6 @@ fn fulfill_perp_order(
                 maker_margin_calculation.fuel_deposits,
                 maker_margin_calculation.fuel_borrows,
                 maker_margin_calculation.fuel_positions,
-                now,
             )?;
         }
         maker.last_fuel_bonus_update_ts = now;
@@ -4088,7 +4086,6 @@ fn fulfill_spot_order(
         taker_margin_calculation.fuel_deposits,
         taker_margin_calculation.fuel_borrows,
         taker_margin_calculation.fuel_positions,
-        now,
     )?;
     user.last_fuel_bonus_update_ts = now;
 
@@ -4176,10 +4173,10 @@ fn fulfill_spot_order(
                 maker_margin_calculation.fuel_deposits,
                 maker_margin_calculation.fuel_borrows,
                 maker_margin_calculation.fuel_positions,
-                now,
             )?;
+
+            maker.last_fuel_bonus_update_ts = now;
         }
-        maker.last_fuel_bonus_update_ts = now;
 
         if !maker_margin_calculation.meets_margin_requirement() {
             msg!(
