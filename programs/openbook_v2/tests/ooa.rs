@@ -13,7 +13,7 @@ pub async fn setup_open_orders_account(
     banks_client: &mut BanksClient,
     keypair: &Keypair,
     market: &Pubkey,
-) -> anyhow::Result<(Pubkey, Pubkey)> {
+) -> (Pubkey, Pubkey) {
     let open_orders_indexer = Pubkey::find_program_address(
         &[b"OpenOrdersIndexer".as_ref(), keypair.pubkey().as_ref()],
         &openbook_v2_light::id(),
@@ -60,8 +60,8 @@ pub async fn setup_open_orders_account(
         &[ooi_ix, ooa_ix],
         Some(&keypair.pubkey()),
         &[keypair],
-        banks_client.get_latest_blockhash().await?,
+        banks_client.get_latest_blockhash().await.unwrap(),
     );
-    banks_client.process_transaction(tx).await?;
-    return Ok((account, open_orders_indexer));
+    banks_client.process_transaction(tx).await.unwrap();
+    (account, open_orders_indexer)
 }

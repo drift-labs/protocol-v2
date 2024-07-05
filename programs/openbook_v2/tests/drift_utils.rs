@@ -14,7 +14,7 @@ pub async fn initialize_drift(
     banks_client: &mut BanksClient,
     keypair: &Keypair,
     quote_mint: &Pubkey,
-) -> anyhow::Result<(Pubkey, Pubkey)> {
+) -> (Pubkey, Pubkey) {
     let state = Pubkey::find_program_address(&[b"drift_state".as_ref()], &drift::id()).0;
     let drift_signer = Pubkey::find_program_address(&[b"drift_signer".as_ref()], &drift::id()).0;
 
@@ -36,10 +36,10 @@ pub async fn initialize_drift(
         &[initialize_ix],
         Some(&keypair.pubkey()),
         &[keypair],
-        banks_client.get_latest_blockhash().await?,
+        banks_client.get_latest_blockhash().await.unwrap(),
     );
-    banks_client.process_transaction(tx).await?;
-    Ok((state, drift_signer))
+    banks_client.process_transaction(tx).await.unwrap();
+    (state, drift_signer)
 }
 
 // imitates USDC market
@@ -49,7 +49,7 @@ pub async fn init_quote_market(
     quote_mint: &Pubkey,
     drift_signer: &Pubkey,
     state: &Pubkey,
-) -> anyhow::Result<(Pubkey, Pubkey, Pubkey)> {
+) -> (Pubkey, Pubkey, Pubkey) {
     let data = initialize_quote_market_data();
     let spot_index = 0_u16;
     let spot_market = Pubkey::find_program_address(
@@ -88,10 +88,10 @@ pub async fn init_quote_market(
         &[init_quote_market],
         Some(&keypair.pubkey()),
         &[keypair],
-        banks_client.get_latest_blockhash().await?,
+        banks_client.get_latest_blockhash().await.unwrap(),
     );
-    banks_client.process_transaction(tx).await?;
-    Ok((spot_market, spot_market_vault, insurance_fund_vault))
+    banks_client.process_transaction(tx).await.unwrap();
+    (spot_market, spot_market_vault, insurance_fund_vault)
 }
 
 // initialize spot market - index 1, imitating wsol market
@@ -102,7 +102,7 @@ pub async fn init_spot_market(
     drift_signer: &Pubkey,
     state: &Pubkey,
     oracle_feed: &Pubkey,
-) -> anyhow::Result<(Pubkey, Pubkey, Pubkey)> {
+) -> (Pubkey, Pubkey, Pubkey) {
     let data = initialize_spot_market_data();
     let spot_index = 1_u16;
     let spot_market = Pubkey::find_program_address(
@@ -143,15 +143,15 @@ pub async fn init_spot_market(
         &[keypair],
         banks_client.get_latest_blockhash().await.unwrap(),
     );
-    banks_client.process_transaction(tx).await?;
-    Ok((spot_market, spot_market_vault, insurance_fund_vault))
+    banks_client.process_transaction(tx).await.unwrap();
+    (spot_market, spot_market_vault, insurance_fund_vault)
 }
 
 pub async fn create_user(
     banks_client: &mut BanksClient,
     keypair: &Keypair,
     state: &Pubkey,
-) -> anyhow::Result<(Pubkey, Pubkey)> {
+) -> (Pubkey, Pubkey) {
     let user_stats = Pubkey::find_program_address(
         &[b"user_stats".as_ref(), &keypair.pubkey().as_ref()],
         &drift::id(),
@@ -205,8 +205,8 @@ pub async fn create_user(
         &[keypair],
         banks_client.get_latest_blockhash().await.unwrap(),
     );
-    banks_client.process_transaction(tx).await?;
-    Ok((user, user_stats))
+    banks_client.process_transaction(tx).await.unwrap();
+    (user, user_stats)
 }
 
 // imitates drift quote market - USDC
@@ -276,7 +276,7 @@ pub async fn deposit_and_execute(
     user_stats: &Pubkey,
     mint: &Pubkey,
     remaining_accounts: &mut Vec<AccountMeta>,
-) -> anyhow::Result<()> {
+)  {
     let mut accounts = vec![
         AccountMeta::new(*state, false),
         AccountMeta::new(*user, false),
@@ -313,8 +313,7 @@ pub async fn deposit_and_execute(
         &[keypair],
         banks_client.get_latest_blockhash().await.unwrap(),
     );
-    banks_client.process_transaction(tx).await?;
-    Ok(())
+    banks_client.process_transaction(tx).await.unwrap();
 }
 
 pub async fn initialize_openbook_v2_config(
@@ -326,7 +325,7 @@ pub async fn initialize_openbook_v2_config(
     state: &Pubkey,
     drift_signer: &Pubkey,
     market_index: u16,
-) -> anyhow::Result<Pubkey> {
+) -> Pubkey {
     let config = Pubkey::find_program_address(
         &[
             b"openbook_v2_fulfillment_config".as_ref(),
@@ -362,8 +361,8 @@ pub async fn initialize_openbook_v2_config(
         &[keypair],
         banks_client.get_latest_blockhash().await.unwrap(),
     );
-    banks_client.process_transaction(tx).await?;
-    Ok(config)
+    banks_client.process_transaction(tx).await.unwrap();
+    config
 }
 
 pub async fn place_spot_order_and_execute(
@@ -375,7 +374,7 @@ pub async fn place_spot_order_and_execute(
     quote_market: &Pubkey,
     state: &Pubkey,
     oracle_feed: &Pubkey,
-) -> anyhow::Result<()> {
+) {
     let data = drift::instruction::PlaceSpotOrder { params: args }.data();
     let place_order_ix = Instruction {
         program_id: drift::id(),
@@ -393,8 +392,7 @@ pub async fn place_spot_order_and_execute(
         &[place_order_ix],
         Some(&keypair.pubkey()),
         &[keypair],
-        banks_client.get_latest_blockhash().await?,
+        banks_client.get_latest_blockhash().await.unwrap(),
     );
-    banks_client.process_transaction(tx).await?;
-    Ok(())
+    banks_client.process_transaction(tx).await.unwrap();
 }

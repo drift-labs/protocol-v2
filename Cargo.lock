@@ -2686,7 +2686,6 @@ name = "openbook-v2-light"
 version = "0.1.0"
 dependencies = [
  "anchor-lang",
- "anyhow",
  "borsh 0.10.3",
  "bytemuck",
  "drift",
