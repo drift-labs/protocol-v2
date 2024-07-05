@@ -5,7 +5,7 @@ use crate::math::auction::{calculate_auction_price, is_auction_complete};
 use crate::math::casting::Cast;
 use crate::math::constants::{
     EPOCH_DURATION, OPEN_ORDER_MARGIN_REQUIREMENT, PRICE_TIMES_AMM_TO_QUOTE_PRECISION_RATIO,
-    QUOTE_PRECISION, QUOTE_SPOT_MARKET_INDEX, THIRTY_DAY,
+    QUOTE_PRECISION, QUOTE_SPOT_MARKET_INDEX, THIRTY_DAY, FUEL_START_TS,
 };
 use crate::math::lp::{calculate_lp_open_bids_asks, calculate_settle_lp_metrics};
 use crate::math::margin::MarginRequirementType;
@@ -436,8 +436,8 @@ impl User {
         if self.last_fuel_bonus_update_ts > 0 {
             now.safe_sub(self.last_fuel_bonus_update_ts)
         } else {
-            // start ts for exisiting accounts for when fuel accumulates from
-            return Ok(now.safe_sub(1715745600_i64)?.max(0));
+            // start ts for existing accounts pre fuel
+            return Ok(now.safe_sub(FUEL_START_TS)?.max(0));
         }
     }
 

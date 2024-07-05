@@ -53,12 +53,13 @@ pub mod fuel_scoring {
     use crate::state::user_map::{UserMap, UserStatsMap};
     use crate::test_utils::*;
     use crate::test_utils::{get_orders, get_positions, get_pyth_price, get_spot_positions};
+    use crate::FUEL_START_TS;
 
     use super::*;
 
     #[test]
     fn taker_maker_perp_fuel_boost() {
-        let mut now = 0_i64;
+        let mut now = FUEL_START_TS;
         let slot = 0_u64;
 
         let mut oracle_price = get_pyth_price(100, 6);
@@ -305,8 +306,8 @@ pub mod fuel_scoring {
         margin_context.fuel_bonus_numerator = taker_stats
             .get_fuel_bonus_numerator(taker.last_fuel_bonus_update_ts, now)
             .unwrap();
-        assert_eq!(margin_context.fuel_bonus_numerator, now);
-        assert_eq!(taker.last_fuel_bonus_update_ts, 0);
+        assert_eq!(margin_context.fuel_bonus_numerator, 1000000);
+        assert_eq!(taker.last_fuel_bonus_update_ts, FUEL_START_TS);
 
         let margin_calc: MarginCalculation = taker
             .calculate_margin_and_increment_fuel_bonus(
@@ -325,7 +326,7 @@ pub mod fuel_scoring {
 
     #[test]
     fn deposit_and_borrow_fuel() {
-        let mut now = 0_i64;
+        let mut now = FUEL_START_TS;
         let slot = 0_u64;
 
         let mut oracle_price = get_pyth_price(100, 6);
@@ -597,7 +598,7 @@ pub mod fuel_scoring {
 
     #[test]
     fn deposit_fuel() {
-        let mut now = 0_i64;
+        let mut now = FUEL_START_TS;
         let slot = 0_u64;
 
         let mut oracle_price = get_pyth_price(100, 6);

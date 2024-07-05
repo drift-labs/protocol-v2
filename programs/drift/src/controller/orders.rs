@@ -1698,10 +1698,11 @@ fn fulfill_perp_order(
         base_asset_amount
     )?;
 
-    let taker_base_asset_amount_signed = if maker_direction == PositionDirection::Long {
-        -(base_asset_amount as i64)
-    } else {
+    // if the maker is long, the user sold so
+    let taker_base_asset_amount_delta = if maker_direction == PositionDirection::Long {
         base_asset_amount as i64
+    } else {
+        -(base_asset_amount as i64)
     };
 
     let taker_margin_calculation =
@@ -1715,8 +1716,9 @@ fn fulfill_perp_order(
             } else {
                 MarginRequirementType::Fill
             })
-            .fuel_perp_delta(market_index, taker_base_asset_amount_signed as i64),
-        )?; // fueltodo side
+            .fuel_perp_delta(market_index, taker_base_asset_amount_delta)
+            .fuel_numerator(user, now),
+        )?;
 
     user_stats.update_fuel_bonus(
         taker_margin_calculation.fuel_deposits,
@@ -1756,7 +1758,7 @@ fn fulfill_perp_order(
                 spot_market_map,
                 oracle_map,
                 MarginContext::standard(margin_type)
-                    .fuel_perp_delta(market_index, -maker_base_asset_amount_filled as i64), // fueltodo: side
+                    .fuel_perp_delta(market_index, -maker_base_asset_amount_filled as i64),
             )?;
 
         if let Some(mut maker_stats) = maker_stats {
