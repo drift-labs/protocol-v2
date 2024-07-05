@@ -510,7 +510,8 @@ impl User {
         let strict = margin_requirement_type == MarginRequirementType::Initial;
         let context = MarginContext::standard(margin_requirement_type)
             .strict(strict)
-            .fuel_spot_delta(withdraw_market_index, withdraw_amount.cast::<i128>()?);
+            .fuel_spot_delta(withdraw_market_index, withdraw_amount.cast::<i128>()?)
+            .fuel_numerator(self, now);
 
         let calculation = calculate_margin_requirement_and_total_collateral_and_liability_info(
             self,

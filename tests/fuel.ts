@@ -15,6 +15,7 @@ import {
 	BASE_PRECISION,
 	getLimitOrderParams,
 	OracleSource,
+	ONE,
 } from '../sdk/src';
 
 import {
@@ -52,7 +53,7 @@ describe('place and fill spot order', () => {
 
 	const createTestClient = async (
 		referrerInfo?: ReferrerInfo
-	): Promise<TestClient> => {
+	): Promise<[TestClient, Keypair]> => {
 		const keypair = new Keypair();
 		await bankrunContextWrapper.fundKeypair(keypair, 10 ** 9);
 		await sleep(1000);
@@ -94,7 +95,7 @@ describe('place and fill spot order', () => {
 		await driftClient.updateUserMarginTradingEnabled([
 			{ subAccountId: 0, marginTradingEnabled: true },
 		]);
-		return driftClient;
+		return [driftClient, userUSDCAccount];
 	};
 
 	before(async () => {
@@ -180,7 +181,7 @@ describe('place and fill spot order', () => {
 	});
 
 	it('fuel for deposit', async () => {
-		const takerDriftClient = await createTestClient({
+		const [takerDriftClient, _takerUSDCAccount] = await createTestClient({
 			referrer: fillerDriftClientUser.getUserAccount().authority,
 			referrerStats: fillerDriftClient.getUserStatsAccountPublicKey(),
 		});
@@ -193,20 +194,6 @@ describe('place and fill spot order', () => {
 			},
 		});
 		await takerDriftClientUser.subscribe();
-
-		const makerDriftClient = await createTestClient();
-		const makerDriftClientUser = new User({
-			driftClient: makerDriftClient,
-			userAccountPublicKey: await makerDriftClient.getUserAccountPublicKey(),
-			accountSubscription: {
-				type: 'polling',
-				accountLoader: bulkAccountLoader,
-			},
-		});
-		await makerDriftClientUser.subscribe();
-
-		const marketIndex = 1;
-		const baseAssetAmount = BASE_PRECISION;
 
 		assert(takerDriftClientUser.getTokenAmount(0).gt(ZERO));
 		const currentClock =
@@ -251,12 +238,10 @@ describe('place and fill spot order', () => {
 
 		await takerDriftClientUser.unsubscribe();
 		await takerDriftClient.unsubscribe();
-		await makerDriftClient.unsubscribe();
-		await makerDriftClientUser.unsubscribe();
 	});
 
-	it('fuel for spot trade', async () => {
-		const takerDriftClient = await createTestClient({
+	it('fuel for borrow', async () => {
+		const [takerDriftClient, _takerUSDCAccount] = await createTestClient({
 			referrer: fillerDriftClientUser.getUserAccount().authority,
 			referrerStats: fillerDriftClient.getUserStatsAccountPublicKey(),
 		});
@@ -270,7 +255,100 @@ describe('place and fill spot order', () => {
 		});
 		await takerDriftClientUser.subscribe();
 
-		const makerDriftClient = await createTestClient();
+		assert(takerDriftClientUser.getTokenAmount(0).gt(ZERO));
+		const currentClock =
+			await bankrunContextWrapper.context.banksClient.getClock();
+		// console.log('current ts:', currentClock.unixTimestamp.toString());
+		assert(new BN(currentClock.unixTimestamp.toString()).gt(ZERO));
+
+		await fillerDriftClient.updateSpotMarketFuel(0, 2, 5);
+		await fillerDriftClient.updateSpotMarketFuel(1, 0, 10);
+
+		const fuelDictOGZERO = takerDriftClientUser.getFuelBonus(
+			new BN(currentClock.unixTimestamp.toString()),
+			true,
+			true
+		);
+		console.log(fuelDictOGZERO);
+		assert(fuelDictOGZERO['depositFuel'].eq(ZERO));
+
+		const fuelDictOG = takerDriftClientUser.getFuelBonus(
+			new BN(currentClock.unixTimestamp.toString()).addn(3600),
+			true,
+			true
+		);
+		console.log(fuelDictOG);
+		assert(fuelDictOG['depositFuel'].gt(ZERO));
+		assert(fuelDictOG['depositFuel'].eqn(2));
+
+		const timeProgress = 2592000; // 30 days in seconds
+
+		await bankrunContextWrapper.moveTimeForward(timeProgress);
+
+		const currentClock2 =
+			await bankrunContextWrapper.context.banksClient.getClock();
+
+		const fuelDict = takerDriftClientUser.getFuelBonus(
+			new BN(currentClock2.unixTimestamp.toString()),
+			true,
+			true
+		);
+		console.log(fuelDict);
+		assert(fuelDict['depositFuel'].gt(ZERO));
+		assert(fuelDict['depositFuel'].eqn(2142));
+		assert(takerDriftClientUser.getTokenAmount(0).eq(usdcAmount));
+
+		console.log(
+			'last fuel update:',
+			takerDriftClientUser.getUserAccount().lastFuelBonusUpdateTs.toString()
+		);
+
+		await takerDriftClient.withdraw(ONE, 0, _takerUSDCAccount.publicKey, true);
+		await takerDriftClient.fetchAccounts();
+		await takerDriftClientUser.fetchAccounts();
+
+		const userStatsAfterWithdraw = takerDriftClient.getUserStats().getAccount();
+
+		console.log(userStatsAfterWithdraw.fuelDeposits.toString());
+		assert(userStatsAfterWithdraw.fuelDeposits > 0);
+
+		console.log(takerDriftClientUser.getTokenAmount(0).toString());
+
+		assert(takerDriftClientUser.getTokenAmount(0).eq(usdcAmount.subn(2))); // 2 for rounding purposes?
+
+		console.log(
+			'last fuel update:',
+			takerDriftClientUser.getUserAccount().lastFuelBonusUpdateTs.toString()
+		);
+		const fuelDictAfter = takerDriftClientUser.getFuelBonus(
+			new BN(currentClock2.unixTimestamp.toString()),
+			true,
+			true
+		);
+		console.log(fuelDictAfter);
+		assert(fuelDictAfter['depositFuel'].gt(ZERO));
+		assert(fuelDictAfter['depositFuel'].eqn(2142));
+
+		await takerDriftClientUser.unsubscribe();
+		await takerDriftClient.unsubscribe();
+	});
+
+	it('fuel for spot trade', async () => {
+		const [takerDriftClient, _takerUSDCAccount] = await createTestClient({
+			referrer: fillerDriftClientUser.getUserAccount().authority,
+			referrerStats: fillerDriftClient.getUserStatsAccountPublicKey(),
+		});
+		const takerDriftClientUser = new User({
+			driftClient: takerDriftClient,
+			userAccountPublicKey: await takerDriftClient.getUserAccountPublicKey(),
+			accountSubscription: {
+				type: 'polling',
+				accountLoader: bulkAccountLoader,
+			},
+		});
+		await takerDriftClientUser.subscribe();
+
+		const [makerDriftClient, _makerUSDCAccount] = await createTestClient();
 		const makerDriftClientUser = new User({
 			driftClient: makerDriftClient,
 			userAccountPublicKey: await makerDriftClient.getUserAccountPublicKey(),
