@@ -496,53 +496,6 @@ impl User {
         Ok(margin_calculation)
     }
 
-    pub fn meets_place_order_margin_requirement_and_increment_fuel_bonus(
-        &mut self,
-        perp_market_map: &PerpMarketMap,
-        spot_market_map: &SpotMarketMap,
-        oracle_map: &mut OracleMap,
-        risk_increasing: bool,
-        user_stats: &mut UserStats,
-        now: i64,
-    ) -> DriftResult {
-        let margin_type = if risk_increasing {
-            MarginRequirementType::Initial
-        } else {
-            MarginRequirementType::Maintenance
-        };
-        let context = MarginContext::standard(margin_type).strict(true);
-
-        let calculation = calculate_margin_requirement_and_total_collateral_and_liability_info(
-            self,
-            perp_market_map,
-            spot_market_map,
-            oracle_map,
-            context,
-        )?;
-
-        if !calculation.meets_margin_requirement() {
-            msg!(
-                "total_collateral={}, margin_requirement={} margin type = {:?}",
-                calculation.total_collateral,
-                calculation.margin_requirement,
-                margin_type
-            );
-            return Err(ErrorCode::InsufficientCollateral);
-        }
-
-        validate_any_isolated_tier_requirements(self, calculation)?;
-
-        user_stats.update_fuel_bonus(
-            calculation.fuel_deposits,
-            calculation.fuel_borrows,
-            calculation.fuel_positions,
-            now,
-        )?;
-        self.last_fuel_bonus_update_ts = now;
-
-        Ok(())
-    }
-
     pub fn meets_withdraw_margin_requirement_and_increment_fuel_bonus(
         &mut self,
         perp_market_map: &PerpMarketMap,
