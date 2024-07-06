@@ -1,6 +1,9 @@
 use anchor_lang::prelude::*;
 use anchor_lang::Discriminator;
-use anchor_spl::token::{Token, TokenAccount};
+use anchor_spl::{
+    token::Token,
+    token_interface::{TokenAccount, TokenInterface},
+};
 use solana_program::program::invoke;
 use solana_program::system_instruction::transfer;
 
@@ -2109,14 +2112,14 @@ pub struct Deposit<'info> {
         seeds = [b"spot_market_vault".as_ref(), market_index.to_le_bytes().as_ref()],
         bump,
     )]
-    pub spot_market_vault: Box<Account<'info, TokenAccount>>,
+    pub spot_market_vault: Box<InterfaceAccount<'info, TokenAccount>>,
     #[account(
         mut,
         constraint = &spot_market_vault.mint.eq(&user_token_account.mint),
         token::authority = authority
     )]
-    pub user_token_account: Box<Account<'info, TokenAccount>>,
-    pub token_program: Program<'info, Token>,
+    pub user_token_account: Box<InterfaceAccount<'info, TokenAccount>>,
+    pub token_program: Interface<'info, TokenInterface>,
 }
 
 #[derive(Accounts)]
@@ -2131,14 +2134,14 @@ pub struct RevenuePoolDeposit<'info> {
         seeds = [b"spot_market_vault".as_ref(), spot_market.load()?.market_index.to_le_bytes().as_ref()],
         bump,
     )]
-    pub spot_market_vault: Box<Account<'info, TokenAccount>>,
+    pub spot_market_vault: Box<InterfaceAccount<'info, TokenAccount>>,
     #[account(
         mut,
         constraint = &spot_market_vault.mint.eq(&user_token_account.mint),
         token::authority = authority
     )]
-    pub user_token_account: Box<Account<'info, TokenAccount>>,
-    pub token_program: Program<'info, Token>,
+    pub user_token_account: Box<InterfaceAccount<'info, TokenAccount>>,
+    pub token_program: Interface<'info, TokenInterface>,
 }
 
 #[derive(Accounts)]
@@ -2161,7 +2164,7 @@ pub struct Withdraw<'info> {
         seeds = [b"spot_market_vault".as_ref(), market_index.to_le_bytes().as_ref()],
         bump,
     )]
-    pub spot_market_vault: Box<Account<'info, TokenAccount>>,
+    pub spot_market_vault: Box<InterfaceAccount<'info, TokenAccount>>,
     #[account(
         constraint = state.signer.eq(&drift_signer.key())
     )]
@@ -2171,8 +2174,8 @@ pub struct Withdraw<'info> {
         mut,
         constraint = &spot_market_vault.mint.eq(&user_token_account.mint)
     )]
-    pub user_token_account: Box<Account<'info, TokenAccount>>,
-    pub token_program: Program<'info, Token>,
+    pub user_token_account: Box<InterfaceAccount<'info, TokenAccount>>,
+    pub token_program: Interface<'info, TokenInterface>,
 }
 
 #[derive(Accounts)]
@@ -2199,7 +2202,7 @@ pub struct TransferDeposit<'info> {
         seeds = [b"spot_market_vault".as_ref(), market_index.to_le_bytes().as_ref()],
         bump,
     )]
-    pub spot_market_vault: Box<Account<'info, TokenAccount>>,
+    pub spot_market_vault: Box<InterfaceAccount<'info, TokenAccount>>,
 }
 
 #[derive(Accounts)]
@@ -2350,26 +2353,26 @@ pub struct Swap<'info> {
         seeds = [b"spot_market_vault".as_ref(), out_market_index.to_le_bytes().as_ref()],
         bump,
     )]
-    pub out_spot_market_vault: Box<Account<'info, TokenAccount>>,
+    pub out_spot_market_vault: Box<InterfaceAccount<'info, TokenAccount>>,
     #[account(
         mut,
         seeds = [b"spot_market_vault".as_ref(), in_market_index.to_le_bytes().as_ref()],
         bump,
     )]
-    pub in_spot_market_vault: Box<Account<'info, TokenAccount>>,
+    pub in_spot_market_vault: Box<InterfaceAccount<'info, TokenAccount>>,
     #[account(
         mut,
         constraint = &out_spot_market_vault.mint.eq(&out_token_account.mint),
         token::authority = authority
     )]
-    pub out_token_account: Box<Account<'info, TokenAccount>>,
+    pub out_token_account: Box<InterfaceAccount<'info, TokenAccount>>,
     #[account(
         mut,
         constraint = &in_spot_market_vault.mint.eq(&in_token_account.mint),
         token::authority = authority
     )]
-    pub in_token_account: Box<Account<'info, TokenAccount>>,
-    pub token_program: Program<'info, Token>,
+    pub in_token_account: Box<InterfaceAccount<'info, TokenAccount>>,
+    pub token_program: Interface<'info, TokenInterface>,
     #[account(
         constraint = state.signer.eq(&drift_signer.key())
     )]

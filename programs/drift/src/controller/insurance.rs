@@ -1,5 +1,5 @@
 use anchor_lang::prelude::*;
-use anchor_spl::token::{Token, TokenAccount};
+use anchor_spl::token_interface::{TokenAccount, TokenInterface};
 use solana_program::msg;
 
 use crate::controller::spot_balance::{
@@ -562,11 +562,11 @@ pub fn transfer_protocol_insurance_fund_stake(
 }
 
 pub fn attempt_settle_revenue_to_insurance_fund<'info>(
-    spot_market_vault: &Account<'info, TokenAccount>,
-    insurance_fund_vault: &Account<'info, TokenAccount>,
+    spot_market_vault: &InterfaceAccount<'info, TokenAccount>,
+    insurance_fund_vault: &InterfaceAccount<'info, TokenAccount>,
     spot_market: &mut SpotMarket,
     now: i64,
-    token_program: &Program<'info, Token>,
+    token_program: &Interface<'info, TokenInterface>,
     drift_signer: &AccountInfo<'info>,
     state: &State,
 ) -> Result<()> {

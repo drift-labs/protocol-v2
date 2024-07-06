@@ -1,11 +1,11 @@
 use crate::signer::get_signer_seeds;
 use anchor_lang::prelude::*;
-use anchor_spl::token::{self, CloseAccount, Token, TokenAccount, Transfer};
+use anchor_spl::token_interface::{self, CloseAccount, TokenAccount, TokenInterface, Transfer};
 
 pub fn send_from_program_vault<'info>(
-    token_program: &Program<'info, Token>,
-    from: &Account<'info, TokenAccount>,
-    to: &Account<'info, TokenAccount>,
+    token_program: &Interface<'info, TokenInterface>,
+    from: &InterfaceAccount<'info, TokenAccount>,
+    to: &InterfaceAccount<'info, TokenAccount>,
     authority: &AccountInfo<'info>,
     nonce: u8,
     amount: u64,
@@ -19,13 +19,13 @@ pub fn send_from_program_vault<'info>(
     };
     let cpi_program = token_program.to_account_info();
     let cpi_context = CpiContext::new_with_signer(cpi_program, cpi_accounts, signers);
-    token::transfer(cpi_context, amount)
+    token_interface::transfer(cpi_context, amount)
 }
 
 pub fn receive<'info>(
-    token_program: &Program<'info, Token>,
-    from: &Account<'info, TokenAccount>,
-    to: &Account<'info, TokenAccount>,
+    token_program: &Interface<'info, TokenInterface>,
+    from: &InterfaceAccount<'info, TokenAccount>,
+    to: &InterfaceAccount<'info, TokenAccount>,
     authority: &AccountInfo<'info>,
     amount: u64,
 ) -> Result<()> {
@@ -36,12 +36,12 @@ pub fn receive<'info>(
     };
     let cpi_program = token_program.to_account_info();
     let cpi_context = CpiContext::new(cpi_program, cpi_accounts);
-    token::transfer(cpi_context, amount)
+    token_interface::transfer(cpi_context, amount)
 }
 
 pub fn close_vault<'info>(
-    token_program: &Program<'info, Token>,
-    account: &Account<'info, TokenAccount>,
+    token_program: &Interface<'info, TokenInterface>,
+    account: &InterfaceAccount<'info, TokenAccount>,
     destination: &AccountInfo<'info>,
     authority: &AccountInfo<'info>,
     nonce: u8,
@@ -55,5 +55,5 @@ pub fn close_vault<'info>(
     };
     let cpi_program = token_program.to_account_info();
     let cpi_context = CpiContext::new_with_signer(cpi_program, cpi_accounts, signers);
-    token::close_account(cpi_context)
+    token_interface::close_account(cpi_context)
 }
