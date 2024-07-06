@@ -1255,12 +1255,7 @@ pub mod drift {
         fuel_boost_maker: Option<u8>,
         fuel_boost_position: Option<u8>,
     ) -> Result<()> {
-        handle_update_perp_market_fuel(
-            ctx,
-            fuel_boost_taker,
-            fuel_boost_maker,
-            fuel_boost_position,
-        )
+        handle_update_perp_market_fuel(ctx, fuel_boost_taker, fuel_boost_maker, fuel_boost_position)
     }
 
     pub fn update_spot_market_fuel(
