@@ -608,6 +608,10 @@ pub fn handle_transfer_deposit<'c: 'info, 'info>(
 
     let to_user = &mut load_mut!(ctx.accounts.to_user)?;
     let from_user = &mut load_mut!(ctx.accounts.from_user)?;
+    let user_stats = &mut load_mut!(ctx.accounts.user_stats)?;
+
+    let clock = Clock::get()?;
+    let now = clock.unix_timestamp;
 
     validate!(
         !to_user.is_bankrupt(),
@@ -671,12 +675,15 @@ pub fn handle_transfer_deposit<'c: 'info, 'info>(
         )?;
     }
 
-    meets_withdraw_margin_requirement(
-        from_user,
+    from_user.meets_withdraw_margin_requirement_and_increment_fuel_bonus(
         &perp_market_map,
         &spot_market_map,
         &mut oracle_map,
         MarginRequirementType::Initial,
+        market_index,
+        amount as u128,
+        user_stats,
+        now,
     )?;
 
     validate_spot_margin_trading(

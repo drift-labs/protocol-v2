@@ -4,8 +4,8 @@ use crate::error::{DriftResult, ErrorCode};
 use crate::math::auction::{calculate_auction_price, is_auction_complete};
 use crate::math::casting::Cast;
 use crate::math::constants::{
-    EPOCH_DURATION, OPEN_ORDER_MARGIN_REQUIREMENT, PRICE_TIMES_AMM_TO_QUOTE_PRECISION_RATIO,
-    QUOTE_PRECISION, QUOTE_SPOT_MARKET_INDEX, THIRTY_DAY, FUEL_START_TS,
+    EPOCH_DURATION, FUEL_START_TS, OPEN_ORDER_MARGIN_REQUIREMENT,
+    PRICE_TIMES_AMM_TO_QUOTE_PRECISION_RATIO, QUOTE_PRECISION, QUOTE_SPOT_MARKET_INDEX, THIRTY_DAY,
 };
 use crate::math::lp::{calculate_lp_open_bids_asks, calculate_settle_lp_metrics};
 use crate::math::margin::MarginRequirementType;
