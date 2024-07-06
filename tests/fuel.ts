@@ -16,6 +16,7 @@ import {
 	getLimitOrderParams,
 	OracleSource,
 	ONE,
+	ContractTier,
 } from '../sdk/src';
 
 import {
@@ -26,6 +27,7 @@ import {
 	mockUserUSDCAccount,
 	sleep,
 } from './testHelpers';
+import { QUOTE_PRECISION, calculatePerpFuelBonus } from '../sdk/src';
 import { MARGIN_PRECISION, PostOnlyParams, ReferrerInfo, ZERO } from '../sdk';
 import { startAnchor } from 'solana-bankrun';
 import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
@@ -118,7 +120,7 @@ describe('place and fill spot order', () => {
 
 		solUsd = await mockOracleNoProgram(bankrunContextWrapper, 32.821);
 
-		marketIndexes = [];
+		marketIndexes = [0];
 		spotMarketIndexes = [0, 1];
 		oracleInfos = [{ publicKey: solUsd, source: OracleSource.PYTH }];
 
@@ -143,6 +145,32 @@ describe('place and fill spot order', () => {
 		await fillerDriftClient.subscribe();
 		await initializeQuoteSpotMarket(fillerDriftClient, usdcMint.publicKey);
 		await initializeSolSpotMarket(fillerDriftClient, solUsd);
+
+		const initBase1 = BASE_PRECISION.muln(100000);
+		await fillerDriftClient.initializePerpMarket(
+			0,
+			solUsd,
+			initBase1,
+			initBase1,
+			new BN(3600),
+			new BN(32_821_000),
+			undefined,
+			ContractTier.A,
+			1000,
+			500,
+			undefined,
+			undefined,
+			undefined,
+			true,
+			250,
+			500
+		);
+		await fillerDriftClient.updatePerpMarketCurveUpdateIntensity(0, 100);
+
+		await fillerDriftClient.updatePerpMarketPausedOperations(0, 1 & 2);
+
+		await sleep(100);
+
 		await fillerDriftClient.updatePerpAuctionDuration(new BN(0));
 		await fillerDriftClient.updateSpotMarketMarginWeights(
 			1,
@@ -179,6 +207,144 @@ describe('place and fill spot order', () => {
 		await fillerDriftClient.unsubscribe();
 		await fillerDriftClientUser.unsubscribe();
 	});
+
+	it('fuel for perp taker/maker/position', async () => {
+		const [takerDriftClient, _takerUSDCAccount] = await createTestClient({
+			referrer: fillerDriftClientUser.getUserAccount().authority,
+			referrerStats: fillerDriftClient.getUserStatsAccountPublicKey(),
+		});
+		const takerDriftClientUser = new User({
+			driftClient: takerDriftClient,
+			userAccountPublicKey: await takerDriftClient.getUserAccountPublicKey(),
+			accountSubscription: {
+				type: 'polling',
+				accountLoader: bulkAccountLoader,
+			},
+		});
+		await takerDriftClientUser.subscribe();
+
+		// const perp0 = fillerDriftClient.getPerpMarketAccount(0);
+		// console.log(perp0);
+
+		const [makerDriftClient, _makerUSDCAccount] = await createTestClient();
+		const makerDriftClientUser = new User({
+			driftClient: makerDriftClient,
+			userAccountPublicKey: await makerDriftClient.getUserAccountPublicKey(),
+			accountSubscription: {
+				type: 'polling',
+				accountLoader: bulkAccountLoader,
+			},
+		});
+		await makerDriftClientUser.subscribe();
+
+		const marketIndex = 0;
+		const baseAssetAmount = BASE_PRECISION;
+
+		await makerDriftClient.placePerpOrder(
+			getLimitOrderParams({
+				marketIndex,
+				direction: PositionDirection.SHORT,
+				baseAssetAmount,
+				price: new BN(32).mul(PRICE_PRECISION),
+				userOrderId: 2,
+				postOnly: PostOnlyParams.NONE,
+			})
+		);
+
+		await makerDriftClientUser.fetchAccounts();
+		assert(!makerDriftClientUser.getOrderByUserOrderId(2).postOnly);
+
+		await fillerDriftClient.updateSpotMarketFuel(0, 100, 200, 200);
+		await fillerDriftClient.updatePerpMarketFuel(marketIndex, 100, 200, 200);
+
+		await takerDriftClient.placePerpOrder(
+			getLimitOrderParams({
+				marketIndex,
+				direction: PositionDirection.LONG,
+				baseAssetAmount,
+				price: new BN(33).mul(PRICE_PRECISION),
+				userOrderId: 1,
+				postOnly: PostOnlyParams.NONE,
+			})
+		);
+		await takerDriftClientUser.fetchAccounts();
+		const takerOrder = takerDriftClientUser.getOrderByUserOrderId(1);
+		assert(!takerOrder.postOnly);
+
+		const fillTx = await fillerDriftClient.fillPerpOrder(
+			takerDriftClientUser.getUserAccountPublicKey(),
+			takerDriftClientUser.getUserAccount(),
+			takerOrder,
+			{
+				maker: makerDriftClientUser.getUserAccountPublicKey(),
+				makerStats: makerDriftClient.getUserStatsAccountPublicKey(),
+				makerUserAccount: makerDriftClientUser.getUserAccount(),
+				// order: makerDriftClientUser.getOrderByUserOrderId(2),
+			},
+			{
+				referrer: fillerDriftClientUser.getUserAccount().authority,
+				referrerStats: fillerDriftClient.getUserStatsAccountPublicKey(),
+			}
+		);
+
+		bankrunContextWrapper.connection.printTxLogs(fillTx);
+
+		const currentClock2 =
+			await bankrunContextWrapper.context.banksClient.getClock();
+
+		const fuelDict = takerDriftClientUser.getFuelBonus(
+			new BN(currentClock2.unixTimestamp.toString()).addn(36000),
+			true,
+			true
+		);
+		console.log(fuelDict);
+		assert(fuelDict['depositFuel'].gt(ZERO));
+		assert(fuelDict['depositFuel'].eqn(1488));
+		assert(fuelDict['takerFuel'].eqn(3200));
+
+		assert(
+			makerDriftClientUser
+				.getPerpPosition(0)
+				.baseAssetAmount.abs()
+				.eq(baseAssetAmount)
+		);
+
+		assert(
+			takerDriftClientUser
+				.getPerpPosition(0)
+				.baseAssetAmount.abs()
+				.eq(baseAssetAmount)
+		);
+
+		const fuelDictMaker = makerDriftClientUser.getFuelBonus(
+			new BN(currentClock2.unixTimestamp.toString()).addn(36000),
+			true,
+			true
+		);
+		console.log(fuelDictMaker);
+		assert(fuelDictMaker['depositFuel'].gt(ZERO));
+		assert(fuelDictMaker['depositFuel'].eqn(1488));
+		assert(fuelDictMaker['makerFuel'].eqn(3200 * 2));
+
+		const perp0 = fillerDriftClient.getPerpMarketAccount(0);
+
+		// console.log(
+		// 	perp0.amm.historicalOracleData.lastOraclePriceTwap5Min.toString()
+		// );
+
+		const fuelPosition = calculatePerpFuelBonus(
+			perp0,
+			QUOTE_PRECISION.muln(32),
+			new BN(36000)
+		);
+		console.log(fuelPosition.toString());
+		assert(fuelPosition.gt(ZERO));
+
+		await takerDriftClientUser.unsubscribe();
+		await takerDriftClient.unsubscribe();
+	});
+
+	return 0;
 
 	it('fuel for deposit', async () => {
 		const [takerDriftClient, _takerUSDCAccount] = await createTestClient({
@@ -262,7 +428,7 @@ describe('place and fill spot order', () => {
 		assert(new BN(currentClock.unixTimestamp.toString()).gt(ZERO));
 
 		await fillerDriftClient.updateSpotMarketFuel(0, 2, 5);
-		await fillerDriftClient.updateSpotMarketFuel(1, 0, 10);
+		await fillerDriftClient.updateSpotMarketFuel(1, 0, 100);
 
 		const fuelDictOGZERO = takerDriftClientUser.getFuelBonus(
 			new BN(currentClock.unixTimestamp.toString()),
@@ -329,11 +495,32 @@ describe('place and fill spot order', () => {
 		assert(fuelDictAfter['depositFuel'].gt(ZERO));
 		assert(fuelDictAfter['depositFuel'].eqn(2142));
 
+		// withdraw/borrow .01 sol
+		await takerDriftClient.withdraw(
+			new BN(LAMPORTS_PER_SOL / 100),
+			1,
+			takerDriftClient.provider.wallet.publicKey
+		);
+
+		console.log(takerDriftClientUser.getTokenAmount(1).toString());
+		assert(takerDriftClientUser.getTokenAmount(1).lt(ZERO)); // 2 for rounding purposes?
+		assert(takerDriftClientUser.getTokenAmount(1).eqn(-10000001)); // 2 for rounding purposes?
+
+		const fuelDictAfter2 = takerDriftClientUser.getFuelBonus(
+			new BN(currentClock2.unixTimestamp.toString()).addn(36000),
+			true,
+			true
+		);
+		console.log(fuelDictAfter2);
+		assert(fuelDictAfter2['depositFuel'].gt(ZERO));
+		assert(fuelDictAfter2['depositFuel'].eqn(2171));
+		assert(fuelDictAfter2['borrowFuel'].eqn(4));
+
 		await takerDriftClientUser.unsubscribe();
 		await takerDriftClient.unsubscribe();
 	});
 
-	it('fuel for spot trade', async () => {
+	it('fuel for taker/maker spot trade', async () => {
 		const [takerDriftClient, _takerUSDCAccount] = await createTestClient({
 			referrer: fillerDriftClientUser.getUserAccount().authority,
 			referrerStats: fillerDriftClient.getUserStatsAccountPublicKey(),

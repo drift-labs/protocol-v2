@@ -3583,6 +3583,52 @@ export class AdminClient extends DriftClient {
 		);
 	}
 
+	public async updatePerpMarketFuel(
+		perpMarketIndex: number,
+		fuelBoostTaker?: number,
+		fuelBoostMaker?: number,
+		fuelBoostPosition?: number
+	): Promise<TransactionSignature> {
+		const updatePerpMarketFuelIx = await this.getUpdatePerpMarketFuelIx(
+			perpMarketIndex,
+			fuelBoostTaker || null,
+			fuelBoostMaker || null,
+			fuelBoostPosition || null
+		);
+
+		const tx = await this.buildTransaction(updatePerpMarketFuelIx);
+		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+
+		return txSig;
+	}
+
+	public async getUpdatePerpMarketFuelIx(
+		perpMarketIndex: number,
+		fuelBoostTaker?: number,
+		fuelBoostMaker?: number,
+		fuelBoostPosition?: number
+	): Promise<TransactionInstruction> {
+		const perpMarketPublicKey = await getPerpMarketPublicKey(
+			this.program.programId,
+			perpMarketIndex
+		);
+
+		return await this.program.instruction.updatePerpMarketFuel(
+			fuelBoostTaker || null,
+			fuelBoostMaker || null,
+			fuelBoostPosition || null,
+			{
+				accounts: {
+					admin: this.isSubscribed
+						? this.getStateAccount().admin
+						: this.wallet.publicKey,
+					state: await this.getStatePublicKey(),
+					perpMarket: perpMarketPublicKey,
+				},
+			}
+		);
+	}
+
 	public async initializePythPullOracle(
 		feedId: string
 	): Promise<TransactionSignature> {

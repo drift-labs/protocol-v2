@@ -5116,6 +5116,46 @@
       ]
     },
     {
+      "name": "updatePerpMarketFuel",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "perpMarket",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "fuelBoostTaker",
+          "type": {
+            "option": "u8"
+          }
+        },
+        {
+          "name": "fuelBoostMaker",
+          "type": {
+            "option": "u8"
+          }
+        },
+        {
+          "name": "fuelBoostPosition",
+          "type": {
+            "option": "u8"
+          }
+        }
+      ]
+    },
+    {
       "name": "updateSpotMarketFuel",
       "accounts": [
         {

@@ -955,7 +955,7 @@ export class User {
 			}
 
 			for (const perpPosition of this.getActivePerpPositions()) {
-				const oraclePriceData = this.getOracleDataForSpotMarket(
+				const oraclePriceData = this.getOracleDataForPerpMarket(
 					perpPosition.marketIndex
 				);
 
