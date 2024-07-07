@@ -32,7 +32,8 @@ import {
 	mockUserUSDCAccount,
 	mockUSDCMint,
 	setFeedPriceNoProgram,
-	initializeQuoteSpotMarket, sleep,
+	initializeQuoteSpotMarket,
+	sleep,
 } from './testHelpers';
 import {
 	AMM_RESERVE_PRECISION,
@@ -166,7 +167,10 @@ describe('orders', () => {
 
 		let oraclesLoaded = false;
 		while (!oraclesLoaded) {
-			const found = !!driftClient.accountSubscriber.getOraclePriceDataAndSlotForSpotMarket(0);
+			const found =
+				!!driftClient.accountSubscriber.getOraclePriceDataAndSlotForSpotMarket(
+					0
+				);
 			if (found) {
 				oraclesLoaded = found;
 			}
