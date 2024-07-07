@@ -60,6 +60,7 @@ test_files=(
   spotDepositWithdraw.ts
   spotDepositWithdraw22.ts
   spotSwap.ts
+  spotSwap22.ts
   stopLimits.ts
   subaccounts.ts
   surgePricing.ts

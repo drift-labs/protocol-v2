@@ -2,6 +2,7 @@ use anchor_lang::prelude::*;
 use anchor_lang::Discriminator;
 use anchor_spl::{
     token::Token,
+    token_2022::Token2022,
     token_interface::{TokenAccount, TokenInterface},
 };
 use solana_program::program::invoke;
@@ -35,6 +36,7 @@ use crate::math::spot_balance::get_token_value;
 use crate::math::spot_swap;
 use crate::math::spot_swap::{calculate_swap_price, validate_price_bands_for_swap};
 use crate::math_error;
+use crate::optional_accounts::get_token_interface;
 use crate::print_error;
 use crate::safe_decrement;
 use crate::safe_increment;
@@ -2599,6 +2601,7 @@ pub fn handle_begin_swap<'c: 'info, 'info>(
             ];
             if !delegate_is_signer {
                 whitelisted_programs.push(Token::id());
+                whitelisted_programs.push(Token2022::id());
                 whitelisted_programs.push(marinade_mainnet::ID);
             }
             validate!(
@@ -2649,17 +2652,19 @@ pub fn handle_end_swap<'c: 'info, 'info>(
     let slot = clock.slot;
     let now = clock.unix_timestamp;
 
+    let remaining_accounts = &mut ctx.remaining_accounts.iter().peekable();
     let AccountMaps {
         perp_market_map,
         spot_market_map,
         mut oracle_map,
     } = load_maps(
-        &mut ctx.remaining_accounts.iter().peekable(),
+        remaining_accounts,
         &MarketSet::new(),
         &get_writable_spot_market_set_from_many(vec![in_market_index, out_market_index]),
         clock.slot,
         Some(state.oracle_guard_rails),
     )?;
+    let out_token_program = get_token_interface(remaining_accounts)?;
 
     let user_key = ctx.accounts.user.key();
     let mut user = load_mut!(&ctx.accounts.user)?;
@@ -2769,13 +2774,24 @@ pub fn handle_end_swap<'c: 'info, 'info>(
             .amount
             .safe_sub(out_spot_market.flash_loan_initial_token_amount)?;
 
-        controller::token::receive(
-            &ctx.accounts.token_program,
-            out_token_account,
-            out_vault,
-            &ctx.accounts.authority,
-            amount_out,
-        )?;
+        if let Some(token_interface) = out_token_program {
+            controller::token::receive(
+                &token_interface,
+                out_token_account,
+                out_vault,
+                &ctx.accounts.authority,
+                amount_out,
+            )?;
+        } else {
+            controller::token::receive(
+                &ctx.accounts.token_program,
+                out_token_account,
+                out_vault,
+                &ctx.accounts.authority,
+                amount_out,
+            )?;
+        }
+
         out_vault.reload()?;
     }
 

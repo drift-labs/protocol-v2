@@ -1801,7 +1801,8 @@ export class DriftClient {
 		account: PublicKey,
 		payer: PublicKey,
 		owner: PublicKey,
-		mint: PublicKey
+		mint: PublicKey,
+		tokenProgram = TOKEN_PROGRAM_ID
 	): TransactionInstruction {
 		return new TransactionInstruction({
 			keys: [
@@ -1814,7 +1815,7 @@ export class DriftClient {
 					isSigner: false,
 					isWritable: false,
 				},
-				{ pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
+				{ pubkey: tokenProgram, isSigner: false, isWritable: false },
 			],
 			programId: ASSOCIATED_TOKEN_PROGRAM_ID,
 			data: Buffer.from([0x1]),
@@ -1828,7 +1829,7 @@ export class DriftClient {
 		subAccountId?: number,
 		reduceOnly = false,
 		txParams?: TxParams
-	): Promise<ReturnType<typeof this.buildTransaction>> {
+	): Promise<VersionedTransaction | Transaction> {
 		const spotMarketAccount = this.getSpotMarketAccount(marketIndex);
 
 		const isSolMarket = spotMarketAccount.mint.equals(WRAPPED_SOL_MINT);
@@ -1942,13 +1943,7 @@ export class DriftClient {
 
 		const spotMarketAccount = this.getSpotMarketAccount(marketIndex);
 
-		let tokenProgram;
-		if (spotMarketAccount.tokenProgram === 1) {
-			tokenProgram = TOKEN_2022_PROGRAM_ID;
-		} else {
-			tokenProgram = TOKEN_PROGRAM_ID;
-		}
-
+		const tokenProgram = this.getTokenProgramForSpotMarket(spotMarketAccount);
 		return await this.program.instruction.deposit(
 			marketIndex,
 			amount,
@@ -2033,6 +2028,15 @@ export class DriftClient {
 		);
 
 		return result;
+	}
+
+	public getTokenProgramForSpotMarket(
+		spotMarketAccount: SpotMarketAccount
+	): PublicKey {
+		if (spotMarketAccount.tokenProgram === 1) {
+			return TOKEN_2022_PROGRAM_ID;
+		}
+		return TOKEN_PROGRAM_ID;
 	}
 
 	public getAssociatedTokenAccountCreationIx(
@@ -2447,12 +2451,7 @@ export class DriftClient {
 
 		const spotMarketAccount = this.getSpotMarketAccount(marketIndex);
 
-		let tokenProgram;
-		if (spotMarketAccount.tokenProgram === 1) {
-			tokenProgram = TOKEN_2022_PROGRAM_ID;
-		} else {
-			tokenProgram = TOKEN_PROGRAM_ID;
-		}
+		const tokenProgram = this.getTokenProgramForSpotMarket(spotMarketAccount);
 
 		return await this.program.instruction.withdraw(
 			marketIndex,
@@ -4110,12 +4109,15 @@ export class DriftClient {
 				outAssociatedTokenAccount
 			);
 			if (!accountInfo) {
+				const tokenProgram = this.getTokenProgramForSpotMarket(outMarket);
+
 				preInstructions.push(
 					this.createAssociatedTokenAccountIdempotentInstruction(
 						outAssociatedTokenAccount,
 						this.provider.wallet.publicKey,
 						this.provider.wallet.publicKey,
-						outMarket.mint
+						outMarket.mint,
+						tokenProgram
 					)
 				);
 			}
@@ -4131,12 +4133,15 @@ export class DriftClient {
 				inAssociatedTokenAccount
 			);
 			if (!accountInfo) {
+				const tokenProgram = this.getTokenProgramForSpotMarket(outMarket);
+
 				preInstructions.push(
 					this.createAssociatedTokenAccountIdempotentInstruction(
 						inAssociatedTokenAccount,
 						this.provider.wallet.publicKey,
 						this.provider.wallet.publicKey,
-						inMarket.mint
+						inMarket.mint,
+						tokenProgram
 					)
 				);
 			}
@@ -4351,6 +4356,17 @@ export class DriftClient {
 		const outSpotMarket = this.getSpotMarketAccount(outMarketIndex);
 		const inSpotMarket = this.getSpotMarketAccount(inMarketIndex);
 
+		const outTokenProgram = this.getTokenProgramForSpotMarket(outSpotMarket);
+		const inTokenProgram = this.getTokenProgramForSpotMarket(inSpotMarket);
+
+		if (!outTokenProgram.equals(inTokenProgram)) {
+			remainingAccounts.push({
+				pubkey: outTokenProgram,
+				isWritable: false,
+				isSigner: false,
+			});
+		}
+
 		const beginSwapIx = await this.program.instruction.beginSwap(
 			inMarketIndex,
 			outMarketIndex,
@@ -4365,7 +4381,7 @@ export class DriftClient {
 					inSpotMarketVault: inSpotMarket.vault,
 					inTokenAccount,
 					outTokenAccount,
-					tokenProgram: TOKEN_PROGRAM_ID,
+					tokenProgram: inTokenProgram,
 					driftSigner: this.getStateAccount().signer,
 					instructions: anchor.web3.SYSVAR_INSTRUCTIONS_PUBKEY,
 				},
@@ -4388,7 +4404,7 @@ export class DriftClient {
 					inSpotMarketVault: inSpotMarket.vault,
 					inTokenAccount,
 					outTokenAccount,
-					tokenProgram: TOKEN_PROGRAM_ID,
+					tokenProgram: inTokenProgram,
 					driftSigner: this.getStateAccount().signer,
 					instructions: anchor.web3.SYSVAR_INSTRUCTIONS_PUBKEY,
 				},
