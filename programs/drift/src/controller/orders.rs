@@ -1758,7 +1758,8 @@ fn fulfill_perp_order(
                 spot_market_map,
                 oracle_map,
                 MarginContext::standard(margin_type)
-                    .fuel_perp_delta(market_index, -maker_base_asset_amount_filled as i64),
+                    .fuel_perp_delta(market_index, -maker_base_asset_amount_filled as i64)
+                    .fuel_numerator(&maker, now),
             )?;
 
         if let Some(mut maker_stats) = maker_stats {
@@ -1767,8 +1768,8 @@ fn fulfill_perp_order(
                 maker_margin_calculation.fuel_borrows,
                 maker_margin_calculation.fuel_positions,
             )?;
+            maker.last_fuel_bonus_update_ts = now;
         }
-        maker.last_fuel_bonus_update_ts = now;
 
         if !maker_margin_calculation.meets_margin_requirement() {
             msg!(
@@ -4072,16 +4073,18 @@ fn fulfill_spot_order(
             perp_market_map,
             spot_market_map,
             oracle_map,
-            MarginContext::standard(margin_type).fuel_spot_deltas([
-                (
-                    base_market_index,
-                    base_token_amount_before.safe_sub(base_token_amount_after)?,
-                ),
-                (
-                    QUOTE_SPOT_MARKET_INDEX,
-                    quote_token_amount_before.safe_sub(quote_token_amount_after)?,
-                ),
-            ]),
+            MarginContext::standard(margin_type)
+                .fuel_spot_deltas([
+                    (
+                        base_market_index,
+                        base_token_amount_before.safe_sub(base_token_amount_after)?,
+                    ),
+                    (
+                        QUOTE_SPOT_MARKET_INDEX,
+                        quote_token_amount_before.safe_sub(quote_token_amount_after)?,
+                    ),
+                ])
+                .fuel_numerator(user, now),
         )?;
 
     user_stats.update_fuel_bonus(
@@ -4158,16 +4161,20 @@ fn fulfill_spot_order(
                 perp_market_map,
                 spot_market_map,
                 oracle_map,
-                MarginContext::standard(margin_type).fuel_spot_deltas([
-                    (
-                        base_market_index,
-                        maker_base_token_amount_before.safe_sub(maker_base_token_amount_after)?,
-                    ),
-                    (
-                        QUOTE_SPOT_MARKET_INDEX,
-                        maker_quote_token_amount_before.safe_sub(maker_quote_token_amount_after)?,
-                    ),
-                ]),
+                MarginContext::standard(margin_type)
+                    .fuel_spot_deltas([
+                        (
+                            base_market_index,
+                            maker_base_token_amount_before
+                                .safe_sub(maker_base_token_amount_after)?,
+                        ),
+                        (
+                            QUOTE_SPOT_MARKET_INDEX,
+                            maker_quote_token_amount_before
+                                .safe_sub(maker_quote_token_amount_after)?,
+                        ),
+                    ])
+                    .fuel_numerator(&maker, now),
             )?;
 
         if let Some(mut maker_stats) = maker_stats {
