@@ -32,7 +32,7 @@ import {
 	mockUserUSDCAccount,
 	mockUSDCMint,
 	setFeedPriceNoProgram,
-	initializeQuoteSpotMarket,
+	initializeQuoteSpotMarket, sleep,
 } from './testHelpers';
 import {
 	AMM_RESERVE_PRECISION,
@@ -163,6 +163,15 @@ describe('orders', () => {
 		await driftClient.subscribe();
 		await initializeQuoteSpotMarket(driftClient, usdcMint.publicKey);
 		await driftClient.updatePerpAuctionDuration(new BN(0));
+
+		let oraclesLoaded = false;
+		while (!oraclesLoaded) {
+			const found = !!driftClient.accountSubscriber.getOraclePriceDataAndSlotForSpotMarket(0);
+			if (found) {
+				oraclesLoaded = found;
+			}
+			await sleep(1000);
+		}
 
 		console.log(bulkAccountLoader.mostRecentSlot);
 
