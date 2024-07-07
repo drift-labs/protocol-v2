@@ -185,7 +185,8 @@ pub struct SpotMarket {
     /// 1 => 1/200 => .5%
     /// precision: X/200
     pub min_borrow_rate: u8,
-    pub padding: [u8; 47],
+    pub token_program: u8,
+    pub padding: [u8; 46],
 }
 
 impl Default for SpotMarket {
@@ -247,7 +248,8 @@ impl Default for SpotMarket {
             total_swap_fee: 0,
             scale_initial_asset_weight_start: 0,
             min_borrow_rate: 0,
-            padding: [0; 47],
+            token_program: 0,
+            padding: [0; 46],
         }
     }
 }

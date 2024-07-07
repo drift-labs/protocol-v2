@@ -734,6 +734,8 @@ export type SpotMarketAccount = {
 
 	maxTokenBorrowsFraction: number;
 	minBorrowRate: number;
+
+	tokenProgram: number;
 };
 
 export type PoolBalance = {

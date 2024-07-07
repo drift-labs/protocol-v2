@@ -192,6 +192,8 @@ export class AdminClient extends DriftClient {
 			spotMarketIndex
 		);
 
+		const tokenProgram = (await this.connection.getAccountInfo(mint)).owner;
+
 		const nameBuffer = encodeName(name);
 		const initializeIx = await this.program.instruction.initializeSpotMarket(
 			optimalUtilization,
@@ -227,7 +229,7 @@ export class AdminClient extends DriftClient {
 					oracle,
 					rent: SYSVAR_RENT_PUBKEY,
 					systemProgram: anchor.web3.SystemProgram.programId,
-					tokenProgram: TOKEN_PROGRAM_ID,
+					tokenProgram,
 				},
 			}
 		);

@@ -2,6 +2,8 @@ use std::convert::identity;
 use std::mem::size_of;
 
 use anchor_lang::prelude::*;
+use anchor_spl::token::Token;
+use anchor_spl::token_2022::Token2022;
 use anchor_spl::token_interface::{Mint, TokenAccount, TokenInterface};
 use phoenix::quantities::WrapperU64;
 use pyth_solana_receiver_sdk::cpi::accounts::InitPriceUpdate;
@@ -217,6 +219,15 @@ pub fn handle_initialize_spot_market(
 
     let decimals = ctx.accounts.spot_market_mint.decimals.cast::<u32>()?;
 
+    let token_program = if ctx.accounts.token_program.key() == Token2022::id() {
+        1_u8
+    } else if ctx.accounts.token_program.key() == Token::id() {
+        0_u8
+    } else {
+        msg!("unexpected program {:?}", ctx.accounts.token_program.key());
+        return Err(ErrorCode::DefaultError.into());
+    };
+
     **spot_market = SpotMarket {
         market_index: spot_market_index,
         pubkey: spot_market_pubkey,
@@ -281,7 +292,8 @@ pub fn handle_initialize_spot_market(
         total_swap_fee: 0,
         scale_initial_asset_weight_start,
         min_borrow_rate: 0,
-        padding: [0; 47],
+        token_program,
+        padding: [0; 46],
         insurance_fund: InsuranceFund {
             vault: *ctx.accounts.insurance_fund_vault.to_account_info().key,
             unstaking_period: THIRTEEN_DAY,

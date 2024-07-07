@@ -58,6 +58,7 @@ test_files=(
   roundInFavorBaseAsset.ts
   serumTest.ts
   spotDepositWithdraw.ts
+  spotDepositWithdraw22.ts
   spotSwap.ts
   stopLimits.ts
   subaccounts.ts

@@ -13,6 +13,7 @@ import {
 	createInitializeAccountInstruction,
 	getAssociatedTokenAddress,
 	TOKEN_PROGRAM_ID,
+	TOKEN_2022_PROGRAM_ID,
 } from '@solana/spl-token';
 import {
 	StateAccount,
@@ -1941,6 +1942,13 @@ export class DriftClient {
 
 		const spotMarketAccount = this.getSpotMarketAccount(marketIndex);
 
+		let tokenProgram;
+		if (spotMarketAccount.tokenProgram === 1) {
+			tokenProgram = TOKEN_2022_PROGRAM_ID;
+		} else {
+			tokenProgram = TOKEN_PROGRAM_ID;
+		}
+
 		return await this.program.instruction.deposit(
 			marketIndex,
 			amount,
@@ -1954,7 +1962,7 @@ export class DriftClient {
 					userStats: this.getUserStatsAccountPublicKey(),
 					userTokenAccount: userTokenAccount,
 					authority: this.wallet.publicKey,
-					tokenProgram: TOKEN_PROGRAM_ID,
+					tokenProgram,
 				},
 				remainingAccounts,
 			}
@@ -2439,6 +2447,13 @@ export class DriftClient {
 
 		const spotMarketAccount = this.getSpotMarketAccount(marketIndex);
 
+		let tokenProgram;
+		if (spotMarketAccount.tokenProgram === 1) {
+			tokenProgram = TOKEN_2022_PROGRAM_ID;
+		} else {
+			tokenProgram = TOKEN_PROGRAM_ID;
+		}
+
 		return await this.program.instruction.withdraw(
 			marketIndex,
 			amount,
@@ -2453,7 +2468,7 @@ export class DriftClient {
 					userStats: this.getUserStatsAccountPublicKey(),
 					userTokenAccount: userTokenAccount,
 					authority: this.wallet.publicKey,
-					tokenProgram: TOKEN_PROGRAM_ID,
+					tokenProgram,
 				},
 				remainingAccounts,
 			}
