@@ -1016,6 +1016,10 @@ export async function initializeQuoteSpotMarket(
 		maintenanceLiabilityWeight,
 		imfFactor
 	);
+
+	// @ts-ignore
+	admin.accountSubscriber.spotOracleMap.set(0, PublicKey.default);
+
 	await admin.updateWithdrawGuardThreshold(
 		marketIndex,
 		new BN(10 ** 10).mul(QUOTE_PRECISION)
