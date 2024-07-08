@@ -12,7 +12,7 @@ pub async fn initialize_pyth_oracle(
     banks_client: &mut BanksClient,
     keypair: &Keypair,
     args: Initialize,
-) -> anyhow::Result<Pubkey> {
+) -> Pubkey {
     let data = args.data();
     let len = 3312;
     let rent = banks_client.get_rent().await.unwrap().minimum_balance(len);
@@ -36,5 +36,5 @@ pub async fn initialize_pyth_oracle(
         banks_client.get_latest_blockhash().await.unwrap(),
     );
     banks_client.process_transaction(tx).await.unwrap();
-    Ok(oracle_feed.pubkey())
+    oracle_feed.pubkey()
 }

@@ -1,19 +1,3 @@
-use anchor_lang::InstructionData;
-use anchor_lang::{AccountDeserialize, Key};
-use drift::controller::position::PositionDirection;
-use drift::instruction::Deposit;
-use drift::instructions::SpotFulfillmentType;
-use drift::state::order_params::OrderParams;
-use drift::state::user::OrderTriggerCondition::{TriggeredAbove, TriggeredBelow};
-use drift::state::user::{MarketType, OrderType, User};
-use openbook_v2_light::instruction::PlaceOrder;
-use openbook_v2_light::{PlaceOrderType, SelfTradeBehavior, Side};
-use pyth::instruction::Initialize as PythInitialize;
-use solana_program::instruction::{AccountMeta, Instruction};
-use solana_program::system_program;
-use solana_program_test::{tokio, ProgramTest};
-use solana_sdk::{signer::Signer, transaction::Transaction};
-
 use crate::drift_utils::{
     create_user, deposit_and_execute, init_quote_market, init_spot_market, initialize_drift,
     initialize_openbook_v2_config, place_spot_order_and_execute,
@@ -24,6 +8,23 @@ use crate::market::{
 use crate::ooa::setup_open_orders_account;
 use crate::pyth_utils::initialize_pyth_oracle;
 use crate::token::init_mint;
+use anchor_lang::InstructionData;
+use anchor_lang::{AccountDeserialize, Key};
+use drift::controller::position::PositionDirection;
+use drift::instruction::Deposit;
+use drift::instructions::SpotFulfillmentType;
+use drift::state::order_params::OrderParams;
+use drift::state::user::OrderTriggerCondition::{TriggeredAbove, TriggeredBelow};
+use drift::state::user::{MarketType, OrderType, SpotPosition, User};
+use openbook_v2_light::instruction::PlaceOrder;
+use openbook_v2_light::{PlaceOrderType, SelfTradeBehavior, Side};
+use pyth::instruction::Initialize as PythInitialize;
+use solana_program::instruction::{AccountMeta, Instruction};
+use solana_program::system_program;
+use solana_program_test::{tokio, ProgramTest};
+use solana_sdk::{signer::Signer, transaction::Transaction};
+use drift::math::spot_balance::get_token_amount;
+use drift::state::spot_market::{SpotBalanceType, SpotMarket};
 
 mod drift_utils;
 mod market;
@@ -32,7 +33,7 @@ mod pyth_utils;
 mod token;
 
 #[tokio::test]
-async fn test_program() -> anyhow::Result<()> {
+async fn test_program()  {
     let mut validator = ProgramTest::new("drift", drift::id(), None);
     validator.add_program("pyth", pyth::id(), None);
     validator.add_program("openbook_v2", openbook_v2_light::id(), None);
@@ -43,12 +44,11 @@ async fn test_program() -> anyhow::Result<()> {
     // fulfill via openbook v2
     let (mut banks_client, keypair, _hash) = validator.start().await;
     // mock wsol
-    let base_mint = init_mint(&mut banks_client, &keypair, 9, 1000_000_000_000_000).await?;
+    let base_mint = init_mint(&mut banks_client, &keypair, 9, 1000_000_000_000_000).await;
     // mock usdc
-    let quote_mint = init_mint(&mut banks_client, &keypair, 6, 1_000_000_000_000).await?;
-    let (bids, asks, event_heap) = create_bids_asks_event_heap(&mut banks_client, &keypair).await?;
-
-    let (market, event_authority, market_authority, market_base_vault, market_quote_vault) =
+    let quote_mint = init_mint(&mut banks_client, &keypair, 6, 1_000_000_000_000).await;
+    let (bids, asks, event_heap) = create_bids_asks_event_heap(&mut banks_client, &keypair).await;
+    let (market, _event_authority, market_authority, market_base_vault, market_quote_vault) =
         create_default_market(
             &mut banks_client,
             &keypair,
@@ -58,17 +58,9 @@ async fn test_program() -> anyhow::Result<()> {
             &asks,
             &event_heap,
         )
-        .await?;
-
+        .await;
     let market_keys = MarketKeys {
-        market,
-        bids,
-        asks,
-        event_heap,
-        event_authority,
-        market_authority,
         market_base_vault,
-        market_quote_vault,
     };
     // create open_orders_account ( and open_orders_indexer too)
     let (ooa, _ooi) = setup_open_orders_account(&mut banks_client, &keypair, &market).await?;
@@ -82,29 +74,7 @@ async fn test_program() -> anyhow::Result<()> {
             price_lots: 150_000,
             max_base_lots: 1000,
             max_quote_lots_including_fees: 500_000_000,
-            client_order_id: 0,
             order_type: PlaceOrderType::Limit,
-            expiry_timestamp: 0,
-            self_trade_behavior: SelfTradeBehavior::DecrementTake,
-            limit: 10,
-        },
-        &market_keys,
-        &ooa,
-        &quote_mint,
-    )
-    .await?;
-    // market maker place ask
-    place_order_and_execute(
-        &mut banks_client,
-        &keypair,
-        PlaceOrder {
-            side: Side::Ask,
-            price_lots: 154_000,
-            max_base_lots: 1000,
-            max_quote_lots_including_fees: 500_000_000,
-            client_order_id: 0,
-            order_type: PlaceOrderType::Limit,
-            expiry_timestamp: 0,
             self_trade_behavior: SelfTradeBehavior::DecrementTake,
             limit: 10,
         },
@@ -112,10 +82,10 @@ async fn test_program() -> anyhow::Result<()> {
         &ooa,
         &base_mint,
     )
-    .await?;
+    .await;
     // init drift
-    let (state, drift_signer) = initialize_drift(&mut banks_client, &keypair, &quote_mint).await?;
-    println!("state: {} drift signer: {}", state, drift_signer);
+    let (state, drift_signer) = initialize_drift(&mut banks_client, &keypair, &quote_mint).await;
+
     // init quote market
     let (quote_market, quote_market_vault, _quote_insurance_fund_vault) = init_quote_market(
         &mut banks_client,
@@ -124,7 +94,7 @@ async fn test_program() -> anyhow::Result<()> {
         &drift_signer,
         &state,
     )
-    .await?;
+    .await;
 
     // pyth feed
     let oracle_feed = initialize_pyth_oracle(
@@ -136,8 +106,7 @@ async fn test_program() -> anyhow::Result<()> {
             conf: 28988326,
         },
     )
-    .await?;
-    println!("{}", oracle_feed);
+    .await;
 
     // create spot market
     let (spot_market, spot_market_vault, _spot_insurance_fund_vault) = init_spot_market(
@@ -148,10 +117,10 @@ async fn test_program() -> anyhow::Result<()> {
         &state,
         &oracle_feed,
     )
-    .await?;
+    .await;
 
     // create user
-    let (user, user_stats) = create_user(&mut banks_client, &keypair, &state).await?;
+    let (user, user_stats) = create_user(&mut banks_client, &keypair, &state).await;
 
     // deposit mock USDC  ...
     deposit_and_execute(
@@ -168,7 +137,7 @@ async fn test_program() -> anyhow::Result<()> {
         &quote_mint,
         &mut vec![AccountMeta::new(quote_market, false)],
     )
-    .await?;
+    .await;
 
     deposit_and_execute(
         &mut banks_client,
@@ -188,7 +157,34 @@ async fn test_program() -> anyhow::Result<()> {
             AccountMeta::new(quote_market, false),
         ],
     )
-    .await?;
+    .await;
+
+    // assert deposited amounts
+    let data = banks_client.get_account(user).await.unwrap().unwrap().data;
+    let user_data = User::try_deserialize(&mut &data[..]).unwrap();
+    let base_spot_position = *user_data
+        .spot_positions
+        .iter()
+        .filter(|position| position.market_index == 1)
+        .collect::<Vec<&SpotPosition>>()
+        .first()
+        .unwrap();
+    let quote_spot_position = *user_data
+        .spot_positions
+        .iter()
+        .filter(| position| position.market_index == 0 && position.cumulative_deposits > 0)
+        .collect::<Vec<&SpotPosition>>()
+        .first()
+        .unwrap();
+    // buy 1 mock Sol exchanged for +- 15x mock USDC
+    let account = banks_client.get_account(spot_market).await.unwrap().unwrap();
+    let spot_market_data = SpotMarket::try_deserialize(&mut &account.data[..]).unwrap();
+    let account = banks_client.get_account(quote_market).await.unwrap().unwrap();
+    let quote_market_data = SpotMarket::try_deserialize(&mut &account.data[..]).unwrap();
+    let base_token_amount = get_token_amount(base_spot_position.scaled_balance as u128, &spot_market_data, &SpotBalanceType::Deposit).unwrap();
+    let quote_token_amount = get_token_amount(quote_spot_position.scaled_balance as u128, &quote_market_data, &SpotBalanceType::Deposit).unwrap();
+    assert_eq!(base_token_amount, 1_000_000_000_000);
+    assert_eq!(quote_token_amount, 1_000_000_000);
 
     // create OpenbookV2 fulfillment config
     let config = initialize_openbook_v2_config(
@@ -201,7 +197,7 @@ async fn test_program() -> anyhow::Result<()> {
         &drift_signer,
         1,
     )
-    .await?;
+    .await;
 
     // long spot trade on drift
     place_spot_order_and_execute(
@@ -232,10 +228,10 @@ async fn test_program() -> anyhow::Result<()> {
         &state,
         &oracle_feed,
     )
-    .await?;
+    .await;
 
     // fulfillment
-    let account = banks_client.get_account(user).await?.unwrap().data;
+    let account = banks_client.get_account(user).await.unwrap().unwrap().data;
     let user_data = User::try_deserialize(&mut &account[..]).unwrap();
     for order in user_data.orders.iter() {
         if order.market_index == 1 {
@@ -285,9 +281,35 @@ async fn test_program() -> anyhow::Result<()> {
                 &[&keypair],
                 banks_client.get_latest_blockhash().await.unwrap(),
             );
-            banks_client.process_transaction(tx).await?;
+            banks_client.process_transaction(tx).await.unwrap();
         }
     }
+    // check spot amounts
+    let data = banks_client.get_account(user).await.unwrap().unwrap().data;
+    let user_data = User::try_deserialize(&mut &data[..]).unwrap();
+    let base_spot_position = *user_data
+        .spot_positions
+        .iter()
+        .filter(|position| position.market_index == 1)
+        .collect::<Vec<&SpotPosition>>()
+        .first()
+        .unwrap();
+    let quote_spot_position = *user_data
+        .spot_positions
+        .iter()
+        .filter(| position| position.market_index == 0 && position.cumulative_deposits > 0)
+        .collect::<Vec<&SpotPosition>>()
+        .first()
+        .unwrap();
+    // buy 1 mock Sol exchanged for +- 154 mock USDC
+    let account = banks_client.get_account(spot_market).await.unwrap().unwrap();
+    let spot_market_data = SpotMarket::try_deserialize(&mut &account.data[..]).unwrap();
+    let account = banks_client.get_account(quote_market).await.unwrap().unwrap();
+    let quote_market_data = SpotMarket::try_deserialize(&mut &account.data[..]).unwrap();
+    let base_token_amount = get_token_amount(base_spot_position.scaled_balance as u128, &spot_market_data, &SpotBalanceType::Deposit).unwrap();
+    let quote_token_amount = get_token_amount(quote_spot_position.scaled_balance as u128, &quote_market_data, &SpotBalanceType::Deposit).unwrap();
+    assert_eq!(base_token_amount, 1_001_000_000_000);
+    assert_eq!(quote_token_amount, 845_999_999);
 
     // add buy before
     place_order_and_execute(
@@ -295,9 +317,9 @@ async fn test_program() -> anyhow::Result<()> {
         &keypair,
         PlaceOrder {
             side: Side::Bid,
-            price_lots: 156_000,
-            max_base_lots: 2000,
-            max_quote_lots_including_fees: 1_000_000_000,
+            price_lots: 155_000,
+            max_base_lots: 1000,
+            max_quote_lots_including_fees: 10_000_000_000,
             client_order_id: 0,
             order_type: PlaceOrderType::Limit,
             expiry_timestamp: 0,
@@ -308,7 +330,7 @@ async fn test_program() -> anyhow::Result<()> {
         &ooa,
         &quote_mint,
     )
-    .await?;
+    .await;
     // short
     place_spot_order_and_execute(
         &mut banks_client,
@@ -318,7 +340,7 @@ async fn test_program() -> anyhow::Result<()> {
             market_type: MarketType::Spot,
             direction: PositionDirection::Short,
             user_order_id: 0,
-            base_asset_amount: 1_00_000_000, // 0.1 wsol
+            base_asset_amount: 1_000_000_000, // 0.1 wsol
             price: 154_000_000,
             market_index: 1,
             reduce_only: false,
@@ -338,9 +360,10 @@ async fn test_program() -> anyhow::Result<()> {
         &state,
         &oracle_feed,
     )
-    .await?;
+    .await;
+
     // fulfillment
-    let account = banks_client.get_account(user).await?.unwrap().data;
+    let account = banks_client.get_account(user).await.unwrap().unwrap().data;
     let user_data = User::try_deserialize(&mut &account[..]).unwrap();
     for order in user_data.orders.iter() {
         if order.market_index == 1 {
@@ -390,8 +413,34 @@ async fn test_program() -> anyhow::Result<()> {
                 &[&keypair],
                 banks_client.get_latest_blockhash().await.unwrap(),
             );
-            banks_client.process_transaction(tx).await?;
+            banks_client.process_transaction(tx).await.unwrap();
         }
     }
-    Ok(())
+
+    // check spot amounts
+    let data = banks_client.get_account(user).await.unwrap().unwrap().data;
+    let user_data = User::try_deserialize(&mut &data[..]).unwrap();
+    let base_spot_position = *user_data
+        .spot_positions
+        .iter()
+        .filter(|position| position.market_index == 1)
+        .collect::<Vec<&SpotPosition>>()
+        .first()
+        .unwrap();
+    let quote_spot_position = *user_data
+        .spot_positions
+        .iter()
+        .filter(| position| position.market_index == 0 && position.cumulative_deposits > 0)
+        .collect::<Vec<&SpotPosition>>()
+        .first()
+        .unwrap();
+    // sell 1 mock Sol exchanged for +- 155 mock USDC
+    let account = banks_client.get_account(spot_market).await.unwrap().unwrap();
+    let spot_market_data = SpotMarket::try_deserialize(&mut &account.data[..]).unwrap();
+    let account = banks_client.get_account(quote_market).await.unwrap().unwrap();
+    let quote_market_data = SpotMarket::try_deserialize(&mut &account.data[..]).unwrap();
+    let base_token_amount = get_token_amount(base_spot_position.scaled_balance as u128, &spot_market_data, &SpotBalanceType::Deposit).unwrap();
+    let quote_token_amount = get_token_amount(quote_spot_position.scaled_balance as u128, &quote_market_data, &SpotBalanceType::Deposit).unwrap();
+    assert_eq!(base_token_amount, 999_999_999_999);
+    assert_eq!(quote_token_amount, 1_000_999_844);
 }

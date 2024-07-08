@@ -55,7 +55,7 @@ jobs:
 # disable until solana-client is upgraded
 #  cargo-audit:
 #    name: Cargo audit
-#    runs-on: ubuntu-latest
+#    runs-on: ubicloud
 #    steps:
 #      - uses: actions/checkout@v2
 #      - name: Cache cargo-audit version

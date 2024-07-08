@@ -1,6 +1,6 @@
 [package]
 name = "drift"
-version = "2.84.0"
+version = "2.85.0"
 description = "Created with Anchor"
 edition = "2018"
 
@@ -22,7 +22,8 @@ anchor-lang = "0.29.0"
 solana-program = "1.16"
 anchor-spl = "0.29.0"
 pyth-client = "0.2.2"
-pyth-solana-receiver-sdk = "0.3.0"
+pythnet-sdk = { git = "https://github.com/drift-labs/pyth-crosschain", rev = "04cf2c"}
+pyth-solana-receiver-sdk = { git = "https://github.com/drift-labs/pyth-crosschain", rev = "04cf2c"}
 bytemuck = { version = "1.4.0" }
 borsh = "0.10.3"
 num-traits = "0.2"
@@ -41,6 +42,7 @@ drift-macros = { git = "https://github.com/drift-labs/drift-macros.git", rev = "
 switchboard = { path = "../switchboard", features = ["no-entrypoint"] }
 openbook-v2-light = { path = "../openbook_v2", features = ["no-entrypoint"] }
 ahash = "=0.8.6"
+byteorder = "1.4.3"
 
 [dev-dependencies]
 bytes = "1.2.0"

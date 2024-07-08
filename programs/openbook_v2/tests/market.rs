@@ -14,8 +14,6 @@ pub struct MarketKeys {
     pub bids: Pubkey,
     pub asks: Pubkey,
     pub event_heap: Pubkey,
-    pub event_authority: Pubkey,
-    pub market_authority: Pubkey,
     pub market_base_vault: Pubkey,
     pub market_quote_vault: Pubkey,
 }
@@ -27,7 +25,7 @@ pub async fn place_order_and_execute(
     market_keys: &MarketKeys,
     ooa: &Pubkey,
     mint: &Pubkey,
-) -> anyhow::Result<()> {
+)  {
     let place_order_ix = Instruction::new_with_bytes(
         openbook_v2_light::id(),
         &args.data(),
@@ -61,21 +59,20 @@ pub async fn place_order_and_execute(
         &[place_order_ix],
         Some(&keypair.pubkey()),
         &[keypair],
-        banks_client.get_latest_blockhash().await?,
+        banks_client.get_latest_blockhash().await.unwrap(),
     );
-    banks_client.process_transaction(tx).await?;
-    Ok(())
+    banks_client.process_transaction(tx).await.unwrap();
 }
 
 // creates bids,asks and event heap accounts
 pub async fn create_bids_asks_event_heap(
     mut banks_client: &mut BanksClient,
     keypair: &Keypair,
-) -> anyhow::Result<(Pubkey, Pubkey, Pubkey)> {
-    let bids = create_account_for_type::<BookSide>(&mut banks_client, keypair).await?;
-    let asks = create_account_for_type::<BookSide>(&mut banks_client, keypair).await?;
-    let event_heap = create_account_for_type::<EventHeap>(&mut banks_client, keypair).await?;
-    Ok((bids, asks, event_heap))
+) -> (Pubkey, Pubkey, Pubkey) {
+    let bids = create_account_for_type::<BookSide>(&mut banks_client, keypair).await;
+    let asks = create_account_for_type::<BookSide>(&mut banks_client, keypair).await;
+    let event_heap = create_account_for_type::<EventHeap>(&mut banks_client, keypair).await;
+    (bids, asks, event_heap)
 }
 
 // imitates wsol/usdc market CFSMrBssNG8Ud1edW59jNLnq2cwrQ9uY5cM3wXmqRJj3
@@ -87,7 +84,7 @@ pub async fn create_default_market(
     bids: &Pubkey,
     asks: &Pubkey,
     event_heap: &Pubkey,
-) -> anyhow::Result<(Pubkey, Pubkey, Pubkey, Pubkey, Pubkey)> {
+) -> (Pubkey, Pubkey, Pubkey, Pubkey, Pubkey) {
     let market = Keypair::new();
     let event_authority =
         Pubkey::find_program_address(&[b"__event_authority".as_ref()], &openbook_v2_light::id()).0;
@@ -152,20 +149,20 @@ pub async fn create_default_market(
         &[&keypair, &market],
         banks_client.get_latest_blockhash().await.unwrap(),
     );
-    banks_client.process_transaction(tx).await?;
-    return Ok((
+    banks_client.process_transaction(tx).await.unwrap();
+    (
         market.pubkey(),
         event_authority,
         market_authority,
         market_base_vault,
         market_quote_vault,
-    ));
+    )
 }
 
 pub async fn create_account_for_type<T>(
     banks_client: &mut BanksClient,
     keypair: &Keypair,
-) -> anyhow::Result<Pubkey> {
+) -> Pubkey {
     let key = Keypair::new();
     let len = 8 + std::mem::size_of::<T>();
     let rent = banks_client.get_rent().await.unwrap().minimum_balance(len);
@@ -182,6 +179,6 @@ pub async fn create_account_for_type<T>(
         &[&keypair, &key],
         banks_client.get_latest_blockhash().await.unwrap(),
     );
-    banks_client.process_transaction(tx).await?;
-    Ok(key.pubkey())
+    banks_client.process_transaction(tx).await.unwrap();
+    key.pubkey()
 }

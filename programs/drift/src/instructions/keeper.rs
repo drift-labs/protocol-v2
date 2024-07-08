@@ -31,7 +31,7 @@ use crate::state::spot_market_map::{
 };
 use crate::state::state::State;
 use crate::state::user::{MarketType, OrderStatus, User, UserStats};
-use crate::state::user_map::{load_user_maps, UserMap, UserStatsMap};
+use crate::state::user_map::{load_user_map, load_user_maps, UserMap, UserStatsMap};
 use crate::validation::user::validate_user_is_idle;
 use crate::{controller, load, math, OracleSource};
 use crate::{load_mut, QUOTE_PRECISION_U64};
@@ -1379,7 +1379,7 @@ pub fn handle_update_perp_bid_ask_twap<'c: 'info, 'info>(
     controller::repeg::_update_amm(perp_market, oracle_price_data, state, now, slot)?;
 
     let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
-    let (makers, _) = load_user_maps(remaining_accounts_iter, false)?;
+    let makers = load_user_map(remaining_accounts_iter, false)?;
 
     let depth = perp_market.get_market_depth_for_funding_rate()?;
 

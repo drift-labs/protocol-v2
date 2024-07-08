@@ -13,10 +13,10 @@ pub async fn init_mint(
     keypair: &Keypair,
     decimals: u8,
     amount: u64,
-) -> anyhow::Result<Pubkey> {
+) -> Pubkey {
     let mint_account = Keypair::new();
     let token_program = &spl_token::id();
-    let rent = banks_client.get_rent().await?;
+    let rent = banks_client.get_rent().await.unwrap();
     let mint_rent = rent.minimum_balance(Mint::LEN);
 
     let token_mint_account_ix = solana_program::system_instruction::create_account(
@@ -33,7 +33,7 @@ pub async fn init_mint(
         &keypair.pubkey(),
         None,
         decimals,
-    )?;
+    ).unwrap();
     let ata = spl_associated_token_account::get_associated_token_address(
         &keypair.pubkey(),
         &mint_account.pubkey(),
@@ -51,7 +51,7 @@ pub async fn init_mint(
         &keypair.pubkey(),
         &vec![&keypair.pubkey(), &mint_account.pubkey()],
         amount,
-    )?;
+    ).unwrap();
 
     let tx = Transaction::new_signed_with_payer(
         &[
@@ -62,8 +62,8 @@ pub async fn init_mint(
         ],
         Some(&keypair.pubkey()),
         &[&keypair, &mint_account],
-        banks_client.get_latest_blockhash().await?,
+        banks_client.get_latest_blockhash().await.unwrap(),
     );
-    banks_client.process_transaction(tx).await?;
-    Ok(mint_account.pubkey())
+    banks_client.process_transaction(tx).await.unwrap();
+    mint_account.pubkey()
 }

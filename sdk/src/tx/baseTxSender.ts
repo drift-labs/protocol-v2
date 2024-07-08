@@ -394,6 +394,7 @@ export abstract class BaseTxSender implements TxSender {
 
 		const friendlyMessage = lastLog?.match(/(failed:) (.+)/)?.[2];
 
+		// @ts-ignore
 		throw new SendTransactionError({
 			action: 'send',
 			signature: txSig,
