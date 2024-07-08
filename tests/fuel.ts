@@ -344,7 +344,6 @@ describe('place and fill spot order', () => {
 		await takerDriftClient.unsubscribe();
 	});
 
-
 	it('fuel for deposit', async () => {
 		const [takerDriftClient, _takerUSDCAccount] = await createTestClient({
 			referrer: fillerDriftClientUser.getUserAccount().authority,
