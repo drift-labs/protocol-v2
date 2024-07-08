@@ -47,6 +47,7 @@ async fn test_program() -> anyhow::Result<()> {
     // mock usdc
     let quote_mint = init_mint(&mut banks_client, &keypair, 6, 1_000_000_000_000).await?;
     let (bids, asks, event_heap) = create_bids_asks_event_heap(&mut banks_client, &keypair).await?;
+
     let (market, event_authority, market_authority, market_base_vault, market_quote_vault) =
         create_default_market(
             &mut banks_client,
@@ -58,6 +59,7 @@ async fn test_program() -> anyhow::Result<()> {
             &event_heap,
         )
         .await?;
+
     let market_keys = MarketKeys {
         market,
         bids,
@@ -70,6 +72,7 @@ async fn test_program() -> anyhow::Result<()> {
     };
     // create open_orders_account ( and open_orders_indexer too)
     let (ooa, _ooi) = setup_open_orders_account(&mut banks_client, &keypair, &market).await?;
+
     // market maker place bid
     place_order_and_execute(
         &mut banks_client,

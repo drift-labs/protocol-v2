@@ -28,6 +28,7 @@ import {
 	getPhoenixFulfillmentConfigPublicKey,
 	getProtocolIfSharesTransferConfigPublicKey,
 	getPrelaunchOraclePublicKey,
+	getOpenbookV2FulfillmentConfigPublicKey,
 } from './addresses/pda';
 import { squareRootBN } from './math/utils';
 import { TOKEN_PROGRAM_ID } from '@solana/spl-token';
@@ -43,6 +44,9 @@ import {
 import { calculateTargetPriceTrade } from './math/trade';
 import { calculateAmmReservesAfterSwap, getSwapDirection } from './math/amm';
 import { PROGRAM_ID as PHOENIX_PROGRAM_ID } from '@ellipsis-labs/phoenix-sdk';
+
+const OPENBOOK_PROGRAM_ID = new PublicKey("opnb2LAfJYbRMAHHvqjCwQxanZn7ReEHp1k81EohpZb");
+
 
 export class AdminClient extends DriftClient {
 	public async initialize(
@@ -376,6 +380,53 @@ export class AdminClient extends DriftClient {
 					rent: SYSVAR_RENT_PUBKEY,
 					systemProgram: anchor.web3.SystemProgram.programId,
 					phoenixFulfillmentConfig,
+				},
+			}
+		);
+	}
+
+
+	public async initializeOpenbookV2FulfillmentConfig(
+		marketIndex: number,
+		openbookMarket: PublicKey
+	): Promise<TransactionSignature> {
+		const initializeIx = await this.getInitializeOpenbookV2FulfillmentConfigIx(
+			marketIndex,
+			openbookMarket
+		);
+
+		const tx = await this.buildTransaction(initializeIx);
+
+		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+
+		return txSig;
+	}
+
+	public async getInitializeOpenbookV2FulfillmentConfigIx(
+		marketIndex: number,
+		openbookMarket: PublicKey
+	): Promise<TransactionInstruction> {
+		const openbookFulfillmentConfig = getOpenbookV2FulfillmentConfigPublicKey(
+			this.program.programId,
+			openbookMarket
+		);
+
+		return this.program.instruction.initializeOpenbookV2FulfillmentConfig(
+			marketIndex,
+			{
+				accounts: {
+					baseSpotMarket: this.getSpotMarketAccount(marketIndex).pubkey,
+					quoteSpotMarket: this.getQuoteSpotMarketAccount().pubkey,
+					state: await this.getStatePublicKey(),
+					openbookV2Program: OPENBOOK_PROGRAM_ID,
+					openbookV2Market: openbookMarket,
+					driftSigner: this.getSignerPublicKey(),
+					openbookV2FulfillmentConfig: openbookFulfillmentConfig,
+					admin: this.isSubscribed
+						 ? this.getStateAccount().admin
+						 : this.wallet.publicKey,
+					rent: SYSVAR_RENT_PUBKEY,
+					systemProgram: anchor.web3.SystemProgram.programId,
 				},
 			}
 		);
