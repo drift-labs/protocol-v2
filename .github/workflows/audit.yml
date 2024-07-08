@@ -17,7 +17,7 @@ env:
 jobs:
   build:
     name: Soteria Scan
-    runs-on: ubuntu-latest
+    runs-on: ubicloud
     steps:
       - name: Checkout changes
         uses: actions/checkout@v2

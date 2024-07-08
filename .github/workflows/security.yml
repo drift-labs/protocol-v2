@@ -11,7 +11,7 @@ on:
 jobs:
   monitor:
     name: Sync with snyk.io
-    runs-on: ubuntu-latest
+    runs-on: ubicloud
     steps:
       - uses: actions/checkout@master
       - name: Monitor on snyk.io
@@ -23,7 +23,7 @@ jobs:
   sast:
     needs: monitor
     name: Code Scan
-    runs-on: ubuntu-latest
+    runs-on: ubicloud
     steps:
       - name: Checkout changes
         uses: actions/checkout@v2
@@ -42,7 +42,7 @@ jobs:
   sca:
       needs: monitor
       name: Dependency Scan
-      runs-on: ubuntu-latest
+      runs-on: ubicloud
       steps:
         - name: Checkout changes
           uses: actions/checkout@v2
