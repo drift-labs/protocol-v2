@@ -234,7 +234,7 @@ jobs:
     runs-on: ubuntu-latest
     # Set job outputs to values from filter step
     outputs:
-      sdk: ${{ steps.filter.outputs.program }}
+      program: ${{ steps.filter.outputs.program }}
     steps:
       # For pull requests it's not necessary to checkout the code
       - uses: actions/checkout@v2
