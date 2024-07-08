@@ -530,6 +530,12 @@ pub mod drift {
         handle_update_user_quote_asset_insurance_stake(ctx)
     }
 
+    pub fn update_user_gov_token_insurance_stake(
+        ctx: Context<UpdateUserGovTokenInsuranceStake>,
+    ) -> Result<()> {
+        handle_update_user_gov_token_insurance_stake(ctx)
+    }
+
     // IF stakers
 
     pub fn initialize_insurance_fund_stake(
@@ -1241,6 +1247,31 @@ pub mod drift {
         fee_adjustment: i16,
     ) -> Result<()> {
         handle_update_spot_market_fee_adjustment(ctx, fee_adjustment)
+    }
+
+    pub fn update_perp_market_fuel(
+        ctx: Context<AdminUpdatePerpMarket>,
+        fuel_boost_taker: Option<u8>,
+        fuel_boost_maker: Option<u8>,
+        fuel_boost_position: Option<u8>,
+    ) -> Result<()> {
+        handle_update_perp_market_fuel(ctx, fuel_boost_taker, fuel_boost_maker, fuel_boost_position)
+    }
+
+    pub fn update_spot_market_fuel(
+        ctx: Context<AdminUpdateSpotMarket>,
+        fuel_boost_deposits: Option<u8>,
+        fuel_boost_borrows: Option<u8>,
+        fuel_boost_taker: Option<u8>,
+        fuel_boost_maker: Option<u8>,
+    ) -> Result<()> {
+        handle_update_spot_market_fuel(
+            ctx,
+            fuel_boost_deposits,
+            fuel_boost_borrows,
+            fuel_boost_taker,
+            fuel_boost_maker,
+        )
     }
 
     pub fn update_admin(ctx: Context<AdminUpdateState>, admin: Pubkey) -> Result<()> {

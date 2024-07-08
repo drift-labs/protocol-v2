@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Features
 
+- program: track fuel ([#1048](https://github.com/drift-labs/protocol-v2/pull/1048))
+
 ### Fixes
 
 ### Breaking

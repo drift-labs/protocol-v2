@@ -147,8 +147,12 @@ pub fn handle_initialize_user<'c: 'info, 'info>(
         ErrorCode::MaxNumberOfUsers
     )?;
 
+    let now_ts = Clock::get()?.unix_timestamp;
+
+    user.last_fuel_bonus_update_ts = now_ts;
+
     emit!(NewUserRecord {
-        ts: Clock::get()?.unix_timestamp,
+        ts: now_ts,
         user_authority: ctx.accounts.authority.key(),
         user: user_key,
         sub_account_id,
@@ -514,12 +518,15 @@ pub fn handle_withdraw<'c: 'info, 'info>(
         amount
     };
 
-    meets_withdraw_margin_requirement(
-        user,
+    user.meets_withdraw_margin_requirement_and_increment_fuel_bonus(
         &perp_market_map,
         &spot_market_map,
         &mut oracle_map,
         MarginRequirementType::Initial,
+        market_index,
+        amount as u128,
+        &mut user_stats,
+        now,
     )?;
 
     validate_spot_margin_trading(user, &perp_market_map, &spot_market_map, &mut oracle_map)?;
@@ -601,6 +608,10 @@ pub fn handle_transfer_deposit<'c: 'info, 'info>(
 
     let to_user = &mut load_mut!(ctx.accounts.to_user)?;
     let from_user = &mut load_mut!(ctx.accounts.from_user)?;
+    let user_stats = &mut load_mut!(ctx.accounts.user_stats)?;
+
+    let clock = Clock::get()?;
+    let now = clock.unix_timestamp;
 
     validate!(
         !to_user.is_bankrupt(),
@@ -664,12 +675,15 @@ pub fn handle_transfer_deposit<'c: 'info, 'info>(
         )?;
     }
 
-    meets_withdraw_margin_requirement(
-        from_user,
+    from_user.meets_withdraw_margin_requirement_and_increment_fuel_bonus(
         &perp_market_map,
         &spot_market_map,
         &mut oracle_map,
         MarginRequirementType::Initial,
+        market_index,
+        amount as u128,
+        user_stats,
+        now,
     )?;
 
     validate_spot_margin_trading(
@@ -2811,7 +2825,11 @@ pub fn handle_end_swap<'c: 'info, 'info>(
             out_spot_market.decimals,
             out_oracle_price,
         )?;
-        user_stats.update_taker_volume_30d(amount_out_value.cast()?, now)?;
+        user_stats.update_taker_volume_30d(
+            out_spot_market.fuel_boost_taker,
+            amount_out_value.cast()?,
+            now,
+        )?;
     }
 
     validate!(
