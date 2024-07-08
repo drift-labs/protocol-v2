@@ -12350,8 +12350,8 @@
       "name": "OracleWrongVaaOwner",
       "msg": "Oracle vaa owner must be wormhole program"
     },
-    { 
-      "code": 6276
+    {
+      "code": 6276,
       "name": "FailedOpenbookV2CPI",
       "msg": "FailedOpenbookV2CPI"
     },

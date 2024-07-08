@@ -45,6 +45,7 @@ import {
 	SettlePnlMode,
 	SignedTxData,
 	MappedRecord,
+	OpenbookV2FulfillmentConfigAccount,
 } from './types';
 import * as anchor from '@coral-xyz/anchor';
 import driftIDL from './idl/drift.json';
@@ -74,6 +75,7 @@ import {
 	getDriftSignerPublicKey,
 	getDriftStateAccountPublicKey,
 	getInsuranceFundStakeAccountPublicKey,
+	getOpenbookV2FulfillmentConfigPublicKey,
 	getPerpMarketPublicKey,
 	getPhoenixFulfillmentConfigPublicKey,
 	getPythPullOraclePublicKey,
@@ -573,6 +575,29 @@ export class DriftClient {
 		return accounts.map(
 			(account) => account.account
 		) as PhoenixV1FulfillmentConfigAccount[];
+	}
+
+	public async getOpenbookV2FulfillmentConfig(
+		openbookMarket: PublicKey
+	): Promise<OpenbookV2FulfillmentConfigAccount> {
+		const address = getOpenbookV2FulfillmentConfigPublicKey(
+			this.program.programId,
+			openbookMarket
+		);
+		return (await this.program.account.openbookV2FulfillmentConfig.fetch(
+			address
+		)) as OpenbookV2FulfillmentConfigAccount;
+	}
+
+	public async getOpenbookV2FulfillmentConfigs(): Promise<
+		OpenbookV2FulfillmentConfigAccount[]
+	> {
+		const accounts =
+			await this.program.account.openbookV2FulfillmentConfig.all();
+		return accounts.map(
+			(account) => account.account
+		) as OpenbookV2FulfillmentConfigAccount[];
+	
 	}
 
 	public async fetchMarketLookupTableAccount(): Promise<AddressLookupTableAccount> {
@@ -3635,7 +3660,8 @@ export class DriftClient {
 		order?: Order,
 		fulfillmentConfig?:
 			| SerumV3FulfillmentConfigAccount
-			| PhoenixV1FulfillmentConfigAccount,
+			| PhoenixV1FulfillmentConfigAccount
+			| OpenbookV2FulfillmentConfigAccount,
 		makerInfo?: MakerInfo | MakerInfo[],
 		referrerInfo?: ReferrerInfo,
 		txParams?: TxParams
@@ -3664,7 +3690,8 @@ export class DriftClient {
 		order?: Order,
 		fulfillmentConfig?:
 			| SerumV3FulfillmentConfigAccount
-			| PhoenixV1FulfillmentConfigAccount,
+			| PhoenixV1FulfillmentConfigAccount
+			| OpenbookV2FulfillmentConfigAccount,
 		makerInfo?: MakerInfo | MakerInfo[],
 		referrerInfo?: ReferrerInfo,
 		fillerPublicKey?: PublicKey
@@ -3743,6 +3770,7 @@ export class DriftClient {
 		fulfillmentConfig?:
 			| SerumV3FulfillmentConfigAccount
 			| PhoenixV1FulfillmentConfigAccount
+			| OpenbookV2FulfillmentConfigAccount,
 	): void {
 		if (fulfillmentConfig) {
 			if ('serumProgramId' in fulfillmentConfig) {
@@ -3753,6 +3781,12 @@ export class DriftClient {
 				);
 			} else if ('phoenixProgramId' in fulfillmentConfig) {
 				this.addPhoenixRemainingAccounts(
+					marketIndex,
+					remainingAccounts,
+					fulfillmentConfig
+				);
+			} else if ("openbookV2ProgramId" in fulfillmentConfig) {
+				this.addOpenbookRemainingAccounts(
 					marketIndex,
 					remainingAccounts,
 					fulfillmentConfig
@@ -3918,6 +3952,93 @@ export class DriftClient {
 		remainingAccounts.push({
 			pubkey: TOKEN_PROGRAM_ID,
 			isWritable: false,
+			isSigner: false,
+		});
+	}
+
+	addOpenbookRemainingAccounts(
+		marketIndex: number,
+		remainingAccounts: AccountMeta[],
+		fulfillmentConfig: OpenbookV2FulfillmentConfigAccount
+	): void {
+		remainingAccounts.push({
+			pubkey: fulfillmentConfig.pubkey,
+			isWritable: false,
+			isSigner: false,
+		});
+		remainingAccounts.push({
+			pubkey: this.getSignerPublicKey(),
+			isWritable: true,
+			isSigner: false
+		});
+		remainingAccounts.push({
+			pubkey: fulfillmentConfig.openbookV2ProgramId,
+			isWritable: false,
+			isSigner: false,
+		});
+		remainingAccounts.push({
+			pubkey: fulfillmentConfig.openbookV2Market,
+			isWritable: true,
+			isSigner: false
+		});
+		remainingAccounts.push({
+			pubkey: fulfillmentConfig.openbookV2MarketAuthority,
+			isWritable: false,
+			isSigner: false
+		});
+		remainingAccounts.push({
+			pubkey: fulfillmentConfig.openbookV2EventHeap,
+			isWritable: true,
+			isSigner: false
+		});
+		remainingAccounts.push({
+			pubkey: fulfillmentConfig.openbookV2Bids,
+			isWritable: true,
+			isSigner: false,
+		});
+		remainingAccounts.push({
+			pubkey: fulfillmentConfig.openbookV2Asks,
+			isWritable: true,
+			isSigner: false,
+		});
+		remainingAccounts.push({
+			pubkey: fulfillmentConfig.openbookV2BaseVault,
+			isWritable: true,
+			isSigner: false
+		});
+		remainingAccounts.push({
+			pubkey: fulfillmentConfig.openbookV2QuoteVault,
+			isWritable: true,
+			isSigner: false,
+		});
+		remainingAccounts.push({
+			pubkey: this.getSpotMarketAccount(marketIndex).vault,
+			isWritable: true,
+			isSigner: false,
+		});
+		remainingAccounts.push({
+			pubkey: this.getQuoteSpotMarketAccount().vault,
+			isWritable: true,
+			isSigner: false,
+		});
+		remainingAccounts.push({
+			pubkey: TOKEN_PROGRAM_ID,
+			isWritable: false,
+			isSigner: false,
+		});
+		remainingAccounts.push({
+			pubkey: SystemProgram.programId,
+			isWritable: false,
+			isSigner: false,
+		});
+		remainingAccounts.push({
+			pubkey: this.getSpotMarketAccount(marketIndex).pubkey,
+			isWritable: true,
+			isSigner: false,
+		});
+		remainingAccounts.push({
+			pubkey: this.getQuoteSpotMarketAccount().pubkey,
+			isWritable: true,
 			isSigner: false,
 		});
 	}

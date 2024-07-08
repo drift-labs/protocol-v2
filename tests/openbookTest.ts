@@ -1,14 +1,14 @@
-import { assert } from 'chai';
+import { expect } from 'chai';
 import * as anchor from '@coral-xyz/anchor';
 
 import { Program, Idl } from '@coral-xyz/anchor';
 
-import { OracleSource, PublicKey, TestClient, User } from '../sdk/src';
+import { OracleSource, OrderType, PositionDirection, PublicKey, TestClient } from '../sdk/src';
 import openbookIDL from '../sdk/src/idl/openbook.json';
 import { startAnchor } from 'solana-bankrun';
 import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
 import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
-import { createOpenOrdersAccount, OPENBOOK, placeOrder } from './openbookHelpers';
+import { createOpenOrdersAccount, OPENBOOK, OrderType as ObOrderType, placeOrder, SelfTradeBehavior, Side } from './openbookHelpers';
 import { initializeQuoteSpotMarket, initializeSolSpotMarket, mockOracleNoProgram, mockUSDCMint, mockUserUSDCAccount } from './testHelpers';
 import { createBidsAsksEventHeap, createMarket } from './openbookHelpers';
 import { Keypair } from '@solana/web3.js';
@@ -18,7 +18,6 @@ describe('openbook v2', () => {
     const openbookProgram = new Program(openbookIDL as Idl, OPENBOOK);
 
 	let driftClient: TestClient;
-	let driftClientUser: User;
 
     let fillerDriftClient: TestClient;
     const fillerKeypair = Keypair.generate();
@@ -42,7 +41,7 @@ describe('openbook v2', () => {
     let userUsdcAccount: Keypair;
     let userWSolAccount: Keypair;
 
-    let marketAuthority: PublicKey;
+    let _marketAuthority: PublicKey;
     let marketBaseVault: PublicKey;
     let marketQuoteVault: PublicKey;
 
@@ -72,13 +71,13 @@ describe('openbook v2', () => {
         userUsdcAccount = await mockUserUSDCAccount(
             usdcMint,
             // @ts-ignore
-            usdcAmount,
+            usdcAmount.muln(2),
             bankrunContextWrapper
         );
         userWSolAccount = await mockUserUSDCAccount(
             wSolMint,
             // @ts-ignore
-            solAmount,
+            solAmount.muln(2),
             bankrunContextWrapper
         );
         
@@ -108,7 +107,7 @@ describe('openbook v2', () => {
 
         await createBidsAsksEventHeap(bankrunContextWrapper, bids, asks, eventHeap);
 
-        [marketAuthority, marketBaseVault, marketQuoteVault] = await createMarket(bankrunContextWrapper, openbookProgram, market, wSolMint.publicKey, usdcMint.publicKey, bids.publicKey, asks.publicKey, eventHeap.publicKey);
+        [_marketAuthority, marketBaseVault, marketQuoteVault] = await createMarket(bankrunContextWrapper, openbookProgram, market, wSolMint.publicKey, usdcMint.publicKey, bids.publicKey, asks.publicKey, eventHeap.publicKey);
 
         [openOrdersIndexer, openOrdersAccount] = await createOpenOrdersAccount(bankrunContextWrapper, openbookProgram, market.publicKey);
 
@@ -118,11 +117,16 @@ describe('openbook v2', () => {
         await initializeQuoteSpotMarket(driftClient, usdcMint.publicKey);
         await initializeSolSpotMarket(driftClient, solOracle, wSolMint.publicKey);
 
+        await driftClient.updateSpotMarketOrdersEnabled(0, true);
+        await driftClient.updateSpotMarketOrdersEnabled(1, true);
+
         await driftClient.initializeUserAccountAndDepositCollateral(
             // @ts-ignore
             usdcAmount,
             userUsdcAccount.publicKey,
         );
+
+        await driftClient.addUser(0);
         // @ts-ignore
         await driftClient.deposit(solAmount, 1, userWSolAccount.publicKey);
 
@@ -153,10 +157,16 @@ describe('openbook v2', () => {
         await fillerDriftClient.subscribe();
 
         await bankrunContextWrapper.fundKeypair(fillerKeypair, 10 * 10 ** 9);
+
+        await fillerDriftClient.initializeUserAccount();
+
+        await fillerDriftClient.addUser(0);
+
     }); 
 
     after(async () => {
         await driftClient.unsubscribe();
+        await fillerDriftClient.unsubscribe();
     });
 
     it("add market", async () => {
@@ -166,11 +176,119 @@ describe('openbook v2', () => {
         );
     });
 
-    it("works", async () => {
-    //     await placeOrder(
-    //         bankrunContextWrapper,
-    //         openbookProgram,
+    it("fill long", async () => {
+        await placeOrder(
+            bankrunContextWrapper,
+            openbookProgram,
+            openOrdersAccount,
+            openOrdersIndexer,
+            market.publicKey,
+            bids.publicKey,
+            asks.publicKey,
+            eventHeap.publicKey,
+            marketBaseVault,
+            userWSolAccount.publicKey,
+            {
+                side: Side.ASK,
+                priceLots: new anchor.BN(154_000),
+                maxBaseLots: new anchor.BN(1_000),
+                maxQuoteLotsIncludingFees: new anchor.BN(500_000_000),
+                clientOrderId: new anchor.BN(0),
+                orderType: ObOrderType.LIMIT,
+                expiryTimestamp: new anchor.BN(0),
+                selfTradeBehavior: SelfTradeBehavior.DECREMENT_TAKE,
+                limit: new anchor.BN(10)
+            }
+        );
 
-    //     )
+        await driftClient.placeSpotOrder({
+            orderType: OrderType.MARKET,
+            marketIndex: 1,
+            // @ts-ignore
+            baseAssetAmount: driftClient.convertToSpotPrecision(1, 0.1),
+            direction: PositionDirection.LONG,
+        });
+
+        const fulfillmentConfig = await driftClient.getOpenbookV2FulfillmentConfig(market.publicKey);
+
+        const userAccount = driftClient.getUserAccount();
+        const order = userAccount.orders.filter(order => order.marketIndex == 1)[0];
+        await fillerDriftClient.fillSpotOrder(
+            await driftClient.getUserAccountPublicKey(),
+            driftClient.getUserAccount(),
+            order,
+            fulfillmentConfig
+        );
+
+        await driftClient.fetchAccounts();
+
+        const userAccountAfter = driftClient.getUserAccount();
+
+        const quoteSpotPosition = userAccountAfter.spotPositions.filter(position => position.marketIndex == 0)[0];
+        const baseSpotPosition = userAccountAfter.spotPositions.filter(position => position.marketIndex == 1)[0];
+
+        console.log(`quoteSpotPosition.scaledBalance: ${quoteSpotPosition.scaledBalance}`);
+        console.log(`baseSpotPosition.scaledBalance: ${baseSpotPosition.scaledBalance}`);
+
+        // expect(quoteSpotPosition.scaledBalance).to.be.approximately(usdcAmount.toNumber() - (155 * 10 ** 6), usdcAmount.toNumber() * 0.025);
+        // expect(baseSpotPosition.scaledBalance).to.be.approximately(solAmount.toNumber() + (1 * 10 ** 9), solAmount.toNumber() * 0.025);
     });
+
+    it("fill short", async () => {
+        await placeOrder(
+            bankrunContextWrapper,
+            openbookProgram,
+            openOrdersAccount,
+            openOrdersIndexer,
+            market.publicKey,
+            bids.publicKey,
+            asks.publicKey,
+            eventHeap.publicKey,
+            marketQuoteVault,
+            userUsdcAccount.publicKey,
+            {
+                side: Side.BID,
+                priceLots: new anchor.BN(155_000),
+                maxBaseLots: new anchor.BN(1_000),
+                maxQuoteLotsIncludingFees: new anchor.BN(10_000_000_000),
+                clientOrderId: new anchor.BN(0),
+                orderType: ObOrderType.LIMIT,
+                expiryTimestamp: new anchor.BN(0),
+                selfTradeBehavior: SelfTradeBehavior.DECREMENT_TAKE,
+                limit: new anchor.BN(10)
+            }
+        );
+
+        await driftClient.placeSpotOrder({
+            orderType: OrderType.MARKET,
+            marketIndex: 1,
+            // @ts-ignore
+            baseAssetAmount: driftClient.convertToSpotPrecision(1, 0.1),
+            direction: PositionDirection.SHORT,
+        });
+
+        const fulfillmentConfig = await driftClient.getOpenbookV2FulfillmentConfig(market.publicKey);
+
+        const userAccount = driftClient.getUserAccount();
+        const order = userAccount.orders.filter(order => order.marketIndex == 1)[0];
+        await fillerDriftClient.fillSpotOrder(
+            await driftClient.getUserAccountPublicKey(),
+            driftClient.getUserAccount(),
+            order,
+            fulfillmentConfig
+        );
+
+        await driftClient.fetchAccounts();
+
+        const userAccountAfter = driftClient.getUserAccount();
+
+        const quoteSpotPosition = userAccountAfter.spotPositions.filter(position => position.marketIndex == 0)[0];
+        const baseSpotPosition = userAccountAfter.spotPositions.filter(position => position.marketIndex == 1)[0];
+
+        console.log(`quoteSpotPosition.scaledBalance: ${quoteSpotPosition.scaledBalance}`);
+        console.log(`baseSpotPosition.scaledBalance: ${baseSpotPosition.scaledBalance}`);
+
+        // expect(quoteSpotPosition.scaledBalance.toNumber()).to.be.approximately(usdcAmount.toNumber(), usdcAmount.toNumber() * 0.025);
+        // expect(baseSpotPosition.scaledBalance.toNumber()).to.be.approximately(solAmount.toNumber(), solAmount.toNumber() * 0.025);
+    }); 
 });

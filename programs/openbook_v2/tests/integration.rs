@@ -60,21 +60,27 @@ async fn test_program()  {
         )
         .await;
     let market_keys = MarketKeys {
+        market,
+        bids,
+        asks,
+        event_heap,
         market_base_vault,
+        market_quote_vault,
     };
     // create open_orders_account ( and open_orders_indexer too)
-    let (ooa, _ooi) = setup_open_orders_account(&mut banks_client, &keypair, &market).await?;
-
-    // market maker place bid
+    let (ooa, _ooi) = setup_open_orders_account(&mut banks_client, &keypair, &market).await;
+    // market maker place ask
     place_order_and_execute(
         &mut banks_client,
         &keypair,
         PlaceOrder {
-            side: Side::Bid,
-            price_lots: 150_000,
+            side: Side::Ask,
+            price_lots: 154_000,
             max_base_lots: 1000,
             max_quote_lots_including_fees: 500_000_000,
+            client_order_id: 0,
             order_type: PlaceOrderType::Limit,
+            expiry_timestamp: 0,
             self_trade_behavior: SelfTradeBehavior::DecrementTake,
             limit: 10,
         },

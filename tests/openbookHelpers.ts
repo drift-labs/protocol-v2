@@ -1,6 +1,6 @@
 import { Keypair, LAMPORTS_PER_SOL, PublicKey, SystemProgram, Transaction } from "@solana/web3.js";
 import { BankrunContextWrapper } from "../sdk/src/bankrun/bankrunConnection";
-import { ASSOCIATED_TOKEN_PROGRAM_ID, getAssociatedTokenAddressSync, TOKEN_PROGRAM_ID } from "@solana/spl-token";
+import { ASSOCIATED_TOKEN_PROGRAM_ID, getAssociatedTokenAddressSync, getOrCreateAssociatedTokenAccount, TOKEN_PROGRAM_ID } from "@solana/spl-token";
 import { BN, Program } from "@coral-xyz/anchor";
 
 export const OPENBOOK = new PublicKey("opnb2LAfJYbRMAHHvqjCwQxanZn7ReEHp1k81EohpZb");
@@ -9,6 +9,20 @@ const BID_ASKS_SIZE = 90952;
 const EVENT_HEAP_SIZE = 91288;
 
 const EVENT_AUTHORITY = PublicKey.findProgramAddressSync([Buffer.from("__event_authority")], OPENBOOK)[0];
+
+export class OrderType {
+    static readonly MARKET = { market: {} };
+	static readonly LIMIT = { limit: {} };
+}
+
+export class Side {
+    static readonly BID = { bid: {} };
+    static readonly ASK = { ask: {} };
+}
+
+export class SelfTradeBehavior {
+    static readonly DECREMENT_TAKE = { decrementTake: {} };
+}
 
 export async function createBidsAsksEventHeap(
     context: BankrunContextWrapper,
@@ -54,7 +68,7 @@ export async function createMarket(
     bids: PublicKey,
     asks: PublicKey,
     eventHeap: PublicKey,
-): Promise<PublicKey, PublicKey, PublicKey> {
+): Promise<[PublicKey, PublicKey, PublicKey]> {
 
     const marketAuthority = PublicKey.findProgramAddressSync([Buffer.from("Market"), market.publicKey.toBuffer()], OPENBOOK)[0];
     const marketBaseVault = getAssociatedTokenAddressSync(baseMint, marketAuthority, true);
@@ -119,31 +133,53 @@ export async function placeOrder(
     bids: PublicKey,
     asks: PublicKey,
     eventHeap: PublicKey,
-    marketAuthority: PublicKey,
-    marketBaseVault: PublicKey,
-    marketQuoteVault: PublicKey,
+    marketVault: PublicKey,
+    userTokenAccount: PublicKey,
     args: {
-        side: "bid" | "ask",
+        side: Side,
         priceLots: BN,
         maxBaseLots: BN,
         maxQuoteLotsIncludingFees: BN,
         clientOrderId: BN,
-        orderType: "limit" | "market",
+        orderType: OrderType,
         expiryTimestamp: BN,
-        selfTradeBehavior: "decrementTake" | "cancelProvide" | "abortTransaction"
+        selfTradeBehavior: SelfTradeBehavior
         limit: BN,
     },
 ): Promise<void> {
 
+    const placeOrderIx = openbookProgram.instruction.placeOrder(
+        args,
+    {
+        accounts: {
+            signer: context.context.payer.publicKey,
+            openOrdersAccount: openOrdersAccount,
+            openOrdersAdmin: OPENBOOK,
+            userTokenAccount: userTokenAccount,
+            market: market,
+            bids: bids,
+            asks: asks,
+            eventHeap: eventHeap,
+            marketVault: marketVault,
+            oracleA: OPENBOOK,
+            oracleB: OPENBOOK,
+            tokenProgram: TOKEN_PROGRAM_ID,
+            program: OPENBOOK
+        }
+    });
+
+    const tx = new Transaction().add(placeOrderIx);
+
+    await context.sendTransaction(tx);
 }
 
 export async function createOpenOrdersAccount(
     context: BankrunContextWrapper,
     openbookProgram: Program,
     market: PublicKey
-): Promise<PublicKey, PublicKey> {
+): Promise<[PublicKey, PublicKey]> {
     const openOrdersIndexer = PublicKey.findProgramAddressSync([Buffer.from("OpenOrdersIndexer"), context.context.payer.publicKey.toBuffer()], OPENBOOK)[0];
-    const openOrdersAccount = PublicKey.findProgramAddressSync([Buffer.from("OpenOrders"), context.context.payer.publicKey.toBuffer(), new BN(1).toArrayLike(Buffer, 'le', 2)], OPENBOOK)[0];
+    const openOrdersAccount = PublicKey.findProgramAddressSync([Buffer.from("OpenOrders"), context.context.payer.publicKey.toBuffer(), new BN(1).toArrayLike(Buffer, 'le', 4)], OPENBOOK)[0];
 
     const createOpenOrdersIndexerIx = openbookProgram.instruction.createOpenOrdersIndexer({
         accounts: {
@@ -155,7 +191,9 @@ export async function createOpenOrdersAccount(
         }
     });
 
-    const createOpenOrdersAccountIx = openbookProgram.instruction.createOpenOrdersAccount({
+    const createOpenOrdersAccountIx = openbookProgram.instruction.createOpenOrdersAccount(
+        "Freddy",
+    {
         accounts: {
             payer: context.context.payer.publicKey,
             owner: context.context.payer.publicKey,
