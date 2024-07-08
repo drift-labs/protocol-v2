@@ -340,6 +340,9 @@ describe('place and fill spot order', () => {
 		console.log(fuelPosition.toString());
 		assert(fuelPosition.gt(ZERO));
 
+		await makerDriftClientUser.unsubscribe();
+		await makerDriftClient.unsubscribe();
+
 		await takerDriftClientUser.unsubscribe();
 		await takerDriftClient.unsubscribe();
 	});
