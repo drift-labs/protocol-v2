@@ -337,14 +337,14 @@ export const MainnetSpotMarkets: SpotMarketConfig[] = [
 	{
 		symbol: 'POPCAT',
 		marketIndex: 20,
-		oracle: new PublicKey('2stQe1XLGkuTZ22gQrgZKsb93iG9mWXSLfANMPRjs5Ky'),
+		oracle: new PublicKey('3GjpjC8TWsPqjyFSiR7saGxgzD8zqYJNsBnWpenZPEBy'),
 		oracleSource: OracleSource.SWITCHBOARD,
 		mint: new PublicKey('7GCihgDB8fe6KNjn2MYtkzZcRjQy3t9GHdC8uHYmW2hr'),
 		precision: new BN(10).pow(NINE),
 		precisionExp: NINE,
 		launchTs: 1720013054000,
 		phoenixMarket: new PublicKey(
-			'3GjpjC8TWsPqjyFSiR7saGxgzD8zqYJNsBnWpenZPEBy'
+			'31XgvAQ1HgFQEk31KdszbPkVXKaQqB1bgYZPoDrFpSR2'
 		),
 	},
 ];
