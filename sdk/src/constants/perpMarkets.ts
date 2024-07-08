@@ -728,7 +728,7 @@ export const MainnetPerpMarkets: PerpMarketConfig[] = [
 		symbol: 'POPCAT-PERP',
 		baseAssetSymbol: 'POPCAT',
 		marketIndex: 34,
-		oracle: new PublicKey('2stQe1XLGkuTZ22gQrgZKsb93iG9mWXSLfANMPRjs5Ky'),
+		oracle: new PublicKey('3GjpjC8TWsPqjyFSiR7saGxgzD8zqYJNsBnWpenZPEBy'),
 		launchTs: 1720013054000,
 		oracleSource: OracleSource.SWITCHBOARD,
 	},

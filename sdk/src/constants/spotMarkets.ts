@@ -295,7 +295,7 @@ export const MainnetSpotMarkets: SpotMarketConfig[] = [
 	{
 		symbol: 'INF',
 		marketIndex: 16,
-		oracle: new PublicKey('6AQHz9mpGNjyVafcWdqzzgsJq14Cs8gG6MiQKmdAgCuP'),
+		oracle: new PublicKey('81SuhCcCQri9w4yPyv56ErtpXuncVyFCDT3fYehceG1M'),
 		oracleSource: OracleSource.SWITCHBOARD,
 		mint: new PublicKey('5oVNBeEEQvYi1cX3ir8Dx5n1P7pdxydbGF2X4TxVusJm'),
 		precision: new BN(10).pow(NINE),
@@ -344,7 +344,7 @@ export const MainnetSpotMarkets: SpotMarketConfig[] = [
 		precisionExp: NINE,
 		launchTs: 1720013054000,
 		phoenixMarket: new PublicKey(
-			'31XgvAQ1HgFQEk31KdszbPkVXKaQqB1bgYZPoDrFpSR2'
+			'3GjpjC8TWsPqjyFSiR7saGxgzD8zqYJNsBnWpenZPEBy'
 		),
 	},
 ];
