@@ -109,12 +109,12 @@ pub mod marinade_mainnet {
     declare_id!("MarBmsSgKXdrN1egZf5sqe1TMai9K1rChYNDJgjq7aD");
 }
 
-pub mod usdt_oracle_mainnet {
+pub mod usdt_oracle {
     use solana_program::declare_id;
     declare_id!("3vxLXJqLqF3JG5TCbYycbKWRBbCJQLxQmBGCkyqEEefL");
 }
 
-pub mod usdt_pull_oracle_mainnet {
+pub mod usdt_pull_oracle {
     use solana_program::declare_id;
     declare_id!("BekJ3P5G3iFeC97sXHuKnUHofCFj9Sbo7uyF2fkKwvit");
 }
