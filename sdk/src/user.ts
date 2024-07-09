@@ -900,11 +900,15 @@ export class User {
 			const userStats: UserStatsAccount = this.driftClient
 				.getUserStats()
 				.getAccount();
-			result.takerFuel = result.takerFuel.addn(userStats.fuelTaker);
-			result.makerFuel = result.makerFuel.addn(userStats.fuelMaker);
-			result.depositFuel = result.depositFuel.addn(userStats.fuelDeposits);
-			result.borrowFuel = result.borrowFuel.addn(userStats.fuelBorrows);
-			result.positionFuel = result.positionFuel.addn(userStats.fuelPositions);
+			result.takerFuel = result.takerFuel.add(new BN(userStats.fuelTaker));
+			result.makerFuel = result.makerFuel.add(new BN(userStats.fuelMaker));
+			result.depositFuel = result.depositFuel.add(
+				new BN(userStats.fuelDeposits)
+			);
+			result.borrowFuel = result.borrowFuel.add(new BN(userStats.fuelBorrows));
+			result.positionFuel = result.positionFuel.add(
+				new BN(userStats.fuelPositions)
+			);
 		}
 
 		if (includeUnsettled) {
