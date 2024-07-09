@@ -139,7 +139,7 @@ export const MainnetSpotMarkets: SpotMarketConfig[] = [
 		symbol: 'USDT',
 		marketIndex: 5,
 		oracle: new PublicKey('3vxLXJqLqF3JG5TCbYycbKWRBbCJQLxQmBGCkyqEEefL'),
-		oracleSource: OracleSource.PYTH_STABLE_COIN,
+		oracleSource: OracleSource.PYTH,
 		mint: new PublicKey('Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB'),
 		precision: QUOTE_PRECISION,
 		precisionExp: QUOTE_PRECISION_EXP,
@@ -337,7 +337,7 @@ export const MainnetSpotMarkets: SpotMarketConfig[] = [
 	{
 		symbol: 'POPCAT',
 		marketIndex: 20,
-		oracle: new PublicKey('3GjpjC8TWsPqjyFSiR7saGxgzD8zqYJNsBnWpenZPEBy'),
+		oracle: new PublicKey('2stQe1XLGkuTZ22gQrgZKsb93iG9mWXSLfANMPRjs5Ky'),
 		oracleSource: OracleSource.SWITCHBOARD,
 		mint: new PublicKey('7GCihgDB8fe6KNjn2MYtkzZcRjQy3t9GHdC8uHYmW2hr'),
 		precision: new BN(10).pow(NINE),

@@ -1,0 +1,1 @@
+ts-mocha ./sdk/tests/ci/verifyConstants.ts
