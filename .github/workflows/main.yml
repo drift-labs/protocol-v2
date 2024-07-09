@@ -166,8 +166,10 @@ jobs:
           yarn build
           cd ..
 
-      - name: Install ts-mocha
-        run: npm install -g ts-mocha
+      - name: Install ts-mocha and typescript
+        run: |
+          npm install -g ts-mocha
+          npm install -g typescript
 
       - name: Run tests
         env:
