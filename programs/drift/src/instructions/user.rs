@@ -150,6 +150,7 @@ pub fn handle_initialize_user<'c: 'info, 'info>(
     let now_ts = Clock::get()?.unix_timestamp;
 
     user.last_fuel_bonus_update_ts = now_ts;
+    user_stats.last_fuel_bonus_update_ts = now_ts.cast()?;
 
     emit!(NewUserRecord {
         ts: now_ts,

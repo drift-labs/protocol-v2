@@ -637,6 +637,8 @@ export type PerpMarketAccount = {
 	feeAdjustment: number;
 	pausedOperations: number;
 
+	fuelBoostTaker: number;
+	fuelBoostMaker: number;
 	fuelBoostPosition: number;
 };
 
@@ -739,6 +741,9 @@ export type SpotMarketAccount = {
 
 	fuelBoostDeposits: number;
 	fuelBoostBorrows: number;
+	fuelBoostTaker: number;
+	fuelBoostMaker: number;
+	fuelBoostInsurance: number;
 };
 
 export type PoolBalance = {
@@ -882,6 +887,9 @@ export type UserStatsAccount = {
 	authority: PublicKey;
 	ifStakedQuoteAssetAmount: BN;
 
+	lastFuelBonusUpdateTs: number; // u32 onchain
+
+	fuelInsurance: number;
 	fuelDeposits: number;
 	fuelBorrows: number;
 	fuelPositions: number;

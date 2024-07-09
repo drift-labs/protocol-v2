@@ -6,6 +6,20 @@ import {
 	FUEL_WINDOW,
 } from '../constants/numericConstants';
 
+export function calculateInsuranceFuelBonus(
+	spotMarket: SpotMarketAccount,
+	tokenStakeAmount: BN,
+	fuelBonusNumerator: BN
+): BN {
+	const result = tokenStakeAmount
+		.abs()
+		.mul(fuelBonusNumerator)
+		.mul(new BN(spotMarket.fuelBoostInsurance))
+		.div(FUEL_WINDOW)
+		.div(QUOTE_PRECISION.div(new BN(10)));
+	return result;
+}
+
 export function calculateSpotFuelBonus(
 	spotMarket: SpotMarketAccount,
 	signedTokenValue: BN,
@@ -13,7 +27,7 @@ export function calculateSpotFuelBonus(
 ): BN {
 	let result: BN;
 
-	if (signedTokenValue.abs().lt(new BN(1))) {
+	if (signedTokenValue.abs().lte(QUOTE_PRECISION)) {
 		result = ZERO;
 	} else if (signedTokenValue.gt(new BN(0))) {
 		result = signedTokenValue

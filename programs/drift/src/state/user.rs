@@ -1541,22 +1541,27 @@ pub struct UserStats {
     /// Whether the user is a referrer. Sub account 0 can not be deleted if user is a referrer
     pub is_referrer: bool,
     pub disable_update_perp_bid_ask_twap: bool,
-    pub padding1: [u8; 6],
-    /// sub account id for spot deposit, borrow fuel tracking
+    pub padding1: [u8; 2],
+    /// accumulated fuel for token amounts of insurance
+    pub fuel_insurance: u32,
+    /// accumulated fuel for notional of deposits
     pub fuel_deposits: u32,
-    /// accumulate fuel bonus for epoch
+    /// accumulate fuel bonus for notional of borrows
     pub fuel_borrows: u32,
     /// accumulated fuel for perp open interest
     pub fuel_positions: u32,
-    /// accumulate fuel bonus for epoch
+    /// accumulate fuel bonus for taker volume
     pub fuel_taker: u32,
-    /// accumulate fuel bonus for epoch
+    /// accumulate fuel bonus for maker volume
     pub fuel_maker: u32,
 
     /// The amount of tokens staked in the governance spot markets if
     pub if_staked_gov_token_amount: u64,
 
-    pub padding: [u8; 16],
+    /// last unix ts user stats data was used to update fuel (u32 to save space)
+    pub last_fuel_bonus_update_ts: u32,
+
+    pub padding: [u8; 12],
 }
 
 impl Default for UserStats {
@@ -1577,14 +1582,16 @@ impl Default for UserStats {
             number_of_sub_accounts_created: 0,
             is_referrer: false,
             disable_update_perp_bid_ask_twap: false,
-            padding1: [0; 6],
+            padding1: [0; 2],
+            fuel_insurance: 0,
             fuel_deposits: 0,
             fuel_borrows: 0,
             fuel_taker: 0,
             fuel_maker: 0,
             fuel_positions: 0,
             if_staked_gov_token_amount: 0,
-            padding: [0; 16],
+            last_fuel_bonus_update_ts: 0,
+            padding: [0; 12],
         }
     }
 }
