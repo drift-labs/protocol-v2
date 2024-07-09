@@ -498,14 +498,14 @@ describe('place and fill spot order', () => {
 
 		// withdraw/borrow .01 sol
 		await takerDriftClient.withdraw(
-			new BN(LAMPORTS_PER_SOL / 100),
+			new BN(LAMPORTS_PER_SOL / 10),
 			1,
 			takerDriftClient.provider.wallet.publicKey
 		);
 
 		console.log(takerDriftClientUser.getTokenAmount(1).toString());
 		assert(takerDriftClientUser.getTokenAmount(1).lt(ZERO)); // 2 for rounding purposes?
-		assert(takerDriftClientUser.getTokenAmount(1).eqn(-10000001)); // 2 for rounding purposes?
+		assert(takerDriftClientUser.getTokenAmount(1).toString() == '-100000001'); // 2 for rounding purposes?
 
 		const fuelDictAfter2 = takerDriftClientUser.getFuelBonus(
 			new BN(currentClock2.unixTimestamp.toString()).addn(36000),
@@ -513,9 +513,12 @@ describe('place and fill spot order', () => {
 			true
 		);
 		console.log(fuelDictAfter2);
+
+		assert(takerDriftClient.getSpotMarketAccount(1).fuelBoostBorrows == 100);
+
 		assert(fuelDictAfter2['depositFuel'].gt(ZERO));
 		assert(fuelDictAfter2['depositFuel'].eqn(2171));
-		assert(fuelDictAfter2['borrowFuel'].eqn(4));
+		assert(fuelDictAfter2['borrowFuel'].eqn(48));
 
 		await takerDriftClientUser.unsubscribe();
 		await takerDriftClient.unsubscribe();
@@ -604,15 +607,15 @@ describe('place and fill spot order', () => {
 		const makerUSDCAmount = makerDriftClient.getQuoteAssetTokenAmount();
 		const makerSolAmount = makerDriftClient.getTokenAmount(1);
 		console.log(makerUSDCAmount.toString(), makerSolAmount.toString());
-		assert(makerUSDCAmount.gte(new BN(139607920)));
-		assert(makerSolAmount.lte(new BN(-989999999))); // round borrows up
+		assert(makerUSDCAmount.gte(new BN(136007200)));
+		assert(makerSolAmount.lte(new BN(-900000000))); // round borrows up
 
 		const takerUSDCAmount = takerDriftClient.getQuoteAssetTokenAmount();
 		const takerSolAmount = takerDriftClient.getTokenAmount(1);
 		console.log(takerUSDCAmount.toString(), takerSolAmount.toString());
 
-		assert(takerUSDCAmount.eq(new BN(60360400)));
-		assert(takerSolAmount.eq(new BN(989999997)));
+		assert(takerUSDCAmount.eq(new BN(63964000)));
+		assert(takerSolAmount.eq(new BN(899999997)));
 
 		console.log(fillerDriftClient.getQuoteAssetTokenAmount().toNumber());
 
@@ -629,7 +632,7 @@ describe('place and fill spot order', () => {
 		);
 		console.log(fuelDictTaker);
 		assert(fuelDictTaker['takerFuel'].gt(ZERO));
-		assert(fuelDictTaker['takerFuel'].eqn(3900));
+		assert(fuelDictTaker['takerFuel'].eqn(3600));
 
 		const fuelDictMaker = makerDriftClientUser.getFuelBonus(
 			new BN(currentClock2.unixTimestamp.toString()),
@@ -639,7 +642,7 @@ describe('place and fill spot order', () => {
 		// console.log(fuelDictMaker);
 		assert(fuelDictMaker['takerFuel'].eq(ZERO));
 		assert(fuelDictMaker['makerFuel'].gt(ZERO));
-		assert(fuelDictMaker['makerFuel'].eqn(3900 * 2));
+		assert(fuelDictMaker['makerFuel'].eqn(3600 * 2));
 
 		await takerDriftClientUser.unsubscribe();
 		await takerDriftClient.unsubscribe();

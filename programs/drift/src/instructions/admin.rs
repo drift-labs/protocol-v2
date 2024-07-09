@@ -3284,6 +3284,7 @@ pub fn handle_update_spot_market_fuel(
     fuel_boost_borrows: Option<u8>,
     fuel_boost_taker: Option<u8>,
     fuel_boost_maker: Option<u8>,
+    fuel_boost_insurance: Option<u8>,
 ) -> Result<()> {
     let spot_market = &mut load_mut!(ctx.accounts.spot_market)?;
 
@@ -3329,6 +3330,17 @@ pub fn handle_update_spot_market_fuel(
         spot_market.fuel_boost_borrows = fuel_boost_borrows;
     } else {
         msg!("perp_market.fuel_boost_borrows: unchanged");
+    }
+
+    if let Some(fuel_boost_insurance) = fuel_boost_insurance {
+        msg!(
+            "perp_market.fuel_boost_insurance: {:?} -> {:?}",
+            spot_market.fuel_boost_insurance,
+            fuel_boost_insurance
+        );
+        spot_market.fuel_boost_insurance = fuel_boost_insurance;
+    } else {
+        msg!("perp_market.fuel_boost_insurance: unchanged");
     }
 
     Ok(())

@@ -951,6 +951,12 @@ export class User {
 						)
 					);
 				} else {
+					const bFuel = calculateSpotFuelBonus(
+						spotMarketAccount,
+						signedTokenValue,
+						fuelBonusNumerator
+					);
+					console.log('bFuel:', signedTokenValue.toString(), bFuel.toString());
 					result.borrowFuel = result.borrowFuel.add(
 						calculateSpotFuelBonus(
 							spotMarketAccount,
