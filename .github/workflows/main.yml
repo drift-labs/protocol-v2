@@ -166,11 +166,14 @@ jobs:
           yarn build
           cd ..
 
-      - name: Run verify-constants script
+      - name: Install ts-mocha
+        run: npm install -g ts-mocha
+
+      - name: Run tests
         env:
           MAINNET_RPC_ENDPOINT: ${{ secrets.MAINNET_RPC_ENDPOINT }}
           DEVNET_RPC_ENDPOINT: ${{ secrets.DEVNET_RPC_ENDPOINT }}
-        run: bash ./test-scripts/verify-constants.sh
+        run: ts-mocha ./sdk/tests/ci/verifyConstants.ts
 
 
   check-for-sdk-changes:
