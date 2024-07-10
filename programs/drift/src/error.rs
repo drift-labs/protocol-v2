@@ -557,6 +557,8 @@ pub enum ErrorCode {
     OracleWrongWriteAuthority,
     #[msg("Oracle vaa owner must be wormhole program")]
     OracleWrongVaaOwner,
+    #[msg("Multi updates must have the same number of feed ids and params passed to the program")]
+    OracleMismatchFeedIdAndParamAndPriceFeedAccountCount,
 }
 
 #[macro_export]
