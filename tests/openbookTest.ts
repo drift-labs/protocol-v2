@@ -64,7 +64,7 @@ describe('openbook v2', () => {
 			1
 		);
 
-        const solOracle = await mockOracleNoProgram(bankrunContextWrapper, 155, -3, 28988326);
+        const solOracle = await mockOracleNoProgram(bankrunContextWrapper, 100);
         usdcMint = await mockUSDCMint(bankrunContextWrapper);
         wSolMint = await mockUSDCMint(bankrunContextWrapper);
 
@@ -174,6 +174,13 @@ describe('openbook v2', () => {
             solSpotMarketIndex,
             market.publicKey,
         );
+        const userAccountAfter = driftClient.getUserAccount();
+
+        const quoteSpotPosition = userAccountAfter.spotPositions.filter(position => position.marketIndex == 0)[0];
+        const baseSpotPosition = userAccountAfter.spotPositions.filter(position => position.marketIndex == 1)[0];
+
+        console.log(`quoteSpotPosition.scaledBalance: ${quoteSpotPosition.scaledBalance}`);
+        console.log(`baseSpotPosition.scaledBalance: ${baseSpotPosition.scaledBalance}`);
     });
 
     it("fill long", async () => {
@@ -190,9 +197,9 @@ describe('openbook v2', () => {
             userWSolAccount.publicKey,
             {
                 side: Side.ASK,
-                priceLots: new anchor.BN(154_000),
-                maxBaseLots: new anchor.BN(1_000),
-                maxQuoteLotsIncludingFees: new anchor.BN(500_000_000),
+                priceLots: new anchor.BN(100),
+                maxBaseLots: new anchor.BN(1_000_000),
+                maxQuoteLotsIncludingFees: new anchor.BN(100_040_000),
                 clientOrderId: new anchor.BN(0),
                 orderType: ObOrderType.LIMIT,
                 expiryTimestamp: new anchor.BN(0),
@@ -230,7 +237,7 @@ describe('openbook v2', () => {
         console.log(`quoteSpotPosition.scaledBalance: ${quoteSpotPosition.scaledBalance}`);
         console.log(`baseSpotPosition.scaledBalance: ${baseSpotPosition.scaledBalance}`);
 
-        // expect(quoteSpotPosition.scaledBalance).to.be.approximately(usdcAmount.toNumber() - (155 * 10 ** 6), usdcAmount.toNumber() * 0.025);
+        // expect(quoteSpotPosition.scaledBalance).to.be.approximately(usdcAmount.toNumber() - (100 * 10 ** 6), usdcAmount.toNumber() * 0.025);
         // expect(baseSpotPosition.scaledBalance).to.be.approximately(solAmount.toNumber() + (1 * 10 ** 9), solAmount.toNumber() * 0.025);
     });
 
@@ -248,9 +255,9 @@ describe('openbook v2', () => {
             userUsdcAccount.publicKey,
             {
                 side: Side.BID,
-                priceLots: new anchor.BN(155_000),
-                maxBaseLots: new anchor.BN(1_000),
-                maxQuoteLotsIncludingFees: new anchor.BN(10_000_000_000),
+                priceLots: new anchor.BN(100),
+                maxBaseLots: new anchor.BN(1_00_000),
+                maxQuoteLotsIncludingFees: new anchor.BN(10_040_000),
                 clientOrderId: new anchor.BN(0),
                 orderType: ObOrderType.LIMIT,
                 expiryTimestamp: new anchor.BN(0),
