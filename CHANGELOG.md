@@ -15,6 +15,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Breaking
 
+## [2.85.1] - 2024-07-09
+
+### Features
+
+- program: add oracle id for wen ([#1129](https://github.com/drift-labs/protocol-v2/pull/1129))
+
+### Fixes
+
+### Breaking
+
 ## [2.85.0] - 2024-07-02
 
 ### Features
