@@ -315,6 +315,18 @@ export const DevnetPerpMarkets: PerpMarketConfig[] = [
 		pythFeedId:
 			'0xb17e5bc5de742a8a378b54c9c75442b7d51e30ada63f28d9bd28d3c0e26511a0',
 	},
+	{
+		fullName: 'Wen',
+		category: ['Solana', 'Meme'],
+		symbol: 'WEN-PERP',
+		baseAssetSymbol: 'WEN',
+		marketIndex: 25,
+		oracle: new PublicKey('F47c7aJgYkfKXQ9gzrJaEpsNwUKHprysregTWXrtYLFp'),
+		launchTs: 1720572064000,
+		oracleSource: OracleSource.PYTH_1K_PULL,
+		pythFeedId:
+			'0x5169491cd7e2a44c98353b779d5eb612e4ac32e073f5cc534303d86307c2f1bc',
+	},
 ];
 
 export const MainnetPerpMarkets: PerpMarketConfig[] = [
