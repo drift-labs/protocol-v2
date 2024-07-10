@@ -744,6 +744,18 @@ export const MainnetPerpMarkets: PerpMarketConfig[] = [
 		launchTs: 1720013054000,
 		oracleSource: OracleSource.SWITCHBOARD,
 	},
+	{
+		fullName: 'Wen',
+		category: ['Solana', 'Meme'],
+		symbol: 'WEN-PERP',
+		baseAssetSymbol: 'WEN',
+		marketIndex: 35,
+		oracle: new PublicKey('F47c7aJgYkfKXQ9gzrJaEpsNwUKHprysregTWXrtYLFp'),
+		launchTs: 1720633344000,
+		oracleSource: OracleSource.PYTH_1K_PULL,
+		pythFeedId:
+			'0x5169491cd7e2a44c98353b779d5eb612e4ac32e073f5cc534303d86307c2f1bc',
+	},
 ];
 
 export const PerpMarkets: { [key in DriftEnv]: PerpMarketConfig[] } = {
