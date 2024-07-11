@@ -127,8 +127,8 @@ pub struct User {
     /// Whether or not user has open order with auction
     pub has_open_auction: bool,
     pub padding1: [u8; 5],
-    pub last_fuel_bonus_update_ts: i64,
-    pub padding: [u8; 8],
+    pub last_fuel_bonus_update_ts: u32,
+    pub padding: [u8; 12],
 }
 
 impl User {
@@ -434,25 +434,15 @@ impl User {
 
     pub fn get_fuel_bonus_numerator(&self, now: i64) -> DriftResult<i64> {
         if self.last_fuel_bonus_update_ts > 0 {
-            now.safe_sub(self.last_fuel_bonus_update_ts)
+            now.safe_sub(self.last_fuel_bonus_update_ts.cast()?)
         } else {
             // start ts for existing accounts pre fuel
-            return Ok(now.safe_sub(FUEL_START_TS)?.max(0));
+            if now > FUEL_START_TS {
+                return Ok(now.safe_sub(FUEL_START_TS)?);
+            } else {
+                return Ok(0);
+            }
         }
-    }
-
-    pub fn increment_fuel_bonus(
-        &mut self,
-        fuel_deposits: u32,
-        fuel_borrows: u32,
-        fuel_positions: u32,
-        user_stats: &mut UserStats,
-        now: i64,
-    ) -> DriftResult {
-        user_stats.update_fuel_bonus(fuel_deposits, fuel_borrows, fuel_positions)?;
-        self.last_fuel_bonus_update_ts = now;
-
-        Ok(())
     }
 
     pub fn calculate_margin_and_increment_fuel_bonus(
@@ -485,13 +475,15 @@ impl User {
                 context,
             )?;
 
-        user_stats.update_fuel_bonus(
-            margin_calculation.fuel_deposits,
-            margin_calculation.fuel_borrows,
-            margin_calculation.fuel_positions,
-        )?;
+        if self.last_fuel_bonus_update_ts != 0 || now > FUEL_START_TS {
+            user_stats.update_fuel_bonus(
+                margin_calculation.fuel_deposits,
+                margin_calculation.fuel_borrows,
+                margin_calculation.fuel_positions,
+            )?;
 
-        self.last_fuel_bonus_update_ts = now;
+            self.last_fuel_bonus_update_ts = now.cast()?;
+        }
 
         Ok(margin_calculation)
     }
@@ -539,12 +531,14 @@ impl User {
             calculation.margin_requirement
         )?;
 
-        user_stats.update_fuel_bonus(
-            calculation.fuel_deposits,
-            calculation.fuel_borrows,
-            calculation.fuel_positions,
-        )?;
-        self.last_fuel_bonus_update_ts = now;
+        if self.last_fuel_bonus_update_ts != 0 || now > FUEL_START_TS {
+            user_stats.update_fuel_bonus(
+                calculation.fuel_deposits,
+                calculation.fuel_borrows,
+                calculation.fuel_positions,
+            )?;
+            self.last_fuel_bonus_update_ts = now.cast()?;
+        }
 
         Ok(true)
     }
@@ -1606,8 +1600,12 @@ impl UserStats {
         last_fuel_bonus_update_ts: i64,
         now: i64,
     ) -> DriftResult<i64> {
-        let since_last = now.safe_sub(last_fuel_bonus_update_ts)?;
-        Ok(since_last)
+        if last_fuel_bonus_update_ts != 0 {
+            let since_last = now.safe_sub(last_fuel_bonus_update_ts)?;
+            return Ok(since_last);
+        }
+
+        Ok(0)
     }
 
     pub fn update_fuel_bonus_trade(&mut self, fuel_taker: u32, fuel_maker: u32) -> DriftResult {

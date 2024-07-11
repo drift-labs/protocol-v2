@@ -285,7 +285,7 @@ pub mod fuel_scoring {
         assert_eq!(maker_stats_after.fuel_maker, 5000);
         assert_eq!(taker_stats.fuel_taker, 2500);
 
-        now += 1000000;
+        now += 100000;
 
         let mut margin_context = MarginContext::standard(MarginRequirementType::Initial);
 
@@ -302,12 +302,13 @@ pub mod fuel_scoring {
             )
             .is_err();
         assert!(is_errored_attempted);
-
+        assert_eq!(taker.last_fuel_bonus_update_ts as i64, 0);
+        taker.last_fuel_bonus_update_ts = FUEL_START_TS as u32;
         margin_context.fuel_bonus_numerator = taker_stats
-            .get_fuel_bonus_numerator(taker.last_fuel_bonus_update_ts, now)
+            .get_fuel_bonus_numerator(taker.last_fuel_bonus_update_ts as i64, now)
             .unwrap();
-        assert_eq!(margin_context.fuel_bonus_numerator, 1000000);
-        assert_eq!(taker.last_fuel_bonus_update_ts, FUEL_START_TS);
+        assert_eq!(margin_context.fuel_bonus_numerator, 100000);
+        assert_eq!(taker.last_fuel_bonus_update_ts as i64, FUEL_START_TS);
 
         let margin_calc: MarginCalculation = taker
             .calculate_margin_and_increment_fuel_bonus(
@@ -320,8 +321,8 @@ pub mod fuel_scoring {
             )
             .unwrap();
 
-        assert_eq!(margin_calc.fuel_positions, 51669);
-        // assert_eq!(taker_stats.fuel_positions, 25000000000 + margin_calc.fuel_positions);
+        assert_eq!(margin_calc.fuel_positions, 5166);
+        assert_eq!(taker_stats.fuel_positions, margin_calc.fuel_positions);
     }
 
     #[test]
