@@ -68,6 +68,8 @@ export async function createMarket(
     bids: PublicKey,
     asks: PublicKey,
     eventHeap: PublicKey,
+    quoteLotSize: BN,
+    baseLotSize: BN,
 ): Promise<[PublicKey, PublicKey, PublicKey]> {
 
     const marketAuthority = PublicKey.findProgramAddressSync([Buffer.from("Market"), market.publicKey.toBuffer()], OPENBOOK)[0];
@@ -75,10 +77,8 @@ export async function createMarket(
     const marketQuoteVault = getAssociatedTokenAddressSync(quoteMint, marketAuthority, true);
 
     const name = "SOL-USDC";
-    const quoteLotSize = new BN(1);
-    const baseLotSize = new BN(1);
-    const makerFee = new BN(1_000);
-    const takerFee = new BN(1_000);
+    const makerFee = new BN(0);
+    const takerFee = new BN(0);
     const timeExpiry = new BN(0);
     const oracleConfigParams = {
         confFilter: new BN(0.1),
