@@ -2645,6 +2645,18 @@
           "name": "priceFeed",
           "isMut": true,
           "isSigner": false
+        },
+        {
+          "name": "priceFeed1",
+          "isMut": true,
+          "isSigner": false,
+          "isOptional": true
+        },
+        {
+          "name": "priceFeed2",
+          "isMut": true,
+          "isSigner": false,
+          "isOptional": true
         }
       ],
       "args": [
@@ -2660,6 +2672,62 @@
         {
           "name": "params",
           "type": "bytes"
+        }
+      ]
+    },
+    {
+      "name": "postMultiPythPullOracleUpdatesAtomic",
+      "accounts": [
+        {
+          "name": "keeper",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "pythSolanaReceiver",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "guardianSet",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "priceFeed",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "priceFeed1",
+          "isMut": true,
+          "isSigner": false,
+          "isOptional": true
+        },
+        {
+          "name": "priceFeed2",
+          "isMut": true,
+          "isSigner": false,
+          "isOptional": true
+        }
+      ],
+      "args": [
+        {
+          "name": "feedIds",
+          "type": {
+            "vec": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          }
+        },
+        {
+          "name": "paramsVec",
+          "type": {
+            "vec": "bytes"
+          }
         }
       ]
     },
@@ -12427,6 +12495,11 @@
       "code": 6275,
       "name": "OracleWrongVaaOwner",
       "msg": "Oracle vaa owner must be wormhole program"
+    },
+    {
+      "code": 6276,
+      "name": "OracleMismatchFeedIdAndParamAndPriceFeedAccountCount",
+      "msg": "Multi updates must have the same number of feed ids and params passed to the program"
     }
   ],
   "metadata": {

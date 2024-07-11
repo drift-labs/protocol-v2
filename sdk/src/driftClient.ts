@@ -6923,11 +6923,25 @@ export class DriftClient {
 
 	public async postPythPullOracleUpdateAtomic(
 		vaaString: string,
-		feedId: string
+		feedIds: string | string[]
 	): Promise<TransactionSignature> {
 		const postIxs = await this.getPostPythPullOracleUpdateAtomicIxs(
 			vaaString,
-			feedId
+			feedIds
+		);
+		const tx = await this.buildTransaction(postIxs);
+		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+
+		return txSig;
+	}
+
+	public async postMultiPythPullOracleUpdatesAtomic(
+		vaaString: string,
+		feedIds: string[]
+	): Promise<TransactionSignature> {
+		const postIxs = await this.getPostPythPullOracleUpdateAtomicIxs(
+			vaaString,
+			feedIds
 		);
 		const tx = await this.buildTransaction(postIxs);
 		const { txSig } = await this.sendTransaction(tx, [], this.opts);
@@ -6937,10 +6951,16 @@ export class DriftClient {
 
 	public async getPostPythPullOracleUpdateAtomicIxs(
 		vaaString: string,
-		feedId: string,
+		feedIds: string | string[],
 		numSignatures = 2
 	): Promise<TransactionInstruction[]> {
-		feedId = trimFeedId(feedId);
+		const feedIdsToUse: string[] =
+			typeof feedIds === 'string' ? [feedIds] : feedIds;
+
+		if (feedIdsToUse.length > 3) {
+			throw new Error('Too many feed ids to update at once');
+		}
+
 		const accumulatorUpdateData = parseAccumulatorUpdateData(
 			Buffer.from(vaaString, 'base64')
 		);
@@ -6954,24 +6974,65 @@ export class DriftClient {
 			numSignatures
 		);
 
-		const postIxs: TransactionInstruction[] = [];
-		for (const update of accumulatorUpdateData.updates) {
+		if (feedIdsToUse.length > 1) {
+			const postIxs: TransactionInstruction[] = [];
+
+			const feedIdBuffers = feedIdsToUse.map((feedId) =>
+				getFeedIdUint8Array(feedId)
+			);
+			const encodedParams = this.getReceiverProgram().coder.types.encode(
+				'PostUpdateAtomicParams',
+				accumulatorUpdateData.updates
+			);
+			postIxs.push(
+				this.program.instruction.postMultiPythPullOracleUpdatesAtomic(
+					feedIdBuffers,
+					encodedParams,
+					{
+						accounts: {
+							keeper: this.wallet.publicKey,
+							pythSolanaReceiver: DRIFT_ORACLE_RECEIVER_ID,
+							guardianSet,
+							priceFeed: getPythPullOraclePublicKey(
+								this.program.programId,
+								feedIdBuffers[0]
+							),
+							priceFeed1: feedIdBuffers[1]
+								? getPythPullOraclePublicKey(
+										this.program.programId,
+										feedIdBuffers[1]
+								  )
+								: undefined,
+							priceFeed2: feedIdBuffers[2]
+								? getPythPullOraclePublicKey(
+										this.program.programId,
+										feedIdBuffers[2]
+								  )
+								: undefined,
+						},
+					}
+				)
+			);
+
+			return postIxs;
+		} else {
+			const feedId = trimFeedId(feedIdsToUse[0]);
+			const postIxs: TransactionInstruction[] = [];
 			postIxs.push(
 				await this.getSinglePostPythPullOracleAtomicIx(
 					{
 						vaa: trimmedVaa,
-						merklePriceUpdate: update,
+						merklePriceUpdate: accumulatorUpdateData.updates[0],
 					},
 					feedId,
 					guardianSet
 				)
 			);
+			return postIxs;
 		}
-
-		return postIxs;
 	}
 
-	public async getSinglePostPythPullOracleAtomicIx(
+	private async getSinglePostPythPullOracleAtomicIx(
 		params: {
 			vaa: Buffer;
 			merklePriceUpdate: {
@@ -7083,7 +7144,7 @@ export class DriftClient {
 		);
 	}
 
-	public async getBuildEncodedVaaIxs(
+	private async getBuildEncodedVaaIxs(
 		vaa: Buffer,
 		guardianSet: PublicKey
 	): Promise<[TransactionInstruction[], Keypair]> {
