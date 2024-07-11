@@ -318,8 +318,8 @@ export const DevnetPerpMarkets: PerpMarketConfig[] = [
 	{
 		fullName: 'Wen',
 		category: ['Solana', 'Meme'],
-		symbol: 'WEN-PERP',
-		baseAssetSymbol: 'WEN',
+		symbol: '1KWEN-PERP',
+		baseAssetSymbol: '1KWEN',
 		marketIndex: 25,
 		oracle: new PublicKey('F47c7aJgYkfKXQ9gzrJaEpsNwUKHprysregTWXrtYLFp'),
 		launchTs: 1720572064000,
