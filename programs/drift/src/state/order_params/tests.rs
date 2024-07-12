@@ -811,20 +811,19 @@ mod update_perp_auction_params {
         );
         assert_eq!(order_params_after.auction_end_price.unwrap(), 1207026);
 
-    // test sanitize skip on low volume
-    amm.historical_oracle_data.last_oracle_price_twap_ts = 17000000;
-    amm.last_mark_price_twap_ts = amm.historical_oracle_data.last_oracle_price_twap_ts;
-    amm.volume_24h = 183953; // under $1
-    let mut order_params_after = order_params_before;
-    order_params_after
-        .update_perp_auction_params(&perp_market, oracle_price)
-        .unwrap();
-    assert_eq!(
-        order_params_after.auction_start_price.unwrap(),
-        18698 - oracle_price / 400
-    );
-    assert_eq!(order_params_after.auction_end_price.unwrap(), 1207026);
-
+        // test sanitize skip on low volume
+        amm.historical_oracle_data.last_oracle_price_twap_ts = 17000000;
+        amm.last_mark_price_twap_ts = amm.historical_oracle_data.last_oracle_price_twap_ts;
+        amm.volume_24h = 183953; // under $1
+        let mut order_params_after = order_params_before;
+        order_params_after
+            .update_perp_auction_params(&perp_market, oracle_price)
+            .unwrap();
+        assert_eq!(
+            order_params_after.auction_start_price.unwrap(),
+            18698 - oracle_price / 400
+        );
+        assert_eq!(order_params_after.auction_end_price.unwrap(), 1207026);
 
         // test empty
         let order_params_before = OrderParams {
