@@ -1,18 +1,34 @@
 use crate::error::ErrorCode;
 use crate::ids::{drift_oracle_receiver_program, wormhole_program};
 use anchor_lang::prelude::*;
+use byteorder::{BigEndian, ReadBytesExt};
 use pyth_solana_receiver_sdk::{
     cpi::accounts::{PostUpdate, PostUpdateAtomic},
     price_update::PriceUpdateV2,
     program::PythSolanaReceiver,
     PostUpdateAtomicParams, PostUpdateParams,
 };
+use pythnet_sdk::accumulators::merkle::MerklePath;
+use pythnet_sdk::wire::v1::MerklePriceUpdate;
 use pythnet_sdk::{
     messages::Message,
     wire::{from_slice, PrefixedVec},
 };
+use std::io::{Cursor, Read};
 
 pub const PTYH_PRICE_FEED_SEED_PREFIX: &[u8] = b"pyth_pull";
+const KECCAK160_HASH_SIZE: usize = 20;
+
+pub struct AccumulatorUpdateData {
+    pub vaa: Vec<u8>,
+    pub updates: Vec<Update>,
+}
+
+#[derive(Debug, AnchorSerialize, AnchorDeserialize, Clone)]
+pub struct Update {
+    pub message: Vec<u8>,
+    pub proof: Vec<Vec<u8>>,
+}
 
 pub fn handle_update_pyth_pull_oracle(
     ctx: Context<UpdatePythPullOraclePriceFeed>,
@@ -63,10 +79,12 @@ pub fn handle_update_pyth_pull_oracle(
 pub fn handle_post_multi_pyth_pull_oracle_updates_atomic(
     ctx: Context<PostPythPullOracleUpdateAtomic>,
     feed_ids: Vec<[u8; 32]>,
-    params: Vec<Vec<u8>>,
+    encoded_vaa: Vec<u8>,
 ) -> Result<()> {
+    let price_updates = parse_accumulator_update_data(&encoded_vaa)?.updates;
+
     require!(
-        feed_ids.len() == params.len(),
+        feed_ids.len() == price_updates.len(),
         ErrorCode::OracleMismatchFeedIdAndParamAndPriceFeedAccountCount
     );
 
@@ -97,13 +115,20 @@ pub fn handle_post_multi_pyth_pull_oracle_updates_atomic(
             2 => ctx.bumps.price_feed_2,
             _ => panic!("Invalid bumps index: {}", i),
         };
+
+        let decoded_params = PostUpdateAtomicParams {
+            vaa: encoded_vaa.clone(),
+            merkle_price_update: update_to_merkle_price_update(price_updates[i].clone())?,
+        };
+
         invoke_post_update_atomic_cpi(
             *feed_id,
             bump,
             cpi_program,
             cpi_accounts,
-            &params[i],
             price_feeds[i],
+            None,
+            Some(&decoded_params),
         )
         .unwrap();
     }
@@ -128,8 +153,9 @@ pub fn handle_post_pyth_pull_oracle_update_atomic(
         ctx.bumps.price_feed,
         cpi_program,
         cpi_accounts,
-        &params,
         &ctx.accounts.price_feed,
+        Some(&params),
+        None,
     )
     .unwrap();
     Ok(())
@@ -164,13 +190,18 @@ pub fn invoke_post_update_atomic_cpi<'info>(
     bump: u8,
     cpi_program: AccountInfo<'info>,
     cpi_accounts: PostUpdateAtomic<'info>,
-    params: &Vec<u8>,
     price_feed: &AccountInfo<'info>,
+    encoded_params: Option<&Vec<u8>>,
+    decoded_params: Option<&PostUpdateAtomicParams>,
 ) -> Result<()> {
     let seeds = &[PTYH_PRICE_FEED_SEED_PREFIX, feed_id.as_ref(), &[bump]];
     let signer_seeds = &[&seeds[..]];
     let cpi_context = CpiContext::new_with_signer(cpi_program, cpi_accounts, signer_seeds);
-    let params = PostUpdateAtomicParams::deserialize(&mut &params[..]).unwrap();
+    let params = if Option::is_some(&encoded_params) {
+        PostUpdateAtomicParams::deserialize(&mut &encoded_params.unwrap()[..]).unwrap()
+    } else {
+        decoded_params.unwrap().clone()
+    };
 
     // Get the timestamp of the price currently stored in the price feed account.
     let current_timestamp = get_timestamp_from_price_feed_account(price_feed)?;
@@ -193,6 +224,67 @@ pub fn invoke_post_update_atomic_cpi<'info>(
         }
     }
     Ok(())
+}
+
+pub fn parse_accumulator_update_data(data: &[u8]) -> Result<AccumulatorUpdateData> {
+    let mut cursor = Cursor::new(data);
+    cursor.set_position(6);
+
+    let trailing_payload_size = cursor.read_u8().unwrap();
+    cursor.set_position(cursor.position() + u64::from(trailing_payload_size));
+
+    // let proof_type = cursor.read_u8().unwrap();
+    cursor.set_position(cursor.position() + 1);
+
+    let vaa_size = cursor.read_u16::<BigEndian>().unwrap();
+    let mut vaa = vec![0; vaa_size as usize];
+    cursor.read_exact(&mut vaa).unwrap();
+
+    let num_updates = cursor.read_u8().unwrap();
+    let mut updates = Vec::with_capacity(num_updates as usize);
+
+    for _ in 0..num_updates {
+        let message_size = cursor.read_u16::<BigEndian>().unwrap();
+        let mut message = vec![0; message_size as usize];
+        cursor.read_exact(&mut message).unwrap();
+
+        let num_proofs = cursor.read_u8().unwrap();
+        let mut proof = Vec::with_capacity(num_proofs as usize);
+
+        for _ in 0..num_proofs {
+            let mut proof_data = vec![0; KECCAK160_HASH_SIZE];
+            cursor.read_exact(&mut proof_data).unwrap();
+            proof.push(proof_data);
+        }
+
+        updates.push(Update { message, proof });
+    }
+
+    if cursor.position() != data.len() as u64 {
+        return Err(ErrorCode::OracleParseAccumulatorDataFailed.into());
+    }
+
+    Ok(AccumulatorUpdateData { vaa, updates })
+}
+
+fn convert_to_keccak160(data: Vec<u8>) -> Result<[u8; 20]> {
+    if data.len() != 20 {
+        panic!("Invalid proof element size: {}", data.len());
+    }
+    let mut array = [0u8; 20];
+    array.copy_from_slice(&data);
+    Ok(array)
+}
+
+fn update_to_merkle_price_update(update: Update) -> Result<MerklePriceUpdate> {
+    let proof: Result<Vec<[u8; 20]>> = update.proof.into_iter().map(convert_to_keccak160).collect();
+
+    let proof = MerklePath::new(proof?);
+
+    Ok(MerklePriceUpdate {
+        message: update.message.into(),
+        proof,
+    })
 }
 
 #[derive(Accounts)]
@@ -232,4 +324,3 @@ pub struct PostPythPullOracleUpdateAtomic<'info> {
     #[account(mut, owner = drift_oracle_receiver_program::id(), seeds = [PTYH_PRICE_FEED_SEED_PREFIX, &feed_ids[2]], bump)]
     pub price_feed_2: Option<AccountInfo<'info>>,
 }
-

@@ -6981,15 +6981,10 @@ export class DriftClient {
 				getFeedIdUint8Array(feedId)
 			);
 
-			const encodedParams = accumulatorUpdateData.updates.map((update) => this.getReceiverProgram().coder.types.encode(
-				'PostUpdateAtomicParams',
-				update
-			));
-
 			postIxs.push(
 				this.program.instruction.postMultiPythPullOracleUpdatesAtomic(
 					feedIdBuffers,
-					encodedParams,
+					Buffer.from(vaaString, 'base64'),
 					{
 						accounts: {
 							keeper: this.wallet.publicKey,

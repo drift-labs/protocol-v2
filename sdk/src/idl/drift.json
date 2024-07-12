@@ -2726,10 +2726,8 @@
           }
         },
         {
-          "name": "paramsVec",
-          "type": {
-            "vec": "bytes"
-          }
+          "name": "encodedVaa",
+          "type": "bytes"
         }
       ]
     },
@@ -7231,6 +7229,24 @@
             "name": "updateAmmSummaryStats",
             "type": {
               "option": "bool"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "Update",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "message",
+            "type": "bytes"
+          },
+          {
+            "name": "proof",
+            "type": {
+              "vec": "bytes"
             }
           }
         ]
@@ -12502,6 +12518,16 @@
       "code": 6276,
       "name": "OracleMismatchFeedIdAndParamAndPriceFeedAccountCount",
       "msg": "Multi updates must have the same number of feed ids and params passed to the program"
+    },
+    {
+      "code": 6277,
+      "name": "OracleCorruptedAccumulatorData",
+      "msg": "Accumulator data is not accumulator data"
+    },
+    {
+      "code": 6278,
+      "name": "OracleParseAccumulatorDataFailed",
+      "msg": "Oracle accumulator data cannot be parsed"
     }
   ],
   "metadata": {

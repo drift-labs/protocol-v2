@@ -559,6 +559,10 @@ pub enum ErrorCode {
     OracleWrongVaaOwner,
     #[msg("Multi updates must have the same number of feed ids and params passed to the program")]
     OracleMismatchFeedIdAndParamAndPriceFeedAccountCount,
+    #[msg("Accumulator data is not accumulator data")]
+    OracleCorruptedAccumulatorData,
+    #[msg("Oracle accumulator data cannot be parsed")]
+    OracleParseAccumulatorDataFailed,
 }
 
 #[macro_export]
