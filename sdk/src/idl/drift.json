@@ -2661,12 +2661,14 @@
       ],
       "args": [
         {
-          "name": "feedId",
+          "name": "feedIds",
           "type": {
-            "array": [
-              "u8",
-              32
-            ]
+            "vec": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
           }
         },
         {

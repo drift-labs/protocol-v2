@@ -114,7 +114,7 @@ pub fn handle_post_multi_pyth_pull_oracle_updates_atomic(
 pub fn handle_post_pyth_pull_oracle_update_atomic(
     ctx: Context<PostPythPullOracleUpdateAtomic>,
     feed_ids: Vec<[u8; 32]>,
-    params_vec: Vec<Vec<u8>>,
+    params: Vec<u8>,
 ) -> Result<()> {
     let cpi_program = ctx.accounts.pyth_solana_receiver.to_account_info().clone();
     let cpi_accounts = PostUpdateAtomic {
@@ -128,7 +128,7 @@ pub fn handle_post_pyth_pull_oracle_update_atomic(
         ctx.bumps.price_feed,
         cpi_program,
         cpi_accounts,
-        &params_vec[0],
+        &params,
         &ctx.accounts.price_feed,
     )
     .unwrap();
@@ -232,3 +232,4 @@ pub struct PostPythPullOracleUpdateAtomic<'info> {
     #[account(mut, owner = drift_oracle_receiver_program::id(), seeds = [PTYH_PRICE_FEED_SEED_PREFIX, &feed_ids[2]], bump)]
     pub price_feed_2: Option<AccountInfo<'info>>,
 }
+

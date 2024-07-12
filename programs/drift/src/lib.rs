@@ -593,10 +593,10 @@ pub mod drift {
 
     pub fn post_pyth_pull_oracle_update_atomic(
         ctx: Context<PostPythPullOracleUpdateAtomic>,
-        feed_id: [u8; 32],
+        feed_ids: Vec<[u8; 32]>,
         params: Vec<u8>,
     ) -> Result<()> {
-        handle_post_pyth_pull_oracle_update_atomic(ctx, vec![feed_id], vec![params])
+        handle_post_pyth_pull_oracle_update_atomic(ctx, feed_ids, params)
     }
 
     pub fn post_multi_pyth_pull_oracle_updates_atomic(

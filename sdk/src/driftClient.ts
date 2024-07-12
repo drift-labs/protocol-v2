@@ -6923,11 +6923,11 @@ export class DriftClient {
 
 	public async postPythPullOracleUpdateAtomic(
 		vaaString: string,
-		feedIds: string | string[]
+		feedId: string
 	): Promise<TransactionSignature> {
 		const postIxs = await this.getPostPythPullOracleUpdateAtomicIxs(
 			vaaString,
-			feedIds
+			feedId
 		);
 		const tx = await this.buildTransaction(postIxs);
 		const { txSig } = await this.sendTransaction(tx, [], this.opts);
@@ -6980,10 +6980,12 @@ export class DriftClient {
 			const feedIdBuffers = feedIdsToUse.map((feedId) =>
 				getFeedIdUint8Array(feedId)
 			);
-			const encodedParams = this.getReceiverProgram().coder.types.encode(
+
+			const encodedParams = accumulatorUpdateData.updates.map((update) => this.getReceiverProgram().coder.types.encode(
 				'PostUpdateAtomicParams',
-				accumulatorUpdateData.updates
-			);
+				update
+			));
+
 			postIxs.push(
 				this.program.instruction.postMultiPythPullOracleUpdatesAtomic(
 					feedIdBuffers,
@@ -7002,18 +7004,17 @@ export class DriftClient {
 										this.program.programId,
 										feedIdBuffers[1]
 								  )
-								: undefined,
+								: this.program.programId,
 							priceFeed2: feedIdBuffers[2]
 								? getPythPullOraclePublicKey(
 										this.program.programId,
 										feedIdBuffers[2]
 								  )
-								: undefined,
+								: this.program.programId,
 						},
 					}
 				)
 			);
-
 			return postIxs;
 		} else {
 			const feedId = trimFeedId(feedIdsToUse[0]);
@@ -7052,7 +7053,7 @@ export class DriftClient {
 		);
 
 		return this.program.instruction.postPythPullOracleUpdateAtomic(
-			feedIdBuffer,
+			[feedIdBuffer],
 			encodedParams,
 			{
 				accounts: {
@@ -7063,6 +7064,8 @@ export class DriftClient {
 						this.program.programId,
 						feedIdBuffer
 					),
+					priceFeed1: this.program.programId,
+					priceFeed2: this.program.programId
 				},
 			}
 		);
