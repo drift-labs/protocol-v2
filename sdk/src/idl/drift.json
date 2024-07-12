@@ -6932,14 +6932,14 @@
           },
           {
             "name": "lastFuelBonusUpdateTs",
-            "type": "i64"
+            "type": "u32"
           },
           {
             "name": "padding",
             "type": {
               "array": [
                 "u8",
-                8
+                12
               ]
             }
           }
@@ -7119,9 +7119,9 @@
             "type": "u64"
           },
           {
-            "name": "lastFuelBonusUpdateTs",
+            "name": "lastFuelIfBonusUpdateTs",
             "docs": [
-              "last unix ts user stats data was used to update fuel (u32 to save space)"
+              "last unix ts user stats data was used to update if fuel (u32 to save space)"
             ],
             "type": "u32"
           },

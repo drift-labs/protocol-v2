@@ -44,50 +44,52 @@ pub fn update_user_stats_if_stake_amount(
     spot_market: &mut SpotMarket,
     now: i64,
 ) -> DriftResult {
-    if spot_market.market_index == QUOTE_SPOT_MARKET_INDEX
-        || spot_market.market_index == GOV_SPOT_MARKET_INDEX
-        || spot_market.fuel_boost_insurance != 0
+    if spot_market.market_index != QUOTE_SPOT_MARKET_INDEX
+        && spot_market.market_index != GOV_SPOT_MARKET_INDEX
+        && spot_market.fuel_boost_insurance == 0
     {
-        let if_stake_amount = if amount >= 0 {
-            if_shares_to_vault_amount(
-                insurance_fund_stake.checked_if_shares(spot_market)?,
-                spot_market.insurance_fund.total_shares,
-                insurance_vault_amount.safe_add(amount.unsigned_abs())?,
-            )?
-        } else {
-            if_shares_to_vault_amount(
-                insurance_fund_stake.checked_if_shares(spot_market)?,
-                spot_market.insurance_fund.total_shares,
-                insurance_vault_amount.safe_sub(amount.unsigned_abs())?,
-            )?
-        };
+        return Ok(());
+    }
 
-        if spot_market.market_index == QUOTE_SPOT_MARKET_INDEX {
-            user_stats.if_staked_quote_asset_amount = if_stake_amount;
-        } else if spot_market.market_index == GOV_SPOT_MARKET_INDEX {
-            user_stats.if_staked_gov_token_amount = if_stake_amount;
-        }
+    let if_stake_amount = if amount >= 0 {
+        if_shares_to_vault_amount(
+            insurance_fund_stake.checked_if_shares(spot_market)?,
+            spot_market.insurance_fund.total_shares,
+            insurance_vault_amount.safe_add(amount.unsigned_abs())?,
+        )?
+    } else {
+        if_shares_to_vault_amount(
+            insurance_fund_stake.checked_if_shares(spot_market)?,
+            spot_market.insurance_fund.total_shares,
+            insurance_vault_amount.safe_sub(amount.unsigned_abs())?,
+        )?
+    };
 
-        if spot_market.fuel_boost_insurance != 0 {
-            let now_u32: u32 = now.cast()?;
-            let since_last = user_stats
-                .last_fuel_bonus_update_ts
-                .max(now_u32)
-                .safe_sub(now_u32)?;
+    if spot_market.market_index == QUOTE_SPOT_MARKET_INDEX {
+        user_stats.if_staked_quote_asset_amount = if_stake_amount;
+    } else if spot_market.market_index == GOV_SPOT_MARKET_INDEX {
+        user_stats.if_staked_gov_token_amount = if_stake_amount;
+    }
 
-            let fuel_bonus_insurance = if_stake_amount
-                .cast::<u128>()?
-                .safe_mul(since_last.cast()?)?
-                .safe_mul(spot_market.fuel_boost_deposits.cast()?)?
-                .safe_div(FUEL_WINDOW_U128)?
-                .cast::<u64>()?
-                / (QUOTE_PRECISION_U64 / 10);
+    if spot_market.fuel_boost_insurance != 0 {
+        let now_u32: u32 = now.cast()?;
+        let since_last = user_stats
+            .last_fuel_if_bonus_update_ts
+            .max(now_u32)
+            .safe_sub(now_u32)?;
 
-            user_stats.fuel_insurance = user_stats
-                .fuel_insurance
-                .saturating_add(fuel_bonus_insurance.cast()?);
-            user_stats.last_fuel_bonus_update_ts = now_u32;
-        }
+        let fuel_bonus_insurance = if_stake_amount
+            .cast::<u128>()?
+            .safe_mul(since_last.cast()?)?
+            .safe_mul(spot_market.fuel_boost_insurance.cast()?)?
+            .safe_div(FUEL_WINDOW_U128)?
+            .cast::<u64>()?
+            / (QUOTE_PRECISION_U64 / 10);
+
+        user_stats.fuel_insurance = user_stats
+            .fuel_insurance
+            .saturating_add(fuel_bonus_insurance.cast()?);
+        user_stats.last_fuel_if_bonus_update_ts = now_u32;
     }
 
     Ok(())

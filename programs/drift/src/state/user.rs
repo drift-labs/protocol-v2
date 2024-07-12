@@ -475,15 +475,13 @@ impl User {
                 context,
             )?;
 
-        if self.last_fuel_bonus_update_ts != 0 || now > FUEL_START_TS {
-            user_stats.update_fuel_bonus(
-                margin_calculation.fuel_deposits,
-                margin_calculation.fuel_borrows,
-                margin_calculation.fuel_positions,
-            )?;
-
-            self.last_fuel_bonus_update_ts = now.cast()?;
-        }
+        user_stats.update_fuel_bonus(
+            self,
+            margin_calculation.fuel_deposits,
+            margin_calculation.fuel_borrows,
+            margin_calculation.fuel_positions,
+            now,
+        )?;
 
         Ok(margin_calculation)
     }
@@ -531,14 +529,13 @@ impl User {
             calculation.margin_requirement
         )?;
 
-        if self.last_fuel_bonus_update_ts != 0 || now > FUEL_START_TS {
-            user_stats.update_fuel_bonus(
-                calculation.fuel_deposits,
-                calculation.fuel_borrows,
-                calculation.fuel_positions,
-            )?;
-            self.last_fuel_bonus_update_ts = now.cast()?;
-        }
+        user_stats.update_fuel_bonus(
+            self,
+            calculation.fuel_deposits,
+            calculation.fuel_borrows,
+            calculation.fuel_positions,
+            now,
+        )?;
 
         Ok(true)
     }
@@ -1552,8 +1549,8 @@ pub struct UserStats {
     /// The amount of tokens staked in the governance spot markets if
     pub if_staked_gov_token_amount: u64,
 
-    /// last unix ts user stats data was used to update fuel (u32 to save space)
-    pub last_fuel_bonus_update_ts: u32,
+    /// last unix ts user stats data was used to update if fuel (u32 to save space)
+    pub last_fuel_if_bonus_update_ts: u32,
 
     pub padding: [u8; 12],
 }
@@ -1584,7 +1581,7 @@ impl Default for UserStats {
             fuel_maker: 0,
             fuel_positions: 0,
             if_staked_gov_token_amount: 0,
-            last_fuel_bonus_update_ts: 0,
+            last_fuel_if_bonus_update_ts: 0,
             padding: [0; 12],
         }
     }
@@ -1617,13 +1614,19 @@ impl UserStats {
 
     pub fn update_fuel_bonus(
         &mut self,
+        user: &mut User,
         fuel_deposits: u32,
         fuel_borrows: u32,
         fuel_positions: u32,
+        now: i64,
     ) -> DriftResult {
-        self.fuel_deposits = self.fuel_deposits.saturating_add(fuel_deposits);
-        self.fuel_borrows = self.fuel_borrows.saturating_add(fuel_borrows);
-        self.fuel_positions = self.fuel_positions.saturating_add(fuel_positions);
+        if user.last_fuel_bonus_update_ts != 0 || now > FUEL_START_TS {
+            self.fuel_deposits = self.fuel_deposits.saturating_add(fuel_deposits);
+            self.fuel_borrows = self.fuel_borrows.saturating_add(fuel_borrows);
+            self.fuel_positions = self.fuel_positions.saturating_add(fuel_positions);
+
+            user.last_fuel_bonus_update_ts = now.cast()?;
+        }
 
         Ok(())
     }

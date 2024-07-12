@@ -1082,7 +1082,7 @@ pub fn handle_init_user_fuel(
     }
 
     user.last_fuel_bonus_update_ts = now_u32;
-    user_stats.last_fuel_bonus_update_ts = now_u32;
+    user_stats.last_fuel_if_bonus_update_ts = now_u32;
 
     Ok(())
 }

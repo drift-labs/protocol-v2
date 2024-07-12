@@ -6,6 +6,7 @@ use std::u64;
 use anchor_lang::prelude::*;
 use solana_program::msg;
 
+use crate::controller;
 use crate::controller::funding::settle_funding_payment;
 use crate::controller::lp::burn_lp_shares;
 use crate::controller::position;
@@ -46,7 +47,6 @@ use crate::math::{amm, fees, margin::*, orders::*};
 use crate::state::order_params::{
     ModifyOrderParams, ModifyOrderPolicy, OrderParams, PlaceOrderOptions, PostOnlyParam,
 };
-use crate::{controller, FUEL_START_TS};
 
 use crate::math::amm::calculate_amm_available_liquidity;
 use crate::math::lp::calculate_lp_shares_to_burn_for_risk_reduction;
@@ -1720,15 +1720,13 @@ fn fulfill_perp_order(
             .fuel_numerator(user, now),
         )?;
 
-    // user hasnt recieved initial fuel or below global start time
-    if user.last_fuel_bonus_update_ts != 0 || now > FUEL_START_TS {
-        user_stats.update_fuel_bonus(
-            taker_margin_calculation.fuel_deposits,
-            taker_margin_calculation.fuel_borrows,
-            taker_margin_calculation.fuel_positions,
-        )?;
-        user.last_fuel_bonus_update_ts = now.cast()?;
-    }
+    user_stats.update_fuel_bonus(
+        user,
+        taker_margin_calculation.fuel_deposits,
+        taker_margin_calculation.fuel_borrows,
+        taker_margin_calculation.fuel_positions,
+        now,
+    )?;
 
     if !taker_margin_calculation.meets_margin_requirement() {
         msg!(
@@ -1766,15 +1764,13 @@ fn fulfill_perp_order(
             )?;
 
         if let Some(mut maker_stats) = maker_stats {
-            // user hasnt recieved initial fuel
-            if maker.last_fuel_bonus_update_ts != 0 || now > FUEL_START_TS {
-                maker_stats.update_fuel_bonus(
-                    maker_margin_calculation.fuel_deposits,
-                    maker_margin_calculation.fuel_borrows,
-                    maker_margin_calculation.fuel_positions,
-                )?;
-                maker.last_fuel_bonus_update_ts = now.cast()?;
-            }
+            maker_stats.update_fuel_bonus(
+                &mut maker,
+                maker_margin_calculation.fuel_deposits,
+                maker_margin_calculation.fuel_borrows,
+                maker_margin_calculation.fuel_positions,
+                now,
+            )?;
         }
 
         if !maker_margin_calculation.meets_margin_requirement() {
@@ -4094,14 +4090,13 @@ fn fulfill_spot_order(
         )?;
 
     // user hasnt recieved initial fuel or below global start time
-    if user.last_fuel_bonus_update_ts != 0 || now > FUEL_START_TS {
-        user_stats.update_fuel_bonus(
-            taker_margin_calculation.fuel_deposits,
-            taker_margin_calculation.fuel_borrows,
-            taker_margin_calculation.fuel_positions,
-        )?;
-        user.last_fuel_bonus_update_ts = now.cast()?;
-    }
+    user_stats.update_fuel_bonus(
+        user,
+        taker_margin_calculation.fuel_deposits,
+        taker_margin_calculation.fuel_borrows,
+        taker_margin_calculation.fuel_positions,
+        now,
+    )?;
 
     if !taker_margin_calculation.meets_margin_requirement() {
         msg!(
@@ -4187,16 +4182,13 @@ fn fulfill_spot_order(
             )?;
 
         if let Some(mut maker_stats) = maker_stats {
-            // user hasnt recieved initial fuel
-            if maker.last_fuel_bonus_update_ts != 0 || now > FUEL_START_TS {
-                maker_stats.update_fuel_bonus(
-                    maker_margin_calculation.fuel_deposits,
-                    maker_margin_calculation.fuel_borrows,
-                    maker_margin_calculation.fuel_positions,
-                )?;
-
-                maker.last_fuel_bonus_update_ts = now.cast()?;
-            }
+            maker_stats.update_fuel_bonus(
+                &mut maker,
+                maker_margin_calculation.fuel_deposits,
+                maker_margin_calculation.fuel_borrows,
+                maker_margin_calculation.fuel_positions,
+                now,
+            )?;
         }
 
         if !maker_margin_calculation.meets_margin_requirement() {

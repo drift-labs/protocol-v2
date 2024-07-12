@@ -920,7 +920,9 @@ export class User {
 
 		if (includeUnsettled) {
 			const fuelBonusNumerator = BN.max(
-				now.sub(BN.max(userAccount.lastFuelBonusUpdateTs, FUEL_START_TS)),
+				now.sub(
+					BN.max(new BN(userAccount.lastFuelBonusUpdateTs), FUEL_START_TS)
+				),
 				ZERO
 			);
 
