@@ -223,9 +223,11 @@ pub fn place_perp_order(
     let max_ts = match params.max_ts {
         Some(max_ts) => max_ts,
         None => match params.order_type {
-            OrderType::Market | OrderType::Oracle => {
-                now.safe_add(30_i64.max((auction_duration / 2) as i64))?
-            }
+            OrderType::Market | OrderType::Oracle => now.safe_add(
+                30_i64
+                    .max((auction_duration.safe_div(2)?).cast()?)
+                    .safe_add(10_i64)?,
+            )?,
             _ => 0_i64,
         },
     };
