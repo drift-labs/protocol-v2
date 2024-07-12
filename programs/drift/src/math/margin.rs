@@ -104,7 +104,7 @@ pub fn calculate_prediction_market_position_value_and_pnl(
     margin_requirement_type: MarginRequirementType,
     user_custom_margin_ratio: u32,
     track_open_order_fraction: bool,
-) -> DriftResult<(u128, i128, u128, u128)> {
+) -> DriftResult<(u128, i128, u128, u128, u128)> {
     let valuation_price = if market.status == MarketStatus::Settlement {
         market.expiry_price
     } else {
@@ -114,7 +114,7 @@ pub fn calculate_prediction_market_position_value_and_pnl(
     let max_price = PRICE_PRECISION_I64;
     let market_position = market_position.simulate_settled_lp_position(market, max_price)?;
 
-    let (_, unrealized_pnl) = calculate_base_asset_value_and_pnl_with_oracle_price(
+    let (base_asset_value, unrealized_pnl) = calculate_base_asset_value_and_pnl_with_oracle_price(
         &market_position,
         oracle_price_data.price,
     )?;
@@ -192,6 +192,7 @@ pub fn calculate_prediction_market_position_value_and_pnl(
         weighted_unrealized_pnl,
         worse_case_base_asset_value,
         open_order_margin_requirement,
+        base_asset_value,
     ))
 }
 
@@ -203,7 +204,7 @@ pub fn calculate_perp_position_value_and_pnl(
     margin_requirement_type: MarginRequirementType,
     user_custom_margin_ratio: u32,
     track_open_order_fraction: bool,
-) -> DriftResult<(u128, i128, u128, u128)> {
+) -> DriftResult<(u128, i128, u128, u128, u128)> {
     let valuation_price = if market.status == MarketStatus::Settlement {
         market.expiry_price
     } else {
@@ -222,7 +223,7 @@ pub fn calculate_perp_position_value_and_pnl(
 
     let market_position = market_position.simulate_settled_lp_position(market, valuation_price)?;
 
-    let (_, unrealized_pnl) =
+    let (base_asset_value, unrealized_pnl) =
         calculate_base_asset_value_and_pnl_with_oracle_price(&market_position, valuation_price)?;
 
     let total_unrealized_pnl = unrealized_pnl.safe_add(unrealized_funding.cast()?)?;
@@ -305,6 +306,7 @@ pub fn calculate_perp_position_value_and_pnl(
         weighted_unrealized_pnl,
         worse_case_base_asset_value,
         open_order_margin_requirement,
+        base_asset_value,
     ))
 }
 
@@ -392,6 +394,8 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
                 )?;
             }
 
+            calculation.update_fuel_spot_bonus(&spot_market, token_amount, &strict_oracle_price)?;
+
             let token_value =
                 get_strict_token_value(token_amount, spot_market.decimals, &strict_oracle_price)?;
 
@@ -427,6 +431,12 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
             }
         } else {
             let signed_token_amount = spot_position.get_signed_token_amount(&spot_market)?;
+
+            calculation.update_fuel_spot_bonus(
+                &spot_market,
+                signed_token_amount,
+                &strict_oracle_price,
+            )?;
 
             let OrderFillSimulation {
                 token_amount: worst_case_token_amount,
@@ -579,6 +589,7 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
             weighted_pnl,
             worst_case_base_asset_value,
             open_order_margin_requirement,
+            base_asset_value,
         ) = if market.contract_type != ContractType::Prediction {
             calculate_perp_position_value_and_pnl(
                 market_position,
@@ -600,6 +611,13 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
                 calculation.track_open_orders_fraction(),
             )?
         };
+
+        calculation.update_fuel_perp_bonus(
+            market,
+            &market_position,
+            base_asset_value,
+            oracle_price_data.price,
+        )?;
 
         calculation.add_margin_requirement(
             perp_margin_requirement,

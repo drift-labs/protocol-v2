@@ -120,7 +120,6 @@ pub enum OracleSource {
     Pyth1KPull,
     Pyth1MPull,
     PythStableCoinPull,
-    Zero
 }
 
 #[derive(Default, Clone, Copy, Debug)]
@@ -165,13 +164,7 @@ pub fn get_oracle_price(
         OracleSource::Pyth1MPull => get_pyth_price(price_oracle, clock_slot, 1000000, true),
         OracleSource::PythStableCoinPull => {
             get_pyth_stable_coin_price(price_oracle, clock_slot, true)
-        },
-        OracleSource::Zero => Ok(OraclePriceData {
-            price: 0,
-            confidence: 1,
-            delay: 0,
-            has_sufficient_number_of_data_points: true,
-        }),
+        }
     }
 }
 

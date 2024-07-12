@@ -281,7 +281,11 @@ pub fn handle_initialize_spot_market(
         total_swap_fee: 0,
         scale_initial_asset_weight_start,
         min_borrow_rate: 0,
-        padding: [0; 47],
+        fuel_boost_deposits: 0,
+        fuel_boost_borrows: 0,
+        fuel_boost_taker: 0,
+        fuel_boost_maker: 0,
+        padding: [0; 43],
         insurance_fund: InsuranceFund {
             vault: *ctx.accounts.insurance_fund_vault.to_account_info().key,
             unstaking_period: THIRTEEN_DAY,
@@ -732,7 +736,10 @@ pub fn handle_initialize_perp_market(
         paused_operations: 0,
         quote_spot_market_index: QUOTE_SPOT_MARKET_INDEX,
         fee_adjustment: 0,
-        padding: [0; 46],
+        fuel_boost_position: 0,
+        fuel_boost_taker: 0,
+        fuel_boost_maker: 0,
+        padding: [0; 43],
         amm: AMM {
             oracle: *ctx.accounts.oracle.key,
             oracle_source,
@@ -3199,6 +3206,50 @@ pub fn handle_update_perp_market_number_of_users(
     Ok(())
 }
 
+pub fn handle_update_perp_market_fuel(
+    ctx: Context<AdminUpdatePerpMarket>,
+    fuel_boost_taker: Option<u8>,
+    fuel_boost_maker: Option<u8>,
+    fuel_boost_position: Option<u8>,
+) -> Result<()> {
+    let perp_market = &mut load_mut!(ctx.accounts.perp_market)?;
+
+    if let Some(fuel_boost_taker) = fuel_boost_taker {
+        msg!(
+            "perp_market.fuel_boost_taker: {:?} -> {:?}",
+            perp_market.fuel_boost_taker,
+            fuel_boost_taker
+        );
+        perp_market.fuel_boost_taker = fuel_boost_taker;
+    } else {
+        msg!("perp_market.fuel_boost_taker: unchanged");
+    }
+
+    if let Some(fuel_boost_maker) = fuel_boost_maker {
+        msg!(
+            "perp_market.fuel_boost_maker: {:?} -> {:?}",
+            perp_market.fuel_boost_maker,
+            fuel_boost_maker
+        );
+        perp_market.fuel_boost_maker = fuel_boost_maker;
+    } else {
+        msg!("perp_market.fuel_boost_maker: unchanged");
+    }
+
+    if let Some(fuel_boost_position) = fuel_boost_position {
+        msg!(
+            "perp_market.fuel_boost_position: {:?} -> {:?}",
+            perp_market.fuel_boost_position,
+            fuel_boost_position
+        );
+        perp_market.fuel_boost_position = fuel_boost_position;
+    } else {
+        msg!("perp_market.fuel_boost_position: unchanged");
+    }
+
+    Ok(())
+}
+
 #[access_control(
     spot_market_valid(&ctx.accounts.spot_market)
 )]
@@ -3223,6 +3274,62 @@ pub fn handle_update_spot_market_fee_adjustment(
     );
 
     spot.fee_adjustment = fee_adjustment;
+    Ok(())
+}
+
+pub fn handle_update_spot_market_fuel(
+    ctx: Context<AdminUpdateSpotMarket>,
+    fuel_boost_deposits: Option<u8>,
+    fuel_boost_borrows: Option<u8>,
+    fuel_boost_taker: Option<u8>,
+    fuel_boost_maker: Option<u8>,
+) -> Result<()> {
+    let spot_market = &mut load_mut!(ctx.accounts.spot_market)?;
+
+    if let Some(fuel_boost_taker) = fuel_boost_taker {
+        msg!(
+            "perp_market.fuel_boost_taker: {:?} -> {:?}",
+            spot_market.fuel_boost_taker,
+            fuel_boost_taker
+        );
+        spot_market.fuel_boost_taker = fuel_boost_taker;
+    } else {
+        msg!("perp_market.fuel_boost_taker: unchanged");
+    }
+
+    if let Some(fuel_boost_maker) = fuel_boost_maker {
+        msg!(
+            "perp_market.fuel_boost_maker: {:?} -> {:?}",
+            spot_market.fuel_boost_maker,
+            fuel_boost_maker
+        );
+        spot_market.fuel_boost_maker = fuel_boost_maker;
+    } else {
+        msg!("perp_market.fuel_boost_maker: unchanged");
+    }
+
+    if let Some(fuel_boost_deposits) = fuel_boost_deposits {
+        msg!(
+            "perp_market.fuel_boost_deposits: {:?} -> {:?}",
+            spot_market.fuel_boost_deposits,
+            fuel_boost_deposits
+        );
+        spot_market.fuel_boost_deposits = fuel_boost_deposits;
+    } else {
+        msg!("perp_market.fuel_boost_deposits: unchanged");
+    }
+
+    if let Some(fuel_boost_borrows) = fuel_boost_borrows {
+        msg!(
+            "perp_market.fuel_boost_borrows: {:?} -> {:?}",
+            spot_market.fuel_boost_borrows,
+            fuel_boost_borrows
+        );
+        spot_market.fuel_boost_borrows = fuel_boost_borrows;
+    } else {
+        msg!("perp_market.fuel_boost_borrows: unchanged");
+    }
+
     Ok(())
 }
 
