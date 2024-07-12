@@ -73,12 +73,11 @@ pub fn update_user_stats_if_stake_amount(
 
     if spot_market.fuel_boost_insurance != 0 {
         let now_u32: u32 = now.cast()?;
-        let since_last = user_stats
-            .last_fuel_if_bonus_update_ts
-            .max(now_u32)
-            .safe_sub(now_u32)?;
+        let since_last = now_u32.safe_sub(user_stats.last_fuel_if_bonus_update_ts)?;
 
+        // calculate their stake amount prior to update
         let fuel_bonus_insurance = if_stake_amount
+            .saturating_sub(amount.unsigned_abs())
             .cast::<u128>()?
             .safe_mul(since_last.cast()?)?
             .safe_mul(spot_market.fuel_boost_insurance.cast()?)?
@@ -461,7 +460,7 @@ pub fn remove_insurance_fund_stake(
     let if_shares_after = insurance_fund_stake.checked_if_shares(spot_market)?;
 
     update_user_stats_if_stake_amount(
-        -(amount.cast()?),
+        -(withdraw_amount.cast()?),
         insurance_vault_amount,
         insurance_fund_stake,
         user_stats,

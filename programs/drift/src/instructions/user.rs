@@ -149,7 +149,6 @@ pub fn handle_initialize_user<'c: 'info, 'info>(
 
     let now_ts = Clock::get()?.unix_timestamp;
 
-    user_stats.last_fuel_if_bonus_update_ts = now_ts.cast()?;
     user.last_fuel_bonus_update_ts = now_ts.cast()?;
 
     emit!(NewUserRecord {
@@ -206,6 +205,7 @@ pub fn handle_initialize_user_stats<'c: 'info, 'info>(
         last_taker_volume_30d_ts: clock.unix_timestamp,
         last_maker_volume_30d_ts: clock.unix_timestamp,
         last_filler_volume_30d_ts: clock.unix_timestamp,
+        last_fuel_if_bonus_update_ts: clock.unix_timestamp.cast()?,
         ..UserStats::default()
     };
 
