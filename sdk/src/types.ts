@@ -926,8 +926,7 @@ export type UserAccount = {
 	hasOpenOrder: boolean;
 	openAuctions: number;
 	hasOpenAuction: boolean;
-
-	lastFuelBonusUpdateTs: BN;
+	lastFuelBonusUpdateTs: number;
 };
 
 export type SpotPosition = {
