@@ -4,7 +4,7 @@ use crate::instructions::SpotFulfillmentType;
 use crate::math::safe_math::SafeMath;
 use crate::math::serum::{
     calculate_price_from_serum_limit_price, calculate_serum_limit_price,
-    calculate_serum_max_coin_qty, calculate_serum_max_native_pc_quantity,
+    calculate_serum_max_coin_qty,
 };
 use crate::math::spot_withdraw::validate_spot_market_vault_amount;
 use crate::signer::get_signer_seeds;
@@ -326,12 +326,10 @@ impl<'a, 'b> SpotFulfillmentParams for OpenbookV2FulfillmentParams<'a, 'b> {
             taker_direction,
         )?;
 
-        let max_quote_lots_including_fees = calculate_serum_max_native_pc_quantity(
-            price_lots,
-            serum_max_coin_qty,
-            market.quote_lot_size as u64,
-        )?
-        .min(taker_max_quote_asset_amount) as i64;
+        let max_quote_lots_including_fees = (market.quote_lot_size as u64)
+            .safe_mul(price_lots)?
+            .safe_mul(serum_max_coin_qty)?
+            .min(taker_max_quote_asset_amount) as i64;
         let max_base_lots = taker_base_asset_amount as i64 / market.base_lot_size;
         // let max_quote_lots_including_fees = if taker_max_quote_asset_amount == u64::MAX { (price_lots as i64 * max_base_lots)/market.quote_lot_size } else {taker_max_quote_asset_amount as i64/market.quote_lot_size};
 
