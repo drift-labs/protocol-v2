@@ -640,7 +640,6 @@ export type PerpMarketAccount = {
 	fuelBoostTaker: number;
 	fuelBoostMaker: number;
 	fuelBoostPosition: number;
-};
 
 export type HistoricalOracleData = {
 	lastOraclePrice: BN;

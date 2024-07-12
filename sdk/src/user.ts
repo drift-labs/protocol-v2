@@ -36,6 +36,7 @@ import {
 	TEN_THOUSAND,
 	TWO,
 	ZERO,
+	FUEL_START_TS,
 } from './constants/numericConstants';
 import {
 	DataAndSlot,
@@ -906,89 +907,92 @@ export class User {
 			const userStats: UserStatsAccount = this.driftClient
 				.getUserStats()
 				.getAccount();
-			result.insuranceFuel = result.insuranceFuel.addn(userStats.fuelInsurance);
-			result.takerFuel = result.takerFuel.addn(userStats.fuelTaker);
-			result.makerFuel = result.makerFuel.addn(userStats.fuelMaker);
-			result.depositFuel = result.depositFuel.addn(userStats.fuelDeposits);
-			result.borrowFuel = result.borrowFuel.addn(userStats.fuelBorrows);
-			result.positionFuel = result.positionFuel.addn(userStats.fuelPositions);
+			result.takerFuel = result.takerFuel.add(new BN(userStats.fuelTaker));
+			result.makerFuel = result.makerFuel.add(new BN(userStats.fuelMaker));
+			result.depositFuel = result.depositFuel.add(
+				new BN(userStats.fuelDeposits)
+			);
+			result.borrowFuel = result.borrowFuel.add(new BN(userStats.fuelBorrows));
+			result.positionFuel = result.positionFuel.add(
+				new BN(userStats.fuelPositions)
+			);
 		}
 
 		if (includeUnsettled) {
-			const fuelBonusNumerator = now.sub(userAccount.lastFuelBonusUpdateTs);
-			for (const spotPosition of this.getActiveSpotPositions()) {
-				const spotMarketAccount: SpotMarketAccount =
-					this.driftClient.getSpotMarketAccount(spotPosition.marketIndex);
+			const fuelBonusNumerator = BN.max(
+				now.sub(BN.max(userAccount.lastFuelBonusUpdateTs, FUEL_START_TS)),
+				ZERO
+			);
 
-				const tokenAmount = this.getTokenAmount(spotPosition.marketIndex);
-				const oraclePriceData = this.getOracleDataForSpotMarket(
-					spotPosition.marketIndex
-				);
+			if (fuelBonusNumerator.gt(ZERO)) {
+				for (const spotPosition of this.getActiveSpotPositions()) {
+					const spotMarketAccount: SpotMarketAccount =
+						this.driftClient.getSpotMarketAccount(spotPosition.marketIndex);
 
-				const twap5min = calculateLiveOracleTwap(
-					spotMarketAccount.historicalOracleData,
-					oraclePriceData,
-					now,
-					FIVE_MINUTE // 5MIN
-				);
-				const strictOraclePrice = new StrictOraclePrice(
-					oraclePriceData.price,
-					twap5min
-				);
-
-				const signedTokenValue = getStrictTokenValue(
-					tokenAmount,
-					spotMarketAccount.decimals,
-					strictOraclePrice
-				);
-
-				if (signedTokenValue.gt(ZERO)) {
-					result.depositFuel = result.depositFuel.add(
-						calculateSpotFuelBonus(
-							spotMarketAccount,
-							signedTokenValue,
-							fuelBonusNumerator
-						)
+					const tokenAmount = this.getTokenAmount(spotPosition.marketIndex);
+					const oraclePriceData = this.getOracleDataForSpotMarket(
+						spotPosition.marketIndex
 					);
-				} else {
-					const bFuel = calculateSpotFuelBonus(
-						spotMarketAccount,
-						signedTokenValue,
-						fuelBonusNumerator
+
+					const twap5min = calculateLiveOracleTwap(
+						spotMarketAccount.historicalOracleData,
+						oraclePriceData,
+						now,
+						FIVE_MINUTE // 5MIN
 					);
-					console.log('bFuel:', signedTokenValue.toString(), bFuel.toString());
-					result.borrowFuel = result.borrowFuel.add(
-						calculateSpotFuelBonus(
-							spotMarketAccount,
-							signedTokenValue,
+					const strictOraclePrice = new StrictOraclePrice(
+						oraclePriceData.price,
+						twap5min
+					);
+
+					const signedTokenValue = getStrictTokenValue(
+						tokenAmount,
+						spotMarketAccount.decimals,
+						strictOraclePrice
+					);
+
+					if (signedTokenValue.gt(ZERO)) {
+						result.depositFuel = result.depositFuel.add(
+							calculateSpotFuelBonus(
+								spotMarketAccount,
+								signedTokenValue,
+								fuelBonusNumerator
+							)
+						);
+					} else {
+						result.borrowFuel = result.borrowFuel.add(
+							calculateSpotFuelBonus(
+								spotMarketAccount,
+								signedTokenValue,
+								fuelBonusNumerator
+							)
+						);
+					}
+				}
+
+				for (const perpPosition of this.getActivePerpPositions()) {
+					const oraclePriceData = this.getOracleDataForPerpMarket(
+						perpPosition.marketIndex
+					);
+
+					const perpMarketAccount = this.driftClient.getPerpMarketAccount(
+						perpPosition.marketIndex
+					);
+
+					const baseAssetValue = this.getPerpPositionValue(
+						perpPosition.marketIndex,
+						oraclePriceData,
+						false
+					);
+
+					result.positionFuel = result.positionFuel.add(
+						calculatePerpFuelBonus(
+							perpMarketAccount,
+							baseAssetValue,
 							fuelBonusNumerator
 						)
 					);
 				}
-			}
-
-			for (const perpPosition of this.getActivePerpPositions()) {
-				const oraclePriceData = this.getOracleDataForPerpMarket(
-					perpPosition.marketIndex
-				);
-
-				const perpMarketAccount = this.driftClient.getPerpMarketAccount(
-					perpPosition.marketIndex
-				);
-
-				const baseAssetValue = this.getPerpPositionValue(
-					perpPosition.marketIndex,
-					oraclePriceData,
-					false
-				);
-
-				result.positionFuel = result.positionFuel.add(
-					calculatePerpFuelBonus(
-						perpMarketAccount,
-						baseAssetValue,
-						fuelBonusNumerator
-					)
-				);
 			}
 
 			const userStats: UserStatsAccount = this.driftClient
