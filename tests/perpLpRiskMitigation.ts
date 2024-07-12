@@ -518,7 +518,7 @@ describe('lp risk mitigation', () => {
 		const leOrder = afterReduceOrdersAccount.orders[0];
 		console.log(leOrder);
 		assert(leOrder.auctionDuration == 80);
-		assert(leOrder.auctionStartPrice.lt(ZERO));
+		assert(leOrder.auctionStartPrice.lt(leOrder.auctionEndPrice));
 		assert(leOrder.auctionEndPrice.gt(ZERO));
 		assert(leOrder.reduceOnly);
 		assert(!leOrder.postOnly);

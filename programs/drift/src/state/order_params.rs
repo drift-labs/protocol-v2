@@ -7,7 +7,8 @@ use crate::state::events::OrderActionExplanation;
 use crate::state::perp_market::{ContractTier, PerpMarket};
 use crate::state::user::{MarketType, OrderTriggerCondition, OrderType};
 use crate::{
-    OracleSource, PERCENTAGE_PRECISION_I64, PERCENTAGE_PRECISION_U64, PRICE_PRECISION_I64,
+    ONE_HUNDRED_THOUSAND_QUOTE, PERCENTAGE_PRECISION_I64, PERCENTAGE_PRECISION_U64,
+    PRICE_PRECISION_I64,
 };
 use anchor_lang::prelude::*;
 use borsh::{BorshDeserialize, BorshSerialize};
@@ -223,7 +224,7 @@ impl OrderParams {
             return Ok(());
         }
         // only update auction start price if the contract tier isn't Isolated
-        if perp_market.amm.oracle_source != OracleSource::Prelaunch {
+        if perp_market.can_sanitize_market_order_auctions()? {
             let (new_start_price_offset, new_end_price_offset) =
                 OrderParams::get_perp_baseline_start_end_price_offset(
                     perp_market,
@@ -453,6 +454,7 @@ impl OrderParams {
             .safe_sub(perp_market.amm.last_mark_price_twap_ts)?
             .abs()
             >= 60
+            || perp_market.amm.volume_24h <= ONE_HUNDRED_THOUSAND_QUOTE
         {
             // if uncertain with timestamp mismatch, enforce within N bps
             let price_divisor = if perp_market
