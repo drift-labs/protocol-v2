@@ -733,6 +733,8 @@ export const MainnetPerpMarkets: PerpMarketConfig[] = [
 		oracle: new PublicKey('4gdbqxkMrF1bYVeEJKRmTqCCvJjRCZrRhxvriGY6SwLj'),
 		launchTs: 1719415157000,
 		oracleSource: OracleSource.SWITCHBOARD,
+		pythFeedId:
+			'0x3d63be09d1b88f6dffe6585d0170670592124fd9fa4e0fe8a09ff18464f05e3a',
 	},
 	{
 		fullName: 'POPCAT',
@@ -743,6 +745,8 @@ export const MainnetPerpMarkets: PerpMarketConfig[] = [
 		oracle: new PublicKey('3GjpjC8TWsPqjyFSiR7saGxgzD8zqYJNsBnWpenZPEBy'),
 		launchTs: 1720013054000,
 		oracleSource: OracleSource.SWITCHBOARD,
+		pythFeedId:
+			'0xb9312a7ee50e189ef045aa3c7842e099b061bd9bdc99ac645956c3b660dc8cce',
 	},
 	{
 		fullName: 'Wen',
