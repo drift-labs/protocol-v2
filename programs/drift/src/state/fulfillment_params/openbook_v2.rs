@@ -21,7 +21,9 @@ use anchor_lang::{account, InstructionData, Key};
 use anchor_spl::token::{Token, TokenAccount};
 use arrayref::array_ref;
 use openbook_v2_light::instruction::PlaceTakeOrder;
-use openbook_v2_light::{BookSide, Market, PlaceOrderType, Side};
+use openbook_v2_light::{
+    BookSide, Market, PlaceOrderType, Side, OPEN_ORDERS_ACCOUNT_DISCRIMINATOR,
+};
 use solana_program::account_info::AccountInfo;
 use solana_program::instruction::{AccountMeta, Instruction};
 use solana_program::msg;
@@ -107,6 +109,7 @@ pub struct OpenbookV2FulfillmentParams<'a, 'b> {
     pub system_program: Program<'b, System>,
     pub signer_nonce: u8,
     pub now: i64,
+    pub remaining_ooa_accounts: Vec<&'a AccountInfo<'b>>,
 }
 
 // TODO
@@ -120,6 +123,14 @@ impl<'a, 'b> OpenbookV2FulfillmentParams<'a, 'b> {
         now: i64,
     ) -> DriftResult<Self> {
         let account_info_vec = account_info_iter.collect::<Vec<_>>();
+        let remaining_ooa_accounts = account_info_iter
+            .skip(14)
+            .filter(|x| {
+                x.data
+                    .borrow()
+                    .starts_with(&OPEN_ORDERS_ACCOUNT_DISCRIMINATOR)
+            })
+            .collect();
         let account_infos = array_ref![account_info_vec, 0, 14];
         let [openbook_v2_fulfillment_config, drift_signer, openbook_v2_program, openbook_v2_market, openbook_v2_market_authority, openbook_v2_event_heap, openbook_v2_bids, openbook_v2_asks, openbook_v2_base_vault, openbook_v2_quote_vault, base_market_vault, quote_market_vault, token_program, system_program] =
             account_infos;
@@ -235,35 +246,40 @@ impl<'a, 'b> OpenbookV2FulfillmentParams<'a, 'b> {
             system_program,
             signer_nonce: state.signer_nonce,
             now,
+            remaining_ooa_accounts,
         })
     }
 }
 
 impl<'a, 'b> OpenbookV2FulfillmentParams<'a, 'b> {
     pub fn invoke_new_order(&self, data: Vec<u8>) -> DriftResult {
+        let mut accounts = vec![
+            AccountMeta::new(*self.drift_signer.key, true),
+            AccountMeta::new(*self.drift_signer.key, true),
+            AccountMeta::new(*self.openbook_v2_context.openbook_v2_market.key, false),
+            AccountMeta::new_readonly(*self.openbook_v2_market_authority.key, false),
+            AccountMeta::new(*self.openbook_v2_bids.key, false),
+            AccountMeta::new(*self.openbook_v2_asks.key, false),
+            AccountMeta::new(*self.openbook_v2_base_vault.key, false),
+            AccountMeta::new(*self.openbook_v2_quote_vault.key, false),
+            AccountMeta::new(*self.openbook_v2_event_heap.key, false),
+            AccountMeta::new(self.base_market_vault.key(), false),
+            AccountMeta::new(self.quote_market_vault.key(), false),
+            AccountMeta::new_readonly(*self.openbook_v2_context.openbook_v2_program.key, false),
+            AccountMeta::new_readonly(*self.openbook_v2_context.openbook_v2_program.key, false),
+            AccountMeta::new_readonly(*self.token_program.key, false),
+            AccountMeta::new_readonly(*self.system_program.key, false),
+            AccountMeta::new_readonly(*self.openbook_v2_context.openbook_v2_program.key, false),
+        ];
+        for account in self.remaining_ooa_accounts.iter() {
+            accounts.push(AccountMeta::new(*account.key, true));
+        }
         let new_place_take_order_instruction = Instruction {
             program_id: *self.openbook_v2_context.openbook_v2_program.key,
-            accounts: vec![
-                AccountMeta::new(*self.drift_signer.key, true),
-                AccountMeta::new(*self.drift_signer.key, true),
-                AccountMeta::new(*self.openbook_v2_context.openbook_v2_market.key, false),
-                AccountMeta::new_readonly(*self.openbook_v2_market_authority.key, false),
-                AccountMeta::new(*self.openbook_v2_bids.key, false),
-                AccountMeta::new(*self.openbook_v2_asks.key, false),
-                AccountMeta::new(*self.openbook_v2_base_vault.key, false),
-                AccountMeta::new(*self.openbook_v2_quote_vault.key, false),
-                AccountMeta::new(*self.openbook_v2_event_heap.key, false),
-                AccountMeta::new(self.base_market_vault.key(), false),
-                AccountMeta::new(self.quote_market_vault.key(), false),
-                AccountMeta::new_readonly(*self.openbook_v2_context.openbook_v2_program.key, false),
-                AccountMeta::new_readonly(*self.openbook_v2_context.openbook_v2_program.key, false),
-                AccountMeta::new_readonly(*self.token_program.key, false),
-                AccountMeta::new_readonly(*self.system_program.key, false),
-                AccountMeta::new_readonly(*self.openbook_v2_context.openbook_v2_program.key, false),
-            ],
+            accounts,
             data,
         };
-        let account_infos = [
+        let mut account_infos = vec![
             self.openbook_v2_context.openbook_v2_program.clone(),
             self.drift_signer.clone(),
             self.drift_signer.clone(),
@@ -282,6 +298,9 @@ impl<'a, 'b> OpenbookV2FulfillmentParams<'a, 'b> {
             self.system_program.to_account_info(),
             self.openbook_v2_context.openbook_v2_program.clone(),
         ];
+        for account in self.remaining_ooa_accounts.clone().into_iter() {
+            account_infos.push(account.to_account_info());
+        }
         let signer_seeds = get_signer_seeds(&self.signer_nonce);
         let signers_seeds = &[&signer_seeds[..]];
 
@@ -380,16 +399,10 @@ impl<'a, 'b> SpotFulfillmentParams for OpenbookV2FulfillmentParams<'a, 'b> {
         let (quote_update_direction, quote_asset_amount_filled) =
             if base_update_direction == SpotBalanceType::Borrow {
                 let quote_asset_amount_delta = quote_after.safe_sub(quote_before)?;
-                (
-                    SpotBalanceType::Deposit,
-                    quote_asset_amount_delta,
-                )
+                (SpotBalanceType::Deposit, quote_asset_amount_delta)
             } else {
                 let quote_asset_amount_delta = quote_before.safe_sub(quote_after)?;
-                (
-                    SpotBalanceType::Borrow,
-                    quote_asset_amount_delta,
-                )
+                (SpotBalanceType::Borrow, quote_asset_amount_delta)
             };
         Ok(ExternalSpotFill {
             base_asset_amount_filled,
