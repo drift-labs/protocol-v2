@@ -272,7 +272,7 @@ impl<'a, 'b> OpenbookV2FulfillmentParams<'a, 'b> {
             AccountMeta::new_readonly(*self.openbook_v2_context.openbook_v2_program.key, false),
         ];
         for account in self.remaining_ooa_accounts.iter() {
-            accounts.push(AccountMeta::new(*account.key, true));
+            accounts.push(AccountMeta::new(*account.key, false));
         }
         let new_place_take_order_instruction = Instruction {
             program_id: *self.openbook_v2_context.openbook_v2_program.key,
