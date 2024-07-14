@@ -349,10 +349,6 @@ impl<'a, 'b> SpotFulfillmentParams for OpenbookV2FulfillmentParams<'a, 'b> {
                                                 // total - 27
         };
         let data = args.data();
-        let market_accrued_fees_before = self
-            .openbook_v2_context
-            .load_openbook_v2_market()?
-            .fees_accrued;
         let base_before = self.base_market_vault.amount;
         let quote_before = self.quote_market_vault.amount;
 
@@ -381,25 +377,18 @@ impl<'a, 'b> SpotFulfillmentParams for OpenbookV2FulfillmentParams<'a, 'b> {
             return Ok(ExternalSpotFill::empty());
         }
 
-        let market_accrued_fees_after = self
-            .openbook_v2_context
-            .load_openbook_v2_market()?
-            .fees_accrued;
-        let openbook_v2_fee =
-            market_accrued_fees_after.safe_sub(market_accrued_fees_before)? as u64;
-
         let (quote_update_direction, quote_asset_amount_filled) =
             if base_update_direction == SpotBalanceType::Borrow {
                 let quote_asset_amount_delta = quote_after.safe_sub(quote_before)?;
                 (
                     SpotBalanceType::Deposit,
-                    quote_asset_amount_delta.safe_add(openbook_v2_fee)?,
+                    quote_asset_amount_delta,
                 )
             } else {
                 let quote_asset_amount_delta = quote_before.safe_sub(quote_after)?;
                 (
                     SpotBalanceType::Borrow,
-                    quote_asset_amount_delta.safe_sub(openbook_v2_fee)?,
+                    quote_asset_amount_delta,
                 )
             };
         Ok(ExternalSpotFill {
@@ -407,7 +396,7 @@ impl<'a, 'b> SpotFulfillmentParams for OpenbookV2FulfillmentParams<'a, 'b> {
             quote_asset_amount_filled,
             base_update_direction,
             quote_update_direction,
-            fee: openbook_v2_fee,
+            fee: 0,
             unsettled_referrer_rebate: 0,
             settled_referrer_rebate: 0,
         })
