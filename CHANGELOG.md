@@ -19,6 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - program: account for serum already having open order account ([#1077](https://github.com/drift-labs/protocol-v2/pull/1077))
 - program: avoid truncated cast ([#1078](https://github.com/drift-labs/protocol-v2/pull/1078))
 - program: check whitelist token amount ([#1076](https://github.com/drift-labs/protocol-v2/pull/1076))
+- program: program: only let referrer set if number_of_sub_accounts_created is 0 ([#1083](https://github.com/drift-labs/protocol-v2/pull/1083))
 
 ### Breaking
 
