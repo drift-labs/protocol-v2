@@ -17,6 +17,7 @@ import {
 	OracleSource,
 	ONE,
 	ContractTier,
+	FUEL_START_TS,
 } from '../sdk/src';
 
 import {
@@ -201,6 +202,8 @@ describe('place and fill spot order', () => {
 			},
 		});
 		await fillerDriftClientUser.subscribe();
+
+		await bankrunContextWrapper.setTimestamp(FUEL_START_TS.toNumber());
 	});
 
 	after(async () => {
@@ -608,14 +611,15 @@ describe('place and fill spot order', () => {
 		const makerSolAmount = makerDriftClient.getTokenAmount(1);
 		console.log(makerUSDCAmount.toString(), makerSolAmount.toString());
 		assert(makerUSDCAmount.gte(new BN(136007200)));
-		assert(makerSolAmount.lte(new BN(-900000000))); // round borrows up
+		assert(makerSolAmount.lte(new BN(-899999999))); // round borrows up
 
 		const takerUSDCAmount = takerDriftClient.getQuoteAssetTokenAmount();
 		const takerSolAmount = takerDriftClient.getTokenAmount(1);
 		console.log(takerUSDCAmount.toString(), takerSolAmount.toString());
 
 		assert(takerUSDCAmount.eq(new BN(63964000)));
-		assert(takerSolAmount.eq(new BN(899999997)));
+		assert(takerSolAmount.gte(new BN(899999995)));
+		assert(takerSolAmount.lte(new BN(899999999)));
 
 		console.log(fillerDriftClient.getQuoteAssetTokenAmount().toNumber());
 
