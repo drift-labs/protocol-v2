@@ -23,7 +23,7 @@ use crate::state::oracle::{HistoricalIndexData, HistoricalOracleData, OracleSour
 use crate::state::paused_operations::{InsuranceFundOperation, SpotOperation};
 use crate::state::perp_market::{MarketStatus, PoolBalance};
 use crate::state::traits::{MarketIndexOffset, Size};
-use crate::validate;
+use crate::{validate, PERCENTAGE_PRECISION};
 
 #[account(zero_copy(unsafe))]
 #[derive(PartialEq, Eq, Debug)]
@@ -163,7 +163,10 @@ pub struct SpotMarket {
     pub paused_operations: u8,
     pub if_paused_operations: u8,
     pub fee_adjustment: i16,
-    pub padding1: [u8; 2],
+    /// What fraction of max_token_deposits
+    /// disabled when 0, 1 => 1/10000 => .01% of max_token_deposits
+    /// precision: X/10000
+    pub max_token_borrows_fraction: u16,
     /// For swaps, the amount of token loaned out in the begin_swap ix
     /// precision: token mint precision
     pub flash_loan_amount: u64,
@@ -178,7 +181,23 @@ pub struct SpotMarket {
     /// disabled when 0
     /// precision: QUOTE_PRECISION
     pub scale_initial_asset_weight_start: u64,
-    pub padding: [u8; 48],
+    /// The min borrow rate for this market when the market regardless of utilization
+    /// 1 => 1/200 => .5%
+    /// precision: X/200
+    pub min_borrow_rate: u8,
+    /// fuel multiplier for spot deposits
+    /// precision: 10
+    pub fuel_boost_deposits: u8,
+    /// fuel multiplier for spot borrows
+    /// precision: 10
+    pub fuel_boost_borrows: u8,
+    /// fuel multiplier for spot taker
+    /// precision: 10
+    pub fuel_boost_taker: u8,
+    /// fuel multiplier for spot maker
+    /// precision: 10
+    pub fuel_boost_maker: u8,
+    pub padding: [u8; 43],
 }
 
 impl Default for SpotMarket {
@@ -234,12 +253,17 @@ impl Default for SpotMarket {
             paused_operations: 0,
             if_paused_operations: 0,
             fee_adjustment: 0,
-            padding1: [0; 2],
+            max_token_borrows_fraction: 0,
             flash_loan_amount: 0,
             flash_loan_initial_token_amount: 0,
             total_swap_fee: 0,
             scale_initial_asset_weight_start: 0,
-            padding: [0; 48],
+            min_borrow_rate: 0,
+            fuel_boost_deposits: 0,
+            fuel_boost_borrows: 0,
+            fuel_boost_taker: 0,
+            fuel_boost_maker: 0,
+            padding: [0; 43],
         }
     }
 }
@@ -414,7 +438,7 @@ impl SpotMarket {
         get_token_amount(self.borrow_balance, self, &SpotBalanceType::Borrow)
     }
 
-    pub fn validate_max_token_deposits(&self) -> DriftResult {
+    pub fn validate_max_token_deposits_and_borrows(&self) -> DriftResult {
         let deposits = self.get_deposits()?;
         let max_token_deposits = self.max_token_deposits.cast::<u128>()?;
 
@@ -425,6 +449,23 @@ impl SpotMarket {
             max_token_deposits,
             deposits,
         )?;
+
+        if self.max_token_borrows_fraction > 0 && self.max_token_deposits > 0 {
+            let borrows = self.get_borrows()?;
+            let max_token_borrows = self
+                .max_token_deposits
+                .safe_mul(self.max_token_borrows_fraction.cast()?)?
+                .safe_div(10000)?
+                .cast::<u128>()?;
+
+            validate!(
+                max_token_borrows == 0 || borrows <= max_token_borrows,
+                ErrorCode::MaxBorrows,
+                "max token amount ({}) < borrows ({})",
+                max_token_borrows,
+                borrows,
+            )?;
+        }
 
         Ok(())
     }
@@ -456,6 +497,12 @@ impl SpotMarket {
         let unhealthy_utilization = 800000; // 80%
         let utilization: u64 = self.get_utilization()?.cast()?;
         Ok(self.utilization_twap <= unhealthy_utilization && utilization <= unhealthy_utilization)
+    }
+
+    pub fn get_min_borrow_rate(self) -> DriftResult<u32> {
+        self.min_borrow_rate
+            .cast::<u32>()?
+            .safe_mul((PERCENTAGE_PRECISION / 200).cast()?)
     }
 
     pub fn update_historical_index_price(
@@ -545,8 +592,9 @@ impl SpotMarket {
     }
 }
 
-#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Eq, Debug, Default)]
 pub enum SpotBalanceType {
+    #[default]
     Deposit,
     Borrow,
 }
@@ -557,12 +605,6 @@ impl Display for SpotBalanceType {
             SpotBalanceType::Deposit => write!(f, "SpotBalanceType::Deposit"),
             SpotBalanceType::Borrow => write!(f, "SpotBalanceType::Borrow"),
         }
-    }
-}
-
-impl Default for SpotBalanceType {
-    fn default() -> Self {
-        SpotBalanceType::Deposit
     }
 }
 
@@ -580,19 +622,16 @@ pub trait SpotBalance {
     fn update_balance_type(&mut self, balance_type: SpotBalanceType) -> DriftResult;
 }
 
-#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Debug, Eq)]
+#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Debug, Eq, Default)]
 pub enum SpotFulfillmentConfigStatus {
+    #[default]
     Enabled,
     Disabled,
 }
 
-impl Default for SpotFulfillmentConfigStatus {
-    fn default() -> Self {
-        SpotFulfillmentConfigStatus::Enabled
-    }
-}
-
-#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Debug, Eq, PartialOrd, Ord)]
+#[derive(
+    Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Debug, Eq, PartialOrd, Ord, Default,
+)]
 pub enum AssetTier {
     /// full priviledge
     Collateral,
@@ -603,13 +642,8 @@ pub enum AssetTier {
     /// not collateral, only single borrow
     Isolated,
     /// no privilege
+    #[default]
     Unlisted,
-}
-
-impl Default for AssetTier {
-    fn default() -> Self {
-        AssetTier::Unlisted
-    }
 }
 
 #[zero_copy(unsafe)]

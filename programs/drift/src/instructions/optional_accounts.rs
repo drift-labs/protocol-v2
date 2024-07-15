@@ -1,7 +1,9 @@
 use crate::error::{DriftResult, ErrorCode};
+use std::cell::RefMut;
 
 use crate::error::ErrorCode::UnableToLoadOracle;
 use crate::math::safe_unwrap::SafeUnwrap;
+use crate::state::load_ref::load_ref_mut;
 use crate::state::oracle::PrelaunchOracle;
 use crate::state::oracle_map::OracleMap;
 use crate::state::perp_market::PerpMarket;
@@ -10,7 +12,7 @@ use crate::state::spot_market_map::SpotMarketMap;
 use crate::state::state::OracleGuardRails;
 use crate::state::traits::Size;
 use crate::state::user::{User, UserStats};
-use crate::{load_mut, validate, OracleSource};
+use crate::{validate, OracleSource};
 use anchor_lang::accounts::account::Account;
 use anchor_lang::prelude::AccountInfo;
 use anchor_lang::prelude::AccountLoader;
@@ -30,7 +32,7 @@ pub struct AccountMaps<'a> {
 }
 
 pub fn load_maps<'a, 'b>(
-    account_info_iter: &mut Peekable<Iter<AccountInfo<'a>>>,
+    account_info_iter: &mut Peekable<Iter<'a, AccountInfo<'a>>>,
     writable_perp_markets: &'b MarketSet,
     writable_spot_markets: &'b MarketSet,
     slot: u64,
@@ -66,10 +68,8 @@ pub fn update_prelaunch_oracle(
 
     let oracle_account_info = oracle_map.get_account_info(&perp_market.amm.oracle)?;
 
-    let oracle_account_loader: AccountLoader<PrelaunchOracle> =
-        AccountLoader::try_from(&oracle_account_info).or(Err(UnableToLoadOracle))?;
-
-    let mut oracle = load_mut!(oracle_account_loader)?;
+    let mut oracle: RefMut<PrelaunchOracle> =
+        load_ref_mut(&oracle_account_info).or(Err(UnableToLoadOracle))?;
 
     oracle.update(perp_market, slot)?;
 
@@ -77,7 +77,7 @@ pub fn update_prelaunch_oracle(
 }
 
 pub fn get_maker_and_maker_stats<'a>(
-    account_info_iter: &mut Peekable<Iter<AccountInfo<'a>>>,
+    account_info_iter: &mut Peekable<Iter<'a, AccountInfo<'a>>>,
 ) -> DriftResult<(AccountLoader<'a, User>, AccountLoader<'a, UserStats>)> {
     let maker_account_info =
         next_account_info(account_info_iter).or(Err(ErrorCode::MakerNotFound))?;
@@ -107,7 +107,7 @@ pub fn get_maker_and_maker_stats<'a>(
 
 #[allow(clippy::type_complexity)]
 pub fn get_referrer_and_referrer_stats<'a>(
-    account_info_iter: &mut Peekable<Iter<AccountInfo<'a>>>,
+    account_info_iter: &mut Peekable<Iter<'a, AccountInfo<'a>>>,
 ) -> DriftResult<(
     Option<AccountLoader<'a, User>>,
     Option<AccountLoader<'a, UserStats>>,
@@ -180,7 +180,7 @@ pub fn get_referrer_and_referrer_stats<'a>(
 }
 
 pub fn get_whitelist_token<'a>(
-    account_info_iter: &mut Peekable<Iter<AccountInfo<'a>>>,
+    account_info_iter: &mut Peekable<Iter<'a, AccountInfo<'a>>>,
 ) -> DriftResult<Account<'a, TokenAccount>> {
     let token_account_info = account_info_iter.peek();
     if token_account_info.is_none() {

@@ -56,7 +56,7 @@ pub fn validate_user_deletion(
 
     if state.max_initialize_user_fee > 0 {
         let estimated_user_stats_age = user_stats.get_age_ts(now);
-        if estimated_user_stats_age < THIRTEEN_DAY as i64 {
+        if estimated_user_stats_age < THIRTEEN_DAY {
             validate!(
                 user.idle,
                 ErrorCode::UserCantBeDeleted,

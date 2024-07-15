@@ -20,21 +20,64 @@ pub fn seed_and_create_pda<'a>(
     let bump_seed = [bump];
     let pda_signer_seeds: &[&[&[u8]]] = &[&[seeds, &[&bump_seed]].concat()];
 
-    solana_program::program::invoke_signed_unchecked(
-        &solana_program::system_instruction::create_account(
-            funder.key,
-            pda_account.key,
-            rent.minimum_balance(space).max(1),
-            space as u64,
-            owner,
-        ),
-        &[funder.clone(), pda_account.clone(), system_program.clone()],
-        pda_signer_seeds,
-    )
-    .map_err(|e| {
-        msg!("{:?}", e);
-        ErrorCode::InvalidPDASigner
-    })?;
+    if pda_account.lamports() > 0 {
+        let required_lamports = rent
+            .minimum_balance(space)
+            .max(1)
+            .saturating_sub(pda_account.lamports());
+
+        if required_lamports > 0 {
+            solana_program::program::invoke_signed_unchecked(
+                &solana_program::system_instruction::transfer(
+                    funder.key,
+                    pda_account.key,
+                    required_lamports,
+                ),
+                &[funder.clone(), pda_account.clone(), system_program.clone()],
+                pda_signer_seeds,
+            )
+            .map_err(|e| {
+                msg!("{:?}", e);
+                ErrorCode::DefaultError
+            })?;
+        }
+
+        solana_program::program::invoke_signed_unchecked(
+            &solana_program::system_instruction::allocate(pda_account.key, space as u64),
+            &[pda_account.clone(), system_program.clone()],
+            pda_signer_seeds,
+        )
+        .map_err(|e| {
+            msg!("{:?}", e);
+            ErrorCode::DefaultError
+        })?;
+
+        solana_program::program::invoke_signed_unchecked(
+            &solana_program::system_instruction::assign(pda_account.key, owner),
+            &[pda_account.clone(), system_program.clone()],
+            pda_signer_seeds,
+        )
+        .map_err(|e| {
+            msg!("{:?}", e);
+            ErrorCode::DefaultError
+        })?;
+    } else {
+        solana_program::program::invoke_signed_unchecked(
+            &solana_program::system_instruction::create_account(
+                funder.key,
+                pda_account.key,
+                rent.minimum_balance(space).max(1),
+                space as u64,
+                owner,
+            ),
+            &[funder.clone(), pda_account.clone(), system_program.clone()],
+            pda_signer_seeds,
+        )
+        .map_err(|e| {
+            msg!("{:?}", e);
+            ErrorCode::InvalidPDASigner
+        })?;
+    }
 
     Ok(())
 }

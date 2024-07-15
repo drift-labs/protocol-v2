@@ -13,13 +13,13 @@ defaults:
 
 env:
   CARGO_TERM_COLOR: always
-  RUST_TOOLCHAIN: 1.62.0
-  SOLANA_VERSION: "1.14.16"
+  RUST_TOOLCHAIN: 1.70.0
+  SOLANA_VERSION: "1.16.27"
 
 jobs:
   fmt-clippy:
     name: fmt & clippy
-    runs-on: ubuntu-latest
+    runs-on: ubicloud
     steps:
       - uses: actions/checkout@v2
       - name: Install Rust nightly
@@ -37,7 +37,7 @@ jobs:
         run: cargo clippy -p drift
   unit:
     name: Unit tests
-    runs-on: ubuntu-latest
+    runs-on: ubicloud
     steps:
       - uses: actions/checkout@v2
       - name: Install Rust toolchain
@@ -55,7 +55,7 @@ jobs:
 # disable until solana-client is upgraded
 #  cargo-audit:
 #    name: Cargo audit
-#    runs-on: ubuntu-latest
+#    runs-on: ubicloud
 #    steps:
 #      - uses: actions/checkout@v2
 #      - name: Cache cargo-audit version
@@ -68,7 +68,7 @@ jobs:
 #      - name: Run cargo-audit # Using args from .cargo/audit.toml
 #        run: cargo audit
   yarn-prettier:
-    runs-on: ubuntu-latest
+    runs-on: ubicloud
     steps:
       - uses: actions/checkout@v2
       - name: Setup node
@@ -83,7 +83,7 @@ jobs:
       - name: Run prettier
         run: yarn prettify
   yarn-lint:
-    runs-on: ubuntu-latest
+    runs-on: ubicloud
     steps:
       - uses: actions/checkout@v2
       - name: Setup node
@@ -96,7 +96,7 @@ jobs:
       - name: Run lint
         run: yarn lint
   anchor-tests:
-    runs-on: ubuntu-latest
+    runs-on: ubicloud
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@v2
@@ -115,7 +115,7 @@ jobs:
       - uses: ./.github/actions/setup-solana/
 
       - name: install anchor cli
-        run: cargo install --git https://github.com/coral-xyz/anchor --tag v0.26.0 anchor-cli --locked
+        run: cargo install --git https://github.com/coral-xyz/anchor --tag v0.29.0 anchor-cli --locked
 
       - name: Setup node
         uses: actions/setup-node@v2
@@ -142,8 +142,44 @@ jobs:
 
       - name: run anchor tests
         run: bash test-scripts/run-anchor-tests.sh
+  verify-markets:
+    name: Verify Market Constants
+    runs-on: ubicloud
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v2
+        with:
+          node-version: '18.x'
+          registry-url: 'https://registry.npmjs.org'
+
+      - name: Install dependencies
+        run: |
+          npm install -g yarn
+          yarn install
+
+      - name: Build SDK
+        run: |
+          cd sdk/
+          yarn install
+          yarn build
+          cd ..
+
+      - name: Install ts-mocha and typescript
+        run: |
+          npm install -g ts-mocha
+          npm install -g typescript
+
+      - name: Run tests
+        env:
+          MAINNET_RPC_ENDPOINT: ${{ secrets.MAINNET_RPC_ENDPOINT }}
+          DEVNET_RPC_ENDPOINT: ${{ secrets.DEVNET_RPC_ENDPOINT }}
+        run: ts-mocha ./sdk/tests/ci/verifyConstants.ts
+
+
   check-for-sdk-changes:
-    runs-on: ubuntu-latest
+    runs-on: ubicloud
     # Set job outputs to values from filter step
     outputs:
       sdk: ${{ steps.filter.outputs.sdk }}
@@ -157,7 +193,7 @@ jobs:
             sdk:
               - 'sdk/**'
   release:
-    runs-on: ubuntu-latest
+    runs-on: ubicloud
     needs:
       [
         fmt-clippy,
@@ -202,7 +238,7 @@ jobs:
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
   emit-dispatch-events:
-    runs-on: ubuntu-latest
+    runs-on: ubicloud
     needs: [release, check-for-sdk-changes]
     if: ${{ github.ref == 'refs/heads/master' && needs.check-for-sdk-changes.outputs.sdk == 'true' }}
     strategy:
@@ -230,54 +266,43 @@ jobs:
           GH_PAT: ${{ secrets.GH_PAT }}
           VERSION: ${{ needs.release.outputs.version }}
         working-directory: ./sdk
+  check-for-program-version-changes:
+    runs-on: ubuntu-latest
+    # Set job outputs to values from filter step
+    outputs:
+      program: ${{ steps.filter.outputs.program }}
+    steps:
+      # For pull requests it's not necessary to checkout the code
+      - uses: actions/checkout@v2
+      - uses: dorny/paths-filter@v2
+        id: filter
+        with:
+          filters: |
+            program:
+              - 'programs/drift/Cargo.toml'
   verified-build:
     name: Build Verifiable Artifact
-    runs-on: ubuntu-latest
+    runs-on: ubicloud
+    needs:
+      [
+          check-for-program-version-changes,
+      ]
+    if: ${{ needs.check-for-program-version-changes.outputs.program == 'true' }}
     steps:
       - name: Checkout
         uses: actions/checkout@v3
 
       - name: Install Solana Verify
         run: |
-          cargo install solana-verify
+          cargo install --locked --version 0.2.11 solana-verify
           solana-verify --version
 
       - name: Verifiable Build
         run: |
-          solana-verify build --library-name drift
+          solana-verify build --library-name drift --base-image ellipsislabs/solana:1.16.6
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v3
         with:
           name: build
           path: target/deploy/drift.so
-  code-coverage:
-    name: Code Coverage
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v2
-      - name: Install Rust toolchain
-        uses: actions-rs/toolchain@v1
-        with:
-          toolchain: ${{ env.RUST_TOOLCHAIN }}
-          profile: minimal
-          override: true
-      - name: Cache build artefacts
-        uses: Swatinem/rust-cache@v1
-      - name: Run package checks
-        run: cargo check # run package checks
-      - name: Run cargo-tarpaulin
-        uses: actions-rs/tarpaulin@v0.1
-        with:
-          version: '0.15.0'
-          args: '-- --test-threads 1'
-      - name: Upload to codecov.io
-        uses: codecov/codecov-action@v1.0.2
-        with:
-          token: ${{secrets.CODECOV_TOKEN}}
-      - name: Archive code coverage results
-        uses: actions/upload-artifact@v1
-        with:
-          name: code-coverage-report
-          path: cobertura.xml
-

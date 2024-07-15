@@ -10,7 +10,7 @@ import { OracleInfo } from './oracles/types';
 import { BulkAccountLoader } from './accounts/bulkAccountLoader';
 import { DriftEnv } from './config';
 import { TxSender } from './tx/types';
-import { TxHandler } from './tx/txHandler';
+import { TxHandler, TxHandlerConfig } from './tx/txHandler';
 
 export type DriftClientConfig = {
 	connection: Connection;
@@ -35,6 +35,7 @@ export type DriftClientConfig = {
 	txVersion?: TransactionVersion; // which tx version to use
 	txParams?: TxParams; // default tx params to use
 	enableMetricsEvents?: boolean;
+	txHandlerConfig?: TxHandlerConfig;
 };
 
 export type DriftClientSubscriptionConfig =

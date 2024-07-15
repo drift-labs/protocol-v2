@@ -1,5 +1,6 @@
 import {
 	PublicKey,
+	SystemProgram,
 	SYSVAR_RENT_PUBKEY,
 	TransactionInstruction,
 	TransactionSignature,
@@ -28,6 +29,7 @@ import {
 	getPhoenixFulfillmentConfigPublicKey,
 	getProtocolIfSharesTransferConfigPublicKey,
 	getPrelaunchOraclePublicKey,
+	getPythPullOraclePublicKey,
 } from './addresses/pda';
 import { squareRootBN } from './math/utils';
 import { TOKEN_PROGRAM_ID } from '@solana/spl-token';
@@ -43,6 +45,8 @@ import {
 import { calculateTargetPriceTrade } from './math/trade';
 import { calculateAmmReservesAfterSwap, getSwapDirection } from './math/amm';
 import { PROGRAM_ID as PHOENIX_PROGRAM_ID } from '@ellipsis-labs/phoenix-sdk';
+import { DRIFT_ORACLE_RECEIVER_ID } from './config';
+import { getFeedIdUint8Array } from './util/pythPullOracleUtils';
 
 export class AdminClient extends DriftClient {
 	public async initialize(
@@ -1812,6 +1816,44 @@ export class AdminClient extends DriftClient {
 		);
 	}
 
+	public async updateSpotMarketMaxTokenBorrows(
+		spotMarketIndex: number,
+		maxTokenBorrows: BN
+	): Promise<TransactionSignature> {
+		const updateSpotMarketMaxTokenBorrowsIx =
+			await this.getUpdateSpotMarketMaxTokenBorrowsIx(
+				spotMarketIndex,
+				maxTokenBorrows
+			);
+
+		const tx = await this.buildTransaction(updateSpotMarketMaxTokenBorrowsIx);
+
+		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+
+		return txSig;
+	}
+
+	public async getUpdateSpotMarketMaxTokenBorrowsIx(
+		spotMarketIndex: number,
+		maxTokenBorrows: BN
+	): Promise<TransactionInstruction> {
+		return this.program.instruction.updateSpotMarketMaxTokenBorrows(
+			maxTokenBorrows,
+			{
+				accounts: {
+					admin: this.isSubscribed
+						? this.getStateAccount().admin
+						: this.wallet.publicKey,
+					state: await this.getStatePublicKey(),
+					spotMarket: await getSpotMarketPublicKey(
+						this.program.programId,
+						spotMarketIndex
+					),
+				},
+			}
+		);
+	}
+
 	public async updateSpotMarketScaleInitialAssetWeightStart(
 		spotMarketIndex: number,
 		scaleInitialAssetWeightStart: BN
@@ -2506,14 +2548,16 @@ export class AdminClient extends DriftClient {
 		spotMarketIndex: number,
 		optimalUtilization: number,
 		optimalBorrowRate: number,
-		optimalMaxRate: number
+		optimalMaxRate: number,
+		minBorrowRate?: number | undefined
 	): Promise<TransactionSignature> {
 		const updateSpotMarketBorrowRateIx =
 			await this.getUpdateSpotMarketBorrowRateIx(
 				spotMarketIndex,
 				optimalUtilization,
 				optimalBorrowRate,
-				optimalMaxRate
+				optimalMaxRate,
+				minBorrowRate
 			);
 
 		const tx = await this.buildTransaction(updateSpotMarketBorrowRateIx);
@@ -2527,12 +2571,14 @@ export class AdminClient extends DriftClient {
 		spotMarketIndex: number,
 		optimalUtilization: number,
 		optimalBorrowRate: number,
-		optimalMaxRate: number
+		optimalMaxRate: number,
+		minBorrowRate?: number | undefined
 	): Promise<TransactionInstruction> {
 		return await this.program.instruction.updateSpotMarketBorrowRate(
 			optimalUtilization,
 			optimalBorrowRate,
 			optimalMaxRate,
+			minBorrowRate,
 			{
 				accounts: {
 					admin: this.isSubscribed
@@ -3472,7 +3518,7 @@ export class AdminClient extends DriftClient {
 			perpMarketIndex
 		);
 
-		return await this.program.instruction.getDeletePrelaunchOracleIx(params, {
+		return await this.program.instruction.deletePrelaunchOracle(params, {
 			accounts: {
 				admin: this.isSubscribed
 					? this.getStateAccount().admin
@@ -3485,5 +3531,136 @@ export class AdminClient extends DriftClient {
 				),
 			},
 		});
+	}
+
+	public async updateSpotMarketFuel(
+		spotMarketIndex: number,
+		fuelBoostDeposits?: number,
+		fuelBoostBorrows?: number,
+		fuelBoostTaker?: number,
+		fuelBoostMaker?: number
+	): Promise<TransactionSignature> {
+		const updateSpotMarketFuelIx = await this.getUpdateSpotMarketFuelIx(
+			spotMarketIndex,
+			fuelBoostDeposits || null,
+			fuelBoostBorrows || null,
+			fuelBoostTaker || null,
+			fuelBoostMaker || null
+		);
+
+		const tx = await this.buildTransaction(updateSpotMarketFuelIx);
+		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+
+		return txSig;
+	}
+
+	public async getUpdateSpotMarketFuelIx(
+		spotMarketIndex: number,
+		fuelBoostDeposits?: number,
+		fuelBoostBorrows?: number,
+		fuelBoostTaker?: number,
+		fuelBoostMaker?: number
+	): Promise<TransactionInstruction> {
+		const spotMarketPublicKey = await getSpotMarketPublicKey(
+			this.program.programId,
+			spotMarketIndex
+		);
+
+		return await this.program.instruction.updateSpotMarketFuel(
+			fuelBoostDeposits || null,
+			fuelBoostBorrows || null,
+			fuelBoostTaker || null,
+			fuelBoostMaker || null,
+			{
+				accounts: {
+					admin: this.isSubscribed
+						? this.getStateAccount().admin
+						: this.wallet.publicKey,
+					state: await this.getStatePublicKey(),
+					spotMarket: spotMarketPublicKey,
+				},
+			}
+		);
+	}
+
+	public async updatePerpMarketFuel(
+		perpMarketIndex: number,
+		fuelBoostTaker?: number,
+		fuelBoostMaker?: number,
+		fuelBoostPosition?: number
+	): Promise<TransactionSignature> {
+		const updatePerpMarketFuelIx = await this.getUpdatePerpMarketFuelIx(
+			perpMarketIndex,
+			fuelBoostTaker || null,
+			fuelBoostMaker || null,
+			fuelBoostPosition || null
+		);
+
+		const tx = await this.buildTransaction(updatePerpMarketFuelIx);
+		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+
+		return txSig;
+	}
+
+	public async getUpdatePerpMarketFuelIx(
+		perpMarketIndex: number,
+		fuelBoostTaker?: number,
+		fuelBoostMaker?: number,
+		fuelBoostPosition?: number
+	): Promise<TransactionInstruction> {
+		const perpMarketPublicKey = await getPerpMarketPublicKey(
+			this.program.programId,
+			perpMarketIndex
+		);
+
+		return await this.program.instruction.updatePerpMarketFuel(
+			fuelBoostTaker || null,
+			fuelBoostMaker || null,
+			fuelBoostPosition || null,
+			{
+				accounts: {
+					admin: this.isSubscribed
+						? this.getStateAccount().admin
+						: this.wallet.publicKey,
+					state: await this.getStatePublicKey(),
+					perpMarket: perpMarketPublicKey,
+				},
+			}
+		);
+	}
+
+	public async initializePythPullOracle(
+		feedId: string
+	): Promise<TransactionSignature> {
+		const initializePythPullOracleIx = await this.getInitializePythPullOracleIx(
+			feedId
+		);
+		const tx = await this.buildTransaction(initializePythPullOracleIx);
+		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+
+		return txSig;
+	}
+
+	public async getInitializePythPullOracleIx(
+		feedId: string
+	): Promise<TransactionInstruction> {
+		const feedIdBuffer = getFeedIdUint8Array(feedId);
+		return await this.program.instruction.initializePythPullOracle(
+			feedIdBuffer,
+			{
+				accounts: {
+					admin: this.isSubscribed
+						? this.getStateAccount().admin
+						: this.wallet.publicKey,
+					state: await this.getStatePublicKey(),
+					systemProgram: SystemProgram.programId,
+					priceFeed: getPythPullOraclePublicKey(
+						this.program.programId,
+						feedIdBuffer
+					),
+					pythSolanaReceiver: DRIFT_ORACLE_RECEIVER_ID,
+				},
+			}
+		);
 	}
 }
