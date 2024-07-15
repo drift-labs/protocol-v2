@@ -192,8 +192,8 @@ export const MainnetSpotMarkets: SpotMarketConfig[] = [
 	{
 		symbol: 'JTO',
 		marketIndex: 9,
-		oracle: new PublicKey('D8UUgr8a3aR3yUeHLu7v8FWK7E8Y5sSU7qrYBXUJXBQ5'),
-		oracleSource: OracleSource.PYTH,
+		oracle: new PublicKey('Ffq6ACJ17NAgaxC6ocfMzVXL3K61qxB2xHg6WUawWPfP'),
+		oracleSource: OracleSource.PYTH_PULL,
 		mint: new PublicKey('jtojtomepa8beP8AuQc6eXt5FriJwfFMwQx2v2f9mCL'),
 		precision: new BN(10).pow(NINE),
 		precisionExp: NINE,
@@ -250,8 +250,8 @@ export const MainnetSpotMarkets: SpotMarketConfig[] = [
 	{
 		symbol: 'W',
 		marketIndex: 13,
-		oracle: new PublicKey('H9j8CT1bFiWHaZUPMooEaxMRHdWdJ5T9CzFn41z96JHW'),
-		oracleSource: OracleSource.PYTH,
+		oracle: new PublicKey('4HbitGsdcFbtFotmYscikQFAAKJ3nYx4t7sV7fTvsk8U'),
+		oracleSource: OracleSource.PYTH_PULL,
 		mint: new PublicKey('85VBFQZC9TZkfaptBWjvUw7YbZjy52A6mjtPGjstQAmQ'),
 		precision: new BN(10).pow(SIX),
 		precisionExp: SIX,
@@ -265,8 +265,8 @@ export const MainnetSpotMarkets: SpotMarketConfig[] = [
 	{
 		symbol: 'TNSR',
 		marketIndex: 14,
-		oracle: new PublicKey('7Cfyymx49ipGsgEsCA2XygAB2DUsan4C6Cyb5c8oR5st'),
-		oracleSource: OracleSource.SWITCHBOARD,
+		oracle: new PublicKey('13jpjpVyU5hGpjsZ4HzCcmBo85wze4N8Au7U6cC3GMip'),
+		oracleSource: OracleSource.PYTH_PULL,
 		mint: new PublicKey('TNSRxcUxoT9xBG3de7PiJyTDYu7kskLqcpddxnEJAS6'),
 		precision: new BN(10).pow(NINE),
 		precisionExp: NINE,

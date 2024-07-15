@@ -638,6 +638,8 @@ export type PerpMarketAccount = {
 	pausedOperations: number;
 
 	fuelBoostPosition: number;
+	fuelBoostMaker: number;
+	fuelBoostTaker: number;
 };
 
 export type HistoricalOracleData = {
@@ -739,6 +741,8 @@ export type SpotMarketAccount = {
 
 	fuelBoostDeposits: number;
 	fuelBoostBorrows: number;
+	fuelBoostMaker: number;
+	fuelBoostTaker: number;
 };
 
 export type PoolBalance = {
