@@ -907,6 +907,9 @@ export class User {
 			const userStats: UserStatsAccount = this.driftClient
 				.getUserStats()
 				.getAccount();
+			result.insuranceFuel = result.insuranceFuel.add(
+				new BN(userStats.fuelInsurance)
+			);
 			result.takerFuel = result.takerFuel.add(new BN(userStats.fuelTaker));
 			result.makerFuel = result.makerFuel.add(new BN(userStats.fuelMaker));
 			result.depositFuel = result.depositFuel.add(
