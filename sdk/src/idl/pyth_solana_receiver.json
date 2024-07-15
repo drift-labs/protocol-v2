@@ -447,7 +447,7 @@
             "type": "bytes"
           },
           {
-            "name": "merklePriceUpdate",
+            "name": "merklePriceUpdates",
             "type": {
               "vec": {
                 "defined": "MerklePriceUpdate"

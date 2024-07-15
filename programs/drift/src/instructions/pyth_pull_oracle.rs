@@ -109,7 +109,7 @@ pub fn handle_post_multi_pyth_pull_oracle_updates_atomic<'c: 'info, 'info>(
     ctx: Context<'_, '_, 'c, 'info, PostPythPullMultiOracleUpdatesAtomic<'info>>,
     params: Vec<u8>,
 ) -> Result<()> {
-    let remaining_accounts = &ctx.remaining_accounts;
+    let remaining_accounts = ctx.remaining_accounts;
     require!(
         remaining_accounts.len() <= 2,
         ErrorCode::OracleTooManyPriceAccountUpdates
@@ -140,7 +140,7 @@ pub fn handle_post_multi_pyth_pull_oracle_updates_atomic<'c: 'info, 'info>(
         // Verify the pda
         let (pda, bump) = Pubkey::find_program_address(
             &[PTYH_PRICE_FEED_SEED_PREFIX, feed_id.as_ref()],
-            &drift_oracle_receiver_program::id(),
+            &crate::ID,
         );
         require_keys_eq!(
             *account.key,
@@ -165,6 +165,7 @@ pub fn handle_post_multi_pyth_pull_oracle_updates_atomic<'c: 'info, 'info>(
                     vaa: vaa.clone(),
                 },
             )?;
+            msg!("Price feed updated");
         }
     }
 
