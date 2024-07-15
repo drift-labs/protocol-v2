@@ -128,7 +128,7 @@ pub fn handle_post_multi_pyth_pull_oracle_updates_atomic(
         let cpi_program = ctx.accounts.pyth_solana_receiver.to_account_info().clone();
         let cpi_accounts = PostUpdateAtomic {
             payer: ctx.accounts.keeper.to_account_info().clone(),
-            guardian_set: ctx.accounts.guardian_set.to_account_info(),
+            guardian_set: ctx.accounts.guardian_set.to_account_info().clone(),
             price_update_account: account.clone(),
             write_authority: account.clone(),
         };

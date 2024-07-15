@@ -6974,6 +6974,8 @@ export class DriftClient {
 			numSignatures
 		);
 
+		console.log(trimmedVaa.length);
+
 		if (feedIdsToUse.length > 1) {
 			const postIxs: TransactionInstruction[] = [];
 
@@ -6981,10 +6983,16 @@ export class DriftClient {
 				getFeedIdUint8Array(feedId)
 			);
 
-			const encodedParams = accumulatorUpdateData.updates.map((update) => this.getReceiverProgram().coder.types.encode(
-				'PostUpdateAtomicParams',
-				update
-			));
+			const encodedParams = accumulatorUpdateData.updates.map((update) => {
+				const encodedParam = this.getReceiverProgram().coder.types.encode(
+					'MerklePriceUpdate',
+					update
+				);
+				// console.log(update.message.toString('base64'));
+				console.log(encodedParam.length);
+				
+				return encodedParam;
+		});
 
 			postIxs.push(
 				this.program.instruction.postMultiPythPullOracleUpdatesAtomic(
