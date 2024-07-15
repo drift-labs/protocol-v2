@@ -14,6 +14,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixes
 
+- program: more oracle validation in admin fn ([#1082](https://github.com/drift-labs/protocol-v2/pull/1082))
+
 ### Breaking
 
 ## [2.85.0] - 2024-07-02
