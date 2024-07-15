@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - program: more oracle validation in admin fn ([#1082](https://github.com/drift-labs/protocol-v2/pull/1082))
 - program: account for serum already having open order account ([#1077](https://github.com/drift-labs/protocol-v2/pull/1077))
+- program: avoid truncated cast ([#1078](https://github.com/drift-labs/protocol-v2/pull/1078))
 
 ### Breaking
 

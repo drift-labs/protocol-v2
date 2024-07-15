@@ -30,14 +30,14 @@ pub fn calculate_serum_limit_price(
             .cast::<u128>()?
             .safe_div(PRICE_TO_QUOTE_PRECISION_RATIO)?
             .safe_mul(coin_lot_size.cast()?)?
-            .safe_div(pc_lot_size.cast::<u128>()?.safe_mul(coin_precision)?)
-            .map(|limit_price| limit_price as u64),
+            .safe_div(pc_lot_size.cast::<u128>()?.safe_mul(coin_precision)?)?
+            .cast(),
         PositionDirection::Short => limit_price
             .cast::<u128>()?
             .safe_div(PRICE_TO_QUOTE_PRECISION_RATIO)?
             .safe_mul(coin_lot_size.cast()?)?
-            .safe_div_ceil(pc_lot_size.cast::<u128>()?.safe_mul(coin_precision)?)
-            .map(|limit_price| limit_price as u64),
+            .safe_div_ceil(pc_lot_size.cast::<u128>()?.safe_mul(coin_precision)?)?
+            .cast(),
     }
 }
 
