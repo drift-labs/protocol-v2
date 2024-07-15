@@ -105,8 +105,8 @@ pub fn handle_post_pyth_pull_oracle_update_atomic(
     Ok(())
 }
 
-pub fn handle_post_multi_pyth_pull_oracle_updates_atomic(
-    ctx: Context<PostPythPullMultiOracleUpdatesAtomic>,
+pub fn handle_post_multi_pyth_pull_oracle_updates_atomic<'c: 'info, 'info>(
+    ctx: Context<'_, '_, 'c, 'info, PostPythPullMultiOracleUpdatesAtomic<'info>>,
     params: Vec<u8>,
 ) -> Result<()> {
     let remaining_accounts = &ctx.remaining_accounts;
