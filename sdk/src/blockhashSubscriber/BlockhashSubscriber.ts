@@ -39,15 +39,28 @@ export class BlockhashSubscriber {
 		return this.latestBlockHeightContext;
 	}
 
+	/**
+	 * Returns the latest cached blockhash, based on an offset from the latest obtained
+	 * @param offset Offset to use, defaulting to 0
+	 * @param offsetType If 'seconds', it will use calculate the actual element offset based on the update interval; otherwise it will return a fixed index
+	 * @returns Cached blockhash at the given offset, or undefined
+	 */
 	getLatestBlockhash(
-		offset?: number
+		offset = 0,
+		offsetType: 'index' | 'seconds' = 'index'
 	): BlockhashWithExpiryBlockHeight | undefined {
 		if (this.blockhashes.length === 0) {
 			return undefined;
 		}
+
+		const elementOffset =
+			offsetType == 'seconds'
+				? Math.floor((offset * 1000) / this.updateIntervalMs)
+				: offset;
+
 		const clampedOffset = Math.max(
 			0,
-			Math.min(this.blockhashes.length - 1, offset ?? 0)
+			Math.min(this.blockhashes.length - 1, elementOffset)
 		);
 
 		return this.blockhashes[this.blockhashes.length - 1 - clampedOffset];
@@ -62,27 +75,32 @@ export class BlockhashSubscriber {
 	}
 
 	async updateBlockhash() {
-		const [resp, lastConfirmedBlockHeight] = await Promise.all([
-			this.connection.getLatestBlockhashAndContext({
-				commitment: this.commitment,
-			}),
-			this.connection.getBlockHeight({ commitment: this.commitment }),
-		]);
-		this.latestBlockHeight = lastConfirmedBlockHeight;
-		this.latestBlockHeightContext = resp.context;
+		try {
+			const [resp, lastConfirmedBlockHeight] = await Promise.all([
+				this.connection.getLatestBlockhashAndContext({
+					commitment: this.commitment,
+				}),
+				this.connection.getBlockHeight({ commitment: this.commitment }),
+			]);
+			this.latestBlockHeight = lastConfirmedBlockHeight;
+			this.latestBlockHeightContext = resp.context;
 
-		// avoid caching duplicate blockhashes
-		if (this.blockhashes.length > 0) {
-			if (
-				resp.value.blockhash ===
-				this.blockhashes[this.blockhashes.length - 1].blockhash
-			) {
-				return;
+			// avoid caching duplicate blockhashes
+			if (this.blockhashes.length > 0) {
+				if (
+					resp.value.blockhash ===
+					this.blockhashes[this.blockhashes.length - 1].blockhash
+				) {
+					return;
+				}
 			}
-		}
 
-		this.blockhashes.push(resp.value);
-		this.pruneBlockhashes();
+			this.blockhashes.push(resp.value);
+		} catch (e) {
+			console.error('Error updating blockhash:\n', e);
+		} finally {
+			this.pruneBlockhashes();
+		}
 	}
 
 	async subscribe() {

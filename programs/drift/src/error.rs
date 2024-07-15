@@ -539,6 +539,24 @@ pub enum ErrorCode {
     OracleInsufficientDataPoints,
     #[msg("OracleStaleForAMM")]
     OracleStaleForAMM,
+    #[msg("Unable to parse pull oracle message")]
+    UnableToParsePullOracleMessage,
+    #[msg("Can not borow more than max borrows")]
+    MaxBorrows,
+    #[msg("Updates must be monotonically increasing")]
+    OracleUpdatesNotMonotonic,
+    #[msg("Trying to update price feed with the wrong feed id")]
+    OraclePriceFeedMessageMismatch,
+    #[msg("The message in the update must be a PriceFeedMessage")]
+    OracleUnsupportedMessageType,
+    #[msg("Could not deserialize the message in the update")]
+    OracleDeserializeMessageFailed,
+    #[msg("Wrong guardian set owner in update price atomic")]
+    OracleWrongGuardianSetOwner,
+    #[msg("Oracle post update atomic price feed account must be drift program")]
+    OracleWrongWriteAuthority,
+    #[msg("Oracle vaa owner must be wormhole program")]
+    OracleWrongVaaOwner,
 }
 
 #[macro_export]

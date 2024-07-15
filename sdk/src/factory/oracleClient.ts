@@ -7,6 +7,7 @@ import { QuoteAssetOracleClient } from '../oracles/quoteAssetOracleClient';
 import { BN, Program } from '@coral-xyz/anchor';
 import { PrelaunchOracleClient } from '../oracles/prelaunchOracleClient';
 import { SwitchboardClient } from '../oracles/switchboardClient';
+import { PythPullClient } from '../oracles/pythPullClient';
 
 export function getOracleClient(
 	oracleSource: OracleSource,
@@ -17,16 +18,32 @@ export function getOracleClient(
 		return new PythClient(connection);
 	}
 
+	if (isVariant(oracleSource, 'pythPull')) {
+		return new PythPullClient(connection);
+	}
+
 	if (isVariant(oracleSource, 'pyth1K')) {
 		return new PythClient(connection, new BN(1000));
+	}
+
+	if (isVariant(oracleSource, 'pyth1KPull')) {
+		return new PythPullClient(connection, new BN(1000));
 	}
 
 	if (isVariant(oracleSource, 'pyth1M')) {
 		return new PythClient(connection, new BN(1000000));
 	}
 
+	if (isVariant(oracleSource, 'pyth1MPull')) {
+		return new PythPullClient(connection, new BN(1000000));
+	}
+
 	if (isVariant(oracleSource, 'pythStableCoin')) {
 		return new PythClient(connection, undefined, true);
+	}
+
+	if (isVariant(oracleSource, 'pythStableCoinPull')) {
+		return new PythPullClient(connection, undefined, true);
 	}
 
 	if (isVariant(oracleSource, 'switchboard')) {

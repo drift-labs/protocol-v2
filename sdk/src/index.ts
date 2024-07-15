@@ -65,6 +65,7 @@ export * from './slot/SlotSubscriber';
 export * from './wallet';
 export * from './types';
 export * from './math/utils';
+export * from './math/fuel';
 export * from './config';
 export * from './constants/numericConstants';
 export * from './serum/serumSubscriber';
