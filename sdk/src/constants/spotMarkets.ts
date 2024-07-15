@@ -99,8 +99,8 @@ export const MainnetSpotMarkets: SpotMarketConfig[] = [
 	{
 		symbol: 'mSOL',
 		marketIndex: 2,
-		oracle: new PublicKey('E4v1BBgoso9s64TQvmyownAVJbhbEPGyzA3qn4n46qj9'),
-		oracleSource: OracleSource.PYTH,
+		oracle: new PublicKey('FAq7hqjn7FWGXKDwJHzsXGgBcydGTcK4kziJpAGWXjDb'),
+		oracleSource: OracleSource.PYTH_PULL,
 		mint: new PublicKey('mSoLzYCxHdYgdzU16g5QSh3i5K3z3KZK7ytfqcJm7So'),
 		precision: new BN(10).pow(NINE),
 		precisionExp: NINE,
@@ -139,7 +139,7 @@ export const MainnetSpotMarkets: SpotMarketConfig[] = [
 		symbol: 'USDT',
 		marketIndex: 5,
 		oracle: new PublicKey('3vxLXJqLqF3JG5TCbYycbKWRBbCJQLxQmBGCkyqEEefL'),
-		oracleSource: OracleSource.PYTH_STABLE_COIN,
+		oracleSource: OracleSource.PYTH,
 		mint: new PublicKey('Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB'),
 		precision: QUOTE_PRECISION,
 		precisionExp: QUOTE_PRECISION_EXP,
@@ -180,8 +180,8 @@ export const MainnetSpotMarkets: SpotMarketConfig[] = [
 	{
 		symbol: 'bSOL',
 		marketIndex: 8,
-		oracle: new PublicKey('AFrYBhb5wKQtxRS9UA9YRS4V3dwFm7SqmS6DHKq6YVgo'),
-		oracleSource: OracleSource.PYTH,
+		oracle: new PublicKey('BmDWPMsytWmYkh9n6o7m79eVshVYf2B5GVaqQ2EWKnGH'),
+		oracleSource: OracleSource.PYTH_PULL,
 		mint: new PublicKey('bSo13r4TkiE4KumL71LsHTPpL2euBYLFx6h9HP3piy1'),
 		precision: new BN(10).pow(NINE),
 		precisionExp: NINE,
@@ -295,8 +295,8 @@ export const MainnetSpotMarkets: SpotMarketConfig[] = [
 	{
 		symbol: 'INF',
 		marketIndex: 16,
-		oracle: new PublicKey('81SuhCcCQri9w4yPyv56ErtpXuncVyFCDT3fYehceG1M'),
-		oracleSource: OracleSource.SWITCHBOARD,
+		oracle: new PublicKey('B7RUYg2zF6UdUSHv2RmpnriPVJccYWojgFydNS1NY5F8'),
+		oracleSource: OracleSource.PYTH_PULL,
 		mint: new PublicKey('5oVNBeEEQvYi1cX3ir8Dx5n1P7pdxydbGF2X4TxVusJm'),
 		precision: new BN(10).pow(NINE),
 		precisionExp: NINE,
@@ -317,12 +317,14 @@ export const MainnetSpotMarkets: SpotMarketConfig[] = [
 	{
 		symbol: 'USDY',
 		marketIndex: 18,
-		oracle: new PublicKey('DiqUGbq5CV8Tjcae1whjrX97qPo6gU7BKAvKNFc2vrX8'),
-		oracleSource: OracleSource.SWITCHBOARD,
+		oracle: new PublicKey('BPTQgHV4y2x4jvKPPkkd9aS8jY7L3DGZBwjEZC8Vm27o'),
+		oracleSource: OracleSource.PYTH_PULL,
 		mint: new PublicKey('A1KLoBrKBde8Ty9qtNQUtq3C2ortoC3u7twggz7sEto6'),
 		precision: new BN(10).pow(SIX),
 		precisionExp: SIX,
 		launchTs: 1718811089000,
+		pythFeedId:
+			'0xe393449f6aff8a4b6d3e1165a7c9ebec103685f3b41e60db4277b5b6d10e7326',
 	},
 	{
 		symbol: 'JLP',

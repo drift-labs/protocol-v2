@@ -142,6 +142,42 @@ jobs:
 
       - name: run anchor tests
         run: bash test-scripts/run-anchor-tests.sh
+  verify-markets:
+    name: Verify Market Constants
+    runs-on: ubicloud
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v2
+        with:
+          node-version: '18.x'
+          registry-url: 'https://registry.npmjs.org'
+
+      - name: Install dependencies
+        run: |
+          npm install -g yarn
+          yarn install
+
+      - name: Build SDK
+        run: |
+          cd sdk/
+          yarn install
+          yarn build
+          cd ..
+
+      - name: Install ts-mocha and typescript
+        run: |
+          npm install -g ts-mocha
+          npm install -g typescript
+
+      - name: Run tests
+        env:
+          MAINNET_RPC_ENDPOINT: ${{ secrets.MAINNET_RPC_ENDPOINT }}
+          DEVNET_RPC_ENDPOINT: ${{ secrets.DEVNET_RPC_ENDPOINT }}
+        run: ts-mocha ./sdk/tests/ci/verifyConstants.ts
+
+
   check-for-sdk-changes:
     runs-on: ubicloud
     # Set job outputs to values from filter step
@@ -270,4 +306,3 @@ jobs:
         with:
           name: build
           path: target/deploy/drift.so
-
