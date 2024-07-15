@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - program: track fuel ([#1048](https://github.com/drift-labs/protocol-v2/pull/1048))
 - program: track fuel for if staking ([#1127](https://github.com/drift-labs/protocol-v2/pull/1127))
 - program: validate fee structure ([#1075](https://github.com/drift-labs/protocol-v2/pull/1075))
+- program: check 5 min oracle twap divergence in trigger order ([#1116](https://github.com/drift-labs/protocol-v2/pull/1116))
 
 ### Fixes
 

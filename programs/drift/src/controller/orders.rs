@@ -1058,6 +1058,7 @@ pub fn fill_perp_order(
             .max_oracle_twap_5min_percent_divergence()
             .cast()?,
     )?;
+
     if oracle_too_divergent_with_twap_5min {
         // update filler last active so tx doesn't revert
         if let Some(filler) = filler.as_deref_mut() {
@@ -2682,6 +2683,24 @@ pub fn trigger_order(
     validate!(is_oracle_valid, ErrorCode::InvalidOracle)?;
 
     let oracle_price = oracle_price_data.price;
+
+    let oracle_too_divergent_with_twap_5min = is_oracle_too_divergent_with_twap_5min(
+        oracle_price_data.price,
+        perp_market
+            .amm
+            .historical_oracle_data
+            .last_oracle_price_twap_5min,
+        state
+            .oracle_guard_rails
+            .max_oracle_twap_5min_percent_divergence()
+            .cast()?,
+    )?;
+
+    validate!(
+        !oracle_too_divergent_with_twap_5min,
+        ErrorCode::OrderBreachesOraclePriceLimits,
+        "oracle price vs twap too divergent"
+    )?;
 
     let can_trigger = order_satisfies_trigger_condition(
         &user.orders[order_index],
@@ -4898,6 +4917,23 @@ pub fn trigger_spot_order(
     )?;
 
     let oracle_price = oracle_price_data.price;
+
+    let oracle_too_divergent_with_twap_5min = is_oracle_too_divergent_with_twap_5min(
+        oracle_price_data.price,
+        spot_market
+            .historical_oracle_data
+            .last_oracle_price_twap_5min,
+        state
+            .oracle_guard_rails
+            .max_oracle_twap_5min_percent_divergence()
+            .cast()?,
+    )?;
+
+    validate!(
+        !oracle_too_divergent_with_twap_5min,
+        ErrorCode::OrderBreachesOraclePriceLimits,
+        "oracle price vs twap too divergent"
+    )?;
 
     let can_trigger = order_satisfies_trigger_condition(
         &user.orders[order_index],
