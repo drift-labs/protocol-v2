@@ -886,11 +886,12 @@ export class User {
 		includeSettled = true,
 		includeUnsettled = true
 	): {
-		depositFuel;
-		borrowFuel;
-		positionFuel;
-		takerFuel;
-		makerFuel;
+		depositFuel: BN;
+		borrowFuel: BN;
+		positionFuel: BN;
+		takerFuel: BN;
+		makerFuel: BN;
+		insuranceFuel: BN;
 	} {
 		const userAccount: UserAccount = this.getUserAccount();
 
