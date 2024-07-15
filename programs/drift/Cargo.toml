@@ -1,6 +1,6 @@
 [package]
 name = "drift"
-version = "2.83.0"
+version = "2.85.0"
 description = "Created with Anchor"
 edition = "2018"
 
@@ -18,12 +18,14 @@ default=["mainnet-beta"]
 drift-rs=[]
 
 [dependencies]
-anchor-lang = "0.27.0"
-solana-program = "=1.14.16"
-anchor-spl = "0.27.0"
+anchor-lang = "0.29.0"
+solana-program = "1.16"
+anchor-spl = "0.29.0"
 pyth-client = "0.2.2"
+pythnet-sdk = { git = "https://github.com/drift-labs/pyth-crosschain", rev = "04cf2c"}
+pyth-solana-receiver-sdk = { git = "https://github.com/drift-labs/pyth-crosschain", rev = "04cf2c"}
 bytemuck = { version = "1.4.0" }
-borsh = "0.9.1"
+borsh = "0.10.3"
 num-traits = "0.2"
 uint = { version = "0.9.1", default-features = false }
 num-derive = "0.3"
@@ -33,11 +35,13 @@ arrayref = "0.3.6"
 base64 = "0.13.0"
 serum_dex = { git = "https://github.com/project-serum/serum-dex", rev = "85b4f14", version = "0.5.6", features = ["no-entrypoint"] }
 enumflags2 = "0.6.4"
-phoenix-v1 = { git = "https://github.com/drift-labs/phoenix-v1", rev = "bf6b84", version = "0.2.4", features = ["no-entrypoint"] }
+phoenix-v1 = { git = "https://github.com/drift-labs/phoenix-v1", rev = "7703c5", version = "0.2.4", features = ["no-entrypoint"] }
 solana-security-txt = "1.1.0"
 static_assertions = "1.1.0"
 drift-macros = { git = "https://github.com/drift-labs/drift-macros.git", rev = "c57d87" }
 switchboard = { path = "../switchboard", features = ["no-entrypoint"] }
+ahash = "=0.8.6"
+byteorder = "1.4.3"
 
 [dev-dependencies]
 bytes = "1.2.0"

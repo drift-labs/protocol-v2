@@ -4,6 +4,7 @@ import {
 	BASE_PRECISION,
 	BN,
 	BulkAccountLoader,
+	ContractTier,
 	getMarketOrderParams,
 	OracleSource,
 	PEG_PRECISION,
@@ -162,9 +163,9 @@ describe('update amm', () => {
 		});
 
 		await driftClient.initialize(usdcMint.publicKey, true);
-		await driftClient.updatePerpAuctionDuration(0);
 
 		await driftClient.subscribe();
+		await driftClient.updatePerpAuctionDuration(0);
 		await initializeQuoteSpotMarket(driftClient, usdcMint.publicKey);
 
 		const periodicity = new BN(60 * 60); // 1 HOUR
@@ -176,7 +177,15 @@ describe('update amm', () => {
 			periodicity,
 			new BN(1 * PEG_PRECISION.toNumber()),
 			undefined,
-			1000
+			ContractTier.A,
+			1000,
+			500,
+			undefined,
+			undefined,
+			undefined,
+			true,
+			2000,
+			5000
 		);
 		await driftClient.updatePerpMarketBaseSpread(0, 2000);
 		await driftClient.updatePerpMarketCurveUpdateIntensity(0, 100);
@@ -192,7 +201,15 @@ describe('update amm', () => {
 				periodicity,
 				new BN(i * PEG_PRECISION.toNumber()),
 				undefined,
-				1000
+				ContractTier.A,
+				1000,
+				500,
+				undefined,
+				undefined,
+				undefined,
+				true,
+				2000,
+				5000
 			);
 			await driftClient.updatePerpMarketBaseSpread(i, 2000);
 			await driftClient.updatePerpMarketCurveUpdateIntensity(i, 100);
@@ -509,7 +526,7 @@ describe('update amm', () => {
 				confidenceIntervalMaxSize: new BN(100000),
 				tooVolatileRatio: new BN(1000),
 			},
-			useForLiquidations: false,
+			// useForLiquidations: false,
 		};
 
 		await driftClient.updateOracleGuardRails(oracleGuardRails);
@@ -688,13 +705,10 @@ describe('update amm', () => {
 
 			const prepegAMM = prepegAMMs[i];
 			const market0 = market0s[i];
+			console.log(market.amm.pegMultiplier.toString());
 
 			if (i == 0) {
-				assert(
-					market.amm.pegMultiplier.eq(
-						new BN(1.01356 * PEG_PRECISION.toNumber())
-					)
-				);
+				assert(market.amm.pegMultiplier.eq(new BN(1020500)));
 			} else if (i == 1) {
 				assert(
 					market.amm.pegMultiplier.eq(
@@ -710,7 +724,6 @@ describe('update amm', () => {
 					)
 				);
 			} else if (i == 4) {
-				console.log(market.amm.pegMultiplier.toString());
 				assert(market.amm.pegMultiplier.eq(new BN(4042120)));
 			}
 

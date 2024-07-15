@@ -230,20 +230,18 @@ pub fn settle_pnl(
                 &msg,
             );
         }
-    } else {
-        if perp_market.status != MarketStatus::Active
-            && perp_market.status != MarketStatus::ReduceOnly
-        {
-            let msg = format!(
-                "Cannot settle pnl under current market = {} status (neither Active or ReduceOnly)",
-                market_index
-            );
-            return mode.result(
-                ErrorCode::InvalidMarketStatusToSettlePnl,
-                market_index,
-                &msg,
-            );
-        }
+    } else if perp_market.status != MarketStatus::Active
+        && perp_market.status != MarketStatus::ReduceOnly
+    {
+        let msg = format!(
+            "Cannot settle pnl under current market = {} status (neither Active or ReduceOnly)",
+            market_index
+        );
+        return mode.result(
+            ErrorCode::InvalidMarketStatusToSettlePnl,
+            market_index,
+            &msg,
+        );
     }
 
     let pnl_pool_token_amount = get_token_amount(

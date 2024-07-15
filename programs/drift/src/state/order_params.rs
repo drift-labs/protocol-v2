@@ -7,7 +7,8 @@ use crate::state::events::OrderActionExplanation;
 use crate::state::perp_market::{ContractTier, PerpMarket};
 use crate::state::user::{MarketType, OrderTriggerCondition, OrderType};
 use crate::{
-    OracleSource, PERCENTAGE_PRECISION_I64, PERCENTAGE_PRECISION_U64, PRICE_PRECISION_I64,
+    ONE_HUNDRED_THOUSAND_QUOTE, PERCENTAGE_PRECISION_I64, PERCENTAGE_PRECISION_U64,
+    PRICE_PRECISION_I64,
 };
 use anchor_lang::prelude::*;
 use borsh::{BorshDeserialize, BorshSerialize};
@@ -55,7 +56,7 @@ impl OrderParams {
             OrderParams::get_perp_baseline_start_price_offset(perp_market, self.direction)?;
         let new_auction_start_price = oracle_price.safe_add(auction_start_price_offset)?;
 
-        if self.auction_duration.is_none() {
+        if self.auction_duration.unwrap_or(0) == 0 {
             match self.direction {
                 PositionDirection::Long => {
                     let ask_premium = perp_market.amm.last_ask_premium()?;
@@ -223,7 +224,7 @@ impl OrderParams {
             return Ok(());
         }
         // only update auction start price if the contract tier isn't Isolated
-        if perp_market.amm.oracle_source != OracleSource::Prelaunch {
+        if perp_market.can_sanitize_market_order_auctions()? {
             let (new_start_price_offset, new_end_price_offset) =
                 OrderParams::get_perp_baseline_start_end_price_offset(
                     perp_market,
@@ -386,7 +387,7 @@ impl OrderParams {
                 auction_start_price_offset = auction_start_price_offset.max(oracle_price_offset)
             };
 
-            (auction_start_price_offset, oracle_price_offset as i64)
+            (auction_start_price_offset, oracle_price_offset)
         } else {
             let (auction_start_price_offset, auction_end_price_offset) =
                 OrderParams::get_perp_baseline_start_end_price_offset(perp_market, direction, 1)?;
@@ -453,6 +454,7 @@ impl OrderParams {
             .safe_sub(perp_market.amm.last_mark_price_twap_ts)?
             .abs()
             >= 60
+            || perp_market.amm.volume_24h <= ONE_HUNDRED_THOUSAND_QUOTE
         {
             // if uncertain with timestamp mismatch, enforce within N bps
             let price_divisor = if perp_market
@@ -638,18 +640,13 @@ fn get_auction_duration(
         .clamp(10, 180) as u8) // 180 slots max
 }
 
-#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Debug, Eq)]
+#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Debug, Eq, Default)]
 pub enum PostOnlyParam {
+    #[default]
     None,
     MustPostOnly, // Tx fails if order can't be post only
     TryPostOnly,  // Tx succeeds and order not placed if can't be post only
     Slide,        // Modify price to be post only if can't be post only
-}
-
-impl Default for PostOnlyParam {
-    fn default() -> Self {
-        PostOnlyParam::None
-    }
 }
 
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Default)]

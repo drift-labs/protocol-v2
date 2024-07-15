@@ -23,7 +23,7 @@ pub struct MatchFulfillmentParams<'a> {
 }
 
 impl<'a> MatchFulfillmentParams<'a> {
-    pub fn new<'b, 'c>(
+    pub fn new<'b, 'c: 'a>(
         account_info_iter: &'b mut std::iter::Peekable<std::slice::Iter<'c, AccountInfo<'a>>>,
         base_market: &SpotMarket,
         quote_market: &SpotMarket,

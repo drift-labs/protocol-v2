@@ -44,6 +44,7 @@ mod update_perp_auction_params {
     use crate::{
         OracleSource, OrderParams, PositionDirection, AMM_RESERVE_PRECISION,
         BID_ASK_SPREAD_PRECISION, PEG_PRECISION, PRICE_PRECISION_I64, PRICE_PRECISION_U64,
+        QUOTE_PRECISION_U64,
     };
 
     #[test]
@@ -56,13 +57,15 @@ mod update_perp_auction_params {
             long_spread: (BID_ASK_SPREAD_PRECISION / 100) as u32,
             sqrt_k: 100 * AMM_RESERVE_PRECISION,
             peg_multiplier: 100 * PEG_PRECISION,
+            volume_24h: 1_000_000 * QUOTE_PRECISION_U64,
+
             ..AMM::default()
         };
         amm.last_bid_price_twap = (oracle_price - 192988) as u64;
         amm.last_mark_price_twap_5min = oracle_price as u64;
         amm.last_ask_price_twap = (oracle_price + 192988) as u64;
-        amm.historical_oracle_data.last_oracle_price_twap = oracle_price as i64;
-        amm.historical_oracle_data.last_oracle_price_twap_5min = oracle_price as i64;
+        amm.historical_oracle_data.last_oracle_price_twap = oracle_price;
+        amm.historical_oracle_data.last_oracle_price_twap_5min = oracle_price;
 
         amm.historical_oracle_data.last_oracle_price = oracle_price;
         let perp_market = PerpMarket {
@@ -149,13 +152,15 @@ mod update_perp_auction_params {
             long_spread: (BID_ASK_SPREAD_PRECISION / 100) as u32,
             sqrt_k: 100 * AMM_RESERVE_PRECISION,
             peg_multiplier: 100 * PEG_PRECISION,
+            volume_24h: 1_000_000 * QUOTE_PRECISION_U64,
+
             ..AMM::default()
         };
         amm.last_bid_price_twap = (oracle_price * 15 / 10 - 192988) as u64;
         amm.last_mark_price_twap_5min = (oracle_price * 16 / 10) as u64;
         amm.last_ask_price_twap = (oracle_price * 16 / 10 + 192988) as u64;
-        amm.historical_oracle_data.last_oracle_price_twap = oracle_price as i64;
-        amm.historical_oracle_data.last_oracle_price_twap_5min = oracle_price as i64;
+        amm.historical_oracle_data.last_oracle_price_twap = oracle_price;
+        amm.historical_oracle_data.last_oracle_price_twap_5min = oracle_price;
 
         amm.historical_oracle_data.last_oracle_price = oracle_price;
         let perp_market = PerpMarket {
@@ -194,13 +199,15 @@ mod update_perp_auction_params {
             long_spread: (BID_ASK_SPREAD_PRECISION / 100) as u32,
             sqrt_k: 100 * AMM_RESERVE_PRECISION,
             peg_multiplier: 100 * PEG_PRECISION,
+            volume_24h: 1_000_000 * QUOTE_PRECISION_U64,
+
             ..AMM::default()
         };
         amm.last_bid_price_twap = (oracle_price * 99 / 100) as u64;
         amm.last_mark_price_twap_5min = oracle_price as u64;
         amm.last_ask_price_twap = (oracle_price * 101 / 100) as u64;
-        amm.historical_oracle_data.last_oracle_price_twap = oracle_price as i64;
-        amm.historical_oracle_data.last_oracle_price_twap_5min = oracle_price as i64;
+        amm.historical_oracle_data.last_oracle_price_twap = oracle_price;
+        amm.historical_oracle_data.last_oracle_price_twap_5min = oracle_price;
 
         amm.historical_oracle_data.last_oracle_price = oracle_price;
         let perp_market = PerpMarket {
@@ -366,6 +373,8 @@ mod update_perp_auction_params {
             long_spread: (BID_ASK_SPREAD_PRECISION / 100) as u32,
             sqrt_k: 100 * AMM_RESERVE_PRECISION,
             peg_multiplier: 99 * PEG_PRECISION,
+            volume_24h: 1_000_000 * QUOTE_PRECISION_U64,
+
             ..AMM::default()
         };
         amm.historical_oracle_data.last_oracle_price = oracle_price;
@@ -472,6 +481,8 @@ mod update_perp_auction_params {
             long_spread: (BID_ASK_SPREAD_PRECISION / 100) as u32,
             sqrt_k: 100 * AMM_RESERVE_PRECISION,
             peg_multiplier: 100 * PEG_PRECISION,
+            volume_24h: 1_000_000 * QUOTE_PRECISION_U64,
+
             ..AMM::default()
         };
         amm.historical_oracle_data.last_oracle_price = oracle_price;
@@ -544,6 +555,8 @@ mod update_perp_auction_params {
             long_spread: (BID_ASK_SPREAD_PRECISION / 100) as u32,
             sqrt_k: 100 * AMM_RESERVE_PRECISION,
             peg_multiplier: 100 * PEG_PRECISION,
+            volume_24h: 1_000_000 * QUOTE_PRECISION_U64,
+
             ..AMM::default()
         };
         amm.historical_oracle_data.last_oracle_price = oracle_price;
@@ -691,6 +704,7 @@ mod update_perp_auction_params {
             long_spread: (BID_ASK_SPREAD_PRECISION / 100) as u32,
             sqrt_k: 100 * AMM_RESERVE_PRECISION,
             peg_multiplier: 100 * PEG_PRECISION,
+            volume_24h: 1_000_000 * QUOTE_PRECISION_U64,
             ..AMM::default()
         };
         amm.historical_oracle_data.last_oracle_price = oracle_price;
@@ -797,6 +811,20 @@ mod update_perp_auction_params {
         );
         assert_eq!(order_params_after.auction_end_price.unwrap(), 1207026);
 
+        // test sanitize skip on low volume
+        amm.historical_oracle_data.last_oracle_price_twap_ts = 17000000;
+        amm.last_mark_price_twap_ts = amm.historical_oracle_data.last_oracle_price_twap_ts;
+        amm.volume_24h = 183953; // under $1
+        let mut order_params_after = order_params_before;
+        order_params_after
+            .update_perp_auction_params(&perp_market, oracle_price)
+            .unwrap();
+        assert_eq!(
+            order_params_after.auction_start_price.unwrap(),
+            18698 - oracle_price / 400
+        );
+        assert_eq!(order_params_after.auction_end_price.unwrap(), 1207026);
+
         // test empty
         let order_params_before = OrderParams {
             order_type: OrderType::Oracle,
@@ -858,7 +886,10 @@ mod get_close_perp_params {
     use crate::state::user::{Order, OrderStatus};
     use crate::test_utils::create_account_info;
     use crate::validation::order::validate_order;
-    use crate::{OrderParams, PositionDirection, BASE_PRECISION_U64, PRICE_PRECISION_I64};
+    use crate::{
+        OrderParams, PositionDirection, BASE_PRECISION_U64, PRICE_PRECISION_I64,
+        QUOTE_PRECISION_U64,
+    };
     use anchor_lang::prelude::AccountLoader;
     use solana_program::pubkey::Pubkey;
     use std::str::FromStr;
@@ -876,6 +907,7 @@ mod get_close_perp_params {
             },
             mark_std: PRICE_PRECISION_U64,
             oracle_std: PRICE_PRECISION_U64,
+            volume_24h: 1_000_000 * QUOTE_PRECISION_U64,
             ..AMM::default_test()
         };
         let perp_market = PerpMarket {
@@ -913,6 +945,7 @@ mod get_close_perp_params {
             },
             mark_std: PRICE_PRECISION_U64,
             oracle_std: PRICE_PRECISION_U64,
+            volume_24h: 1_000_000 * QUOTE_PRECISION_U64,
             ..AMM::default_test()
         };
         let perp_market = PerpMarket {
@@ -947,6 +980,7 @@ mod get_close_perp_params {
             },
             mark_std: PRICE_PRECISION_U64,
             oracle_std: PRICE_PRECISION_U64,
+            volume_24h: 1_000_000 * QUOTE_PRECISION_U64,
             ..AMM::default_test()
         };
         let perp_market = PerpMarket {
@@ -984,6 +1018,7 @@ mod get_close_perp_params {
             },
             mark_std: PRICE_PRECISION_U64,
             oracle_std: PRICE_PRECISION_U64,
+            volume_24h: 1_000_000 * QUOTE_PRECISION_U64,
             ..AMM::default_test()
         };
         let perp_market = PerpMarket {
@@ -1022,6 +1057,7 @@ mod get_close_perp_params {
             },
             mark_std: PRICE_PRECISION_U64,
             oracle_std: PRICE_PRECISION_U64,
+            volume_24h: 1_000_000 * QUOTE_PRECISION_U64,
             ..AMM::default_test()
         };
         let perp_market = PerpMarket {
@@ -1058,6 +1094,8 @@ mod get_close_perp_params {
             },
             mark_std: PRICE_PRECISION_U64,
             oracle_std: PRICE_PRECISION_U64,
+            volume_24h: 1_000_000 * QUOTE_PRECISION_U64,
+
             ..AMM::default_test()
         };
         let perp_market = PerpMarket {
