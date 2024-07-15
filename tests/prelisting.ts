@@ -18,34 +18,29 @@ import {
 
 import {
 	initializeQuoteSpotMarket,
-	mockOracle,
+	mockOracleNoProgram,
 	mockUSDCMint,
 	mockUserUSDCAccount,
 } from './testHelpers';
 import {
 	BID_ASK_SPREAD_PRECISION,
-	BulkAccountLoader,
 	PEG_PRECISION,
 	PostOnlyParams,
 } from '../sdk';
+import { startAnchor } from 'solana-bankrun';
+import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
+import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
 
 describe('prelisting', () => {
-	const provider = anchor.AnchorProvider.local(undefined, {
-		commitment: 'confirmed',
-		preflightCommitment: 'confirmed',
-	});
-	const connection = provider.connection;
-	anchor.setProvider(provider);
 	const chProgram = anchor.workspace.Drift as Program;
 
 	let adminDriftClient: TestClient;
 	let adminDriftClientUser: User;
-	const eventSubscriber = new EventSubscriber(connection, chProgram, {
-		commitment: 'recent',
-	});
-	eventSubscriber.subscribe();
+	let eventSubscriber: EventSubscriber;
 
-	const bulkAccountLoader = new BulkAccountLoader(connection, 'confirmed', 1);
+	let bulkAccountLoader: TestBulkAccountLoader;
+
+	let bankrunContextWrapper: BankrunContextWrapper;
 
 	// ammInvariant == k == x * y
 	const mantissaSqrtScale = new BN(Math.sqrt(PRICE_PRECISION.toNumber()));
@@ -67,8 +62,29 @@ describe('prelisting', () => {
 	let oracleInfos;
 
 	before(async () => {
-		usdcMint = await mockUSDCMint(provider);
-		userUSDCAccount = await mockUserUSDCAccount(usdcMint, usdcAmount, provider);
+		const context = await startAnchor('', [], []);
+
+		bankrunContextWrapper = new BankrunContextWrapper(context);
+
+		bulkAccountLoader = new TestBulkAccountLoader(
+			bankrunContextWrapper.connection,
+			'processed',
+			1
+		);
+
+		eventSubscriber = new EventSubscriber(
+			bankrunContextWrapper.connection.toConnection(),
+			chProgram
+		);
+
+		await eventSubscriber.subscribe();
+
+		usdcMint = await mockUSDCMint(bankrunContextWrapper);
+		userUSDCAccount = await mockUserUSDCAccount(
+			usdcMint,
+			usdcAmount,
+			bankrunContextWrapper
+		);
 
 		prelaunchOracle = getPrelaunchOraclePublicKey(chProgram.programId, 0);
 
@@ -79,8 +95,8 @@ describe('prelisting', () => {
 		];
 
 		adminDriftClient = new TestClient({
-			connection,
-			wallet: provider.wallet,
+			connection: bankrunContextWrapper.connection.toConnection(),
+			wallet: bankrunContextWrapper.provider.wallet,
 			programID: chProgram.programId,
 			opts: {
 				commitment: 'confirmed',
@@ -88,6 +104,7 @@ describe('prelisting', () => {
 			activeSubAccountId: 0,
 			perpMarketIndexes: marketIndexes,
 			spotMarketIndexes: spotMarketIndexes,
+			subAccountIds: [],
 			oracleInfos,
 			accountSubscription: {
 				type: 'polling',
@@ -116,7 +133,7 @@ describe('prelisting', () => {
 
 		await adminDriftClient.updatePerpMarketBaseSpread(
 			0,
-			BID_ASK_SPREAD_PRECISION.divn(50)
+			Number(BID_ASK_SPREAD_PRECISION.divn(50))
 		);
 
 		await adminDriftClient.updatePerpAuctionDuration(0);
@@ -129,6 +146,10 @@ describe('prelisting', () => {
 		adminDriftClientUser = new User({
 			driftClient: adminDriftClient,
 			userAccountPublicKey: await adminDriftClient.getUserAccountPublicKey(),
+			accountSubscription: {
+				type: 'polling',
+				accountLoader: bulkAccountLoader,
+			},
 		});
 		await adminDriftClientUser.subscribe();
 	});
@@ -225,7 +246,7 @@ describe('prelisting', () => {
 
 		const oldOracleKey = adminDriftClient.getPerpMarketAccount(0).amm.oracle;
 
-		const newOracle = await mockOracle(40);
+		const newOracle = await mockOracleNoProgram(bankrunContextWrapper, 40);
 		await adminDriftClient.updatePerpMarketOracle(
 			0,
 			newOracle,
@@ -234,10 +255,12 @@ describe('prelisting', () => {
 
 		await adminDriftClient.deletePrelaunchOracle(0);
 
-		const result = await connection.getAccountInfoAndContext(
-			oldOracleKey,
-			'processed'
-		);
+		const result =
+			await bankrunContextWrapper.connection.getAccountInfoAndContext(
+				oldOracleKey,
+				'processed'
+			);
+
 		assert(result.value === null);
 	});
 });

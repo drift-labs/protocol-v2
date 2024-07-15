@@ -7,9 +7,11 @@ import {
 	calculateSpreadReserves,
 	calculateUpdatedAMM,
 	DLOBNode,
+	isOperationPaused,
 	isVariant,
 	OraclePriceData,
 	PerpMarketAccount,
+	PerpOperation,
 	PositionDirection,
 	QUOTE_PRECISION,
 	standardizePrice,
@@ -167,12 +169,19 @@ export function getVammL2Generator({
 
 	const updatedAmm = calculateUpdatedAMM(marketAccount.amm, oraclePriceData);
 
-	let [openBids, openAsks] = calculateMarketOpenBidAsk(
-		updatedAmm.baseAssetReserve,
-		updatedAmm.minBaseAssetReserve,
-		updatedAmm.maxBaseAssetReserve,
-		updatedAmm.orderStepSize
+	const vammFillsDisabled = isOperationPaused(
+		marketAccount.pausedOperations,
+		PerpOperation.AMM_FILL
 	);
+
+	let [openBids, openAsks] = vammFillsDisabled
+		? [ZERO, ZERO]
+		: calculateMarketOpenBidAsk(
+				updatedAmm.baseAssetReserve,
+				updatedAmm.minBaseAssetReserve,
+				updatedAmm.maxBaseAssetReserve,
+				updatedAmm.orderStepSize
+		  );
 
 	const minOrderSize = marketAccount.amm.minOrderSize;
 	if (openBids.lt(minOrderSize.muln(2))) {

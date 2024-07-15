@@ -1,6 +1,7 @@
 use crate::controller::position::PositionDirection;
 use crate::error::DriftResult;
 use crate::math::auction::is_amm_available_liquidity_source;
+use crate::math::casting::Cast;
 use crate::math::matching::do_orders_cross;
 use crate::math::safe_unwrap::SafeUnwrap;
 use crate::state::fulfillment::{PerpFulfillmentMethod, SpotFulfillmentMethod};
@@ -72,7 +73,7 @@ pub fn determine_perp_fulfillment_methods(
 
         fulfillment_methods.push(PerpFulfillmentMethod::Match(
             *maker_key,
-            *maker_order_index as u16,
+            maker_order_index.cast()?,
         ));
 
         if fulfillment_methods.len() > 6 {

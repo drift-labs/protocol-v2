@@ -2,10 +2,10 @@ import * as anchor from '@coral-xyz/anchor';
 import { AnchorProvider, Idl, Program } from '@coral-xyz/anchor';
 import {
 	TOKEN_PROGRAM_ID,
-	getAccount,
 	Account,
 	createAssociatedTokenAccountInstruction,
 	getAssociatedTokenAddress,
+	getAccount,
 } from '@solana/spl-token';
 import {
 	ConfirmOptions,
@@ -19,8 +19,10 @@ import {
 import { BN } from '.';
 import tokenFaucet from './idl/token_faucet.json';
 import { IWallet } from './types';
+import { BankrunContextWrapper } from './bankrun/bankrunConnection';
 
 export class TokenFaucet {
+	context?: BankrunContextWrapper;
 	connection: Connection;
 	wallet: IWallet;
 	public program: Program;
@@ -33,13 +35,20 @@ export class TokenFaucet {
 		wallet: IWallet,
 		programId: PublicKey,
 		mint: PublicKey,
-		opts?: ConfirmOptions
+		opts?: ConfirmOptions,
+		context?: BankrunContextWrapper
 	) {
 		this.connection = connection;
+		this.context = context;
 		this.wallet = wallet;
 		this.opts = opts || AnchorProvider.defaultOptions();
 		// @ts-ignore
-		const provider = new AnchorProvider(connection, wallet, this.opts);
+		const provider = new AnchorProvider(
+			context ? context.connection.toConnection() : this.connection,
+			// @ts-ignore
+			wallet,
+			this.opts
+		);
 		this.provider = provider;
 		this.program = new Program(tokenFaucet as Idl, programId, provider);
 		this.mint = mint;
@@ -76,7 +85,7 @@ export class TokenFaucet {
 	public async initialize(): Promise<TransactionSignature> {
 		const [faucetConfigPublicKey] =
 			await this.getFaucetConfigPublicKeyAndNonce();
-		return await this.program.rpc.initialize({
+		const ix = this.program.instruction.initialize({
 			accounts: {
 				faucetConfig: faucetConfigPublicKey,
 				admin: this.wallet.publicKey,
@@ -86,6 +95,9 @@ export class TokenFaucet {
 				tokenProgram: TOKEN_PROGRAM_ID,
 			},
 		});
+		const tx = new Transaction().add(ix);
+		const txSig = await this.context.sendTransaction(tx);
+		return txSig;
 	}
 
 	public async fetchState(): Promise<any> {
@@ -114,12 +126,29 @@ export class TokenFaucet {
 
 		const tx = new Transaction().add(mintIx);
 
-		const txSig = await this.program.provider.sendAndConfirm(tx, [], this.opts);
-
-		return txSig;
+		if (this.context) {
+			return await this.context.sendTransaction(tx);
+		} else {
+			return await this.program.provider.sendAndConfirm(tx, [], this.opts);
+		}
 	}
 
 	public async transferMintAuthority(): Promise<TransactionSignature> {
+		if (this.context) {
+			const ix = this.program.instruction.transferMintAuthority({
+				accounts: {
+					faucetConfig: await this.getFaucetConfigPublicKey(),
+					mintAccount: this.mint,
+					mintAuthority: await this.getMintAuthority(),
+					tokenProgram: TOKEN_PROGRAM_ID,
+					admin: this.wallet.publicKey,
+				},
+			});
+			const tx = new Transaction().add(ix);
+			const txSig = await this.context.sendTransaction(tx);
+			return txSig;
+		}
+
 		return await this.program.rpc.transferMintAuthority({
 			accounts: {
 				faucetConfig: await this.getFaucetConfigPublicKey(),
@@ -146,9 +175,8 @@ export class TokenFaucet {
 		let associatedTokenAccountExists = false;
 
 		try {
-			const assosciatedTokenAccount = await this.connection.getAccountInfo(
-				associatedTokenPublicKey
-			);
+			const assosciatedTokenAccount =
+				await this.context.connection.getAccountInfo(associatedTokenPublicKey);
 
 			associatedTokenAccountExists = !!assosciatedTokenAccount;
 		} catch (e) {
@@ -162,7 +190,13 @@ export class TokenFaucet {
 
 		tx.add(mintToTx);
 
-		const txSig = await this.program.provider.sendAndConfirm(tx, [], this.opts);
+		let txSig;
+		if (this.context) {
+			txSig = await this.context.sendTransaction(tx);
+		} else {
+			txSig = await this.program.provider.sendAndConfirm(tx, [], this.opts);
+		}
+
 		return [associatedTokenPublicKey, txSig];
 	}
 
@@ -200,6 +234,9 @@ export class TokenFaucet {
 		userPubKey: PublicKey;
 	}): Promise<Account> {
 		const associatedKey = await this.getAssosciatedMockUSDMintAddress(props);
+		if (this.context) {
+			return await this.context.connection.getTokenAccount(associatedKey);
+		}
 		return await getAccount(this.connection, associatedKey);
 	}
 
@@ -215,7 +252,7 @@ export class TokenFaucet {
 			props.callback(await this.getTokenAccountInfo(props));
 
 			// Couldn't find a way to do it using anchor framework subscription, someone on serum discord recommended this way
-			this.connection.onAccountChange(
+			this.context.connection.onAccountChange(
 				tokenAccountKey,
 				async (
 					_accountInfo /* accountInfo is a buffer which we don't know how to deserialize */

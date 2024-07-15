@@ -2,26 +2,26 @@ name: Soteria
 
 on:
   push:
-    branches: 
+    branches:
       - master
   pull_request:
-    branches: 
+    branches:
       - master
 
 env:
   CARGO_TERM_COLOR: always
   SOLANA_VERSION: "1.9.5"
-  PROGRAM_PATH: "programs/drift/" 
+  PROGRAM_PATH: "programs/drift/"
   RUST_TOOLCHAIN: nightly-2022-02-07
 
 jobs:
   build:
     name: Soteria Scan
-    runs-on: ubuntu-latest
+    runs-on: ubicloud
     steps:
       - name: Checkout changes
         uses: actions/checkout@v2
-        
+
       - name: Cache Solana Version
         uses: actions/cache@v2
         id: solana-cache
@@ -31,7 +31,7 @@ jobs:
             ~/.cache/solana
             ~/.local/share/solana
           key: solana-v${{ env.SOLANA_VERSION }}
-          
+
       - name: Cache Soteria Build
         uses: Swatinem/rust-cache@v1
         with:

@@ -1,225 +1,29 @@
 // TODO: Modernize all these apis. This is all quite clunky.
 
+import { TOKEN_PROGRAM_ID } from '@solana/spl-token';
 import {
-	createAccount,
-	createTransferCheckedInstruction,
-	TOKEN_PROGRAM_ID,
-} from '@solana/spl-token';
+	Account,
+	LAMPORTS_PER_SOL,
+	PublicKey,
+	Transaction,
+	SystemProgram,
+	Connection,
+} from '@solana/web3.js';
+import {
+	TokenInstructions,
+	Market,
+	DexInstructions,
+	OpenOrders,
+} from '@project-serum/serum';
+import { BN } from '@coral-xyz/anchor';
+import { WRAPPED_SOL_MINT } from '../sdk/lib';
 
-const TokenInstructions = require('@project-serum/serum').TokenInstructions;
-const Market = require('@project-serum/serum').Market;
-const DexInstructions = require('@project-serum/serum').DexInstructions;
-const web3 = require('@coral-xyz/anchor').web3;
-const BN = require('@coral-xyz/anchor').BN;
-const serumCmn = require('@project-serum/common');
-const Account = web3.Account;
-const Transaction = web3.Transaction;
-const PublicKey = web3.PublicKey;
-const SystemProgram = web3.SystemProgram;
-const DEX_PID = new PublicKey('srmqPvymJeFKQ4zGQed1GFppgkRHL9kaELCbyksJtPX');
+export const SERUM = new PublicKey(
+	'srmqPvymJeFKQ4zGQed1GFppgkRHL9kaELCbyksJtPX'
+);
 
-// Creates everything needed for an orderbook to be running
-//
-// * Mints for both the base and quote currencies.
-// * Lists the market.
-// * Provides resting orders on the market.
-//
-// Returns a client that can be used to interact with the market
-// (and some other data, e.g., the mints and market maker account).
-async function initOrderbook({ provider, bids, asks }) {
-	if (!bids || !asks) {
-		asks = [
-			[6.041, 7.8],
-			[6.051, 72.3],
-			[6.055, 5.4],
-			[6.067, 15.7],
-			[6.077, 390.0],
-			[6.09, 24.0],
-			[6.11, 36.3],
-			[6.133, 300.0],
-			[6.167, 687.8],
-		];
-		bids = [
-			[6.004, 8.5],
-			[5.995, 12.9],
-			[5.987, 6.2],
-			[5.978, 15.3],
-			[5.965, 82.8],
-			[5.961, 25.4],
-		];
-	}
-	// Create base and quote currency mints.
-	const decimals = 6;
-	const [MINT_A, GOD_A] = await serumCmn.createMintAndVault(
-		provider,
-		new BN(1000000000000000),
-		undefined,
-		decimals
-	);
-	const [USDC, GOD_USDC] = await serumCmn.createMintAndVault(
-		provider,
-		new BN(1000000000000000),
-		undefined,
-		decimals
-	);
-
-	// Create a funded account to act as market maker.
-	const amount = 100000 * 10 ** decimals;
-	const marketMaker = await fundAccount({
-		provider,
-		mints: [
-			{ god: GOD_A, mint: MINT_A, amount, decimals },
-			{ god: GOD_USDC, mint: USDC, amount, decimals },
-		],
-	});
-
-	const marketClient = await setupMarket({
-		baseMint: MINT_A,
-		quoteMint: USDC,
-		marketMaker: {
-			account: marketMaker.account,
-			baseToken: marketMaker.tokens[MINT_A.toString()],
-			quoteToken: marketMaker.tokens[USDC.toString()],
-		},
-		bids,
-		asks,
-		provider,
-	});
-
-	return {
-		marketClient,
-		baseMint: MINT_A,
-		quoteMint: USDC,
-		marketMaker,
-	};
-}
-
-async function fundAccount({ provider, mints }) {
-	const MARKET_MAKER = new Account();
-
-	const marketMaker = {
-		tokens: {},
-		account: MARKET_MAKER,
-	};
-
-	// Transfer lamports to market maker.
-	await provider.send(
-		(() => {
-			const tx = new Transaction();
-			tx.add(
-				SystemProgram.transfer({
-					fromPubkey: provider.wallet.publicKey,
-					toPubkey: MARKET_MAKER.publicKey,
-					lamports: 100000000000,
-				})
-			);
-			return tx;
-		})()
-	);
-
-	// Transfer SPL tokens to the market maker.
-	for (let k = 0; k < mints.length; k += 1) {
-		const { mint, god, amount, decimals } = mints[k];
-		const MINT_A = mint;
-		const GOD_A = god;
-		// Setup token accounts owned by the market maker.
-		const marketMakerTokenA = await createAccount(
-			provider.connection,
-			provider.wallet.payer,
-			MINT_A,
-			MARKET_MAKER.publicKey
-		);
-
-		await provider.send(
-			(() => {
-				const tx = new Transaction();
-				tx.add(
-					createTransferCheckedInstruction(
-						GOD_A,
-						MINT_A,
-						marketMakerTokenA,
-						provider.wallet.publicKey,
-						amount,
-						decimals
-					)
-				);
-				return tx;
-			})()
-		);
-
-		marketMaker.tokens[mint.toString()] = marketMakerTokenA;
-	}
-
-	return marketMaker;
-}
-
-async function setupMarket({
-	provider,
-	marketMaker,
-	baseMint,
-	quoteMint,
-	bids,
-	asks,
-}) {
-	const marketAPublicKey = await listMarket({
-		connection: provider.connection,
-		wallet: provider.wallet,
-		baseMint: baseMint,
-		quoteMint: quoteMint,
-		baseLotSize: 1000000,
-		quoteLotSize: 10000,
-		dexProgramId: DEX_PID,
-		feeRateBps: 0,
-	});
-	const MARKET_A_USDC = await Market.load(
-		provider.connection,
-		marketAPublicKey,
-		{ commitment: 'recent' },
-		DEX_PID
-	);
-	for (let k = 0; k < asks.length; k += 1) {
-		const ask = asks[k];
-		const { transaction, signers } =
-			await MARKET_A_USDC.makePlaceOrderTransaction(provider.connection, {
-				owner: marketMaker.account,
-				payer: marketMaker.baseToken,
-				side: 'sell',
-				price: ask[0],
-				size: ask[1],
-				orderType: 'postOnly',
-				clientId: undefined, // todo?
-				openOrdersAddressKey: undefined,
-				openOrdersAccount: undefined,
-				feeDiscountPubkey: null,
-				selfTradeBehavior: 'abortTransaction',
-			});
-		await provider.send(transaction, signers.concat(marketMaker.account));
-	}
-
-	for (let k = 0; k < bids.length; k += 1) {
-		const bid = bids[k];
-		const { transaction, signers } =
-			await MARKET_A_USDC.makePlaceOrderTransaction(provider.connection, {
-				owner: marketMaker.account,
-				payer: marketMaker.quoteToken,
-				side: 'buy',
-				price: bid[0],
-				size: bid[1],
-				orderType: 'postOnly',
-				clientId: undefined, // todo?
-				openOrdersAddressKey: undefined,
-				openOrdersAccount: undefined,
-				feeDiscountPubkey: null,
-				selfTradeBehavior: 'abortTransaction',
-			});
-		await provider.send(transaction, signers.concat(marketMaker.account));
-	}
-
-	return MARKET_A_USDC;
-}
-
-async function listMarket({
-	connection,
+export async function listMarket({
+	context,
 	wallet,
 	baseMint,
 	quoteMint,
@@ -239,8 +43,7 @@ async function listMarket({
 
 	async function getVaultOwnerAndNonce() {
 		const nonce = new BN(0);
-		// eslint-disable-next-line no-constant-condition
-		while (true) {
+		while (nonce.lten(255)) {
 			try {
 				const vaultOwner = await PublicKey.createProgramAddress(
 					[market.publicKey.toBuffer(), nonce.toArrayLike(Buffer, 'le', 8)],
@@ -259,14 +62,14 @@ async function listMarket({
 		SystemProgram.createAccount({
 			fromPubkey: wallet.publicKey,
 			newAccountPubkey: baseVault.publicKey,
-			lamports: await connection.getMinimumBalanceForRentExemption(165),
+			lamports: LAMPORTS_PER_SOL,
 			space: 165,
 			programId: TOKEN_PROGRAM_ID,
 		}),
 		SystemProgram.createAccount({
 			fromPubkey: wallet.publicKey,
 			newAccountPubkey: quoteVault.publicKey,
-			lamports: await connection.getMinimumBalanceForRentExemption(165),
+			lamports: LAMPORTS_PER_SOL,
 			space: 165,
 			programId: TOKEN_PROGRAM_ID,
 		}),
@@ -287,37 +90,35 @@ async function listMarket({
 		SystemProgram.createAccount({
 			fromPubkey: wallet.publicKey,
 			newAccountPubkey: market.publicKey,
-			lamports: await connection.getMinimumBalanceForRentExemption(
-				Market.getLayout(dexProgramId).span
-			),
+			lamports: LAMPORTS_PER_SOL * 100,
 			space: Market.getLayout(dexProgramId).span,
 			programId: dexProgramId,
 		}),
 		SystemProgram.createAccount({
 			fromPubkey: wallet.publicKey,
 			newAccountPubkey: requestQueue.publicKey,
-			lamports: await connection.getMinimumBalanceForRentExemption(5120 + 12),
+			lamports: LAMPORTS_PER_SOL * 100,
 			space: 5120 + 12,
 			programId: dexProgramId,
 		}),
 		SystemProgram.createAccount({
 			fromPubkey: wallet.publicKey,
 			newAccountPubkey: eventQueue.publicKey,
-			lamports: await connection.getMinimumBalanceForRentExemption(262144 + 12),
+			lamports: LAMPORTS_PER_SOL * 100,
 			space: 262144 + 12,
 			programId: dexProgramId,
 		}),
 		SystemProgram.createAccount({
 			fromPubkey: wallet.publicKey,
 			newAccountPubkey: bids.publicKey,
-			lamports: await connection.getMinimumBalanceForRentExemption(65536 + 12),
+			lamports: LAMPORTS_PER_SOL * 100,
 			space: 65536 + 12,
 			programId: dexProgramId,
 		}),
 		SystemProgram.createAccount({
 			fromPubkey: wallet.publicKey,
 			newAccountPubkey: asks.publicKey,
-			lamports: await connection.getMinimumBalanceForRentExemption(65536 + 12),
+			lamports: LAMPORTS_PER_SOL * 100,
 			space: 65536 + 12,
 			programId: dexProgramId,
 		}),
@@ -349,16 +150,14 @@ async function listMarket({
 			},
 		],
 		wallet,
-		connection,
+		connection: context,
 	});
+
 	for (const signedTransaction of signedTransactions) {
-		await sendAndConfirmRawTransaction(
-			connection,
-			signedTransaction.serialize(),
-			'confirmed'
-		);
+		await context.connection.sendTransaction(signedTransaction);
 	}
-	await connection.getAccountInfo(market.publicKey);
+
+	await context.connection.getAccountInfo(market.publicKey);
 
 	return market.publicKey;
 }
@@ -368,7 +167,7 @@ async function signTransactions({
 	wallet,
 	connection,
 }) {
-	const blockhash = (await connection.getRecentBlockhash('max')).blockhash;
+	const blockhash = await connection.getLatestBlockhash();
 	transactionsAndSigners.forEach(({ transaction, signers = [] }) => {
 		transaction.recentBlockhash = blockhash;
 		transaction.setSigners(
@@ -379,26 +178,155 @@ async function signTransactions({
 			transaction.partialSign(...signers);
 		}
 	});
+
 	return await wallet.signAllTransactions(
 		transactionsAndSigners.map(({ transaction }) => transaction)
 	);
 }
 
-async function sendAndConfirmRawTransaction(
-	connection,
-	raw,
-	commitment = 'recent'
+export async function makePlaceOrderTransaction(
+	connection: Connection,
+	market: Market,
+	{
+		owner,
+		payer,
+		side,
+		price,
+		size,
+		orderType = 'limit',
+		clientId,
+		openOrdersAddressKey,
+		openOrdersAccount,
+		feeDiscountPubkey = undefined,
+		selfTradeBehavior = 'decrementTake',
+		maxTs,
+		replaceIfExists = false,
+		openOrdersAccounts = [],
+	},
+	feeDiscountPubkeyCacheDurationMs = 0
 ) {
-	const tx = await connection.sendRawTransaction(raw, {
-		skipPreflight: true,
-	});
-	return await connection.confirmTransaction(tx, commitment);
-}
+	// @ts-ignore
+	const ownerAddress: PublicKey = owner.publicKey ?? owner;
+	// const openOrdersAccounts = await this.findOpenOrdersAccountsForOwner(
+	//   connection,
+	//   ownerAddress,
+	//   cacheDurationMs,
+	// );
+	const transaction = new Transaction();
+	const signers: Account[] = [];
 
-module.exports = {
-	listMarket,
-	fundAccount,
-	setupMarket,
-	initOrderbook,
-	DEX_PID,
-};
+	// Fetch an SRM fee discount key if the market supports discounts and it is not supplied
+	let useFeeDiscountPubkey: PublicKey | null;
+	if (feeDiscountPubkey) {
+		useFeeDiscountPubkey = feeDiscountPubkey;
+	} else if (feeDiscountPubkey === undefined && this.supportsSrmFeeDiscounts) {
+		useFeeDiscountPubkey = (
+			await market.findBestFeeDiscountKey(
+				connection,
+				ownerAddress,
+				feeDiscountPubkeyCacheDurationMs
+			)
+		).pubkey;
+	} else {
+		useFeeDiscountPubkey = null;
+	}
+
+	let openOrdersAddress: PublicKey;
+	if (openOrdersAccounts.length === 0) {
+		let account;
+		if (openOrdersAccount) {
+			account = openOrdersAccount;
+		} else {
+			account = new Account();
+		}
+		transaction.add(
+			await OpenOrders.makeCreateAccountTransaction(
+				connection,
+				market.address,
+				ownerAddress,
+				account.publicKey,
+				SERUM
+			)
+		);
+		openOrdersAddress = account.publicKey;
+		signers.push(account);
+		// refresh the cache of open order accounts on next fetch
+		//   market._openOrdersAccountsCache[ownerAddress.toBase58()].ts = 0;
+	} else if (openOrdersAccount) {
+		openOrdersAddress = openOrdersAccount.publicKey;
+	} else if (openOrdersAddressKey) {
+		openOrdersAddress = openOrdersAddressKey;
+	} else {
+		openOrdersAddress = openOrdersAccounts[0].address;
+	}
+
+	let wrappedSolAccount: Account | null = null;
+	if (payer.equals(ownerAddress)) {
+		if (
+			(side === 'buy' && this.quoteMintAddress.equals(WRAPPED_SOL_MINT)) ||
+			(side === 'sell' && this.baseMintAddress.equals(WRAPPED_SOL_MINT))
+		) {
+			wrappedSolAccount = new Account();
+			let lamports;
+			if (side === 'buy') {
+				lamports = Math.round(price * size * 1.01 * LAMPORTS_PER_SOL);
+				if (openOrdersAccounts.length > 0) {
+					lamports -= openOrdersAccounts[0].quoteTokenFree.toNumber();
+				}
+			} else {
+				lamports = Math.round(size * LAMPORTS_PER_SOL);
+				if (openOrdersAccounts.length > 0) {
+					lamports -= openOrdersAccounts[0].baseTokenFree.toNumber();
+				}
+			}
+			lamports = Math.max(lamports, 0) + 1e7;
+			transaction.add(
+				SystemProgram.createAccount({
+					fromPubkey: ownerAddress,
+					newAccountPubkey: wrappedSolAccount.publicKey,
+					lamports,
+					space: 165,
+					programId: TOKEN_PROGRAM_ID,
+				})
+			);
+			transaction.add(
+				TokenInstructions.initializeAccount({
+					account: wrappedSolAccount.publicKey,
+					mint: WRAPPED_SOL_MINT,
+					owner: ownerAddress,
+				})
+			);
+			signers.push(wrappedSolAccount);
+		} else {
+			throw new Error('Invalid payer account');
+		}
+	}
+
+	const placeOrderInstruction = market.makePlaceOrderInstruction(connection, {
+		owner,
+		payer: wrappedSolAccount?.publicKey ?? payer,
+		side,
+		price,
+		size,
+		orderType,
+		clientId,
+		openOrdersAddressKey: openOrdersAddress,
+		feeDiscountPubkey: useFeeDiscountPubkey,
+		selfTradeBehavior,
+		maxTs,
+		replaceIfExists,
+	});
+	transaction.add(placeOrderInstruction);
+
+	if (wrappedSolAccount) {
+		transaction.add(
+			TokenInstructions.closeAccount({
+				source: wrappedSolAccount.publicKey,
+				destination: ownerAddress,
+				owner: ownerAddress,
+			})
+		);
+	}
+
+	return { transaction, signers, payer: owner };
+}
