@@ -192,7 +192,7 @@ export const MainnetSpotMarkets: SpotMarketConfig[] = [
 	{
 		symbol: 'JTO',
 		marketIndex: 9,
-		oracle: new PublicKey('3FWK2X9rvMi7Qg6dJW6EitQy61L3fJyLjPDoPr4MPtWG'),
+		oracle: new PublicKey('D8UUgr8a3aR3yUeHLu7v8FWK7E8Y5sSU7qrYBXUJXBQ5'),
 		oracleSource: OracleSource.PYTH_PULL,
 		mint: new PublicKey('jtojtomepa8beP8AuQc6eXt5FriJwfFMwQx2v2f9mCL'),
 		precision: new BN(10).pow(NINE),
