@@ -2645,30 +2645,16 @@
           "name": "priceFeed",
           "isMut": true,
           "isSigner": false
-        },
-        {
-          "name": "priceFeed1",
-          "isMut": true,
-          "isSigner": false,
-          "isOptional": true
-        },
-        {
-          "name": "priceFeed2",
-          "isMut": true,
-          "isSigner": false,
-          "isOptional": true
         }
       ],
       "args": [
         {
-          "name": "feedIds",
+          "name": "feedId",
           "type": {
-            "vec": {
-              "array": [
-                "u8",
-                32
-              ]
-            }
+            "array": [
+              "u8",
+              32
+            ]
           }
         },
         {
@@ -2694,42 +2680,12 @@
           "name": "guardianSet",
           "isMut": false,
           "isSigner": false
-        },
-        {
-          "name": "priceFeed",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "priceFeed1",
-          "isMut": true,
-          "isSigner": false,
-          "isOptional": true
-        },
-        {
-          "name": "priceFeed2",
-          "isMut": true,
-          "isSigner": false,
-          "isOptional": true
         }
       ],
       "args": [
         {
-          "name": "feedIds",
-          "type": {
-            "vec": {
-              "array": [
-                "u8",
-                32
-              ]
-            }
-          }
-        },
-        {
-          "name": "paramsVec",
-          "type": {
-            "vec": "bytes"
-          }
+          "name": "params",
+          "type": "bytes"
         }
       ]
     },
@@ -12500,8 +12456,18 @@
     },
     {
       "code": 6276,
-      "name": "OracleMismatchFeedIdAndParamAndPriceFeedAccountCount",
-      "msg": "Multi updates must have the same number of feed ids and params passed to the program"
+      "name": "OracleTooManyPriceAccountUpdates",
+      "msg": "Multi updates must have 2 or fewer accounts passed in remaining accounts"
+    },
+    {
+      "code": 6277,
+      "name": "OracleMismatchedVaaAndPriceUpdates",
+      "msg": "Don't have the same remaining accounts number and merkle price updates left"
+    },
+    {
+      "code": 6278,
+      "name": "OracleBadRemainingAccountPublicKey",
+      "msg": "Remaining account passed is not a valid pda"
     }
   ],
   "metadata": {
