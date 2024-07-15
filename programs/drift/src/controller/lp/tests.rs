@@ -487,7 +487,7 @@ pub fn test_lp_settle_pnl() {
         status: MarketStatus::Active,
         liquidator_fee: LIQUIDATION_FEE_PRECISION / 100,
         pnl_pool: PoolBalance {
-            scaled_balance: (50 * SPOT_BALANCE_PRECISION) as u128,
+            scaled_balance: (50 * SPOT_BALANCE_PRECISION),
             market_index: QUOTE_SPOT_MARKET_INDEX,
             ..PoolBalance::default()
         },
@@ -634,7 +634,7 @@ fn test_lp_margin_calc() {
         status: MarketStatus::Active,
         liquidator_fee: LIQUIDATION_FEE_PRECISION / 100,
         pnl_pool: PoolBalance {
-            scaled_balance: (50 * SPOT_BALANCE_PRECISION) as u128,
+            scaled_balance: (50 * SPOT_BALANCE_PRECISION),
             market_index: QUOTE_SPOT_MARKET_INDEX,
             ..PoolBalance::default()
         },
@@ -697,7 +697,7 @@ fn test_lp_margin_calc() {
 
     // add move lower
     let oracle_price_data = OraclePriceData {
-        price: oracle_price.agg.price as i64,
+        price: oracle_price.agg.price,
         confidence: 100000,
         delay: 1,
         has_sufficient_number_of_data_points: true,
@@ -751,6 +751,7 @@ fn test_lp_margin_calc() {
         weighted_unrealized_pnl,
         worse_case_base_asset_value,
         _open_order_fraction,
+        _base_asset_value,
     ) = calculate_perp_position_value_and_pnl(
         &user.perp_positions[0],
         &market,

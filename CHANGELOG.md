@@ -9,6 +9,49 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Features
 
+- program: add oracle id for wen ([#1129](https://github.com/drift-labs/protocol-v2/pull/1129))
+- program: track fuel ([#1048](https://github.com/drift-labs/protocol-v2/pull/1048))
+
+### Fixes
+
+- program: more oracle validation in admin fn ([#1082](https://github.com/drift-labs/protocol-v2/pull/1082))
+- program: account for serum already having open order account ([#1077](https://github.com/drift-labs/protocol-v2/pull/1077))
+- program: avoid truncated cast ([#1078](https://github.com/drift-labs/protocol-v2/pull/1078))
+
+### Breaking
+
+## [2.85.0] - 2024-07-02
+
+### Features
+
+- program: add tx optimized pyth pull ([#1111](https://github.com/drift-labs/protocol-v2/pull/1111))
+- program: migrate all integration tests to bankrun ([#1090](https://github.com/drift-labs/protocol-v2/pull/1090))
+
+### Fixes
+
+### Breaking
+
+## [2.84.0] - 2024-06-23
+
+### Features
+
+- program: check FillOrderAmm for amm is available ([#1107](https://github.com/drift-labs/protocol-v2/pull/1107))
+- program: add spot borrow insurance limits ([#1080](https://github.com/drift-labs/protocol-v2/pull/1080))
+- program: maker can be rewarded filler returns when amm gets fill ([#1093](https://github.com/drift-labs/protocol-v2/pull/1093))
+- program: avoid overwriting 0 duration auction ([#1097](https://github.com/drift-labs/protocol-v2/pull/1097))
+- program: add pyth pull oracles ([#1067](https://github.com/drift-labs/protocol-v2/pull/1067))
+
+### Fixes
+
+### Breaking
+
+- program: upgrade to anchor 0.29.0 and solana 1.16
+
+## [2.83.0] - 2024-06-06
+
+### Features
+
+- program: settle pnl block looks at oracle vs oracle 5min twap ([#1072](https://github.com/drift-labs/protocol-v2/pull/1072))
 - program: add settle pnl mode ([#1030](https://github.com/drift-labs/protocol-v2/pull/1030))
 - program: use strict price for maintenance margin check in settle pnl ([#1045](https://github.com/drift-labs/protocol-v2/pull/1045))
 - program: order w ioc can still get auction ([#1074](https://github.com/drift-labs/protocol-v2/pull/1074))

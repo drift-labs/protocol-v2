@@ -14,39 +14,33 @@ import {
 	isVariant,
 	OracleSource,
 	PEG_PRECISION,
-	BulkAccountLoader,
 } from '../sdk/src';
 
 import {
 	createUserWithUSDCAccount,
 	initializeQuoteSpotMarket,
 	initializeSolSpotMarket,
-	mockOracle,
+	mockOracleNoProgram,
 	mockUSDCMint,
 	mockUserUSDCAccount,
-	printTxLogs,
-	setFeedPrice,
+	setFeedPriceNoProgram,
 } from './testHelpers';
 import { MARGIN_PRECISION, OrderType, SpotOperation } from '../sdk/src';
 import { LAMPORTS_PER_SOL } from '@solana/web3.js';
 import { ContractTier } from '../sdk';
+import { startAnchor } from 'solana-bankrun';
+import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
+import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
 
 describe('multiple maker orders', () => {
-	const provider = anchor.AnchorProvider.local(undefined, {
-		commitment: 'confirmed',
-		preflightCommitment: 'confirmed',
-	});
-	const connection = provider.connection;
-	anchor.setProvider(provider);
 	const chProgram = anchor.workspace.Drift as Program;
 
 	let fillerDriftClient: TestClient;
-	const eventSubscriber = new EventSubscriber(connection, chProgram, {
-		commitment: 'recent',
-	});
-	eventSubscriber.subscribe();
+	let eventSubscriber: EventSubscriber;
 
-	const bulkAccountLoader = new BulkAccountLoader(connection, 'confirmed', 1);
+	let bulkAccountLoader: TestBulkAccountLoader;
+
+	let bankrunContextWrapper: BankrunContextWrapper;
 
 	let usdcMint;
 	let userUSDCAccount;
@@ -69,19 +63,40 @@ describe('multiple maker orders', () => {
 	let oracleInfos;
 
 	before(async () => {
-		usdcMint = await mockUSDCMint(provider);
-		userUSDCAccount = await mockUserUSDCAccount(usdcMint, usdcAmount, provider);
+		const context = await startAnchor('', [], []);
 
-		solUsd = await mockOracle(100);
-		dogUsd = await mockOracle(0.6899, -4, 0);
+		bankrunContextWrapper = new BankrunContextWrapper(context);
+
+		bulkAccountLoader = new TestBulkAccountLoader(
+			bankrunContextWrapper.connection,
+			'processed',
+			1
+		);
+
+		eventSubscriber = new EventSubscriber(
+			bankrunContextWrapper.connection.toConnection(),
+			chProgram
+		);
+
+		await eventSubscriber.subscribe();
+
+		usdcMint = await mockUSDCMint(bankrunContextWrapper);
+		userUSDCAccount = await mockUserUSDCAccount(
+			usdcMint,
+			usdcAmount,
+			bankrunContextWrapper
+		);
+
+		solUsd = await mockOracleNoProgram(bankrunContextWrapper, 100);
+		dogUsd = await mockOracleNoProgram(bankrunContextWrapper, 0.6899, -4, 0);
 
 		marketIndexes = [0, 1];
 		spotMarketIndexes = [0, 1];
 		oracleInfos = [{ publicKey: solUsd, source: OracleSource.PYTH }];
 
 		fillerDriftClient = new TestClient({
-			connection,
-			wallet: provider.wallet,
+			connection: bankrunContextWrapper.connection.toConnection(),
+			wallet: bankrunContextWrapper.provider.wallet,
 			programID: chProgram.programId,
 			opts: {
 				commitment: 'confirmed',
@@ -89,6 +104,7 @@ describe('multiple maker orders', () => {
 			activeSubAccountId: 0,
 			perpMarketIndexes: marketIndexes,
 			spotMarketIndexes: spotMarketIndexes,
+			subAccountIds: [],
 			oracleInfos,
 			accountSubscription: {
 				type: 'polling',
@@ -158,7 +174,7 @@ describe('multiple maker orders', () => {
 			await fillerDriftClient.deposit(
 				oneSol.muln(100),
 				1,
-				provider.wallet.publicKey
+				bankrunContextWrapper.provider.wallet.publicKey
 			);
 		} catch (e) {
 			console.error(e);
@@ -178,7 +194,7 @@ describe('multiple maker orders', () => {
 	it('taker long solUsd', async () => {
 		const [takerDriftClient, takerUSDCAccount] =
 			await createUserWithUSDCAccount(
-				provider,
+				bankrunContextWrapper,
 				usdcMint,
 				chProgram,
 				usdcAmount,
@@ -199,7 +215,7 @@ describe('multiple maker orders', () => {
 
 		const [makerDriftClient, makerUSDCAccount] =
 			await createUserWithUSDCAccount(
-				provider,
+				bankrunContextWrapper,
 				usdcMint,
 				chProgram,
 				usdcAmount,
@@ -230,7 +246,7 @@ describe('multiple maker orders', () => {
 
 		const [secondMakerDriftClient, secondMakerUSDCAccount] =
 			await createUserWithUSDCAccount(
-				provider,
+				bankrunContextWrapper,
 				usdcMint,
 				chProgram,
 				usdcAmount,
@@ -292,7 +308,7 @@ describe('multiple maker orders', () => {
 			}
 		);
 
-		await printTxLogs(connection, txSig);
+		bankrunContextWrapper.printTxLogs(txSig);
 
 		const orderActionRecords = eventSubscriber
 			.getEventsArray('OrderActionRecord')
@@ -342,7 +358,7 @@ describe('multiple maker orders', () => {
 
 		console.log('here2');
 
-		await setFeedPrice(anchor.workspace.Pyth, 90, solUsd);
+		await setFeedPriceNoProgram(bankrunContextWrapper, 90, solUsd);
 		await takerDriftClient.placeSpotOrder({
 			marketIndex: 1,
 			orderType: OrderType.LIMIT,
@@ -352,6 +368,8 @@ describe('multiple maker orders', () => {
 		});
 
 		console.log('here3');
+
+		await fillerDriftClient.fetchAccounts();
 
 		const txSig2 = await fillerDriftClient.fillSpotOrder(
 			await takerDriftClient.getUserAccountPublicKey(),
@@ -364,7 +382,7 @@ describe('multiple maker orders', () => {
 				computeUnits: 1400000,
 			}
 		);
-		await printTxLogs(connection, txSig2);
+		bankrunContextWrapper.printTxLogs(txSig2);
 
 		const takerPosition2 = takerDriftClient.getUser().getTokenAmount(1);
 		console.log(takerPosition2.toString());

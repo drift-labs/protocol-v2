@@ -819,7 +819,7 @@ fn check_fee_collection() {
 
     let amount = QUOTE_PRECISION / 4;
     update_spot_balances_and_cumulative_deposits_with_limits(
-        (amount / 2) as u128,
+        amount / 2,
         &SpotBalanceType::Borrow,
         &mut spot_market,
         &mut user,
@@ -1188,7 +1188,7 @@ fn check_fee_collection_larger_nums() {
 
     let amount = 540510 * QUOTE_PRECISION;
     update_spot_balances(
-        amount as u128,
+        amount,
         &SpotBalanceType::Borrow,
         &mut spot_market,
         &mut user.spot_positions[1],
@@ -1400,7 +1400,7 @@ fn attempt_borrow_with_massive_upnl() {
             ..AMM::default()
         },
         unrealized_pnl_initial_asset_weight: 0,
-        unrealized_pnl_maintenance_asset_weight: SPOT_WEIGHT_PRECISION as u32,
+        unrealized_pnl_maintenance_asset_weight: SPOT_WEIGHT_PRECISION,
         margin_ratio_initial: 1000,    //10x
         margin_ratio_maintenance: 500, //20x
         number_of_users_with_base: 1,
@@ -1510,7 +1510,7 @@ fn attempt_borrow_with_massive_upnl() {
 
     let mut market = perp_market_map.get_ref_mut(&0).unwrap();
     // assert_eq!(market.pnl_pool.scaled_balance, 960549500000);
-    market.unrealized_pnl_initial_asset_weight = SPOT_WEIGHT_PRECISION as u32;
+    market.unrealized_pnl_initial_asset_weight = SPOT_WEIGHT_PRECISION;
     drop(market);
 
     let MarginCalculation {
@@ -1670,4 +1670,142 @@ fn check_usdc_spot_market_twap() {
         spot_market.historical_index_data.last_index_price_twap,
         966501
     );
+}
+
+#[test]
+fn check_spot_market_max_borrow_fraction() {
+    let _now = 30_i64;
+    let _slot = 0_u64;
+
+    let _oracle_price = get_pyth_price(1, 6);
+    let mut spot_market = SpotMarket {
+        market_index: 0,
+        oracle_source: OracleSource::QuoteAsset,
+        cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+        cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+        decimals: 6,
+        initial_asset_weight: SPOT_WEIGHT_PRECISION,
+        maintenance_asset_weight: SPOT_WEIGHT_PRECISION,
+        deposit_balance: 100_000_000 * SPOT_BALANCE_PRECISION, //$100M usdc
+        borrow_balance: 0,
+        deposit_token_twap: QUOTE_PRECISION_U64 / 2,
+        historical_oracle_data: HistoricalOracleData::default_quote_oracle(),
+        status: MarketStatus::Active,
+        min_borrow_rate: 0,
+        max_token_borrows_fraction: 1,
+        ..SpotMarket::default()
+    };
+
+    assert_eq!(
+        spot_market.get_deposits().unwrap(),
+        100_000_000 * QUOTE_PRECISION
+    );
+
+    assert!(spot_market
+        .validate_max_token_deposits_and_borrows()
+        .is_ok());
+
+    spot_market.borrow_balance = spot_market.deposit_balance;
+    assert!(spot_market
+        .validate_max_token_deposits_and_borrows()
+        .is_ok());
+
+    spot_market.max_token_deposits = (100_000_000 * QUOTE_PRECISION) as u64;
+
+    assert!(spot_market
+        .validate_max_token_deposits_and_borrows()
+        .is_err());
+    spot_market.borrow_balance = spot_market.deposit_balance / 100;
+    assert!(spot_market
+        .validate_max_token_deposits_and_borrows()
+        .is_err());
+
+    spot_market.borrow_balance = spot_market.deposit_balance / (10000 - 2); // just above 10000th
+    assert!(spot_market
+        .validate_max_token_deposits_and_borrows()
+        .is_err());
+
+    spot_market.borrow_balance = spot_market.deposit_balance / (10000); // exactly 10000th of deposit
+    assert!(spot_market
+        .validate_max_token_deposits_and_borrows()
+        .is_ok());
+
+    spot_market.borrow_balance = spot_market.deposit_balance / (10000 + 1); // < 10000th of deposit
+    assert!(spot_market
+        .validate_max_token_deposits_and_borrows()
+        .is_ok());
+
+    spot_market.borrow_balance = spot_market.deposit_balance / 100000; // 1/10th of 10000
+    assert!(spot_market
+        .validate_max_token_deposits_and_borrows()
+        .is_ok());
+}
+
+#[test]
+fn check_spot_market_min_borrow_rate() {
+    let now = 30_i64;
+    let _slot = 0_u64;
+
+    let _oracle_price = get_pyth_price(1, 6);
+    let mut spot_market = SpotMarket {
+        market_index: 0,
+        oracle_source: OracleSource::QuoteAsset,
+        cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+        cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+        decimals: 6,
+        initial_asset_weight: SPOT_WEIGHT_PRECISION,
+        maintenance_asset_weight: SPOT_WEIGHT_PRECISION,
+        deposit_balance: 100_000_000 * SPOT_BALANCE_PRECISION, //$100M usdc
+        borrow_balance: 0,
+        deposit_token_twap: QUOTE_PRECISION_U64 / 2,
+        historical_oracle_data: HistoricalOracleData::default_quote_oracle(),
+        status: MarketStatus::Active,
+        min_borrow_rate: 0,
+        ..SpotMarket::default()
+    };
+
+    assert_eq!(
+        spot_market.get_deposits().unwrap(),
+        100_000_000 * QUOTE_PRECISION
+    );
+
+    let accum_interest = calculate_accumulated_interest(&spot_market, now + 10000).unwrap();
+
+    assert_eq!(accum_interest.borrow_interest, 0);
+    assert_eq!(accum_interest.deposit_interest, 0);
+
+    spot_market.min_borrow_rate = 1; // .5%
+
+    let accum_interest = calculate_accumulated_interest(&spot_market, now + 10000).unwrap();
+
+    assert_eq!(accum_interest.borrow_interest, 0);
+    assert_eq!(accum_interest.deposit_interest, 0);
+
+    spot_market.min_borrow_rate = 1; // .5%
+    spot_market.borrow_balance = spot_market.deposit_balance / 100;
+    let accum_interest = calculate_accumulated_interest(&spot_market, now + 10000).unwrap();
+
+    assert_eq!(accum_interest.borrow_interest, 15903);
+    assert_eq!(accum_interest.deposit_interest, 159);
+
+    spot_market.min_borrow_rate = 10; // 5%
+    spot_market.borrow_balance = spot_market.deposit_balance / 100;
+    let accum_interest = calculate_accumulated_interest(&spot_market, now + 10000).unwrap();
+
+    assert_eq!(accum_interest.borrow_interest, 159025);
+    assert_eq!(accum_interest.deposit_interest, 1590);
+
+    spot_market.min_borrow_rate = 10; // 5%
+    spot_market.borrow_balance = spot_market.deposit_balance / 100;
+    let accum_interest = calculate_accumulated_interest(&spot_market, now + 1000000).unwrap();
+
+    assert_eq!(accum_interest.borrow_interest, 15855372);
+    assert_eq!(accum_interest.deposit_interest, 158553);
+
+    spot_market.min_borrow_rate = 200; // 100%
+    spot_market.borrow_balance = spot_market.deposit_balance / 100;
+    let accum_interest = calculate_accumulated_interest(&spot_market, now + 1000000).unwrap();
+
+    assert_eq!(accum_interest.borrow_interest, 317107433);
+    assert_eq!(accum_interest.deposit_interest, 3171074);
 }

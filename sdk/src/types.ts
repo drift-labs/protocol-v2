@@ -1,6 +1,11 @@
 import { PublicKey, Transaction, VersionedTransaction } from '@solana/web3.js';
 import { BN, ZERO } from '.';
 
+// Utility type which lets you denote record with values of type A mapped to a record with the same keys but values of type B
+export type MappedRecord<A extends Record<string, unknown>, B> = {
+	[K in keyof A]: B;
+};
+
 // # Utility Types / Enums / Constants
 
 export enum ExchangeStatus {
@@ -103,9 +108,13 @@ export class OracleSource {
 	static readonly PYTH = { pyth: {} };
 	static readonly PYTH_1K = { pyth1K: {} };
 	static readonly PYTH_1M = { pyth1M: {} };
+	static readonly PYTH_PULL = { pythPull: {} };
+	static readonly PYTH_1K_PULL = { pyth1KPull: {} };
+	static readonly PYTH_1M_PULL = { pyth1MPull: {} };
 	static readonly SWITCHBOARD = { switchboard: {} };
 	static readonly QUOTE_ASSET = { quoteAsset: {} };
 	static readonly PYTH_STABLE_COIN = { pythStableCoin: {} };
+	static readonly PYTH_STABLE_COIN_PULL = { pythStableCoinPull: {} };
 	static readonly Prelaunch = { prelaunch: {} };
 }
 
@@ -627,6 +636,10 @@ export type PerpMarketAccount = {
 	quoteSpotMarketIndex: number;
 	feeAdjustment: number;
 	pausedOperations: number;
+
+	fuelBoostPosition: number;
+	fuelBoostMaker: number;
+	fuelBoostTaker: number;
 };
 
 export type HistoricalOracleData = {
@@ -722,6 +735,14 @@ export type SpotMarketAccount = {
 	pausedOperations: number;
 
 	ifPausedOperations: number;
+
+	maxTokenBorrowsFraction: number;
+	minBorrowRate: number;
+
+	fuelBoostDeposits: number;
+	fuelBoostBorrows: number;
+	fuelBoostMaker: number;
+	fuelBoostTaker: number;
 };
 
 export type PoolBalance = {
@@ -864,6 +885,14 @@ export type UserStatsAccount = {
 	isReferrer: boolean;
 	authority: PublicKey;
 	ifStakedQuoteAssetAmount: BN;
+
+	fuelDeposits: number;
+	fuelBorrows: number;
+	fuelPositions: number;
+	fuelTaker: number;
+	fuelMaker: number;
+
+	ifStakedGovTokenAmount: BN;
 };
 
 export type UserAccount = {
@@ -893,6 +922,8 @@ export type UserAccount = {
 	hasOpenOrder: boolean;
 	openAuctions: number;
 	hasOpenAuction: boolean;
+
+	lastFuelBonusUpdateTs: BN;
 };
 
 export type SpotPosition = {
@@ -1030,6 +1061,7 @@ export type ProcessingTxParams = {
 	computeUnitsBufferMultiplier?: number;
 	useSimulatedComputeUnitsForCUPriceCalculation?: boolean;
 	getCUPriceFromComputeUnits?: (computeUnits: number) => number;
+	lowerBoundCu?: number;
 };
 
 export type TxParams = BaseTxParams & ProcessingTxParams;

@@ -28,6 +28,7 @@ export class TestClient extends AdminClient {
 		let lastFetchedSlot = (
 			this.accountSubscriber as PollingDriftClientAccountSubscriber
 		).accountLoader.mostRecentSlot;
+		await this.fetchAccounts();
 		while (lastFetchedSlot < slot) {
 			await this.fetchAccounts();
 			lastFetchedSlot = (

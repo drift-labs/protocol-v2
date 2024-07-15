@@ -3,10 +3,8 @@ import {
 	BASE_PRECISION,
 	BN,
 	getLimitOrderParams,
-	isVariant,
 	OracleSource,
 	TestClient,
-	EventSubscriber,
 	PRICE_PRECISION,
 	PositionDirection,
 } from '../sdk/src';
@@ -15,30 +13,24 @@ import { assert } from 'chai';
 import { Program } from '@coral-xyz/anchor';
 
 import {
-	mockOracle,
 	mockUSDCMint,
 	mockUserUSDCAccount,
 	initializeQuoteSpotMarket,
-	printTxLogs,
+	mockOracleNoProgram,
 } from './testHelpers';
-import { BulkAccountLoader } from '../sdk';
+import { startAnchor } from 'solana-bankrun';
+import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
+import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
+import { isVariant } from '../sdk';
 
 describe('cancel all orders', () => {
-	const provider = anchor.AnchorProvider.local(undefined, {
-		preflightCommitment: 'confirmed',
-		commitment: 'confirmed',
-	});
-	const connection = provider.connection;
-	anchor.setProvider(provider);
 	const chProgram = anchor.workspace.Drift as Program;
 
 	let driftClient: TestClient;
-	const eventSubscriber = new EventSubscriber(connection, chProgram, {
-		commitment: 'recent',
-	});
-	eventSubscriber.subscribe();
 
-	const bulkAccountLoader = new BulkAccountLoader(connection, 'confirmed', 1);
+	let bankrunContextWrapper: BankrunContextWrapper;
+
+	let bulkAccountLoader: TestBulkAccountLoader;
 
 	let usdcMint;
 	let userUSDCAccount;
@@ -55,21 +47,35 @@ describe('cancel all orders', () => {
 	const usdcAmount = new BN(10 * 10 ** 6);
 
 	before(async () => {
-		usdcMint = await mockUSDCMint(provider);
-		userUSDCAccount = await mockUserUSDCAccount(usdcMint, usdcAmount, provider);
+		const context = await startAnchor('', [], []);
 
-		const oracle = await mockOracle(1);
+		bankrunContextWrapper = new BankrunContextWrapper(context);
+
+		bulkAccountLoader = new TestBulkAccountLoader(
+			bankrunContextWrapper.connection,
+			'processed',
+			1
+		);
+
+		usdcMint = await mockUSDCMint(bankrunContextWrapper);
+		userUSDCAccount = await mockUserUSDCAccount(
+			usdcMint,
+			usdcAmount,
+			bankrunContextWrapper
+		);
+
+		const oracle = await mockOracleNoProgram(bankrunContextWrapper, 1);
 
 		driftClient = new TestClient({
-			connection,
-			wallet: provider.wallet,
+			connection: bankrunContextWrapper.connection.toConnection(),
+			wallet: bankrunContextWrapper.provider.wallet,
 			programID: chProgram.programId,
 			opts: {
 				commitment: 'confirmed',
 			},
-			activeSubAccountId: 0,
 			perpMarketIndexes: [0],
 			spotMarketIndexes: [0],
+			subAccountIds: [],
 			oracleInfos: [
 				{
 					publicKey: oracle,
@@ -106,7 +112,6 @@ describe('cancel all orders', () => {
 
 	after(async () => {
 		await driftClient.unsubscribe();
-		await eventSubscriber.unsubscribe();
 	});
 
 	it('cancel all orders', async () => {
@@ -121,9 +126,9 @@ describe('cancel all orders', () => {
 			);
 		}
 
-		const txSig = await driftClient.cancelOrders(null, null, null);
+		await driftClient.cancelOrders(null, null, null);
 
-		await printTxLogs(connection, txSig);
+		// await printTxLogs(connection, txSig);
 
 		for (let i = 0; i < 32; i++) {
 			assert(isVariant(driftClient.getUserAccount().orders[i].status, 'init'));
