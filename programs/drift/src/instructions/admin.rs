@@ -11,6 +11,7 @@ use solana_program::msg;
 
 use crate::controller::token::close_vault;
 use crate::error::ErrorCode;
+use crate::ids::fuel_airdrop_wallet;
 use crate::instructions::constraints::*;
 use crate::math::casting::Cast;
 use crate::math::constants::{
@@ -4052,10 +4053,10 @@ pub struct AdminDisableBidAskTwapUpdate<'info> {
 
 #[derive(Accounts)]
 pub struct UpdateUserFuel<'info> {
-    pub admin: Signer<'info>, // todo
     #[account(
-        has_one = admin
+        address = fuel_airdrop_wallet::id()
     )]
+    pub admin: Signer<'info>, // todo
     pub state: Box<Account<'info, State>>,
     #[account(mut)]
     pub user: AccountLoader<'info, User>,
