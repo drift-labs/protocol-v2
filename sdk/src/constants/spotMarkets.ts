@@ -99,8 +99,8 @@ export const MainnetSpotMarkets: SpotMarketConfig[] = [
 	{
 		symbol: 'mSOL',
 		marketIndex: 2,
-		oracle: new PublicKey('E4v1BBgoso9s64TQvmyownAVJbhbEPGyzA3qn4n46qj9'),
-		oracleSource: OracleSource.PYTH,
+		oracle: new PublicKey('FAq7hqjn7FWGXKDwJHzsXGgBcydGTcK4kziJpAGWXjDb'),
+		oracleSource: OracleSource.PYTH_PULL,
 		mint: new PublicKey('mSoLzYCxHdYgdzU16g5QSh3i5K3z3KZK7ytfqcJm7So'),
 		precision: new BN(10).pow(NINE),
 		precisionExp: NINE,
@@ -138,8 +138,8 @@ export const MainnetSpotMarkets: SpotMarketConfig[] = [
 	{
 		symbol: 'USDT',
 		marketIndex: 5,
-		oracle: new PublicKey('BekJ3P5G3iFeC97sXHuKnUHofCFj9Sbo7uyF2fkKwvit'),
-		oracleSource: OracleSource.PYTH_STABLE_COIN_PULL,
+		oracle: new PublicKey('3vxLXJqLqF3JG5TCbYycbKWRBbCJQLxQmBGCkyqEEefL'),
+		oracleSource: OracleSource.PYTH,
 		mint: new PublicKey('Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB'),
 		precision: QUOTE_PRECISION,
 		precisionExp: QUOTE_PRECISION_EXP,
