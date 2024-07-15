@@ -1531,7 +1531,7 @@ fn test_transfer_protocol_owned_stake() {
     // withdraw half
     let amount_returned = admin_remove_insurance_fund_stake(
         if_balance,
-        (spot_market.insurance_fund.total_shares / 2) as u128,
+        spot_market.insurance_fund.total_shares / 2,
         &mut spot_market,
         1,
         Pubkey::default(),

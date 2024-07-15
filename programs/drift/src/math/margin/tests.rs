@@ -285,7 +285,7 @@ mod test {
         assert_eq!(uaw, 9559);
 
         let strict_oracle_price = StrictOraclePrice::test(QUOTE_PRECISION_I64);
-        let (pmr, upnl, _, _) = calculate_perp_position_value_and_pnl(
+        let (pmr, upnl, _, _, _) = calculate_perp_position_value_and_pnl(
             &market_position,
             &market,
             &oracle_price_data,
@@ -362,7 +362,7 @@ mod test {
         assert_eq!(position_unrealized_pnl * 800000, 19426229516800000); // 1.9 billion
 
         let strict_oracle_price = StrictOraclePrice::test(QUOTE_PRECISION_I64);
-        let (pmr_2, upnl_2, _, _) = calculate_perp_position_value_and_pnl(
+        let (pmr_2, upnl_2, _, _, _) = calculate_perp_position_value_and_pnl(
             &market_position,
             &market,
             &oracle_price_data,
@@ -426,7 +426,7 @@ mod test {
         };
 
         let strict_oracle_price = StrictOraclePrice::test(QUOTE_PRECISION_I64);
-        let (pmr, _, _, _) = calculate_perp_position_value_and_pnl(
+        let (pmr, _, _, _, _) = calculate_perp_position_value_and_pnl(
             &position,
             &market,
             &oracle_price_data,
@@ -450,7 +450,7 @@ mod test {
         market.amm.quote_asset_reserve = new_qar;
         market.amm.base_asset_reserve = new_bar;
 
-        let (pmr2, _, _, _) = calculate_perp_position_value_and_pnl(
+        let (pmr2, _, _, _, _) = calculate_perp_position_value_and_pnl(
             &position,
             &market,
             &oracle_price_data,
@@ -498,7 +498,7 @@ mod test {
         };
 
         let strict_oracle_price = StrictOraclePrice::test(QUOTE_PRECISION_I64);
-        let (pmr, _, _, _) = calculate_perp_position_value_and_pnl(
+        let (pmr, _, _, _, _) = calculate_perp_position_value_and_pnl(
             &position,
             &market,
             &oracle_price_data,
@@ -522,7 +522,7 @@ mod test {
         market.amm.base_asset_reserve = new_bar;
 
         let strict_oracle_price = StrictOraclePrice::test(QUOTE_PRECISION_I64);
-        let (pmr2, _, _, _) = calculate_perp_position_value_and_pnl(
+        let (pmr2, _, _, _, _) = calculate_perp_position_value_and_pnl(
             &position,
             &market,
             &oracle_price_data,
@@ -937,7 +937,7 @@ mod calculate_margin_requirement_and_total_collateral {
                 ..PerpPosition::default()
             }),
             spot_positions,
-            max_margin_ratio: 2 * MARGIN_PRECISION as u32, // .5x leverage
+            max_margin_ratio: 2 * MARGIN_PRECISION, // .5x leverage
             ..User::default()
         };
 
@@ -955,7 +955,7 @@ mod calculate_margin_requirement_and_total_collateral {
         assert_eq!(margin_requirement, 50000000000); // 100 * $100 * 3 + 100 * $100 * 2
 
         let user = User {
-            max_margin_ratio: MARGIN_PRECISION as u32, // 1x leverage
+            max_margin_ratio: MARGIN_PRECISION, // 1x leverage
             ..user
         };
 
@@ -973,7 +973,7 @@ mod calculate_margin_requirement_and_total_collateral {
         assert_eq!(margin_requirement, 30000000000); // 100 * 100 * 1 + 100 * $100 * 2
 
         let user = User {
-            max_margin_ratio: MARGIN_PRECISION as u32 / 2, // 2x leverage
+            max_margin_ratio: MARGIN_PRECISION / 2, // 2x leverage
             ..user
         };
 
@@ -991,7 +991,7 @@ mod calculate_margin_requirement_and_total_collateral {
         assert_eq!(margin_requirement, 20000000000); // 100 * 100 * .5 + 100 * $100 * 1.5
 
         let user = User {
-            max_margin_ratio: 10 * MARGIN_PRECISION as u32, // .1x leverage
+            max_margin_ratio: 10 * MARGIN_PRECISION, // .1x leverage
             ..user
         };
 
@@ -1021,7 +1021,7 @@ mod calculate_margin_requirement_and_total_collateral {
         let user = User {
             orders: [Order::default(); 32],
             spot_positions,
-            max_margin_ratio: MARGIN_PRECISION as u32 / 2, // 2x leverage
+            max_margin_ratio: MARGIN_PRECISION / 2, // 2x leverage
             ..User::default()
         };
 
@@ -1123,7 +1123,7 @@ mod calculate_margin_requirement_and_total_collateral {
         let user = User {
             orders: [Order::default(); 32],
             spot_positions,
-            max_margin_ratio: 2 * MARGIN_PRECISION as u32, // .5x leverage
+            max_margin_ratio: 2 * MARGIN_PRECISION, // .5x leverage
             ..User::default()
         };
 
@@ -1244,7 +1244,7 @@ mod calculate_margin_requirement_and_total_collateral {
         let user = User {
             orders: [Order::default(); 32],
             spot_positions,
-            max_margin_ratio: 2 * MARGIN_PRECISION as u32, // .5x leverage
+            max_margin_ratio: 2 * MARGIN_PRECISION, // .5x leverage
             ..User::default()
         };
 

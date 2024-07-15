@@ -18,23 +18,21 @@ import {
 
 import {
 	initializeQuoteSpotMarket,
-	mockOracle,
+	mockOracleNoProgram,
 	mockUSDCMint,
 	mockUserUSDCAccount,
 } from './testHelpers';
-import { BulkAccountLoader, ExchangeStatus } from '../sdk';
+import { ContractTier, ExchangeStatus } from '../sdk';
+import { startAnchor } from 'solana-bankrun';
+import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
+import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
 
 describe('user order id', () => {
-	const provider = anchor.AnchorProvider.local(undefined, {
-		preflightCommitment: 'confirmed',
-		skipPreflight: false,
-		commitment: 'confirmed',
-	});
-	const connection = provider.connection;
-	anchor.setProvider(provider);
 	const chProgram = anchor.workspace.Drift as Program;
 
-	const bulkAccountLoader = new BulkAccountLoader(connection, 'confirmed', 1);
+	let bulkAccountLoader: TestBulkAccountLoader;
+
+	let bankrunContextWrapper: BankrunContextWrapper;
 
 	let driftClient: TestClient;
 	let driftClientUser: User;
@@ -58,11 +56,25 @@ describe('user order id', () => {
 	let btcUsd;
 
 	before(async () => {
-		usdcMint = await mockUSDCMint(provider);
-		userUSDCAccount = await mockUserUSDCAccount(usdcMint, usdcAmount, provider);
+		const context = await startAnchor('', [], []);
 
-		solUsd = await mockOracle(1);
-		btcUsd = await mockOracle(60000);
+		bankrunContextWrapper = new BankrunContextWrapper(context);
+
+		bulkAccountLoader = new TestBulkAccountLoader(
+			bankrunContextWrapper.connection,
+			'processed',
+			1
+		);
+
+		usdcMint = await mockUSDCMint(bankrunContextWrapper);
+		userUSDCAccount = await mockUserUSDCAccount(
+			usdcMint,
+			usdcAmount,
+			bankrunContextWrapper
+		);
+
+		solUsd = await mockOracleNoProgram(bankrunContextWrapper, 1);
+		btcUsd = await mockOracleNoProgram(bankrunContextWrapper, 60000);
 
 		const marketIndexes = [marketIndex, 1];
 		const spotMarketIndexes = [0];
@@ -72,8 +84,8 @@ describe('user order id', () => {
 		];
 
 		driftClient = new TestClient({
-			connection,
-			wallet: provider.wallet,
+			connection: bankrunContextWrapper.connection.toConnection(),
+			wallet: bankrunContextWrapper.provider.wallet,
 			programID: chProgram.programId,
 			opts: {
 				commitment: 'confirmed',
@@ -81,6 +93,7 @@ describe('user order id', () => {
 			activeSubAccountId: 0,
 			perpMarketIndexes: marketIndexes,
 			spotMarketIndexes: spotMarketIndexes,
+			subAccountIds: [],
 			oracleInfos,
 			accountSubscription: {
 				type: 'polling',
@@ -122,6 +135,9 @@ describe('user order id', () => {
 			periodicity,
 			new BN(60000000), // btc-ish price level
 			undefined,
+			ContractTier.A,
+			undefined,
+			undefined,
 			undefined,
 			undefined,
 			undefined,
@@ -144,6 +160,10 @@ describe('user order id', () => {
 		driftClientUser = new User({
 			driftClient,
 			userAccountPublicKey: await driftClient.getUserAccountPublicKey(),
+			accountSubscription: {
+				type: 'polling',
+				accountLoader: bulkAccountLoader,
+			},
 		});
 		await driftClientUser.subscribe();
 	});

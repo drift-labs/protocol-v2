@@ -24,17 +24,11 @@ use crate::validate;
 #[cfg(test)]
 mod tests;
 
-#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Debug, Eq)]
+#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Debug, Eq, Default)]
 pub enum PositionDirection {
+    #[default]
     Long,
     Short,
-}
-
-impl Default for PositionDirection {
-    // UpOnly
-    fn default() -> Self {
-        PositionDirection::Long
-    }
 }
 
 impl PositionDirection {
