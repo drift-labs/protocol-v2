@@ -1276,6 +1276,24 @@ pub mod drift {
         )
     }
 
+    pub fn init_user_fuel(
+        ctx: Context<InitUserFuel>,
+        fuel_boost_deposits: Option<u32>,
+        fuel_boost_borrows: Option<u32>,
+        fuel_boost_taker: Option<u32>,
+        fuel_boost_maker: Option<u32>,
+        fuel_boost_insurance: Option<u32>,
+    ) -> Result<()> {
+        handle_init_user_fuel(
+            ctx,
+            fuel_boost_deposits,
+            fuel_boost_borrows,
+            fuel_boost_taker,
+            fuel_boost_maker,
+            fuel_boost_insurance,
+        )
+    }
+
     pub fn update_admin(ctx: Context<AdminUpdateState>, admin: Pubkey) -> Result<()> {
         handle_update_admin(ctx, admin)
     }

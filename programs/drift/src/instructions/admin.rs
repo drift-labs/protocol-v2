@@ -1057,12 +1057,12 @@ pub fn handle_update_spot_market_expiry(
 }
 
 pub fn handle_init_user_fuel(
-    ctx: Context<UpdateUserFuel>,
-    fuel_bonus_deposits: Option<u8>,
-    fuel_bonus_borrows: Option<u8>,
-    fuel_bonus_taker: Option<u8>,
-    fuel_bonus_maker: Option<u8>,
-    fuel_bonus_insurance: Option<u8>,
+    ctx: Context<InitUserFuel>,
+    fuel_bonus_deposits: Option<u32>,
+    fuel_bonus_borrows: Option<u32>,
+    fuel_bonus_taker: Option<u32>,
+    fuel_bonus_maker: Option<u32>,
+    fuel_bonus_insurance: Option<u32>,
 ) -> Result<()> {
     let clock: Clock = Clock::get()?;
     let now_u32 = clock.unix_timestamp as u32;
@@ -1077,31 +1077,23 @@ pub fn handle_init_user_fuel(
     )?;
 
     if let Some(fuel_bonus_deposits) = fuel_bonus_deposits {
-        user_stats.fuel_deposits = user_stats
-            .fuel_deposits
-            .saturating_add(fuel_bonus_deposits.cast()?);
+        user_stats.fuel_deposits = user_stats.fuel_deposits.saturating_add(fuel_bonus_deposits);
     }
     if let Some(fuel_bonus_borrows) = fuel_bonus_borrows {
-        user_stats.fuel_borrows = user_stats
-            .fuel_borrows
-            .saturating_add(fuel_bonus_borrows.cast()?);
+        user_stats.fuel_borrows = user_stats.fuel_borrows.saturating_add(fuel_bonus_borrows);
     }
 
     if let Some(fuel_bonus_taker) = fuel_bonus_taker {
-        user_stats.fuel_taker = user_stats
-            .fuel_taker
-            .saturating_add(fuel_bonus_taker.cast()?);
+        user_stats.fuel_taker = user_stats.fuel_taker.saturating_add(fuel_bonus_taker);
     }
     if let Some(fuel_bonus_maker) = fuel_bonus_maker {
-        user_stats.fuel_maker = user_stats
-            .fuel_maker
-            .saturating_add(fuel_bonus_maker.cast()?);
+        user_stats.fuel_maker = user_stats.fuel_maker.saturating_add(fuel_bonus_maker);
     }
 
     if let Some(fuel_bonus_insurance) = fuel_bonus_insurance {
         user_stats.fuel_insurance = user_stats
             .fuel_insurance
-            .saturating_add(fuel_bonus_insurance.cast()?);
+            .saturating_add(fuel_bonus_insurance);
     }
 
     user.last_fuel_bonus_update_ts = now_u32;
@@ -4223,7 +4215,7 @@ pub struct AdminDisableBidAskTwapUpdate<'info> {
 }
 
 #[derive(Accounts)]
-pub struct UpdateUserFuel<'info> {
+pub struct InitUserFuel<'info> {
     #[account(
         address = fuel_airdrop_wallet::id()
     )]

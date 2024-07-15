@@ -5208,6 +5208,63 @@
       ]
     },
     {
+      "name": "initUserFuel",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "user",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "userStats",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "fuelBoostDeposits",
+          "type": {
+            "option": "u32"
+          }
+        },
+        {
+          "name": "fuelBoostBorrows",
+          "type": {
+            "option": "u32"
+          }
+        },
+        {
+          "name": "fuelBoostTaker",
+          "type": {
+            "option": "u32"
+          }
+        },
+        {
+          "name": "fuelBoostMaker",
+          "type": {
+            "option": "u32"
+          }
+        },
+        {
+          "name": "fuelBoostInsurance",
+          "type": {
+            "option": "u32"
+          }
+        }
+      ]
+    },
+    {
       "name": "updateAdmin",
       "accounts": [
         {
