@@ -323,6 +323,8 @@ export const MainnetSpotMarkets: SpotMarketConfig[] = [
 		precision: new BN(10).pow(SIX),
 		precisionExp: SIX,
 		launchTs: 1718811089000,
+		pythFeedId:
+			'0xe393449f6aff8a4b6d3e1165a7c9ebec103685f3b41e60db4277b5b6d10e7326',
 	},
 	{
 		symbol: 'JLP',
