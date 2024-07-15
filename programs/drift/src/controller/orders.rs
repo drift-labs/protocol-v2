@@ -2656,7 +2656,7 @@ pub fn trigger_order(
     validate!(
         !oracle_too_divergent_with_twap_5min,
         ErrorCode::OrderBreachesOraclePriceLimits,
-        "oracle price vs twap too dinvergent"
+        "oracle price vs twap too divergent"
     )?;
 
     let can_trigger = order_satisfies_trigger_condition(
@@ -4829,7 +4829,7 @@ pub fn trigger_spot_order(
     validate!(
         !oracle_too_divergent_with_twap_5min,
         ErrorCode::OrderBreachesOraclePriceLimits,
-        "oracle price vs twap too dinvergent"
+        "oracle price vs twap too divergent"
     )?;
 
     let can_trigger = order_satisfies_trigger_condition(
