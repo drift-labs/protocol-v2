@@ -1690,7 +1690,7 @@ checksum = "44de48029c54ec1ca570786b5baeb906b0fc2409c8e0145585e287ee7a526c72"
 [[package]]
 name = "pyth-solana-receiver-sdk"
 version = "0.3.0"
-source = "git+https://github.com/drift-labs/pyth-crosschain?rev=c895ab1#c895ab18791edddb986376b62d54aa511c416109"
+source = "git+https://github.com/drift-labs/pyth-crosschain?rev=38e8b94#38e8b949baa0bf8855d837152ba7365918b8b229"
 dependencies = [
  "anchor-lang",
  "hex",
@@ -1701,7 +1701,7 @@ dependencies = [
 [[package]]
 name = "pythnet-sdk"
 version = "2.1.0"
-source = "git+https://github.com/drift-labs/pyth-crosschain?rev=c895ab1#c895ab18791edddb986376b62d54aa511c416109"
+source = "git+https://github.com/drift-labs/pyth-crosschain?rev=38e8b94#38e8b949baa0bf8855d837152ba7365918b8b229"
 dependencies = [
  "anchor-lang",
  "bincode",
