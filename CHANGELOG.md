@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - program: add oracle id for wen ([#1129](https://github.com/drift-labs/protocol-v2/pull/1129))
 - program: track fuel ([#1048](https://github.com/drift-labs/protocol-v2/pull/1048))
+- program: track fuel for if staking ([#1127](https://github.com/drift-labs/protocol-v2/pull/1127))
 - program: validate fee structure ([#1075](https://github.com/drift-labs/protocol-v2/pull/1075))
 
 ### Fixes

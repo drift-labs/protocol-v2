@@ -85,4 +85,5 @@ export const mockUserAccount: UserAccount = {
 	hasOpenOrder: false,
 	openAuctions: 0,
 	hasOpenAuction: false,
+	lastFuelBonusUpdateTs: 0,
 };

@@ -637,9 +637,9 @@ export type PerpMarketAccount = {
 	feeAdjustment: number;
 	pausedOperations: number;
 
-	fuelBoostPosition: number;
-	fuelBoostMaker: number;
 	fuelBoostTaker: number;
+	fuelBoostMaker: number;
+	fuelBoostPosition: number;
 };
 
 export type HistoricalOracleData = {
@@ -741,8 +741,9 @@ export type SpotMarketAccount = {
 
 	fuelBoostDeposits: number;
 	fuelBoostBorrows: number;
-	fuelBoostMaker: number;
 	fuelBoostTaker: number;
+	fuelBoostMaker: number;
+	fuelBoostInsurance: number;
 };
 
 export type PoolBalance = {
@@ -886,6 +887,9 @@ export type UserStatsAccount = {
 	authority: PublicKey;
 	ifStakedQuoteAssetAmount: BN;
 
+	lastFuelBonusUpdateTs: number; // u32 onchain
+
+	fuelInsurance: number;
 	fuelDeposits: number;
 	fuelBorrows: number;
 	fuelPositions: number;
@@ -922,8 +926,7 @@ export type UserAccount = {
 	hasOpenOrder: boolean;
 	openAuctions: number;
 	hasOpenAuction: boolean;
-
-	lastFuelBonusUpdateTs: BN;
+	lastFuelBonusUpdateTs: number;
 };
 
 export type SpotPosition = {

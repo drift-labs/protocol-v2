@@ -11,6 +11,7 @@ use solana_program::msg;
 
 use crate::controller::token::close_vault;
 use crate::error::ErrorCode;
+use crate::ids::fuel_airdrop_wallet;
 use crate::instructions::constraints::*;
 use crate::math::casting::Cast;
 use crate::math::constants::{
@@ -49,7 +50,7 @@ use crate::state::spot_market::{
 };
 use crate::state::state::{ExchangeStatus, FeeStructure, OracleGuardRails, State};
 use crate::state::traits::Size;
-use crate::state::user::UserStats;
+use crate::state::user::{User, UserStats};
 use crate::validate;
 use crate::validation::fee_structure::validate_fee_structure;
 use crate::validation::margin::{validate_margin, validate_margin_weights};
@@ -290,7 +291,8 @@ pub fn handle_initialize_spot_market(
         fuel_boost_borrows: 0,
         fuel_boost_taker: 0,
         fuel_boost_maker: 0,
-        padding: [0; 43],
+        fuel_boost_insurance: 0,
+        padding: [0; 42],
         insurance_fund: InsuranceFund {
             vault: *ctx.accounts.insurance_fund_vault.to_account_info().key,
             unstaking_period: THIRTEEN_DAY,
@@ -1054,6 +1056,60 @@ pub fn handle_update_spot_market_expiry(
     Ok(())
 }
 
+pub fn handle_init_user_fuel(
+    ctx: Context<UpdateUserFuel>,
+    fuel_bonus_deposits: Option<u8>,
+    fuel_bonus_borrows: Option<u8>,
+    fuel_bonus_taker: Option<u8>,
+    fuel_bonus_maker: Option<u8>,
+    fuel_bonus_insurance: Option<u8>,
+) -> Result<()> {
+    let clock: Clock = Clock::get()?;
+    let now_u32 = clock.unix_timestamp as u32;
+
+    let user = &mut load_mut!(ctx.accounts.user)?;
+    let user_stats = &mut load_mut!(ctx.accounts.user_stats)?;
+
+    validate!(
+        user.last_fuel_bonus_update_ts == 0,
+        ErrorCode::DefaultError,
+        "User must not have begun earning fuel"
+    )?;
+
+    if let Some(fuel_bonus_deposits) = fuel_bonus_deposits {
+        user_stats.fuel_deposits = user_stats
+            .fuel_deposits
+            .saturating_add(fuel_bonus_deposits.cast()?);
+    }
+    if let Some(fuel_bonus_borrows) = fuel_bonus_borrows {
+        user_stats.fuel_borrows = user_stats
+            .fuel_borrows
+            .saturating_add(fuel_bonus_borrows.cast()?);
+    }
+
+    if let Some(fuel_bonus_taker) = fuel_bonus_taker {
+        user_stats.fuel_taker = user_stats
+            .fuel_taker
+            .saturating_add(fuel_bonus_taker.cast()?);
+    }
+    if let Some(fuel_bonus_maker) = fuel_bonus_maker {
+        user_stats.fuel_maker = user_stats
+            .fuel_maker
+            .saturating_add(fuel_bonus_maker.cast()?);
+    }
+
+    if let Some(fuel_bonus_insurance) = fuel_bonus_insurance {
+        user_stats.fuel_insurance = user_stats
+            .fuel_insurance
+            .saturating_add(fuel_bonus_insurance.cast()?);
+    }
+
+    user.last_fuel_bonus_update_ts = now_u32;
+    user_stats.last_fuel_if_bonus_update_ts = now_u32;
+
+    Ok(())
+}
+
 #[access_control(
     perp_market_valid(&ctx.accounts.perp_market)
 )]
@@ -1061,7 +1117,7 @@ pub fn handle_update_perp_market_expiry(
     ctx: Context<AdminUpdatePerpMarket>,
     expiry_ts: i64,
 ) -> Result<()> {
-    let clock = Clock::get()?;
+    let clock: Clock = Clock::get()?;
     let perp_market = &mut load_mut!(ctx.accounts.perp_market)?;
     msg!("updating perp market {} expiry", perp_market.market_index);
 
@@ -3449,6 +3505,7 @@ pub fn handle_update_spot_market_fuel(
     fuel_boost_borrows: Option<u8>,
     fuel_boost_taker: Option<u8>,
     fuel_boost_maker: Option<u8>,
+    fuel_boost_insurance: Option<u8>,
 ) -> Result<()> {
     let spot_market = &mut load_mut!(ctx.accounts.spot_market)?;
     msg!("spot market {}", spot_market.market_index);
@@ -3495,6 +3552,17 @@ pub fn handle_update_spot_market_fuel(
         spot_market.fuel_boost_borrows = fuel_boost_borrows;
     } else {
         msg!("perp_market.fuel_boost_borrows: unchanged");
+    }
+
+    if let Some(fuel_boost_insurance) = fuel_boost_insurance {
+        msg!(
+            "perp_market.fuel_boost_insurance: {:?} -> {:?}",
+            spot_market.fuel_boost_insurance,
+            fuel_boost_insurance
+        );
+        spot_market.fuel_boost_insurance = fuel_boost_insurance;
+    } else {
+        msg!("perp_market.fuel_boost_insurance: unchanged");
     }
 
     Ok(())
@@ -4150,6 +4218,19 @@ pub struct AdminDisableBidAskTwapUpdate<'info> {
         has_one = admin
     )]
     pub state: Box<Account<'info, State>>,
+    #[account(mut)]
+    pub user_stats: AccountLoader<'info, UserStats>,
+}
+
+#[derive(Accounts)]
+pub struct UpdateUserFuel<'info> {
+    #[account(
+        address = fuel_airdrop_wallet::id()
+    )]
+    pub admin: Signer<'info>, // todo
+    pub state: Box<Account<'info, State>>,
+    #[account(mut)]
+    pub user: AccountLoader<'info, User>,
     #[account(mut)]
     pub user_stats: AccountLoader<'info, UserStats>,
 }

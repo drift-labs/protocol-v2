@@ -1264,6 +1264,7 @@ pub mod drift {
         fuel_boost_borrows: Option<u8>,
         fuel_boost_taker: Option<u8>,
         fuel_boost_maker: Option<u8>,
+        fuel_boost_insurance: Option<u8>,
     ) -> Result<()> {
         handle_update_spot_market_fuel(
             ctx,
@@ -1271,6 +1272,7 @@ pub mod drift {
             fuel_boost_borrows,
             fuel_boost_taker,
             fuel_boost_maker,
+            fuel_boost_insurance,
         )
     }
 

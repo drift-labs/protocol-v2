@@ -1725,11 +1725,12 @@ fn fulfill_perp_order(
         )?;
 
     user_stats.update_fuel_bonus(
+        user,
         taker_margin_calculation.fuel_deposits,
         taker_margin_calculation.fuel_borrows,
         taker_margin_calculation.fuel_positions,
+        now,
     )?;
-    user.last_fuel_bonus_update_ts = now;
 
     if !taker_margin_calculation.meets_margin_requirement() {
         msg!(
@@ -1768,11 +1769,12 @@ fn fulfill_perp_order(
 
         if let Some(mut maker_stats) = maker_stats {
             maker_stats.update_fuel_bonus(
+                &mut maker,
                 maker_margin_calculation.fuel_deposits,
                 maker_margin_calculation.fuel_borrows,
                 maker_margin_calculation.fuel_positions,
+                now,
             )?;
-            maker.last_fuel_bonus_update_ts = now;
         }
 
         if !maker_margin_calculation.meets_margin_requirement() {
@@ -4091,12 +4093,14 @@ fn fulfill_spot_order(
                 .fuel_numerator(user, now),
         )?;
 
+    // user hasnt recieved initial fuel or below global start time
     user_stats.update_fuel_bonus(
+        user,
         taker_margin_calculation.fuel_deposits,
         taker_margin_calculation.fuel_borrows,
         taker_margin_calculation.fuel_positions,
+        now,
     )?;
-    user.last_fuel_bonus_update_ts = now;
 
     if !taker_margin_calculation.meets_margin_requirement() {
         msg!(
@@ -4159,7 +4163,7 @@ fn fulfill_spot_order(
         drop(base_market);
         drop(quote_market);
 
-        let maker_margin_calculation =
+        let maker_margin_calculation: MarginCalculation =
             calculate_margin_requirement_and_total_collateral_and_liability_info(
                 &maker,
                 perp_market_map,
@@ -4183,12 +4187,12 @@ fn fulfill_spot_order(
 
         if let Some(mut maker_stats) = maker_stats {
             maker_stats.update_fuel_bonus(
+                &mut maker,
                 maker_margin_calculation.fuel_deposits,
                 maker_margin_calculation.fuel_borrows,
                 maker_margin_calculation.fuel_positions,
+                now,
             )?;
-
-            maker.last_fuel_bonus_update_ts = now;
         }
 
         if !maker_margin_calculation.meets_margin_requirement() {

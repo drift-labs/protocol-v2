@@ -31,6 +31,7 @@ import {
 	QUOTE_PRECISION_EXP,
 	QUOTE_SPOT_MARKET_INDEX,
 	SPOT_MARKET_WEIGHT_PRECISION,
+	GOV_SPOT_MARKET_INDEX,
 	TEN,
 	TEN_THOUSAND,
 	TWO,
@@ -89,7 +90,11 @@ import { calculateLiveOracleTwap } from './math/oracles';
 import { getPerpMarketTierNumber, getSpotMarketTierNumber } from './math/tiers';
 import { StrictOraclePrice } from './oracles/strictOraclePrice';
 
-import { calculateSpotFuelBonus, calculatePerpFuelBonus } from './math/fuel';
+import {
+	calculateSpotFuelBonus,
+	calculatePerpFuelBonus,
+	calculateInsuranceFuelBonus,
+} from './math/fuel';
 
 export class User {
 	driftClient: DriftClient;
@@ -890,6 +895,7 @@ export class User {
 		const userAccount: UserAccount = this.getUserAccount();
 
 		const result = {
+			insuranceFuel: ZERO,
 			takerFuel: ZERO,
 			makerFuel: ZERO,
 			depositFuel: ZERO,
@@ -914,7 +920,9 @@ export class User {
 
 		if (includeUnsettled) {
 			const fuelBonusNumerator = BN.max(
-				now.sub(BN.max(userAccount.lastFuelBonusUpdateTs, FUEL_START_TS)),
+				now.sub(
+					BN.max(new BN(userAccount.lastFuelBonusUpdateTs), FUEL_START_TS)
+				),
 				ZERO
 			);
 
@@ -987,6 +995,28 @@ export class User {
 						)
 					);
 				}
+			}
+
+			const userStats: UserStatsAccount = this.driftClient
+				.getUserStats()
+				.getAccount();
+
+			// todo: get real time ifStakedGovTokenAmount using ifStakeAccount
+			if (userStats.ifStakedGovTokenAmount.gt(ZERO)) {
+				const spotMarketAccount: SpotMarketAccount =
+					this.driftClient.getSpotMarketAccount(GOV_SPOT_MARKET_INDEX);
+
+				const fuelBonusNumeratorUserStats = now.sub(
+					new BN(userStats.lastFuelBonusUpdateTs)
+				);
+
+				result.insuranceFuel = result.insuranceFuel.add(
+					calculateInsuranceFuelBonus(
+						spotMarketAccount,
+						userStats.ifStakedGovTokenAmount,
+						fuelBonusNumeratorUserStats
+					)
+				);
 			}
 		}
 
