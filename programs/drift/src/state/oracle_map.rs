@@ -422,6 +422,10 @@ impl<'a> OracleMap<'a> {
     }
 
     pub fn validate_oracle_account_info<'c>(account_info: &'c AccountInfo<'a>) -> DriftResult {
+        if *account_info.key == Pubkey::default() {
+            return Ok(());
+        }
+
         validate!(
             OracleMap::load_one(account_info, 0, None)?.oracles.len() == 1,
             ErrorCode::InvalidOracle,
