@@ -35,6 +35,8 @@ async function makeMockUser(
 	const mockUser: User = await umap.mustGet('1');
 	mockUser._isSubscribed = true;
 	mockUser.driftClient._isSubscribed = true;
+	mockUser.driftClient.accountSubscriber.isSubscribed = true;
+
 	const oraclePriceMap = {};
 	// console.log(perpOraclePriceList, myMockPerpMarkets.length);
 	// console.log(spotOraclePriceList, myMockSpotMarkets.length);

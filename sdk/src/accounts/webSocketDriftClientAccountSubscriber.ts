@@ -115,19 +115,18 @@ export class WebSocketDriftClientAccountSubscriber
 			this.eventEmitter.emit('update');
 		});
 
-		// subscribe to market accounts
-		await this.subscribeToPerpMarketAccounts();
-
-		// subscribe to spot market accounts
-		await this.subscribeToSpotMarketAccounts();
-
-		// subscribe to oracles
-		await this.subscribeToOracles();
+		await Promise.all([
+			// subscribe to market accounts
+			this.subscribeToPerpMarketAccounts(),
+			// subscribe to spot market accounts
+			this.subscribeToSpotMarketAccounts(),
+			// subscribe to oracles
+			this.subscribeToOracles(),
+		]);
 
 		this.eventEmitter.emit('update');
 
-		await this.setPerpOracleMap();
-		await this.setSpotOracleMap();
+		await Promise.all([this.setPerpOracleMap(), this.setSpotOracleMap()]);
 
 		this.isSubscribing = false;
 		this.isSubscribed = true;
@@ -137,9 +136,11 @@ export class WebSocketDriftClientAccountSubscriber
 	}
 
 	async subscribeToPerpMarketAccounts(): Promise<boolean> {
-		for (const marketIndex of this.perpMarketIndexes) {
-			await this.subscribeToPerpMarketAccount(marketIndex);
-		}
+		await Promise.all(
+			this.perpMarketIndexes.map((marketIndex) =>
+				this.subscribeToPerpMarketAccount(marketIndex)
+			)
+		);
 		return true;
 	}
 
@@ -165,9 +166,11 @@ export class WebSocketDriftClientAccountSubscriber
 	}
 
 	async subscribeToSpotMarketAccounts(): Promise<boolean> {
-		for (const marketIndex of this.spotMarketIndexes) {
-			await this.subscribeToSpotMarketAccount(marketIndex);
-		}
+		await Promise.all(
+			this.spotMarketIndexes.map((marketIndex) =>
+				this.subscribeToSpotMarketAccount(marketIndex)
+			)
+		);
 		return true;
 	}
 
@@ -193,11 +196,11 @@ export class WebSocketDriftClientAccountSubscriber
 	}
 
 	async subscribeToOracles(): Promise<boolean> {
-		for (const oracleInfo of this.oracleInfos) {
-			if (!oracleInfo.publicKey.equals(PublicKey.default)) {
-				await this.subscribeToOracle(oracleInfo);
-			}
-		}
+		await Promise.all(
+			this.oracleInfos
+				.filter((oracleInfo) => !oracleInfo.publicKey.equals(PublicKey.default))
+				.map((oracleInfo) => this.subscribeToOracle(oracleInfo))
+		);
 
 		return true;
 	}
@@ -232,21 +235,27 @@ export class WebSocketDriftClientAccountSubscriber
 	}
 
 	async unsubscribeFromMarketAccounts(): Promise<void> {
-		for (const accountSubscriber of this.perpMarketAccountSubscribers.values()) {
-			await accountSubscriber.unsubscribe();
-		}
+		await Promise.all(
+			Array.from(this.perpMarketAccountSubscribers.values()).map(
+				(accountSubscriber) => accountSubscriber.unsubscribe()
+			)
+		);
 	}
 
 	async unsubscribeFromSpotMarketAccounts(): Promise<void> {
-		for (const accountSubscriber of this.spotMarketAccountSubscribers.values()) {
-			await accountSubscriber.unsubscribe();
-		}
+		await Promise.all(
+			Array.from(this.spotMarketAccountSubscribers.values()).map(
+				(accountSubscriber) => accountSubscriber.unsubscribe()
+			)
+		);
 	}
 
 	async unsubscribeFromOracles(): Promise<void> {
-		for (const accountSubscriber of this.oracleSubscribers.values()) {
-			await accountSubscriber.unsubscribe();
-		}
+		await Promise.all(
+			Array.from(this.oracleSubscribers.values()).map((accountSubscriber) =>
+				accountSubscriber.unsubscribe()
+			)
+		);
 	}
 
 	public async fetch(): Promise<void> {
@@ -315,6 +324,7 @@ export class WebSocketDriftClientAccountSubscriber
 
 	async setPerpOracleMap() {
 		const perpMarkets = this.getMarketAccountsAndSlots();
+		const addOraclePromises = [];
 		for (const perpMarket of perpMarkets) {
 			if (!perpMarket) {
 				continue;
@@ -323,17 +333,21 @@ export class WebSocketDriftClientAccountSubscriber
 			const perpMarketIndex = perpMarketAccount.marketIndex;
 			const oracle = perpMarketAccount.amm.oracle;
 			if (!this.oracleSubscribers.has(oracle.toBase58())) {
-				await this.addOracle({
-					publicKey: oracle,
-					source: perpMarket.data.amm.oracleSource,
-				});
+				addOraclePromises.push(
+					this.addOracle({
+						publicKey: oracle,
+						source: perpMarket.data.amm.oracleSource,
+					})
+				);
 			}
 			this.perpOracleMap.set(perpMarketIndex, oracle);
 		}
+		await Promise.all(addOraclePromises);
 	}
 
 	async setSpotOracleMap() {
 		const spotMarkets = this.getSpotMarketAccountsAndSlots();
+		const addOraclePromises = [];
 		for (const spotMarket of spotMarkets) {
 			if (!spotMarket) {
 				continue;
@@ -342,13 +356,16 @@ export class WebSocketDriftClientAccountSubscriber
 			const spotMarketIndex = spotMarketAccount.marketIndex;
 			const oracle = spotMarketAccount.oracle;
 			if (!this.oracleSubscribers.has(oracle.toBase58())) {
-				await this.addOracle({
-					publicKey: oracle,
-					source: spotMarketAccount.oracleSource,
-				});
+				addOraclePromises.push(
+					this.addOracle({
+						publicKey: oracle,
+						source: spotMarketAccount.oracleSource,
+					})
+				);
 			}
 			this.spotOracleMap.set(spotMarketIndex, oracle);
 		}
+		await Promise.all(addOraclePromises);
 	}
 
 	assertIsSubscribed(): void {

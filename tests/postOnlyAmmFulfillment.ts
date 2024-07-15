@@ -21,37 +21,31 @@ import {
 	OracleSource,
 	PEG_PRECISION,
 	ZERO,
-	BulkAccountLoader,
 } from '../sdk/src';
 
 import {
 	initializeQuoteSpotMarket,
-	mockOracle,
+	mockOracleNoProgram,
 	mockUSDCMint,
 	mockUserUSDCAccount,
-	printTxLogs,
-	setFeedPrice,
+	setFeedPriceNoProgram,
 	sleep,
 } from './testHelpers';
 import { convertToNumber, PostOnlyParams } from '../sdk';
+import { startAnchor } from 'solana-bankrun';
+import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
+import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
 
 describe('post only maker order w/ amm fulfillments', () => {
-	const provider = anchor.AnchorProvider.local(undefined, {
-		commitment: 'confirmed',
-		preflightCommitment: 'confirmed',
-	});
-	const connection = provider.connection;
-	anchor.setProvider(provider);
 	const chProgram = anchor.workspace.Drift as Program;
 
 	let fillerDriftClient: TestClient;
 	let fillerDriftClientUser: User;
-	const eventSubscriber = new EventSubscriber(connection, chProgram, {
-		commitment: 'recent',
-	});
-	eventSubscriber.subscribe();
+	let eventSubscriber: EventSubscriber;
 
-	const bulkAccountLoader = new BulkAccountLoader(connection, 'confirmed', 1);
+	let bulkAccountLoader: TestBulkAccountLoader;
+
+	let bankrunContextWrapper: BankrunContextWrapper;
 
 	let usdcMint;
 	let userUSDCAccount;
@@ -73,18 +67,39 @@ describe('post only maker order w/ amm fulfillments', () => {
 	let oracleInfos;
 
 	before(async () => {
-		usdcMint = await mockUSDCMint(provider);
-		userUSDCAccount = await mockUserUSDCAccount(usdcMint, usdcAmount, provider);
+		const context = await startAnchor('', [], []);
 
-		solUsd = await mockOracle(32.821);
+		bankrunContextWrapper = new BankrunContextWrapper(context);
+
+		bulkAccountLoader = new TestBulkAccountLoader(
+			bankrunContextWrapper.connection,
+			'processed',
+			1
+		);
+
+		eventSubscriber = new EventSubscriber(
+			bankrunContextWrapper.connection.toConnection(),
+			chProgram
+		);
+
+		await eventSubscriber.subscribe();
+
+		usdcMint = await mockUSDCMint(bankrunContextWrapper);
+		userUSDCAccount = await mockUserUSDCAccount(
+			usdcMint,
+			usdcAmount,
+			bankrunContextWrapper
+		);
+
+		solUsd = await mockOracleNoProgram(bankrunContextWrapper, 32.821);
 
 		marketIndexes = [0];
 		spotMarketIndexes = [0];
 		oracleInfos = [{ publicKey: solUsd, source: OracleSource.PYTH }];
 
 		fillerDriftClient = new TestClient({
-			connection,
-			wallet: provider.wallet,
+			connection: bankrunContextWrapper.connection.toConnection(),
+			wallet: bankrunContextWrapper.provider.wallet,
 			programID: chProgram.programId,
 			opts: {
 				commitment: 'confirmed',
@@ -92,6 +107,7 @@ describe('post only maker order w/ amm fulfillments', () => {
 			activeSubAccountId: 0,
 			perpMarketIndexes: marketIndexes,
 			spotMarketIndexes: spotMarketIndexes,
+			subAccountIds: [],
 			oracleInfos,
 			accountSubscription: {
 				type: 'polling',
@@ -125,6 +141,10 @@ describe('post only maker order w/ amm fulfillments', () => {
 		fillerDriftClientUser = new User({
 			driftClient: fillerDriftClient,
 			userAccountPublicKey: await fillerDriftClient.getUserAccountPublicKey(),
+			accountSubscription: {
+				type: 'polling',
+				accountLoader: bulkAccountLoader,
+			},
 		});
 		await fillerDriftClientUser.subscribe();
 	});
@@ -135,7 +155,7 @@ describe('post only maker order w/ amm fulfillments', () => {
 			ammInitialBaseAssetReserve,
 			ammInitialQuoteAssetReserve
 		);
-		await setFeedPrice(anchor.workspace.Pyth, 32.821, solUsd);
+		await setFeedPriceNoProgram(bankrunContextWrapper, 32.821, solUsd);
 	});
 
 	after(async () => {
@@ -146,17 +166,17 @@ describe('post only maker order w/ amm fulfillments', () => {
 
 	it('long', async () => {
 		const keypair = new Keypair();
-		await provider.connection.requestAirdrop(keypair.publicKey, 10 ** 9);
+		await bankrunContextWrapper.fundKeypair(keypair, 10 ** 9);
 		await sleep(1000);
 		const wallet = new Wallet(keypair);
 		const userUSDCAccount = await mockUserUSDCAccount(
 			usdcMint,
 			usdcAmount,
-			provider,
+			bankrunContextWrapper,
 			keypair.publicKey
 		);
 		const driftClient = new TestClient({
-			connection,
+			connection: bankrunContextWrapper.connection.toConnection(),
 			wallet,
 			programID: chProgram.programId,
 			opts: {
@@ -165,6 +185,7 @@ describe('post only maker order w/ amm fulfillments', () => {
 			activeSubAccountId: 0,
 			perpMarketIndexes: marketIndexes,
 			spotMarketIndexes: spotMarketIndexes,
+			subAccountIds: [],
 			oracleInfos,
 			userStats: true,
 			accountSubscription: {
@@ -180,6 +201,10 @@ describe('post only maker order w/ amm fulfillments', () => {
 		const driftClientUser = new User({
 			driftClient,
 			userAccountPublicKey: await driftClient.getUserAccountPublicKey(),
+			accountSubscription: {
+				type: 'polling',
+				accountLoader: bulkAccountLoader,
+			},
 		});
 		await driftClientUser.subscribe();
 
@@ -194,7 +219,7 @@ describe('post only maker order w/ amm fulfillments', () => {
 		const newOraclePriceBN = new BN(
 			newOraclePrice * PRICE_PRECISION.toNumber()
 		);
-		setFeedPrice(anchor.workspace.Pyth, newOraclePrice, solUsd);
+		setFeedPriceNoProgram(bankrunContextWrapper, newOraclePrice, solUsd);
 		await fillerDriftClient.moveAmmToPrice(marketIndex, newOraclePriceBN);
 
 		await driftClient.fetchAccounts();
@@ -228,8 +253,8 @@ describe('post only maker order w/ amm fulfillments', () => {
 		const order2 = fillerDriftClient.getOrderByUserId(1);
 		assert(order2.postOnly);
 
-		await setFeedPrice(
-			anchor.workspace.Pyth,
+		await setFeedPriceNoProgram(
+			bankrunContextWrapper,
 			convertToNumber(reservePrice),
 			solUsd
 		);
@@ -246,7 +271,7 @@ describe('post only maker order w/ amm fulfillments', () => {
 		const order = driftClientUser.getOrderByUserOrderId(1);
 		assert(!order.postOnly);
 
-		await setFeedPrice(anchor.workspace.Pyth, newOraclePrice, solUsd);
+		await setFeedPriceNoProgram(bankrunContextWrapper, newOraclePrice, solUsd);
 
 		const makerInfo = {
 			maker: await fillerDriftClient.getUserAccountPublicKey(),
@@ -261,7 +286,7 @@ describe('post only maker order w/ amm fulfillments', () => {
 			order,
 			makerInfo
 		);
-		await printTxLogs(connection, txSig);
+		bankrunContextWrapper.printTxLogs(txSig);
 
 		await driftClient.fetchAccounts();
 		await driftClientUser.fetchAccounts();
@@ -295,6 +320,7 @@ describe('post only maker order w/ amm fulfillments', () => {
 		assert(orderRecords.length == 4);
 
 		const orderRecord = orderRecords[0];
+		// console.log(orderRecords);
 		console.log(orderRecord);
 		assert(isVariant(orderRecord.action, 'fill'));
 		assert(isVariant(orderRecord.actionExplanation, 'orderFilledWithAmm'));
