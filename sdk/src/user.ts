@@ -1011,13 +1011,30 @@ export class User {
 					this.driftClient.getSpotMarketAccount(GOV_SPOT_MARKET_INDEX);
 
 				const fuelBonusNumeratorUserStats = now.sub(
-					new BN(userStats.lastFuelBonusUpdateTs)
+					BN.max(new BN(userStats.lastFuelIfBonusUpdateTs), FUEL_START_TS)
 				);
 
 				result.insuranceFuel = result.insuranceFuel.add(
 					calculateInsuranceFuelBonus(
 						spotMarketAccount,
 						userStats.ifStakedGovTokenAmount,
+						fuelBonusNumeratorUserStats
+					)
+				);
+			}
+
+			if (userStats.ifStakedQuoteAssetAmount.gt(ZERO)) {
+				const spotMarketAccount: SpotMarketAccount =
+					this.driftClient.getSpotMarketAccount(QUOTE_SPOT_MARKET_INDEX);
+
+				const fuelBonusNumeratorUserStats = now.sub(
+					BN.max(new BN(userStats.lastFuelIfBonusUpdateTs), FUEL_START_TS)
+				);
+
+				result.insuranceFuel = result.insuranceFuel.add(
+					calculateInsuranceFuelBonus(
+						spotMarketAccount,
+						userStats.ifStakedQuoteAssetAmount,
 						fuelBonusNumeratorUserStats
 					)
 				);
