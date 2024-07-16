@@ -599,6 +599,13 @@ pub mod drift {
         handle_post_pyth_pull_oracle_update_atomic(ctx, feed_id, params)
     }
 
+    pub fn post_multi_pyth_pull_oracle_updates_atomic<'c: 'info, 'info>(
+        ctx: Context<'_, '_, 'c, 'info, PostPythPullMultiOracleUpdatesAtomic<'info>>,
+        params: Vec<u8>,
+    ) -> Result<()> {
+        handle_post_multi_pyth_pull_oracle_updates_atomic(ctx, params)
+    }
+
     // Admin Instructions
 
     pub fn initialize(ctx: Context<Initialize>) -> Result<()> {

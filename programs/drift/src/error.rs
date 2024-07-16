@@ -557,6 +557,12 @@ pub enum ErrorCode {
     OracleWrongWriteAuthority,
     #[msg("Oracle vaa owner must be wormhole program")]
     OracleWrongVaaOwner,
+    #[msg("Multi updates must have 2 or fewer accounts passed in remaining accounts")]
+    OracleTooManyPriceAccountUpdates,
+    #[msg("Don't have the same remaining accounts number and merkle price updates left")]
+    OracleMismatchedVaaAndPriceUpdates,
+    #[msg("Remaining account passed is not a valid pda")]
+    OracleBadRemainingAccountPublicKey,
 }
 
 #[macro_export]
