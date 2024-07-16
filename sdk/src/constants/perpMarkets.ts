@@ -624,7 +624,7 @@ export const MainnetPerpMarkets: PerpMarketConfig[] = [
 		symbol: 'JUP-PERP',
 		baseAssetSymbol: 'JUP',
 		marketIndex: 24,
-		oracle: new PublicKey('g6eRCbboSwK4tSWngn773RCMexr1APQr4uA9bGZBYfo'),
+		oracle: new PublicKey('AwqRpfJ36jnSZQykyL1jYY35mhMteeEAjh7o8LveRQin'),
 		launchTs: 1706713201000,
 		oracleSource: OracleSource.PYTH,
 		pythFeedId:
