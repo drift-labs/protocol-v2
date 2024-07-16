@@ -93,7 +93,7 @@ pub fn handle_initialize_user<'c: 'info, 'info>(
     user_stats.number_of_sub_accounts = user_stats.number_of_sub_accounts.safe_add(1)?;
 
     // Only try to add referrer if it is the first user
-    if user_stats.number_of_sub_accounts == 1 {
+    if user_stats.number_of_sub_accounts_created == 0 {
         let (referrer, referrer_stats) = get_referrer_and_referrer_stats(remaining_accounts_iter)?;
         let referrer = if let (Some(referrer), Some(referrer_stats)) = (referrer, referrer_stats) {
             let referrer = load!(referrer)?;
@@ -149,7 +149,7 @@ pub fn handle_initialize_user<'c: 'info, 'info>(
 
     let now_ts = Clock::get()?.unix_timestamp;
 
-    user.last_fuel_bonus_update_ts = now_ts;
+    user.last_fuel_bonus_update_ts = now_ts.cast()?;
 
     emit!(NewUserRecord {
         ts: now_ts,
@@ -205,6 +205,7 @@ pub fn handle_initialize_user_stats<'c: 'info, 'info>(
         last_taker_volume_30d_ts: clock.unix_timestamp,
         last_maker_volume_30d_ts: clock.unix_timestamp,
         last_filler_volume_30d_ts: clock.unix_timestamp,
+        last_fuel_if_bonus_update_ts: clock.unix_timestamp.cast()?,
         ..UserStats::default()
     };
 

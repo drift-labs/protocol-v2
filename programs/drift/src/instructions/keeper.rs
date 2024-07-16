@@ -1,11 +1,11 @@
 use anchor_lang::prelude::*;
 use anchor_spl::token::{Token, TokenAccount};
 
+use crate::controller::insurance::update_user_stats_if_stake_amount;
 use crate::error::ErrorCode;
 use crate::instructions::constraints::*;
 use crate::instructions::optional_accounts::{load_maps, AccountMaps};
 use crate::math::constants::QUOTE_SPOT_MARKET_INDEX;
-use crate::math::insurance::if_shares_to_vault_amount;
 use crate::math::margin::{calculate_user_equity, meets_settle_pnl_maintenance_margin_requirement};
 use crate::math::orders::{estimate_price_from_side, find_bids_and_asks_from_users};
 use crate::math::spot_withdraw::validate_spot_market_vault_amount;
@@ -1580,10 +1580,16 @@ pub fn handle_update_user_quote_asset_insurance_stake(
     )?;
 
     if insurance_fund_stake.market_index == 0 && spot_market.market_index == 0 {
-        user_stats.if_staked_quote_asset_amount = if_shares_to_vault_amount(
-            insurance_fund_stake.checked_if_shares(spot_market)?,
-            spot_market.insurance_fund.total_shares,
+        let clock = Clock::get()?;
+        let now = clock.unix_timestamp;
+
+        update_user_stats_if_stake_amount(
+            0,
             ctx.accounts.insurance_fund_vault.amount,
+            insurance_fund_stake,
+            user_stats,
+            spot_market,
+            now,
         )?;
     }
 
@@ -1607,10 +1613,16 @@ pub fn handle_update_user_gov_token_insurance_stake(
     if insurance_fund_stake.market_index == GOV_SPOT_MARKET_INDEX
         && spot_market.market_index == GOV_SPOT_MARKET_INDEX
     {
-        user_stats.if_staked_gov_token_amount = if_shares_to_vault_amount(
-            insurance_fund_stake.checked_if_shares(spot_market)?,
-            spot_market.insurance_fund.total_shares,
+        let clock = Clock::get()?;
+        let now = clock.unix_timestamp;
+
+        update_user_stats_if_stake_amount(
+            0,
             ctx.accounts.insurance_fund_vault.amount,
+            insurance_fund_stake,
+            user_stats,
+            spot_market,
+            now,
         )?;
     }
 

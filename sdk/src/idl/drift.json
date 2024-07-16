@@ -5224,6 +5224,69 @@
           "type": {
             "option": "u8"
           }
+        },
+        {
+          "name": "fuelBoostInsurance",
+          "type": {
+            "option": "u8"
+          }
+        }
+      ]
+    },
+    {
+      "name": "initUserFuel",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "user",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "userStats",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "fuelBoostDeposits",
+          "type": {
+            "option": "u32"
+          }
+        },
+        {
+          "name": "fuelBoostBorrows",
+          "type": {
+            "option": "u32"
+          }
+        },
+        {
+          "name": "fuelBoostTaker",
+          "type": {
+            "option": "u32"
+          }
+        },
+        {
+          "name": "fuelBoostMaker",
+          "type": {
+            "option": "u32"
+          }
+        },
+        {
+          "name": "fuelBoostInsurance",
+          "type": {
+            "option": "u32"
+          }
         }
       ]
     },
@@ -6581,11 +6644,19 @@
             "type": "u8"
           },
           {
+            "name": "fuelBoostInsurance",
+            "docs": [
+              "fuel multiplier for spot insurance stake",
+              "precision: 10"
+            ],
+            "type": "u8"
+          },
+          {
             "name": "padding",
             "type": {
               "array": [
                 "u8",
-                43
+                42
               ]
             }
           }
@@ -6944,14 +7015,14 @@
           },
           {
             "name": "lastFuelBonusUpdateTs",
-            "type": "i64"
+            "type": "u32"
           },
           {
             "name": "padding",
             "type": {
               "array": [
                 "u8",
-                8
+                12
               ]
             }
           }
@@ -7077,21 +7148,28 @@
             "type": {
               "array": [
                 "u8",
-                6
+                2
               ]
             }
           },
           {
+            "name": "fuelInsurance",
+            "docs": [
+              "accumulated fuel for token amounts of insurance"
+            ],
+            "type": "u32"
+          },
+          {
             "name": "fuelDeposits",
             "docs": [
-              "sub account id for spot deposit, borrow fuel tracking"
+              "accumulated fuel for notional of deposits"
             ],
             "type": "u32"
           },
           {
             "name": "fuelBorrows",
             "docs": [
-              "accumulate fuel bonus for epoch"
+              "accumulate fuel bonus for notional of borrows"
             ],
             "type": "u32"
           },
@@ -7105,14 +7183,14 @@
           {
             "name": "fuelTaker",
             "docs": [
-              "accumulate fuel bonus for epoch"
+              "accumulate fuel bonus for taker volume"
             ],
             "type": "u32"
           },
           {
             "name": "fuelMaker",
             "docs": [
-              "accumulate fuel bonus for epoch"
+              "accumulate fuel bonus for maker volume"
             ],
             "type": "u32"
           },
@@ -7124,11 +7202,18 @@
             "type": "u64"
           },
           {
+            "name": "lastFuelIfBonusUpdateTs",
+            "docs": [
+              "last unix ts user stats data was used to update if fuel (u32 to save space)"
+            ],
+            "type": "u32"
+          },
+          {
             "name": "padding",
             "type": {
               "array": [
                 "u8",
-                16
+                12
               ]
             }
           }

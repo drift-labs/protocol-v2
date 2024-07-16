@@ -31,10 +31,12 @@ import {
 	QUOTE_PRECISION_EXP,
 	QUOTE_SPOT_MARKET_INDEX,
 	SPOT_MARKET_WEIGHT_PRECISION,
+	GOV_SPOT_MARKET_INDEX,
 	TEN,
 	TEN_THOUSAND,
 	TWO,
 	ZERO,
+	FUEL_START_TS,
 } from './constants/numericConstants';
 import {
 	DataAndSlot,
@@ -88,7 +90,11 @@ import { calculateLiveOracleTwap } from './math/oracles';
 import { getPerpMarketTierNumber, getSpotMarketTierNumber } from './math/tiers';
 import { StrictOraclePrice } from './oracles/strictOraclePrice';
 
-import { calculateSpotFuelBonus, calculatePerpFuelBonus } from './math/fuel';
+import {
+	calculateSpotFuelBonus,
+	calculatePerpFuelBonus,
+	calculateInsuranceFuelBonus,
+} from './math/fuel';
 
 export class User {
 	driftClient: DriftClient;
@@ -880,15 +886,17 @@ export class User {
 		includeSettled = true,
 		includeUnsettled = true
 	): {
-		depositFuel;
-		borrowFuel;
-		positionFuel;
-		takerFuel;
-		makerFuel;
+		depositFuel: BN;
+		borrowFuel: BN;
+		positionFuel: BN;
+		takerFuel: BN;
+		makerFuel: BN;
+		insuranceFuel: BN;
 	} {
 		const userAccount: UserAccount = this.getUserAccount();
 
 		const result = {
+			insuranceFuel: ZERO,
 			takerFuel: ZERO,
 			makerFuel: ZERO,
 			depositFuel: ZERO,
@@ -900,6 +908,9 @@ export class User {
 			const userStats: UserStatsAccount = this.driftClient
 				.getUserStats()
 				.getAccount();
+			result.insuranceFuel = result.insuranceFuel.add(
+				new BN(userStats.fuelInsurance)
+			);
 			result.takerFuel = result.takerFuel.add(new BN(userStats.fuelTaker));
 			result.makerFuel = result.makerFuel.add(new BN(userStats.fuelMaker));
 			result.depositFuel = result.depositFuel.add(
@@ -912,72 +923,102 @@ export class User {
 		}
 
 		if (includeUnsettled) {
-			const fuelBonusNumerator = now.sub(userAccount.lastFuelBonusUpdateTs);
-			for (const spotPosition of this.getActiveSpotPositions()) {
-				const spotMarketAccount: SpotMarketAccount =
-					this.driftClient.getSpotMarketAccount(spotPosition.marketIndex);
+			const fuelBonusNumerator = BN.max(
+				now.sub(
+					BN.max(new BN(userAccount.lastFuelBonusUpdateTs), FUEL_START_TS)
+				),
+				ZERO
+			);
 
-				const tokenAmount = this.getTokenAmount(spotPosition.marketIndex);
-				const oraclePriceData = this.getOracleDataForSpotMarket(
-					spotPosition.marketIndex
-				);
+			if (fuelBonusNumerator.gt(ZERO)) {
+				for (const spotPosition of this.getActiveSpotPositions()) {
+					const spotMarketAccount: SpotMarketAccount =
+						this.driftClient.getSpotMarketAccount(spotPosition.marketIndex);
 
-				const twap5min = calculateLiveOracleTwap(
-					spotMarketAccount.historicalOracleData,
-					oraclePriceData,
-					now,
-					FIVE_MINUTE // 5MIN
-				);
-				const strictOraclePrice = new StrictOraclePrice(
-					oraclePriceData.price,
-					twap5min
-				);
-
-				const signedTokenValue = getStrictTokenValue(
-					tokenAmount,
-					spotMarketAccount.decimals,
-					strictOraclePrice
-				);
-
-				if (signedTokenValue.gt(ZERO)) {
-					result.depositFuel = result.depositFuel.add(
-						calculateSpotFuelBonus(
-							spotMarketAccount,
-							signedTokenValue,
-							fuelBonusNumerator
-						)
+					const tokenAmount = this.getTokenAmount(spotPosition.marketIndex);
+					const oraclePriceData = this.getOracleDataForSpotMarket(
+						spotPosition.marketIndex
 					);
-				} else {
-					result.borrowFuel = result.borrowFuel.add(
-						calculateSpotFuelBonus(
-							spotMarketAccount,
-							signedTokenValue,
+
+					const twap5min = calculateLiveOracleTwap(
+						spotMarketAccount.historicalOracleData,
+						oraclePriceData,
+						now,
+						FIVE_MINUTE // 5MIN
+					);
+					const strictOraclePrice = new StrictOraclePrice(
+						oraclePriceData.price,
+						twap5min
+					);
+
+					const signedTokenValue = getStrictTokenValue(
+						tokenAmount,
+						spotMarketAccount.decimals,
+						strictOraclePrice
+					);
+
+					if (signedTokenValue.gt(ZERO)) {
+						result.depositFuel = result.depositFuel.add(
+							calculateSpotFuelBonus(
+								spotMarketAccount,
+								signedTokenValue,
+								fuelBonusNumerator
+							)
+						);
+					} else {
+						result.borrowFuel = result.borrowFuel.add(
+							calculateSpotFuelBonus(
+								spotMarketAccount,
+								signedTokenValue,
+								fuelBonusNumerator
+							)
+						);
+					}
+				}
+
+				for (const perpPosition of this.getActivePerpPositions()) {
+					const oraclePriceData = this.getOracleDataForPerpMarket(
+						perpPosition.marketIndex
+					);
+
+					const perpMarketAccount = this.driftClient.getPerpMarketAccount(
+						perpPosition.marketIndex
+					);
+
+					const baseAssetValue = this.getPerpPositionValue(
+						perpPosition.marketIndex,
+						oraclePriceData,
+						false
+					);
+
+					result.positionFuel = result.positionFuel.add(
+						calculatePerpFuelBonus(
+							perpMarketAccount,
+							baseAssetValue,
 							fuelBonusNumerator
 						)
 					);
 				}
 			}
 
-			for (const perpPosition of this.getActivePerpPositions()) {
-				const oraclePriceData = this.getOracleDataForPerpMarket(
-					perpPosition.marketIndex
+			const userStats: UserStatsAccount = this.driftClient
+				.getUserStats()
+				.getAccount();
+
+			// todo: get real time ifStakedGovTokenAmount using ifStakeAccount
+			if (userStats.ifStakedGovTokenAmount.gt(ZERO)) {
+				const spotMarketAccount: SpotMarketAccount =
+					this.driftClient.getSpotMarketAccount(GOV_SPOT_MARKET_INDEX);
+
+				const fuelBonusNumeratorUserStats = now.sub(
+					new BN(userStats.lastFuelBonusUpdateTs)
 				);
 
-				const perpMarketAccount = this.driftClient.getPerpMarketAccount(
-					perpPosition.marketIndex
-				);
-
-				const baseAssetValue = this.getPerpPositionValue(
-					perpPosition.marketIndex,
-					oraclePriceData,
-					false
-				);
-
-				result.positionFuel = result.positionFuel.add(
-					calculatePerpFuelBonus(
-						perpMarketAccount,
-						baseAssetValue,
-						fuelBonusNumerator
+				result.insuranceFuel = result.insuranceFuel.add(
+					calculateInsuranceFuelBonus(
+						spotMarketAccount,
+						userStats.ifStakedGovTokenAmount,
+						fuelBonusNumeratorUserStats
 					)
 				);
 			}

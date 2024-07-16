@@ -1271,6 +1271,7 @@ pub mod drift {
         fuel_boost_borrows: Option<u8>,
         fuel_boost_taker: Option<u8>,
         fuel_boost_maker: Option<u8>,
+        fuel_boost_insurance: Option<u8>,
     ) -> Result<()> {
         handle_update_spot_market_fuel(
             ctx,
@@ -1278,6 +1279,25 @@ pub mod drift {
             fuel_boost_borrows,
             fuel_boost_taker,
             fuel_boost_maker,
+            fuel_boost_insurance,
+        )
+    }
+
+    pub fn init_user_fuel(
+        ctx: Context<InitUserFuel>,
+        fuel_boost_deposits: Option<u32>,
+        fuel_boost_borrows: Option<u32>,
+        fuel_boost_taker: Option<u32>,
+        fuel_boost_maker: Option<u32>,
+        fuel_boost_insurance: Option<u32>,
+    ) -> Result<()> {
+        handle_init_user_fuel(
+            ctx,
+            fuel_boost_deposits,
+            fuel_boost_borrows,
+            fuel_boost_taker,
+            fuel_boost_maker,
+            fuel_boost_insurance,
         )
     }
 

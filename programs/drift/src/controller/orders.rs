@@ -223,9 +223,13 @@ pub fn place_perp_order(
     let max_ts = match params.max_ts {
         Some(max_ts) => max_ts,
         None => match params.order_type {
-            OrderType::Market | OrderType::Oracle => {
-                now.safe_add(30_i64.max((auction_duration / 2) as i64))?
-            }
+            OrderType::Market | OrderType::Oracle => now.safe_add(
+                30_i64.max(
+                    (auction_duration.safe_div(2)?)
+                        .cast::<i64>()?
+                        .safe_add(10_i64)?,
+                ),
+            )?,
             _ => 0_i64,
         },
     };
@@ -1054,6 +1058,7 @@ pub fn fill_perp_order(
             .max_oracle_twap_5min_percent_divergence()
             .cast()?,
     )?;
+
     if oracle_too_divergent_with_twap_5min {
         // update filler last active so tx doesn't revert
         if let Some(filler) = filler.as_deref_mut() {
@@ -1721,11 +1726,12 @@ fn fulfill_perp_order(
         )?;
 
     user_stats.update_fuel_bonus(
+        user,
         taker_margin_calculation.fuel_deposits,
         taker_margin_calculation.fuel_borrows,
         taker_margin_calculation.fuel_positions,
+        now,
     )?;
-    user.last_fuel_bonus_update_ts = now;
 
     if !taker_margin_calculation.meets_margin_requirement() {
         msg!(
@@ -1764,11 +1770,12 @@ fn fulfill_perp_order(
 
         if let Some(mut maker_stats) = maker_stats {
             maker_stats.update_fuel_bonus(
+                &mut maker,
                 maker_margin_calculation.fuel_deposits,
                 maker_margin_calculation.fuel_borrows,
                 maker_margin_calculation.fuel_positions,
+                now,
             )?;
-            maker.last_fuel_bonus_update_ts = now;
         }
 
         if !maker_margin_calculation.meets_margin_requirement() {
@@ -2676,6 +2683,24 @@ pub fn trigger_order(
     validate!(is_oracle_valid, ErrorCode::InvalidOracle)?;
 
     let oracle_price = oracle_price_data.price;
+
+    let oracle_too_divergent_with_twap_5min = is_oracle_too_divergent_with_twap_5min(
+        oracle_price_data.price,
+        perp_market
+            .amm
+            .historical_oracle_data
+            .last_oracle_price_twap_5min,
+        state
+            .oracle_guard_rails
+            .max_oracle_twap_5min_percent_divergence()
+            .cast()?,
+    )?;
+
+    validate!(
+        !oracle_too_divergent_with_twap_5min,
+        ErrorCode::OrderBreachesOraclePriceLimits,
+        "oracle price vs twap too divergent"
+    )?;
 
     let can_trigger = order_satisfies_trigger_condition(
         &user.orders[order_index],
@@ -4087,12 +4112,14 @@ fn fulfill_spot_order(
                 .fuel_numerator(user, now),
         )?;
 
+    // user hasnt recieved initial fuel or below global start time
     user_stats.update_fuel_bonus(
+        user,
         taker_margin_calculation.fuel_deposits,
         taker_margin_calculation.fuel_borrows,
         taker_margin_calculation.fuel_positions,
+        now,
     )?;
-    user.last_fuel_bonus_update_ts = now;
 
     if !taker_margin_calculation.meets_margin_requirement() {
         msg!(
@@ -4155,7 +4182,7 @@ fn fulfill_spot_order(
         drop(base_market);
         drop(quote_market);
 
-        let maker_margin_calculation =
+        let maker_margin_calculation: MarginCalculation =
             calculate_margin_requirement_and_total_collateral_and_liability_info(
                 &maker,
                 perp_market_map,
@@ -4179,12 +4206,12 @@ fn fulfill_spot_order(
 
         if let Some(mut maker_stats) = maker_stats {
             maker_stats.update_fuel_bonus(
+                &mut maker,
                 maker_margin_calculation.fuel_deposits,
                 maker_margin_calculation.fuel_borrows,
                 maker_margin_calculation.fuel_positions,
+                now,
             )?;
-
-            maker.last_fuel_bonus_update_ts = now;
         }
 
         if !maker_margin_calculation.meets_margin_requirement() {
@@ -4890,6 +4917,23 @@ pub fn trigger_spot_order(
     )?;
 
     let oracle_price = oracle_price_data.price;
+
+    let oracle_too_divergent_with_twap_5min = is_oracle_too_divergent_with_twap_5min(
+        oracle_price_data.price,
+        spot_market
+            .historical_oracle_data
+            .last_oracle_price_twap_5min,
+        state
+            .oracle_guard_rails
+            .max_oracle_twap_5min_percent_divergence()
+            .cast()?,
+    )?;
+
+    validate!(
+        !oracle_too_divergent_with_twap_5min,
+        ErrorCode::OrderBreachesOraclePriceLimits,
+        "oracle price vs twap too divergent"
+    )?;
 
     let can_trigger = order_satisfies_trigger_condition(
         &user.orders[order_index],

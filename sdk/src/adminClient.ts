@@ -30,6 +30,7 @@ import {
 	getProtocolIfSharesTransferConfigPublicKey,
 	getPrelaunchOraclePublicKey,
 	getPythPullOraclePublicKey,
+	getUserStatsAccountPublicKey,
 } from './addresses/pda';
 import { squareRootBN } from './math/utils';
 import { TOKEN_PROGRAM_ID } from '@solana/spl-token';
@@ -3538,14 +3539,16 @@ export class AdminClient extends DriftClient {
 		fuelBoostDeposits?: number,
 		fuelBoostBorrows?: number,
 		fuelBoostTaker?: number,
-		fuelBoostMaker?: number
+		fuelBoostMaker?: number,
+		fuelBoostInsurance?: number
 	): Promise<TransactionSignature> {
 		const updateSpotMarketFuelIx = await this.getUpdateSpotMarketFuelIx(
 			spotMarketIndex,
 			fuelBoostDeposits || null,
 			fuelBoostBorrows || null,
 			fuelBoostTaker || null,
-			fuelBoostMaker || null
+			fuelBoostMaker || null,
+			fuelBoostInsurance || null
 		);
 
 		const tx = await this.buildTransaction(updateSpotMarketFuelIx);
@@ -3559,7 +3562,8 @@ export class AdminClient extends DriftClient {
 		fuelBoostDeposits?: number,
 		fuelBoostBorrows?: number,
 		fuelBoostTaker?: number,
-		fuelBoostMaker?: number
+		fuelBoostMaker?: number,
+		fuelBoostInsurance?: number
 	): Promise<TransactionInstruction> {
 		const spotMarketPublicKey = await getSpotMarketPublicKey(
 			this.program.programId,
@@ -3571,6 +3575,7 @@ export class AdminClient extends DriftClient {
 			fuelBoostBorrows || null,
 			fuelBoostTaker || null,
 			fuelBoostMaker || null,
+			fuelBoostInsurance || null,
 			{
 				accounts: {
 					admin: this.isSubscribed
@@ -3624,6 +3629,62 @@ export class AdminClient extends DriftClient {
 						: this.wallet.publicKey,
 					state: await this.getStatePublicKey(),
 					perpMarket: perpMarketPublicKey,
+				},
+			}
+		);
+	}
+
+	public async initUserFuel(
+		user: PublicKey,
+		authority: PublicKey,
+		fuelBonusDeposits?: number,
+		fuelBonusBorrows?: number,
+		fuelBonusTaker?: number,
+		fuelBonusMaker?: number,
+		fuelBonusInsurance?: number
+	): Promise<TransactionSignature> {
+		const updatePerpMarketFuelIx = await this.getInitUserFuelIx(
+			user,
+			authority,
+			fuelBonusDeposits,
+			fuelBonusBorrows,
+			fuelBonusTaker,
+			fuelBonusMaker,
+			fuelBonusInsurance
+		);
+
+		const tx = await this.buildTransaction(updatePerpMarketFuelIx);
+		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+
+		return txSig;
+	}
+
+	public async getInitUserFuelIx(
+		user: PublicKey,
+		authority: PublicKey,
+		fuelBonusDeposits?: number,
+		fuelBonusBorrows?: number,
+		fuelBonusTaker?: number,
+		fuelBonusMaker?: number,
+		fuelBonusInsurance?: number
+	): Promise<TransactionInstruction> {
+		const userStats = await getUserStatsAccountPublicKey(
+			this.program.programId,
+			authority
+		);
+
+		return await this.program.instruction.initUserFuel(
+			fuelBonusDeposits || null,
+			fuelBonusBorrows || null,
+			fuelBonusTaker || null,
+			fuelBonusMaker || null,
+			fuelBonusInsurance || null,
+			{
+				accounts: {
+					admin: this.wallet.publicKey,
+					state: await this.getStatePublicKey(),
+					user,
+					userStats,
 				},
 			}
 		);
