@@ -94,7 +94,7 @@ pub fn handle_initialize_user<'c: 'info, 'info>(
     user_stats.number_of_sub_accounts = user_stats.number_of_sub_accounts.safe_add(1)?;
 
     // Only try to add referrer if it is the first user
-    if user_stats.number_of_sub_accounts == 1 {
+    if user_stats.number_of_sub_accounts_created == 0 {
         let (referrer, referrer_stats) = get_referrer_and_referrer_stats(remaining_accounts_iter)?;
         let referrer = if let (Some(referrer), Some(referrer_stats)) = (referrer, referrer_stats) {
             let referrer = load!(referrer)?;
@@ -148,8 +148,12 @@ pub fn handle_initialize_user<'c: 'info, 'info>(
         ErrorCode::MaxNumberOfUsers
     )?;
 
+    let now_ts = Clock::get()?.unix_timestamp;
+
+    user.last_fuel_bonus_update_ts = now_ts.cast()?;
+
     emit!(NewUserRecord {
-        ts: Clock::get()?.unix_timestamp,
+        ts: now_ts,
         user_authority: ctx.accounts.authority.key(),
         user: user_key,
         sub_account_id,
@@ -202,6 +206,7 @@ pub fn handle_initialize_user_stats<'c: 'info, 'info>(
         last_taker_volume_30d_ts: clock.unix_timestamp,
         last_maker_volume_30d_ts: clock.unix_timestamp,
         last_filler_volume_30d_ts: clock.unix_timestamp,
+        last_fuel_if_bonus_update_ts: clock.unix_timestamp.cast()?,
         ..UserStats::default()
     };
 
@@ -515,12 +520,15 @@ pub fn handle_withdraw<'c: 'info, 'info>(
         amount
     };
 
-    meets_withdraw_margin_requirement(
-        user,
+    user.meets_withdraw_margin_requirement_and_increment_fuel_bonus(
         &perp_market_map,
         &spot_market_map,
         &mut oracle_map,
         MarginRequirementType::Initial,
+        market_index,
+        amount as u128,
+        &mut user_stats,
+        now,
     )?;
 
     validate_spot_margin_trading(user, &perp_market_map, &spot_market_map, &mut oracle_map)?;
@@ -602,6 +610,10 @@ pub fn handle_transfer_deposit<'c: 'info, 'info>(
 
     let to_user = &mut load_mut!(ctx.accounts.to_user)?;
     let from_user = &mut load_mut!(ctx.accounts.from_user)?;
+    let user_stats = &mut load_mut!(ctx.accounts.user_stats)?;
+
+    let clock = Clock::get()?;
+    let now = clock.unix_timestamp;
 
     validate!(
         !to_user.is_bankrupt(),
@@ -665,12 +677,15 @@ pub fn handle_transfer_deposit<'c: 'info, 'info>(
         )?;
     }
 
-    meets_withdraw_margin_requirement(
-        from_user,
+    from_user.meets_withdraw_margin_requirement_and_increment_fuel_bonus(
         &perp_market_map,
         &spot_market_map,
         &mut oracle_map,
         MarginRequirementType::Initial,
+        market_index,
+        amount as u128,
+        user_stats,
+        now,
     )?;
 
     validate_spot_margin_trading(
@@ -2834,7 +2849,11 @@ pub fn handle_end_swap<'c: 'info, 'info>(
             out_spot_market.decimals,
             out_oracle_price,
         )?;
-        user_stats.update_taker_volume_30d(amount_out_value.cast()?, now)?;
+        user_stats.update_taker_volume_30d(
+            out_spot_market.fuel_boost_taker,
+            amount_out_value.cast()?,
+            now,
+        )?;
     }
 
     validate!(

@@ -11,6 +11,7 @@ use solana_program::msg;
 
 use crate::controller::token::close_vault;
 use crate::error::ErrorCode;
+use crate::ids::fuel_airdrop_wallet;
 use crate::instructions::constraints::*;
 use crate::math::casting::Cast;
 use crate::math::constants::{
@@ -42,6 +43,7 @@ use crate::state::oracle::{
     HistoricalIndexData, HistoricalOracleData, OraclePriceData, OracleSource, PrelaunchOracle,
     PrelaunchOracleParams,
 };
+use crate::state::oracle_map::OracleMap;
 use crate::state::paused_operations::{InsuranceFundOperation, PerpOperation, SpotOperation};
 use crate::state::perp_market::{
     ContractTier, ContractType, InsuranceClaim, MarketStatus, PerpMarket, PoolBalance, AMM,
@@ -51,7 +53,7 @@ use crate::state::spot_market::{
 };
 use crate::state::state::{ExchangeStatus, FeeStructure, OracleGuardRails, State};
 use crate::state::traits::Size;
-use crate::state::user::UserStats;
+use crate::state::user::{User, UserStats};
 use crate::validate;
 use crate::validation::fee_structure::validate_fee_structure;
 use crate::validation::margin::{validate_margin, validate_margin_weights};
@@ -137,6 +139,8 @@ pub fn handle_initialize_spot_market(
 
     let spot_market_index = get_then_update_id!(state, number_of_spot_markets);
 
+    msg!("initializing spot market {}", spot_market_index);
+
     if oracle_source == OracleSource::QuoteAsset {
         // catches inconsistent parameters
         validate!(
@@ -150,6 +154,8 @@ pub fn handle_initialize_spot_market(
             ErrorCode::InvalidSpotMarketInitialization,
             "For OracleSource::QuoteAsset, spot_market_index must be QUOTE_SPOT_MARKET_INDEX"
         )?;
+    } else {
+        OracleMap::validate_oracle_account_info(&ctx.accounts.oracle)?;
     }
 
     let oracle_price_data = get_oracle_price(
@@ -284,7 +290,12 @@ pub fn handle_initialize_spot_market(
         total_swap_fee: 0,
         scale_initial_asset_weight_start,
         min_borrow_rate: 0,
-        padding: [0; 47],
+        fuel_boost_deposits: 0,
+        fuel_boost_borrows: 0,
+        fuel_boost_taker: 0,
+        fuel_boost_maker: 0,
+        fuel_boost_insurance: 0,
+        padding: [0; 42],
         insurance_fund: InsuranceFund {
             vault: *ctx.accounts.insurance_fund_vault.to_account_info().key,
             unstaking_period: THIRTEEN_DAY,
@@ -607,6 +618,7 @@ pub fn handle_initialize_perp_market(
     amm_jit_intensity: u8,
     name: [u8; 32],
 ) -> Result<()> {
+    msg!("perp market {}", market_index);
     let perp_market_pubkey = ctx.accounts.perp_market.to_account_info().key;
     let perp_market = &mut ctx.accounts.perp_market.load_init()?;
     let clock = Clock::get()?;
@@ -645,6 +657,8 @@ pub fn handle_initialize_perp_market(
 
     let (min_base_asset_reserve, max_base_asset_reserve) =
         amm::calculate_bid_ask_bounds(concentration_coef, amm_base_asset_reserve)?;
+
+    OracleMap::validate_oracle_account_info(&ctx.accounts.oracle)?;
 
     // Verify oracle is readable
     let (oracle_price, oracle_delay, last_oracle_price_twap) = match oracle_source {
@@ -811,7 +825,10 @@ pub fn handle_initialize_perp_market(
         paused_operations: 0,
         quote_spot_market_index: QUOTE_SPOT_MARKET_INDEX,
         fee_adjustment: 0,
-        padding: [0; 46],
+        fuel_boost_position: 0,
+        fuel_boost_taker: 0,
+        fuel_boost_maker: 0,
+        padding: [0; 43],
         amm: AMM {
             oracle: *ctx.accounts.oracle.key,
             oracle_source,
@@ -922,6 +939,7 @@ pub fn handle_delete_initialized_perp_market(
     market_index: u16,
 ) -> Result<()> {
     let perp_market = &mut ctx.accounts.perp_market.load()?;
+    msg!("perp market {}", perp_market.market_index);
     let state = &mut ctx.accounts.state;
 
     // to preserve all protocol invariants, can only remove the last market if it hasn't been "activated"
@@ -962,6 +980,7 @@ pub fn handle_delete_initialized_spot_market(
     market_index: u16,
 ) -> Result<()> {
     let spot_market = ctx.accounts.spot_market.load()?;
+    msg!("spot market {}", spot_market.market_index);
     let state = &mut ctx.accounts.state;
 
     // to preserve all protocol invariants, can only remove the last market if it hasn't been "activated"
@@ -1044,7 +1063,18 @@ pub fn handle_update_spot_market_oracle(
     oracle_source: OracleSource,
 ) -> Result<()> {
     let spot_market = &mut load_mut!(ctx.accounts.spot_market)?;
+    msg!("updating spot market {} oracle", spot_market.market_index);
     let clock = Clock::get()?;
+
+    OracleMap::validate_oracle_account_info(&ctx.accounts.oracle)?;
+
+    validate!(
+        ctx.accounts.oracle.key == &oracle,
+        ErrorCode::DefaultError,
+        "oracle account info ({:?}) and ix data ({:?}) must match",
+        ctx.accounts.oracle.key,
+        oracle
+    )?;
 
     // Verify oracle is readable
     let OraclePriceData {
@@ -1078,6 +1108,7 @@ pub fn handle_update_spot_market_expiry(
     expiry_ts: i64,
 ) -> Result<()> {
     let spot_market = &mut load_mut!(ctx.accounts.spot_market)?;
+    msg!("updating spot market {} expiry", spot_market.market_index);
     let now = Clock::get()?.unix_timestamp;
 
     validate!(
@@ -1104,6 +1135,52 @@ pub fn handle_update_spot_market_expiry(
     Ok(())
 }
 
+pub fn handle_init_user_fuel(
+    ctx: Context<InitUserFuel>,
+    fuel_bonus_deposits: Option<u32>,
+    fuel_bonus_borrows: Option<u32>,
+    fuel_bonus_taker: Option<u32>,
+    fuel_bonus_maker: Option<u32>,
+    fuel_bonus_insurance: Option<u32>,
+) -> Result<()> {
+    let clock: Clock = Clock::get()?;
+    let now_u32 = clock.unix_timestamp as u32;
+
+    let user = &mut load_mut!(ctx.accounts.user)?;
+    let user_stats = &mut load_mut!(ctx.accounts.user_stats)?;
+
+    validate!(
+        user.last_fuel_bonus_update_ts == 0,
+        ErrorCode::DefaultError,
+        "User must not have begun earning fuel"
+    )?;
+
+    if let Some(fuel_bonus_deposits) = fuel_bonus_deposits {
+        user_stats.fuel_deposits = user_stats.fuel_deposits.saturating_add(fuel_bonus_deposits);
+    }
+    if let Some(fuel_bonus_borrows) = fuel_bonus_borrows {
+        user_stats.fuel_borrows = user_stats.fuel_borrows.saturating_add(fuel_bonus_borrows);
+    }
+
+    if let Some(fuel_bonus_taker) = fuel_bonus_taker {
+        user_stats.fuel_taker = user_stats.fuel_taker.saturating_add(fuel_bonus_taker);
+    }
+    if let Some(fuel_bonus_maker) = fuel_bonus_maker {
+        user_stats.fuel_maker = user_stats.fuel_maker.saturating_add(fuel_bonus_maker);
+    }
+
+    if let Some(fuel_bonus_insurance) = fuel_bonus_insurance {
+        user_stats.fuel_insurance = user_stats
+            .fuel_insurance
+            .saturating_add(fuel_bonus_insurance);
+    }
+
+    user.last_fuel_bonus_update_ts = now_u32;
+    user_stats.last_fuel_if_bonus_update_ts = now_u32;
+
+    Ok(())
+}
+
 #[access_control(
     perp_market_valid(&ctx.accounts.perp_market)
 )]
@@ -1111,8 +1188,10 @@ pub fn handle_update_perp_market_expiry(
     ctx: Context<AdminUpdatePerpMarket>,
     expiry_ts: i64,
 ) -> Result<()> {
-    let clock = Clock::get()?;
+    let clock: Clock = Clock::get()?;
     let perp_market = &mut load_mut!(ctx.accounts.perp_market)?;
+    msg!("updating perp market {} expiry", perp_market.market_index);
+
     validate!(
         clock.unix_timestamp < expiry_ts,
         ErrorCode::DefaultError,
@@ -1147,6 +1226,11 @@ pub fn handle_move_amm_price(
     sqrt_k: u128,
 ) -> Result<()> {
     let perp_market = &mut load_mut!(ctx.accounts.perp_market)?;
+
+    msg!(
+        "moving amm price for perp market {}",
+        perp_market.market_index
+    );
 
     let base_asset_reserve_before = perp_market.amm.base_asset_reserve;
     let quote_asset_reserve_before = perp_market.amm.quote_asset_reserve;
@@ -1206,6 +1290,11 @@ pub fn handle_recenter_perp_market_amm(
     sqrt_k: u128,
 ) -> Result<()> {
     let perp_market = &mut load_mut!(ctx.accounts.perp_market)?;
+
+    msg!(
+        "recentering amm for perp market {}",
+        perp_market.market_index
+    );
 
     let base_asset_reserve_before = perp_market.amm.base_asset_reserve;
     let quote_asset_reserve_before = perp_market.amm.quote_asset_reserve;
@@ -1277,6 +1366,16 @@ pub fn handle_update_perp_market_amm_summary_stats(
 ) -> Result<()> {
     let perp_market = &mut load_mut!(ctx.accounts.perp_market)?;
     let spot_market = &mut load!(ctx.accounts.spot_market)?;
+
+    msg!(
+        "updating amm summary stats for perp market {}",
+        perp_market.market_index
+    );
+
+    msg!(
+        "updating amm summary stats for spot market {}",
+        spot_market.market_index
+    );
 
     let clock = Clock::get()?;
     let price_oracle = &ctx.accounts.oracle;
@@ -1358,6 +1457,16 @@ pub fn handle_settle_expired_market_pools_to_revenue_pool(
     let spot_market: &mut std::cell::RefMut<'_, SpotMarket> =
         &mut load_mut!(ctx.accounts.spot_market)?;
     let state = &ctx.accounts.state;
+
+    msg!(
+        "settling expired market pools to revenue pool for perp market {}",
+        perp_market.market_index
+    );
+
+    msg!(
+        "settling expired market pools to revenue pool for spot market {}",
+        spot_market.market_index
+    );
 
     let clock = Clock::get()?;
     let now = clock.unix_timestamp;
@@ -1469,6 +1578,12 @@ pub fn handle_deposit_into_perp_market_fee_pool(
     let perp_market = &mut load_mut!(ctx.accounts.perp_market)?;
 
     msg!(
+        "depositing {} into perp market {} fee pool",
+        amount,
+        perp_market.market_index
+    );
+
+    msg!(
         "perp_market.amm.total_fee_minus_distributions: {:?} -> {:?}",
         perp_market.amm.total_fee_minus_distributions,
         perp_market
@@ -1513,6 +1628,11 @@ pub fn handle_repeg_amm_curve(ctx: Context<RepegCurve>, new_peg_candidate: u128)
     let clock_slot = clock.slot;
 
     let perp_market = &mut load_mut!(ctx.accounts.perp_market)?;
+    msg!(
+        "repegging amm curve for perp market {}",
+        perp_market.market_index
+    );
+
     let price_oracle = &ctx.accounts.oracle;
     let OraclePriceData {
         price: oracle_price,
@@ -1601,6 +1721,10 @@ pub fn handle_update_amm_oracle_twap(ctx: Context<RepegCurve>) -> Result<()> {
     let now = clock.unix_timestamp;
 
     let perp_market = &mut load_mut!(ctx.accounts.perp_market)?;
+    msg!(
+        "updating amm oracle twap for perp market {}",
+        perp_market.market_index
+    );
     let price_oracle = &ctx.accounts.oracle;
     let oracle_twap = perp_market.amm.get_oracle_twap(price_oracle, clock.slot)?;
 
@@ -1694,6 +1818,7 @@ pub fn handle_update_k(ctx: Context<AdminUpdateK>, sqrt_k: u128) -> Result<()> {
 
     let perp_market = &mut load_mut!(ctx.accounts.perp_market)?;
 
+    msg!("updating k for perp market {}", perp_market.market_index);
     let base_asset_amount_long = perp_market.amm.base_asset_amount_long.unsigned_abs();
     let base_asset_amount_short = perp_market.amm.base_asset_amount_short.unsigned_abs();
     let base_asset_amount_with_amm = perp_market.amm.base_asset_amount_with_amm;
@@ -1890,6 +2015,10 @@ pub fn handle_reset_amm_oracle_twap(ctx: Context<RepegCurve>) -> Result<()> {
     let perp_market = &mut load_mut!(ctx.accounts.perp_market)?;
 
     msg!(
+        "resetting amm oracle twap for perp market {}",
+        perp_market.market_index
+    );
+    msg!(
         "perp_market.amm.historical_oracle_data.last_oracle_price_twap: {:?} -> {:?}",
         perp_market
             .amm
@@ -1928,6 +2057,12 @@ pub fn handle_update_perp_market_margin_ratio(
     margin_ratio_maintenance: u32,
 ) -> Result<()> {
     let perp_market = &mut load_mut!(ctx.accounts.perp_market)?;
+
+    msg!(
+        "updating perp market {} margin ratio",
+        perp_market.market_index
+    );
+
     validate_margin(
         margin_ratio_initial,
         margin_ratio_maintenance,
@@ -1961,6 +2096,11 @@ pub fn handle_update_perp_market_funding_period(
 ) -> Result<()> {
     let perp_market = &mut load_mut!(ctx.accounts.perp_market)?;
 
+    msg!(
+        "updating funding period for perp market {}",
+        perp_market.market_index
+    );
+
     validate!(funding_period >= 0, ErrorCode::DefaultError)?;
 
     msg!(
@@ -1983,6 +2123,11 @@ pub fn handle_update_perp_market_max_imbalances(
     quote_max_insurance: u64,
 ) -> Result<()> {
     let perp_market = &mut load_mut!(ctx.accounts.perp_market)?;
+
+    msg!(
+        "updating perp market {} max imbalances",
+        perp_market.market_index
+    );
 
     let max_insurance_for_tier = match perp_market.contract_tier {
         ContractTier::A => INSURANCE_A_MAX,
@@ -2073,6 +2218,12 @@ pub fn handle_update_perp_liquidation_fee(
     if_liquidation_fee: u32,
 ) -> Result<()> {
     let perp_market = &mut load_mut!(ctx.accounts.perp_market)?;
+
+    msg!(
+        "updating perp market {} liquidation fee",
+        perp_market.market_index
+    );
+
     validate!(
         liquidator_fee.safe_add(if_liquidation_fee)? < LIQUIDATION_FEE_PRECISION,
         ErrorCode::DefaultError,
@@ -2118,6 +2269,7 @@ pub fn handle_update_insurance_fund_unstaking_period(
 ) -> Result<()> {
     let spot_market = &mut load_mut!(ctx.accounts.spot_market)?;
 
+    msg!("updating spot market {} IF unstaking period");
     msg!(
         "spot_market.insurance_fund.unstaking_period: {:?} -> {:?}",
         spot_market.insurance_fund.unstaking_period,
@@ -2137,6 +2289,11 @@ pub fn handle_update_spot_market_liquidation_fee(
     if_liquidation_fee: u32,
 ) -> Result<()> {
     let spot_market = &mut load_mut!(ctx.accounts.spot_market)?;
+    msg!(
+        "updating spot market {} liquidation fee",
+        spot_market.market_index
+    );
+
     validate!(
         liquidator_fee.safe_add(if_liquidation_fee)? < LIQUIDATION_FEE_PRECISION,
         ErrorCode::DefaultError,
@@ -2175,6 +2332,11 @@ pub fn handle_update_withdraw_guard_threshold(
 ) -> Result<()> {
     let spot_market = &mut load_mut!(ctx.accounts.spot_market)?;
     msg!(
+        "updating spot market withdraw guard threshold {}",
+        spot_market.market_index
+    );
+
+    msg!(
         "spot_market.withdraw_guard_threshold: {:?} -> {:?}",
         spot_market.withdraw_guard_threshold,
         withdraw_guard_threshold
@@ -2193,6 +2355,8 @@ pub fn handle_update_spot_market_if_factor(
     total_if_factor: u32,
 ) -> Result<()> {
     let spot_market = &mut load_mut!(ctx.accounts.spot_market)?;
+
+    msg!("spot market {}", spot_market.market_index);
 
     validate!(
         spot_market.market_index == spot_market_index,
@@ -2237,6 +2401,8 @@ pub fn handle_update_spot_market_revenue_settle_period(
     revenue_settle_period: i64,
 ) -> Result<()> {
     let spot_market = &mut load_mut!(ctx.accounts.spot_market)?;
+    msg!("spot market {}", spot_market.market_index);
+
     validate!(revenue_settle_period > 0, ErrorCode::DefaultError)?;
     msg!(
         "spot_market.revenue_settle_period: {:?} -> {:?}",
@@ -2256,6 +2422,7 @@ pub fn handle_update_spot_market_status(
 ) -> Result<()> {
     status.validate_not_deprecated()?;
     let spot_market = &mut load_mut!(ctx.accounts.spot_market)?;
+    msg!("spot market {}", spot_market.market_index);
 
     msg!(
         "spot_market.status: {:?} -> {:?}",
@@ -2275,6 +2442,8 @@ pub fn handle_update_spot_market_paused_operations(
     paused_operations: u8,
 ) -> Result<()> {
     let spot_market = &mut load_mut!(ctx.accounts.spot_market)?;
+    msg!("spot market {}", spot_market.market_index);
+
     spot_market.paused_operations = paused_operations;
 
     SpotOperation::log_all_operations_paused(spot_market.paused_operations);
@@ -2290,6 +2459,7 @@ pub fn handle_update_spot_market_asset_tier(
     asset_tier: AssetTier,
 ) -> Result<()> {
     let spot_market = &mut load_mut!(ctx.accounts.spot_market)?;
+    msg!("spot market {}", spot_market.market_index);
 
     if spot_market.initial_asset_weight > 0 {
         validate!(
@@ -2321,6 +2491,7 @@ pub fn handle_update_spot_market_margin_weights(
     imf_factor: u32,
 ) -> Result<()> {
     let spot_market = &mut load_mut!(ctx.accounts.spot_market)?;
+    msg!("spot market {}", spot_market.market_index);
 
     validate_margin_weights(
         spot_market.market_index,
@@ -2381,6 +2552,8 @@ pub fn handle_update_spot_market_borrow_rate(
     min_borrow_rate: Option<u8>,
 ) -> Result<()> {
     let spot_market = &mut load_mut!(ctx.accounts.spot_market)?;
+    msg!("spot market {}", spot_market.market_index);
+
     validate_borrow_rate(
         optimal_utilization,
         optimal_borrow_rate,
@@ -2433,6 +2606,7 @@ pub fn handle_update_spot_market_max_token_deposits(
     max_token_deposits: u64,
 ) -> Result<()> {
     let spot_market = &mut load_mut!(ctx.accounts.spot_market)?;
+    msg!("spot market {}", spot_market.market_index);
 
     msg!(
         "spot_market.max_token_deposits: {:?} -> {:?}",
@@ -2452,6 +2626,7 @@ pub fn handle_update_spot_market_max_token_borrows(
     max_token_borrows_fraction: u16,
 ) -> Result<()> {
     let spot_market = &mut load_mut!(ctx.accounts.spot_market)?;
+    msg!("spot market {}", spot_market.market_index);
 
     msg!(
         "spot_market.max_token_borrows_fraction: {:?} -> {:?}",
@@ -2485,6 +2660,7 @@ pub fn handle_update_spot_market_scale_initial_asset_weight_start(
     scale_initial_asset_weight_start: u64,
 ) -> Result<()> {
     let spot_market = &mut load_mut!(ctx.accounts.spot_market)?;
+    msg!("spot market {}", spot_market.market_index);
 
     msg!(
         "spot_market.scale_initial_asset_weight_start: {:?} -> {:?}",
@@ -2504,6 +2680,7 @@ pub fn handle_update_spot_market_orders_enabled(
     orders_enabled: bool,
 ) -> Result<()> {
     let spot_market = &mut load_mut!(ctx.accounts.spot_market)?;
+    msg!("spot market {}", spot_market.market_index);
 
     msg!(
         "spot_market.orders_enabled: {:?} -> {:?}",
@@ -2546,6 +2723,8 @@ pub fn handle_update_perp_market_status(
 
     let perp_market = &mut load_mut!(ctx.accounts.perp_market)?;
 
+    msg!("perp market {}", perp_market.market_index);
+
     msg!(
         "perp_market.status: {:?} -> {:?}",
         perp_market.status,
@@ -2564,6 +2743,8 @@ pub fn handle_update_perp_market_paused_operations(
     paused_operations: u8,
 ) -> Result<()> {
     let perp_market = &mut load_mut!(ctx.accounts.perp_market)?;
+    msg!("perp market {}", perp_market.market_index);
+
     perp_market.paused_operations = paused_operations;
 
     PerpOperation::log_all_operations_paused(perp_market.paused_operations);
@@ -2579,6 +2760,7 @@ pub fn handle_update_perp_market_contract_tier(
     contract_tier: ContractTier,
 ) -> Result<()> {
     let perp_market = &mut load_mut!(ctx.accounts.perp_market)?;
+    msg!("perp market {}", perp_market.market_index);
 
     msg!(
         "perp_market.contract_tier: {:?} -> {:?}",
@@ -2609,6 +2791,7 @@ pub fn handle_update_perp_market_imf_factor(
         "invalid unrealized pnl imf factor",
     )?;
     let perp_market = &mut load_mut!(ctx.accounts.perp_market)?;
+    msg!("perp market {}", perp_market.market_index);
 
     msg!(
         "perp_market.imf_factor: {:?} -> {:?}",
@@ -2651,6 +2834,7 @@ pub fn handle_update_perp_market_unrealized_asset_weight(
         "must enforce unrealized_initial_asset_weight <= unrealized_maintenance_asset_weight",
     )?;
     let perp_market = &mut load_mut!(ctx.accounts.perp_market)?;
+    msg!("perp market {}", perp_market.market_index);
 
     msg!(
         "perp_market.unrealized_initial_asset_weight: {:?} -> {:?}",
@@ -2683,6 +2867,8 @@ pub fn handle_update_perp_market_concentration_coef(
     )?;
 
     let perp_market = &mut load_mut!(ctx.accounts.perp_market)?;
+    msg!("perp market {}", perp_market.market_index);
+
     let prev_concentration_coef = perp_market.amm.concentration_coef;
     controller::amm::update_concentration_coef(&mut perp_market.amm, concentration_scale)?;
     let new_concentration_coef = perp_market.amm.concentration_coef;
@@ -2711,6 +2897,7 @@ pub fn handle_update_perp_market_curve_update_intensity(
         "invalid curve_update_intensity",
     )?;
     let perp_market = &mut load_mut!(ctx.accounts.perp_market)?;
+    msg!("perp market {}", perp_market.market_index);
 
     msg!(
         "perp_market.amm.curve_update_intensity: {} -> {}",
@@ -2730,6 +2917,7 @@ pub fn handle_update_perp_market_target_base_asset_amount_per_lp(
     target_base_asset_amount_per_lp: i32,
 ) -> Result<()> {
     let perp_market = &mut load_mut!(ctx.accounts.perp_market)?;
+    msg!("perp market {}", perp_market.market_index);
 
     msg!(
         "perp_market.amm.target_base_asset_amount_per_lp: {} -> {}",
@@ -2746,6 +2934,7 @@ pub fn handle_update_perp_market_per_lp_base(
     per_lp_base: i8,
 ) -> Result<()> {
     let perp_market = &mut load_mut!(ctx.accounts.perp_market)?;
+    msg!("perp market {}", perp_market.market_index);
 
     let old_per_lp_base = perp_market.amm.per_lp_base;
     msg!(
@@ -2926,7 +3115,19 @@ pub fn handle_update_perp_market_oracle(
     oracle_source: OracleSource,
 ) -> Result<()> {
     let perp_market = &mut load_mut!(ctx.accounts.perp_market)?;
+    msg!("perp market {}", perp_market.market_index);
+
     let clock = Clock::get()?;
+
+    OracleMap::validate_oracle_account_info(&ctx.accounts.oracle)?;
+
+    validate!(
+        ctx.accounts.oracle.key == &oracle,
+        ErrorCode::DefaultError,
+        "oracle account info ({:?}) and ix data ({:?}) must match",
+        ctx.accounts.oracle.key,
+        oracle
+    )?;
 
     // Verify oracle is readable
     let OraclePriceData {
@@ -2961,6 +3162,8 @@ pub fn handle_update_perp_market_base_spread(
     base_spread: u32,
 ) -> Result<()> {
     let perp_market = &mut load_mut!(ctx.accounts.perp_market)?;
+    msg!("perp market {}", perp_market.market_index);
+
     msg!(
         "perp_market.amm.base_spread: {:?} -> {:?}",
         perp_market.amm.base_spread,
@@ -2999,6 +3202,7 @@ pub fn handle_update_amm_jit_intensity(
     )?;
 
     let perp_market = &mut load_mut!(ctx.accounts.perp_market)?;
+    msg!("perp market {}", perp_market.market_index);
 
     msg!(
         "perp_market.amm.amm_jit_intensity: {} -> {}",
@@ -3019,6 +3223,8 @@ pub fn handle_update_perp_market_max_spread(
     max_spread: u32,
 ) -> Result<()> {
     let perp_market = &mut load_mut!(ctx.accounts.perp_market)?;
+    msg!("perp market {}", perp_market.market_index);
+
     validate!(
         max_spread >= perp_market.amm.base_spread,
         ErrorCode::DefaultError,
@@ -3051,6 +3257,8 @@ pub fn handle_update_perp_market_step_size_and_tick_size(
     tick_size: u64,
 ) -> Result<()> {
     let perp_market = &mut load_mut!(ctx.accounts.perp_market)?;
+    msg!("perp market {}", perp_market.market_index);
+
     validate!(step_size > 0 && tick_size > 0, ErrorCode::DefaultError)?;
     validate!(step_size <= 2000000000, ErrorCode::DefaultError)?; // below i32 max for lp's remainder_base_asset
 
@@ -3079,6 +3287,8 @@ pub fn handle_update_perp_market_min_order_size(
     order_size: u64,
 ) -> Result<()> {
     let perp_market = &mut load_mut!(ctx.accounts.perp_market)?;
+    msg!("perp market {}", perp_market.market_index);
+
     validate!(order_size > 0, ErrorCode::DefaultError)?;
 
     msg!(
@@ -3100,6 +3310,8 @@ pub fn handle_update_spot_market_step_size_and_tick_size(
     tick_size: u64,
 ) -> Result<()> {
     let spot_market = &mut load_mut!(ctx.accounts.spot_market)?;
+    msg!("spot market {}", spot_market.market_index);
+
     validate!(
         spot_market.market_index == 0 || step_size > 0 && tick_size > 0,
         ErrorCode::DefaultError
@@ -3130,6 +3342,8 @@ pub fn handle_update_spot_market_min_order_size(
     order_size: u64,
 ) -> Result<()> {
     let spot_market = &mut load_mut!(ctx.accounts.spot_market)?;
+    msg!("spot market {}", spot_market.market_index);
+
     validate!(
         spot_market.market_index == 0 || order_size > 0,
         ErrorCode::DefaultError
@@ -3154,6 +3368,7 @@ pub fn handle_update_perp_market_max_slippage_ratio(
 ) -> Result<()> {
     validate!(max_slippage_ratio > 0, ErrorCode::DefaultError)?;
     let perp_market = &mut load_mut!(ctx.accounts.perp_market)?;
+    msg!("perp market {}", perp_market.market_index);
 
     msg!(
         "perp_market.amm.max_slippage_ratio: {:?} -> {:?}",
@@ -3174,6 +3389,7 @@ pub fn handle_update_perp_market_max_fill_reserve_fraction(
 ) -> Result<()> {
     validate!(max_fill_reserve_fraction > 0, ErrorCode::DefaultError)?;
     let perp_market = &mut load_mut!(ctx.accounts.perp_market)?;
+    msg!("perp market {}", perp_market.market_index);
 
     msg!(
         "perp_market.amm.max_fill_reserve_fraction: {:?} -> {:?}",
@@ -3193,6 +3409,7 @@ pub fn handle_update_perp_market_max_open_interest(
     max_open_interest: u128,
 ) -> Result<()> {
     let perp_market = &mut load_mut!(ctx.accounts.perp_market)?;
+    msg!("perp market {}", perp_market.market_index);
 
     validate!(
         is_multiple_of_step_size(
@@ -3221,6 +3438,7 @@ pub fn handle_update_perp_market_fee_adjustment(
     fee_adjustment: i16,
 ) -> Result<()> {
     let perp_market = &mut load_mut!(ctx.accounts.perp_market)?;
+    msg!("perp market {}", perp_market.market_index);
 
     validate!(
         fee_adjustment.unsigned_abs().cast::<u64>()? <= FEE_ADJUSTMENT_MAX,
@@ -3246,6 +3464,7 @@ pub fn handle_update_perp_market_number_of_users(
     number_of_users_with_base: Option<u32>,
 ) -> Result<()> {
     let perp_market = &mut load_mut!(ctx.accounts.perp_market)?;
+    msg!("perp market {}", perp_market.market_index);
 
     if let Some(number_of_users) = number_of_users {
         msg!(
@@ -3278,6 +3497,51 @@ pub fn handle_update_perp_market_number_of_users(
     Ok(())
 }
 
+pub fn handle_update_perp_market_fuel(
+    ctx: Context<AdminUpdatePerpMarket>,
+    fuel_boost_taker: Option<u8>,
+    fuel_boost_maker: Option<u8>,
+    fuel_boost_position: Option<u8>,
+) -> Result<()> {
+    let perp_market = &mut load_mut!(ctx.accounts.perp_market)?;
+    msg!("perp market {}", perp_market.market_index);
+
+    if let Some(fuel_boost_taker) = fuel_boost_taker {
+        msg!(
+            "perp_market.fuel_boost_taker: {:?} -> {:?}",
+            perp_market.fuel_boost_taker,
+            fuel_boost_taker
+        );
+        perp_market.fuel_boost_taker = fuel_boost_taker;
+    } else {
+        msg!("perp_market.fuel_boost_taker: unchanged");
+    }
+
+    if let Some(fuel_boost_maker) = fuel_boost_maker {
+        msg!(
+            "perp_market.fuel_boost_maker: {:?} -> {:?}",
+            perp_market.fuel_boost_maker,
+            fuel_boost_maker
+        );
+        perp_market.fuel_boost_maker = fuel_boost_maker;
+    } else {
+        msg!("perp_market.fuel_boost_maker: unchanged");
+    }
+
+    if let Some(fuel_boost_position) = fuel_boost_position {
+        msg!(
+            "perp_market.fuel_boost_position: {:?} -> {:?}",
+            perp_market.fuel_boost_position,
+            fuel_boost_position
+        );
+        perp_market.fuel_boost_position = fuel_boost_position;
+    } else {
+        msg!("perp_market.fuel_boost_position: unchanged");
+    }
+
+    Ok(())
+}
+
 #[access_control(
     spot_market_valid(&ctx.accounts.spot_market)
 )]
@@ -3286,6 +3550,7 @@ pub fn handle_update_spot_market_fee_adjustment(
     fee_adjustment: i16,
 ) -> Result<()> {
     let spot = &mut load_mut!(ctx.accounts.spot_market)?;
+    msg!("spot market {}", spot.market_index);
 
     validate!(
         fee_adjustment.unsigned_abs().cast::<u64>()? <= FEE_ADJUSTMENT_MAX,
@@ -3302,6 +3567,75 @@ pub fn handle_update_spot_market_fee_adjustment(
     );
 
     spot.fee_adjustment = fee_adjustment;
+    Ok(())
+}
+
+pub fn handle_update_spot_market_fuel(
+    ctx: Context<AdminUpdateSpotMarket>,
+    fuel_boost_deposits: Option<u8>,
+    fuel_boost_borrows: Option<u8>,
+    fuel_boost_taker: Option<u8>,
+    fuel_boost_maker: Option<u8>,
+    fuel_boost_insurance: Option<u8>,
+) -> Result<()> {
+    let spot_market = &mut load_mut!(ctx.accounts.spot_market)?;
+    msg!("spot market {}", spot_market.market_index);
+
+    if let Some(fuel_boost_taker) = fuel_boost_taker {
+        msg!(
+            "perp_market.fuel_boost_taker: {:?} -> {:?}",
+            spot_market.fuel_boost_taker,
+            fuel_boost_taker
+        );
+        spot_market.fuel_boost_taker = fuel_boost_taker;
+    } else {
+        msg!("perp_market.fuel_boost_taker: unchanged");
+    }
+
+    if let Some(fuel_boost_maker) = fuel_boost_maker {
+        msg!(
+            "perp_market.fuel_boost_maker: {:?} -> {:?}",
+            spot_market.fuel_boost_maker,
+            fuel_boost_maker
+        );
+        spot_market.fuel_boost_maker = fuel_boost_maker;
+    } else {
+        msg!("perp_market.fuel_boost_maker: unchanged");
+    }
+
+    if let Some(fuel_boost_deposits) = fuel_boost_deposits {
+        msg!(
+            "perp_market.fuel_boost_deposits: {:?} -> {:?}",
+            spot_market.fuel_boost_deposits,
+            fuel_boost_deposits
+        );
+        spot_market.fuel_boost_deposits = fuel_boost_deposits;
+    } else {
+        msg!("perp_market.fuel_boost_deposits: unchanged");
+    }
+
+    if let Some(fuel_boost_borrows) = fuel_boost_borrows {
+        msg!(
+            "perp_market.fuel_boost_borrows: {:?} -> {:?}",
+            spot_market.fuel_boost_borrows,
+            fuel_boost_borrows
+        );
+        spot_market.fuel_boost_borrows = fuel_boost_borrows;
+    } else {
+        msg!("perp_market.fuel_boost_borrows: unchanged");
+    }
+
+    if let Some(fuel_boost_insurance) = fuel_boost_insurance {
+        msg!(
+            "perp_market.fuel_boost_insurance: {:?} -> {:?}",
+            spot_market.fuel_boost_insurance,
+            fuel_boost_insurance
+        );
+        spot_market.fuel_boost_insurance = fuel_boost_insurance;
+    } else {
+        msg!("perp_market.fuel_boost_insurance: unchanged");
+    }
+
     Ok(())
 }
 
@@ -3453,6 +3787,7 @@ pub fn handle_initialize_prelaunch_oracle(
     params: PrelaunchOracleParams,
 ) -> Result<()> {
     let mut oracle = ctx.accounts.prelaunch_oracle.load_init()?;
+    msg!("perp market {}", params.perp_market_index);
 
     oracle.perp_market_index = params.perp_market_index;
     if let Some(price) = params.price {
@@ -3473,6 +3808,8 @@ pub fn handle_update_prelaunch_oracle_params(
 ) -> Result<()> {
     let mut oracle = ctx.accounts.prelaunch_oracle.load_mut()?;
     let mut perp_market = ctx.accounts.perp_market.load_mut()?;
+    msg!("perp market {}", perp_market.market_index);
+
     let now = Clock::get()?.unix_timestamp;
 
     if let Some(price) = params.price {
@@ -3510,6 +3847,7 @@ pub fn handle_delete_prelaunch_oracle(
     _perp_market_index: u16,
 ) -> Result<()> {
     let perp_market = ctx.accounts.perp_market.load()?;
+    msg!("perp market {}", perp_market.market_index);
 
     validate!(
         perp_market.amm.oracle != ctx.accounts.prelaunch_oracle.key(),
@@ -3951,6 +4289,19 @@ pub struct AdminDisableBidAskTwapUpdate<'info> {
         has_one = admin
     )]
     pub state: Box<Account<'info, State>>,
+    #[account(mut)]
+    pub user_stats: AccountLoader<'info, UserStats>,
+}
+
+#[derive(Accounts)]
+pub struct InitUserFuel<'info> {
+    #[account(
+        address = fuel_airdrop_wallet::id()
+    )]
+    pub admin: Signer<'info>, // todo
+    pub state: Box<Account<'info, State>>,
+    #[account(mut)]
+    pub user: AccountLoader<'info, User>,
     #[account(mut)]
     pub user_stats: AccountLoader<'info, UserStats>,
 }

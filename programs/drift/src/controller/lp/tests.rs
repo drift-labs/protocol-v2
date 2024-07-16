@@ -751,6 +751,7 @@ fn test_lp_margin_calc() {
         weighted_unrealized_pnl,
         worse_case_base_asset_value,
         _open_order_fraction,
+        _base_asset_value,
     ) = calculate_perp_position_value_and_pnl(
         &user.perp_positions[0],
         &market,
