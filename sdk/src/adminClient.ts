@@ -30,7 +30,6 @@ import {
 	getProtocolIfSharesTransferConfigPublicKey,
 	getPrelaunchOraclePublicKey,
 	getPythPullOraclePublicKey,
-	getUserAccountPublicKeySync,
 	getUserStatsAccountPublicKey,
 } from './addresses/pda';
 import { squareRootBN } from './math/utils';
