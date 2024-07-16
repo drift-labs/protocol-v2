@@ -3681,9 +3681,7 @@ export class AdminClient extends DriftClient {
 			fuelBonusInsurance || null,
 			{
 				accounts: {
-					admin: this.isSubscribed
-						? this.getStateAccount().admin
-						: this.wallet.publicKey,
+					admin: this.wallet.publicKey,
 					state: await this.getStatePublicKey(),
 					user,
 					userStats,
