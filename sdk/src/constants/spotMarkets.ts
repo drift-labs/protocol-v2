@@ -237,8 +237,8 @@ export const MainnetSpotMarkets: SpotMarketConfig[] = [
 	{
 		symbol: 'RNDR',
 		marketIndex: 12,
-		oracle: new PublicKey('CYGfrBJB9HgLf9iZyN4aH5HvUAi2htQ4MjPxeXMf4Egn'),
-		oracleSource: OracleSource.PYTH,
+		oracle: new PublicKey('F3mPHRtJqqq57JPDBmUwUVhpyPLmjE5dAzDfpVgpFkug'),
+		oracleSource: OracleSource.PYTH_PULL,
 		mint: new PublicKey('rndrizKT3MK1iimdxRdWabcF7Zg7AR5T4nud4EkHBof'),
 		precision: new BN(10).pow(EIGHT),
 		precisionExp: EIGHT,
