@@ -473,6 +473,12 @@ pub fn handle_initialize_openbook_v2_fulfillment_config(
         "Invalid quote mint"
     )?;
 
+    validate!(
+        market.taker_fee == 0,
+        ErrorCode::InvalidOpenbookV2Market,
+        "Fee must be 0"
+    )?;
+
     let market_step_size = market.base_lot_size as u64;
     let valid_step_size = base_spot_market.order_step_size >= market_step_size
         && base_spot_market
