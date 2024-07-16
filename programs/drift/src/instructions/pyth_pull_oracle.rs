@@ -138,7 +138,7 @@ pub fn handle_post_multi_pyth_pull_oracle_updates_atomic<'c: 'info, 'info>(
         let feed_id = price_feed_account.price_message.feed_id;
 
         // Verify the pda
-        let (mut pda, bump) = Pubkey::find_program_address(
+        let (pda, bump) = Pubkey::find_program_address(
             &[PTYH_PRICE_FEED_SEED_PREFIX, feed_id.as_ref()],
             &crate::ID,
         );
