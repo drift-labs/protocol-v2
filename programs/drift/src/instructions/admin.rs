@@ -1077,7 +1077,6 @@ pub fn handle_init_user_fuel(
     )?;
 
     if let Some(fuel_bonus_deposits) = fuel_bonus_deposits {
-
         msg!(
             "user_stats.fuel_deposits {:?} -> {:?}",
             user_stats.fuel_deposits,
@@ -1115,7 +1114,9 @@ pub fn handle_init_user_fuel(
         msg!(
             "user_stats.fuel_insurance {:?} -> {:?}",
             user_stats.fuel_insurance,
-            user_stats.fuel_insurance.saturating_add(fuel_bonus_insurance)
+            user_stats
+                .fuel_insurance
+                .saturating_add(fuel_bonus_insurance)
         );
         user_stats.fuel_insurance = user_stats
             .fuel_insurance
