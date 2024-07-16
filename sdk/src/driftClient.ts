@@ -597,7 +597,6 @@ export class DriftClient {
 		return accounts.map(
 			(account) => account.account
 		) as OpenbookV2FulfillmentConfigAccount[];
-	
 	}
 
 	public async fetchMarketLookupTableAccount(): Promise<AddressLookupTableAccount> {
@@ -3770,7 +3769,7 @@ export class DriftClient {
 		fulfillmentConfig?:
 			| SerumV3FulfillmentConfigAccount
 			| PhoenixV1FulfillmentConfigAccount
-			| OpenbookV2FulfillmentConfigAccount,
+			| OpenbookV2FulfillmentConfigAccount
 	): void {
 		if (fulfillmentConfig) {
 			if ('serumProgramId' in fulfillmentConfig) {
@@ -3785,7 +3784,7 @@ export class DriftClient {
 					remainingAccounts,
 					fulfillmentConfig
 				);
-			} else if ("openbookV2ProgramId" in fulfillmentConfig) {
+			} else if ('openbookV2ProgramId' in fulfillmentConfig) {
 				this.addOpenbookRemainingAccounts(
 					marketIndex,
 					remainingAccounts,
@@ -3969,7 +3968,7 @@ export class DriftClient {
 		remainingAccounts.push({
 			pubkey: this.getSignerPublicKey(),
 			isWritable: true,
-			isSigner: false
+			isSigner: false,
 		});
 		remainingAccounts.push({
 			pubkey: fulfillmentConfig.openbookV2ProgramId,
@@ -3979,17 +3978,17 @@ export class DriftClient {
 		remainingAccounts.push({
 			pubkey: fulfillmentConfig.openbookV2Market,
 			isWritable: true,
-			isSigner: false
+			isSigner: false,
 		});
 		remainingAccounts.push({
 			pubkey: fulfillmentConfig.openbookV2MarketAuthority,
 			isWritable: false,
-			isSigner: false
+			isSigner: false,
 		});
 		remainingAccounts.push({
 			pubkey: fulfillmentConfig.openbookV2EventHeap,
 			isWritable: true,
-			isSigner: false
+			isSigner: false,
 		});
 		remainingAccounts.push({
 			pubkey: fulfillmentConfig.openbookV2Bids,
@@ -4004,7 +4003,7 @@ export class DriftClient {
 		remainingAccounts.push({
 			pubkey: fulfillmentConfig.openbookV2BaseVault,
 			isWritable: true,
-			isSigner: false
+			isSigner: false,
 		});
 		remainingAccounts.push({
 			pubkey: fulfillmentConfig.openbookV2QuoteVault,
@@ -4041,6 +4040,16 @@ export class DriftClient {
 			isWritable: true,
 			isSigner: false,
 		});
+
+		if (fulfillmentConfig.remainingAccounts) {
+			for (const remainingAccount of fulfillmentConfig.remainingAccounts) {
+				remainingAccounts.push({
+					pubkey: remainingAccount,
+					isWritable: true,
+					isSigner: false,
+				});
+			}
+		}
 	}
 
 	/**
