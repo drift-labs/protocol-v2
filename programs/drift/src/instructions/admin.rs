@@ -3531,57 +3531,57 @@ pub fn handle_update_spot_market_fuel(
 
     if let Some(fuel_boost_taker) = fuel_boost_taker {
         msg!(
-            "perp_market.fuel_boost_taker: {:?} -> {:?}",
+            "spot_market.fuel_boost_taker: {:?} -> {:?}",
             spot_market.fuel_boost_taker,
             fuel_boost_taker
         );
         spot_market.fuel_boost_taker = fuel_boost_taker;
     } else {
-        msg!("perp_market.fuel_boost_taker: unchanged");
+        msg!("spot_market.fuel_boost_taker: unchanged");
     }
 
     if let Some(fuel_boost_maker) = fuel_boost_maker {
         msg!(
-            "perp_market.fuel_boost_maker: {:?} -> {:?}",
+            "spot_market.fuel_boost_maker: {:?} -> {:?}",
             spot_market.fuel_boost_maker,
             fuel_boost_maker
         );
         spot_market.fuel_boost_maker = fuel_boost_maker;
     } else {
-        msg!("perp_market.fuel_boost_maker: unchanged");
+        msg!("spot_market.fuel_boost_maker: unchanged");
     }
 
     if let Some(fuel_boost_deposits) = fuel_boost_deposits {
         msg!(
-            "perp_market.fuel_boost_deposits: {:?} -> {:?}",
+            "spot_market.fuel_boost_deposits: {:?} -> {:?}",
             spot_market.fuel_boost_deposits,
             fuel_boost_deposits
         );
         spot_market.fuel_boost_deposits = fuel_boost_deposits;
     } else {
-        msg!("perp_market.fuel_boost_deposits: unchanged");
+        msg!("spot_market.fuel_boost_deposits: unchanged");
     }
 
     if let Some(fuel_boost_borrows) = fuel_boost_borrows {
         msg!(
-            "perp_market.fuel_boost_borrows: {:?} -> {:?}",
+            "spot_market.fuel_boost_borrows: {:?} -> {:?}",
             spot_market.fuel_boost_borrows,
             fuel_boost_borrows
         );
         spot_market.fuel_boost_borrows = fuel_boost_borrows;
     } else {
-        msg!("perp_market.fuel_boost_borrows: unchanged");
+        msg!("spot_market.fuel_boost_borrows: unchanged");
     }
 
     if let Some(fuel_boost_insurance) = fuel_boost_insurance {
         msg!(
-            "perp_market.fuel_boost_insurance: {:?} -> {:?}",
+            "spot_market.fuel_boost_insurance: {:?} -> {:?}",
             spot_market.fuel_boost_insurance,
             fuel_boost_insurance
         );
         spot_market.fuel_boost_insurance = fuel_boost_insurance;
     } else {
-        msg!("perp_market.fuel_boost_insurance: unchanged");
+        msg!("spot_market.fuel_boost_insurance: unchanged");
     }
 
     Ok(())
