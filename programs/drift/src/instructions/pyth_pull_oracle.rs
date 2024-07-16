@@ -158,6 +158,7 @@ pub fn handle_post_multi_pyth_pull_oracle_updates_atomic<'c: 'info, 'info>(
         let next_timestamp = get_timestamp_from_price_update_message(&merkle_price_update.message)?;
 
         if next_timestamp > current_timestamp {
+            msg!("Updating price feed");
             pyth_solana_receiver_sdk::cpi::post_update_atomic(
                 cpi_context,
                 PostUpdateAtomicParams {
