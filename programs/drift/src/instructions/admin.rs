@@ -3568,7 +3568,7 @@ pub fn handle_initialize_pyth_pull_oracle(
     let signer_seeds = &[&seeds[..]];
     let cpi_context = CpiContext::new_with_signer(cpi_program, cpi_accounts, signer_seeds);
 
-    pyth_solana_receiver_sdk::cpi::init_price_update(cpi_context)?;
+    pyth_solana_receiver_sdk::cpi::init_price_update(cpi_context, feed_id)?;
 
     Ok(())
 }
