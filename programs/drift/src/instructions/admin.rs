@@ -1077,20 +1077,47 @@ pub fn handle_init_user_fuel(
     )?;
 
     if let Some(fuel_bonus_deposits) = fuel_bonus_deposits {
+        msg!(
+            "user_stats.fuel_deposits {:?} -> {:?}",
+            user_stats.fuel_deposits,
+            user_stats.fuel_deposits.saturating_add(fuel_bonus_deposits)
+        );
         user_stats.fuel_deposits = user_stats.fuel_deposits.saturating_add(fuel_bonus_deposits);
     }
     if let Some(fuel_bonus_borrows) = fuel_bonus_borrows {
+        msg!(
+            "user_stats.fuel_borrows {:?} -> {:?}",
+            user_stats.fuel_borrows,
+            user_stats.fuel_borrows.saturating_add(fuel_bonus_borrows)
+        );
         user_stats.fuel_borrows = user_stats.fuel_borrows.saturating_add(fuel_bonus_borrows);
     }
 
     if let Some(fuel_bonus_taker) = fuel_bonus_taker {
+        msg!(
+            "user_stats.fuel_taker {:?} -> {:?}",
+            user_stats.fuel_taker,
+            user_stats.fuel_taker.saturating_add(fuel_bonus_taker)
+        );
         user_stats.fuel_taker = user_stats.fuel_taker.saturating_add(fuel_bonus_taker);
     }
     if let Some(fuel_bonus_maker) = fuel_bonus_maker {
+        msg!(
+            "user_stats.fuel_maker {:?} -> {:?}",
+            user_stats.fuel_maker,
+            user_stats.fuel_maker.saturating_add(fuel_bonus_maker)
+        );
         user_stats.fuel_maker = user_stats.fuel_maker.saturating_add(fuel_bonus_maker);
     }
 
     if let Some(fuel_bonus_insurance) = fuel_bonus_insurance {
+        msg!(
+            "user_stats.fuel_insurance {:?} -> {:?}",
+            user_stats.fuel_insurance,
+            user_stats
+                .fuel_insurance
+                .saturating_add(fuel_bonus_insurance)
+        );
         user_stats.fuel_insurance = user_stats
             .fuel_insurance
             .saturating_add(fuel_bonus_insurance);
