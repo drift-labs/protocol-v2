@@ -1,5 +1,6 @@
 use crate::error::ErrorCode;
 use crate::ids::{drift_oracle_receiver_program, wormhole_program};
+use crate::validate;
 use anchor_lang::prelude::*;
 use pyth_solana_receiver_sdk::{
     cpi::accounts::{PostUpdate, PostUpdateAtomic},
@@ -51,7 +52,7 @@ pub fn handle_update_pyth_pull_oracle(
             let price_feed_account =
                 PriceUpdateV2::try_deserialize(&mut &price_feed_account_data[..])?;
 
-            require!(
+            validate!(
                 price_feed_account.price_message.feed_id == feed_id,
                 ErrorCode::OraclePriceFeedMessageMismatch
             );
@@ -96,7 +97,7 @@ pub fn handle_post_pyth_pull_oracle_update_atomic(
             let price_feed_account =
                 PriceUpdateV2::try_deserialize(&mut &price_feed_account_data[..])?;
 
-            require!(
+            validate!(
                 price_feed_account.price_message.feed_id == feed_id,
                 ErrorCode::OraclePriceFeedMessageMismatch
             );
@@ -110,7 +111,7 @@ pub fn handle_post_multi_pyth_pull_oracle_updates_atomic<'c: 'info, 'info>(
     params: Vec<u8>,
 ) -> Result<()> {
     let remaining_accounts = ctx.remaining_accounts;
-    require!(
+    validate!(
         remaining_accounts.len() <= 2,
         ErrorCode::OracleTooManyPriceAccountUpdates
     );
@@ -118,7 +119,7 @@ pub fn handle_post_multi_pyth_pull_oracle_updates_atomic<'c: 'info, 'info>(
     let vaa = update_param.vaa;
     let merkle_price_updates = update_param.merkle_price_updates;
 
-    require!(
+    validate!(
         remaining_accounts.len() == merkle_price_updates.len(),
         ErrorCode::OracleMismatchedVaaAndPriceUpdates
     );

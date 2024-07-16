@@ -9,8 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Features
 
-- program: add oracle id for wen ([#1129](https://github.com/drift-labs/protocol-v2/pull/1129))
 - program: track fuel ([#1048](https://github.com/drift-labs/protocol-v2/pull/1048))
+- program: add post multi pyth oracle updates atomic ([#1133](https://github.com/drift-labs/protocol-v2/pull/1133))
 
 ### Fixes
 
@@ -114,13 +114,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixes
 
 - program: set default ContractTier to HighlySpeculative ([#1013](https://github.com/drift-labs/protocol-v2/pull/1013))
-- program: avoid dust borrows not being transferred 
+- program: avoid dust borrows not being transferred
 
 ### Breaking
 
 ## [2.77.0] - 2024-04-13
 
 ### Features
+
 - program: lax funding rate update oracle validity criteria ([#1009](https://github.com/drift-labs/protocol-v2/pull/1009))
 
 ### Fixes
@@ -148,10 +149,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Features
 
 - program: add fee adjustment to spot market ([#987](https://github.com/drift-labs/protocol-v2/pull/987))
-- program: allow multiple makers to be passed into for spot fills ([#946](https://github.com/drift-labs/protocol-v2/pull/946)) 
-- ts-sdk: add fn to get admin ix  ([#980](https://github.com/drift-labs/protocol-v2/pull/980))
-- program: add invariant check boolean for attempt settle revenue to insurance ([#937](https://github.com/drift-labs/protocol-v2/pull/937)) 
-- program: improve best bid/ask estimate in mark twap update  ([#975](https://github.com/drift-labs/protocol-v2/pull/975)) 
+- program: allow multiple makers to be passed into for spot fills ([#946](https://github.com/drift-labs/protocol-v2/pull/946))
+- ts-sdk: add fn to get admin ix ([#980](https://github.com/drift-labs/protocol-v2/pull/980))
+- program: add invariant check boolean for attempt settle revenue to insurance ([#937](https://github.com/drift-labs/protocol-v2/pull/937))
+- program: improve best bid/ask estimate in mark twap update ([#975](https://github.com/drift-labs/protocol-v2/pull/975))
 - program: add optional margin calculations for drift-rs ([#978](https://github.com/drift-labs/protocol-v2/pull/978))
 
 ### Fixes
@@ -162,12 +163,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Features
 
-- program: add 'highly speculative' contract tier enum 4 ([#968](https://github.com/drift-labs/protocol-v2/pull/968)) 
-- program: expand initialize market parameters ([#969](https://github.com/drift-labs/protocol-v2/pull/969)) 
+- program: add 'highly speculative' contract tier enum 4 ([#968](https://github.com/drift-labs/protocol-v2/pull/968))
+- program: expand initialize market parameters ([#969](https://github.com/drift-labs/protocol-v2/pull/969))
 
 ### Fixes
 
-- program: fix checking isolated tier in add_perp_lp_shares ([#965](https://github.com/drift-labs/protocol-v2/pull/965)) 
+- program: fix checking isolated tier in add_perp_lp_shares ([#965](https://github.com/drift-labs/protocol-v2/pull/965))
 
 ### Breaking
 
