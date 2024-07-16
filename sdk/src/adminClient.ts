@@ -29,7 +29,9 @@ import {
 	getPhoenixFulfillmentConfigPublicKey,
 	getProtocolIfSharesTransferConfigPublicKey,
 	getPrelaunchOraclePublicKey,
-	getPythPullOraclePublicKey, getUserAccountPublicKeySync, getUserStatsAccountPublicKey,
+	getPythPullOraclePublicKey,
+	getUserAccountPublicKeySync,
+	getUserStatsAccountPublicKey,
 } from './addresses/pda';
 import { squareRootBN } from './math/utils';
 import { TOKEN_PROGRAM_ID } from '@solana/spl-token';
@@ -3634,14 +3636,16 @@ export class AdminClient extends DriftClient {
 	}
 
 	public async initUserFuel(
+		user: PublicKey,
 		authority: PublicKey,
 		fuelBonusDeposits?: number,
 		fuelBonusBorrows?: number,
 		fuelBonusTaker?: number,
 		fuelBonusMaker?: number,
-		fuelBonusInsurance?: number,
+		fuelBonusInsurance?: number
 	): Promise<TransactionSignature> {
 		const updatePerpMarketFuelIx = await this.getInitUserFuelIx(
+			user,
 			authority,
 			fuelBonusDeposits,
 			fuelBonusBorrows,
@@ -3657,15 +3661,18 @@ export class AdminClient extends DriftClient {
 	}
 
 	public async getInitUserFuelIx(
+		user: PublicKey,
 		authority: PublicKey,
 		fuelBonusDeposits?: number,
 		fuelBonusBorrows?: number,
 		fuelBonusTaker?: number,
 		fuelBonusMaker?: number,
-		fuelBonusInsurance?: number,
+		fuelBonusInsurance?: number
 	): Promise<TransactionInstruction> {
-		const user = getUserAccountPublicKeySync(this.program.programId, authority, 0);
-		const userStats = await getUserStatsAccountPublicKey(this.program.programId, authority);
+		const userStats = await getUserStatsAccountPublicKey(
+			this.program.programId,
+			authority
+		);
 
 		return await this.program.instruction.initUserFuel(
 			fuelBonusDeposits || null,
