@@ -5,12 +5,15 @@ use crate::state::perp_market::PerpMarket;
 use crate::state::spot_market::SpotMarket;
 use crate::{FUEL_WINDOW_U128, QUOTE_PRECISION, QUOTE_PRECISION_U64};
 
+#[cfg(test)]
+mod tests;
+
 pub fn calculate_perp_fuel_bonus(
     perp_market: &PerpMarket,
     base_asset_value: i128,
     fuel_bonus_numerator: i64,
 ) -> DriftResult<u64> {
-    let result: u64 = if base_asset_value.unsigned_abs() <= QUOTE_PRECISION {
+    let result: u64 = if base_asset_value.unsigned_abs() < QUOTE_PRECISION {
         0_u64
     } else {
         base_asset_value
@@ -30,7 +33,7 @@ pub fn calculate_spot_fuel_bonus(
     signed_token_value: i128,
     fuel_bonus_numerator: i64,
 ) -> DriftResult<u64> {
-    let result: u64 = if signed_token_value.unsigned_abs() < 1 {
+    let result: u64 = if signed_token_value.unsigned_abs() < QUOTE_PRECISION {
         0_u64
     } else if signed_token_value > 0 {
         signed_token_value
