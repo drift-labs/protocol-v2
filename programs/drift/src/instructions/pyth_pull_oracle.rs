@@ -55,7 +55,7 @@ pub fn handle_update_pyth_pull_oracle(
             validate!(
                 price_feed_account.price_message.feed_id == feed_id,
                 ErrorCode::OraclePriceFeedMessageMismatch
-            );
+            )?;
         }
     }
     Ok(())
@@ -100,7 +100,7 @@ pub fn handle_post_pyth_pull_oracle_update_atomic(
             validate!(
                 price_feed_account.price_message.feed_id == feed_id,
                 ErrorCode::OraclePriceFeedMessageMismatch
-            );
+            )?;
         }
     }
     Ok(())
@@ -114,7 +114,7 @@ pub fn handle_post_multi_pyth_pull_oracle_updates_atomic<'c: 'info, 'info>(
     validate!(
         remaining_accounts.len() <= 2,
         ErrorCode::OracleTooManyPriceAccountUpdates
-    );
+    )?;
     let update_param = PostMultiUpdatesAtomicParams::deserialize(&mut &params[..]).unwrap();
     let vaa = update_param.vaa;
     let merkle_price_updates = update_param.merkle_price_updates;
@@ -122,7 +122,7 @@ pub fn handle_post_multi_pyth_pull_oracle_updates_atomic<'c: 'info, 'info>(
     validate!(
         remaining_accounts.len() == merkle_price_updates.len(),
         ErrorCode::OracleMismatchedVaaAndPriceUpdates
-    );
+    )?;
 
     for (account, merkle_price_update) in remaining_accounts.iter().zip(merkle_price_updates.iter())
     {

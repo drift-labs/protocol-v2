@@ -31,7 +31,7 @@ use crate::state::perp_market::PerpMarket;
 use crate::state::spot_market::{SpotBalanceType, SpotMarket};
 use crate::state::state::State;
 use crate::state::user::UserStats;
-use crate::{emit, validate, GOV_SPOT_MARKET_INDEX, QUOTE_SPOT_MARKET_INDEX};
+use crate::{emit, validate, FUEL_START_TS, GOV_SPOT_MARKET_INDEX, QUOTE_SPOT_MARKET_INDEX};
 
 #[cfg(test)]
 mod tests;
@@ -71,9 +71,13 @@ pub fn update_user_stats_if_stake_amount(
         user_stats.if_staked_gov_token_amount = if_stake_amount;
     }
 
-    if spot_market.fuel_boost_insurance != 0 {
+    if spot_market.fuel_boost_insurance != 0 && now >= FUEL_START_TS {
         let now_u32: u32 = now.cast()?;
-        let since_last = now_u32.safe_sub(user_stats.last_fuel_if_bonus_update_ts)?;
+        let since_last = now_u32.safe_sub(
+            user_stats
+                .last_fuel_if_bonus_update_ts
+                .max(FUEL_START_TS.cast()?),
+        )?;
 
         // calculate their stake amount prior to update
         let fuel_bonus_insurance = if_stake_amount

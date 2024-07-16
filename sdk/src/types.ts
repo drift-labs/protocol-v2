@@ -887,7 +887,7 @@ export type UserStatsAccount = {
 	authority: PublicKey;
 	ifStakedQuoteAssetAmount: BN;
 
-	lastFuelBonusUpdateTs: number; // u32 onchain
+	lastFuelIfBonusUpdateTs: number; // u32 onchain
 
 	fuelInsurance: number;
 	fuelDeposits: number;
