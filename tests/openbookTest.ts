@@ -284,6 +284,10 @@ describe('openbook v2', () => {
 		const quoteTokenAmountAfter = driftClient.getTokenAmount(0);
 		const baseTokenAmountAfter = driftClient.getTokenAmount(1);
 
+		const openOrdersAccountInfo = await bankrunContextWrapper.connection.getAccountInfo(openOrdersAccount);
+		const openOrdersAccountParsedData = await openbookProgram.account.openOrdersAccount.coder.accounts.decode('OpenOrdersAccount', openOrdersAccountInfo.data);
+		assert(openOrdersAccountParsedData.position.quoteFreeNative.eq(new BN(100000000)));
+
 		console.log(`quoteTokenAmountAfter ${quoteTokenAmountAfter.toString()}`);
 		console.log(`baseTokenAmountAfter ${baseTokenAmountAfter.toString()}`);
 
@@ -348,5 +352,9 @@ describe('openbook v2', () => {
 
 		assert(baseTokenAmountAfter.eq(ZERO));
 		assert(quoteTokenAmountAfter.eq(new BN('999799999')));
+
+		const openOrdersAccountInfo = await bankrunContextWrapper.connection.getAccountInfo(openOrdersAccount);
+		const openOrdersAccountParsedData = await openbookProgram.account.openOrdersAccount.coder.accounts.decode('OpenOrdersAccount', openOrdersAccountInfo.data);
+		assert(openOrdersAccountParsedData.position.baseFreeNative.eq(new BN(1e9)));
 	});
 });
