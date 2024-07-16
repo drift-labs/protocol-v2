@@ -55,3 +55,19 @@ pub fn calculate_spot_fuel_bonus(
 
     Ok(result)
 }
+
+pub fn calculate_insurance_fuel_bonus(
+    spot_market: &SpotMarket,
+    stake_amount: u64,
+    stake_amount_delta: i64,
+    fuel_bonus_numerator: u32,
+) -> DriftResult<u64> {
+    Ok(stake_amount
+        .saturating_sub(stake_amount_delta.unsigned_abs())
+        .cast::<u128>()?
+        .safe_mul(fuel_bonus_numerator.cast()?)?
+        .safe_mul(spot_market.fuel_boost_insurance.cast()?)?
+        .safe_div(FUEL_WINDOW_U128)?
+        .cast::<u64>()?
+        / (QUOTE_PRECISION_U64 / 10))
+}

@@ -16,6 +16,7 @@ use crate::math::constants::{
     SHARE_OF_REVENUE_ALLOCATED_TO_INSURANCE_FUND_VAULT_DENOMINATOR,
     SHARE_OF_REVENUE_ALLOCATED_TO_INSURANCE_FUND_VAULT_NUMERATOR,
 };
+use crate::math::fuel::calculate_insurance_fuel_bonus;
 use crate::math::helpers::get_proportion_u128;
 use crate::math::helpers::on_the_hour_update;
 use crate::math::insurance::{
@@ -37,7 +38,7 @@ use crate::{emit, validate, FUEL_START_TS, GOV_SPOT_MARKET_INDEX, QUOTE_SPOT_MAR
 mod tests;
 
 pub fn update_user_stats_if_stake_amount(
-    amount: i64,
+    if_stake_amount_delta: i64,
     insurance_vault_amount: u64,
     insurance_fund_stake: &mut InsuranceFundStake,
     user_stats: &mut UserStats,
@@ -51,17 +52,17 @@ pub fn update_user_stats_if_stake_amount(
         return Ok(());
     }
 
-    let if_stake_amount = if amount >= 0 {
+    let if_stake_amount = if if_stake_amount_delta >= 0 {
         if_shares_to_vault_amount(
             insurance_fund_stake.checked_if_shares(spot_market)?,
             spot_market.insurance_fund.total_shares,
-            insurance_vault_amount.safe_add(amount.unsigned_abs())?,
+            insurance_vault_amount.safe_add(if_stake_amount_delta.unsigned_abs())?,
         )?
     } else {
         if_shares_to_vault_amount(
             insurance_fund_stake.checked_if_shares(spot_market)?,
             spot_market.insurance_fund.total_shares,
-            insurance_vault_amount.safe_sub(amount.unsigned_abs())?,
+            insurance_vault_amount.safe_sub(if_stake_amount_delta.unsigned_abs())?,
         )?
     };
 
@@ -80,14 +81,12 @@ pub fn update_user_stats_if_stake_amount(
         )?;
 
         // calculate their stake amount prior to update
-        let fuel_bonus_insurance = if_stake_amount
-            .saturating_sub(amount.unsigned_abs())
-            .cast::<u128>()?
-            .safe_mul(since_last.cast()?)?
-            .safe_mul(spot_market.fuel_boost_insurance.cast()?)?
-            .safe_div(FUEL_WINDOW_U128)?
-            .cast::<u64>()?
-            / (QUOTE_PRECISION_U64 / 10);
+        let fuel_bonus_insurance = calculate_insurance_fuel_bonus(
+            spot_market,
+            if_stake_amount,
+            if_stake_amount_delta,
+            since_last,
+        )?;
 
         user_stats.fuel_insurance = user_stats
             .fuel_insurance

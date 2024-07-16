@@ -39,3 +39,27 @@ mod calculate_spot_fuel_bonus {
         assert_eq!(bonus, 10);
     }
 }
+
+mod calculate_insurance_fuel_bonus {
+    use crate::math::fuel::{
+        calculate_insurance_fuel_bonus, calculate_perp_fuel_bonus, calculate_spot_fuel_bonus,
+    };
+    use crate::state::perp_market::PerpMarket;
+    use crate::state::spot_market::SpotMarket;
+    use crate::{FUEL_WINDOW_U128, QUOTE_PRECISION_I128, QUOTE_PRECISION_U64};
+    use solana_program::msg;
+
+    #[test]
+    fn test() {
+        let mut spot_market = SpotMarket::default();
+        spot_market.fuel_boost_insurance = 1;
+        let bonus = calculate_insurance_fuel_bonus(
+            &spot_market,
+            QUOTE_PRECISION_U64,
+            0,
+            FUEL_WINDOW_U128 as u32,
+        )
+        .unwrap();
+        assert_eq!(bonus, 10);
+    }
+}
