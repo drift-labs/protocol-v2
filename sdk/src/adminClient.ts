@@ -51,8 +51,9 @@ import { PROGRAM_ID as PHOENIX_PROGRAM_ID } from '@ellipsis-labs/phoenix-sdk';
 import { DRIFT_ORACLE_RECEIVER_ID } from './config';
 import { getFeedIdUint8Array } from './util/pythPullOracleUtils';
 
-const OPENBOOK_PROGRAM_ID = new PublicKey("opnb2LAfJYbRMAHHvqjCwQxanZn7ReEHp1k81EohpZb");
-
+const OPENBOOK_PROGRAM_ID = new PublicKey(
+	'opnb2LAfJYbRMAHHvqjCwQxanZn7ReEHp1k81EohpZb'
+);
 
 export class AdminClient extends DriftClient {
 	public async initialize(
@@ -391,7 +392,6 @@ export class AdminClient extends DriftClient {
 		);
 	}
 
-
 	public async initializeOpenbookV2FulfillmentConfig(
 		marketIndex: number,
 		openbookMarket: PublicKey
@@ -429,8 +429,8 @@ export class AdminClient extends DriftClient {
 					driftSigner: this.getSignerPublicKey(),
 					openbookV2FulfillmentConfig: openbookFulfillmentConfig,
 					admin: this.isSubscribed
-						 ? this.getStateAccount().admin
-						 : this.wallet.publicKey,
+						? this.getStateAccount().admin
+						: this.wallet.publicKey,
 					rent: SYSVAR_RENT_PUBKEY,
 					systemProgram: anchor.web3.SystemProgram.programId,
 				},
@@ -3692,7 +3692,7 @@ export class AdminClient extends DriftClient {
 		fuelBonusBorrows?: number,
 		fuelBonusTaker?: number,
 		fuelBonusMaker?: number,
-		fuelBonusInsurance?: number,
+		fuelBonusInsurance?: number
 	): Promise<TransactionSignature> {
 		const updatePerpMarketFuelIx = await this.getInitUserFuelIx(
 			authority,
@@ -3715,10 +3715,17 @@ export class AdminClient extends DriftClient {
 		fuelBonusBorrows?: number,
 		fuelBonusTaker?: number,
 		fuelBonusMaker?: number,
-		fuelBonusInsurance?: number,
+		fuelBonusInsurance?: number
 	): Promise<TransactionInstruction> {
-		const user = getUserAccountPublicKeySync(this.program.programId, authority, 0);
-		const userStats = await getUserStatsAccountPublicKey(this.program.programId, authority);
+		const user = getUserAccountPublicKeySync(
+			this.program.programId,
+			authority,
+			0
+		);
+		const userStats = await getUserStatsAccountPublicKey(
+			this.program.programId,
+			authority
+		);
 
 		return await this.program.instruction.initUserFuel(
 			fuelBonusDeposits || null,
