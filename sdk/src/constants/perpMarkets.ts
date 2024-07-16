@@ -446,7 +446,7 @@ export const MainnetPerpMarkets: PerpMarketConfig[] = [
 		marketIndex: 9,
 		oracle: new PublicKey('HBordkz5YxjzNURmKUY4vfEYFG9fZyZNeNF1VDLMoemT'),
 		launchTs: 1683125906000,
-		oracleSource: OracleSource.PYTH,
+		oracleSource: OracleSource.PYTH_PULL,
 		pythFeedId:
 			'0x23d7315113f5b1d3ba7a83604c44b94d79f4fd69af77f804fc7f920a6dc65744',
 	},
