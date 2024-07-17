@@ -13,7 +13,7 @@ import {
 	User,
 	Wallet,
 	OrderTriggerCondition,
-	getTriggerMarketOrderParams,
+	getTriggerMarketOrderParams, OracleGuardRails,
 } from '../sdk/src';
 
 import {
@@ -24,7 +24,7 @@ import {
 	initializeQuoteSpotMarket,
 	initializeSolSpotMarket,
 } from './testHelpers';
-import { BASE_PRECISION, isVariant, OracleSource } from '../sdk';
+import {BASE_PRECISION, isVariant, OracleSource, PERCENTAGE_PRECISION} from '../sdk';
 import { startAnchor } from 'solana-bankrun';
 import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
 import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
@@ -109,6 +109,21 @@ describe('trigger orders', () => {
 		await initializeQuoteSpotMarket(fillerDriftClient, usdcMint.publicKey);
 		await initializeSolSpotMarket(fillerDriftClient, solUsd);
 		await fillerDriftClient.updateSpotAuctionDuration(0);
+
+		const oracleGuardRails: OracleGuardRails = {
+			priceDivergence: {
+				markOraclePercentDivergence: PERCENTAGE_PRECISION.mul(new BN(10)),
+				oracleTwap5MinPercentDivergence: PERCENTAGE_PRECISION.mul(new BN(10)),
+			},
+			validity: {
+				slotsBeforeStaleForAmm: new BN(100),
+				slotsBeforeStaleForMargin: new BN(100),
+				confidenceIntervalMaxSize: new BN(100000),
+				tooVolatileRatio: new BN(55), // allow 55x change
+			},
+		};
+
+		await fillerDriftClient.updateOracleGuardRails(oracleGuardRails);
 
 		const periodicity = new BN(60 * 60); // 1 HOUR
 
