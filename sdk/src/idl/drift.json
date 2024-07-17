@@ -3018,6 +3018,95 @@
       ]
     },
     {
+      "name": "initializeOpenbookV2FulfillmentConfig",
+      "accounts": [
+        {
+          "name": "baseSpotMarket",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "quoteSpotMarket",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "state",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "openbookV2Program",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "openbookV2Market",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "driftSigner",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "openbookV2FulfillmentConfig",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "admin",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "rent",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "systemProgram",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "marketIndex",
+          "type": "u16"
+        }
+      ]
+    },
+    {
+      "name": "openbookV2FulfillmentConfigStatus",
+      "accounts": [
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "openbookV2FulfillmentConfig",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "admin",
+          "isMut": true,
+          "isSigner": true
+        }
+      ],
+      "args": [
+        {
+          "name": "status",
+          "type": {
+            "defined": "SpotFulfillmentConfigStatus"
+          }
+        }
+      ]
+    },
+    {
       "name": "initializePhoenixFulfillmentConfig",
       "accounts": [
         {
@@ -5631,6 +5720,75 @@
     }
   ],
   "accounts": [
+    {
+      "name": "OpenbookV2FulfillmentConfig",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "pubkey",
+            "type": "publicKey"
+          },
+          {
+            "name": "openbookV2ProgramId",
+            "type": "publicKey"
+          },
+          {
+            "name": "openbookV2Market",
+            "type": "publicKey"
+          },
+          {
+            "name": "openbookV2MarketAuthority",
+            "type": "publicKey"
+          },
+          {
+            "name": "openbookV2EventHeap",
+            "type": "publicKey"
+          },
+          {
+            "name": "openbookV2Bids",
+            "type": "publicKey"
+          },
+          {
+            "name": "openbookV2Asks",
+            "type": "publicKey"
+          },
+          {
+            "name": "openbookV2BaseVault",
+            "type": "publicKey"
+          },
+          {
+            "name": "openbookV2QuoteVault",
+            "type": "publicKey"
+          },
+          {
+            "name": "marketIndex",
+            "type": "u16"
+          },
+          {
+            "name": "fulfillmentType",
+            "type": {
+              "defined": "SpotFulfillmentType"
+            }
+          },
+          {
+            "name": "status",
+            "type": {
+              "defined": "SpotFulfillmentConfigStatus"
+            }
+          },
+          {
+            "name": "padding",
+            "type": {
+              "array": [
+                "u8",
+                4
+              ]
+            }
+          }
+        ]
+      }
+    },
     {
       "name": "PhoenixV1FulfillmentConfig",
       "type": {
@@ -9269,6 +9427,9 @@
           },
           {
             "name": "PhoenixV1"
+          },
+          {
+            "name": "OpenbookV2"
           }
         ]
       }
@@ -9540,6 +9701,9 @@
           },
           {
             "name": "DeriskLp"
+          },
+          {
+            "name": "OrderFilledWithOpenbookV2"
           }
         ]
       }
@@ -12553,6 +12717,21 @@
       "code": 6278,
       "name": "OracleBadRemainingAccountPublicKey",
       "msg": "Remaining account passed is not a valid pda"
+    },
+    {
+      "code": 6279,
+      "name": "FailedOpenbookV2CPI",
+      "msg": "FailedOpenbookV2CPI"
+    },
+    {
+      "code": 6280,
+      "name": "InvalidOpenbookV2Program",
+      "msg": "InvalidOpenbookV2Program"
+    },
+    {
+      "code": 6281,
+      "name": "InvalidOpenbookV2Market",
+      "msg": "InvalidOpenbookV2Market"
     }
   ],
   "metadata": {

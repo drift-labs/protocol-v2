@@ -1181,6 +1181,23 @@ export type PhoenixV1FulfillmentConfigAccount = {
 	status: SpotFulfillmentStatus;
 };
 
+export type OpenbookV2FulfillmentConfigAccount = {
+	pubkey: PublicKey;
+	openbookV2ProgramId: PublicKey;
+	openbookV2Market: PublicKey;
+	openbookV2MarketAuthority: PublicKey;
+	openbookV2EventHeap: PublicKey;
+	openbookV2Bids: PublicKey;
+	openbookV2Asks: PublicKey;
+	openbookV2BaseVault: PublicKey;
+	openbookV2QuoteVault: PublicKey;
+	marketIndex: number;
+	fulfillmentType: SpotFulfillmentType;
+	status: SpotFulfillmentStatus;
+	// not actually on the account, just used to pass around remaining accounts in ts
+	remainingAccounts?: PublicKey[];
+};
+
 export type ReferrerNameAccount = {
 	name: number[];
 	user: PublicKey;

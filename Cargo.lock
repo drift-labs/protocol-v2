@@ -889,6 +889,7 @@ dependencies = [
  "num-derive 0.3.3",
  "num-integer",
  "num-traits",
+ "openbook-v2-light",
  "phoenix-v1",
  "pyth",
  "pyth-client",
@@ -1542,6 +1543,15 @@ name = "opaque-debug"
 version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "624a8340c38c1b80fd549087862da4ba43e08858af025b236e509b6649fc13d5"
+
+[[package]]
+name = "openbook-v2-light"
+version = "0.1.0"
+dependencies = [
+ "anchor-lang",
+ "borsh 0.10.3",
+ "bytemuck",
+]
 
 [[package]]
 name = "parking_lot"
