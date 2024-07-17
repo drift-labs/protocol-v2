@@ -697,6 +697,8 @@ describe("fuelin'", () => {
 		assert(!makerDriftClientUser.getOrderByUserOrderId(2).postOnly);
 
 		await fillerDriftClient.updateSpotMarketFuel(1, null, null, 100, 200);
+		// paused cumulative interest to avoid test failing due to race
+		await fillerDriftClient.updateSpotMarketPausedOperations(1, 1);
 
 		await takerDriftClient.placeSpotOrder(
 			getLimitOrderParams({
