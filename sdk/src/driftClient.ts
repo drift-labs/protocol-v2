@@ -4310,7 +4310,8 @@ export class DriftClient {
 		const outMarket = this.getSpotMarketAccount(outMarketIndex);
 		const inMarket = this.getSpotMarketAccount(inMarketIndex);
 
-		const isExactOut = swapMode === 'ExactOut' || quote.swapMode === 'ExactOut';
+		const isExactOut =
+			swapMode === 'ExactOut' || quote?.swapMode === 'ExactOut';
 		const amountIn = new BN(quote.inAmount);
 		const exactOutBufferedAmountIn = amountIn.muln(1001).divn(1000); // Add 10bp buffer
 
