@@ -336,6 +336,9 @@ describe("fuelin'", () => {
 			'->',
 			fuelDictRmStake['insuranceFuel'].toNumber()
 		);
+
+		await takerDriftClient.unsubscribe();
+		await takerDriftClientUser.unsubscribe();
 	});
 
 	it('fuel for perp taker/maker/position', async () => {
