@@ -20,7 +20,6 @@ use crate::instructions::optional_accounts::{
     get_referrer_and_referrer_stats, get_whitelist_token, load_maps, AccountMaps,
 };
 use crate::instructions::SpotFulfillmentType;
-use crate::load_mut;
 use crate::math::casting::Cast;
 use crate::math::liquidation::is_user_being_liquidated;
 use crate::math::margin::{
@@ -48,7 +47,7 @@ use crate::state::oracle::StrictOraclePrice;
 use crate::state::order_params::{
     ModifyOrderParams, OrderParams, PlaceOrderOptions, PostOnlyParam,
 };
-use crate::state::paused_operations::PerpOperation;
+use crate::state::paused_operations::{PerpOperation, SpotOperation};
 use crate::state::perp_market::MarketStatus;
 use crate::state::perp_market_map::{get_writable_perp_market_set, MarketSet};
 use crate::state::spot_fulfillment_params::SpotFulfillmentParams;
@@ -67,6 +66,7 @@ use crate::validation::whitelist::validate_whitelist_token;
 use crate::{controller, math};
 use crate::{get_then_update_id, QUOTE_SPOT_MARKET_INDEX};
 use crate::{load, THIRTEEN_DAY};
+use crate::{load_mut, ExchangeStatus};
 use anchor_lang::solana_program::sysvar::instructions;
 use anchor_spl::associated_token::AssociatedToken;
 use borsh::{BorshDeserialize, BorshSerialize};
@@ -2701,7 +2701,21 @@ pub fn handle_end_swap<'c: 'info, 'info>(
 
     let mut user_stats = load_mut!(&ctx.accounts.user_stats)?;
 
+    let exchange_status = state.get_exchange_status()?;
+
+    validate!(
+        !exchange_status.contains(ExchangeStatus::DepositPaused | ExchangeStatus::WithdrawPaused),
+        ErrorCode::ExchangePaused
+    )?;
+
     let mut in_spot_market = spot_market_map.get_ref_mut(&in_market_index)?;
+
+    validate!(
+        !in_spot_market.is_operation_paused(SpotOperation::Withdraw),
+        ErrorCode::MarketFillOrderPaused,
+        "withdraw from market {} paused",
+        in_market_index
+    )?;
 
     validate!(
         in_spot_market.flash_loan_amount != 0,
@@ -2713,6 +2727,13 @@ pub fn handle_end_swap<'c: 'info, 'info>(
     let in_oracle_price = in_oracle_data.price;
 
     let mut out_spot_market = spot_market_map.get_ref_mut(&out_market_index)?;
+
+    validate!(
+        !out_spot_market.is_operation_paused(SpotOperation::Deposit),
+        ErrorCode::MarketFillOrderPaused,
+        "deposit to market {} paused",
+        out_market_index
+    )?;
 
     let out_oracle_data = oracle_map.get_price_data(&out_spot_market.oracle)?;
     let out_oracle_price = out_oracle_data.price;

@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - program: validate fee structure ([#1075](https://github.com/drift-labs/protocol-v2/pull/1075))
 - program: check 5 min oracle twap divergence in trigger order ([#1116](https://github.com/drift-labs/protocol-v2/pull/1116))
 - program: openbook v2 integration ([#1112](https://github.com/drift-labs/protocol-v2/pull/1112))
+- program: spot fill checks if withdraws are paused ([#881](https://github.com/drift-labs/protocol-v2/pull/881))
 
 ### Fixes
 
