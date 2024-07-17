@@ -734,6 +734,8 @@ describe("fuelin'", () => {
 
 		bankrunContextWrapper.connection.printTxLogs(fillTx);
 
+		await makerDriftClientUser.fetchAccounts();
+
 		const makerUSDCAmount = makerDriftClient.getQuoteAssetTokenAmount();
 		const makerSolAmount = makerDriftClient.getTokenAmount(1);
 		console.log(makerUSDCAmount.toString(), makerSolAmount.toString());
