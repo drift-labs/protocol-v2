@@ -9,7 +9,6 @@ import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
 import {
 	ASSOCIATED_TOKEN_PROGRAM_ID,
 	getAssociatedTokenAddressSync,
-	getOrCreateAssociatedTokenAccount,
 	TOKEN_PROGRAM_ID,
 } from '@solana/spl-token';
 import { BN, Program } from '@coral-xyz/anchor';

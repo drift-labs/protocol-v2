@@ -171,6 +171,7 @@ pub struct BookSide {
 }
 
 impl BookSide {
+    #[allow(clippy::unwrap_used)]
     pub fn find_min(&self) -> Option<u64> {
         let mut p = 0_u64;
         for node in self.nodes.nodes.iter() {
@@ -188,6 +189,7 @@ impl BookSide {
         None
     }
 
+    #[allow(clippy::unwrap_used)]
     pub fn find_max(&self) -> Option<u64> {
         let mut p = 0_u64;
         for node in self.nodes.nodes.iter() {
