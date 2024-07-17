@@ -70,11 +70,12 @@ pub fn settle_pnl(
 
     let mut market = perp_market_map.get_ref_mut(&market_index)?;
 
-    validate_market_within_price_band(&market, state, true, None)?;
+    let oracle_price = oracle_map.get_price_data(&market.amm.oracle)?.price;
+
+    validate_market_within_price_band(&market, state, oracle_price)?;
 
     crate::controller::lp::settle_funding_payment_then_lp(user, user_key, &mut market, now)?;
 
-    let oracle_price = oracle_map.get_price_data(&market.amm.oracle)?.price;
     drop(market);
 
     let position_index = get_position_index(&user.perp_positions, market_index)?;
@@ -229,20 +230,18 @@ pub fn settle_pnl(
                 &msg,
             );
         }
-    } else {
-        if perp_market.status != MarketStatus::Active
-            && perp_market.status != MarketStatus::ReduceOnly
-        {
-            let msg = format!(
-                "Cannot settle pnl under current market = {} status (neither Active or ReduceOnly)",
-                market_index
-            );
-            return mode.result(
-                ErrorCode::InvalidMarketStatusToSettlePnl,
-                market_index,
-                &msg,
-            );
-        }
+    } else if perp_market.status != MarketStatus::Active
+        && perp_market.status != MarketStatus::ReduceOnly
+    {
+        let msg = format!(
+            "Cannot settle pnl under current market = {} status (neither Active or ReduceOnly)",
+            market_index
+        );
+        return mode.result(
+            ErrorCode::InvalidMarketStatusToSettlePnl,
+            market_index,
+            &msg,
+        );
     }
 
     let pnl_pool_token_amount = get_token_amount(

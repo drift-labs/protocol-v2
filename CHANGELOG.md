@@ -9,6 +9,54 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Features
 
+- program: track fuel ([#1048](https://github.com/drift-labs/protocol-v2/pull/1048))
+- program: add post multi pyth oracle updates atomic ([#1133](https://github.com/drift-labs/protocol-v2/pull/1133))
+- program: track fuel for if staking ([#1127](https://github.com/drift-labs/protocol-v2/pull/1127))
+- program: validate fee structure ([#1075](https://github.com/drift-labs/protocol-v2/pull/1075))
+- program: check 5 min oracle twap divergence in trigger order ([#1116](https://github.com/drift-labs/protocol-v2/pull/1116))
+
+### Fixes
+
+- program: more oracle validation in admin fn ([#1082](https://github.com/drift-labs/protocol-v2/pull/1082))
+- program: account for serum already having open order account ([#1077](https://github.com/drift-labs/protocol-v2/pull/1077))
+- program: avoid truncated cast ([#1078](https://github.com/drift-labs/protocol-v2/pull/1078))
+- program: check whitelist token amount ([#1076](https://github.com/drift-labs/protocol-v2/pull/1076))
+- program: program: only let referrer set if number_of_sub_accounts_created is 0 ([#1083](https://github.com/drift-labs/protocol-v2/pull/1083))
+
+### Breaking
+
+## [2.85.0] - 2024-07-02
+
+### Features
+
+- program: add tx optimized pyth pull ([#1111](https://github.com/drift-labs/protocol-v2/pull/1111))
+- program: migrate all integration tests to bankrun ([#1090](https://github.com/drift-labs/protocol-v2/pull/1090))
+
+### Fixes
+
+### Breaking
+
+## [2.84.0] - 2024-06-23
+
+### Features
+
+- program: check FillOrderAmm for amm is available ([#1107](https://github.com/drift-labs/protocol-v2/pull/1107))
+- program: add spot borrow insurance limits ([#1080](https://github.com/drift-labs/protocol-v2/pull/1080))
+- program: maker can be rewarded filler returns when amm gets fill ([#1093](https://github.com/drift-labs/protocol-v2/pull/1093))
+- program: avoid overwriting 0 duration auction ([#1097](https://github.com/drift-labs/protocol-v2/pull/1097))
+- program: add pyth pull oracles ([#1067](https://github.com/drift-labs/protocol-v2/pull/1067))
+
+### Fixes
+
+### Breaking
+
+- program: upgrade to anchor 0.29.0 and solana 1.16
+
+## [2.83.0] - 2024-06-06
+
+### Features
+
+- program: settle pnl block looks at oracle vs oracle 5min twap ([#1072](https://github.com/drift-labs/protocol-v2/pull/1072))
 - program: add settle pnl mode ([#1030](https://github.com/drift-labs/protocol-v2/pull/1030))
 - program: use strict price for maintenance margin check in settle pnl ([#1045](https://github.com/drift-labs/protocol-v2/pull/1045))
 - program: order w ioc can still get auction ([#1074](https://github.com/drift-labs/protocol-v2/pull/1074))
@@ -75,13 +123,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixes
 
 - program: set default ContractTier to HighlySpeculative ([#1013](https://github.com/drift-labs/protocol-v2/pull/1013))
-- program: avoid dust borrows not being transferred 
+- program: avoid dust borrows not being transferred
 
 ### Breaking
 
 ## [2.77.0] - 2024-04-13
 
 ### Features
+
 - program: lax funding rate update oracle validity criteria ([#1009](https://github.com/drift-labs/protocol-v2/pull/1009))
 
 ### Fixes
@@ -109,10 +158,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Features
 
 - program: add fee adjustment to spot market ([#987](https://github.com/drift-labs/protocol-v2/pull/987))
-- program: allow multiple makers to be passed into for spot fills ([#946](https://github.com/drift-labs/protocol-v2/pull/946)) 
-- ts-sdk: add fn to get admin ix  ([#980](https://github.com/drift-labs/protocol-v2/pull/980))
-- program: add invariant check boolean for attempt settle revenue to insurance ([#937](https://github.com/drift-labs/protocol-v2/pull/937)) 
-- program: improve best bid/ask estimate in mark twap update  ([#975](https://github.com/drift-labs/protocol-v2/pull/975)) 
+- program: allow multiple makers to be passed into for spot fills ([#946](https://github.com/drift-labs/protocol-v2/pull/946))
+- ts-sdk: add fn to get admin ix ([#980](https://github.com/drift-labs/protocol-v2/pull/980))
+- program: add invariant check boolean for attempt settle revenue to insurance ([#937](https://github.com/drift-labs/protocol-v2/pull/937))
+- program: improve best bid/ask estimate in mark twap update ([#975](https://github.com/drift-labs/protocol-v2/pull/975))
 - program: add optional margin calculations for drift-rs ([#978](https://github.com/drift-labs/protocol-v2/pull/978))
 
 ### Fixes
@@ -123,12 +172,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Features
 
-- program: add 'highly speculative' contract tier enum 4 ([#968](https://github.com/drift-labs/protocol-v2/pull/968)) 
-- program: expand initialize market parameters ([#969](https://github.com/drift-labs/protocol-v2/pull/969)) 
+- program: add 'highly speculative' contract tier enum 4 ([#968](https://github.com/drift-labs/protocol-v2/pull/968))
+- program: expand initialize market parameters ([#969](https://github.com/drift-labs/protocol-v2/pull/969))
 
 ### Fixes
 
-- program: fix checking isolated tier in add_perp_lp_shares ([#965](https://github.com/drift-labs/protocol-v2/pull/965)) 
+- program: fix checking isolated tier in add_perp_lp_shares ([#965](https://github.com/drift-labs/protocol-v2/pull/965))
 
 ### Breaking
 

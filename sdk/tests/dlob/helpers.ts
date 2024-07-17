@@ -187,6 +187,9 @@ export const mockPerpMarkets: Array<PerpMarketAccount> = [
 		quoteSpotMarketIndex: 0,
 		feeAdjustment: 0,
 		pausedOperations: 0,
+		fuelBoostPosition: 0,
+		fuelBoostMaker: 0,
+		fuelBoostTaker: 0,
 	},
 	{
 		status: MarketStatus.INITIALIZED,
@@ -226,6 +229,9 @@ export const mockPerpMarkets: Array<PerpMarketAccount> = [
 		quoteSpotMarketIndex: 0,
 		feeAdjustment: 0,
 		pausedOperations: 0,
+		fuelBoostPosition: 0,
+		fuelBoostMaker: 0,
+		fuelBoostTaker: 0,
 	},
 	{
 		status: MarketStatus.INITIALIZED,
@@ -265,6 +271,9 @@ export const mockPerpMarkets: Array<PerpMarketAccount> = [
 		quoteSpotMarketIndex: 0,
 		feeAdjustment: 0,
 		pausedOperations: 0,
+		fuelBoostPosition: 0,
+		fuelBoostMaker: 0,
+		fuelBoostTaker: 0,
 	},
 ];
 
@@ -351,6 +360,13 @@ export const mockSpotMarkets: Array<SpotMarketAccount> = [
 		},
 		pausedOperations: 0,
 		ifPausedOperations: 0,
+		maxTokenBorrowsFraction: 0,
+		minBorrowRate: 0,
+		fuelBoostDeposits: 0,
+		fuelBoostBorrows: 0,
+		fuelBoostTaker: 0,
+		fuelBoostMaker: 0,
+		fuelBoostInsurance: 0,
 	},
 	{
 		status: MarketStatus.ACTIVE,
@@ -434,6 +450,13 @@ export const mockSpotMarkets: Array<SpotMarketAccount> = [
 		},
 		pausedOperations: 0,
 		ifPausedOperations: 0,
+		maxTokenBorrowsFraction: 0,
+		minBorrowRate: 0,
+		fuelBoostDeposits: 0,
+		fuelBoostBorrows: 0,
+		fuelBoostTaker: 0,
+		fuelBoostMaker: 0,
+		fuelBoostInsurance: 0,
 	},
 	{
 		status: MarketStatus.ACTIVE,
@@ -517,6 +540,13 @@ export const mockSpotMarkets: Array<SpotMarketAccount> = [
 		},
 		pausedOperations: 0,
 		ifPausedOperations: 0,
+		maxTokenBorrowsFraction: 0,
+		minBorrowRate: 0,
+		fuelBoostDeposits: 0,
+		fuelBoostBorrows: 0,
+		fuelBoostTaker: 0,
+		fuelBoostMaker: 0,
+		fuelBoostInsurance: 0,
 	},
 ];
 

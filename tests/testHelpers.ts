@@ -5,16 +5,19 @@ import {
 	MintLayout,
 	NATIVE_MINT,
 	TOKEN_PROGRAM_ID,
-	getMinimumBalanceForRentExemptMint,
-	getMinimumBalanceForRentExemptAccount,
 	createInitializeMintInstruction,
 	createInitializeAccountInstruction,
 	createMintToInstruction,
-	createWrappedNativeAccount,
+	getAssociatedTokenAddressSync,
+	createAssociatedTokenAccountIdempotentInstruction,
+	ACCOUNT_SIZE,
+	createSyncNativeInstruction,
 } from '@solana/spl-token';
 import {
+	AccountInfo,
 	Connection,
 	Keypair,
+	LAMPORTS_PER_SOL,
 	PublicKey,
 	sendAndConfirmTransaction,
 	SystemProgram,
@@ -23,13 +26,7 @@ import {
 } from '@solana/web3.js';
 import { assert } from 'chai';
 import buffer from 'buffer';
-import {
-	BN,
-	Wallet,
-	OraclePriceData,
-	OracleInfo,
-	BulkAccountLoader,
-} from '../sdk';
+import { BN, Wallet, OraclePriceData, OracleInfo } from '../sdk';
 import {
 	TestClient,
 	SPOT_MARKET_RATE_PRECISION,
@@ -39,6 +36,12 @@ import {
 	User,
 	OracleSource,
 } from '../sdk/src';
+import {
+	BankrunContextWrapper,
+	BankrunConnection,
+} from '../sdk/src/bankrun/bankrunConnection';
+import pythIDL from '../sdk/src/idl/pyth.json';
+import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
 
 export async function mockOracle(
 	price: number = 50 * 10e7,
@@ -70,12 +73,55 @@ export async function mockOracle(
 	return priceFeedAddress;
 }
 
-export async function mockUSDCMint(provider: Provider): Promise<Keypair> {
+export async function mockOracleNoProgram(
+	context: BankrunContextWrapper,
+	price: number = 50 * 10e7,
+	expo = -7,
+	confidence?: number
+): Promise<PublicKey> {
+	const provider = new AnchorProvider(
+		context.connection.toConnection(),
+		context.provider.wallet,
+		{
+			commitment: 'processed',
+		}
+	);
+
+	const program = new Program(
+		pythIDL as anchor.Idl,
+		new PublicKey('FsJ3A3u2vn5cTVofAjvy6y5kwABJAqYWpe4975bi2epH'),
+		provider
+	);
+
+	const priceFeedAddress = await createPriceFeedBankrun({
+		oracleProgram: program,
+		context: context,
+		initPrice: price,
+		expo: expo,
+		confidence,
+	});
+
+	// @ts-ignore
+	const feedData = await getFeedDataNoProgram(
+		context.connection,
+		priceFeedAddress
+	);
+	if (feedData.price !== price) {
+		console.log('mockOracle precision error:', feedData.price, '!=', price);
+	}
+	assert.ok(Math.abs(feedData.price - price) < 1e-10);
+
+	return priceFeedAddress;
+}
+
+export async function mockUSDCMint(
+	context: BankrunContextWrapper
+): Promise<Keypair> {
 	const fakeUSDCMint = anchor.web3.Keypair.generate();
 	const createUSDCMintAccountIx = SystemProgram.createAccount({
-		fromPubkey: provider.wallet.publicKey,
+		fromPubkey: context.provider.wallet.publicKey,
 		newAccountPubkey: fakeUSDCMint.publicKey,
-		lamports: await getMinimumBalanceForRentExemptMint(provider.connection),
+		lamports: 10_000_000_000,
 		space: MintLayout.span,
 		programId: TOKEN_PROGRAM_ID,
 	});
@@ -83,46 +129,46 @@ export async function mockUSDCMint(provider: Provider): Promise<Keypair> {
 		fakeUSDCMint.publicKey,
 		6,
 		// @ts-ignore
-		provider.wallet.publicKey,
+		context.provider.wallet.publicKey,
 		// @ts-ignore
-		provider.wallet.publicKey
+		context.provider.wallet.publicKey
 	);
 
 	const fakeUSDCTx = new Transaction();
 	fakeUSDCTx.add(createUSDCMintAccountIx);
 	fakeUSDCTx.add(initCollateralMintIx);
-
-	await sendAndConfirmTransaction(
-		provider.connection,
-		fakeUSDCTx,
-		// @ts-ignore
-		[provider.wallet.payer, fakeUSDCMint],
-		{
-			skipPreflight: false,
-			commitment: 'recent',
-			preflightCommitment: 'recent',
-		}
-	);
+	await context.sendTransaction(fakeUSDCTx, [fakeUSDCMint]);
+	// await sendAndConfirmTransaction(
+	// 	provider.connection,
+	// 	fakeUSDCTx,
+	// 	// @ts-ignore
+	// 	[provider.wallet.payer, fakeUSDCMint],
+	// 	{
+	// 		skipPreflight: false,
+	// 		commitment: 'recent',
+	// 		preflightCommitment: 'recent',
+	// 	}
+	// );
 	return fakeUSDCMint;
 }
 
 export async function mockUserUSDCAccount(
 	fakeUSDCMint: Keypair,
 	usdcMintAmount: BN,
-	provider: Provider,
+	context: BankrunContextWrapper,
 	owner?: PublicKey
 ): Promise<Keypair> {
 	const userUSDCAccount = anchor.web3.Keypair.generate();
 	const fakeUSDCTx = new Transaction();
 
 	if (owner === undefined) {
-		owner = provider.wallet.publicKey;
+		owner = context.context.payer.publicKey;
 	}
 
 	const createUSDCTokenAccountIx = SystemProgram.createAccount({
-		fromPubkey: provider.wallet.publicKey,
+		fromPubkey: context.context.payer.publicKey,
 		newAccountPubkey: userUSDCAccount.publicKey,
-		lamports: await getMinimumBalanceForRentExemptAccount(provider.connection),
+		lamports: 100_000_000,
 		space: AccountLayout.span,
 		programId: TOKEN_PROGRAM_ID,
 	});
@@ -135,68 +181,90 @@ export async function mockUserUSDCAccount(
 	);
 	fakeUSDCTx.add(initUSDCTokenAccountIx);
 
-	const mintToUserAccountTx = await createMintToInstruction(
+	const mintToUserAccountTx = createMintToInstruction(
 		fakeUSDCMint.publicKey,
 		userUSDCAccount.publicKey,
 		// @ts-ignore
-		provider.wallet.publicKey,
+		context.context.payer.publicKey,
 		usdcMintAmount.toNumber()
 	);
 	fakeUSDCTx.add(mintToUserAccountTx);
 
-	const _fakeUSDCTxResult = await sendAndConfirmTransaction(
-		provider.connection,
-		fakeUSDCTx,
-		// @ts-ignore
-		[provider.wallet.payer, userUSDCAccount],
-		{
-			skipPreflight: false,
-			commitment: 'recent',
-			preflightCommitment: 'recent',
-		}
-	);
+	await context.sendTransaction(fakeUSDCTx, [userUSDCAccount, fakeUSDCMint]);
+
 	return userUSDCAccount;
+}
+
+export function getMockUserUsdcAccountInfo(
+	fakeUSDCMint: Keypair,
+	usdcMintAmount: BN,
+	context: BankrunContextWrapper,
+	owner?: PublicKey
+): [PublicKey, AccountInfo<Buffer>] {
+	if (owner === undefined) {
+		owner = context.context.payer.publicKey;
+	}
+
+	const ata = getAssociatedTokenAddressSync(fakeUSDCMint.publicKey, owner);
+	const tokenAccData = Buffer.alloc(ACCOUNT_SIZE);
+
+	AccountLayout.encode(
+		{
+			mint: fakeUSDCMint.publicKey,
+			owner,
+			amount: BigInt(usdcMintAmount.toNumber()),
+			delegateOption: 0,
+			delegate: PublicKey.default,
+			delegatedAmount: BigInt(0),
+			state: 1,
+			isNativeOption: 0,
+			isNative: BigInt(0),
+			closeAuthorityOption: 0,
+			closeAuthority: PublicKey.default,
+		},
+		tokenAccData
+	);
+
+	const accountInfo: AccountInfo<Buffer> = {
+		data: tokenAccData,
+		executable: false,
+		lamports: 100_000_000,
+		owner,
+		rentEpoch: 0,
+	};
+
+	return [ata, accountInfo];
 }
 
 export async function mintUSDCToUser(
 	fakeUSDCMint: Keypair,
 	userUSDCAccount: PublicKey,
 	usdcMintAmount: BN,
-	provider: Provider
+	context: BankrunContextWrapper
 ): Promise<void> {
 	const tx = new Transaction();
 	const mintToUserAccountTx = await createMintToInstruction(
 		fakeUSDCMint.publicKey,
 		userUSDCAccount,
 		// @ts-ignore
-		provider.wallet.publicKey,
+		context.provider.wallet.publicKey,
 		usdcMintAmount.toNumber()
 	);
 	tx.add(mintToUserAccountTx);
 
-	await sendAndConfirmTransaction(
-		provider.connection,
-		tx,
-		// @ts-ignore
-		[provider.wallet.payer],
-		{
-			skipPreflight: false,
-			commitment: 'recent',
-			preflightCommitment: 'recent',
-		}
-	);
+	await context.sendTransaction(tx);
 }
 
 export async function createFundedKeyPair(
-	connection: Connection
+	context: BankrunContextWrapper
 ): Promise<Keypair> {
-	const userKeyPair = new Keypair();
-	await connection.requestAirdrop(userKeyPair.publicKey, 10 ** 9);
-	return userKeyPair;
+	const keypair = Keypair.generate();
+	await context.fundKeypair(keypair, BigInt(100 * LAMPORTS_PER_SOL));
+	return keypair;
 }
 
 export async function createUSDCAccountForUser(
-	provider: AnchorProvider,
+	context: BankrunContextWrapper,
 	userKeyPair: Keypair,
 	usdcMint: Keypair,
 	usdcAmount: BN
@@ -204,7 +272,7 @@ export async function createUSDCAccountForUser(
 	const userUSDCAccount = await mockUserUSDCAccount(
 		usdcMint,
 		usdcAmount,
-		provider,
+		context,
 		userKeyPair.publicKey
 	);
 	return userUSDCAccount.publicKey;
@@ -217,7 +285,7 @@ export async function initializeAndSubscribeDriftClient(
 	marketIndexes: number[],
 	bankIndexes: number[],
 	oracleInfos: OracleInfo[] = [],
-	accountLoader?: BulkAccountLoader
+	accountLoader?: TestBulkAccountLoader
 ): Promise<TestClient> {
 	const driftClient = new TestClient({
 		connection,
@@ -226,10 +294,12 @@ export async function initializeAndSubscribeDriftClient(
 		opts: {
 			commitment: 'confirmed',
 		},
-		activeSubAccountId: 0,
+		// activeSubAccountId: 0,
 		perpMarketIndexes: marketIndexes,
 		spotMarketIndexes: bankIndexes,
 		oracleInfos,
+		subAccountIds: [],
+		userStats: false,
 		accountSubscription: accountLoader
 			? {
 					type: 'polling',
@@ -245,24 +315,24 @@ export async function initializeAndSubscribeDriftClient(
 }
 
 export async function createUserWithUSDCAccount(
-	provider: AnchorProvider,
+	context: BankrunContextWrapper,
 	usdcMint: Keypair,
 	chProgram: Program,
 	usdcAmount: BN,
 	marketIndexes: number[],
 	bankIndexes: number[],
 	oracleInfos: OracleInfo[] = [],
-	accountLoader?: BulkAccountLoader
+	accountLoader?: TestBulkAccountLoader
 ): Promise<[TestClient, PublicKey, Keypair]> {
-	const userKeyPair = await createFundedKeyPair(provider.connection);
+	const userKeyPair = await createFundedKeyPair(context);
 	const usdcAccount = await createUSDCAccountForUser(
-		provider,
+		context,
 		userKeyPair,
 		usdcMint,
 		usdcAmount
 	);
 	const driftClient = await initializeAndSubscribeDriftClient(
-		provider.connection,
+		context.connection.toConnection(),
 		chProgram,
 		userKeyPair,
 		marketIndexes,
@@ -275,26 +345,60 @@ export async function createUserWithUSDCAccount(
 }
 
 export async function createWSolTokenAccountForUser(
-	provider: AnchorProvider,
+	context: BankrunContextWrapper,
 	userKeypair: Keypair | Wallet,
 	amount: BN
 ): Promise<PublicKey> {
-	await provider.connection.requestAirdrop(
-		userKeypair.publicKey,
-		amount.toNumber() +
-			(await getMinimumBalanceForRentExemptAccount(provider.connection))
+	// @ts-ignore
+	await context.fundKeypair(userKeypair, amount.toNumber());
+	const addr = getAssociatedTokenAddressSync(
+		NATIVE_MINT,
+		userKeypair.publicKey
 	);
-	return await createWrappedNativeAccount(
-		provider.connection,
-		// @ts-ignore
-		provider.wallet.payer,
+	const ix = createAssociatedTokenAccountIdempotentInstruction(
+		context.context.payer.publicKey,
+		addr,
 		userKeypair.publicKey,
-		amount.toNumber()
+		NATIVE_MINT
 	);
+	const ixs = [
+		SystemProgram.transfer({
+			fromPubkey: context.context.payer.publicKey,
+			toPubkey: addr,
+			lamports: amount.toNumber(),
+		}),
+		createSyncNativeInstruction(addr),
+	];
+	const tx = new Transaction().add(ix).add(...ixs);
+	await context.sendTransaction(tx);
+	return addr;
+}
+
+export async function fundWsolTokenAccountForUser(
+	context: BankrunContextWrapper,
+	userKeypair: Keypair | Wallet,
+	amount: BN
+): Promise<void> {
+	// @ts-ignore
+	await context.fundKeypair(userKeypair, amount.toNumber() * 5);
+	const addr = getAssociatedTokenAddressSync(
+		NATIVE_MINT,
+		userKeypair.publicKey
+	);
+	const ixs = [
+		SystemProgram.transfer({
+			fromPubkey: context.context.payer.publicKey,
+			toPubkey: addr,
+			lamports: amount.toNumber(),
+		}),
+		createSyncNativeInstruction(addr),
+	];
+	const tx = new Transaction().add(...ixs);
+	await context.sendTransaction(tx);
 }
 
 export async function createUserWithUSDCAndWSOLAccount(
-	provider: AnchorProvider,
+	context: BankrunContextWrapper,
 	usdcMint: Keypair,
 	chProgram: Program,
 	solAmount: BN,
@@ -302,31 +406,32 @@ export async function createUserWithUSDCAndWSOLAccount(
 	marketIndexes: number[],
 	bankIndexes: number[],
 	oracleInfos: OracleInfo[] = [],
-	accountLoader?: BulkAccountLoader
+	accountLoader?: TestBulkAccountLoader
 ): Promise<[TestClient, PublicKey, PublicKey, Keypair]> {
-	const userKeyPair = await createFundedKeyPair(provider.connection);
+	const keypair = Keypair.generate();
+	await context.fundKeypair(keypair, BigInt(LAMPORTS_PER_SOL));
 	const solAccount = await createWSolTokenAccountForUser(
-		provider,
-		userKeyPair,
+		context,
+		keypair,
 		solAmount
 	);
 	const usdcAccount = await createUSDCAccountForUser(
-		provider,
-		userKeyPair,
+		context,
+		keypair,
 		usdcMint,
 		usdcAmount
 	);
 	const driftClient = await initializeAndSubscribeDriftClient(
-		provider.connection,
+		context.connection.toConnection(),
 		chProgram,
-		userKeyPair,
+		keypair,
 		marketIndexes,
 		bankIndexes,
 		oracleInfos,
 		accountLoader
 	);
 
-	return [driftClient, solAccount, usdcAccount, userKeyPair];
+	return [driftClient, solAccount, usdcAccount, keypair];
 }
 
 export async function printTxLogs(
@@ -374,11 +479,11 @@ export async function initUserAccounts(
 	NUM_USERS: number,
 	usdcMint: Keypair,
 	usdcAmount: BN,
-	provider: Provider,
+	context: BankrunContextWrapper,
 	marketIndexes: number[],
 	bankIndexes: number[],
 	oracleInfos: OracleInfo[],
-	accountLoader?: BulkAccountLoader
+	accountLoader?: TestBulkAccountLoader
 ) {
 	const user_keys = [];
 	const userUSDCAccounts = [];
@@ -392,29 +497,29 @@ export async function initUserAccounts(
 
 		const owner = anchor.web3.Keypair.generate();
 		const ownerWallet = new anchor.Wallet(owner);
-		await provider.connection.requestAirdrop(ownerWallet.publicKey, 100000000);
+		await context.fundKeypair(owner, BigInt(100 * LAMPORTS_PER_SOL));
 
 		const newUserAcct = await mockUserUSDCAccount(
 			usdcMint,
 			usdcAmount,
-			provider,
+			context,
 			ownerWallet.publicKey
 		);
 
 		const chProgram = anchor.workspace.Drift as anchor.Program; // this.program-ify
 
 		const driftClient1 = new TestClient({
-			connection: provider.connection,
+			connection: context.connection.toConnection(),
 			//@ts-ignore
 			wallet: ownerWallet,
 			programID: chProgram.programId,
 			opts: {
 				commitment: 'confirmed',
 			},
-			activeSubAccountId: 0,
 			perpMarketIndexes: marketIndexes,
 			spotMarketIndexes: bankIndexes,
 			oracleInfos,
+			subAccountIds: [],
 			accountSubscription: accountLoader
 				? {
 						type: 'polling',
@@ -444,6 +549,10 @@ export async function initUserAccounts(
 		const userAccount = new User({
 			driftClient: driftClient1,
 			userAccountPublicKey: await driftClient1.getUserAccountPublicKey(),
+			accountSubscription: {
+				type: 'polling',
+				accountLoader: accountLoader,
+			},
 		});
 		await userAccount.subscribe();
 
@@ -474,7 +583,7 @@ export const createPriceFeed = async ({
 }): Promise<PublicKey> => {
 	const conf = new BN(confidence) || new BN((initPrice / 10) * 10 ** -expo);
 	const collateralTokenFeed = new anchor.web3.Account();
-	await oracleProgram.rpc.initialize(
+	const txid = await oracleProgram.rpc.initialize(
 		new BN(initPrice * 10 ** -expo),
 		expo,
 		conf,
@@ -483,6 +592,7 @@ export const createPriceFeed = async ({
 			signers: [collateralTokenFeed],
 			instructions: [
 				anchor.web3.SystemProgram.createAccount({
+					// @ts-ignore
 					fromPubkey: oracleProgram.provider.wallet.publicKey,
 					newAccountPubkey: collateralTokenFeed.publicKey,
 					space: 3312,
@@ -495,9 +605,47 @@ export const createPriceFeed = async ({
 			],
 		}
 	);
+	console.log(txid);
 	return collateralTokenFeed.publicKey;
 };
 
+export const createPriceFeedBankrun = async ({
+	oracleProgram,
+	context,
+	initPrice,
+	confidence = undefined,
+	expo = -4,
+}: {
+	oracleProgram: Program;
+	context: BankrunContextWrapper;
+	initPrice: number;
+	confidence?: number;
+	expo?: number;
+}): Promise<PublicKey> => {
+	const conf = new BN(confidence) || new BN((initPrice / 10) * 10 ** -expo);
+	const collateralTokenFeed = new anchor.web3.Account();
+	const createAccountIx = anchor.web3.SystemProgram.createAccount({
+		fromPubkey: context.context.payer.publicKey,
+		newAccountPubkey: collateralTokenFeed.publicKey,
+		space: 3312,
+		lamports: LAMPORTS_PER_SOL / 20, // just hardcode based on mainnet
+		programId: oracleProgram.programId,
+	});
+	const ix = oracleProgram.instruction.initialize(
+		new BN(initPrice * 10 ** -expo),
+		expo,
+		conf,
+		{
+			accounts: { price: collateralTokenFeed.publicKey },
+		}
+	);
+	const tx = new Transaction().add(createAccountIx).add(ix);
+	tx.feePayer = context.context.payer.publicKey;
+	tx.recentBlockhash = context.context.lastBlockhash;
+	tx.sign(...[collateralTokenFeed, context.context.payer]);
+	await context.connection.sendTransaction(tx);
+	return collateralTokenFeed.publicKey;
+};
 export const setFeedPrice = async (
 	oracleProgram: Program,
 	newPrice: number,
@@ -511,6 +659,43 @@ export const setFeedPrice = async (
 		accounts: { price: priceFeed },
 	});
 };
+
+export const setFeedPriceNoProgram = async (
+	context: BankrunContextWrapper,
+	newPrice: number,
+	priceFeed: PublicKey
+) => {
+	const info = await context.connection.getAccountInfo(priceFeed);
+	const data = parsePriceData(info.data);
+
+	const provider = new AnchorProvider(
+		context.connection.toConnection(),
+		context.provider.wallet,
+		{
+			commitment: 'processed',
+		}
+	);
+
+	const program = new Program(
+		pythIDL as anchor.Idl,
+		new PublicKey('FsJ3A3u2vn5cTVofAjvy6y5kwABJAqYWpe4975bi2epH'),
+		provider
+	);
+
+	const ix = program.instruction.setPrice(
+		new BN(newPrice * 10 ** -data.exponent),
+		{
+			accounts: { price: priceFeed },
+		}
+	);
+
+	const tx = new Transaction().add(ix);
+	tx.feePayer = context.context.payer.publicKey;
+	tx.recentBlockhash = (await context.getLatestBlockhash()).toString();
+	tx.sign(...[context.context.payer]);
+	await context.connection.sendTransaction(tx);
+};
+
 export const setFeedTwap = async (
 	oracleProgram: Program,
 	newTwap: number,
@@ -532,6 +717,15 @@ export const getFeedData = async (
 		priceFeed
 	);
 	return parsePriceData(info.data);
+};
+
+export const getFeedDataNoProgram = async (
+	connection: BankrunConnection,
+	priceFeed: PublicKey
+) => {
+	// @ts-ignore
+	const info = await connection.getAccountInfoAndContext(priceFeed);
+	return parsePriceData(info.value.data);
 };
 
 export const getOraclePriceData = async (
@@ -822,6 +1016,10 @@ export async function initializeQuoteSpotMarket(
 		maintenanceLiabilityWeight,
 		imfFactor
 	);
+
+	// @ts-ignore
+	admin.accountSubscriber.spotOracleMap.set(0, PublicKey.default);
+
 	await admin.updateWithdrawGuardThreshold(
 		marketIndex,
 		new BN(10 ** 10).mul(QUOTE_PRECISION)

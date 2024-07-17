@@ -9,32 +9,22 @@ pub struct AccKey {
     pub val: [u8; 32],
 }
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Default)]
 #[repr(C)]
 #[allow(dead_code)]
 pub enum PriceStatus {
     Unknown,
+    #[default]
     Trading,
     Halted,
     Auction,
 }
 
-impl Default for PriceStatus {
-    fn default() -> Self {
-        PriceStatus::Trading
-    }
-}
-
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Default)]
 #[repr(C)]
 pub enum CorpAction {
+    #[default]
     NoCorpAct,
-}
-
-impl Default for CorpAction {
-    fn default() -> Self {
-        CorpAction::NoCorpAct
-    }
 }
 
 #[derive(Default, Copy, Clone)]
@@ -54,20 +44,15 @@ pub struct PriceComp {
     latest: PriceInfo,
 }
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Default)]
 #[repr(C)]
 #[allow(dead_code, clippy::upper_case_acronyms)]
 pub enum PriceType {
     Unknown,
+    #[default]
     Price,
     TWAP,
     Volatility,
-}
-
-impl Default for PriceType {
-    fn default() -> Self {
-        PriceType::Price
-    }
 }
 
 #[derive(Default, Copy, Clone)]

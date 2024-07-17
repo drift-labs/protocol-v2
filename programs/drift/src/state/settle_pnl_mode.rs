@@ -26,12 +26,8 @@ impl SettlePnlMode {
             caller.line()
         );
         match self {
-            SettlePnlMode::MustSettle => {
-                return Err(error_code);
-            }
-            SettlePnlMode::TrySettle => {
-                return Ok(());
-            }
+            SettlePnlMode::MustSettle => Err(error_code),
+            SettlePnlMode::TrySettle => Ok(()),
         }
     }
 }

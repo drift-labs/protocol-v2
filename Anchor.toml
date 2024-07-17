@@ -3,7 +3,7 @@ cluster = "localnet"
 wallet = "~/.config/solana/id.json"
 
 [scripts]
-test = "./test-scripts/run-ts-mocha"
+test = "echo" # need to call anchor test to update metadata field in idl before running tests, so just do a noop
 lint = "yarn prettify:fix && cargo fmt"
 fulltest = 'cargo test && bash ./test-scripts/run-anchor-tests.sh'
 watch_ts = 'find ./programs/clearing_house/src/* ./tests ./sdk/src | entr -c bash ./test-scripts/single-anchor-test.sh'
@@ -14,31 +14,3 @@ watch_cargo = 'find ./programs/clearing_house/src/* ./tests ./sdk/src | entr -c 
 drift = "dRiftyHA39MWEi3m9aunc5MzRF1JYuBsbn6VPcn33UH"
 pyth = "FsJ3A3u2vn5cTVofAjvy6y5kwABJAqYWpe4975bi2epH"
 token_faucet = "V4v1mQiAdLz4qwckEb45WqHYceYizoib39cDBHSWfaB"
-
-[[test.genesis]]
-address = "srmqPvymJeFKQ4zGQed1GFppgkRHL9kaELCbyksJtPX"
-program = "./deps/serum_dex.so"
-
-[[test.genesis]]
-address = "PhoeNiXZ8ByJGLkxNfZRnkUfjvmuYqLR89jjFHGqdXY"
-program = "./deps/phoenix_dex.so"
-
-[[test.validator.account]]
-address = "HhHRvLFvZid6FD7C96H93F2MkASjYfYAx8Y2P8KMAr6b"
-filename = "./deps/configs/phoenix_sol_usdc_market.json"
-
-[[test.validator.account]]
-address = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"
-filename = "./deps/configs/usdc.json"
-
-[[test.validator.account]]
-address = "GDqLPXfwDHXnqwfqtEJmqovA4KEy9XhoZxkg3MVyFK9N"
-filename = "./deps/configs/phoenix_sol_usdc_seat.json"
-
-[[test.validator.account]]
-address = "EyZsJZJWXuix6Zgw34JXb2fAbF4d62nfUgp4tzZBPxhW"
-filename = "./deps/configs/phoenix_sol_usdc_base_vault.json"
-
-[[test.validator.account]]
-address = "B9SETfVeH1vx7sEJ7v41CRJncJnpMpGxHg4Mztc3sZKX"
-filename = "./deps/configs/phoenix_sol_usdc_quote_vault.json"

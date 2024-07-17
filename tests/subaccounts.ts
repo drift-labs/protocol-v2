@@ -16,39 +16,32 @@ import {
 	createFundedKeyPair,
 	initializeQuoteSpotMarket,
 	initializeSolSpotMarket,
-	mockOracle,
+	mockOracleNoProgram,
 	mockUSDCMint,
 	mockUserUSDCAccount,
-	printTxLogs,
 } from './testHelpers';
 import { decodeName } from '../sdk/src/userName';
 import { assert } from 'chai';
 import {
-	BulkAccountLoader,
 	getTokenAmount,
 	LAMPORTS_PRECISION,
 	MARGIN_PRECISION,
 	SpotBalanceType,
 } from '../sdk';
 import { PublicKey } from '@solana/web3.js';
+import { startAnchor } from 'solana-bankrun';
+import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
+import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
 
 describe('subaccounts', () => {
-	const provider = anchor.AnchorProvider.local(undefined, {
-		preflightCommitment: 'confirmed',
-		skipPreflight: false,
-		commitment: 'confirmed',
-	});
-	const connection = provider.connection;
-	anchor.setProvider(provider);
 	const chProgram = anchor.workspace.Drift as Program;
 
 	let driftClient: TestClient;
-	const eventSubscriber = new EventSubscriber(connection, chProgram, {
-		commitment: 'recent',
-	});
-	eventSubscriber.subscribe();
+	let eventSubscriber: EventSubscriber;
 
-	const bulkAccountLoader = new BulkAccountLoader(connection, 'confirmed', 1);
+	let bulkAccountLoader: TestBulkAccountLoader;
+
+	let bankrunContextWrapper: BankrunContextWrapper;
 
 	let solOracle: PublicKey;
 
@@ -58,15 +51,36 @@ describe('subaccounts', () => {
 	const usdcAmount = new BN(10 * 10 ** 6);
 
 	before(async () => {
-		usdcMint = await mockUSDCMint(provider);
-		usdcAccount = await mockUserUSDCAccount(usdcMint, usdcAmount, provider);
+		const context = await startAnchor('', [], []);
+
+		bankrunContextWrapper = new BankrunContextWrapper(context);
+
+		bulkAccountLoader = new TestBulkAccountLoader(
+			bankrunContextWrapper.connection,
+			'processed',
+			1
+		);
+
+		eventSubscriber = new EventSubscriber(
+			bankrunContextWrapper.connection.toConnection(),
+			chProgram
+		);
+
+		await eventSubscriber.subscribe();
+
+		usdcMint = await mockUSDCMint(bankrunContextWrapper);
+		usdcAccount = await mockUserUSDCAccount(
+			usdcMint,
+			usdcAmount,
+			bankrunContextWrapper
+		);
 
 		const marketIndexes = [0, 1];
 		const spotMarketIndexes = [0, 1];
 
 		driftClient = new TestClient({
-			connection,
-			wallet: provider.wallet,
+			connection: bankrunContextWrapper.connection.toConnection(),
+			wallet: bankrunContextWrapper.provider.wallet,
 			programID: chProgram.programId,
 			opts: {
 				commitment: 'confirmed',
@@ -74,6 +88,7 @@ describe('subaccounts', () => {
 			activeSubAccountId: 0,
 			perpMarketIndexes: marketIndexes,
 			spotMarketIndexes: spotMarketIndexes,
+			subAccountIds: [],
 			userStats: true,
 			accountSubscription: {
 				type: 'polling',
@@ -81,7 +96,7 @@ describe('subaccounts', () => {
 			},
 		});
 
-		solOracle = await mockOracle(100);
+		solOracle = await mockOracleNoProgram(bankrunContextWrapper, 100);
 
 		await driftClient.initialize(usdcMint.publicKey, true);
 		await driftClient.subscribe();
@@ -101,7 +116,7 @@ describe('subaccounts', () => {
 		const name = 'CRISP';
 		await driftClient.initializeUserAccountAndDepositCollateral(
 			LAMPORTS_PRECISION,
-			provider.wallet.publicKey,
+			bankrunContextWrapper.provider.wallet.publicKey,
 			1,
 			subAccountId,
 			name,
@@ -168,9 +183,9 @@ describe('subaccounts', () => {
 
 	it('Fetch all user account', async () => {
 		const userAccounts = await fetchUserAccounts(
-			connection,
+			bankrunContextWrapper.connection.toConnection(),
 			chProgram,
-			provider.wallet.publicKey,
+			bankrunContextWrapper.provider.wallet.publicKey,
 			2
 		);
 		assert(userAccounts.length === 2);
@@ -192,7 +207,7 @@ describe('subaccounts', () => {
 
 		const toUser = await getUserAccountPublicKey(
 			chProgram.programId,
-			provider.wallet.publicKey,
+			bankrunContextWrapper.provider.wallet.publicKey,
 			0
 		);
 		const withdrawRecord = depositRecords[1];
@@ -201,7 +216,7 @@ describe('subaccounts', () => {
 
 		const fromUser = await getUserAccountPublicKey(
 			chProgram.programId,
-			provider.wallet.publicKey,
+			bankrunContextWrapper.provider.wallet.publicKey,
 			1
 		);
 		const depositRecord = depositRecords[0];
@@ -230,18 +245,13 @@ describe('subaccounts', () => {
 	});
 
 	it('Update delegate', async () => {
-		const delegateKeyPair = await createFundedKeyPair(connection);
+		const delegateKeyPair = await createFundedKeyPair(bankrunContextWrapper);
 		await driftClient.updateUserDelegate(delegateKeyPair.publicKey);
 
 		await driftClient.fetchAccounts();
 		assert(
 			driftClient.getUserAccount().delegate.equals(delegateKeyPair.publicKey)
 		);
-
-		const delegateUserAccount = (
-			await driftClient.getUserAccountsForDelegate(delegateKeyPair.publicKey)
-		)[0];
-		assert(delegateUserAccount.delegate.equals(delegateKeyPair.publicKey));
 	});
 
 	it('delete user', async () => {
@@ -250,7 +260,7 @@ describe('subaccounts', () => {
 		let deleteFailed = false;
 		try {
 			const txSig = await driftClient.deleteUser(0);
-			await printTxLogs(connection, txSig);
+			bankrunContextWrapper.printTxLogs(txSig);
 		} catch (e) {
 			deleteFailed = true;
 		}

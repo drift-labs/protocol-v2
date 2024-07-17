@@ -44,6 +44,7 @@ import {
 	SwapReduceOnly,
 	SettlePnlMode,
 	SignedTxData,
+	MappedRecord,
 } from './types';
 import * as anchor from '@coral-xyz/anchor';
 import driftIDL from './idl/drift.json';
@@ -75,6 +76,7 @@ import {
 	getInsuranceFundStakeAccountPublicKey,
 	getPerpMarketPublicKey,
 	getPhoenixFulfillmentConfigPublicKey,
+	getPythPullOraclePublicKey,
 	getReferrerNamePublicKeySync,
 	getSerumFulfillmentConfigPublicKey,
 	getSerumSignerPublicKey,
@@ -126,8 +128,23 @@ import { getMarinadeDepositIx, getMarinadeFinanceProgram } from './marinade';
 import { getOrderParams } from './orderParams';
 import { numberToSafeBN } from './math/utils';
 import { TransactionParamProcessor } from './tx/txParamProcessor';
-import { isOracleValid } from './math/oracles';
+import { isOracleValid, trimVaaSignatures } from './math/oracles';
 import { TxHandler } from './tx/txHandler';
+import {
+	wormholeCoreBridgeIdl,
+	DEFAULT_RECEIVER_PROGRAM_ID,
+} from '@pythnetwork/pyth-solana-receiver';
+import { parseAccumulatorUpdateData } from '@pythnetwork/price-service-sdk';
+import {
+	DEFAULT_WORMHOLE_PROGRAM_ID,
+	getGuardianSetPda,
+} from '@pythnetwork/pyth-solana-receiver/lib/address';
+import { DRIFT_ORACLE_RECEIVER_ID } from './config';
+import { WormholeCoreBridgeSolana } from '@pythnetwork/pyth-solana-receiver/lib/idl/wormhole_core_bridge_solana';
+import { PythSolanaReceiver } from '@pythnetwork/pyth-solana-receiver/lib/idl/pyth_solana_receiver';
+import { getFeedIdUint8Array, trimFeedId } from './util/pythPullOracleUtils';
+import { isVersionedTransaction } from './tx/utils';
+import pythSolanaReceiverIdl from './idl/pyth_solana_receiver.json';
 
 type RemainingAccountParams = {
 	userAccounts: UserAccount[];
@@ -176,6 +193,9 @@ export class DriftClient {
 	enableMetricsEvents?: boolean;
 
 	txHandler: TxHandler;
+
+	receiverProgram?: Program<PythSolanaReceiver>;
+	wormholeProgram?: Program<WormholeCoreBridgeSolana>;
 
 	public get isSubscribed() {
 		return this._isSubscribed && this.accountSubscriber.isSubscribed;
@@ -226,6 +246,7 @@ export class DriftClient {
 					onSignedCb: this.handleSignedTransaction.bind(this),
 					preSignedCb: this.handlePreSignedTransaction.bind(this),
 				},
+				config: config.txHandlerConfig,
 			});
 
 		if (config.includeDelegates && config.subAccountIds) {
@@ -523,6 +544,15 @@ export class DriftClient {
 		)) as SerumV3FulfillmentConfigAccount;
 	}
 
+	public async getSerumV3FulfillmentConfigs(): Promise<
+		SerumV3FulfillmentConfigAccount[]
+	> {
+		const accounts = await this.program.account.serumV3FulfillmentConfig.all();
+		return accounts.map(
+			(account) => account.account
+		) as SerumV3FulfillmentConfigAccount[];
+	}
+
 	public async getPhoenixV1FulfillmentConfig(
 		phoenixMarket: PublicKey
 	): Promise<PhoenixV1FulfillmentConfigAccount> {
@@ -533,6 +563,16 @@ export class DriftClient {
 		return (await this.program.account.phoenixV1FulfillmentConfig.fetch(
 			address
 		)) as PhoenixV1FulfillmentConfigAccount;
+	}
+
+	public async getPhoenixV1FulfillmentConfigs(): Promise<
+		PhoenixV1FulfillmentConfigAccount[]
+	> {
+		const accounts =
+			await this.program.account.phoenixV1FulfillmentConfig.all();
+		return accounts.map(
+			(account) => account.account
+		) as PhoenixV1FulfillmentConfigAccount[];
 	}
 
 	public async fetchMarketLookupTableAccount(): Promise<AddressLookupTableAccount> {
@@ -1507,6 +1547,7 @@ export class DriftClient {
 
 		if (params.useMarketLastSlotCache) {
 			const lastUserSlot = this.getUserAccountAndSlot()?.slot;
+
 			for (const [
 				marketIndex,
 				slot,
@@ -1779,25 +1820,14 @@ export class DriftClient {
 		});
 	}
 
-	/**
-	 * Deposit funds into the given spot market
-	 *
-	 * @param amount to deposit
-	 * @param marketIndex spot market index to deposit into
-	 * @param associatedTokenAccount can be the wallet public key if using native sol
-	 * @param subAccountId subaccountId to deposit
-	 * @param reduceOnly if true, deposit must not increase account risk
-	 */
-	public async deposit(
+	public async createDepositTxn(
 		amount: BN,
 		marketIndex: number,
 		associatedTokenAccount: PublicKey,
 		subAccountId?: number,
 		reduceOnly = false,
 		txParams?: TxParams
-	): Promise<TransactionSignature> {
-		const additionalSigners: Array<Signer> = [];
-
+	): Promise<ReturnType<typeof this.buildTransaction>> {
 		const spotMarketAccount = this.getSpotMarketAccount(marketIndex);
 
 		const isSolMarket = spotMarketAccount.mint.equals(WRAPPED_SOL_MINT);
@@ -1847,11 +1877,36 @@ export class DriftClient {
 
 		const tx = await this.buildTransaction(instructions, txParams);
 
-		const { txSig, slot } = await this.sendTransaction(
-			tx,
-			additionalSigners,
-			this.opts
+		return tx;
+	}
+
+	/**
+	 * Deposit funds into the given spot market
+	 *
+	 * @param amount to deposit
+	 * @param marketIndex spot market index to deposit into
+	 * @param associatedTokenAccount can be the wallet public key if using native sol
+	 * @param subAccountId subaccountId to deposit
+	 * @param reduceOnly if true, deposit must not increase account risk
+	 */
+	public async deposit(
+		amount: BN,
+		marketIndex: number,
+		associatedTokenAccount: PublicKey,
+		subAccountId?: number,
+		reduceOnly = false,
+		txParams?: TxParams
+	): Promise<TransactionSignature> {
+		const tx = await this.createDepositTxn(
+			amount,
+			marketIndex,
+			associatedTokenAccount,
+			subAccountId,
+			reduceOnly,
+			txParams
 		);
+
+		const { txSig, slot } = await this.sendTransaction(tx, [], this.opts);
 		this.spotMarketLastSlotCache.set(marketIndex, slot);
 		return txSig;
 	}
@@ -1984,20 +2039,7 @@ export class DriftClient {
 		);
 	}
 
-	/**
-	 * Creates the User account for a user, and deposits some initial collateral
-	 * @param amount
-	 * @param userTokenAccount
-	 * @param marketIndex
-	 * @param subAccountId
-	 * @param name
-	 * @param fromSubAccountId
-	 * @param referrerInfo
-	 * @param donateAmount
-	 * @param txParams
-	 * @returns
-	 */
-	public async initializeUserAccountAndDepositCollateral(
+	public async createInitializeUserAccountAndDepositCollateral(
 		amount: BN,
 		userTokenAccount: PublicKey,
 		marketIndex = 0,
@@ -2008,7 +2050,7 @@ export class DriftClient {
 		donateAmount?: BN,
 		txParams?: TxParams,
 		customMaxMarginRatio?: number
-	): Promise<[TransactionSignature, PublicKey]> {
+	): Promise<[Transaction | VersionedTransaction, PublicKey]> {
 		const ixs = [];
 
 		const [userAccountPublicKey, initializeUserAccountIx] =
@@ -2017,8 +2059,6 @@ export class DriftClient {
 				name,
 				referrerInfo
 			);
-
-		const additionalSigners: Array<Signer> = [];
 
 		const spotMarket = this.getSpotMarketAccount(marketIndex);
 
@@ -2112,6 +2152,49 @@ export class DriftClient {
 		}
 
 		const tx = await this.buildTransaction(ixs, txParams);
+
+		return [tx, userAccountPublicKey];
+	}
+
+	/**
+	 * Creates the User account for a user, and deposits some initial collateral
+	 * @param amount
+	 * @param userTokenAccount
+	 * @param marketIndex
+	 * @param subAccountId
+	 * @param name
+	 * @param fromSubAccountId
+	 * @param referrerInfo
+	 * @param donateAmount
+	 * @param txParams
+	 * @returns
+	 */
+	public async initializeUserAccountAndDepositCollateral(
+		amount: BN,
+		userTokenAccount: PublicKey,
+		marketIndex = 0,
+		subAccountId = 0,
+		name?: string,
+		fromSubAccountId?: number,
+		referrerInfo?: ReferrerInfo,
+		donateAmount?: BN,
+		txParams?: TxParams,
+		customMaxMarginRatio?: number
+	): Promise<[TransactionSignature, PublicKey]> {
+		const [tx, userAccountPublicKey] =
+			await this.createInitializeUserAccountAndDepositCollateral(
+				amount,
+				userTokenAccount,
+				marketIndex,
+				subAccountId,
+				name,
+				fromSubAccountId,
+				referrerInfo,
+				donateAmount,
+				txParams,
+				customMaxMarginRatio
+			);
+		const additionalSigners: Array<Signer> = [];
 
 		const { txSig, slot } = await this.sendTransaction(
 			tx,
@@ -2749,7 +2832,7 @@ export class DriftClient {
 	}
 
 	public async sendSignedTx(
-		tx: Transaction,
+		tx: Transaction | VersionedTransaction,
 		opts?: ConfirmOptions
 	): Promise<TransactionSignature> {
 		const { txSig } = await this.sendTransaction(
@@ -2760,6 +2843,94 @@ export class DriftClient {
 		);
 
 		return txSig;
+	}
+
+	public async prepareMarketOrderTxs(
+		orderParams: OptionalOrderParams,
+		userAccountPublicKey: PublicKey,
+		userAccount: UserAccount,
+		makerInfo?: MakerInfo | MakerInfo[],
+		txParams?: TxParams,
+		bracketOrdersParams = new Array<OptionalOrderParams>(),
+		referrerInfo?: ReferrerInfo,
+		cancelExistingOrders?: boolean,
+		settlePnl?: boolean
+	): Promise<{
+		cancelExistingOrdersTx?: Transaction | VersionedTransaction;
+		settlePnlTx?: Transaction | VersionedTransaction;
+		fillTx?: Transaction | VersionedTransaction;
+		marketOrderTx: Transaction | VersionedTransaction;
+	}> {
+		type TxKeys =
+			| 'cancelExistingOrdersTx'
+			| 'settlePnlTx'
+			| 'fillTx'
+			| 'marketOrderTx';
+
+		const marketIndex = orderParams.marketIndex;
+		const orderId = userAccount.nextOrderId;
+
+		const ixPromisesForTxs: Record<TxKeys, Promise<TransactionInstruction>> = {
+			cancelExistingOrdersTx: undefined,
+			settlePnlTx: undefined,
+			fillTx: undefined,
+			marketOrderTx: undefined,
+		};
+
+		const txKeys = Object.keys(ixPromisesForTxs);
+
+		ixPromisesForTxs.marketOrderTx = this.getPlaceOrdersIx(
+			[orderParams, ...bracketOrdersParams],
+			userAccount.subAccountId
+		);
+
+		/* Cancel open orders in market if requested */
+		if (cancelExistingOrders && isVariant(orderParams.marketType, 'perp')) {
+			ixPromisesForTxs.cancelExistingOrdersTx = this.getCancelOrdersIx(
+				orderParams.marketType,
+				orderParams.marketIndex,
+				null,
+				userAccount.subAccountId
+			);
+		}
+
+		/* Settle PnL after fill if requested */
+		if (settlePnl && isVariant(orderParams.marketType, 'perp')) {
+			ixPromisesForTxs.settlePnlTx = this.settlePNLIx(
+				userAccountPublicKey,
+				userAccount,
+				marketIndex
+			);
+		}
+
+		// use versioned transactions if there is a lookup table account and wallet is compatible
+		if (this.txVersion === 0) {
+			ixPromisesForTxs.fillTx = this.getFillPerpOrderIx(
+				userAccountPublicKey,
+				userAccount,
+				{
+					orderId,
+					marketIndex,
+				},
+				makerInfo,
+				referrerInfo,
+				userAccount.subAccountId
+			);
+		}
+
+		const ixs = await Promise.all(Object.values(ixPromisesForTxs));
+
+		const ixsMap = ixs.reduce((acc, ix, i) => {
+			acc[txKeys[i]] = ix;
+			return acc;
+		}, {}) as MappedRecord<typeof ixPromisesForTxs, TransactionInstruction>;
+
+		const txsMap = (await this.buildTransactionsMap(
+			ixsMap,
+			txParams
+		)) as MappedRecord<typeof ixsMap, Transaction | VersionedTransaction>;
+
+		return txsMap;
 	}
 
 	/**
@@ -2789,81 +2960,24 @@ export class DriftClient {
 		signedCancelExistingOrdersTx?: Transaction;
 		signedSettlePnlTx?: Transaction;
 	}> {
-		const marketIndex = orderParams.marketIndex;
-		const orderId = userAccount.nextOrderId;
-
-		const ordersIx = await this.getPlaceOrdersIx(
-			[orderParams, ...bracketOrdersParams],
-			userAccount.subAccountId
+		const preppedTxs = await this.prepareMarketOrderTxs(
+			orderParams,
+			userAccountPublicKey,
+			userAccount,
+			makerInfo,
+			txParams,
+			bracketOrdersParams,
+			referrerInfo,
+			cancelExistingOrders,
+			settlePnl
 		);
 
-		const ixsToSign: { key: string; ix: TransactionInstruction }[] = [];
-
-		const keys = {
-			signedCancelExistingOrdersTx: 'signedCancelExistingOrdersTx',
-			signedSettlePnlTx: 'signedSettlePnlTx',
-			signedFillTx: 'signedFillTx',
-			signedMarketOrderTx: 'signedMarketOrderTx',
-		};
-
-		/* Cancel open orders in market if requested */
-
-		if (cancelExistingOrders && isVariant(orderParams.marketType, 'perp')) {
-			ixsToSign.push({
-				key: keys.signedCancelExistingOrdersTx,
-				ix: await this.getCancelOrdersIx(
-					orderParams.marketType,
-					orderParams.marketIndex,
-					null,
-					userAccount.subAccountId
-				),
-			});
-		}
-
-		/* Settle PnL after fill if requested */
-		if (settlePnl && isVariant(orderParams.marketType, 'perp')) {
-			ixsToSign.push({
-				key: keys.signedSettlePnlTx,
-				ix: await this.settlePNLIx(
-					userAccountPublicKey,
-					userAccount,
-					marketIndex
-				),
-			});
-		}
-
-		// use versioned transactions if there is a lookup table account and wallet is compatible
-		if (this.txVersion === 0) {
-			ixsToSign.push({
-				key: keys.signedFillTx,
-				ix: await this.getFillPerpOrderIx(
-					userAccountPublicKey,
-					userAccount,
-					{
-						orderId,
-						marketIndex,
-					},
-					makerInfo,
-					referrerInfo,
-					userAccount.subAccountId
-				),
-			});
-		}
-
-		// Apply the latest blockhash to the txs so that we can sign before sending them
-		ixsToSign.push({
-			key: keys.signedMarketOrderTx,
-			ix: ordersIx,
-		});
-
-		const signedTransactions = await this.buildAndSignBulkTransactions(
-			ixsToSign.map((ix) => ix.ix),
-			ixsToSign.map((ix) => ix.key),
-			txParams
-		);
+		const signedTxs = (
+			await this.txHandler.getSignedTransactionMap(preppedTxs, this.wallet)
+		).signedTxMap;
 
 		const { txSig, slot } = await this.sendTransaction(
-			signedTransactions[keys.signedMarketOrderTx],
+			signedTxs.marketOrderTx,
 			[],
 			this.opts,
 			true
@@ -2873,13 +2987,10 @@ export class DriftClient {
 
 		return {
 			txSig,
-			signedFillTx: signedTransactions?.[keys.signedFillTx] as Transaction,
-			signedCancelExistingOrdersTx: signedTransactions?.[
-				keys.signedCancelExistingOrdersTx
-			] as Transaction,
-			signedSettlePnlTx: signedTransactions?.[
-				keys.signedSettlePnlTx
-			] as Transaction,
+			signedFillTx: signedTxs.fillTx as Transaction,
+			signedCancelExistingOrdersTx:
+				signedTxs.cancelExistingOrdersTx as Transaction,
+			signedSettlePnlTx: signedTxs.settlePnlTx as Transaction,
 		};
 	}
 
@@ -3269,14 +3380,28 @@ export class DriftClient {
 		subAccountId?: number
 	): Promise<TransactionSignature> {
 		const { txSig } = await this.sendTransaction(
-			await this.buildTransaction(
-				await this.getPlaceOrdersIx(params, subAccountId),
-				txParams
-			),
+			(await this.preparePlaceOrdersTx(params, txParams, subAccountId))
+				.placeOrdersTx,
 			[],
-			this.opts
+			this.opts,
+			false
 		);
 		return txSig;
+	}
+
+	public async preparePlaceOrdersTx(
+		params: OrderParams[],
+		txParams?: TxParams,
+		subAccountId?: number
+	) {
+		const tx = await this.buildTransaction(
+			await this.getPlaceOrdersIx(params, subAccountId),
+			txParams
+		);
+
+		return {
+			placeOrdersTx: tx,
+		};
 	}
 
 	public async getPlaceOrdersIx(
@@ -3449,16 +3574,30 @@ export class DriftClient {
 		subAccountId?: number
 	): Promise<TransactionSignature> {
 		const { txSig, slot } = await this.sendTransaction(
-			await this.buildTransaction(
-				await this.getPlaceSpotOrderIx(orderParams, subAccountId),
-				txParams
-			),
+			(await this.preparePlaceSpotOrderTx(orderParams, txParams, subAccountId))
+				.placeSpotOrderTx,
 			[],
-			this.opts
+			this.opts,
+			false
 		);
 		this.spotMarketLastSlotCache.set(orderParams.marketIndex, slot);
 		this.spotMarketLastSlotCache.set(QUOTE_SPOT_MARKET_INDEX, slot);
 		return txSig;
+	}
+
+	public async preparePlaceSpotOrderTx(
+		orderParams: OptionalOrderParams,
+		txParams?: TxParams,
+		subAccountId?: number
+	) {
+		const tx = await this.buildTransaction(
+			await this.getPlaceSpotOrderIx(orderParams, subAccountId),
+			txParams
+		);
+
+		return {
+			placeSpotOrderTx: tx,
+		};
 	}
 
 	public async getPlaceSpotOrderIx(
@@ -4041,6 +4180,10 @@ export class DriftClient {
 		const outMarket = this.getSpotMarketAccount(outMarketIndex);
 		const inMarket = this.getSpotMarketAccount(inMarketIndex);
 
+		const isExactOut = swapMode === 'ExactOut' || quote.swapMode === 'ExactOut';
+		const amountIn = new BN(quote.inAmount);
+		const exactOutBufferedAmountIn = amountIn.muln(1001).divn(1000); // Add 10bp buffer
+
 		if (!quote) {
 			const fetchedQuote = await jupiterClient.getQuote({
 				inputMint: inMarket.mint,
@@ -4121,7 +4264,7 @@ export class DriftClient {
 		const { beginSwapIx, endSwapIx } = await this.getSwapIx({
 			outMarketIndex,
 			inMarketIndex,
-			amountIn: new BN(quote.inAmount),
+			amountIn: isExactOut ? exactOutBufferedAmountIn : amountIn,
 			inTokenAccount: inAssociatedTokenAccount,
 			outTokenAccount: outAssociatedTokenAccount,
 			reduceOnly,
@@ -4515,7 +4658,7 @@ export class DriftClient {
 		return txSig;
 	}
 
-	public async placeAndTakePerpWithAdditionalOrders(
+	public async preparePlaceAndTakePerpOrderWithAdditionalOrders(
 		orderParams: OptionalOrderParams,
 		makerInfo?: MakerInfo | MakerInfo[],
 		referrerInfo?: ReferrerInfo,
@@ -4526,21 +4669,18 @@ export class DriftClient {
 		settlePnl?: boolean,
 		exitEarlyIfSimFails?: boolean
 	): Promise<{
-		txSig: TransactionSignature;
-		signedCancelExistingOrdersTx?: Transaction;
-		signedSettlePnlTx?: Transaction;
+		placeAndTakeTx: Transaction | VersionedTransaction;
+		cancelExistingOrdersTx: Transaction | VersionedTransaction;
+		settlePnlTx: Transaction | VersionedTransaction;
 	}> {
 		const placeAndTakeIxs: TransactionInstruction[] = [];
 
-		const txsToSign: {
-			key: string;
-			tx: Transaction | VersionedTransaction;
-		}[] = [];
+		type TxKeys = 'placeAndTakeTx' | 'cancelExistingOrdersTx' | 'settlePnlTx';
 
-		const keys = {
-			placeAndTakeIx: 'placeAndTakeIx',
-			cancelExistingOrdersTx: 'cancelExistingOrdersTx',
-			settlePnlTx: 'settlePnlTx',
+		const txsToSign: Record<TxKeys, Transaction | VersionedTransaction> = {
+			placeAndTakeTx: undefined,
+			cancelExistingOrdersTx: undefined,
+			settlePnlTx: undefined,
 		};
 
 		// Get recent block hash so that we can re-use it for all transactions. Makes this logic run faster with fewer RPC requests
@@ -4590,7 +4730,8 @@ export class DriftClient {
 					await TransactionParamProcessor.getTxSimComputeUnits(
 						placeAndTakeTxToSim,
 						this.connection,
-						txParams.computeUnitsBufferMultiplier ?? 1.2
+						txParams.computeUnitsBufferMultiplier ?? 1.2,
+						txParams.lowerBoundCu
 					);
 
 				if (shouldExitIfSimulationFails && !simulationResult.success) {
@@ -4598,32 +4739,26 @@ export class DriftClient {
 					return;
 				}
 
-				txsToSign.push({
-					key: keys.placeAndTakeIx,
-					tx: await this.buildTransaction(
-						placeAndTakeIxs,
-						{
-							...txParamsWithoutImplicitSimulation,
-							computeUnits: simulationResult.computeUnits,
-						},
-						undefined,
-						undefined,
-						undefined,
-						recentBlockHash
-					),
-				});
+				txsToSign.placeAndTakeTx = await this.buildTransaction(
+					placeAndTakeIxs,
+					{
+						...txParamsWithoutImplicitSimulation,
+						computeUnits: simulationResult.computeUnits,
+					},
+					undefined,
+					undefined,
+					undefined,
+					recentBlockHash
+				);
 			} else {
-				txsToSign.push({
-					key: keys.placeAndTakeIx,
-					tx: await this.buildTransaction(
-						placeAndTakeIxs,
-						txParams,
-						undefined,
-						undefined,
-						undefined,
-						recentBlockHash
-					),
-				});
+				txsToSign.placeAndTakeTx = await this.buildTransaction(
+					placeAndTakeIxs,
+					txParams,
+					undefined,
+					undefined,
+					undefined,
+					recentBlockHash
+				);
 			}
 
 			return;
@@ -4638,17 +4773,14 @@ export class DriftClient {
 					subAccountId
 				);
 
-				txsToSign.push({
-					key: keys.cancelExistingOrdersTx,
-					tx: await this.buildTransaction(
-						[cancelOrdersIx],
-						txParams,
-						this.txVersion,
-						undefined,
-						undefined,
-						recentBlockHash
-					),
-				});
+				txsToSign.cancelExistingOrdersTx = await this.buildTransaction(
+					[cancelOrdersIx],
+					txParams,
+					this.txVersion,
+					undefined,
+					undefined,
+					recentBlockHash
+				);
 			}
 
 			return;
@@ -4666,17 +4798,14 @@ export class DriftClient {
 					orderParams.marketIndex
 				);
 
-				txsToSign.push({
-					key: keys.settlePnlTx,
-					tx: await this.buildTransaction(
-						[settlePnlIx],
-						txParams,
-						this.txVersion,
-						undefined,
-						undefined,
-						recentBlockHash
-					),
-				});
+				txsToSign.settlePnlTx = await this.buildTransaction(
+					[settlePnlIx],
+					txParams,
+					this.txVersion,
+					undefined,
+					undefined,
+					recentBlockHash
+				);
 			}
 			return;
 		};
@@ -4691,14 +4820,50 @@ export class DriftClient {
 			return null;
 		}
 
-		const signedTxs = await this.txHandler.getSignedTransactionMap(
-			txsToSign.map((tx) => tx.tx),
-			txsToSign.map((tx) => tx.key),
-			this.provider.wallet
-		);
+		return txsToSign;
+	}
+
+	public async placeAndTakePerpWithAdditionalOrders(
+		orderParams: OptionalOrderParams,
+		makerInfo?: MakerInfo | MakerInfo[],
+		referrerInfo?: ReferrerInfo,
+		bracketOrdersParams = new Array<OptionalOrderParams>(),
+		txParams?: TxParams,
+		subAccountId?: number,
+		cancelExistingOrders?: boolean,
+		settlePnl?: boolean,
+		exitEarlyIfSimFails?: boolean
+	): Promise<{
+		txSig: TransactionSignature;
+		signedCancelExistingOrdersTx?: Transaction;
+		signedSettlePnlTx?: Transaction;
+	}> {
+		const txsToSign =
+			await this.preparePlaceAndTakePerpOrderWithAdditionalOrders(
+				orderParams,
+				makerInfo,
+				referrerInfo,
+				bracketOrdersParams,
+				txParams,
+				subAccountId,
+				cancelExistingOrders,
+				settlePnl,
+				exitEarlyIfSimFails
+			);
+
+		if (!txsToSign) {
+			return null;
+		}
+
+		const signedTxs = (
+			await this.txHandler.getSignedTransactionMap(
+				txsToSign,
+				this.provider.wallet
+			)
+		).signedTxMap;
 
 		const { txSig, slot } = await this.sendTransaction(
-			signedTxs[keys.placeAndTakeIx],
+			signedTxs.placeAndTakeTx,
 			[],
 			this.opts,
 			true
@@ -4708,10 +4873,9 @@ export class DriftClient {
 
 		return {
 			txSig,
-			signedCancelExistingOrdersTx: signedTxs[
-				keys.cancelExistingOrdersTx
-			] as Transaction,
-			signedSettlePnlTx: signedTxs[keys.settlePnlTx] as Transaction,
+			signedCancelExistingOrdersTx:
+				signedTxs.cancelExistingOrdersTx as Transaction,
+			signedSettlePnlTx: signedTxs.settlePnlTx as Transaction,
 		};
 	}
 
@@ -4864,6 +5028,30 @@ export class DriftClient {
 		);
 	}
 
+	public async preparePlaceAndTakeSpotOrder(
+		orderParams: OptionalOrderParams,
+		fulfillmentConfig?: SerumV3FulfillmentConfigAccount,
+		makerInfo?: MakerInfo,
+		referrerInfo?: ReferrerInfo,
+		txParams?: TxParams,
+		subAccountId?: number
+	) {
+		const tx = await this.buildTransaction(
+			await this.getPlaceAndTakeSpotOrderIx(
+				orderParams,
+				fulfillmentConfig,
+				makerInfo,
+				referrerInfo,
+				subAccountId
+			),
+			txParams
+		);
+
+		return {
+			placeAndTakeSpotOrderTx: tx,
+		};
+	}
+
 	public async placeAndTakeSpotOrder(
 		orderParams: OptionalOrderParams,
 		fulfillmentConfig?: SerumV3FulfillmentConfigAccount,
@@ -4873,18 +5061,19 @@ export class DriftClient {
 		subAccountId?: number
 	): Promise<TransactionSignature> {
 		const { txSig, slot } = await this.sendTransaction(
-			await this.buildTransaction(
-				await this.getPlaceAndTakeSpotOrderIx(
+			(
+				await this.preparePlaceAndTakeSpotOrder(
 					orderParams,
 					fulfillmentConfig,
 					makerInfo,
 					referrerInfo,
+					txParams,
 					subAccountId
-				),
-				txParams
-			),
+				)
+			).placeAndTakeSpotOrderTx,
 			[],
-			this.opts
+			this.opts,
+			false
 		);
 		this.spotMarketLastSlotCache.set(orderParams.marketIndex, slot);
 		this.spotMarketLastSlotCache.set(QUOTE_SPOT_MARKET_INDEX, slot);
@@ -5229,9 +5418,9 @@ export class DriftClient {
 			oraclePriceOffset: newOraclePriceOffset || null,
 			triggerPrice: newTriggerPrice || null,
 			triggerCondition: newTriggerCondition || null,
-			auctionDuration: auctionDuration || 0,
-			auctionStartPrice: auctionStartPrice || ZERO,
-			auctionEndPrice: auctionEndPrice || ZERO,
+			auctionDuration: auctionDuration || null,
+			auctionStartPrice: auctionStartPrice || null,
+			auctionEndPrice: auctionEndPrice || null,
 			reduceOnly: reduceOnly != undefined ? reduceOnly : null,
 			postOnly: postOnly != undefined ? postOnly : null,
 			immediateOrCancel:
@@ -6189,7 +6378,8 @@ export class DriftClient {
 	public async getAddInsuranceFundStakeIx(
 		marketIndex: number,
 		amount: BN,
-		collateralAccountPublicKey: PublicKey
+		collateralAccountPublicKey: PublicKey,
+		fromSubAccount?: boolean
 	): Promise<TransactionInstruction> {
 		const spotMarket = this.getSpotMarketAccount(marketIndex);
 		const ifStakeAccountPublicKey = getInsuranceFundStakeAccountPublicKey(
@@ -6199,8 +6389,8 @@ export class DriftClient {
 		);
 
 		const remainingAccounts = this.getRemainingAccounts({
-			userAccounts: [this.getUserAccount()],
-			useMarketLastSlotCache: true,
+			userAccounts: fromSubAccount ? [this.getUserAccount()] : [],
+			useMarketLastSlotCache: fromSubAccount ? true : false,
 			writableSpotMarketIndexes: [marketIndex],
 		});
 
@@ -6299,7 +6489,8 @@ export class DriftClient {
 		const addFundsIx = await this.getAddInsuranceFundStakeIx(
 			marketIndex,
 			amount,
-			tokenAccount
+			tokenAccount,
+			fromSubaccount
 		);
 
 		addIfStakeIxs.push(addFundsIx);
@@ -6339,8 +6530,7 @@ export class DriftClient {
 		);
 
 		const remainingAccounts = this.getRemainingAccounts({
-			userAccounts: [this.getUserAccount()],
-			useMarketLastSlotCache: true,
+			userAccounts: [],
 			writableSpotMarketIndexes: [marketIndex],
 		});
 
@@ -6449,13 +6639,8 @@ export class DriftClient {
 			}
 		}
 
-		const userAccountExists =
-			!!this.getUser()?.accountSubscriber?.isSubscribed &&
-			(await this.checkIfAccountExists(this.getUser().userAccountPublicKey));
-
 		const remainingAccounts = this.getRemainingAccounts({
-			userAccounts: userAccountExists ? [this.getUserAccount()] : [],
-			useMarketLastSlotCache: false,
+			userAccounts: [],
 			writableSpotMarketIndexes: [marketIndex],
 		});
 
@@ -6725,6 +6910,301 @@ export class DriftClient {
 		return undefined;
 	}
 
+	public getReceiverProgram(): Program<PythSolanaReceiver> {
+		if (this.receiverProgram === undefined) {
+			this.receiverProgram = new Program(
+				pythSolanaReceiverIdl as PythSolanaReceiver,
+				DEFAULT_RECEIVER_PROGRAM_ID,
+				this.provider
+			);
+		}
+		return this.receiverProgram;
+	}
+
+	public async postPythPullOracleUpdateAtomic(
+		vaaString: string,
+		feedId: string
+	): Promise<TransactionSignature> {
+		const postIxs = await this.getPostPythPullOracleUpdateAtomicIxs(
+			vaaString,
+			feedId
+		);
+		const tx = await this.buildTransaction(postIxs);
+		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+
+		return txSig;
+	}
+
+	public async postMultiPythPullOracleUpdatesAtomic(
+		vaaString: string,
+		feedIds: string[]
+	): Promise<TransactionSignature> {
+		const postIxs = await this.getPostPythPullOracleUpdateAtomicIxs(
+			vaaString,
+			feedIds
+		);
+		const tx = await this.buildTransaction(postIxs);
+		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+
+		return txSig;
+	}
+
+	public async getPostPythPullOracleUpdateAtomicIxs(
+		vaaString: string,
+		feedIds: string | string[],
+		numSignatures = 2
+	): Promise<TransactionInstruction[]> {
+		const accumulatorUpdateData = parseAccumulatorUpdateData(
+			Buffer.from(vaaString, 'base64')
+		);
+		const guardianSetIndex = accumulatorUpdateData.vaa.readUInt32BE(1);
+		const guardianSet = getGuardianSetPda(
+			guardianSetIndex,
+			DEFAULT_WORMHOLE_PROGRAM_ID
+		);
+		const trimmedVaa = trimVaaSignatures(
+			accumulatorUpdateData.vaa,
+			numSignatures
+		);
+
+		const postIxs: TransactionInstruction[] = [];
+		if (accumulatorUpdateData.updates.length > 1) {
+			const encodedParams = this.getReceiverProgram().coder.types.encode(
+				'PostMultiUpdatesAtomicParams',
+				{
+					vaa: trimmedVaa,
+					merklePriceUpdates: accumulatorUpdateData.updates,
+				}
+			);
+			const feedIdsToUse: string[] =
+				typeof feedIds === 'string' ? [feedIds] : feedIds;
+			const pubkeys = feedIdsToUse.map((feedId) => {
+				return getPythPullOraclePublicKey(
+					this.program.programId,
+					getFeedIdUint8Array(feedId)
+				);
+			});
+
+			const remainingAccounts: Array<AccountMeta> = pubkeys.map((pubkey) => {
+				return {
+					pubkey,
+					isSigner: false,
+					isWritable: true,
+				};
+			});
+			postIxs.push(
+				this.program.instruction.postMultiPythPullOracleUpdatesAtomic(
+					encodedParams,
+					{
+						accounts: {
+							keeper: this.wallet.publicKey,
+							pythSolanaReceiver: DRIFT_ORACLE_RECEIVER_ID,
+							guardianSet,
+						},
+						remainingAccounts,
+					}
+				)
+			);
+		} else {
+			let feedIdToUse = typeof feedIds === 'string' ? feedIds : feedIds[0];
+			feedIdToUse = trimFeedId(feedIdToUse);
+			postIxs.push(
+				await this.getSinglePostPythPullOracleAtomicIx(
+					{
+						vaa: trimmedVaa,
+						merklePriceUpdate: accumulatorUpdateData.updates[0],
+					},
+					feedIdToUse,
+					guardianSet
+				)
+			);
+		}
+		return postIxs;
+	}
+
+	private async getSinglePostPythPullOracleAtomicIx(
+		params: {
+			vaa: Buffer;
+			merklePriceUpdate: {
+				message: Buffer;
+				proof: number[][];
+			};
+		},
+		feedId: string,
+		guardianSet: PublicKey
+	): Promise<TransactionInstruction> {
+		const feedIdBuffer = getFeedIdUint8Array(feedId);
+		const receiverProgram = this.getReceiverProgram();
+
+		const encodedParams = receiverProgram.coder.types.encode(
+			'PostUpdateAtomicParams',
+			params
+		);
+
+		return this.program.instruction.postPythPullOracleUpdateAtomic(
+			feedIdBuffer,
+			encodedParams,
+			{
+				accounts: {
+					keeper: this.wallet.publicKey,
+					pythSolanaReceiver: DRIFT_ORACLE_RECEIVER_ID,
+					guardianSet,
+					priceFeed: getPythPullOraclePublicKey(
+						this.program.programId,
+						feedIdBuffer
+					),
+				},
+			}
+		);
+	}
+
+	public async updatePythPullOracle(
+		vaaString: string,
+		feedId: string
+	): Promise<TransactionSignature> {
+		feedId = trimFeedId(feedId);
+		const accumulatorUpdateData = parseAccumulatorUpdateData(
+			Buffer.from(vaaString, 'base64')
+		);
+		const guardianSetIndex = accumulatorUpdateData.vaa.readUInt32BE(1);
+		const guardianSet = getGuardianSetPda(
+			guardianSetIndex,
+			DEFAULT_WORMHOLE_PROGRAM_ID
+		);
+
+		const [postIxs, encodedVaaAddress] = await this.getBuildEncodedVaaIxs(
+			accumulatorUpdateData.vaa,
+			guardianSet
+		);
+
+		for (const update of accumulatorUpdateData.updates) {
+			postIxs.push(
+				await this.getUpdatePythPullOracleIxs(
+					{
+						merklePriceUpdate: update,
+					},
+					feedId,
+					encodedVaaAddress.publicKey
+				)
+			);
+		}
+
+		const tx = await this.buildTransaction(postIxs);
+		const { txSig } = await this.sendTransaction(
+			tx,
+			[encodedVaaAddress],
+			this.opts
+		);
+
+		return txSig;
+	}
+
+	public async getUpdatePythPullOracleIxs(
+		params: {
+			merklePriceUpdate: {
+				message: Buffer;
+				proof: number[][];
+			};
+		},
+		feedId: string,
+		encodedVaaAddress: PublicKey
+	): Promise<TransactionInstruction> {
+		const feedIdBuffer = getFeedIdUint8Array(feedId);
+		const receiverProgram = this.getReceiverProgram();
+
+		const encodedParams = receiverProgram.coder.types.encode(
+			'PostUpdateParams',
+			params
+		);
+
+		return this.program.instruction.updatePythPullOracle(
+			feedIdBuffer,
+			encodedParams,
+			{
+				accounts: {
+					keeper: this.wallet.publicKey,
+					pythSolanaReceiver: DRIFT_ORACLE_RECEIVER_ID,
+					encodedVaa: encodedVaaAddress,
+					priceFeed: getPythPullOraclePublicKey(
+						this.program.programId,
+						feedIdBuffer
+					),
+				},
+			}
+		);
+	}
+
+	private async getBuildEncodedVaaIxs(
+		vaa: Buffer,
+		guardianSet: PublicKey
+	): Promise<[TransactionInstruction[], Keypair]> {
+		const postIxs: TransactionInstruction[] = [];
+
+		if (this.wormholeProgram === undefined) {
+			this.wormholeProgram = new Program(
+				wormholeCoreBridgeIdl,
+				DEFAULT_WORMHOLE_PROGRAM_ID,
+				this.provider
+			);
+		}
+
+		const encodedVaaKeypair = new Keypair();
+		postIxs.push(
+			await this.wormholeProgram.account.encodedVaa.createInstruction(
+				encodedVaaKeypair,
+				vaa.length + 46
+			)
+		);
+
+		// Why do we need this too?
+		postIxs.push(
+			await this.wormholeProgram.methods
+				.initEncodedVaa()
+				.accounts({
+					encodedVaa: encodedVaaKeypair.publicKey,
+				})
+				.instruction()
+		);
+
+		// Split the write into two ixs
+		postIxs.push(
+			await this.wormholeProgram.methods
+				.writeEncodedVaa({
+					index: 0,
+					data: vaa.subarray(0, 755),
+				})
+				.accounts({
+					draftVaa: encodedVaaKeypair.publicKey,
+				})
+				.instruction()
+		);
+
+		postIxs.push(
+			await this.wormholeProgram.methods
+				.writeEncodedVaa({
+					index: 755,
+					data: vaa.subarray(755),
+				})
+				.accounts({
+					draftVaa: encodedVaaKeypair.publicKey,
+				})
+				.instruction()
+		);
+
+		// Verify
+		postIxs.push(
+			await this.wormholeProgram.methods
+				.verifyEncodedVaaV1()
+				.accounts({
+					guardianSet,
+					draftVaa: encodedVaaKeypair.publicKey,
+				})
+				.instruction()
+		);
+
+		return [postIxs, encodedVaaKeypair];
+	}
+
 	private handleSignedTransaction(signedTxs: SignedTxData[]) {
 		if (this.enableMetricsEvents && this.metricsEventEmitter) {
 			this.metricsEventEmitter.emit('txSigned', signedTxs);
@@ -6740,11 +7220,7 @@ export class DriftClient {
 	private isVersionedTransaction(
 		tx: Transaction | VersionedTransaction
 	): boolean {
-		const version = (tx as VersionedTransaction)?.version;
-		const isVersionedTx =
-			tx instanceof VersionedTransaction || version !== undefined;
-
-		return isVersionedTx;
+		return isVersionedTransaction(tx);
 	}
 
 	sendTransaction(
@@ -6778,7 +7254,7 @@ export class DriftClient {
 		txVersion?: TransactionVersion,
 		lookupTables?: AddressLookupTableAccount[],
 		forceVersionedTransaction?: boolean,
-		recentBlockHash?: BlockhashWithExpiryBlockHeight
+		recentBlockhash?: BlockhashWithExpiryBlockHeight
 	): Promise<Transaction | VersionedTransaction> {
 		return this.txHandler.buildTransaction({
 			instructions,
@@ -6790,7 +7266,7 @@ export class DriftClient {
 				this.fetchMarketLookupTableAccount.bind(this),
 			lookupTables,
 			forceVersionedTransaction,
-			recentBlockHash,
+			recentBlockhash,
 		});
 	}
 
@@ -6814,16 +7290,18 @@ export class DriftClient {
 		});
 	}
 
-	async buildAndSignBulkTransactions(
-		instructions: (TransactionInstruction | TransactionInstruction[])[],
-		keys: string[],
+	async buildTransactionsMap(
+		instructionsMap: Record<
+			string,
+			TransactionInstruction | TransactionInstruction[]
+		>,
 		txParams?: TxParams,
 		txVersion?: TransactionVersion,
 		lookupTables?: AddressLookupTableAccount[],
 		forceVersionedTransaction?: boolean
 	) {
-		return this.txHandler.buildAndSignTransactionMap({
-			instructions,
+		return this.txHandler.buildTransactionsMap({
+			instructionsMap,
 			txVersion: txVersion ?? this.txVersion,
 			txParams: txParams ?? this.txParams,
 			connection: this.connection,
@@ -6832,7 +7310,29 @@ export class DriftClient {
 				this.fetchMarketLookupTableAccount.bind(this),
 			lookupTables,
 			forceVersionedTransaction,
-			keys,
+		});
+	}
+
+	async buildAndSignTransactionsMap(
+		instructionsMap: Record<
+			string,
+			TransactionInstruction | TransactionInstruction[]
+		>,
+		txParams?: TxParams,
+		txVersion?: TransactionVersion,
+		lookupTables?: AddressLookupTableAccount[],
+		forceVersionedTransaction?: boolean
+	) {
+		return this.txHandler.buildAndSignTransactionMap({
+			instructionsMap,
+			txVersion: txVersion ?? this.txVersion,
+			txParams: txParams ?? this.txParams,
+			connection: this.connection,
+			preFlightCommitment: this.opts.preflightCommitment,
+			fetchMarketLookupTableAccount:
+				this.fetchMarketLookupTableAccount.bind(this),
+			lookupTables,
+			forceVersionedTransaction,
 		});
 	}
 }

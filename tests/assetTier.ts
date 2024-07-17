@@ -8,7 +8,6 @@ import { PublicKey, Keypair } from '@solana/web3.js';
 import {
 	TestClient,
 	BN,
-	EventSubscriber,
 	ZERO,
 	// SPOT_MARKET_RATE_PRECISION,
 	// SpotBalanceType,
@@ -18,7 +17,6 @@ import {
 	// SPOT_MARKET_CUMULATIVE_INTEREST_PRECISION,
 	// OracleInfo,
 	AMM_RESERVE_PRECISION,
-	MarketStatus,
 	PEG_PRECISION,
 	QUOTE_SPOT_MARKET_INDEX,
 	AssetTier,
@@ -27,37 +25,28 @@ import {
 } from '../sdk/src';
 
 import {
-	mockOracle,
+	mockOracleNoProgram,
 	mockUSDCMint,
 	mockUserUSDCAccount,
 	// setFeedPrice,
 	initializeQuoteSpotMarket,
 	createUserWithUSDCAndWSOLAccount,
 	initializeSolSpotMarket,
-	printTxLogs,
 	createUSDCAccountForUser,
 	// getFeedData,
 	// sleep,
 } from './testHelpers';
-import { BulkAccountLoader } from '../sdk';
+import { startAnchor } from 'solana-bankrun';
+import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
+import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
+import { ContractTier } from '../sdk';
 
 describe('asset tiers', () => {
-	const provider = anchor.AnchorProvider.local(undefined, {
-		preflightCommitment: 'confirmed',
-		skipPreflight: false,
-		commitment: 'confirmed',
-	});
-	const connection = provider.connection;
-	anchor.setProvider(provider);
 	const chProgram = anchor.workspace.Drift as Program;
 
 	let driftClient: TestClient;
-	const eventSubscriber = new EventSubscriber(connection, chProgram, {
-		commitment: 'recent',
-	});
-	eventSubscriber.subscribe();
 
-	const bulkAccountLoader = new BulkAccountLoader(connection, 'confirmed', 1);
+	let bulkAccountLoader: TestBulkAccountLoader;
 
 	let usdcMint;
 	let dogeMint;
@@ -76,34 +65,46 @@ describe('asset tiers', () => {
 	const solAmount = new BN(10000 * 10 ** 9);
 
 	before(async () => {
-		usdcMint = await mockUSDCMint(provider);
-		dogeMint = await mockUSDCMint(provider);
+		const context = await startAnchor('', [], []);
+
+		const bankrunContextWrapper = new BankrunContextWrapper(context);
+
+		bulkAccountLoader = new TestBulkAccountLoader(
+			bankrunContextWrapper.connection,
+			'processed',
+			1
+		);
+
+		usdcMint = await mockUSDCMint(bankrunContextWrapper);
+		dogeMint = await mockUSDCMint(bankrunContextWrapper);
+
 		userUSDCAccount = await mockUserUSDCAccount(
 			usdcMint,
 			usdcAmount.mul(new BN(2)), // 2x it
-			provider
+			bankrunContextWrapper
 		);
 
-		solOracle = await mockOracle(22500); // a future we all need to believe in
-		dogeOracle = await mockOracle(0.05);
+		solOracle = await mockOracleNoProgram(bankrunContextWrapper, 22500); // a future we all need to believe in
+		dogeOracle = await mockOracleNoProgram(bankrunContextWrapper, 0.05);
 
 		driftClient = new TestClient({
-			connection,
-			wallet: provider.wallet,
+			connection: bankrunContextWrapper.connection.toConnection(),
+			wallet: bankrunContextWrapper.provider.wallet,
 			programID: chProgram.programId,
 			opts: {
 				commitment: 'confirmed',
 			},
-			activeSubAccountId: 0,
+			// activeSubAccountId: 0,
 			perpMarketIndexes: [0],
 			spotMarketIndexes: [0, 1],
+			subAccountIds: [],
 			oracleInfos: [
 				{
 					publicKey: solOracle,
 					source: OracleSource.PYTH,
 				},
 			],
-			userStats: true,
+			userStats: false,
 			accountSubscription: {
 				type: 'polling',
 				accountLoader: bulkAccountLoader,
@@ -112,6 +113,7 @@ describe('asset tiers', () => {
 
 		await driftClient.initialize(usdcMint.publicKey, true);
 		await driftClient.subscribe();
+		// await driftClient.initializeUserAccount(0);
 
 		await initializeQuoteSpotMarket(driftClient, usdcMint.publicKey);
 		await initializeSolSpotMarket(driftClient, solOracle);
@@ -126,18 +128,29 @@ describe('asset tiers', () => {
 			periodicity,
 			new BN(22500 * PEG_PRECISION.toNumber()),
 			undefined,
-			1000
+			ContractTier.A,
+			1000,
+			500,
+			undefined,
+			undefined,
+			undefined,
+			true,
+			2000,
+			5000
 		);
-		await driftClient.updatePerpMarketStatus(0, MarketStatus.ACTIVE);
-		await driftClient.updatePerpMarketBaseSpread(0, 2000);
 		await driftClient.updatePerpMarketCurveUpdateIntensity(0, 100);
 
 		const subAccountId = 0;
 		const name = 'BIGZ';
 		await driftClient.initializeUserAccount(subAccountId, name);
+		const depositAmount = driftClient.convertToSpotPrecision(
+			QUOTE_SPOT_MARKET_INDEX,
+			1
+		);
+		console.log(`\n\n\n\n\n\n depositing here: ${depositAmount}`);
 		await driftClient.deposit(
 			// $10k
-			QUOTE_PRECISION.mul(new BN(10000)),
+			depositAmount,
 			QUOTE_SPOT_MARKET_INDEX,
 			userUSDCAccount.publicKey
 		);
@@ -148,7 +161,7 @@ describe('asset tiers', () => {
 			secondUserDriftClientUSDCAccount,
 			secondUserKeyPair,
 		] = await createUserWithUSDCAndWSOLAccount(
-			provider,
+			bankrunContextWrapper,
 			usdcMint,
 			chProgram,
 			solAmount,
@@ -169,7 +182,7 @@ describe('asset tiers', () => {
 		);
 
 		secondUserDriftClientDogeAccount = await createUSDCAccountForUser(
-			provider,
+			bankrunContextWrapper,
 			secondUserKeyPair,
 			dogeMint,
 			usdcAmount
@@ -178,25 +191,25 @@ describe('asset tiers', () => {
 		secondUserDriftClient.subscribe();
 
 		const marketIndex = 1;
-		const txSig = await secondUserDriftClient.deposit(
+		console.log(
+			'\n\n\n\n\n\n\n\n\n\n FIRST depositing for second user: ' + solAmount
+		);
+		await secondUserDriftClient.deposit(
 			solAmount,
 			marketIndex,
 			secondUserDriftClientWSOLAccount
 		);
-		await printTxLogs(connection, txSig);
+		// await printTxLogs(connection, txSig);
 
-		const txSig2 = await secondUserDriftClient.deposit(
+		console.log(
+			'\n\n\n\n\n\n\n\n\n\n SECOND depositing for second user: ' + usdcAmount
+		);
+		await secondUserDriftClient.deposit(
 			usdcAmount,
 			2,
 			secondUserDriftClientDogeAccount
 		);
-		await printTxLogs(connection, txSig2);
-	});
-
-	after(async () => {
-		await eventSubscriber.unsubscribe();
-		await driftClient.unsubscribe();
-		await secondUserDriftClient.unsubscribe();
+		// await printTxLogs(connection, txSig2);
 	});
 
 	it('fail trying to borrow protected asset', async () => {
@@ -213,13 +226,13 @@ describe('asset tiers', () => {
 		console.log('updateSpotMarketAssetTier for USDC to PROTECTED');
 
 		try {
-			const txSig = await secondUserDriftClient.withdraw(
+			await secondUserDriftClient.withdraw(
 				usdcBorrowAmount,
 				0,
 				secondUserDriftClientUSDCAccount,
 				false
 			);
-			await printTxLogs(connection, txSig);
+			// await printTxLogs(connection, txSig);
 
 			// assert(false);
 		} catch (err) {
@@ -257,24 +270,24 @@ describe('asset tiers', () => {
 		assert(isVariant(dogeMarketAfter.assetTier, 'isolated'));
 		console.log('DOGE asset tier:', dogeMarketAfter.assetTier);
 
-		const txSig = await secondUserDriftClient.withdraw(
+		await secondUserDriftClient.withdraw(
 			new BN(1),
 			2,
 			secondUserDriftClientDogeAccount,
 			false
 		);
-		await printTxLogs(connection, txSig);
+		// await printTxLogs(connection, txSig);
 
 		await secondUserDriftClient.fetchAccounts();
 
 		try {
-			const txSig = await secondUserDriftClient.withdraw(
+			await secondUserDriftClient.withdraw(
 				usdcBorrowAmount,
 				0,
 				secondUserDriftClientUSDCAccount,
 				false
 			);
-			await printTxLogs(connection, txSig);
+			// await printTxLogs(connection, txSig);
 
 			console.log('usdc borrow succeed (should have fail!)');
 			assert(false);
@@ -295,16 +308,21 @@ describe('asset tiers', () => {
 		console.log('USDC asset tier:', scQuoteMarketAfterAgain.assetTier);
 
 		try {
-			const txSig2 = await secondUserDriftClient.withdraw(
-				QUOTE_PRECISION,
+			await secondUserDriftClient.withdraw(
+				QUOTE_PRECISION.divn(2),
 				0,
 				secondUserDriftClientUSDCAccount,
 				false
 			);
-			await printTxLogs(connection, txSig2);
+			// await printTxLogs(connection, txSig2);
 		} catch (e) {
 			console.error(e);
 			assert(false);
 		}
+	});
+
+	after(async () => {
+		await driftClient.unsubscribe();
+		await secondUserDriftClient.unsubscribe();
 	});
 });
