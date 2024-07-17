@@ -1942,7 +1942,7 @@ mod get_user_stats_age_ts {
 }
 
 mod fuel {
-    use crate::state::user::{UserStats};
+    use crate::state::user::UserStats;
     use crate::QUOTE_PRECISION_U64;
 
     #[test]

@@ -2,7 +2,6 @@ mod calculate_perp_fuel_bonus {
     use crate::math::fuel::calculate_perp_fuel_bonus;
     use crate::state::perp_market::PerpMarket;
     use crate::{FUEL_WINDOW_U128, QUOTE_PRECISION_I128};
-    
 
     #[test]
     fn test() {
@@ -16,11 +15,10 @@ mod calculate_perp_fuel_bonus {
 }
 
 mod calculate_spot_fuel_bonus {
-    use crate::math::fuel::{calculate_spot_fuel_bonus};
-    
+    use crate::math::fuel::calculate_spot_fuel_bonus;
+
     use crate::state::spot_market::SpotMarket;
     use crate::{FUEL_WINDOW_U128, QUOTE_PRECISION_I128};
-    
 
     #[test]
     fn test() {
@@ -41,13 +39,10 @@ mod calculate_spot_fuel_bonus {
 }
 
 mod calculate_insurance_fuel_bonus {
-    use crate::math::fuel::{
-        calculate_insurance_fuel_bonus,
-    };
-    
+    use crate::math::fuel::calculate_insurance_fuel_bonus;
+
     use crate::state::spot_market::SpotMarket;
     use crate::{FUEL_WINDOW_U128, QUOTE_PRECISION_U64};
-    
 
     #[test]
     fn test() {
