@@ -336,6 +336,9 @@ describe("fuelin'", () => {
 			'->',
 			fuelDictRmStake['insuranceFuel'].toNumber()
 		);
+
+		await takerDriftClient.unsubscribe();
+		await takerDriftClientUser.unsubscribe();
 	});
 
 	it('fuel for perp taker/maker/position', async () => {
@@ -697,6 +700,8 @@ describe("fuelin'", () => {
 		assert(!makerDriftClientUser.getOrderByUserOrderId(2).postOnly);
 
 		await fillerDriftClient.updateSpotMarketFuel(1, null, null, 100, 200);
+		// paused cumulative interest to avoid test failing due to race
+		await fillerDriftClient.updateSpotMarketPausedOperations(1, 1);
 
 		await takerDriftClient.placeSpotOrder(
 			getLimitOrderParams({
@@ -733,6 +738,8 @@ describe("fuelin'", () => {
 		);
 
 		bankrunContextWrapper.connection.printTxLogs(fillTx);
+
+		await makerDriftClientUser.fetchAccounts();
 
 		const makerUSDCAmount = makerDriftClient.getQuoteAssetTokenAmount();
 		const makerSolAmount = makerDriftClient.getTokenAmount(1);
