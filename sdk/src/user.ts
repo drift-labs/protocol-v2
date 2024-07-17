@@ -1030,8 +1030,11 @@ export class User {
 				const spotMarketAccount: SpotMarketAccount =
 					this.driftClient.getSpotMarketAccount(QUOTE_SPOT_MARKET_INDEX);
 
-				const fuelBonusNumeratorUserStats = now.sub(
-					BN.max(new BN(userStats.lastFuelIfBonusUpdateTs), FUEL_START_TS)
+				const fuelBonusNumeratorUserStats = BN.max(
+					now.sub(
+						BN.max(new BN(userStats.lastFuelIfBonusUpdateTs), FUEL_START_TS)
+					),
+					ZERO
 				);
 
 				result.insuranceFuel = result.insuranceFuel.add(
