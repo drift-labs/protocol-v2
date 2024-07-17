@@ -1148,7 +1148,7 @@ pub fn liquidate_spot(
         user.enter_bankruptcy();
     }
 
-    let mut liq_margin_context = MarginContext::standard(MarginRequirementType::Initial)
+    let liq_margin_context = MarginContext::standard(MarginRequirementType::Initial)
         .fuel_spot_deltas([
             (asset_market_index, -(asset_transfer as i128)),
             (liability_market_index, liability_transfer as i128),
