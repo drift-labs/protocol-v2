@@ -13,7 +13,8 @@ import {
 	User,
 	Wallet,
 	OrderTriggerCondition,
-	getTriggerMarketOrderParams, OracleGuardRails,
+	getTriggerMarketOrderParams,
+	OracleGuardRails,
 } from '../sdk/src';
 
 import {
@@ -24,7 +25,12 @@ import {
 	initializeQuoteSpotMarket,
 	initializeSolSpotMarket,
 } from './testHelpers';
-import {BASE_PRECISION, isVariant, OracleSource, PERCENTAGE_PRECISION} from '../sdk';
+import {
+	BASE_PRECISION,
+	isVariant,
+	OracleSource,
+	PERCENTAGE_PRECISION,
+} from '../sdk';
 import { startAnchor } from 'solana-bankrun';
 import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
 import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
