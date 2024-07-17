@@ -563,6 +563,12 @@ pub enum ErrorCode {
     OracleMismatchedVaaAndPriceUpdates,
     #[msg("Remaining account passed is not a valid pda")]
     OracleBadRemainingAccountPublicKey,
+    #[msg("FailedOpenbookV2CPI")]
+    FailedOpenbookV2CPI,
+    #[msg("InvalidOpenbookV2Program")]
+    InvalidOpenbookV2Program,
+    #[msg("InvalidOpenbookV2Market")]
+    InvalidOpenbookV2Market,
 }
 
 #[macro_export]
