@@ -11,11 +11,11 @@ use crate::error::ErrorCode;
 use crate::math::amm::calculate_net_user_pnl;
 use crate::math::casting::Cast;
 use crate::math::constants::{
-    FUEL_WINDOW_U128, MAX_APR_PER_REVENUE_SETTLE_TO_INSURANCE_FUND_VAULT, ONE_YEAR,
-    PERCENTAGE_PRECISION, QUOTE_PRECISION_U64,
+    MAX_APR_PER_REVENUE_SETTLE_TO_INSURANCE_FUND_VAULT, ONE_YEAR, PERCENTAGE_PRECISION,
     SHARE_OF_REVENUE_ALLOCATED_TO_INSURANCE_FUND_VAULT_DENOMINATOR,
     SHARE_OF_REVENUE_ALLOCATED_TO_INSURANCE_FUND_VAULT_NUMERATOR,
 };
+use crate::math::fuel::calculate_insurance_fuel_bonus;
 use crate::math::helpers::get_proportion_u128;
 use crate::math::helpers::on_the_hour_update;
 use crate::math::insurance::{
@@ -31,13 +31,13 @@ use crate::state::perp_market::PerpMarket;
 use crate::state::spot_market::{SpotBalanceType, SpotMarket};
 use crate::state::state::State;
 use crate::state::user::UserStats;
-use crate::{emit, validate, GOV_SPOT_MARKET_INDEX, QUOTE_SPOT_MARKET_INDEX};
+use crate::{emit, validate, FUEL_START_TS, GOV_SPOT_MARKET_INDEX, QUOTE_SPOT_MARKET_INDEX};
 
 #[cfg(test)]
 mod tests;
 
 pub fn update_user_stats_if_stake_amount(
-    amount: i64,
+    if_stake_amount_delta: i64,
     insurance_vault_amount: u64,
     insurance_fund_stake: &mut InsuranceFundStake,
     user_stats: &mut UserStats,
@@ -51,17 +51,17 @@ pub fn update_user_stats_if_stake_amount(
         return Ok(());
     }
 
-    let if_stake_amount = if amount >= 0 {
+    let if_stake_amount = if if_stake_amount_delta >= 0 {
         if_shares_to_vault_amount(
             insurance_fund_stake.checked_if_shares(spot_market)?,
             spot_market.insurance_fund.total_shares,
-            insurance_vault_amount.safe_add(amount.unsigned_abs())?,
+            insurance_vault_amount.safe_add(if_stake_amount_delta.unsigned_abs())?,
         )?
     } else {
         if_shares_to_vault_amount(
             insurance_fund_stake.checked_if_shares(spot_market)?,
             spot_market.insurance_fund.total_shares,
-            insurance_vault_amount.safe_sub(amount.unsigned_abs())?,
+            insurance_vault_amount.safe_sub(if_stake_amount_delta.unsigned_abs())?,
         )?
     };
 
@@ -71,19 +71,21 @@ pub fn update_user_stats_if_stake_amount(
         user_stats.if_staked_gov_token_amount = if_stake_amount;
     }
 
-    if spot_market.fuel_boost_insurance != 0 {
+    if spot_market.fuel_boost_insurance != 0 && now >= FUEL_START_TS {
         let now_u32: u32 = now.cast()?;
-        let since_last = now_u32.safe_sub(user_stats.last_fuel_if_bonus_update_ts)?;
+        let since_last = now_u32.safe_sub(
+            user_stats
+                .last_fuel_if_bonus_update_ts
+                .max(FUEL_START_TS.cast()?),
+        )?;
 
         // calculate their stake amount prior to update
-        let fuel_bonus_insurance = if_stake_amount
-            .saturating_sub(amount.unsigned_abs())
-            .cast::<u128>()?
-            .safe_mul(since_last.cast()?)?
-            .safe_mul(spot_market.fuel_boost_insurance.cast()?)?
-            .safe_div(FUEL_WINDOW_U128)?
-            .cast::<u64>()?
-            / (QUOTE_PRECISION_U64 / 10);
+        let fuel_bonus_insurance = calculate_insurance_fuel_bonus(
+            spot_market,
+            if_stake_amount,
+            if_stake_amount_delta,
+            since_last,
+        )?;
 
         user_stats.fuel_insurance = user_stats
             .fuel_insurance

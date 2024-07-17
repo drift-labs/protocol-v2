@@ -2664,6 +2664,32 @@
       ]
     },
     {
+      "name": "postMultiPythPullOracleUpdatesAtomic",
+      "accounts": [
+        {
+          "name": "keeper",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "pythSolanaReceiver",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "guardianSet",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "params",
+          "type": "bytes"
+        }
+      ]
+    },
+    {
       "name": "initialize",
       "accounts": [
         {
@@ -12679,16 +12705,31 @@
     },
     {
       "code": 6276,
+      "name": "OracleTooManyPriceAccountUpdates",
+      "msg": "Multi updates must have 2 or fewer accounts passed in remaining accounts"
+    },
+    {
+      "code": 6277,
+      "name": "OracleMismatchedVaaAndPriceUpdates",
+      "msg": "Don't have the same remaining accounts number and merkle price updates left"
+    },
+    {
+      "code": 6278,
+      "name": "OracleBadRemainingAccountPublicKey",
+      "msg": "Remaining account passed is not a valid pda"
+    },
+    {
+      "code": 6279,
       "name": "FailedOpenbookV2CPI",
       "msg": "FailedOpenbookV2CPI"
     },
     {
-      "code": 6277,
+      "code": 6280,
       "name": "InvalidOpenbookV2Program",
       "msg": "InvalidOpenbookV2Program"
     },
     {
-      "code": 6278,
+      "code": 6281,
       "name": "InvalidOpenbookV2Market",
       "msg": "InvalidOpenbookV2Market"
     }

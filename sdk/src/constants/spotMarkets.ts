@@ -165,8 +165,8 @@ export const MainnetSpotMarkets: SpotMarketConfig[] = [
 	{
 		symbol: 'PYTH',
 		marketIndex: 7,
-		oracle: new PublicKey('nrYkQQQur7z8rYTST3G9GqATviK5SxTDkrqd21MW6Ue'),
-		oracleSource: OracleSource.PYTH,
+		oracle: new PublicKey('GqkCu7CbsPVz1H6W6AAHuReqbJckYG59TXz7Y5HDV7hr'),
+		oracleSource: OracleSource.PYTH_PULL,
 		mint: new PublicKey('HZ1JovNiVvGrGNiiYvEozEVgZ58xaU3RKwX8eACQBCt3'),
 		precision: new BN(10).pow(SIX),
 		precisionExp: SIX,
@@ -207,8 +207,8 @@ export const MainnetSpotMarkets: SpotMarketConfig[] = [
 	{
 		symbol: 'WIF',
 		marketIndex: 10,
-		oracle: new PublicKey('6ABgrEZk8urs6kJ1JNdC1sspH5zKXRqxy8sg3ZG2cQps'),
-		oracleSource: OracleSource.PYTH,
+		oracle: new PublicKey('6x6KfE7nY2xoLCRSMPT1u83wQ5fpGXoKNBqFjrCwzsCQ'),
+		oracleSource: OracleSource.PYTH_PULL,
 		mint: new PublicKey('EKpQGSJtjMFqKZ9KQanSqYXRcF8fBopzLHYxdM65zcjm'),
 		precision: new BN(10).pow(SIX),
 		precisionExp: SIX,
@@ -222,8 +222,8 @@ export const MainnetSpotMarkets: SpotMarketConfig[] = [
 	{
 		symbol: 'JUP',
 		marketIndex: 11,
-		oracle: new PublicKey('g6eRCbboSwK4tSWngn773RCMexr1APQr4uA9bGZBYfo'),
-		oracleSource: OracleSource.PYTH,
+		oracle: new PublicKey('AwqRpfJ36jnSZQykyL1jYY35mhMteeEAjh7o8LveRQin'),
+		oracleSource: OracleSource.PYTH_PULL,
 		mint: new PublicKey('JUPyiwrYJFskUPiHa7hkeR8VUtAeFoSYbKedZNsDvCN'),
 		precision: new BN(10).pow(SIX),
 		precisionExp: SIX,
@@ -237,8 +237,8 @@ export const MainnetSpotMarkets: SpotMarketConfig[] = [
 	{
 		symbol: 'RNDR',
 		marketIndex: 12,
-		oracle: new PublicKey('CYGfrBJB9HgLf9iZyN4aH5HvUAi2htQ4MjPxeXMf4Egn'),
-		oracleSource: OracleSource.PYTH,
+		oracle: new PublicKey('F3mPHRtJqqq57JPDBmUwUVhpyPLmjE5dAzDfpVgpFkug'),
+		oracleSource: OracleSource.PYTH_PULL,
 		mint: new PublicKey('rndrizKT3MK1iimdxRdWabcF7Zg7AR5T4nud4EkHBof'),
 		precision: new BN(10).pow(EIGHT),
 		precisionExp: EIGHT,
@@ -280,8 +280,8 @@ export const MainnetSpotMarkets: SpotMarketConfig[] = [
 	{
 		symbol: 'DRIFT',
 		marketIndex: 15,
-		oracle: new PublicKey('PeNpQeGEm9UEFJ6MBCMauY4WW4h3YxoESPWbsqVKucE'),
-		oracleSource: OracleSource.SWITCHBOARD,
+		oracle: new PublicKey('23KmX7SNikmUr2axSCy6Zer7XPBnvmVcASALnDGqBVRR'),
+		oracleSource: OracleSource.PYTH_PULL,
 		mint: new PublicKey('DriFtupJYLTosbwoN8koMbEYSx54aFAVLddWsbksjwg7'),
 		precision: new BN(10).pow(SIX),
 		precisionExp: SIX,
@@ -339,8 +339,8 @@ export const MainnetSpotMarkets: SpotMarketConfig[] = [
 	{
 		symbol: 'POPCAT',
 		marketIndex: 20,
-		oracle: new PublicKey('3GjpjC8TWsPqjyFSiR7saGxgzD8zqYJNsBnWpenZPEBy'),
-		oracleSource: OracleSource.SWITCHBOARD,
+		oracle: new PublicKey('H3pn43tkNvsG5z3qzmERguSvKoyHZvvY6VPmNrJqiW5X'),
+		oracleSource: OracleSource.PYTH_PULL,
 		mint: new PublicKey('7GCihgDB8fe6KNjn2MYtkzZcRjQy3t9GHdC8uHYmW2hr'),
 		precision: new BN(10).pow(NINE),
 		precisionExp: NINE,
@@ -348,6 +348,8 @@ export const MainnetSpotMarkets: SpotMarketConfig[] = [
 		phoenixMarket: new PublicKey(
 			'31XgvAQ1HgFQEk31KdszbPkVXKaQqB1bgYZPoDrFpSR2'
 		),
+		pythFeedId:
+			'0xb9312a7ee50e189ef045aa3c7842e099b061bd9bdc99ac645956c3b660dc8cce',
 	},
 ];
 

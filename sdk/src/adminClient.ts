@@ -31,7 +31,6 @@ import {
 	getPrelaunchOraclePublicKey,
 	getOpenbookV2FulfillmentConfigPublicKey,
 	getPythPullOraclePublicKey,
-	getUserAccountPublicKeySync,
 	getUserStatsAccountPublicKey,
 } from './addresses/pda';
 import { squareRootBN } from './math/utils';
@@ -3687,6 +3686,7 @@ export class AdminClient extends DriftClient {
 	}
 
 	public async initUserFuel(
+		user: PublicKey,
 		authority: PublicKey,
 		fuelBonusDeposits?: number,
 		fuelBonusBorrows?: number,
@@ -3695,6 +3695,7 @@ export class AdminClient extends DriftClient {
 		fuelBonusInsurance?: number
 	): Promise<TransactionSignature> {
 		const updatePerpMarketFuelIx = await this.getInitUserFuelIx(
+			user,
 			authority,
 			fuelBonusDeposits,
 			fuelBonusBorrows,
@@ -3710,6 +3711,7 @@ export class AdminClient extends DriftClient {
 	}
 
 	public async getInitUserFuelIx(
+		user: PublicKey,
 		authority: PublicKey,
 		fuelBonusDeposits?: number,
 		fuelBonusBorrows?: number,
@@ -3717,11 +3719,6 @@ export class AdminClient extends DriftClient {
 		fuelBonusMaker?: number,
 		fuelBonusInsurance?: number
 	): Promise<TransactionInstruction> {
-		const user = getUserAccountPublicKeySync(
-			this.program.programId,
-			authority,
-			0
-		);
 		const userStats = await getUserStatsAccountPublicKey(
 			this.program.programId,
 			authority
@@ -3735,9 +3732,7 @@ export class AdminClient extends DriftClient {
 			fuelBonusInsurance || null,
 			{
 				accounts: {
-					admin: this.isSubscribed
-						? this.getStateAccount().admin
-						: this.wallet.publicKey,
+					admin: this.wallet.publicKey,
 					state: await this.getStatePublicKey(),
 					user,
 					userStats,

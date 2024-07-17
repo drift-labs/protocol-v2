@@ -541,7 +541,7 @@ pub mod fuel_scoring {
 
         let maker_after: std::cell::RefMut<User> =
             makers_and_referrers.get_ref_mut(&maker_key).unwrap();
-        let maker_stats_after = if maker.authority == taker.authority {
+        let _maker_stats_after = if maker.authority == taker.authority {
             None
         } else {
             Some(
@@ -776,7 +776,7 @@ pub mod fuel_scoring {
 
         let maker_after: std::cell::RefMut<User> =
             makers_and_referrers.get_ref_mut(&maker_key).unwrap();
-        let maker_stats_after = if maker.authority == taker.authority {
+        let _maker_stats_after = if maker.authority == taker.authority {
             None
         } else {
             Some(

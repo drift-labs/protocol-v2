@@ -13,6 +13,7 @@ import {
 	User,
 	Wallet,
 	BASE_PRECISION,
+	UserStatsAccount,
 	getLimitOrderParams,
 	OracleSource,
 	ONE,
@@ -34,7 +35,7 @@ import { startAnchor } from 'solana-bankrun';
 import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
 import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
 
-describe('place and fill spot order', () => {
+describe("fuelin'", () => {
 	const chProgram = anchor.workspace.Drift as Program;
 
 	let fillerDriftClient: TestClient;
@@ -63,7 +64,7 @@ describe('place and fill spot order', () => {
 		const wallet = new Wallet(keypair);
 		const userUSDCAccount = await mockUserUSDCAccount(
 			usdcMint,
-			usdcAmount,
+			usdcAmount.muln(100),
 			bankrunContextWrapper,
 			keypair.publicKey
 		);
@@ -115,7 +116,7 @@ describe('place and fill spot order', () => {
 		usdcMint = await mockUSDCMint(bankrunContextWrapper);
 		userUSDCAccount = await mockUserUSDCAccount(
 			usdcMint,
-			usdcAmount,
+			usdcAmount.muln(10),
 			bankrunContextWrapper
 		);
 
@@ -209,6 +210,135 @@ describe('place and fill spot order', () => {
 	after(async () => {
 		await fillerDriftClient.unsubscribe();
 		await fillerDriftClientUser.unsubscribe();
+	});
+
+	it('fuel for staking', async () => {
+		const [takerDriftClient, _takerUSDCAccount] = await createTestClient({
+			referrer: fillerDriftClientUser.getUserAccount().authority,
+			referrerStats: fillerDriftClient.getUserStatsAccountPublicKey(),
+		});
+		const takerDriftClientUser = new User({
+			driftClient: takerDriftClient,
+			userAccountPublicKey: await takerDriftClient.getUserAccountPublicKey(),
+			accountSubscription: {
+				type: 'polling',
+				accountLoader: bulkAccountLoader,
+			},
+		});
+		await takerDriftClientUser.subscribe();
+
+		const marketIndex = 0;
+
+		const txSig = await takerDriftClient.addInsuranceFundStake({
+			marketIndex: marketIndex,
+			amount: usdcAmount,
+			collateralAccountPublicKey: _takerUSDCAccount.publicKey,
+			initializeStakeAccount: true,
+		});
+		bankrunContextWrapper.connection.printTxLogs(txSig);
+		await takerDriftClient.fetchAccounts();
+
+		const takerUserStats: UserStatsAccount = takerDriftClient
+			.getUserStats()
+			.getAccount();
+
+		console.log(takerUserStats);
+		assert(takerUserStats.ifStakedQuoteAssetAmount.gt(ZERO));
+
+		await fillerDriftClient.updateSpotMarketFuel(0, 100, 200, 200, 0, 250);
+		const currentClockInit =
+			await bankrunContextWrapper.context.banksClient.getClock();
+
+		await takerDriftClient.fetchAccounts();
+		assert(takerDriftClient.getSpotMarketAccount(0).fuelBoostInsurance > 0);
+
+		const fuelDictInit = takerDriftClientUser.getFuelBonus(
+			new BN(currentClockInit.unixTimestamp.toString()).addn(36000),
+			true,
+			true
+		);
+
+		console.log(fuelDictInit);
+		assert(fuelDictInit['insuranceFuel'].gt(ZERO));
+
+		const timeProgress = 36000; // 30 days in seconds
+
+		await bankrunContextWrapper.moveTimeForward(timeProgress);
+
+		const _ = await takerDriftClient.requestRemoveInsuranceFundStake(
+			marketIndex,
+			usdcAmount.divn(3)
+		);
+
+		const currentClockInit2 =
+			await bankrunContextWrapper.context.banksClient.getClock();
+
+		const fuelDictInit2 = takerDriftClientUser.getFuelBonus(
+			new BN(currentClockInit2.unixTimestamp.toString()),
+			true,
+			true
+		);
+
+		console.log(fuelDictInit2);
+		assert(fuelDictInit2['insuranceFuel'].gt(ZERO));
+		console.log(
+			'insurance before/after:',
+			fuelDictInit['insuranceFuel'].toNumber(),
+			'->',
+			fuelDictInit2['insuranceFuel'].toNumber()
+		);
+
+		assert(
+			Math.abs(
+				fuelDictInit['insuranceFuel'].toNumber() -
+					fuelDictInit2['insuranceFuel'].toNumber()
+			) <= 1
+		);
+
+		await bankrunContextWrapper.moveTimeForward(
+			takerDriftClient
+				.getSpotMarketAccount(0)
+				.insuranceFund.unstakingPeriod.toNumber()
+		);
+
+		const _again = await takerDriftClient.removeInsuranceFundStake(
+			marketIndex,
+			_takerUSDCAccount.publicKey
+		);
+
+		const currentClockRm =
+			await bankrunContextWrapper.context.banksClient.getClock();
+
+		const fuelDictRmStake = takerDriftClientUser.getFuelBonus(
+			new BN(currentClockRm.unixTimestamp.toString()),
+			true,
+			true
+		);
+
+		console.log(fuelDictRmStake);
+		const totalFuelIfNoUnstake = 119791;
+		const expectedFuel =
+			(totalFuelIfNoUnstake - fuelDictInit2['insuranceFuel'].toNumber()) / 3 +
+			fuelDictInit2['insuranceFuel'].toNumber();
+		console.log(
+			expectedFuel,
+			'vs',
+			fuelDictRmStake['insuranceFuel'].toNumber()
+		);
+		assert(
+			Math.abs(fuelDictRmStake['insuranceFuel'].toNumber() - expectedFuel) < 1
+		);
+
+		assert(fuelDictRmStake['insuranceFuel'].gt(ZERO));
+		console.log(
+			'insurance before/after remove:',
+			fuelDictInit2['insuranceFuel'].toNumber(),
+			'->',
+			fuelDictRmStake['insuranceFuel'].toNumber()
+		);
+
+		await takerDriftClient.unsubscribe();
+		await takerDriftClientUser.unsubscribe();
 	});
 
 	it('fuel for perp taker/maker/position', async () => {
@@ -570,6 +700,8 @@ describe('place and fill spot order', () => {
 		assert(!makerDriftClientUser.getOrderByUserOrderId(2).postOnly);
 
 		await fillerDriftClient.updateSpotMarketFuel(1, null, null, 100, 200);
+		// paused cumulative interest to avoid test failing due to race
+		await fillerDriftClient.updateSpotMarketPausedOperations(1, 1);
 
 		await takerDriftClient.placeSpotOrder(
 			getLimitOrderParams({
@@ -606,6 +738,8 @@ describe('place and fill spot order', () => {
 		);
 
 		bankrunContextWrapper.connection.printTxLogs(fillTx);
+
+		await makerDriftClientUser.fetchAccounts();
 
 		const makerUSDCAmount = makerDriftClient.getQuoteAssetTokenAmount();
 		const makerSolAmount = makerDriftClient.getTokenAmount(1);
