@@ -708,9 +708,9 @@ export const MainnetPerpMarkets: PerpMarketConfig[] = [
 		symbol: 'CLOUD-PERP',
 		baseAssetSymbol: 'CLOUD',
 		marketIndex: 31,
-		oracle: new PublicKey('C7UxgCodaEy4yqwTe3a4QXfsG7LnpMGGQdEqaxDae4b8'),
+		oracle: new PublicKey('4FG7UyPkszGvcSVCCKaLSZsArGjyxitwhJeQhYu2bFTS'),
 		launchTs: 1717597648000,
-		oracleSource: OracleSource.Prelaunch,
+		oracleSource: OracleSource.SWITCHBOARD,
 	},
 	{
 		fullName: 'IO',
