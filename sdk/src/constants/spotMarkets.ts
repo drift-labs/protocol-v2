@@ -351,6 +351,16 @@ export const MainnetSpotMarkets: SpotMarketConfig[] = [
 		pythFeedId:
 			'0xb9312a7ee50e189ef045aa3c7842e099b061bd9bdc99ac645956c3b660dc8cce',
 	},
+	{
+		symbol: 'CLOUD',
+		marketIndex: 21,
+		oracle: new PublicKey('4FG7UyPkszGvcSVCCKaLSZsArGjyxitwhJeQhYu2bFTS'),
+		oracleSource: OracleSource.SWITCHBOARD,
+		mint: new PublicKey('CLoUDKc4Ane7HeQcPpE3YHnznRxhMimJ4MyaUqyHFzAu'),
+		precision: new BN(10).pow(NINE),
+		precisionExp: NINE,
+		launchTs: 1721316817000,
+	},
 ];
 
 export const SpotMarkets: { [key in DriftEnv]: SpotMarketConfig[] } = {
