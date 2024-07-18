@@ -4310,11 +4310,6 @@ export class DriftClient {
 		const outMarket = this.getSpotMarketAccount(outMarketIndex);
 		const inMarket = this.getSpotMarketAccount(inMarketIndex);
 
-		const isExactOut =
-			swapMode === 'ExactOut' || quote?.swapMode === 'ExactOut';
-		const amountIn = new BN(quote.inAmount);
-		const exactOutBufferedAmountIn = amountIn.muln(1001).divn(1000); // Add 10bp buffer
-
 		if (!quote) {
 			const fetchedQuote = await jupiterClient.getQuote({
 				inputMint: inMarket.mint,
@@ -4331,6 +4326,10 @@ export class DriftClient {
 		if (!quote) {
 			throw new Error("Could not fetch Jupiter's quote. Please try again.");
 		}
+
+		const isExactOut = swapMode === 'ExactOut' || quote.swapMode === 'ExactOut';
+		const amountIn = new BN(quote.inAmount);
+		const exactOutBufferedAmountIn = amountIn.muln(1001).divn(1000); // Add 10bp buffer
 
 		const transaction = await jupiterClient.getSwap({
 			quote,
