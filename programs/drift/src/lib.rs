@@ -768,6 +768,12 @@ pub mod drift {
         )
     }
 
+    pub fn initialize_prediction_market<'c: 'info, 'info>(
+        ctx: Context<'_, '_, 'c, 'info, AdminUpdatePerpMarket<'info>>,
+    ) -> Result<()> {
+        handle_initialize_prediction_market(ctx)
+    }
+
     pub fn delete_initialized_perp_market(
         ctx: Context<DeleteInitializedPerpMarket>,
         market_index: u16,

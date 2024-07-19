@@ -934,6 +934,28 @@ pub fn handle_initialize_perp_market(
     Ok(())
 }
 
+#[access_control(
+    perp_market_valid(&ctx.accounts.perp_market)
+)]
+pub fn handle_initialize_prediction_market(ctx: Context<AdminUpdatePerpMarket>) -> Result<()> {
+    let perp_market = &mut load_mut!(ctx.accounts.perp_market)?;
+    msg!("updating perp market {} expiry", perp_market.market_index);
+
+    validate!(
+        perp_market.status == MarketStatus::Initialized,
+        ErrorCode::DefaultError,
+        "Market must be just initialized to make prediction market"
+    )?;
+
+    perp_market.contract_type = ContractType::Prediction;
+
+    let paused_operations = perp_market.paused_operations | PerpOperation::UpdateFunding as u8;
+
+    perp_market.paused_operations = paused_operations;
+
+    Ok(())
+}
+
 pub fn handle_delete_initialized_perp_market(
     ctx: Context<DeleteInitializedPerpMarket>,
     market_index: u16,
@@ -2773,6 +2795,14 @@ pub fn handle_update_perp_market_paused_operations(
     msg!("perp market {}", perp_market.market_index);
 
     perp_market.paused_operations = paused_operations;
+
+    if perp_market.is_prediction_market() {
+        validate!(
+            perp_market.is_operation_paused(PerpOperation::UpdateFunding),
+            ErrorCode::DefaultError,
+            "prediction market must have funding paused"
+        )?;
+    }
 
     PerpOperation::log_all_operations_paused(perp_market.paused_operations);
 

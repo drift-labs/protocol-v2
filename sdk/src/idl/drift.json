@@ -3363,6 +3363,27 @@
       ]
     },
     {
+      "name": "initializePredictionMarket",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "perpMarket",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": []
+    },
+    {
       "name": "deleteInitializedPerpMarket",
       "accounts": [
         {
@@ -9995,6 +10016,9 @@
             "name": "Fill"
           },
           {
+            "name": "Deposit"
+          },
+          {
             "name": "Withdraw"
           },
           {
@@ -10068,6 +10092,9 @@
           },
           {
             "name": "Future"
+          },
+          {
+            "name": "Prediction"
           }
         ]
       }
