@@ -1870,12 +1870,12 @@ export class AdminClient extends DriftClient {
 
 	public async updateSpotMarketMaxTokenBorrows(
 		spotMarketIndex: number,
-		maxTokenBorrows: BN
+		maxTokenBorrowsFraction: number
 	): Promise<TransactionSignature> {
 		const updateSpotMarketMaxTokenBorrowsIx =
 			await this.getUpdateSpotMarketMaxTokenBorrowsIx(
 				spotMarketIndex,
-				maxTokenBorrows
+				maxTokenBorrowsFraction
 			);
 
 		const tx = await this.buildTransaction(updateSpotMarketMaxTokenBorrowsIx);
@@ -1887,10 +1887,10 @@ export class AdminClient extends DriftClient {
 
 	public async getUpdateSpotMarketMaxTokenBorrowsIx(
 		spotMarketIndex: number,
-		maxTokenBorrows: BN
+		maxTokenBorrowsFraction: number
 	): Promise<TransactionInstruction> {
 		return this.program.instruction.updateSpotMarketMaxTokenBorrows(
-			maxTokenBorrows,
+			maxTokenBorrowsFraction,
 			{
 				accounts: {
 					admin: this.isSubscribed

@@ -4201,6 +4201,32 @@
       ]
     },
     {
+      "name": "updateSpotMarketMaxTokenBorrows",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "spotMarket",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "maxTokenBorrowsFraction",
+          "type": "u16"
+        }
+      ]
+    },
+    {
       "name": "updateSpotMarketScaleInitialAssetWeightStart",
       "accounts": [
         {
@@ -9993,6 +10019,9 @@
           },
           {
             "name": "Fill"
+          },
+          {
+            "name": "Deposit"
           },
           {
             "name": "Withdraw"
