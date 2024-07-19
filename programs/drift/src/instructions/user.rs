@@ -20,7 +20,6 @@ use crate::instructions::optional_accounts::{
     get_referrer_and_referrer_stats, get_whitelist_token, load_maps, AccountMaps,
 };
 use crate::instructions::SpotFulfillmentType;
-use crate::load_mut;
 use crate::math::casting::Cast;
 use crate::math::liquidation::is_user_being_liquidated;
 use crate::math::margin::{
@@ -41,13 +40,14 @@ use crate::state::events::{
 };
 use crate::state::fill_mode::FillMode;
 use crate::state::fulfillment_params::drift::MatchFulfillmentParams;
+use crate::state::fulfillment_params::openbook_v2::OpenbookV2FulfillmentParams;
 use crate::state::fulfillment_params::phoenix::PhoenixFulfillmentParams;
 use crate::state::fulfillment_params::serum::SerumFulfillmentParams;
 use crate::state::oracle::StrictOraclePrice;
 use crate::state::order_params::{
     ModifyOrderParams, OrderParams, PlaceOrderOptions, PostOnlyParam,
 };
-use crate::state::paused_operations::PerpOperation;
+use crate::state::paused_operations::{PerpOperation, SpotOperation};
 use crate::state::perp_market::MarketStatus;
 use crate::state::perp_market_map::{get_writable_perp_market_set, MarketSet};
 use crate::state::spot_fulfillment_params::SpotFulfillmentParams;
@@ -66,6 +66,7 @@ use crate::validation::whitelist::validate_whitelist_token;
 use crate::{controller, math};
 use crate::{get_then_update_id, QUOTE_SPOT_MARKET_INDEX};
 use crate::{load, THIRTEEN_DAY};
+use crate::{load_mut, ExchangeStatus};
 use anchor_lang::solana_program::sysvar::instructions;
 use anchor_spl::associated_token::AssociatedToken;
 use borsh::{BorshDeserialize, BorshSerialize};
@@ -93,7 +94,7 @@ pub fn handle_initialize_user<'c: 'info, 'info>(
     user_stats.number_of_sub_accounts = user_stats.number_of_sub_accounts.safe_add(1)?;
 
     // Only try to add referrer if it is the first user
-    if user_stats.number_of_sub_accounts == 1 {
+    if user_stats.number_of_sub_accounts_created == 0 {
         let (referrer, referrer_stats) = get_referrer_and_referrer_stats(remaining_accounts_iter)?;
         let referrer = if let (Some(referrer), Some(referrer_stats)) = (referrer, referrer_stats) {
             let referrer = load!(referrer)?;
@@ -147,8 +148,12 @@ pub fn handle_initialize_user<'c: 'info, 'info>(
         ErrorCode::MaxNumberOfUsers
     )?;
 
+    let now_ts = Clock::get()?.unix_timestamp;
+
+    user.last_fuel_bonus_update_ts = now_ts.cast()?;
+
     emit!(NewUserRecord {
-        ts: Clock::get()?.unix_timestamp,
+        ts: now_ts,
         user_authority: ctx.accounts.authority.key(),
         user: user_key,
         sub_account_id,
@@ -201,6 +206,7 @@ pub fn handle_initialize_user_stats<'c: 'info, 'info>(
         last_taker_volume_30d_ts: clock.unix_timestamp,
         last_maker_volume_30d_ts: clock.unix_timestamp,
         last_filler_volume_30d_ts: clock.unix_timestamp,
+        last_fuel_if_bonus_update_ts: clock.unix_timestamp.cast()?,
         ..UserStats::default()
     };
 
@@ -514,12 +520,15 @@ pub fn handle_withdraw<'c: 'info, 'info>(
         amount
     };
 
-    meets_withdraw_margin_requirement(
-        user,
+    user.meets_withdraw_margin_requirement_and_increment_fuel_bonus(
         &perp_market_map,
         &spot_market_map,
         &mut oracle_map,
         MarginRequirementType::Initial,
+        market_index,
+        amount as u128,
+        &mut user_stats,
+        now,
     )?;
 
     validate_spot_margin_trading(user, &perp_market_map, &spot_market_map, &mut oracle_map)?;
@@ -601,6 +610,10 @@ pub fn handle_transfer_deposit<'c: 'info, 'info>(
 
     let to_user = &mut load_mut!(ctx.accounts.to_user)?;
     let from_user = &mut load_mut!(ctx.accounts.from_user)?;
+    let user_stats = &mut load_mut!(ctx.accounts.user_stats)?;
+
+    let clock = Clock::get()?;
+    let now = clock.unix_timestamp;
 
     validate!(
         !to_user.is_bankrupt(),
@@ -664,12 +677,15 @@ pub fn handle_transfer_deposit<'c: 'info, 'info>(
         )?;
     }
 
-    meets_withdraw_margin_requirement(
-        from_user,
+    from_user.meets_withdraw_margin_requirement_and_increment_fuel_bonus(
         &perp_market_map,
         &spot_market_map,
         &mut oracle_map,
         MarginRequirementType::Initial,
+        market_index,
+        amount as u128,
+        user_stats,
+        now,
     )?;
 
     validate_spot_margin_trading(
@@ -1428,6 +1444,17 @@ pub fn handle_place_and_take_spot_order<'c: 'info, 'info>(
                 &quote_market,
             )?)
         }
+        SpotFulfillmentType::OpenbookV2 => {
+            let base_market = spot_market_map.get_ref(&market_index)?;
+            let quote_market = spot_market_map.get_quote_spot_market()?;
+            Box::new(OpenbookV2FulfillmentParams::new(
+                remaining_accounts_iter,
+                &ctx.accounts.state,
+                &base_market,
+                &quote_market,
+                clock.unix_timestamp,
+            )?)
+        }
         SpotFulfillmentType::Match => {
             let base_market = spot_market_map.get_ref(&market_index)?;
             let quote_market = spot_market_map.get_quote_spot_market()?;
@@ -1556,6 +1583,17 @@ pub fn handle_place_and_make_spot_order<'c: 'info, 'info>(
                 &ctx.accounts.state,
                 &base_market,
                 &quote_market,
+            )?)
+        }
+        SpotFulfillmentType::OpenbookV2 => {
+            let base_market = spot_market_map.get_ref(&market_index)?;
+            let quote_market = spot_market_map.get_quote_spot_market()?;
+            Box::new(OpenbookV2FulfillmentParams::new(
+                remaining_accounts_iter,
+                &ctx.accounts.state,
+                &base_market,
+                &quote_market,
+                clock.unix_timestamp,
             )?)
         }
         SpotFulfillmentType::Match => {
@@ -2663,7 +2701,21 @@ pub fn handle_end_swap<'c: 'info, 'info>(
 
     let mut user_stats = load_mut!(&ctx.accounts.user_stats)?;
 
+    let exchange_status = state.get_exchange_status()?;
+
+    validate!(
+        !exchange_status.contains(ExchangeStatus::DepositPaused | ExchangeStatus::WithdrawPaused),
+        ErrorCode::ExchangePaused
+    )?;
+
     let mut in_spot_market = spot_market_map.get_ref_mut(&in_market_index)?;
+
+    validate!(
+        !in_spot_market.is_operation_paused(SpotOperation::Withdraw),
+        ErrorCode::MarketFillOrderPaused,
+        "withdraw from market {} paused",
+        in_market_index
+    )?;
 
     validate!(
         in_spot_market.flash_loan_amount != 0,
@@ -2675,6 +2727,13 @@ pub fn handle_end_swap<'c: 'info, 'info>(
     let in_oracle_price = in_oracle_data.price;
 
     let mut out_spot_market = spot_market_map.get_ref_mut(&out_market_index)?;
+
+    validate!(
+        !out_spot_market.is_operation_paused(SpotOperation::Deposit),
+        ErrorCode::MarketFillOrderPaused,
+        "deposit to market {} paused",
+        out_market_index
+    )?;
 
     let out_oracle_data = oracle_map.get_price_data(&out_spot_market.oracle)?;
     let out_oracle_price = out_oracle_data.price;
@@ -2811,7 +2870,11 @@ pub fn handle_end_swap<'c: 'info, 'info>(
             out_spot_market.decimals,
             out_oracle_price,
         )?;
-        user_stats.update_taker_volume_30d(amount_out_value.cast()?, now)?;
+        user_stats.update_taker_volume_30d(
+            out_spot_market.fuel_boost_taker,
+            amount_out_value.cast()?,
+            now,
+        )?;
     }
 
     validate!(

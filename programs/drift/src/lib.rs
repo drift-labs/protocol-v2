@@ -530,6 +530,12 @@ pub mod drift {
         handle_update_user_quote_asset_insurance_stake(ctx)
     }
 
+    pub fn update_user_gov_token_insurance_stake(
+        ctx: Context<UpdateUserGovTokenInsuranceStake>,
+    ) -> Result<()> {
+        handle_update_user_gov_token_insurance_stake(ctx)
+    }
+
     // IF stakers
 
     pub fn initialize_insurance_fund_stake(
@@ -575,6 +581,29 @@ pub mod drift {
         shares: u128,
     ) -> Result<()> {
         handle_transfer_protocol_if_shares(ctx, market_index, shares)
+    }
+
+    pub fn update_pyth_pull_oracle(
+        ctx: Context<UpdatePythPullOraclePriceFeed>,
+        feed_id: [u8; 32],
+        params: Vec<u8>,
+    ) -> Result<()> {
+        handle_update_pyth_pull_oracle(ctx, feed_id, params)
+    }
+
+    pub fn post_pyth_pull_oracle_update_atomic(
+        ctx: Context<PostPythPullOracleUpdateAtomic>,
+        feed_id: [u8; 32],
+        params: Vec<u8>,
+    ) -> Result<()> {
+        handle_post_pyth_pull_oracle_update_atomic(ctx, feed_id, params)
+    }
+
+    pub fn post_multi_pyth_pull_oracle_updates_atomic<'c: 'info, 'info>(
+        ctx: Context<'_, '_, 'c, 'info, PostPythPullMultiOracleUpdatesAtomic<'info>>,
+        params: Vec<u8>,
+    ) -> Result<()> {
+        handle_post_multi_pyth_pull_oracle_updates_atomic(ctx, params)
     }
 
     // Admin Instructions
@@ -650,6 +679,19 @@ pub mod drift {
         handle_update_serum_fulfillment_config_status(ctx, status)
     }
 
+    pub fn initialize_openbook_v2_fulfillment_config(
+        ctx: Context<InitializeOpenbookV2FulfillmentConfig>,
+        market_index: u16,
+    ) -> Result<()> {
+        handle_initialize_openbook_v2_fulfillment_config(ctx, market_index)
+    }
+
+    pub fn openbook_v2_fulfillment_config_status(
+        ctx: Context<UpdateOpenbookV2FulfillmentConfig>,
+        status: SpotFulfillmentConfigStatus,
+    ) -> Result<()> {
+        handle_update_openbook_v2_fulfillment_config_status(ctx, status)
+    }
     pub fn initialize_phoenix_fulfillment_config(
         ctx: Context<InitializePhoenixFulfillmentConfig>,
         market_index: u16,
@@ -1227,6 +1269,51 @@ pub mod drift {
         handle_update_spot_market_fee_adjustment(ctx, fee_adjustment)
     }
 
+    pub fn update_perp_market_fuel(
+        ctx: Context<AdminUpdatePerpMarket>,
+        fuel_boost_taker: Option<u8>,
+        fuel_boost_maker: Option<u8>,
+        fuel_boost_position: Option<u8>,
+    ) -> Result<()> {
+        handle_update_perp_market_fuel(ctx, fuel_boost_taker, fuel_boost_maker, fuel_boost_position)
+    }
+
+    pub fn update_spot_market_fuel(
+        ctx: Context<AdminUpdateSpotMarket>,
+        fuel_boost_deposits: Option<u8>,
+        fuel_boost_borrows: Option<u8>,
+        fuel_boost_taker: Option<u8>,
+        fuel_boost_maker: Option<u8>,
+        fuel_boost_insurance: Option<u8>,
+    ) -> Result<()> {
+        handle_update_spot_market_fuel(
+            ctx,
+            fuel_boost_deposits,
+            fuel_boost_borrows,
+            fuel_boost_taker,
+            fuel_boost_maker,
+            fuel_boost_insurance,
+        )
+    }
+
+    pub fn init_user_fuel(
+        ctx: Context<InitUserFuel>,
+        fuel_boost_deposits: Option<u32>,
+        fuel_boost_borrows: Option<u32>,
+        fuel_boost_taker: Option<u32>,
+        fuel_boost_maker: Option<u32>,
+        fuel_boost_insurance: Option<u32>,
+    ) -> Result<()> {
+        handle_init_user_fuel(
+            ctx,
+            fuel_boost_deposits,
+            fuel_boost_borrows,
+            fuel_boost_taker,
+            fuel_boost_maker,
+            fuel_boost_insurance,
+        )
+    }
+
     pub fn update_admin(ctx: Context<AdminUpdateState>, admin: Pubkey) -> Result<()> {
         handle_update_admin(ctx, admin)
     }
@@ -1303,6 +1390,13 @@ pub mod drift {
         perp_market_index: u16,
     ) -> Result<()> {
         handle_delete_prelaunch_oracle(ctx, perp_market_index)
+    }
+
+    pub fn initialize_pyth_pull_oracle(
+        ctx: Context<InitPythPullPriceFeed>,
+        feed_id: [u8; 32],
+    ) -> Result<()> {
+        handle_initialize_pyth_pull_oracle(ctx, feed_id)
     }
 }
 

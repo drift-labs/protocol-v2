@@ -543,6 +543,32 @@ pub enum ErrorCode {
     UnableToParsePullOracleMessage,
     #[msg("Can not borow more than max borrows")]
     MaxBorrows,
+    #[msg("Updates must be monotonically increasing")]
+    OracleUpdatesNotMonotonic,
+    #[msg("Trying to update price feed with the wrong feed id")]
+    OraclePriceFeedMessageMismatch,
+    #[msg("The message in the update must be a PriceFeedMessage")]
+    OracleUnsupportedMessageType,
+    #[msg("Could not deserialize the message in the update")]
+    OracleDeserializeMessageFailed,
+    #[msg("Wrong guardian set owner in update price atomic")]
+    OracleWrongGuardianSetOwner,
+    #[msg("Oracle post update atomic price feed account must be drift program")]
+    OracleWrongWriteAuthority,
+    #[msg("Oracle vaa owner must be wormhole program")]
+    OracleWrongVaaOwner,
+    #[msg("Multi updates must have 2 or fewer accounts passed in remaining accounts")]
+    OracleTooManyPriceAccountUpdates,
+    #[msg("Don't have the same remaining accounts number and merkle price updates left")]
+    OracleMismatchedVaaAndPriceUpdates,
+    #[msg("Remaining account passed is not a valid pda")]
+    OracleBadRemainingAccountPublicKey,
+    #[msg("FailedOpenbookV2CPI")]
+    FailedOpenbookV2CPI,
+    #[msg("InvalidOpenbookV2Program")]
+    InvalidOpenbookV2Program,
+    #[msg("InvalidOpenbookV2Market")]
+    InvalidOpenbookV2Market,
 }
 
 #[macro_export]

@@ -430,8 +430,16 @@ pub fn liquidate_perp(
         .safe_div(LIQUIDATION_FEE_PRECISION_U128)?
         .cast::<i64>()?;
 
-    user_stats.update_taker_volume_30d(base_asset_value, now)?;
-    liquidator_stats.update_maker_volume_30d(base_asset_value, now)?;
+    user_stats.update_taker_volume_30d(
+        perp_market_map.get_ref(&market_index)?.fuel_boost_taker,
+        base_asset_value,
+        now,
+    )?;
+    liquidator_stats.update_maker_volume_30d(
+        perp_market_map.get_ref(&market_index)?.fuel_boost_maker,
+        base_asset_value,
+        now,
+    )?;
 
     let user_position_delta = get_position_delta_for_fill(
         base_asset_amount,
@@ -655,8 +663,10 @@ pub fn liquidate_spot(
     limit_price: Option<u64>,
     user: &mut User,
     user_key: &Pubkey,
+    user_stats: &mut UserStats,
     liquidator: &mut User,
     liquidator_key: &Pubkey,
+    liquidator_stats: &mut UserStats,
     perp_market_map: &PerpMarketMap,
     spot_market_map: &SpotMarketMap,
     oracle_map: &mut OracleMap,
@@ -827,13 +837,17 @@ pub fn liquidate_spot(
         )
     };
 
-    let margin_calculation = calculate_margin_requirement_and_total_collateral_and_liability_info(
-        user,
+    let margin_context = MarginContext::liquidation(liquidation_margin_buffer_ratio)
+        .track_market_margin_requirement(MarketIdentifier::spot(liability_market_index))?
+        .fuel_numerator(user, now);
+
+    let margin_calculation = user.calculate_margin_and_increment_fuel_bonus(
         perp_market_map,
         spot_market_map,
         oracle_map,
-        MarginContext::liquidation(liquidation_margin_buffer_ratio)
-            .track_market_margin_requirement(MarketIdentifier::spot(liability_market_index))?,
+        margin_context,
+        user_stats,
+        now,
     )?;
 
     if !user.is_being_liquidated() && margin_calculation.meets_margin_requirement() {
@@ -873,7 +887,8 @@ pub fn liquidate_spot(
                 MarginContext::liquidation(liquidation_margin_buffer_ratio)
                     .track_market_margin_requirement(MarketIdentifier::spot(
                         liability_market_index,
-                    ))?,
+                    ))?
+                    .fuel_numerator(user, now),
             )?;
 
         let initial_margin_shortage = margin_calculation.margin_shortage()?;
@@ -1133,8 +1148,23 @@ pub fn liquidate_spot(
         user.enter_bankruptcy();
     }
 
-    let liquidator_meets_initial_margin_requirement =
-        meets_initial_margin_requirement(liquidator, perp_market_map, spot_market_map, oracle_map)?;
+    let liq_margin_context = MarginContext::standard(MarginRequirementType::Initial)
+        .fuel_spot_deltas([
+            (asset_market_index, -(asset_transfer as i128)),
+            (liability_market_index, liability_transfer as i128),
+        ])
+        .fuel_numerator(liquidator, now);
+
+    let liquidator_meets_initial_margin_requirement = liquidator
+        .calculate_margin_and_increment_fuel_bonus(
+            perp_market_map,
+            spot_market_map,
+            oracle_map,
+            liq_margin_context,
+            liquidator_stats,
+            now,
+        )
+        .map(|calc| calc.meets_margin_requirement())?;
 
     validate!(
         liquidator_meets_initial_margin_requirement,

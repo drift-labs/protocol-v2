@@ -6,14 +6,24 @@ pub mod pyth_program {
     declare_id!("gSbePebfvPy7tRqimPoVecS2UsBvYv46ynrzWocc92s");
 }
 
-pub mod pyth_pull_program {
+pub mod wormhole_program {
     use solana_program::declare_id;
-    declare_id!("rec5EKMGg6MxZYaMdyBfgwp4d5rB9T1VQH5pJv5LtFJ");
+    declare_id!("HDwcJBJXjL9FpJ7UBsYBtaDjsBUhuLCUYoz3zr8SWWaQ");
+}
+
+pub mod drift_oracle_receiver_program {
+    use solana_program::declare_id;
+    declare_id!("G6EoTTTgpkNBtVXo96EQp2m6uwwVh2Kt6YidjkmQqoha");
 }
 
 pub mod switchboard_program {
     use solana_program::declare_id;
     declare_id!("SW1TCH7qEPTdLsDHRgPuMQjbQxKdH2aBStViMFnt64f");
+}
+
+pub mod switchboard_on_demand {
+    use solana_program::declare_id;
+    declare_id!("SBondMDrcV3K4kxZR1HNVT7osZxAHVHgYXL5Ze1oMUv");
 }
 
 pub mod bonk_oracle {
@@ -24,6 +34,11 @@ pub mod bonk_oracle {
     declare_id!("6bquU99ktV1VRiHDr8gMhDFt3kMfhCQo5nfNrg2Urvsn");
 }
 
+pub mod bonk_pull_oracle {
+    use solana_program::declare_id;
+    declare_id!("GojbSnJuPdKDT1ZuHuAM5t9oz6bxTo1xhUKpTua2F72p");
+}
+
 pub mod pepe_oracle {
     use solana_program::declare_id;
     #[cfg(feature = "mainnet-beta")]
@@ -32,9 +47,22 @@ pub mod pepe_oracle {
     declare_id!("Gz9RfgDeAFSsH7BHDGyNTgCik74rjNwsodJpsCizzmkj");
 }
 
-pub mod bonk_pull_oracle {
+pub mod pepe_pull_oracle {
     use solana_program::declare_id;
-    declare_id!("83ZG5ij2iJY9wBYHe9neiSgQe34CcExxGHUShbNtzmfw");
+    declare_id!("CLxofhtzvLiErpn25wvUzpZXEqBhuZ6WMEckEraxyuGt");
+}
+
+pub mod wen_oracle {
+    use solana_program::declare_id;
+    #[cfg(feature = "mainnet-beta")]
+    declare_id!("6Uo93N83iF5U9KwC8eQpogx4XptMT4wSKfje7hB1Ufko");
+    #[cfg(not(feature = "mainnet-beta"))]
+    declare_id!("HuobqtT6QaJ8napVARKRxqZN33NqYzQJKLTKKrGy8Bvo");
+}
+
+pub mod wen_pull_oracle {
+    use solana_program::declare_id;
+    declare_id!("F47c7aJgYkfKXQ9gzrJaEpsNwUKHprysregTWXrtYLFp");
 }
 
 pub mod usdc_oracle {
@@ -47,7 +75,7 @@ pub mod usdc_oracle {
 
 pub mod usdc_pull_oracle {
     use solana_program::declare_id;
-    declare_id!("4RZKYukuCKjYovKtsjcAKusZQURcBUEzXfQ1g9w9UCut");
+    declare_id!("En8hkHLkRe9d9DraYmBTrus518BvmVH448YcvmrFM6Ce");
 }
 
 pub mod serum_program {
@@ -86,12 +114,17 @@ pub mod marinade_mainnet {
     declare_id!("MarBmsSgKXdrN1egZf5sqe1TMai9K1rChYNDJgjq7aD");
 }
 
-pub mod usdt_oracle_mainnet {
+pub mod usdt_oracle {
     use solana_program::declare_id;
     declare_id!("3vxLXJqLqF3JG5TCbYycbKWRBbCJQLxQmBGCkyqEEefL");
 }
 
-pub mod usdt_pull_oracle_mainnet {
+pub mod usdt_pull_oracle {
     use solana_program::declare_id;
-    declare_id!("4hBpmspUCesrWhgCEragfcLRQPhJCL9txhHmTgGuYxtH");
+    declare_id!("BekJ3P5G3iFeC97sXHuKnUHofCFj9Sbo7uyF2fkKwvit");
+}
+
+pub mod fuel_airdrop_wallet {
+    use solana_program::declare_id;
+    declare_id!("5hMjmxexWu954pX9gB9jkHxMqdjpxArQS2XdvkaevRax");
 }

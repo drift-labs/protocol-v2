@@ -17,6 +17,7 @@ test_files=(
   # updateK.ts
   # postOnlyAmmFulfillment.ts
   # TODO BROKEN ^^
+  fuel.ts
   admin.ts
   assetTier.ts
   cancelAllOrders.ts
@@ -40,6 +41,7 @@ test_files=(
   modifyOrder.ts
   multipleMakerOrders.ts
   multipleSpotMakerOrders.ts
+  openbookTest.ts
   oracleFillPriceGuardrails.ts
   oracleOffsetOrders.ts
   order.ts
