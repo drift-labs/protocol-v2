@@ -2721,9 +2721,14 @@ pub mod amm_lp_jit {
                 break;
             }
 
-            let auction_price =
-                crate::math::auction::calculate_auction_price(&taker.orders[0], slot, 1, None)
-                    .unwrap();
+            let auction_price = crate::math::auction::calculate_auction_price(
+                &taker.orders[0],
+                slot,
+                1,
+                None,
+                false,
+            )
+            .unwrap();
             let baa = market.amm.order_step_size * 4;
 
             let (mark, ask, bid) = {
@@ -3005,9 +3010,14 @@ pub mod amm_lp_jit {
                 break;
             }
 
-            let auction_price =
-                crate::math::auction::calculate_auction_price(&taker.orders[0], slot, 1, None)
-                    .unwrap();
+            let auction_price = crate::math::auction::calculate_auction_price(
+                &taker.orders[0],
+                slot,
+                1,
+                None,
+                false,
+            )
+            .unwrap();
             let baa = 1000 * 4;
 
             let (mark, ask, bid) = {

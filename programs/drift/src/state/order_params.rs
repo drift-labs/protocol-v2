@@ -7,8 +7,8 @@ use crate::state::events::OrderActionExplanation;
 use crate::state::perp_market::{ContractTier, PerpMarket};
 use crate::state::user::{MarketType, OrderTriggerCondition, OrderType};
 use crate::{
-    ONE_HUNDRED_THOUSAND_QUOTE, PERCENTAGE_PRECISION_I64, PERCENTAGE_PRECISION_U64,
-    PRICE_PRECISION_I64,
+    MAX_PREDICTION_MARKET_PRICE_I64, ONE_HUNDRED_THOUSAND_QUOTE, PERCENTAGE_PRECISION_I64,
+    PERCENTAGE_PRECISION_U64, PRICE_PRECISION_I64,
 };
 use anchor_lang::prelude::*;
 use borsh::{BorshDeserialize, BorshSerialize};
@@ -54,7 +54,11 @@ impl OrderParams {
 
         let auction_start_price_offset =
             OrderParams::get_perp_baseline_start_price_offset(perp_market, self.direction)?;
-        let new_auction_start_price = oracle_price.safe_add(auction_start_price_offset)?;
+        let mut new_auction_start_price = oracle_price.safe_add(auction_start_price_offset)?;
+
+        if perp_market.is_prediction_market() {
+            new_auction_start_price = new_auction_start_price.min(MAX_PREDICTION_MARKET_PRICE_I64);
+        }
 
         if self.auction_duration.unwrap_or(0) == 0 {
             match self.direction {
@@ -120,7 +124,7 @@ impl OrderParams {
             }
 
             if self.auction_end_price.is_none() {
-                msg!("Updating auction end price to {}", new_auction_start_price);
+                msg!("Updating auction end price to {}", self.price);
                 self.auction_end_price = Some(self.price as i64);
             }
         }
@@ -224,7 +228,7 @@ impl OrderParams {
             return Ok(());
         }
         // only update auction start price if the contract tier isn't Isolated
-        if perp_market.can_sanitize_market_order_auctions()? {
+        if perp_market.can_sanitize_market_order_auctions() {
             let (new_start_price_offset, new_end_price_offset) =
                 OrderParams::get_perp_baseline_start_end_price_offset(
                     perp_market,
@@ -319,7 +323,7 @@ impl OrderParams {
         limit_price: u64,
         start_buffer: i64,
     ) -> DriftResult<(i64, i64, u8)> {
-        let (mut auction_start_price, auction_end_price) = if limit_price != 0 {
+        let (mut auction_start_price, mut auction_end_price) = if limit_price != 0 {
             let (auction_start_price_offset, auction_end_price_offset) =
                 OrderParams::get_perp_baseline_start_end_price_offset(perp_market, direction, 2)?;
             let mut auction_start_price = oracle_price.safe_add(auction_start_price_offset)?;
@@ -354,6 +358,11 @@ impl OrderParams {
             } else {
                 auction_start_price = auction_start_price.safe_add(start_buffer_price)?;
             }
+        }
+
+        if perp_market.is_prediction_market() {
+            auction_start_price = auction_start_price.min(MAX_PREDICTION_MARKET_PRICE_I64);
+            auction_end_price = auction_end_price.min(MAX_PREDICTION_MARKET_PRICE_I64);
         }
 
         let auction_duration = get_auction_duration(

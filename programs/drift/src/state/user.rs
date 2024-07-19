@@ -23,10 +23,10 @@ use crate::state::oracle::StrictOraclePrice;
 use crate::state::perp_market::PerpMarket;
 use crate::state::spot_market::{SpotBalance, SpotBalanceType, SpotMarket};
 use crate::state::traits::Size;
-use crate::validate;
 use crate::{get_then_update_id, QUOTE_PRECISION_U64};
 use crate::{math_error, SPOT_WEIGHT_PRECISION_I128};
 use crate::{safe_increment, SPOT_WEIGHT_PRECISION};
+use crate::{validate, MAX_PREDICTION_MARKET_PRICE};
 use anchor_lang::prelude::*;
 use borsh::{BorshDeserialize, BorshSerialize};
 use solana_program::msg;
@@ -1208,6 +1208,7 @@ impl Order {
         fallback_price: Option<u64>,
         slot: u64,
         tick_size: u64,
+        is_prediction_market: bool,
     ) -> DriftResult<Option<u64>> {
         let price = if self.has_auction_price(self.slot, self.auction_duration, slot)? {
             Some(calculate_auction_price(
@@ -1215,6 +1216,7 @@ impl Order {
                 slot,
                 tick_size,
                 valid_oracle_price,
+                is_prediction_market,
             )?)
         } else if self.has_oracle_price_offset() {
             let oracle_price = valid_oracle_price.ok_or_else(|| {
@@ -1222,15 +1224,16 @@ impl Order {
                 ErrorCode::OracleNotFound
             })?;
 
-            let limit_price = oracle_price
+            let mut limit_price = oracle_price
                 .safe_add(self.oracle_price_offset.cast()?)?
-                .max(tick_size.cast()?);
+                .max(tick_size.cast()?)
+                .cast::<u64>()?;
 
-            Some(standardize_price(
-                limit_price.cast::<u64>()?,
-                tick_size,
-                self.direction,
-            )?)
+            if is_prediction_market {
+                limit_price = limit_price.min(MAX_PREDICTION_MARKET_PRICE)
+            }
+
+            Some(standardize_price(limit_price, tick_size, self.direction)?)
         } else if self.price == 0 {
             match fallback_price {
                 Some(price) => Some(standardize_price(price, tick_size, self.direction)?),
@@ -1251,8 +1254,15 @@ impl Order {
         fallback_price: Option<u64>,
         slot: u64,
         tick_size: u64,
+        is_prediction_market: bool,
     ) -> DriftResult<u64> {
-        match self.get_limit_price(valid_oracle_price, fallback_price, slot, tick_size)? {
+        match self.get_limit_price(
+            valid_oracle_price,
+            fallback_price,
+            slot,
+            tick_size,
+            is_prediction_market,
+        )? {
             Some(price) => Ok(price),
             None => {
                 let caller = Location::caller();

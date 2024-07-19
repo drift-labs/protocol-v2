@@ -9,7 +9,7 @@ use crate::state::user::{Order, OrderType};
 use solana_program::msg;
 
 use crate::state::perp_market::PerpMarket;
-use crate::OrderParams;
+use crate::{OrderParams, MAX_PREDICTION_MARKET_PRICE};
 use std::cmp::min;
 
 #[cfg(test)]
@@ -85,6 +85,7 @@ pub fn calculate_auction_price(
     slot: u64,
     tick_size: u64,
     valid_oracle_price: Option<i64>,
+    is_prediction_market: bool,
 ) -> DriftResult<u64> {
     match order.order_type {
         OrderType::Market
@@ -98,6 +99,7 @@ pub fn calculate_auction_price(
             slot,
             tick_size,
             valid_oracle_price,
+            is_prediction_market,
         ),
     }
 }
@@ -143,6 +145,7 @@ fn calculate_auction_price_for_oracle_offset_auction(
     slot: u64,
     tick_size: u64,
     valid_oracle_price: Option<i64>,
+    is_prediction_market: bool,
 ) -> DriftResult<u64> {
     let oracle_price = valid_oracle_price.ok_or_else(|| {
         msg!("Could not find oracle too calculate oracle offset auction price");
@@ -158,11 +161,16 @@ fn calculate_auction_price_for_oracle_offset_auction(
     let auction_end_price_offset = order.auction_end_price;
 
     if delta_denominator == 0 {
-        let price = oracle_price
+        let mut price = oracle_price
             .safe_add(auction_end_price_offset)?
-            .max(tick_size.cast()?);
+            .max(tick_size.cast()?)
+            .cast::<u64>()?;
 
-        return standardize_price(price.cast()?, tick_size, order.direction);
+        if is_prediction_market {
+            price = price.min(MAX_PREDICTION_MARKET_PRICE);
+        }
+
+        return standardize_price(price, tick_size, order.direction);
     }
 
     let price_offset_delta = match order.direction {
@@ -181,16 +189,16 @@ fn calculate_auction_price_for_oracle_offset_auction(
         PositionDirection::Short => auction_start_price_offset.safe_sub(price_offset_delta)?,
     };
 
-    let price = standardize_price(
-        oracle_price
-            .safe_add(price_offset)?
-            .max(tick_size.cast()?)
-            .cast()?,
-        tick_size,
-        order.direction,
-    )?;
+    let mut price = oracle_price
+        .safe_add(price_offset)?
+        .max(tick_size.cast()?)
+        .cast::<u64>()?;
 
-    Ok(price)
+    if is_prediction_market {
+        price = price.min(MAX_PREDICTION_MARKET_PRICE);
+    }
+
+    standardize_price(price, tick_size, order.direction)
 }
 
 pub fn is_auction_complete(order_slot: u64, auction_duration: u8, slot: u64) -> DriftResult<bool> {

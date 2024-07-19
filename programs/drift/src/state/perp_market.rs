@@ -86,6 +86,7 @@ pub enum ContractType {
     #[default]
     Perpetual,
     Future,
+    Prediction,
 }
 
 #[derive(
@@ -580,8 +581,12 @@ impl PerpMarket {
         Ok(true)
     }
 
-    pub fn can_sanitize_market_order_auctions(&self) -> DriftResult<bool> {
-        Ok(self.amm.oracle_source != OracleSource::Prelaunch)
+    pub fn can_sanitize_market_order_auctions(&self) -> bool {
+        self.amm.oracle_source != OracleSource::Prelaunch
+    }
+
+    pub fn is_prediction_market(&self) -> bool {
+        self.contract_type == ContractType::Prediction
     }
 }
 
