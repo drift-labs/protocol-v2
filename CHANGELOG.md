@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Features
 
+### Fixes
+
+### Breaking
+
+## [2.86.0] - 2024-07-22
+
+### Features
+
 - program: track fuel ([#1048](https://github.com/drift-labs/protocol-v2/pull/1048))
 - program: add post multi pyth oracle updates atomic ([#1133](https://github.com/drift-labs/protocol-v2/pull/1133))
 - program: track fuel for if staking ([#1127](https://github.com/drift-labs/protocol-v2/pull/1127))
