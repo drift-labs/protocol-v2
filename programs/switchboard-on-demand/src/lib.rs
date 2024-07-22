@@ -214,39 +214,3 @@ impl PullFeedAccountData {
         self.result.max_value()
     }
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use anchor_lang::prelude::{AccountLoader, Pubkey};
-    use std::str::FromStr;
-
-    fn create_account_info<'a>(
-        key: &'a Pubkey,
-        is_writable: bool,
-        lamports: &'a mut u64,
-        bytes: &'a mut [u8],
-        owner: &'a Pubkey,
-    ) -> AccountInfo<'a> {
-        AccountInfo::new(key, false, is_writable, lamports, bytes, owner, false, 0)
-    }
-
-    #[test]
-    fn load() {
-        let aggregator_str = String::from("<TODO: sample from on-chain>");
-        let mut decoded_bytes = base64::decode(aggregator_str).unwrap();
-        let aggregator_bytes = decoded_bytes.as_mut_slice();
-
-        let key = Pubkey::default();
-        let owner = Pubkey::from_str("SBondMDrcV3K4kxZR1HNVT7osZxAHVHgYXL5Ze1oMUv").unwrap();
-        let mut lamports = 0;
-        let account_info = create_account_info(&key, true, &mut lamports, aggregator_bytes, &owner);
-
-        let account_loader: AccountLoader<AggregatorAccountData> =
-            AccountLoader::try_from(&account_info).unwrap();
-
-        let aggregator = account_loader.load().unwrap();
-        let price = &aggregator.latest_confirmed_round.result;
-        println!("price {:?}", price);
-    }
-}
