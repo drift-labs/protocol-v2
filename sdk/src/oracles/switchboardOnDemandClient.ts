@@ -21,7 +21,7 @@ type PullFeedAccountData = {
 
 export class SwitchboardOnDemandClient implements OracleClient {
 	connection: Connection;
-	coder?: BorshAccountsCoder;
+	coder: BorshAccountsCoder;
 
 	public constructor(connection: Connection) {
 		this.connection = connection;
