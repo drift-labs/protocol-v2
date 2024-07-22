@@ -11,7 +11,7 @@ use solana_program::msg;
 
 use crate::controller::token::close_vault;
 use crate::error::ErrorCode;
-use crate::ids::fuel_airdrop_wallet;
+use crate::ids::admin_hot_wallet;
 use crate::instructions::constraints::*;
 use crate::math::casting::Cast;
 use crate::math::constants::{
@@ -4181,10 +4181,10 @@ pub struct AdminUpdatePerpMarket<'info> {
 
 #[derive(Accounts)]
 pub struct AdminUpdatePerpMarketAmmSummaryStats<'info> {
-    pub admin: Signer<'info>,
     #[account(
-        has_one = admin
+        address = admin_hot_wallet::id()
     )]
+    pub admin: Signer<'info>,
     pub state: Box<Account<'info, State>>,
     #[account(mut)]
     pub perp_market: AccountLoader<'info, PerpMarket>,
@@ -4323,7 +4323,7 @@ pub struct AdminDisableBidAskTwapUpdate<'info> {
 #[derive(Accounts)]
 pub struct InitUserFuel<'info> {
     #[account(
-        address = fuel_airdrop_wallet::id()
+        address = admin_hot_wallet::id()
     )]
     pub admin: Signer<'info>, // todo
     pub state: Box<Account<'info, State>>,
