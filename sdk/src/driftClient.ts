@@ -6587,6 +6587,12 @@ export class DriftClient {
 
 		let tokenAccount;
 
+		if (
+			!(await this.checkIfAccountExists(this.getUserStatsAccountPublicKey()))
+		) {
+			addIfStakeIxs.push(await this.getInitializeUserStatsIx());
+		}
+
 		if (createWSOLTokenAccount) {
 			const { ixs, pubkey } = await this.getWrappedSolAccountCreationIxs(
 				amount,
