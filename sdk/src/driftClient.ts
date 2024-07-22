@@ -147,6 +147,8 @@ import { PythSolanaReceiver } from '@pythnetwork/pyth-solana-receiver/lib/idl/py
 import { getFeedIdUint8Array, trimFeedId } from './util/pythPullOracleUtils';
 import { isVersionedTransaction } from './tx/utils';
 import pythSolanaReceiverIdl from './idl/pyth_solana_receiver.json';
+import switchboardOnDemandIdl from './idl/switchboard_on_demand.json';
+import { PullFeed, SB_ON_DEMAND_PID } from '@switchboard-xyz/on-demand';
 
 type RemainingAccountParams = {
 	userAccounts: UserAccount[];
@@ -198,6 +200,7 @@ export class DriftClient {
 
 	receiverProgram?: Program<PythSolanaReceiver>;
 	wormholeProgram?: Program<WormholeCoreBridgeSolana>;
+	sbOnDemandProgram?: Program<Idl>;
 
 	public get isSubscribed() {
 		return this._isSubscribed && this.accountSubscriber.isSubscribed;
@@ -7051,6 +7054,17 @@ export class DriftClient {
 		return this.receiverProgram;
 	}
 
+	public getSwitchboardOnDemandProgram(): Program<Idl> {
+		if (this.sbOnDemandProgram === undefined) {
+			this.sbOnDemandProgram = new Program(
+				switchboardOnDemandIdl as Idl,
+				SB_ON_DEMAND_PID,
+				this.provider
+			);
+		}
+		return this.sbOnDemandProgram;
+	}
+
 	public async postPythPullOracleUpdateAtomic(
 		vaaString: string,
 		feedId: string
@@ -7262,6 +7276,22 @@ export class DriftClient {
 				},
 			}
 		);
+	}
+
+	public async getPostSbOnDemandUpdateAtomicIx(
+		feed: PublicKey
+	): Promise<TransactionInstruction | undefined> {
+		const program = this.getSwitchboardOnDemandProgram();
+		// @ts-ignore
+		const feedAccount = new PullFeed(program, feed);
+		// Get the update instruction for switchboard and lookup tables to make the instruction lighter
+		const [pullIx, _responses, success] = await feedAccount.fetchUpdateIx({
+			numSignatures: 3,
+		});
+		if (!success) {
+			return undefined;
+		}
+		return pullIx;
 	}
 
 	private async getBuildEncodedVaaIxs(

@@ -17,19 +17,19 @@ dotenv.config();
 describe('Verify Constants', function () {
 	this.timeout(100_000);
 	const MAINNET_RPC_ENDPOINT = process.env.MAINNET_RPC_ENDPOINT;
-    const DEVNET_RPC_ENDPOINT = process.env.DEVNET_RPC_ENDPOINT;
+	const DEVNET_RPC_ENDPOINT = process.env.DEVNET_RPC_ENDPOINT;
 
 	if (MAINNET_RPC_ENDPOINT === undefined) {
-	    throw new Error("MAINNET_RPC_ENDPOINT not found in .env");
+		throw new Error('MAINNET_RPC_ENDPOINT not found in .env');
 	}
 
-    if (DEVNET_RPC_ENDPOINT === undefined) {
-	    throw new Error("DEVNET_RPC_ENDPOINT not found in .env");
+	if (DEVNET_RPC_ENDPOINT === undefined) {
+		throw new Error('DEVNET_RPC_ENDPOINT not found in .env');
 	}
 
 	const wallet = new Wallet(Keypair.generate());
 
-    const devnetConnection = new Connection(DEVNET_RPC_ENDPOINT);
+	const devnetConnection = new Connection(DEVNET_RPC_ENDPOINT);
 	const mainnetConnection = new Connection(MAINNET_RPC_ENDPOINT);
 
 	const devnetBulkAccountLoader = new BulkAccountLoader(
@@ -76,7 +76,7 @@ describe('Verify Constants', function () {
 
 	it('has all mainnet markets', async () => {
 		const spotMarkets = mainnetDriftClient.getSpotMarketAccounts();
-        spotMarkets.sort((a, b) => a.marketIndex - b.marketIndex);
+		spotMarkets.sort((a, b) => a.marketIndex - b.marketIndex);
 
 		for (const market of spotMarkets) {
 			const correspondingConfigMarket = MainnetSpotMarkets.find(
@@ -112,7 +112,7 @@ describe('Verify Constants', function () {
 		}
 
 		const perpMarkets = mainnetDriftClient.getPerpMarketAccounts();
-        perpMarkets.sort((a, b) => a.marketIndex - b.marketIndex);
+		perpMarkets.sort((a, b) => a.marketIndex - b.marketIndex);
 
 		for (const market of perpMarkets) {
 			const correspondingConfigMarket = MainnetPerpMarkets.find(
@@ -145,7 +145,7 @@ describe('Verify Constants', function () {
 
 	it('has all devnet markets', async () => {
 		const spotMarkets = devnetDriftClient.getSpotMarketAccounts();
-        spotMarkets.sort((a, b) => a.marketIndex - b.marketIndex);
+		spotMarkets.sort((a, b) => a.marketIndex - b.marketIndex);
 
 		for (const market of spotMarkets) {
 			const correspondingConfigMarket = DevnetSpotMarkets.find(
@@ -181,7 +181,7 @@ describe('Verify Constants', function () {
 		}
 
 		const perpMarkets = devnetDriftClient.getPerpMarketAccounts();
-        perpMarkets.sort((a, b) => a.marketIndex - b.marketIndex);
+		perpMarkets.sort((a, b) => a.marketIndex - b.marketIndex);
 
 		for (const market of perpMarkets) {
 			const correspondingConfigMarket = DevnetPerpMarkets.find(

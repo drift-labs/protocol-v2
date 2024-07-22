@@ -4,6 +4,7 @@ use anchor_lang::program;
 use anchor_lang::AnchorDeserialize;
 use rust_decimal::Decimal;
 use solana_program::pubkey::Pubkey;
+use std::cell::Ref;
 
 declare_id!("SBondMDrcV3K4kxZR1HNVT7osZxAHVHgYXL5Ze1oMUv");
 
@@ -130,7 +131,7 @@ impl OracleSubmission {
 
 /// A representation of the data in a pull feed account.
 #[repr(C)]
-#[account(zero_copy)]
+#[derive(Clone, Copy, Debug, bytemuck::Pod, bytemuck::Zeroable)]
 pub struct PullFeedAccountData {
     /// The oracle submissions for this feed.
     pub submissions: [OracleSubmission; 32],
@@ -165,6 +166,22 @@ pub struct PullFeedAccountData {
 impl PullFeedAccountData {
     pub fn discriminator() -> [u8; 8] {
         [196, 27, 108, 196, 10, 215, 219, 40]
+    }
+
+    pub fn parse<'info>(data: Ref<'info, &mut [u8]>) -> Result<Ref<'info, Self>> {
+        if data.len() < Self::discriminator().len() {
+            return Err(ErrorCode::AccountDiscriminatorNotFound.into());
+        }
+
+        let mut disc_bytes = [0u8; 8];
+        disc_bytes.copy_from_slice(&data[..8]);
+        if disc_bytes != Self::discriminator() {
+            return Err(ErrorCode::AccountDiscriminatorMismatch.into());
+        }
+
+        Ok(Ref::map(data, |data: &&mut [u8]| {
+            bytemuck::from_bytes(&data[8..std::mem::size_of::<Self>() + 8])
+        }))
     }
 
     /// The median value of the submissions needed for quorom size

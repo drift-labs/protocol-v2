@@ -42,6 +42,7 @@
 		"@pythnetwork/pyth-solana-receiver": "^0.7.0",
 		"@solana/spl-token": "0.3.7",
 		"@solana/web3.js": "1.92.3",
+		"@switchboard-xyz/on-demand": "^1.2.1",
 		"anchor-bankrun": "^0.3.0",
 		"rpc-websockets": "7.5.1",
 		"solana-bankrun": "^0.3.0",

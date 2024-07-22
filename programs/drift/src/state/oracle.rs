@@ -315,8 +315,11 @@ pub fn get_sb_on_demand_price(
     price_oracle: &AccountInfo,
     clock_slot: u64,
 ) -> DriftResult<OraclePriceData> {
+    let account_data = price_oracle
+        .try_borrow_data()
+        .or(Err(ErrorCode::UnableToLoadOracle))?;
     let aggregator_data: Ref<PullFeedAccountData> =
-        load_ref(price_oracle).or(Err(ErrorCode::UnableToLoadOracle))?;
+        PullFeedAccountData::parse(account_data).or(Err(ErrorCode::UnableToLoadOracle))?;
 
     let price = convert_rust_decimal(
         &aggregator_data

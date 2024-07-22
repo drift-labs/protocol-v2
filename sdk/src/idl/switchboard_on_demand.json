@@ -1,0 +1,3524 @@
+{
+  "version": "0.1.0",
+  "name": "sb_on_demand",
+  "instructions": [
+    {
+      "name": "stateInit",
+      "accounts": [
+        {
+          "name": "state",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "payer",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "systemProgram",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "params",
+          "type": {
+            "defined": "StateInitParams"
+          }
+        }
+      ]
+    },
+    {
+      "name": "stateSetConfigs",
+      "accounts": [
+        {
+          "name": "state",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "queue",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "payer",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "systemProgram",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "params",
+          "type": {
+            "defined": "StateSetConfigsParams"
+          }
+        }
+      ]
+    },
+    {
+      "name": "oracleInit",
+      "accounts": [
+        {
+          "name": "oracle",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "oracleStats",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "programState",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "payer",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "systemProgram",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "tokenProgram",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "lutSigner",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "lut",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "addressLookupTableProgram",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "stakeProgram",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "stakePool",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "params",
+          "type": {
+            "defined": "OracleInitParams"
+          }
+        }
+      ]
+    },
+    {
+      "name": "oracleSetConfigs",
+      "accounts": [
+        {
+          "name": "oracle",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": true
+        }
+      ],
+      "args": [
+        {
+          "name": "params",
+          "type": {
+            "defined": "OracleSetConfigsParams"
+          }
+        }
+      ]
+    },
+    {
+      "name": "oracleUpdateDelegation",
+      "accounts": [
+        {
+          "name": "oracle",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "oracleStats",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "queue",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "programState",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "payer",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "systemProgram",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "tokenProgram",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "delegationPool",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "lutSigner",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "lut",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "addressLookupTableProgram",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "switchMint",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "nativeMint",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "wsolVault",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "switchVault",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "stakeProgram",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "stakePool",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "delegationGroup",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "params",
+          "type": {
+            "defined": "OracleUpdateDelegationParams"
+          }
+        }
+      ]
+    },
+    {
+      "name": "oracleHeartbeat",
+      "accounts": [
+        {
+          "name": "oracle",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "oracleStats",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "oracleSigner",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "queue",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "gcNode",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "programState",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "payer",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "systemProgram",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "tokenProgram",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "nativeMint",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "queueEscrow",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "stakeProgram",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "delegationPool",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "delegationGroup",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "params",
+          "type": {
+            "defined": "OracleHeartbeatParams"
+          }
+        }
+      ]
+    },
+    {
+      "name": "queueInit",
+      "accounts": [
+        {
+          "name": "queue",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "queueEscrow",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "payer",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "systemProgram",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "tokenProgram",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "nativeMint",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "programState",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "lutSigner",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "lut",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "addressLookupTableProgram",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "associatedTokenProgram",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "params",
+          "type": {
+            "defined": "QueueInitParams"
+          }
+        }
+      ]
+    },
+    {
+      "name": "queueInitDelegationGroup",
+      "accounts": [
+        {
+          "name": "queue",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "payer",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "systemProgram",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "programState",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "lutSigner",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "lut",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "addressLookupTableProgram",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "delegationGroup",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "stakeProgram",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "stakePool",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "params",
+          "type": {
+            "defined": "QueueInitDelegationGroupParams"
+          }
+        }
+      ]
+    },
+    {
+      "name": "queueAddMrEnclave",
+      "accounts": [
+        {
+          "name": "queue",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "programAuthority",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "params",
+          "type": {
+            "defined": "QueueAddMrEnclaveParams"
+          }
+        }
+      ]
+    },
+    {
+      "name": "queueRemoveMrEnclave",
+      "accounts": [
+        {
+          "name": "queue",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "programAuthority",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "params",
+          "type": {
+            "defined": "QueueRemoveMrEnclaveParams"
+          }
+        }
+      ]
+    },
+    {
+      "name": "queueGarbageCollect",
+      "accounts": [
+        {
+          "name": "queue",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "oracle",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "params",
+          "type": {
+            "defined": "QueueGarbageCollectParams"
+          }
+        }
+      ]
+    },
+    {
+      "name": "queueSetConfigs",
+      "accounts": [
+        {
+          "name": "queue",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "params",
+          "type": {
+            "defined": "QueueSetConfigsParams"
+          }
+        }
+      ]
+    },
+    {
+      "name": "queueAllowSubsidies",
+      "accounts": [
+        {
+          "name": "queue",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "state",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "params",
+          "type": {
+            "defined": "QueueAllowSubsidiesParams"
+          }
+        }
+      ]
+    },
+    {
+      "name": "permissionSet",
+      "accounts": [
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "granter",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "params",
+          "type": {
+            "defined": "PermissionSetParams"
+          }
+        }
+      ]
+    },
+    {
+      "name": "pullFeedInit",
+      "accounts": [
+        {
+          "name": "pullFeed",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "queue",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "payer",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "systemProgram",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "programState",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "rewardEscrow",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "tokenProgram",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "associatedTokenProgram",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "wrappedSolMint",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "lutSigner",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "lut",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "addressLookupTableProgram",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "params",
+          "type": {
+            "defined": "PullFeedInitParams"
+          }
+        }
+      ]
+    },
+    {
+      "name": "pullFeedClose",
+      "accounts": [
+        {
+          "name": "pullFeed",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "rewardEscrow",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "lut",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "lutSigner",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "payer",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "tokenProgram",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "associatedTokenProgram",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "systemProgram",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "addressLookupTableProgram",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "params",
+          "type": {
+            "defined": "PullFeedCloseParams"
+          }
+        }
+      ]
+    },
+    {
+      "name": "pullFeedSetConfigs",
+      "accounts": [
+        {
+          "name": "pullFeed",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": true
+        }
+      ],
+      "args": [
+        {
+          "name": "params",
+          "type": {
+            "defined": "PullFeedSetConfigsParams"
+          }
+        }
+      ]
+    },
+    {
+      "name": "pullFeedSubmitResponse",
+      "accounts": [
+        {
+          "name": "feed",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "queue",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "programState",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "recentSlothashes",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "payer",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "systemProgram",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "rewardVault",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "tokenProgram",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "tokenMint",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "params",
+          "type": {
+            "defined": "PullFeedSubmitResponseParams"
+          }
+        }
+      ]
+    },
+    {
+      "name": "pullFeedSubmitResponseMany",
+      "accounts": [
+        {
+          "name": "queue",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "programState",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "recentSlothashes",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "payer",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "systemProgram",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "rewardVault",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "tokenProgram",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "tokenMint",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "params",
+          "type": {
+            "defined": "PullFeedSubmitResponseManyParams"
+          }
+        }
+      ]
+    },
+    {
+      "name": "guardianQuoteVerify",
+      "accounts": [
+        {
+          "name": "guardian",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "oracle",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "guardianQueue",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "recentSlothashes",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "params",
+          "type": {
+            "defined": "GuardianQuoteVerifyParams"
+          }
+        }
+      ]
+    },
+    {
+      "name": "guardianRegister",
+      "accounts": [
+        {
+          "name": "oracle",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "guardianQueue",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": true
+        }
+      ],
+      "args": [
+        {
+          "name": "params",
+          "type": {
+            "defined": "GuardianRegisterParams"
+          }
+        }
+      ]
+    },
+    {
+      "name": "guardianUnregister",
+      "accounts": [
+        {
+          "name": "oracle",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "guardianQueue",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": true
+        }
+      ],
+      "args": [
+        {
+          "name": "params",
+          "type": {
+            "defined": "GuardianUnregisterParams"
+          }
+        }
+      ]
+    },
+    {
+      "name": "randomnessInit",
+      "accounts": [
+        {
+          "name": "randomness",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "rewardEscrow",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "queue",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "payer",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "systemProgram",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "tokenProgram",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "associatedTokenProgram",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "wrappedSolMint",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "programState",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "lutSigner",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "lut",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "addressLookupTableProgram",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "params",
+          "type": {
+            "defined": "RandomnessInitParams"
+          }
+        }
+      ]
+    },
+    {
+      "name": "randomnessCommit",
+      "accounts": [
+        {
+          "name": "randomness",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "queue",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "oracle",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "recentSlothashes",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": true
+        }
+      ],
+      "args": [
+        {
+          "name": "params",
+          "type": {
+            "defined": "RandomnessCommitParams"
+          }
+        }
+      ]
+    },
+    {
+      "name": "randomnessReveal",
+      "accounts": [
+        {
+          "name": "randomness",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "oracle",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "queue",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "stats",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "payer",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "recentSlothashes",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "systemProgram",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "rewardEscrow",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "tokenProgram",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "wrappedSolMint",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "programState",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "params",
+          "type": {
+            "defined": "RandomnessRevealParams"
+          }
+        }
+      ]
+    }
+  ],
+  "accounts": [
+    {
+      "name": "OracleAccountData",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "enclave",
+            "docs": [
+              "Represents the state of the quote verifiers enclave."
+            ],
+            "type": {
+              "defined": "Quote"
+            }
+          },
+          {
+            "name": "authority",
+            "docs": [
+              "The authority of the EnclaveAccount which is permitted to make account changes."
+            ],
+            "type": "publicKey"
+          },
+          {
+            "name": "queue",
+            "docs": [
+              "Queue used for attestation to verify a MRENCLAVE measurement."
+            ],
+            "type": "publicKey"
+          },
+          {
+            "name": "createdAt",
+            "docs": [
+              "The unix timestamp when the quote was created."
+            ],
+            "type": "i64"
+          },
+          {
+            "name": "lastHeartbeat",
+            "docs": [
+              "The last time the quote heartbeated on-chain."
+            ],
+            "type": "i64"
+          },
+          {
+            "name": "secpAuthority",
+            "type": {
+              "array": [
+                "u8",
+                64
+              ]
+            }
+          },
+          {
+            "name": "gatewayUri",
+            "docs": [
+              "URI location of the verifier's gateway."
+            ],
+            "type": {
+              "array": [
+                "u8",
+                64
+              ]
+            }
+          },
+          {
+            "name": "permissions",
+            "type": "u64"
+          },
+          {
+            "name": "isOnQueue",
+            "docs": [
+              "Whether the quote is located on the AttestationQueues buffer."
+            ],
+            "type": "u8"
+          },
+          {
+            "name": "padding1",
+            "type": {
+              "array": [
+                "u8",
+                7
+              ]
+            }
+          },
+          {
+            "name": "lutSlot",
+            "type": "u64"
+          },
+          {
+            "name": "lastRewardEpoch",
+            "type": "u64"
+          },
+          {
+            "name": "ebuf4",
+            "type": {
+              "array": [
+                "u8",
+                16
+              ]
+            }
+          },
+          {
+            "name": "ebuf3",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "ebuf2",
+            "type": {
+              "array": [
+                "u8",
+                64
+              ]
+            }
+          },
+          {
+            "name": "ebuf1",
+            "type": {
+              "array": [
+                "u8",
+                1024
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "OracleStatsAccountData",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "owner",
+            "type": "publicKey"
+          },
+          {
+            "name": "oracle",
+            "type": "publicKey"
+          },
+          {
+            "name": "finalizedEpoch",
+            "docs": [
+              "The last epoch that has completed. cleared after registered with the",
+              "staking program."
+            ],
+            "type": {
+              "defined": "OracleEpochInfo"
+            }
+          },
+          {
+            "name": "currentEpoch",
+            "docs": [
+              "The current epoch info being used by the oracle. for stake. Will moved",
+              "to finalized_epoch as soon as the epoch is over."
+            ],
+            "type": {
+              "defined": "OracleEpochInfo"
+            }
+          },
+          {
+            "name": "megaSlotInfo",
+            "type": {
+              "defined": "MegaSlotInfo"
+            }
+          },
+          {
+            "name": "lastTransferSlot",
+            "type": "u64"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          },
+          {
+            "name": "padding1",
+            "type": {
+              "array": [
+                "u8",
+                7
+              ]
+            }
+          },
+          {
+            "name": "ebuf",
+            "docs": [
+              "Reserved."
+            ],
+            "type": {
+              "array": [
+                "u8",
+                1024
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "PullFeedAccountData",
+      "docs": [
+        "A representation of the data in a pull feed account."
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "submissions",
+            "docs": [
+              "The oracle submissions for this feed."
+            ],
+            "type": {
+              "array": [
+                {
+                  "defined": "OracleSubmission"
+                },
+                32
+              ]
+            }
+          },
+          {
+            "name": "authority",
+            "docs": [
+              "The public key of the authority that can update the feed hash that",
+              "this account will use for registering updates."
+            ],
+            "type": "publicKey"
+          },
+          {
+            "name": "queue",
+            "docs": [
+              "The public key of the queue which oracles must be bound to in order to",
+              "submit data to this feed."
+            ],
+            "type": "publicKey"
+          },
+          {
+            "name": "feedHash",
+            "docs": [
+              "SHA-256 hash of the job schema oracles will execute to produce data",
+              "for this feed."
+            ],
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "initializedAt",
+            "docs": [
+              "The slot at which this account was initialized."
+            ],
+            "type": "i64"
+          },
+          {
+            "name": "permissions",
+            "type": "u64"
+          },
+          {
+            "name": "maxVariance",
+            "type": "u64"
+          },
+          {
+            "name": "minResponses",
+            "type": "u32"
+          },
+          {
+            "name": "name",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "padding1",
+            "type": {
+              "array": [
+                "u8",
+                3
+              ]
+            }
+          },
+          {
+            "name": "minSampleSize",
+            "type": "u8"
+          },
+          {
+            "name": "lastUpdateTimestamp",
+            "type": "i64"
+          },
+          {
+            "name": "lutSlot",
+            "type": "u64"
+          },
+          {
+            "name": "ipfsHash",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "result",
+            "type": {
+              "defined": "CurrentResult"
+            }
+          },
+          {
+            "name": "maxStaleness",
+            "type": "u32"
+          },
+          {
+            "name": "ebuf4",
+            "type": {
+              "array": [
+                "u8",
+                20
+              ]
+            }
+          },
+          {
+            "name": "ebuf3",
+            "type": {
+              "array": [
+                "u8",
+                24
+              ]
+            }
+          },
+          {
+            "name": "ebuf2",
+            "type": {
+              "array": [
+                "u8",
+                256
+              ]
+            }
+          },
+          {
+            "name": "ebuf1",
+            "type": {
+              "array": [
+                "u8",
+                512
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "QueueAccountData",
+      "docs": [
+        "An Queue represents a round-robin queue of oracle oracles who attest on-chain",
+        "whether a Switchboard Function was executed within an enclave against an expected set of",
+        "enclave measurements.",
+        "",
+        "For an oracle to join the queue, the oracle must first submit their enclave quote on-chain and",
+        "wait for an existing oracle to attest their quote. If the oracle's quote matches an expected",
+        "measurement within the queues mr_enclaves config, it is granted permissions and will start",
+        "being assigned update requests."
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "authority",
+            "docs": [
+              "The address of the authority which is permitted to add/remove allowed enclave measurements."
+            ],
+            "type": "publicKey"
+          },
+          {
+            "name": "mrEnclaves",
+            "docs": [
+              "Allowed enclave measurements."
+            ],
+            "type": {
+              "array": [
+                {
+                  "array": [
+                    "u8",
+                    32
+                  ]
+                },
+                32
+              ]
+            }
+          },
+          {
+            "name": "oracleKeys",
+            "docs": [
+              "The addresses of the quote oracles who have a valid",
+              "verification status and have heartbeated on-chain recently."
+            ],
+            "type": {
+              "array": [
+                "publicKey",
+                128
+              ]
+            }
+          },
+          {
+            "name": "maxQuoteVerificationAge",
+            "docs": [
+              "The maximum allowable time until a EnclaveAccount needs to be re-verified on-chain."
+            ],
+            "type": "i64"
+          },
+          {
+            "name": "lastHeartbeat",
+            "docs": [
+              "The unix timestamp when the last quote oracle heartbeated on-chain."
+            ],
+            "type": "i64"
+          },
+          {
+            "name": "nodeTimeout",
+            "type": "i64"
+          },
+          {
+            "name": "oracleMinStake",
+            "docs": [
+              "The minimum number of lamports a quote oracle needs to lock-up in order to heartbeat and verify other quotes."
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "allowAuthorityOverrideAfter",
+            "type": "i64"
+          },
+          {
+            "name": "mrEnclavesLen",
+            "docs": [
+              "The number of allowed enclave measurements."
+            ],
+            "type": "u32"
+          },
+          {
+            "name": "oracleKeysLen",
+            "docs": [
+              "The length of valid quote oracles for the given attestation queue."
+            ],
+            "type": "u32"
+          },
+          {
+            "name": "reward",
+            "docs": [
+              "The reward paid to quote oracles for attesting on-chain."
+            ],
+            "type": "u32"
+          },
+          {
+            "name": "currIdx",
+            "docs": [
+              "Incrementer used to track the current quote oracle permitted to run any available functions."
+            ],
+            "type": "u32"
+          },
+          {
+            "name": "gcIdx",
+            "docs": [
+              "Incrementer used to garbage collect and remove stale quote oracles."
+            ],
+            "type": "u32"
+          },
+          {
+            "name": "requireAuthorityHeartbeatPermission",
+            "type": "u8"
+          },
+          {
+            "name": "requireAuthorityVerifyPermission",
+            "type": "u8"
+          },
+          {
+            "name": "requireUsagePermissions",
+            "type": "u8"
+          },
+          {
+            "name": "signerBump",
+            "type": "u8"
+          },
+          {
+            "name": "mint",
+            "type": "publicKey"
+          },
+          {
+            "name": "lutSlot",
+            "type": "u64"
+          },
+          {
+            "name": "allowSubsidies",
+            "type": "u8"
+          },
+          {
+            "name": "ebuf6",
+            "docs": [
+              "Reserved."
+            ],
+            "type": {
+              "array": [
+                "u8",
+                23
+              ]
+            }
+          },
+          {
+            "name": "ebuf5",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "ebuf4",
+            "type": {
+              "array": [
+                "u8",
+                64
+              ]
+            }
+          },
+          {
+            "name": "ebuf3",
+            "type": {
+              "array": [
+                "u8",
+                128
+              ]
+            }
+          },
+          {
+            "name": "ebuf2",
+            "type": {
+              "array": [
+                "u8",
+                256
+              ]
+            }
+          },
+          {
+            "name": "ebuf1",
+            "type": {
+              "array": [
+                "u8",
+                512
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "RandomnessAccountData",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "authority",
+            "type": "publicKey"
+          },
+          {
+            "name": "queue",
+            "type": "publicKey"
+          },
+          {
+            "name": "seedSlothash",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "seedSlot",
+            "type": "u64"
+          },
+          {
+            "name": "oracle",
+            "type": "publicKey"
+          },
+          {
+            "name": "revealSlot",
+            "type": "u64"
+          },
+          {
+            "name": "value",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "lutSlot",
+            "type": "u64"
+          },
+          {
+            "name": "ebuf3",
+            "type": {
+              "array": [
+                "u8",
+                24
+              ]
+            }
+          },
+          {
+            "name": "ebuf2",
+            "type": {
+              "array": [
+                "u8",
+                64
+              ]
+            }
+          },
+          {
+            "name": "ebuf1",
+            "type": {
+              "array": [
+                "u8",
+                128
+              ]
+            }
+          },
+          {
+            "name": "activeSecp256k1Signer",
+            "type": {
+              "array": [
+                "u8",
+                64
+              ]
+            }
+          },
+          {
+            "name": "activeSecp256k1Expiration",
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "State",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "bump",
+            "type": "u8"
+          },
+          {
+            "name": "testOnlyDisableMrEnclaveCheck",
+            "type": "u8"
+          },
+          {
+            "name": "enableStaking",
+            "type": "u8"
+          },
+          {
+            "name": "padding1",
+            "type": {
+              "array": [
+                "u8",
+                5
+              ]
+            }
+          },
+          {
+            "name": "authority",
+            "type": "publicKey"
+          },
+          {
+            "name": "guardianQueue",
+            "type": "publicKey"
+          },
+          {
+            "name": "reserved1",
+            "type": "u64"
+          },
+          {
+            "name": "epochLength",
+            "type": "u64"
+          },
+          {
+            "name": "currentEpoch",
+            "type": {
+              "defined": "StateEpochInfo"
+            }
+          },
+          {
+            "name": "nextEpoch",
+            "type": {
+              "defined": "StateEpochInfo"
+            }
+          },
+          {
+            "name": "finalizedEpoch",
+            "type": {
+              "defined": "StateEpochInfo"
+            }
+          },
+          {
+            "name": "stakePool",
+            "type": "publicKey"
+          },
+          {
+            "name": "stakeProgram",
+            "type": "publicKey"
+          },
+          {
+            "name": "switchMint",
+            "type": "publicKey"
+          },
+          {
+            "name": "sgxAdvisories",
+            "type": {
+              "array": [
+                "u16",
+                32
+              ]
+            }
+          },
+          {
+            "name": "advisoriesLen",
+            "type": "u8"
+          },
+          {
+            "name": "padding2",
+            "type": "u8"
+          },
+          {
+            "name": "flatRewardCutPercentage",
+            "type": "u8"
+          },
+          {
+            "name": "enableSlashing",
+            "type": "u8"
+          },
+          {
+            "name": "subsidyAmount",
+            "type": "u32"
+          },
+          {
+            "name": "lutSlot",
+            "type": "u64"
+          },
+          {
+            "name": "baseReward",
+            "type": "u32"
+          },
+          {
+            "name": "ebuf6",
+            "type": {
+              "array": [
+                "u8",
+                28
+              ]
+            }
+          },
+          {
+            "name": "ebuf5",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "ebuf4",
+            "type": {
+              "array": [
+                "u8",
+                64
+              ]
+            }
+          },
+          {
+            "name": "ebuf3",
+            "type": {
+              "array": [
+                "u8",
+                128
+              ]
+            }
+          },
+          {
+            "name": "ebuf2",
+            "type": {
+              "array": [
+                "u8",
+                512
+              ]
+            }
+          },
+          {
+            "name": "ebuf1",
+            "type": {
+              "array": [
+                "u8",
+                1024
+              ]
+            }
+          }
+        ]
+      }
+    }
+  ],
+  "types": [
+    {
+      "name": "GuardianQuoteVerifyParams",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "timestamp",
+            "type": "i64"
+          },
+          {
+            "name": "mrEnclave",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "idx",
+            "type": "u32"
+          },
+          {
+            "name": "ed25519Key",
+            "type": "publicKey"
+          },
+          {
+            "name": "secp256k1Key",
+            "type": {
+              "array": [
+                "u8",
+                64
+              ]
+            }
+          },
+          {
+            "name": "slot",
+            "type": "u64"
+          },
+          {
+            "name": "signature",
+            "type": {
+              "array": [
+                "u8",
+                64
+              ]
+            }
+          },
+          {
+            "name": "recoveryId",
+            "type": "u8"
+          },
+          {
+            "name": "advisories",
+            "type": {
+              "vec": "u32"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "GuardianRegisterParams",
+      "type": {
+        "kind": "struct",
+        "fields": []
+      }
+    },
+    {
+      "name": "GuardianUnregisterParams",
+      "type": {
+        "kind": "struct",
+        "fields": []
+      }
+    },
+    {
+      "name": "OracleHeartbeatParams",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "gatewayUri",
+            "type": {
+              "option": {
+                "array": [
+                  "u8",
+                  64
+                ]
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "OracleInitParams",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "recentSlot",
+            "type": "u64"
+          },
+          {
+            "name": "authority",
+            "type": "publicKey"
+          },
+          {
+            "name": "queue",
+            "type": "publicKey"
+          },
+          {
+            "name": "secpAuthority",
+            "type": {
+              "option": {
+                "array": [
+                  "u8",
+                  64
+                ]
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "OracleSetConfigsParams",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "newAuthority",
+            "type": {
+              "option": "publicKey"
+            }
+          },
+          {
+            "name": "newSecpAuthority",
+            "type": {
+              "option": {
+                "array": [
+                  "u8",
+                  64
+                ]
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "OracleUpdateDelegationParams",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "recentSlot",
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "PermissionSetParams",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "permission",
+            "type": "u8"
+          },
+          {
+            "name": "enable",
+            "type": "bool"
+          }
+        ]
+      }
+    },
+    {
+      "name": "PullFeedCloseParams",
+      "type": {
+        "kind": "struct",
+        "fields": []
+      }
+    },
+    {
+      "name": "PullFeedInitParams",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "feedHash",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "maxVariance",
+            "type": "u64"
+          },
+          {
+            "name": "minResponses",
+            "type": "u32"
+          },
+          {
+            "name": "name",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "recentSlot",
+            "type": "u64"
+          },
+          {
+            "name": "ipfsHash",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "minSampleSize",
+            "type": "u8"
+          },
+          {
+            "name": "maxStaleness",
+            "type": "u32"
+          }
+        ]
+      }
+    },
+    {
+      "name": "PullFeedSetConfigsParams",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "feedHash",
+            "type": {
+              "option": {
+                "array": [
+                  "u8",
+                  32
+                ]
+              }
+            }
+          },
+          {
+            "name": "authority",
+            "type": {
+              "option": "publicKey"
+            }
+          },
+          {
+            "name": "maxVariance",
+            "type": {
+              "option": "u64"
+            }
+          },
+          {
+            "name": "minResponses",
+            "type": {
+              "option": "u32"
+            }
+          },
+          {
+            "name": "name",
+            "type": {
+              "option": {
+                "array": [
+                  "u8",
+                  32
+                ]
+              }
+            }
+          },
+          {
+            "name": "ipfsHash",
+            "type": {
+              "option": {
+                "array": [
+                  "u8",
+                  32
+                ]
+              }
+            }
+          },
+          {
+            "name": "minSampleSize",
+            "type": {
+              "option": "u8"
+            }
+          },
+          {
+            "name": "maxStaleness",
+            "type": {
+              "option": "u32"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "PullFeedSubmitResponseParams",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "slot",
+            "type": "u64"
+          },
+          {
+            "name": "submissions",
+            "type": {
+              "vec": {
+                "defined": "Submission"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "Submission",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "value",
+            "type": "i128"
+          },
+          {
+            "name": "signature",
+            "type": {
+              "array": [
+                "u8",
+                64
+              ]
+            }
+          },
+          {
+            "name": "recoveryId",
+            "type": "u8"
+          },
+          {
+            "name": "offset",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "MultiSubmission",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "values",
+            "type": {
+              "vec": "i128"
+            }
+          },
+          {
+            "name": "signature",
+            "type": {
+              "array": [
+                "u8",
+                64
+              ]
+            }
+          },
+          {
+            "name": "recoveryId",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "PullFeedSubmitResponseManyParams",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "slot",
+            "type": "u64"
+          },
+          {
+            "name": "submissions",
+            "type": {
+              "vec": {
+                "defined": "MultiSubmission"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "QueueAddMrEnclaveParams",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "mrEnclave",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "QueueAllowSubsidiesParams",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "allowSubsidies",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "QueueGarbageCollectParams",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "idx",
+            "type": "u32"
+          }
+        ]
+      }
+    },
+    {
+      "name": "QueueInitParams",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "allowAuthorityOverrideAfter",
+            "type": "u32"
+          },
+          {
+            "name": "requireAuthorityHeartbeatPermission",
+            "type": "bool"
+          },
+          {
+            "name": "requireUsagePermissions",
+            "type": "bool"
+          },
+          {
+            "name": "maxQuoteVerificationAge",
+            "type": "u32"
+          },
+          {
+            "name": "reward",
+            "type": "u32"
+          },
+          {
+            "name": "nodeTimeout",
+            "type": "u32"
+          },
+          {
+            "name": "recentSlot",
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "QueueInitDelegationGroupParams",
+      "type": {
+        "kind": "struct",
+        "fields": []
+      }
+    },
+    {
+      "name": "QueueRemoveMrEnclaveParams",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "mrEnclave",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "QueueSetConfigsParams",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "authority",
+            "type": {
+              "option": "publicKey"
+            }
+          },
+          {
+            "name": "reward",
+            "type": {
+              "option": "u32"
+            }
+          },
+          {
+            "name": "nodeTimeout",
+            "type": {
+              "option": "i64"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "RandomnessCommitParams",
+      "type": {
+        "kind": "struct",
+        "fields": []
+      }
+    },
+    {
+      "name": "RandomnessInitParams",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "recentSlot",
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "RandomnessRevealParams",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "signature",
+            "type": {
+              "array": [
+                "u8",
+                64
+              ]
+            }
+          },
+          {
+            "name": "recoveryId",
+            "type": "u8"
+          },
+          {
+            "name": "value",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "StateInitParams",
+      "type": {
+        "kind": "struct",
+        "fields": []
+      }
+    },
+    {
+      "name": "StateSetConfigsParams",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "newAuthority",
+            "type": "publicKey"
+          },
+          {
+            "name": "testOnlyDisableMrEnclaveCheck",
+            "type": "u8"
+          },
+          {
+            "name": "stakePool",
+            "type": "publicKey"
+          },
+          {
+            "name": "stakeProgram",
+            "type": "publicKey"
+          },
+          {
+            "name": "addAdvisory",
+            "type": "u16"
+          },
+          {
+            "name": "rmAdvisory",
+            "type": "u16"
+          },
+          {
+            "name": "epochLength",
+            "type": "u32"
+          },
+          {
+            "name": "resetEpochs",
+            "type": "bool"
+          },
+          {
+            "name": "switchMint",
+            "type": "publicKey"
+          },
+          {
+            "name": "enableStaking",
+            "type": "u8"
+          },
+          {
+            "name": "subsidyAmount",
+            "type": "u32"
+          },
+          {
+            "name": "baseReward",
+            "type": "u32"
+          }
+        ]
+      }
+    },
+    {
+      "name": "MegaSlotInfo",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "reserved1",
+            "type": "u64"
+          },
+          {
+            "name": "slotEnd",
+            "type": "u64"
+          },
+          {
+            "name": "perfGoal",
+            "type": "i64"
+          },
+          {
+            "name": "currentSignatureCount",
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "OracleEpochInfo",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "id",
+            "type": "u64"
+          },
+          {
+            "name": "reserved1",
+            "type": "u64"
+          },
+          {
+            "name": "slotEnd",
+            "type": "u64"
+          },
+          {
+            "name": "slashScore",
+            "type": "u64"
+          },
+          {
+            "name": "rewardScore",
+            "type": "u64"
+          },
+          {
+            "name": "stakeScore",
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "CurrentResult",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "value",
+            "docs": [
+              "The median value of the submissions needed for quorom size"
+            ],
+            "type": "i128"
+          },
+          {
+            "name": "stdDev",
+            "docs": [
+              "The standard deviation of the submissions needed for quorom size"
+            ],
+            "type": "i128"
+          },
+          {
+            "name": "mean",
+            "docs": [
+              "The mean of the submissions needed for quorom size"
+            ],
+            "type": "i128"
+          },
+          {
+            "name": "range",
+            "docs": [
+              "The range of the submissions needed for quorom size"
+            ],
+            "type": "i128"
+          },
+          {
+            "name": "minValue",
+            "docs": [
+              "The minimum value of the submissions needed for quorom size"
+            ],
+            "type": "i128"
+          },
+          {
+            "name": "maxValue",
+            "docs": [
+              "The maximum value of the submissions needed for quorom size"
+            ],
+            "type": "i128"
+          },
+          {
+            "name": "numSamples",
+            "docs": [
+              "The number of samples used to calculate this result"
+            ],
+            "type": "u8"
+          },
+          {
+            "name": "padding1",
+            "type": {
+              "array": [
+                "u8",
+                7
+              ]
+            }
+          },
+          {
+            "name": "slot",
+            "docs": [
+              "The slot at which this value was signed."
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "minSlot",
+            "docs": [
+              "The slot at which the first considered submission was made"
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "maxSlot",
+            "docs": [
+              "The slot at which the last considered submission was made"
+            ],
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "OracleSubmission",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "oracle",
+            "docs": [
+              "The public key of the oracle that submitted this value."
+            ],
+            "type": "publicKey"
+          },
+          {
+            "name": "slot",
+            "docs": [
+              "The slot at which this value was signed."
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "padding1",
+            "type": {
+              "array": [
+                "u8",
+                8
+              ]
+            }
+          },
+          {
+            "name": "value",
+            "docs": [
+              "The value that was submitted."
+            ],
+            "type": "i128"
+          }
+        ]
+      }
+    },
+    {
+      "name": "Quote",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "enclaveSigner",
+            "docs": [
+              "The address of the signer generated within an enclave."
+            ],
+            "type": "publicKey"
+          },
+          {
+            "name": "mrEnclave",
+            "docs": [
+              "The quotes MRENCLAVE measurement dictating the contents of the secure enclave."
+            ],
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "verificationStatus",
+            "docs": [
+              "The VerificationStatus of the quote."
+            ],
+            "type": "u8"
+          },
+          {
+            "name": "padding1",
+            "type": {
+              "array": [
+                "u8",
+                7
+              ]
+            }
+          },
+          {
+            "name": "verificationTimestamp",
+            "docs": [
+              "The unix timestamp when the quote was last verified."
+            ],
+            "type": "i64"
+          },
+          {
+            "name": "validUntil",
+            "docs": [
+              "The unix timestamp when the quotes verification status expires."
+            ],
+            "type": "i64"
+          },
+          {
+            "name": "quoteRegistry",
+            "docs": [
+              "The off-chain registry where the verifiers quote can be located."
+            ],
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "registryKey",
+            "docs": [
+              "Key to lookup the buffer data on IPFS or an alternative decentralized storage solution."
+            ],
+            "type": {
+              "array": [
+                "u8",
+                64
+              ]
+            }
+          },
+          {
+            "name": "secp256k1Signer",
+            "docs": [
+              "The secp256k1 public key of the enclave signer. Derived from the enclave_signer."
+            ],
+            "type": {
+              "array": [
+                "u8",
+                64
+              ]
+            }
+          },
+          {
+            "name": "lastEd25519Signer",
+            "type": "publicKey"
+          },
+          {
+            "name": "lastSecp256k1Signer",
+            "type": {
+              "array": [
+                "u8",
+                64
+              ]
+            }
+          },
+          {
+            "name": "lastRotateSlot",
+            "type": "u64"
+          },
+          {
+            "name": "guardianApprovers",
+            "type": {
+              "array": [
+                "publicKey",
+                64
+              ]
+            }
+          },
+          {
+            "name": "guardianApproversLen",
+            "type": "u8"
+          },
+          {
+            "name": "padding2",
+            "type": {
+              "array": [
+                "u8",
+                7
+              ]
+            }
+          },
+          {
+            "name": "stagingEd25519Signer",
+            "type": "publicKey"
+          },
+          {
+            "name": "stagingSecp256k1Signer",
+            "type": {
+              "array": [
+                "u8",
+                64
+              ]
+            }
+          },
+          {
+            "name": "ebuf4",
+            "docs": [
+              "Reserved."
+            ],
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "ebuf3",
+            "type": {
+              "array": [
+                "u8",
+                128
+              ]
+            }
+          },
+          {
+            "name": "ebuf2",
+            "type": {
+              "array": [
+                "u8",
+                256
+              ]
+            }
+          },
+          {
+            "name": "ebuf1",
+            "type": {
+              "array": [
+                "u8",
+                512
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "StateEpochInfo",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "id",
+            "type": "u64"
+          },
+          {
+            "name": "reserved1",
+            "type": "u64"
+          },
+          {
+            "name": "slotEnd",
+            "type": "u64"
+          }
+        ]
+      }
+    }
+  ],
+  "events": [
+    {
+      "name": "GarbageCollectionEvent",
+      "fields": [
+        {
+          "name": "oracle",
+          "type": "publicKey",
+          "index": false
+        },
+        {
+          "name": "queue",
+          "type": "publicKey",
+          "index": false
+        }
+      ]
+    },
+    {
+      "name": "GuardianQuoteVerifyEvent",
+      "fields": [
+        {
+          "name": "quote",
+          "type": "publicKey",
+          "index": false
+        },
+        {
+          "name": "queue",
+          "type": "publicKey",
+          "index": false
+        },
+        {
+          "name": "oracle",
+          "type": "publicKey",
+          "index": false
+        }
+      ]
+    },
+    {
+      "name": "OracleHeartbeatEvent",
+      "fields": [
+        {
+          "name": "oracle",
+          "type": "publicKey",
+          "index": false
+        },
+        {
+          "name": "queue",
+          "type": "publicKey",
+          "index": false
+        }
+      ]
+    },
+    {
+      "name": "OracleInitEvent",
+      "fields": [
+        {
+          "name": "oracle",
+          "type": "publicKey",
+          "index": false
+        }
+      ]
+    },
+    {
+      "name": "OracleQuoteOverrideEvent",
+      "fields": [
+        {
+          "name": "oracle",
+          "type": "publicKey",
+          "index": false
+        },
+        {
+          "name": "queue",
+          "type": "publicKey",
+          "index": false
+        }
+      ]
+    },
+    {
+      "name": "OracleQuoteRotateEvent",
+      "fields": [
+        {
+          "name": "oracle",
+          "type": "publicKey",
+          "index": false
+        }
+      ]
+    },
+    {
+      "name": "OracleQuoteVerifyRequestEvent",
+      "fields": [
+        {
+          "name": "quote",
+          "type": "publicKey",
+          "index": false
+        },
+        {
+          "name": "oracle",
+          "type": "publicKey",
+          "index": false
+        }
+      ]
+    },
+    {
+      "name": "PermissionSetEvent",
+      "fields": [
+        {
+          "name": "permission",
+          "type": "publicKey",
+          "index": false
+        }
+      ]
+    },
+    {
+      "name": "PullFeedErrorValueEvent",
+      "fields": [
+        {
+          "name": "feed",
+          "type": "publicKey",
+          "index": false
+        },
+        {
+          "name": "oracle",
+          "type": "publicKey",
+          "index": false
+        }
+      ]
+    },
+    {
+      "name": "PullFeedValueEvents",
+      "fields": [
+        {
+          "name": "feeds",
+          "type": {
+            "vec": "publicKey"
+          },
+          "index": false
+        },
+        {
+          "name": "oracles",
+          "type": {
+            "vec": "publicKey"
+          },
+          "index": false
+        },
+        {
+          "name": "values",
+          "type": {
+            "vec": {
+              "vec": "i128"
+            }
+          },
+          "index": false
+        },
+        {
+          "name": "reward",
+          "type": "u32",
+          "index": false
+        }
+      ]
+    },
+    {
+      "name": "QueueAddMrEnclaveEvent",
+      "fields": [
+        {
+          "name": "queue",
+          "type": "publicKey",
+          "index": false
+        },
+        {
+          "name": "mrEnclave",
+          "type": {
+            "array": [
+              "u8",
+              32
+            ]
+          },
+          "index": false
+        }
+      ]
+    },
+    {
+      "name": "QueueInitEvent",
+      "fields": [
+        {
+          "name": "queue",
+          "type": "publicKey",
+          "index": false
+        }
+      ]
+    },
+    {
+      "name": "QueueRemoveMrEnclaveEvent",
+      "fields": [
+        {
+          "name": "queue",
+          "type": "publicKey",
+          "index": false
+        },
+        {
+          "name": "mrEnclave",
+          "type": {
+            "array": [
+              "u8",
+              32
+            ]
+          },
+          "index": false
+        }
+      ]
+    },
+    {
+      "name": "RandomnessCommitEvent",
+      "fields": [
+        {
+          "name": "randomnessAccount",
+          "type": "publicKey",
+          "index": false
+        },
+        {
+          "name": "oracle",
+          "type": "publicKey",
+          "index": false
+        },
+        {
+          "name": "slot",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "slothash",
+          "type": {
+            "array": [
+              "u8",
+              32
+            ]
+          },
+          "index": false
+        }
+      ]
+    }
+  ],
+  "errors": [
+    {
+      "code": 6000,
+      "name": "GenericError"
+    },
+    {
+      "code": 6001,
+      "name": "InvalidQuote"
+    },
+    {
+      "code": 6002,
+      "name": "InsufficientQueue"
+    },
+    {
+      "code": 6003,
+      "name": "QueueFull"
+    },
+    {
+      "code": 6004,
+      "name": "InvalidEnclaveSigner"
+    },
+    {
+      "code": 6005,
+      "name": "InvalidSigner"
+    },
+    {
+      "code": 6006,
+      "name": "MrEnclaveAlreadyExists"
+    },
+    {
+      "code": 6007,
+      "name": "MrEnclaveAtCapacity"
+    },
+    {
+      "code": 6008,
+      "name": "MrEnclaveDoesntExist"
+    },
+    {
+      "code": 6009,
+      "name": "PermissionDenied"
+    },
+    {
+      "code": 6010,
+      "name": "InvalidQueue"
+    },
+    {
+      "code": 6011,
+      "name": "IncorrectMrEnclave"
+    },
+    {
+      "code": 6012,
+      "name": "InvalidAuthority"
+    },
+    {
+      "code": 6013,
+      "name": "InvalidMrEnclave"
+    },
+    {
+      "code": 6014,
+      "name": "InvalidTimestamp"
+    },
+    {
+      "code": 6015,
+      "name": "InvalidOracleIdx"
+    },
+    {
+      "code": 6016,
+      "name": "InvalidSecpSignature"
+    },
+    {
+      "code": 6017,
+      "name": "InvalidGuardianQueue"
+    },
+    {
+      "code": 6018,
+      "name": "InvalidIndex"
+    },
+    {
+      "code": 6019,
+      "name": "InvalidOracleQueue"
+    },
+    {
+      "code": 6020,
+      "name": "InvalidPermission"
+    },
+    {
+      "code": 6021,
+      "name": "InvalidePermissionedAccount"
+    },
+    {
+      "code": 6022,
+      "name": "InvalidEpochRotate"
+    },
+    {
+      "code": 6023,
+      "name": "InvalidEpochFinalize"
+    },
+    {
+      "code": 6024,
+      "name": "InvalidEscrow"
+    },
+    {
+      "code": 6025,
+      "name": "IllegalOracle"
+    },
+    {
+      "code": 6026,
+      "name": "IllegalExecuteAttempt"
+    },
+    {
+      "code": 6027,
+      "name": "IllegalFeedValue"
+    },
+    {
+      "code": 6028,
+      "name": "InvalidOracleFeedStats"
+    },
+    {
+      "code": 6029,
+      "name": "InvalidStateAuthority"
+    },
+    {
+      "code": 6030,
+      "name": "NotEnoughSamples"
+    },
+    {
+      "code": 6031,
+      "name": "OracleIsVerified"
+    },
+    {
+      "code": 6032,
+      "name": "QueueIsEmpty"
+    },
+    {
+      "code": 6033,
+      "name": "SecpRecoverFailure"
+    },
+    {
+      "code": 6034,
+      "name": "StaleSample"
+    },
+    {
+      "code": 6035,
+      "name": "SwitchboardRandomnessTooOld"
+    },
+    {
+      "code": 6036,
+      "name": "EpochIdMismatch"
+    },
+    {
+      "code": 6037,
+      "name": "GuardianAlreadyVoted"
+    },
+    {
+      "code": 6038,
+      "name": "RandomnessNotRequested"
+    },
+    {
+      "code": 6039,
+      "name": "InvalidSlotNumber"
+    },
+    {
+      "code": 6040,
+      "name": "RandomnessOracleKeyExpired"
+    },
+    {
+      "code": 6041,
+      "name": "InvalidAdvisory"
+    },
+    {
+      "code": 6042,
+      "name": "InvalidOracleStats"
+    },
+    {
+      "code": 6043,
+      "name": "InvalidStakeProgram"
+    },
+    {
+      "code": 6044,
+      "name": "InvalidStakePool"
+    },
+    {
+      "code": 6045,
+      "name": "InvalidDelegationPool"
+    },
+    {
+      "code": 6046,
+      "name": "UnparsableAccount"
+    },
+    {
+      "code": 6047,
+      "name": "InvalidInstruction"
+    }
+  ]
+}
