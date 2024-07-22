@@ -7278,15 +7278,15 @@ export class DriftClient {
 		);
 	}
 
-	public async getPostSbOnDemandUpdateAtomicIx(
-		feed: PublicKey
+	public async getPostSwitchboardOnDemandUpdateAtomicIx(
+		feed: PublicKey,
+		numSignatures = 2
 	): Promise<TransactionInstruction | undefined> {
 		const program = this.getSwitchboardOnDemandProgram();
 		// @ts-ignore
 		const feedAccount = new PullFeed(program, feed);
-		// Get the update instruction for switchboard and lookup tables to make the instruction lighter
 		const [pullIx, _responses, success] = await feedAccount.fetchUpdateIx({
-			numSignatures: 3,
+			numSignatures,
 		});
 		if (!success) {
 			return undefined;
