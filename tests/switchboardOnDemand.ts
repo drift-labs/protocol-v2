@@ -1,19 +1,19 @@
 import * as anchor from '@coral-xyz/anchor';
-import { Program } from "@coral-xyz/anchor";
-import { PublicKey } from "@solana/web3.js";
-import { TestBulkAccountLoader } from "../sdk/src/accounts/testBulkAccountLoader";
-import { BankrunContextWrapper } from "../sdk/src/bankrun/bankrunConnection";
+import { Program } from '@coral-xyz/anchor';
+import { PublicKey } from '@solana/web3.js';
+import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
+import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
 import { initializeQuoteSpotMarket, mockUSDCMint } from './testHelpers';
 import { OracleSource, TestClient } from '../sdk/src';
 import { startAnchor } from 'solana-bankrun';
 
-
 const SB_ON_DEMAND_PID = 'SBondMDrcV3K4kxZR1HNVT7osZxAHVHgYXL5Ze1oMUv';
-const PULL_FEED_ADDRESS = new PublicKey("EZLBfnznMYKjFmaWYMEdhwnkiQF1WiP9jjTY6M8HpmGE");
-
+const PULL_FEED_ADDRESS = new PublicKey(
+	'EZLBfnznMYKjFmaWYMEdhwnkiQF1WiP9jjTY6M8HpmGE'
+);
 
 describe('switchboard on demand', () => {
-  const chProgram = anchor.workspace.Drift as Program;
+	const chProgram = anchor.workspace.Drift as Program;
 
 	let driftClient: TestClient;
 
@@ -22,17 +22,14 @@ describe('switchboard on demand', () => {
 	let bankrunContextWrapper: BankrunContextWrapper;
 	let usdcMint;
 
-
-  before(async () => {
+	before(async () => {
 		// use bankrun builtin function to start solana program test
 		const context = await startAnchor(
 			'',
 			[
 				{
 					name: 'switchboard_on_demand',
-					programId: new PublicKey(
-						SB_ON_DEMAND_PID
-					),
+					programId: new PublicKey(SB_ON_DEMAND_PID),
 				},
 			],
 			[
@@ -88,13 +85,14 @@ describe('switchboard on demand', () => {
 		await initializeQuoteSpotMarket(driftClient, usdcMint.publicKey);
 	});
 
-  after(async () => {
+	after(async () => {
 		await driftClient.unsubscribe();
 	});
 
-
 	it('post update', async () => {
-		await driftClient.getPostSwitchboardOnDemandUpdateAtomicIx(PULL_FEED_ADDRESS, 3);
+		await driftClient.getPostSwitchboardOnDemandUpdateAtomicIx(
+			PULL_FEED_ADDRESS,
+			3
+		);
 	});
-  
 });

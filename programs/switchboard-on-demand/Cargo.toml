@@ -18,10 +18,7 @@ anchor-test= []
 [dependencies]
 anchor-lang = "0.29.0"
 bytemuck = "1.16.0"
-sha2 = "0.10.8"
-rust_decimal = "1.35.0"
 solana-program = "1.16.25"
-ahash = "=0.8.6"
 
 [dev-dependencies]
 base64 = "0.13.0"

@@ -5,7 +5,6 @@ use crate::error::{DriftResult, ErrorCode};
 use crate::math::casting::Cast;
 use crate::math::constants::{PRICE_PRECISION, PRICE_PRECISION_I64, PRICE_PRECISION_U64};
 use crate::math::safe_math::SafeMath;
-use rust_decimal::Decimal;
 use switchboard::{AggregatorAccountData, SwitchboardDecimal};
 use switchboard_on_demand::PullFeedAccountData;
 
@@ -315,13 +314,10 @@ pub fn get_sb_on_demand_price(
     price_oracle: &AccountInfo,
     clock_slot: u64,
 ) -> DriftResult<OraclePriceData> {
-    let account_data = price_oracle
-        .try_borrow_data()
-        .or(Err(ErrorCode::UnableToLoadOracle))?;
-    let aggregator_data: Ref<PullFeedAccountData> =
-        PullFeedAccountData::parse(account_data).or(Err(ErrorCode::UnableToLoadOracle))?;
+    let aggregator_data: Ref<AggregatorAccountData> =
+        load_ref(price_oracle).or(Err(ErrorCode::UnableToLoadOracle))?;
 
-    let price = convert_rust_decimal(
+    let price = convert_switchboard_decimal(
         &aggregator_data
             .value()
             .ok_or(ErrorCode::UnableToLoadOracle)?,
@@ -331,7 +327,7 @@ pub fn get_sb_on_demand_price(
     // std deviation should always be positive, if we get a negative make it u128::MAX so it's flagged as bad value
     // NOTE: previous switchboard impl uses std deviation on drift.
     // Range offers better insight into the full consensus on the value.
-    let confidence = convert_rust_decimal(
+    let confidence = convert_switchboard_decimal(
         &aggregator_data
             .std_dev()
             .ok_or(ErrorCode::UnableToLoadOracle)?,
@@ -369,18 +365,6 @@ fn convert_switchboard_decimal(switchboard_decimal: &SwitchboardDecimal) -> Drif
     } else {
         switchboard_decimal
             .mantissa
-            .safe_mul((PRICE_PRECISION / switchboard_precision) as i128)
-    }
-}
-fn convert_rust_decimal(switchboard_decimal: &Decimal) -> DriftResult<i128> {
-    let switchboard_precision = 10_u128.pow(switchboard_decimal.scale());
-    if switchboard_precision > PRICE_PRECISION {
-        switchboard_decimal
-            .mantissa()
-            .safe_div((switchboard_precision / PRICE_PRECISION) as i128)
-    } else {
-        switchboard_decimal
-            .mantissa()
             .safe_mul((PRICE_PRECISION / switchboard_precision) as i128)
     }
 }

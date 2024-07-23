@@ -2,9 +2,7 @@ use anchor_lang::declare_id;
 use anchor_lang::prelude::*;
 use anchor_lang::program;
 use anchor_lang::AnchorDeserialize;
-use rust_decimal::Decimal;
 use solana_program::pubkey::Pubkey;
-use std::cell::Ref;
 
 declare_id!("SBondMDrcV3K4kxZR1HNVT7osZxAHVHgYXL5Ze1oMUv");
 
@@ -36,76 +34,6 @@ pub struct CurrentResult {
     /// The slot at which the last considered submission was made
     pub max_slot: u64,
 }
-impl CurrentResult {
-    /// The median value of the submissions needed for quorom size
-    pub fn value(&self) -> Option<Decimal> {
-        if self.slot == 0 {
-            return None;
-        }
-        Some(Decimal::from_i128_with_scale(self.value, PRECISION))
-    }
-
-    /// The standard deviation of the submissions needed for quorom size
-    pub fn std_dev(&self) -> Option<Decimal> {
-        if self.slot == 0 {
-            return None;
-        }
-        Some(Decimal::from_i128_with_scale(self.std_dev, PRECISION))
-    }
-
-    /// The mean of the submissions needed for quorom size
-    pub fn mean(&self) -> Option<Decimal> {
-        if self.slot == 0 {
-            return None;
-        }
-        Some(Decimal::from_i128_with_scale(self.mean, PRECISION))
-    }
-
-    /// The range of the submissions needed for quorom size
-    pub fn range(&self) -> Option<Decimal> {
-        if self.slot == 0 {
-            return None;
-        }
-        Some(Decimal::from_i128_with_scale(self.range, PRECISION))
-    }
-
-    /// The minimum value of the submissions needed for quorom size
-    pub fn min_value(&self) -> Option<Decimal> {
-        if self.slot == 0 {
-            return None;
-        }
-        Some(Decimal::from_i128_with_scale(self.min_value, PRECISION))
-    }
-
-    /// The maximum value of the submissions needed for quorom size
-    pub fn max_value(&self) -> Option<Decimal> {
-        if self.slot == 0 {
-            return None;
-        }
-        Some(Decimal::from_i128_with_scale(self.max_value, PRECISION))
-    }
-
-    pub fn result_slot(&self) -> Option<u64> {
-        if self.slot == 0 {
-            return None;
-        }
-        Some(self.slot)
-    }
-
-    pub fn min_slot(&self) -> Option<u64> {
-        if self.slot == 0 {
-            return None;
-        }
-        Some(self.min_slot)
-    }
-
-    pub fn max_slot(&self) -> Option<u64> {
-        if self.slot == 0 {
-            return None;
-        }
-        Some(self.max_slot)
-    }
-}
 
 #[repr(C)]
 #[derive(Clone, Copy, Debug, bytemuck::Pod, bytemuck::Zeroable)]
@@ -122,10 +50,6 @@ pub struct OracleSubmission {
 impl OracleSubmission {
     pub fn is_empty(&self) -> bool {
         self.slot == 0
-    }
-
-    pub fn value(&self) -> Decimal {
-        Decimal::from_i128_with_scale(self.value, PRECISION)
     }
 }
 
@@ -161,56 +85,4 @@ pub struct PullFeedAccountData {
     _ebuf3: [u8; 24],
     _ebuf2: [u8; 256],
     _ebuf1: [u8; 512],
-}
-
-impl PullFeedAccountData {
-    pub fn discriminator() -> [u8; 8] {
-        [196, 27, 108, 196, 10, 215, 219, 40]
-    }
-
-    pub fn parse<'info>(data: Ref<'info, &mut [u8]>) -> Result<Ref<'info, Self>> {
-        if data.len() < Self::discriminator().len() {
-            return Err(ErrorCode::AccountDiscriminatorNotFound.into());
-        }
-
-        let mut disc_bytes = [0u8; 8];
-        disc_bytes.copy_from_slice(&data[..8]);
-        if disc_bytes != Self::discriminator() {
-            return Err(ErrorCode::AccountDiscriminatorMismatch.into());
-        }
-
-        Ok(Ref::map(data, |data: &&mut [u8]| {
-            bytemuck::from_bytes(&data[8..std::mem::size_of::<Self>() + 8])
-        }))
-    }
-
-    /// The median value of the submissions needed for quorom size
-    pub fn value(&self) -> Option<Decimal> {
-        self.result.value()
-    }
-
-    /// The standard deviation of the submissions needed for quorom size
-    pub fn std_dev(&self) -> Option<Decimal> {
-        self.result.std_dev()
-    }
-
-    /// The mean of the submissions needed for quorom size
-    pub fn mean(&self) -> Option<Decimal> {
-        self.result.mean()
-    }
-
-    /// The range of the submissions needed for quorom size
-    pub fn range(&self) -> Option<Decimal> {
-        self.result.range()
-    }
-
-    /// The minimum value of the submissions needed for quorom size
-    pub fn min_value(&self) -> Option<Decimal> {
-        self.result.min_value()
-    }
-
-    /// The maximum value of the submissions needed for quorom size
-    pub fn max_value(&self) -> Option<Decimal> {
-        self.result.max_value()
-    }
 }

@@ -43,7 +43,6 @@ switchboard = { path = "../switchboard", features = ["no-entrypoint"] }
 openbook-v2-light = { path = "../openbook_v2", features = ["no-entrypoint"] }
 ahash = "=0.8.6"
 switchboard-on-demand = { path = "../switchboard-on-demand", features = ["no-entrypoint"] }
-rust_decimal = "1.35.0"
 byteorder = "1.4.3"
 
 [dev-dependencies]
