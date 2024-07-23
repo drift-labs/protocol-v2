@@ -1,14 +1,15 @@
 {
-  "name": "sdk",
-  "targets": {
-    "build": {
-      "executor": "nx:run-commands",
-      "options": {
-        "command": "bun install && bun run build && bun link",
-        "cwd": "drift-common/protocol/sdk"
-      },
-      
-      "outputs": ["dist"]
-    }
-  }
+	"name": "sdk",
+	"targets": {
+		"build": {
+			"executor": "nx:run-commands",
+			"options": {
+				"command": "bun install && bun run build && bun link",
+				"cwd": "drift-common/protocol/sdk"
+			},
+			"outputs": [
+				"{workspaceRoot}/dist"
+			]
+		}
+	}
 }
