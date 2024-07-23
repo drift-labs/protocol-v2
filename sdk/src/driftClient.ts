@@ -201,6 +201,7 @@ export class DriftClient {
 	receiverProgram?: Program<PythSolanaReceiver>;
 	wormholeProgram?: Program<WormholeCoreBridgeSolana>;
 	sbOnDemandProgram?: Program<Idl>;
+	sbProgramFeedConfigs?: Map<string, any>;
 
 	public get isSubscribed() {
 		return this._isSubscribed && this.accountSubscriber.isSubscribed;
@@ -7285,8 +7286,17 @@ export class DriftClient {
 		const program = this.getSwitchboardOnDemandProgram();
 		// @ts-ignore
 		const feedAccount = new PullFeed(program, feed);
+		if (!this.sbProgramFeedConfigs) {
+			this.sbProgramFeedConfigs = new Map();
+		}
+		if (!this.sbProgramFeedConfigs.has(feedAccount.pubkey.toString())) {
+			const feedConfig = await feedAccount.loadConfigs();
+			this.sbProgramFeedConfigs.set(feed.toString(), feedConfig);
+		}
+
 		const [pullIx, _responses, success] = await feedAccount.fetchUpdateIx({
 			numSignatures,
+			feedConfigs: this.sbProgramFeedConfigs.get(feed.toString()),
 		});
 		if (!success) {
 			return undefined;

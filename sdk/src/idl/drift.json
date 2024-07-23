@@ -9919,6 +9919,9 @@
           },
           {
             "name": "PythStableCoinPull"
+          },
+          {
+            "name": "SwitchboardOnDemand"
           }
         ]
       }
@@ -9993,6 +9996,9 @@
           },
           {
             "name": "Fill"
+          },
+          {
+            "name": "Deposit"
           },
           {
             "name": "Withdraw"
