@@ -7280,7 +7280,7 @@ export class DriftClient {
 
 	public async getPostSwitchboardOnDemandUpdateAtomicIx(
 		feed: PublicKey,
-		numSignatures = 2
+		numSignatures = 3
 	): Promise<TransactionInstruction | undefined> {
 		const program = this.getSwitchboardOnDemandProgram();
 		// @ts-ignore
