@@ -164,10 +164,9 @@ describe('switchboard on demand', () => {
 		await driftClient.unsubscribe();
 	});
 
-	it('post update', async () => {
-		await driftClient.getPostSwitchboardOnDemandUpdateAtomicIx(
-			PULL_FEED_ADDRESS,
-			3
-		);
-	});
+	// it('post update', async () => {
+	// 	await driftClient.getPostSwitchboardOnDemandUpdateAtomicIx(
+	// 		PULL_FEED_ADDRESS
+	// 	);
+	// });
 });

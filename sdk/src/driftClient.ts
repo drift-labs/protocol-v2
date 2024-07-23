@@ -5,6 +5,7 @@ import {
 	Program,
 	ProgramAccount,
 } from '@coral-xyz/anchor';
+import { Idl as Idl30, Program as Program30 } from '@coral-xyz/anchor-30';
 import bs58 from 'bs58';
 import {
 	ASSOCIATED_TOKEN_PROGRAM_ID,
@@ -147,8 +148,8 @@ import { PythSolanaReceiver } from '@pythnetwork/pyth-solana-receiver/lib/idl/py
 import { getFeedIdUint8Array, trimFeedId } from './util/pythPullOracleUtils';
 import { isVersionedTransaction } from './tx/utils';
 import pythSolanaReceiverIdl from './idl/pyth_solana_receiver.json';
-import switchboardOnDemandIdl from './idl/switchboard_on_demand.json';
-import { PullFeed, SB_ON_DEMAND_PID } from '@switchboard-xyz/on-demand';
+import { PullFeed } from '@switchboard-xyz/on-demand';
+import switchboardOnDemandIdl from './idl/switchboard_on_demand_30.json';
 
 type RemainingAccountParams = {
 	userAccounts: UserAccount[];
@@ -200,7 +201,7 @@ export class DriftClient {
 
 	receiverProgram?: Program<PythSolanaReceiver>;
 	wormholeProgram?: Program<WormholeCoreBridgeSolana>;
-	sbOnDemandProgram?: Program<Idl>;
+	sbOnDemandProgram?: Program30<Idl30>;
 	sbProgramFeedConfigs?: Map<string, any>;
 
 	public get isSubscribed() {
@@ -7055,13 +7056,9 @@ export class DriftClient {
 		return this.receiverProgram;
 	}
 
-	public getSwitchboardOnDemandProgram(): Program<Idl> {
+	public getSwitchboardOnDemandProgram(): Program30<Idl30> {
 		if (this.sbOnDemandProgram === undefined) {
-			this.sbOnDemandProgram = new Program(
-				switchboardOnDemandIdl as Idl,
-				SB_ON_DEMAND_PID,
-				this.provider
-			);
+			this.sbOnDemandProgram = new Program30(switchboardOnDemandIdl as Idl30);
 		}
 		return this.sbOnDemandProgram;
 	}
@@ -7284,7 +7281,6 @@ export class DriftClient {
 		numSignatures = 3
 	): Promise<TransactionInstruction | undefined> {
 		const program = this.getSwitchboardOnDemandProgram();
-		// @ts-ignore
 		const feedAccount = new PullFeed(program, feed);
 		if (!this.sbProgramFeedConfigs) {
 			this.sbProgramFeedConfigs = new Map();

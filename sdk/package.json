@@ -35,6 +35,7 @@
 	},
 	"dependencies": {
 		"@coral-xyz/anchor": "0.28.0",
+		"@coral-xyz/anchor-30": "npm:@coral-xyz/anchor@0.30.1",
 		"@ellipsis-labs/phoenix-sdk": "^1.4.2",
 		"@project-serum/serum": "^0.13.38",
 		"@pythnetwork/client": "2.5.3",
