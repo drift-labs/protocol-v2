@@ -2678,6 +2678,7 @@ pub mod liquidate_spot {
     use crate::state::perp_market_map::PerpMarketMap;
     use crate::state::spot_market::{SpotBalanceType, SpotMarket};
     use crate::state::spot_market_map::SpotMarketMap;
+    use crate::state::user::UserStats;
     use crate::state::user::{Order, PerpPosition, SpotPosition, User};
     use crate::test_utils::*;
     use crate::test_utils::{get_pyth_price, get_spot_positions};
@@ -2781,6 +2782,9 @@ pub mod liquidate_spot {
         let user_key = Pubkey::default();
         let liquidator_key = Pubkey::default();
 
+        let mut user_stats = UserStats::default();
+        let mut liquidator_stats = UserStats::default();
+
         let state = State {
             liquidation_margin_buffer_ratio: 10,
             initial_pct_to_liquidate: LIQUIDATION_PCT_PRECISION as u16,
@@ -2795,8 +2799,10 @@ pub mod liquidate_spot {
             None,
             &mut user,
             &user_key,
+            &mut user_stats,
             &mut liquidator,
             &liquidator_key,
+            &mut liquidator_stats,
             &perp_market_map,
             &spot_market_map,
             &mut oracle_map,
@@ -2919,6 +2925,9 @@ pub mod liquidate_spot {
         let user_key = Pubkey::default();
         let liquidator_key = Pubkey::default();
 
+        let mut user_stats = UserStats::default();
+        let mut liquidator_stats = UserStats::default();
+
         let state = State {
             liquidation_margin_buffer_ratio: 10,
             initial_pct_to_liquidate: LIQUIDATION_PCT_PRECISION as u16,
@@ -2933,8 +2942,10 @@ pub mod liquidate_spot {
             None,
             &mut user,
             &user_key,
+            &mut user_stats,
             &mut liquidator,
             &liquidator_key,
+            &mut liquidator_stats,
             &perp_market_map,
             &spot_market_map,
             &mut oracle_map,
@@ -2959,8 +2970,10 @@ pub mod liquidate_spot {
             None,
             &mut user,
             &user_key,
+            &mut user_stats,
             &mut liquidator,
             &liquidator_key,
+            &mut liquidator_stats,
             &perp_market_map,
             &spot_market_map,
             &mut oracle_map,
@@ -2989,6 +3002,9 @@ pub mod liquidate_spot {
     pub fn successful_liquidation_liability_transfer_to_cover_margin_shortage() {
         let now = 0_i64;
         let slot = 0_u64;
+
+        let mut user_stats = UserStats::default();
+        let mut liquidator_stats = UserStats::default();
 
         let mut sol_oracle_price = get_pyth_price(100, 6);
         let sol_oracle_price_key =
@@ -3097,8 +3113,10 @@ pub mod liquidate_spot {
             None,
             &mut user,
             &user_key,
+            &mut user_stats,
             &mut liquidator,
             &liquidator_key,
+            &mut liquidator_stats,
             &market_map,
             &spot_market_map,
             &mut oracle_map,
@@ -3203,7 +3221,8 @@ pub mod liquidate_spot {
     pub fn failure_due_to_limit_price() {
         let now = 0_i64;
         let slot = 0_u64;
-
+        let mut user_stats = UserStats::default();
+        let mut liquidator_stats = UserStats::default();
         let mut sol_oracle_price = get_pyth_price(100, 6);
         let sol_oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
@@ -3310,8 +3329,10 @@ pub mod liquidate_spot {
             Some(limit_price),
             &mut user,
             &user_key,
+            &mut user_stats,
             &mut liquidator,
             &liquidator_key,
+            &mut liquidator_stats,
             &perp_market_map,
             &spot_market_map,
             &mut oracle_map,
@@ -3327,7 +3348,8 @@ pub mod liquidate_spot {
     pub fn success_with_to_limit_price() {
         let now = 0_i64;
         let slot = 0_u64;
-
+        let mut user_stats = UserStats::default();
+        let mut liquidator_stats = UserStats::default();
         let mut sol_oracle_price = get_pyth_price(100, 6);
         let sol_oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
@@ -3434,8 +3456,10 @@ pub mod liquidate_spot {
             Some(limit_price),
             &mut user,
             &user_key,
+            &mut user_stats,
             &mut liquidator,
             &liquidator_key,
+            &mut liquidator_stats,
             &perp_market_map,
             &spot_market_map,
             &mut oracle_map,
@@ -3451,7 +3475,8 @@ pub mod liquidate_spot {
     pub fn successful_liquidation_dust_borrow() {
         let now = 0_i64;
         let slot = 0_u64;
-
+        let mut user_stats = UserStats::default();
+        let mut liquidator_stats = UserStats::default();
         let mut sol_oracle_price = get_pyth_price(100, 6);
         let sol_oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
@@ -3559,8 +3584,10 @@ pub mod liquidate_spot {
             None,
             &mut user,
             &user_key,
+            &mut user_stats,
             &mut liquidator,
             &liquidator_key,
+            &mut liquidator_stats,
             &market_map,
             &spot_market_map,
             &mut oracle_map,
@@ -3675,7 +3702,8 @@ pub mod liquidate_spot {
 
         let user_key = Pubkey::default();
         let liquidator_key = Pubkey::default();
-
+        let mut user_stats = UserStats::default();
+        let mut liquidator_stats = UserStats::default();
         let state = State {
             liquidation_margin_buffer_ratio: MARGIN_PRECISION / 50,
             initial_pct_to_liquidate: (LIQUIDATION_PCT_PRECISION / 10) as u16,
@@ -3692,8 +3720,10 @@ pub mod liquidate_spot {
             None,
             &mut user,
             &user_key,
+            &mut user_stats,
             &mut liquidator,
             &liquidator_key,
+            &mut liquidator_stats,
             &market_map,
             &spot_market_map,
             &mut oracle_map,
@@ -3737,8 +3767,10 @@ pub mod liquidate_spot {
             None,
             &mut user,
             &user_key,
+            &mut user_stats,
             &mut liquidator,
             &liquidator_key,
+            &mut liquidator_stats,
             &market_map,
             &spot_market_map,
             &mut oracle_map,
@@ -3782,8 +3814,10 @@ pub mod liquidate_spot {
             None,
             &mut user,
             &user_key,
+            &mut user_stats,
             &mut liquidator,
             &liquidator_key,
+            &mut liquidator_stats,
             &market_map,
             &spot_market_map,
             &mut oracle_map,
@@ -3925,6 +3959,9 @@ pub mod liquidate_spot {
             ..Default::default()
         };
 
+        let mut user_stats = UserStats::default();
+        let mut liquidator_stats = UserStats::default();
+
         liquidate_spot(
             2,
             1,
@@ -3932,8 +3969,10 @@ pub mod liquidate_spot {
             None,
             &mut user,
             &user_key,
+            &mut user_stats,
             &mut liquidator,
             &liquidator_key,
+            &mut liquidator_stats,
             &market_map,
             &spot_market_map,
             &mut oracle_map,
@@ -5227,10 +5266,10 @@ pub mod liquidate_perp_pnl_for_deposit {
     use crate::state::perp_market_map::PerpMarketMap;
     use crate::state::spot_market::{AssetTier, SpotBalanceType, SpotMarket};
     use crate::state::spot_market_map::SpotMarketMap;
+    use crate::state::user::UserStats;
     use crate::state::user::{Order, PerpPosition, SpotPosition, User, UserStatus};
     use crate::test_utils::*;
     use crate::test_utils::{get_positions, get_pyth_price, get_spot_positions};
-
     #[test]
     pub fn successful_liquidation_liquidator_max_pnl_transfer() {
         let now = 0_i64;
@@ -6396,7 +6435,8 @@ pub mod liquidate_perp_pnl_for_deposit {
     pub fn failure_due_to_asset_tier_violation() {
         let now = 0_i64;
         let slot = 0_u64;
-
+        let mut user_stats = UserStats::default();
+        let mut liquidator_stats = UserStats::default();
         let mut sol_oracle_price = get_pyth_price(100, 6);
         let sol_oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
@@ -6560,8 +6600,10 @@ pub mod liquidate_perp_pnl_for_deposit {
             None,
             &mut user,
             &user_key,
+            &mut user_stats,
             &mut liquidator,
             &liquidator_key,
+            &mut liquidator_stats,
             &market_map,
             &spot_market_map,
             &mut oracle_map,

@@ -25,5 +25,11 @@ pub fn validate_whitelist_token(
         whitelist_mint
     )?;
 
+    validate!(
+        whitelist_token.amount > 0,
+        ErrorCode::InvalidWhitelistToken,
+        "Whitelist token amount must be > 0",
+    )?;
+
     Ok(())
 }

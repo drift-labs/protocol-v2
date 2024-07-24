@@ -62,7 +62,7 @@ use crate::state::fulfillment::{PerpFulfillmentMethod, SpotFulfillmentMethod};
 use crate::state::margin_calculation::{MarginCalculation, MarginContext};
 use crate::state::oracle::{OraclePriceData, StrictOraclePrice};
 use crate::state::oracle_map::OracleMap;
-use crate::state::paused_operations::PerpOperation;
+use crate::state::paused_operations::{PerpOperation, SpotOperation};
 use crate::state::perp_market::{AMMLiquiditySplit, MarketStatus, PerpMarket};
 use crate::state::perp_market_map::PerpMarketMap;
 use crate::state::spot_fulfillment_params::{ExternalSpotFill, SpotFulfillmentParams};
@@ -87,8 +87,12 @@ mod tests;
 
 #[cfg(test)]
 mod amm_jit_tests;
+
 #[cfg(test)]
 mod amm_lp_jit_tests;
+
+#[cfg(test)]
+mod fuel_tests;
 
 pub fn place_perp_order(
     state: &State,
@@ -224,9 +228,13 @@ pub fn place_perp_order(
     let max_ts = match params.max_ts {
         Some(max_ts) => max_ts,
         None => match params.order_type {
-            OrderType::Market | OrderType::Oracle => {
-                now.safe_add(30_i64.max((auction_duration / 2) as i64))?
-            }
+            OrderType::Market | OrderType::Oracle => now.safe_add(
+                30_i64.max(
+                    (auction_duration.safe_div(2)?)
+                        .cast::<i64>()?
+                        .safe_add(10_i64)?,
+                ),
+            )?,
             _ => 0_i64,
         },
     };
@@ -1062,6 +1070,7 @@ pub fn fill_perp_order(
             .max_oracle_twap_5min_percent_divergence()
             .cast()?,
     )?;
+
     if oracle_too_divergent_with_twap_5min {
         // update filler last active so tx doesn't revert
         if let Some(filler) = filler.as_deref_mut() {
@@ -1574,7 +1583,7 @@ fn fulfill_perp_order(
             break;
         }
         let mut market = perp_market_map.get_ref_mut(&market_index)?;
-        let user_order_direction = user.orders[user_order_index].direction;
+        let user_order_direction: PositionDirection = user.orders[user_order_index].direction;
 
         let (fill_base_asset_amount, fill_quote_asset_amount) = match fulfillment_method {
             PerpFulfillmentMethod::AMM(maker_price) => {
@@ -1709,6 +1718,13 @@ fn fulfill_perp_order(
     )?;
 
     if !fill_mode.is_liquidation() {
+        // if the maker is long, the user sold so
+        let taker_base_asset_amount_delta = if maker_direction == PositionDirection::Long {
+            base_asset_amount as i64
+        } else {
+            -(base_asset_amount as i64)
+        };
+
         let taker_margin_calculation =
             calculate_margin_requirement_and_total_collateral_and_liability_info(
                 user,
@@ -1719,8 +1735,18 @@ fn fulfill_perp_order(
                     MarginRequirementType::Maintenance
                 } else {
                     MarginRequirementType::Fill
-                }),
+                })
+                .fuel_perp_delta(market_index, taker_base_asset_amount_delta)
+                .fuel_numerator(user, now),
             )?;
+
+        user_stats.update_fuel_bonus(
+            user,
+            taker_margin_calculation.fuel_deposits,
+            taker_margin_calculation.fuel_borrows,
+            taker_margin_calculation.fuel_positions,
+            now,
+        )?;
 
         if !taker_margin_calculation.meets_margin_requirement() {
             msg!(
@@ -1733,7 +1759,13 @@ fn fulfill_perp_order(
     }
 
     for (maker_key, maker_base_asset_amount_filled) in maker_fills {
-        let maker = makers_and_referrer.get_ref(&maker_key)?;
+        let mut maker = makers_and_referrer.get_ref_mut(&maker_key)?;
+
+        let maker_stats = if maker.authority == user.authority {
+            None
+        } else {
+            Some(makers_and_referrer_stats.get_ref_mut(&maker.authority)?)
+        };
 
         let margin_type = select_margin_type_for_perp_maker(
             &maker,
@@ -1747,8 +1779,20 @@ fn fulfill_perp_order(
                 perp_market_map,
                 spot_market_map,
                 oracle_map,
-                MarginContext::standard(margin_type),
+                MarginContext::standard(margin_type)
+                    .fuel_perp_delta(market_index, -maker_base_asset_amount_filled as i64)
+                    .fuel_numerator(&maker, now),
             )?;
+
+        if let Some(mut maker_stats) = maker_stats {
+            maker_stats.update_fuel_bonus(
+                &mut maker,
+                maker_margin_calculation.fuel_deposits,
+                maker_margin_calculation.fuel_borrows,
+                maker_margin_calculation.fuel_positions,
+                now,
+            )?;
+        }
 
         if !maker_margin_calculation.meets_margin_requirement() {
             msg!(
@@ -2016,8 +2060,8 @@ pub fn fulfill_perp_order_with_amm(
         if let Ok(referrer_position) = referrer.force_get_perp_position_mut(market.market_index) {
             if referrer_reward > 0 {
                 update_quote_asset_amount(referrer_position, market, referrer_reward.cast()?)?;
-                referrer_stats.increment_total_referrer_reward(referrer_reward, now)?;
             }
+            referrer_stats.increment_total_referrer_reward(referrer_reward, now)?;
         }
     }
 
@@ -2040,9 +2084,9 @@ pub fn fulfill_perp_order_with_amm(
     }
 
     if order_post_only {
-        user_stats.update_maker_volume_30d(quote_asset_amount, now)?;
+        user_stats.update_maker_volume_30d(market.fuel_boost_maker, quote_asset_amount, now)?;
     } else {
-        user_stats.update_taker_volume_30d(quote_asset_amount, now)?;
+        user_stats.update_taker_volume_30d(market.fuel_boost_taker, quote_asset_amount, now)?;
     }
 
     if let Some(filler) = filler.as_mut() {
@@ -2356,9 +2400,9 @@ pub fn fulfill_perp_order_with_match(
 
     // if maker is none, makes maker and taker authority was the same
     if let Some(maker_stats) = maker_stats {
-        maker_stats.update_maker_volume_30d(quote_asset_amount, now)?;
+        maker_stats.update_maker_volume_30d(market.fuel_boost_maker, quote_asset_amount, now)?;
     } else {
-        taker_stats.update_maker_volume_30d(quote_asset_amount, now)?;
+        taker_stats.update_maker_volume_30d(market.fuel_boost_maker, quote_asset_amount, now)?;
     };
 
     let taker_position_index = get_position_index(
@@ -2378,7 +2422,7 @@ pub fn fulfill_perp_order_with_match(
         &taker_position_delta,
     )?;
 
-    taker_stats.update_taker_volume_30d(quote_asset_amount, now)?;
+    taker_stats.update_taker_volume_30d(market.fuel_boost_taker, quote_asset_amount, now)?;
 
     let reward_referrer = can_reward_user_with_perp_pnl(referrer, market.market_index);
     let reward_filler = can_reward_user_with_perp_pnl(filler, market.market_index);
@@ -2472,8 +2516,8 @@ pub fn fulfill_perp_order_with_match(
         if let Ok(referrer_position) = referrer.force_get_perp_position_mut(market.market_index) {
             if referrer_reward > 0 {
                 update_quote_asset_amount(referrer_position, market, referrer_reward.cast()?)?;
-                referrer_stats.increment_total_referrer_reward(referrer_reward, now)?;
             }
+            referrer_stats.increment_total_referrer_reward(referrer_reward, now)?;
         }
     }
 
@@ -2661,6 +2705,24 @@ pub fn trigger_order(
     validate!(is_oracle_valid, ErrorCode::InvalidOracle)?;
 
     let oracle_price = oracle_price_data.price;
+
+    let oracle_too_divergent_with_twap_5min = is_oracle_too_divergent_with_twap_5min(
+        oracle_price_data.price,
+        perp_market
+            .amm
+            .historical_oracle_data
+            .last_oracle_price_twap_5min,
+        state
+            .oracle_guard_rails
+            .max_oracle_twap_5min_percent_divergence()
+            .cast()?,
+    )?;
+
+    validate!(
+        !oracle_too_divergent_with_twap_5min,
+        ErrorCode::OrderBreachesOraclePriceLimits,
+        "oracle price vs twap too divergent"
+    )?;
 
     let can_trigger = order_satisfies_trigger_condition(
         &user.orders[order_index],
@@ -3592,6 +3654,16 @@ pub fn fill_spot_order(
         return Ok(0);
     }
 
+    if fulfillment_params.is_external() {
+        let exchange_status = state.get_exchange_status()?;
+
+        validate!(
+            !exchange_status
+                .contains(ExchangeStatus::DepositPaused | ExchangeStatus::WithdrawPaused),
+            ErrorCode::ExchangePaused
+        )?;
+    }
+
     let (base_asset_amount, quote_asset_amount) = fulfill_spot_order(
         user,
         order_index,
@@ -3877,6 +3949,34 @@ fn fulfill_spot_order(
     let mut quote_market = spot_market_map.get_quote_spot_market_mut()?;
     let mut base_market = spot_market_map.get_ref_mut(&base_market_index)?;
 
+    if fulfillment_params.is_external() {
+        if order_direction == PositionDirection::Long {
+            validate!(
+                !quote_market.is_operation_paused(SpotOperation::Withdraw),
+                ErrorCode::MarketFillOrderPaused,
+                "withdraw from quote market paused"
+            )?;
+
+            validate!(
+                !base_market.is_operation_paused(SpotOperation::Deposit),
+                ErrorCode::MarketFillOrderPaused,
+                "deposit to base market paused"
+            )?;
+        } else {
+            validate!(
+                !quote_market.is_operation_paused(SpotOperation::Deposit),
+                ErrorCode::MarketFillOrderPaused,
+                "deposit to quote market paused"
+            )?;
+
+            validate!(
+                !base_market.is_operation_paused(SpotOperation::Withdraw),
+                ErrorCode::MarketFillOrderPaused,
+                "withdraw from base market paused"
+            )?;
+        }
+    }
+
     let quote_token_amount_before = user
         .get_quote_spot_position()
         .get_signed_token_amount(&quote_market)?;
@@ -3910,6 +4010,7 @@ fn fulfill_spot_order(
         slot,
         base_market.order_tick_size,
     )?;
+
     let fulfillment_methods = determine_spot_fulfillment_methods(
         &user.orders[user_order_index],
         maker_orders_info,
@@ -4058,8 +4159,28 @@ fn fulfill_spot_order(
             perp_market_map,
             spot_market_map,
             oracle_map,
-            MarginContext::standard(margin_type),
+            MarginContext::standard(margin_type)
+                .fuel_spot_deltas([
+                    (
+                        base_market_index,
+                        base_token_amount_before.safe_sub(base_token_amount_after)?,
+                    ),
+                    (
+                        QUOTE_SPOT_MARKET_INDEX,
+                        quote_token_amount_before.safe_sub(quote_token_amount_after)?,
+                    ),
+                ])
+                .fuel_numerator(user, now),
         )?;
+
+    // user hasnt recieved initial fuel or below global start time
+    user_stats.update_fuel_bonus(
+        user,
+        taker_margin_calculation.fuel_deposits,
+        taker_margin_calculation.fuel_borrows,
+        taker_margin_calculation.fuel_positions,
+        now,
+    )?;
 
     if !taker_margin_calculation.meets_margin_requirement() {
         msg!(
@@ -4071,7 +4192,12 @@ fn fulfill_spot_order(
     }
 
     for (maker_key, _) in maker_fills {
-        let maker = makers_and_referrer.get_ref(&maker_key)?;
+        let mut maker: RefMut<User> = makers_and_referrer.get_ref_mut(&maker_key)?;
+        let maker_stats = if maker.authority == user.authority {
+            None
+        } else {
+            Some(makers_and_referrer_stats.get_ref_mut(&maker.authority)?)
+        };
 
         let quote_market = spot_market_map.get_quote_spot_market()?;
         let base_market = spot_market_map.get_ref(&base_market_index)?;
@@ -4117,14 +4243,37 @@ fn fulfill_spot_order(
         drop(base_market);
         drop(quote_market);
 
-        let maker_margin_calculation =
+        let maker_margin_calculation: MarginCalculation =
             calculate_margin_requirement_and_total_collateral_and_liability_info(
                 &maker,
                 perp_market_map,
                 spot_market_map,
                 oracle_map,
-                MarginContext::standard(margin_type),
+                MarginContext::standard(margin_type)
+                    .fuel_spot_deltas([
+                        (
+                            base_market_index,
+                            maker_base_token_amount_before
+                                .safe_sub(maker_base_token_amount_after)?,
+                        ),
+                        (
+                            QUOTE_SPOT_MARKET_INDEX,
+                            maker_quote_token_amount_before
+                                .safe_sub(maker_quote_token_amount_after)?,
+                        ),
+                    ])
+                    .fuel_numerator(&maker, now),
             )?;
+
+        if let Some(mut maker_stats) = maker_stats {
+            maker_stats.update_fuel_bonus(
+                &mut maker,
+                maker_margin_calculation.fuel_deposits,
+                maker_margin_calculation.fuel_borrows,
+                maker_margin_calculation.fuel_positions,
+                now,
+            )?;
+        }
 
         if !maker_margin_calculation.meets_margin_requirement() {
             msg!(
@@ -4353,7 +4502,7 @@ pub fn fulfill_spot_order_with_match(
         base_asset_amount,
     )?;
 
-    taker_stats.update_taker_volume_30d(quote_asset_amount, now)?;
+    taker_stats.update_taker_volume_30d(base_market.fuel_boost_taker, quote_asset_amount, now)?;
 
     taker_stats.increment_total_fees(taker_fee)?;
 
@@ -4397,10 +4546,18 @@ pub fn fulfill_spot_order_with_match(
     )?;
 
     if let Some(maker_stats) = maker_stats {
-        maker_stats.update_maker_volume_30d(quote_asset_amount, now)?;
+        maker_stats.update_maker_volume_30d(
+            base_market.fuel_boost_maker,
+            quote_asset_amount,
+            now,
+        )?;
         maker_stats.increment_total_rebate(maker_rebate)?;
     } else {
-        taker_stats.update_maker_volume_30d(quote_asset_amount, now)?;
+        taker_stats.update_maker_volume_30d(
+            base_market.fuel_boost_maker,
+            quote_asset_amount,
+            now,
+        )?;
         taker_stats.increment_total_rebate(maker_rebate)?;
     }
 
@@ -4647,7 +4804,11 @@ pub fn fulfill_spot_order_with_external_market(
 
     taker.update_cumulative_spot_fees(-taker_fee.cast()?)?;
 
-    taker_stats.update_taker_volume_30d(quote_asset_amount_filled.cast()?, now)?;
+    taker_stats.update_taker_volume_30d(
+        base_market.fuel_boost_taker,
+        quote_asset_amount_filled.cast()?,
+        now,
+    )?;
 
     taker_stats.increment_total_fees(taker_fee.cast()?)?;
 
@@ -4817,6 +4978,23 @@ pub fn trigger_spot_order(
     )?;
 
     let oracle_price = oracle_price_data.price;
+
+    let oracle_too_divergent_with_twap_5min = is_oracle_too_divergent_with_twap_5min(
+        oracle_price_data.price,
+        spot_market
+            .historical_oracle_data
+            .last_oracle_price_twap_5min,
+        state
+            .oracle_guard_rails
+            .max_oracle_twap_5min_percent_divergence()
+            .cast()?,
+    )?;
+
+    validate!(
+        !oracle_too_divergent_with_twap_5min,
+        ErrorCode::OrderBreachesOraclePriceLimits,
+        "oracle price vs twap too divergent"
+    )?;
 
     let can_trigger = order_satisfies_trigger_condition(
         &user.orders[order_index],

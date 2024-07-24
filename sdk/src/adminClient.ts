@@ -1,5 +1,6 @@
 import {
 	PublicKey,
+	SystemProgram,
 	SYSVAR_RENT_PUBKEY,
 	TransactionInstruction,
 	TransactionSignature,
@@ -28,6 +29,9 @@ import {
 	getPhoenixFulfillmentConfigPublicKey,
 	getProtocolIfSharesTransferConfigPublicKey,
 	getPrelaunchOraclePublicKey,
+	getOpenbookV2FulfillmentConfigPublicKey,
+	getPythPullOraclePublicKey,
+	getUserStatsAccountPublicKey,
 } from './addresses/pda';
 import { squareRootBN } from './math/utils';
 import { TOKEN_PROGRAM_ID } from '@solana/spl-token';
@@ -43,6 +47,12 @@ import {
 import { calculateTargetPriceTrade } from './math/trade';
 import { calculateAmmReservesAfterSwap, getSwapDirection } from './math/amm';
 import { PROGRAM_ID as PHOENIX_PROGRAM_ID } from '@ellipsis-labs/phoenix-sdk';
+import { DRIFT_ORACLE_RECEIVER_ID } from './config';
+import { getFeedIdUint8Array } from './util/pythPullOracleUtils';
+
+const OPENBOOK_PROGRAM_ID = new PublicKey(
+	'opnb2LAfJYbRMAHHvqjCwQxanZn7ReEHp1k81EohpZb'
+);
 
 export class AdminClient extends DriftClient {
 	public async initialize(
@@ -376,6 +386,52 @@ export class AdminClient extends DriftClient {
 					rent: SYSVAR_RENT_PUBKEY,
 					systemProgram: anchor.web3.SystemProgram.programId,
 					phoenixFulfillmentConfig,
+				},
+			}
+		);
+	}
+
+	public async initializeOpenbookV2FulfillmentConfig(
+		marketIndex: number,
+		openbookMarket: PublicKey
+	): Promise<TransactionSignature> {
+		const initializeIx = await this.getInitializeOpenbookV2FulfillmentConfigIx(
+			marketIndex,
+			openbookMarket
+		);
+
+		const tx = await this.buildTransaction(initializeIx);
+
+		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+
+		return txSig;
+	}
+
+	public async getInitializeOpenbookV2FulfillmentConfigIx(
+		marketIndex: number,
+		openbookMarket: PublicKey
+	): Promise<TransactionInstruction> {
+		const openbookFulfillmentConfig = getOpenbookV2FulfillmentConfigPublicKey(
+			this.program.programId,
+			openbookMarket
+		);
+
+		return this.program.instruction.initializeOpenbookV2FulfillmentConfig(
+			marketIndex,
+			{
+				accounts: {
+					baseSpotMarket: this.getSpotMarketAccount(marketIndex).pubkey,
+					quoteSpotMarket: this.getQuoteSpotMarketAccount().pubkey,
+					state: await this.getStatePublicKey(),
+					openbookV2Program: OPENBOOK_PROGRAM_ID,
+					openbookV2Market: openbookMarket,
+					driftSigner: this.getSignerPublicKey(),
+					openbookV2FulfillmentConfig: openbookFulfillmentConfig,
+					admin: this.isSubscribed
+						? this.getStateAccount().admin
+						: this.wallet.publicKey,
+					rent: SYSVAR_RENT_PUBKEY,
+					systemProgram: anchor.web3.SystemProgram.programId,
 				},
 			}
 		);
@@ -1814,12 +1870,12 @@ export class AdminClient extends DriftClient {
 
 	public async updateSpotMarketMaxTokenBorrows(
 		spotMarketIndex: number,
-		maxTokenBorrows: BN
+		maxTokenBorrowsFraction: number
 	): Promise<TransactionSignature> {
 		const updateSpotMarketMaxTokenBorrowsIx =
 			await this.getUpdateSpotMarketMaxTokenBorrowsIx(
 				spotMarketIndex,
-				maxTokenBorrows
+				maxTokenBorrowsFraction
 			);
 
 		const tx = await this.buildTransaction(updateSpotMarketMaxTokenBorrowsIx);
@@ -1831,10 +1887,10 @@ export class AdminClient extends DriftClient {
 
 	public async getUpdateSpotMarketMaxTokenBorrowsIx(
 		spotMarketIndex: number,
-		maxTokenBorrows: BN
+		maxTokenBorrowsFraction: number
 	): Promise<TransactionInstruction> {
 		return this.program.instruction.updateSpotMarketMaxTokenBorrows(
-			maxTokenBorrows,
+			maxTokenBorrowsFraction,
 			{
 				accounts: {
 					admin: this.isSubscribed
@@ -3527,5 +3583,196 @@ export class AdminClient extends DriftClient {
 				),
 			},
 		});
+	}
+
+	public async updateSpotMarketFuel(
+		spotMarketIndex: number,
+		fuelBoostDeposits?: number,
+		fuelBoostBorrows?: number,
+		fuelBoostTaker?: number,
+		fuelBoostMaker?: number,
+		fuelBoostInsurance?: number
+	): Promise<TransactionSignature> {
+		const updateSpotMarketFuelIx = await this.getUpdateSpotMarketFuelIx(
+			spotMarketIndex,
+			fuelBoostDeposits || null,
+			fuelBoostBorrows || null,
+			fuelBoostTaker || null,
+			fuelBoostMaker || null,
+			fuelBoostInsurance || null
+		);
+
+		const tx = await this.buildTransaction(updateSpotMarketFuelIx);
+		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+
+		return txSig;
+	}
+
+	public async getUpdateSpotMarketFuelIx(
+		spotMarketIndex: number,
+		fuelBoostDeposits?: number,
+		fuelBoostBorrows?: number,
+		fuelBoostTaker?: number,
+		fuelBoostMaker?: number,
+		fuelBoostInsurance?: number
+	): Promise<TransactionInstruction> {
+		const spotMarketPublicKey = await getSpotMarketPublicKey(
+			this.program.programId,
+			spotMarketIndex
+		);
+
+		return await this.program.instruction.updateSpotMarketFuel(
+			fuelBoostDeposits || null,
+			fuelBoostBorrows || null,
+			fuelBoostTaker || null,
+			fuelBoostMaker || null,
+			fuelBoostInsurance || null,
+			{
+				accounts: {
+					admin: this.isSubscribed
+						? this.getStateAccount().admin
+						: this.wallet.publicKey,
+					state: await this.getStatePublicKey(),
+					spotMarket: spotMarketPublicKey,
+				},
+			}
+		);
+	}
+
+	public async updatePerpMarketFuel(
+		perpMarketIndex: number,
+		fuelBoostTaker?: number,
+		fuelBoostMaker?: number,
+		fuelBoostPosition?: number
+	): Promise<TransactionSignature> {
+		const updatePerpMarketFuelIx = await this.getUpdatePerpMarketFuelIx(
+			perpMarketIndex,
+			fuelBoostTaker || null,
+			fuelBoostMaker || null,
+			fuelBoostPosition || null
+		);
+
+		const tx = await this.buildTransaction(updatePerpMarketFuelIx);
+		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+
+		return txSig;
+	}
+
+	public async getUpdatePerpMarketFuelIx(
+		perpMarketIndex: number,
+		fuelBoostTaker?: number,
+		fuelBoostMaker?: number,
+		fuelBoostPosition?: number
+	): Promise<TransactionInstruction> {
+		const perpMarketPublicKey = await getPerpMarketPublicKey(
+			this.program.programId,
+			perpMarketIndex
+		);
+
+		return await this.program.instruction.updatePerpMarketFuel(
+			fuelBoostTaker || null,
+			fuelBoostMaker || null,
+			fuelBoostPosition || null,
+			{
+				accounts: {
+					admin: this.isSubscribed
+						? this.getStateAccount().admin
+						: this.wallet.publicKey,
+					state: await this.getStatePublicKey(),
+					perpMarket: perpMarketPublicKey,
+				},
+			}
+		);
+	}
+
+	public async initUserFuel(
+		user: PublicKey,
+		authority: PublicKey,
+		fuelBonusDeposits?: number,
+		fuelBonusBorrows?: number,
+		fuelBonusTaker?: number,
+		fuelBonusMaker?: number,
+		fuelBonusInsurance?: number
+	): Promise<TransactionSignature> {
+		const updatePerpMarketFuelIx = await this.getInitUserFuelIx(
+			user,
+			authority,
+			fuelBonusDeposits,
+			fuelBonusBorrows,
+			fuelBonusTaker,
+			fuelBonusMaker,
+			fuelBonusInsurance
+		);
+
+		const tx = await this.buildTransaction(updatePerpMarketFuelIx);
+		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+
+		return txSig;
+	}
+
+	public async getInitUserFuelIx(
+		user: PublicKey,
+		authority: PublicKey,
+		fuelBonusDeposits?: number,
+		fuelBonusBorrows?: number,
+		fuelBonusTaker?: number,
+		fuelBonusMaker?: number,
+		fuelBonusInsurance?: number
+	): Promise<TransactionInstruction> {
+		const userStats = await getUserStatsAccountPublicKey(
+			this.program.programId,
+			authority
+		);
+
+		return await this.program.instruction.initUserFuel(
+			fuelBonusDeposits || null,
+			fuelBonusBorrows || null,
+			fuelBonusTaker || null,
+			fuelBonusMaker || null,
+			fuelBonusInsurance || null,
+			{
+				accounts: {
+					admin: this.wallet.publicKey,
+					state: await this.getStatePublicKey(),
+					user,
+					userStats,
+				},
+			}
+		);
+	}
+
+	public async initializePythPullOracle(
+		feedId: string
+	): Promise<TransactionSignature> {
+		const initializePythPullOracleIx = await this.getInitializePythPullOracleIx(
+			feedId
+		);
+		const tx = await this.buildTransaction(initializePythPullOracleIx);
+		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+
+		return txSig;
+	}
+
+	public async getInitializePythPullOracleIx(
+		feedId: string
+	): Promise<TransactionInstruction> {
+		const feedIdBuffer = getFeedIdUint8Array(feedId);
+		return await this.program.instruction.initializePythPullOracle(
+			feedIdBuffer,
+			{
+				accounts: {
+					admin: this.isSubscribed
+						? this.getStateAccount().admin
+						: this.wallet.publicKey,
+					state: await this.getStatePublicKey(),
+					systemProgram: SystemProgram.programId,
+					priceFeed: getPythPullOraclePublicKey(
+						this.program.programId,
+						feedIdBuffer
+					),
+					pythSolanaReceiver: DRIFT_ORACLE_RECEIVER_ID,
+				},
+			}
+		);
 	}
 }

@@ -1,5 +1,5 @@
 {
-  "version": "2.84.0",
+  "version": "2.86.0",
   "name": "drift",
   "instructions": [
     {
@@ -2286,6 +2286,42 @@
       "args": []
     },
     {
+      "name": "updateUserGovTokenInsuranceStake",
+      "accounts": [
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "spotMarket",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "insuranceFundStake",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "userStats",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "insuranceFundVault",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": []
+    },
+    {
       "name": "initializeInsuranceFundStake",
       "accounts": [
         {
@@ -2585,6 +2621,112 @@
         {
           "name": "shares",
           "type": "u128"
+        }
+      ]
+    },
+    {
+      "name": "updatePythPullOracle",
+      "accounts": [
+        {
+          "name": "keeper",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "pythSolanaReceiver",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "encodedVaa",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "priceFeed",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "feedId",
+          "type": {
+            "array": [
+              "u8",
+              32
+            ]
+          }
+        },
+        {
+          "name": "params",
+          "type": "bytes"
+        }
+      ]
+    },
+    {
+      "name": "postPythPullOracleUpdateAtomic",
+      "accounts": [
+        {
+          "name": "keeper",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "pythSolanaReceiver",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "guardianSet",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "priceFeed",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "feedId",
+          "type": {
+            "array": [
+              "u8",
+              32
+            ]
+          }
+        },
+        {
+          "name": "params",
+          "type": "bytes"
+        }
+      ]
+    },
+    {
+      "name": "postMultiPythPullOracleUpdatesAtomic",
+      "accounts": [
+        {
+          "name": "keeper",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "pythSolanaReceiver",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "guardianSet",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "params",
+          "type": "bytes"
         }
       ]
     },
@@ -2898,6 +3040,95 @@
         },
         {
           "name": "serumFulfillmentConfig",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "admin",
+          "isMut": true,
+          "isSigner": true
+        }
+      ],
+      "args": [
+        {
+          "name": "status",
+          "type": {
+            "defined": "SpotFulfillmentConfigStatus"
+          }
+        }
+      ]
+    },
+    {
+      "name": "initializeOpenbookV2FulfillmentConfig",
+      "accounts": [
+        {
+          "name": "baseSpotMarket",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "quoteSpotMarket",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "state",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "openbookV2Program",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "openbookV2Market",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "driftSigner",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "openbookV2FulfillmentConfig",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "admin",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "rent",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "systemProgram",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "marketIndex",
+          "type": "u16"
+        }
+      ]
+    },
+    {
+      "name": "openbookV2FulfillmentConfigStatus",
+      "accounts": [
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "openbookV2FulfillmentConfig",
           "isMut": true,
           "isSigner": false
         },
@@ -4011,6 +4242,32 @@
       ]
     },
     {
+      "name": "updateSpotMarketMaxTokenBorrows",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "spotMarket",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "maxTokenBorrowsFraction",
+          "type": "u16"
+        }
+      ]
+    },
+    {
       "name": "updateSpotMarketScaleInitialAssetWeightStart",
       "accounts": [
         {
@@ -5041,6 +5298,155 @@
       ]
     },
     {
+      "name": "updatePerpMarketFuel",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "perpMarket",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "fuelBoostTaker",
+          "type": {
+            "option": "u8"
+          }
+        },
+        {
+          "name": "fuelBoostMaker",
+          "type": {
+            "option": "u8"
+          }
+        },
+        {
+          "name": "fuelBoostPosition",
+          "type": {
+            "option": "u8"
+          }
+        }
+      ]
+    },
+    {
+      "name": "updateSpotMarketFuel",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "spotMarket",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "fuelBoostDeposits",
+          "type": {
+            "option": "u8"
+          }
+        },
+        {
+          "name": "fuelBoostBorrows",
+          "type": {
+            "option": "u8"
+          }
+        },
+        {
+          "name": "fuelBoostTaker",
+          "type": {
+            "option": "u8"
+          }
+        },
+        {
+          "name": "fuelBoostMaker",
+          "type": {
+            "option": "u8"
+          }
+        },
+        {
+          "name": "fuelBoostInsurance",
+          "type": {
+            "option": "u8"
+          }
+        }
+      ]
+    },
+    {
+      "name": "initUserFuel",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "user",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "userStats",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "fuelBoostDeposits",
+          "type": {
+            "option": "u32"
+          }
+        },
+        {
+          "name": "fuelBoostBorrows",
+          "type": {
+            "option": "u32"
+          }
+        },
+        {
+          "name": "fuelBoostTaker",
+          "type": {
+            "option": "u32"
+          }
+        },
+        {
+          "name": "fuelBoostMaker",
+          "type": {
+            "option": "u32"
+          }
+        },
+        {
+          "name": "fuelBoostInsurance",
+          "type": {
+            "option": "u32"
+          }
+        }
+      ]
+    },
+    {
       "name": "updateAdmin",
       "accounts": [
         {
@@ -5337,9 +5743,119 @@
           "type": "u16"
         }
       ]
+    },
+    {
+      "name": "initializePythPullOracle",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "pythSolanaReceiver",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "priceFeed",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "systemProgram",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "feedId",
+          "type": {
+            "array": [
+              "u8",
+              32
+            ]
+          }
+        }
+      ]
     }
   ],
   "accounts": [
+    {
+      "name": "OpenbookV2FulfillmentConfig",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "pubkey",
+            "type": "publicKey"
+          },
+          {
+            "name": "openbookV2ProgramId",
+            "type": "publicKey"
+          },
+          {
+            "name": "openbookV2Market",
+            "type": "publicKey"
+          },
+          {
+            "name": "openbookV2MarketAuthority",
+            "type": "publicKey"
+          },
+          {
+            "name": "openbookV2EventHeap",
+            "type": "publicKey"
+          },
+          {
+            "name": "openbookV2Bids",
+            "type": "publicKey"
+          },
+          {
+            "name": "openbookV2Asks",
+            "type": "publicKey"
+          },
+          {
+            "name": "openbookV2BaseVault",
+            "type": "publicKey"
+          },
+          {
+            "name": "openbookV2QuoteVault",
+            "type": "publicKey"
+          },
+          {
+            "name": "marketIndex",
+            "type": "u16"
+          },
+          {
+            "name": "fulfillmentType",
+            "type": {
+              "defined": "SpotFulfillmentType"
+            }
+          },
+          {
+            "name": "status",
+            "type": {
+              "defined": "SpotFulfillmentConfigStatus"
+            }
+          },
+          {
+            "name": "padding",
+            "type": {
+              "array": [
+                "u8",
+                4
+              ]
+            }
+          }
+        ]
+      }
+    },
     {
       "name": "PhoenixV1FulfillmentConfig",
       "type": {
@@ -5839,11 +6355,35 @@
             "type": "i16"
           },
           {
+            "name": "fuelBoostPosition",
+            "docs": [
+              "fuel multiplier for perp funding",
+              "precision: 10"
+            ],
+            "type": "u8"
+          },
+          {
+            "name": "fuelBoostTaker",
+            "docs": [
+              "fuel multiplier for perp taker",
+              "precision: 10"
+            ],
+            "type": "u8"
+          },
+          {
+            "name": "fuelBoostMaker",
+            "docs": [
+              "fuel multiplier for perp maker",
+              "precision: 10"
+            ],
+            "type": "u8"
+          },
+          {
             "name": "padding",
             "type": {
               "array": [
                 "u8",
-                46
+                43
               ]
             }
           }
@@ -6297,11 +6837,51 @@
             "type": "u8"
           },
           {
+            "name": "fuelBoostDeposits",
+            "docs": [
+              "fuel multiplier for spot deposits",
+              "precision: 10"
+            ],
+            "type": "u8"
+          },
+          {
+            "name": "fuelBoostBorrows",
+            "docs": [
+              "fuel multiplier for spot borrows",
+              "precision: 10"
+            ],
+            "type": "u8"
+          },
+          {
+            "name": "fuelBoostTaker",
+            "docs": [
+              "fuel multiplier for spot taker",
+              "precision: 10"
+            ],
+            "type": "u8"
+          },
+          {
+            "name": "fuelBoostMaker",
+            "docs": [
+              "fuel multiplier for spot maker",
+              "precision: 10"
+            ],
+            "type": "u8"
+          },
+          {
+            "name": "fuelBoostInsurance",
+            "docs": [
+              "fuel multiplier for spot insurance stake",
+              "precision: 10"
+            ],
+            "type": "u8"
+          },
+          {
             "name": "padding",
             "type": {
               "array": [
                 "u8",
-                47
+                42
               ]
             }
           }
@@ -6650,11 +7230,24 @@
             "type": "bool"
           },
           {
+            "name": "padding1",
+            "type": {
+              "array": [
+                "u8",
+                5
+              ]
+            }
+          },
+          {
+            "name": "lastFuelBonusUpdateTs",
+            "type": "u32"
+          },
+          {
             "name": "padding",
             "type": {
               "array": [
                 "u8",
-                21
+                12
               ]
             }
           }
@@ -6776,11 +7369,76 @@
             "type": "bool"
           },
           {
+            "name": "padding1",
+            "type": {
+              "array": [
+                "u8",
+                2
+              ]
+            }
+          },
+          {
+            "name": "fuelInsurance",
+            "docs": [
+              "accumulated fuel for token amounts of insurance"
+            ],
+            "type": "u32"
+          },
+          {
+            "name": "fuelDeposits",
+            "docs": [
+              "accumulated fuel for notional of deposits"
+            ],
+            "type": "u32"
+          },
+          {
+            "name": "fuelBorrows",
+            "docs": [
+              "accumulate fuel bonus for notional of borrows"
+            ],
+            "type": "u32"
+          },
+          {
+            "name": "fuelPositions",
+            "docs": [
+              "accumulated fuel for perp open interest"
+            ],
+            "type": "u32"
+          },
+          {
+            "name": "fuelTaker",
+            "docs": [
+              "accumulate fuel bonus for taker volume"
+            ],
+            "type": "u32"
+          },
+          {
+            "name": "fuelMaker",
+            "docs": [
+              "accumulate fuel bonus for maker volume"
+            ],
+            "type": "u32"
+          },
+          {
+            "name": "ifStakedGovTokenAmount",
+            "docs": [
+              "The amount of tokens staked in the governance spot markets if"
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "lastFuelIfBonusUpdateTs",
+            "docs": [
+              "last unix ts user stats data was used to update if fuel (u32 to save space)"
+            ],
+            "type": "u32"
+          },
+          {
             "name": "padding",
             "type": {
               "array": [
                 "u8",
-                50
+                12
               ]
             }
           }
@@ -8836,6 +9494,9 @@
           },
           {
             "name": "PhoenixV1"
+          },
+          {
+            "name": "OpenbookV2"
           }
         ]
       }
@@ -9107,6 +9768,9 @@
           },
           {
             "name": "DeriskLp"
+          },
+          {
+            "name": "OrderFilledWithOpenbookV2"
           }
         ]
       }
@@ -9399,6 +10063,9 @@
           },
           {
             "name": "Fill"
+          },
+          {
+            "name": "Deposit"
           },
           {
             "name": "Withdraw"
@@ -12076,6 +12743,71 @@
     },
     {
       "code": 6269,
+      "name": "OracleUpdatesNotMonotonic",
+      "msg": "Updates must be monotonically increasing"
+    },
+    {
+      "code": 6270,
+      "name": "OraclePriceFeedMessageMismatch",
+      "msg": "Trying to update price feed with the wrong feed id"
+    },
+    {
+      "code": 6271,
+      "name": "OracleUnsupportedMessageType",
+      "msg": "The message in the update must be a PriceFeedMessage"
+    },
+    {
+      "code": 6272,
+      "name": "OracleDeserializeMessageFailed",
+      "msg": "Could not deserialize the message in the update"
+    },
+    {
+      "code": 6273,
+      "name": "OracleWrongGuardianSetOwner",
+      "msg": "Wrong guardian set owner in update price atomic"
+    },
+    {
+      "code": 6274,
+      "name": "OracleWrongWriteAuthority",
+      "msg": "Oracle post update atomic price feed account must be drift program"
+    },
+    {
+      "code": 6275,
+      "name": "OracleWrongVaaOwner",
+      "msg": "Oracle vaa owner must be wormhole program"
+    },
+    {
+      "code": 6276,
+      "name": "OracleTooManyPriceAccountUpdates",
+      "msg": "Multi updates must have 2 or fewer accounts passed in remaining accounts"
+    },
+    {
+      "code": 6277,
+      "name": "OracleMismatchedVaaAndPriceUpdates",
+      "msg": "Don't have the same remaining accounts number and merkle price updates left"
+    },
+    {
+      "code": 6278,
+      "name": "OracleBadRemainingAccountPublicKey",
+      "msg": "Remaining account passed is not a valid pda"
+    },
+    {
+      "code": 6279,
+      "name": "FailedOpenbookV2CPI",
+      "msg": "FailedOpenbookV2CPI"
+    },
+    {
+      "code": 6280,
+      "name": "InvalidOpenbookV2Program",
+      "msg": "InvalidOpenbookV2Program"
+    },
+    {
+      "code": 6281,
+      "name": "InvalidOpenbookV2Market",
+      "msg": "InvalidOpenbookV2Market"
+    },
+    {
+      "code": 6282,
       "name": "LiquidationOrderFailedToFill",
       "msg": "Liquidation order failed to fill"
     }

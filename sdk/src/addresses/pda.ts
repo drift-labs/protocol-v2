@@ -202,6 +202,21 @@ export function getPhoenixFulfillmentConfigPublicKey(
 	)[0];
 }
 
+export function getOpenbookV2FulfillmentConfigPublicKey(
+	programId: PublicKey,
+	market: PublicKey
+): PublicKey {
+	return PublicKey.findProgramAddressSync(
+		[
+			Buffer.from(
+				anchor.utils.bytes.utf8.encode('openbook_v2_fulfillment_config')
+			),
+			market.toBuffer(),
+		],
+		programId
+	)[0];
+}
+
 export function getReferrerNamePublicKeySync(
 	programId: PublicKey,
 	nameBuffer: number[]
@@ -234,5 +249,18 @@ export function getPrelaunchOraclePublicKey(
 			new anchor.BN(marketIndex).toArrayLike(Buffer, 'le', 2),
 		],
 		programId
+	)[0];
+}
+
+export function getPythPullOraclePublicKey(
+	progarmId: PublicKey,
+	feedId: Uint8Array
+): PublicKey {
+	return PublicKey.findProgramAddressSync(
+		[
+			Buffer.from(anchor.utils.bytes.utf8.encode('pyth_pull')),
+			Buffer.from(feedId),
+		],
+		progarmId
 	)[0];
 }

@@ -1,6 +1,6 @@
 {
 	"name": "@drift-labs/sdk",
-	"version": "2.85.0-beta.10",
+	"version": "2.87.0-beta.2",
 	"main": "lib/index.js",
 	"types": "lib/index.d.ts",
 	"author": "crispheaney",
@@ -38,6 +38,7 @@
 		"@ellipsis-labs/phoenix-sdk": "^1.4.2",
 		"@project-serum/serum": "^0.13.38",
 		"@pythnetwork/client": "2.5.3",
+		"@pythnetwork/price-service-sdk": "^1.7.1",
 		"@pythnetwork/pyth-solana-receiver": "^0.7.0",
 		"@solana/spl-token": "0.3.7",
 		"@solana/web3.js": "1.92.3",
@@ -65,11 +66,15 @@
 		"mocha": "^10.0.0",
 		"object-sizeof": "^2.6.3",
 		"prettier": "3.0.1",
+		"sinon": "^18.0.0",
 		"ts-node": "^10.8.0",
 		"typescript": "^4.9.5"
 	},
 	"description": "SDK for Drift Protocol",
 	"engines": {
 		"node": ">=18"
+	},
+	"resolutions": {
+		"@solana/errors": "2.0.0-preview.4"
 	}
 }

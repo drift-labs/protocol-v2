@@ -1940,3 +1940,37 @@ mod get_user_stats_age_ts {
         assert_eq!(age, 0);
     }
 }
+
+mod fuel {
+    use crate::state::user::UserStats;
+    use crate::QUOTE_PRECISION_U64;
+
+    #[test]
+    fn test() {
+        let mut user_stats = UserStats::default();
+
+        user_stats
+            .update_fuel_maker_bonus(0, QUOTE_PRECISION_U64)
+            .unwrap();
+
+        assert_eq!(user_stats.fuel_maker, 0);
+
+        user_stats
+            .update_fuel_maker_bonus(1, QUOTE_PRECISION_U64)
+            .unwrap();
+
+        assert_eq!(user_stats.fuel_maker, 1);
+
+        user_stats
+            .update_fuel_taker_bonus(0, QUOTE_PRECISION_U64)
+            .unwrap();
+
+        assert_eq!(user_stats.fuel_taker, 0);
+
+        user_stats
+            .update_fuel_taker_bonus(1, QUOTE_PRECISION_U64)
+            .unwrap();
+
+        assert_eq!(user_stats.fuel_taker, 1);
+    }
+}
