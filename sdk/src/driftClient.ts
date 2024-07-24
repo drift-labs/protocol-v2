@@ -5805,20 +5805,17 @@ export class DriftClient {
 			});
 		}
 
-		return await this.program.instruction.liquidatePerpWithFill(
-			marketIndex,
-			{
-				accounts: {
-					state: await this.getStatePublicKey(),
-					authority: this.wallet.publicKey,
-					user: userAccountPublicKey,
-					userStats: userStatsPublicKey,
-					liquidator,
-					liquidatorStats: liquidatorStatsPublicKey,
-				},
-				remainingAccounts: remainingAccounts,
-			}
-		);
+		return await this.program.instruction.liquidatePerpWithFill(marketIndex, {
+			accounts: {
+				state: await this.getStatePublicKey(),
+				authority: this.wallet.publicKey,
+				user: userAccountPublicKey,
+				userStats: userStatsPublicKey,
+				liquidator,
+				liquidatorStats: liquidatorStatsPublicKey,
+			},
+			remainingAccounts: remainingAccounts,
+		});
 	}
 
 	public async liquidateSpot(

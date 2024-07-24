@@ -3,7 +3,6 @@ import { Program } from '@coral-xyz/anchor';
 import {
 	BASE_PRECISION,
 	BN,
-	ContractTier,
 	EventSubscriber,
 	isVariant,
 	LIQUIDATION_PCT_PRECISION,
@@ -13,13 +12,11 @@ import {
 	PRICE_PRECISION,
 	QUOTE_PRECISION,
 	TestClient,
-	User,
 	Wallet,
-	ZERO,
 } from '../sdk/src';
 import { assert } from 'chai';
 
-import {Keypair, LAMPORTS_PER_SOL, PublicKey} from '@solana/web3.js';
+import { Keypair, LAMPORTS_PER_SOL, PublicKey } from '@solana/web3.js';
 
 import {
 	createUserWithUSDCAccount,
@@ -28,9 +25,8 @@ import {
 	mockUSDCMint,
 	mockUserUSDCAccount,
 	setFeedPriceNoProgram,
-	sleep,
 } from './testHelpers';
-import {OrderType, PERCENTAGE_PRECISION, PerpOperation, UserStatus} from '../sdk';
+import { OrderType, PERCENTAGE_PRECISION, PerpOperation } from '../sdk';
 import { startAnchor } from 'solana-bankrun';
 import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
 import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
@@ -82,6 +78,7 @@ describe('liquidate perp (no open orders)', () => {
 
 		eventSubscriber = new EventSubscriber(
 			bankrunContextWrapper.connection.toConnection(),
+			//@ts-ignore
 			chProgram
 		);
 
@@ -202,22 +199,21 @@ describe('liquidate perp (no open orders)', () => {
 			liquidatorUSDCAccount.publicKey
 		);
 
-		[makerDriftClient, makerUSDCAccount] =
-			await createUserWithUSDCAccount(
-				bankrunContextWrapper,
-				usdcMint,
-				chProgram,
-				makerUsdcAmount,
-				[0],
-				[0],
-				[
-					{
-						publicKey: oracle,
-						source: OracleSource.PYTH,
-					},
-				],
-				bulkAccountLoader
-			);
+		[makerDriftClient, makerUSDCAccount] = await createUserWithUSDCAccount(
+			bankrunContextWrapper,
+			usdcMint,
+			chProgram,
+			makerUsdcAmount,
+			[0],
+			[0],
+			[
+				{
+					publicKey: oracle,
+					source: OracleSource.PYTH,
+				},
+			],
+			bulkAccountLoader
+		);
 
 		await makerDriftClient.deposit(makerUsdcAmount, 0, makerUSDCAccount);
 	});
@@ -231,7 +227,30 @@ describe('liquidate perp (no open orders)', () => {
 
 	it('liquidate', async () => {
 		await setFeedPriceNoProgram(bankrunContextWrapper, 0.1, oracle);
-		await driftClient.updatePerpMarketPausedOperations(0, PerpOperation.AMM_FILL);
+		await driftClient.updatePerpMarketPausedOperations(
+			0,
+			PerpOperation.AMM_FILL
+		);
+
+		try {
+			const failToPlaceTxSig = await driftClient.placePerpOrder({
+				direction: PositionDirection.SHORT,
+				baseAssetAmount: BASE_PRECISION,
+				price: PRICE_PRECISION.divn(10),
+				orderType: OrderType.LIMIT,
+				reduceOnly: true,
+				marketIndex: 0,
+			});
+			bankrunContextWrapper.connection.printTxLogs(failToPlaceTxSig);
+			throw new Error('Expected placePerpOrder to throw an error');
+		} catch (error) {
+			if (
+				error.message !==
+				'Error processing Instruction 1: custom program error: 0x1773'
+			) {
+				throw new Error(`Unexpected error message: ${error.message}`);
+			}
+		}
 
 		await makerDriftClient.placePerpOrder({
 			direction: PositionDirection.LONG,
@@ -241,11 +260,13 @@ describe('liquidate perp (no open orders)', () => {
 			marketIndex: 0,
 		});
 
-		const makerInfos = [{
-			maker: await makerDriftClient.getUserAccountPublicKey(),
-			makerStats: makerDriftClient.getUserStatsAccountPublicKey(),
-			makerUserAccount: makerDriftClient.getUserAccount(),
-		}];
+		const makerInfos = [
+			{
+				maker: await makerDriftClient.getUserAccountPublicKey(),
+				makerStats: makerDriftClient.getUserStatsAccountPublicKey(),
+				makerUserAccount: makerDriftClient.getUserAccount(),
+			},
+		];
 
 		const txSig = await liquidatorDriftClient.liquidatePerpWithFill(
 			await driftClient.getUserAccountPublicKey(),
@@ -267,29 +288,35 @@ describe('liquidate perp (no open orders)', () => {
 		);
 
 		assert(
-			driftClient.getUserAccount().perpPositions[0].baseAssetAmount.eq(new BN(0))
+			driftClient
+				.getUserAccount()
+				.perpPositions[0].baseAssetAmount.eq(new BN(0))
 		);
 
 		assert(
-			driftClient.getUserAccount().perpPositions[0].quoteAssetAmount.eq(new BN(-15769403))
+			driftClient
+				.getUserAccount()
+				.perpPositions[0].quoteAssetAmount.eq(new BN(-15769403))
 		);
 
 		assert(
-			liquidatorDriftClient
-				.getPerpMarketAccount(0).ifLiquidationFee === 10000
+			liquidatorDriftClient.getPerpMarketAccount(0).ifLiquidationFee === 10000
 		);
 
 		assert(
-			makerDriftClient.getUserAccount().perpPositions[0].baseAssetAmount.eq(new BN(17500000000))
+			makerDriftClient
+				.getUserAccount()
+				.perpPositions[0].baseAssetAmount.eq(new BN(17500000000))
 		);
 
 		assert(
-			makerDriftClient.getUserAccount().perpPositions[0].quoteAssetAmount.eq(new BN(-1749650))
+			makerDriftClient
+				.getUserAccount()
+				.perpPositions[0].quoteAssetAmount.eq(new BN(-1749650))
 		);
 
 		assert(
-			liquidatorDriftClient
-				.getPerpMarketAccount(0).ifLiquidationFee === 10000
+			liquidatorDriftClient.getPerpMarketAccount(0).ifLiquidationFee === 10000
 		);
 
 		await makerDriftClient.liquidatePerpPnlForDeposit(
@@ -297,7 +324,7 @@ describe('liquidate perp (no open orders)', () => {
 			driftClient.getUserAccount(),
 			0,
 			0,
-			QUOTE_PRECISION.muln(20),
+			QUOTE_PRECISION.muln(20)
 		);
 
 		await makerDriftClient.resolvePerpBankruptcy(
