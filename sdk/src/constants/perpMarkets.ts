@@ -475,16 +475,16 @@ export const MainnetPerpMarkets: PerpMarketConfig[] = [
 			'0x385f64d993f7b77d8182ed5003d97c60aa3361f3cecfe711544d2d59165e9bdf',
 	},
 	{
-		fullName: 'RNDR',
+		fullName: 'RENDER',
 		category: ['Infra', 'Solana'],
-		symbol: 'RNDR-PERP',
-		baseAssetSymbol: 'RNDR',
+		symbol: 'RENDER-PERP',
+		baseAssetSymbol: 'RENDER',
 		marketIndex: 12,
-		oracle: new PublicKey('F3mPHRtJqqq57JPDBmUwUVhpyPLmjE5dAzDfpVgpFkug'),
+		oracle: new PublicKey('8TQztfGcNjHGRusX4ejQQtPZs3Ypczt9jWF6pkgQMqUX'),
 		launchTs: 1687201081000,
 		oracleSource: OracleSource.PYTH_PULL,
 		pythFeedId:
-			'0xab7347771135fc733f8f38db462ba085ed3309955f42554a14fa13e855ac0e2f',
+			'0x3d4a2bd9535be6ce8059d75eadeba507b043257321aa544717c56fa19b49e35d',
 	},
 	{
 		fullName: 'XRP',
