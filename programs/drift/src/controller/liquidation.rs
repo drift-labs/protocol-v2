@@ -744,16 +744,6 @@ pub fn liquidate_perp_with_fill(
         e
     })?;
 
-    liquidator
-        .force_get_perp_position_mut(market_index)
-        .map_err(|e| {
-            msg!(
-                "Liquidator has no available positions to take on perp position in market {}",
-                market_index
-            );
-            e
-        })?;
-
     let liquidation_id = user.enter_liquidation(slot)?;
     let mut margin_freed = 0_u64;
 
