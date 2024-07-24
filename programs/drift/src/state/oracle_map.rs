@@ -409,6 +409,15 @@ impl<'a> OracleMap<'a> {
                     oracle_source: OracleSource::Switchboard,
                 },
             );
+        } else if account_info.owner == &switchboard_on_demand::id() {
+            let pubkey = account_info.key();
+            oracles.insert(
+                pubkey,
+                AccountInfoAndOracleSource {
+                    account_info: account_info.clone(),
+                    oracle_source: OracleSource::SwitchboardOnDemand,
+                },
+            );
         } else if account_info.key() != Pubkey::default() {
             return Err(ErrorCode::InvalidOracle);
         }

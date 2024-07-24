@@ -324,12 +324,9 @@ pub fn get_sb_on_demand_price(
     )?
     .cast::<i64>()?;
 
-    // std deviation should always be positive, if we get a negative make it u128::MAX so it's flagged as bad value
-    // NOTE: previous switchboard impl uses std deviation on drift.
-    // Range offers better insight into the full consensus on the value.
     let confidence = convert_sb_i128(
         &pull_feed_account_info
-            .std_dev()
+            .range()
             .ok_or(ErrorCode::UnableToLoadOracle)?,
     )?
     .cast::<i64>()?
