@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Features
 
+### Fixes
+
+### Breaking
+
+## [2.86.0] - 2024-07-22
+
+### Features
+
 - program: track fuel ([#1048](https://github.com/drift-labs/protocol-v2/pull/1048))
 - program: add post multi pyth oracle updates atomic ([#1133](https://github.com/drift-labs/protocol-v2/pull/1133))
 - program: track fuel for if staking ([#1127](https://github.com/drift-labs/protocol-v2/pull/1127))
@@ -24,6 +32,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - program: avoid truncated cast ([#1078](https://github.com/drift-labs/protocol-v2/pull/1078))
 - program: check whitelist token amount ([#1076](https://github.com/drift-labs/protocol-v2/pull/1076))
 - program: program: only let referrer set if number_of_sub_accounts_created is 0 ([#1083](https://github.com/drift-labs/protocol-v2/pull/1083))
+- program: update increment_total_referrer_reward corner-case logic ([#1156](https://github.com/drift-labs/protocol-v2/pull/1156))
 
 ### Breaking
 

@@ -1,5 +1,5 @@
 {
-  "version": "2.85.0",
+  "version": "2.86.0",
   "name": "drift",
   "instructions": [
     {
@@ -4197,6 +4197,32 @@
         {
           "name": "maxTokenDeposits",
           "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "updateSpotMarketMaxTokenBorrows",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "spotMarket",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "maxTokenBorrowsFraction",
+          "type": "u16"
         }
       ]
     },

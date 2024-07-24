@@ -235,9 +235,9 @@ export const MainnetSpotMarkets: SpotMarketConfig[] = [
 			'0x0a0408d619e9380abad35060f9192039ed5042fa6f82301d0e48bb52be830996',
 	},
 	{
-		symbol: 'RNDR',
+		symbol: 'RENDER',
 		marketIndex: 12,
-		oracle: new PublicKey('F3mPHRtJqqq57JPDBmUwUVhpyPLmjE5dAzDfpVgpFkug'),
+		oracle: new PublicKey('8TQztfGcNjHGRusX4ejQQtPZs3Ypczt9jWF6pkgQMqUX'),
 		oracleSource: OracleSource.PYTH_PULL,
 		mint: new PublicKey('rndrizKT3MK1iimdxRdWabcF7Zg7AR5T4nud4EkHBof'),
 		precision: new BN(10).pow(EIGHT),
@@ -245,7 +245,7 @@ export const MainnetSpotMarkets: SpotMarketConfig[] = [
 		serumMarket: new PublicKey('2m7ZLEKtxWF29727DSb5D91erpXPUY1bqhRWRC3wQX7u'),
 		launchTs: 1708964021000,
 		pythFeedId:
-			'0xab7347771135fc733f8f38db462ba085ed3309955f42554a14fa13e855ac0e2f',
+			'0x3d4a2bd9535be6ce8059d75eadeba507b043257321aa544717c56fa19b49e35d',
 	},
 	{
 		symbol: 'W',
