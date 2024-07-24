@@ -17,10 +17,11 @@ type PullFeedAccountData = {
 		std_dev: BN;
 		mean: BN;
 		slot: BN;
+		range: BN;
 	};
-	last_update_timestamp: number;
-	max_variance: number;
-	min_responses: number;
+	last_update_timestamp: BN;
+	max_variance: BN;
+	min_responses: BN;
 };
 
 export class SwitchboardOnDemandClient implements OracleClient {
@@ -48,7 +49,7 @@ export class SwitchboardOnDemandClient implements OracleClient {
 		return {
 			price: pullFeedAccountData.result.value.div(SB_PRECISION),
 			slot: pullFeedAccountData.result.slot,
-			confidence: pullFeedAccountData.result.std_dev.div(SB_PRECISION),
+			confidence: pullFeedAccountData.result.range.div(SB_PRECISION),
 			hasSufficientNumberOfDataPoints: true,
 		};
 	}
