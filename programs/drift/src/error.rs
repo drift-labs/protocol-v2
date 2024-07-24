@@ -557,6 +557,8 @@ pub enum ErrorCode {
     OracleWrongWriteAuthority,
     #[msg("Oracle vaa owner must be wormhole program")]
     OracleWrongVaaOwner,
+    #[msg("Non zero transfer fee")]
+    NonZeroTransferFee,
 }
 
 #[macro_export]

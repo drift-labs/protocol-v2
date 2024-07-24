@@ -30,6 +30,7 @@ use crate::math::safe_math::SafeMath;
 use crate::math::spot_balance::get_token_amount;
 use crate::math::{amm, bn};
 use crate::math_error;
+use crate::optional_accounts::get_token_mint;
 use crate::state::events::CurveRecord;
 use crate::state::fulfillment_params::phoenix::PhoenixMarketContext;
 use crate::state::fulfillment_params::phoenix::PhoenixV1FulfillmentConfig;
@@ -1395,11 +1396,15 @@ pub fn handle_settle_expired_market_pools_to_revenue_pool(
 #[access_control(
     perp_market_valid(&ctx.accounts.perp_market)
 )]
-pub fn handle_deposit_into_perp_market_fee_pool(
-    ctx: Context<DepositIntoMarketFeePool>,
+pub fn handle_deposit_into_perp_market_fee_pool<'c: 'info, 'info>(
+    ctx: Context<'_, '_, 'c, 'info, DepositIntoMarketFeePool<'info>>,
     amount: u64,
 ) -> Result<()> {
     let perp_market = &mut load_mut!(ctx.accounts.perp_market)?;
+
+    let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
+
+    let mint = get_token_mint(remaining_accounts_iter)?;
 
     msg!(
         "perp_market.amm.total_fee_minus_distributions: {:?} -> {:?}",
@@ -1431,6 +1436,7 @@ pub fn handle_deposit_into_perp_market_fee_pool(
         &ctx.accounts.spot_market_vault,
         &ctx.accounts.admin.to_account_info(),
         amount,
+        &mint,
     )?;
 
     Ok(())

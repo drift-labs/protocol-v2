@@ -9,7 +9,7 @@ use crate::math::insurance::if_shares_to_vault_amount;
 use crate::math::margin::{calculate_user_equity, meets_settle_pnl_maintenance_margin_requirement};
 use crate::math::orders::{estimate_price_from_side, find_bids_and_asks_from_users};
 use crate::math::spot_withdraw::validate_spot_market_vault_amount;
-use crate::optional_accounts::update_prelaunch_oracle;
+use crate::optional_accounts::{get_token_mint, update_prelaunch_oracle};
 use crate::state::fill_mode::FillMode;
 use crate::state::fulfillment_params::drift::MatchFulfillmentParams;
 use crate::state::fulfillment_params::phoenix::PhoenixFulfillmentParams;
@@ -927,17 +927,20 @@ pub fn handle_resolve_perp_pnl_deficit<'c: 'info, 'info>(
     validate!(spot_market_index == 0, ErrorCode::InvalidSpotMarketAccount)?;
     let state = &ctx.accounts.state;
 
+    let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
     let AccountMaps {
         perp_market_map,
         spot_market_map,
         mut oracle_map,
     } = load_maps(
-        &mut ctx.remaining_accounts.iter().peekable(),
+        remaining_accounts_iter,
         &get_writable_perp_market_set(perp_market_index),
         &get_writable_spot_market_set(spot_market_index),
         clock.slot,
         Some(state.oracle_guard_rails),
     )?;
+
+    let mint = get_token_mint(remaining_accounts_iter)?;
 
     controller::repeg::update_amm(
         perp_market_index,
@@ -957,6 +960,7 @@ pub fn handle_resolve_perp_pnl_deficit<'c: 'info, 'info>(
             &ctx.accounts.token_program,
             &ctx.accounts.drift_signer,
             state,
+            &mint,
         )?;
 
         // reload the spot market vault balance so it's up-to-date
@@ -1023,6 +1027,7 @@ pub fn handle_resolve_perp_pnl_deficit<'c: 'info, 'info>(
             &ctx.accounts.drift_signer,
             state.signer_nonce,
             pay_from_insurance,
+            &mint,
         )?;
 
         validate!(
@@ -1065,17 +1070,20 @@ pub fn handle_resolve_perp_bankruptcy<'c: 'info, 'info>(
     let liquidator = &mut load_mut!(ctx.accounts.liquidator)?;
     let state = &ctx.accounts.state;
 
+    let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
     let AccountMaps {
         perp_market_map,
         spot_market_map,
         mut oracle_map,
     } = load_maps(
-        &mut ctx.remaining_accounts.iter().peekable(),
+        remaining_accounts_iter,
         &get_writable_perp_market_set(market_index),
         &get_writable_spot_market_set(quote_spot_market_index),
         clock.slot,
         Some(state.oracle_guard_rails),
     )?;
+
+    let mint = get_token_mint(remaining_accounts_iter)?;
 
     {
         let spot_market = &mut spot_market_map.get_ref_mut(&quote_spot_market_index)?;
@@ -1087,6 +1095,7 @@ pub fn handle_resolve_perp_bankruptcy<'c: 'info, 'info>(
             &ctx.accounts.token_program,
             &ctx.accounts.drift_signer,
             state,
+            &mint,
         )?;
 
         // reload the spot market vault balance so it's up-to-date
@@ -1127,6 +1136,7 @@ pub fn handle_resolve_perp_bankruptcy<'c: 'info, 'info>(
             &ctx.accounts.drift_signer,
             state.signer_nonce,
             pay_from_insurance,
+            &mint,
         )?;
 
         validate!(
@@ -1171,17 +1181,20 @@ pub fn handle_resolve_spot_bankruptcy<'c: 'info, 'info>(
     let user = &mut load_mut!(ctx.accounts.user)?;
     let liquidator = &mut load_mut!(ctx.accounts.liquidator)?;
 
+    let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
     let AccountMaps {
         perp_market_map,
         spot_market_map,
         mut oracle_map,
     } = load_maps(
-        &mut ctx.remaining_accounts.iter().peekable(),
+        remaining_accounts_iter,
         &MarketSet::new(),
         &get_writable_spot_market_set(market_index),
         clock.slot,
         Some(state.oracle_guard_rails),
     )?;
+
+    let mint = get_token_mint(remaining_accounts_iter)?;
 
     {
         let spot_market = &mut spot_market_map.get_ref_mut(&market_index)?;
@@ -1193,6 +1206,7 @@ pub fn handle_resolve_spot_bankruptcy<'c: 'info, 'info>(
             &ctx.accounts.token_program,
             &ctx.accounts.drift_signer,
             state,
+            &mint,
         )?;
 
         // reload the spot market vault balance so it's up-to-date
@@ -1225,6 +1239,7 @@ pub fn handle_resolve_spot_bankruptcy<'c: 'info, 'info>(
             &ctx.accounts.drift_signer,
             ctx.accounts.state.signer_nonce,
             pay_from_insurance,
+            &mint,
         )?;
 
         validate!(
@@ -1424,12 +1439,15 @@ pub fn handle_update_perp_bid_ask_twap<'c: 'info, 'info>(
 #[access_control(
     withdraw_not_paused(&ctx.accounts.state)
 )]
-pub fn handle_settle_revenue_to_insurance_fund(
-    ctx: Context<SettleRevenueToInsuranceFund>,
+pub fn handle_settle_revenue_to_insurance_fund<'c: 'info, 'info>(
+    ctx: Context<'_, '_, 'c, 'info, SettleRevenueToInsuranceFund<'info>>,
     spot_market_index: u16,
 ) -> Result<()> {
     let state = &ctx.accounts.state;
     let spot_market = &mut load_mut!(ctx.accounts.spot_market)?;
+
+    let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
+    let mint = get_token_mint(remaining_accounts_iter)?;
 
     validate!(
         spot_market_index == spot_market.market_index,
@@ -1480,6 +1498,7 @@ pub fn handle_settle_revenue_to_insurance_fund(
         &ctx.accounts.drift_signer,
         state.signer_nonce,
         token_amount,
+        &mint,
     )?;
 
     // reload the spot market vault balance so it's up-to-date

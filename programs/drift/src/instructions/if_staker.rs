@@ -4,6 +4,7 @@ use anchor_spl::token_interface::{TokenAccount, TokenInterface};
 use crate::controller::insurance::transfer_protocol_insurance_fund_stake;
 use crate::error::ErrorCode;
 use crate::instructions::constraints::*;
+use crate::optional_accounts::get_token_mint;
 use crate::state::insurance_fund_stake::{InsuranceFundStake, ProtocolIfSharesTransferConfig};
 use crate::state::paused_operations::InsuranceFundOperation;
 use crate::state::perp_market::MarketStatus;
@@ -41,8 +42,8 @@ pub fn handle_initialize_insurance_fund_stake(
     Ok(())
 }
 
-pub fn handle_add_insurance_fund_stake(
-    ctx: Context<AddInsuranceFundStake>,
+pub fn handle_add_insurance_fund_stake<'c: 'info, 'info>(
+    ctx: Context<'_, '_, 'c, 'info, AddInsuranceFundStake<'info>>,
     market_index: u16,
     amount: u64,
 ) -> Result<()> {
@@ -56,6 +57,9 @@ pub fn handle_add_insurance_fund_stake(
     let user_stats = &mut load_mut!(ctx.accounts.user_stats)?;
     let spot_market = &mut load_mut!(ctx.accounts.spot_market)?;
     let state = &ctx.accounts.state;
+
+    let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
+    let mint = get_token_mint(remaining_accounts_iter)?;
 
     validate!(
         !spot_market.is_insurance_fund_operation_paused(InsuranceFundOperation::Add),
@@ -92,6 +96,7 @@ pub fn handle_add_insurance_fund_stake(
             &ctx.accounts.token_program,
             &ctx.accounts.drift_signer,
             state,
+            &mint,
         )?;
 
         // reload the vault balances so they're up-to-date
@@ -118,6 +123,7 @@ pub fn handle_add_insurance_fund_stake(
         &ctx.accounts.insurance_fund_vault,
         &ctx.accounts.authority,
         amount,
+        &mint,
     )?;
 
     Ok(())
@@ -214,8 +220,8 @@ pub fn handle_cancel_request_remove_insurance_fund_stake(
 #[access_control(
     withdraw_not_paused(&ctx.accounts.state)
 )]
-pub fn handle_remove_insurance_fund_stake(
-    ctx: Context<RemoveInsuranceFundStake>,
+pub fn handle_remove_insurance_fund_stake<'c: 'info, 'info>(
+    ctx: Context<'_, '_, 'c, 'info, RemoveInsuranceFundStake<'info>>,
     market_index: u16,
 ) -> Result<()> {
     let clock = Clock::get()?;
@@ -224,6 +230,9 @@ pub fn handle_remove_insurance_fund_stake(
     let user_stats = &mut load_mut!(ctx.accounts.user_stats)?;
     let spot_market = &mut load_mut!(ctx.accounts.spot_market)?;
     let state = &ctx.accounts.state;
+
+    let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
+    let mint = get_token_mint(remaining_accounts_iter)?;
 
     validate!(
         !spot_market.is_insurance_fund_operation_paused(InsuranceFundOperation::Remove),
@@ -259,6 +268,7 @@ pub fn handle_remove_insurance_fund_stake(
         &ctx.accounts.drift_signer,
         state.signer_nonce,
         amount,
+        &mint,
     )?;
 
     ctx.accounts.insurance_fund_vault.reload()?;

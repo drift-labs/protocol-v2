@@ -8,7 +8,7 @@ use crate::state::spot_market::SpotMarket;
 
 use crate::{validate, PositionDirection};
 
-use anchor_lang::prelude::{Account, InterfaceAccount};
+use anchor_lang::prelude::InterfaceAccount;
 
 use anchor_spl::token_interface::TokenAccount;
 use arrayref::array_ref;

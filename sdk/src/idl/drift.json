@@ -12189,6 +12189,11 @@
       "code": 6275,
       "name": "OracleWrongVaaOwner",
       "msg": "Oracle vaa owner must be wormhole program"
+    },
+    {
+      "code": 6276,
+      "name": "NonZeroTransferFee",
+      "msg": "Non zero transfer fee"
     }
   ],
   "metadata": {
