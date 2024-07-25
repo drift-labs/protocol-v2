@@ -10,6 +10,16 @@
 			"outputs": [
 				"{workspaceRoot}/dist"
 			]
+		},
+		"link": {
+			"executor": "nx:run-commands",
+			"options": {
+				"command": "bun link",
+				"cwd": "drift-common/protocol/sdk"
+			},
+			"dependsOn": [
+				"build"
+			]
 		}
 	}
 }
