@@ -1,9 +1,10 @@
 use anchor_lang::prelude::*;
-use anchor_spl::token::{Token, TokenAccount};
+use anchor_spl::token_interface::{TokenAccount, TokenInterface};
 
 use crate::controller::insurance::transfer_protocol_insurance_fund_stake;
 use crate::error::ErrorCode;
 use crate::instructions::constraints::*;
+use crate::optional_accounts::get_token_mint;
 use crate::state::insurance_fund_stake::{InsuranceFundStake, ProtocolIfSharesTransferConfig};
 use crate::state::paused_operations::InsuranceFundOperation;
 use crate::state::perp_market::MarketStatus;
@@ -41,8 +42,8 @@ pub fn handle_initialize_insurance_fund_stake(
     Ok(())
 }
 
-pub fn handle_add_insurance_fund_stake(
-    ctx: Context<AddInsuranceFundStake>,
+pub fn handle_add_insurance_fund_stake<'c: 'info, 'info>(
+    ctx: Context<'_, '_, 'c, 'info, AddInsuranceFundStake<'info>>,
     market_index: u16,
     amount: u64,
 ) -> Result<()> {
@@ -56,6 +57,9 @@ pub fn handle_add_insurance_fund_stake(
     let user_stats = &mut load_mut!(ctx.accounts.user_stats)?;
     let spot_market = &mut load_mut!(ctx.accounts.spot_market)?;
     let state = &ctx.accounts.state;
+
+    let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
+    let mint = get_token_mint(remaining_accounts_iter)?;
 
     validate!(
         !spot_market.is_insurance_fund_operation_paused(InsuranceFundOperation::Add),
@@ -92,6 +96,7 @@ pub fn handle_add_insurance_fund_stake(
             &ctx.accounts.token_program,
             &ctx.accounts.drift_signer,
             state,
+            &mint,
         )?;
 
         // reload the vault balances so they're up-to-date
@@ -118,6 +123,7 @@ pub fn handle_add_insurance_fund_stake(
         &ctx.accounts.insurance_fund_vault,
         &ctx.accounts.authority,
         amount,
+        &mint,
     )?;
 
     Ok(())
@@ -214,8 +220,8 @@ pub fn handle_cancel_request_remove_insurance_fund_stake(
 #[access_control(
     withdraw_not_paused(&ctx.accounts.state)
 )]
-pub fn handle_remove_insurance_fund_stake(
-    ctx: Context<RemoveInsuranceFundStake>,
+pub fn handle_remove_insurance_fund_stake<'c: 'info, 'info>(
+    ctx: Context<'_, '_, 'c, 'info, RemoveInsuranceFundStake<'info>>,
     market_index: u16,
 ) -> Result<()> {
     let clock = Clock::get()?;
@@ -224,6 +230,9 @@ pub fn handle_remove_insurance_fund_stake(
     let user_stats = &mut load_mut!(ctx.accounts.user_stats)?;
     let spot_market = &mut load_mut!(ctx.accounts.spot_market)?;
     let state = &ctx.accounts.state;
+
+    let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
+    let mint = get_token_mint(remaining_accounts_iter)?;
 
     validate!(
         !spot_market.is_insurance_fund_operation_paused(InsuranceFundOperation::Remove),
@@ -259,6 +268,7 @@ pub fn handle_remove_insurance_fund_stake(
         &ctx.accounts.drift_signer,
         state.signer_nonce,
         amount,
+        &mint,
     )?;
 
     ctx.accounts.insurance_fund_vault.reload()?;
@@ -368,13 +378,13 @@ pub struct AddInsuranceFundStake<'info> {
         seeds = [b"spot_market_vault".as_ref(), market_index.to_le_bytes().as_ref()],
         bump,
     )]
-    pub spot_market_vault: Box<Account<'info, TokenAccount>>,
+    pub spot_market_vault: Box<InterfaceAccount<'info, TokenAccount>>,
     #[account(
         mut,
         seeds = [b"insurance_fund_vault".as_ref(), market_index.to_le_bytes().as_ref()],
         bump,
     )]
-    pub insurance_fund_vault: Box<Account<'info, TokenAccount>>,
+    pub insurance_fund_vault: Box<InterfaceAccount<'info, TokenAccount>>,
 
     #[account(
         constraint = state.signer.eq(&drift_signer.key())
@@ -386,8 +396,8 @@ pub struct AddInsuranceFundStake<'info> {
         token::mint = insurance_fund_vault.mint,
         token::authority = authority
     )]
-    pub user_token_account: Box<Account<'info, TokenAccount>>,
-    pub token_program: Program<'info, Token>,
+    pub user_token_account: Box<InterfaceAccount<'info, TokenAccount>>,
+    pub token_program: Interface<'info, TokenInterface>,
 }
 
 #[derive(Accounts)]
@@ -414,7 +424,7 @@ pub struct RequestRemoveInsuranceFundStake<'info> {
         seeds = [b"insurance_fund_vault".as_ref(), market_index.to_le_bytes().as_ref()],
         bump,
     )]
-    pub insurance_fund_vault: Box<Account<'info, TokenAccount>>,
+    pub insurance_fund_vault: Box<InterfaceAccount<'info, TokenAccount>>,
 }
 
 #[derive(Accounts)]
@@ -442,7 +452,7 @@ pub struct RemoveInsuranceFundStake<'info> {
         seeds = [b"insurance_fund_vault".as_ref(), market_index.to_le_bytes().as_ref()],
         bump,
     )]
-    pub insurance_fund_vault: Box<Account<'info, TokenAccount>>,
+    pub insurance_fund_vault: Box<InterfaceAccount<'info, TokenAccount>>,
     #[account(
         constraint = state.signer.eq(&drift_signer.key())
     )]
@@ -453,8 +463,8 @@ pub struct RemoveInsuranceFundStake<'info> {
         token::mint = insurance_fund_vault.mint,
         token::authority = authority
     )]
-    pub user_token_account: Box<Account<'info, TokenAccount>>,
-    pub token_program: Program<'info, Token>,
+    pub user_token_account: Box<InterfaceAccount<'info, TokenAccount>>,
+    pub token_program: Interface<'info, TokenInterface>,
 }
 
 #[derive(Accounts)]
@@ -487,5 +497,5 @@ pub struct TransferProtocolIfShares<'info> {
         seeds = [b"insurance_fund_vault".as_ref(), market_index.to_le_bytes().as_ref()],
         bump,
     )]
-    pub insurance_fund_vault: Box<Account<'info, TokenAccount>>,
+    pub insurance_fund_vault: Box<InterfaceAccount<'info, TokenAccount>>,
 }

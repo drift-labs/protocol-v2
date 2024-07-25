@@ -746,6 +746,8 @@ export type SpotMarketAccount = {
 	fuelBoostTaker: number;
 	fuelBoostMaker: number;
 	fuelBoostInsurance: number;
+
+	tokenProgram: number;
 };
 
 export type PoolBalance = {

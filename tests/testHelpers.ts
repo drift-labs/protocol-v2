@@ -115,7 +115,8 @@ export async function mockOracleNoProgram(
 }
 
 export async function mockUSDCMint(
-	context: BankrunContextWrapper
+	context: BankrunContextWrapper,
+	tokenProgram = TOKEN_PROGRAM_ID
 ): Promise<Keypair> {
 	const fakeUSDCMint = anchor.web3.Keypair.generate();
 	const createUSDCMintAccountIx = SystemProgram.createAccount({
@@ -123,7 +124,7 @@ export async function mockUSDCMint(
 		newAccountPubkey: fakeUSDCMint.publicKey,
 		lamports: 10_000_000_000,
 		space: MintLayout.span,
-		programId: TOKEN_PROGRAM_ID,
+		programId: tokenProgram,
 	});
 	const initCollateralMintIx = createInitializeMintInstruction(
 		fakeUSDCMint.publicKey,
@@ -131,24 +132,14 @@ export async function mockUSDCMint(
 		// @ts-ignore
 		context.provider.wallet.publicKey,
 		// @ts-ignore
-		context.provider.wallet.publicKey
+		context.provider.wallet.publicKey,
+		tokenProgram
 	);
 
 	const fakeUSDCTx = new Transaction();
 	fakeUSDCTx.add(createUSDCMintAccountIx);
 	fakeUSDCTx.add(initCollateralMintIx);
 	await context.sendTransaction(fakeUSDCTx, [fakeUSDCMint]);
-	// await sendAndConfirmTransaction(
-	// 	provider.connection,
-	// 	fakeUSDCTx,
-	// 	// @ts-ignore
-	// 	[provider.wallet.payer, fakeUSDCMint],
-	// 	{
-	// 		skipPreflight: false,
-	// 		commitment: 'recent',
-	// 		preflightCommitment: 'recent',
-	// 	}
-	// );
 	return fakeUSDCMint;
 }
 
@@ -165,19 +156,24 @@ export async function mockUserUSDCAccount(
 		owner = context.context.payer.publicKey;
 	}
 
+	const tokenProgram = (
+		await context.connection.getAccountInfo(fakeUSDCMint.publicKey)
+	).owner;
+
 	const createUSDCTokenAccountIx = SystemProgram.createAccount({
 		fromPubkey: context.context.payer.publicKey,
 		newAccountPubkey: userUSDCAccount.publicKey,
 		lamports: 100_000_000,
 		space: AccountLayout.span,
-		programId: TOKEN_PROGRAM_ID,
+		programId: tokenProgram,
 	});
 	fakeUSDCTx.add(createUSDCTokenAccountIx);
 
 	const initUSDCTokenAccountIx = createInitializeAccountInstruction(
 		userUSDCAccount.publicKey,
 		fakeUSDCMint.publicKey,
-		owner
+		owner,
+		tokenProgram
 	);
 	fakeUSDCTx.add(initUSDCTokenAccountIx);
 
@@ -186,7 +182,9 @@ export async function mockUserUSDCAccount(
 		userUSDCAccount.publicKey,
 		// @ts-ignore
 		context.context.payer.publicKey,
-		usdcMintAmount.toNumber()
+		usdcMintAmount.toNumber(),
+		undefined,
+		tokenProgram
 	);
 	fakeUSDCTx.add(mintToUserAccountTx);
 
@@ -243,12 +241,18 @@ export async function mintUSDCToUser(
 	context: BankrunContextWrapper
 ): Promise<void> {
 	const tx = new Transaction();
+	const tokenProgram = (
+		await context.connection.getAccountInfo(fakeUSDCMint.publicKey)
+	).owner;
+
 	const mintToUserAccountTx = await createMintToInstruction(
 		fakeUSDCMint.publicKey,
 		userUSDCAccount,
 		// @ts-ignore
 		context.provider.wallet.publicKey,
-		usdcMintAmount.toNumber()
+		usdcMintAmount.toNumber(),
+		undefined,
+		tokenProgram
 	);
 	tx.add(mintToUserAccountTx);
 

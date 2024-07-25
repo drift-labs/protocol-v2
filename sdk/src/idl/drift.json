@@ -1676,6 +1676,47 @@
       ]
     },
     {
+      "name": "liquidatePerpWithFill",
+      "accounts": [
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "liquidator",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "liquidatorStats",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "user",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "userStats",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "marketIndex",
+          "type": "u16"
+        }
+      ]
+    },
+    {
       "name": "liquidateSpot",
       "accounts": [
         {
@@ -9833,6 +9874,9 @@
           },
           {
             "name": "PlaceAndTake"
+          },
+          {
+            "name": "Liquidation"
           }
         ]
       }
@@ -12764,6 +12808,11 @@
       "code": 6281,
       "name": "InvalidOpenbookV2Market",
       "msg": "InvalidOpenbookV2Market"
+    },
+    {
+      "code": 6282,
+      "name": "LiquidationOrderFailedToFill",
+      "msg": "Liquidation order failed to fill"
     }
   ],
   "metadata": {

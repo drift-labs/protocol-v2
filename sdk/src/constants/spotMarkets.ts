@@ -67,6 +67,17 @@ export const DevnetSpotMarkets: SpotMarketConfig[] = [
 		pythFeedId:
 			'0xe62df6c8b4a85fe1a67db44dc12de5db330f7ac66b72dc658afedf0f4a415b43',
 	},
+	{
+		symbol: 'PYUSD',
+		marketIndex: 3,
+		oracle: new PublicKey('HpMoKp3TCd3QT4MWYUKk2zCBwmhr5Df45fB6wdxYqEeh'),
+		oracleSource: OracleSource.PYTH_PULL,
+		mint: new PublicKey('GLfF72ZCUnS6N9iDJw8kedHzd6WFVf3VbpwdKKy76FRk'),
+		precision: new BN(10).pow(SIX),
+		precisionExp: SIX,
+		pythFeedId:
+			'0xc1da1b73d7f01e7ddd54b3766cf7fcd644395ad14f70aa706ec5384c59e76692',
+	},
 ];
 
 export const MainnetSpotMarkets: SpotMarketConfig[] = [
