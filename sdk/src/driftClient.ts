@@ -7064,7 +7064,10 @@ export class DriftClient {
 
 	public getSwitchboardOnDemandProgram(): Program30<Idl30> {
 		if (this.sbOnDemandProgram === undefined) {
-			this.sbOnDemandProgram = new Program30(switchboardOnDemandIdl as Idl30);
+			this.sbOnDemandProgram = new Program30(
+				switchboardOnDemandIdl as Idl30,
+				this.provider
+			);
 		}
 		return this.sbOnDemandProgram;
 	}
@@ -7304,6 +7307,24 @@ export class DriftClient {
 			return undefined;
 		}
 		return pullIx;
+	}
+
+	public async postSwitchboardOnDemandUpdate(
+		feed: PublicKey,
+		numSignatures = 3
+	): Promise<TransactionSignature> {
+		const pullIx = await this.getPostSwitchboardOnDemandUpdateAtomicIx(
+			feed,
+			numSignatures
+		);
+		if (!pullIx) {
+			return undefined;
+		}
+		const tx = await this.buildTransaction(pullIx, undefined, 0, [
+			await this.fetchMarketLookupTableAccount(),
+		]);
+		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+		return txSig;
 	}
 
 	private async getBuildEncodedVaaIxs(
