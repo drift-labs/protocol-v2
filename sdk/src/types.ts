@@ -44,8 +44,9 @@ export enum PerpOperation {
 export enum SpotOperation {
 	UPDATE_CUMULATIVE_INTEREST = 1,
 	FILL = 2,
-	WITHDRAW = 4,
-	LIQUIDATION = 8,
+	DEPOSIT = 4,
+	WITHDRAW = 8,
+	LIQUIDATION = 16,
 }
 
 export enum InsuranceFundOperation {
@@ -636,6 +637,10 @@ export type PerpMarketAccount = {
 	quoteSpotMarketIndex: number;
 	feeAdjustment: number;
 	pausedOperations: number;
+
+	fuelBoostTaker: number;
+	fuelBoostMaker: number;
+	fuelBoostPosition: number;
 };
 
 export type HistoricalOracleData = {
@@ -734,6 +739,12 @@ export type SpotMarketAccount = {
 
 	maxTokenBorrowsFraction: number;
 	minBorrowRate: number;
+
+	fuelBoostDeposits: number;
+	fuelBoostBorrows: number;
+	fuelBoostTaker: number;
+	fuelBoostMaker: number;
+	fuelBoostInsurance: number;
 
 	tokenProgram: number;
 };
@@ -878,6 +889,17 @@ export type UserStatsAccount = {
 	isReferrer: boolean;
 	authority: PublicKey;
 	ifStakedQuoteAssetAmount: BN;
+
+	lastFuelIfBonusUpdateTs: number; // u32 onchain
+
+	fuelInsurance: number;
+	fuelDeposits: number;
+	fuelBorrows: number;
+	fuelPositions: number;
+	fuelTaker: number;
+	fuelMaker: number;
+
+	ifStakedGovTokenAmount: BN;
 };
 
 export type UserAccount = {
@@ -907,6 +929,7 @@ export type UserAccount = {
 	hasOpenOrder: boolean;
 	openAuctions: number;
 	hasOpenAuction: boolean;
+	lastFuelBonusUpdateTs: number;
 };
 
 export type SpotPosition = {
@@ -1159,6 +1182,23 @@ export type PhoenixV1FulfillmentConfigAccount = {
 	marketIndex: number;
 	fulfillmentType: SpotFulfillmentType;
 	status: SpotFulfillmentStatus;
+};
+
+export type OpenbookV2FulfillmentConfigAccount = {
+	pubkey: PublicKey;
+	openbookV2ProgramId: PublicKey;
+	openbookV2Market: PublicKey;
+	openbookV2MarketAuthority: PublicKey;
+	openbookV2EventHeap: PublicKey;
+	openbookV2Bids: PublicKey;
+	openbookV2Asks: PublicKey;
+	openbookV2BaseVault: PublicKey;
+	openbookV2QuoteVault: PublicKey;
+	marketIndex: number;
+	fulfillmentType: SpotFulfillmentType;
+	status: SpotFulfillmentStatus;
+	// not actually on the account, just used to pass around remaining accounts in ts
+	remainingAccounts?: PublicKey[];
 };
 
 export type ReferrerNameAccount = {

@@ -873,7 +873,7 @@ dependencies = [
 
 [[package]]
 name = "drift"
-version = "2.85.0"
+version = "2.86.0"
 dependencies = [
  "ahash 0.8.6",
  "anchor-lang",
@@ -889,6 +889,7 @@ dependencies = [
  "num-derive 0.3.3",
  "num-integer",
  "num-traits",
+ "openbook-v2-light",
  "phoenix-v1",
  "pyth",
  "pyth-client",
@@ -1544,6 +1545,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "624a8340c38c1b80fd549087862da4ba43e08858af025b236e509b6649fc13d5"
 
 [[package]]
+name = "openbook-v2-light"
+version = "0.1.0"
+dependencies = [
+ "anchor-lang",
+ "borsh 0.10.3",
+ "bytemuck",
+]
+
+[[package]]
 name = "parking_lot"
 version = "0.12.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1690,7 +1700,7 @@ checksum = "44de48029c54ec1ca570786b5baeb906b0fc2409c8e0145585e287ee7a526c72"
 [[package]]
 name = "pyth-solana-receiver-sdk"
 version = "0.3.0"
-source = "git+https://github.com/drift-labs/pyth-crosschain?rev=04cf2c#04cf2c01642a2ce0a0f620652034755d3e81d576"
+source = "git+https://github.com/drift-labs/pyth-crosschain?rev=3e8a24ecd0bcf22b787313e2020f4186bb22c729#3e8a24ecd0bcf22b787313e2020f4186bb22c729"
 dependencies = [
  "anchor-lang",
  "hex",
@@ -1701,7 +1711,7 @@ dependencies = [
 [[package]]
 name = "pythnet-sdk"
 version = "2.1.0"
-source = "git+https://github.com/drift-labs/pyth-crosschain?rev=04cf2c#04cf2c01642a2ce0a0f620652034755d3e81d576"
+source = "git+https://github.com/drift-labs/pyth-crosschain?rev=3e8a24ecd0bcf22b787313e2020f4186bb22c729#3e8a24ecd0bcf22b787313e2020f4186bb22c729"
 dependencies = [
  "anchor-lang",
  "bincode",

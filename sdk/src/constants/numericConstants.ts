@@ -90,6 +90,7 @@ export const ONE_HOUR = new BN(60 * 60);
 export const ONE_YEAR = new BN(31536000);
 
 export const QUOTE_SPOT_MARKET_INDEX = 0;
+export const GOV_SPOT_MARKET_INDEX = 15;
 
 export const LAMPORTS_PRECISION = new BN(LAMPORTS_PER_SOL);
 export const LAMPORTS_EXP = new BN(Math.log10(LAMPORTS_PER_SOL));
@@ -105,3 +106,6 @@ export const IDLE_TIME_SLOTS = 9000;
 export const SLOT_TIME_ESTIMATE_MS = 400;
 
 export const DUST_POSITION_SIZE = QUOTE_PRECISION.divn(100); // Dust position is any position smaller than 1c
+
+export const FUEL_WINDOW = new BN(60 * 60 * 24 * 28); // 28 days
+export const FUEL_START_TS = new BN(1722384000); // unix timestamp

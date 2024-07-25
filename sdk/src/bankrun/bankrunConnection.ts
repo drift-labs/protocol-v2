@@ -118,6 +118,19 @@ export class BankrunContextWrapper {
 		);
 		await this.context.setClock(newClock);
 	}
+
+	async setTimestamp(unix_timestamp: number): Promise<void> {
+		const currentClock = await this.context.banksClient.getClock();
+		const newUnixTimestamp = BigInt(unix_timestamp);
+		const newClock = new Clock(
+			currentClock.slot,
+			currentClock.epochStartTimestamp,
+			currentClock.epoch,
+			currentClock.leaderScheduleEpoch,
+			newUnixTimestamp
+		);
+		await this.context.setClock(newClock);
+	}
 }
 
 export class BankrunConnection {
