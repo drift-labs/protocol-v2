@@ -2046,7 +2046,7 @@ pub struct UpdateUserGovTokenInsuranceStake<'info> {
         seeds = [b"insurance_fund_vault".as_ref(), 15_u16.to_le_bytes().as_ref()],
         bump,
     )]
-    pub insurance_fund_vault: Box<Account<'info, TokenAccount>>,
+    pub insurance_fund_vault: Box<InterfaceAccount<'info, TokenAccount>>,
 }
 
 #[derive(Accounts)]
