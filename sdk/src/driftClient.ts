@@ -148,7 +148,7 @@ import { PythSolanaReceiver } from '@pythnetwork/pyth-solana-receiver/lib/idl/py
 import { getFeedIdUint8Array, trimFeedId } from './util/pythPullOracleUtils';
 import { isVersionedTransaction } from './tx/utils';
 import pythSolanaReceiverIdl from './idl/pyth_solana_receiver.json';
-import { PullFeed } from '@switchboard-xyz/on-demand';
+import { asV0Tx, PullFeed } from '@switchboard-xyz/on-demand';
 import switchboardOnDemandIdl from './idl/switchboard_on_demand_30.json';
 
 type RemainingAccountParams = {
@@ -7320,10 +7320,18 @@ export class DriftClient {
 		if (!pullIx) {
 			return undefined;
 		}
-		const tx = await this.buildTransaction(pullIx, undefined, 0, [
-			await this.fetchMarketLookupTableAccount(),
-		]);
-		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+		const tx = await asV0Tx({
+			connection: this.connection,
+			ixs: [pullIx],
+			payer: this.wallet.publicKey,
+			computeUnitLimitMultiple: 1.3,
+			lookupTables: [await this.fetchMarketLookupTableAccount()],
+		});
+		const { txSig } = await this.sendTransaction(tx, [], {
+			commitment: 'processed',
+			skipPreflight: true,
+			maxRetries: 0,
+		});
 		return txSig;
 	}
 
