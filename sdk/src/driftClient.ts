@@ -5,6 +5,7 @@ import {
 	Program,
 	ProgramAccount,
 } from '@coral-xyz/anchor';
+import { Idl as Idl30, Program as Program30 } from '@coral-xyz/anchor-30';
 import bs58 from 'bs58';
 import {
 	ASSOCIATED_TOKEN_PROGRAM_ID,
@@ -147,6 +148,8 @@ import { PythSolanaReceiver } from '@pythnetwork/pyth-solana-receiver/lib/idl/py
 import { getFeedIdUint8Array, trimFeedId } from './util/pythPullOracleUtils';
 import { isVersionedTransaction } from './tx/utils';
 import pythSolanaReceiverIdl from './idl/pyth_solana_receiver.json';
+import { PullFeed } from '@switchboard-xyz/on-demand';
+import switchboardOnDemandIdl from './idl/switchboard_on_demand_30.json';
 
 type RemainingAccountParams = {
 	userAccounts: UserAccount[];
@@ -198,6 +201,8 @@ export class DriftClient {
 
 	receiverProgram?: Program<PythSolanaReceiver>;
 	wormholeProgram?: Program<WormholeCoreBridgeSolana>;
+	sbOnDemandProgram?: Program30<Idl30>;
+	sbProgramFeedConfigs?: Map<string, any>;
 
 	public get isSubscribed() {
 		return this._isSubscribed && this.accountSubscriber.isSubscribed;
@@ -7057,6 +7062,16 @@ export class DriftClient {
 		return this.receiverProgram;
 	}
 
+	public getSwitchboardOnDemandProgram(): Program30<Idl30> {
+		if (this.sbOnDemandProgram === undefined) {
+			this.sbOnDemandProgram = new Program30(
+				switchboardOnDemandIdl as Idl30,
+				this.provider
+			);
+		}
+		return this.sbOnDemandProgram;
+	}
+
 	public async postPythPullOracleUpdateAtomic(
 		vaaString: string,
 		feedId: string
@@ -7268,6 +7283,48 @@ export class DriftClient {
 				},
 			}
 		);
+	}
+
+	public async getPostSwitchboardOnDemandUpdateAtomicIx(
+		feed: PublicKey,
+		numSignatures = 3
+	): Promise<TransactionInstruction | undefined> {
+		const program = this.getSwitchboardOnDemandProgram();
+		const feedAccount = new PullFeed(program, feed);
+		if (!this.sbProgramFeedConfigs) {
+			this.sbProgramFeedConfigs = new Map();
+		}
+		if (!this.sbProgramFeedConfigs.has(feedAccount.pubkey.toString())) {
+			const feedConfig = await feedAccount.loadConfigs();
+			this.sbProgramFeedConfigs.set(feed.toString(), feedConfig);
+		}
+
+		const [pullIx, _responses, success] = await feedAccount.fetchUpdateIx({
+			numSignatures,
+			feedConfigs: this.sbProgramFeedConfigs.get(feed.toString()),
+		});
+		if (!success) {
+			return undefined;
+		}
+		return pullIx;
+	}
+
+	public async postSwitchboardOnDemandUpdate(
+		feed: PublicKey,
+		numSignatures = 3
+	): Promise<TransactionSignature> {
+		const pullIx = await this.getPostSwitchboardOnDemandUpdateAtomicIx(
+			feed,
+			numSignatures
+		);
+		if (!pullIx) {
+			return undefined;
+		}
+		const tx = await this.buildTransaction(pullIx, undefined, 0, [
+			await this.fetchMarketLookupTableAccount(),
+		]);
+		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+		return txSig;
 	}
 
 	private async getBuildEncodedVaaIxs(
