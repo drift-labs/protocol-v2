@@ -4,6 +4,7 @@ use crate::math::auction::is_amm_available_liquidity_source;
 use crate::math::casting::Cast;
 use crate::math::matching::do_orders_cross;
 use crate::math::safe_unwrap::SafeUnwrap;
+use crate::state::fill_mode::FillMode;
 use crate::state::fulfillment::{PerpFulfillmentMethod, SpotFulfillmentMethod};
 use crate::state::perp_market::AMM;
 use crate::state::user::Order;
@@ -22,6 +23,7 @@ pub fn determine_perp_fulfillment_methods(
     amm_is_available: bool,
     slot: u64,
     min_auction_duration: u8,
+    fill_mode: FillMode,
 ) -> DriftResult<Vec<PerpFulfillmentMethod>> {
     if order.post_only {
         return determine_perp_fulfillment_methods_for_maker(
@@ -33,6 +35,7 @@ pub fn determine_perp_fulfillment_methods(
             amm_is_available,
             slot,
             min_auction_duration,
+            fill_mode,
         );
     }
 
@@ -40,7 +43,7 @@ pub fn determine_perp_fulfillment_methods(
 
     let can_fill_with_amm = amm_is_available
         && valid_oracle_price.is_some()
-        && is_amm_available_liquidity_source(order, min_auction_duration, slot)?;
+        && is_amm_available_liquidity_source(order, min_auction_duration, slot, fill_mode)?;
 
     let maker_direction = order.direction.opposite();
 
@@ -104,12 +107,13 @@ fn determine_perp_fulfillment_methods_for_maker(
     amm_is_available: bool,
     slot: u64,
     min_auction_duration: u8,
+    fill_mode: FillMode,
 ) -> DriftResult<Vec<PerpFulfillmentMethod>> {
     let maker_direction = order.direction;
 
     let can_fill_with_amm = amm_is_available
         && valid_oracle_price.is_some()
-        && is_amm_available_liquidity_source(order, min_auction_duration, slot)?;
+        && is_amm_available_liquidity_source(order, min_auction_duration, slot, fill_mode)?;
 
     if !can_fill_with_amm {
         return Ok(vec![]);

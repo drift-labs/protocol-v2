@@ -1079,7 +1079,14 @@ pub fn fill_perp_order(
         return Ok((0, 0));
     }
 
-    validate_perp_fill_possible(state, user, order_index, slot, makers_and_referrer.0.len())?;
+    validate_perp_fill_possible(
+        state,
+        user,
+        order_index,
+        slot,
+        makers_and_referrer.0.len(),
+        fill_mode,
+    )?;
 
     let should_expire_order = should_expire_order_before_fill(user, order_index, now)?;
 
@@ -1567,6 +1574,7 @@ fn fulfill_perp_order(
             amm_is_available,
             slot,
             min_auction_duration,
+            fill_mode,
         )?
     };
 
