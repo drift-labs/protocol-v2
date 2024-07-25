@@ -4,7 +4,7 @@
 		"build": {
 			"executor": "nx:run-commands",
 			"options": {
-				"command": "bun install && bun run build && bun link",
+				"command": "bun run build && bun link",
 				"cwd": "drift-common/protocol/sdk"
 			},
 			"outputs": [
