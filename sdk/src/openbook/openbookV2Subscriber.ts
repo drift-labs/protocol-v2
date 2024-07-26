@@ -67,15 +67,13 @@ export class OpenbookV2Subscriber implements L2OrderBookGenerator {
 		if (this.subscriptionType === 'websocket') {
 			this.marketCallbackId = this.connection.onAccountChange(
 				this.marketAddress,
-				(accountInfo, _) => {
+				async (accountInfo, _) => {
 					const marketRaw = openbookV2Program.coder.accounts.decode(
 						'Market',
 						accountInfo.data
 					);
 					this.market = new Market(this.client, this.marketAddress, marketRaw);
-					(async () => {
-						await this.market.loadOrderBook();
-					})();
+					await this.market.loadOrderBook();
 				}
 			);
 		} else {
