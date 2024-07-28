@@ -118,7 +118,8 @@ import { UserStats } from './userStats';
 import { isSpotPositionAvailable } from './math/spotPosition';
 import { calculateMarketMaxAvailableInsurance } from './math/market';
 import { fetchUserStatsAccount } from './accounts/fetch';
-import { castNumberToSpotPrecision, getTokenProgramForSpotMarket } from './math/spotMarket';
+import { castNumberToSpotPrecision } from './math/spotMarket';
+import { getTokenProgramForSpotMarket } from './addresses/pda';
 import {
 	JupiterClient,
 	QuoteResponse,

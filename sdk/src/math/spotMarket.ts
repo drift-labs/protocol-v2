@@ -8,8 +8,7 @@ import {
 import { calculateAssetWeight, calculateLiabilityWeight, getTokenAmount } from './spotBalance';
 import { MARGIN_PRECISION } from '../constants/numericConstants';
 import { numberToSafeBN } from './utils';
-import { PublicKey, ZERO } from '@drift-labs/sdk';
-import { TOKEN_2022_PROGRAM_ID, TOKEN_PROGRAM_ID } from '@solana/spl-token';
+import { ZERO } from '@drift-labs/sdk';
 
 export function castNumberToSpotPrecision(
 	value: number | BN,
@@ -58,7 +57,7 @@ export function calculateSpotMarketMarginRatio(
 }
 
 /**
- * Returns the maximum remaining deposit that can be made to the spot market. If the maxTokenDeposits on the market is zero then there is no limit and this function will also return zero. (so that needs to be checked seperately)
+ * Returns the maximum remaining deposit that can be made to the spot market. If the maxTokenDeposits on the market is zero then there is no limit and this function will also return zero. (so that needs to be checked)
  * @param market 
  * @returns 
  */
@@ -79,13 +78,4 @@ export function calculateMaxRemainingDeposit(
 	);
 
 	return marketMaxTokenDeposits.sub(totalDepositsTokenAmount);
-}
-
-export function getTokenProgramForSpotMarket(
-	spotMarketAccount: SpotMarketAccount
-): PublicKey {
-	if (spotMarketAccount.tokenProgram === 1) {
-		return TOKEN_2022_PROGRAM_ID;
-	}
-	return TOKEN_PROGRAM_ID;
 }
