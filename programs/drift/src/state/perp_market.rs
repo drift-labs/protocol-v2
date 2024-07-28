@@ -13,9 +13,9 @@ use crate::math::constants::{
 use crate::math::constants::{
     AMM_RESERVE_PRECISION_I128, AMM_TO_QUOTE_PRECISION_RATIO, BID_ASK_SPREAD_PRECISION,
     BID_ASK_SPREAD_PRECISION_U128, DEFAULT_REVENUE_SINCE_LAST_FUNDING_SPREAD_RETREAT,
-    LP_FEE_SLICE_DENOMINATOR, LP_FEE_SLICE_NUMERATOR, MARGIN_PRECISION_U128, PERCENTAGE_PRECISION,
-    PERCENTAGE_PRECISION_I128, PERCENTAGE_PRECISION_I64, PERCENTAGE_PRECISION_U64, PRICE_PRECISION,
-    SPOT_WEIGHT_PRECISION, TWENTY_FOUR_HOUR,
+    LP_FEE_SLICE_DENOMINATOR, LP_FEE_SLICE_NUMERATOR, MARGIN_PRECISION_U128, PEG_PRECISION,
+    PERCENTAGE_PRECISION, PERCENTAGE_PRECISION_I128, PERCENTAGE_PRECISION_I64,
+    PERCENTAGE_PRECISION_U64, PRICE_PRECISION, SPOT_WEIGHT_PRECISION, TWENTY_FOUR_HOUR,
 };
 use crate::math::helpers::get_proportion_i128;
 
@@ -588,6 +588,34 @@ impl PerpMarket {
 
     pub fn is_prediction_market(&self) -> bool {
         self.contract_type == ContractType::Prediction
+    }
+
+    pub fn get_quote_asset_reserve_prediction_market_bounds(
+        &self,
+        direction: PositionDirection,
+    ) -> DriftResult<(u128, u128)> {
+        let mut quote_asset_reserve_lower_bound = 0_u128;
+        let mut quote_asset_reserve_upper_bound = u128::MAX;
+
+        // for price [0,1] maintain following invariants:
+        if direction == PositionDirection::Long {
+            // lowest ask price is $0.05
+            // smallest one side of spread is $0.005
+            quote_asset_reserve_upper_bound = (self.amm.sqrt_k / 20 * self.amm.peg_multiplier
+                / PEG_PRECISION)
+                .max(self.amm.quote_asset_reserve + self.amm.sqrt_k / 200)
+        } else {
+            // highest bid price is $0.95
+            // smallest one side of spread is $0.005
+            quote_asset_reserve_lower_bound =
+                (self.amm.sqrt_k * 95 / 100 * self.amm.peg_multiplier / PEG_PRECISION)
+                    .min(self.amm.quote_asset_reserve - self.amm.sqrt_k / 200);
+        }
+
+        Ok((
+            quote_asset_reserve_lower_bound,
+            quote_asset_reserve_upper_bound,
+        ))
     }
 }
 

@@ -216,7 +216,7 @@ pub fn _update_amm(
         market.amm.last_oracle_valid = false;
     }
 
-    update_spreads(&mut market.amm, reserve_price_after)?;
+    update_spreads(market, reserve_price_after)?;
 
     Ok(amm_update_cost)
 }

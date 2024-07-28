@@ -1695,7 +1695,7 @@ fn recenter_amm_1() {
     let _current_peg = perp_market.amm.peg_multiplier;
 
     let new_k = (current_k * 900000) / 100;
-    recenter_perp_market_amm(&mut perp_market.amm, oracle_price_data.price as u128, new_k).unwrap();
+    recenter_perp_market_amm(&mut perp_market, oracle_price_data.price as u128, new_k).unwrap();
 
     assert_eq!(perp_market.amm.sqrt_k, new_k);
     assert_eq!(
@@ -1798,7 +1798,7 @@ fn recenter_amm_2() {
     assert_eq!(perp_market.amm.user_lp_shares, current_k - 1);
     assert_eq!(perp_market.amm.get_lower_bound_sqrt_k().unwrap(), current_k);
 
-    recenter_perp_market_amm(&mut perp_market.amm, oracle_price_data.price as u128, new_k).unwrap();
+    recenter_perp_market_amm(&mut perp_market, oracle_price_data.price as u128, new_k).unwrap();
 
     assert_eq!(perp_market.amm.sqrt_k, new_k);
     assert_eq!(
@@ -1923,7 +1923,7 @@ fn test_move_amm() {
 
     // test correction
     move_price(
-        &mut perp_market.amm,
+        &mut perp_market,
         current_bar * inc_numerator / BASE_PRECISION,
         // current_qar * inc_numerator / BASE_PRECISION,
         65025333363567459347, // pass in exact amount that reconciles

@@ -16,8 +16,7 @@ use crate::math::constants::{
     PRICE_PRECISION_I64,
 };
 use crate::math::safe_math::SafeMath;
-
-use crate::state::perp_market::AMM;
+use crate::state::perp_market::{ContractType, PerpMarket, AMM};
 use crate::validate;
 
 #[cfg(test)]
@@ -470,39 +469,57 @@ pub fn get_spread_reserves(amm: &AMM, direction: PositionDirection) -> DriftResu
 }
 
 pub fn calculate_spread_reserves(
-    amm: &AMM,
+    market: &PerpMarket,
     direction: PositionDirection,
 ) -> DriftResult<(u128, u128)> {
     let spread = match direction {
-        PositionDirection::Long => amm.long_spread,
-        PositionDirection::Short => amm.short_spread,
+        PositionDirection::Long => market.amm.long_spread,
+        PositionDirection::Short => market.amm.short_spread,
     };
 
     let spread_with_offset: i32 = if direction == PositionDirection::Short {
-        (-spread.cast::<i32>()?).safe_add(amm.reference_price_offset)?
+        (-spread.cast::<i32>()?).safe_add(market.amm.reference_price_offset)?
     } else {
-        spread.cast::<i32>()?.safe_add(amm.reference_price_offset)?
+        spread
+            .cast::<i32>()?
+            .safe_add(market.amm.reference_price_offset)?
     };
 
     let quote_asset_reserve_delta = if spread_with_offset.abs() > 1 {
         let quote_reserve_divisor =
             BID_ASK_SPREAD_PRECISION_I128 / (spread_with_offset / 2).cast::<i128>()?;
-        amm.quote_asset_reserve
+        market
+            .amm
+            .quote_asset_reserve
             .cast::<i128>()?
             .safe_div(quote_reserve_divisor)?
     } else {
-        0
+        0_i128
     };
 
-    let quote_asset_reserve = if quote_asset_reserve_delta > 0 {
-        amm.quote_asset_reserve
+    let mut quote_asset_reserve = if quote_asset_reserve_delta > 0 {
+        market
+            .amm
+            .quote_asset_reserve
             .safe_add(quote_asset_reserve_delta.unsigned_abs())?
     } else {
-        amm.quote_asset_reserve
+        market
+            .amm
+            .quote_asset_reserve
             .safe_sub(quote_asset_reserve_delta.unsigned_abs())?
     };
 
-    let invariant_sqrt_u192 = U192::from(amm.sqrt_k);
+    if market.contract_type == ContractType::Prediction {
+        let (quote_asset_reserve_lower_bound, quote_asset_reserve_upper_bound) =
+            market.get_quote_asset_reserve_prediction_market_bounds(direction)?;
+
+        quote_asset_reserve = quote_asset_reserve.clamp(
+            quote_asset_reserve_lower_bound,
+            quote_asset_reserve_upper_bound,
+        );
+    }
+
+    let invariant_sqrt_u192 = U192::from(market.amm.sqrt_k);
     let invariant = invariant_sqrt_u192.safe_mul(invariant_sqrt_u192)?;
 
     let base_asset_reserve = invariant

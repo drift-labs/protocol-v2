@@ -507,7 +507,7 @@ pub fn update_position_with_base_asset_amount(
         market.amm.base_asset_amount_with_amm
     )?;
 
-    controller::amm::update_spread_reserves(&mut market.amm)?;
+    controller::amm::update_spread_reserves(market)?;
 
     Ok((quote_asset_amount, quote_asset_amount_surplus, pnl))
 }
