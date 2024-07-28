@@ -3530,3 +3530,147 @@ mod calculate_user_equity {
         assert_eq!(net_usd_value, 1000000000);
     }
 }
+
+#[cfg(test)]
+mod calculate_perp_position_value_and_pnl_prediction_market {
+    
+
+    
+    
+    use crate::math::constants::{
+        QUOTE_PRECISION,
+        QUOTE_PRECISION_I64,
+    };
+    use crate::math::margin::{calculate_perp_position_value_and_pnl, MarginRequirementType};
+    
+    use crate::state::oracle::{OraclePriceData, StrictOraclePrice};
+    use crate::state::perp_market::{ContractType, PerpMarket};
+    
+    use crate::state::user::PerpPosition;
+    use crate::{
+        BASE_PRECISION_I64, MAX_PREDICTION_MARKET_PRICE_I64,
+        SPOT_WEIGHT_PRECISION,
+    };
+
+    #[test]
+    fn long() {
+        let market = PerpMarket {
+            market_index: 0,
+            margin_ratio_initial: 10_000,
+            margin_ratio_maintenance: 9_999,
+            contract_type: ContractType::Prediction,
+            unrealized_pnl_maintenance_asset_weight: SPOT_WEIGHT_PRECISION,
+            unrealized_pnl_initial_asset_weight: 0,
+            ..PerpMarket::default()
+        };
+
+        let oracle_price = MAX_PREDICTION_MARKET_PRICE_I64 / 4;
+
+        let oracle_price_data = OraclePriceData {
+            price: oracle_price,
+            confidence: 0,
+            delay: 2,
+            has_sufficient_number_of_data_points: true,
+        };
+
+        let market_position = PerpPosition {
+            market_index: 0,
+            base_asset_amount: -BASE_PRECISION_I64,
+            quote_asset_amount: QUOTE_PRECISION_I64 * 3 / 4,
+            ..PerpPosition::default()
+        };
+
+        let _margin_requirement_type = MarginRequirementType::Initial;
+
+        let strict_oracle_price = StrictOraclePrice::test(QUOTE_PRECISION_I64);
+
+        let (margin_requirement, upnl, _, _, _) = calculate_perp_position_value_and_pnl(
+            &market_position,
+            &market,
+            &oracle_price_data,
+            &strict_oracle_price,
+            MarginRequirementType::Initial,
+            0,
+            false,
+        )
+        .unwrap();
+
+        assert_eq!(margin_requirement, QUOTE_PRECISION * 3 / 4); //$.75
+        assert_eq!(upnl, 0); //0
+
+        let (margin_requirement, upnl, _, _, _) = calculate_perp_position_value_and_pnl(
+            &market_position,
+            &market,
+            &oracle_price_data,
+            &strict_oracle_price,
+            MarginRequirementType::Maintenance,
+            0,
+            false,
+        )
+        .unwrap();
+
+        assert_eq!(margin_requirement, 749925); //$.749925
+        assert_eq!(upnl, 500000); //0
+    }
+
+    #[test]
+    fn short() {
+        let market = PerpMarket {
+            market_index: 0,
+            margin_ratio_initial: 10_000,
+            margin_ratio_maintenance: 9_999,
+            contract_type: ContractType::Prediction,
+            unrealized_pnl_maintenance_asset_weight: SPOT_WEIGHT_PRECISION,
+            unrealized_pnl_initial_asset_weight: 0,
+            ..PerpMarket::default()
+        };
+
+        let oracle_price = MAX_PREDICTION_MARKET_PRICE_I64 * 3 / 4;
+
+        let oracle_price_data = OraclePriceData {
+            price: oracle_price,
+            confidence: 0,
+            delay: 2,
+            has_sufficient_number_of_data_points: true,
+        };
+
+        let market_position = PerpPosition {
+            market_index: 0,
+            base_asset_amount: BASE_PRECISION_I64,
+            quote_asset_amount: -QUOTE_PRECISION_I64 / 4,
+            ..PerpPosition::default()
+        };
+
+        let _margin_requirement_type = MarginRequirementType::Initial;
+
+        let strict_oracle_price = StrictOraclePrice::test(QUOTE_PRECISION_I64);
+
+        let (margin_requirement, upnl, _, _, _) = calculate_perp_position_value_and_pnl(
+            &market_position,
+            &market,
+            &oracle_price_data,
+            &strict_oracle_price,
+            MarginRequirementType::Initial,
+            0,
+            false,
+        )
+        .unwrap();
+
+        assert_eq!(margin_requirement, QUOTE_PRECISION * 3 / 4); //$.75
+        assert_eq!(upnl, 0); //0
+
+        let (margin_requirement, upnl, _, _, _) = calculate_perp_position_value_and_pnl(
+            &market_position,
+            &market,
+            &oracle_price_data,
+            &strict_oracle_price,
+            MarginRequirementType::Maintenance,
+            0,
+            false,
+        )
+        .unwrap();
+
+        assert_eq!(margin_requirement, 749925); //$.749925
+        assert_eq!(upnl, 500000); //0
+    }
+}
