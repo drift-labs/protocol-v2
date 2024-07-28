@@ -597,19 +597,24 @@ impl PerpMarket {
         let mut quote_asset_reserve_lower_bound = 0_u128;
         let mut quote_asset_reserve_upper_bound = u128::MAX;
 
+        let y_at_price_005_lower = 0;
+        let y_at_price_005_higher = u128::MAX;
+
         // for price [0,1] maintain following invariants:
         if direction == PositionDirection::Long {
             // lowest ask price is $0.05
             // smallest one side of spread is $0.005
-            quote_asset_reserve_upper_bound = (self.amm.sqrt_k / 20 * self.amm.peg_multiplier
-                / PEG_PRECISION)
-                .max(self.amm.quote_asset_reserve + self.amm.sqrt_k / 200)
+            quote_asset_reserve_lower_bound =
+                (self.amm.sqrt_k * 22 / 100 / self.amm.peg_multiplier).max(
+                    y_at_price_005_lower,
+                )
         } else {
             // highest bid price is $0.95
             // smallest one side of spread is $0.005
-            quote_asset_reserve_lower_bound =
-                (self.amm.sqrt_k * 95 / 100 * self.amm.peg_multiplier / PEG_PRECISION)
-                    .min(self.amm.quote_asset_reserve - self.amm.sqrt_k / 200);
+            quote_asset_reserve_upper_bound =
+                (self.amm.sqrt_k * 975 * PEG_PRECISION / 1000 / self.amm.peg_multiplier).min(
+                    y_at_price_005_higher,
+                );
         }
 
         Ok((

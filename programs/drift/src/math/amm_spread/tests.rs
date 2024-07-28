@@ -1516,4 +1516,53 @@ mod test {
         assert_eq!(long_spread, 22137);
         assert_eq!(short_spread, 217356);
     }
+
+    #[test]
+    fn calculate_prediction_market_spread_tests() {
+        let amm = AMM {
+            base_asset_reserve: 2 * AMM_RESERVE_PRECISION,
+            quote_asset_reserve: 2 * AMM_RESERVE_PRECISION,
+            sqrt_k: 2 * AMM_RESERVE_PRECISION,
+            peg_multiplier: PEG_PRECISION / 50,
+            long_spread: 10000,
+            short_spread: 10000,
+            base_spread: 10000,
+            max_spread: 100000,
+            curve_update_intensity: 100,
+            ..AMM::default()
+        };
+
+        let market = PerpMarket {
+            amm: amm,
+            contract_type: ContractType::Prediction,
+            ..PerpMarket::default()
+        };
+
+        let (new_ask_base_asset_reserve, new_ask_quote_asset_reserve) =
+            crate::math::amm_spread::calculate_spread_reserves(&market, PositionDirection::Long)
+                .unwrap();
+        let (new_bid_base_asset_reserve, new_bid_quote_asset_reserve) =
+            crate::math::amm_spread::calculate_spread_reserves(&market, PositionDirection::Short)
+                .unwrap();
+
+        assert_eq!(
+            crate::math::amm::calculate_price(
+                new_ask_quote_asset_reserve,
+                new_ask_base_asset_reserve,
+                market.amm.peg_multiplier,
+            )
+            .unwrap(),
+            20200 // todo
+        );
+
+        assert_eq!(
+            crate::math::amm::calculate_price(
+                new_bid_quote_asset_reserve,
+                new_bid_base_asset_reserve,
+                market.amm.peg_multiplier,
+            )
+            .unwrap(),
+            19800 // todo
+        );
+    }
 }
