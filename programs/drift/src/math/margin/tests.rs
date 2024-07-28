@@ -3533,24 +3533,15 @@ mod calculate_user_equity {
 
 #[cfg(test)]
 mod calculate_perp_position_value_and_pnl_prediction_market {
-    
 
-    
-    
-    use crate::math::constants::{
-        QUOTE_PRECISION,
-        QUOTE_PRECISION_I64,
-    };
+    use crate::math::constants::{QUOTE_PRECISION, QUOTE_PRECISION_I64};
     use crate::math::margin::{calculate_perp_position_value_and_pnl, MarginRequirementType};
-    
+
     use crate::state::oracle::{OraclePriceData, StrictOraclePrice};
     use crate::state::perp_market::{ContractType, PerpMarket};
-    
+
     use crate::state::user::PerpPosition;
-    use crate::{
-        BASE_PRECISION_I64, MAX_PREDICTION_MARKET_PRICE_I64,
-        SPOT_WEIGHT_PRECISION,
-    };
+    use crate::{BASE_PRECISION_I64, MAX_PREDICTION_MARKET_PRICE_I64, SPOT_WEIGHT_PRECISION};
 
     #[test]
     fn long() {
