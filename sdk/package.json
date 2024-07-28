@@ -37,6 +37,7 @@
 		"@coral-xyz/anchor": "0.28.0",
 		"@coral-xyz/anchor-30": "npm:@coral-xyz/anchor@0.30.1",
 		"@ellipsis-labs/phoenix-sdk": "^1.4.2",
+		"@openbook-dex/openbook-v2": "^0.2.10",
 		"@project-serum/serum": "^0.13.38",
 		"@pythnetwork/client": "2.5.3",
 		"@pythnetwork/price-service-sdk": "^1.7.1",
