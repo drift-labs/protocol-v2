@@ -2,7 +2,9 @@ use std::convert::identity;
 use std::mem::size_of;
 
 use anchor_lang::prelude::*;
-use anchor_spl::token::{Mint, Token, TokenAccount};
+use anchor_spl::token::Token;
+use anchor_spl::token_2022::Token2022;
+use anchor_spl::token_interface::{Mint, TokenAccount, TokenInterface};
 use phoenix::quantities::WrapperU64;
 use pyth_solana_receiver_sdk::cpi::accounts::InitPriceUpdate;
 use pyth_solana_receiver_sdk::program::PythSolanaReceiver;
@@ -11,7 +13,7 @@ use solana_program::msg;
 
 use crate::controller::token::close_vault;
 use crate::error::ErrorCode;
-use crate::ids::fuel_airdrop_wallet;
+use crate::ids::admin_hot_wallet;
 use crate::instructions::constraints::*;
 use crate::math::casting::Cast;
 use crate::math::constants::{
@@ -29,6 +31,7 @@ use crate::math::safe_math::SafeMath;
 use crate::math::spot_balance::get_token_amount;
 use crate::math::{amm, bn};
 use crate::math_error;
+use crate::optional_accounts::get_token_mint;
 use crate::state::events::CurveRecord;
 use crate::state::fulfillment_params::openbook_v2::{
     OpenbookV2Context, OpenbookV2FulfillmentConfig,
@@ -38,6 +41,7 @@ use crate::state::fulfillment_params::phoenix::PhoenixV1FulfillmentConfig;
 use crate::state::fulfillment_params::serum::SerumContext;
 use crate::state::fulfillment_params::serum::SerumV3FulfillmentConfig;
 use crate::state::insurance_fund_stake::ProtocolIfSharesTransferConfig;
+use crate::state::oracle::get_sb_on_demand_price;
 use crate::state::oracle::{
     get_oracle_price, get_prelaunch_price, get_pyth_price, get_switchboard_price,
     HistoricalIndexData, HistoricalOracleData, OraclePriceData, OracleSource, PrelaunchOracle,
@@ -226,6 +230,15 @@ pub fn handle_initialize_spot_market(
 
     let decimals = ctx.accounts.spot_market_mint.decimals.cast::<u32>()?;
 
+    let token_program = if ctx.accounts.token_program.key() == Token2022::id() {
+        1_u8
+    } else if ctx.accounts.token_program.key() == Token::id() {
+        0_u8
+    } else {
+        msg!("unexpected program {:?}", ctx.accounts.token_program.key());
+        return Err(ErrorCode::DefaultError.into());
+    };
+
     **spot_market = SpotMarket {
         market_index: spot_market_index,
         pubkey: spot_market_pubkey,
@@ -295,7 +308,8 @@ pub fn handle_initialize_spot_market(
         fuel_boost_taker: 0,
         fuel_boost_maker: 0,
         fuel_boost_insurance: 0,
-        padding: [0; 42],
+        token_program,
+        padding: [0; 41],
         insurance_fund: InsuranceFund {
             vault: *ctx.accounts.insurance_fund_vault.to_account_info().key,
             unstaking_period: THIRTEEN_DAY,
@@ -770,6 +784,15 @@ pub fn handle_initialize_perp_market(
                 ..
             } = get_pyth_price(&ctx.accounts.oracle, clock_slot, 1, true)?;
             (oracle_price, oracle_delay, QUOTE_PRECISION_I64)
+        }
+        OracleSource::SwitchboardOnDemand => {
+            let OraclePriceData {
+                price: oracle_price,
+                delay: oracle_delay,
+                ..
+            } = get_sb_on_demand_price(&ctx.accounts.oracle, clock_slot)?;
+
+            (oracle_price, oracle_delay, oracle_price)
         }
     };
 
@@ -1620,11 +1643,15 @@ pub fn handle_settle_expired_market_pools_to_revenue_pool(
 #[access_control(
     perp_market_valid(&ctx.accounts.perp_market)
 )]
-pub fn handle_deposit_into_perp_market_fee_pool(
-    ctx: Context<DepositIntoMarketFeePool>,
+pub fn handle_deposit_into_perp_market_fee_pool<'c: 'info, 'info>(
+    ctx: Context<'_, '_, 'c, 'info, DepositIntoMarketFeePool<'info>>,
     amount: u64,
 ) -> Result<()> {
     let perp_market = &mut load_mut!(ctx.accounts.perp_market)?;
+
+    let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
+
+    let mint = get_token_mint(remaining_accounts_iter)?;
 
     msg!(
         "depositing {} into perp market {} fee pool",
@@ -1662,6 +1689,7 @@ pub fn handle_deposit_into_perp_market_fee_pool(
         &ctx.accounts.spot_market_vault,
         &ctx.accounts.admin.to_account_info(),
         amount,
+        &mint,
     )?;
 
     Ok(())
@@ -3952,12 +3980,12 @@ pub struct Initialize<'info> {
         payer = admin
     )]
     pub state: Box<Account<'info, State>>,
-    pub quote_asset_mint: Box<Account<'info, Mint>>,
+    pub quote_asset_mint: Box<InterfaceAccount<'info, Mint>>,
     /// CHECK: checked in `initialize`
     pub drift_signer: AccountInfo<'info>,
     pub rent: Sysvar<'info, Rent>,
     pub system_program: Program<'info, System>,
-    pub token_program: Program<'info, Token>,
+    pub token_program: Interface<'info, TokenInterface>,
 }
 
 #[derive(Accounts)]
@@ -3970,7 +3998,7 @@ pub struct InitializeSpotMarket<'info> {
         payer = admin
     )]
     pub spot_market: AccountLoader<'info, SpotMarket>,
-    pub spot_market_mint: Box<Account<'info, Mint>>,
+    pub spot_market_mint: Box<InterfaceAccount<'info, Mint>>,
     #[account(
         init,
         seeds = [b"spot_market_vault".as_ref(), state.number_of_spot_markets.to_le_bytes().as_ref()],
@@ -3979,7 +4007,7 @@ pub struct InitializeSpotMarket<'info> {
         token::mint = spot_market_mint,
         token::authority = drift_signer
     )]
-    pub spot_market_vault: Box<Account<'info, TokenAccount>>,
+    pub spot_market_vault: Box<InterfaceAccount<'info, TokenAccount>>,
     #[account(
         init,
         seeds = [b"insurance_fund_vault".as_ref(), state.number_of_spot_markets.to_le_bytes().as_ref()],
@@ -3988,7 +4016,7 @@ pub struct InitializeSpotMarket<'info> {
         token::mint = spot_market_mint,
         token::authority = drift_signer
     )]
-    pub insurance_fund_vault: Box<Account<'info, TokenAccount>>,
+    pub insurance_fund_vault: Box<InterfaceAccount<'info, TokenAccount>>,
     #[account(
         constraint = state.signer.eq(&drift_signer.key())
     )]
@@ -4005,7 +4033,7 @@ pub struct InitializeSpotMarket<'info> {
     pub admin: Signer<'info>,
     pub rent: Sysvar<'info, Rent>,
     pub system_program: Program<'info, System>,
-    pub token_program: Program<'info, Token>,
+    pub token_program: Interface<'info, TokenInterface>,
 }
 
 #[derive(Accounts)]
@@ -4025,16 +4053,16 @@ pub struct DeleteInitializedSpotMarket<'info> {
         seeds = [b"spot_market_vault".as_ref(), market_index.to_le_bytes().as_ref()],
         bump,
     )]
-    pub spot_market_vault: Box<Account<'info, TokenAccount>>,
+    pub spot_market_vault: Box<InterfaceAccount<'info, TokenAccount>>,
     #[account(
         mut,
         seeds = [b"insurance_fund_vault".as_ref(), market_index.to_le_bytes().as_ref()],
         bump,
     )]
-    pub insurance_fund_vault: Box<Account<'info, TokenAccount>>,
+    pub insurance_fund_vault: Box<InterfaceAccount<'info, TokenAccount>>,
     /// CHECK: program signer
     pub drift_signer: AccountInfo<'info>,
-    pub token_program: Program<'info, Token>,
+    pub token_program: Interface<'info, TokenInterface>,
 }
 
 #[derive(Accounts)]
@@ -4159,7 +4187,7 @@ pub struct UpdateSerumVault<'info> {
     pub state: Box<Account<'info, State>>,
     #[account(mut)]
     pub admin: Signer<'info>,
-    pub srm_vault: Box<Account<'info, TokenAccount>>,
+    pub srm_vault: Box<InterfaceAccount<'info, TokenAccount>>,
 }
 
 #[derive(Accounts)]
@@ -4211,10 +4239,10 @@ pub struct AdminUpdatePerpMarket<'info> {
 
 #[derive(Accounts)]
 pub struct AdminUpdatePerpMarketAmmSummaryStats<'info> {
-    pub admin: Signer<'info>,
     #[account(
-        has_one = admin
+        address = admin_hot_wallet::id()
     )]
+    pub admin: Signer<'info>,
     pub state: Box<Account<'info, State>>,
     #[account(mut)]
     pub perp_market: AccountLoader<'info, PerpMarket>,
@@ -4258,7 +4286,7 @@ pub struct DepositIntoMarketFeePool<'info> {
         mut,
         token::authority = admin
     )]
-    pub source_vault: Box<Account<'info, TokenAccount>>,
+    pub source_vault: Box<InterfaceAccount<'info, TokenAccount>>,
     #[account(
         constraint = state.signer.eq(&drift_signer.key())
     )]
@@ -4275,8 +4303,8 @@ pub struct DepositIntoMarketFeePool<'info> {
         seeds = [b"spot_market_vault".as_ref(), 0_u16.to_le_bytes().as_ref()],
         bump,
     )]
-    pub spot_market_vault: Box<Account<'info, TokenAccount>>,
-    pub token_program: Program<'info, Token>,
+    pub spot_market_vault: Box<InterfaceAccount<'info, TokenAccount>>,
+    pub token_program: Interface<'info, TokenInterface>,
 }
 
 #[derive(Accounts)]
@@ -4353,7 +4381,7 @@ pub struct AdminDisableBidAskTwapUpdate<'info> {
 #[derive(Accounts)]
 pub struct InitUserFuel<'info> {
     #[account(
-        address = fuel_airdrop_wallet::id()
+        address = admin_hot_wallet::id()
     )]
     pub admin: Signer<'info>, // todo
     pub state: Box<Account<'info, State>>,

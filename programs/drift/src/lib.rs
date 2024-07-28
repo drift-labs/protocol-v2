@@ -545,8 +545,8 @@ pub mod drift {
         handle_initialize_insurance_fund_stake(ctx, market_index)
     }
 
-    pub fn add_insurance_fund_stake(
-        ctx: Context<AddInsuranceFundStake>,
+    pub fn add_insurance_fund_stake<'c: 'info, 'info>(
+        ctx: Context<'_, '_, 'c, 'info, AddInsuranceFundStake<'info>>,
         market_index: u16,
         amount: u64,
     ) -> Result<()> {
@@ -568,8 +568,8 @@ pub mod drift {
         handle_cancel_request_remove_insurance_fund_stake(ctx, market_index)
     }
 
-    pub fn remove_insurance_fund_stake(
-        ctx: Context<RemoveInsuranceFundStake>,
+    pub fn remove_insurance_fund_stake<'c: 'info, 'info>(
+        ctx: Context<'_, '_, 'c, 'info, RemoveInsuranceFundStake<'info>>,
         market_index: u16,
     ) -> Result<()> {
         handle_remove_insurance_fund_stake(ctx, market_index)
@@ -818,15 +818,15 @@ pub mod drift {
         handle_settle_expired_market_pools_to_revenue_pool(ctx)
     }
 
-    pub fn deposit_into_perp_market_fee_pool(
-        ctx: Context<DepositIntoMarketFeePool>,
+    pub fn deposit_into_perp_market_fee_pool<'c: 'info, 'info>(
+        ctx: Context<'_, '_, 'c, 'info, DepositIntoMarketFeePool<'info>>,
         amount: u64,
     ) -> Result<()> {
         handle_deposit_into_perp_market_fee_pool(ctx, amount)
     }
 
-    pub fn deposit_into_spot_market_revenue_pool(
-        ctx: Context<RevenuePoolDeposit>,
+    pub fn deposit_into_spot_market_revenue_pool<'c: 'info, 'info>(
+        ctx: Context<'_, '_, 'c, 'info, RevenuePoolDeposit<'info>>,
         amount: u64,
     ) -> Result<()> {
         handle_deposit_into_spot_market_revenue_pool(ctx, amount)
@@ -983,6 +983,13 @@ pub mod drift {
         max_token_deposits: u64,
     ) -> Result<()> {
         handle_update_spot_market_max_token_deposits(ctx, max_token_deposits)
+    }
+
+    pub fn update_spot_market_max_token_borrows(
+        ctx: Context<AdminUpdateSpotMarket>,
+        max_token_borrows_fraction: u16,
+    ) -> Result<()> {
+        handle_update_spot_market_max_token_borrows(ctx, max_token_borrows_fraction)
     }
 
     pub fn update_spot_market_scale_initial_asset_weight_start(

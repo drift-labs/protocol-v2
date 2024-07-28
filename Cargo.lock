@@ -873,7 +873,7 @@ dependencies = [
 
 [[package]]
 name = "drift"
-version = "2.85.0"
+version = "2.86.0"
 dependencies = [
  "ahash 0.8.6",
  "anchor-lang",
@@ -900,6 +900,7 @@ dependencies = [
  "solana-security-txt",
  "static_assertions",
  "switchboard",
+ "switchboard-on-demand",
  "thiserror",
  "uint",
 ]
@@ -2599,6 +2600,16 @@ version = "0.1.0"
 dependencies = [
  "anchor-lang",
  "base64 0.13.0",
+]
+
+[[package]]
+name = "switchboard-on-demand"
+version = "0.1.0"
+dependencies = [
+ "anchor-lang",
+ "base64 0.13.0",
+ "bytemuck",
+ "solana-program",
 ]
 
 [[package]]

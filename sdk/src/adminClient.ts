@@ -198,6 +198,8 @@ export class AdminClient extends DriftClient {
 			spotMarketIndex
 		);
 
+		const tokenProgram = (await this.connection.getAccountInfo(mint)).owner;
+
 		const nameBuffer = encodeName(name);
 		const initializeIx = await this.program.instruction.initializeSpotMarket(
 			optimalUtilization,
@@ -233,7 +235,7 @@ export class AdminClient extends DriftClient {
 					oracle,
 					rent: SYSVAR_RENT_PUBKEY,
 					systemProgram: anchor.web3.SystemProgram.programId,
-					tokenProgram: TOKEN_PROGRAM_ID,
+					tokenProgram,
 				},
 			}
 		);
@@ -1115,9 +1117,7 @@ export class AdminClient extends DriftClient {
 			},
 			{
 				accounts: {
-					admin: this.isSubscribed
-						? this.getStateAccount().admin
-						: this.wallet.publicKey,
+					admin: this.wallet.publicKey,
 					state: await this.getStatePublicKey(),
 					perpMarket: await getPerpMarketPublicKey(
 						this.program.programId,
@@ -1870,12 +1870,12 @@ export class AdminClient extends DriftClient {
 
 	public async updateSpotMarketMaxTokenBorrows(
 		spotMarketIndex: number,
-		maxTokenBorrows: BN
+		maxTokenBorrowsFraction: number
 	): Promise<TransactionSignature> {
 		const updateSpotMarketMaxTokenBorrowsIx =
 			await this.getUpdateSpotMarketMaxTokenBorrowsIx(
 				spotMarketIndex,
-				maxTokenBorrows
+				maxTokenBorrowsFraction
 			);
 
 		const tx = await this.buildTransaction(updateSpotMarketMaxTokenBorrowsIx);
@@ -1887,10 +1887,10 @@ export class AdminClient extends DriftClient {
 
 	public async getUpdateSpotMarketMaxTokenBorrowsIx(
 		spotMarketIndex: number,
-		maxTokenBorrows: BN
+		maxTokenBorrowsFraction: number
 	): Promise<TransactionInstruction> {
 		return this.program.instruction.updateSpotMarketMaxTokenBorrows(
-			maxTokenBorrows,
+			maxTokenBorrowsFraction,
 			{
 				accounts: {
 					admin: this.isSubscribed

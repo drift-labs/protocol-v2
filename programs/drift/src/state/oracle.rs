@@ -6,6 +6,7 @@ use crate::math::casting::Cast;
 use crate::math::constants::{PRICE_PRECISION, PRICE_PRECISION_I64, PRICE_PRECISION_U64};
 use crate::math::safe_math::SafeMath;
 use switchboard::{AggregatorAccountData, SwitchboardDecimal};
+use switchboard_on_demand::{PullFeedAccountData, SB_ON_DEMAND_PRECISION};
 
 use crate::error::ErrorCode::{InvalidOracle, UnableToLoadOracle};
 use crate::math::safe_unwrap::SafeUnwrap;
@@ -120,6 +121,7 @@ pub enum OracleSource {
     Pyth1KPull,
     Pyth1MPull,
     PythStableCoinPull,
+    SwitchboardOnDemand,
 }
 
 #[derive(Default, Clone, Copy, Debug)]
@@ -152,6 +154,7 @@ pub fn get_oracle_price(
         OracleSource::Pyth1M => get_pyth_price(price_oracle, clock_slot, 1000000, false),
         OracleSource::PythStableCoin => get_pyth_stable_coin_price(price_oracle, clock_slot, false),
         OracleSource::Switchboard => get_switchboard_price(price_oracle, clock_slot),
+        OracleSource::SwitchboardOnDemand => get_sb_on_demand_price(price_oracle, clock_slot),
         OracleSource::QuoteAsset => Ok(OraclePriceData {
             price: PRICE_PRECISION_I64,
             confidence: 1,
@@ -307,6 +310,46 @@ pub fn get_switchboard_price(
     })
 }
 
+pub fn get_sb_on_demand_price(
+    price_oracle: &AccountInfo,
+    clock_slot: u64,
+) -> DriftResult<OraclePriceData> {
+    let pull_feed_account_info: Ref<PullFeedAccountData> =
+        load_ref(price_oracle).or(Err(ErrorCode::UnableToLoadOracle))?;
+
+    let price = convert_sb_i128(
+        &pull_feed_account_info
+            .value()
+            .ok_or(ErrorCode::UnableToLoadOracle)?,
+    )?
+    .cast::<i64>()?;
+
+    let confidence = convert_sb_i128(
+        &pull_feed_account_info
+            .range()
+            .ok_or(ErrorCode::UnableToLoadOracle)?,
+    )?
+    .cast::<i64>()?
+    .unsigned_abs();
+
+    let delay = clock_slot.cast::<i64>()?.safe_sub(
+        pull_feed_account_info
+            .result
+            .result_slot()
+            .ok_or(ErrorCode::UnableToLoadOracle)?
+            .cast()?,
+    )?;
+
+    let has_sufficient_number_of_data_points = true;
+
+    Ok(OraclePriceData {
+        price,
+        confidence,
+        delay,
+        has_sufficient_number_of_data_points,
+    })
+}
+
 /// Given a decimal number represented as a mantissa (the digits) plus an
 /// original_precision (10.pow(some number of decimals)), scale the
 /// mantissa/digits to make sense with a new_precision.
@@ -320,6 +363,18 @@ fn convert_switchboard_decimal(switchboard_decimal: &SwitchboardDecimal) -> Drif
         switchboard_decimal
             .mantissa
             .safe_mul((PRICE_PRECISION / switchboard_precision) as i128)
+    }
+}
+
+/// Given a decimal number represented as a mantissa (the digits) plus an
+/// original_precision (10.pow(some number of decimals)), scale the
+/// mantissa/digits to make sense with a new_precision.
+fn convert_sb_i128(switchboard_i128: &i128) -> DriftResult<i128> {
+    let switchboard_precision = 10_u128.pow(SB_ON_DEMAND_PRECISION);
+    if switchboard_precision > PRICE_PRECISION {
+        switchboard_i128.safe_div((switchboard_precision / PRICE_PRECISION) as i128)
+    } else {
+        switchboard_i128.safe_mul((PRICE_PRECISION / switchboard_precision) as i128)
     }
 }
 

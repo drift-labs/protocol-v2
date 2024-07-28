@@ -1,6 +1,10 @@
 use anchor_lang::prelude::*;
 use anchor_lang::Discriminator;
-use anchor_spl::token::{Token, TokenAccount};
+use anchor_spl::{
+    token::Token,
+    token_2022::Token2022,
+    token_interface::{TokenAccount, TokenInterface},
+};
 use solana_program::program::invoke;
 use solana_program::system_instruction::transfer;
 
@@ -31,6 +35,7 @@ use crate::math::spot_balance::get_token_value;
 use crate::math::spot_swap;
 use crate::math::spot_swap::{calculate_swap_price, validate_price_bands_for_swap};
 use crate::math_error;
+use crate::optional_accounts::{get_token_interface, get_token_mint};
 use crate::print_error;
 use crate::safe_decrement;
 use crate::safe_increment;
@@ -269,17 +274,20 @@ pub fn handle_deposit<'c: 'info, 'info>(
     let now = clock.unix_timestamp;
     let slot = clock.slot;
 
+    let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
     let AccountMaps {
         perp_market_map,
         spot_market_map,
         mut oracle_map,
     } = load_maps(
-        &mut ctx.remaining_accounts.iter().peekable(),
+        remaining_accounts_iter,
         &MarketSet::new(),
         &get_writable_spot_market_set(market_index),
         clock.slot,
         Some(state.oracle_guard_rails),
     )?;
+
+    let mint = get_token_mint(remaining_accounts_iter)?;
 
     if amount == 0 {
         return Err(ErrorCode::InsufficientDeposit.into());
@@ -384,6 +392,7 @@ pub fn handle_deposit<'c: 'info, 'info>(
         &ctx.accounts.spot_market_vault,
         &ctx.accounts.authority,
         amount,
+        &mint,
     )?;
     ctx.accounts.spot_market_vault.reload()?;
 
@@ -436,17 +445,20 @@ pub fn handle_withdraw<'c: 'info, 'info>(
     let slot = clock.slot;
     let state = &ctx.accounts.state;
 
+    let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
     let AccountMaps {
         perp_market_map,
         spot_market_map,
         mut oracle_map,
     } = load_maps(
-        &mut ctx.remaining_accounts.iter().peekable(),
+        remaining_accounts_iter,
         &MarketSet::new(),
         &get_writable_spot_market_set(market_index),
         clock.slot,
         Some(state.oracle_guard_rails),
     )?;
+
+    let mint = get_token_mint(remaining_accounts_iter)?;
 
     validate!(!user.is_bankrupt(), ErrorCode::UserBankrupt)?;
 
@@ -579,6 +591,7 @@ pub fn handle_withdraw<'c: 'info, 'info>(
         &ctx.accounts.drift_signer,
         state.signer_nonce,
         amount,
+        &mint,
     )?;
 
     // reload the spot market vault balance so it's up-to-date
@@ -2010,8 +2023,8 @@ pub fn handle_reclaim_rent(ctx: Context<ReclaimRent>) -> Result<()> {
 #[access_control(
     deposit_not_paused(&ctx.accounts.state)
 )]
-pub fn handle_deposit_into_spot_market_revenue_pool(
-    ctx: Context<RevenuePoolDeposit>,
+pub fn handle_deposit_into_spot_market_revenue_pool<'c: 'info, 'info>(
+    ctx: Context<'_, '_, 'c, 'info, RevenuePoolDeposit<'info>>,
     amount: u64,
 ) -> Result<()> {
     if amount == 0 {
@@ -2019,6 +2032,10 @@ pub fn handle_deposit_into_spot_market_revenue_pool(
     }
 
     let mut spot_market = load_mut!(ctx.accounts.spot_market)?;
+
+    let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
+
+    let mint = get_token_mint(remaining_accounts_iter)?;
 
     validate!(
         !spot_market.is_in_settlement(Clock::get()?.unix_timestamp),
@@ -2039,6 +2056,7 @@ pub fn handle_deposit_into_spot_market_revenue_pool(
         &ctx.accounts.spot_market_vault,
         &ctx.accounts.authority,
         amount,
+        &mint,
     )?;
 
     spot_market.validate_max_token_deposits_and_borrows()?;
@@ -2147,14 +2165,14 @@ pub struct Deposit<'info> {
         seeds = [b"spot_market_vault".as_ref(), market_index.to_le_bytes().as_ref()],
         bump,
     )]
-    pub spot_market_vault: Box<Account<'info, TokenAccount>>,
+    pub spot_market_vault: Box<InterfaceAccount<'info, TokenAccount>>,
     #[account(
         mut,
         constraint = &spot_market_vault.mint.eq(&user_token_account.mint),
         token::authority = authority
     )]
-    pub user_token_account: Box<Account<'info, TokenAccount>>,
-    pub token_program: Program<'info, Token>,
+    pub user_token_account: Box<InterfaceAccount<'info, TokenAccount>>,
+    pub token_program: Interface<'info, TokenInterface>,
 }
 
 #[derive(Accounts)]
@@ -2169,14 +2187,14 @@ pub struct RevenuePoolDeposit<'info> {
         seeds = [b"spot_market_vault".as_ref(), spot_market.load()?.market_index.to_le_bytes().as_ref()],
         bump,
     )]
-    pub spot_market_vault: Box<Account<'info, TokenAccount>>,
+    pub spot_market_vault: Box<InterfaceAccount<'info, TokenAccount>>,
     #[account(
         mut,
         constraint = &spot_market_vault.mint.eq(&user_token_account.mint),
         token::authority = authority
     )]
-    pub user_token_account: Box<Account<'info, TokenAccount>>,
-    pub token_program: Program<'info, Token>,
+    pub user_token_account: Box<InterfaceAccount<'info, TokenAccount>>,
+    pub token_program: Interface<'info, TokenInterface>,
 }
 
 #[derive(Accounts)]
@@ -2199,7 +2217,7 @@ pub struct Withdraw<'info> {
         seeds = [b"spot_market_vault".as_ref(), market_index.to_le_bytes().as_ref()],
         bump,
     )]
-    pub spot_market_vault: Box<Account<'info, TokenAccount>>,
+    pub spot_market_vault: Box<InterfaceAccount<'info, TokenAccount>>,
     #[account(
         constraint = state.signer.eq(&drift_signer.key())
     )]
@@ -2209,8 +2227,8 @@ pub struct Withdraw<'info> {
         mut,
         constraint = &spot_market_vault.mint.eq(&user_token_account.mint)
     )]
-    pub user_token_account: Box<Account<'info, TokenAccount>>,
-    pub token_program: Program<'info, Token>,
+    pub user_token_account: Box<InterfaceAccount<'info, TokenAccount>>,
+    pub token_program: Interface<'info, TokenInterface>,
 }
 
 #[derive(Accounts)]
@@ -2237,7 +2255,7 @@ pub struct TransferDeposit<'info> {
         seeds = [b"spot_market_vault".as_ref(), market_index.to_le_bytes().as_ref()],
         bump,
     )]
-    pub spot_market_vault: Box<Account<'info, TokenAccount>>,
+    pub spot_market_vault: Box<InterfaceAccount<'info, TokenAccount>>,
 }
 
 #[derive(Accounts)]
@@ -2388,26 +2406,26 @@ pub struct Swap<'info> {
         seeds = [b"spot_market_vault".as_ref(), out_market_index.to_le_bytes().as_ref()],
         bump,
     )]
-    pub out_spot_market_vault: Box<Account<'info, TokenAccount>>,
+    pub out_spot_market_vault: Box<InterfaceAccount<'info, TokenAccount>>,
     #[account(
         mut,
         seeds = [b"spot_market_vault".as_ref(), in_market_index.to_le_bytes().as_ref()],
         bump,
     )]
-    pub in_spot_market_vault: Box<Account<'info, TokenAccount>>,
+    pub in_spot_market_vault: Box<InterfaceAccount<'info, TokenAccount>>,
     #[account(
         mut,
         constraint = &out_spot_market_vault.mint.eq(&out_token_account.mint),
         token::authority = authority
     )]
-    pub out_token_account: Box<Account<'info, TokenAccount>>,
+    pub out_token_account: Box<InterfaceAccount<'info, TokenAccount>>,
     #[account(
         mut,
         constraint = &in_spot_market_vault.mint.eq(&in_token_account.mint),
         token::authority = authority
     )]
-    pub in_token_account: Box<Account<'info, TokenAccount>>,
-    pub token_program: Program<'info, Token>,
+    pub in_token_account: Box<InterfaceAccount<'info, TokenAccount>>,
+    pub token_program: Interface<'info, TokenInterface>,
     #[account(
         constraint = state.signer.eq(&drift_signer.key())
     )]
@@ -2432,17 +2450,20 @@ pub fn handle_begin_swap<'c: 'info, 'info>(
     let clock = Clock::get()?;
     let now = clock.unix_timestamp;
 
+    let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
     let AccountMaps {
         perp_market_map,
         spot_market_map,
         mut oracle_map,
     } = load_maps(
-        &mut ctx.remaining_accounts.iter().peekable(),
+        remaining_accounts_iter,
         &MarketSet::new(),
         &get_writable_spot_market_set_from_many(vec![in_market_index, out_market_index]),
         clock.slot,
         Some(state.oracle_guard_rails),
     )?;
+
+    let mint = get_token_mint(remaining_accounts_iter)?;
 
     let mut user = load_mut!(&ctx.accounts.user)?;
     let delegate_is_signer = user.delegate == ctx.accounts.authority.key();
@@ -2532,6 +2553,7 @@ pub fn handle_begin_swap<'c: 'info, 'info>(
         &ctx.accounts.drift_signer,
         state.signer_nonce,
         amount_in,
+        &mint,
     )?;
 
     let ixs = ctx.accounts.instructions.as_ref();
@@ -2634,6 +2656,7 @@ pub fn handle_begin_swap<'c: 'info, 'info>(
             ];
             if !delegate_is_signer {
                 whitelisted_programs.push(Token::id());
+                whitelisted_programs.push(Token2022::id());
                 whitelisted_programs.push(marinade_mainnet::ID);
             }
             validate!(
@@ -2684,17 +2707,22 @@ pub fn handle_end_swap<'c: 'info, 'info>(
     let slot = clock.slot;
     let now = clock.unix_timestamp;
 
+    let remaining_accounts = &mut ctx.remaining_accounts.iter().peekable();
     let AccountMaps {
         perp_market_map,
         spot_market_map,
         mut oracle_map,
     } = load_maps(
-        &mut ctx.remaining_accounts.iter().peekable(),
+        remaining_accounts,
         &MarketSet::new(),
         &get_writable_spot_market_set_from_many(vec![in_market_index, out_market_index]),
         clock.slot,
         Some(state.oracle_guard_rails),
     )?;
+    let out_token_program = get_token_interface(remaining_accounts)?;
+
+    let in_mint = get_token_mint(remaining_accounts)?;
+    let out_mint = get_token_mint(remaining_accounts)?;
 
     let user_key = ctx.accounts.user.key();
     let mut user = load_mut!(&ctx.accounts.user)?;
@@ -2753,6 +2781,7 @@ pub fn handle_end_swap<'c: 'info, 'info>(
             in_vault,
             &ctx.accounts.authority,
             residual,
+            &in_mint,
         )?;
         in_token_account.reload()?;
         in_vault.reload()?;
@@ -2825,13 +2854,26 @@ pub fn handle_end_swap<'c: 'info, 'info>(
             .amount
             .safe_sub(out_spot_market.flash_loan_initial_token_amount)?;
 
-        controller::token::receive(
-            &ctx.accounts.token_program,
-            out_token_account,
-            out_vault,
-            &ctx.accounts.authority,
-            amount_out,
-        )?;
+        if let Some(token_interface) = out_token_program {
+            controller::token::receive(
+                &token_interface,
+                out_token_account,
+                out_vault,
+                &ctx.accounts.authority,
+                amount_out,
+                &out_mint,
+            )?;
+        } else {
+            controller::token::receive(
+                &ctx.accounts.token_program,
+                out_token_account,
+                out_vault,
+                &ctx.accounts.authority,
+                amount_out,
+                &out_mint,
+            )?;
+        }
+
         out_vault.reload()?;
     }
 

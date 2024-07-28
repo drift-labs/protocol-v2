@@ -2049,8 +2049,8 @@ pub fn fulfill_perp_order_with_amm(
         if let Ok(referrer_position) = referrer.force_get_perp_position_mut(market.market_index) {
             if referrer_reward > 0 {
                 update_quote_asset_amount(referrer_position, market, referrer_reward.cast()?)?;
-                referrer_stats.increment_total_referrer_reward(referrer_reward, now)?;
             }
+            referrer_stats.increment_total_referrer_reward(referrer_reward, now)?;
         }
     }
 
@@ -2503,8 +2503,8 @@ pub fn fulfill_perp_order_with_match(
         if let Ok(referrer_position) = referrer.force_get_perp_position_mut(market.market_index) {
             if referrer_reward > 0 {
                 update_quote_asset_amount(referrer_position, market, referrer_reward.cast()?)?;
-                referrer_stats.increment_total_referrer_reward(referrer_reward, now)?;
             }
+            referrer_stats.increment_total_referrer_reward(referrer_reward, now)?;
         }
     }
 

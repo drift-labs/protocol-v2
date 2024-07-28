@@ -1,5 +1,6 @@
 use crate::error::{DriftResult, ErrorCode};
 use std::cell::RefMut;
+use std::convert::TryFrom;
 
 use crate::error::ErrorCode::UnableToLoadOracle;
 use crate::math::safe_unwrap::SafeUnwrap;
@@ -14,10 +15,11 @@ use crate::state::traits::Size;
 use crate::state::user::{User, UserStats};
 use crate::{validate, OracleSource};
 use anchor_lang::accounts::account::Account;
-use anchor_lang::prelude::AccountInfo;
-use anchor_lang::prelude::AccountLoader;
+use anchor_lang::prelude::{AccountInfo, Interface};
+use anchor_lang::prelude::{AccountLoader, InterfaceAccount};
 use anchor_lang::Discriminator;
 use anchor_spl::token::TokenAccount;
+use anchor_spl::token_interface::{Mint, TokenInterface};
 use arrayref::array_ref;
 use solana_program::account_info::next_account_info;
 use solana_program::msg;
@@ -197,4 +199,39 @@ pub fn get_whitelist_token<'a>(
         })?;
 
     Ok(whitelist_token)
+}
+
+pub fn get_token_interface<'a>(
+    account_info_iter: &mut Peekable<Iter<'a, AccountInfo<'a>>>,
+) -> DriftResult<Option<Interface<'a, TokenInterface>>> {
+    let token_interface_account_info = account_info_iter.peek();
+    if token_interface_account_info.is_none() {
+        return Ok(None);
+    }
+
+    let token_interface_account_info = token_interface_account_info.safe_unwrap()?;
+    let token_interface: Interface<TokenInterface> =
+        Interface::try_from(*token_interface_account_info).map_err(|e| {
+            msg!("Unable to deserialize token interface");
+            msg!("{:?}", e);
+            ErrorCode::DefaultError
+        })?;
+
+    Ok(Some(token_interface))
+}
+
+pub fn get_token_mint<'a>(
+    account_info_iter: &mut Peekable<Iter<'a, AccountInfo<'a>>>,
+) -> DriftResult<Option<InterfaceAccount<'a, Mint>>> {
+    let mint_account_info = account_info_iter.peek();
+    if mint_account_info.is_none() {
+        return Ok(None);
+    }
+
+    let mint_account_info = mint_account_info.safe_unwrap()?;
+
+    match InterfaceAccount::try_from(*mint_account_info) {
+        Ok(mint) => Ok(Some(mint)),
+        Err(_) => Ok(None),
+    }
 }
