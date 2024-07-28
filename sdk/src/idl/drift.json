@@ -1676,47 +1676,6 @@
       ]
     },
     {
-      "name": "liquidatePerpWithFill",
-      "accounts": [
-        {
-          "name": "state",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "authority",
-          "isMut": false,
-          "isSigner": true
-        },
-        {
-          "name": "liquidator",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "liquidatorStats",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "user",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "userStats",
-          "isMut": true,
-          "isSigner": false
-        }
-      ],
-      "args": [
-        {
-          "name": "marketIndex",
-          "type": "u16"
-        }
-      ]
-    },
-    {
       "name": "liquidateSpot",
       "accounts": [
         {
@@ -6877,11 +6836,15 @@
             "type": "u8"
           },
           {
+            "name": "tokenProgram",
+            "type": "u8"
+          },
+          {
             "name": "padding",
             "type": {
               "array": [
                 "u8",
-                42
+                41
               ]
             }
           }
@@ -9874,9 +9837,6 @@
           },
           {
             "name": "PlaceAndTake"
-          },
-          {
-            "name": "Liquidation"
           }
         ]
       }
@@ -12811,8 +12771,8 @@
     },
     {
       "code": 6282,
-      "name": "LiquidationOrderFailedToFill",
-      "msg": "Liquidation order failed to fill"
+      "name": "NonZeroTransferFee",
+      "msg": "Non zero transfer fee"
     }
   ],
   "metadata": {
