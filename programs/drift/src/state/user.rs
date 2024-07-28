@@ -23,7 +23,7 @@ use crate::state::oracle::StrictOraclePrice;
 use crate::state::perp_market::PerpMarket;
 use crate::state::spot_market::{SpotBalance, SpotBalanceType, SpotMarket};
 use crate::state::traits::Size;
-use crate::{get_then_update_id, QUOTE_PRECISION_U64};
+use crate::{get_then_update_id, MAX_PREDICTION_MARKET_PRICE_U128, QUOTE_PRECISION_U64};
 use crate::{math_error, SPOT_WEIGHT_PRECISION_I128};
 use crate::{safe_increment, SPOT_WEIGHT_PRECISION};
 use crate::{validate, MAX_PREDICTION_MARKET_PRICE};
@@ -1013,6 +1013,57 @@ impl PerpPosition {
             base_asset_amount_all_bids_fill.cast()
         } else {
             base_asset_amount_all_asks_fill.cast()
+        }
+    }
+
+    pub fn worst_case_base_asset_amount_prediction_market(
+        &self,
+        price: i64,
+    ) -> DriftResult<(i128, u128)> {
+        let base_asset_amount_all_bids_fill = self
+            .base_asset_amount
+            .safe_add(self.open_bids)?
+            .cast::<i128>()?;
+        let base_asset_amount_all_asks_fill = self
+            .base_asset_amount
+            .safe_add(self.open_asks)?
+            .cast::<i128>()?;
+
+        let price_u128 = price.abs().cast::<u128>()?;
+        let worst_case_loss_all_bids_filled = if base_asset_amount_all_bids_fill < 0 {
+            base_asset_amount_all_bids_fill
+                .unsigned_abs()
+                .safe_mul(MAX_PREDICTION_MARKET_PRICE_U128.safe_sub(price_u128)?)?
+                .safe_div(MAX_PREDICTION_MARKET_PRICE_U128)?
+        } else {
+            base_asset_amount_all_bids_fill
+                .unsigned_abs()
+                .safe_mul(price_u128)?
+                .safe_div(MAX_PREDICTION_MARKET_PRICE_U128)?
+        };
+
+        let worst_case_loss_all_asks_filled = if base_asset_amount_all_asks_fill < 0 {
+            base_asset_amount_all_asks_fill
+                .unsigned_abs()
+                .safe_mul(MAX_PREDICTION_MARKET_PRICE_U128.safe_sub(price_u128)?)?
+                .safe_div(MAX_PREDICTION_MARKET_PRICE_U128)?
+        } else {
+            base_asset_amount_all_asks_fill
+                .unsigned_abs()
+                .safe_mul(price_u128)?
+                .safe_div(MAX_PREDICTION_MARKET_PRICE_U128)?
+        };
+
+        if worst_case_loss_all_asks_filled >= worst_case_loss_all_bids_filled {
+            Ok((
+                base_asset_amount_all_asks_fill,
+                worst_case_loss_all_asks_filled,
+            ))
+        } else {
+            Ok((
+                base_asset_amount_all_bids_fill,
+                worst_case_loss_all_bids_filled,
+            ))
         }
     }
 
