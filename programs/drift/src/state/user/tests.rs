@@ -1974,3 +1974,71 @@ mod fuel {
         assert_eq!(user_stats.fuel_taker, 1);
     }
 }
+
+mod worst_case_base_asset_amount_prediction_market {
+    use crate::state::user::PerpPosition;
+    use crate::{
+        BASE_PRECISION_I128, BASE_PRECISION_I64, MAX_PREDICTION_MARKET_PRICE_I64,
+        MAX_PREDICTION_MARKET_PRICE_U128,
+    };
+
+    #[test]
+    fn test() {
+        let position = PerpPosition {
+            base_asset_amount: 0,
+            open_bids: BASE_PRECISION_I64,
+            open_asks: -BASE_PRECISION_I64,
+            ..PerpPosition::default()
+        };
+
+        let price = MAX_PREDICTION_MARKET_PRICE_I64 * 3 / 4;
+
+        let (worst_case_base_asset_amount, worst_case_loss) = position
+            .worst_case_base_asset_amount_prediction_market(price)
+            .unwrap();
+
+        assert_eq!(worst_case_base_asset_amount, BASE_PRECISION_I128);
+        assert_eq!(worst_case_loss, MAX_PREDICTION_MARKET_PRICE_U128 * 3 / 4);
+
+        let price = MAX_PREDICTION_MARKET_PRICE_I64 / 4;
+
+        let (worst_case_base_asset_amount, worst_case_loss) = position
+            .worst_case_base_asset_amount_prediction_market(price)
+            .unwrap();
+
+        assert_eq!(worst_case_base_asset_amount, -BASE_PRECISION_I128);
+        assert_eq!(worst_case_loss, MAX_PREDICTION_MARKET_PRICE_U128 * 3 / 4);
+
+        let position = PerpPosition {
+            base_asset_amount: 98 * BASE_PRECISION_I64,
+            open_bids: 0,
+            open_asks: -99 * BASE_PRECISION_I64,
+            ..PerpPosition::default()
+        };
+
+        let price = MAX_PREDICTION_MARKET_PRICE_I64 / 100;
+
+        let (worst_case_base_asset_amount, worst_case_loss) = position
+            .worst_case_base_asset_amount_prediction_market(price)
+            .unwrap();
+
+        assert_eq!(worst_case_base_asset_amount, -BASE_PRECISION_I128);
+        assert_eq!(worst_case_loss, MAX_PREDICTION_MARKET_PRICE_U128 * 99 / 100);
+
+        let position = PerpPosition {
+            base_asset_amount: -98 * BASE_PRECISION_I64,
+            open_bids: 99 * BASE_PRECISION_I64,
+            open_asks: 0,
+            ..PerpPosition::default()
+        };
+
+        let price = MAX_PREDICTION_MARKET_PRICE_I64 * 99 / 100;
+
+        let (worst_case_base_asset_amount, worst_case_loss) = position
+            .worst_case_base_asset_amount_prediction_market(price)
+            .unwrap();
+
+        assert_eq!(worst_case_base_asset_amount, BASE_PRECISION_I128);
+        assert_eq!(worst_case_loss, MAX_PREDICTION_MARKET_PRICE_U128 * 99 / 100);
+    }
+}
