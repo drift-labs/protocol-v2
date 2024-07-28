@@ -1,6 +1,8 @@
 import { PublicKey } from '@solana/web3.js';
 import * as anchor from '@coral-xyz/anchor';
 import { BN } from '@coral-xyz/anchor';
+import { TOKEN_2022_PROGRAM_ID, TOKEN_PROGRAM_ID } from '@solana/spl-token';
+import { SpotMarketAccount } from '..';
 
 export async function getDriftStateAccountPublicKeyAndNonce(
 	programId: PublicKey
@@ -263,4 +265,12 @@ export function getPythPullOraclePublicKey(
 		],
 		progarmId
 	)[0];
+}
+export function getTokenProgramForSpotMarket(
+	spotMarketAccount: SpotMarketAccount
+): PublicKey {
+	if (spotMarketAccount.tokenProgram === 1) {
+		return TOKEN_2022_PROGRAM_ID;
+	}
+	return TOKEN_PROGRAM_ID;
 }
