@@ -2068,7 +2068,7 @@ export class DriftClient {
 			remainingAccounts.push({
 				pubkey: spotMarketAccount.mint,
 				isSigner: false,
-				isWritable: false
+				isWritable: false,
 			});
 		}
 	}
@@ -6565,7 +6565,7 @@ export class DriftClient {
 	public async getAddInsuranceFundStakeIx(
 		marketIndex: number,
 		amount: BN,
-		collateralAccountPublicKey: PublicKey,
+		collateralAccountPublicKey: PublicKey
 	): Promise<TransactionInstruction> {
 		const spotMarket = this.getSpotMarketAccount(marketIndex);
 		const ifStakeAccountPublicKey = getInsuranceFundStakeAccountPublicKey(
@@ -6678,7 +6678,7 @@ export class DriftClient {
 		const addFundsIx = await this.getAddInsuranceFundStakeIx(
 			marketIndex,
 			amount,
-			tokenAccount,
+			tokenAccount
 		);
 
 		addIfStakeIxs.push(addFundsIx);
@@ -6862,9 +6862,7 @@ export class DriftClient {
 		txParams?: TxParams
 	): Promise<TransactionSignature> {
 		const tx = await this.buildTransaction(
-			await this.getSettleRevenueToInsuranceFundIx(
-				spotMarketIndex,
-			),
+			await this.getSettleRevenueToInsuranceFundIx(spotMarketIndex),
 			txParams
 		);
 		const { txSig } = await this.sendTransaction(tx, [], this.opts);
@@ -6872,7 +6870,7 @@ export class DriftClient {
 	}
 
 	public async getSettleRevenueToInsuranceFundIx(
-		spotMarketIndex: number,
+		spotMarketIndex: number
 	): Promise<TransactionInstruction> {
 		const spotMarketAccount = this.getSpotMarketAccount(spotMarketIndex);
 		const remainingAccounts = [];
