@@ -1975,16 +1975,16 @@ mod fuel {
     }
 }
 
-mod worst_case_base_asset_amount_prediction_market {
-    use crate::state::perp_market::{ContractType, PerpMarket};
+mod worst_case_liability_value {
+    use crate::state::perp_market::ContractType;
     use crate::state::user::PerpPosition;
     use crate::{
         BASE_PRECISION_I128, BASE_PRECISION_I64, MAX_PREDICTION_MARKET_PRICE_I64,
-        MAX_PREDICTION_MARKET_PRICE_U128,
+        MAX_PREDICTION_MARKET_PRICE_U128, PRICE_PRECISION_I64, QUOTE_PRECISION,
     };
 
     #[test]
-    fn test() {
+    fn prediction() {
         let contract_type = ContractType::Prediction;
         let position = PerpPosition {
             base_asset_amount: 0,
@@ -2042,5 +2042,74 @@ mod worst_case_base_asset_amount_prediction_market {
 
         assert_eq!(worst_case_base_asset_amount, BASE_PRECISION_I128);
         assert_eq!(worst_case_loss, MAX_PREDICTION_MARKET_PRICE_U128 * 99 / 100);
+    }
+
+    #[test]
+    fn perp() {
+        let contract_type = ContractType::Perpetual;
+        let position = PerpPosition {
+            base_asset_amount: 0,
+            open_bids: BASE_PRECISION_I64,
+            open_asks: -BASE_PRECISION_I64,
+            ..PerpPosition::default()
+        };
+
+        let price = 100 * PRICE_PRECISION_I64;
+
+        let (worst_case_base_asset_amount, worst_case_liability) = position
+            .worst_case_liability_value(price, contract_type)
+            .unwrap();
+
+        assert_eq!(worst_case_base_asset_amount, -BASE_PRECISION_I128);
+        assert_eq!(worst_case_liability, 100 * QUOTE_PRECISION);
+
+        let contract_type = ContractType::Perpetual;
+        let position = PerpPosition {
+            base_asset_amount: 0,
+            open_bids: 2 * BASE_PRECISION_I64,
+            open_asks: -BASE_PRECISION_I64,
+            ..PerpPosition::default()
+        };
+
+        let price = 100 * PRICE_PRECISION_I64;
+
+        let (worst_case_base_asset_amount, worst_case_liability) = position
+            .worst_case_liability_value(price, contract_type)
+            .unwrap();
+
+        assert_eq!(worst_case_base_asset_amount, 2 * BASE_PRECISION_I128);
+        assert_eq!(worst_case_liability, 200 * QUOTE_PRECISION);
+
+        let position = PerpPosition {
+            base_asset_amount: 98 * BASE_PRECISION_I64,
+            open_bids: 0,
+            open_asks: -99 * BASE_PRECISION_I64,
+            ..PerpPosition::default()
+        };
+
+        let price = 100 * PRICE_PRECISION_I64;
+
+        let (worst_case_base_asset_amount, worst_case_loss) = position
+            .worst_case_liability_value(price, contract_type)
+            .unwrap();
+
+        assert_eq!(worst_case_base_asset_amount, 98 * BASE_PRECISION_I128);
+        assert_eq!(worst_case_loss, 98 * 100 * QUOTE_PRECISION);
+
+        let position = PerpPosition {
+            base_asset_amount: -98 * BASE_PRECISION_I64,
+            open_bids: 99 * BASE_PRECISION_I64,
+            open_asks: 0,
+            ..PerpPosition::default()
+        };
+
+        let price = 100 * PRICE_PRECISION_I64;
+
+        let (worst_case_base_asset_amount, worst_case_loss) = position
+            .worst_case_liability_value(price, contract_type)
+            .unwrap();
+
+        assert_eq!(worst_case_base_asset_amount, -98 * BASE_PRECISION_I128);
+        assert_eq!(worst_case_loss, 98 * 100 * QUOTE_PRECISION);
     }
 }
