@@ -595,12 +595,15 @@ impl PerpMarket {
         direction: PositionDirection,
     ) -> DriftResult<(u128, u128)> {
         let mut quote_asset_reserve_lower_bound = 0_u128;
-        let mut quote_asset_reserve_upper_bound = u128::MAX;
 
         //precision scaling: 1e6 -> 1e12 -> 1e6
         let peg_sqrt = (self.amm.peg_multiplier * PEG_PRECISION + 1)
             .nth_root(2)
             .saturating_add(1);
+
+        // $1 limit
+        let mut quote_asset_reserve_upper_bound =
+            (self.amm.sqrt_k * peg_sqrt / self.amm.peg_multiplier);
 
         // for price [0,1] maintain following invariants:
         if direction == PositionDirection::Long {

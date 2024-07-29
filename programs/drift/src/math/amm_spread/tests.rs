@@ -1552,7 +1552,7 @@ mod test {
                 market.amm.peg_multiplier,
             )
             .unwrap(),
-            50001
+            50001 // over .05
         );
 
         assert_eq!(
@@ -1562,7 +1562,7 @@ mod test {
                 market.amm.peg_multiplier,
             )
             .unwrap(),
-            33000 // todo
+            33000
         );
     }
 
@@ -1594,14 +1594,13 @@ mod test {
             crate::math::amm_spread::calculate_spread_reserves(&market, PositionDirection::Short)
                 .unwrap();
 
-        assert!(
+        assert_eq!(
             crate::math::amm::calculate_price(
                 new_ask_quote_asset_reserve,
                 new_ask_base_asset_reserve,
                 market.amm.peg_multiplier,
             )
-            .unwrap()
-                >= 999900 // todo
+            .unwrap(), 1000000 // exactly $1
         );
 
         assert_eq!(
@@ -1611,7 +1610,7 @@ mod test {
                 market.amm.peg_multiplier,
             )
             .unwrap(),
-            949981 // todo
+            949981 // under .95
         );
     }
 }
