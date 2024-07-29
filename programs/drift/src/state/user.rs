@@ -12,7 +12,7 @@ use crate::math::margin::MarginRequirementType;
 use crate::math::orders::{standardize_base_asset_amount, standardize_price};
 use crate::math::position::{
     calculate_base_asset_value_and_pnl_with_oracle_price,
-    calculate_base_asset_value_with_oracle_price,
+    calculate_base_asset_value_with_oracle_price, calculate_perp_liability_value,
 };
 use crate::math::safe_math::SafeMath;
 use crate::math::spot_balance::{
@@ -20,7 +20,7 @@ use crate::math::spot_balance::{
 };
 use crate::math::stats::calculate_rolling_sum;
 use crate::state::oracle::StrictOraclePrice;
-use crate::state::perp_market::PerpMarket;
+use crate::state::perp_market::{ContractType, PerpMarket};
 use crate::state::spot_market::{SpotBalance, SpotBalanceType, SpotMarket};
 use crate::state::traits::Size;
 use crate::{
@@ -1001,26 +1001,19 @@ impl PerpPosition {
         self.base_asset_amount == 0 && self.quote_asset_amount != 0
     }
 
-    pub fn worst_case_base_asset_amount(&self) -> DriftResult<i128> {
-        let base_asset_amount_all_bids_fill = self.base_asset_amount.safe_add(self.open_bids)?;
-        let base_asset_amount_all_asks_fill = self.base_asset_amount.safe_add(self.open_asks)?;
-
-        if base_asset_amount_all_bids_fill
-            .checked_abs()
-            .ok_or_else(math_error!())?
-            > base_asset_amount_all_asks_fill
-                .checked_abs()
-                .ok_or_else(math_error!())?
-        {
-            base_asset_amount_all_bids_fill.cast()
-        } else {
-            base_asset_amount_all_asks_fill.cast()
-        }
+    pub fn worst_case_base_asset_amount(
+        &self,
+        oracle_price: i64,
+        contract_type: ContractType,
+    ) -> DriftResult<i128> {
+        self.worst_case_liability_value(oracle_price, contract_type)
+            .map(|v| v.0)
     }
 
-    pub fn worst_case_base_asset_amount_prediction_market(
+    pub fn worst_case_liability_value(
         &self,
-        price: i64,
+        oracle_price: i64,
+        contract_type: ContractType,
     ) -> DriftResult<(i128, u128)> {
         let base_asset_amount_all_bids_fill = self
             .base_asset_amount
@@ -1031,45 +1024,28 @@ impl PerpPosition {
             .safe_add(self.open_asks)?
             .cast::<i128>()?;
 
-        let price_u128 = price.abs().cast::<u128>()?;
-        let worst_case_loss_all_bids_filled = if base_asset_amount_all_bids_fill < 0 {
-            base_asset_amount_all_bids_fill
-                .unsigned_abs()
-                .safe_mul(MAX_PREDICTION_MARKET_PRICE_U128.safe_sub(price_u128)?)?
-                .safe_div(BASE_PRECISION)? // price precision same as quote precision, save extra mul/div
-        } else {
-            base_asset_amount_all_bids_fill
-                .unsigned_abs()
-                .safe_mul(price_u128)?
-                .safe_div(BASE_PRECISION)? // price precision same as quote precision, save extra mul/div
-        };
+        let liability_value_all_bids_fill = calculate_perp_liability_value(
+            base_asset_amount_all_bids_fill,
+            oracle_price,
+            contract_type,
+        )?;
 
-        let worst_case_loss_all_asks_filled = if base_asset_amount_all_asks_fill < 0 {
-            base_asset_amount_all_asks_fill
-                .unsigned_abs()
-                .safe_mul(MAX_PREDICTION_MARKET_PRICE_U128.safe_sub(price_u128)?)?
-                .safe_div(MAX_PREDICTION_MARKET_PRICE_U128)?
-                .safe_mul(QUOTE_PRECISION)?
-                .safe_div(BASE_PRECISION)?
-        } else {
-            base_asset_amount_all_asks_fill
-                .unsigned_abs()
-                .safe_mul(price_u128)?
-                .safe_div(MAX_PREDICTION_MARKET_PRICE_U128)?
-                .safe_mul(QUOTE_PRECISION)?
-                .safe_div(BASE_PRECISION)?
-        };
+        let liability_value_all_asks_fill = calculate_perp_liability_value(
+            base_asset_amount_all_asks_fill,
+            oracle_price,
+            contract_type,
+        )?;
 
-        if worst_case_loss_all_asks_filled >= worst_case_loss_all_bids_filled {
-            Ok((
+        if liability_value_all_asks_fill >= liability_value_all_bids_fill {
+            return Ok((
                 base_asset_amount_all_asks_fill,
-                worst_case_loss_all_asks_filled,
-            ))
+                liability_value_all_asks_fill,
+            ));
         } else {
-            Ok((
+            return Ok((
                 base_asset_amount_all_bids_fill,
-                worst_case_loss_all_bids_filled,
-            ))
+                liability_value_all_bids_fill,
+            ));
         }
     }
 

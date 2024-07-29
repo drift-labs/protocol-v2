@@ -1976,6 +1976,7 @@ mod fuel {
 }
 
 mod worst_case_base_asset_amount_prediction_market {
+    use crate::state::perp_market::{ContractType, PerpMarket};
     use crate::state::user::PerpPosition;
     use crate::{
         BASE_PRECISION_I128, BASE_PRECISION_I64, MAX_PREDICTION_MARKET_PRICE_I64,
@@ -1984,6 +1985,7 @@ mod worst_case_base_asset_amount_prediction_market {
 
     #[test]
     fn test() {
+        let contract_type = ContractType::Prediction;
         let position = PerpPosition {
             base_asset_amount: 0,
             open_bids: BASE_PRECISION_I64,
@@ -1994,7 +1996,7 @@ mod worst_case_base_asset_amount_prediction_market {
         let price = MAX_PREDICTION_MARKET_PRICE_I64 * 3 / 4;
 
         let (worst_case_base_asset_amount, worst_case_loss) = position
-            .worst_case_base_asset_amount_prediction_market(price)
+            .worst_case_liability_value(price, contract_type)
             .unwrap();
 
         assert_eq!(worst_case_base_asset_amount, BASE_PRECISION_I128);
@@ -2003,7 +2005,7 @@ mod worst_case_base_asset_amount_prediction_market {
         let price = MAX_PREDICTION_MARKET_PRICE_I64 / 4;
 
         let (worst_case_base_asset_amount, worst_case_loss) = position
-            .worst_case_base_asset_amount_prediction_market(price)
+            .worst_case_liability_value(price, contract_type)
             .unwrap();
 
         assert_eq!(worst_case_base_asset_amount, -BASE_PRECISION_I128);
@@ -2019,7 +2021,7 @@ mod worst_case_base_asset_amount_prediction_market {
         let price = MAX_PREDICTION_MARKET_PRICE_I64 / 100;
 
         let (worst_case_base_asset_amount, worst_case_loss) = position
-            .worst_case_base_asset_amount_prediction_market(price)
+            .worst_case_liability_value(price, contract_type)
             .unwrap();
 
         assert_eq!(worst_case_base_asset_amount, -BASE_PRECISION_I128);
@@ -2035,7 +2037,7 @@ mod worst_case_base_asset_amount_prediction_market {
         let price = MAX_PREDICTION_MARKET_PRICE_I64 * 99 / 100;
 
         let (worst_case_base_asset_amount, worst_case_loss) = position
-            .worst_case_base_asset_amount_prediction_market(price)
+            .worst_case_liability_value(price, contract_type)
             .unwrap();
 
         assert_eq!(worst_case_base_asset_amount, BASE_PRECISION_I128);

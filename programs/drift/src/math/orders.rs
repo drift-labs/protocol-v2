@@ -834,7 +834,8 @@ pub fn calculate_max_perp_order_size(
 
     let perp_position: &PerpPosition = &user.perp_positions[position_index];
     let base_asset_amount = perp_position.base_asset_amount;
-    let worst_case_base_asset_amount = perp_position.worst_case_base_asset_amount()?;
+    let worst_case_base_asset_amount = perp_position
+        .worst_case_base_asset_amount(oracle_price_data_price, perp_market.contract_type)?;
 
     let margin_ratio = perp_market
         .get_margin_ratio(

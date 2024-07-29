@@ -128,63 +128,26 @@ pub fn calculate_perp_position_value_and_pnl(
 
     let total_unrealized_pnl = unrealized_pnl.safe_add(unrealized_funding.cast()?)?;
 
-    let (worst_case_base_asset_amount, worse_case_liability_value, mut margin_requirement) =
-        if !market.is_prediction_market() {
-            let worst_case_base_asset_amount = market_position.worst_case_base_asset_amount()?;
+    let (worst_case_base_asset_amount, worse_case_liability_value) = market_position
+        .worst_case_liability_value(oracle_price_data.price, market.contract_type)?;
 
-            let worse_case_liability_value = calculate_base_asset_value_with_oracle_price(
-                worst_case_base_asset_amount,
-                valuation_price,
-            )?;
+    // for calculating the perps value, since it's a liability, use the large of twap and quote oracle price
+    let worse_case_liability_value = worse_case_liability_value
+        .safe_mul(strict_quote_price.max().cast()?)?
+        .safe_div(PRICE_PRECISION)?;
 
-            // for calculating the perps value, since it's a liability, use the large of twap and quote oracle price
-            let worse_case_liability_value = worse_case_liability_value
-                .safe_mul(strict_quote_price.max().cast()?)?
-                .safe_div(PRICE_PRECISION)?;
+    let mut margin_requirement = if market.status == MarketStatus::Settlement {
+        0
+    } else {
+        let margin_ratio = user_custom_margin_ratio.max(market.get_margin_ratio(
+            worst_case_base_asset_amount.unsigned_abs(),
+            margin_requirement_type,
+        )?);
 
-            let margin_requirement = if market.status == MarketStatus::Settlement {
-                0
-            } else {
-                let margin_ratio = user_custom_margin_ratio.max(market.get_margin_ratio(
-                    worst_case_base_asset_amount.unsigned_abs(),
-                    margin_requirement_type,
-                )?);
-
-                worse_case_liability_value
-                    .safe_mul(margin_ratio.cast()?)?
-                    .safe_div(MARGIN_PRECISION_U128)?
-            };
-
-            (
-                worst_case_base_asset_amount,
-                worse_case_liability_value,
-                margin_requirement,
-            )
-        } else {
-            let (worst_case_base_asset_amount, worst_case_liability) =
-                market_position.worst_case_base_asset_amount_prediction_market(valuation_price)?;
-
-            let margin_requirement = if market.status == MarketStatus::Settlement {
-                0
-            } else {
-                let margin_ratio = user_custom_margin_ratio.max(market.get_margin_ratio(
-                    worst_case_base_asset_amount.unsigned_abs(),
-                    margin_requirement_type,
-                )?);
-
-                worst_case_liability
-                    .safe_mul(strict_quote_price.max().cast()?)?
-                    .safe_div(PRICE_PRECISION)?
-                    .safe_mul(margin_ratio.cast()?)?
-                    .safe_div(MARGIN_PRECISION_U128)?
-            };
-
-            (
-                worst_case_base_asset_amount,
-                worst_case_liability,
-                margin_requirement,
-            )
-        };
+        worse_case_liability_value
+            .safe_mul(margin_ratio.cast()?)?
+            .safe_div(MARGIN_PRECISION_U128)?
+    };
 
     // add small margin requirement for every open order
     margin_requirement = margin_requirement

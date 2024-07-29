@@ -14,9 +14,9 @@ use crate::math::helpers::get_proportion_u128;
 use crate::math::pnl::calculate_pnl;
 use crate::math::safe_math::SafeMath;
 
-use crate::state::perp_market::{PerpMarket, AMM};
+use crate::state::perp_market::{ContractType, PerpMarket, AMM};
 use crate::state::user::PerpPosition;
-use crate::validate;
+use crate::{validate, BASE_PRECISION, MAX_PREDICTION_MARKET_PRICE_U128};
 
 pub fn calculate_base_asset_value_and_pnl(
     base_asset_amount: i128,
@@ -86,6 +86,31 @@ pub fn calculate_base_asset_value_with_oracle_price(
         .unsigned_abs()
         .safe_mul(oracle_price.cast()?)?
         .safe_div(PRICE_TIMES_AMM_TO_QUOTE_PRECISION_RATIO)
+}
+
+pub fn calculate_perp_liability_value(
+    base_asset_amount: i128,
+    oracle_price: i64,
+    contract_type: ContractType,
+) -> DriftResult<u128> {
+    if contract_type != ContractType::Prediction {
+        return calculate_base_asset_value_with_oracle_price(base_asset_amount, oracle_price);
+    }
+
+    let price_u128 = oracle_price.abs().cast::<u128>()?;
+    let liability_value = if base_asset_amount < 0 {
+        base_asset_amount
+            .unsigned_abs()
+            .safe_mul(MAX_PREDICTION_MARKET_PRICE_U128.saturating_sub(price_u128))?
+            .safe_div(BASE_PRECISION)? // price precision same as quote precision, save extra mul/div
+    } else {
+        base_asset_amount
+            .unsigned_abs()
+            .safe_mul(price_u128)?
+            .safe_div(BASE_PRECISION)? // price precision same as quote precision, save extra mul/div
+    };
+
+    Ok(liability_value)
 }
 
 pub fn calculate_base_asset_value_and_pnl_with_oracle_price(

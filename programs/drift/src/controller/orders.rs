@@ -2715,9 +2715,9 @@ pub fn trigger_order(
     )?;
     validate!(can_trigger, ErrorCode::OrderDidNotSatisfyTriggerCondition)?;
 
-    let worst_case_base_asset_amount_before = user
+    let (_, worst_case_liability_value_before) = user
         .get_perp_position(market_index)?
-        .worst_case_base_asset_amount()?;
+        .worst_case_liability_value(oracle_price, perp_market.contract_type)?;
 
     {
         update_trigger_order_params(
@@ -2777,14 +2777,13 @@ pub fn trigger_order(
     )?;
     emit!(order_action_record);
 
-    drop(perp_market);
-
-    let worst_case_base_asset_amount_after = user
+    let (_, worst_case_liability_value_after) = user
         .get_perp_position(market_index)?
-        .worst_case_base_asset_amount()?;
+        .worst_case_liability_value(oracle_price, perp_market.contract_type)?;
 
-    let is_risk_increasing = worst_case_base_asset_amount_after.unsigned_abs()
-        > worst_case_base_asset_amount_before.unsigned_abs();
+    let is_risk_increasing = worst_case_liability_value_after > worst_case_liability_value_before;
+
+    drop(perp_market);
 
     // If order increases risk and user is below initial margin, cancel it
     if is_risk_increasing && !user.orders[order_index].reduce_only {

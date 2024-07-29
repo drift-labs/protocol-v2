@@ -317,11 +317,8 @@ pub fn liquidate_perp(
         .base_asset_amount
         .unsigned_abs();
 
-    let worst_case_base_asset_amount =
-        user.perp_positions[position_index].worst_case_base_asset_amount()?;
-
     let margin_ratio = perp_market_map.get_ref(&market_index)?.get_margin_ratio(
-        worst_case_base_asset_amount.unsigned_abs(),
+        user_base_asset_amount.cast()?,
         MarginRequirementType::Maintenance,
     )?;
 
