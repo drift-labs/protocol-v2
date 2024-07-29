@@ -1036,16 +1036,12 @@ impl PerpPosition {
             base_asset_amount_all_bids_fill
                 .unsigned_abs()
                 .safe_mul(MAX_PREDICTION_MARKET_PRICE_U128.safe_sub(price_u128)?)?
-                .safe_div(MAX_PREDICTION_MARKET_PRICE_U128)?
-                .safe_mul(QUOTE_PRECISION)?
-                .safe_div(BASE_PRECISION)?
+                .safe_div(BASE_PRECISION)? // price precision same as quote precision, save extra mul/div
         } else {
             base_asset_amount_all_bids_fill
                 .unsigned_abs()
                 .safe_mul(price_u128)?
-                .safe_div(MAX_PREDICTION_MARKET_PRICE_U128)?
-                .safe_mul(QUOTE_PRECISION)?
-                .safe_div(BASE_PRECISION)?
+                .safe_div(BASE_PRECISION)? // price precision same as quote precision, save extra mul/div
         };
 
         let worst_case_loss_all_asks_filled = if base_asset_amount_all_asks_fill < 0 {

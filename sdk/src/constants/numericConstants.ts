@@ -109,3 +109,5 @@ export const DUST_POSITION_SIZE = QUOTE_PRECISION.divn(100); // Dust position is
 
 export const FUEL_WINDOW = new BN(60 * 60 * 24 * 28); // 28 days
 export const FUEL_START_TS = new BN(1722384000); // unix timestamp
+
+export const MAX_PREDICTION_PRICE = PRICE_PRECISION;

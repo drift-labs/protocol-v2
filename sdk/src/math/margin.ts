@@ -4,7 +4,7 @@ import {
 	SPOT_MARKET_IMF_PRECISION,
 	ZERO,
 	BID_ASK_SPREAD_PRECISION,
-	AMM_RESERVE_PRECISION,
+	AMM_RESERVE_PRECISION, MAX_PREDICTION_PRICE, BASE_PRECISION,
 } from '../constants/numericConstants';
 import { BN } from '@coral-xyz/anchor';
 import { OraclePriceData } from '../oracles/types';
@@ -128,4 +128,33 @@ export function calculateWorstCaseBaseAssetAmount(
 	} else {
 		return allAsks;
 	}
+}
+
+export function calculateWorstCaseBaseAssetAmountPredictionMarket(
+	perpPosition: PerpPosition,
+	price: BN,
+): [BN, BN] {
+	const allBids = perpPosition.baseAssetAmount.add(perpPosition.openBids);
+	const allAsks = perpPosition.baseAssetAmount.add(perpPosition.openAsks);
+
+	let worstCaseLossBids;
+	if (allBids.lt(ZERO)) {
+		worstCaseLossBids = allBids.abs().mul(MAX_PREDICTION_PRICE.sub(price)).div(BASE_PRECISION);
+	} else {
+		worstCaseLossBids = allBids.mul(price).div(BASE_PRECISION);
+	}
+
+	let worstCaseLossAsks;
+	if (allAsks.lt(ZERO)) {
+		worstCaseLossAsks = allAsks.abs().mul(MAX_PREDICTION_PRICE.sub(price)).div(BASE_PRECISION);
+	} else {
+		worstCaseLossAsks = allAsks.mul(price).div(BASE_PRECISION);
+	}
+
+	if (worstCaseLossAsks.gte(worstCaseLossBids)) {
+		return [allAsks, worstCaseLossAsks];
+	} else {
+		return [allBids, worstCaseLossBids];
+	}
+
 }
