@@ -703,7 +703,7 @@ export class User {
 		strict = false,
 		includeOpenOrders = true
 	): BN {
-		return this.getTotalPerpPositionValue(
+		return this.getTotalPerpPositionLiability(
 			marginCategory,
 			liquidationBuffer,
 			includeOpenOrders,
@@ -1451,7 +1451,7 @@ export class User {
 		return health;
 	}
 
-	calculateWeightedPerpPositionValue(
+	calculateWeightedPerpPositionLiability(
 		perpPosition: PerpPosition,
 		marginCategory?: MarginCategory,
 		liquidationBuffer?: BN,
@@ -1571,7 +1571,7 @@ export class User {
 		strict = false
 	): BN {
 		const perpPosition = this.getPerpPosition(marketIndex);
-		return this.calculateWeightedPerpPositionValue(
+		return this.calculateWeightedPerpPositionLiability(
 			perpPosition,
 			marginCategory,
 			liquidationBuffer,
@@ -1584,7 +1584,7 @@ export class User {
 	 * calculates sum of position value across all positions in margin system
 	 * @returns : Precision QUOTE_PRECISION
 	 */
-	getTotalPerpPositionValue(
+	getTotalPerpPositionLiability(
 		marginCategory?: MarginCategory,
 		liquidationBuffer?: BN,
 		includeOpenOrders?: boolean,
@@ -1592,7 +1592,7 @@ export class User {
 	): BN {
 		return this.getActivePerpPositions().reduce(
 			(totalPerpValue, perpPosition) => {
-				const baseAssetValue = this.calculateWeightedPerpPositionValue(
+				const baseAssetValue = this.calculateWeightedPerpPositionLiability(
 					perpPosition,
 					marginCategory,
 					liquidationBuffer,
@@ -1606,7 +1606,7 @@ export class User {
 	}
 
 	/**
-	 * calculates position value in margin system
+	 * calculates position value based on oracle
 	 * @returns : Precision QUOTE_PRECISION
 	 */
 	public getPerpPositionValue(
@@ -1630,6 +1630,37 @@ export class User {
 			oraclePriceData,
 			includeOpenOrders
 		);
+	}
+
+	/**
+	 * calculates position liabiltiy value in margin system
+	 * @returns : Precision QUOTE_PRECISION
+	 */
+	public getPerpLiabilityValue(
+		marketIndex: number,
+		oraclePriceData: OraclePriceData,
+		includeOpenOrders = false
+	): BN {
+		const userPosition =
+			this.getPerpPositionWithLPSettle(
+				marketIndex,
+				undefined,
+				false,
+				true
+			)[0] || this.getEmptyPosition(marketIndex);
+		const market = this.driftClient.getPerpMarketAccount(
+			userPosition.marketIndex
+		);
+
+		if (includeOpenOrders) {
+			return calculateWorstCasePerpLiabilityValue(userPosition, market, oraclePriceData.price).worstCaseLiabilityValue;
+		} else {
+			return calculatePerpLiabilityValue(
+				userPosition.baseAssetAmount,
+				oraclePriceData.price,
+				isVariant(market.contractType, 'prediction')
+			);
+		}
 	}
 
 	public getPositionSide(
@@ -1747,7 +1778,7 @@ export class User {
 		spotAssetValue: BN;
 		spotLiabilityValue: BN;
 	} {
-		const perpLiability = this.getTotalPerpPositionValue(
+		const perpLiability = this.getTotalPerpPositionLiability(
 			marginCategory,
 			undefined,
 			includeOpenOrders
@@ -1823,7 +1854,7 @@ export class User {
 	}
 
 	getTotalLiabilityValue(marginCategory?: MarginCategory): BN {
-		return this.getTotalPerpPositionValue(marginCategory, undefined, true).add(
+		return this.getTotalPerpPositionLiability(marginCategory, undefined, true).add(
 			this.getSpotMarketLiabilityValue(
 				undefined,
 				marginCategory,
@@ -3289,13 +3320,8 @@ export class User {
 		const perpMarket = this.driftClient.getPerpMarketAccount(targetMarketIndex);
 		const oracleData = this.getOracleDataForPerpMarket(targetMarketIndex);
 
-		let currentPositionQuoteAmount = this.getPerpPositionValue(
-			targetMarketIndex,
-			oracleData,
-			includeOpenOrders
-		);
-
-		const worstCaseBase = calculateWorstCaseBaseAssetAmount(
+		// eslint-disable-next-line prefer-const
+		let { worstCaseBaseAssetAmount: worstCaseBase, worstCaseLiabilityValue: currentPositionQuoteAmount  } = calculateWorstCasePerpLiabilityValue(
 			currentPosition,
 			perpMarket,
 			oracleData.price
@@ -3899,14 +3925,14 @@ export class User {
 
 		let currentPerpPositionValueUSDC = ZERO;
 		if (currentPerpPosition) {
-			currentPerpPositionValueUSDC = this.getPerpPositionValue(
+			currentPerpPositionValueUSDC = this.getPerpLiabilityValue(
 				marketToIgnore,
 				oracleData,
 				includeOpenOrders
 			);
 		}
 
-		return this.getTotalPerpPositionValue(
+		return this.getTotalPerpPositionLiability(
 			marginCategory,
 			liquidationBuffer,
 			includeOpenOrders
