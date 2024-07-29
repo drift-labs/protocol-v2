@@ -37,7 +37,6 @@ import {
 	TWO,
 	ZERO,
 	FUEL_START_TS,
-	MAX_PREDICTION_PRICE,
 } from './constants/numericConstants';
 import {
 	DataAndSlot,
@@ -1492,7 +1491,11 @@ export class User {
 			liabilityValue = worstCaseLiabilityValue;
 		} else {
 			baseAssetAmount = perpPosition.baseAssetAmount;
-			liabilityValue = calculatePerpLiabilityValue(baseAssetAmount, valuationPrice, isVariant(market.contractType, 'prediction'));
+			liabilityValue = calculatePerpLiabilityValue(
+				baseAssetAmount,
+				valuationPrice,
+				isVariant(market.contractType, 'prediction')
+			);
 		}
 
 		if (marginCategory) {
@@ -1653,7 +1656,11 @@ export class User {
 		);
 
 		if (includeOpenOrders) {
-			return calculateWorstCasePerpLiabilityValue(userPosition, market, oraclePriceData.price).worstCaseLiabilityValue;
+			return calculateWorstCasePerpLiabilityValue(
+				userPosition,
+				market,
+				oraclePriceData.price
+			).worstCaseLiabilityValue;
 		} else {
 			return calculatePerpLiabilityValue(
 				userPosition.baseAssetAmount,
@@ -1854,7 +1861,11 @@ export class User {
 	}
 
 	getTotalLiabilityValue(marginCategory?: MarginCategory): BN {
-		return this.getTotalPerpPositionLiability(marginCategory, undefined, true).add(
+		return this.getTotalPerpPositionLiability(
+			marginCategory,
+			undefined,
+			true
+		).add(
 			this.getSpotMarketLiabilityValue(
 				undefined,
 				marginCategory,
@@ -2635,7 +2646,11 @@ export class User {
 		// add any position we have on the opposite side of the current trade, because we can "flip" the size of this position without taking any extra leverage.
 		const oppositeSizeLiabilityValue = targetingSameSide
 			? ZERO
-			: calculatePerpLiabilityValue(currentPosition.baseAssetAmount, oracleData.price, isVariant(marketAccount.contractType, 'prediction'));
+			: calculatePerpLiabilityValue(
+					currentPosition.baseAssetAmount,
+					oracleData.price,
+					isVariant(marketAccount.contractType, 'prediction')
+			  );
 
 		let maxPositionSize = this.getPerpBuyingPower(targetMarketIndex, lpBuffer);
 
@@ -3321,7 +3336,10 @@ export class User {
 		const oracleData = this.getOracleDataForPerpMarket(targetMarketIndex);
 
 		// eslint-disable-next-line prefer-const
-		let { worstCaseBaseAssetAmount: worstCaseBase, worstCaseLiabilityValue: currentPositionQuoteAmount  } = calculateWorstCasePerpLiabilityValue(
+		let {
+			worstCaseBaseAssetAmount: worstCaseBase,
+			worstCaseLiabilityValue: currentPositionQuoteAmount,
+		} = calculateWorstCasePerpLiabilityValue(
 			currentPosition,
 			perpMarket,
 			oracleData.price

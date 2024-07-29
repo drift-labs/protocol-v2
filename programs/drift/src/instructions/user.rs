@@ -53,6 +53,7 @@ use crate::state::order_params::{
     ModifyOrderParams, OrderParams, PlaceOrderOptions, PostOnlyParam,
 };
 use crate::state::paused_operations::{PerpOperation, SpotOperation};
+use crate::state::perp_market::ContractType;
 use crate::state::perp_market::MarketStatus;
 use crate::state::perp_market_map::{get_writable_perp_market_set, MarketSet};
 use crate::state::spot_fulfillment_params::SpotFulfillmentParams;
@@ -1727,6 +1728,12 @@ pub fn handle_add_perp_lp_shares<'c: 'info, 'info>(
             matches!(market.status, MarketStatus::Active),
             ErrorCode::MarketStatusInvalidForNewLP,
             "Market Status doesn't allow for new LP liquidity"
+        )?;
+
+        validate!(
+            !matches!(market.contract_type, ContractType::Prediction),
+            ErrorCode::MarketStatusInvalidForNewLP,
+            "Contract Type doesn't allow for LP liquidity"
         )?;
 
         validate!(
