@@ -18,7 +18,6 @@ use crate::math::constants::{
     PERCENTAGE_PRECISION_U64, PRICE_PRECISION, SPOT_WEIGHT_PRECISION, TWENTY_FOUR_HOUR,
 };
 use crate::math::helpers::get_proportion_i128;
-
 use crate::math::margin::{
     calculate_size_discount_asset_weight, calculate_size_premium_liability_weight,
     MarginRequirementType,
@@ -26,6 +25,7 @@ use crate::math::margin::{
 use crate::math::safe_math::SafeMath;
 use crate::math::stats;
 use crate::state::events::OrderActionExplanation;
+use num_integer::Roots;
 
 use crate::state::oracle::{
     get_prelaunch_price, get_sb_on_demand_price, get_switchboard_price, HistoricalOracleData,
@@ -597,24 +597,20 @@ impl PerpMarket {
         let mut quote_asset_reserve_lower_bound = 0_u128;
         let mut quote_asset_reserve_upper_bound = u128::MAX;
 
-        let y_at_price_005_lower = 0;
-        let y_at_price_005_higher = u128::MAX;
+        //precision scaling: 1e6 -> 1e12 -> 1e6
+        let peg_sqrt = (self.amm.peg_multiplier * PEG_PRECISION + 1)
+            .nth_root(2)
+            .saturating_add(1);
 
         // for price [0,1] maintain following invariants:
         if direction == PositionDirection::Long {
             // lowest ask price is $0.05
-            // smallest one side of spread is $0.005
             quote_asset_reserve_lower_bound =
-                (self.amm.sqrt_k * 22 / 100 / self.amm.peg_multiplier).max(
-                    y_at_price_005_lower,
-                )
+                (self.amm.sqrt_k * 22361 * peg_sqrt / 100000 / self.amm.peg_multiplier)
         } else {
             // highest bid price is $0.95
-            // smallest one side of spread is $0.005
             quote_asset_reserve_upper_bound =
-                (self.amm.sqrt_k * 975 * PEG_PRECISION / 1000 / self.amm.peg_multiplier).min(
-                    y_at_price_005_higher,
-                );
+                (self.amm.sqrt_k * 97467 * peg_sqrt / 100000 / self.amm.peg_multiplier)
         }
 
         Ok((
