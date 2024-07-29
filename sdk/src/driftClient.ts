@@ -7329,7 +7329,7 @@ export class DriftClient {
 
 		const [pullIx, _responses, success] = await feedAccount.fetchUpdateIx({
 			numSignatures,
-			// @ts-expect-error :: TODO someone needs to look at this
+			// @ts-ignore :: TODO someone needs to look at this
 			feedConfigs: this.sbProgramFeedConfigs.get(feed.toString()),
 		});
 		if (!success) {
