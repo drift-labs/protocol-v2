@@ -337,6 +337,16 @@ export const DevnetPerpMarkets: PerpMarketConfig[] = [
 		launchTs: 1722214583000,
 		oracleSource: OracleSource.Prelaunch,
 	},
+	{
+		fullName: 'KAMALA-POPULAR-VOTE-2024',
+		category: ['Prediction', 'Election'],
+		symbol: 'KAMALA-POPULAR-VOTE-2024-PREDICT',
+		baseAssetSymbol: 'KAMALA-POPULAR-VOTE',
+		marketIndex: 27,
+		oracle: new PublicKey('GU6CA7a2KCyhpfqZNb36UAfc9uzKBM8jHjGdt245QhYX'),
+		launchTs: 1722214583000,
+		oracleSource: OracleSource.Prelaunch,
+	},
 ];
 
 export const MainnetPerpMarkets: PerpMarketConfig[] = [
