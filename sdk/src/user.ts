@@ -2602,20 +2602,20 @@ export class User {
 			: ZERO;
 
 		// add any position we have on the opposite side of the current trade, because we can "flip" the size of this position without taking any extra leverage.
-		const oppositeSizeValueUSDC = targetingSameSide
+		const oppositeSizeLiabilityValue = targetingSameSide
 			? ZERO
-			: this.getPerpPositionValue(targetMarketIndex, oracleData);
+			: calculatePerpLiabilityValue(currentPosition.baseAssetAmount, oracleData.price, isVariant(marketAccount.contractType, 'prediction'));
 
 		let maxPositionSize = this.getPerpBuyingPower(targetMarketIndex, lpBuffer);
 
 		if (maxPositionSize.gte(ZERO)) {
-			if (oppositeSizeValueUSDC.eq(ZERO)) {
+			if (oppositeSizeLiabilityValue.eq(ZERO)) {
 				// case 1 : Regular trade where current total position less than max, and no opposite position to account for
 				// do nothing
 			} else {
 				// case 2 : trade where current total position less than max, but need to account for flipping the current position over to the other side
 				maxPositionSize = maxPositionSize.add(
-					oppositeSizeValueUSDC.mul(new BN(2))
+					oppositeSizeLiabilityValue.mul(new BN(2))
 				);
 			}
 		} else {
@@ -2623,20 +2623,21 @@ export class User {
 
 			if (!targetingSameSide) {
 				const market = this.driftClient.getPerpMarketAccount(targetMarketIndex);
-				const perpPositionValue = this.getPerpPositionValue(
-					targetMarketIndex,
-					oracleData
+				const perpLiabilityValue = calculatePerpLiabilityValue(
+					currentPosition.baseAssetAmount,
+					oracleData.price,
+					isVariant(market.contractType, 'prediction')
 				);
 				const totalCollateral = this.getTotalCollateral();
 				const marginRequirement = this.getInitialMarginRequirement();
-				const marginFreedByClosing = perpPositionValue
+				const marginFreedByClosing = perpLiabilityValue
 					.mul(new BN(market.marginRatioInitial))
 					.div(MARGIN_PRECISION);
 				const marginRequirementAfterClosing =
 					marginRequirement.sub(marginFreedByClosing);
 
 				if (marginRequirementAfterClosing.gt(totalCollateral)) {
-					maxPositionSize = perpPositionValue;
+					maxPositionSize = perpLiabilityValue;
 				} else {
 					const freeCollateralAfterClose = totalCollateral.sub(
 						marginRequirementAfterClosing
@@ -2648,7 +2649,7 @@ export class User {
 							freeCollateralAfterClose,
 							ZERO
 						);
-					maxPositionSize = perpPositionValue.add(buyingPowerAfterClose);
+					maxPositionSize = perpLiabilityValue.add(buyingPowerAfterClose);
 				}
 			} else {
 				// do nothing if targetting same side
