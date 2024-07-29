@@ -1600,7 +1600,8 @@ mod test {
                 new_ask_base_asset_reserve,
                 market.amm.peg_multiplier,
             )
-            .unwrap(), 1000000 // exactly $1
+            .unwrap(),
+            1000000 // exactly $1
         );
 
         assert_eq!(

@@ -597,23 +597,40 @@ impl PerpMarket {
         let mut quote_asset_reserve_lower_bound = 0_u128;
 
         //precision scaling: 1e6 -> 1e12 -> 1e6
-        let peg_sqrt = (self.amm.peg_multiplier * PEG_PRECISION + 1)
-            .nth_root(2)
-            .saturating_add(1);
+        let peg_sqrt = (self
+            .amm
+            .peg_multiplier
+            .safe_mul(PEG_PRECISION)?
+            .saturating_add(1))
+        .nth_root(2)
+        .saturating_add(1);
 
         // $1 limit
-        let mut quote_asset_reserve_upper_bound =
-            (self.amm.sqrt_k * peg_sqrt / self.amm.peg_multiplier);
+        let mut quote_asset_reserve_upper_bound = self
+            .amm
+            .sqrt_k
+            .safe_mul(peg_sqrt)?
+            .safe_div(self.amm.peg_multiplier)?;
 
         // for price [0,1] maintain following invariants:
         if direction == PositionDirection::Long {
             // lowest ask price is $0.05
-            quote_asset_reserve_lower_bound =
-                (self.amm.sqrt_k * 22361 * peg_sqrt / 100000 / self.amm.peg_multiplier)
+            quote_asset_reserve_lower_bound = self
+                .amm
+                .sqrt_k
+                .safe_mul(22361)?
+                .safe_mul(peg_sqrt)?
+                .safe_div(100000)?
+                .safe_div(self.amm.peg_multiplier)?
         } else {
             // highest bid price is $0.95
-            quote_asset_reserve_upper_bound =
-                (self.amm.sqrt_k * 97467 * peg_sqrt / 100000 / self.amm.peg_multiplier)
+            quote_asset_reserve_upper_bound = self
+                .amm
+                .sqrt_k
+                .safe_mul(97467)?
+                .safe_mul(peg_sqrt)?
+                .safe_div(100000)?
+                .safe_div(self.amm.peg_multiplier)?
         }
 
         Ok((
