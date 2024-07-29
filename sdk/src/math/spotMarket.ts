@@ -6,9 +6,8 @@ import {
 	SpotMarketAccount,
 } from '../types';
 import { calculateAssetWeight, calculateLiabilityWeight, getTokenAmount } from './spotBalance';
-import { MARGIN_PRECISION } from '../constants/numericConstants';
+import { MARGIN_PRECISION, ZERO } from '../constants/numericConstants';
 import { numberToSafeBN } from './utils';
-import { ZERO } from '@drift-labs/sdk';
 
 export function castNumberToSpotPrecision(
 	value: number | BN,
