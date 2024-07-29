@@ -20,6 +20,7 @@ export type SpotMarketConfig = {
 	precisionExp: BN;
 	serumMarket?: PublicKey;
 	phoenixMarket?: PublicKey;
+	openbookMarket?: PublicKey;
 	launchTs?: number;
 	pythFeedId?: string;
 };

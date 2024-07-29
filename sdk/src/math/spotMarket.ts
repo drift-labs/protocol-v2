@@ -5,7 +5,11 @@ import {
 	SpotBalanceType,
 	SpotMarketAccount,
 } from '../types';
-import { calculateAssetWeight, calculateLiabilityWeight, getTokenAmount } from './spotBalance';
+import {
+	calculateAssetWeight,
+	calculateLiabilityWeight,
+	getTokenAmount,
+} from './spotBalance';
 import { MARGIN_PRECISION, ZERO } from '../constants/numericConstants';
 import { numberToSafeBN } from './utils';
 
@@ -57,12 +61,10 @@ export function calculateSpotMarketMarginRatio(
 
 /**
  * Returns the maximum remaining deposit that can be made to the spot market. If the maxTokenDeposits on the market is zero then there is no limit and this function will also return zero. (so that needs to be checked)
- * @param market 
- * @returns 
+ * @param market
+ * @returns
  */
-export function calculateMaxRemainingDeposit(
-	market: SpotMarketAccount
-) {
+export function calculateMaxRemainingDeposit(market: SpotMarketAccount) {
 	const marketMaxTokenDeposits = market.maxTokenDeposits;
 
 	if (marketMaxTokenDeposits.eq(ZERO)) {
