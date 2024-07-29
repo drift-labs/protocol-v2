@@ -358,6 +358,7 @@ pub struct InitializeInsuranceFundStake<'info> {
 pub struct AddInsuranceFundStake<'info> {
     pub state: Box<Account<'info, State>>,
     #[account(
+        mut,
         seeds = [b"spot_market", market_index.to_le_bytes().as_ref()],
         bump
     )]
@@ -404,6 +405,7 @@ pub struct AddInsuranceFundStake<'info> {
 #[instruction(market_index: u16,)]
 pub struct RequestRemoveInsuranceFundStake<'info> {
     #[account(
+        mut,
         seeds = [b"spot_market", market_index.to_le_bytes().as_ref()],
         bump
     )]
@@ -432,6 +434,7 @@ pub struct RequestRemoveInsuranceFundStake<'info> {
 pub struct RemoveInsuranceFundStake<'info> {
     pub state: Box<Account<'info, State>>,
     #[account(
+        mut,
         seeds = [b"spot_market", market_index.to_le_bytes().as_ref()],
         bump
     )]
