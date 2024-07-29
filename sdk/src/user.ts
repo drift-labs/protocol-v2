@@ -1490,23 +1490,9 @@ export class User {
 				);
 			baseAssetAmount = worstCaseBaseAssetAmount;
 			liabilityValue = worstCaseLiabilityValue;
-		} else if (isVariant(market.contractTier, 'prediction')) {
-			baseAssetAmount = perpPosition.baseAssetAmount;
-			if (baseAssetAmount.gt(ZERO)) {
-				liabilityValue = baseAssetAmount
-					.mul(valuationPrice)
-					.div(BASE_PRECISION);
-			} else {
-				liabilityValue = baseAssetAmount
-					.mul(MAX_PREDICTION_PRICE.sub(valuationPrice))
-					.div(BASE_PRECISION);
-			}
 		} else {
 			baseAssetAmount = perpPosition.baseAssetAmount;
-			liabilityValue = baseAssetAmount
-				.abs()
-				.mul(valuationPrice)
-				.div(BASE_PRECISION);
+			liabilityValue = calculatePerpLiabilityValue(baseAssetAmount, valuationPrice, isVariant(market.contractType, 'prediction'));
 		}
 
 		if (marginCategory) {

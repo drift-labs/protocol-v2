@@ -101,6 +101,14 @@ export function calculateOraclePriceForPerpMargin(
 	return marginPrice;
 }
 
+/**
+ * This is _not_ the same as liability value as for prediction markets, the liability for the short in prediction market is (1 - oracle price) * base
+ * See {@link calculatePerpLiabilityValue} to get the liabiltiy value
+ * @param market
+ * @param perpPosition
+ * @param oraclePriceData
+ * @param includeOpenOrders
+ */
 export function calculateBaseAssetValueWithOracle(
 	market: PerpMarketAccount,
 	perpPosition: PerpPosition,
@@ -143,7 +151,7 @@ export function calculateWorstCasePerpLiabilityValue(
 	const allBids = perpPosition.baseAssetAmount.add(perpPosition.openBids);
 	const allAsks = perpPosition.baseAssetAmount.add(perpPosition.openAsks);
 
-	const isPredictionMarket = isVariant(perpMarket.contractTier, 'prediction');
+	const isPredictionMarket = isVariant(perpMarket.contractType, 'prediction');
 	const allBidsLiabilityValue = calculatePerpLiabilityValue(
 		allBids,
 		oraclePrice,
@@ -175,7 +183,7 @@ export function calculatePerpLiabilityValue(
 ): BN {
 	if (isPredictionMarket) {
 		if (baseAssetAmount.gt(ZERO)) {
-			return baseAssetAmount.abs().mul(oraclePrice).div(BASE_PRECISION);
+			return baseAssetAmount.mul(oraclePrice).div(BASE_PRECISION);
 		} else {
 			return baseAssetAmount
 				.abs()
