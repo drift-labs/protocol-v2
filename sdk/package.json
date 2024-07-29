@@ -1,6 +1,6 @@
 {
 	"name": "@drift-labs/sdk",
-	"version": "2.87.0-beta.5",
+	"version": "2.87.0-beta.6",
 	"main": "lib/index.js",
 	"types": "lib/index.d.ts",
 	"author": "crispheaney",
@@ -78,6 +78,7 @@
 		"node": ">=18"
 	},
 	"resolutions": {
-		"@solana/errors": "2.0.0-preview.4"
+		"@solana/errors": "2.0.0-preview.4",
+		"@solana/codecs-data-structures": "2.0.0-preview.4"
 	}
 }
