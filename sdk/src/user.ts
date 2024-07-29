@@ -37,6 +37,7 @@ import {
 	TWO,
 	ZERO,
 	FUEL_START_TS,
+	MAX_PREDICTION_PRICE,
 } from './constants/numericConstants';
 import {
 	DataAndSlot,
@@ -48,11 +49,13 @@ import {
 	BN,
 	calculateBaseAssetValue,
 	calculateMarketMarginRatio,
+	calculatePerpLiabilityValue,
 	calculatePositionFundingPNL,
 	calculatePositionPNL,
 	calculateReservePrice,
 	calculateSpotMarketMarginRatio,
 	calculateUnrealizedAssetWeight,
+	calculateWorstCasePerpLiabilityValue,
 	divCeil,
 	getBalance,
 	getSignedTokenAmount,
@@ -642,8 +645,15 @@ export class User {
 			undefined,
 			true
 		)[0];
+
+		const perpMarket = this.driftClient.getPerpMarketAccount(marketIndex);
+		const oraclePriceData = this.getOracleDataForPerpMarket(marketIndex);
 		const worstCaseBaseAssetAmount = perpPosition
-			? calculateWorstCaseBaseAssetAmount(perpPosition)
+			? calculateWorstCaseBaseAssetAmount(
+					perpPosition,
+					perpMarket,
+					oraclePriceData.price
+			  )
 			: ZERO;
 
 		const freeCollateral = this.getFreeCollateral().sub(collateralBuffer);
@@ -1469,14 +1479,35 @@ export class User {
 			valuationPrice = market.expiryPrice;
 		}
 
-		const baseAssetAmount = includeOpenOrders
-			? calculateWorstCaseBaseAssetAmount(perpPosition)
-			: perpPosition.baseAssetAmount;
-
-		let baseAssetValue = baseAssetAmount
-			.abs()
-			.mul(valuationPrice)
-			.div(BASE_PRECISION);
+		let baseAssetAmount: BN;
+		let liabilityValue;
+		if (includeOpenOrders) {
+			const { worstCaseBaseAssetAmount, worstCaseLiabilityValue } =
+				calculateWorstCasePerpLiabilityValue(
+					perpPosition,
+					market,
+					valuationPrice
+				);
+			baseAssetAmount = worstCaseBaseAssetAmount;
+			liabilityValue = worstCaseLiabilityValue;
+		} else if (isVariant(market.contractTier, 'prediction')) {
+			baseAssetAmount = perpPosition.baseAssetAmount;
+			if (baseAssetAmount.gt(ZERO)) {
+				liabilityValue = baseAssetAmount
+					.mul(valuationPrice)
+					.div(BASE_PRECISION);
+			} else {
+				liabilityValue = baseAssetAmount
+					.mul(MAX_PREDICTION_PRICE.sub(valuationPrice))
+					.div(BASE_PRECISION);
+			}
+		} else {
+			baseAssetAmount = perpPosition.baseAssetAmount;
+			liabilityValue = baseAssetAmount
+				.abs()
+				.mul(valuationPrice)
+				.div(BASE_PRECISION);
+		}
 
 		if (marginCategory) {
 			let marginRatio = new BN(
@@ -1513,19 +1544,19 @@ export class User {
 				quotePrice = quoteOraclePriceData.price;
 			}
 
-			baseAssetValue = baseAssetValue
+			liabilityValue = liabilityValue
 				.mul(quotePrice)
 				.div(PRICE_PRECISION)
 				.mul(marginRatio)
 				.div(MARGIN_PRECISION);
 
 			if (includeOpenOrders) {
-				baseAssetValue = baseAssetValue.add(
+				liabilityValue = liabilityValue.add(
 					new BN(perpPosition.openOrders).mul(OPEN_ORDER_MARGIN_REQUIREMENT)
 				);
 
 				if (perpPosition.lpShares.gt(ZERO)) {
-					baseAssetValue = baseAssetValue.add(
+					liabilityValue = liabilityValue.add(
 						BN.max(
 							QUOTE_PRECISION,
 							valuationPrice
@@ -1539,7 +1570,7 @@ export class User {
 			}
 		}
 
-		return baseAssetValue;
+		return liabilityValue;
 	}
 
 	/**
@@ -2167,6 +2198,8 @@ export class User {
 		const perpMarketWithSameOracle = this.driftClient
 			.getPerpMarketAccounts()
 			.find((market) => market.amm.oracle.equals(oracle));
+		const oraclePrice =
+			this.driftClient.getOracleDataForSpotMarket(marketIndex).price;
 		if (perpMarketWithSameOracle) {
 			const perpPosition = this.getPerpPositionWithLPSettle(
 				perpMarketWithSameOracle.marketIndex,
@@ -2178,7 +2211,8 @@ export class User {
 					this.calculateFreeCollateralDeltaForPerp(
 						perpMarketWithSameOracle,
 						perpPosition,
-						ZERO
+						ZERO,
+						oraclePrice
 					);
 
 				freeCollateralDelta = freeCollateralDelta.add(
@@ -2191,8 +2225,6 @@ export class User {
 			return new BN(-1);
 		}
 
-		const oraclePrice =
-			this.driftClient.getOracleDataForSpotMarket(marketIndex).price;
 		const liqPriceDelta = freeCollateral
 			.mul(QUOTE_PRECISION)
 			.div(freeCollateralDelta);
@@ -2263,6 +2295,7 @@ export class User {
 			market,
 			currentPerpPosition,
 			positionBaseSizeChange,
+			oraclePrice,
 			marginCategory,
 			includeOpenOrders
 		);
@@ -2350,41 +2383,62 @@ export class User {
 			freeCollateralChange = freeCollateralChange.sub(takerFee);
 		}
 
-		const baseAssetAmount = includeOpenOrders
-			? calculateWorstCaseBaseAssetAmount(perpPosition)
-			: perpPosition.baseAssetAmount;
+		const calculateMarginRequirement = (perpPosition: PerpPosition) => {
+			let baseAssetAmount: BN;
+			let liabilityValue: BN;
+			if (includeOpenOrders) {
+				const { worstCaseBaseAssetAmount, worstCaseLiabilityValue } =
+					calculateWorstCasePerpLiabilityValue(
+						perpPosition,
+						market,
+						oraclePrice
+					);
+				baseAssetAmount = worstCaseBaseAssetAmount;
+				liabilityValue = worstCaseLiabilityValue;
+			} else {
+				baseAssetAmount = perpPosition.baseAssetAmount;
+				liabilityValue = calculatePerpLiabilityValue(
+					baseAssetAmount,
+					oraclePrice,
+					isVariant(market.contractType, 'prediction')
+				);
+			}
 
-		const newBaseAssetAmount = baseAssetAmount.add(positionBaseSizeChange);
+			const marginRatio = calculateMarketMarginRatio(
+				market,
+				baseAssetAmount.abs(),
+				'Maintenance'
+			);
 
-		const newMarginRatio = calculateMarketMarginRatio(
-			market,
-			newBaseAssetAmount.abs(),
-			'Maintenance'
+			return liabilityValue.mul(new BN(marginRatio)).div(MARGIN_PRECISION);
+		};
+
+		const freeCollateralConsumptionBefore =
+			calculateMarginRequirement(perpPosition);
+
+		const perpPositionAfter = Object.assign({}, perpPosition);
+		perpPositionAfter.baseAssetAmount = perpPositionAfter.baseAssetAmount.add(
+			positionBaseSizeChange
 		);
 
-		// update free collateral to account for new margin requirement from position change
-		freeCollateralChange = freeCollateralChange.sub(
-			newBaseAssetAmount
-				.abs()
-				.sub(baseAssetAmount.abs())
-				.mul(oraclePrice)
-				.div(BASE_PRECISION)
-				.mul(new BN(newMarginRatio))
-				.div(MARGIN_PRECISION)
-		);
+		const freeCollateralConsumptionAfter =
+			calculateMarginRequirement(perpPositionAfter);
 
-		return freeCollateralChange;
+		return freeCollateralChange.sub(
+			freeCollateralConsumptionAfter.sub(freeCollateralConsumptionBefore)
+		);
 	}
 
 	calculateFreeCollateralDeltaForPerp(
 		market: PerpMarketAccount,
 		perpPosition: PerpPosition,
 		positionBaseSizeChange: BN,
+		oraclePrice: BN,
 		marginCategory: MarginCategory = 'Maintenance',
 		includeOpenOrders = false
 	): BN | undefined {
 		const baseAssetAmount = includeOpenOrders
-			? calculateWorstCaseBaseAssetAmount(perpPosition)
+			? calculateWorstCaseBaseAssetAmount(perpPosition, market, oraclePrice)
 			: perpPosition.baseAssetAmount;
 
 		// zero if include orders == false
@@ -2409,23 +2463,33 @@ export class User {
 		}
 
 		let freeCollateralDelta = ZERO;
-		if (proposedBaseAssetAmount.gt(ZERO)) {
-			freeCollateralDelta = QUOTE_PRECISION.sub(marginRatioQuotePrecision)
-				.mul(proposedBaseAssetAmount)
-				.div(BASE_PRECISION);
+		if (isVariant(market.contractType, 'prediction')) {
+			// for prediction market, increase in pnl and margin requirement will net out for position
+			// open order margin requirement will change with price though
+			if (orderBaseAssetAmount.gt(ZERO)) {
+				freeCollateralDelta = marginRatioQuotePrecision.neg();
+			} else if (orderBaseAssetAmount.lt(ZERO)) {
+				freeCollateralDelta = marginRatioQuotePrecision;
+			}
 		} else {
-			freeCollateralDelta = QUOTE_PRECISION.neg()
-				.sub(marginRatioQuotePrecision)
-				.mul(proposedBaseAssetAmount.abs())
-				.div(BASE_PRECISION);
-		}
+			if (proposedBaseAssetAmount.gt(ZERO)) {
+				freeCollateralDelta = QUOTE_PRECISION.sub(marginRatioQuotePrecision)
+					.mul(proposedBaseAssetAmount)
+					.div(BASE_PRECISION);
+			} else {
+				freeCollateralDelta = QUOTE_PRECISION.neg()
+					.sub(marginRatioQuotePrecision)
+					.mul(proposedBaseAssetAmount.abs())
+					.div(BASE_PRECISION);
+			}
 
-		if (!orderBaseAssetAmount.eq(ZERO)) {
-			freeCollateralDelta = freeCollateralDelta.sub(
-				marginRatioQuotePrecision
-					.mul(orderBaseAssetAmount.abs())
-					.div(BASE_PRECISION)
-			);
+			if (!orderBaseAssetAmount.eq(ZERO)) {
+				freeCollateralDelta = freeCollateralDelta.sub(
+					marginRatioQuotePrecision
+						.mul(orderBaseAssetAmount.abs())
+						.div(BASE_PRECISION)
+				);
+			}
 		}
 
 		return freeCollateralDelta;
@@ -3235,6 +3299,7 @@ export class User {
 			this.getPerpPositionWithLPSettle(targetMarketIndex)[0] ||
 			this.getEmptyPosition(targetMarketIndex);
 
+		const perpMarket = this.driftClient.getPerpMarketAccount(targetMarketIndex);
 		const oracleData = this.getOracleDataForPerpMarket(targetMarketIndex);
 
 		let currentPositionQuoteAmount = this.getPerpPositionValue(
@@ -3243,7 +3308,11 @@ export class User {
 			includeOpenOrders
 		);
 
-		const worstCaseBase = calculateWorstCaseBaseAssetAmount(currentPosition);
+		const worstCaseBase = calculateWorstCaseBaseAssetAmount(
+			currentPosition,
+			perpMarket,
+			oracleData.price
+		);
 
 		// current side is short if position base asset amount is negative OR there is no position open but open orders are short
 		const currentSide =
@@ -3617,8 +3686,14 @@ export class User {
 				perpMarket.marketIndex
 			);
 			const oraclePrice = oraclePriceData.price;
-			const worstCaseBaseAmount =
-				calculateWorstCaseBaseAssetAmount(settledLpPosition);
+			const {
+				worstCaseBaseAssetAmount: worstCaseBaseAmount,
+				worstCaseLiabilityValue,
+			} = calculateWorstCasePerpLiabilityValue(
+				settledLpPosition,
+				perpMarket,
+				oraclePrice
+			);
 
 			const marginRatio = new BN(
 				calculateMarketMarginRatio(
@@ -3636,12 +3711,7 @@ export class User {
 				QUOTE_SPOT_MARKET_INDEX
 			);
 
-			const baseAssetValue = worstCaseBaseAmount
-				.abs()
-				.mul(oraclePrice)
-				.div(BASE_PRECISION);
-
-			let marginRequirement = baseAssetValue
+			let marginRequirement = worstCaseLiabilityValue
 				.mul(quoteOraclePriceData.price)
 				.div(PRICE_PRECISION)
 				.mul(marginRatio)
@@ -3667,7 +3737,7 @@ export class User {
 			healthComponents.perpPositions.push({
 				marketIndex: perpMarket.marketIndex,
 				size: worstCaseBaseAmount,
-				value: baseAssetValue,
+				value: worstCaseLiabilityValue,
 				weight: marginRatio,
 				weightedValue: marginRequirement,
 			});

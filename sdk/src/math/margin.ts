@@ -4,7 +4,9 @@ import {
 	SPOT_MARKET_IMF_PRECISION,
 	ZERO,
 	BID_ASK_SPREAD_PRECISION,
-	AMM_RESERVE_PRECISION, MAX_PREDICTION_PRICE, BASE_PRECISION,
+	AMM_RESERVE_PRECISION,
+	MAX_PREDICTION_PRICE,
+	BASE_PRECISION,
 } from '../constants/numericConstants';
 import { BN } from '@coral-xyz/anchor';
 import { OraclePriceData } from '../oracles/types';
@@ -111,50 +113,76 @@ export function calculateBaseAssetValueWithOracle(
 	}
 
 	const baseAssetAmount = includeOpenOrders
-		? calculateWorstCaseBaseAssetAmount(perpPosition)
+		? calculateWorstCaseBaseAssetAmount(
+				perpPosition,
+				market,
+				oraclePriceData.price
+		  )
 		: perpPosition.baseAssetAmount;
 
 	return baseAssetAmount.abs().mul(price).div(AMM_RESERVE_PRECISION);
 }
 
 export function calculateWorstCaseBaseAssetAmount(
-	perpPosition: PerpPosition
+	perpPosition: PerpPosition,
+	perpMarket: PerpMarketAccount,
+	oraclePrice: BN
 ): BN {
+	return calculateWorstCasePerpLiabilityValue(
+		perpPosition,
+		perpMarket,
+		oraclePrice
+	).worstCaseBaseAssetAmount;
+}
+
+export function calculateWorstCasePerpLiabilityValue(
+	perpPosition: PerpPosition,
+	perpMarket: PerpMarketAccount,
+	oraclePrice: BN
+): { worstCaseBaseAssetAmount: BN; worstCaseLiabilityValue: BN } {
 	const allBids = perpPosition.baseAssetAmount.add(perpPosition.openBids);
 	const allAsks = perpPosition.baseAssetAmount.add(perpPosition.openAsks);
 
-	if (allBids.abs().gt(allAsks.abs())) {
-		return allBids;
+	const isPredictionMarket = isVariant(perpMarket.contractTier, 'prediction');
+	const allBidsLiabilityValue = calculatePerpLiabilityValue(
+		allBids,
+		oraclePrice,
+		isPredictionMarket
+	);
+	const allAsksLiabilityValue = calculatePerpLiabilityValue(
+		allAsks,
+		oraclePrice,
+		isPredictionMarket
+	);
+
+	if (allAsksLiabilityValue.gte(allBidsLiabilityValue)) {
+		return {
+			worstCaseBaseAssetAmount: allAsks,
+			worstCaseLiabilityValue: allAsksLiabilityValue,
+		};
 	} else {
-		return allAsks;
+		return {
+			worstCaseBaseAssetAmount: allBids,
+			worstCaseLiabilityValue: allBidsLiabilityValue,
+		};
 	}
 }
 
-export function calculateWorstCaseBaseAssetAmountPredictionMarket(
-	perpPosition: PerpPosition,
-	price: BN,
-): [BN, BN] {
-	const allBids = perpPosition.baseAssetAmount.add(perpPosition.openBids);
-	const allAsks = perpPosition.baseAssetAmount.add(perpPosition.openAsks);
-
-	let worstCaseLossBids;
-	if (allBids.lt(ZERO)) {
-		worstCaseLossBids = allBids.abs().mul(MAX_PREDICTION_PRICE.sub(price)).div(BASE_PRECISION);
+export function calculatePerpLiabilityValue(
+	baseAssetAmount: BN,
+	oraclePrice: BN,
+	isPredictionMarket: boolean
+): BN {
+	if (isPredictionMarket) {
+		if (baseAssetAmount.gt(ZERO)) {
+			return baseAssetAmount.abs().mul(oraclePrice).div(BASE_PRECISION);
+		} else {
+			return baseAssetAmount
+				.abs()
+				.mul(MAX_PREDICTION_PRICE.sub(oraclePrice))
+				.div(BASE_PRECISION);
+		}
 	} else {
-		worstCaseLossBids = allBids.mul(price).div(BASE_PRECISION);
+		return baseAssetAmount.abs().mul(oraclePrice).div(BASE_PRECISION);
 	}
-
-	let worstCaseLossAsks;
-	if (allAsks.lt(ZERO)) {
-		worstCaseLossAsks = allAsks.abs().mul(MAX_PREDICTION_PRICE.sub(price)).div(BASE_PRECISION);
-	} else {
-		worstCaseLossAsks = allAsks.mul(price).div(BASE_PRECISION);
-	}
-
-	if (worstCaseLossAsks.gte(worstCaseLossBids)) {
-		return [allAsks, worstCaseLossAsks];
-	} else {
-		return [allBids, worstCaseLossBids];
-	}
-
 }
