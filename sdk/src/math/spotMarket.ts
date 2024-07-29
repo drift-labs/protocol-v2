@@ -58,8 +58,6 @@ export function calculateSpotMarketMarginRatio(
 
 	return marginRatio;
 }
-<<<<<<< HEAD
-=======
 
 /**
  * Returns the maximum remaining deposit that can be made to the spot market. If the maxTokenDeposits on the market is zero then there is no limit and this function will also return zero. (so that needs to be checked)
@@ -82,4 +80,3 @@ export function calculateMaxRemainingDeposit(market: SpotMarketAccount) {
 
 	return marketMaxTokenDeposits.sub(totalDepositsTokenAmount);
 }
->>>>>>> master
