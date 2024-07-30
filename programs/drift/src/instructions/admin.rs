@@ -22,7 +22,7 @@ use crate::math::constants::{
     INSURANCE_SPECULATIVE_MAX, LIQUIDATION_FEE_PRECISION, MAX_CONCENTRATION_COEFFICIENT,
     MAX_SQRT_K, MAX_UPDATE_K_PRICE_CHANGE, PERCENTAGE_PRECISION, QUOTE_SPOT_MARKET_INDEX,
     SPOT_CUMULATIVE_INTEREST_PRECISION, SPOT_IMF_PRECISION, SPOT_WEIGHT_PRECISION, THIRTEEN_DAY,
-    TWENTY_FOUR_HOUR,
+    TWENTY_FOUR_HOUR, FUEL_START_TS
 };
 use crate::math::cp_curve::get_update_k_result;
 use crate::math::orders::is_multiple_of_step_size;
@@ -1173,7 +1173,7 @@ pub fn handle_init_user_fuel(
     let user_stats = &mut load_mut!(ctx.accounts.user_stats)?;
 
     validate!(
-        user.last_fuel_bonus_update_ts == 0,
+        user.last_fuel_bonus_update_ts < FUEL_START_TS as u32,
         ErrorCode::DefaultError,
         "User must not have begun earning fuel"
     )?;

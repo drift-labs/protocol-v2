@@ -3363,27 +3363,6 @@
       ]
     },
     {
-      "name": "initializePredictionMarket",
-      "accounts": [
-        {
-          "name": "admin",
-          "isMut": false,
-          "isSigner": true
-        },
-        {
-          "name": "state",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "perpMarket",
-          "isMut": true,
-          "isSigner": false
-        }
-      ],
-      "args": []
-    },
-    {
       "name": "deleteInitializedPerpMarket",
       "accounts": [
         {
@@ -10125,9 +10104,6 @@
           },
           {
             "name": "Future"
-          },
-          {
-            "name": "Prediction"
           }
         ]
       }
