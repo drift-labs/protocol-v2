@@ -1665,6 +1665,7 @@ pub fn handle_deposit_into_perp_market_fee_pool<'c: 'info, 'info>(
 }
 
 #[access_control(
+    deposit_not_paused(&ctx.accounts.state)
     spot_market_valid(&ctx.accounts.spot_market)
 )]
 pub fn handle_deposit_into_spot_market_vault<'c: 'info, 'info>(
@@ -1672,6 +1673,12 @@ pub fn handle_deposit_into_spot_market_vault<'c: 'info, 'info>(
     amount: u64,
 ) -> Result<()> {
     let spot_market = &mut load_mut!(ctx.accounts.spot_market)?;
+
+    validate!(
+        !spot_market.is_operation_paused(SpotOperation::Deposit),
+        ErrorCode::DefaultError,
+        "spot market deposits paused"
+    )?;
 
     let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
 
@@ -1726,6 +1733,8 @@ pub fn handle_deposit_into_spot_market_vault<'c: 'info, 'info>(
 
     ctx.accounts.spot_market_vault.reload()?;
     validate_spot_market_vault_amount(&spot_market, ctx.accounts.spot_market_vault.amount)?;
+
+    spot_market.validate_max_token_deposits_and_borrows()?;
 
     emit!(SpotMarketVaultDepositRecord {
         ts: Clock::get()?.unix_timestamp,
@@ -4346,13 +4355,12 @@ pub struct DepositIntoMarketFeePool<'info> {
 
 #[derive(Accounts)]
 pub struct DepositIntoSpotMarketVault<'info> {
-    #[account(
-        mut,
-        has_one = admin
-    )]
     pub state: Box<Account<'info, State>>,
     #[account(mut)]
     pub spot_market: AccountLoader<'info, SpotMarket>,
+    #[account(
+        address = admin_hot_wallet::id()
+    )]
     pub admin: Signer<'info>,
     #[account(
         mut,
