@@ -42,6 +42,7 @@ drift-macros = { git = "https://github.com/drift-labs/drift-macros.git", rev = "
 switchboard = { path = "../switchboard", features = ["no-entrypoint"] }
 openbook-v2-light = { path = "../openbook_v2", features = ["no-entrypoint"] }
 ahash = "=0.8.6"
+switchboard-on-demand = { path = "../switchboard-on-demand", features = ["no-entrypoint"] }
 byteorder = "1.4.3"
 
 [dev-dependencies]

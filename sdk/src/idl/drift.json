@@ -2382,7 +2382,7 @@
         },
         {
           "name": "spotMarket",
-          "isMut": false,
+          "isMut": true,
           "isSigner": false
         },
         {
@@ -2442,7 +2442,7 @@
       "accounts": [
         {
           "name": "spotMarket",
-          "isMut": false,
+          "isMut": true,
           "isSigner": false
         },
         {
@@ -2482,7 +2482,7 @@
       "accounts": [
         {
           "name": "spotMarket",
-          "isMut": false,
+          "isMut": true,
           "isSigner": false
         },
         {
@@ -2523,7 +2523,7 @@
         },
         {
           "name": "spotMarket",
-          "isMut": false,
+          "isMut": true,
           "isSigner": false
         },
         {
@@ -6877,11 +6877,15 @@
             "type": "u8"
           },
           {
+            "name": "tokenProgram",
+            "type": "u8"
+          },
+          {
             "name": "padding",
             "type": {
               "array": [
                 "u8",
-                42
+                41
               ]
             }
           }
@@ -9989,6 +9993,9 @@
           },
           {
             "name": "PythStableCoinPull"
+          },
+          {
+            "name": "SwitchboardOnDemand"
           }
         ]
       }
@@ -12808,6 +12815,11 @@
     },
     {
       "code": 6282,
+      "name": "NonZeroTransferFee",
+      "msg": "Non zero transfer fee"
+    },
+    {
+      "code": 6283,
       "name": "LiquidationOrderFailedToFill",
       "msg": "Liquidation order failed to fill"
     }

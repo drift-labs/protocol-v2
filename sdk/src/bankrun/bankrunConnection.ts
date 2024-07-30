@@ -35,7 +35,7 @@ import {
 import { BankrunProvider } from 'anchor-bankrun';
 import bs58 from 'bs58';
 import { BN, Wallet } from '@coral-xyz/anchor';
-import { Account, TOKEN_PROGRAM_ID, unpackAccount } from '@solana/spl-token';
+import { Account, unpackAccount } from '@solana/spl-token';
 
 export type Connection = SolanaConnection | BankrunConnection;
 
@@ -164,7 +164,7 @@ export class BankrunConnection {
 
 	async getTokenAccount(publicKey: PublicKey): Promise<Account> {
 		const info = await this.getAccountInfo(publicKey);
-		return unpackAccount(publicKey, info, TOKEN_PROGRAM_ID);
+		return unpackAccount(publicKey, info, info.owner);
 	}
 
 	async getMultipleAccountsInfo(

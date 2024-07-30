@@ -569,6 +569,8 @@ pub enum ErrorCode {
     InvalidOpenbookV2Program,
     #[msg("InvalidOpenbookV2Market")]
     InvalidOpenbookV2Market,
+    #[msg("Non zero transfer fee")]
+    NonZeroTransferFee,
     #[msg("Liquidation order failed to fill")]
     LiquidationOrderFailedToFill,
 }
