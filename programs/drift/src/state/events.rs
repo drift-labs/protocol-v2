@@ -556,6 +556,20 @@ pub struct SwapRecord {
     pub fee: u64,
 }
 
+#[event]
+pub struct SpotMarketVaultDepositRecord {
+    pub ts: i64,
+    pub market_index: u16,
+    /// precision: SPOT_BALANCE_PRECISION
+    pub deposit_balance: u128,
+    /// precision: SPOT_CUMULATIVE_INTEREST_PRECISION
+    pub cumulative_deposit_interest_before: u128,
+    /// precision: SPOT_CUMULATIVE_INTEREST_PRECISION
+    pub cumulative_deposit_interest_after: u128,
+    pub deposit_token_amount_before: u64,
+    pub amount: u64,
+}
+
 pub fn emit_stack<T: AnchorSerialize + Discriminator, const N: usize>(event: T) -> DriftResult {
     let mut data_buf = [0u8; N];
     let mut out_buf = [0u8; N];

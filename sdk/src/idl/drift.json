@@ -3635,6 +3635,47 @@
       ]
     },
     {
+      "name": "depositIntoSpotMarketVault",
+      "accounts": [
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "spotMarket",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "sourceVault",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "spotMarketVault",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "tokenProgram",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "amount",
+          "type": "u64"
+        }
+      ]
+    },
+    {
       "name": "depositIntoSpotMarketRevenuePool",
       "accounts": [
         {
@@ -11396,6 +11437,46 @@
         },
         {
           "name": "fee",
+          "type": "u64",
+          "index": false
+        }
+      ]
+    },
+    {
+      "name": "SpotMarketVaultDepositRecord",
+      "fields": [
+        {
+          "name": "ts",
+          "type": "i64",
+          "index": false
+        },
+        {
+          "name": "marketIndex",
+          "type": "u16",
+          "index": false
+        },
+        {
+          "name": "depositBalance",
+          "type": "u128",
+          "index": false
+        },
+        {
+          "name": "cumulativeDepositInterestBefore",
+          "type": "u128",
+          "index": false
+        },
+        {
+          "name": "cumulativeDepositInterestAfter",
+          "type": "u128",
+          "index": false
+        },
+        {
+          "name": "depositTokenAmountBefore",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "amount",
           "type": "u64",
           "index": false
         }

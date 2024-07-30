@@ -23,6 +23,7 @@ test_files=(
   cancelAllOrders.ts
   curve.ts
   deleteInitializedSpotMarket.ts
+  depositIntoSpotMarketVault.ts
   driftClient.ts
   fillSpot.ts
   insuranceFundStake.ts

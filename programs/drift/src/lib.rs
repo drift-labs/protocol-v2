@@ -826,6 +826,13 @@ pub mod drift {
         handle_deposit_into_perp_market_fee_pool(ctx, amount)
     }
 
+    pub fn deposit_into_spot_market_vault<'c: 'info, 'info>(
+        ctx: Context<'_, '_, 'c, 'info, DepositIntoSpotMarketVault<'info>>,
+        amount: u64,
+    ) -> Result<()> {
+        handle_deposit_into_spot_market_vault(ctx, amount)
+    }
+
     pub fn deposit_into_spot_market_revenue_pool<'c: 'info, 'info>(
         ctx: Context<'_, '_, 'c, 'info, RevenuePoolDeposit<'info>>,
         amount: u64,
