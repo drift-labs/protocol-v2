@@ -21,6 +21,11 @@ pub mod switchboard_program {
     declare_id!("SW1TCH7qEPTdLsDHRgPuMQjbQxKdH2aBStViMFnt64f");
 }
 
+pub mod switchboard_on_demand {
+    use solana_program::declare_id;
+    declare_id!("SBondMDrcV3K4kxZR1HNVT7osZxAHVHgYXL5Ze1oMUv");
+}
+
 pub mod bonk_oracle {
     use solana_program::declare_id;
     #[cfg(feature = "mainnet-beta")]

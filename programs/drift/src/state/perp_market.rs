@@ -28,7 +28,8 @@ use crate::math::stats;
 use crate::state::events::OrderActionExplanation;
 
 use crate::state::oracle::{
-    get_prelaunch_price, get_switchboard_price, HistoricalOracleData, OracleSource,
+    get_prelaunch_price, get_sb_on_demand_price, get_switchboard_price, HistoricalOracleData,
+    OracleSource,
 };
 use crate::state::spot_market::{AssetTier, SpotBalance, SpotBalanceType};
 use crate::state::traits::{MarketIndexOffset, Size};
@@ -616,16 +617,16 @@ pub struct InsuranceClaim {
     /// The amount of revenue last settled
     /// Positive if funds left the perp market,
     /// negative if funds were pulled into the perp market
-    /// precision: QUOTE_PRECISION  
+    /// precision: QUOTE_PRECISION
     pub revenue_withdraw_since_last_settle: i64,
     /// The max amount of revenue that can be withdrawn per period
-    /// precision: QUOTE_PRECISION  
+    /// precision: QUOTE_PRECISION
     pub max_revenue_withdraw_per_period: u64,
     /// The max amount of insurance that perp market can use to resolve bankruptcy and pnl deficits
-    /// precision: QUOTE_PRECISION  
+    /// precision: QUOTE_PRECISION
     pub quote_max_insurance: u64,
     /// The amount of insurance that has been used to resolve bankruptcy and pnl deficits
-    /// precision: QUOTE_PRECISION  
+    /// precision: QUOTE_PRECISION
     pub quote_settled_insurance: u64,
     /// The last time revenue was settled in/out of market
     pub last_revenue_withdraw_ts: i64,
@@ -871,7 +872,7 @@ pub struct AMM {
     /// the update intensity of AMM formulaic updates (adjusting k). 0-100
     pub curve_update_intensity: u8,
     /// the jit intensity of AMM. larger intensity means larger participation in jit. 0 means no jit participation.
-    /// (0, 100] is intensity for protocol-owned AMM. (100, 200] is intensity for user LP-owned AMM.  
+    /// (0, 100] is intensity for protocol-owned AMM. (100, 200] is intensity for user LP-owned AMM.
     pub amm_jit_intensity: u8,
     /// the oracle provider information. used to decode/scale the oracle public key
     pub oracle_source: OracleSource,
@@ -1298,6 +1299,9 @@ impl AMM {
             OracleSource::Pyth1K => Ok(Some(self.get_pyth_twap(price_oracle, 1000, false)?)),
             OracleSource::Pyth1M => Ok(Some(self.get_pyth_twap(price_oracle, 1000000, false)?)),
             OracleSource::Switchboard => Ok(Some(get_switchboard_price(price_oracle, slot)?.price)),
+            OracleSource::SwitchboardOnDemand => {
+                Ok(Some(get_sb_on_demand_price(price_oracle, slot)?.price))
+            }
             OracleSource::QuoteAsset => {
                 msg!("Can't get oracle twap for quote asset");
                 Err(ErrorCode::DefaultError)

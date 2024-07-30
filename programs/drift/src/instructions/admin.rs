@@ -41,6 +41,7 @@ use crate::state::fulfillment_params::phoenix::PhoenixV1FulfillmentConfig;
 use crate::state::fulfillment_params::serum::SerumContext;
 use crate::state::fulfillment_params::serum::SerumV3FulfillmentConfig;
 use crate::state::insurance_fund_stake::ProtocolIfSharesTransferConfig;
+use crate::state::oracle::get_sb_on_demand_price;
 use crate::state::oracle::{
     get_oracle_price, get_prelaunch_price, get_pyth_price, get_switchboard_price,
     HistoricalIndexData, HistoricalOracleData, OraclePriceData, OracleSource, PrelaunchOracle,
@@ -784,6 +785,15 @@ pub fn handle_initialize_perp_market(
                 ..
             } = get_pyth_price(&ctx.accounts.oracle, clock_slot, 1, true)?;
             (oracle_price, oracle_delay, QUOTE_PRECISION_I64)
+        }
+        OracleSource::SwitchboardOnDemand => {
+            let OraclePriceData {
+                price: oracle_price,
+                delay: oracle_delay,
+                ..
+            } = get_sb_on_demand_price(&ctx.accounts.oracle, clock_slot)?;
+
+            (oracle_price, oracle_delay, oracle_price)
         }
     };
 

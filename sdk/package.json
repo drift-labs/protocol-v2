@@ -1,6 +1,6 @@
 {
 	"name": "@drift-labs/sdk",
-	"version": "2.87.0-beta.3",
+	"version": "2.87.0-beta.5",
 	"main": "lib/index.js",
 	"types": "lib/index.d.ts",
 	"author": "crispheaney",
@@ -35,6 +35,7 @@
 	},
 	"dependencies": {
 		"@coral-xyz/anchor": "0.28.0",
+		"@coral-xyz/anchor-30": "npm:@coral-xyz/anchor@0.30.1",
 		"@ellipsis-labs/phoenix-sdk": "^1.4.2",
 		"@project-serum/serum": "^0.13.38",
 		"@pythnetwork/client": "2.5.3",
@@ -42,6 +43,7 @@
 		"@pythnetwork/pyth-solana-receiver": "^0.7.0",
 		"@solana/spl-token": "0.3.7",
 		"@solana/web3.js": "1.92.3",
+		"@switchboard-xyz/on-demand": "^1.2.1",
 		"anchor-bankrun": "^0.3.0",
 		"rpc-websockets": "7.5.1",
 		"solana-bankrun": "^0.3.0",

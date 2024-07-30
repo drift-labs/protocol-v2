@@ -10,6 +10,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Features
 
 - program: add deposit into spot market vault ([#1159](https://github.com/drift-labs/protocol-v2/pull/1159))
+- program: add switchboard on demand integration ([#1154](https://github.com/drift-labs/protocol-v2/pull/1154))
+- program: add support for token 2022 ([#1125](https://github.com/drift-labs/protocol-v2/pull/1125))
 
 ### Fixes
 

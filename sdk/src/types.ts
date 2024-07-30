@@ -117,6 +117,7 @@ export class OracleSource {
 	static readonly PYTH_STABLE_COIN = { pythStableCoin: {} };
 	static readonly PYTH_STABLE_COIN_PULL = { pythStableCoinPull: {} };
 	static readonly Prelaunch = { prelaunch: {} };
+	static readonly SWITCHBOARD_ON_DEMAND = { switchboardOnDemand: {} };
 }
 
 export class OrderType {

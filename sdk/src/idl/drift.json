@@ -9990,6 +9990,9 @@
           },
           {
             "name": "PythStableCoinPull"
+          },
+          {
+            "name": "SwitchboardOnDemand"
           }
         ]
       }
