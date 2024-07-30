@@ -210,8 +210,7 @@ pub fn is_amm_available_liquidity_source(
     slot: u64,
     fill_mode: FillMode,
 ) -> DriftResult<bool> {
-    Ok(is_auction_complete(order.slot, min_auction_duration, slot)?
-        || fill_mode == FillMode::Liquidation)
+    Ok(is_auction_complete(order.slot, min_auction_duration, slot)? || fill_mode.is_liquidation())
 }
 
 pub fn calculate_auction_params_for_trigger_order(
