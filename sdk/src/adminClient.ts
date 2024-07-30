@@ -1029,6 +1029,49 @@ export class AdminClient extends DriftClient {
 		});
 	}
 
+	public async depositIntoSpotMarketVault(
+		spotMarketIndex: number,
+		amount: BN,
+		sourceVault: PublicKey
+	): Promise<TransactionSignature> {
+		const depositIntoPerpMarketFeePoolIx =
+			await this.getDepositIntoSpotMarketVaultIx(
+				spotMarketIndex,
+				amount,
+				sourceVault
+			);
+
+		const tx = await this.buildTransaction(depositIntoPerpMarketFeePoolIx);
+
+		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+
+		return txSig;
+	}
+
+	public async getDepositIntoSpotMarketVaultIx(
+		spotMarketIndex: number,
+		amount: BN,
+		sourceVault: PublicKey
+	): Promise<TransactionInstruction> {
+		const spotMarket = this.getSpotMarketAccount(spotMarketIndex);
+
+		const remainingAccounts = [];
+		this.addTokenMintToRemainingAccounts(spotMarket, remainingAccounts);
+		const tokenProgram = this.getTokenProgramForSpotMarket(spotMarket);
+		return await this.program.instruction.depositIntoSpotMarketVault(amount, {
+			accounts: {
+				admin: this.isSubscribed
+					? this.getStateAccount().admin
+					: this.wallet.publicKey,
+				state: await this.getStatePublicKey(),
+				sourceVault,
+				spotMarket: spotMarket.pubkey,
+				spotMarketVault: spotMarket.vault,
+				tokenProgram,
+			},
+		});
+	}
+
 	public async updateAdmin(admin: PublicKey): Promise<TransactionSignature> {
 		const updateAdminIx = await this.getUpdateAdminIx(admin);
 

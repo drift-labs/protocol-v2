@@ -8,6 +8,7 @@ use crate::state::oracle::OraclePriceData;
 use crate::state::user::{Order, OrderType};
 use solana_program::msg;
 
+use crate::state::fill_mode::FillMode;
 use crate::state::perp_market::PerpMarket;
 use crate::{OrderParams, MAX_PREDICTION_MARKET_PRICE};
 use std::cmp::min;
@@ -215,8 +216,9 @@ pub fn is_amm_available_liquidity_source(
     order: &Order,
     min_auction_duration: u8,
     slot: u64,
+    fill_mode: FillMode,
 ) -> DriftResult<bool> {
-    is_auction_complete(order.slot, min_auction_duration, slot)
+    Ok(is_auction_complete(order.slot, min_auction_duration, slot)? || fill_mode.is_liquidation())
 }
 
 pub fn calculate_auction_params_for_trigger_order(

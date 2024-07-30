@@ -571,6 +571,8 @@ pub enum ErrorCode {
     InvalidOpenbookV2Market,
     #[msg("Non zero transfer fee")]
     NonZeroTransferFee,
+    #[msg("Liquidation order failed to fill")]
+    LiquidationOrderFailedToFill,
 }
 
 #[macro_export]

@@ -108,13 +108,15 @@ pub fn place_perp_order(
     let now = clock.unix_timestamp;
     let slot = clock.slot;
 
-    validate_user_not_being_liquidated(
-        user,
-        perp_market_map,
-        spot_market_map,
-        oracle_map,
-        state.liquidation_margin_buffer_ratio,
-    )?;
+    if !options.is_liquidation() {
+        validate_user_not_being_liquidated(
+            user,
+            perp_market_map,
+            spot_market_map,
+            oracle_map,
+            state.liquidation_margin_buffer_ratio,
+        )?;
+    }
 
     validate!(!user.is_bankrupt(), ErrorCode::UserBankrupt)?;
 
@@ -211,7 +213,10 @@ pub fn place_perp_order(
     let oracle_price_data = oracle_map.get_price_data(&market.amm.oracle)?;
 
     // updates auction params for crossing limit orders w/out auction duration
-    params.update_perp_auction_params(market, oracle_price_data.price)?;
+    // dont modify if it's a liquidation
+    if !options.is_liquidation() {
+        params.update_perp_auction_params(market, oracle_price_data.price)?;
+    }
 
     let (auction_start_price, auction_end_price, auction_duration) = get_auction_params(
         &params,
@@ -314,7 +319,7 @@ pub fn place_perp_order(
     options.update_risk_increasing(risk_increasing);
 
     // when orders are placed in bulk, only need to check margin on last place
-    if options.enforce_margin_check {
+    if options.enforce_margin_check && !options.is_liquidation() {
         meets_place_order_margin_requirement(
             user,
             perp_market_map,
@@ -884,7 +889,7 @@ pub fn fill_perp_order(
     jit_maker_order_id: Option<u32>,
     clock: &Clock,
     fill_mode: FillMode,
-) -> DriftResult<u64> {
+) -> DriftResult<(u64, u64)> {
     let now = clock.unix_timestamp;
     let slot = clock.slot;
 
@@ -948,20 +953,22 @@ pub fn fill_perp_order(
 
     if user.is_bankrupt() {
         msg!("user is bankrupt");
-        return Ok(0);
+        return Ok((0, 0));
     }
 
-    match validate_user_not_being_liquidated(
-        user,
-        perp_market_map,
-        spot_market_map,
-        oracle_map,
-        state.liquidation_margin_buffer_ratio,
-    ) {
-        Ok(_) => {}
-        Err(_) => {
-            msg!("user is being liquidated");
-            return Ok(0);
+    if !fill_mode.is_liquidation() {
+        match validate_user_not_being_liquidated(
+            user,
+            perp_market_map,
+            spot_market_map,
+            oracle_map,
+            state.liquidation_margin_buffer_ratio,
+        ) {
+            Ok(_) => {}
+            Err(_) => {
+                msg!("user is being liquidated");
+                return Ok((0, 0));
+            }
         }
     }
 
@@ -1042,13 +1049,18 @@ pub fn fill_perp_order(
         slot,
     )?;
 
-    let referrer_info = get_referrer_info(
-        user_stats,
-        &user_key,
-        makers_and_referrer,
-        makers_and_referrer_stats,
-        slot,
-    )?;
+    // no referrer bonus for liquidations
+    let referrer_info = if !fill_mode.is_liquidation() {
+        get_referrer_info(
+            user_stats,
+            &user_key,
+            makers_and_referrer,
+            makers_and_referrer_stats,
+            slot,
+        )?
+    } else {
+        None
+    };
 
     let oracle_too_divergent_with_twap_5min = is_oracle_too_divergent_with_twap_5min(
         oracle_price,
@@ -1064,10 +1076,17 @@ pub fn fill_perp_order(
         if let Some(filler) = filler.as_deref_mut() {
             filler.update_last_active_slot(slot);
         }
-        return Ok(0);
+        return Ok((0, 0));
     }
 
-    validate_perp_fill_possible(state, user, order_index, slot, makers_and_referrer.0.len())?;
+    validate_perp_fill_possible(
+        state,
+        user,
+        order_index,
+        slot,
+        makers_and_referrer.0.len(),
+        fill_mode,
+    )?;
 
     let should_expire_order = should_expire_order_before_fill(user, order_index, now)?;
 
@@ -1116,7 +1135,7 @@ pub fn fill_perp_order(
             false,
         )?;
 
-        return Ok(0);
+        return Ok((0, 0));
     }
 
     let (base_asset_amount, quote_asset_amount) = fulfill_perp_order(
@@ -1203,7 +1222,7 @@ pub fn fill_perp_order(
     }
 
     if base_asset_amount == 0 {
-        return Ok(0);
+        return Ok((base_asset_amount, quote_asset_amount));
     }
 
     {
@@ -1241,7 +1260,7 @@ pub fn fill_perp_order(
 
     user.update_last_active_slot(slot);
 
-    Ok(base_asset_amount)
+    Ok((base_asset_amount, quote_asset_amount))
 }
 
 pub fn validate_market_within_price_band(
@@ -1561,6 +1580,7 @@ fn fulfill_perp_order(
             amm_is_available,
             slot,
             min_auction_duration,
+            fill_mode,
         )?
     };
 
@@ -1627,6 +1647,7 @@ fn fulfill_perp_order(
                         None,
                         *maker_price,
                         AMMLiquiditySplit::Shared,
+                        fill_mode.is_liquidation(),
                     )?;
 
                 (fill_base_asset_amount, fill_quote_asset_amount)
@@ -1669,6 +1690,7 @@ fn fulfill_perp_order(
                         slot,
                         fee_structure,
                         oracle_map,
+                        fill_mode.is_liquidation(),
                     )?;
 
                 if maker_fill_base_asset_amount != 0 {
@@ -1709,43 +1731,45 @@ fn fulfill_perp_order(
         base_asset_amount
     )?;
 
-    // if the maker is long, the user sold so
-    let taker_base_asset_amount_delta = if maker_direction == PositionDirection::Long {
-        base_asset_amount as i64
-    } else {
-        -(base_asset_amount as i64)
-    };
+    if !fill_mode.is_liquidation() {
+        // if the maker is long, the user sold so
+        let taker_base_asset_amount_delta = if maker_direction == PositionDirection::Long {
+            base_asset_amount as i64
+        } else {
+            -(base_asset_amount as i64)
+        };
 
-    let taker_margin_calculation =
-        calculate_margin_requirement_and_total_collateral_and_liability_info(
+        let taker_margin_calculation =
+            calculate_margin_requirement_and_total_collateral_and_liability_info(
+                user,
+                perp_market_map,
+                spot_market_map,
+                oracle_map,
+                MarginContext::standard(if user_order_position_decreasing {
+                    MarginRequirementType::Maintenance
+                } else {
+                    MarginRequirementType::Fill
+                })
+                .fuel_perp_delta(market_index, taker_base_asset_amount_delta)
+                .fuel_numerator(user, now),
+            )?;
+
+        user_stats.update_fuel_bonus(
             user,
-            perp_market_map,
-            spot_market_map,
-            oracle_map,
-            MarginContext::standard(if user_order_position_decreasing {
-                MarginRequirementType::Maintenance
-            } else {
-                MarginRequirementType::Fill
-            })
-            .fuel_perp_delta(market_index, taker_base_asset_amount_delta)
-            .fuel_numerator(user, now),
+            taker_margin_calculation.fuel_deposits,
+            taker_margin_calculation.fuel_borrows,
+            taker_margin_calculation.fuel_positions,
+            now,
         )?;
 
-    user_stats.update_fuel_bonus(
-        user,
-        taker_margin_calculation.fuel_deposits,
-        taker_margin_calculation.fuel_borrows,
-        taker_margin_calculation.fuel_positions,
-        now,
-    )?;
-
-    if !taker_margin_calculation.meets_margin_requirement() {
-        msg!(
-            "taker breached fill requirements (margin requirement {}) (total_collateral {})",
-            taker_margin_calculation.margin_requirement,
-            taker_margin_calculation.total_collateral
-        );
-        return Err(ErrorCode::InsufficientCollateral);
+        if !taker_margin_calculation.meets_margin_requirement() {
+            msg!(
+                "taker breached fill requirements (margin requirement {}) (total_collateral {})",
+                taker_margin_calculation.margin_requirement,
+                taker_margin_calculation.total_collateral
+            );
+            return Err(ErrorCode::InsufficientCollateral);
+        }
     }
 
     for (maker_key, maker_base_asset_amount_filled) in maker_fills {
@@ -1881,6 +1905,7 @@ pub fn fulfill_perp_order_with_amm(
     override_base_asset_amount: Option<u64>,
     override_fill_price: Option<u64>,
     liquidity_split: AMMLiquiditySplit,
+    is_liquidation: bool,
 ) -> DriftResult<(u64, u64)> {
     let position_index = get_position_index(&user.perp_positions, market.market_index)?;
     let existing_base_asset_amount = user.perp_positions[position_index].base_asset_amount;
@@ -2117,6 +2142,7 @@ pub fn fulfill_perp_order_with_amm(
 
     let fill_record_id = get_then_update_id!(market, next_fill_record_id);
     let order_action_explanation = match (override_base_asset_amount, override_fill_price) {
+        _ if is_liquidation => OrderActionExplanation::Liquidation,
         (Some(_), Some(_)) => liquidity_split.get_order_action_explanation(),
         _ => OrderActionExplanation::OrderFilledWithAMM,
     };
@@ -2210,6 +2236,7 @@ pub fn fulfill_perp_order_with_match(
     slot: u64,
     fee_structure: &FeeStructure,
     oracle_map: &mut OracleMap,
+    is_liquidation: bool,
 ) -> DriftResult<(u64, u64, u64)> {
     if !are_orders_same_market_but_different_sides(
         &maker.orders[maker_order_index],
@@ -2324,6 +2351,7 @@ pub fn fulfill_perp_order_with_match(
                 Some(jit_base_asset_amount),
                 Some(maker_price), // match the makers price
                 amm_liquidity_split,
+                is_liquidation,
             )?;
 
         total_base_asset_amount = base_asset_amount_filled_by_amm;
@@ -2533,7 +2561,9 @@ pub fn fulfill_perp_order_with_match(
     )?;
 
     let fill_record_id = get_then_update_id!(market, next_fill_record_id);
-    let order_action_explanation = if maker.orders[maker_order_index].is_jit_maker() {
+    let order_action_explanation = if is_liquidation {
+        OrderActionExplanation::Liquidation
+    } else if maker.orders[maker_order_index].is_jit_maker() {
         OrderActionExplanation::OrderFilledWithMatchJit
     } else {
         OrderActionExplanation::OrderFilledWithMatch

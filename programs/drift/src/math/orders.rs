@@ -9,6 +9,7 @@ use crate::error::{DriftResult, ErrorCode};
 use crate::math::amm::calculate_amm_available_liquidity;
 use crate::math::auction::is_amm_available_liquidity_source;
 use crate::math::casting::Cast;
+use crate::state::fill_mode::FillMode;
 use crate::{
     load, math, FeeTier, State, BASE_PRECISION_I128, FEE_ADJUSTMENT_MAX,
     MAX_PREDICTION_MARKET_PRICE, OPEN_ORDER_MARGIN_REQUIREMENT, PERCENTAGE_PRECISION,
@@ -325,11 +326,13 @@ pub fn validate_perp_fill_possible(
     order_index: usize,
     slot: u64,
     num_makers: usize,
+    fill_mode: FillMode,
 ) -> DriftResult {
     let amm_available = is_amm_available_liquidity_source(
         &user.orders[order_index],
         state.min_perp_auction_duration,
         slot,
+        fill_mode,
     )?;
 
     if !amm_available && num_makers == 0 && user.orders[order_index].is_limit_order() {

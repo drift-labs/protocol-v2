@@ -23,6 +23,7 @@ type DriftConfig = {
 	USDC_MINT_ADDRESS: string;
 	SERUM_V3: string;
 	PHOENIX: string;
+	OPENBOOK: string;
 	V2_ALPHA_TICKET_MINT_ADDRESS: string;
 	PERP_MARKETS: PerpMarketConfig[];
 	SPOT_MARKETS: SpotMarketConfig[];
@@ -46,6 +47,7 @@ export const configs: { [key in DriftEnv]: DriftConfig } = {
 		USDC_MINT_ADDRESS: '8zGuJQqwhZafTah7Uc7Z4tXRnguqkn5KLFAP8oV6PHe2',
 		SERUM_V3: 'DESVgJVGajEgKGXhb6XmqDHGz3VjdgP7rEVESBgxmroY',
 		PHOENIX: 'PhoeNiXZ8ByJGLkxNfZRnkUfjvmuYqLR89jjFHGqdXY',
+		OPENBOOK: 'opnb2LAfJYbRMAHHvqjCwQxanZn7ReEHp1k81EohpZb',
 		V2_ALPHA_TICKET_MINT_ADDRESS:
 			'DeEiGWfCMP9psnLGkxGrBBMEAW5Jv8bBGMN8DCtFRCyB',
 		PERP_MARKETS: DevnetPerpMarkets,
@@ -61,6 +63,7 @@ export const configs: { [key in DriftEnv]: DriftConfig } = {
 		USDC_MINT_ADDRESS: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v',
 		SERUM_V3: 'srmqPvymJeFKQ4zGQed1GFppgkRHL9kaELCbyksJtPX',
 		PHOENIX: 'PhoeNiXZ8ByJGLkxNfZRnkUfjvmuYqLR89jjFHGqdXY',
+		OPENBOOK: 'opnb2LAfJYbRMAHHvqjCwQxanZn7ReEHp1k81EohpZb',
 		V2_ALPHA_TICKET_MINT_ADDRESS:
 			'Cmvhycb6LQvvzaShGw4iDHRLzeSSryioAsU98DSSkMNa',
 		PERP_MARKETS: MainnetPerpMarkets,

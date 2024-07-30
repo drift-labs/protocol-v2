@@ -22,17 +22,17 @@ use crate::math::constants::{
     INSURANCE_SPECULATIVE_MAX, LIQUIDATION_FEE_PRECISION, MAX_CONCENTRATION_COEFFICIENT,
     MAX_SQRT_K, MAX_UPDATE_K_PRICE_CHANGE, PERCENTAGE_PRECISION, QUOTE_SPOT_MARKET_INDEX,
     SPOT_CUMULATIVE_INTEREST_PRECISION, SPOT_IMF_PRECISION, SPOT_WEIGHT_PRECISION, THIRTEEN_DAY,
-    TWENTY_FOUR_HOUR,
+    TWENTY_FOUR_HOUR, FUEL_START_TS
 };
 use crate::math::cp_curve::get_update_k_result;
 use crate::math::orders::is_multiple_of_step_size;
 use crate::math::repeg::get_total_fee_lower_bound;
 use crate::math::safe_math::SafeMath;
 use crate::math::spot_balance::get_token_amount;
+use crate::math::spot_withdraw::validate_spot_market_vault_amount;
 use crate::math::{amm, bn};
-use crate::math_error;
 use crate::optional_accounts::get_token_mint;
-use crate::state::events::CurveRecord;
+use crate::state::events::{CurveRecord, SpotMarketVaultDepositRecord};
 use crate::state::fulfillment_params::openbook_v2::{
     OpenbookV2Context, OpenbookV2FulfillmentConfig,
 };
@@ -68,6 +68,7 @@ use crate::{get_then_update_id, EPOCH_DURATION};
 use crate::{load, FEE_ADJUSTMENT_MAX};
 use crate::{load_mut, PTYH_PRICE_FEED_SEED_PREFIX};
 use crate::{math, safe_decrement, safe_increment};
+use crate::{math_error, SPOT_BALANCE_PRECISION};
 
 pub fn handle_initialize(ctx: Context<Initialize>) -> Result<()> {
     let (drift_signer, drift_signer_nonce) =
@@ -1195,7 +1196,7 @@ pub fn handle_init_user_fuel(
     let user_stats = &mut load_mut!(ctx.accounts.user_stats)?;
 
     validate!(
-        user.last_fuel_bonus_update_ts == 0,
+        user.last_fuel_bonus_update_ts < FUEL_START_TS as u32,
         ErrorCode::DefaultError,
         "User must not have begun earning fuel"
     )?;
@@ -1686,6 +1687,91 @@ pub fn handle_deposit_into_perp_market_fee_pool<'c: 'info, 'info>(
         amount,
         &mint,
     )?;
+
+    Ok(())
+}
+
+#[access_control(
+    deposit_not_paused(&ctx.accounts.state)
+    spot_market_valid(&ctx.accounts.spot_market)
+)]
+pub fn handle_deposit_into_spot_market_vault<'c: 'info, 'info>(
+    ctx: Context<'_, '_, 'c, 'info, DepositIntoSpotMarketVault<'info>>,
+    amount: u64,
+) -> Result<()> {
+    let spot_market = &mut load_mut!(ctx.accounts.spot_market)?;
+
+    validate!(
+        !spot_market.is_operation_paused(SpotOperation::Deposit),
+        ErrorCode::DefaultError,
+        "spot market deposits paused"
+    )?;
+
+    let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
+
+    let mint = get_token_mint(remaining_accounts_iter)?;
+
+    msg!(
+        "depositing {} into spot market {} vault",
+        amount,
+        spot_market.market_index
+    );
+
+    let deposit_token_amount_before = spot_market.get_deposits()?;
+
+    let deposit_token_amount_after = deposit_token_amount_before.safe_add(amount.cast()?)?;
+
+    validate!(
+        deposit_token_amount_after > deposit_token_amount_before,
+        ErrorCode::DefaultError,
+        "new_deposit_token_amount ({}) <= deposit_token_amount ({})",
+        deposit_token_amount_after,
+        deposit_token_amount_before
+    )?;
+
+    let token_precision = spot_market.get_precision();
+
+    let cumulative_deposit_interest_before = spot_market.cumulative_deposit_interest;
+
+    let cumulative_deposit_interest_after = deposit_token_amount_after
+        .safe_mul(SPOT_CUMULATIVE_INTEREST_PRECISION)?
+        .safe_div(spot_market.deposit_balance)?
+        .safe_mul(SPOT_BALANCE_PRECISION)?
+        .safe_div(token_precision.cast()?)?;
+
+    validate!(
+        cumulative_deposit_interest_after > cumulative_deposit_interest_before,
+        ErrorCode::DefaultError,
+        "cumulative_deposit_interest_after ({}) <= cumulative_deposit_interest_before ({})",
+        cumulative_deposit_interest_after,
+        cumulative_deposit_interest_before
+    )?;
+
+    spot_market.cumulative_deposit_interest = cumulative_deposit_interest_after;
+
+    controller::token::receive(
+        &ctx.accounts.token_program,
+        &ctx.accounts.source_vault,
+        &ctx.accounts.spot_market_vault,
+        &ctx.accounts.admin.to_account_info(),
+        amount,
+        &mint,
+    )?;
+
+    ctx.accounts.spot_market_vault.reload()?;
+    validate_spot_market_vault_amount(&spot_market, ctx.accounts.spot_market_vault.amount)?;
+
+    spot_market.validate_max_token_deposits_and_borrows()?;
+
+    emit!(SpotMarketVaultDepositRecord {
+        ts: Clock::get()?.unix_timestamp,
+        market_index: spot_market.market_index,
+        deposit_balance: spot_market.deposit_balance,
+        cumulative_deposit_interest_before,
+        cumulative_deposit_interest_after,
+        deposit_token_amount_before: deposit_token_amount_before.cast()?,
+        amount
+    });
 
     Ok(())
 }
@@ -4297,6 +4383,28 @@ pub struct DepositIntoMarketFeePool<'info> {
         mut,
         seeds = [b"spot_market_vault".as_ref(), 0_u16.to_le_bytes().as_ref()],
         bump,
+    )]
+    pub spot_market_vault: Box<InterfaceAccount<'info, TokenAccount>>,
+    pub token_program: Interface<'info, TokenInterface>,
+}
+
+#[derive(Accounts)]
+pub struct DepositIntoSpotMarketVault<'info> {
+    pub state: Box<Account<'info, State>>,
+    #[account(mut)]
+    pub spot_market: AccountLoader<'info, SpotMarket>,
+    #[account(
+        constraint = admin.key() == admin_hot_wallet::id() || admin.key() == state.admin
+    )]
+    pub admin: Signer<'info>,
+    #[account(
+        mut,
+        token::authority = admin
+    )]
+    pub source_vault: Box<InterfaceAccount<'info, TokenAccount>>,
+    #[account(
+        mut,
+        constraint = spot_market.load()?.vault == spot_market_vault.key()
     )]
     pub spot_market_vault: Box<InterfaceAccount<'info, TokenAccount>>,
     pub token_program: Interface<'info, TokenInterface>,

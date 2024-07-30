@@ -577,6 +577,16 @@ export type SwapRecord = {
 	fee: BN;
 };
 
+export type SpotMarketVaultDepositRecord = {
+	ts: BN;
+	marketIndex: number;
+	depositBalance: BN;
+	cumulativeDepositInterestBefore: BN;
+	cumulativeDepositInterestAfter: BN;
+	depositTokenAmountBefore: BN;
+	amount: BN;
+};
+
 export type StateAccount = {
 	admin: PublicKey;
 	exchangeStatus: number;
