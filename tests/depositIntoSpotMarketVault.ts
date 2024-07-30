@@ -171,6 +171,9 @@ describe('spot deposit and withdraw', () => {
 		);
 		assert(vaultAmount.eq(usdcAmount));
 
+		const depositTokenAmountBefore = firstUserDriftClient.getTokenAmount(0);
+		assert(depositTokenAmountBefore.eq(usdcAmount));
+
 		await admin.depositIntoSpotMarketVault(
 			0,
 			usdcAmount,
@@ -183,5 +186,8 @@ describe('spot deposit and withdraw', () => {
 			).amount.toString()
 		);
 		assert(vaultAmountAfter.eq(usdcAmount.muln(2)));
+
+		const depositTokenAmount = firstUserDriftClient.getTokenAmount(0);
+		assert(depositTokenAmount.eq(usdcAmount.muln(2)));
 	});
 });

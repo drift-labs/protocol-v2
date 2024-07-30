@@ -4359,7 +4359,7 @@ pub struct DepositIntoSpotMarketVault<'info> {
     #[account(mut)]
     pub spot_market: AccountLoader<'info, SpotMarket>,
     #[account(
-        address = admin_hot_wallet::id()
+        constraint = admin.key() == admin_hot_wallet::id() || admin.key() == state.admin
     )]
     pub admin: Signer<'info>,
     #[account(
