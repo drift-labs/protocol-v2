@@ -1676,6 +1676,47 @@
       ]
     },
     {
+      "name": "liquidatePerpWithFill",
+      "accounts": [
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "liquidator",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "liquidatorStats",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "user",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "userStats",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "marketIndex",
+          "type": "u16"
+        }
+      ]
+    },
+    {
       "name": "liquidateSpot",
       "accounts": [
         {
@@ -3361,27 +3402,6 @@
           }
         }
       ]
-    },
-    {
-      "name": "initializePredictionMarket",
-      "accounts": [
-        {
-          "name": "admin",
-          "isMut": false,
-          "isSigner": true
-        },
-        {
-          "name": "state",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "perpMarket",
-          "isMut": true,
-          "isSigner": false
-        }
-      ],
-      "args": []
     },
     {
       "name": "deleteInitializedPerpMarket",
@@ -9858,6 +9878,9 @@
           },
           {
             "name": "PlaceAndTake"
+          },
+          {
+            "name": "Liquidation"
           }
         ]
       }
@@ -10125,9 +10148,6 @@
           },
           {
             "name": "Future"
-          },
-          {
-            "name": "Prediction"
           }
         ]
       }
@@ -12797,6 +12817,11 @@
       "code": 6282,
       "name": "NonZeroTransferFee",
       "msg": "Non zero transfer fee"
+    },
+    {
+      "code": 6283,
+      "name": "LiquidationOrderFailedToFill",
+      "msg": "Liquidation order failed to fill"
     }
   ],
   "metadata": {

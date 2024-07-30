@@ -7,6 +7,7 @@ use crate::controller::amm::get_fee_pool_tokens;
 use crate::controller::funding::settle_funding_payment;
 use crate::controller::lp::burn_lp_shares;
 use crate::controller::orders;
+use crate::controller::orders::{cancel_order, fill_perp_order, place_perp_order};
 use crate::controller::position::{
     get_position_index, update_position_and_market, update_quote_asset_amount,
     update_quote_asset_and_break_even_amount, PositionDirection,
@@ -18,7 +19,6 @@ use crate::controller::spot_balance::{
 };
 use crate::controller::spot_position::update_spot_balances_and_cumulative_deposits;
 use crate::error::{DriftResult, ErrorCode};
-use crate::get_then_update_id;
 use crate::math::bankruptcy::is_user_bankrupt;
 use crate::math::casting::Cast;
 use crate::math::constants::{
@@ -33,7 +33,8 @@ use crate::math::liquidation::{
     calculate_liability_transfer_implied_by_asset_amount,
     calculate_liability_transfer_to_cover_margin_shortage, calculate_liquidation_multiplier,
     calculate_max_pct_to_liquidate, calculate_perp_if_fee, calculate_spot_if_fee,
-    validate_transfer_satisfies_limit_price, LiquidationMultiplierType,
+    get_liquidation_order_params, validate_transfer_satisfies_limit_price,
+    LiquidationMultiplierType,
 };
 use crate::math::margin::{
     calculate_margin_requirement_and_total_collateral_and_liability_info,
@@ -46,6 +47,7 @@ use crate::math::orders::{
 };
 use crate::math::position::calculate_base_asset_value_with_oracle_price;
 use crate::math::safe_math::SafeMath;
+
 use crate::math::spot_balance::get_token_value;
 use crate::state::events::{
     emit_stack, LPAction, LPRecord, LiquidateBorrowForPerpPnlRecord,
@@ -53,8 +55,10 @@ use crate::state::events::{
     LiquidationType, OrderAction, OrderActionExplanation, OrderActionRecord, OrderRecord,
     PerpBankruptcyRecord, SpotBankruptcyRecord,
 };
+use crate::state::fill_mode::FillMode;
 use crate::state::margin_calculation::{MarginCalculation, MarginContext, MarketIdentifier};
 use crate::state::oracle_map::OracleMap;
+use crate::state::order_params::PlaceOrderOptions;
 use crate::state::paused_operations::{PerpOperation, SpotOperation};
 use crate::state::perp_market::MarketStatus;
 use crate::state::perp_market_map::PerpMarketMap;
@@ -63,7 +67,9 @@ use crate::state::spot_market_map::SpotMarketMap;
 use crate::state::state::State;
 use crate::state::traits::Size;
 use crate::state::user::{MarketType, Order, OrderStatus, OrderType, User, UserStats};
+use crate::state::user_map::{UserMap, UserStatsMap};
 use crate::validate;
+use crate::{get_then_update_id, load_mut};
 
 #[cfg(test)]
 mod tests;
@@ -510,7 +516,7 @@ pub fn liquidate_perp(
         )
     };
 
-    let margin_freed_for_perp_position = calculate_margin_freed(
+    let (margin_freed_for_perp_position, _) = calculate_margin_freed(
         user,
         perp_market_map,
         spot_market_map,
@@ -648,6 +654,451 @@ pub fn liquidate_perp(
             liquidator_order_id,
             fill_record_id,
             liquidator_fee: liquidator_fee.abs().cast()?,
+            if_fee: if_fee.abs().cast()?,
+        },
+        ..LiquidationRecord::default()
+    });
+
+    Ok(())
+}
+
+pub fn liquidate_perp_with_fill(
+    market_index: u16,
+    user_loader: &AccountLoader<User>,
+    user_key: &Pubkey,
+    user_stats_loader: &AccountLoader<UserStats>,
+    liquidator_loader: &AccountLoader<User>,
+    liquidator_key: &Pubkey,
+    liquidator_stats_loader: &AccountLoader<UserStats>,
+    makers_and_referrer: &UserMap,
+    makers_and_referrer_stats: &UserStatsMap,
+    perp_market_map: &PerpMarketMap,
+    spot_market_map: &SpotMarketMap,
+    oracle_map: &mut OracleMap,
+    clock: &Clock,
+    state: &State,
+) -> DriftResult {
+    let now = clock.unix_timestamp;
+    let slot = clock.slot;
+
+    let mut user = load_mut!(user_loader)?;
+    let mut liquidator = load_mut!(liquidator_loader)?;
+
+    let liquidation_margin_buffer_ratio = state.liquidation_margin_buffer_ratio;
+    let initial_pct_to_liquidate = state.initial_pct_to_liquidate as u128;
+    let liquidation_duration = state.liquidation_duration as u128;
+
+    validate!(
+        !user.is_bankrupt(),
+        ErrorCode::UserBankrupt,
+        "user bankrupt",
+    )?;
+
+    validate!(
+        !liquidator.is_bankrupt(),
+        ErrorCode::UserBankrupt,
+        "liquidator bankrupt",
+    )?;
+
+    let market = perp_market_map.get_ref(&market_index)?;
+
+    validate!(
+        !market.is_operation_paused(PerpOperation::Liquidation),
+        ErrorCode::InvalidLiquidation,
+        "Liquidation operation is paused for market {}",
+        market_index
+    )?;
+
+    drop(market);
+
+    // Settle user's funding payments so that collateral is up to date
+    settle_funding_payment(
+        &mut user,
+        user_key,
+        perp_market_map.get_ref_mut(&market_index)?.deref_mut(),
+        now,
+    )?;
+
+    // Settle user's funding payments so that collateral is up to date
+    settle_funding_payment(
+        &mut liquidator,
+        liquidator_key,
+        perp_market_map.get_ref_mut(&market_index)?.deref_mut(),
+        now,
+    )?;
+
+    let margin_calculation = calculate_margin_requirement_and_total_collateral_and_liability_info(
+        &user,
+        perp_market_map,
+        spot_market_map,
+        oracle_map,
+        MarginContext::liquidation(liquidation_margin_buffer_ratio)
+            .track_market_margin_requirement(MarketIdentifier::perp(market_index))?,
+    )?;
+
+    if !user.is_being_liquidated() && margin_calculation.meets_margin_requirement() {
+        msg!("margin calculation: {:?}", margin_calculation);
+        return Err(ErrorCode::SufficientCollateral);
+    } else if user.is_being_liquidated() && margin_calculation.can_exit_liquidation()? {
+        user.exit_liquidation();
+        return Ok(());
+    }
+
+    user.get_perp_position(market_index).map_err(|e| {
+        msg!(
+            "User does not have a position for perp market {}",
+            market_index
+        );
+        e
+    })?;
+
+    let liquidation_id = user.enter_liquidation(slot)?;
+    let mut margin_freed = 0_u64;
+
+    let position_index = get_position_index(&user.perp_positions, market_index)?;
+    validate!(
+        user.perp_positions[position_index].is_open_position()
+            || user.perp_positions[position_index].has_open_order()
+            || user.perp_positions[position_index].is_lp(),
+        ErrorCode::PositionDoesntHaveOpenPositionOrOrders
+    )?;
+
+    let canceled_order_ids = orders::cancel_orders(
+        &mut user,
+        user_key,
+        Some(liquidator_key),
+        perp_market_map,
+        spot_market_map,
+        oracle_map,
+        now,
+        slot,
+        OrderActionExplanation::Liquidation,
+        None,
+        None,
+        None,
+    )?;
+
+    let mut market = perp_market_map.get_ref_mut(&market_index)?;
+    let oracle_price_data = oracle_map.get_price_data(&market.amm.oracle)?;
+
+    update_amm_and_check_validity(
+        &mut market,
+        oracle_price_data,
+        state,
+        now,
+        slot,
+        Some(DriftAction::Liquidate),
+    )?;
+
+    let oracle_price = if market.status == MarketStatus::Settlement {
+        market.expiry_price
+    } else {
+        oracle_price_data.price
+    };
+
+    drop(market);
+
+    // burning lp shares = removing open bids/asks
+    let lp_shares = user.perp_positions[position_index].lp_shares;
+    if lp_shares > 0 {
+        let (position_delta, pnl) = burn_lp_shares(
+            &mut user.perp_positions[position_index],
+            perp_market_map.get_ref_mut(&market_index)?.deref_mut(),
+            lp_shares,
+            oracle_price,
+        )?;
+
+        // emit LP record for shares removed
+        emit_stack::<_, { LPRecord::SIZE }>(LPRecord {
+            ts: now,
+            action: LPAction::RemoveLiquidity,
+            user: *user_key,
+            n_shares: lp_shares,
+            market_index,
+            delta_base_asset_amount: position_delta.base_asset_amount,
+            delta_quote_asset_amount: position_delta.quote_asset_amount,
+            pnl,
+        })?;
+    }
+
+    // check if user exited liquidation territory
+    let intermediate_margin_calculation = if !canceled_order_ids.is_empty() || lp_shares > 0 {
+        let intermediate_margin_calculation =
+            calculate_margin_requirement_and_total_collateral_and_liability_info(
+                &user,
+                perp_market_map,
+                spot_market_map,
+                oracle_map,
+                MarginContext::liquidation(liquidation_margin_buffer_ratio)
+                    .track_market_margin_requirement(MarketIdentifier::perp(market_index))?,
+            )?;
+
+        let initial_margin_shortage = margin_calculation.margin_shortage()?;
+        let new_margin_shortage = intermediate_margin_calculation.margin_shortage()?;
+
+        margin_freed = initial_margin_shortage
+            .saturating_sub(new_margin_shortage)
+            .cast::<u64>()?;
+        user.increment_margin_freed(margin_freed)?;
+
+        if intermediate_margin_calculation.can_exit_liquidation()? {
+            emit!(LiquidationRecord {
+                ts: now,
+                liquidation_id,
+                liquidation_type: LiquidationType::LiquidatePerp,
+                user: *user_key,
+                liquidator: *liquidator_key,
+                margin_requirement: margin_calculation.margin_requirement,
+                total_collateral: margin_calculation.total_collateral,
+                bankrupt: user.is_bankrupt(),
+                canceled_order_ids,
+                margin_freed,
+                liquidate_perp: LiquidatePerpRecord {
+                    market_index,
+                    oracle_price,
+                    lp_shares,
+                    ..LiquidatePerpRecord::default()
+                },
+                ..LiquidationRecord::default()
+            });
+
+            user.exit_liquidation();
+            return Ok(());
+        }
+
+        intermediate_margin_calculation
+    } else {
+        margin_calculation
+    };
+
+    if user.perp_positions[position_index].base_asset_amount == 0 {
+        msg!("User has no base asset amount");
+        return Ok(());
+    }
+
+    let oracle_price_too_divergent = is_oracle_too_divergent_with_twap_5min(
+        oracle_price,
+        perp_market_map
+            .get_ref(&market_index)?
+            .amm
+            .historical_oracle_data
+            .last_oracle_price_twap_5min,
+        state
+            .oracle_guard_rails
+            .max_oracle_twap_5min_percent_divergence()
+            .cast()?,
+    )?;
+
+    validate!(!oracle_price_too_divergent, ErrorCode::PriceBandsBreached)?;
+
+    let user_base_asset_amount = user.perp_positions[position_index]
+        .base_asset_amount
+        .unsigned_abs();
+
+    let margin_ratio = perp_market_map.get_ref(&market_index)?.get_margin_ratio(
+        user_base_asset_amount.cast()?,
+        MarginRequirementType::Maintenance,
+    )?;
+
+    let margin_ratio_with_buffer = margin_ratio.safe_add(liquidation_margin_buffer_ratio)?;
+
+    let margin_shortage = intermediate_margin_calculation.margin_shortage()?;
+
+    let market = perp_market_map.get_ref(&market_index)?;
+    let quote_spot_market = spot_market_map.get_ref(&market.quote_spot_market_index)?;
+    let quote_oracle_price = oracle_map.get_price_data(&quote_spot_market.oracle)?.price;
+    let liquidator_fee = market.liquidator_fee;
+    let if_liquidation_fee = calculate_perp_if_fee(
+        intermediate_margin_calculation.tracked_market_margin_shortage(margin_shortage)?,
+        user_base_asset_amount,
+        margin_ratio_with_buffer,
+        liquidator_fee,
+        oracle_price,
+        quote_oracle_price,
+        market.if_liquidation_fee,
+    )?;
+    let base_asset_amount_to_cover_margin_shortage = standardize_base_asset_amount_ceil(
+        calculate_base_asset_amount_to_cover_margin_shortage(
+            margin_shortage,
+            margin_ratio_with_buffer,
+            liquidator_fee,
+            if_liquidation_fee,
+            oracle_price,
+            quote_oracle_price,
+        )?,
+        market.amm.order_step_size,
+    )?;
+    drop(market);
+    drop(quote_spot_market);
+
+    let max_pct_allowed = calculate_max_pct_to_liquidate(
+        &user,
+        margin_shortage,
+        slot,
+        initial_pct_to_liquidate,
+        liquidation_duration,
+    )?;
+    let max_base_asset_amount_allowed_to_be_transferred =
+        base_asset_amount_to_cover_margin_shortage
+            .cast::<u128>()?
+            .saturating_mul(max_pct_allowed)
+            .safe_div(LIQUIDATION_PCT_PRECISION)?
+            .cast::<u64>()?;
+
+    if max_base_asset_amount_allowed_to_be_transferred == 0 {
+        msg!("max_base_asset_amount_allowed_to_be_transferred == 0");
+        return Ok(());
+    }
+
+    let base_asset_value =
+        calculate_base_asset_value_with_oracle_price(user_base_asset_amount.cast()?, oracle_price)?
+            .cast::<u64>()?;
+
+    // if position is less than $50, liquidator can liq all of it
+    let min_base_asset_amount = if base_asset_value > 50 * QUOTE_PRECISION_U64 {
+        0_u64
+    } else {
+        user_base_asset_amount
+    };
+
+    let base_asset_amount = user_base_asset_amount
+        .min(max_base_asset_amount_allowed_to_be_transferred.max(min_base_asset_amount));
+    let base_asset_amount = standardize_base_asset_amount_ceil(
+        base_asset_amount,
+        perp_market_map.get_ref(&market_index)?.amm.order_step_size,
+    )?;
+
+    let existing_direction = user.perp_positions[position_index].get_direction();
+
+    let order_params = get_liquidation_order_params(
+        market_index,
+        existing_direction,
+        base_asset_amount,
+        oracle_price,
+        liquidator_fee,
+    )?;
+
+    let order_id = user.next_order_id;
+    let fill_record_id = perp_market_map.get_ref(&market_index)?.next_fill_record_id;
+    place_perp_order(
+        state,
+        &mut user,
+        *user_key,
+        perp_market_map,
+        spot_market_map,
+        oracle_map,
+        &clock,
+        order_params,
+        PlaceOrderOptions::default().explanation(OrderActionExplanation::Liquidation),
+    )?;
+
+    drop(user);
+    drop(liquidator);
+
+    let (fill_base_asset_amount, fill_quote_asset_amount) = fill_perp_order(
+        order_id,
+        state,
+        user_loader,
+        user_stats_loader,
+        spot_market_map,
+        perp_market_map,
+        oracle_map,
+        liquidator_loader,
+        liquidator_stats_loader,
+        makers_and_referrer,
+        makers_and_referrer_stats,
+        None,
+        &clock,
+        FillMode::Liquidation,
+    )?;
+
+    let mut user = load_mut!(user_loader)?;
+
+    if let Ok(order_index) = user.get_order_index(order_id) {
+        cancel_order(
+            order_index,
+            &mut user,
+            user_key,
+            perp_market_map,
+            spot_market_map,
+            oracle_map,
+            clock.unix_timestamp,
+            clock.slot,
+            OrderActionExplanation::None,
+            Some(liquidator_key),
+            0,
+            false,
+        )?;
+    }
+
+    // no fill
+    if fill_base_asset_amount == 0 {
+        return Err(ErrorCode::LiquidationOrderFailedToFill);
+    }
+
+    let if_fee = -fill_quote_asset_amount
+        .cast::<u128>()?
+        .safe_mul(if_liquidation_fee.cast()?)?
+        .safe_div(LIQUIDATION_FEE_PRECISION_U128)?
+        .cast::<i64>()?;
+
+    {
+        let mut market = perp_market_map.get_ref_mut(&market_index)?;
+
+        let user_position = user.get_perp_position_mut(market_index)?;
+        update_quote_asset_and_break_even_amount(user_position, &mut market, if_fee)?;
+
+        market.amm.total_liquidation_fee = market
+            .amm
+            .total_liquidation_fee
+            .safe_add(if_fee.unsigned_abs().cast()?)?;
+    }
+
+    let (margin_freed_for_perp_position, margin_calculation_after) = calculate_margin_freed(
+        &user,
+        perp_market_map,
+        spot_market_map,
+        oracle_map,
+        liquidation_margin_buffer_ratio,
+        margin_shortage,
+    )?;
+
+    margin_freed = margin_freed.safe_add(margin_freed_for_perp_position)?;
+    user.increment_margin_freed(margin_freed_for_perp_position)?;
+
+    if margin_calculation_after.meets_margin_requirement() {
+        user.exit_liquidation();
+    } else if is_user_bankrupt(&user) {
+        user.enter_bankruptcy();
+    }
+
+    let user_position_delta = get_position_delta_for_fill(
+        fill_base_asset_amount,
+        fill_quote_asset_amount,
+        existing_direction,
+    )?;
+
+    emit!(LiquidationRecord {
+        ts: now,
+        liquidation_id,
+        liquidation_type: LiquidationType::LiquidatePerp,
+        user: *user_key,
+        liquidator: *liquidator_key,
+        margin_requirement: margin_calculation.margin_requirement,
+        total_collateral: margin_calculation.total_collateral,
+        bankrupt: user.is_bankrupt(),
+        canceled_order_ids,
+        margin_freed,
+        liquidate_perp: LiquidatePerpRecord {
+            market_index,
+            oracle_price,
+            base_asset_amount: user_position_delta.base_asset_amount,
+            quote_asset_amount: user_position_delta.quote_asset_amount,
+            lp_shares,
+            user_order_id: order_id,
+            liquidator_order_id: 0,
+            fill_record_id,
+            liquidator_fee: 0,
             if_fee: if_fee.abs().cast()?,
         },
         ..LiquidationRecord::default()
@@ -1131,7 +1582,7 @@ pub fn liquidate_spot(
         )?;
     }
 
-    let margin_freed_from_liability = calculate_margin_freed(
+    let (margin_freed_from_liability, _) = calculate_margin_freed(
         user,
         perp_market_map,
         spot_market_map,
@@ -1610,7 +2061,7 @@ pub fn liquidate_borrow_for_perp_pnl(
         update_quote_asset_amount(user_position, &mut market, -pnl_transfer.cast()?)?;
     }
 
-    let margin_freed_from_liability = calculate_margin_freed(
+    let (margin_freed_from_liability, _) = calculate_margin_freed(
         user,
         perp_market_map,
         spot_market_map,
@@ -2105,7 +2556,7 @@ pub fn liquidate_perp_pnl_for_deposit(
         update_quote_asset_amount(user_position, &mut perp_market, pnl_transfer.cast()?)?;
     }
 
-    let margin_freed_from_liability = calculate_margin_freed(
+    let (margin_freed_from_liability, _) = calculate_margin_freed(
         user,
         perp_market_map,
         spot_market_map,
@@ -2546,7 +2997,7 @@ pub fn calculate_margin_freed(
     oracle_map: &mut OracleMap,
     liquidation_margin_buffer_ratio: u32,
     initial_margin_shortage: u128,
-) -> DriftResult<u64> {
+) -> DriftResult<(u64, MarginCalculation)> {
     let margin_calculation_after =
         calculate_margin_requirement_and_total_collateral_and_liability_info(
             user,
@@ -2558,7 +3009,9 @@ pub fn calculate_margin_freed(
 
     let new_margin_shortage = margin_calculation_after.margin_shortage()?;
 
-    initial_margin_shortage
+    let margin_freed = initial_margin_shortage
         .saturating_sub(new_margin_shortage)
-        .cast::<u64>()
+        .cast::<u64>()?;
+
+    Ok((margin_freed, margin_calculation_after))
 }

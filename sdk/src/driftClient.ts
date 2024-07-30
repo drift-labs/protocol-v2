@@ -5990,6 +5990,81 @@ export class DriftClient {
 		);
 	}
 
+	public async liquidatePerpWithFill(
+		userAccountPublicKey: PublicKey,
+		userAccount: UserAccount,
+		marketIndex: number,
+		makerInfos: MakerInfo[],
+		txParams?: TxParams,
+		liquidatorSubAccountId?: number
+	): Promise<TransactionSignature> {
+		const { txSig, slot } = await this.sendTransaction(
+			await this.buildTransaction(
+				await this.getLiquidatePerpWithFillIx(
+					userAccountPublicKey,
+					userAccount,
+					marketIndex,
+					makerInfos,
+					liquidatorSubAccountId
+				),
+				txParams
+			),
+			[],
+			this.opts
+		);
+		this.perpMarketLastSlotCache.set(marketIndex, slot);
+		return txSig;
+	}
+
+	public async getLiquidatePerpWithFillIx(
+		userAccountPublicKey: PublicKey,
+		userAccount: UserAccount,
+		marketIndex: number,
+		makerInfos: MakerInfo[],
+		liquidatorSubAccountId?: number
+	): Promise<TransactionInstruction> {
+		const userStatsPublicKey = getUserStatsAccountPublicKey(
+			this.program.programId,
+			userAccount.authority
+		);
+
+		const liquidator = await this.getUserAccountPublicKey(
+			liquidatorSubAccountId
+		);
+		const liquidatorStatsPublicKey = this.getUserStatsAccountPublicKey();
+
+		const remainingAccounts = this.getRemainingAccounts({
+			userAccounts: [this.getUserAccount(liquidatorSubAccountId), userAccount],
+			useMarketLastSlotCache: true,
+			writablePerpMarketIndexes: [marketIndex],
+		});
+
+		for (const makerInfo of makerInfos) {
+			remainingAccounts.push({
+				pubkey: makerInfo.maker,
+				isSigner: false,
+				isWritable: true,
+			});
+			remainingAccounts.push({
+				pubkey: makerInfo.makerStats,
+				isSigner: false,
+				isWritable: true,
+			});
+		}
+
+		return await this.program.instruction.liquidatePerpWithFill(marketIndex, {
+			accounts: {
+				state: await this.getStatePublicKey(),
+				authority: this.wallet.publicKey,
+				user: userAccountPublicKey,
+				userStats: userStatsPublicKey,
+				liquidator,
+				liquidatorStats: liquidatorStatsPublicKey,
+			},
+			remainingAccounts: remainingAccounts,
+		});
+	}
+
 	public async liquidateSpot(
 		userAccountPublicKey: PublicKey,
 		userAccount: UserAccount,

@@ -752,6 +752,60 @@ pub fn handle_liquidate_perp<'c: 'info, 'info>(
 }
 
 #[access_control(
+liq_not_paused(&ctx.accounts.state)
+)]
+pub fn handle_liquidate_perp_with_fill<'c: 'info, 'info>(
+    ctx: Context<'_, '_, 'c, 'info, LiquidatePerp<'info>>,
+    market_index: u16,
+) -> Result<()> {
+    let clock = Clock::get()?;
+    let state = &ctx.accounts.state;
+
+    let user_key = ctx.accounts.user.key();
+    let liquidator_key = ctx.accounts.liquidator.key();
+
+    validate!(
+        user_key != liquidator_key,
+        ErrorCode::UserCantLiquidateThemself
+    )?;
+
+    let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
+    let AccountMaps {
+        perp_market_map,
+        spot_market_map,
+        mut oracle_map,
+    } = load_maps(
+        remaining_accounts_iter,
+        &get_writable_perp_market_set(market_index),
+        &MarketSet::new(),
+        clock.slot,
+        Some(state.oracle_guard_rails),
+    )?;
+
+    let (makers_and_referrer, makers_and_referrer_stats) =
+        load_user_maps(remaining_accounts_iter, true)?;
+
+    controller::liquidation::liquidate_perp_with_fill(
+        market_index,
+        &ctx.accounts.user,
+        &user_key,
+        &ctx.accounts.user_stats,
+        &ctx.accounts.liquidator,
+        &liquidator_key,
+        &ctx.accounts.liquidator_stats,
+        &makers_and_referrer,
+        &makers_and_referrer_stats,
+        &perp_market_map,
+        &spot_market_map,
+        &mut oracle_map,
+        &clock,
+        state,
+    )?;
+
+    Ok(())
+}
+
+#[access_control(
     liq_not_paused(&ctx.accounts.state)
 )]
 pub fn handle_liquidate_spot<'c: 'info, 'info>(
