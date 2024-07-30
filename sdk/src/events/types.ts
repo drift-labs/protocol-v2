@@ -14,6 +14,7 @@ import {
 	InsuranceFundStakeRecord,
 	CurveRecord,
 	SwapRecord,
+	SpotMarketVaultDepositRecord,
 } from '../index';
 import { EventEmitter } from 'events';
 
@@ -47,6 +48,7 @@ export const DefaultEventSubscriptionOptions: EventSubscriptionOptions = {
 		'InsuranceFundStakeRecord',
 		'CurveRecord',
 		'SwapRecord',
+		'SpotMarketVaultDepositRecord',
 	],
 	maxEventsPerType: 4096,
 	orderBy: 'blockchain',
@@ -89,6 +91,7 @@ export type EventMap = {
 	InsuranceFundStakeRecord: Event<InsuranceFundStakeRecord>;
 	CurveRecord: Event<CurveRecord>;
 	SwapRecord: Event<SwapRecord>;
+	SpotMarketVaultDepositRecord: Event<SpotMarketVaultDepositRecord>;
 };
 
 export type EventType = keyof EventMap;
@@ -107,7 +110,8 @@ export type DriftEvent =
 	| Event<SpotInterestRecord>
 	| Event<InsuranceFundStakeRecord>
 	| Event<CurveRecord>
-	| Event<SwapRecord>;
+	| Event<SwapRecord>
+	| Event<SpotMarketVaultDepositRecord>;
 
 export interface EventSubscriberEvents {
 	newEvent: (event: WrappedEvent<EventType>) => void;

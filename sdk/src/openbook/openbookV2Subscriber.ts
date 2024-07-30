@@ -95,9 +95,8 @@ export class OpenbookV2Subscriber implements L2OrderBookGenerator {
 		this.subscribed = true;
 	}
 
-	public async getBestBid(): Promise<BN | undefined> {
-		const bids = await this.market.loadBids();
-		const bestBid = bids.best();
+	public getBestBid(): BN | undefined {
+		const bestBid = this.market.bids.best();
 
 		if (bestBid === undefined) {
 			return undefined;
@@ -106,9 +105,8 @@ export class OpenbookV2Subscriber implements L2OrderBookGenerator {
 		return new BN(Math.floor(bestBid.price * PRICE_PRECISION.toNumber()));
 	}
 
-	public async getBestAsk(): Promise<BN | undefined> {
-		const asks = await this.market.loadAsks();
-		const bestAsk = asks.best();
+	public getBestAsk(): BN | undefined {
+		const bestAsk = this.market.asks.best();
 
 		if (bestAsk === undefined) {
 			return undefined;

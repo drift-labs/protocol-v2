@@ -14,6 +14,7 @@ import {
 	createInitializeAccountInstruction,
 	getAssociatedTokenAddress,
 	TOKEN_PROGRAM_ID,
+	TOKEN_2022_PROGRAM_ID,
 } from '@solana/spl-token';
 import {
 	StateAccount,
@@ -119,7 +120,6 @@ import { isSpotPositionAvailable } from './math/spotPosition';
 import { calculateMarketMaxAvailableInsurance } from './math/market';
 import { fetchUserStatsAccount } from './accounts/fetch';
 import { castNumberToSpotPrecision } from './math/spotMarket';
-import { getTokenProgramForSpotMarket } from './addresses/pda';
 import {
 	JupiterClient,
 	QuoteResponse,
@@ -1973,7 +1973,7 @@ export class DriftClient {
 		const spotMarketAccount = this.getSpotMarketAccount(marketIndex);
 
 		this.addTokenMintToRemainingAccounts(spotMarketAccount, remainingAccounts);
-		const tokenProgram = getTokenProgramForSpotMarket(spotMarketAccount);
+		const tokenProgram = this.getTokenProgramForSpotMarket(spotMarketAccount);
 		return await this.program.instruction.deposit(
 			marketIndex,
 			amount,
@@ -2058,6 +2058,15 @@ export class DriftClient {
 		);
 
 		return result;
+	}
+
+	public getTokenProgramForSpotMarket(
+		spotMarketAccount: SpotMarketAccount
+	): PublicKey {
+		if (spotMarketAccount.tokenProgram === 1) {
+			return TOKEN_2022_PROGRAM_ID;
+		}
+		return TOKEN_PROGRAM_ID;
 	}
 
 	public addTokenMintToRemainingAccounts(
@@ -2486,7 +2495,7 @@ export class DriftClient {
 		const spotMarketAccount = this.getSpotMarketAccount(marketIndex);
 
 		this.addTokenMintToRemainingAccounts(spotMarketAccount, remainingAccounts);
-		const tokenProgram = getTokenProgramForSpotMarket(spotMarketAccount);
+		const tokenProgram = this.getTokenProgramForSpotMarket(spotMarketAccount);
 
 		return await this.program.instruction.withdraw(
 			marketIndex,
@@ -4250,7 +4259,7 @@ export class DriftClient {
 				outAssociatedTokenAccount
 			);
 			if (!accountInfo) {
-				const tokenProgram = getTokenProgramForSpotMarket(outMarket);
+				const tokenProgram = this.getTokenProgramForSpotMarket(outMarket);
 
 				preInstructions.push(
 					this.createAssociatedTokenAccountIdempotentInstruction(
@@ -4274,7 +4283,7 @@ export class DriftClient {
 				inAssociatedTokenAccount
 			);
 			if (!accountInfo) {
-				const tokenProgram = getTokenProgramForSpotMarket(outMarket);
+				const tokenProgram = this.getTokenProgramForSpotMarket(outMarket);
 
 				preInstructions.push(
 					this.createAssociatedTokenAccountIdempotentInstruction(
@@ -4497,8 +4506,8 @@ export class DriftClient {
 		const outSpotMarket = this.getSpotMarketAccount(outMarketIndex);
 		const inSpotMarket = this.getSpotMarketAccount(inMarketIndex);
 
-		const outTokenProgram = getTokenProgramForSpotMarket(outSpotMarket);
-		const inTokenProgram = getTokenProgramForSpotMarket(inSpotMarket);
+		const outTokenProgram = this.getTokenProgramForSpotMarket(outSpotMarket);
+		const inTokenProgram = this.getTokenProgramForSpotMarket(inSpotMarket);
 
 		if (!outTokenProgram.equals(inTokenProgram)) {
 			remainingAccounts.push({
@@ -5990,6 +5999,81 @@ export class DriftClient {
 		);
 	}
 
+	public async liquidatePerpWithFill(
+		userAccountPublicKey: PublicKey,
+		userAccount: UserAccount,
+		marketIndex: number,
+		makerInfos: MakerInfo[],
+		txParams?: TxParams,
+		liquidatorSubAccountId?: number
+	): Promise<TransactionSignature> {
+		const { txSig, slot } = await this.sendTransaction(
+			await this.buildTransaction(
+				await this.getLiquidatePerpWithFillIx(
+					userAccountPublicKey,
+					userAccount,
+					marketIndex,
+					makerInfos,
+					liquidatorSubAccountId
+				),
+				txParams
+			),
+			[],
+			this.opts
+		);
+		this.perpMarketLastSlotCache.set(marketIndex, slot);
+		return txSig;
+	}
+
+	public async getLiquidatePerpWithFillIx(
+		userAccountPublicKey: PublicKey,
+		userAccount: UserAccount,
+		marketIndex: number,
+		makerInfos: MakerInfo[],
+		liquidatorSubAccountId?: number
+	): Promise<TransactionInstruction> {
+		const userStatsPublicKey = getUserStatsAccountPublicKey(
+			this.program.programId,
+			userAccount.authority
+		);
+
+		const liquidator = await this.getUserAccountPublicKey(
+			liquidatorSubAccountId
+		);
+		const liquidatorStatsPublicKey = this.getUserStatsAccountPublicKey();
+
+		const remainingAccounts = this.getRemainingAccounts({
+			userAccounts: [this.getUserAccount(liquidatorSubAccountId), userAccount],
+			useMarketLastSlotCache: true,
+			writablePerpMarketIndexes: [marketIndex],
+		});
+
+		for (const makerInfo of makerInfos) {
+			remainingAccounts.push({
+				pubkey: makerInfo.maker,
+				isSigner: false,
+				isWritable: true,
+			});
+			remainingAccounts.push({
+				pubkey: makerInfo.makerStats,
+				isSigner: false,
+				isWritable: true,
+			});
+		}
+
+		return await this.program.instruction.liquidatePerpWithFill(marketIndex, {
+			accounts: {
+				state: await this.getStatePublicKey(),
+				authority: this.wallet.publicKey,
+				user: userAccountPublicKey,
+				userStats: userStatsPublicKey,
+				liquidator,
+				liquidatorStats: liquidatorStatsPublicKey,
+			},
+			remainingAccounts: remainingAccounts,
+		});
+	}
+
 	public async liquidateSpot(
 		userAccountPublicKey: PublicKey,
 		userAccount: UserAccount,
@@ -6576,7 +6660,7 @@ export class DriftClient {
 
 		const remainingAccounts = [];
 		this.addTokenMintToRemainingAccounts(spotMarket, remainingAccounts);
-		const tokenProgram = getTokenProgramForSpotMarket(spotMarket);
+		const tokenProgram = this.getTokenProgramForSpotMarket(spotMarket);
 		const ix = this.program.instruction.addInsuranceFundStake(
 			marketIndex,
 			amount,
@@ -6816,7 +6900,7 @@ export class DriftClient {
 
 		const remainingAccounts = [];
 		this.addTokenMintToRemainingAccounts(spotMarketAccount, remainingAccounts);
-		const tokenProgram = getTokenProgramForSpotMarket(spotMarketAccount);
+		const tokenProgram = this.getTokenProgramForSpotMarket(spotMarketAccount);
 		const removeStakeIx =
 			await this.program.instruction.removeInsuranceFundStake(marketIndex, {
 				accounts: {
@@ -6947,7 +7031,7 @@ export class DriftClient {
 
 		const remainingAccounts = [];
 		this.addTokenMintToRemainingAccounts(spotMarket, remainingAccounts);
-		const tokenProgram = getTokenProgramForSpotMarket(spotMarket);
+		const tokenProgram = this.getTokenProgramForSpotMarket(spotMarket);
 		const ix = await this.program.instruction.depositIntoSpotMarketRevenuePool(
 			amount,
 			{

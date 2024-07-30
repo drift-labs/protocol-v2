@@ -1676,6 +1676,47 @@
       ]
     },
     {
+      "name": "liquidatePerpWithFill",
+      "accounts": [
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "liquidator",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "liquidatorStats",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "user",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "userStats",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "marketIndex",
+          "type": "u16"
+        }
+      ]
+    },
+    {
       "name": "liquidateSpot",
       "accounts": [
         {
@@ -3572,6 +3613,47 @@
         },
         {
           "name": "quoteSpotMarket",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "spotMarketVault",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "tokenProgram",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "amount",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "depositIntoSpotMarketVault",
+      "accounts": [
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "spotMarket",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "sourceVault",
           "isMut": true,
           "isSigner": false
         },
@@ -9837,6 +9919,9 @@
           },
           {
             "name": "PlaceAndTake"
+          },
+          {
+            "name": "Liquidation"
           }
         ]
       }
@@ -11356,6 +11441,46 @@
           "index": false
         }
       ]
+    },
+    {
+      "name": "SpotMarketVaultDepositRecord",
+      "fields": [
+        {
+          "name": "ts",
+          "type": "i64",
+          "index": false
+        },
+        {
+          "name": "marketIndex",
+          "type": "u16",
+          "index": false
+        },
+        {
+          "name": "depositBalance",
+          "type": "u128",
+          "index": false
+        },
+        {
+          "name": "cumulativeDepositInterestBefore",
+          "type": "u128",
+          "index": false
+        },
+        {
+          "name": "cumulativeDepositInterestAfter",
+          "type": "u128",
+          "index": false
+        },
+        {
+          "name": "depositTokenAmountBefore",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "amount",
+          "type": "u64",
+          "index": false
+        }
+      ]
     }
   ],
   "errors": [
@@ -12773,6 +12898,11 @@
       "code": 6282,
       "name": "NonZeroTransferFee",
       "msg": "Non zero transfer fee"
+    },
+    {
+      "code": 6283,
+      "name": "LiquidationOrderFailedToFill",
+      "msg": "Liquidation order failed to fill"
     }
   ],
   "metadata": {
