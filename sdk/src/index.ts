@@ -73,6 +73,8 @@ export * from './serum/serumFulfillmentConfigMap';
 export * from './phoenix/phoenixSubscriber';
 export * from './priorityFee';
 export * from './phoenix/phoenixFulfillmentConfigMap';
+export * from './openbook/openbookV2Subscriber';
+export * from './openbook/openbookV2FulfillmentConfigMap';
 export * from './tx/fastSingleTxSender';
 export * from './tx/retryTxSender';
 export * from './tx/whileValidTxSender';

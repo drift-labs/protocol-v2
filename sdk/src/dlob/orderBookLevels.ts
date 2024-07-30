@@ -21,7 +21,7 @@ import {
 import { PublicKey } from '@solana/web3.js';
 import { assert } from '../assert/assert';
 
-type liquiditySource = 'serum' | 'vamm' | 'dlob' | 'phoenix';
+type liquiditySource = 'serum' | 'vamm' | 'dlob' | 'phoenix' | 'openbook';
 
 export type L2Level = {
 	price: BN;
