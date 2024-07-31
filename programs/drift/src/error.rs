@@ -573,6 +573,8 @@ pub enum ErrorCode {
     NonZeroTransferFee,
     #[msg("Liquidation order failed to fill")]
     LiquidationOrderFailedToFill,
+    #[msg("Invalid prediction market order")]
+    InvalidPredictionMarketOrder,
 }
 
 #[macro_export]

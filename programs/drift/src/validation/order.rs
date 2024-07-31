@@ -11,6 +11,9 @@ use crate::state::perp_market::PerpMarket;
 use crate::state::user::{Order, OrderTriggerCondition, OrderType};
 use crate::{validate, MAX_PREDICTION_MARKET_PRICE};
 
+#[cfg(test)]
+mod test;
+
 pub fn validate_order(
     order: &Order,
     market: &PerpMarket,
@@ -40,19 +43,25 @@ pub fn validate_order(
     if market.is_prediction_market() {
         validate!(
             order.price <= MAX_PREDICTION_MARKET_PRICE,
-            ErrorCode::InvalidOrderLimitPrice,
+            ErrorCode::InvalidPredictionMarketOrder,
             "prediction market price must be <= 1"
         )?;
 
         validate!(
             order.auction_start_price.unsigned_abs() <= MAX_PREDICTION_MARKET_PRICE,
-            ErrorCode::InvalidOrderAuction,
+            ErrorCode::InvalidPredictionMarketOrder,
             "prediction market auction start price abs must be <= 1"
         )?;
 
         validate!(
             order.auction_end_price.unsigned_abs() <= MAX_PREDICTION_MARKET_PRICE,
-            ErrorCode::InvalidOrderAuction,
+            ErrorCode::InvalidPredictionMarketOrder,
+            "prediction market auction end price abs must be <= 1"
+        )?;
+
+        validate!(
+            order.oracle_price_offset.unsigned_abs() <= MAX_PREDICTION_MARKET_PRICE as u32,
+            ErrorCode::InvalidPredictionMarketOrder,
             "prediction market auction end price abs must be <= 1"
         )?;
     }
