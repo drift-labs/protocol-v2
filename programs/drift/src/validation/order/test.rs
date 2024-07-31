@@ -4,8 +4,8 @@ mod prediction_markets {
     use crate::state::user::{Order, OrderType};
     use crate::validation::order::validate_order;
     use crate::{
-        MarketType, PositionDirection, BASE_PRECISION, BASE_PRECISION_I64, BASE_PRECISION_U64,
-        MAX_PREDICTION_MARKET_PRICE, MAX_PREDICTION_MARKET_PRICE_I64,
+        MarketType, PositionDirection, BASE_PRECISION_U64, MAX_PREDICTION_MARKET_PRICE,
+        MAX_PREDICTION_MARKET_PRICE_I64,
     };
 
     #[test]

@@ -4,10 +4,7 @@ use crate::math::constants::{
     MARGIN_PRECISION_U128, MAX_POSITIVE_UPNL_FOR_INITIAL_MARGIN, PRICE_PRECISION,
     SPOT_IMF_PRECISION_U128, SPOT_WEIGHT_PRECISION, SPOT_WEIGHT_PRECISION_U128,
 };
-use crate::math::position::{
-    calculate_base_asset_value_and_pnl_with_oracle_price,
-    calculate_base_asset_value_with_oracle_price,
-};
+use crate::math::position::calculate_base_asset_value_and_pnl_with_oracle_price;
 
 use crate::{validate, PRICE_PRECISION_I128};
 use crate::{validation, PRICE_PRECISION_I64};

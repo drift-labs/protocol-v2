@@ -2113,3 +2113,70 @@ mod worst_case_liability_value {
         assert_eq!(worst_case_loss, 98 * 100 * QUOTE_PRECISION);
     }
 }
+
+mod get_limit_price {
+    use crate::state::user::{Order, OrderType};
+    use crate::{PositionDirection, MAX_PREDICTION_MARKET_PRICE, MAX_PREDICTION_MARKET_PRICE_I64};
+
+    #[test]
+    fn prediction_market() {
+        let order = Order {
+            order_type: OrderType::Limit,
+            oracle_price_offset: MAX_PREDICTION_MARKET_PRICE as i32,
+            ..Order::default()
+        };
+
+        let oracle_price = Some(MAX_PREDICTION_MARKET_PRICE_I64 / 2);
+
+        let limit_price = order
+            .get_limit_price(oracle_price, None, 0, 1, true)
+            .unwrap();
+
+        assert_eq!(limit_price, Some(MAX_PREDICTION_MARKET_PRICE));
+
+        let order = Order {
+            order_type: OrderType::Limit,
+            oracle_price_offset: -(MAX_PREDICTION_MARKET_PRICE as i32),
+            ..Order::default()
+        };
+
+        let limit_price = order
+            .get_limit_price(oracle_price, None, 0, 1, true)
+            .unwrap();
+
+        assert_eq!(limit_price, Some(1));
+
+        let order = Order {
+            order_type: OrderType::Oracle,
+            auction_start_price: MAX_PREDICTION_MARKET_PRICE_I64,
+            auction_end_price: MAX_PREDICTION_MARKET_PRICE_I64,
+            oracle_price_offset: MAX_PREDICTION_MARKET_PRICE as i32,
+            slot: 1,
+            auction_duration: 10,
+            ..Order::default()
+        };
+
+        let limit_price = order
+            .get_limit_price(oracle_price, None, 2, 1, true)
+            .unwrap();
+
+        assert_eq!(limit_price, Some(MAX_PREDICTION_MARKET_PRICE));
+
+        let order = Order {
+            order_type: OrderType::Oracle,
+            direction: PositionDirection::Short,
+            auction_start_price: -MAX_PREDICTION_MARKET_PRICE_I64,
+            auction_end_price: -MAX_PREDICTION_MARKET_PRICE_I64,
+            oracle_price_offset: -(MAX_PREDICTION_MARKET_PRICE as i32),
+            slot: 1,
+            auction_duration: 10,
+            ..Order::default()
+        };
+
+        let limit_price = order
+            .get_limit_price(oracle_price, None, 2, 1, true)
+            .unwrap();
+
+        assert_eq!(limit_price, Some(1));
+    }
+}
