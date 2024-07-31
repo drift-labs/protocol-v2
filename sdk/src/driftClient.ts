@@ -4399,12 +4399,15 @@ export class DriftClient {
 				outAssociatedTokenAccount
 			);
 			if (!accountInfo) {
+				const tokenProgram = this.getTokenProgramForSpotMarket(outMarket);
+
 				preInstructions.push(
 					this.createAssociatedTokenAccountIdempotentInstruction(
 						outAssociatedTokenAccount,
 						this.provider.wallet.publicKey,
 						this.provider.wallet.publicKey,
-						outMarket.mint
+						outMarket.mint,
+						tokenProgram
 					)
 				);
 			}
@@ -4420,12 +4423,15 @@ export class DriftClient {
 				inAssociatedTokenAccount
 			);
 			if (!accountInfo) {
+				const tokenProgram = this.getTokenProgramForSpotMarket(inMarket);
+
 				preInstructions.push(
 					this.createAssociatedTokenAccountIdempotentInstruction(
 						inAssociatedTokenAccount,
 						this.provider.wallet.publicKey,
 						this.provider.wallet.publicKey,
-						inMarket.mint
+						inMarket.mint,
+						tokenProgram
 					)
 				);
 			}
