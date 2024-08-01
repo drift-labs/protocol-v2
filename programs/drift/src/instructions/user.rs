@@ -2463,6 +2463,7 @@ pub fn handle_begin_swap<'c: 'info, 'info>(
         Some(state.oracle_guard_rails),
     )?;
 
+    let _token_interface = get_token_interface(remaining_accounts_iter)?;
     let mint = get_token_mint(remaining_accounts_iter)?;
 
     let mut user = load_mut!(&ctx.accounts.user)?;
