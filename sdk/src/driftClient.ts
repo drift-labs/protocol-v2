@@ -1825,7 +1825,12 @@ export class DriftClient {
 			return this.wallet.publicKey;
 		}
 		const mint = spotMarket.mint;
-		return await getAssociatedTokenAddress(mint, this.wallet.publicKey, undefined, tokenProgram);
+		return await getAssociatedTokenAddress(
+			mint,
+			this.wallet.publicKey,
+			undefined,
+			tokenProgram
+		);
 	}
 
 	public createAssociatedTokenAccountIdempotentInstruction(
@@ -4256,14 +4261,13 @@ export class DriftClient {
 			outAssociatedTokenAccount = await this.getAssociatedTokenAccount(
 				outMarket.marketIndex,
 				false,
-				tokenProgram,
+				tokenProgram
 			);
 
 			const accountInfo = await this.connection.getAccountInfo(
 				outAssociatedTokenAccount
 			);
 			if (!accountInfo) {
-
 				preInstructions.push(
 					this.createAssociatedTokenAccountIdempotentInstruction(
 						outAssociatedTokenAccount,
@@ -4281,7 +4285,7 @@ export class DriftClient {
 			inAssociatedTokenAccount = await this.getAssociatedTokenAccount(
 				inMarket.marketIndex,
 				false,
-				tokenProgram,
+				tokenProgram
 			);
 
 			const accountInfo = await this.connection.getAccountInfo(
