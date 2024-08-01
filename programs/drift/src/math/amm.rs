@@ -173,7 +173,9 @@ pub fn estimate_best_bid_ask_price(
     // trade is a long
     let best_bid_estimate = if trade_premium > 0 {
         let discount = min(base_spread_u64, amm.short_spread.cast::<u64>()? / 2);
-        last_oracle_price_u64.safe_sub(discount.min(trade_premium.unsigned_abs()))?
+        last_oracle_price_u64
+            .saturating_sub(discount.min(trade_premium.unsigned_abs()))?
+            .max(1)
     } else {
         trade_price
     }
