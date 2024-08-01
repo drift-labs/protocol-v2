@@ -1268,6 +1268,10 @@ pub fn validate_market_within_price_band(
     state: &State,
     oracle_price: i64,
 ) -> DriftResult<bool> {
+    if market.is_prediction_market() {
+        return Ok(true);
+    }
+
     let reserve_price = market.amm.reserve_price()?;
 
     let reserve_spread_pct =
