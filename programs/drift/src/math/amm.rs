@@ -174,8 +174,8 @@ pub fn estimate_best_bid_ask_price(
     let best_bid_estimate = if trade_premium > 0 {
         let discount = min(base_spread_u64, amm.short_spread.cast::<u64>()? / 2);
         last_oracle_price_u64
-            .saturating_sub(discount.min(trade_premium.unsigned_abs()))?
-            .max(1)
+            .saturating_sub(discount.min(trade_premium.unsigned_abs()))
+            .max(amm.order_tick_size)
     } else {
         trade_price
     }
@@ -183,7 +183,7 @@ pub fn estimate_best_bid_ask_price(
 
     // trade is a short
     let best_ask_estimate = if trade_premium < 0 {
-        let premium = min(base_spread_u64, amm.long_spread.cast::<u64>()? / 2);
+        let premium: u64 = min(base_spread_u64, amm.long_spread.cast::<u64>()? / 2);
         last_oracle_price_u64.safe_add(premium.min(trade_premium.unsigned_abs()))?
     } else {
         trade_price
