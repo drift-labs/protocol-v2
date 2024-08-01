@@ -512,12 +512,7 @@ pub fn calculate_spread_reserves(
     if market.contract_type == ContractType::Prediction {
         let (quote_asset_reserve_lower_bound, quote_asset_reserve_upper_bound) =
             market.get_quote_asset_reserve_prediction_market_bounds(direction)?;
-        crate::dlog!(
-            market.amm.sqrt_k,
-            quote_asset_reserve,
-            quote_asset_reserve_lower_bound,
-            quote_asset_reserve_upper_bound
-        );
+            
         quote_asset_reserve = quote_asset_reserve.clamp(
             quote_asset_reserve_lower_bound,
             quote_asset_reserve_upper_bound,
