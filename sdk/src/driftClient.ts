@@ -1813,17 +1813,19 @@ export class DriftClient {
 	 * Get the associated token address for the given spot market
 	 * @param marketIndex
 	 * @param useNative
+	 * @param tokenProgram
 	 */
 	public async getAssociatedTokenAccount(
 		marketIndex: number,
-		useNative = true
+		useNative = true,
+		tokenProgram = TOKEN_PROGRAM_ID
 	): Promise<PublicKey> {
 		const spotMarket = this.getSpotMarketAccount(marketIndex);
 		if (useNative && spotMarket.mint.equals(WRAPPED_SOL_MINT)) {
 			return this.wallet.publicKey;
 		}
 		const mint = spotMarket.mint;
-		return await getAssociatedTokenAddress(mint, this.wallet.publicKey);
+		return await getAssociatedTokenAddress(mint, this.wallet.publicKey, undefined, tokenProgram);
 	}
 
 	public createAssociatedTokenAccountIdempotentInstruction(
@@ -4250,16 +4252,17 @@ export class DriftClient {
 
 		const preInstructions = [];
 		if (!outAssociatedTokenAccount) {
+			const tokenProgram = this.getTokenProgramForSpotMarket(outMarket);
 			outAssociatedTokenAccount = await this.getAssociatedTokenAccount(
 				outMarket.marketIndex,
-				false
+				false,
+				tokenProgram,
 			);
 
 			const accountInfo = await this.connection.getAccountInfo(
 				outAssociatedTokenAccount
 			);
 			if (!accountInfo) {
-				const tokenProgram = this.getTokenProgramForSpotMarket(outMarket);
 
 				preInstructions.push(
 					this.createAssociatedTokenAccountIdempotentInstruction(
@@ -4274,17 +4277,17 @@ export class DriftClient {
 		}
 
 		if (!inAssociatedTokenAccount) {
+			const tokenProgram = this.getTokenProgramForSpotMarket(outMarket);
 			inAssociatedTokenAccount = await this.getAssociatedTokenAccount(
 				inMarket.marketIndex,
-				false
+				false,
+				tokenProgram,
 			);
 
 			const accountInfo = await this.connection.getAccountInfo(
 				inAssociatedTokenAccount
 			);
 			if (!accountInfo) {
-				const tokenProgram = this.getTokenProgramForSpotMarket(outMarket);
-
 				preInstructions.push(
 					this.createAssociatedTokenAccountIdempotentInstruction(
 						inAssociatedTokenAccount,
@@ -4390,17 +4393,17 @@ export class DriftClient {
 
 		const preInstructions = [];
 		if (!outAssociatedTokenAccount) {
+			const tokenProgram = this.getTokenProgramForSpotMarket(outMarket);
 			outAssociatedTokenAccount = await this.getAssociatedTokenAccount(
 				outMarket.marketIndex,
-				false
+				false,
+				tokenProgram
 			);
 
 			const accountInfo = await this.connection.getAccountInfo(
 				outAssociatedTokenAccount
 			);
 			if (!accountInfo) {
-				const tokenProgram = this.getTokenProgramForSpotMarket(outMarket);
-
 				preInstructions.push(
 					this.createAssociatedTokenAccountIdempotentInstruction(
 						outAssociatedTokenAccount,
@@ -4414,17 +4417,17 @@ export class DriftClient {
 		}
 
 		if (!inAssociatedTokenAccount) {
+			const tokenProgram = this.getTokenProgramForSpotMarket(inMarket);
 			inAssociatedTokenAccount = await this.getAssociatedTokenAccount(
 				inMarket.marketIndex,
-				false
+				false,
+				tokenProgram
 			);
 
 			const accountInfo = await this.connection.getAccountInfo(
 				inAssociatedTokenAccount
 			);
 			if (!accountInfo) {
-				const tokenProgram = this.getTokenProgramForSpotMarket(inMarket);
-
 				preInstructions.push(
 					this.createAssociatedTokenAccountIdempotentInstruction(
 						inAssociatedTokenAccount,
