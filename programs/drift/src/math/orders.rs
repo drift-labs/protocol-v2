@@ -478,6 +478,18 @@ pub fn validate_fill_price_within_price_bands(
     oracle_twap_5min_percent_divergence: u64,
     is_prediction_market: bool,
 ) -> DriftResult {
+    if is_prediction_market {
+        validate!(
+            fill_price <= MAX_PREDICTION_MARKET_PRICE,
+            ErrorCode::PriceBandsBreached,
+            "Fill Price Breaches Prediction Market Price Bands: (fill: {} >= oracle: {})",
+            fill_price,
+            PRICE_PRECISION_U64
+        )?;
+
+        return Ok(());
+    }
+
     let oracle_price = oracle_price.unsigned_abs();
     let oracle_twap_5min = oracle_twap_5min.unsigned_abs();
 
@@ -555,16 +567,6 @@ pub fn validate_fill_price_within_price_bands(
             percent_diff,
             fill_price,
             oracle_twap_5min
-        )?;
-    }
-
-    if is_prediction_market {
-        validate!(
-            fill_price <= MAX_PREDICTION_MARKET_PRICE,
-            ErrorCode::PriceBandsBreached,
-            "Fill Price Breaches Prediction Market Price Bands: (fill: {} >= oracle: {})",
-            fill_price,
-            PRICE_PRECISION_U64
         )?;
     }
 
