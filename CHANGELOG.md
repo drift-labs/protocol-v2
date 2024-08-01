@@ -11,6 +11,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixes
 
+- program: advance iter in get_token_interface and get_token_mint
+
 ### Breaking
 
 ## [2.87.0] - 2024-07-30
