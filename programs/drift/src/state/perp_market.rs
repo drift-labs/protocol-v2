@@ -87,6 +87,7 @@ pub enum ContractType {
     #[default]
     Perpetual,
     Future,
+    Prediction,
 }
 
 #[derive(
