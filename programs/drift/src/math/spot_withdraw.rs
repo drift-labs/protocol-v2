@@ -248,9 +248,20 @@ pub fn get_max_withdraw_for_market_with_token_amount(
 
     let max_borrow_token = max_borrow_token_for_twap.min(max_borrow_token_for_utilization);
 
-    let borrow_limit = max_borrow_token
+    let mut borrow_limit = max_borrow_token
         .saturating_sub(borrow_token_amount)
         .min(deposit_token_amount.saturating_sub(borrow_token_amount));
+
+    if spot_market.max_token_borrows_fraction > 0 {
+        // min with max allowed borrows
+        let borrows = spot_market.get_borrows()?;
+        let max_token_borrows = spot_market
+            .max_token_deposits
+            .safe_mul(spot_market.max_token_borrows_fraction.cast()?)?
+            .safe_div(10000)?
+            .cast::<u128>()?;
+        borrow_limit = borrow_limit.min(max_token_borrows.saturating_sub(borrows));
+    }
 
     max_withdraw_amount.safe_add(borrow_limit)
 }
