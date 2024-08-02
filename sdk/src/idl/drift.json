@@ -1,5 +1,5 @@
 {
-  "version": "2.87.0",
+  "version": "2.89.0",
   "name": "drift",
   "instructions": [
     {
@@ -3402,27 +3402,6 @@
           }
         }
       ]
-    },
-    {
-      "name": "initializePredictionMarket",
-      "accounts": [
-        {
-          "name": "admin",
-          "isMut": false,
-          "isSigner": true
-        },
-        {
-          "name": "state",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "perpMarket",
-          "isMut": true,
-          "isSigner": false
-        }
-      ],
-      "args": []
     },
     {
       "name": "deleteInitializedPerpMarket",

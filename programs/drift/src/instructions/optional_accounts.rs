@@ -209,9 +209,9 @@ pub fn get_token_interface<'a>(
         return Ok(None);
     }
 
-    let token_interface_account_info = token_interface_account_info.safe_unwrap()?;
+    let token_interface_account_info = account_info_iter.next().safe_unwrap()?;
     let token_interface: Interface<TokenInterface> =
-        Interface::try_from(*token_interface_account_info).map_err(|e| {
+        Interface::try_from(token_interface_account_info).map_err(|e| {
             msg!("Unable to deserialize token interface");
             msg!("{:?}", e);
             ErrorCode::DefaultError
@@ -228,9 +228,9 @@ pub fn get_token_mint<'a>(
         return Ok(None);
     }
 
-    let mint_account_info = mint_account_info.safe_unwrap()?;
+    let mint_account_info = account_info_iter.next().safe_unwrap()?;
 
-    match InterfaceAccount::try_from(*mint_account_info) {
+    match InterfaceAccount::try_from(mint_account_info) {
         Ok(mint) => Ok(Some(mint)),
         Err(_) => Ok(None),
     }

@@ -5,11 +5,31 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.89.0] - 2024-08-02
+
+### Features
+
+### Fixes
+
+### Breaking
+
 ## [Unreleased]
 
 ### Features
 
 ### Fixes
+
+- program: call get_token_interface in begin_swap
+
+### Breaking
+
+## [2.88.0] - 2024-08-01
+
+### Features
+
+### Fixes
+
+- program: advance iter in get_token_interface and get_token_mint
 
 ### Breaking
 
