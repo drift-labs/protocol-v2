@@ -589,10 +589,22 @@ export function calculateWithdrawLimit(
 	);
 
 	let borrowLimit = maxBorrowTokens.sub(marketBorrowTokenAmount);
+
 	borrowLimit = BN.min(
 		borrowLimit,
 		marketDepositTokenAmount.sub(marketBorrowTokenAmount)
 	);
+
+	if (spotMarket.maxTokenBorrowsFraction > 0) {
+		const maxTokenBorrowsByFraction = spotMarket.maxTokenDeposits
+			.mul(new BN(spotMarket.maxTokenBorrowsFraction))
+			.divn(10000);
+
+		borrowLimit = BN.min(
+			maxBorrowTokens,
+			maxTokenBorrowsByFraction.sub(marketBorrowTokenAmount)
+		);
+	}
 
 	if (withdrawLimit.eq(ZERO)) {
 		borrowLimit = ZERO;
