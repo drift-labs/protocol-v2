@@ -423,7 +423,7 @@ pub fn handle_deposit<'c: 'info, 'info>(
     };
     emit!(deposit_record);
 
-    spot_market.validate_max_token_deposits_and_borrows()?;
+    spot_market.validate_max_token_deposits_and_borrows(false)?;
 
     Ok(())
 }
@@ -600,6 +600,8 @@ pub fn handle_withdraw<'c: 'info, 'info>(
         &spot_market,
         ctx.accounts.spot_market_vault.amount,
     )?;
+
+    spot_market.validate_max_token_deposits_and_borrows(is_borrow)?;
 
     Ok(())
 }
@@ -2059,7 +2061,7 @@ pub fn handle_deposit_into_spot_market_revenue_pool<'c: 'info, 'info>(
         &mint,
     )?;
 
-    spot_market.validate_max_token_deposits_and_borrows()?;
+    spot_market.validate_max_token_deposits_and_borrows(false)?;
     ctx.accounts.spot_market_vault.reload()?;
     math::spot_withdraw::validate_spot_market_vault_amount(
         &spot_market,
@@ -2979,7 +2981,7 @@ pub fn handle_end_swap<'c: 'info, 'info>(
     out_spot_market.flash_loan_initial_token_amount = 0;
     out_spot_market.flash_loan_amount = 0;
 
-    out_spot_market.validate_max_token_deposits_and_borrows()?;
+    out_spot_market.validate_max_token_deposits_and_borrows(false)?;
 
     let in_strict_price = StrictOraclePrice::new(
         in_oracle_price,

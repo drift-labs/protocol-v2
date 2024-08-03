@@ -30,6 +30,7 @@ pub fn calculate_max_borrow_token_amount(
     deposit_token_twap: u128,
     borrow_token_twap: u128,
     withdraw_guard_threshold: u128,
+    max_token_borrows: u128,
 ) -> DriftResult<u128> {
     // maximum permitted borrows after withdrawal
     // allows at least up to the withdraw_guard_threshold
@@ -37,11 +38,13 @@ pub fn calculate_max_borrow_token_amount(
 
     let lesser_deposit_amount = deposit_token_amount.min(deposit_token_twap);
 
-    let max_borrow_token = withdraw_guard_threshold.max(
-        (lesser_deposit_amount / 6)
-            .max(borrow_token_twap.safe_add(lesser_deposit_amount / 10)?)
-            .min(lesser_deposit_amount.safe_sub(lesser_deposit_amount / 5)?),
-    );
+    let max_borrow_token = withdraw_guard_threshold
+        .max(
+            (lesser_deposit_amount / 6)
+                .max(borrow_token_twap.safe_add(lesser_deposit_amount / 10)?)
+                .min(lesser_deposit_amount.safe_sub(lesser_deposit_amount / 5)?),
+        )
+        .min(max_token_borrows);
 
     Ok(max_borrow_token)
 }
@@ -147,11 +150,22 @@ pub fn check_withdraw_limits(
         &SpotBalanceType::Borrow,
     )?;
 
+    let max_token_borrows: u128 = if spot_market.max_token_borrows_fraction > 0 {
+        spot_market
+            .max_token_deposits
+            .safe_mul(spot_market.max_token_borrows_fraction.cast()?)?
+            .safe_div(10000)?
+            .cast()?
+    } else {
+        u128::MAX
+    };
+
     let max_borrow_token_for_twap = calculate_max_borrow_token_amount(
         deposit_token_amount,
         spot_market.deposit_token_twap.cast()?,
         spot_market.borrow_token_twap.cast()?,
         spot_market.withdraw_guard_threshold.cast()?,
+        max_token_borrows,
     )?;
 
     let (min_deposit_token_for_utilization, max_borrow_token_for_utilization) =
@@ -239,18 +253,40 @@ pub fn get_max_withdraw_for_market_with_token_amount(
         max_withdraw_amount = token_amount;
     }
 
+    let max_token_borrows: u128 = if spot_market.max_token_borrows_fraction > 0 {
+        spot_market
+            .max_token_deposits
+            .safe_mul(spot_market.max_token_borrows_fraction.cast()?)?
+            .safe_div(10000)?
+            .cast()?
+    } else {
+        u128::MAX
+    };
+
     let max_borrow_token_for_twap = calculate_max_borrow_token_amount(
         deposit_token_amount,
         spot_market.deposit_token_twap.cast()?,
         spot_market.borrow_token_twap.cast()?,
         spot_market.withdraw_guard_threshold.cast()?,
+        max_token_borrows,
     )?;
 
     let max_borrow_token = max_borrow_token_for_twap.min(max_borrow_token_for_utilization);
 
-    let borrow_limit = max_borrow_token
+    let mut borrow_limit = max_borrow_token
         .saturating_sub(borrow_token_amount)
         .min(deposit_token_amount.saturating_sub(borrow_token_amount));
+
+    if spot_market.max_token_borrows_fraction > 0 {
+        // min with max allowed borrows
+        let borrows = spot_market.get_borrows()?;
+        let max_token_borrows = spot_market
+            .max_token_deposits
+            .safe_mul(spot_market.max_token_borrows_fraction.cast()?)?
+            .safe_div(10000)?
+            .cast::<u128>()?;
+        borrow_limit = borrow_limit.min(max_token_borrows.saturating_sub(borrows));
+    }
 
     max_withdraw_amount.safe_add(borrow_limit)
 }
