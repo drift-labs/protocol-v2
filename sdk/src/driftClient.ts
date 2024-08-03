@@ -2091,13 +2091,15 @@ export class DriftClient {
 
 	public getAssociatedTokenAccountCreationIx(
 		tokenMintAddress: PublicKey,
-		associatedTokenAddress: PublicKey
+		associatedTokenAddress: PublicKey,
+		tokenProgram: PublicKey,
 	): anchor.web3.TransactionInstruction {
 		return createAssociatedTokenAccountInstruction(
 			this.wallet.publicKey,
 			associatedTokenAddress,
 			this.wallet.publicKey,
-			tokenMintAddress
+			tokenMintAddress,
+			tokenProgram,
 		);
 	}
 
@@ -2359,7 +2361,8 @@ export class DriftClient {
 				const createAssociatedTokenAccountIx =
 					this.getAssociatedTokenAccountCreationIx(
 						spotMarketAccount.mint,
-						associatedTokenAddress
+						associatedTokenAddress,
+						this.getTokenProgramForSpotMarket(spotMarketAccount),
 					);
 
 				withdrawIxs.push(createAssociatedTokenAccountIx);
