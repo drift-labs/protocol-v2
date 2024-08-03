@@ -2981,7 +2981,7 @@ pub fn handle_end_swap<'c: 'info, 'info>(
     out_spot_market.flash_loan_initial_token_amount = 0;
     out_spot_market.flash_loan_amount = 0;
 
-    out_spot_market.validate_max_token_deposits_and_borrows(!out_position_is_reduced)?;
+    out_spot_market.validate_max_token_deposits_and_borrows(false)?;
 
     let in_strict_price = StrictOraclePrice::new(
         in_oracle_price,
