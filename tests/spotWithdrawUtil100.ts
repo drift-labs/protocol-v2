@@ -496,7 +496,7 @@ describe('test function when spot market at >= 100% util', () => {
 			expectedCumulativeBorrowInterest.toString()
 		);
 
-		// inconcistent time leads to slight differences over runs?
+		// inconsistent time leads to slight differences over runs?
 		assert(
 			newSpotMarketAccount.cumulativeBorrowInterest
 				.sub(ONE)
@@ -546,7 +546,7 @@ describe('test function when spot market at >= 100% util', () => {
 			expectedCumulativeBorrowInterest.toString()
 		);
 
-		// inconcistent time leads to slight differences over runs?
+		// inconsistent time leads to slight differences over runs?
 		assert(
 			newSpotMarketAccount.cumulativeBorrowInterest
 				.sub(ONE)

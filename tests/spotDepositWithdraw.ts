@@ -619,7 +619,7 @@ describe('spot deposit and withdraw', () => {
 			expectedCumulativeBorrowInterest.toString()
 		);
 
-		// inconcistent time leads to slight differences over runs?
+		// inconsistent time leads to slight differences over runs?
 		assert(
 			newSpotMarketAccount.cumulativeBorrowInterest
 				.sub(ONE)
