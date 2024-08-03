@@ -477,9 +477,14 @@ fn test_check_withdraw_limits() {
     let mdt = calculate_min_deposit_token_amount(QUOTE_PRECISION, 0).unwrap();
     assert_eq!(mdt, QUOTE_PRECISION - QUOTE_PRECISION / 4);
 
-    let mbt =
-        calculate_max_borrow_token_amount(QUOTE_PRECISION, QUOTE_PRECISION, QUOTE_PRECISION / 2, 0)
-            .unwrap();
+    let mbt = calculate_max_borrow_token_amount(
+        QUOTE_PRECISION,
+        QUOTE_PRECISION,
+        QUOTE_PRECISION / 2,
+        0,
+        u128::MAX,
+    )
+    .unwrap();
     assert_eq!(mbt, 600000);
 
     let valid_withdraw = check_withdraw_limits(&spot_market, Some(&user), Some(0)).unwrap();
@@ -552,6 +557,7 @@ fn test_check_withdraw_limits_below_optimal_utilization() {
         deposit_tokens_1,
         sol_spot_market.borrow_token_twap as u128,
         0,
+        u128::MAX,
     )
     .unwrap();
 
@@ -651,6 +657,7 @@ fn test_check_withdraw_limits_above_optimal_utilization() {
         deposit_tokens_1,
         sol_spot_market.borrow_token_twap as u128,
         0,
+        u128::MAX,
     )
     .unwrap();
 
