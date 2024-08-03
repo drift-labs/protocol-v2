@@ -15,6 +15,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Breaking
 
+## [2.90.0] - 2024-08-03
+
+### Features
+
+### Fixes
+
+- program: account for direction when looking at max borrow cap ([#1169](https://github.com/drift-labs/protocol-v2/pull/1169))
+
+### Breaking
+
 ## [2.89.0] - 2024-08-02
 
 ### Features
