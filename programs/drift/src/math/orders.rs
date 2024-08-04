@@ -12,7 +12,7 @@ use crate::math::casting::Cast;
 use crate::state::fill_mode::FillMode;
 use crate::{
     load, math, FeeTier, State, BASE_PRECISION_I128, FEE_ADJUSTMENT_MAX,
-    MAX_PREDICTION_MARKET_PRICE, OPEN_ORDER_MARGIN_REQUIREMENT, PERCENTAGE_PRECISION,
+    MAX_PREDICTION_MARKET_PRICE_I64, OPEN_ORDER_MARGIN_REQUIREMENT, PERCENTAGE_PRECISION,
     PERCENTAGE_PRECISION_U64, PRICE_PRECISION_I128, PRICE_PRECISION_U64, QUOTE_PRECISION_I128,
     SPOT_WEIGHT_PRECISION, SPOT_WEIGHT_PRECISION_I128,
 };
@@ -875,6 +875,14 @@ pub fn calculate_max_perp_order_size(
             perp_market.amm.order_step_size,
         );
     }
+
+    let oracle_price = if !perp_market.is_prediction_market() {
+        oracle_price_data_price
+    } else if direction == PositionDirection::Long {
+        oracle_price_data_price
+    } else {
+        MAX_PREDICTION_MARKET_PRICE_I64.safe_sub(oracle_price_data_price)?
+    };
 
     let calculate_order_size_and_margin_ratio = |margin_ratio: u32| {
         let new_order_size = free_collateral
