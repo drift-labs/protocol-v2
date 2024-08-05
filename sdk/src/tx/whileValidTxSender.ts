@@ -44,6 +44,9 @@ export class WhileValidTxSender extends BaseTxSender {
 		additionalTxSenderCallbacks = [],
 		blockhashCommitment = 'finalized',
 		txHandler,
+		trackTxLandRate,
+		txLandRateLookbackWindowMinutes,
+		landRateToFeeFunc,
 	}: {
 		connection: Connection;
 		wallet: IWallet;
@@ -53,6 +56,9 @@ export class WhileValidTxSender extends BaseTxSender {
 		additionalTxSenderCallbacks?: ((base58EncodedTx: string) => void)[];
 		blockhashCommitment?: Commitment;
 		txHandler?: TxHandler;
+		trackTxLandRate?: boolean;
+		txLandRateLookbackWindowMinutes?: number;
+		landRateToFeeFunc?: (landRate: number) => number;
 	}) {
 		super({
 			connection,
@@ -61,6 +67,9 @@ export class WhileValidTxSender extends BaseTxSender {
 			additionalConnections,
 			additionalTxSenderCallbacks,
 			txHandler,
+			trackTxLandRate,
+			txLandRateLookbackWindowMinutes,
+			landRateToFeeFunc,
 		});
 		this.retrySleep = retrySleep;
 		this.blockhashCommitment = blockhashCommitment;
@@ -168,6 +177,7 @@ export class WhileValidTxSender extends BaseTxSender {
 		const startTime = this.getTimestamp();
 
 		const txid = await this.connection.sendRawTransaction(rawTransaction, opts);
+		this.txSigCache?.set(txid, false);
 		this.sendToAdditionalConnections(rawTransaction, opts);
 
 		let done = false;
@@ -208,7 +218,7 @@ export class WhileValidTxSender extends BaseTxSender {
 				},
 				opts.commitment
 			);
-
+			this.txSigCache?.set(txid, true);
 			await this.checkConfirmationResultForError(txid, result);
 
 			slot = result.context.slot;
