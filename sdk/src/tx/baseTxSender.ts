@@ -433,7 +433,7 @@ export abstract class BaseTxSender implements TxSender {
 		});
 	}
 
-	public getTxLandRate() {
+	public getTxLandRate(): number {
 		if (!this.trackTxLandRate) {
 			console.warn(
 				'trackTxLandRate is false, returning default land rate of 0'
@@ -468,7 +468,7 @@ export abstract class BaseTxSender implements TxSender {
 		return Math.min(multiplier, 10);
 	}
 
-	public getSuggestedPriorityFeeMultiplier() {
+	public getSuggestedPriorityFeeMultiplier(): number {
 		if (!this.trackTxLandRate) {
 			console.warn(
 				'trackTxLandRate is false, returning default multiplier of 1'
