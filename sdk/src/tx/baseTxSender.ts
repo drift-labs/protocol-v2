@@ -48,6 +48,7 @@ export abstract class BaseTxSender implements TxSender {
 	txSigCache: NodeCache;
 	txLandRate = 0;
 	lastPriorityFeeSuggestion = 1;
+	landRateToFeeFunc: (landRate: number) => number;
 
 	public constructor({
 		connection,
@@ -60,6 +61,7 @@ export abstract class BaseTxSender implements TxSender {
 		txHandler,
 		txLandRateLookbackWindowMinutes = DEFAULT_TX_LAND_RATE_LOOKBACK_WINDOW_MINUTES *
 			60,
+		landRateToFeeFunc,
 	}: {
 		connection: Connection;
 		wallet: IWallet;
@@ -70,6 +72,7 @@ export abstract class BaseTxSender implements TxSender {
 		additionalTxSenderCallbacks?: ((base58EncodedTx: string) => void)[];
 		txHandler?: TxHandler;
 		txLandRateLookbackWindowMinutes?: number;
+		landRateToFeeFunc?: (landRate: number) => number;
 	}) {
 		this.connection = connection;
 		this.wallet = wallet;
@@ -90,6 +93,7 @@ export abstract class BaseTxSender implements TxSender {
 			stdTTL: this.lookbackWindowMinutes,
 			checkperiod: 120,
 		});
+		this.landRateToFeeFunc = landRateToFeeFunc ?? this.defaultLandRateToFeeFunc;
 	}
 
 	async send(
@@ -439,8 +443,7 @@ export abstract class BaseTxSender implements TxSender {
 		return this.txLandRate;
 	}
 
-	public getSuggestedPriorityFeeMultiplier() {
-		const txLandRate = this.getTxLandRate();
+	public defaultLandRateToFeeFunc(txLandRate: number) {
 		if (
 			txLandRate >= BASELINE_TX_LAND_RATE ||
 			this.txSigCache.keys().length < 3
@@ -450,5 +453,9 @@ export abstract class BaseTxSender implements TxSender {
 		const multiplier =
 			10 * Math.log10(1 + (BASELINE_TX_LAND_RATE - txLandRate) * 5);
 		return Math.min(multiplier, 10);
+	}
+
+	public getSuggestedPriorityFeeMultiplier() {
+		return this.landRateToFeeFunc(this.getTxLandRate());
 	}
 }
