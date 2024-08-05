@@ -46,7 +46,7 @@ export abstract class BaseTxSender implements TxSender {
 
 	// For landing rate calcs
 	lookbackWindowMinutes: number;
-	txSigCache: NodeCache;
+	txSigCache?: NodeCache;
 	txLandRate = 0;
 	lastPriorityFeeSuggestion = 1;
 	landRateToFeeFunc: (landRate: number) => number;
@@ -91,14 +91,16 @@ export abstract class BaseTxSender implements TxSender {
 				wallet: this.wallet,
 				confirmationOptions: this.opts,
 			});
+		this.trackTxLandRate = trackTxLandRate;
 		this.lookbackWindowMinutes = txLandRateLookbackWindowMinutes * 60;
-		this.txSigCache = new NodeCache({
-			stdTTL: this.lookbackWindowMinutes,
-			checkperiod: 120,
-		});
+		if (this.trackTxLandRate) {
+			this.txSigCache = new NodeCache({
+				stdTTL: this.lookbackWindowMinutes,
+				checkperiod: 120,
+			});
+		}
 		this.landRateToFeeFunc =
 			landRateToFeeFunc ?? this.defaultLandRateToFeeFunc.bind(this);
-		this.trackTxLandRate = trackTxLandRate;
 	}
 
 	async send(
@@ -454,7 +456,7 @@ export abstract class BaseTxSender implements TxSender {
 		return this.txLandRate;
 	}
 
-	public defaultLandRateToFeeFunc(txLandRate: number) {
+	private defaultLandRateToFeeFunc(txLandRate: number) {
 		if (
 			txLandRate >= BASELINE_TX_LAND_RATE ||
 			this.txSigCache.keys().length < 3

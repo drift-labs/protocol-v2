@@ -83,7 +83,7 @@ export class RetryTxSender extends BaseTxSender {
 		const startTime = this.getTimestamp();
 
 		const txid = await this.connection.sendRawTransaction(rawTransaction, opts);
-		this.txSigCache.set(txid, false);
+		this.txSigCache?.set(txid, false);
 		this.sendToAdditionalConnections(rawTransaction, opts);
 
 		let done = false;
@@ -115,7 +115,7 @@ export class RetryTxSender extends BaseTxSender {
 		let slot: number;
 		try {
 			const result = await this.confirmTransaction(txid, opts.commitment);
-			this.txSigCache.set(txid, true);
+			this.txSigCache?.set(txid, true);
 
 			await this.checkConfirmationResultForError(txid, result);
 

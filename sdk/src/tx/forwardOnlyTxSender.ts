@@ -100,7 +100,7 @@ export class ForwardOnlyTxSender extends BaseTxSender {
 		const startTime = this.getTimestamp();
 
 		this.sendToAdditionalConnections(rawTransaction, opts);
-		this.txSigCache.set(encodedTxSig, false);
+		this.txSigCache?.set(encodedTxSig, false);
 
 		let done = false;
 		const resolveReference: ResolveReference = {
@@ -129,7 +129,7 @@ export class ForwardOnlyTxSender extends BaseTxSender {
 				opts.commitment
 			);
 			slot = result.context.slot;
-			this.txSigCache.set(encodedTxSig, true);
+			this.txSigCache?.set(encodedTxSig, true);
 			// eslint-disable-next-line no-useless-catch
 		} catch (e) {
 			throw e;
