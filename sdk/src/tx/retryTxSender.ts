@@ -31,6 +31,7 @@ export class RetryTxSender extends BaseTxSender {
 		confirmationStrategy = ConfirmationStrategy.Combo,
 		additionalTxSenderCallbacks = [],
 		txHandler,
+		trackTxLandRate,
 		txLandRateLookbackWindowMinutes,
 		landRateToFeeFunc,
 	}: {
@@ -43,6 +44,7 @@ export class RetryTxSender extends BaseTxSender {
 		confirmationStrategy?: ConfirmationStrategy;
 		additionalTxSenderCallbacks?: ((base58EncodedTx: string) => void)[];
 		txHandler?: TxHandler;
+		trackTxLandRate?: boolean;
 		txLandRateLookbackWindowMinutes?: number;
 		landRateToFeeFunc?: (landRate: number) => number;
 	}) {
@@ -55,6 +57,7 @@ export class RetryTxSender extends BaseTxSender {
 			confirmationStrategy,
 			additionalTxSenderCallbacks,
 			txHandler,
+			trackTxLandRate,
 			txLandRateLookbackWindowMinutes,
 			landRateToFeeFunc,
 		});

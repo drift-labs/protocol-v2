@@ -24,6 +24,7 @@ export class FastSingleTxSender extends BaseTxSender {
 	timoutCount = 0;
 	recentBlockhash: BlockhashWithExpiryBlockHeight;
 	skipConfirmation: boolean;
+	confirmInBackground: boolean;
 	blockhashCommitment: Commitment;
 	blockhashIntervalId: NodeJS.Timer;
 
@@ -35,8 +36,10 @@ export class FastSingleTxSender extends BaseTxSender {
 		blockhashRefreshInterval = DEFAULT_BLOCKHASH_REFRESH,
 		additionalConnections = new Array<Connection>(),
 		skipConfirmation = false,
+		confirmInBackground = false,
 		blockhashCommitment = 'finalized',
 		confirmationStrategy = ConfirmationStrategy.Combo,
+		trackTxLandRate,
 		txHandler,
 		txLandRateLookbackWindowMinutes,
 		landRateToFeeFunc,
@@ -48,8 +51,10 @@ export class FastSingleTxSender extends BaseTxSender {
 		blockhashRefreshInterval?: number;
 		additionalConnections?;
 		skipConfirmation?: boolean;
+		confirmInBackground?: boolean;
 		blockhashCommitment?: Commitment;
 		confirmationStrategy?: ConfirmationStrategy;
+		trackTxLandRate?: boolean;
 		txHandler?: TxHandler;
 		txLandRateLookbackWindowMinutes?: number;
 		landRateToFeeFunc?: (landRate: number) => number;
@@ -62,6 +67,7 @@ export class FastSingleTxSender extends BaseTxSender {
 			additionalConnections,
 			confirmationStrategy,
 			txHandler,
+			trackTxLandRate,
 			txLandRateLookbackWindowMinutes,
 			landRateToFeeFunc,
 		});
@@ -72,6 +78,7 @@ export class FastSingleTxSender extends BaseTxSender {
 		this.blockhashRefreshInterval = blockhashRefreshInterval;
 		this.additionalConnections = additionalConnections;
 		this.skipConfirmation = skipConfirmation;
+		this.confirmInBackground = confirmInBackground;
 		this.blockhashCommitment = blockhashCommitment;
 		this.startBlockhashRefreshLoop();
 	}
@@ -107,10 +114,20 @@ export class FastSingleTxSender extends BaseTxSender {
 		let slot: number;
 		if (!this.skipConfirmation) {
 			try {
-				const result = await this.confirmTransaction(txid, opts.commitment);
-				this.txSigCache.set(txid, true);
-				await this.checkConfirmationResultForError(txid, result);
-				slot = result.context.slot;
+				if (this.confirmInBackground) {
+					this.confirmTransaction(txid, opts.commitment).then(
+						async (result) => {
+							this.txSigCache.set(txid, true);
+							await this.checkConfirmationResultForError(txid, result);
+							slot = result.context.slot;
+						}
+					);
+				} else {
+					const result = await this.confirmTransaction(txid, opts.commitment);
+					this.txSigCache.set(txid, true);
+					await this.checkConfirmationResultForError(txid, result);
+					slot = result.context.slot;
+				}
 			} catch (e) {
 				console.error(e);
 				throw e;

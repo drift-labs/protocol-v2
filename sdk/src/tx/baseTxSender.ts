@@ -42,6 +42,7 @@ export abstract class BaseTxSender implements TxSender {
 	confirmationStrategy: ConfirmationStrategy;
 	additionalTxSenderCallbacks: ((base58EncodedTx: string) => void)[];
 	txHandler: TxHandler;
+	trackTxLandRate?: boolean;
 
 	// For landing rate calcs
 	lookbackWindowMinutes: number;
@@ -58,6 +59,7 @@ export abstract class BaseTxSender implements TxSender {
 		additionalConnections = new Array<Connection>(),
 		confirmationStrategy = ConfirmationStrategy.Combo,
 		additionalTxSenderCallbacks,
+		trackTxLandRate,
 		txHandler,
 		txLandRateLookbackWindowMinutes = DEFAULT_TX_LAND_RATE_LOOKBACK_WINDOW_MINUTES *
 			60,
@@ -71,6 +73,7 @@ export abstract class BaseTxSender implements TxSender {
 		confirmationStrategy?: ConfirmationStrategy;
 		additionalTxSenderCallbacks?: ((base58EncodedTx: string) => void)[];
 		txHandler?: TxHandler;
+		trackTxLandRate?: boolean;
 		txLandRateLookbackWindowMinutes?: number;
 		landRateToFeeFunc?: (landRate: number) => number;
 	}) {
@@ -95,6 +98,7 @@ export abstract class BaseTxSender implements TxSender {
 		});
 		this.landRateToFeeFunc =
 			landRateToFeeFunc ?? this.defaultLandRateToFeeFunc.bind(this);
+		this.trackTxLandRate = trackTxLandRate;
 	}
 
 	async send(
@@ -428,6 +432,12 @@ export abstract class BaseTxSender implements TxSender {
 	}
 
 	public getTxLandRate() {
+		if (!this.trackTxLandRate) {
+			console.warn(
+				'trackTxLandRate is false, returning default land rate of 0'
+			);
+			return this.txLandRate;
+		}
 		const keys = this.txSigCache.keys();
 		const denominator = keys.length;
 		if (denominator === 0) {
@@ -457,6 +467,12 @@ export abstract class BaseTxSender implements TxSender {
 	}
 
 	public getSuggestedPriorityFeeMultiplier() {
+		if (!this.trackTxLandRate) {
+			console.warn(
+				'trackTxLandRate is false, returning default multiplier of 1'
+			);
+			return 1;
+		}
 		return this.landRateToFeeFunc(this.getTxLandRate());
 	}
 }

@@ -44,6 +44,7 @@ export class WhileValidTxSender extends BaseTxSender {
 		additionalTxSenderCallbacks = [],
 		blockhashCommitment = 'finalized',
 		txHandler,
+		trackTxLandRate,
 		txLandRateLookbackWindowMinutes,
 		landRateToFeeFunc,
 	}: {
@@ -55,6 +56,7 @@ export class WhileValidTxSender extends BaseTxSender {
 		additionalTxSenderCallbacks?: ((base58EncodedTx: string) => void)[];
 		blockhashCommitment?: Commitment;
 		txHandler?: TxHandler;
+		trackTxLandRate?: boolean;
 		txLandRateLookbackWindowMinutes?: number;
 		landRateToFeeFunc?: (landRate: number) => number;
 	}) {
@@ -65,6 +67,7 @@ export class WhileValidTxSender extends BaseTxSender {
 			additionalConnections,
 			additionalTxSenderCallbacks,
 			txHandler,
+			trackTxLandRate,
 			txLandRateLookbackWindowMinutes,
 			landRateToFeeFunc,
 		});
