@@ -44,6 +44,8 @@ export class WhileValidTxSender extends BaseTxSender {
 		additionalTxSenderCallbacks = [],
 		blockhashCommitment = 'finalized',
 		txHandler,
+		txLandRateLookbackWindowMinutes,
+		landRateToFeeFunc,
 	}: {
 		connection: Connection;
 		wallet: IWallet;
@@ -53,6 +55,8 @@ export class WhileValidTxSender extends BaseTxSender {
 		additionalTxSenderCallbacks?: ((base58EncodedTx: string) => void)[];
 		blockhashCommitment?: Commitment;
 		txHandler?: TxHandler;
+		txLandRateLookbackWindowMinutes?: number;
+		landRateToFeeFunc?: (landRate: number) => number;
 	}) {
 		super({
 			connection,
@@ -61,6 +65,8 @@ export class WhileValidTxSender extends BaseTxSender {
 			additionalConnections,
 			additionalTxSenderCallbacks,
 			txHandler,
+			txLandRateLookbackWindowMinutes,
+			landRateToFeeFunc,
 		});
 		this.retrySleep = retrySleep;
 		this.blockhashCommitment = blockhashCommitment;

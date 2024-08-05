@@ -38,6 +38,8 @@ export class FastSingleTxSender extends BaseTxSender {
 		blockhashCommitment = 'finalized',
 		confirmationStrategy = ConfirmationStrategy.Combo,
 		txHandler,
+		txLandRateLookbackWindowMinutes,
+		landRateToFeeFunc,
 	}: {
 		connection: Connection;
 		wallet: IWallet;
@@ -49,6 +51,8 @@ export class FastSingleTxSender extends BaseTxSender {
 		blockhashCommitment?: Commitment;
 		confirmationStrategy?: ConfirmationStrategy;
 		txHandler?: TxHandler;
+		txLandRateLookbackWindowMinutes?: number;
+		landRateToFeeFunc?: (landRate: number) => number;
 	}) {
 		super({
 			connection,
@@ -58,6 +62,8 @@ export class FastSingleTxSender extends BaseTxSender {
 			additionalConnections,
 			confirmationStrategy,
 			txHandler,
+			txLandRateLookbackWindowMinutes,
+			landRateToFeeFunc,
 		});
 		this.connection = connection;
 		this.wallet = wallet;
