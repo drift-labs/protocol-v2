@@ -93,7 +93,8 @@ export abstract class BaseTxSender implements TxSender {
 			stdTTL: this.lookbackWindowMinutes,
 			checkperiod: 120,
 		});
-		this.landRateToFeeFunc = landRateToFeeFunc ?? this.defaultLandRateToFeeFunc;
+		this.landRateToFeeFunc =
+			landRateToFeeFunc ?? this.defaultLandRateToFeeFunc.bind(this);
 	}
 
 	async send(
