@@ -91,7 +91,7 @@ export abstract class BaseTxSender implements TxSender {
 				wallet: this.wallet,
 				confirmationOptions: this.opts,
 			});
-		this.lookbackWindowMinutes = txLandRateLookbackWindowMinutes;
+		this.lookbackWindowMinutes = txLandRateLookbackWindowMinutes * 60;
 		this.txSigCache = new NodeCache({
 			stdTTL: this.lookbackWindowMinutes,
 			checkperiod: 120,
