@@ -1076,7 +1076,13 @@ pub fn fill_perp_order(
         if let Some(filler) = filler.as_deref_mut() {
             filler.update_last_active_slot(slot);
         }
-        return Ok((0, 0));
+
+        if !perp_market_map
+            .get_ref_mut(&market_index)?
+            .is_prediction_market()
+        {
+            return Ok((0, 0));
+        }
     }
 
     validate_perp_fill_possible(
