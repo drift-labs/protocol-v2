@@ -59,8 +59,7 @@ export abstract class BaseTxSender implements TxSender {
 		additionalTxSenderCallbacks,
 		txHandler,
 		txLandRateLookbackWindowMinutes = DEFAULT_TX_LAND_RATE_LOOKBACK_WINDOW_MINUTES *
-			60 *
-			1000,
+			60,
 	}: {
 		connection: Connection;
 		wallet: IWallet;
@@ -89,7 +88,7 @@ export abstract class BaseTxSender implements TxSender {
 		this.lookbackWindowMinutes = txLandRateLookbackWindowMinutes;
 		this.txSigCache = new NodeCache({
 			stdTTL: this.lookbackWindowMinutes,
-			checkperiod: 120_000,
+			checkperiod: 120,
 		});
 	}
 
@@ -442,10 +441,14 @@ export abstract class BaseTxSender implements TxSender {
 
 	public getSuggestedPriorityFeeMultiplier() {
 		const txLandRate = this.getTxLandRate();
-		if (txLandRate >= BASELINE_TX_LAND_RATE) {
+		if (
+			txLandRate >= BASELINE_TX_LAND_RATE ||
+			this.txSigCache.keys().length < 3
+		) {
 			return 1;
 		}
-		const multiplier = 10 * Math.log10(1 + (1 - txLandRate) * 9);
+		const multiplier =
+			10 * Math.log10(1 + (BASELINE_TX_LAND_RATE - txLandRate) * 5);
 		return Math.min(multiplier, 10);
 	}
 }
