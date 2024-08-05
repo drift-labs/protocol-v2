@@ -25,8 +25,11 @@ import assert from 'assert';
 import bs58 from 'bs58';
 import { TxHandler } from './txHandler';
 import { IWallet } from '../types';
+import NodeCache from 'node-cache';
 
+const BASELINE_TX_LAND_RATE = 0.9;
 const DEFAULT_TIMEOUT = 35000;
+const DEFAULT_TX_LAND_RATE_LOOKBACK_WINDOW_MINUTES = 10;
 const NOT_CONFIRMED_ERROR_CODE = -1001;
 
 export abstract class BaseTxSender implements TxSender {
@@ -40,6 +43,12 @@ export abstract class BaseTxSender implements TxSender {
 	additionalTxSenderCallbacks: ((base58EncodedTx: string) => void)[];
 	txHandler: TxHandler;
 
+	// For landing rate calcs
+	lookbackWindowMinutes: number;
+	txSigCache: NodeCache;
+	txLandRate = 0;
+	lastPriorityFeeSuggestion = 1;
+
 	public constructor({
 		connection,
 		wallet,
@@ -49,6 +58,9 @@ export abstract class BaseTxSender implements TxSender {
 		confirmationStrategy = ConfirmationStrategy.Combo,
 		additionalTxSenderCallbacks,
 		txHandler,
+		txLandRateLookbackWindowMinutes = DEFAULT_TX_LAND_RATE_LOOKBACK_WINDOW_MINUTES *
+			60 *
+			1000,
 	}: {
 		connection: Connection;
 		wallet: IWallet;
@@ -58,6 +70,7 @@ export abstract class BaseTxSender implements TxSender {
 		confirmationStrategy?: ConfirmationStrategy;
 		additionalTxSenderCallbacks?: ((base58EncodedTx: string) => void)[];
 		txHandler?: TxHandler;
+		txLandRateLookbackWindowMinutes?: number;
 	}) {
 		this.connection = connection;
 		this.wallet = wallet;
@@ -73,6 +86,11 @@ export abstract class BaseTxSender implements TxSender {
 				wallet: this.wallet,
 				confirmationOptions: this.opts,
 			});
+		this.lookbackWindowMinutes = txLandRateLookbackWindowMinutes;
+		this.txSigCache = new NodeCache({
+			stdTTL: this.lookbackWindowMinutes,
+			checkperiod: 120_000,
+		});
 	}
 
 	async send(
@@ -403,5 +421,31 @@ export abstract class BaseTxSender implements TxSender {
 			}`,
 			logs,
 		});
+	}
+
+	public getTxLandRate() {
+		const keys = this.txSigCache.keys();
+		const denominator = keys.length;
+		if (denominator === 0) {
+			return this.txLandRate;
+		}
+		let numerator = 0;
+		for (const key of keys) {
+			const value = this.txSigCache.get(key);
+			if (value) {
+				numerator += 1;
+			}
+		}
+		this.txLandRate = numerator / denominator;
+		return this.txLandRate;
+	}
+
+	public getSuggestedPriorityFeeMultiplier() {
+		const txLandRate = this.getTxLandRate();
+		if (txLandRate >= BASELINE_TX_LAND_RATE) {
+			return 1;
+		}
+		const multiplier = 10 * Math.log10(1 + (1 - txLandRate) * 9);
+		return Math.min(multiplier, 10);
 	}
 }

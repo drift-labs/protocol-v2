@@ -91,6 +91,7 @@ export class FastSingleTxSender extends BaseTxSender {
 		let txid: TransactionSignature;
 		try {
 			txid = await this.connection.sendRawTransaction(rawTransaction, opts);
+			this.txSigCache.set(txid, false);
 			this.sendToAdditionalConnections(rawTransaction, opts);
 		} catch (e) {
 			console.error(e);
@@ -101,6 +102,7 @@ export class FastSingleTxSender extends BaseTxSender {
 		if (!this.skipConfirmation) {
 			try {
 				const result = await this.confirmTransaction(txid, opts.commitment);
+				this.txSigCache.set(txid, true);
 				await this.checkConfirmationResultForError(txid, result);
 				slot = result.context.slot;
 			} catch (e) {
