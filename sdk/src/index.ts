@@ -63,6 +63,7 @@ export * from './marinade';
 export * from './orderParams';
 export * from './slot/SlotSubscriber';
 export * from './wallet';
+export * from './keypair';
 export * from './types';
 export * from './math/utils';
 export * from './math/fuel';
