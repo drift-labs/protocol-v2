@@ -35,6 +35,9 @@ export class ForwardOnlyTxSender extends BaseTxSender {
 		confirmationStrategy = ConfirmationStrategy.Combo,
 		additionalTxSenderCallbacks = [],
 		txHandler,
+		trackTxLandRate,
+		txLandRateLookbackWindowMinutes,
+		landRateToFeeFunc,
 	}: {
 		connection: Connection;
 		wallet: IWallet;
@@ -44,6 +47,9 @@ export class ForwardOnlyTxSender extends BaseTxSender {
 		confirmationStrategy?: ConfirmationStrategy;
 		additionalTxSenderCallbacks?: ((base58EncodedTx: string) => void)[];
 		txHandler?: TxHandler;
+		trackTxLandRate?: boolean;
+		txLandRateLookbackWindowMinutes?: number;
+		landRateToFeeFunc?: (landRate: number) => number;
 	}) {
 		super({
 			connection,
@@ -54,6 +60,9 @@ export class ForwardOnlyTxSender extends BaseTxSender {
 			confirmationStrategy,
 			additionalTxSenderCallbacks,
 			txHandler,
+			trackTxLandRate,
+			txLandRateLookbackWindowMinutes,
+			landRateToFeeFunc,
 		});
 		this.connection = connection;
 		this.wallet = wallet;
@@ -91,6 +100,7 @@ export class ForwardOnlyTxSender extends BaseTxSender {
 		const startTime = this.getTimestamp();
 
 		this.sendToAdditionalConnections(rawTransaction, opts);
+		this.txSigCache?.set(encodedTxSig, false);
 
 		let done = false;
 		const resolveReference: ResolveReference = {
@@ -119,6 +129,7 @@ export class ForwardOnlyTxSender extends BaseTxSender {
 				opts.commitment
 			);
 			slot = result.context.slot;
+			this.txSigCache?.set(encodedTxSig, true);
 			// eslint-disable-next-line no-useless-catch
 		} catch (e) {
 			throw e;

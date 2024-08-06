@@ -1,6 +1,6 @@
 {
 	"name": "@drift-labs/sdk",
-	"version": "2.91.0-beta.1",
+	"version": "2.91.0-beta.5",
 	"main": "lib/index.js",
 	"types": "lib/index.d.ts",
 	"author": "crispheaney",
@@ -46,6 +46,7 @@
 		"@solana/web3.js": "1.92.3",
 		"@switchboard-xyz/on-demand": "1.2.1",
 		"anchor-bankrun": "^0.3.0",
+		"node-cache": "^5.1.2",
 		"rpc-websockets": "7.5.1",
 		"solana-bankrun": "^0.3.0",
 		"strict-event-emitter-types": "^2.0.0",
