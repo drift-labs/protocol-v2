@@ -11,7 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixes
 
-- program: account for direction when looking at max borrow cap
+- program: look at drift stake to determine fee tier ([#1172](https://github.com/drift-labs/protocol-v2/pull/1172))
 
 ### Breaking
 
