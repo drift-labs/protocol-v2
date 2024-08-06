@@ -820,7 +820,7 @@ pub fn calculate_max_perp_order_size(
 
     let user_custom_margin_ratio = user.max_margin_ratio;
 
-    let free_collateral = total_collateral.safe_sub(margin_requirement.cast()?)?;
+    let mut free_collateral_before = total_collateral.safe_sub(margin_requirement.cast()?)?;
 
     let perp_market = perp_market_map.get_ref(&market_index)?;
 
@@ -838,9 +838,8 @@ pub fn calculate_max_perp_order_size(
     drop(quote_spot_market);
 
     let perp_position: &PerpPosition = &user.perp_positions[position_index];
-    let base_asset_amount = perp_position.base_asset_amount;
-    let worst_case_base_asset_amount = perp_position
-        .worst_case_base_asset_amount(oracle_price_data_price, perp_market.contract_type)?;
+    let (worst_case_base_asset_amount, worst_case_liability_value) = perp_position
+        .worst_case_liability_value(oracle_price_data_price, perp_market.contract_type)?;
 
     let margin_ratio = perp_market
         .get_margin_ratio(
@@ -849,29 +848,40 @@ pub fn calculate_max_perp_order_size(
         )?
         .max(user_custom_margin_ratio);
 
-    let mut order_size_to_flip = 0_u64;
+    let mut order_size_to_reduce_position = 0_u64;
+    let mut free_collateral_released = 0_i128;
     // account for order flipping worst case base asset amount
     if worst_case_base_asset_amount < 0 && direction == PositionDirection::Long {
-        order_size_to_flip = worst_case_base_asset_amount
+        order_size_to_reduce_position = worst_case_base_asset_amount
             .abs()
             .cast::<i64>()?
-            .safe_sub(base_asset_amount.safe_add(perp_position.open_bids)?)?
+            .safe_sub(perp_position.open_bids)?
+            .max(0)
             .unsigned_abs();
+
+        let existing_position_margin_requirement = worst_case_liability_value
+            .safe_mul(margin_ratio.cast()?)?
+            .safe_div(MARGIN_PRECISION_U128)?;
+
+        free_collateral_released = existing_position_margin_requirement.cast()?;
     } else if worst_case_base_asset_amount > 0 && direction == PositionDirection::Short {
-        order_size_to_flip = worst_case_base_asset_amount
-            .neg()
+        order_size_to_reduce_position = worst_case_base_asset_amount
             .cast::<i64>()?
-            .safe_sub(base_asset_amount.safe_add(perp_position.open_asks)?)?
+            .safe_add(perp_position.open_asks)?
+            .max(0)
             .unsigned_abs();
+
+        let existing_position_margin_requirement = worst_case_liability_value
+            .safe_mul(margin_ratio.cast()?)?
+            .safe_div(MARGIN_PRECISION_U128)?;
+
+        free_collateral_released = existing_position_margin_requirement.cast()?;
     }
 
-    if free_collateral <= 0 {
-        let max_risk_reducing_order_size = base_asset_amount
-            .safe_mul(2)?
-            .unsigned_abs()
-            .saturating_sub(1);
+    // if user has no free collateral, just return the order size to reduce position
+    if free_collateral_before <= 0 {
         return standardize_base_asset_amount(
-            order_size_to_flip.min(max_risk_reducing_order_size),
+            order_size_to_reduce_position,
             perp_market.amm.order_step_size,
         );
     }
@@ -885,13 +895,14 @@ pub fn calculate_max_perp_order_size(
     };
 
     let calculate_order_size_and_margin_ratio = |margin_ratio: u32| {
-        let new_order_size = free_collateral
+        let new_order_size = free_collateral_before
+            .safe_add(free_collateral_released)?
             .safe_sub(OPEN_ORDER_MARGIN_REQUIREMENT.cast()?)?
             .safe_mul(BASE_PRECISION_I128 / QUOTE_PRECISION_I128)?
             .safe_mul(MARGIN_PRECISION_U128.cast()?)?
             .safe_div(margin_ratio.cast()?)?
             .safe_mul(PRICE_PRECISION_I128)?
-            .safe_div(oracle_price_data_price.cast()?)?
+            .safe_div(oracle_price.cast()?)?
             .safe_mul(PRICE_PRECISION_I128)?
             .safe_div(quote_oracle_price.cast()?)?
             .cast::<u64>()?;
@@ -922,7 +933,7 @@ pub fn calculate_max_perp_order_size(
     }
 
     standardize_base_asset_amount(
-        order_size.safe_add(order_size_to_flip)?,
+        order_size.safe_add(order_size_to_reduce_position)?,
         perp_market.amm.order_step_size,
     )
 }

@@ -2182,7 +2182,7 @@ mod calculate_max_perp_order_size {
         )
         .unwrap();
 
-        assert_eq!(max_order_size, 999999999000);
+        assert_eq!(max_order_size, 500000000000);
     }
 
     #[test]
@@ -2409,7 +2409,7 @@ mod calculate_max_perp_order_size {
         )
         .unwrap();
 
-        assert_eq!(max_order_size, 999999999000);
+        assert_eq!(max_order_size, 500000000000);
     }
 
     #[test]
