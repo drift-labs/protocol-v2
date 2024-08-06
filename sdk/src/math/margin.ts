@@ -116,17 +116,8 @@ export function calculateBaseAssetValueWithOracle(
 	includeOpenOrders = false
 ): BN {
 	let price = oraclePriceData.price;
-	
 	if (isVariant(market.status, 'settlement')) {
 		price = market.expiryPrice;
-	}
-
-	// Flip price for prediction market shorts
-	if (
-		isVariant(market.contractType, 'prediction') &&
-		perpPosition.baseAssetAmount.lt(ZERO)
-	) {
-		price = MAX_PREDICTION_PRICE.sub(price);
 	}
 
 	const baseAssetAmount = includeOpenOrders
