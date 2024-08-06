@@ -95,6 +95,7 @@ import {
 	calculatePerpFuelBonus,
 	calculateInsuranceFuelBonus,
 } from './math/fuel';
+import { HealthComponent } from '@drift-labs/sdk';
 
 export class User {
 	driftClient: DriftClient;
@@ -3593,6 +3594,85 @@ export class User {
 		};
 	}
 
+	public getPerpPositionHealth({
+		marginCategory,
+		perpPosition,
+		oraclePriceData,
+		quoteOraclePriceData,
+		perpMarket,
+	}: {
+		marginCategory: MarginCategory;
+		perpPosition: PerpPosition;
+		oraclePriceData?: OraclePriceData;
+		quoteOraclePriceData?: OraclePriceData;
+		perpMarket?: PerpMarketAccount;
+	}): HealthComponent {
+		const settledLpPosition = this.getPerpPositionWithLPSettle(
+			perpPosition.marketIndex,
+			perpPosition
+		)[0];
+
+		const _perpMarket = perpMarket || this.driftClient.getPerpMarketAccount(
+			perpPosition.marketIndex
+		);
+
+		const _oraclePriceData = oraclePriceData || this.driftClient.getOracleDataForPerpMarket(
+			_perpMarket.marketIndex
+		);
+		const oraclePrice = _oraclePriceData.price;
+		const worstCaseBaseAmount =
+			calculateWorstCaseBaseAssetAmount(settledLpPosition);
+
+		const marginRatio = new BN(
+			calculateMarketMarginRatio(
+				_perpMarket,
+				worstCaseBaseAmount.abs(),
+				marginCategory,
+				this.getUserAccount().maxMarginRatio
+			)
+		);
+
+		const _quoteOraclePriceData = quoteOraclePriceData || this.driftClient.getOracleDataForSpotMarket(
+			QUOTE_SPOT_MARKET_INDEX
+		);
+
+		const baseAssetValue = worstCaseBaseAmount
+			.abs()
+			.mul(oraclePrice)
+			.div(BASE_PRECISION);
+
+		let marginRequirement = baseAssetValue
+			.mul(_quoteOraclePriceData.price)
+			.div(PRICE_PRECISION)
+			.mul(marginRatio)
+			.div(MARGIN_PRECISION);
+
+		marginRequirement = marginRequirement.add(
+			new BN(perpPosition.openOrders).mul(OPEN_ORDER_MARGIN_REQUIREMENT)
+		);
+
+		if (perpPosition.lpShares.gt(ZERO)) {
+			marginRequirement = marginRequirement.add(
+				BN.max(
+					QUOTE_PRECISION,
+					oraclePrice
+						.mul(_perpMarket.amm.orderStepSize)
+						.mul(QUOTE_PRECISION)
+						.div(AMM_RESERVE_PRECISION)
+						.div(PRICE_PRECISION)
+				)
+			);
+		}
+
+		return {
+			marketIndex: perpMarket.marketIndex,
+			size: worstCaseBaseAmount,
+			value: baseAssetValue,
+			weight: marginRatio,
+			weightedValue: marginRequirement,
+		};
+	}
+
 	public getHealthComponents({
 		marginCategory,
 	}: {
@@ -3606,71 +3686,28 @@ export class User {
 		};
 
 		for (const perpPosition of this.getActivePerpPositions()) {
-			const settledLpPosition = this.getPerpPositionWithLPSettle(
-				perpPosition.marketIndex,
-				perpPosition
-			)[0];
 			const perpMarket = this.driftClient.getPerpMarketAccount(
 				perpPosition.marketIndex
 			);
+
 			const oraclePriceData = this.driftClient.getOracleDataForPerpMarket(
 				perpMarket.marketIndex
-			);
-			const oraclePrice = oraclePriceData.price;
-			const worstCaseBaseAmount =
-				calculateWorstCaseBaseAssetAmount(settledLpPosition);
-
-			const marginRatio = new BN(
-				calculateMarketMarginRatio(
-					perpMarket,
-					worstCaseBaseAmount.abs(),
-					marginCategory,
-					this.getUserAccount().maxMarginRatio
-				)
-			);
-
-			const quoteSpotMarket = this.driftClient.getSpotMarketAccount(
-				perpMarket.quoteSpotMarketIndex
 			);
 			const quoteOraclePriceData = this.driftClient.getOracleDataForSpotMarket(
 				QUOTE_SPOT_MARKET_INDEX
 			);
 
-			const baseAssetValue = worstCaseBaseAmount
-				.abs()
-				.mul(oraclePrice)
-				.div(BASE_PRECISION);
-
-			let marginRequirement = baseAssetValue
-				.mul(quoteOraclePriceData.price)
-				.div(PRICE_PRECISION)
-				.mul(marginRatio)
-				.div(MARGIN_PRECISION);
-
-			marginRequirement = marginRequirement.add(
-				new BN(perpPosition.openOrders).mul(OPEN_ORDER_MARGIN_REQUIREMENT)
+			healthComponents.perpPositions.push(this.getPerpPositionHealth({
+				perpPosition,
+				perpMarket,
+				oraclePriceData,
+				quoteOraclePriceData,
+				marginCategory,
+			}));
+			
+			const quoteSpotMarket = this.driftClient.getSpotMarketAccount(
+				perpMarket.quoteSpotMarketIndex
 			);
-
-			if (perpPosition.lpShares.gt(ZERO)) {
-				marginRequirement = marginRequirement.add(
-					BN.max(
-						QUOTE_PRECISION,
-						oraclePrice
-							.mul(perpMarket.amm.orderStepSize)
-							.mul(QUOTE_PRECISION)
-							.div(AMM_RESERVE_PRECISION)
-							.div(PRICE_PRECISION)
-					)
-				);
-			}
-
-			healthComponents.perpPositions.push({
-				marketIndex: perpMarket.marketIndex,
-				size: worstCaseBaseAmount,
-				value: baseAssetValue,
-				weight: marginRatio,
-				weightedValue: marginRequirement,
-			});
 
 			const settledPerpPosition = this.getPerpPositionWithLPSettle(
 				perpPosition.marketIndex,
