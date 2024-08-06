@@ -1,5 +1,4 @@
-import { BASE_PRECISION, QUOTE_PRECISION } from '@drift-labs/sdk';
-import { BN, isVariant, SpotMarketAccount } from '../';
+import { BN, SpotMarketAccount } from '../';
 import {
 	AMM_RESERVE_PRECISION,
 	AMM_TIMES_PEG_TO_QUOTE_PRECISION_RATIO,
@@ -114,22 +113,9 @@ export function calculatePositionPNL(
 	const baseAssetValueSign = perpPosition.baseAssetAmount.isNeg()
 		? new BN(-1)
 		: new BN(1);
-
-	let positionQuoteAssetAmount = perpPosition.quoteAssetAmount;
-
-	// Flip positionQuoteAssetAmount for prediction market shorts
-	if (
-		isVariant(market.contractType, 'prediction') &&
-		perpPosition.baseAssetAmount.lt(ZERO)
-	) {
-		const positionBaseSize = perpPosition.baseAssetAmount.abs();
-		const fullQuoteAssetAmount = positionBaseSize.mul(QUOTE_PRECISION).div(BASE_PRECISION);
-		positionQuoteAssetAmount = fullQuoteAssetAmount.sub(positionQuoteAssetAmount);
-	} // TODO : Confirm this is correct pls @crisp
-		
 	let pnl = baseAssetValue
 		.mul(baseAssetValueSign)
-		.add(positionQuoteAssetAmount);
+		.add(perpPosition.quoteAssetAmount);
 
 	if (withFunding) {
 		const fundingRatePnL = calculatePositionFundingPNL(market, perpPosition);
