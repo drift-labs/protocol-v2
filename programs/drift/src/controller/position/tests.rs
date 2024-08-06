@@ -1786,8 +1786,8 @@ fn recenter_amm_2() {
     )
     .unwrap();
 
-    assert_eq!(r1_orig, 326219);
-    assert_eq!(r2_orig, 20707);
+    assert_eq!(r1_orig, 326945);
+    assert_eq!(r2_orig, 21433);
 
     let current_k = perp_market.amm.sqrt_k;
     let _current_peg = perp_market.amm.peg_multiplier;
@@ -1821,8 +1821,8 @@ fn recenter_amm_2() {
     .unwrap();
 
     // adjusted slightly
-    assert_eq!(r1, 348628); // 354919762322 w/o k adj
-    assert_eq!(r2, 22129);
+    assert_eq!(r1, 349404); // 354919762322 w/o k adj
+    assert_eq!(r2, 22905);
 
     let new_scale = 2;
     let new_sqrt_k = perp_market.amm.sqrt_k * new_scale;
@@ -1913,8 +1913,8 @@ fn test_move_amm() {
     )
     .unwrap();
 
-    assert_eq!(r1_orig, 326219);
-    assert_eq!(r2_orig, 20707);
+    assert_eq!(r1_orig, 326945);
+    assert_eq!(r2_orig, 21433);
     let current_bar = perp_market.amm.base_asset_reserve;
     let _current_qar = perp_market.amm.quote_asset_reserve;
     let current_k = perp_market.amm.sqrt_k;

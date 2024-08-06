@@ -1760,6 +1760,15 @@ pub fn handle_add_perp_lp_shares<'c: 'info, 'info>(
             n_shares,
         )?;
 
+        validate!(
+            market.amm.imbalanced_base_asset_amount_with_lp()?
+                < market.amm.amm_calculate_min_side_liquidity()?,
+            ErrorCode::MarketStatusInvalidForNewLP,
+            "Market Index={} LPs too imbalanced for minting {} liquidity shares",
+            market_index,
+            n_shares
+        )?;
+
         user.last_add_perp_lp_shares_ts = now;
     }
 
