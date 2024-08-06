@@ -6,8 +6,9 @@ use crate::error::DriftResult;
 use crate::math::casting::Cast;
 
 use crate::math::constants::{
-    FIFTY_MILLION_QUOTE, FIVE_MILLION_QUOTE, ONE_HUNDRED_MILLION_QUOTE, ONE_MILLION_QUOTE,
-    ONE_THOUSAND_QUOTE, TEN_BPS, TEN_MILLION_QUOTE, TEN_THOUSAND_QUOTE, TWENTY_FIVE_THOUSAND_QUOTE, ONE_HUNDRED_THOUSAND_QUOTE
+    FIFTY_MILLION_QUOTE, FIVE_MILLION_QUOTE, ONE_HUNDRED_MILLION_QUOTE, ONE_HUNDRED_THOUSAND_QUOTE,
+    ONE_MILLION_QUOTE, ONE_THOUSAND_QUOTE, TEN_BPS, TEN_MILLION_QUOTE, TEN_THOUSAND_QUOTE,
+    TWENTY_FIVE_THOUSAND_QUOTE,
 };
 use crate::math::helpers::get_proportion_u128;
 use crate::math::safe_math::SafeMath;
@@ -429,7 +430,6 @@ fn determine_perp_fee_tier<'a>(
     if total_30d_volume >= TEN_MILLION_QUOTE
         || staked_quote_asset_amount >= ONE_THOUSAND_QUOTE * 2 - QUOTE_PRECISION_U64
         || staked_gov_token_amount >= TWENTY_FIVE_THOUSAND_QUOTE * 2 - QUOTE_PRECISION_U64
-
     {
         return Ok(&fee_structure.fee_tiers[3]);
     }
@@ -437,7 +437,6 @@ fn determine_perp_fee_tier<'a>(
     if total_30d_volume >= FIVE_MILLION_QUOTE
         || staked_quote_asset_amount >= ONE_THOUSAND_QUOTE - QUOTE_PRECISION_U64
         || staked_gov_token_amount >= TEN_THOUSAND_QUOTE - QUOTE_PRECISION_U64
-
     {
         return Ok(&fee_structure.fee_tiers[2]);
     }
@@ -445,7 +444,6 @@ fn determine_perp_fee_tier<'a>(
     if total_30d_volume >= ONE_MILLION_QUOTE
         || staked_quote_asset_amount >= ONE_THOUSAND_QUOTE / 2 - QUOTE_PRECISION_U64
         || staked_gov_token_amount >= ONE_THOUSAND_QUOTE - QUOTE_PRECISION_U64
-
     {
         return Ok(&fee_structure.fee_tiers[1]);
     }
