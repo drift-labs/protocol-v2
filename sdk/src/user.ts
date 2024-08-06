@@ -2611,13 +2611,16 @@ export class User {
 	 *
 	 * @param targetMarketIndex
 	 * @param tradeSide
-	 * @returns tradeSizeAllowed : Precision QUOTE_PRECISION
+	 * @param isLp
+	 * @returns { tradeSize: BN, oppositeSideTradeSize: BN} : Precision QUOTE_PRECISION
 	 */
 	public getMaxTradeSizeUSDCForPerp(
 		targetMarketIndex: number,
 		tradeSide: PositionDirection,
 		isLp = false
-	): BN {
+	): { tradeSize: BN; oppositeSideTradeSize: BN } {
+		let tradeSize = ZERO;
+		let oppositeSideTradeSize = ZERO;
 		const currentPosition =
 			this.getPerpPositionWithLPSettle(targetMarketIndex, undefined, true)[0] ||
 			this.getEmptyPosition(targetMarketIndex);
@@ -2652,17 +2655,20 @@ export class User {
 					isVariant(marketAccount.contractType, 'prediction')
 			  );
 
-		let maxPositionSize = this.getPerpBuyingPower(targetMarketIndex, lpBuffer);
+		const maxPositionSize = this.getPerpBuyingPower(
+			targetMarketIndex,
+			lpBuffer
+		);
 
 		if (maxPositionSize.gte(ZERO)) {
 			if (oppositeSizeLiabilityValue.eq(ZERO)) {
 				// case 1 : Regular trade where current total position less than max, and no opposite position to account for
 				// do nothing
+				tradeSize = maxPositionSize;
 			} else {
 				// case 2 : trade where current total position less than max, but need to account for flipping the current position over to the other side
-				maxPositionSize = maxPositionSize.add(
-					oppositeSizeLiabilityValue.mul(new BN(2))
-				);
+				tradeSize = maxPositionSize.add(oppositeSizeLiabilityValue);
+				oppositeSideTradeSize = oppositeSizeLiabilityValue;
 			}
 		} else {
 			// current leverage is greater than max leverage - can only reduce position size
@@ -2683,7 +2689,7 @@ export class User {
 					marginRequirement.sub(marginFreedByClosing);
 
 				if (marginRequirementAfterClosing.gt(totalCollateral)) {
-					maxPositionSize = perpLiabilityValue;
+					oppositeSideTradeSize = perpLiabilityValue;
 				} else {
 					const freeCollateralAfterClose = totalCollateral.sub(
 						marginRequirementAfterClosing
@@ -2695,14 +2701,16 @@ export class User {
 							freeCollateralAfterClose,
 							ZERO
 						);
-					maxPositionSize = perpLiabilityValue.add(buyingPowerAfterClose);
+					oppositeSideTradeSize = perpLiabilityValue;
+					tradeSize = buyingPowerAfterClose;
 				}
 			} else {
 				// do nothing if targetting same side
+				tradeSize = maxPositionSize;
 			}
 		}
 
-		return maxPositionSize;
+		return { tradeSize, oppositeSideTradeSize };
 	}
 
 	/**
@@ -3335,8 +3343,8 @@ export class User {
 		const perpMarket = this.driftClient.getPerpMarketAccount(targetMarketIndex);
 		const oracleData = this.getOracleDataForPerpMarket(targetMarketIndex);
 
-		// eslint-disable-next-line prefer-const
 		let {
+			// eslint-disable-next-line prefer-const
 			worstCaseBaseAssetAmount: worstCaseBase,
 			worstCaseLiabilityValue: currentPositionQuoteAmount,
 		} = calculateWorstCasePerpLiabilityValue(
