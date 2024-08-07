@@ -255,6 +255,7 @@ export const MainnetSpotMarkets: SpotMarketConfig[] = [
 		precision: new BN(10).pow(EIGHT),
 		precisionExp: EIGHT,
 		serumMarket: new PublicKey('2m7ZLEKtxWF29727DSb5D91erpXPUY1bqhRWRC3wQX7u'),
+		openbookMarket: new PublicKey("BU3EaRVo9WN44muCBy3mwkCQ4uYQWiuqay1whEmeSXK3"),
 		launchTs: 1708964021000,
 		pythFeedId:
 			'0x3d4a2bd9535be6ce8059d75eadeba507b043257321aa544717c56fa19b49e35d',
