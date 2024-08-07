@@ -12,8 +12,9 @@ use crate::math::casting::Cast;
 use crate::state::fill_mode::FillMode;
 use crate::{
     load, math, FeeTier, State, BASE_PRECISION_I128, FEE_ADJUSTMENT_MAX,
-    OPEN_ORDER_MARGIN_REQUIREMENT, PERCENTAGE_PRECISION, PERCENTAGE_PRECISION_U64,
-    PRICE_PRECISION_I128, QUOTE_PRECISION_I128, SPOT_WEIGHT_PRECISION, SPOT_WEIGHT_PRECISION_I128,
+    MAX_PREDICTION_MARKET_PRICE_I64, OPEN_ORDER_MARGIN_REQUIREMENT, PERCENTAGE_PRECISION,
+    PERCENTAGE_PRECISION_U64, PRICE_PRECISION_I128, PRICE_PRECISION_U64, QUOTE_PRECISION_I128,
+    SPOT_WEIGHT_PRECISION, SPOT_WEIGHT_PRECISION_I128,
 };
 
 use crate::math::constants::MARGIN_PRECISION_U128;
@@ -388,9 +389,15 @@ pub fn order_breaches_maker_oracle_price_bands(
     slot: u64,
     tick_size: u64,
     margin_ratio_initial: u32,
+    is_prediction_market: bool,
 ) -> DriftResult<bool> {
-    let order_limit_price =
-        order.force_get_limit_price(Some(oracle_price), None, slot, tick_size)?;
+    let order_limit_price = order.force_get_limit_price(
+        Some(oracle_price),
+        None,
+        slot,
+        tick_size,
+        is_prediction_market,
+    )?;
     limit_price_breaches_maker_oracle_price_bands(
         order_limit_price,
         order.direction,
@@ -469,7 +476,20 @@ pub fn validate_fill_price_within_price_bands(
     oracle_twap_5min: i64,
     margin_ratio_initial: u32,
     oracle_twap_5min_percent_divergence: u64,
+    is_prediction_market: bool,
 ) -> DriftResult {
+    if is_prediction_market {
+        validate!(
+            fill_price <= MAX_PREDICTION_MARKET_PRICE,
+            ErrorCode::PriceBandsBreached,
+            "Fill Price Breaches Prediction Market Price Bands: (fill: {} >= oracle: {})",
+            fill_price,
+            PRICE_PRECISION_U64
+        )?;
+
+        return Ok(());
+    }
+
     let oracle_price = oracle_price.unsigned_abs();
     let oracle_twap_5min = oracle_twap_5min.unsigned_abs();
 
@@ -740,6 +760,7 @@ pub fn find_maker_orders(
     valid_oracle_price: Option<i64>,
     slot: u64,
     tick_size: u64,
+    is_prediction_market: bool,
 ) -> DriftResult<Vec<(usize, u64)>> {
     let mut orders: Vec<(usize, u64)> = Vec::with_capacity(32);
 
@@ -761,7 +782,13 @@ pub fn find_maker_orders(
             continue;
         }
 
-        let limit_price = order.force_get_limit_price(valid_oracle_price, None, slot, tick_size)?;
+        let limit_price = order.force_get_limit_price(
+            valid_oracle_price,
+            None,
+            slot,
+            tick_size,
+            is_prediction_market,
+        )?;
 
         orders.push((order_index, limit_price));
     }
@@ -812,7 +839,8 @@ pub fn calculate_max_perp_order_size(
 
     let perp_position: &PerpPosition = &user.perp_positions[position_index];
     let base_asset_amount = perp_position.base_asset_amount;
-    let worst_case_base_asset_amount = perp_position.worst_case_base_asset_amount()?;
+    let worst_case_base_asset_amount = perp_position
+        .worst_case_base_asset_amount(oracle_price_data_price, perp_market.contract_type)?;
 
     let margin_ratio = perp_market
         .get_margin_ratio(
@@ -847,6 +875,14 @@ pub fn calculate_max_perp_order_size(
             perp_market.amm.order_step_size,
         );
     }
+
+    let oracle_price = if !perp_market.is_prediction_market() {
+        oracle_price_data_price
+    } else if direction == PositionDirection::Long {
+        oracle_price_data_price
+    } else {
+        MAX_PREDICTION_MARKET_PRICE_I64.safe_sub(oracle_price_data_price)?
+    };
 
     let calculate_order_size_and_margin_ratio = |margin_ratio: u32| {
         let new_order_size = free_collateral
@@ -1229,7 +1265,13 @@ pub fn find_bids_and_asks_from_users(
 
             let existing_position = user.get_perp_position(market_index)?.base_asset_amount;
             let base_amount = order.get_base_asset_amount_unfilled(Some(existing_position))?;
-            let limit_price = order.force_get_limit_price(oracle_price, None, slot, tick_size)?;
+            let limit_price = order.force_get_limit_price(
+                oracle_price,
+                None,
+                slot,
+                tick_size,
+                perp_market.is_prediction_market(),
+            )?;
 
             insert_order(base_amount, limit_price, order.direction);
         }

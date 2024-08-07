@@ -1974,3 +1974,209 @@ mod fuel {
         assert_eq!(user_stats.fuel_taker, 1);
     }
 }
+
+mod worst_case_liability_value {
+    use crate::state::perp_market::ContractType;
+    use crate::state::user::PerpPosition;
+    use crate::{
+        BASE_PRECISION_I128, BASE_PRECISION_I64, MAX_PREDICTION_MARKET_PRICE_I64,
+        MAX_PREDICTION_MARKET_PRICE_U128, PRICE_PRECISION_I64, QUOTE_PRECISION,
+    };
+
+    #[test]
+    fn prediction() {
+        let contract_type = ContractType::Prediction;
+        let position = PerpPosition {
+            base_asset_amount: 0,
+            open_bids: BASE_PRECISION_I64,
+            open_asks: -BASE_PRECISION_I64,
+            ..PerpPosition::default()
+        };
+
+        let price = MAX_PREDICTION_MARKET_PRICE_I64 * 3 / 4;
+
+        let (worst_case_base_asset_amount, worst_case_loss) = position
+            .worst_case_liability_value(price, contract_type)
+            .unwrap();
+
+        assert_eq!(worst_case_base_asset_amount, BASE_PRECISION_I128);
+        assert_eq!(worst_case_loss, MAX_PREDICTION_MARKET_PRICE_U128 * 3 / 4);
+
+        let price = MAX_PREDICTION_MARKET_PRICE_I64 / 4;
+
+        let (worst_case_base_asset_amount, worst_case_loss) = position
+            .worst_case_liability_value(price, contract_type)
+            .unwrap();
+
+        assert_eq!(worst_case_base_asset_amount, -BASE_PRECISION_I128);
+        assert_eq!(worst_case_loss, MAX_PREDICTION_MARKET_PRICE_U128 * 3 / 4);
+
+        let position = PerpPosition {
+            base_asset_amount: 98 * BASE_PRECISION_I64,
+            open_bids: 0,
+            open_asks: -99 * BASE_PRECISION_I64,
+            ..PerpPosition::default()
+        };
+
+        let price = MAX_PREDICTION_MARKET_PRICE_I64 / 100;
+
+        let (worst_case_base_asset_amount, worst_case_loss) = position
+            .worst_case_liability_value(price, contract_type)
+            .unwrap();
+
+        assert_eq!(worst_case_base_asset_amount, -BASE_PRECISION_I128);
+        assert_eq!(worst_case_loss, MAX_PREDICTION_MARKET_PRICE_U128 * 99 / 100);
+
+        let position = PerpPosition {
+            base_asset_amount: -98 * BASE_PRECISION_I64,
+            open_bids: 99 * BASE_PRECISION_I64,
+            open_asks: 0,
+            ..PerpPosition::default()
+        };
+
+        let price = MAX_PREDICTION_MARKET_PRICE_I64 * 99 / 100;
+
+        let (worst_case_base_asset_amount, worst_case_loss) = position
+            .worst_case_liability_value(price, contract_type)
+            .unwrap();
+
+        assert_eq!(worst_case_base_asset_amount, BASE_PRECISION_I128);
+        assert_eq!(worst_case_loss, MAX_PREDICTION_MARKET_PRICE_U128 * 99 / 100);
+    }
+
+    #[test]
+    fn perp() {
+        let contract_type = ContractType::Perpetual;
+        let position = PerpPosition {
+            base_asset_amount: 0,
+            open_bids: BASE_PRECISION_I64,
+            open_asks: -BASE_PRECISION_I64,
+            ..PerpPosition::default()
+        };
+
+        let price = 100 * PRICE_PRECISION_I64;
+
+        let (worst_case_base_asset_amount, worst_case_liability) = position
+            .worst_case_liability_value(price, contract_type)
+            .unwrap();
+
+        assert_eq!(worst_case_base_asset_amount, -BASE_PRECISION_I128);
+        assert_eq!(worst_case_liability, 100 * QUOTE_PRECISION);
+
+        let contract_type = ContractType::Perpetual;
+        let position = PerpPosition {
+            base_asset_amount: 0,
+            open_bids: 2 * BASE_PRECISION_I64,
+            open_asks: -BASE_PRECISION_I64,
+            ..PerpPosition::default()
+        };
+
+        let price = 100 * PRICE_PRECISION_I64;
+
+        let (worst_case_base_asset_amount, worst_case_liability) = position
+            .worst_case_liability_value(price, contract_type)
+            .unwrap();
+
+        assert_eq!(worst_case_base_asset_amount, 2 * BASE_PRECISION_I128);
+        assert_eq!(worst_case_liability, 200 * QUOTE_PRECISION);
+
+        let position = PerpPosition {
+            base_asset_amount: 98 * BASE_PRECISION_I64,
+            open_bids: 0,
+            open_asks: -99 * BASE_PRECISION_I64,
+            ..PerpPosition::default()
+        };
+
+        let price = 100 * PRICE_PRECISION_I64;
+
+        let (worst_case_base_asset_amount, worst_case_loss) = position
+            .worst_case_liability_value(price, contract_type)
+            .unwrap();
+
+        assert_eq!(worst_case_base_asset_amount, 98 * BASE_PRECISION_I128);
+        assert_eq!(worst_case_loss, 98 * 100 * QUOTE_PRECISION);
+
+        let position = PerpPosition {
+            base_asset_amount: -98 * BASE_PRECISION_I64,
+            open_bids: 99 * BASE_PRECISION_I64,
+            open_asks: 0,
+            ..PerpPosition::default()
+        };
+
+        let price = 100 * PRICE_PRECISION_I64;
+
+        let (worst_case_base_asset_amount, worst_case_loss) = position
+            .worst_case_liability_value(price, contract_type)
+            .unwrap();
+
+        assert_eq!(worst_case_base_asset_amount, -98 * BASE_PRECISION_I128);
+        assert_eq!(worst_case_loss, 98 * 100 * QUOTE_PRECISION);
+    }
+}
+
+mod get_limit_price {
+    use crate::state::user::{Order, OrderType};
+    use crate::{PositionDirection, MAX_PREDICTION_MARKET_PRICE, MAX_PREDICTION_MARKET_PRICE_I64};
+
+    #[test]
+    fn prediction_market() {
+        let order = Order {
+            order_type: OrderType::Limit,
+            oracle_price_offset: MAX_PREDICTION_MARKET_PRICE as i32,
+            ..Order::default()
+        };
+
+        let oracle_price = Some(MAX_PREDICTION_MARKET_PRICE_I64 / 2);
+
+        let limit_price = order
+            .get_limit_price(oracle_price, None, 0, 1, true)
+            .unwrap();
+
+        assert_eq!(limit_price, Some(MAX_PREDICTION_MARKET_PRICE));
+
+        let order = Order {
+            order_type: OrderType::Limit,
+            oracle_price_offset: -(MAX_PREDICTION_MARKET_PRICE as i32),
+            ..Order::default()
+        };
+
+        let limit_price = order
+            .get_limit_price(oracle_price, None, 0, 1, true)
+            .unwrap();
+
+        assert_eq!(limit_price, Some(1));
+
+        let order = Order {
+            order_type: OrderType::Oracle,
+            auction_start_price: MAX_PREDICTION_MARKET_PRICE_I64,
+            auction_end_price: MAX_PREDICTION_MARKET_PRICE_I64,
+            oracle_price_offset: MAX_PREDICTION_MARKET_PRICE as i32,
+            slot: 1,
+            auction_duration: 10,
+            ..Order::default()
+        };
+
+        let limit_price = order
+            .get_limit_price(oracle_price, None, 2, 1, true)
+            .unwrap();
+
+        assert_eq!(limit_price, Some(MAX_PREDICTION_MARKET_PRICE));
+
+        let order = Order {
+            order_type: OrderType::Oracle,
+            direction: PositionDirection::Short,
+            auction_start_price: -MAX_PREDICTION_MARKET_PRICE_I64,
+            auction_end_price: -MAX_PREDICTION_MARKET_PRICE_I64,
+            oracle_price_offset: -(MAX_PREDICTION_MARKET_PRICE as i32),
+            slot: 1,
+            auction_duration: 10,
+            ..Order::default()
+        };
+
+        let limit_price = order
+            .get_limit_price(oracle_price, None, 2, 1, true)
+            .unwrap();
+
+        assert_eq!(limit_price, Some(1));
+    }
+}

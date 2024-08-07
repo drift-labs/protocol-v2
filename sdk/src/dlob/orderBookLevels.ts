@@ -6,6 +6,7 @@ import {
 	calculateQuoteAssetAmountSwapped,
 	calculateSpreadReserves,
 	calculateUpdatedAMM,
+	ContractType,
 	DLOBNode,
 	isOperationPaused,
 	isVariant,
@@ -196,7 +197,8 @@ export function getVammL2Generator({
 	const [bidReserves, askReserves] = calculateSpreadReserves(
 		updatedAmm,
 		oraclePriceData,
-		now
+		now,
+		marketAccount.contractType == ContractType.PREDICTION
 	);
 
 	let numBids = 0;

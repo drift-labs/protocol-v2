@@ -9,7 +9,10 @@ use crate::math::orders::{
 };
 use crate::state::perp_market::PerpMarket;
 use crate::state::user::{Order, OrderTriggerCondition, OrderType};
-use crate::validate;
+use crate::{validate, MAX_PREDICTION_MARKET_PRICE};
+
+#[cfg(test)]
+mod test;
 
 pub fn validate_order(
     order: &Order,
@@ -35,6 +38,32 @@ pub fn validate_order(
         OrderType::Oracle => {
             validate_oracle_order(order, market.amm.order_step_size, market.amm.min_order_size)?
         }
+    }
+
+    if market.is_prediction_market() {
+        validate!(
+            order.price <= MAX_PREDICTION_MARKET_PRICE,
+            ErrorCode::InvalidPredictionMarketOrder,
+            "prediction market price must be <= 1"
+        )?;
+
+        validate!(
+            order.auction_start_price.unsigned_abs() <= MAX_PREDICTION_MARKET_PRICE,
+            ErrorCode::InvalidPredictionMarketOrder,
+            "prediction market auction start price abs must be <= 1"
+        )?;
+
+        validate!(
+            order.auction_end_price.unsigned_abs() <= MAX_PREDICTION_MARKET_PRICE,
+            ErrorCode::InvalidPredictionMarketOrder,
+            "prediction market auction end price abs must be <= 1"
+        )?;
+
+        validate!(
+            order.oracle_price_offset.unsigned_abs() <= MAX_PREDICTION_MARKET_PRICE as u32,
+            ErrorCode::InvalidPredictionMarketOrder,
+            "prediction market auction end price abs must be <= 1"
+        )?;
     }
 
     Ok(())
@@ -225,8 +254,13 @@ fn validate_post_only_order(
         return Ok(());
     }
 
-    let limit_price =
-        order.force_get_limit_price(valid_oracle_price, None, slot, market.amm.order_tick_size)?;
+    let limit_price = order.force_get_limit_price(
+        valid_oracle_price,
+        None,
+        slot,
+        market.amm.order_tick_size,
+        market.is_prediction_market(),
+    )?;
 
     let base_asset_amount_market_can_fill = calculate_base_asset_amount_to_fill_up_to_limit_price(
         order,

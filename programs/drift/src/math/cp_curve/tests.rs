@@ -56,10 +56,10 @@ fn calculate_k_tests_with_spread() {
     market.amm.short_spread = 5;
 
     let (new_ask_base_asset_reserve, new_ask_quote_asset_reserve) =
-        crate::math::amm_spread::calculate_spread_reserves(&market.amm, PositionDirection::Long)
+        crate::math::amm_spread::calculate_spread_reserves(&market, PositionDirection::Long)
             .unwrap();
     let (new_bid_base_asset_reserve, new_bid_quote_asset_reserve) =
-        crate::math::amm_spread::calculate_spread_reserves(&market.amm, PositionDirection::Short)
+        crate::math::amm_spread::calculate_spread_reserves(&market, PositionDirection::Short)
             .unwrap();
 
     market.amm.ask_base_asset_reserve = new_ask_base_asset_reserve;
@@ -342,7 +342,7 @@ fn calculate_k_with_lps_tests() {
     market.amm.quote_asset_amount_per_lp = -QUOTE_PRECISION_I64 as i128;
 
     let reserve_price = market.amm.reserve_price().unwrap();
-    update_spreads(&mut market.amm, reserve_price).unwrap();
+    update_spreads(&mut market, reserve_price).unwrap();
 
     settle_lp_position(&mut position, &mut market).unwrap();
 
