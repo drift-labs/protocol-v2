@@ -72,22 +72,22 @@ export class OpenbookV2Subscriber implements L2OrderBookGenerator {
 						'Market',
 						accountInfo.data
 					);
-					this.market = new Market(this.client, this.marketAddress, marketRaw);
-					await this.market.loadOrderBook();
+					const market = new Market(this.client, this.marketAddress, marketRaw);
+					await market.loadOrderBook();
+					this.market = market;
 				}
 			);
 		} else {
 			this.marketCallbackId = await this.accountLoader.addAccount(
 				this.marketAddress,
-				(buffer, _) => {
+				async (buffer, _) => {
 					const marketRaw = openbookV2Program.coder.accounts.decode(
 						'Market',
 						buffer
 					);
-					this.market = new Market(this.client, this.marketAddress, marketRaw);
-					(async () => {
-						await this.market.loadOrderBook();
-					})();
+					const market = new Market(this.client, this.marketAddress, marketRaw);
+					await market.loadOrderBook();
+					this.market = market;
 				}
 			);
 		}
