@@ -66,7 +66,7 @@ use crate::state::spot_market::SpotBalanceType;
 use crate::state::spot_market_map::SpotMarketMap;
 use crate::state::state::State;
 use crate::state::traits::Size;
-use crate::state::user::{MarketType, Order, OrderStatus, OrderType, User, UserStats};
+use crate::state::user::{MarketType, Order, OrderStatus, OrderType, User, UserStats, UserStatus};
 use crate::state::user_map::{UserMap, UserStatsMap};
 use crate::validate;
 use crate::{get_then_update_id, load_mut};
@@ -118,7 +118,6 @@ pub fn liquidate_perp(
 
     drop(market);
 
-    // Settle user's funding payments so that collateral is up to date
     settle_funding_payment(
         user,
         user_key,
@@ -126,7 +125,6 @@ pub fn liquidate_perp(
         now,
     )?;
 
-    // Settle user's funding payments so that collateral is up to date
     settle_funding_payment(
         liquidator,
         liquidator_key,
@@ -711,7 +709,6 @@ pub fn liquidate_perp_with_fill(
 
     drop(market);
 
-    // Settle user's funding payments so that collateral is up to date
     settle_funding_payment(
         &mut user,
         user_key,
@@ -719,7 +716,6 @@ pub fn liquidate_perp_with_fill(
         now,
     )?;
 
-    // Settle user's funding payments so that collateral is up to date
     settle_funding_payment(
         &mut liquidator,
         liquidator_key,
@@ -3014,4 +3010,41 @@ pub fn calculate_margin_freed(
         .cast::<u64>()?;
 
     Ok((margin_freed, margin_calculation_after))
+}
+
+pub fn set_user_status_to_being_liquidated(
+    user: &mut User,
+    perp_market_map: &PerpMarketMap,
+    spot_market_map: &SpotMarketMap,
+    oracle_map: &mut OracleMap,
+    slot: u64,
+    state: &State,
+) -> DriftResult {
+    validate!(
+        !user.is_bankrupt(),
+        ErrorCode::UserBankrupt,
+        "user bankrupt",
+    )?;
+
+    validate!(
+        !user.is_being_liquidated(),
+        ErrorCode::UserIsBeingLiquidated,
+        "user is already being liquidated",
+    )?;
+
+    let liquidation_margin_buffer_ratio = state.liquidation_margin_buffer_ratio;
+    let margin_calculation = calculate_margin_requirement_and_total_collateral_and_liability_info(
+        user,
+        perp_market_map,
+        spot_market_map,
+        oracle_map,
+        MarginContext::liquidation(liquidation_margin_buffer_ratio),
+    )?;
+
+    if !user.is_being_liquidated() && margin_calculation.meets_margin_requirement() {
+        return Err(ErrorCode::SufficientCollateral);
+    } else {
+        user.enter_liquidation(slot)?;
+    }
+    Ok(())
 }

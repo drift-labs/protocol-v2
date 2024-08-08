@@ -467,6 +467,12 @@ pub mod drift {
         )
     }
 
+    pub fn set_user_status_to_being_liquidated<'c: 'info, 'info>(
+        ctx: Context<'_, '_, 'c, 'info, SetUserStatusToBeingLiquidated<'info>>,
+    ) -> Result<()> {
+        handle_set_user_status_to_being_liquidated(ctx)
+    }
+
     pub fn resolve_perp_pnl_deficit<'c: 'info, 'info>(
         ctx: Context<'_, '_, 'c, 'info, ResolvePerpPnlDeficit<'info>>,
         spot_market_index: u16,
