@@ -11,6 +11,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixes
 
+### Breaking
+
+## [2.91.0] - 2024-08-07
+
+### Features
+
+### Fixes
+
 - program: look at drift stake to determine fee tier ([#1172](https://github.com/drift-labs/protocol-v2/pull/1172))
 
 ### Breaking
