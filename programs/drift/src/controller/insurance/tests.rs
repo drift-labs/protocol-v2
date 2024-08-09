@@ -221,6 +221,7 @@ pub fn large_num_seeded_stake_if_test() {
     // all funds in revenue pool
     let mut spot_market = SpotMarket {
         deposit_balance: 100 * SPOT_BALANCE_PRECISION,
+        decimals: 0,
         cumulative_deposit_interest: 1111 * SPOT_CUMULATIVE_INTEREST_PRECISION / 1000,
         insurance_fund: InsuranceFund {
             unstaking_period: 0,

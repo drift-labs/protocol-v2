@@ -741,7 +741,30 @@ pub fn settle_revenue_to_insurance_fund(
                     .max(1),
             )?;
         let capped_token_pct_amount = token_amount.safe_div(10)?;
-        token_amount = capped_token_pct_amount.min(capped_apr_amount);
+
+        // other per market limits to impose
+        let other_token_rate_limits = if spot_market.market_index == GOV_SPOT_MARKET_INDEX {
+            64_u128.safe_mul(10_u128.pow(spot_market.decimals))?
+        } else if spot_market.market_index != QUOTE_SPOT_MARKET_INDEX {
+            // additionally, don't allow token emissions to exceed 100% of borrows annualized
+            // or 1 token if thats lower
+            let capped_token_amount_by_risk = spot_market
+                .get_borrows()?
+                .safe_div(
+                    ONE_YEAR
+                        .safe_div(spot_market.insurance_fund.revenue_settle_period.cast()?)?
+                        .max(1),
+                )?
+                .max(10_u128.pow(spot_market.decimals));
+
+            capped_token_amount_by_risk
+        } else {
+            u128::MAX
+        };
+
+        token_amount = capped_token_pct_amount
+            .min(capped_apr_amount)
+            .min(other_token_rate_limits)
     }
 
     let insurance_fund_token_amount = get_proportion_u128(
