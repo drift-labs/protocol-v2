@@ -1104,7 +1104,7 @@ export class DLOB {
 		);
 	}
 
-	private *getBestNode(
+	protected *getBestNode(
 		generatorList: Array<Generator<DLOBNode>>,
 		oraclePriceData: OraclePriceData,
 		slot: number,
