@@ -24,3 +24,8 @@ pub struct CreateOpenOrdersAccount<'info> {
 pub struct PlaceOrder<'info> {
     pub dummy_authority: Signer<'info>,
 }
+
+#[derive(Accounts)]
+pub struct ConsumeEvents<'info> {
+    pub dummy_authority: Signer<'info>,
+}
