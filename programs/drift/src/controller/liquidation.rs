@@ -66,7 +66,7 @@ use crate::state::spot_market::SpotBalanceType;
 use crate::state::spot_market_map::SpotMarketMap;
 use crate::state::state::State;
 use crate::state::traits::Size;
-use crate::state::user::{MarketType, Order, OrderStatus, OrderType, User, UserStats, UserStatus};
+use crate::state::user::{MarketType, Order, OrderStatus, OrderType, User, UserStats};
 use crate::state::user_map::{UserMap, UserStatsMap};
 use crate::validate;
 use crate::{get_then_update_id, load_mut};
