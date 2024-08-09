@@ -1,3 +1,4 @@
+#![allow(unused)] // unused when target_os is not solana
 use crate::controller::position::PositionDirection;
 use crate::error::{DriftResult, ErrorCode};
 use crate::instructions::SpotFulfillmentType;
@@ -27,7 +28,7 @@ use openbook_v2_light::{
 use solana_program::account_info::AccountInfo;
 use solana_program::instruction::{AccountMeta, Instruction};
 use solana_program::msg;
-use solana_program::program::invoke_signed_unchecked;
+// use solana_program::program::invoke_signed_unchecked;
 use solana_program::pubkey::Pubkey;
 use std::cell::Ref;
 use std::convert::TryFrom;
@@ -49,7 +50,6 @@ pub struct OpenbookV2FulfillmentConfig {
     pub fulfillment_type: SpotFulfillmentType, // 291
     pub status: SpotFulfillmentConfigStatus,   // 292
     pub padding: [u8; 4],                      // 296
-                                               // + denominator? 8
 }
 
 impl Size for OpenbookV2FulfillmentConfig {
@@ -109,10 +109,8 @@ pub struct OpenbookV2FulfillmentParams<'a, 'b> {
     pub system_program: Program<'b, System>,
     pub signer_nonce: u8,
     pub now: i64,
-    pub remaining_ooa_accounts: Vec<&'a AccountInfo<'b>>,
 }
 
-// TODO
 impl<'a, 'b> OpenbookV2FulfillmentParams<'a, 'b> {
     #[allow(clippy::type_complexity)]
     pub fn new<'c: 'b>(
@@ -123,16 +121,12 @@ impl<'a, 'b> OpenbookV2FulfillmentParams<'a, 'b> {
         now: i64,
     ) -> DriftResult<Self> {
         let account_info_vec = account_info_iter.collect::<Vec<_>>();
-        let remaining_ooa_accounts = account_info_vec
-            .iter()
-            .skip(14)
-            .filter(|acc| {
-                acc.data
-                    .borrow()
-                    .starts_with(&OPEN_ORDERS_ACCOUNT_DISCRIMINATOR)
-            })
-            .map(|acc| *acc)
-            .collect::<Vec<_>>();
+        // let remaining_ooa_accounts= account_info_vec.iter()
+        //     .skip(14)
+        //     .filter(|acc| {
+        //         acc.data.borrow().starts_with(&OPEN_ORDERS_ACCOUNT_DISCRIMINATOR)
+        //     }).map(|acc| *acc)
+        //     .collect::<Vec<_>>();
         let account_infos = array_ref![account_info_vec, 0, 14];
         let [openbook_v2_fulfillment_config, drift_signer, openbook_v2_program, openbook_v2_market, openbook_v2_market_authority, openbook_v2_event_heap, openbook_v2_bids, openbook_v2_asks, openbook_v2_base_vault, openbook_v2_quote_vault, base_market_vault, quote_market_vault, token_program, system_program] =
             account_infos;
@@ -248,7 +242,6 @@ impl<'a, 'b> OpenbookV2FulfillmentParams<'a, 'b> {
             system_program,
             signer_nonce: state.signer_nonce,
             now,
-            remaining_ooa_accounts,
         })
     }
 }
@@ -273,9 +266,6 @@ impl<'a, 'b> OpenbookV2FulfillmentParams<'a, 'b> {
             AccountMeta::new_readonly(*self.system_program.key, false),
             AccountMeta::new_readonly(*self.openbook_v2_context.openbook_v2_program.key, false),
         ];
-        for account in self.remaining_ooa_accounts.iter() {
-            accounts.push(AccountMeta::new(*account.key, false));
-        }
         let new_place_take_order_instruction = Instruction {
             program_id: *self.openbook_v2_context.openbook_v2_program.key,
             accounts,
@@ -300,9 +290,6 @@ impl<'a, 'b> OpenbookV2FulfillmentParams<'a, 'b> {
             self.system_program.to_account_info(),
             self.openbook_v2_context.openbook_v2_program.clone(),
         ];
-        for account in self.remaining_ooa_accounts.clone().into_iter() {
-            account_infos.push(account.to_account_info());
-        }
         let signer_seeds = get_signer_seeds(&self.signer_nonce);
         let signers_seeds = &[&signer_seeds[..]];
 
@@ -487,5 +474,187 @@ mod openbook_v2_test {
         )
         .unwrap();
         assert_eq!(170_000_000, price);
+    }
+}
+
+use std::{marker::PhantomData, mem::ManuallyDrop, ptr::NonNull};
+
+use solana_program::{
+    stable_layout::stable_instruction::StableInstruction,
+};
+use solana_program::entrypoint::ProgramResult;
+
+/// This wrapper type with no constructor ensures that no user can
+/// manually drop the inner type.
+///
+/// We provide only an immutable borrow method, which ensures that
+/// the inner type is not modified in the absence of unsafe code.
+///
+/// StableInstruction uses NonNull<T> which is invariant over T.
+/// NonNull<T> is clonable. It's the same type used by Rc<T> and
+/// Arc<T>. It is safe to have an aliasing pointer to the same
+/// allocation as the underlying vectors so long as we perform
+/// no modificiations.
+pub struct InstructionStabilizer<'a> {
+    /// A stable instruction that will not be dropped. By circumventing the
+    /// `Drop` implementation, this becomes a view (similar to a slice)
+    /// into the original vector's buffer. Since we provide only a borrow
+    /// method on this wrapper, we can guarantee that the `StableInstruction`
+    /// is never modified.
+    stabilized_instruction: core::mem::ManuallyDrop<StableInstruction>,
+
+    /// A read-only view (into the buffers owned by the inner vectors) is
+    /// only safe for as long as the `&'a Instruction` lives.
+    ///
+    /// This could be a `&'a Instruction` but we don't actually need the
+    /// instruction. We can pretend to hold a `&'a Instruction`` instead.
+    ///
+    /// Using a `PhantomData<&'a Instruction>` forces this struct and the
+    /// compiler to act like it is holding the reference without increasing
+    /// the size of the type.
+    phantom_instruction: PhantomData<&'a Instruction>,
+}
+
+impl<'ix> InstructionStabilizer<'ix> {
+    #[inline(always)]
+    pub fn stabilize(instruction: &Instruction) -> InstructionStabilizer {
+        stabilize_instruction(instruction)
+    }
+
+    #[inline(always)]
+    fn new(
+        stabilized_instruction: core::mem::ManuallyDrop<StableInstruction>,
+        // Note: This is where 'ix is inherited
+        _instruction: &'ix Instruction,
+    ) -> InstructionStabilizer<'ix> {
+        Self {
+            stabilized_instruction,
+            phantom_instruction: PhantomData::<&'ix Instruction>,
+        }
+    }
+
+    #[inline(always)]
+    pub fn stable_instruction_ref<'borrow>(&'borrow self) -> &'borrow StableInstruction
+    where
+    // 'ix must live at least as long as 'borrow
+        'ix: 'borrow,
+    {
+        &self.stabilized_instruction
+    }
+
+    #[inline(always)]
+    pub fn instruction_addr(&self) -> *const u8 {
+        self.stable_instruction_ref() as *const StableInstruction as *const u8
+    }
+}
+
+#[repr(C)]
+pub struct StableVec<T> {
+    pub ptr: NonNull<T>,
+    pub cap: usize,
+    pub len: usize,
+    _marker: PhantomData<T>,
+}
+
+
+#[inline(always)] // only one call site (wrapper fn) so inline there
+fn stabilize_instruction<'ix_ref>(
+    ix: &'ix_ref Instruction,
+) -> InstructionStabilizer<'ix_ref> {
+    // Get StableVec out of instruction data Vec<u8>
+    let data: StableVec<u8> = {
+        // Get vector parts
+        let ptr = NonNull::new(ix.data.as_ptr() as *mut u8).expect("vector ptr should be valid");
+        let len = ix.data.len();
+        let cap = ix.data.capacity();
+
+        StableVec {
+            ptr,
+            cap,
+            len,
+            _marker: std::marker::PhantomData,
+        }
+    };
+
+    // Get StableVec out of instruction accounts Vec<Accountmeta>
+    let accounts: StableVec<AccountMeta> = {
+        // Get vector parts
+        let ptr = NonNull::new(ix.accounts.as_ptr() as *mut AccountMeta)
+            .expect("vector ptr should be valid");
+        let len = ix.accounts.len();
+        let cap = ix.accounts.capacity();
+
+        StableVec {
+            ptr,
+            cap,
+            len,
+            _marker: std::marker::PhantomData,
+        }
+    };
+
+    InstructionStabilizer::<'ix_ref>::new(
+        ManuallyDrop::new(StableInstruction {
+            // Transmuting between identical repr(C) structs
+            accounts: unsafe { core::mem::transmute(accounts) },
+            data: unsafe { core::mem::transmute(data) },
+            program_id: ix.program_id,
+        }),
+        ix,
+    )
+}
+
+pub fn invoke_signed(
+    instruction: &Instruction,
+    account_infos: &[AccountInfo],
+    signers_seeds: &[&[&[u8]]],
+) -> ProgramResult {
+    // Check that the account RefCells are consistent with the request
+    for account_meta in instruction.accounts.iter() {
+        for account_info in account_infos.iter() {
+            if account_meta.pubkey == *account_info.key {
+                if account_meta.is_writable {
+                    let _ = account_info.try_borrow_mut_lamports()?;
+                    let _ = account_info.try_borrow_mut_data()?;
+                } else {
+                    let _ = account_info.try_borrow_lamports()?;
+                    let _ = account_info.try_borrow_data()?;
+                }
+                break;
+            }
+        }
+    }
+
+    invoke_signed_unchecked(instruction, account_infos, signers_seeds)
+}
+
+pub fn invoke_signed_unchecked(
+    instruction: &Instruction,
+    account_infos: &[AccountInfo],
+    signers_seeds: &[&[&[u8]]],
+) -> ProgramResult {
+    #[cfg(target_os = "solana")]
+    {
+        let stabilizer = InstructionStabilizer::stabilize(instruction);
+        let instruction_addr = stabilizer.instruction_addr();
+
+        let result = unsafe {
+            solana_program::syscalls::sol_invoke_signed_rust(
+                instruction_addr,
+                account_infos as *const _ as *const u8,
+                account_infos.len() as u64,
+                signers_seeds as *const _ as *const u8,
+                signers_seeds.len() as u64,
+            )
+        };
+        match result {
+            solana_program::entrypoint::SUCCESS => Ok(()),
+            _ => Err(result.into()),
+        }
+    }
+
+    #[cfg(not(target_os = "solana"))]
+    {
+        core::hint::black_box((instruction, account_infos, signers_seeds));
+        panic!("not supported when target_os != solana");
     }
 }
