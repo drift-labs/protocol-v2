@@ -217,8 +217,17 @@ export class OrderSubscriber {
 		}
 	}
 
+	/**
+	 * Creates a new DLOB for the order subscriber to fill. This will allow a
+	 * caller to extend the DLOB Subscriber with a custom DLOB type.
+	 * @returns New, empty DLOB object.
+	 */
+	protected createDLOB(): DLOB {
+		return new DLOB();
+	}
+
 	public async getDLOB(slot: number): Promise<DLOB> {
-		const dlob = new DLOB();
+		const dlob = this.createDLOB();
 		for (const [key, { userAccount }] of this.usersAccounts.entries()) {
 			for (const order of userAccount.orders) {
 				dlob.insertOrder(order, key, slot);
