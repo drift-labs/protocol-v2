@@ -33,7 +33,7 @@ use crate::math::liquidation::{
     calculate_liability_transfer_implied_by_asset_amount,
     calculate_liability_transfer_to_cover_margin_shortage, calculate_liquidation_multiplier,
     calculate_max_pct_to_liquidate, calculate_perp_if_fee, calculate_spot_if_fee,
-    get_liquidation_order_params, validate_transfer_satisfies_limit_price,
+    get_liquidation_fee, get_liquidation_order_params, validate_transfer_satisfies_limit_price,
     LiquidationMultiplierType,
 };
 use crate::math::margin::{
@@ -965,13 +965,14 @@ pub fn liquidate_perp_with_fill(
     )?;
 
     let existing_direction = user.perp_positions[position_index].get_direction();
+    let liquidator_fee_adjusted = get_liquidation_fee(liquidator_fee, user.last_active_slot, slot)?;
 
     let order_params = get_liquidation_order_params(
         market_index,
         existing_direction,
         base_asset_amount,
         oracle_price,
-        liquidator_fee,
+        liquidator_fee_adjusted,
     )?;
 
     let order_id = user.next_order_id;

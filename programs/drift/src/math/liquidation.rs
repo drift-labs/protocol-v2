@@ -1,3 +1,5 @@
+use std::u32;
+
 use crate::error::{DriftResult, ErrorCode};
 use crate::math::casting::Cast;
 use crate::math::constants::{
@@ -18,8 +20,13 @@ use crate::state::perp_market_map::PerpMarketMap;
 use crate::state::spot_market::{SpotBalanceType, SpotMarket};
 use crate::state::spot_market_map::SpotMarketMap;
 use crate::state::user::{OrderType, User};
-use crate::{validate, MarketType, OrderParams, PositionDirection, BASE_PRECISION};
+use crate::{
+    validate, MarketType, OrderParams, PositionDirection, BASE_PRECISION,
+    LIQUIDATION_FEE_INCREASE_PER_SLOT, MAX_LIQUIDATION_FEE,
+};
 use solana_program::msg;
+
+pub const LIQUIDATION_FEE_ADJUST_GRACE_PERIOD_SLOTS: u64 = 1_500; // ~10 minutes
 
 #[cfg(test)]
 mod tests;
@@ -485,4 +492,22 @@ pub fn get_liquidation_order_params(
     };
 
     Ok(order_params)
+}
+
+pub fn get_liquidation_fee(
+    base_liquidation_fee: u32,
+    last_active_user_slot: u64,
+    current_slot: u64,
+) -> DriftResult<u32> {
+    let slots_elapsed = current_slot.safe_sub(last_active_user_slot)?;
+    if slots_elapsed < LIQUIDATION_FEE_ADJUST_GRACE_PERIOD_SLOTS {
+        return Ok(base_liquidation_fee);
+    }
+
+    let liquidation_fee = base_liquidation_fee.safe_add(
+        slots_elapsed
+            .safe_mul(LIQUIDATION_FEE_INCREASE_PER_SLOT.cast::<u64>()?)?
+            .cast::<u32>()?,
+    )?;
+    Ok(liquidation_fee.min(MAX_LIQUIDATION_FEE))
 }

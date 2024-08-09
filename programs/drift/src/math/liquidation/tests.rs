@@ -826,3 +826,30 @@ mod calculate_max_pct_to_liquidate {
         assert_eq!(pct, LIQUIDATION_PCT_PRECISION);
     }
 }
+
+mod get_liquidation_fee {
+    use crate::math::liquidation::get_liquidation_fee;
+    use crate::{LIQUIDATION_FEE_PRECISION, MAX_LIQUIDATION_FEE};
+
+    #[test]
+    fn test() {
+        let user_slot: u64 = 0;
+        let base_liq_fee: u32 = 2 * LIQUIDATION_FEE_PRECISION;
+
+        // Huge slot difference
+        let curr_slot: u64 = 100000;
+        let fee = get_liquidation_fee(base_liq_fee, user_slot, curr_slot).unwrap();
+        assert_eq!(fee, MAX_LIQUIDATION_FEE);
+
+        // Small slot difference within grace period
+        let curr_slot: u64 = 10;
+        let fee = get_liquidation_fee(base_liq_fee, user_slot, curr_slot).unwrap();
+        assert_eq!(fee, base_liq_fee);
+
+        // Successful increase
+        let target_liq_fee: u32 = 3 * LIQUIDATION_FEE_PRECISION;
+        let curr_slot: u64 = 10000;
+        let fee = get_liquidation_fee(base_liq_fee, user_slot, curr_slot).unwrap();
+        assert_eq!(fee, target_liq_fee);
+    }
+}
