@@ -5,14 +5,16 @@ use crate::controller::lp::{apply_lp_rebase_to_perp_market, settle_lp_position};
 use crate::controller::position::{
     update_lp_market_position, update_position_and_market, PositionDelta,
 };
-
 use crate::controller::repeg::_update_amm;
+use crate::controller::repeg::apply_cost_to_market;
+use crate::math::amm::calculate_market_open_bids_asks;
 use crate::math::constants::{
     AMM_RESERVE_PRECISION, AMM_RESERVE_PRECISION_I128, BASE_PRECISION, BASE_PRECISION_I64,
     PRICE_PRECISION_I64, PRICE_PRECISION_U64, QUOTE_PRECISION_I128,
 };
 use crate::math::lp::calculate_settle_lp_metrics;
 use crate::math::position::swap_direction_to_close_position;
+use crate::math::repeg;
 use crate::state::oracle::OraclePriceData;
 use crate::state::oracle_map::OracleMap;
 use crate::state::perp_market::{AMMLiquiditySplit, PerpMarket, AMM};
@@ -55,6 +57,82 @@ fn full_amm_split() {
         market.amm.base_asset_amount_with_amm,
         10 * AMM_RESERVE_PRECISION_I128
     );
+}
+
+#[test]
+fn amm_pred_market_example() {
+    let perp_market_str = String::from("Ct8MLGv1N/d4Z6qgHBUxeWCMxmRIBUFu0Cbgr0+cynpC7DpYkS/CTOXP21T33POxW4i7bmk7mDMybOGpdoswWmd3q/AGvjM8HTQLAAAAAAAAAAAAAAAAAAAAAAAAAAAAqtMKAAAAAACR0QoAAAAAAJAArWYAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAKhRYWAAAAAAAAAAAAAAAAAAAAAAAAAAAWyBUBRDMAAAAAAAAAAAAATEkY4cczAAAAAAAAAAAAANiFEAAAAAAAAAAAAAAAAACc5bSDyS8AAAAAAAAAAAAA1uyyUAg4AAAAAAAAAAAAAJjC5caFMwAAAAAAAAAAAACNswoAAAAAAAAAAAAAAAAAlCya3EwzAAAAAAAAAAAAAACIetViAQAAAAAAAAAAAAAAGMYZGP//////////////AKBA73oAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgMakfo0DAAAAAAAAAAAAWxTg6P///////////////zSW/7z///////////////+4zDQtAAAAAAAAAAAAAAAAu5QAvf///////////////yKkLy0AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA9WW4DAAAAAAAAAAAAAAAA91heAwAAAAAAAAAAAAAAAD/sEAAAAAAAAAAAAAAAAAB3HGkAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABr91NW/i4AAAAAAAAAAAAAmNuO9Xw4AAAAAAAAAAAAAM10iFwuNAAAAAAAAAAAAACu8upR3zIAAAAAAAAAAAAAxc8KAAAAAABfcf///////+WlCgAAAAAAAcILAAAAAADzMwsAAAAAAK+HCwAAAAAAAqTVEgAAAADpkAEAAAAAAHccaQAAAAAA7pynZgAAAAAQDgAAAAAAAADKmjsAAAAA6AMAAAAAAAAA8gUqAQAAAAAAAAAAAAAANj3uUAAAAAAAAAAAAAAAAECLrAoAAAAAkv+sZgAAAADtVQAAAAAAAOUDAAAAAAAAkACtZgAAAACghgEAQA0DANiYAgD6iAAAhQAAAEUAAABkADIAZGQGAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAHCK274AAAAAAAAAAAAAAAAAAAAAAAAAAEtBTUFMQS1QT1BVTEFSLVZPVEUtUFJFRElDVCAgICAgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACYAAAAAAAAAAQAAAAAAAAABAAAAAAAAAAEAAAAAAAAAECcAABAnAAAQJwAACycAAAAAAAAQJwAABwAAAAwAAAAbAAECBAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==");
+    let mut decoded_bytes = base64::decode(perp_market_str).unwrap();
+    let perp_market_bytes = decoded_bytes.as_mut_slice();
+
+    let key = Pubkey::default();
+    let owner = Pubkey::from_str("dRiftyHA39MWEi3m9aunc5MzRF1JYuBsbn6VPcn33UH").unwrap();
+    let mut lamports = 0;
+    let perp_market_account_info =
+        create_account_info(&key, true, &mut lamports, perp_market_bytes, &owner);
+
+    let perp_market_loader: AccountLoader<PerpMarket> =
+        AccountLoader::try_from(&perp_market_account_info).unwrap();
+    let mut perp_market = perp_market_loader.load_mut().unwrap();
+
+    let now = 1722614328;
+    let clock_slot = 281152241;
+    let state = State::default();
+    let oracle_price_data = OraclePriceData {
+        price: 743335,
+        confidence: 47843,
+        delay: 1,
+        has_sufficient_number_of_data_points: true,
+    };
+
+    let (max_bids, max_asks) = calculate_market_open_bids_asks(&perp_market.amm).unwrap();
+    perp_market.amm.curve_update_intensity = 99;
+
+    assert_eq!(max_bids, 3_824_624_394_874); // 3824 shares
+    assert_eq!(max_asks, -5_241_195_799_744); // -5000 shares
+
+    assert_eq!(perp_market.amm.sqrt_k, 56_649_660_613_272);
+
+    let (optimal_peg, fee_budget, check_lower_bound) =
+        repeg::calculate_optimal_peg_and_budget(&perp_market, &oracle_price_data).unwrap();
+
+    assert_eq!(perp_market.amm.terminal_quote_asset_reserve, 56405211622548);
+    assert_eq!(perp_market.amm.quote_asset_reserve, 56933567973708);
+    assert_eq!(
+        perp_market.amm.quote_asset_reserve - perp_market.amm.terminal_quote_asset_reserve,
+        528356351160
+    );
+
+    let (_repegged_market, repegged_cost) = repeg::adjust_amm(
+        &perp_market,
+        optimal_peg,
+        fee_budget,
+        perp_market.amm.curve_update_intensity == 100,
+    )
+    .unwrap();
+
+    // if adjust k is true:
+    // assert_eq!(_repegged_market.amm.terminal_quote_asset_reserve, 56348282906824);
+    // assert_eq!(_repegged_market.amm.quote_asset_reserve, 56876634348803);
+    // assert_eq!(_repegged_market.amm.quote_asset_reserve - _repegged_market.amm.terminal_quote_asset_reserve, 528351441979);
+
+    // let cost_applied = apply_cost_to_market(&perp_market, repegged_cost, check_lower_bound).unwrap();
+
+    assert_eq!(optimal_peg, 735939);
+    assert_eq!(fee_budget, 6334040);
+    assert_eq!(repegged_cost, 6333935);
+    assert!(repegged_cost <= fee_budget as i128);
+
+    let cost = _update_amm(
+        &mut perp_market,
+        &oracle_price_data,
+        &state,
+        now,
+        clock_slot,
+    )
+    .unwrap();
+
+    assert_eq!(cost, 6333935);
 }
 
 #[test]
