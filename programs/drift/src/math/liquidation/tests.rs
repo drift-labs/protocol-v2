@@ -834,7 +834,7 @@ mod get_liquidation_fee {
     #[test]
     fn test() {
         let user_slot: u64 = 0;
-        let base_liq_fee: u32 = 2 * LIQUIDATION_FEE_PRECISION;
+        let base_liq_fee: u32 = 2 * LIQUIDATION_FEE_PRECISION / 100;
 
         // Huge slot difference
         let curr_slot: u64 = 100000;
@@ -847,7 +847,7 @@ mod get_liquidation_fee {
         assert_eq!(fee, base_liq_fee);
 
         // Successful increase
-        let target_liq_fee: u32 = 3 * LIQUIDATION_FEE_PRECISION;
+        let target_liq_fee: u32 = 3 * LIQUIDATION_FEE_PRECISION / 100;
         let curr_slot: u64 = 10000;
         let fee = get_liquidation_fee(base_liq_fee, user_slot, curr_slot).unwrap();
         assert_eq!(fee, target_liq_fee);
