@@ -107,7 +107,7 @@ fn amm_pred_market_example() {
         &perp_market,
         optimal_peg,
         fee_budget,
-        perp_market.amm.curve_update_intensity == 100,
+        perp_market.amm.curve_update_intensity >= 100,
     )
     .unwrap();
 

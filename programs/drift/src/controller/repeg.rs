@@ -175,7 +175,7 @@ pub fn _update_amm(
                 market,
                 optimal_peg,
                 fee_budget,
-                curve_update_intensity == 100,
+                curve_update_intensity >= 100,
             )?;
 
             let cost_applied = apply_cost_to_market(market, repegged_cost, check_lower_bound)?;
