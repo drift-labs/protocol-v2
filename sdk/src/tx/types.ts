@@ -54,6 +54,8 @@ export interface TxSender {
 	simulateTransaction(tx: VersionedTransaction): Promise<boolean>;
 
 	getTimeoutCount(): number;
+	getSuggestedPriorityFeeMultiplier(): number;
+	getTxLandRate(): number;
 }
 
 export class TxSendError extends Error {

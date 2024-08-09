@@ -1060,15 +1060,14 @@ export class AdminClient extends DriftClient {
 		const tokenProgram = this.getTokenProgramForSpotMarket(spotMarket);
 		return await this.program.instruction.depositIntoSpotMarketVault(amount, {
 			accounts: {
-				admin: this.isSubscribed
-					? this.getStateAccount().admin
-					: this.wallet.publicKey,
+				admin: this.wallet.publicKey,
 				state: await this.getStatePublicKey(),
 				sourceVault,
 				spotMarket: spotMarket.pubkey,
 				spotMarketVault: spotMarket.vault,
 				tokenProgram,
 			},
+			remainingAccounts,
 		});
 	}
 
