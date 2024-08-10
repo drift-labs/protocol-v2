@@ -109,6 +109,7 @@ pub struct OpenbookV2FulfillmentParams<'a, 'b> {
     pub system_program: Program<'b, System>,
     pub signer_nonce: u8,
     pub now: i64,
+    pub remaining_ooa_accounts: Vec<UncheckedAccount<'b>>,
 }
 
 impl<'a, 'b> OpenbookV2FulfillmentParams<'a, 'b> {
@@ -121,12 +122,17 @@ impl<'a, 'b> OpenbookV2FulfillmentParams<'a, 'b> {
         now: i64,
     ) -> DriftResult<Self> {
         let account_info_vec = account_info_iter.collect::<Vec<_>>();
-        // let remaining_ooa_accounts= account_info_vec.iter()
-        //     .skip(14)
-        //     .filter(|acc| {
-        //         acc.data.borrow().starts_with(&OPEN_ORDERS_ACCOUNT_DISCRIMINATOR)
-        //     }).map(|acc| *acc)
-        //     .collect::<Vec<_>>();
+        let mut remaining_ooa_accounts = account_info_vec
+            .iter()
+            .skip(14)
+            .filter(|acc| {
+                acc.data
+                    .borrow()
+                    .starts_with(&OPEN_ORDERS_ACCOUNT_DISCRIMINATOR)
+            })
+            .map(|acc| UncheckedAccount::try_from(*acc))
+            .collect::<Vec<_>>();
+        remaining_ooa_accounts.truncate(3);
         let account_infos = array_ref![account_info_vec, 0, 14];
         let [openbook_v2_fulfillment_config, drift_signer, openbook_v2_program, openbook_v2_market, openbook_v2_market_authority, openbook_v2_event_heap, openbook_v2_bids, openbook_v2_asks, openbook_v2_base_vault, openbook_v2_quote_vault, base_market_vault, quote_market_vault, token_program, system_program] =
             account_infos;
@@ -266,11 +272,6 @@ impl<'a, 'b> OpenbookV2FulfillmentParams<'a, 'b> {
             AccountMeta::new_readonly(*self.system_program.key, false),
             AccountMeta::new_readonly(*self.openbook_v2_context.openbook_v2_program.key, false),
         ];
-        let new_place_take_order_instruction = Instruction {
-            program_id: *self.openbook_v2_context.openbook_v2_program.key,
-            accounts,
-            data,
-        };
         let mut account_infos = vec![
             self.openbook_v2_context.openbook_v2_program.clone(),
             self.drift_signer.clone(),
@@ -290,6 +291,15 @@ impl<'a, 'b> OpenbookV2FulfillmentParams<'a, 'b> {
             self.system_program.to_account_info(),
             self.openbook_v2_context.openbook_v2_program.clone(),
         ];
+        for unchecked_account in self.remaining_ooa_accounts.iter() {
+            accounts.push(AccountMeta::new(*unchecked_account.key, false));
+            account_infos.push(unchecked_account.to_account_info());
+        }
+        let new_place_take_order_instruction = Instruction {
+            program_id: *self.openbook_v2_context.openbook_v2_program.key,
+            accounts,
+            data,
+        };
         let signer_seeds = get_signer_seeds(&self.signer_nonce);
         let signers_seeds = &[&signer_seeds[..]];
 
