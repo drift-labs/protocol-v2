@@ -1,7 +1,7 @@
 import { assert } from 'chai';
 import * as anchor from '@coral-xyz/anchor';
 
-import { Program, Idl, BN } from '@coral-xyz/anchor';
+import {Program, Idl, BN, AnchorProvider, Wallet} from '@coral-xyz/anchor';
 
 import {
 	OracleSource,
@@ -16,6 +16,7 @@ import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader
 import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
 import {
 	createOpenOrdersAccount,
+	createOpenOrdersAccountV2,
 	OPENBOOK,
 	OrderType as ObOrderType,
 	placeOrder,
@@ -35,6 +36,8 @@ import { Keypair } from '@solana/web3.js';
 import { LAMPORTS_PRECISION, PRICE_PRECISION } from '../sdk/src';
 import { WRAPPED_SOL_MINT } from '../sdk/src';
 import { ZERO } from '../sdk';
+import openbookV2Idl from "../sdk/src/idl/openbook.json";
+import { Market, OpenBookV2Client } from '@openbook-dex/openbook-v2';
 
 describe('openbook v2', () => {
 	const chProgram = anchor.workspace.Drift as Program;
@@ -69,6 +72,7 @@ describe('openbook v2', () => {
 
 	let openOrdersAccount: PublicKey;
 	let openOrdersIndexer: PublicKey;
+	const openOrdersAccounts: PublicKey[] = [];
 
 	before(async () => {
 		const context = await startAnchor(
@@ -153,6 +157,20 @@ describe('openbook v2', () => {
 			openbookProgram,
 			market.publicKey
 		);
+		const names = ["Bob", "Marley", "Nicky", "Minaj", "Bad", "Bunny", "Luis", "Miguel", "Anita", "Soul", "Bronco","Marilina", "Rytmus", "Separ", "Meiko", "Kaji", "Karol", "G", "Ricky", "Martin"];
+		let index = 1;
+		for (const name of names) {
+			index += 1;
+			openOrdersAccounts.push(await createOpenOrdersAccountV2(
+				bankrunContextWrapper,
+				openbookProgram,
+				market.publicKey,
+				openOrdersIndexer,
+				name,
+				index,
+			));
+		}
+        console.log(`OpenOrdersAccounts: ${openOrdersAccounts}`);
 
 		await driftClient.initialize(usdcMint.publicKey, true);
 		await driftClient.subscribe();
@@ -223,13 +241,85 @@ describe('openbook v2', () => {
 		);
 	});
 
+	it("fill ask and bids", async() => {
+		for (let i = 0; i < 10; i++) {
+			const ooa = openOrdersAccounts[i];
+			for (let j = 0; j < 15; j++) {
+				await placeOrder(
+					bankrunContextWrapper,
+					openbookProgram,
+					ooa,
+					openOrdersIndexer,
+					market.publicKey,
+					bids.publicKey,
+					asks.publicKey,
+					eventHeap.publicKey,
+					marketBaseVault,
+					userWSolAccount,
+					{
+						side: Side.ASK,
+						priceLots: new anchor.BN(10000 + ((j + 1)* 300)),
+						maxBaseLots: new anchor.BN(1_000_000_000),
+						maxQuoteLotsIncludingFees: new anchor.BN(100_000_000 + ((j +1) * 3_000_000)),
+						clientOrderId: new anchor.BN(0),
+						orderType: ObOrderType.LIMIT,
+						expiryTimestamp: new anchor.BN(0),
+						selfTradeBehavior: SelfTradeBehavior.DECREMENT_TAKE,
+						limit: new anchor.BN(20),
+					}
+				);
+			}
+		}
+		for (let i = 10; i < 20; i++) {
+			const ooa = openOrdersAccounts[i];
+			for (let j = 0; j < 15; j++) {
+				console.log("BIDING");
+				await placeOrder(
+					bankrunContextWrapper,
+					openbookProgram,
+					ooa,
+					openOrdersIndexer,
+					market.publicKey,
+					bids.publicKey,
+					asks.publicKey,
+					eventHeap.publicKey,
+					marketQuoteVault,
+					userUsdcAccount.publicKey,
+					{
+						side: Side.BID,
+						priceLots: new anchor.BN(10000 - ((j + 1)* 300)),
+						maxBaseLots: new anchor.BN(1_000_000_000),
+						maxQuoteLotsIncludingFees: new anchor.BN(100_000_000 - ((j +1) * 3_000_000)),
+						clientOrderId: new anchor.BN(0),
+						orderType: ObOrderType.LIMIT,
+						expiryTimestamp: new anchor.BN(0),
+						selfTradeBehavior: SelfTradeBehavior.DECREMENT_TAKE,
+						limit: new anchor.BN(20),
+					}
+				);
+			}
+		}
+		const connection = bankrunContextWrapper.connection.toConnection();
+		const anchorProvider = new AnchorProvider(
+			connection,
+			new Wallet(Keypair.generate()),
+			{}
+		);
+		const client = new OpenBookV2Client(anchorProvider);
+		const market_data = await Market.load(client, market.publicKey);
+		const asks_side = await market_data.loadAsks();
+		// const l2 = await asks.getL2();
+		console.log(asks_side.pubkey, asks_side.side);
+		const data = await market_data.loadOrderBook();
+		console.log("bids and asks", await data.bids.best(), await data.asks.best());
+	});
+
 	it('fill long', async () => {
 		const quoteTokenAmountBefore = driftClient.getTokenAmount(0);
 		const baseTokenAmountBefore = driftClient.getTokenAmount(1);
 
 		console.log(`quoteTokenAmountBefore ${quoteTokenAmountBefore.toString()}`);
 		console.log(`baseTokenAmountBefore ${baseTokenAmountBefore.toString()}`);
-		for (let i = 0; i < 1; i++) {
 			await placeOrder(
 				bankrunContextWrapper,
 				openbookProgram,
@@ -243,9 +333,9 @@ describe('openbook v2', () => {
 				userWSolAccount,
 				{
 					side: Side.ASK,
-					priceLots: new anchor.BN(10_000 + (i * 1000)),
+					priceLots: new anchor.BN(10000),
 					maxBaseLots: new anchor.BN(1_000_000_000),
-					maxQuoteLotsIncludingFees: new anchor.BN(100_000_000 + (i * 10_000_000)),
+					maxQuoteLotsIncludingFees: new anchor.BN(100_000_000),
 					clientOrderId: new anchor.BN(0),
 					orderType: ObOrderType.LIMIT,
 					expiryTimestamp: new anchor.BN(0),
@@ -253,7 +343,6 @@ describe('openbook v2', () => {
 					limit: new anchor.BN(10),
 				}
 			);
-		}
 
 		await driftClient.placeSpotOrder({
 			orderType: OrderType.LIMIT,
@@ -267,7 +356,7 @@ describe('openbook v2', () => {
 		const fulfillmentConfig = await driftClient.getOpenbookV2FulfillmentConfig(
 			market.publicKey
 		);
-		fulfillmentConfig.remainingAccounts = [openOrdersAccount];
+		fulfillmentConfig.remainingAccounts = [openOrdersAccount, openOrdersAccounts[2], openOrdersAccounts[13]];
 
 		const userAccount = driftClient.getUserAccount();
 		const order = userAccount.orders.filter(
@@ -304,7 +393,6 @@ describe('openbook v2', () => {
 	});
 
 	it('fill short', async () => {
-		for (let i = 0; i < 20; i++) {
 			await placeOrder(
 				bankrunContextWrapper,
 				openbookProgram,
@@ -318,9 +406,9 @@ describe('openbook v2', () => {
 				userUsdcAccount.publicKey,
 				{
 					side: Side.BID,
-					priceLots: new anchor.BN(10000 - (i * 300)),
+					priceLots: new anchor.BN(10000 ),
 					maxBaseLots: new anchor.BN(1_000_000_000),
-					maxQuoteLotsIncludingFees: new anchor.BN(100_000_000 - (i * 3_000_000)),
+					maxQuoteLotsIncludingFees: new anchor.BN(100_000_000),
 					clientOrderId: new anchor.BN(0),
 					orderType: ObOrderType.LIMIT,
 					expiryTimestamp: new anchor.BN(0),
@@ -328,7 +416,6 @@ describe('openbook v2', () => {
 					limit: new anchor.BN(10),
 				}
 			);
-		}
 
 		await driftClient.placeSpotOrder({
 			orderType: OrderType.LIMIT,
@@ -342,7 +429,7 @@ describe('openbook v2', () => {
 		const fulfillmentConfig = await driftClient.getOpenbookV2FulfillmentConfig(
 			market.publicKey
 		);
-		fulfillmentConfig.remainingAccounts = [openOrdersAccount];
+		fulfillmentConfig.remainingAccounts = [openOrdersAccount, openOrdersAccounts[1], openOrdersAccounts[12]];
 
 		const userAccount = driftClient.getUserAccount();
 		const order = userAccount.orders.filter(
