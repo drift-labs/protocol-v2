@@ -1,7 +1,7 @@
 import { assert } from 'chai';
 import * as anchor from '@coral-xyz/anchor';
 
-import {Program, Idl, BN, AnchorProvider, Wallet} from '@coral-xyz/anchor';
+import {Program, Idl, BN} from '@coral-xyz/anchor';
 
 import {
 	OracleSource,
@@ -36,8 +36,6 @@ import { Keypair } from '@solana/web3.js';
 import { LAMPORTS_PRECISION, PRICE_PRECISION } from '../sdk/src';
 import { WRAPPED_SOL_MINT } from '../sdk/src';
 import { ZERO } from '../sdk';
-import openbookV2Idl from "../sdk/src/idl/openbook.json";
-import { Market, OpenBookV2Client } from '@openbook-dex/openbook-v2';
 
 describe('openbook v2', () => {
 	const chProgram = anchor.workspace.Drift as Program;
@@ -299,19 +297,6 @@ describe('openbook v2', () => {
 				);
 			}
 		}
-		const connection = bankrunContextWrapper.connection.toConnection();
-		const anchorProvider = new AnchorProvider(
-			connection,
-			new Wallet(Keypair.generate()),
-			{}
-		);
-		const client = new OpenBookV2Client(anchorProvider);
-		const market_data = await Market.load(client, market.publicKey);
-		const asks_side = await market_data.loadAsks();
-		// const l2 = await asks.getL2();
-		console.log(asks_side.pubkey, asks_side.side);
-		const data = await market_data.loadOrderBook();
-		console.log("bids and asks", await data.bids.best(), await data.asks.best());
 	});
 
 	it('fill long', async () => {
