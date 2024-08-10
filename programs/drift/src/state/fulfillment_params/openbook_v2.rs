@@ -248,6 +248,7 @@ impl<'a, 'b> OpenbookV2FulfillmentParams<'a, 'b> {
             system_program,
             signer_nonce: state.signer_nonce,
             now,
+            remaining_ooa_accounts,
         })
     }
 }
