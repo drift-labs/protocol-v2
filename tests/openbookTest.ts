@@ -57,8 +57,8 @@ describe('openbook v2', () => {
 	const market = Keypair.generate();
 	let usdcMint: Keypair;
 
-	const usdcAmount = new anchor.BN(1_000 * 10 ** 6);
-	const solAmount = new anchor.BN(1_000 * 10 ** 9);
+	const usdcAmount = new anchor.BN(200 * 1_000 * 10 ** 6);
+	const solAmount = new anchor.BN(200 * 1_000 * 10 ** 9);
 
 	let userUsdcAccount: Keypair;
 	let userWSolAccount: PublicKey;
@@ -229,30 +229,31 @@ describe('openbook v2', () => {
 
 		console.log(`quoteTokenAmountBefore ${quoteTokenAmountBefore.toString()}`);
 		console.log(`baseTokenAmountBefore ${baseTokenAmountBefore.toString()}`);
-
-		await placeOrder(
-			bankrunContextWrapper,
-			openbookProgram,
-			openOrdersAccount,
-			openOrdersIndexer,
-			market.publicKey,
-			bids.publicKey,
-			asks.publicKey,
-			eventHeap.publicKey,
-			marketBaseVault,
-			userWSolAccount,
-			{
-				side: Side.ASK,
-				priceLots: new anchor.BN(10000),
-				maxBaseLots: new anchor.BN(1_000_000_000),
-				maxQuoteLotsIncludingFees: new anchor.BN(100_000_000),
-				clientOrderId: new anchor.BN(0),
-				orderType: ObOrderType.LIMIT,
-				expiryTimestamp: new anchor.BN(0),
-				selfTradeBehavior: SelfTradeBehavior.DECREMENT_TAKE,
-				limit: new anchor.BN(10),
-			}
-		);
+		for (let i = 0; i < 10; i++) {
+			await placeOrder(
+				bankrunContextWrapper,
+				openbookProgram,
+				openOrdersAccount,
+				openOrdersIndexer,
+				market.publicKey,
+				bids.publicKey,
+				asks.publicKey,
+				eventHeap.publicKey,
+				marketBaseVault,
+				userWSolAccount,
+				{
+					side: Side.ASK,
+					priceLots: new anchor.BN(10_000 + (i * 1000)),
+					maxBaseLots: new anchor.BN(1_000_000_000),
+					maxQuoteLotsIncludingFees: new anchor.BN(100_000_000 + (i * 10_000_000)),
+					clientOrderId: new anchor.BN(0),
+					orderType: ObOrderType.LIMIT,
+					expiryTimestamp: new anchor.BN(0),
+					selfTradeBehavior: SelfTradeBehavior.DECREMENT_TAKE,
+					limit: new anchor.BN(10),
+				}
+			);
+		}
 
 		await driftClient.placeSpotOrder({
 			orderType: OrderType.LIMIT,
@@ -299,33 +300,35 @@ describe('openbook v2', () => {
 		console.log(`baseTokenAmountAfter ${baseTokenAmountAfter.toString()}`);
 
 		assert(baseTokenAmountAfter.eq(LAMPORTS_PRECISION));
-		assert(quoteTokenAmountAfter.eq(new BN('899899999')));
+		assert(quoteTokenAmountAfter.eq(new BN('199899899999')));
 	});
 
 	it('fill short', async () => {
-		await placeOrder(
-			bankrunContextWrapper,
-			openbookProgram,
-			openOrdersAccount,
-			openOrdersIndexer,
-			market.publicKey,
-			bids.publicKey,
-			asks.publicKey,
-			eventHeap.publicKey,
-			marketQuoteVault,
-			userUsdcAccount.publicKey,
-			{
-				side: Side.BID,
-				priceLots: new anchor.BN(10000),
-				maxBaseLots: new anchor.BN(1_000_000_000),
-				maxQuoteLotsIncludingFees: new anchor.BN(100_000_000),
-				clientOrderId: new anchor.BN(0),
-				orderType: ObOrderType.LIMIT,
-				expiryTimestamp: new anchor.BN(0),
-				selfTradeBehavior: SelfTradeBehavior.DECREMENT_TAKE,
-				limit: new anchor.BN(10),
-			}
-		);
+		for (let i = 0; i < 10; i++) {
+			await placeOrder(
+				bankrunContextWrapper,
+				openbookProgram,
+				openOrdersAccount,
+				openOrdersIndexer,
+				market.publicKey,
+				bids.publicKey,
+				asks.publicKey,
+				eventHeap.publicKey,
+				marketQuoteVault,
+				userUsdcAccount.publicKey,
+				{
+					side: Side.BID,
+					priceLots: new anchor.BN(10000 - (i * 300)),
+					maxBaseLots: new anchor.BN(1_000_000_000),
+					maxQuoteLotsIncludingFees: new anchor.BN(100_000_000 - (i * 3_000_000)),
+					clientOrderId: new anchor.BN(0),
+					orderType: ObOrderType.LIMIT,
+					expiryTimestamp: new anchor.BN(0),
+					selfTradeBehavior: SelfTradeBehavior.DECREMENT_TAKE,
+					limit: new anchor.BN(10),
+				}
+			);
+		}
 
 		await driftClient.placeSpotOrder({
 			orderType: OrderType.LIMIT,
@@ -357,8 +360,11 @@ describe('openbook v2', () => {
 		const quoteTokenAmountAfter = driftClient.getTokenAmount(0);
 		const baseTokenAmountAfter = driftClient.getTokenAmount(1);
 
+		console.log(`quoteTokenAmountAfter ${quoteTokenAmountAfter.toString()}`);
+		console.log(`baseTokenAmountAfter ${baseTokenAmountAfter.toString()}`);
+
 		assert(baseTokenAmountAfter.eq(ZERO));
-		assert(quoteTokenAmountAfter.eq(new BN('999799999')));
+		assert(quoteTokenAmountAfter.eq(new BN('199999799999')));
 
 		const openOrdersAccountInfo =
 			await bankrunContextWrapper.connection.getAccountInfo(openOrdersAccount);
