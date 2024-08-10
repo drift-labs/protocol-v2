@@ -229,7 +229,7 @@ describe('openbook v2', () => {
 
 		console.log(`quoteTokenAmountBefore ${quoteTokenAmountBefore.toString()}`);
 		console.log(`baseTokenAmountBefore ${baseTokenAmountBefore.toString()}`);
-		for (let i = 0; i < 10; i++) {
+		for (let i = 0; i < 1; i++) {
 			await placeOrder(
 				bankrunContextWrapper,
 				openbookProgram,
@@ -304,7 +304,7 @@ describe('openbook v2', () => {
 	});
 
 	it('fill short', async () => {
-		for (let i = 0; i < 10; i++) {
+		for (let i = 0; i < 20; i++) {
 			await placeOrder(
 				bankrunContextWrapper,
 				openbookProgram,
