@@ -255,3 +255,41 @@ export async function createOpenOrdersAccount(
 
 	return [openOrdersIndexer, openOrdersAccount];
 }
+
+export async function createOpenOrdersAccountV2(
+	context: BankrunContextWrapper,
+	openbookProgram: Program,
+	market: PublicKey,
+	openOrdersIndexer: PublicKey,
+	name: string,
+	index: number
+): Promise<PublicKey> {
+	const openOrdersAccount = PublicKey.findProgramAddressSync(
+		[
+			Buffer.from('OpenOrders'),
+			context.context.payer.publicKey.toBuffer(),
+			new BN(index).toArrayLike(Buffer, 'le', 4),
+		],
+		OPENBOOK
+	)[0];
+
+	const createOpenOrdersAccountIx =
+		openbookProgram.instruction.createOpenOrdersAccount(name, {
+			accounts: {
+				payer: context.context.payer.publicKey,
+				owner: context.context.payer.publicKey,
+				delegateAccount: OPENBOOK,
+				openOrdersIndexer: openOrdersIndexer,
+				openOrdersAccount: openOrdersAccount,
+				market: market,
+				systemProgram: SystemProgram.programId,
+				program: OPENBOOK,
+			},
+		});
+
+	const tx = new Transaction().add(createOpenOrdersAccountIx);
+
+	await context.sendTransaction(tx);
+
+	return openOrdersAccount;
+}

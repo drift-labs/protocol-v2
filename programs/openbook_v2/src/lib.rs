@@ -73,4 +73,8 @@ mod openbook_v2 {
     ) -> Result<()> {
         Ok(())
     }
+
+    pub(crate) fn consume_events(ctx: Context<ConsumeEvents>, limit: u64) -> Result<()> {
+        Ok(())
+    }
 }
