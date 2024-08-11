@@ -276,8 +276,10 @@ describe('User Account', () => {
 			convertToNumber(oraclePrice2)
 		);
 
-		const worstCaseBaseAssetAmount =
-			calculateWorstCaseBaseAssetAmount(perpPosition, market);
+		const worstCaseBaseAssetAmount = calculateWorstCaseBaseAssetAmount(
+			perpPosition,
+			market
+		);
 
 		const worstCaseAssetValue = worstCaseBaseAssetAmount
 			.abs()
