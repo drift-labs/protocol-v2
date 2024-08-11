@@ -31,6 +31,9 @@ export class RetryTxSender extends BaseTxSender {
 		confirmationStrategy = ConfirmationStrategy.Combo,
 		additionalTxSenderCallbacks = [],
 		txHandler,
+		trackTxLandRate,
+		txLandRateLookbackWindowMinutes,
+		landRateToFeeFunc,
 	}: {
 		connection: Connection;
 		wallet: IWallet;
@@ -41,6 +44,9 @@ export class RetryTxSender extends BaseTxSender {
 		confirmationStrategy?: ConfirmationStrategy;
 		additionalTxSenderCallbacks?: ((base58EncodedTx: string) => void)[];
 		txHandler?: TxHandler;
+		trackTxLandRate?: boolean;
+		txLandRateLookbackWindowMinutes?: number;
+		landRateToFeeFunc?: (landRate: number) => number;
 	}) {
 		super({
 			connection,
@@ -51,6 +57,9 @@ export class RetryTxSender extends BaseTxSender {
 			confirmationStrategy,
 			additionalTxSenderCallbacks,
 			txHandler,
+			trackTxLandRate,
+			txLandRateLookbackWindowMinutes,
+			landRateToFeeFunc,
 		});
 		this.connection = connection;
 		this.wallet = wallet;
@@ -74,6 +83,7 @@ export class RetryTxSender extends BaseTxSender {
 		const startTime = this.getTimestamp();
 
 		const txid = await this.connection.sendRawTransaction(rawTransaction, opts);
+		this.txSigCache?.set(txid, false);
 		this.sendToAdditionalConnections(rawTransaction, opts);
 
 		let done = false;
@@ -105,6 +115,7 @@ export class RetryTxSender extends BaseTxSender {
 		let slot: number;
 		try {
 			const result = await this.confirmTransaction(txid, opts.commitment);
+			this.txSigCache?.set(txid, true);
 
 			await this.checkConfirmationResultForError(txid, result);
 

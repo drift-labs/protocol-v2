@@ -444,7 +444,10 @@ impl SpotMarket {
         get_token_amount(self.borrow_balance, self, &SpotBalanceType::Borrow)
     }
 
-    pub fn validate_max_token_deposits_and_borrows(&self) -> DriftResult {
+    pub fn validate_max_token_deposits_and_borrows(
+        &self,
+        do_max_borrow_check: bool,
+    ) -> DriftResult {
         let deposits = self.get_deposits()?;
         let max_token_deposits = self.max_token_deposits.cast::<u128>()?;
 
@@ -456,7 +459,8 @@ impl SpotMarket {
             deposits,
         )?;
 
-        if self.max_token_borrows_fraction > 0 && self.max_token_deposits > 0 {
+        if do_max_borrow_check && self.max_token_borrows_fraction > 0 && self.max_token_deposits > 0
+        {
             let borrows = self.get_borrows()?;
             let max_token_borrows = self
                 .max_token_deposits
