@@ -1597,8 +1597,6 @@ pub struct UserStats {
     pub padding: [u8; 12],
 }
 
-
-
 impl Size for UserStats {
     const SIZE: usize = 240;
 }
