@@ -154,9 +154,9 @@ pub fn calculate_base_swap_output_with_spread(
 
 pub fn update_spread_reserves(market: &mut PerpMarket) -> DriftResult {
     let (new_ask_base_asset_reserve, new_ask_quote_asset_reserve) =
-        calculate_spread_reserves(&market, PositionDirection::Long)?;
+        calculate_spread_reserves(market, PositionDirection::Long)?;
     let (new_bid_base_asset_reserve, new_bid_quote_asset_reserve) =
-        calculate_spread_reserves(&market, PositionDirection::Short)?;
+        calculate_spread_reserves(market, PositionDirection::Short)?;
 
     market.amm.ask_base_asset_reserve =
         new_ask_base_asset_reserve.min(market.amm.base_asset_reserve);

@@ -1,5 +1,5 @@
 use std::cmp::min;
-use std::ops::{Neg, Sub};
+use std::ops::Sub;
 
 use solana_program::msg;
 
@@ -820,7 +820,7 @@ pub fn calculate_max_perp_order_size(
 
     let user_custom_margin_ratio = user.max_margin_ratio;
 
-    let mut free_collateral_before = total_collateral.safe_sub(margin_requirement.cast()?)?;
+    let free_collateral_before = total_collateral.safe_sub(margin_requirement.cast()?)?;
 
     let perp_market = perp_market_map.get_ref(&market_index)?;
 
@@ -886,13 +886,12 @@ pub fn calculate_max_perp_order_size(
         );
     }
 
-    let oracle_price = if !perp_market.is_prediction_market() {
-        oracle_price_data_price
-    } else if direction == PositionDirection::Long {
-        oracle_price_data_price
-    } else {
-        MAX_PREDICTION_MARKET_PRICE_I64.safe_sub(oracle_price_data_price)?
-    };
+    let oracle_price =
+        if !perp_market.is_prediction_market() || direction == PositionDirection::Long {
+            oracle_price_data_price
+        } else {
+            MAX_PREDICTION_MARKET_PRICE_I64.safe_sub(oracle_price_data_price)?
+        };
 
     let calculate_order_size_and_margin_ratio = |margin_ratio: u32| {
         let new_order_size = free_collateral_before

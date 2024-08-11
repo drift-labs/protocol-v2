@@ -130,8 +130,7 @@ impl<'a, 'b> OpenbookV2FulfillmentParams<'a, 'b> {
                 acc.data
                     .borrow()
                     .starts_with(&OPEN_ORDERS_ACCOUNT_DISCRIMINATOR)
-            })
-            .map(|acc| *acc)
+            }).copied()
             .collect::<Vec<_>>();
         let account_infos = array_ref![account_info_vec, 0, 14];
         let [openbook_v2_fulfillment_config, drift_signer, openbook_v2_program, openbook_v2_market, openbook_v2_market_authority, openbook_v2_event_heap, openbook_v2_bids, openbook_v2_asks, openbook_v2_base_vault, openbook_v2_quote_vault, base_market_vault, quote_market_vault, token_program, system_program] =

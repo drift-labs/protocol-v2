@@ -1804,7 +1804,7 @@ fn fulfill_perp_order(
                 spot_market_map,
                 oracle_map,
                 MarginContext::standard(margin_type)
-                    .fuel_perp_delta(market_index, -maker_base_asset_amount_filled as i64)
+                    .fuel_perp_delta(market_index, -maker_base_asset_amount_filled)
                     .fuel_numerator(&maker, now),
             )?;
 

@@ -1759,7 +1759,7 @@ pub fn handle_deposit_into_spot_market_vault<'c: 'info, 'info>(
     )?;
 
     ctx.accounts.spot_market_vault.reload()?;
-    validate_spot_market_vault_amount(&spot_market, ctx.accounts.spot_market_vault.amount)?;
+    validate_spot_market_vault_amount(spot_market, ctx.accounts.spot_market_vault.amount)?;
 
     spot_market.validate_max_token_deposits_and_borrows(false)?;
 
