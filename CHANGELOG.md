@@ -11,6 +11,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixes
 
+- program: fix openbook v2 oom issue ([#1186](https://github.com/drift-labs/protocol-v2/pull/1186))
+
 ### Breaking
 
 ## [2.91.0] - 2024-08-07
