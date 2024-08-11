@@ -6957,6 +6957,46 @@ export class DriftClient {
 		return txSig;
 	}
 
+	public async updateUserQuoteAssetInsuranceStake(
+		authority: PublicKey
+	): Promise<TransactionSignature> {
+		const tx = await this.buildTransaction(
+			await this.getUpdateUserQuoteAssetInsuranceStakeIx(authority),
+			txParams
+		);
+		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+		return txSig;
+	}
+
+	public async getUpdateUserQuoteAssetInsuranceStakeIx(
+		authority: PublicKey
+	): Promise<TransactionInstruction> {
+		const marketIndex = 15;
+		const spotMarket = this.getSpotMarketAccount(marketIndex);
+		const ifStakeAccountPublicKey = getInsuranceFundStakeAccountPublicKey(
+			this.program.programId,
+			authority,
+			marketIndex
+		);
+		const userStatsPublicKey = getUserStatsAccountPublicKey(
+			this.program.programId,
+			authority
+		);
+
+		const ix = this.program.instruction.updateUserQuoteAssetInsuranceStake({
+			accounts: {
+				state: await this.getStatePublicKey(),
+				spotMarket: spotMarket.pubkey,
+				insuranceFundStake: ifStakeAccountPublicKey,
+				userStats: userStatsPublicKey,
+				signer: this.wallet.publicKey,
+				insuranceFundVault: spotMarket.insuranceFund.vault,
+			},
+		});
+
+		return ix;
+	}
+
 	public async settleRevenueToInsuranceFund(
 		spotMarketIndex: number,
 		txParams?: TxParams
