@@ -6958,7 +6958,8 @@ export class DriftClient {
 	}
 
 	public async updateUserQuoteAssetInsuranceStake(
-		authority: PublicKey
+		authority: PublicKey,
+		txParams?: TxParams
 	): Promise<TransactionSignature> {
 		const tx = await this.buildTransaction(
 			await this.getUpdateUserQuoteAssetInsuranceStakeIx(authority),
