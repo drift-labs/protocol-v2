@@ -6,7 +6,6 @@ import {
 	calculateQuoteAssetAmountSwapped,
 	calculateSpreadReserves,
 	calculateUpdatedAMM,
-	ContractType,
 	DLOBNode,
 	isOperationPaused,
 	isVariant,
