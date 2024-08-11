@@ -344,8 +344,8 @@ export const MainnetSpotMarkets: SpotMarketConfig[] = [
 	{
 		symbol: 'JLP',
 		marketIndex: 19,
-		oracle: new PublicKey('pmHEXBam7kbmCCg5ED5V7RNMN8e34sKu338KeuFAGof'),
-		oracleSource: OracleSource.SWITCHBOARD,
+		oracle: new PublicKey('5Mb11e5rt1Sp6A286B145E4TmgMzsM2UX9nCF2vas5bs'),
+		oracleSource: OracleSource.PYTH_PULL,
 		mint: new PublicKey('27G8MtK7VtTcCHkpASjSDdkWWYfoqT6ggEuKidVJidD4'),
 		precision: new BN(10).pow(SIX),
 		precisionExp: SIX,
