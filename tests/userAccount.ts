@@ -277,7 +277,7 @@ describe('User Account', () => {
 		);
 
 		const worstCaseBaseAssetAmount =
-			calculateWorstCaseBaseAssetAmount(perpPosition);
+			calculateWorstCaseBaseAssetAmount(perpPosition, market);
 
 		const worstCaseAssetValue = worstCaseBaseAssetAmount
 			.abs()
