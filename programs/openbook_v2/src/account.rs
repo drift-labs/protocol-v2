@@ -176,8 +176,7 @@ impl BookSide {
         let mut p = 0_u64;
         for node in self.nodes.nodes.iter() {
             if node.tag == LEAF_NODE_TAG {
-                let leaf_node = LeafNode::try_from_slice(&node.try_to_vec().unwrap()).unwrap();
-                let price = leaf_node.price_data();
+                let price = (u128::try_from_slice(&node.data[7..23]).unwrap() >> 64) as u64;
                 if price < p || p == 0 {
                     p = price;
                 }
@@ -194,8 +193,7 @@ impl BookSide {
         let mut p = 0_u64;
         for node in self.nodes.nodes.iter() {
             if node.tag == LEAF_NODE_TAG {
-                let leaf_node = LeafNode::try_from_slice(&node.try_to_vec().unwrap()).unwrap();
-                let price = leaf_node.price_data();
+                let price = (u128::try_from_slice(&node.data[7..23]).unwrap() >> 64) as u64;
                 if price > p {
                     p = price;
                 }
