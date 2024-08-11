@@ -256,14 +256,13 @@ export async function createOpenOrdersAccount(
 	return [openOrdersIndexer, openOrdersAccount];
 }
 
-
 export async function createOpenOrdersAccountV2(
 	context: BankrunContextWrapper,
 	openbookProgram: Program,
 	market: PublicKey,
 	openOrdersIndexer: PublicKey,
 	name: string,
-	index: number,
+	index: number
 ): Promise<PublicKey> {
 	const openOrdersAccount = PublicKey.findProgramAddressSync(
 		[
@@ -288,8 +287,7 @@ export async function createOpenOrdersAccountV2(
 			},
 		});
 
-	const tx = new Transaction()
-		.add(createOpenOrdersAccountIx);
+	const tx = new Transaction().add(createOpenOrdersAccountIx);
 
 	await context.sendTransaction(tx);
 
