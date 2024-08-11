@@ -111,4 +111,3 @@ export const FUEL_WINDOW = new BN(60 * 60 * 24 * 28); // 28 days
 export const FUEL_START_TS = new BN(1723147200); // unix timestamp
 
 export const MAX_PREDICTION_PRICE = PRICE_PRECISION;
-
