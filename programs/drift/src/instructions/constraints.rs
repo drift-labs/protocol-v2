@@ -4,6 +4,7 @@ use anchor_lang::accounts::signer::Signer;
 use anchor_lang::prelude::{AccountInfo, Pubkey};
 
 use crate::error::ErrorCode;
+use crate::state::insurance_fund_stake::InsuranceFundStake;
 use crate::state::perp_market::{MarketStatus, PerpMarket};
 use crate::state::spot_market::SpotMarket;
 use crate::state::state::{ExchangeStatus, State};
@@ -25,6 +26,15 @@ pub fn is_stats_for_user(
     let user = user.load()?;
     let user_stats = user_stats.load()?;
     Ok(user_stats.authority.eq(&user.authority))
+}
+
+pub fn is_stats_for_if_stake(
+    if_stake: &AccountLoader<InsuranceFundStake>,
+    user_stats: &AccountLoader<UserStats>,
+) -> anchor_lang::Result<bool> {
+    let if_stake = if_stake.load()?;
+    let user_stats = user_stats.load()?;
+    Ok(user_stats.authority.eq(&if_stake.authority))
 }
 
 pub fn perp_market_valid(market: &AccountLoader<PerpMarket>) -> anchor_lang::Result<()> {

@@ -2059,15 +2059,12 @@ pub struct UpdateUserQuoteAssetInsuranceStake<'info> {
     pub spot_market: AccountLoader<'info, SpotMarket>,
     #[account(
         mut,
-        has_one = authority,
+        constraint = is_stats_for_if_stake(&insurance_fund_stake, &user_stats)?
     )]
     pub insurance_fund_stake: AccountLoader<'info, InsuranceFundStake>,
-    #[account(
-        mut,
-        has_one = authority,
-    )]
+    #[account(mut)]
     pub user_stats: AccountLoader<'info, UserStats>,
-    pub authority: Signer<'info>,
+    pub signer: Signer<'info>,
     #[account(
         mut,
         seeds = [b"insurance_fund_vault".as_ref(), 0_u16.to_le_bytes().as_ref()],
@@ -2086,15 +2083,12 @@ pub struct UpdateUserGovTokenInsuranceStake<'info> {
     pub spot_market: AccountLoader<'info, SpotMarket>,
     #[account(
         mut,
-        has_one = authority,
+        constraint = is_stats_for_if_stake(&insurance_fund_stake, &user_stats)?
     )]
     pub insurance_fund_stake: AccountLoader<'info, InsuranceFundStake>,
-    #[account(
-        mut,
-        has_one = authority,
-    )]
+    #[account(mut)]
     pub user_stats: AccountLoader<'info, UserStats>,
-    pub authority: Signer<'info>,
+    pub signer: Signer<'info>,
     #[account(
         mut,
         seeds = [b"insurance_fund_vault".as_ref(), 15_u16.to_le_bytes().as_ref()],
