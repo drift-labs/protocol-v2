@@ -30,8 +30,6 @@ import {
 	sleep,
 } from './testHelpers';
 import {
-	convertToNumber,
-	MARGIN_PRECISION,
 	PERCENTAGE_PRECISION,
 	UserStatus,
 } from '../sdk';
