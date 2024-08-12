@@ -829,27 +829,28 @@ mod calculate_max_pct_to_liquidate {
 
 mod get_liquidation_fee {
     use crate::math::liquidation::get_liquidation_fee;
-    use crate::{LIQUIDATION_FEE_PRECISION, MAX_LIQUIDATION_FEE};
+    use crate::LIQUIDATION_FEE_PRECISION;
 
     #[test]
     fn test() {
         let user_slot: u64 = 0;
         let base_liq_fee: u32 = 2 * LIQUIDATION_FEE_PRECISION / 100;
+        let max_liq_fee: u32 = 5 * LIQUIDATION_FEE_PRECISION / 100;
 
         // Huge slot difference
         let curr_slot: u64 = 100000;
-        let fee = get_liquidation_fee(base_liq_fee, user_slot, curr_slot).unwrap();
-        assert_eq!(fee, MAX_LIQUIDATION_FEE);
+        let fee = get_liquidation_fee(base_liq_fee, max_liq_fee, user_slot, curr_slot).unwrap();
+        assert_eq!(fee, max_liq_fee);
 
         // Small slot difference within grace period
         let curr_slot: u64 = 10;
-        let fee = get_liquidation_fee(base_liq_fee, user_slot, curr_slot).unwrap();
+        let fee = get_liquidation_fee(base_liq_fee, max_liq_fee, user_slot, curr_slot).unwrap();
         assert_eq!(fee, base_liq_fee);
 
         // Successful increase
         let target_liq_fee: u32 = 3 * LIQUIDATION_FEE_PRECISION / 100;
         let curr_slot: u64 = 10000;
-        let fee = get_liquidation_fee(base_liq_fee, user_slot, curr_slot).unwrap();
+        let fee = get_liquidation_fee(base_liq_fee, max_liq_fee, user_slot, curr_slot).unwrap();
         assert_eq!(fee, target_liq_fee);
     }
 }

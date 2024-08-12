@@ -22,7 +22,7 @@ use crate::state::spot_market_map::SpotMarketMap;
 use crate::state::user::{OrderType, User};
 use crate::{
     validate, MarketType, OrderParams, PositionDirection, BASE_PRECISION,
-    LIQUIDATION_FEE_INCREASE_PER_SLOT, MAX_LIQUIDATION_FEE,
+    LIQUIDATION_FEE_INCREASE_PER_SLOT,
 };
 use solana_program::msg;
 
@@ -496,6 +496,7 @@ pub fn get_liquidation_order_params(
 
 pub fn get_liquidation_fee(
     base_liquidation_fee: u32,
+    max_liquidation_fee: u32,
     last_active_user_slot: u64,
     current_slot: u64,
 ) -> DriftResult<u32> {
@@ -509,5 +510,5 @@ pub fn get_liquidation_fee(
             .safe_mul(LIQUIDATION_FEE_INCREASE_PER_SLOT.cast::<u64>()?)?
             .cast::<u32>()?,
     )?;
-    Ok(liquidation_fee.min(MAX_LIQUIDATION_FEE))
+    Ok(liquidation_fee.min(max_liquidation_fee))
 }
