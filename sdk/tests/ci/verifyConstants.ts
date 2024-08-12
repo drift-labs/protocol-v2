@@ -61,9 +61,14 @@ describe('Verify Constants', function () {
 		},
 	});
 
+	let lutAccounts : string[];
+
 	before(async () => {
 		await devnetDriftClient.subscribe();
 		await mainnetDriftClient.subscribe();
+
+		const lookupTable = await mainnetDriftClient.fetchMarketLookupTableAccount();
+		lutAccounts = lookupTable.state.addresses.map((x) => x.toBase58());
 	});
 
 	after(async () => {
@@ -106,6 +111,12 @@ describe('Verify Constants', function () {
 					market.marketIndex
 				}, market: ${market.pubkey.toBase58()}, constants: ${correspondingConfigMarket.mint.toBase58()}, chain: ${market.mint.toBase58()}`
 			);
+
+			const lutHasMarket = lutAccounts.includes(market.pubkey.toBase58());
+			assert(lutHasMarket, `Mainnet LUT is missing spot market ${market.marketIndex} pubkey ${market.pubkey.toBase58()}`);
+
+			const lutHasMarketOracle = lutAccounts.includes(market.oracle.toBase58());
+			assert(lutHasMarketOracle, `Mainnet LUT is missing spot market ${market.marketIndex} oracle ${market.oracle.toBase58()}`);
 		}
 
 		const perpMarkets = mainnetDriftClient.getPerpMarketAccounts();
@@ -137,6 +148,12 @@ describe('Verify Constants', function () {
 					correspondingConfigMarket.oracleSource
 				)}, chain: ${getVariant(market.amm.oracleSource)}`
 			);
+
+			const lutHasMarket = lutAccounts.includes(market.pubkey.toBase58());
+			assert(lutHasMarket, `Mainnet LUT is missing perp market ${market.marketIndex} pubkey ${market.pubkey.toBase58()}`);
+
+			const lutHasMarketOracle = lutAccounts.includes(market.amm.oracle.toBase58());
+			assert(lutHasMarketOracle, `Mainnet LUT is missing perp market ${market.marketIndex} oracle ${market.amm.oracle.toBase58()}`);
 		}
 	});
 
