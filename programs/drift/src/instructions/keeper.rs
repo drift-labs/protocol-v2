@@ -1949,7 +1949,6 @@ pub struct LiquidatePerpPnlForDeposit<'info> {
 #[derive(Accounts)]
 pub struct SetUserStatusToBeingLiquidated<'info> {
     pub state: Box<Account<'info, State>>,
-    pub authority: Signer<'info>,
     #[account(mut)]
     pub user: AccountLoader<'info, User>,
 }

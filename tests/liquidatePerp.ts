@@ -29,7 +29,12 @@ import {
 	setFeedPriceNoProgram,
 	sleep,
 } from './testHelpers';
-import { PERCENTAGE_PRECISION, UserStatus } from '../sdk';
+import {
+	convertToNumber,
+	MARGIN_PRECISION,
+	PERCENTAGE_PRECISION,
+	UserStatus,
+} from '../sdk';
 import { startAnchor } from 'solana-bankrun';
 import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
 import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
@@ -319,6 +324,13 @@ describe('liquidate perp (no open orders)', () => {
 		await driftClientUser.unsubscribe();
 
 		await setFeedPriceNoProgram(bankrunContextWrapper, 0.1, oracle);
+
+		const txSig1 = await liquidatorDriftClient.setUserStatusToBeingLiquidated(
+			await driftClient.getUserAccountPublicKey(),
+			driftClient.getUserAccount()
+		);
+		console.log('setUserStatusToBeingLiquidated txSig:', txSig1);
+		assert(driftClient.getUserAccount().status === UserStatus.BEING_LIQUIDATED);
 
 		const txSig = await liquidatorDriftClient.liquidatePerp(
 			await driftClient.getUserAccountPublicKey(),

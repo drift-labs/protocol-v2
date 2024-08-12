@@ -3043,6 +3043,7 @@ pub fn set_user_status_to_being_liquidated(
     )?;
 
     if !user.is_being_liquidated() && margin_calculation.meets_margin_requirement() {
+        msg!("margin calculation: {:?}", margin_calculation);
         return Err(ErrorCode::SufficientCollateral);
     } else {
         user.enter_liquidation(slot)?;
