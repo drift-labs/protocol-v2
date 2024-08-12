@@ -29,10 +29,7 @@ import {
 	setFeedPriceNoProgram,
 	sleep,
 } from './testHelpers';
-import {
-	PERCENTAGE_PRECISION,
-	UserStatus,
-} from '../sdk';
+import { PERCENTAGE_PRECISION, UserStatus } from '../sdk';
 import { startAnchor } from 'solana-bankrun';
 import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
 import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
