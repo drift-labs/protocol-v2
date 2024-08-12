@@ -294,7 +294,7 @@ pub fn update_k(market: &mut PerpMarket, update_k_result: &UpdateKResult) -> Dri
     market.amm.max_base_asset_reserve = max_base_asset_reserve;
 
     let reserve_price_after = market.amm.reserve_price()?;
-    crate::controller::amm::update_spreads(&mut market.amm, reserve_price_after)?;
+    crate::controller::amm::update_spreads(market, reserve_price_after)?;
 
     Ok(())
 }

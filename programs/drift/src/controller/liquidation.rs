@@ -323,11 +323,8 @@ pub fn liquidate_perp(
         .base_asset_amount
         .unsigned_abs();
 
-    let worst_case_base_asset_amount =
-        user.perp_positions[position_index].worst_case_base_asset_amount()?;
-
     let margin_ratio = perp_market_map.get_ref(&market_index)?.get_margin_ratio(
-        worst_case_base_asset_amount.unsigned_abs(),
+        user_base_asset_amount.cast()?,
         MarginRequirementType::Maintenance,
     )?;
 
@@ -987,7 +984,7 @@ pub fn liquidate_perp_with_fill(
         perp_market_map,
         spot_market_map,
         oracle_map,
-        &clock,
+        clock,
         order_params,
         PlaceOrderOptions::default().explanation(OrderActionExplanation::Liquidation),
     )?;
@@ -1008,7 +1005,7 @@ pub fn liquidate_perp_with_fill(
         makers_and_referrer,
         makers_and_referrer_stats,
         None,
-        &clock,
+        clock,
         FillMode::Liquidation,
     )?;
 

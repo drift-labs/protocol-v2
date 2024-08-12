@@ -111,7 +111,8 @@ pub fn calculate_lp_shares_to_burn_for_risk_reduction(
 ) -> DriftResult<(u64, u64)> {
     let settled_lp_position = perp_position.simulate_settled_lp_position(market, oracle_price)?;
 
-    let worse_case_base_asset_amount = settled_lp_position.worst_case_base_asset_amount()?;
+    let worse_case_base_asset_amount =
+        settled_lp_position.worst_case_base_asset_amount(oracle_price, market.contract_type)?;
 
     let open_orders_from_lp_shares = if worse_case_base_asset_amount >= 0 {
         worse_case_base_asset_amount.safe_sub(

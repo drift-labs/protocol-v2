@@ -3404,6 +3404,27 @@
       ]
     },
     {
+      "name": "initializePredictionMarket",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "perpMarket",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": []
+    },
+    {
       "name": "deleteInitializedPerpMarket",
       "accounts": [
         {
@@ -12906,6 +12927,11 @@
       "code": 6283,
       "name": "LiquidationOrderFailedToFill",
       "msg": "Liquidation order failed to fill"
+    },
+    {
+      "code": 6284,
+      "name": "InvalidPredictionMarketOrder",
+      "msg": "Invalid prediction market order"
     }
   ],
   "metadata": {

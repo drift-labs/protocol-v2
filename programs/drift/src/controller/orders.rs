@@ -1076,7 +1076,13 @@ pub fn fill_perp_order(
         if let Some(filler) = filler.as_deref_mut() {
             filler.update_last_active_slot(slot);
         }
-        return Ok((0, 0));
+
+        if !perp_market_map
+            .get_ref_mut(&market_index)?
+            .is_prediction_market()
+        {
+            return Ok((0, 0));
+        }
     }
 
     validate_perp_fill_possible(
@@ -1167,15 +1173,17 @@ pub fn fill_perp_order(
         let fill_price =
             calculate_fill_price(quote_asset_amount, base_asset_amount, BASE_PRECISION_U64)?;
 
+        let perp_market = perp_market_map.get_ref(&market_index)?;
         validate_fill_price_within_price_bands(
             fill_price,
             order_direction,
             oracle_price,
             oracle_twap_5min,
-            perp_market_map.get_ref(&market_index)?.margin_ratio_initial,
+            perp_market.margin_ratio_initial,
             state
                 .oracle_guard_rails
                 .max_oracle_twap_5min_percent_divergence(),
+            perp_market.is_prediction_market(),
         )?;
     }
 
@@ -1266,6 +1274,10 @@ pub fn validate_market_within_price_band(
     state: &State,
     oracle_price: i64,
 ) -> DriftResult<bool> {
+    if market.is_prediction_market() {
+        return Ok(true);
+    }
+
     let reserve_price = market.amm.reserve_price()?;
 
     let reserve_spread_pct =
@@ -1351,6 +1363,7 @@ fn get_maker_orders_info(
             Some(oracle_price),
             slot,
             market.amm.order_tick_size,
+            market.is_prediction_market(),
         )?;
 
         if maker_order_price_and_indexes.is_empty() {
@@ -1553,12 +1566,15 @@ fn fulfill_perp_order(
     let user_order_position_decreasing =
         determine_if_user_order_is_position_decreasing(user, market_index, user_order_index)?;
 
+    let perp_market = perp_market_map.get_ref(&market_index)?;
     let limit_price = fill_mode.get_limit_price(
         &user.orders[user_order_index],
         valid_oracle_price,
         slot,
-        perp_market_map.get_ref(&market_index)?.amm.order_tick_size,
+        perp_market.amm.order_tick_size,
+        perp_market.is_prediction_market(),
     )?;
+    drop(perp_market);
 
     let fulfillment_methods = {
         let market = perp_market_map.get_ref(&market_index)?;
@@ -1788,7 +1804,7 @@ fn fulfill_perp_order(
                 spot_market_map,
                 oracle_map,
                 MarginContext::standard(margin_type)
-                    .fuel_perp_delta(market_index, -maker_base_asset_amount_filled as i64)
+                    .fuel_perp_delta(market_index, -maker_base_asset_amount_filled)
                     .fuel_numerator(&maker, now),
             )?;
 
@@ -2266,6 +2282,7 @@ pub fn fulfill_perp_order_with_match(
         None,
         slot,
         market.amm.order_tick_size,
+        market.is_prediction_market(),
     )?;
     let maker_direction = maker.orders[maker_order_index].direction;
     let maker_existing_position = maker
@@ -2738,9 +2755,9 @@ pub fn trigger_order(
     )?;
     validate!(can_trigger, ErrorCode::OrderDidNotSatisfyTriggerCondition)?;
 
-    let worst_case_base_asset_amount_before = user
+    let (_, worst_case_liability_value_before) = user
         .get_perp_position(market_index)?
-        .worst_case_base_asset_amount()?;
+        .worst_case_liability_value(oracle_price, perp_market.contract_type)?;
 
     {
         update_trigger_order_params(
@@ -2800,14 +2817,13 @@ pub fn trigger_order(
     )?;
     emit!(order_action_record);
 
-    drop(perp_market);
-
-    let worst_case_base_asset_amount_after = user
+    let (_, worst_case_liability_value_after) = user
         .get_perp_position(market_index)?
-        .worst_case_base_asset_amount()?;
+        .worst_case_liability_value(oracle_price, perp_market.contract_type)?;
 
-    let is_risk_increasing = worst_case_base_asset_amount_after.unsigned_abs()
-        > worst_case_base_asset_amount_before.unsigned_abs();
+    let is_risk_increasing = worst_case_liability_value_after > worst_case_liability_value_before;
+
+    drop(perp_market);
 
     // If order increases risk and user is below initial margin, cancel it
     if is_risk_increasing && !user.orders[order_index].reduce_only {
@@ -3713,6 +3729,7 @@ pub fn fill_spot_order(
             state
                 .oracle_guard_rails
                 .max_oracle_twap_5min_percent_divergence(),
+            false,
         )?;
     }
 
@@ -3827,6 +3844,7 @@ fn get_spot_maker_orders_info(
             Some(oracle_price),
             slot,
             market.order_tick_size,
+            false,
         )?;
 
         if maker_order_price_and_indexes.is_empty() {
@@ -4017,6 +4035,7 @@ fn fulfill_spot_order(
         None,
         slot,
         base_market.order_tick_size,
+        false,
     )?;
 
     let fulfillment_methods = determine_spot_fulfillment_methods(
@@ -4330,6 +4349,7 @@ pub fn fulfill_spot_order_with_match(
         None,
         slot,
         base_market.order_tick_size,
+        false,
     )? {
         Some(price) => price,
         None => {
@@ -4353,6 +4373,7 @@ pub fn fulfill_spot_order_with_match(
         None,
         slot,
         base_market.order_tick_size,
+        false,
     )?;
     let maker_direction = maker.orders[maker_order_index].direction;
     let maker_spot_position_index = maker.get_spot_position_index(market_index)?;
@@ -4665,6 +4686,7 @@ pub fn fulfill_spot_order_with_external_market(
         None,
         slot,
         base_market.order_tick_size,
+        false,
     )?;
     let taker_token_amount = taker
         .force_get_spot_position_mut(base_market.market_index)?

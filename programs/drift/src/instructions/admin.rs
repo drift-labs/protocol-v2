@@ -953,7 +953,29 @@ pub fn handle_initialize_perp_market(
 
     safe_increment!(state.number_of_markets, 1);
 
-    controller::amm::update_concentration_coef(&mut perp_market.amm, concentration_coef_scale)?;
+    controller::amm::update_concentration_coef(perp_market, concentration_coef_scale)?;
+
+    Ok(())
+}
+
+#[access_control(
+    perp_market_valid(&ctx.accounts.perp_market)
+)]
+pub fn handle_initialize_prediction_market(ctx: Context<AdminUpdatePerpMarket>) -> Result<()> {
+    let perp_market = &mut load_mut!(ctx.accounts.perp_market)?;
+    msg!("updating perp market {} expiry", perp_market.market_index);
+
+    validate!(
+        perp_market.status == MarketStatus::Initialized,
+        ErrorCode::DefaultError,
+        "Market must be just initialized to make prediction market"
+    )?;
+
+    perp_market.contract_type = ContractType::Prediction;
+
+    let paused_operations = perp_market.paused_operations | PerpOperation::UpdateFunding as u8;
+
+    perp_market.paused_operations = paused_operations;
 
     Ok(())
 }
@@ -1289,12 +1311,7 @@ pub fn handle_move_amm_price(
     let max_base_asset_reserve_before = perp_market.amm.max_base_asset_reserve;
     let min_base_asset_reserve_before = perp_market.amm.min_base_asset_reserve;
 
-    controller::amm::move_price(
-        &mut perp_market.amm,
-        base_asset_reserve,
-        quote_asset_reserve,
-        sqrt_k,
-    )?;
+    controller::amm::move_price(perp_market, base_asset_reserve, quote_asset_reserve, sqrt_k)?;
     validate_perp_market(perp_market)?;
 
     let base_asset_reserve_after = perp_market.amm.base_asset_reserve;
@@ -1354,7 +1371,7 @@ pub fn handle_recenter_perp_market_amm(
     let max_base_asset_reserve_before = perp_market.amm.max_base_asset_reserve;
     let min_base_asset_reserve_before = perp_market.amm.min_base_asset_reserve;
 
-    controller::amm::recenter_perp_market_amm(&mut perp_market.amm, peg_multiplier, sqrt_k)?;
+    controller::amm::recenter_perp_market_amm(perp_market, peg_multiplier, sqrt_k)?;
     validate_perp_market(perp_market)?;
 
     let base_asset_reserve_after = perp_market.amm.base_asset_reserve;
@@ -1742,7 +1759,7 @@ pub fn handle_deposit_into_spot_market_vault<'c: 'info, 'info>(
     )?;
 
     ctx.accounts.spot_market_vault.reload()?;
-    validate_spot_market_vault_amount(&spot_market, ctx.accounts.spot_market_vault.amount)?;
+    validate_spot_market_vault_amount(spot_market, ctx.accounts.spot_market_vault.amount)?;
 
     spot_market.validate_max_token_deposits_and_borrows(false)?;
 
@@ -2888,6 +2905,14 @@ pub fn handle_update_perp_market_paused_operations(
 
     perp_market.paused_operations = paused_operations;
 
+    if perp_market.is_prediction_market() {
+        validate!(
+            perp_market.is_operation_paused(PerpOperation::UpdateFunding),
+            ErrorCode::DefaultError,
+            "prediction market must have funding paused"
+        )?;
+    }
+
     PerpOperation::log_all_operations_paused(perp_market.paused_operations);
 
     Ok(())
@@ -3011,7 +3036,7 @@ pub fn handle_update_perp_market_concentration_coef(
     msg!("perp market {}", perp_market.market_index);
 
     let prev_concentration_coef = perp_market.amm.concentration_coef;
-    controller::amm::update_concentration_coef(&mut perp_market.amm, concentration_scale)?;
+    controller::amm::update_concentration_coef(perp_market, concentration_scale)?;
     let new_concentration_coef = perp_market.amm.concentration_coef;
 
     msg!(

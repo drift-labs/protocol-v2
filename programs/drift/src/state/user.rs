@@ -12,7 +12,7 @@ use crate::math::margin::MarginRequirementType;
 use crate::math::orders::{standardize_base_asset_amount, standardize_price};
 use crate::math::position::{
     calculate_base_asset_value_and_pnl_with_oracle_price,
-    calculate_base_asset_value_with_oracle_price,
+    calculate_base_asset_value_with_oracle_price, calculate_perp_liability_value,
 };
 use crate::math::safe_math::SafeMath;
 use crate::math::spot_balance::{
@@ -20,13 +20,13 @@ use crate::math::spot_balance::{
 };
 use crate::math::stats::calculate_rolling_sum;
 use crate::state::oracle::StrictOraclePrice;
-use crate::state::perp_market::PerpMarket;
+use crate::state::perp_market::{ContractType, PerpMarket};
 use crate::state::spot_market::{SpotBalance, SpotBalanceType, SpotMarket};
 use crate::state::traits::Size;
-use crate::validate;
 use crate::{get_then_update_id, QUOTE_PRECISION_U64};
 use crate::{math_error, SPOT_WEIGHT_PRECISION_I128};
 use crate::{safe_increment, SPOT_WEIGHT_PRECISION};
+use crate::{validate, MAX_PREDICTION_MARKET_PRICE};
 use anchor_lang::prelude::*;
 use borsh::{BorshDeserialize, BorshSerialize};
 use solana_program::msg;
@@ -438,9 +438,9 @@ impl User {
         } else {
             // start ts for existing accounts pre fuel
             if now > FUEL_START_TS {
-                return Ok(now.safe_sub(FUEL_START_TS)?);
+                now.safe_sub(FUEL_START_TS)
             } else {
-                return Ok(0);
+                Ok(0)
             }
         }
     }
@@ -999,20 +999,51 @@ impl PerpPosition {
         self.base_asset_amount == 0 && self.quote_asset_amount != 0
     }
 
-    pub fn worst_case_base_asset_amount(&self) -> DriftResult<i128> {
-        let base_asset_amount_all_bids_fill = self.base_asset_amount.safe_add(self.open_bids)?;
-        let base_asset_amount_all_asks_fill = self.base_asset_amount.safe_add(self.open_asks)?;
+    pub fn worst_case_base_asset_amount(
+        &self,
+        oracle_price: i64,
+        contract_type: ContractType,
+    ) -> DriftResult<i128> {
+        self.worst_case_liability_value(oracle_price, contract_type)
+            .map(|v| v.0)
+    }
 
-        if base_asset_amount_all_bids_fill
-            .checked_abs()
-            .ok_or_else(math_error!())?
-            > base_asset_amount_all_asks_fill
-                .checked_abs()
-                .ok_or_else(math_error!())?
-        {
-            base_asset_amount_all_bids_fill.cast()
+    pub fn worst_case_liability_value(
+        &self,
+        oracle_price: i64,
+        contract_type: ContractType,
+    ) -> DriftResult<(i128, u128)> {
+        let base_asset_amount_all_bids_fill = self
+            .base_asset_amount
+            .safe_add(self.open_bids)?
+            .cast::<i128>()?;
+        let base_asset_amount_all_asks_fill = self
+            .base_asset_amount
+            .safe_add(self.open_asks)?
+            .cast::<i128>()?;
+
+        let liability_value_all_bids_fill = calculate_perp_liability_value(
+            base_asset_amount_all_bids_fill,
+            oracle_price,
+            contract_type,
+        )?;
+
+        let liability_value_all_asks_fill = calculate_perp_liability_value(
+            base_asset_amount_all_asks_fill,
+            oracle_price,
+            contract_type,
+        )?;
+
+        if liability_value_all_asks_fill >= liability_value_all_bids_fill {
+            Ok((
+                base_asset_amount_all_asks_fill,
+                liability_value_all_asks_fill,
+            ))
         } else {
-            base_asset_amount_all_asks_fill.cast()
+            Ok((
+                base_asset_amount_all_bids_fill,
+                liability_value_all_bids_fill,
+            ))
         }
     }
 
@@ -1208,6 +1239,7 @@ impl Order {
         fallback_price: Option<u64>,
         slot: u64,
         tick_size: u64,
+        is_prediction_market: bool,
     ) -> DriftResult<Option<u64>> {
         let price = if self.has_auction_price(self.slot, self.auction_duration, slot)? {
             Some(calculate_auction_price(
@@ -1215,6 +1247,7 @@ impl Order {
                 slot,
                 tick_size,
                 valid_oracle_price,
+                is_prediction_market,
             )?)
         } else if self.has_oracle_price_offset() {
             let oracle_price = valid_oracle_price.ok_or_else(|| {
@@ -1222,15 +1255,16 @@ impl Order {
                 ErrorCode::OracleNotFound
             })?;
 
-            let limit_price = oracle_price
+            let mut limit_price = oracle_price
                 .safe_add(self.oracle_price_offset.cast()?)?
-                .max(tick_size.cast()?);
+                .max(tick_size.cast()?)
+                .cast::<u64>()?;
 
-            Some(standardize_price(
-                limit_price.cast::<u64>()?,
-                tick_size,
-                self.direction,
-            )?)
+            if is_prediction_market {
+                limit_price = limit_price.min(MAX_PREDICTION_MARKET_PRICE)
+            }
+
+            Some(standardize_price(limit_price, tick_size, self.direction)?)
         } else if self.price == 0 {
             match fallback_price {
                 Some(price) => Some(standardize_price(price, tick_size, self.direction)?),
@@ -1251,8 +1285,15 @@ impl Order {
         fallback_price: Option<u64>,
         slot: u64,
         tick_size: u64,
+        is_prediction_market: bool,
     ) -> DriftResult<u64> {
-        match self.get_limit_price(valid_oracle_price, fallback_price, slot, tick_size)? {
+        match self.get_limit_price(
+            valid_oracle_price,
+            fallback_price,
+            slot,
+            tick_size,
+            is_prediction_market,
+        )? {
             Some(price) => Ok(price),
             None => {
                 let caller = Location::caller();
@@ -1494,6 +1535,7 @@ impl fmt::Display for MarketType {
 #[account(zero_copy(unsafe))]
 #[derive(Eq, PartialEq, Debug)]
 #[repr(C)]
+#[derive(Default)]
 pub struct UserStats {
     /// The authority for all of a users sub accounts
     pub authority: Pubkey,
@@ -1553,38 +1595,6 @@ pub struct UserStats {
     pub last_fuel_if_bonus_update_ts: u32,
 
     pub padding: [u8; 12],
-}
-
-impl Default for UserStats {
-    fn default() -> Self {
-        UserStats {
-            authority: Pubkey::default(),
-            referrer: Pubkey::default(),
-            fees: UserFees::default(),
-            next_epoch_ts: 0,
-            maker_volume_30d: 0,
-            taker_volume_30d: 0,
-            filler_volume_30d: 0,
-            last_maker_volume_30d_ts: 0,
-            last_taker_volume_30d_ts: 0,
-            last_filler_volume_30d_ts: 0,
-            if_staked_quote_asset_amount: 0,
-            number_of_sub_accounts: 0,
-            number_of_sub_accounts_created: 0,
-            is_referrer: false,
-            disable_update_perp_bid_ask_twap: false,
-            padding1: [0; 2],
-            fuel_insurance: 0,
-            fuel_deposits: 0,
-            fuel_borrows: 0,
-            fuel_taker: 0,
-            fuel_maker: 0,
-            fuel_positions: 0,
-            if_staked_gov_token_amount: 0,
-            last_fuel_if_bonus_update_ts: 0,
-            padding: [0; 12],
-        }
-    }
 }
 
 impl Size for UserStats {

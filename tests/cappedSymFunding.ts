@@ -290,7 +290,7 @@ async function cappedSymFundingScenario(
 	const uA = userAccount.getUserAccount();
 	console.log(
 		'userAccount.getTotalPositionValue():',
-		userAccount.getTotalPerpPositionValue().toString(),
+		userAccount.getTotalPerpPositionLiability().toString(),
 		uA.perpPositions[0].marketIndex,
 		':',
 		uA.perpPositions[0].baseAssetAmount.toString(),
@@ -302,7 +302,7 @@ async function cappedSymFundingScenario(
 
 	console.log(
 		'userAccount2.getTotalPositionValue():',
-		userAccount2.getTotalPerpPositionValue().toString(),
+		userAccount2.getTotalPerpPositionLiability().toString(),
 		uA2.perpPositions[0].marketIndex,
 		':',
 		uA2.perpPositions[0].baseAssetAmount.toString(),
@@ -311,14 +311,14 @@ async function cappedSymFundingScenario(
 	);
 
 	if (longShortSizes[0] != 0) {
-		assert(!userAccount.getTotalPerpPositionValue().eq(new BN(0)));
+		assert(!userAccount.getTotalPerpPositionLiability().eq(new BN(0)));
 	} else {
-		assert(userAccount.getTotalPerpPositionValue().eq(new BN(0)));
+		assert(userAccount.getTotalPerpPositionLiability().eq(new BN(0)));
 	}
 	if (longShortSizes[1] != 0) {
-		assert(!userAccount2.getTotalPerpPositionValue().eq(new BN(0)));
+		assert(!userAccount2.getTotalPerpPositionLiability().eq(new BN(0)));
 	} else {
-		assert(userAccount2.getTotalPerpPositionValue().eq(new BN(0)));
+		assert(userAccount2.getTotalPerpPositionLiability().eq(new BN(0)));
 	}
 
 	await driftClient.fetchAccounts();
@@ -430,13 +430,13 @@ async function cappedSymFundingScenario(
 	await userAccount2.fetchAccounts();
 
 	console.log(
-		userAccount.getTotalPerpPositionValue().toString(),
+		userAccount.getTotalPerpPositionLiability().toString(),
 		',',
-		userAccount2.getTotalPerpPositionValue().toString()
+		userAccount2.getTotalPerpPositionLiability().toString()
 	);
 
-	assert(userAccount.getTotalPerpPositionValue().eq(new BN(0)));
-	assert(userAccount2.getTotalPerpPositionValue().eq(new BN(0)));
+	assert(userAccount.getTotalPerpPositionLiability().eq(new BN(0)));
+	assert(userAccount2.getTotalPerpPositionLiability().eq(new BN(0)));
 
 	return [
 		fundingRateLong,

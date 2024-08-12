@@ -4,10 +4,7 @@ use crate::math::constants::{
     MARGIN_PRECISION_U128, MAX_POSITIVE_UPNL_FOR_INITIAL_MARGIN, PRICE_PRECISION,
     SPOT_IMF_PRECISION_U128, SPOT_WEIGHT_PRECISION, SPOT_WEIGHT_PRECISION_U128,
 };
-use crate::math::position::{
-    calculate_base_asset_value_and_pnl_with_oracle_price,
-    calculate_base_asset_value_with_oracle_price,
-};
+use crate::math::position::calculate_base_asset_value_and_pnl_with_oracle_price;
 
 use crate::{validate, PRICE_PRECISION_I128};
 use crate::{validation, PRICE_PRECISION_I64};
@@ -128,27 +125,23 @@ pub fn calculate_perp_position_value_and_pnl(
 
     let total_unrealized_pnl = unrealized_pnl.safe_add(unrealized_funding.cast()?)?;
 
-    let worst_case_base_asset_amount = market_position.worst_case_base_asset_amount()?;
-
-    let worse_case_base_asset_value = calculate_base_asset_value_with_oracle_price(
-        worst_case_base_asset_amount,
-        valuation_price,
-    )?;
+    let (worst_case_base_asset_amount, worse_case_liability_value) = market_position
+        .worst_case_liability_value(oracle_price_data.price, market.contract_type)?;
 
     // for calculating the perps value, since it's a liability, use the large of twap and quote oracle price
-    let worse_case_base_asset_value = worse_case_base_asset_value
+    let worse_case_liability_value = worse_case_liability_value
         .safe_mul(strict_quote_price.max().cast()?)?
         .safe_div(PRICE_PRECISION)?;
-
-    let margin_ratio = user_custom_margin_ratio.max(market.get_margin_ratio(
-        worst_case_base_asset_amount.unsigned_abs(),
-        margin_requirement_type,
-    )?);
 
     let mut margin_requirement = if market.status == MarketStatus::Settlement {
         0
     } else {
-        worse_case_base_asset_value
+        let margin_ratio = user_custom_margin_ratio.max(market.get_margin_ratio(
+            worst_case_base_asset_amount.unsigned_abs(),
+            margin_requirement_type,
+        )?);
+
+        worse_case_liability_value
             .safe_mul(margin_ratio.cast()?)?
             .safe_div(MARGIN_PRECISION_U128)?
     };
@@ -204,7 +197,7 @@ pub fn calculate_perp_position_value_and_pnl(
     Ok((
         margin_requirement,
         weighted_unrealized_pnl,
-        worse_case_base_asset_value,
+        worse_case_liability_value,
         open_order_margin_requirement,
         base_asset_value,
     ))
@@ -487,7 +480,7 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
         let (
             perp_margin_requirement,
             weighted_pnl,
-            worst_case_base_asset_value,
+            worst_case_liability_value,
             open_order_margin_requirement,
             base_asset_value,
         ) = calculate_perp_position_value_and_pnl(
@@ -502,14 +495,14 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
 
         calculation.update_fuel_perp_bonus(
             market,
-            &market_position,
+            market_position,
             base_asset_value,
             oracle_price_data.price,
         )?;
 
         calculation.add_margin_requirement(
             perp_margin_requirement,
-            worst_case_base_asset_value,
+            worst_case_liability_value,
             MarketIdentifier::perp(market.market_index),
         )?;
 
@@ -520,7 +513,7 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
         calculation.add_total_collateral(weighted_pnl)?;
 
         #[cfg(feature = "drift-rs")]
-        calculation.add_perp_liability_value(worst_case_base_asset_value)?;
+        calculation.add_perp_liability_value(worst_case_liability_value)?;
         #[cfg(feature = "drift-rs")]
         calculation.add_perp_pnl(weighted_pnl)?;
 

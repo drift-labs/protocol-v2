@@ -195,12 +195,15 @@ export function calculateUpdatedAMM(
 export function calculateUpdatedAMMSpreadReserves(
 	amm: AMM,
 	direction: PositionDirection,
-	oraclePriceData: OraclePriceData
+	oraclePriceData: OraclePriceData,
+	isPrediction = false
 ): { baseAssetReserve: BN; quoteAssetReserve: BN; sqrtK: BN; newPeg: BN } {
 	const newAmm = calculateUpdatedAMM(amm, oraclePriceData);
 	const [shortReserves, longReserves] = calculateSpreadReserves(
 		newAmm,
-		oraclePriceData
+		oraclePriceData,
+		undefined,
+		isPrediction
 	);
 
 	const dirReserves = isVariant(direction, 'long')
@@ -220,7 +223,8 @@ export function calculateUpdatedAMMSpreadReserves(
 export function calculateBidAskPrice(
 	amm: AMM,
 	oraclePriceData: OraclePriceData,
-	withUpdate = true
+	withUpdate = true,
+	isPrediction = false
 ): [BN, BN] {
 	let newAmm: AMM;
 	if (withUpdate) {
@@ -231,7 +235,9 @@ export function calculateBidAskPrice(
 
 	const [bidReserves, askReserves] = calculateSpreadReserves(
 		newAmm,
-		oraclePriceData
+		oraclePriceData,
+		undefined,
+		isPrediction
 	);
 
 	const askPrice = calculatePrice(
@@ -845,10 +851,42 @@ export function calculateSpread(
 	return [longSpread, shortSpread];
 }
 
+export function getQuoteAssetReservePredictionMarketBounds(
+	amm: AMM,
+	direction: PositionDirection
+): [BN, BN] {
+	let quoteAssetReserveLowerBound = ZERO;
+
+	const pegSqrt = squareRootBN(
+		amm.pegMultiplier.mul(PEG_PRECISION).addn(1)
+	).addn(1);
+
+	let quoteAssetReserveUpperBound = amm.sqrtK
+		.mul(pegSqrt)
+		.div(amm.pegMultiplier);
+
+	if (direction === PositionDirection.LONG) {
+		quoteAssetReserveLowerBound = this.amm.sqrtK
+			.muln(22361)
+			.mul(pegSqrt)
+			.divn(100000)
+			.div(amm.pegMultiplier);
+	} else {
+		quoteAssetReserveUpperBound = amm.sqrtK
+			.muln(97467)
+			.mul(pegSqrt)
+			.divn(100000)
+			.div(amm.pegMultiplier);
+	}
+
+	return [quoteAssetReserveLowerBound, quoteAssetReserveUpperBound];
+}
+
 export function calculateSpreadReserves(
 	amm: AMM,
 	oraclePriceData: OraclePriceData,
-	now?: BN
+	now?: BN,
+	isPrediction = false
 ) {
 	function calculateSpreadReserve(
 		spread: number,
@@ -884,6 +922,14 @@ export function calculateSpreadReserves(
 			quoteAssetReserve = amm.quoteAssetReserve.sub(
 				quoteAssetReserveDelta.abs()
 			);
+		}
+
+		if (isPrediction) {
+			const [qarLower, qarUpper] = getQuoteAssetReservePredictionMarketBounds(
+				amm,
+				direction
+			);
+			quoteAssetReserve = clampBN(quoteAssetReserve, qarLower, qarUpper);
 		}
 
 		const baseAssetReserve = amm.sqrtK.mul(amm.sqrtK).div(quoteAssetReserve);
@@ -1030,7 +1076,8 @@ export function calculateMaxBaseAssetAmountToTrade(
 	limit_price: BN,
 	direction: PositionDirection,
 	oraclePriceData?: OraclePriceData,
-	now?: BN
+	now?: BN,
+	isPrediction = false
 ): [BN, PositionDirection] {
 	const invariant = amm.sqrtK.mul(amm.sqrtK);
 
@@ -1044,7 +1091,8 @@ export function calculateMaxBaseAssetAmountToTrade(
 	const [shortSpreadReserves, longSpreadReserves] = calculateSpreadReserves(
 		amm,
 		oraclePriceData,
-		now
+		now,
+		isPrediction
 	);
 
 	const baseAssetReserveBefore: BN = isVariant(direction, 'long')
