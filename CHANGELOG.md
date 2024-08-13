@@ -13,6 +13,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixes
 
+### Breaking
+
+## [2.92.0] - 2024-08-12
+
+### Features
+
+- program: init prediction markets ([#1152](https://github.com/drift-labs/protocol-v2/pull/1152))
+
+### Fixes
+
 - program: make updateUserQuoteAssetInsuranceStake permissionless ([#1187](https://github.com/drift-labs/protocol-v2/pull/1187))
 - program: fix openbook v2 oom issue ([#1186](https://github.com/drift-labs/protocol-v2/pull/1186))
 
