@@ -780,6 +780,16 @@ export const MainnetPerpMarkets: PerpMarketConfig[] = [
 		pythFeedId:
 			'0x5169491cd7e2a44c98353b779d5eb612e4ac32e073f5cc534303d86307c2f1bc',
 	},
+	{
+		fullName: 'TRUMP-WIN-2024-BET',
+		category: ['Prediction', 'Election'],
+		symbol: 'TRUMP-WIN-2024-BET',
+		baseAssetSymbol: 'TRUMP-WIN-2024',
+		marketIndex: 36,
+		oracle: new PublicKey('7YrQUxmxGdbk8pvns9KcL5ojbZSL2eHj62hxRqggtEUR'),
+		launchTs: 1723996800000,
+		oracleSource: OracleSource.Prelaunch,
+	},
 ];
 
 export const PerpMarkets: { [key in DriftEnv]: PerpMarketConfig[] } = {
