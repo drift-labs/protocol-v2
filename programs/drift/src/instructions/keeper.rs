@@ -2053,6 +2053,7 @@ pub struct UpdatePerpBidAskTwap<'info> {
 pub struct UpdateUserQuoteAssetInsuranceStake<'info> {
     pub state: Box<Account<'info, State>>,
     #[account(
+        mut,
         seeds = [b"spot_market", 0_u16.to_le_bytes().as_ref()],
         bump
     )]
@@ -2077,6 +2078,7 @@ pub struct UpdateUserQuoteAssetInsuranceStake<'info> {
 pub struct UpdateUserGovTokenInsuranceStake<'info> {
     pub state: Box<Account<'info, State>>,
     #[account(
+        mut,
         seeds = [b"spot_market", 15_u16.to_le_bytes().as_ref()],
         bump
     )]
