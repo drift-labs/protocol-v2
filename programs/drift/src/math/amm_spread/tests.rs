@@ -379,7 +379,7 @@ mod test {
         };
 
         let mut market = PerpMarket {
-            amm: amm,
+            amm,
             ..PerpMarket::default()
         };
 
@@ -1533,7 +1533,7 @@ mod test {
         };
 
         let market = PerpMarket {
-            amm: amm,
+            amm,
             contract_type: ContractType::Prediction,
             ..PerpMarket::default()
         };
@@ -1582,7 +1582,7 @@ mod test {
         };
 
         let market = PerpMarket {
-            amm: amm,
+            amm,
             contract_type: ContractType::Prediction,
             ..PerpMarket::default()
         };

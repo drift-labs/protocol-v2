@@ -6,7 +6,7 @@ use crate::controller::position::{
     update_lp_market_position, update_position_and_market, PositionDelta,
 };
 use crate::controller::repeg::_update_amm;
-use crate::controller::repeg::apply_cost_to_market;
+
 use crate::math::amm::calculate_market_open_bids_asks;
 use crate::math::constants::{
     AMM_RESERVE_PRECISION, AMM_RESERVE_PRECISION_I128, BASE_PRECISION, BASE_PRECISION_I64,
@@ -93,7 +93,7 @@ fn amm_pred_market_example() {
 
     assert_eq!(perp_market.amm.sqrt_k, 56_649_660_613_272);
 
-    let (optimal_peg, fee_budget, check_lower_bound) =
+    let (optimal_peg, fee_budget, _check_lower_bound) =
         repeg::calculate_optimal_peg_and_budget(&perp_market, &oracle_price_data).unwrap();
 
     assert_eq!(perp_market.amm.terminal_quote_asset_reserve, 56405211622548);

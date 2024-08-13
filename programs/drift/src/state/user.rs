@@ -438,9 +438,9 @@ impl User {
         } else {
             // start ts for existing accounts pre fuel
             if now > FUEL_START_TS {
-                return Ok(now.safe_sub(FUEL_START_TS)?);
+                now.safe_sub(FUEL_START_TS)
             } else {
-                return Ok(0);
+                Ok(0)
             }
         }
     }
@@ -1035,15 +1035,15 @@ impl PerpPosition {
         )?;
 
         if liability_value_all_asks_fill >= liability_value_all_bids_fill {
-            return Ok((
+            Ok((
                 base_asset_amount_all_asks_fill,
                 liability_value_all_asks_fill,
-            ));
+            ))
         } else {
-            return Ok((
+            Ok((
                 base_asset_amount_all_bids_fill,
                 liability_value_all_bids_fill,
-            ));
+            ))
         }
     }
 
@@ -1535,6 +1535,7 @@ impl fmt::Display for MarketType {
 #[account(zero_copy(unsafe))]
 #[derive(Eq, PartialEq, Debug)]
 #[repr(C)]
+#[derive(Default)]
 pub struct UserStats {
     /// The authority for all of a users sub accounts
     pub authority: Pubkey,
@@ -1594,38 +1595,6 @@ pub struct UserStats {
     pub last_fuel_if_bonus_update_ts: u32,
 
     pub padding: [u8; 12],
-}
-
-impl Default for UserStats {
-    fn default() -> Self {
-        UserStats {
-            authority: Pubkey::default(),
-            referrer: Pubkey::default(),
-            fees: UserFees::default(),
-            next_epoch_ts: 0,
-            maker_volume_30d: 0,
-            taker_volume_30d: 0,
-            filler_volume_30d: 0,
-            last_maker_volume_30d_ts: 0,
-            last_taker_volume_30d_ts: 0,
-            last_filler_volume_30d_ts: 0,
-            if_staked_quote_asset_amount: 0,
-            number_of_sub_accounts: 0,
-            number_of_sub_accounts_created: 0,
-            is_referrer: false,
-            disable_update_perp_bid_ask_twap: false,
-            padding1: [0; 2],
-            fuel_insurance: 0,
-            fuel_deposits: 0,
-            fuel_borrows: 0,
-            fuel_taker: 0,
-            fuel_maker: 0,
-            fuel_positions: 0,
-            if_staked_gov_token_amount: 0,
-            last_fuel_if_bonus_update_ts: 0,
-            padding: [0; 12],
-        }
-    }
 }
 
 impl Size for UserStats {
