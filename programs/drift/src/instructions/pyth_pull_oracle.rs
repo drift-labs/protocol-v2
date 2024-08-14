@@ -102,7 +102,20 @@ pub fn handle_post_pyth_pull_oracle_update_atomic(
                 ErrorCode::OraclePriceFeedMessageMismatch
             )?;
         }
+
+        msg!(
+            "Posting new update. current ts {} < next ts {}",
+            current_timestamp,
+            next_timestamp
+        );
+    } else {
+        msg!(
+            "Skipping new update. current ts {} >= next ts {}",
+            current_timestamp,
+            next_timestamp
+        );
     }
+
     Ok(())
 }
 
@@ -168,6 +181,18 @@ pub fn handle_post_multi_pyth_pull_oracle_updates_atomic<'c: 'info, 'info>(
                     vaa: vaa.clone(),
                 },
             )?;
+
+            msg!(
+                "Posting new update. current ts {} < next ts {}",
+                current_timestamp,
+                next_timestamp
+            );
+        } else {
+            msg!(
+                "Skipping new update. current ts {} >= next ts {}",
+                current_timestamp,
+                next_timestamp
+            );
         }
     }
 
