@@ -4,7 +4,7 @@
 # is released on GitHub.
 #
 
-FROM ubuntu:22.04
+FROM rust:1.75
 
 ARG DEBIAN_FRONTEND=noninteractive
 
