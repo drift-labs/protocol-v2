@@ -234,7 +234,16 @@ pub struct PerpMarket {
     /// E.g. if this is -50 and the fee is 5bps, the new fee will be 2.5bps
     /// if this is 50 and the fee is 5bps, the new fee will be 7.5bps
     pub fee_adjustment: i16,
-    pub padding: [u8; 46],
+    /// fuel multiplier for perp funding
+    /// precision: 10
+    pub fuel_boost_position: u8,
+    /// fuel multiplier for perp taker
+    /// precision: 10
+    pub fuel_boost_taker: u8,
+    /// fuel multiplier for perp maker
+    /// precision: 10
+    pub fuel_boost_maker: u8,
+    pub padding: [u8; 43],
 }
 
 impl Default for PerpMarket {
@@ -268,7 +277,10 @@ impl Default for PerpMarket {
             paused_operations: 0,
             quote_spot_market_index: 0,
             fee_adjustment: 0,
-            padding: [0; 46],
+            fuel_boost_position: 0,
+            fuel_boost_taker: 0,
+            fuel_boost_maker: 0,
+            padding: [0; 43],
         }
     }
 }
@@ -514,6 +526,11 @@ impl PerpMarket {
                 .amm
                 .base_asset_amount_with_unsettled_lp
                 .safe_add(new_settled_base_asset_amount.cast()?)?;
+
+            self.amm.quote_asset_amount_with_unsettled_lp = self
+                .amm
+                .quote_asset_amount_with_unsettled_lp
+                .safe_add(delta.quote_asset_amount.cast()?)?;
         }
 
         Ok(())
@@ -575,6 +592,59 @@ impl PerpMarket {
 
         Ok(true)
     }
+
+    pub fn can_sanitize_market_order_auctions(&self) -> bool {
+        self.amm.oracle_source != OracleSource::Prelaunch
+    }
+
+    // pub fn get_quote_asset_reserve_prediction_market_bounds(
+    //     &self,
+    //     direction: PositionDirection,
+    // ) -> DriftResult<(u128, u128)> {
+    //     let mut quote_asset_reserve_lower_bound = 0_u128;
+
+    //     //precision scaling: 1e6 -> 1e12 -> 1e6
+    //     let peg_sqrt = (self
+    //         .amm
+    //         .peg_multiplier
+    //         .safe_mul(PEG_PRECISION)?
+    //         .saturating_add(1))
+    //     .nth_root(2)
+    //     .saturating_add(1);
+
+    //     // $1 limit
+    //     let mut quote_asset_reserve_upper_bound = self
+    //         .amm
+    //         .sqrt_k
+    //         .safe_mul(peg_sqrt)?
+    //         .safe_div(self.amm.peg_multiplier)?;
+
+    //     // for price [0,1] maintain following invariants:
+    //     if direction == PositionDirection::Long {
+    //         // lowest ask price is $0.05
+    //         quote_asset_reserve_lower_bound = self
+    //             .amm
+    //             .sqrt_k
+    //             .safe_mul(22361)?
+    //             .safe_mul(peg_sqrt)?
+    //             .safe_div(100000)?
+    //             .safe_div(self.amm.peg_multiplier)?
+    //     } else {
+    //         // highest bid price is $0.95
+    //         quote_asset_reserve_upper_bound = self
+    //             .amm
+    //             .sqrt_k
+    //             .safe_mul(97467)?
+    //             .safe_mul(peg_sqrt)?
+    //             .safe_div(100000)?
+    //             .safe_div(self.amm.peg_multiplier)?
+    //     }
+
+    //     Ok((
+    //         quote_asset_reserve_lower_bound,
+    //         quote_asset_reserve_upper_bound,
+    //     ))
+    // }
 }
 
 #[cfg(test)]
