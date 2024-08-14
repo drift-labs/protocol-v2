@@ -1,7 +1,4 @@
-use anchor_lang::prelude::{
-    borsh::{BorshDeserialize, BorshSerialize},
-    msg, Pubkey, account, zero_copy, AccountInfo
-};
+use anchor_lang::prelude::*;
 
 use std::cmp::max;
 
@@ -16,12 +13,11 @@ use crate::math::constants::{
 use crate::math::constants::{
     AMM_RESERVE_PRECISION_I128, AMM_TO_QUOTE_PRECISION_RATIO, BID_ASK_SPREAD_PRECISION,
     BID_ASK_SPREAD_PRECISION_U128, DEFAULT_REVENUE_SINCE_LAST_FUNDING_SPREAD_RETREAT,
-    LP_FEE_SLICE_DENOMINATOR, LP_FEE_SLICE_NUMERATOR, MARGIN_PRECISION_U128, PERCENTAGE_PRECISION,
-    PERCENTAGE_PRECISION_I128, PERCENTAGE_PRECISION_I64, PERCENTAGE_PRECISION_U64, PRICE_PRECISION,
-    SPOT_WEIGHT_PRECISION, TWENTY_FOUR_HOUR,
+    LP_FEE_SLICE_DENOMINATOR, LP_FEE_SLICE_NUMERATOR, MARGIN_PRECISION_U128, PEG_PRECISION,
+    PERCENTAGE_PRECISION, PERCENTAGE_PRECISION_I128, PERCENTAGE_PRECISION_I64,
+    PERCENTAGE_PRECISION_U64, PRICE_PRECISION, SPOT_WEIGHT_PRECISION, TWENTY_FOUR_HOUR,
 };
 use crate::math::helpers::get_proportion_i128;
-
 use crate::math::margin::{
     calculate_size_discount_asset_weight, calculate_size_premium_liability_weight,
     MarginRequirementType,
@@ -29,12 +25,15 @@ use crate::math::margin::{
 use crate::math::safe_math::SafeMath;
 use crate::math::stats;
 use crate::state::events::OrderActionExplanation;
+use num_integer::Roots;
 
 use crate::state::oracle::{
-    get_prelaunch_price, get_switchboard_price, HistoricalOracleData, OracleSource,
+    get_prelaunch_price, get_switchboard_price, HistoricalOracleData,
+    OracleSource,
 };
 use crate::state::spot_market::{AssetTier, SpotBalance, SpotBalanceType};
 use crate::state::traits::{MarketIndexOffset, Size};
+use borsh::{BorshDeserialize, BorshSerialize};
 
 use crate::state::paused_operations::PerpOperation;
 use drift_macros::assert_no_slop;
@@ -43,9 +42,10 @@ use static_assertions::const_assert_eq;
 #[cfg(test)]
 mod tests;
 
-#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Debug, Eq)]
+#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Debug, Eq, Default)]
 pub enum MarketStatus {
     /// warm up period for initialization, fills are paused
+    #[default]
     Initialized,
     /// all operations allowed
     Active,
@@ -65,12 +65,6 @@ pub enum MarketStatus {
     Delisted,
 }
 
-impl Default for MarketStatus {
-    fn default() -> Self {
-        MarketStatus::Initialized
-    }
-}
-
 impl MarketStatus {
     pub fn validate_not_deprecated(&self) -> DriftResult {
         if matches!(
@@ -88,19 +82,17 @@ impl MarketStatus {
     }
 }
 
-#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Debug, Eq)]
+#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Debug, Eq, Default)]
 pub enum ContractType {
+    #[default]
     Perpetual,
     Future,
+    Prediction,
 }
 
-impl Default for ContractType {
-    fn default() -> Self {
-        ContractType::Perpetual
-    }
-}
-
-#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Debug, Eq, PartialOrd, Ord)]
+#[derive(
+    Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Debug, Eq, PartialOrd, Ord, Default,
+)]
 pub enum ContractTier {
     /// max insurance capped at A level
     A,
@@ -111,16 +103,13 @@ pub enum ContractTier {
     /// no insurance
     Speculative,
     /// no insurance, another tranches below
+    #[default]
     HighlySpeculative,
     /// no insurance, only single position allowed
     Isolated,
 }
 
 impl ContractTier {
-    pub fn default() -> Self {
-        ContractTier::Speculative
-    }
-
     pub fn is_as_safe_as(&self, best_contract: &ContractTier, best_asset: &AssetTier) -> bool {
         self.is_as_safe_as_contract(best_contract) && self.is_as_safe_as_asset(best_asset)
     }
@@ -597,54 +586,58 @@ impl PerpMarket {
         self.amm.oracle_source != OracleSource::Prelaunch
     }
 
-    // pub fn get_quote_asset_reserve_prediction_market_bounds(
-    //     &self,
-    //     direction: PositionDirection,
-    // ) -> DriftResult<(u128, u128)> {
-    //     let mut quote_asset_reserve_lower_bound = 0_u128;
+    pub fn is_prediction_market(&self) -> bool {
+        self.contract_type == ContractType::Prediction
+    }
 
-    //     //precision scaling: 1e6 -> 1e12 -> 1e6
-    //     let peg_sqrt = (self
-    //         .amm
-    //         .peg_multiplier
-    //         .safe_mul(PEG_PRECISION)?
-    //         .saturating_add(1))
-    //     .nth_root(2)
-    //     .saturating_add(1);
+    pub fn get_quote_asset_reserve_prediction_market_bounds(
+        &self,
+        direction: PositionDirection,
+    ) -> DriftResult<(u128, u128)> {
+        let mut quote_asset_reserve_lower_bound = 0_u128;
 
-    //     // $1 limit
-    //     let mut quote_asset_reserve_upper_bound = self
-    //         .amm
-    //         .sqrt_k
-    //         .safe_mul(peg_sqrt)?
-    //         .safe_div(self.amm.peg_multiplier)?;
+        //precision scaling: 1e6 -> 1e12 -> 1e6
+        let peg_sqrt = (self
+            .amm
+            .peg_multiplier
+            .safe_mul(PEG_PRECISION)?
+            .saturating_add(1))
+        .nth_root(2)
+        .saturating_add(1);
 
-    //     // for price [0,1] maintain following invariants:
-    //     if direction == PositionDirection::Long {
-    //         // lowest ask price is $0.05
-    //         quote_asset_reserve_lower_bound = self
-    //             .amm
-    //             .sqrt_k
-    //             .safe_mul(22361)?
-    //             .safe_mul(peg_sqrt)?
-    //             .safe_div(100000)?
-    //             .safe_div(self.amm.peg_multiplier)?
-    //     } else {
-    //         // highest bid price is $0.95
-    //         quote_asset_reserve_upper_bound = self
-    //             .amm
-    //             .sqrt_k
-    //             .safe_mul(97467)?
-    //             .safe_mul(peg_sqrt)?
-    //             .safe_div(100000)?
-    //             .safe_div(self.amm.peg_multiplier)?
-    //     }
+        // $1 limit
+        let mut quote_asset_reserve_upper_bound = self
+            .amm
+            .sqrt_k
+            .safe_mul(peg_sqrt)?
+            .safe_div(self.amm.peg_multiplier)?;
 
-    //     Ok((
-    //         quote_asset_reserve_lower_bound,
-    //         quote_asset_reserve_upper_bound,
-    //     ))
-    // }
+        // for price [0,1] maintain following invariants:
+        if direction == PositionDirection::Long {
+            // lowest ask price is $0.05
+            quote_asset_reserve_lower_bound = self
+                .amm
+                .sqrt_k
+                .safe_mul(22361)?
+                .safe_mul(peg_sqrt)?
+                .safe_div(100000)?
+                .safe_div(self.amm.peg_multiplier)?
+        } else {
+            // highest bid price is $0.95
+            quote_asset_reserve_upper_bound = self
+                .amm
+                .sqrt_k
+                .safe_mul(97467)?
+                .safe_mul(peg_sqrt)?
+                .safe_div(100000)?
+                .safe_div(self.amm.peg_multiplier)?
+        }
+
+        Ok((
+            quote_asset_reserve_lower_bound,
+            quote_asset_reserve_upper_bound,
+        ))
+    }
 }
 
 #[cfg(test)]
@@ -678,16 +671,16 @@ pub struct InsuranceClaim {
     /// The amount of revenue last settled
     /// Positive if funds left the perp market,
     /// negative if funds were pulled into the perp market
-    /// precision: QUOTE_PRECISION  
+    /// precision: QUOTE_PRECISION
     pub revenue_withdraw_since_last_settle: i64,
     /// The max amount of revenue that can be withdrawn per period
-    /// precision: QUOTE_PRECISION  
+    /// precision: QUOTE_PRECISION
     pub max_revenue_withdraw_per_period: u64,
     /// The max amount of insurance that perp market can use to resolve bankruptcy and pnl deficits
-    /// precision: QUOTE_PRECISION  
+    /// precision: QUOTE_PRECISION
     pub quote_max_insurance: u64,
     /// The amount of insurance that has been used to resolve bankruptcy and pnl deficits
-    /// precision: QUOTE_PRECISION  
+    /// precision: QUOTE_PRECISION
     pub quote_settled_insurance: u64,
     /// The last time revenue was settled in/out of market
     pub last_revenue_withdraw_ts: i64,
@@ -933,7 +926,7 @@ pub struct AMM {
     /// the update intensity of AMM formulaic updates (adjusting k). 0-100
     pub curve_update_intensity: u8,
     /// the jit intensity of AMM. larger intensity means larger participation in jit. 0 means no jit participation.
-    /// (0, 100] is intensity for protocol-owned AMM. (100, 200] is intensity for user LP-owned AMM.  
+    /// (0, 100] is intensity for protocol-owned AMM. (100, 200] is intensity for user LP-owned AMM.
     pub amm_jit_intensity: u8,
     /// the oracle provider information. used to decode/scale the oracle public key
     pub oracle_source: OracleSource,
@@ -1348,55 +1341,87 @@ impl AMM {
         Ok(can_lower)
     }
 
-    pub fn get_oracle_twap(
-        &self,
-        price_oracle: &AccountInfo,
-        slot: u64,
-    ) -> DriftResult<Option<i64>> {
-        match self.oracle_source {
-            OracleSource::Pyth | OracleSource::PythStableCoin => {
-                Ok(Some(self.get_pyth_twap(price_oracle, 1)?))
-            }
-            OracleSource::Pyth1K => Ok(Some(self.get_pyth_twap(price_oracle, 1000)?)),
-            OracleSource::Pyth1M => Ok(Some(self.get_pyth_twap(price_oracle, 1000000)?)),
-            OracleSource::Switchboard => Ok(Some(get_switchboard_price(price_oracle, slot)?.price)),
-            OracleSource::QuoteAsset => {
-                msg!("Can't get oracle twap for quote asset");
-                Err(ErrorCode::DefaultError)
-            }
-            OracleSource::Prelaunch => Ok(Some(get_prelaunch_price(price_oracle, slot)?.price)),
-        }
-    }
+    // pub fn get_oracle_twap(
+    //     &self,
+    //     price_oracle: &AccountInfo,
+    //     slot: u64,
+    // ) -> DriftResult<Option<i64>> {
+    //     match self.oracle_source {
+    //         OracleSource::Pyth | OracleSource::PythStableCoin => {
+    //             Ok(Some(self.get_pyth_twap(price_oracle, 1, false)?))
+    //         }
+    //         OracleSource::Pyth1K => Ok(Some(self.get_pyth_twap(price_oracle, 1000, false)?)),
+    //         OracleSource::Pyth1M => Ok(Some(self.get_pyth_twap(price_oracle, 1000000, false)?)),
+    //         OracleSource::Switchboard => Ok(Some(get_switchboard_price(price_oracle, slot)?.price)),
+    //         OracleSource::SwitchboardOnDemand => {
+    //             Ok(Some(get_sb_on_demand_price(price_oracle, slot)?.price))
+    //         }
+    //         OracleSource::QuoteAsset => {
+    //             msg!("Can't get oracle twap for quote asset");
+    //             Err(ErrorCode::DefaultError)
+    //         }
+    //         OracleSource::Prelaunch => Ok(Some(get_prelaunch_price(price_oracle, slot)?.price)),
+    //         OracleSource::PythPull | OracleSource::PythStableCoinPull => {
+    //             Ok(Some(self.get_pyth_twap(price_oracle, 1, true)?))
+    //         }
+    //         OracleSource::Pyth1KPull => Ok(Some(self.get_pyth_twap(price_oracle, 1000, true)?)),
+    //         OracleSource::Pyth1MPull => {
+    //             Ok(Some(self.get_pyth_twap(price_oracle, 1000000, true)?))
+    //         }
+    //     }
+    // }
 
-    pub fn get_pyth_twap(&self, price_oracle: &AccountInfo, multiple: u128) -> DriftResult<i64> {
-        let pyth_price_data = price_oracle
-            .try_borrow_data()
-            .or(Err(ErrorCode::UnableToLoadOracle))?;
-        let price_data = pyth_client::cast::<pyth_client::Price>(&pyth_price_data);
+    // pub fn get_pyth_twap(
+    //     &self,
+    //     price_oracle: &AccountInfo,
+    //     multiple: u128,
+    //     is_pull_oracle: bool,
+    // ) -> DriftResult<i64> {
+    //     let mut pyth_price_data: &[u8] = &price_oracle
+    //         .try_borrow_data()
+    //         .or(Err(ErrorCode::UnableToLoadOracle))?;
 
-        let oracle_twap = price_data.twap.val;
+    //     let oracle_price: i64;
+    //     let oracle_twap: i64;
+    //     let oracle_exponent: i32;
 
-        assert!(oracle_twap > price_data.agg.price / 10);
+    //     if is_pull_oracle {
+    //         let price_message =
+    //             pyth_solana_receiver_sdk::price_update::PriceUpdateV2::try_deserialize(
+    //                 &mut pyth_price_data,
+    //             )
+    //             .or(Err(crate::error::ErrorCode::UnableToLoadOracle))?;
+    //         oracle_price = price_message.price_message.price;
+    //         oracle_twap = price_message.price_message.ema_price;
+    //         oracle_exponent = price_message.price_message.exponent;
+    //     } else {
+    //         let price_data = pyth_client::cast::<pyth_client::Price>(pyth_price_data);
+    //         oracle_price = price_data.agg.price;
+    //         oracle_twap = price_data.twap.val;
+    //         oracle_exponent = price_data.expo;
+    //     }
 
-        let oracle_precision = 10_u128
-            .pow(price_data.expo.unsigned_abs())
-            .safe_div(multiple)?;
+    //     assert!(oracle_twap > oracle_price / 10);
 
-        let mut oracle_scale_mult = 1;
-        let mut oracle_scale_div = 1;
+    //     let oracle_precision = 10_u128
+    //         .pow(oracle_exponent.unsigned_abs())
+    //         .safe_div(multiple)?;
 
-        if oracle_precision > PRICE_PRECISION {
-            oracle_scale_div = oracle_precision.safe_div(PRICE_PRECISION)?;
-        } else {
-            oracle_scale_mult = PRICE_PRECISION.safe_div(oracle_precision)?;
-        }
+    //     let mut oracle_scale_mult = 1;
+    //     let mut oracle_scale_div = 1;
 
-        oracle_twap
-            .cast::<i128>()?
-            .safe_mul(oracle_scale_mult.cast()?)?
-            .safe_div(oracle_scale_div.cast()?)?
-            .cast::<i64>()
-    }
+    //     if oracle_precision > PRICE_PRECISION {
+    //         oracle_scale_div = oracle_precision.safe_div(PRICE_PRECISION)?;
+    //     } else {
+    //         oracle_scale_mult = PRICE_PRECISION.safe_div(oracle_precision)?;
+    //     }
+
+    //     oracle_twap
+    //         .cast::<i128>()?
+    //         .safe_mul(oracle_scale_mult.cast()?)?
+    //         .safe_div(oracle_scale_div.cast()?)?
+    //         .cast::<i64>()
+    // }
 
     pub fn update_volume_24h(
         &mut self,

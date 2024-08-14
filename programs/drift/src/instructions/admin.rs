@@ -568,7 +568,8 @@ pub fn handle_initialize_perp_market(
                 delay: oracle_delay,
                 ..
             } = get_pyth_price(&ctx.accounts.oracle, clock_slot, 1)?;
-            let last_oracle_price_twap = perp_market.amm.get_pyth_twap(&ctx.accounts.oracle, 1)?;
+            // let last_oracle_price_twap = perp_market.amm.get_pyth_twap(&ctx.accounts.oracle, 1)?;
+            let last_oracle_price_twap = 0;
             (oracle_price, oracle_delay, last_oracle_price_twap)
         }
         OracleSource::Pyth1K => {
@@ -577,8 +578,7 @@ pub fn handle_initialize_perp_market(
                 delay: oracle_delay,
                 ..
             } = get_pyth_price(&ctx.accounts.oracle, clock_slot, 1000)?;
-            let last_oracle_price_twap =
-                perp_market.amm.get_pyth_twap(&ctx.accounts.oracle, 1000)?;
+            let last_oracle_price_twap = 0;
             (oracle_price, oracle_delay, last_oracle_price_twap)
         }
         OracleSource::Pyth1M => {
@@ -587,9 +587,10 @@ pub fn handle_initialize_perp_market(
                 delay: oracle_delay,
                 ..
             } = get_pyth_price(&ctx.accounts.oracle, clock_slot, 1000000)?;
-            let last_oracle_price_twap = perp_market
-                .amm
-                .get_pyth_twap(&ctx.accounts.oracle, 1000000)?;
+            // let last_oracle_price_twap = perp_market
+            //     .amm
+            //     .get_pyth_twap(&ctx.accounts.oracle, 1000000)?;
+            let last_oracle_price_twap = 0;
             (oracle_price, oracle_delay, last_oracle_price_twap)
         }
         OracleSource::PythStableCoin => {
@@ -1222,7 +1223,8 @@ pub fn handle_update_amm_oracle_twap(ctx: Context<RepegCurve>) -> Result<()> {
 
     let perp_market = &mut load_mut!(ctx.accounts.perp_market)?;
     let price_oracle = &ctx.accounts.oracle;
-    let oracle_twap = perp_market.amm.get_oracle_twap(price_oracle, clock.slot)?;
+    // let oracle_twap = perp_market.amm.get_oracle_twap(price_oracle, clock.slot)?;
+    let oracle_twap = Some(0);
 
     if let Some(oracle_twap) = oracle_twap {
         let oracle_mark_gap_before = perp_market
