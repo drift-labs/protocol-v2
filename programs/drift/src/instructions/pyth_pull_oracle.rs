@@ -90,11 +90,6 @@ pub fn handle_post_pyth_pull_oracle_update_atomic(
         get_timestamp_from_price_update_message(&params.merkle_price_update.message)?;
 
     if next_timestamp > current_timestamp {
-        msg!(
-            "Posting new update. current ts {} < next ts {}",
-            current_timestamp,
-            next_timestamp
-        );
         pyth_solana_receiver_sdk::cpi::post_update_atomic(cpi_context, params)?;
 
         {
@@ -107,6 +102,12 @@ pub fn handle_post_pyth_pull_oracle_update_atomic(
                 ErrorCode::OraclePriceFeedMessageMismatch
             )?;
         }
+
+        msg!(
+            "Posting new update. current ts {} < next ts {}",
+            current_timestamp,
+            next_timestamp
+        );
     } else {
         msg!(
             "Skipping new update. current ts {} >= next ts {}",
@@ -173,11 +174,6 @@ pub fn handle_post_multi_pyth_pull_oracle_updates_atomic<'c: 'info, 'info>(
         drop(price_feed_account_data);
 
         if next_timestamp > current_timestamp {
-            msg!(
-                "Posting new update. current ts {} < next ts {}",
-                current_timestamp,
-                next_timestamp
-            );
             pyth_solana_receiver_sdk::cpi::post_update_atomic(
                 cpi_context,
                 PostUpdateAtomicParams {
@@ -185,6 +181,12 @@ pub fn handle_post_multi_pyth_pull_oracle_updates_atomic<'c: 'info, 'info>(
                     vaa: vaa.clone(),
                 },
             )?;
+
+            msg!(
+                "Posting new update. current ts {} < next ts {}",
+                current_timestamp,
+                next_timestamp
+            );
         } else {
             msg!(
                 "Skipping new update. current ts {} >= next ts {}",
