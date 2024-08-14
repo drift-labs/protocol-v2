@@ -166,6 +166,7 @@ pub fn calculate_accumulated_interest(
     })
 }
 
+#[inline(always)]
 pub fn calculate_borrow_rate(spot_market: &SpotMarket, utilization: u128) -> DriftResult<u128> {
     let borrow_rate = if utilization > spot_market.optimal_utilization.cast()? {
         let surplus_utilization = utilization.safe_sub(spot_market.optimal_utilization.cast()?)?;
