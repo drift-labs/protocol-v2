@@ -171,8 +171,12 @@ pub fn _update_amm(
             let (optimal_peg, fee_budget, check_lower_bound) =
                 repeg::calculate_optimal_peg_and_budget(market, oracle_price_data)?;
 
-            let (repegged_market, repegged_cost) =
-                repeg::adjust_amm(market, optimal_peg, fee_budget, true)?;
+            let (repegged_market, repegged_cost) = repeg::adjust_amm(
+                market,
+                optimal_peg,
+                fee_budget,
+                curve_update_intensity >= 100,
+            )?;
 
             let cost_applied = apply_cost_to_market(market, repegged_cost, check_lower_bound)?;
             if cost_applied {
@@ -216,7 +220,7 @@ pub fn _update_amm(
         market.amm.last_oracle_valid = false;
     }
 
-    update_spreads(&mut market.amm, reserve_price_after)?;
+    update_spreads(market, reserve_price_after)?;
 
     Ok(amm_update_cost)
 }

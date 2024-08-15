@@ -1355,7 +1355,7 @@ describe('orders', () => {
 		const newMarkPrice1 = calculateReservePrice(newMarket1); // 0 liquidity at current mark price
 
 		const userTC = driftClientUser.getTotalCollateral();
-		const userTPV = driftClientUser.getTotalPerpPositionValue();
+		const userTPV = driftClientUser.getTotalPerpPositionLiability();
 
 		const userLeverage = driftClientUser.getLeverage();
 		const postPosition = driftClientUser.getPerpPosition(marketIndex);

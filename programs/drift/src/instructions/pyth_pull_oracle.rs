@@ -102,7 +102,20 @@ pub fn handle_post_pyth_pull_oracle_update_atomic(
                 ErrorCode::OraclePriceFeedMessageMismatch
             )?;
         }
+
+        msg!(
+            "Posting new update. current ts {} < next ts {}",
+            current_timestamp,
+            next_timestamp
+        );
+    } else {
+        msg!(
+            "Skipping new update. current ts {} >= next ts {}",
+            current_timestamp,
+            next_timestamp
+        );
     }
+
     Ok(())
 }
 
@@ -159,7 +172,6 @@ pub fn handle_post_multi_pyth_pull_oracle_updates_atomic<'c: 'info, 'info>(
         let next_timestamp = get_timestamp_from_price_update_message(&merkle_price_update.message)?;
 
         drop(price_feed_account_data);
-        drop(price_feed_account);
 
         if next_timestamp > current_timestamp {
             pyth_solana_receiver_sdk::cpi::post_update_atomic(
@@ -169,6 +181,18 @@ pub fn handle_post_multi_pyth_pull_oracle_updates_atomic<'c: 'info, 'info>(
                     vaa: vaa.clone(),
                 },
             )?;
+
+            msg!(
+                "Posting new update. current ts {} < next ts {}",
+                current_timestamp,
+                next_timestamp
+            );
+        } else {
+            msg!(
+                "Skipping new update. current ts {} >= next ts {}",
+                current_timestamp,
+                next_timestamp
+            );
         }
     }
 

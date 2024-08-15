@@ -1,5 +1,5 @@
 {
-  "version": "2.91.0",
+  "version": "2.92.0",
   "name": "drift",
   "instructions": [
     {
@@ -2289,7 +2289,7 @@
           "isSigner": false
         },
         {
-          "name": "authority",
+          "name": "signer",
           "isMut": false,
           "isSigner": true
         },
@@ -2325,7 +2325,7 @@
           "isSigner": false
         },
         {
-          "name": "authority",
+          "name": "signer",
           "isMut": false,
           "isSigner": true
         },
@@ -3418,6 +3418,27 @@
           }
         }
       ]
+    },
+    {
+      "name": "initializePredictionMarket",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "perpMarket",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": []
     },
     {
       "name": "deleteInitializedPerpMarket",
@@ -12922,6 +12943,11 @@
       "code": 6283,
       "name": "LiquidationOrderFailedToFill",
       "msg": "Liquidation order failed to fill"
+    },
+    {
+      "code": 6284,
+      "name": "InvalidPredictionMarketOrder",
+      "msg": "Invalid prediction market order"
     }
   ],
   "metadata": {

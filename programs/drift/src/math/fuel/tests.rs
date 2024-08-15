@@ -5,8 +5,10 @@ mod calculate_perp_fuel_bonus {
 
     #[test]
     fn test() {
-        let mut perp_market = PerpMarket::default();
-        perp_market.fuel_boost_position = 1;
+        let mut perp_market = PerpMarket {
+            fuel_boost_position: 1,
+            ..PerpMarket::default()
+        };
         let bonus =
             calculate_perp_fuel_bonus(&perp_market, QUOTE_PRECISION_I128, FUEL_WINDOW_U128 as i64)
                 .unwrap();
@@ -22,8 +24,10 @@ mod calculate_spot_fuel_bonus {
 
     #[test]
     fn test() {
-        let mut spot_market = SpotMarket::default();
-        spot_market.fuel_boost_deposits = 1;
+        let mut spot_market = SpotMarket {
+            fuel_boost_deposits: 1,
+            ..SpotMarket::default()
+        };
         let bonus =
             calculate_spot_fuel_bonus(&spot_market, QUOTE_PRECISION_I128, FUEL_WINDOW_U128 as i64)
                 .unwrap();
@@ -46,8 +50,10 @@ mod calculate_insurance_fuel_bonus {
 
     #[test]
     fn test() {
-        let mut spot_market = SpotMarket::default();
-        spot_market.fuel_boost_insurance = 1;
+        let mut spot_market = SpotMarket {
+            fuel_boost_insurance: 1,
+            ..SpotMarket::default()
+        };
         let bonus = calculate_insurance_fuel_bonus(
             &spot_market,
             QUOTE_PRECISION_U64,

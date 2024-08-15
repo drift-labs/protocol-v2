@@ -196,7 +196,8 @@ export function getVammL2Generator({
 	const [bidReserves, askReserves] = calculateSpreadReserves(
 		updatedAmm,
 		oraclePriceData,
-		now
+		now,
+		isVariant(marketAccount.contractType, 'prediction')
 	);
 
 	let numBids = 0;

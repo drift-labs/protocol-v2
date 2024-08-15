@@ -102,6 +102,7 @@ import {
 	QUOTE_SPOT_MARKET_INDEX,
 	ZERO,
 	QUOTE_PRECISION,
+	GOV_SPOT_MARKET_INDEX,
 } from './constants/numericConstants';
 import { findDirectionToClose, positionIsAvailable } from './math/position';
 import { getSignedTokenAmount, getTokenAmount } from './math/spotBalance';
@@ -6990,6 +6991,88 @@ export class DriftClient {
 		return txSig;
 	}
 
+	public async updateUserQuoteAssetInsuranceStake(
+		authority: PublicKey,
+		txParams?: TxParams
+	): Promise<TransactionSignature> {
+		const tx = await this.buildTransaction(
+			await this.getUpdateUserQuoteAssetInsuranceStakeIx(authority),
+			txParams
+		);
+		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+		return txSig;
+	}
+
+	public async getUpdateUserQuoteAssetInsuranceStakeIx(
+		authority: PublicKey
+	): Promise<TransactionInstruction> {
+		const marketIndex = QUOTE_SPOT_MARKET_INDEX;
+		const spotMarket = this.getSpotMarketAccount(marketIndex);
+		const ifStakeAccountPublicKey = getInsuranceFundStakeAccountPublicKey(
+			this.program.programId,
+			authority,
+			marketIndex
+		);
+		const userStatsPublicKey = getUserStatsAccountPublicKey(
+			this.program.programId,
+			authority
+		);
+
+		const ix = this.program.instruction.updateUserQuoteAssetInsuranceStake({
+			accounts: {
+				state: await this.getStatePublicKey(),
+				spotMarket: spotMarket.pubkey,
+				insuranceFundStake: ifStakeAccountPublicKey,
+				userStats: userStatsPublicKey,
+				signer: this.wallet.publicKey,
+				insuranceFundVault: spotMarket.insuranceFund.vault,
+			},
+		});
+
+		return ix;
+	}
+
+	public async updateUserGovTokenInsuranceStake(
+		authority: PublicKey,
+		txParams?: TxParams
+	): Promise<TransactionSignature> {
+		const tx = await this.buildTransaction(
+			await this.getUpdateUserGovTokenInsuranceStakeIx(authority),
+			txParams
+		);
+		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+		return txSig;
+	}
+
+	public async getUpdateUserGovTokenInsuranceStakeIx(
+		authority: PublicKey
+	): Promise<TransactionInstruction> {
+		const marketIndex = GOV_SPOT_MARKET_INDEX;
+		const spotMarket = this.getSpotMarketAccount(marketIndex);
+		const ifStakeAccountPublicKey = getInsuranceFundStakeAccountPublicKey(
+			this.program.programId,
+			authority,
+			marketIndex
+		);
+		const userStatsPublicKey = getUserStatsAccountPublicKey(
+			this.program.programId,
+			authority
+		);
+
+		const ix = this.program.instruction.updateUserGovTokenInsuranceStake({
+			accounts: {
+				state: await this.getStatePublicKey(),
+				spotMarket: spotMarket.pubkey,
+				insuranceFundStake: ifStakeAccountPublicKey,
+				userStats: userStatsPublicKey,
+				signer: this.wallet.publicKey,
+				insuranceFundVault: spotMarket.insuranceFund.vault,
+			},
+		});
+
+		return ix;
+	}
+
 	public async settleRevenueToInsuranceFund(
 		spotMarketIndex: number,
 		txParams?: TxParams
@@ -7462,6 +7545,7 @@ export class DriftClient {
 
 		const [pullIx, _responses, success] = await feedAccount.fetchUpdateIx({
 			numSignatures,
+			// @ts-ignore :: TODO someone needs to look at this
 			feedConfigs: this.sbProgramFeedConfigs.get(feed.toString()),
 		});
 		if (!success) {

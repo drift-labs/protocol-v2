@@ -22,7 +22,7 @@ fn test() {
     let tick_size = 1;
 
     let limit_price = fill_mode
-        .get_limit_price(&market_order, oracle_price, slot, tick_size)
+        .get_limit_price(&market_order, oracle_price, slot, tick_size, false)
         .unwrap();
 
     assert_eq!(limit_price, Some(100 * PRICE_PRECISION_U64));
@@ -30,7 +30,7 @@ fn test() {
     let place_and_take_mode = FillMode::PlaceAndTake;
 
     let limit_price = place_and_take_mode
-        .get_limit_price(&market_order, oracle_price, slot, tick_size)
+        .get_limit_price(&market_order, oracle_price, slot, tick_size, false)
         .unwrap();
 
     assert_eq!(limit_price, Some(110 * PRICE_PRECISION_U64));
@@ -44,7 +44,7 @@ fn test() {
     };
 
     let limit_price = place_and_take_mode
-        .get_limit_price(&limit_order, oracle_price, slot, tick_size)
+        .get_limit_price(&limit_order, oracle_price, slot, tick_size, false)
         .unwrap();
 
     assert_eq!(limit_price, Some(120 * PRICE_PRECISION_U64));
