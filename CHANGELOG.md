@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Features
 
 - program: init prediction markets ([#1152](https://github.com/drift-labs/protocol-v2/pull/1152))
+- program: add logging to pyth pull updates ([#1189](https://github.com/drift-labs/protocol-v2/pull/1189))
 
 ### Fixes
 

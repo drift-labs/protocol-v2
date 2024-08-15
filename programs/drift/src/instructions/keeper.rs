@@ -1657,7 +1657,7 @@ pub fn handle_update_user_quote_asset_insurance_stake(
 ) -> Result<()> {
     let insurance_fund_stake = &mut load_mut!(ctx.accounts.insurance_fund_stake)?;
     let user_stats = &mut load_mut!(ctx.accounts.user_stats)?;
-    let spot_market = &mut load!(ctx.accounts.spot_market)?;
+    let spot_market = &mut load_mut!(ctx.accounts.spot_market)?;
 
     validate!(
         insurance_fund_stake.market_index == 0,
@@ -1687,7 +1687,7 @@ pub fn handle_update_user_gov_token_insurance_stake(
 ) -> Result<()> {
     let insurance_fund_stake = &mut load_mut!(ctx.accounts.insurance_fund_stake)?;
     let user_stats = &mut load_mut!(ctx.accounts.user_stats)?;
-    let spot_market = &mut load!(ctx.accounts.spot_market)?;
+    let spot_market = &mut load_mut!(ctx.accounts.spot_market)?;
 
     validate!(
         insurance_fund_stake.market_index == GOV_SPOT_MARKET_INDEX,
@@ -2053,6 +2053,7 @@ pub struct UpdatePerpBidAskTwap<'info> {
 pub struct UpdateUserQuoteAssetInsuranceStake<'info> {
     pub state: Box<Account<'info, State>>,
     #[account(
+        mut,
         seeds = [b"spot_market", 0_u16.to_le_bytes().as_ref()],
         bump
     )]
@@ -2077,6 +2078,7 @@ pub struct UpdateUserQuoteAssetInsuranceStake<'info> {
 pub struct UpdateUserGovTokenInsuranceStake<'info> {
     pub state: Box<Account<'info, State>>,
     #[account(
+        mut,
         seeds = [b"spot_market", 15_u16.to_le_bytes().as_ref()],
         bump
     )]
