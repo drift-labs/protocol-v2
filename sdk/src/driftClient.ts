@@ -5957,6 +5957,7 @@ export class DriftClient {
 			accounts: {
 				state: await this.getStatePublicKey(),
 				user: userAccountPublicKey,
+				authority: this.wallet.publicKey,
 			},
 			remainingAccounts,
 		});
