@@ -68,13 +68,11 @@ use crate::state::state::State;
 use crate::state::traits::Size;
 use crate::state::user::{MarketType, Order, OrderStatus, OrderType, User, UserStats};
 use crate::state::user_map::{UserMap, UserStatsMap};
+use crate::validate;
 use crate::{get_then_update_id, load_mut};
-use crate::{validate, LIQUIDATION_FEE_PRECISION, MARGIN_PRECISION};
 
 #[cfg(test)]
 mod tests;
-
-const MAX_LIQUIDATION_MULTIPLIER: u32 = 3;
 
 pub fn liquidate_perp(
     market_index: u16,
@@ -964,14 +962,9 @@ pub fn liquidate_perp_with_fill(
     )?;
 
     let existing_direction = user.perp_positions[position_index].get_direction();
-    let max_liquidation_fee =
-        (perp_market_map.get_ref(&market_index)?.liquidator_fee * MAX_LIQUIDATION_MULTIPLIER).min(
-            perp_market_map
-                .get_ref(&market_index)?
-                .margin_ratio_maintenance
-                * LIQUIDATION_FEE_PRECISION
-                / MARGIN_PRECISION,
-        );
+    let max_liquidation_fee = perp_market_map
+        .get_ref(&market_index)?
+        .get_max_liquidation_fee()?;
 
     let liquidator_fee_adjusted = get_liquidation_fee(
         liquidator_fee,

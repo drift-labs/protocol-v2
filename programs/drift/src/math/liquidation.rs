@@ -505,10 +505,11 @@ pub fn get_liquidation_fee(
         return Ok(base_liquidation_fee);
     }
 
-    let liquidation_fee = base_liquidation_fee.safe_add(
+    let liquidation_fee = base_liquidation_fee.saturating_add(
         slots_elapsed
             .safe_mul(LIQUIDATION_FEE_INCREASE_PER_SLOT.cast::<u64>()?)?
-            .cast::<u32>()?,
-    )?;
+            .cast::<u32>()
+            .unwrap_or(u32::MAX),
+    );
     Ok(liquidation_fee.min(max_liquidation_fee))
 }

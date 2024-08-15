@@ -1951,6 +1951,7 @@ pub struct SetUserStatusToBeingLiquidated<'info> {
     pub state: Box<Account<'info, State>>,
     #[account(mut)]
     pub user: AccountLoader<'info, User>,
+    pub authority: Signer<'info>,
 }
 
 #[derive(Accounts)]
