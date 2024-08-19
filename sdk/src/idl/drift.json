@@ -609,6 +609,74 @@
       ]
     },
     {
+      "name": "placeAndMakeSwiftPerpOrder",
+      "accounts": [
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "user",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "userStats",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "taker",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "takerStats",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "ixSysvar",
+          "isMut": false,
+          "isSigner": false,
+          "docs": [
+            "the supplied Sysvar could be anything else.",
+            "The Instruction Sysvar has not been implemented",
+            "in the Anchor framework yet, so this is the safe approach."
+          ]
+        }
+      ],
+      "args": [
+        {
+          "name": "takerOrderParams",
+          "type": {
+            "defined": "OrderParams"
+          }
+        },
+        {
+          "name": "makerOrderParams",
+          "type": {
+            "defined": "OrderParams"
+          }
+        },
+        {
+          "name": "signature",
+          "type": {
+            "array": [
+              "u8",
+              64
+            ]
+          }
+        }
+      ]
+    },
+    {
       "name": "placeSpotOrder",
       "accounts": [
         {
@@ -2259,7 +2327,7 @@
         },
         {
           "name": "spotMarket",
-          "isMut": false,
+          "isMut": true,
           "isSigner": false
         },
         {
@@ -2295,7 +2363,7 @@
         },
         {
           "name": "spotMarket",
-          "isMut": false,
+          "isMut": true,
           "isSigner": false
         },
         {
@@ -8020,6 +8088,12 @@
             "type": {
               "option": "i64"
             }
+          },
+          {
+            "name": "expectedOrderId",
+            "type": {
+              "option": "i32"
+            }
           }
         ]
       }
@@ -12932,6 +13006,21 @@
       "code": 6284,
       "name": "InvalidPredictionMarketOrder",
       "msg": "Invalid prediction market order"
+    },
+    {
+      "code": 6285,
+      "name": "SigVerificationFailed",
+      "msg": "Swift taker message verificaiton failed"
+    },
+    {
+      "code": 6286,
+      "name": "MismatchedSwiftOrderParamsMarketIndex",
+      "msg": "Market index mismatched b/w taker and maker swift order params"
+    },
+    {
+      "code": 6287,
+      "name": "ExpectedOrderIdMismatch",
+      "msg": "Expected order id does not match new order id"
     }
   ],
   "metadata": {

@@ -45,7 +45,7 @@ use crate::math::safe_math::SafeMath;
 use crate::math::spot_balance::{get_signed_token_amount, get_token_amount};
 use crate::math::{amm, fees, margin::*, orders::*};
 use crate::state::order_params::{
-    self, ModifyOrderParams, ModifyOrderPolicy, OrderParams, PlaceOrderOptions, PostOnlyParam,
+    ModifyOrderParams, ModifyOrderPolicy, OrderParams, PlaceOrderOptions, PostOnlyParam,
 };
 
 use crate::math::amm::calculate_amm_available_liquidity;

@@ -8,6 +8,7 @@ use anchor_spl::{
 use solana_program::instruction::Instruction;
 use solana_program::program::invoke;
 use solana_program::system_instruction::transfer;
+use solana_program::sysvar::instructions::load_current_index_checked;
 
 use crate::controller::orders::{cancel_orders, ModifyOrderId};
 use crate::controller::position::PositionDirection;
@@ -1374,8 +1375,9 @@ pub fn handle_place_and_make_swift_perp_order<'c: 'info, 'info>(
     maker_order_params: OrderParams,
     sig: [u8; 64],
 ) -> Result<()> {
-    // Start by verifying the signature from the taker order
-    let ix: Instruction = load_instruction_at_checked(0, &ctx.accounts.ix_sysvar)?;
+    let ix_idx = load_current_index_checked(&ctx.accounts.ix_sysvar.to_account_info())?;
+    let ix: Instruction =
+        load_instruction_at_checked(ix_idx as usize - 1, &ctx.accounts.ix_sysvar)?;
     verify_ed25519_ix(
         &ix,
         &ctx.accounts.taker.key().to_bytes(),
@@ -1406,14 +1408,6 @@ pub fn handle_place_and_make_swift_perp_order<'c: 'info, 'info>(
         Clock::get()?.slot,
         Some(state.oracle_guard_rails),
     )?;
-
-    if !taker_order_params.immediate_or_cancel
-        || taker_order_params.post_only == PostOnlyParam::None
-        || taker_order_params.order_type != OrderType::Limit
-    {
-        msg!("taker: place_and_make_swift order must use IOC post only limit order");
-        return Err(print_error!(ErrorCode::InvalidOrderIOCPostOnly)().into());
-    }
 
     if !maker_order_params.immediate_or_cancel
         || maker_order_params.post_only == PostOnlyParam::None
@@ -1463,7 +1457,8 @@ pub fn handle_place_and_make_swift_perp_order<'c: 'info, 'info>(
     )?;
 
     let (order_id, authority) = (maker.get_last_order_id(), maker.authority);
-
+    let taker_order_id = taker.get_last_order_id();
+    drop(taker);
     drop(maker);
 
     let (mut makers_and_referrer, mut makers_and_referrer_stats) =
@@ -1472,10 +1467,10 @@ pub fn handle_place_and_make_swift_perp_order<'c: 'info, 'info>(
     makers_and_referrer_stats.insert(authority, ctx.accounts.user_stats.clone())?;
 
     controller::orders::fill_perp_order(
-        taker.get_last_order_id(),
+        taker_order_id,
         state,
-        &ctx.accounts.taker,
-        &ctx.accounts.taker_stats,
+        &ctx.accounts.taker.clone(),
+        &ctx.accounts.taker_stats.clone(),
         &spot_market_map,
         &perp_market_map,
         &mut oracle_map,
@@ -1487,8 +1482,6 @@ pub fn handle_place_and_make_swift_perp_order<'c: 'info, 'info>(
         clock,
         FillMode::PlaceAndMake,
     )?;
-
-    drop(taker);
 
     let order_exists = load!(ctx.accounts.user)?
         .orders
@@ -2496,6 +2489,10 @@ pub struct PlaceAndMakeSwift<'info> {
     )]
     pub taker_stats: AccountLoader<'info, UserStats>,
     pub authority: Signer<'info>,
+    /// CHECK: The address check is needed because otherwise
+    /// the supplied Sysvar could be anything else.
+    /// The Instruction Sysvar has not been implemented
+    /// in the Anchor framework yet, so this is the safe approach.
     #[account(address = IX_ID)]
     pub ix_sysvar: AccountInfo<'info>,
 }

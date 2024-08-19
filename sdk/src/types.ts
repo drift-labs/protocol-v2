@@ -1,4 +1,9 @@
-import { PublicKey, Transaction, VersionedTransaction } from '@solana/web3.js';
+import {
+	Keypair,
+	PublicKey,
+	Transaction,
+	VersionedTransaction,
+} from '@solana/web3.js';
 import { BN, ZERO } from '.';
 
 // Utility type which lets you denote record with values of type A mapped to a record with the same keys but values of type B
@@ -999,7 +1004,7 @@ export type OrderParams = {
 	maxTs: BN | null;
 	auctionStartPrice: BN | null;
 	auctionEndPrice: BN | null;
-	expectedOrderId: number;
+	expectedOrderId: number | null;
 };
 
 export class PostOnlyParams {
@@ -1047,7 +1052,7 @@ export const DefaultOrderParams: OrderParams = {
 	maxTs: null,
 	auctionStartPrice: null,
 	auctionEndPrice: null,
-	expectedOrderId: 0,
+	expectedOrderId: null,
 };
 
 export type MakerInfo = {
@@ -1096,6 +1101,7 @@ export interface IWallet {
 	signTransaction(tx: Transaction): Promise<Transaction>;
 	signAllTransactions(txs: Transaction[]): Promise<Transaction[]>;
 	publicKey: PublicKey;
+	payer: Keypair;
 }
 export interface IVersionedWallet {
 	signVersionedTransaction(
@@ -1105,6 +1111,7 @@ export interface IVersionedWallet {
 		txs: VersionedTransaction[]
 	): Promise<VersionedTransaction[]>;
 	publicKey: PublicKey;
+	payer: Keypair;
 }
 
 export type FeeStructure = {

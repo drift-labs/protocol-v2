@@ -68,6 +68,8 @@ import {
 	TransactionVersion,
 	VersionedTransaction,
 	BlockhashWithExpiryBlockHeight,
+	SYSVAR_INSTRUCTIONS_PUBKEY,
+	Ed25519Program,
 } from '@solana/web3.js';
 
 import { TokenFaucet } from './tokenFaucet';
@@ -152,6 +154,7 @@ import { isVersionedTransaction } from './tx/utils';
 import pythSolanaReceiverIdl from './idl/pyth_solana_receiver.json';
 import { asV0Tx, PullFeed } from '@switchboard-xyz/on-demand';
 import switchboardOnDemandIdl from './idl/switchboard_on_demand_30.json';
+import * as ed from '@noble/ed25519';
 
 type RemainingAccountParams = {
 	userAccounts: UserAccount[];
@@ -247,6 +250,7 @@ export class DriftClient {
 			config?.txHandler ??
 			new TxHandler({
 				connection: this.connection,
+				// @ts-ignore
 				wallet: this.provider.wallet,
 				confirmationOptions: this.opts,
 				opts: {
@@ -5069,6 +5073,7 @@ export class DriftClient {
 		const signedTxs = (
 			await this.txHandler.getSignedTransactionMap(
 				txsToSign,
+				// @ts-ignore
 				this.provider.wallet
 			)
 		).signedTxMap;
@@ -5239,22 +5244,32 @@ export class DriftClient {
 		);
 	}
 
+	public async signTakerOrderParams(
+		takerOrderParams: OptionalOrderParams
+	): Promise<Uint8Array> {
+		const takerOrderParamsMessage = Uint8Array.from(
+			this.program.coder.types.encode('OrderParams', takerOrderParams)
+		);
+		return await ed.sign(
+			takerOrderParamsMessage,
+			this.wallet.payer.secretKey.slice(0, 32)
+		);
+	}
+
 	public async placeAndMakeSwiftPerpOrder(
 		takerOrderParams: OptionalOrderParams,
 		orderParams: OptionalOrderParams,
 		takerInfo: TakerInfo,
-		takerSignature: Buffer,
 		referrerInfo?: ReferrerInfo,
 		txParams?: TxParams,
 		subAccountId?: number
 	): Promise<TransactionSignature> {
 		const { txSig, slot } = await this.sendTransaction(
 			await this.buildTransaction(
-				await this.getPlaceAndMakeSwiftPerpOrderIx(
+				await this.getPlaceAndMakeSwiftPerpOrderIxs(
 					takerOrderParams,
 					orderParams,
 					takerInfo,
-					takerSignature,
 					referrerInfo,
 					subAccountId
 				),
@@ -5269,17 +5284,27 @@ export class DriftClient {
 		return txSig;
 	}
 
-	public async getPlaceAndMakeSwiftPerpOrderIx(
+	public async getPlaceAndMakeSwiftPerpOrderIxs(
 		takerOrderParams: OptionalOrderParams,
 		orderParams: OptionalOrderParams,
 		takerInfo: TakerInfo,
-		takerSignature: Buffer,
 		referrerInfo?: ReferrerInfo,
 		subAccountId?: number
-	): Promise<TransactionInstruction> {
+	): Promise<TransactionInstruction[]> {
+		takerOrderParams = getOrderParams(takerOrderParams, {
+			marketType: MarketType.PERP,
+		});
 		orderParams = getOrderParams(orderParams, { marketType: MarketType.PERP });
 		const userStatsPublicKey = this.getUserStatsAccountPublicKey();
 		const user = await this.getUserAccountPublicKey(subAccountId);
+
+		const message = Uint8Array.from(
+			this.program.coder.types.encode('OrderParams', takerOrderParams)
+		);
+		const takerSignature = await ed.sign(
+			message,
+			this.wallet.payer.secretKey.slice(0, 32)
+		);
 
 		const remainingAccounts = this.getRemainingAccounts({
 			userAccounts: [
@@ -5303,23 +5328,31 @@ export class DriftClient {
 			});
 		}
 
-		return await this.program.instruction.placeAndMakeSwiftPerpOrder(
-			takerOrderParams,
-			orderParams,
-			takerSignature,
-			{
-				accounts: {
-					state: await this.getStatePublicKey(),
-					user,
-					userStats: userStatsPublicKey,
-					taker: takerInfo.taker,
-					takerStats: takerInfo.takerStats,
-					authority: this.wallet.publicKey,
-					ixSysvar: anchor.web3.SYSVAR_INSTRUCTIONS_PUBKEY,
-				},
-				remainingAccounts,
-			}
-		);
+		const signatureIx = Ed25519Program.createInstructionWithPublicKey({
+			publicKey: takerInfo.taker.toBytes(),
+			signature: takerSignature,
+			message,
+		});
+
+		const makeSwiftPerpOrderIx =
+			await this.program.instruction.placeAndMakeSwiftPerpOrder(
+				takerOrderParams,
+				orderParams,
+				takerSignature,
+				{
+					accounts: {
+						state: await this.getStatePublicKey(),
+						user,
+						userStats: userStatsPublicKey,
+						taker: takerInfo.taker,
+						takerStats: takerInfo.takerStats,
+						authority: this.wallet.publicKey,
+						ixSysvar: SYSVAR_INSTRUCTIONS_PUBKEY,
+					},
+					remainingAccounts,
+				}
+			);
+		return [signatureIx, makeSwiftPerpOrderIx];
 	}
 
 	public async preparePlaceAndTakeSpotOrder(
