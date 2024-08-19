@@ -202,7 +202,7 @@ describe('place and make swift order', () => {
 			postOnly: PostOnlyParams.NONE,
 		});
 		const takerOrderParamsDup = Object.assign({}, takerOrderParams, {
-			expectedOrderId: 0
+			expectedOrderId: 0,
 		});
 
 		await takerDriftClientUser.fetchAccounts();
@@ -251,7 +251,10 @@ describe('place and make swift order', () => {
 			console.log(error);
 			assert(error.message.includes);
 		} finally {
-			assert.isUndefined(txSigUndefined, "duped order should fail and not set tx sig");
+			assert.isUndefined(
+				txSigUndefined,
+				'duped order should fail and not set tx sig'
+			);
 		}
 
 		await takerDriftClientUser.unsubscribe();
