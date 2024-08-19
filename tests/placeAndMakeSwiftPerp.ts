@@ -201,6 +201,10 @@ describe('place and make swift order', () => {
 			userOrderId: 1,
 			postOnly: PostOnlyParams.NONE,
 		});
+		const takerOrderParamsDup = Object.assign({}, takerOrderParams, {
+			expectedOrderId: 0
+		});
+
 		await takerDriftClientUser.fetchAccounts();
 		const makerOrderParams = getLimitOrderParams({
 			marketIndex,
@@ -230,6 +234,25 @@ describe('place and make swift order', () => {
 
 		const takerPosition = takerDriftClient.getUser().getPerpPosition(0);
 		assert(takerPosition.baseAssetAmount.eq(BASE_PRECISION));
+
+		let txSigUndefined;
+		try {
+			txSigUndefined = await makerDriftClient.placeAndMakeSwiftPerpOrder(
+				takerOrderParamsDup,
+				makerOrderParams,
+				{
+					taker: await takerDriftClient.getUserAccountPublicKey(),
+					order: takerDriftClient.getOrderByUserId(1),
+					takerUserAccount: takerDriftClient.getUserAccount(),
+					takerStats: takerDriftClient.getUserStatsAccountPublicKey(),
+				}
+			);
+		} catch (error) {
+			console.log(error);
+			assert(error.message.includes);
+		} finally {
+			assert.isUndefined(txSigUndefined, "duped order should fail and not set tx sig");
+		}
 
 		await takerDriftClientUser.unsubscribe();
 		await takerDriftClient.unsubscribe();
