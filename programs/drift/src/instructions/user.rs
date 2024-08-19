@@ -5,6 +5,7 @@ use anchor_spl::{
     token_2022::Token2022,
     token_interface::{TokenAccount, TokenInterface},
 };
+use solana_program::instruction::Instruction;
 use solana_program::program::invoke;
 use solana_program::system_instruction::transfer;
 
@@ -67,6 +68,7 @@ use crate::state::traits::Size;
 use crate::state::user::{MarketType, OrderType, ReferrerName, User, UserStats};
 use crate::state::user_map::{load_user_maps, UserMap, UserStatsMap};
 use crate::validate;
+use crate::validation::sig_verification::verify_ed25519_ix;
 use crate::validation::user::validate_user_deletion;
 use crate::validation::whitelist::validate_whitelist_token;
 use crate::{controller, math};
@@ -76,6 +78,7 @@ use crate::{load_mut, ExchangeStatus};
 use anchor_lang::solana_program::sysvar::instructions;
 use anchor_spl::associated_token::AssociatedToken;
 use borsh::{BorshDeserialize, BorshSerialize};
+use solana_program::sysvar::instructions::{load_instruction_at_checked, ID as IX_ID};
 
 pub fn handle_initialize_user<'c: 'info, 'info>(
     ctx: Context<'_, '_, 'c, 'info, InitializeUser<'info>>,
@@ -1362,6 +1365,150 @@ pub fn handle_place_and_make_perp_order<'c: 'info, 'info>(
     Ok(())
 }
 
+#[access_control(
+    fill_not_paused(&ctx.accounts.state)
+)]
+pub fn handle_place_and_make_swift_perp_order<'c: 'info, 'info>(
+    ctx: Context<'_, '_, 'c, 'info, PlaceAndMakeSwift<'info>>,
+    taker_order_params: OrderParams,
+    maker_order_params: OrderParams,
+    sig: [u8; 64],
+) -> Result<()> {
+    // Start by verifying the signature from the taker order
+    let ix: Instruction = load_instruction_at_checked(0, &ctx.accounts.ix_sysvar)?;
+    verify_ed25519_ix(
+        &ix,
+        &ctx.accounts.taker.key().to_bytes(),
+        &taker_order_params.try_to_vec()?,
+        &sig,
+    )?;
+
+    let clock = &Clock::get()?;
+    let state = &ctx.accounts.state;
+
+    // Verify that these orders can match based on market index
+    validate!(
+        taker_order_params.market_index == maker_order_params.market_index,
+        ErrorCode::MismatchedSwiftOrderParamsMarketIndex,
+        "market index mismatch between taker and maker params"
+    )?;
+    let market_index = taker_order_params.market_index;
+
+    let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
+    let AccountMaps {
+        perp_market_map,
+        spot_market_map,
+        mut oracle_map,
+    } = load_maps(
+        remaining_accounts_iter,
+        &get_writable_perp_market_set(market_index),
+        &MarketSet::new(),
+        Clock::get()?.slot,
+        Some(state.oracle_guard_rails),
+    )?;
+
+    if !taker_order_params.immediate_or_cancel
+        || taker_order_params.post_only == PostOnlyParam::None
+        || taker_order_params.order_type != OrderType::Limit
+    {
+        msg!("taker: place_and_make_swift order must use IOC post only limit order");
+        return Err(print_error!(ErrorCode::InvalidOrderIOCPostOnly)().into());
+    }
+
+    if !maker_order_params.immediate_or_cancel
+        || maker_order_params.post_only == PostOnlyParam::None
+        || maker_order_params.order_type != OrderType::Limit
+    {
+        msg!("maker: place_and_make_swift must use IOC post only limit order");
+        return Err(print_error!(ErrorCode::InvalidOrderIOCPostOnly)().into());
+    }
+
+    controller::repeg::update_amm(
+        market_index,
+        &perp_market_map,
+        &mut oracle_map,
+        state,
+        clock,
+    )?;
+
+    let maker_key = ctx.accounts.user.key();
+    let mut maker = load_mut!(ctx.accounts.user)?;
+    let taker_key = ctx.accounts.taker.key();
+    let mut taker = load_mut!(ctx.accounts.taker)?;
+
+    // Place taker order
+    controller::orders::place_perp_order(
+        state,
+        &mut taker,
+        taker_key,
+        &perp_market_map,
+        &spot_market_map,
+        &mut oracle_map,
+        clock,
+        taker_order_params,
+        PlaceOrderOptions::default(),
+    )?;
+
+    // Place maker order
+    controller::orders::place_perp_order(
+        state,
+        &mut maker,
+        maker_key,
+        &perp_market_map,
+        &spot_market_map,
+        &mut oracle_map,
+        clock,
+        maker_order_params,
+        PlaceOrderOptions::default(),
+    )?;
+
+    let (order_id, authority) = (maker.get_last_order_id(), maker.authority);
+
+    drop(maker);
+
+    let (mut makers_and_referrer, mut makers_and_referrer_stats) =
+        load_user_maps(remaining_accounts_iter, true)?;
+    makers_and_referrer.insert(ctx.accounts.user.key(), ctx.accounts.user.clone())?;
+    makers_and_referrer_stats.insert(authority, ctx.accounts.user_stats.clone())?;
+
+    controller::orders::fill_perp_order(
+        taker.get_last_order_id(),
+        state,
+        &ctx.accounts.taker,
+        &ctx.accounts.taker_stats,
+        &spot_market_map,
+        &perp_market_map,
+        &mut oracle_map,
+        &ctx.accounts.user.clone(),
+        &ctx.accounts.user_stats.clone(),
+        &makers_and_referrer,
+        &makers_and_referrer_stats,
+        Some(order_id),
+        clock,
+        FillMode::PlaceAndMake,
+    )?;
+
+    drop(taker);
+
+    let order_exists = load!(ctx.accounts.user)?
+        .orders
+        .iter()
+        .any(|order| order.order_id == order_id);
+
+    if order_exists {
+        controller::orders::cancel_order_by_order_id(
+            order_id,
+            &ctx.accounts.user,
+            &perp_market_map,
+            &spot_market_map,
+            &mut oracle_map,
+            clock,
+        )?;
+    }
+
+    Ok(())
+}
+
 pub fn handle_place_spot_order<'c: 'info, 'info>(
     ctx: Context<'_, '_, 'c, 'info, PlaceOrder>,
     params: OrderParams,
@@ -2326,6 +2473,31 @@ pub struct PlaceAndMake<'info> {
     )]
     pub taker_stats: AccountLoader<'info, UserStats>,
     pub authority: Signer<'info>,
+}
+
+#[derive(Accounts)]
+pub struct PlaceAndMakeSwift<'info> {
+    pub state: Box<Account<'info, State>>,
+    #[account(
+        mut,
+        constraint = can_sign_for_user(&user, &authority)?
+    )]
+    pub user: AccountLoader<'info, User>,
+    #[account(
+        mut,
+        constraint = is_stats_for_user(&user, &user_stats)?
+    )]
+    pub user_stats: AccountLoader<'info, UserStats>,
+    #[account(mut)]
+    pub taker: AccountLoader<'info, User>,
+    #[account(
+        mut,
+        constraint = is_stats_for_user(&taker, &taker_stats)?
+    )]
+    pub taker_stats: AccountLoader<'info, UserStats>,
+    pub authority: Signer<'info>,
+    #[account(address = IX_ID)]
+    pub ix_sysvar: AccountInfo<'info>,
 }
 
 #[derive(Accounts)]

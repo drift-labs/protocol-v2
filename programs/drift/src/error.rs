@@ -575,6 +575,12 @@ pub enum ErrorCode {
     LiquidationOrderFailedToFill,
     #[msg("Invalid prediction market order")]
     InvalidPredictionMarketOrder,
+    #[msg("Swift taker message verificaiton failed")]
+    SigVerificationFailed,
+    #[msg("Market index mismatched b/w taker and maker swift order params")]
+    MismatchedSwiftOrderParamsMarketIndex,
+    #[msg("Expected order id does not match new order id")]
+    ExpectedOrderIdMismatch,
 }
 
 #[macro_export]

@@ -45,7 +45,7 @@ use crate::math::safe_math::SafeMath;
 use crate::math::spot_balance::{get_signed_token_amount, get_token_amount};
 use crate::math::{amm, fees, margin::*, orders::*};
 use crate::state::order_params::{
-    ModifyOrderParams, ModifyOrderPolicy, OrderParams, PlaceOrderOptions, PostOnlyParam,
+    self, ModifyOrderParams, ModifyOrderPolicy, OrderParams, PlaceOrderOptions, PostOnlyParam,
 };
 
 use crate::math::amm::calculate_amm_available_liquidity;
@@ -285,6 +285,16 @@ pub fn place_perp_order(
         max_ts,
         padding: [0; 3],
     };
+
+    let expected_order_id = params.get_expected_order_id()?;
+    if expected_order_id >= 0 && new_order.order_id != expected_order_id.cast::<u32>()? {
+        msg!(
+            "expected_order_id={} does not match new_order.order_id={}",
+            expected_order_id,
+            new_order.order_id
+        );
+        return Err(ErrorCode::ExpectedOrderIdMismatch);
+    }
 
     let valid_oracle_price = Some(oracle_map.get_price_data(&market.amm.oracle)?.price);
     match validate_order(&new_order, market, valid_oracle_price, slot) {
@@ -871,6 +881,7 @@ fn merge_modify_order_params_with_existing_order(
         auction_duration,
         auction_start_price,
         auction_end_price,
+        expected_order_id: None,
     })
 }
 

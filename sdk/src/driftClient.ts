@@ -5239,6 +5239,89 @@ export class DriftClient {
 		);
 	}
 
+	public async placeAndMakeSwiftPerpOrder(
+		takerOrderParams: OptionalOrderParams,
+		orderParams: OptionalOrderParams,
+		takerInfo: TakerInfo,
+		takerSignature: Buffer,
+		referrerInfo?: ReferrerInfo,
+		txParams?: TxParams,
+		subAccountId?: number
+	): Promise<TransactionSignature> {
+		const { txSig, slot } = await this.sendTransaction(
+			await this.buildTransaction(
+				await this.getPlaceAndMakeSwiftPerpOrderIx(
+					takerOrderParams,
+					orderParams,
+					takerInfo,
+					takerSignature,
+					referrerInfo,
+					subAccountId
+				),
+				txParams
+			),
+			[],
+			this.opts
+		);
+
+		this.perpMarketLastSlotCache.set(orderParams.marketIndex, slot);
+
+		return txSig;
+	}
+
+	public async getPlaceAndMakeSwiftPerpOrderIx(
+		takerOrderParams: OptionalOrderParams,
+		orderParams: OptionalOrderParams,
+		takerInfo: TakerInfo,
+		takerSignature: Buffer,
+		referrerInfo?: ReferrerInfo,
+		subAccountId?: number
+	): Promise<TransactionInstruction> {
+		orderParams = getOrderParams(orderParams, { marketType: MarketType.PERP });
+		const userStatsPublicKey = this.getUserStatsAccountPublicKey();
+		const user = await this.getUserAccountPublicKey(subAccountId);
+
+		const remainingAccounts = this.getRemainingAccounts({
+			userAccounts: [
+				this.getUserAccount(subAccountId),
+				takerInfo.takerUserAccount,
+			],
+			useMarketLastSlotCache: true,
+			writablePerpMarketIndexes: [orderParams.marketIndex],
+		});
+
+		if (referrerInfo) {
+			remainingAccounts.push({
+				pubkey: referrerInfo.referrer,
+				isWritable: true,
+				isSigner: false,
+			});
+			remainingAccounts.push({
+				pubkey: referrerInfo.referrerStats,
+				isWritable: true,
+				isSigner: false,
+			});
+		}
+
+		return await this.program.instruction.placeAndMakeSwiftPerpOrder(
+			takerOrderParams,
+			orderParams,
+			takerSignature,
+			{
+				accounts: {
+					state: await this.getStatePublicKey(),
+					user,
+					userStats: userStatsPublicKey,
+					taker: takerInfo.taker,
+					takerStats: takerInfo.takerStats,
+					authority: this.wallet.publicKey,
+					ixSysvar: anchor.web3.SYSVAR_INSTRUCTIONS_PUBKEY,
+				},
+				remainingAccounts,
+			}
+		);
+	}
+
 	public async preparePlaceAndTakeSpotOrder(
 		orderParams: OptionalOrderParams,
 		fulfillmentConfig?: SerumV3FulfillmentConfigAccount,

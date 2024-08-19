@@ -36,6 +36,7 @@ pub struct OrderParams {
     pub auction_duration: Option<u8>,     // specified in slots
     pub auction_start_price: Option<i64>, // specified in price or oracle_price_offset
     pub auction_end_price: Option<i64>,   // specified in price or oracle_price_offset
+    pub expected_order_id: Option<i32>,
 }
 
 impl OrderParams {
@@ -627,6 +628,10 @@ impl OrderParams {
         };
 
         Ok(params)
+    }
+
+    pub fn get_expected_order_id(&self) -> DriftResult<i32> {
+        Ok(self.expected_order_id.unwrap_or(-1))
     }
 }
 
