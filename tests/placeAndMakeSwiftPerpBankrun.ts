@@ -16,37 +16,30 @@ import {
 	BASE_PRECISION,
 	getLimitOrderParams,
 	OracleSource,
-	BulkAccountLoader,
 } from '../sdk/src';
 
 import {
 	initializeQuoteSpotMarket,
-	mockOracle,
-	printTxLogs,
+	mockOracleNoProgram,
 	mockUSDCMint,
 	mockUserUSDCAccount,
 	sleep,
-} from './testHelpersLocalValidator';
+} from './testHelpers';
 import { PEG_PRECISION, PostOnlyParams } from '../sdk/lib';
+import { startAnchor } from 'solana-bankrun';
+import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
+import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
 
 describe('place and make swift order', () => {
-	const provider = anchor.AnchorProvider.local(undefined, {
-		commitment: 'confirmed',
-		preflightCommitment: 'confirmed',
-	});
-	const connection = provider.connection;
-	anchor.setProvider(provider);
 	const chProgram = anchor.workspace.Drift as Program;
 
 	let makerDriftClient: TestClient;
 	let makerDriftClientUser: User;
-	//@ts-ignore
-	const eventSubscriber = new EventSubscriber(connection, chProgram, {
-		commitment: 'recent',
-	});
-	eventSubscriber.subscribe();
+	let eventSubscriber: EventSubscriber;
 
-	const bulkAccountLoader = new BulkAccountLoader(connection, 'confirmed', 1);
+	let bulkAccountLoader: TestBulkAccountLoader;
+
+	let bankrunContextWrapper: BankrunContextWrapper;
 
 	// ammInvariant == k == x * y
 	const mantissaSqrtScale = new BN(Math.sqrt(PRICE_PRECISION.toNumber()));
@@ -68,19 +61,40 @@ describe('place and make swift order', () => {
 	let oracleInfos;
 
 	before(async () => {
-		usdcMint = await mockUSDCMint(provider);
-		userUSDCAccount = await mockUserUSDCAccount(usdcMint, usdcAmount, provider);
+		const context = await startAnchor('', [], []);
 
-		solUsd = await mockOracle(32.821);
+		bankrunContextWrapper = new BankrunContextWrapper(context);
+
+		bulkAccountLoader = new TestBulkAccountLoader(
+			bankrunContextWrapper.connection,
+			'processed',
+			1
+		);
+
+		eventSubscriber = new EventSubscriber(
+			bankrunContextWrapper.connection.toConnection(),
+			// @ts-ignore
+			chProgram
+		);
+
+		await eventSubscriber.subscribe();
+
+		usdcMint = await mockUSDCMint(bankrunContextWrapper);
+		userUSDCAccount = await mockUserUSDCAccount(
+			usdcMint,
+			usdcAmount,
+			bankrunContextWrapper
+		);
+
+		solUsd = await mockOracleNoProgram(bankrunContextWrapper, 32.821);
 
 		marketIndexes = [0];
 		spotMarketIndexes = [0, 1];
 		oracleInfos = [{ publicKey: solUsd, source: OracleSource.PYTH }];
 
 		makerDriftClient = new TestClient({
-			connection,
-			//@ts-ignore
-			wallet: provider.wallet,
+			connection: bankrunContextWrapper.connection.toConnection(),
+			wallet: bankrunContextWrapper.provider.wallet,
 			programID: chProgram.programId,
 			opts: {
 				commitment: 'confirmed',
@@ -88,6 +102,7 @@ describe('place and make swift order', () => {
 			activeSubAccountId: 0,
 			perpMarketIndexes: marketIndexes,
 			spotMarketIndexes: spotMarketIndexes,
+			subAccountIds: [],
 			oracleInfos,
 			accountSubscription: {
 				type: 'polling',
@@ -132,17 +147,17 @@ describe('place and make swift order', () => {
 
 	it('makeSwiftOrder', async () => {
 		const keypair = new Keypair();
-		await provider.connection.requestAirdrop(keypair.publicKey, 10 ** 9);
+		await bankrunContextWrapper.fundKeypair(keypair, 10 ** 9);
 		await sleep(1000);
 		const wallet = new Wallet(keypair);
 		const userUSDCAccount = await mockUserUSDCAccount(
 			usdcMint,
 			usdcAmount,
-			provider,
+			bankrunContextWrapper,
 			keypair.publicKey
 		);
 		const takerDriftClient = new TestClient({
-			connection,
+			connection: bankrunContextWrapper.connection.toConnection(),
 			wallet,
 			programID: chProgram.programId,
 			opts: {
@@ -151,6 +166,7 @@ describe('place and make swift order', () => {
 			activeSubAccountId: 0,
 			perpMarketIndexes: marketIndexes,
 			spotMarketIndexes: spotMarketIndexes,
+			subAccountIds: [],
 			oracleInfos,
 			userStats: true,
 			accountSubscription: {
@@ -205,24 +221,19 @@ describe('place and make swift order', () => {
 			takerOrderParams
 		);
 
-		let txSig;
-		try {
-			txSig = await makerDriftClient.placeAndMakeSwiftPerpOrder(
-				takerOrderParams,
-				takerOrderParamsSig,
-				makerOrderParams,
-				{
-					taker: await takerDriftClient.getUserAccountPublicKey(),
-					order: takerDriftClient.getOrderByUserId(1),
-					takerUserAccount: takerDriftClient.getUserAccount(),
-					takerStats: takerDriftClient.getUserStatsAccountPublicKey(),
-				}
-			);
-		} catch (error) {
-			console.log(JSON.stringify(error));
-		}
+		const txSig = await makerDriftClient.placeAndMakeSwiftPerpOrder(
+			takerOrderParams,
+			takerOrderParamsSig,
+			makerOrderParams,
+			{
+				taker: await takerDriftClient.getUserAccountPublicKey(),
+				order: takerDriftClient.getOrderByUserId(1),
+				takerUserAccount: takerDriftClient.getUserAccount(),
+				takerStats: takerDriftClient.getUserStatsAccountPublicKey(),
+			}
+		);
 
-		printTxLogs(provider.connection, txSig);
+		bankrunContextWrapper.printTxLogs(txSig);
 
 		const makerPosition = makerDriftClient.getUser().getPerpPosition(0);
 		assert(makerPosition.baseAssetAmount.eq(BASE_PRECISION.neg()));
@@ -248,7 +259,7 @@ describe('place and make swift order', () => {
 			);
 		} catch (error) {
 			console.log(error);
-			assert(error);
+			assert(error.message.includes);
 		} finally {
 			assert.isUndefined(
 				txSigUndefined,
