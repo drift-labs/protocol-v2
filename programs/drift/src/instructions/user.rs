@@ -51,6 +51,7 @@ use crate::state::fulfillment_params::openbook_v2::OpenbookV2FulfillmentParams;
 use crate::state::fulfillment_params::phoenix::PhoenixFulfillmentParams;
 use crate::state::fulfillment_params::serum::SerumFulfillmentParams;
 use crate::state::oracle::StrictOraclePrice;
+use crate::state::order_params::SwiftOrderParams;
 use crate::state::order_params::{
     ModifyOrderParams, OrderParams, PlaceOrderOptions, PostOnlyParam,
 };
@@ -1371,7 +1372,7 @@ pub fn handle_place_and_make_perp_order<'c: 'info, 'info>(
 )]
 pub fn handle_place_and_make_swift_perp_order<'c: 'info, 'info>(
     ctx: Context<'_, '_, 'c, 'info, PlaceAndMakeSwift<'info>>,
-    taker_order_params: OrderParams,
+    taker_order_params: SwiftOrderParams,
     maker_order_params: OrderParams,
     sig: [u8; 64],
 ) -> Result<()> {
@@ -1439,9 +1440,18 @@ pub fn handle_place_and_make_swift_perp_order<'c: 'info, 'info>(
         &spot_market_map,
         &mut oracle_map,
         clock,
-        taker_order_params,
+        taker_order_params.to_order_params(),
         PlaceOrderOptions::default(),
     )?;
+
+    let expected_order_id = taker_order_params.get_expected_order_id()?;
+    let taker_last_order_id = taker.get_last_order_id();
+    if expected_order_id >= 0 {
+        validate!(
+            taker_last_order_id == expected_order_id.cast::<u32>()?,
+            ErrorCode::ExpectedOrderIdMismatch
+        )?;
+    }
 
     // Place maker order
     controller::orders::place_perp_order(
@@ -1457,7 +1467,6 @@ pub fn handle_place_and_make_swift_perp_order<'c: 'info, 'info>(
     )?;
 
     let (order_id, authority) = (maker.get_last_order_id(), maker.authority);
-    let taker_order_id = taker.get_last_order_id();
     drop(taker);
     drop(maker);
 
@@ -1467,7 +1476,7 @@ pub fn handle_place_and_make_swift_perp_order<'c: 'info, 'info>(
     makers_and_referrer_stats.insert(authority, ctx.accounts.user_stats.clone())?;
 
     controller::orders::fill_perp_order(
-        taker_order_id,
+        taker_last_order_id,
         state,
         &ctx.accounts.taker.clone(),
         &ctx.accounts.taker_stats.clone(),

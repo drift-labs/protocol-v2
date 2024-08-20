@@ -5299,7 +5299,7 @@ export class DriftClient {
 		const user = await this.getUserAccountPublicKey(subAccountId);
 
 		const message = Uint8Array.from(
-			this.program.coder.types.encode('OrderParams', takerOrderParams)
+			this.program.coder.types.encode('SwiftOrderParams', takerOrderParams)
 		);
 		const takerSignature = await ed.sign(
 			message,

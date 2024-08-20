@@ -36,7 +36,6 @@ pub struct OrderParams {
     pub auction_duration: Option<u8>,     // specified in slots
     pub auction_start_price: Option<i64>, // specified in price or oracle_price_offset
     pub auction_end_price: Option<i64>,   // specified in price or oracle_price_offset
-    pub expected_order_id: Option<i32>,
 }
 
 impl OrderParams {
@@ -628,6 +627,52 @@ impl OrderParams {
         };
 
         Ok(params)
+    }
+}
+
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, Default, Copy, Eq, PartialEq, Debug)]
+pub struct SwiftOrderParams {
+    pub order_type: OrderType,
+    pub market_type: MarketType,
+    pub direction: PositionDirection,
+    pub user_order_id: u8,
+    pub base_asset_amount: u64,
+    pub price: u64,
+    pub market_index: u16,
+    pub reduce_only: bool,
+    pub post_only: PostOnlyParam,
+    pub immediate_or_cancel: bool,
+    pub max_ts: Option<i64>,
+    pub trigger_price: Option<u64>,
+    pub trigger_condition: OrderTriggerCondition,
+    pub oracle_price_offset: Option<i32>, // price offset from oracle for order (~ +/- 2147 max)
+    pub auction_duration: Option<u8>,     // specified in slots
+    pub auction_start_price: Option<i64>, // specified in price or oracle_price_offset
+    pub auction_end_price: Option<i64>,   // specified in price or oracle_price_offset
+    pub expected_order_id: Option<i32>,
+}
+
+impl SwiftOrderParams {
+    pub fn to_order_params(&self) -> OrderParams {
+        OrderParams {
+            order_type: self.order_type,
+            market_type: self.market_type,
+            direction: self.direction,
+            user_order_id: self.user_order_id,
+            base_asset_amount: self.base_asset_amount,
+            price: self.price,
+            market_index: self.market_index,
+            reduce_only: self.reduce_only,
+            post_only: self.post_only,
+            immediate_or_cancel: self.immediate_or_cancel,
+            max_ts: self.max_ts,
+            trigger_price: self.trigger_price,
+            trigger_condition: self.trigger_condition,
+            oracle_price_offset: self.oracle_price_offset,
+            auction_duration: self.auction_duration,
+            auction_start_price: self.auction_start_price,
+            auction_end_price: self.auction_end_price,
+        }
     }
 
     pub fn get_expected_order_id(&self) -> DriftResult<i32> {

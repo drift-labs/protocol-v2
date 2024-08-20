@@ -656,7 +656,7 @@
         {
           "name": "takerOrderParams",
           "type": {
-            "defined": "OrderParams"
+            "defined": "SwiftOrderParams"
           }
         },
         {
@@ -7996,6 +7996,104 @@
     },
     {
       "name": "OrderParams",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "orderType",
+            "type": {
+              "defined": "OrderType"
+            }
+          },
+          {
+            "name": "marketType",
+            "type": {
+              "defined": "MarketType"
+            }
+          },
+          {
+            "name": "direction",
+            "type": {
+              "defined": "PositionDirection"
+            }
+          },
+          {
+            "name": "userOrderId",
+            "type": "u8"
+          },
+          {
+            "name": "baseAssetAmount",
+            "type": "u64"
+          },
+          {
+            "name": "price",
+            "type": "u64"
+          },
+          {
+            "name": "marketIndex",
+            "type": "u16"
+          },
+          {
+            "name": "reduceOnly",
+            "type": "bool"
+          },
+          {
+            "name": "postOnly",
+            "type": {
+              "defined": "PostOnlyParam"
+            }
+          },
+          {
+            "name": "immediateOrCancel",
+            "type": "bool"
+          },
+          {
+            "name": "maxTs",
+            "type": {
+              "option": "i64"
+            }
+          },
+          {
+            "name": "triggerPrice",
+            "type": {
+              "option": "u64"
+            }
+          },
+          {
+            "name": "triggerCondition",
+            "type": {
+              "defined": "OrderTriggerCondition"
+            }
+          },
+          {
+            "name": "oraclePriceOffset",
+            "type": {
+              "option": "i32"
+            }
+          },
+          {
+            "name": "auctionDuration",
+            "type": {
+              "option": "u8"
+            }
+          },
+          {
+            "name": "auctionStartPrice",
+            "type": {
+              "option": "i64"
+            }
+          },
+          {
+            "name": "auctionEndPrice",
+            "type": {
+              "option": "i64"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "SwiftOrderParams",
       "type": {
         "kind": "struct",
         "fields": [

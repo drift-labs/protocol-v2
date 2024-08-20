@@ -12,7 +12,7 @@ use state::oracle::OracleSource;
 
 use crate::controller::position::PositionDirection;
 use crate::state::oracle::PrelaunchOracleParams;
-use crate::state::order_params::{ModifyOrderParams, OrderParams};
+use crate::state::order_params::{ModifyOrderParams, OrderParams, SwiftOrderParams};
 use crate::state::perp_market::{ContractTier, MarketStatus};
 use crate::state::settle_pnl_mode::SettlePnlMode;
 use crate::state::spot_market::AssetTier;
@@ -163,7 +163,7 @@ pub mod drift {
 
     pub fn place_and_make_swift_perp_order<'c: 'info, 'info>(
         ctx: Context<'_, '_, 'c, 'info, PlaceAndMakeSwift<'info>>,
-        taker_order_params: OrderParams,
+        taker_order_params: SwiftOrderParams,
         maker_order_params: OrderParams,
         signature: [u8; 64],
     ) -> Result<()> {
