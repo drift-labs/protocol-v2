@@ -123,7 +123,7 @@ export const MainnetSpotMarkets: SpotMarketConfig[] = [
 	{
 		symbol: 'wBTC',
 		marketIndex: 3,
-		oracle: new PublicKey('486kr3pmFPfTsS4aZgcsQ7kS4i9rjMsYYZup6HQNSTT4'),
+		oracle: new PublicKey('9Tq8iN5WnMX2PcZGj4iSFEAgHCi8cM6x8LsDUbuzq8uw'),
 		oracleSource: OracleSource.PYTH_PULL,
 		mint: new PublicKey('3NZ9JMVBmGAqocybic2c7LQCJScmgsAZ6vQqTDzcqmJh'),
 		precision: new BN(10).pow(EIGHT),

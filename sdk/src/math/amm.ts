@@ -866,7 +866,7 @@ export function getQuoteAssetReservePredictionMarketBounds(
 		.div(amm.pegMultiplier);
 
 	if (direction === PositionDirection.LONG) {
-		quoteAssetReserveLowerBound = this.amm.sqrtK
+		quoteAssetReserveLowerBound = amm.sqrtK
 			.muln(22361)
 			.mul(pegSqrt)
 			.divn(100000)

@@ -1,6 +1,6 @@
 {
 	"name": "@drift-labs/sdk",
-	"version": "2.93.0-beta.0",
+	"version": "2.93.0-beta.5",
 	"main": "lib/index.js",
 	"types": "lib/index.d.ts",
 	"author": "crispheaney",
@@ -44,7 +44,7 @@
 		"@pythnetwork/pyth-solana-receiver": "^0.7.0",
 		"@solana/spl-token": "0.3.7",
 		"@solana/web3.js": "1.92.3",
-		"@switchboard-xyz/on-demand": "1.2.1",
+		"@switchboard-xyz/on-demand": "1.2.32",
 		"anchor-bankrun": "^0.3.0",
 		"node-cache": "^5.1.2",
 		"rpc-websockets": "7.5.1",
