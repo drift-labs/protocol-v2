@@ -2,7 +2,6 @@ use crate::error::ErrorCode;
 use anchor_lang::prelude::*;
 use solana_program::ed25519_program::ID as ED25519_ID;
 use solana_program::instruction::Instruction;
-
 use std::convert::TryInto;
 
 /// Verify Ed25519Program instruction fields
@@ -67,8 +66,6 @@ fn check_ed25519_data(data: &[u8], pubkey: &[u8], msg: &[u8], sig: &[u8]) -> Res
     }
 
     // Arguments
-    msg!("Data pubkey: {:?}", data_pubkey);
-    msg!("pubkey: {:?}", pubkey);
     if data_pubkey != pubkey || data_msg != msg || data_sig != sig {
         return Err(ErrorCode::SigVerificationFailed.into());
     }

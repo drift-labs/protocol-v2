@@ -5261,8 +5261,6 @@ export class DriftClient {
 	}
 
 	public async signMessage(message: Uint8Array): Promise<Uint8Array> {
-		console.log(this.wallet.payer.publicKey.toString());
-		console.log(this.wallet.payer.publicKey.toBytes());
 		return await ed.sign(message, this.wallet.payer.secretKey.slice(0, 32));
 	}
 
@@ -5275,18 +5273,16 @@ export class DriftClient {
 		txParams?: TxParams,
 		subAccountId?: number
 	): Promise<TransactionSignature> {
+		const ixs = await this.getPlaceAndMakeSwiftPerpOrderIxs(
+			takerOrderParams,
+			takerSignature,
+			orderParams,
+			takerInfo,
+			referrerInfo,
+			subAccountId
+		);
 		const { txSig, slot } = await this.sendTransaction(
-			await this.buildTransaction(
-				await this.getPlaceAndMakeSwiftPerpOrderIxs(
-					takerOrderParams,
-					takerSignature,
-					orderParams,
-					takerInfo,
-					referrerInfo,
-					subAccountId
-				),
-				txParams
-			),
+			await this.buildTransaction(ixs, txParams),
 			[],
 			this.opts
 		);
@@ -5310,10 +5306,6 @@ export class DriftClient {
 		orderParams = getOrderParams(orderParams, { marketType: MarketType.PERP });
 		const userStatsPublicKey = this.getUserStatsAccountPublicKey();
 		const user = await this.getUserAccountPublicKey(subAccountId);
-
-		const message = Uint8Array.from(
-			this.program.coder.types.encode('SwiftOrderParams', takerOrderParams)
-		);
 
 		const remainingAccounts = this.getRemainingAccounts({
 			userAccounts: [
@@ -5340,7 +5332,7 @@ export class DriftClient {
 		const signatureIx = Ed25519Program.createInstructionWithPublicKey({
 			publicKey: takerInfo.takerUserAccount.authority.toBytes(),
 			signature: takerSignature,
-			message,
+			message: this.getEncodedSwiftOrderParamsMessage(takerOrderParams),
 		});
 
 		const makeSwiftPerpOrderIx =
