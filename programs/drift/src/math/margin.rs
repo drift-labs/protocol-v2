@@ -36,6 +36,7 @@ pub enum MarginRequirementType {
     Initial,
     Fill,
     Maintenance,
+    InitialInvalidOracle // used for overriding asset weight to 0
 }
 
 pub fn calculate_size_premium_liability_weight(
@@ -261,10 +262,12 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
             spot_market.get_max_confidence_interval_multiplier()?,
         )?;
 
-        calculation.update_all_oracles_valid(is_oracle_valid_for_action(
+        let margin_calc_valid = is_oracle_valid_for_action(
             oracle_validity,
             Some(DriftAction::MarginCalc),
-        )?);
+        )?;
+
+        calculation.update_all_oracles_valid(margin_calc_valid);
 
         let strict_oracle_price = StrictOraclePrice::new(
             oracle_price_data.price,
@@ -342,7 +345,11 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
                     &spot_market,
                     &strict_oracle_price,
                     Some(signed_token_amount),
-                    context.margin_type,
+                    if margin_calc_valid  && context.margin_type == MarginRequirementType::Initial {
+                        MarginRequirementType::InitialInvalidOracle
+                    } else {
+                        context.margin_type
+                    },
                 )?
                 .apply_user_custom_margin_ratio(
                     &spot_market,
