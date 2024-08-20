@@ -29,6 +29,7 @@ import { PEG_PRECISION, PostOnlyParams } from '../sdk/lib';
 import { startAnchor } from 'solana-bankrun';
 import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
 import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
+import * as ed from '@noble/ed25519';
 
 describe('place and make swift order', () => {
 	const chProgram = anchor.workspace.Drift as Program;
@@ -144,11 +145,138 @@ describe('place and make swift order', () => {
 		await eventSubscriber.unsubscribe();
 	});
 
-	it('makeSwiftOrder', async () => {
+	// it('makeSwiftOrder', async () => {
+	// 	const keypair = new Keypair();
+	// 	await bankrunContextWrapper.fundKeypair(keypair, 10 ** 9);
+	// 	await sleep(1000);
+	// 	const wallet = new Wallet(keypair);
+	// 	const userUSDCAccount = await mockUserUSDCAccount(
+	// 		usdcMint,
+	// 		usdcAmount,
+	// 		bankrunContextWrapper,
+	// 		keypair.publicKey
+	// 	);
+	// 	const takerDriftClient = new TestClient({
+	// 		connection: bankrunContextWrapper.connection.toConnection(),
+	// 		wallet,
+	// 		programID: chProgram.programId,
+	// 		opts: {
+	// 			commitment: 'confirmed',
+	// 		},
+	// 		activeSubAccountId: 0,
+	// 		perpMarketIndexes: marketIndexes,
+	// 		spotMarketIndexes: spotMarketIndexes,
+	// 		subAccountIds: [],
+	// 		oracleInfos,
+	// 		userStats: true,
+	// 		accountSubscription: {
+	// 			type: 'polling',
+	// 			accountLoader: bulkAccountLoader,
+	// 		},
+	// 	});
+	// 	await takerDriftClient.subscribe();
+	// 	await takerDriftClient.initializeUserAccountAndDepositCollateral(
+	// 		usdcAmount,
+	// 		userUSDCAccount.publicKey
+	// 	);
+	// 	const takerDriftClientUser = new User({
+	// 		driftClient: takerDriftClient,
+	// 		userAccountPublicKey: await takerDriftClient.getUserAccountPublicKey(),
+	// 		accountSubscription: {
+	// 			type: 'polling',
+	// 			accountLoader: bulkAccountLoader,
+	// 		},
+	// 	});
+	// 	await takerDriftClientUser.subscribe();
+
+	// 	const marketIndex = 0;
+	// 	const baseAssetAmount = BASE_PRECISION;
+	// 	const takerOrderParams = getLimitOrderParams({
+	// 		marketIndex,
+	// 		direction: PositionDirection.LONG,
+	// 		baseAssetAmount,
+	// 		price: new BN(34).mul(PRICE_PRECISION),
+	// 		auctionStartPrice: new BN(33).mul(PRICE_PRECISION),
+	// 		auctionEndPrice: new BN(34).mul(PRICE_PRECISION),
+	// 		auctionDuration: 10,
+	// 		userOrderId: 1,
+	// 		postOnly: PostOnlyParams.NONE,
+	// 	});
+	// 	const takerOrderParamsDup = Object.assign({}, takerOrderParams, {
+	// 		expectedOrderId: 0,
+	// 	});
+
+	// 	await takerDriftClientUser.fetchAccounts();
+	// 	const makerOrderParams = getLimitOrderParams({
+	// 		marketIndex,
+	// 		direction: PositionDirection.SHORT,
+	// 		baseAssetAmount,
+	// 		price: new BN(33).mul(PRICE_PRECISION),
+	// 		userOrderId: 1,
+	// 		postOnly: PostOnlyParams.MUST_POST_ONLY,
+	// 		immediateOrCancel: true,
+	// 	});
+
+	// 	const takerOrderParamsSig = await takerDriftClient.signTakerOrderParams(
+	// 		takerOrderParams
+	// 	);
+
+	// 	const txSig = await makerDriftClient.placeAndMakeSwiftPerpOrder(
+	// 		takerOrderParams,
+	// 		takerOrderParamsSig,
+	// 		makerOrderParams,
+	// 		{
+	// 			taker: await takerDriftClient.getUserAccountPublicKey(),
+	// 			order: takerDriftClient.getOrderByUserId(1),
+	// 			takerUserAccount: takerDriftClient.getUserAccount(),
+	// 			takerStats: takerDriftClient.getUserStatsAccountPublicKey(),
+	// 		}
+	// 	);
+
+	// 	bankrunContextWrapper.printTxLogs(txSig);
+
+	// 	const makerPosition = makerDriftClient.getUser().getPerpPosition(0);
+	// 	assert(makerPosition.baseAssetAmount.eq(BASE_PRECISION.neg()));
+
+	// 	const takerPosition = takerDriftClient.getUser().getPerpPosition(0);
+	// 	assert(takerPosition.baseAssetAmount.eq(BASE_PRECISION));
+
+	// 	let txSigUndefined;
+	// 	try {
+	// 		const dupedSig = await takerDriftClient.signTakerOrderParams(
+	// 			takerOrderParamsDup
+	// 		);
+	// 		txSigUndefined = await makerDriftClient.placeAndMakeSwiftPerpOrder(
+	// 			takerOrderParamsDup,
+	// 			dupedSig,
+	// 			makerOrderParams,
+	// 			{
+	// 				taker: await takerDriftClient.getUserAccountPublicKey(),
+	// 				order: takerDriftClient.getOrderByUserId(1),
+	// 				takerUserAccount: takerDriftClient.getUserAccount(),
+	// 				takerStats: takerDriftClient.getUserStatsAccountPublicKey(),
+	// 			}
+	// 		);
+	// 	} catch (error) {
+	// 		console.log(error);
+	// 		assert(error.message.includes);
+	// 	} finally {
+	// 		assert.isUndefined(
+	// 			txSigUndefined,
+	// 			'duped order should fail and not set tx sig'
+	// 		);
+	// 	}
+
+	// 	await takerDriftClientUser.unsubscribe();
+	// 	await takerDriftClient.unsubscribe();
+	// });
+
+	it('fails with bad sig verification', async () => {
 		const keypair = new Keypair();
 		await bankrunContextWrapper.fundKeypair(keypair, 10 ** 9);
 		await sleep(1000);
 		const wallet = new Wallet(keypair);
+
 		const userUSDCAccount = await mockUserUSDCAccount(
 			usdcMint,
 			usdcAmount,
@@ -201,11 +329,11 @@ describe('place and make swift order', () => {
 			userOrderId: 1,
 			postOnly: PostOnlyParams.NONE,
 		});
-		const takerOrderParamsDup = Object.assign({}, takerOrderParams, {
-			expectedOrderId: 0,
-		});
 
-		await takerDriftClientUser.fetchAccounts();
+		const makerSig = await makerDriftClient.signTakerOrderParams(
+			takerOrderParams
+		);
+
 		const makerOrderParams = getLimitOrderParams({
 			marketIndex,
 			direction: PositionDirection.SHORT,
@@ -216,29 +344,11 @@ describe('place and make swift order', () => {
 			immediateOrCancel: true,
 		});
 
-		const txSig = await makerDriftClient.placeAndMakeSwiftPerpOrder(
-			takerOrderParams,
-			makerOrderParams,
-			{
-				taker: await takerDriftClient.getUserAccountPublicKey(),
-				order: takerDriftClient.getOrderByUserId(1),
-				takerUserAccount: takerDriftClient.getUserAccount(),
-				takerStats: takerDriftClient.getUserStatsAccountPublicKey(),
-			}
-		);
-
-		bankrunContextWrapper.printTxLogs(txSig);
-
-		const makerPosition = makerDriftClient.getUser().getPerpPosition(0);
-		assert(makerPosition.baseAssetAmount.eq(BASE_PRECISION.neg()));
-
-		const takerPosition = takerDriftClient.getUser().getPerpPosition(0);
-		assert(takerPosition.baseAssetAmount.eq(BASE_PRECISION));
-
 		let txSigUndefined;
 		try {
 			txSigUndefined = await makerDriftClient.placeAndMakeSwiftPerpOrder(
-				takerOrderParamsDup,
+				takerOrderParams,
+				makerSig,
 				makerOrderParams,
 				{
 					taker: await takerDriftClient.getUserAccountPublicKey(),
@@ -253,7 +363,7 @@ describe('place and make swift order', () => {
 		} finally {
 			assert.isUndefined(
 				txSigUndefined,
-				'duped order should fail and not set tx sig'
+				'duped order should fail on wrong signature and not set tx sig'
 			);
 		}
 

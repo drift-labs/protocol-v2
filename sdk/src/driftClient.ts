@@ -5247,17 +5247,28 @@ export class DriftClient {
 	public async signTakerOrderParams(
 		takerOrderParams: OptionalOrderParams
 	): Promise<Uint8Array> {
-		const takerOrderParamsMessage = Uint8Array.from(
-			this.program.coder.types.encode('OrderParams', takerOrderParams)
+		const takerOrderParamsMessage =
+			this.getEncodedSwiftOrderParamsMessage(takerOrderParams);
+		return await this.signMessage(takerOrderParamsMessage);
+	}
+
+	public getEncodedSwiftOrderParamsMessage(
+		orderParams: OptionalOrderParams
+	): Uint8Array {
+		return Uint8Array.from(
+			this.program.coder.types.encode('SwiftOrderParams', orderParams)
 		);
-		return await ed.sign(
-			takerOrderParamsMessage,
-			this.wallet.payer.secretKey.slice(0, 32)
-		);
+	}
+
+	public async signMessage(message: Uint8Array): Promise<Uint8Array> {
+		console.log(this.wallet.payer.publicKey.toString());
+		console.log(this.wallet.payer.publicKey.toBytes());
+		return await ed.sign(message, this.wallet.payer.secretKey.slice(0, 32));
 	}
 
 	public async placeAndMakeSwiftPerpOrder(
 		takerOrderParams: OptionalOrderParams,
+		takerSignature: Uint8Array,
 		orderParams: OptionalOrderParams,
 		takerInfo: TakerInfo,
 		referrerInfo?: ReferrerInfo,
@@ -5268,6 +5279,7 @@ export class DriftClient {
 			await this.buildTransaction(
 				await this.getPlaceAndMakeSwiftPerpOrderIxs(
 					takerOrderParams,
+					takerSignature,
 					orderParams,
 					takerInfo,
 					referrerInfo,
@@ -5286,6 +5298,7 @@ export class DriftClient {
 
 	public async getPlaceAndMakeSwiftPerpOrderIxs(
 		takerOrderParams: OptionalOrderParams,
+		takerSignature: Uint8Array,
 		orderParams: OptionalOrderParams,
 		takerInfo: TakerInfo,
 		referrerInfo?: ReferrerInfo,
@@ -5300,10 +5313,6 @@ export class DriftClient {
 
 		const message = Uint8Array.from(
 			this.program.coder.types.encode('SwiftOrderParams', takerOrderParams)
-		);
-		const takerSignature = await ed.sign(
-			message,
-			this.wallet.payer.secretKey.slice(0, 32)
 		);
 
 		const remainingAccounts = this.getRemainingAccounts({
@@ -5329,7 +5338,7 @@ export class DriftClient {
 		}
 
 		const signatureIx = Ed25519Program.createInstructionWithPublicKey({
-			publicKey: takerInfo.taker.toBytes(),
+			publicKey: takerInfo.takerUserAccount.authority.toBytes(),
 			signature: takerSignature,
 			message,
 		});

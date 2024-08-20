@@ -67,6 +67,8 @@ fn check_ed25519_data(data: &[u8], pubkey: &[u8], msg: &[u8], sig: &[u8]) -> Res
     }
 
     // Arguments
+    msg!("Data pubkey: {:?}", data_pubkey);
+    msg!("pubkey: {:?}", pubkey);
     if data_pubkey != pubkey || data_msg != msg || data_sig != sig {
         return Err(ErrorCode::SigVerificationFailed.into());
     }

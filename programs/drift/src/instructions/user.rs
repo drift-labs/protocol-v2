@@ -1379,9 +1379,13 @@ pub fn handle_place_and_make_swift_perp_order<'c: 'info, 'info>(
     let ix_idx = load_current_index_checked(&ctx.accounts.ix_sysvar.to_account_info())?;
     let ix: Instruction =
         load_instruction_at_checked(ix_idx as usize - 1, &ctx.accounts.ix_sysvar)?;
+
+    let taker_key = ctx.accounts.taker.key();
+    let mut taker = load_mut!(ctx.accounts.taker)?;
+
     verify_ed25519_ix(
         &ix,
-        &ctx.accounts.taker.key().to_bytes(),
+        &taker.authority.to_bytes(),
         &taker_order_params.try_to_vec()?,
         &sig,
     )?;
@@ -1428,8 +1432,6 @@ pub fn handle_place_and_make_swift_perp_order<'c: 'info, 'info>(
 
     let maker_key = ctx.accounts.user.key();
     let mut maker = load_mut!(ctx.accounts.user)?;
-    let taker_key = ctx.accounts.taker.key();
-    let mut taker = load_mut!(ctx.accounts.taker)?;
 
     // Place taker order
     controller::orders::place_perp_order(
