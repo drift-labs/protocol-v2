@@ -13120,8 +13120,5 @@
       "name": "ExpectedOrderIdMismatch",
       "msg": "Expected order id does not match new order id"
     }
-  ],
-  "metadata": {
-    "address": "dRiftyHA39MWEi3m9aunc5MzRF1JYuBsbn6VPcn33UH"
-  }
+  ]
 }

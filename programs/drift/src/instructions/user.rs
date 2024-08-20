@@ -1380,7 +1380,6 @@ pub fn handle_place_and_make_swift_perp_order<'c: 'info, 'info>(
     let ix: Instruction =
         load_instruction_at_checked(ix_idx as usize - 1, &ctx.accounts.ix_sysvar)?;
 
-    msg!("ix: {:?}", ix.program_id.to_string());
     let taker_key = ctx.accounts.taker.key();
     let mut taker = load_mut!(ctx.accounts.taker)?;
 
