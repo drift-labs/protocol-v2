@@ -367,6 +367,7 @@ export const mockSpotMarkets: Array<SpotMarketAccount> = [
 		fuelBoostTaker: 0,
 		fuelBoostMaker: 0,
 		fuelBoostInsurance: 0,
+		tokenProgram: 0,
 	},
 	{
 		status: MarketStatus.ACTIVE,
@@ -457,6 +458,7 @@ export const mockSpotMarkets: Array<SpotMarketAccount> = [
 		fuelBoostTaker: 0,
 		fuelBoostMaker: 0,
 		fuelBoostInsurance: 0,
+		tokenProgram: 0,
 	},
 	{
 		status: MarketStatus.ACTIVE,
@@ -547,6 +549,7 @@ export const mockSpotMarkets: Array<SpotMarketAccount> = [
 		fuelBoostTaker: 0,
 		fuelBoostMaker: 0,
 		fuelBoostInsurance: 0,
+		tokenProgram: 0,
 	},
 ];
 

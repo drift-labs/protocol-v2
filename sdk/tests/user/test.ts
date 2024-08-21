@@ -82,10 +82,22 @@ async function makeMockUser(
 		};
 	}
 
+	function getOracleDataForPerpMarket(marketIndex) {
+		const oracle = getMockPerpMarket(marketIndex).amm.oracle;
+		return getMockOracle(oracle).data;
+	}
+
+	function getOracleDataForSpotMarket(marketIndex) {
+		const oracle = getMockSpotMarket(marketIndex).oracle;
+		return getMockOracle(oracle).data;
+	}
+
 	mockUser.getUserAccount = getMockUserAccount;
 	mockUser.driftClient.getPerpMarketAccount = getMockPerpMarket;
 	mockUser.driftClient.getSpotMarketAccount = getMockSpotMarket;
 	mockUser.driftClient.getOraclePriceDataAndSlot = getMockOracle;
+	mockUser.driftClient.getOracleDataForPerpMarket = getOracleDataForPerpMarket;
+	mockUser.driftClient.getOracleDataForSpotMarket = getOracleDataForSpotMarket;
 	return mockUser;
 }
 
