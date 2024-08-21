@@ -33,7 +33,7 @@ use crate::math::liquidation::{
     calculate_liability_transfer_implied_by_asset_amount,
     calculate_liability_transfer_to_cover_margin_shortage, calculate_liquidation_multiplier,
     calculate_max_pct_to_liquidate, calculate_perp_if_fee, calculate_spot_if_fee,
-    get_liquidation_order_params, validate_transfer_satisfies_limit_price,
+    get_liquidation_fee, get_liquidation_order_params, validate_transfer_satisfies_limit_price,
     LiquidationMultiplierType,
 };
 use crate::math::margin::{
@@ -118,7 +118,6 @@ pub fn liquidate_perp(
 
     drop(market);
 
-    // Settle user's funding payments so that collateral is up to date
     settle_funding_payment(
         user,
         user_key,
@@ -126,7 +125,6 @@ pub fn liquidate_perp(
         now,
     )?;
 
-    // Settle user's funding payments so that collateral is up to date
     settle_funding_payment(
         liquidator,
         liquidator_key,
@@ -708,7 +706,6 @@ pub fn liquidate_perp_with_fill(
 
     drop(market);
 
-    // Settle user's funding payments so that collateral is up to date
     settle_funding_payment(
         &mut user,
         user_key,
@@ -716,7 +713,6 @@ pub fn liquidate_perp_with_fill(
         now,
     )?;
 
-    // Settle user's funding payments so that collateral is up to date
     settle_funding_payment(
         &mut liquidator,
         liquidator_key,
@@ -966,13 +962,23 @@ pub fn liquidate_perp_with_fill(
     )?;
 
     let existing_direction = user.perp_positions[position_index].get_direction();
+    let max_liquidation_fee = perp_market_map
+        .get_ref(&market_index)?
+        .get_max_liquidation_fee()?;
+
+    let liquidator_fee_adjusted = get_liquidation_fee(
+        liquidator_fee,
+        max_liquidation_fee,
+        user.last_active_slot,
+        slot,
+    )?;
 
     let order_params = get_liquidation_order_params(
         market_index,
         existing_direction,
         base_asset_amount,
         oracle_price,
-        liquidator_fee,
+        liquidator_fee_adjusted,
     )?;
 
     let order_id = user.next_order_id;
@@ -3011,4 +3017,42 @@ pub fn calculate_margin_freed(
         .cast::<u64>()?;
 
     Ok((margin_freed, margin_calculation_after))
+}
+
+pub fn set_user_status_to_being_liquidated(
+    user: &mut User,
+    perp_market_map: &PerpMarketMap,
+    spot_market_map: &SpotMarketMap,
+    oracle_map: &mut OracleMap,
+    slot: u64,
+    state: &State,
+) -> DriftResult {
+    validate!(
+        !user.is_bankrupt(),
+        ErrorCode::UserBankrupt,
+        "user bankrupt",
+    )?;
+
+    validate!(
+        !user.is_being_liquidated(),
+        ErrorCode::UserIsBeingLiquidated,
+        "user is already being liquidated",
+    )?;
+
+    let liquidation_margin_buffer_ratio = state.liquidation_margin_buffer_ratio;
+    let margin_calculation = calculate_margin_requirement_and_total_collateral_and_liability_info(
+        user,
+        perp_market_map,
+        spot_market_map,
+        oracle_map,
+        MarginContext::liquidation(liquidation_margin_buffer_ratio),
+    )?;
+
+    if !user.is_being_liquidated() && margin_calculation.meets_margin_requirement() {
+        msg!("margin calculation: {:?}", margin_calculation);
+        return Err(ErrorCode::SufficientCollateral);
+    } else {
+        user.enter_liquidation(slot)?;
+    }
+    Ok(())
 }
