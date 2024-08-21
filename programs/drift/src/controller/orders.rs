@@ -1,6 +1,5 @@
 use std::cell::RefMut;
 use std::collections::BTreeMap;
-use std::f64::consts::E;
 use std::ops::DerefMut;
 use std::u64;
 

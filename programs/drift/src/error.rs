@@ -581,8 +581,6 @@ pub enum ErrorCode {
     SigVerificationFailed,
     #[msg("Market index mismatched b/w taker and maker swift order params")]
     MismatchedSwiftOrderParamsMarketIndex,
-    #[msg("Expected order id does not match new order id")]
-    ExpectedOrderIdMismatch,
 }
 
 #[macro_export]
