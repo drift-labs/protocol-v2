@@ -201,9 +201,10 @@ describe('place and make swift order', () => {
 			auctionDuration: 10,
 			userOrderId: 1,
 			postOnly: PostOnlyParams.NONE,
+			expectedOrderId: 1,
 		});
 		const takerOrderParamsDup = Object.assign({}, takerOrderParams, {
-			expectedOrderId: 0,
+			expectedOrderId: 1,
 		});
 
 		await takerDriftClientUser.fetchAccounts();
@@ -241,31 +242,30 @@ describe('place and make swift order', () => {
 		const takerPosition = takerDriftClient.getUser().getPerpPosition(0);
 		assert(takerPosition.baseAssetAmount.eq(BASE_PRECISION));
 
-		let txSigUndefined;
-		try {
-			const dupedSig = await takerDriftClient.signTakerOrderParams(
-				takerOrderParamsDup
-			);
-			txSigUndefined = await makerDriftClient.placeAndMakeSwiftPerpOrder(
-				takerOrderParamsDup,
-				dupedSig,
-				makerOrderParams,
-				{
-					taker: await takerDriftClient.getUserAccountPublicKey(),
-					order: takerDriftClient.getOrderByUserId(1),
-					takerUserAccount: takerDriftClient.getUserAccount(),
-					takerStats: takerDriftClient.getUserStatsAccountPublicKey(),
-				}
-			);
-		} catch (error) {
-			console.log(error);
-			assert(error.message.includes);
-		} finally {
-			assert.isUndefined(
-				txSigUndefined,
-				'duped order should fail and not set tx sig'
-			);
-		}
+		const dupedSig = await takerDriftClient.signTakerOrderParams(
+			takerOrderParamsDup
+		);
+		await makerDriftClient.placeAndMakeSwiftPerpOrder(
+			takerOrderParamsDup,
+			dupedSig,
+			makerOrderParams,
+			{
+				taker: await takerDriftClient.getUserAccountPublicKey(),
+				order: takerDriftClient.getOrderByUserId(1),
+				takerUserAccount: takerDriftClient.getUserAccount(),
+				takerStats: takerDriftClient.getUserStatsAccountPublicKey(),
+			}
+		);
+
+		const takerPositionAfter = takerDriftClient.getUser().getPerpPosition(0);
+		const makerPositionAfter = makerDriftClient.getUser().getPerpPosition(0);
+
+		assert(
+			takerPositionAfter.baseAssetAmount.eq(takerPosition.baseAssetAmount)
+		);
+		assert(
+			makerPositionAfter.baseAssetAmount.eq(makerPosition.baseAssetAmount)
+		);
 
 		await takerDriftClientUser.unsubscribe();
 		await takerDriftClient.unsubscribe();

@@ -1,5 +1,6 @@
 use std::cell::RefMut;
 use std::collections::BTreeMap;
+use std::f64::consts::E;
 use std::ops::DerefMut;
 use std::u64;
 
@@ -46,6 +47,7 @@ use crate::math::spot_balance::{get_signed_token_amount, get_token_amount};
 use crate::math::{amm, fees, margin::*, orders::*};
 use crate::state::order_params::{
     ModifyOrderParams, ModifyOrderPolicy, OrderParams, PlaceOrderOptions, PostOnlyParam,
+    SwiftOrderParams,
 };
 
 use crate::math::amm::calculate_amm_available_liquidity;
@@ -396,6 +398,37 @@ pub fn place_perp_order(
     user.update_last_active_slot(slot);
 
     Ok(())
+}
+
+pub fn place_swift_perp_order(
+    state: &State,
+    user: &mut User,
+    user_key: Pubkey,
+    perp_market_map: &PerpMarketMap,
+    spot_market_map: &SpotMarketMap,
+    oracle_map: &mut OracleMap,
+    clock: &Clock,
+    params: SwiftOrderParams,
+    options: PlaceOrderOptions,
+) -> DriftResult<bool> {
+    let expected_order_id = params.get_expected_order_id()?;
+    let taker_next_order_id = user.next_order_id;
+    if expected_order_id >= 0 && expected_order_id.cast::<u32>()? != taker_next_order_id {
+        Ok(false)
+    } else {
+        place_perp_order(
+            state,
+            user,
+            user_key,
+            perp_market_map,
+            spot_market_map,
+            oracle_map,
+            clock,
+            params.to_order_params(),
+            options,
+        )?;
+        Ok(true)
+    }
 }
 
 fn get_auction_params(

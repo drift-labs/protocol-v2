@@ -575,6 +575,8 @@ pub enum ErrorCode {
     LiquidationOrderFailedToFill,
     #[msg("Invalid prediction market order")]
     InvalidPredictionMarketOrder,
+    #[msg("Ed25519 Ix must be before place and make swift order ix")]
+    InvalidVerificationIxIndex,
     #[msg("Swift taker message verificaiton failed")]
     SigVerificationFailed,
     #[msg("Market index mismatched b/w taker and maker swift order params")]

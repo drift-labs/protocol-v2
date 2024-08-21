@@ -1377,6 +1377,11 @@ pub fn handle_place_and_make_swift_perp_order<'c: 'info, 'info>(
     sig: [u8; 64],
 ) -> Result<()> {
     let ix_idx = load_current_index_checked(&ctx.accounts.ix_sysvar.to_account_info())?;
+    validate!(
+        ix_idx > 0,
+        ErrorCode::InvalidVerificationIxIndex,
+        "instruction index must be greater than 0"
+    )?;
     let ix: Instruction =
         load_instruction_at_checked(ix_idx as usize - 1, &ctx.accounts.ix_sysvar)?;
 
@@ -1434,7 +1439,7 @@ pub fn handle_place_and_make_swift_perp_order<'c: 'info, 'info>(
     let mut maker = load_mut!(ctx.accounts.user)?;
 
     // Place taker order
-    controller::orders::place_perp_order(
+    let taker_order_sent = controller::orders::place_swift_perp_order(
         state,
         &mut taker,
         taker_key,
@@ -1442,18 +1447,19 @@ pub fn handle_place_and_make_swift_perp_order<'c: 'info, 'info>(
         &spot_market_map,
         &mut oracle_map,
         clock,
-        taker_order_params.to_order_params(),
+        taker_order_params,
         PlaceOrderOptions::default(),
     )?;
 
-    let expected_order_id = taker_order_params.get_expected_order_id()?;
-    let taker_last_order_id = taker.get_last_order_id();
-    if expected_order_id >= 0 {
-        validate!(
-            taker_last_order_id == expected_order_id.cast::<u32>()?,
-            ErrorCode::ExpectedOrderIdMismatch
-        )?;
+    if !taker_order_sent {
+        msg!(
+            "Orders not placed due to taker order id mismatch: taker account next order id {}, order params expected next order id {}",
+            taker.next_order_id,
+            taker_order_params.get_expected_order_id()?
+        );
+        return Ok(());
     }
+    let taker_last_order_id = taker.get_last_order_id();
 
     // Place maker order
     controller::orders::place_perp_order(

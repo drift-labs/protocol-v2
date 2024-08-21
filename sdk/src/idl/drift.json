@@ -13107,16 +13107,21 @@
     },
     {
       "code": 6285,
+      "name": "InvalidVerificationIxIndex",
+      "msg": "Ed25519 Ix must be before place and make swift order ix"
+    },
+    {
+      "code": 6286,
       "name": "SigVerificationFailed",
       "msg": "Swift taker message verificaiton failed"
     },
     {
-      "code": 6286,
+      "code": 6287,
       "name": "MismatchedSwiftOrderParamsMarketIndex",
       "msg": "Market index mismatched b/w taker and maker swift order params"
     },
     {
-      "code": 6287,
+      "code": 6288,
       "name": "ExpectedOrderIdMismatch",
       "msg": "Expected order id does not match new order id"
     }
