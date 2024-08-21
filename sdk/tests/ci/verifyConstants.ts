@@ -20,7 +20,7 @@ describe('Verify Constants', function () {
 	const DEVNET_RPC_ENDPOINT = process.env.DEVNET_RPC_ENDPOINT;
 
 	// avoid breaking pre-commit
-	if (MAINNET_RPC_ENDPOINT === undefined && DEVNET_RPC_ENDPOINT === undefined) {
+	if (MAINNET_RPC_ENDPOINT === undefined || DEVNET_RPC_ENDPOINT === undefined) {
 		return;
 	}
 
