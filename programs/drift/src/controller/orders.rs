@@ -521,6 +521,77 @@ pub fn cancel_orders(
     Ok(canceled_order_ids)
 }
 
+pub fn cancel_orders_by_price(
+    user: &mut User,
+    user_key: &Pubkey,
+    perp_market_map: &PerpMarketMap,
+    spot_market_map: &SpotMarketMap,
+    oracle_map: &mut OracleMap,
+    now: i64,
+    slot: u64,
+    direction: Option<PositionDirection>,
+    max_price: Option<u64>,
+    min_price: Option<u64>,
+) -> DriftResult {
+    
+    // check max_price or min_price is set
+    if max_price.is_none() && min_price.is_none() {
+        return Err(ErrorCode::MissingPriceParameters);
+    }
+    
+    for order_index in 0..user.orders.len() {
+        // get cur order
+        let order = &user.orders[order_index];
+        
+        // check open
+        if order.status != OrderStatus::Open {
+            continue;
+        }
+        
+        // check direction
+        if let Some(direction) = direction{
+            if order.direction != direction {
+                continue;
+            }
+        }
+        
+        
+        // filter by price
+        if let Some(max_price) = max_price {
+            if order.price <= max_price {
+                continue;
+            }
+        }
+        
+        if let Some(min_price) = min_price {
+            if order.price >= min_price {
+                continue;
+            }
+        }
+
+        // cancel order
+        cancel_order(
+            order_index,
+            user,
+            user_key,
+            perp_market_map,
+            spot_market_map,
+            oracle_map,
+            now,
+            slot,
+            OrderActionExplanation::None,
+            None,
+            0,
+            false,
+        )?;
+    }
+
+    user.update_last_active_slot(slot);
+
+    Ok(())
+}
+
+
 pub fn cancel_order_by_order_id(
     order_id: u32,
     user: &AccountLoader<User>,

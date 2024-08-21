@@ -3355,6 +3355,57 @@ export class DriftClient {
 		});
 	}
 
+	public async cancelOrdersByPrice(
+		direction: PositionDirection,
+		maxPrice?: BN,
+		minPrice?: BN,
+		txParams?: TxParams,
+		subAccountId?: number
+	): Promise<TransactionSignature> {
+		const { txSig } = await this.sendTransaction(
+			await this.buildTransaction(
+				await this.getCancelOrdersByPriceIx(
+					direction,
+					maxPrice,
+					minPrice,
+					subAccountId
+				),
+				txParams
+			),
+			[],
+			this.opts
+		);
+		return txSig;
+	}
+
+	public async getCancelOrdersByPriceIx(
+		direction: PositionDirection,
+		maxPrice?: BN,
+		minPrice?: BN,
+		subAccountId?: number
+	): Promise<TransactionInstruction> {
+		const user = await this.getUserAccountPublicKey(subAccountId);
+
+		const remainingAccounts = this.getRemainingAccounts({
+			userAccounts: [this.getUserAccount(subAccountId)],
+			useMarketLastSlotCache: true,
+		});
+
+		return await this.program.instruction.cancelOrdersByPrice(
+			maxPrice || null,
+			minPrice || null,
+			direction,
+			{
+				accounts: {
+					state: await this.getStatePublicKey(),
+					user,
+					authority: this.wallet.publicKey,
+				},
+				remainingAccounts,
+			}
+		);
+	}
+
 	public async cancelOrders(
 		marketType?: MarketType,
 		marketIndex?: number,
