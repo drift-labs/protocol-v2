@@ -790,6 +790,26 @@ export const MainnetPerpMarkets: PerpMarketConfig[] = [
 		launchTs: 1723996800000,
 		oracleSource: OracleSource.Prelaunch,
 	},
+	{
+		fullName: 'KAMALA-POPULAR-VOTE-2024-BET',
+		category: ['Prediction', 'Election'],
+		symbol: 'KAMALA-POPULAR-VOTE-2024-BET',
+		baseAssetSymbol: 'KAMALA-POPULAR-VOTE-2024',
+		marketIndex: 37,
+		oracle: new PublicKey('AowFw1dCVjS8kngvTCoT3oshiUyL69k7P1uxqXwteWH4'),
+		launchTs: 1723996800000,
+		oracleSource: OracleSource.Prelaunch,
+	},
+	{
+		fullName: 'FED-CUT-50-SEPT-2024-BET',
+		category: ['Prediction', 'Election'],
+		symbol: 'FED-CUT-50-SEPT-2024-BET',
+		baseAssetSymbol: 'FED-CUT-50-SEPT-2024',
+		marketIndex: 38,
+		oracle: new PublicKey('5QzgqAbEhJ1cPnLX4tSZEXezmW7sz7PPVVg2VanGi8QQ'),
+		launchTs: 1724250126000,
+		oracleSource: OracleSource.Prelaunch,
+	},
 ];
 
 export const PerpMarkets: { [key in DriftEnv]: PerpMarketConfig[] } = {

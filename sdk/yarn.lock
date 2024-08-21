@@ -861,10 +861,10 @@
     lodash "^4.17.21"
     protobufjs "^7.2.6"
 
-"@switchboard-xyz/on-demand@1.2.30":
-  version "1.2.30"
-  resolved "https://registry.yarnpkg.com/@switchboard-xyz/on-demand/-/on-demand-1.2.30.tgz#67d342bb939b47ba5308b471d9176dba3e2241ee"
-  integrity sha512-Q3VEJz8CMO+XG6lvWSww+GXnKO0gEJgO1wOj7TzrnfOb1UN0ConoiDue1WmSeflMAY+EIW/pxeQghl+osqHEKA==
+"@switchboard-xyz/on-demand@1.2.32":
+  version "1.2.32"
+  resolved "https://registry.yarnpkg.com/@switchboard-xyz/on-demand/-/on-demand-1.2.32.tgz#ae68e45ab9cfb5ccc7c8f6d0506dd3ea7024f9ec"
+  integrity sha512-cS/7rkNg1tu6dtypMQZw6avsTF4DbNYOfA8tNq0rjCpipNTtQZp51UtkGSgIu8qfH8ebSBgpPxkUXlWpXYk3CA==
   dependencies:
     "@brokerloop/ttlcache" "^3.2.3"
     "@coral-xyz/anchor-30" "npm:@coral-xyz/anchor@0.30.1"
