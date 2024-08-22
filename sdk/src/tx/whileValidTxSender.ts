@@ -12,6 +12,7 @@ import { BaseTxSender } from './baseTxSender';
 import bs58 from 'bs58';
 import { TxHandler } from './txHandler';
 import { IWallet } from '../types';
+import { DEV_FLAGS } from '../dev/flags';
 
 const DEFAULT_RETRY = 2000;
 
@@ -174,6 +175,11 @@ export class WhileValidTxSender extends BaseTxSender {
 		rawTransaction: Buffer | Uint8Array,
 		opts: ConfirmOptions
 	): Promise<TxSigAndSlot> {
+
+		if (DEV_FLAGS.TEST_COMPUTE_UNITS_OK_DURING_SIMULATION_BUT_FAIL_AT_RUNTIME) {
+			opts.skipPreflight = true; // Skip preflight to recreate the edge case where the CU's are OK during simulation but fail at runtime.
+		}
+
 		const startTime = this.getTimestamp();
 
 		const txid = await this.connection.sendRawTransaction(rawTransaction, opts);

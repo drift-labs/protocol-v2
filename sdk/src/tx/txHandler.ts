@@ -29,6 +29,7 @@ import { CachedBlockhashFetcher } from './blockhashFetcher/cachedBlockhashFetche
 import { BaseBlockhashFetcher } from './blockhashFetcher/baseBlockhashFetcher';
 import { BlockhashFetcher } from './blockhashFetcher/types';
 import { isVersionedTransaction } from './utils';
+import { DEV_FLAGS } from '../dev/flags';
 
 /**
  * Explanation for SIGNATURE_BLOCK_AND_EXPIRY:
@@ -487,6 +488,10 @@ export class TxHandler {
 				...baseTxParams,
 				...processedTxParams,
 			};
+		}
+
+		if (DEV_FLAGS.TEST_COMPUTE_UNITS_OK_DURING_SIMULATION_BUT_FAIL_AT_RUNTIME) {
+			baseTxParams.computeUnits = 1000; // force low compute units to recreate the edge case where the CU's are OK during simulation but fail at runtime.
 		}
 
 		const instructionsArray = Array.isArray(instructions)
