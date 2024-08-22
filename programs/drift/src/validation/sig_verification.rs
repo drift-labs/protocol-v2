@@ -12,6 +12,12 @@ pub fn verify_ed25519_ix(ix: &Instruction, pubkey: &[u8], msg: &[u8], sig: &[u8]
     // And data of this size
     {
         msg!("Ix not present: program ID: {:?}", ix.program_id);
+        msg!("Ix not present: accounts: {:?}", ix.accounts.len());
+        msg!(
+            "Ix not present: data: {:?}, len: {:?}",
+            ix.data.len(),
+            16 + 64 + 32 + msg.len()
+        );
         return Err(ErrorCode::SigVerificationFailed.into()); // Otherwise, we can already throw err
     }
 

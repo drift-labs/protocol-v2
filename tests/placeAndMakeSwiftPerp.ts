@@ -17,6 +17,7 @@ import {
 	getLimitOrderParams,
 	OracleSource,
 	BulkAccountLoader,
+	SwiftOrderParamsMessage,
 } from '../sdk/src';
 
 import {
@@ -186,9 +187,6 @@ describe('place and make swift order', () => {
 			userOrderId: 1,
 			postOnly: PostOnlyParams.NONE,
 		});
-		const takerOrderParamsDup = Object.assign({}, takerOrderParams, {
-			expectedOrderId: 0,
-		});
 
 		await takerDriftClientUser.fetchAccounts();
 		const makerOrderParams = getLimitOrderParams({
@@ -201,14 +199,18 @@ describe('place and make swift order', () => {
 			immediateOrCancel: true,
 		});
 
+		const takerOrderParamsMessage: SwiftOrderParamsMessage = {
+			swiftOrderParams: [takerOrderParams],
+			marketIndex,
+		};
 		const takerOrderParamsSig = await takerDriftClient.signTakerOrderParams(
-			takerOrderParams
+			takerOrderParamsMessage
 		);
 
 		let txSig;
 		try {
 			txSig = await makerDriftClient.placeAndMakeSwiftPerpOrder(
-				takerOrderParams,
+				takerOrderParamsMessage,
 				takerOrderParamsSig,
 				makerOrderParams,
 				{
@@ -233,10 +235,10 @@ describe('place and make swift order', () => {
 		let txSigUndefined;
 		try {
 			const dupedSig = await takerDriftClient.signTakerOrderParams(
-				takerOrderParamsDup
+				takerOrderParamsMessage
 			);
 			txSigUndefined = await makerDriftClient.placeAndMakeSwiftPerpOrder(
-				takerOrderParamsDup,
+				takerOrderParamsMessage,
 				dupedSig,
 				makerOrderParams,
 				{

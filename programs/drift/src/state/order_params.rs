@@ -1,5 +1,5 @@
 use crate::controller::position::PositionDirection;
-use crate::error::DriftResult;
+use crate::error::{DriftResult, ErrorCode};
 use crate::math::casting::Cast;
 use crate::math::safe_math::SafeMath;
 use crate::math::safe_unwrap::SafeUnwrap;
@@ -627,6 +627,24 @@ impl OrderParams {
         };
 
         Ok(params)
+    }
+}
+
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, Default, Eq, PartialEq, Debug)]
+pub struct SwiftOrderParamsMessage {
+    pub swift_order_params: Vec<SwiftOrderParams>,
+    pub market_index: u16,
+}
+
+impl SwiftOrderParamsMessage {
+    pub fn verify_all_same_market_indexes(&self) -> DriftResult {
+        let market_index = self.market_index;
+        for swift_order in &self.swift_order_params {
+            if swift_order.market_index != market_index {
+                return Err(ErrorCode::MismatchedSwiftOrderParamsMarketIndex.into());
+            }
+        }
+        Ok(())
     }
 }
 

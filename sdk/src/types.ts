@@ -1055,6 +1055,11 @@ export const DefaultOrderParams: OrderParams = {
 	expectedOrderId: null,
 };
 
+export type SwiftOrderParamsMessage = {
+	marketIndex: number;
+	swiftOrderParams: OptionalOrderParams[];
+};
+
 export type MakerInfo = {
 	maker: PublicKey;
 	makerStats: PublicKey;

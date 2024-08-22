@@ -654,10 +654,8 @@
       ],
       "args": [
         {
-          "name": "takerOrderParams",
-          "type": {
-            "defined": "SwiftOrderParams"
-          }
+          "name": "takerOrderParamsMessageBytes",
+          "type": "bytes"
         },
         {
           "name": "makerOrderParams",
@@ -8093,6 +8091,26 @@
       }
     },
     {
+      "name": "SwiftOrderParamsMessage",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "swiftOrderParams",
+            "type": {
+              "vec": {
+                "defined": "SwiftOrderParams"
+              }
+            }
+          },
+          {
+            "name": "marketIndex",
+            "type": "u16"
+          }
+        ]
+      }
+    },
+    {
       "name": "SwiftOrderParams",
       "type": {
         "kind": "struct",
@@ -13119,11 +13137,6 @@
       "code": 6287,
       "name": "MismatchedSwiftOrderParamsMarketIndex",
       "msg": "Market index mismatched b/w taker and maker swift order params"
-    },
-    {
-      "code": 6288,
-      "name": "ExpectedOrderIdMismatch",
-      "msg": "Expected order id does not match new order id"
     }
   ],
   "metadata": {

@@ -51,7 +51,7 @@ use crate::state::fulfillment_params::openbook_v2::OpenbookV2FulfillmentParams;
 use crate::state::fulfillment_params::phoenix::PhoenixFulfillmentParams;
 use crate::state::fulfillment_params::serum::SerumFulfillmentParams;
 use crate::state::oracle::StrictOraclePrice;
-use crate::state::order_params::SwiftOrderParams;
+use crate::state::order_params::SwiftOrderParamsMessage;
 use crate::state::order_params::{
     ModifyOrderParams, OrderParams, PlaceOrderOptions, PostOnlyParam,
 };
@@ -1372,10 +1372,16 @@ pub fn handle_place_and_make_perp_order<'c: 'info, 'info>(
 )]
 pub fn handle_place_and_make_swift_perp_order<'c: 'info, 'info>(
     ctx: Context<'_, '_, 'c, 'info, PlaceAndMakeSwift<'info>>,
-    taker_order_params: SwiftOrderParams,
+    taker_order_params_bytes: Vec<u8>,
     maker_order_params: OrderParams,
     sig: [u8; 64],
 ) -> Result<()> {
+    let taker_order_params_message: SwiftOrderParamsMessage =
+        SwiftOrderParamsMessage::deserialize(&mut &taker_order_params_bytes[..]).unwrap();
+
+    // Authenticate the signature
+    let taker_key = ctx.accounts.taker.key();
+    let mut taker = load_mut!(ctx.accounts.taker)?;
     let ix_idx = load_current_index_checked(&ctx.accounts.ix_sysvar.to_account_info())?;
     validate!(
         ix_idx > 0,
@@ -1384,27 +1390,20 @@ pub fn handle_place_and_make_swift_perp_order<'c: 'info, 'info>(
     )?;
     let ix: Instruction =
         load_instruction_at_checked(ix_idx as usize - 1, &ctx.accounts.ix_sysvar)?;
-
-    let taker_key = ctx.accounts.taker.key();
-    let mut taker = load_mut!(ctx.accounts.taker)?;
-
     verify_ed25519_ix(
         &ix,
         &taker.authority.to_bytes(),
-        &taker_order_params.try_to_vec()?,
+        &taker_order_params_message.clone().try_to_vec()?,
         &sig,
     )?;
 
+    // Verify inputs and validate market index
+    taker_order_params_message.verify_all_same_market_indexes()?;
+    let market_index = taker_order_params_message.market_index;
+    let taker_order_params = taker_order_params_message.swift_order_params;
+
     let clock = &Clock::get()?;
     let state = &ctx.accounts.state;
-
-    // Verify that these orders can match based on market index
-    validate!(
-        taker_order_params.market_index == maker_order_params.market_index,
-        ErrorCode::MismatchedSwiftOrderParamsMarketIndex,
-        "market index mismatch between taker and maker params"
-    )?;
-    let market_index = taker_order_params.market_index;
 
     let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
     let AccountMaps {
@@ -1438,6 +1437,29 @@ pub fn handle_place_and_make_swift_perp_order<'c: 'info, 'info>(
     let maker_key = ctx.accounts.user.key();
     let mut maker = load_mut!(ctx.accounts.user)?;
 
+    // Separate out any matching orders and non-matching orders
+    let non_matching_orders = taker_order_params
+        .iter()
+        .filter(|order_params| {
+            order_params.order_type == OrderType::TriggerLimit
+                || order_params.order_type == OrderType::TriggerMarket
+        })
+        .collect::<Vec<_>>();
+
+    // Use the first matching taker order param
+    let matching_taker_order_params_ref = taker_order_params.iter().find(|order_params| {
+        order_params.order_type != OrderType::TriggerLimit
+            && order_params.order_type != OrderType::TriggerMarket
+    });
+
+    if matching_taker_order_params_ref.is_none() {
+        msg!("No matching taker order params found");
+        // Place any matching orders and non-matching orders
+        return Ok(());
+    }
+
+    let matching_taker_order_params = *matching_taker_order_params_ref.unwrap();
+
     // Place taker order
     let taker_order_sent = controller::orders::place_swift_perp_order(
         state,
@@ -1447,7 +1469,7 @@ pub fn handle_place_and_make_swift_perp_order<'c: 'info, 'info>(
         &spot_market_map,
         &mut oracle_map,
         clock,
-        taker_order_params,
+        matching_taker_order_params,
         PlaceOrderOptions::default(),
     )?;
 
@@ -1455,7 +1477,7 @@ pub fn handle_place_and_make_swift_perp_order<'c: 'info, 'info>(
         msg!(
             "Orders not placed due to taker order id mismatch: taker account next order id {}, order params expected next order id {}",
             taker.next_order_id,
-            taker_order_params.get_expected_order_id()?
+            matching_taker_order_params.get_expected_order_id()?
         );
         return Ok(());
     }
@@ -1474,9 +1496,24 @@ pub fn handle_place_and_make_swift_perp_order<'c: 'info, 'info>(
         PlaceOrderOptions::default(),
     )?;
 
+    // Successfully place trigger orders after the taker order so as to not alter order id increment
+    for swift_order_params in non_matching_orders {
+        controller::orders::place_perp_order(
+            state,
+            &mut taker,
+            taker_key,
+            &perp_market_map,
+            &spot_market_map,
+            &mut oracle_map,
+            clock,
+            swift_order_params.to_order_params(),
+            PlaceOrderOptions::default(),
+        )?;
+    }
+
     let (order_id, authority) = (maker.get_last_order_id(), maker.authority);
-    drop(taker);
     drop(maker);
+    drop(taker);
 
     let (mut makers_and_referrer, mut makers_and_referrer_stats) =
         load_user_maps(remaining_accounts_iter, true)?;
