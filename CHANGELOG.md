@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Features
 
+### Fixes
+
+### Breaking
+
+## [2.93.0] - 2024-08-22
+
+### Features
+
 - program: dynamic liquidation fee for liq_perp_with_fill ([#1185](https://github.com/drift-labs/protocol-v2/pull/1185))
 - program: calculate_accumulated_interest return early based on ts ([#1192](https://github.com/drift-labs/protocol-v2/pull/1192))
 - program: add logging to pyth pull updates ([#1189](https://github.com/drift-labs/protocol-v2/pull/1189))
