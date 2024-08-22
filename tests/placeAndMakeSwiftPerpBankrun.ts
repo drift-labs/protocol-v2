@@ -18,7 +18,6 @@ import {
 	OracleSource,
 	OrderTriggerCondition,
 	SwiftOrderParamsMessage,
-	ZERO,
 } from '../sdk/src';
 
 import {
