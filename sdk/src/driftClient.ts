@@ -5997,6 +5997,40 @@ export class DriftClient {
 		);
 	}
 
+	public async getSetUserStatusToBeingLiquidatedIx(
+		userAccountPublicKey: PublicKey,
+		userAccount: UserAccount
+	): Promise<TransactionInstruction> {
+		const remainingAccounts = this.getRemainingAccounts({
+			userAccounts: [userAccount],
+		});
+		return await this.program.instruction.setUserStatusToBeingLiquidated({
+			accounts: {
+				state: await this.getStatePublicKey(),
+				user: userAccountPublicKey,
+				authority: this.wallet.publicKey,
+			},
+			remainingAccounts,
+		});
+	}
+
+	public async setUserStatusToBeingLiquidated(
+		userAccountPublicKey: PublicKey,
+		userAccount: UserAccount
+	): Promise<TransactionSignature> {
+		const { txSig } = await this.sendTransaction(
+			await this.buildTransaction(
+				await this.getSetUserStatusToBeingLiquidatedIx(
+					userAccountPublicKey,
+					userAccount
+				)
+			),
+			[],
+			this.opts
+		);
+		return txSig;
+	}
+
 	public async liquidatePerp(
 		userAccountPublicKey: PublicKey,
 		userAccount: UserAccount,
