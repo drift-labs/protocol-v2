@@ -646,6 +646,13 @@ impl SwiftOrderParamsMessage {
         }
         Ok(())
     }
+
+    pub fn get_matchable_swift_order_params(&self) -> Option<&SwiftOrderParams> {
+        self.swift_order_params.iter().find(|order_params| {
+            order_params.order_type != OrderType::TriggerLimit
+                && order_params.order_type != OrderType::TriggerMarket
+        })
+    }
 }
 
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Default, Copy, Eq, PartialEq, Debug)]
