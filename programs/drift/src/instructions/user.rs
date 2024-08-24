@@ -185,9 +185,9 @@ pub fn handle_initialize_user<'c: 'info, 'info>(
                 init_fee,
             ),
             &[
-                ctx.accounts.payer.to_account_info().clone(),
-                ctx.accounts.user.to_account_info().clone(),
-                ctx.accounts.system_program.to_account_info().clone(),
+                ctx.accounts.payer.to_account_info(),
+                ctx.accounts.user.to_account_info(),
+                ctx.accounts.system_program.to_account_info(),
             ],
         )?;
     }
