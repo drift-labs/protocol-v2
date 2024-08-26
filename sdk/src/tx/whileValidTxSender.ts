@@ -206,13 +206,19 @@ export class WhileValidTxSender extends BaseTxSender {
 
 		let slot: number;
 		try {
-			const result = await this.connection.getSignatureStatuses([txid]);
+			const { blockhash, lastValidBlockHeight } = this.untilValid.get(txid);
+
+			const result = await this.connection.confirmTransaction({
+				signature: txid,
+				blockhash,
+				lastValidBlockHeight,
+			});
 
 			if (!result) {
 				throw new Error(`Couldn't get signature status for txid: ${txid}`);
 			}
 
-			const txsigResult = result.value[0];
+			const txsigResult = result.value;
 
 			this.txSigCache?.set(txid, true);
 			await this.checkConfirmationResultForError(txid, txsigResult);
