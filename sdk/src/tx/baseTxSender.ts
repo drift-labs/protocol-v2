@@ -267,10 +267,9 @@ export abstract class BaseTxSender implements TxSender {
 		if (response === null) {
 			if (this.confirmationStrategy === ConfirmationStrategy.Combo) {
 				try {
-
-					const rpcResponse = await this.connection.getSignatureStatuses(
-						[signature]
-					);
+					const rpcResponse = await this.connection.getSignatureStatuses([
+						signature,
+					]);
 
 					if (rpcResponse?.value?.[0]?.confirmationStatus) {
 						response = {
@@ -307,13 +306,17 @@ export abstract class BaseTxSender implements TxSender {
 		while (totalTime < this.timeout) {
 			await new Promise((resolve) => setTimeout(resolve, backoffTime));
 
-			const rpcResponse = await this.connection.getSignatureStatuses(
-				[signature]
-			);
+			const rpcResponse = await this.connection.getSignatureStatuses([
+				signature,
+			]);
 
 			const signatureResult = rpcResponse && rpcResponse.value?.[0];
 
-			if (rpcResponse && signatureResult && signatureResult.confirmationStatus === commitment) {
+			if (
+				rpcResponse &&
+				signatureResult &&
+				signatureResult.confirmationStatus === commitment
+			) {
 				return { context: rpcResponse.context, value: { err: null } };
 			}
 
