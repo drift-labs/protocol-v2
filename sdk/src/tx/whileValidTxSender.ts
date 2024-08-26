@@ -15,8 +15,6 @@ import { IWallet } from '../types';
 
 const DEFAULT_RETRY = 2000;
 
-const VALID_BLOCK_HEIGHT_OFFSET = -150; // This is a bit of weirdness but the lastValidBlockHeight value returned from connection.getLatestBlockhash is always 300 blocks ahead of the current block, even though the transaction actually expires after 150 blocks. This accounts for that so that we can at least accuractely estimate the transaction expiry.
-
 type ResolveReference = {
 	resolve?: () => void;
 };
@@ -208,18 +206,16 @@ export class WhileValidTxSender extends BaseTxSender {
 
 		let slot: number;
 		try {
-			const { blockhash, lastValidBlockHeight } = this.untilValid.get(txid);
-			const result = await this.connection.confirmTransaction(
-				{
-					signature: txid,
-					lastValidBlockHeight:
-						lastValidBlockHeight + VALID_BLOCK_HEIGHT_OFFSET,
-					blockhash,
-				},
-				opts.commitment
-			);
+			const result = await this.connection.getSignatureStatuses([txid]);
+
+			if (!result) {
+				throw new Error(`Couldn't get signature status for txid: ${txid}`);
+			}
+
+			const txsigResult = result.value[0];
+
 			this.txSigCache?.set(txid, true);
-			await this.checkConfirmationResultForError(txid, result);
+			await this.checkConfirmationResultForError(txid, txsigResult);
 
 			slot = result.context.slot;
 			// eslint-disable-next-line no-useless-catch
