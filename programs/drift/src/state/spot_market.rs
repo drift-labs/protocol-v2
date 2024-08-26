@@ -333,7 +333,7 @@ impl SpotMarket {
         &self,
         size: u128,
         oracle_price: i64,
-        margin_requirement_type: &MarginRequirementType
+        margin_requirement_type: &MarginRequirementType,
     ) -> DriftResult<u32> {
         let size_precision = 10_u128.pow(self.decimals);
 
@@ -344,9 +344,7 @@ impl SpotMarket {
         };
 
         let default_asset_weight = match margin_requirement_type {
-            MarginRequirementType::Initial =>
-                self.get_scaled_initial_asset_weight(oracle_price)? 
-           ,
+            MarginRequirementType::Initial => self.get_scaled_initial_asset_weight(oracle_price)?,
             MarginRequirementType::Fill => {
                 self.get_scaled_initial_asset_weight(oracle_price)?
                     .safe_add(self.maintenance_asset_weight)?
@@ -413,7 +411,6 @@ impl SpotMarket {
             }
             MarginRequirementType::Maintenance => self.maintenance_liability_weight,
             MarginRequirementType::InitialInvalidOracle => self.initial_liability_weight,
-
         };
 
         let size_based_liability_weight = calculate_size_premium_liability_weight(
@@ -438,7 +435,6 @@ impl SpotMarket {
             MarginRequirementType::Fill => return Err(ErrorCode::DefaultError),
             MarginRequirementType::Maintenance => self.maintenance_liability_weight,
             MarginRequirementType::InitialInvalidOracle => return Err(ErrorCode::DefaultError),
-
         };
         liability_weight.safe_sub(MARGIN_PRECISION)
     }

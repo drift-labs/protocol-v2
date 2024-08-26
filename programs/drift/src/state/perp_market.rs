@@ -406,7 +406,6 @@ impl PerpMarket {
             }
             MarginRequirementType::Maintenance => self.margin_ratio_maintenance,
             MarginRequirementType::InitialInvalidOracle => self.margin_ratio_initial,
-
         };
 
         let size_adj_margin_ratio = calculate_size_premium_liability_weight(
@@ -436,9 +435,9 @@ impl PerpMarket {
         margin_type: MarginRequirementType,
     ) -> DriftResult<u32> {
         let mut margin_asset_weight = match margin_type {
-            MarginRequirementType::Initial |  MarginRequirementType::InitialInvalidOracle | MarginRequirementType::Fill => {
-                self.unrealized_pnl_initial_asset_weight
-            }
+            MarginRequirementType::Initial
+            | MarginRequirementType::InitialInvalidOracle
+            | MarginRequirementType::Fill => self.unrealized_pnl_initial_asset_weight,
             MarginRequirementType::Maintenance => self.unrealized_pnl_maintenance_asset_weight,
         };
 
@@ -471,7 +470,9 @@ impl PerpMarket {
 
             // a larger imf factor -> lower asset weight
             match margin_type {
-                MarginRequirementType::Initial | MarginRequirementType::InitialInvalidOracle | MarginRequirementType::Fill => {
+                MarginRequirementType::Initial
+                | MarginRequirementType::InitialInvalidOracle
+                | MarginRequirementType::Fill => {
                     if margin_asset_weight > 0 {
                         calculate_size_discount_asset_weight(
                             unrealized_pnl
