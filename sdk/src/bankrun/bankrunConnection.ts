@@ -55,12 +55,13 @@ export class BankrunContextWrapper {
 	public readonly provider: BankrunProvider;
 	public readonly commitment: Commitment = 'confirmed';
 
-	constructor(context: ProgramTestContext) {
+	constructor(context: ProgramTestContext, verifySignatures = true) {
 		this.context = context;
 		this.provider = new BankrunProvider(context);
 		this.connection = new BankrunConnection(
 			this.context.banksClient,
-			this.context
+			this.context,
+			verifySignatures
 		);
 	}
 
@@ -149,9 +150,16 @@ export class BankrunConnection {
 		[PublicKey, AccountChangeCallback]
 	>();
 
-	constructor(banksClient: BanksClient, context: ProgramTestContext) {
+	private verifySignatures: boolean;
+
+	constructor(
+		banksClient: BanksClient,
+		context: ProgramTestContext,
+		verifySignatures = true
+	) {
 		this._banksClient = banksClient;
 		this.context = context;
+		this.verifySignatures = verifySignatures;
 	}
 
 	getSlot(): Promise<bigint> {
@@ -205,9 +213,17 @@ export class BankrunConnection {
 	}
 
 	async sendTransaction(tx: Transaction): Promise<TransactionSignature> {
-		const banksTransactionMeta = await this._banksClient.tryProcessTransaction(
-			tx
-		);
+		const serialized = tx.serialize({
+			verifySignatures: this.verifySignatures,
+		});
+		// @ts-ignore
+		const internal = this._banksClient.inner;
+		const inner =
+			tx instanceof Transaction
+				? await internal.tryProcessLegacyTransaction(serialized)
+				: await internal.tryProcessVersionedTransaction(serialized);
+		const banksTransactionMeta = new BanksTransactionResultWithMeta(inner);
+
 		if (banksTransactionMeta.result) {
 			throw new Error(banksTransactionMeta.result);
 		}

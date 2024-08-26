@@ -249,7 +249,7 @@ export async function mintUSDCToUser(
 		fakeUSDCMint.publicKey,
 		userUSDCAccount,
 		// @ts-ignore
-		context.provider.wallet.publicKey,
+		context.provider.wallet.payer.publicKey,
 		usdcMintAmount.toNumber(),
 		undefined,
 		tokenProgram
