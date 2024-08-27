@@ -3494,8 +3494,9 @@ export class DriftClient {
 		subAccountId?: number
 	): Promise<TransactionSignature> {
 		const { txSig } = await this.sendTransaction(
-			(await this.preparePlaceOrdersTx(params, txParams, subAccountId))
-				.placeOrdersTx,
+			(
+				await this.preparePlaceOrdersTx(params, txParams, subAccountId)
+			).placeOrdersTx,
 			[],
 			this.opts,
 			false
@@ -3688,8 +3689,9 @@ export class DriftClient {
 		subAccountId?: number
 	): Promise<TransactionSignature> {
 		const { txSig, slot } = await this.sendTransaction(
-			(await this.preparePlaceSpotOrderTx(orderParams, txParams, subAccountId))
-				.placeSpotOrderTx,
+			(
+				await this.preparePlaceSpotOrderTx(orderParams, txParams, subAccountId)
+			).placeSpotOrderTx,
 			[],
 			this.opts,
 			false
