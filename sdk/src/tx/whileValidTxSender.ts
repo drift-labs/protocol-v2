@@ -40,7 +40,18 @@ export class WhileValidTxSender extends BaseTxSender {
 	private async checkAndSetUseBlockHeightOffset() {
 		this.connection.getVersion().then((version) => {
 			const solanaCoreVersion = version['solana-core'];
-			if (parseInt(solanaCoreVersion.split('.')[0]) >= 2) {
+
+			if (!solanaCoreVersion) return;
+
+			const majorVersion = solanaCoreVersion.split('.')[0];
+
+			if (!majorVersion) return;
+
+			const parsedMajorVersion = parseInt(majorVersion);
+
+			if (isNaN(parsedMajorVersion)) return;
+
+			if (parsedMajorVersion >= 2) {
 				this.useBlockHeightOffset = false;
 			} else {
 				this.useBlockHeightOffset = true;
