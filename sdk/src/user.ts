@@ -3808,7 +3808,7 @@ export class User {
 					marginCategory,
 					perpPosition,
 					oraclePriceData,
-					quoteOraclePriceData
+					quoteOraclePriceData,
 				})
 			);
 
