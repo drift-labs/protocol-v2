@@ -1,7 +1,4 @@
-import {
-	DriftClient,
-	BulkAccountLoader,
-} from '../../src';
+import { DriftClient, BulkAccountLoader } from '../../src';
 import { Connection, Keypair } from '@solana/web3.js';
 import { Wallet, Program } from '@coral-xyz/anchor';
 import dotenv from 'dotenv';
@@ -40,10 +37,15 @@ describe('Verify IDL', function () {
 	});
 
 	it('verify idl', async () => {
-		const idl = await Program.fetchIdl(mainnetDriftClient.program.programId, mainnetDriftClient.provider);
+		const idl = await Program.fetchIdl(
+			mainnetDriftClient.program.programId,
+			mainnetDriftClient.provider
+		);
 
 		// anchor idl init seems to strip the metadata
-		idl["metadata"] = {"address":"dRiftyHA39MWEi3m9aunc5MzRF1JYuBsbn6VPcn33UH"};
+		idl['metadata'] = {
+			address: 'dRiftyHA39MWEi3m9aunc5MzRF1JYuBsbn6VPcn33UH',
+		};
 		const encodedMainnetIdl = JSON.stringify(idl);
 
 		const encodedSdkIdl = JSON.stringify(driftIDL);

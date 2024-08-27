@@ -35,6 +35,30 @@ export class WhileValidTxSender extends BaseTxSender {
 	>();
 	blockhashCommitment: Commitment;
 
+	useBlockHeightOffset = true;
+
+	private async checkAndSetUseBlockHeightOffset() {
+		this.connection.getVersion().then((version) => {
+			const solanaCoreVersion = version['solana-core'];
+
+			if (!solanaCoreVersion) return;
+
+			const majorVersion = solanaCoreVersion.split('.')[0];
+
+			if (!majorVersion) return;
+
+			const parsedMajorVersion = parseInt(majorVersion);
+
+			if (isNaN(parsedMajorVersion)) return;
+
+			if (parsedMajorVersion >= 2) {
+				this.useBlockHeightOffset = false;
+			} else {
+				this.useBlockHeightOffset = true;
+			}
+		});
+	}
+
 	public constructor({
 		connection,
 		wallet,
@@ -73,6 +97,8 @@ export class WhileValidTxSender extends BaseTxSender {
 		});
 		this.retrySleep = retrySleep;
 		this.blockhashCommitment = blockhashCommitment;
+
+		this.checkAndSetUseBlockHeightOffset();
 	}
 
 	async sleep(reference: ResolveReference): Promise<void> {
@@ -209,17 +235,25 @@ export class WhileValidTxSender extends BaseTxSender {
 		let slot: number;
 		try {
 			const { blockhash, lastValidBlockHeight } = this.untilValid.get(txid);
+
 			const result = await this.connection.confirmTransaction(
 				{
 					signature: txid,
-					lastValidBlockHeight:
-						lastValidBlockHeight + VALID_BLOCK_HEIGHT_OFFSET,
 					blockhash,
+					lastValidBlockHeight: this.useBlockHeightOffset
+						? lastValidBlockHeight + VALID_BLOCK_HEIGHT_OFFSET
+						: lastValidBlockHeight,
 				},
-				opts.commitment
+				opts?.commitment
 			);
+
+			if (!result) {
+				throw new Error(`Couldn't get signature status for txid: ${txid}`);
+			}
+
 			this.txSigCache?.set(txid, true);
-			await this.checkConfirmationResultForError(txid, result);
+
+			await this.checkConfirmationResultForError(txid, result.value);
 
 			slot = result.context.slot;
 			// eslint-disable-next-line no-useless-catch
