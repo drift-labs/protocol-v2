@@ -609,6 +609,7 @@ mod calculate_margin_requirement_and_total_collateral {
             initial_liability_weight: 12 * SPOT_WEIGHT_PRECISION / 10,
             maintenance_liability_weight: 11 * SPOT_WEIGHT_PRECISION / 10,
             liquidator_fee: LIQUIDATION_FEE_PRECISION / 1000,
+            historical_oracle_data: HistoricalOracleData::default_price(100 * PRICE_PRECISION_I64),
             ..SpotMarket::default()
         };
         create_anchor_account_info!(sol_spot_market, SpotMarket, sol_spot_market_account_info);
@@ -905,6 +906,7 @@ mod calculate_margin_requirement_and_total_collateral {
             initial_liability_weight: 12 * SPOT_WEIGHT_PRECISION / 10,
             maintenance_liability_weight: 11 * SPOT_WEIGHT_PRECISION / 10,
             liquidator_fee: LIQUIDATION_FEE_PRECISION / 1000,
+            historical_oracle_data: HistoricalOracleData::default_price(100 * PRICE_PRECISION_I64),
             ..SpotMarket::default()
         };
         create_anchor_account_info!(sol_spot_market, SpotMarket, sol_spot_market_account_info);
@@ -2448,6 +2450,10 @@ mod calculate_max_withdrawable_amount {
             initial_liability_weight: 12 * SPOT_WEIGHT_PRECISION / 10,
             maintenance_liability_weight: 11 * SPOT_WEIGHT_PRECISION / 10,
             liquidator_fee: LIQUIDATION_FEE_PRECISION / 1000,
+            historical_oracle_data: HistoricalOracleData::default_with_current_oracle(
+                *oracle_map.get_price_data(&sol_oracle_price_key).unwrap(),
+            ),
+
             ..SpotMarket::default()
         };
         create_anchor_account_info!(sol_spot_market, SpotMarket, sol_spot_market_account_info);
@@ -2536,8 +2542,12 @@ mod calculate_max_withdrawable_amount {
             initial_liability_weight: 12 * SPOT_WEIGHT_PRECISION / 10,
             maintenance_liability_weight: 11 * SPOT_WEIGHT_PRECISION / 10,
             liquidator_fee: LIQUIDATION_FEE_PRECISION / 1000,
+            historical_oracle_data: HistoricalOracleData::default_with_current_oracle(
+                *oracle_map.get_price_data(&sol_oracle_price_key).unwrap(),
+            ),
             ..SpotMarket::default()
         };
+
         create_anchor_account_info!(sol_spot_market, SpotMarket, sol_spot_market_account_info);
         let spot_market_account_infos = Vec::from([
             &usdc_spot_market_account_info,

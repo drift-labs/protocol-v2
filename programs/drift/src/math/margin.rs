@@ -260,6 +260,7 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
             &spot_market.oracle,
             spot_market.historical_oracle_data.last_oracle_price_twap,
             spot_market.get_max_confidence_interval_multiplier()?,
+            &spot_market.oracle_source,
         )?;
 
         let margin_calc_valid =
@@ -343,7 +344,7 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
                     &spot_market,
                     &strict_oracle_price,
                     Some(signed_token_amount),
-                    if margin_calc_valid && context.margin_type == MarginRequirementType::Initial {
+                    if !margin_calc_valid && context.margin_type == MarginRequirementType::Initial {
                         MarginRequirementType::InitialInvalidOracle
                     } else {
                         context.margin_type
@@ -354,7 +355,6 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
                     strict_oracle_price.current,
                     user_custom_margin_ratio,
                 )?;
-
             if worst_case_token_amount == 0 {
                 validate!(
                     spot_position.scaled_balance == 0,
@@ -458,6 +458,7 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
                     .historical_oracle_data
                     .last_oracle_price_twap,
                 quote_spot_market.get_max_confidence_interval_multiplier()?,
+                &quote_spot_market.oracle_source,
             )?;
 
         calculation.update_all_oracles_valid(is_oracle_valid_for_action(
@@ -480,6 +481,7 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
             &market.amm.oracle,
             market.amm.historical_oracle_data.last_oracle_price_twap,
             market.get_max_confidence_interval_multiplier()?,
+            &market.amm.oracle_source,
         )?;
 
         let (
@@ -851,6 +853,7 @@ pub fn calculate_user_equity(
             &spot_market.oracle,
             spot_market.historical_oracle_data.last_oracle_price_twap,
             spot_market.get_max_confidence_interval_multiplier()?,
+            &spot_market.oracle_source,
         )?;
         all_oracles_valid &=
             is_oracle_valid_for_action(oracle_validity, Some(DriftAction::MarginCalc))?;
@@ -880,6 +883,7 @@ pub fn calculate_user_equity(
                         .historical_oracle_data
                         .last_oracle_price_twap,
                     quote_spot_market.get_max_confidence_interval_multiplier()?,
+                    &quote_spot_market.oracle_source,
                 )?;
 
             all_oracles_valid &=
@@ -894,6 +898,7 @@ pub fn calculate_user_equity(
             &market.amm.oracle,
             market.amm.historical_oracle_data.last_oracle_price_twap,
             market.get_max_confidence_interval_multiplier()?,
+            &market.amm.oracle_source,
         )?;
 
         all_oracles_valid &=

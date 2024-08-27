@@ -1,6 +1,7 @@
 use anchor_lang::prelude::Pubkey;
 use anchor_lang::Owner;
 
+use crate::state::oracle::OracleSource;
 use crate::state::oracle_map::OracleMap;
 use crate::state::perp_market::MarketStatus;
 use crate::state::state::{FeeStructure, FeeTier};
@@ -1746,6 +1747,7 @@ pub mod fulfill_order_with_maker_order {
                 &oracle_price_key,
                 market.amm.historical_oracle_data.last_oracle_price_twap,
                 market.get_max_confidence_interval_multiplier().unwrap(),
+                &OracleSource::PythPull,
             )
             .unwrap();
 

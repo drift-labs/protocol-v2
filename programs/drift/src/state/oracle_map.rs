@@ -100,6 +100,7 @@ impl<'a> OracleMap<'a> {
         pubkey: &Pubkey,
         last_oracle_price_twap: i64,
         max_confidence_interval_multiplier: u64,
+        oracle_source: &OracleSource,
     ) -> DriftResult<(&OraclePriceData, OracleValidity)> {
         if self.should_get_quote_asset_price_data(pubkey) {
             return Ok((&self.quote_asset_price_data, OracleValidity::Valid));
@@ -118,6 +119,7 @@ impl<'a> OracleMap<'a> {
                     oracle_price_data,
                     &self.oracle_guard_rails.validity,
                     max_confidence_interval_multiplier,
+                    oracle_source,
                     true,
                 )?;
                 self.validity.insert(*pubkey, oracle_validity);
@@ -149,6 +151,7 @@ impl<'a> OracleMap<'a> {
             oracle_price_data,
             &self.oracle_guard_rails.validity,
             max_confidence_interval_multiplier,
+            oracle_source,
             true,
         )?;
         self.validity.insert(*pubkey, oracle_validity);
