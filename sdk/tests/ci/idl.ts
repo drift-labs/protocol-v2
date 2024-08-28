@@ -46,6 +46,10 @@ describe('Verify IDL', function () {
 		idl['metadata'] = {
 			address: 'dRiftyHA39MWEi3m9aunc5MzRF1JYuBsbn6VPcn33UH',
 		};
+		idl['version'] = null;
+
+		driftIDL['version'] = null;
+
 		const encodedMainnetIdl = JSON.stringify(idl);
 
 		const encodedSdkIdl = JSON.stringify(driftIDL);
