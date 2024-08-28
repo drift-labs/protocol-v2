@@ -73,7 +73,7 @@ export class BankrunContextWrapper {
 			additionalSigners = [];
 		}
 		if (tx instanceof Transaction) {
-			tx.recentBlockhash = (await this.getLatestBlockhash()).toString();
+			tx.recentBlockhash = await this.getLatestBlockhash();
 			tx.feePayer = this.context.payer.publicKey;
 			tx.sign(this.context.payer, ...additionalSigners);
 		} else if (tx instanceof VersionedTransaction) {
@@ -223,9 +223,12 @@ export class BankrunConnection {
 	async sendTransaction(
 		tx: Transaction | VersionedTransaction
 	): Promise<TransactionSignature> {
-		const serialized = tx.serialize({
-			verifySignatures: this.verifySignatures,
-		});
+		const serialized =
+			tx instanceof Transaction
+				? tx.serialize({
+						verifySignatures: this.verifySignatures,
+				  })
+				: tx.serialize();
 		// @ts-ignore
 		const internal = this._banksClient.inner;
 		const inner =
