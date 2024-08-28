@@ -69,13 +69,19 @@ export class BankrunContextWrapper {
 		tx: Transaction | VersionedTransaction,
 		additionalSigners?: Keypair[]
 	): Promise<TransactionSignature> {
+		if (!additionalSigners) {
+			additionalSigners = [];
+		}
 		if (tx instanceof Transaction) {
 			tx.recentBlockhash = (await this.getLatestBlockhash()).toString();
 			tx.feePayer = this.context.payer.publicKey;
+			tx.sign(this.context.payer, ...additionalSigners);
+		} else if (tx instanceof VersionedTransaction) {
+			tx.message.recentBlockhash = await this.getLatestBlockhash();
 			if (!additionalSigners) {
 				additionalSigners = [];
 			}
-			tx.sign(this.context.payer, ...additionalSigners);
+			tx.sign([this.context.payer, ...additionalSigners]);
 		}
 		return await this.connection.sendTransaction(tx);
 	}
