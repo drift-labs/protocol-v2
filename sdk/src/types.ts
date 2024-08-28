@@ -211,8 +211,10 @@ export class OrderTriggerCondition {
 }
 
 export class SpotFulfillmentType {
-	static readonly EXTERNAL = { external: {} };
+	static readonly SERUM_V3 = { serumV3: {} };
 	static readonly MATCH = { match: {} };
+	static readonly PHOENIX_V1 = { phoenixV1: {} };
+	static readonly OPENBOOK_V2 = { openbookV2: {} };
 }
 
 export class SpotFulfillmentStatus {
