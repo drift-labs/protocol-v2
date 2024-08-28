@@ -36,6 +36,7 @@ import { BankrunProvider } from 'anchor-bankrun';
 import bs58 from 'bs58';
 import { BN, Wallet } from '@coral-xyz/anchor';
 import { Account, unpackAccount } from '@solana/spl-token';
+import { isVersionedTransaction } from '../tx/utils';
 
 export type Connection = SolanaConnection | BankrunConnection;
 
@@ -66,15 +67,26 @@ export class BankrunContextWrapper {
 	}
 
 	async sendTransaction(
-		tx: Transaction,
+		tx: Transaction | VersionedTransaction,
 		additionalSigners?: Keypair[]
 	): Promise<TransactionSignature> {
-		tx.recentBlockhash = (await this.getLatestBlockhash()).toString();
-		tx.feePayer = this.context.payer.publicKey;
+		const isVersioned = isVersionedTransaction(tx);
 		if (!additionalSigners) {
 			additionalSigners = [];
 		}
-		tx.sign(this.context.payer, ...additionalSigners);
+		if (isVersioned) {
+			tx = tx as VersionedTransaction;
+			tx.message.recentBlockhash = await this.getLatestBlockhash();
+			if (!additionalSigners) {
+				additionalSigners = [];
+			}
+			tx.sign([this.context.payer, ...additionalSigners]);
+		} else {
+			tx = tx as Transaction;
+			tx.recentBlockhash = await this.getLatestBlockhash();
+			tx.feePayer = this.context.payer.publicKey;
+			tx.sign(this.context.payer, ...additionalSigners);
+		}
 		return await this.connection.sendTransaction(tx);
 	}
 
@@ -212,22 +224,28 @@ export class BankrunConnection {
 		return signature;
 	}
 
-	async sendTransaction(tx: Transaction): Promise<TransactionSignature> {
-		const serialized = tx.serialize({
-			verifySignatures: this.verifySignatures,
-		});
+	async sendTransaction(
+		tx: Transaction | VersionedTransaction
+	): Promise<TransactionSignature> {
+		const isVersioned = isVersionedTransaction(tx);
+		const serialized = isVersioned
+			? tx.serialize()
+			: tx.serialize({
+					verifySignatures: this.verifySignatures,
+			  });
 		// @ts-ignore
 		const internal = this._banksClient.inner;
-		const inner =
-			tx instanceof Transaction
-				? await internal.tryProcessLegacyTransaction(serialized)
-				: await internal.tryProcessVersionedTransaction(serialized);
+		const inner = isVersioned
+			? await internal.tryProcessVersionedTransaction(serialized)
+			: await internal.tryProcessLegacyTransaction(serialized);
 		const banksTransactionMeta = new BanksTransactionResultWithMeta(inner);
 
 		if (banksTransactionMeta.result) {
 			throw new Error(banksTransactionMeta.result);
 		}
-		const signature = bs58.encode(tx.signatures[0].signature);
+		const signature = isVersioned
+			? bs58.encode((tx as VersionedTransaction).signatures[0])
+			: bs58.encode((tx as Transaction).signatures[0].signature);
 		this.transactionToMeta.set(signature, banksTransactionMeta);
 		let finalizedCount = 0;
 		while (finalizedCount < 10) {
