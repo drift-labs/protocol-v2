@@ -66,15 +66,17 @@ export class BankrunContextWrapper {
 	}
 
 	async sendTransaction(
-		tx: Transaction,
+		tx: Transaction | VersionedTransaction,
 		additionalSigners?: Keypair[]
 	): Promise<TransactionSignature> {
-		tx.recentBlockhash = (await this.getLatestBlockhash()).toString();
-		tx.feePayer = this.context.payer.publicKey;
-		if (!additionalSigners) {
-			additionalSigners = [];
+		if (tx instanceof Transaction) {
+			tx.recentBlockhash = (await this.getLatestBlockhash()).toString();
+			tx.feePayer = this.context.payer.publicKey;
+			if (!additionalSigners) {
+				additionalSigners = [];
+			}
+			tx.sign(this.context.payer, ...additionalSigners);
 		}
-		tx.sign(this.context.payer, ...additionalSigners);
 		return await this.connection.sendTransaction(tx);
 	}
 
@@ -212,7 +214,9 @@ export class BankrunConnection {
 		return signature;
 	}
 
-	async sendTransaction(tx: Transaction): Promise<TransactionSignature> {
+	async sendTransaction(
+		tx: Transaction | VersionedTransaction
+	): Promise<TransactionSignature> {
 		const serialized = tx.serialize({
 			verifySignatures: this.verifySignatures,
 		});
@@ -227,7 +231,10 @@ export class BankrunConnection {
 		if (banksTransactionMeta.result) {
 			throw new Error(banksTransactionMeta.result);
 		}
-		const signature = bs58.encode(tx.signatures[0].signature);
+		const signature =
+			tx instanceof Transaction
+				? bs58.encode(tx.signatures[0].signature)
+				: bs58.encode(tx.signatures[0]);
 		this.transactionToMeta.set(signature, banksTransactionMeta);
 		let finalizedCount = 0;
 		while (finalizedCount < 10) {
