@@ -810,6 +810,26 @@ export const MainnetPerpMarkets: PerpMarketConfig[] = [
 		launchTs: 1724250126000,
 		oracleSource: OracleSource.Prelaunch,
 	},
+	{
+		fullName: 'REPUBLICAN-POPULAR-AND-WIN-BET',
+		category: ['Prediction', 'Election'],
+		symbol: 'REPUBLICAN-POPULAR-AND-WIN-BET',
+		baseAssetSymbol: 'REPUBLICAN-POPULAR-AND-WIN',
+		marketIndex: 39,
+		oracle: new PublicKey('BtUUSUc9rZSzBmmKhQq4no65zHQTzMFeVYss7xcMRD53'),
+		launchTs: 1724250126000,
+		oracleSource: OracleSource.Prelaunch,
+	},
+	{
+		fullName: 'BREAKPOINT-IGGYERIC-BET',
+		category: ['Prediction', 'Solana'],
+		symbol: 'BREAKPOINT-IGGYERIC-BET',
+		baseAssetSymbol: 'BREAKPOINT-IGGYERIC',
+		marketIndex: 40,
+		oracle: new PublicKey('2ftYxoSupperd4ULxy9xyS2Az38wfAe7Lm8FCAPwjjVV'),
+		launchTs: 1724250126000,
+		oracleSource: OracleSource.Prelaunch,
+	},
 ];
 
 export const PerpMarkets: { [key in DriftEnv]: PerpMarketConfig[] } = {
