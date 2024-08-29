@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixes
 
 - program: remove redundant clones ([#1199](https://github.com/drift-labs/protocol-v2/pull/1199))
+- program: fix spot market map in force_cancel_orders ([#1209](https://github.com/drift-labs/protocol-v2/pull/1209))
 
 ### Breaking
 
