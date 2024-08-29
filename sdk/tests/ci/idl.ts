@@ -3,9 +3,17 @@ import { Connection, Keypair } from '@solana/web3.js';
 import { Wallet, Program } from '@coral-xyz/anchor';
 import dotenv from 'dotenv';
 import { assert } from 'chai';
-import driftIDL from '../../src/idl/drift.json';
+import sdkIdl from '../../src/idl/drift.json';
 
 dotenv.config();
+
+const IDL_KEYS_TO_CHECK = [
+	'instructions',
+	'accounts',
+	'types',
+	'events',
+	'errors',
+];
 
 describe('Verify IDL', function () {
 	this.timeout(100_000);
@@ -37,23 +45,48 @@ describe('Verify IDL', function () {
 	});
 
 	it('verify idl', async () => {
-		const idl = await Program.fetchIdl(
+		const onChainIdl = await Program.fetchIdl(
 			mainnetDriftClient.program.programId,
 			mainnetDriftClient.provider
 		);
 
+		if (onChainIdl === null) {
+			throw new Error(`onChainIdl for ${mainnetDriftClient.program.programId.toBase58()} null`);
+		}
+
 		// anchor idl init seems to strip the metadata
-		idl['metadata'] = {
+		onChainIdl['metadata'] = {
 			address: 'dRiftyHA39MWEi3m9aunc5MzRF1JYuBsbn6VPcn33UH',
 		};
-		idl['version'] = null;
+		onChainIdl['version'] = '';
+		sdkIdl['version'] = '';
 
-		driftIDL['version'] = null;
+		const encodedMainnetIdl = JSON.stringify(onChainIdl);
+		const encodedSdkIdl = JSON.stringify(sdkIdl);
 
-		const encodedMainnetIdl = JSON.stringify(idl);
-
-		const encodedSdkIdl = JSON.stringify(driftIDL);
-
-		assert(encodedSdkIdl === encodedMainnetIdl);
+		try {
+			assert(encodedSdkIdl === encodedMainnetIdl, 'on-chain IDL does not match SDK IDL');
+		} catch (error) {
+			const diff = {};
+			for (const key of IDL_KEYS_TO_CHECK) {
+				const onChainItems = onChainIdl[key];
+				const sdkItems = sdkIdl[key];
+				for (let i = 0; i < Math.max(onChainItems.length, sdkItems.length); i++) {
+					let onChainItem = null;
+					let sdkItem = null;
+					if (i < onChainItems.length) {
+						onChainItem = onChainItems[i];
+					}
+					if (i < sdkItems.length) {
+						sdkItem = sdkItems[i];
+					}
+					if (JSON.stringify(onChainItem) !== JSON.stringify(sdkItem)) {
+						diff[`${key}[${i}]`] = { onChainIdl: onChainItem, sdkIdl: sdkItem };
+					}
+				}
+			}
+			console.error('IDL Difference:', JSON.stringify(diff, null, 2));
+			throw error;
+		}
 	});
 });
