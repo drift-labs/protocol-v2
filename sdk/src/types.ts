@@ -192,6 +192,9 @@ export class OrderActionExplanation {
 	static readonly ORDER_FILLED_WITH_SERUM = {
 		orderFillWithSerum: {},
 	};
+	static readonly ORDER_FILLED_WITH_OPENBOOK_V2 = {
+		orderFilledWithOpenbookV2: {},
+	};
 	static readonly ORDER_FILLED_WITH_PHOENIX = {
 		orderFillWithPhoenix: {},
 	};
