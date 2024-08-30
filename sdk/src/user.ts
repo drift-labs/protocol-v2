@@ -2594,6 +2594,33 @@ export class User {
 	}
 
 	/**
+	 * Calculates the margin required to open a trade, in quote amount. Only accounts for the trade size as a scalar value, does not account for the trade direction or current open positions and whether the trade would _actually_ be risk-increasing and use any extra collateral.
+	 * @param targetMarketIndex 
+	 * @param baseSize 
+	 * @returns 
+	 */
+	public getMarginUSDCRequiredForTrade(
+		targetMarketIndex: number,
+		baseSize: BN,
+	) : BN {
+		const oracleData = this.getOracleDataForPerpMarket(targetMarketIndex);
+		const marketAccount =
+			this.driftClient.getPerpMarketAccount(targetMarketIndex);
+
+		const perpLiabilityValue = calculatePerpLiabilityValue(
+			baseSize,
+			oracleData.price,
+			isVariant(marketAccount.contractType, 'prediction')
+		);
+
+		const marginRequired = perpLiabilityValue
+			.mul(new BN(marketAccount.marginRatioInitial))
+			.div(MARGIN_PRECISION);
+
+		return marginRequired;
+	}
+
+	/**
 	 * Get the maximum trade size for a given market, taking into account the user's current leverage, positions, collateral, etc.
 	 *
 	 * To Calculate Max Quote Available:
