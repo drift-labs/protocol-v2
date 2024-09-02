@@ -347,7 +347,7 @@ pub fn handle_force_cancel_orders<'c: 'info, 'info>(
     } = load_maps(
         &mut ctx.remaining_accounts.iter().peekable(),
         &MarketSet::new(),
-        &MarketSet::new(),
+        &get_writable_spot_market_set(QUOTE_SPOT_MARKET_INDEX),
         Clock::get()?.slot,
         None,
     )?;
