@@ -2622,9 +2622,9 @@ export class User {
 	}
 
 	/**
-	 * Similar to getMarginUSDCRequiredForTrade, but calculates how much of a given collateral is required to cover the margin requirements for a given trade. Basically does the same thing as getMarginUSDCRequiredForTrade but also accounts for the margin ratio of the selected collateral.
+	 * Similar to getMarginUSDCRequiredForTrade, but calculates how much of a given collateral is required to cover the margin requirements for a given trade. Basically does the same thing as getMarginUSDCRequiredForTrade but also accounts for asset weight of the selected collateral.
 	 * 
-	 * Returns collateral required in the precision of the base asset of the collateral market.
+	 * Returns collateral required in the precision of the target collateral market.
 	 */
 	public getCollateralDepositRequiredForTrade(
 		targetMarketIndex: number,
@@ -2642,17 +2642,13 @@ export class User {
 			collateralOracleData.price, 
 		);
 
-		// The base amount required to deposit = (marginRequiredUsdc / priceOfAsset) / assetWeight
-		// marginRequiredUSDC is in QUOTE_PRECISION
-		// oraclePrice is in PRICE_PRECISION
-		// assetWeight is in SPOT_MARKET_WEIGHT_PRECISION
-
+		// Base amount required to deposit = (marginRequiredUsdc / priceOfAsset) / assetWeight .. (E.g. $100 required / $10000 price / 0.5 weight)
 		const baseAmountRequired = this.driftClient.convertToSpotPrecision(collateralIndex, marginRequiredUsdc)
-			.mul(PRICE_PRECISION) // adjust for division by price
-			.mul(SPOT_MARKET_WEIGHT_PRECISION) // adjust for division by weight
+			.mul(PRICE_PRECISION) // adjust for division by oracle price
+			.mul(SPOT_MARKET_WEIGHT_PRECISION) // adjust for division by scaled asset weight
 			.div(collateralOracleData.price)
 			.div(scaledAssetWeight)
-			.div(QUOTE_PRECISION); // initial marginRequiredUsdc's QUOTE_PRECISION
+			.div(QUOTE_PRECISION); // adjust for marginRequiredUsdc value's QUOTE_PRECISION
 
 		// TODO : Round by step size?
 
