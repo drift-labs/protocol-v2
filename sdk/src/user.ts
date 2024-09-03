@@ -2275,6 +2275,7 @@ export class User {
 	 * @param estimatedEntryPrice
 	 * @param marginCategory // allow Initial to be passed in if we are trying to calculate price for DLP de-risking
 	 * @param includeOpenOrders
+	 * @param offsetCollateral // allows calculating the liquidation price after this offset collateral is added to the user's account (e.g. : what will the liquidation price be for this position AFTER I deposit $x worth of collateral)
 	 * @returns Precision : PRICE_PRECISION
 	 */
 	public liquidationPrice(
@@ -2282,7 +2283,8 @@ export class User {
 		positionBaseSizeChange: BN = ZERO,
 		estimatedEntryPrice: BN = ZERO,
 		marginCategory: MarginCategory = 'Maintenance',
-		includeOpenOrders = false
+		includeOpenOrders = false,
+		offsetCollateral = ZERO
 	): BN {
 		const totalCollateral = this.getTotalCollateral(marginCategory);
 		const marginRequirement = this.getMarginRequirement(
@@ -2291,7 +2293,7 @@ export class User {
 			false,
 			includeOpenOrders
 		);
-		let freeCollateral = BN.max(ZERO, totalCollateral.sub(marginRequirement));
+		let freeCollateral = BN.max(ZERO, totalCollateral.sub(marginRequirement)).add(offsetCollateral);
 
 		const oracle =
 			this.driftClient.getPerpMarketAccount(marketIndex).amm.oracle;
