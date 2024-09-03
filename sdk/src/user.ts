@@ -2596,14 +2596,14 @@ export class User {
 
 	/**
 	 * Calculates the margin required to open a trade, in quote amount. Only accounts for the trade size as a scalar value, does not account for the trade direction or current open positions and whether the trade would _actually_ be risk-increasing and use any extra collateral.
-	 * @param targetMarketIndex 
-	 * @param baseSize 
-	 * @returns 
+	 * @param targetMarketIndex
+	 * @param baseSize
+	 * @returns
 	 */
 	public getMarginUSDCRequiredForTrade(
 		targetMarketIndex: number,
-		baseSize: BN,
-	) : BN {
+		baseSize: BN
+	): BN {
 		const oracleData = this.getOracleDataForPerpMarket(targetMarketIndex);
 		const marketAccount =
 			this.driftClient.getPerpMarketAccount(targetMarketIndex);
@@ -2614,8 +2614,15 @@ export class User {
 			isVariant(marketAccount.contractType, 'prediction')
 		);
 
-		const marginRequired = perpLiabilityValue
-			.mul(new BN(marketAccount.marginRatioInitial))
+		const marginRequired = new BN(
+			calculateMarketMarginRatio(
+				marketAccount,
+				baseSize.abs(),
+				'Initial',
+				this.getUserAccount().maxMarginRatio
+			)
+		)
+			.mul(perpLiabilityValue)
 			.div(MARGIN_PRECISION);
 
 		return marginRequired;
@@ -2623,27 +2630,33 @@ export class User {
 
 	/**
 	 * Similar to getMarginUSDCRequiredForTrade, but calculates how much of a given collateral is required to cover the margin requirements for a given trade. Basically does the same thing as getMarginUSDCRequiredForTrade but also accounts for asset weight of the selected collateral.
-	 * 
+	 *
 	 * Returns collateral required in the precision of the target collateral market.
 	 */
 	public getCollateralDepositRequiredForTrade(
 		targetMarketIndex: number,
 		baseSize: BN,
-		collateralIndex: number,
-	) : BN {
-		const marginRequiredUsdc = this.getMarginUSDCRequiredForTrade(targetMarketIndex, baseSize);
-		
-		const collateralMarket = this.driftClient.getSpotMarketAccount(collateralIndex);
+		collateralIndex: number
+	): BN {
+		const marginRequiredUsdc = this.getMarginUSDCRequiredForTrade(
+			targetMarketIndex,
+			baseSize
+		);
 
-		const collateralOracleData = this.getOracleDataForSpotMarket(collateralIndex);
+		const collateralMarket =
+			this.driftClient.getSpotMarketAccount(collateralIndex);
+
+		const collateralOracleData =
+			this.getOracleDataForSpotMarket(collateralIndex);
 
 		const scaledAssetWeight = calculateScaledInitialAssetWeight(
 			collateralMarket,
-			collateralOracleData.price, 
+			collateralOracleData.price
 		);
 
 		// Base amount required to deposit = (marginRequiredUsdc / priceOfAsset) / assetWeight .. (E.g. $100 required / $10000 price / 0.5 weight)
-		const baseAmountRequired = this.driftClient.convertToSpotPrecision(collateralIndex, marginRequiredUsdc)
+		const baseAmountRequired = this.driftClient
+			.convertToSpotPrecision(collateralIndex, marginRequiredUsdc)
 			.mul(PRICE_PRECISION) // adjust for division by oracle price
 			.mul(SPOT_MARKET_WEIGHT_PRECISION) // adjust for division by scaled asset weight
 			.div(collateralOracleData.price)
