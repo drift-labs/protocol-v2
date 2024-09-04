@@ -61,8 +61,7 @@ export abstract class BaseTxSender implements TxSender {
 		additionalTxSenderCallbacks,
 		trackTxLandRate,
 		txHandler,
-		txLandRateLookbackWindowMinutes = DEFAULT_TX_LAND_RATE_LOOKBACK_WINDOW_MINUTES *
-			60,
+		txLandRateLookbackWindowMinutes = DEFAULT_TX_LAND_RATE_LOOKBACK_WINDOW_MINUTES,
 		landRateToFeeFunc,
 	}: {
 		connection: Connection;
