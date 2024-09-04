@@ -2149,7 +2149,7 @@ export class DriftClient {
 		);
 	}
 
-	public async createInitializeUserAccountAndDepositCollateral(
+	public async createInitializeUserAccountAndDepositCollateralIxs(
 		amount: BN,
 		userTokenAccount: PublicKey,
 		marketIndex = 0,
@@ -2158,9 +2158,8 @@ export class DriftClient {
 		fromSubAccountId?: number,
 		referrerInfo?: ReferrerInfo,
 		donateAmount?: BN,
-		txParams?: TxParams,
 		customMaxMarginRatio?: number
-	): Promise<[Transaction | VersionedTransaction, PublicKey]> {
+	) : Promise<{ ixs: TransactionInstruction[]; userAccountPublicKey: PublicKey }> {
 		const ixs = [];
 
 		const [userAccountPublicKey, initializeUserAccountIx] =
@@ -2260,6 +2259,37 @@ export class DriftClient {
 				)
 			);
 		}
+
+		return {
+			ixs,
+			userAccountPublicKey
+		};
+	}
+
+	public async createInitializeUserAccountAndDepositCollateral(
+		amount: BN,
+		userTokenAccount: PublicKey,
+		marketIndex = 0,
+		subAccountId = 0,
+		name?: string,
+		fromSubAccountId?: number,
+		referrerInfo?: ReferrerInfo,
+		donateAmount?: BN,
+		txParams?: TxParams,
+		customMaxMarginRatio?: number
+	): Promise<[Transaction | VersionedTransaction, PublicKey]> {
+
+		const {ixs, userAccountPublicKey} = await this.createInitializeUserAccountAndDepositCollateralIxs(
+			amount,
+			userTokenAccount,
+			marketIndex,
+			subAccountId,
+			name,
+			fromSubAccountId,
+			referrerInfo,
+			donateAmount,
+			customMaxMarginRatio
+		);
 
 		const tx = await this.buildTransaction(ixs, txParams);
 
