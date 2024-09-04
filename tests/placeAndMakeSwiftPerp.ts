@@ -202,6 +202,8 @@ describe('place and make swift order', () => {
 		const takerOrderParamsMessage: SwiftOrderParamsMessage = {
 			swiftOrderParams: [takerOrderParams],
 			marketIndex,
+			takerPublicKey: await takerDriftClient.getUserAccountPublicKey(),
+			expectedOrderId: 1,
 		};
 		const takerOrderParamsSig = await takerDriftClient.signTakerOrderParams(
 			takerOrderParamsMessage
@@ -212,13 +214,12 @@ describe('place and make swift order', () => {
 			txSig = await makerDriftClient.placeAndMakeSwiftPerpOrder(
 				takerOrderParamsMessage,
 				takerOrderParamsSig,
-				makerOrderParams,
 				{
 					taker: await takerDriftClient.getUserAccountPublicKey(),
-					order: takerDriftClient.getOrderByUserId(1),
 					takerUserAccount: takerDriftClient.getUserAccount(),
 					takerStats: takerDriftClient.getUserStatsAccountPublicKey(),
-				}
+				},
+				makerOrderParams
 			);
 		} catch (error) {
 			console.log(JSON.stringify(error));
@@ -240,13 +241,12 @@ describe('place and make swift order', () => {
 			txSigUndefined = await makerDriftClient.placeAndMakeSwiftPerpOrder(
 				takerOrderParamsMessage,
 				dupedSig,
-				makerOrderParams,
 				{
 					taker: await takerDriftClient.getUserAccountPublicKey(),
-					order: takerDriftClient.getOrderByUserId(1),
 					takerUserAccount: takerDriftClient.getUserAccount(),
 					takerStats: takerDriftClient.getUserStatsAccountPublicKey(),
-				}
+				},
+				makerOrderParams
 			);
 		} catch (error) {
 			console.log(error);

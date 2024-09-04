@@ -200,7 +200,7 @@ describe('place and make swift order', () => {
 		const takerOrderParams = getLimitOrderParams({
 			marketIndex,
 			direction: PositionDirection.LONG,
-			baseAssetAmount,
+			baseAssetAmount: baseAssetAmount.muln(2),
 			price: new BN(34).mul(PRICE_PRECISION),
 			auctionStartPrice: new BN(33).mul(PRICE_PRECISION),
 			auctionEndPrice: new BN(34).mul(PRICE_PRECISION),
@@ -216,10 +216,14 @@ describe('place and make swift order', () => {
 		const takerOrderParamsMessage: SwiftOrderParamsMessage = {
 			swiftOrderParams: [takerOrderParams],
 			marketIndex,
+			takerPublicKey: await takerDriftClient.getUserAccountPublicKey(),
+			expectedOrderId: 1,
 		};
 		const takerOrderParamsDupMessage: SwiftOrderParamsMessage = {
 			swiftOrderParams: [takerOrderParamsDup],
 			marketIndex,
+			takerPublicKey: await takerDriftClient.getUserAccountPublicKey(),
+			expectedOrderId: 1,
 		};
 
 		await takerDriftClientUser.fetchAccounts();
@@ -240,13 +244,12 @@ describe('place and make swift order', () => {
 		const txSig = await makerDriftClient.placeAndMakeSwiftPerpOrder(
 			takerOrderParamsMessage,
 			takerOrderParamsSig,
-			makerOrderParams,
 			{
 				taker: await takerDriftClient.getUserAccountPublicKey(),
-				order: takerDriftClient.getOrderByUserId(1),
 				takerUserAccount: takerDriftClient.getUserAccount(),
 				takerStats: takerDriftClient.getUserStatsAccountPublicKey(),
-			}
+			},
+			makerOrderParams
 		);
 
 		bankrunContextWrapper.printTxLogs(txSig);
@@ -263,23 +266,20 @@ describe('place and make swift order', () => {
 		await makerDriftClient.placeAndMakeSwiftPerpOrder(
 			takerOrderParamsDupMessage,
 			dupedSig,
-			makerOrderParams,
 			{
 				taker: await takerDriftClient.getUserAccountPublicKey(),
-				order: takerDriftClient.getOrderByUserId(1),
 				takerUserAccount: takerDriftClient.getUserAccount(),
 				takerStats: takerDriftClient.getUserStatsAccountPublicKey(),
-			}
+			},
+			makerOrderParams
 		);
 
 		const takerPositionAfter = takerDriftClient.getUser().getPerpPosition(0);
 		const makerPositionAfter = makerDriftClient.getUser().getPerpPosition(0);
 
+		assert(takerPositionAfter.baseAssetAmount.eq(baseAssetAmount.muln(2)));
 		assert(
-			takerPositionAfter.baseAssetAmount.eq(takerPosition.baseAssetAmount)
-		);
-		assert(
-			makerPositionAfter.baseAssetAmount.eq(makerPosition.baseAssetAmount)
+			makerPositionAfter.baseAssetAmount.eq(baseAssetAmount.muln(2).neg())
 		);
 
 		await takerDriftClientUser.unsubscribe();
@@ -363,8 +363,6 @@ describe('place and make swift order', () => {
 			userOrderId: 3,
 			triggerCondition: OrderTriggerCondition.ABOVE,
 		});
-		console.log(stopLossTakerParams.orderType);
-		console.log(takeProfitTakerParams.orderType);
 
 		await takerDriftClientUser.fetchAccounts();
 		const makerOrderParams = getLimitOrderParams({
@@ -372,7 +370,6 @@ describe('place and make swift order', () => {
 			direction: PositionDirection.SHORT,
 			baseAssetAmount,
 			price: new BN(33).mul(PRICE_PRECISION),
-			userOrderId: 1,
 			postOnly: PostOnlyParams.MUST_POST_ONLY,
 			immediateOrCancel: true,
 		});
@@ -384,6 +381,8 @@ describe('place and make swift order', () => {
 				takeProfitTakerParams,
 			],
 			marketIndex,
+			takerPublicKey: await takerDriftClient.getUserAccountPublicKey(),
+			expectedOrderId: takerOrderParams.expectedOrderId,
 		};
 
 		const takerOrderParamsSig = await takerDriftClient.signTakerOrderParams(
@@ -393,17 +392,16 @@ describe('place and make swift order', () => {
 		await makerDriftClient.placeAndMakeSwiftPerpOrder(
 			takerOrderParamsMessage,
 			takerOrderParamsSig,
-			makerOrderParams,
 			{
 				taker: await takerDriftClient.getUserAccountPublicKey(),
-				order: takerDriftClient.getOrderByUserId(1),
 				takerUserAccount: takerDriftClient.getUserAccount(),
 				takerStats: takerDriftClient.getUserStatsAccountPublicKey(),
-			}
+			},
+			makerOrderParams
 		);
 
 		const makerPosition = makerDriftClient.getUser().getPerpPosition(0);
-		assert(makerPosition.baseAssetAmount.eq(BASE_PRECISION.neg().muln(2)));
+		assert(makerPosition.baseAssetAmount.eq(BASE_PRECISION.neg().muln(3)));
 
 		const takerPosition = takerDriftClient.getUser().getPerpPosition(0);
 
@@ -411,123 +409,6 @@ describe('place and make swift order', () => {
 		assert(takerPosition.baseAssetAmount.eq(BASE_PRECISION));
 		assert(takerDriftClient.getOrderByUserId(2) !== undefined);
 		assert(takerDriftClient.getOrderByUserId(3) !== undefined);
-
-		await takerDriftClientUser.unsubscribe();
-		await takerDriftClient.unsubscribe();
-	});
-
-	it('doesnt trigger orders if no matching order', async () => {
-		const keypair = new Keypair();
-		await bankrunContextWrapper.fundKeypair(keypair, 10 ** 9);
-		await sleep(1000);
-		const wallet = new Wallet(keypair);
-		const userUSDCAccount = await mockUserUSDCAccount(
-			usdcMint,
-			usdcAmount,
-			bankrunContextWrapper,
-			keypair.publicKey
-		);
-		const takerDriftClient = new TestClient({
-			connection: bankrunContextWrapper.connection.toConnection(),
-			wallet,
-			programID: chProgram.programId,
-			opts: {
-				commitment: 'confirmed',
-			},
-			activeSubAccountId: 0,
-			perpMarketIndexes: marketIndexes,
-			spotMarketIndexes: spotMarketIndexes,
-			subAccountIds: [],
-			oracleInfos,
-			userStats: true,
-			accountSubscription: {
-				type: 'polling',
-				accountLoader: bulkAccountLoader,
-			},
-		});
-		await takerDriftClient.subscribe();
-		await takerDriftClient.initializeUserAccountAndDepositCollateral(
-			usdcAmount,
-			userUSDCAccount.publicKey
-		);
-		const takerDriftClientUser = new User({
-			driftClient: takerDriftClient,
-			userAccountPublicKey: await takerDriftClient.getUserAccountPublicKey(),
-			accountSubscription: {
-				type: 'polling',
-				accountLoader: bulkAccountLoader,
-			},
-		});
-		await takerDriftClientUser.subscribe();
-
-		const marketIndex = 0;
-		const baseAssetAmount = BASE_PRECISION;
-		const stopLossTakerParams = getTriggerLimitOrderParams({
-			marketIndex,
-			direction: PositionDirection.SHORT,
-			baseAssetAmount,
-			price: new BN(20).mul(PRICE_PRECISION),
-			triggerPrice: new BN(20).mul(PRICE_PRECISION),
-			userOrderId: 2,
-			triggerCondition: OrderTriggerCondition.BELOW,
-		});
-
-		const takeProfitTakerParams = getTriggerLimitOrderParams({
-			marketIndex,
-			direction: PositionDirection.SHORT,
-			baseAssetAmount,
-			price: new BN(40).mul(PRICE_PRECISION),
-			triggerPrice: new BN(40).mul(PRICE_PRECISION),
-			userOrderId: 3,
-			triggerCondition: OrderTriggerCondition.ABOVE,
-		});
-		console.log(stopLossTakerParams.orderType);
-		console.log(takeProfitTakerParams.orderType);
-
-		await takerDriftClientUser.fetchAccounts();
-		const makerOrderParams = getLimitOrderParams({
-			marketIndex,
-			direction: PositionDirection.SHORT,
-			baseAssetAmount,
-			price: new BN(33).mul(PRICE_PRECISION),
-			userOrderId: 1,
-			postOnly: PostOnlyParams.MUST_POST_ONLY,
-			immediateOrCancel: true,
-		});
-
-		const takerOrderParamsMessage: SwiftOrderParamsMessage = {
-			swiftOrderParams: [stopLossTakerParams, takeProfitTakerParams],
-			marketIndex,
-		};
-
-		const takerOrderParamsSig = await takerDriftClient.signTakerOrderParams(
-			takerOrderParamsMessage
-		);
-
-		const makerPositionBefore = makerDriftClient.getUser().getPerpPosition(0);
-		await makerDriftClient.placeAndMakeSwiftPerpOrder(
-			takerOrderParamsMessage,
-			takerOrderParamsSig,
-			makerOrderParams,
-			{
-				taker: await takerDriftClient.getUserAccountPublicKey(),
-				order: takerDriftClient.getOrderByUserId(1),
-				takerUserAccount: takerDriftClient.getUserAccount(),
-				takerStats: takerDriftClient.getUserStatsAccountPublicKey(),
-			}
-		);
-
-		const makerPositionAfter = makerDriftClient.getUser().getPerpPosition(0);
-		assert(
-			makerPositionBefore.baseAssetAmount.eq(makerPositionAfter.baseAssetAmount)
-		);
-
-		const takerPosition = takerDriftClient.getUser().getPerpPosition(0);
-
-		// No orders are placed
-		assert(takerPosition === undefined);
-		assert(takerDriftClient.getOrderByUserId(2) === undefined);
-		assert(takerDriftClient.getOrderByUserId(3) === undefined);
 
 		await takerDriftClientUser.unsubscribe();
 		await takerDriftClient.unsubscribe();

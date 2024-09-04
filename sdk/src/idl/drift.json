@@ -609,7 +609,7 @@
       ]
     },
     {
-      "name": "placeAndMakeSwiftPerpOrder",
+      "name": "placeSwiftTakerOrder",
       "accounts": [
         {
           "name": "state",
@@ -623,16 +623,6 @@
         },
         {
           "name": "userStats",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "taker",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "takerStats",
           "isMut": true,
           "isSigner": false
         },
@@ -656,12 +646,6 @@
         {
           "name": "takerOrderParamsMessageBytes",
           "type": "bytes"
-        },
-        {
-          "name": "makerOrderParams",
-          "type": {
-            "defined": "OrderParams"
-          }
         },
         {
           "name": "signature",

@@ -1,3 +1,5 @@
+use std::cell::RefMut;
+
 use anchor_lang::prelude::*;
 use anchor_lang::Discriminator;
 use anchor_spl::{
@@ -51,6 +53,7 @@ use crate::state::fulfillment_params::openbook_v2::OpenbookV2FulfillmentParams;
 use crate::state::fulfillment_params::phoenix::PhoenixFulfillmentParams;
 use crate::state::fulfillment_params::serum::SerumFulfillmentParams;
 use crate::state::oracle::StrictOraclePrice;
+use crate::state::oracle_map::OracleMap;
 use crate::state::order_params::SwiftOrderParamsMessage;
 use crate::state::order_params::{
     ModifyOrderParams, OrderParams, PlaceOrderOptions, PostOnlyParam,
@@ -58,10 +61,12 @@ use crate::state::order_params::{
 use crate::state::paused_operations::{PerpOperation, SpotOperation};
 use crate::state::perp_market::ContractType;
 use crate::state::perp_market::MarketStatus;
+use crate::state::perp_market_map::PerpMarketMap;
 use crate::state::perp_market_map::{get_writable_perp_market_set, MarketSet};
 use crate::state::spot_fulfillment_params::SpotFulfillmentParams;
 use crate::state::spot_market::SpotBalanceType;
 use crate::state::spot_market::SpotMarket;
+use crate::state::spot_market_map::SpotMarketMap;
 use crate::state::spot_market_map::{
     get_writable_spot_market_set, get_writable_spot_market_set_from_many,
 };
@@ -1367,29 +1372,25 @@ pub fn handle_place_and_make_perp_order<'c: 'info, 'info>(
     Ok(())
 }
 
-#[access_control(
-    fill_not_paused(&ctx.accounts.state)
-)]
-pub fn handle_place_and_make_swift_perp_order<'c: 'info, 'info>(
-    ctx: Context<'_, '_, 'c, 'info, PlaceAndMakeSwift<'info>>,
-    taker_order_params_bytes: Vec<u8>,
-    maker_order_params: OrderParams,
+pub fn place_swift_taker_order<'c: 'info, 'info>(
+    taker_key: Pubkey,
+    taker: &mut RefMut<User>,
+    taker_order_params_message: SwiftOrderParamsMessage,
+    ix_sysvar: &AccountInfo<'info>,
     sig: [u8; 64],
-) -> Result<()> {
-    let taker_order_params_message: SwiftOrderParamsMessage =
-        SwiftOrderParamsMessage::deserialize(&mut &taker_order_params_bytes[..]).unwrap();
-
+    perp_market_map: &PerpMarketMap,
+    spot_market_map: &SpotMarketMap,
+    oracle_map: &mut OracleMap,
+    state: &State,
+) -> Result<bool> {
     // Authenticate the signature
-    let taker_key = ctx.accounts.taker.key();
-    let mut taker = load_mut!(ctx.accounts.taker)?;
-    let ix_idx = load_current_index_checked(&ctx.accounts.ix_sysvar.to_account_info())?;
+    let ix_idx = load_current_index_checked(ix_sysvar)?;
     validate!(
         ix_idx > 0,
         ErrorCode::InvalidVerificationIxIndex,
         "instruction index must be greater than 0"
     )?;
-    let ix: Instruction =
-        load_instruction_at_checked(ix_idx as usize - 1, &ctx.accounts.ix_sysvar)?;
+    let ix: Instruction = load_instruction_at_checked(ix_idx as usize - 1, ix_sysvar)?;
     verify_ed25519_ix(
         &ix,
         &taker.authority.to_bytes(),
@@ -1403,48 +1404,7 @@ pub fn handle_place_and_make_swift_perp_order<'c: 'info, 'info>(
     let taker_order_params = taker_order_params_message.swift_order_params;
 
     let clock = &Clock::get()?;
-    let state = &ctx.accounts.state;
-
-    let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
-    let AccountMaps {
-        perp_market_map,
-        spot_market_map,
-        mut oracle_map,
-    } = load_maps(
-        remaining_accounts_iter,
-        &get_writable_perp_market_set(market_index),
-        &MarketSet::new(),
-        Clock::get()?.slot,
-        Some(state.oracle_guard_rails),
-    )?;
-
-    if !maker_order_params.immediate_or_cancel
-        || maker_order_params.post_only == PostOnlyParam::None
-        || maker_order_params.order_type != OrderType::Limit
-    {
-        msg!("maker: place_and_make_swift must use IOC post only limit order");
-        return Err(print_error!(ErrorCode::InvalidOrderIOCPostOnly)().into());
-    }
-
-    controller::repeg::update_amm(
-        market_index,
-        &perp_market_map,
-        &mut oracle_map,
-        state,
-        clock,
-    )?;
-
-    let maker_key = ctx.accounts.user.key();
-    let mut maker = load_mut!(ctx.accounts.user)?;
-
-    // Separate out any matching orders and non-matching orders
-    let non_matching_orders = taker_order_params
-        .iter()
-        .filter(|order_params| {
-            order_params.order_type == OrderType::TriggerLimit
-                || order_params.order_type == OrderType::TriggerMarket
-        })
-        .collect::<Vec<_>>();
+    controller::repeg::update_amm(market_index, perp_market_map, oracle_map, state, clock)?;
 
     // Use the first matching taker order param
     let matching_taker_order_params_ref = taker_order_params.iter().find(|order_params| {
@@ -1455,7 +1415,7 @@ pub fn handle_place_and_make_swift_perp_order<'c: 'info, 'info>(
     if matching_taker_order_params_ref.is_none() {
         msg!("No matching taker order params found");
         // Place any matching orders and non-matching orders
-        return Ok(());
+        return Ok(false);
     }
 
     let matching_taker_order_params = *matching_taker_order_params_ref.unwrap();
@@ -1463,96 +1423,83 @@ pub fn handle_place_and_make_swift_perp_order<'c: 'info, 'info>(
     // Place taker order
     let taker_order_sent = controller::orders::place_swift_perp_order(
         state,
-        &mut taker,
+        taker,
         taker_key,
-        &perp_market_map,
-        &spot_market_map,
-        &mut oracle_map,
+        perp_market_map,
+        spot_market_map,
+        oracle_map,
         clock,
         matching_taker_order_params,
         PlaceOrderOptions::default(),
     )?;
 
-    if !taker_order_sent {
+    if taker_order_sent {
+        let non_matching_orders = taker_order_params
+            .iter()
+            .filter(|order_params| {
+                order_params.order_type == OrderType::TriggerLimit
+                    || order_params.order_type == OrderType::TriggerMarket
+            })
+            .collect::<Vec<_>>();
+        for swift_order_params in non_matching_orders {
+            controller::orders::place_perp_order(
+                state,
+                taker,
+                taker_key,
+                perp_market_map,
+                spot_market_map,
+                oracle_map,
+                clock,
+                swift_order_params.to_order_params(),
+                PlaceOrderOptions::default(),
+            )?;
+        }
+    } else {
         msg!(
             "Orders not placed due to taker order id mismatch: taker account next order id {}, order params expected next order id {}",
             taker.next_order_id,
             matching_taker_order_params.get_expected_order_id()?
         );
-        return Ok(());
     }
-    let taker_last_order_id = taker.get_last_order_id();
 
-    // Place maker order
-    controller::orders::place_perp_order(
-        state,
-        &mut maker,
-        maker_key,
+    Ok(taker_order_sent)
+}
+
+pub fn handle_place_swift_taker_order<'c: 'info, 'info>(
+    ctx: Context<'_, '_, 'c, 'info, PlaceSwiftTakerOrder<'info>>,
+    taker_order_params_bytes: Vec<u8>,
+    sig: [u8; 64],
+) -> Result<()> {
+    let taker_order_params_message: SwiftOrderParamsMessage =
+        SwiftOrderParamsMessage::deserialize(&mut &taker_order_params_bytes[..]).unwrap();
+    let state = &ctx.accounts.state;
+
+    let AccountMaps {
+        perp_market_map,
+        spot_market_map,
+        mut oracle_map,
+    } = load_maps(
+        &mut ctx.remaining_accounts.iter().peekable(),
+        &get_writable_perp_market_set(taker_order_params_message.market_index),
+        &MarketSet::new(),
+        Clock::get()?.slot,
+        Some(state.oracle_guard_rails),
+    )?;
+
+    let taker_key = ctx.accounts.user.key();
+    let mut taker = load_mut!(ctx.accounts.user)?;
+
+    place_swift_taker_order(
+        taker_key,
+        &mut taker,
+        taker_order_params_message,
+        &ctx.accounts.ix_sysvar.to_account_info(),
+        sig,
         &perp_market_map,
         &spot_market_map,
         &mut oracle_map,
-        clock,
-        maker_order_params,
-        PlaceOrderOptions::default(),
-    )?;
-
-    // Successfully place trigger orders after the taker order so as to not alter order id increment
-    for swift_order_params in non_matching_orders {
-        controller::orders::place_perp_order(
-            state,
-            &mut taker,
-            taker_key,
-            &perp_market_map,
-            &spot_market_map,
-            &mut oracle_map,
-            clock,
-            swift_order_params.to_order_params(),
-            PlaceOrderOptions::default(),
-        )?;
-    }
-
-    let (order_id, authority) = (maker.get_last_order_id(), maker.authority);
-    drop(maker);
-    drop(taker);
-
-    let (mut makers_and_referrer, mut makers_and_referrer_stats) =
-        load_user_maps(remaining_accounts_iter, true)?;
-    makers_and_referrer.insert(ctx.accounts.user.key(), ctx.accounts.user.clone())?;
-    makers_and_referrer_stats.insert(authority, ctx.accounts.user_stats.clone())?;
-
-    controller::orders::fill_perp_order(
-        taker_last_order_id,
         state,
-        &ctx.accounts.taker.clone(),
-        &ctx.accounts.taker_stats.clone(),
-        &spot_market_map,
-        &perp_market_map,
-        &mut oracle_map,
-        &ctx.accounts.user.clone(),
-        &ctx.accounts.user_stats.clone(),
-        &makers_and_referrer,
-        &makers_and_referrer_stats,
-        Some(order_id),
-        clock,
-        FillMode::PlaceAndMake,
     )?;
-
-    let order_exists = load!(ctx.accounts.user)?
-        .orders
-        .iter()
-        .any(|order| order.order_id == order_id);
-
-    if order_exists {
-        controller::orders::cancel_order_by_order_id(
-            order_id,
-            &ctx.accounts.user,
-            &perp_market_map,
-            &spot_market_map,
-            &mut oracle_map,
-            clock,
-        )?;
-    }
-
     Ok(())
 }
 
@@ -2523,25 +2470,15 @@ pub struct PlaceAndMake<'info> {
 }
 
 #[derive(Accounts)]
-pub struct PlaceAndMakeSwift<'info> {
+pub struct PlaceSwiftTakerOrder<'info> {
     pub state: Box<Account<'info, State>>,
-    #[account(
-        mut,
-        constraint = can_sign_for_user(&user, &authority)?
-    )]
+    #[account(mut)]
     pub user: AccountLoader<'info, User>,
     #[account(
         mut,
         constraint = is_stats_for_user(&user, &user_stats)?
     )]
     pub user_stats: AccountLoader<'info, UserStats>,
-    #[account(mut)]
-    pub taker: AccountLoader<'info, User>,
-    #[account(
-        mut,
-        constraint = is_stats_for_user(&taker, &taker_stats)?
-    )]
-    pub taker_stats: AccountLoader<'info, UserStats>,
     pub authority: Signer<'info>,
     /// CHECK: The address check is needed because otherwise
     /// the supplied Sysvar could be anything else.

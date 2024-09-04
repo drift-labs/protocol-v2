@@ -5271,8 +5271,12 @@ export class DriftClient {
 	public async placeAndMakeSwiftPerpOrder(
 		takerOrderParamsMessage: SwiftOrderParamsMessage,
 		takerSignature: Uint8Array,
+		takerInfo: {
+			taker: PublicKey;
+			takerStats: PublicKey;
+			takerUserAccount: UserAccount;
+		},
 		orderParams: OptionalOrderParams,
-		takerInfo: TakerInfo,
 		referrerInfo?: ReferrerInfo,
 		txParams?: TxParams,
 		subAccountId?: number
@@ -5280,8 +5284,8 @@ export class DriftClient {
 		const ixs = await this.getPlaceAndMakeSwiftPerpOrderIxs(
 			takerOrderParamsMessage,
 			takerSignature,
-			orderParams,
 			takerInfo,
+			orderParams,
 			referrerInfo,
 			subAccountId
 		);
@@ -5292,15 +5296,18 @@ export class DriftClient {
 		);
 
 		this.perpMarketLastSlotCache.set(orderParams.marketIndex, slot);
-
 		return txSig;
 	}
 
 	public async getPlaceAndMakeSwiftPerpOrderIxs(
 		takerOrderParamsMessage: SwiftOrderParamsMessage,
 		takerSignature: Uint8Array,
+		takerInfo: {
+			taker: PublicKey;
+			takerStats: PublicKey;
+			takerUserAccount: UserAccount;
+		},
 		orderParams: OptionalOrderParams,
-		takerInfo: TakerInfo,
 		referrerInfo?: ReferrerInfo,
 		subAccountId?: number
 	): Promise<TransactionInstruction[]> {
@@ -5342,27 +5349,41 @@ export class DriftClient {
 			message: this.getEncodedSwiftOrderParamsMessage(takerOrderParamsMessage),
 		});
 
-		const makeSwiftPerpOrderIx =
-			await this.program.instruction.placeAndMakeSwiftPerpOrder(
+		const placeTakerSwiftPerpOrderIx =
+			await this.program.instruction.placeSwiftTakerOrder(
 				Buffer.from(
 					this.getEncodedSwiftOrderParamsMessage(takerOrderParamsMessage)
 				),
-				orderParams,
 				takerSignature,
 				{
 					accounts: {
 						state: await this.getStatePublicKey(),
-						user,
-						userStats: userStatsPublicKey,
-						taker: takerInfo.taker,
-						takerStats: takerInfo.takerStats,
+						user: takerInfo.taker,
+						userStats: takerInfo.takerStats,
 						authority: this.wallet.publicKey,
 						ixSysvar: SYSVAR_INSTRUCTIONS_PUBKEY,
 					},
 					remainingAccounts,
 				}
 			);
-		return [signatureIx, makeSwiftPerpOrderIx];
+
+		const placeAndMakeIx = await this.program.instruction.placeAndMakePerpOrder(
+			orderParams,
+			takerOrderParamsMessage.expectedOrderId,
+			{
+				accounts: {
+					state: await this.getStatePublicKey(),
+					user,
+					userStats: userStatsPublicKey,
+					taker: takerInfo.taker,
+					takerStats: takerInfo.takerStats,
+					authority: this.wallet.publicKey,
+				},
+				remainingAccounts,
+			}
+		);
+
+		return [signatureIx, placeTakerSwiftPerpOrderIx, placeAndMakeIx];
 	}
 
 	public async preparePlaceAndTakeSpotOrder(
