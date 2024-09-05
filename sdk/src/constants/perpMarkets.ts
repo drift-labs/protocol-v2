@@ -840,6 +840,18 @@ export const MainnetPerpMarkets: PerpMarketConfig[] = [
 		launchTs: 1725551484000,
 		oracleSource: OracleSource.Prelaunch,
 	},
+	{
+		fullName: 'TON',
+		category: ['L1'],
+		symbol: 'TON',
+		baseAssetSymbol: 'TON',
+		marketIndex: 42,
+		oracle: new PublicKey('BNjCXrpEqjdBnuRy2SAUgm5Pq8B73wGFwsf6RYFJiLPY'),
+		launchTs: 1725551484000,
+		oracleSource: OracleSource.PYTH_PULL,
+		pythFeedId:
+			'0x8963217838ab4cf5cadc172203c1f0b763fbaa45f346d8ee50ba994bbcac3026',
+	},
 ];
 
 export const PerpMarkets: { [key in DriftEnv]: PerpMarketConfig[] } = {
