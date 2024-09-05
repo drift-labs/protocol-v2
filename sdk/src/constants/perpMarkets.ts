@@ -830,6 +830,16 @@ export const MainnetPerpMarkets: PerpMarketConfig[] = [
 		launchTs: 1724250126000,
 		oracleSource: OracleSource.Prelaunch,
 	},
+	{
+		fullName: 'DEMOCRATS-WIN-MICHIGAN-BET',
+		category: ['Prediction', 'Election'],
+		symbol: 'DEMOCRATS-WIN-MICHIGAN-BET',
+		baseAssetSymbol: 'DEMOCRATS-WIN-MICHIGAN',
+		marketIndex: 41,
+		oracle: new PublicKey('8HTDLjhb2esGU5mu11v3pq3eWeFqmvKPkQNCnTTwKAyB'),
+		launchTs: 1725551484000,
+		oracleSource: OracleSource.Prelaunch,
+	},
 ];
 
 export const PerpMarkets: { [key in DriftEnv]: PerpMarketConfig[] } = {
