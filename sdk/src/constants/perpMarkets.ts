@@ -843,7 +843,7 @@ export const MainnetPerpMarkets: PerpMarketConfig[] = [
 	{
 		fullName: 'TON',
 		category: ['L1'],
-		symbol: 'TON',
+		symbol: 'TON-PERP',
 		baseAssetSymbol: 'TON',
 		marketIndex: 42,
 		oracle: new PublicKey('BNjCXrpEqjdBnuRy2SAUgm5Pq8B73wGFwsf6RYFJiLPY'),
