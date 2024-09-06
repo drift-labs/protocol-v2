@@ -5268,6 +5268,28 @@ export class DriftClient {
 		return await ed.sign(message, this.wallet.payer.secretKey.slice(0, 32));
 	}
 
+	public assembleSwiftServerMessage(
+		message: Uint8Array,
+		signature: Uint8Array,
+		takerPubkey: PublicKey,
+		marketIndex: number,
+		marketType: MarketType
+	): {
+		message: string;
+		signature: string;
+		taker_pubkey: string;
+		market_index: number;
+		market_type: 'perp' | 'spot';
+	} {
+		return {
+			message: Buffer.from(message).toString('base64'),
+			signature: Buffer.from(signature).toString('base64'),
+			taker_pubkey: takerPubkey.toBase58(),
+			market_index: marketIndex,
+			market_type: isVariant(marketType, 'perp') ? 'perp' : 'spot',
+		};
+	}
+
 	public async placeAndMakeSwiftPerpOrder(
 		takerOrderParamsMessage: SwiftOrderParamsMessage,
 		takerSignature: Uint8Array,

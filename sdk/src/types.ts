@@ -1058,7 +1058,6 @@ export const DefaultOrderParams: OrderParams = {
 export type SwiftOrderParamsMessage = {
 	marketIndex: number;
 	swiftOrderParams: OptionalOrderParams[];
-	takerPublicKey: PublicKey;
 	expectedOrderId: number;
 };
 

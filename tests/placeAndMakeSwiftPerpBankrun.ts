@@ -216,13 +216,11 @@ describe('place and make swift order', () => {
 		const takerOrderParamsMessage: SwiftOrderParamsMessage = {
 			swiftOrderParams: [takerOrderParams],
 			marketIndex,
-			takerPublicKey: await takerDriftClient.getUserAccountPublicKey(),
 			expectedOrderId: 1,
 		};
 		const takerOrderParamsDupMessage: SwiftOrderParamsMessage = {
 			swiftOrderParams: [takerOrderParamsDup],
 			marketIndex,
-			takerPublicKey: await takerDriftClient.getUserAccountPublicKey(),
 			expectedOrderId: 1,
 		};
 
@@ -381,7 +379,6 @@ describe('place and make swift order', () => {
 				takeProfitTakerParams,
 			],
 			marketIndex,
-			takerPublicKey: await takerDriftClient.getUserAccountPublicKey(),
 			expectedOrderId: takerOrderParams.expectedOrderId,
 		};
 

@@ -202,7 +202,6 @@ describe('place and make swift order', () => {
 		const takerOrderParamsMessage: SwiftOrderParamsMessage = {
 			swiftOrderParams: [takerOrderParams],
 			marketIndex,
-			takerPublicKey: await takerDriftClient.getUserAccountPublicKey(),
 			expectedOrderId: 1,
 		};
 		const takerOrderParamsSig = await takerDriftClient.signTakerOrderParams(
