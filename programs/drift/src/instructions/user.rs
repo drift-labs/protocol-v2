@@ -1170,7 +1170,7 @@ pub fn handle_place_orders<'c: 'info, 'info>(
 pub fn handle_place_and_take_perp_order<'c: 'info, 'info>(
     ctx: Context<'_, '_, 'c, 'info, PlaceAndTake<'info>>,
     params: OrderParams,
-    _maker_order_id: Option<u32>,
+    should_fail_on_partial_or_no_fill: Option<bool>,
 ) -> Result<()> {
     let clock = Clock::get()?;
     let state = &ctx.accounts.state;
@@ -1220,7 +1220,7 @@ pub fn handle_place_and_take_perp_order<'c: 'info, 'info>(
         params,
         PlaceOrderOptions::default(),
     )?;
-
+    
     drop(user);
 
     let user = &mut ctx.accounts.user;
@@ -1241,6 +1241,7 @@ pub fn handle_place_and_take_perp_order<'c: 'info, 'info>(
         None,
         &Clock::get()?,
         FillMode::PlaceAndTake,
+        should_fail_on_partial_or_no_fill,
     )?;
 
     let order_exists = load!(ctx.accounts.user)?
@@ -1341,6 +1342,7 @@ pub fn handle_place_and_make_perp_order<'c: 'info, 'info>(
         Some(order_id),
         clock,
         FillMode::PlaceAndMake,
+        None
     )?;
 
     let order_exists = load!(ctx.accounts.user)?
