@@ -160,6 +160,7 @@ type RemainingAccountParams = {
 	readablePerpMarketIndex?: number | number[];
 	readableSpotMarketIndexes?: number[];
 	useMarketLastSlotCache?: boolean;
+	userAccountNotAvailable?: boolean;
 };
 
 /**
@@ -1622,7 +1623,7 @@ export class DriftClient {
 			this.getRemainingAccountMapsForUsers(params.userAccounts);
 
 		if (params.useMarketLastSlotCache) {
-			const lastUserSlot = this.getUserAccountAndSlot()?.slot;
+			const lastUserSlot = params.userAccountNotAvailable ? 0 : this.getUserAccountAndSlot()?.slot;
 
 			for (const [
 				marketIndex,
@@ -2159,7 +2160,10 @@ export class DriftClient {
 		referrerInfo?: ReferrerInfo,
 		donateAmount?: BN,
 		customMaxMarginRatio?: number
-	) : Promise<{ ixs: TransactionInstruction[]; userAccountPublicKey: PublicKey }> {
+	): Promise<{
+		ixs: TransactionInstruction[];
+		userAccountPublicKey: PublicKey;
+	}> {
 		const ixs = [];
 
 		const [userAccountPublicKey, initializeUserAccountIx] =
@@ -2262,7 +2266,7 @@ export class DriftClient {
 
 		return {
 			ixs,
-			userAccountPublicKey
+			userAccountPublicKey,
 		};
 	}
 
@@ -2278,18 +2282,18 @@ export class DriftClient {
 		txParams?: TxParams,
 		customMaxMarginRatio?: number
 	): Promise<[Transaction | VersionedTransaction, PublicKey]> {
-
-		const {ixs, userAccountPublicKey} = await this.createInitializeUserAccountAndDepositCollateralIxs(
-			amount,
-			userTokenAccount,
-			marketIndex,
-			subAccountId,
-			name,
-			fromSubAccountId,
-			referrerInfo,
-			donateAmount,
-			customMaxMarginRatio
-		);
+		const { ixs, userAccountPublicKey } =
+			await this.createInitializeUserAccountAndDepositCollateralIxs(
+				amount,
+				userTokenAccount,
+				marketIndex,
+				subAccountId,
+				name,
+				fromSubAccountId,
+				referrerInfo,
+				donateAmount,
+				customMaxMarginRatio
+			);
 
 		const tx = await this.buildTransaction(ixs, txParams);
 
@@ -3157,15 +3161,22 @@ export class DriftClient {
 
 	public async getPlacePerpOrderIx(
 		orderParams: OptionalOrderParams,
-		subAccountId?: number
+		subAccountId?: number,
+		isDepositToTradeTx?: boolean
 	): Promise<TransactionInstruction> {
 		orderParams = getOrderParams(orderParams, { marketType: MarketType.PERP });
-		const user = await this.getUserAccountPublicKey(subAccountId);
+
+		const user = isDepositToTradeTx ? getUserAccountPublicKeySync(
+			this.program.programId,
+			this.authority,
+			subAccountId
+		) : await this.getUserAccountPublicKey(subAccountId);
 
 		const remainingAccounts = this.getRemainingAccounts({
-			userAccounts: [this.getUserAccount(subAccountId)],
+			userAccounts: isDepositToTradeTx ? [] : [this.getUserAccount(subAccountId)],
 			useMarketLastSlotCache: true,
 			readablePerpMarketIndex: orderParams.marketIndex,
+			userAccountNotAvailable: isDepositToTradeTx
 		});
 
 		return await this.program.instruction.placePerpOrder(orderParams, {
