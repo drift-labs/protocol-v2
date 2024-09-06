@@ -402,6 +402,7 @@ pub fn update_spot_market_and_check_validity(
         oracle_price_data,
         validity_guard_rails,
         spot_market.get_max_confidence_interval_multiplier()?,
+        &spot_market.oracle_source,
         false,
     )?;
 

@@ -351,6 +351,7 @@ impl SpotMarket {
                     / 2
             }
             MarginRequirementType::Maintenance => self.maintenance_asset_weight,
+            MarginRequirementType::InitialInvalidOracle => 0, // invalid oracle
         };
 
         let size_based_asset_weight = calculate_size_discount_asset_weight(
@@ -409,6 +410,7 @@ impl SpotMarket {
                     / 2
             }
             MarginRequirementType::Maintenance => self.maintenance_liability_weight,
+            MarginRequirementType::InitialInvalidOracle => self.initial_liability_weight,
         };
 
         let size_based_liability_weight = calculate_size_premium_liability_weight(
@@ -432,6 +434,7 @@ impl SpotMarket {
             MarginRequirementType::Initial => self.initial_liability_weight,
             MarginRequirementType::Fill => return Err(ErrorCode::DefaultError),
             MarginRequirementType::Maintenance => self.maintenance_liability_weight,
+            MarginRequirementType::InitialInvalidOracle => return Err(ErrorCode::DefaultError),
         };
         liability_weight.safe_sub(MARGIN_PRECISION)
     }

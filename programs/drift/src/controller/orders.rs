@@ -994,6 +994,7 @@ pub fn fill_perp_order(
             &market.amm.oracle,
             market.amm.historical_oracle_data.last_oracle_price_twap,
             market.get_max_confidence_interval_multiplier()?,
+            &market.amm.oracle_source,
         )?;
 
         amm_is_available &=
@@ -2722,6 +2723,7 @@ pub fn trigger_order(
             .historical_oracle_data
             .last_oracle_price_twap,
         perp_market.get_max_confidence_interval_multiplier()?,
+        &perp_market.amm.oracle_source,
     )?;
 
     let is_oracle_valid =
@@ -4990,6 +4992,7 @@ pub fn trigger_spot_order(
         &spot_market.oracle,
         spot_market.historical_oracle_data.last_oracle_price_twap,
         spot_market.get_max_confidence_interval_multiplier()?,
+        &spot_market.oracle_source,
     )?;
     let strict_oracle_price = StrictOraclePrice {
         current: oracle_price_data.price,

@@ -1451,7 +1451,7 @@ fn attempt_borrow_with_massive_upnl() {
         borrow_balance: SPOT_BALANCE_PRECISION,
         liquidator_fee: LIQUIDATION_FEE_PRECISION / 1000,
         status: MarketStatus::Active,
-
+        historical_oracle_data: HistoricalOracleData::default_price(100 * PRICE_PRECISION_I64),
         ..SpotMarket::default()
     };
     create_anchor_account_info!(sol_spot_market, SpotMarket, sol_spot_market_account_info);

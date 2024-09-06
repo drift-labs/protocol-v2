@@ -1124,6 +1124,7 @@ mod calculate_max_spot_order_size {
             liquidator_fee: LIQUIDATION_FEE_PRECISION / 1000,
             historical_oracle_data: HistoricalOracleData {
                 last_oracle_price_twap_5min: 110 * PRICE_PRECISION_I64,
+                last_oracle_price_twap: 110 * PRICE_PRECISION_I64,
                 ..HistoricalOracleData::default()
             },
             ..SpotMarket::default()
@@ -1231,6 +1232,7 @@ mod calculate_max_spot_order_size {
             liquidator_fee: LIQUIDATION_FEE_PRECISION / 1000,
             historical_oracle_data: HistoricalOracleData {
                 last_oracle_price_twap_5min: 110 * PRICE_PRECISION_I64,
+                last_oracle_price_twap: 110 * PRICE_PRECISION_I64,
                 ..HistoricalOracleData::default()
             },
             ..SpotMarket::default()
@@ -1446,6 +1448,7 @@ mod calculate_max_spot_order_size {
             liquidator_fee: LIQUIDATION_FEE_PRECISION / 1000,
             historical_oracle_data: HistoricalOracleData {
                 last_oracle_price_twap_5min: 110 * PRICE_PRECISION_I64,
+                last_oracle_price_twap: 110 * PRICE_PRECISION_I64,
                 ..HistoricalOracleData::default()
             },
             ..SpotMarket::default()
@@ -1536,6 +1539,7 @@ mod calculate_max_spot_order_size {
             liquidator_fee: LIQUIDATION_FEE_PRECISION / 1000,
             historical_oracle_data: HistoricalOracleData {
                 last_oracle_price_twap_5min: 100 * PRICE_PRECISION_I64,
+                last_oracle_price_twap: 100 * PRICE_PRECISION_I64,
                 ..HistoricalOracleData::default()
             },
             ..SpotMarket::default()
@@ -1812,7 +1816,10 @@ mod calculate_max_spot_order_size {
         )
         .unwrap();
 
-        assert!(total_collateral.unsigned_abs() - margin_requirement < 100 * QUOTE_PRECISION);
+        assert_eq!(total_collateral.unsigned_abs(), 10000000000);
+        assert_eq!(margin_requirement, 19025866165);
+
+        assert!(total_collateral - (margin_requirement as i128) < (100 * QUOTE_PRECISION) as i128);
     }
 
     #[test]

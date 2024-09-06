@@ -433,8 +433,9 @@ impl User {
     }
 
     pub fn get_fuel_bonus_numerator(&self, now: i64) -> DriftResult<i64> {
-        if self.last_fuel_bonus_update_ts > 0 {
-            now.safe_sub(self.last_fuel_bonus_update_ts.cast()?)
+        // start ts for existing accounts pre fuel
+        if now > FUEL_START_TS {
+            return Ok(now.safe_sub(FUEL_START_TS)?);
         } else {
             // start ts for existing accounts pre fuel
             if now > FUEL_START_TS {
@@ -1630,7 +1631,7 @@ impl UserStats {
         fuel_positions: u32,
         now: i64,
     ) -> DriftResult {
-        if user.last_fuel_bonus_update_ts != 0 || now > FUEL_START_TS {
+        if now > FUEL_START_TS {
             self.fuel_deposits = self.fuel_deposits.saturating_add(fuel_deposits);
             self.fuel_borrows = self.fuel_borrows.saturating_add(fuel_borrows);
             self.fuel_positions = self.fuel_positions.saturating_add(fuel_positions);
