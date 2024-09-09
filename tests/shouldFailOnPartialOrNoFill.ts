@@ -3,7 +3,7 @@ import { assert, expect } from 'chai';
 
 import { Program } from '@coral-xyz/anchor';
 
-import { Keypair, PublicKey, Transaction } from '@solana/web3.js';
+import { Keypair } from '@solana/web3.js';
 
 import {
 	OrderActionRecord,
@@ -17,7 +17,6 @@ import {
 	EventSubscriber,
 } from '../sdk/src';
 
-
 import {
 	createUserWithUSDCAccount,
 	initializeQuoteSpotMarket,
@@ -28,17 +27,9 @@ import {
 import {
 	OrderType,
 	AMM_RESERVE_PRECISION,
-	isVariant,
 	OracleSource,
-	PEG_PRECISION,
-	ZERO,
 	Order,
 } from '../sdk/lib';
-import {
-	createAssociatedTokenAccountIdempotentInstruction,
-	createMintToInstruction,
-	getAssociatedTokenAddressSync,
-} from '@solana/spl-token';
 import { startAnchor } from 'solana-bankrun';
 import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
 import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
@@ -59,26 +50,14 @@ describe('new shouldFailOnPartialOrNoFill field on placeAndTakePerpOrder', () =>
 	let spotMarketIndexes;
 	let oracleInfos;
 
-	const mantissaSqrtScale = new BN(100000);
-	// const ammInitialQuoteAssetReserve = new anchor.BN(5 * 10 ** 13).mul(
-	// 	mantissaSqrtScale
-	// );
-	// const ammInitialBaseAssetReserve = new anchor.BN(5 * 10 ** 13).mul(
-	// 	mantissaSqrtScale
-	// );
-
 	const ammInitialQuoteAssetReserve = new BN(5000).mul(AMM_RESERVE_PRECISION);
 	const ammInitialBaseAssetReserve = new BN(5000).mul(AMM_RESERVE_PRECISION);
-
-	// const usdcAmount = new BN(10 * 10 ** 6);
-	const usdcAmount = new BN(100).mul(AMM_RESERVE_PRECISION)
+	const usdcAmount = new BN(100).mul(AMM_RESERVE_PRECISION);
 
 	const fillerKeyPair = new Keypair();
 	let fillerUSDCAccount: Keypair;
 	let fillerDriftClient: TestClient;
 	let fillerUser: User;
-
-	const marketIndex = 0;
 	let solUsd;
 
 	before(async () => {
@@ -109,9 +88,7 @@ describe('new shouldFailOnPartialOrNoFill field on placeAndTakePerpOrder', () =>
 
 		marketIndexes = [0, 1];
 		spotMarketIndexes = [0];
-		oracleInfos = [
-			{ publicKey: solUsd, source: OracleSource.PYTH }
-		];
+		oracleInfos = [{ publicKey: solUsd, source: OracleSource.PYTH }];
 
 		driftClient = new TestClient({
 			connection: bankrunContextWrapper.connection.toConnection(),
@@ -223,11 +200,15 @@ describe('new shouldFailOnPartialOrNoFill field on placeAndTakePerpOrder', () =>
 				bulkAccountLoader
 			);
 
-		let makerUsers = makerDriftClient.getUsers();
+		const makerUsers = makerDriftClient.getUsers();
 
 		for (let index = 0; index < makerUsers.length; index++) {
 			const user = makerUsers[index];
-			console.log(`maker index: ${index} address: ${user.getUserAccountPublicKey().toBase58()}`);
+			console.log(
+				`maker index: ${index} address: ${user
+					.getUserAccountPublicKey()
+					.toBase58()}`
+			);
 		}
 
 		await makerDriftClient.deposit(usdcAmount, 0, makerUSDCAccount);
@@ -240,26 +221,31 @@ describe('new shouldFailOnPartialOrNoFill field on placeAndTakePerpOrder', () =>
 			baseAssetAmount: new BN(500).mul(AMM_RESERVE_PRECISION), //10 ** 9
 		});
 
-		const makerOrder =
-			makerDriftClient.getUserAccount().orders[0];
+		const makerOrder = makerDriftClient.getUserAccount().orders[0];
 
-		console.log("makerOrder:");
+		console.log('makerOrder:');
 		printOrder(makerOrder);
 		const makerOrderActionRecord =
 			eventSubscriber.getEventsArray('OrderActionRecord')[0];
-		console.log("makerOrderActionRecord:");
+		console.log('makerOrderActionRecord:');
 		printOrderActionRecord(makerOrderActionRecord);
 
-		let driftClientUsers = driftClient.getUsers();
+		const driftClientUsers = driftClient.getUsers();
 		for (let index = 0; index < driftClientUsers.length; index++) {
 			const user = driftClientUsers[index];
-			console.log(`taker index: ${index} address: ${user.getUserAccountPublicKey().toBase58()}`);
+			console.log(
+				`taker index: ${index} address: ${user
+					.getUserAccountPublicKey()
+					.toBase58()}`
+			);
 		}
-		let driftClientUserPk = driftClientUser.getUserAccountPublicKey().toBase58();
-		let fillerUserPk = fillerUser.getUserAccountPublicKey().toBase58();
+		const driftClientUserPk = driftClientUser
+			.getUserAccountPublicKey()
+			.toBase58();
+		const fillerUserPk = fillerUser.getUserAccountPublicKey().toBase58();
 
-		console.log("Taker:UserAccountPublicKey:", driftClientUserPk);
-		console.log("Filler:UserAccountPublicKey:", fillerUserPk);
+		console.log('Taker:UserAccountPublicKey:', driftClientUserPk);
+		console.log('Filler:UserAccountPublicKey:', fillerUserPk);
 
 		const orderParams = getMarketOrderParams({
 			marketIndex: 0,
@@ -284,18 +270,18 @@ describe('new shouldFailOnPartialOrNoFill field on placeAndTakePerpOrder', () =>
 			await driftClient.placeAndTakePerpOrder(orderParams, true, makerInfo);
 		} catch (e) {
 			console.log(e);
-			expect(e.message).to.equal('Error processing Instruction 1: custom program error: 0x188d');
+			expect(e.message).to.equal(
+				'Error processing Instruction 1: custom program error: 0x188d'
+			);
 		}
 
+		const takerOrder = driftClient.getUserAccount().orders[0];
+		console.log('takeOrder:');
+		printOrder(takerOrder);
 
-		const takeOrder =
-			driftClient.getUserAccount().orders[0];
-		console.log("takeOrder:");
-		printOrder(takeOrder);
-
-		assert(takeOrder.baseAssetAmount.eq(new BN(0)));
-		assert(takeOrder.price.eq(new BN(0)));
-		assert(takeOrder.marketIndex === 0);
+		assert(takerOrder.baseAssetAmount.eq(new BN(0)));
+		assert(takerOrder.price.eq(new BN(0)));
+		assert(takerOrder.marketIndex === 0);
 
 		const takerPosition = driftClientUser.getUserAccount().perpPositions[0];
 		console.log(
@@ -323,61 +309,273 @@ describe('new shouldFailOnPartialOrNoFill field on placeAndTakePerpOrder', () =>
 });
 
 function printOrderActionRecord(orderActionRecord: OrderActionRecord): void {
-	console.log("=== OrderActionRecord ===");
-	console.log(`orderActionRecord.ts: ${orderActionRecord.ts ? orderActionRecord.ts.toString() : 'null'}`);
-	console.log(`orderActionRecord.action: ${orderActionRecord.action ? JSON.stringify(orderActionRecord.action) : 'null'}`);
-	console.log(`orderActionRecord.actionExplanation: ${orderActionRecord.actionExplanation ? JSON.stringify(orderActionRecord.actionExplanation) : 'null'}`);
-	console.log(`orderActionRecord.marketIndex: ${orderActionRecord.marketIndex}`);
-	console.log(`orderActionRecord.marketType: ${orderActionRecord.marketType ? JSON.stringify(orderActionRecord.marketType) : 'null'}`);
-	console.log(`orderActionRecord.filler: ${orderActionRecord.filler ? orderActionRecord.filler.toString() : 'null'}`);
-	console.log(`orderActionRecord.fillerReward: ${orderActionRecord.fillerReward ? orderActionRecord.fillerReward.toString() : 'null'}`);
-	console.log(`orderActionRecord.fillRecordId: ${orderActionRecord.fillRecordId ? orderActionRecord.fillRecordId.toString() : 'null'}`);
-	console.log(`orderActionRecord.baseAssetAmountFilled: ${orderActionRecord.baseAssetAmountFilled ? orderActionRecord.baseAssetAmountFilled.toString() : 'null'}`);
-	console.log(`orderActionRecord.quoteAssetAmountFilled: ${orderActionRecord.quoteAssetAmountFilled ? orderActionRecord.quoteAssetAmountFilled.toString() : 'null'}`);
-	console.log(`orderActionRecord.takerFee: ${orderActionRecord.takerFee ? orderActionRecord.takerFee.toString() : 'null'}`);
-	console.log(`orderActionRecord.makerFee: ${orderActionRecord.makerFee ? orderActionRecord.makerFee.toString() : 'null'}`);
-	console.log(`orderActionRecord.referrerReward: ${orderActionRecord.referrerReward !== null ? orderActionRecord.referrerReward : 'null'}`);
-	console.log(`orderActionRecord.quoteAssetAmountSurplus: ${orderActionRecord.quoteAssetAmountSurplus ? orderActionRecord.quoteAssetAmountSurplus.toString() : 'null'}`);
-	console.log(`orderActionRecord.spotFulfillmentMethodFee: ${orderActionRecord.spotFulfillmentMethodFee ? orderActionRecord.spotFulfillmentMethodFee.toString() : 'null'}`);
-	console.log(`orderActionRecord.taker: ${orderActionRecord.taker ? orderActionRecord.taker.toString() : 'null'}`);
-	console.log(`orderActionRecord.takerOrderId: ${orderActionRecord.takerOrderId !== null ? orderActionRecord.takerOrderId : 'null'}`);
-	console.log(`orderActionRecord.takerOrderDirection: ${orderActionRecord.takerOrderDirection ? JSON.stringify(orderActionRecord.takerOrderDirection) : 'null'}`);
-	console.log(`orderActionRecord.takerOrderBaseAssetAmount: ${orderActionRecord.takerOrderBaseAssetAmount ? orderActionRecord.takerOrderBaseAssetAmount.toString() : 'null'}`);
-	console.log(`orderActionRecord.takerOrderCumulativeBaseAssetAmountFilled: ${orderActionRecord.takerOrderCumulativeBaseAssetAmountFilled ? orderActionRecord.takerOrderCumulativeBaseAssetAmountFilled.toString() : 'null'}`);
-	console.log(`orderActionRecord.takerOrderCumulativeQuoteAssetAmountFilled: ${orderActionRecord.takerOrderCumulativeQuoteAssetAmountFilled ? orderActionRecord.takerOrderCumulativeQuoteAssetAmountFilled.toString() : 'null'}`);
-	console.log(`orderActionRecord.maker: ${orderActionRecord.maker ? orderActionRecord.maker.toString() : 'null'}`);
-	console.log(`orderActionRecord.makerOrderId: ${orderActionRecord.makerOrderId !== null ? orderActionRecord.makerOrderId : 'null'}`);
-	console.log(`orderActionRecord.makerOrderDirection: ${orderActionRecord.makerOrderDirection ? JSON.stringify(orderActionRecord.makerOrderDirection) : 'null'}`);
-	console.log(`orderActionRecord.makerOrderBaseAssetAmount: ${orderActionRecord.makerOrderBaseAssetAmount ? orderActionRecord.makerOrderBaseAssetAmount.toString() : 'null'}`);
-	console.log(`orderActionRecord.makerOrderCumulativeBaseAssetAmountFilled: ${orderActionRecord.makerOrderCumulativeBaseAssetAmountFilled ? orderActionRecord.makerOrderCumulativeBaseAssetAmountFilled.toString() : 'null'}`);
-	console.log(`orderActionRecord.makerOrderCumulativeQuoteAssetAmountFilled: ${orderActionRecord.makerOrderCumulativeQuoteAssetAmountFilled ? orderActionRecord.makerOrderCumulativeQuoteAssetAmountFilled.toString() : 'null'}`);
-	console.log(`orderActionRecord.oraclePrice: ${orderActionRecord.oraclePrice ? orderActionRecord.oraclePrice.toString() : 'null'}`);
+	console.log('=== OrderActionRecord ===');
+	console.log(
+		`orderActionRecord.ts: ${
+			orderActionRecord.ts ? orderActionRecord.ts.toString() : 'null'
+		}`
+	);
+	console.log(
+		`orderActionRecord.action: ${
+			orderActionRecord.action
+				? JSON.stringify(orderActionRecord.action)
+				: 'null'
+		}`
+	);
+	console.log(
+		`orderActionRecord.actionExplanation: ${
+			orderActionRecord.actionExplanation
+				? JSON.stringify(orderActionRecord.actionExplanation)
+				: 'null'
+		}`
+	);
+	console.log(
+		`orderActionRecord.marketIndex: ${orderActionRecord.marketIndex}`
+	);
+	console.log(
+		`orderActionRecord.marketType: ${
+			orderActionRecord.marketType
+				? JSON.stringify(orderActionRecord.marketType)
+				: 'null'
+		}`
+	);
+	console.log(
+		`orderActionRecord.filler: ${
+			orderActionRecord.filler ? orderActionRecord.filler.toString() : 'null'
+		}`
+	);
+	console.log(
+		`orderActionRecord.fillerReward: ${
+			orderActionRecord.fillerReward
+				? orderActionRecord.fillerReward.toString()
+				: 'null'
+		}`
+	);
+	console.log(
+		`orderActionRecord.fillRecordId: ${
+			orderActionRecord.fillRecordId
+				? orderActionRecord.fillRecordId.toString()
+				: 'null'
+		}`
+	);
+	console.log(
+		`orderActionRecord.baseAssetAmountFilled: ${
+			orderActionRecord.baseAssetAmountFilled
+				? orderActionRecord.baseAssetAmountFilled.toString()
+				: 'null'
+		}`
+	);
+	console.log(
+		`orderActionRecord.quoteAssetAmountFilled: ${
+			orderActionRecord.quoteAssetAmountFilled
+				? orderActionRecord.quoteAssetAmountFilled.toString()
+				: 'null'
+		}`
+	);
+	console.log(
+		`orderActionRecord.takerFee: ${
+			orderActionRecord.takerFee
+				? orderActionRecord.takerFee.toString()
+				: 'null'
+		}`
+	);
+	console.log(
+		`orderActionRecord.makerFee: ${
+			orderActionRecord.makerFee
+				? orderActionRecord.makerFee.toString()
+				: 'null'
+		}`
+	);
+	console.log(
+		`orderActionRecord.referrerReward: ${
+			orderActionRecord.referrerReward !== null
+				? orderActionRecord.referrerReward
+				: 'null'
+		}`
+	);
+	console.log(
+		`orderActionRecord.quoteAssetAmountSurplus: ${
+			orderActionRecord.quoteAssetAmountSurplus
+				? orderActionRecord.quoteAssetAmountSurplus.toString()
+				: 'null'
+		}`
+	);
+	console.log(
+		`orderActionRecord.spotFulfillmentMethodFee: ${
+			orderActionRecord.spotFulfillmentMethodFee
+				? orderActionRecord.spotFulfillmentMethodFee.toString()
+				: 'null'
+		}`
+	);
+	console.log(
+		`orderActionRecord.taker: ${
+			orderActionRecord.taker ? orderActionRecord.taker.toString() : 'null'
+		}`
+	);
+	console.log(
+		`orderActionRecord.takerOrderId: ${
+			orderActionRecord.takerOrderId !== null
+				? orderActionRecord.takerOrderId
+				: 'null'
+		}`
+	);
+	console.log(
+		`orderActionRecord.takerOrderDirection: ${
+			orderActionRecord.takerOrderDirection
+				? JSON.stringify(orderActionRecord.takerOrderDirection)
+				: 'null'
+		}`
+	);
+	console.log(
+		`orderActionRecord.takerOrderBaseAssetAmount: ${
+			orderActionRecord.takerOrderBaseAssetAmount
+				? orderActionRecord.takerOrderBaseAssetAmount.toString()
+				: 'null'
+		}`
+	);
+	console.log(
+		`orderActionRecord.takerOrderCumulativeBaseAssetAmountFilled: ${
+			orderActionRecord.takerOrderCumulativeBaseAssetAmountFilled
+				? orderActionRecord.takerOrderCumulativeBaseAssetAmountFilled.toString()
+				: 'null'
+		}`
+	);
+	console.log(
+		`orderActionRecord.takerOrderCumulativeQuoteAssetAmountFilled: ${
+			orderActionRecord.takerOrderCumulativeQuoteAssetAmountFilled
+				? orderActionRecord.takerOrderCumulativeQuoteAssetAmountFilled.toString()
+				: 'null'
+		}`
+	);
+	console.log(
+		`orderActionRecord.maker: ${
+			orderActionRecord.maker ? orderActionRecord.maker.toString() : 'null'
+		}`
+	);
+	console.log(
+		`orderActionRecord.makerOrderId: ${
+			orderActionRecord.makerOrderId !== null
+				? orderActionRecord.makerOrderId
+				: 'null'
+		}`
+	);
+	console.log(
+		`orderActionRecord.makerOrderDirection: ${
+			orderActionRecord.makerOrderDirection
+				? JSON.stringify(orderActionRecord.makerOrderDirection)
+				: 'null'
+		}`
+	);
+	console.log(
+		`orderActionRecord.makerOrderBaseAssetAmount: ${
+			orderActionRecord.makerOrderBaseAssetAmount
+				? orderActionRecord.makerOrderBaseAssetAmount.toString()
+				: 'null'
+		}`
+	);
+	console.log(
+		`orderActionRecord.makerOrderCumulativeBaseAssetAmountFilled: ${
+			orderActionRecord.makerOrderCumulativeBaseAssetAmountFilled
+				? orderActionRecord.makerOrderCumulativeBaseAssetAmountFilled.toString()
+				: 'null'
+		}`
+	);
+	console.log(
+		`orderActionRecord.makerOrderCumulativeQuoteAssetAmountFilled: ${
+			orderActionRecord.makerOrderCumulativeQuoteAssetAmountFilled
+				? orderActionRecord.makerOrderCumulativeQuoteAssetAmountFilled.toString()
+				: 'null'
+		}`
+	);
+	console.log(
+		`orderActionRecord.oraclePrice: ${
+			orderActionRecord.oraclePrice
+				? orderActionRecord.oraclePrice.toString()
+				: 'null'
+		}`
+	);
 }
 
 function printOrder(order: Order): void {
-	console.log("=== Order ===");
-	console.log(`order.status: ${order.status ? JSON.stringify(order.status) : 'null'}`);
-	console.log(`order.orderType: ${order.orderType ? JSON.stringify(order.orderType) : 'null'}`);
-	console.log(`order.marketType: ${order.marketType ? JSON.stringify(order.marketType) : 'null'}`);
+	console.log('=== Order ===');
+	console.log(
+		`order.status: ${order.status ? JSON.stringify(order.status) : 'null'}`
+	);
+	console.log(
+		`order.orderType: ${
+			order.orderType ? JSON.stringify(order.orderType) : 'null'
+		}`
+	);
+	console.log(
+		`order.marketType: ${
+			order.marketType ? JSON.stringify(order.marketType) : 'null'
+		}`
+	);
 	console.log(`order.slot: ${order.slot ? order.slot.toString() : 'null'}`);
 	console.log(`order.orderId: ${order.orderId}`);
 	console.log(`order.userOrderId: ${order.userOrderId}`);
 	console.log(`order.marketIndex: ${order.marketIndex}`);
 	console.log(`order.price: ${order.price ? order.price.toString() : 'null'}`);
-	console.log(`order.baseAssetAmount: ${order.baseAssetAmount ? order.baseAssetAmount.toString() : 'null'}`);
-	console.log(`order.quoteAssetAmount: ${order.quoteAssetAmount ? order.quoteAssetAmount.toString() : 'null'}`);
-	console.log(`order.baseAssetAmountFilled: ${order.baseAssetAmountFilled ? order.baseAssetAmountFilled.toString() : 'null'}`);
-	console.log(`order.quoteAssetAmountFilled: ${order.quoteAssetAmountFilled ? order.quoteAssetAmountFilled.toString() : 'null'}`);
-	console.log(`order.direction: ${order.direction ? JSON.stringify(order.direction) : 'null'}`);
+	console.log(
+		`order.baseAssetAmount: ${
+			order.baseAssetAmount ? order.baseAssetAmount.toString() : 'null'
+		}`
+	);
+	console.log(
+		`order.quoteAssetAmount: ${
+			order.quoteAssetAmount ? order.quoteAssetAmount.toString() : 'null'
+		}`
+	);
+	console.log(
+		`order.baseAssetAmountFilled: ${
+			order.baseAssetAmountFilled
+				? order.baseAssetAmountFilled.toString()
+				: 'null'
+		}`
+	);
+	console.log(
+		`order.quoteAssetAmountFilled: ${
+			order.quoteAssetAmountFilled
+				? order.quoteAssetAmountFilled.toString()
+				: 'null'
+		}`
+	);
+	console.log(
+		`order.direction: ${
+			order.direction ? JSON.stringify(order.direction) : 'null'
+		}`
+	);
 	console.log(`order.reduceOnly: ${order.reduceOnly}`);
-	console.log(`order.triggerPrice: ${order.triggerPrice ? order.triggerPrice.toString() : 'null'}`);
-	console.log(`order.triggerCondition: ${order.triggerCondition ? JSON.stringify(order.triggerCondition) : 'null'}`);
-	console.log(`order.existingPositionDirection: ${order.existingPositionDirection ? JSON.stringify(order.existingPositionDirection) : 'null'}`);
+	console.log(
+		`order.triggerPrice: ${
+			order.triggerPrice ? order.triggerPrice.toString() : 'null'
+		}`
+	);
+	console.log(
+		`order.triggerCondition: ${
+			order.triggerCondition ? JSON.stringify(order.triggerCondition) : 'null'
+		}`
+	);
+	console.log(
+		`order.existingPositionDirection: ${
+			order.existingPositionDirection
+				? JSON.stringify(order.existingPositionDirection)
+				: 'null'
+		}`
+	);
 	console.log(`order.postOnly: ${order.postOnly}`);
 	console.log(`order.immediateOrCancel: ${order.immediateOrCancel}`);
 	console.log(`order.oraclePriceOffset: ${order.oraclePriceOffset}`);
 	console.log(`order.auctionDuration: ${order.auctionDuration}`);
-	console.log(`order.auctionStartPrice: ${order.auctionStartPrice ? order.auctionStartPrice.toString() : 'null'}`);
-	console.log(`order.auctionEndPrice: ${order.auctionEndPrice ? order.auctionEndPrice.toString() : 'null'}`);
+	console.log(
+		`order.auctionStartPrice: ${
+			order.auctionStartPrice ? order.auctionStartPrice.toString() : 'null'
+		}`
+	);
+	console.log(
+		`order.auctionEndPrice: ${
+			order.auctionEndPrice ? order.auctionEndPrice.toString() : 'null'
+		}`
+	);
 	console.log(`order.maxTs: ${order.maxTs ? order.maxTs.toString() : 'null'}`);
 }
