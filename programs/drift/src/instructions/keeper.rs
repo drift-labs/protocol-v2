@@ -119,7 +119,6 @@ fn fill_order<'c: 'info, 'info>(
         None,
         clock,
         FillMode::Fill,
-        None
     )?;
 
     Ok(())

@@ -889,11 +889,9 @@ pub fn fill_perp_order(
     jit_maker_order_id: Option<u32>,
     clock: &Clock,
     fill_mode: FillMode,
-    should_fail_on_partial_or_no_fill: Option<bool>,
 ) -> DriftResult<(u64, u64)> {
     let now = clock.unix_timestamp;
     let slot = clock.slot;
-
     let filler_key = filler.key();
     let user_key = user.key();
     let user = &mut load_mut!(user)?;
@@ -1168,7 +1166,6 @@ pub fn fill_perp_order(
         state.min_perp_auction_duration,
         amm_is_available,
         fill_mode,
-        should_fail_on_partial_or_no_fill,
     )?;
 
     if base_asset_amount != 0 {
@@ -1230,27 +1227,7 @@ pub fn fill_perp_order(
     }
 
     if base_asset_amount == 0 {
-        if should_fail_on_partial_or_no_fill.is_some() && should_fail_on_partial_or_no_fill.unwrap()
-        {
-            msg!("Failed to cancel order due to no fill");
-            let explanation = OrderActionExplanation::None;
-            cancel_order(
-                order_index,
-                user,
-                &user_key,
-                perp_market_map,
-                spot_market_map,
-                oracle_map,
-                now,
-                slot,
-                explanation,
-                Some(&filler_key),
-                0,
-                false,
-            )?
-        } else {
-            return Ok((base_asset_amount, quote_asset_amount));
-        }
+        return Ok((base_asset_amount, quote_asset_amount));
     }
 
     {
@@ -1581,7 +1558,6 @@ fn fulfill_perp_order(
     min_auction_duration: u8,
     amm_is_available: bool,
     fill_mode: FillMode,
-    should_fail_on_partial_or_no_fill: Option<bool>,
 ) -> DriftResult<(u64, u64)> {
     let market_index = user.orders[user_order_index].market_index;
 
@@ -1624,7 +1600,7 @@ fn fulfill_perp_order(
     let mut quote_asset_amount = 0_u64;
     let mut maker_fills: BTreeMap<Pubkey, i64> = BTreeMap::new();
     let maker_direction = user.orders[user_order_index].direction.opposite();
-    for fulfillment_method in fulfillment_methods.iter() {    
+    for fulfillment_method in fulfillment_methods.iter() {
         if user.orders[user_order_index].status != OrderStatus::Open {
             break;
         }
@@ -1680,14 +1656,8 @@ fn fulfill_perp_order(
                         *maker_price,
                         AMMLiquiditySplit::Shared,
                         fill_mode.is_liquidation(),
-                        should_fail_on_partial_or_no_fill,
                     )?;
-                if should_fail_on_partial_or_no_fill.is_some() {
-                    if should_fail_on_partial_or_no_fill.unwrap() && fill_base_asset_amount == 0 {
-                        return Ok((0, 0));
-                    }
-                }
-
+          
                 (fill_base_asset_amount, fill_quote_asset_amount)
             }
             PerpFulfillmentMethod::Match(maker_key, maker_order_index) => {
@@ -1944,7 +1914,6 @@ pub fn fulfill_perp_order_with_amm(
     override_fill_price: Option<u64>,
     liquidity_split: AMMLiquiditySplit,
     is_liquidation: bool,
-    should_fail_on_partial_or_no_fill: Option<bool>
 ) -> DriftResult<(u64, u64)> {
     let position_index = get_position_index(&user.perp_positions, market.market_index)?;
     let existing_base_asset_amount = user.perp_positions[position_index].base_asset_amount;
@@ -1974,17 +1943,6 @@ pub fn fulfill_perp_order_with_amm(
             (base_asset_amount, limit_price, fill_price)
         }
     };
-
-    // check the base_asset_amount is fulfill the demand order
-    let unfilled_base_asset_amount =
-        user.orders[order_index].get_base_asset_amount_unfilled(Some(existing_base_asset_amount));
-    msg!(
-        "unfilled_base_asset_amount: {:?}",
-        unfilled_base_asset_amount.unwrap()
-    );
-    if should_fail_on_partial_or_no_fill.unwrap() && base_asset_amount < unfilled_base_asset_amount.unwrap() {
-        return Ok((0, 0));
-    }
 
     // if user position is less than min order size, step size is the threshold
     let amm_size_threshold =
@@ -2402,7 +2360,6 @@ pub fn fulfill_perp_order_with_match(
                 Some(maker_price), // match the makers price
                 amm_liquidity_split,
                 is_liquidation,
-                Some(false)
             )?;
 
         total_base_asset_amount = base_asset_amount_filled_by_amm;

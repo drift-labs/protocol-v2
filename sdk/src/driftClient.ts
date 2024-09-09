@@ -5152,11 +5152,10 @@ export class DriftClient {
 				});
 			}
 		}
-		
 
 		return await this.program.instruction.placeAndTakePerpOrder(
 			orderParams,
-			shouldFailOnPartialOrNoFill,
+			shouldFailOnPartialOrNoFill || false,
 			{
 				accounts: {
 					state: await this.getStatePublicKey(),

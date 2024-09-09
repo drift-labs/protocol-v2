@@ -1220,7 +1220,7 @@ pub fn handle_place_and_take_perp_order<'c: 'info, 'info>(
         params,
         PlaceOrderOptions::default(),
     )?;
-    
+
     drop(user);
 
     let user = &mut ctx.accounts.user;
@@ -1241,13 +1241,17 @@ pub fn handle_place_and_take_perp_order<'c: 'info, 'info>(
         None,
         &Clock::get()?,
         FillMode::PlaceAndTake,
-        should_fail_on_partial_or_no_fill,
     )?;
 
     let order_exists = load!(ctx.accounts.user)?
         .orders
         .iter()
         .any(|order| order.order_id == order_id);
+
+    msg!("order_exists: {}", order_exists);
+    if Some(true) == should_fail_on_partial_or_no_fill && order_exists {
+        return Err(ErrorCode::PartialFillError.into());
+    }
 
     if is_immediate_or_cancel && order_exists {
         controller::orders::cancel_order_by_order_id(
@@ -1342,7 +1346,6 @@ pub fn handle_place_and_make_perp_order<'c: 'info, 'info>(
         Some(order_id),
         clock,
         FillMode::PlaceAndMake,
-        None
     )?;
 
     let order_exists = load!(ctx.accounts.user)?
