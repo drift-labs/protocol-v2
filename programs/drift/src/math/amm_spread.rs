@@ -407,11 +407,12 @@ pub fn calculate_spread(
     }
 
     if total_fee_minus_distributions <= 0 {
+        crate::dlog!(long_spread, total_fee_minus_distributions);
         long_spread = long_spread
-            .safe_mul(DEFAULT_LARGE_BID_ASK_FACTOR)?
+            .saturating_mul(DEFAULT_LARGE_BID_ASK_FACTOR)
             .safe_div(BID_ASK_SPREAD_PRECISION)?;
         short_spread = short_spread
-            .safe_mul(DEFAULT_LARGE_BID_ASK_FACTOR)?
+            .saturating_mul(DEFAULT_LARGE_BID_ASK_FACTOR)
             .safe_div(BID_ASK_SPREAD_PRECISION)?;
     } else {
         // effective leverage scale
