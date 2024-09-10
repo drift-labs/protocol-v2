@@ -188,15 +188,22 @@ pub fn place_perp_order(
         )?;
 
         let base_asset_amount = if params.base_asset_amount == u64::MAX {
-            calculate_max_perp_order_size(
-                user,
-                position_index,
-                params.market_index,
-                params.direction,
-                perp_market_map,
-                spot_market_map,
-                oracle_map,
-            )?
+            if !params.reduce_only {
+                calculate_max_perp_order_size(
+                    user,
+                    position_index,
+                    params.market_index,
+                    params.direction,
+                    perp_market_map,
+                    spot_market_map,
+                    oracle_map,
+                )?
+            } else {
+                // if it's reduce only and max lev flag, just set as perp position size
+                user.perp_positions[position_index]
+                    .base_asset_amount
+                    .unsigned_abs()
+            }
         } else {
             standardize_base_asset_amount(params.base_asset_amount, market.amm.order_step_size)?
         };
