@@ -160,7 +160,6 @@ type RemainingAccountParams = {
 	readablePerpMarketIndex?: number | number[];
 	readableSpotMarketIndexes?: number[];
 	useMarketLastSlotCache?: boolean;
-	userAccountNotAvailable?: boolean;
 };
 
 /**
@@ -1623,7 +1622,7 @@ export class DriftClient {
 			this.getRemainingAccountMapsForUsers(params.userAccounts);
 
 		if (params.useMarketLastSlotCache) {
-			const lastUserSlot = params.userAccountNotAvailable ? 0 : this.getUserAccountAndSlot()?.slot;
+			const lastUserSlot = this.getUserAccountAndSlot()?.slot;
 
 			for (const [
 				marketIndex,
@@ -1910,7 +1909,7 @@ export class DriftClient {
 		marketIndex: number,
 		associatedTokenAccount: PublicKey,
 		subAccountId?: number,
-		reduceOnly = false,
+		reduceOnly = false
 	): Promise<TransactionInstruction[]> {
 		const spotMarketAccount = this.getSpotMarketAccount(marketIndex);
 
@@ -1973,7 +1972,7 @@ export class DriftClient {
 			marketIndex,
 			associatedTokenAccount,
 			subAccountId,
-			reduceOnly,
+			reduceOnly
 		);
 
 		txParams = { ...(txParams ?? this.txParams), computeUnits: 600_000 };
@@ -3184,17 +3183,20 @@ export class DriftClient {
 	): Promise<TransactionInstruction> {
 		orderParams = getOrderParams(orderParams, { marketType: MarketType.PERP });
 
-		const user = isDepositToTradeTx ? getUserAccountPublicKeySync(
-			this.program.programId,
-			this.authority,
-			subAccountId
-		) : await this.getUserAccountPublicKey(subAccountId);
+		const user = isDepositToTradeTx
+			? getUserAccountPublicKeySync(
+					this.program.programId,
+					this.authority,
+					subAccountId
+			  )
+			: await this.getUserAccountPublicKey(subAccountId);
 
 		const remainingAccounts = this.getRemainingAccounts({
-			userAccounts: isDepositToTradeTx ? [] : [this.getUserAccount(subAccountId)],
-			useMarketLastSlotCache: true,
+			userAccounts: isDepositToTradeTx
+				? []
+				: [this.getUserAccount(subAccountId)],
+			useMarketLastSlotCache: false,
 			readablePerpMarketIndex: orderParams.marketIndex,
-			userAccountNotAvailable: isDepositToTradeTx
 		});
 
 		return await this.program.instruction.placePerpOrder(orderParams, {
