@@ -37,6 +37,39 @@ export function parseLogs(
 	return events;
 }
 
+export function parseLogsWithRaw(
+	program: Program,
+	logs: string[],
+	programId = driftProgramId
+): { events: Event[]; rawLogs: string[] } {
+	const events = [];
+	const rawLogs = [];
+	const execution = new ExecutionContext();
+	for (const log of logs) {
+		if (log.startsWith('Log truncated')) {
+			break;
+		}
+
+		const [event, newProgram, didPop] = handleLog(
+			execution,
+			log,
+			program,
+			programId
+		);
+		if (event) {
+			events.push(event);
+			rawLogs.push(log);
+		}
+		if (newProgram) {
+			execution.push(newProgram);
+		}
+		if (didPop) {
+			execution.pop();
+		}
+	}
+	return { events, rawLogs };
+}
+
 function handleLog(
 	execution: ExecutionContext,
 	log: string,
