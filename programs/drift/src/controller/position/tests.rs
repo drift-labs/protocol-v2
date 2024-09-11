@@ -7,6 +7,7 @@ use crate::controller::position::{
 };
 use crate::controller::repeg::_update_amm;
 
+use crate::create_account_info;
 use crate::math::amm::calculate_market_open_bids_asks;
 use crate::math::constants::{
     AMM_RESERVE_PRECISION, AMM_RESERVE_PRECISION_I128, BASE_PRECISION, BASE_PRECISION_I64,
@@ -19,28 +20,24 @@ use crate::math::repeg;
 use crate::state::oracle::OraclePriceData;
 use crate::state::oracle_map::OracleMap;
 use crate::state::perp_market::{AMMLiquiditySplit, PerpMarket, AMM};
-use crate::state::perp_market_map::{self, PerpMarketMap};
+use crate::state::perp_market_map::PerpMarketMap;
 use crate::state::state::State;
 use crate::state::user::PerpPosition;
 use crate::test_utils::{create_account_info, get_account_bytes};
-use crate::{create_account_info};
 
 use crate::bn::U192;
+use crate::create_anchor_account_info;
 use crate::math::cp_curve::{adjust_k_cost, get_update_k_result, update_k};
 use crate::state::oracle::{HistoricalOracleData, OracleSource};
 use crate::state::spot_market::SpotMarket;
 use crate::state::spot_market_map::SpotMarketMap;
+use crate::test_utils::get_anchor_account_bytes;
 use crate::test_utils::get_hardcoded_pyth_price;
 use crate::QUOTE_PRECISION_I64;
 use anchor_lang::prelude::{AccountLoader, Clock};
+use anchor_lang::Owner;
 use solana_program::pubkey::Pubkey;
 use std::str::FromStr;
-use crate::test_utils::get_anchor_account_bytes;
-use crate::create_anchor_account_info;
-use anchor_lang::Owner;
-
-use crate::test_utils::{get_orders, get_positions, get_pyth_price, get_spot_positions};
-
 
 #[test]
 fn full_amm_split() {
@@ -96,7 +93,10 @@ fn amm_pred_settle_market_example() {
     };
 
     let mut state = State::default();
-    state.oracle_guard_rails.validity.confidence_interval_max_size = 20000;
+    state
+        .oracle_guard_rails
+        .validity
+        .confidence_interval_max_size = 20000;
     // let oracle_market_str = String::from("XA6L6kj0RBoBAAAAAAAAAAIAAAAAAAAAlLsNAAAAAADIw0oTAAAAAMjDShMAAAAAGgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA");
     // let mut decoded_bytes = base64::decode(oracle_market_str).unwrap();
     // let oracle_market_bytes = decoded_bytes.as_mut_slice();
@@ -108,7 +108,6 @@ fn amm_pred_settle_market_example() {
     //     create_account_info(&key, true, &mut lamports, oracle_market_bytes, &owner);
     // let mut oracle_map: OracleMap<'_> =
     //     OracleMap::load_one(&jto_market_account_info, clock_slot, None).unwrap();
-
 
     let mut sol_oracle_price: pyth::pc::Price = get_hardcoded_pyth_price(1, 6);
     sol_oracle_price.agg.conf = 1655389;
@@ -123,7 +122,6 @@ fn amm_pred_settle_market_example() {
         oracle_account_info
     );
     let mut oracle_map = OracleMap::load_one(&oracle_account_info, clock_slot, None).unwrap();
-
 
     let mut spot_market = SpotMarket {
         market_index: 0,
@@ -140,7 +138,8 @@ fn amm_pred_settle_market_example() {
         ..SpotMarket::default()
     };
     create_anchor_account_info!(spot_market, SpotMarket, spot_market_account_info);
-    let spot_market_map: SpotMarketMap<'_> = SpotMarketMap::load_one(&spot_market_account_info, true).unwrap();
+    let spot_market_map: SpotMarketMap<'_> =
+        SpotMarketMap::load_one(&spot_market_account_info, true).unwrap();
     let mut market_index;
 
     {

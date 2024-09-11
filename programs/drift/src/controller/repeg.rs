@@ -24,7 +24,7 @@ use crate::math::repeg;
 use crate::math::safe_math::SafeMath;
 use crate::math::spot_balance::get_token_amount;
 
-use crate::state::oracle::OraclePriceData;
+use crate::state::oracle::{OraclePriceData, OracleSource};
 use crate::state::oracle_map::OracleMap;
 use crate::state::perp_market::{MarketStatus, PerpMarket};
 use crate::state::perp_market_map::PerpMarketMap;
@@ -413,7 +413,14 @@ pub fn settle_expired_market(
         "Only support bank.decimals == QUOTE_PRECISION"
     )?;
 
-    let target_expiry_price = market.amm.historical_oracle_data.last_oracle_price_twap;
+    let target_expiry_price = if market.amm.oracle_source == OracleSource::Prelaunch {
+        market.amm.historical_oracle_data.last_oracle_price
+    } else {
+        market.amm.historical_oracle_data.last_oracle_price_twap
+    };
+
+    crate::dlog!(target_expiry_price);
+
     validate!(
         target_expiry_price > 0,
         ErrorCode::MarketSettlementTargetPriceInvalid,
@@ -426,6 +433,8 @@ pub fn settle_expired_market(
 
     market.expiry_price = expiry_price;
     market.status = MarketStatus::Settlement;
+
+    crate::dlog!(market.expiry_price);
 
     Ok(())
 }

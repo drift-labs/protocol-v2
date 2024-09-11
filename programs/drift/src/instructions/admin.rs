@@ -53,16 +53,11 @@ use crate::state::paused_operations::{InsuranceFundOperation, PerpOperation, Spo
 use crate::state::perp_market::{
     ContractTier, ContractType, InsuranceClaim, MarketStatus, PerpMarket, PoolBalance, AMM,
 };
-use crate::state::perp_market_map::{
-    get_market_set_for_user_positions, get_market_set_from_list, get_writable_perp_market_set,
-    get_writable_perp_market_set_from_vec, MarketSet, PerpMarketMap,
-};
+use crate::state::perp_market_map::get_writable_perp_market_set;
 use crate::state::spot_market::{
     AssetTier, InsuranceFund, SpotBalanceType, SpotFulfillmentConfigStatus, SpotMarket,
 };
-use crate::state::spot_market_map::{
-    get_writable_spot_market_set, get_writable_spot_market_set_from_many,
-};
+use crate::state::spot_market_map::get_writable_spot_market_set;
 use crate::state::state::{ExchangeStatus, FeeStructure, OracleGuardRails, State};
 use crate::state::traits::Size;
 use crate::state::user::{User, UserStats};
