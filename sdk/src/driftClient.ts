@@ -1905,14 +1905,13 @@ export class DriftClient {
 		});
 	}
 
-	public async createDepositTxn(
+	public async getDepositTxnIx(
 		amount: BN,
 		marketIndex: number,
 		associatedTokenAccount: PublicKey,
 		subAccountId?: number,
 		reduceOnly = false,
-		txParams?: TxParams
-	): Promise<VersionedTransaction | Transaction> {
+	): Promise<TransactionInstruction[]> {
 		const spotMarketAccount = this.getSpotMarketAccount(marketIndex);
 
 		const isSolMarket = spotMarketAccount.mint.equals(WRAPPED_SOL_MINT);
@@ -1957,6 +1956,25 @@ export class DriftClient {
 				)
 			);
 		}
+
+		return instructions;
+	}
+
+	public async createDepositTxn(
+		amount: BN,
+		marketIndex: number,
+		associatedTokenAccount: PublicKey,
+		subAccountId?: number,
+		reduceOnly = false,
+		txParams?: TxParams
+	): Promise<VersionedTransaction | Transaction> {
+		const instructions = await this.getDepositTxnIx(
+			amount,
+			marketIndex,
+			associatedTokenAccount,
+			subAccountId,
+			reduceOnly,
+		);
 
 		txParams = { ...(txParams ?? this.txParams), computeUnits: 600_000 };
 
