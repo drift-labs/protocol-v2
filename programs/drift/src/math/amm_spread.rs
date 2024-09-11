@@ -78,12 +78,12 @@ pub fn cap_to_max_spread(
     if total_spread > max_spread {
         if long_spread > short_spread {
             long_spread = long_spread
-                .safe_mul(max_spread)?
+                .saturating_mul(max_spread)
                 .safe_div_ceil(total_spread)?;
             short_spread = max_spread.safe_sub(long_spread)?;
         } else {
             short_spread = short_spread
-                .safe_mul(max_spread)?
+                .saturating_mul(max_spread)
                 .safe_div_ceil(total_spread)?;
             long_spread = max_spread.safe_sub(short_spread)?;
         }
@@ -407,7 +407,6 @@ pub fn calculate_spread(
     }
 
     if total_fee_minus_distributions <= 0 {
-        crate::dlog!(long_spread, total_fee_minus_distributions);
         long_spread = long_spread
             .saturating_mul(DEFAULT_LARGE_BID_ASK_FACTOR)
             .safe_div(BID_ASK_SPREAD_PRECISION)?;
