@@ -217,12 +217,6 @@ describe('place and make swift order', () => {
 			expectedOrderId: 1,
 			marketType: MarketType.PERP,
 		};
-		const takerOrderParamsDupMessage: SwiftOrderParamsMessage = {
-			swiftOrderParams: [takerOrderParams],
-			marketIndex,
-			expectedOrderId: 1,
-			marketType: MarketType.PERP,
-		};
 
 		await takerDriftClientUser.fetchAccounts();
 		const makerOrderParams = getLimitOrderParams({
@@ -259,10 +253,10 @@ describe('place and make swift order', () => {
 		assert(takerPosition.baseAssetAmount.eq(BASE_PRECISION));
 
 		const dupedSig = await takerDriftClient.signTakerOrderParams(
-			takerOrderParamsDupMessage
+			takerOrderParamsMessage
 		);
 		await makerDriftClient.placeAndMakeSwiftPerpOrder(
-			takerOrderParamsDupMessage,
+			takerOrderParamsMessage,
 			dupedSig,
 			{
 				taker: await takerDriftClient.getUserAccountPublicKey(),

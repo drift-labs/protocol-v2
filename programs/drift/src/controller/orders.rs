@@ -398,37 +398,6 @@ pub fn place_perp_order(
     Ok(())
 }
 
-pub fn place_swift_perp_order(
-    expected_order_id: i32,
-    state: &State,
-    user: &mut User,
-    user_key: Pubkey,
-    perp_market_map: &PerpMarketMap,
-    spot_market_map: &SpotMarketMap,
-    oracle_map: &mut OracleMap,
-    clock: &Clock,
-    params: OrderParams,
-    options: PlaceOrderOptions,
-) -> DriftResult<bool> {
-    let taker_next_order_id = user.next_order_id;
-    if expected_order_id >= 0 && expected_order_id.cast::<u32>()? != taker_next_order_id {
-        Ok(false)
-    } else {
-        place_perp_order(
-            state,
-            user,
-            user_key,
-            perp_market_map,
-            spot_market_map,
-            oracle_map,
-            clock,
-            params,
-            options,
-        )?;
-        Ok(true)
-    }
-}
-
 fn get_auction_params(
     params: &OrderParams,
     oracle_price_data: &OraclePriceData,
