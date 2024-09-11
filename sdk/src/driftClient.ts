@@ -3233,7 +3233,6 @@ export class DriftClient {
 					? this.getStateAccount().admin
 					: this.wallet.publicKey,
 				perpMarket: perpMarketPublicKey,
-				authority: this.getStateAccount().admin,
 			},
 			remainingAccounts,
 		});
