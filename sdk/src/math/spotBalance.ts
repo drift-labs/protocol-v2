@@ -379,9 +379,10 @@ export function calculateSpotMarketBorrowCapacity(
 
 export function calculateInterestRate(
 	bank: SpotMarketAccount,
-	delta = ZERO
+	delta = ZERO,
+	currentUtilization: BN = null
 ): BN {
-	const utilization = calculateUtilization(bank, delta);
+	const utilization = currentUtilization || calculateUtilization(bank, delta);
 	let interestRate: BN;
 	if (utilization.gt(new BN(bank.optimalUtilization))) {
 		const surplusUtilization = utilization.sub(new BN(bank.optimalUtilization));
@@ -414,12 +415,13 @@ export function calculateInterestRate(
 
 export function calculateDepositRate(
 	bank: SpotMarketAccount,
-	delta = ZERO
+	delta = ZERO,
+	currentUtilization: BN = null
 ): BN {
 	// positive delta => adding to deposit
 	// negative delta => adding to borrow
 
-	const utilization = calculateUtilization(bank, delta);
+	const utilization = currentUtilization || calculateUtilization(bank, delta);
 	const borrowRate = calculateBorrowRate(bank, delta);
 	const depositRate = borrowRate
 		.mul(PERCENTAGE_PRECISION.sub(new BN(bank.insuranceFund.totalFactor)))
@@ -429,8 +431,8 @@ export function calculateDepositRate(
 	return depositRate;
 }
 
-export function calculateBorrowRate(bank: SpotMarketAccount, delta = ZERO): BN {
-	return calculateInterestRate(bank, delta);
+export function calculateBorrowRate(bank: SpotMarketAccount, delta = ZERO, currentUtilization: BN = null): BN {
+	return calculateInterestRate(bank, delta, currentUtilization);
 }
 
 export function calculateInterestAccumulated(
