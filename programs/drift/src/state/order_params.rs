@@ -720,3 +720,8 @@ impl PlaceOrderOptions {
         self.explanation == OrderActionExplanation::Liquidation
     }
 }
+
+pub enum PlaceAndTakeOrderSuccessCondition {
+    PartialFill = 1,
+    FullFill = 2,
+}

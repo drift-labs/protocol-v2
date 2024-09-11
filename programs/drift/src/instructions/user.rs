@@ -50,7 +50,8 @@ use crate::state::fulfillment_params::phoenix::PhoenixFulfillmentParams;
 use crate::state::fulfillment_params::serum::SerumFulfillmentParams;
 use crate::state::oracle::StrictOraclePrice;
 use crate::state::order_params::{
-    ModifyOrderParams, OrderParams, PlaceOrderOptions, PostOnlyParam,
+    ModifyOrderParams, OrderParams, PlaceAndTakeOrderSuccessCondition, PlaceOrderOptions,
+    PostOnlyParam,
 };
 use crate::state::paused_operations::{PerpOperation, SpotOperation};
 use crate::state::perp_market::ContractType;
@@ -1170,7 +1171,7 @@ pub fn handle_place_orders<'c: 'info, 'info>(
 pub fn handle_place_and_take_perp_order<'c: 'info, 'info>(
     ctx: Context<'_, '_, 'c, 'info, PlaceAndTake<'info>>,
     params: OrderParams,
-    _maker_order_id: Option<u32>,
+    success_condition: Option<u32>, // u32 for backwards compatibility
 ) -> Result<()> {
     let clock = Clock::get()?;
     let state = &ctx.accounts.state;
@@ -1226,7 +1227,7 @@ pub fn handle_place_and_take_perp_order<'c: 'info, 'info>(
     let user = &mut ctx.accounts.user;
     let order_id = load!(user)?.get_last_order_id();
 
-    controller::orders::fill_perp_order(
+    let (base_asset_amount_filled, _) = controller::orders::fill_perp_order(
         order_id,
         &ctx.accounts.state,
         user,
@@ -1257,6 +1258,22 @@ pub fn handle_place_and_take_perp_order<'c: 'info, 'info>(
             &mut oracle_map,
             &Clock::get()?,
         )?;
+    }
+
+    if let Some(success_condition) = success_condition {
+        if success_condition == PlaceAndTakeOrderSuccessCondition::PartialFill as u32 {
+            validate!(
+                base_asset_amount_filled > 0,
+                ErrorCode::PlaceAndTakeOrderSuccessConditionFailed,
+                "no partial fill"
+            )?;
+        } else if success_condition == PlaceAndTakeOrderSuccessCondition::FullFill as u32 {
+            validate!(
+                base_asset_amount_filled > 0 && !order_exists,
+                ErrorCode::PlaceAndTakeOrderSuccessConditionFailed,
+                "no full fill"
+            )?;
+        }
     }
 
     Ok(())

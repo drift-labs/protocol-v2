@@ -575,6 +575,8 @@ pub enum ErrorCode {
     LiquidationOrderFailedToFill,
     #[msg("Invalid prediction market order")]
     InvalidPredictionMarketOrder,
+    #[msg("Place and take order success condition failed")]
+    PlaceAndTakeOrderSuccessConditionFailed,
 }
 
 #[macro_export]

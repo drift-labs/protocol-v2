@@ -48,6 +48,7 @@ import {
 	SignedTxData,
 	MappedRecord,
 	OpenbookV2FulfillmentConfigAccount,
+	PlaceAndTakeOrderSuccessCondition,
 } from './types';
 import * as anchor from '@coral-xyz/anchor';
 import driftIDL from './idl/drift.json';
@@ -4875,6 +4876,7 @@ export class DriftClient {
 		orderParams: OptionalOrderParams,
 		makerInfo?: MakerInfo | MakerInfo[],
 		referrerInfo?: ReferrerInfo,
+		successCondition?: PlaceAndTakeOrderSuccessCondition,
 		txParams?: TxParams,
 		subAccountId?: number
 	): Promise<TransactionSignature> {
@@ -4884,6 +4886,7 @@ export class DriftClient {
 					orderParams,
 					makerInfo,
 					referrerInfo,
+					successCondition,
 					subAccountId
 				),
 				txParams
@@ -4931,6 +4934,7 @@ export class DriftClient {
 				orderParams,
 				makerInfo,
 				referrerInfo,
+				undefined,
 				subAccountId
 			);
 
@@ -5120,6 +5124,7 @@ export class DriftClient {
 		orderParams: OptionalOrderParams,
 		makerInfo?: MakerInfo | MakerInfo[],
 		referrerInfo?: ReferrerInfo,
+		successCondition?: PlaceAndTakeOrderSuccessCondition,
 		subAccountId?: number
 	): Promise<TransactionInstruction> {
 		orderParams = getOrderParams(orderParams, { marketType: MarketType.PERP });
@@ -5176,7 +5181,7 @@ export class DriftClient {
 
 		return await this.program.instruction.placeAndTakePerpOrder(
 			orderParams,
-			null,
+			successCondition ?? null,
 			{
 				accounts: {
 					state: await this.getStatePublicKey(),
