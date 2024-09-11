@@ -544,7 +544,7 @@ export class PollingDriftClientAccountSubscriber
 			};
 		}
 
-		return this.oracles.get(oraclePublicKey.toString());
+		return this.oracles.get(oraclePublicKey);
 	}
 
 	public getOraclePriceDataAndSlotForPerpMarket(

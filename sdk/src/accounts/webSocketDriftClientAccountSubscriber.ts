@@ -423,7 +423,7 @@ export class WebSocketDriftClientAccountSubscriber
 				slot: 0,
 			};
 		}
-		return this.oracleSubscribers.get(oraclePublicKey.toString()).dataAndSlot;
+		return this.oracleSubscribers.get(oraclePublicKey).dataAndSlot;
 	}
 
 	public getOraclePriceDataAndSlotForPerpMarket(
