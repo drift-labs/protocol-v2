@@ -446,10 +446,10 @@ pub fn place_swift_taker_order<'c: 'info, 'info>(
     oracle_map: &mut OracleMap,
     state: &State,
 ) -> Result<()> {
-    // #[cfg(feature = "mainnet-beta")]
-    // {
-    //     panic!("Swift orders are disabled on mainnet-beta");
-    // }
+    #[cfg(all(feature = "mainnet-beta", not(feature = "anchor-test")))]
+    {
+        panic!("Swift orders are disabled on mainnet-beta");
+    }
 
     // Authenticate the signature
     let ix_idx = load_current_index_checked(ix_sysvar)?;
