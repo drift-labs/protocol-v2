@@ -4,6 +4,7 @@ use anchor_lang::prelude::AccountInfo;
 use anchor_lang::prelude::*;
 use solana_program::msg;
 
+use crate::controller::amm::calculate_perp_market_amm_summary_stats;
 use crate::controller::amm::update_spreads;
 use crate::controller::spot_balance::update_spot_balances;
 use crate::error::ErrorCode;
@@ -401,12 +402,6 @@ pub fn settle_expired_market(
         }
     }
 
-    let pnl_pool_amount = get_token_amount(
-        market.pnl_pool.scaled_balance,
-        spot_market,
-        &SpotBalanceType::Deposit,
-    )?;
-
     validate!(
         10_u128.pow(spot_market.decimals) == QUOTE_PRECISION,
         ErrorCode::UnsupportedSpotMarket,
@@ -427,6 +422,8 @@ pub fn settle_expired_market(
         "target_expiry_price <= 0 {}",
         target_expiry_price
     )?;
+
+    let total_excess_balance = calculate_perp_market_amm_summary_stats(market, spot_market, target_expiry_price)?;
 
     let expiry_price =
         amm::calculate_expiry_price(&market.amm, target_expiry_price, pnl_pool_amount)?;

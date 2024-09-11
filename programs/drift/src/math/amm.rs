@@ -844,7 +844,7 @@ pub fn calculate_net_user_pnl(amm: &AMM, oracle_price: i64) -> DriftResult<i128>
 pub fn calculate_expiry_price(
     amm: &AMM,
     target_price: i64,
-    pnl_pool_amount: u128,
+    total_excess_balance: u128,
 ) -> DriftResult<i64> {
     if amm.base_asset_amount_with_amm == 0 {
         return Ok(target_price);
@@ -855,11 +855,10 @@ pub fn calculate_expiry_price(
 
     // net_user_unrealized_pnl negative = surplus in market
     // net_user_unrealized_pnl positive = expiry price needs to differ from oracle
-    let best_expiry_price = -(amm
-        .quote_asset_amount
-        .safe_sub(pnl_pool_amount.cast::<i128>()?)?
+
+    let best_expiry_price = total_excess_balance
         .safe_mul(PRICE_TIMES_AMM_TO_QUOTE_PRECISION_RATIO_I128)?
-        .safe_div(amm.base_asset_amount_with_amm)?)
+        .safe_div(amm.base_asset_amount_with_amm)?
     .cast::<i64>()?;
 
     let expiry_price = if amm.base_asset_amount_with_amm > 0 {
