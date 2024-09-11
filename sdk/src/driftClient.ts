@@ -2938,6 +2938,7 @@ export class DriftClient {
 				baseAssetAmount: amount,
 				price: limitPrice,
 			},
+			false,
 			undefined,
 			undefined,
 			undefined,
@@ -4873,6 +4874,7 @@ export class DriftClient {
 
 	public async placeAndTakePerpOrder(
 		orderParams: OptionalOrderParams,
+		shouldFailOnPartialOrNoFill?: boolean,
 		makerInfo?: MakerInfo | MakerInfo[],
 		referrerInfo?: ReferrerInfo,
 		txParams?: TxParams,
@@ -4882,6 +4884,7 @@ export class DriftClient {
 			await this.buildTransaction(
 				await this.getPlaceAndTakePerpOrderIx(
 					orderParams,
+					shouldFailOnPartialOrNoFill,
 					makerInfo,
 					referrerInfo,
 					subAccountId
@@ -4929,6 +4932,7 @@ export class DriftClient {
 		const prepPlaceAndTakeTx = async () => {
 			const placeAndTakeIx = await this.getPlaceAndTakePerpOrderIx(
 				orderParams,
+				false,
 				makerInfo,
 				referrerInfo,
 				subAccountId
@@ -5118,6 +5122,7 @@ export class DriftClient {
 
 	public async getPlaceAndTakePerpOrderIx(
 		orderParams: OptionalOrderParams,
+		shouldFailOnPartialOrNoFill?: boolean,
 		makerInfo?: MakerInfo | MakerInfo[],
 		referrerInfo?: ReferrerInfo,
 		subAccountId?: number
@@ -5176,7 +5181,7 @@ export class DriftClient {
 
 		return await this.program.instruction.placeAndTakePerpOrder(
 			orderParams,
-			null,
+			shouldFailOnPartialOrNoFill || false,
 			{
 				accounts: {
 					state: await this.getStatePublicKey(),
@@ -5502,6 +5507,7 @@ export class DriftClient {
 				reduceOnly: true,
 				price: limitPrice,
 			},
+			false,
 			undefined,
 			undefined,
 			undefined,

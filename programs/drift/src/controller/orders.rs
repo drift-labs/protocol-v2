@@ -892,7 +892,6 @@ pub fn fill_perp_order(
 ) -> DriftResult<(u64, u64)> {
     let now = clock.unix_timestamp;
     let slot = clock.slot;
-
     let filler_key = filler.key();
     let user_key = user.key();
     let user = &mut load_mut!(user)?;
@@ -1265,7 +1264,6 @@ pub fn fill_perp_order(
     }
 
     user.update_last_active_slot(slot);
-
     Ok((base_asset_amount, quote_asset_amount))
 }
 
@@ -1659,7 +1657,7 @@ fn fulfill_perp_order(
                         AMMLiquiditySplit::Shared,
                         fill_mode.is_liquidation(),
                     )?;
-
+          
                 (fill_base_asset_amount, fill_quote_asset_amount)
             }
             PerpFulfillmentMethod::Match(maker_key, maker_order_index) => {

@@ -575,6 +575,8 @@ pub enum ErrorCode {
     LiquidationOrderFailedToFill,
     #[msg("Invalid prediction market order")]
     InvalidPredictionMarketOrder,
+    #[msg("Only partially completed")]
+    PartialFillError,
 }
 
 #[macro_export]

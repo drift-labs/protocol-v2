@@ -1170,7 +1170,7 @@ pub fn handle_place_orders<'c: 'info, 'info>(
 pub fn handle_place_and_take_perp_order<'c: 'info, 'info>(
     ctx: Context<'_, '_, 'c, 'info, PlaceAndTake<'info>>,
     params: OrderParams,
-    _maker_order_id: Option<u32>,
+    should_fail_on_partial_or_no_fill: Option<bool>,
 ) -> Result<()> {
     let clock = Clock::get()?;
     let state = &ctx.accounts.state;
@@ -1247,6 +1247,11 @@ pub fn handle_place_and_take_perp_order<'c: 'info, 'info>(
         .orders
         .iter()
         .any(|order| order.order_id == order_id);
+
+    msg!("order_exists: {}", order_exists);
+    if Some(true) == should_fail_on_partial_or_no_fill && order_exists {
+        return Err(ErrorCode::PartialFillError.into());
+    }
 
     if is_immediate_or_cancel && order_exists {
         controller::orders::cancel_order_by_order_id(
