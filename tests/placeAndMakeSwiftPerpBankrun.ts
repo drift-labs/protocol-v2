@@ -18,6 +18,8 @@ import {
 	OracleSource,
 	OrderTriggerCondition,
 	SwiftOrderParamsMessage,
+	MarketType,
+	getMarketOrderParams,
 } from '../sdk/src';
 
 import {
@@ -197,7 +199,7 @@ describe('place and make swift order', () => {
 
 		const marketIndex = 0;
 		const baseAssetAmount = BASE_PRECISION;
-		const takerOrderParams = getLimitOrderParams({
+		const takerOrderParams = getMarketOrderParams({
 			marketIndex,
 			direction: PositionDirection.LONG,
 			baseAssetAmount: baseAssetAmount.muln(2),
@@ -207,21 +209,19 @@ describe('place and make swift order', () => {
 			auctionDuration: 10,
 			userOrderId: 1,
 			postOnly: PostOnlyParams.NONE,
-			expectedOrderId: 1,
+			marketType: MarketType.PERP,
 		});
-		const takerOrderParamsDup = Object.assign({}, takerOrderParams, {
-			expectedOrderId: 1,
-		});
-
 		const takerOrderParamsMessage: SwiftOrderParamsMessage = {
 			swiftOrderParams: [takerOrderParams],
 			marketIndex,
 			expectedOrderId: 1,
+			marketType: MarketType.PERP,
 		};
 		const takerOrderParamsDupMessage: SwiftOrderParamsMessage = {
-			swiftOrderParams: [takerOrderParamsDup],
+			swiftOrderParams: [takerOrderParams],
 			marketIndex,
 			expectedOrderId: 1,
+			marketType: MarketType.PERP,
 		};
 
 		await takerDriftClientUser.fetchAccounts();
@@ -330,7 +330,7 @@ describe('place and make swift order', () => {
 
 		const marketIndex = 0;
 		const baseAssetAmount = BASE_PRECISION;
-		const takerOrderParams = getLimitOrderParams({
+		const takerOrderParams = getMarketOrderParams({
 			marketIndex,
 			direction: PositionDirection.LONG,
 			baseAssetAmount,
@@ -340,7 +340,6 @@ describe('place and make swift order', () => {
 			auctionDuration: 10,
 			userOrderId: 1,
 			postOnly: PostOnlyParams.NONE,
-			expectedOrderId: 1,
 		});
 		const stopLossTakerParams = getTriggerLimitOrderParams({
 			marketIndex,
@@ -379,7 +378,8 @@ describe('place and make swift order', () => {
 				takeProfitTakerParams,
 			],
 			marketIndex,
-			expectedOrderId: takerOrderParams.expectedOrderId,
+			expectedOrderId: 1,
+			marketType: MarketType.PERP,
 		};
 
 		const takerOrderParamsSig = await takerDriftClient.signTakerOrderParams(
@@ -406,6 +406,231 @@ describe('place and make swift order', () => {
 		assert(takerPosition.baseAssetAmount.eq(BASE_PRECISION));
 		assert(takerDriftClient.getOrderByUserId(2) !== undefined);
 		assert(takerDriftClient.getOrderByUserId(3) !== undefined);
+
+		await takerDriftClientUser.unsubscribe();
+		await takerDriftClient.unsubscribe();
+	});
+
+	it('should fail if orders are sent out of swift order ', async () => {
+		const keypair = new Keypair();
+		await bankrunContextWrapper.fundKeypair(keypair, 10 ** 9);
+		await sleep(1000);
+		const wallet = new Wallet(keypair);
+		const userUSDCAccount = await mockUserUSDCAccount(
+			usdcMint,
+			usdcAmount,
+			bankrunContextWrapper,
+			keypair.publicKey
+		);
+		const takerDriftClient = new TestClient({
+			connection: bankrunContextWrapper.connection.toConnection(),
+			wallet,
+			programID: chProgram.programId,
+			opts: {
+				commitment: 'confirmed',
+			},
+			activeSubAccountId: 0,
+			perpMarketIndexes: marketIndexes,
+			spotMarketIndexes: spotMarketIndexes,
+			subAccountIds: [],
+			oracleInfos,
+			userStats: true,
+			accountSubscription: {
+				type: 'polling',
+				accountLoader: bulkAccountLoader,
+			},
+		});
+		await takerDriftClient.subscribe();
+		await takerDriftClient.initializeUserAccountAndDepositCollateral(
+			usdcAmount,
+			userUSDCAccount.publicKey
+		);
+		const takerDriftClientUser = new User({
+			driftClient: takerDriftClient,
+			userAccountPublicKey: await takerDriftClient.getUserAccountPublicKey(),
+			accountSubscription: {
+				type: 'polling',
+				accountLoader: bulkAccountLoader,
+			},
+		});
+		await takerDriftClientUser.subscribe();
+
+		const marketIndex = 0;
+		const baseAssetAmount = BASE_PRECISION;
+		const takerOrderParams = getMarketOrderParams({
+			marketIndex,
+			direction: PositionDirection.LONG,
+			baseAssetAmount,
+			price: new BN(34).mul(PRICE_PRECISION),
+			auctionStartPrice: new BN(33).mul(PRICE_PRECISION),
+			auctionEndPrice: new BN(34).mul(PRICE_PRECISION),
+			auctionDuration: 10,
+			userOrderId: 1,
+			postOnly: PostOnlyParams.NONE,
+		});
+		const stopLossTakerParams = getTriggerLimitOrderParams({
+			marketIndex,
+			direction: PositionDirection.SHORT,
+			baseAssetAmount,
+			price: new BN(20).mul(PRICE_PRECISION),
+			triggerPrice: new BN(20).mul(PRICE_PRECISION),
+			userOrderId: 2,
+			triggerCondition: OrderTriggerCondition.BELOW,
+		});
+
+		const takeProfitTakerParams = getTriggerLimitOrderParams({
+			marketIndex,
+			direction: PositionDirection.SHORT,
+			baseAssetAmount,
+			price: new BN(40).mul(PRICE_PRECISION),
+			triggerPrice: new BN(40).mul(PRICE_PRECISION),
+			userOrderId: 3,
+			triggerCondition: OrderTriggerCondition.ABOVE,
+		});
+
+		await takerDriftClientUser.fetchAccounts();
+		const makerOrderParams = getLimitOrderParams({
+			marketIndex,
+			direction: PositionDirection.SHORT,
+			baseAssetAmount,
+			price: new BN(33).mul(PRICE_PRECISION),
+			postOnly: PostOnlyParams.MUST_POST_ONLY,
+			immediateOrCancel: true,
+		});
+
+		const takerOrderParamsMessage: SwiftOrderParamsMessage = {
+			swiftOrderParams: [
+				stopLossTakerParams,
+				takeProfitTakerParams,
+				takerOrderParams,
+			],
+			marketIndex,
+			expectedOrderId: 1,
+			marketType: MarketType.PERP,
+		};
+
+		const takerOrderParamsSig = await takerDriftClient.signTakerOrderParams(
+			takerOrderParamsMessage
+		);
+
+		try {
+			await makerDriftClient.placeAndMakeSwiftPerpOrder(
+				takerOrderParamsMessage,
+				takerOrderParamsSig,
+				{
+					taker: await takerDriftClient.getUserAccountPublicKey(),
+					takerUserAccount: takerDriftClient.getUserAccount(),
+					takerStats: takerDriftClient.getUserStatsAccountPublicKey(),
+				},
+				makerOrderParams
+			);
+		} catch (e) {
+			assert(e);
+		}
+
+		const takerPosition = takerDriftClient.getUser().getPerpPosition(0);
+		assert(takerPosition == undefined);
+
+		await takerDriftClientUser.unsubscribe();
+		await takerDriftClient.unsubscribe();
+	});
+
+	it('should fail if taker order is a limit order ', async () => {
+		const keypair = new Keypair();
+		await bankrunContextWrapper.fundKeypair(keypair, 10 ** 9);
+		await sleep(1000);
+		const wallet = new Wallet(keypair);
+		const userUSDCAccount = await mockUserUSDCAccount(
+			usdcMint,
+			usdcAmount,
+			bankrunContextWrapper,
+			keypair.publicKey
+		);
+		const takerDriftClient = new TestClient({
+			connection: bankrunContextWrapper.connection.toConnection(),
+			wallet,
+			programID: chProgram.programId,
+			opts: {
+				commitment: 'confirmed',
+			},
+			activeSubAccountId: 0,
+			perpMarketIndexes: marketIndexes,
+			spotMarketIndexes: spotMarketIndexes,
+			subAccountIds: [],
+			oracleInfos,
+			userStats: true,
+			accountSubscription: {
+				type: 'polling',
+				accountLoader: bulkAccountLoader,
+			},
+		});
+		await takerDriftClient.subscribe();
+		await takerDriftClient.initializeUserAccountAndDepositCollateral(
+			usdcAmount,
+			userUSDCAccount.publicKey
+		);
+		const takerDriftClientUser = new User({
+			driftClient: takerDriftClient,
+			userAccountPublicKey: await takerDriftClient.getUserAccountPublicKey(),
+			accountSubscription: {
+				type: 'polling',
+				accountLoader: bulkAccountLoader,
+			},
+		});
+		await takerDriftClientUser.subscribe();
+
+		const marketIndex = 0;
+		const baseAssetAmount = BASE_PRECISION;
+		const takerOrderParams = getLimitOrderParams({
+			marketIndex,
+			direction: PositionDirection.LONG,
+			baseAssetAmount,
+			price: new BN(34).mul(PRICE_PRECISION),
+			auctionStartPrice: new BN(33).mul(PRICE_PRECISION),
+			auctionEndPrice: new BN(34).mul(PRICE_PRECISION),
+			auctionDuration: 10,
+			userOrderId: 1,
+			postOnly: PostOnlyParams.NONE,
+		});
+
+		await takerDriftClientUser.fetchAccounts();
+		const makerOrderParams = getLimitOrderParams({
+			marketIndex,
+			direction: PositionDirection.SHORT,
+			baseAssetAmount,
+			price: new BN(33).mul(PRICE_PRECISION),
+			postOnly: PostOnlyParams.MUST_POST_ONLY,
+			immediateOrCancel: true,
+		});
+
+		const takerOrderParamsMessage: SwiftOrderParamsMessage = {
+			swiftOrderParams: [takerOrderParams],
+			marketIndex,
+			expectedOrderId: 1,
+			marketType: MarketType.PERP,
+		};
+
+		const takerOrderParamsSig = await takerDriftClient.signTakerOrderParams(
+			takerOrderParamsMessage
+		);
+
+		try {
+			await makerDriftClient.placeAndMakeSwiftPerpOrder(
+				takerOrderParamsMessage,
+				takerOrderParamsSig,
+				{
+					taker: await takerDriftClient.getUserAccountPublicKey(),
+					takerUserAccount: takerDriftClient.getUserAccount(),
+					takerStats: takerDriftClient.getUserStatsAccountPublicKey(),
+				},
+				makerOrderParams
+			);
+		} catch (e) {
+			assert(e);
+		}
+
+		const takerPosition = takerDriftClient.getUser().getPerpPosition(0);
+		assert(takerPosition == undefined);
 
 		await takerDriftClientUser.unsubscribe();
 		await takerDriftClient.unsubscribe();

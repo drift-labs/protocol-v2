@@ -1382,7 +1382,7 @@ pub fn place_swift_taker_order<'c: 'info, 'info>(
     spot_market_map: &SpotMarketMap,
     oracle_map: &mut OracleMap,
     state: &State,
-) -> Result<bool> {
+) -> Result<()> {
     // Authenticate the signature
     let ix_idx = load_current_index_checked(ix_sysvar)?;
     validate!(
@@ -1400,28 +1400,25 @@ pub fn place_swift_taker_order<'c: 'info, 'info>(
 
     // Verify inputs and validate market index
     taker_order_params_message.verify_all_same_market_indexes()?;
-    let market_index = taker_order_params_message.market_index;
     let taker_order_params = taker_order_params_message.swift_order_params;
-
     let clock = &Clock::get()?;
-    controller::repeg::update_amm(market_index, perp_market_map, oracle_map, state, clock)?;
 
-    // Use the first matching taker order param
-    let matching_taker_order_params_ref = taker_order_params.iter().find(|order_params| {
-        order_params.order_type != OrderType::TriggerLimit
-            && order_params.order_type != OrderType::TriggerMarket
-    });
-
-    if matching_taker_order_params_ref.is_none() {
-        msg!("No matching taker order params found");
-        // Place any matching orders and non-matching orders
-        return Ok(false);
+    if taker_order_params.len() == 0 {
+        msg!("No orders to place");
+        return Err(print_error!(ErrorCode::SwiftOrderSequenceError)().into());
     }
 
-    let matching_taker_order_params = *matching_taker_order_params_ref.unwrap();
+    // First order must be a taker order
+    let matching_taker_order_params = taker_order_params[0];
+    if matching_taker_order_params.order_type != OrderType::Market {
+        msg!("First order must be a taker order");
+        return Err(print_error!(ErrorCode::SwiftOrderSequenceError)().into());
+    }
+    let expected_order_id = taker_order_params_message.expected_order_id;
 
     // Place taker order
     let taker_order_sent = controller::orders::place_swift_perp_order(
+        expected_order_id,
         state,
         taker,
         taker_key,
@@ -1433,15 +1430,15 @@ pub fn place_swift_taker_order<'c: 'info, 'info>(
         PlaceOrderOptions::default(),
     )?;
 
-    if taker_order_sent {
-        let non_matching_orders = taker_order_params
-            .iter()
-            .filter(|order_params| {
-                order_params.order_type == OrderType::TriggerLimit
-                    || order_params.order_type == OrderType::TriggerMarket
-            })
-            .collect::<Vec<_>>();
-        for swift_order_params in non_matching_orders {
+    if taker_order_sent && taker_order_params.len() > 1 {
+        let non_matching_orders: Vec<OrderParams> = taker_order_params[1..].to_vec();
+        for non_matching_order_param in non_matching_orders {
+            if non_matching_order_param.order_type != OrderType::TriggerLimit
+                && non_matching_order_param.order_type != OrderType::TriggerMarket
+            {
+                msg!("Non-matching orders must be trigger orders");
+                return Err(print_error!(ErrorCode::SwiftOrderSequenceError)().into());
+            }
             controller::orders::place_perp_order(
                 state,
                 taker,
@@ -1450,19 +1447,19 @@ pub fn place_swift_taker_order<'c: 'info, 'info>(
                 spot_market_map,
                 oracle_map,
                 clock,
-                swift_order_params.to_order_params(),
+                non_matching_order_param,
                 PlaceOrderOptions::default(),
             )?;
         }
     } else {
         msg!(
-            "Orders not placed due to taker order id mismatch: taker account next order id {}, order params expected next order id {}",
+            "Orders not placed due to taker order id mismatch: taker account next order id {}, order params expected next order id {:?}",
             taker.next_order_id,
-            matching_taker_order_params.get_expected_order_id()?
+            matching_taker_order_params
         );
     }
 
-    Ok(taker_order_sent)
+    Ok(())
 }
 
 pub fn handle_place_swift_taker_order<'c: 'info, 'info>(
@@ -1474,13 +1471,14 @@ pub fn handle_place_swift_taker_order<'c: 'info, 'info>(
         SwiftOrderParamsMessage::deserialize(&mut &taker_order_params_bytes[..]).unwrap();
     let state = &ctx.accounts.state;
 
+    // TODO: generalize to support multiple market types
     let AccountMaps {
         perp_market_map,
         spot_market_map,
         mut oracle_map,
     } = load_maps(
         &mut ctx.remaining_accounts.iter().peekable(),
-        &get_writable_perp_market_set(taker_order_params_message.market_index),
+        &MarketSet::new(),
         &MarketSet::new(),
         Clock::get()?.slot,
         Some(state.oracle_guard_rails),

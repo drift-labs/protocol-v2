@@ -46,7 +46,6 @@ use crate::math::spot_balance::{get_signed_token_amount, get_token_amount};
 use crate::math::{amm, fees, margin::*, orders::*};
 use crate::state::order_params::{
     ModifyOrderParams, ModifyOrderPolicy, OrderParams, PlaceOrderOptions, PostOnlyParam,
-    SwiftOrderParams,
 };
 
 use crate::math::amm::calculate_amm_available_liquidity;
@@ -400,6 +399,7 @@ pub fn place_perp_order(
 }
 
 pub fn place_swift_perp_order(
+    expected_order_id: i32,
     state: &State,
     user: &mut User,
     user_key: Pubkey,
@@ -407,10 +407,9 @@ pub fn place_swift_perp_order(
     spot_market_map: &SpotMarketMap,
     oracle_map: &mut OracleMap,
     clock: &Clock,
-    params: SwiftOrderParams,
+    params: OrderParams,
     options: PlaceOrderOptions,
 ) -> DriftResult<bool> {
-    let expected_order_id = params.get_expected_order_id()?;
     let taker_next_order_id = user.next_order_id;
     if expected_order_id >= 0 && expected_order_id.cast::<u32>()? != taker_next_order_id {
         Ok(false)
@@ -423,7 +422,7 @@ pub fn place_swift_perp_order(
             spot_market_map,
             oracle_map,
             clock,
-            params.to_order_params(),
+            params,
             options,
         )?;
         Ok(true)

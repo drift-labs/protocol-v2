@@ -1004,7 +1004,6 @@ export type OrderParams = {
 	maxTs: BN | null;
 	auctionStartPrice: BN | null;
 	auctionEndPrice: BN | null;
-	expectedOrderId: number | null;
 };
 
 export class PostOnlyParams {
@@ -1052,13 +1051,13 @@ export const DefaultOrderParams: OrderParams = {
 	maxTs: null,
 	auctionStartPrice: null,
 	auctionEndPrice: null,
-	expectedOrderId: null,
 };
 
 export type SwiftOrderParamsMessage = {
 	marketIndex: number;
 	swiftOrderParams: OptionalOrderParams[];
 	expectedOrderId: number;
+	marketType: MarketType;
 };
 
 export type MakerInfo = {

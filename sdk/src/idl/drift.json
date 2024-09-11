@@ -8083,27 +8083,13 @@
             "name": "swiftOrderParams",
             "type": {
               "vec": {
-                "defined": "SwiftOrderParams"
+                "defined": "OrderParams"
               }
             }
           },
           {
             "name": "marketIndex",
             "type": "u16"
-          }
-        ]
-      }
-    },
-    {
-      "name": "SwiftOrderParams",
-      "type": {
-        "kind": "struct",
-        "fields": [
-          {
-            "name": "orderType",
-            "type": {
-              "defined": "OrderType"
-            }
           },
           {
             "name": "marketType",
@@ -8112,88 +8098,8 @@
             }
           },
           {
-            "name": "direction",
-            "type": {
-              "defined": "PositionDirection"
-            }
-          },
-          {
-            "name": "userOrderId",
-            "type": "u8"
-          },
-          {
-            "name": "baseAssetAmount",
-            "type": "u64"
-          },
-          {
-            "name": "price",
-            "type": "u64"
-          },
-          {
-            "name": "marketIndex",
-            "type": "u16"
-          },
-          {
-            "name": "reduceOnly",
-            "type": "bool"
-          },
-          {
-            "name": "postOnly",
-            "type": {
-              "defined": "PostOnlyParam"
-            }
-          },
-          {
-            "name": "immediateOrCancel",
-            "type": "bool"
-          },
-          {
-            "name": "maxTs",
-            "type": {
-              "option": "i64"
-            }
-          },
-          {
-            "name": "triggerPrice",
-            "type": {
-              "option": "u64"
-            }
-          },
-          {
-            "name": "triggerCondition",
-            "type": {
-              "defined": "OrderTriggerCondition"
-            }
-          },
-          {
-            "name": "oraclePriceOffset",
-            "type": {
-              "option": "i32"
-            }
-          },
-          {
-            "name": "auctionDuration",
-            "type": {
-              "option": "u8"
-            }
-          },
-          {
-            "name": "auctionStartPrice",
-            "type": {
-              "option": "i64"
-            }
-          },
-          {
-            "name": "auctionEndPrice",
-            "type": {
-              "option": "i64"
-            }
-          },
-          {
             "name": "expectedOrderId",
-            "type": {
-              "option": "i32"
-            }
+            "type": "i32"
           }
         ]
       }
@@ -13121,6 +13027,11 @@
       "code": 6287,
       "name": "MismatchedSwiftOrderParamsMarketIndex",
       "msg": "Market index mismatched b/w taker and maker swift order params"
+    },
+    {
+      "code": 6288,
+      "name": "SwiftOrderSequenceError",
+      "msg": "Swift order message must be ordered 0th order is market and rest are triggers"
     }
   ],
   "metadata": {
