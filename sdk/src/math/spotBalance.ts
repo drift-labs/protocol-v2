@@ -422,7 +422,7 @@ export function calculateDepositRate(
 	// negative delta => adding to borrow
 
 	const utilization = currentUtilization || calculateUtilization(bank, delta);
-	const borrowRate = calculateBorrowRate(bank, delta);
+	const borrowRate = calculateBorrowRate(bank, delta, utilization);
 	const depositRate = borrowRate
 		.mul(PERCENTAGE_PRECISION.sub(new BN(bank.insuranceFund.totalFactor)))
 		.mul(utilization)
