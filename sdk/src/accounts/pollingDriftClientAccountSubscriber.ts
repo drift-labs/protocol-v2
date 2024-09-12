@@ -534,17 +534,21 @@ export class PollingDriftClientAccountSubscriber
 	}
 
 	public getOraclePriceDataAndSlot(
-		oraclePublicKey: string
+		oraclePublicKey: PublicKey | string
 	): DataAndSlot<OraclePriceData> | undefined {
 		this.assertIsSubscribed();
-		if (oraclePublicKey === ORACLE_DEFAULT_KEY) {
+		const oracleString =
+			typeof oraclePublicKey === 'string'
+				? oraclePublicKey
+				: oraclePublicKey.toBase58();
+		if (oracleString === ORACLE_DEFAULT_KEY) {
 			return {
 				data: QUOTE_ORACLE_PRICE_DATA,
 				slot: 0,
 			};
 		}
 
-		return this.oracles.get(oraclePublicKey);
+		return this.oracles.get(oracleString);
 	}
 
 	public getOraclePriceDataAndSlotForPerpMarket(
