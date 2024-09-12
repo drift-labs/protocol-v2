@@ -3180,6 +3180,7 @@ export class DriftClient {
 		orderParams: OptionalOrderParams,
 		subAccountId?: number,
 		depositToTradeArgs?: {
+			isMakingNewAccount: boolean,
 			depositMarketIndex: number,
 		}
 	): Promise<TransactionInstruction> {
@@ -3196,7 +3197,7 @@ export class DriftClient {
 			: await this.getUserAccountPublicKey(subAccountId);
 
 		const remainingAccounts = this.getRemainingAccounts({
-			userAccounts: isDepositToTradeTx
+			userAccounts: depositToTradeArgs?.isMakingNewAccount
 				? []
 				: [this.getUserAccount(subAccountId)],
 			useMarketLastSlotCache: false,
