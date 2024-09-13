@@ -217,9 +217,9 @@ export class WebSocketDriftClientAccountSubscriber
 	}
 
 	removeInitialData() {
-		delete this['initialPerpMarketAccountData'];
-		delete this['initialSpotMarketAccountData'];
-		delete this['initialOraclePriceData'];
+		this.initialPerpMarketAccountData = new Map();
+		this.initialSpotMarketAccountData = new Map();
+		this.initialOraclePriceData = new Map();
 	}
 
 	async subscribeToPerpMarketAccounts(): Promise<boolean> {
