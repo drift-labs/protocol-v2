@@ -966,6 +966,50 @@ pub fn handle_cancel_orders_by_ids<'c: 'info, 'info>(
 #[access_control(
     exchange_not_paused(&ctx.accounts.state)
 )]
+pub fn handle_cancel_orders_by_price<'c: 'info, 'info>(
+    ctx: Context<'_, '_, 'c, 'info, CancelOrder>,
+    max_price: Option<u64>,
+    min_price: Option<u64>,
+    direction: Option<PositionDirection>,
+) -> Result<()> {
+    let clock = &Clock::get()?;
+    let state = &ctx.accounts.state;
+
+    let AccountMaps {
+        perp_market_map,
+        spot_market_map,
+        mut oracle_map,
+    } = load_maps(
+        &mut ctx.remaining_accounts.iter().peekable(),
+        &MarketSet::new(),
+        &MarketSet::new(),
+        clock.slot,
+        Some(state.oracle_guard_rails),
+    )?;
+
+    let user_key = ctx.accounts.user.key();
+    let mut user = load_mut!(ctx.accounts.user)?;
+
+    controller::orders::cancel_orders_by_price(
+        &mut user,
+        &user_key,
+        &perp_market_map,
+        &spot_market_map,
+        &mut oracle_map,
+        clock.unix_timestamp,
+        clock.slot,
+        direction,
+        max_price,
+        min_price,
+    )?;
+
+    Ok(())
+
+}
+
+#[access_control(
+    exchange_not_paused(&ctx.accounts.state)
+)]
 pub fn handle_cancel_orders<'c: 'info, 'info>(
     ctx: Context<'_, '_, 'c, 'info, CancelOrder<'info>>,
     market_type: Option<MarketType>,

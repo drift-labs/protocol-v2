@@ -575,6 +575,8 @@ pub enum ErrorCode {
     LiquidationOrderFailedToFill,
     #[msg("Invalid prediction market order")]
     InvalidPredictionMarketOrder,
+    #[msg("Missing both maximum and minimum price parameters.")]
+    MissingPriceParameters,
 }
 
 #[macro_export]

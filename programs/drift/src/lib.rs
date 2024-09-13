@@ -113,6 +113,15 @@ pub mod drift {
         handle_cancel_order_by_user_id(ctx, user_order_id)
     }
 
+    pub fn cancel_orders_by_price<'c: 'info, 'info>(
+        ctx: Context<'_, '_, 'c, 'info, CancelOrder>,
+        max_price: Option<u64>,
+        min_price: Option<u64>,
+        direction: Option<PositionDirection>,
+    ) -> Result<()> {
+        handle_cancel_orders_by_price(ctx, max_price, min_price, direction)
+    }
+
     pub fn cancel_orders<'c: 'info, 'info>(
         ctx: Context<'_, '_, 'c, 'info, CancelOrder<'info>>,
         market_type: Option<MarketType>,
