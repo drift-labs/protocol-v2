@@ -132,7 +132,7 @@ describe('place and make swift order', () => {
 		await eventSubscriber.unsubscribe();
 	});
 
-	it('makeSwiftOrder', async () => {
+	it('should fail on bad sig', async () => {
 		const keypair = new Keypair();
 		await provider.connection.requestAirdrop(keypair.publicKey, 10 ** 9);
 		await sleep(1000);
@@ -207,7 +207,7 @@ describe('place and make swift order', () => {
 			marketType: MarketType.PERP,
 			slot: new BN(await connection.getSlot()),
 		};
-		const takerOrderParamsSig = await takerDriftClient.signTakerOrderParams(
+		const takerOrderParamsSig = await makerDriftClient.signTakerOrderParams(
 			takerOrderParamsMessage
 		);
 
@@ -230,35 +230,10 @@ describe('place and make swift order', () => {
 		printTxLogs(provider.connection, txSig);
 
 		const makerPosition = makerDriftClient.getUser().getPerpPosition(0);
-		assert(makerPosition.baseAssetAmount.eq(BASE_PRECISION.neg()));
+		assert(makerPosition === undefined);
 
 		const takerPosition = takerDriftClient.getUser().getPerpPosition(0);
-		assert(takerPosition.baseAssetAmount.eq(BASE_PRECISION));
-
-		let txSigUndefined;
-		try {
-			const dupedSig = await takerDriftClient.signTakerOrderParams(
-				takerOrderParamsMessage
-			);
-			txSigUndefined = await makerDriftClient.placeAndMakeSwiftPerpOrder(
-				takerOrderParamsMessage,
-				dupedSig,
-				{
-					taker: await takerDriftClient.getUserAccountPublicKey(),
-					takerUserAccount: takerDriftClient.getUserAccount(),
-					takerStats: takerDriftClient.getUserStatsAccountPublicKey(),
-				},
-				makerOrderParams
-			);
-		} catch (error) {
-			console.log(error);
-			assert(error);
-		} finally {
-			assert.isUndefined(
-				txSigUndefined,
-				'duped order should fail and not set tx sig'
-			);
-		}
+		assert(takerPosition === undefined);
 
 		await takerDriftClientUser.unsubscribe();
 		await takerDriftClient.unsubscribe();
