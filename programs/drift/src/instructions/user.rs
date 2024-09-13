@@ -847,6 +847,7 @@ pub fn handle_place_perp_order<'c: 'info, 'info>(
         &spot_market_map,
         &mut oracle_map,
         clock,
+        clock.slot,
         params,
         PlaceOrderOptions::default(),
     )?;
@@ -1143,6 +1144,7 @@ pub fn handle_place_orders<'c: 'info, 'info>(
                 &spot_market_map,
                 &mut oracle_map,
                 clock,
+                clock.slot,
                 *params,
                 options,
             )?;
@@ -1208,6 +1210,7 @@ pub fn handle_place_and_take_perp_order<'c: 'info, 'info>(
 
     let user_key = ctx.accounts.user.key();
     let mut user = load_mut!(ctx.accounts.user)?;
+    let clock = Clock::get()?;
 
     controller::orders::place_perp_order(
         &ctx.accounts.state,
@@ -1216,7 +1219,8 @@ pub fn handle_place_and_take_perp_order<'c: 'info, 'info>(
         &perp_market_map,
         &spot_market_map,
         &mut oracle_map,
-        &Clock::get()?,
+        &clock,
+        clock.slot,
         params,
         PlaceOrderOptions::default(),
     )?;
@@ -1313,6 +1317,7 @@ pub fn handle_place_and_make_perp_order<'c: 'info, 'info>(
         &spot_market_map,
         &mut oracle_map,
         clock,
+        clock.slot,
         params,
         PlaceOrderOptions::default(),
     )?;

@@ -102,11 +102,11 @@ pub fn place_perp_order(
     spot_market_map: &SpotMarketMap,
     oracle_map: &mut OracleMap,
     clock: &Clock,
+    slot: u64,
     mut params: OrderParams,
     mut options: PlaceOrderOptions,
 ) -> DriftResult {
     let now = clock.unix_timestamp;
-    let slot = clock.slot;
 
     if !options.is_liquidation() {
         validate_user_not_being_liquidated(
@@ -775,6 +775,7 @@ pub fn modify_order(
             spot_market_map,
             oracle_map,
             clock,
+            clock.slot,
             order_params,
             PlaceOrderOptions::default(),
         )?;
@@ -3126,6 +3127,7 @@ pub fn burn_user_lp_shares_for_risk_reduction(
             spot_market_map,
             oracle_map,
             clock,
+            clock.slot,
             params,
             PlaceOrderOptions::default().explanation(OrderActionExplanation::DeriskLp),
         )?;

@@ -8100,6 +8100,10 @@
           {
             "name": "expectedOrderId",
             "type": "i32"
+          },
+          {
+            "name": "slot",
+            "type": "u64"
           }
         ]
       }

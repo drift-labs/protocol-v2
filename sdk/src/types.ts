@@ -1058,6 +1058,7 @@ export type SwiftOrderParamsMessage = {
 	swiftOrderParams: OptionalOrderParams[];
 	expectedOrderId: number;
 	marketType: MarketType;
+	slot: BN;
 };
 
 export type MakerInfo = {

@@ -5273,13 +5273,15 @@ export class DriftClient {
 		signature: Uint8Array,
 		takerPubkey: PublicKey,
 		marketIndex: number,
-		marketType: MarketType
+		marketType: MarketType,
+		slot: number | BN
 	): {
 		message: string;
 		signature: string;
 		taker_pubkey: string;
 		market_index: number;
 		market_type: 'perp' | 'spot';
+		slot: BN;
 	} {
 		return {
 			message: Buffer.from(message).toString('base64'),
@@ -5287,6 +5289,7 @@ export class DriftClient {
 			taker_pubkey: takerPubkey.toBase58(),
 			market_index: marketIndex,
 			market_type: isVariant(marketType, 'perp') ? 'perp' : 'spot',
+			slot: typeof slot === 'number' ? new BN(slot) : slot,
 		};
 	}
 

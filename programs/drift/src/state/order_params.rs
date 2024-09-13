@@ -636,6 +636,7 @@ pub struct SwiftOrderParamsMessage {
     pub market_index: u16,
     pub market_type: MarketType,
     pub expected_order_id: i32,
+    pub slot: u64,
 }
 
 impl SwiftOrderParamsMessage {

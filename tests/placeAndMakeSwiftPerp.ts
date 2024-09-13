@@ -205,6 +205,7 @@ describe('place and make swift order', () => {
 			marketIndex,
 			expectedOrderId: 1,
 			marketType: MarketType.PERP,
+			slot: new BN(await connection.getSlot()),
 		};
 		const takerOrderParamsSig = await takerDriftClient.signTakerOrderParams(
 			takerOrderParamsMessage

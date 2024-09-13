@@ -485,6 +485,7 @@ pub fn place_swift_taker_order<'c: 'info, 'info>(
     let expected_order_id = taker_order_params_message.expected_order_id;
 
     let taker_next_order_id = taker.next_order_id;
+    let order_slot = taker_order_params_message.slot;
     if expected_order_id.cast::<u32>()? == taker_next_order_id {
         controller::orders::place_perp_order(
             state,
@@ -494,6 +495,7 @@ pub fn place_swift_taker_order<'c: 'info, 'info>(
             spot_market_map,
             oracle_map,
             clock,
+            clock.slot.min(order_slot),
             matching_taker_order_params,
             PlaceOrderOptions::default(),
         )?;
@@ -513,6 +515,7 @@ pub fn place_swift_taker_order<'c: 'info, 'info>(
                 spot_market_map,
                 oracle_map,
                 clock,
+                clock.slot,
                 non_matching_order_param,
                 PlaceOrderOptions::default(),
             )?;

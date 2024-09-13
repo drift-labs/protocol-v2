@@ -985,6 +985,7 @@ pub fn liquidate_perp_with_fill(
         spot_market_map,
         oracle_map,
         clock,
+        clock.slot,
         order_params,
         PlaceOrderOptions::default().explanation(OrderActionExplanation::Liquidation),
     )?;
