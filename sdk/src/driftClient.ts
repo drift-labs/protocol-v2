@@ -538,7 +538,9 @@ export class DriftClient {
 	public getOraclePriceDataAndSlot(
 		oraclePublicKey: PublicKey
 	): DataAndSlot<OraclePriceData> | undefined {
-		return this.accountSubscriber.getOraclePriceDataAndSlot(oraclePublicKey);
+		return this.accountSubscriber.getOraclePriceDataAndSlot(
+			oraclePublicKey.toBase58()
+		);
 	}
 
 	public async getSerumV3FulfillmentConfig(
