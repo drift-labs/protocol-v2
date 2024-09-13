@@ -132,8 +132,10 @@ export function getMarketsAndOraclesForSubscription(env: DriftEnv): {
 
 export async function findAllMarketAndOracles(program: Program): Promise<{
 	perpMarketIndexes: number[];
+	perpMarketAccounts: PerpMarketAccount[];
 	spotMarketIndexes: number[];
 	oracleInfos: OracleInfo[];
+	spotMarketAccounts: SpotMarketAccount[];
 }> {
 	const perpMarketIndexes = [];
 	const spotMarketIndexes = [];
@@ -164,7 +166,13 @@ export async function findAllMarketAndOracles(program: Program): Promise<{
 
 	return {
 		perpMarketIndexes,
+		perpMarketAccounts: perpMarketProgramAccounts.map(
+			(account) => account.account
+		),
 		spotMarketIndexes,
+		spotMarketAccounts: spotMarketProgramAccounts.map(
+			(account) => account.account
+		),
 		oracleInfos: Array.from(oracleInfos.values()),
 	};
 }
