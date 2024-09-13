@@ -20,7 +20,7 @@ describe('Verify Constants', function () {
 	const DEVNET_RPC_ENDPOINT = process.env.DEVNET_RPC_ENDPOINT;
 
 	// avoid breaking pre-commit
-	if (MAINNET_RPC_ENDPOINT === undefined && DEVNET_RPC_ENDPOINT === undefined) {
+	if (MAINNET_RPC_ENDPOINT === undefined || DEVNET_RPC_ENDPOINT === undefined) {
 		return;
 	}
 
@@ -61,13 +61,14 @@ describe('Verify Constants', function () {
 		},
 	});
 
-	let lutAccounts : string[];
+	let lutAccounts: string[];
 
 	before(async () => {
 		await devnetDriftClient.subscribe();
 		await mainnetDriftClient.subscribe();
 
-		const lookupTable = await mainnetDriftClient.fetchMarketLookupTableAccount();
+		const lookupTable =
+			await mainnetDriftClient.fetchMarketLookupTableAccount();
 		lutAccounts = lookupTable.state.addresses.map((x) => x.toBase58());
 	});
 
@@ -113,10 +114,20 @@ describe('Verify Constants', function () {
 			);
 
 			const lutHasMarket = lutAccounts.includes(market.pubkey.toBase58());
-			assert(lutHasMarket, `Mainnet LUT is missing spot market ${market.marketIndex} pubkey ${market.pubkey.toBase58()}`);
+			assert(
+				lutHasMarket,
+				`Mainnet LUT is missing spot market ${
+					market.marketIndex
+				} pubkey ${market.pubkey.toBase58()}`
+			);
 
 			const lutHasMarketOracle = lutAccounts.includes(market.oracle.toBase58());
-			assert(lutHasMarketOracle, `Mainnet LUT is missing spot market ${market.marketIndex} oracle ${market.oracle.toBase58()}`);
+			assert(
+				lutHasMarketOracle,
+				`Mainnet LUT is missing spot market ${
+					market.marketIndex
+				} oracle ${market.oracle.toBase58()}`
+			);
 		}
 
 		const perpMarkets = mainnetDriftClient.getPerpMarketAccounts();
@@ -150,10 +161,22 @@ describe('Verify Constants', function () {
 			);
 
 			const lutHasMarket = lutAccounts.includes(market.pubkey.toBase58());
-			assert(lutHasMarket, `Mainnet LUT is missing perp market ${market.marketIndex} pubkey ${market.pubkey.toBase58()}`);
+			assert(
+				lutHasMarket,
+				`Mainnet LUT is missing perp market ${
+					market.marketIndex
+				} pubkey ${market.pubkey.toBase58()}`
+			);
 
-			const lutHasMarketOracle = lutAccounts.includes(market.amm.oracle.toBase58());
-			assert(lutHasMarketOracle, `Mainnet LUT is missing perp market ${market.marketIndex} oracle ${market.amm.oracle.toBase58()}`);
+			const lutHasMarketOracle = lutAccounts.includes(
+				market.amm.oracle.toBase58()
+			);
+			assert(
+				lutHasMarketOracle,
+				`Mainnet LUT is missing perp market ${
+					market.marketIndex
+				} oracle ${market.amm.oracle.toBase58()}`
+			);
 		}
 	});
 

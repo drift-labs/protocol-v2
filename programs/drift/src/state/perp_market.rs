@@ -13,9 +13,10 @@ use crate::math::constants::{
 use crate::math::constants::{
     AMM_RESERVE_PRECISION_I128, AMM_TO_QUOTE_PRECISION_RATIO, BID_ASK_SPREAD_PRECISION,
     BID_ASK_SPREAD_PRECISION_U128, DEFAULT_REVENUE_SINCE_LAST_FUNDING_SPREAD_RETREAT,
-    LP_FEE_SLICE_DENOMINATOR, LP_FEE_SLICE_NUMERATOR, MARGIN_PRECISION_U128, PEG_PRECISION,
-    PERCENTAGE_PRECISION, PERCENTAGE_PRECISION_I128, PERCENTAGE_PRECISION_I64,
-    PERCENTAGE_PRECISION_U64, PRICE_PRECISION, SPOT_WEIGHT_PRECISION, TWENTY_FOUR_HOUR,
+    LIQUIDATION_FEE_PRECISION, LP_FEE_SLICE_DENOMINATOR, LP_FEE_SLICE_NUMERATOR, MARGIN_PRECISION,
+    MARGIN_PRECISION_U128, MAX_LIQUIDATION_MULTIPLIER, PEG_PRECISION, PERCENTAGE_PRECISION,
+    PERCENTAGE_PRECISION_I128, PERCENTAGE_PRECISION_I64, PERCENTAGE_PRECISION_U64, PRICE_PRECISION,
+    SPOT_WEIGHT_PRECISION, TWENTY_FOUR_HOUR,
 };
 use crate::math::helpers::get_proportion_i128;
 use crate::math::margin::{
@@ -416,6 +417,15 @@ impl PerpMarket {
         let margin_ratio = default_margin_ratio.max(size_adj_margin_ratio);
 
         Ok(margin_ratio)
+    }
+
+    pub fn get_max_liquidation_fee(&self) -> DriftResult<u32> {
+        let max_liquidation_fee = (self.liquidator_fee.safe_mul(MAX_LIQUIDATION_MULTIPLIER)?).min(
+            self.margin_ratio_maintenance
+                .safe_mul(LIQUIDATION_FEE_PRECISION)?
+                .safe_div(MARGIN_PRECISION)?,
+        );
+        Ok(max_liquidation_fee)
     }
 
     pub fn get_unrealized_asset_weight(

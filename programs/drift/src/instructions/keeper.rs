@@ -356,7 +356,7 @@ pub fn handle_force_cancel_orders<'c: 'info, 'info>(
     } = load_maps(
         &mut ctx.remaining_accounts.iter().peekable(),
         &MarketSet::new(),
-        &MarketSet::new(),
+        &get_writable_spot_market_set(QUOTE_SPOT_MARKET_INDEX),
         Clock::get()?.slot,
         None,
     )?;
@@ -1127,6 +1127,40 @@ pub fn handle_liquidate_perp_pnl_for_deposit<'c: 'info, 'info>(
         state.liquidation_margin_buffer_ratio,
         state.initial_pct_to_liquidate as u128,
         state.liquidation_duration as u128,
+    )?;
+
+    Ok(())
+}
+
+#[access_control(
+    liq_not_paused(&ctx.accounts.state)
+)]
+pub fn handle_set_user_status_to_being_liquidated<'c: 'info, 'info>(
+    ctx: Context<'_, '_, 'c, 'info, SetUserStatusToBeingLiquidated<'info>>,
+) -> Result<()> {
+    let state = &ctx.accounts.state;
+    let clock = Clock::get()?;
+    let user = &mut load_mut!(ctx.accounts.user)?;
+
+    let AccountMaps {
+        perp_market_map,
+        spot_market_map,
+        mut oracle_map,
+    } = load_maps(
+        &mut ctx.remaining_accounts.iter().peekable(),
+        &MarketSet::new(),
+        &MarketSet::new(),
+        clock.slot,
+        Some(state.oracle_guard_rails),
+    )?;
+
+    controller::liquidation::set_user_status_to_being_liquidated(
+        user,
+        &perp_market_map,
+        &spot_market_map,
+        &mut oracle_map,
+        clock.slot,
+        &state,
     )?;
 
     Ok(())
@@ -2077,6 +2111,14 @@ pub struct LiquidatePerpPnlForDeposit<'info> {
         constraint = is_stats_for_user(&user, &user_stats)?
     )]
     pub user_stats: AccountLoader<'info, UserStats>,
+}
+
+#[derive(Accounts)]
+pub struct SetUserStatusToBeingLiquidated<'info> {
+    pub state: Box<Account<'info, State>>,
+    #[account(mut)]
+    pub user: AccountLoader<'info, User>,
+    pub authority: Signer<'info>,
 }
 
 #[derive(Accounts)]

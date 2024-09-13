@@ -5,6 +5,10 @@ describe('openbook v2 subscriber', function () {
 	this.timeout(100_000);
 
 	it('works', async function () {
+		if (!process.env.MAINNET_RPC_ENDPOINT) {
+			return;
+		}
+
 		const connection = new Connection(
 			process.env.MAINNET_RPC_ENDPOINT as string
 		);

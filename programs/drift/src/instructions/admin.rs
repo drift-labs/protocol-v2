@@ -4028,12 +4028,12 @@ pub fn handle_initialize_pyth_pull_oracle(
     ctx: Context<InitPythPullPriceFeed>,
     feed_id: [u8; 32],
 ) -> Result<()> {
-    let cpi_program = ctx.accounts.pyth_solana_receiver.to_account_info().clone();
+    let cpi_program = ctx.accounts.pyth_solana_receiver.to_account_info();
     let cpi_accounts = InitPriceUpdate {
-        payer: ctx.accounts.admin.to_account_info().clone(),
-        price_update_account: ctx.accounts.price_feed.to_account_info().clone(),
-        system_program: ctx.accounts.system_program.to_account_info().clone(),
-        write_authority: ctx.accounts.price_feed.to_account_info().clone(),
+        payer: ctx.accounts.admin.to_account_info(),
+        price_update_account: ctx.accounts.price_feed.to_account_info(),
+        system_program: ctx.accounts.system_program.to_account_info(),
+        write_authority: ctx.accounts.price_feed.to_account_info(),
     };
 
     let seeds = &[

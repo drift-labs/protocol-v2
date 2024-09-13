@@ -117,7 +117,7 @@ impl<'a, 'b> SerumContext<'a, 'b> {
             self.serum_open_orders.clone(),
             authority.clone(),
             self.serum_market.clone(),
-            rent.to_account_info().clone(),
+            rent.to_account_info(),
         ];
         solana_program::program::invoke_signed(&instruction, &account_infos, signers_seeds).map_err(
             |e| {

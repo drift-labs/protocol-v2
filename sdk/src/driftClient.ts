@@ -719,6 +719,51 @@ export class DriftClient {
 		return success;
 	}
 
+	/**
+	 * Update the subscribed accounts to a given authority, while leaving the
+	 * connected wallet intact. This allows a user to emulate another user's
+	 * account on the UI and sign permissionless transactions with their own wallet.
+	 * @param emulateAuthority
+	 */
+	public async emulateAccount(emulateAuthority: PublicKey): Promise<boolean> {
+		this.skipLoadUsers = false;
+		// Update provider for txSender with new wallet details
+		this.authority = emulateAuthority;
+		this.userStatsAccountPublicKey = undefined;
+		this.includeDelegates = true;
+		const walletSupportsVersionedTxns =
+			//@ts-ignore
+			this.wallet.supportedTransactionVersions?.size ?? 0 > 1;
+		this.txVersion = walletSupportsVersionedTxns ? 0 : 'legacy';
+
+		this.authoritySubAccountMap = new Map<string, number[]>();
+
+		/* Reset user stats account */
+		if (this.userStats?.isSubscribed) {
+			await this.userStats.unsubscribe();
+		}
+
+		this.userStats = undefined;
+
+		this.userStats = new UserStats({
+			driftClient: this,
+			userStatsAccountPublicKey: this.getUserStatsAccountPublicKey(),
+			accountSubscription: this.userStatsAccountSubscriptionConfig,
+		});
+
+		await this.userStats.subscribe();
+
+		let success = true;
+
+		if (this.isSubscribed) {
+			await Promise.all(this.unsubscribeUsers());
+			this.users.clear();
+			success = await this.addAndSubscribeToUsers(emulateAuthority);
+		}
+
+		return success;
+	}
+
 	public async switchActiveUser(subAccountId: number, authority?: PublicKey) {
 		const authorityChanged = authority && !this.authority?.equals(authority);
 
@@ -776,7 +821,7 @@ export class DriftClient {
 	/**
 	 * Adds and subscribes to users based on params set by the constructor or by updateWallet.
 	 */
-	public async addAndSubscribeToUsers(): Promise<boolean> {
+	public async addAndSubscribeToUsers(authority?: PublicKey): Promise<boolean> {
 		// save the rpc calls if driftclient is initialized without a real wallet
 		if (this.skipLoadUsers) return true;
 
@@ -804,12 +849,12 @@ export class DriftClient {
 			let delegatedAccounts = [];
 
 			const userAccountsPromise = this.getUserAccountsForAuthority(
-				this.wallet.publicKey
+				authority ?? this.wallet.publicKey
 			);
 
 			if (this.includeDelegates) {
 				const delegatedAccountsPromise = this.getUserAccountsForDelegate(
-					this.wallet.publicKey
+					authority ?? this.wallet.publicKey
 				);
 				[userAccounts, delegatedAccounts] = await Promise.all([
 					userAccountsPromise,
@@ -3176,30 +3221,11 @@ export class DriftClient {
 	public async getSettleExpiredMarketIx(
 		marketIndex: number
 	): Promise<TransactionInstruction> {
-		const marketAccountInfos = [];
-		const oracleAccountInfos = [];
-		const spotMarketAccountInfos = [];
-		const market = this.getPerpMarketAccount(marketIndex);
-		marketAccountInfos.push({
-			pubkey: market.pubkey,
-			isWritable: true,
-			isSigner: false,
+		const remainingAccounts = this.getRemainingAccounts({
+			userAccounts: [],
+			writablePerpMarketIndexes: [marketIndex],
+			writableSpotMarketIndexes: [QUOTE_SPOT_MARKET_INDEX],
 		});
-		oracleAccountInfos.push({
-			pubkey: market.amm.oracle,
-			isWritable: false,
-			isSigner: false,
-		});
-
-		spotMarketAccountInfos.push({
-			pubkey: this.getSpotMarketAccount(QUOTE_SPOT_MARKET_INDEX).pubkey,
-			isSigner: false,
-			isWritable: true,
-		});
-
-		const remainingAccounts = oracleAccountInfos
-			.concat(spotMarketAccountInfos)
-			.concat(marketAccountInfos);
 
 		return await this.program.instruction.settleExpiredMarket(marketIndex, {
 			accounts: {
@@ -6164,6 +6190,40 @@ export class DriftClient {
 				remainingAccounts: remainingAccounts,
 			}
 		);
+	}
+
+	public async getSetUserStatusToBeingLiquidatedIx(
+		userAccountPublicKey: PublicKey,
+		userAccount: UserAccount
+	): Promise<TransactionInstruction> {
+		const remainingAccounts = this.getRemainingAccounts({
+			userAccounts: [userAccount],
+		});
+		return await this.program.instruction.setUserStatusToBeingLiquidated({
+			accounts: {
+				state: await this.getStatePublicKey(),
+				user: userAccountPublicKey,
+				authority: this.wallet.publicKey,
+			},
+			remainingAccounts,
+		});
+	}
+
+	public async setUserStatusToBeingLiquidated(
+		userAccountPublicKey: PublicKey,
+		userAccount: UserAccount
+	): Promise<TransactionSignature> {
+		const { txSig } = await this.sendTransaction(
+			await this.buildTransaction(
+				await this.getSetUserStatusToBeingLiquidatedIx(
+					userAccountPublicKey,
+					userAccount
+				)
+			),
+			[],
+			this.opts
+		);
+		return txSig;
 	}
 
 	public async liquidatePerp(

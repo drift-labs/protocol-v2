@@ -4931,15 +4931,10 @@ describe('DLOB Spot Tests', () => {
 				`cross found: taker orderId: ${n.node.order?.orderId.toString()}: BAA: ${n.node.order?.baseAssetAmountFilled.toString()}/${n.node.order?.baseAssetAmount.toString()}, maker orderId: ${n.makerNodes[0]?.order?.orderId.toString()}: BAA: ${n.makerNodes[0]?.order?.baseAssetAmountFilled.toString()}/${n.makerNodes[0]?.order?.baseAssetAmount.toString()}`
 			);
 		}
-		expect(nodesToFillAfter.length).to.equal(2);
+		expect(nodesToFillAfter.length).to.equal(1);
 
 		// taker should fill completely with best maker
-		expect(nodesToFillAfter[0].node.order?.orderId).to.equal(4);
-		expect(nodesToFillAfter[0].makerNodes[0]?.order?.orderId).to.equal(3);
-
-		// taker should fill completely with second best maker
-		expect(nodesToFillAfter[1].node.order?.orderId).to.equal(4);
-		expect(nodesToFillAfter[1].makerNodes[0]?.order?.orderId).to.equal(2);
+		expect(nodesToFillAfter[0].makerNodes.length).to.equal(2);
 	});
 
 	it('Test two market orders to fill one limit order', () => {

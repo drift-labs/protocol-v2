@@ -123,6 +123,13 @@ pub fn calculate_accumulated_interest(
     spot_market: &SpotMarket,
     now: i64,
 ) -> DriftResult<InterestAccumulated> {
+    if now <= spot_market.last_interest_ts.cast()? {
+        return Ok(InterestAccumulated {
+            borrow_interest: 0,
+            deposit_interest: 0,
+        });
+    }
+
     let utilization = calculate_spot_market_utilization(spot_market)?;
 
     if utilization == 0 {

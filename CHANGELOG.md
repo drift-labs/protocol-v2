@@ -9,6 +9,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Features
 
+### Fixes
+
+- sdk: avoid spamming getAccountInfo in drift client ws sub ([#1219](https://github.com/drift-labs/protocol-v2/pull/1219))
+
+### Breaking
+
+## [2.93.0] - 2024-08-29
+
+### Features
+
+### Fixes
+
+- program: remove redundant clones ([#1199](https://github.com/drift-labs/protocol-v2/pull/1199))
+- program: fix spot market map in force_cancel_orders ([#1209](https://github.com/drift-labs/protocol-v2/pull/1209))
+
+### Breaking
+
+## [2.93.0] - 2024-08-22
+
+### Features
+
+- program: dynamic liquidation fee for liq_perp_with_fill ([#1185](https://github.com/drift-labs/protocol-v2/pull/1185))
+- program: calculate_accumulated_interest return early based on ts ([#1192](https://github.com/drift-labs/protocol-v2/pull/1192))
 - program: add logging to pyth pull updates ([#1189](https://github.com/drift-labs/protocol-v2/pull/1189))
 
 ### Fixes

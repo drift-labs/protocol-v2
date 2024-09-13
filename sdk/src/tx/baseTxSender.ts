@@ -61,8 +61,7 @@ export abstract class BaseTxSender implements TxSender {
 		additionalTxSenderCallbacks,
 		trackTxLandRate,
 		txHandler,
-		txLandRateLookbackWindowMinutes = DEFAULT_TX_LAND_RATE_LOOKBACK_WINDOW_MINUTES *
-			60,
+		txLandRateLookbackWindowMinutes = DEFAULT_TX_LAND_RATE_LOOKBACK_WINDOW_MINUTES,
 		landRateToFeeFunc,
 	}: {
 		connection: Connection;
@@ -267,13 +266,14 @@ export abstract class BaseTxSender implements TxSender {
 		if (response === null) {
 			if (this.confirmationStrategy === ConfirmationStrategy.Combo) {
 				try {
-					const rpcResponse = await this.connection.getSignatureStatus(
-						signature
-					);
-					if (rpcResponse?.value?.confirmationStatus) {
+					const rpcResponse = await this.connection.getSignatureStatuses([
+						signature,
+					]);
+
+					if (rpcResponse?.value?.[0]?.confirmationStatus) {
 						response = {
 							context: rpcResponse.context,
-							value: { err: rpcResponse.value.err },
+							value: { err: rpcResponse.value[0].err },
 						};
 						return response;
 					}
@@ -305,11 +305,18 @@ export abstract class BaseTxSender implements TxSender {
 		while (totalTime < this.timeout) {
 			await new Promise((resolve) => setTimeout(resolve, backoffTime));
 
-			const response = await this.connection.getSignatureStatus(signature);
-			const result = response && response.value?.[0];
+			const rpcResponse = await this.connection.getSignatureStatuses([
+				signature,
+			]);
 
-			if (result && result.confirmationStatus === commitment) {
-				return { context: result.context, value: { err: null } };
+			const signatureResult = rpcResponse && rpcResponse.value?.[0];
+
+			if (
+				rpcResponse &&
+				signatureResult &&
+				signatureResult.confirmationStatus === commitment
+			) {
+				return { context: rpcResponse.context, value: { err: null } };
 			}
 
 			totalTime += backoffTime;
@@ -398,9 +405,9 @@ export abstract class BaseTxSender implements TxSender {
 
 	public async checkConfirmationResultForError(
 		txSig: string,
-		result: RpcResponseAndContext<SignatureResult>
+		result: SignatureResult
 	) {
-		if (result.value.err) {
+		if (result.err) {
 			await this.reportTransactionError(txSig);
 		}
 
