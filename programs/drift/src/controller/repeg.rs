@@ -423,7 +423,8 @@ pub fn settle_expired_market(
         target_expiry_price
     )?;
 
-    let total_excess_balance = calculate_perp_market_amm_summary_stats(market, spot_market, target_expiry_price)?;
+    let total_excess_balance =
+        calculate_perp_market_amm_summary_stats(market, spot_market, target_expiry_price)?;
 
     let expiry_price =
         amm::calculate_expiry_price(&market.amm, target_expiry_price, total_excess_balance)?;

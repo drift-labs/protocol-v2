@@ -270,7 +270,7 @@ fn calculate_expiry_price_long_imbalance_test() {
     expiry_price = calculate_expiry_price(
         &market.amm,
         oracle_price_data.price,
-        (111_111_110 * QUOTE_PRECISION)  as i128,
+        (111_111_110 * QUOTE_PRECISION) as i128,
     )
     .unwrap();
 
