@@ -717,6 +717,7 @@ impl Default for ModifyOrderPolicy {
 }
 
 pub struct PlaceOrderOptions {
+    pub swift_taker_order_slot: Option<u64>,
     pub try_expire_orders: bool,
     pub enforce_margin_check: bool,
     pub risk_increasing: bool,
@@ -726,6 +727,7 @@ pub struct PlaceOrderOptions {
 impl Default for PlaceOrderOptions {
     fn default() -> Self {
         Self {
+            swift_taker_order_slot: None,
             try_expire_orders: true,
             enforce_margin_check: true,
             risk_increasing: false,

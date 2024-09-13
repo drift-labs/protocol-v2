@@ -847,7 +847,6 @@ pub fn handle_place_perp_order<'c: 'info, 'info>(
         &spot_market_map,
         &mut oracle_map,
         clock,
-        clock.slot,
         params,
         PlaceOrderOptions::default(),
     )?;
@@ -1129,6 +1128,7 @@ pub fn handle_place_orders<'c: 'info, 'info>(
 
         // only enforce margin on last order and only try to expire on first order
         let options = PlaceOrderOptions {
+            swift_taker_order_slot: None,
             enforce_margin_check: i == num_orders - 1,
             try_expire_orders: i == 0,
             risk_increasing: false,
@@ -1144,7 +1144,6 @@ pub fn handle_place_orders<'c: 'info, 'info>(
                 &spot_market_map,
                 &mut oracle_map,
                 clock,
-                clock.slot,
                 *params,
                 options,
             )?;
@@ -1220,7 +1219,6 @@ pub fn handle_place_and_take_perp_order<'c: 'info, 'info>(
         &spot_market_map,
         &mut oracle_map,
         &clock,
-        clock.slot,
         params,
         PlaceOrderOptions::default(),
     )?;
@@ -1317,7 +1315,6 @@ pub fn handle_place_and_make_perp_order<'c: 'info, 'info>(
         &spot_market_map,
         &mut oracle_map,
         clock,
-        clock.slot,
         params,
         PlaceOrderOptions::default(),
     )?;

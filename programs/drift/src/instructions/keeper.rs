@@ -495,9 +495,11 @@ pub fn place_swift_taker_order<'c: 'info, 'info>(
             spot_market_map,
             oracle_map,
             clock,
-            clock.slot.min(order_slot),
             matching_taker_order_params,
-            PlaceOrderOptions::default(),
+            PlaceOrderOptions {
+                swift_taker_order_slot: Some(order_slot),
+                ..PlaceOrderOptions::default()
+            },
         )?;
         let non_matching_orders: Vec<OrderParams> = taker_order_params[1..].to_vec();
         for non_matching_order_param in non_matching_orders {
@@ -515,9 +517,11 @@ pub fn place_swift_taker_order<'c: 'info, 'info>(
                 spot_market_map,
                 oracle_map,
                 clock,
-                clock.slot,
                 non_matching_order_param,
-                PlaceOrderOptions::default(),
+                PlaceOrderOptions {
+                    swift_taker_order_slot: Some(order_slot),
+                    ..PlaceOrderOptions::default()
+                },
             )?;
         }
     } else {
