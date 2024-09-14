@@ -315,7 +315,11 @@ export class WebSocketDriftClientAccountSubscriber
 			this.resubOpts,
 			this.commitment
 		);
-		accountSubscriber.setData(this.initialOraclePriceData.get(oracleString));
+		const initialOraclePriceData =
+			this.initialOraclePriceData.get(oracleString);
+		if (initialOraclePriceData) {
+			accountSubscriber.setData(initialOraclePriceData);
+		}
 		await accountSubscriber.subscribe((data: OraclePriceData) => {
 			this.eventEmitter.emit('oraclePriceUpdate', oracleInfo.publicKey, data);
 			this.eventEmitter.emit('update');
