@@ -1485,6 +1485,8 @@ pub fn handle_place_and_take_spot_order<'c: 'info, 'info>(
     let user_key = ctx.accounts.user.key();
     let mut user = load_mut!(ctx.accounts.user)?;
 
+    let order_id_before = user.get_last_order_id();
+
     controller::orders::place_spot_order(
         &ctx.accounts.state,
         &mut user,
@@ -1501,6 +1503,11 @@ pub fn handle_place_and_take_spot_order<'c: 'info, 'info>(
 
     let user = &mut ctx.accounts.user;
     let order_id = load!(user)?.get_last_order_id();
+
+    if order_id == order_id_before {
+        msg!("new order failed to be placed");
+        return Err(print_error!(ErrorCode::InvalidOrder)().into());
+    }
 
     controller::orders::fill_spot_order(
         order_id,
