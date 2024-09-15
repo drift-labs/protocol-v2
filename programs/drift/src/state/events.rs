@@ -343,6 +343,7 @@ pub enum OrderActionExplanation {
     OrderFilledWithAMMJitLPSplit,
     OrderFilledWithLPJit,
     DeriskLp,
+    OrderFilledWithOpenbookV2,
 }
 
 impl Default for OrderAction {
