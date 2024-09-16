@@ -160,23 +160,25 @@ export class EventSubscriber {
 				const logProviderConfig = this.options
 					.logProviderConfig as StreamingLogProviderConfig;
 
-				this.logProvider.eventEmitter.on(
-					'reconnect',
-					async (reconnectAttempts) => {
-						if (reconnectAttempts > logProviderConfig.maxReconnectAttempts) {
-							console.log(
-								`EventSubscriber: Reconnect attempts ${reconnectAttempts}/${logProviderConfig.maxReconnectAttempts}, reconnecting...`
-							);
-							this.logProvider.eventEmitter.removeAllListeners('reconnect');
-							await this.unsubscribe();
-							this.updateFallbackProviderType(
-								reconnectAttempts,
-								logProviderConfig.maxReconnectAttempts
-							);
-							this.initializeLogProvider(true);
+				if (this.logProvider.eventEmitter) {
+					this.logProvider.eventEmitter.on(
+						'reconnect',
+						async (reconnectAttempts) => {
+							if (reconnectAttempts > logProviderConfig.maxReconnectAttempts) {
+								console.log(
+									`EventSubscriber: Reconnect attempts ${reconnectAttempts}/${logProviderConfig.maxReconnectAttempts}, reconnecting...`
+								);
+								this.logProvider.eventEmitter.removeAllListeners('reconnect');
+								await this.unsubscribe();
+								this.updateFallbackProviderType(
+									reconnectAttempts,
+									logProviderConfig.maxReconnectAttempts
+								);
+								this.initializeLogProvider(true);
+							}
 						}
-					}
-				);
+					);
+				}
 			}
 			this.logProvider.subscribe(
 				(txSig, slot, logs, mostRecentBlockTime, txSigIndex) => {
