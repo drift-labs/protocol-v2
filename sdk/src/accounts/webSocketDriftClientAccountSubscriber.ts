@@ -175,7 +175,7 @@ export class WebSocketDriftClientAccountSubscriber
 			);
 			this.initialPerpMarketAccountData = new Map(
 				perpMarketAccountInfos
-					.filter((accountInfo) => !!accountInfo.data)
+					.filter((accountInfo) => !!accountInfo)
 					.map((accountInfo) => {
 						const perpMarket = this.program.coder.accounts.decode(
 							'PerpMarket',
@@ -195,7 +195,7 @@ export class WebSocketDriftClientAccountSubscriber
 			);
 			this.initialSpotMarketAccountData = new Map(
 				spotMarketAccountInfos
-					.filter((accountInfo) => !!accountInfo.data)
+					.filter((accountInfo) => !!accountInfo)
 					.map((accountInfo) => {
 						const spotMarket = this.program.coder.accounts.decode(
 							'SpotMarket',
