@@ -14,7 +14,7 @@ export class grpcAccountSubscriber<T> extends WebSocketAccountSubscriber<T> {
 	client: Client;
 	stream: ClientDuplexStream<SubscribeRequest, SubscribeUpdate>;
 	commitmentLevel: CommitmentLevel;
-	listenerId = 0;
+	listenerId?: number;
 
 	public constructor(
 		grpcConfigs: GrpcConfigs,
@@ -40,11 +40,9 @@ export class grpcAccountSubscriber<T> extends WebSocketAccountSubscriber<T> {
 		}
 
 		this.onChange = onChange;
-		console.log('fetching account', this.accountPublicKey.toString());
 		if (!this.dataAndSlot) {
 			await this.fetch();
 		}
-		console.log('fetched account', this.accountPublicKey.toString());
 
 		// Subscribe with grpc
 		this.stream = await this.client.subscribe();
@@ -100,10 +98,8 @@ export class grpcAccountSubscriber<T> extends WebSocketAccountSubscriber<T> {
 			}
 		});
 
-		console.log('trying subscribign to account', this.accountPublicKey.toString());
 		return new Promise<void>((resolve, reject) => {
 			this.stream.write(request, (err) => {
-				console.log('subscribign to account', this.accountPublicKey.toString());
 				if (err === null || err === undefined) {
 					this.listenerId = 1;
 					if (this.resubOpts?.resubTimeoutMs) {

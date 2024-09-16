@@ -42,6 +42,12 @@ export class gprcDriftClientAccountSubscriber extends WebSocketDriftClientAccoun
 			return true;
 		}
 
+		if (this.isSubscribing) {
+			return await this.subscriptionPromise;
+		}
+
+		this.isSubscribing = true;
+
 		this.subscriptionPromise = new Promise((res) => {
 			this.subscriptionPromiseResolver = res;
 		});
@@ -102,13 +108,18 @@ export class gprcDriftClientAccountSubscriber extends WebSocketDriftClientAccoun
 
 		this.subscriptionPromiseResolver(true);
 
+		this.isSubscribing = false;
+		this.isSubscribed = true;
+
 		// delete initial data
 		this.removeInitialData();
 
 		return true;
 	}
 
-	override async subscribeToSpotMarketAccount(marketIndex: number): Promise<boolean> {
+	override async subscribeToSpotMarketAccount(
+		marketIndex: number
+	): Promise<boolean> {
 		const marketPublicKey = await getSpotMarketPublicKey(
 			this.program.programId,
 			marketIndex

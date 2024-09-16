@@ -16,7 +16,7 @@ export class grpcProgramAccountSubscriber<
 	client: Client;
 	stream: ClientDuplexStream<SubscribeRequest, SubscribeUpdate>;
 	commitmentLevel: CommitmentLevel;
-	listenerId = 0;
+	listenerId?: number;
 
 	public constructor(
 		grpcConfigs: GrpcConfigs,
