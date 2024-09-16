@@ -18,7 +18,7 @@ use crate::state::fulfillment_params::serum::SerumFulfillmentParams;
 use crate::state::insurance_fund_stake::InsuranceFundStake;
 use crate::state::oracle_map::OracleMap;
 use crate::state::paused_operations::PerpOperation;
-use crate::state::perp_market::{MarketStatus, PerpMarket};
+use crate::state::perp_market::{ContractType, MarketStatus, PerpMarket};
 use crate::state::perp_market_map::{
     get_market_set_for_user_positions, get_market_set_from_list, get_writable_perp_market_set,
     get_writable_perp_market_set_from_vec, MarketSet, PerpMarketMap,
@@ -1508,6 +1508,13 @@ pub fn handle_update_perp_bid_ask_twap<'c: 'info, 'info>(
         estimated_bid,
         estimated_ask
     );
+
+    if perp_market.contract_type == ContractType::Prediction
+        && perp_market.is_operation_paused(PerpOperation::AmmFill)
+        && (estimated_bid.is_none() || estimated_ask.is_none())
+    {
+        msg!("skipping mark twap update for no amm prediction market");
+    }
 
     msg!(
         "before amm bid twap = {} ask twap = {} ts = {}",
