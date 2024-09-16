@@ -174,13 +174,15 @@ export class WebSocketDriftClientAccountSubscriber
 				perpMarketPublicKeys
 			);
 			this.initialPerpMarketAccountData = new Map(
-				perpMarketAccountInfos.map((accountInfo) => {
-					const perpMarket = this.program.coder.accounts.decode(
-						'PerpMarket',
-						accountInfo.data
-					);
-					return [perpMarket.marketIndex, perpMarket];
-				})
+				perpMarketAccountInfos
+					.filter((accountInfo) => !!accountInfo.data)
+					.map((accountInfo) => {
+						const perpMarket = this.program.coder.accounts.decode(
+							'PerpMarket',
+							accountInfo.data
+						);
+						return [perpMarket.marketIndex, perpMarket];
+					})
 			);
 		}
 
@@ -192,13 +194,15 @@ export class WebSocketDriftClientAccountSubscriber
 				spotMarketPublicKeys
 			);
 			this.initialSpotMarketAccountData = new Map(
-				spotMarketAccountInfos.map((accountInfo) => {
-					const spotMarket = this.program.coder.accounts.decode(
-						'SpotMarket',
-						accountInfo.data
-					);
-					return [spotMarket.marketIndex, spotMarket];
-				})
+				spotMarketAccountInfos
+					.filter((accountInfo) => !!accountInfo.data)
+					.map((accountInfo) => {
+						const spotMarket = this.program.coder.accounts.decode(
+							'SpotMarket',
+							accountInfo.data
+						);
+						return [spotMarket.marketIndex, spotMarket];
+					})
 			);
 		}
 
@@ -206,17 +210,19 @@ export class WebSocketDriftClientAccountSubscriber
 			this.oracleInfos.map((oracleInfo) => oracleInfo.publicKey)
 		);
 		this.initialOraclePriceData = new Map(
-			this.oracleInfos.map((oracleInfo, i) => {
-				const oracleClient = this.oracleClientCache.get(
-					oracleInfo.source,
-					connection,
-					this.program
-				);
-				const oraclePriceData = oracleClient.getOraclePriceDataFromBuffer(
-					oracleAccountInfos[i].data
-				);
-				return [oracleInfo.publicKey.toString(), oraclePriceData];
-			})
+			this.oracleInfos
+				.filter((_, i) => !!oracleAccountInfos[i])
+				.map((oracleInfo, i) => {
+					const oracleClient = this.oracleClientCache.get(
+						oracleInfo.source,
+						connection,
+						this.program
+					);
+					const oraclePriceData = oracleClient.getOraclePriceDataFromBuffer(
+						oracleAccountInfos[i].data
+					);
+					return [oracleInfo.publicKey.toString(), oraclePriceData];
+				})
 		);
 	}
 
