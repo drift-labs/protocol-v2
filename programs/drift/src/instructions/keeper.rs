@@ -1513,7 +1513,8 @@ pub fn handle_update_perp_bid_ask_twap<'c: 'info, 'info>(
         && perp_market.is_operation_paused(PerpOperation::AmmFill)
         && (estimated_bid.is_none() || estimated_ask.is_none())
     {
-        msg!("skipping mark twap update for no amm prediction market");
+        msg!("skipping mark twap update for disabled amm prediction market");
+        return Ok(());
     }
 
     msg!(
