@@ -1,6 +1,14 @@
-import WebSocket from 'ws';
+// import WebSocket from 'ws';
 import { logProviderCallback, EventType, LogProvider } from './types';
 import { EventEmitter } from 'events';
+
+// browser support
+let WebSocketImpl: typeof WebSocket;
+if (typeof window !== 'undefined' && window.WebSocket) {
+	WebSocketImpl = window.WebSocket;
+} else {
+	WebSocketImpl = require('ws');
+}
 
 const EVENT_SERVER_HEARTBEAT_INTERVAL_MS = 5000;
 const ALLOWED_MISSED_HEARTBEATS = 3;
@@ -31,10 +39,10 @@ export class EventsServerLogProvider implements LogProvider {
 		if (this.ws !== undefined) {
 			return true;
 		}
-		this.ws = new WebSocket(this.url);
+		this.ws = new WebSocketImpl(this.url);
 
 		this.callback = callback;
-		this.ws.on('open', () => {
+		this.ws.addEventListener('open', () => {
 			for (const channel of this.eventTypes) {
 				const subscribeMessage = {
 					type: 'subscribe',
@@ -48,7 +56,7 @@ export class EventsServerLogProvider implements LogProvider {
 			this.reconnectAttempts = 0;
 		});
 
-		this.ws.on('message', (data: WebSocket.Data) => {
+		this.ws.addEventListener('message', (data) => {
 			try {
 				if (!this.isUnsubscribing) {
 					clearTimeout(this.timeoutId);
@@ -61,7 +69,7 @@ export class EventsServerLogProvider implements LogProvider {
 					this.reconnectAttempts = 0;
 				}
 
-				const parsedData = JSON.parse(data.toString());
+				const parsedData = JSON.parse(data.data.toString());
 				if (parsedData.channel === 'heartbeat') {
 					this.lastHeartbeat = Date.now();
 					return;
@@ -86,11 +94,11 @@ export class EventsServerLogProvider implements LogProvider {
 			}
 		});
 
-		this.ws.on('close', () => {
+		this.ws.addEventListener('close', () => {
 			console.log('eventsServerLogProvider: WebSocket closed');
 		});
 
-		this.ws.on('error', (error) => {
+		this.ws.addEventListener('error', (error) => {
 			console.error('eventsServerLogProvider: WebSocket error:', error);
 		});
 
