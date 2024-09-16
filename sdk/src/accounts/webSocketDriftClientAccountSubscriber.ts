@@ -210,19 +210,24 @@ export class WebSocketDriftClientAccountSubscriber
 			this.oracleInfos.map((oracleInfo) => oracleInfo.publicKey)
 		);
 		this.initialOraclePriceData = new Map(
-			this.oracleInfos
-				.filter((_, i) => !!oracleAccountInfos[i])
-				.map((oracleInfo, i) => {
-					const oracleClient = this.oracleClientCache.get(
-						oracleInfo.source,
-						connection,
-						this.program
-					);
-					const oraclePriceData = oracleClient.getOraclePriceDataFromBuffer(
-						oracleAccountInfos[i].data
-					);
-					return [oracleInfo.publicKey.toString(), oraclePriceData];
-				})
+			this.oracleInfos.reduce((result, oracleInfo, i) => {
+				if (!oracleAccountInfos[i]) {
+					return result;
+				}
+
+				const oracleClient = this.oracleClientCache.get(
+					oracleInfo.source,
+					connection,
+					this.program
+				);
+
+				const oraclePriceData = oracleClient.getOraclePriceDataFromBuffer(
+					oracleAccountInfos[i].data
+				);
+
+				result.push([oracleInfo.publicKey.toString(), oraclePriceData]);
+				return result;
+			}, [])
 		);
 	}
 
@@ -431,7 +436,7 @@ export class WebSocketDriftClientAccountSubscriber
 		const perpMarkets = this.getMarketAccountsAndSlots();
 		const addOraclePromises = [];
 		for (const perpMarket of perpMarkets) {
-			if (!perpMarket) {
+			if (!perpMarket || !perpMarket.data) {
 				continue;
 			}
 			const perpMarketAccount = perpMarket.data;
@@ -455,7 +460,7 @@ export class WebSocketDriftClientAccountSubscriber
 		const spotMarkets = this.getSpotMarketAccountsAndSlots();
 		const addOraclePromises = [];
 		for (const spotMarket of spotMarkets) {
-			if (!spotMarket) {
+			if (!spotMarket || !spotMarket.data) {
 				continue;
 			}
 			const spotMarketAccount = spotMarket.data;
