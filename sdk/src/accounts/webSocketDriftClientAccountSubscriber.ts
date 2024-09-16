@@ -24,6 +24,8 @@ import * as Buffer from 'buffer';
 import { QUOTE_ORACLE_PRICE_DATA } from '../oracles/quoteAssetOracleClient';
 import { findAllMarketAndOracles } from '../config';
 
+const ORACLE_DEFAULT_KEY = PublicKey.default.toBase58();
+
 export class WebSocketDriftClientAccountSubscriber
 	implements DriftClientAccountSubscriber
 {
@@ -45,11 +47,13 @@ export class WebSocketDriftClientAccountSubscriber
 		AccountSubscriber<PerpMarketAccount>
 	>();
 	perpOracleMap = new Map<number, PublicKey>();
+	perpOracleStringMap = new Map<number, string>();
 	spotMarketAccountSubscribers = new Map<
 		number,
 		AccountSubscriber<SpotMarketAccount>
 	>();
 	spotOracleMap = new Map<number, PublicKey>();
+	spotOracleStringMap = new Map<number, string>();
 	oracleSubscribers = new Map<string, AccountSubscriber<OraclePriceData>>();
 
 	initialPerpMarketAccountData: Map<number, PerpMarketAccount>;
@@ -170,13 +174,15 @@ export class WebSocketDriftClientAccountSubscriber
 				perpMarketPublicKeys
 			);
 			this.initialPerpMarketAccountData = new Map(
-				perpMarketAccountInfos.map((accountInfo) => {
-					const perpMarket = this.program.coder.accounts.decode(
-						'PerpMarket',
-						accountInfo.data
-					);
-					return [perpMarket.marketIndex, perpMarket];
-				})
+				perpMarketAccountInfos
+					.filter((accountInfo) => !!accountInfo)
+					.map((accountInfo) => {
+						const perpMarket = this.program.coder.accounts.decode(
+							'PerpMarket',
+							accountInfo.data
+						);
+						return [perpMarket.marketIndex, perpMarket];
+					})
 			);
 		}
 
@@ -188,13 +194,15 @@ export class WebSocketDriftClientAccountSubscriber
 				spotMarketPublicKeys
 			);
 			this.initialSpotMarketAccountData = new Map(
-				spotMarketAccountInfos.map((accountInfo) => {
-					const spotMarket = this.program.coder.accounts.decode(
-						'SpotMarket',
-						accountInfo.data
-					);
-					return [spotMarket.marketIndex, spotMarket];
-				})
+				spotMarketAccountInfos
+					.filter((accountInfo) => !!accountInfo)
+					.map((accountInfo) => {
+						const spotMarket = this.program.coder.accounts.decode(
+							'SpotMarket',
+							accountInfo.data
+						);
+						return [spotMarket.marketIndex, spotMarket];
+					})
 			);
 		}
 
@@ -202,17 +210,24 @@ export class WebSocketDriftClientAccountSubscriber
 			this.oracleInfos.map((oracleInfo) => oracleInfo.publicKey)
 		);
 		this.initialOraclePriceData = new Map(
-			this.oracleInfos.map((oracleInfo, i) => {
+			this.oracleInfos.reduce((result, oracleInfo, i) => {
+				if (!oracleAccountInfos[i]) {
+					return result;
+				}
+
 				const oracleClient = this.oracleClientCache.get(
 					oracleInfo.source,
 					connection,
 					this.program
 				);
+
 				const oraclePriceData = oracleClient.getOraclePriceDataFromBuffer(
 					oracleAccountInfos[i].data
 				);
-				return [oracleInfo.publicKey.toString(), oraclePriceData];
-			})
+
+				result.push([oracleInfo.publicKey.toString(), oraclePriceData]);
+				return result;
+			}, [])
 		);
 	}
 
@@ -315,7 +330,11 @@ export class WebSocketDriftClientAccountSubscriber
 			this.resubOpts,
 			this.commitment
 		);
-		accountSubscriber.setData(this.initialOraclePriceData.get(oracleString));
+		const initialOraclePriceData =
+			this.initialOraclePriceData.get(oracleString);
+		if (initialOraclePriceData) {
+			accountSubscriber.setData(initialOraclePriceData);
+		}
 		await accountSubscriber.subscribe((data: OraclePriceData) => {
 			this.eventEmitter.emit('oraclePriceUpdate', oracleInfo.publicKey, data);
 			this.eventEmitter.emit('update');
@@ -417,7 +436,7 @@ export class WebSocketDriftClientAccountSubscriber
 		const perpMarkets = this.getMarketAccountsAndSlots();
 		const addOraclePromises = [];
 		for (const perpMarket of perpMarkets) {
-			if (!perpMarket) {
+			if (!perpMarket || !perpMarket.data) {
 				continue;
 			}
 			const perpMarketAccount = perpMarket.data;
@@ -432,6 +451,7 @@ export class WebSocketDriftClientAccountSubscriber
 				);
 			}
 			this.perpOracleMap.set(perpMarketIndex, oracle);
+			this.perpOracleStringMap.set(perpMarketIndex, oracle.toBase58());
 		}
 		await Promise.all(addOraclePromises);
 	}
@@ -440,7 +460,7 @@ export class WebSocketDriftClientAccountSubscriber
 		const spotMarkets = this.getSpotMarketAccountsAndSlots();
 		const addOraclePromises = [];
 		for (const spotMarket of spotMarkets) {
-			if (!spotMarket) {
+			if (!spotMarket || !spotMarket.data) {
 				continue;
 			}
 			const spotMarketAccount = spotMarket.data;
@@ -455,6 +475,7 @@ export class WebSocketDriftClientAccountSubscriber
 				);
 			}
 			this.spotOracleMap.set(spotMarketIndex, oracle);
+			this.spotOracleStringMap.set(spotMarketIndex, oracle.toBase58());
 		}
 		await Promise.all(addOraclePromises);
 	}
@@ -499,16 +520,20 @@ export class WebSocketDriftClientAccountSubscriber
 	}
 
 	public getOraclePriceDataAndSlot(
-		oraclePublicKey: PublicKey
+		oraclePublicKey: PublicKey | string
 	): DataAndSlot<OraclePriceData> | undefined {
 		this.assertIsSubscribed();
-		if (oraclePublicKey.equals(PublicKey.default)) {
+		const oracleString =
+			typeof oraclePublicKey === 'string'
+				? oraclePublicKey
+				: oraclePublicKey.toBase58();
+		if (oracleString === ORACLE_DEFAULT_KEY) {
 			return {
 				data: QUOTE_ORACLE_PRICE_DATA,
 				slot: 0,
 			};
 		}
-		return this.oracleSubscribers.get(oraclePublicKey.toString()).dataAndSlot;
+		return this.oracleSubscribers.get(oracleString).dataAndSlot;
 	}
 
 	public getOraclePriceDataAndSlotForPerpMarket(
@@ -516,6 +541,7 @@ export class WebSocketDriftClientAccountSubscriber
 	): DataAndSlot<OraclePriceData> | undefined {
 		const perpMarketAccount = this.getMarketAccountAndSlot(marketIndex);
 		const oracle = this.perpOracleMap.get(marketIndex);
+		const oracleString = this.perpOracleStringMap.get(marketIndex);
 		if (!perpMarketAccount || !oracle) {
 			return undefined;
 		}
@@ -525,7 +551,7 @@ export class WebSocketDriftClientAccountSubscriber
 			this.setPerpOracleMap();
 		}
 
-		return this.getOraclePriceDataAndSlot(oracle);
+		return this.getOraclePriceDataAndSlot(oracleString);
 	}
 
 	public getOraclePriceDataAndSlotForSpotMarket(
@@ -533,6 +559,7 @@ export class WebSocketDriftClientAccountSubscriber
 	): DataAndSlot<OraclePriceData> | undefined {
 		const spotMarketAccount = this.getSpotMarketAccountAndSlot(marketIndex);
 		const oracle = this.spotOracleMap.get(marketIndex);
+		const oracleString = this.spotOracleStringMap.get(marketIndex);
 		if (!spotMarketAccount || !oracle) {
 			return undefined;
 		}
@@ -542,6 +569,6 @@ export class WebSocketDriftClientAccountSubscriber
 			this.setSpotOracleMap();
 		}
 
-		return this.getOraclePriceDataAndSlot(oracle);
+		return this.getOraclePriceDataAndSlot(oracleString);
 	}
 }

@@ -74,7 +74,7 @@ export interface DriftClientAccountSubscriber {
 	): DataAndSlot<SpotMarketAccount> | undefined;
 	getSpotMarketAccountsAndSlots(): DataAndSlot<SpotMarketAccount>[];
 	getOraclePriceDataAndSlot(
-		oraclePublicKey: PublicKey
+		oraclePublicKey: PublicKey | string
 	): DataAndSlot<OraclePriceData> | undefined;
 	getOraclePriceDataAndSlotForPerpMarket(
 		marketIndex: number

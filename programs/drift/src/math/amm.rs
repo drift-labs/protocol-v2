@@ -844,12 +844,11 @@ pub fn calculate_net_user_pnl(amm: &AMM, oracle_price: i64) -> DriftResult<i128>
 pub fn calculate_expiry_price(
     amm: &AMM,
     target_price: i64,
-    pnl_pool_amount: u128,
+    total_excess_balance: i128,
 ) -> DriftResult<i64> {
-    if amm.base_asset_amount_with_amm == 0 {
+    if amm.base_asset_amount_with_amm.abs() < amm.order_step_size.cast::<i128>()? {
         return Ok(target_price);
     }
-
     // net_baa * price + net_quote <= 0
     // net_quote/net_baa <= -price
 
@@ -857,17 +856,17 @@ pub fn calculate_expiry_price(
     // net_user_unrealized_pnl positive = expiry price needs to differ from oracle
     let best_expiry_price = -(amm
         .quote_asset_amount
-        .safe_sub(pnl_pool_amount.cast::<i128>()?)?
+        .safe_sub(total_excess_balance.cast::<i128>()?)?
         .safe_mul(PRICE_TIMES_AMM_TO_QUOTE_PRECISION_RATIO_I128)?
         .safe_div(amm.base_asset_amount_with_amm)?)
     .cast::<i64>()?;
 
-    let expiry_price = if amm.base_asset_amount_with_amm > 0 {
+    let expiry_price = if amm.base_asset_amount_with_amm >= 0 {
         // net longs only get as high as oracle_price
-        best_expiry_price.min(target_price).safe_sub(1)?
+        best_expiry_price.min(target_price).saturating_sub(1)
     } else {
         // net shorts only get as low as oracle price
-        best_expiry_price.max(target_price).safe_add(1)?
+        best_expiry_price.max(target_price).saturating_add(1)
     };
 
     Ok(expiry_price)
