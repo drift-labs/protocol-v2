@@ -3609,6 +3609,8 @@ pub fn fill_spot_order(
         let oracle_price_data = oracle_map.get_price_data(&base_market.oracle)?;
         update_spot_market_cumulative_interest(&mut base_market, Some(oracle_price_data), now)?;
 
+        fulfillment_params.validate_markets(&base_market, &quote_market)?;
+
         let oracle_too_divergent_with_twap_5min = is_oracle_too_divergent_with_twap_5min(
             oracle_price_data.price,
             base_market

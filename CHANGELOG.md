@@ -11,6 +11,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixes
 
+### Breaking
+
+## [2.95.0] - 2024-09-16
+
+### Features
+
+- program: update settle market guards ([#1216](https://github.com/drift-labs/protocol-v2/pull/1216))
+- sdk:: cache toStringing oracle for drift client account subscribers ([#1220](https://github.com/drift-labs/protocol-v2/pull/1220))
+
+### Fixes
+
+- program: return early in update_perp_bid_ask_twap for prediction market with no bid/asks ([#1223](https://github.com/drift-labs/protocol-v2/pull/1223)) 
 - sdk: avoid spamming getAccountInfo in drift client ws sub ([#1219](https://github.com/drift-labs/protocol-v2/pull/1219))
 
 ### Breaking

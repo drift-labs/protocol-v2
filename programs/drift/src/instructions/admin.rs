@@ -15,6 +15,7 @@ use crate::controller::token::close_vault;
 use crate::error::ErrorCode;
 use crate::ids::admin_hot_wallet;
 use crate::instructions::constraints::*;
+use crate::instructions::optional_accounts::{load_maps, AccountMaps};
 use crate::math::casting::Cast;
 use crate::math::constants::{
     DEFAULT_LIQUIDATION_MARGIN_BUFFER_RATIO, FEE_POOL_TO_REVENUE_POOL_THRESHOLD, FUEL_START_TS,
@@ -52,9 +53,11 @@ use crate::state::paused_operations::{InsuranceFundOperation, PerpOperation, Spo
 use crate::state::perp_market::{
     ContractTier, ContractType, InsuranceClaim, MarketStatus, PerpMarket, PoolBalance, AMM,
 };
+use crate::state::perp_market_map::get_writable_perp_market_set;
 use crate::state::spot_market::{
     AssetTier, InsuranceFund, SpotBalanceType, SpotFulfillmentConfigStatus, SpotMarket,
 };
+use crate::state::spot_market_map::get_writable_spot_market_set;
 use crate::state::state::{ExchangeStatus, FeeStructure, OracleGuardRails, State};
 use crate::state::traits::Size;
 use crate::state::user::{User, UserStats};
@@ -4045,6 +4048,46 @@ pub fn handle_initialize_pyth_pull_oracle(
     let cpi_context = CpiContext::new_with_signer(cpi_program, cpi_accounts, signer_seeds);
 
     pyth_solana_receiver_sdk::cpi::init_price_update(cpi_context, feed_id)?;
+
+    Ok(())
+}
+
+pub fn handle_settle_expired_market<'c: 'info, 'info>(
+    ctx: Context<'_, '_, 'c, 'info, AdminUpdatePerpMarket<'info>>,
+    market_index: u16,
+) -> Result<()> {
+    let clock = Clock::get()?;
+    let _now = clock.unix_timestamp;
+    let state = &ctx.accounts.state;
+
+    let AccountMaps {
+        perp_market_map,
+        spot_market_map,
+        mut oracle_map,
+    } = load_maps(
+        &mut ctx.remaining_accounts.iter().peekable(),
+        &get_writable_perp_market_set(market_index),
+        &get_writable_spot_market_set(QUOTE_SPOT_MARKET_INDEX),
+        clock.slot,
+        Some(state.oracle_guard_rails),
+    )?;
+
+    controller::repeg::update_amm(
+        market_index,
+        &perp_market_map,
+        &mut oracle_map,
+        state,
+        &clock,
+    )?;
+
+    controller::repeg::settle_expired_market(
+        market_index,
+        &perp_market_map,
+        &mut oracle_map,
+        &spot_market_map,
+        state,
+        &clock,
+    )?;
 
     Ok(())
 }

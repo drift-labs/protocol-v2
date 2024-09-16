@@ -400,7 +400,7 @@ pub mod drift {
     }
 
     pub fn settle_expired_market<'c: 'info, 'info>(
-        ctx: Context<'_, '_, 'c, 'info, UpdateAMM<'info>>,
+        ctx: Context<'_, '_, 'c, 'info, AdminUpdatePerpMarket<'info>>,
         market_index: u16,
     ) -> Result<()> {
         handle_settle_expired_market(ctx, market_index)
