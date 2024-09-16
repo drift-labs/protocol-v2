@@ -337,6 +337,7 @@ describe('place and make swift order', () => {
 			auctionDuration: 10,
 			userOrderId: 1,
 			postOnly: PostOnlyParams.NONE,
+			marketType: MarketType.PERP,
 		});
 		const stopLossTakerParams = getTriggerLimitOrderParams({
 			marketIndex,
@@ -346,6 +347,7 @@ describe('place and make swift order', () => {
 			triggerPrice: new BN(20).mul(PRICE_PRECISION),
 			userOrderId: 2,
 			triggerCondition: OrderTriggerCondition.BELOW,
+			marketType: MarketType.PERP,
 		});
 
 		const takeProfitTakerParams = getTriggerLimitOrderParams({
@@ -356,6 +358,7 @@ describe('place and make swift order', () => {
 			triggerPrice: new BN(40).mul(PRICE_PRECISION),
 			userOrderId: 3,
 			triggerCondition: OrderTriggerCondition.ABOVE,
+			marketType: MarketType.PERP,
 		});
 
 		await takerDriftClientUser.fetchAccounts();
@@ -366,8 +369,12 @@ describe('place and make swift order', () => {
 			price: new BN(33).mul(PRICE_PRECISION),
 			postOnly: PostOnlyParams.MUST_POST_ONLY,
 			immediateOrCancel: true,
+			marketType: MarketType.PERP,
 		});
 
+		const slot = new BN(
+			await bankrunContextWrapper.connection.toConnection().getSlot()
+		);
 		const takerOrderParamsMessage: SwiftOrderParamsMessage = {
 			swiftOrderParams: [
 				takerOrderParams,
@@ -377,9 +384,7 @@ describe('place and make swift order', () => {
 			marketIndex,
 			expectedOrderId: 1,
 			marketType: MarketType.PERP,
-			slot: new BN(
-				await bankrunContextWrapper.connection.toConnection().getSlot()
-			),
+			slot,
 		};
 
 		const takerOrderParamsSig = await takerDriftClient.signTakerOrderParams(

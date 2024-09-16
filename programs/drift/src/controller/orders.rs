@@ -250,15 +250,11 @@ pub fn place_perp_order(
         "must be perp order"
     )?;
 
-    let mut order_slot: u64 = slot;
-    if let Some(swift_taker_order_slot) = options.swift_taker_order_slot {
-        order_slot = order_slot.min(swift_taker_order_slot);
-    }
     let new_order = Order {
         status: OrderStatus::Open,
         order_type: params.order_type,
         market_type: params.market_type,
-        slot: order_slot,
+        slot: options.get_order_slot(slot),
         order_id: get_then_update_id!(user, next_order_id),
         user_order_id: params.user_order_id,
         market_index: params.market_index,

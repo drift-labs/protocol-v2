@@ -443,6 +443,45 @@ pub fn handle_update_user_open_orders_count<'info>(ctx: Context<UpdateUserIdle>)
     Ok(())
 }
 
+pub fn handle_place_swift_taker_order<'c: 'info, 'info>(
+    ctx: Context<'_, '_, 'c, 'info, PlaceSwiftTakerOrder<'info>>,
+    taker_order_params_bytes: Vec<u8>,
+    sig: [u8; 64],
+) -> Result<()> {
+    let taker_order_params_message: SwiftOrderParamsMessage =
+        SwiftOrderParamsMessage::deserialize(&mut &taker_order_params_bytes[..]).unwrap();
+    let state = &ctx.accounts.state;
+
+    // TODO: generalize to support multiple market types
+    let AccountMaps {
+        perp_market_map,
+        spot_market_map,
+        mut oracle_map,
+    } = load_maps(
+        &mut ctx.remaining_accounts.iter().peekable(),
+        &MarketSet::new(),
+        &MarketSet::new(),
+        Clock::get()?.slot,
+        Some(state.oracle_guard_rails),
+    )?;
+
+    let taker_key = ctx.accounts.user.key();
+    let mut taker = load_mut!(ctx.accounts.user)?;
+
+    place_swift_taker_order(
+        taker_key,
+        &mut taker,
+        taker_order_params_message,
+        &ctx.accounts.ix_sysvar.to_account_info(),
+        sig,
+        &perp_market_map,
+        &spot_market_map,
+        &mut oracle_map,
+        state,
+    )?;
+    Ok(())
+}
+
 pub fn place_swift_taker_order<'c: 'info, 'info>(
     taker_key: Pubkey,
     taker: &mut RefMut<User>,
@@ -485,8 +524,10 @@ pub fn place_swift_taker_order<'c: 'info, 'info>(
     }
 
     // First order must be a taker order
-    let matching_taker_order_params = taker_order_params[0];
-    if matching_taker_order_params.order_type != OrderType::Market {
+    let matching_taker_order_params = &taker_order_params[0];
+    if matching_taker_order_params.order_type != OrderType::Market
+        && matching_taker_order_params.order_type != OrderType::Oracle
+    {
         msg!("First order must be a taker order");
         return Err(print_error!(ErrorCode::SwiftOrderSequenceError)().into());
     }
@@ -494,7 +535,36 @@ pub fn place_swift_taker_order<'c: 'info, 'info>(
 
     let taker_next_order_id = taker.next_order_id;
     let order_slot = taker_order_params_message.slot;
-    if expected_order_id.cast::<u32>()? == taker_next_order_id {
+    if expected_order_id.cast::<u32>()? != taker_next_order_id {
+        msg!(
+                "Orders not placed due to taker order id mismatch: taker account next order id {}, order params expected next order id {:?}",
+                taker.next_order_id,
+                expected_order_id
+            );
+        return Ok(());
+    }
+    controller::orders::place_perp_order(
+        state,
+        taker,
+        taker_key,
+        perp_market_map,
+        spot_market_map,
+        oracle_map,
+        clock,
+        *matching_taker_order_params,
+        PlaceOrderOptions {
+            swift_taker_order_slot: Some(order_slot),
+            ..PlaceOrderOptions::default()
+        },
+    )?;
+    let non_matching_orders: Vec<OrderParams> = taker_order_params[1..].to_vec();
+    for non_matching_order_param in non_matching_orders {
+        if non_matching_order_param.order_type != OrderType::TriggerLimit
+            && non_matching_order_param.order_type != OrderType::TriggerMarket
+        {
+            msg!("Non-matching orders must be trigger orders");
+            return Err(print_error!(ErrorCode::SwiftOrderSequenceError)().into());
+        }
         controller::orders::place_perp_order(
             state,
             taker,
@@ -503,82 +573,14 @@ pub fn place_swift_taker_order<'c: 'info, 'info>(
             spot_market_map,
             oracle_map,
             clock,
-            matching_taker_order_params,
+            non_matching_order_param,
             PlaceOrderOptions {
                 swift_taker_order_slot: Some(order_slot),
                 ..PlaceOrderOptions::default()
             },
         )?;
-        let non_matching_orders: Vec<OrderParams> = taker_order_params[1..].to_vec();
-        for non_matching_order_param in non_matching_orders {
-            if non_matching_order_param.order_type != OrderType::TriggerLimit
-                && non_matching_order_param.order_type != OrderType::TriggerMarket
-            {
-                msg!("Non-matching orders must be trigger orders");
-                return Err(print_error!(ErrorCode::SwiftOrderSequenceError)().into());
-            }
-            controller::orders::place_perp_order(
-                state,
-                taker,
-                taker_key,
-                perp_market_map,
-                spot_market_map,
-                oracle_map,
-                clock,
-                non_matching_order_param,
-                PlaceOrderOptions {
-                    swift_taker_order_slot: Some(order_slot),
-                    ..PlaceOrderOptions::default()
-                },
-            )?;
-        }
-    } else {
-        msg!(
-            "Orders not placed due to taker order id mismatch: taker account next order id {}, order params expected next order id {:?}",
-            taker.next_order_id,
-            expected_order_id
-        );
     }
 
-    Ok(())
-}
-
-pub fn handle_place_swift_taker_order<'c: 'info, 'info>(
-    ctx: Context<'_, '_, 'c, 'info, PlaceSwiftTakerOrder<'info>>,
-    taker_order_params_bytes: Vec<u8>,
-    sig: [u8; 64],
-) -> Result<()> {
-    let taker_order_params_message: SwiftOrderParamsMessage =
-        SwiftOrderParamsMessage::deserialize(&mut &taker_order_params_bytes[..]).unwrap();
-    let state = &ctx.accounts.state;
-
-    // TODO: generalize to support multiple market types
-    let AccountMaps {
-        perp_market_map,
-        spot_market_map,
-        mut oracle_map,
-    } = load_maps(
-        &mut ctx.remaining_accounts.iter().peekable(),
-        &MarketSet::new(),
-        &MarketSet::new(),
-        Clock::get()?.slot,
-        Some(state.oracle_guard_rails),
-    )?;
-
-    let taker_key = ctx.accounts.user.key();
-    let mut taker = load_mut!(ctx.accounts.user)?;
-
-    place_swift_taker_order(
-        taker_key,
-        &mut taker,
-        taker_order_params_message,
-        &ctx.accounts.ix_sysvar.to_account_info(),
-        sig,
-        &perp_market_map,
-        &spot_market_map,
-        &mut oracle_map,
-        state,
-    )?;
     Ok(())
 }
 

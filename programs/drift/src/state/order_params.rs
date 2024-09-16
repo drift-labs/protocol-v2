@@ -749,4 +749,16 @@ impl PlaceOrderOptions {
     pub fn is_liquidation(&self) -> bool {
         self.explanation == OrderActionExplanation::Liquidation
     }
+
+    pub fn set_order_slot(&mut self, slot: u64) {
+        self.swift_taker_order_slot = Some(slot);
+    }
+
+    pub fn get_order_slot(&self, order_slot: u64) -> u64 {
+        let mut min_order_slot = order_slot;
+        if let Some(swift_taker_order_slot) = self.swift_taker_order_slot {
+            min_order_slot = order_slot.min(swift_taker_order_slot);
+        }
+        min_order_slot
+    }
 }
