@@ -34,6 +34,7 @@ use crate::state::spot_market_map::SpotMarketMap;
 use crate::state::state::{OracleGuardRails, State};
 use crate::state::user::MarketType;
 use crate::validate;
+use crate::state::spot_market::SpotBalance;
 
 #[cfg(test)]
 mod tests;
@@ -423,8 +424,29 @@ pub fn settle_expired_market(
         target_expiry_price
     )?;
 
-    let total_excess_balance =
+    let total_excess_balance2: i128 =
         calculate_perp_market_amm_summary_stats(market, spot_market, target_expiry_price)?;
+
+    let pnl_pool_token_amount = get_token_amount(
+        market.pnl_pool.scaled_balance,
+        spot_market,
+        market.pnl_pool.balance_type(),
+    )?;
+
+    let fee_pool_token_amount = get_token_amount(
+        market.amm.fee_pool.scaled_balance,
+        spot_market,
+        market.amm.fee_pool.balance_type(),
+    )?;
+
+    let total_excess_balance: i128 = pnl_pool_token_amount
+        .safe_add(fee_pool_token_amount)?
+        .cast()?;
+    
+    crate::dlog!(market.market_index);
+    crate::dlog!(total_excess_balance);
+
+
 
     let expiry_price =
         amm::calculate_expiry_price(&market.amm, target_expiry_price, total_excess_balance)?;
