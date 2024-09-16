@@ -288,25 +288,33 @@ pub fn handle_trigger_order<'c: 'info, 'info>(
     ctx: Context<'_, '_, 'c, 'info, TriggerOrder<'info>>,
     order_id: u32,
 ) -> Result<()> {
+    let (market_type, market_index) = match load!(ctx.accounts.user)?.get_order(order_id) {
+        Some(order) => (order.market_type, order.market_index),
+        None => {
+            msg!("order_id not found {}", order_id);
+            return Ok(());
+        }
+    };
+
+    let (writeable_perp_markets, writeable_spot_markets) = match market_type {
+        MarketType::Spot => (
+            MarketSet::new(),
+            get_writable_spot_market_set_from_many(vec![QUOTE_SPOT_MARKET_INDEX, market_index]),
+        ),
+        MarketType::Perp => (MarketSet::new(), MarketSet::new()),
+    };
+
     let AccountMaps {
         perp_market_map,
         spot_market_map,
         mut oracle_map,
     } = load_maps(
         &mut ctx.remaining_accounts.iter().peekable(),
-        &MarketSet::new(),
-        &MarketSet::new(),
+        &writeable_perp_markets,
+        &writeable_spot_markets,
         Clock::get()?.slot,
         None,
     )?;
-
-    let market_type = match load!(ctx.accounts.user)?.get_order(order_id) {
-        Some(order) => order.market_type,
-        None => {
-            msg!("order_id not found {}", order_id);
-            return Ok(());
-        }
-    };
 
     match market_type {
         MarketType::Perp => controller::orders::trigger_order(
