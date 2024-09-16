@@ -657,49 +657,6 @@ pub fn handle_settle_lp<'c: 'info, 'info>(
 }
 
 #[access_control(
-    settle_pnl_not_paused(&ctx.accounts.state)
-)]
-pub fn handle_settle_expired_market<'c: 'info, 'info>(
-    ctx: Context<'_, '_, 'c, 'info, UpdateAMM<'info>>,
-    market_index: u16,
-) -> Result<()> {
-    let clock = Clock::get()?;
-    let _now = clock.unix_timestamp;
-    let state = &ctx.accounts.state;
-
-    let AccountMaps {
-        perp_market_map,
-        spot_market_map,
-        mut oracle_map,
-    } = load_maps(
-        &mut ctx.remaining_accounts.iter().peekable(),
-        &get_writable_perp_market_set(market_index),
-        &get_writable_spot_market_set(QUOTE_SPOT_MARKET_INDEX),
-        clock.slot,
-        Some(state.oracle_guard_rails),
-    )?;
-
-    controller::repeg::update_amm(
-        market_index,
-        &perp_market_map,
-        &mut oracle_map,
-        state,
-        &clock,
-    )?;
-
-    controller::repeg::settle_expired_market(
-        market_index,
-        &perp_market_map,
-        &mut oracle_map,
-        &spot_market_map,
-        state,
-        &clock,
-    )?;
-
-    Ok(())
-}
-
-#[access_control(
     liq_not_paused(&ctx.accounts.state)
 )]
 pub fn handle_liquidate_perp<'c: 'info, 'info>(
