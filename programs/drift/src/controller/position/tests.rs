@@ -113,7 +113,6 @@ fn amm_pred_expiry_price_yes_market_example() {
     let mut sol_oracle_price: pyth::pc::Price = get_hardcoded_pyth_price(1000000, 6);
     sol_oracle_price.agg.conf = 1655389;
 
-
     let sol_oracle_price_key: Pubkey =
         Pubkey::from_str("3TVuLmEGBRfVgrmFRtYTheczXaaoRBwcHw1yibZHSeNA").unwrap();
     let pyth_program = crate::ids::pyth_program::id();
@@ -162,7 +161,7 @@ fn amm_pred_expiry_price_yes_market_example() {
         &clock,
     )
     .unwrap();
-    
+
     crate::controller::repeg::settle_expired_market(
         market_index,
         &perp_market_map,
