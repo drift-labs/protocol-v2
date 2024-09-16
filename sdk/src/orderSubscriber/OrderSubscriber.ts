@@ -11,11 +11,12 @@ import StrictEventEmitter from 'strict-event-emitter-types';
 import { EventEmitter } from 'events';
 import { BN } from '../index';
 import { decodeUser } from '../decode/user';
+import { grpcSubscription } from './grpcSubscription';
 
 export class OrderSubscriber {
 	driftClient: DriftClient;
 	usersAccounts = new Map<string, { slot: number; userAccount: UserAccount }>();
-	subscription: PollingSubscription | WebsocketSubscription;
+	subscription: PollingSubscription | WebsocketSubscription | grpcSubscription;
 	commitment: Commitment;
 	eventEmitter: StrictEventEmitter<EventEmitter, OrderSubscriberEvents>;
 
@@ -33,6 +34,19 @@ export class OrderSubscriber {
 			this.subscription = new PollingSubscription({
 				orderSubscriber: this,
 				frequency: config.subscriptionConfig.frequency,
+			});
+		} else if (config.subscriptionConfig.type === 'grpc') {
+			this.subscription = new grpcSubscription({
+				grpcConfigs: config.subscriptionConfig.configs,
+				orderSubscriber: this,
+				commitment: this.commitment,
+				skipInitialLoad: config.subscriptionConfig.skipInitialLoad,
+				resubOpts: {
+					resubTimeoutMs: config.subscriptionConfig?.resubTimeoutMs,
+					logResubMessages: config.subscriptionConfig?.logResubMessages,
+				},
+				resyncIntervalMs: config.subscriptionConfig.resyncIntervalMs,
+				decoded: config.decodeData,
 			});
 		} else {
 			this.subscription = new WebsocketSubscription({

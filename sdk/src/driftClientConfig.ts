@@ -11,6 +11,7 @@ import { BulkAccountLoader } from './accounts/bulkAccountLoader';
 import { DriftEnv } from './config';
 import { TxSender } from './tx/types';
 import { TxHandler, TxHandlerConfig } from './tx/txHandler';
+import { GrpcConfigs } from './accounts/types';
 
 export type DriftClientConfig = {
 	connection: Connection;
@@ -48,4 +49,10 @@ export type DriftClientSubscriptionConfig =
 	| {
 			type: 'polling';
 			accountLoader: BulkAccountLoader;
+	  }
+	| {
+			type: 'grpc';
+			configs: GrpcConfigs;
+			resubTimeoutMs?: number;
+			logResubMessages?: boolean;
 	  };

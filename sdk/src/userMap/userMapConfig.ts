@@ -1,5 +1,6 @@
 import { Commitment, Connection } from '@solana/web3.js';
 import { DriftClient } from '../driftClient';
+import { GrpcConfigs } from '../accounts/types';
 
 // passed into UserMap.getUniqueAuthorities to filter users
 export type UserAccountFilterCriteria = {
@@ -25,6 +26,13 @@ export type UserMapConfig = {
 		| {
 				type: 'polling';
 				frequency: number;
+				commitment?: Commitment;
+		  }
+		| {
+				type: 'grpc';
+				configs: GrpcConfigs;
+				resubTimeoutMs?: number;
+				logResubMessages?: boolean;
 				commitment?: Commitment;
 		  }
 		| {
