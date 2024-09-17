@@ -152,7 +152,6 @@ import { isVersionedTransaction } from './tx/utils';
 import pythSolanaReceiverIdl from './idl/pyth_solana_receiver.json';
 import { asV0Tx, PullFeed } from '@switchboard-xyz/on-demand';
 import switchboardOnDemandIdl from './idl/switchboard_on_demand_30.json';
-import { gprcDriftClientAccountSubscriber } from './accounts/grpcDriftClientAccountSubscriber';
 
 type RemainingAccountParams = {
 	userAccounts: UserAccount[];
@@ -293,19 +292,6 @@ export class DriftClient {
 				type: 'polling',
 				accountLoader: config.accountSubscription.accountLoader,
 			};
-		} else if (config.accountSubscription?.type === 'grpc') {
-			this.userAccountSubscriptionConfig = {
-				type: 'grpc',
-				resubTimeoutMs: config.accountSubscription?.resubTimeoutMs,
-				logResubMessages: config.accountSubscription?.logResubMessages,
-				configs: config.accountSubscription?.configs,
-			};
-			this.userStatsAccountSubscriptionConfig = {
-				type: 'grpc',
-				resubTimeoutMs: config.accountSubscription?.resubTimeoutMs,
-				logResubMessages: config.accountSubscription?.logResubMessages,
-				configs: config.accountSubscription?.configs,
-			};
 		} else {
 			this.userAccountSubscriptionConfig = {
 				type: 'websocket',
@@ -352,19 +338,6 @@ export class DriftClient {
 				config.oracleInfos ?? [],
 				noMarketsAndOraclesSpecified
 			);
-		} else if (config.accountSubscription?.type === 'grpc') {
-			this.accountSubscriber = new gprcDriftClientAccountSubscriber(
-				config.accountSubscription.configs,
-				this.program,
-				config.perpMarketIndexes ?? [],
-				config.spotMarketIndexes ?? [],
-				config.oracleInfos ?? [],
-				noMarketsAndOraclesSpecified,
-				{
-					resubTimeoutMs: config.accountSubscription?.resubTimeoutMs,
-					logResubMessages: config.accountSubscription?.logResubMessages,
-				}
-			);
 		} else {
 			this.accountSubscriber = new WebSocketDriftClientAccountSubscriber(
 				this.program,
@@ -379,7 +352,6 @@ export class DriftClient {
 				config.accountSubscription?.commitment
 			);
 		}
-
 		this.eventEmitter = this.accountSubscriber.eventEmitter;
 
 		this.metricsEventEmitter = new EventEmitter();

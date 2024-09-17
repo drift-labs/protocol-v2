@@ -60,9 +60,9 @@ export class WebSocketDriftClientAccountSubscriber
 	initialSpotMarketAccountData: Map<number, SpotMarketAccount>;
 	initialOraclePriceData: Map<string, OraclePriceData>;
 
-	protected isSubscribing = false;
-	protected subscriptionPromise: Promise<boolean>;
-	protected subscriptionPromiseResolver: (val: boolean) => void;
+	private isSubscribing = false;
+	private subscriptionPromise: Promise<boolean>;
+	private subscriptionPromiseResolver: (val: boolean) => void;
 
 	public constructor(
 		program: Program,

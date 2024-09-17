@@ -98,7 +98,7 @@ export class WebSocketProgramAccountSubscriber<T>
 		}
 	}
 
-	protected setTimeout(): void {
+	private setTimeout(): void {
 		if (!this.onChange) {
 			throw new Error('onChange callback function must be set');
 		}
