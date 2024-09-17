@@ -152,6 +152,7 @@ import { isVersionedTransaction } from './tx/utils';
 import pythSolanaReceiverIdl from './idl/pyth_solana_receiver.json';
 import { asV0Tx, PullFeed } from '@switchboard-xyz/on-demand';
 import switchboardOnDemandIdl from './idl/switchboard_on_demand_30.json';
+import { gprcDriftClientAccountSubscriber } from './accounts/grpcDriftClientAccountSubscriber';
 
 type RemainingAccountParams = {
 	userAccounts: UserAccount[];
@@ -292,6 +293,19 @@ export class DriftClient {
 				type: 'polling',
 				accountLoader: config.accountSubscription.accountLoader,
 			};
+		} else if (config.accountSubscription?.type === 'grpc') {
+			this.userAccountSubscriptionConfig = {
+				type: 'grpc',
+				resubTimeoutMs: config.accountSubscription?.resubTimeoutMs,
+				logResubMessages: config.accountSubscription?.logResubMessages,
+				configs: config.accountSubscription?.configs,
+			};
+			this.userStatsAccountSubscriptionConfig = {
+				type: 'grpc',
+				resubTimeoutMs: config.accountSubscription?.resubTimeoutMs,
+				logResubMessages: config.accountSubscription?.logResubMessages,
+				configs: config.accountSubscription?.configs,
+			};
 		} else {
 			this.userAccountSubscriptionConfig = {
 				type: 'websocket',
@@ -338,6 +352,19 @@ export class DriftClient {
 				config.oracleInfos ?? [],
 				noMarketsAndOraclesSpecified
 			);
+		} else if (config.accountSubscription?.type === 'grpc') {
+			this.accountSubscriber = new gprcDriftClientAccountSubscriber(
+				config.accountSubscription.configs,
+				this.program,
+				config.perpMarketIndexes ?? [],
+				config.spotMarketIndexes ?? [],
+				config.oracleInfos ?? [],
+				noMarketsAndOraclesSpecified,
+				{
+					resubTimeoutMs: config.accountSubscription?.resubTimeoutMs,
+					logResubMessages: config.accountSubscription?.logResubMessages,
+				}
+			);
 		} else {
 			this.accountSubscriber = new WebSocketDriftClientAccountSubscriber(
 				this.program,
@@ -352,6 +379,7 @@ export class DriftClient {
 				config.accountSubscription?.commitment
 			);
 		}
+
 		this.eventEmitter = this.accountSubscriber.eventEmitter;
 
 		this.metricsEventEmitter = new EventEmitter();
@@ -538,7 +566,9 @@ export class DriftClient {
 	public getOraclePriceDataAndSlot(
 		oraclePublicKey: PublicKey
 	): DataAndSlot<OraclePriceData> | undefined {
-		return this.accountSubscriber.getOraclePriceDataAndSlot(oraclePublicKey);
+		return this.accountSubscriber.getOraclePriceDataAndSlot(
+			oraclePublicKey.toBase58()
+		);
 	}
 
 	public async getSerumV3FulfillmentConfig(
@@ -3221,11 +3251,18 @@ export class DriftClient {
 			writablePerpMarketIndexes: [marketIndex],
 			writableSpotMarketIndexes: [QUOTE_SPOT_MARKET_INDEX],
 		});
+		const perpMarketPublicKey = await getPerpMarketPublicKey(
+			this.program.programId,
+			marketIndex
+		);
 
 		return await this.program.instruction.settleExpiredMarket(marketIndex, {
 			accounts: {
 				state: await this.getStatePublicKey(),
-				authority: this.wallet.publicKey,
+				admin: this.isSubscribed
+					? this.getStateAccount().admin
+					: this.wallet.publicKey,
+				perpMarket: perpMarketPublicKey,
 			},
 			remainingAccounts,
 		});

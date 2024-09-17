@@ -50,7 +50,7 @@ mod calculate_insurance_fuel_bonus {
 
     #[test]
     fn test() {
-        let mut spot_market = SpotMarket {
+        let spot_market = SpotMarket {
             fuel_boost_insurance: 1,
             ..SpotMarket::default()
         };

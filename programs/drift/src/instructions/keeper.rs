@@ -18,7 +18,7 @@ use crate::state::fulfillment_params::serum::SerumFulfillmentParams;
 use crate::state::insurance_fund_stake::InsuranceFundStake;
 use crate::state::oracle_map::OracleMap;
 use crate::state::paused_operations::PerpOperation;
-use crate::state::perp_market::{MarketStatus, PerpMarket};
+use crate::state::perp_market::{ContractType, MarketStatus, PerpMarket};
 use crate::state::perp_market_map::{
     get_market_set_for_user_positions, get_market_set_from_list, get_writable_perp_market_set,
     get_writable_perp_market_set_from_vec, MarketSet, PerpMarketMap,
@@ -288,25 +288,33 @@ pub fn handle_trigger_order<'c: 'info, 'info>(
     ctx: Context<'_, '_, 'c, 'info, TriggerOrder<'info>>,
     order_id: u32,
 ) -> Result<()> {
+    let (market_type, market_index) = match load!(ctx.accounts.user)?.get_order(order_id) {
+        Some(order) => (order.market_type, order.market_index),
+        None => {
+            msg!("order_id not found {}", order_id);
+            return Ok(());
+        }
+    };
+
+    let (writeable_perp_markets, writeable_spot_markets) = match market_type {
+        MarketType::Spot => (
+            MarketSet::new(),
+            get_writable_spot_market_set_from_many(vec![QUOTE_SPOT_MARKET_INDEX, market_index]),
+        ),
+        MarketType::Perp => (MarketSet::new(), MarketSet::new()),
+    };
+
     let AccountMaps {
         perp_market_map,
         spot_market_map,
         mut oracle_map,
     } = load_maps(
         &mut ctx.remaining_accounts.iter().peekable(),
-        &MarketSet::new(),
-        &MarketSet::new(),
+        &writeable_perp_markets,
+        &writeable_spot_markets,
         Clock::get()?.slot,
         None,
     )?;
-
-    let market_type = match load!(ctx.accounts.user)?.get_order(order_id) {
-        Some(order) => order.market_type,
-        None => {
-            msg!("order_id not found {}", order_id);
-            return Ok(());
-        }
-    };
 
     match market_type {
         MarketType::Perp => controller::orders::trigger_order(
@@ -644,49 +652,6 @@ pub fn handle_settle_lp<'c: 'info, 'info>(
     let market = &mut perp_market_map.get_ref_mut(&market_index)?;
     controller::lp::settle_funding_payment_then_lp(user, &user_key, market, now)?;
     user.update_last_active_slot(clock.slot);
-
-    Ok(())
-}
-
-#[access_control(
-    settle_pnl_not_paused(&ctx.accounts.state)
-)]
-pub fn handle_settle_expired_market<'c: 'info, 'info>(
-    ctx: Context<'_, '_, 'c, 'info, UpdateAMM<'info>>,
-    market_index: u16,
-) -> Result<()> {
-    let clock = Clock::get()?;
-    let _now = clock.unix_timestamp;
-    let state = &ctx.accounts.state;
-
-    let AccountMaps {
-        perp_market_map,
-        spot_market_map,
-        mut oracle_map,
-    } = load_maps(
-        &mut ctx.remaining_accounts.iter().peekable(),
-        &get_writable_perp_market_set(market_index),
-        &get_writable_spot_market_set(QUOTE_SPOT_MARKET_INDEX),
-        clock.slot,
-        Some(state.oracle_guard_rails),
-    )?;
-
-    controller::repeg::update_amm(
-        market_index,
-        &perp_market_map,
-        &mut oracle_map,
-        state,
-        &clock,
-    )?;
-
-    controller::repeg::settle_expired_market(
-        market_index,
-        &perp_market_map,
-        &mut oracle_map,
-        &spot_market_map,
-        state,
-        &clock,
-    )?;
 
     Ok(())
 }
@@ -1500,6 +1465,14 @@ pub fn handle_update_perp_bid_ask_twap<'c: 'info, 'info>(
         estimated_bid,
         estimated_ask
     );
+
+    if perp_market.contract_type == ContractType::Prediction
+        && perp_market.is_operation_paused(PerpOperation::AmmFill)
+        && (estimated_bid.is_none() || estimated_ask.is_none())
+    {
+        msg!("skipping mark twap update for disabled amm prediction market");
+        return Ok(());
+    }
 
     msg!(
         "before amm bid twap = {} ask twap = {} ts = {}",
