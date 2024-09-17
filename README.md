@@ -16,7 +16,13 @@ This repository provides open source access to Drift V2's Typescript SDK, Solana
 
 # SDK Guide
 
-SDK docs can be found [here](./sdk/README.md)
+SDK readme can be found [here](./sdk/README.md)
+
+To generate the latest SDK documentation, use:
+
+```bash
+npm run generate-docs
+```
 
 # Example Bot Implementations
 
