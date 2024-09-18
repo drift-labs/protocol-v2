@@ -9,7 +9,6 @@ import {
 	LogProvider,
 	EventSubscriberEvents,
 	WebSocketLogProviderConfig,
-	PollingLogProviderConfig,
 	EventsServerLogProviderConfig,
 	LogProviderType,
 	StreamingLogProviderConfig,
@@ -54,32 +53,39 @@ export class EventSubscriber {
 	}
 
 	private initializeLogProvider(subscribe = false) {
+		const logProviderConfig = this.options.logProviderConfig;
+
 		if (this.currentProviderType === 'websocket') {
-			const logProviderConfig = this.options
-				.logProviderConfig as WebSocketLogProviderConfig;
 			this.logProvider = new WebSocketLogProvider(
 				// @ts-ignore
 				this.connection,
 				this.address,
 				this.options.commitment,
-				logProviderConfig.resubTimeoutMs
+				(
+					this.options.logProviderConfig as WebSocketLogProviderConfig
+				).resubTimeoutMs
 			);
 		} else if (this.currentProviderType === 'polling') {
-			const logProviderConfig = this.options
-				.logProviderConfig as PollingLogProviderConfig;
+			const frequency =
+				'frequency' in logProviderConfig
+					? logProviderConfig.frequency
+					: (logProviderConfig as StreamingLogProviderConfig).fallbackFrequency;
+			const batchSize =
+				'batchSize' in logProviderConfig
+					? logProviderConfig.batchSize
+					: (logProviderConfig as StreamingLogProviderConfig).fallbackBatchSize;
+
 			this.logProvider = new PollingLogProvider(
 				// @ts-ignore
 				this.connection,
 				this.address,
 				this.options.commitment,
-				logProviderConfig.frequency,
-				logProviderConfig.batchSize
+				frequency,
+				batchSize
 			);
 		} else if (this.currentProviderType === 'events-server') {
-			const logProviderConfig = this.options
-				.logProviderConfig as EventsServerLogProviderConfig;
 			this.logProvider = new EventsServerLogProvider(
-				logProviderConfig.url,
+				(logProviderConfig as EventsServerLogProviderConfig).url,
 				this.options.eventTypes,
 				this.options.address ? this.options.address.toString() : undefined
 			);
