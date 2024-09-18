@@ -133,7 +133,7 @@ export const MainnetSpotMarkets: SpotMarketConfig[] = [
 		precisionExp: EIGHT,
 		serumMarket: new PublicKey('3BAKsQd3RuhZKES2DGysMhjBdwjZYKYmxRqnSMtZ4KSN'),
 		pythFeedId:
-			'0xe62df6c8b4a85fe1a67db44dc12de5db330f7ac66b72dc658afedf0f4a415b43',
+			'0xc9d8b075a5c69303365ae23633d4e085199bf5c520a3b90fed1322a0342ffc33',
 	},
 	{
 		symbol: 'wETH',
