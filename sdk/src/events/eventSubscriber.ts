@@ -12,6 +12,7 @@ import {
 	EventsServerLogProviderConfig,
 	LogProviderType,
 	StreamingLogProviderConfig,
+	PollingLogProviderConfig,
 } from './types';
 import { TxEventCache } from './txEventCache';
 import { EventList } from './eventList';
@@ -68,11 +69,11 @@ export class EventSubscriber {
 		} else if (this.currentProviderType === 'polling') {
 			const frequency =
 				'frequency' in logProviderConfig
-					? logProviderConfig.frequency
+					? (logProviderConfig as PollingLogProviderConfig).frequency
 					: (logProviderConfig as StreamingLogProviderConfig).fallbackFrequency;
 			const batchSize =
 				'batchSize' in logProviderConfig
-					? logProviderConfig.batchSize
+					? (logProviderConfig as PollingLogProviderConfig).batchSize
 					: (logProviderConfig as StreamingLogProviderConfig).fallbackBatchSize;
 
 			this.logProvider = new PollingLogProvider(
