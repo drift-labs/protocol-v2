@@ -70,8 +70,14 @@ export class grpcProgramAccountSubscriber<
 				drift: {
 					account: [],
 					owner: [this.program.programId.toBase58()],
-					// @ts-ignore
-					filters: this.options.filters,
+					filters: this.options.filters.map((filter) => {
+						return {
+							memcmp: {
+								offset: filter.memcmp.offset.toString(),
+								bytes: Uint8Array.from(Buffer.Buffer.from(filter.memcmp.bytes)),
+							},
+						};
+					}),
 				},
 			},
 			transactions: {},
