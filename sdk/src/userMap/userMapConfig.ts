@@ -33,7 +33,6 @@ export type UserMapConfig = {
 				configs: GrpcConfigs;
 				resubTimeoutMs?: number;
 				logResubMessages?: boolean;
-				commitment?: Commitment;
 		  }
 		| {
 				type: 'websocket';

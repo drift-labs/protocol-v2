@@ -104,7 +104,11 @@ export class UserMap implements UserMapInterface {
 			this.connection = this.driftClient.connection;
 		}
 		this.commitment =
-			config.subscriptionConfig.commitment ?? this.driftClient.opts.commitment;
+			config.subscriptionConfig.type === 'websocket' ||
+			config.subscriptionConfig.type === 'polling'
+				? config.subscriptionConfig.commitment ??
+				  this.driftClient.opts.commitment
+				: this.driftClient.opts.commitment;
 		this.includeIdle = config.includeIdle ?? false;
 		this.disableSyncOnTotalAccountsChange =
 			config.disableSyncOnTotalAccountsChange ?? false;
