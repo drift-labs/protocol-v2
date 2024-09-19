@@ -1,5 +1,6 @@
 import { ResubOpts, GrpcConfigs } from './types';
 import { Program } from '@coral-xyz/anchor';
+import bs58 from 'bs58';
 import { Commitment, Context, MemcmpFilter, PublicKey } from '@solana/web3.js';
 import * as Buffer from 'buffer';
 import { WebSocketProgramAccountSubscriber } from './webSocketProgramAccountSubscriber';
@@ -62,6 +63,14 @@ export class grpcProgramAccountSubscriber<
 
 		// Subscribe with grpc
 		this.stream = await this.client.subscribe();
+		const filters = this.options.filters.map((filter) => {
+			return {
+				memcmp: {
+					offset: filter.memcmp.offset.toString(),
+					bytes: bs58.decode(filter.memcmp.bytes),
+				},
+			};
+		});
 		const request: SubscribeRequest = {
 			slots: {
 				slots: {},
@@ -70,14 +79,7 @@ export class grpcProgramAccountSubscriber<
 				drift: {
 					account: [],
 					owner: [this.program.programId.toBase58()],
-					filters: this.options.filters.map((filter) => {
-						return {
-							memcmp: {
-								offset: filter.memcmp.offset.toString(),
-								bytes: Uint8Array.from(Buffer.Buffer.from(filter.memcmp.bytes)),
-							},
-						};
-					}),
+					filters,
 				},
 			},
 			transactions: {},
