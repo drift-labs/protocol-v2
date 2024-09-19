@@ -1,6 +1,6 @@
 import { ResubOpts, GrpcConfigs } from './types';
 import { Program } from '@coral-xyz/anchor';
-import { Commitment, PublicKey } from '@solana/web3.js';
+import { PublicKey } from '@solana/web3.js';
 import { UserStatsAccount } from '../types';
 import { WebSocketUserStatsAccountSubscriber } from './webSocketUserStatsAccountSubsriber';
 import { grpcAccountSubscriber } from './grpcAccountSubscriber';
@@ -12,10 +12,9 @@ export class grpcUserStatsAccountSubscriber extends WebSocketUserStatsAccountSub
 		grpcConfigs: GrpcConfigs,
 		program: Program,
 		userStatsAccountPublicKey: PublicKey,
-		resubOpts?: ResubOpts,
-		commitment?: Commitment
+		resubOpts?: ResubOpts
 	) {
-		super(program, userStatsAccountPublicKey, resubOpts, commitment);
+		super(program, userStatsAccountPublicKey, resubOpts);
 		this.grpcConfigs = grpcConfigs;
 	}
 

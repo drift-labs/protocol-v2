@@ -10,7 +10,6 @@ import {
 import { GrpcConfigs, ResubOpts } from './types';
 import { grpcAccountSubscriber } from './grpcAccountSubscriber';
 import { PerpMarketAccount, SpotMarketAccount, StateAccount } from '../types';
-import { Commitment } from '@solana/web3.js';
 
 export class gprcDriftClientAccountSubscriber extends WebSocketDriftClientAccountSubscriber {
 	private grpcConfigs: GrpcConfigs;
@@ -22,8 +21,7 @@ export class gprcDriftClientAccountSubscriber extends WebSocketDriftClientAccoun
 		spotMarketIndexes: number[],
 		oracleInfos: OracleInfo[],
 		shouldFindAllMarketsAndOracles: boolean,
-		resubOpts?: ResubOpts,
-		commitment?: Commitment
+		resubOpts?: ResubOpts
 	) {
 		super(
 			program,
@@ -31,8 +29,7 @@ export class gprcDriftClientAccountSubscriber extends WebSocketDriftClientAccoun
 			spotMarketIndexes,
 			oracleInfos,
 			shouldFindAllMarketsAndOracles,
-			resubOpts,
-			commitment
+			resubOpts
 		);
 		this.grpcConfigs = grpcConfigs;
 	}
