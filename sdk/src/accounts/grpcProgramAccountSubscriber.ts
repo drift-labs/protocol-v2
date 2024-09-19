@@ -72,9 +72,7 @@ export class grpcProgramAccountSubscriber<
 			};
 		});
 		const request: SubscribeRequest = {
-			slots: {
-				slots: {},
-			},
+			slots: {},
 			accounts: {
 				drift: {
 					account: [],
