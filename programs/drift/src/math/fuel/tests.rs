@@ -5,7 +5,7 @@ mod calculate_perp_fuel_bonus {
 
     #[test]
     fn test() {
-        let mut perp_market = PerpMarket {
+        let perp_market = PerpMarket {
             fuel_boost_position: 1,
             ..PerpMarket::default()
         };
