@@ -1906,14 +1906,13 @@ export class DriftClient {
 		});
 	}
 
-	public async createDepositTxn(
+	public async getDepositTxnIx(
 		amount: BN,
 		marketIndex: number,
 		associatedTokenAccount: PublicKey,
 		subAccountId?: number,
-		reduceOnly = false,
-		txParams?: TxParams
-	): Promise<VersionedTransaction | Transaction> {
+		reduceOnly = false
+	): Promise<TransactionInstruction[]> {
 		const spotMarketAccount = this.getSpotMarketAccount(marketIndex);
 
 		const isSolMarket = spotMarketAccount.mint.equals(WRAPPED_SOL_MINT);
@@ -1958,6 +1957,25 @@ export class DriftClient {
 				)
 			);
 		}
+
+		return instructions;
+	}
+
+	public async createDepositTxn(
+		amount: BN,
+		marketIndex: number,
+		associatedTokenAccount: PublicKey,
+		subAccountId?: number,
+		reduceOnly = false,
+		txParams?: TxParams
+	): Promise<VersionedTransaction | Transaction> {
+		const instructions = await this.getDepositTxnIx(
+			amount,
+			marketIndex,
+			associatedTokenAccount,
+			subAccountId,
+			reduceOnly
+		);
 
 		txParams = { ...(txParams ?? this.txParams), computeUnits: 600_000 };
 
@@ -2151,7 +2169,7 @@ export class DriftClient {
 		);
 	}
 
-	public async createInitializeUserAccountAndDepositCollateral(
+	public async createInitializeUserAccountAndDepositCollateralIxs(
 		amount: BN,
 		userTokenAccount: PublicKey,
 		marketIndex = 0,
@@ -2160,9 +2178,11 @@ export class DriftClient {
 		fromSubAccountId?: number,
 		referrerInfo?: ReferrerInfo,
 		donateAmount?: BN,
-		txParams?: TxParams,
 		customMaxMarginRatio?: number
-	): Promise<[Transaction | VersionedTransaction, PublicKey]> {
+	): Promise<{
+		ixs: TransactionInstruction[];
+		userAccountPublicKey: PublicKey;
+	}> {
 		const ixs = [];
 
 		const [userAccountPublicKey, initializeUserAccountIx] =
@@ -2262,6 +2282,37 @@ export class DriftClient {
 				)
 			);
 		}
+
+		return {
+			ixs,
+			userAccountPublicKey,
+		};
+	}
+
+	public async createInitializeUserAccountAndDepositCollateral(
+		amount: BN,
+		userTokenAccount: PublicKey,
+		marketIndex = 0,
+		subAccountId = 0,
+		name?: string,
+		fromSubAccountId?: number,
+		referrerInfo?: ReferrerInfo,
+		donateAmount?: BN,
+		txParams?: TxParams,
+		customMaxMarginRatio?: number
+	): Promise<[Transaction | VersionedTransaction, PublicKey]> {
+		const { ixs, userAccountPublicKey } =
+			await this.createInitializeUserAccountAndDepositCollateralIxs(
+				amount,
+				userTokenAccount,
+				marketIndex,
+				subAccountId,
+				name,
+				fromSubAccountId,
+				referrerInfo,
+				donateAmount,
+				customMaxMarginRatio
+			);
 
 		const tx = await this.buildTransaction(ixs, txParams);
 
@@ -3113,7 +3164,7 @@ export class DriftClient {
 	public async placePerpOrder(
 		orderParams: OptionalOrderParams,
 		txParams?: TxParams,
-		subAccountId?: number
+		subAccountId?: number,
 	): Promise<TransactionSignature> {
 		const { txSig, slot } = await this.sendTransaction(
 			await this.buildTransaction(
@@ -3129,15 +3180,31 @@ export class DriftClient {
 
 	public async getPlacePerpOrderIx(
 		orderParams: OptionalOrderParams,
-		subAccountId?: number
+		subAccountId?: number,
+		depositToTradeArgs?: {
+			isMakingNewAccount: boolean,
+			depositMarketIndex: number,
+		}
 	): Promise<TransactionInstruction> {
 		orderParams = getOrderParams(orderParams, { marketType: MarketType.PERP });
-		const user = await this.getUserAccountPublicKey(subAccountId);
+
+		const isDepositToTradeTx = depositToTradeArgs !== undefined;
+
+		const user = isDepositToTradeTx
+			? getUserAccountPublicKeySync(
+					this.program.programId,
+					this.authority,
+					subAccountId
+			  )
+			: await this.getUserAccountPublicKey(subAccountId);
 
 		const remainingAccounts = this.getRemainingAccounts({
-			userAccounts: [this.getUserAccount(subAccountId)],
-			useMarketLastSlotCache: true,
+			userAccounts: depositToTradeArgs?.isMakingNewAccount
+				? []
+				: [this.getUserAccount(subAccountId)],
+			useMarketLastSlotCache: false,
 			readablePerpMarketIndex: orderParams.marketIndex,
+			readableSpotMarketIndexes: isDepositToTradeTx ? [depositToTradeArgs?.depositMarketIndex] : undefined,
 		});
 
 		return await this.program.instruction.placePerpOrder(orderParams, {
