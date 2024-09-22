@@ -3164,7 +3164,7 @@ export class DriftClient {
 	public async placePerpOrder(
 		orderParams: OptionalOrderParams,
 		txParams?: TxParams,
-		subAccountId?: number,
+		subAccountId?: number
 	): Promise<TransactionSignature> {
 		const { txSig, slot } = await this.sendTransaction(
 			await this.buildTransaction(
@@ -3182,8 +3182,8 @@ export class DriftClient {
 		orderParams: OptionalOrderParams,
 		subAccountId?: number,
 		depositToTradeArgs?: {
-			isMakingNewAccount: boolean,
-			depositMarketIndex: number,
+			isMakingNewAccount: boolean;
+			depositMarketIndex: number;
 		}
 	): Promise<TransactionInstruction> {
 		orderParams = getOrderParams(orderParams, { marketType: MarketType.PERP });
@@ -3204,7 +3204,9 @@ export class DriftClient {
 				: [this.getUserAccount(subAccountId)],
 			useMarketLastSlotCache: false,
 			readablePerpMarketIndex: orderParams.marketIndex,
-			readableSpotMarketIndexes: isDepositToTradeTx ? [depositToTradeArgs?.depositMarketIndex] : undefined,
+			readableSpotMarketIndexes: isDepositToTradeTx
+				? [depositToTradeArgs?.depositMarketIndex]
+				: undefined,
 		});
 
 		return await this.program.instruction.placePerpOrder(orderParams, {
