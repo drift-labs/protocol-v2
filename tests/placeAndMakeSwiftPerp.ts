@@ -214,8 +214,11 @@ describe('place and make swift order', () => {
 		let txSig;
 		try {
 			txSig = await makerDriftClient.placeAndMakeSwiftPerpOrder(
-				takerOrderParamsMessage,
+				takerDriftClient.getEncodedSwiftOrderParamsMessage(
+					takerOrderParamsMessage
+				),
 				takerOrderParamsSig,
+				takerOrderParamsMessage.expectedOrderId,
 				{
 					taker: await takerDriftClient.getUserAccountPublicKey(),
 					takerUserAccount: takerDriftClient.getUserAccount(),

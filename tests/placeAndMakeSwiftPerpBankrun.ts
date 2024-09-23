@@ -237,8 +237,11 @@ describe('place and make swift order', () => {
 		);
 
 		const txSig = await makerDriftClient.placeAndMakeSwiftPerpOrder(
-			takerOrderParamsMessage,
+			takerDriftClient.getEncodedSwiftOrderParamsMessage(
+				takerOrderParamsMessage
+			),
 			takerOrderParamsSig,
+			takerOrderParamsMessage.expectedOrderId,
 			{
 				taker: await takerDriftClient.getUserAccountPublicKey(),
 				takerUserAccount: takerDriftClient.getUserAccount(),
@@ -259,8 +262,11 @@ describe('place and make swift order', () => {
 			takerOrderParamsMessage
 		);
 		await makerDriftClient.placeAndMakeSwiftPerpOrder(
-			takerOrderParamsMessage,
+			takerDriftClient.getEncodedSwiftOrderParamsMessage(
+				takerOrderParamsMessage
+			),
 			dupedSig,
+			takerOrderParamsMessage.expectedOrderId,
 			{
 				taker: await takerDriftClient.getUserAccountPublicKey(),
 				takerUserAccount: takerDriftClient.getUserAccount(),
@@ -392,8 +398,11 @@ describe('place and make swift order', () => {
 		);
 
 		await makerDriftClient.placeAndMakeSwiftPerpOrder(
-			takerOrderParamsMessage,
+			takerDriftClient.getEncodedSwiftOrderParamsMessage(
+				takerOrderParamsMessage
+			),
 			takerOrderParamsSig,
+			takerOrderParamsMessage.expectedOrderId,
 			{
 				taker: await takerDriftClient.getUserAccountPublicKey(),
 				takerUserAccount: takerDriftClient.getUserAccount(),
@@ -523,8 +532,11 @@ describe('place and make swift order', () => {
 
 		try {
 			await makerDriftClient.placeAndMakeSwiftPerpOrder(
-				takerOrderParamsMessage,
+				takerDriftClient.getEncodedSwiftOrderParamsMessage(
+					takerOrderParamsMessage
+				),
 				takerOrderParamsSig,
+				takerOrderParamsMessage.expectedOrderId,
 				{
 					taker: await takerDriftClient.getUserAccountPublicKey(),
 					takerUserAccount: takerDriftClient.getUserAccount(),
@@ -627,8 +639,11 @@ describe('place and make swift order', () => {
 
 		try {
 			await makerDriftClient.placeAndMakeSwiftPerpOrder(
-				takerOrderParamsMessage,
+				takerDriftClient.getEncodedSwiftOrderParamsMessage(
+					takerOrderParamsMessage
+				),
 				takerOrderParamsSig,
+				takerOrderParamsMessage.expectedOrderId,
 				{
 					taker: await takerDriftClient.getUserAccountPublicKey(),
 					takerUserAccount: takerDriftClient.getUserAccount(),
@@ -722,8 +737,11 @@ describe('place and make swift order', () => {
 		);
 
 		await makerDriftClient.placeSwiftTakerOrder(
-			takerOrderParamsMessage,
+			takerDriftClient.getEncodedSwiftOrderParamsMessage(
+				takerOrderParamsMessage
+			),
 			takerOrderParamsSig,
+			takerOrderParamsMessage.marketIndex,
 			{
 				taker: await takerDriftClient.getUserAccountPublicKey(),
 				takerUserAccount: takerDriftClient.getUserAccount(),
@@ -743,8 +761,11 @@ describe('place and make swift order', () => {
 			immediateOrCancel: true,
 		});
 		await makerDriftClient.placeAndMakeSwiftPerpOrder(
-			takerOrderParamsMessage,
+			takerDriftClient.getEncodedSwiftOrderParamsMessage(
+				takerOrderParamsMessage
+			),
 			takerOrderParamsSig,
+			takerOrderParamsMessage.expectedOrderId,
 			{
 				taker: await takerDriftClient.getUserAccountPublicKey(),
 				takerUserAccount: takerDriftClient.getUserAccount(),
