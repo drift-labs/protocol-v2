@@ -64,7 +64,7 @@ export class WebSocketLogProvider implements LogProvider {
 				if (logs.err !== null) {
 					return;
 				}
-				callback(logs.signature, ctx.slot, logs.logs, undefined);
+				callback(logs.signature, ctx.slot, logs.logs, undefined, undefined);
 			},
 			this.commitment
 		);
@@ -106,9 +106,9 @@ export class WebSocketLogProvider implements LogProvider {
 
 			if (this.receivingData) {
 				console.log(
-					`No log data in ${this.resubTimeoutMs}ms, resubscribing on attempt ${
-						this.reconnectAttempts + 1
-					}`
+					`webSocketLogProvider: No log data in ${
+						this.resubTimeoutMs
+					}ms, resubscribing on attempt ${this.reconnectAttempts + 1}`
 				);
 				await this.unsubscribe();
 				this.receivingData = false;
