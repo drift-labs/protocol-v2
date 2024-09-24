@@ -852,6 +852,16 @@ export const MainnetPerpMarkets: PerpMarketConfig[] = [
 		pythFeedId:
 			'0x8963217838ab4cf5cadc172203c1f0b763fbaa45f346d8ee50ba994bbcac3026',
 	},
+	{
+		fullName: 'LANDO-F1-SGP-WIN-BET',
+		category: ['Prediction', 'Sports'],
+		symbol: 'LANDO-F1-SGP-WIN-BET',
+		baseAssetSymbol: 'LANDO-F1-SGP-WIN',
+		marketIndex: 43,
+		oracle: new PublicKey('DpJz7rjTJLxxnuqrqZTUjMWtnaMFAEfZUv5ATdb9HTh1'),
+		launchTs: 1726646453000,
+		oracleSource: OracleSource.Prelaunch,
+	},
 ];
 
 export const PerpMarkets: { [key in DriftEnv]: PerpMarketConfig[] } = {
