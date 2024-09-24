@@ -575,6 +575,14 @@ pub enum ErrorCode {
     LiquidationOrderFailedToFill,
     #[msg("Invalid prediction market order")]
     InvalidPredictionMarketOrder,
+    #[msg("Ed25519 Ix must be before place and make swift order ix")]
+    InvalidVerificationIxIndex,
+    #[msg("Swift taker message verificaiton failed")]
+    SigVerificationFailed,
+    #[msg("Market index mismatched b/w taker and maker swift order params")]
+    MismatchedSwiftOrderParamsMarketIndex,
+    #[msg("Swift order message must be ordered 0th order is market and rest are triggers")]
+    SwiftOrderSequenceError,
 }
 
 #[macro_export]

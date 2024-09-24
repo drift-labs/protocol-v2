@@ -106,7 +106,7 @@ pub fn place_perp_order(
     mut options: PlaceOrderOptions,
 ) -> DriftResult {
     let now = clock.unix_timestamp;
-    let slot = clock.slot;
+    let slot: u64 = clock.slot;
 
     if !options.is_liquidation() {
         validate_user_not_being_liquidated(
@@ -254,7 +254,7 @@ pub fn place_perp_order(
         status: OrderStatus::Open,
         order_type: params.order_type,
         market_type: params.market_type,
-        slot,
+        slot: options.get_order_slot(slot),
         order_id: get_then_update_id!(user, next_order_id),
         user_order_id: params.user_order_id,
         market_index: params.market_index,

@@ -609,6 +609,56 @@
       ]
     },
     {
+      "name": "placeSwiftTakerOrder",
+      "accounts": [
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "user",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "userStats",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "ixSysvar",
+          "isMut": false,
+          "isSigner": false,
+          "docs": [
+            "the supplied Sysvar could be anything else.",
+            "The Instruction Sysvar has not been implemented",
+            "in the Anchor framework yet, so this is the safe approach."
+          ]
+        }
+      ],
+      "args": [
+        {
+          "name": "takerOrderParamsMessageBytes",
+          "type": "bytes"
+        },
+        {
+          "name": "signature",
+          "type": {
+            "array": [
+              "u8",
+              64
+            ]
+          }
+        }
+      ]
+    },
+    {
       "name": "placeSpotOrder",
       "accounts": [
         {
@@ -8051,6 +8101,40 @@
       }
     },
     {
+      "name": "SwiftOrderParamsMessage",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "swiftOrderParams",
+            "type": {
+              "vec": {
+                "defined": "OrderParams"
+              }
+            }
+          },
+          {
+            "name": "marketIndex",
+            "type": "u16"
+          },
+          {
+            "name": "marketType",
+            "type": {
+              "defined": "MarketType"
+            }
+          },
+          {
+            "name": "expectedOrderId",
+            "type": "i32"
+          },
+          {
+            "name": "slot",
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
       "name": "ModifyOrderParams",
       "type": {
         "kind": "struct",
@@ -12958,6 +13042,26 @@
       "code": 6284,
       "name": "InvalidPredictionMarketOrder",
       "msg": "Invalid prediction market order"
+    },
+    {
+      "code": 6285,
+      "name": "InvalidVerificationIxIndex",
+      "msg": "Ed25519 Ix must be before place and make swift order ix"
+    },
+    {
+      "code": 6286,
+      "name": "SigVerificationFailed",
+      "msg": "Swift taker message verificaiton failed"
+    },
+    {
+      "code": 6287,
+      "name": "MismatchedSwiftOrderParamsMarketIndex",
+      "msg": "Market index mismatched b/w taker and maker swift order params"
+    },
+    {
+      "code": 6288,
+      "name": "SwiftOrderSequenceError",
+      "msg": "Swift order message must be ordered 0th order is market and rest are triggers"
     }
   ],
   "metadata": {

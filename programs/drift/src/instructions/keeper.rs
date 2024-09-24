@@ -1,10 +1,17 @@
+use std::cell::RefMut;
+
 use anchor_lang::prelude::*;
 use anchor_spl::token_interface::{TokenAccount, TokenInterface};
+use solana_program::instruction::Instruction;
+use solana_program::sysvar::instructions::{
+    load_current_index_checked, load_instruction_at_checked, ID as IX_ID,
+};
 
 use crate::controller::insurance::update_user_stats_if_stake_amount;
 use crate::error::ErrorCode;
 use crate::instructions::constraints::*;
 use crate::instructions::optional_accounts::{load_maps, AccountMaps};
+use crate::math::casting::Cast;
 use crate::math::constants::QUOTE_SPOT_MARKET_INDEX;
 use crate::math::margin::{calculate_user_equity, meets_settle_pnl_maintenance_margin_requirement};
 use crate::math::orders::{estimate_price_from_side, find_bids_and_asks_from_users};
@@ -17,6 +24,7 @@ use crate::state::fulfillment_params::phoenix::PhoenixFulfillmentParams;
 use crate::state::fulfillment_params::serum::SerumFulfillmentParams;
 use crate::state::insurance_fund_stake::InsuranceFundStake;
 use crate::state::oracle_map::OracleMap;
+use crate::state::order_params::{OrderParams, PlaceOrderOptions, SwiftOrderParamsMessage};
 use crate::state::paused_operations::PerpOperation;
 use crate::state::perp_market::{ContractType, MarketStatus, PerpMarket};
 use crate::state::perp_market_map::{
@@ -27,13 +35,14 @@ use crate::state::settle_pnl_mode::SettlePnlMode;
 use crate::state::spot_fulfillment_params::SpotFulfillmentParams;
 use crate::state::spot_market::SpotMarket;
 use crate::state::spot_market_map::{
-    get_writable_spot_market_set, get_writable_spot_market_set_from_many,
+    get_writable_spot_market_set, get_writable_spot_market_set_from_many, SpotMarketMap,
 };
 use crate::state::state::State;
-use crate::state::user::{MarketType, OrderStatus, User, UserStats};
+use crate::state::user::{MarketType, OrderStatus, OrderType, User, UserStats};
 use crate::state::user_map::{load_user_map, load_user_maps, UserMap, UserStatsMap};
+use crate::validation::sig_verification::verify_ed25519_ix;
 use crate::validation::user::validate_user_is_idle;
-use crate::{controller, load, math, OracleSource, GOV_SPOT_MARKET_INDEX};
+use crate::{controller, load, math, print_error, OracleSource, GOV_SPOT_MARKET_INDEX};
 use crate::{load_mut, QUOTE_PRECISION_U64};
 use crate::{validate, QUOTE_PRECISION_I128};
 
@@ -430,6 +439,147 @@ pub fn handle_update_user_open_orders_count<'info>(ctx: Context<UpdateUserIdle>)
     user.has_open_order = open_orders > 0;
     user.open_auctions = open_auctions;
     user.has_open_auction = open_auctions > 0;
+
+    Ok(())
+}
+
+pub fn handle_place_swift_taker_order<'c: 'info, 'info>(
+    ctx: Context<'_, '_, 'c, 'info, PlaceSwiftTakerOrder<'info>>,
+    taker_order_params_bytes: Vec<u8>,
+    sig: [u8; 64],
+) -> Result<()> {
+    let taker_order_params_message: SwiftOrderParamsMessage =
+        SwiftOrderParamsMessage::deserialize(&mut &taker_order_params_bytes[..]).unwrap();
+    let state = &ctx.accounts.state;
+
+    // TODO: generalize to support multiple market types
+    let AccountMaps {
+        perp_market_map,
+        spot_market_map,
+        mut oracle_map,
+    } = load_maps(
+        &mut ctx.remaining_accounts.iter().peekable(),
+        &MarketSet::new(),
+        &MarketSet::new(),
+        Clock::get()?.slot,
+        Some(state.oracle_guard_rails),
+    )?;
+
+    let taker_key = ctx.accounts.user.key();
+    let mut taker = load_mut!(ctx.accounts.user)?;
+
+    place_swift_taker_order(
+        taker_key,
+        &mut taker,
+        taker_order_params_message,
+        &ctx.accounts.ix_sysvar.to_account_info(),
+        sig,
+        &perp_market_map,
+        &spot_market_map,
+        &mut oracle_map,
+        state,
+    )?;
+    Ok(())
+}
+
+pub fn place_swift_taker_order<'c: 'info, 'info>(
+    taker_key: Pubkey,
+    taker: &mut RefMut<User>,
+    taker_order_params_message: SwiftOrderParamsMessage,
+    ix_sysvar: &AccountInfo<'info>,
+    sig: [u8; 64],
+    perp_market_map: &PerpMarketMap,
+    spot_market_map: &SpotMarketMap,
+    oracle_map: &mut OracleMap,
+    state: &State,
+) -> Result<()> {
+    #[cfg(all(feature = "mainnet-beta", not(feature = "anchor-test")))]
+    {
+        panic!("Swift orders are disabled on mainnet-beta");
+    }
+
+    // Authenticate the signature
+    let ix_idx = load_current_index_checked(ix_sysvar)?;
+    validate!(
+        ix_idx > 0,
+        ErrorCode::InvalidVerificationIxIndex,
+        "instruction index must be greater than 0"
+    )?;
+    let ix: Instruction = load_instruction_at_checked(ix_idx as usize - 1, ix_sysvar)?;
+    verify_ed25519_ix(
+        &ix,
+        &taker.authority.to_bytes(),
+        &taker_order_params_message.clone().try_to_vec()?,
+        &sig,
+    )?;
+
+    // Verify inputs and validate market index
+    taker_order_params_message.verify_all_same_market_indexes()?;
+    let taker_order_params = taker_order_params_message.swift_order_params;
+    let clock = &Clock::get()?;
+
+    if taker_order_params.len() == 0 {
+        msg!("No orders to place");
+        return Err(print_error!(ErrorCode::SwiftOrderSequenceError)().into());
+    }
+
+    // First order must be a taker order
+    let matching_taker_order_params = &taker_order_params[0];
+    if matching_taker_order_params.order_type != OrderType::Market
+        && matching_taker_order_params.order_type != OrderType::Oracle
+    {
+        msg!("First order must be a taker order");
+        return Err(print_error!(ErrorCode::SwiftOrderSequenceError)().into());
+    }
+    let expected_order_id = taker_order_params_message.expected_order_id;
+
+    let taker_next_order_id = taker.next_order_id;
+    let order_slot = taker_order_params_message.slot;
+    if expected_order_id.cast::<u32>()? != taker_next_order_id {
+        msg!(
+                "Orders not placed due to taker order id mismatch: taker account next order id {}, order params expected next order id {:?}",
+                taker.next_order_id,
+                expected_order_id
+            );
+        return Ok(());
+    }
+    controller::orders::place_perp_order(
+        state,
+        taker,
+        taker_key,
+        perp_market_map,
+        spot_market_map,
+        oracle_map,
+        clock,
+        *matching_taker_order_params,
+        PlaceOrderOptions {
+            swift_taker_order_slot: Some(order_slot),
+            ..PlaceOrderOptions::default()
+        },
+    )?;
+    let non_matching_orders: Vec<OrderParams> = taker_order_params[1..].to_vec();
+    for non_matching_order_param in non_matching_orders {
+        if non_matching_order_param.order_type != OrderType::TriggerLimit
+            && non_matching_order_param.order_type != OrderType::TriggerMarket
+        {
+            msg!("Non-matching orders must be trigger orders");
+            return Err(print_error!(ErrorCode::SwiftOrderSequenceError)().into());
+        }
+        controller::orders::place_perp_order(
+            state,
+            taker,
+            taker_key,
+            perp_market_map,
+            spot_market_map,
+            oracle_map,
+            clock,
+            non_matching_order_param,
+            PlaceOrderOptions {
+                swift_taker_order_slot: Some(order_slot),
+                ..PlaceOrderOptions::default()
+            },
+        )?;
+    }
 
     Ok(())
 }
@@ -1811,6 +1961,25 @@ pub struct SettlePNL<'info> {
         bump
     )]
     pub spot_market_vault: Box<InterfaceAccount<'info, TokenAccount>>,
+}
+
+#[derive(Accounts)]
+pub struct PlaceSwiftTakerOrder<'info> {
+    pub state: Box<Account<'info, State>>,
+    #[account(mut)]
+    pub user: AccountLoader<'info, User>,
+    #[account(
+        mut,
+        constraint = is_stats_for_user(&user, &user_stats)?
+    )]
+    pub user_stats: AccountLoader<'info, UserStats>,
+    pub authority: Signer<'info>,
+    /// CHECK: The address check is needed because otherwise
+    /// the supplied Sysvar could be anything else.
+    /// The Instruction Sysvar has not been implemented
+    /// in the Anchor framework yet, so this is the safe approach.
+    #[account(address = IX_ID)]
+    pub ix_sysvar: AccountInfo<'info>,
 }
 
 #[derive(Accounts)]

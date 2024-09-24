@@ -48,6 +48,7 @@ import {
 	SignedTxData,
 	MappedRecord,
 	OpenbookV2FulfillmentConfigAccount,
+	SwiftOrderParamsMessage,
 } from './types';
 import * as anchor from '@coral-xyz/anchor';
 import driftIDL from './idl/drift.json';
@@ -68,6 +69,8 @@ import {
 	TransactionVersion,
 	VersionedTransaction,
 	BlockhashWithExpiryBlockHeight,
+	SYSVAR_INSTRUCTIONS_PUBKEY,
+	Ed25519Program,
 } from '@solana/web3.js';
 
 import { TokenFaucet } from './tokenFaucet';
@@ -152,6 +155,7 @@ import { isVersionedTransaction } from './tx/utils';
 import pythSolanaReceiverIdl from './idl/pyth_solana_receiver.json';
 import { asV0Tx, PullFeed } from '@switchboard-xyz/on-demand';
 import switchboardOnDemandIdl from './idl/switchboard_on_demand_30.json';
+import * as ed from '@noble/ed25519';
 
 type RemainingAccountParams = {
 	userAccounts: UserAccount[];
@@ -247,6 +251,7 @@ export class DriftClient {
 			config?.txHandler ??
 			new TxHandler({
 				connection: this.connection,
+				// @ts-ignore
 				wallet: this.provider.wallet,
 				confirmationOptions: this.opts,
 				opts: {
@@ -5173,6 +5178,7 @@ export class DriftClient {
 		const signedTxs = (
 			await this.txHandler.getSignedTransactionMap(
 				txsToSign,
+				// @ts-ignore
 				this.provider.wallet
 			)
 		).signedTxMap;
@@ -5341,6 +5347,229 @@ export class DriftClient {
 				remainingAccounts,
 			}
 		);
+	}
+
+	public async signTakerOrderParams(
+		orderParamsMessage: SwiftOrderParamsMessage
+	): Promise<Buffer> {
+		const takerOrderParamsMessage = Uint8Array.from(
+			this.getEncodedSwiftOrderParamsMessage(orderParamsMessage)
+		);
+		return await this.signMessage(takerOrderParamsMessage);
+	}
+
+	public getEncodedSwiftOrderParamsMessage(
+		orderParamsMessage: SwiftOrderParamsMessage
+	): Buffer {
+		return this.program.coder.types.encode(
+			'SwiftOrderParamsMessage',
+			orderParamsMessage
+		);
+	}
+
+	public decodeSwiftTakerOrderParamsMessage(
+		encodedMessage: Buffer
+	): SwiftOrderParamsMessage {
+		return this.program.coder.types.decode(
+			'SwiftOrderParamsMessage',
+			encodedMessage
+		);
+	}
+
+	public async signMessage(message: Uint8Array): Promise<Buffer> {
+		return Buffer.from(
+			await ed.sign(message, this.wallet.payer.secretKey.slice(0, 32))
+		);
+	}
+
+	public assembleSwiftServerMessage(
+		message: Buffer,
+		signature: Buffer,
+		takerPubkey: PublicKey,
+		marketIndex: number,
+		marketType: MarketType,
+		slot: number | BN
+	): {
+		message: string;
+		signature: string;
+		taker_pubkey: string;
+		market_index: number;
+		market_type: 'perp' | 'spot';
+		slot: BN;
+	} {
+		return {
+			message: message.toString('base64'),
+			signature: signature.toString('base64'),
+			taker_pubkey: takerPubkey.toBase58(),
+			market_index: marketIndex,
+			market_type: isVariant(marketType, 'perp') ? 'perp' : 'spot',
+			slot: typeof slot === 'number' ? new BN(slot) : slot,
+		};
+	}
+
+	public async placeSwiftTakerOrder(
+		takerOrderParamsMessage: Buffer,
+		takerSignature: Buffer,
+		marketIndex: number,
+		takerInfo: {
+			taker: PublicKey;
+			takerStats: PublicKey;
+			takerUserAccount: UserAccount;
+		},
+		txParams?: TxParams
+	): Promise<TransactionSignature> {
+		const ixs = await this.getPlaceSwiftTakerPerpOrderIx(
+			takerOrderParamsMessage,
+			takerSignature,
+			marketIndex,
+			takerInfo
+		);
+		const { txSig } = await this.sendTransaction(
+			await this.buildTransaction(ixs, txParams),
+			[],
+			this.opts
+		);
+		return txSig;
+	}
+
+	public async getPlaceSwiftTakerPerpOrderIx(
+		takerOrderParamsMessage: Buffer,
+		takerSignature: Buffer,
+		marketIndex: number,
+		takerInfo: {
+			taker: PublicKey;
+			takerStats: PublicKey;
+			takerUserAccount: UserAccount;
+		}
+	): Promise<TransactionInstruction[]> {
+		const remainingAccounts = this.getRemainingAccounts({
+			userAccounts: [takerInfo.takerUserAccount],
+			useMarketLastSlotCache: true,
+			readablePerpMarketIndex: marketIndex,
+		});
+
+		const signatureIx = Ed25519Program.createInstructionWithPublicKey({
+			publicKey: takerInfo.takerUserAccount.authority.toBytes(),
+			signature: Uint8Array.from(takerSignature),
+			message: Uint8Array.from(takerOrderParamsMessage),
+		});
+
+		const placeTakerSwiftPerpOrderIx =
+			await this.program.instruction.placeSwiftTakerOrder(
+				takerOrderParamsMessage,
+				takerSignature,
+				{
+					accounts: {
+						state: await this.getStatePublicKey(),
+						user: takerInfo.taker,
+						userStats: takerInfo.takerStats,
+						authority: this.wallet.publicKey,
+						ixSysvar: SYSVAR_INSTRUCTIONS_PUBKEY,
+					},
+					remainingAccounts,
+				}
+			);
+
+		return [signatureIx, placeTakerSwiftPerpOrderIx];
+	}
+
+	public async placeAndMakeSwiftPerpOrder(
+		encodedTakerOrderParamsMessage: Buffer,
+		takerSignature: Buffer,
+		takerExpectedOrderId: number,
+		takerInfo: {
+			taker: PublicKey;
+			takerStats: PublicKey;
+			takerUserAccount: UserAccount;
+		},
+		orderParams: OptionalOrderParams,
+		referrerInfo?: ReferrerInfo,
+		txParams?: TxParams,
+		subAccountId?: number
+	): Promise<TransactionSignature> {
+		const ixs = await this.getPlaceAndMakeSwiftPerpOrderIxs(
+			encodedTakerOrderParamsMessage,
+			takerSignature,
+			takerExpectedOrderId,
+			takerInfo,
+			orderParams,
+			referrerInfo,
+			subAccountId
+		);
+		const { txSig, slot } = await this.sendTransaction(
+			await this.buildTransaction(ixs, txParams),
+			[],
+			this.opts
+		);
+
+		this.perpMarketLastSlotCache.set(orderParams.marketIndex, slot);
+		return txSig;
+	}
+
+	public async getPlaceAndMakeSwiftPerpOrderIxs(
+		encodedTakerOrderParamsMessage: Buffer,
+		takerSignature: Buffer,
+		takerExpectedOrderId: number,
+		takerInfo: {
+			taker: PublicKey;
+			takerStats: PublicKey;
+			takerUserAccount: UserAccount;
+		},
+		orderParams: OptionalOrderParams,
+		referrerInfo?: ReferrerInfo,
+		subAccountId?: number
+	): Promise<TransactionInstruction[]> {
+		const [signatureIx, placeTakerSwiftPerpOrderIx] =
+			await this.getPlaceSwiftTakerPerpOrderIx(
+				encodedTakerOrderParamsMessage,
+				takerSignature,
+				orderParams.marketIndex,
+				takerInfo
+			);
+
+		orderParams = getOrderParams(orderParams, { marketType: MarketType.PERP });
+		const userStatsPublicKey = this.getUserStatsAccountPublicKey();
+		const user = await this.getUserAccountPublicKey(subAccountId);
+
+		const remainingAccounts = this.getRemainingAccounts({
+			userAccounts: [
+				this.getUserAccount(subAccountId),
+				takerInfo.takerUserAccount,
+			],
+			useMarketLastSlotCache: true,
+			writablePerpMarketIndexes: [orderParams.marketIndex],
+		});
+
+		if (referrerInfo) {
+			remainingAccounts.push({
+				pubkey: referrerInfo.referrer,
+				isWritable: true,
+				isSigner: false,
+			});
+			remainingAccounts.push({
+				pubkey: referrerInfo.referrerStats,
+				isWritable: true,
+				isSigner: false,
+			});
+		}
+
+		const placeAndMakeIx = await this.program.instruction.placeAndMakePerpOrder(
+			orderParams,
+			takerExpectedOrderId,
+			{
+				accounts: {
+					state: await this.getStatePublicKey(),
+					user,
+					userStats: userStatsPublicKey,
+					taker: takerInfo.taker,
+					takerStats: takerInfo.takerStats,
+					authority: this.wallet.publicKey,
+				},
+				remainingAccounts,
+			}
+		);
+
+		return [signatureIx, placeTakerSwiftPerpOrderIx, placeAndMakeIx];
 	}
 
 	public async preparePlaceAndTakeSpotOrder(
