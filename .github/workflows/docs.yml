@@ -48,7 +48,7 @@ jobs:
           node-version: "18.x"
           registry-url: "https://registry.npmjs.org"
       - name: Generate docs
-        run: npm run generate-docs
+        run: npm install && npm run generate-docs
       - name: Check for changes
         id: git-check
         run: |
