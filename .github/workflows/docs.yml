@@ -42,13 +42,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-      - name: Setup node
-        uses: actions/setup-node@v2
-        with:
-          node-version: "18.x"
-          registry-url: "https://registry.npmjs.org"
       - name: Generate docs
-        run: npm install && npm run generate-docs
+        run: yarn && yarn generate-docs
       - name: Check for changes
         id: git-check
         run: |
