@@ -43,7 +43,12 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
       - name: Generate docs
-        run: yarn && yarn generate-docs
+        run: |
+          yarn
+          cd sdk
+          yarn && yarn build
+          cd ..
+          yarn generate-docs
       - name: Check for changes
         id: git-check
         run: |
