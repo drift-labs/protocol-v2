@@ -2,7 +2,7 @@ name: Deploy Typescript SDK Docs
 
 on:
   push:
-    branches: ["master", "wphan/sdk_docs_gen"]
+    branches: ["master"]
   # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
 
@@ -35,7 +35,7 @@ jobs:
   deploy:
     environment:
       name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}/sdk
+      url: ${{ steps.deployment.outputs.page_url }}sdk
     runs-on: ubicloud
     needs: check-for-sdk-changes
     steps:
@@ -67,7 +67,7 @@ jobs:
         if: steps.git-check.outputs.changes == 'true'
         uses: actions/upload-pages-artifact@v3
         with:
-          path: 'docs'
+          path: "docs"
       - name: Deploy to GitHub Pages
         if: steps.git-check.outputs.changes == 'true'
         id: deployment
