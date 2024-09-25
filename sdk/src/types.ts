@@ -1110,7 +1110,7 @@ export interface IWallet {
 	signTransaction(tx: Transaction): Promise<Transaction>;
 	signAllTransactions(txs: Transaction[]): Promise<Transaction[]>;
 	publicKey: PublicKey;
-	payer: Keypair;
+	payer?: Keypair;
 }
 export interface IVersionedWallet {
 	signVersionedTransaction(
@@ -1120,7 +1120,7 @@ export interface IVersionedWallet {
 		txs: VersionedTransaction[]
 	): Promise<VersionedTransaction[]>;
 	publicKey: PublicKey;
-	payer: Keypair;
+	payer?: Keypair;
 }
 
 export type FeeStructure = {
