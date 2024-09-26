@@ -852,6 +852,28 @@ export const MainnetPerpMarkets: PerpMarketConfig[] = [
 		pythFeedId:
 			'0x8963217838ab4cf5cadc172203c1f0b763fbaa45f346d8ee50ba994bbcac3026',
 	},
+	{
+		fullName: 'LANDO-F1-SGP-WIN-BET',
+		category: ['Prediction', 'Sports'],
+		symbol: 'LANDO-F1-SGP-WIN-BET',
+		baseAssetSymbol: 'LANDO-F1-SGP-WIN',
+		marketIndex: 43,
+		oracle: new PublicKey('DpJz7rjTJLxxnuqrqZTUjMWtnaMFAEfZUv5ATdb9HTh1'),
+		launchTs: 1726646453000,
+		oracleSource: OracleSource.Prelaunch,
+	},
+	{
+		fullName: 'MOTHER',
+		category: ['Solana', 'Meme'],
+		symbol: 'MOTHER-PERP',
+		baseAssetSymbol: 'MOTHER',
+		marketIndex: 44,
+		oracle: new PublicKey('56ap2coZG7FPWUigVm9XrpQs3xuCwnwQaWtjWZcffEUG'),
+		launchTs: 1727291859000,
+		oracleSource: OracleSource.PYTH_PULL,
+		pythFeedId:
+			'0x62742a997d01f7524f791fdb2dd43aaf0e567d765ebf8fd0406a994239e874d4',
+	},
 ];
 
 export const PerpMarkets: { [key in DriftEnv]: PerpMarketConfig[] } = {

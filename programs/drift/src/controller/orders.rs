@@ -106,7 +106,7 @@ pub fn place_perp_order(
     mut options: PlaceOrderOptions,
 ) -> DriftResult {
     let now = clock.unix_timestamp;
-    let slot = clock.slot;
+    let slot: u64 = clock.slot;
 
     if !options.is_liquidation() {
         validate_user_not_being_liquidated(
@@ -254,7 +254,7 @@ pub fn place_perp_order(
         status: OrderStatus::Open,
         order_type: params.order_type,
         market_type: params.market_type,
-        slot,
+        slot: options.get_order_slot(slot),
         order_id: get_then_update_id!(user, next_order_id),
         user_order_id: params.user_order_id,
         market_index: params.market_index,
@@ -3604,6 +3604,8 @@ pub fn fill_spot_order(
         let mut base_market = spot_market_map.get_ref_mut(&order_market_index)?;
         let oracle_price_data = oracle_map.get_price_data(&base_market.oracle)?;
         update_spot_market_cumulative_interest(&mut base_market, Some(oracle_price_data), now)?;
+
+        fulfillment_params.validate_markets(&base_market, &quote_market)?;
 
         let oracle_too_divergent_with_twap_5min = is_oracle_too_divergent_with_twap_5min(
             oracle_price_data.price,

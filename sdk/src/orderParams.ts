@@ -10,9 +10,11 @@ import { BN } from '@coral-xyz/anchor';
 export function getLimitOrderParams(
 	params: Omit<OptionalOrderParams, 'orderType'> & { price: BN }
 ): OptionalOrderParams {
-	return Object.assign({}, params, {
-		orderType: OrderType.LIMIT,
-	});
+	return getOrderParams(
+		Object.assign({}, params, {
+			orderType: OrderType.LIMIT,
+		})
+	);
 }
 
 export function getTriggerMarketOrderParams(
@@ -21,9 +23,11 @@ export function getTriggerMarketOrderParams(
 		triggerPrice: BN;
 	}
 ): OptionalOrderParams {
-	return Object.assign({}, params, {
-		orderType: OrderType.TRIGGER_MARKET,
-	});
+	return getOrderParams(
+		Object.assign({}, params, {
+			orderType: OrderType.TRIGGER_MARKET,
+		})
+	);
 }
 
 export function getTriggerLimitOrderParams(
@@ -33,17 +37,21 @@ export function getTriggerLimitOrderParams(
 		price: BN;
 	}
 ): OptionalOrderParams {
-	return Object.assign({}, params, {
-		orderType: OrderType.TRIGGER_LIMIT,
-	});
+	return getOrderParams(
+		Object.assign({}, params, {
+			orderType: OrderType.TRIGGER_LIMIT,
+		})
+	);
 }
 
 export function getMarketOrderParams(
 	params: Omit<OptionalOrderParams, 'orderType'>
 ): OptionalOrderParams {
-	return Object.assign({}, params, {
-		orderType: OrderType.MARKET,
-	});
+	return getOrderParams(
+		Object.assign({}, params, {
+			orderType: OrderType.MARKET,
+		})
+	);
 }
 
 /**

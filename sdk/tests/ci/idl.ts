@@ -51,7 +51,9 @@ describe('Verify IDL', function () {
 		);
 
 		if (onChainIdl === null) {
-			throw new Error(`onChainIdl for ${mainnetDriftClient.program.programId.toBase58()} null`);
+			throw new Error(
+				`onChainIdl for ${mainnetDriftClient.program.programId.toBase58()} null`
+			);
 		}
 
 		// anchor idl init seems to strip the metadata
@@ -65,13 +67,20 @@ describe('Verify IDL', function () {
 		const encodedSdkIdl = JSON.stringify(sdkIdl);
 
 		try {
-			assert(encodedSdkIdl === encodedMainnetIdl, 'on-chain IDL does not match SDK IDL');
+			assert(
+				encodedSdkIdl === encodedMainnetIdl,
+				'on-chain IDL does not match SDK IDL'
+			);
 		} catch (error) {
 			const diff = {};
 			for (const key of IDL_KEYS_TO_CHECK) {
 				const onChainItems = onChainIdl[key];
 				const sdkItems = sdkIdl[key];
-				for (let i = 0; i < Math.max(onChainItems.length, sdkItems.length); i++) {
+				for (
+					let i = 0;
+					i < Math.max(onChainItems.length, sdkItems.length);
+					i++
+				) {
 					let onChainItem = null;
 					let sdkItem = null;
 					if (i < onChainItems.length) {

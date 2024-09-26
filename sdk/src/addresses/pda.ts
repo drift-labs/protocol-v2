@@ -87,6 +87,19 @@ export async function getPerpMarketPublicKey(
 	)[0];
 }
 
+export function getPerpMarketPublicKeySync(
+	programId: PublicKey,
+	marketIndex: number
+): PublicKey {
+	return PublicKey.findProgramAddressSync(
+		[
+			Buffer.from(anchor.utils.bytes.utf8.encode('perp_market')),
+			new anchor.BN(marketIndex).toArrayLike(Buffer, 'le', 2),
+		],
+		programId
+	)[0];
+}
+
 export async function getSpotMarketPublicKey(
 	programId: PublicKey,
 	marketIndex: number
@@ -99,6 +112,19 @@ export async function getSpotMarketPublicKey(
 			],
 			programId
 		)
+	)[0];
+}
+
+export function getSpotMarketPublicKeySync(
+	programId: PublicKey,
+	marketIndex: number
+): PublicKey {
+	return PublicKey.findProgramAddressSync(
+		[
+			Buffer.from(anchor.utils.bytes.utf8.encode('spot_market')),
+			new anchor.BN(marketIndex).toArrayLike(Buffer, 'le', 2),
+		],
+		programId
 	)[0];
 }
 
