@@ -644,7 +644,7 @@
       ],
       "args": [
         {
-          "name": "takerOrderParamsMessageBytes",
+          "name": "swiftMessageBytes",
           "type": "bytes"
         },
         {
@@ -8101,6 +8101,31 @@
       }
     },
     {
+      "name": "SwiftServerMessage",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "swiftOrderParamsMessage",
+            "type": "bytes"
+          },
+          {
+            "name": "swiftOrderSignature",
+            "type": {
+              "array": [
+                "u8",
+                64
+              ]
+            }
+          },
+          {
+            "name": "slot",
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
       "name": "SwiftOrderParamsMessage",
       "type": {
         "kind": "struct",
@@ -8128,8 +8153,8 @@
             "type": "i32"
           },
           {
-            "name": "slot",
-            "type": "u64"
+            "name": "subAccountId",
+            "type": "u16"
           }
         ]
       }
@@ -13051,7 +13076,7 @@
     {
       "code": 6286,
       "name": "SigVerificationFailed",
-      "msg": "Swift taker message verificaiton failed"
+      "msg": "Swift message verificaiton failed"
     },
     {
       "code": 6287,

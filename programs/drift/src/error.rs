@@ -577,7 +577,7 @@ pub enum ErrorCode {
     InvalidPredictionMarketOrder,
     #[msg("Ed25519 Ix must be before place and make swift order ix")]
     InvalidVerificationIxIndex,
-    #[msg("Swift taker message verificaiton failed")]
+    #[msg("Swift message verificaiton failed")]
     SigVerificationFailed,
     #[msg("Market index mismatched b/w taker and maker swift order params")]
     MismatchedSwiftOrderParamsMarketIndex,

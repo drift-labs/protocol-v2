@@ -19,6 +19,8 @@ import {
 	BulkAccountLoader,
 	SwiftOrderParamsMessage,
 	MarketType,
+	SwiftServerMessage,
+	loadKeypair,
 } from '../sdk/src';
 
 import {
@@ -30,8 +32,16 @@ import {
 	sleep,
 } from './testHelpersLocalValidator';
 import { PEG_PRECISION, PostOnlyParams } from '../sdk/lib';
+import dotenv from 'dotenv';
+dotenv.config();
 
 describe('place and make swift order', () => {
+	if (!process.env.SWIFT_PRIVATE_KEY) {
+		throw new Error('SWIFT_PRIVATE_KEY not set');
+	}
+
+	const swiftKeypair = loadKeypair(process.env.SWIFT_PRIVATE_KEY);
+
 	const provider = anchor.AnchorProvider.local(undefined, {
 		commitment: 'confirmed',
 		preflightCommitment: 'confirmed',
@@ -132,7 +142,7 @@ describe('place and make swift order', () => {
 		await eventSubscriber.unsubscribe();
 	});
 
-	it('should fail on bad sig', async () => {
+	it('should fail on bad order params sig', async () => {
 		const keypair = new Keypair();
 		await provider.connection.requestAirdrop(keypair.publicKey, 10 ** 9);
 		await sleep(1000);
@@ -205,19 +215,31 @@ describe('place and make swift order', () => {
 			marketIndex,
 			expectedOrderId: 1,
 			marketType: MarketType.PERP,
-			slot: new BN(await connection.getSlot()),
 		};
-		const takerOrderParamsSig = await makerDriftClient.signTakerOrderParams(
-			takerOrderParamsMessage
+		const takerOrderParamsSig =
+			await makerDriftClient.signSwiftOrderParamsMessage(
+				takerOrderParamsMessage
+			);
+
+		const swiftServerMessage: SwiftServerMessage = {
+			slot: new BN(await connection.getSlot()),
+			swiftOrderParamsMessage: takerOrderParamsMessage,
+			swiftOrderSignature: takerOrderParamsSig,
+		};
+
+		const encodedSwiftServerMessage =
+			takerDriftClient.encodeSwiftServerMessage(swiftServerMessage);
+
+		const swiftSignature = await takerDriftClient.signMessage(
+			Uint8Array.from(encodedSwiftServerMessage),
+			swiftKeypair
 		);
 
 		let txSig;
 		try {
 			txSig = await makerDriftClient.placeAndMakeSwiftPerpOrder(
-				takerDriftClient.getEncodedSwiftOrderParamsMessage(
-					takerOrderParamsMessage
-				),
-				takerOrderParamsSig,
+				encodedSwiftServerMessage,
+				swiftSignature,
 				takerOrderParamsMessage.expectedOrderId,
 				{
 					taker: await takerDriftClient.getUserAccountPublicKey(),
@@ -225,6 +247,116 @@ describe('place and make swift order', () => {
 					takerStats: takerDriftClient.getUserStatsAccountPublicKey(),
 				},
 				makerOrderParams
+			);
+		} catch (error) {
+			console.log(JSON.stringify(error));
+		}
+
+		printTxLogs(provider.connection, txSig);
+
+		const makerPosition = makerDriftClient.getUser().getPerpPosition(0);
+		assert(makerPosition === undefined);
+
+		const takerPosition = takerDriftClient.getUser().getPerpPosition(0);
+		assert(takerPosition === undefined);
+
+		await takerDriftClientUser.unsubscribe();
+		await takerDriftClient.unsubscribe();
+	});
+
+	it('should fail on swift impersonator', async () => {
+		const keypair = new Keypair();
+		await provider.connection.requestAirdrop(keypair.publicKey, 10 ** 9);
+		await sleep(1000);
+		const wallet = new Wallet(keypair);
+		const userUSDCAccount = await mockUserUSDCAccount(
+			usdcMint,
+			usdcAmount,
+			provider,
+			keypair.publicKey
+		);
+		const takerDriftClient = new TestClient({
+			connection,
+			wallet,
+			programID: chProgram.programId,
+			opts: {
+				commitment: 'confirmed',
+			},
+			activeSubAccountId: 0,
+			perpMarketIndexes: marketIndexes,
+			spotMarketIndexes: spotMarketIndexes,
+			oracleInfos,
+			userStats: true,
+			accountSubscription: {
+				type: 'polling',
+				accountLoader: bulkAccountLoader,
+			},
+		});
+		await takerDriftClient.subscribe();
+		await takerDriftClient.initializeUserAccountAndDepositCollateral(
+			usdcAmount,
+			userUSDCAccount.publicKey
+		);
+		const takerDriftClientUser = new User({
+			driftClient: takerDriftClient,
+			userAccountPublicKey: await takerDriftClient.getUserAccountPublicKey(),
+			accountSubscription: {
+				type: 'polling',
+				accountLoader: bulkAccountLoader,
+			},
+		});
+		await takerDriftClientUser.subscribe();
+
+		const marketIndex = 0;
+		const baseAssetAmount = BASE_PRECISION;
+		const takerOrderParams = getLimitOrderParams({
+			marketIndex,
+			direction: PositionDirection.LONG,
+			baseAssetAmount,
+			price: new BN(34).mul(PRICE_PRECISION),
+			auctionStartPrice: new BN(33).mul(PRICE_PRECISION),
+			auctionEndPrice: new BN(34).mul(PRICE_PRECISION),
+			auctionDuration: 10,
+			userOrderId: 1,
+			postOnly: PostOnlyParams.NONE,
+		});
+
+		await takerDriftClientUser.fetchAccounts();
+		const takerOrderParamsMessage: SwiftOrderParamsMessage = {
+			swiftOrderParams: [takerOrderParams],
+			marketIndex,
+			expectedOrderId: 1,
+			marketType: MarketType.PERP,
+		};
+		const takerOrderParamsSig =
+			await takerDriftClient.signSwiftOrderParamsMessage(
+				takerOrderParamsMessage
+			);
+
+		const swiftServerMessage: SwiftServerMessage = {
+			slot: new BN(await connection.getSlot()),
+			swiftOrderParamsMessage: takerOrderParamsMessage,
+			swiftOrderSignature: takerOrderParamsSig,
+		};
+
+		const encodedSwiftServerMessage =
+			takerDriftClient.encodeSwiftServerMessage(swiftServerMessage);
+
+		const swiftSignature = await takerDriftClient.signMessage(
+			Uint8Array.from(encodedSwiftServerMessage)
+		);
+
+		let txSig;
+		try {
+			txSig = await takerDriftClient.placeSwiftTakerOrder(
+				encodedSwiftServerMessage,
+				swiftSignature,
+				marketIndex,
+				{
+					taker: await takerDriftClient.getUserAccountPublicKey(),
+					takerUserAccount: takerDriftClient.getUserAccount(),
+					takerStats: takerDriftClient.getUserStatsAccountPublicKey(),
+				}
 			);
 		} catch (error) {
 			console.log(JSON.stringify(error));

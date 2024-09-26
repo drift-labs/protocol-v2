@@ -630,13 +630,20 @@ impl OrderParams {
     }
 }
 
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, Eq, PartialEq, Debug)]
+pub struct SwiftServerMessage {
+    pub swift_order_params_message: Vec<u8>,
+    pub swift_order_signature: [u8; 64],
+    pub slot: u64,
+}
+
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Default, Eq, PartialEq, Debug)]
 pub struct SwiftOrderParamsMessage {
     pub swift_order_params: Vec<OrderParams>,
     pub market_index: u16,
     pub market_type: MarketType,
     pub expected_order_id: i32,
-    pub slot: u64,
+    pub sub_account_id: u16,
 }
 
 impl SwiftOrderParamsMessage {

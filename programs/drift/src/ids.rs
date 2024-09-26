@@ -128,3 +128,8 @@ pub mod admin_hot_wallet {
     use solana_program::declare_id;
     declare_id!("5hMjmxexWu954pX9gB9jkHxMqdjpxArQS2XdvkaevRax");
 }
+
+pub mod swift_server {
+    use solana_program::declare_id;
+    declare_id!("SW1fThqrxLzVprnCMpiybiqYQfoNCdduC5uWsSUKChS");
+}

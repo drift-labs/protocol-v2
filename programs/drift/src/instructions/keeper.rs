@@ -9,6 +9,7 @@ use solana_program::sysvar::instructions::{
 
 use crate::controller::insurance::update_user_stats_if_stake_amount;
 use crate::error::ErrorCode;
+use crate::ids::swift_server;
 use crate::instructions::constraints::*;
 use crate::instructions::optional_accounts::{load_maps, AccountMaps};
 use crate::math::casting::Cast;
@@ -24,7 +25,9 @@ use crate::state::fulfillment_params::phoenix::PhoenixFulfillmentParams;
 use crate::state::fulfillment_params::serum::SerumFulfillmentParams;
 use crate::state::insurance_fund_stake::InsuranceFundStake;
 use crate::state::oracle_map::OracleMap;
-use crate::state::order_params::{OrderParams, PlaceOrderOptions, SwiftOrderParamsMessage};
+use crate::state::order_params::{
+    OrderParams, PlaceOrderOptions, SwiftOrderParamsMessage, SwiftServerMessage,
+};
 use crate::state::paused_operations::PerpOperation;
 use crate::state::perp_market::{ContractType, MarketStatus, PerpMarket};
 use crate::state::perp_market_map::{
@@ -445,11 +448,12 @@ pub fn handle_update_user_open_orders_count<'info>(ctx: Context<UpdateUserIdle>)
 
 pub fn handle_place_swift_taker_order<'c: 'info, 'info>(
     ctx: Context<'_, '_, 'c, 'info, PlaceSwiftTakerOrder<'info>>,
-    taker_order_params_bytes: Vec<u8>,
+    swift_message_bytes: Vec<u8>,
     sig: [u8; 64],
 ) -> Result<()> {
-    let taker_order_params_message: SwiftOrderParamsMessage =
-        SwiftOrderParamsMessage::deserialize(&mut &taker_order_params_bytes[..]).unwrap();
+    let swift_message: SwiftServerMessage =
+        SwiftServerMessage::deserialize(&mut &swift_message_bytes[..]).unwrap();
+
     let state = &ctx.accounts.state;
 
     // TODO: generalize to support multiple market types
@@ -471,7 +475,7 @@ pub fn handle_place_swift_taker_order<'c: 'info, 'info>(
     place_swift_taker_order(
         taker_key,
         &mut taker,
-        taker_order_params_message,
+        swift_message,
         &ctx.accounts.ix_sysvar.to_account_info(),
         sig,
         &perp_market_map,
@@ -485,7 +489,7 @@ pub fn handle_place_swift_taker_order<'c: 'info, 'info>(
 pub fn place_swift_taker_order<'c: 'info, 'info>(
     taker_key: Pubkey,
     taker: &mut RefMut<User>,
-    taker_order_params_message: SwiftOrderParamsMessage,
+    swift_message: SwiftServerMessage,
     ix_sysvar: &AccountInfo<'info>,
     sig: [u8; 64],
     perp_market_map: &PerpMarketMap,
@@ -498,7 +502,7 @@ pub fn place_swift_taker_order<'c: 'info, 'info>(
         panic!("Swift orders are disabled on mainnet-beta");
     }
 
-    // Authenticate the signature
+    // Authenticate the swift param message
     let ix_idx = load_current_index_checked(ix_sysvar)?;
     validate!(
         ix_idx > 0,
@@ -506,12 +510,35 @@ pub fn place_swift_taker_order<'c: 'info, 'info>(
         "instruction index must be greater than 0"
     )?;
     let ix: Instruction = load_instruction_at_checked(ix_idx as usize - 1, ix_sysvar)?;
+
+    msg!("Verifying swift message");
+    msg!("Swift message: {:?}", swift_message);
+    msg!("signature: {:?}", sig);
+    verify_ed25519_ix(
+        &ix,
+        &swift_server::id().to_bytes(),
+        &swift_message.clone().try_to_vec()?,
+        &sig,
+    )?;
+
+    msg!("Verified swift message");
+
+    // Authenticate the taker order signature
     verify_ed25519_ix(
         &ix,
         &taker.authority.to_bytes(),
-        &taker_order_params_message.clone().try_to_vec()?,
-        &sig,
+        &swift_message
+            .swift_order_params_message
+            .clone()
+            .try_to_vec()?,
+        &swift_message.swift_order_signature.clone(),
     )?;
+
+    msg!("Verified taker signature");
+
+    let taker_order_params_message: SwiftOrderParamsMessage =
+        SwiftOrderParamsMessage::deserialize(&mut &swift_message.swift_order_params_message[..])
+            .unwrap();
 
     // Verify inputs and validate market index
     taker_order_params_message.verify_all_same_market_indexes()?;
@@ -534,7 +561,7 @@ pub fn place_swift_taker_order<'c: 'info, 'info>(
     let expected_order_id = taker_order_params_message.expected_order_id;
 
     let taker_next_order_id = taker.next_order_id;
-    let order_slot = taker_order_params_message.slot;
+    let order_slot = swift_message.slot;
     if expected_order_id.cast::<u32>()? != taker_next_order_id {
         msg!(
                 "Orders not placed due to taker order id mismatch: taker account next order id {}, order params expected next order id {:?}",

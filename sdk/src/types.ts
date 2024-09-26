@@ -1056,12 +1056,17 @@ export const DefaultOrderParams: OrderParams = {
 	auctionEndPrice: null,
 };
 
+export type SwiftServerMessage = {
+	slot: BN;
+	swiftOrderParamsMessage: SwiftOrderParamsMessage;
+	swiftOrderSignature: Uint8Array;
+};
+
 export type SwiftOrderParamsMessage = {
 	marketIndex: number;
 	swiftOrderParams: OptionalOrderParams[];
 	expectedOrderId: number;
 	marketType: MarketType;
-	slot: BN;
 };
 
 export type MakerInfo = {
