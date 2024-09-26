@@ -762,3 +762,8 @@ impl PlaceOrderOptions {
         min_order_slot
     }
 }
+
+pub enum PlaceAndTakeOrderSuccessCondition {
+    PartialFill = 1,
+    FullFill = 2,
+}

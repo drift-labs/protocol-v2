@@ -148,9 +148,9 @@ pub mod drift {
     pub fn place_and_take_perp_order<'c: 'info, 'info>(
         ctx: Context<'_, '_, 'c, 'info, PlaceAndTake<'info>>,
         params: OrderParams,
-        maker_order_id: Option<u32>,
+        success_condition: Option<u32>,
     ) -> Result<()> {
-        handle_place_and_take_perp_order(ctx, params, maker_order_id)
+        handle_place_and_take_perp_order(ctx, params, success_condition)
     }
 
     pub fn place_and_make_perp_order<'c: 'info, 'info>(
