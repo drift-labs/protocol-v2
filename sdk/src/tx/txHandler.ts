@@ -29,6 +29,7 @@ import { CachedBlockhashFetcher } from './blockhashFetcher/cachedBlockhashFetche
 import { BaseBlockhashFetcher } from './blockhashFetcher/baseBlockhashFetcher';
 import { BlockhashFetcher } from './blockhashFetcher/types';
 import { isVersionedTransaction } from './utils';
+import { DEFAULT_CONFIRMATION_OPTS } from '../config';
 
 /**
  * Explanation for SIGNATURE_BLOCK_AND_EXPIRY:
@@ -81,7 +82,8 @@ export class TxHandler {
 	private preSignedCb?: () => void;
 	private onSignedCb?: (txSigs: DriftClientMetricsEvents['txSigned']) => void;
 
-	private blockhashCommitment: Commitment = 'finalized';
+	private blockhashCommitment: Commitment =
+		DEFAULT_CONFIRMATION_OPTS.commitment;
 	private blockHashFetcher: BlockhashFetcher;
 
 	constructor(props: {
@@ -98,6 +100,11 @@ export class TxHandler {
 		this.connection = props.connection;
 		this.wallet = props.wallet;
 		this.confirmationOptions = props.confirmationOptions;
+		this.blockhashCommitment =
+			props.confirmationOptions?.preflightCommitment ??
+			props?.connection?.commitment ??
+			this.blockhashCommitment ??
+			'confirmed';
 
 		this.blockHashFetcher = props?.config?.blockhashCachingEnabled
 			? new CachedBlockhashFetcher(

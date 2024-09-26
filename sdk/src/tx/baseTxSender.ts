@@ -20,12 +20,12 @@ import {
 	AddressLookupTableAccount,
 	BlockhashWithExpiryBlockHeight,
 } from '@solana/web3.js';
-import { AnchorProvider } from '@coral-xyz/anchor';
 import assert from 'assert';
 import bs58 from 'bs58';
 import { TxHandler } from './txHandler';
 import { IWallet } from '../types';
 import NodeCache from 'node-cache';
+import { DEFAULT_CONFIRMATION_OPTS } from '../config';
 
 const BASELINE_TX_LAND_RATE = 0.9;
 const DEFAULT_TIMEOUT = 35000;
@@ -54,7 +54,7 @@ export abstract class BaseTxSender implements TxSender {
 	public constructor({
 		connection,
 		wallet,
-		opts = AnchorProvider.defaultOptions(),
+		opts = DEFAULT_CONFIRMATION_OPTS,
 		timeout = DEFAULT_TIMEOUT,
 		additionalConnections = new Array<Connection>(),
 		confirmationStrategy = ConfirmationStrategy.Combo,
