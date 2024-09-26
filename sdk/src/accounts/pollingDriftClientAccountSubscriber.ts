@@ -1,6 +1,7 @@
 import {
-	DataAndSlot,
 	AccountToPoll,
+	DataAndSlot,
+	DelistedMarketSetting,
 	DriftClientAccountEvents,
 	DriftClientAccountSubscriber,
 	NotSubscribedError,
@@ -10,18 +11,18 @@ import { Program } from '@coral-xyz/anchor';
 import StrictEventEmitter from 'strict-event-emitter-types';
 import { EventEmitter } from 'events';
 import {
-	SpotMarketAccount,
 	PerpMarketAccount,
+	SpotMarketAccount,
 	StateAccount,
 	UserAccount,
 } from '../types';
 import {
 	getDriftStateAccountPublicKey,
-	getSpotMarketPublicKey,
 	getPerpMarketPublicKey,
+	getSpotMarketPublicKey,
 } from '../addresses/pda';
 import { BulkAccountLoader } from './bulkAccountLoader';
-import { capitalize } from './utils';
+import { capitalize, findDelistedPerpMarketsAndOracles } from './utils';
 import { PublicKey } from '@solana/web3.js';
 import { OracleInfo, OraclePriceData } from '../oracles/types';
 import { OracleClientCache } from '../oracles/oracleClientCache';
@@ -58,6 +59,7 @@ export class PollingDriftClientAccountSubscriber
 	spotOracleStringMap = new Map<number, string>();
 	oracles = new Map<string, DataAndSlot<OraclePriceData>>();
 	user?: DataAndSlot<UserAccount>;
+	delistedMarketSetting: DelistedMarketSetting;
 
 	private isSubscribing = false;
 	private subscriptionPromise: Promise<boolean>;
@@ -69,7 +71,8 @@ export class PollingDriftClientAccountSubscriber
 		perpMarketIndexes: number[],
 		spotMarketIndexes: number[],
 		oracleInfos: OracleInfo[],
-		shouldFindAllMarketsAndOracles: boolean
+		shouldFindAllMarketsAndOracles: boolean,
+		delistedMarketSetting: DelistedMarketSetting
 	) {
 		this.isSubscribed = false;
 		this.program = program;
@@ -79,6 +82,7 @@ export class PollingDriftClientAccountSubscriber
 		this.spotMarketIndexes = spotMarketIndexes;
 		this.oracleInfos = oracleInfos;
 		this.shouldFindAllMarketsAndOracles = shouldFindAllMarketsAndOracles;
+		this.delistedMarketSetting = delistedMarketSetting;
 	}
 
 	public async subscribe(): Promise<boolean> {
@@ -119,6 +123,8 @@ export class PollingDriftClientAccountSubscriber
 		if (subscriptionSucceeded) {
 			this.eventEmitter.emit('update');
 		}
+
+		this.handleDelistedMarkets();
 
 		await Promise.all([this.setPerpOracleMap(), this.setSpotOracleMap()]);
 
@@ -498,6 +504,36 @@ export class PollingDriftClientAccountSubscriber
 			this.spotOracleStringMap.set(spotMarketIndex, oracle.toBase58());
 		}
 		await Promise.all(oraclePromises);
+	}
+
+	handleDelistedMarkets(): void {
+		if (this.delistedMarketSetting === DelistedMarketSetting.Subscribe) {
+			return;
+		}
+
+		const { perpMarketIndexes, oracles } = findDelistedPerpMarketsAndOracles(
+			this.getMarketAccountsAndSlots(),
+			this.getSpotMarketAccountsAndSlots()
+		);
+
+		for (const perpMarketIndex of perpMarketIndexes) {
+			const perpMarketPubkey = this.perpMarket.get(perpMarketIndex).data.pubkey;
+			const callbackId = this.accountsToPoll.get(
+				perpMarketPubkey.toBase58()
+			).callbackId;
+			this.accountLoader.removeAccount(perpMarketPubkey, callbackId);
+			if (this.delistedMarketSetting === DelistedMarketSetting.Discard) {
+				this.perpMarket.delete(perpMarketIndex);
+			}
+		}
+
+		for (const oracle of oracles) {
+			const callbackId = this.accountsToPoll.get(oracle.toBase58()).callbackId;
+			this.accountLoader.removeAccount(oracle, callbackId);
+			if (this.delistedMarketSetting === DelistedMarketSetting.Discard) {
+				this.oracles.delete(oracle.toBase58());
+			}
+		}
 	}
 
 	assertIsSubscribed(): void {

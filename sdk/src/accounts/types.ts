@@ -84,6 +84,12 @@ export interface DriftClientAccountSubscriber {
 	updateAccountLoaderPollingFrequency?: (pollingFrequency: number) => void;
 }
 
+export enum DelistedMarketSetting {
+	Unsubscribe,
+	Subscribe,
+	Discard,
+}
+
 export interface UserAccountEvents {
 	userAccountUpdate: (payload: UserAccount) => void;
 	update: void;

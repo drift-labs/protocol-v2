@@ -1,19 +1,21 @@
 import {
-	DriftClientAccountSubscriber,
-	DriftClientAccountEvents,
+	AccountSubscriber,
 	DataAndSlot,
+	DelistedMarketSetting,
+	DriftClientAccountEvents,
+	DriftClientAccountSubscriber,
+	NotSubscribedError,
 	ResubOpts,
 } from './types';
-import { AccountSubscriber, NotSubscribedError } from './types';
-import { SpotMarketAccount, PerpMarketAccount, StateAccount } from '../types';
+import { PerpMarketAccount, SpotMarketAccount, StateAccount } from '../types';
 import { Program } from '@coral-xyz/anchor';
 import StrictEventEmitter from 'strict-event-emitter-types';
 import { EventEmitter } from 'events';
 import {
 	getDriftStateAccountPublicKey,
-	getSpotMarketPublicKey,
 	getPerpMarketPublicKey,
 	getPerpMarketPublicKeySync,
+	getSpotMarketPublicKey,
 	getSpotMarketPublicKeySync,
 } from '../addresses/pda';
 import { WebSocketAccountSubscriber } from './webSocketAccountSubscriber';
@@ -23,6 +25,7 @@ import { OracleClientCache } from '../oracles/oracleClientCache';
 import * as Buffer from 'buffer';
 import { QUOTE_ORACLE_PRICE_DATA } from '../oracles/quoteAssetOracleClient';
 import { findAllMarketAndOracles } from '../config';
+import { findDelistedPerpMarketsAndOracles } from './utils';
 
 const ORACLE_DEFAULT_KEY = PublicKey.default.toBase58();
 
@@ -55,6 +58,7 @@ export class WebSocketDriftClientAccountSubscriber
 	spotOracleMap = new Map<number, PublicKey>();
 	spotOracleStringMap = new Map<number, string>();
 	oracleSubscribers = new Map<string, AccountSubscriber<OraclePriceData>>();
+	delistedMarketSetting: DelistedMarketSetting;
 
 	initialPerpMarketAccountData: Map<number, PerpMarketAccount>;
 	initialSpotMarketAccountData: Map<number, SpotMarketAccount>;
@@ -70,6 +74,7 @@ export class WebSocketDriftClientAccountSubscriber
 		spotMarketIndexes: number[],
 		oracleInfos: OracleInfo[],
 		shouldFindAllMarketsAndOracles: boolean,
+		delistedMarketSetting: DelistedMarketSetting,
 		resubOpts?: ResubOpts,
 		commitment?: Commitment
 	) {
@@ -80,6 +85,7 @@ export class WebSocketDriftClientAccountSubscriber
 		this.spotMarketIndexes = spotMarketIndexes;
 		this.oracleInfos = oracleInfos;
 		this.shouldFindAllMarketsAndOracles = shouldFindAllMarketsAndOracles;
+		this.delistedMarketSetting = delistedMarketSetting;
 		this.resubOpts = resubOpts;
 		this.commitment = commitment;
 	}
@@ -150,6 +156,8 @@ export class WebSocketDriftClientAccountSubscriber
 		]);
 
 		this.eventEmitter.emit('update');
+
+		await this.handleDelistedMarkets();
 
 		await Promise.all([this.setPerpOracleMap(), this.setSpotOracleMap()]);
 
@@ -478,6 +486,33 @@ export class WebSocketDriftClientAccountSubscriber
 			this.spotOracleStringMap.set(spotMarketIndex, oracle.toBase58());
 		}
 		await Promise.all(addOraclePromises);
+	}
+
+	async handleDelistedMarkets(): Promise<void> {
+		if (this.delistedMarketSetting === DelistedMarketSetting.Subscribe) {
+			return;
+		}
+
+		const { perpMarketIndexes, oracles } = findDelistedPerpMarketsAndOracles(
+			this.getMarketAccountsAndSlots(),
+			this.getSpotMarketAccountsAndSlots()
+		);
+
+		for (const perpMarketIndex of perpMarketIndexes) {
+			await this.perpMarketAccountSubscribers
+				.get(perpMarketIndex)
+				.unsubscribe();
+			if (this.delistedMarketSetting === DelistedMarketSetting.Discard) {
+				this.perpMarketAccountSubscribers.delete(perpMarketIndex);
+			}
+		}
+
+		for (const oracle of oracles) {
+			await this.oracleSubscribers.get(oracle.toBase58()).unsubscribe();
+			if (this.delistedMarketSetting === DelistedMarketSetting.Discard) {
+				this.oracleSubscribers.delete(oracle.toBase58());
+			}
+		}
 	}
 
 	assertIsSubscribed(): void {
