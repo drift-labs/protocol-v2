@@ -4,7 +4,7 @@ import { grpcProgramAccountSubscriber } from '../accounts/grpcProgramAccountSubs
 import { OrderSubscriber } from './OrderSubscriber';
 import { GrpcConfigs, ResubOpts } from '../accounts/types';
 import { UserAccount } from '../types';
-import { getUserFilter, getUserWithOrderFilter } from '../memcmp';
+import { getUserFilter, getNonIdleUserFilter } from '../memcmp';
 
 export class grpcSubscription {
 	private orderSubscriber: OrderSubscriber;
@@ -58,7 +58,7 @@ export class grpcSubscription {
 			this.orderSubscriber.driftClient.program,
 			this.orderSubscriber.decodeFn,
 			{
-				filters: [getUserFilter(), getUserWithOrderFilter()],
+				filters: [getUserFilter(), getNonIdleUserFilter()],
 				commitment: this.commitment,
 			},
 			this.resubOpts
