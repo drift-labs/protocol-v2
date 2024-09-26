@@ -266,6 +266,8 @@ describe('place and make swift order', () => {
 		const txSig = await makerDriftClient.placeAndMakeSwiftPerpOrder(
 			encodedSwiftServerMessage,
 			swiftSignature,
+			takerDriftClient.encodeSwiftOrderParamsMessage(takerOrderParamsMessage),
+			takerOrderParamsSig,
 			takerOrderParamsMessage.expectedOrderId,
 			{
 				taker: await takerDriftClient.getUserAccountPublicKey(),
@@ -286,6 +288,8 @@ describe('place and make swift order', () => {
 		await makerDriftClient.placeAndMakeSwiftPerpOrder(
 			encodedSwiftServerMessage,
 			swiftSignature,
+			takerDriftClient.encodeSwiftOrderParamsMessage(takerOrderParamsMessage),
+			takerOrderParamsSig,
 			takerOrderParamsMessage.expectedOrderId,
 			{
 				taker: await takerDriftClient.getUserAccountPublicKey(),
@@ -414,6 +418,25 @@ describe('place and make swift order', () => {
 				takerOrderParamsMessage
 			);
 
+		const swiftDriftClient = new TestClient({
+			connection: bankrunContextWrapper.connection.toConnection(),
+			wallet: new Wallet(swiftKeypair),
+			programID: chProgram.programId,
+			opts: {
+				commitment: 'confirmed',
+			},
+			activeSubAccountId: 0,
+			perpMarketIndexes: marketIndexes,
+			spotMarketIndexes: spotMarketIndexes,
+			subAccountIds: [],
+			oracleInfos,
+			userStats: true,
+			accountSubscription: {
+				type: 'polling',
+				accountLoader: bulkAccountLoader,
+			},
+		});
+
 		const swiftServerMessage: SwiftServerMessage = {
 			slot,
 			swiftOrderParamsMessage: takerOrderParamsMessage,
@@ -421,9 +444,9 @@ describe('place and make swift order', () => {
 		};
 
 		const encodedSwiftServerMessage =
-			takerDriftClient.encodeSwiftServerMessage(swiftServerMessage);
+			swiftDriftClient.encodeSwiftServerMessage(swiftServerMessage);
 
-		const swiftSignature = await takerDriftClient.signMessage(
+		const swiftSignature = await swiftDriftClient.signMessage(
 			Uint8Array.from(encodedSwiftServerMessage),
 			swiftKeypair
 		);
@@ -431,6 +454,8 @@ describe('place and make swift order', () => {
 		await makerDriftClient.placeAndMakeSwiftPerpOrder(
 			encodedSwiftServerMessage,
 			swiftSignature,
+			takerDriftClient.encodeSwiftOrderParamsMessage(takerOrderParamsMessage),
+			takerOrderParamsSig,
 			takerOrderParamsMessage.expectedOrderId,
 			{
 				taker: await takerDriftClient.getUserAccountPublicKey(),
@@ -575,6 +600,8 @@ describe('place and make swift order', () => {
 			await makerDriftClient.placeAndMakeSwiftPerpOrder(
 				encodedSwiftServerMessage,
 				swiftSignature,
+				takerDriftClient.encodeSwiftOrderParamsMessage(takerOrderParamsMessage),
+				takerOrderParamsSig,
 				takerOrderParamsMessage.expectedOrderId,
 				{
 					taker: await takerDriftClient.getUserAccountPublicKey(),
@@ -692,6 +719,8 @@ describe('place and make swift order', () => {
 			await makerDriftClient.placeAndMakeSwiftPerpOrder(
 				encodedSwiftServerMessage,
 				swiftSignature,
+				takerDriftClient.encodeSwiftOrderParamsMessage(takerOrderParamsMessage),
+				takerOrderParamsSig,
 				takerOrderParamsMessage.expectedOrderId,
 				{
 					taker: await takerDriftClient.getUserAccountPublicKey(),
@@ -712,6 +741,10 @@ describe('place and make swift order', () => {
 	});
 
 	it('should work with off-chain auctions', async () => {
+		const slot = new BN(
+			await bankrunContextWrapper.connection.toConnection().getSlot()
+		);
+
 		const keypair = new Keypair();
 		await bankrunContextWrapper.fundKeypair(keypair, 10 ** 9);
 		await sleep(1000);
@@ -795,9 +828,19 @@ describe('place and make swift order', () => {
 			swiftKeypair
 		);
 
+		console.log(encodedSwiftServerMessage.length);
+		console.log(swiftSignature.length);
+		console.log(
+			takerDriftClient.encodeSwiftOrderParamsMessage(takerOrderParamsMessage)
+				.length
+		);
+		console.log(takerOrderParamsSig.length);
+
 		await makerDriftClient.placeSwiftTakerOrder(
 			encodedSwiftServerMessage,
 			swiftSignature,
+			takerDriftClient.encodeSwiftOrderParamsMessage(takerOrderParamsMessage),
+			takerOrderParamsSig,
 			takerOrderParamsMessage.marketIndex,
 			{
 				taker: await takerDriftClient.getUserAccountPublicKey(),
@@ -820,6 +863,8 @@ describe('place and make swift order', () => {
 		await makerDriftClient.placeAndMakeSwiftPerpOrder(
 			encodedSwiftServerMessage,
 			swiftSignature,
+			takerDriftClient.encodeSwiftOrderParamsMessage(takerOrderParamsMessage),
+			takerOrderParamsSig,
 			takerOrderParamsMessage.expectedOrderId,
 			{
 				taker: await takerDriftClient.getUserAccountPublicKey(),

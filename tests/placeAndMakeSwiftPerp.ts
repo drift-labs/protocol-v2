@@ -240,6 +240,8 @@ describe('place and make swift order', () => {
 			txSig = await makerDriftClient.placeAndMakeSwiftPerpOrder(
 				encodedSwiftServerMessage,
 				swiftSignature,
+				takerDriftClient.encodeSwiftOrderParamsMessage(takerOrderParamsMessage),
+				takerOrderParamsSig,
 				takerOrderParamsMessage.expectedOrderId,
 				{
 					taker: await takerDriftClient.getUserAccountPublicKey(),
@@ -351,6 +353,8 @@ describe('place and make swift order', () => {
 			txSig = await takerDriftClient.placeSwiftTakerOrder(
 				encodedSwiftServerMessage,
 				swiftSignature,
+				takerDriftClient.encodeSwiftOrderParamsMessage(takerOrderParamsMessage),
+				takerOrderParamsSig,
 				marketIndex,
 				{
 					taker: await takerDriftClient.getUserAccountPublicKey(),

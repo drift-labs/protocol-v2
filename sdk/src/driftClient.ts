@@ -118,7 +118,7 @@ import { WebSocketDriftClientAccountSubscriber } from './accounts/webSocketDrift
 import { RetryTxSender } from './tx/retryTxSender';
 import { User } from './user';
 import { UserSubscriptionConfig } from './userConfig';
-import { configs, DRIFT_PROGRAM_ID } from './config';
+import { configs, DRIFT_PROGRAM_ID, SWIFT_ID } from './config';
 import { WRAPPED_SOL_MINT } from './constants/spotMarkets';
 import { UserStats } from './userStats';
 import { isSpotPositionAvailable } from './math/spotPosition';
@@ -5446,6 +5446,8 @@ export class DriftClient {
 	public async placeSwiftTakerOrder(
 		swiftServerMessage: Buffer,
 		swiftSignature: Buffer,
+		swiftOrderParamsMessage: Buffer,
+		swiftOrderParamsSignature: Buffer,
 		marketIndex: number,
 		takerInfo: {
 			taker: PublicKey;
@@ -5454,9 +5456,11 @@ export class DriftClient {
 		},
 		txParams?: TxParams
 	): Promise<TransactionSignature> {
-		const ixs = await this.getPlaceSwiftTakerPerpOrderIx(
+		const ixs = await this.getPlaceSwiftTakerPerpOrderIxs(
 			swiftServerMessage,
 			swiftSignature,
+			swiftOrderParamsMessage,
+			swiftOrderParamsSignature,
 			marketIndex,
 			takerInfo
 		);
@@ -5468,9 +5472,11 @@ export class DriftClient {
 		return txSig;
 	}
 
-	public async getPlaceSwiftTakerPerpOrderIx(
-		swiftServerMessage: Buffer,
+	public async getPlaceSwiftTakerPerpOrderIxs(
+		encodedSwiftServerMessage: Buffer,
 		swiftSignature: Buffer,
+		encodedSwiftOrderParamsMessage: Buffer,
+		swiftOrderParamsSignature: Buffer,
 		marketIndex: number,
 		takerInfo: {
 			taker: PublicKey;
@@ -5484,15 +5490,23 @@ export class DriftClient {
 			readablePerpMarketIndex: marketIndex,
 		});
 
-		const signatureIx = Ed25519Program.createInstructionWithPublicKey({
-			publicKey: takerInfo.takerUserAccount.authority.toBytes(),
-			signature: Uint8Array.from(swiftSignature),
-			message: Uint8Array.from(swiftServerMessage),
-		});
+		const swiftServerSignatureIx =
+			Ed25519Program.createInstructionWithPublicKey({
+				publicKey: new PublicKey(SWIFT_ID).toBytes(),
+				signature: Uint8Array.from(swiftSignature),
+				message: Uint8Array.from(encodedSwiftServerMessage),
+			});
+
+		const swiftOrderParamsSignatureIx =
+			Ed25519Program.createInstructionWithPublicKey({
+				publicKey: takerInfo.takerUserAccount.authority.toBytes(),
+				signature: Uint8Array.from(swiftOrderParamsSignature),
+				message: Uint8Array.from(encodedSwiftOrderParamsMessage),
+			});
 
 		const placeTakerSwiftPerpOrderIx =
 			await this.program.instruction.placeSwiftTakerOrder(
-				swiftServerMessage,
+				encodedSwiftServerMessage,
 				swiftSignature,
 				{
 					accounts: {
@@ -5506,12 +5520,18 @@ export class DriftClient {
 				}
 			);
 
-		return [signatureIx, placeTakerSwiftPerpOrderIx];
+		return [
+			swiftServerSignatureIx,
+			swiftOrderParamsSignatureIx,
+			placeTakerSwiftPerpOrderIx,
+		];
 	}
 
 	public async placeAndMakeSwiftPerpOrder(
 		encodedSwiftMessage: Buffer,
 		swiftSignature: Buffer,
+		encodedSwiftOrderParamsMessage: Buffer,
+		swiftOrderParamsSignature: Buffer,
 		takerExpectedOrderId: number,
 		takerInfo: {
 			taker: PublicKey;
@@ -5526,6 +5546,8 @@ export class DriftClient {
 		const ixs = await this.getPlaceAndMakeSwiftPerpOrderIxs(
 			encodedSwiftMessage,
 			swiftSignature,
+			encodedSwiftOrderParamsMessage,
+			swiftOrderParamsSignature,
 			takerExpectedOrderId,
 			takerInfo,
 			orderParams,
@@ -5545,6 +5567,8 @@ export class DriftClient {
 	public async getPlaceAndMakeSwiftPerpOrderIxs(
 		encodedSwiftMessage: Buffer,
 		swiftSignature: Buffer,
+		encodedSwiftOrderParamsMessage: Buffer,
+		swiftOrderParamsSignature: Buffer,
 		takerExpectedOrderId: number,
 		takerInfo: {
 			taker: PublicKey;
@@ -5555,13 +5579,18 @@ export class DriftClient {
 		referrerInfo?: ReferrerInfo,
 		subAccountId?: number
 	): Promise<TransactionInstruction[]> {
-		const [signatureIx, placeTakerSwiftPerpOrderIx] =
-			await this.getPlaceSwiftTakerPerpOrderIx(
-				encodedSwiftMessage,
-				swiftSignature,
-				orderParams.marketIndex,
-				takerInfo
-			);
+		const [
+			swiftServerSignatureIx,
+			swiftOrderSignatureIx,
+			placeTakerSwiftPerpOrderIx,
+		] = await this.getPlaceSwiftTakerPerpOrderIxs(
+			encodedSwiftMessage,
+			swiftSignature,
+			encodedSwiftOrderParamsMessage,
+			swiftOrderParamsSignature,
+			orderParams.marketIndex,
+			takerInfo
+		);
 
 		orderParams = getOrderParams(orderParams, { marketType: MarketType.PERP });
 		const userStatsPublicKey = this.getUserStatsAccountPublicKey();
@@ -5605,7 +5634,12 @@ export class DriftClient {
 			}
 		);
 
-		return [signatureIx, placeTakerSwiftPerpOrderIx, placeAndMakeIx];
+		return [
+			swiftServerSignatureIx,
+			swiftOrderSignatureIx,
+			placeTakerSwiftPerpOrderIx,
+			placeAndMakeIx,
+		];
 	}
 
 	public async preparePlaceAndTakeSpotOrder(

@@ -505,15 +505,11 @@ pub fn place_swift_taker_order<'c: 'info, 'info>(
     // Authenticate the swift param message
     let ix_idx = load_current_index_checked(ix_sysvar)?;
     validate!(
-        ix_idx > 0,
+        ix_idx > 1,
         ErrorCode::InvalidVerificationIxIndex,
-        "instruction index must be greater than 0"
+        "instruction index must be greater than 1 for two sig verifies"
     )?;
-    let ix: Instruction = load_instruction_at_checked(ix_idx as usize - 1, ix_sysvar)?;
-
-    msg!("Verifying swift message");
-    msg!("Swift message: {:?}", swift_message);
-    msg!("signature: {:?}", sig);
+    let ix: Instruction = load_instruction_at_checked(ix_idx as usize - 2, ix_sysvar)?;
     verify_ed25519_ix(
         &ix,
         &swift_server::id().to_bytes(),
@@ -521,24 +517,18 @@ pub fn place_swift_taker_order<'c: 'info, 'info>(
         &sig,
     )?;
 
-    msg!("Verified swift message");
-
     // Authenticate the taker order signature
-    verify_ed25519_ix(
-        &ix,
-        &taker.authority.to_bytes(),
-        &swift_message
-            .swift_order_params_message
-            .clone()
-            .try_to_vec()?,
-        &swift_message.swift_order_signature.clone(),
-    )?;
-
-    msg!("Verified taker signature");
-
     let taker_order_params_message: SwiftOrderParamsMessage =
         SwiftOrderParamsMessage::deserialize(&mut &swift_message.swift_order_params_message[..])
             .unwrap();
+
+    let ix: Instruction = load_instruction_at_checked(ix_idx as usize - 1, ix_sysvar)?;
+    verify_ed25519_ix(
+        &ix,
+        &taker.authority.to_bytes(),
+        &taker_order_params_message.clone().try_to_vec()?,
+        &swift_message.swift_order_signature.clone(),
+    )?;
 
     // Verify inputs and validate market index
     taker_order_params_message.verify_all_same_market_indexes()?;
