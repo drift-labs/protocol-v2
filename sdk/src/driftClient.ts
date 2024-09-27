@@ -118,7 +118,7 @@ import { WebSocketDriftClientAccountSubscriber } from './accounts/webSocketDrift
 import { RetryTxSender } from './tx/retryTxSender';
 import { User } from './user';
 import { UserSubscriptionConfig } from './userConfig';
-import { configs, DRIFT_PROGRAM_ID } from './config';
+import { configs, DEFAULT_CONFIRMATION_OPTS, DRIFT_PROGRAM_ID } from './config';
 import { WRAPPED_SOL_MINT } from './constants/spotMarkets';
 import { UserStats } from './userStats';
 import { isSpotPositionAvailable } from './math/spotPosition';
@@ -223,7 +223,7 @@ export class DriftClient {
 		this.connection = config.connection;
 		this.wallet = config.wallet;
 		this.opts = config.opts || {
-			...AnchorProvider.defaultOptions(),
+			...DEFAULT_CONFIRMATION_OPTS,
 			commitment: config?.connection?.commitment,
 			preflightCommitment: config?.connection?.commitment, // At the moment this ensures that our transaction simulations (which use Connection object) will use the same commitment level as our Transaction blockhashes (which use these opts)
 		};

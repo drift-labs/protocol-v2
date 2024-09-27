@@ -1,4 +1,3 @@
-import { AnchorProvider } from '@coral-xyz/anchor';
 import {
 	ConfirmOptions,
 	Connection,
@@ -9,6 +8,7 @@ import { BaseTxSender } from './baseTxSender';
 import { ConfirmationStrategy, TxSigAndSlot } from './types';
 import { TxHandler } from './txHandler';
 import { IWallet } from '../types';
+import { DEFAULT_CONFIRMATION_OPTS } from '../config';
 
 const DEFAULT_TIMEOUT = 35000;
 const DEFAULT_RETRY = 5000;
@@ -29,7 +29,7 @@ export class ForwardOnlyTxSender extends BaseTxSender {
 	public constructor({
 		connection,
 		wallet,
-		opts = { ...AnchorProvider.defaultOptions(), maxRetries: 0 },
+		opts = { ...DEFAULT_CONFIRMATION_OPTS, maxRetries: 0 },
 		timeout = DEFAULT_TIMEOUT,
 		retrySleep = DEFAULT_RETRY,
 		confirmationStrategy = ConfirmationStrategy.Combo,
