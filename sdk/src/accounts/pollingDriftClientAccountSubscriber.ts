@@ -528,7 +528,7 @@ export class PollingDriftClientAccountSubscriber
 		}
 
 		for (const oracle of oracles) {
-			const callbackId = this.accountsToPoll.get(oracle.toBase58()).callbackId;
+			const callbackId = this.oraclesToPoll.get(oracle.toBase58()).callbackId;
 			this.accountLoader.removeAccount(oracle, callbackId);
 			if (this.delistedMarketSetting === DelistedMarketSetting.Discard) {
 				this.oracles.delete(oracle.toBase58());
