@@ -143,7 +143,7 @@ describe('place and make swift order', () => {
 			ammInitialBaseAssetReserve,
 			ammInitialQuoteAssetReserve,
 			periodicity,
-			new BN(32 * PEG_PRECISION.toNumber())
+			new BN(33 * PEG_PRECISION.toNumber())
 		);
 
 		await makerDriftClient.initializeUserAccountAndDepositCollateral(
@@ -169,6 +169,9 @@ describe('place and make swift order', () => {
 	});
 
 	it('makeSwiftOrder', async () => {
+		slot = new BN(
+			await bankrunContextWrapper.connection.toConnection().getSlot()
+		);
 		const keypair = new Keypair();
 		await bankrunContextWrapper.fundKeypair(keypair, 10 ** 9);
 		await sleep(1000);
@@ -309,572 +312,580 @@ describe('place and make swift order', () => {
 
 		await takerDriftClientUser.unsubscribe();
 		await takerDriftClient.unsubscribe();
-
 	});
 
-	// it('fills swift with trigger orders ', async () => {
-	// 	const keypair = new Keypair();
-	// 	await bankrunContextWrapper.fundKeypair(keypair, 10 ** 9);
-	// 	await sleep(1000);
-	// 	const wallet = new Wallet(keypair);
-	// 	const userUSDCAccount = await mockUserUSDCAccount(
-	// 		usdcMint,
-	// 		usdcAmount,
-	// 		bankrunContextWrapper,
-	// 		keypair.publicKey
-	// 	);
-	// 	const takerDriftClient = new TestClient({
-	// 		connection: bankrunContextWrapper.connection.toConnection(),
-	// 		wallet,
-	// 		programID: chProgram.programId,
-	// 		opts: {
-	// 			commitment: 'confirmed',
-	// 		},
-	// 		activeSubAccountId: 0,
-	// 		perpMarketIndexes: marketIndexes,
-	// 		spotMarketIndexes: spotMarketIndexes,
-	// 		subAccountIds: [],
-	// 		oracleInfos,
-	// 		userStats: true,
-	// 		accountSubscription: {
-	// 			type: 'polling',
-	// 			accountLoader: bulkAccountLoader,
-	// 		},
-	// 	});
-	// 	await takerDriftClient.subscribe();
-	// 	await takerDriftClient.initializeUserAccountAndDepositCollateral(
-	// 		usdcAmount,
-	// 		userUSDCAccount.publicKey
-	// 	);
-	// 	const takerDriftClientUser = new User({
-	// 		driftClient: takerDriftClient,
-	// 		userAccountPublicKey: await takerDriftClient.getUserAccountPublicKey(),
-	// 		accountSubscription: {
-	// 			type: 'polling',
-	// 			accountLoader: bulkAccountLoader,
-	// 		},
-	// 	});
-	// 	await takerDriftClientUser.subscribe();
+	it('fills swift with trigger orders ', async () => {
+		slot = new BN(
+			await bankrunContextWrapper.connection.toConnection().getSlot()
+		);
+		const keypair = new Keypair();
+		await bankrunContextWrapper.fundKeypair(keypair, 10 ** 9);
+		await sleep(1000);
+		const wallet = new Wallet(keypair);
+		const userUSDCAccount = await mockUserUSDCAccount(
+			usdcMint,
+			usdcAmount,
+			bankrunContextWrapper,
+			keypair.publicKey
+		);
+		const takerDriftClient = new TestClient({
+			connection: bankrunContextWrapper.connection.toConnection(),
+			wallet,
+			programID: chProgram.programId,
+			opts: {
+				commitment: 'confirmed',
+			},
+			activeSubAccountId: 0,
+			perpMarketIndexes: marketIndexes,
+			spotMarketIndexes: spotMarketIndexes,
+			subAccountIds: [],
+			oracleInfos,
+			userStats: true,
+			accountSubscription: {
+				type: 'polling',
+				accountLoader: bulkAccountLoader,
+			},
+		});
+		await takerDriftClient.subscribe();
+		await takerDriftClient.initializeUserAccountAndDepositCollateral(
+			usdcAmount,
+			userUSDCAccount.publicKey
+		);
+		const takerDriftClientUser = new User({
+			driftClient: takerDriftClient,
+			userAccountPublicKey: await takerDriftClient.getUserAccountPublicKey(),
+			accountSubscription: {
+				type: 'polling',
+				accountLoader: bulkAccountLoader,
+			},
+		});
+		await takerDriftClientUser.subscribe();
 
-	// 	const marketIndex = 0;
-	// 	const baseAssetAmount = BASE_PRECISION;
-	// 	const takerOrderParams = getMarketOrderParams({
-	// 		marketIndex,
-	// 		direction: PositionDirection.LONG,
-	// 		baseAssetAmount,
-	// 		price: new BN(34).mul(PRICE_PRECISION),
-	// 		auctionStartPrice: new BN(33).mul(PRICE_PRECISION),
-	// 		auctionEndPrice: new BN(34).mul(PRICE_PRECISION),
-	// 		auctionDuration: 10,
-	// 		userOrderId: 1,
-	// 		postOnly: PostOnlyParams.NONE,
-	// 		marketType: MarketType.PERP,
-	// 	});
-	// 	const stopLossTakerParams = getTriggerLimitOrderParams({
-	// 		marketIndex,
-	// 		direction: PositionDirection.SHORT,
-	// 		baseAssetAmount,
-	// 		price: new BN(20).mul(PRICE_PRECISION),
-	// 		triggerPrice: new BN(20).mul(PRICE_PRECISION),
-	// 		userOrderId: 2,
-	// 		triggerCondition: OrderTriggerCondition.BELOW,
-	// 		marketType: MarketType.PERP,
-	// 	});
+		const marketIndex = 0;
+		const baseAssetAmount = BASE_PRECISION;
+		const takerOrderParams = getMarketOrderParams({
+			marketIndex,
+			direction: PositionDirection.LONG,
+			baseAssetAmount,
+			price: new BN(34).mul(PRICE_PRECISION),
+			auctionStartPrice: new BN(33).mul(PRICE_PRECISION),
+			auctionEndPrice: new BN(34).mul(PRICE_PRECISION),
+			auctionDuration: 10,
+			userOrderId: 1,
+			postOnly: PostOnlyParams.NONE,
+			marketType: MarketType.PERP,
+		});
+		const stopLossTakerParams = getTriggerLimitOrderParams({
+			marketIndex,
+			direction: PositionDirection.SHORT,
+			baseAssetAmount,
+			price: new BN(20).mul(PRICE_PRECISION),
+			triggerPrice: new BN(20).mul(PRICE_PRECISION),
+			userOrderId: 2,
+			triggerCondition: OrderTriggerCondition.BELOW,
+			marketType: MarketType.PERP,
+		});
 
-	// 	const takeProfitTakerParams = getTriggerLimitOrderParams({
-	// 		marketIndex,
-	// 		direction: PositionDirection.SHORT,
-	// 		baseAssetAmount,
-	// 		price: new BN(40).mul(PRICE_PRECISION),
-	// 		triggerPrice: new BN(40).mul(PRICE_PRECISION),
-	// 		userOrderId: 3,
-	// 		triggerCondition: OrderTriggerCondition.ABOVE,
-	// 		marketType: MarketType.PERP,
-	// 	});
+		const takeProfitTakerParams = getTriggerLimitOrderParams({
+			marketIndex,
+			direction: PositionDirection.SHORT,
+			baseAssetAmount,
+			price: new BN(40).mul(PRICE_PRECISION),
+			triggerPrice: new BN(40).mul(PRICE_PRECISION),
+			userOrderId: 3,
+			triggerCondition: OrderTriggerCondition.ABOVE,
+			marketType: MarketType.PERP,
+		});
 
-	// 	await takerDriftClientUser.fetchAccounts();
-	// 	const makerOrderParams = getLimitOrderParams({
-	// 		marketIndex,
-	// 		direction: PositionDirection.SHORT,
-	// 		baseAssetAmount,
-	// 		price: new BN(33).mul(PRICE_PRECISION),
-	// 		postOnly: PostOnlyParams.MUST_POST_ONLY,
-	// 		immediateOrCancel: true,
-	// 		marketType: MarketType.PERP,
-	// 	});
+		await takerDriftClientUser.fetchAccounts();
+		const makerOrderParams = getLimitOrderParams({
+			marketIndex,
+			direction: PositionDirection.SHORT,
+			baseAssetAmount,
+			price: new BN(33).mul(PRICE_PRECISION),
+			postOnly: PostOnlyParams.MUST_POST_ONLY,
+			immediateOrCancel: true,
+			marketType: MarketType.PERP,
+		});
 
-	// 	const takerOrderParamsMessage: SwiftOrderParamsMessage = {
-	// 		swiftOrderParams: [
-	// 			takerOrderParams,
-	// 			stopLossTakerParams,
-	// 			takeProfitTakerParams,
-	// 		],
-	// 		marketIndex,
-	// 		expectedOrderId: 1,
-	// 		marketType: MarketType.PERP,
-	// 	};
+		const takerOrderParamsMessage: SwiftOrderParamsMessage = {
+			swiftOrderParams: [
+				takerOrderParams,
+				stopLossTakerParams,
+				takeProfitTakerParams,
+			],
+			marketIndex,
+			expectedOrderId: 1,
+			marketType: MarketType.PERP,
+		};
 
-	// 	const takerOrderParamsSig =
-	// 		await takerDriftClient.signSwiftOrderParamsMessage(
-	// 			takerOrderParamsMessage
-	// 		);
+		const takerOrderParamsSig =
+			await takerDriftClient.signSwiftOrderParamsMessage(
+				takerOrderParamsMessage
+			);
 
-	// 	const swiftDriftClient = new TestClient({
-	// 		connection: bankrunContextWrapper.connection.toConnection(),
-	// 		wallet: new Wallet(swiftKeypair),
-	// 		programID: chProgram.programId,
-	// 		opts: {
-	// 			commitment: 'confirmed',
-	// 		},
-	// 		activeSubAccountId: 0,
-	// 		perpMarketIndexes: marketIndexes,
-	// 		spotMarketIndexes: spotMarketIndexes,
-	// 		subAccountIds: [],
-	// 		oracleInfos,
-	// 		userStats: true,
-	// 		accountSubscription: {
-	// 			type: 'polling',
-	// 			accountLoader: bulkAccountLoader,
-	// 		},
-	// 	});
+		const swiftDriftClient = new TestClient({
+			connection: bankrunContextWrapper.connection.toConnection(),
+			wallet: new Wallet(swiftKeypair),
+			programID: chProgram.programId,
+			opts: {
+				commitment: 'confirmed',
+			},
+			activeSubAccountId: 0,
+			perpMarketIndexes: marketIndexes,
+			spotMarketIndexes: spotMarketIndexes,
+			subAccountIds: [],
+			oracleInfos,
+			userStats: true,
+			accountSubscription: {
+				type: 'polling',
+				accountLoader: bulkAccountLoader,
+			},
+		});
 
-	// 	const swiftServerMessage: SwiftServerMessage = {
-	// 		slot,
-	// 		swiftOrderSignature: takerOrderParamsSig,
-	// 	};
+		const swiftServerMessage: SwiftServerMessage = {
+			slot,
+			swiftOrderSignature: takerOrderParamsSig,
+		};
 
-	// 	const encodedSwiftServerMessage =
-	// 		swiftDriftClient.encodeSwiftServerMessage(swiftServerMessage);
+		const encodedSwiftServerMessage =
+			swiftDriftClient.encodeSwiftServerMessage(swiftServerMessage);
 
-	// 	const swiftSignature = await swiftDriftClient.signMessage(
-	// 		Uint8Array.from(encodedSwiftServerMessage),
-	// 		swiftKeypair
-	// 	);
+		const swiftSignature = await swiftDriftClient.signMessage(
+			Uint8Array.from(encodedSwiftServerMessage),
+			swiftKeypair
+		);
 
-	// 	await makerDriftClient.placeAndMakeSwiftPerpOrder(
-	// 		encodedSwiftServerMessage,
-	// 		swiftSignature,
-	// 		takerDriftClient.encodeSwiftOrderParamsMessage(takerOrderParamsMessage),
-	// 		takerOrderParamsSig,
-	// 		takerOrderParamsMessage.expectedOrderId,
-	// 		{
-	// 			taker: await takerDriftClient.getUserAccountPublicKey(),
-	// 			takerUserAccount: takerDriftClient.getUserAccount(),
-	// 			takerStats: takerDriftClient.getUserStatsAccountPublicKey(),
-	// 		},
-	// 		makerOrderParams
-	// 	);
+		await makerDriftClient.placeAndMakeSwiftPerpOrder(
+			encodedSwiftServerMessage,
+			swiftSignature,
+			takerDriftClient.encodeSwiftOrderParamsMessage(takerOrderParamsMessage),
+			takerOrderParamsSig,
+			takerOrderParamsMessage.expectedOrderId,
+			{
+				taker: await takerDriftClient.getUserAccountPublicKey(),
+				takerUserAccount: takerDriftClient.getUserAccount(),
+				takerStats: takerDriftClient.getUserStatsAccountPublicKey(),
+			},
+			makerOrderParams
+		);
 
-	// 	const makerPosition = makerDriftClient.getUser().getPerpPosition(0);
-	// 	assert(makerPosition.baseAssetAmount.eq(BASE_PRECISION.neg().muln(3)));
+		const makerPosition = makerDriftClient.getUser().getPerpPosition(0);
+		assert(makerPosition.baseAssetAmount.eq(BASE_PRECISION.neg().muln(3)));
 
-	// 	const takerPosition = takerDriftClient.getUser().getPerpPosition(0);
+		const takerPosition = takerDriftClient.getUser().getPerpPosition(0);
 
-	// 	// All orders are placed and one is
-	// 	assert(takerPosition.baseAssetAmount.eq(BASE_PRECISION));
-	// 	assert(takerDriftClient.getOrderByUserId(2) !== undefined);
-	// 	assert(takerDriftClient.getOrderByUserId(3) !== undefined);
+		// All orders are placed and one is
+		assert(takerPosition.baseAssetAmount.eq(BASE_PRECISION));
+		assert(takerDriftClient.getOrderByUserId(2) !== undefined);
+		assert(takerDriftClient.getOrderByUserId(3) !== undefined);
 
-	// 	await takerDriftClientUser.unsubscribe();
-	// 	await takerDriftClient.unsubscribe();
-	// });
+		await takerDriftClientUser.unsubscribe();
+		await takerDriftClient.unsubscribe();
+	});
 
-	// it('should fail if orders are sent out of swift order ', async () => {
-	// 	const keypair = new Keypair();
-	// 	await bankrunContextWrapper.fundKeypair(keypair, 10 ** 9);
-	// 	await sleep(1000);
-	// 	const wallet = new Wallet(keypair);
-	// 	const userUSDCAccount = await mockUserUSDCAccount(
-	// 		usdcMint,
-	// 		usdcAmount,
-	// 		bankrunContextWrapper,
-	// 		keypair.publicKey
-	// 	);
-	// 	const takerDriftClient = new TestClient({
-	// 		connection: bankrunContextWrapper.connection.toConnection(),
-	// 		wallet,
-	// 		programID: chProgram.programId,
-	// 		opts: {
-	// 			commitment: 'confirmed',
-	// 		},
-	// 		activeSubAccountId: 0,
-	// 		perpMarketIndexes: marketIndexes,
-	// 		spotMarketIndexes: spotMarketIndexes,
-	// 		subAccountIds: [],
-	// 		oracleInfos,
-	// 		userStats: true,
-	// 		accountSubscription: {
-	// 			type: 'polling',
-	// 			accountLoader: bulkAccountLoader,
-	// 		},
-	// 	});
-	// 	await takerDriftClient.subscribe();
-	// 	await takerDriftClient.initializeUserAccountAndDepositCollateral(
-	// 		usdcAmount,
-	// 		userUSDCAccount.publicKey
-	// 	);
-	// 	const takerDriftClientUser = new User({
-	// 		driftClient: takerDriftClient,
-	// 		userAccountPublicKey: await takerDriftClient.getUserAccountPublicKey(),
-	// 		accountSubscription: {
-	// 			type: 'polling',
-	// 			accountLoader: bulkAccountLoader,
-	// 		},
-	// 	});
-	// 	await takerDriftClientUser.subscribe();
+	it('should fail if orders are sent out of swift order ', async () => {
+		slot = new BN(
+			await bankrunContextWrapper.connection.toConnection().getSlot()
+		);
+		const keypair = new Keypair();
+		await bankrunContextWrapper.fundKeypair(keypair, 10 ** 9);
+		await sleep(1000);
+		const wallet = new Wallet(keypair);
+		const userUSDCAccount = await mockUserUSDCAccount(
+			usdcMint,
+			usdcAmount,
+			bankrunContextWrapper,
+			keypair.publicKey
+		);
+		const takerDriftClient = new TestClient({
+			connection: bankrunContextWrapper.connection.toConnection(),
+			wallet,
+			programID: chProgram.programId,
+			opts: {
+				commitment: 'confirmed',
+			},
+			activeSubAccountId: 0,
+			perpMarketIndexes: marketIndexes,
+			spotMarketIndexes: spotMarketIndexes,
+			subAccountIds: [],
+			oracleInfos,
+			userStats: true,
+			accountSubscription: {
+				type: 'polling',
+				accountLoader: bulkAccountLoader,
+			},
+		});
+		await takerDriftClient.subscribe();
+		await takerDriftClient.initializeUserAccountAndDepositCollateral(
+			usdcAmount,
+			userUSDCAccount.publicKey
+		);
+		const takerDriftClientUser = new User({
+			driftClient: takerDriftClient,
+			userAccountPublicKey: await takerDriftClient.getUserAccountPublicKey(),
+			accountSubscription: {
+				type: 'polling',
+				accountLoader: bulkAccountLoader,
+			},
+		});
+		await takerDriftClientUser.subscribe();
 
-	// 	const marketIndex = 0;
-	// 	const baseAssetAmount = BASE_PRECISION;
-	// 	const takerOrderParams = getMarketOrderParams({
-	// 		marketIndex,
-	// 		direction: PositionDirection.LONG,
-	// 		baseAssetAmount,
-	// 		price: new BN(34).mul(PRICE_PRECISION),
-	// 		auctionStartPrice: new BN(33).mul(PRICE_PRECISION),
-	// 		auctionEndPrice: new BN(34).mul(PRICE_PRECISION),
-	// 		auctionDuration: 10,
-	// 		userOrderId: 1,
-	// 		postOnly: PostOnlyParams.NONE,
-	// 	});
-	// 	const stopLossTakerParams = getTriggerLimitOrderParams({
-	// 		marketIndex,
-	// 		direction: PositionDirection.SHORT,
-	// 		baseAssetAmount,
-	// 		price: new BN(20).mul(PRICE_PRECISION),
-	// 		triggerPrice: new BN(20).mul(PRICE_PRECISION),
-	// 		userOrderId: 2,
-	// 		triggerCondition: OrderTriggerCondition.BELOW,
-	// 	});
+		const marketIndex = 0;
+		const baseAssetAmount = BASE_PRECISION;
+		const takerOrderParams = getMarketOrderParams({
+			marketIndex,
+			direction: PositionDirection.LONG,
+			baseAssetAmount,
+			price: new BN(34).mul(PRICE_PRECISION),
+			auctionStartPrice: new BN(33).mul(PRICE_PRECISION),
+			auctionEndPrice: new BN(34).mul(PRICE_PRECISION),
+			auctionDuration: 10,
+			userOrderId: 1,
+			postOnly: PostOnlyParams.NONE,
+		});
+		const stopLossTakerParams = getTriggerLimitOrderParams({
+			marketIndex,
+			direction: PositionDirection.SHORT,
+			baseAssetAmount,
+			price: new BN(20).mul(PRICE_PRECISION),
+			triggerPrice: new BN(20).mul(PRICE_PRECISION),
+			userOrderId: 2,
+			triggerCondition: OrderTriggerCondition.BELOW,
+		});
 
-	// 	const takeProfitTakerParams = getTriggerLimitOrderParams({
-	// 		marketIndex,
-	// 		direction: PositionDirection.SHORT,
-	// 		baseAssetAmount,
-	// 		price: new BN(40).mul(PRICE_PRECISION),
-	// 		triggerPrice: new BN(40).mul(PRICE_PRECISION),
-	// 		userOrderId: 3,
-	// 		triggerCondition: OrderTriggerCondition.ABOVE,
-	// 	});
+		const takeProfitTakerParams = getTriggerLimitOrderParams({
+			marketIndex,
+			direction: PositionDirection.SHORT,
+			baseAssetAmount,
+			price: new BN(40).mul(PRICE_PRECISION),
+			triggerPrice: new BN(40).mul(PRICE_PRECISION),
+			userOrderId: 3,
+			triggerCondition: OrderTriggerCondition.ABOVE,
+		});
 
-	// 	await takerDriftClientUser.fetchAccounts();
-	// 	const makerOrderParams = getLimitOrderParams({
-	// 		marketIndex,
-	// 		direction: PositionDirection.SHORT,
-	// 		baseAssetAmount,
-	// 		price: new BN(33).mul(PRICE_PRECISION),
-	// 		postOnly: PostOnlyParams.MUST_POST_ONLY,
-	// 		immediateOrCancel: true,
-	// 	});
+		await takerDriftClientUser.fetchAccounts();
+		const makerOrderParams = getLimitOrderParams({
+			marketIndex,
+			direction: PositionDirection.SHORT,
+			baseAssetAmount,
+			price: new BN(33).mul(PRICE_PRECISION),
+			postOnly: PostOnlyParams.MUST_POST_ONLY,
+			immediateOrCancel: true,
+		});
 
-	// 	const takerOrderParamsMessage: SwiftOrderParamsMessage = {
-	// 		swiftOrderParams: [
-	// 			stopLossTakerParams,
-	// 			takeProfitTakerParams,
-	// 			takerOrderParams,
-	// 		],
-	// 		marketIndex,
-	// 		expectedOrderId: 1,
-	// 		marketType: MarketType.PERP,
-	// 	};
+		const takerOrderParamsMessage: SwiftOrderParamsMessage = {
+			swiftOrderParams: [
+				stopLossTakerParams,
+				takeProfitTakerParams,
+				takerOrderParams,
+			],
+			marketIndex,
+			expectedOrderId: 1,
+			marketType: MarketType.PERP,
+		};
 
-	// 	const takerOrderParamsSig =
-	// 		await takerDriftClient.signSwiftOrderParamsMessage(
-	// 			takerOrderParamsMessage
-	// 		);
+		const takerOrderParamsSig =
+			await takerDriftClient.signSwiftOrderParamsMessage(
+				takerOrderParamsMessage
+			);
 
-	// 	const swiftServerMessage: SwiftServerMessage = {
-	// 		slot,
-	// 		swiftOrderSignature: takerOrderParamsSig,
-	// 	};
+		const swiftServerMessage: SwiftServerMessage = {
+			slot,
+			swiftOrderSignature: takerOrderParamsSig,
+		};
 
-	// 	const encodedSwiftServerMessage =
-	// 		takerDriftClient.encodeSwiftServerMessage(swiftServerMessage);
+		const encodedSwiftServerMessage =
+			takerDriftClient.encodeSwiftServerMessage(swiftServerMessage);
 
-	// 	const swiftSignature = await takerDriftClient.signMessage(
-	// 		Uint8Array.from(encodedSwiftServerMessage),
-	// 		swiftKeypair
-	// 	);
+		const swiftSignature = await takerDriftClient.signMessage(
+			Uint8Array.from(encodedSwiftServerMessage),
+			swiftKeypair
+		);
 
-	// 	try {
-	// 		await makerDriftClient.placeAndMakeSwiftPerpOrder(
-	// 			encodedSwiftServerMessage,
-	// 			swiftSignature,
-	// 			takerDriftClient.encodeSwiftOrderParamsMessage(takerOrderParamsMessage),
-	// 			takerOrderParamsSig,
-	// 			takerOrderParamsMessage.expectedOrderId,
-	// 			{
-	// 				taker: await takerDriftClient.getUserAccountPublicKey(),
-	// 				takerUserAccount: takerDriftClient.getUserAccount(),
-	// 				takerStats: takerDriftClient.getUserStatsAccountPublicKey(),
-	// 			},
-	// 			makerOrderParams
-	// 		);
-	// 	} catch (e) {
-	// 		assert(e);
-	// 	}
+		try {
+			await makerDriftClient.placeAndMakeSwiftPerpOrder(
+				encodedSwiftServerMessage,
+				swiftSignature,
+				takerDriftClient.encodeSwiftOrderParamsMessage(takerOrderParamsMessage),
+				takerOrderParamsSig,
+				takerOrderParamsMessage.expectedOrderId,
+				{
+					taker: await takerDriftClient.getUserAccountPublicKey(),
+					takerUserAccount: takerDriftClient.getUserAccount(),
+					takerStats: takerDriftClient.getUserStatsAccountPublicKey(),
+				},
+				makerOrderParams
+			);
+		} catch (e) {
+			assert(e);
+		}
 
-	// 	const takerPosition = takerDriftClient.getUser().getPerpPosition(0);
-	// 	assert(takerPosition == undefined);
+		const takerPosition = takerDriftClient.getUser().getPerpPosition(0);
+		assert(takerPosition == undefined);
 
-	// 	await takerDriftClientUser.unsubscribe();
-	// 	await takerDriftClient.unsubscribe();
-	// });
+		await takerDriftClientUser.unsubscribe();
+		await takerDriftClient.unsubscribe();
+	});
 
-	// it('should fail if taker order is a limit order ', async () => {
-	// 	const keypair = new Keypair();
-	// 	await bankrunContextWrapper.fundKeypair(keypair, 10 ** 9);
-	// 	await sleep(1000);
-	// 	const wallet = new Wallet(keypair);
-	// 	const userUSDCAccount = await mockUserUSDCAccount(
-	// 		usdcMint,
-	// 		usdcAmount,
-	// 		bankrunContextWrapper,
-	// 		keypair.publicKey
-	// 	);
-	// 	const takerDriftClient = new TestClient({
-	// 		connection: bankrunContextWrapper.connection.toConnection(),
-	// 		wallet,
-	// 		programID: chProgram.programId,
-	// 		opts: {
-	// 			commitment: 'confirmed',
-	// 		},
-	// 		activeSubAccountId: 0,
-	// 		perpMarketIndexes: marketIndexes,
-	// 		spotMarketIndexes: spotMarketIndexes,
-	// 		subAccountIds: [],
-	// 		oracleInfos,
-	// 		userStats: true,
-	// 		accountSubscription: {
-	// 			type: 'polling',
-	// 			accountLoader: bulkAccountLoader,
-	// 		},
-	// 	});
-	// 	await takerDriftClient.subscribe();
-	// 	await takerDriftClient.initializeUserAccountAndDepositCollateral(
-	// 		usdcAmount,
-	// 		userUSDCAccount.publicKey
-	// 	);
-	// 	const takerDriftClientUser = new User({
-	// 		driftClient: takerDriftClient,
-	// 		userAccountPublicKey: await takerDriftClient.getUserAccountPublicKey(),
-	// 		accountSubscription: {
-	// 			type: 'polling',
-	// 			accountLoader: bulkAccountLoader,
-	// 		},
-	// 	});
-	// 	await takerDriftClientUser.subscribe();
+	it('should fail if taker order is a limit order ', async () => {
+		slot = new BN(
+			await bankrunContextWrapper.connection.toConnection().getSlot()
+		);
+		const keypair = new Keypair();
+		await bankrunContextWrapper.fundKeypair(keypair, 10 ** 9);
+		await sleep(1000);
+		const wallet = new Wallet(keypair);
+		const userUSDCAccount = await mockUserUSDCAccount(
+			usdcMint,
+			usdcAmount,
+			bankrunContextWrapper,
+			keypair.publicKey
+		);
+		const takerDriftClient = new TestClient({
+			connection: bankrunContextWrapper.connection.toConnection(),
+			wallet,
+			programID: chProgram.programId,
+			opts: {
+				commitment: 'confirmed',
+			},
+			activeSubAccountId: 0,
+			perpMarketIndexes: marketIndexes,
+			spotMarketIndexes: spotMarketIndexes,
+			subAccountIds: [],
+			oracleInfos,
+			userStats: true,
+			accountSubscription: {
+				type: 'polling',
+				accountLoader: bulkAccountLoader,
+			},
+		});
+		await takerDriftClient.subscribe();
+		await takerDriftClient.initializeUserAccountAndDepositCollateral(
+			usdcAmount,
+			userUSDCAccount.publicKey
+		);
+		const takerDriftClientUser = new User({
+			driftClient: takerDriftClient,
+			userAccountPublicKey: await takerDriftClient.getUserAccountPublicKey(),
+			accountSubscription: {
+				type: 'polling',
+				accountLoader: bulkAccountLoader,
+			},
+		});
+		await takerDriftClientUser.subscribe();
 
-	// 	const marketIndex = 0;
-	// 	const baseAssetAmount = BASE_PRECISION;
-	// 	const takerOrderParams = getLimitOrderParams({
-	// 		marketIndex,
-	// 		direction: PositionDirection.LONG,
-	// 		baseAssetAmount,
-	// 		price: new BN(34).mul(PRICE_PRECISION),
-	// 		auctionStartPrice: new BN(33).mul(PRICE_PRECISION),
-	// 		auctionEndPrice: new BN(34).mul(PRICE_PRECISION),
-	// 		auctionDuration: 10,
-	// 		userOrderId: 1,
-	// 		postOnly: PostOnlyParams.NONE,
-	// 	});
+		const marketIndex = 0;
+		const baseAssetAmount = BASE_PRECISION;
+		const takerOrderParams = getLimitOrderParams({
+			marketIndex,
+			direction: PositionDirection.LONG,
+			baseAssetAmount,
+			price: new BN(34).mul(PRICE_PRECISION),
+			auctionStartPrice: new BN(33).mul(PRICE_PRECISION),
+			auctionEndPrice: new BN(34).mul(PRICE_PRECISION),
+			auctionDuration: 10,
+			userOrderId: 1,
+			postOnly: PostOnlyParams.NONE,
+		});
 
-	// 	await takerDriftClientUser.fetchAccounts();
-	// 	const makerOrderParams = getLimitOrderParams({
-	// 		marketIndex,
-	// 		direction: PositionDirection.SHORT,
-	// 		baseAssetAmount,
-	// 		price: new BN(33).mul(PRICE_PRECISION),
-	// 		postOnly: PostOnlyParams.MUST_POST_ONLY,
-	// 		immediateOrCancel: true,
-	// 	});
+		await takerDriftClientUser.fetchAccounts();
+		const makerOrderParams = getLimitOrderParams({
+			marketIndex,
+			direction: PositionDirection.SHORT,
+			baseAssetAmount,
+			price: new BN(33).mul(PRICE_PRECISION),
+			postOnly: PostOnlyParams.MUST_POST_ONLY,
+			immediateOrCancel: true,
+		});
 
-	// 	const takerOrderParamsMessage: SwiftOrderParamsMessage = {
-	// 		swiftOrderParams: [takerOrderParams],
-	// 		marketIndex,
-	// 		expectedOrderId: 1,
-	// 		marketType: MarketType.PERP,
-	// 	};
+		const takerOrderParamsMessage: SwiftOrderParamsMessage = {
+			swiftOrderParams: [takerOrderParams],
+			marketIndex,
+			expectedOrderId: 1,
+			marketType: MarketType.PERP,
+		};
 
-	// 	const takerOrderParamsSig =
-	// 		await takerDriftClient.signSwiftOrderParamsMessage(
-	// 			takerOrderParamsMessage
-	// 		);
+		const takerOrderParamsSig =
+			await takerDriftClient.signSwiftOrderParamsMessage(
+				takerOrderParamsMessage
+			);
 
-	// 	const swiftServerMessage: SwiftServerMessage = {
-	// 		slot,
-	// 		swiftOrderSignature: takerOrderParamsSig,
-	// 	};
+		const swiftServerMessage: SwiftServerMessage = {
+			slot,
+			swiftOrderSignature: takerOrderParamsSig,
+		};
 
-	// 	const encodedSwiftServerMessage =
-	// 		takerDriftClient.encodeSwiftServerMessage(swiftServerMessage);
+		const encodedSwiftServerMessage =
+			takerDriftClient.encodeSwiftServerMessage(swiftServerMessage);
 
-	// 	const swiftSignature = await takerDriftClient.signMessage(
-	// 		Uint8Array.from(encodedSwiftServerMessage),
-	// 		swiftKeypair
-	// 	);
+		const swiftSignature = await takerDriftClient.signMessage(
+			Uint8Array.from(encodedSwiftServerMessage),
+			swiftKeypair
+		);
 
-	// 	try {
-	// 		await makerDriftClient.placeAndMakeSwiftPerpOrder(
-	// 			encodedSwiftServerMessage,
-	// 			swiftSignature,
-	// 			takerDriftClient.encodeSwiftOrderParamsMessage(takerOrderParamsMessage),
-	// 			takerOrderParamsSig,
-	// 			takerOrderParamsMessage.expectedOrderId,
-	// 			{
-	// 				taker: await takerDriftClient.getUserAccountPublicKey(),
-	// 				takerUserAccount: takerDriftClient.getUserAccount(),
-	// 				takerStats: takerDriftClient.getUserStatsAccountPublicKey(),
-	// 			},
-	// 			makerOrderParams
-	// 		);
-	// 	} catch (e) {
-	// 		assert(e);
-	// 	}
+		try {
+			await makerDriftClient.placeAndMakeSwiftPerpOrder(
+				encodedSwiftServerMessage,
+				swiftSignature,
+				takerDriftClient.encodeSwiftOrderParamsMessage(takerOrderParamsMessage),
+				takerOrderParamsSig,
+				takerOrderParamsMessage.expectedOrderId,
+				{
+					taker: await takerDriftClient.getUserAccountPublicKey(),
+					takerUserAccount: takerDriftClient.getUserAccount(),
+					takerStats: takerDriftClient.getUserStatsAccountPublicKey(),
+				},
+				makerOrderParams
+			);
+		} catch (e) {
+			assert(e);
+		}
 
-	// 	const takerPosition = takerDriftClient.getUser().getPerpPosition(0);
-	// 	assert(takerPosition == undefined);
+		const takerPosition = takerDriftClient.getUser().getPerpPosition(0);
+		assert(takerPosition == undefined);
 
-	// 	await takerDriftClientUser.unsubscribe();
-	// 	await takerDriftClient.unsubscribe();
-	// });
+		await takerDriftClientUser.unsubscribe();
+		await takerDriftClient.unsubscribe();
+	});
 
-	// it('should work with off-chain auctions', async () => {
-	// 	const slot = new BN(
-	// 		await bankrunContextWrapper.connection.toConnection().getSlot()
-	// 	);
+	it('should work with off-chain auctions', async () => {
+		const slot = new BN(
+			await bankrunContextWrapper.connection.toConnection().getSlot()
+		);
 
-	// 	const keypair = new Keypair();
-	// 	await bankrunContextWrapper.fundKeypair(keypair, 10 ** 9);
-	// 	await sleep(1000);
-	// 	const wallet = new Wallet(keypair);
-	// 	const userUSDCAccount = await mockUserUSDCAccount(
-	// 		usdcMint,
-	// 		usdcAmount,
-	// 		bankrunContextWrapper,
-	// 		keypair.publicKey
-	// 	);
-	// 	const takerDriftClient = new TestClient({
-	// 		connection: bankrunContextWrapper.connection.toConnection(),
-	// 		wallet,
-	// 		programID: chProgram.programId,
-	// 		opts: {
-	// 			commitment: 'confirmed',
-	// 		},
-	// 		activeSubAccountId: 0,
-	// 		perpMarketIndexes: marketIndexes,
-	// 		spotMarketIndexes: spotMarketIndexes,
-	// 		subAccountIds: [],
-	// 		oracleInfos,
-	// 		userStats: true,
-	// 		accountSubscription: {
-	// 			type: 'polling',
-	// 			accountLoader: bulkAccountLoader,
-	// 		},
-	// 	});
-	// 	await takerDriftClient.subscribe();
-	// 	await takerDriftClient.initializeUserAccountAndDepositCollateral(
-	// 		usdcAmount,
-	// 		userUSDCAccount.publicKey
-	// 	);
-	// 	const takerDriftClientUser = new User({
-	// 		driftClient: takerDriftClient,
-	// 		userAccountPublicKey: await takerDriftClient.getUserAccountPublicKey(),
-	// 		accountSubscription: {
-	// 			type: 'polling',
-	// 			accountLoader: bulkAccountLoader,
-	// 		},
-	// 	});
-	// 	await takerDriftClientUser.subscribe();
+		const keypair = new Keypair();
+		await bankrunContextWrapper.fundKeypair(keypair, 10 ** 9);
+		await sleep(1000);
+		const wallet = new Wallet(keypair);
+		const userUSDCAccount = await mockUserUSDCAccount(
+			usdcMint,
+			usdcAmount,
+			bankrunContextWrapper,
+			keypair.publicKey
+		);
+		const takerDriftClient = new TestClient({
+			connection: bankrunContextWrapper.connection.toConnection(),
+			wallet,
+			programID: chProgram.programId,
+			opts: {
+				commitment: 'confirmed',
+			},
+			activeSubAccountId: 0,
+			perpMarketIndexes: marketIndexes,
+			spotMarketIndexes: spotMarketIndexes,
+			subAccountIds: [],
+			oracleInfos,
+			userStats: true,
+			accountSubscription: {
+				type: 'polling',
+				accountLoader: bulkAccountLoader,
+			},
+		});
+		await takerDriftClient.subscribe();
+		await takerDriftClient.initializeUserAccountAndDepositCollateral(
+			usdcAmount,
+			userUSDCAccount.publicKey
+		);
+		const takerDriftClientUser = new User({
+			driftClient: takerDriftClient,
+			userAccountPublicKey: await takerDriftClient.getUserAccountPublicKey(),
+			accountSubscription: {
+				type: 'polling',
+				accountLoader: bulkAccountLoader,
+			},
+		});
+		await takerDriftClientUser.subscribe();
 
-	// 	const marketIndex = 0;
-	// 	const baseAssetAmount = BASE_PRECISION;
-	// 	const takerOrderParams = getMarketOrderParams({
-	// 		marketIndex,
-	// 		direction: PositionDirection.LONG,
-	// 		baseAssetAmount,
-	// 		auctionStartPrice: new BN(33).mul(PRICE_PRECISION),
-	// 		auctionEndPrice: new BN(37).mul(PRICE_PRECISION),
-	// 		auctionDuration: 10,
-	// 		userOrderId: 1,
-	// 		postOnly: PostOnlyParams.NONE,
-	// 	});
+		const marketIndex = 0;
+		const baseAssetAmount = BASE_PRECISION;
+		const takerOrderParams = getMarketOrderParams({
+			marketIndex,
+			direction: PositionDirection.LONG,
+			baseAssetAmount,
+			auctionStartPrice: new BN(33).mul(PRICE_PRECISION),
+			auctionEndPrice: new BN(37).mul(PRICE_PRECISION),
+			auctionDuration: 10,
+			userOrderId: 1,
+			postOnly: PostOnlyParams.NONE,
+		});
 
-	// 	await takerDriftClientUser.fetchAccounts();
+		await takerDriftClientUser.fetchAccounts();
 
-	// 	const takerOrderParamsMessage: SwiftOrderParamsMessage = {
-	// 		swiftOrderParams: [takerOrderParams],
-	// 		marketIndex,
-	// 		expectedOrderId: 1,
-	// 		marketType: MarketType.PERP,
-	// 	};
-	// 	const takerOrderParamsSig =
-	// 		await takerDriftClient.signSwiftOrderParamsMessage(
-	// 			takerOrderParamsMessage
-	// 		);
+		const takerOrderParamsMessage: SwiftOrderParamsMessage = {
+			swiftOrderParams: [takerOrderParams],
+			marketIndex,
+			expectedOrderId: 1,
+			marketType: MarketType.PERP,
+		};
+		const takerOrderParamsSig =
+			await takerDriftClient.signSwiftOrderParamsMessage(
+				takerOrderParamsMessage
+			);
 
-	// 	const swiftServerMessage: SwiftServerMessage = {
-	// 		slot: slot.subn(5),
-	// 		swiftOrderSignature: takerOrderParamsSig,
-	// 	};
+		const swiftServerMessage: SwiftServerMessage = {
+			slot: slot.subn(5),
+			swiftOrderSignature: takerOrderParamsSig,
+		};
 
-	// 	const encodedSwiftServerMessage =
-	// 		takerDriftClient.encodeSwiftServerMessage(swiftServerMessage);
+		const encodedSwiftServerMessage =
+			takerDriftClient.encodeSwiftServerMessage(swiftServerMessage);
 
-	// 	const swiftSignature = await takerDriftClient.signMessage(
-	// 		Uint8Array.from(encodedSwiftServerMessage),
-	// 		swiftKeypair
-	// 	);
+		const swiftSignature = await takerDriftClient.signMessage(
+			Uint8Array.from(encodedSwiftServerMessage),
+			swiftKeypair
+		);
 
-	// 	console.log(encodedSwiftServerMessage.length);
-	// 	console.log(swiftSignature.length);
-	// 	console.log(
-	// 		takerDriftClient.encodeSwiftOrderParamsMessage(takerOrderParamsMessage)
-	// 			.length
-	// 	);
-	// 	console.log(takerOrderParamsSig.length);
+		console.log(encodedSwiftServerMessage.length);
+		console.log(swiftSignature.length);
+		console.log(
+			takerDriftClient.encodeSwiftOrderParamsMessage(takerOrderParamsMessage)
+				.length
+		);
+		console.log(takerOrderParamsSig.length);
 
-	// 	await makerDriftClient.placeSwiftTakerOrder(
-	// 		encodedSwiftServerMessage,
-	// 		swiftSignature,
-	// 		takerDriftClient.encodeSwiftOrderParamsMessage(takerOrderParamsMessage),
-	// 		takerOrderParamsSig,
-	// 		takerOrderParamsMessage.marketIndex,
-	// 		{
-	// 			taker: await takerDriftClient.getUserAccountPublicKey(),
-	// 			takerUserAccount: takerDriftClient.getUserAccount(),
-	// 			takerStats: takerDriftClient.getUserStatsAccountPublicKey(),
-	// 		}
-	// 	);
+		await makerDriftClient.placeSwiftTakerOrder(
+			encodedSwiftServerMessage,
+			swiftSignature,
+			takerDriftClient.encodeSwiftOrderParamsMessage(takerOrderParamsMessage),
+			takerOrderParamsSig,
+			takerOrderParamsMessage.marketIndex,
+			{
+				taker: await takerDriftClient.getUserAccountPublicKey(),
+				takerUserAccount: takerDriftClient.getUserAccount(),
+				takerStats: takerDriftClient.getUserStatsAccountPublicKey(),
+			}
+		);
 
-	// 	assert(takerDriftClient.getOrderByUserId(1) !== undefined);
-	// 	assert(takerDriftClient.getOrderByUserId(1).slot.eq(slot.subn(5)));
+		assert(takerDriftClient.getOrderByUserId(1) !== undefined);
+		assert(takerDriftClient.getOrderByUserId(1).slot.eq(slot.subn(5)));
 
-	// 	const makerOrderParams = getLimitOrderParams({
-	// 		marketIndex,
-	// 		direction: PositionDirection.SHORT,
-	// 		baseAssetAmount,
-	// 		price: new BN(35).mul(PRICE_PRECISION),
-	// 		postOnly: PostOnlyParams.MUST_POST_ONLY,
-	// 		immediateOrCancel: true,
-	// 	});
-	// 	await makerDriftClient.placeAndMakeSwiftPerpOrder(
-	// 		encodedSwiftServerMessage,
-	// 		swiftSignature,
-	// 		takerDriftClient.encodeSwiftOrderParamsMessage(takerOrderParamsMessage),
-	// 		takerOrderParamsSig,
-	// 		takerOrderParamsMessage.expectedOrderId,
-	// 		{
-	// 			taker: await takerDriftClient.getUserAccountPublicKey(),
-	// 			takerUserAccount: takerDriftClient.getUserAccount(),
-	// 			takerStats: takerDriftClient.getUserStatsAccountPublicKey(),
-	// 		},
-	// 		makerOrderParams
-	// 	);
+		const makerOrderParams = getLimitOrderParams({
+			marketIndex,
+			direction: PositionDirection.SHORT,
+			baseAssetAmount,
+			price: new BN(35).mul(PRICE_PRECISION),
+			postOnly: PostOnlyParams.MUST_POST_ONLY,
+			immediateOrCancel: true,
+		});
+		await makerDriftClient.placeAndMakeSwiftPerpOrder(
+			encodedSwiftServerMessage,
+			swiftSignature,
+			takerDriftClient.encodeSwiftOrderParamsMessage(takerOrderParamsMessage),
+			takerOrderParamsSig,
+			takerOrderParamsMessage.expectedOrderId,
+			{
+				taker: await takerDriftClient.getUserAccountPublicKey(),
+				takerUserAccount: takerDriftClient.getUserAccount(),
+				takerStats: takerDriftClient.getUserStatsAccountPublicKey(),
+			},
+			makerOrderParams
+		);
 
-	// 	const takerPosition = takerDriftClient.getUser().getPerpPosition(0);
-	// 	assert(takerPosition.baseAssetAmount.eq(baseAssetAmount));
+		const takerPosition = takerDriftClient.getUser().getPerpPosition(0);
+		assert(takerPosition.baseAssetAmount.eq(baseAssetAmount));
 
-	// 	await takerDriftClientUser.unsubscribe();
-	// 	await takerDriftClient.unsubscribe();
-	// });
+		await takerDriftClientUser.unsubscribe();
+		await takerDriftClient.unsubscribe();
+	});
 });
