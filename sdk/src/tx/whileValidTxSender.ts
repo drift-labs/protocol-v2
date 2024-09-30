@@ -243,16 +243,11 @@ export class WhileValidTxSender extends BaseTxSender {
 
 		let slot: number;
 		try {
-
-			// const result = await this.awaitConfirmation(txid);
-			const result = await this.transactionConfirmationManager.confirmTransaction(
-				txid,
-				opts.commitment,
-			);
+			const result = await this.confirmTransaction(txid, opts.commitment);
 
 			this.txSigCache?.set(txid, true);
 
-			slot = result.slot;
+			slot = result.context.slot;
 			// eslint-disable-next-line no-useless-catch
 		} catch (e) {
 			throw e;
