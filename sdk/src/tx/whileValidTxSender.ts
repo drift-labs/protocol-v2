@@ -11,10 +11,9 @@ import bs58 from 'bs58';
 import { TxHandler } from './txHandler';
 import { IWallet } from '../types';
 import { DEFAULT_CONFIRMATION_OPTS } from '../config';
+import { TransactionConfirmationManager } from '../util/confirmTransaction';
 
 const DEFAULT_RETRY = 2000;
-
-const VALID_BLOCK_HEIGHT_OFFSET = -150; // This is a bit of weirdness but the lastValidBlockHeight value returned from connection.getLatestBlockhash is always 300 blocks ahead of the current block, even though the transaction actually expires after 150 blocks. This accounts for that so that we can at least accuractely estimate the transaction expiry.
 
 type ResolveReference = {
 	resolve?: () => void;
@@ -34,6 +33,8 @@ export class WhileValidTxSender extends BaseTxSender {
 	>();
 
 	useBlockHeightOffset = true;
+
+	transactionConfirmationManager: TransactionConfirmationManager;
 
 	private async checkAndSetUseBlockHeightOffset() {
 		this.connection.getVersion().then((version) => {
@@ -92,6 +93,9 @@ export class WhileValidTxSender extends BaseTxSender {
 			landRateToFeeFunc,
 		});
 		this.retrySleep = retrySleep;
+		this.transactionConfirmationManager = new TransactionConfirmationManager(
+			connection
+		);
 
 		this.checkAndSetUseBlockHeightOffset();
 	}
@@ -239,28 +243,16 @@ export class WhileValidTxSender extends BaseTxSender {
 
 		let slot: number;
 		try {
-			const { blockhash, lastValidBlockHeight } = this.untilValid.get(txid);
 
-			const result = await this.connection.confirmTransaction(
-				{
-					signature: txid,
-					blockhash,
-					lastValidBlockHeight: this.useBlockHeightOffset
-						? lastValidBlockHeight + VALID_BLOCK_HEIGHT_OFFSET
-						: lastValidBlockHeight,
-				},
-				opts?.commitment
+			// const result = await this.awaitConfirmation(txid);
+			const result = await this.transactionConfirmationManager.confirmTransaction(
+				txid,
+				opts.commitment,
 			);
-
-			if (!result) {
-				throw new Error(`Couldn't get signature status for txid: ${txid}`);
-			}
 
 			this.txSigCache?.set(txid, true);
 
-			await this.checkConfirmationResultForError(txid, result.value);
-
-			slot = result.context.slot;
+			slot = result.slot;
 			// eslint-disable-next-line no-useless-catch
 		} catch (e) {
 			throw e;
