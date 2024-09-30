@@ -231,9 +231,7 @@ describe('place and make swift order', () => {
 		});
 		const takerOrderParamsMessage: SwiftOrderParamsMessage = {
 			swiftOrderParams: takerOrderParams,
-			marketIndex,
 			expectedOrderId: 1,
-			marketType: MarketType.PERP,
 			takeProfitOrderParams: null,
 			stopLossOrderParams: null,
 		};
@@ -412,9 +410,7 @@ describe('place and make swift order', () => {
 
 		const takerOrderParamsMessage: SwiftOrderParamsMessage = {
 			swiftOrderParams: takerOrderParams,
-			marketIndex,
 			expectedOrderId: 1,
-			marketType: MarketType.PERP,
 			stopLossOrderParams: {
 				triggerPrice: stopLossTakerParams.triggerPrice,
 				baseAssetAmount: stopLossTakerParams.baseAssetAmount,
@@ -573,9 +569,7 @@ describe('place and make swift order', () => {
 
 		const takerOrderParamsMessage: SwiftOrderParamsMessage = {
 			swiftOrderParams: takerOrderParams,
-			marketIndex,
 			expectedOrderId: 1,
-			marketType: MarketType.PERP,
 			takeProfitOrderParams: null,
 			stopLossOrderParams: null,
 		};
@@ -688,9 +682,7 @@ describe('place and make swift order', () => {
 
 		const takerOrderParamsMessage: SwiftOrderParamsMessage = {
 			swiftOrderParams: takerOrderParams,
-			marketIndex,
 			expectedOrderId: 1,
-			marketType: MarketType.PERP,
 			takeProfitOrderParams: null,
 			stopLossOrderParams: null,
 		};
@@ -725,7 +717,7 @@ describe('place and make swift order', () => {
 			swiftSignature,
 			takerDriftClient.encodeSwiftOrderParamsMessage(takerOrderParamsMessage),
 			takerOrderParamsSig,
-			takerOrderParamsMessage.marketIndex,
+			takerOrderParams.marketIndex,
 			{
 				taker: await takerDriftClient.getUserAccountPublicKey(),
 				takerUserAccount: takerDriftClient.getUserAccount(),

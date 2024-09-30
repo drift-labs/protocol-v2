@@ -1062,10 +1062,8 @@ export type SwiftServerMessage = {
 };
 
 export type SwiftOrderParamsMessage = {
-	marketIndex: number;
 	swiftOrderParams: OptionalOrderParams;
 	expectedOrderId: number;
-	marketType: MarketType;
 	takeProfitOrderParams: SwiftTriggerOrderParams | null;
 	stopLossOrderParams: SwiftTriggerOrderParams | null;
 };

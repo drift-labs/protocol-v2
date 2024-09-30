@@ -639,7 +639,6 @@ pub struct SwiftServerMessage {
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Default, Eq, PartialEq, Debug)]
 pub struct SwiftOrderParamsMessage {
     pub swift_order_params: OrderParams,
-    pub market_index: u16,
     pub expected_order_id: i32,
     pub sub_account_id: u16,
     pub take_profit_order_params: Option<SwiftTriggerOrderParams>,

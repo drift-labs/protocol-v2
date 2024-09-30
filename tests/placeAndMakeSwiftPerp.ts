@@ -18,7 +18,6 @@ import {
 	OracleSource,
 	BulkAccountLoader,
 	SwiftOrderParamsMessage,
-	MarketType,
 	SwiftServerMessage,
 	loadKeypair,
 } from '../sdk/src';
@@ -212,9 +211,7 @@ describe('place and make swift order', () => {
 
 		const takerOrderParamsMessage: SwiftOrderParamsMessage = {
 			swiftOrderParams: takerOrderParams,
-			marketIndex,
 			expectedOrderId: 1,
-			marketType: MarketType.PERP,
 			takeProfitOrderParams: null,
 			stopLossOrderParams: null,
 		};
@@ -327,9 +324,7 @@ describe('place and make swift order', () => {
 		await takerDriftClientUser.fetchAccounts();
 		const takerOrderParamsMessage: SwiftOrderParamsMessage = {
 			swiftOrderParams: takerOrderParams,
-			marketIndex,
 			expectedOrderId: 1,
-			marketType: MarketType.PERP,
 			takeProfitOrderParams: null,
 			stopLossOrderParams: null,
 		};

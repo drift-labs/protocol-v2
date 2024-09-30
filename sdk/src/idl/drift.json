@@ -8137,10 +8137,6 @@
             }
           },
           {
-            "name": "marketIndex",
-            "type": "u16"
-          },
-          {
             "name": "expectedOrderId",
             "type": "i32"
           },

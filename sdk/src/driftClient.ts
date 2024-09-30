@@ -5431,28 +5431,6 @@ export class DriftClient {
 		return Buffer.from(await ed.sign(message, keypair.secretKey.slice(0, 32)));
 	}
 
-	public assembleSwiftServerMessage(
-		message: Buffer,
-		signature: Buffer,
-		takerPubkey: PublicKey,
-		marketIndex: number,
-		marketType: MarketType
-	): {
-		message: string;
-		signature: string;
-		taker_pubkey: string;
-		market_index: number;
-		market_type: 'perp' | 'spot';
-	} {
-		return {
-			message: message.toString('base64'),
-			signature: signature.toString('base64'),
-			taker_pubkey: takerPubkey.toBase58(),
-			market_index: marketIndex,
-			market_type: isVariant(marketType, 'perp') ? 'perp' : 'spot',
-		};
-	}
-
 	public async placeSwiftTakerOrder(
 		swiftServerMessage: Buffer,
 		swiftSignature: Buffer,
