@@ -1,17 +1,16 @@
 import { TxSigAndSlot } from './types';
 import {
-	Commitment,
 	ConfirmOptions,
 	Connection,
 	Signer,
 	Transaction,
 	VersionedTransaction,
 } from '@solana/web3.js';
-import { AnchorProvider } from '@coral-xyz/anchor';
 import { BaseTxSender } from './baseTxSender';
 import bs58 from 'bs58';
 import { TxHandler } from './txHandler';
 import { IWallet } from '../types';
+import { DEFAULT_CONFIRMATION_OPTS } from '../config';
 
 const DEFAULT_RETRY = 2000;
 
@@ -33,7 +32,6 @@ export class WhileValidTxSender extends BaseTxSender {
 		string,
 		{ blockhash: string; lastValidBlockHeight: number }
 	>();
-	blockhashCommitment: Commitment;
 
 	useBlockHeightOffset = true;
 
@@ -62,11 +60,10 @@ export class WhileValidTxSender extends BaseTxSender {
 	public constructor({
 		connection,
 		wallet,
-		opts = { ...AnchorProvider.defaultOptions(), maxRetries: 0 },
+		opts = { ...DEFAULT_CONFIRMATION_OPTS, maxRetries: 0 },
 		retrySleep = DEFAULT_RETRY,
 		additionalConnections = new Array<Connection>(),
 		additionalTxSenderCallbacks = [],
-		blockhashCommitment = 'finalized',
 		txHandler,
 		trackTxLandRate,
 		txLandRateLookbackWindowMinutes,
@@ -78,7 +75,6 @@ export class WhileValidTxSender extends BaseTxSender {
 		retrySleep?: number;
 		additionalConnections?;
 		additionalTxSenderCallbacks?: ((base58EncodedTx: string) => void)[];
-		blockhashCommitment?: Commitment;
 		txHandler?: TxHandler;
 		trackTxLandRate?: boolean;
 		txLandRateLookbackWindowMinutes?: number;
@@ -96,7 +92,6 @@ export class WhileValidTxSender extends BaseTxSender {
 			landRateToFeeFunc,
 		});
 		this.retrySleep = retrySleep;
-		this.blockhashCommitment = blockhashCommitment;
 
 		this.checkAndSetUseBlockHeightOffset();
 	}
@@ -139,7 +134,8 @@ export class WhileValidTxSender extends BaseTxSender {
 
 		// handle subclass-specific side effects
 		const txSig = bs58.encode(
-			signedTx.signatures[0]?.signature || signedTx.signatures[0]
+			// @ts-expect-error
+			signedTx?.signature || signedTx.signatures[0]?.signature || signedTx.signatures[0]
 		);
 		this.untilValid.set(txSig, latestBlockhash);
 
@@ -193,6 +189,11 @@ export class WhileValidTxSender extends BaseTxSender {
 		const txSig = bs58.encode(signedTx.signatures[0]);
 		this.untilValid.set(txSig, latestBlockhash);
 
+		console.debug(
+			`preflight_commitment`,
+			`sending_tx_with_preflight_commitment::${opts?.preflightCommitment}`
+		);
+
 		return this.sendRawTransaction(signedTx.serialize(), opts);
 	}
 
@@ -202,6 +203,10 @@ export class WhileValidTxSender extends BaseTxSender {
 	): Promise<TxSigAndSlot> {
 		const startTime = this.getTimestamp();
 
+		console.debug(
+			`preflight_commitment`,
+			`sending_tx_with_preflight_commitment::${opts?.preflightCommitment}`
+		);
 		const txid = await this.connection.sendRawTransaction(rawTransaction, opts);
 		this.txSigCache?.set(txid, false);
 		this.sendToAdditionalConnections(rawTransaction, opts);
