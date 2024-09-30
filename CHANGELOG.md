@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - program: reusue unused maker order id as success condition for place and take perp order ([#1218](https://github.com/drift-labs/protocol-v2/pull/1218))
 - program/sdk: swift for devnet ([#1195](https://github.com/drift-labs/protocol-v2/pull/1195))
 - sdk: EventSubscriber: support events server ([#1222](https://github.com/drift-labs/protocol-v2/pull/1222))
+- sdk: add new DelistMarketSetting to handle delisted markets ([#1229](https://github.com/drift-labs/protocol-v2/pull/1229))
 
 ### Fixes
 
