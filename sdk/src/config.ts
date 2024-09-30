@@ -1,3 +1,4 @@
+import { ConfirmOptions } from '@solana/web3.js';
 import { PerpMarketAccount, SpotMarketAccount } from '.';
 import {
 	DevnetPerpMarkets,
@@ -38,6 +39,11 @@ export const DRIFT_PROGRAM_ID = 'dRiftyHA39MWEi3m9aunc5MzRF1JYuBsbn6VPcn33UH';
 export const DRIFT_ORACLE_RECEIVER_ID =
 	'G6EoTTTgpkNBtVXo96EQp2m6uwwVh2Kt6YidjkmQqoha';
 export const SWIFT_ID = 'SW1fThqrxLzVprnCMpiybiqYQfoNCdduC5uWsSUKChS';
+
+export const DEFAULT_CONFIRMATION_OPTS: ConfirmOptions = {
+	preflightCommitment: 'confirmed',
+	commitment: 'confirmed',
+};
 
 export const configs: { [key in DriftEnv]: DriftConfig } = {
 	devnet: {

@@ -1087,6 +1087,11 @@ export type ReferrerInfo = {
 	referrerStats: PublicKey;
 };
 
+export enum PlaceAndTakeOrderSuccessCondition {
+	PartialFill = 1,
+	FullFill = 2,
+}
+
 type ExactType<T> = Pick<T, keyof T>;
 
 export type BaseTxParams = ExactType<{

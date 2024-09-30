@@ -862,6 +862,18 @@ export const MainnetPerpMarkets: PerpMarketConfig[] = [
 		launchTs: 1726646453000,
 		oracleSource: OracleSource.Prelaunch,
 	},
+	{
+		fullName: 'MOTHER',
+		category: ['Solana', 'Meme'],
+		symbol: 'MOTHER-PERP',
+		baseAssetSymbol: 'MOTHER',
+		marketIndex: 44,
+		oracle: new PublicKey('56ap2coZG7FPWUigVm9XrpQs3xuCwnwQaWtjWZcffEUG'),
+		launchTs: 1727291859000,
+		oracleSource: OracleSource.PYTH_PULL,
+		pythFeedId:
+			'0x62742a997d01f7524f791fdb2dd43aaf0e567d765ebf8fd0406a994239e874d4',
+	},
 ];
 
 export const PerpMarkets: { [key in DriftEnv]: PerpMarketConfig[] } = {

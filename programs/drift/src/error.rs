@@ -583,6 +583,8 @@ pub enum ErrorCode {
     MismatchedSwiftOrderParamsMarketIndex,
     #[msg("Swift order message must be ordered 0th order is market and rest are triggers")]
     SwiftOrderSequenceError,
+    #[msg("Place and take order success condition failed")]
+    PlaceAndTakeOrderSuccessConditionFailed,
 }
 
 #[macro_export]

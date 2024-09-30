@@ -11,6 +11,7 @@ import { BulkAccountLoader } from './accounts/bulkAccountLoader';
 import { DriftEnv } from './config';
 import { TxSender } from './tx/types';
 import { TxHandler, TxHandlerConfig } from './tx/txHandler';
+import { DelistedMarketSetting } from './accounts/types';
 
 export type DriftClientConfig = {
 	connection: Connection;
@@ -36,6 +37,7 @@ export type DriftClientConfig = {
 	txParams?: TxParams; // default tx params to use
 	enableMetricsEvents?: boolean;
 	txHandlerConfig?: TxHandlerConfig;
+	delistedMarketSetting?: DelistedMarketSetting;
 };
 
 export type DriftClientSubscriptionConfig =

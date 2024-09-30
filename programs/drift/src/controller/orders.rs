@@ -1185,6 +1185,7 @@ pub fn fill_perp_order(
                 .max_oracle_twap_5min_percent_divergence(),
             perp_market.is_prediction_market(),
         )?;
+        msg!("base asset amount filled, {:?}", base_asset_amount);
     }
 
     let base_asset_amount_after = user.perp_positions[position_index].base_asset_amount;

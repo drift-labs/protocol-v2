@@ -16,7 +16,7 @@ import {
 	TransactionInstruction,
 	TransactionSignature,
 } from '@solana/web3.js';
-import { BN } from '.';
+import { BN, DEFAULT_CONFIRMATION_OPTS } from '.';
 import tokenFaucet from './idl/token_faucet.json';
 import { IWallet } from './types';
 import { BankrunContextWrapper } from './bankrun/bankrunConnection';
@@ -41,7 +41,7 @@ export class TokenFaucet {
 		this.connection = connection;
 		this.context = context;
 		this.wallet = wallet;
-		this.opts = opts || AnchorProvider.defaultOptions();
+		this.opts = opts || DEFAULT_CONFIRMATION_OPTS;
 		// @ts-ignore
 		const provider = new AnchorProvider(
 			context ? context.connection.toConnection() : this.connection,

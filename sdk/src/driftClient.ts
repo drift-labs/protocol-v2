@@ -1,3 +1,4 @@
+import * as anchor from '@coral-xyz/anchor';
 import {
 	AnchorProvider,
 	BN,
@@ -13,65 +14,66 @@ import {
 	createCloseAccountInstruction,
 	createInitializeAccountInstruction,
 	getAssociatedTokenAddress,
-	TOKEN_PROGRAM_ID,
 	TOKEN_2022_PROGRAM_ID,
+	TOKEN_PROGRAM_ID,
 } from '@solana/spl-token';
 import {
-	StateAccount,
-	IWallet,
-	PositionDirection,
-	UserAccount,
-	PerpMarketAccount,
-	OrderParams,
-	Order,
-	SpotMarketAccount,
-	SpotPosition,
-	MakerInfo,
-	TakerInfo,
-	OptionalOrderParams,
-	OrderType,
-	ReferrerInfo,
-	MarketType,
-	TxParams,
-	SerumV3FulfillmentConfigAccount,
+	DriftClientMetricsEvents,
 	isVariant,
-	ReferrerNameAccount,
-	OrderTriggerCondition,
-	SpotBalanceType,
-	PerpMarketExtendedInfo,
-	UserStatsAccount,
+	IWallet,
+	MakerInfo,
+	MappedRecord,
+	MarketType,
 	ModifyOrderParams,
-	PhoenixV1FulfillmentConfigAccount,
 	ModifyOrderPolicy,
-	SwapReduceOnly,
+	OpenbookV2FulfillmentConfigAccount,
+	OptionalOrderParams,
+	Order,
+	OrderParams,
+	OrderTriggerCondition,
+	OrderType,
+	PerpMarketAccount,
+	PerpMarketExtendedInfo,
+	PhoenixV1FulfillmentConfigAccount,
+	PlaceAndTakeOrderSuccessCondition,
+	PositionDirection,
+	ReferrerInfo,
+	ReferrerNameAccount,
+	SerumV3FulfillmentConfigAccount,
 	SettlePnlMode,
 	SignedTxData,
-	MappedRecord,
-	OpenbookV2FulfillmentConfigAccount,
+	SpotBalanceType,
+	SpotMarketAccount,
+	SpotPosition,
+	StateAccount,
+	SwapReduceOnly,
 	SwiftOrderParamsMessage,
 	SwiftServerMessage,
+	TakerInfo,
+	TxParams,
+	UserAccount,
+	UserStatsAccount,
 } from './types';
-import * as anchor from '@coral-xyz/anchor';
 import driftIDL from './idl/drift.json';
 
 import {
-	Connection,
-	PublicKey,
-	TransactionSignature,
-	ConfirmOptions,
-	Transaction,
-	TransactionInstruction,
 	AccountMeta,
+	AddressLookupTableAccount,
+	BlockhashWithExpiryBlockHeight,
+	ConfirmOptions,
+	Connection,
+	Ed25519Program,
 	Keypair,
 	LAMPORTS_PER_SOL,
+	PublicKey,
 	Signer,
 	SystemProgram,
-	AddressLookupTableAccount,
+	SYSVAR_INSTRUCTIONS_PUBKEY,
+	Transaction,
+	TransactionInstruction,
+	TransactionSignature,
 	TransactionVersion,
 	VersionedTransaction,
-	BlockhashWithExpiryBlockHeight,
-	SYSVAR_INSTRUCTIONS_PUBKEY,
-	Ed25519Program,
 } from '@solana/web3.js';
 
 import { TokenFaucet } from './tokenFaucet';
@@ -94,19 +96,19 @@ import {
 	getUserStatsAccountPublicKey,
 } from './addresses/pda';
 import {
-	DriftClientAccountSubscriber,
-	DriftClientAccountEvents,
 	DataAndSlot,
+	DelistedMarketSetting,
+	DriftClientAccountEvents,
+	DriftClientAccountSubscriber,
 } from './accounts/types';
-import { DriftClientMetricsEvents } from './types';
 import { TxSender, TxSigAndSlot } from './tx/types';
 import {
 	BASE_PRECISION,
+	GOV_SPOT_MARKET_INDEX,
 	PRICE_PRECISION,
+	QUOTE_PRECISION,
 	QUOTE_SPOT_MARKET_INDEX,
 	ZERO,
-	QUOTE_PRECISION,
-	GOV_SPOT_MARKET_INDEX,
 } from './constants/numericConstants';
 import { findDirectionToClose, positionIsAvailable } from './math/position';
 import { getSignedTokenAmount, getTokenAmount } from './math/spotBalance';
@@ -118,7 +120,7 @@ import { WebSocketDriftClientAccountSubscriber } from './accounts/webSocketDrift
 import { RetryTxSender } from './tx/retryTxSender';
 import { User } from './user';
 import { UserSubscriptionConfig } from './userConfig';
-import { configs, DRIFT_PROGRAM_ID, SWIFT_ID } from './config';
+import { configs, DRIFT_ORACLE_RECEIVER_ID, DEFAULT_CONFIRMATION_OPTS, DRIFT_PROGRAM_ID, SWIFT_ID } from './config';
 import { WRAPPED_SOL_MINT } from './constants/spotMarkets';
 import { UserStats } from './userStats';
 import { isSpotPositionAvailable } from './math/spotPosition';
@@ -140,15 +142,14 @@ import { TransactionParamProcessor } from './tx/txParamProcessor';
 import { isOracleValid, trimVaaSignatures } from './math/oracles';
 import { TxHandler } from './tx/txHandler';
 import {
-	wormholeCoreBridgeIdl,
 	DEFAULT_RECEIVER_PROGRAM_ID,
+	wormholeCoreBridgeIdl,
 } from '@pythnetwork/pyth-solana-receiver';
 import { parseAccumulatorUpdateData } from '@pythnetwork/price-service-sdk';
 import {
 	DEFAULT_WORMHOLE_PROGRAM_ID,
 	getGuardianSetPda,
 } from '@pythnetwork/pyth-solana-receiver/lib/address';
-import { DRIFT_ORACLE_RECEIVER_ID } from './config';
 import { WormholeCoreBridgeSolana } from '@pythnetwork/pyth-solana-receiver/lib/idl/wormhole_core_bridge_solana';
 import { PythSolanaReceiver } from '@pythnetwork/pyth-solana-receiver/lib/idl/pyth_solana_receiver';
 import { getFeedIdUint8Array, trimFeedId } from './util/pythPullOracleUtils';
@@ -223,7 +224,7 @@ export class DriftClient {
 		this.connection = config.connection;
 		this.wallet = config.wallet;
 		this.opts = config.opts || {
-			...AnchorProvider.defaultOptions(),
+			...DEFAULT_CONFIRMATION_OPTS,
 			commitment: config?.connection?.commitment,
 			preflightCommitment: config?.connection?.commitment, // At the moment this ensures that our transaction simulations (which use Connection object) will use the same commitment level as our Transaction blockhashes (which use these opts)
 		};
@@ -331,6 +332,8 @@ export class DriftClient {
 			);
 		}
 
+		const delistedMarketSetting =
+			config.delistedMarketSetting || DelistedMarketSetting.Subscribe;
 		const noMarketsAndOraclesSpecified =
 			config.perpMarketIndexes === undefined &&
 			config.spotMarketIndexes === undefined &&
@@ -342,7 +345,8 @@ export class DriftClient {
 				config.perpMarketIndexes ?? [],
 				config.spotMarketIndexes ?? [],
 				config.oracleInfos ?? [],
-				noMarketsAndOraclesSpecified
+				noMarketsAndOraclesSpecified,
+				delistedMarketSetting
 			);
 		} else {
 			this.accountSubscriber = new WebSocketDriftClientAccountSubscriber(
@@ -351,6 +355,7 @@ export class DriftClient {
 				config.spotMarketIndexes ?? [],
 				config.oracleInfos ?? [],
 				noMarketsAndOraclesSpecified,
+				delistedMarketSetting,
 				{
 					resubTimeoutMs: config.accountSubscription?.resubTimeoutMs,
 					logResubMessages: config.accountSubscription?.logResubMessages,
@@ -3000,6 +3005,7 @@ export class DriftClient {
 			undefined,
 			undefined,
 			undefined,
+			undefined,
 			subAccountId
 		);
 	}
@@ -4959,6 +4965,7 @@ export class DriftClient {
 		orderParams: OptionalOrderParams,
 		makerInfo?: MakerInfo | MakerInfo[],
 		referrerInfo?: ReferrerInfo,
+		successCondition?: PlaceAndTakeOrderSuccessCondition,
 		txParams?: TxParams,
 		subAccountId?: number
 	): Promise<TransactionSignature> {
@@ -4968,6 +4975,7 @@ export class DriftClient {
 					orderParams,
 					makerInfo,
 					referrerInfo,
+					successCondition,
 					subAccountId
 				),
 				txParams
@@ -5015,6 +5023,7 @@ export class DriftClient {
 				orderParams,
 				makerInfo,
 				referrerInfo,
+				undefined,
 				subAccountId
 			);
 
@@ -5205,6 +5214,7 @@ export class DriftClient {
 		orderParams: OptionalOrderParams,
 		makerInfo?: MakerInfo | MakerInfo[],
 		referrerInfo?: ReferrerInfo,
+		successCondition?: PlaceAndTakeOrderSuccessCondition,
 		subAccountId?: number
 	): Promise<TransactionInstruction> {
 		orderParams = getOrderParams(orderParams, { marketType: MarketType.PERP });
@@ -5261,7 +5271,7 @@ export class DriftClient {
 
 		return await this.program.instruction.placeAndTakePerpOrder(
 			orderParams,
-			null,
+			successCondition ?? null,
 			{
 				accounts: {
 					state: await this.getStatePublicKey(),
@@ -5874,6 +5884,7 @@ export class DriftClient {
 				reduceOnly: true,
 				price: limitPrice,
 			},
+			undefined,
 			undefined,
 			undefined,
 			undefined,

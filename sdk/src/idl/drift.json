@@ -554,7 +554,7 @@
           }
         },
         {
-          "name": "makerOrderId",
+          "name": "successCondition",
           "type": {
             "option": "u32"
           }
@@ -10232,6 +10232,20 @@
       }
     },
     {
+      "name": "PlaceAndTakeOrderSuccessCondition",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "PartialFill"
+          },
+          {
+            "name": "FullFill"
+          }
+        ]
+      }
+    },
+    {
       "name": "PerpOperation",
       "type": {
         "kind": "enum",
@@ -13087,6 +13101,11 @@
       "code": 6288,
       "name": "SwiftOrderSequenceError",
       "msg": "Swift order message must be ordered 0th order is market and rest are triggers"
+    },
+    {
+      "code": 6289,
+      "name": "PlaceAndTakeOrderSuccessConditionFailed",
+      "msg": "Place and take order success condition failed"
     }
   ],
   "metadata": {
