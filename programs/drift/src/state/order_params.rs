@@ -632,7 +632,6 @@ impl OrderParams {
 
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Eq, PartialEq, Debug)]
 pub struct SwiftServerMessage {
-    pub swift_order_params_message: Vec<u8>,
     pub swift_order_signature: [u8; 64],
     pub slot: u64,
 }

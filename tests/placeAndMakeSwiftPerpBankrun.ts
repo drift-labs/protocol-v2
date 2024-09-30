@@ -237,7 +237,7 @@ describe('place and make swift order', () => {
 		const makerOrderParams = getLimitOrderParams({
 			marketIndex,
 			direction: PositionDirection.SHORT,
-			baseAssetAmount,
+			baseAssetAmount: BASE_PRECISION,
 			price: new BN(33).mul(PRICE_PRECISION),
 			userOrderId: 1,
 			postOnly: PostOnlyParams.MUST_POST_ONLY,
@@ -251,7 +251,6 @@ describe('place and make swift order', () => {
 
 		const swiftServerMessage: SwiftServerMessage = {
 			slot,
-			swiftOrderParamsMessage: takerOrderParamsMessage,
 			swiftOrderSignature: takerOrderParamsSig,
 		};
 
@@ -263,10 +262,10 @@ describe('place and make swift order', () => {
 			swiftKeypair
 		);
 
-		const txSig = await makerDriftClient.placeAndMakeSwiftPerpOrder(
+		await makerDriftClient.placeAndMakeSwiftPerpOrder(
 			encodedSwiftServerMessage,
 			swiftSignature,
-			takerDriftClient.encodeSwiftOrderParamsMessage(takerOrderParamsMessage),
+			makerDriftClient.encodeSwiftOrderParamsMessage(takerOrderParamsMessage),
 			takerOrderParamsSig,
 			takerOrderParamsMessage.expectedOrderId,
 			{
@@ -276,14 +275,15 @@ describe('place and make swift order', () => {
 			},
 			makerOrderParams
 		);
-
-		bankrunContextWrapper.printTxLogs(txSig);
+		await makerDriftClient.fetchAccounts();
 
 		const makerPosition = makerDriftClient.getUser().getPerpPosition(0);
 		assert(makerPosition.baseAssetAmount.eq(BASE_PRECISION.neg()));
 
 		const takerPosition = takerDriftClient.getUser().getPerpPosition(0);
 		assert(takerPosition.baseAssetAmount.eq(BASE_PRECISION));
+
+		console.log('######################################');
 
 		await makerDriftClient.placeAndMakeSwiftPerpOrder(
 			encodedSwiftServerMessage,
@@ -439,7 +439,6 @@ describe('place and make swift order', () => {
 
 		const swiftServerMessage: SwiftServerMessage = {
 			slot,
-			swiftOrderParamsMessage: takerOrderParamsMessage,
 			swiftOrderSignature: takerOrderParamsSig,
 		};
 
@@ -584,7 +583,6 @@ describe('place and make swift order', () => {
 
 		const swiftServerMessage: SwiftServerMessage = {
 			slot,
-			swiftOrderParamsMessage: takerOrderParamsMessage,
 			swiftOrderSignature: takerOrderParamsSig,
 		};
 
@@ -703,7 +701,6 @@ describe('place and make swift order', () => {
 
 		const swiftServerMessage: SwiftServerMessage = {
 			slot,
-			swiftOrderParamsMessage: takerOrderParamsMessage,
 			swiftOrderSignature: takerOrderParamsSig,
 		};
 
@@ -816,7 +813,6 @@ describe('place and make swift order', () => {
 
 		const swiftServerMessage: SwiftServerMessage = {
 			slot: slot.subn(5),
-			swiftOrderParamsMessage: takerOrderParamsMessage,
 			swiftOrderSignature: takerOrderParamsSig,
 		};
 

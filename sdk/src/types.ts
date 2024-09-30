@@ -1058,7 +1058,6 @@ export const DefaultOrderParams: OrderParams = {
 
 export type SwiftServerMessage = {
 	slot: BN;
-	swiftOrderParamsMessage: SwiftOrderParamsMessage;
 	swiftOrderSignature: Uint8Array;
 };
 

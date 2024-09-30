@@ -5353,9 +5353,6 @@ export class DriftClient {
 	public encodeSwiftServerMessage(message: SwiftServerMessage): Buffer {
 		const messageWithBuffer = {
 			slot: message.slot,
-			swiftOrderParamsMessage: this.encodeSwiftOrderParamsMessage(
-				message.swiftOrderParamsMessage
-			),
 			swiftOrderSignature: message.swiftOrderSignature,
 		};
 		return this.program.coder.types.encode(
@@ -5371,9 +5368,6 @@ export class DriftClient {
 		);
 		return {
 			slot: decodedSwiftMessage.slot,
-			swiftOrderParamsMessage: this.decodeSwiftOrderParamsMessage(
-				decodedSwiftMessage.swiftOrderParamsMessage
-			),
 			swiftOrderSignature: decodedSwiftMessage.swiftSignature,
 		};
 	}
@@ -5507,6 +5501,7 @@ export class DriftClient {
 		const placeTakerSwiftPerpOrderIx =
 			await this.program.instruction.placeSwiftTakerOrder(
 				encodedSwiftServerMessage,
+				encodedSwiftOrderParamsMessage,
 				swiftSignature,
 				{
 					accounts: {

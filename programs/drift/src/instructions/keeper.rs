@@ -449,10 +449,13 @@ pub fn handle_update_user_open_orders_count<'info>(ctx: Context<UpdateUserIdle>)
 pub fn handle_place_swift_taker_order<'c: 'info, 'info>(
     ctx: Context<'_, '_, 'c, 'info, PlaceSwiftTakerOrder<'info>>,
     swift_message_bytes: Vec<u8>,
+    swift_order_params_message_bytes: Vec<u8>,
     sig: [u8; 64],
 ) -> Result<()> {
     let swift_message: SwiftServerMessage =
         SwiftServerMessage::deserialize(&mut &swift_message_bytes[..]).unwrap();
+    let taker_order_params_message: SwiftOrderParamsMessage =
+        SwiftOrderParamsMessage::deserialize(&mut &swift_order_params_message_bytes[..]).unwrap();
 
     let state = &ctx.accounts.state;
 
@@ -476,6 +479,7 @@ pub fn handle_place_swift_taker_order<'c: 'info, 'info>(
         taker_key,
         &mut taker,
         swift_message,
+        taker_order_params_message,
         &ctx.accounts.ix_sysvar.to_account_info(),
         sig,
         &perp_market_map,
@@ -490,6 +494,7 @@ pub fn place_swift_taker_order<'c: 'info, 'info>(
     taker_key: Pubkey,
     taker: &mut RefMut<User>,
     swift_message: SwiftServerMessage,
+    taker_order_params_message: SwiftOrderParamsMessage,
     ix_sysvar: &AccountInfo<'info>,
     sig: [u8; 64],
     perp_market_map: &PerpMarketMap,
@@ -516,11 +521,6 @@ pub fn place_swift_taker_order<'c: 'info, 'info>(
         &swift_message.clone().try_to_vec()?,
         &sig,
     )?;
-
-    // Authenticate the taker order signature
-    let taker_order_params_message: SwiftOrderParamsMessage =
-        SwiftOrderParamsMessage::deserialize(&mut &swift_message.swift_order_params_message[..])
-            .unwrap();
 
     let ix: Instruction = load_instruction_at_checked(ix_idx as usize - 1, ix_sysvar)?;
     verify_ed25519_ix(

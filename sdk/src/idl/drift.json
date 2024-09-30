@@ -648,7 +648,11 @@
           "type": "bytes"
         },
         {
-          "name": "signature",
+          "name": "swiftOrderParamsMessageBytes",
+          "type": "bytes"
+        },
+        {
+          "name": "swiftMessageSignature",
           "type": {
             "array": [
               "u8",
@@ -8105,10 +8109,6 @@
       "type": {
         "kind": "struct",
         "fields": [
-          {
-            "name": "swiftOrderParamsMessage",
-            "type": "bytes"
-          },
           {
             "name": "swiftOrderSignature",
             "type": {

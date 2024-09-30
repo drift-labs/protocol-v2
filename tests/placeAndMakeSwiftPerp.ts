@@ -223,7 +223,6 @@ describe('place and make swift order', () => {
 
 		const swiftServerMessage: SwiftServerMessage = {
 			slot: new BN(await connection.getSlot()),
-			swiftOrderParamsMessage: takerOrderParamsMessage,
 			swiftOrderSignature: takerOrderParamsSig,
 		};
 
@@ -337,7 +336,6 @@ describe('place and make swift order', () => {
 
 		const swiftServerMessage: SwiftServerMessage = {
 			slot: new BN(await connection.getSlot()),
-			swiftOrderParamsMessage: takerOrderParamsMessage,
 			swiftOrderSignature: takerOrderParamsSig,
 		};
 

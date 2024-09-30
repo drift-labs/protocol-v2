@@ -164,9 +164,15 @@ pub mod drift {
     pub fn place_swift_taker_order<'c: 'info, 'info>(
         ctx: Context<'_, '_, 'c, 'info, PlaceSwiftTakerOrder<'info>>,
         swift_message_bytes: Vec<u8>,
-        signature: [u8; 64],
+        swift_order_params_message_bytes: Vec<u8>,
+        swift_message_signature: [u8; 64],
     ) -> Result<()> {
-        handle_place_swift_taker_order(ctx, swift_message_bytes, signature)
+        handle_place_swift_taker_order(
+            ctx,
+            swift_message_bytes,
+            swift_order_params_message_bytes,
+            swift_message_signature,
+        )
     }
 
     pub fn place_spot_order<'c: 'info, 'info>(
