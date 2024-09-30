@@ -230,10 +230,12 @@ describe('place and make swift order', () => {
 			marketType: MarketType.PERP,
 		});
 		const takerOrderParamsMessage: SwiftOrderParamsMessage = {
-			swiftOrderParams: [takerOrderParams],
+			swiftOrderParams: takerOrderParams,
 			marketIndex,
 			expectedOrderId: 1,
 			marketType: MarketType.PERP,
+			takeProfitOrderParams: null,
+			stopLossOrderParams: null,
 		};
 
 		await takerDriftClientUser.fetchAccounts();
@@ -409,14 +411,18 @@ describe('place and make swift order', () => {
 		});
 
 		const takerOrderParamsMessage: SwiftOrderParamsMessage = {
-			swiftOrderParams: [
-				takerOrderParams,
-				stopLossTakerParams,
-				takeProfitTakerParams,
-			],
+			swiftOrderParams: takerOrderParams,
 			marketIndex,
 			expectedOrderId: 1,
 			marketType: MarketType.PERP,
+			stopLossOrderParams: {
+				triggerPrice: stopLossTakerParams.triggerPrice,
+				baseAssetAmount: stopLossTakerParams.baseAssetAmount,
+			},
+			takeProfitOrderParams: {
+				triggerPrice: takeProfitTakerParams.triggerPrice,
+				baseAssetAmount: takeProfitTakerParams.baseAssetAmount,
+			},
 		};
 
 		const takerOrderParamsSig =
@@ -477,152 +483,18 @@ describe('place and make swift order', () => {
 
 		// All orders are placed and one is
 		assert(takerPosition.baseAssetAmount.eq(BASE_PRECISION));
-		assert(takerDriftClient.getOrderByUserId(2) !== undefined);
-		assert(takerDriftClient.getOrderByUserId(3) !== undefined);
-
-		await takerDriftClientUser.unsubscribe();
-		await takerDriftClient.unsubscribe();
-	});
-
-	it('should fail if orders are sent out of swift order ', async () => {
-		slot = new BN(
-			await bankrunContextWrapper.connection.toConnection().getSlot()
+		assert(
+			takerDriftClient
+				.getUser()
+				.getOpenOrders()
+				.some((order) => order.orderId == 2)
 		);
-		const keypair = new Keypair();
-		await bankrunContextWrapper.fundKeypair(keypair, 10 ** 9);
-		await sleep(1000);
-		const wallet = new Wallet(keypair);
-		const userUSDCAccount = await mockUserUSDCAccount(
-			usdcMint,
-			usdcAmount,
-			bankrunContextWrapper,
-			keypair.publicKey
+		assert(
+			takerDriftClient
+				.getUser()
+				.getOpenOrders()
+				.some((order) => order.orderId == 3)
 		);
-		const takerDriftClient = new TestClient({
-			connection: bankrunContextWrapper.connection.toConnection(),
-			wallet,
-			programID: chProgram.programId,
-			opts: {
-				commitment: 'confirmed',
-			},
-			activeSubAccountId: 0,
-			perpMarketIndexes: marketIndexes,
-			spotMarketIndexes: spotMarketIndexes,
-			subAccountIds: [],
-			oracleInfos,
-			userStats: true,
-			accountSubscription: {
-				type: 'polling',
-				accountLoader: bulkAccountLoader,
-			},
-		});
-		await takerDriftClient.subscribe();
-		await takerDriftClient.initializeUserAccountAndDepositCollateral(
-			usdcAmount,
-			userUSDCAccount.publicKey
-		);
-		const takerDriftClientUser = new User({
-			driftClient: takerDriftClient,
-			userAccountPublicKey: await takerDriftClient.getUserAccountPublicKey(),
-			accountSubscription: {
-				type: 'polling',
-				accountLoader: bulkAccountLoader,
-			},
-		});
-		await takerDriftClientUser.subscribe();
-
-		const marketIndex = 0;
-		const baseAssetAmount = BASE_PRECISION;
-		const takerOrderParams = getMarketOrderParams({
-			marketIndex,
-			direction: PositionDirection.LONG,
-			baseAssetAmount,
-			price: new BN(34).mul(PRICE_PRECISION),
-			auctionStartPrice: new BN(33).mul(PRICE_PRECISION),
-			auctionEndPrice: new BN(34).mul(PRICE_PRECISION),
-			auctionDuration: 10,
-			userOrderId: 1,
-			postOnly: PostOnlyParams.NONE,
-		});
-		const stopLossTakerParams = getTriggerLimitOrderParams({
-			marketIndex,
-			direction: PositionDirection.SHORT,
-			baseAssetAmount,
-			price: new BN(20).mul(PRICE_PRECISION),
-			triggerPrice: new BN(20).mul(PRICE_PRECISION),
-			userOrderId: 2,
-			triggerCondition: OrderTriggerCondition.BELOW,
-		});
-
-		const takeProfitTakerParams = getTriggerLimitOrderParams({
-			marketIndex,
-			direction: PositionDirection.SHORT,
-			baseAssetAmount,
-			price: new BN(40).mul(PRICE_PRECISION),
-			triggerPrice: new BN(40).mul(PRICE_PRECISION),
-			userOrderId: 3,
-			triggerCondition: OrderTriggerCondition.ABOVE,
-		});
-
-		await takerDriftClientUser.fetchAccounts();
-		const makerOrderParams = getLimitOrderParams({
-			marketIndex,
-			direction: PositionDirection.SHORT,
-			baseAssetAmount,
-			price: new BN(33).mul(PRICE_PRECISION),
-			postOnly: PostOnlyParams.MUST_POST_ONLY,
-			immediateOrCancel: true,
-		});
-
-		const takerOrderParamsMessage: SwiftOrderParamsMessage = {
-			swiftOrderParams: [
-				stopLossTakerParams,
-				takeProfitTakerParams,
-				takerOrderParams,
-			],
-			marketIndex,
-			expectedOrderId: 1,
-			marketType: MarketType.PERP,
-		};
-
-		const takerOrderParamsSig =
-			await takerDriftClient.signSwiftOrderParamsMessage(
-				takerOrderParamsMessage
-			);
-
-		const swiftServerMessage: SwiftServerMessage = {
-			slot,
-			swiftOrderSignature: takerOrderParamsSig,
-		};
-
-		const encodedSwiftServerMessage =
-			takerDriftClient.encodeSwiftServerMessage(swiftServerMessage);
-
-		const swiftSignature = await takerDriftClient.signMessage(
-			Uint8Array.from(encodedSwiftServerMessage),
-			swiftKeypair
-		);
-
-		try {
-			await makerDriftClient.placeAndMakeSwiftPerpOrder(
-				encodedSwiftServerMessage,
-				swiftSignature,
-				takerDriftClient.encodeSwiftOrderParamsMessage(takerOrderParamsMessage),
-				takerOrderParamsSig,
-				takerOrderParamsMessage.expectedOrderId,
-				{
-					taker: await takerDriftClient.getUserAccountPublicKey(),
-					takerUserAccount: takerDriftClient.getUserAccount(),
-					takerStats: takerDriftClient.getUserStatsAccountPublicKey(),
-				},
-				makerOrderParams
-			);
-		} catch (e) {
-			assert(e);
-		}
-
-		const takerPosition = takerDriftClient.getUser().getPerpPosition(0);
-		assert(takerPosition == undefined);
 
 		await takerDriftClientUser.unsubscribe();
 		await takerDriftClient.unsubscribe();
@@ -700,10 +572,12 @@ describe('place and make swift order', () => {
 		});
 
 		const takerOrderParamsMessage: SwiftOrderParamsMessage = {
-			swiftOrderParams: [takerOrderParams],
+			swiftOrderParams: takerOrderParams,
 			marketIndex,
 			expectedOrderId: 1,
 			marketType: MarketType.PERP,
+			takeProfitOrderParams: null,
+			stopLossOrderParams: null,
 		};
 
 		const takerOrderParamsSig =
@@ -813,10 +687,12 @@ describe('place and make swift order', () => {
 		await takerDriftClientUser.fetchAccounts();
 
 		const takerOrderParamsMessage: SwiftOrderParamsMessage = {
-			swiftOrderParams: [takerOrderParams],
+			swiftOrderParams: takerOrderParams,
 			marketIndex,
 			expectedOrderId: 1,
 			marketType: MarketType.PERP,
+			takeProfitOrderParams: null,
+			stopLossOrderParams: null,
 		};
 		const takerOrderParamsSig =
 			await takerDriftClient.signSwiftOrderParamsMessage(

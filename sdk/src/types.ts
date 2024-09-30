@@ -1063,9 +1063,16 @@ export type SwiftServerMessage = {
 
 export type SwiftOrderParamsMessage = {
 	marketIndex: number;
-	swiftOrderParams: OptionalOrderParams[];
+	swiftOrderParams: OptionalOrderParams;
 	expectedOrderId: number;
 	marketType: MarketType;
+	takeProfitOrderParams: SwiftTriggerOrderParams | null;
+	stopLossOrderParams: SwiftTriggerOrderParams | null;
+};
+
+export type SwiftTriggerOrderParams = {
+	triggerPrice: BN;
+	baseAssetAmount: BN;
 };
 
 export type MakerInfo = {

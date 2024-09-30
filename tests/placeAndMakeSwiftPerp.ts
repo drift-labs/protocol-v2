@@ -211,10 +211,12 @@ describe('place and make swift order', () => {
 		});
 
 		const takerOrderParamsMessage: SwiftOrderParamsMessage = {
-			swiftOrderParams: [takerOrderParams],
+			swiftOrderParams: takerOrderParams,
 			marketIndex,
 			expectedOrderId: 1,
 			marketType: MarketType.PERP,
+			takeProfitOrderParams: null,
+			stopLossOrderParams: null,
 		};
 		const takerOrderParamsSig =
 			await makerDriftClient.signSwiftOrderParamsMessage(
@@ -324,10 +326,12 @@ describe('place and make swift order', () => {
 
 		await takerDriftClientUser.fetchAccounts();
 		const takerOrderParamsMessage: SwiftOrderParamsMessage = {
-			swiftOrderParams: [takerOrderParams],
+			swiftOrderParams: takerOrderParams,
 			marketIndex,
 			expectedOrderId: 1,
 			marketType: MarketType.PERP,
+			takeProfitOrderParams: null,
+			stopLossOrderParams: null,
 		};
 		const takerOrderParamsSig =
 			await takerDriftClient.signSwiftOrderParamsMessage(

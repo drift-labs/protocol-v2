@@ -8133,20 +8133,12 @@
           {
             "name": "swiftOrderParams",
             "type": {
-              "vec": {
-                "defined": "OrderParams"
-              }
+              "defined": "OrderParams"
             }
           },
           {
             "name": "marketIndex",
             "type": "u16"
-          },
-          {
-            "name": "marketType",
-            "type": {
-              "defined": "MarketType"
-            }
           },
           {
             "name": "expectedOrderId",
@@ -8155,6 +8147,38 @@
           {
             "name": "subAccountId",
             "type": "u16"
+          },
+          {
+            "name": "takeProfitOrderParams",
+            "type": {
+              "option": {
+                "defined": "SwiftTriggerOrderParams"
+              }
+            }
+          },
+          {
+            "name": "stopLossOrderParams",
+            "type": {
+              "option": {
+                "defined": "SwiftTriggerOrderParams"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "SwiftTriggerOrderParams",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "triggerPrice",
+            "type": "u64"
+          },
+          {
+            "name": "baseAssetAmount",
+            "type": "u64"
           }
         ]
       }

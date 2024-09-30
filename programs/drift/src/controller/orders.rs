@@ -1598,8 +1598,6 @@ fn fulfill_perp_order(
         return Ok((0, 0));
     }
 
-    msg!("fulfillment methods = {:?}", fulfillment_methods);
-
     let mut base_asset_amount = 0_u64;
     let mut quote_asset_amount = 0_u64;
     let mut maker_fills: BTreeMap<Pubkey, i64> = BTreeMap::new();

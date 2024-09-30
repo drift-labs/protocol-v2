@@ -8,6 +8,7 @@ use solana_program::sysvar::instructions::{
 };
 
 use crate::controller::insurance::update_user_stats_if_stake_amount;
+use crate::controller::position::PositionDirection;
 use crate::error::ErrorCode;
 use crate::ids::swift_server;
 use crate::instructions::constraints::*;
@@ -41,7 +42,9 @@ use crate::state::spot_market_map::{
     get_writable_spot_market_set, get_writable_spot_market_set_from_many, SpotMarketMap,
 };
 use crate::state::state::State;
-use crate::state::user::{MarketType, OrderStatus, OrderType, User, UserStats};
+use crate::state::user::{
+    MarketType, OrderStatus, OrderTriggerCondition, OrderType, User, UserStats,
+};
 use crate::state::user_map::{load_user_map, load_user_maps, UserMap, UserStatsMap};
 use crate::validation::sig_verification::verify_ed25519_ix;
 use crate::validation::user::validate_user_is_idle;
@@ -530,26 +533,19 @@ pub fn place_swift_taker_order<'c: 'info, 'info>(
         &swift_message.swift_order_signature.clone(),
     )?;
 
-    // Verify inputs and validate market index
-    taker_order_params_message.verify_all_same_market_indexes()?;
-    let taker_order_params = taker_order_params_message.swift_order_params;
     let clock = &Clock::get()?;
 
-    if taker_order_params.len() == 0 {
-        msg!("No orders to place");
-        return Err(print_error!(ErrorCode::SwiftOrderSequenceError)().into());
-    }
-
     // First order must be a taker order
-    let matching_taker_order_params = &taker_order_params[0];
+    let matching_taker_order_params = &taker_order_params_message.swift_order_params;
     if matching_taker_order_params.order_type != OrderType::Market
         && matching_taker_order_params.order_type != OrderType::Oracle
     {
         msg!("First order must be a taker order");
         return Err(print_error!(ErrorCode::SwiftOrderSequenceError)().into());
     }
-    let expected_order_id = taker_order_params_message.expected_order_id;
 
+    let market_index = matching_taker_order_params.market_index;
+    let expected_order_id = taker_order_params_message.expected_order_id;
     let taker_next_order_id = taker.next_order_id;
     let order_slot = swift_message.slot;
     if expected_order_id.cast::<u32>()? != taker_next_order_id {
@@ -574,14 +570,23 @@ pub fn place_swift_taker_order<'c: 'info, 'info>(
             ..PlaceOrderOptions::default()
         },
     )?;
-    let non_matching_orders: Vec<OrderParams> = taker_order_params[1..].to_vec();
-    for non_matching_order_param in non_matching_orders {
-        if non_matching_order_param.order_type != OrderType::TriggerLimit
-            && non_matching_order_param.order_type != OrderType::TriggerMarket
-        {
-            msg!("Non-matching orders must be trigger orders");
-            return Err(print_error!(ErrorCode::SwiftOrderSequenceError)().into());
-        }
+
+    if let Some(stop_loss_order_params) = taker_order_params_message.stop_loss_order_params {
+        let stop_loss_order = OrderParams {
+            order_type: OrderType::TriggerMarket,
+            direction: matching_taker_order_params.direction.opposite(),
+            trigger_price: Some(stop_loss_order_params.trigger_price),
+            base_asset_amount: stop_loss_order_params.base_asset_amount,
+            trigger_condition: if matching_taker_order_params.direction == PositionDirection::Long {
+                OrderTriggerCondition::Below
+            } else {
+                OrderTriggerCondition::Above
+            },
+            market_index,
+            market_type: MarketType::Perp,
+            ..OrderParams::default()
+        };
+
         controller::orders::place_perp_order(
             state,
             taker,
@@ -590,7 +595,38 @@ pub fn place_swift_taker_order<'c: 'info, 'info>(
             spot_market_map,
             oracle_map,
             clock,
-            non_matching_order_param,
+            stop_loss_order,
+            PlaceOrderOptions {
+                ..PlaceOrderOptions::default()
+            },
+        )?;
+    }
+
+    if let Some(take_profit_order_params) = taker_order_params_message.take_profit_order_params {
+        let take_profit_order = OrderParams {
+            order_type: OrderType::TriggerMarket,
+            direction: matching_taker_order_params.direction.opposite(),
+            trigger_price: Some(take_profit_order_params.trigger_price),
+            base_asset_amount: take_profit_order_params.base_asset_amount,
+            trigger_condition: if matching_taker_order_params.direction == PositionDirection::Long {
+                OrderTriggerCondition::Above
+            } else {
+                OrderTriggerCondition::Below
+            },
+            market_index,
+            market_type: MarketType::Perp,
+            ..OrderParams::default()
+        };
+
+        controller::orders::place_perp_order(
+            state,
+            taker,
+            taker_key,
+            perp_market_map,
+            spot_market_map,
+            oracle_map,
+            clock,
+            take_profit_order,
             PlaceOrderOptions {
                 swift_taker_order_slot: Some(order_slot),
                 ..PlaceOrderOptions::default()
