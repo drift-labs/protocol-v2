@@ -1,9 +1,20 @@
-import { Commitment, Connection, SignatureStatus } from '@solana/web3.js';
+import {
+	Connection,
+	SignatureStatus,
+	TransactionConfirmationStatus,
+} from '@solana/web3.js';
 import { DEFAULT_CONFIRMATION_OPTS } from '../config';
+
+const confirmationStatusValues: Record<TransactionConfirmationStatus, number> =
+	{
+		processed: 0,
+		confirmed: 1,
+		finalized: 2,
+	};
 
 interface TransactionConfirmationRequest {
 	txSig: string;
-	desiredConfirmationStatus: Commitment;
+	desiredConfirmationStatus: TransactionConfirmationStatus;
 	timeout: number;
 	pollInterval: number;
 	searchTransactionHistory: boolean;
@@ -27,7 +38,7 @@ export class TransactionConfirmationManager {
 
 	async confirmTransaction(
 		txSig: string,
-		desiredConfirmationStatus = DEFAULT_CONFIRMATION_OPTS.commitment,
+		desiredConfirmationStatus = DEFAULT_CONFIRMATION_OPTS.commitment as TransactionConfirmationStatus,
 		timeout = 30000,
 		pollInterval = 1000,
 		searchTransactionHistory = false
@@ -122,9 +133,19 @@ export class TransactionConfirmationManager {
 			}
 
 			if (
+				confirmationStatusValues[status.confirmationStatus] === undefined ||
+				confirmationStatusValues[request.desiredConfirmationStatus] ===
+					undefined
+			) {
+				throw new Error(
+					`Invalid confirmation status when awaiting confirmation: ${status.confirmationStatus}`
+				);
+			}
+
+			if (
 				status.confirmationStatus &&
-				(status.confirmationStatus === request.desiredConfirmationStatus ||
-					status.confirmationStatus === 'finalized')
+				confirmationStatusValues[status.confirmationStatus] >=
+					confirmationStatusValues[request.desiredConfirmationStatus]
 			) {
 				request.resolve(status);
 				this.pendingConfirmations.delete(request.txSig);
