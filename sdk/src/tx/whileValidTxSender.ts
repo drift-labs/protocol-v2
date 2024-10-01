@@ -11,7 +11,6 @@ import bs58 from 'bs58';
 import { TxHandler } from './txHandler';
 import { IWallet } from '../types';
 import { DEFAULT_CONFIRMATION_OPTS } from '../config';
-import { TransactionConfirmationManager } from '../util/TransactionConfirmationManager';
 
 const DEFAULT_RETRY = 2000;
 
@@ -33,8 +32,6 @@ export class WhileValidTxSender extends BaseTxSender {
 	>();
 
 	useBlockHeightOffset = true;
-
-	transactionConfirmationManager: TransactionConfirmationManager;
 
 	private async checkAndSetUseBlockHeightOffset() {
 		this.connection.getVersion().then((version) => {
@@ -93,9 +90,6 @@ export class WhileValidTxSender extends BaseTxSender {
 			landRateToFeeFunc,
 		});
 		this.retrySleep = retrySleep;
-		this.transactionConfirmationManager = new TransactionConfirmationManager(
-			connection
-		);
 
 		this.checkAndSetUseBlockHeightOffset();
 	}
@@ -139,7 +133,9 @@ export class WhileValidTxSender extends BaseTxSender {
 		// handle subclass-specific side effects
 		const txSig = bs58.encode(
 			// @ts-expect-error
-			signedTx?.signature || signedTx.signatures[0]?.signature || signedTx.signatures[0]
+			signedTx?.signature ||
+				signedTx.signatures[0]?.signature ||
+				signedTx.signatures[0]
 		);
 		this.untilValid.set(txSig, latestBlockhash);
 
