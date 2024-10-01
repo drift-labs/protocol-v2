@@ -11,7 +11,7 @@ import bs58 from 'bs58';
 import { TxHandler } from './txHandler';
 import { IWallet } from '../types';
 import { DEFAULT_CONFIRMATION_OPTS } from '../config';
-import { TransactionConfirmationManager } from '../util/confirmTransaction';
+import { TransactionConfirmationManager } from '../util/TransactionConfirmationManager';
 
 const DEFAULT_RETRY = 2000;
 

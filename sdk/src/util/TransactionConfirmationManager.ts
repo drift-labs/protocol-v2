@@ -1,9 +1,9 @@
-import { Connection, SignatureStatus } from "@solana/web3.js";
+import { Commitment, Connection, SignatureStatus } from "@solana/web3.js";
 import { DEFAULT_CONFIRMATION_OPTS } from "../config";
 
 interface TransactionConfirmationRequest {
     txSig: string;
-    desiredConfirmationStatus: string;
+    desiredConfirmationStatus: Commitment;
     timeout: number;
     pollInterval: number;
     searchTransactionHistory: boolean;
