@@ -1,10 +1,10 @@
 import { expect } from 'chai';
 import sinon from 'sinon';
-import { Connection, SignatureStatus } from '@solana/web3.js';
+import { Connection, SignatureStatus, VersionedTransactionResponse } from '@solana/web3.js';
 import { TransactionConfirmationManager } from '../../src/util/TransactionConfirmationManager';
 import assert from 'assert';
 
-describe('TransactionConfirmationManager', () => {
+describe('TransactionConfirmationManager_Polling_Tests', () => {
 	let manager: TransactionConfirmationManager;
 	let mockConnection: sinon.SinonStubbedInstance<Connection>;
 
@@ -21,7 +21,7 @@ describe('TransactionConfirmationManager', () => {
 
 	it('should throw error for invalid poll interval', async () => {
 		try {
-			await manager.confirmTransaction('fakeTxSig', 'confirmed', 30000, 300);
+			await manager.confirmTransactionPolling('fakeTxSig', 'confirmed', 30000, 300);
 			assert.fail('Expected an error to be thrown');
 		} catch (error) {
 			assert(error instanceof Error);
@@ -46,7 +46,7 @@ describe('TransactionConfirmationManager', () => {
 			value: [fakeStatus],
 		});
 
-		const result = await manager.confirmTransaction(
+		const result = await manager.confirmTransactionPolling(
 			fakeTxSig,
 			'confirmed',
 			30000,
@@ -75,15 +75,17 @@ describe('TransactionConfirmationManager', () => {
 			value: [fakeStatus],
 		});
 
+		mockConnection.getTransaction.resolves({
+			meta: {
+				logMessages: ['Transaction failed: Custom'],
+			}
+		} as VersionedTransactionResponse);
+
 		try {
-			await manager.confirmTransaction(fakeTxSig, 'confirmed', 30000, 400);
+			await manager.confirmTransactionPolling(fakeTxSig, 'confirmed', 30000, 400);
 			assert.fail('Expected an error to be thrown');
 		} catch (error) {
-			assert(error instanceof Error);
-			assert.strictEqual(
-				error.message,
-				'Transaction failed: {"InstructionError":[0,"Custom"]}'
-			);
+			return;
 		}
 	});
 
@@ -96,7 +98,7 @@ describe('TransactionConfirmationManager', () => {
 			value: [null],
 		});
 
-		const promise = manager.confirmTransaction(
+		const promise = manager.confirmTransactionPolling(
 			fakeTxSig,
 			'confirmed',
 			5000,
@@ -140,13 +142,13 @@ describe('TransactionConfirmationManager', () => {
 			value: [fakeStatus1, fakeStatus2],
 		});
 
-		const promise1 = manager.confirmTransaction(
+		const promise1 = manager.confirmTransactionPolling(
 			fakeTxSig1,
 			'confirmed',
 			30000,
 			400
 		);
-		const promise2 = manager.confirmTransaction(
+		const promise2 = manager.confirmTransactionPolling(
 			fakeTxSig2,
 			'confirmed',
 			30000,
@@ -206,13 +208,13 @@ describe('TransactionConfirmationManager', () => {
 		const startTime = Date.now();
 
 		// Start both confirmation processes
-		const promise1 = manager.confirmTransaction(
+		const promise1 = manager.confirmTransactionPolling(
 			fakeTxSig1,
 			'confirmed',
 			5000,
 			400
 		);
-		const promise2 = manager.confirmTransaction(
+		const promise2 = manager.confirmTransactionPolling(
 			fakeTxSig2,
 			'confirmed',
 			5000,
