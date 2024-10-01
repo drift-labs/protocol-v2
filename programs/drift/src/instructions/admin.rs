@@ -41,6 +41,7 @@ use crate::state::fulfillment_params::phoenix::PhoenixMarketContext;
 use crate::state::fulfillment_params::phoenix::PhoenixV1FulfillmentConfig;
 use crate::state::fulfillment_params::serum::SerumContext;
 use crate::state::fulfillment_params::serum::SerumV3FulfillmentConfig;
+use crate::state::high_leverage_mode_config::HighLeverageModeConfig;
 use crate::state::insurance_fund_stake::ProtocolIfSharesTransferConfig;
 use crate::state::oracle::get_sb_on_demand_price;
 use crate::state::oracle::{
@@ -4092,6 +4093,32 @@ pub fn handle_settle_expired_market<'c: 'info, 'info>(
     Ok(())
 }
 
+pub fn handle_initialize_high_leverage_mode_config(
+    ctx: Context<InitializeHighLeverageModeConfig>,
+    max_users: u32,
+) -> Result<()> {
+    let mut config = ctx.accounts.high_leverage_mode_config.load_init()?;
+
+    config.max_users = max_users;
+
+    config.validate()?;
+
+    Ok(())
+}
+
+pub fn handle_update_high_leverage_mode_config(
+    ctx: Context<UpdateHighLeverageModeConfig>,
+    max_users: u32,
+) -> Result<()> {
+    let mut config = load_mut!(ctx.accounts.high_leverage_mode_config)?;
+
+    config.max_users = max_users;
+
+    config.validate()?;
+
+    Ok(())
+}
+
 #[derive(Accounts)]
 pub struct Initialize<'info> {
     #[account(mut)]
@@ -4701,6 +4728,42 @@ pub struct InitPythPullPriceFeed<'info> {
     #[account(mut, seeds = [PTYH_PRICE_FEED_SEED_PREFIX, &feed_id], bump)]
     pub price_feed: AccountInfo<'info>,
     pub system_program: Program<'info, System>,
+    #[account(
+        has_one = admin
+    )]
+    pub state: Box<Account<'info, State>>,
+}
+
+#[derive(Accounts)]
+pub struct InitializeHighLeverageModeConfig<'info> {
+    #[account(mut)]
+    pub admin: Signer<'info>,
+    #[account(
+        init,
+        seeds = [b"high_leverage_mode_config".as_ref()],
+        space = HighLeverageModeConfig::SIZE,
+        bump,
+        payer = admin
+    )]
+    pub high_leverage_mode_config: AccountLoader<'info, HighLeverageModeConfig>,
+    #[account(
+        has_one = admin
+    )]
+    pub state: Box<Account<'info, State>>,
+    pub rent: Sysvar<'info, Rent>,
+    pub system_program: Program<'info, System>,
+}
+
+#[derive(Accounts)]
+pub struct UpdateHighLeverageModeConfig<'info> {
+    #[account(mut)]
+    pub admin: Signer<'info>,
+    #[account(
+        mut,
+        seeds = [b"high_leverage_mode_config".as_ref()],
+        bump,
+    )]
+    pub high_leverage_mode_config: AccountLoader<'info, HighLeverageModeConfig>,
     #[account(
         has_one = admin
     )]

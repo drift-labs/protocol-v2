@@ -1439,6 +1439,13 @@ pub mod drift {
     ) -> Result<()> {
         handle_initialize_pyth_pull_oracle(ctx, feed_id)
     }
+
+    pub fn initialize_high_leverage_mode_config(
+        ctx: Context<InitializeHighLeverageModeConfig>,
+        max_users: u32,
+    ) -> Result<()> {
+        handle_initialize_high_leverage_mode_config(ctx, max_users)
+    }
 }
 
 #[cfg(not(feature = "no-entrypoint"))]

@@ -2,6 +2,7 @@ pub mod events;
 pub mod fill_mode;
 pub mod fulfillment;
 pub mod fulfillment_params;
+pub mod high_leverage_mode_config;
 pub mod insurance_fund_stake;
 pub mod load_ref;
 pub mod margin_calculation;
