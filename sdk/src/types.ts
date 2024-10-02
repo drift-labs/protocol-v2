@@ -1056,12 +1056,21 @@ export const DefaultOrderParams: OrderParams = {
 	auctionEndPrice: null,
 };
 
-export type SwiftOrderParamsMessage = {
-	marketIndex: number;
-	swiftOrderParams: OptionalOrderParams[];
-	expectedOrderId: number;
-	marketType: MarketType;
+export type SwiftServerMessage = {
 	slot: BN;
+	swiftOrderSignature: Uint8Array;
+};
+
+export type SwiftOrderParamsMessage = {
+	swiftOrderParams: OptionalOrderParams;
+	expectedOrderId: number;
+	takeProfitOrderParams: SwiftTriggerOrderParams | null;
+	stopLossOrderParams: SwiftTriggerOrderParams | null;
+};
+
+export type SwiftTriggerOrderParams = {
+	triggerPrice: BN;
+	baseAssetAmount: BN;
 };
 
 export type MakerInfo = {
