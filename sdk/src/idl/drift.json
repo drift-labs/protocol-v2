@@ -13119,8 +13119,8 @@
     },
     {
       "code": 6288,
-      "name": "SwiftOrderSequenceError",
-      "msg": "Swift order message must be ordered 0th order is market and rest are triggers"
+      "name": "InvalidSwiftOrderParam",
+      "msg": "Swift only available for market/oracle perp orders"
     },
     {
       "code": 6289,

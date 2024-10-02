@@ -530,18 +530,19 @@ pub fn place_swift_taker_order<'c: 'info, 'info>(
         &ix,
         &taker.authority.to_bytes(),
         &taker_order_params_message.clone().try_to_vec()?,
-        &swift_message.swift_order_signature.clone(),
+        &swift_message.swift_order_signature,
     )?;
 
     let clock = &Clock::get()?;
 
     // First order must be a taker order
     let matching_taker_order_params = &taker_order_params_message.swift_order_params;
-    if matching_taker_order_params.order_type != OrderType::Market
-        && matching_taker_order_params.order_type != OrderType::Oracle
+    if (matching_taker_order_params.order_type != OrderType::Market
+        && matching_taker_order_params.order_type != OrderType::Oracle)
+        || matching_taker_order_params.market_type != MarketType::Perp
     {
-        msg!("First order must be a taker order");
-        return Err(print_error!(ErrorCode::SwiftOrderSequenceError)().into());
+        msg!("First order must be a market or oracle perp taker order");
+        return Err(print_error!(ErrorCode::InvalidSwiftOrderParam)().into());
     }
 
     let market_index = matching_taker_order_params.market_index;
@@ -584,6 +585,7 @@ pub fn place_swift_taker_order<'c: 'info, 'info>(
             },
             market_index,
             market_type: MarketType::Perp,
+            reduce_only: true,
             ..OrderParams::default()
         };
 
@@ -615,6 +617,7 @@ pub fn place_swift_taker_order<'c: 'info, 'info>(
             },
             market_index,
             market_type: MarketType::Perp,
+            reduce_only: true,
             ..OrderParams::default()
         };
 
