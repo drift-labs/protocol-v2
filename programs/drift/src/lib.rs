@@ -318,6 +318,13 @@ pub mod drift {
         handle_reclaim_rent(ctx)
     }
 
+    pub fn update_user_high_leverage_mode(
+        ctx: Context<UpdateUserHighLeverageMode>,
+        sub_account_id: u16,
+    ) -> Result<()> {
+        handle_update_user_high_leverage_mode(ctx, sub_account_id)
+    }
+
     // Keeper Instructions
 
     pub fn fill_perp_order<'c: 'info, 'info>(
@@ -358,6 +365,12 @@ pub mod drift {
         ctx: Context<'_, '_, 'c, 'info, UpdateUserIdle<'info>>,
     ) -> Result<()> {
         handle_update_user_idle(ctx)
+    }
+
+    pub fn disable_user_high_leverage_mode<'c: 'info, 'info>(
+        ctx: Context<'_, '_, 'c, 'info, DisableUserHighLeverageMode<'info>>,
+    ) -> Result<()> {
+        handle_disable_user_high_leverage_mode(ctx)
     }
 
     pub fn update_user_open_orders_count(ctx: Context<UpdateUserIdle>) -> Result<()> {

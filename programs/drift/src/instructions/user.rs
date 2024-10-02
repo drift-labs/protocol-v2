@@ -48,6 +48,7 @@ use crate::state::fulfillment_params::drift::MatchFulfillmentParams;
 use crate::state::fulfillment_params::openbook_v2::OpenbookV2FulfillmentParams;
 use crate::state::fulfillment_params::phoenix::PhoenixFulfillmentParams;
 use crate::state::fulfillment_params::serum::SerumFulfillmentParams;
+use crate::state::high_leverage_mode_config::HighLeverageModeConfig;
 use crate::state::oracle::StrictOraclePrice;
 use crate::state::order_params::{
     ModifyOrderParams, OrderParams, PlaceAndTakeOrderSuccessCondition, PlaceOrderOptions,
@@ -65,7 +66,7 @@ use crate::state::spot_market_map::{
 };
 use crate::state::state::State;
 use crate::state::traits::Size;
-use crate::state::user::{MarketType, OrderType, ReferrerName, User, UserStats};
+use crate::state::user::{MarginMode, MarketType, OrderType, ReferrerName, User, UserStats};
 use crate::state::user_map::{load_user_maps, UserMap, UserStatsMap};
 use crate::validate;
 use crate::validation::user::validate_user_deletion;
@@ -2104,6 +2105,29 @@ pub fn handle_deposit_into_spot_market_revenue_pool<'c: 'info, 'info>(
     Ok(())
 }
 
+pub fn handle_update_user_high_leverage_mode(
+    ctx: Context<UpdateUserHighLeverageMode>,
+    _sub_account_id: u16,
+) -> Result<()> {
+    let mut user = load_mut!(ctx.accounts.user)?;
+
+    validate!(
+        user.margin_mode != MarginMode::HighLeverage,
+        ErrorCode::DefaultError,
+        "user already in high leverage mode"
+    )?;
+
+    user.margin_mode = MarginMode::HighLeverage;
+
+    let mut config = load_mut!(ctx.accounts.high_leverage_mode_config)?;
+
+    config.current_users = config.current_users.safe_add(1)?;
+
+    config.validate()?;
+
+    Ok(())
+}
+
 #[derive(Accounts)]
 #[instruction(
     sub_account_id: u16,
@@ -2470,6 +2494,22 @@ pub struct Swap<'info> {
     /// CHECK: fixed instructions sysvar account
     #[account(address = instructions::ID)]
     pub instructions: UncheckedAccount<'info>,
+}
+
+#[derive(Accounts)]
+#[instruction(
+    sub_account_id: u16,
+)]
+pub struct UpdateUserHighLeverageMode<'info> {
+    #[account(
+        mut,
+        seeds = [b"user", authority.key.as_ref(), sub_account_id.to_le_bytes().as_ref()],
+        bump,
+    )]
+    pub user: AccountLoader<'info, User>,
+    pub authority: Signer<'info>,
+    #[account(mut)]
+    pub high_leverage_mode_config: AccountLoader<'info, HighLeverageModeConfig>,
 }
 
 #[access_control(

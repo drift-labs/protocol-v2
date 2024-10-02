@@ -126,7 +126,8 @@ pub struct User {
     pub open_auctions: u8,
     /// Whether or not user has open order with auction
     pub has_open_auction: bool,
-    pub padding1: [u8; 5],
+    pub margin_mode: MarginMode,
+    pub padding1: [u8; 4],
     pub last_fuel_bonus_update_ts: u32,
     pub padding: [u8; 12],
 }
@@ -1802,4 +1803,11 @@ pub struct ReferrerName {
 
 impl Size for ReferrerName {
     const SIZE: usize = 136;
+}
+
+#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Debug, Eq, Default)]
+pub enum MarginMode {
+    #[default]
+    Default,
+    HighLeverage,
 }

@@ -15,6 +15,7 @@ use crate::math::casting::Cast;
 use crate::math::constants::QUOTE_SPOT_MARKET_INDEX;
 use crate::math::margin::{calculate_user_equity, meets_settle_pnl_maintenance_margin_requirement};
 use crate::math::orders::{estimate_price_from_side, find_bids_and_asks_from_users};
+use crate::math::safe_math::SafeMath;
 use crate::math::spot_withdraw::validate_spot_market_vault_amount;
 use crate::optional_accounts::{get_token_mint, update_prelaunch_oracle};
 use crate::state::fill_mode::FillMode;
@@ -22,6 +23,7 @@ use crate::state::fulfillment_params::drift::MatchFulfillmentParams;
 use crate::state::fulfillment_params::openbook_v2::OpenbookV2FulfillmentParams;
 use crate::state::fulfillment_params::phoenix::PhoenixFulfillmentParams;
 use crate::state::fulfillment_params::serum::SerumFulfillmentParams;
+use crate::state::high_leverage_mode_config::HighLeverageModeConfig;
 use crate::state::insurance_fund_stake::InsuranceFundStake;
 use crate::state::oracle_map::OracleMap;
 use crate::state::order_params::{OrderParams, PlaceOrderOptions, SwiftOrderParamsMessage};
@@ -38,7 +40,7 @@ use crate::state::spot_market_map::{
     get_writable_spot_market_set, get_writable_spot_market_set_from_many, SpotMarketMap,
 };
 use crate::state::state::State;
-use crate::state::user::{MarketType, OrderStatus, OrderType, User, UserStats};
+use crate::state::user::{MarginMode, MarketType, OrderStatus, OrderType, User, UserStats};
 use crate::state::user_map::{load_user_map, load_user_maps, UserMap, UserStatsMap};
 use crate::validation::sig_verification::verify_ed25519_ix;
 use crate::validation::user::validate_user_is_idle;
@@ -1872,6 +1874,45 @@ pub fn handle_update_user_gov_token_insurance_stake(
     Ok(())
 }
 
+pub fn handle_disable_user_high_leverage_mode<'c: 'info, 'info>(
+    ctx: Context<'_, '_, 'c, 'info, DisableUserHighLeverageMode<'info>>,
+) -> Result<()> {
+    let mut user = load_mut!(ctx.accounts.user)?;
+    let clock = Clock::get()?;
+
+    let AccountMaps {
+        perp_market_map,
+        spot_market_map,
+        mut oracle_map,
+    } = load_maps(
+        &mut ctx.remaining_accounts.iter().peekable(),
+        &MarketSet::new(),
+        &MarketSet::new(),
+        Clock::get()?.slot,
+        None,
+    )?;
+
+    validate!(
+        user.margin_mode == MarginMode::HighLeverage,
+        ErrorCode::DefaultError,
+        "user must be in high leverage mode"
+    )?;
+
+    // TODO add some other qualifications
+    // margin check passes? (need to do it after margin mode flipped
+    // enough slots inactive?
+
+    user.margin_mode = MarginMode::Default;
+
+    let mut config = load_mut!(ctx.accounts.high_leverage_mode_config)?;
+
+    config.current_users = config.current_users.safe_sub(1)?;
+
+    config.validate()?;
+
+    Ok(())
+}
+
 #[derive(Accounts)]
 pub struct FillOrder<'info> {
     pub state: Box<Account<'info, State>>,
@@ -2290,4 +2331,13 @@ pub struct UpdatePrelaunchOracle<'info> {
     #[account(mut)]
     /// CHECK: checked in ix
     pub oracle: AccountInfo<'info>,
+}
+
+#[derive(Accounts)]
+pub struct DisableUserHighLeverageMode<'info> {
+    pub keeper: Signer<'info>,
+    #[account(mut)]
+    pub user: AccountLoader<'info, User>,
+    #[account(mut)]
+    pub high_leverage_mode_config: AccountLoader<'info, HighLeverageModeConfig>,
 }
