@@ -408,14 +408,10 @@ export abstract class BaseTxSender implements TxSender {
 		result: SignatureResult
 	): Promise<void> {
 		if (result.err) {
-			await this.reportTransactionError(txSig);
+			await reportTransactionError(txSig, this.connection);
 		}
 
 		return;
-	}
-
-	public async reportTransactionError(txSig: string): Promise<void> {
-		return reportTransactionError(txSig, this.connection);
 	}
 
 	public getTxLandRate(): number {
