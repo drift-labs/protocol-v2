@@ -75,6 +75,7 @@ describe('TransactionConfirmationManager_Polling_Tests', () => {
 			value: [fakeStatus],
 		});
 
+		// The transaction manager falls into getTransaction when it detects a transaction failure so we need to mock that as well
 		mockConnection.getTransaction.resolves({
 			meta: {
 				logMessages: ['Transaction failed: Custom'],
