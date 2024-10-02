@@ -24,10 +24,10 @@ fn concentration_coef_tests() {
         ..PerpMarket::default()
     };
 
-    assert!(update_concentration_coef(&mut market.amm, 0).is_err());
+    assert!(update_concentration_coef(&mut market, 0).is_err());
 
     let new_scale = 1;
-    update_concentration_coef(&mut market.amm, new_scale).unwrap();
+    update_concentration_coef(&mut market, new_scale).unwrap();
     assert_eq!(market.amm.min_base_asset_reserve, 353556781219);
     assert_eq!(market.amm.max_base_asset_reserve, 707100000000);
 
@@ -37,12 +37,12 @@ fn concentration_coef_tests() {
     assert_eq!(orig_open_asks, -194804918033);
 
     let new_scale = 2;
-    update_concentration_coef(&mut market.amm, new_scale).unwrap();
+    update_concentration_coef(&mut market, new_scale).unwrap();
     assert_eq!(market.amm.min_base_asset_reserve, 414215889321);
     assert_eq!(market.amm.max_base_asset_reserve, 603550000000);
 
     let new_scale = 5;
-    update_concentration_coef(&mut market.amm, new_scale).unwrap();
+    update_concentration_coef(&mut market, new_scale).unwrap();
     assert_eq!(market.amm.min_base_asset_reserve, 461748734808);
     assert_eq!(market.amm.max_base_asset_reserve, 541420000000);
     let new_sqrt_k = market.amm.sqrt_k * new_scale;
@@ -61,7 +61,7 @@ fn concentration_coef_tests() {
     assert_eq!(orig_open_asks - open_asks, 4074098360);
 
     let new_scale = 100; // moves boundary to prevent base_asset_amount_with_amm to close
-    assert!(update_concentration_coef(&mut market.amm, new_scale).is_err());
+    assert!(update_concentration_coef(&mut market, new_scale).is_err());
 
     // different default market
 
@@ -70,17 +70,17 @@ fn concentration_coef_tests() {
     assert_eq!(market_balanced.amm.sqrt_k, 100000000000);
 
     let new_scale = 20;
-    update_concentration_coef(&mut market_balanced.amm, new_scale).unwrap();
+    update_concentration_coef(&mut market_balanced, new_scale).unwrap();
     assert_eq!(market_balanced.amm.min_base_asset_reserve, 97971020172);
     assert_eq!(market_balanced.amm.max_base_asset_reserve, 102071000000);
 
     let new_scale = AMM_RESERVE_PRECISION; // too large, err
-    assert!(update_concentration_coef(&mut market_balanced.amm, new_scale).is_err());
+    assert!(update_concentration_coef(&mut market_balanced, new_scale).is_err());
     assert_eq!(market_balanced.amm.min_base_asset_reserve, 97971020172);
     assert_eq!(market_balanced.amm.max_base_asset_reserve, 102071000000);
 
     let new_scale = 140000; // near limit, very little liquidity
-    update_concentration_coef(&mut market_balanced.amm, new_scale).unwrap();
+    update_concentration_coef(&mut market_balanced, new_scale).unwrap();
     assert_eq!(market_balanced.amm.min_base_asset_reserve, 99999800000);
     assert_eq!(market_balanced.amm.max_base_asset_reserve, 100000200000);
 

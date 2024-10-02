@@ -1,3 +1,5 @@
+use std::u32;
+
 use crate::error::{DriftResult, ErrorCode};
 use crate::math::casting::Cast;
 use crate::math::constants::{
@@ -17,9 +19,14 @@ use crate::state::perp_market::PerpMarket;
 use crate::state::perp_market_map::PerpMarketMap;
 use crate::state::spot_market::{SpotBalanceType, SpotMarket};
 use crate::state::spot_market_map::SpotMarketMap;
-use crate::state::user::User;
-use crate::{validate, BASE_PRECISION};
+use crate::state::user::{OrderType, User};
+use crate::{
+    validate, MarketType, OrderParams, PositionDirection, BASE_PRECISION,
+    LIQUIDATION_FEE_INCREASE_PER_SLOT,
+};
 use solana_program::msg;
+
+pub const LIQUIDATION_FEE_ADJUST_GRACE_PERIOD_SLOTS: u64 = 1_500; // ~10 minutes
 
 #[cfg(test)]
 mod tests;
@@ -444,4 +451,65 @@ pub fn calculate_spot_if_fee(
         .unwrap_or(u32::MAX);
 
     Ok(max_if_fee.min(implied_if_fee))
+}
+
+pub fn get_liquidation_order_params(
+    market_index: u16,
+    existing_direction: PositionDirection,
+    base_asset_amount: u64,
+    oracle_price: i64,
+    liquidation_fee: u32,
+) -> DriftResult<OrderParams> {
+    let direction = existing_direction.opposite();
+
+    let oracle_price_u128 = oracle_price.abs().cast::<u128>()?;
+    let limit_price = match direction {
+        PositionDirection::Long => oracle_price_u128
+            .safe_add(
+                oracle_price_u128
+                    .safe_mul(liquidation_fee.cast()?)?
+                    .safe_div(LIQUIDATION_FEE_PRECISION_U128)?,
+            )?
+            .cast::<u64>()?,
+        PositionDirection::Short => oracle_price_u128
+            .safe_sub(
+                oracle_price_u128
+                    .safe_mul(liquidation_fee.cast()?)?
+                    .safe_div(LIQUIDATION_FEE_PRECISION_U128)?,
+            )?
+            .cast::<u64>()?,
+    };
+
+    let order_params = OrderParams {
+        market_index,
+        direction,
+        price: limit_price,
+        order_type: OrderType::Limit,
+        market_type: MarketType::Perp,
+        base_asset_amount,
+        reduce_only: true,
+        ..OrderParams::default()
+    };
+
+    Ok(order_params)
+}
+
+pub fn get_liquidation_fee(
+    base_liquidation_fee: u32,
+    max_liquidation_fee: u32,
+    last_active_user_slot: u64,
+    current_slot: u64,
+) -> DriftResult<u32> {
+    let slots_elapsed = current_slot.safe_sub(last_active_user_slot)?;
+    if slots_elapsed < LIQUIDATION_FEE_ADJUST_GRACE_PERIOD_SLOTS {
+        return Ok(base_liquidation_fee);
+    }
+
+    let liquidation_fee = base_liquidation_fee.saturating_add(
+        slots_elapsed
+            .safe_mul(LIQUIDATION_FEE_INCREASE_PER_SLOT.cast::<u64>()?)?
+            .cast::<u32>()
+            .unwrap_or(u32::MAX),
+    );
+    Ok(liquidation_fee.min(max_liquidation_fee))
 }

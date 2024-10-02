@@ -102,7 +102,7 @@ describe("fuelin'", () => {
 		return [driftClient, userUSDCAccount];
 	};
 
-	before(async () => {
+	beforeEach(async () => {
 		const context = await startAnchor('', [], []);
 
 		bankrunContextWrapper = new BankrunContextWrapper(context);
@@ -207,7 +207,7 @@ describe("fuelin'", () => {
 		await bankrunContextWrapper.setTimestamp(FUEL_START_TS.toNumber());
 	});
 
-	after(async () => {
+	afterEach(async () => {
 		await fillerDriftClient.unsubscribe();
 		await fillerDriftClientUser.unsubscribe();
 	});
@@ -744,16 +744,16 @@ describe("fuelin'", () => {
 		const makerUSDCAmount = makerDriftClient.getQuoteAssetTokenAmount();
 		const makerSolAmount = makerDriftClient.getTokenAmount(1);
 		console.log(makerUSDCAmount.toString(), makerSolAmount.toString());
-		assert(makerUSDCAmount.gte(new BN(136007200)));
-		assert(makerSolAmount.lte(new BN(-899999999))); // round borrows up
+		assert(makerUSDCAmount.gte(new BN(140000000)));
+		assert(makerSolAmount.lte(new BN(-1000000000))); // round borrows up
 
 		const takerUSDCAmount = takerDriftClient.getQuoteAssetTokenAmount();
 		const takerSolAmount = takerDriftClient.getTokenAmount(1);
 		console.log(takerUSDCAmount.toString(), takerSolAmount.toString());
 
-		assert(takerUSDCAmount.eq(new BN(63964000)));
-		assert(takerSolAmount.gte(new BN(899999995)));
-		assert(takerSolAmount.lte(new BN(899999999)));
+		assert(takerUSDCAmount.eq(new BN(59960000)));
+		assert(takerSolAmount.gte(new BN(1000000000 - 5)));
+		assert(takerSolAmount.lte(new BN(1000000005)));
 
 		console.log(fillerDriftClient.getQuoteAssetTokenAmount().toNumber());
 
@@ -770,7 +770,7 @@ describe("fuelin'", () => {
 		);
 		console.log(fuelDictTaker);
 		assert(fuelDictTaker['takerFuel'].gt(ZERO));
-		assert(fuelDictTaker['takerFuel'].eqn(3600));
+		assert(fuelDictTaker['takerFuel'].eqn(4000));
 
 		const fuelDictMaker = makerDriftClientUser.getFuelBonus(
 			new BN(currentClock2.unixTimestamp.toString()),
@@ -780,7 +780,7 @@ describe("fuelin'", () => {
 		// console.log(fuelDictMaker);
 		assert(fuelDictMaker['takerFuel'].eq(ZERO));
 		assert(fuelDictMaker['makerFuel'].gt(ZERO));
-		assert(fuelDictMaker['makerFuel'].eqn(3600 * 2));
+		assert(fuelDictMaker['makerFuel'].eqn(4000 * 2));
 
 		await takerDriftClientUser.unsubscribe();
 		await takerDriftClient.unsubscribe();

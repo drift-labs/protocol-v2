@@ -1,6 +1,8 @@
 use crate::error::{DriftResult, ErrorCode};
 use crate::math::casting::Cast;
-use crate::math::constants::{ONE_YEAR, SPOT_RATE_PRECISION, SPOT_UTILIZATION_PRECISION};
+use crate::math::constants::{
+    ONE_YEAR, PERCENTAGE_PRECISION, SPOT_RATE_PRECISION, SPOT_UTILIZATION_PRECISION,
+};
 use crate::math::safe_math::{SafeDivFloor, SafeMath};
 use crate::state::oracle::{OraclePriceData, StrictOraclePrice};
 use crate::state::spot_market::{SpotBalanceType, SpotMarket};
@@ -122,6 +124,13 @@ pub fn calculate_accumulated_interest(
     spot_market: &SpotMarket,
     now: i64,
 ) -> DriftResult<InterestAccumulated> {
+    if now <= spot_market.last_interest_ts.cast()? {
+        return Ok(InterestAccumulated {
+            borrow_interest: 0,
+            deposit_interest: 0,
+        });
+    }
+
     let utilization = calculate_spot_market_utilization(spot_market)?;
 
     if utilization == 0 {
@@ -131,35 +140,7 @@ pub fn calculate_accumulated_interest(
         });
     }
 
-    let borrow_rate = if utilization > spot_market.optimal_utilization.cast()? {
-        let surplus_utilization = utilization.safe_sub(spot_market.optimal_utilization.cast()?)?;
-
-        let borrow_rate_slope = spot_market
-            .max_borrow_rate
-            .cast::<u128>()?
-            .safe_sub(spot_market.optimal_borrow_rate.cast()?)?
-            .safe_mul(SPOT_UTILIZATION_PRECISION)?
-            .safe_div(
-                SPOT_UTILIZATION_PRECISION.safe_sub(spot_market.optimal_utilization.cast()?)?,
-            )?;
-
-        spot_market.optimal_borrow_rate.cast::<u128>()?.safe_add(
-            surplus_utilization
-                .safe_mul(borrow_rate_slope)?
-                .safe_div(SPOT_UTILIZATION_PRECISION)?,
-        )?
-    } else {
-        let borrow_rate_slope = spot_market
-            .optimal_borrow_rate
-            .cast::<u128>()?
-            .safe_mul(SPOT_UTILIZATION_PRECISION)?
-            .safe_div(spot_market.optimal_utilization.cast()?)?;
-
-        utilization
-            .safe_mul(borrow_rate_slope)?
-            .safe_div(SPOT_UTILIZATION_PRECISION)?
-    }
-    .max(spot_market.get_min_borrow_rate()?.cast()?);
+    let borrow_rate = calculate_borrow_rate(spot_market, utilization)?;
 
     let time_since_last_update = now
         .cast::<u64>()
@@ -191,6 +172,54 @@ pub fn calculate_accumulated_interest(
         borrow_interest,
         deposit_interest,
     })
+}
+
+#[inline(always)]
+pub fn calculate_borrow_rate(spot_market: &SpotMarket, utilization: u128) -> DriftResult<u128> {
+    let borrow_rate = if utilization > spot_market.optimal_utilization.cast()? {
+        let surplus_utilization = utilization.safe_sub(spot_market.optimal_utilization.cast()?)?;
+
+        let borrow_rate_slope = spot_market
+            .max_borrow_rate
+            .cast::<u128>()?
+            .safe_sub(spot_market.optimal_borrow_rate.cast()?)?
+            .safe_mul(SPOT_UTILIZATION_PRECISION)?
+            .safe_div(
+                SPOT_UTILIZATION_PRECISION.safe_sub(spot_market.optimal_utilization.cast()?)?,
+            )?;
+
+        spot_market.optimal_borrow_rate.cast::<u128>()?.safe_add(
+            surplus_utilization
+                .safe_mul(borrow_rate_slope)?
+                .safe_div(SPOT_UTILIZATION_PRECISION)?,
+        )?
+    } else {
+        let borrow_rate_slope = spot_market
+            .optimal_borrow_rate
+            .cast::<u128>()?
+            .safe_mul(SPOT_UTILIZATION_PRECISION)?
+            .safe_div(spot_market.optimal_utilization.cast()?)?;
+
+        utilization
+            .safe_mul(borrow_rate_slope)?
+            .safe_div(SPOT_UTILIZATION_PRECISION)?
+    }
+    .max(spot_market.get_min_borrow_rate()?.cast()?);
+
+    Ok(borrow_rate)
+}
+
+#[cfg(feature = "drift-rs")]
+pub fn calculate_deposit_rate(
+    spot_market: &SpotMarket,
+    utilization: u128,
+    borrow_rate: u128,
+) -> DriftResult<u128> {
+    borrow_rate
+        .safe_mul(PERCENTAGE_PRECISION.safe_sub(spot_market.insurance_fund.total_factor.cast()?)?)?
+        .safe_mul(utilization)?
+        .safe_div(SPOT_UTILIZATION_PRECISION)?
+        .safe_div(PERCENTAGE_PRECISION)
 }
 
 pub fn get_balance_value_and_token_amount(

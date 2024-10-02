@@ -12,6 +12,7 @@ pub enum FillMode {
     Fill,
     PlaceAndMake,
     PlaceAndTake,
+    Liquidation,
 }
 
 impl FillMode {
@@ -21,11 +22,17 @@ impl FillMode {
         valid_oracle_price: Option<i64>,
         slot: u64,
         tick_size: u64,
+        is_prediction_market: bool,
     ) -> DriftResult<Option<u64>> {
         match self {
-            FillMode::Fill | FillMode::PlaceAndMake => {
-                order.get_limit_price(valid_oracle_price, None, slot, tick_size)
-            }
+            FillMode::Fill | FillMode::PlaceAndMake | FillMode::Liquidation => order
+                .get_limit_price(
+                    valid_oracle_price,
+                    None,
+                    slot,
+                    tick_size,
+                    is_prediction_market,
+                ),
             FillMode::PlaceAndTake => {
                 if order.has_auction() {
                     calculate_auction_price(
@@ -33,12 +40,23 @@ impl FillMode {
                         order.slot.safe_add(order.auction_duration.cast()?)?,
                         tick_size,
                         valid_oracle_price,
+                        is_prediction_market,
                     )
                     .map(Some)
                 } else {
-                    order.get_limit_price(valid_oracle_price, None, slot, tick_size)
+                    order.get_limit_price(
+                        valid_oracle_price,
+                        None,
+                        slot,
+                        tick_size,
+                        is_prediction_market,
+                    )
                 }
             }
         }
+    }
+
+    pub fn is_liquidation(&self) -> bool {
+        self == &FillMode::Liquidation
     }
 }

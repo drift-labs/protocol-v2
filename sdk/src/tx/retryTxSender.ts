@@ -1,9 +1,9 @@
 import { ConfirmationStrategy, TxSigAndSlot } from './types';
 import { ConfirmOptions, Connection } from '@solana/web3.js';
-import { AnchorProvider } from '@coral-xyz/anchor';
 import { BaseTxSender } from './baseTxSender';
 import { TxHandler } from './txHandler';
 import { IWallet } from '../types';
+import { DEFAULT_CONFIRMATION_OPTS } from '../config';
 
 const DEFAULT_TIMEOUT = 35000;
 const DEFAULT_RETRY = 2000;
@@ -24,13 +24,16 @@ export class RetryTxSender extends BaseTxSender {
 	public constructor({
 		connection,
 		wallet,
-		opts = { ...AnchorProvider.defaultOptions(), maxRetries: 0 },
+		opts = { ...DEFAULT_CONFIRMATION_OPTS, maxRetries: 0 },
 		timeout = DEFAULT_TIMEOUT,
 		retrySleep = DEFAULT_RETRY,
 		additionalConnections = new Array<Connection>(),
 		confirmationStrategy = ConfirmationStrategy.Combo,
 		additionalTxSenderCallbacks = [],
 		txHandler,
+		trackTxLandRate,
+		txLandRateLookbackWindowMinutes,
+		landRateToFeeFunc,
 	}: {
 		connection: Connection;
 		wallet: IWallet;
@@ -41,6 +44,9 @@ export class RetryTxSender extends BaseTxSender {
 		confirmationStrategy?: ConfirmationStrategy;
 		additionalTxSenderCallbacks?: ((base58EncodedTx: string) => void)[];
 		txHandler?: TxHandler;
+		trackTxLandRate?: boolean;
+		txLandRateLookbackWindowMinutes?: number;
+		landRateToFeeFunc?: (landRate: number) => number;
 	}) {
 		super({
 			connection,
@@ -51,6 +57,9 @@ export class RetryTxSender extends BaseTxSender {
 			confirmationStrategy,
 			additionalTxSenderCallbacks,
 			txHandler,
+			trackTxLandRate,
+			txLandRateLookbackWindowMinutes,
+			landRateToFeeFunc,
 		});
 		this.connection = connection;
 		this.wallet = wallet;
@@ -74,6 +83,7 @@ export class RetryTxSender extends BaseTxSender {
 		const startTime = this.getTimestamp();
 
 		const txid = await this.connection.sendRawTransaction(rawTransaction, opts);
+		this.txSigCache?.set(txid, false);
 		this.sendToAdditionalConnections(rawTransaction, opts);
 
 		let done = false;
@@ -105,8 +115,9 @@ export class RetryTxSender extends BaseTxSender {
 		let slot: number;
 		try {
 			const result = await this.confirmTransaction(txid, opts.commitment);
+			this.txSigCache?.set(txid, true);
 
-			await this.checkConfirmationResultForError(txid, result);
+			await this.checkConfirmationResultForError(txid, result.value);
 
 			slot = result.context.slot;
 			// eslint-disable-next-line no-useless-catch

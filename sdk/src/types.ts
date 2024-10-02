@@ -1,4 +1,9 @@
-import { PublicKey, Transaction, VersionedTransaction } from '@solana/web3.js';
+import {
+	Keypair,
+	PublicKey,
+	Transaction,
+	VersionedTransaction,
+} from '@solana/web3.js';
 import { BN, ZERO } from '.';
 
 // Utility type which lets you denote record with values of type A mapped to a record with the same keys but values of type B
@@ -66,6 +71,7 @@ export enum UserStatus {
 export class ContractType {
 	static readonly PERPETUAL = { perpetual: {} };
 	static readonly FUTURE = { future: {} };
+	static readonly PREDICTION = { prediction: {} };
 }
 
 export class ContractTier {
@@ -190,6 +196,9 @@ export class OrderActionExplanation {
 	};
 	static readonly ORDER_FILLED_WITH_SERUM = {
 		orderFillWithSerum: {},
+	};
+	static readonly ORDER_FILLED_WITH_OPENBOOK_V2 = {
+		orderFilledWithOpenbookV2: {},
 	};
 	static readonly ORDER_FILLED_WITH_PHOENIX = {
 		orderFillWithPhoenix: {},
@@ -576,6 +585,16 @@ export type SwapRecord = {
 	fee: BN;
 };
 
+export type SpotMarketVaultDepositRecord = {
+	ts: BN;
+	marketIndex: number;
+	depositBalance: BN;
+	cumulativeDepositInterestBefore: BN;
+	cumulativeDepositInterestAfter: BN;
+	depositTokenAmountBefore: BN;
+	amount: BN;
+};
+
 export type StateAccount = {
 	admin: PublicKey;
 	exchangeStatus: number;
@@ -746,6 +765,8 @@ export type SpotMarketAccount = {
 	fuelBoostTaker: number;
 	fuelBoostMaker: number;
 	fuelBoostInsurance: number;
+
+	tokenProgram: number;
 };
 
 export type PoolBalance = {
@@ -1035,6 +1056,14 @@ export const DefaultOrderParams: OrderParams = {
 	auctionEndPrice: null,
 };
 
+export type SwiftOrderParamsMessage = {
+	marketIndex: number;
+	swiftOrderParams: OptionalOrderParams[];
+	expectedOrderId: number;
+	marketType: MarketType;
+	slot: BN;
+};
+
 export type MakerInfo = {
 	maker: PublicKey;
 	makerStats: PublicKey;
@@ -1053,6 +1082,11 @@ export type ReferrerInfo = {
 	referrer: PublicKey;
 	referrerStats: PublicKey;
 };
+
+export enum PlaceAndTakeOrderSuccessCondition {
+	PartialFill = 1,
+	FullFill = 2,
+}
 
 type ExactType<T> = Pick<T, keyof T>;
 
@@ -1081,6 +1115,7 @@ export interface IWallet {
 	signTransaction(tx: Transaction): Promise<Transaction>;
 	signAllTransactions(txs: Transaction[]): Promise<Transaction[]>;
 	publicKey: PublicKey;
+	payer?: Keypair;
 }
 export interface IVersionedWallet {
 	signVersionedTransaction(
@@ -1090,6 +1125,7 @@ export interface IVersionedWallet {
 		txs: VersionedTransaction[]
 	): Promise<VersionedTransaction[]>;
 	publicKey: PublicKey;
+	payer?: Keypair;
 }
 
 export type FeeStructure = {

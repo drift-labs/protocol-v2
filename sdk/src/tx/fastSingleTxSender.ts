@@ -6,10 +6,10 @@ import {
 	Commitment,
 	BlockhashWithExpiryBlockHeight,
 } from '@solana/web3.js';
-import { AnchorProvider } from '@coral-xyz/anchor';
 import { BaseTxSender } from './baseTxSender';
 import { TxHandler } from './txHandler';
 import { IWallet } from '../types';
+import { DEFAULT_CONFIRMATION_OPTS } from '../config';
 
 const DEFAULT_TIMEOUT = 35000;
 const DEFAULT_BLOCKHASH_REFRESH = 10000;
@@ -24,20 +24,25 @@ export class FastSingleTxSender extends BaseTxSender {
 	timoutCount = 0;
 	recentBlockhash: BlockhashWithExpiryBlockHeight;
 	skipConfirmation: boolean;
+	confirmInBackground: boolean;
 	blockhashCommitment: Commitment;
 	blockhashIntervalId: NodeJS.Timer;
 
 	public constructor({
 		connection,
 		wallet,
-		opts = { ...AnchorProvider.defaultOptions(), maxRetries: 0 },
+		opts = { ...DEFAULT_CONFIRMATION_OPTS, maxRetries: 0 },
 		timeout = DEFAULT_TIMEOUT,
 		blockhashRefreshInterval = DEFAULT_BLOCKHASH_REFRESH,
 		additionalConnections = new Array<Connection>(),
 		skipConfirmation = false,
+		confirmInBackground = false,
 		blockhashCommitment = 'finalized',
 		confirmationStrategy = ConfirmationStrategy.Combo,
+		trackTxLandRate,
 		txHandler,
+		txLandRateLookbackWindowMinutes,
+		landRateToFeeFunc,
 	}: {
 		connection: Connection;
 		wallet: IWallet;
@@ -46,9 +51,13 @@ export class FastSingleTxSender extends BaseTxSender {
 		blockhashRefreshInterval?: number;
 		additionalConnections?;
 		skipConfirmation?: boolean;
+		confirmInBackground?: boolean;
 		blockhashCommitment?: Commitment;
 		confirmationStrategy?: ConfirmationStrategy;
+		trackTxLandRate?: boolean;
 		txHandler?: TxHandler;
+		txLandRateLookbackWindowMinutes?: number;
+		landRateToFeeFunc?: (landRate: number) => number;
 	}) {
 		super({
 			connection,
@@ -58,6 +67,9 @@ export class FastSingleTxSender extends BaseTxSender {
 			additionalConnections,
 			confirmationStrategy,
 			txHandler,
+			trackTxLandRate,
+			txLandRateLookbackWindowMinutes,
+			landRateToFeeFunc,
 		});
 		this.connection = connection;
 		this.wallet = wallet;
@@ -66,6 +78,7 @@ export class FastSingleTxSender extends BaseTxSender {
 		this.blockhashRefreshInterval = blockhashRefreshInterval;
 		this.additionalConnections = additionalConnections;
 		this.skipConfirmation = skipConfirmation;
+		this.confirmInBackground = confirmInBackground;
 		this.blockhashCommitment = blockhashCommitment;
 		this.startBlockhashRefreshLoop();
 	}
@@ -91,6 +104,7 @@ export class FastSingleTxSender extends BaseTxSender {
 		let txid: TransactionSignature;
 		try {
 			txid = await this.connection.sendRawTransaction(rawTransaction, opts);
+			this.txSigCache?.set(txid, false);
 			this.sendToAdditionalConnections(rawTransaction, opts);
 		} catch (e) {
 			console.error(e);
@@ -100,9 +114,20 @@ export class FastSingleTxSender extends BaseTxSender {
 		let slot: number;
 		if (!this.skipConfirmation) {
 			try {
-				const result = await this.confirmTransaction(txid, opts.commitment);
-				await this.checkConfirmationResultForError(txid, result);
-				slot = result.context.slot;
+				if (this.confirmInBackground) {
+					this.confirmTransaction(txid, opts.commitment).then(
+						async (result) => {
+							this.txSigCache?.set(txid, true);
+							await this.checkConfirmationResultForError(txid, result.value);
+							slot = result.context.slot;
+						}
+					);
+				} else {
+					const result = await this.confirmTransaction(txid, opts.commitment);
+					this.txSigCache?.set(txid, true);
+					await this.checkConfirmationResultForError(txid, result.value);
+					slot = result.context.slot;
+				}
 			} catch (e) {
 				console.error(e);
 				throw e;

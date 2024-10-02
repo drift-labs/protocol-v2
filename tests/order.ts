@@ -33,6 +33,7 @@ import {
 	mockUSDCMint,
 	setFeedPriceNoProgram,
 	initializeQuoteSpotMarket,
+	sleep,
 } from './testHelpers';
 import {
 	AMM_RESERVE_PRECISION,
@@ -163,6 +164,18 @@ describe('orders', () => {
 		await driftClient.subscribe();
 		await initializeQuoteSpotMarket(driftClient, usdcMint.publicKey);
 		await driftClient.updatePerpAuctionDuration(new BN(0));
+
+		let oraclesLoaded = false;
+		while (!oraclesLoaded) {
+			const found =
+				!!driftClient.accountSubscriber.getOraclePriceDataAndSlotForSpotMarket(
+					0
+				);
+			if (found) {
+				oraclesLoaded = found;
+			}
+			await sleep(1000);
+		}
 
 		console.log(bulkAccountLoader.mostRecentSlot);
 
@@ -1342,7 +1355,7 @@ describe('orders', () => {
 		const newMarkPrice1 = calculateReservePrice(newMarket1); // 0 liquidity at current mark price
 
 		const userTC = driftClientUser.getTotalCollateral();
-		const userTPV = driftClientUser.getTotalPerpPositionValue();
+		const userTPV = driftClientUser.getTotalPerpPositionLiability();
 
 		const userLeverage = driftClientUser.getLeverage();
 		const postPosition = driftClientUser.getPerpPosition(marketIndex);

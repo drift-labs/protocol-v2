@@ -320,6 +320,13 @@ describe('liquidate perp (no open orders)', () => {
 
 		await setFeedPriceNoProgram(bankrunContextWrapper, 0.1, oracle);
 
+		const txSig1 = await liquidatorDriftClient.setUserStatusToBeingLiquidated(
+			await driftClient.getUserAccountPublicKey(),
+			driftClient.getUserAccount()
+		);
+		console.log('setUserStatusToBeingLiquidated txSig:', txSig1);
+		assert(driftClient.getUserAccount().status === UserStatus.BEING_LIQUIDATED);
+
 		const txSig = await liquidatorDriftClient.liquidatePerp(
 			await driftClient.getUserAccountPublicKey(),
 			driftClient.getUserAccount(),

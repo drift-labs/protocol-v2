@@ -5,6 +5,7 @@ mod determine_perp_fulfillment_methods {
         PRICE_PRECISION_U64,
     };
     use crate::math::fulfillment::determine_perp_fulfillment_methods;
+    use crate::state::fill_mode::FillMode;
     use crate::state::fulfillment::PerpFulfillmentMethod;
     use crate::state::oracle::HistoricalOracleData;
     use crate::state::perp_market::{MarketStatus, PerpMarket, AMM};
@@ -65,6 +66,7 @@ mod determine_perp_fulfillment_methods {
             true,
             0,
             0,
+            FillMode::Fill,
         )
         .unwrap();
 
@@ -125,6 +127,7 @@ mod determine_perp_fulfillment_methods {
             true,
             0,
             0,
+            FillMode::Fill,
         )
         .unwrap();
 
@@ -197,6 +200,7 @@ mod determine_perp_fulfillment_methods {
             true,
             0,
             0,
+            FillMode::Fill,
         )
         .unwrap();
 
@@ -267,6 +271,7 @@ mod determine_perp_fulfillment_methods {
             true,
             0,
             0,
+            FillMode::Fill,
         )
         .unwrap();
 
@@ -342,6 +347,7 @@ mod determine_perp_fulfillment_methods {
             true,
             0,
             0,
+            FillMode::Fill,
         )
         .unwrap();
 
@@ -412,6 +418,7 @@ mod determine_perp_fulfillment_methods {
             true,
             0,
             0,
+            FillMode::Fill,
         )
         .unwrap();
 
@@ -484,6 +491,7 @@ mod determine_perp_fulfillment_methods {
             true,
             0,
             0,
+            FillMode::Fill,
         )
         .unwrap();
 
@@ -555,6 +563,7 @@ mod determine_perp_fulfillment_methods {
             true,
             0,
             0,
+            FillMode::Fill,
         )
         .unwrap();
 
@@ -625,6 +634,7 @@ mod determine_perp_fulfillment_methods {
             true,
             0,
             0,
+            FillMode::Fill,
         )
         .unwrap();
 
@@ -697,6 +707,7 @@ mod determine_perp_fulfillment_methods {
             true,
             0,
             0,
+            FillMode::Fill,
         )
         .unwrap();
 
@@ -760,6 +771,7 @@ mod determine_perp_fulfillment_methods {
             true,
             0,
             0,
+            FillMode::Fill,
         )
         .unwrap();
 
@@ -821,6 +833,7 @@ mod determine_perp_fulfillment_methods {
             true,
             0,
             0,
+            FillMode::Fill,
         )
         .unwrap();
 
@@ -882,6 +895,7 @@ mod determine_perp_fulfillment_methods {
             true,
             0,
             0,
+            FillMode::Fill,
         )
         .unwrap();
 

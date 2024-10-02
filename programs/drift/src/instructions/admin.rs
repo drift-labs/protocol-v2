@@ -2,7 +2,9 @@ use std::convert::identity;
 use std::mem::size_of;
 
 use anchor_lang::prelude::*;
-use anchor_spl::token::{Mint, Token, TokenAccount};
+use anchor_spl::token::Token;
+use anchor_spl::token_2022::Token2022;
+use anchor_spl::token_interface::{Mint, TokenAccount, TokenInterface};
 use phoenix::quantities::WrapperU64;
 use pyth_solana_receiver_sdk::cpi::accounts::InitPriceUpdate;
 use pyth_solana_receiver_sdk::program::PythSolanaReceiver;
@@ -13,9 +15,10 @@ use crate::controller::token::close_vault;
 use crate::error::ErrorCode;
 use crate::ids::admin_hot_wallet;
 use crate::instructions::constraints::*;
+use crate::instructions::optional_accounts::{load_maps, AccountMaps};
 use crate::math::casting::Cast;
 use crate::math::constants::{
-    DEFAULT_LIQUIDATION_MARGIN_BUFFER_RATIO, FEE_POOL_TO_REVENUE_POOL_THRESHOLD,
+    DEFAULT_LIQUIDATION_MARGIN_BUFFER_RATIO, FEE_POOL_TO_REVENUE_POOL_THRESHOLD, FUEL_START_TS,
     IF_FACTOR_PRECISION, INSURANCE_A_MAX, INSURANCE_B_MAX, INSURANCE_C_MAX,
     INSURANCE_SPECULATIVE_MAX, LIQUIDATION_FEE_PRECISION, MAX_CONCENTRATION_COEFFICIENT,
     MAX_SQRT_K, MAX_UPDATE_K_PRICE_CHANGE, PERCENTAGE_PRECISION, QUOTE_SPOT_MARKET_INDEX,
@@ -27,9 +30,10 @@ use crate::math::orders::is_multiple_of_step_size;
 use crate::math::repeg::get_total_fee_lower_bound;
 use crate::math::safe_math::SafeMath;
 use crate::math::spot_balance::get_token_amount;
+use crate::math::spot_withdraw::validate_spot_market_vault_amount;
 use crate::math::{amm, bn};
-use crate::math_error;
-use crate::state::events::CurveRecord;
+use crate::optional_accounts::get_token_mint;
+use crate::state::events::{CurveRecord, SpotMarketVaultDepositRecord};
 use crate::state::fulfillment_params::openbook_v2::{
     OpenbookV2Context, OpenbookV2FulfillmentConfig,
 };
@@ -49,9 +53,11 @@ use crate::state::paused_operations::{InsuranceFundOperation, PerpOperation, Spo
 use crate::state::perp_market::{
     ContractTier, ContractType, InsuranceClaim, MarketStatus, PerpMarket, PoolBalance, AMM,
 };
+use crate::state::perp_market_map::get_writable_perp_market_set;
 use crate::state::spot_market::{
     AssetTier, InsuranceFund, SpotBalanceType, SpotFulfillmentConfigStatus, SpotMarket,
 };
+use crate::state::spot_market_map::get_writable_spot_market_set;
 use crate::state::state::{ExchangeStatus, FeeStructure, OracleGuardRails, State};
 use crate::state::traits::Size;
 use crate::state::user::{User, UserStats};
@@ -65,6 +71,7 @@ use crate::{get_then_update_id, EPOCH_DURATION};
 use crate::{load, FEE_ADJUSTMENT_MAX};
 use crate::{load_mut, PTYH_PRICE_FEED_SEED_PREFIX};
 use crate::{math, safe_decrement, safe_increment};
+use crate::{math_error, SPOT_BALANCE_PRECISION};
 
 pub fn handle_initialize(ctx: Context<Initialize>) -> Result<()> {
     let (drift_signer, drift_signer_nonce) =
@@ -227,6 +234,15 @@ pub fn handle_initialize_spot_market(
 
     let decimals = ctx.accounts.spot_market_mint.decimals.cast::<u32>()?;
 
+    let token_program = if ctx.accounts.token_program.key() == Token2022::id() {
+        1_u8
+    } else if ctx.accounts.token_program.key() == Token::id() {
+        0_u8
+    } else {
+        msg!("unexpected program {:?}", ctx.accounts.token_program.key());
+        return Err(ErrorCode::DefaultError.into());
+    };
+
     **spot_market = SpotMarket {
         market_index: spot_market_index,
         pubkey: spot_market_pubkey,
@@ -296,7 +312,8 @@ pub fn handle_initialize_spot_market(
         fuel_boost_taker: 0,
         fuel_boost_maker: 0,
         fuel_boost_insurance: 0,
-        padding: [0; 42],
+        token_program,
+        padding: [0; 41],
         insurance_fund: InsuranceFund {
             vault: *ctx.accounts.insurance_fund_vault.to_account_info().key,
             unstaking_period: THIRTEEN_DAY,
@@ -939,7 +956,29 @@ pub fn handle_initialize_perp_market(
 
     safe_increment!(state.number_of_markets, 1);
 
-    controller::amm::update_concentration_coef(&mut perp_market.amm, concentration_coef_scale)?;
+    controller::amm::update_concentration_coef(perp_market, concentration_coef_scale)?;
+
+    Ok(())
+}
+
+#[access_control(
+    perp_market_valid(&ctx.accounts.perp_market)
+)]
+pub fn handle_initialize_prediction_market(ctx: Context<AdminUpdatePerpMarket>) -> Result<()> {
+    let perp_market = &mut load_mut!(ctx.accounts.perp_market)?;
+    msg!("updating perp market {} expiry", perp_market.market_index);
+
+    validate!(
+        perp_market.status == MarketStatus::Initialized,
+        ErrorCode::DefaultError,
+        "Market must be just initialized to make prediction market"
+    )?;
+
+    perp_market.contract_type = ContractType::Prediction;
+
+    let paused_operations = perp_market.paused_operations | PerpOperation::UpdateFunding as u8;
+
+    perp_market.paused_operations = paused_operations;
 
     Ok(())
 }
@@ -1160,7 +1199,7 @@ pub fn handle_init_user_fuel(
     let user_stats = &mut load_mut!(ctx.accounts.user_stats)?;
 
     validate!(
-        user.last_fuel_bonus_update_ts == 0,
+        user.last_fuel_bonus_update_ts < FUEL_START_TS as u32,
         ErrorCode::DefaultError,
         "User must not have begun earning fuel"
     )?;
@@ -1275,12 +1314,7 @@ pub fn handle_move_amm_price(
     let max_base_asset_reserve_before = perp_market.amm.max_base_asset_reserve;
     let min_base_asset_reserve_before = perp_market.amm.min_base_asset_reserve;
 
-    controller::amm::move_price(
-        &mut perp_market.amm,
-        base_asset_reserve,
-        quote_asset_reserve,
-        sqrt_k,
-    )?;
+    controller::amm::move_price(perp_market, base_asset_reserve, quote_asset_reserve, sqrt_k)?;
     validate_perp_market(perp_market)?;
 
     let base_asset_reserve_after = perp_market.amm.base_asset_reserve;
@@ -1340,7 +1374,7 @@ pub fn handle_recenter_perp_market_amm(
     let max_base_asset_reserve_before = perp_market.amm.max_base_asset_reserve;
     let min_base_asset_reserve_before = perp_market.amm.min_base_asset_reserve;
 
-    controller::amm::recenter_perp_market_amm(&mut perp_market.amm, peg_multiplier, sqrt_k)?;
+    controller::amm::recenter_perp_market_amm(perp_market, peg_multiplier, sqrt_k)?;
     validate_perp_market(perp_market)?;
 
     let base_asset_reserve_after = perp_market.amm.base_asset_reserve;
@@ -1608,11 +1642,15 @@ pub fn handle_settle_expired_market_pools_to_revenue_pool(
 #[access_control(
     perp_market_valid(&ctx.accounts.perp_market)
 )]
-pub fn handle_deposit_into_perp_market_fee_pool(
-    ctx: Context<DepositIntoMarketFeePool>,
+pub fn handle_deposit_into_perp_market_fee_pool<'c: 'info, 'info>(
+    ctx: Context<'_, '_, 'c, 'info, DepositIntoMarketFeePool<'info>>,
     amount: u64,
 ) -> Result<()> {
     let perp_market = &mut load_mut!(ctx.accounts.perp_market)?;
+
+    let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
+
+    let mint = get_token_mint(remaining_accounts_iter)?;
 
     msg!(
         "depositing {} into perp market {} fee pool",
@@ -1650,7 +1688,93 @@ pub fn handle_deposit_into_perp_market_fee_pool(
         &ctx.accounts.spot_market_vault,
         &ctx.accounts.admin.to_account_info(),
         amount,
+        &mint,
     )?;
+
+    Ok(())
+}
+
+#[access_control(
+    deposit_not_paused(&ctx.accounts.state)
+    spot_market_valid(&ctx.accounts.spot_market)
+)]
+pub fn handle_deposit_into_spot_market_vault<'c: 'info, 'info>(
+    ctx: Context<'_, '_, 'c, 'info, DepositIntoSpotMarketVault<'info>>,
+    amount: u64,
+) -> Result<()> {
+    let spot_market = &mut load_mut!(ctx.accounts.spot_market)?;
+
+    validate!(
+        !spot_market.is_operation_paused(SpotOperation::Deposit),
+        ErrorCode::DefaultError,
+        "spot market deposits paused"
+    )?;
+
+    let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
+
+    let mint = get_token_mint(remaining_accounts_iter)?;
+
+    msg!(
+        "depositing {} into spot market {} vault",
+        amount,
+        spot_market.market_index
+    );
+
+    let deposit_token_amount_before = spot_market.get_deposits()?;
+
+    let deposit_token_amount_after = deposit_token_amount_before.safe_add(amount.cast()?)?;
+
+    validate!(
+        deposit_token_amount_after > deposit_token_amount_before,
+        ErrorCode::DefaultError,
+        "new_deposit_token_amount ({}) <= deposit_token_amount ({})",
+        deposit_token_amount_after,
+        deposit_token_amount_before
+    )?;
+
+    let token_precision = spot_market.get_precision();
+
+    let cumulative_deposit_interest_before = spot_market.cumulative_deposit_interest;
+
+    let cumulative_deposit_interest_after = deposit_token_amount_after
+        .safe_mul(SPOT_CUMULATIVE_INTEREST_PRECISION)?
+        .safe_div(spot_market.deposit_balance)?
+        .safe_mul(SPOT_BALANCE_PRECISION)?
+        .safe_div(token_precision.cast()?)?;
+
+    validate!(
+        cumulative_deposit_interest_after > cumulative_deposit_interest_before,
+        ErrorCode::DefaultError,
+        "cumulative_deposit_interest_after ({}) <= cumulative_deposit_interest_before ({})",
+        cumulative_deposit_interest_after,
+        cumulative_deposit_interest_before
+    )?;
+
+    spot_market.cumulative_deposit_interest = cumulative_deposit_interest_after;
+
+    controller::token::receive(
+        &ctx.accounts.token_program,
+        &ctx.accounts.source_vault,
+        &ctx.accounts.spot_market_vault,
+        &ctx.accounts.admin.to_account_info(),
+        amount,
+        &mint,
+    )?;
+
+    ctx.accounts.spot_market_vault.reload()?;
+    validate_spot_market_vault_amount(spot_market, ctx.accounts.spot_market_vault.amount)?;
+
+    spot_market.validate_max_token_deposits_and_borrows(false)?;
+
+    emit!(SpotMarketVaultDepositRecord {
+        ts: Clock::get()?.unix_timestamp,
+        market_index: spot_market.market_index,
+        deposit_balance: spot_market.deposit_balance,
+        cumulative_deposit_interest_before,
+        cumulative_deposit_interest_after,
+        deposit_token_amount_before: deposit_token_amount_before.cast()?,
+        amount
+    });
 
     Ok(())
 }
@@ -2784,6 +2908,14 @@ pub fn handle_update_perp_market_paused_operations(
 
     perp_market.paused_operations = paused_operations;
 
+    if perp_market.is_prediction_market() {
+        validate!(
+            perp_market.is_operation_paused(PerpOperation::UpdateFunding),
+            ErrorCode::DefaultError,
+            "prediction market must have funding paused"
+        )?;
+    }
+
     PerpOperation::log_all_operations_paused(perp_market.paused_operations);
 
     Ok(())
@@ -2907,7 +3039,7 @@ pub fn handle_update_perp_market_concentration_coef(
     msg!("perp market {}", perp_market.market_index);
 
     let prev_concentration_coef = perp_market.amm.concentration_coef;
-    controller::amm::update_concentration_coef(&mut perp_market.amm, concentration_scale)?;
+    controller::amm::update_concentration_coef(perp_market, concentration_scale)?;
     let new_concentration_coef = perp_market.amm.concentration_coef;
 
     msg!(
@@ -3899,12 +4031,12 @@ pub fn handle_initialize_pyth_pull_oracle(
     ctx: Context<InitPythPullPriceFeed>,
     feed_id: [u8; 32],
 ) -> Result<()> {
-    let cpi_program = ctx.accounts.pyth_solana_receiver.to_account_info().clone();
+    let cpi_program = ctx.accounts.pyth_solana_receiver.to_account_info();
     let cpi_accounts = InitPriceUpdate {
-        payer: ctx.accounts.admin.to_account_info().clone(),
-        price_update_account: ctx.accounts.price_feed.to_account_info().clone(),
-        system_program: ctx.accounts.system_program.to_account_info().clone(),
-        write_authority: ctx.accounts.price_feed.to_account_info().clone(),
+        payer: ctx.accounts.admin.to_account_info(),
+        price_update_account: ctx.accounts.price_feed.to_account_info(),
+        system_program: ctx.accounts.system_program.to_account_info(),
+        write_authority: ctx.accounts.price_feed.to_account_info(),
     };
 
     let seeds = &[
@@ -3916,6 +4048,46 @@ pub fn handle_initialize_pyth_pull_oracle(
     let cpi_context = CpiContext::new_with_signer(cpi_program, cpi_accounts, signer_seeds);
 
     pyth_solana_receiver_sdk::cpi::init_price_update(cpi_context, feed_id)?;
+
+    Ok(())
+}
+
+pub fn handle_settle_expired_market<'c: 'info, 'info>(
+    ctx: Context<'_, '_, 'c, 'info, AdminUpdatePerpMarket<'info>>,
+    market_index: u16,
+) -> Result<()> {
+    let clock = Clock::get()?;
+    let _now = clock.unix_timestamp;
+    let state = &ctx.accounts.state;
+
+    let AccountMaps {
+        perp_market_map,
+        spot_market_map,
+        mut oracle_map,
+    } = load_maps(
+        &mut ctx.remaining_accounts.iter().peekable(),
+        &get_writable_perp_market_set(market_index),
+        &get_writable_spot_market_set(QUOTE_SPOT_MARKET_INDEX),
+        clock.slot,
+        Some(state.oracle_guard_rails),
+    )?;
+
+    controller::repeg::update_amm(
+        market_index,
+        &perp_market_map,
+        &mut oracle_map,
+        state,
+        &clock,
+    )?;
+
+    controller::repeg::settle_expired_market(
+        market_index,
+        &perp_market_map,
+        &mut oracle_map,
+        &spot_market_map,
+        state,
+        &clock,
+    )?;
 
     Ok(())
 }
@@ -3932,12 +4104,12 @@ pub struct Initialize<'info> {
         payer = admin
     )]
     pub state: Box<Account<'info, State>>,
-    pub quote_asset_mint: Box<Account<'info, Mint>>,
+    pub quote_asset_mint: Box<InterfaceAccount<'info, Mint>>,
     /// CHECK: checked in `initialize`
     pub drift_signer: AccountInfo<'info>,
     pub rent: Sysvar<'info, Rent>,
     pub system_program: Program<'info, System>,
-    pub token_program: Program<'info, Token>,
+    pub token_program: Interface<'info, TokenInterface>,
 }
 
 #[derive(Accounts)]
@@ -3950,7 +4122,7 @@ pub struct InitializeSpotMarket<'info> {
         payer = admin
     )]
     pub spot_market: AccountLoader<'info, SpotMarket>,
-    pub spot_market_mint: Box<Account<'info, Mint>>,
+    pub spot_market_mint: Box<InterfaceAccount<'info, Mint>>,
     #[account(
         init,
         seeds = [b"spot_market_vault".as_ref(), state.number_of_spot_markets.to_le_bytes().as_ref()],
@@ -3959,7 +4131,7 @@ pub struct InitializeSpotMarket<'info> {
         token::mint = spot_market_mint,
         token::authority = drift_signer
     )]
-    pub spot_market_vault: Box<Account<'info, TokenAccount>>,
+    pub spot_market_vault: Box<InterfaceAccount<'info, TokenAccount>>,
     #[account(
         init,
         seeds = [b"insurance_fund_vault".as_ref(), state.number_of_spot_markets.to_le_bytes().as_ref()],
@@ -3968,7 +4140,7 @@ pub struct InitializeSpotMarket<'info> {
         token::mint = spot_market_mint,
         token::authority = drift_signer
     )]
-    pub insurance_fund_vault: Box<Account<'info, TokenAccount>>,
+    pub insurance_fund_vault: Box<InterfaceAccount<'info, TokenAccount>>,
     #[account(
         constraint = state.signer.eq(&drift_signer.key())
     )]
@@ -3985,7 +4157,7 @@ pub struct InitializeSpotMarket<'info> {
     pub admin: Signer<'info>,
     pub rent: Sysvar<'info, Rent>,
     pub system_program: Program<'info, System>,
-    pub token_program: Program<'info, Token>,
+    pub token_program: Interface<'info, TokenInterface>,
 }
 
 #[derive(Accounts)]
@@ -4005,16 +4177,16 @@ pub struct DeleteInitializedSpotMarket<'info> {
         seeds = [b"spot_market_vault".as_ref(), market_index.to_le_bytes().as_ref()],
         bump,
     )]
-    pub spot_market_vault: Box<Account<'info, TokenAccount>>,
+    pub spot_market_vault: Box<InterfaceAccount<'info, TokenAccount>>,
     #[account(
         mut,
         seeds = [b"insurance_fund_vault".as_ref(), market_index.to_le_bytes().as_ref()],
         bump,
     )]
-    pub insurance_fund_vault: Box<Account<'info, TokenAccount>>,
+    pub insurance_fund_vault: Box<InterfaceAccount<'info, TokenAccount>>,
     /// CHECK: program signer
     pub drift_signer: AccountInfo<'info>,
-    pub token_program: Program<'info, Token>,
+    pub token_program: Interface<'info, TokenInterface>,
 }
 
 #[derive(Accounts)]
@@ -4139,7 +4311,7 @@ pub struct UpdateSerumVault<'info> {
     pub state: Box<Account<'info, State>>,
     #[account(mut)]
     pub admin: Signer<'info>,
-    pub srm_vault: Box<Account<'info, TokenAccount>>,
+    pub srm_vault: Box<InterfaceAccount<'info, TokenAccount>>,
 }
 
 #[derive(Accounts)]
@@ -4238,7 +4410,7 @@ pub struct DepositIntoMarketFeePool<'info> {
         mut,
         token::authority = admin
     )]
-    pub source_vault: Box<Account<'info, TokenAccount>>,
+    pub source_vault: Box<InterfaceAccount<'info, TokenAccount>>,
     #[account(
         constraint = state.signer.eq(&drift_signer.key())
     )]
@@ -4255,8 +4427,30 @@ pub struct DepositIntoMarketFeePool<'info> {
         seeds = [b"spot_market_vault".as_ref(), 0_u16.to_le_bytes().as_ref()],
         bump,
     )]
-    pub spot_market_vault: Box<Account<'info, TokenAccount>>,
-    pub token_program: Program<'info, Token>,
+    pub spot_market_vault: Box<InterfaceAccount<'info, TokenAccount>>,
+    pub token_program: Interface<'info, TokenInterface>,
+}
+
+#[derive(Accounts)]
+pub struct DepositIntoSpotMarketVault<'info> {
+    pub state: Box<Account<'info, State>>,
+    #[account(mut)]
+    pub spot_market: AccountLoader<'info, SpotMarket>,
+    #[account(
+        constraint = admin.key() == admin_hot_wallet::id() || admin.key() == state.admin
+    )]
+    pub admin: Signer<'info>,
+    #[account(
+        mut,
+        token::authority = admin
+    )]
+    pub source_vault: Box<InterfaceAccount<'info, TokenAccount>>,
+    #[account(
+        mut,
+        constraint = spot_market.load()?.vault == spot_market_vault.key()
+    )]
+    pub spot_market_vault: Box<InterfaceAccount<'info, TokenAccount>>,
+    pub token_program: Interface<'info, TokenInterface>,
 }
 
 #[derive(Accounts)]

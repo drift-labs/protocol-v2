@@ -379,9 +379,10 @@ export function calculateSpotMarketBorrowCapacity(
 
 export function calculateInterestRate(
 	bank: SpotMarketAccount,
-	delta = ZERO
+	delta = ZERO,
+	currentUtilization: BN = null
 ): BN {
-	const utilization = calculateUtilization(bank, delta);
+	const utilization = currentUtilization || calculateUtilization(bank, delta);
 	let interestRate: BN;
 	if (utilization.gt(new BN(bank.optimalUtilization))) {
 		const surplusUtilization = utilization.sub(new BN(bank.optimalUtilization));
@@ -414,13 +415,14 @@ export function calculateInterestRate(
 
 export function calculateDepositRate(
 	bank: SpotMarketAccount,
-	delta = ZERO
+	delta = ZERO,
+	currentUtilization: BN = null
 ): BN {
 	// positive delta => adding to deposit
 	// negative delta => adding to borrow
 
-	const utilization = calculateUtilization(bank, delta);
-	const borrowRate = calculateBorrowRate(bank, delta);
+	const utilization = currentUtilization || calculateUtilization(bank, delta);
+	const borrowRate = calculateBorrowRate(bank, delta, utilization);
 	const depositRate = borrowRate
 		.mul(PERCENTAGE_PRECISION.sub(new BN(bank.insuranceFund.totalFactor)))
 		.mul(utilization)
@@ -429,8 +431,12 @@ export function calculateDepositRate(
 	return depositRate;
 }
 
-export function calculateBorrowRate(bank: SpotMarketAccount, delta = ZERO): BN {
-	return calculateInterestRate(bank, delta);
+export function calculateBorrowRate(
+	bank: SpotMarketAccount,
+	delta = ZERO,
+	currentUtilization: BN = null
+): BN {
+	return calculateInterestRate(bank, delta, currentUtilization);
 }
 
 export function calculateInterestAccumulated(
@@ -578,7 +584,7 @@ export function calculateWithdrawLimit(
 		minDepositTokensTwap
 	);
 
-	const maxBorrowTokens = BN.min(
+	let maxBorrowTokens = BN.min(
 		maxBorrowTokensForUtilization,
 		maxBorrowTokensTwap
 	);
@@ -589,10 +595,25 @@ export function calculateWithdrawLimit(
 	);
 
 	let borrowLimit = maxBorrowTokens.sub(marketBorrowTokenAmount);
+
 	borrowLimit = BN.min(
 		borrowLimit,
 		marketDepositTokenAmount.sub(marketBorrowTokenAmount)
 	);
+
+	if (spotMarket.maxTokenBorrowsFraction > 0) {
+		const maxTokenBorrowsByFraction = spotMarket.maxTokenDeposits
+			.mul(new BN(spotMarket.maxTokenBorrowsFraction))
+			.divn(10000);
+
+		const trueMaxBorrowTokensAvailable = maxTokenBorrowsByFraction.sub(
+			marketBorrowTokenAmount
+		);
+
+		maxBorrowTokens = BN.min(maxBorrowTokens, trueMaxBorrowTokensAvailable);
+
+		borrowLimit = BN.min(borrowLimit, maxBorrowTokens);
+	}
 
 	if (withdrawLimit.eq(ZERO)) {
 		borrowLimit = ZERO;

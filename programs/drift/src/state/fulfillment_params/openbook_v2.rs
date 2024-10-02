@@ -1,3 +1,4 @@
+#![allow(unused)] // unused when target_os is not solana
 use crate::controller::position::PositionDirection;
 use crate::error::{DriftResult, ErrorCode};
 use crate::instructions::SpotFulfillmentType;
@@ -26,7 +27,6 @@ use openbook_v2_light::{
 };
 use solana_program::account_info::AccountInfo;
 use solana_program::instruction::{AccountMeta, Instruction};
-use solana_program::msg;
 use solana_program::program::invoke_signed_unchecked;
 use solana_program::pubkey::Pubkey;
 use std::cell::Ref;
@@ -49,7 +49,6 @@ pub struct OpenbookV2FulfillmentConfig {
     pub fulfillment_type: SpotFulfillmentType, // 291
     pub status: SpotFulfillmentConfigStatus,   // 292
     pub padding: [u8; 4],                      // 296
-                                               // + denominator? 8
 }
 
 impl Size for OpenbookV2FulfillmentConfig {
@@ -109,10 +108,9 @@ pub struct OpenbookV2FulfillmentParams<'a, 'b> {
     pub system_program: Program<'b, System>,
     pub signer_nonce: u8,
     pub now: i64,
-    pub remaining_ooa_accounts: Vec<&'a AccountInfo<'b>>,
+    pub remaining_ooa_accounts: Vec<UncheckedAccount<'b>>,
 }
 
-// TODO
 impl<'a, 'b> OpenbookV2FulfillmentParams<'a, 'b> {
     #[allow(clippy::type_complexity)]
     pub fn new<'c: 'b>(
@@ -123,7 +121,7 @@ impl<'a, 'b> OpenbookV2FulfillmentParams<'a, 'b> {
         now: i64,
     ) -> DriftResult<Self> {
         let account_info_vec = account_info_iter.collect::<Vec<_>>();
-        let remaining_ooa_accounts = account_info_vec
+        let mut remaining_ooa_accounts = account_info_vec
             .iter()
             .skip(14)
             .filter(|acc| {
@@ -131,8 +129,9 @@ impl<'a, 'b> OpenbookV2FulfillmentParams<'a, 'b> {
                     .borrow()
                     .starts_with(&OPEN_ORDERS_ACCOUNT_DISCRIMINATOR)
             })
-            .map(|acc| *acc)
+            .map(|acc| UncheckedAccount::try_from(*acc))
             .collect::<Vec<_>>();
+        remaining_ooa_accounts.truncate(3);
         let account_infos = array_ref![account_info_vec, 0, 14];
         let [openbook_v2_fulfillment_config, drift_signer, openbook_v2_program, openbook_v2_market, openbook_v2_market_authority, openbook_v2_event_heap, openbook_v2_bids, openbook_v2_asks, openbook_v2_base_vault, openbook_v2_quote_vault, base_market_vault, quote_market_vault, token_program, system_program] =
             account_infos;
@@ -273,14 +272,6 @@ impl<'a, 'b> OpenbookV2FulfillmentParams<'a, 'b> {
             AccountMeta::new_readonly(*self.system_program.key, false),
             AccountMeta::new_readonly(*self.openbook_v2_context.openbook_v2_program.key, false),
         ];
-        for account in self.remaining_ooa_accounts.iter() {
-            accounts.push(AccountMeta::new(*account.key, false));
-        }
-        let new_place_take_order_instruction = Instruction {
-            program_id: *self.openbook_v2_context.openbook_v2_program.key,
-            accounts,
-            data,
-        };
         let mut account_infos = vec![
             self.openbook_v2_context.openbook_v2_program.clone(),
             self.drift_signer.clone(),
@@ -300,9 +291,15 @@ impl<'a, 'b> OpenbookV2FulfillmentParams<'a, 'b> {
             self.system_program.to_account_info(),
             self.openbook_v2_context.openbook_v2_program.clone(),
         ];
-        for account in self.remaining_ooa_accounts.clone().into_iter() {
-            account_infos.push(account.to_account_info());
+        for unchecked_account in self.remaining_ooa_accounts.iter() {
+            accounts.push(AccountMeta::new(*unchecked_account.key, false));
+            account_infos.push(unchecked_account.to_account_info());
         }
+        let new_place_take_order_instruction = Instruction {
+            program_id: *self.openbook_v2_context.openbook_v2_program.key,
+            accounts,
+            data,
+        };
         let signer_seeds = get_signer_seeds(&self.signer_nonce);
         let signers_seeds = &[&signer_seeds[..]];
 
@@ -466,6 +463,26 @@ impl<'a, 'b> SpotFulfillmentParams for OpenbookV2FulfillmentParams<'a, 'b> {
     ) -> DriftResult {
         validate_spot_market_vault_amount(base_market, self.base_market_vault.amount)?;
         validate_spot_market_vault_amount(quote_market, self.quote_market_vault.amount)?;
+        Ok(())
+    }
+
+    fn validate_markets(
+        &self,
+        base_market: &SpotMarket,
+        quote_market: &SpotMarket,
+    ) -> DriftResult<()> {
+        validate!(
+            self.base_market_vault.mint == base_market.mint,
+            ErrorCode::DefaultError,
+            "base mints dont match"
+        )?;
+
+        validate!(
+            self.quote_market_vault.mint == quote_market.mint,
+            ErrorCode::DefaultError,
+            "base mints dont match"
+        )?;
+
         Ok(())
     }
 }

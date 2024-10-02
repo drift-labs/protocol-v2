@@ -1,6 +1,8 @@
 import { PublicKey } from '@solana/web3.js';
 import * as anchor from '@coral-xyz/anchor';
 import { BN } from '@coral-xyz/anchor';
+import { TOKEN_2022_PROGRAM_ID, TOKEN_PROGRAM_ID } from '@solana/spl-token';
+import { SpotMarketAccount } from '..';
 
 export async function getDriftStateAccountPublicKeyAndNonce(
 	programId: PublicKey
@@ -85,6 +87,19 @@ export async function getPerpMarketPublicKey(
 	)[0];
 }
 
+export function getPerpMarketPublicKeySync(
+	programId: PublicKey,
+	marketIndex: number
+): PublicKey {
+	return PublicKey.findProgramAddressSync(
+		[
+			Buffer.from(anchor.utils.bytes.utf8.encode('perp_market')),
+			new anchor.BN(marketIndex).toArrayLike(Buffer, 'le', 2),
+		],
+		programId
+	)[0];
+}
+
 export async function getSpotMarketPublicKey(
 	programId: PublicKey,
 	marketIndex: number
@@ -97,6 +112,19 @@ export async function getSpotMarketPublicKey(
 			],
 			programId
 		)
+	)[0];
+}
+
+export function getSpotMarketPublicKeySync(
+	programId: PublicKey,
+	marketIndex: number
+): PublicKey {
+	return PublicKey.findProgramAddressSync(
+		[
+			Buffer.from(anchor.utils.bytes.utf8.encode('spot_market')),
+			new anchor.BN(marketIndex).toArrayLike(Buffer, 'le', 2),
+		],
+		programId
 	)[0];
 }
 
@@ -263,4 +291,12 @@ export function getPythPullOraclePublicKey(
 		],
 		progarmId
 	)[0];
+}
+export function getTokenProgramForSpotMarket(
+	spotMarketAccount: SpotMarketAccount
+): PublicKey {
+	if (spotMarketAccount.tokenProgram === 1) {
+		return TOKEN_2022_PROGRAM_ID;
+	}
+	return TOKEN_PROGRAM_ID;
 }

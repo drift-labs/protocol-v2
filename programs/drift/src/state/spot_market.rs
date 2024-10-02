@@ -200,7 +200,8 @@ pub struct SpotMarket {
     /// fuel multiplier for spot insurance stake
     /// precision: 10
     pub fuel_boost_insurance: u8,
-    pub padding: [u8; 42],
+    pub token_program: u8,
+    pub padding: [u8; 41],
 }
 
 impl Default for SpotMarket {
@@ -267,7 +268,8 @@ impl Default for SpotMarket {
             fuel_boost_taker: 0,
             fuel_boost_maker: 0,
             fuel_boost_insurance: 0,
-            padding: [0; 42],
+            token_program: 0,
+            padding: [0; 41],
         }
     }
 }
@@ -442,7 +444,10 @@ impl SpotMarket {
         get_token_amount(self.borrow_balance, self, &SpotBalanceType::Borrow)
     }
 
-    pub fn validate_max_token_deposits_and_borrows(&self) -> DriftResult {
+    pub fn validate_max_token_deposits_and_borrows(
+        &self,
+        do_max_borrow_check: bool,
+    ) -> DriftResult {
         let deposits = self.get_deposits()?;
         let max_token_deposits = self.max_token_deposits.cast::<u128>()?;
 
@@ -454,7 +459,8 @@ impl SpotMarket {
             deposits,
         )?;
 
-        if self.max_token_borrows_fraction > 0 && self.max_token_deposits > 0 {
+        if do_max_borrow_check && self.max_token_borrows_fraction > 0 && self.max_token_deposits > 0
+        {
             let borrows = self.get_borrows()?;
             let max_token_borrows = self
                 .max_token_deposits

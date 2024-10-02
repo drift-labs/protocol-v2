@@ -13,12 +13,12 @@ use crate::math::constants::{
 use crate::math::constants::{
     AMM_RESERVE_PRECISION_I128, AMM_TO_QUOTE_PRECISION_RATIO, BID_ASK_SPREAD_PRECISION,
     BID_ASK_SPREAD_PRECISION_U128, DEFAULT_REVENUE_SINCE_LAST_FUNDING_SPREAD_RETREAT,
-    LP_FEE_SLICE_DENOMINATOR, LP_FEE_SLICE_NUMERATOR, MARGIN_PRECISION_U128, PERCENTAGE_PRECISION,
+    LIQUIDATION_FEE_PRECISION, LP_FEE_SLICE_DENOMINATOR, LP_FEE_SLICE_NUMERATOR, MARGIN_PRECISION,
+    MARGIN_PRECISION_U128, MAX_LIQUIDATION_MULTIPLIER, PEG_PRECISION, PERCENTAGE_PRECISION,
     PERCENTAGE_PRECISION_I128, PERCENTAGE_PRECISION_I64, PERCENTAGE_PRECISION_U64, PRICE_PRECISION,
     SPOT_WEIGHT_PRECISION, TWENTY_FOUR_HOUR,
 };
 use crate::math::helpers::get_proportion_i128;
-
 use crate::math::margin::{
     calculate_size_discount_asset_weight, calculate_size_premium_liability_weight,
     MarginRequirementType,
@@ -26,6 +26,7 @@ use crate::math::margin::{
 use crate::math::safe_math::SafeMath;
 use crate::math::stats;
 use crate::state::events::OrderActionExplanation;
+use num_integer::Roots;
 
 use crate::state::oracle::{
     get_prelaunch_price, get_sb_on_demand_price, get_switchboard_price, HistoricalOracleData,
@@ -87,6 +88,7 @@ pub enum ContractType {
     #[default]
     Perpetual,
     Future,
+    Prediction,
 }
 
 #[derive(
@@ -417,6 +419,15 @@ impl PerpMarket {
         Ok(margin_ratio)
     }
 
+    pub fn get_max_liquidation_fee(&self) -> DriftResult<u32> {
+        let max_liquidation_fee = (self.liquidator_fee.safe_mul(MAX_LIQUIDATION_MULTIPLIER)?).min(
+            self.margin_ratio_maintenance
+                .safe_mul(LIQUIDATION_FEE_PRECISION)?
+                .safe_div(MARGIN_PRECISION)?,
+        );
+        Ok(max_liquidation_fee)
+    }
+
     pub fn get_unrealized_asset_weight(
         &self,
         unrealized_pnl: i128,
@@ -581,8 +592,61 @@ impl PerpMarket {
         Ok(true)
     }
 
-    pub fn can_sanitize_market_order_auctions(&self) -> DriftResult<bool> {
-        Ok(self.amm.oracle_source != OracleSource::Prelaunch)
+    pub fn can_sanitize_market_order_auctions(&self) -> bool {
+        self.amm.oracle_source != OracleSource::Prelaunch
+    }
+
+    pub fn is_prediction_market(&self) -> bool {
+        self.contract_type == ContractType::Prediction
+    }
+
+    pub fn get_quote_asset_reserve_prediction_market_bounds(
+        &self,
+        direction: PositionDirection,
+    ) -> DriftResult<(u128, u128)> {
+        let mut quote_asset_reserve_lower_bound = 0_u128;
+
+        //precision scaling: 1e6 -> 1e12 -> 1e6
+        let peg_sqrt = (self
+            .amm
+            .peg_multiplier
+            .safe_mul(PEG_PRECISION)?
+            .saturating_add(1))
+        .nth_root(2)
+        .saturating_add(1);
+
+        // $1 limit
+        let mut quote_asset_reserve_upper_bound = self
+            .amm
+            .sqrt_k
+            .safe_mul(peg_sqrt)?
+            .safe_div(self.amm.peg_multiplier)?;
+
+        // for price [0,1] maintain following invariants:
+        if direction == PositionDirection::Long {
+            // lowest ask price is $0.05
+            quote_asset_reserve_lower_bound = self
+                .amm
+                .sqrt_k
+                .safe_mul(22361)?
+                .safe_mul(peg_sqrt)?
+                .safe_div(100000)?
+                .safe_div(self.amm.peg_multiplier)?
+        } else {
+            // highest bid price is $0.95
+            quote_asset_reserve_upper_bound = self
+                .amm
+                .sqrt_k
+                .safe_mul(97467)?
+                .safe_mul(peg_sqrt)?
+                .safe_div(100000)?
+                .safe_div(self.amm.peg_multiplier)?
+        }
+
+        Ok((
+            quote_asset_reserve_lower_bound,
+            quote_asset_reserve_upper_bound,
+        ))
     }
 }
 

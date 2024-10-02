@@ -69,7 +69,7 @@ async function createNewUser(
 	oracleInfos,
 	wallet,
 	bulkAccountLoader
-) {
+): Promise<[TestClient, User]> {
 	let walletFlag = true;
 	if (wallet == undefined) {
 		const kp = new web3.Keypair();

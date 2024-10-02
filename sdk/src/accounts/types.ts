@@ -72,7 +72,7 @@ export interface DriftClientAccountSubscriber {
 	): DataAndSlot<SpotMarketAccount> | undefined;
 	getSpotMarketAccountsAndSlots(): DataAndSlot<SpotMarketAccount>[];
 	getOraclePriceDataAndSlot(
-		oraclePublicKey: PublicKey
+		oraclePublicKey: PublicKey | string
 	): DataAndSlot<OraclePriceData> | undefined;
 	getOraclePriceDataAndSlotForPerpMarket(
 		marketIndex: number
@@ -82,6 +82,12 @@ export interface DriftClientAccountSubscriber {
 	): DataAndSlot<OraclePriceData> | undefined;
 
 	updateAccountLoaderPollingFrequency?: (pollingFrequency: number) => void;
+}
+
+export enum DelistedMarketSetting {
+	Unsubscribe,
+	Subscribe,
+	Discard,
 }
 
 export interface UserAccountEvents {

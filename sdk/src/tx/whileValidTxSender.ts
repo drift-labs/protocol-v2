@@ -1,17 +1,16 @@
 import { TxSigAndSlot } from './types';
 import {
-	Commitment,
 	ConfirmOptions,
 	Connection,
 	Signer,
 	Transaction,
 	VersionedTransaction,
 } from '@solana/web3.js';
-import { AnchorProvider } from '@coral-xyz/anchor';
 import { BaseTxSender } from './baseTxSender';
 import bs58 from 'bs58';
 import { TxHandler } from './txHandler';
 import { IWallet } from '../types';
+import { DEFAULT_CONFIRMATION_OPTS } from '../config';
 
 const DEFAULT_RETRY = 2000;
 
@@ -33,17 +32,42 @@ export class WhileValidTxSender extends BaseTxSender {
 		string,
 		{ blockhash: string; lastValidBlockHeight: number }
 	>();
-	blockhashCommitment: Commitment;
+
+	useBlockHeightOffset = true;
+
+	private async checkAndSetUseBlockHeightOffset() {
+		this.connection.getVersion().then((version) => {
+			const solanaCoreVersion = version['solana-core'];
+
+			if (!solanaCoreVersion) return;
+
+			const majorVersion = solanaCoreVersion.split('.')[0];
+
+			if (!majorVersion) return;
+
+			const parsedMajorVersion = parseInt(majorVersion);
+
+			if (isNaN(parsedMajorVersion)) return;
+
+			if (parsedMajorVersion >= 2) {
+				this.useBlockHeightOffset = false;
+			} else {
+				this.useBlockHeightOffset = true;
+			}
+		});
+	}
 
 	public constructor({
 		connection,
 		wallet,
-		opts = { ...AnchorProvider.defaultOptions(), maxRetries: 0 },
+		opts = { ...DEFAULT_CONFIRMATION_OPTS, maxRetries: 0 },
 		retrySleep = DEFAULT_RETRY,
 		additionalConnections = new Array<Connection>(),
 		additionalTxSenderCallbacks = [],
-		blockhashCommitment = 'finalized',
 		txHandler,
+		trackTxLandRate,
+		txLandRateLookbackWindowMinutes,
+		landRateToFeeFunc,
 	}: {
 		connection: Connection;
 		wallet: IWallet;
@@ -51,8 +75,10 @@ export class WhileValidTxSender extends BaseTxSender {
 		retrySleep?: number;
 		additionalConnections?;
 		additionalTxSenderCallbacks?: ((base58EncodedTx: string) => void)[];
-		blockhashCommitment?: Commitment;
 		txHandler?: TxHandler;
+		trackTxLandRate?: boolean;
+		txLandRateLookbackWindowMinutes?: number;
+		landRateToFeeFunc?: (landRate: number) => number;
 	}) {
 		super({
 			connection,
@@ -61,9 +87,13 @@ export class WhileValidTxSender extends BaseTxSender {
 			additionalConnections,
 			additionalTxSenderCallbacks,
 			txHandler,
+			trackTxLandRate,
+			txLandRateLookbackWindowMinutes,
+			landRateToFeeFunc,
 		});
 		this.retrySleep = retrySleep;
-		this.blockhashCommitment = blockhashCommitment;
+
+		this.checkAndSetUseBlockHeightOffset();
 	}
 
 	async sleep(reference: ResolveReference): Promise<void> {
@@ -104,7 +134,8 @@ export class WhileValidTxSender extends BaseTxSender {
 
 		// handle subclass-specific side effects
 		const txSig = bs58.encode(
-			signedTx.signatures[0]?.signature || signedTx.signatures[0]
+			// @ts-expect-error
+			signedTx?.signature || signedTx.signatures[0]?.signature || signedTx.signatures[0]
 		);
 		this.untilValid.set(txSig, latestBlockhash);
 
@@ -158,6 +189,11 @@ export class WhileValidTxSender extends BaseTxSender {
 		const txSig = bs58.encode(signedTx.signatures[0]);
 		this.untilValid.set(txSig, latestBlockhash);
 
+		console.debug(
+			`preflight_commitment`,
+			`sending_tx_with_preflight_commitment::${opts?.preflightCommitment}`
+		);
+
 		return this.sendRawTransaction(signedTx.serialize(), opts);
 	}
 
@@ -167,7 +203,12 @@ export class WhileValidTxSender extends BaseTxSender {
 	): Promise<TxSigAndSlot> {
 		const startTime = this.getTimestamp();
 
+		console.debug(
+			`preflight_commitment`,
+			`sending_tx_with_preflight_commitment::${opts?.preflightCommitment}`
+		);
 		const txid = await this.connection.sendRawTransaction(rawTransaction, opts);
+		this.txSigCache?.set(txid, false);
 		this.sendToAdditionalConnections(rawTransaction, opts);
 
 		let done = false;
@@ -199,17 +240,25 @@ export class WhileValidTxSender extends BaseTxSender {
 		let slot: number;
 		try {
 			const { blockhash, lastValidBlockHeight } = this.untilValid.get(txid);
+
 			const result = await this.connection.confirmTransaction(
 				{
 					signature: txid,
-					lastValidBlockHeight:
-						lastValidBlockHeight + VALID_BLOCK_HEIGHT_OFFSET,
 					blockhash,
+					lastValidBlockHeight: this.useBlockHeightOffset
+						? lastValidBlockHeight + VALID_BLOCK_HEIGHT_OFFSET
+						: lastValidBlockHeight,
 				},
-				opts.commitment
+				opts?.commitment
 			);
 
-			await this.checkConfirmationResultForError(txid, result);
+			if (!result) {
+				throw new Error(`Couldn't get signature status for txid: ${txid}`);
+			}
+
+			this.txSigCache?.set(txid, true);
+
+			await this.checkConfirmationResultForError(txid, result.value);
 
 			slot = result.context.slot;
 			// eslint-disable-next-line no-useless-catch

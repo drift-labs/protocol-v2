@@ -1,5 +1,5 @@
 use crate::controller::position::PositionDirection;
-use crate::error::DriftResult;
+use crate::error::{DriftResult, ErrorCode};
 use crate::math::casting::Cast;
 use crate::math::safe_math::SafeMath;
 use crate::math::safe_unwrap::SafeUnwrap;
@@ -7,8 +7,8 @@ use crate::state::events::OrderActionExplanation;
 use crate::state::perp_market::{ContractTier, PerpMarket};
 use crate::state::user::{MarketType, OrderTriggerCondition, OrderType};
 use crate::{
-    ONE_HUNDRED_THOUSAND_QUOTE, PERCENTAGE_PRECISION_I64, PERCENTAGE_PRECISION_U64,
-    PRICE_PRECISION_I64,
+    MAX_PREDICTION_MARKET_PRICE_I64, ONE_HUNDRED_THOUSAND_QUOTE, PERCENTAGE_PRECISION_I64,
+    PERCENTAGE_PRECISION_U64, PRICE_PRECISION_I64,
 };
 use anchor_lang::prelude::*;
 use borsh::{BorshDeserialize, BorshSerialize};
@@ -54,7 +54,11 @@ impl OrderParams {
 
         let auction_start_price_offset =
             OrderParams::get_perp_baseline_start_price_offset(perp_market, self.direction)?;
-        let new_auction_start_price = oracle_price.safe_add(auction_start_price_offset)?;
+        let mut new_auction_start_price = oracle_price.safe_add(auction_start_price_offset)?;
+
+        if perp_market.is_prediction_market() {
+            new_auction_start_price = new_auction_start_price.min(MAX_PREDICTION_MARKET_PRICE_I64);
+        }
 
         if self.auction_duration.unwrap_or(0) == 0 {
             match self.direction {
@@ -120,7 +124,7 @@ impl OrderParams {
             }
 
             if self.auction_end_price.is_none() {
-                msg!("Updating auction end price to {}", new_auction_start_price);
+                msg!("Updating auction end price to {}", self.price);
                 self.auction_end_price = Some(self.price as i64);
             }
         }
@@ -224,7 +228,7 @@ impl OrderParams {
             return Ok(());
         }
         // only update auction start price if the contract tier isn't Isolated
-        if perp_market.can_sanitize_market_order_auctions()? {
+        if perp_market.can_sanitize_market_order_auctions() {
             let (new_start_price_offset, new_end_price_offset) =
                 OrderParams::get_perp_baseline_start_end_price_offset(
                     perp_market,
@@ -319,7 +323,7 @@ impl OrderParams {
         limit_price: u64,
         start_buffer: i64,
     ) -> DriftResult<(i64, i64, u8)> {
-        let (mut auction_start_price, auction_end_price) = if limit_price != 0 {
+        let (mut auction_start_price, mut auction_end_price) = if limit_price != 0 {
             let (auction_start_price_offset, auction_end_price_offset) =
                 OrderParams::get_perp_baseline_start_end_price_offset(perp_market, direction, 2)?;
             let mut auction_start_price = oracle_price.safe_add(auction_start_price_offset)?;
@@ -354,6 +358,11 @@ impl OrderParams {
             } else {
                 auction_start_price = auction_start_price.safe_add(start_buffer_price)?;
             }
+        }
+
+        if perp_market.is_prediction_market() {
+            auction_start_price = auction_start_price.min(MAX_PREDICTION_MARKET_PRICE_I64);
+            auction_end_price = auction_end_price.min(MAX_PREDICTION_MARKET_PRICE_I64);
         }
 
         let auction_duration = get_auction_duration(
@@ -621,6 +630,34 @@ impl OrderParams {
     }
 }
 
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, Default, Eq, PartialEq, Debug)]
+pub struct SwiftOrderParamsMessage {
+    pub swift_order_params: Vec<OrderParams>,
+    pub market_index: u16,
+    pub market_type: MarketType,
+    pub expected_order_id: i32,
+    pub slot: u64,
+}
+
+impl SwiftOrderParamsMessage {
+    pub fn verify_all_same_market_indexes(&self) -> DriftResult {
+        let market_index = self.market_index;
+        for swift_order in &self.swift_order_params {
+            if swift_order.market_index != market_index {
+                return Err(ErrorCode::MismatchedSwiftOrderParamsMarketIndex.into());
+            }
+        }
+        Ok(())
+    }
+
+    pub fn get_matchable_swift_order_params(&self) -> Option<&OrderParams> {
+        self.swift_order_params.iter().find(|order_params| {
+            order_params.order_type != OrderType::TriggerLimit
+                && order_params.order_type != OrderType::TriggerMarket
+        })
+    }
+}
+
 fn get_auction_duration(
     price_diff: u64,
     price: u64,
@@ -680,6 +717,7 @@ impl Default for ModifyOrderPolicy {
 }
 
 pub struct PlaceOrderOptions {
+    pub swift_taker_order_slot: Option<u64>,
     pub try_expire_orders: bool,
     pub enforce_margin_check: bool,
     pub risk_increasing: bool,
@@ -689,6 +727,7 @@ pub struct PlaceOrderOptions {
 impl Default for PlaceOrderOptions {
     fn default() -> Self {
         Self {
+            swift_taker_order_slot: None,
             try_expire_orders: true,
             enforce_margin_check: true,
             risk_increasing: false,
@@ -706,4 +745,25 @@ impl PlaceOrderOptions {
         self.explanation = explanation;
         self
     }
+
+    pub fn is_liquidation(&self) -> bool {
+        self.explanation == OrderActionExplanation::Liquidation
+    }
+
+    pub fn set_order_slot(&mut self, slot: u64) {
+        self.swift_taker_order_slot = Some(slot);
+    }
+
+    pub fn get_order_slot(&self, order_slot: u64) -> u64 {
+        let mut min_order_slot = order_slot;
+        if let Some(swift_taker_order_slot) = self.swift_taker_order_slot {
+            min_order_slot = order_slot.min(swift_taker_order_slot);
+        }
+        min_order_slot
+    }
+}
+
+pub enum PlaceAndTakeOrderSuccessCondition {
+    PartialFill = 1,
+    FullFill = 2,
 }

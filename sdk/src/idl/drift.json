@@ -1,5 +1,5 @@
 {
-  "version": "2.86.0",
+  "version": "2.95.0",
   "name": "drift",
   "instructions": [
     {
@@ -605,6 +605,56 @@
         {
           "name": "takerOrderId",
           "type": "u32"
+        }
+      ]
+    },
+    {
+      "name": "placeSwiftTakerOrder",
+      "accounts": [
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "user",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "userStats",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "ixSysvar",
+          "isMut": false,
+          "isSigner": false,
+          "docs": [
+            "the supplied Sysvar could be anything else.",
+            "The Instruction Sysvar has not been implemented",
+            "in the Anchor framework yet, so this is the safe approach."
+          ]
+        }
+      ],
+      "args": [
+        {
+          "name": "takerOrderParamsMessageBytes",
+          "type": "bytes"
+        },
+        {
+          "name": "signature",
+          "type": {
+            "array": [
+              "u8",
+              64
+            ]
+          }
         }
       ]
     },
@@ -1607,14 +1657,19 @@
       "name": "settleExpiredMarket",
       "accounts": [
         {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
           "name": "state",
           "isMut": false,
           "isSigner": false
         },
         {
-          "name": "authority",
-          "isMut": false,
-          "isSigner": true
+          "name": "perpMarket",
+          "isMut": true,
+          "isSigner": false
         }
       ],
       "args": [
@@ -1672,6 +1727,47 @@
           "type": {
             "option": "u64"
           }
+        }
+      ]
+    },
+    {
+      "name": "liquidatePerpWithFill",
+      "accounts": [
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "liquidator",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "liquidatorStats",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "user",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "userStats",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "marketIndex",
+          "type": "u16"
         }
       ]
     },
@@ -1839,6 +1935,27 @@
           }
         }
       ]
+    },
+    {
+      "name": "setUserStatusToBeingLiquidated",
+      "accounts": [
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "user",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": true
+        }
+      ],
+      "args": []
     },
     {
       "name": "resolvePerpPnlDeficit",
@@ -2218,7 +2335,7 @@
         },
         {
           "name": "spotMarket",
-          "isMut": false,
+          "isMut": true,
           "isSigner": false
         },
         {
@@ -2232,7 +2349,7 @@
           "isSigner": false
         },
         {
-          "name": "authority",
+          "name": "signer",
           "isMut": false,
           "isSigner": true
         },
@@ -2254,7 +2371,7 @@
         },
         {
           "name": "spotMarket",
-          "isMut": false,
+          "isMut": true,
           "isSigner": false
         },
         {
@@ -2268,7 +2385,7 @@
           "isSigner": false
         },
         {
-          "name": "authority",
+          "name": "signer",
           "isMut": false,
           "isSigner": true
         },
@@ -2341,7 +2458,7 @@
         },
         {
           "name": "spotMarket",
-          "isMut": false,
+          "isMut": true,
           "isSigner": false
         },
         {
@@ -2401,7 +2518,7 @@
       "accounts": [
         {
           "name": "spotMarket",
-          "isMut": false,
+          "isMut": true,
           "isSigner": false
         },
         {
@@ -2441,7 +2558,7 @@
       "accounts": [
         {
           "name": "spotMarket",
-          "isMut": false,
+          "isMut": true,
           "isSigner": false
         },
         {
@@ -2482,7 +2599,7 @@
         },
         {
           "name": "spotMarket",
-          "isMut": false,
+          "isMut": true,
           "isSigner": false
         },
         {
@@ -3363,6 +3480,27 @@
       ]
     },
     {
+      "name": "initializePredictionMarket",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "perpMarket",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": []
+    },
+    {
       "name": "deleteInitializedPerpMarket",
       "accounts": [
         {
@@ -3572,6 +3710,47 @@
         },
         {
           "name": "quoteSpotMarket",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "spotMarketVault",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "tokenProgram",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "amount",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "depositIntoSpotMarketVault",
+      "accounts": [
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "spotMarket",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "sourceVault",
           "isMut": true,
           "isSigner": false
         },
@@ -6836,11 +7015,15 @@
             "type": "u8"
           },
           {
+            "name": "tokenProgram",
+            "type": "u8"
+          },
+          {
             "name": "padding",
             "type": {
               "array": [
                 "u8",
-                42
+                41
               ]
             }
           }
@@ -7913,6 +8096,40 @@
             "type": {
               "option": "i64"
             }
+          }
+        ]
+      }
+    },
+    {
+      "name": "SwiftOrderParamsMessage",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "swiftOrderParams",
+            "type": {
+              "vec": {
+                "defined": "OrderParams"
+              }
+            }
+          },
+          {
+            "name": "marketIndex",
+            "type": "u16"
+          },
+          {
+            "name": "marketType",
+            "type": {
+              "defined": "MarketType"
+            }
+          },
+          {
+            "name": "expectedOrderId",
+            "type": "i32"
+          },
+          {
+            "name": "slot",
+            "type": "u64"
           }
         ]
       }
@@ -9833,6 +10050,9 @@
           },
           {
             "name": "PlaceAndTake"
+          },
+          {
+            "name": "Liquidation"
           }
         ]
       }
@@ -10100,6 +10320,9 @@
           },
           {
             "name": "Future"
+          },
+          {
+            "name": "Prediction"
           }
         ]
       }
@@ -11348,6 +11571,46 @@
         },
         {
           "name": "fee",
+          "type": "u64",
+          "index": false
+        }
+      ]
+    },
+    {
+      "name": "SpotMarketVaultDepositRecord",
+      "fields": [
+        {
+          "name": "ts",
+          "type": "i64",
+          "index": false
+        },
+        {
+          "name": "marketIndex",
+          "type": "u16",
+          "index": false
+        },
+        {
+          "name": "depositBalance",
+          "type": "u128",
+          "index": false
+        },
+        {
+          "name": "cumulativeDepositInterestBefore",
+          "type": "u128",
+          "index": false
+        },
+        {
+          "name": "cumulativeDepositInterestAfter",
+          "type": "u128",
+          "index": false
+        },
+        {
+          "name": "depositTokenAmountBefore",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "amount",
           "type": "u64",
           "index": false
         }
@@ -12764,6 +13027,41 @@
       "code": 6281,
       "name": "InvalidOpenbookV2Market",
       "msg": "InvalidOpenbookV2Market"
+    },
+    {
+      "code": 6282,
+      "name": "NonZeroTransferFee",
+      "msg": "Non zero transfer fee"
+    },
+    {
+      "code": 6283,
+      "name": "LiquidationOrderFailedToFill",
+      "msg": "Liquidation order failed to fill"
+    },
+    {
+      "code": 6284,
+      "name": "InvalidPredictionMarketOrder",
+      "msg": "Invalid prediction market order"
+    },
+    {
+      "code": 6285,
+      "name": "InvalidVerificationIxIndex",
+      "msg": "Ed25519 Ix must be before place and make swift order ix"
+    },
+    {
+      "code": 6286,
+      "name": "SigVerificationFailed",
+      "msg": "Swift taker message verificaiton failed"
+    },
+    {
+      "code": 6287,
+      "name": "MismatchedSwiftOrderParamsMarketIndex",
+      "msg": "Market index mismatched b/w taker and maker swift order params"
+    },
+    {
+      "code": 6288,
+      "name": "SwiftOrderSequenceError",
+      "msg": "Swift order message must be ordered 0th order is market and rest are triggers"
     }
   ],
   "metadata": {

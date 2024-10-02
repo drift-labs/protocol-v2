@@ -23,6 +23,7 @@ test_files=(
   cancelAllOrders.ts
   curve.ts
   deleteInitializedSpotMarket.ts
+  depositIntoSpotMarketVault.ts
   driftClient.ts
   fillSpot.ts
   insuranceFundStake.ts
@@ -30,6 +31,7 @@ test_files=(
   liquidateMaxLps.ts
   liquidatePerp.ts
   liquidatePerpAndLp.ts
+  liquidatePerpWithFill.ts
   liquidatePerpPnlForDeposit.ts
   liquidateSpot.ts
   liquidateSpotSocialLoss.ts
@@ -51,6 +53,7 @@ test_files=(
   perpLpRiskMitigation.ts
   phoenixTest.ts
   placeAndMakePerp.ts
+  placeAndMakeSwiftPerpBankrun.ts
   placeAndMakeSpotOrder.ts
   postOnly.ts
   prelisting.ts
@@ -60,7 +63,9 @@ test_files=(
   roundInFavorBaseAsset.ts
   serumTest.ts
   spotDepositWithdraw.ts
+  spotDepositWithdraw22.ts
   spotSwap.ts
+  spotSwap22.ts
   stopLimits.ts
   subaccounts.ts
   surgePricing.ts

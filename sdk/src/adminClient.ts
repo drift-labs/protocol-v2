@@ -198,6 +198,8 @@ export class AdminClient extends DriftClient {
 			spotMarketIndex
 		);
 
+		const tokenProgram = (await this.connection.getAccountInfo(mint)).owner;
+
 		const nameBuffer = encodeName(name);
 		const initializeIx = await this.program.instruction.initializeSpotMarket(
 			optimalUtilization,
@@ -233,7 +235,7 @@ export class AdminClient extends DriftClient {
 					oracle,
 					rent: SYSVAR_RENT_PUBKEY,
 					systemProgram: anchor.web3.SystemProgram.programId,
-					tokenProgram: TOKEN_PROGRAM_ID,
+					tokenProgram,
 				},
 			}
 		);
@@ -586,6 +588,36 @@ export class AdminClient extends DriftClient {
 				},
 			}
 		);
+	}
+
+	public async initializePredictionMarket(
+		perpMarketIndex: number
+	): Promise<TransactionSignature> {
+		const updatePerpMarketConcentrationCoefIx =
+			await this.getInitializePredictionMarketIx(perpMarketIndex);
+
+		const tx = await this.buildTransaction(updatePerpMarketConcentrationCoefIx);
+
+		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+
+		return txSig;
+	}
+
+	public async getInitializePredictionMarketIx(
+		perpMarketIndex: number
+	): Promise<TransactionInstruction> {
+		return await this.program.instruction.initializePredictionMarket({
+			accounts: {
+				state: await this.getStatePublicKey(),
+				admin: this.isSubscribed
+					? this.getStateAccount().admin
+					: this.wallet.publicKey,
+				perpMarket: await getPerpMarketPublicKey(
+					this.program.programId,
+					perpMarketIndex
+				),
+			},
+		});
 	}
 
 	public async deleteInitializedPerpMarket(
@@ -994,6 +1026,48 @@ export class AdminClient extends DriftClient {
 				spotMarketVault: spotMarket.vault,
 				tokenProgram: TOKEN_PROGRAM_ID,
 			},
+		});
+	}
+
+	public async depositIntoSpotMarketVault(
+		spotMarketIndex: number,
+		amount: BN,
+		sourceVault: PublicKey
+	): Promise<TransactionSignature> {
+		const depositIntoPerpMarketFeePoolIx =
+			await this.getDepositIntoSpotMarketVaultIx(
+				spotMarketIndex,
+				amount,
+				sourceVault
+			);
+
+		const tx = await this.buildTransaction(depositIntoPerpMarketFeePoolIx);
+
+		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+
+		return txSig;
+	}
+
+	public async getDepositIntoSpotMarketVaultIx(
+		spotMarketIndex: number,
+		amount: BN,
+		sourceVault: PublicKey
+	): Promise<TransactionInstruction> {
+		const spotMarket = this.getSpotMarketAccount(spotMarketIndex);
+
+		const remainingAccounts = [];
+		this.addTokenMintToRemainingAccounts(spotMarket, remainingAccounts);
+		const tokenProgram = this.getTokenProgramForSpotMarket(spotMarket);
+		return await this.program.instruction.depositIntoSpotMarketVault(amount, {
+			accounts: {
+				admin: this.wallet.publicKey,
+				state: await this.getStatePublicKey(),
+				sourceVault,
+				spotMarket: spotMarket.pubkey,
+				spotMarketVault: spotMarket.vault,
+				tokenProgram,
+			},
+			remainingAccounts,
 		});
 	}
 

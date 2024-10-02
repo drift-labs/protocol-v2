@@ -105,7 +105,7 @@ pub mod fulfill_order_with_maker_order {
         let mut maker_stats = UserStats::default();
 
         let taker_limit_price = taker.orders[0]
-            .get_limit_price(None, None, slot, market.amm.order_tick_size)
+            .get_limit_price(None, None, slot, market.amm.order_tick_size, false)
             .unwrap();
 
         fulfill_perp_order_with_match(
@@ -130,6 +130,7 @@ pub mod fulfill_order_with_maker_order {
             slot,
             &fee_structure,
             &mut get_oracle_map(),
+            false,
         )
         .unwrap();
 
@@ -224,7 +225,7 @@ pub mod fulfill_order_with_maker_order {
         let mut maker_stats = UserStats::default();
 
         let taker_limit_price = taker.orders[0]
-            .get_limit_price(None, None, slot, market.amm.order_tick_size)
+            .get_limit_price(None, None, slot, market.amm.order_tick_size, false)
             .unwrap();
 
         fulfill_perp_order_with_match(
@@ -249,6 +250,7 @@ pub mod fulfill_order_with_maker_order {
             slot,
             &fee_structure,
             &mut get_oracle_map(),
+            false,
         )
         .unwrap();
 
@@ -343,7 +345,7 @@ pub mod fulfill_order_with_maker_order {
         let mut maker_stats = UserStats::default();
 
         let taker_limit_price = taker.orders[0]
-            .get_limit_price(None, None, slot, market.amm.order_tick_size)
+            .get_limit_price(None, None, slot, market.amm.order_tick_size, false)
             .unwrap();
 
         fulfill_perp_order_with_match(
@@ -368,6 +370,7 @@ pub mod fulfill_order_with_maker_order {
             slot,
             &fee_structure,
             &mut get_oracle_map(),
+            false,
         )
         .unwrap();
 
@@ -462,7 +465,7 @@ pub mod fulfill_order_with_maker_order {
         let mut maker_stats = UserStats::default();
 
         let taker_limit_price = taker.orders[0]
-            .get_limit_price(None, None, slot, market.amm.order_tick_size)
+            .get_limit_price(None, None, slot, market.amm.order_tick_size, false)
             .unwrap();
 
         fulfill_perp_order_with_match(
@@ -487,6 +490,7 @@ pub mod fulfill_order_with_maker_order {
             slot,
             &fee_structure,
             &mut get_oracle_map(),
+            false,
         )
         .unwrap();
 
@@ -581,7 +585,7 @@ pub mod fulfill_order_with_maker_order {
         let mut maker_stats = UserStats::default();
 
         let taker_limit_price = taker.orders[0]
-            .get_limit_price(None, None, slot, market.amm.order_tick_size)
+            .get_limit_price(None, None, slot, market.amm.order_tick_size, false)
             .unwrap();
 
         let (base_asset_amount, _, _) = fulfill_perp_order_with_match(
@@ -606,6 +610,7 @@ pub mod fulfill_order_with_maker_order {
             slot,
             &fee_structure,
             &mut get_oracle_map(),
+            false,
         )
         .unwrap();
 
@@ -666,7 +671,7 @@ pub mod fulfill_order_with_maker_order {
         let mut maker_stats = UserStats::default();
 
         let taker_limit_price = taker.orders[0]
-            .get_limit_price(None, None, slot, market.amm.order_tick_size)
+            .get_limit_price(None, None, slot, market.amm.order_tick_size, false)
             .unwrap();
 
         let (base_asset_amount, _, _) = fulfill_perp_order_with_match(
@@ -691,6 +696,7 @@ pub mod fulfill_order_with_maker_order {
             slot,
             &fee_structure,
             &mut get_oracle_map(),
+            false,
         )
         .unwrap();
 
@@ -752,7 +758,7 @@ pub mod fulfill_order_with_maker_order {
         let mut maker_stats = UserStats::default();
 
         let taker_limit_price = taker.orders[0]
-            .get_limit_price(None, None, slot, market.amm.order_tick_size)
+            .get_limit_price(None, None, slot, market.amm.order_tick_size, false)
             .unwrap();
 
         let (base_asset_amount, _, _) = fulfill_perp_order_with_match(
@@ -777,6 +783,7 @@ pub mod fulfill_order_with_maker_order {
             slot,
             &fee_structure,
             &mut get_oracle_map(),
+            false,
         )
         .unwrap();
 
@@ -838,7 +845,7 @@ pub mod fulfill_order_with_maker_order {
         let mut maker_stats = UserStats::default();
 
         let taker_limit_price = taker.orders[0]
-            .get_limit_price(None, None, slot, market.amm.order_tick_size)
+            .get_limit_price(None, None, slot, market.amm.order_tick_size, false)
             .unwrap();
 
         let (base_asset_amount, _, _) = fulfill_perp_order_with_match(
@@ -863,6 +870,7 @@ pub mod fulfill_order_with_maker_order {
             slot,
             &fee_structure,
             &mut get_oracle_map(),
+            false,
         )
         .unwrap();
 
@@ -924,7 +932,7 @@ pub mod fulfill_order_with_maker_order {
         let mut maker_stats = UserStats::default();
 
         let taker_limit_price = taker.orders[0]
-            .get_limit_price(None, None, slot, market.amm.order_tick_size)
+            .get_limit_price(None, None, slot, market.amm.order_tick_size, false)
             .unwrap();
 
         fulfill_perp_order_with_match(
@@ -949,6 +957,7 @@ pub mod fulfill_order_with_maker_order {
             slot,
             &fee_structure,
             &mut get_oracle_map(),
+            false,
         )
         .unwrap();
 
@@ -1030,7 +1039,7 @@ pub mod fulfill_order_with_maker_order {
         let mut maker_stats = UserStats::default();
 
         let taker_limit_price = taker.orders[0]
-            .get_limit_price(None, None, slot, market.amm.order_tick_size)
+            .get_limit_price(None, None, slot, market.amm.order_tick_size, false)
             .unwrap();
 
         fulfill_perp_order_with_match(
@@ -1055,6 +1064,7 @@ pub mod fulfill_order_with_maker_order {
             slot,
             &fee_structure,
             &mut get_oracle_map(),
+            false,
         )
         .unwrap();
 
@@ -1139,7 +1149,7 @@ pub mod fulfill_order_with_maker_order {
         let mut maker_stats = UserStats::default();
 
         let taker_limit_price = taker.orders[0]
-            .get_limit_price(None, None, slot, market.amm.order_tick_size)
+            .get_limit_price(None, None, slot, market.amm.order_tick_size, false)
             .unwrap();
 
         fulfill_perp_order_with_match(
@@ -1164,6 +1174,7 @@ pub mod fulfill_order_with_maker_order {
             slot,
             &fee_structure,
             &mut get_oracle_map(),
+            false,
         )
         .unwrap();
 
@@ -1255,7 +1266,7 @@ pub mod fulfill_order_with_maker_order {
         let mut maker_stats = UserStats::default();
 
         let taker_limit_price = taker.orders[0]
-            .get_limit_price(None, None, slot, market.amm.order_tick_size)
+            .get_limit_price(None, None, slot, market.amm.order_tick_size, false)
             .unwrap();
 
         fulfill_perp_order_with_match(
@@ -1280,6 +1291,7 @@ pub mod fulfill_order_with_maker_order {
             slot,
             &fee_structure,
             &mut get_oracle_map(),
+            false,
         )
         .unwrap();
 
@@ -1372,7 +1384,7 @@ pub mod fulfill_order_with_maker_order {
         let mut maker_stats = UserStats::default();
 
         let taker_limit_price = taker.orders[0]
-            .get_limit_price(None, None, slot, market.amm.order_tick_size)
+            .get_limit_price(None, None, slot, market.amm.order_tick_size, false)
             .unwrap();
 
         fulfill_perp_order_with_match(
@@ -1397,6 +1409,7 @@ pub mod fulfill_order_with_maker_order {
             slot,
             &fee_structure,
             &mut get_oracle_map(),
+            false,
         )
         .unwrap();
 
@@ -1513,7 +1526,7 @@ pub mod fulfill_order_with_maker_order {
         let mut maker_stats = UserStats::default();
 
         let taker_limit_price = taker.orders[0]
-            .get_limit_price(None, None, slot, market.amm.order_tick_size)
+            .get_limit_price(None, None, slot, market.amm.order_tick_size, false)
             .unwrap();
 
         let (base_asset_amount, _, _) = fulfill_perp_order_with_match(
@@ -1538,6 +1551,7 @@ pub mod fulfill_order_with_maker_order {
             slot,
             &fee_structure,
             &mut get_oracle_map(),
+            false,
         )
         .unwrap();
 
@@ -1629,7 +1643,7 @@ pub mod fulfill_order_with_maker_order {
         let mut maker_stats = UserStats::default();
 
         let taker_limit_price = taker.orders[0]
-            .get_limit_price(None, None, slot, market.amm.order_tick_size)
+            .get_limit_price(None, None, slot, market.amm.order_tick_size, false)
             .unwrap();
 
         let (base_asset_amount, _, _) = fulfill_perp_order_with_match(
@@ -1654,6 +1668,7 @@ pub mod fulfill_order_with_maker_order {
             slot,
             &fee_structure,
             &mut get_oracle_map(),
+            false,
         )
         .unwrap();
 
@@ -1747,7 +1762,13 @@ pub mod fulfill_order_with_maker_order {
 
         let valid_oracle_price = Some(oracle_price);
         let taker_limit_price = taker.orders[0]
-            .get_limit_price(valid_oracle_price, None, slot, market.amm.order_tick_size)
+            .get_limit_price(
+                valid_oracle_price,
+                None,
+                slot,
+                market.amm.order_tick_size,
+                false,
+            )
             .unwrap();
 
         fulfill_perp_order_with_match(
@@ -1772,6 +1793,7 @@ pub mod fulfill_order_with_maker_order {
             slot,
             &fee_structure,
             &mut oracle_map,
+            false,
         )
         .unwrap();
 
@@ -1875,6 +1897,7 @@ pub mod fulfill_order_with_maker_order {
                 None,
                 slot,
                 1,
+                false,
             )
             .unwrap();
         assert_eq!(taker_price, Some(199000000)); // $51
@@ -1912,6 +1935,7 @@ pub mod fulfill_order_with_maker_order {
             slot,
             &fee_structure,
             &mut oracle_map,
+            false,
         )
         .unwrap();
 
@@ -2020,7 +2044,13 @@ pub mod fulfill_order_with_maker_order {
 
         let valid_oracle_price = Some(oracle_map.get_price_data(&oracle_price_key).unwrap().price);
         let taker_limit_price = taker.orders[0]
-            .get_limit_price(valid_oracle_price, None, slot, market.amm.order_tick_size)
+            .get_limit_price(
+                valid_oracle_price,
+                None,
+                slot,
+                market.amm.order_tick_size,
+                false,
+            )
             .unwrap();
 
         fulfill_perp_order_with_match(
@@ -2045,6 +2075,7 @@ pub mod fulfill_order_with_maker_order {
             slot,
             &fee_structure,
             &mut oracle_map,
+            false,
         )
         .unwrap();
 
@@ -2151,6 +2182,7 @@ pub mod fulfill_order_with_maker_order {
                 None,
                 slot,
                 1,
+                false,
             )
             .unwrap();
         assert_eq!(taker_price, Some(51000000)); // $51
@@ -2184,6 +2216,7 @@ pub mod fulfill_order_with_maker_order {
             slot,
             &fee_structure,
             &mut oracle_map,
+            false,
         )
         .unwrap();
 
@@ -2273,7 +2306,7 @@ pub mod fulfill_order_with_maker_order {
 
         assert_eq!(
             taker.orders[0]
-                .get_limit_price(None, None, slot, market.amm.order_tick_size)
+                .get_limit_price(None, None, slot, market.amm.order_tick_size, false)
                 .unwrap(),
             Some(55000000)
         );
@@ -2286,7 +2319,7 @@ pub mod fulfill_order_with_maker_order {
         let mut maker_stats = UserStats::default();
 
         let taker_limit_price = taker.orders[0]
-            .get_limit_price(None, None, slot, market.amm.order_tick_size)
+            .get_limit_price(None, None, slot, market.amm.order_tick_size, false)
             .unwrap();
 
         fulfill_perp_order_with_match(
@@ -2311,6 +2344,7 @@ pub mod fulfill_order_with_maker_order {
             slot,
             &fee_structure,
             &mut get_oracle_map(),
+            false,
         )
         .unwrap();
 
@@ -2400,7 +2434,7 @@ pub mod fulfill_order_with_maker_order {
 
         assert_eq!(
             taker.orders[0]
-                .get_limit_price(None, None, slot, market.amm.order_tick_size)
+                .get_limit_price(None, None, slot, market.amm.order_tick_size, false)
                 .unwrap(),
             Some(100000000)
         );
@@ -2412,7 +2446,7 @@ pub mod fulfill_order_with_maker_order {
         let mut maker_stats = UserStats::default();
 
         let taker_limit_price = taker.orders[0]
-            .get_limit_price(None, None, slot, market.amm.order_tick_size)
+            .get_limit_price(None, None, slot, market.amm.order_tick_size, false)
             .unwrap();
 
         fulfill_perp_order_with_match(
@@ -2437,6 +2471,7 @@ pub mod fulfill_order_with_maker_order {
             slot,
             &fee_structure,
             &mut get_oracle_map(),
+            false,
         )
         .unwrap();
 
@@ -5019,17 +5054,11 @@ pub mod fill_order {
         market.amm.max_base_asset_reserve = u128::MAX;
         market.amm.min_base_asset_reserve = 0;
         let (new_ask_base_asset_reserve, new_ask_quote_asset_reserve) =
-            crate::math::amm_spread::calculate_spread_reserves(
-                &market.amm,
-                PositionDirection::Long,
-            )
-            .unwrap();
+            crate::math::amm_spread::calculate_spread_reserves(&market, PositionDirection::Long)
+                .unwrap();
         let (new_bid_base_asset_reserve, new_bid_quote_asset_reserve) =
-            crate::math::amm_spread::calculate_spread_reserves(
-                &market.amm,
-                PositionDirection::Short,
-            )
-            .unwrap();
+            crate::math::amm_spread::calculate_spread_reserves(&market, PositionDirection::Short)
+                .unwrap();
         market.amm.ask_base_asset_reserve = new_ask_base_asset_reserve;
         market.amm.bid_base_asset_reserve = new_bid_base_asset_reserve;
         market.amm.ask_quote_asset_reserve = new_ask_quote_asset_reserve;
@@ -5144,7 +5173,7 @@ pub mod fill_order {
             ..State::default()
         };
 
-        let base_asset_amount = fill_perp_order(
+        let (base_asset_amount, _) = fill_perp_order(
             1,
             &state,
             &user_account_loader,
@@ -5224,17 +5253,11 @@ pub mod fill_order {
         market.amm.max_base_asset_reserve = u128::MAX;
         market.amm.min_base_asset_reserve = 0;
         let (new_ask_base_asset_reserve, new_ask_quote_asset_reserve) =
-            crate::math::amm_spread::calculate_spread_reserves(
-                &market.amm,
-                PositionDirection::Long,
-            )
-            .unwrap();
+            crate::math::amm_spread::calculate_spread_reserves(&market, PositionDirection::Long)
+                .unwrap();
         let (new_bid_base_asset_reserve, new_bid_quote_asset_reserve) =
-            crate::math::amm_spread::calculate_spread_reserves(
-                &market.amm,
-                PositionDirection::Short,
-            )
-            .unwrap();
+            crate::math::amm_spread::calculate_spread_reserves(&market, PositionDirection::Short)
+                .unwrap();
         market.amm.ask_base_asset_reserve = new_ask_base_asset_reserve;
         market.amm.bid_base_asset_reserve = new_bid_base_asset_reserve;
         market.amm.ask_quote_asset_reserve = new_ask_quote_asset_reserve;
@@ -5352,7 +5375,7 @@ pub mod fill_order {
             ..State::default()
         };
 
-        let base_asset_amount = fill_perp_order(
+        let (base_asset_amount, _) = fill_perp_order(
             1,
             &state,
             &user_account_loader,
@@ -5481,7 +5504,7 @@ pub mod fill_order {
             unix_timestamp: 11,
         };
 
-        let base_asset_amount = fill_perp_order(
+        let (base_asset_amount, _) = fill_perp_order(
             1,
             &state,
             &user_account_loader,
@@ -5566,17 +5589,11 @@ pub mod fill_order {
         market.amm.max_base_asset_reserve = u128::MAX;
         market.amm.min_base_asset_reserve = 0;
         let (new_ask_base_asset_reserve, new_ask_quote_asset_reserve) =
-            crate::math::amm_spread::calculate_spread_reserves(
-                &market.amm,
-                PositionDirection::Long,
-            )
-            .unwrap();
+            crate::math::amm_spread::calculate_spread_reserves(&market, PositionDirection::Long)
+                .unwrap();
         let (new_bid_base_asset_reserve, new_bid_quote_asset_reserve) =
-            crate::math::amm_spread::calculate_spread_reserves(
-                &market.amm,
-                PositionDirection::Short,
-            )
-            .unwrap();
+            crate::math::amm_spread::calculate_spread_reserves(&market, PositionDirection::Short)
+                .unwrap();
         market.amm.ask_base_asset_reserve = new_ask_base_asset_reserve;
         market.amm.bid_base_asset_reserve = new_bid_base_asset_reserve;
         market.amm.ask_quote_asset_reserve = new_ask_quote_asset_reserve;
@@ -9444,17 +9461,11 @@ pub mod force_cancel_orders {
         market.amm.max_base_asset_reserve = u128::MAX;
         market.amm.min_base_asset_reserve = 0;
         let (new_ask_base_asset_reserve, new_ask_quote_asset_reserve) =
-            crate::math::amm_spread::calculate_spread_reserves(
-                &market.amm,
-                PositionDirection::Long,
-            )
-            .unwrap();
+            crate::math::amm_spread::calculate_spread_reserves(&market, PositionDirection::Long)
+                .unwrap();
         let (new_bid_base_asset_reserve, new_bid_quote_asset_reserve) =
-            crate::math::amm_spread::calculate_spread_reserves(
-                &market.amm,
-                PositionDirection::Short,
-            )
-            .unwrap();
+            crate::math::amm_spread::calculate_spread_reserves(&market, PositionDirection::Short)
+                .unwrap();
         market.amm.ask_base_asset_reserve = new_ask_base_asset_reserve;
         market.amm.bid_base_asset_reserve = new_bid_base_asset_reserve;
         market.amm.ask_quote_asset_reserve = new_ask_quote_asset_reserve;
@@ -9740,17 +9751,11 @@ pub mod get_maker_orders_info {
         market.amm.max_base_asset_reserve = u128::MAX;
         market.amm.min_base_asset_reserve = 0;
         let (new_ask_base_asset_reserve, new_ask_quote_asset_reserve) =
-            crate::math::amm_spread::calculate_spread_reserves(
-                &market.amm,
-                PositionDirection::Long,
-            )
-            .unwrap();
+            crate::math::amm_spread::calculate_spread_reserves(&market, PositionDirection::Long)
+                .unwrap();
         let (new_bid_base_asset_reserve, new_bid_quote_asset_reserve) =
-            crate::math::amm_spread::calculate_spread_reserves(
-                &market.amm,
-                PositionDirection::Short,
-            )
-            .unwrap();
+            crate::math::amm_spread::calculate_spread_reserves(&market, PositionDirection::Short)
+                .unwrap();
         market.amm.ask_base_asset_reserve = new_ask_base_asset_reserve;
         market.amm.bid_base_asset_reserve = new_bid_base_asset_reserve;
         market.amm.ask_quote_asset_reserve = new_ask_quote_asset_reserve;
@@ -9934,17 +9939,11 @@ pub mod get_maker_orders_info {
         market.amm.max_base_asset_reserve = u128::MAX;
         market.amm.min_base_asset_reserve = 0;
         let (new_ask_base_asset_reserve, new_ask_quote_asset_reserve) =
-            crate::math::amm_spread::calculate_spread_reserves(
-                &market.amm,
-                PositionDirection::Long,
-            )
-            .unwrap();
+            crate::math::amm_spread::calculate_spread_reserves(&market, PositionDirection::Long)
+                .unwrap();
         let (new_bid_base_asset_reserve, new_bid_quote_asset_reserve) =
-            crate::math::amm_spread::calculate_spread_reserves(
-                &market.amm,
-                PositionDirection::Short,
-            )
-            .unwrap();
+            crate::math::amm_spread::calculate_spread_reserves(&market, PositionDirection::Short)
+                .unwrap();
         market.amm.ask_base_asset_reserve = new_ask_base_asset_reserve;
         market.amm.bid_base_asset_reserve = new_bid_base_asset_reserve;
         market.amm.ask_quote_asset_reserve = new_ask_quote_asset_reserve;
@@ -10129,17 +10128,11 @@ pub mod get_maker_orders_info {
         market.amm.max_base_asset_reserve = u128::MAX;
         market.amm.min_base_asset_reserve = 0;
         let (new_ask_base_asset_reserve, new_ask_quote_asset_reserve) =
-            crate::math::amm_spread::calculate_spread_reserves(
-                &market.amm,
-                PositionDirection::Long,
-            )
-            .unwrap();
+            crate::math::amm_spread::calculate_spread_reserves(&market, PositionDirection::Long)
+                .unwrap();
         let (new_bid_base_asset_reserve, new_bid_quote_asset_reserve) =
-            crate::math::amm_spread::calculate_spread_reserves(
-                &market.amm,
-                PositionDirection::Short,
-            )
-            .unwrap();
+            crate::math::amm_spread::calculate_spread_reserves(&market, PositionDirection::Short)
+                .unwrap();
         market.amm.ask_base_asset_reserve = new_ask_base_asset_reserve;
         market.amm.bid_base_asset_reserve = new_bid_base_asset_reserve;
         market.amm.ask_quote_asset_reserve = new_ask_quote_asset_reserve;
@@ -10310,17 +10303,11 @@ pub mod get_maker_orders_info {
         market.amm.max_base_asset_reserve = u128::MAX;
         market.amm.min_base_asset_reserve = 0;
         let (new_ask_base_asset_reserve, new_ask_quote_asset_reserve) =
-            crate::math::amm_spread::calculate_spread_reserves(
-                &market.amm,
-                PositionDirection::Long,
-            )
-            .unwrap();
+            crate::math::amm_spread::calculate_spread_reserves(&market, PositionDirection::Long)
+                .unwrap();
         let (new_bid_base_asset_reserve, new_bid_quote_asset_reserve) =
-            crate::math::amm_spread::calculate_spread_reserves(
-                &market.amm,
-                PositionDirection::Short,
-            )
-            .unwrap();
+            crate::math::amm_spread::calculate_spread_reserves(&market, PositionDirection::Short)
+                .unwrap();
         market.amm.ask_base_asset_reserve = new_ask_base_asset_reserve;
         market.amm.bid_base_asset_reserve = new_bid_base_asset_reserve;
         market.amm.ask_quote_asset_reserve = new_ask_quote_asset_reserve;
@@ -10565,17 +10552,11 @@ pub mod get_maker_orders_info {
         market.amm.max_base_asset_reserve = u128::MAX;
         market.amm.min_base_asset_reserve = 0;
         let (new_ask_base_asset_reserve, new_ask_quote_asset_reserve) =
-            crate::math::amm_spread::calculate_spread_reserves(
-                &market.amm,
-                PositionDirection::Long,
-            )
-            .unwrap();
+            crate::math::amm_spread::calculate_spread_reserves(&market, PositionDirection::Long)
+                .unwrap();
         let (new_bid_base_asset_reserve, new_bid_quote_asset_reserve) =
-            crate::math::amm_spread::calculate_spread_reserves(
-                &market.amm,
-                PositionDirection::Short,
-            )
-            .unwrap();
+            crate::math::amm_spread::calculate_spread_reserves(&market, PositionDirection::Short)
+                .unwrap();
         market.amm.ask_base_asset_reserve = new_ask_base_asset_reserve;
         market.amm.bid_base_asset_reserve = new_bid_base_asset_reserve;
         market.amm.ask_quote_asset_reserve = new_ask_quote_asset_reserve;
@@ -10762,17 +10743,11 @@ pub mod get_maker_orders_info {
         market.amm.max_base_asset_reserve = u128::MAX;
         market.amm.min_base_asset_reserve = 0;
         let (new_ask_base_asset_reserve, new_ask_quote_asset_reserve) =
-            crate::math::amm_spread::calculate_spread_reserves(
-                &market.amm,
-                PositionDirection::Long,
-            )
-            .unwrap();
+            crate::math::amm_spread::calculate_spread_reserves(&market, PositionDirection::Long)
+                .unwrap();
         let (new_bid_base_asset_reserve, new_bid_quote_asset_reserve) =
-            crate::math::amm_spread::calculate_spread_reserves(
-                &market.amm,
-                PositionDirection::Short,
-            )
-            .unwrap();
+            crate::math::amm_spread::calculate_spread_reserves(&market, PositionDirection::Short)
+                .unwrap();
         market.amm.ask_base_asset_reserve = new_ask_base_asset_reserve;
         market.amm.bid_base_asset_reserve = new_bid_base_asset_reserve;
         market.amm.ask_quote_asset_reserve = new_ask_quote_asset_reserve;

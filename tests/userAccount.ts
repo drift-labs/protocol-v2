@@ -276,8 +276,11 @@ describe('User Account', () => {
 			convertToNumber(oraclePrice2)
 		);
 
-		const worstCaseBaseAssetAmount =
-			calculateWorstCaseBaseAssetAmount(perpPosition);
+		const worstCaseBaseAssetAmount = calculateWorstCaseBaseAssetAmount(
+			perpPosition,
+			market,
+			driftClient.getOracleDataForPerpMarket(perpPosition.marketIndex).price
+		);
 
 		const worstCaseAssetValue = worstCaseBaseAssetAmount
 			.abs()

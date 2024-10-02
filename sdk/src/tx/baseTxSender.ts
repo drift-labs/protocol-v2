@@ -20,13 +20,16 @@ import {
 	AddressLookupTableAccount,
 	BlockhashWithExpiryBlockHeight,
 } from '@solana/web3.js';
-import { AnchorProvider } from '@coral-xyz/anchor';
 import assert from 'assert';
 import bs58 from 'bs58';
 import { TxHandler } from './txHandler';
 import { IWallet } from '../types';
+import NodeCache from 'node-cache';
+import { DEFAULT_CONFIRMATION_OPTS } from '../config';
 
+const BASELINE_TX_LAND_RATE = 0.9;
 const DEFAULT_TIMEOUT = 35000;
+const DEFAULT_TX_LAND_RATE_LOOKBACK_WINDOW_MINUTES = 10;
 const NOT_CONFIRMED_ERROR_CODE = -1001;
 
 export abstract class BaseTxSender implements TxSender {
@@ -39,16 +42,27 @@ export abstract class BaseTxSender implements TxSender {
 	confirmationStrategy: ConfirmationStrategy;
 	additionalTxSenderCallbacks: ((base58EncodedTx: string) => void)[];
 	txHandler: TxHandler;
+	trackTxLandRate?: boolean;
+
+	// For landing rate calcs
+	lookbackWindowMinutes: number;
+	txSigCache?: NodeCache;
+	txLandRate = 0;
+	lastPriorityFeeSuggestion = 1;
+	landRateToFeeFunc: (landRate: number) => number;
 
 	public constructor({
 		connection,
 		wallet,
-		opts = AnchorProvider.defaultOptions(),
+		opts = DEFAULT_CONFIRMATION_OPTS,
 		timeout = DEFAULT_TIMEOUT,
 		additionalConnections = new Array<Connection>(),
 		confirmationStrategy = ConfirmationStrategy.Combo,
 		additionalTxSenderCallbacks,
+		trackTxLandRate,
 		txHandler,
+		txLandRateLookbackWindowMinutes = DEFAULT_TX_LAND_RATE_LOOKBACK_WINDOW_MINUTES,
+		landRateToFeeFunc,
 	}: {
 		connection: Connection;
 		wallet: IWallet;
@@ -58,6 +72,9 @@ export abstract class BaseTxSender implements TxSender {
 		confirmationStrategy?: ConfirmationStrategy;
 		additionalTxSenderCallbacks?: ((base58EncodedTx: string) => void)[];
 		txHandler?: TxHandler;
+		trackTxLandRate?: boolean;
+		txLandRateLookbackWindowMinutes?: number;
+		landRateToFeeFunc?: (landRate: number) => number;
 	}) {
 		this.connection = connection;
 		this.wallet = wallet;
@@ -73,6 +90,16 @@ export abstract class BaseTxSender implements TxSender {
 				wallet: this.wallet,
 				confirmationOptions: this.opts,
 			});
+		this.trackTxLandRate = trackTxLandRate;
+		this.lookbackWindowMinutes = txLandRateLookbackWindowMinutes * 60;
+		if (this.trackTxLandRate) {
+			this.txSigCache = new NodeCache({
+				stdTTL: this.lookbackWindowMinutes,
+				checkperiod: 120,
+			});
+		}
+		this.landRateToFeeFunc =
+			landRateToFeeFunc ?? this.defaultLandRateToFeeFunc.bind(this);
 	}
 
 	async send(
@@ -239,13 +266,14 @@ export abstract class BaseTxSender implements TxSender {
 		if (response === null) {
 			if (this.confirmationStrategy === ConfirmationStrategy.Combo) {
 				try {
-					const rpcResponse = await this.connection.getSignatureStatus(
-						signature
-					);
-					if (rpcResponse?.value?.confirmationStatus) {
+					const rpcResponse = await this.connection.getSignatureStatuses([
+						signature,
+					]);
+
+					if (rpcResponse?.value?.[0]?.confirmationStatus) {
 						response = {
 							context: rpcResponse.context,
-							value: { err: rpcResponse.value.err },
+							value: { err: rpcResponse.value[0].err },
 						};
 						return response;
 					}
@@ -277,11 +305,18 @@ export abstract class BaseTxSender implements TxSender {
 		while (totalTime < this.timeout) {
 			await new Promise((resolve) => setTimeout(resolve, backoffTime));
 
-			const response = await this.connection.getSignatureStatus(signature);
-			const result = response && response.value?.[0];
+			const rpcResponse = await this.connection.getSignatureStatuses([
+				signature,
+			]);
 
-			if (result && result.confirmationStatus === commitment) {
-				return { context: result.context, value: { err: null } };
+			const signatureResult = rpcResponse && rpcResponse.value?.[0];
+
+			if (
+				rpcResponse &&
+				signatureResult &&
+				signatureResult.confirmationStatus === commitment
+			) {
+				return { context: rpcResponse.context, value: { err: null } };
 			}
 
 			totalTime += backoffTime;
@@ -370,9 +405,9 @@ export abstract class BaseTxSender implements TxSender {
 
 	public async checkConfirmationResultForError(
 		txSig: string,
-		result: RpcResponseAndContext<SignatureResult>
+		result: SignatureResult
 	) {
-		if (result.value.err) {
+		if (result.err) {
 			await this.reportTransactionError(txSig);
 		}
 
@@ -403,5 +438,50 @@ export abstract class BaseTxSender implements TxSender {
 			}`,
 			logs,
 		});
+	}
+
+	public getTxLandRate(): number {
+		if (!this.trackTxLandRate) {
+			console.warn(
+				'trackTxLandRate is false, returning default land rate of 0'
+			);
+			return this.txLandRate;
+		}
+		const keys = this.txSigCache.keys();
+		const denominator = keys.length;
+		if (denominator === 0) {
+			return this.txLandRate;
+		}
+		let numerator = 0;
+		for (const key of keys) {
+			const value = this.txSigCache.get(key);
+			if (value) {
+				numerator += 1;
+			}
+		}
+		this.txLandRate = numerator / denominator;
+		return this.txLandRate;
+	}
+
+	private defaultLandRateToFeeFunc(txLandRate: number) {
+		if (
+			txLandRate >= BASELINE_TX_LAND_RATE ||
+			this.txSigCache.keys().length < 3
+		) {
+			return 1;
+		}
+		const multiplier =
+			10 * Math.log10(1 + (BASELINE_TX_LAND_RATE - txLandRate) * 5);
+		return Math.min(multiplier, 10);
+	}
+
+	public getSuggestedPriorityFeeMultiplier(): number {
+		if (!this.trackTxLandRate) {
+			console.warn(
+				'trackTxLandRate is false, returning default multiplier of 1'
+			);
+			return 1;
+		}
+		return this.landRateToFeeFunc(this.getTxLandRate());
 	}
 }

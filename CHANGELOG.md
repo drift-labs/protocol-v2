@@ -10,6 +10,113 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Features
 
 - program: add switchboard on demand integration ([#1154](https://github.com/drift-labs/protocol-v2/pull/1154))
+- program: reusue unused maker order id as success condition for place and take perp order ([#1218](https://github.com/drift-labs/protocol-v2/pull/1218))
+- program/sdk: swift for devnet ([#1195](https://github.com/drift-labs/protocol-v2/pull/1195))
+- sdk: EventSubscriber: support events server ([#1222](https://github.com/drift-labs/protocol-v2/pull/1222))
+- sdk: add new DelistMarketSetting to handle delisted markets ([#1229](https://github.com/drift-labs/protocol-v2/pull/1229))
+
+### Fixes
+
+### Breaking
+
+## [2.95.0] - 2024-09-16
+
+### Features
+
+- program: update settle market guards ([#1216](https://github.com/drift-labs/protocol-v2/pull/1216))
+- sdk:: cache toStringing oracle for drift client account subscribers ([#1220](https://github.com/drift-labs/protocol-v2/pull/1220))
+
+### Fixes
+
+- program: return early in update_perp_bid_ask_twap for prediction market with no bid/asks ([#1223](https://github.com/drift-labs/protocol-v2/pull/1223))
+- sdk: avoid spamming getAccountInfo in drift client ws sub ([#1219](https://github.com/drift-labs/protocol-v2/pull/1219))
+
+### Breaking
+
+## [2.93.0] - 2024-08-29
+
+### Features
+
+### Fixes
+
+- program: remove redundant clones ([#1199](https://github.com/drift-labs/protocol-v2/pull/1199))
+- program: fix spot market map in force_cancel_orders ([#1209](https://github.com/drift-labs/protocol-v2/pull/1209))
+
+### Breaking
+
+## [2.93.0] - 2024-08-22
+
+### Features
+
+- program: dynamic liquidation fee for liq_perp_with_fill ([#1185](https://github.com/drift-labs/protocol-v2/pull/1185))
+- program: calculate_accumulated_interest return early based on ts ([#1192](https://github.com/drift-labs/protocol-v2/pull/1192))
+- program: add logging to pyth pull updates ([#1189](https://github.com/drift-labs/protocol-v2/pull/1189))
+
+### Fixes
+
+### Breaking
+
+## [2.92.0] - 2024-08-12
+
+### Features
+
+- program: init prediction markets ([#1152](https://github.com/drift-labs/protocol-v2/pull/1152))
+
+### Fixes
+
+- program: make updateUserQuoteAssetInsuranceStake permissionless ([#1187](https://github.com/drift-labs/protocol-v2/pull/1187))
+- program: fix openbook v2 oom issue ([#1186](https://github.com/drift-labs/protocol-v2/pull/1186))
+
+### Breaking
+
+## [2.91.0] - 2024-08-07
+
+### Features
+
+### Fixes
+
+- program: look at drift stake to determine fee tier ([#1172](https://github.com/drift-labs/protocol-v2/pull/1172))
+
+### Breaking
+
+## [2.90.0] - 2024-08-03
+
+### Features
+
+### Fixes
+
+- program: account for direction when looking at max borrow cap ([#1169](https://github.com/drift-labs/protocol-v2/pull/1169))
+
+### Breaking
+
+## [2.89.0] - 2024-08-02
+
+### Features
+
+### Fixes
+
+- program: call get_token_interface in begin_swap
+
+### Breaking
+
+## [2.88.0] - 2024-08-01
+
+### Features
+
+### Fixes
+
+- program: advance iter in get_token_interface and get_token_mint
+
+### Breaking
+
+## [2.87.0] - 2024-07-30
+
+### Features
+
+- program: add deposit into spot market vault ([#1159](https://github.com/drift-labs/protocol-v2/pull/1159))
+- program: add liquidation via fill ([#1106](https://github.com/drift-labs/protocol-v2/pull/1106))
+- program: add switchboard on demand integration ([#1154](https://github.com/drift-labs/protocol-v2/pull/1154))
+- program: add support for token 2022 ([#1125](https://github.com/drift-labs/protocol-v2/pull/1125))
 
 ### Fixes
 

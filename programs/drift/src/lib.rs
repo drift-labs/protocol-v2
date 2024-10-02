@@ -148,9 +148,9 @@ pub mod drift {
     pub fn place_and_take_perp_order<'c: 'info, 'info>(
         ctx: Context<'_, '_, 'c, 'info, PlaceAndTake<'info>>,
         params: OrderParams,
-        maker_order_id: Option<u32>,
+        success_condition: Option<u32>,
     ) -> Result<()> {
-        handle_place_and_take_perp_order(ctx, params, maker_order_id)
+        handle_place_and_take_perp_order(ctx, params, success_condition)
     }
 
     pub fn place_and_make_perp_order<'c: 'info, 'info>(
@@ -159,6 +159,14 @@ pub mod drift {
         taker_order_id: u32,
     ) -> Result<()> {
         handle_place_and_make_perp_order(ctx, params, taker_order_id)
+    }
+
+    pub fn place_swift_taker_order<'c: 'info, 'info>(
+        ctx: Context<'_, '_, 'c, 'info, PlaceSwiftTakerOrder<'info>>,
+        taker_order_params_message_bytes: Vec<u8>,
+        signature: [u8; 64],
+    ) -> Result<()> {
+        handle_place_swift_taker_order(ctx, taker_order_params_message_bytes, signature)
     }
 
     pub fn place_spot_order<'c: 'info, 'info>(
@@ -392,7 +400,7 @@ pub mod drift {
     }
 
     pub fn settle_expired_market<'c: 'info, 'info>(
-        ctx: Context<'_, '_, 'c, 'info, UpdateAMM<'info>>,
+        ctx: Context<'_, '_, 'c, 'info, AdminUpdatePerpMarket<'info>>,
         market_index: u16,
     ) -> Result<()> {
         handle_settle_expired_market(ctx, market_index)
@@ -410,6 +418,13 @@ pub mod drift {
             liquidator_max_base_asset_amount,
             limit_price,
         )
+    }
+
+    pub fn liquidate_perp_with_fill<'c: 'info, 'info>(
+        ctx: Context<'_, '_, 'c, 'info, LiquidatePerp<'info>>,
+        market_index: u16,
+    ) -> Result<()> {
+        handle_liquidate_perp_with_fill(ctx, market_index)
     }
 
     pub fn liquidate_spot<'c: 'info, 'info>(
@@ -458,6 +473,12 @@ pub mod drift {
             liquidator_max_pnl_transfer,
             limit_price,
         )
+    }
+
+    pub fn set_user_status_to_being_liquidated<'c: 'info, 'info>(
+        ctx: Context<'_, '_, 'c, 'info, SetUserStatusToBeingLiquidated<'info>>,
+    ) -> Result<()> {
+        handle_set_user_status_to_being_liquidated(ctx)
     }
 
     pub fn resolve_perp_pnl_deficit<'c: 'info, 'info>(
@@ -545,8 +566,8 @@ pub mod drift {
         handle_initialize_insurance_fund_stake(ctx, market_index)
     }
 
-    pub fn add_insurance_fund_stake(
-        ctx: Context<AddInsuranceFundStake>,
+    pub fn add_insurance_fund_stake<'c: 'info, 'info>(
+        ctx: Context<'_, '_, 'c, 'info, AddInsuranceFundStake<'info>>,
         market_index: u16,
         amount: u64,
     ) -> Result<()> {
@@ -568,8 +589,8 @@ pub mod drift {
         handle_cancel_request_remove_insurance_fund_stake(ctx, market_index)
     }
 
-    pub fn remove_insurance_fund_stake(
-        ctx: Context<RemoveInsuranceFundStake>,
+    pub fn remove_insurance_fund_stake<'c: 'info, 'info>(
+        ctx: Context<'_, '_, 'c, 'info, RemoveInsuranceFundStake<'info>>,
         market_index: u16,
     ) -> Result<()> {
         handle_remove_insurance_fund_stake(ctx, market_index)
@@ -768,6 +789,12 @@ pub mod drift {
         )
     }
 
+    pub fn initialize_prediction_market<'c: 'info, 'info>(
+        ctx: Context<'_, '_, 'c, 'info, AdminUpdatePerpMarket<'info>>,
+    ) -> Result<()> {
+        handle_initialize_prediction_market(ctx)
+    }
+
     pub fn delete_initialized_perp_market(
         ctx: Context<DeleteInitializedPerpMarket>,
         market_index: u16,
@@ -812,15 +839,22 @@ pub mod drift {
         handle_settle_expired_market_pools_to_revenue_pool(ctx)
     }
 
-    pub fn deposit_into_perp_market_fee_pool(
-        ctx: Context<DepositIntoMarketFeePool>,
+    pub fn deposit_into_perp_market_fee_pool<'c: 'info, 'info>(
+        ctx: Context<'_, '_, 'c, 'info, DepositIntoMarketFeePool<'info>>,
         amount: u64,
     ) -> Result<()> {
         handle_deposit_into_perp_market_fee_pool(ctx, amount)
     }
 
-    pub fn deposit_into_spot_market_revenue_pool(
-        ctx: Context<RevenuePoolDeposit>,
+    pub fn deposit_into_spot_market_vault<'c: 'info, 'info>(
+        ctx: Context<'_, '_, 'c, 'info, DepositIntoSpotMarketVault<'info>>,
+        amount: u64,
+    ) -> Result<()> {
+        handle_deposit_into_spot_market_vault(ctx, amount)
+    }
+
+    pub fn deposit_into_spot_market_revenue_pool<'c: 'info, 'info>(
+        ctx: Context<'_, '_, 'c, 'info, RevenuePoolDeposit<'info>>,
         amount: u64,
     ) -> Result<()> {
         handle_deposit_into_spot_market_revenue_pool(ctx, amount)

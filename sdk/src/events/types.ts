@@ -14,6 +14,7 @@ import {
 	InsuranceFundStakeRecord,
 	CurveRecord,
 	SwapRecord,
+	SpotMarketVaultDepositRecord,
 } from '../index';
 import { EventEmitter } from 'events';
 
@@ -47,6 +48,7 @@ export const DefaultEventSubscriptionOptions: EventSubscriptionOptions = {
 		'InsuranceFundStakeRecord',
 		'CurveRecord',
 		'SwapRecord',
+		'SpotMarketVaultDepositRecord',
 	],
 	maxEventsPerType: 4096,
 	orderBy: 'blockchain',
@@ -89,6 +91,7 @@ export type EventMap = {
 	InsuranceFundStakeRecord: Event<InsuranceFundStakeRecord>;
 	CurveRecord: Event<CurveRecord>;
 	SwapRecord: Event<SwapRecord>;
+	SpotMarketVaultDepositRecord: Event<SpotMarketVaultDepositRecord>;
 };
 
 export type EventType = keyof EventMap;
@@ -107,7 +110,8 @@ export type DriftEvent =
 	| Event<SpotInterestRecord>
 	| Event<InsuranceFundStakeRecord>
 	| Event<CurveRecord>
-	| Event<SwapRecord>;
+	| Event<SwapRecord>
+	| Event<SpotMarketVaultDepositRecord>;
 
 export interface EventSubscriberEvents {
 	newEvent: (event: WrappedEvent<EventType>) => void;
@@ -122,7 +126,8 @@ export type logProviderCallback = (
 	txSig: TransactionSignature,
 	slot: number,
 	logs: string[],
-	mostRecentBlockTime: number | undefined
+	mostRecentBlockTime: number | undefined,
+	txSigIndex: number | undefined
 ) => void;
 
 export interface LogProvider {
@@ -135,20 +140,38 @@ export interface LogProvider {
 	eventEmitter?: EventEmitter;
 }
 
-export type WebSocketLogProviderConfig = {
-	type: 'websocket';
-	resubTimeoutMs?: number;
+export type LogProviderType = 'websocket' | 'polling' | 'events-server';
+
+export type StreamingLogProviderConfig = {
+	/// Max number of times to try reconnecting before failing over to fallback provider
 	maxReconnectAttempts?: number;
+	/// used for PollingLogProviderConfig on fallback
 	fallbackFrequency?: number;
+	/// used for PollingLogProviderConfig on fallback
 	fallbackBatchSize?: number;
+};
+
+export type WebSocketLogProviderConfig = StreamingLogProviderConfig & {
+	type: 'websocket';
+	/// Max time to wait before resubscribing
+	resubTimeoutMs?: number;
 };
 
 export type PollingLogProviderConfig = {
 	type: 'polling';
+	/// frequency to poll for new events
 	frequency: number;
+	/// max number of events to fetch per poll
 	batchSize?: number;
+};
+
+export type EventsServerLogProviderConfig = StreamingLogProviderConfig & {
+	type: 'events-server';
+	/// url of the events server
+	url: string;
 };
 
 export type LogProviderConfig =
 	| WebSocketLogProviderConfig
-	| PollingLogProviderConfig;
+	| PollingLogProviderConfig
+	| EventsServerLogProviderConfig;

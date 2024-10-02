@@ -20,12 +20,12 @@ pub fn handle_update_pyth_pull_oracle(
     feed_id: [u8; 32],
     params: Vec<u8>,
 ) -> Result<()> {
-    let cpi_program = ctx.accounts.pyth_solana_receiver.to_account_info().clone();
+    let cpi_program = ctx.accounts.pyth_solana_receiver.to_account_info();
     let cpi_accounts = PostUpdate {
-        payer: ctx.accounts.keeper.to_account_info().clone(),
-        encoded_vaa: ctx.accounts.encoded_vaa.to_account_info().clone(),
-        price_update_account: ctx.accounts.price_feed.to_account_info().clone(),
-        write_authority: ctx.accounts.price_feed.to_account_info().clone(),
+        payer: ctx.accounts.keeper.to_account_info(),
+        encoded_vaa: ctx.accounts.encoded_vaa.to_account_info(),
+        price_update_account: ctx.accounts.price_feed.to_account_info(),
+        write_authority: ctx.accounts.price_feed.to_account_info(),
     };
 
     let seeds = &[
@@ -66,12 +66,12 @@ pub fn handle_post_pyth_pull_oracle_update_atomic(
     feed_id: [u8; 32],
     params: Vec<u8>,
 ) -> Result<()> {
-    let cpi_program = ctx.accounts.pyth_solana_receiver.to_account_info().clone();
+    let cpi_program = ctx.accounts.pyth_solana_receiver.to_account_info();
     let cpi_accounts = PostUpdateAtomic {
-        payer: ctx.accounts.keeper.to_account_info().clone(),
-        guardian_set: ctx.accounts.guardian_set.to_account_info().clone(),
-        price_update_account: ctx.accounts.price_feed.to_account_info().clone(),
-        write_authority: ctx.accounts.price_feed.to_account_info().clone(),
+        payer: ctx.accounts.keeper.to_account_info(),
+        guardian_set: ctx.accounts.guardian_set.to_account_info(),
+        price_update_account: ctx.accounts.price_feed.to_account_info(),
+        write_authority: ctx.accounts.price_feed.to_account_info(),
     };
 
     let seeds = &[
@@ -102,7 +102,20 @@ pub fn handle_post_pyth_pull_oracle_update_atomic(
                 ErrorCode::OraclePriceFeedMessageMismatch
             )?;
         }
+
+        msg!(
+            "Posting new update. current ts {} < next ts {}",
+            current_timestamp,
+            next_timestamp
+        );
+    } else {
+        msg!(
+            "Skipping new update. current ts {} >= next ts {}",
+            current_timestamp,
+            next_timestamp
+        );
     }
+
     Ok(())
 }
 
@@ -126,10 +139,10 @@ pub fn handle_post_multi_pyth_pull_oracle_updates_atomic<'c: 'info, 'info>(
 
     for (account, merkle_price_update) in remaining_accounts.iter().zip(merkle_price_updates.iter())
     {
-        let cpi_program = ctx.accounts.pyth_solana_receiver.to_account_info().clone();
+        let cpi_program = ctx.accounts.pyth_solana_receiver.to_account_info();
         let cpi_accounts = PostUpdateAtomic {
-            payer: ctx.accounts.keeper.to_account_info().clone(),
-            guardian_set: ctx.accounts.guardian_set.to_account_info().clone(),
+            payer: ctx.accounts.keeper.to_account_info(),
+            guardian_set: ctx.accounts.guardian_set.to_account_info(),
             price_update_account: account.clone(),
             write_authority: account.clone(),
         };
@@ -159,7 +172,6 @@ pub fn handle_post_multi_pyth_pull_oracle_updates_atomic<'c: 'info, 'info>(
         let next_timestamp = get_timestamp_from_price_update_message(&merkle_price_update.message)?;
 
         drop(price_feed_account_data);
-        drop(price_feed_account);
 
         if next_timestamp > current_timestamp {
             pyth_solana_receiver_sdk::cpi::post_update_atomic(
@@ -169,6 +181,18 @@ pub fn handle_post_multi_pyth_pull_oracle_updates_atomic<'c: 'info, 'info>(
                     vaa: vaa.clone(),
                 },
             )?;
+
+            msg!(
+                "Posting new update. current ts {} < next ts {}",
+                current_timestamp,
+                next_timestamp
+            );
+        } else {
+            msg!(
+                "Skipping new update. current ts {} >= next ts {}",
+                current_timestamp,
+                next_timestamp
+            );
         }
     }
 
