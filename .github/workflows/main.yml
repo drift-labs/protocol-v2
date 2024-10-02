@@ -254,6 +254,7 @@ jobs:
             "jit-proxy",
             "dlob-server",
             "drift-competitions",
+            "drift-common"
           ]
     steps:
       - name: Checkout code with new updated version
