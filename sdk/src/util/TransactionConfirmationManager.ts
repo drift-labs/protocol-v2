@@ -11,6 +11,7 @@ import { DEFAULT_CONFIRMATION_OPTS } from '../config';
 import { TxSendError } from '@drift-labs/sdk';
 import { NOT_CONFIRMED_ERROR_CODE } from '../constants/txConstants';
 import { getTransactionErrorFromTxSig, reportTransactionError } from '../tx/reportTransactionError';
+import { promiseTimeout } from './promiseTimeout';
 
 type ResolveReference = {
 	resolve?: () => void;
@@ -45,21 +46,6 @@ export class TransactionConfirmationManager {
 
 	constructor(connection: Connection) {
 		this.connection = connection;
-	}
-
-	private promiseTimeout<T>(
-		promise: Promise<T>,
-		timeoutMs: number
-	): Promise<T | null> {
-		let timeoutId: ReturnType<typeof setTimeout>;
-		const timeoutPromise: Promise<null> = new Promise((resolve) => {
-			timeoutId = setTimeout(() => resolve(null), timeoutMs);
-		});
-
-		return Promise.race([promise, timeoutPromise]).then((result: T | null) => {
-			clearTimeout(timeoutId);
-			return result;
-		});
 	}
 
 	private async checkConfirmationResultForError(
@@ -105,9 +91,7 @@ export class TransactionConfirmationManager {
 		});
 
 		// We do a one-shot confirmation check just in case the transaction is ALREADY confirmed when we create the websocket confirmation .. We want to run this concurrently with the onSignature subscription. If this returns true then we can return early as the transaction has already been confirmed.
-		const oneShotConfirmationPromise = this.oneShotCheckTxConfirmation(
-			txSig,
-		);
+		const oneShotConfirmationPromise = this.connection.getSignatureStatuses([txSig]);
 
 		const resolveReference: ResolveReference = {};
 
@@ -145,7 +129,7 @@ export class TransactionConfirmationManager {
 		);
 
 		// Await for the websocket confirmation with the configured timeout
-		this.promiseTimeout(confirmationPromise, timeout).then(
+		promiseTimeout(confirmationPromise, timeout).then(
 			() => {
 				resolveReference.resolve?.();
 			},
@@ -252,14 +236,6 @@ export class TransactionConfirmationManager {
 		}
 
 		return false;
-	}
-
-	private async oneShotCheckTxConfirmation(
-		txSig: string,
-	) {
-		const result = await this.connection.getSignatureStatuses([txSig]);
-
-		return result;
 	}
 
 	private async checkTransactionStatuses(
