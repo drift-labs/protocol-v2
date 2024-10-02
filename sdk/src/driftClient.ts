@@ -162,7 +162,6 @@ import { getFeedIdUint8Array, trimFeedId } from './util/pythPullOracleUtils';
 import { isVersionedTransaction } from './tx/utils';
 import pythSolanaReceiverIdl from './idl/pyth_solana_receiver.json';
 import { asV0Tx, PullFeed } from '@switchboard-xyz/on-demand';
-import switchboardOnDemandIdl from './idl/switchboard_on_demand_30.json';
 import * as ed from '@noble/ed25519';
 
 type RemainingAccountParams = {
@@ -215,6 +214,7 @@ export class DriftClient {
 
 	receiverProgram?: Program<PythSolanaReceiver>;
 	wormholeProgram?: Program<WormholeCoreBridgeSolana>;
+	sbOnDemandProgramdId: PublicKey;
 	sbOnDemandProgram?: Program30<Idl30>;
 	sbProgramFeedConfigs?: Map<string, any>;
 
@@ -385,6 +385,9 @@ export class DriftClient {
 				opts: this.opts,
 				txHandler: this.txHandler,
 			});
+
+		this.sbOnDemandProgramdId =
+			configs[config.env ?? 'mainnet-beta'].SB_ON_DEMAND_PID;
 	}
 
 	public getUserMapKey(subAccountId: number, authority: PublicKey): string {
@@ -7700,12 +7703,13 @@ export class DriftClient {
 		return this.receiverProgram;
 	}
 
-	public getSwitchboardOnDemandProgram(): Program30<Idl30> {
+	public async getSwitchboardOnDemandProgram(): Promise<Program30<Idl30>> {
+		const idl = (await Program30.fetchIdl(
+			this.sbOnDemandProgramdId,
+			this.provider
+		))!;
 		if (this.sbOnDemandProgram === undefined) {
-			this.sbOnDemandProgram = new Program30(
-				switchboardOnDemandIdl as Idl30,
-				this.provider
-			);
+			this.sbOnDemandProgram = new Program30(idl, this.provider);
 		}
 		return this.sbOnDemandProgram;
 	}
@@ -7927,7 +7931,7 @@ export class DriftClient {
 		feed: PublicKey,
 		numSignatures = 3
 	): Promise<TransactionInstruction | undefined> {
-		const program = this.getSwitchboardOnDemandProgram();
+		const program = await this.getSwitchboardOnDemandProgram();
 		const feedAccount = new PullFeed(program, feed);
 		if (!this.sbProgramFeedConfigs) {
 			this.sbProgramFeedConfigs = new Map();
@@ -7939,8 +7943,6 @@ export class DriftClient {
 
 		const [pullIx, _responses, success] = await feedAccount.fetchUpdateIx({
 			numSignatures,
-			// @ts-ignore :: TODO someone needs to look at this
-			feedConfigs: this.sbProgramFeedConfigs.get(feed.toString()),
 		});
 		if (!success) {
 			return undefined;
