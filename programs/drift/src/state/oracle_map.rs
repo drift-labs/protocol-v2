@@ -2,8 +2,8 @@ use crate::error::ErrorCode::UnableToLoadOracle;
 use crate::error::{DriftResult, ErrorCode};
 use crate::ids::{
     bonk_oracle, bonk_pull_oracle, drift_oracle_receiver_program, pepe_oracle, pepe_pull_oracle,
-    pyth_program, switchboard_program, usdc_oracle, usdc_pull_oracle, usdt_oracle,
-    usdt_pull_oracle, wen_oracle, wen_pull_oracle,
+    pyth_program, switchboard_on_demand, switchboard_program, usdc_oracle, usdc_pull_oracle,
+    usdt_oracle, usdt_pull_oracle, wen_oracle, wen_pull_oracle,
 };
 use crate::math::constants::PRICE_PRECISION_I64;
 use crate::math::oracle::{oracle_validity, OracleValidity};
