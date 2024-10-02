@@ -119,7 +119,12 @@ import { WebSocketDriftClientAccountSubscriber } from './accounts/webSocketDrift
 import { RetryTxSender } from './tx/retryTxSender';
 import { User } from './user';
 import { UserSubscriptionConfig } from './userConfig';
-import { configs, DRIFT_ORACLE_RECEIVER_ID, DEFAULT_CONFIRMATION_OPTS, DRIFT_PROGRAM_ID } from './config';
+import {
+	configs,
+	DRIFT_ORACLE_RECEIVER_ID,
+	DEFAULT_CONFIRMATION_OPTS,
+	DRIFT_PROGRAM_ID,
+} from './config';
 import { WRAPPED_SOL_MINT } from './constants/spotMarkets';
 import { UserStats } from './userStats';
 import { isSpotPositionAvailable } from './math/spotPosition';
