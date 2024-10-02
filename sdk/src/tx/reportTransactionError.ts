@@ -27,7 +27,7 @@ export const getTransactionErrorFromTxSig = async (txSig: string, connection: Co
     return getTransactionError(transactionResult);
 };
 
-export const getTransactionError = async (transactionResult: VersionedTransactionResponse): Promise<SendTransactionError> => {
+export const getTransactionError = (transactionResult: VersionedTransactionResponse): SendTransactionError => {
     if (!transactionResult?.meta?.err) {
         return;
     }
