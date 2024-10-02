@@ -91,7 +91,6 @@ export class TransactionConfirmationManager {
 				subscriptionId = this.connection.onSignature(
 					txSig,
 					(result: SignatureResult, context: Context) => {
-						console.debug(`transaction_confirmation_manager`, `got_confirmation_via_websocket`);
 						response = {
 							context,
 							value: result,
@@ -133,7 +132,6 @@ export class TransactionConfirmationManager {
 						desiredConfirmationStatus
 					)
 				) {
-					console.debug(`transaction_confirmation_manager`, `got_confirmation_via_oneshot_in_websocket`);
 					response = {
 						context: oneShotResponse.context,
 						value: oneShotResponse.value[0],
@@ -314,7 +312,6 @@ export class TransactionConfirmationManager {
 					request.desiredConfirmationStatus
 				)
 			) {
-				console.debug(`transaction_confirmation_manager`, `got_confirmation_via_polling`);
 				request.resolve(status);
 				this.pendingConfirmations.delete(request.txSig);
 			}
