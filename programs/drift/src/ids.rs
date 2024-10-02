@@ -131,8 +131,7 @@ pub mod admin_hot_wallet {
 
 pub mod swift_server {
     use solana_program::declare_id;
-    #[cfg(feature = "mainnet-beta")]
     declare_id!("SW1fThqrxLzVprnCMpiybiqYQfoNCdduC5uWsSUKChS");
-    #[cfg(not(feature = "mainnet-beta"))]
+    #[cfg(feature = "anchor-test")]
     declare_id!("DpaEdAPW3ZX67fnczT14AoX12Lx9VMkxvtT81nCHy3Nv");
 }
