@@ -6,12 +6,29 @@ const getTransactionResult = async (txSig: string, connection: Connection): Prom
     });
 };
 
-export const reportTransactionError = async (txSig: string, connection: Connection): Promise<void> => {
-    const transactionResult = await getTransactionResult(txSig, connection);
+/**
+ * This method should only be used for txsigs which we are sure have an error. The reason this txsig must have a confirmed error is because there is a rare race-condition where sometimes after awaiting a tx confirmation which has an error result, we can't immediately pull the transaction result to actually report the error. This means we have to potentially wait for a while to pull the result, which we want to avoid unless we're sure the transaction has an error for us.
+ * @param txSig 
+ * @param connection 
+ * @returns 
+ */
+export const reportTransactionError = async (txSig: string, connection: Connection, timeout = 5_000): Promise<void> => {
 
+    const start = Date.now();
+    let transactionResult = await getTransactionResult(txSig, connection);
+
+    while (!transactionResult?.meta?.err && Date.now() - start < timeout) {
+        transactionResult = await getTransactionResult(txSig, connection);
+        // Sleep for 1 second
+        await new Promise(resolve => setTimeout(resolve, 1000));
+    }
 
     if (!transactionResult?.meta?.err) {
-        return;
+        throw new SendTransactionError({
+            action: 'send',
+            signature: txSig,
+            transactionMessage: `Transaction Failed`,
+        });
     }
 
     throw getTransactionError(transactionResult);
