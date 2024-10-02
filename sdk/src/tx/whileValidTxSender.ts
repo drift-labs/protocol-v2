@@ -2,6 +2,7 @@ import { TxSigAndSlot } from './types';
 import {
 	ConfirmOptions,
 	Connection,
+	SendTransactionError,
 	Signer,
 	Transaction,
 	VersionedTransaction,
@@ -132,10 +133,7 @@ export class WhileValidTxSender extends BaseTxSender {
 
 		// handle subclass-specific side effects
 		const txSig = bs58.encode(
-			// @ts-expect-error
-			signedTx?.signature ||
-				signedTx.signatures[0]?.signature ||
-				signedTx.signatures[0]
+			signedTx?.signature || signedTx.signatures[0]?.signature
 		);
 		this.untilValid.set(txSig, latestBlockhash);
 
@@ -244,6 +242,15 @@ export class WhileValidTxSender extends BaseTxSender {
 			this.txSigCache?.set(txid, true);
 
 			await this.checkConfirmationResultForError(txid, result.value);
+
+			if (result?.value?.err) {
+				// Fallback error handling if there's a problem reporting the error in checkConfirmationResultForError
+				throw new SendTransactionError({
+					action: 'send',
+					signature: txid,
+					transactionMessage: `Transaction Failed`,
+				});
+			}
 
 			slot = result.context.slot;
 			// eslint-disable-next-line no-useless-catch
