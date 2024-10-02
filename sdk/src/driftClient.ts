@@ -119,7 +119,12 @@ import { WebSocketDriftClientAccountSubscriber } from './accounts/webSocketDrift
 import { RetryTxSender } from './tx/retryTxSender';
 import { User } from './user';
 import { UserSubscriptionConfig } from './userConfig';
-import { configs, DRIFT_ORACLE_RECEIVER_ID, DEFAULT_CONFIRMATION_OPTS, DRIFT_PROGRAM_ID } from './config';
+import {
+	configs,
+	DRIFT_ORACLE_RECEIVER_ID,
+	DEFAULT_CONFIRMATION_OPTS,
+	DRIFT_PROGRAM_ID,
+} from './config';
 import { WRAPPED_SOL_MINT } from './constants/spotMarkets';
 import { UserStats } from './userStats';
 import { isSpotPositionAvailable } from './math/spotPosition';
@@ -154,8 +159,12 @@ import { PythSolanaReceiver } from '@pythnetwork/pyth-solana-receiver/lib/idl/py
 import { getFeedIdUint8Array, trimFeedId } from './util/pythPullOracleUtils';
 import { isVersionedTransaction } from './tx/utils';
 import pythSolanaReceiverIdl from './idl/pyth_solana_receiver.json';
-import { asV0Tx, PullFeed } from '@switchboard-xyz/on-demand';
-import switchboardOnDemandIdl from './idl/switchboard_on_demand_30.json';
+import {
+	asV0Tx,
+	ON_DEMAND_DEVNET_PID,
+	ON_DEMAND_MAINNET_PID,
+	PullFeed,
+} from '@switchboard-xyz/on-demand';
 import * as ed from '@noble/ed25519';
 
 type RemainingAccountParams = {
@@ -172,6 +181,7 @@ type RemainingAccountParams = {
  * This class is the main way to interact with Drift Protocol. It allows you to subscribe to the various accounts where the Market's state is stored, as well as: opening positions, liquidating, settling funding, depositing & withdrawing, and more.
  */
 export class DriftClient {
+	isDevnet?: boolean;
 	connection: Connection;
 	wallet: IWallet;
 	public program: Program;
@@ -239,6 +249,7 @@ export class DriftClient {
 			this.provider
 		);
 
+		this.isDevnet = config.env === 'devnet';
 		this.authority = config.authority ?? this.wallet.publicKey;
 		this.activeSubAccountId = config.activeSubAccountId ?? 0;
 		this.skipLoadUsers = config.skipLoadUsers ?? false;
@@ -7651,12 +7662,13 @@ export class DriftClient {
 		return this.receiverProgram;
 	}
 
-	public getSwitchboardOnDemandProgram(): Program30<Idl30> {
+	public async getSwitchboardOnDemandProgram(): Promise<Program30<Idl30>> {
+		const idl = (await Program30.fetchIdl(
+			this.isDevnet ? ON_DEMAND_DEVNET_PID : ON_DEMAND_MAINNET_PID,
+			this.provider
+		))!;
 		if (this.sbOnDemandProgram === undefined) {
-			this.sbOnDemandProgram = new Program30(
-				switchboardOnDemandIdl as Idl30,
-				this.provider
-			);
+			this.sbOnDemandProgram = new Program30(idl, this.provider);
 		}
 		return this.sbOnDemandProgram;
 	}
@@ -7878,7 +7890,7 @@ export class DriftClient {
 		feed: PublicKey,
 		numSignatures = 3
 	): Promise<TransactionInstruction | undefined> {
-		const program = this.getSwitchboardOnDemandProgram();
+		const program = await this.getSwitchboardOnDemandProgram();
 		const feedAccount = new PullFeed(program, feed);
 		if (!this.sbProgramFeedConfigs) {
 			this.sbProgramFeedConfigs = new Map();
@@ -7890,8 +7902,6 @@ export class DriftClient {
 
 		const [pullIx, _responses, success] = await feedAccount.fetchUpdateIx({
 			numSignatures,
-			// @ts-ignore :: TODO someone needs to look at this
-			feedConfigs: this.sbProgramFeedConfigs.get(feed.toString()),
 		});
 		if (!success) {
 			return undefined;
