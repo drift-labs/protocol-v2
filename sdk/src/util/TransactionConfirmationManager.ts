@@ -10,7 +10,7 @@ import {
 import { DEFAULT_CONFIRMATION_OPTS } from '../config';
 import { TxSendError } from '@drift-labs/sdk';
 import { NOT_CONFIRMED_ERROR_CODE } from '../constants/txConstants';
-import { getTransactionErrorFromTxSig, reportTransactionError } from '../tx/reportTransactionError';
+import { getTransactionErrorFromTxSig, throwTransactionError } from '../tx/reportTransactionError';
 import { promiseTimeout } from './promiseTimeout';
 
 type ResolveReference = {
@@ -46,17 +46,6 @@ export class TransactionConfirmationManager {
 
 	constructor(connection: Connection) {
 		this.connection = connection;
-	}
-
-	private async checkConfirmationResultForError(
-		txSig: string,
-		result: SignatureResult
-	) {
-		if (result.err) {
-			await reportTransactionError(txSig, this.connection);
-		}
-
-		return;
 	}
 
 	async confirmTransactionWebSocket(
@@ -108,7 +97,9 @@ export class TransactionConfirmationManager {
 				const resultValue = oneShotResponse.value[0];
 
 
-				await this.checkConfirmationResultForError(txSig, resultValue);
+				if (resultValue.err) {
+					await throwTransactionError(txSig, this.connection);
+				}
 
 				if (
 					this.checkStatusMatchesDesiredConfirmationStatus(

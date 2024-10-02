@@ -26,7 +26,7 @@ import { IWallet } from '../types';
 import NodeCache from 'node-cache';
 import { DEFAULT_CONFIRMATION_OPTS } from '../config';
 import { NOT_CONFIRMED_ERROR_CODE } from '../constants/txConstants';
-import { reportTransactionError } from './reportTransactionError';
+import { throwTransactionError } from './reportTransactionError';
 
 const BASELINE_TX_LAND_RATE = 0.9;
 const DEFAULT_TIMEOUT = 35000;
@@ -408,7 +408,7 @@ export abstract class BaseTxSender implements TxSender {
 		result: SignatureResult
 	): Promise<void> {
 		if (result.err) {
-			await reportTransactionError(txSig, this.connection);
+			await throwTransactionError(txSig, this.connection);
 		}
 
 		return;

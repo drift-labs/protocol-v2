@@ -6,38 +6,68 @@ const getTransactionResult = async (txSig: string, connection: Connection): Prom
     });
 };
 
+const getTransactionResultWithRetry = async (txSig: string, connection: Connection): Promise<VersionedTransactionResponse> => {
+    const start = Date.now();
+
+    const retryTimeout = 3_000; // Timeout after 3 seconds
+    const retryInterval = 800; // Retry with 800ms interval
+    const retryCount = 3; // Retry 3 times
+    
+    let currentCount = 0;
+    let transactionResult = await getTransactionResult(txSig, connection);
+
+    // Retry 3 times or until timeout as long as we don't have a result yet
+    while (!transactionResult && Date.now() - start < retryTimeout && currentCount < retryCount) {
+        transactionResult = await getTransactionResult(txSig, connection);
+        currentCount++;
+        // Sleep for 1 second
+        await new Promise(resolve => setTimeout(resolve, retryInterval));
+    }
+
+    return transactionResult;
+};
+
 /**
- * This method should only be used for txsigs which we are sure have an error. The reason this txsig must have a confirmed error is because there is a rare race-condition where sometimes after awaiting a tx confirmation which has an error result, we can't immediately pull the transaction result to actually report the error. This means we have to potentially wait for a while to pull the result, which we want to avoid unless we're sure the transaction has an error for us.
+ * THROWS if there is an error
+ * 
+ * Should only be used for a txSig that is confirmed has an error. There is a race-condition where sometimes the transaction is not instantly available to fetch after the confirmation has already failed with an error, so this method has retry logic which we don't want to do wastefully. This method will throw a generic error if it can't get the transaction result after a retry period.
  * @param txSig 
  * @param connection 
  * @returns 
  */
-export const reportTransactionError = async (txSig: string, connection: Connection, timeout = 5_000): Promise<void> => {
+export const throwTransactionError = async (txSig: string, connection: Connection): Promise<void> => {
+    
+    const err = await getTransactionErrorFromTxSig(txSig, connection);
 
-    const start = Date.now();
-    let transactionResult = await getTransactionResult(txSig, connection);
-
-    while (!transactionResult?.meta?.err && Date.now() - start < timeout) {
-        transactionResult = await getTransactionResult(txSig, connection);
-        // Sleep for 1 second
-        await new Promise(resolve => setTimeout(resolve, 1000));
+    if (err) {
+        throw err;
     }
 
-    if (!transactionResult?.meta?.err) {
-        throw new SendTransactionError({
+    return;
+};
+
+/**
+ * RETURNS an error if there is one
+ * 
+ * Should only be used for a txSig that is confirmed has an error. There is a race-condition where sometimes the transaction is not instantly available to fetch after the confirmation has already failed with an error, so this method has retry logic which we don't want to do wastefully. This method will throw a generic error if it can't get the transaction result after a retry period.
+ * @param txSig 
+ * @param connection 
+ * @returns 
+ */
+export const getTransactionErrorFromTxSig = async (txSig: string, connection: Connection): Promise<SendTransactionError> => {
+    const transactionResult = await getTransactionResultWithRetry(txSig, connection);
+
+    if (!transactionResult) {
+        // Throw a generic error because we couldn't get the transaction result for the given txSig
+        return new SendTransactionError({
             action: 'send',
             signature: txSig,
             transactionMessage: `Transaction Failed`,
         });
     }
 
-    throw getTransactionError(transactionResult);
-};
-
-export const getTransactionErrorFromTxSig = async (txSig: string, connection: Connection): Promise<SendTransactionError> => {
-    const transactionResult = await getTransactionResult(txSig, connection);
-
     if (!transactionResult?.meta?.err) {
+        // Assume that the transaction was successful and we are here erroneously because we have a result with no error
         return;
     }
 
