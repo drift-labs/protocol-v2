@@ -22,6 +22,7 @@ npm i @drift-labs/sdk
 Documentation:
 
 - [API docs](https://drift-labs.github.io/v2-teacher/)
+- [Typescript API docs](https://drift-labs.github.io/protocol-v2/sdk/)
 - [overview docs](https://docs.drift.trade/)
 
 The below is a light overview of using solana and drift's typescript sdk, but not as comprehensive as the [API docs](https://drift-labs.github.io/v2-teacher/).
