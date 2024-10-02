@@ -804,6 +804,8 @@ pub fn handle_initialize_perp_market(
     validate_margin(
         margin_ratio_initial,
         margin_ratio_maintenance,
+        0,
+        0,
         liquidator_fee,
         max_spread,
     )?;
@@ -856,7 +858,10 @@ pub fn handle_initialize_perp_market(
         fuel_boost_position: 0,
         fuel_boost_taker: 0,
         fuel_boost_maker: 0,
-        padding: [0; 43],
+        padding1: 0,
+        high_leverage_margin_ratio_initial: 0,
+        high_leverage_margin_ratio_maintenance: 0,
+        padding: [0; 38],
         amm: AMM {
             oracle: *ctx.accounts.oracle.key,
             oracle_source,
@@ -2228,6 +2233,8 @@ pub fn handle_update_perp_market_margin_ratio(
     validate_margin(
         margin_ratio_initial,
         margin_ratio_maintenance,
+        perp_market.high_leverage_margin_ratio_initial.cast()?,
+        perp_market.high_leverage_margin_ratio_maintenance.cast()?,
         perp_market.liquidator_fee,
         perp_market.amm.max_spread,
     )?;
@@ -2246,6 +2253,48 @@ pub fn handle_update_perp_market_margin_ratio(
 
     perp_market.margin_ratio_initial = margin_ratio_initial;
     perp_market.margin_ratio_maintenance = margin_ratio_maintenance;
+    Ok(())
+}
+
+#[access_control(
+    perp_market_valid(&ctx.accounts.perp_market)
+)]
+pub fn handle_update_perp_market_high_leverage_margin_ratio(
+    ctx: Context<AdminUpdatePerpMarket>,
+    margin_ratio_initial: u16,
+    margin_ratio_maintenance: u16,
+) -> Result<()> {
+    let perp_market = &mut load_mut!(ctx.accounts.perp_market)?;
+
+    msg!(
+        "updating perp market {} margin ratio",
+        perp_market.market_index
+    );
+
+    validate_margin(
+        perp_market.margin_ratio_initial,
+        perp_market.margin_ratio_maintenance,
+        margin_ratio_initial.cast()?,
+        margin_ratio_maintenance.cast()?,
+        perp_market.liquidator_fee,
+        perp_market.amm.max_spread,
+    )?;
+
+    msg!(
+        "perp_market.high_leverage_margin_ratio_initial: {:?} -> {:?}",
+        perp_market.high_leverage_margin_ratio_initial,
+        margin_ratio_initial
+    );
+
+    msg!(
+        "perp_market.high_leverage_margin_ratio_maintenance: {:?} -> {:?}",
+        perp_market.high_leverage_margin_ratio_maintenance,
+        margin_ratio_maintenance
+    );
+
+    perp_market.high_leverage_margin_ratio_initial = margin_ratio_initial;
+    perp_market.high_leverage_margin_ratio_maintenance = margin_ratio_maintenance;
+
     Ok(())
 }
 
@@ -2401,6 +2450,8 @@ pub fn handle_update_perp_liquidation_fee(
     validate_margin(
         perp_market.margin_ratio_initial,
         perp_market.margin_ratio_maintenance,
+        perp_market.high_leverage_margin_ratio_initial.cast()?,
+        perp_market.high_leverage_margin_ratio_maintenance.cast()?,
         liquidator_fee,
         perp_market.amm.max_spread,
     )?;

@@ -897,6 +897,18 @@ pub mod drift {
         handle_update_perp_market_margin_ratio(ctx, margin_ratio_initial, margin_ratio_maintenance)
     }
 
+    pub fn update_perp_market_high_leverage_margin_ratio(
+        ctx: Context<AdminUpdatePerpMarket>,
+        margin_ratio_initial: u16,
+        margin_ratio_maintenance: u16,
+    ) -> Result<()> {
+        handle_update_perp_market_high_leverage_margin_ratio(
+            ctx,
+            margin_ratio_initial,
+            margin_ratio_maintenance,
+        )
+    }
+
     pub fn update_perp_market_funding_period(
         ctx: Context<AdminUpdatePerpMarket>,
         funding_period: i64,

@@ -9,6 +9,8 @@ use solana_program::msg;
 pub fn validate_margin(
     margin_ratio_initial: u32,
     margin_ratio_maintenance: u32,
+    high_leverage_margin_ratio_initial: u32,
+    high_leverage_margin_ratio_maintenance: u32,
     liquidation_fee: u32,
     max_spread: u32,
 ) -> DriftResult {
@@ -17,6 +19,14 @@ pub fn validate_margin(
     }
 
     if margin_ratio_initial <= margin_ratio_maintenance {
+        return Err(ErrorCode::InvalidMarginRatio);
+    }
+
+    if margin_ratio_initial <= high_leverage_margin_ratio_initial {
+        return Err(ErrorCode::InvalidMarginRatio);
+    }
+
+    if margin_ratio_maintenance <= high_leverage_margin_ratio_maintenance {
         return Err(ErrorCode::InvalidMarginRatio);
     }
 
