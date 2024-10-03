@@ -12,18 +12,18 @@ const commitmentToFinality = (commitment: Commitment): Finality => {
         case 'finalized':
             return 'finalized';
         default:
-            return 'confirmed';
+            throw new Error(`Invalid commitment when reporting transaction error. The commitment must be 'confirmed' or 'finalized' but was given '${commitment}'. If you're using this commitment for a specific reason, you may need to roll your own logic here.`);
     }
 };
 
-const getTransactionResult = async (txSig: string, connection: Connection): Promise<VersionedTransactionResponse> => {
+const getTransactionResult = async (txSig: string, connection: Connection, commitment?: Commitment): Promise<VersionedTransactionResponse> => {
     return await connection.getTransaction(txSig, {
         maxSupportedTransactionVersion: 0,
-        commitment: commitmentToFinality(connection.commitment),
+        commitment: commitment ? commitmentToFinality(commitment) : commitmentToFinality(connection.commitment),
     });
 };
 
-const getTransactionResultWithRetry = async (txSig: string, connection: Connection): Promise<VersionedTransactionResponse> => {
+const getTransactionResultWithRetry = async (txSig: string, connection: Connection, commitment?: Commitment): Promise<VersionedTransactionResponse> => {
     const start = Date.now();
 
     const retryTimeout = 3_000; // Timeout after 3 seconds
@@ -31,14 +31,14 @@ const getTransactionResultWithRetry = async (txSig: string, connection: Connecti
     const retryCount = 3; // Retry 3 times
     
     let currentCount = 0;
-    let transactionResult = await getTransactionResult(txSig, connection);
+    let transactionResult = await getTransactionResult(txSig, connection, commitment);
 
     // Retry 3 times or until timeout as long as we don't have a result yet
     while (!transactionResult && Date.now() - start < retryTimeout && currentCount < retryCount) {
         // Sleep for 1 second :: Do this first so that we don't run the first loop immediately after the initial fetch above
         await new Promise(resolve => setTimeout(resolve, retryInterval));
 
-        transactionResult = await getTransactionResult(txSig, connection);
+        transactionResult = await getTransactionResult(txSig, connection, commitment);
         currentCount++;
     }
 
@@ -53,9 +53,9 @@ const getTransactionResultWithRetry = async (txSig: string, connection: Connecti
  * @param connection 
  * @returns 
  */
-export const throwTransactionError = async (txSig: string, connection: Connection): Promise<void> => {
+export const throwTransactionError = async (txSig: string, connection: Connection, commitment?: Commitment): Promise<void> => {
     
-    const err = await getTransactionErrorFromTxSig(txSig, connection);
+    const err = await getTransactionErrorFromTxSig(txSig, connection, commitment);
 
     if (err) {
         throw err;
@@ -72,8 +72,8 @@ export const throwTransactionError = async (txSig: string, connection: Connectio
  * @param connection 
  * @returns 
  */
-export const getTransactionErrorFromTxSig = async (txSig: string, connection: Connection): Promise<SendTransactionError> => {
-    const transactionResult = await getTransactionResultWithRetry(txSig, connection);
+export const getTransactionErrorFromTxSig = async (txSig: string, connection: Connection, commitment?: Commitment): Promise<SendTransactionError> => {
+    const transactionResult = await getTransactionResultWithRetry(txSig, connection, commitment);
 
     if (!transactionResult) {
         // Throw a generic error because we couldn't get the transaction result for the given txSig
