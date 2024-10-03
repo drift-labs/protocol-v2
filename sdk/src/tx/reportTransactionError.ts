@@ -1,8 +1,25 @@
-import { Connection, SendTransactionError, VersionedTransactionResponse } from "@solana/web3.js";
+import { Commitment, Connection, Finality, SendTransactionError, VersionedTransactionResponse } from "@solana/web3.js";
+
+/**
+ * The new getTransaction method expects a Finality type instead of a Commitment type. The only options for Finality are 'confirmed' and 'finalized'.
+ * @param commitment 
+ * @returns 
+ */
+const commitmentToFinality = (commitment: Commitment): Finality => {
+    switch (commitment) {
+        case 'confirmed':
+            return 'confirmed';
+        case 'finalized':
+            return 'finalized';
+        default:
+            return 'confirmed';
+    }
+};
 
 const getTransactionResult = async (txSig: string, connection: Connection): Promise<VersionedTransactionResponse> => {
     return await connection.getTransaction(txSig, {
         maxSupportedTransactionVersion: 0,
+        commitment: commitmentToFinality(connection.commitment),
     });
 };
 
@@ -18,10 +35,11 @@ const getTransactionResultWithRetry = async (txSig: string, connection: Connecti
 
     // Retry 3 times or until timeout as long as we don't have a result yet
     while (!transactionResult && Date.now() - start < retryTimeout && currentCount < retryCount) {
+        // Sleep for 1 second :: Do this first so that we don't run the first loop immediately after the initial fetch above
+        await new Promise(resolve => setTimeout(resolve, retryInterval));
+
         transactionResult = await getTransactionResult(txSig, connection);
         currentCount++;
-        // Sleep for 1 second
-        await new Promise(resolve => setTimeout(resolve, retryInterval));
     }
 
     return transactionResult;
