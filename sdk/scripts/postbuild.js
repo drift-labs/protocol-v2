@@ -10,12 +10,13 @@ const isomorphicPackages = [
 
 isomorphicPackages.forEach(package => {
     const isomorphPath = path.join(__dirname, '..', 'lib', 'isomorphic', package+'.js');
-    const content = `
-    "use strict";
-    Object.defineProperty(exports, "__esModule", { value: true });
-    exports.default = require('./${package}.${environment}').default;
-    `;
+    const targetPath = path.join(__dirname, '..', 'lib', 'isomorphic', `${package}.${environment}.js`);
     
-    fs.writeFileSync(isomorphPath, content);
-    console.log(`Generated isomorphic ${package} for ${environment} environment`);
+    try {
+        const content = fs.readFileSync(targetPath, 'utf8');
+        fs.writeFileSync(isomorphPath, content);
+        console.log(`Copied content from ${targetPath} to ${isomorphPath}`);
+    } catch (error) {
+        console.error(`Error processing ${package}: ${error.message}`);
+    }
 });

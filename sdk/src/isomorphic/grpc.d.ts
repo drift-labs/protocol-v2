@@ -6,7 +6,7 @@ import {
 	CommitmentLevel,
 } from '@triton-one/yellowstone-grpc';
 
-export type {
+export {
 	ClientDuplexStream,
 	ChannelOptions,
 	SubscribeRequest,
