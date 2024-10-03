@@ -886,6 +886,16 @@ export const MainnetPerpMarkets: PerpMarketConfig[] = [
 		pythFeedId:
 			'0xffff73128917a90950cd0473fd2551d7cd274fd5a6cc45641881bbcc6ee73417',
 	},
+	{
+		fullName: 'WARWICK-FIGHT-WIN-BET',
+		category: ['Prediction', 'Sport'],
+		symbol: 'WARWICK-FIGHT-WIN-BET',
+		baseAssetSymbol: 'WARWICK-FIGHT-WIN',
+		marketIndex: 46,
+		oracle: new PublicKey('Dz5Nvxo1hv7Zfyu11hy8e97twLMRKk6heTWCDGXytj7N'),
+		launchTs: 1727965864000,
+		oracleSource: OracleSource.Prelaunch,
+	},
 ];
 
 export const PerpMarkets: { [key in DriftEnv]: PerpMarketConfig[] } = {
