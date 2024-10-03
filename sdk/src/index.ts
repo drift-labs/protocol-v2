@@ -108,6 +108,7 @@ export * from './memcmp';
 export * from './decode/user';
 export * from './blockhashSubscriber';
 export * from './util/chainClock';
+export * from './util/TransactionConfirmationManager';
 export * from './clock/clockSubscriber';
 
 export { BN, PublicKey, pyth };
