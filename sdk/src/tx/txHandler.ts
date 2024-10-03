@@ -543,7 +543,6 @@ export class TxHandler {
 			}
 		} else {
 			const marketLookupTable = await fetchMarketLookupTableAccount();
-
 			lookupTables = lookupTables
 				? [...lookupTables, marketLookupTable]
 				: [marketLookupTable];

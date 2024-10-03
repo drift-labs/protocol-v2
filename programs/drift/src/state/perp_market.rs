@@ -422,8 +422,8 @@ impl PerpMarket {
     pub fn get_max_liquidation_fee(&self) -> DriftResult<u32> {
         let max_liquidation_fee = (self.liquidator_fee.safe_mul(MAX_LIQUIDATION_MULTIPLIER)?).min(
             self.margin_ratio_maintenance
-                .safe_mul(LIQUIDATION_FEE_PRECISION)?
-                .safe_div(MARGIN_PRECISION)?,
+                .safe_mul(LIQUIDATION_FEE_PRECISION / MARGIN_PRECISION)
+                .unwrap_or(u32::MAX),
         );
         Ok(max_liquidation_fee)
     }

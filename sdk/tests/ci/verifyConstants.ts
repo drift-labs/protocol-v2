@@ -6,6 +6,7 @@ import {
 	MainnetPerpMarkets,
 	BulkAccountLoader,
 	getVariant,
+	isOneOfVariant,
 } from '../../src';
 import { Connection, Keypair } from '@solana/web3.js';
 import { Wallet } from '@coral-xyz/anchor';
@@ -128,6 +129,12 @@ describe('Verify Constants', function () {
 					market.marketIndex
 				} oracle ${market.oracle.toBase58()}`
 			);
+
+			if (isOneOfVariant(market.oracleSource, ['pythPull', 'pyth1KPull', 'pyth1MPull', 'pythStableCoinPull'])) {
+				if (!correspondingConfigMarket.pythFeedId) {
+					assert(false, `spot market ${market.marketIndex} missing feed id`);
+				}
+			}
 		}
 
 		const perpMarkets = mainnetDriftClient.getPerpMarketAccounts();
@@ -177,6 +184,12 @@ describe('Verify Constants', function () {
 					market.marketIndex
 				} oracle ${market.amm.oracle.toBase58()}`
 			);
+
+			if (isOneOfVariant(market.amm.oracleSource, ['pythPull', 'pyth1KPull', 'pyth1MPull', 'pythStableCoinPull'])) {
+				if (!correspondingConfigMarket.pythFeedId) {
+					assert(false, `perp market ${market.marketIndex} missing feed id`);
+				}
+			}
 		}
 	});
 

@@ -2,6 +2,7 @@ import { TxSigAndSlot } from './types';
 import {
 	ConfirmOptions,
 	Connection,
+	SendTransactionError,
 	Signer,
 	Transaction,
 	VersionedTransaction,
@@ -13,8 +14,6 @@ import { IWallet } from '../types';
 import { DEFAULT_CONFIRMATION_OPTS } from '../config';
 
 const DEFAULT_RETRY = 2000;
-
-const VALID_BLOCK_HEIGHT_OFFSET = -150; // This is a bit of weirdness but the lastValidBlockHeight value returned from connection.getLatestBlockhash is always 300 blocks ahead of the current block, even though the transaction actually expires after 150 blocks. This accounts for that so that we can at least accuractely estimate the transaction expiry.
 
 type ResolveReference = {
 	resolve?: () => void;
@@ -134,8 +133,7 @@ export class WhileValidTxSender extends BaseTxSender {
 
 		// handle subclass-specific side effects
 		const txSig = bs58.encode(
-			// @ts-expect-error
-			signedTx?.signature || signedTx.signatures[0]?.signature || signedTx.signatures[0]
+			signedTx?.signature || signedTx.signatures[0]?.signature
 		);
 		this.untilValid.set(txSig, latestBlockhash);
 
@@ -239,26 +237,20 @@ export class WhileValidTxSender extends BaseTxSender {
 
 		let slot: number;
 		try {
-			const { blockhash, lastValidBlockHeight } = this.untilValid.get(txid);
-
-			const result = await this.connection.confirmTransaction(
-				{
-					signature: txid,
-					blockhash,
-					lastValidBlockHeight: this.useBlockHeightOffset
-						? lastValidBlockHeight + VALID_BLOCK_HEIGHT_OFFSET
-						: lastValidBlockHeight,
-				},
-				opts?.commitment
-			);
-
-			if (!result) {
-				throw new Error(`Couldn't get signature status for txid: ${txid}`);
-			}
+			const result = await this.confirmTransaction(txid, opts.commitment);
 
 			this.txSigCache?.set(txid, true);
 
 			await this.checkConfirmationResultForError(txid, result.value);
+
+			if (result?.value?.err) {
+				// Fallback error handling if there's a problem reporting the error in checkConfirmationResultForError
+				throw new SendTransactionError({
+					action: 'send',
+					signature: txid,
+					transactionMessage: `Transaction Failed`,
+				});
+			}
 
 			slot = result.context.slot;
 			// eslint-disable-next-line no-useless-catch
