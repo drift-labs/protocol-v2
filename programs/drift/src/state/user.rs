@@ -433,6 +433,10 @@ impl User {
         false
     }
 
+    pub fn is_high_leverage_mode(&self) -> bool {
+        self.margin_mode == MarginMode::HighLeverage
+    }
+
     pub fn get_fuel_bonus_numerator(&self, now: i64) -> DriftResult<i64> {
         if self.last_fuel_bonus_update_ts > 0 {
             now.safe_sub(self.last_fuel_bonus_update_ts.cast()?)
