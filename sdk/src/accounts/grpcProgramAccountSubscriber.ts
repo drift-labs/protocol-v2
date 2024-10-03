@@ -4,12 +4,14 @@ import bs58 from 'bs58';
 import { Commitment, Context, MemcmpFilter, PublicKey } from '@solana/web3.js';
 import * as Buffer from 'buffer';
 import { WebSocketProgramAccountSubscriber } from './webSocketProgramAccountSubscriber';
-import { ClientDuplexStream } from '@grpc/grpc-js';
-import Client, {
+import {
+	Client,
+	ClientDuplexStream,
+	CommitmentLevel,
+	createClient,
 	SubscribeRequest,
 	SubscribeUpdate,
-	CommitmentLevel,
-} from '@triton-one/yellowstone-grpc';
+} from '../isomorphic/grpc';
 
 export class grpcProgramAccountSubscriber<
 	T,
@@ -38,12 +40,13 @@ export class grpcProgramAccountSubscriber<
 			options,
 			resubOpts
 		);
-		this.client = new Client(
+		this.client = createClient(
 			grpcConfigs.endpoint,
 			grpcConfigs.token,
 			grpcConfigs.channelOptions ?? {}
 		);
 		this.commitmentLevel =
+			// @ts-ignore :: isomorphic exported enum fails typescript but will work at runtime
 			grpcConfigs.commitmentLevel ?? CommitmentLevel.CONFIRMED;
 	}
 
