@@ -880,7 +880,7 @@ export const MainnetPerpMarkets: PerpMarketConfig[] = [
 		symbol: 'MOODENG-PERP',
 		baseAssetSymbol: 'MOODENG',
 		marketIndex: 45,
-		oracle: new PublicKey('56ap2coZG7FPWUigVm9XrpQs3xuCwnwQaWtjWZcffEUG'),
+		oracle: new PublicKey('21gjgEcuDppthwV16J1QpFzje3vmgMp2uSzh7pJsG7ob'),
 		launchTs: 1727965864000,
 		oracleSource: OracleSource.PYTH_PULL,
 		pythFeedId:
