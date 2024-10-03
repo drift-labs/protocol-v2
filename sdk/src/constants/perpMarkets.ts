@@ -874,6 +874,18 @@ export const MainnetPerpMarkets: PerpMarketConfig[] = [
 		pythFeedId:
 			'0x62742a997d01f7524f791fdb2dd43aaf0e567d765ebf8fd0406a994239e874d4',
 	},
+	{
+		fullName: 'MOODENG',
+		category: ['Solana', 'Meme'],
+		symbol: 'MOODENG-PERP',
+		baseAssetSymbol: 'MOODENG',
+		marketIndex: 45,
+		oracle: new PublicKey('56ap2coZG7FPWUigVm9XrpQs3xuCwnwQaWtjWZcffEUG'),
+		launchTs: 1727965864000,
+		oracleSource: OracleSource.PYTH_PULL,
+		pythFeedId:
+			'0xffff73128917a90950cd0473fd2551d7cd274fd5a6cc45641881bbcc6ee73417',
+	},
 ];
 
 export const PerpMarkets: { [key in DriftEnv]: PerpMarketConfig[] } = {
