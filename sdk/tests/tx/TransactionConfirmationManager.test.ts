@@ -71,7 +71,6 @@ describe('TransactionConfirmationManager_Polling_Tests', () => {
 	});
 
 	it('should reject when transaction fails', async function () {
-
 		const fakeTxSig = 'fakeTxSig';
 		const fakeStatus: SignatureStatus = {
 			slot: 100,

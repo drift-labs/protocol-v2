@@ -32,7 +32,11 @@ const getTransactionResult = async (
 ): Promise<VersionedTransactionResponse> => {
 	return await connection.getTransaction(txSig, {
 		maxSupportedTransactionVersion: 0,
-		commitment: commitmentToFinality(commitment || connection.commitment || DEFAULT_CONFIRMATION_OPTS.commitment),
+		commitment: commitmentToFinality(
+			commitment ||
+				connection.commitment ||
+				DEFAULT_CONFIRMATION_OPTS.commitment
+		),
 	});
 };
 
