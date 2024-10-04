@@ -30,13 +30,12 @@ const getTransactionResult = async (
 	connection: Connection,
 	commitment?: Commitment
 ): Promise<VersionedTransactionResponse> => {
+	const finality = commitmentToFinality(
+		commitment || connection.commitment || DEFAULT_CONFIRMATION_OPTS.commitment
+	);
 	return await connection.getTransaction(txSig, {
 		maxSupportedTransactionVersion: 0,
-		commitment: commitmentToFinality(
-			commitment ||
-				connection.commitment ||
-				DEFAULT_CONFIRMATION_OPTS.commitment
-		),
+		commitment: finality,
 	});
 };
 
