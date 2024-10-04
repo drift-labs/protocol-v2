@@ -408,7 +408,11 @@ export abstract class BaseTxSender implements TxSender {
 		result: SignatureResult
 	): Promise<void> {
 		if (result.err) {
-			await throwTransactionError(txSig, this.connection, this.opts?.commitment);
+			await throwTransactionError(
+				txSig,
+				this.connection,
+				this.opts?.commitment
+			);
 		}
 
 		return;

@@ -10,7 +10,10 @@ import {
 import { DEFAULT_CONFIRMATION_OPTS } from '../config';
 import { TxSendError } from '@drift-labs/sdk';
 import { NOT_CONFIRMED_ERROR_CODE } from '../constants/txConstants';
-import { getTransactionErrorFromTxSig, throwTransactionError } from '../tx/reportTransactionError';
+import {
+	getTransactionErrorFromTxSig,
+	throwTransactionError,
+} from '../tx/reportTransactionError';
 import { promiseTimeout } from './promiseTimeout';
 
 type ResolveReference = {
@@ -80,14 +83,18 @@ export class TransactionConfirmationManager {
 		});
 
 		// We do a one-shot confirmation check just in case the transaction is ALREADY confirmed when we create the websocket confirmation .. We want to run this concurrently with the onSignature subscription. If this returns true then we can return early as the transaction has already been confirmed.
-		const oneShotConfirmationPromise = this.connection.getSignatureStatuses([txSig]);
+		const oneShotConfirmationPromise = this.connection.getSignatureStatuses([
+			txSig,
+		]);
 
 		const resolveReference: ResolveReference = {};
 
 		// This is the promise we are waiting on to resolve the overall confirmation. It will resolve the faster of a positive oneShot confirmation, or the websocket confirmation, or the timeout.
-		const overallWaitingForConfirmationPromise = new Promise<void>((resolve) => {
-			resolveReference.resolve = resolve;
-		});
+		const overallWaitingForConfirmationPromise = new Promise<void>(
+			(resolve) => {
+				resolveReference.resolve = resolve;
+			}
+		);
 
 		// Await for the one shot confirmation and resolve the waiting promise if we get a positive confirmation result
 		oneShotConfirmationPromise.then(
@@ -95,7 +102,6 @@ export class TransactionConfirmationManager {
 				if (!oneShotResponse || !oneShotResponse?.value?.[0]) return;
 
 				const resultValue = oneShotResponse.value[0];
-
 
 				if (resultValue.err) {
 					await throwTransactionError(txSig, this.connection);
@@ -253,7 +259,6 @@ export class TransactionConfirmationManager {
 			if (status === null) {
 				continue;
 			}
-
 
 			if (status.err) {
 				this.pendingConfirmations.delete(request.txSig);

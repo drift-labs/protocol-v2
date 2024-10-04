@@ -1,6 +1,10 @@
 import { expect } from 'chai';
 import sinon from 'sinon';
-import { Connection, SignatureStatus, VersionedTransactionResponse } from '@solana/web3.js';
+import {
+	Connection,
+	SignatureStatus,
+	VersionedTransactionResponse,
+} from '@solana/web3.js';
 import { TransactionConfirmationManager } from '../../src/util/TransactionConfirmationManager';
 import assert from 'assert';
 
@@ -21,7 +25,12 @@ describe('TransactionConfirmationManager_Polling_Tests', () => {
 
 	it('should throw error for invalid poll interval', async () => {
 		try {
-			await manager.confirmTransactionPolling('fakeTxSig', 'confirmed', 30000, 300);
+			await manager.confirmTransactionPolling(
+				'fakeTxSig',
+				'confirmed',
+				30000,
+				300
+			);
 			assert.fail('Expected an error to be thrown');
 		} catch (error) {
 			assert(error instanceof Error);
@@ -79,11 +88,16 @@ describe('TransactionConfirmationManager_Polling_Tests', () => {
 		mockConnection.getTransaction.resolves({
 			meta: {
 				logMessages: ['Transaction failed: Custom'],
-			}
+			},
 		} as VersionedTransactionResponse);
 
 		try {
-			await manager.confirmTransactionPolling(fakeTxSig, 'confirmed', 30000, 400);
+			await manager.confirmTransactionPolling(
+				fakeTxSig,
+				'confirmed',
+				30000,
+				400
+			);
 			assert.fail('Expected an error to be thrown');
 		} catch (error) {
 			return;
