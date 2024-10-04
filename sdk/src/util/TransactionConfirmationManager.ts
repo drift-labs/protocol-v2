@@ -8,7 +8,7 @@ import {
 	TransactionConfirmationStatus,
 } from '@solana/web3.js';
 import { DEFAULT_CONFIRMATION_OPTS } from '../config';
-import { TxSendError } from '@drift-labs/sdk';
+import { TxSendError } from '..';
 import { NOT_CONFIRMED_ERROR_CODE } from '../constants/txConstants';
 import {
 	getTransactionErrorFromTxSig,

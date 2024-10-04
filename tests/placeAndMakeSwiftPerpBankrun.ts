@@ -232,6 +232,7 @@ describe('place and make swift order', () => {
 		const takerOrderParamsMessage: SwiftOrderParamsMessage = {
 			swiftOrderParams: takerOrderParams,
 			expectedOrderId: 1,
+			subAccountId: 0,
 			takeProfitOrderParams: null,
 			stopLossOrderParams: null,
 		};
@@ -411,6 +412,7 @@ describe('place and make swift order', () => {
 		const takerOrderParamsMessage: SwiftOrderParamsMessage = {
 			swiftOrderParams: takerOrderParams,
 			expectedOrderId: 1,
+			subAccountId: 0,
 			stopLossOrderParams: {
 				triggerPrice: stopLossTakerParams.triggerPrice,
 				baseAssetAmount: stopLossTakerParams.baseAssetAmount,
@@ -570,6 +572,7 @@ describe('place and make swift order', () => {
 		const takerOrderParamsMessage: SwiftOrderParamsMessage = {
 			swiftOrderParams: takerOrderParams,
 			expectedOrderId: 1,
+			subAccountId: 0,
 			takeProfitOrderParams: null,
 			stopLossOrderParams: null,
 		};
@@ -683,6 +686,7 @@ describe('place and make swift order', () => {
 		const takerOrderParamsMessage: SwiftOrderParamsMessage = {
 			swiftOrderParams: takerOrderParams,
 			expectedOrderId: 1,
+			subAccountId: 0,
 			takeProfitOrderParams: null,
 			stopLossOrderParams: null,
 		};

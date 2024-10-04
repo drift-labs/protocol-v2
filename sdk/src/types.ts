@@ -1064,6 +1064,7 @@ export type SwiftServerMessage = {
 export type SwiftOrderParamsMessage = {
 	swiftOrderParams: OptionalOrderParams;
 	expectedOrderId: number;
+	subAccountId: number;
 	takeProfitOrderParams: SwiftTriggerOrderParams | null;
 	stopLossOrderParams: SwiftTriggerOrderParams | null;
 };

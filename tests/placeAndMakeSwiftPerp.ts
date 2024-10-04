@@ -213,6 +213,7 @@ describe('place and make swift order', () => {
 			swiftOrderParams: takerOrderParams,
 			expectedOrderId: 1,
 			takeProfitOrderParams: null,
+			subAccountId: 0,
 			stopLossOrderParams: null,
 		};
 		const takerOrderParamsSig =
@@ -325,6 +326,7 @@ describe('place and make swift order', () => {
 		const takerOrderParamsMessage: SwiftOrderParamsMessage = {
 			swiftOrderParams: takerOrderParams,
 			expectedOrderId: 1,
+			subAccountId: 0,
 			takeProfitOrderParams: null,
 			stopLossOrderParams: null,
 		};
