@@ -5,6 +5,7 @@ import {
 	SendTransactionError,
 	VersionedTransactionResponse,
 } from '@solana/web3.js';
+import { DEFAULT_CONFIRMATION_OPTS } from '../config';
 
 /**
  * The new getTransaction method expects a Finality type instead of a Commitment type. The only options for Finality are 'confirmed' and 'finalized'.
@@ -31,9 +32,7 @@ const getTransactionResult = async (
 ): Promise<VersionedTransactionResponse> => {
 	return await connection.getTransaction(txSig, {
 		maxSupportedTransactionVersion: 0,
-		commitment: commitment
-			? commitmentToFinality(commitment)
-			: commitmentToFinality(connection.commitment),
+		commitment: commitmentToFinality(commitment || connection.commitment || DEFAULT_CONFIRMATION_OPTS.commitment),
 	});
 };
 
@@ -140,7 +139,7 @@ export const getTransactionError = (
 		return;
 	}
 
-	const logs = transactionResult.meta.logMessages;
+	const logs = transactionResult?.meta?.logMessages ?? ['No logs'];
 
 	const lastLog = logs[logs.length - 1];
 
@@ -148,7 +147,7 @@ export const getTransactionError = (
 
 	return new SendTransactionError({
 		action: 'send',
-		signature: transactionResult.transaction.signatures[0],
+		signature: transactionResult?.transaction?.signatures?.[0],
 		transactionMessage: `Transaction Failed${
 			friendlyMessage ? `: ${friendlyMessage}` : ''
 		}`,

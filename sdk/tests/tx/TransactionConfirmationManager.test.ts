@@ -70,7 +70,8 @@ describe('TransactionConfirmationManager_Polling_Tests', () => {
 		).to.be.true;
 	});
 
-	it('should reject when transaction fails', async () => {
+	it('should reject when transaction fails', async function () {
+
 		const fakeTxSig = 'fakeTxSig';
 		const fakeStatus: SignatureStatus = {
 			slot: 100,
@@ -85,9 +86,11 @@ describe('TransactionConfirmationManager_Polling_Tests', () => {
 		});
 
 		// The transaction manager falls into getTransaction when it detects a transaction failure so we need to mock that as well
+		// @ts-ignore
 		mockConnection.getTransaction.resolves({
 			meta: {
 				logMessages: ['Transaction failed: Custom'],
+				err: { InstructionError: [0, 'Custom'] },
 			},
 		} as VersionedTransactionResponse);
 

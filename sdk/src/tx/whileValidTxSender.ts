@@ -186,11 +186,6 @@ export class WhileValidTxSender extends BaseTxSender {
 		const txSig = bs58.encode(signedTx.signatures[0]);
 		this.untilValid.set(txSig, latestBlockhash);
 
-		console.debug(
-			`preflight_commitment`,
-			`sending_tx_with_preflight_commitment::${opts?.preflightCommitment}`
-		);
-
 		return this.sendRawTransaction(signedTx.serialize(), opts);
 	}
 
@@ -200,10 +195,6 @@ export class WhileValidTxSender extends BaseTxSender {
 	): Promise<TxSigAndSlot> {
 		const startTime = this.getTimestamp();
 
-		console.debug(
-			`preflight_commitment`,
-			`sending_tx_with_preflight_commitment::${opts?.preflightCommitment}`
-		);
 		const txid = await this.connection.sendRawTransaction(rawTransaction, opts);
 		this.txSigCache?.set(txid, false);
 		this.sendToAdditionalConnections(rawTransaction, opts);
