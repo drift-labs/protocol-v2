@@ -23,7 +23,7 @@
 <ul class="tsd-hierarchy">
 <li><span class="target">TransactionConfirmationManager</span></li></ul></section><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/drift-labs/protocol-v2/blob/0607ad9/sdk/src/util/TransactionConfirmationManager.ts#L29">sdk/src/util/TransactionConfirmationManager.ts:29</a></li></ul></aside>
+<li>Defined in <a href="https://github.com/drift-labs/protocol-v2/blob/64dfe03/sdk/src/util/TransactionConfirmationManager.ts#L44">sdk/src/util/TransactionConfirmationManager.ts:44</a></li></ul></aside>
 <section class="tsd-panel-group tsd-index-group">
 <section class="tsd-panel tsd-index-panel">
 <details class="tsd-index-content tsd-index-accordion" open><summary class="tsd-accordion-summary tsd-index-summary">
@@ -42,8 +42,10 @@
 <section class="tsd-index-section">
 <h3 class="tsd-index-heading">Methods</h3>
 <div class="tsd-index-list"><a href="TransactionConfirmationManager.html#checkPendingConfirmations" class="tsd-index-link tsd-kind-method tsd-parent-kind-class tsd-is-private"><svg class="tsd-kind-icon" width="24" height="24" viewBox="0 0 24 24"><rect fill="var(--color-icon-background)" stroke="#FF4DB8" stroke-width="1.5" x="1" y="1" width="22" height="22" rx="12" id="icon-2048-path"></rect><path d="M9.162 16V7.24H10.578L11.514 10.072C11.602 10.328 11.674 10.584 11.73 10.84C11.794 11.088 11.842 11.28 11.874 11.416C11.906 11.28 11.954 11.088 12.018 10.84C12.082 10.584 12.154 10.324 12.234 10.06L13.122 7.24H14.538V16H13.482V12.82C13.482 12.468 13.49 12.068 13.506 11.62C13.53 11.172 13.558 10.716 13.59 10.252C13.622 9.78 13.654 9.332 13.686 8.908C13.726 8.476 13.762 8.1 13.794 7.78L12.366 12.16H11.334L9.894 7.78C9.934 8.092 9.97 8.456 10.002 8.872C10.042 9.28 10.078 9.716 10.11 10.18C10.142 10.636 10.166 11.092 10.182 11.548C10.206 12.004 10.218 12.428 10.218 12.82V16H9.162Z" fill="var(--color-text)" id="icon-2048-text"></path></svg><span>check<wbr/>Pending<wbr/>Confirmations</span></a>
+<a href="TransactionConfirmationManager.html#checkStatusMatchesDesiredConfirmationStatus" class="tsd-index-link tsd-kind-method tsd-parent-kind-class tsd-is-private"><svg class="tsd-kind-icon" width="24" height="24" viewBox="0 0 24 24"><use href="#icon-2048-path"></use><use href="#icon-2048-text"></use></svg><span>check<wbr/>Status<wbr/>Matches<wbr/>Desired<wbr/>Confirmation<wbr/>Status</span></a>
 <a href="TransactionConfirmationManager.html#checkTransactionStatuses" class="tsd-index-link tsd-kind-method tsd-parent-kind-class tsd-is-private"><svg class="tsd-kind-icon" width="24" height="24" viewBox="0 0 24 24"><use href="#icon-2048-path"></use><use href="#icon-2048-text"></use></svg><span>check<wbr/>Transaction<wbr/>Statuses</span></a>
-<a href="TransactionConfirmationManager.html#confirmTransaction" class="tsd-index-link tsd-kind-method tsd-parent-kind-class"><svg class="tsd-kind-icon" width="24" height="24" viewBox="0 0 24 24"><use href="#icon-2048-path"></use><use href="#icon-2048-text"></use></svg><span>confirm<wbr/>Transaction</span></a>
+<a href="TransactionConfirmationManager.html#confirmTransactionPolling" class="tsd-index-link tsd-kind-method tsd-parent-kind-class"><svg class="tsd-kind-icon" width="24" height="24" viewBox="0 0 24 24"><use href="#icon-2048-path"></use><use href="#icon-2048-text"></use></svg><span>confirm<wbr/>Transaction<wbr/>Polling</span></a>
+<a href="TransactionConfirmationManager.html#confirmTransactionWebSocket" class="tsd-index-link tsd-kind-method tsd-parent-kind-class"><svg class="tsd-kind-icon" width="24" height="24" viewBox="0 0 24 24"><use href="#icon-2048-path"></use><use href="#icon-2048-text"></use></svg><span>confirm<wbr/>Transaction<wbr/>Web<wbr/>Socket</span></a>
 <a href="TransactionConfirmationManager.html#startConfirmationLoop" class="tsd-index-link tsd-kind-method tsd-parent-kind-class tsd-is-private"><svg class="tsd-kind-icon" width="24" height="24" viewBox="0 0 24 24"><use href="#icon-2048-path"></use><use href="#icon-2048-text"></use></svg><span>start<wbr/>Confirmation<wbr/>Loop</span></a>
 </div></section></div></details></section></section>
 <section class="tsd-panel-group tsd-member-group">
@@ -60,24 +62,24 @@
 <h5>connection: <span class="tsd-signature-type">Connection</span></h5></li></ul></div>
 <h4 class="tsd-returns-title">Returns <a href="TransactionConfirmationManager.html" class="tsd-signature-type" data-tsd-kind="Class">TransactionConfirmationManager</a></h4><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/drift-labs/protocol-v2/blob/0607ad9/sdk/src/util/TransactionConfirmationManager.ts#L35">sdk/src/util/TransactionConfirmationManager.ts:35</a></li></ul></aside></li></ul></section></section>
+<li>Defined in <a href="https://github.com/drift-labs/protocol-v2/blob/64dfe03/sdk/src/util/TransactionConfirmationManager.ts#L50">sdk/src/util/TransactionConfirmationManager.ts:50</a></li></ul></aside></li></ul></section></section>
 <section class="tsd-panel-group tsd-member-group">
 <h2>Properties</h2>
 <section class="tsd-panel tsd-member tsd-kind-property tsd-parent-kind-class tsd-is-private"><a id="connection" class="tsd-anchor"></a>
 <h3 class="tsd-anchor-link"><code class="tsd-tag ts-flagPrivate">Private</code> <span>connection</span><a href="#connection" aria-label="Permalink" class="tsd-anchor-icon"><svg class="icon icon-tabler icon-tabler-link" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><use href="#icon-anchor-a"></use><use href="#icon-anchor-b"></use><use href="#icon-anchor-c"></use></svg></a></h3>
 <div class="tsd-signature">connection<span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">Connection</span></div><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/drift-labs/protocol-v2/blob/0607ad9/sdk/src/util/TransactionConfirmationManager.ts#L30">sdk/src/util/TransactionConfirmationManager.ts:30</a></li></ul></aside></section>
+<li>Defined in <a href="https://github.com/drift-labs/protocol-v2/blob/64dfe03/sdk/src/util/TransactionConfirmationManager.ts#L45">sdk/src/util/TransactionConfirmationManager.ts:45</a></li></ul></aside></section>
 <section class="tsd-panel tsd-member tsd-kind-property tsd-parent-kind-class tsd-is-private"><a id="intervalId" class="tsd-anchor"></a>
 <h3 class="tsd-anchor-link"><code class="tsd-tag ts-flagPrivate">Private</code> <span>interval<wbr/>Id</span><a href="#intervalId" aria-label="Permalink" class="tsd-anchor-icon"><svg class="icon icon-tabler icon-tabler-link" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><use href="#icon-anchor-a"></use><use href="#icon-anchor-b"></use><use href="#icon-anchor-c"></use></svg></a></h3>
 <div class="tsd-signature">interval<wbr/>Id<span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">Timeout</span><span class="tsd-signature-symbol"> = null</span></div><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/drift-labs/protocol-v2/blob/0607ad9/sdk/src/util/TransactionConfirmationManager.ts#L33">sdk/src/util/TransactionConfirmationManager.ts:33</a></li></ul></aside></section>
+<li>Defined in <a href="https://github.com/drift-labs/protocol-v2/blob/64dfe03/sdk/src/util/TransactionConfirmationManager.ts#L48">sdk/src/util/TransactionConfirmationManager.ts:48</a></li></ul></aside></section>
 <section class="tsd-panel tsd-member tsd-kind-property tsd-parent-kind-class tsd-is-private"><a id="pendingConfirmations" class="tsd-anchor"></a>
 <h3 class="tsd-anchor-link"><code class="tsd-tag ts-flagPrivate">Private</code> <span>pending<wbr/>Confirmations</span><a href="#pendingConfirmations" aria-label="Permalink" class="tsd-anchor-icon"><svg class="icon icon-tabler icon-tabler-link" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><use href="#icon-anchor-a"></use><use href="#icon-anchor-b"></use><use href="#icon-anchor-c"></use></svg></a></h3>
 <div class="tsd-signature">pending<wbr/>Confirmations<span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">Map</span><span class="tsd-signature-symbol">&lt;</span><span class="tsd-signature-type">string</span><span class="tsd-signature-symbol">, </span><span class="tsd-signature-type">TransactionConfirmationRequest</span><span class="tsd-signature-symbol">&gt;</span><span class="tsd-signature-symbol"> = ...</span></div><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/drift-labs/protocol-v2/blob/0607ad9/sdk/src/util/TransactionConfirmationManager.ts#L31">sdk/src/util/TransactionConfirmationManager.ts:31</a></li></ul></aside></section></section>
+<li>Defined in <a href="https://github.com/drift-labs/protocol-v2/blob/64dfe03/sdk/src/util/TransactionConfirmationManager.ts#L46">sdk/src/util/TransactionConfirmationManager.ts:46</a></li></ul></aside></section></section>
 <section class="tsd-panel-group tsd-member-group">
 <h2>Methods</h2>
 <section class="tsd-panel tsd-member tsd-kind-method tsd-parent-kind-class tsd-is-private"><a id="checkPendingConfirmations" class="tsd-anchor"></a>
@@ -87,7 +89,22 @@
 <li class="tsd-description">
 <h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">Promise</span><span class="tsd-signature-symbol">&lt;</span><span class="tsd-signature-type">void</span><span class="tsd-signature-symbol">&gt;</span></h4><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/drift-labs/protocol-v2/blob/0607ad9/sdk/src/util/TransactionConfirmationManager.ts#L75">sdk/src/util/TransactionConfirmationManager.ts:75</a></li></ul></aside></li></ul></section>
+<li>Defined in <a href="https://github.com/drift-labs/protocol-v2/blob/64dfe03/sdk/src/util/TransactionConfirmationManager.ts#L196">sdk/src/util/TransactionConfirmationManager.ts:196</a></li></ul></aside></li></ul></section>
+<section class="tsd-panel tsd-member tsd-kind-method tsd-parent-kind-class tsd-is-private"><a id="checkStatusMatchesDesiredConfirmationStatus" class="tsd-anchor"></a>
+<h3 class="tsd-anchor-link"><code class="tsd-tag ts-flagPrivate">Private</code> <span>check<wbr/>Status<wbr/>Matches<wbr/>Desired<wbr/>Confirmation<wbr/>Status</span><a href="#checkStatusMatchesDesiredConfirmationStatus" aria-label="Permalink" class="tsd-anchor-icon"><svg class="icon icon-tabler icon-tabler-link" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><use href="#icon-anchor-a"></use><use href="#icon-anchor-b"></use><use href="#icon-anchor-c"></use></svg></a></h3>
+<ul class="tsd-signatures tsd-kind-method tsd-parent-kind-class tsd-is-private">
+<li class="tsd-signature tsd-anchor-link" id="checkStatusMatchesDesiredConfirmationStatus.checkStatusMatchesDesiredConfirmationStatus-1">check<wbr/>Status<wbr/>Matches<wbr/>Desired<wbr/>Confirmation<wbr/>Status<span class="tsd-signature-symbol">(</span>status<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">SignatureStatus</span>, desiredConfirmationStatus<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">TransactionConfirmationStatus</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">boolean</span><a href="#checkStatusMatchesDesiredConfirmationStatus.checkStatusMatchesDesiredConfirmationStatus-1" aria-label="Permalink" class="tsd-anchor-icon"><svg class="icon icon-tabler icon-tabler-link" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><use href="#icon-anchor-a"></use><use href="#icon-anchor-b"></use><use href="#icon-anchor-c"></use></svg></a></li>
+<li class="tsd-description">
+<div class="tsd-parameters">
+<h4 class="tsd-parameters-title">Parameters</h4>
+<ul class="tsd-parameter-list">
+<li>
+<h5>status: <span class="tsd-signature-type">SignatureStatus</span></h5></li>
+<li>
+<h5>desiredConfirmationStatus: <span class="tsd-signature-type">TransactionConfirmationStatus</span></h5></li></ul></div>
+<h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">boolean</span></h4><aside class="tsd-sources">
+<ul>
+<li>Defined in <a href="https://github.com/drift-labs/protocol-v2/blob/64dfe03/sdk/src/util/TransactionConfirmationManager.ts#L223">sdk/src/util/TransactionConfirmationManager.ts:223</a></li></ul></aside></li></ul></section>
 <section class="tsd-panel tsd-member tsd-kind-method tsd-parent-kind-class tsd-is-private"><a id="checkTransactionStatuses" class="tsd-anchor"></a>
 <h3 class="tsd-anchor-link"><code class="tsd-tag ts-flagPrivate">Private</code> <span>check<wbr/>Transaction<wbr/>Statuses</span><a href="#checkTransactionStatuses" aria-label="Permalink" class="tsd-anchor-icon"><svg class="icon icon-tabler icon-tabler-link" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><use href="#icon-anchor-a"></use><use href="#icon-anchor-b"></use><use href="#icon-anchor-c"></use></svg></a></h3>
 <ul class="tsd-signatures tsd-kind-method tsd-parent-kind-class tsd-is-private">
@@ -100,11 +117,11 @@
 <h5>requests: <span class="tsd-signature-type">TransactionConfirmationRequest</span><span class="tsd-signature-symbol">[]</span></h5></li></ul></div>
 <h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">Promise</span><span class="tsd-signature-symbol">&lt;</span><span class="tsd-signature-type">void</span><span class="tsd-signature-symbol">&gt;</span></h4><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/drift-labs/protocol-v2/blob/0607ad9/sdk/src/util/TransactionConfirmationManager.ts#L102">sdk/src/util/TransactionConfirmationManager.ts:102</a></li></ul></aside></li></ul></section>
-<section class="tsd-panel tsd-member tsd-kind-method tsd-parent-kind-class"><a id="confirmTransaction" class="tsd-anchor"></a>
-<h3 class="tsd-anchor-link"><span>confirm<wbr/>Transaction</span><a href="#confirmTransaction" aria-label="Permalink" class="tsd-anchor-icon"><svg class="icon icon-tabler icon-tabler-link" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><use href="#icon-anchor-a"></use><use href="#icon-anchor-b"></use><use href="#icon-anchor-c"></use></svg></a></h3>
+<li>Defined in <a href="https://github.com/drift-labs/protocol-v2/blob/64dfe03/sdk/src/util/TransactionConfirmationManager.ts#L238">sdk/src/util/TransactionConfirmationManager.ts:238</a></li></ul></aside></li></ul></section>
+<section class="tsd-panel tsd-member tsd-kind-method tsd-parent-kind-class"><a id="confirmTransactionPolling" class="tsd-anchor"></a>
+<h3 class="tsd-anchor-link"><span>confirm<wbr/>Transaction<wbr/>Polling</span><a href="#confirmTransactionPolling" aria-label="Permalink" class="tsd-anchor-icon"><svg class="icon icon-tabler icon-tabler-link" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><use href="#icon-anchor-a"></use><use href="#icon-anchor-b"></use><use href="#icon-anchor-c"></use></svg></a></h3>
 <ul class="tsd-signatures tsd-kind-method tsd-parent-kind-class">
-<li class="tsd-signature tsd-anchor-link" id="confirmTransaction.confirmTransaction-1">confirm<wbr/>Transaction<span class="tsd-signature-symbol">(</span>txSig<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">string</span>, desiredConfirmationStatus<span class="tsd-signature-symbol">?: </span><span class="tsd-signature-type">TransactionConfirmationStatus</span>, timeout<span class="tsd-signature-symbol">?: </span><span class="tsd-signature-type">number</span>, pollInterval<span class="tsd-signature-symbol">?: </span><span class="tsd-signature-type">number</span>, searchTransactionHistory<span class="tsd-signature-symbol">?: </span><span class="tsd-signature-type">boolean</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">Promise</span><span class="tsd-signature-symbol">&lt;</span><span class="tsd-signature-type">SignatureStatus</span><span class="tsd-signature-symbol">&gt;</span><a href="#confirmTransaction.confirmTransaction-1" aria-label="Permalink" class="tsd-anchor-icon"><svg class="icon icon-tabler icon-tabler-link" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><use href="#icon-anchor-a"></use><use href="#icon-anchor-b"></use><use href="#icon-anchor-c"></use></svg></a></li>
+<li class="tsd-signature tsd-anchor-link" id="confirmTransactionPolling.confirmTransactionPolling-1">confirm<wbr/>Transaction<wbr/>Polling<span class="tsd-signature-symbol">(</span>txSig<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">string</span>, desiredConfirmationStatus<span class="tsd-signature-symbol">?: </span><span class="tsd-signature-type">TransactionConfirmationStatus</span>, timeout<span class="tsd-signature-symbol">?: </span><span class="tsd-signature-type">number</span>, pollInterval<span class="tsd-signature-symbol">?: </span><span class="tsd-signature-type">number</span>, searchTransactionHistory<span class="tsd-signature-symbol">?: </span><span class="tsd-signature-type">boolean</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">Promise</span><span class="tsd-signature-symbol">&lt;</span><span class="tsd-signature-type">SignatureStatus</span><span class="tsd-signature-symbol">&gt;</span><a href="#confirmTransactionPolling.confirmTransactionPolling-1" aria-label="Permalink" class="tsd-anchor-icon"><svg class="icon icon-tabler icon-tabler-link" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><use href="#icon-anchor-a"></use><use href="#icon-anchor-b"></use><use href="#icon-anchor-c"></use></svg></a></li>
 <li class="tsd-description">
 <div class="tsd-parameters">
 <h4 class="tsd-parameters-title">Parameters</h4>
@@ -121,7 +138,24 @@
 <h5>searchTransactionHistory: <span class="tsd-signature-type">boolean</span><span class="tsd-signature-symbol"> = false</span></h5></li></ul></div>
 <h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">Promise</span><span class="tsd-signature-symbol">&lt;</span><span class="tsd-signature-type">SignatureStatus</span><span class="tsd-signature-symbol">&gt;</span></h4><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/drift-labs/protocol-v2/blob/0607ad9/sdk/src/util/TransactionConfirmationManager.ts#L39">sdk/src/util/TransactionConfirmationManager.ts:39</a></li></ul></aside></li></ul></section>
+<li>Defined in <a href="https://github.com/drift-labs/protocol-v2/blob/64dfe03/sdk/src/util/TransactionConfirmationManager.ts#L160">sdk/src/util/TransactionConfirmationManager.ts:160</a></li></ul></aside></li></ul></section>
+<section class="tsd-panel tsd-member tsd-kind-method tsd-parent-kind-class"><a id="confirmTransactionWebSocket" class="tsd-anchor"></a>
+<h3 class="tsd-anchor-link"><span>confirm<wbr/>Transaction<wbr/>Web<wbr/>Socket</span><a href="#confirmTransactionWebSocket" aria-label="Permalink" class="tsd-anchor-icon"><svg class="icon icon-tabler icon-tabler-link" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><use href="#icon-anchor-a"></use><use href="#icon-anchor-b"></use><use href="#icon-anchor-c"></use></svg></a></h3>
+<ul class="tsd-signatures tsd-kind-method tsd-parent-kind-class">
+<li class="tsd-signature tsd-anchor-link" id="confirmTransactionWebSocket.confirmTransactionWebSocket-1">confirm<wbr/>Transaction<wbr/>Web<wbr/>Socket<span class="tsd-signature-symbol">(</span>txSig<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">string</span>, timeout<span class="tsd-signature-symbol">?: </span><span class="tsd-signature-type">number</span>, desiredConfirmationStatus<span class="tsd-signature-symbol">?: </span><span class="tsd-signature-type">TransactionConfirmationStatus</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">Promise</span><span class="tsd-signature-symbol">&lt;</span><span class="tsd-signature-type">RpcResponseAndContext</span><span class="tsd-signature-symbol">&lt;</span><span class="tsd-signature-type">SignatureResult</span><span class="tsd-signature-symbol">&gt;</span><span class="tsd-signature-symbol">&gt;</span><a href="#confirmTransactionWebSocket.confirmTransactionWebSocket-1" aria-label="Permalink" class="tsd-anchor-icon"><svg class="icon icon-tabler icon-tabler-link" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><use href="#icon-anchor-a"></use><use href="#icon-anchor-b"></use><use href="#icon-anchor-c"></use></svg></a></li>
+<li class="tsd-description">
+<div class="tsd-parameters">
+<h4 class="tsd-parameters-title">Parameters</h4>
+<ul class="tsd-parameter-list">
+<li>
+<h5>txSig: <span class="tsd-signature-type">string</span></h5></li>
+<li>
+<h5>timeout: <span class="tsd-signature-type">number</span><span class="tsd-signature-symbol"> = 30000</span></h5></li>
+<li>
+<h5>desiredConfirmationStatus: <span class="tsd-signature-type">TransactionConfirmationStatus</span><span class="tsd-signature-symbol"> = ...</span></h5></li></ul></div>
+<h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">Promise</span><span class="tsd-signature-symbol">&lt;</span><span class="tsd-signature-type">RpcResponseAndContext</span><span class="tsd-signature-symbol">&lt;</span><span class="tsd-signature-type">SignatureResult</span><span class="tsd-signature-symbol">&gt;</span><span class="tsd-signature-symbol">&gt;</span></h4><aside class="tsd-sources">
+<ul>
+<li>Defined in <a href="https://github.com/drift-labs/protocol-v2/blob/64dfe03/sdk/src/util/TransactionConfirmationManager.ts#L54">sdk/src/util/TransactionConfirmationManager.ts:54</a></li></ul></aside></li></ul></section>
 <section class="tsd-panel tsd-member tsd-kind-method tsd-parent-kind-class tsd-is-private"><a id="startConfirmationLoop" class="tsd-anchor"></a>
 <h3 class="tsd-anchor-link"><code class="tsd-tag ts-flagPrivate">Private</code> <span>start<wbr/>Confirmation<wbr/>Loop</span><a href="#startConfirmationLoop" aria-label="Permalink" class="tsd-anchor-icon"><svg class="icon icon-tabler icon-tabler-link" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><use href="#icon-anchor-a"></use><use href="#icon-anchor-b"></use><use href="#icon-anchor-c"></use></svg></a></h3>
 <ul class="tsd-signatures tsd-kind-method tsd-parent-kind-class tsd-is-private">
@@ -129,7 +163,7 @@
 <li class="tsd-description">
 <h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">void</span></h4><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/drift-labs/protocol-v2/blob/0607ad9/sdk/src/util/TransactionConfirmationManager.ts#L71">sdk/src/util/TransactionConfirmationManager.ts:71</a></li></ul></aside></li></ul></section></section></div>
+<li>Defined in <a href="https://github.com/drift-labs/protocol-v2/blob/64dfe03/sdk/src/util/TransactionConfirmationManager.ts#L192">sdk/src/util/TransactionConfirmationManager.ts:192</a></li></ul></aside></li></ul></section></section></div>
 <div class="col-4 col-menu menu-sticky-wrap menu-highlight">
 <div class="tsd-navigation settings">
 <details class="tsd-index-accordion"><summary class="tsd-accordion-summary">
@@ -162,8 +196,10 @@
 <li class="tsd-kind-property tsd-parent-kind-class tsd-is-private"><a href="TransactionConfirmationManager.html#intervalId" class="tsd-index-link"><svg class="tsd-kind-icon" width="24" height="24" viewBox="0 0 24 24"><use href="#icon-1024-path"></use><use href="#icon-1024-text"></use></svg>interval<wbr/>Id</a></li>
 <li class="tsd-kind-property tsd-parent-kind-class tsd-is-private"><a href="TransactionConfirmationManager.html#pendingConfirmations" class="tsd-index-link"><svg class="tsd-kind-icon" width="24" height="24" viewBox="0 0 24 24"><use href="#icon-1024-path"></use><use href="#icon-1024-text"></use></svg>pending<wbr/>Confirmations</a></li>
 <li class="tsd-kind-method tsd-parent-kind-class tsd-is-private"><a href="TransactionConfirmationManager.html#checkPendingConfirmations" class="tsd-index-link"><svg class="tsd-kind-icon" width="24" height="24" viewBox="0 0 24 24"><use href="#icon-2048-path"></use><use href="#icon-2048-text"></use></svg>check<wbr/>Pending<wbr/>Confirmations</a></li>
+<li class="tsd-kind-method tsd-parent-kind-class tsd-is-private"><a href="TransactionConfirmationManager.html#checkStatusMatchesDesiredConfirmationStatus" class="tsd-index-link"><svg class="tsd-kind-icon" width="24" height="24" viewBox="0 0 24 24"><use href="#icon-2048-path"></use><use href="#icon-2048-text"></use></svg>check<wbr/>Status<wbr/>Matches<wbr/>Desired<wbr/>Confirmation<wbr/>Status</a></li>
 <li class="tsd-kind-method tsd-parent-kind-class tsd-is-private"><a href="TransactionConfirmationManager.html#checkTransactionStatuses" class="tsd-index-link"><svg class="tsd-kind-icon" width="24" height="24" viewBox="0 0 24 24"><use href="#icon-2048-path"></use><use href="#icon-2048-text"></use></svg>check<wbr/>Transaction<wbr/>Statuses</a></li>
-<li class="tsd-kind-method tsd-parent-kind-class"><a href="TransactionConfirmationManager.html#confirmTransaction" class="tsd-index-link"><svg class="tsd-kind-icon" width="24" height="24" viewBox="0 0 24 24"><use href="#icon-2048-path"></use><use href="#icon-2048-text"></use></svg>confirm<wbr/>Transaction</a></li>
+<li class="tsd-kind-method tsd-parent-kind-class"><a href="TransactionConfirmationManager.html#confirmTransactionPolling" class="tsd-index-link"><svg class="tsd-kind-icon" width="24" height="24" viewBox="0 0 24 24"><use href="#icon-2048-path"></use><use href="#icon-2048-text"></use></svg>confirm<wbr/>Transaction<wbr/>Polling</a></li>
+<li class="tsd-kind-method tsd-parent-kind-class"><a href="TransactionConfirmationManager.html#confirmTransactionWebSocket" class="tsd-index-link"><svg class="tsd-kind-icon" width="24" height="24" viewBox="0 0 24 24"><use href="#icon-2048-path"></use><use href="#icon-2048-text"></use></svg>confirm<wbr/>Transaction<wbr/>Web<wbr/>Socket</a></li>
 <li class="tsd-kind-method tsd-parent-kind-class tsd-is-private"><a href="TransactionConfirmationManager.html#startConfirmationLoop" class="tsd-index-link"><svg class="tsd-kind-icon" width="24" height="24" viewBox="0 0 24 24"><use href="#icon-2048-path"></use><use href="#icon-2048-text"></use></svg>start<wbr/>Confirmation<wbr/>Loop</a></li></ul></li></ul></nav></div></div>
 <div class="container tsd-generator">
 <p>Generated using <a href="https://typedoc.org/" target="_blank">TypeDoc</a></p></div>
