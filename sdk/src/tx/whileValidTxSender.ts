@@ -261,11 +261,8 @@ export class WhileValidTxSender extends BaseTxSender {
 
 			// THING TO CHECK 2
 			// <uncommment this code and remove the previous confirmation logic>
-			// const transactionConfirmationManager = new TransactionConfirmationManager(
-			// 	this.connection
-			// );
 			// const result =
-			// 	await transactionConfirmationManager.confirmTransactionWebSocket(
+			// 	await this.transactionConfirmationManager.confirmTransactionWebSocket(
 			// 		txid,
 			// 		this.timeout,
 			// 		this.opts?.commitment as TransactionConfirmationStatus
