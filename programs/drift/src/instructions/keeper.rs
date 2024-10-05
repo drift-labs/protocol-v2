@@ -13,7 +13,10 @@ use crate::instructions::constraints::*;
 use crate::instructions::optional_accounts::{load_maps, AccountMaps};
 use crate::math::casting::Cast;
 use crate::math::constants::QUOTE_SPOT_MARKET_INDEX;
-use crate::math::margin::{calculate_user_equity, meets_settle_pnl_maintenance_margin_requirement};
+use crate::math::margin::{
+    calculate_user_equity, meets_maintenance_margin_requirement,
+    meets_settle_pnl_maintenance_margin_requirement,
+};
 use crate::math::orders::{estimate_price_from_side, find_bids_and_asks_from_users};
 use crate::math::safe_math::SafeMath;
 use crate::math::spot_withdraw::validate_spot_market_vault_amount;
@@ -1877,8 +1880,10 @@ pub fn handle_update_user_gov_token_insurance_stake(
 pub fn handle_disable_user_high_leverage_mode<'c: 'info, 'info>(
     ctx: Context<'_, '_, 'c, 'info, DisableUserHighLeverageMode<'info>>,
 ) -> Result<()> {
+    let state = &ctx.accounts.state;
     let mut user = load_mut!(ctx.accounts.user)?;
-    let clock = Clock::get()?;
+
+    let slot = Clock::get()?.slot;
 
     let AccountMaps {
         perp_market_map,
@@ -1888,8 +1893,8 @@ pub fn handle_disable_user_high_leverage_mode<'c: 'info, 'info>(
         &mut ctx.remaining_accounts.iter().peekable(),
         &MarketSet::new(),
         &MarketSet::new(),
-        Clock::get()?.slot,
-        None,
+        slot,
+        Some(state.oracle_guard_rails),
     )?;
 
     validate!(
@@ -1898,11 +1903,26 @@ pub fn handle_disable_user_high_leverage_mode<'c: 'info, 'info>(
         "user must be in high leverage mode"
     )?;
 
-    // TODO add some other qualifications
-    // margin check passes? (need to do it after margin mode flipped
-    // enough slots inactive?
-
     user.margin_mode = MarginMode::Default;
+
+    meets_maintenance_margin_requirement(
+        &user,
+        &perp_market_map,
+        &spot_market_map,
+        &mut oracle_map,
+    )?;
+
+    // only check if signer is not user authority
+    if user.authority != *ctx.accounts.signer.key {
+        let slots_since_last_active = slot.safe_sub(user.last_active_slot)?;
+
+        validate!(
+            slots_since_last_active >= 216000, // 60 * 60 * 24 / .4
+            ErrorCode::DefaultError,
+            "user not inactive for long enough: {}",
+            slots_since_last_active
+        )?;
+    }
 
     let mut config = load_mut!(ctx.accounts.high_leverage_mode_config)?;
 
@@ -2335,7 +2355,8 @@ pub struct UpdatePrelaunchOracle<'info> {
 
 #[derive(Accounts)]
 pub struct DisableUserHighLeverageMode<'info> {
-    pub keeper: Signer<'info>,
+    pub state: Box<Account<'info, State>>,
+    pub signer: Signer<'info>,
     #[account(mut)]
     pub user: AccountLoader<'info, User>,
     #[account(mut)]

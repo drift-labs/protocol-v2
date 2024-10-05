@@ -318,8 +318,8 @@ pub mod drift {
         handle_reclaim_rent(ctx)
     }
 
-    pub fn update_user_high_leverage_mode(
-        ctx: Context<UpdateUserHighLeverageMode>,
+    pub fn update_user_high_leverage_mode<'c: 'info, 'info>(
+        ctx: Context<'_, '_, 'c, 'info, UpdateUserHighLeverageMode>,
         sub_account_id: u16,
     ) -> Result<()> {
         handle_update_user_high_leverage_mode(ctx, sub_account_id)

@@ -27,7 +27,8 @@ use crate::instructions::SpotFulfillmentType;
 use crate::math::casting::Cast;
 use crate::math::liquidation::is_user_being_liquidated;
 use crate::math::margin::{
-    calculate_max_withdrawable_amount, meets_place_order_margin_requirement,
+    calculate_max_withdrawable_amount, meets_initial_margin_requirement,
+    meets_maintenance_margin_requirement, meets_place_order_margin_requirement,
     meets_withdraw_margin_requirement, validate_spot_margin_trading, MarginRequirementType,
 };
 use crate::math::safe_math::SafeMath;
@@ -2105,16 +2106,36 @@ pub fn handle_deposit_into_spot_market_revenue_pool<'c: 'info, 'info>(
     Ok(())
 }
 
-pub fn handle_update_user_high_leverage_mode(
-    ctx: Context<UpdateUserHighLeverageMode>,
+pub fn handle_update_user_high_leverage_mode<'c: 'info, 'info>(
+    ctx: Context<'_, '_, 'c, 'info, UpdateUserHighLeverageMode>,
     _sub_account_id: u16,
 ) -> Result<()> {
+    let state = &ctx.accounts.state;
     let mut user = load_mut!(ctx.accounts.user)?;
+
+    let AccountMaps {
+        perp_market_map,
+        spot_market_map,
+        mut oracle_map,
+    } = load_maps(
+        &mut ctx.remaining_accounts.iter().peekable(),
+        &MarketSet::new(),
+        &MarketSet::new(),
+        Clock::get()?.slot,
+        Some(state.oracle_guard_rails),
+    )?;
 
     validate!(
         user.margin_mode != MarginMode::HighLeverage,
         ErrorCode::DefaultError,
         "user already in high leverage mode"
+    )?;
+
+    meets_maintenance_margin_requirement(
+        &user,
+        &perp_market_map,
+        &spot_market_map,
+        &mut oracle_map,
     )?;
 
     user.margin_mode = MarginMode::HighLeverage;
@@ -2501,6 +2522,7 @@ pub struct Swap<'info> {
     sub_account_id: u16,
 )]
 pub struct UpdateUserHighLeverageMode<'info> {
+    pub state: Box<Account<'info, State>>,
     #[account(
         mut,
         seeds = [b"user", authority.key.as_ref(), sub_account_id.to_le_bytes().as_ref()],
