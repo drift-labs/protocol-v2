@@ -297,7 +297,7 @@ export const DevnetPerpMarkets: PerpMarketConfig[] = [
 		symbol: 'W-PERP',
 		baseAssetSymbol: 'W',
 		marketIndex: 23,
-		oracle: new PublicKey('4iCi4DvXrubHQne8jzbMaWL3pd7v1Fip8iTe4H9vHNXB'),
+		oracle: new PublicKey('J9nrFWjDUeDVZ4BhhxsbQXWgLcLEgQyNBrCbwSADmJdr'),
 		launchTs: 1709852537000,
 		oracleSource: OracleSource.SWITCHBOARD_ON_DEMAND,
 		pythFeedId:
