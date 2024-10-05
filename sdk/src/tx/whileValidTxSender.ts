@@ -5,6 +5,7 @@ import {
 	SendTransactionError,
 	Signer,
 	Transaction,
+	TransactionConfirmationStatus,
 	VersionedTransaction,
 } from '@solana/web3.js';
 import { BaseTxSender } from './baseTxSender';
@@ -12,6 +13,7 @@ import bs58 from 'bs58';
 import { TxHandler } from './txHandler';
 import { IWallet } from '../types';
 import { DEFAULT_CONFIRMATION_OPTS } from '../config';
+import { TransactionConfirmationManager } from '../util/TransactionConfirmationManager';
 
 const DEFAULT_RETRY = 2000;
 
@@ -33,6 +35,8 @@ export class WhileValidTxSender extends BaseTxSender {
 	>();
 
 	useBlockHeightOffset = true;
+
+	transactionConfirmationManager: TransactionConfirmationManager;
 
 	private async checkAndSetUseBlockHeightOffset() {
 		this.connection.getVersion().then((version) => {
@@ -93,6 +97,10 @@ export class WhileValidTxSender extends BaseTxSender {
 		this.retrySleep = retrySleep;
 
 		this.checkAndSetUseBlockHeightOffset();
+
+		this.transactionConfirmationManager = new TransactionConfirmationManager(
+			this.connection
+		);
 	}
 
 	async sleep(reference: ResolveReference): Promise<void> {
@@ -230,8 +238,42 @@ export class WhileValidTxSender extends BaseTxSender {
 		try {
 			const result = await this.confirmTransaction(txid, opts.commitment);
 
+			/*
+			HELP FOR DIAGNOSING MEMORY LEAK :: 
+			
+			CHECK 1: This is the old version of our transaction confirmation code. If the memory leak goes away with this then there is a bug in BaseTxSender's `confirmTransaction` method which is unchanged. Unfortunately this old code deprecates with the 2.0 upgrade in a few days. If we find the confirmTransaction method is the culprit, it might be worth checking if the memory leak goes away when using the new TransactionConfirmationManager class instead (in CHECK 2 below). If this is NOT the culprit then the memory leak must have been introduced by me in the changes I made under the hood of `checkConfirmationResultForError` because I haven't made any other changes to this class. Hopefully it's easy to figure out because that error reporting code isn't too complex - it's all done through the `reportTransactionError.ts` file now.
+			*/
+
+			// THING TO CHECK 1
+			// <uncommment this code and remove the previous confirmation logic>
+			// const VALID_BLOCK_HEIGHT_OFFSET = -150;
+			// const { blockhash, lastValidBlockHeight } = this.untilValid.get(txid);
+			// const result = await this.connection.confirmTransaction(
+			// 	{
+			// 		signature: txid,
+			// 		blockhash,
+			// 		lastValidBlockHeight: this.useBlockHeightOffset
+			// 			? lastValidBlockHeight + VALID_BLOCK_HEIGHT_OFFSET
+			// 			: lastValidBlockHeight,
+			// 	},
+			// 	opts?.commitment
+			// );
+
+			// THING TO CHECK 2
+			// <uncommment this code and remove the previous confirmation logic>
+			// const transactionConfirmationManager = new TransactionConfirmationManager(
+			// 	this.connection
+			// );
+			// const result =
+			// 	await transactionConfirmationManager.confirmTransactionWebSocket(
+			// 		txid,
+			// 		this.timeout,
+			// 		this.opts?.commitment as TransactionConfirmationStatus
+			// 	);
+
 			this.txSigCache?.set(txid, true);
 
+			// THING TO CHECK 3 :: If the previous checks don't fix the memory leak - it must be in this error reporting code!
 			await this.checkConfirmationResultForError(txid, result.value);
 
 			if (result?.value?.err) {
