@@ -1268,6 +1268,48 @@ export class AdminClient extends DriftClient {
 		);
 	}
 
+	public async updatePerpMarketHighLeverageMarginRatio(
+		perpMarketIndex: number,
+		marginRatioInitial: number,
+		marginRatioMaintenance: number
+	): Promise<TransactionSignature> {
+		const updatePerpMarketHighLeverageMarginRatioIx =
+			await this.getUpdatePerpMarketHighLeverageMarginRatioIx(
+				perpMarketIndex,
+				marginRatioInitial,
+				marginRatioMaintenance
+			);
+
+		const tx = await this.buildTransaction(updatePerpMarketHighLeverageMarginRatioIx);
+
+		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+
+		return txSig;
+	}
+
+	public async getUpdatePerpMarketHighLeverageMarginRatioIx(
+		perpMarketIndex: number,
+		marginRatioInitial: number,
+		marginRatioMaintenance: number
+	): Promise<TransactionInstruction> {
+		return await this.program.instruction.updatePerpMarketHighLeverageMarginRatio(
+			marginRatioInitial,
+			marginRatioMaintenance,
+			{
+				accounts: {
+					admin: this.isSubscribed
+						? this.getStateAccount().admin
+						: this.wallet.publicKey,
+					state: await this.getStatePublicKey(),
+					perpMarket: await getPerpMarketPublicKey(
+						this.program.programId,
+						perpMarketIndex
+					),
+				},
+			}
+		);
+	}
+
 	public async updatePerpMarketImfFactor(
 		perpMarketIndex: number,
 		imfFactor: number,
