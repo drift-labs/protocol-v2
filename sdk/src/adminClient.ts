@@ -31,7 +31,7 @@ import {
 	getPrelaunchOraclePublicKey,
 	getOpenbookV2FulfillmentConfigPublicKey,
 	getPythPullOraclePublicKey,
-	getUserStatsAccountPublicKey,
+	getUserStatsAccountPublicKey, getHighLeverageModeConfigPublicKey,
 } from './addresses/pda';
 import { squareRootBN } from './math/utils';
 import { TOKEN_PROGRAM_ID } from '@solana/spl-token';
@@ -3843,6 +3843,72 @@ export class AdminClient extends DriftClient {
 						feedIdBuffer
 					),
 					pythSolanaReceiver: DRIFT_ORACLE_RECEIVER_ID,
+				},
+			}
+		);
+	}
+
+	public async initializeHighLeverageModeConfig(maxUsers: number): Promise<TransactionSignature> {
+		const initializeHighLeverageModeConfigIx =
+			await this.getInitializeHighLeverageModeConfigIx(maxUsers);
+
+		const tx = await this.buildTransaction(
+			initializeHighLeverageModeConfigIx
+		);
+
+		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+
+		return txSig;
+	}
+
+	public async getInitializeHighLeverageModeConfigIx(maxUsers: number): Promise<TransactionInstruction> {
+		return await this.program.instruction.initializeHighLeverageModeConfig(
+			maxUsers,
+			{
+				accounts: {
+					admin: this.isSubscribed
+						? this.getStateAccount().admin
+						: this.wallet.publicKey,
+					state: await this.getStatePublicKey(),
+					rent: SYSVAR_RENT_PUBKEY,
+					systemProgram: anchor.web3.SystemProgram.programId,
+					highLeverageModeConfig:
+						getHighLeverageModeConfigPublicKey(this.program.programId),
+				},
+			}
+		);
+	}
+
+	public async updateUpdateHighLeverageModeConfig(
+		maxUsers: number
+	): Promise<TransactionSignature> {
+		const updateHighLeverageModeConfigIx =
+			await this.getUpdateHighLeverageModeConfigIx(
+				maxUsers
+			);
+
+		const tx = await this.buildTransaction(
+			updateHighLeverageModeConfigIx
+		);
+
+		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+
+		return txSig;
+	}
+
+	public async getUpdateHighLeverageModeConfigIx(
+		maxUsers: number,
+	): Promise<TransactionInstruction> {
+		return await this.program.instruction.updateHighLeverageModeConfig(
+			maxUsers,
+			{
+				accounts: {
+					admin: this.isSubscribed
+						? this.getStateAccount().admin
+						: this.wallet.publicKey,
+					state: await this.getStatePublicKey(),
+					highLeverageModeConfig:
+						getHighLeverageModeConfigPublicKey(this.program.programId),
 				},
 			}
 		);
