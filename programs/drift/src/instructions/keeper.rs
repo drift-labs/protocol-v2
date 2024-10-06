@@ -1913,7 +1913,7 @@ pub fn handle_disable_user_high_leverage_mode<'c: 'info, 'info>(
     )?;
 
     // only check if signer is not user authority
-    if user.authority != *ctx.accounts.signer.key {
+    if user.authority != *ctx.accounts.authority.key {
         let slots_since_last_active = slot.safe_sub(user.last_active_slot)?;
 
         validate!(
@@ -2356,7 +2356,7 @@ pub struct UpdatePrelaunchOracle<'info> {
 #[derive(Accounts)]
 pub struct DisableUserHighLeverageMode<'info> {
     pub state: Box<Account<'info, State>>,
-    pub signer: Signer<'info>,
+    pub authority: Signer<'info>,
     #[account(mut)]
     pub user: AccountLoader<'info, User>,
     #[account(mut)]

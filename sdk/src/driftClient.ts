@@ -80,7 +80,7 @@ import { EventEmitter } from 'events';
 import StrictEventEmitter from 'strict-event-emitter-types';
 import {
 	getDriftSignerPublicKey,
-	getDriftStateAccountPublicKey,
+	getDriftStateAccountPublicKey, getHighLeverageModeConfigPublicKey,
 	getInsuranceFundStakeAccountPublicKey,
 	getOpenbookV2FulfillmentConfigPublicKey,
 	getPerpMarketPublicKey,
@@ -7994,6 +7994,69 @@ export class DriftClient {
 		);
 
 		return [postIxs, encodedVaaKeypair];
+	}
+
+	public async enableUserHighLeverageMode(subAccountId: number, txParams?: TxParams): Promise<TransactionSignature> {
+		const { txSig } = await this.sendTransaction(
+			await this.buildTransaction(
+				await this.getEnableHighLeverageModeIx(subAccountId),
+				txParams
+			),
+			[],
+			this.opts
+		);
+		return txSig;
+	}
+
+	public async getEnableHighLeverageModeIx(
+		subAccountId: number
+	) {
+		const ix = await this.program.instruction.enableHighLeverageMode(
+			subAccountId,
+			{
+				accounts: {
+					state: await this.getStatePublicKey(),
+					user: getUserAccountPublicKeySync(
+						this.program.programId,
+						this.wallet.publicKey,
+						subAccountId
+					),
+					authority: this.wallet.publicKey,
+					highLeverageModeConfig: getHighLeverageModeConfigPublicKey(this.program.programId)
+				},
+			}
+		);
+
+		return ix;
+	}
+
+	public async disableUserHighLeverageMode(user: PublicKey, txParams?: TxParams): Promise<TransactionSignature> {
+		const { txSig } = await this.sendTransaction(
+			await this.buildTransaction(
+				await this.getDisableHighLeverageModeIx(user),
+				txParams
+			),
+			[],
+			this.opts
+		);
+		return txSig;
+	}
+
+	public async getDisableHighLeverageModeIx(
+		user: PublicKey,
+	) {
+		const ix = await this.program.instruction.disableHighLeverageMode(
+			{
+				accounts: {
+					state: await this.getStatePublicKey(),
+					user,
+					authority: this.wallet.publicKey,
+					highLeverageModeConfig: getHighLeverageModeConfigPublicKey(this.program.programId)
+				},
+			}
+		);
+
+		return ix;
 	}
 
 	private handleSignedTransaction(signedTxs: SignedTxData[]) {

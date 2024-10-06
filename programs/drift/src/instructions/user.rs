@@ -2106,8 +2106,8 @@ pub fn handle_deposit_into_spot_market_revenue_pool<'c: 'info, 'info>(
     Ok(())
 }
 
-pub fn handle_update_user_high_leverage_mode<'c: 'info, 'info>(
-    ctx: Context<'_, '_, 'c, 'info, UpdateUserHighLeverageMode>,
+pub fn handle_enable_user_high_leverage_mode<'c: 'info, 'info>(
+    ctx: Context<'_, '_, 'c, 'info, EnableUserHighLeverageMode>,
     _sub_account_id: u16,
 ) -> Result<()> {
     let state = &ctx.accounts.state;
@@ -2521,7 +2521,7 @@ pub struct Swap<'info> {
 #[instruction(
     sub_account_id: u16,
 )]
-pub struct UpdateUserHighLeverageMode<'info> {
+pub struct EnableUserHighLeverageMode<'info> {
     pub state: Box<Account<'info, State>>,
     #[account(
         mut,
