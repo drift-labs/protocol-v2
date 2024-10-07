@@ -214,7 +214,8 @@ export function calculateMarginUSDCRequiredForTrade(
 	driftClient: DriftClient,
 	targetMarketIndex: number,
 	baseSize: BN,
-	userMaxMarginRatio?: number
+	userMaxMarginRatio?: number,
+	userHighLeverageMode?: boolean,
 ): BN {
 	const targetMarket = driftClient.getPerpMarketAccount(targetMarketIndex);
 	const oracleData = driftClient.getOracleDataForPerpMarket(
@@ -232,7 +233,8 @@ export function calculateMarginUSDCRequiredForTrade(
 			targetMarket,
 			baseSize.abs(),
 			'Initial',
-			userMaxMarginRatio
+			userMaxMarginRatio,
+			userHighLeverageMode,
 		)
 	)
 		.mul(perpLiabilityValue)
@@ -251,13 +253,15 @@ export function calculateCollateralDepositRequiredForTrade(
 	targetMarketIndex: number,
 	baseSize: BN,
 	collateralIndex: number,
-	userMaxMarginRatio?: number
+	userMaxMarginRatio?: number,
+	userHighLeverageMode?: boolean,
 ): BN {
 	const marginRequiredUsdc = calculateMarginUSDCRequiredForTrade(
 		driftClient,
 		targetMarketIndex,
 		baseSize,
-		userMaxMarginRatio
+		userMaxMarginRatio,
+		userHighLeverageMode,
 	);
 
 	const collateralMarket = driftClient.getSpotMarketAccount(collateralIndex);
