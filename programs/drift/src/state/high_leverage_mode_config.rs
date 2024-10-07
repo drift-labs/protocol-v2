@@ -10,11 +10,12 @@ use anchor_lang::prelude::*;
 pub struct HighLeverageModeConfig {
     pub max_users: u32,
     pub current_users: u32,
+    pub padding: [u8; 32],
 }
 
 // implement SIZE const for ProtocolIfSharesTransferConfig
 impl Size for HighLeverageModeConfig {
-    const SIZE: usize = 16;
+    const SIZE: usize = 48;
 }
 
 impl HighLeverageModeConfig {
