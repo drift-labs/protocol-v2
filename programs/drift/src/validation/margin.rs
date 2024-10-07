@@ -31,6 +31,10 @@ pub fn validate_margin(
             return Err(ErrorCode::InvalidMarginRatio);
         }
 
+        if high_leverage_margin_ratio_initial <= high_leverage_margin_ratio_maintenance {
+            return Err(ErrorCode::InvalidMarginRatio);
+        }
+
         if !(HIGH_LEVERAGE_MIN_MARGIN_RATIO..=MAX_MARGIN_RATIO)
             .contains(&high_leverage_margin_ratio_initial)
         {
