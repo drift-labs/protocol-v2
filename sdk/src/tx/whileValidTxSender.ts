@@ -1,4 +1,4 @@
-import { TxSigAndSlot } from './types';
+import { ConfirmationStrategy, TxSigAndSlot } from './types';
 import {
 	ConfirmOptions,
 	Connection,
@@ -62,6 +62,7 @@ export class WhileValidTxSender extends BaseTxSender {
 		opts = { ...DEFAULT_CONFIRMATION_OPTS, maxRetries: 0 },
 		retrySleep = DEFAULT_RETRY,
 		additionalConnections = new Array<Connection>(),
+		confirmationStrategy = ConfirmationStrategy.Combo,
 		additionalTxSenderCallbacks = [],
 		txHandler,
 		trackTxLandRate,
@@ -74,6 +75,7 @@ export class WhileValidTxSender extends BaseTxSender {
 		retrySleep?: number;
 		additionalConnections?;
 		additionalTxSenderCallbacks?: ((base58EncodedTx: string) => void)[];
+		confirmationStrategy: ConfirmationStrategy;
 		txHandler?: TxHandler;
 		trackTxLandRate?: boolean;
 		txLandRateLookbackWindowMinutes?: number;
@@ -88,6 +90,7 @@ export class WhileValidTxSender extends BaseTxSender {
 			txHandler,
 			trackTxLandRate,
 			txLandRateLookbackWindowMinutes,
+			confirmationStrategy,
 			landRateToFeeFunc,
 		});
 		this.retrySleep = retrySleep;
