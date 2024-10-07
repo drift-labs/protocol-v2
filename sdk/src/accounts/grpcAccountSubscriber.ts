@@ -2,13 +2,16 @@ import { ResubOpts, GrpcConfigs } from './types';
 import { Program } from '@coral-xyz/anchor';
 import { PublicKey } from '@solana/web3.js';
 import * as Buffer from 'buffer';
-import { ClientDuplexStream } from '@grpc/grpc-js';
-import Client, {
+
+import { WebSocketAccountSubscriber } from './webSocketAccountSubscriber';
+import {
+	Client,
+	ClientDuplexStream,
 	CommitmentLevel,
+	createClient,
 	SubscribeRequest,
 	SubscribeUpdate,
-} from '@triton-one/yellowstone-grpc';
-import { WebSocketAccountSubscriber } from './webSocketAccountSubscriber';
+} from '../isomorphic/grpc';
 
 export class grpcAccountSubscriber<T> extends WebSocketAccountSubscriber<T> {
 	client: Client;
@@ -25,12 +28,13 @@ export class grpcAccountSubscriber<T> extends WebSocketAccountSubscriber<T> {
 		resubOpts?: ResubOpts
 	) {
 		super(accountName, program, accountPublicKey, decodeBuffer, resubOpts);
-		this.client = new Client(
+		this.client = createClient(
 			grpcConfigs.endpoint,
 			grpcConfigs.token,
 			grpcConfigs.channelOptions ?? {}
 		);
 		this.commitmentLevel =
+			// @ts-ignore :: isomorphic exported enum fails typescript but will work at runtime
 			grpcConfigs.commitmentLevel ?? CommitmentLevel.CONFIRMED;
 	}
 

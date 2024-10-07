@@ -12,8 +12,7 @@ import { EventEmitter } from 'events';
 import { Context, PublicKey } from '@solana/web3.js';
 import { Account } from '@solana/spl-token';
 import { OracleInfo, OraclePriceData } from '..';
-import { CommitmentLevel } from '@triton-one/yellowstone-grpc';
-import { ChannelOptions } from '@grpc/grpc-js';
+import { ChannelOptions, CommitmentLevel } from '../isomorphic/grpc';
 
 export interface AccountSubscriber<T> {
 	dataAndSlot?: DataAndSlot<T>;
