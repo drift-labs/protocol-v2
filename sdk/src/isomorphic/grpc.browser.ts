@@ -4,5 +4,5 @@ import { Client } from './grpc';
 export function createClient(
 	...args: ConstructorParameters<typeof Client>
 ): Client {
-	throw new Error('Only available in node|server context');
+	throw new Error('Only available in node context');
 }

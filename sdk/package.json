@@ -11,8 +11,8 @@
 	},
 	"scripts": {
 		"lint": "eslint './**/*.{ts,tsx}' --quiet",
-		"build": "yarn clean && tsc && node scripts/postbuild.js server",
-    	"build:client": "yarn clean && tsc && node scripts/postbuild.js client",
+		"build": "yarn clean && tsc && node scripts/postbuild.js node",
+		"build:browser": "yarn clean && tsc && node scripts/postbuild.js browser",
 		"clean": "rm -rf lib",
 		"test": "mocha -r ts-node/register tests/**/*.ts",
 		"test:inspect": "mocha --inspect-brk -r ts-node/register tests/**/*.ts",
