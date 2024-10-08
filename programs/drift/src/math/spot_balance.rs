@@ -1,8 +1,6 @@
 use crate::error::{DriftResult, ErrorCode};
 use crate::math::casting::Cast;
-use crate::math::constants::{
-    ONE_YEAR, PERCENTAGE_PRECISION, SPOT_RATE_PRECISION, SPOT_UTILIZATION_PRECISION,
-};
+use crate::math::constants::{ONE_YEAR, SPOT_RATE_PRECISION, SPOT_UTILIZATION_PRECISION};
 use crate::math::safe_math::{SafeDivFloor, SafeMath};
 use crate::state::oracle::{OraclePriceData, StrictOraclePrice};
 use crate::state::spot_market::{SpotBalanceType, SpotMarket};

@@ -97,8 +97,8 @@ impl<'a> SpotFulfillmentParams for MatchFulfillmentParams<'a> {
 
     fn validate_markets(
         &self,
-        base_market: &SpotMarket,
-        quote_market: &SpotMarket,
+        _base_market: &SpotMarket,
+        _quote_market: &SpotMarket,
     ) -> DriftResult<()> {
         Ok(())
     }
