@@ -1,4 +1,5 @@
-import { PerpMarketAccount, SpotMarketAccount } from '.';
+import { ConfirmOptions } from '@solana/web3.js';
+import { PerpMarketAccount, PublicKey, SpotMarketAccount } from '.';
 import {
 	DevnetPerpMarkets,
 	MainnetPerpMarkets,
@@ -13,6 +14,10 @@ import {
 } from './constants/spotMarkets';
 import { OracleInfo } from './oracles/types';
 import { Program, ProgramAccount } from '@coral-xyz/anchor';
+import {
+	ON_DEMAND_DEVNET_PID,
+	ON_DEMAND_MAINNET_PID,
+} from '@switchboard-xyz/on-demand';
 
 type DriftConfig = {
 	ENV: DriftEnv;
@@ -30,6 +35,7 @@ type DriftConfig = {
 	MARKET_LOOKUP_TABLE: string;
 	SERUM_LOOKUP_TABLE?: string;
 	PYTH_PULL_ORACLE_LOOKUP_TABLE?: string;
+	SB_ON_DEMAND_PID: PublicKey;
 };
 
 export type DriftEnv = 'devnet' | 'mainnet-beta';
@@ -37,6 +43,12 @@ export type DriftEnv = 'devnet' | 'mainnet-beta';
 export const DRIFT_PROGRAM_ID = 'dRiftyHA39MWEi3m9aunc5MzRF1JYuBsbn6VPcn33UH';
 export const DRIFT_ORACLE_RECEIVER_ID =
 	'G6EoTTTgpkNBtVXo96EQp2m6uwwVh2Kt6YidjkmQqoha';
+export const SWIFT_ID = 'SW1fThqrxLzVprnCMpiybiqYQfoNCdduC5uWsSUKChS';
+
+export const DEFAULT_CONFIRMATION_OPTS: ConfirmOptions = {
+	preflightCommitment: 'confirmed',
+	commitment: 'confirmed',
+};
 
 export const configs: { [key in DriftEnv]: DriftConfig } = {
 	devnet: {
@@ -54,6 +66,7 @@ export const configs: { [key in DriftEnv]: DriftConfig } = {
 		SPOT_MARKETS: DevnetSpotMarkets,
 		MARKET_LOOKUP_TABLE: 'FaMS3U4uBojvGn5FSDEPimddcXsCfwkKsFgMVVnDdxGb',
 		DRIFT_ORACLE_RECEIVER_ID,
+		SB_ON_DEMAND_PID: ON_DEMAND_DEVNET_PID,
 	},
 	'mainnet-beta': {
 		ENV: 'mainnet-beta',
@@ -71,6 +84,7 @@ export const configs: { [key in DriftEnv]: DriftConfig } = {
 		MARKET_LOOKUP_TABLE: 'D9cnvzswDikQDf53k4HpQ3KJ9y1Fv3HGGDFYMXnK5T6c',
 		SERUM_LOOKUP_TABLE: 'GPZkp76cJtNL2mphCvT6FXkJCVPpouidnacckR6rzKDN',
 		DRIFT_ORACLE_RECEIVER_ID,
+		SB_ON_DEMAND_PID: ON_DEMAND_MAINNET_PID,
 	},
 };
 

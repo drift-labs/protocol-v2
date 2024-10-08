@@ -148,9 +148,9 @@ pub mod drift {
     pub fn place_and_take_perp_order<'c: 'info, 'info>(
         ctx: Context<'_, '_, 'c, 'info, PlaceAndTake<'info>>,
         params: OrderParams,
-        maker_order_id: Option<u32>,
+        success_condition: Option<u32>,
     ) -> Result<()> {
-        handle_place_and_take_perp_order(ctx, params, maker_order_id)
+        handle_place_and_take_perp_order(ctx, params, success_condition)
     }
 
     pub fn place_and_make_perp_order<'c: 'info, 'info>(
@@ -159,6 +159,20 @@ pub mod drift {
         taker_order_id: u32,
     ) -> Result<()> {
         handle_place_and_make_perp_order(ctx, params, taker_order_id)
+    }
+
+    pub fn place_swift_taker_order<'c: 'info, 'info>(
+        ctx: Context<'_, '_, 'c, 'info, PlaceSwiftTakerOrder<'info>>,
+        swift_message_bytes: Vec<u8>,
+        swift_order_params_message_bytes: Vec<u8>,
+        swift_message_signature: [u8; 64],
+    ) -> Result<()> {
+        handle_place_swift_taker_order(
+            ctx,
+            swift_message_bytes,
+            swift_order_params_message_bytes,
+            swift_message_signature,
+        )
     }
 
     pub fn place_spot_order<'c: 'info, 'info>(

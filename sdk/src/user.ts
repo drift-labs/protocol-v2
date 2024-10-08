@@ -78,6 +78,8 @@ import {
 import { calculateMarketOpenBidAsk } from './math/amm';
 import {
 	calculateBaseAssetValueWithOracle,
+	calculateCollateralDepositRequiredForTrade,
+	calculateMarginUSDCRequiredForTrade,
 	calculateWorstCaseBaseAssetAmount,
 } from './math/margin';
 import { OraclePriceData } from './oracles/types';
@@ -98,7 +100,6 @@ import {
 	calculatePerpFuelBonus,
 	calculateInsuranceFuelBonus,
 } from './math/fuel';
-import { grpcUserAccountSubscriber } from './accounts/grpcUserAccountSubscriber';
 
 export class User {
 	driftClient: DriftClient;
@@ -129,16 +130,6 @@ export class User {
 			);
 		} else if (config.accountSubscription?.type === 'custom') {
 			this.accountSubscriber = config.accountSubscription.userAccountSubscriber;
-		} else if (config.accountSubscription?.type === 'grpc') {
-			this.accountSubscriber = new grpcUserAccountSubscriber(
-				config.accountSubscription.configs,
-				config.driftClient.program,
-				config.userAccountPublicKey,
-				{
-					resubTimeoutMs: config.accountSubscription?.resubTimeoutMs,
-					logResubMessages: config.accountSubscription?.logResubMessages,
-				}
-			);
 		} else {
 			this.accountSubscriber = new WebSocketUserAccountSubscriber(
 				config.driftClient.program,
@@ -2285,6 +2276,7 @@ export class User {
 	 * @param estimatedEntryPrice
 	 * @param marginCategory // allow Initial to be passed in if we are trying to calculate price for DLP de-risking
 	 * @param includeOpenOrders
+	 * @param offsetCollateral // allows calculating the liquidation price after this offset collateral is added to the user's account (e.g. : what will the liquidation price be for this position AFTER I deposit $x worth of collateral)
 	 * @returns Precision : PRICE_PRECISION
 	 */
 	public liquidationPrice(
@@ -2292,7 +2284,8 @@ export class User {
 		positionBaseSizeChange: BN = ZERO,
 		estimatedEntryPrice: BN = ZERO,
 		marginCategory: MarginCategory = 'Maintenance',
-		includeOpenOrders = false
+		includeOpenOrders = false,
+		offsetCollateral = ZERO
 	): BN {
 		const totalCollateral = this.getTotalCollateral(marginCategory);
 		const marginRequirement = this.getMarginRequirement(
@@ -2301,7 +2294,10 @@ export class User {
 			false,
 			includeOpenOrders
 		);
-		let freeCollateral = BN.max(ZERO, totalCollateral.sub(marginRequirement));
+		let freeCollateral = BN.max(
+			ZERO,
+			totalCollateral.sub(marginRequirement)
+		).add(offsetCollateral);
 
 		const oracle =
 			this.driftClient.getPerpMarketAccount(marketIndex).amm.oracle;
@@ -2601,6 +2597,32 @@ export class User {
 			positionMarketIndex,
 			closeBaseAmount,
 			estimatedEntryPrice
+		);
+	}
+
+	public getMarginUSDCRequiredForTrade(
+		targetMarketIndex: number,
+		baseSize: BN
+	): BN {
+		return calculateMarginUSDCRequiredForTrade(
+			this.driftClient,
+			targetMarketIndex,
+			baseSize,
+			this.getUserAccount().maxMarginRatio
+		);
+	}
+
+	public getCollateralDepositRequiredForTrade(
+		targetMarketIndex: number,
+		baseSize: BN,
+		collateralIndex: number
+	): BN {
+		return calculateCollateralDepositRequiredForTrade(
+			this.driftClient,
+			targetMarketIndex,
+			baseSize,
+			collateralIndex,
+			this.getUserAccount().maxMarginRatio
 		);
 	}
 

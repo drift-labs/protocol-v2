@@ -1,7 +1,6 @@
 import { Commitment, PublicKey } from '@solana/web3.js';
 import { Order, UserAccount } from '../types';
 import { DriftClient } from '../driftClient';
-import { GrpcConfigs } from '../accounts/types';
 
 export type OrderSubscriberConfig = {
 	driftClient: DriftClient;
@@ -9,15 +8,6 @@ export type OrderSubscriberConfig = {
 		| {
 				type: 'polling';
 				frequency: number;
-				commitment?: Commitment;
-		  }
-		| {
-				type: 'grpc';
-				skipInitialLoad?: boolean;
-				resubTimeoutMs?: number;
-				logResubMessages?: boolean;
-				resyncIntervalMs?: number;
-				configs: GrpcConfigs;
 				commitment?: Commitment;
 		  }
 		| {

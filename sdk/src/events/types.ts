@@ -56,11 +56,7 @@ export const DefaultEventSubscriptionOptions: EventSubscriptionOptions = {
 	commitment: 'confirmed',
 	maxTx: 4096,
 	logProviderConfig: {
-		type: 'events-server',
-		url: 'wss://events.drift.trade/ws',
-		maxReconnectAttempts: 5,
-		fallbackFrequency: 1000,
-		fallbackBatchSize: 100,
+		type: 'websocket',
 	},
 };
 

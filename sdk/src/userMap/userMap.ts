@@ -36,7 +36,6 @@ import {
 import { WebsocketSubscription } from './WebsocketSubscription';
 import { PollingSubscription } from './PollingSubscription';
 import { decodeUser } from '../decode/user';
-import { grpcSubscription } from './grpcSubscription';
 
 const MAX_USER_ACCOUNT_SIZE_BYTES = 4376;
 
@@ -76,10 +75,7 @@ export class UserMap implements UserMapInterface {
 	private includeIdle: boolean;
 	private disableSyncOnTotalAccountsChange: boolean;
 	private lastNumberOfSubAccounts: BN;
-	private subscription:
-		| PollingSubscription
-		| WebsocketSubscription
-		| grpcSubscription;
+	private subscription: PollingSubscription | WebsocketSubscription;
 	private stateAccountUpdateCallback = async (state: StateAccount) => {
 		if (!state.numberOfSubAccounts.eq(this.lastNumberOfSubAccounts)) {
 			await this.sync();
@@ -129,18 +125,6 @@ export class UserMap implements UserMapInterface {
 				userMap: this,
 				frequency: config.subscriptionConfig.frequency,
 				skipInitialLoad: config.skipInitialLoad,
-			});
-		} else if (config.subscriptionConfig.type === 'grpc') {
-			this.subscription = new grpcSubscription({
-				configs: config.subscriptionConfig.configs,
-				userMap: this,
-				commitment: this.commitment,
-				resubOpts: {
-					resubTimeoutMs: config.subscriptionConfig.resubTimeoutMs,
-					logResubMessages: config.subscriptionConfig.logResubMessages,
-				},
-				skipInitialLoad: config.skipInitialLoad,
-				decodeFn,
 			});
 		} else {
 			this.subscription = new WebsocketSubscription({

@@ -554,7 +554,7 @@
           }
         },
         {
-          "name": "makerOrderId",
+          "name": "successCondition",
           "type": {
             "option": "u32"
           }
@@ -605,6 +605,60 @@
         {
           "name": "takerOrderId",
           "type": "u32"
+        }
+      ]
+    },
+    {
+      "name": "placeSwiftTakerOrder",
+      "accounts": [
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "user",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "userStats",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "ixSysvar",
+          "isMut": false,
+          "isSigner": false,
+          "docs": [
+            "the supplied Sysvar could be anything else.",
+            "The Instruction Sysvar has not been implemented",
+            "in the Anchor framework yet, so this is the safe approach."
+          ]
+        }
+      ],
+      "args": [
+        {
+          "name": "swiftMessageBytes",
+          "type": "bytes"
+        },
+        {
+          "name": "swiftOrderParamsMessageBytes",
+          "type": "bytes"
+        },
+        {
+          "name": "swiftMessageSignature",
+          "type": {
+            "array": [
+              "u8",
+              64
+            ]
+          }
         }
       ]
     },
@@ -8051,6 +8105,81 @@
       }
     },
     {
+      "name": "SwiftServerMessage",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "swiftOrderSignature",
+            "type": {
+              "array": [
+                "u8",
+                64
+              ]
+            }
+          },
+          {
+            "name": "slot",
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "SwiftOrderParamsMessage",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "swiftOrderParams",
+            "type": {
+              "defined": "OrderParams"
+            }
+          },
+          {
+            "name": "expectedOrderId",
+            "type": "i32"
+          },
+          {
+            "name": "subAccountId",
+            "type": "u16"
+          },
+          {
+            "name": "takeProfitOrderParams",
+            "type": {
+              "option": {
+                "defined": "SwiftTriggerOrderParams"
+              }
+            }
+          },
+          {
+            "name": "stopLossOrderParams",
+            "type": {
+              "option": {
+                "defined": "SwiftTriggerOrderParams"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "SwiftTriggerOrderParams",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "triggerPrice",
+            "type": "u64"
+          },
+          {
+            "name": "baseAssetAmount",
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
       "name": "ModifyOrderParams",
       "type": {
         "kind": "struct",
@@ -10118,6 +10247,20 @@
           },
           {
             "name": "MustModify"
+          }
+        ]
+      }
+    },
+    {
+      "name": "PlaceAndTakeOrderSuccessCondition",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "PartialFill"
+          },
+          {
+            "name": "FullFill"
           }
         ]
       }
@@ -12958,6 +13101,31 @@
       "code": 6284,
       "name": "InvalidPredictionMarketOrder",
       "msg": "Invalid prediction market order"
+    },
+    {
+      "code": 6285,
+      "name": "InvalidVerificationIxIndex",
+      "msg": "Ed25519 Ix must be before place and make swift order ix"
+    },
+    {
+      "code": 6286,
+      "name": "SigVerificationFailed",
+      "msg": "Swift message verificaiton failed"
+    },
+    {
+      "code": 6287,
+      "name": "MismatchedSwiftOrderParamsMarketIndex",
+      "msg": "Market index mismatched b/w taker and maker swift order params"
+    },
+    {
+      "code": 6288,
+      "name": "InvalidSwiftOrderParam",
+      "msg": "Swift only available for market/oracle perp orders"
+    },
+    {
+      "code": 6289,
+      "name": "PlaceAndTakeOrderSuccessConditionFailed",
+      "msg": "Place and take order success condition failed"
     }
   ],
   "metadata": {

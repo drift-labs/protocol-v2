@@ -15,22 +15,22 @@ import {
 	TransactionSignature,
 	Connection,
 	VersionedTransaction,
-	SendTransactionError,
 	TransactionInstruction,
 	AddressLookupTableAccount,
 	BlockhashWithExpiryBlockHeight,
 } from '@solana/web3.js';
-import { AnchorProvider } from '@coral-xyz/anchor';
 import assert from 'assert';
 import bs58 from 'bs58';
 import { TxHandler } from './txHandler';
 import { IWallet } from '../types';
 import NodeCache from 'node-cache';
+import { DEFAULT_CONFIRMATION_OPTS } from '../config';
+import { NOT_CONFIRMED_ERROR_CODE } from '../constants/txConstants';
+import { throwTransactionError } from './reportTransactionError';
 
 const BASELINE_TX_LAND_RATE = 0.9;
 const DEFAULT_TIMEOUT = 35000;
 const DEFAULT_TX_LAND_RATE_LOOKBACK_WINDOW_MINUTES = 10;
-const NOT_CONFIRMED_ERROR_CODE = -1001;
 
 export abstract class BaseTxSender implements TxSender {
 	connection: Connection;
@@ -54,7 +54,7 @@ export abstract class BaseTxSender implements TxSender {
 	public constructor({
 		connection,
 		wallet,
-		opts = AnchorProvider.defaultOptions(),
+		opts = DEFAULT_CONFIRMATION_OPTS,
 		timeout = DEFAULT_TIMEOUT,
 		additionalConnections = new Array<Connection>(),
 		confirmationStrategy = ConfirmationStrategy.Combo,
@@ -406,38 +406,16 @@ export abstract class BaseTxSender implements TxSender {
 	public async checkConfirmationResultForError(
 		txSig: string,
 		result: SignatureResult
-	) {
+	): Promise<void> {
 		if (result.err) {
-			await this.reportTransactionError(txSig);
+			await throwTransactionError(
+				txSig,
+				this.connection,
+				this.opts?.commitment
+			);
 		}
 
 		return;
-	}
-
-	public async reportTransactionError(txSig: string) {
-		const transactionResult = await this.connection.getTransaction(txSig, {
-			maxSupportedTransactionVersion: 0,
-		});
-
-		if (!transactionResult?.meta?.err) {
-			return undefined;
-		}
-
-		const logs = transactionResult.meta.logMessages;
-
-		const lastLog = logs[logs.length - 1];
-
-		const friendlyMessage = lastLog?.match(/(failed:) (.+)/)?.[2];
-
-		// @ts-ignore
-		throw new SendTransactionError({
-			action: 'send',
-			signature: txSig,
-			transactionMessage: `Transaction Failed${
-				friendlyMessage ? `: ${friendlyMessage}` : ''
-			}`,
-			logs,
-		});
 	}
 
 	public getTxLandRate(): number {

@@ -29,6 +29,7 @@ export class gprcDriftClientAccountSubscriber extends WebSocketDriftClientAccoun
 			spotMarketIndexes,
 			oracleInfos,
 			shouldFindAllMarketsAndOracles,
+			undefined,
 			resubOpts
 		);
 		this.grpcConfigs = grpcConfigs;

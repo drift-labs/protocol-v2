@@ -1,4 +1,9 @@
-import { PublicKey, Transaction, VersionedTransaction } from '@solana/web3.js';
+import {
+	Keypair,
+	PublicKey,
+	Transaction,
+	VersionedTransaction,
+} from '@solana/web3.js';
 import { BN, ZERO } from '.';
 
 // Utility type which lets you denote record with values of type A mapped to a record with the same keys but values of type B
@@ -1051,6 +1056,24 @@ export const DefaultOrderParams: OrderParams = {
 	auctionEndPrice: null,
 };
 
+export type SwiftServerMessage = {
+	slot: BN;
+	swiftOrderSignature: Uint8Array;
+};
+
+export type SwiftOrderParamsMessage = {
+	swiftOrderParams: OptionalOrderParams;
+	expectedOrderId: number;
+	subAccountId: number;
+	takeProfitOrderParams: SwiftTriggerOrderParams | null;
+	stopLossOrderParams: SwiftTriggerOrderParams | null;
+};
+
+export type SwiftTriggerOrderParams = {
+	triggerPrice: BN;
+	baseAssetAmount: BN;
+};
+
 export type MakerInfo = {
 	maker: PublicKey;
 	makerStats: PublicKey;
@@ -1069,6 +1092,11 @@ export type ReferrerInfo = {
 	referrer: PublicKey;
 	referrerStats: PublicKey;
 };
+
+export enum PlaceAndTakeOrderSuccessCondition {
+	PartialFill = 1,
+	FullFill = 2,
+}
 
 type ExactType<T> = Pick<T, keyof T>;
 
@@ -1097,6 +1125,7 @@ export interface IWallet {
 	signTransaction(tx: Transaction): Promise<Transaction>;
 	signAllTransactions(txs: Transaction[]): Promise<Transaction[]>;
 	publicKey: PublicKey;
+	payer?: Keypair;
 }
 export interface IVersionedWallet {
 	signVersionedTransaction(
@@ -1106,6 +1135,7 @@ export interface IVersionedWallet {
 		txs: VersionedTransaction[]
 	): Promise<VersionedTransaction[]>;
 	publicKey: PublicKey;
+	payer?: Keypair;
 }
 
 export type FeeStructure = {
