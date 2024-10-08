@@ -4160,10 +4160,13 @@ pub fn handle_initialize_high_leverage_mode_config(
 pub fn handle_update_high_leverage_mode_config(
     ctx: Context<UpdateHighLeverageModeConfig>,
     max_users: u32,
+    reduce_only: bool,
 ) -> Result<()> {
     let mut config = load_mut!(ctx.accounts.high_leverage_mode_config)?;
 
     config.max_users = max_users;
+
+    config.reduce_only = reduce_only as u8;
 
     config.validate()?;
 

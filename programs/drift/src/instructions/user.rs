@@ -2142,6 +2142,12 @@ pub fn handle_enable_user_high_leverage_mode<'c: 'info, 'info>(
 
     let mut config = load_mut!(ctx.accounts.high_leverage_mode_config)?;
 
+    validate!(
+        !config.is_reduce_only(),
+        ErrorCode::DefaultError,
+        "high leverage mode config reduce only"
+    )?;
+
     config.current_users = config.current_users.safe_add(1)?;
 
     config.validate()?;

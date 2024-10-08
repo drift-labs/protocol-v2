@@ -1471,6 +1471,14 @@ pub mod drift {
     ) -> Result<()> {
         handle_initialize_high_leverage_mode_config(ctx, max_users)
     }
+
+    pub fn update_high_leverage_mode_config(
+        ctx: Context<UpdateHighLeverageModeConfig>,
+        max_users: u32,
+        reduce_only: bool,
+    ) -> Result<()> {
+        handle_update_high_leverage_mode_config(ctx, max_users, reduce_only)
+    }
 }
 
 #[cfg(not(feature = "no-entrypoint"))]

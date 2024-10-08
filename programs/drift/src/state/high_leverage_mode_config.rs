@@ -10,7 +10,8 @@ use anchor_lang::prelude::*;
 pub struct HighLeverageModeConfig {
     pub max_users: u32,
     pub current_users: u32,
-    pub padding: [u8; 32],
+    pub reduce_only: u8,
+    pub padding: [u8; 31],
 }
 
 // implement SIZE const for ProtocolIfSharesTransferConfig
@@ -29,5 +30,9 @@ impl HighLeverageModeConfig {
         )?;
 
         Ok(())
+    }
+
+    pub fn is_reduce_only(&self) -> bool {
+        self.reduce_only > 0
     }
 }

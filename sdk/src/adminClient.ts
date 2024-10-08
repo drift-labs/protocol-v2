@@ -3922,11 +3922,13 @@ export class AdminClient extends DriftClient {
 	}
 
 	public async updateUpdateHighLeverageModeConfig(
-		maxUsers: number
+		maxUsers: number,
+		reduceOnly: boolean,
 	): Promise<TransactionSignature> {
 		const updateHighLeverageModeConfigIx =
 			await this.getUpdateHighLeverageModeConfigIx(
-				maxUsers
+				maxUsers,
+				reduceOnly,
 			);
 
 		const tx = await this.buildTransaction(
@@ -3940,9 +3942,11 @@ export class AdminClient extends DriftClient {
 
 	public async getUpdateHighLeverageModeConfigIx(
 		maxUsers: number,
+		reduceOnly: boolean,
 	): Promise<TransactionInstruction> {
 		return await this.program.instruction.updateHighLeverageModeConfig(
 			maxUsers,
+			reduceOnly,
 			{
 				accounts: {
 					admin: this.isSubscribed
