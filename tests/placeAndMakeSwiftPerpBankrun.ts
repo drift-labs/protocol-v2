@@ -3,7 +3,7 @@ import { assert } from 'chai';
 
 import { Program } from '@coral-xyz/anchor';
 
-import { Keypair } from '@solana/web3.js';
+import { Keypair, PublicKey } from '@solana/web3.js';
 
 import {
 	BN,
@@ -22,6 +22,7 @@ import {
 	getMarketOrderParams,
 	loadKeypair,
 	SwiftServerMessage,
+	ANCHOR_TEST_SWIFT_ID,
 } from '../sdk/src';
 
 import {
@@ -131,6 +132,7 @@ describe('place and make swift order', () => {
 				type: 'polling',
 				accountLoader: bulkAccountLoader,
 			},
+			swiftID: new PublicKey(ANCHOR_TEST_SWIFT_ID),
 		});
 		await makerDriftClient.initialize(usdcMint.publicKey, true);
 		await makerDriftClient.subscribe();
