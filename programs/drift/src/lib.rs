@@ -366,6 +366,12 @@ pub mod drift {
         handle_update_user_idle(ctx)
     }
 
+    pub fn update_user_fuel_bonus<'c: 'info, 'info>(
+        ctx: Context<'_, '_, 'c, 'info, UpdateUserIdle<'info>>,
+    ) -> Result<()> {
+        handle_update_user_fuel_bonus(ctx)
+    }
+
     pub fn update_user_open_orders_count(ctx: Context<UpdateUserIdle>) -> Result<()> {
         handle_update_user_open_orders_count(ctx)
     }
