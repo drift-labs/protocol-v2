@@ -44,7 +44,6 @@ export class AuctionSubscriberGrpc {
 				),
 				{
 					filters: [getUserFilter(), getUserWithAuctionFilter()],
-					commitment: this.opts.commitment,
 				},
 				this.resubOpts
 			);

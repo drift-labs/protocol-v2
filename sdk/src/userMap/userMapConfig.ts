@@ -30,7 +30,7 @@ export type UserMapConfig = {
 		  }
 		| {
 				type: 'grpc';
-				configs: GrpcConfigs;
+				grpcConfigs: GrpcConfigs;
 				resubTimeoutMs?: number;
 				logResubMessages?: boolean;
 		  }
