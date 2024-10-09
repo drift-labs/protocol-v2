@@ -15,12 +15,10 @@ import {
 	InsuranceFundStakeRecord,
 	BulkAccountLoader,
 	PollingUserStatsAccountSubscriber,
-	getUserStatsFilter,
 } from '..';
-import { PublicKey, RpcResponseAndContext } from '@solana/web3.js';
+import { PublicKey } from '@solana/web3.js';
 
 import { UserMap } from './userMap';
-import { bs58 } from '@coral-xyz/anchor/dist/cjs/utils/bytes';
 
 export class UserStatsMap {
 	/**
@@ -216,7 +214,7 @@ export class UserStatsMap {
 	 */
 	public async sync(
 		authorities: PublicKey[] = [],
-		getMultipleAccountsPageSize: number = 100
+		getMultipleAccountsPageSize = 100
 	): Promise<void> {
 		if (this.fetchPromise) {
 			return this.fetchPromise;
@@ -227,16 +225,6 @@ export class UserStatsMap {
 		});
 
 		try {
-			const rpcRequestArgs = [
-				this.driftClient.program.programId.toBase58(),
-				{
-					commitment: this.driftClient.opts.commitment,
-					filters: [getUserStatsFilter()],
-					encoding: 'base64',
-					withContext: true,
-				},
-			];
-
 			const userStatsAccounts = authorities.map((auth) => {
 				return getUserStatsAccountPublicKey(
 					this.driftClient.program.programId,

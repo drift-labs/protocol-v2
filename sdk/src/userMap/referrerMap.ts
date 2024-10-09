@@ -1,8 +1,7 @@
 import { PublicKey, RpcResponseAndContext } from '@solana/web3.js';
 import { BulkAccountLoader } from '../accounts/bulkAccountLoader';
 import { DriftClient } from '../driftClient';
-import { ReferrerInfo, UserStatsAccount } from '../types';
-import { PollingUserStatsAccountSubscriber } from '../accounts/pollingUserStatsAccountSubscriber';
+import { ReferrerInfo } from '../types';
 import { UserStats } from '../userStats';
 import {
 	getUserAccountPublicKeySync,
