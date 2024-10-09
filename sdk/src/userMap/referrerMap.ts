@@ -117,14 +117,6 @@ export class ReferrerMap {
 		return this.referrerMap.size;
 	}
 
-	/**
-	 * Sync the UserStatsMap by pre-loading all UserStats accounts.
-	 *
-	 * @param authorities if provided, only decodes and stores accounts for the given authorities.
-	 * This can be a list of auths from a UserMap.getUniqueAuthorities() where idle users are filtered out, greatly reducing the number of UserStats accounts that need to be processed.
-	 *
-	 * @param getMultipleAccountsPageSize getMultipleAccounts page size, RPC limit is 100
-	 */
 	public async sync(): Promise<void> {
 		if (this.fetchPromise) {
 			return this.fetchPromise;
