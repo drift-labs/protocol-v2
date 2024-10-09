@@ -7,7 +7,7 @@ import {
 	getPerpMarketPublicKey,
 	getSpotMarketPublicKey,
 } from '../addresses/pda';
-import { GrpcConfigs, ResubOpts } from './types';
+import { DelistedMarketSetting, GrpcConfigs, ResubOpts } from './types';
 import { grpcAccountSubscriber } from './grpcAccountSubscriber';
 import { PerpMarketAccount, SpotMarketAccount, StateAccount } from '../types';
 
@@ -21,6 +21,7 @@ export class gprcDriftClientAccountSubscriber extends WebSocketDriftClientAccoun
 		spotMarketIndexes: number[],
 		oracleInfos: OracleInfo[],
 		shouldFindAllMarketsAndOracles: boolean,
+		delistedMarketSetting: DelistedMarketSetting,
 		resubOpts?: ResubOpts
 	) {
 		super(
@@ -29,7 +30,7 @@ export class gprcDriftClientAccountSubscriber extends WebSocketDriftClientAccoun
 			spotMarketIndexes,
 			oracleInfos,
 			shouldFindAllMarketsAndOracles,
-			undefined,
+			delistedMarketSetting,
 			resubOpts
 		);
 		this.grpcConfigs = grpcConfigs;
@@ -101,6 +102,8 @@ export class gprcDriftClientAccountSubscriber extends WebSocketDriftClientAccoun
 		]);
 
 		this.eventEmitter.emit('update');
+
+		await this.handleDelistedMarkets();
 
 		await Promise.all([this.setPerpOracleMap(), this.setSpotOracleMap()]);
 

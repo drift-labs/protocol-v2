@@ -28,7 +28,7 @@ export class UserStats {
 			);
 		} else if (config.accountSubscription?.type === 'grpc') {
 			this.accountSubscriber = new grpcUserStatsAccountSubscriber(
-				config.accountSubscription.configs,
+				config.accountSubscription.grpcConfigs,
 				config.driftClient.program,
 				config.userStatsAccountPublicKey,
 				{

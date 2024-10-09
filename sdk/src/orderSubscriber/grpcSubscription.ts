@@ -1,4 +1,4 @@
-import { Commitment, Context, PublicKey } from '@solana/web3.js';
+import { Context, PublicKey } from '@solana/web3.js';
 import { Buffer } from 'buffer';
 import { grpcProgramAccountSubscriber } from '../accounts/grpcProgramAccountSubscriber';
 import { OrderSubscriber } from './OrderSubscriber';
@@ -8,7 +8,6 @@ import { getUserFilter, getNonIdleUserFilter } from '../memcmp';
 
 export class grpcSubscription {
 	private orderSubscriber: OrderSubscriber;
-	private commitment: Commitment;
 	private skipInitialLoad: boolean;
 	private resubOpts?: ResubOpts;
 	private resyncIntervalMs?: number;
@@ -23,7 +22,6 @@ export class grpcSubscription {
 	constructor({
 		grpcConfigs,
 		orderSubscriber,
-		commitment,
 		skipInitialLoad = false,
 		resubOpts,
 		resyncIntervalMs,
@@ -31,14 +29,12 @@ export class grpcSubscription {
 	}: {
 		grpcConfigs: GrpcConfigs;
 		orderSubscriber: OrderSubscriber;
-		commitment: Commitment;
 		skipInitialLoad?: boolean;
 		resubOpts?: ResubOpts;
 		resyncIntervalMs?: number;
 		decoded?: boolean;
 	}) {
 		this.orderSubscriber = orderSubscriber;
-		this.commitment = commitment;
 		this.skipInitialLoad = skipInitialLoad;
 		this.resubOpts = resubOpts;
 		this.resyncIntervalMs = resyncIntervalMs;
@@ -59,7 +55,6 @@ export class grpcSubscription {
 			this.orderSubscriber.decodeFn,
 			{
 				filters: [getUserFilter(), getNonIdleUserFilter()],
-				commitment: this.commitment,
 			},
 			this.resubOpts
 		);

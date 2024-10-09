@@ -27,5 +27,5 @@ export type UserStatsSubscriptionConfig =
 			type: 'grpc';
 			resubTimeoutMs?: number;
 			logResubMessages?: boolean;
-			configs: GrpcConfigs;
+			grpcConfigs: GrpcConfigs;
 	  };
