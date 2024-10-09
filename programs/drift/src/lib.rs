@@ -932,6 +932,13 @@ pub mod drift {
         handle_update_insurance_fund_unstaking_period(ctx, insurance_fund_unstaking_period)
     }
 
+    pub fn update_spot_market_pool_id(
+        ctx: Context<AdminUpdateSpotMarket>,
+        pool_id: u8,
+    ) -> Result<()> {
+        handle_update_spot_market_pool_id(ctx, pool_id)
+    }
+
     pub fn update_spot_market_liquidation_fee(
         ctx: Context<AdminUpdateSpotMarket>,
         liquidator_fee: u32,

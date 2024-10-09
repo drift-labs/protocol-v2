@@ -126,7 +126,8 @@ pub struct User {
     pub open_auctions: u8,
     /// Whether or not user has open order with auction
     pub has_open_auction: bool,
-    pub padding1: [u8; 5],
+    pub pool_id: u8,
+    pub padding1: [u8; 4],
     pub last_fuel_bonus_update_ts: u32,
     pub padding: [u8; 12],
 }
