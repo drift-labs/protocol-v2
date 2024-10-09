@@ -3333,9 +3333,23 @@ export class DriftClient {
 	}
 
 	public async settleExpiredMarketPoolsToRevenuePool(
-		perpMarketIndex: number,
+		marketIndex: number,
 		txParams?: TxParams
 	): Promise<TransactionSignature> {
+		const { txSig } = await this.sendTransaction(
+			await this.buildTransaction(
+				await this.getSettleExpiredMarketPoolsToRevenuePoolIx(marketIndex),
+				txParams
+			),
+			[],
+			this.opts
+		);
+		return txSig;
+	}
+
+	public async getSettleExpiredMarketPoolsToRevenuePoolIx(
+		perpMarketIndex: number
+	): Promise<TransactionInstruction> {
 		const perpMarketPublicKey = await getPerpMarketPublicKey(
 			this.program.programId,
 			perpMarketIndex
@@ -3346,8 +3360,8 @@ export class DriftClient {
 			QUOTE_SPOT_MARKET_INDEX
 		);
 
-		const ix =
-			await this.program.instruction.settleExpiredMarketPoolsToRevenuePool({
+		return await this.program.instruction.settleExpiredMarketPoolsToRevenuePool(
+			{
 				accounts: {
 					state: await this.getStatePublicKey(),
 					admin: this.isSubscribed
@@ -3356,15 +3370,8 @@ export class DriftClient {
 					spotMarket: spotMarketPublicKey,
 					perpMarket: perpMarketPublicKey,
 				},
-			});
-
-		const { txSig } = await this.sendTransaction(
-			await this.buildTransaction(ix, txParams),
-			[],
-			this.opts
+			}
 		);
-
-		return txSig;
 	}
 
 	public async cancelOrder(
