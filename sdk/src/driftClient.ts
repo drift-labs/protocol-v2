@@ -4929,6 +4929,52 @@ export class DriftClient {
 		});
 	}
 
+	public async updateUserFuelBonus(
+		userAccountPublicKey: PublicKey,
+		user: UserAccount,
+		txParams?: TxParams,
+		fillerPublicKey?: PublicKey
+	): Promise<TransactionSignature> {
+		const { txSig } = await this.sendTransaction(
+			await this.buildTransaction(
+				await this.getUpdateUserFuelBonusIx(
+					userAccountPublicKey,
+					user,
+					fillerPublicKey
+				),
+				txParams
+			),
+			[],
+			this.opts
+		);
+		return txSig;
+	}
+
+	public async getUpdateUserFuelBonusIx(
+		userAccountPublicKey: PublicKey,
+		userAccount: UserAccount,
+		userAuthority?: PublicKey
+	): Promise<TransactionInstruction> {
+		const userStatsAccountPublicKey = getUserStatsAccountPublicKey(
+			this.program.programId,
+			userAuthority
+		);
+
+		const remainingAccounts = this.getRemainingAccounts({
+			userAccounts: [userAccount],
+		});
+
+		return await this.program.instruction.updateUserFuelBonus({
+			accounts: {
+				state: await this.getStatePublicKey(),
+				user: userAccountPublicKey,
+				userStats: userStatsAccountPublicKey,
+				authority: this.wallet.publicKey,
+			},
+			remainingAccounts,
+		});
+	}
+
 	public async updateUserOpenOrdersCount(
 		userAccountPublicKey: PublicKey,
 		user: UserAccount,

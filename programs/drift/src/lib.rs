@@ -367,7 +367,7 @@ pub mod drift {
     }
 
     pub fn update_user_fuel_bonus<'c: 'info, 'info>(
-        ctx: Context<'_, '_, 'c, 'info, UpdateUserIdle<'info>>,
+        ctx: Context<'_, '_, 'c, 'info, UpdateUserFuelBonus<'info>>,
     ) -> Result<()> {
         handle_update_user_fuel_bonus(ctx)
     }
