@@ -4932,15 +4932,15 @@ export class DriftClient {
 	public async updateUserFuelBonus(
 		userAccountPublicKey: PublicKey,
 		user: UserAccount,
-		txParams?: TxParams,
-		fillerPublicKey?: PublicKey
+		userAuthority: PublicKey,
+		txParams?: TxParams
 	): Promise<TransactionSignature> {
 		const { txSig } = await this.sendTransaction(
 			await this.buildTransaction(
 				await this.getUpdateUserFuelBonusIx(
 					userAccountPublicKey,
 					user,
-					fillerPublicKey
+					userAuthority
 				),
 				txParams
 			),
@@ -4953,7 +4953,7 @@ export class DriftClient {
 	public async getUpdateUserFuelBonusIx(
 		userAccountPublicKey: PublicKey,
 		userAccount: UserAccount,
-		userAuthority?: PublicKey
+		userAuthority: PublicKey
 	): Promise<TransactionInstruction> {
 		const userStatsAccountPublicKey = getUserStatsAccountPublicKey(
 			this.program.programId,
