@@ -52,6 +52,10 @@ use crate::{controller, load, math, print_error, OracleSource, GOV_SPOT_MARKET_I
 use crate::{load_mut, QUOTE_PRECISION_U64};
 use crate::{validate, QUOTE_PRECISION_I128};
 
+use crate::math::margin::calculate_margin_requirement_and_total_collateral_and_liability_info;
+use crate::math::margin::MarginRequirementType;
+use crate::state::margin_calculation::MarginContext;
+
 #[access_control(
     fill_not_paused(&ctx.accounts.state)
 )]
@@ -418,6 +422,49 @@ pub fn handle_update_user_idle<'c: 'info, 'info>(
     validate_user_is_idle(&user, clock.slot, accelerated)?;
 
     user.idle = true;
+
+    Ok(())
+}
+
+#[access_control(
+    exchange_not_paused(&ctx.accounts.state)
+)]
+pub fn handle_update_user_fuel_bonus<'c: 'info, 'info>(
+    ctx: Context<'_, '_, 'c, 'info, UpdateUserFuelBonus<'info>>,
+) -> Result<()> {
+    let mut user = load_mut!(ctx.accounts.user)?;
+    let user_stats = &mut load_mut!(ctx.accounts.user_stats)?;
+    let clock = Clock::get()?;
+    let now = clock.unix_timestamp;
+
+    let AccountMaps {
+        perp_market_map,
+        spot_market_map,
+        mut oracle_map,
+    } = load_maps(
+        &mut ctx.remaining_accounts.iter().peekable(),
+        &MarketSet::new(),
+        &MarketSet::new(),
+        clock.slot,
+        None,
+    )?;
+
+    let user_margin_calculation =
+        calculate_margin_requirement_and_total_collateral_and_liability_info(
+            &user,
+            &perp_market_map,
+            &spot_market_map,
+            &mut oracle_map,
+            MarginContext::standard(MarginRequirementType::Initial).fuel_numerator(&user, now),
+        )?;
+
+    user_stats.update_fuel_bonus(
+        &mut user,
+        user_margin_calculation.fuel_deposits,
+        user_margin_calculation.fuel_borrows,
+        user_margin_calculation.fuel_positions,
+        now,
+    )?;
 
     Ok(())
 }
@@ -2004,6 +2051,19 @@ pub struct UpdateUserIdle<'info> {
     pub filler: AccountLoader<'info, User>,
     #[account(mut)]
     pub user: AccountLoader<'info, User>,
+}
+
+#[derive(Accounts)]
+pub struct UpdateUserFuelBonus<'info> {
+    pub state: Box<Account<'info, State>>,
+    pub authority: Signer<'info>,
+    #[account(mut)]
+    pub user: AccountLoader<'info, User>,
+    #[account(
+        mut,
+        constraint = is_stats_for_user(&user, &user_stats)?
+    )]
+    pub user_stats: AccountLoader<'info, UserStats>,
 }
 
 #[derive(Accounts)]
