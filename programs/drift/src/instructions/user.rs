@@ -302,6 +302,14 @@ pub fn handle_deposit<'c: 'info, 'info>(
     let oracle_price_data = &oracle_map.get_price_data(&spot_market.oracle)?.clone();
 
     validate!(
+        user.pool_id == spot_market.pool_id,
+        ErrorCode::InvalidPoolId,
+        "user pool id ({}) != market pool id ({})",
+        user.pool_id,
+        spot_market.pool_id
+    )?;
+
+    validate!(
         !matches!(spot_market.status, MarketStatus::Initialized),
         ErrorCode::MarketBeingInitialized,
         "Market is being initialized"
@@ -680,6 +688,14 @@ pub fn handle_transfer_deposit<'c: 'info, 'info>(
     {
         let spot_market = &mut spot_market_map.get_ref_mut(&market_index)?;
 
+        validate!(
+            from_user.pool_id == spot_market.pool_id,
+            ErrorCode::InvalidPoolId,
+            "user pool id ({}) != market pool id ({})",
+            from_user.pool_id,
+            spot_market.pool_id
+        )?;
+
         from_user.increment_total_withdraws(
             amount,
             oracle_price,
@@ -746,6 +762,14 @@ pub fn handle_transfer_deposit<'c: 'info, 'info>(
 
     {
         let spot_market = &mut spot_market_map.get_ref_mut(&market_index)?;
+
+        validate!(
+            to_user.pool_id == spot_market.pool_id,
+            ErrorCode::InvalidPoolId,
+            "user pool id ({}) != market pool id ({})",
+            to_user.pool_id,
+            spot_market.pool_id
+        )?;
 
         to_user.increment_total_deposits(
             amount,

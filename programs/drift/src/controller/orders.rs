@@ -169,6 +169,13 @@ pub fn place_perp_order(
     )?;
 
     validate!(
+        user.pool_id == 0,
+        ErrorCode::InvalidPoolId,
+        "user pool id ({}) != 0",
+        user.pool_id
+    )?;
+
+    validate!(
         !market.is_in_settlement(now),
         ErrorCode::MarketPlaceOrderPaused,
         "Market is in settlement mode",
@@ -3286,6 +3293,13 @@ pub fn place_spot_order(
     let spot_market = &spot_market_map.get_ref(&market_index)?;
     let force_reduce_only = spot_market.is_reduce_only();
     let step_size = spot_market.order_step_size;
+
+    validate!(
+        user.pool_id == 0,
+        ErrorCode::InvalidPoolId,
+        "user pool id ({}) != 0",
+        user.pool_id
+    )?;
 
     validate!(
         !matches!(spot_market.status, MarketStatus::Initialized),

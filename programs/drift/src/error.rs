@@ -585,6 +585,8 @@ pub enum ErrorCode {
     InvalidSwiftOrderParam,
     #[msg("Place and take order success condition failed")]
     PlaceAndTakeOrderSuccessConditionFailed,
+    #[msg("Invalid pool id")]
+    InvalidPoolId,
 }
 
 #[macro_export]
