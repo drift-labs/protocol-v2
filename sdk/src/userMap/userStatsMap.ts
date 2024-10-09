@@ -15,10 +15,12 @@ import {
 	InsuranceFundStakeRecord,
 	BulkAccountLoader,
 	PollingUserStatsAccountSubscriber,
+	getUserStatsFilter,
 } from '..';
-import { PublicKey } from '@solana/web3.js';
+import { PublicKey, RpcResponseAndContext } from '@solana/web3.js';
 
 import { UserMap } from './userMap';
+import { bs58 } from '@coral-xyz/anchor/dist/cjs/utils/bytes';
 
 export class UserStatsMap {
 	/**
@@ -27,6 +29,9 @@ export class UserStatsMap {
 	private userStatsMap = new Map<string, UserStats>();
 	private driftClient: DriftClient;
 	private bulkAccountLoader: BulkAccountLoader;
+
+	private fetchPromise?: Promise<void>;
+	private fetchPromiseResolver: () => void;
 
 	/**
 	 * Creates a new UserStatsMap instance.
@@ -46,7 +51,13 @@ export class UserStatsMap {
 		this.bulkAccountLoader = bulkAccountLoader;
 	}
 
-	public async subscribe(authorities: PublicKey[]) {
+	/**
+	 * Subscribe to all UserStats accounts.
+	 *
+	 * @param authorities if provided, only decodes and stores accounts for the given authorities.
+	 * This can be a list of auths from a UserMap.getUniqueAuthorities() where idle users are filtered out, greatly reducing the number of UserStats accounts that need to be processed.
+	 */
+	public async subscribe(authorities: PublicKey[] = []) {
 		if (this.size() > 0) {
 			return;
 		}
@@ -64,7 +75,7 @@ export class UserStatsMap {
 	public async addUserStat(
 		authority: PublicKey,
 		userStatsAccount?: UserStatsAccount,
-		skipFetch?: boolean
+		skipFetch?: boolean // TODO: can remove this?
 	) {
 		const userStat = new UserStats({
 			driftClient: this.driftClient,
@@ -196,17 +207,82 @@ export class UserStatsMap {
 	}
 
 	/**
-	 * Sync the UserStatsMap
-	 * @param authorities list of authorities to derive UserStatsAccount public keys from.
-	 * You may want to get this list from UserMap in order to filter out idle users
+	 * Sync the UserStatsMap by pre-loading all UserStats accounts.
+	 *
+	 * @param authorities if provided, only decodes and stores accounts for the given authorities.
+	 * This can be a list of auths from a UserMap.getUniqueAuthorities() where idle users are filtered out, greatly reducing the number of UserStats accounts that need to be processed.
+	 *
+	 * @param getMultipleAccountsPageSize getMultipleAccounts page size, RPC limit is 100
 	 */
-	public async sync(authorities: PublicKey[]) {
-		await Promise.all(
-			authorities.map((authority) =>
-				this.addUserStat(authority, undefined, true)
-			)
-		);
-		await this.bulkAccountLoader.load();
+	public async sync(
+		authorities: PublicKey[] = [],
+		getMultipleAccountsPageSize: number = 100
+	): Promise<void> {
+		if (this.fetchPromise) {
+			return this.fetchPromise;
+		}
+
+		this.fetchPromise = new Promise((resolver) => {
+			this.fetchPromiseResolver = resolver;
+		});
+
+		try {
+			const rpcRequestArgs = [
+				this.driftClient.program.programId.toBase58(),
+				{
+					commitment: this.driftClient.opts.commitment,
+					filters: [getUserStatsFilter()],
+					encoding: 'base64',
+					withContext: true,
+				},
+			];
+
+			const userStatsAccounts = authorities.map((auth) => {
+				return getUserStatsAccountPublicKey(
+					this.driftClient.program.programId,
+					auth
+				);
+			});
+
+			for (
+				let i = 0;
+				i < userStatsAccounts.length;
+				i += getMultipleAccountsPageSize
+			) {
+				const auths = userStatsAccounts.slice(
+					i,
+					i + getMultipleAccountsPageSize
+				);
+				const rpcResponseAndContext =
+					await this.driftClient.connection.getMultipleAccountsInfoAndContext(
+						auths,
+						this.driftClient.opts.commitment
+					);
+
+				await Promise.all(
+					rpcResponseAndContext.value.map(async (account) => {
+						const userStatsAccount =
+							this.driftClient.program.account.user.coder.accounts.decodeUnchecked(
+								'UserStats',
+								account.data
+							) as UserStatsAccount;
+						this.addUserStat(
+							userStatsAccount.authority,
+							userStatsAccount,
+							false
+						);
+
+						// give event loop a chance to breathe
+						await new Promise((resolve) => setTimeout(resolve, 0));
+					})
+				);
+			}
+		} catch (e) {
+			console.error(e);
+		} finally {
+			this.fetchPromiseResolver();
+			this.fetchPromise = undefined;
+		}
 	}
 
 	public async unsubscribe() {
