@@ -1031,6 +1031,14 @@ pub fn fill_perp_order(
     let is_filler_maker = makers_and_referrer.0.contains_key(&filler_key);
     let (mut filler, mut filler_stats) = if !is_filler_maker && !is_filler_taker {
         let filler = load_mut!(filler)?;
+
+        validate!(
+            filler.pool_id == 0,
+            ErrorCode::InvalidPoolId,
+            "filler pool id ({}) != 0",
+            filler.pool_id
+        )?;
+
         if filler.authority != user.authority {
             (Some(filler), Some(load_mut!(filler_stats)?))
         } else {
@@ -3582,6 +3590,14 @@ pub fn fill_spot_order(
     let is_filler_maker = makers_and_referrer.0.contains_key(&filler_key);
     let (mut filler, mut filler_stats) = if !is_filler_maker && !is_filler_taker {
         let filler = load_mut!(filler)?;
+
+        validate!(
+            filler.pool_id == 0,
+            ErrorCode::InvalidPoolId,
+            "filler pool id ({}) != 0",
+            filler.pool_id
+        )?;
+
         if filler.authority != user.authority {
             (Some(filler), Some(load_mut!(filler_stats)?))
         } else {
