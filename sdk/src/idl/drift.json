@@ -1,5 +1,5 @@
 {
-  "version": "2.95.0",
+  "version": "2.96.0",
   "name": "drift",
   "instructions": [
     {
@@ -554,7 +554,7 @@
           }
         },
         {
-          "name": "makerOrderId",
+          "name": "successCondition",
           "type": {
             "option": "u32"
           }
@@ -644,11 +644,15 @@
       ],
       "args": [
         {
-          "name": "takerOrderParamsMessageBytes",
+          "name": "swiftMessageBytes",
           "type": "bytes"
         },
         {
-          "name": "signature",
+          "name": "swiftOrderParamsMessageBytes",
+          "type": "bytes"
+        },
+        {
+          "name": "swiftMessageSignature",
           "type": {
             "array": [
               "u8",
@@ -1488,6 +1492,32 @@
         },
         {
           "name": "user",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "updateUserFuelBonus",
+      "accounts": [
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "user",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "userStats",
           "isMut": true,
           "isSigner": false
         }
@@ -8101,6 +8131,27 @@
       }
     },
     {
+      "name": "SwiftServerMessage",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "swiftOrderSignature",
+            "type": {
+              "array": [
+                "u8",
+                64
+              ]
+            }
+          },
+          {
+            "name": "slot",
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
       "name": "SwiftOrderParamsMessage",
       "type": {
         "kind": "struct",
@@ -8108,19 +8159,7 @@
           {
             "name": "swiftOrderParams",
             "type": {
-              "vec": {
-                "defined": "OrderParams"
-              }
-            }
-          },
-          {
-            "name": "marketIndex",
-            "type": "u16"
-          },
-          {
-            "name": "marketType",
-            "type": {
-              "defined": "MarketType"
+              "defined": "OrderParams"
             }
           },
           {
@@ -8128,7 +8167,39 @@
             "type": "i32"
           },
           {
-            "name": "slot",
+            "name": "subAccountId",
+            "type": "u16"
+          },
+          {
+            "name": "takeProfitOrderParams",
+            "type": {
+              "option": {
+                "defined": "SwiftTriggerOrderParams"
+              }
+            }
+          },
+          {
+            "name": "stopLossOrderParams",
+            "type": {
+              "option": {
+                "defined": "SwiftTriggerOrderParams"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "SwiftTriggerOrderParams",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "triggerPrice",
+            "type": "u64"
+          },
+          {
+            "name": "baseAssetAmount",
             "type": "u64"
           }
         ]
@@ -10202,6 +10273,20 @@
           },
           {
             "name": "MustModify"
+          }
+        ]
+      }
+    },
+    {
+      "name": "PlaceAndTakeOrderSuccessCondition",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "PartialFill"
+          },
+          {
+            "name": "FullFill"
           }
         ]
       }
@@ -13051,7 +13136,7 @@
     {
       "code": 6286,
       "name": "SigVerificationFailed",
-      "msg": "Swift taker message verificaiton failed"
+      "msg": "Swift message verificaiton failed"
     },
     {
       "code": 6287,
@@ -13060,8 +13145,13 @@
     },
     {
       "code": 6288,
-      "name": "SwiftOrderSequenceError",
-      "msg": "Swift order message must be ordered 0th order is market and rest are triggers"
+      "name": "InvalidSwiftOrderParam",
+      "msg": "Swift only available for market/oracle perp orders"
+    },
+    {
+      "code": 6289,
+      "name": "PlaceAndTakeOrderSuccessConditionFailed",
+      "msg": "Place and take order success condition failed"
     }
   ],
   "metadata": {

@@ -1,7 +1,8 @@
-import { TxSigAndSlot } from './types';
+import { ConfirmationStrategy, TxSigAndSlot } from './types';
 import {
 	ConfirmOptions,
 	Connection,
+	SendTransactionError,
 	Signer,
 	Transaction,
 	VersionedTransaction,
@@ -61,6 +62,7 @@ export class WhileValidTxSender extends BaseTxSender {
 		opts = { ...DEFAULT_CONFIRMATION_OPTS, maxRetries: 0 },
 		retrySleep = DEFAULT_RETRY,
 		additionalConnections = new Array<Connection>(),
+		confirmationStrategy = ConfirmationStrategy.Combo,
 		additionalTxSenderCallbacks = [],
 		txHandler,
 		trackTxLandRate,
@@ -73,6 +75,7 @@ export class WhileValidTxSender extends BaseTxSender {
 		retrySleep?: number;
 		additionalConnections?;
 		additionalTxSenderCallbacks?: ((base58EncodedTx: string) => void)[];
+		confirmationStrategy?: ConfirmationStrategy;
 		txHandler?: TxHandler;
 		trackTxLandRate?: boolean;
 		txLandRateLookbackWindowMinutes?: number;
@@ -87,6 +90,7 @@ export class WhileValidTxSender extends BaseTxSender {
 			txHandler,
 			trackTxLandRate,
 			txLandRateLookbackWindowMinutes,
+			confirmationStrategy,
 			landRateToFeeFunc,
 		});
 		this.retrySleep = retrySleep;
@@ -132,10 +136,7 @@ export class WhileValidTxSender extends BaseTxSender {
 
 		// handle subclass-specific side effects
 		const txSig = bs58.encode(
-			// @ts-expect-error
-			signedTx?.signature ||
-				signedTx.signatures[0]?.signature ||
-				signedTx.signatures[0]
+			signedTx?.signature || signedTx.signatures[0]?.signature
 		);
 		this.untilValid.set(txSig, latestBlockhash);
 
@@ -189,11 +190,6 @@ export class WhileValidTxSender extends BaseTxSender {
 		const txSig = bs58.encode(signedTx.signatures[0]);
 		this.untilValid.set(txSig, latestBlockhash);
 
-		console.debug(
-			`preflight_commitment`,
-			`sending_tx_with_preflight_commitment::${opts?.preflightCommitment}`
-		);
-
 		return this.sendRawTransaction(signedTx.serialize(), opts);
 	}
 
@@ -203,10 +199,6 @@ export class WhileValidTxSender extends BaseTxSender {
 	): Promise<TxSigAndSlot> {
 		const startTime = this.getTimestamp();
 
-		console.debug(
-			`preflight_commitment`,
-			`sending_tx_with_preflight_commitment::${opts?.preflightCommitment}`
-		);
 		const txid = await this.connection.sendRawTransaction(rawTransaction, opts);
 		this.txSigCache?.set(txid, false);
 		this.sendToAdditionalConnections(rawTransaction, opts);
@@ -244,6 +236,15 @@ export class WhileValidTxSender extends BaseTxSender {
 			this.txSigCache?.set(txid, true);
 
 			await this.checkConfirmationResultForError(txid, result.value);
+
+			if (result?.value?.err) {
+				// Fallback error handling if there's a problem reporting the error in checkConfirmationResultForError
+				throw new SendTransactionError({
+					action: 'send',
+					signature: txid,
+					transactionMessage: `Transaction Failed`,
+				});
+			}
 
 			slot = result.context.slot;
 			// eslint-disable-next-line no-useless-catch

@@ -1,5 +1,5 @@
 use crate::controller::position::PositionDirection;
-use crate::error::{DriftResult, ErrorCode};
+use crate::error::DriftResult;
 use crate::math::casting::Cast;
 use crate::math::safe_math::SafeMath;
 use crate::math::safe_unwrap::SafeUnwrap;
@@ -630,32 +630,25 @@ impl OrderParams {
     }
 }
 
-#[derive(AnchorSerialize, AnchorDeserialize, Clone, Default, Eq, PartialEq, Debug)]
-pub struct SwiftOrderParamsMessage {
-    pub swift_order_params: Vec<OrderParams>,
-    pub market_index: u16,
-    pub market_type: MarketType,
-    pub expected_order_id: i32,
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, Eq, PartialEq, Debug)]
+pub struct SwiftServerMessage {
+    pub swift_order_signature: [u8; 64],
     pub slot: u64,
 }
 
-impl SwiftOrderParamsMessage {
-    pub fn verify_all_same_market_indexes(&self) -> DriftResult {
-        let market_index = self.market_index;
-        for swift_order in &self.swift_order_params {
-            if swift_order.market_index != market_index {
-                return Err(ErrorCode::MismatchedSwiftOrderParamsMarketIndex.into());
-            }
-        }
-        Ok(())
-    }
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, Default, Eq, PartialEq, Debug)]
+pub struct SwiftOrderParamsMessage {
+    pub swift_order_params: OrderParams,
+    pub expected_order_id: i32,
+    pub sub_account_id: u16,
+    pub take_profit_order_params: Option<SwiftTriggerOrderParams>,
+    pub stop_loss_order_params: Option<SwiftTriggerOrderParams>,
+}
 
-    pub fn get_matchable_swift_order_params(&self) -> Option<&OrderParams> {
-        self.swift_order_params.iter().find(|order_params| {
-            order_params.order_type != OrderType::TriggerLimit
-                && order_params.order_type != OrderType::TriggerMarket
-        })
-    }
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, Default, Eq, PartialEq, Debug)]
+pub struct SwiftTriggerOrderParams {
+    pub trigger_price: u64,
+    pub base_asset_amount: u64,
 }
 
 fn get_auction_duration(

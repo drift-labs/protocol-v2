@@ -15,6 +15,7 @@ env:
   CARGO_TERM_COLOR: always
   RUST_TOOLCHAIN: 1.70.0
   SOLANA_VERSION: "1.16.27"
+  SWIFT_PRIVATE_KEY: ${{ secrets.SWIFT_PRIVATE_KEY }}
 
 jobs:
   fmt-clippy:
@@ -232,7 +233,12 @@ jobs:
           git config user.email 41898282+github-actions[bot]@users.noreply.github.com
           git add ..
           git commit -a -m "sdk: release v$VERSION"
-          git push origin HEAD
+          git pull --rebase origin master
+          git push origin HEAD || {
+            echo "Push failed. Retrying after pulling latest changes..."
+            git pull --rebase origin master
+            git push origin HEAD
+          }
       - name: Publish to npm
         run: npm publish --access=public
         env:
@@ -248,6 +254,7 @@ jobs:
             "jit-proxy",
             "dlob-server",
             "drift-competitions",
+            "drift-common"
           ]
     steps:
       - name: Checkout code with new updated version

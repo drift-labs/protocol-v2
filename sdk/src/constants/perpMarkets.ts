@@ -297,7 +297,7 @@ export const DevnetPerpMarkets: PerpMarketConfig[] = [
 		symbol: 'W-PERP',
 		baseAssetSymbol: 'W',
 		marketIndex: 23,
-		oracle: new PublicKey('4iCi4DvXrubHQne8jzbMaWL3pd7v1Fip8iTe4H9vHNXB'),
+		oracle: new PublicKey('J9nrFWjDUeDVZ4BhhxsbQXWgLcLEgQyNBrCbwSADmJdr'),
 		launchTs: 1709852537000,
 		oracleSource: OracleSource.SWITCHBOARD_ON_DEMAND,
 		pythFeedId:
@@ -873,6 +873,48 @@ export const MainnetPerpMarkets: PerpMarketConfig[] = [
 		oracleSource: OracleSource.PYTH_PULL,
 		pythFeedId:
 			'0x62742a997d01f7524f791fdb2dd43aaf0e567d765ebf8fd0406a994239e874d4',
+	},
+	{
+		fullName: 'MOODENG',
+		category: ['Solana', 'Meme'],
+		symbol: 'MOODENG-PERP',
+		baseAssetSymbol: 'MOODENG',
+		marketIndex: 45,
+		oracle: new PublicKey('21gjgEcuDppthwV16J1QpFzje3vmgMp2uSzh7pJsG7ob'),
+		launchTs: 1727965864000,
+		oracleSource: OracleSource.PYTH_PULL,
+		pythFeedId:
+			'0xffff73128917a90950cd0473fd2551d7cd274fd5a6cc45641881bbcc6ee73417',
+	},
+	{
+		fullName: 'WARWICK-FIGHT-WIN-BET',
+		category: ['Prediction', 'Sport'],
+		symbol: 'WARWICK-FIGHT-WIN-BET',
+		baseAssetSymbol: 'WARWICK-FIGHT-WIN',
+		marketIndex: 46,
+		oracle: new PublicKey('Dz5Nvxo1hv7Zfyu11hy8e97twLMRKk6heTWCDGXytj7N'),
+		launchTs: 1727965864000,
+		oracleSource: OracleSource.Prelaunch,
+	},
+	{
+		fullName: 'DeBridge',
+		category: ['Bridge'],
+		symbol: 'DBR-PERP',
+		baseAssetSymbol: 'DBR',
+		marketIndex: 47,
+		oracle: new PublicKey('AQzxePg2vY52Cw4di1j5xF7BqetNPxogqYPgDBL7HXWn'),
+		launchTs: 1728574493000,
+		oracleSource: OracleSource.Prelaunch,
+	},
+	{
+		fullName: 'WLF-5B-1W',
+		category: ['Prediction'],
+		symbol: 'WLF-5B-1W-BET',
+		baseAssetSymbol: 'WLF-5B-1W',
+		marketIndex: 48,
+		oracle: new PublicKey('7LpRfPaWR7cQqN7CMkCmZjEQpWyqso5LGuKCvDXH5ZAr'),
+		launchTs: 1728574493000,
+		oracleSource: OracleSource.Prelaunch,
 	},
 ];
 

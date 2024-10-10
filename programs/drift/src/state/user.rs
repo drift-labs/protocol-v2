@@ -1442,18 +1442,6 @@ impl Order {
             return Ok(false);
         }
 
-        if self.order_type == OrderType::TriggerLimit {
-            return match self.direction {
-                PositionDirection::Long if self.trigger_price < self.price => {
-                    return Ok(false);
-                }
-                PositionDirection::Short if self.trigger_price > self.price => {
-                    return Ok(false);
-                }
-                _ => self.is_auction_complete(slot),
-            };
-        }
-
         Ok(self.post_only || self.is_auction_complete(slot)?)
     }
 }

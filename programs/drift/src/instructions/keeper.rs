@@ -8,7 +8,9 @@ use solana_program::sysvar::instructions::{
 };
 
 use crate::controller::insurance::update_user_stats_if_stake_amount;
+use crate::controller::position::PositionDirection;
 use crate::error::ErrorCode;
+use crate::ids::swift_server;
 use crate::instructions::constraints::*;
 use crate::instructions::optional_accounts::{load_maps, AccountMaps};
 use crate::math::casting::Cast;
@@ -29,7 +31,9 @@ use crate::state::fulfillment_params::serum::SerumFulfillmentParams;
 use crate::state::high_leverage_mode_config::HighLeverageModeConfig;
 use crate::state::insurance_fund_stake::InsuranceFundStake;
 use crate::state::oracle_map::OracleMap;
-use crate::state::order_params::{OrderParams, PlaceOrderOptions, SwiftOrderParamsMessage};
+use crate::state::order_params::{
+    OrderParams, PlaceOrderOptions, SwiftOrderParamsMessage, SwiftServerMessage,
+};
 use crate::state::paused_operations::PerpOperation;
 use crate::state::perp_market::{ContractType, MarketStatus, PerpMarket};
 use crate::state::perp_market_map::{
@@ -43,13 +47,19 @@ use crate::state::spot_market_map::{
     get_writable_spot_market_set, get_writable_spot_market_set_from_many, SpotMarketMap,
 };
 use crate::state::state::State;
-use crate::state::user::{MarginMode, MarketType, OrderStatus, OrderType, User, UserStats};
+use crate::state::user::{
+    MarginMode, MarketType, OrderStatus, OrderTriggerCondition, OrderType, User, UserStats,
+};
 use crate::state::user_map::{load_user_map, load_user_maps, UserMap, UserStatsMap};
 use crate::validation::sig_verification::verify_ed25519_ix;
 use crate::validation::user::validate_user_is_idle;
 use crate::{controller, load, math, print_error, OracleSource, GOV_SPOT_MARKET_INDEX};
 use crate::{load_mut, QUOTE_PRECISION_U64};
 use crate::{validate, QUOTE_PRECISION_I128};
+
+use crate::math::margin::calculate_margin_requirement_and_total_collateral_and_liability_info;
+use crate::math::margin::MarginRequirementType;
+use crate::state::margin_calculation::MarginContext;
 
 #[access_control(
     fill_not_paused(&ctx.accounts.state)
@@ -424,6 +434,49 @@ pub fn handle_update_user_idle<'c: 'info, 'info>(
 #[access_control(
     exchange_not_paused(&ctx.accounts.state)
 )]
+pub fn handle_update_user_fuel_bonus<'c: 'info, 'info>(
+    ctx: Context<'_, '_, 'c, 'info, UpdateUserFuelBonus<'info>>,
+) -> Result<()> {
+    let mut user = load_mut!(ctx.accounts.user)?;
+    let user_stats = &mut load_mut!(ctx.accounts.user_stats)?;
+    let clock = Clock::get()?;
+    let now = clock.unix_timestamp;
+
+    let AccountMaps {
+        perp_market_map,
+        spot_market_map,
+        mut oracle_map,
+    } = load_maps(
+        &mut ctx.remaining_accounts.iter().peekable(),
+        &MarketSet::new(),
+        &MarketSet::new(),
+        clock.slot,
+        None,
+    )?;
+
+    let user_margin_calculation =
+        calculate_margin_requirement_and_total_collateral_and_liability_info(
+            &user,
+            &perp_market_map,
+            &spot_market_map,
+            &mut oracle_map,
+            MarginContext::standard(MarginRequirementType::Initial).fuel_numerator(&user, now),
+        )?;
+
+    user_stats.update_fuel_bonus(
+        &mut user,
+        user_margin_calculation.fuel_deposits,
+        user_margin_calculation.fuel_borrows,
+        user_margin_calculation.fuel_positions,
+        now,
+    )?;
+
+    Ok(())
+}
+
+#[access_control(
+    exchange_not_paused(&ctx.accounts.state)
+)]
 pub fn handle_update_user_open_orders_count<'info>(ctx: Context<UpdateUserIdle>) -> Result<()> {
     let mut user = load_mut!(ctx.accounts.user)?;
 
@@ -450,11 +503,15 @@ pub fn handle_update_user_open_orders_count<'info>(ctx: Context<UpdateUserIdle>)
 
 pub fn handle_place_swift_taker_order<'c: 'info, 'info>(
     ctx: Context<'_, '_, 'c, 'info, PlaceSwiftTakerOrder<'info>>,
-    taker_order_params_bytes: Vec<u8>,
+    swift_message_bytes: Vec<u8>,
+    swift_order_params_message_bytes: Vec<u8>,
     sig: [u8; 64],
 ) -> Result<()> {
+    let swift_message: SwiftServerMessage =
+        SwiftServerMessage::deserialize(&mut &swift_message_bytes[..]).unwrap();
     let taker_order_params_message: SwiftOrderParamsMessage =
-        SwiftOrderParamsMessage::deserialize(&mut &taker_order_params_bytes[..]).unwrap();
+        SwiftOrderParamsMessage::deserialize(&mut &swift_order_params_message_bytes[..]).unwrap();
+
     let state = &ctx.accounts.state;
 
     // TODO: generalize to support multiple market types
@@ -476,6 +533,7 @@ pub fn handle_place_swift_taker_order<'c: 'info, 'info>(
     place_swift_taker_order(
         taker_key,
         &mut taker,
+        swift_message,
         taker_order_params_message,
         &ctx.accounts.ix_sysvar.to_account_info(),
         sig,
@@ -490,6 +548,7 @@ pub fn handle_place_swift_taker_order<'c: 'info, 'info>(
 pub fn place_swift_taker_order<'c: 'info, 'info>(
     taker_key: Pubkey,
     taker: &mut RefMut<User>,
+    swift_message: SwiftServerMessage,
     taker_order_params_message: SwiftOrderParamsMessage,
     ix_sysvar: &AccountInfo<'info>,
     sig: [u8; 64],
@@ -503,43 +562,45 @@ pub fn place_swift_taker_order<'c: 'info, 'info>(
         panic!("Swift orders are disabled on mainnet-beta");
     }
 
-    // Authenticate the signature
+    // Authenticate the swift param message
     let ix_idx = load_current_index_checked(ix_sysvar)?;
     validate!(
-        ix_idx > 0,
+        ix_idx > 1,
         ErrorCode::InvalidVerificationIxIndex,
-        "instruction index must be greater than 0"
+        "instruction index must be greater than 1 for two sig verifies"
     )?;
+    let ix: Instruction = load_instruction_at_checked(ix_idx as usize - 2, ix_sysvar)?;
+    verify_ed25519_ix(
+        &ix,
+        &swift_server::id().to_bytes(),
+        &swift_message.clone().try_to_vec()?,
+        &sig,
+    )?;
+
     let ix: Instruction = load_instruction_at_checked(ix_idx as usize - 1, ix_sysvar)?;
     verify_ed25519_ix(
         &ix,
         &taker.authority.to_bytes(),
         &taker_order_params_message.clone().try_to_vec()?,
-        &sig,
+        &swift_message.swift_order_signature,
     )?;
 
-    // Verify inputs and validate market index
-    taker_order_params_message.verify_all_same_market_indexes()?;
-    let taker_order_params = taker_order_params_message.swift_order_params;
     let clock = &Clock::get()?;
 
-    if taker_order_params.len() == 0 {
-        msg!("No orders to place");
-        return Err(print_error!(ErrorCode::SwiftOrderSequenceError)().into());
-    }
-
     // First order must be a taker order
-    let matching_taker_order_params = &taker_order_params[0];
-    if matching_taker_order_params.order_type != OrderType::Market
-        && matching_taker_order_params.order_type != OrderType::Oracle
+    let matching_taker_order_params = &taker_order_params_message.swift_order_params;
+    if (matching_taker_order_params.order_type != OrderType::Market
+        && matching_taker_order_params.order_type != OrderType::Oracle)
+        || matching_taker_order_params.market_type != MarketType::Perp
     {
-        msg!("First order must be a taker order");
-        return Err(print_error!(ErrorCode::SwiftOrderSequenceError)().into());
+        msg!("First order must be a market or oracle perp taker order");
+        return Err(print_error!(ErrorCode::InvalidSwiftOrderParam)().into());
     }
-    let expected_order_id = taker_order_params_message.expected_order_id;
 
+    let market_index = matching_taker_order_params.market_index;
+    let expected_order_id = taker_order_params_message.expected_order_id;
     let taker_next_order_id = taker.next_order_id;
-    let order_slot = taker_order_params_message.slot;
+    let order_slot = swift_message.slot;
     if expected_order_id.cast::<u32>()? != taker_next_order_id {
         msg!(
                 "Orders not placed due to taker order id mismatch: taker account next order id {}, order params expected next order id {:?}",
@@ -562,14 +623,24 @@ pub fn place_swift_taker_order<'c: 'info, 'info>(
             ..PlaceOrderOptions::default()
         },
     )?;
-    let non_matching_orders: Vec<OrderParams> = taker_order_params[1..].to_vec();
-    for non_matching_order_param in non_matching_orders {
-        if non_matching_order_param.order_type != OrderType::TriggerLimit
-            && non_matching_order_param.order_type != OrderType::TriggerMarket
-        {
-            msg!("Non-matching orders must be trigger orders");
-            return Err(print_error!(ErrorCode::SwiftOrderSequenceError)().into());
-        }
+
+    if let Some(stop_loss_order_params) = taker_order_params_message.stop_loss_order_params {
+        let stop_loss_order = OrderParams {
+            order_type: OrderType::TriggerMarket,
+            direction: matching_taker_order_params.direction.opposite(),
+            trigger_price: Some(stop_loss_order_params.trigger_price),
+            base_asset_amount: stop_loss_order_params.base_asset_amount,
+            trigger_condition: if matching_taker_order_params.direction == PositionDirection::Long {
+                OrderTriggerCondition::Below
+            } else {
+                OrderTriggerCondition::Above
+            },
+            market_index,
+            market_type: MarketType::Perp,
+            reduce_only: true,
+            ..OrderParams::default()
+        };
+
         controller::orders::place_perp_order(
             state,
             taker,
@@ -578,7 +649,39 @@ pub fn place_swift_taker_order<'c: 'info, 'info>(
             spot_market_map,
             oracle_map,
             clock,
-            non_matching_order_param,
+            stop_loss_order,
+            PlaceOrderOptions {
+                ..PlaceOrderOptions::default()
+            },
+        )?;
+    }
+
+    if let Some(take_profit_order_params) = taker_order_params_message.take_profit_order_params {
+        let take_profit_order = OrderParams {
+            order_type: OrderType::TriggerMarket,
+            direction: matching_taker_order_params.direction.opposite(),
+            trigger_price: Some(take_profit_order_params.trigger_price),
+            base_asset_amount: take_profit_order_params.base_asset_amount,
+            trigger_condition: if matching_taker_order_params.direction == PositionDirection::Long {
+                OrderTriggerCondition::Above
+            } else {
+                OrderTriggerCondition::Below
+            },
+            market_index,
+            market_type: MarketType::Perp,
+            reduce_only: true,
+            ..OrderParams::default()
+        };
+
+        controller::orders::place_perp_order(
+            state,
+            taker,
+            taker_key,
+            perp_market_map,
+            spot_market_map,
+            oracle_map,
+            clock,
+            take_profit_order,
             PlaceOrderOptions {
                 swift_taker_order_slot: Some(order_slot),
                 ..PlaceOrderOptions::default()
@@ -2009,6 +2112,19 @@ pub struct UpdateUserIdle<'info> {
     pub filler: AccountLoader<'info, User>,
     #[account(mut)]
     pub user: AccountLoader<'info, User>,
+}
+
+#[derive(Accounts)]
+pub struct UpdateUserFuelBonus<'info> {
+    pub state: Box<Account<'info, State>>,
+    pub authority: Signer<'info>,
+    #[account(mut)]
+    pub user: AccountLoader<'info, User>,
+    #[account(
+        mut,
+        constraint = is_stats_for_user(&user, &user_stats)?
+    )]
+    pub user_stats: AccountLoader<'info, UserStats>,
 }
 
 #[derive(Accounts)]

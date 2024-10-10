@@ -1,9 +1,24 @@
 import {
+	ClientSubscriptionId,
 	Connection,
+	Context,
+	RpcResponseAndContext,
+	SignatureResult,
 	SignatureStatus,
 	TransactionConfirmationStatus,
 } from '@solana/web3.js';
 import { DEFAULT_CONFIRMATION_OPTS } from '../config';
+import { TxSendError } from '..';
+import { NOT_CONFIRMED_ERROR_CODE } from '../constants/txConstants';
+import {
+	getTransactionErrorFromTxSig,
+	throwTransactionError,
+} from '../tx/reportTransactionError';
+import { promiseTimeout } from './promiseTimeout';
+
+type ResolveReference = {
+	resolve?: () => void;
+};
 
 const confirmationStatusValues: Record<TransactionConfirmationStatus, number> =
 	{
@@ -36,7 +51,113 @@ export class TransactionConfirmationManager {
 		this.connection = connection;
 	}
 
-	async confirmTransaction(
+	async confirmTransactionWebSocket(
+		txSig: string,
+		timeout = 30000,
+		desiredConfirmationStatus = DEFAULT_CONFIRMATION_OPTS.commitment as TransactionConfirmationStatus
+	): Promise<RpcResponseAndContext<SignatureResult>> {
+		const start = Date.now();
+		const subscriptionCommitment =
+			desiredConfirmationStatus || DEFAULT_CONFIRMATION_OPTS.commitment;
+
+		let response: RpcResponseAndContext<SignatureResult> | null = null;
+
+		let subscriptionId: ClientSubscriptionId;
+
+		const confirmationPromise = new Promise((resolve, reject) => {
+			try {
+				subscriptionId = this.connection.onSignature(
+					txSig,
+					(result: SignatureResult, context: Context) => {
+						response = {
+							context,
+							value: result,
+						};
+						resolve(null);
+					},
+					subscriptionCommitment
+				);
+			} catch (err) {
+				reject(err);
+			}
+		});
+
+		// We do a one-shot confirmation check just in case the transaction is ALREADY confirmed when we create the websocket confirmation .. We want to run this concurrently with the onSignature subscription. If this returns true then we can return early as the transaction has already been confirmed.
+		const oneShotConfirmationPromise = this.connection.getSignatureStatuses([
+			txSig,
+		]);
+
+		const resolveReference: ResolveReference = {};
+
+		// This is the promise we are waiting on to resolve the overall confirmation. It will resolve the faster of a positive oneShot confirmation, or the websocket confirmation, or the timeout.
+		const overallWaitingForConfirmationPromise = new Promise<void>(
+			(resolve) => {
+				resolveReference.resolve = resolve;
+			}
+		);
+
+		// Await for the one shot confirmation and resolve the waiting promise if we get a positive confirmation result
+		oneShotConfirmationPromise.then(
+			async (oneShotResponse) => {
+				if (!oneShotResponse || !oneShotResponse?.value?.[0]) return;
+
+				const resultValue = oneShotResponse.value[0];
+
+				if (resultValue.err) {
+					await throwTransactionError(txSig, this.connection);
+				}
+
+				if (
+					this.checkStatusMatchesDesiredConfirmationStatus(
+						resultValue,
+						desiredConfirmationStatus
+					)
+				) {
+					response = {
+						context: oneShotResponse.context,
+						value: oneShotResponse.value[0],
+					};
+					resolveReference.resolve?.();
+				}
+			},
+			(onRejected) => {
+				throw onRejected;
+			}
+		);
+
+		// Await for the websocket confirmation with the configured timeout
+		promiseTimeout(confirmationPromise, timeout).then(
+			() => {
+				resolveReference.resolve?.();
+			},
+			(onRejected) => {
+				throw onRejected;
+			}
+		);
+
+		try {
+			await overallWaitingForConfirmationPromise;
+		} finally {
+			if (subscriptionId !== undefined) {
+				this.connection.removeSignatureListener(subscriptionId);
+			}
+		}
+
+		const duration = (Date.now() - start) / 1000;
+
+		if (response === null) {
+			throw new TxSendError(
+				`Transaction was not confirmed in ${duration.toFixed(
+					2
+				)} seconds. It is unknown if it succeeded or failed. Check signature ${txSig} using the Solana Explorer or CLI tools.`,
+				NOT_CONFIRMED_ERROR_CODE
+			);
+		}
+
+		return response;
+	}
+
+	async confirmTransactionPolling(
 		txSig: string,
 		desiredConfirmationStatus = DEFAULT_CONFIRMATION_OPTS.commitment as TransactionConfirmationStatus,
 		timeout = 30000,
@@ -99,6 +220,21 @@ export class TransactionConfirmationManager {
 		}
 	}
 
+	private checkStatusMatchesDesiredConfirmationStatus(
+		status: SignatureStatus,
+		desiredConfirmationStatus: TransactionConfirmationStatus
+	): boolean {
+		if (
+			status.confirmationStatus &&
+			confirmationStatusValues[status.confirmationStatus] >=
+				confirmationStatusValues[desiredConfirmationStatus]
+		) {
+			return true;
+		}
+
+		return false;
+	}
+
 	private async checkTransactionStatuses(
 		requests: TransactionConfirmationRequest[]
 	) {
@@ -125,10 +261,10 @@ export class TransactionConfirmationManager {
 			}
 
 			if (status.err) {
-				request.reject(
-					new Error(`Transaction failed: ${JSON.stringify(status.err)}`)
-				);
 				this.pendingConfirmations.delete(request.txSig);
+				request.reject(
+					await getTransactionErrorFromTxSig(request.txSig, this.connection)
+				);
 				continue;
 			}
 
@@ -143,9 +279,10 @@ export class TransactionConfirmationManager {
 			}
 
 			if (
-				status.confirmationStatus &&
-				confirmationStatusValues[status.confirmationStatus] >=
-					confirmationStatusValues[request.desiredConfirmationStatus]
+				this.checkStatusMatchesDesiredConfirmationStatus(
+					status,
+					request.desiredConfirmationStatus
+				)
 			) {
 				request.resolve(status);
 				this.pendingConfirmations.delete(request.txSig);

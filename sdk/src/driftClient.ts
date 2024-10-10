@@ -48,6 +48,7 @@ import {
 	StateAccount,
 	SwapReduceOnly,
 	SwiftOrderParamsMessage,
+	SwiftServerMessage,
 	TakerInfo,
 	TxParams,
 	UserAccount,
@@ -119,7 +120,13 @@ import { WebSocketDriftClientAccountSubscriber } from './accounts/webSocketDrift
 import { RetryTxSender } from './tx/retryTxSender';
 import { User } from './user';
 import { UserSubscriptionConfig } from './userConfig';
-import { configs, DRIFT_ORACLE_RECEIVER_ID, DEFAULT_CONFIRMATION_OPTS, DRIFT_PROGRAM_ID } from './config';
+import {
+	configs,
+	DRIFT_ORACLE_RECEIVER_ID,
+	DEFAULT_CONFIRMATION_OPTS,
+	DRIFT_PROGRAM_ID,
+	SWIFT_ID,
+} from './config';
 import { WRAPPED_SOL_MINT } from './constants/spotMarkets';
 import { UserStats } from './userStats';
 import { isSpotPositionAvailable } from './math/spotPosition';
@@ -155,7 +162,6 @@ import { getFeedIdUint8Array, trimFeedId } from './util/pythPullOracleUtils';
 import { isVersionedTransaction } from './tx/utils';
 import pythSolanaReceiverIdl from './idl/pyth_solana_receiver.json';
 import { asV0Tx, PullFeed } from '@switchboard-xyz/on-demand';
-import switchboardOnDemandIdl from './idl/switchboard_on_demand_30.json';
 import * as ed from '@noble/ed25519';
 
 type RemainingAccountParams = {
@@ -175,6 +181,7 @@ export class DriftClient {
 	connection: Connection;
 	wallet: IWallet;
 	public program: Program;
+	public swiftID: PublicKey;
 	provider: AnchorProvider;
 	opts?: ConfirmOptions;
 	users = new Map<string, User>();
@@ -208,6 +215,7 @@ export class DriftClient {
 
 	receiverProgram?: Program<PythSolanaReceiver>;
 	wormholeProgram?: Program<WormholeCoreBridgeSolana>;
+	sbOnDemandProgramdId: PublicKey;
 	sbOnDemandProgram?: Program30<Idl30>;
 	sbProgramFeedConfigs?: Map<string, any>;
 
@@ -238,6 +246,7 @@ export class DriftClient {
 			config.programID ?? new PublicKey(DRIFT_PROGRAM_ID),
 			this.provider
 		);
+		this.swiftID = config.swiftID ?? new PublicKey(SWIFT_ID);
 
 		this.authority = config.authority ?? this.wallet.publicKey;
 		this.activeSubAccountId = config.activeSubAccountId ?? 0;
@@ -378,6 +387,9 @@ export class DriftClient {
 				opts: this.opts,
 				txHandler: this.txHandler,
 			});
+
+		this.sbOnDemandProgramdId =
+			configs[config.env ?? 'mainnet-beta'].SB_ON_DEMAND_PID;
 	}
 
 	public getUserMapKey(subAccountId: number, authority: PublicKey): string {
@@ -3321,9 +3333,23 @@ export class DriftClient {
 	}
 
 	public async settleExpiredMarketPoolsToRevenuePool(
-		perpMarketIndex: number,
+		marketIndex: number,
 		txParams?: TxParams
 	): Promise<TransactionSignature> {
+		const { txSig } = await this.sendTransaction(
+			await this.buildTransaction(
+				await this.getSettleExpiredMarketPoolsToRevenuePoolIx(marketIndex),
+				txParams
+			),
+			[],
+			this.opts
+		);
+		return txSig;
+	}
+
+	public async getSettleExpiredMarketPoolsToRevenuePoolIx(
+		perpMarketIndex: number
+	): Promise<TransactionInstruction> {
 		const perpMarketPublicKey = await getPerpMarketPublicKey(
 			this.program.programId,
 			perpMarketIndex
@@ -3334,8 +3360,8 @@ export class DriftClient {
 			QUOTE_SPOT_MARKET_INDEX
 		);
 
-		const ix =
-			await this.program.instruction.settleExpiredMarketPoolsToRevenuePool({
+		return await this.program.instruction.settleExpiredMarketPoolsToRevenuePool(
+			{
 				accounts: {
 					state: await this.getStatePublicKey(),
 					admin: this.isSubscribed
@@ -3344,15 +3370,8 @@ export class DriftClient {
 					spotMarket: spotMarketPublicKey,
 					perpMarket: perpMarketPublicKey,
 				},
-			});
-
-		const { txSig } = await this.sendTransaction(
-			await this.buildTransaction(ix, txParams),
-			[],
-			this.opts
+			}
 		);
-
-		return txSig;
 	}
 
 	public async cancelOrder(
@@ -4917,6 +4936,52 @@ export class DriftClient {
 		});
 	}
 
+	public async updateUserFuelBonus(
+		userAccountPublicKey: PublicKey,
+		user: UserAccount,
+		userAuthority: PublicKey,
+		txParams?: TxParams
+	): Promise<TransactionSignature> {
+		const { txSig } = await this.sendTransaction(
+			await this.buildTransaction(
+				await this.getUpdateUserFuelBonusIx(
+					userAccountPublicKey,
+					user,
+					userAuthority
+				),
+				txParams
+			),
+			[],
+			this.opts
+		);
+		return txSig;
+	}
+
+	public async getUpdateUserFuelBonusIx(
+		userAccountPublicKey: PublicKey,
+		userAccount: UserAccount,
+		userAuthority: PublicKey
+	): Promise<TransactionInstruction> {
+		const userStatsAccountPublicKey = getUserStatsAccountPublicKey(
+			this.program.programId,
+			userAuthority
+		);
+
+		const remainingAccounts = this.getRemainingAccounts({
+			userAccounts: [userAccount],
+		});
+
+		return await this.program.instruction.updateUserFuelBonus({
+			accounts: {
+				state: await this.getStatePublicKey(),
+				user: userAccountPublicKey,
+				userStats: userStatsAccountPublicKey,
+				authority: this.wallet.publicKey,
+			},
+			remainingAccounts,
+		});
+	}
+
 	public async updateUserOpenOrdersCount(
 		userAccountPublicKey: PublicKey,
 		user: UserAccount,
@@ -5359,16 +5424,47 @@ export class DriftClient {
 		);
 	}
 
-	public async signTakerOrderParams(
+	public encodeSwiftServerMessage(message: SwiftServerMessage): Buffer {
+		const messageWithBuffer = {
+			slot: message.slot,
+			swiftOrderSignature: message.swiftOrderSignature,
+		};
+		return this.program.coder.types.encode(
+			'SwiftServerMessage',
+			messageWithBuffer
+		);
+	}
+
+	public decodeSwiftServerMessage(encodedMessage: Buffer): SwiftServerMessage {
+		const decodedSwiftMessage = this.program.coder.types.decode(
+			'SwiftServerMessage',
+			encodedMessage
+		);
+		return {
+			slot: decodedSwiftMessage.slot,
+			swiftOrderSignature: decodedSwiftMessage.swiftSignature,
+		};
+	}
+
+	public async signSwiftServerMessage(
+		message: SwiftServerMessage
+	): Promise<Buffer> {
+		const swiftServerMessage = Uint8Array.from(
+			this.encodeSwiftServerMessage(message)
+		);
+		return await this.signMessage(swiftServerMessage);
+	}
+
+	public async signSwiftOrderParamsMessage(
 		orderParamsMessage: SwiftOrderParamsMessage
 	): Promise<Buffer> {
 		const takerOrderParamsMessage = Uint8Array.from(
-			this.getEncodedSwiftOrderParamsMessage(orderParamsMessage)
+			this.encodeSwiftOrderParamsMessage(orderParamsMessage)
 		);
 		return await this.signMessage(takerOrderParamsMessage);
 	}
 
-	public getEncodedSwiftOrderParamsMessage(
+	public encodeSwiftOrderParamsMessage(
 		orderParamsMessage: SwiftOrderParamsMessage
 	): Buffer {
 		return this.program.coder.types.encode(
@@ -5377,7 +5473,7 @@ export class DriftClient {
 		);
 	}
 
-	public decodeSwiftTakerOrderParamsMessage(
+	public decodeSwiftOrderParamsMessage(
 		encodedMessage: Buffer
 	): SwiftOrderParamsMessage {
 		return this.program.coder.types.decode(
@@ -5386,40 +5482,18 @@ export class DriftClient {
 		);
 	}
 
-	public async signMessage(message: Uint8Array): Promise<Buffer> {
-		return Buffer.from(
-			await ed.sign(message, this.wallet.payer.secretKey.slice(0, 32))
-		);
-	}
-
-	public assembleSwiftServerMessage(
-		message: Buffer,
-		signature: Buffer,
-		takerPubkey: PublicKey,
-		marketIndex: number,
-		marketType: MarketType,
-		slot: number | BN
-	): {
-		message: string;
-		signature: string;
-		taker_pubkey: string;
-		market_index: number;
-		market_type: 'perp' | 'spot';
-		slot: BN;
-	} {
-		return {
-			message: message.toString('base64'),
-			signature: signature.toString('base64'),
-			taker_pubkey: takerPubkey.toBase58(),
-			market_index: marketIndex,
-			market_type: isVariant(marketType, 'perp') ? 'perp' : 'spot',
-			slot: typeof slot === 'number' ? new BN(slot) : slot,
-		};
+	public async signMessage(
+		message: Uint8Array,
+		keypair: Keypair = this.wallet.payer
+	): Promise<Buffer> {
+		return Buffer.from(await ed.sign(message, keypair.secretKey.slice(0, 32)));
 	}
 
 	public async placeSwiftTakerOrder(
-		takerOrderParamsMessage: Buffer,
-		takerSignature: Buffer,
+		swiftServerMessage: Buffer,
+		swiftSignature: Buffer,
+		swiftOrderParamsMessage: Buffer,
+		swiftOrderParamsSignature: Buffer,
 		marketIndex: number,
 		takerInfo: {
 			taker: PublicKey;
@@ -5428,9 +5502,11 @@ export class DriftClient {
 		},
 		txParams?: TxParams
 	): Promise<TransactionSignature> {
-		const ixs = await this.getPlaceSwiftTakerPerpOrderIx(
-			takerOrderParamsMessage,
-			takerSignature,
+		const ixs = await this.getPlaceSwiftTakerPerpOrderIxs(
+			swiftServerMessage,
+			swiftSignature,
+			swiftOrderParamsMessage,
+			swiftOrderParamsSignature,
 			marketIndex,
 			takerInfo
 		);
@@ -5442,9 +5518,11 @@ export class DriftClient {
 		return txSig;
 	}
 
-	public async getPlaceSwiftTakerPerpOrderIx(
-		takerOrderParamsMessage: Buffer,
-		takerSignature: Buffer,
+	public async getPlaceSwiftTakerPerpOrderIxs(
+		encodedSwiftServerMessage: Buffer,
+		swiftSignature: Buffer,
+		encodedSwiftOrderParamsMessage: Buffer,
+		swiftOrderParamsSignature: Buffer,
 		marketIndex: number,
 		takerInfo: {
 			taker: PublicKey;
@@ -5458,16 +5536,25 @@ export class DriftClient {
 			readablePerpMarketIndex: marketIndex,
 		});
 
-		const signatureIx = Ed25519Program.createInstructionWithPublicKey({
-			publicKey: takerInfo.takerUserAccount.authority.toBytes(),
-			signature: Uint8Array.from(takerSignature),
-			message: Uint8Array.from(takerOrderParamsMessage),
-		});
+		const swiftServerSignatureIx =
+			Ed25519Program.createInstructionWithPublicKey({
+				publicKey: new PublicKey(this.swiftID).toBytes(),
+				signature: Uint8Array.from(swiftSignature),
+				message: Uint8Array.from(encodedSwiftServerMessage),
+			});
+
+		const swiftOrderParamsSignatureIx =
+			Ed25519Program.createInstructionWithPublicKey({
+				publicKey: takerInfo.takerUserAccount.authority.toBytes(),
+				signature: Uint8Array.from(swiftOrderParamsSignature),
+				message: Uint8Array.from(encodedSwiftOrderParamsMessage),
+			});
 
 		const placeTakerSwiftPerpOrderIx =
 			await this.program.instruction.placeSwiftTakerOrder(
-				takerOrderParamsMessage,
-				takerSignature,
+				encodedSwiftServerMessage,
+				encodedSwiftOrderParamsMessage,
+				swiftSignature,
 				{
 					accounts: {
 						state: await this.getStatePublicKey(),
@@ -5480,12 +5567,18 @@ export class DriftClient {
 				}
 			);
 
-		return [signatureIx, placeTakerSwiftPerpOrderIx];
+		return [
+			swiftServerSignatureIx,
+			swiftOrderParamsSignatureIx,
+			placeTakerSwiftPerpOrderIx,
+		];
 	}
 
 	public async placeAndMakeSwiftPerpOrder(
-		encodedTakerOrderParamsMessage: Buffer,
-		takerSignature: Buffer,
+		encodedSwiftMessage: Buffer,
+		swiftSignature: Buffer,
+		encodedSwiftOrderParamsMessage: Buffer,
+		swiftOrderParamsSignature: Buffer,
 		takerExpectedOrderId: number,
 		takerInfo: {
 			taker: PublicKey;
@@ -5498,8 +5591,10 @@ export class DriftClient {
 		subAccountId?: number
 	): Promise<TransactionSignature> {
 		const ixs = await this.getPlaceAndMakeSwiftPerpOrderIxs(
-			encodedTakerOrderParamsMessage,
-			takerSignature,
+			encodedSwiftMessage,
+			swiftSignature,
+			encodedSwiftOrderParamsMessage,
+			swiftOrderParamsSignature,
 			takerExpectedOrderId,
 			takerInfo,
 			orderParams,
@@ -5517,8 +5612,10 @@ export class DriftClient {
 	}
 
 	public async getPlaceAndMakeSwiftPerpOrderIxs(
-		encodedTakerOrderParamsMessage: Buffer,
-		takerSignature: Buffer,
+		encodedSwiftMessage: Buffer,
+		swiftSignature: Buffer,
+		encodedSwiftOrderParamsMessage: Buffer,
+		swiftOrderParamsSignature: Buffer,
 		takerExpectedOrderId: number,
 		takerInfo: {
 			taker: PublicKey;
@@ -5529,13 +5626,18 @@ export class DriftClient {
 		referrerInfo?: ReferrerInfo,
 		subAccountId?: number
 	): Promise<TransactionInstruction[]> {
-		const [signatureIx, placeTakerSwiftPerpOrderIx] =
-			await this.getPlaceSwiftTakerPerpOrderIx(
-				encodedTakerOrderParamsMessage,
-				takerSignature,
-				orderParams.marketIndex,
-				takerInfo
-			);
+		const [
+			swiftServerSignatureIx,
+			swiftOrderSignatureIx,
+			placeTakerSwiftPerpOrderIx,
+		] = await this.getPlaceSwiftTakerPerpOrderIxs(
+			encodedSwiftMessage,
+			swiftSignature,
+			encodedSwiftOrderParamsMessage,
+			swiftOrderParamsSignature,
+			orderParams.marketIndex,
+			takerInfo
+		);
 
 		orderParams = getOrderParams(orderParams, { marketType: MarketType.PERP });
 		const userStatsPublicKey = this.getUserStatsAccountPublicKey();
@@ -5579,7 +5681,12 @@ export class DriftClient {
 			}
 		);
 
-		return [signatureIx, placeTakerSwiftPerpOrderIx, placeAndMakeIx];
+		return [
+			swiftServerSignatureIx,
+			swiftOrderSignatureIx,
+			placeTakerSwiftPerpOrderIx,
+			placeAndMakeIx,
+		];
 	}
 
 	public async preparePlaceAndTakeSpotOrder(
@@ -7651,12 +7758,13 @@ export class DriftClient {
 		return this.receiverProgram;
 	}
 
-	public getSwitchboardOnDemandProgram(): Program30<Idl30> {
+	public async getSwitchboardOnDemandProgram(): Promise<Program30<Idl30>> {
+		const idl = (await Program30.fetchIdl(
+			this.sbOnDemandProgramdId,
+			this.provider
+		))!;
 		if (this.sbOnDemandProgram === undefined) {
-			this.sbOnDemandProgram = new Program30(
-				switchboardOnDemandIdl as Idl30,
-				this.provider
-			);
+			this.sbOnDemandProgram = new Program30(idl, this.provider);
 		}
 		return this.sbOnDemandProgram;
 	}
@@ -7878,7 +7986,7 @@ export class DriftClient {
 		feed: PublicKey,
 		numSignatures = 3
 	): Promise<TransactionInstruction | undefined> {
-		const program = this.getSwitchboardOnDemandProgram();
+		const program = await this.getSwitchboardOnDemandProgram();
 		const feedAccount = new PullFeed(program, feed);
 		if (!this.sbProgramFeedConfigs) {
 			this.sbProgramFeedConfigs = new Map();
@@ -7890,8 +7998,6 @@ export class DriftClient {
 
 		const [pullIx, _responses, success] = await feedAccount.fetchUpdateIx({
 			numSignatures,
-			// @ts-ignore :: TODO someone needs to look at this
-			feedConfigs: this.sbProgramFeedConfigs.get(feed.toString()),
 		});
 		if (!success) {
 			return undefined;

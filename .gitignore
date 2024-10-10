@@ -11,3 +11,4 @@ sdk/src/**/*.js.map
 .DS_STORE
 .vscode
 migrations
+/**/*.env
