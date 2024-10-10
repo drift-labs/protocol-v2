@@ -116,8 +116,8 @@ export const initialize = (props: {
 
 export function getMarketsAndOraclesForSubscription(
 	env: DriftEnv,
-	perpMarkets: PerpMarketConfig[],
-	spotMarkets: SpotMarketConfig[]
+	perpMarkets?: PerpMarketConfig[],
+	spotMarkets?: SpotMarketConfig[]
 ): {
 	perpMarketIndexes: number[];
 	spotMarketIndexes: number[];
