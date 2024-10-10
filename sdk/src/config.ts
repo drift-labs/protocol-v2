@@ -123,8 +123,10 @@ export function getMarketsAndOraclesForSubscription(
 	spotMarketIndexes: number[];
 	oracleInfos: OracleInfo[];
 } {
-	const perpMarketsToUse = perpMarkets?.length > 0 ? perpMarkets : PerpMarkets[env];
-	const spotMarketsToUse = spotMarkets?.length > 0 ? spotMarkets : SpotMarkets[env];
+	const perpMarketsToUse =
+		perpMarkets?.length > 0 ? perpMarkets : PerpMarkets[env];
+	const spotMarketsToUse =
+		spotMarkets?.length > 0 ? spotMarkets : SpotMarkets[env];
 
 	const perpMarketIndexes = [];
 	const spotMarketIndexes = [];
