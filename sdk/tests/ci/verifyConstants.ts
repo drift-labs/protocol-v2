@@ -130,7 +130,14 @@ describe('Verify Constants', function () {
 				} oracle ${market.oracle.toBase58()}`
 			);
 
-			if (isOneOfVariant(market.oracleSource, ['pythPull', 'pyth1KPull', 'pyth1MPull', 'pythStableCoinPull'])) {
+			if (
+				isOneOfVariant(market.oracleSource, [
+					'pythPull',
+					'pyth1KPull',
+					'pyth1MPull',
+					'pythStableCoinPull',
+				])
+			) {
 				if (!correspondingConfigMarket.pythFeedId) {
 					assert(false, `spot market ${market.marketIndex} missing feed id`);
 				}
@@ -185,7 +192,14 @@ describe('Verify Constants', function () {
 				} oracle ${market.amm.oracle.toBase58()}`
 			);
 
-			if (isOneOfVariant(market.amm.oracleSource, ['pythPull', 'pyth1KPull', 'pyth1MPull', 'pythStableCoinPull'])) {
+			if (
+				isOneOfVariant(market.amm.oracleSource, [
+					'pythPull',
+					'pyth1KPull',
+					'pyth1MPull',
+					'pythStableCoinPull',
+				])
+			) {
 				if (!correspondingConfigMarket.pythFeedId) {
 					assert(false, `perp market ${market.marketIndex} missing feed id`);
 				}
