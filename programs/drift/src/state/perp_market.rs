@@ -233,7 +233,10 @@ pub struct PerpMarket {
     /// fuel multiplier for perp maker
     /// precision: 10
     pub fuel_boost_maker: u8,
-    pub padding: [u8; 43],
+    pub padding1: u8,
+    pub high_leverage_margin_ratio_initial: u16,
+    pub high_leverage_margin_ratio_maintenance: u16,
+    pub padding: [u8; 38],
 }
 
 impl Default for PerpMarket {
@@ -270,7 +273,10 @@ impl Default for PerpMarket {
             fuel_boost_position: 0,
             fuel_boost_taker: 0,
             fuel_boost_maker: 0,
-            padding: [0; 43],
+            padding1: 0,
+            high_leverage_margin_ratio_initial: 0,
+            high_leverage_margin_ratio_maintenance: 0,
+            padding: [0; 38],
         }
     }
 }
@@ -388,23 +394,37 @@ impl PerpMarket {
         }
     }
 
+    pub fn is_high_leverage_mode_enabled(&self) -> bool {
+        self.high_leverage_margin_ratio_initial > 0
+            && self.high_leverage_margin_ratio_maintenance > 0
+    }
+
     pub fn get_margin_ratio(
         &self,
         size: u128,
         margin_type: MarginRequirementType,
+        user_high_leverage_mode: bool,
     ) -> DriftResult<u32> {
         if self.status == MarketStatus::Settlement {
             return Ok(0); // no liability weight on size
         }
 
+        let (margin_ratio_initial, margin_ratio_maintenance) =
+            if user_high_leverage_mode && self.is_high_leverage_mode_enabled() {
+                (
+                    self.high_leverage_margin_ratio_initial.cast::<u32>()?,
+                    self.high_leverage_margin_ratio_maintenance.cast::<u32>()?,
+                )
+            } else {
+                (self.margin_ratio_initial, self.margin_ratio_maintenance)
+            };
+
         let default_margin_ratio = match margin_type {
-            MarginRequirementType::Initial => self.margin_ratio_initial,
+            MarginRequirementType::Initial => margin_ratio_initial,
             MarginRequirementType::Fill => {
-                self.margin_ratio_initial
-                    .safe_add(self.margin_ratio_maintenance)?
-                    / 2
+                margin_ratio_initial.safe_add(margin_ratio_maintenance)? / 2
             }
-            MarginRequirementType::Maintenance => self.margin_ratio_maintenance,
+            MarginRequirementType::Maintenance => margin_ratio_maintenance,
         };
 
         let size_adj_margin_ratio = calculate_size_premium_liability_weight(

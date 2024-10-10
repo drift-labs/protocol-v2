@@ -130,8 +130,24 @@ export function calculateMarketMarginRatio(
 	market: PerpMarketAccount,
 	size: BN,
 	marginCategory: MarginCategory,
-	customMarginRatio = 0
+	customMarginRatio = 0,
+	userHighLeverageMode = false
 ): number {
+	let marginRationInitial;
+	let marginRatioMaintenance;
+
+	if (
+		userHighLeverageMode &&
+		market.highLeverageMarginRatioInitial > 0 &&
+		market.highLeverageMarginRatioMaintenance
+	) {
+		marginRationInitial = market.highLeverageMarginRatioInitial;
+		marginRatioMaintenance = market.highLeverageMarginRatioMaintenance;
+	} else {
+		marginRationInitial = market.marginRatioInitial;
+		marginRatioMaintenance = market.marginRatioMaintenance;
+	}
+
 	let marginRatio;
 	switch (marginCategory) {
 		case 'Initial': {
@@ -140,7 +156,7 @@ export function calculateMarketMarginRatio(
 				calculateSizePremiumLiabilityWeight(
 					size,
 					new BN(market.imfFactor),
-					new BN(market.marginRatioInitial),
+					new BN(marginRationInitial),
 					MARGIN_PRECISION
 				).toNumber(),
 				customMarginRatio
@@ -151,7 +167,7 @@ export function calculateMarketMarginRatio(
 			marginRatio = calculateSizePremiumLiabilityWeight(
 				size,
 				new BN(market.imfFactor),
-				new BN(market.marginRatioMaintenance),
+				new BN(marginRatioMaintenance),
 				MARGIN_PRECISION
 			).toNumber();
 			break;
