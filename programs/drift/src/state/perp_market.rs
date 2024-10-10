@@ -395,7 +395,8 @@ impl PerpMarket {
     }
 
     pub fn is_high_leverage_mode_enabled(&self) -> bool {
-        self.high_leverage_margin_ratio_initial > 0 && self.high_leverage_margin_ratio_initial > 0
+        self.high_leverage_margin_ratio_initial > 0
+            && self.high_leverage_margin_ratio_maintenance > 0
     }
 
     pub fn get_margin_ratio(

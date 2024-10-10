@@ -53,9 +53,8 @@ pub fn validate_margin(
             ErrorCode::InvalidMarginRatio,
             "high_leverage_margin_ratio_maintenance must be greater than liquidation fee"
         )?;
-    } else if high_leverage_margin_ratio_initial != 0 {
-        return Err(ErrorCode::InvalidMarginRatio);
-    } else if high_leverage_margin_ratio_maintenance != 0 {
+    } else if high_leverage_margin_ratio_initial != 0 || high_leverage_margin_ratio_maintenance != 0
+    {
         return Err(ErrorCode::InvalidMarginRatio);
     }
 
