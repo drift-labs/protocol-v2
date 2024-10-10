@@ -14,6 +14,8 @@
 
 This repository provides open source access to Drift V2's Typescript SDK, Solana Programs, and more.
 
+Integrating Drift? [Go here](./sdk/README.md)
+
 # SDK Guide
 
 SDK docs can be found [here](./sdk/README.md)
