@@ -677,7 +677,7 @@ export class User {
 			baseAssetAmount,
 			'Initial',
 			this.getUserAccount().maxMarginRatio,
-			this.isHighLeverageMode(),
+			this.isHighLeverageMode()
 		);
 
 		return freeCollateral.mul(MARGIN_PRECISION).div(new BN(marginRatio));
@@ -1509,7 +1509,7 @@ export class User {
 					baseAssetAmount.abs(),
 					marginCategory,
 					this.getUserAccount().maxMarginRatio,
-					this.isHighLeverageMode(),
+					this.isHighLeverageMode()
 				)
 			);
 
@@ -1975,7 +1975,7 @@ export class User {
 			maxSize,
 			marginCategory,
 			this.getUserAccount().maxMarginRatio,
-			this.isHighLeverageMode(),
+			this.isHighLeverageMode()
 		);
 
 		// use more fesible size since imf factor activated
@@ -1997,7 +1997,7 @@ export class User {
 				targetSize,
 				marginCategory,
 				this.getUserAccount().maxMarginRatio,
-				this.isHighLeverageMode(),
+				this.isHighLeverageMode()
 			);
 			attempts += 1;
 		}
@@ -2158,7 +2158,7 @@ export class User {
 		return (this.getUserAccount().status & UserStatus.BANKRUPT) > 0;
 	}
 
-	public isHighLeverageMode() : boolean {
+	public isHighLeverageMode(): boolean {
 		return isVariant(this.getUserAccount().marginMode, 'highLeverage');
 	}
 
@@ -2453,7 +2453,7 @@ export class User {
 				baseAssetAmount.abs(),
 				'Maintenance',
 				this.getUserAccount().maxMarginRatio,
-				this.isHighLeverageMode(),
+				this.isHighLeverageMode()
 			);
 
 			return liabilityValue.mul(new BN(marginRatio)).div(MARGIN_PRECISION);
@@ -2499,7 +2499,7 @@ export class User {
 			proposedBaseAssetAmount.abs(),
 			marginCategory,
 			this.getUserAccount().maxMarginRatio,
-			this.isHighLeverageMode(),
+			this.isHighLeverageMode()
 		);
 		const marginRatioQuotePrecision = new BN(marginRatio)
 			.mul(QUOTE_PRECISION)
@@ -2634,7 +2634,7 @@ export class User {
 			baseSize,
 			collateralIndex,
 			this.getUserAccount().maxMarginRatio,
-			false, // assume user cant be high leverage if they havent created user account ?
+			false // assume user cant be high leverage if they havent created user account ?
 		);
 	}
 
@@ -3784,7 +3784,7 @@ export class User {
 				worstCaseBaseAmount.abs(),
 				marginCategory,
 				this.getUserAccount().maxMarginRatio,
-				this.isHighLeverageMode(),
+				this.isHighLeverageMode()
 			)
 		);
 

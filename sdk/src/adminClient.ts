@@ -31,7 +31,8 @@ import {
 	getPrelaunchOraclePublicKey,
 	getOpenbookV2FulfillmentConfigPublicKey,
 	getPythPullOraclePublicKey,
-	getUserStatsAccountPublicKey, getHighLeverageModeConfigPublicKey,
+	getUserStatsAccountPublicKey,
+	getHighLeverageModeConfigPublicKey,
 } from './addresses/pda';
 import { squareRootBN } from './math/utils';
 import { TOKEN_PROGRAM_ID } from '@solana/spl-token';
@@ -1280,7 +1281,9 @@ export class AdminClient extends DriftClient {
 				marginRatioMaintenance
 			);
 
-		const tx = await this.buildTransaction(updatePerpMarketHighLeverageMarginRatioIx);
+		const tx = await this.buildTransaction(
+			updatePerpMarketHighLeverageMarginRatioIx
+		);
 
 		const { txSig } = await this.sendTransaction(tx, [], this.opts);
 
@@ -3890,20 +3893,22 @@ export class AdminClient extends DriftClient {
 		);
 	}
 
-	public async initializeHighLeverageModeConfig(maxUsers: number): Promise<TransactionSignature> {
+	public async initializeHighLeverageModeConfig(
+		maxUsers: number
+	): Promise<TransactionSignature> {
 		const initializeHighLeverageModeConfigIx =
 			await this.getInitializeHighLeverageModeConfigIx(maxUsers);
 
-		const tx = await this.buildTransaction(
-			initializeHighLeverageModeConfigIx
-		);
+		const tx = await this.buildTransaction(initializeHighLeverageModeConfigIx);
 
 		const { txSig } = await this.sendTransaction(tx, [], this.opts);
 
 		return txSig;
 	}
 
-	public async getInitializeHighLeverageModeConfigIx(maxUsers: number): Promise<TransactionInstruction> {
+	public async getInitializeHighLeverageModeConfigIx(
+		maxUsers: number
+	): Promise<TransactionInstruction> {
 		return await this.program.instruction.initializeHighLeverageModeConfig(
 			maxUsers,
 			{
@@ -3914,8 +3919,9 @@ export class AdminClient extends DriftClient {
 					state: await this.getStatePublicKey(),
 					rent: SYSVAR_RENT_PUBKEY,
 					systemProgram: anchor.web3.SystemProgram.programId,
-					highLeverageModeConfig:
-						getHighLeverageModeConfigPublicKey(this.program.programId),
+					highLeverageModeConfig: getHighLeverageModeConfigPublicKey(
+						this.program.programId
+					),
 				},
 			}
 		);
@@ -3923,17 +3929,12 @@ export class AdminClient extends DriftClient {
 
 	public async updateUpdateHighLeverageModeConfig(
 		maxUsers: number,
-		reduceOnly: boolean,
+		reduceOnly: boolean
 	): Promise<TransactionSignature> {
 		const updateHighLeverageModeConfigIx =
-			await this.getUpdateHighLeverageModeConfigIx(
-				maxUsers,
-				reduceOnly,
-			);
+			await this.getUpdateHighLeverageModeConfigIx(maxUsers, reduceOnly);
 
-		const tx = await this.buildTransaction(
-			updateHighLeverageModeConfigIx
-		);
+		const tx = await this.buildTransaction(updateHighLeverageModeConfigIx);
 
 		const { txSig } = await this.sendTransaction(tx, [], this.opts);
 
@@ -3942,7 +3943,7 @@ export class AdminClient extends DriftClient {
 
 	public async getUpdateHighLeverageModeConfigIx(
 		maxUsers: number,
-		reduceOnly: boolean,
+		reduceOnly: boolean
 	): Promise<TransactionInstruction> {
 		return await this.program.instruction.updateHighLeverageModeConfig(
 			maxUsers,
@@ -3953,8 +3954,9 @@ export class AdminClient extends DriftClient {
 						? this.getStateAccount().admin
 						: this.wallet.publicKey,
 					state: await this.getStatePublicKey(),
-					highLeverageModeConfig:
-						getHighLeverageModeConfigPublicKey(this.program.programId),
+					highLeverageModeConfig: getHighLeverageModeConfigPublicKey(
+						this.program.programId
+					),
 				},
 			}
 		);

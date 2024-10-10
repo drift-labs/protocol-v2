@@ -81,7 +81,8 @@ import { EventEmitter } from 'events';
 import StrictEventEmitter from 'strict-event-emitter-types';
 import {
 	getDriftSignerPublicKey,
-	getDriftStateAccountPublicKey, getHighLeverageModeConfigPublicKey,
+	getDriftStateAccountPublicKey,
+	getHighLeverageModeConfigPublicKey,
 	getInsuranceFundStakeAccountPublicKey,
 	getOpenbookV2FulfillmentConfigPublicKey,
 	getPerpMarketPublicKey,
@@ -8102,7 +8103,10 @@ export class DriftClient {
 		return [postIxs, encodedVaaKeypair];
 	}
 
-	public async enableUserHighLeverageMode(subAccountId: number, txParams?: TxParams): Promise<TransactionSignature> {
+	public async enableUserHighLeverageMode(
+		subAccountId: number,
+		txParams?: TxParams
+	): Promise<TransactionSignature> {
 		const { txSig } = await this.sendTransaction(
 			await this.buildTransaction(
 				await this.getEnableHighLeverageModeIx(subAccountId),
@@ -8114,9 +8118,7 @@ export class DriftClient {
 		return txSig;
 	}
 
-	public async getEnableHighLeverageModeIx(
-		subAccountId: number
-	) {
+	public async getEnableHighLeverageModeIx(subAccountId: number) {
 		const ix = await this.program.instruction.enableHighLeverageMode(
 			subAccountId,
 			{
@@ -8128,7 +8130,9 @@ export class DriftClient {
 						subAccountId
 					),
 					authority: this.wallet.publicKey,
-					highLeverageModeConfig: getHighLeverageModeConfigPublicKey(this.program.programId)
+					highLeverageModeConfig: getHighLeverageModeConfigPublicKey(
+						this.program.programId
+					),
 				},
 			}
 		);
@@ -8136,7 +8140,10 @@ export class DriftClient {
 		return ix;
 	}
 
-	public async disableUserHighLeverageMode(user: PublicKey, txParams?: TxParams): Promise<TransactionSignature> {
+	public async disableUserHighLeverageMode(
+		user: PublicKey,
+		txParams?: TxParams
+	): Promise<TransactionSignature> {
 		const { txSig } = await this.sendTransaction(
 			await this.buildTransaction(
 				await this.getDisableHighLeverageModeIx(user),
@@ -8148,19 +8155,17 @@ export class DriftClient {
 		return txSig;
 	}
 
-	public async getDisableHighLeverageModeIx(
-		user: PublicKey,
-	) {
-		const ix = await this.program.instruction.disableHighLeverageMode(
-			{
-				accounts: {
-					state: await this.getStatePublicKey(),
-					user,
-					authority: this.wallet.publicKey,
-					highLeverageModeConfig: getHighLeverageModeConfigPublicKey(this.program.programId)
-				},
-			}
-		);
+	public async getDisableHighLeverageModeIx(user: PublicKey) {
+		const ix = await this.program.instruction.disableHighLeverageMode({
+			accounts: {
+				state: await this.getStatePublicKey(),
+				user,
+				authority: this.wallet.publicKey,
+				highLeverageModeConfig: getHighLeverageModeConfigPublicKey(
+					this.program.programId
+				),
+			},
+		});
 
 		return ix;
 	}

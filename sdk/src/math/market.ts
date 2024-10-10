@@ -131,12 +131,16 @@ export function calculateMarketMarginRatio(
 	size: BN,
 	marginCategory: MarginCategory,
 	customMarginRatio = 0,
-	userHighLeverageMode = false,
+	userHighLeverageMode = false
 ): number {
 	let marginRationInitial;
 	let marginRatioMaintenance;
 
-	if (userHighLeverageMode && market.highLeverageMarginRatioInitial > 0 && market.highLeverageMarginRatioMaintenance) {
+	if (
+		userHighLeverageMode &&
+		market.highLeverageMarginRatioInitial > 0 &&
+		market.highLeverageMarginRatioMaintenance
+	) {
 		marginRationInitial = market.highLeverageMarginRatioInitial;
 		marginRatioMaintenance = market.highLeverageMarginRatioMaintenance;
 	} else {
