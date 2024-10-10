@@ -8180,6 +8180,104 @@
       }
     },
     {
+      "name": "RFQMakerOrderParams",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "uuid",
+            "type": "string"
+          },
+          {
+            "name": "authority",
+            "type": "publicKey"
+          },
+          {
+            "name": "subAccountId",
+            "type": "u16"
+          },
+          {
+            "name": "marketIndex",
+            "type": "u16"
+          },
+          {
+            "name": "marketType",
+            "type": {
+              "defined": "MarketType"
+            }
+          },
+          {
+            "name": "baseAssetAmount",
+            "type": "u64"
+          },
+          {
+            "name": "price",
+            "type": "u64"
+          },
+          {
+            "name": "direction",
+            "type": {
+              "defined": "PositionDirection"
+            }
+          },
+          {
+            "name": "maxTs",
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "RFQMakerMessage",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "orderParams",
+            "type": {
+              "defined": "RFQMakerOrderParams"
+            }
+          },
+          {
+            "name": "signature",
+            "type": {
+              "array": [
+                "u8",
+                64
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "RFQMatch",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "baseAssetAmount",
+            "type": "u64"
+          },
+          {
+            "name": "makerOrderParams",
+            "type": {
+              "defined": "RFQMakerOrderParams"
+            }
+          },
+          {
+            "name": "makerSignature",
+            "type": {
+              "array": [
+                "u8",
+                64
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
       "name": "ModifyOrderParams",
       "type": {
         "kind": "struct",
@@ -10098,6 +10196,9 @@
           },
           {
             "name": "Liquidation"
+          },
+          {
+            "name": "RFQ"
           }
         ]
       }

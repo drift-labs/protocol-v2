@@ -651,6 +651,32 @@ pub struct SwiftTriggerOrderParams {
     pub base_asset_amount: u64,
 }
 
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, Eq, PartialEq, Debug)]
+pub struct RFQMakerOrderParams {
+    pub uuid: String,
+    pub authority: Pubkey,
+    pub sub_account_id: u16,
+    pub market_index: u16,
+    pub market_type: MarketType,
+    pub base_asset_amount: u64,
+    pub price: u64,
+    pub direction: PositionDirection,
+    pub max_ts: i64,
+}
+
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, Eq, PartialEq, Debug)]
+pub struct RFQMakerMessage {
+    pub order_params: RFQMakerOrderParams,
+    pub signature: [u8; 64],
+}
+
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, Eq, PartialEq, Debug)]
+pub struct RFQMatch {
+    pub base_asset_amount: u64,
+    pub maker_order_params: RFQMakerOrderParams,
+    pub maker_signature: [u8; 64],
+}
+
 fn get_auction_duration(
     price_diff: u64,
     price: u64,

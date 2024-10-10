@@ -6,7 +6,6 @@ use std::u64;
 use anchor_lang::prelude::*;
 use solana_program::msg;
 
-use crate::controller;
 use crate::controller::funding::settle_funding_payment;
 use crate::controller::lp::burn_lp_shares;
 use crate::controller::position;
@@ -45,8 +44,9 @@ use crate::math::safe_math::SafeMath;
 use crate::math::spot_balance::{get_signed_token_amount, get_token_amount};
 use crate::math::{amm, fees, margin::*, orders::*};
 use crate::state::order_params::{
-    ModifyOrderParams, ModifyOrderPolicy, OrderParams, PlaceOrderOptions, PostOnlyParam,
+    ModifyOrderParams, ModifyOrderPolicy, OrderParams, PlaceOrderOptions, PostOnlyParam, RFQMatch,
 };
+use crate::{controller, ID};
 
 use crate::math::amm::calculate_amm_available_liquidity;
 use crate::math::lp::calculate_lp_shares_to_burn_for_risk_reduction;
@@ -394,6 +394,116 @@ pub fn place_perp_order(
     emit_stack::<_, { OrderRecord::SIZE }>(order_record)?;
 
     user.update_last_active_slot(slot);
+
+    Ok(())
+}
+
+pub fn match_rfq_orders<'c: 'info, 'info>(
+    taker_account_loader: &AccountLoader<'info, User>,
+    taker_stats_account_loader: &AccountLoader<'info, UserStats>,
+    rfq_matches: Vec<RFQMatch>,
+    makers_and_referrer: &UserMap,
+    makers_and_referrer_stats: &UserStatsMap,
+    perp_market_map: &PerpMarketMap,
+    spot_market_map: &SpotMarketMap,
+    oracle_map: &mut OracleMap,
+    state: &State,
+) -> Result<()> {
+    #[cfg(all(feature = "mainnet-beta", not(feature = "anchor-test")))]
+    {
+        panic!("RFQ orders are disabled on mainnet-beta");
+    }
+
+    let taker_key = taker_account_loader.key();
+    let mut taker = load_mut!(taker_account_loader)?;
+    let clock = &Clock::get()?;
+
+    for rfq_match in rfq_matches {
+        let maker_order_params = rfq_match.maker_order_params;
+        let (maker_pubkey, _) = Pubkey::find_program_address(
+            &[
+                &b"user"[..],
+                maker_order_params.authority.as_ref(),
+                &maker_order_params.sub_account_id.to_le_bytes(),
+            ],
+            &ID,
+        );
+
+        let maker_order_params = OrderParams {
+            order_type: OrderType::Limit,
+            market_type: maker_order_params.market_type,
+            market_index: maker_order_params.market_index,
+            direction: maker_order_params.direction,
+            base_asset_amount: rfq_match.base_asset_amount,
+            price: maker_order_params.price,
+            max_ts: Some(maker_order_params.max_ts),
+            immediate_or_cancel: true,
+            post_only: PostOnlyParam::TryPostOnly,
+            ..OrderParams::default()
+        };
+        let mut maker = makers_and_referrer.get_ref_mut(&maker_pubkey)?;
+
+        let taker_order_params = OrderParams {
+            order_type: OrderType::Limit,
+            market_type: maker_order_params.market_type,
+            market_index: maker_order_params.market_index,
+            direction: maker_order_params.direction.opposite(),
+            base_asset_amount: rfq_match.base_asset_amount,
+            price: maker_order_params.price,
+            immediate_or_cancel: true,
+            post_only: PostOnlyParam::TryPostOnly,
+            ..OrderParams::default()
+        };
+
+        if maker_order_params.market_type == MarketType::Perp {
+            // place maker order
+            let maker_order_id = maker.next_order_id;
+            controller::orders::place_perp_order(
+                state,
+                &mut maker,
+                maker_pubkey,
+                perp_market_map,
+                spot_market_map,
+                oracle_map,
+                clock,
+                maker_order_params,
+                PlaceOrderOptions::default(),
+            )?;
+
+            // place taker order
+            let taker_order_id = taker.next_order_id;
+            controller::orders::place_perp_order(
+                state,
+                &mut taker,
+                taker_key,
+                perp_market_map,
+                spot_market_map,
+                oracle_map,
+                &clock,
+                taker_order_params,
+                PlaceOrderOptions::default(),
+            )?;
+
+            fill_perp_order(
+                taker_order_id,
+                state,
+                taker_account_loader,
+                taker_stats_account_loader,
+                spot_market_map,
+                perp_market_map,
+                oracle_map,
+                taker_account_loader,
+                taker_stats_account_loader,
+                makers_and_referrer,
+                makers_and_referrer_stats,
+                Some(maker_order_id),
+                clock,
+                FillMode::RFQ,
+            )?;
+        } else {
+            msg!("RFQ for spot market not supported");
+        }
+    }
 
     Ok(())
 }
@@ -978,7 +1088,7 @@ pub fn fill_perp_order(
     let oracle_twap_5min: i64;
     let perp_market_index: u16;
 
-    let mut amm_is_available = !state.amm_paused()?;
+    let mut amm_is_available = !state.amm_paused()? && fill_mode != FillMode::RFQ;
     {
         let market = &mut perp_market_map.get_ref_mut(&market_index)?;
         validation::perp_market::validate_perp_market(market)?;

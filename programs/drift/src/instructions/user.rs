@@ -5,9 +5,11 @@ use anchor_spl::{
     token_2022::Token2022,
     token_interface::{TokenAccount, TokenInterface},
 };
+use solana_program::instruction::Instruction;
 use solana_program::program::invoke;
 use solana_program::system_instruction::transfer;
 
+use crate::controller::orders::match_rfq_orders;
 use crate::controller::orders::{cancel_orders, ModifyOrderId};
 use crate::controller::position::PositionDirection;
 use crate::controller::spot_balance::update_revenue_pool_balances;
@@ -16,6 +18,7 @@ use crate::controller::spot_position::{
     update_spot_balances_and_cumulative_deposits_with_limits,
 };
 use crate::error::ErrorCode;
+use crate::ids::swift_server;
 use crate::ids::{
     jupiter_mainnet_3, jupiter_mainnet_4, jupiter_mainnet_6, marinade_mainnet, serum_program,
 };
@@ -49,6 +52,7 @@ use crate::state::fulfillment_params::openbook_v2::OpenbookV2FulfillmentParams;
 use crate::state::fulfillment_params::phoenix::PhoenixFulfillmentParams;
 use crate::state::fulfillment_params::serum::SerumFulfillmentParams;
 use crate::state::oracle::StrictOraclePrice;
+use crate::state::order_params::RFQMatch;
 use crate::state::order_params::{
     ModifyOrderParams, OrderParams, PlaceAndTakeOrderSuccessCondition, PlaceOrderOptions,
     PostOnlyParam,
@@ -68,6 +72,7 @@ use crate::state::traits::Size;
 use crate::state::user::{MarketType, OrderType, ReferrerName, User, UserStats};
 use crate::state::user_map::{load_user_maps, UserMap, UserStatsMap};
 use crate::validate;
+use crate::validation::sig_verification::verify_ed25519_ix;
 use crate::validation::user::validate_user_deletion;
 use crate::validation::whitelist::validate_whitelist_token;
 use crate::{controller, math};
@@ -77,6 +82,9 @@ use crate::{load_mut, ExchangeStatus};
 use anchor_lang::solana_program::sysvar::instructions;
 use anchor_spl::associated_token::AssociatedToken;
 use borsh::{BorshDeserialize, BorshSerialize};
+use solana_program::sysvar::instructions::{
+    load_current_index_checked, load_instruction_at_checked, ID as IX_ID,
+};
 
 pub fn handle_initialize_user<'c: 'info, 'info>(
     ctx: Context<'_, '_, 'c, 'info, InitializeUser<'info>>,
@@ -852,6 +860,74 @@ pub fn handle_place_perp_order<'c: 'info, 'info>(
         PlaceOrderOptions::default(),
     )?;
 
+    Ok(())
+}
+
+pub fn handle_match_rfq_orders<'c: 'info, 'info>(
+    ctx: Context<'_, '_, 'c, 'info, PlaceAndMatchRFQOrders<'info>>,
+    rfq_matches: Vec<RFQMatch>,
+    rfq_uuid: String,
+    rfq_server_signature: [u8; 64],
+) -> Result<()> {
+    // Verify everything before proceeding to match the rfq orders
+
+    let ix_sysvar = &ctx.accounts.ix_sysvar.to_account_info();
+    let number_of_verify_ixs_needed = rfq_matches.len() + 1;
+    let ix_idx = load_current_index_checked(ix_sysvar)?;
+
+    // First authenticate the rfq server signature
+    let ix: Instruction =
+        load_instruction_at_checked(ix_idx as usize - number_of_verify_ixs_needed, ix_sysvar)?;
+    verify_ed25519_ix(
+        &ix,
+        &swift_server::id().to_bytes(),
+        &rfq_uuid.clone().try_to_vec()?,
+        &rfq_server_signature,
+    )?;
+
+    for i in 0..rfq_matches.len() {
+        let maker_order_params = &rfq_matches[i].maker_order_params;
+        let ix: Instruction = load_instruction_at_checked(
+            ix_idx as usize - number_of_verify_ixs_needed + i,
+            ix_sysvar,
+        )?;
+        verify_ed25519_ix(
+            &ix,
+            &maker_order_params.authority.to_bytes(),
+            &maker_order_params.clone().try_to_vec()?,
+            &rfq_matches[i].maker_signature,
+        )?;
+    }
+
+    let state = &ctx.accounts.state;
+    let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
+    let (makers_and_referrer, makers_and_referrer_stats) =
+        load_user_maps(remaining_accounts_iter, true)?;
+
+    // TODO: generalize to support multiple market types
+    let AccountMaps {
+        perp_market_map,
+        spot_market_map,
+        mut oracle_map,
+    } = load_maps(
+        &mut ctx.remaining_accounts.iter().peekable(),
+        &MarketSet::new(),
+        &MarketSet::new(),
+        Clock::get()?.slot,
+        Some(state.oracle_guard_rails),
+    )?;
+
+    match_rfq_orders(
+        &ctx.accounts.user,
+        &ctx.accounts.user_stats,
+        rfq_matches,
+        &makers_and_referrer,
+        &makers_and_referrer_stats,
+        &perp_market_map,
+        &spot_market_map,
+        &mut oracle_map,
+        state,
+    )?;
     Ok(())
 }
 
@@ -2352,6 +2428,25 @@ pub struct PlaceAndMake<'info> {
     )]
     pub taker_stats: AccountLoader<'info, UserStats>,
     pub authority: Signer<'info>,
+}
+
+#[derive(Accounts)]
+pub struct PlaceAndMatchRFQOrders<'info> {
+    pub state: Box<Account<'info, State>>,
+    #[account(mut)]
+    pub user: AccountLoader<'info, User>,
+    #[account(
+        mut,
+        constraint = is_stats_for_user(&user, &user_stats)?
+    )]
+    pub user_stats: AccountLoader<'info, UserStats>,
+    pub authority: Signer<'info>,
+    /// CHECK: The address check is needed because otherwise
+    /// the supplied Sysvar could be anything else.
+    /// The Instruction Sysvar has not been implemented
+    /// in the Anchor framework yet, so this is the safe approach.
+    #[account(address = IX_ID)]
+    pub ix_sysvar: AccountInfo<'info>,
 }
 
 #[derive(Accounts)]
