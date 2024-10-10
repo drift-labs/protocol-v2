@@ -301,6 +301,7 @@ mod calculate_lp_shares_to_burn_for_risk_reduction {
                 quote_oracle_price,
                 margin_shortage,
                 0,
+                false,
             )
             .unwrap();
 
@@ -317,6 +318,7 @@ mod calculate_lp_shares_to_burn_for_risk_reduction {
                 quote_oracle_price,
                 margin_shortage,
                 0,
+                false,
             )
             .unwrap();
 
@@ -333,6 +335,7 @@ mod calculate_lp_shares_to_burn_for_risk_reduction {
                 quote_oracle_price,
                 margin_shortage,
                 0,
+                false,
             )
             .unwrap();
 
@@ -352,6 +355,7 @@ mod calculate_lp_shares_to_burn_for_risk_reduction {
                 quote_oracle_price,
                 margin_shortage,
                 0,
+                false,
             )
             .unwrap();
 
@@ -368,6 +372,7 @@ mod calculate_lp_shares_to_burn_for_risk_reduction {
                 quote_oracle_price,
                 margin_shortage,
                 0,
+                false,
             )
             .unwrap();
 
@@ -384,6 +389,7 @@ mod calculate_lp_shares_to_burn_for_risk_reduction {
                 quote_oracle_price,
                 margin_shortage,
                 0,
+                false,
             )
             .unwrap();
 
@@ -434,6 +440,7 @@ mod calculate_lp_shares_to_burn_for_risk_reduction {
                 quote_oracle_price,
                 margin_shortage,
                 user_custom_margin_ratio,
+                false,
             )
             .unwrap();
 

@@ -68,6 +68,11 @@ export enum UserStatus {
 	ADVANCED_LP = 8,
 }
 
+export class MarginMode {
+	static readonly DEFAULT = { default: {} };
+	static readonly HIGH_LEVERAGE = { highLeverage: {} };
+}
+
 export class ContractType {
 	static readonly PERPETUAL = { perpetual: {} };
 	static readonly FUTURE = { future: {} };
@@ -661,6 +666,9 @@ export type PerpMarketAccount = {
 	fuelBoostTaker: number;
 	fuelBoostMaker: number;
 	fuelBoostPosition: number;
+
+	highLeverageMarginRatioInitial: number;
+	highLeverageMarginRatioMaintenance: number;
 };
 
 export type HistoricalOracleData = {
@@ -950,6 +958,7 @@ export type UserAccount = {
 	openAuctions: number;
 	hasOpenAuction: boolean;
 	lastFuelBonusUpdateTs: number;
+	marginMode: MarginMode;
 };
 
 export type SpotPosition = {

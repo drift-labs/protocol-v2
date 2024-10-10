@@ -40,3 +40,65 @@ mod amm {
         assert_eq!(discount, 10000000); // $1
     }
 }
+
+mod get_margin_ratio {
+    use crate::math::margin::MarginRequirementType;
+    use crate::state::perp_market::PerpMarket;
+    use crate::state::user::MarginMode;
+    use crate::{BASE_PRECISION, MARGIN_PRECISION, MAX_MARGIN_RATIO};
+
+    #[test]
+    fn test() {
+        let perp_market = PerpMarket {
+            margin_ratio_initial: MARGIN_PRECISION / 10,
+            margin_ratio_maintenance: MARGIN_PRECISION / 20,
+            ..PerpMarket::default()
+        };
+
+        let margin_ratio_initial = perp_market
+            .get_margin_ratio(BASE_PRECISION, MarginRequirementType::Initial, false)
+            .unwrap();
+
+        let margin_ratio_maintenance = perp_market
+            .get_margin_ratio(BASE_PRECISION, MarginRequirementType::Maintenance, false)
+            .unwrap();
+
+        let margin_ratio_fill = perp_market
+            .get_margin_ratio(BASE_PRECISION, MarginRequirementType::Fill, false)
+            .unwrap();
+
+        assert_eq!(margin_ratio_initial, MARGIN_PRECISION / 10);
+        assert_eq!(
+            margin_ratio_fill,
+            (MARGIN_PRECISION / 10 + MARGIN_PRECISION / 20) / 2
+        );
+        assert_eq!(margin_ratio_maintenance, MARGIN_PRECISION / 20);
+
+        let perp_market = PerpMarket {
+            margin_ratio_initial: MARGIN_PRECISION / 10,
+            margin_ratio_maintenance: MARGIN_PRECISION / 20,
+            high_leverage_margin_ratio_initial: MARGIN_PRECISION as u16 / 50,
+            high_leverage_margin_ratio_maintenance: MARGIN_PRECISION as u16 / 100,
+            ..PerpMarket::default()
+        };
+
+        let margin_ratio_initial = perp_market
+            .get_margin_ratio(BASE_PRECISION, MarginRequirementType::Initial, true)
+            .unwrap();
+
+        let margin_ratio_maintenance = perp_market
+            .get_margin_ratio(BASE_PRECISION, MarginRequirementType::Maintenance, true)
+            .unwrap();
+
+        let margin_ratio_fill = perp_market
+            .get_margin_ratio(BASE_PRECISION, MarginRequirementType::Fill, true)
+            .unwrap();
+
+        assert_eq!(margin_ratio_initial, MARGIN_PRECISION / 50);
+        assert_eq!(
+            margin_ratio_fill,
+            (MARGIN_PRECISION / 50 + MARGIN_PRECISION / 100) / 2
+        );
+        assert_eq!(margin_ratio_maintenance, MARGIN_PRECISION / 100);
+    }
+}

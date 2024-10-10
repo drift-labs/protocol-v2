@@ -3086,6 +3086,7 @@ pub fn burn_user_lp_shares_for_risk_reduction(
             quote_oracle_price,
             margin_calc.margin_shortage()?,
             user_custom_margin_ratio,
+            user.is_high_leverage_mode(),
         )?;
 
     let (position_delta, pnl) = burn_lp_shares(
