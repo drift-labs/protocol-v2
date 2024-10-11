@@ -1,5 +1,5 @@
 use crate::controller::position::PositionDirection;
-use crate::error::{DriftResult, ErrorCode};
+use crate::error::DriftResult;
 use crate::math::casting::Cast;
 use crate::math::safe_math::SafeMath;
 use crate::math::safe_unwrap::SafeUnwrap;

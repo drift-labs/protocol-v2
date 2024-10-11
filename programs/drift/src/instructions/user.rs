@@ -78,7 +78,6 @@ use crate::validate;
 use crate::validation::sig_verification::verify_ed25519_ix;
 use crate::validation::user::validate_user_deletion;
 use crate::validation::whitelist::validate_whitelist_token;
-use crate::ID;
 use crate::{controller, math};
 use crate::{get_then_update_id, QUOTE_SPOT_MARKET_INDEX};
 use crate::{load, THIRTEEN_DAY};
@@ -998,14 +997,6 @@ pub fn handle_match_rfq_orders<'c: 'info, 'info>(
     for i in 0..rfq_matches.len() {
         // First verify that the message is legitimate
         let maker_order_params = &rfq_matches[i].maker_order_params;
-        let (maker_pubkey, _) = Pubkey::find_program_address(
-            &[
-                &b"user"[..],
-                maker_order_params.authority.as_ref(),
-                &maker_order_params.sub_account_id.to_le_bytes(),
-            ],
-            &ID,
-        );
         let ix: Instruction = load_instruction_at_checked(
             ix_idx as usize - number_of_verify_ixs_needed + i,
             ix_sysvar,
