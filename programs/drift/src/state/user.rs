@@ -23,17 +23,22 @@ use crate::state::oracle::StrictOraclePrice;
 use crate::state::perp_market::{ContractType, PerpMarket};
 use crate::state::spot_market::{SpotBalance, SpotBalanceType, SpotMarket};
 use crate::state::traits::Size;
-use crate::{get_then_update_id, QUOTE_PRECISION_U64};
+use crate::{get_then_update_id, load_mut, ID, QUOTE_PRECISION_U64};
 use crate::{math_error, SPOT_WEIGHT_PRECISION_I128};
 use crate::{safe_increment, SPOT_WEIGHT_PRECISION};
 use crate::{validate, MAX_PREDICTION_MARKET_PRICE};
-use anchor_lang::prelude::*;
+use anchor_lang::{prelude::*, Discriminator};
+use arrayref::array_ref;
 use borsh::{BorshDeserialize, BorshSerialize};
 use solana_program::msg;
+use std::cell::RefMut;
 use std::cmp::max;
+use std::collections::{BTreeMap, HashSet};
 use std::fmt;
+use std::iter::Peekable;
 use std::ops::Neg;
 use std::panic::Location;
+use std::slice::Iter;
 
 use crate::math::margin::{
     calculate_margin_requirement_and_total_collateral_and_liability_info,
@@ -539,6 +544,109 @@ impl User {
 
         Ok(true)
     }
+}
+
+pub const RFQ_PDA_SEED: &str = "RFQ";
+#[account(zero_copy(unsafe))]
+#[derive(Default, Eq, PartialEq, Debug)]
+#[repr(C)]
+pub struct RFQUserAccount {
+    pub rfq_order_data: [RFQOrderId; 32],
+}
+
+impl RFQUserAccount {
+    pub fn check_exists_and_prune_stale_rfq_order_ids(
+        &mut self,
+        rfq_order_id: RFQOrderId,
+        now: i64,
+    ) -> DriftResult<bool> {
+        let mut uuid_exists: bool = false;
+        for i in 0..self.rfq_order_data.len() {
+            let existing_rfq_order_id = &mut self.rfq_order_data[i];
+            if existing_rfq_order_id.uuid == rfq_order_id.uuid && existing_rfq_order_id.max_ts > now
+            {
+                uuid_exists = true;
+            } else {
+                if existing_rfq_order_id.max_ts < now {
+                    existing_rfq_order_id.uuid = [0; 16];
+                    existing_rfq_order_id.max_ts = 0;
+                }
+            }
+        }
+        Ok(uuid_exists)
+    }
+
+    pub fn add_rfq_order_id(&mut self, rfq_order_id: RFQOrderId) -> DriftResult {
+        for i in 0..self.rfq_order_data.len() {
+            if self.rfq_order_data[i].max_ts == 0 {
+                self.rfq_order_data[i] = rfq_order_id;
+                return Ok(());
+            }
+        }
+
+        Err(ErrorCode::RFQUserAccountFull.into())
+    }
+}
+
+#[account(zero_copy(unsafe))]
+#[derive(Default, Eq, PartialEq, Debug)]
+#[repr(C)]
+pub struct RFQOrderId {
+    pub uuid: [u8; 16],
+    pub max_ts: i64,
+}
+
+impl Size for RFQUserAccount {
+    const SIZE: usize = 808;
+}
+
+pub fn derive_rfq_user_pda(user_account_pubkey: &Pubkey) -> DriftResult<Pubkey> {
+    let (rfq_pubkey, _) = Pubkey::find_program_address(
+        &[RFQ_PDA_SEED.as_bytes(), user_account_pubkey.as_ref()],
+        &ID,
+    );
+    Ok(rfq_pubkey)
+}
+
+pub fn load_rfq_user_account_map<'a: 'b, 'b>(
+    account_info_iter: &mut Peekable<Iter<'a, AccountInfo<'b>>>,
+    user_pubkeys: Vec<Pubkey>,
+) -> DriftResult<BTreeMap<Pubkey, AccountLoader<'a, RFQUserAccount>>> {
+    let mut rfq_user_account_map = BTreeMap::<Pubkey, AccountLoader<'a, RFQUserAccount>>::new();
+
+    let available_maker_pdas: HashSet<Pubkey> = user_pubkeys
+        .iter()
+        .map(|pubkey| derive_rfq_user_pda(pubkey).unwrap())
+        .collect();
+
+    for account_info in account_info_iter {
+        let account_key = account_info.key;
+        if available_maker_pdas.contains(account_key) {
+            let is_writable = account_info.is_writable;
+            if !is_writable {
+                return Err(ErrorCode::RFQUserAccountWrongMutability);
+            }
+
+            let account_loader: AccountLoader<'a, RFQUserAccount> =
+                AccountLoader::try_from(account_info).or(Err(ErrorCode::InvalidRFQUserAccount))?;
+
+            rfq_user_account_map.insert(*account_key, account_loader);
+        }
+    }
+
+    Ok(rfq_user_account_map)
+}
+
+pub fn derive_user_account(authority: &Pubkey, sub_account_id: u16) -> Pubkey {
+    let (account_drift_pda, _seed) = Pubkey::find_program_address(
+        &[
+            &b"user"[..],
+            authority.as_ref(),
+            &sub_account_id.to_le_bytes(),
+        ],
+        &ID,
+    );
+    account_drift_pda
 }
 
 #[zero_copy(unsafe)]

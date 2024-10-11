@@ -72,7 +72,8 @@ use crate::state::state::FeeStructure;
 use crate::state::state::*;
 use crate::state::traits::Size;
 use crate::state::user::{
-    AssetType, Order, OrderStatus, OrderTriggerCondition, OrderType, UserStats,
+    AssetType, Order, OrderStatus, OrderTriggerCondition, OrderType, RFQOrderId, RFQUserAccount,
+    UserStats,
 };
 use crate::state::user::{MarketType, User};
 use crate::state::user_map::{UserMap, UserStatsMap};
@@ -402,6 +403,7 @@ pub fn match_rfq_orders<'c: 'info, 'info>(
     taker_account_loader: &AccountLoader<'info, User>,
     taker_stats_account_loader: &AccountLoader<'info, UserStats>,
     rfq_matches: Vec<RFQMatch>,
+    maker_rfq_account_map: BTreeMap<Pubkey, AccountLoader<'c, RFQUserAccount>>,
     makers_and_referrer: &UserMap,
     makers_and_referrer_stats: &UserStatsMap,
     perp_market_map: &PerpMarketMap,
@@ -442,6 +444,24 @@ pub fn match_rfq_orders<'c: 'info, 'info>(
             ..OrderParams::default()
         };
         let mut maker = makers_and_referrer.get_ref_mut(&maker_pubkey)?;
+
+        // See if the UUID already exists in the RFQ Account data
+        let rfq_account =
+            load_mut!(maker_rfq_account_map.get(&maker_pubkey).ok_or_else(|| {
+                msg!("RFQ account not found for maker {}", maker_pubkey);
+                ErrorCode::InvalidRFQUserAccount
+            })?)?;
+
+        let rfq_order_id = RFQOrderId {
+            uuid: rfq_match.maker_order_params.uuid,
+            max_ts: rfq_match.maker_order_params.max_ts,
+        };
+        if rfq_account
+            .check_exists_and_prune_stale_rfq_order_ids(rfq_order_id, clock.unix_timestamp)?
+        {
+            msg!("RFQ order already exists for maker {}", maker_pubkey);
+            continue;
+        }
 
         let taker_order_params = OrderParams {
             order_type: OrderType::Limit,

@@ -653,7 +653,7 @@ pub struct SwiftTriggerOrderParams {
 
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Eq, PartialEq, Debug)]
 pub struct RFQMakerOrderParams {
-    pub uuid: String,
+    pub uuid: [u8; 16],
     pub authority: Pubkey,
     pub sub_account_id: u16,
     pub market_index: u16,
