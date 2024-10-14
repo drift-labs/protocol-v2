@@ -8119,7 +8119,7 @@ export class DriftClient {
 	}
 
 	public async getEnableHighLeverageModeIx(subAccountId: number) {
-		const ix = await this.program.instruction.enableHighLeverageMode(
+		const ix = await this.program.instruction.enableUserHighLeverageMode(
 			subAccountId,
 			{
 				accounts: {
@@ -8156,7 +8156,7 @@ export class DriftClient {
 	}
 
 	public async getDisableHighLeverageModeIx(user: PublicKey) {
-		const ix = await this.program.instruction.disableHighLeverageMode({
+		const ix = await this.program.instruction.disableUserHighLeverageMode({
 			accounts: {
 				state: await this.getStatePublicKey(),
 				user,
