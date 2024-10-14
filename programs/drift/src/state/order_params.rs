@@ -651,7 +651,7 @@ pub struct SwiftTriggerOrderParams {
     pub base_asset_amount: u64,
 }
 
-#[derive(AnchorSerialize, AnchorDeserialize, Clone, Eq, PartialEq, Debug)]
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, Eq, PartialEq, Debug, Copy)]
 pub struct RFQMakerOrderParams {
     pub uuid: [u8; 16],
     pub authority: Pubkey,

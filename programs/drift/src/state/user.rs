@@ -31,7 +31,7 @@ use anchor_lang::prelude::*;
 use borsh::{BorshDeserialize, BorshSerialize};
 use solana_program::msg;
 use std::cmp::max;
-use std::collections::{BTreeMap, HashSet};
+use std::collections::BTreeMap;
 use std::fmt;
 use std::iter::Peekable;
 use std::ops::Neg;
@@ -545,6 +545,18 @@ impl User {
 }
 
 pub const RFQ_PDA_SEED: &str = "RFQ";
+#[zero_copy(unsafe)]
+#[derive(Default, Eq, PartialEq, Debug)]
+#[repr(C)]
+pub struct RFQOrderId {
+    pub uuid: [u8; 16],
+    pub max_ts: i64,
+}
+
+impl Size for RFQUserAccount {
+    const SIZE: usize = 776;
+}
+
 #[account(zero_copy(unsafe))]
 #[derive(Default, Eq, PartialEq, Debug)]
 #[repr(C)]
@@ -586,18 +598,6 @@ impl RFQUserAccount {
     }
 }
 
-#[account(zero_copy(unsafe))]
-#[derive(Default, Eq, PartialEq, Debug)]
-#[repr(C)]
-pub struct RFQOrderId {
-    pub uuid: [u8; 16],
-    pub max_ts: i64,
-}
-
-impl Size for RFQUserAccount {
-    const SIZE: usize = 808;
-}
-
 pub fn derive_rfq_user_pda(user_account_pubkey: &Pubkey) -> DriftResult<Pubkey> {
     let (rfq_pubkey, _) = Pubkey::find_program_address(
         &[RFQ_PDA_SEED.as_bytes(), user_account_pubkey.as_ref()],
@@ -612,14 +612,18 @@ pub fn load_rfq_user_account_map<'a: 'b, 'b>(
 ) -> DriftResult<BTreeMap<Pubkey, AccountLoader<'a, RFQUserAccount>>> {
     let mut rfq_user_account_map = BTreeMap::<Pubkey, AccountLoader<'a, RFQUserAccount>>::new();
 
-    let available_maker_pdas: HashSet<Pubkey> = user_pubkeys
+    let available_maker_pdas: BTreeMap<Pubkey, Pubkey> = user_pubkeys
         .iter()
-        .map(|pubkey| derive_rfq_user_pda(pubkey).unwrap())
+        .map(|pubkey| {
+            let pda = derive_rfq_user_pda(pubkey).unwrap();
+            (pda, *pubkey)
+        })
         .collect();
+    msg!("available_maker_pdas {:?}", available_maker_pdas);
 
     for account_info in account_info_iter {
         let account_key = account_info.key;
-        if available_maker_pdas.contains(account_key) {
+        if let Some(pubkey) = available_maker_pdas.get(account_key) {
             let is_writable = account_info.is_writable;
             if !is_writable {
                 return Err(ErrorCode::RFQUserAccountWrongMutability);
@@ -628,7 +632,7 @@ pub fn load_rfq_user_account_map<'a: 'b, 'b>(
             let account_loader: AccountLoader<'a, RFQUserAccount> =
                 AccountLoader::try_from(account_info).or(Err(ErrorCode::InvalidRFQUserAccount))?;
 
-            rfq_user_account_map.insert(*account_key, account_loader);
+            rfq_user_account_map.insert(*pubkey, account_loader);
         }
     }
 

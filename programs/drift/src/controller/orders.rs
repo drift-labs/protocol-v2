@@ -399,7 +399,7 @@ pub fn place_perp_order(
     Ok(())
 }
 
-pub fn match_rfq_orders<'c: 'info, 'info>(
+pub fn place_and_match_rfq_orders<'c: 'info, 'info>(
     taker_account_loader: &AccountLoader<'info, User>,
     taker_stats_account_loader: &AccountLoader<'info, UserStats>,
     rfq_matches: Vec<RFQMatch>,
@@ -417,10 +417,10 @@ pub fn match_rfq_orders<'c: 'info, 'info>(
     }
 
     let taker_key = taker_account_loader.key();
-    let mut taker = load_mut!(taker_account_loader)?;
     let clock = &Clock::get()?;
 
     for rfq_match in rfq_matches {
+        let mut taker = load_mut!(taker_account_loader)?;
         let maker_order_params = rfq_match.maker_order_params;
         let (maker_pubkey, _) = Pubkey::find_program_address(
             &[
@@ -446,15 +446,15 @@ pub fn match_rfq_orders<'c: 'info, 'info>(
         let mut maker = makers_and_referrer.get_ref_mut(&maker_pubkey)?;
 
         // See if the UUID already exists in the RFQ Account data
-        let rfq_account =
+        let mut rfq_account =
             load_mut!(maker_rfq_account_map.get(&maker_pubkey).ok_or_else(|| {
                 msg!("RFQ account not found for maker {}", maker_pubkey);
                 ErrorCode::InvalidRFQUserAccount
             })?)?;
 
         let rfq_order_id = RFQOrderId {
-            uuid: rfq_match.maker_order_params.uuid,
-            max_ts: rfq_match.maker_order_params.max_ts,
+            uuid: rfq_match.maker_order_params.uuid.clone(),
+            max_ts: rfq_match.maker_order_params.max_ts.clone(),
         };
         if rfq_account
             .check_exists_and_prune_stale_rfq_order_ids(rfq_order_id, clock.unix_timestamp)?
@@ -491,7 +491,7 @@ pub fn match_rfq_orders<'c: 'info, 'info>(
             )?;
 
             // place taker order
-            let taker_order_id = taker.next_order_id;
+            let taker_order_id = taker.next_order_id.clone();
             controller::orders::place_perp_order(
                 state,
                 &mut taker,
@@ -504,6 +504,9 @@ pub fn match_rfq_orders<'c: 'info, 'info>(
                 PlaceOrderOptions::default(),
             )?;
 
+            drop(taker);
+            drop(maker);
+
             fill_perp_order(
                 taker_order_id,
                 state,
@@ -512,8 +515,8 @@ pub fn match_rfq_orders<'c: 'info, 'info>(
                 spot_market_map,
                 perp_market_map,
                 oracle_map,
-                taker_account_loader,
-                taker_stats_account_loader,
+                &taker_account_loader.clone(),
+                &taker_stats_account_loader.clone(),
                 makers_and_referrer,
                 makers_and_referrer_stats,
                 Some(maker_order_id),

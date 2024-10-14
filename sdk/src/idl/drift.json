@@ -94,6 +94,42 @@
       "args": []
     },
     {
+      "name": "initializeRfqUserAccount",
+      "accounts": [
+        {
+          "name": "rfqUser",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "user",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "payer",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "rent",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "systemProgram",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": []
+    },
+    {
       "name": "initializeReferrerName",
       "accounts": [
         {
@@ -658,6 +694,51 @@
               "u8",
               64
             ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "placeAndMatchRfqOrders",
+      "accounts": [
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "user",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "userStats",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "ixSysvar",
+          "isMut": false,
+          "isSigner": false,
+          "docs": [
+            "the supplied Sysvar could be anything else.",
+            "The Instruction Sysvar has not been implemented",
+            "in the Anchor framework yet, so this is the safe approach."
+          ]
+        }
+      ],
+      "args": [
+        {
+          "name": "rfqMatches",
+          "type": {
+            "vec": {
+              "defined": "RFQMatch"
+            }
           }
         }
       ]
@@ -7401,6 +7482,25 @@
       }
     },
     {
+      "name": "RFQUserAccount",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "rfqOrderData",
+            "type": {
+              "array": [
+                {
+                  "defined": "RFQOrderId"
+                },
+                32
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
       "name": "UserStats",
       "type": {
         "kind": "struct",
@@ -8186,7 +8286,12 @@
         "fields": [
           {
             "name": "uuid",
-            "type": "string"
+            "type": {
+              "array": [
+                "u8",
+                16
+              ]
+            }
           },
           {
             "name": "authority",
@@ -9289,6 +9394,27 @@
           {
             "name": "timeBasedRewardLowerBound",
             "type": "u128"
+          }
+        ]
+      }
+    },
+    {
+      "name": "RFQOrderId",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "uuid",
+            "type": {
+              "array": [
+                "u8",
+                16
+              ]
+            }
+          },
+          {
+            "name": "maxTs",
+            "type": "i64"
           }
         ]
       }
@@ -13227,6 +13353,21 @@
       "code": 6289,
       "name": "PlaceAndTakeOrderSuccessConditionFailed",
       "msg": "Place and take order success condition failed"
+    },
+    {
+      "code": 6290,
+      "name": "InvalidRFQUserAccount",
+      "msg": "Invalid RFQ User Account"
+    },
+    {
+      "code": 6291,
+      "name": "RFQUserAccountWrongMutability",
+      "msg": "RFQUserAccount should be mutable"
+    },
+    {
+      "code": 6292,
+      "name": "RFQUserAccountFull",
+      "msg": "RFQUserAccount has too many active RFQs"
     }
   ],
   "metadata": {

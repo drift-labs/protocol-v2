@@ -9,7 +9,7 @@ use solana_program::instruction::Instruction;
 use solana_program::program::invoke;
 use solana_program::system_instruction::transfer;
 
-use crate::controller::orders::match_rfq_orders;
+use crate::controller::orders::place_and_match_rfq_orders;
 use crate::controller::orders::{cancel_orders, ModifyOrderId};
 use crate::controller::position::PositionDirection;
 use crate::controller::spot_balance::update_revenue_pool_balances;
@@ -73,6 +73,7 @@ use crate::state::user::load_rfq_user_account_map;
 use crate::state::user::RFQUserAccount;
 use crate::state::user::RFQ_PDA_SEED;
 use crate::state::user::{MarketType, OrderType, ReferrerName, User, UserStats};
+use crate::state::user_map::load_user_map;
 use crate::state::user_map::{load_user_maps, UserMap, UserStatsMap};
 use crate::validate;
 use crate::validation::sig_verification::verify_ed25519_ix;
@@ -271,120 +272,12 @@ pub fn handle_initialize_referrer_name(
 }
 
 pub fn handle_initialize_rfq_user_account<'c: 'info, 'info>(
-    ctx: Context<'_, '_, 'c, 'info, InitializeUser<'info>>,
-    sub_account_id: u16,
-    name: [u8; 32],
+    ctx: Context<'_, '_, 'c, 'info, InitializeRFQUserAccount<'info>>,
 ) -> Result<()> {
-    let user_key = ctx.accounts.user.key();
-    let mut user = ctx
-        .accounts
-        .user
+    ctx.accounts
+        .rfq_user
         .load_init()
         .or(Err(ErrorCode::UnableToLoadAccountLoader))?;
-    user.authority = ctx.accounts.authority.key();
-    user.sub_account_id = sub_account_id;
-    user.name = name;
-    user.next_order_id = 1;
-    user.next_liquidation_id = 1;
-
-    let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
-
-    let mut user_stats = load_mut!(ctx.accounts.user_stats)?;
-    user_stats.number_of_sub_accounts = user_stats.number_of_sub_accounts.safe_add(1)?;
-
-    // Only try to add referrer if it is the first user
-    if user_stats.number_of_sub_accounts_created == 0 {
-        let (referrer, referrer_stats) = get_referrer_and_referrer_stats(remaining_accounts_iter)?;
-        let referrer = if let (Some(referrer), Some(referrer_stats)) = (referrer, referrer_stats) {
-            let referrer = load!(referrer)?;
-            let mut referrer_stats = load_mut!(referrer_stats)?;
-
-            validate!(referrer.sub_account_id == 0, ErrorCode::InvalidReferrer)?;
-
-            validate!(
-                referrer.authority == referrer_stats.authority,
-                ErrorCode::ReferrerAndReferrerStatsAuthorityUnequal
-            )?;
-
-            referrer_stats.is_referrer = true;
-
-            referrer.authority
-        } else {
-            Pubkey::default()
-        };
-
-        user_stats.referrer = referrer;
-    }
-
-    let whitelist_mint = &ctx.accounts.state.whitelist_mint;
-    if !whitelist_mint.eq(&Pubkey::default()) {
-        validate_whitelist_token(
-            get_whitelist_token(remaining_accounts_iter)?,
-            whitelist_mint,
-            &ctx.accounts.authority.key(),
-        )?;
-    }
-
-    validate!(
-        sub_account_id == user_stats.number_of_sub_accounts_created,
-        ErrorCode::InvalidUserSubAccountId,
-        "Invalid sub account id {}, must be {}",
-        sub_account_id,
-        user_stats.number_of_sub_accounts_created
-    )?;
-
-    user_stats.number_of_sub_accounts_created =
-        user_stats.number_of_sub_accounts_created.safe_add(1)?;
-
-    let state = &mut ctx.accounts.state;
-    safe_increment!(state.number_of_sub_accounts, 1);
-
-    let max_number_of_sub_accounts = state.max_number_of_sub_accounts();
-
-    validate!(
-        max_number_of_sub_accounts == 0
-            || state.number_of_sub_accounts <= max_number_of_sub_accounts,
-        ErrorCode::MaxNumberOfUsers
-    )?;
-
-    let now_ts = Clock::get()?.unix_timestamp;
-
-    user.last_fuel_bonus_update_ts = now_ts.cast()?;
-
-    emit!(NewUserRecord {
-        ts: now_ts,
-        user_authority: ctx.accounts.authority.key(),
-        user: user_key,
-        sub_account_id,
-        name,
-        referrer: user_stats.referrer
-    });
-
-    drop(user);
-
-    let init_fee = state.get_init_user_fee()?;
-
-    if init_fee > 0 {
-        let payer_lamports = ctx.accounts.payer.to_account_info().try_lamports()?;
-        if payer_lamports < init_fee {
-            msg!("payer lamports {} init fee {}", payer_lamports, init_fee);
-            return Err(ErrorCode::CantPayUserInitFee.into());
-        }
-
-        invoke(
-            &transfer(
-                &ctx.accounts.payer.key(),
-                &ctx.accounts.user.key(),
-                init_fee,
-            ),
-            &[
-                ctx.accounts.payer.to_account_info(),
-                ctx.accounts.user.to_account_info(),
-                ctx.accounts.system_program.to_account_info(),
-            ],
-        )?;
-    }
-
     Ok(())
 }
 
@@ -984,7 +877,7 @@ pub fn handle_place_perp_order<'c: 'info, 'info>(
     Ok(())
 }
 
-pub fn handle_match_rfq_orders<'c: 'info, 'info>(
+pub fn handle_place_and_match_rfq_orders<'c: 'info, 'info>(
     ctx: Context<'_, '_, 'c, 'info, PlaceAndMatchRFQOrders<'info>>,
     rfq_matches: Vec<RFQMatch>,
 ) -> Result<()> {
@@ -1007,27 +900,25 @@ pub fn handle_match_rfq_orders<'c: 'info, 'info>(
             &maker_order_params.clone().try_to_vec()?,
             &rfq_matches[i].maker_signature,
         )?;
-
-        // Check the pda for the uuid of the maker params
     }
 
+    // TODO: generalize to support multiple market types
     let state = &ctx.accounts.state;
     let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
-    let (makers_and_referrer, makers_and_referrer_stats) =
-        load_user_maps(remaining_accounts_iter, true)?;
-
-    // TODO: generalize to support multiple market types
     let AccountMaps {
         perp_market_map,
         spot_market_map,
         mut oracle_map,
     } = load_maps(
-        &mut ctx.remaining_accounts.iter().peekable(),
+        remaining_accounts_iter,
         &MarketSet::new(),
         &MarketSet::new(),
         Clock::get()?.slot,
         Some(state.oracle_guard_rails),
     )?;
+
+    let (makers_and_referrer, makers_and_referrer_stats) =
+        load_user_maps(remaining_accounts_iter, true)?;
 
     let maker_rfq_account_map = load_rfq_user_account_map(
         remaining_accounts_iter,
@@ -1042,7 +933,7 @@ pub fn handle_match_rfq_orders<'c: 'info, 'info>(
             .collect(),
     )?;
 
-    match_rfq_orders(
+    place_and_match_rfq_orders(
         &ctx.accounts.user,
         &ctx.accounts.user_stats,
         rfq_matches,
@@ -2353,9 +2244,6 @@ pub struct InitializeUserStats<'info> {
 }
 
 #[derive(Accounts)]
-#[instruction(
-    sub_account_id: u16,
-)]
 pub struct InitializeRFQUserAccount<'info> {
     #[account(
         init,
@@ -2365,8 +2253,6 @@ pub struct InitializeRFQUserAccount<'info> {
         payer = payer
     )]
     pub rfq_user: AccountLoader<'info, RFQUserAccount>,
-    #[account(mut)]
-    pub state: Box<Account<'info, State>>,
     pub authority: Signer<'info>,
     #[account(
         mut,

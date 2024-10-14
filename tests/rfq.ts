@@ -1,0 +1,356 @@
+import * as anchor from '@coral-xyz/anchor';
+import { assert } from 'chai';
+
+import { Program } from '@coral-xyz/anchor';
+
+import { Keypair } from '@solana/web3.js';
+
+import {
+	BN,
+	PRICE_PRECISION,
+	TestClient,
+	User,
+	Wallet,
+	EventSubscriber,
+	OracleSource,
+	RFQMakerOrderParams,
+	PositionDirection,
+	MarketType,
+} from '../sdk/src';
+
+import {
+	initializeQuoteSpotMarket,
+	mockOracleNoProgram,
+	mockUSDCMint,
+	mockUserUSDCAccount,
+	sleep,
+} from './testHelpers';
+import { BASE_PRECISION, BN_MAX, PEG_PRECISION } from '../sdk';
+import { startAnchor } from 'solana-bankrun';
+import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
+import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
+import { v4 as uuid } from 'uuid';
+
+describe('place and fill rfq orders', () => {
+	const chProgram = anchor.workspace.Drift as Program;
+
+	let takerDriftClient: TestClient;
+	let takerDriftClientUser: User;
+
+	let makerDriftClient: TestClient;
+	let makerDriftClientUser: User;
+
+	let makerDriftClient1: TestClient;
+	let makerDriftClientUser1: User;
+
+	let makerDriftClient2: TestClient;
+	let makerDriftClientUser2: User;
+
+	let eventSubscriber: EventSubscriber;
+
+	let bulkAccountLoader: TestBulkAccountLoader;
+
+	let bankrunContextWrapper: BankrunContextWrapper;
+
+	// ammInvariant == k == x * y
+	const mantissaSqrtScale = new BN(Math.sqrt(PRICE_PRECISION.toNumber()));
+	const ammInitialQuoteAssetReserve = new anchor.BN(5 * 10 ** 13).mul(
+		mantissaSqrtScale
+	);
+	const ammInitialBaseAssetReserve = new anchor.BN(5 * 10 ** 13).mul(
+		mantissaSqrtScale
+	);
+
+	let usdcMint;
+	let userUSDCAccount;
+
+	const usdcAmount = new BN(100 * 10 ** 6);
+
+	let solUsd;
+	let marketIndexes;
+	let spotMarketIndexes;
+	let oracleInfos;
+
+	before(async () => {
+		const context = await startAnchor('', [], []);
+
+		bankrunContextWrapper = new BankrunContextWrapper(context);
+
+		bulkAccountLoader = new TestBulkAccountLoader(
+			bankrunContextWrapper.connection,
+			'processed',
+			1
+		);
+
+		eventSubscriber = new EventSubscriber(
+			bankrunContextWrapper.connection.toConnection(),
+			chProgram
+		);
+
+		await eventSubscriber.subscribe();
+
+		usdcMint = await mockUSDCMint(bankrunContextWrapper);
+		userUSDCAccount = await mockUserUSDCAccount(
+			usdcMint,
+			usdcAmount,
+			bankrunContextWrapper
+		);
+
+		solUsd = await mockOracleNoProgram(bankrunContextWrapper, 32.821);
+
+		marketIndexes = [0];
+		spotMarketIndexes = [0, 1];
+		oracleInfos = [{ publicKey: solUsd, source: OracleSource.PYTH }];
+
+		takerDriftClient = new TestClient({
+			connection: bankrunContextWrapper.connection.toConnection(),
+			wallet: bankrunContextWrapper.provider.wallet,
+			programID: chProgram.programId,
+			opts: {
+				commitment: 'confirmed',
+			},
+			activeSubAccountId: 0,
+			perpMarketIndexes: marketIndexes,
+			spotMarketIndexes: spotMarketIndexes,
+			subAccountIds: [],
+			oracleInfos,
+			accountSubscription: {
+				type: 'polling',
+				accountLoader: bulkAccountLoader,
+			},
+		});
+		await takerDriftClient.initialize(usdcMint.publicKey, true);
+		await takerDriftClient.subscribe();
+		await initializeQuoteSpotMarket(takerDriftClient, usdcMint.publicKey);
+
+		const periodicity = new BN(0);
+		await takerDriftClient.initializePerpMarket(
+			0,
+			solUsd,
+			ammInitialBaseAssetReserve,
+			ammInitialQuoteAssetReserve,
+			periodicity,
+			new BN(32 * PEG_PRECISION.toNumber())
+		);
+
+		await takerDriftClient.initializeUserAccountAndDepositCollateral(
+			usdcAmount,
+			userUSDCAccount.publicKey
+		);
+
+		takerDriftClientUser = new User({
+			driftClient: takerDriftClient,
+			userAccountPublicKey: await takerDriftClient.getUserAccountPublicKey(),
+			accountSubscription: {
+				type: 'polling',
+				accountLoader: bulkAccountLoader,
+			},
+		});
+		await takerDriftClientUser.subscribe();
+
+		// Create some makers
+		let keypair = new Keypair();
+		await bankrunContextWrapper.fundKeypair(keypair, 10 ** 9);
+		await sleep(500);
+		let wallet = new Wallet(keypair);
+		userUSDCAccount = await mockUserUSDCAccount(
+			usdcMint,
+			usdcAmount,
+			bankrunContextWrapper,
+			keypair.publicKey
+		);
+		makerDriftClient = new TestClient({
+			connection: bankrunContextWrapper.connection.toConnection(),
+			wallet,
+			programID: chProgram.programId,
+			opts: {
+				commitment: 'confirmed',
+			},
+			activeSubAccountId: 0,
+			perpMarketIndexes: marketIndexes,
+			spotMarketIndexes: spotMarketIndexes,
+			subAccountIds: [],
+			oracleInfos,
+			userStats: true,
+			accountSubscription: {
+				type: 'polling',
+				accountLoader: bulkAccountLoader,
+			},
+		});
+		await makerDriftClient.subscribe();
+		await makerDriftClient.initializeUserAccountAndDepositCollateral(
+			usdcAmount,
+			userUSDCAccount.publicKey
+		);
+		makerDriftClientUser = new User({
+			driftClient: makerDriftClient,
+			userAccountPublicKey: await makerDriftClient.getUserAccountPublicKey(),
+			accountSubscription: {
+				type: 'polling',
+				accountLoader: bulkAccountLoader,
+			},
+		});
+		await makerDriftClientUser.subscribe();
+
+		// Create some makers
+		keypair = new Keypair();
+		await bankrunContextWrapper.fundKeypair(keypair, 10 ** 9);
+		await sleep(500);
+		wallet = new Wallet(keypair);
+		userUSDCAccount = await mockUserUSDCAccount(
+			usdcMint,
+			usdcAmount,
+			bankrunContextWrapper,
+			keypair.publicKey
+		);
+		makerDriftClient1 = new TestClient({
+			connection: bankrunContextWrapper.connection.toConnection(),
+			wallet,
+			programID: chProgram.programId,
+			opts: {
+				commitment: 'confirmed',
+			},
+			activeSubAccountId: 0,
+			perpMarketIndexes: marketIndexes,
+			spotMarketIndexes: spotMarketIndexes,
+			subAccountIds: [],
+			oracleInfos,
+			userStats: true,
+			accountSubscription: {
+				type: 'polling',
+				accountLoader: bulkAccountLoader,
+			},
+		});
+		await makerDriftClient1.subscribe();
+		await makerDriftClient1.initializeUserAccountAndDepositCollateral(
+			usdcAmount,
+			userUSDCAccount.publicKey
+		);
+		makerDriftClientUser1 = new User({
+			driftClient: makerDriftClient1,
+			userAccountPublicKey: await makerDriftClient1.getUserAccountPublicKey(),
+			accountSubscription: {
+				type: 'polling',
+				accountLoader: bulkAccountLoader,
+			},
+		});
+		await makerDriftClientUser1.subscribe();
+
+		// Create some makers
+		keypair = new Keypair();
+		await bankrunContextWrapper.fundKeypair(keypair, 10 ** 9);
+		await sleep(500);
+		wallet = new Wallet(keypair);
+		userUSDCAccount = await mockUserUSDCAccount(
+			usdcMint,
+			usdcAmount,
+			bankrunContextWrapper,
+			keypair.publicKey
+		);
+		makerDriftClient2 = new TestClient({
+			connection: bankrunContextWrapper.connection.toConnection(),
+			wallet,
+			programID: chProgram.programId,
+			opts: {
+				commitment: 'confirmed',
+			},
+			activeSubAccountId: 0,
+			perpMarketIndexes: marketIndexes,
+			spotMarketIndexes: spotMarketIndexes,
+			subAccountIds: [],
+			oracleInfos,
+			userStats: true,
+			accountSubscription: {
+				type: 'polling',
+				accountLoader: bulkAccountLoader,
+			},
+		});
+		await makerDriftClient2.subscribe();
+		await makerDriftClient2.initializeUserAccountAndDepositCollateral(
+			usdcAmount,
+			userUSDCAccount.publicKey
+		);
+		makerDriftClientUser2 = new User({
+			driftClient: makerDriftClient2,
+			userAccountPublicKey: await makerDriftClient2.getUserAccountPublicKey(),
+			accountSubscription: {
+				type: 'polling',
+				accountLoader: bulkAccountLoader,
+			},
+		});
+		await makerDriftClientUser2.subscribe();
+
+		// Create the maker's rfq accounts
+		let [txSig, _rfqUserAccountPublicKey] =
+			await makerDriftClient.initializeRFQUserAccount(
+				makerDriftClientUser.userAccountPublicKey
+			);
+
+		bankrunContextWrapper.printTxLogs(txSig);
+
+		[txSig, _rfqUserAccountPublicKey] =
+			await makerDriftClient1.initializeRFQUserAccount(
+				makerDriftClientUser1.userAccountPublicKey
+			);
+
+		bankrunContextWrapper.printTxLogs(txSig);
+
+		[txSig, _rfqUserAccountPublicKey] =
+			await makerDriftClient2.initializeRFQUserAccount(
+				makerDriftClientUser2.userAccountPublicKey
+			);
+
+		bankrunContextWrapper.printTxLogs(txSig);
+	});
+
+	after(async () => {
+		await makerDriftClientUser.unsubscribe();
+		await makerDriftClientUser1.unsubscribe();
+		await makerDriftClientUser2.unsubscribe();
+
+		await makerDriftClient.unsubscribe();
+		await makerDriftClient1.unsubscribe();
+		await makerDriftClient2.unsubscribe();
+
+		await takerDriftClient.unsubscribe();
+		await takerDriftClientUser.unsubscribe();
+		await eventSubscriber.unsubscribe();
+	});
+
+	it('should match rfq orders successfully', async () => {
+		// Makers sign a messages to create a limit order
+
+		const makerOrderMessage: RFQMakerOrderParams = {
+			marketIndex: 0,
+			marketType: MarketType.PERP,
+			direction: PositionDirection.SHORT,
+			authority: makerDriftClientUser.getUserAccount().authority,
+			subAccountId: 0,
+			price: new BN(100).mul(PRICE_PRECISION),
+			baseAssetAmount: BASE_PRECISION,
+			maxTs: BN_MAX,
+			uuid: Uint8Array.from(Buffer.from(uuid())),
+		};
+		const signature = await makerDriftClient.signMessage(
+			makerDriftClient.encodeRFQMakerOrderParams(makerOrderMessage)
+		);
+
+		const txSig = await takerDriftClient.placeAndMatchRFQOrders(
+			[
+				{
+					baseAssetAmount: BASE_PRECISION,
+					makerOrderParams: makerOrderMessage,
+					makerSignature: signature,
+				},
+			]
+			//  [
+			//   makerDriftClientUser.getUserAccount()
+			//  ]
+		);
+
+		console.log(txSig);
+
+		await makerDriftClientUser.unsubscribe();
+		await makerDriftClient.unsubscribe();
+	});
+});
