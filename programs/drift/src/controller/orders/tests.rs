@@ -2790,7 +2790,7 @@ pub mod fulfill_order {
             now,
             slot,
             0,
-            true,
+         crate::state::perp_market::AMMAvailability::AfterMinDuration,
             FillMode::Fill,
         )
         .unwrap();
@@ -3033,7 +3033,7 @@ pub mod fulfill_order {
             now,
             slot,
             10,
-            true,
+         crate::state::perp_market::AMMAvailability::AfterMinDuration,
             FillMode::Fill,
         )
         .unwrap();
@@ -3222,7 +3222,7 @@ pub mod fulfill_order {
             now,
             slot,
             0,
-            true,
+         crate::state::perp_market::AMMAvailability::AfterMinDuration,
             FillMode::Fill,
         )
         .unwrap();
@@ -3427,7 +3427,7 @@ pub mod fulfill_order {
             now,
             slot,
             10,
-            true,
+         crate::state::perp_market::AMMAvailability::AfterMinDuration,
             FillMode::Fill,
         )
         .unwrap();
@@ -3592,7 +3592,7 @@ pub mod fulfill_order {
             now,
             slot,
             0,
-            true,
+         crate::state::perp_market::AMMAvailability::AfterMinDuration,
             FillMode::Fill,
         )
         .unwrap();
@@ -3789,7 +3789,7 @@ pub mod fulfill_order {
             now,
             slot,
             10,
-            true,
+         crate::state::perp_market::AMMAvailability::AfterMinDuration,
             FillMode::Fill,
         );
 
@@ -3975,7 +3975,7 @@ pub mod fulfill_order {
             now,
             slot,
             10,
-            true,
+         crate::state::perp_market::AMMAvailability::AfterMinDuration,
             FillMode::Fill,
         );
 
@@ -4114,7 +4114,7 @@ pub mod fulfill_order {
             now,
             slot,
             0,
-            true,
+         crate::state::perp_market::AMMAvailability::AfterMinDuration,
             FillMode::Fill,
         )
         .unwrap();
@@ -4280,7 +4280,7 @@ pub mod fulfill_order {
             now,
             slot,
             0,
-            true,
+         crate::state::perp_market::AMMAvailability::AfterMinDuration,
             FillMode::Fill,
         )
         .unwrap();
@@ -4686,7 +4686,7 @@ pub mod fulfill_order {
             now,
             slot,
             10,
-            true,
+         crate::state::perp_market::AMMAvailability::AfterMinDuration,
             FillMode::Fill,
         )
         .unwrap();
@@ -4929,7 +4929,7 @@ pub mod fulfill_order {
             now,
             slot,
             0,
-            true,
+         crate::state::perp_market::AMMAvailability::AfterMinDuration,
             FillMode::Fill,
         )
         .unwrap();

@@ -298,7 +298,7 @@ pub mod amm_jit {
             now,
             slot,
             0,
-            true,
+         crate::state::perp_market::AMMAvailability::AfterMinDuration,
             FillMode::Fill,
         )
         .unwrap();
@@ -487,7 +487,7 @@ pub mod amm_jit {
             now,
             slot,
             10,
-            true,
+         crate::state::perp_market::AMMAvailability::AfterMinDuration,
             FillMode::Fill,
         )
         .unwrap();
@@ -684,7 +684,7 @@ pub mod amm_jit {
             now,
             slot,
             10,
-            true,
+         crate::state::perp_market::AMMAvailability::AfterMinDuration,
             FillMode::Fill,
         )
         .unwrap();
@@ -880,7 +880,7 @@ pub mod amm_jit {
             now,
             slot,
             10,
-            true,
+         crate::state::perp_market::AMMAvailability::AfterMinDuration,
             FillMode::Fill,
         )
         .unwrap();
@@ -1078,7 +1078,7 @@ pub mod amm_jit {
             now,
             slot,
             0,
-            true,
+         crate::state::perp_market::AMMAvailability::AfterMinDuration,
             FillMode::Fill,
         )
         .unwrap();
@@ -1285,7 +1285,7 @@ pub mod amm_jit {
             now,
             slot,
             0,
-            true,
+         crate::state::perp_market::AMMAvailability::AfterMinDuration,
             FillMode::Fill,
         )
         .unwrap();
@@ -1490,7 +1490,7 @@ pub mod amm_jit {
             now,
             slot,
             0,
-            true,
+         crate::state::perp_market::AMMAvailability::AfterMinDuration,
             FillMode::Fill,
         )
         .unwrap();
@@ -1718,7 +1718,7 @@ pub mod amm_jit {
             now,
             slot,
             0,
-            false,
+            crate::state::perp_market::AMMAvailability::AfterMinDuration,
             FillMode::Fill,
         )
         .unwrap();
@@ -1917,7 +1917,7 @@ pub mod amm_jit {
             now,
             slot,
             0,
-            true,
+         crate::state::perp_market::AMMAvailability::AfterMinDuration,
             FillMode::Fill,
         )
         .unwrap();
@@ -2104,7 +2104,7 @@ pub mod amm_jit {
             now,
             slot,
             10,
-            true,
+         crate::state::perp_market::AMMAvailability::AfterMinDuration,
             FillMode::Fill,
         )
         .unwrap();
@@ -2303,7 +2303,7 @@ pub mod amm_jit {
             now,
             slot,
             10,
-            true,
+         crate::state::perp_market::AMMAvailability::AfterMinDuration,
             FillMode::Fill,
         )
         .unwrap();
@@ -2551,10 +2551,10 @@ pub mod amm_jit {
                 0,
                 Some(1),
                 now,
-                slot,
-                auction_duration,
-                true,
-                FillMode::Fill,
+            slot,
+            auction_duration,
+         crate::state::perp_market::AMMAvailability::AfterMinDuration,
+            FillMode::Fill,
             )
             .unwrap();
 
@@ -2836,7 +2836,7 @@ pub mod amm_jit {
                 now,
                 slot,
                 10,
-                true,
+                crate::state::perp_market::AMMAvailability::AfterMinDuration,
                 FillMode::Fill,
             )
             .unwrap();
@@ -3064,7 +3064,7 @@ pub mod amm_jit {
             now,
             slot,
             0,
-            true,
+         crate::state::perp_market::AMMAvailability::AfterMinDuration,
             FillMode::Fill,
         )
         .unwrap();

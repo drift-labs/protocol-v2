@@ -63,7 +63,7 @@ use crate::state::margin_calculation::{MarginCalculation, MarginContext};
 use crate::state::oracle::{OraclePriceData, StrictOraclePrice};
 use crate::state::oracle_map::OracleMap;
 use crate::state::paused_operations::{PerpOperation, SpotOperation};
-use crate::state::perp_market::{AMMLiquiditySplit, MarketStatus, PerpMarket};
+use crate::state::perp_market::{AMMLiquiditySplit, AMMAvailability, MarketStatus, PerpMarket};
 use crate::state::perp_market_map::PerpMarketMap;
 use crate::state::spot_fulfillment_params::{ExternalSpotFill, SpotFulfillmentParams};
 use crate::state::spot_market::{SpotBalanceType, SpotMarket};
@@ -1144,6 +1144,12 @@ pub fn fill_perp_order(
         return Ok((0, 0));
     }
 
+    let amm_availability = if amm_is_available {
+        AMMAvailability::AfterMinDuration
+    } else {
+        AMMAvailability::Unavailable
+    };
+
     let (base_asset_amount, quote_asset_amount) = fulfill_perp_order(
         user,
         order_index,
@@ -1165,7 +1171,7 @@ pub fn fill_perp_order(
         now,
         slot,
         state.min_perp_auction_duration,
-        amm_is_available,
+        amm_availability,
         fill_mode,
     )?;
 
@@ -1558,7 +1564,7 @@ fn fulfill_perp_order(
     now: i64,
     slot: u64,
     min_auction_duration: u8,
-    amm_is_available: bool,
+    amm_availability: AMMAvailability,
     fill_mode: FillMode,
 ) -> DriftResult<(u64, u64)> {
     let market_index = user.orders[user_order_index].market_index;
@@ -1587,7 +1593,7 @@ fn fulfill_perp_order(
             reserve_price_before,
             Some(oracle_price),
             limit_price,
-            amm_is_available,
+            amm_availability,
             slot,
             min_auction_duration,
             fill_mode,

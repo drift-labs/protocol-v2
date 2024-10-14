@@ -146,6 +146,14 @@ impl AMMLiquiditySplit {
     }
 }
 
+
+#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Debug, Eq, PartialOrd, Ord)]
+pub enum AMMAvailability {
+    Immediate,
+    AfterMinDuration,
+    Unavailable,
+}
+
 #[account(zero_copy(unsafe))]
 #[derive(Eq, PartialEq, Debug)]
 #[repr(C)]
