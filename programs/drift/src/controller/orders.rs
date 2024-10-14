@@ -63,7 +63,7 @@ use crate::state::margin_calculation::{MarginCalculation, MarginContext};
 use crate::state::oracle::{OraclePriceData, StrictOraclePrice};
 use crate::state::oracle_map::OracleMap;
 use crate::state::paused_operations::{PerpOperation, SpotOperation};
-use crate::state::perp_market::{AMMLiquiditySplit, AMMAvailability, MarketStatus, PerpMarket};
+use crate::state::perp_market::{AMMAvailability, AMMLiquiditySplit, MarketStatus, PerpMarket};
 use crate::state::perp_market_map::PerpMarketMap;
 use crate::state::spot_fulfillment_params::{ExternalSpotFill, SpotFulfillmentParams};
 use crate::state::spot_market::{SpotBalanceType, SpotMarket};

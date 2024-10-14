@@ -146,7 +146,6 @@ impl AMMLiquiditySplit {
     }
 }
 
-
 #[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Debug, Eq, PartialOrd, Ord)]
 pub enum AMMAvailability {
     Immediate,
