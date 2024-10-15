@@ -19,6 +19,7 @@ import {
 } from '@solana/spl-token';
 import {
 	DriftClientMetricsEvents,
+	HighLeverageModeConfig,
 	isVariant,
 	IWallet,
 	MakerInfo,
@@ -8293,6 +8294,13 @@ export class DriftClient {
 		});
 
 		return ix;
+	}
+
+	public async fetchHighLeverageModeConfig(): Promise<HighLeverageModeConfig> {
+		const config = await this.program.account.highLeverageModeConfig.fetch(
+			getHighLeverageModeConfigPublicKey(this.program.programId)
+		);
+		return config as HighLeverageModeConfig;
 	}
 
 	private handleSignedTransaction(signedTxs: SignedTxData[]) {

@@ -1333,3 +1333,9 @@ export type SignedTxData = {
 	lastValidBlockHeight?: number;
 	blockHash: string;
 };
+
+export type HighLeverageModeConfig = {
+	maxUsers: number;
+	currentUsers: number;
+	reduceOnly: boolean;
+};
