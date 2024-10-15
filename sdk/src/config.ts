@@ -44,6 +44,8 @@ export const DRIFT_PROGRAM_ID = 'dRiftyHA39MWEi3m9aunc5MzRF1JYuBsbn6VPcn33UH';
 export const DRIFT_ORACLE_RECEIVER_ID =
 	'G6EoTTTgpkNBtVXo96EQp2m6uwwVh2Kt6YidjkmQqoha';
 export const SWIFT_ID = 'SW1fThqrxLzVprnCMpiybiqYQfoNCdduC5uWsSUKChS';
+export const ANCHOR_TEST_SWIFT_ID =
+	'DpaEdAPW3ZX67fnczT14AoX12Lx9VMkxvtT81nCHy3Nv';
 
 export const DEFAULT_CONFIRMATION_OPTS: ConfirmOptions = {
 	preflightCommitment: 'confirmed',

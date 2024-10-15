@@ -184,6 +184,7 @@ export class DriftClient {
 	connection: Connection;
 	wallet: IWallet;
 	public program: Program;
+	public swiftID: PublicKey;
 	provider: AnchorProvider;
 	opts?: ConfirmOptions;
 	users = new Map<string, User>();
@@ -248,6 +249,7 @@ export class DriftClient {
 			config.programID ?? new PublicKey(DRIFT_PROGRAM_ID),
 			this.provider
 		);
+		this.swiftID = config.swiftID ?? new PublicKey(SWIFT_ID);
 
 		this.authority = config.authority ?? this.wallet.publicKey;
 		this.activeSubAccountId = config.activeSubAccountId ?? 0;
@@ -5523,7 +5525,7 @@ export class DriftClient {
 
 		const swiftServerSignatureIx =
 			Ed25519Program.createInstructionWithPublicKey({
-				publicKey: new PublicKey(SWIFT_ID).toBytes(),
+				publicKey: new PublicKey(this.swiftID).toBytes(),
 				signature: Uint8Array.from(swiftSignature),
 				message: Uint8Array.from(encodedSwiftServerMessage),
 			});
