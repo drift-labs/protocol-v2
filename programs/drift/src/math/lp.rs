@@ -108,6 +108,7 @@ pub fn calculate_lp_shares_to_burn_for_risk_reduction(
     quote_oracle_price: i64,
     margin_shortage: u128,
     user_custom_margin_ratio: u32,
+    user_high_leverage_mode: bool,
 ) -> DriftResult<(u64, u64)> {
     let settled_lp_position = perp_position.simulate_settled_lp_position(market, oracle_price)?;
 
@@ -134,6 +135,7 @@ pub fn calculate_lp_shares_to_burn_for_risk_reduction(
         .get_margin_ratio(
             worse_case_base_asset_amount.unsigned_abs(),
             MarginRequirementType::Initial,
+            user_high_leverage_mode,
         )?
         .max(user_custom_margin_ratio);
 

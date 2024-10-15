@@ -15,8 +15,12 @@ use crate::instructions::constraints::*;
 use crate::instructions::optional_accounts::{load_maps, AccountMaps};
 use crate::math::casting::Cast;
 use crate::math::constants::QUOTE_SPOT_MARKET_INDEX;
-use crate::math::margin::{calculate_user_equity, meets_settle_pnl_maintenance_margin_requirement};
+use crate::math::margin::{
+    calculate_user_equity, meets_maintenance_margin_requirement,
+    meets_settle_pnl_maintenance_margin_requirement,
+};
 use crate::math::orders::{estimate_price_from_side, find_bids_and_asks_from_users};
+use crate::math::safe_math::SafeMath;
 use crate::math::spot_withdraw::validate_spot_market_vault_amount;
 use crate::optional_accounts::{get_token_mint, update_prelaunch_oracle};
 use crate::state::fill_mode::FillMode;
@@ -24,6 +28,7 @@ use crate::state::fulfillment_params::drift::MatchFulfillmentParams;
 use crate::state::fulfillment_params::openbook_v2::OpenbookV2FulfillmentParams;
 use crate::state::fulfillment_params::phoenix::PhoenixFulfillmentParams;
 use crate::state::fulfillment_params::serum::SerumFulfillmentParams;
+use crate::state::high_leverage_mode_config::HighLeverageModeConfig;
 use crate::state::insurance_fund_stake::InsuranceFundStake;
 use crate::state::oracle_map::OracleMap;
 use crate::state::order_params::{
@@ -43,7 +48,7 @@ use crate::state::spot_market_map::{
 };
 use crate::state::state::State;
 use crate::state::user::{
-    MarketType, OrderStatus, OrderTriggerCondition, OrderType, User, UserStats,
+    MarginMode, MarketType, OrderStatus, OrderTriggerCondition, OrderType, User, UserStats,
 };
 use crate::state::user_map::{load_user_map, load_user_maps, UserMap, UserStatsMap};
 use crate::validation::sig_verification::verify_ed25519_ix;
@@ -51,6 +56,10 @@ use crate::validation::user::validate_user_is_idle;
 use crate::{controller, load, math, print_error, OracleSource, GOV_SPOT_MARKET_INDEX};
 use crate::{load_mut, QUOTE_PRECISION_U64};
 use crate::{validate, QUOTE_PRECISION_I128};
+
+use crate::math::margin::calculate_margin_requirement_and_total_collateral_and_liability_info;
+use crate::math::margin::MarginRequirementType;
+use crate::state::margin_calculation::MarginContext;
 
 #[access_control(
     fill_not_paused(&ctx.accounts.state)
@@ -418,6 +427,49 @@ pub fn handle_update_user_idle<'c: 'info, 'info>(
     validate_user_is_idle(&user, clock.slot, accelerated)?;
 
     user.idle = true;
+
+    Ok(())
+}
+
+#[access_control(
+    exchange_not_paused(&ctx.accounts.state)
+)]
+pub fn handle_update_user_fuel_bonus<'c: 'info, 'info>(
+    ctx: Context<'_, '_, 'c, 'info, UpdateUserFuelBonus<'info>>,
+) -> Result<()> {
+    let mut user = load_mut!(ctx.accounts.user)?;
+    let user_stats = &mut load_mut!(ctx.accounts.user_stats)?;
+    let clock = Clock::get()?;
+    let now = clock.unix_timestamp;
+
+    let AccountMaps {
+        perp_market_map,
+        spot_market_map,
+        mut oracle_map,
+    } = load_maps(
+        &mut ctx.remaining_accounts.iter().peekable(),
+        &MarketSet::new(),
+        &MarketSet::new(),
+        clock.slot,
+        None,
+    )?;
+
+    let user_margin_calculation =
+        calculate_margin_requirement_and_total_collateral_and_liability_info(
+            &user,
+            &perp_market_map,
+            &spot_market_map,
+            &mut oracle_map,
+            MarginContext::standard(MarginRequirementType::Initial).fuel_numerator(&user, now),
+        )?;
+
+    user_stats.update_fuel_bonus(
+        &mut user,
+        user_margin_calculation.fuel_deposits,
+        user_margin_calculation.fuel_borrows,
+        user_margin_calculation.fuel_positions,
+        now,
+    )?;
 
     Ok(())
 }
@@ -1928,6 +1980,62 @@ pub fn handle_update_user_gov_token_insurance_stake(
     Ok(())
 }
 
+pub fn handle_disable_user_high_leverage_mode<'c: 'info, 'info>(
+    ctx: Context<'_, '_, 'c, 'info, DisableUserHighLeverageMode<'info>>,
+) -> Result<()> {
+    let state = &ctx.accounts.state;
+    let mut user = load_mut!(ctx.accounts.user)?;
+
+    let slot = Clock::get()?.slot;
+
+    let AccountMaps {
+        perp_market_map,
+        spot_market_map,
+        mut oracle_map,
+    } = load_maps(
+        &mut ctx.remaining_accounts.iter().peekable(),
+        &MarketSet::new(),
+        &MarketSet::new(),
+        slot,
+        Some(state.oracle_guard_rails),
+    )?;
+
+    validate!(
+        user.margin_mode == MarginMode::HighLeverage,
+        ErrorCode::DefaultError,
+        "user must be in high leverage mode"
+    )?;
+
+    user.margin_mode = MarginMode::Default;
+
+    meets_maintenance_margin_requirement(
+        &user,
+        &perp_market_map,
+        &spot_market_map,
+        &mut oracle_map,
+    )?;
+
+    // only check if signer is not user authority
+    if user.authority != *ctx.accounts.authority.key {
+        let slots_since_last_active = slot.safe_sub(user.last_active_slot)?;
+
+        validate!(
+            slots_since_last_active >= 216000, // 60 * 60 * 24 / .4
+            ErrorCode::DefaultError,
+            "user not inactive for long enough: {}",
+            slots_since_last_active
+        )?;
+    }
+
+    let mut config = load_mut!(ctx.accounts.high_leverage_mode_config)?;
+
+    config.current_users = config.current_users.safe_sub(1)?;
+
+    config.validate()?;
+
+    Ok(())
+}
+
 #[derive(Accounts)]
 pub struct FillOrder<'info> {
     pub state: Box<Account<'info, State>>,
@@ -2004,6 +2112,19 @@ pub struct UpdateUserIdle<'info> {
     pub filler: AccountLoader<'info, User>,
     #[account(mut)]
     pub user: AccountLoader<'info, User>,
+}
+
+#[derive(Accounts)]
+pub struct UpdateUserFuelBonus<'info> {
+    pub state: Box<Account<'info, State>>,
+    pub authority: Signer<'info>,
+    #[account(mut)]
+    pub user: AccountLoader<'info, User>,
+    #[account(
+        mut,
+        constraint = is_stats_for_user(&user, &user_stats)?
+    )]
+    pub user_stats: AccountLoader<'info, UserStats>,
 }
 
 #[derive(Accounts)]
@@ -2346,4 +2467,14 @@ pub struct UpdatePrelaunchOracle<'info> {
     #[account(mut)]
     /// CHECK: checked in ix
     pub oracle: AccountInfo<'info>,
+}
+
+#[derive(Accounts)]
+pub struct DisableUserHighLeverageMode<'info> {
+    pub state: Box<Account<'info, State>>,
+    pub authority: Signer<'info>,
+    #[account(mut)]
+    pub user: AccountLoader<'info, User>,
+    #[account(mut)]
+    pub high_leverage_mode_config: AccountLoader<'info, HighLeverageModeConfig>,
 }

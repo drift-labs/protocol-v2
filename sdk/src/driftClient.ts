@@ -84,6 +84,7 @@ import StrictEventEmitter from 'strict-event-emitter-types';
 import {
 	getDriftSignerPublicKey,
 	getDriftStateAccountPublicKey,
+	getHighLeverageModeConfigPublicKey,
 	getInsuranceFundStakeAccountPublicKey,
 	getOpenbookV2FulfillmentConfigPublicKey,
 	getPerpMarketPublicKey,
@@ -3373,9 +3374,23 @@ export class DriftClient {
 	}
 
 	public async settleExpiredMarketPoolsToRevenuePool(
-		perpMarketIndex: number,
+		marketIndex: number,
 		txParams?: TxParams
 	): Promise<TransactionSignature> {
+		const { txSig } = await this.sendTransaction(
+			await this.buildTransaction(
+				await this.getSettleExpiredMarketPoolsToRevenuePoolIx(marketIndex),
+				txParams
+			),
+			[],
+			this.opts
+		);
+		return txSig;
+	}
+
+	public async getSettleExpiredMarketPoolsToRevenuePoolIx(
+		perpMarketIndex: number
+	): Promise<TransactionInstruction> {
 		const perpMarketPublicKey = await getPerpMarketPublicKey(
 			this.program.programId,
 			perpMarketIndex
@@ -3386,8 +3401,8 @@ export class DriftClient {
 			QUOTE_SPOT_MARKET_INDEX
 		);
 
-		const ix =
-			await this.program.instruction.settleExpiredMarketPoolsToRevenuePool({
+		return await this.program.instruction.settleExpiredMarketPoolsToRevenuePool(
+			{
 				accounts: {
 					state: await this.getStatePublicKey(),
 					admin: this.isSubscribed
@@ -3396,15 +3411,8 @@ export class DriftClient {
 					spotMarket: spotMarketPublicKey,
 					perpMarket: perpMarketPublicKey,
 				},
-			});
-
-		const { txSig } = await this.sendTransaction(
-			await this.buildTransaction(ix, txParams),
-			[],
-			this.opts
+			}
 		);
-
-		return txSig;
 	}
 
 	public async cancelOrder(
@@ -4963,6 +4971,52 @@ export class DriftClient {
 				state: await this.getStatePublicKey(),
 				filler,
 				user: userAccountPublicKey,
+				authority: this.wallet.publicKey,
+			},
+			remainingAccounts,
+		});
+	}
+
+	public async updateUserFuelBonus(
+		userAccountPublicKey: PublicKey,
+		user: UserAccount,
+		userAuthority: PublicKey,
+		txParams?: TxParams
+	): Promise<TransactionSignature> {
+		const { txSig } = await this.sendTransaction(
+			await this.buildTransaction(
+				await this.getUpdateUserFuelBonusIx(
+					userAccountPublicKey,
+					user,
+					userAuthority
+				),
+				txParams
+			),
+			[],
+			this.opts
+		);
+		return txSig;
+	}
+
+	public async getUpdateUserFuelBonusIx(
+		userAccountPublicKey: PublicKey,
+		userAccount: UserAccount,
+		userAuthority: PublicKey
+	): Promise<TransactionInstruction> {
+		const userStatsAccountPublicKey = getUserStatsAccountPublicKey(
+			this.program.programId,
+			userAuthority
+		);
+
+		const remainingAccounts = this.getRemainingAccounts({
+			userAccounts: [userAccount],
+		});
+
+		return await this.program.instruction.updateUserFuelBonus({
+			accounts: {
+				state: await this.getStatePublicKey(),
+				user: userAccountPublicKey,
+				userStats: userStatsAccountPublicKey,
 				authority: this.wallet.publicKey,
 			},
 			remainingAccounts,
@@ -8172,6 +8226,73 @@ export class DriftClient {
 		);
 
 		return [postIxs, encodedVaaKeypair];
+	}
+
+	public async enableUserHighLeverageMode(
+		subAccountId: number,
+		txParams?: TxParams
+	): Promise<TransactionSignature> {
+		const { txSig } = await this.sendTransaction(
+			await this.buildTransaction(
+				await this.getEnableHighLeverageModeIx(subAccountId),
+				txParams
+			),
+			[],
+			this.opts
+		);
+		return txSig;
+	}
+
+	public async getEnableHighLeverageModeIx(subAccountId: number) {
+		const ix = await this.program.instruction.enableUserHighLeverageMode(
+			subAccountId,
+			{
+				accounts: {
+					state: await this.getStatePublicKey(),
+					user: getUserAccountPublicKeySync(
+						this.program.programId,
+						this.wallet.publicKey,
+						subAccountId
+					),
+					authority: this.wallet.publicKey,
+					highLeverageModeConfig: getHighLeverageModeConfigPublicKey(
+						this.program.programId
+					),
+				},
+			}
+		);
+
+		return ix;
+	}
+
+	public async disableUserHighLeverageMode(
+		user: PublicKey,
+		txParams?: TxParams
+	): Promise<TransactionSignature> {
+		const { txSig } = await this.sendTransaction(
+			await this.buildTransaction(
+				await this.getDisableHighLeverageModeIx(user),
+				txParams
+			),
+			[],
+			this.opts
+		);
+		return txSig;
+	}
+
+	public async getDisableHighLeverageModeIx(user: PublicKey) {
+		const ix = await this.program.instruction.disableUserHighLeverageMode({
+			accounts: {
+				state: await this.getStatePublicKey(),
+				user,
+				authority: this.wallet.publicKey,
+				highLeverageModeConfig: getHighLeverageModeConfigPublicKey(
+					this.program.programId
+				),
+			},
+		});
+
+		return ix;
 	}
 
 	private handleSignedTransaction(signedTxs: SignedTxData[]) {

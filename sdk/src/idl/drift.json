@@ -1,5 +1,5 @@
 {
-  "version": "2.95.0",
+  "version": "2.96.0",
   "name": "drift",
   "instructions": [
     {
@@ -1365,6 +1365,37 @@
       "args": []
     },
     {
+      "name": "enableUserHighLeverageMode",
+      "accounts": [
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "user",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "highLeverageModeConfig",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "subAccountId",
+          "type": "u16"
+        }
+      ]
+    },
+    {
       "name": "fillPerpOrder",
       "accounts": [
         {
@@ -1573,6 +1604,58 @@
         },
         {
           "name": "user",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "disableUserHighLeverageMode",
+      "accounts": [
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "user",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "highLeverageModeConfig",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "updateUserFuelBonus",
+      "accounts": [
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "user",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "userStats",
           "isMut": true,
           "isSigner": false
         }
@@ -4043,6 +4126,36 @@
       ]
     },
     {
+      "name": "updatePerpMarketHighLeverageMarginRatio",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "perpMarket",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "marginRatioInitial",
+          "type": "u16"
+        },
+        {
+          "name": "marginRatioMaintenance",
+          "type": "u16"
+        }
+      ]
+    },
+    {
       "name": "updatePerpMarketFundingPeriod",
       "accounts": [
         {
@@ -6007,6 +6120,72 @@
           }
         }
       ]
+    },
+    {
+      "name": "initializeHighLeverageModeConfig",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "highLeverageModeConfig",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "rent",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "systemProgram",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "maxUsers",
+          "type": "u32"
+        }
+      ]
+    },
+    {
+      "name": "updateHighLeverageModeConfig",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "highLeverageModeConfig",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "maxUsers",
+          "type": "u32"
+        },
+        {
+          "name": "reduceOnly",
+          "type": "bool"
+        }
+      ]
     }
   ],
   "accounts": [
@@ -6207,6 +6386,35 @@
               "array": [
                 "u8",
                 4
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "HighLeverageModeConfig",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "maxUsers",
+            "type": "u32"
+          },
+          {
+            "name": "currentUsers",
+            "type": "u32"
+          },
+          {
+            "name": "reduceOnly",
+            "type": "u8"
+          },
+          {
+            "name": "padding",
+            "type": {
+              "array": [
+                "u8",
+                31
               ]
             }
           }
@@ -6602,11 +6810,23 @@
             "type": "u8"
           },
           {
+            "name": "padding1",
+            "type": "u8"
+          },
+          {
+            "name": "highLeverageMarginRatioInitial",
+            "type": "u16"
+          },
+          {
+            "name": "highLeverageMarginRatioMaintenance",
+            "type": "u16"
+          },
+          {
             "name": "padding",
             "type": {
               "array": [
                 "u8",
-                43
+                38
               ]
             }
           }
@@ -7457,11 +7677,17 @@
             "type": "bool"
           },
           {
+            "name": "marginMode",
+            "type": {
+              "defined": "MarginMode"
+            }
+          },
+          {
             "name": "padding1",
             "type": {
               "array": [
                 "u8",
-                5
+                4
               ]
             }
           },
@@ -10860,6 +11086,20 @@
           }
         ]
       }
+    },
+    {
+      "name": "MarginMode",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "Default"
+          },
+          {
+            "name": "HighLeverage"
+          }
+        ]
+      }
     }
   ],
   "events": [
@@ -13356,16 +13596,21 @@
     },
     {
       "code": 6290,
+      "name": "InvalidHighLeverageModeConfig",
+      "msg": "Invalid High Leverage Mode Config"
+    },
+    {
+      "code": 6291,
       "name": "InvalidRFQUserAccount",
       "msg": "Invalid RFQ User Account"
     },
     {
-      "code": 6291,
+      "code": 6292,
       "name": "RFQUserAccountWrongMutability",
       "msg": "RFQUserAccount should be mutable"
     },
     {
-      "code": 6292,
+      "code": 6293,
       "name": "RFQUserAccountFull",
       "msg": "RFQUserAccount has too many active RFQs"
     }

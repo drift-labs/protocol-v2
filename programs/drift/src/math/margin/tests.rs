@@ -293,6 +293,7 @@ mod test {
             MarginRequirementType::Initial,
             0,
             false,
+            false,
         )
         .unwrap();
 
@@ -370,6 +371,7 @@ mod test {
             MarginRequirementType::Initial,
             0,
             false,
+            false,
         )
         .unwrap();
 
@@ -434,6 +436,7 @@ mod test {
             MarginRequirementType::Initial,
             0,
             false,
+            false,
         )
         .unwrap();
 
@@ -457,6 +460,7 @@ mod test {
             &strict_oracle_price,
             MarginRequirementType::Initial,
             0,
+            false,
             false,
         )
         .unwrap();
@@ -506,6 +510,7 @@ mod test {
             MarginRequirementType::Initial,
             0,
             false,
+            false,
         )
         .unwrap();
 
@@ -529,6 +534,7 @@ mod test {
             &strict_oracle_price,
             MarginRequirementType::Initial,
             0,
+            false,
             false,
         )
         .unwrap();
@@ -3583,6 +3589,7 @@ mod calculate_perp_position_value_and_pnl_prediction_market {
             MarginRequirementType::Initial,
             0,
             false,
+            false,
         )
         .unwrap();
 
@@ -3596,6 +3603,7 @@ mod calculate_perp_position_value_and_pnl_prediction_market {
             &strict_oracle_price,
             MarginRequirementType::Maintenance,
             0,
+            false,
             false,
         )
         .unwrap();
@@ -3644,6 +3652,7 @@ mod calculate_perp_position_value_and_pnl_prediction_market {
             MarginRequirementType::Initial,
             0,
             false,
+            false,
         )
         .unwrap();
 
@@ -3657,6 +3666,7 @@ mod calculate_perp_position_value_and_pnl_prediction_market {
             &strict_oracle_price,
             MarginRequirementType::Maintenance,
             0,
+            false,
             false,
         )
         .unwrap();

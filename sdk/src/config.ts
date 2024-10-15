@@ -114,16 +114,25 @@ export const initialize = (props: {
 	return currentConfig;
 };
 
-export function getMarketsAndOraclesForSubscription(env: DriftEnv): {
+export function getMarketsAndOraclesForSubscription(
+	env: DriftEnv,
+	perpMarkets?: PerpMarketConfig[],
+	spotMarkets?: SpotMarketConfig[]
+): {
 	perpMarketIndexes: number[];
 	spotMarketIndexes: number[];
 	oracleInfos: OracleInfo[];
 } {
+	const perpMarketsToUse =
+		perpMarkets?.length > 0 ? perpMarkets : PerpMarkets[env];
+	const spotMarketsToUse =
+		spotMarkets?.length > 0 ? spotMarkets : SpotMarkets[env];
+
 	const perpMarketIndexes = [];
 	const spotMarketIndexes = [];
 	const oracleInfos = new Map<string, OracleInfo>();
 
-	for (const market of PerpMarkets[env]) {
+	for (const market of perpMarketsToUse) {
 		perpMarketIndexes.push(market.marketIndex);
 		oracleInfos.set(market.oracle.toString(), {
 			publicKey: market.oracle,
@@ -131,7 +140,7 @@ export function getMarketsAndOraclesForSubscription(env: DriftEnv): {
 		});
 	}
 
-	for (const spotMarket of SpotMarkets[env]) {
+	for (const spotMarket of spotMarketsToUse) {
 		spotMarketIndexes.push(spotMarket.marketIndex);
 		oracleInfos.set(spotMarket.oracle.toString(), {
 			publicKey: spotMarket.oracle,

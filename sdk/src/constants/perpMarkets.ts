@@ -896,6 +896,26 @@ export const MainnetPerpMarkets: PerpMarketConfig[] = [
 		launchTs: 1727965864000,
 		oracleSource: OracleSource.Prelaunch,
 	},
+	{
+		fullName: 'DeBridge',
+		category: ['Bridge'],
+		symbol: 'DBR-PERP',
+		baseAssetSymbol: 'DBR',
+		marketIndex: 47,
+		oracle: new PublicKey('AQzxePg2vY52Cw4di1j5xF7BqetNPxogqYPgDBL7HXWn'),
+		launchTs: 1728574493000,
+		oracleSource: OracleSource.Prelaunch,
+	},
+	{
+		fullName: 'WLF-5B-1W',
+		category: ['Prediction'],
+		symbol: 'WLF-5B-1W-BET',
+		baseAssetSymbol: 'WLF-5B-1W',
+		marketIndex: 48,
+		oracle: new PublicKey('7LpRfPaWR7cQqN7CMkCmZjEQpWyqso5LGuKCvDXH5ZAr'),
+		launchTs: 1728574493000,
+		oracleSource: OracleSource.Prelaunch,
+	},
 ];
 
 export const PerpMarkets: { [key in DriftEnv]: PerpMarketConfig[] } = {

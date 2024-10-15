@@ -585,6 +585,8 @@ pub enum ErrorCode {
     InvalidSwiftOrderParam,
     #[msg("Place and take order success condition failed")]
     PlaceAndTakeOrderSuccessConditionFailed,
+    #[msg("Invalid High Leverage Mode Config")]
+    InvalidHighLeverageModeConfig,
     #[msg("Invalid RFQ User Account")]
     InvalidRFQUserAccount,
     #[msg("RFQUserAccount should be mutable")]
