@@ -11,7 +11,7 @@ import {
 	UserAccount,
 } from '../types';
 import { PublicKey } from '@solana/web3.js';
-import { BN } from '../';
+import { BN, MarginMode } from '../';
 import { ZERO } from '../';
 
 function readUnsignedBigInt64LE(buffer: Buffer, offset: number): BN {
@@ -326,6 +326,14 @@ export function decodeUser(buffer: Buffer): UserAccount {
 	const hasOpenAuction = buffer.readUInt8(offset) === 1;
 	offset += 1;
 
+	let marginMode: MarginMode;
+	const marginModeNum = buffer.readUInt8(offset);
+	if (marginModeNum === 0) {
+		marginMode = MarginMode.DEFAULT;
+	} else {
+		marginMode = MarginMode.HIGH_LEVERAGE;
+	}
+
 	// @ts-ignore
 	return {
 		authority,
@@ -354,5 +362,6 @@ export function decodeUser(buffer: Buffer): UserAccount {
 		hasOpenOrder,
 		openAuctions,
 		hasOpenAuction,
+		marginMode,
 	};
 }
