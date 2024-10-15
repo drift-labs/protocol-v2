@@ -25,7 +25,7 @@ import {
 	mockUserUSDCAccount,
 	sleep,
 } from './testHelpers';
-import { BASE_PRECISION, BN_MAX, PEG_PRECISION } from '../sdk';
+import { BASE_PRECISION, BN_MAX, PEG_PRECISION, ZERO } from '../sdk';
 import { startAnchor } from 'solana-bankrun';
 import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
 import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
@@ -378,6 +378,46 @@ describe('place and fill rfq orders', () => {
 				makerSignature: signature,
 			},
 		]);
+
+		const makerPositionBefore = makerDriftClientUser.getPerpPosition(0);
+		const takerPositionBefore = takerDriftClientUser.getPerpPosition(0);
+
+		await takerDriftClient.placeAndMatchRFQOrders([
+			{
+				baseAssetAmount: BASE_PRECISION,
+				makerOrderParams: makerOrderMessage,
+				makerSignature: signature,
+			},
+		]);
+
+		const makerPositionAfter = makerDriftClientUser.getPerpPosition(0);
+		const takerPositionAfter = takerDriftClientUser.getPerpPosition(0);
+
+		assert(
+			makerPositionBefore.baseAssetAmount.eq(makerPositionAfter.baseAssetAmount)
+		);
+		assert(
+			takerPositionBefore.baseAssetAmount.eq(takerPositionAfter.baseAssetAmount)
+		);
+	});
+
+	it('should not match if maker order is expired', async () => {
+		// Makers sign a messages to create a limit order
+
+		const makerOrderMessage: RFQMakerOrderParams = {
+			marketIndex: 0,
+			marketType: MarketType.PERP,
+			direction: PositionDirection.SHORT,
+			authority: makerDriftClientUser.getUserAccount().authority,
+			subAccountId: 0,
+			price: new BN(100).mul(PRICE_PRECISION),
+			baseAssetAmount: BASE_PRECISION,
+			maxTs: ZERO,
+			uuid: Uint8Array.from(Buffer.from(uuid())),
+		};
+		const signature = await makerDriftClient.signMessage(
+			makerDriftClient.encodeRFQMakerOrderParams(makerOrderMessage)
+		);
 
 		const makerPositionBefore = makerDriftClientUser.getPerpPosition(0);
 		const takerPositionBefore = takerDriftClientUser.getPerpPosition(0);

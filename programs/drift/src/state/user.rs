@@ -553,6 +553,12 @@ pub struct RFQOrderId {
     pub max_ts: i64,
 }
 
+impl RFQOrderId {
+    pub fn new(uuid: [u8; 16], max_ts: i64) -> Self {
+        Self { uuid, max_ts }
+    }
+}
+
 impl Size for RFQUserAccount {
     const SIZE: usize = 776;
 }

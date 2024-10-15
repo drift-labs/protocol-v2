@@ -420,6 +420,14 @@ pub fn place_and_match_rfq_orders<'c: 'info, 'info>(
     let clock = &Clock::get()?;
 
     for rfq_match in rfq_matches {
+        if rfq_match.maker_order_params.max_ts < clock.unix_timestamp {
+            msg!(
+                "RFQ order expired for maker authority {}",
+                rfq_match.maker_order_params.authority
+            );
+            continue;
+        }
+
         let mut taker = load_mut!(taker_account_loader)?;
         let maker_order_params = rfq_match.maker_order_params;
         let (maker_pubkey, _) = Pubkey::find_program_address(
@@ -452,16 +460,17 @@ pub fn place_and_match_rfq_orders<'c: 'info, 'info>(
                 ErrorCode::InvalidRFQUserAccount
             })?)?;
 
-        let rfq_order_id = RFQOrderId {
-            uuid: rfq_match.maker_order_params.uuid.clone(),
-            max_ts: rfq_match.maker_order_params.max_ts.clone(),
-        };
+        let rfq_order_id = RFQOrderId::new(
+            rfq_match.maker_order_params.uuid.clone(),
+            rfq_match.maker_order_params.max_ts.clone(),
+        );
         if rfq_account
             .check_exists_and_prune_stale_rfq_order_ids(rfq_order_id, clock.unix_timestamp)?
         {
             msg!("RFQ order already exists for maker {}", maker_pubkey);
             continue;
         }
+        rfq_account.add_rfq_order_id(rfq_order_id)?;
 
         let taker_order_params = OrderParams {
             order_type: OrderType::Limit,
@@ -519,7 +528,7 @@ pub fn place_and_match_rfq_orders<'c: 'info, 'info>(
                 &taker_stats_account_loader.clone(),
                 makers_and_referrer,
                 makers_and_referrer_stats,
-                None,
+                Some(maker_order_id),
                 clock,
                 FillMode::RFQ,
             )?;
