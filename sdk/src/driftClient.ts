@@ -8142,12 +8142,12 @@ export class DriftClient {
 	}
 
 	public async disableUserHighLeverageMode(
-		user: PublicKey,
+		subAccountId: number,
 		txParams?: TxParams
 	): Promise<TransactionSignature> {
 		const { txSig } = await this.sendTransaction(
 			await this.buildTransaction(
-				await this.getDisableHighLeverageModeIx(user),
+				await this.getDisableHighLeverageModeIx(subAccountId),
 				txParams
 			),
 			[],
@@ -8156,11 +8156,15 @@ export class DriftClient {
 		return txSig;
 	}
 
-	public async getDisableHighLeverageModeIx(user: PublicKey) {
+	public async getDisableHighLeverageModeIx(subAccountId: number) {
 		const ix = await this.program.instruction.disableUserHighLeverageMode({
 			accounts: {
 				state: await this.getStatePublicKey(),
-				user,
+				user: getUserAccountPublicKeySync(
+					this.program.programId,
+					this.wallet.publicKey,
+					subAccountId
+				),
 				authority: this.wallet.publicKey,
 				highLeverageModeConfig: getHighLeverageModeConfigPublicKey(
 					this.program.programId

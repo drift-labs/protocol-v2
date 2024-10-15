@@ -2159,7 +2159,11 @@ export class User {
 	}
 
 	public isHighLeverageMode(): boolean {
-		return isVariant(this.getUserAccount().marginMode, 'highLeverage');
+		if (this.getUserAccount().marginMode) {
+			return isVariant(this.getUserAccount().marginMode, 'highLeverage');
+		} else {
+			return false;
+		}
 	}
 
 	/**
