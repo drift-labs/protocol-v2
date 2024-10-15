@@ -333,6 +333,7 @@ export function decodeUser(buffer: Buffer): UserAccount {
 	} else {
 		marginMode = MarginMode.HIGH_LEVERAGE;
 	}
+	offset += 1;
 
 	// @ts-ignore
 	return {
