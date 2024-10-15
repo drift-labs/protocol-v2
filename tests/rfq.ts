@@ -29,7 +29,7 @@ import { BASE_PRECISION, BN_MAX, PEG_PRECISION, ZERO } from '../sdk';
 import { startAnchor } from 'solana-bankrun';
 import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
 import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
-import { v4 as uuid } from 'uuid';
+import { nanoid } from 'nanoid';
 
 describe('place and fill rfq orders', () => {
 	const chProgram = anchor.workspace.Drift as Program;
@@ -329,10 +329,25 @@ describe('place and fill rfq orders', () => {
 			price: new BN(100).mul(PRICE_PRECISION),
 			baseAssetAmount: BASE_PRECISION,
 			maxTs: BN_MAX,
-			uuid: Uint8Array.from(Buffer.from(uuid())),
+			uuid: Uint8Array.from(Buffer.from(nanoid(8))),
 		};
 		const signature = await makerDriftClient.signMessage(
 			makerDriftClient.encodeRFQMakerOrderParams(makerOrderMessage)
+		);
+
+		const makerOrderMessage1: RFQMakerOrderParams = {
+			marketIndex: 0,
+			marketType: MarketType.PERP,
+			direction: PositionDirection.SHORT,
+			authority: makerDriftClientUser1.getUserAccount().authority,
+			subAccountId: 0,
+			price: new BN(100).mul(PRICE_PRECISION),
+			baseAssetAmount: BASE_PRECISION,
+			maxTs: BN_MAX,
+			uuid: Uint8Array.from(Buffer.from(nanoid(8))),
+		};
+		const signature1 = await makerDriftClient1.signMessage(
+			makerDriftClient1.encodeRFQMakerOrderParams(makerOrderMessage)
 		);
 
 		await takerDriftClient.placeAndMatchRFQOrders([
@@ -341,6 +356,12 @@ describe('place and fill rfq orders', () => {
 				makerOrderParams: makerOrderMessage,
 				makerSignature: signature,
 			},
+			// would fail if we included the second order as well bc tx too large
+			// {
+			// 	baseAssetAmount: BASE_PRECISION,
+			// 	makerOrderParams: makerOrderMessage1,
+			// 	makerSignature: signature1,
+			// },
 		]);
 
 		assert(
@@ -365,7 +386,7 @@ describe('place and fill rfq orders', () => {
 			price: new BN(100).mul(PRICE_PRECISION),
 			baseAssetAmount: BASE_PRECISION,
 			maxTs: BN_MAX,
-			uuid: Uint8Array.from(Buffer.from(uuid())),
+			uuid: Uint8Array.from(Buffer.from(nanoid(8))),
 		};
 		const signature = await makerDriftClient.signMessage(
 			makerDriftClient.encodeRFQMakerOrderParams(makerOrderMessage)
@@ -413,7 +434,7 @@ describe('place and fill rfq orders', () => {
 			price: new BN(100).mul(PRICE_PRECISION),
 			baseAssetAmount: BASE_PRECISION,
 			maxTs: ZERO,
-			uuid: Uint8Array.from(Buffer.from(uuid())),
+			uuid: Uint8Array.from(Buffer.from(nanoid(8))),
 		};
 		const signature = await makerDriftClient.signMessage(
 			makerDriftClient.encodeRFQMakerOrderParams(makerOrderMessage)

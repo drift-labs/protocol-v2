@@ -5740,6 +5740,7 @@ export class DriftClient {
 		txParams?: TxParams
 	): Promise<TransactionSignature> {
 		const ixs = await this.getPlaceAndMatchRFQOrdersIxs(rfqMatches);
+		console.log(ixs.map((x) => x.keys.map((k) => k.pubkey.toBase58())));
 		const { txSig } = await this.sendTransaction(
 			await this.buildTransaction(ixs, txParams),
 			[],

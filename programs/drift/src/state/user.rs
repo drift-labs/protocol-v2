@@ -554,12 +554,12 @@ pub const RFQ_PDA_SEED: &str = "RFQ";
 #[derive(Default, Eq, PartialEq, Debug)]
 #[repr(C)]
 pub struct RFQOrderId {
-    pub uuid: [u8; 16],
+    pub uuid: [u8; 8],
     pub max_ts: i64,
 }
 
 impl RFQOrderId {
-    pub fn new(uuid: [u8; 16], max_ts: i64) -> Self {
+    pub fn new(uuid: [u8; 8], max_ts: i64) -> Self {
         Self { uuid, max_ts }
     }
 }
@@ -589,7 +589,7 @@ impl RFQUserAccount {
                 uuid_exists = true;
             } else {
                 if existing_rfq_order_id.max_ts < now {
-                    existing_rfq_order_id.uuid = [0; 16];
+                    existing_rfq_order_id.uuid = [0; 8];
                     existing_rfq_order_id.max_ts = 0;
                 }
             }
