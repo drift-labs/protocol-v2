@@ -314,6 +314,11 @@ impl PerpMarket {
         PerpOperation::is_operation_paused(self.paused_operations, operation)
     }
 
+    pub fn can_skip_auction_duration(&self) -> DriftResult<bool> {
+        Ok(self.amm.net_revenue_since_last_funding > 0
+            && self.amm.amm_lp_allowed_to_jit_make(true)?)
+    }
+
     pub fn has_too_much_drawdown(&self) -> DriftResult<bool> {
         let quote_drawdown_limit_breached = match self.contract_tier {
             ContractTier::A | ContractTier::B => {

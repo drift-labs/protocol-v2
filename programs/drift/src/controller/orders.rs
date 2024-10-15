@@ -977,6 +977,8 @@ pub fn fill_perp_order(
     let oracle_price: i64;
     let oracle_twap_5min: i64;
     let perp_market_index: u16;
+    let user_can_skip_duration: bool;
+    let amm_can_skip_duration: bool;
 
     let mut amm_is_available = !state.amm_paused()?;
     {
@@ -1000,6 +1002,9 @@ pub fn fill_perp_order(
             is_oracle_valid_for_action(_oracle_validity, Some(DriftAction::FillOrderAmm))?;
         amm_is_available &= !market.is_operation_paused(PerpOperation::AmmFill);
         amm_is_available &= !market.has_too_much_drawdown()?;
+
+        amm_can_skip_duration = market.can_skip_auction_duration()?;
+        user_can_skip_duration = user.can_skip_auction_duration(user_stats, now)?;
 
         reserve_price_before = market.amm.reserve_price()?;
         oracle_price = oracle_price_data.price;
@@ -1145,7 +1150,11 @@ pub fn fill_perp_order(
     }
 
     let amm_availability = if amm_is_available {
-        AMMAvailability::AfterMinDuration
+        if amm_can_skip_duration && user_can_skip_duration {
+            AMMAvailability::Immediate
+        } else {
+            AMMAvailability::AfterMinDuration
+        }
     } else {
         AMMAvailability::Unavailable
     };
