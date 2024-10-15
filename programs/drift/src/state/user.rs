@@ -619,7 +619,6 @@ pub fn load_rfq_user_account_map<'a: 'b, 'b>(
             (pda, *pubkey)
         })
         .collect();
-    msg!("available_maker_pdas {:?}", available_maker_pdas);
 
     for account_info in account_info_iter {
         let account_key = account_info.key;

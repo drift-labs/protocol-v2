@@ -73,7 +73,6 @@ use crate::state::user::load_rfq_user_account_map;
 use crate::state::user::RFQUserAccount;
 use crate::state::user::RFQ_PDA_SEED;
 use crate::state::user::{MarketType, OrderType, ReferrerName, User, UserStats};
-use crate::state::user_map::load_user_map;
 use crate::state::user_map::{load_user_maps, UserMap, UserStatsMap};
 use crate::validate;
 use crate::validation::sig_verification::verify_ed25519_ix;

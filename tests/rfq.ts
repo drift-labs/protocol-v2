@@ -96,7 +96,7 @@ describe('place and fill rfq orders', () => {
 			bankrunContextWrapper
 		);
 
-		solUsd = await mockOracleNoProgram(bankrunContextWrapper, 32.821);
+		solUsd = await mockOracleNoProgram(bankrunContextWrapper, 100);
 
 		marketIndexes = [0];
 		spotMarketIndexes = [0, 1];
@@ -130,7 +130,7 @@ describe('place and fill rfq orders', () => {
 			ammInitialBaseAssetReserve,
 			ammInitialQuoteAssetReserve,
 			periodicity,
-			new BN(32 * PEG_PRECISION.toNumber())
+			new BN(100 * PEG_PRECISION.toNumber())
 		);
 
 		await takerDriftClient.initializeUserAccountAndDepositCollateral(
@@ -335,22 +335,69 @@ describe('place and fill rfq orders', () => {
 			makerDriftClient.encodeRFQMakerOrderParams(makerOrderMessage)
 		);
 
-		const txSig = await takerDriftClient.placeAndMatchRFQOrders(
-			[
-				{
-					baseAssetAmount: BASE_PRECISION,
-					makerOrderParams: makerOrderMessage,
-					makerSignature: signature,
-				},
-			]
-			//  [
-			//   makerDriftClientUser.getUserAccount()
-			//  ]
+		await takerDriftClient.placeAndMatchRFQOrders([
+			{
+				baseAssetAmount: BASE_PRECISION,
+				makerOrderParams: makerOrderMessage,
+				makerSignature: signature,
+			},
+		]);
+
+		assert(
+			makerDriftClientUser
+				.getPerpPosition(0)
+				.baseAssetAmount.eq(BASE_PRECISION.neg())
+		);
+		assert(
+			takerDriftClientUser.getPerpPosition(0).baseAssetAmount.eq(BASE_PRECISION)
+		);
+	});
+
+	it('should not match again if order was already used once', async () => {
+		// Makers sign a messages to create a limit order
+
+		const makerOrderMessage: RFQMakerOrderParams = {
+			marketIndex: 0,
+			marketType: MarketType.PERP,
+			direction: PositionDirection.SHORT,
+			authority: makerDriftClientUser.getUserAccount().authority,
+			subAccountId: 0,
+			price: new BN(100).mul(PRICE_PRECISION),
+			baseAssetAmount: BASE_PRECISION,
+			maxTs: BN_MAX,
+			uuid: Uint8Array.from(Buffer.from(uuid())),
+		};
+		const signature = await makerDriftClient.signMessage(
+			makerDriftClient.encodeRFQMakerOrderParams(makerOrderMessage)
 		);
 
-		console.log(txSig);
+		await takerDriftClient.placeAndMatchRFQOrders([
+			{
+				baseAssetAmount: BASE_PRECISION,
+				makerOrderParams: makerOrderMessage,
+				makerSignature: signature,
+			},
+		]);
 
-		await makerDriftClientUser.unsubscribe();
-		await makerDriftClient.unsubscribe();
+		const makerPositionBefore = makerDriftClientUser.getPerpPosition(0);
+		const takerPositionBefore = takerDriftClientUser.getPerpPosition(0);
+
+		await takerDriftClient.placeAndMatchRFQOrders([
+			{
+				baseAssetAmount: BASE_PRECISION,
+				makerOrderParams: makerOrderMessage,
+				makerSignature: signature,
+			},
+		]);
+
+		const makerPositionAfter = makerDriftClientUser.getPerpPosition(0);
+		const takerPositionAfter = takerDriftClientUser.getPerpPosition(0);
+
+		assert(
+			makerPositionBefore.baseAssetAmount.eq(makerPositionAfter.baseAssetAmount)
+		);
+		assert(
+			takerPositionBefore.baseAssetAmount.eq(takerPositionAfter.baseAssetAmount)
+		);
 	});
 });

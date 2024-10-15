@@ -471,7 +471,7 @@ pub fn place_and_match_rfq_orders<'c: 'info, 'info>(
             base_asset_amount: rfq_match.base_asset_amount,
             price: maker_order_params.price,
             immediate_or_cancel: true,
-            post_only: PostOnlyParam::TryPostOnly,
+            post_only: PostOnlyParam::None,
             ..OrderParams::default()
         };
 
@@ -519,7 +519,7 @@ pub fn place_and_match_rfq_orders<'c: 'info, 'info>(
                 &taker_stats_account_loader.clone(),
                 makers_and_referrer,
                 makers_and_referrer_stats,
-                Some(maker_order_id),
+                None,
                 clock,
                 FillMode::RFQ,
             )?;
@@ -1180,6 +1180,7 @@ pub fn fill_perp_order(
         jit_maker_order_id,
         now,
         slot,
+        Some(fill_mode),
     )?;
 
     // no referrer bonus for liquidations
@@ -1471,6 +1472,7 @@ fn get_maker_orders_info(
     jit_maker_order_id: Option<u32>,
     now: i64,
     slot: u64,
+    fill_mode: Option<FillMode>,
 ) -> DriftResult<Vec<(Pubkey, usize, u64)>> {
     let maker_direction = taker_order.direction.opposite();
 
@@ -1517,7 +1519,10 @@ fn get_maker_orders_info(
             let maker_order_price = *maker_order_price;
 
             let maker_order = &maker.orders[maker_order_index];
-            if !is_maker_for_taker(maker_order, taker_order, slot)? {
+            if !is_maker_for_taker(maker_order, taker_order, slot)?
+                && fill_mode.is_some()
+                && !(fill_mode.unwrap() == FillMode::RFQ)
+            {
                 continue;
             }
 
