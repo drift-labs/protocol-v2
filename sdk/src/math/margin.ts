@@ -187,20 +187,20 @@ export function calculateWorstCasePerpLiabilityValue(
 
 export function calculatePerpLiabilityValue(
 	baseAssetAmount: BN,
-	oraclePrice: BN,
+	price: BN,
 	isPredictionMarket: boolean
 ): BN {
 	if (isPredictionMarket) {
 		if (baseAssetAmount.gt(ZERO)) {
-			return baseAssetAmount.mul(oraclePrice).div(BASE_PRECISION);
+			return baseAssetAmount.mul(price).div(BASE_PRECISION);
 		} else {
 			return baseAssetAmount
 				.abs()
-				.mul(MAX_PREDICTION_PRICE.sub(oraclePrice))
+				.mul(MAX_PREDICTION_PRICE.sub(price))
 				.div(BASE_PRECISION);
 		}
 	} else {
-		return baseAssetAmount.abs().mul(oraclePrice).div(BASE_PRECISION);
+		return baseAssetAmount.abs().mul(price).div(BASE_PRECISION);
 	}
 }
 
@@ -215,16 +215,18 @@ export function calculateMarginUSDCRequiredForTrade(
 	targetMarketIndex: number,
 	baseSize: BN,
 	userMaxMarginRatio?: number,
-	userHighLeverageMode?: boolean
+	userHighLeverageMode?: boolean,
+	entryPrice?: BN
 ): BN {
 	const targetMarket = driftClient.getPerpMarketAccount(targetMarketIndex);
-	const oracleData = driftClient.getOracleDataForPerpMarket(
-		targetMarket.marketIndex
-	);
+
+	const price =
+		entryPrice ??
+		driftClient.getOracleDataForPerpMarket(targetMarket.marketIndex).price;
 
 	const perpLiabilityValue = calculatePerpLiabilityValue(
 		baseSize,
-		oracleData.price,
+		price,
 		isVariant(targetMarket.contractType, 'prediction')
 	);
 
