@@ -6547,7 +6547,10 @@ export class DriftClient {
 		const liquidatorStatsPublicKey = this.getUserStatsAccountPublicKey();
 
 		const remainingAccounts = this.getRemainingAccounts({
-			userAccounts: [this.getUserAccount(liquidatorSubAccountId), userAccount],
+			userAccounts: [
+				userAccount,
+				...makerInfos.map((makerInfo) => makerInfo.makerUserAccount),
+			],
 			useMarketLastSlotCache: true,
 			writablePerpMarketIndexes: [marketIndex],
 		});
@@ -8121,7 +8124,7 @@ export class DriftClient {
 
 	public async getEnableHighLeverageModeIx(subAccountId: number) {
 		const remainingAccounts = this.getRemainingAccounts({
-			userAccounts: [this.getUserAccount(subAccountId)]
+			userAccounts: [this.getUserAccount(subAccountId)],
 		});
 
 		const ix = await this.program.instruction.enableUserHighLeverageMode(
@@ -8139,7 +8142,7 @@ export class DriftClient {
 						this.program.programId
 					),
 				},
-				remainingAccounts
+				remainingAccounts,
 			}
 		);
 
@@ -8162,11 +8165,16 @@ export class DriftClient {
 		return txSig;
 	}
 
-	public async getDisableHighLeverageModeIx(user: PublicKey, userAccount?: UserAccount) {
-		const remainingAccounts = userAccount ? this.getRemainingAccounts({
-			userAccounts: [userAccount]
-		}) : undefined;
-		
+	public async getDisableHighLeverageModeIx(
+		user: PublicKey,
+		userAccount?: UserAccount
+	) {
+		const remainingAccounts = userAccount
+			? this.getRemainingAccounts({
+					userAccounts: [userAccount],
+			  })
+			: undefined;
+
 		const ix = await this.program.instruction.disableUserHighLeverageMode({
 			accounts: {
 				state: await this.getStatePublicKey(),
@@ -8176,7 +8184,7 @@ export class DriftClient {
 					this.program.programId
 				),
 			},
-			remainingAccounts
+			remainingAccounts,
 		});
 
 		return ix;
