@@ -40,6 +40,8 @@ use crate::state::paused_operations::PerpOperation;
 use drift_macros::assert_no_slop;
 use static_assertions::const_assert_eq;
 
+use super::oracle::PrelaunchOracle;
+
 #[cfg(test)]
 mod tests;
 
@@ -315,8 +317,10 @@ impl PerpMarket {
     }
 
     pub fn can_skip_auction_duration(&self) -> DriftResult<bool> {
-        Ok(self.amm.net_revenue_since_last_funding > 0
-            && self.amm.amm_lp_allowed_to_jit_make(true)?)
+        Ok((self.amm.net_revenue_since_last_funding > 0
+            && self.amm.amm_lp_allowed_to_jit_make(true)?) 
+            || self.amm.oracle_source == OracleSource::Prelaunch
+        )
     }
 
     pub fn has_too_much_drawdown(&self) -> DriftResult<bool> {
