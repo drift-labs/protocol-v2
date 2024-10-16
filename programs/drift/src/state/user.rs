@@ -1565,8 +1565,8 @@ pub struct UserStats {
     /// has deleted sub accounts
     pub number_of_sub_accounts_created: u16,
     /// Flags for referrer status: 
-    /// First byte (LSB): 1 if user is a referrer, 0 otherwise
-    /// Second byte: 1 if user was referred, 0 otherwise
+    /// First bit (LSB): 1 if user is a referrer, 0 otherwise
+    /// Second bit: 1 if user was referred, 0 otherwise
     pub referrer_info: u8,
     pub disable_update_perp_bid_ask_twap: bool,
     pub padding1: [u8; 2],
