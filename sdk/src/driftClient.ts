@@ -8120,6 +8120,10 @@ export class DriftClient {
 	}
 
 	public async getEnableHighLeverageModeIx(subAccountId: number) {
+		const remainingAccounts = this.getRemainingAccounts({
+			userAccounts: [this.getUserAccount(subAccountId)]
+		});
+
 		const ix = await this.program.instruction.enableUserHighLeverageMode(
 			subAccountId,
 			{
@@ -8135,6 +8139,7 @@ export class DriftClient {
 						this.program.programId
 					),
 				},
+				remainingAccounts
 			}
 		);
 
@@ -8143,11 +8148,12 @@ export class DriftClient {
 
 	public async disableUserHighLeverageMode(
 		user: PublicKey,
+		userAccount?: UserAccount,
 		txParams?: TxParams
 	): Promise<TransactionSignature> {
 		const { txSig } = await this.sendTransaction(
 			await this.buildTransaction(
-				await this.getDisableHighLeverageModeIx(user),
+				await this.getDisableHighLeverageModeIx(user, userAccount),
 				txParams
 			),
 			[],
@@ -8156,7 +8162,11 @@ export class DriftClient {
 		return txSig;
 	}
 
-	public async getDisableHighLeverageModeIx(user: PublicKey) {
+	public async getDisableHighLeverageModeIx(user: PublicKey, userAccount?: UserAccount) {
+		const remainingAccounts = userAccount ? this.getRemainingAccounts({
+			userAccounts: [userAccount]
+		}) : undefined;
+		
 		const ix = await this.program.instruction.disableUserHighLeverageMode({
 			accounts: {
 				state: await this.getStatePublicKey(),
@@ -8166,6 +8176,7 @@ export class DriftClient {
 					this.program.programId
 				),
 			},
+			remainingAccounts
 		});
 
 		return ix;
