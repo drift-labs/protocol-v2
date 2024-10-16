@@ -956,14 +956,14 @@ export class DriftClient {
 		});
 	}
 
-	public async initializeRFQUserAccount(
+	public async initializeRFQUser(
 		userAccountPublicKey: PublicKey,
 		txParams?: TxParams
 	): Promise<[TransactionSignature, PublicKey]> {
 		const initializeIxs = [];
 
 		const [rfqUserAccountPublicKey, initializeUserAccountIx] =
-			await this.getInitializeRFQUserAccountInstructions(userAccountPublicKey);
+			await this.getInitializeRFQUserInstruction(userAccountPublicKey);
 		initializeIxs.push(initializeUserAccountIx);
 		const tx = await this.buildTransaction(initializeIxs, txParams);
 		const { txSig } = await this.sendTransaction(tx, [], this.opts);
@@ -971,7 +971,7 @@ export class DriftClient {
 		return [txSig, rfqUserAccountPublicKey];
 	}
 
-	async getInitializeRFQUserAccountInstructions(
+	async getInitializeRFQUserInstruction(
 		userAccountPublicKey: PublicKey
 	): Promise<[PublicKey, TransactionInstruction]> {
 		const rfqUserAccountPublicKey = getRFQUserAccountPublicKey(
@@ -979,7 +979,7 @@ export class DriftClient {
 			userAccountPublicKey
 		);
 		const initializeUserAccountIx =
-			await this.program.instruction.initializeRfqUserAccount({
+			await this.program.instruction.initializeRfqUser({
 				accounts: {
 					rfqUser: rfqUserAccountPublicKey,
 					authority: this.wallet.publicKey,

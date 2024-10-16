@@ -282,21 +282,21 @@ describe('place and fill rfq orders', () => {
 
 		// Create the maker's rfq accounts
 		let [txSig, _rfqUserAccountPublicKey] =
-			await makerDriftClient.initializeRFQUserAccount(
+			await makerDriftClient.initializeRFQUser(
 				makerDriftClientUser.userAccountPublicKey
 			);
 
 		bankrunContextWrapper.printTxLogs(txSig);
 
 		[txSig, _rfqUserAccountPublicKey] =
-			await makerDriftClient1.initializeRFQUserAccount(
+			await makerDriftClient1.initializeRFQUser(
 				makerDriftClientUser1.userAccountPublicKey
 			);
 
 		bankrunContextWrapper.printTxLogs(txSig);
 
 		[txSig, _rfqUserAccountPublicKey] =
-			await makerDriftClient2.initializeRFQUserAccount(
+			await makerDriftClient2.initializeRFQUser(
 				makerDriftClientUser2.userAccountPublicKey
 			);
 
@@ -335,7 +335,7 @@ describe('place and fill rfq orders', () => {
 			makerDriftClient.encodeRFQMakerOrderParams(makerOrderMessage)
 		);
 
-		const makerOrderMessage1: RFQMakerOrderParams = {
+		const _makerOrderMessage1: RFQMakerOrderParams = {
 			marketIndex: 0,
 			marketType: MarketType.PERP,
 			direction: PositionDirection.SHORT,
@@ -346,7 +346,7 @@ describe('place and fill rfq orders', () => {
 			maxTs: BN_MAX,
 			uuid: Uint8Array.from(Buffer.from(nanoid(8))),
 		};
-		const signature1 = await makerDriftClient1.signMessage(
+		const _signature1 = await makerDriftClient1.signMessage(
 			makerDriftClient1.encodeRFQMakerOrderParams(makerOrderMessage)
 		);
 
@@ -359,8 +359,8 @@ describe('place and fill rfq orders', () => {
 			// would fail if we included the second order as well bc tx too large
 			// {
 			// 	baseAssetAmount: BASE_PRECISION,
-			// 	makerOrderParams: makerOrderMessage1,
-			// 	makerSignature: signature1,
+			// 	makerOrderParams: _makerOrderMessage1,
+			// 	makerSignature: _signature1,
 			// },
 		]);
 

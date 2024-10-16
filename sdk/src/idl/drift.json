@@ -94,7 +94,7 @@
       "args": []
     },
     {
-      "name": "initializeRfqUserAccount",
+      "name": "initializeRfqUser",
       "accounts": [
         {
           "name": "rfqUser",
@@ -6834,6 +6834,29 @@
       }
     },
     {
+      "name": "RFQUser",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "userPubkey",
+            "type": "publicKey"
+          },
+          {
+            "name": "rfqOrderData",
+            "type": {
+              "array": [
+                {
+                  "defined": "RFQOrderId"
+                },
+                32
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
       "name": "SpotMarket",
       "type": {
         "kind": "struct",
@@ -7701,25 +7724,6 @@
               "array": [
                 "u8",
                 12
-              ]
-            }
-          }
-        ]
-      }
-    },
-    {
-      "name": "RFQUserAccount",
-      "type": {
-        "kind": "struct",
-        "fields": [
-          {
-            "name": "rfqOrderData",
-            "type": {
-              "array": [
-                {
-                  "defined": "RFQOrderId"
-                },
-                32
               ]
             }
           }
@@ -9428,6 +9432,27 @@
       }
     },
     {
+      "name": "RFQOrderId",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "uuid",
+            "type": {
+              "array": [
+                "u8",
+                8
+              ]
+            }
+          },
+          {
+            "name": "maxTs",
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
       "name": "InsuranceFund",
       "type": {
         "kind": "struct",
@@ -9620,27 +9645,6 @@
           {
             "name": "timeBasedRewardLowerBound",
             "type": "u128"
-          }
-        ]
-      }
-    },
-    {
-      "name": "RFQOrderId",
-      "type": {
-        "kind": "struct",
-        "fields": [
-          {
-            "name": "uuid",
-            "type": {
-              "array": [
-                "u8",
-                8
-              ]
-            }
-          },
-          {
-            "name": "maxTs",
-            "type": "i64"
           }
         ]
       }

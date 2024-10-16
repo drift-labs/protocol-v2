@@ -61,4 +61,8 @@ impl FillMode {
     pub fn is_liquidation(&self) -> bool {
         self == &FillMode::Liquidation
     }
+
+    pub fn is_rfq(&self) -> bool {
+        self == &FillMode::RFQ
+    }
 }

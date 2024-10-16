@@ -59,10 +59,10 @@ pub mod drift {
         handle_initialize_user_stats(ctx)
     }
 
-    pub fn initialize_rfq_user_account<'c: 'info, 'info>(
-        ctx: Context<'_, '_, 'c, 'info, InitializeRFQUserAccount<'info>>,
+    pub fn initialize_rfq_user<'c: 'info, 'info>(
+        ctx: Context<'_, '_, 'c, 'info, InitializeRFQUser<'info>>,
     ) -> Result<()> {
-        handle_initialize_rfq_user_account(ctx)
+        handle_initialize_rfq_user(ctx)
     }
 
     pub fn initialize_referrer_name(

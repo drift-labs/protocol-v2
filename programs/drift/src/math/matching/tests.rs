@@ -16,7 +16,7 @@ mod is_maker_for_taker {
             post_only: false,
             ..Default::default()
         };
-        assert_eq!(is_maker_for_taker(&maker, &taker, 0).unwrap(), false);
+        assert_eq!(is_maker_for_taker(&maker, &taker, 0, None).unwrap(), false);
     }
 
     #[test]
@@ -31,7 +31,7 @@ mod is_maker_for_taker {
             order_type: OrderType::Market,
             ..Default::default()
         };
-        assert_eq!(is_maker_for_taker(&maker, &taker, 0).unwrap(), false);
+        assert_eq!(is_maker_for_taker(&maker, &taker, 0, None).unwrap(), false);
     }
 
     #[test]
@@ -49,7 +49,7 @@ mod is_maker_for_taker {
             slot: 0,
             ..Default::default()
         };
-        assert_eq!(is_maker_for_taker(&maker, &taker, 0).unwrap(), false);
+        assert_eq!(is_maker_for_taker(&maker, &taker, 0, None).unwrap(), false);
 
         // limit order in auction
         let taker = Order {
@@ -58,7 +58,7 @@ mod is_maker_for_taker {
             auction_duration: 10,
             ..Default::default()
         };
-        assert_eq!(is_maker_for_taker(&maker, &taker, 0).unwrap(), false);
+        assert_eq!(is_maker_for_taker(&maker, &taker, 0, None).unwrap(), false);
     }
 
     #[test]
@@ -77,7 +77,10 @@ mod is_maker_for_taker {
             slot: slot - 1,
             ..Default::default()
         };
-        assert_eq!(is_maker_for_taker(&maker, &taker, slot).unwrap(), true);
+        assert_eq!(
+            is_maker_for_taker(&maker, &taker, slot, None).unwrap(),
+            true
+        );
 
         // limit order in auction
         let taker = Order {
@@ -87,7 +90,10 @@ mod is_maker_for_taker {
             slot: slot - 1,
             ..Default::default()
         };
-        assert_eq!(is_maker_for_taker(&maker, &taker, slot).unwrap(), true);
+        assert_eq!(
+            is_maker_for_taker(&maker, &taker, slot, None).unwrap(),
+            true
+        );
     }
 
     #[test]
@@ -106,7 +112,10 @@ mod is_maker_for_taker {
         };
         let slot = 11;
         assert_eq!(maker.is_resting_limit_order(slot).unwrap(), true);
-        assert_eq!(is_maker_for_taker(&maker, &taker, slot).unwrap(), true);
+        assert_eq!(
+            is_maker_for_taker(&maker, &taker, slot, None).unwrap(),
+            true
+        );
 
         // limit order in auction
         let taker = Order {
@@ -117,7 +126,10 @@ mod is_maker_for_taker {
             ..Default::default()
         };
         assert_eq!(taker.is_resting_limit_order(slot).unwrap(), false);
-        assert_eq!(is_maker_for_taker(&maker, &taker, slot).unwrap(), true);
+        assert_eq!(
+            is_maker_for_taker(&maker, &taker, slot, None).unwrap(),
+            true
+        );
     }
 
     #[test]
@@ -139,7 +151,10 @@ mod is_maker_for_taker {
             order_type: OrderType::Limit,
             ..Default::default()
         };
-        assert_eq!(is_maker_for_taker(&maker, &taker, slot).unwrap(), true);
+        assert_eq!(
+            is_maker_for_taker(&maker, &taker, slot, None).unwrap(),
+            true
+        );
     }
 
     #[test]
@@ -164,7 +179,10 @@ mod is_maker_for_taker {
         };
         assert_eq!(taker.is_resting_limit_order(slot).unwrap(), true);
 
-        assert_eq!(is_maker_for_taker(&maker, &taker, slot).unwrap(), false);
+        assert_eq!(
+            is_maker_for_taker(&maker, &taker, slot, None).unwrap(),
+            false
+        );
 
         let taker = Order {
             post_only: false,
@@ -175,7 +193,10 @@ mod is_maker_for_taker {
         };
         assert_eq!(taker.is_resting_limit_order(slot).unwrap(), true);
 
-        assert_eq!(is_maker_for_taker(&maker, &taker, slot).unwrap(), true);
+        assert_eq!(
+            is_maker_for_taker(&maker, &taker, slot, None).unwrap(),
+            true
+        );
     }
 }
 

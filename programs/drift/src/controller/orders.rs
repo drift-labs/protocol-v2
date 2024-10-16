@@ -65,6 +65,7 @@ use crate::state::oracle_map::OracleMap;
 use crate::state::paused_operations::{PerpOperation, SpotOperation};
 use crate::state::perp_market::{AMMLiquiditySplit, MarketStatus, PerpMarket};
 use crate::state::perp_market_map::PerpMarketMap;
+use crate::state::rfq_user::{RFQOrderId, RFQUser};
 use crate::state::spot_fulfillment_params::{ExternalSpotFill, SpotFulfillmentParams};
 use crate::state::spot_market::{SpotBalanceType, SpotMarket};
 use crate::state::spot_market_map::SpotMarketMap;
@@ -72,8 +73,7 @@ use crate::state::state::FeeStructure;
 use crate::state::state::*;
 use crate::state::traits::Size;
 use crate::state::user::{
-    AssetType, Order, OrderStatus, OrderTriggerCondition, OrderType, RFQOrderId, RFQUserAccount,
-    UserStats,
+    AssetType, Order, OrderStatus, OrderTriggerCondition, OrderType, UserStats,
 };
 use crate::state::user::{MarketType, User};
 use crate::state::user_map::{UserMap, UserStatsMap};
@@ -403,7 +403,7 @@ pub fn place_and_match_rfq_orders<'c: 'info, 'info>(
     taker_account_loader: &AccountLoader<'info, User>,
     taker_stats_account_loader: &AccountLoader<'info, UserStats>,
     rfq_matches: Vec<RFQMatch>,
-    maker_rfq_account_map: BTreeMap<Pubkey, AccountLoader<'c, RFQUserAccount>>,
+    maker_rfq_account_map: BTreeMap<Pubkey, AccountLoader<'c, RFQUser>>,
     makers_and_referrer: &UserMap,
     makers_and_referrer_stats: &UserStatsMap,
     perp_market_map: &PerpMarketMap,
@@ -422,8 +422,9 @@ pub fn place_and_match_rfq_orders<'c: 'info, 'info>(
     for rfq_match in rfq_matches {
         if rfq_match.maker_order_params.max_ts < clock.unix_timestamp {
             msg!(
-                "RFQ order expired for maker authority {}",
-                rfq_match.maker_order_params.authority
+                "RFQ order expired for maker authority {} and uuid {:?}",
+                rfq_match.maker_order_params.authority,
+                rfq_match.maker_order_params.uuid
             );
             continue;
         }
@@ -449,6 +450,9 @@ pub fn place_and_match_rfq_orders<'c: 'info, 'info>(
             max_ts: Some(maker_order_params.max_ts),
             immediate_or_cancel: true,
             post_only: PostOnlyParam::TryPostOnly,
+            auction_duration: None,
+            auction_end_price: None,
+            auction_start_price: None,
             ..OrderParams::default()
         };
         let mut maker = makers_and_referrer.get_ref_mut(&maker_pubkey)?;
@@ -481,6 +485,9 @@ pub fn place_and_match_rfq_orders<'c: 'info, 'info>(
             price: maker_order_params.price,
             immediate_or_cancel: true,
             post_only: PostOnlyParam::None,
+            auction_duration: None,
+            auction_end_price: None,
+            auction_start_price: None,
             ..OrderParams::default()
         };
 
@@ -1120,7 +1127,7 @@ pub fn fill_perp_order(
     let oracle_twap_5min: i64;
     let perp_market_index: u16;
 
-    let mut amm_is_available = !state.amm_paused()? && fill_mode != FillMode::RFQ;
+    let mut amm_is_available = !state.amm_paused()? && !fill_mode.is_rfq();
     {
         let market = &mut perp_market_map.get_ref_mut(&market_index)?;
         validation::perp_market::validate_perp_market(market)?;
@@ -1528,10 +1535,7 @@ fn get_maker_orders_info(
             let maker_order_price = *maker_order_price;
 
             let maker_order = &maker.orders[maker_order_index];
-            if !is_maker_for_taker(maker_order, taker_order, slot)?
-                && fill_mode.is_some()
-                && !(fill_mode.unwrap() == FillMode::RFQ)
-            {
+            if !is_maker_for_taker(maker_order, taker_order, slot, fill_mode)? {
                 continue;
             }
 
@@ -4017,7 +4021,7 @@ fn get_spot_maker_orders_info(
             let maker_order_price = *maker_order_price;
 
             let maker_order = &maker.orders[maker_order_index];
-            if !is_maker_for_taker(maker_order, taker_order, slot)? {
+            if !is_maker_for_taker(maker_order, taker_order, slot, None)? {
                 continue;
             }
 

@@ -7,6 +7,7 @@ use crate::math::constants::{BID_ASK_SPREAD_PRECISION_I128, TEN_BPS_I64};
 use crate::math::orders::calculate_quote_asset_amount_for_maker_order;
 use crate::math::safe_math::SafeMath;
 
+use crate::state::fill_mode::FillMode;
 use crate::state::user::Order;
 
 #[cfg(test)]
@@ -16,7 +17,13 @@ pub fn is_maker_for_taker(
     maker_order: &Order,
     taker_order: &Order,
     slot: u64,
+    fill_mode: Option<FillMode>,
 ) -> DriftResult<bool> {
+    // Allow match if via RFQ
+    if fill_mode.map_or(false, |mode| mode.is_rfq()) {
+        return Ok(true);
+    }
+
     // Maker and taker order not allowed to match if both were placed in the current slot
     if slot == maker_order.slot && slot == taker_order.slot && !maker_order.is_jit_maker() {
         return Ok(false);

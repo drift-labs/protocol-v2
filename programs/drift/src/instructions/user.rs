@@ -62,6 +62,7 @@ use crate::state::paused_operations::{PerpOperation, SpotOperation};
 use crate::state::perp_market::ContractType;
 use crate::state::perp_market::MarketStatus;
 use crate::state::perp_market_map::{get_writable_perp_market_set, MarketSet};
+use crate::state::rfq_user::{load_rfq_user_account_map, RFQUser, RFQ_PDA_SEED};
 use crate::state::spot_fulfillment_params::SpotFulfillmentParams;
 use crate::state::spot_market::SpotBalanceType;
 use crate::state::spot_market::SpotMarket;
@@ -71,9 +72,6 @@ use crate::state::spot_market_map::{
 use crate::state::state::State;
 use crate::state::traits::Size;
 use crate::state::user::derive_user_account;
-use crate::state::user::load_rfq_user_account_map;
-use crate::state::user::RFQUserAccount;
-use crate::state::user::RFQ_PDA_SEED;
 use crate::state::user::{MarginMode, MarketType, OrderType, ReferrerName, User, UserStats};
 use crate::state::user_map::{load_user_maps, UserMap, UserStatsMap};
 use crate::validate;
@@ -272,13 +270,15 @@ pub fn handle_initialize_referrer_name(
     Ok(())
 }
 
-pub fn handle_initialize_rfq_user_account<'c: 'info, 'info>(
-    ctx: Context<'_, '_, 'c, 'info, InitializeRFQUserAccount<'info>>,
+pub fn handle_initialize_rfq_user<'c: 'info, 'info>(
+    ctx: Context<'_, '_, 'c, 'info, InitializeRFQUser<'info>>,
 ) -> Result<()> {
-    ctx.accounts
+    let mut rfq_user = ctx
+        .accounts
         .rfq_user
         .load_init()
         .or(Err(ErrorCode::UnableToLoadAccountLoader))?;
+    rfq_user.user_pubkey = ctx.accounts.user.key();
     Ok(())
 }
 
@@ -2294,15 +2294,15 @@ pub struct InitializeUserStats<'info> {
 }
 
 #[derive(Accounts)]
-pub struct InitializeRFQUserAccount<'info> {
+pub struct InitializeRFQUser<'info> {
     #[account(
         init,
         seeds = [RFQ_PDA_SEED.as_ref(), user.key().as_ref()],
-        space = RFQUserAccount::SIZE,
+        space = RFQUser::SIZE,
         bump,
         payer = payer
     )]
-    pub rfq_user: AccountLoader<'info, RFQUserAccount>,
+    pub rfq_user: AccountLoader<'info, RFQUser>,
     pub authority: Signer<'info>,
     #[account(
         mut,
