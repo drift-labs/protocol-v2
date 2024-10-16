@@ -256,14 +256,16 @@ export function calculateCollateralDepositRequiredForTrade(
 	baseSize: BN,
 	collateralIndex: number,
 	userMaxMarginRatio?: number,
-	userHighLeverageMode?: boolean
+	userHighLeverageMode?: boolean,
+	estEntryPrice?: BN
 ): BN {
 	const marginRequiredUsdc = calculateMarginUSDCRequiredForTrade(
 		driftClient,
 		targetMarketIndex,
 		baseSize,
 		userMaxMarginRatio,
-		userHighLeverageMode
+		userHighLeverageMode,
+		estEntryPrice
 	);
 
 	const collateralMarket = driftClient.getSpotMarketAccount(collateralIndex);
