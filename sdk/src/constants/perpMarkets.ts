@@ -902,9 +902,11 @@ export const MainnetPerpMarkets: PerpMarketConfig[] = [
 		symbol: 'DBR-PERP',
 		baseAssetSymbol: 'DBR',
 		marketIndex: 47,
-		oracle: new PublicKey('AQzxePg2vY52Cw4di1j5xF7BqetNPxogqYPgDBL7HXWn'),
+		oracle: new PublicKey('53j4mz7cQV7mAZekKbV3n2L4bY7jY6eXdgaTkWDLYxq4'),
 		launchTs: 1728574493000,
-		oracleSource: OracleSource.Prelaunch,
+		oracleSource: OracleSource.PYTH_PULL,
+		pythFeedId:
+			'0xf788488fe2df341b10a498e0a789f03209c0938d9ed04bc521f8224748d6d236',
 	},
 	{
 		fullName: 'WLF-5B-1W',
