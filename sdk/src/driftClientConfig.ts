@@ -11,7 +11,7 @@ import { BulkAccountLoader } from './accounts/bulkAccountLoader';
 import { DriftEnv } from './config';
 import { TxSender } from './tx/types';
 import { TxHandler, TxHandlerConfig } from './tx/txHandler';
-import { DelistedMarketSetting } from './accounts/types';
+import { DelistedMarketSetting, GrpcConfigs } from './accounts/types';
 
 export type DriftClientConfig = {
 	connection: Connection;
@@ -42,6 +42,12 @@ export type DriftClientConfig = {
 };
 
 export type DriftClientSubscriptionConfig =
+	| {
+			type: 'grpc';
+			grpcConfigs: GrpcConfigs;
+			resubTimeoutMs?: number;
+			logResubMessages?: boolean;
+	  }
 	| {
 			type: 'websocket';
 			resubTimeoutMs?: number;
