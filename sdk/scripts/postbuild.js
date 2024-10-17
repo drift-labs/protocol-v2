@@ -37,6 +37,26 @@ environments.forEach((environment) => {
 				`Error processing isomophic package : ${package} :: ${error.message}`
 			);
 		}
+
+		// Delete other environment files for safety
+		environments.forEach((otherEnvironment) => {
+			if (otherEnvironment === environment) {
+				return;
+			}
+
+			const otherTargetPath = path.join(
+				__dirname,
+				'..',
+				'lib',
+				environment,
+				'isomorphic',
+				`${package}.${otherEnvironment}.js`
+			);
+
+			if (fs.existsSync(otherTargetPath)) {
+				fs.unlinkSync(otherTargetPath);
+			}
+		});
 	});
 
 	// Add a console log of the environment to the main index.js file to help with debugging

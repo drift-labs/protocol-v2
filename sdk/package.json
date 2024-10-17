@@ -3,12 +3,7 @@
 	"version": "2.97.0-beta.18",
 	"main": "lib/node/index.js",
 	"types": "lib/node/index.d.ts",
-	"exports": {
-		".": {
-			"browser": "./lib/browser/index.js",
-			"default": "./lib/node/index.js"
-		}
-	},
+	"browser": "./lib/browser/index.js",
 	"author": "crispheaney",
 	"homepage": "https://www.drift.trade/",
 	"repository": {
