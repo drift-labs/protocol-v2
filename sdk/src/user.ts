@@ -2613,13 +2613,16 @@ export class User {
 
 	public getMarginUSDCRequiredForTrade(
 		targetMarketIndex: number,
-		baseSize: BN
+		baseSize: BN,
+		estEntryPrice?: BN
 	): BN {
 		return calculateMarginUSDCRequiredForTrade(
 			this.driftClient,
 			targetMarketIndex,
 			baseSize,
-			this.getUserAccount().maxMarginRatio
+			this.getUserAccount().maxMarginRatio,
+			undefined,
+			estEntryPrice
 		);
 	}
 

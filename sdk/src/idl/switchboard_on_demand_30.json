@@ -443,10 +443,14 @@
           }
         },
         {
-          "name": "queue"
+          "name": "queue",
+          "relations": [
+            "oracle"
+          ]
         },
         {
-          "name": "authority"
+          "name": "authority",
+          "signer": true
         },
         {
           "name": "program_state",
@@ -503,6 +507,9 @@
         },
         {
           "name": "stake_pool"
+        },
+        {
+          "name": "delegation_group"
         }
       ],
       "args": [
@@ -955,10 +962,7 @@
         },
         {
           "name": "authority",
-          "signer": true,
-          "relations": [
-            "queue"
-          ]
+          "signer": true
         },
         {
           "name": "program_authority"
@@ -1038,6 +1042,13 @@
         {
           "name": "oracle",
           "writable": true
+        },
+        {
+          "name": "authority",
+          "signer": true
+        },
+        {
+          "name": "state"
         }
       ],
       "args": [
@@ -1294,10 +1305,7 @@
         },
         {
           "name": "authority",
-          "signer": true,
-          "relations": [
-            "queue"
-          ]
+          "signer": true
         },
         {
           "name": "program_authority"
@@ -1336,10 +1344,7 @@
         },
         {
           "name": "authority",
-          "signer": true,
-          "relations": [
-            "queue"
-          ]
+          "signer": true
         },
         {
           "name": "state"
@@ -1387,6 +1392,13 @@
         {
           "name": "recent_slothashes",
           "address": "SysvarS1otHashes111111111111111111111111111"
+        },
+        {
+          "name": "authority",
+          "signer": true,
+          "relations": [
+            "randomness"
+          ]
         }
       ],
       "args": [
@@ -1861,6 +1873,19 @@
   ],
   "events": [
     {
+      "name": "CostWhitelistEvent",
+      "discriminator": [
+        56,
+        107,
+        191,
+        127,
+        116,
+        6,
+        138,
+        149
+      ]
+    },
+    {
       "name": "GarbageCollectionEvent",
       "discriminator": [
         232,
@@ -2235,9 +2260,84 @@
     {
       "code": 6047,
       "name": "InvalidInstruction"
+    },
+    {
+      "code": 6048,
+      "name": "OracleAlreadyVerified"
+    },
+    {
+      "code": 6049,
+      "name": "GuardianNotVerified"
+    },
+    {
+      "code": 6050,
+      "name": "InvalidConstraint"
+    },
+    {
+      "code": 6051,
+      "name": "InvalidDelegationGroup"
+    },
+    {
+      "code": 6052,
+      "name": "OracleKeyNotFound"
+    },
+    {
+      "code": 6053,
+      "name": "GuardianReregisterAttempt"
     }
   ],
   "types": [
+    {
+      "name": "CompactResult",
+      "serialization": "bytemuck",
+      "repr": {
+        "kind": "c"
+      },
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "std_dev",
+            "docs": [
+              "The standard deviation of the submissions needed for quorom size"
+            ],
+            "type": "f32"
+          },
+          {
+            "name": "mean",
+            "docs": [
+              "The mean of the submissions needed for quorom size"
+            ],
+            "type": "f32"
+          },
+          {
+            "name": "slot",
+            "docs": [
+              "The slot at which this value was signed."
+            ],
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "CostWhitelistEvent",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "feeds",
+            "type": {
+              "vec": "pubkey"
+            }
+          },
+          {
+            "name": "reward",
+            "type": "u32"
+          }
+        ]
+      }
+    },
     {
       "name": "CurrentResult",
       "serialization": "bytemuck",
@@ -2384,7 +2484,7 @@
             }
           },
           {
-            "name": "idx",
+            "name": "_reserved1",
             "type": "u32"
           },
           {
@@ -2437,12 +2537,7 @@
       "name": "GuardianUnregisterParams",
       "type": {
         "kind": "struct",
-        "fields": [
-          {
-            "name": "idx",
-            "type": "u32"
-          }
-        ]
+        "fields": []
       }
     },
     {
@@ -2948,7 +3043,7 @@
         "kind": "struct",
         "fields": [
           {
-            "name": "recent_slot",
+            "name": "_reserved1",
             "type": "u64"
           }
         ]
@@ -3068,13 +3163,17 @@
             }
           },
           {
-            "name": "_padding1",
+            "name": "padding1",
             "type": {
               "array": [
                 "u8",
-                3
+                2
               ]
             }
+          },
+          {
+            "name": "historical_result_idx",
+            "type": "u8"
           },
           {
             "name": "min_sample_size",
@@ -3089,7 +3188,7 @@
             "type": "u64"
           },
           {
-            "name": "ipfs_hash",
+            "name": "_reserved1",
             "type": {
               "array": [
                 "u8",
@@ -3110,11 +3209,33 @@
             "type": "u32"
           },
           {
+            "name": "padding2",
+            "type": {
+              "array": [
+                "u8",
+                12
+              ]
+            }
+          },
+          {
+            "name": "historical_results",
+            "type": {
+              "array": [
+                {
+                  "defined": {
+                    "name": "CompactResult"
+                  }
+                },
+                32
+              ]
+            }
+          },
+          {
             "name": "_ebuf4",
             "type": {
               "array": [
                 "u8",
-                20
+                8
               ]
             }
           },
@@ -3133,15 +3254,6 @@
               "array": [
                 "u8",
                 256
-              ]
-            }
-          },
-          {
-            "name": "_ebuf1",
-            "type": {
-              "array": [
-                "u8",
-                512
               ]
             }
           }
@@ -4238,11 +4350,42 @@
             "type": "u64"
           },
           {
+            "name": "base_reward",
+            "type": "u32"
+          },
+          {
+            "name": "_ebuf6",
+            "type": {
+              "array": [
+                "u8",
+                28
+              ]
+            }
+          },
+          {
+            "name": "_ebuf5",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "_ebuf4",
+            "type": {
+              "array": [
+                "u8",
+                64
+              ]
+            }
+          },
+          {
             "name": "_ebuf3",
             "type": {
               "array": [
                 "u8",
-                256
+                128
               ]
             }
           },
@@ -4256,11 +4399,14 @@
             }
           },
           {
-            "name": "_ebuf1",
+            "name": "cost_whitelist",
+            "docs": [
+              "Cost whitelist by authority"
+            ],
             "type": {
               "array": [
-                "u8",
-                1024
+                "pubkey",
+                32
               ]
             }
           }
@@ -4346,6 +4492,18 @@
           {
             "name": "subsidy_amount",
             "type": "u32"
+          },
+          {
+            "name": "base_reward",
+            "type": "u32"
+          },
+          {
+            "name": "add_cost_wl",
+            "type": "pubkey"
+          },
+          {
+            "name": "rm_cost_wl",
+            "type": "pubkey"
           }
         ]
       }

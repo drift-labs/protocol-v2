@@ -19,6 +19,7 @@ import {
 } from '@solana/spl-token';
 import {
 	DriftClientMetricsEvents,
+	HighLeverageModeConfig,
 	isVariant,
 	IWallet,
 	MakerInfo,
@@ -6575,7 +6576,10 @@ export class DriftClient {
 		const liquidatorStatsPublicKey = this.getUserStatsAccountPublicKey();
 
 		const remainingAccounts = this.getRemainingAccounts({
-			userAccounts: [this.getUserAccount(liquidatorSubAccountId), userAccount],
+			userAccounts: [
+				userAccount,
+				...makerInfos.map((makerInfo) => makerInfo.makerUserAccount),
+			],
 			useMarketLastSlotCache: true,
 			writablePerpMarketIndexes: [marketIndex],
 		});
@@ -8148,7 +8152,11 @@ export class DriftClient {
 	}
 
 	public async getEnableHighLeverageModeIx(subAccountId: number) {
-		const ix = await this.program.instruction.enableHighLeverageMode(
+		const remainingAccounts = this.getRemainingAccounts({
+			userAccounts: [this.getUserAccount(subAccountId)],
+		});
+
+		const ix = await this.program.instruction.enableUserHighLeverageMode(
 			subAccountId,
 			{
 				accounts: {
@@ -8163,6 +8171,7 @@ export class DriftClient {
 						this.program.programId
 					),
 				},
+				remainingAccounts,
 			}
 		);
 
@@ -8171,11 +8180,12 @@ export class DriftClient {
 
 	public async disableUserHighLeverageMode(
 		user: PublicKey,
+		userAccount?: UserAccount,
 		txParams?: TxParams
 	): Promise<TransactionSignature> {
 		const { txSig } = await this.sendTransaction(
 			await this.buildTransaction(
-				await this.getDisableHighLeverageModeIx(user),
+				await this.getDisableHighLeverageModeIx(user, userAccount),
 				txParams
 			),
 			[],
@@ -8184,8 +8194,17 @@ export class DriftClient {
 		return txSig;
 	}
 
-	public async getDisableHighLeverageModeIx(user: PublicKey) {
-		const ix = await this.program.instruction.disableHighLeverageMode({
+	public async getDisableHighLeverageModeIx(
+		user: PublicKey,
+		userAccount?: UserAccount
+	) {
+		const remainingAccounts = userAccount
+			? this.getRemainingAccounts({
+					userAccounts: [userAccount],
+			  })
+			: undefined;
+
+		const ix = await this.program.instruction.disableUserHighLeverageMode({
 			accounts: {
 				state: await this.getStatePublicKey(),
 				user,
@@ -8194,9 +8213,17 @@ export class DriftClient {
 					this.program.programId
 				),
 			},
+			remainingAccounts,
 		});
 
 		return ix;
+	}
+
+	public async fetchHighLeverageModeConfig(): Promise<HighLeverageModeConfig> {
+		const config = await this.program.account.highLeverageModeConfig.fetch(
+			getHighLeverageModeConfigPublicKey(this.program.programId)
+		);
+		return config as HighLeverageModeConfig;
 	}
 
 	private handleSignedTransaction(signedTxs: SignedTxData[]) {
