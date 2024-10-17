@@ -679,7 +679,10 @@ pub fn handle_initialize_perp_market(
         fuel_boost_position: 0,
         fuel_boost_taker: 0,
         fuel_boost_maker: 0,
-        padding: [0; 43],
+        padding: [0; 38],
+        padding1: 0,
+        high_leverage_margin_ratio_initial: 0,
+        high_leverage_margin_ratio_maintenance: 0,
         amm: AMM {
             oracle: *ctx.accounts.oracle.key,
             oracle_source,

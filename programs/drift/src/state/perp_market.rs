@@ -232,7 +232,10 @@ pub struct PerpMarket {
     /// fuel multiplier for perp maker
     /// precision: 10
     pub fuel_boost_maker: u8,
-    pub padding: [u8; 43],
+    pub padding: [u8; 38],
+    pub padding1: u8,
+    pub high_leverage_margin_ratio_initial: u16,
+    pub high_leverage_margin_ratio_maintenance: u16,
 }
 
 impl Default for PerpMarket {
@@ -269,7 +272,10 @@ impl Default for PerpMarket {
             fuel_boost_position: 0,
             fuel_boost_taker: 0,
             fuel_boost_maker: 0,
-            padding: [0; 43],
+            padding: [0; 38],
+            padding1: 0,
+            high_leverage_margin_ratio_initial: 0,
+            high_leverage_margin_ratio_maintenance: 0,
         }
     }
 }
