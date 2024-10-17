@@ -12,6 +12,7 @@ import {
 	EventSubscriber,
 	Wallet,
 	PRICE_PRECISION,
+	ReferrerStatus,
 } from '../sdk/src';
 
 import {
@@ -233,9 +234,10 @@ describe('referrer', () => {
 				bankrunContextWrapper.provider.wallet.publicKey
 			)
 		);
+		assert((refereeStats.referrerStatus & ReferrerStatus.IsReferred) > 0);
 
 		const referrerStats = referrerDriftClient.getUserStats().getAccount();
-		assert(referrerStats.isReferrer == true);
+		assert((referrerStats.referrerStatus & ReferrerStatus.IsReferrer) > 0);
 	});
 
 	it('fill order', async () => {

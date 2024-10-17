@@ -4984,6 +4984,33 @@ export class DriftClient {
 		});
 	}
 
+	public async updateUserStatsReferrerInfo(
+		userStatsAccountPublicKey: PublicKey,
+		txParams?: TxParams
+	): Promise<TransactionSignature> {
+		const { txSig } = await this.sendTransaction(
+			await this.buildTransaction(
+				await this.getUpdateUserStatsReferrerInfoIx(userStatsAccountPublicKey),
+				txParams
+			),
+			[],
+			this.opts
+		);
+		return txSig;
+	}
+
+	public async getUpdateUserStatsReferrerInfoIx(
+		userStatsAccountPublicKey: PublicKey
+	): Promise<TransactionInstruction> {
+		return await this.program.instruction.updateUserStatsReferrerInfo({
+			accounts: {
+				state: await this.getStatePublicKey(),
+				userStats: userStatsAccountPublicKey,
+				authority: this.wallet.publicKey,
+			},
+		});
+	}
+
 	public async updateUserOpenOrdersCount(
 		userAccountPublicKey: PublicKey,
 		user: UserAccount,

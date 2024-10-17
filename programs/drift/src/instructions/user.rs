@@ -67,6 +67,7 @@ use crate::state::spot_market_map::{
 };
 use crate::state::state::State;
 use crate::state::traits::Size;
+use crate::state::user::ReferrerStatus;
 use crate::state::user::{MarginMode, MarketType, OrderType, ReferrerName, User, UserStats};
 use crate::state::user_map::{load_user_maps, UserMap, UserStatsMap};
 use crate::validate;
@@ -116,7 +117,7 @@ pub fn handle_initialize_user<'c: 'info, 'info>(
                 ErrorCode::ReferrerAndReferrerStatsAuthorityUnequal
             )?;
 
-            referrer_stats.is_referrer = true;
+            referrer_stats.referrer_status |= ReferrerStatus::IsReferrer as u8;
 
             referrer.authority
         } else {
@@ -124,6 +125,7 @@ pub fn handle_initialize_user<'c: 'info, 'info>(
         };
 
         user_stats.referrer = referrer;
+        user_stats.referrer_status |= ReferrerStatus::IsReferred as u8;
     }
 
     let whitelist_mint = &ctx.accounts.state.whitelist_mint;

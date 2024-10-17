@@ -1564,8 +1564,10 @@ pub struct UserStats {
     /// The number of sub accounts created. Can be greater than the number of sub accounts if user
     /// has deleted sub accounts
     pub number_of_sub_accounts_created: u16,
-    /// Whether the user is a referrer. Sub account 0 can not be deleted if user is a referrer
-    pub is_referrer: bool,
+    /// Flags for referrer status:
+    /// First bit (LSB): 1 if user is a referrer, 0 otherwise
+    /// Second bit: 1 if user was referred, 0 otherwise
+    pub referrer_status: u8,
     pub disable_update_perp_bid_ask_twap: bool,
     pub padding1: [u8; 2],
     /// accumulated fuel for token amounts of insurance
@@ -1588,6 +1590,22 @@ pub struct UserStats {
     pub last_fuel_if_bonus_update_ts: u32,
 
     pub padding: [u8; 12],
+}
+
+#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Debug, Eq)]
+pub enum ReferrerStatus {
+    IsReferrer = 0b00000001,
+    IsReferred = 0b00000010,
+}
+
+impl ReferrerStatus {
+    pub fn is_referrer(status: u8) -> bool {
+        status & ReferrerStatus::IsReferrer as u8 != 0
+    }
+
+    pub fn is_referred(status: u8) -> bool {
+        status & ReferrerStatus::IsReferred as u8 != 0
+    }
 }
 
 impl Size for UserStats {
@@ -1780,6 +1798,10 @@ impl UserStats {
             .min(self.last_maker_volume_30d_ts)
             .min(self.last_taker_volume_30d_ts);
         now.saturating_sub(min_action_ts).max(0)
+    }
+
+    pub fn is_referrer(&self) -> bool {
+        ReferrerStatus::is_referrer(self.referrer_status)
     }
 }
 
