@@ -324,6 +324,13 @@ pub mod drift {
         handle_reclaim_rent(ctx)
     }
 
+    pub fn enable_user_high_leverage_mode<'c: 'info, 'info>(
+        ctx: Context<'_, '_, 'c, 'info, EnableUserHighLeverageMode>,
+        sub_account_id: u16,
+    ) -> Result<()> {
+        handle_enable_user_high_leverage_mode(ctx, sub_account_id)
+    }
+
     // Keeper Instructions
 
     pub fn fill_perp_order<'c: 'info, 'info>(
@@ -364,6 +371,18 @@ pub mod drift {
         ctx: Context<'_, '_, 'c, 'info, UpdateUserIdle<'info>>,
     ) -> Result<()> {
         handle_update_user_idle(ctx)
+    }
+
+    pub fn disable_user_high_leverage_mode<'c: 'info, 'info>(
+        ctx: Context<'_, '_, 'c, 'info, DisableUserHighLeverageMode<'info>>,
+    ) -> Result<()> {
+        handle_disable_user_high_leverage_mode(ctx)
+    }
+
+    pub fn update_user_fuel_bonus<'c: 'info, 'info>(
+        ctx: Context<'_, '_, 'c, 'info, UpdateUserFuelBonus<'info>>,
+    ) -> Result<()> {
+        handle_update_user_fuel_bonus(ctx)
     }
 
     pub fn update_user_open_orders_count(ctx: Context<UpdateUserIdle>) -> Result<()> {
@@ -888,6 +907,18 @@ pub mod drift {
         margin_ratio_maintenance: u32,
     ) -> Result<()> {
         handle_update_perp_market_margin_ratio(ctx, margin_ratio_initial, margin_ratio_maintenance)
+    }
+
+    pub fn update_perp_market_high_leverage_margin_ratio(
+        ctx: Context<AdminUpdatePerpMarket>,
+        margin_ratio_initial: u16,
+        margin_ratio_maintenance: u16,
+    ) -> Result<()> {
+        handle_update_perp_market_high_leverage_margin_ratio(
+            ctx,
+            margin_ratio_initial,
+            margin_ratio_maintenance,
+        )
     }
 
     pub fn update_perp_market_funding_period(
@@ -1444,6 +1475,21 @@ pub mod drift {
         feed_id: [u8; 32],
     ) -> Result<()> {
         handle_initialize_pyth_pull_oracle(ctx, feed_id)
+    }
+
+    pub fn initialize_high_leverage_mode_config(
+        ctx: Context<InitializeHighLeverageModeConfig>,
+        max_users: u32,
+    ) -> Result<()> {
+        handle_initialize_high_leverage_mode_config(ctx, max_users)
+    }
+
+    pub fn update_high_leverage_mode_config(
+        ctx: Context<UpdateHighLeverageModeConfig>,
+        max_users: u32,
+        reduce_only: bool,
+    ) -> Result<()> {
+        handle_update_high_leverage_mode_config(ctx, max_users, reduce_only)
     }
 }
 

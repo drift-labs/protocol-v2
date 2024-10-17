@@ -19,6 +19,7 @@ import {
 } from '@solana/spl-token';
 import {
 	DriftClientMetricsEvents,
+	HighLeverageModeConfig,
 	isVariant,
 	IWallet,
 	MakerInfo,
@@ -82,6 +83,7 @@ import StrictEventEmitter from 'strict-event-emitter-types';
 import {
 	getDriftSignerPublicKey,
 	getDriftStateAccountPublicKey,
+	getHighLeverageModeConfigPublicKey,
 	getInsuranceFundStakeAccountPublicKey,
 	getOpenbookV2FulfillmentConfigPublicKey,
 	getPerpMarketPublicKey,
@@ -182,6 +184,7 @@ export class DriftClient {
 	connection: Connection;
 	wallet: IWallet;
 	public program: Program;
+	public swiftID: PublicKey;
 	provider: AnchorProvider;
 	opts?: ConfirmOptions;
 	users = new Map<string, User>();
@@ -246,6 +249,7 @@ export class DriftClient {
 			config.programID ?? new PublicKey(DRIFT_PROGRAM_ID),
 			this.provider
 		);
+		this.swiftID = config.swiftID ?? new PublicKey(SWIFT_ID);
 
 		this.authority = config.authority ?? this.wallet.publicKey;
 		this.activeSubAccountId = config.activeSubAccountId ?? 0;
@@ -3359,9 +3363,23 @@ export class DriftClient {
 	}
 
 	public async settleExpiredMarketPoolsToRevenuePool(
-		perpMarketIndex: number,
+		marketIndex: number,
 		txParams?: TxParams
 	): Promise<TransactionSignature> {
+		const { txSig } = await this.sendTransaction(
+			await this.buildTransaction(
+				await this.getSettleExpiredMarketPoolsToRevenuePoolIx(marketIndex),
+				txParams
+			),
+			[],
+			this.opts
+		);
+		return txSig;
+	}
+
+	public async getSettleExpiredMarketPoolsToRevenuePoolIx(
+		perpMarketIndex: number
+	): Promise<TransactionInstruction> {
 		const perpMarketPublicKey = await getPerpMarketPublicKey(
 			this.program.programId,
 			perpMarketIndex
@@ -3372,8 +3390,8 @@ export class DriftClient {
 			QUOTE_SPOT_MARKET_INDEX
 		);
 
-		const ix =
-			await this.program.instruction.settleExpiredMarketPoolsToRevenuePool({
+		return await this.program.instruction.settleExpiredMarketPoolsToRevenuePool(
+			{
 				accounts: {
 					state: await this.getStatePublicKey(),
 					admin: this.isSubscribed
@@ -3382,15 +3400,8 @@ export class DriftClient {
 					spotMarket: spotMarketPublicKey,
 					perpMarket: perpMarketPublicKey,
 				},
-			});
-
-		const { txSig } = await this.sendTransaction(
-			await this.buildTransaction(ix, txParams),
-			[],
-			this.opts
+			}
 		);
-
-		return txSig;
 	}
 
 	public async cancelOrder(
@@ -4955,6 +4966,52 @@ export class DriftClient {
 		});
 	}
 
+	public async updateUserFuelBonus(
+		userAccountPublicKey: PublicKey,
+		user: UserAccount,
+		userAuthority: PublicKey,
+		txParams?: TxParams
+	): Promise<TransactionSignature> {
+		const { txSig } = await this.sendTransaction(
+			await this.buildTransaction(
+				await this.getUpdateUserFuelBonusIx(
+					userAccountPublicKey,
+					user,
+					userAuthority
+				),
+				txParams
+			),
+			[],
+			this.opts
+		);
+		return txSig;
+	}
+
+	public async getUpdateUserFuelBonusIx(
+		userAccountPublicKey: PublicKey,
+		userAccount: UserAccount,
+		userAuthority: PublicKey
+	): Promise<TransactionInstruction> {
+		const userStatsAccountPublicKey = getUserStatsAccountPublicKey(
+			this.program.programId,
+			userAuthority
+		);
+
+		const remainingAccounts = this.getRemainingAccounts({
+			userAccounts: [userAccount],
+		});
+
+		return await this.program.instruction.updateUserFuelBonus({
+			accounts: {
+				state: await this.getStatePublicKey(),
+				user: userAccountPublicKey,
+				userStats: userStatsAccountPublicKey,
+				authority: this.wallet.publicKey,
+			},
+			remainingAccounts,
+		});
+	}
+
 	public async updateUserOpenOrdersCount(
 		userAccountPublicKey: PublicKey,
 		user: UserAccount,
@@ -5511,7 +5568,7 @@ export class DriftClient {
 
 		const swiftServerSignatureIx =
 			Ed25519Program.createInstructionWithPublicKey({
-				publicKey: new PublicKey(SWIFT_ID).toBytes(),
+				publicKey: new PublicKey(this.swiftID).toBytes(),
 				signature: Uint8Array.from(swiftSignature),
 				message: Uint8Array.from(encodedSwiftServerMessage),
 			});
@@ -6518,7 +6575,10 @@ export class DriftClient {
 		const liquidatorStatsPublicKey = this.getUserStatsAccountPublicKey();
 
 		const remainingAccounts = this.getRemainingAccounts({
-			userAccounts: [this.getUserAccount(liquidatorSubAccountId), userAccount],
+			userAccounts: [
+				userAccount,
+				...makerInfos.map((makerInfo) => makerInfo.makerUserAccount),
+			],
 			useMarketLastSlotCache: true,
 			writablePerpMarketIndexes: [marketIndex],
 		});
@@ -8073,6 +8133,96 @@ export class DriftClient {
 		);
 
 		return [postIxs, encodedVaaKeypair];
+	}
+
+	public async enableUserHighLeverageMode(
+		subAccountId: number,
+		txParams?: TxParams
+	): Promise<TransactionSignature> {
+		const { txSig } = await this.sendTransaction(
+			await this.buildTransaction(
+				await this.getEnableHighLeverageModeIx(subAccountId),
+				txParams
+			),
+			[],
+			this.opts
+		);
+		return txSig;
+	}
+
+	public async getEnableHighLeverageModeIx(subAccountId: number) {
+		const remainingAccounts = this.getRemainingAccounts({
+			userAccounts: [this.getUserAccount(subAccountId)],
+		});
+
+		const ix = await this.program.instruction.enableUserHighLeverageMode(
+			subAccountId,
+			{
+				accounts: {
+					state: await this.getStatePublicKey(),
+					user: getUserAccountPublicKeySync(
+						this.program.programId,
+						this.wallet.publicKey,
+						subAccountId
+					),
+					authority: this.wallet.publicKey,
+					highLeverageModeConfig: getHighLeverageModeConfigPublicKey(
+						this.program.programId
+					),
+				},
+				remainingAccounts,
+			}
+		);
+
+		return ix;
+	}
+
+	public async disableUserHighLeverageMode(
+		user: PublicKey,
+		userAccount?: UserAccount,
+		txParams?: TxParams
+	): Promise<TransactionSignature> {
+		const { txSig } = await this.sendTransaction(
+			await this.buildTransaction(
+				await this.getDisableHighLeverageModeIx(user, userAccount),
+				txParams
+			),
+			[],
+			this.opts
+		);
+		return txSig;
+	}
+
+	public async getDisableHighLeverageModeIx(
+		user: PublicKey,
+		userAccount?: UserAccount
+	) {
+		const remainingAccounts = userAccount
+			? this.getRemainingAccounts({
+					userAccounts: [userAccount],
+			  })
+			: undefined;
+
+		const ix = await this.program.instruction.disableUserHighLeverageMode({
+			accounts: {
+				state: await this.getStatePublicKey(),
+				user,
+				authority: this.wallet.publicKey,
+				highLeverageModeConfig: getHighLeverageModeConfigPublicKey(
+					this.program.programId
+				),
+			},
+			remainingAccounts,
+		});
+
+		return ix;
+	}
+
+	public async fetchHighLeverageModeConfig(): Promise<HighLeverageModeConfig> {
+		const config = await this.program.account.highLeverageModeConfig.fetch(
+			getHighLeverageModeConfigPublicKey(this.program.programId)
+		);
+		return config as HighLeverageModeConfig;
 	}
 
 	private handleSignedTransaction(signedTxs: SignedTxData[]) {

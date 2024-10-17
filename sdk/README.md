@@ -19,13 +19,20 @@ npm i @drift-labs/sdk
 
 ## Getting Started
 
-Documentation:
+_Start here if you're integrating with Drift!_
 
-- [API docs](https://drift-labs.github.io/v2-teacher/)
+- [Drift v2-teacher + API Docs](https://drift-labs.github.io/v2-teacher/)
+  - Docs and examples for using the SDK in Typescript and Python
+  - Useful concepts and examples when integrating Drift
+  - Docs for Drift's "Data API"
 - [Typescript API docs](https://drift-labs.github.io/protocol-v2/sdk/)
-- [overview docs](https://docs.drift.trade/)
+  - JSDoc automated documentation for the Drift v2 Typescript SDK
+- [Drift docs](https://docs.drift.trade/)
+  - Comprehensive universal docs for Drift
 
-The below is a light overview of using solana and drift's typescript sdk, but not as comprehensive as the [API docs](https://drift-labs.github.io/v2-teacher/).
+---
+
+The below is a light overview of using Solana and Drift's typescript sdk. If you want comprehensive docs with examples of how to integrate with Drift you should use the [v2-teacher docs](https://drift-labs.github.io/v2-teacher/).
 
 ### Setting up a wallet for your program
 
@@ -265,5 +272,3 @@ Drift Protocol v2 is licensed under [Apache 2.0](./LICENSE).
 Unless you explicitly state otherwise, any contribution intentionally submitted
 for inclusion in Drift SDK by you, as defined in the Apache-2.0 license, shall be
 licensed as above, without any additional terms or conditions.
-
-

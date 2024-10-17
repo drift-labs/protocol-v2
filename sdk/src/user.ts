@@ -687,7 +687,8 @@ export class User {
 			this.driftClient.getPerpMarketAccount(marketIndex),
 			baseAssetAmount,
 			'Initial',
-			this.getUserAccount().maxMarginRatio
+			this.getUserAccount().maxMarginRatio,
+			this.isHighLeverageMode()
 		);
 
 		return freeCollateral.mul(MARGIN_PRECISION).div(new BN(marginRatio));
@@ -1518,7 +1519,8 @@ export class User {
 					market,
 					baseAssetAmount.abs(),
 					marginCategory,
-					this.getUserAccount().maxMarginRatio
+					this.getUserAccount().maxMarginRatio,
+					this.isHighLeverageMode()
 				)
 			);
 
@@ -1983,7 +1985,8 @@ export class User {
 			market,
 			maxSize,
 			marginCategory,
-			this.getUserAccount().maxMarginRatio
+			this.getUserAccount().maxMarginRatio,
+			this.isHighLeverageMode()
 		);
 
 		// use more fesible size since imf factor activated
@@ -2004,7 +2007,8 @@ export class User {
 				market,
 				targetSize,
 				marginCategory,
-				this.getUserAccount().maxMarginRatio
+				this.getUserAccount().maxMarginRatio,
+				this.isHighLeverageMode()
 			);
 			attempts += 1;
 		}
@@ -2163,6 +2167,10 @@ export class User {
 
 	public isBankrupt(): boolean {
 		return (this.getUserAccount().status & UserStatus.BANKRUPT) > 0;
+	}
+
+	public isHighLeverageMode(): boolean {
+		return isVariant(this.getUserAccount().marginMode, 'highLeverage');
 	}
 
 	/**
@@ -2454,7 +2462,9 @@ export class User {
 			const marginRatio = calculateMarketMarginRatio(
 				market,
 				baseAssetAmount.abs(),
-				'Maintenance'
+				'Maintenance',
+				this.getUserAccount().maxMarginRatio,
+				this.isHighLeverageMode()
 			);
 
 			return liabilityValue.mul(new BN(marginRatio)).div(MARGIN_PRECISION);
@@ -2499,7 +2509,8 @@ export class User {
 			market,
 			proposedBaseAssetAmount.abs(),
 			marginCategory,
-			this.getUserAccount().maxMarginRatio
+			this.getUserAccount().maxMarginRatio,
+			this.isHighLeverageMode()
 		);
 		const marginRatioQuotePrecision = new BN(marginRatio)
 			.mul(QUOTE_PRECISION)
@@ -2613,13 +2624,16 @@ export class User {
 
 	public getMarginUSDCRequiredForTrade(
 		targetMarketIndex: number,
-		baseSize: BN
+		baseSize: BN,
+		estEntryPrice?: BN
 	): BN {
 		return calculateMarginUSDCRequiredForTrade(
 			this.driftClient,
 			targetMarketIndex,
 			baseSize,
-			this.getUserAccount().maxMarginRatio
+			this.getUserAccount().maxMarginRatio,
+			undefined,
+			estEntryPrice
 		);
 	}
 
@@ -2633,7 +2647,8 @@ export class User {
 			targetMarketIndex,
 			baseSize,
 			collateralIndex,
-			this.getUserAccount().maxMarginRatio
+			this.getUserAccount().maxMarginRatio,
+			false // assume user cant be high leverage if they havent created user account ?
 		);
 	}
 
@@ -3782,7 +3797,8 @@ export class User {
 				perpMarket,
 				worstCaseBaseAmount.abs(),
 				marginCategory,
-				this.getUserAccount().maxMarginRatio
+				this.getUserAccount().maxMarginRatio,
+				this.isHighLeverageMode()
 			)
 		);
 
