@@ -460,5 +460,6 @@ describe('place and fill rfq orders', () => {
 		assert(
 			takerPositionBefore.baseAssetAmount.eq(takerPositionAfter.baseAssetAmount)
 		);
+		assert(makerDriftClientUser.getOpenOrders().length === 0);
 	});
 });
