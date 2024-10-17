@@ -4986,13 +4986,11 @@ export class DriftClient {
 
 	public async updateUserStatsReferrerInfo(
 		userStatsAccountPublicKey: PublicKey,
-		txParams?: TxParams,
+		txParams?: TxParams
 	): Promise<TransactionSignature> {
 		const { txSig } = await this.sendTransaction(
 			await this.buildTransaction(
-				await this.getUpdateUserStatsReferrerInfoIx(
-					userStatsAccountPublicKey
-				),
+				await this.getUpdateUserStatsReferrerInfoIx(userStatsAccountPublicKey),
 				txParams
 			),
 			[],

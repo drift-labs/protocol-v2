@@ -48,7 +48,8 @@ use crate::state::spot_market_map::{
 };
 use crate::state::state::State;
 use crate::state::user::{
-    MarginMode, MarketType, OrderStatus, OrderTriggerCondition, OrderType, ReferrerStatus, User, UserStats
+    MarginMode, MarketType, OrderStatus, OrderTriggerCondition, OrderType, ReferrerStatus, User,
+    UserStats,
 };
 use crate::state::user_map::{load_user_map, load_user_maps, UserMap, UserStatsMap};
 use crate::validation::sig_verification::verify_ed25519_ix;
@@ -483,7 +484,7 @@ pub fn handle_update_user_stats_referrer_info<'c: 'info, 'info>(
     let mut user_stats = load_mut!(ctx.accounts.user_stats)?;
 
     if !user_stats.referrer.eq(&Pubkey::default()) {
-        user_stats.referrer_info |= ReferrerStatus::IsReferred as u8;
+        user_stats.referrer_status |= ReferrerStatus::IsReferred as u8;
     }
 
     Ok(())
@@ -2149,7 +2150,6 @@ pub struct UpdateUserStatsReferrerInfo<'info> {
     #[account(mut)]
     pub user_stats: AccountLoader<'info, UserStats>,
 }
-
 
 #[derive(Accounts)]
 pub struct SettlePNL<'info> {

@@ -117,7 +117,7 @@ pub fn handle_initialize_user<'c: 'info, 'info>(
                 ErrorCode::ReferrerAndReferrerStatsAuthorityUnequal
             )?;
 
-            referrer_stats.referrer_info |= ReferrerStatus::IsReferrer as u8;
+            referrer_stats.referrer_status |= ReferrerStatus::IsReferrer as u8;
 
             referrer.authority
         } else {
@@ -125,7 +125,7 @@ pub fn handle_initialize_user<'c: 'info, 'info>(
         };
 
         user_stats.referrer = referrer;
-        user_stats.referrer_info |= ReferrerStatus::IsReferred as u8;
+        user_stats.referrer_status |= ReferrerStatus::IsReferred as u8;
     }
 
     let whitelist_mint = &ctx.accounts.state.whitelist_mint;

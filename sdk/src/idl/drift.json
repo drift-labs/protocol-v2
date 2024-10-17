@@ -7730,11 +7730,11 @@
             "type": "u16"
           },
           {
-            "name": "referrerInfo",
+            "name": "referrerStatus",
             "docs": [
               "Flags for referrer status:",
-              "First byte (LSB): 1 if user is a referrer, 0 otherwise",
-              "Second byte: 1 if user was referred, 0 otherwise"
+              "First bit (LSB): 1 if user is a referrer, 0 otherwise",
+              "Second bit: 1 if user was referred, 0 otherwise"
             ],
             "type": "u8"
           },
