@@ -921,18 +921,7 @@ pub fn handle_place_and_match_rfq_orders<'c: 'info, 'info>(
     let (makers_and_referrer, makers_and_referrer_stats) =
         load_user_maps(remaining_accounts_iter, true)?;
 
-    let maker_rfq_account_map = load_rfq_user_account_map(
-        remaining_accounts_iter,
-        rfq_matches
-            .iter()
-            .map(|rfq_match| {
-                derive_user_account(
-                    &rfq_match.maker_order_params.authority,
-                    rfq_match.maker_order_params.sub_account_id,
-                )
-            })
-            .collect(),
-    )?;
+    let maker_rfq_account_map = load_rfq_user_account_map(remaining_accounts_iter)?;
 
     place_and_match_rfq_orders(
         &ctx.accounts.user,

@@ -82,7 +82,6 @@ pub fn derive_rfq_user_pda(user_account_pubkey: &Pubkey) -> DriftResult<Pubkey> 
 
 pub fn load_rfq_user_account_map<'a: 'b, 'b>(
     account_info_iter: &mut Peekable<Iter<'a, AccountInfo<'b>>>,
-    user_pubkeys: Vec<Pubkey>,
 ) -> DriftResult<BTreeMap<Pubkey, AccountLoader<'a, RFQUser>>> {
     let mut rfq_user_account_map = BTreeMap::<Pubkey, AccountLoader<'a, RFQUser>>::new();
 
@@ -102,11 +101,7 @@ pub fn load_rfq_user_account_map<'a: 'b, 'b>(
         }
 
         let user_pubkey_slice = array_ref![data, 8, 32];
-        let user_pubkey = Pubkey::try_from(*user_pubkey_slice).safe_unwrap()?;
-
-        if !user_pubkeys.contains(&user_pubkey) {
-            break;
-        }
+        let user_pubkey: Pubkey = Pubkey::try_from(*user_pubkey_slice).safe_unwrap()?;
 
         let is_writable = account_info.is_writable;
         if !is_writable {

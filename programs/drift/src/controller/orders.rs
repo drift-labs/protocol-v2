@@ -465,8 +465,8 @@ pub fn place_and_match_rfq_orders<'c: 'info, 'info>(
             })?)?;
 
         let rfq_order_id = RFQOrderId::new(
-            rfq_match.maker_order_params.uuid.clone(),
-            rfq_match.maker_order_params.max_ts.clone(),
+            rfq_match.maker_order_params.uuid,
+            rfq_match.maker_order_params.max_ts,
         );
         if rfq_account
             .check_exists_and_prune_stale_rfq_order_ids(rfq_order_id, clock.unix_timestamp)?
@@ -510,7 +510,7 @@ pub fn place_and_match_rfq_orders<'c: 'info, 'info>(
             )?;
 
             // place taker order
-            let taker_order_id = taker.next_order_id.clone();
+            let taker_order_id = taker.next_order_id;
             controller::orders::place_perp_order(
                 state,
                 &mut taker,
@@ -1222,7 +1222,7 @@ pub fn fill_perp_order(
         jit_maker_order_id,
         now,
         slot,
-        Some(fill_mode),
+        fill_mode,
     )?;
 
     // no referrer bonus for liquidations
@@ -1514,7 +1514,7 @@ fn get_maker_orders_info(
     jit_maker_order_id: Option<u32>,
     now: i64,
     slot: u64,
-    fill_mode: Option<FillMode>,
+    fill_mode: FillMode,
 ) -> DriftResult<Vec<(Pubkey, usize, u64)>> {
     let maker_direction = taker_order.direction.opposite();
 
@@ -4047,7 +4047,7 @@ fn get_spot_maker_orders_info(
             let maker_order_price = *maker_order_price;
 
             let maker_order = &maker.orders[maker_order_index];
-            if !is_maker_for_taker(maker_order, taker_order, slot, None)? {
+            if !is_maker_for_taker(maker_order, taker_order, slot, FillMode::Fill)? {
                 continue;
             }
 

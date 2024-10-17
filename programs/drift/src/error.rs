@@ -595,6 +595,8 @@ pub enum ErrorCode {
     RFQUserAccountFull,
     #[msg("RFQ order not filled as expected")]
     RFQOrderNotFilled,
+    #[msg("RFQ orders must be jit makers")]
+    InvalidRFQOrder,
 }
 
 #[macro_export]

@@ -17,15 +17,13 @@ pub fn is_maker_for_taker(
     maker_order: &Order,
     taker_order: &Order,
     slot: u64,
-    fill_mode: Option<FillMode>,
+    fill_mode: FillMode,
 ) -> DriftResult<bool> {
-    // Allow match if via RFQ
-    if fill_mode.map_or(false, |mode| mode.is_rfq()) {
-        return Ok(true);
-    }
-
     // Maker and taker order not allowed to match if both were placed in the current slot
-    if slot == maker_order.slot && slot == taker_order.slot && !maker_order.is_jit_maker() {
+    if slot == maker_order.slot
+        && slot == taker_order.slot
+        && !(maker_order.is_jit_maker() || fill_mode.is_rfq())
+    {
         return Ok(false);
     };
 

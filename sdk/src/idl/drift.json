@@ -13622,6 +13622,11 @@
       "code": 6294,
       "name": "RFQOrderNotFilled",
       "msg": "RFQ order not filled as expected"
+    },
+    {
+      "code": 6295,
+      "name": "InvalidRFQOrder",
+      "msg": "RFQ orders must be jit makers"
     }
   ],
   "metadata": {
