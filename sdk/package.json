@@ -4,6 +4,7 @@
 	"main": "lib/node/index.js",
 	"types": "lib/node/index.d.ts",
 	"browser": "./lib/browser/index.js",
+	"react-native": "./lib/browser/index.js",
 	"author": "crispheaney",
 	"homepage": "https://www.drift.trade/",
 	"repository": {

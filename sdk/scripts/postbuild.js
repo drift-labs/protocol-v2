@@ -59,15 +59,15 @@ environments.forEach((environment) => {
 		});
 	});
 
-	// Add a console log of the environment to the main index.js file to help with debugging
-	const indexFilePath = path.join(
-		__dirname,
-		'..',
-		'lib',
-		environment,
-		'index.js'
-	);
-	const indexFileContent = fs.readFileSync(indexFilePath, 'utf8');
-	const newContent = `${indexFileContent}\nconsole.log('SDK Environment: ${environment}');`;
-	fs.writeFileSync(indexFilePath, newContent);
+	// // Add a console log of the environment to the main index.js file to help with debugging
+	// const indexFilePath = path.join(
+	// 	__dirname,
+	// 	'..',
+	// 	'lib',
+	// 	environment,
+	// 	'index.js'
+	// );
+	// const indexFileContent = fs.readFileSync(indexFilePath, 'utf8');
+	// const newContent = `${indexFileContent}\nconsole.log('SDK Environment: ${environment}');`;
+	// fs.writeFileSync(indexFilePath, newContent);
 });
