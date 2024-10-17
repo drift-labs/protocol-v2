@@ -13617,6 +13617,11 @@
       "code": 6293,
       "name": "RFQUserAccountFull",
       "msg": "RFQUserAccount has too many active RFQs"
+    },
+    {
+      "code": 6294,
+      "name": "RFQOrderNotFilled",
+      "msg": "RFQ order not filled as expected"
     }
   ],
   "metadata": {

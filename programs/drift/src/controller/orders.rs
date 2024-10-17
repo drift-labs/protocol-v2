@@ -526,7 +526,7 @@ pub fn place_and_match_rfq_orders<'c: 'info, 'info>(
             drop(taker);
             drop(maker);
 
-            fill_perp_order(
+            let (base_asset_amount_filled, _) = fill_perp_order(
                 taker_order_id,
                 state,
                 taker_account_loader,
@@ -543,51 +543,27 @@ pub fn place_and_match_rfq_orders<'c: 'info, 'info>(
                 FillMode::RFQ,
             )?;
 
-            // Bring taker and maker back into scope
-            let mut taker = load_mut!(taker_account_loader)?;
-            let mut maker = makers_and_referrer.get_ref_mut(&maker_pubkey)?;
-
-            // Check if the orders were placed and cancel them if they still exist
-            let taker_order_index: Option<usize> = match taker.get_order_index(taker_order_id) {
-                Ok(order_index) => Some(order_index),
-                Err(_) => None,
-            };
-            if taker_order_index.is_some() {
-                cancel_order(
-                    taker_order_index.unwrap(),
-                    &mut taker,
-                    &taker_key,
-                    perp_market_map,
-                    spot_market_map,
-                    oracle_map,
-                    clock.unix_timestamp,
-                    clock.slot,
-                    OrderActionExplanation::None,
-                    None,
-                    0,
-                    false,
-                )?;
+            if base_asset_amount_filled != taker_order_params.base_asset_amount {
+                msg!(
+                    "RFQ order was partially filled for maker {} and taker {}",
+                    maker_pubkey,
+                    taker_key
+                );
+                return Err(ErrorCode::RFQOrderNotFilled.into());
             }
 
-            let maker_order_index: Option<usize> = match maker.get_order_index(maker_order_id) {
-                Ok(order_index) => Some(order_index),
-                Err(_) => None,
-            };
-            if maker_order_index.is_some() {
-                cancel_order(
-                    maker_order_index.unwrap(),
-                    &mut maker,
-                    &maker_pubkey,
-                    perp_market_map,
-                    spot_market_map,
-                    oracle_map,
-                    clock.unix_timestamp,
-                    clock.slot,
-                    OrderActionExplanation::None,
-                    None,
-                    0,
-                    false,
-                )?;
+            // Bring taker and maker back into scope
+            let taker = load_mut!(taker_account_loader)?;
+            let maker = makers_and_referrer.get_ref_mut(&maker_pubkey)?;
+
+            if taker.get_order_index(taker_order_id).is_ok() {
+                msg!("Taker order still exists after placing rfq order");
+                return Err(ErrorCode::RFQOrderNotFilled.into());
+            }
+
+            if maker.get_order_index(maker_order_id).is_ok() {
+                msg!("Maker order still exists after placing rfq order");
+                return Err(ErrorCode::RFQOrderNotFilled.into());
             }
         } else {
             msg!("RFQ for spot market not supported");

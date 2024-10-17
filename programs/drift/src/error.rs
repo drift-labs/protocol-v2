@@ -593,6 +593,8 @@ pub enum ErrorCode {
     RFQUserAccountWrongMutability,
     #[msg("RFQUserAccount has too many active RFQs")]
     RFQUserAccountFull,
+    #[msg("RFQ order not filled as expected")]
+    RFQOrderNotFilled,
 }
 
 #[macro_export]
