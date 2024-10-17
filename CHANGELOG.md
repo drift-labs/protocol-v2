@@ -13,9 +13,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixes
 
-- program: remove trigger limit resting limit order hook ([#1233](https://github.com/drift-labs/protocol-v2/pull/1233))
-- program: fix max liquidation fee overflow ([#1232](https://github.com/drift-labs/protocol-v2/pull/1232))
-
 ### Breaking
 
 ## [2.96.0] - 2024-10-10
@@ -30,7 +27,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixes
 
-- program: remove trigger limit resting limit order hook ([#1233](https://github.com/drift-labs/protocol-v2/pull/1233))
+- program: remove trigger limit resting limit order hook ([#1233](https://github.com/drift-labs/protocol-v2/pull/1233)) 
 - program: fix max liquidation fee overflow ([#1232](https://github.com/drift-labs/protocol-v2/pull/1232))
 
 ### Breaking
@@ -44,7 +41,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixes
 
-- program: return early in update_perp_bid_ask_twap for prediction market with no bid/asks ([#1223](https://github.com/drift-labs/protocol-v2/pull/1223))
+- program: return early in update_perp_bid_ask_twap for prediction market with no bid/asks ([#1223](https://github.com/drift-labs/protocol-v2/pull/1223)) 
 - sdk: avoid spamming getAccountInfo in drift client ws sub ([#1219](https://github.com/drift-labs/protocol-v2/pull/1219))
 
 ### Breaking
