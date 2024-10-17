@@ -506,7 +506,7 @@ pub fn place_and_match_rfq_orders<'c: 'info, 'info>(
                 oracle_map,
                 clock,
                 maker_order_params,
-                place_order_options,
+                place_order_options.clone(),
             )?;
 
             // place taker order
@@ -542,6 +542,53 @@ pub fn place_and_match_rfq_orders<'c: 'info, 'info>(
                 clock,
                 FillMode::RFQ,
             )?;
+
+            // Bring taker and maker back into scope
+            let mut taker = load_mut!(taker_account_loader)?;
+            let mut maker = makers_and_referrer.get_ref_mut(&maker_pubkey)?;
+
+            // Check if the orders were placed and cancel them if they still exist
+            let taker_order_index: Option<usize> = match taker.get_order_index(taker_order_id) {
+                Ok(order_index) => Some(order_index),
+                Err(_) => None,
+            };
+            if taker_order_index.is_some() {
+                cancel_order(
+                    taker_order_index.unwrap(),
+                    &mut taker,
+                    &taker_key,
+                    perp_market_map,
+                    spot_market_map,
+                    oracle_map,
+                    clock.unix_timestamp,
+                    clock.slot,
+                    OrderActionExplanation::None,
+                    None,
+                    0,
+                    false,
+                )?;
+            }
+
+            let maker_order_index: Option<usize> = match maker.get_order_index(maker_order_id) {
+                Ok(order_index) => Some(order_index),
+                Err(_) => None,
+            };
+            if maker_order_index.is_some() {
+                cancel_order(
+                    maker_order_index.unwrap(),
+                    &mut maker,
+                    &maker_pubkey,
+                    perp_market_map,
+                    spot_market_map,
+                    oracle_map,
+                    clock.unix_timestamp,
+                    clock.slot,
+                    OrderActionExplanation::None,
+                    None,
+                    0,
+                    false,
+                )?;
+            }
         } else {
             msg!("RFQ for spot market not supported");
         }

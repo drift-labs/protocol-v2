@@ -734,7 +734,7 @@ impl Default for ModifyOrderPolicy {
         Self::TryModify
     }
 }
-
+#[derive(Clone)]
 pub struct PlaceOrderOptions {
     pub swift_taker_order_slot: Option<u64>,
     pub try_expire_orders: bool,

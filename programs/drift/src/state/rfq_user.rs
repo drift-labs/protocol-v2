@@ -1,8 +1,11 @@
 use crate::error::{DriftResult, ErrorCode};
+use crate::math::safe_unwrap::SafeUnwrap;
 use crate::ID;
 use anchor_lang::prelude::{AccountInfo, AccountLoader, Pubkey};
-use anchor_lang::{account, zero_copy};
+use anchor_lang::{account, zero_copy, Discriminator};
+use arrayref::array_ref;
 use std::collections::BTreeMap;
+use std::convert::TryFrom;
 use std::iter::Peekable;
 use std::slice::Iter;
 
@@ -83,27 +86,37 @@ pub fn load_rfq_user_account_map<'a: 'b, 'b>(
 ) -> DriftResult<BTreeMap<Pubkey, AccountLoader<'a, RFQUser>>> {
     let mut rfq_user_account_map = BTreeMap::<Pubkey, AccountLoader<'a, RFQUser>>::new();
 
-    let available_maker_pdas: BTreeMap<Pubkey, Pubkey> = user_pubkeys
-        .iter()
-        .map(|pubkey| {
-            let pda = derive_rfq_user_pda(pubkey).unwrap();
-            (pda, *pubkey)
-        })
-        .collect();
-
     for account_info in account_info_iter {
-        let account_key = account_info.key;
-        if let Some(pubkey) = available_maker_pdas.get(account_key) {
-            let is_writable = account_info.is_writable;
-            if !is_writable {
-                return Err(ErrorCode::RFQUserAccountWrongMutability);
-            }
+        let data = account_info
+            .try_borrow_data()
+            .or(Err(ErrorCode::InvalidRFQUserAccount))?;
 
-            let account_loader: AccountLoader<'a, RFQUser> =
-                AccountLoader::try_from(account_info).or(Err(ErrorCode::InvalidRFQUserAccount))?;
-
-            rfq_user_account_map.insert(*pubkey, account_loader);
+        let expected_data_len = RFQUser::SIZE;
+        if data.len() < expected_data_len {
+            break;
         }
+
+        let account_discriminator = array_ref![data, 0, 8];
+        if account_discriminator != &RFQUser::discriminator() {
+            break;
+        }
+
+        let user_pubkey_slice = array_ref![data, 8, 32];
+        let user_pubkey = Pubkey::try_from(*user_pubkey_slice).safe_unwrap()?;
+
+        if !user_pubkeys.contains(&user_pubkey) {
+            break;
+        }
+
+        let is_writable = account_info.is_writable;
+        if !is_writable {
+            return Err(ErrorCode::RFQUserAccountWrongMutability);
+        }
+
+        let account_loader: AccountLoader<'a, RFQUser> =
+            AccountLoader::try_from(account_info).or(Err(ErrorCode::InvalidRFQUserAccount))?;
+
+        rfq_user_account_map.insert(user_pubkey, account_loader);
     }
 
     Ok(rfq_user_account_map)
