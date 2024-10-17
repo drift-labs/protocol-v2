@@ -65,8 +65,6 @@ export class grpcProgramAccountSubscriber<
 		this.onChange = onChange;
 
 		// Subscribe with grpc
-		// TODO ::: Nour help pls
-		// @ts-ignore
 		this.stream = await this.client.subscribe();
 		const filters = this.options.filters.map((filter) => {
 			return {
