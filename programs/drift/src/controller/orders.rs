@@ -215,7 +215,7 @@ pub fn place_perp_order(
 
     // updates auction params for crossing limit orders w/out auction duration
     // dont modify if it's a liquidation
-    if !options.is_liquidation() {
+    if !options.is_liquidation() && !options.is_rfq_order {
         params.update_perp_auction_params(market, oracle_price_data.price)?;
     }
 
@@ -491,6 +491,9 @@ pub fn place_and_match_rfq_orders<'c: 'info, 'info>(
             ..OrderParams::default()
         };
 
+        let mut place_order_options = PlaceOrderOptions::default();
+        place_order_options.set_is_rfq(true);
+
         if maker_order_params.market_type == MarketType::Perp {
             // place maker order
             let maker_order_id = maker.next_order_id;
@@ -503,7 +506,7 @@ pub fn place_and_match_rfq_orders<'c: 'info, 'info>(
                 oracle_map,
                 clock,
                 maker_order_params,
-                PlaceOrderOptions::default(),
+                place_order_options,
             )?;
 
             // place taker order
@@ -517,7 +520,7 @@ pub fn place_and_match_rfq_orders<'c: 'info, 'info>(
                 oracle_map,
                 &clock,
                 taker_order_params,
-                PlaceOrderOptions::default(),
+                place_order_options,
             )?;
 
             drop(taker);

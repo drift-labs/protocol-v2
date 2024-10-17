@@ -741,6 +741,7 @@ pub struct PlaceOrderOptions {
     pub enforce_margin_check: bool,
     pub risk_increasing: bool,
     pub explanation: OrderActionExplanation,
+    pub is_rfq_order: bool,
 }
 
 impl Default for PlaceOrderOptions {
@@ -751,6 +752,7 @@ impl Default for PlaceOrderOptions {
             enforce_margin_check: true,
             risk_increasing: false,
             explanation: OrderActionExplanation::None,
+            is_rfq_order: false,
         }
     }
 }
@@ -779,6 +781,10 @@ impl PlaceOrderOptions {
             min_order_slot = order_slot.min(swift_taker_order_slot);
         }
         min_order_slot
+    }
+
+    pub fn set_is_rfq(&mut self, is_rfq_order: bool) {
+        self.is_rfq_order = is_rfq_order;
     }
 }
 

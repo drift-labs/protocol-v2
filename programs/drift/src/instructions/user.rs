@@ -1228,6 +1228,7 @@ pub fn handle_place_orders<'c: 'info, 'info>(
             try_expire_orders: i == 0,
             risk_increasing: false,
             explanation: OrderActionExplanation::None,
+            is_rfq_order: false,
         };
 
         if params.market_type == MarketType::Perp {
