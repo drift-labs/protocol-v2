@@ -1003,7 +1003,7 @@ pub fn fill_perp_order(
         amm_is_available &= !market.is_operation_paused(PerpOperation::AmmFill);
         amm_is_available &= !market.has_too_much_drawdown()?;
 
-        amm_can_skip_duration = market.can_skip_auction_duration()?;
+        amm_can_skip_duration = market.can_skip_auction_duration(&state)?;
         user_can_skip_duration = user.can_skip_auction_duration(user_stats, now)?;
 
         reserve_price_before = market.amm.reserve_price()?;
