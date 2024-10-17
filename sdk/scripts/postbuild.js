@@ -2,37 +2,52 @@
 const fs = require('fs');
 const path = require('path');
 
-const environment = process.argv[2]; // 'node' or 'browser'
-
 const isomorphicPackages = ['grpc'];
 
-console.log(`Running ${environment} environment postbuild script`);
-console.log(``);
+const environments = ['node', 'browser'];
 
-isomorphicPackages.forEach((package) => {
-	const isomorphPath = path.join(
-		__dirname,
-		'..',
-		'lib',
-		'isomorphic',
-		package + '.js'
-	);
+environments.forEach((environment) => {
+	console.log(`Running ${environment} environment postbuild script`);
+	console.log(``);
 
-	const targetPath = path.join(
-		__dirname,
-		'..',
-		'lib',
-		'isomorphic',
-		`${package}.${environment}.js`
-	);
-
-	try {
-		const content = fs.readFileSync(targetPath, 'utf8');
-		fs.writeFileSync(isomorphPath, content);
-		console.log(
-			`Copied ${environment} content from isomorphic/${package}.${environment}.js to isomorphic/${package}.js`
+	isomorphicPackages.forEach((package) => {
+		const isomorphPath = path.join(
+			__dirname,
+			'..',
+			'lib',
+			environment,
+			'isomorphic',
+			package + '.js'
 		);
-	} catch (error) {
-		console.error(`Error processing ${package}: ${error.message}`);
-	}
+
+		const targetPath = path.join(
+			__dirname,
+			'..',
+			'lib',
+			environment,
+			'isomorphic',
+			`${package}.${environment}.js`
+		);
+
+		try {
+			const content = fs.readFileSync(targetPath, 'utf8');
+			fs.writeFileSync(isomorphPath, content);
+		} catch (error) {
+			console.error(
+				`Error processing isomophic package : ${package} :: ${error.message}`
+			);
+		}
+	});
+
+	// Add a console log of the environment to the main index.js file to help with debugging
+	const indexFilePath = path.join(
+		__dirname,
+		'..',
+		'lib',
+		environment,
+		'index.js'
+	);
+	const indexFileContent = fs.readFileSync(indexFilePath, 'utf8');
+	const newContent = `${indexFileContent}\nconsole.log('SDK Environment: ${environment}');`;
+	fs.writeFileSync(indexFilePath, newContent);
 });

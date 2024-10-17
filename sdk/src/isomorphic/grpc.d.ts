@@ -1,6 +1,6 @@
-import { ClientDuplexStream, ChannelOptions } from '@grpc/grpc-js';
-import Client from '@triton-one/yellowstone-grpc';
-import {
+import type { ClientDuplexStream, ChannelOptions } from '@grpc/grpc-js';
+import type Client from '@triton-one/yellowstone-grpc';
+import type {
 	SubscribeRequest,
 	SubscribeUpdate,
 	CommitmentLevel,
