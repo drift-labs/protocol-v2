@@ -331,7 +331,7 @@ describe('place and fill rfq orders', () => {
 			maxTs: BN_MAX,
 			uuid: Uint8Array.from(Buffer.from(nanoid(8))),
 		};
-		const signature = await makerDriftClient.signMessage(
+		const signature = makerDriftClient.signMessage(
 			makerDriftClient.encodeRFQMakerOrderParams(makerOrderMessage)
 		);
 
@@ -346,7 +346,7 @@ describe('place and fill rfq orders', () => {
 			maxTs: BN_MAX,
 			uuid: Uint8Array.from(Buffer.from(nanoid(8))),
 		};
-		const _signature1 = await makerDriftClient1.signMessage(
+		const _signature1 = makerDriftClient1.signMessage(
 			makerDriftClient1.encodeRFQMakerOrderParams(makerOrderMessage)
 		);
 
@@ -388,7 +388,7 @@ describe('place and fill rfq orders', () => {
 			maxTs: BN_MAX,
 			uuid: Uint8Array.from(Buffer.from(nanoid(8))),
 		};
-		const signature = await makerDriftClient.signMessage(
+		const signature = makerDriftClient.signMessage(
 			makerDriftClient.encodeRFQMakerOrderParams(makerOrderMessage)
 		);
 
@@ -436,7 +436,7 @@ describe('place and fill rfq orders', () => {
 			maxTs: ZERO,
 			uuid: Uint8Array.from(Buffer.from(nanoid(8))),
 		};
-		const signature = await makerDriftClient.signMessage(
+		const signature = makerDriftClient.signMessage(
 			makerDriftClient.encodeRFQMakerOrderParams(makerOrderMessage)
 		);
 

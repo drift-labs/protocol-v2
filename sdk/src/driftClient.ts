@@ -167,7 +167,7 @@ import { getFeedIdUint8Array, trimFeedId } from './util/pythPullOracleUtils';
 import { isVersionedTransaction } from './tx/utils';
 import pythSolanaReceiverIdl from './idl/pyth_solana_receiver.json';
 import { asV0Tx, PullFeed } from '@switchboard-xyz/on-demand';
-import * as ed from '@noble/ed25519';
+import nacl from 'tweetnacl';
 
 type RemainingAccountParams = {
 	userAccounts: UserAccount[];
@@ -5024,6 +5024,33 @@ export class DriftClient {
 		});
 	}
 
+	public async updateUserStatsReferrerInfo(
+		userStatsAccountPublicKey: PublicKey,
+		txParams?: TxParams
+	): Promise<TransactionSignature> {
+		const { txSig } = await this.sendTransaction(
+			await this.buildTransaction(
+				await this.getUpdateUserStatsReferrerInfoIx(userStatsAccountPublicKey),
+				txParams
+			),
+			[],
+			this.opts
+		);
+		return txSig;
+	}
+
+	public async getUpdateUserStatsReferrerInfoIx(
+		userStatsAccountPublicKey: PublicKey
+	): Promise<TransactionInstruction> {
+		return await this.program.instruction.updateUserStatsReferrerInfo({
+			accounts: {
+				state: await this.getStatePublicKey(),
+				userStats: userStatsAccountPublicKey,
+				authority: this.wallet.publicKey,
+			},
+		});
+	}
+
 	public async updateUserOpenOrdersCount(
 		userAccountPublicKey: PublicKey,
 		user: UserAccount,
@@ -5488,22 +5515,20 @@ export class DriftClient {
 		};
 	}
 
-	public async signSwiftServerMessage(
-		message: SwiftServerMessage
-	): Promise<Buffer> {
+	public signSwiftServerMessage(message: SwiftServerMessage): Buffer {
 		const swiftServerMessage = Uint8Array.from(
 			this.encodeSwiftServerMessage(message)
 		);
-		return await this.signMessage(swiftServerMessage);
+		return this.signMessage(swiftServerMessage);
 	}
 
-	public async signSwiftOrderParamsMessage(
+	public signSwiftOrderParamsMessage(
 		orderParamsMessage: SwiftOrderParamsMessage
-	): Promise<Buffer> {
+	): Buffer {
 		const takerOrderParamsMessage = Uint8Array.from(
 			this.encodeSwiftOrderParamsMessage(orderParamsMessage)
 		);
-		return await this.signMessage(takerOrderParamsMessage);
+		return this.signMessage(takerOrderParamsMessage);
 	}
 
 	public encodeSwiftOrderParamsMessage(
@@ -5524,11 +5549,11 @@ export class DriftClient {
 		);
 	}
 
-	public async signMessage(
+	public signMessage(
 		message: Uint8Array,
 		keypair: Keypair = this.wallet.payer
-	): Promise<Buffer> {
-		return Buffer.from(await ed.sign(message, keypair.secretKey.slice(0, 32)));
+	): Buffer {
+		return Buffer.from(nacl.sign.detached(message, keypair.secretKey));
 	}
 
 	public async placeSwiftTakerOrder(

@@ -7834,11 +7834,13 @@
             "type": "u16"
           },
           {
-            "name": "isReferrer",
+            "name": "referrerStatus",
             "docs": [
-              "Whether the user is a referrer. Sub account 0 can not be deleted if user is a referrer"
+              "Flags for referrer status:",
+              "First bit (LSB): 1 if user is a referrer, 0 otherwise",
+              "Second bit: 1 if user was referred, 0 otherwise"
             ],
-            "type": "bool"
+            "type": "u8"
           },
           {
             "name": "disableUpdatePerpBidAskTwap",
@@ -11087,6 +11089,20 @@
           },
           {
             "name": "Perp"
+          }
+        ]
+      }
+    },
+    {
+      "name": "ReferrerStatus",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "IsReferrer"
+          },
+          {
+            "name": "IsReferred"
           }
         ]
       }

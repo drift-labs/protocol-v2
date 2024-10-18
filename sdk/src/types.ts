@@ -914,7 +914,7 @@ export type UserStatsAccount = {
 		current_epoch_referrer_reward: BN;
 	};
 	referrer: PublicKey;
-	isReferrer: boolean;
+	referrerStatus: boolean;
 	authority: PublicKey;
 	ifStakedQuoteAssetAmount: BN;
 
@@ -1124,6 +1124,11 @@ export type ReferrerInfo = {
 	referrer: PublicKey;
 	referrerStats: PublicKey;
 };
+
+export enum ReferrerStatus {
+	IsReferrer = 1,
+	IsReferred = 2,
+}
 
 export enum PlaceAndTakeOrderSuccessCondition {
 	PartialFill = 1,
