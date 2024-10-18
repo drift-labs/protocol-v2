@@ -916,6 +916,26 @@ export const MainnetPerpMarkets: PerpMarketConfig[] = [
 		launchTs: 1728574493000,
 		oracleSource: OracleSource.Prelaunch,
 	},
+	{
+		fullName: 'VRSTPN-WIN-F1-24-DRVRS-CHMP',
+		category: ['Prediction', 'Sport'],
+		symbol: 'VRSTPN-WIN-F1-24-DRVRS-CHMP-BET',
+		baseAssetSymbol: 'VRSTPN-WIN-F1-24-DRVRS-CHMP',
+		marketIndex: 49,
+		oracle: new PublicKey('E36rvXEwysWeiToXCpWfHVADd8bzzyR4w83ZSSwxAxqG'),
+		launchTs: 1729209600000,
+		oracleSource: OracleSource.Prelaunch,
+	},
+	{
+		fullName: 'LNDO-WIN-F1-24-US-GP',
+		category: ['Prediction', 'Sport'],
+		symbol: 'LNDO-WIN-F1-24-US-GP-BET',
+		baseAssetSymbol: 'LNDO-WIN-F1-24-US-GP',
+		marketIndex: 50,
+		oracle: new PublicKey('6AVy1y9SnJECnosQaiK2uY1kcT4ZEBf1F4DMvhxgvhUo'),
+		launchTs: 1729209600000,
+		oracleSource: OracleSource.Prelaunch,
+	},
 ];
 
 export const PerpMarkets: { [key in DriftEnv]: PerpMarketConfig[] } = {
