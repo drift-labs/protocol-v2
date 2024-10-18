@@ -5,7 +5,8 @@ use crate::math::auction::{calculate_auction_price, is_auction_complete};
 use crate::math::casting::Cast;
 use crate::math::constants::{
     EPOCH_DURATION, FUEL_START_TS, OPEN_ORDER_MARGIN_REQUIREMENT,
-    PRICE_TIMES_AMM_TO_QUOTE_PRECISION_RATIO, QUOTE_PRECISION, QUOTE_SPOT_MARKET_INDEX, THIRTY_DAY,
+    PRICE_TIMES_AMM_TO_QUOTE_PRECISION_RATIO, QUOTE_PRECISION, QUOTE_SPOT_MARKET_INDEX,
+    TEN_THOUSAND_QUOTE, THIRTY_DAY, TWENTY_FOUR_HOUR, TWO_HUNDRED_FIFTY_THOUSAND_QUOTE,
 };
 use crate::math::lp::{calculate_lp_open_bids_asks, calculate_settle_lp_metrics};
 use crate::math::margin::MarginRequirementType;
@@ -54,6 +55,7 @@ pub enum UserStatus {
     Bankrupt = 0b00000010,
     ReduceOnly = 0b00000100,
     AdvancedLp = 0b00001000,
+    ProtectedMakerOrders = 0b00010000,
 }
 
 // implement SIZE const for User
@@ -147,6 +149,10 @@ impl User {
 
     pub fn is_advanced_lp(&self) -> bool {
         self.status & (UserStatus::AdvancedLp as u8) > 0
+    }
+
+    pub fn is_protected_maker(&self) -> bool {
+        self.status & (UserStatus::ProtectedMakerOrders as u8) > 0
     }
 
     pub fn add_user_status(&mut self, status: UserStatus) {
@@ -423,6 +429,19 @@ impl User {
         Ok(())
     }
 
+    pub fn update_protected_maker_orders_status(
+        &mut self,
+        protected_maker_orders: bool,
+    ) -> DriftResult {
+        if protected_maker_orders {
+            self.add_user_status(UserStatus::ProtectedMakerOrders);
+        } else {
+            self.remove_user_status(UserStatus::ProtectedMakerOrders);
+        }
+
+        Ok(())
+    }
+
     pub fn has_room_for_new_order(&self) -> bool {
         for order in self.orders.iter() {
             if order.status == OrderStatus::Init {
@@ -543,6 +562,14 @@ impl User {
         )?;
 
         Ok(true)
+    }
+
+    pub fn can_skip_auction_duration(&self, user_stats: &UserStats, now: i64) -> DriftResult<bool> {
+        Ok(self.next_order_id < 3000
+            && self.settled_perp_pnl < TEN_THOUSAND_QUOTE.cast::<i64>()?
+            && self.total_withdraws < TWO_HUNDRED_FIFTY_THOUSAND_QUOTE
+            && user_stats.get_age_ts(now) > TWENTY_FOUR_HOUR
+            && !user_stats.disable_update_perp_bid_ask_twap)
     }
 }
 

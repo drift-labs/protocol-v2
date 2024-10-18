@@ -1,5 +1,6 @@
 use anchor_lang::prelude::*;
 
+use crate::state::state::State;
 use std::cmp::max;
 
 use crate::controller::position::{PositionDelta, PositionDirection};
@@ -144,6 +145,13 @@ impl AMMLiquiditySplit {
             AMMLiquiditySplit::Shared => OrderActionExplanation::OrderFilledWithAMMJitLPSplit,
         }
     }
+}
+
+#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Debug, Eq, PartialOrd, Ord)]
+pub enum AMMAvailability {
+    Immediate,
+    AfterMinDuration,
+    Unavailable,
 }
 
 #[account(zero_copy(unsafe))]
@@ -305,6 +313,16 @@ impl PerpMarket {
 
     pub fn is_operation_paused(&self, operation: PerpOperation) -> bool {
         PerpOperation::is_operation_paused(self.paused_operations, operation)
+    }
+
+    pub fn can_skip_auction_duration(&self, state: &State) -> DriftResult<bool> {
+        if state.skip_auction_duration_paused()? {
+            return Ok(false);
+        }
+
+        Ok((self.amm.net_revenue_since_last_funding > 0
+            && self.amm.amm_lp_allowed_to_jit_make(true)?)
+            || self.amm.oracle_source == OracleSource::Prelaunch)
     }
 
     pub fn has_too_much_drawdown(&self) -> DriftResult<bool> {
