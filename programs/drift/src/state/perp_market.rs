@@ -316,7 +316,7 @@ impl PerpMarket {
     }
 
     pub fn can_skip_auction_duration(&self, state: &State) -> DriftResult<bool> {
-        if state.skip_auction_duration_paused()? {
+        if state.amm_immediate_fill_paused()? {
             return Ok(false);
         }
 
