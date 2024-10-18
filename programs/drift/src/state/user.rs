@@ -5,7 +5,8 @@ use crate::math::auction::{calculate_auction_price, is_auction_complete};
 use crate::math::casting::Cast;
 use crate::math::constants::{
     EPOCH_DURATION, FUEL_START_TS, OPEN_ORDER_MARGIN_REQUIREMENT,
-    PRICE_TIMES_AMM_TO_QUOTE_PRECISION_RATIO, QUOTE_PRECISION, QUOTE_SPOT_MARKET_INDEX, THIRTY_DAY,
+    PRICE_TIMES_AMM_TO_QUOTE_PRECISION_RATIO, QUOTE_PRECISION, QUOTE_SPOT_MARKET_INDEX,
+    TEN_THOUSAND_QUOTE, THIRTY_DAY, TWENTY_FOUR_HOUR, TWO_HUNDRED_FIFTY_THOUSAND_QUOTE,
 };
 use crate::math::lp::{calculate_lp_open_bids_asks, calculate_settle_lp_metrics};
 use crate::math::margin::MarginRequirementType;
@@ -543,6 +544,14 @@ impl User {
         )?;
 
         Ok(true)
+    }
+
+    pub fn can_skip_auction_duration(&self, user_stats: &UserStats, now: i64) -> DriftResult<bool> {
+        Ok(self.next_order_id < 3000
+            && self.settled_perp_pnl < TEN_THOUSAND_QUOTE.cast::<i64>()?
+            && self.total_withdraws < TWO_HUNDRED_FIFTY_THOUSAND_QUOTE
+            && user_stats.get_age_ts(now) > TWENTY_FOUR_HOUR
+            && !user_stats.disable_update_perp_bid_ask_twap)
     }
 }
 

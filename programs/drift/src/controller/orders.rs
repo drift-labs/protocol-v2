@@ -63,7 +63,7 @@ use crate::state::margin_calculation::{MarginCalculation, MarginContext};
 use crate::state::oracle::{OraclePriceData, StrictOraclePrice};
 use crate::state::oracle_map::OracleMap;
 use crate::state::paused_operations::{PerpOperation, SpotOperation};
-use crate::state::perp_market::{AMMLiquiditySplit, MarketStatus, PerpMarket};
+use crate::state::perp_market::{AMMAvailability, AMMLiquiditySplit, MarketStatus, PerpMarket};
 use crate::state::perp_market_map::PerpMarketMap;
 use crate::state::spot_fulfillment_params::{ExternalSpotFill, SpotFulfillmentParams};
 use crate::state::spot_market::{SpotBalanceType, SpotMarket};
@@ -977,6 +977,8 @@ pub fn fill_perp_order(
     let oracle_price: i64;
     let oracle_twap_5min: i64;
     let perp_market_index: u16;
+    let user_can_skip_duration: bool;
+    let amm_can_skip_duration: bool;
 
     let mut amm_is_available = !state.amm_paused()?;
     {
@@ -1000,6 +1002,9 @@ pub fn fill_perp_order(
             is_oracle_valid_for_action(_oracle_validity, Some(DriftAction::FillOrderAmm))?;
         amm_is_available &= !market.is_operation_paused(PerpOperation::AmmFill);
         amm_is_available &= !market.has_too_much_drawdown()?;
+
+        amm_can_skip_duration = market.can_skip_auction_duration(&state)?;
+        user_can_skip_duration = user.can_skip_auction_duration(user_stats, now)?;
 
         reserve_price_before = market.amm.reserve_price()?;
         oracle_price = oracle_price_data.price;
@@ -1144,6 +1149,16 @@ pub fn fill_perp_order(
         return Ok((0, 0));
     }
 
+    let amm_availability = if amm_is_available {
+        if amm_can_skip_duration && user_can_skip_duration {
+            AMMAvailability::Immediate
+        } else {
+            AMMAvailability::AfterMinDuration
+        }
+    } else {
+        AMMAvailability::Unavailable
+    };
+
     let (base_asset_amount, quote_asset_amount) = fulfill_perp_order(
         user,
         order_index,
@@ -1165,7 +1180,7 @@ pub fn fill_perp_order(
         now,
         slot,
         state.min_perp_auction_duration,
-        amm_is_available,
+        amm_availability,
         fill_mode,
     )?;
 
@@ -1558,7 +1573,7 @@ fn fulfill_perp_order(
     now: i64,
     slot: u64,
     min_auction_duration: u8,
-    amm_is_available: bool,
+    amm_availability: AMMAvailability,
     fill_mode: FillMode,
 ) -> DriftResult<(u64, u64)> {
     let market_index = user.orders[user_order_index].market_index;
@@ -1587,7 +1602,7 @@ fn fulfill_perp_order(
             reserve_price_before,
             Some(oracle_price),
             limit_price,
-            amm_is_available,
+            amm_availability,
             slot,
             min_auction_duration,
             fill_mode,
