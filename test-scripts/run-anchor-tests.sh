@@ -60,6 +60,7 @@ test_files=(
   pyth.ts
   pythPull.ts
   referrer.ts
+  rfq.ts
   roundInFavorBaseAsset.ts
   serumTest.ts
   spotDepositWithdraw.ts

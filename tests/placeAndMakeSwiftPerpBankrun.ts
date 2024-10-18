@@ -36,7 +36,7 @@ import {
 	getTriggerLimitOrderParams,
 	PEG_PRECISION,
 	PostOnlyParams,
-} from '../sdk/lib';
+} from '../sdk/src';
 import { startAnchor } from 'solana-bankrun';
 import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
 import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
@@ -251,10 +251,9 @@ describe('place and make swift order', () => {
 			immediateOrCancel: true,
 		});
 
-		const takerOrderParamsSig =
-			await takerDriftClient.signSwiftOrderParamsMessage(
-				takerOrderParamsMessage
-			);
+		const takerOrderParamsSig = takerDriftClient.signSwiftOrderParamsMessage(
+			takerOrderParamsMessage
+		);
 
 		const swiftServerMessage: SwiftServerMessage = {
 			slot,
@@ -264,7 +263,7 @@ describe('place and make swift order', () => {
 		const encodedSwiftServerMessage =
 			makerDriftClient.encodeSwiftServerMessage(swiftServerMessage);
 
-		const swiftSignature = await makerDriftClient.signMessage(
+		const swiftSignature = makerDriftClient.signMessage(
 			Uint8Array.from(encodedSwiftServerMessage),
 			swiftKeypair
 		);
@@ -425,10 +424,9 @@ describe('place and make swift order', () => {
 			},
 		};
 
-		const takerOrderParamsSig =
-			await takerDriftClient.signSwiftOrderParamsMessage(
-				takerOrderParamsMessage
-			);
+		const takerOrderParamsSig = takerDriftClient.signSwiftOrderParamsMessage(
+			takerOrderParamsMessage
+		);
 
 		const swiftDriftClient = new TestClient({
 			connection: bankrunContextWrapper.connection.toConnection(),
@@ -457,7 +455,7 @@ describe('place and make swift order', () => {
 		const encodedSwiftServerMessage =
 			swiftDriftClient.encodeSwiftServerMessage(swiftServerMessage);
 
-		const swiftSignature = await swiftDriftClient.signMessage(
+		const swiftSignature = swiftDriftClient.signMessage(
 			Uint8Array.from(encodedSwiftServerMessage),
 			swiftKeypair
 		);
@@ -579,10 +577,9 @@ describe('place and make swift order', () => {
 			stopLossOrderParams: null,
 		};
 
-		const takerOrderParamsSig =
-			await takerDriftClient.signSwiftOrderParamsMessage(
-				takerOrderParamsMessage
-			);
+		const takerOrderParamsSig = takerDriftClient.signSwiftOrderParamsMessage(
+			takerOrderParamsMessage
+		);
 
 		const swiftServerMessage: SwiftServerMessage = {
 			slot,
@@ -592,7 +589,7 @@ describe('place and make swift order', () => {
 		const encodedSwiftServerMessage =
 			takerDriftClient.encodeSwiftServerMessage(swiftServerMessage);
 
-		const swiftSignature = await takerDriftClient.signMessage(
+		const swiftSignature = takerDriftClient.signMessage(
 			Uint8Array.from(encodedSwiftServerMessage),
 			swiftKeypair
 		);
@@ -692,10 +689,9 @@ describe('place and make swift order', () => {
 			takeProfitOrderParams: null,
 			stopLossOrderParams: null,
 		};
-		const takerOrderParamsSig =
-			await takerDriftClient.signSwiftOrderParamsMessage(
-				takerOrderParamsMessage
-			);
+		const takerOrderParamsSig = takerDriftClient.signSwiftOrderParamsMessage(
+			takerOrderParamsMessage
+		);
 
 		const swiftServerMessage: SwiftServerMessage = {
 			slot: slot.subn(5),
@@ -705,7 +701,7 @@ describe('place and make swift order', () => {
 		const encodedSwiftServerMessage =
 			takerDriftClient.encodeSwiftServerMessage(swiftServerMessage);
 
-		const swiftSignature = await takerDriftClient.signMessage(
+		const swiftSignature = takerDriftClient.signMessage(
 			Uint8Array.from(encodedSwiftServerMessage),
 			swiftKeypair
 		);

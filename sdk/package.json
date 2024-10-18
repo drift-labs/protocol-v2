@@ -50,6 +50,7 @@
 		"rpc-websockets": "7.5.1",
 		"solana-bankrun": "^0.3.0",
 		"strict-event-emitter-types": "^2.0.0",
+		"tweetnacl": "1.0.3",
 		"uuid": "^8.3.2",
 		"zstddec": "^0.1.0"
 	},

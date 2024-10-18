@@ -94,6 +94,42 @@
       "args": []
     },
     {
+      "name": "initializeRfqUser",
+      "accounts": [
+        {
+          "name": "rfqUser",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "user",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "payer",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "rent",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "systemProgram",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": []
+    },
+    {
       "name": "initializeReferrerName",
       "accounts": [
         {
@@ -658,6 +694,51 @@
               "u8",
               64
             ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "placeAndMatchRfqOrders",
+      "accounts": [
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "user",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "userStats",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "ixSysvar",
+          "isMut": false,
+          "isSigner": false,
+          "docs": [
+            "the supplied Sysvar could be anything else.",
+            "The Instruction Sysvar has not been implemented",
+            "in the Anchor framework yet, so this is the safe approach."
+          ]
+        }
+      ],
+      "args": [
+        {
+          "name": "rfqMatches",
+          "type": {
+            "vec": {
+              "defined": "RFQMatch"
+            }
           }
         }
       ]
@@ -6753,6 +6834,29 @@
       }
     },
     {
+      "name": "RFQUser",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "userPubkey",
+            "type": "publicKey"
+          },
+          {
+            "name": "rfqOrderData",
+            "type": {
+              "array": [
+                {
+                  "defined": "RFQOrderId"
+                },
+                32
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
       "name": "SpotMarket",
       "type": {
         "kind": "struct",
@@ -8408,6 +8512,109 @@
       }
     },
     {
+      "name": "RFQMakerOrderParams",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "uuid",
+            "type": {
+              "array": [
+                "u8",
+                8
+              ]
+            }
+          },
+          {
+            "name": "authority",
+            "type": "publicKey"
+          },
+          {
+            "name": "subAccountId",
+            "type": "u16"
+          },
+          {
+            "name": "marketIndex",
+            "type": "u16"
+          },
+          {
+            "name": "marketType",
+            "type": {
+              "defined": "MarketType"
+            }
+          },
+          {
+            "name": "baseAssetAmount",
+            "type": "u64"
+          },
+          {
+            "name": "price",
+            "type": "u64"
+          },
+          {
+            "name": "direction",
+            "type": {
+              "defined": "PositionDirection"
+            }
+          },
+          {
+            "name": "maxTs",
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "RFQMakerMessage",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "orderParams",
+            "type": {
+              "defined": "RFQMakerOrderParams"
+            }
+          },
+          {
+            "name": "signature",
+            "type": {
+              "array": [
+                "u8",
+                64
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "RFQMatch",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "baseAssetAmount",
+            "type": "u64"
+          },
+          {
+            "name": "makerOrderParams",
+            "type": {
+              "defined": "RFQMakerOrderParams"
+            }
+          },
+          {
+            "name": "makerSignature",
+            "type": {
+              "array": [
+                "u8",
+                64
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
       "name": "ModifyOrderParams",
       "type": {
         "kind": "struct",
@@ -9222,6 +9429,27 @@
                 12
               ]
             }
+          }
+        ]
+      }
+    },
+    {
+      "name": "RFQOrderId",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "uuid",
+            "type": {
+              "array": [
+                "u8",
+                8
+              ]
+            }
+          },
+          {
+            "name": "maxTs",
+            "type": "i64"
           }
         ]
       }
@@ -10326,6 +10554,9 @@
           },
           {
             "name": "Liquidation"
+          },
+          {
+            "name": "RFQ"
           }
         ]
       }
@@ -13387,6 +13618,31 @@
       "code": 6290,
       "name": "InvalidHighLeverageModeConfig",
       "msg": "Invalid High Leverage Mode Config"
+    },
+    {
+      "code": 6291,
+      "name": "InvalidRFQUserAccount",
+      "msg": "Invalid RFQ User Account"
+    },
+    {
+      "code": 6292,
+      "name": "RFQUserAccountWrongMutability",
+      "msg": "RFQUserAccount should be mutable"
+    },
+    {
+      "code": 6293,
+      "name": "RFQUserAccountFull",
+      "msg": "RFQUserAccount has too many active RFQs"
+    },
+    {
+      "code": 6294,
+      "name": "RFQOrderNotFilled",
+      "msg": "RFQ order not filled as expected"
+    },
+    {
+      "code": 6295,
+      "name": "InvalidRFQOrder",
+      "msg": "RFQ orders must be jit makers"
     }
   ],
   "metadata": {
