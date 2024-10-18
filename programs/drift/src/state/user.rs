@@ -1593,6 +1593,7 @@ pub struct UserStats {
 }
 
 #[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Debug, Eq)]
+#[repr(u8)]
 pub enum ReferrerStatus {
     IsReferrer = 0b00000001,
     IsReferred = 0b00000010,
