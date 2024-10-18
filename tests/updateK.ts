@@ -30,7 +30,7 @@ import {
 	mockUserUSDCAccount,
 	initializeQuoteSpotMarket,
 } from './testHelpers';
-import { QUOTE_PRECISION } from '../sdk/lib';
+import { QUOTE_PRECISION } from '../sdk/src';
 
 const ZERO = new BN(0);
 

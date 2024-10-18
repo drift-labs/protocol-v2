@@ -30,7 +30,7 @@ import {
 	mockUserUSDCAccount,
 	sleep,
 } from './testHelpersLocalValidator';
-import { PEG_PRECISION, PostOnlyParams } from '../sdk/lib';
+import { PEG_PRECISION, PostOnlyParams } from '../sdk/src';
 import dotenv from 'dotenv';
 dotenv.config();
 

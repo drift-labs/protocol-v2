@@ -23,8 +23,8 @@ import {
 	mockUserUSDCAccount,
 	sleep,
 } from './testHelpers';
-import { QUOTE_PRECISION, getUserAccountPublicKey } from '../sdk';
-import { calculateInitUserFee } from '../sdk/lib/math/state';
+import { QUOTE_PRECISION, getUserAccountPublicKey } from '../sdk/src';
+import { calculateInitUserFee } from '../sdk/src/math/state';
 import { startAnchor } from 'solana-bankrun';
 import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
 import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';

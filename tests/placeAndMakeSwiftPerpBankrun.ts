@@ -36,7 +36,7 @@ import {
 	getTriggerLimitOrderParams,
 	PEG_PRECISION,
 	PostOnlyParams,
-} from '../sdk/lib';
+} from '../sdk/src';
 import { startAnchor } from 'solana-bankrun';
 import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
 import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
