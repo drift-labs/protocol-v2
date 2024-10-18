@@ -173,8 +173,8 @@ fn amm_pred_expiry_price_yes_market_example() {
     .unwrap();
 
     {
-        let mut perp_market = perp_market_loader.load_mut().unwrap();
-        market_index = perp_market.market_index;
+        let perp_market = perp_market_loader.load_mut().unwrap();
+        // market_index = perp_market.market_index;
         assert_eq!(perp_market.expiry_price, 1_000_000);
     }
 }
@@ -285,7 +285,7 @@ fn amm_pred_expiry_price_market_example() {
     .unwrap();
 
     {
-        let mut perp_market = perp_market_loader.load_mut().unwrap();
+        let perp_market = perp_market_loader.load_mut().unwrap();
         market_index = perp_market.market_index;
         assert_eq!(perp_market.expiry_price, 1);
     }

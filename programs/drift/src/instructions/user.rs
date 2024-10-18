@@ -27,9 +27,9 @@ use crate::instructions::SpotFulfillmentType;
 use crate::math::casting::Cast;
 use crate::math::liquidation::is_user_being_liquidated;
 use crate::math::margin::{
-    calculate_max_withdrawable_amount, meets_initial_margin_requirement,
-    meets_maintenance_margin_requirement, meets_place_order_margin_requirement,
-    meets_withdraw_margin_requirement, validate_spot_margin_trading, MarginRequirementType,
+    calculate_max_withdrawable_amount, meets_maintenance_margin_requirement,
+    meets_place_order_margin_requirement, meets_withdraw_margin_requirement,
+    validate_spot_margin_trading, MarginRequirementType,
 };
 use crate::math::safe_math::SafeMath;
 use crate::math::spot_balance::get_token_value;
@@ -1995,6 +1995,19 @@ pub fn handle_update_user_advanced_lp(
     validate!(!user.is_being_liquidated(), ErrorCode::LiquidationsOngoing)?;
 
     user.update_advanced_lp_status(advanced_lp)?;
+    Ok(())
+}
+
+pub fn handle_update_user_protected_maker_orders(
+    ctx: Context<UpdateUser>,
+    _sub_account_id: u16,
+    protected_maker_orders: bool,
+) -> Result<()> {
+    let mut user = load_mut!(ctx.accounts.user)?;
+
+    validate!(!user.is_being_liquidated(), ErrorCode::LiquidationsOngoing)?;
+
+    user.update_protected_maker_orders_status(protected_maker_orders)?;
     Ok(())
 }
 
