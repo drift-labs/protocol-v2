@@ -28,8 +28,8 @@ import {
 	getMarketOrderParams,
 	PEG_PRECISION,
 	PositionDirection,
-} from '../sdk';
-import { decodeName } from '../sdk/lib/userName';
+} from '../sdk/src';
+import { decodeName } from '../sdk/src/userName';
 import { startAnchor } from 'solana-bankrun';
 import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
 import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
