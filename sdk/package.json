@@ -1,8 +1,9 @@
 {
 	"name": "@drift-labs/sdk",
 	"version": "2.97.0-beta.21",
-	"main": "lib/index.js",
-	"types": "lib/index.d.ts",
+	"main": "lib/node/index.js",
+	"types": "lib/node/index.d.ts",
+	"browser": "./lib/browser/index.js",
 	"author": "crispheaney",
 	"homepage": "https://www.drift.trade/",
 	"repository": {
@@ -11,8 +12,7 @@
 	},
 	"scripts": {
 		"lint": "eslint './**/*.{ts,tsx}' --quiet",
-		"build": "yarn clean && tsc && node scripts/postbuild.js node",
-		"build:browser": "yarn clean && tsc && node scripts/postbuild.js browser",
+		"build": "yarn clean && tsc -p tsconfig.json && tsc -p tsconfig.browser.json && node scripts/postbuild.js",
 		"clean": "rm -rf lib",
 		"test": "mocha -r ts-node/register tests/**/*.ts",
 		"test:inspect": "mocha --inspect-brk -r ts-node/register tests/**/*.ts",
