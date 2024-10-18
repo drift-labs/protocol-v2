@@ -100,24 +100,14 @@ export class OrderSubscriber {
 
 			const slot: number = rpcResponseAndContext.context.slot;
 
-			const programAccountSet = new Set<string>();
 			for (const programAccount of rpcResponseAndContext.value) {
 				const key = programAccount.pubkey.toString();
-				programAccountSet.add(key);
 				this.tryUpdateUserAccount(
 					key,
 					'raw',
 					programAccount.account.data,
 					slot
 				);
-				// give event loop a chance to breathe
-				await new Promise((resolve) => setTimeout(resolve, 0));
-			}
-
-			for (const key of this.usersAccounts.keys()) {
-				if (!programAccountSet.has(key)) {
-					this.usersAccounts.delete(key);
-				}
 				// give event loop a chance to breathe
 				await new Promise((resolve) => setTimeout(resolve, 0));
 			}
