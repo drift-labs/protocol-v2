@@ -1,8 +1,9 @@
 {
 	"name": "@drift-labs/sdk",
 	"version": "2.97.0-beta.22",
-	"main": "lib/index.js",
-	"types": "lib/index.d.ts",
+	"main": "lib/node/index.js",
+	"types": "lib/node/index.d.ts",
+	"browser": "./lib/browser/index.js",
 	"author": "crispheaney",
 	"homepage": "https://www.drift.trade/",
 	"repository": {
@@ -11,7 +12,7 @@
 	},
 	"scripts": {
 		"lint": "eslint './**/*.{ts,tsx}' --quiet",
-		"build": "yarn clean && tsc",
+		"build": "yarn clean && tsc -p tsconfig.json && tsc -p tsconfig.browser.json && node scripts/postbuild.js",
 		"clean": "rm -rf lib",
 		"test": "mocha -r ts-node/register tests/**/*.ts",
 		"test:inspect": "mocha --inspect-brk -r ts-node/register tests/**/*.ts",
@@ -37,6 +38,7 @@
 		"@coral-xyz/anchor": "0.28.0",
 		"@coral-xyz/anchor-30": "npm:@coral-xyz/anchor@0.30.1",
 		"@ellipsis-labs/phoenix-sdk": "^1.4.2",
+		"@grpc/grpc-js": "^1.8.0",
 		"@openbook-dex/openbook-v2": "0.2.10",
 		"@project-serum/serum": "^0.13.38",
 		"@pythnetwork/client": "2.5.3",
@@ -45,6 +47,7 @@
 		"@solana/spl-token": "0.3.7",
 		"@solana/web3.js": "1.92.3",
 		"@switchboard-xyz/on-demand": "1.2.42",
+		"@triton-one/yellowstone-grpc": "0.6.0",
 		"anchor-bankrun": "^0.3.0",
 		"node-cache": "^5.1.2",
 		"rpc-websockets": "7.5.1",
