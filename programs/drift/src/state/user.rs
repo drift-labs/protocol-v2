@@ -23,7 +23,7 @@ use crate::state::oracle::StrictOraclePrice;
 use crate::state::perp_market::{ContractType, PerpMarket};
 use crate::state::spot_market::{SpotBalance, SpotBalanceType, SpotMarket};
 use crate::state::traits::Size;
-use crate::{get_then_update_id, QUOTE_PRECISION_U64};
+use crate::{get_then_update_id, ID, QUOTE_PRECISION_U64};
 use crate::{math_error, SPOT_WEIGHT_PRECISION_I128};
 use crate::{safe_increment, SPOT_WEIGHT_PRECISION};
 use crate::{validate, MAX_PREDICTION_MARKET_PRICE};
@@ -544,6 +544,18 @@ impl User {
 
         Ok(true)
     }
+}
+
+pub fn derive_user_account(authority: &Pubkey, sub_account_id: u16) -> Pubkey {
+    let (account_drift_pda, _seed) = Pubkey::find_program_address(
+        &[
+            &b"user"[..],
+            authority.as_ref(),
+            &sub_account_id.to_le_bytes(),
+        ],
+        &ID,
+    );
+    account_drift_pda
 }
 
 #[zero_copy(unsafe)]
@@ -1593,6 +1605,7 @@ pub struct UserStats {
 }
 
 #[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Debug, Eq)]
+#[repr(u8)]
 pub enum ReferrerStatus {
     IsReferrer = 0b00000001,
     IsReferred = 0b00000010,
