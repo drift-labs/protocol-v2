@@ -44,8 +44,8 @@ export const DevnetSpotMarkets: SpotMarketConfig[] = [
 	{
 		symbol: 'SOL',
 		marketIndex: 1,
-		oracle: new PublicKey('J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix'),
-		oracleSource: OracleSource.PYTH,
+		oracle: new PublicKey('BAtFj4kQttZRVep3UZS2aZRDixkGYgWsbqTBVDbnSsPF'),
+		oracleSource: OracleSource.PYTH_PULL,
 		mint: new PublicKey(WRAPPED_SOL_MINT),
 		precision: LAMPORTS_PRECISION,
 		precisionExp: LAMPORTS_EXP,
@@ -59,8 +59,8 @@ export const DevnetSpotMarkets: SpotMarketConfig[] = [
 	{
 		symbol: 'BTC',
 		marketIndex: 2,
-		oracle: new PublicKey('HovQMDrbAgAYPCmHVSrezcSmkMtXSSUsLDFANExrZh2J'),
-		oracleSource: OracleSource.PYTH,
+		oracle: new PublicKey('486kr3pmFPfTsS4aZgcsQ7kS4i9rjMsYYZup6HQNSTT4'),
+		oracleSource: OracleSource.PYTH_PULL,
 		mint: new PublicKey('3BZPwbcqB5kKScF3TEXxwNfx5ipV13kbRVDvfVp5c6fv'),
 		precision: new BN(10).pow(SIX),
 		precisionExp: SIX,
