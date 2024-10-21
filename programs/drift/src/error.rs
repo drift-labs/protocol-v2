@@ -597,6 +597,8 @@ pub enum ErrorCode {
     RFQOrderNotFilled,
     #[msg("RFQ orders must be jit makers")]
     InvalidRFQOrder,
+    #[msg("RFQ matches must be valid")]
+    InvalidRFQMatch,
 }
 
 #[macro_export]
