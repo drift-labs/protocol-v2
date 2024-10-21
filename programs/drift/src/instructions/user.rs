@@ -29,7 +29,7 @@ use crate::instructions::SpotFulfillmentType;
 use crate::math::casting::Cast;
 use crate::math::liquidation::is_user_being_liquidated;
 use crate::math::margin::{
-    calculate_max_withdrawable_amount, meets_initial_margin_requirement,
+    calculate_max_withdrawable_amount,
     meets_maintenance_margin_requirement, meets_place_order_margin_requirement,
     meets_withdraw_margin_requirement, validate_spot_margin_trading, MarginRequirementType,
 };
@@ -53,7 +53,9 @@ use crate::state::fulfillment_params::phoenix::PhoenixFulfillmentParams;
 use crate::state::fulfillment_params::serum::SerumFulfillmentParams;
 use crate::state::high_leverage_mode_config::HighLeverageModeConfig;
 use crate::state::oracle::StrictOraclePrice;
+use crate::state::order_params::RFQMakerOrderParams;
 use crate::state::order_params::RFQMatch;
+use crate::state::order_params::RFQTradeParams;
 use crate::state::order_params::{
     ModifyOrderParams, OrderParams, PlaceAndTakeOrderSuccessCondition, PlaceOrderOptions,
     PostOnlyParam,
@@ -71,12 +73,12 @@ use crate::state::spot_market_map::{
 };
 use crate::state::state::State;
 use crate::state::traits::Size;
-use crate::state::user::derive_user_account;
 use crate::state::user::ReferrerStatus;
 use crate::state::user::{MarginMode, MarketType, OrderType, ReferrerName, User, UserStats};
 use crate::state::user_map::{load_user_maps, UserMap, UserStatsMap};
 use crate::validate;
-use crate::validation::sig_verification::verify_ed25519_ix;
+use crate::validation::sig_verification::extract_ed25519_ix_pubkey;
+use crate::validation::sig_verification::verify_ed25519_digest;
 use crate::validation::user::validate_user_deletion;
 use crate::validation::whitelist::validate_whitelist_token;
 use crate::{controller, math};
@@ -882,27 +884,32 @@ pub fn handle_place_perp_order<'c: 'info, 'info>(
 
 pub fn handle_place_and_match_rfq_orders<'c: 'info, 'info>(
     ctx: Context<'_, '_, 'c, 'info, PlaceAndMatchRFQOrders<'info>>,
-    rfq_matches: Vec<RFQMatch>,
+    rfq_trade_params: RFQTradeParams,
 ) -> Result<()> {
     // Verify everything before proceeding to match the rfq orders
-
     let ix_sysvar = &ctx.accounts.ix_sysvar.to_account_info();
-    let number_of_verify_ixs_needed = rfq_matches.len();
-    let ix_idx = load_current_index_checked(ix_sysvar)?;
+    let number_of_verify_ixs_needed = rfq_trade_params.matches.len();
+    let ix_idx = load_current_index_checked(ix_sysvar)? as usize;
 
-    for i in 0..rfq_matches.len() {
+    let mut verified_rfq_matches = Vec::with_capacity(number_of_verify_ixs_needed);
+    for (idx, match_params) in rfq_trade_params.matches.iter().enumerate() {
         // First verify that the message is legitimate
-        let maker_order_params = &rfq_matches[i].maker_order_params;
         let ix: Instruction = load_instruction_at_checked(
-            ix_idx as usize - number_of_verify_ixs_needed + i,
+            ix_idx - number_of_verify_ixs_needed + idx,
             ix_sysvar,
         )?;
-        verify_ed25519_ix(
+        let maker_pubkey = extract_ed25519_ix_pubkey(&ix.data)?;
+        let maker_order_params = RFQMakerOrderParams::new(maker_pubkey, rfq_trade_params.common, match_params.maker_order_stub);
+        verify_ed25519_digest(
             &ix,
-            &maker_order_params.authority.to_bytes(),
-            &maker_order_params.clone().try_to_vec()?,
-            &rfq_matches[i].maker_signature,
+            &maker_pubkey,
+            &maker_order_params.digest(),
         )?;
+
+        verified_rfq_matches.push(RFQMatch {
+            base_asset_amount: match_params.base_asset_amount,
+            maker_order_params,
+        });
     }
 
     // TODO: generalize to support multiple market types
@@ -928,7 +935,7 @@ pub fn handle_place_and_match_rfq_orders<'c: 'info, 'info>(
     place_and_match_rfq_orders(
         &ctx.accounts.user,
         &ctx.accounts.user_stats,
-        rfq_matches,
+        verified_rfq_matches,
         maker_rfq_account_map,
         &makers_and_referrer,
         &makers_and_referrer_stats,

@@ -579,6 +579,8 @@ pub enum ErrorCode {
     InvalidVerificationIxIndex,
     #[msg("Swift message verificaiton failed")]
     SigVerificationFailed,
+    #[msg("Signed message verificaiton failed")]
+    MsgVerificationFailed,
     #[msg("Market index mismatched b/w taker and maker swift order params")]
     MismatchedSwiftOrderParamsMarketIndex,
     #[msg("Swift only available for market/oracle perp orders")]

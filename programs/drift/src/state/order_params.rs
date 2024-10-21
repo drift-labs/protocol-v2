@@ -651,6 +651,27 @@ pub struct SwiftTriggerOrderParams {
     pub base_asset_amount: u64,
 }
 
+/// Common order parameters for an RFQ trade
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, Eq, PartialEq, Debug, Copy)]
+pub struct RFQOrderCommon {
+    pub uuid: [u8; 8],
+    pub market_index: u16,
+    pub market_type: MarketType,
+    pub taker_direction: PositionDirection,
+}
+
+/// Compact RFQ maker order parameters for tx size optimization
+/// 
+/// It is intended to be combined with `RFQOrderCommon` and tx context to produce a full `RFQMakerOrderParams` message
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, Eq, PartialEq, Debug, Copy)]
+pub struct RFQMakerOrderStub {
+    pub sub_account_id: u16,
+    pub base_asset_amount: u64,
+    pub price: u64,
+    pub max_ts: i64,
+}
+
+/// Fully assembled maker order parameters for which a valid signature must exist
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Eq, PartialEq, Debug, Copy)]
 pub struct RFQMakerOrderParams {
     pub uuid: [u8; 8],
@@ -664,6 +685,29 @@ pub struct RFQMakerOrderParams {
     pub max_ts: i64,
 }
 
+impl RFQMakerOrderParams {
+    /// Build `RFQMakerOrderParams` from parts
+    pub fn new(pubkey: [u8; 32], common: RFQOrderCommon, params: RFQMakerOrderStub) -> Self {
+        Self {
+            authority: pubkey.into(),
+            sub_account_id: params.sub_account_id,
+            uuid: common.uuid,
+            market_index: common.market_index,
+            market_type: common.market_type,
+            direction: common.taker_direction.opposite(),
+            base_asset_amount: params.base_asset_amount,
+            price: params.price,
+            max_ts: params.max_ts
+        }
+    }
+    /// Calculate sha256 digest of these maker order parameters
+    pub fn digest(&self) -> [u8; 32] {
+        solana_program::hash::hash(
+            &self.try_to_vec().unwrap()
+        ).to_bytes()
+    }
+}
+
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Eq, PartialEq, Debug)]
 pub struct RFQMakerMessage {
     pub order_params: RFQMakerOrderParams,
@@ -672,9 +716,24 @@ pub struct RFQMakerMessage {
 
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Eq, PartialEq, Debug)]
 pub struct RFQMatch {
+    /// How much taker wants to match
     pub base_asset_amount: u64,
     pub maker_order_params: RFQMakerOrderParams,
-    pub maker_signature: [u8; 64],
+}
+
+/// Unverified and compact `RFQMatch` for use in RFQ Ix data
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, Eq, PartialEq, Debug)]
+pub struct RFQMatchStub {
+    /// How much taker wants to match
+    pub base_asset_amount: u64,
+    pub maker_order_stub: RFQMakerOrderStub,
+}
+
+/// Ix parameters for an RFQ trade
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, Eq, PartialEq, Debug)]
+pub struct RFQTradeParams {
+    pub common: RFQOrderCommon,
+    pub matches: Vec<RFQMatchStub>,
 }
 
 fn get_auction_duration(

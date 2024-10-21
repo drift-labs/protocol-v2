@@ -12,7 +12,7 @@ use state::oracle::OracleSource;
 
 use crate::controller::position::PositionDirection;
 use crate::state::oracle::PrelaunchOracleParams;
-use crate::state::order_params::{ModifyOrderParams, OrderParams, RFQMatch};
+use crate::state::order_params::{ModifyOrderParams, OrderParams, RFQTradeParams};
 use crate::state::perp_market::{ContractTier, MarketStatus};
 use crate::state::settle_pnl_mode::SettlePnlMode;
 use crate::state::spot_market::AssetTier;
@@ -183,9 +183,9 @@ pub mod drift {
 
     pub fn place_and_match_rfq_orders<'c: 'info, 'info>(
         ctx: Context<'_, '_, 'c, 'info, PlaceAndMatchRFQOrders<'info>>,
-        rfq_matches: Vec<RFQMatch>,
+        rfq_trade_params: RFQTradeParams,
     ) -> Result<()> {
-        handle_place_and_match_rfq_orders(ctx, rfq_matches)
+        handle_place_and_match_rfq_orders(ctx, rfq_trade_params)
     }
 
     pub fn place_spot_order<'c: 'info, 'info>(
