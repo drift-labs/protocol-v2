@@ -106,6 +106,7 @@ export * from './dlob/types';
 export * from './dlob/orderBookLevels';
 export * from './userMap/userMap';
 export * from './userMap/userStatsMap';
+export * from './userMap/userMapConfig';
 export * from './math/bankruptcy';
 export * from './orderSubscriber';
 export * from './orderSubscriber/types';
