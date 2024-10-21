@@ -9874,6 +9874,7 @@ pub mod get_maker_orders_info {
             None,
             clock.unix_timestamp,
             clock.slot,
+            false,
         )
         .unwrap();
 
@@ -10063,6 +10064,7 @@ pub mod get_maker_orders_info {
             None,
             clock.unix_timestamp,
             clock.slot,
+            false,
         )
         .unwrap();
 
@@ -10241,6 +10243,7 @@ pub mod get_maker_orders_info {
             None,
             clock.unix_timestamp,
             clock.slot,
+            false,
         )
         .unwrap();
 
@@ -10482,6 +10485,7 @@ pub mod get_maker_orders_info {
             None,
             clock.unix_timestamp,
             clock.slot,
+            false,
         )
         .unwrap();
 
@@ -10678,6 +10682,7 @@ pub mod get_maker_orders_info {
             Some(2),
             clock.unix_timestamp,
             clock.slot,
+            false,
         )
         .unwrap();
 
@@ -10896,6 +10901,7 @@ pub mod get_maker_orders_info {
             None,
             clock.unix_timestamp,
             clock.slot,
+            false,
         )
         .unwrap();
 

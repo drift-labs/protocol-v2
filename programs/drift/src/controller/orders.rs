@@ -1052,6 +1052,7 @@ pub fn fill_perp_order(
         jit_maker_order_id,
         now,
         slot,
+        user_can_skip_duration,
     )?;
 
     // no referrer bonus for liquidations
@@ -1353,6 +1354,7 @@ fn get_maker_orders_info(
     jit_maker_order_id: Option<u32>,
     now: i64,
     slot: u64,
+    user_can_fill_vs_protected_maker: bool,
 ) -> DriftResult<Vec<(Pubkey, usize, u64)>> {
     let maker_direction = taker_order.direction.opposite();
 
@@ -1366,6 +1368,10 @@ fn get_maker_orders_info(
         let mut maker = load_mut!(user_account_loader)?;
 
         if maker.is_being_liquidated() || maker.is_bankrupt() {
+            continue;
+        }
+
+        if maker.is_protected_maker() && !user_can_fill_vs_protected_maker {
             continue;
         }
 
