@@ -43,7 +43,7 @@ export abstract class BaseTxSender implements TxSender {
 	additionalTxSenderCallbacks: ((base58EncodedTx: string) => void)[];
 	txHandler: TxHandler;
 	trackTxLandRate?: boolean;
-	throwOnError: boolean;
+	throwOnTimeoutError: boolean;
 
 	// For landing rate calcs
 	lookbackWindowMinutes: number;
@@ -64,7 +64,7 @@ export abstract class BaseTxSender implements TxSender {
 		txHandler,
 		txLandRateLookbackWindowMinutes = DEFAULT_TX_LAND_RATE_LOOKBACK_WINDOW_MINUTES,
 		landRateToFeeFunc,
-		throwOnError = true,
+		throwOnTimeoutError = true,
 	}: {
 		connection: Connection;
 		wallet: IWallet;
@@ -77,7 +77,7 @@ export abstract class BaseTxSender implements TxSender {
 		trackTxLandRate?: boolean;
 		txLandRateLookbackWindowMinutes?: number;
 		landRateToFeeFunc?: (landRate: number) => number;
-		throwOnError?: boolean;
+		throwOnTimeoutError?: boolean;
 	}) {
 		this.connection = connection;
 		this.wallet = wallet;
@@ -103,7 +103,7 @@ export abstract class BaseTxSender implements TxSender {
 		}
 		this.landRateToFeeFunc =
 			landRateToFeeFunc ?? this.defaultLandRateToFeeFunc.bind(this);
-		this.throwOnError = throwOnError;
+		this.throwOnTimeoutError = throwOnTimeoutError;
 	}
 
 	async send(
@@ -287,7 +287,7 @@ export abstract class BaseTxSender implements TxSender {
 			}
 			this.timeoutCount += 1;
 			const duration = (Date.now() - start) / 1000;
-			if (this.throwOnError) {
+			if (this.throwOnTimeoutError) {
 				throw new TxSendError(
 					`Transaction was not confirmed in ${duration.toFixed(
 						2
@@ -332,12 +332,14 @@ export abstract class BaseTxSender implements TxSender {
 		// Transaction not confirmed within 30 seconds
 		this.timeoutCount += 1;
 		const duration = (Date.now() - start) / 1000;
-		throw new TxSendError(
-			`Transaction was not confirmed in ${duration.toFixed(
-				2
-			)} seconds. It is unknown if it succeeded or failed. Check signature ${signature} using the Solana Explorer or CLI tools.`,
-			NOT_CONFIRMED_ERROR_CODE
-		);
+		if (this.throwOnTimeoutError) {
+			throw new TxSendError(
+				`Transaction was not confirmed in ${duration.toFixed(
+					2
+				)} seconds. It is unknown if it succeeded or failed. Check signature ${signature} using the Solana Explorer or CLI tools.`,
+				NOT_CONFIRMED_ERROR_CODE
+			);
+		}
 	}
 
 	async confirmTransaction(
