@@ -8393,6 +8393,15 @@ export class DriftClient {
 		return isVersionedTransaction(tx);
 	}
 
+	/**
+	 * Send a transaction.
+	 *
+	 * @param tx
+	 * @param additionalSigners
+	 * @param opts :: Will fallback to DriftClient's opts if not provided
+	 * @param preSigned
+	 * @returns
+	 */
 	sendTransaction(
 		tx: Transaction | VersionedTransaction,
 		additionalSigners?: Array<Signer>,
@@ -8405,14 +8414,14 @@ export class DriftClient {
 			return this.txSender.sendVersionedTransaction(
 				tx as VersionedTransaction,
 				additionalSigners,
-				opts,
+				opts ?? this.opts,
 				preSigned
 			);
 		} else {
 			return this.txSender.send(
 				tx as Transaction,
 				additionalSigners,
-				opts,
+				opts ?? this.opts,
 				preSigned
 			);
 		}
