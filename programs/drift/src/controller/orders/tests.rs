@@ -9678,6 +9678,7 @@ pub mod get_maker_orders_info {
         PRICE_PRECISION_I64, PRICE_PRECISION_U64, SPOT_BALANCE_PRECISION_U64,
         SPOT_CUMULATIVE_INTEREST_PRECISION, SPOT_WEIGHT_PRECISION,
     };
+    use crate::state::fill_mode::FillMode;
     use crate::state::oracle::HistoricalOracleData;
     use crate::state::oracle::OracleSource;
     use crate::state::perp_market::{PerpMarket, AMM};
@@ -9874,6 +9875,7 @@ pub mod get_maker_orders_info {
             None,
             clock.unix_timestamp,
             clock.slot,
+            FillMode::Fill,
             false,
         )
         .unwrap();
@@ -10064,6 +10066,7 @@ pub mod get_maker_orders_info {
             None,
             clock.unix_timestamp,
             clock.slot,
+            FillMode::Fill,
             false,
         )
         .unwrap();
@@ -10243,6 +10246,7 @@ pub mod get_maker_orders_info {
             None,
             clock.unix_timestamp,
             clock.slot,
+            FillMode::Fill,
             false,
         )
         .unwrap();
@@ -10485,6 +10489,7 @@ pub mod get_maker_orders_info {
             None,
             clock.unix_timestamp,
             clock.slot,
+            FillMode::Fill,
             false,
         )
         .unwrap();
@@ -10682,6 +10687,7 @@ pub mod get_maker_orders_info {
             Some(2),
             clock.unix_timestamp,
             clock.slot,
+            FillMode::PlaceAndTake,
             false,
         )
         .unwrap();
@@ -10901,6 +10907,7 @@ pub mod get_maker_orders_info {
             None,
             clock.unix_timestamp,
             clock.slot,
+            FillMode::Fill,
             false,
         )
         .unwrap();

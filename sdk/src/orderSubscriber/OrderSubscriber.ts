@@ -11,11 +11,12 @@ import StrictEventEmitter from 'strict-event-emitter-types';
 import { EventEmitter } from 'events';
 import { BN } from '../index';
 import { decodeUser } from '../decode/user';
+import { grpcSubscription } from './grpcSubscription';
 
 export class OrderSubscriber {
 	driftClient: DriftClient;
 	usersAccounts = new Map<string, { slot: number; userAccount: UserAccount }>();
-	subscription: PollingSubscription | WebsocketSubscription;
+	subscription: PollingSubscription | WebsocketSubscription | grpcSubscription;
 	commitment: Commitment;
 	eventEmitter: StrictEventEmitter<EventEmitter, OrderSubscriberEvents>;
 
@@ -33,6 +34,18 @@ export class OrderSubscriber {
 			this.subscription = new PollingSubscription({
 				orderSubscriber: this,
 				frequency: config.subscriptionConfig.frequency,
+			});
+		} else if (config.subscriptionConfig.type === 'grpc') {
+			this.subscription = new grpcSubscription({
+				orderSubscriber: this,
+				grpcConfigs: config.subscriptionConfig.grpcConfigs,
+				skipInitialLoad: config.subscriptionConfig.skipInitialLoad,
+				resubOpts: {
+					resubTimeoutMs: config.subscriptionConfig?.resubTimeoutMs,
+					logResubMessages: config.subscriptionConfig?.logResubMessages,
+				},
+				resyncIntervalMs: config.subscriptionConfig.resyncIntervalMs,
+				decoded: config.decodeData,
 			});
 		} else {
 			this.subscription = new WebsocketSubscription({
@@ -100,24 +113,14 @@ export class OrderSubscriber {
 
 			const slot: number = rpcResponseAndContext.context.slot;
 
-			const programAccountSet = new Set<string>();
 			for (const programAccount of rpcResponseAndContext.value) {
 				const key = programAccount.pubkey.toString();
-				programAccountSet.add(key);
 				this.tryUpdateUserAccount(
 					key,
 					'raw',
 					programAccount.account.data,
 					slot
 				);
-				// give event loop a chance to breathe
-				await new Promise((resolve) => setTimeout(resolve, 0));
-			}
-
-			for (const key of this.usersAccounts.keys()) {
-				if (!programAccountSet.has(key)) {
-					this.usersAccounts.delete(key);
-				}
 				// give event loop a chance to breathe
 				await new Promise((resolve) => setTimeout(resolve, 0));
 			}

@@ -100,6 +100,7 @@ import {
 	calculatePerpFuelBonus,
 	calculateInsuranceFuelBonus,
 } from './math/fuel';
+import { grpcUserAccountSubscriber } from './accounts/grpcUserAccountSubscriber';
 
 export class User {
 	driftClient: DriftClient;
@@ -130,6 +131,16 @@ export class User {
 			);
 		} else if (config.accountSubscription?.type === 'custom') {
 			this.accountSubscriber = config.accountSubscription.userAccountSubscriber;
+		} else if (config.accountSubscription?.type === 'grpc') {
+			this.accountSubscriber = new grpcUserAccountSubscriber(
+				config.accountSubscription.grpcConfigs,
+				config.driftClient.program,
+				config.userAccountPublicKey,
+				{
+					resubTimeoutMs: config.accountSubscription?.resubTimeoutMs,
+					logResubMessages: config.accountSubscription?.logResubMessages,
+				}
+			);
 		} else {
 			this.accountSubscriber = new WebSocketUserAccountSubscriber(
 				config.driftClient.program,
@@ -2613,13 +2624,16 @@ export class User {
 
 	public getMarginUSDCRequiredForTrade(
 		targetMarketIndex: number,
-		baseSize: BN
+		baseSize: BN,
+		estEntryPrice?: BN
 	): BN {
 		return calculateMarginUSDCRequiredForTrade(
 			this.driftClient,
 			targetMarketIndex,
 			baseSize,
-			this.getUserAccount().maxMarginRatio
+			this.getUserAccount().maxMarginRatio,
+			undefined,
+			estEntryPrice
 		);
 	}
 

@@ -16,7 +16,7 @@ import {
 	OpenOrders,
 } from '@project-serum/serum';
 import { BN } from '@coral-xyz/anchor';
-import { WRAPPED_SOL_MINT } from '../sdk/lib';
+import { WRAPPED_SOL_MINT } from '../sdk/src';
 
 export const SERUM = new PublicKey(
 	'srmqPvymJeFKQ4zGQed1GFppgkRHL9kaELCbyksJtPX'

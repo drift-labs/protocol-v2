@@ -9,6 +9,7 @@ import {
 	getUserAccountPublicKeySync,
 	getUserStatsAccountPublicKey,
 } from './addresses/pda';
+import { grpcUserStatsAccountSubscriber } from './accounts/grpcUserStatsAccountSubscriber';
 
 export class UserStats {
 	driftClient: DriftClient;
@@ -24,6 +25,16 @@ export class UserStats {
 				config.driftClient.program,
 				config.userStatsAccountPublicKey,
 				config.accountSubscription.accountLoader
+			);
+		} else if (config.accountSubscription?.type === 'grpc') {
+			this.accountSubscriber = new grpcUserStatsAccountSubscriber(
+				config.accountSubscription.grpcConfigs,
+				config.driftClient.program,
+				config.userStatsAccountPublicKey,
+				{
+					resubTimeoutMs: config.accountSubscription?.resubTimeoutMs,
+					logResubMessages: config.accountSubscription?.logResubMessages,
+				}
 			);
 		} else if (config.accountSubscription?.type === 'websocket') {
 			this.accountSubscriber = new WebSocketUserStatsAccountSubscriber(
