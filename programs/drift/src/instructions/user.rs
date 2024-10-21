@@ -71,7 +71,6 @@ use crate::state::spot_market_map::{
 };
 use crate::state::state::State;
 use crate::state::traits::Size;
-use crate::state::user::derive_user_account;
 use crate::state::user::ReferrerStatus;
 use crate::state::user::{MarginMode, MarketType, OrderType, ReferrerName, User, UserStats};
 use crate::state::user_map::{load_user_maps, UserMap, UserStatsMap};
@@ -893,6 +892,15 @@ pub fn handle_place_and_match_rfq_orders<'c: 'info, 'info>(
     for i in 0..rfq_matches.len() {
         // First verify that the message is legitimate
         let maker_order_params = &rfq_matches[i].maker_order_params;
+        if rfq_matches[i].base_asset_amount > maker_order_params.base_asset_amount {
+            msg!(
+                "RFQ match amount exceeds maker order amount: {} > {}",
+                rfq_matches[i].base_asset_amount,
+                maker_order_params.base_asset_amount
+            );
+            return Err(ErrorCode::InvalidRFQMatch.into());
+        }
+
         let ix: Instruction = load_instruction_at_checked(
             ix_idx as usize - number_of_verify_ixs_needed + i,
             ix_sysvar,

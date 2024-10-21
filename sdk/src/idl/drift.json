@@ -13643,6 +13643,11 @@
       "code": 6295,
       "name": "InvalidRFQOrder",
       "msg": "RFQ orders must be jit makers"
+    },
+    {
+      "code": 6296,
+      "name": "InvalidRFQMatch",
+      "msg": "RFQ matches must be valid"
     }
   ],
   "metadata": {

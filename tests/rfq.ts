@@ -462,4 +462,50 @@ describe('place and fill rfq orders', () => {
 		);
 		assert(makerDriftClientUser.getOpenOrders().length === 0);
 	});
+
+	it('should not match if rfq match exceeds maker base asset amount', async () => {
+		// Makers sign a messages to create a limit order
+
+		const makerOrderMessage: RFQMakerOrderParams = {
+			marketIndex: 0,
+			marketType: MarketType.PERP,
+			direction: PositionDirection.SHORT,
+			authority: makerDriftClientUser.getUserAccount().authority,
+			subAccountId: 0,
+			price: new BN(100).mul(PRICE_PRECISION),
+			baseAssetAmount: BASE_PRECISION,
+			maxTs: ZERO,
+			uuid: Uint8Array.from(Buffer.from(nanoid(8))),
+		};
+		const signature = makerDriftClient.signMessage(
+			makerDriftClient.encodeRFQMakerOrderParams(makerOrderMessage)
+		);
+
+		const makerPositionBefore = makerDriftClientUser.getPerpPosition(0);
+		const takerPositionBefore = takerDriftClientUser.getPerpPosition(0);
+
+		// expect error
+		try {
+			await takerDriftClient.placeAndMatchRFQOrders([
+				{
+					baseAssetAmount: BASE_PRECISION.muln(2),
+					makerOrderParams: makerOrderMessage,
+					makerSignature: signature,
+				},
+			]);
+		} catch (e) {
+			console.log(e);
+		}
+
+		const makerPositionAfter = makerDriftClientUser.getPerpPosition(0);
+		const takerPositionAfter = takerDriftClientUser.getPerpPosition(0);
+
+		assert(
+			makerPositionBefore.baseAssetAmount.eq(makerPositionAfter.baseAssetAmount)
+		);
+		assert(
+			takerPositionBefore.baseAssetAmount.eq(takerPositionAfter.baseAssetAmount)
+		);
+		assert(makerDriftClientUser.getOpenOrders().length === 0);
+	});
 });
