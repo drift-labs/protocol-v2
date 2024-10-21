@@ -131,7 +131,7 @@ export class ForwardOnlyTxSender extends BaseTxSender {
 				encodedTxSig,
 				opts.commitment
 			);
-			slot = result.context.slot;
+			slot = result?.context?.slot;
 			this.txSigCache?.set(encodedTxSig, true);
 			// eslint-disable-next-line no-useless-catch
 		} catch (e) {
