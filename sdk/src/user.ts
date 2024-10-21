@@ -895,7 +895,7 @@ export class User {
 	public getUnrealizedFundingPNL(marketIndex?: number): BN {
 		return this.getUserAccount()
 			.perpPositions.filter((pos) =>
-				marketIndex ? pos.marketIndex === marketIndex : true
+				marketIndex !== undefined ? pos.marketIndex === marketIndex : true
 			)
 			.reduce((pnl, perpPosition) => {
 				const market = this.driftClient.getPerpMarketAccount(
