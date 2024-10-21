@@ -29,9 +29,9 @@ use crate::instructions::SpotFulfillmentType;
 use crate::math::casting::Cast;
 use crate::math::liquidation::is_user_being_liquidated;
 use crate::math::margin::{
-    calculate_max_withdrawable_amount,
-    meets_maintenance_margin_requirement, meets_place_order_margin_requirement,
-    meets_withdraw_margin_requirement, validate_spot_margin_trading, MarginRequirementType,
+    calculate_max_withdrawable_amount, meets_maintenance_margin_requirement,
+    meets_place_order_margin_requirement, meets_withdraw_margin_requirement,
+    validate_spot_margin_trading, MarginRequirementType,
 };
 use crate::math::safe_math::SafeMath;
 use crate::math::spot_balance::get_token_value;
@@ -894,17 +894,15 @@ pub fn handle_place_and_match_rfq_orders<'c: 'info, 'info>(
     let mut verified_rfq_matches = Vec::with_capacity(number_of_verify_ixs_needed);
     for (idx, match_params) in rfq_trade_params.matches.iter().enumerate() {
         // First verify that the message is legitimate
-        let ix: Instruction = load_instruction_at_checked(
-            ix_idx - number_of_verify_ixs_needed + idx,
-            ix_sysvar,
-        )?;
+        let ix: Instruction =
+            load_instruction_at_checked(ix_idx - number_of_verify_ixs_needed + idx, ix_sysvar)?;
         let maker_pubkey = extract_ed25519_ix_pubkey(&ix.data)?;
-        let maker_order_params = RFQMakerOrderParams::new(maker_pubkey, rfq_trade_params.common, match_params.maker_order_stub);
-        verify_ed25519_digest(
-            &ix,
-            &maker_pubkey,
-            &maker_order_params.digest(),
-        )?;
+        let maker_order_params = RFQMakerOrderParams::new(
+            maker_pubkey,
+            rfq_trade_params.common,
+            match_params.maker_order_stub,
+        );
+        verify_ed25519_digest(&ix, &maker_pubkey, &maker_order_params.digest())?;
 
         verified_rfq_matches.push(RFQMatch {
             base_asset_amount: match_params.base_asset_amount,

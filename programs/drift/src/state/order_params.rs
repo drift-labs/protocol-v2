@@ -661,7 +661,7 @@ pub struct RFQOrderCommon {
 }
 
 /// Compact RFQ maker order parameters for tx size optimization
-/// 
+///
 /// It is intended to be combined with `RFQOrderCommon` and tx context to produce a full `RFQMakerOrderParams` message
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Eq, PartialEq, Debug, Copy)]
 pub struct RFQMakerOrderStub {
@@ -697,14 +697,12 @@ impl RFQMakerOrderParams {
             direction: common.taker_direction.opposite(),
             base_asset_amount: params.base_asset_amount,
             price: params.price,
-            max_ts: params.max_ts
+            max_ts: params.max_ts,
         }
     }
     /// Calculate sha256 digest of these maker order parameters
     pub fn digest(&self) -> [u8; 32] {
-        solana_program::hash::hash(
-            &self.try_to_vec().unwrap()
-        ).to_bytes()
+        solana_program::hash::hash(&self.try_to_vec().unwrap()).to_bytes()
     }
 }
 
