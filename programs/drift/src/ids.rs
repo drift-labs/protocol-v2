@@ -68,6 +68,11 @@ pub mod wen_pull_oracle {
     declare_id!("F47c7aJgYkfKXQ9gzrJaEpsNwUKHprysregTWXrtYLFp");
 }
 
+pub mod mew_pull_oracle {
+    use solana_program::declare_id;
+    declare_id!("DKGwCUcwngwmgifGxnme7zVR695LCBGk2pnuksRnbhfD");
+}
+
 pub mod usdc_oracle {
     use solana_program::declare_id;
     #[cfg(feature = "mainnet-beta")]
