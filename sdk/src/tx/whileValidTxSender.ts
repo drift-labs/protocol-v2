@@ -238,7 +238,7 @@ export class WhileValidTxSender extends BaseTxSender {
 
 			this.txSigCache?.set(txid, true);
 
-			await this.checkConfirmationResultForError(txid, result.value);
+			await this.checkConfirmationResultForError(txid, result?.value);
 
 			if (result?.value?.err) {
 				// Fallback error handling if there's a problem reporting the error in checkConfirmationResultForError
