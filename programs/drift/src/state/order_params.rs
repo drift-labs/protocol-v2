@@ -48,11 +48,12 @@ impl OrderParams {
             return Ok(());
         }
 
-        let is_oracle_offset_oracle = self.oracle_price_offset.unwrap_or(0) != 0 && self.price == 0;
+        let oracle_price_offset = self.oracle_price_offset.unwrap_or(0);
+        let is_oracle_offset_oracle = oracle_price_offset != 0;
         if !is_oracle_offset_oracle && self.price == 0 {
             return Ok(());
         }
-        
+
         let auction_start_price_offset =
             OrderParams::get_perp_baseline_start_price_offset(perp_market, self.direction)?;
         let mut new_auction_start_price = oracle_price.safe_add(auction_start_price_offset)?;
@@ -66,11 +67,15 @@ impl OrderParams {
                 PositionDirection::Long => {
                     let ask_premium = perp_market.amm.last_ask_premium()?;
                     let est_ask = oracle_price.safe_add(ask_premium)?.cast()?;
-                    if !is_oracle_offset_oracle && self.price <= est_ask
-                        || is_oracle_offset_oracle
-                            && self.oracle_price_offset.unwrap_or(0).cast::<i64>()?
-                                <= (est_ask as i64).safe_sub(oracle_price)?
-                    {
+
+                    let crosses = if is_oracle_offset_oracle {
+                        oracle_price_offset.cast::<i64>()?
+                            > (est_ask as i64).safe_sub(oracle_price)?
+                    } else {
+                        self.price > est_ask
+                    };
+
+                    if !crosses {
                         // if auction duration is empty and limit doesnt cross vamm premium, return early
                         return Ok(());
                     } else {
@@ -86,8 +91,7 @@ impl OrderParams {
                             );
                             self.auction_start_price = Some(new_auction_start_price);
                             msg!("Updating oracle auction end price to {}", self.price);
-                            self.auction_end_price =
-                                Some(self.oracle_price_offset.unwrap_or(0) as i64);
+                            self.auction_end_price = Some(oracle_price_offset as i64);
                         } else {
                             msg!(
                                 "Updating auction start price to {}",
@@ -102,11 +106,15 @@ impl OrderParams {
                 PositionDirection::Short => {
                     let bid_discount = perp_market.amm.last_bid_discount()?;
                     let est_bid = oracle_price.safe_sub(bid_discount)?.cast()?;
-                    if !is_oracle_offset_oracle && self.price >= est_bid
-                        || is_oracle_offset_oracle
-                            && self.oracle_price_offset.unwrap_or(0).cast::<i64>()?
-                                >= (est_bid as i64).safe_sub(oracle_price)?
-                    {
+
+                    let crosses = if is_oracle_offset_oracle {
+                        oracle_price_offset.cast::<i64>()?
+                            < (est_bid as i64).safe_sub(oracle_price)?
+                    } else {
+                        self.price < est_bid
+                    };
+
+                    if !crosses {
                         // if auction duration is empty and limit doesnt cross vamm discount, return early
                         return Ok(());
                     } else {
@@ -122,8 +130,7 @@ impl OrderParams {
                             );
                             self.auction_start_price = Some(new_auction_start_price);
                             msg!("Updating oracle auction end price to {}", self.price);
-                            self.auction_end_price =
-                                Some(self.oracle_price_offset.unwrap_or(0) as i64);
+                            self.auction_end_price = Some(oracle_price_offset as i64);
                         } else {
                             msg!(
                                 "Updating auction start price to {}",
@@ -182,9 +189,9 @@ impl OrderParams {
                 if is_oracle_offset_oracle {
                     msg!(
                         "Updating oracle limit auction end price to {}",
-                        self.oracle_price_offset.unwrap_or(0)
+                        oracle_price_offset
                     );
-                    self.auction_end_price = Some(self.oracle_price_offset.unwrap_or(0) as i64);
+                    self.auction_end_price = Some(oracle_price_offset as i64);
                 } else {
                     msg!("Updating limit auction end price to {}", self.price);
                     self.auction_end_price = Some(self.price as i64);
