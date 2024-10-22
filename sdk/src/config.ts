@@ -83,7 +83,7 @@ export const configs: { [key in DriftEnv]: DriftConfig } = {
 			'Cmvhycb6LQvvzaShGw4iDHRLzeSSryioAsU98DSSkMNa',
 		PERP_MARKETS: MainnetPerpMarkets,
 		SPOT_MARKETS: MainnetSpotMarkets,
-		MARKET_LOOKUP_TABLE: 'D9cnvzswDikQDf53k4HpQ3KJ9y1Fv3HGGDFYMXnK5T6c',
+		MARKET_LOOKUP_TABLE: 'Fpys8GRa5RBWfyeN7AaDUwFGD1zkDCA4z3t4CJLV8dfL',
 		SERUM_LOOKUP_TABLE: 'GPZkp76cJtNL2mphCvT6FXkJCVPpouidnacckR6rzKDN',
 		DRIFT_ORACLE_RECEIVER_ID,
 		SB_ON_DEMAND_PID: ON_DEMAND_MAINNET_PID,

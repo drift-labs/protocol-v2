@@ -15,7 +15,11 @@ import {
 	UserStatus,
 	UserStatsAccount,
 } from './types';
-import { calculateEntryPrice, positionIsAvailable } from './math/position';
+import {
+	calculateEntryPrice,
+	calculateUnsettledFundingPnl,
+	positionIsAvailable,
+} from './math/position';
 import {
 	AMM_RESERVE_PRECISION,
 	AMM_RESERVE_PRECISION_EXP,
@@ -50,7 +54,6 @@ import {
 	calculateBaseAssetValue,
 	calculateMarketMarginRatio,
 	calculatePerpLiabilityValue,
-	calculatePositionFundingPNL,
 	calculatePositionPNL,
 	calculateReservePrice,
 	calculateSpotMarketMarginRatio,
@@ -495,7 +498,7 @@ export class User {
 		const nShares = position.lpShares;
 
 		// incorp unsettled funding on pre settled position
-		const quoteFundingPnl = calculatePositionFundingPNL(market, position);
+		const quoteFundingPnl = calculateUnsettledFundingPnl(market, position);
 
 		let baseUnit = AMM_RESERVE_PRECISION;
 		if (market.amm.perLpBase == position.perLpBase) {
@@ -901,7 +904,7 @@ export class User {
 				const market = this.driftClient.getPerpMarketAccount(
 					perpPosition.marketIndex
 				);
-				return pnl.add(calculatePositionFundingPNL(market, perpPosition));
+				return pnl.add(calculateUnsettledFundingPnl(market, perpPosition));
 			}, ZERO);
 	}
 
