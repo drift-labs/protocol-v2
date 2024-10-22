@@ -27,11 +27,7 @@ export function getAuctionPrice(
 	oraclePrice: BN
 ): BN {
 	if (
-		isOneOfVariant(order.orderType, [
-			'market',
-			'triggerMarket',
-			'triggerLimit',
-		])
+		isOneOfVariant(order.orderType, ['market', 'triggerMarket', 'triggerLimit'])
 	) {
 		return getAuctionPriceForFixedAuction(order, slot);
 	} else if (isVariant(order.orderType, 'limit')) {
