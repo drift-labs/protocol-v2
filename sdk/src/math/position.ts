@@ -159,9 +159,35 @@ export function calculateClaimablePnl(
 }
 
 /**
+ * Returns total fees and funding p&l for a position
  *
  * @param market
  * @param PerpPosition
+ * @param includeUnsettled include unsettled funding in return value (default: true)
+ */
+export function calculateFeesAndFundingPnl(
+	market: PerpMarketAccount,
+	perpPosition: PerpPosition,
+	includeUnsettled = true
+): BN {
+	const settledFundingAndFeesPnl = perpPosition.quoteBreakEvenAmount.sub(
+		perpPosition.quoteEntryAmount
+	);
+
+	if (!includeUnsettled) {
+		return settledFundingAndFeesPnl;
+	}
+
+	const unsettledFundingPnl = calculatePositionFundingPNL(market, perpPosition);
+
+	return settledFundingAndFeesPnl.add(unsettledFundingPnl);
+}
+
+/**
+ * Returns unsettled funding pnl for the position
+ * @param market
+ * @param PerpPosition
+ * @param includeSettled
  * @returns // QUOTE_PRECISION
  */
 export function calculatePositionFundingPNL(
