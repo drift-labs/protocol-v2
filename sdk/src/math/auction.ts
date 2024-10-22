@@ -30,11 +30,16 @@ export function getAuctionPrice(
 		isOneOfVariant(order.orderType, [
 			'market',
 			'triggerMarket',
-			'limit',
 			'triggerLimit',
 		])
 	) {
 		return getAuctionPriceForFixedAuction(order, slot);
+	} else if (isVariant(order.orderType, 'limit')) {
+		if (order.oraclePriceOffset !== 0) {
+			return getAuctionPriceForOracleOffsetAuction(order, slot, oraclePrice);
+		} else {
+			return getAuctionPriceForFixedAuction(order, slot);
+		}
 	} else if (isVariant(order.orderType, 'oracle')) {
 		return getAuctionPriceForOracleOffsetAuction(order, slot, oraclePrice);
 	} else {
