@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - program: high leverage mode ([#1240](https://github.com/drift-labs/protocol-v2/pull/1240))
 - program: add flag for is_referred and is_referrer ([#1256 ](https://github.com/drift-labs/protocol-v2/pull/1256))
 - program/sdk: rfq for devnet ([#1254](https://github.com/drift-labs/protocol-v2/pull/1254))
+- program: add oracle price offset to order params ([#1273](https://github.com/drift-labs/protocol-v2/pull/1273))
 
 ### Fixes
 
