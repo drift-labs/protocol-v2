@@ -118,7 +118,7 @@ export function calculatePositionPNL(
 		.add(perpPosition.quoteAssetAmount);
 
 	if (withFunding) {
-		const fundingRatePnL = calculatePositionFundingPNL(market, perpPosition);
+		const fundingRatePnL = calculateUnsettledFundingPnl(market, perpPosition);
 
 		pnl = pnl.add(fundingRatePnL);
 	}
@@ -159,11 +159,12 @@ export function calculateClaimablePnl(
 }
 
 /**
- * Returns total fees and funding p&l for a position
+ * Returns total fees and funding pnl for a position
  *
  * @param market
  * @param PerpPosition
  * @param includeUnsettled include unsettled funding in return value (default: true)
+ * @returns — // QUOTE_PRECISION
  */
 export function calculateFeesAndFundingPnl(
 	market: PerpMarketAccount,
@@ -178,19 +179,24 @@ export function calculateFeesAndFundingPnl(
 		return settledFundingAndFeesPnl;
 	}
 
-	const unsettledFundingPnl = calculatePositionFundingPNL(market, perpPosition);
+	const unsettledFundingPnl = calculateUnsettledFundingPnl(
+		market,
+		perpPosition
+	);
 
 	return settledFundingAndFeesPnl.add(unsettledFundingPnl);
 }
 
 /**
  * Returns unsettled funding pnl for the position
+ *
+ * To calculate all fees and funding pnl including settled, use calculateFeesAndFundingPnl
+ *
  * @param market
  * @param PerpPosition
- * @param includeSettled
  * @returns // QUOTE_PRECISION
  */
-export function calculatePositionFundingPNL(
+export function calculateUnsettledFundingPnl(
 	market: PerpMarketAccount,
 	perpPosition: PerpPosition
 ): BN {
@@ -213,6 +219,16 @@ export function calculatePositionFundingPNL(
 		.mul(new BN(-1));
 
 	return perPositionFundingRate;
+}
+
+/**
+ * @deprecated use calculateUnsettledFundingPnl or calculateFeesAndFundingPnl instead
+ */
+export function calculatePositionFundingPNL(
+	market: PerpMarketAccount,
+	perpPosition: PerpPosition
+): BN {
+	return calculateUnsettledFundingPnl(market, perpPosition);
 }
 
 export function positionIsAvailable(position: PerpPosition): boolean {
