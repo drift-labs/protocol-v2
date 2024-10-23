@@ -939,10 +939,10 @@ export const MainnetPerpMarkets: PerpMarketConfig[] = [
 		oracleSource: OracleSource.Prelaunch,
 	},
 	{
-		fullName: 'MEW',
+		fullName: '1KMEW',
 		category: ['Meme'],
-		symbol: 'MEW-PERP',
-		baseAssetSymbol: 'MEW',
+		symbol: '1KMEW-PERP',
+		baseAssetSymbol: '1KMEW',
 		marketIndex: 51,
 		oracle: new PublicKey('DKGwCUcwngwmgifGxnme7zVR695LCBGk2pnuksRnbhfD'),
 		launchTs: 1729702915000,
