@@ -8300,9 +8300,25 @@ export class DriftClient {
 		return txSig;
 	}
 
-	public async getEnableHighLeverageModeIx(subAccountId: number) {
+	public async getEnableHighLeverageModeIx(
+		subAccountId: number,
+		depositToTradeArgs?: {
+			isMakingNewAccount: boolean;
+			depositMarketIndex: number;
+			orderMarketIndex: number;
+		}
+	): Promise<TransactionInstruction> {
+		const isDepositToTradeTx = depositToTradeArgs !== undefined;
+
 		const remainingAccounts = this.getRemainingAccounts({
-			userAccounts: [this.getUserAccount(subAccountId)],
+			userAccounts: depositToTradeArgs?.isMakingNewAccount
+				? []
+				: [this.getUserAccount(subAccountId)],
+			useMarketLastSlotCache: false,
+			readablePerpMarketIndex: depositToTradeArgs?.orderMarketIndex,
+			readableSpotMarketIndexes: isDepositToTradeTx
+				? [depositToTradeArgs?.depositMarketIndex]
+				: undefined,
 		});
 
 		const ix = await this.program.instruction.enableUserHighLeverageMode(
@@ -8346,7 +8362,7 @@ export class DriftClient {
 	public async getDisableHighLeverageModeIx(
 		user: PublicKey,
 		userAccount?: UserAccount
-	) {
+	): Promise<TransactionInstruction> {
 		const remainingAccounts = userAccount
 			? this.getRemainingAccounts({
 					userAccounts: [userAccount],
