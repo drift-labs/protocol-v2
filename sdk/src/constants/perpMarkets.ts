@@ -347,6 +347,16 @@ export const DevnetPerpMarkets: PerpMarketConfig[] = [
 		launchTs: 1722214583000,
 		oracleSource: OracleSource.Prelaunch,
 	},
+	{
+		fullName: 'RANDOM-2024',
+		category: ['Prediction'],
+		symbol: 'RANDOM-2024-PREDICT',
+		baseAssetSymbol: 'RANDOM-2024',
+		marketIndex: 28,
+		oracle: new PublicKey('sDAQaZQJQ4RXAxH3x526mbEXyQZT15ktkL84d7hmk7M'),
+		launchTs: 1729622442000,
+		oracleSource: OracleSource.Prelaunch,
+	},
 ];
 
 export const MainnetPerpMarkets: PerpMarketConfig[] = [
