@@ -5,6 +5,7 @@ use crate::controller::position::PositionDirection;
 use crate::error::{DriftResult, ErrorCode::InvalidOrder};
 use crate::math::casting::Cast;
 use crate::math::safe_unwrap::SafeUnwrap;
+use crate::state::order_params::OrderParams;
 use crate::state::traits::Size;
 use crate::state::user::{MarketType, Order};
 use anchor_lang::Discriminator;
@@ -162,6 +163,15 @@ pub struct CurveRecord {
     pub fill_record: u128,
     pub number_of_users: u32,
     pub market_index: u16,
+}
+
+#[event]
+pub struct SwiftOrderRecord {
+    pub user: Pubkey,
+    pub hash: String,
+    pub matching_order_params: OrderParams,
+    pub swift_order_slot: u64,
+    pub user_next_order_id: u32,
 }
 
 #[event]

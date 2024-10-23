@@ -23,6 +23,7 @@ use crate::math::orders::{estimate_price_from_side, find_bids_and_asks_from_user
 use crate::math::safe_math::SafeMath;
 use crate::math::spot_withdraw::validate_spot_market_vault_amount;
 use crate::optional_accounts::{get_token_mint, update_prelaunch_oracle};
+use crate::state::events::SwiftOrderRecord;
 use crate::state::fill_mode::FillMode;
 use crate::state::fulfillment_params::drift::MatchFulfillmentParams;
 use crate::state::fulfillment_params::openbook_v2::OpenbookV2FulfillmentParams;
@@ -639,6 +640,17 @@ pub fn place_swift_taker_order<'c: 'info, 'info>(
             ..PlaceOrderOptions::default()
         },
     )?;
+
+    let order_params_hash =
+        solana_program::hash::hash(&taker_order_params_message.try_to_vec().unwrap()).to_string();
+
+    emit!(SwiftOrderRecord {
+        user: taker_key,
+        user_next_order_id: taker_next_order_id,
+        matching_order_params: matching_taker_order_params.clone(),
+        hash: order_params_hash,
+        swift_order_slot: order_slot,
+    });
 
     if let Some(stop_loss_order_params) = taker_order_params_message.stop_loss_order_params {
         let stop_loss_order = OrderParams {
