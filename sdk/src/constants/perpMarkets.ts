@@ -938,6 +938,18 @@ export const MainnetPerpMarkets: PerpMarketConfig[] = [
 		launchTs: 1729209600000,
 		oracleSource: OracleSource.Prelaunch,
 	},
+	{
+		fullName: '1KMEW',
+		category: ['Meme'],
+		symbol: '1KMEW-PERP',
+		baseAssetSymbol: '1KMEW',
+		marketIndex: 51,
+		oracle: new PublicKey('DKGwCUcwngwmgifGxnme7zVR695LCBGk2pnuksRnbhfD'),
+		launchTs: 1729702915000,
+		oracleSource: OracleSource.PYTH_1K_PULL,
+		pythFeedId:
+			'0x514aed52ca5294177f20187ae883cec4a018619772ddce41efcc36a6448f5d5d',
+	},
 ];
 
 export const PerpMarkets: { [key in DriftEnv]: PerpMarketConfig[] } = {
