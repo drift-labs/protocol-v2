@@ -33,8 +33,8 @@ export const DevnetSpotMarkets: SpotMarketConfig[] = [
 	{
 		symbol: 'USDC',
 		marketIndex: 0,
-		oracle: new PublicKey('5SSkXsEKQepHHAewytPVwdej4epN1nxgLVM84L4KXgy7'),
-		oracleSource: OracleSource.PYTH_STABLE_COIN,
+		oracle: new PublicKey('En8hkHLkRe9d9DraYmBTrus518BvmVH448YcvmrFM6Ce'),
+		oracleSource: OracleSource.PYTH_STABLE_COIN_PULL,
 		mint: new PublicKey('8zGuJQqwhZafTah7Uc7Z4tXRnguqkn5KLFAP8oV6PHe2'),
 		precision: new BN(10).pow(SIX),
 		precisionExp: SIX,
