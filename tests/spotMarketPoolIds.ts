@@ -235,6 +235,7 @@ describe('spot deposit and withdraw', () => {
 				bulkAccountLoader
 			);
 
+		await secondUserDriftClient.updateUserPoolId([{subAccountId: 0, poolId: 1}]);
 		await sleep(100);
 		await secondUserDriftClient.fetchAccounts();
 		await secondUserDriftClient.deposit(

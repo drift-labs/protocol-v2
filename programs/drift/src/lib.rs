@@ -303,6 +303,14 @@ pub mod drift {
         handle_update_user_margin_trading_enabled(ctx, _sub_account_id, margin_trading_enabled)
     }
 
+    pub fn update_user_pool_id<'c: 'info, 'info>(
+        ctx: Context<'_, '_, 'c, 'info, UpdateUser<'info>>,
+        _sub_account_id: u16,
+        pool_id: u8,
+    ) -> Result<()> {
+        handle_update_user_pool_id(ctx, _sub_account_id, pool_id)
+    }
+
     pub fn update_user_delegate(
         ctx: Context<UpdateUser>,
         _sub_account_id: u16,
