@@ -4104,6 +4104,32 @@
       ]
     },
     {
+      "name": "updateSpotMarketPoolId",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "spotMarket",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "poolId",
+          "type": "u8"
+        }
+      ]
+    },
+    {
       "name": "updateSpotMarketLiquidationFee",
       "accounts": [
         {
@@ -6547,11 +6573,15 @@
             "type": "u8"
           },
           {
+            "name": "poolId",
+            "type": "u8"
+          },
+          {
             "name": "padding",
             "type": {
               "array": [
                 "u8",
-                43
+                42
               ]
             }
           }
@@ -7049,11 +7079,15 @@
             "type": "u8"
           },
           {
+            "name": "poolId",
+            "type": "u8"
+          },
+          {
             "name": "padding",
             "type": {
               "array": [
                 "u8",
-                41
+                40
               ]
             }
           }
@@ -7402,11 +7436,15 @@
             "type": "bool"
           },
           {
+            "name": "poolId",
+            "type": "u8"
+          },
+          {
             "name": "padding1",
             "type": {
               "array": [
                 "u8",
-                5
+                4
               ]
             }
           },
@@ -13152,6 +13190,11 @@
       "code": 6289,
       "name": "PlaceAndTakeOrderSuccessConditionFailed",
       "msg": "Place and take order success condition failed"
+    },
+    {
+      "code": 6290,
+      "name": "InvalidPoolId",
+      "msg": "Invalid pool id"
     }
   ],
   "metadata": {

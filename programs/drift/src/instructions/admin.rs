@@ -156,12 +156,6 @@ pub fn handle_initialize_spot_market(
             ErrorCode::InvalidSpotMarketInitialization,
             "For OracleSource::QuoteAsset, oracle must be default public key"
         )?;
-
-        validate!(
-            spot_market_index == QUOTE_SPOT_MARKET_INDEX,
-            ErrorCode::InvalidSpotMarketInitialization,
-            "For OracleSource::QuoteAsset, spot_market_index must be QUOTE_SPOT_MARKET_INDEX"
-        )?;
     } else {
         OracleMap::validate_oracle_account_info(&ctx.accounts.oracle)?;
     }
