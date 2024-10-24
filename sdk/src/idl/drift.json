@@ -11530,6 +11530,38 @@
       ]
     },
     {
+      "name": "SwiftOrderRecord",
+      "fields": [
+        {
+          "name": "user",
+          "type": "publicKey",
+          "index": false
+        },
+        {
+          "name": "hash",
+          "type": "string",
+          "index": false
+        },
+        {
+          "name": "matchingOrderParams",
+          "type": {
+            "defined": "OrderParams"
+          },
+          "index": false
+        },
+        {
+          "name": "swiftOrderSlot",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "userNextOrderId",
+          "type": "u32",
+          "index": false
+        }
+      ]
+    },
+    {
       "name": "OrderRecord",
       "fields": [
         {

@@ -23,6 +23,7 @@ import {
 	loadKeypair,
 	SwiftServerMessage,
 	ANCHOR_TEST_SWIFT_ID,
+	SwiftOrderRecord,
 } from '../sdk/src';
 
 import {
@@ -268,7 +269,7 @@ describe('place and make swift order', () => {
 			swiftKeypair
 		);
 
-		await makerDriftClient.placeAndMakeSwiftPerpOrder(
+		const txSig = await makerDriftClient.placeAndMakeSwiftPerpOrder(
 			encodedSwiftServerMessage,
 			swiftSignature,
 			takerDriftClient.encodeSwiftOrderParamsMessage(takerOrderParamsMessage),
@@ -287,6 +288,12 @@ describe('place and make swift order', () => {
 
 		const takerPosition = takerDriftClient.getUser().getPerpPosition(0);
 		assert(takerPosition.baseAssetAmount.eq(BASE_PRECISION));
+
+		// Mkae sure that the event is in the logs
+		const events = eventSubscriber.getEventsByTx(txSig);
+		const event = events.find((event) => event.eventType == 'SwiftOrderRecord');
+		assert(event !== undefined);
+		assert((event as SwiftOrderRecord).userNextOrderId == 1);
 
 		console.log('######################################');
 
