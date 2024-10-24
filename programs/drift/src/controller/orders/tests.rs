@@ -9876,7 +9876,6 @@ pub mod get_maker_orders_info {
             clock.unix_timestamp,
             clock.slot,
             FillMode::Fill,
-            false,
         )
         .unwrap();
 
@@ -10067,7 +10066,6 @@ pub mod get_maker_orders_info {
             clock.unix_timestamp,
             clock.slot,
             FillMode::Fill,
-            false,
         )
         .unwrap();
 
@@ -10247,7 +10245,6 @@ pub mod get_maker_orders_info {
             clock.unix_timestamp,
             clock.slot,
             FillMode::Fill,
-            false,
         )
         .unwrap();
 
@@ -10490,7 +10487,6 @@ pub mod get_maker_orders_info {
             clock.unix_timestamp,
             clock.slot,
             FillMode::Fill,
-            false,
         )
         .unwrap();
 
@@ -10688,7 +10684,6 @@ pub mod get_maker_orders_info {
             clock.unix_timestamp,
             clock.slot,
             FillMode::PlaceAndTake,
-            false,
         )
         .unwrap();
 
@@ -10908,7 +10903,6 @@ pub mod get_maker_orders_info {
             clock.unix_timestamp,
             clock.slot,
             FillMode::Fill,
-            false,
         )
         .unwrap();
 
