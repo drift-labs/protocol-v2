@@ -5,6 +5,7 @@ import { Program } from '@coral-xyz/anchor';
 
 import {
 	Keypair,
+	PublicKey,
 	Transaction,
 	TransactionMessage,
 	VersionedTransaction,
@@ -28,6 +29,8 @@ import {
 	getMarketOrderParams,
 	MarketType,
 	SwiftOrderRecord,
+	DriftClient,
+	ANCHOR_TEST_SWIFT_ID,
 } from '../sdk/src';
 
 import {
@@ -117,6 +120,7 @@ describe('place and make swift order', () => {
 				type: 'polling',
 				accountLoader: bulkAccountLoader,
 			},
+			swiftID: new PublicKey(ANCHOR_TEST_SWIFT_ID),
 		});
 		await makerDriftClient.initialize(usdcMint.publicKey, true);
 		await makerDriftClient.subscribe();
@@ -181,12 +185,14 @@ describe('place and make swift order', () => {
 				type: 'polling',
 				accountLoader: bulkAccountLoader,
 			},
+			swiftID: new PublicKey(ANCHOR_TEST_SWIFT_ID),
 		});
 		await takerDriftClient.subscribe();
 		await takerDriftClient.initializeUserAccountAndDepositCollateral(
 			usdcAmount,
 			userUSDCAccount.publicKey
 		);
+
 		const takerDriftClientUser = new User({
 			driftClient: takerDriftClient,
 			userAccountPublicKey: await takerDriftClient.getUserAccountPublicKey(),
@@ -248,30 +254,34 @@ describe('place and make swift order', () => {
 			swiftKeypair
 		);
 
+		const ixs = await makerDriftClient.getPlaceAndMakeSwiftPerpOrderIxs(
+			encodedSwiftServerMessage,
+			swiftSignature,
+			takerDriftClient.encodeSwiftOrderParamsMessage(takerOrderParamsMessage),
+			takerOrderParamsSig,
+			takerOrderParamsMessage.expectedOrderId,
+			{
+				taker: await takerDriftClient.getUserAccountPublicKey(),
+				takerUserAccount: takerDriftClient.getUserAccount(),
+				takerStats: takerDriftClient.getUserStatsAccountPublicKey(),
+			},
+			makerOrderParams
+		);
+
 		try {
-			const ixs = await makerDriftClient.getPlaceAndMakeSwiftPerpOrderIxs(
-				encodedSwiftServerMessage,
-				swiftSignature,
-				takerDriftClient.encodeSwiftOrderParamsMessage(takerOrderParamsMessage),
-				takerOrderParamsSig,
-				takerOrderParamsMessage.expectedOrderId,
-				{
-					taker: await takerDriftClient.getUserAccountPublicKey(),
-					takerUserAccount: takerDriftClient.getUserAccount(),
-					takerStats: takerDriftClient.getUserStatsAccountPublicKey(),
-				},
-				makerOrderParams
-			);
 			const message = new TransactionMessage({
 				instructions: ixs,
 				payerKey: makerDriftClient.wallet.payer.publicKey,
 				recentBlockhash: (await connection.getLatestBlockhash()).blockhash,
 			}).compileToV0Message();
 			const tx = new VersionedTransaction(message);
+			const simResult = await provider.connection.simulateTransaction(tx);
+			console.log(simResult.value.logs);
 
-			//@ts-ignore
-			tx.sign([makerDriftClient.wallet.payer]);
-			await provider.connection.sendTransaction(tx);
+			const txSig = await makerDriftClient.sendTransaction(
+				new Transaction().add(...ixs)
+			);
+			await printTxLogs(provider.connection, txSig.txSig);
 		} catch (e: any) {
 			console.log(e);
 			// console.log(await e.getLogs());
@@ -328,7 +338,7 @@ describe('place and make swift order', () => {
 			provider,
 			keypair.publicKey
 		);
-		const takerDriftClient = new TestClient({
+		const takerDriftClient = new DriftClient({
 			connection,
 			wallet,
 			programID: chProgram.programId,

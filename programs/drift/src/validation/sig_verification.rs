@@ -143,6 +143,8 @@ pub fn verify_ed25519_digest(ix: &Instruction, pubkey: &[u8; 32], digest: &[u8; 
 
     let ix_pubkey = &ix_data[16..16 + 32];
     if ix_pubkey != pubkey {
+        msg!("Invalid Ix: pubkey: {:?}", ix_pubkey);
+        msg!("Invalid Ix: expected pubkey: {:?}", pubkey);
         return Err(ErrorCode::SigVerificationFailed.into());
     }
 

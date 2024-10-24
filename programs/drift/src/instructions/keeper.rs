@@ -585,6 +585,7 @@ pub fn place_swift_taker_order<'c: 'info, 'info>(
         ErrorCode::InvalidVerificationIxIndex,
         "instruction index must be greater than 1 for two sig verifies"
     )?;
+
     let ix: Instruction = load_instruction_at_checked(ix_idx as usize - 2, ix_sysvar)?;
     verify_ed25519_digest(
         &ix,
