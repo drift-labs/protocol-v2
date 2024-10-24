@@ -1428,8 +1428,8 @@ pub struct UserStats {
     /// The number of sub accounts created. Can be greater than the number of sub accounts if user
     /// has deleted sub accounts
     pub number_of_sub_accounts_created: u16,
-    /// Whether the user is a referrer. Sub account 0 can not be deleted if user is a referrer
-    pub is_referrer: bool,
+    /// Flags for referrer status:","First bit (LSB): 1 if user is a referrer, 0 otherwise","Second bit: 1 if user was referred, 0 otherwise"
+    pub referrer_status: u8,
     pub disable_update_perp_bid_ask_twap: bool,
     pub padding: [u8; 50],
 }
@@ -1450,7 +1450,7 @@ impl Default for UserStats {
             if_staked_quote_asset_amount: 0,
             number_of_sub_accounts: 0,
             number_of_sub_accounts_created: 0,
-            is_referrer: false,
+            referrer_status: 0,
             disable_update_perp_bid_ask_twap: false,
             padding: [0; 50],
         }

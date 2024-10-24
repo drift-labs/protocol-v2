@@ -105,7 +105,7 @@ pub fn handle_initialize_user(
                 ErrorCode::ReferrerAndReferrerStatsAuthorityUnequal
             )?;
 
-            referrer_stats.is_referrer = true;
+            referrer_stats.referrer_status |= 0b01; // Set the first bit to indicate the user is a referrer
 
             referrer.authority
         } else {
