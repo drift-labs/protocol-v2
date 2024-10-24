@@ -41,6 +41,8 @@ use crate::state::paused_operations::PerpOperation;
 use drift_macros::assert_no_slop;
 use static_assertions::const_assert_eq;
 
+use super::oracle::PrelaunchOracle;
+
 #[cfg(test)]
 mod tests;
 

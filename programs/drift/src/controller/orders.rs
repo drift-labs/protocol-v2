@@ -26,9 +26,7 @@ use crate::error::ErrorCode;
 use crate::get_struct_values;
 use crate::get_then_update_id;
 use crate::load_mut;
-use crate::math::amm::calculate_amm_available_liquidity;
 use crate::math::amm_jit::calculate_amm_jit_liquidity;
-use crate::math::auction::is_auction_complete;
 use crate::math::auction::{calculate_auction_params_for_trigger_order, calculate_auction_prices};
 use crate::math::casting::Cast;
 use crate::math::constants::{BASE_PRECISION_U64, PERP_DECIMALS, QUOTE_SPOT_MARKET_INDEX};
@@ -37,7 +35,6 @@ use crate::math::fulfillment::{
     determine_perp_fulfillment_methods, determine_spot_fulfillment_methods,
 };
 use crate::math::liquidation::validate_user_not_being_liquidated;
-use crate::math::lp::calculate_lp_shares_to_burn_for_risk_reduction;
 use crate::math::matching::{
     are_orders_same_market_but_different_sides, calculate_fill_for_matched_orders,
     calculate_filler_multiplier_for_matched_orders, do_orders_cross, is_maker_for_taker,
@@ -50,7 +47,8 @@ use crate::state::order_params::{
     ModifyOrderParams, ModifyOrderPolicy, OrderParams, PlaceOrderOptions, PostOnlyParam, RFQMatch,
 };
 use crate::{controller, ID};
-
+use crate::math::amm::calculate_amm_available_liquidity;
+use crate::math::lp::calculate_lp_shares_to_burn_for_risk_reduction;
 use crate::math::safe_unwrap::SafeUnwrap;
 use crate::math::spot_swap::select_margin_type_for_swap;
 use crate::print_error;
@@ -1857,19 +1855,6 @@ fn fulfill_perp_order(
             }
             PerpFulfillmentMethod::Match(maker_key, maker_order_index) => {
                 let mut maker = makers_and_referrer.get_ref_mut(maker_key)?;
-
-                // doesn't meet match condition for protected maker
-                if maker.is_protected_maker()
-                    && !user.can_skip_auction_duration(user_stats, now)?
-                    && !is_auction_complete(
-                        user.orders[user_order_index].slot,
-                        min_auction_duration,
-                        slot,
-                    )?
-                {
-                    continue;
-                }
-
                 let mut maker_stats = if maker.authority == user.authority {
                     None
                 } else {

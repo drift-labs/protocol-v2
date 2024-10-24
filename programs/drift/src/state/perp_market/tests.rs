@@ -44,7 +44,8 @@ mod amm {
 mod get_margin_ratio {
     use crate::math::margin::MarginRequirementType;
     use crate::state::perp_market::PerpMarket;
-    use crate::{BASE_PRECISION, MARGIN_PRECISION};
+    use crate::state::user::MarginMode;
+    use crate::{BASE_PRECISION, MARGIN_PRECISION, MAX_MARGIN_RATIO};
 
     #[test]
     fn test() {
