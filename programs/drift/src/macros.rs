@@ -88,3 +88,10 @@ macro_rules! safe_decrement {
         $struct = $struct.checked_sub($value).ok_or_else(math_error!())?
     }};
 }
+
+#[macro_export]
+macro_rules! digest_struct {
+    ($struct:expr) => {
+        solana_program::hash::hash(&$struct.try_to_vec().unwrap()).to_bytes()
+    };
+}

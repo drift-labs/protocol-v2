@@ -169,6 +169,7 @@ import pythSolanaReceiverIdl from './idl/pyth_solana_receiver.json';
 import { asV0Tx, PullFeed } from '@switchboard-xyz/on-demand';
 import { gprcDriftClientAccountSubscriber } from './accounts/grpcDriftClientAccountSubscriber';
 import nacl from 'tweetnacl';
+import { digest } from './util/digest';
 
 type RemainingAccountParams = {
 	userAccounts: UserAccount[];
@@ -5635,21 +5636,20 @@ export class DriftClient {
 			Ed25519Program.createInstructionWithPublicKey({
 				publicKey: new PublicKey(this.swiftID).toBytes(),
 				signature: Uint8Array.from(swiftSignature),
-				message: Uint8Array.from(encodedSwiftServerMessage),
+				message: Uint8Array.from(digest(encodedSwiftServerMessage)),
 			});
 
 		const swiftOrderParamsSignatureIx =
 			Ed25519Program.createInstructionWithPublicKey({
 				publicKey: takerInfo.takerUserAccount.authority.toBytes(),
 				signature: Uint8Array.from(swiftOrderParamsSignature),
-				message: Uint8Array.from(encodedSwiftOrderParamsMessage),
+				message: Uint8Array.from(digest(encodedSwiftOrderParamsMessage)),
 			});
 
 		const placeTakerSwiftPerpOrderIx =
 			await this.program.instruction.placeSwiftTakerOrder(
 				encodedSwiftServerMessage,
 				encodedSwiftOrderParamsMessage,
-				swiftSignature,
 				{
 					accounts: {
 						state: await this.getStatePublicKey(),
