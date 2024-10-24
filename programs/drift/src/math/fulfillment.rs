@@ -1,12 +1,13 @@
 use crate::controller::position::PositionDirection;
 use crate::error::DriftResult;
+use crate::math::auction::can_fill_with_amm;
 use crate::math::auction::is_amm_available_liquidity_source;
 use crate::math::casting::Cast;
 use crate::math::matching::do_orders_cross;
 use crate::math::safe_unwrap::SafeUnwrap;
 use crate::state::fill_mode::FillMode;
 use crate::state::fulfillment::{PerpFulfillmentMethod, SpotFulfillmentMethod};
-use crate::state::perp_market::AMM;
+use crate::state::perp_market::{AMMAvailability, AMM};
 use crate::state::user::Order;
 use solana_program::pubkey::Pubkey;
 
@@ -20,7 +21,7 @@ pub fn determine_perp_fulfillment_methods(
     amm_reserve_price: u64,
     valid_oracle_price: Option<i64>,
     limit_price: Option<u64>,
-    amm_is_available: bool,
+    amm_availability: AMMAvailability,
     slot: u64,
     min_auction_duration: u8,
     fill_mode: FillMode,
@@ -32,7 +33,7 @@ pub fn determine_perp_fulfillment_methods(
             amm_reserve_price,
             valid_oracle_price,
             limit_price,
-            amm_is_available,
+            amm_availability,
             slot,
             min_auction_duration,
             fill_mode,
@@ -41,9 +42,14 @@ pub fn determine_perp_fulfillment_methods(
 
     let mut fulfillment_methods = Vec::with_capacity(8);
 
-    let can_fill_with_amm = amm_is_available
-        && valid_oracle_price.is_some()
-        && is_amm_available_liquidity_source(order, min_auction_duration, slot, fill_mode)?;
+    let can_fill_with_amm = can_fill_with_amm(
+        amm_availability,
+        valid_oracle_price,
+        order,
+        min_auction_duration,
+        slot,
+        fill_mode,
+    )?;
 
     let maker_direction = order.direction.opposite();
 
@@ -104,16 +110,21 @@ fn determine_perp_fulfillment_methods_for_maker(
     amm_reserve_price: u64,
     valid_oracle_price: Option<i64>,
     limit_price: Option<u64>,
-    amm_is_available: bool,
+    amm_availability: AMMAvailability,
     slot: u64,
     min_auction_duration: u8,
     fill_mode: FillMode,
 ) -> DriftResult<Vec<PerpFulfillmentMethod>> {
     let maker_direction = order.direction;
 
-    let can_fill_with_amm = amm_is_available
-        && valid_oracle_price.is_some()
-        && is_amm_available_liquidity_source(order, min_auction_duration, slot, fill_mode)?;
+    let can_fill_with_amm = can_fill_with_amm(
+        amm_availability,
+        valid_oracle_price,
+        order,
+        min_auction_duration,
+        slot,
+        fill_mode,
+    )?;
 
     if !can_fill_with_amm {
         return Ok(vec![]);

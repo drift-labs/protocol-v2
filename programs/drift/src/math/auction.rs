@@ -9,7 +9,7 @@ use crate::state::user::{Order, OrderType};
 use solana_program::msg;
 
 use crate::state::fill_mode::FillMode;
-use crate::state::perp_market::PerpMarket;
+use crate::state::perp_market::{AMMAvailability, PerpMarket};
 use crate::{OrderParams, MAX_PREDICTION_MARKET_PRICE};
 use std::cmp::min;
 
@@ -220,6 +220,20 @@ pub fn is_auction_complete(order_slot: u64, auction_duration: u8, slot: u64) -> 
     let slots_elapsed = slot.safe_sub(order_slot)?;
 
     Ok(slots_elapsed > auction_duration.cast()?)
+}
+
+pub fn can_fill_with_amm(
+    amm_availability: AMMAvailability,
+    valid_oracle_price: Option<i64>,
+    order: &Order,
+    min_auction_duration: u8,
+    slot: u64,
+    fill_mode: FillMode,
+) -> DriftResult<bool> {
+    Ok(!(amm_availability == AMMAvailability::Unavailable)
+        && valid_oracle_price.is_some()
+        && (amm_availability == AMMAvailability::Immediate
+            || is_amm_available_liquidity_source(order, min_auction_duration, slot, fill_mode)?))
 }
 
 pub fn is_amm_available_liquidity_source(

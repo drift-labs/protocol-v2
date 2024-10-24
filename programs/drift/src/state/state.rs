@@ -54,6 +54,7 @@ pub enum ExchangeStatus {
     LiqPaused = 0b00010000,
     FundingPaused = 0b00100000,
     SettlePnlPaused = 0b01000000,
+    AmmImmediateFillPaused = 0b10000000,
     // Paused = 0b11111111
 }
 
@@ -66,6 +67,12 @@ impl ExchangeStatus {
 impl State {
     pub fn get_exchange_status(&self) -> DriftResult<BitFlags<ExchangeStatus>> {
         BitFlags::<ExchangeStatus>::from_bits(usize::from(self.exchange_status)).safe_unwrap()
+    }
+
+    pub fn amm_immediate_fill_paused(&self) -> DriftResult<bool> {
+        Ok(self
+            .get_exchange_status()?
+            .contains(ExchangeStatus::AmmImmediateFillPaused))
     }
 
     pub fn amm_paused(&self) -> DriftResult<bool> {
