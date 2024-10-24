@@ -686,15 +686,6 @@
         {
           "name": "swiftOrderParamsMessageBytes",
           "type": "bytes"
-        },
-        {
-          "name": "swiftMessageSignature",
-          "type": {
-            "array": [
-              "u8",
-              64
-            ]
-          }
         }
       ]
     },
