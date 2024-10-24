@@ -327,6 +327,14 @@ pub mod drift {
         handle_update_user_advanced_lp(ctx, _sub_account_id, advanced_lp)
     }
 
+    pub fn update_user_protected_maker_orders(
+        ctx: Context<UpdateUser>,
+        _sub_account_id: u16,
+        protected_maker_orders: bool,
+    ) -> Result<()> {
+        handle_update_user_protected_maker_orders(ctx, _sub_account_id, protected_maker_orders)
+    }
+
     pub fn delete_user<'c: 'info, 'info>(
         ctx: Context<'_, '_, 'c, 'info, DeleteUser>,
     ) -> Result<()> {
