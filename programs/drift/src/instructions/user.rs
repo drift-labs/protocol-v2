@@ -30,8 +30,8 @@ use crate::math::casting::Cast;
 use crate::math::liquidation::is_user_being_liquidated;
 use crate::math::margin::{
     calculate_max_withdrawable_amount, meets_initial_margin_requirement,
-    meets_maintenance_margin_requirement, meets_place_order_margin_requirement,
-    meets_withdraw_margin_requirement, validate_spot_margin_trading, MarginRequirementType,
+    meets_maintenance_margin_requirement, meets_place_order_margin_requirement, meets_withdraw_margin_requirement,
+    validate_spot_margin_trading, MarginRequirementType,
 };
 use crate::math::safe_math::SafeMath;
 use crate::math::spot_balance::get_token_value;
@@ -323,6 +323,14 @@ pub fn handle_deposit<'c: 'info, 'info>(
 
     let mut spot_market = spot_market_map.get_ref_mut(&market_index)?;
     let oracle_price_data = &oracle_map.get_price_data(&spot_market.oracle)?.clone();
+
+    validate!(
+        user.pool_id == spot_market.pool_id,
+        ErrorCode::InvalidPoolId,
+        "user pool id ({}) != market pool id ({})",
+        user.pool_id,
+        spot_market.pool_id
+    )?;
 
     validate!(
         !matches!(spot_market.status, MarketStatus::Initialized),
@@ -703,6 +711,14 @@ pub fn handle_transfer_deposit<'c: 'info, 'info>(
     {
         let spot_market = &mut spot_market_map.get_ref_mut(&market_index)?;
 
+        validate!(
+            from_user.pool_id == spot_market.pool_id,
+            ErrorCode::InvalidPoolId,
+            "user pool id ({}) != market pool id ({})",
+            from_user.pool_id,
+            spot_market.pool_id
+        )?;
+
         from_user.increment_total_withdraws(
             amount,
             oracle_price,
@@ -769,6 +785,14 @@ pub fn handle_transfer_deposit<'c: 'info, 'info>(
 
     {
         let spot_market = &mut spot_market_map.get_ref_mut(&market_index)?;
+
+        validate!(
+            to_user.pool_id == spot_market.pool_id,
+            ErrorCode::InvalidPoolId,
+            "user pool id ({}) != market pool id ({})",
+            to_user.pool_id,
+            spot_market.pool_id
+        )?;
 
         to_user.increment_total_deposits(
             amount,
@@ -2050,6 +2074,34 @@ pub fn handle_update_user_margin_trading_enabled<'c: 'info, 'info>(
 
     validate_spot_margin_trading(&user, &perp_market_map, &spot_market_map, &mut oracle_map)
         .map_err(|_| ErrorCode::MarginOrdersOpen)?;
+
+    Ok(())
+}
+
+pub fn handle_update_user_pool_id<'c: 'info, 'info>(
+    ctx: Context<'_, '_, 'c, 'info, UpdateUser<'info>>,
+    _sub_account_id: u16,
+    pool_id: u8,
+) -> Result<()> {
+    let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
+    let AccountMaps {
+        perp_market_map,
+        spot_market_map,
+        mut oracle_map,
+        ..
+    } = load_maps(
+        remaining_accounts_iter,
+        &MarketSet::new(),
+        &MarketSet::new(),
+        Clock::get()?.slot,
+        None,
+    )?;
+
+    let mut user = load_mut!(ctx.accounts.user)?;
+    user.pool_id = pool_id;
+
+    // will throw if user has deposits/positions in other pools
+    meets_initial_margin_requirement(&user, &perp_market_map, &spot_market_map, &mut oracle_map)?;
 
     Ok(())
 }

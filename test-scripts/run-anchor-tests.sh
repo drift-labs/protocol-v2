@@ -65,6 +65,7 @@ test_files=(
   serumTest.ts
   spotDepositWithdraw.ts
   spotDepositWithdraw22.ts
+  spotMarketPoolIds.ts
   spotSwap.ts
   spotSwap22.ts
   stopLimits.ts

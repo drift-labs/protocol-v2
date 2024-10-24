@@ -599,6 +599,8 @@ pub enum ErrorCode {
     InvalidRFQOrder,
     #[msg("RFQ matches must be valid")]
     InvalidRFQMatch,
+    #[msg("Invalid pool id")]
+    InvalidPoolId,
 }
 
 #[macro_export]
