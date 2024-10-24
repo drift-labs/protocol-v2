@@ -827,8 +827,8 @@ export class DriftClient {
 		);
 
 		/* If changing the user authority ie switching from delegate to non-delegate account, need to re-subscribe to the user stats account */
-		if (authorityChanged) {
-			if (this.userStats && this.userStats.isSubscribed) {
+		if (authorityChanged && this.userStats) {
+			if (this.userStats.isSubscribed) {
 				await this.userStats.unsubscribe();
 			}
 
