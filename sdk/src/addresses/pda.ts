@@ -72,6 +72,19 @@ export function getUserStatsAccountPublicKey(
 	)[0];
 }
 
+export function getRFQUserAccountPublicKey(
+	programId: PublicKey,
+	userAccountPublicKey: PublicKey
+): PublicKey {
+	return PublicKey.findProgramAddressSync(
+		[
+			Buffer.from(anchor.utils.bytes.utf8.encode('RFQ')),
+			userAccountPublicKey.toBuffer(),
+		],
+		programId
+	)[0];
+}
+
 export async function getPerpMarketPublicKey(
 	programId: PublicKey,
 	marketIndex: number
@@ -299,4 +312,13 @@ export function getTokenProgramForSpotMarket(
 		return TOKEN_2022_PROGRAM_ID;
 	}
 	return TOKEN_PROGRAM_ID;
+}
+
+export function getHighLeverageModeConfigPublicKey(
+	programId: PublicKey
+): PublicKey {
+	return PublicKey.findProgramAddressSync(
+		[Buffer.from(anchor.utils.bytes.utf8.encode('high_leverage_mode_config'))],
+		programId
+	)[0];
 }

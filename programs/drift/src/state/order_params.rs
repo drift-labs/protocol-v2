@@ -48,7 +48,9 @@ impl OrderParams {
             return Ok(());
         }
 
-        if self.oracle_price_offset.unwrap_or(0) != 0 || self.price == 0 {
+        let oracle_price_offset = self.oracle_price_offset.unwrap_or(0);
+        let is_oracle_offset_oracle = oracle_price_offset != 0;
+        if !is_oracle_offset_oracle && self.price == 0 {
             return Ok(());
         }
 
@@ -65,35 +67,79 @@ impl OrderParams {
                 PositionDirection::Long => {
                     let ask_premium = perp_market.amm.last_ask_premium()?;
                     let est_ask = oracle_price.safe_add(ask_premium)?.cast()?;
-                    if self.price <= est_ask {
+
+                    let crosses = if is_oracle_offset_oracle {
+                        oracle_price_offset.cast::<i64>()?
+                            > (est_ask as i64).safe_sub(oracle_price)?
+                    } else {
+                        self.price > est_ask
+                    };
+
+                    if !crosses {
                         // if auction duration is empty and limit doesnt cross vamm premium, return early
                         return Ok(());
                     } else {
-                        let new_auction_start_price = new_auction_start_price.min(est_ask as i64);
-                        msg!(
-                            "Updating auction start price to {}",
-                            new_auction_start_price
-                        );
-                        self.auction_start_price = Some(new_auction_start_price);
-                        msg!("Updating auction end price to {}", self.price);
-                        self.auction_end_price = Some(self.price as i64);
+                        let mut new_auction_start_price =
+                            new_auction_start_price.min(est_ask as i64);
+
+                        if is_oracle_offset_oracle {
+                            new_auction_start_price =
+                                new_auction_start_price.safe_sub(oracle_price)?;
+                            msg!(
+                                "Updating oracle auction start price to {}",
+                                new_auction_start_price
+                            );
+                            self.auction_start_price = Some(new_auction_start_price);
+                            msg!("Updating oracle auction end price to {}", self.price);
+                            self.auction_end_price = Some(oracle_price_offset as i64);
+                        } else {
+                            msg!(
+                                "Updating auction start price to {}",
+                                new_auction_start_price
+                            );
+                            self.auction_start_price = Some(new_auction_start_price);
+                            msg!("Updating auction end price to {}", self.price);
+                            self.auction_end_price = Some(self.price as i64);
+                        }
                     }
                 }
                 PositionDirection::Short => {
                     let bid_discount = perp_market.amm.last_bid_discount()?;
                     let est_bid = oracle_price.safe_sub(bid_discount)?.cast()?;
-                    if self.price >= est_bid {
+
+                    let crosses = if is_oracle_offset_oracle {
+                        oracle_price_offset.cast::<i64>()?
+                            < (est_bid as i64).safe_sub(oracle_price)?
+                    } else {
+                        self.price < est_bid
+                    };
+
+                    if !crosses {
                         // if auction duration is empty and limit doesnt cross vamm discount, return early
                         return Ok(());
                     } else {
-                        let new_auction_start_price = new_auction_start_price.max(est_bid as i64);
-                        msg!(
-                            "Updating auction start price to {}",
-                            new_auction_start_price
-                        );
-                        self.auction_start_price = Some(new_auction_start_price);
-                        msg!("Updating auction end price to {}", self.price);
-                        self.auction_end_price = Some(self.price as i64);
+                        let mut new_auction_start_price =
+                            new_auction_start_price.max(est_bid as i64);
+
+                        if is_oracle_offset_oracle {
+                            new_auction_start_price =
+                                new_auction_start_price.safe_sub(oracle_price)?;
+                            msg!(
+                                "Updating oracle auction start price to {}",
+                                new_auction_start_price
+                            );
+                            self.auction_start_price = Some(new_auction_start_price);
+                            msg!("Updating oracle auction end price to {}", self.price);
+                            self.auction_end_price = Some(oracle_price_offset as i64);
+                        } else {
+                            msg!(
+                                "Updating auction start price to {}",
+                                new_auction_start_price
+                            );
+                            self.auction_start_price = Some(new_auction_start_price);
+                            msg!("Updating auction end price to {}", self.price);
+                            self.auction_end_price = Some(self.price as i64);
+                        }
                     }
                 }
             }
@@ -107,25 +153,49 @@ impl OrderParams {
                         && new_auction_start_price > auction_start_price;
 
                     if improves_long || improves_short {
+                        if is_oracle_offset_oracle {
+                            msg!(
+                                "Updating oracle limit auction start price to {}",
+                                new_auction_start_price
+                            );
+                            self.auction_start_price = Some(auction_start_price_offset);
+                        } else {
+                            msg!(
+                                "Updating limit auction start price to {}",
+                                new_auction_start_price
+                            );
+                            self.auction_start_price = Some(new_auction_start_price);
+                        }
+                    }
+                }
+                None => {
+                    if is_oracle_offset_oracle {
                         msg!(
-                            "Updating auction start price to {}",
+                            "Updating oracle limit auction start price to {}",
+                            new_auction_start_price
+                        );
+                        self.auction_start_price = Some(auction_start_price_offset);
+                    } else {
+                        msg!(
+                            "Updating limit auction start price to {}",
                             new_auction_start_price
                         );
                         self.auction_start_price = Some(new_auction_start_price);
                     }
                 }
-                None => {
-                    msg!(
-                        "Updating auction start price to {}",
-                        new_auction_start_price
-                    );
-                    self.auction_start_price = Some(new_auction_start_price);
-                }
             }
 
             if self.auction_end_price.is_none() {
-                msg!("Updating auction end price to {}", self.price);
-                self.auction_end_price = Some(self.price as i64);
+                if is_oracle_offset_oracle {
+                    msg!(
+                        "Updating oracle limit auction end price to {}",
+                        oracle_price_offset
+                    );
+                    self.auction_end_price = Some(oracle_price_offset as i64);
+                } else {
+                    msg!("Updating limit auction end price to {}", self.price);
+                    self.auction_end_price = Some(self.price as i64);
+                }
             }
         }
 
@@ -651,6 +721,32 @@ pub struct SwiftTriggerOrderParams {
     pub base_asset_amount: u64,
 }
 
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, Eq, PartialEq, Debug, Copy)]
+pub struct RFQMakerOrderParams {
+    pub uuid: [u8; 8],
+    pub authority: Pubkey,
+    pub sub_account_id: u16,
+    pub market_index: u16,
+    pub market_type: MarketType,
+    pub base_asset_amount: u64,
+    pub price: u64,
+    pub direction: PositionDirection,
+    pub max_ts: i64,
+}
+
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, Eq, PartialEq, Debug)]
+pub struct RFQMakerMessage {
+    pub order_params: RFQMakerOrderParams,
+    pub signature: [u8; 64],
+}
+
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, Eq, PartialEq, Debug)]
+pub struct RFQMatch {
+    pub base_asset_amount: u64,
+    pub maker_order_params: RFQMakerOrderParams,
+    pub maker_signature: [u8; 64],
+}
+
 fn get_auction_duration(
     price_diff: u64,
     price: u64,
@@ -708,13 +804,14 @@ impl Default for ModifyOrderPolicy {
         Self::TryModify
     }
 }
-
+#[derive(Clone)]
 pub struct PlaceOrderOptions {
     pub swift_taker_order_slot: Option<u64>,
     pub try_expire_orders: bool,
     pub enforce_margin_check: bool,
     pub risk_increasing: bool,
     pub explanation: OrderActionExplanation,
+    pub is_rfq_order: bool,
 }
 
 impl Default for PlaceOrderOptions {
@@ -725,6 +822,7 @@ impl Default for PlaceOrderOptions {
             enforce_margin_check: true,
             risk_increasing: false,
             explanation: OrderActionExplanation::None,
+            is_rfq_order: false,
         }
     }
 }
@@ -753,6 +851,10 @@ impl PlaceOrderOptions {
             min_order_slot = order_slot.min(swift_taker_order_slot);
         }
         min_order_slot
+    }
+
+    pub fn set_is_rfq(&mut self, is_rfq_order: bool) {
+        self.is_rfq_order = is_rfq_order;
     }
 }
 

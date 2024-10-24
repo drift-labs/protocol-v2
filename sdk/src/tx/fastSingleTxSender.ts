@@ -43,6 +43,7 @@ export class FastSingleTxSender extends BaseTxSender {
 		txHandler,
 		txLandRateLookbackWindowMinutes,
 		landRateToFeeFunc,
+		throwOnTimeoutError = true,
 	}: {
 		connection: Connection;
 		wallet: IWallet;
@@ -58,6 +59,7 @@ export class FastSingleTxSender extends BaseTxSender {
 		txHandler?: TxHandler;
 		txLandRateLookbackWindowMinutes?: number;
 		landRateToFeeFunc?: (landRate: number) => number;
+		throwOnTimeoutError?: boolean;
 	}) {
 		super({
 			connection,
@@ -70,6 +72,7 @@ export class FastSingleTxSender extends BaseTxSender {
 			trackTxLandRate,
 			txLandRateLookbackWindowMinutes,
 			landRateToFeeFunc,
+			throwOnTimeoutError,
 		});
 		this.connection = connection;
 		this.wallet = wallet;
@@ -118,15 +121,15 @@ export class FastSingleTxSender extends BaseTxSender {
 					this.confirmTransaction(txid, opts.commitment).then(
 						async (result) => {
 							this.txSigCache?.set(txid, true);
-							await this.checkConfirmationResultForError(txid, result.value);
+							await this.checkConfirmationResultForError(txid, result?.value);
 							slot = result.context.slot;
 						}
 					);
 				} else {
 					const result = await this.confirmTransaction(txid, opts.commitment);
 					this.txSigCache?.set(txid, true);
-					await this.checkConfirmationResultForError(txid, result.value);
-					slot = result.context.slot;
+					await this.checkConfirmationResultForError(txid, result?.value);
+					slot = result?.context?.slot;
 				}
 			} catch (e) {
 				console.error(e);

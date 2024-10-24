@@ -34,6 +34,7 @@ export class RetryTxSender extends BaseTxSender {
 		trackTxLandRate,
 		txLandRateLookbackWindowMinutes,
 		landRateToFeeFunc,
+		throwOnTimeoutError = true,
 	}: {
 		connection: Connection;
 		wallet: IWallet;
@@ -47,6 +48,7 @@ export class RetryTxSender extends BaseTxSender {
 		trackTxLandRate?: boolean;
 		txLandRateLookbackWindowMinutes?: number;
 		landRateToFeeFunc?: (landRate: number) => number;
+		throwOnTimeoutError?: boolean;
 	}) {
 		super({
 			connection,
@@ -60,6 +62,7 @@ export class RetryTxSender extends BaseTxSender {
 			trackTxLandRate,
 			txLandRateLookbackWindowMinutes,
 			landRateToFeeFunc,
+			throwOnTimeoutError,
 		});
 		this.connection = connection;
 		this.wallet = wallet;
@@ -117,9 +120,9 @@ export class RetryTxSender extends BaseTxSender {
 			const result = await this.confirmTransaction(txid, opts.commitment);
 			this.txSigCache?.set(txid, true);
 
-			await this.checkConfirmationResultForError(txid, result.value);
+			await this.checkConfirmationResultForError(txid, result?.value);
 
-			slot = result.context.slot;
+			slot = result?.context?.slot;
 			// eslint-disable-next-line no-useless-catch
 		} catch (e) {
 			throw e;

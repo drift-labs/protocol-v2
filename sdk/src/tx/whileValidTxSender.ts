@@ -68,6 +68,7 @@ export class WhileValidTxSender extends BaseTxSender {
 		trackTxLandRate,
 		txLandRateLookbackWindowMinutes,
 		landRateToFeeFunc,
+		throwOnTimeoutError = true,
 	}: {
 		connection: Connection;
 		wallet: IWallet;
@@ -80,6 +81,7 @@ export class WhileValidTxSender extends BaseTxSender {
 		trackTxLandRate?: boolean;
 		txLandRateLookbackWindowMinutes?: number;
 		landRateToFeeFunc?: (landRate: number) => number;
+		throwOnTimeoutError?: boolean;
 	}) {
 		super({
 			connection,
@@ -92,6 +94,7 @@ export class WhileValidTxSender extends BaseTxSender {
 			txLandRateLookbackWindowMinutes,
 			confirmationStrategy,
 			landRateToFeeFunc,
+			throwOnTimeoutError,
 		});
 		this.retrySleep = retrySleep;
 
@@ -235,7 +238,7 @@ export class WhileValidTxSender extends BaseTxSender {
 
 			this.txSigCache?.set(txid, true);
 
-			await this.checkConfirmationResultForError(txid, result.value);
+			await this.checkConfirmationResultForError(txid, result?.value);
 
 			if (result?.value?.err) {
 				// Fallback error handling if there's a problem reporting the error in checkConfirmationResultForError
@@ -246,7 +249,7 @@ export class WhileValidTxSender extends BaseTxSender {
 				});
 			}
 
-			slot = result.context.slot;
+			slot = result?.context?.slot;
 			// eslint-disable-next-line no-useless-catch
 		} catch (e) {
 			throw e;

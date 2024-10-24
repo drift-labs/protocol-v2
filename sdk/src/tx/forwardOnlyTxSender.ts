@@ -38,6 +38,7 @@ export class ForwardOnlyTxSender extends BaseTxSender {
 		trackTxLandRate,
 		txLandRateLookbackWindowMinutes,
 		landRateToFeeFunc,
+		throwOnTimeoutError = true,
 	}: {
 		connection: Connection;
 		wallet: IWallet;
@@ -50,6 +51,7 @@ export class ForwardOnlyTxSender extends BaseTxSender {
 		trackTxLandRate?: boolean;
 		txLandRateLookbackWindowMinutes?: number;
 		landRateToFeeFunc?: (landRate: number) => number;
+		throwOnTimeoutError?: boolean;
 	}) {
 		super({
 			connection,
@@ -63,6 +65,7 @@ export class ForwardOnlyTxSender extends BaseTxSender {
 			trackTxLandRate,
 			txLandRateLookbackWindowMinutes,
 			landRateToFeeFunc,
+			throwOnTimeoutError,
 		});
 		this.connection = connection;
 		this.wallet = wallet;
@@ -128,7 +131,7 @@ export class ForwardOnlyTxSender extends BaseTxSender {
 				encodedTxSig,
 				opts.commitment
 			);
-			slot = result.context.slot;
+			slot = result?.context?.slot;
 			this.txSigCache?.set(encodedTxSig, true);
 			// eslint-disable-next-line no-useless-catch
 		} catch (e) {

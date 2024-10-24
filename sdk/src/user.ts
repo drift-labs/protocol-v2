@@ -15,7 +15,11 @@ import {
 	UserStatus,
 	UserStatsAccount,
 } from './types';
-import { calculateEntryPrice, positionIsAvailable } from './math/position';
+import {
+	calculateEntryPrice,
+	calculateUnsettledFundingPnl,
+	positionIsAvailable,
+} from './math/position';
 import {
 	AMM_RESERVE_PRECISION,
 	AMM_RESERVE_PRECISION_EXP,
@@ -50,7 +54,6 @@ import {
 	calculateBaseAssetValue,
 	calculateMarketMarginRatio,
 	calculatePerpLiabilityValue,
-	calculatePositionFundingPNL,
 	calculatePositionPNL,
 	calculateReservePrice,
 	calculateSpotMarketMarginRatio,
@@ -100,6 +103,7 @@ import {
 	calculatePerpFuelBonus,
 	calculateInsuranceFuelBonus,
 } from './math/fuel';
+import { grpcUserAccountSubscriber } from './accounts/grpcUserAccountSubscriber';
 
 export class User {
 	driftClient: DriftClient;
@@ -130,6 +134,16 @@ export class User {
 			);
 		} else if (config.accountSubscription?.type === 'custom') {
 			this.accountSubscriber = config.accountSubscription.userAccountSubscriber;
+		} else if (config.accountSubscription?.type === 'grpc') {
+			this.accountSubscriber = new grpcUserAccountSubscriber(
+				config.accountSubscription.grpcConfigs,
+				config.driftClient.program,
+				config.userAccountPublicKey,
+				{
+					resubTimeoutMs: config.accountSubscription?.resubTimeoutMs,
+					logResubMessages: config.accountSubscription?.logResubMessages,
+				}
+			);
 		} else {
 			this.accountSubscriber = new WebSocketUserAccountSubscriber(
 				config.driftClient.program,
@@ -484,7 +498,7 @@ export class User {
 		const nShares = position.lpShares;
 
 		// incorp unsettled funding on pre settled position
-		const quoteFundingPnl = calculatePositionFundingPNL(market, position);
+		const quoteFundingPnl = calculateUnsettledFundingPnl(market, position);
 
 		let baseUnit = AMM_RESERVE_PRECISION;
 		if (market.amm.perLpBase == position.perLpBase) {
@@ -676,7 +690,8 @@ export class User {
 			this.driftClient.getPerpMarketAccount(marketIndex),
 			baseAssetAmount,
 			'Initial',
-			this.getUserAccount().maxMarginRatio
+			this.getUserAccount().maxMarginRatio,
+			this.isHighLeverageMode()
 		);
 
 		return freeCollateral.mul(MARGIN_PRECISION).div(new BN(marginRatio));
@@ -883,13 +898,13 @@ export class User {
 	public getUnrealizedFundingPNL(marketIndex?: number): BN {
 		return this.getUserAccount()
 			.perpPositions.filter((pos) =>
-				marketIndex ? pos.marketIndex === marketIndex : true
+				marketIndex !== undefined ? pos.marketIndex === marketIndex : true
 			)
 			.reduce((pnl, perpPosition) => {
 				const market = this.driftClient.getPerpMarketAccount(
 					perpPosition.marketIndex
 				);
-				return pnl.add(calculatePositionFundingPNL(market, perpPosition));
+				return pnl.add(calculateUnsettledFundingPnl(market, perpPosition));
 			}, ZERO);
 	}
 
@@ -1507,7 +1522,8 @@ export class User {
 					market,
 					baseAssetAmount.abs(),
 					marginCategory,
-					this.getUserAccount().maxMarginRatio
+					this.getUserAccount().maxMarginRatio,
+					this.isHighLeverageMode()
 				)
 			);
 
@@ -1972,7 +1988,8 @@ export class User {
 			market,
 			maxSize,
 			marginCategory,
-			this.getUserAccount().maxMarginRatio
+			this.getUserAccount().maxMarginRatio,
+			this.isHighLeverageMode()
 		);
 
 		// use more fesible size since imf factor activated
@@ -1993,7 +2010,8 @@ export class User {
 				market,
 				targetSize,
 				marginCategory,
-				this.getUserAccount().maxMarginRatio
+				this.getUserAccount().maxMarginRatio,
+				this.isHighLeverageMode()
 			);
 			attempts += 1;
 		}
@@ -2152,6 +2170,10 @@ export class User {
 
 	public isBankrupt(): boolean {
 		return (this.getUserAccount().status & UserStatus.BANKRUPT) > 0;
+	}
+
+	public isHighLeverageMode(): boolean {
+		return isVariant(this.getUserAccount().marginMode, 'highLeverage');
 	}
 
 	/**
@@ -2443,7 +2465,9 @@ export class User {
 			const marginRatio = calculateMarketMarginRatio(
 				market,
 				baseAssetAmount.abs(),
-				'Maintenance'
+				'Maintenance',
+				this.getUserAccount().maxMarginRatio,
+				this.isHighLeverageMode()
 			);
 
 			return liabilityValue.mul(new BN(marginRatio)).div(MARGIN_PRECISION);
@@ -2488,7 +2512,8 @@ export class User {
 			market,
 			proposedBaseAssetAmount.abs(),
 			marginCategory,
-			this.getUserAccount().maxMarginRatio
+			this.getUserAccount().maxMarginRatio,
+			this.isHighLeverageMode()
 		);
 		const marginRatioQuotePrecision = new BN(marginRatio)
 			.mul(QUOTE_PRECISION)
@@ -2602,13 +2627,16 @@ export class User {
 
 	public getMarginUSDCRequiredForTrade(
 		targetMarketIndex: number,
-		baseSize: BN
+		baseSize: BN,
+		estEntryPrice?: BN
 	): BN {
 		return calculateMarginUSDCRequiredForTrade(
 			this.driftClient,
 			targetMarketIndex,
 			baseSize,
-			this.getUserAccount().maxMarginRatio
+			this.getUserAccount().maxMarginRatio,
+			undefined,
+			estEntryPrice
 		);
 	}
 
@@ -2622,7 +2650,8 @@ export class User {
 			targetMarketIndex,
 			baseSize,
 			collateralIndex,
-			this.getUserAccount().maxMarginRatio
+			this.getUserAccount().maxMarginRatio,
+			false // assume user cant be high leverage if they havent created user account ?
 		);
 	}
 
@@ -3771,7 +3800,8 @@ export class User {
 				perpMarket,
 				worstCaseBaseAmount.abs(),
 				marginCategory,
-				this.getUserAccount().maxMarginRatio
+				this.getUserAccount().maxMarginRatio,
+				this.isHighLeverageMode()
 			)
 		);
 

@@ -5,9 +5,11 @@ use anchor_spl::{
     token_2022::Token2022,
     token_interface::{TokenAccount, TokenInterface},
 };
+use solana_program::instruction::Instruction;
 use solana_program::program::invoke;
 use solana_program::system_instruction::transfer;
 
+use crate::controller::orders::place_and_match_rfq_orders;
 use crate::controller::orders::{cancel_orders, ModifyOrderId};
 use crate::controller::position::PositionDirection;
 use crate::controller::spot_balance::update_revenue_pool_balances;
@@ -28,7 +30,7 @@ use crate::math::casting::Cast;
 use crate::math::liquidation::is_user_being_liquidated;
 use crate::math::margin::{
     calculate_max_withdrawable_amount, meets_initial_margin_requirement,
-    meets_place_order_margin_requirement, meets_withdraw_margin_requirement,
+    meets_maintenance_margin_requirement, meets_place_order_margin_requirement, meets_withdraw_margin_requirement,
     validate_spot_margin_trading, MarginRequirementType,
 };
 use crate::math::safe_math::SafeMath;
@@ -49,7 +51,9 @@ use crate::state::fulfillment_params::drift::MatchFulfillmentParams;
 use crate::state::fulfillment_params::openbook_v2::OpenbookV2FulfillmentParams;
 use crate::state::fulfillment_params::phoenix::PhoenixFulfillmentParams;
 use crate::state::fulfillment_params::serum::SerumFulfillmentParams;
+use crate::state::high_leverage_mode_config::HighLeverageModeConfig;
 use crate::state::oracle::StrictOraclePrice;
+use crate::state::order_params::RFQMatch;
 use crate::state::order_params::{
     ModifyOrderParams, OrderParams, PlaceAndTakeOrderSuccessCondition, PlaceOrderOptions,
     PostOnlyParam,
@@ -58,6 +62,7 @@ use crate::state::paused_operations::{PerpOperation, SpotOperation};
 use crate::state::perp_market::ContractType;
 use crate::state::perp_market::MarketStatus;
 use crate::state::perp_market_map::{get_writable_perp_market_set, MarketSet};
+use crate::state::rfq_user::{load_rfq_user_account_map, RFQUser, RFQ_PDA_SEED};
 use crate::state::spot_fulfillment_params::SpotFulfillmentParams;
 use crate::state::spot_market::SpotBalanceType;
 use crate::state::spot_market::SpotMarket;
@@ -66,9 +71,11 @@ use crate::state::spot_market_map::{
 };
 use crate::state::state::State;
 use crate::state::traits::Size;
-use crate::state::user::{MarketType, OrderType, ReferrerName, User, UserStats};
+use crate::state::user::ReferrerStatus;
+use crate::state::user::{MarginMode, MarketType, OrderType, ReferrerName, User, UserStats};
 use crate::state::user_map::{load_user_maps, UserMap, UserStatsMap};
 use crate::validate;
+use crate::validation::sig_verification::verify_ed25519_ix;
 use crate::validation::user::validate_user_deletion;
 use crate::validation::whitelist::validate_whitelist_token;
 use crate::{controller, math};
@@ -78,6 +85,9 @@ use crate::{load_mut, ExchangeStatus};
 use anchor_lang::solana_program::sysvar::instructions;
 use anchor_spl::associated_token::AssociatedToken;
 use borsh::{BorshDeserialize, BorshSerialize};
+use solana_program::sysvar::instructions::{
+    load_current_index_checked, load_instruction_at_checked, ID as IX_ID,
+};
 
 pub fn handle_initialize_user<'c: 'info, 'info>(
     ctx: Context<'_, '_, 'c, 'info, InitializeUser<'info>>,
@@ -115,7 +125,7 @@ pub fn handle_initialize_user<'c: 'info, 'info>(
                 ErrorCode::ReferrerAndReferrerStatsAuthorityUnequal
             )?;
 
-            referrer_stats.is_referrer = true;
+            referrer_stats.referrer_status |= ReferrerStatus::IsReferrer as u8;
 
             referrer.authority
         } else {
@@ -123,6 +133,7 @@ pub fn handle_initialize_user<'c: 'info, 'info>(
         };
 
         user_stats.referrer = referrer;
+        user_stats.referrer_status |= ReferrerStatus::IsReferred as u8;
     }
 
     let whitelist_mint = &ctx.accounts.state.whitelist_mint;
@@ -257,6 +268,18 @@ pub fn handle_initialize_referrer_name(
     referrer_name.user_stats = user_stats_key;
     referrer_name.name = name;
 
+    Ok(())
+}
+
+pub fn handle_initialize_rfq_user<'c: 'info, 'info>(
+    ctx: Context<'_, '_, 'c, 'info, InitializeRFQUser<'info>>,
+) -> Result<()> {
+    let mut rfq_user = ctx
+        .accounts
+        .rfq_user
+        .load_init()
+        .or(Err(ErrorCode::UnableToLoadAccountLoader))?;
+    rfq_user.user_pubkey = ctx.accounts.user.key();
     Ok(())
 }
 
@@ -880,6 +903,75 @@ pub fn handle_place_perp_order<'c: 'info, 'info>(
     Ok(())
 }
 
+pub fn handle_place_and_match_rfq_orders<'c: 'info, 'info>(
+    ctx: Context<'_, '_, 'c, 'info, PlaceAndMatchRFQOrders<'info>>,
+    rfq_matches: Vec<RFQMatch>,
+) -> Result<()> {
+    // Verify everything before proceeding to match the rfq orders
+
+    let ix_sysvar = &ctx.accounts.ix_sysvar.to_account_info();
+    let number_of_verify_ixs_needed = rfq_matches.len();
+    let ix_idx = load_current_index_checked(ix_sysvar)?;
+
+    for i in 0..rfq_matches.len() {
+        // First verify that the message is legitimate
+        let maker_order_params = &rfq_matches[i].maker_order_params;
+        if rfq_matches[i].base_asset_amount > maker_order_params.base_asset_amount {
+            msg!(
+                "RFQ match amount exceeds maker order amount: {} > {}",
+                rfq_matches[i].base_asset_amount,
+                maker_order_params.base_asset_amount
+            );
+            return Err(ErrorCode::InvalidRFQMatch.into());
+        }
+
+        let ix: Instruction = load_instruction_at_checked(
+            ix_idx as usize - number_of_verify_ixs_needed + i,
+            ix_sysvar,
+        )?;
+        verify_ed25519_ix(
+            &ix,
+            &maker_order_params.authority.to_bytes(),
+            &maker_order_params.clone().try_to_vec()?,
+            &rfq_matches[i].maker_signature,
+        )?;
+    }
+
+    // TODO: generalize to support multiple market types
+    let state = &ctx.accounts.state;
+    let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
+    let AccountMaps {
+        perp_market_map,
+        spot_market_map,
+        mut oracle_map,
+    } = load_maps(
+        remaining_accounts_iter,
+        &MarketSet::new(),
+        &MarketSet::new(),
+        Clock::get()?.slot,
+        Some(state.oracle_guard_rails),
+    )?;
+
+    let (makers_and_referrer, makers_and_referrer_stats) =
+        load_user_maps(remaining_accounts_iter, true)?;
+
+    let maker_rfq_account_map = load_rfq_user_account_map(remaining_accounts_iter)?;
+
+    place_and_match_rfq_orders(
+        &ctx.accounts.user,
+        &ctx.accounts.user_stats,
+        rfq_matches,
+        maker_rfq_account_map,
+        &makers_and_referrer,
+        &makers_and_referrer_stats,
+        &perp_market_map,
+        &spot_market_map,
+        &mut oracle_map,
+        state,
+    )?;
+    Ok(())
+}
+
 #[access_control(
     exchange_not_paused(&ctx.accounts.state)
 )]
@@ -1159,6 +1251,7 @@ pub fn handle_place_orders<'c: 'info, 'info>(
             try_expire_orders: i == 0,
             risk_increasing: false,
             explanation: OrderActionExplanation::None,
+            is_rfq_order: false,
         };
 
         if params.market_type == MarketType::Perp {
@@ -2157,6 +2250,55 @@ pub fn handle_deposit_into_spot_market_revenue_pool<'c: 'info, 'info>(
     Ok(())
 }
 
+pub fn handle_enable_user_high_leverage_mode<'c: 'info, 'info>(
+    ctx: Context<'_, '_, 'c, 'info, EnableUserHighLeverageMode>,
+    _sub_account_id: u16,
+) -> Result<()> {
+    let state = &ctx.accounts.state;
+    let mut user = load_mut!(ctx.accounts.user)?;
+
+    let AccountMaps {
+        perp_market_map,
+        spot_market_map,
+        mut oracle_map,
+    } = load_maps(
+        &mut ctx.remaining_accounts.iter().peekable(),
+        &MarketSet::new(),
+        &MarketSet::new(),
+        Clock::get()?.slot,
+        Some(state.oracle_guard_rails),
+    )?;
+
+    validate!(
+        user.margin_mode != MarginMode::HighLeverage,
+        ErrorCode::DefaultError,
+        "user already in high leverage mode"
+    )?;
+
+    meets_maintenance_margin_requirement(
+        &user,
+        &perp_market_map,
+        &spot_market_map,
+        &mut oracle_map,
+    )?;
+
+    user.margin_mode = MarginMode::HighLeverage;
+
+    let mut config = load_mut!(ctx.accounts.high_leverage_mode_config)?;
+
+    validate!(
+        !config.is_reduce_only(),
+        ErrorCode::DefaultError,
+        "high leverage mode config reduce only"
+    )?;
+
+    config.current_users = config.current_users.safe_add(1)?;
+
+    config.validate()?;
+
+    Ok(())
+}
+
 #[derive(Accounts)]
 #[instruction(
     sub_account_id: u16,
@@ -2197,6 +2339,28 @@ pub struct InitializeUserStats<'info> {
     #[account(mut)]
     pub state: Box<Account<'info, State>>,
     pub authority: Signer<'info>,
+    #[account(mut)]
+    pub payer: Signer<'info>,
+    pub rent: Sysvar<'info, Rent>,
+    pub system_program: Program<'info, System>,
+}
+
+#[derive(Accounts)]
+pub struct InitializeRFQUser<'info> {
+    #[account(
+        init,
+        seeds = [RFQ_PDA_SEED.as_ref(), user.key().as_ref()],
+        space = RFQUser::SIZE,
+        bump,
+        payer = payer
+    )]
+    pub rfq_user: AccountLoader<'info, RFQUser>,
+    pub authority: Signer<'info>,
+    #[account(
+        mut,
+        constraint = can_sign_for_user(&user, &authority)?
+    )]
+    pub user: AccountLoader<'info, User>,
     #[account(mut)]
     pub payer: Signer<'info>,
     pub rent: Sysvar<'info, Rent>,
@@ -2408,6 +2572,25 @@ pub struct PlaceAndMake<'info> {
 }
 
 #[derive(Accounts)]
+pub struct PlaceAndMatchRFQOrders<'info> {
+    pub state: Box<Account<'info, State>>,
+    #[account(mut)]
+    pub user: AccountLoader<'info, User>,
+    #[account(
+        mut,
+        constraint = is_stats_for_user(&user, &user_stats)?
+    )]
+    pub user_stats: AccountLoader<'info, UserStats>,
+    pub authority: Signer<'info>,
+    /// CHECK: The address check is needed because otherwise
+    /// the supplied Sysvar could be anything else.
+    /// The Instruction Sysvar has not been implemented
+    /// in the Anchor framework yet, so this is the safe approach.
+    #[account(address = IX_ID)]
+    pub ix_sysvar: AccountInfo<'info>,
+}
+
+#[derive(Accounts)]
 pub struct AddRemoveLiquidity<'info> {
     pub state: Box<Account<'info, State>>,
     #[account(
@@ -2523,6 +2706,23 @@ pub struct Swap<'info> {
     /// CHECK: fixed instructions sysvar account
     #[account(address = instructions::ID)]
     pub instructions: UncheckedAccount<'info>,
+}
+
+#[derive(Accounts)]
+#[instruction(
+    sub_account_id: u16,
+)]
+pub struct EnableUserHighLeverageMode<'info> {
+    pub state: Box<Account<'info, State>>,
+    #[account(
+        mut,
+        seeds = [b"user", authority.key.as_ref(), sub_account_id.to_le_bytes().as_ref()],
+        bump,
+    )]
+    pub user: AccountLoader<'info, User>,
+    pub authority: Signer<'info>,
+    #[account(mut)]
+    pub high_leverage_mode_config: AccountLoader<'info, HighLeverageModeConfig>,
 }
 
 #[access_control(

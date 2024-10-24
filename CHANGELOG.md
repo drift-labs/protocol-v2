@@ -9,6 +9,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Features
 
+### Fixes
+
+### Breaking
+
+## [2.97.0] - 2024-10-23
+
+### Features
+
+- program: high leverage mode ([#1240](https://github.com/drift-labs/protocol-v2/pull/1240))
+- program: add flag for is_referred and is_referrer ([#1256 ](https://github.com/drift-labs/protocol-v2/pull/1256))
+- program/sdk: rfq for devnet ([#1254](https://github.com/drift-labs/protocol-v2/pull/1254))
+- program: let oracle offset orders have auctions ([#1273](https://github.com/drift-labs/protocol-v2/pull/1273))
+
+### Fixes
+
+### Breaking
+
+## [2.96.0] - 2024-10-10
+
+### Features
+
 - program: reusue unused maker order id as success condition for place and take perp order ([#1218](https://github.com/drift-labs/protocol-v2/pull/1218))
 - program/sdk: swift for devnet ([#1195](https://github.com/drift-labs/protocol-v2/pull/1195))
 - sdk: EventSubscriber: support events server ([#1222](https://github.com/drift-labs/protocol-v2/pull/1222))
@@ -17,7 +38,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixes
 
-- program: remove trigger limit resting limit order hook ([#1233](https://github.com/drift-labs/protocol-v2/pull/1233)) 
+- program: remove trigger limit resting limit order hook ([#1233](https://github.com/drift-labs/protocol-v2/pull/1233))
 - program: fix max liquidation fee overflow ([#1232](https://github.com/drift-labs/protocol-v2/pull/1232))
 
 ### Breaking
@@ -31,7 +52,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixes
 
-- program: return early in update_perp_bid_ask_twap for prediction market with no bid/asks ([#1223](https://github.com/drift-labs/protocol-v2/pull/1223)) 
+- program: return early in update_perp_bid_ask_twap for prediction market with no bid/asks ([#1223](https://github.com/drift-labs/protocol-v2/pull/1223))
 - sdk: avoid spamming getAccountInfo in drift client ws sub ([#1219](https://github.com/drift-labs/protocol-v2/pull/1219))
 
 ### Breaking

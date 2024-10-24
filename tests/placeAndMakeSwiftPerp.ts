@@ -30,7 +30,7 @@ import {
 	mockUserUSDCAccount,
 	sleep,
 } from './testHelpersLocalValidator';
-import { PEG_PRECISION, PostOnlyParams } from '../sdk/lib';
+import { PEG_PRECISION, PostOnlyParams } from '../sdk/src';
 import dotenv from 'dotenv';
 dotenv.config();
 
@@ -216,10 +216,9 @@ describe('place and make swift order', () => {
 			subAccountId: 0,
 			stopLossOrderParams: null,
 		};
-		const takerOrderParamsSig =
-			await makerDriftClient.signSwiftOrderParamsMessage(
-				takerOrderParamsMessage
-			);
+		const takerOrderParamsSig = makerDriftClient.signSwiftOrderParamsMessage(
+			takerOrderParamsMessage
+		);
 
 		const swiftServerMessage: SwiftServerMessage = {
 			slot: new BN(await connection.getSlot()),
@@ -229,7 +228,7 @@ describe('place and make swift order', () => {
 		const encodedSwiftServerMessage =
 			takerDriftClient.encodeSwiftServerMessage(swiftServerMessage);
 
-		const swiftSignature = await takerDriftClient.signMessage(
+		const swiftSignature = takerDriftClient.signMessage(
 			Uint8Array.from(encodedSwiftServerMessage),
 			swiftKeypair
 		);
@@ -330,10 +329,9 @@ describe('place and make swift order', () => {
 			takeProfitOrderParams: null,
 			stopLossOrderParams: null,
 		};
-		const takerOrderParamsSig =
-			await takerDriftClient.signSwiftOrderParamsMessage(
-				takerOrderParamsMessage
-			);
+		const takerOrderParamsSig = takerDriftClient.signSwiftOrderParamsMessage(
+			takerOrderParamsMessage
+		);
 
 		const swiftServerMessage: SwiftServerMessage = {
 			slot: new BN(await connection.getSlot()),
@@ -343,7 +341,7 @@ describe('place and make swift order', () => {
 		const encodedSwiftServerMessage =
 			takerDriftClient.encodeSwiftServerMessage(swiftServerMessage);
 
-		const swiftSignature = await takerDriftClient.signMessage(
+		const swiftSignature = takerDriftClient.signMessage(
 			Uint8Array.from(encodedSwiftServerMessage)
 		);
 

@@ -12,6 +12,7 @@ import { EventEmitter } from 'events';
 import { Context, PublicKey } from '@solana/web3.js';
 import { Account } from '@solana/spl-token';
 import { OracleInfo, OraclePriceData } from '..';
+import { ChannelOptions, CommitmentLevel } from '../isomorphic/grpc';
 
 export interface AccountSubscriber<T> {
 	dataAndSlot?: DataAndSlot<T>;
@@ -207,3 +208,10 @@ export interface UserStatsAccountSubscriber {
 
 	getUserStatsAccountAndSlot(): DataAndSlot<UserStatsAccount>;
 }
+
+export type GrpcConfigs = {
+	endpoint: string;
+	token: string;
+	commitmentLevel?: CommitmentLevel;
+	channelOptions?: ChannelOptions;
+};

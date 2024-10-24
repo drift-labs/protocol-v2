@@ -68,6 +68,11 @@ export enum UserStatus {
 	ADVANCED_LP = 8,
 }
 
+export class MarginMode {
+	static readonly DEFAULT = { default: {} };
+	static readonly HIGH_LEVERAGE = { highLeverage: {} };
+}
+
 export class ContractType {
 	static readonly PERPETUAL = { perpetual: {} };
 	static readonly FUTURE = { future: {} };
@@ -661,6 +666,9 @@ export type PerpMarketAccount = {
 	fuelBoostTaker: number;
 	fuelBoostMaker: number;
 	fuelBoostPosition: number;
+
+	highLeverageMarginRatioInitial: number;
+	highLeverageMarginRatioMaintenance: number;
 };
 
 export type HistoricalOracleData = {
@@ -908,7 +916,7 @@ export type UserStatsAccount = {
 		current_epoch_referrer_reward: BN;
 	};
 	referrer: PublicKey;
-	isReferrer: boolean;
+	referrerStatus: boolean;
 	authority: PublicKey;
 	ifStakedQuoteAssetAmount: BN;
 
@@ -952,6 +960,7 @@ export type UserAccount = {
 	openAuctions: number;
 	hasOpenAuction: boolean;
 	lastFuelBonusUpdateTs: number;
+	marginMode: MarginMode;
 };
 
 export type SpotPosition = {
@@ -1076,6 +1085,29 @@ export type SwiftTriggerOrderParams = {
 	baseAssetAmount: BN;
 };
 
+export type RFQMakerOrderParams = {
+	uuid: Uint8Array; // From buffer of standard UUID string
+	authority: PublicKey;
+	subAccountId: number;
+	marketIndex: number;
+	marketType: MarketType;
+	baseAssetAmount: BN;
+	price: BN;
+	direction: PositionDirection;
+	maxTs: BN;
+};
+
+export type RFQMakerMessage = {
+	orderParams: RFQMakerOrderParams;
+	signature: Uint8Array;
+};
+
+export type RFQMatch = {
+	baseAssetAmount: BN;
+	makerOrderParams: RFQMakerOrderParams;
+	makerSignature: Uint8Array;
+};
+
 export type MakerInfo = {
 	maker: PublicKey;
 	makerStats: PublicKey;
@@ -1094,6 +1126,11 @@ export type ReferrerInfo = {
 	referrer: PublicKey;
 	referrerStats: PublicKey;
 };
+
+export enum ReferrerStatus {
+	IsReferrer = 1,
+	IsReferred = 2,
+}
 
 export enum PlaceAndTakeOrderSuccessCondition {
 	PartialFill = 1,
@@ -1302,4 +1339,10 @@ export type SignedTxData = {
 	signedTx: Transaction | VersionedTransaction;
 	lastValidBlockHeight?: number;
 	blockHash: string;
+};
+
+export type HighLeverageModeConfig = {
+	maxUsers: number;
+	currentUsers: number;
+	reduceOnly: boolean;
 };

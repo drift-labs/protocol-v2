@@ -12,6 +12,7 @@ import {
 	EventSubscriber,
 	Wallet,
 	PRICE_PRECISION,
+	ReferrerStatus,
 } from '../sdk/src';
 
 import {
@@ -27,8 +28,8 @@ import {
 	getMarketOrderParams,
 	PEG_PRECISION,
 	PositionDirection,
-} from '../sdk';
-import { decodeName } from '../sdk/lib/userName';
+} from '../sdk/src';
+import { decodeName } from '../sdk/src/userName';
 import { startAnchor } from 'solana-bankrun';
 import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
 import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
@@ -233,9 +234,10 @@ describe('referrer', () => {
 				bankrunContextWrapper.provider.wallet.publicKey
 			)
 		);
+		assert((refereeStats.referrerStatus & ReferrerStatus.IsReferred) > 0);
 
 		const referrerStats = referrerDriftClient.getUserStats().getAccount();
-		assert(referrerStats.isReferrer == true);
+		assert((referrerStats.referrerStatus & ReferrerStatus.IsReferrer) > 0);
 	});
 
 	it('fill order', async () => {
