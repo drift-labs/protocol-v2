@@ -95,12 +95,16 @@ describe('place and make swift order', () => {
 	let oracleInfos;
 
 	before(async () => {
+
 		const makerWallet = new Wallet(loadKeypair(process.env.ANCHOR_WALLET));
 		await provider.connection.requestAirdrop(
 			provider.wallet.publicKey,
 			10 ** 9
 		);
-		await provider.connection.requestAirdrop(makerWallet.publicKey, 10 ** 9);
+		await provider.connection.requestAirdrop(
+			makerWallet.publicKey,
+			10 ** 9
+		);
 
 		usdcMint = await mockUSDCMint(provider);
 		userUSDCAccount = await mockUserUSDCAccount(usdcMint, usdcAmount, provider);
@@ -167,14 +171,17 @@ describe('place and make swift order', () => {
 
 	it('should fail on a simple ed25519 test', async () => {
 		const randomKeypair = new Keypair();
-		const message = Uint8Array.from('hello there');
-		const signature = makerDriftClient.signMessage(Uint8Array.from(message));
+		const message = Uint8Array.from("hello there");
+		const signature = makerDriftClient.signMessage(
+			Uint8Array.from(message),
+		);
 
-		const verifyIx = Ed25519Program.createInstructionWithPublicKey({
-			publicKey: randomKeypair.publicKey.toBytes(),
-			signature: Uint8Array.from(signature),
-			message: Uint8Array.from('completely random message'),
-		});
+		const verifyIx =
+			Ed25519Program.createInstructionWithPublicKey({
+				publicKey: randomKeypair.publicKey.toBytes(),
+				signature: Uint8Array.from(signature),
+				message: Uint8Array.from("completely random message"),
+			});
 
 		const versionedMessage = new TransactionMessage({
 			instructions: [verifyIx],
@@ -189,7 +196,7 @@ describe('place and make swift order', () => {
 		const normalTx = new Transaction();
 		normalTx.add(verifyIx);
 		const { lastValidBlockHeight, blockhash } =
-			await provider.connection.getLatestBlockhash();
+		await provider.connection.getLatestBlockhash();
 		normalTx.lastValidBlockHeight = lastValidBlockHeight;
 		normalTx.recentBlockhash = blockhash;
 		normalTx.feePayer = makerDriftClient.wallet.publicKey;
@@ -197,6 +204,7 @@ describe('place and make swift order', () => {
 		normalTx.sign(makerDriftClient.wallet.payer);
 
 		await provider.connection.sendRawTransaction(normalTx.serialize());
+
 	});
 
 	it('should succeed on correct sig', async () => {
@@ -413,30 +421,35 @@ describe('place and make swift order', () => {
 			swiftKeypair
 		);
 
-		const ixs = await makerDriftClient.getPlaceAndMakeSwiftPerpOrderIxs(
-			encodedSwiftServerMessage,
-			swiftSignature,
-			takerDriftClient.encodeSwiftOrderParamsMessage(takerOrderParamsMessage),
-			takerOrderParamsSig,
-			takerOrderParamsMessage.expectedOrderId,
-			{
-				taker: await takerDriftClient.getUserAccountPublicKey(),
-				takerUserAccount: takerDriftClient.getUserAccount(),
-				takerStats: takerDriftClient.getUserStatsAccountPublicKey(),
-			},
-			makerOrderParams
-		);
-		const message = new TransactionMessage({
-			instructions: ixs,
-			payerKey: makerDriftClient.wallet.payer.publicKey,
-			recentBlockhash: (await connection.getLatestBlockhash()).blockhash,
-		}).compileToV0Message();
-		const tx = new VersionedTransaction(message);
-		const simResult = await provider.connection.simulateTransaction(tx);
-		console.log(simResult.value.logs);
+		let txSig;
+		try {
+			txSig = await makerDriftClient.placeAndMakeSwiftPerpOrder(
+				encodedSwiftServerMessage,
+				swiftSignature,
+				takerDriftClient.encodeSwiftOrderParamsMessage(takerOrderParamsMessage),
+				takerOrderParamsSig,
+				takerOrderParamsMessage.expectedOrderId,
+				{
+					taker: await takerDriftClient.getUserAccountPublicKey(),
+					takerUserAccount: takerDriftClient.getUserAccount(),
+					takerStats: takerDriftClient.getUserStatsAccountPublicKey(),
+				},
+				makerOrderParams
+			);
+		} catch (error) {
+			console.log(JSON.stringify(error));
+		}
 
-		console.log(simResult.value.err);
-		assert(simResult.value.err !== null);
+		printTxLogs(provider.connection, txSig);
+
+		const makerPosition = makerDriftClient.getUser().getPerpPosition(0);
+		assert(makerPosition === undefined);
+
+		const takerPosition = takerDriftClient.getUser().getPerpPosition(0);
+		assert(takerPosition === undefined);
+
+		await takerDriftClientUser.unsubscribe();
+		await takerDriftClient.unsubscribe();
 	});
 
 	it('should fail on swift impersonator', async () => {
@@ -520,7 +533,119 @@ describe('place and make swift order', () => {
 			Uint8Array.from(encodedSwiftServerMessage)
 		);
 
-		const ixs = await takerDriftClient.getPlaceSwiftTakerPerpOrderIxs(
+		let txSig;
+		try {
+			txSig = await takerDriftClient.placeSwiftTakerOrder(
+				encodedSwiftServerMessage,
+				swiftSignature,
+				takerDriftClient.encodeSwiftOrderParamsMessage(takerOrderParamsMessage),
+				takerOrderParamsSig,
+				marketIndex,
+				{
+					taker: await takerDriftClient.getUserAccountPublicKey(),
+					takerUserAccount: takerDriftClient.getUserAccount(),
+					takerStats: takerDriftClient.getUserStatsAccountPublicKey(),
+				}
+			);
+		} catch (error) {
+			console.log(JSON.stringify(error));
+		}
+
+		printTxLogs(provider.connection, txSig);
+
+		const makerPosition = makerDriftClient.getUser().getPerpPosition(0);
+		assert(makerPosition === undefined);
+
+		const takerPosition = takerDriftClient.getUser().getPerpPosition(0);
+		assert(takerPosition === undefined);
+
+		await takerDriftClientUser.unsubscribe();
+		await takerDriftClient.unsubscribe();
+	});
+
+	it('should fail if diff order passed to verify ix vs drift ix', async () => {
+		// Taker number 1
+		const keypair = new Keypair();
+		await provider.connection.requestAirdrop(keypair.publicKey, 10 ** 9);
+		await sleep(1000);
+		const wallet = new Wallet(keypair);
+		const userUSDCAccount = await mockUserUSDCAccount(
+			usdcMint,
+			usdcAmount,
+			provider,
+			keypair.publicKey
+		);
+		const takerDriftClient = new TestClient({
+			connection,
+			wallet,
+			programID: chProgram.programId,
+			opts: {
+				commitment: 'confirmed',
+			},
+			activeSubAccountId: 0,
+			perpMarketIndexes: marketIndexes,
+			spotMarketIndexes: spotMarketIndexes,
+			oracleInfos,
+			userStats: true,
+			accountSubscription: {
+				type: 'polling',
+				accountLoader: bulkAccountLoader,
+			},
+		});
+		await takerDriftClient.subscribe();
+		await takerDriftClient.initializeUserAccountAndDepositCollateral(
+			usdcAmount,
+			userUSDCAccount.publicKey
+		);
+		const takerDriftClientUser = new User({
+			driftClient: takerDriftClient,
+			userAccountPublicKey: await takerDriftClient.getUserAccountPublicKey(),
+			accountSubscription: {
+				type: 'polling',
+				accountLoader: bulkAccountLoader,
+			},
+		});
+		await takerDriftClientUser.subscribe();
+
+		const marketIndex = 0;
+		const baseAssetAmount = BASE_PRECISION;
+		const takerOrderParams = getLimitOrderParams({
+			marketIndex,
+			direction: PositionDirection.LONG,
+			baseAssetAmount,
+			price: new BN(34).mul(PRICE_PRECISION),
+			auctionStartPrice: new BN(33).mul(PRICE_PRECISION),
+			auctionEndPrice: new BN(34).mul(PRICE_PRECISION),
+			auctionDuration: 10,
+			userOrderId: 1,
+			postOnly: PostOnlyParams.NONE,
+		});
+
+		await takerDriftClientUser.fetchAccounts();
+		const takerOrderParamsMessage: SwiftOrderParamsMessage = {
+			swiftOrderParams: takerOrderParams,
+			expectedOrderId: 1,
+			subAccountId: 0,
+			takeProfitOrderParams: null,
+			stopLossOrderParams: null,
+		};
+		const takerOrderParamsSig = takerDriftClient.signSwiftOrderParamsMessage(
+			takerOrderParamsMessage
+		);
+
+		const swiftServerMessage: SwiftServerMessage = {
+			slot: new BN(await connection.getSlot()),
+			swiftOrderSignature: takerOrderParamsSig,
+		};
+
+		const encodedSwiftServerMessage =
+			takerDriftClient.encodeSwiftServerMessage(swiftServerMessage);
+
+		const swiftSignature = takerDriftClient.signMessage(
+			Uint8Array.from(encodedSwiftServerMessage)
+		);
+
+		const ixsSet1 = await takerDriftClient.getPlaceSwiftTakerPerpOrderIxs(
 			encodedSwiftServerMessage,
 			swiftSignature,
 			takerDriftClient.encodeSwiftOrderParamsMessage(takerOrderParamsMessage),
