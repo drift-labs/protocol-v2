@@ -13672,8 +13672,5 @@
       "name": "InvalidRFQMatch",
       "msg": "RFQ matches must be valid"
     }
-  ],
-  "metadata": {
-    "address": "dRiftyHA39MWEi3m9aunc5MzRF1JYuBsbn6VPcn33UH"
-  }
+  ]
 }
