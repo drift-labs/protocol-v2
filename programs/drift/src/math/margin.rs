@@ -268,7 +268,7 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
 
         validate!(
             user_pool_id == spot_market.pool_id,
-            ErrorCode::DefaultError,
+            ErrorCode::InvalidPoolId,
             "user pool id ({}) == spot market pool id ({})",
             user_pool_id,
             spot_market.pool_id,
@@ -458,7 +458,7 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
 
         validate!(
             user_pool_id == market.pool_id,
-            ErrorCode::DefaultError,
+            ErrorCode::InvalidPoolId,
             "user pool id ({}) == perp market pool id ({})",
             user_pool_id,
             market.pool_id,

@@ -30,8 +30,8 @@ use crate::math::casting::Cast;
 use crate::math::liquidation::is_user_being_liquidated;
 use crate::math::margin::{
     calculate_max_withdrawable_amount, meets_initial_margin_requirement,
-    meets_maintenance_margin_requirement, meets_place_order_margin_requirement, meets_withdraw_margin_requirement,
-    validate_spot_margin_trading, MarginRequirementType,
+    meets_maintenance_margin_requirement, meets_place_order_margin_requirement,
+    meets_withdraw_margin_requirement, validate_spot_margin_trading, MarginRequirementType,
 };
 use crate::math::safe_math::SafeMath;
 use crate::math::spot_balance::get_token_value;
