@@ -90,7 +90,7 @@ impl OrderParams {
                                 new_auction_start_price
                             );
                             self.auction_start_price = Some(new_auction_start_price);
-                            msg!("Updating oracle auction end price to {}", self.price);
+                            msg!("Updating oracle auction end price to {}", oracle_price_offset);
                             self.auction_end_price = Some(oracle_price_offset as i64);
                         } else {
                             msg!(
@@ -129,7 +129,7 @@ impl OrderParams {
                                 new_auction_start_price
                             );
                             self.auction_start_price = Some(new_auction_start_price);
-                            msg!("Updating oracle auction end price to {}", self.price);
+                            msg!("Updating oracle auction end price to {}", oracle_price_offset);
                             self.auction_end_price = Some(oracle_price_offset as i64);
                         } else {
                             msg!(
