@@ -114,8 +114,7 @@ export type DriftEvent =
 	| Event<InsuranceFundStakeRecord>
 	| Event<CurveRecord>
 	| Event<SwapRecord>
-	| Event<SpotMarketVaultDepositRecord>
-	| Event<SwiftOrderRecord>;
+	| Event<SpotMarketVaultDepositRecord>;
 
 export interface EventSubscriberEvents {
 	newEvent: (event: WrappedEvent<EventType>) => void;
