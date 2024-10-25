@@ -542,6 +542,7 @@ export type SettlePnlRecord = {
 };
 
 export type SwiftOrderRecord = {
+	ts: BN;
 	user: PublicKey;
 	hash: string;
 	matchingOrderParams: OrderParams;
