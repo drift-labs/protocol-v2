@@ -317,14 +317,19 @@ impl PerpMarket {
         PerpOperation::is_operation_paused(self.paused_operations, operation)
     }
 
-    pub fn can_skip_auction_duration(&self, state: &State) -> DriftResult<bool> {
+    pub fn can_skip_auction_duration(
+        &self,
+        state: &State,
+        amm_lp_allowed_to_jit_make: bool,
+    ) -> DriftResult<bool> {
         if state.amm_immediate_fill_paused()? {
             return Ok(false);
         }
 
-        Ok((self.amm.net_revenue_since_last_funding > 0
-            && self.amm.amm_lp_allowed_to_jit_make(true)?)
-            || self.amm.oracle_source == OracleSource::Prelaunch)
+        Ok(
+            (self.amm.net_revenue_since_last_funding > 0 && amm_lp_allowed_to_jit_make)
+                || self.amm.oracle_source == OracleSource::Prelaunch,
+        )
     }
 
     pub fn has_too_much_drawdown(&self) -> DriftResult<bool> {

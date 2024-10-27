@@ -326,6 +326,7 @@ pub mod amm_lp_jit {
             BASE_PRECISION_U64,
             BASE_PRECISION_U64,
             false,
+            None,
         )
         .unwrap();
         assert_eq!(amm_liquidity_split, AMMLiquiditySplit::ProtocolOwned);
@@ -412,6 +413,7 @@ pub mod amm_lp_jit {
             BASE_PRECISION_U64,
             BASE_PRECISION_U64,
             false,
+            None,
         )
         .unwrap();
         assert_eq!(amm_liquidity_split, AMMLiquiditySplit::Shared);
@@ -427,6 +429,7 @@ pub mod amm_lp_jit {
             BASE_PRECISION_U64 * 2,
             BASE_PRECISION_U64,
             false,
+            None,
         )
         .unwrap();
         assert_eq!(amm_liquidity_split, AMMLiquiditySplit::ProtocolOwned);
@@ -442,6 +445,7 @@ pub mod amm_lp_jit {
             BASE_PRECISION_U64 * 100,
             BASE_PRECISION_U64 * 100,
             false,
+            None,
         )
         .unwrap();
         assert_eq!(amm_liquidity_split, AMMLiquiditySplit::Shared);
@@ -457,6 +461,7 @@ pub mod amm_lp_jit {
             BASE_PRECISION_U64,
             BASE_PRECISION_U64,
             false,
+            None,
         )
         .unwrap();
         assert_eq!(amm_liquidity_split, AMMLiquiditySplit::ProtocolOwned);
@@ -649,6 +654,7 @@ pub mod amm_lp_jit {
             0,
             crate::state::perp_market::AMMAvailability::AfterMinDuration,
             FillMode::Fill,
+            None,
         )
         .unwrap();
 
@@ -851,6 +857,7 @@ pub mod amm_lp_jit {
             10,
             crate::state::perp_market::AMMAvailability::AfterMinDuration,
             FillMode::Fill,
+            None,
         )
         .unwrap();
 
@@ -1060,6 +1067,7 @@ pub mod amm_lp_jit {
             10,
             crate::state::perp_market::AMMAvailability::AfterMinDuration,
             FillMode::Fill,
+            None,
         )
         .unwrap();
 
@@ -1276,6 +1284,7 @@ pub mod amm_lp_jit {
             10,
             crate::state::perp_market::AMMAvailability::AfterMinDuration,
             FillMode::Fill,
+            None,
         )
         .unwrap();
 
@@ -1495,6 +1504,7 @@ pub mod amm_lp_jit {
             10,
             crate::state::perp_market::AMMAvailability::AfterMinDuration,
             FillMode::Fill,
+            None,
         )
         .unwrap();
 
@@ -1696,6 +1706,7 @@ pub mod amm_lp_jit {
             0,
             crate::state::perp_market::AMMAvailability::AfterMinDuration,
             FillMode::Fill,
+            None,
         )
         .unwrap();
 
@@ -1906,6 +1917,7 @@ pub mod amm_lp_jit {
             0,
             crate::state::perp_market::AMMAvailability::AfterMinDuration,
             FillMode::Fill,
+            None,
         )
         .unwrap();
 
@@ -2108,6 +2120,7 @@ pub mod amm_lp_jit {
             0,
             crate::state::perp_market::AMMAvailability::AfterMinDuration,
             FillMode::Fill,
+            None,
         )
         .unwrap();
 
@@ -2298,6 +2311,7 @@ pub mod amm_lp_jit {
             10,
             crate::state::perp_market::AMMAvailability::AfterMinDuration,
             FillMode::Fill,
+            None,
         )
         .unwrap();
 
@@ -2500,6 +2514,7 @@ pub mod amm_lp_jit {
             10,
             crate::state::perp_market::AMMAvailability::AfterMinDuration,
             FillMode::Fill,
+            None,
         )
         .unwrap();
 
@@ -2750,6 +2765,7 @@ pub mod amm_lp_jit {
                 auction_duration,
                 crate::state::perp_market::AMMAvailability::AfterMinDuration,
                 FillMode::Fill,
+                None,
             )
             .unwrap();
 
@@ -3033,6 +3049,7 @@ pub mod amm_lp_jit {
                 10,
                 crate::state::perp_market::AMMAvailability::AfterMinDuration,
                 FillMode::Fill,
+                None,
             )
             .unwrap();
 
@@ -3264,6 +3281,7 @@ pub mod amm_lp_jit {
             0,
             crate::state::perp_market::AMMAvailability::AfterMinDuration,
             FillMode::Fill,
+            None,
         )
         .unwrap();
 
