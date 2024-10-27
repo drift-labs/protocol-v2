@@ -168,7 +168,9 @@ pub fn if_shares_lost_test() {
 
     // removing 100% of shares
     spot_market.insurance_fund.total_shares = 1000 * QUOTE_PRECISION;
-    if_stake.update_if_shares(1000 * QUOTE_PRECISION, &spot_market).unwrap();
+    if_stake
+        .update_if_shares(1000 * QUOTE_PRECISION, &spot_market)
+        .unwrap();
     if_stake.last_withdraw_request_value = (1000 * QUOTE_PRECISION - 1) as u64;
     if_stake.last_withdraw_request_shares = 1000 * QUOTE_PRECISION;
     let lost_shares = calculate_if_shares_lost(&if_stake, &spot_market, if_balance).unwrap();
