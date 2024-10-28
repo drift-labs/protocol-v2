@@ -2048,7 +2048,7 @@ pub fn handle_disable_user_high_leverage_mode<'c: 'info, 'info>(
         let slots_since_last_active = slot.safe_sub(user.last_active_slot)?;
 
         validate!(
-            slots_since_last_active >= 216000, // 60 * 60 * 24 / .4
+            slots_since_last_active >= 9000, // 60 * 60 / .4
             ErrorCode::DefaultError,
             "user not inactive for long enough: {}",
             slots_since_last_active
