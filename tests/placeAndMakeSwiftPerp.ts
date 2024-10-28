@@ -3,7 +3,15 @@ import { assert } from 'chai';
 
 import { Program } from '@coral-xyz/anchor';
 
-import { Keypair } from '@solana/web3.js';
+import {
+	ComputeBudgetProgram,
+	Keypair,
+	PublicKey,
+	SendTransactionError,
+	Transaction,
+	TransactionMessage,
+	VersionedTransaction,
+} from '@solana/web3.js';
 
 import {
 	BN,
@@ -20,23 +28,31 @@ import {
 	SwiftOrderParamsMessage,
 	SwiftServerMessage,
 	loadKeypair,
+	getMarketOrderParams,
+	MarketType,
+	DriftClient,
+	ANCHOR_TEST_SWIFT_ID,
 } from '../sdk/src';
 
 import {
 	initializeQuoteSpotMarket,
 	mockOracle,
-	printTxLogs,
 	mockUSDCMint,
 	mockUserUSDCAccount,
 	sleep,
 } from './testHelpersLocalValidator';
 import { PEG_PRECISION, PostOnlyParams } from '../sdk/src';
 import dotenv from 'dotenv';
+import { digest } from '../sdk/src/util/digest';
 dotenv.config();
 
 describe('place and make swift order', () => {
 	if (!process.env.SWIFT_PRIVATE_KEY) {
 		throw new Error('SWIFT_PRIVATE_KEY not set');
+	}
+
+	if (!process.env.ANCHOR_WALLET) {
+		throw new Error('ANCHOR_WALLET not set');
 	}
 
 	const swiftKeypair = loadKeypair(process.env.SWIFT_PRIVATE_KEY);
@@ -57,7 +73,7 @@ describe('place and make swift order', () => {
 	});
 	eventSubscriber.subscribe();
 
-	const bulkAccountLoader = new BulkAccountLoader(connection, 'confirmed', 1);
+	const bulkAccountLoader = new BulkAccountLoader(connection, 'confirmed', 0);
 
 	// ammInvariant == k == x * y
 	const mantissaSqrtScale = new BN(Math.sqrt(PRICE_PRECISION.toNumber()));
@@ -79,6 +95,13 @@ describe('place and make swift order', () => {
 	let oracleInfos;
 
 	before(async () => {
+		const makerWallet = new Wallet(loadKeypair(process.env.ANCHOR_WALLET));
+		await provider.connection.requestAirdrop(
+			provider.wallet.publicKey,
+			10 ** 9
+		);
+		await provider.connection.requestAirdrop(makerWallet.publicKey, 10 ** 9);
+
 		usdcMint = await mockUSDCMint(provider);
 		userUSDCAccount = await mockUserUSDCAccount(usdcMint, usdcAmount, provider);
 
@@ -91,7 +114,7 @@ describe('place and make swift order', () => {
 		makerDriftClient = new TestClient({
 			connection,
 			//@ts-ignore
-			wallet: provider.wallet,
+			wallet: new Wallet(loadKeypair(process.env.ANCHOR_WALLET)),
 			programID: chProgram.programId,
 			opts: {
 				commitment: 'confirmed',
@@ -104,6 +127,7 @@ describe('place and make swift order', () => {
 				type: 'polling',
 				accountLoader: bulkAccountLoader,
 			},
+			swiftID: new PublicKey(ANCHOR_TEST_SWIFT_ID),
 		});
 		await makerDriftClient.initialize(usdcMint.publicKey, true);
 		await makerDriftClient.subscribe();
@@ -141,7 +165,7 @@ describe('place and make swift order', () => {
 		await eventSubscriber.unsubscribe();
 	});
 
-	it('should fail on bad order params sig', async () => {
+	it('should succeed on correct sig', async () => {
 		const keypair = new Keypair();
 		await provider.connection.requestAirdrop(keypair.publicKey, 10 ** 9);
 		await sleep(1000);
@@ -153,6 +177,138 @@ describe('place and make swift order', () => {
 			keypair.publicKey
 		);
 		const takerDriftClient = new TestClient({
+			connection,
+			wallet,
+			programID: chProgram.programId,
+			opts: {
+				commitment: 'confirmed',
+			},
+			activeSubAccountId: 0,
+			perpMarketIndexes: marketIndexes,
+			spotMarketIndexes: spotMarketIndexes,
+			oracleInfos,
+			userStats: true,
+			accountSubscription: {
+				type: 'polling',
+				accountLoader: bulkAccountLoader,
+			},
+			swiftID: new PublicKey(ANCHOR_TEST_SWIFT_ID),
+		});
+
+		await takerDriftClient.subscribe();
+		await takerDriftClient.initializeUserAccountAndDepositCollateral(
+			usdcAmount,
+			userUSDCAccount.publicKey
+		);
+
+		const takerDriftClientUser = new User({
+			driftClient: takerDriftClient,
+			userAccountPublicKey: await takerDriftClient.getUserAccountPublicKey(),
+			accountSubscription: {
+				type: 'polling',
+				accountLoader: bulkAccountLoader,
+			},
+		});
+		await takerDriftClientUser.subscribe();
+
+		const marketIndex = 0;
+		const baseAssetAmount = BASE_PRECISION;
+		const takerOrderParams = getMarketOrderParams({
+			marketIndex,
+			direction: PositionDirection.LONG,
+			baseAssetAmount: baseAssetAmount.muln(2),
+			price: new BN(34).mul(PRICE_PRECISION),
+			auctionStartPrice: new BN(33).mul(PRICE_PRECISION),
+			auctionEndPrice: new BN(34).mul(PRICE_PRECISION),
+			auctionDuration: 10,
+			userOrderId: 1,
+			postOnly: PostOnlyParams.NONE,
+			marketType: MarketType.PERP,
+		});
+		const takerOrderParamsMessage: SwiftOrderParamsMessage = {
+			swiftOrderParams: takerOrderParams,
+			expectedOrderId: 1,
+			subAccountId: 0,
+			takeProfitOrderParams: null,
+			stopLossOrderParams: null,
+		};
+
+		await takerDriftClientUser.fetchAccounts();
+
+		const makerOrderParams = getLimitOrderParams({
+			marketIndex,
+			direction: PositionDirection.SHORT,
+			baseAssetAmount: BASE_PRECISION,
+			price: new BN(33).mul(PRICE_PRECISION),
+			userOrderId: 1,
+			postOnly: PostOnlyParams.MUST_POST_ONLY,
+			immediateOrCancel: true,
+		});
+
+		const takerOrderParamsSig = takerDriftClient.signSwiftOrderParamsMessage(
+			takerOrderParamsMessage
+		);
+
+		const swiftServerMessage: SwiftServerMessage = {
+			slot: new BN(await connection.getSlot()),
+			swiftOrderSignature: takerOrderParamsSig,
+		};
+
+		const encodedSwiftServerMessage =
+			makerDriftClient.encodeSwiftServerMessage(swiftServerMessage);
+
+		const swiftSignature = makerDriftClient.signMessage(
+			Uint8Array.from(digest(encodedSwiftServerMessage)),
+			swiftKeypair
+		);
+
+		let ixs = await makerDriftClient.getPlaceAndMakeSwiftPerpOrderIxs(
+			encodedSwiftServerMessage,
+			swiftSignature,
+			takerDriftClient.encodeSwiftOrderParamsMessage(takerOrderParamsMessage),
+			takerOrderParamsSig,
+			takerOrderParamsMessage.expectedOrderId,
+			{
+				taker: await takerDriftClient.getUserAccountPublicKey(),
+				takerUserAccount: takerDriftClient.getUserAccount(),
+				takerStats: takerDriftClient.getUserStatsAccountPublicKey(),
+			},
+			makerOrderParams
+		);
+		ixs = [
+			ComputeBudgetProgram.setComputeUnitLimit({
+				units: 10_000_000,
+			}),
+			...ixs,
+		];
+
+		const message = new TransactionMessage({
+			instructions: ixs,
+			payerKey: makerDriftClient.wallet.payer.publicKey,
+			recentBlockhash: (await connection.getLatestBlockhash()).blockhash,
+		}).compileToV0Message();
+		const tx = new VersionedTransaction(message);
+		const simResult = await provider.connection.simulateTransaction(tx);
+		console.log(simResult.value.logs);
+		assert(simResult.value.err === null);
+
+		const normalTx = new Transaction();
+		normalTx.add(...ixs);
+		await makerDriftClient.sendTransaction(normalTx);
+	});
+
+	it('should fail on bad order params sig', async () => {
+		const keypair = new Keypair();
+		await provider.connection.requestAirdrop(keypair.publicKey, 10 ** 9);
+		await sleep(1000);
+		const wallet = new Wallet(keypair);
+		const userUSDCAccount = await mockUserUSDCAccount(
+			usdcMint,
+			usdcAmount,
+			provider,
+			keypair.publicKey
+		);
+		const takerDriftClient = new DriftClient({
 			connection,
 			wallet,
 			programID: chProgram.programId,
@@ -186,7 +342,7 @@ describe('place and make swift order', () => {
 
 		const marketIndex = 0;
 		const baseAssetAmount = BASE_PRECISION;
-		const takerOrderParams = getLimitOrderParams({
+		const takerOrderParams = getMarketOrderParams({
 			marketIndex,
 			direction: PositionDirection.LONG,
 			baseAssetAmount,
@@ -226,16 +382,15 @@ describe('place and make swift order', () => {
 		};
 
 		const encodedSwiftServerMessage =
-			takerDriftClient.encodeSwiftServerMessage(swiftServerMessage);
+			makerDriftClient.encodeSwiftServerMessage(swiftServerMessage);
 
-		const swiftSignature = takerDriftClient.signMessage(
-			Uint8Array.from(encodedSwiftServerMessage),
+		const swiftSignature = makerDriftClient.signMessage(
+			Uint8Array.from(digest(encodedSwiftServerMessage)),
 			swiftKeypair
 		);
 
-		let txSig;
 		try {
-			txSig = await makerDriftClient.placeAndMakeSwiftPerpOrder(
+			let ixs = await makerDriftClient.getPlaceAndMakeSwiftPerpOrderIxs(
 				encodedSwiftServerMessage,
 				swiftSignature,
 				takerDriftClient.encodeSwiftOrderParamsMessage(takerOrderParamsMessage),
@@ -248,20 +403,20 @@ describe('place and make swift order', () => {
 				},
 				makerOrderParams
 			);
+			ixs = [
+				ComputeBudgetProgram.setComputeUnitLimit({
+					units: 10_000_000,
+				}),
+				...ixs,
+			];
+			await makerDriftClient.sendTransaction(new Transaction().add(...ixs));
+			assert.fail('Should have failed');
 		} catch (error) {
-			console.log(JSON.stringify(error));
+			assert.equal(
+				error.transactionMessage,
+				'Transaction precompile verification failure InvalidAccountIndex'
+			);
 		}
-
-		printTxLogs(provider.connection, txSig);
-
-		const makerPosition = makerDriftClient.getUser().getPerpPosition(0);
-		assert(makerPosition === undefined);
-
-		const takerPosition = takerDriftClient.getUser().getPerpPosition(0);
-		assert(takerPosition === undefined);
-
-		await takerDriftClientUser.unsubscribe();
-		await takerDriftClient.unsubscribe();
 	});
 
 	it('should fail on swift impersonator', async () => {
@@ -322,6 +477,8 @@ describe('place and make swift order', () => {
 		});
 
 		await takerDriftClientUser.fetchAccounts();
+
+		// Auth part begins
 		const takerOrderParamsMessage: SwiftOrderParamsMessage = {
 			swiftOrderParams: takerOrderParams,
 			expectedOrderId: 1,
@@ -342,12 +499,11 @@ describe('place and make swift order', () => {
 			takerDriftClient.encodeSwiftServerMessage(swiftServerMessage);
 
 		const swiftSignature = takerDriftClient.signMessage(
-			Uint8Array.from(encodedSwiftServerMessage)
+			Uint8Array.from(digest(encodedSwiftServerMessage))
 		);
 
-		let txSig;
 		try {
-			txSig = await takerDriftClient.placeSwiftTakerOrder(
+			let ixs = await makerDriftClient.getPlaceSwiftTakerPerpOrderIxs(
 				encodedSwiftServerMessage,
 				swiftSignature,
 				takerDriftClient.encodeSwiftOrderParamsMessage(takerOrderParamsMessage),
@@ -359,19 +515,201 @@ describe('place and make swift order', () => {
 					takerStats: takerDriftClient.getUserStatsAccountPublicKey(),
 				}
 			);
+			ixs = [
+				ComputeBudgetProgram.setComputeUnitLimit({
+					units: 10_000_000,
+				}),
+				...ixs,
+			];
+			await makerDriftClient.sendTransaction(new Transaction().add(...ixs));
+			assert.fail('Should have failed');
 		} catch (error) {
-			console.log(JSON.stringify(error));
+			assert.equal(
+				error.transactionMessage,
+				'Transaction precompile verification failure InvalidAccountIndex'
+			);
+		}
+	});
+
+	it('should fail if diff signed message to verify ixs vs drift ixs', async () => {
+		const keypair = new Keypair();
+		await provider.connection.requestAirdrop(keypair.publicKey, 10 ** 9);
+		await sleep(1000);
+		const wallet = new Wallet(keypair);
+		const userUSDCAccount = await mockUserUSDCAccount(
+			usdcMint,
+			usdcAmount,
+			provider,
+			keypair.publicKey
+		);
+		const takerDriftClient = new TestClient({
+			connection,
+			wallet,
+			programID: chProgram.programId,
+			opts: {
+				commitment: 'confirmed',
+			},
+			activeSubAccountId: 0,
+			perpMarketIndexes: marketIndexes,
+			spotMarketIndexes: spotMarketIndexes,
+			oracleInfos,
+			userStats: true,
+			accountSubscription: {
+				type: 'polling',
+				accountLoader: bulkAccountLoader,
+			},
+			swiftID: new PublicKey(ANCHOR_TEST_SWIFT_ID),
+		});
+
+		await takerDriftClient.subscribe();
+		await takerDriftClient.initializeUserAccountAndDepositCollateral(
+			usdcAmount,
+			userUSDCAccount.publicKey
+		);
+
+		const takerDriftClientUser = new User({
+			driftClient: takerDriftClient,
+			userAccountPublicKey: await takerDriftClient.getUserAccountPublicKey(),
+			accountSubscription: {
+				type: 'polling',
+				accountLoader: bulkAccountLoader,
+			},
+		});
+		await takerDriftClientUser.subscribe();
+
+		const marketIndex = 0;
+		const baseAssetAmount = BASE_PRECISION;
+		const takerOrderParams = getMarketOrderParams({
+			marketIndex,
+			direction: PositionDirection.LONG,
+			baseAssetAmount: baseAssetAmount.muln(2),
+			price: new BN(34).mul(PRICE_PRECISION),
+			auctionStartPrice: new BN(33).mul(PRICE_PRECISION),
+			auctionEndPrice: new BN(34).mul(PRICE_PRECISION),
+			auctionDuration: 10,
+			userOrderId: 1,
+			postOnly: PostOnlyParams.NONE,
+			marketType: MarketType.PERP,
+		});
+		const takerOrderParamsMessage: SwiftOrderParamsMessage = {
+			swiftOrderParams: takerOrderParams,
+			expectedOrderId: 1,
+			subAccountId: 0,
+			takeProfitOrderParams: null,
+			stopLossOrderParams: null,
+		};
+
+		await takerDriftClientUser.fetchAccounts();
+
+		// Auth for legit order
+		const takerOrderParamsSig = takerDriftClient.signSwiftOrderParamsMessage(
+			takerOrderParamsMessage
+		);
+
+		const swiftServerMessage: SwiftServerMessage = {
+			slot: new BN(await connection.getSlot()),
+			swiftOrderSignature: takerOrderParamsSig,
+		};
+
+		const encodedSwiftServerMessage =
+			makerDriftClient.encodeSwiftServerMessage(swiftServerMessage);
+
+		const swiftSignature = makerDriftClient.signMessage(
+			Uint8Array.from(digest(encodedSwiftServerMessage)),
+			swiftKeypair
+		);
+
+		// Auth for non-legit order
+		const takerOrderParamsMessage2: SwiftOrderParamsMessage = {
+			swiftOrderParams: Object.assign({}, takerOrderParams, {
+				direction: PositionDirection.SHORT,
+				auctionStartPrice: new BN(34).mul(PRICE_PRECISION),
+				auctionEndPrice: new BN(33).mul(PRICE_PRECISION),
+				price: new BN(33).mul(PRICE_PRECISION),
+			}),
+			expectedOrderId: 1,
+			subAccountId: 0,
+			takeProfitOrderParams: null,
+			stopLossOrderParams: null,
+		};
+
+		const takerOrderParamsSig2 = takerDriftClient.signSwiftOrderParamsMessage(
+			takerOrderParamsMessage2
+		);
+
+		const swiftServerMessage2: SwiftServerMessage = {
+			slot: new BN(await connection.getSlot()),
+			swiftOrderSignature: takerOrderParamsSig2,
+		};
+
+		const encodedSwiftServerMessage2 =
+			makerDriftClient.encodeSwiftServerMessage(swiftServerMessage2);
+
+		const swiftSignature2 = makerDriftClient.signMessage(
+			Uint8Array.from(digest(encodedSwiftServerMessage2)),
+			swiftKeypair
+		);
+
+		const computeBudgetIx = ComputeBudgetProgram.setComputeUnitLimit({
+			units: 10_000_000,
+		});
+
+		const ixs = await makerDriftClient.getPlaceSwiftTakerPerpOrderIxs(
+			encodedSwiftServerMessage,
+			swiftSignature,
+			takerDriftClient.encodeSwiftOrderParamsMessage(takerOrderParamsMessage),
+			takerOrderParamsSig,
+			0,
+			{
+				taker: await takerDriftClient.getUserAccountPublicKey(),
+				takerUserAccount: takerDriftClient.getUserAccount(),
+				takerStats: takerDriftClient.getUserStatsAccountPublicKey(),
+			}
+		);
+
+		const ixsForOrder2 = await makerDriftClient.getPlaceSwiftTakerPerpOrderIxs(
+			encodedSwiftServerMessage2,
+			swiftSignature2,
+			takerDriftClient.encodeSwiftOrderParamsMessage(takerOrderParamsMessage2),
+			takerOrderParamsSig2,
+			0,
+			{
+				taker: await takerDriftClient.getUserAccountPublicKey(),
+				takerUserAccount: takerDriftClient.getUserAccount(),
+				takerStats: takerDriftClient.getUserStatsAccountPublicKey(),
+			}
+		);
+
+		const badOrderTx = new Transaction();
+		badOrderTx.add(
+			...[computeBudgetIx, ixs[0], ixsForOrder2[1], ixsForOrder2[2]]
+		);
+		try {
+			await makerDriftClient.sendTransaction(badOrderTx);
+			assert.fail('Should have failed');
+		} catch (error) {
+			console.log((error as SendTransactionError).logs);
+			assert(
+				(error as SendTransactionError).logs.some((log) =>
+					log.includes('SigVerificationFailed')
+				)
+			);
 		}
 
-		printTxLogs(provider.connection, txSig);
-
-		const makerPosition = makerDriftClient.getUser().getPerpPosition(0);
-		assert(makerPosition === undefined);
-
-		const takerPosition = takerDriftClient.getUser().getPerpPosition(0);
-		assert(takerPosition === undefined);
-
-		await takerDriftClientUser.unsubscribe();
-		await takerDriftClient.unsubscribe();
+		const badSwiftTx = new Transaction();
+		badSwiftTx.add(
+			...[computeBudgetIx, ixsForOrder2[0], ixs[1], ixsForOrder2[2]]
+		);
+		try {
+			await makerDriftClient.sendTransaction(badSwiftTx);
+			assert.fail('Should have failed');
+		} catch (error) {
+			console.log((error as SendTransactionError).logs);
+			assert(
+				(error as SendTransactionError).logs.some((log) =>
+					log.includes('SigVerificationFailed')
+				)
+			);
+		}
 	});
 });

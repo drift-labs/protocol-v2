@@ -53,9 +53,11 @@ use crate::state::user::{
     UserStats,
 };
 use crate::state::user_map::{load_user_map, load_user_maps, UserMap, UserStatsMap};
-use crate::validation::sig_verification::verify_ed25519_ix;
+use crate::validation::sig_verification::{extract_ed25519_ix_signature, verify_ed25519_digest};
 use crate::validation::user::validate_user_is_idle;
-use crate::{controller, load, math, print_error, OracleSource, GOV_SPOT_MARKET_INDEX};
+use crate::{
+    controller, digest_struct, load, math, print_error, OracleSource, GOV_SPOT_MARKET_INDEX,
+};
 use crate::{load_mut, QUOTE_PRECISION_U64};
 use crate::{validate, QUOTE_PRECISION_I128};
 
@@ -522,7 +524,6 @@ pub fn handle_place_swift_taker_order<'c: 'info, 'info>(
     ctx: Context<'_, '_, 'c, 'info, PlaceSwiftTakerOrder<'info>>,
     swift_message_bytes: Vec<u8>,
     swift_order_params_message_bytes: Vec<u8>,
-    sig: [u8; 64],
 ) -> Result<()> {
     let swift_message: SwiftServerMessage =
         SwiftServerMessage::deserialize(&mut &swift_message_bytes[..]).unwrap();
@@ -553,7 +554,6 @@ pub fn handle_place_swift_taker_order<'c: 'info, 'info>(
         swift_message,
         taker_order_params_message,
         &ctx.accounts.ix_sysvar.to_account_info(),
-        sig,
         &perp_market_map,
         &spot_market_map,
         &mut oracle_map,
@@ -568,7 +568,6 @@ pub fn place_swift_taker_order<'c: 'info, 'info>(
     swift_message: SwiftServerMessage,
     taker_order_params_message: SwiftOrderParamsMessage,
     ix_sysvar: &AccountInfo<'info>,
-    sig: [u8; 64],
     perp_market_map: &PerpMarketMap,
     spot_market_map: &SpotMarketMap,
     oracle_map: &mut OracleMap,
@@ -586,21 +585,28 @@ pub fn place_swift_taker_order<'c: 'info, 'info>(
         ErrorCode::InvalidVerificationIxIndex,
         "instruction index must be greater than 1 for two sig verifies"
     )?;
+
+    // Verify data from first verify ix
     let ix: Instruction = load_instruction_at_checked(ix_idx as usize - 2, ix_sysvar)?;
-    verify_ed25519_ix(
+    verify_ed25519_digest(
         &ix,
         &swift_server::id().to_bytes(),
-        &swift_message.clone().try_to_vec()?,
-        &sig,
+        &digest_struct!(swift_message),
     )?;
 
+    // Verify data from second verify ix
     let ix: Instruction = load_instruction_at_checked(ix_idx as usize - 1, ix_sysvar)?;
-    verify_ed25519_ix(
+    verify_ed25519_digest(
         &ix,
         &taker.authority.to_bytes(),
-        &taker_order_params_message.clone().try_to_vec()?,
-        &swift_message.swift_order_signature,
+        &digest_struct!(&taker_order_params_message),
     )?;
+
+    // Verify that sig from swift server corresponds to order message
+    if swift_message.swift_order_signature != extract_ed25519_ix_signature(&ix.data)? {
+        msg!("Swift order signature does not match the order signature");
+        return Err(ErrorCode::SigVerificationFailed.into());
+    }
 
     let clock = &Clock::get()?;
 
