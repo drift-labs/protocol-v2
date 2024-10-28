@@ -5083,7 +5083,7 @@ pub mod fill_order {
             ..PerpMarket::default()
         };
         market.status = MarketStatus::Active;
-        market.amm.max_base_asset_reserve = u128::MAX;
+        market.amm.max_base_asset_reserve = i128::MAX as u128;
         market.amm.min_base_asset_reserve = 0;
         let (new_ask_base_asset_reserve, new_ask_quote_asset_reserve) =
             crate::math::amm_spread::calculate_spread_reserves(&market, PositionDirection::Long)
@@ -5282,7 +5282,7 @@ pub mod fill_order {
             ..PerpMarket::default()
         };
         market.status = MarketStatus::Active;
-        market.amm.max_base_asset_reserve = u128::MAX;
+        market.amm.max_base_asset_reserve = i128::MAX as u128;
         market.amm.min_base_asset_reserve = 0;
         let (new_ask_base_asset_reserve, new_ask_quote_asset_reserve) =
             crate::math::amm_spread::calculate_spread_reserves(&market, PositionDirection::Long)
@@ -5618,7 +5618,7 @@ pub mod fill_order {
             ..PerpMarket::default()
         };
         market.status = MarketStatus::Active;
-        market.amm.max_base_asset_reserve = u128::MAX;
+        market.amm.max_base_asset_reserve = i128::MAX as u128;
         market.amm.min_base_asset_reserve = 0;
         let (new_ask_base_asset_reserve, new_ask_quote_asset_reserve) =
             crate::math::amm_spread::calculate_spread_reserves(&market, PositionDirection::Long)
