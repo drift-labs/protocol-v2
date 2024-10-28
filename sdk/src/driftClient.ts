@@ -5546,7 +5546,7 @@ export class DriftClient {
 
 	public signSwiftServerMessage(message: SwiftServerMessage): Buffer {
 		const swiftServerMessage = Uint8Array.from(
-			this.encodeSwiftServerMessage(message)
+			digest(this.encodeSwiftServerMessage(message))
 		);
 		return this.signMessage(swiftServerMessage);
 	}
@@ -5555,7 +5555,7 @@ export class DriftClient {
 		orderParamsMessage: SwiftOrderParamsMessage
 	): Buffer {
 		const takerOrderParamsMessage = Uint8Array.from(
-			this.encodeSwiftOrderParamsMessage(orderParamsMessage)
+			digest(this.encodeSwiftOrderParamsMessage(orderParamsMessage))
 		);
 		return this.signMessage(takerOrderParamsMessage);
 	}

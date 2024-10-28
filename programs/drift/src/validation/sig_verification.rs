@@ -137,7 +137,7 @@ pub fn verify_ed25519_digest(ix: &Instruction, pubkey: &[u8; 32], digest: &[u8; 
 
     // verify data is for digest and pubkey
     let ix_msg_data = &ix_data[112..];
-    if ix_msg_data != digest && message_data_size != digest.len() as u16 {
+    if ix_msg_data != digest || message_data_size != digest.len() as u16 {
         return Err(ErrorCode::SigVerificationFailed.into());
     }
 
@@ -154,6 +154,13 @@ pub fn verify_ed25519_digest(ix: &Instruction, pubkey: &[u8; 32], digest: &[u8; 
 /// Extract pubkey from serialized Ed25519Program instruction data
 pub fn extract_ed25519_ix_pubkey(ix_data: &[u8]) -> Result<[u8; 32]> {
     match ix_data[16..16 + 32].try_into() {
+        Ok(raw) => Ok(raw),
+        Err(_) => Err(ErrorCode::SigVerificationFailed.into()),
+    }
+}
+
+pub fn extract_ed25519_ix_signature(ix_data: &[u8]) -> Result<[u8; 64]> {
+    match ix_data[48..48 + 64].try_into() {
         Ok(raw) => Ok(raw),
         Err(_) => Err(ErrorCode::SigVerificationFailed.into()),
     }

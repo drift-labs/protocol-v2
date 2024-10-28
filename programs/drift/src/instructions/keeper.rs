@@ -53,7 +53,7 @@ use crate::state::user::{
     UserStats,
 };
 use crate::state::user_map::{load_user_map, load_user_maps, UserMap, UserStatsMap};
-use crate::validation::sig_verification::{verify_ed25519_digest, verify_ed25519_ix};
+use crate::validation::sig_verification::{extract_ed25519_ix_signature, verify_ed25519_digest};
 use crate::validation::user::validate_user_is_idle;
 use crate::{
     controller, digest_struct, load, math, print_error, OracleSource, GOV_SPOT_MARKET_INDEX,
@@ -586,6 +586,7 @@ pub fn place_swift_taker_order<'c: 'info, 'info>(
         "instruction index must be greater than 1 for two sig verifies"
     )?;
 
+    // Verify data from first verify ix
     let ix: Instruction = load_instruction_at_checked(ix_idx as usize - 2, ix_sysvar)?;
     verify_ed25519_digest(
         &ix,
@@ -593,13 +594,19 @@ pub fn place_swift_taker_order<'c: 'info, 'info>(
         &digest_struct!(swift_message),
     )?;
 
+    // Verify data from second verify ix
     let ix: Instruction = load_instruction_at_checked(ix_idx as usize - 1, ix_sysvar)?;
-    verify_ed25519_ix(
+    verify_ed25519_digest(
         &ix,
         &taker.authority.to_bytes(),
         &digest_struct!(&taker_order_params_message),
-        &swift_message.swift_order_signature,
     )?;
+
+    // Verify that sig from swift server corresponds to order message
+    if swift_message.swift_order_signature != extract_ed25519_ix_signature(&ix.data)? {
+        msg!("Swift order signature does not match the order signature");
+        return Err(ErrorCode::SigVerificationFailed.into());
+    }
 
     let clock = &Clock::get()?;
 
