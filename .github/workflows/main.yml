@@ -253,7 +253,7 @@ jobs:
           [
             "jit-proxy",
             "dlob-server",
-            "drift-vaults",
+            "drift-competitions",
             "drift-common"
           ]
     steps:
