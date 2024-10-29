@@ -11,12 +11,14 @@ import { BulkAccountLoader } from './accounts/bulkAccountLoader';
 import { DriftEnv } from './config';
 import { TxSender } from './tx/types';
 import { TxHandler, TxHandlerConfig } from './tx/txHandler';
+import { DelistedMarketSetting, GrpcConfigs } from './accounts/types';
 
 export type DriftClientConfig = {
 	connection: Connection;
 	wallet: IWallet;
 	env?: DriftEnv;
 	programID?: PublicKey;
+	swiftID?: PublicKey;
 	accountSubscription?: DriftClientSubscriptionConfig;
 	opts?: ConfirmOptions;
 	txSender?: TxSender;
@@ -36,9 +38,16 @@ export type DriftClientConfig = {
 	txParams?: TxParams; // default tx params to use
 	enableMetricsEvents?: boolean;
 	txHandlerConfig?: TxHandlerConfig;
+	delistedMarketSetting?: DelistedMarketSetting;
 };
 
 export type DriftClientSubscriptionConfig =
+	| {
+			type: 'grpc';
+			grpcConfigs: GrpcConfigs;
+			resubTimeoutMs?: number;
+			logResubMessages?: boolean;
+	  }
 	| {
 			type: 'websocket';
 			resubTimeoutMs?: number;

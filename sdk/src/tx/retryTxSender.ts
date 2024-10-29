@@ -1,9 +1,9 @@
 import { ConfirmationStrategy, TxSigAndSlot } from './types';
 import { ConfirmOptions, Connection } from '@solana/web3.js';
-import { AnchorProvider } from '@coral-xyz/anchor';
 import { BaseTxSender } from './baseTxSender';
 import { TxHandler } from './txHandler';
 import { IWallet } from '../types';
+import { DEFAULT_CONFIRMATION_OPTS } from '../config';
 
 const DEFAULT_TIMEOUT = 35000;
 const DEFAULT_RETRY = 2000;
@@ -24,7 +24,7 @@ export class RetryTxSender extends BaseTxSender {
 	public constructor({
 		connection,
 		wallet,
-		opts = { ...AnchorProvider.defaultOptions(), maxRetries: 0 },
+		opts = { ...DEFAULT_CONFIRMATION_OPTS, maxRetries: 0 },
 		timeout = DEFAULT_TIMEOUT,
 		retrySleep = DEFAULT_RETRY,
 		additionalConnections = new Array<Connection>(),
@@ -34,6 +34,7 @@ export class RetryTxSender extends BaseTxSender {
 		trackTxLandRate,
 		txLandRateLookbackWindowMinutes,
 		landRateToFeeFunc,
+		throwOnTimeoutError = true,
 	}: {
 		connection: Connection;
 		wallet: IWallet;
@@ -47,6 +48,7 @@ export class RetryTxSender extends BaseTxSender {
 		trackTxLandRate?: boolean;
 		txLandRateLookbackWindowMinutes?: number;
 		landRateToFeeFunc?: (landRate: number) => number;
+		throwOnTimeoutError?: boolean;
 	}) {
 		super({
 			connection,
@@ -60,6 +62,7 @@ export class RetryTxSender extends BaseTxSender {
 			trackTxLandRate,
 			txLandRateLookbackWindowMinutes,
 			landRateToFeeFunc,
+			throwOnTimeoutError,
 		});
 		this.connection = connection;
 		this.wallet = wallet;
@@ -117,9 +120,9 @@ export class RetryTxSender extends BaseTxSender {
 			const result = await this.confirmTransaction(txid, opts.commitment);
 			this.txSigCache?.set(txid, true);
 
-			await this.checkConfirmationResultForError(txid, result);
+			await this.checkConfirmationResultForError(txid, result?.value);
 
-			slot = result.context.slot;
+			slot = result?.context?.slot;
 			// eslint-disable-next-line no-useless-catch
 		} catch (e) {
 			throw e;

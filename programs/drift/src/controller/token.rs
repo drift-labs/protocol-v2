@@ -24,15 +24,15 @@ pub fn send_from_program_vault<'info>(
     let signers = &[&signature_seeds[..]];
 
     if let Some(mint) = mint {
-        let mint_account_info = mint.to_account_info().clone();
+        let mint_account_info = mint.to_account_info();
 
         validate_mint_fee(&mint_account_info)?;
 
         let cpi_accounts = TransferChecked {
-            from: from.to_account_info().clone(),
+            from: from.to_account_info(),
             mint: mint_account_info,
-            to: to.to_account_info().clone(),
-            authority: authority.to_account_info().clone(),
+            to: to.to_account_info(),
+            authority: authority.to_account_info(),
         };
 
         let cpi_program = token_program.to_account_info();
@@ -40,9 +40,9 @@ pub fn send_from_program_vault<'info>(
         token_interface::transfer_checked(cpi_context, amount, mint.decimals)
     } else {
         let cpi_accounts = Transfer {
-            from: from.to_account_info().clone(),
-            to: to.to_account_info().clone(),
-            authority: authority.to_account_info().clone(),
+            from: from.to_account_info(),
+            to: to.to_account_info(),
+            authority: authority.to_account_info(),
         };
 
         let cpi_program = token_program.to_account_info();
@@ -61,24 +61,24 @@ pub fn receive<'info>(
     mint: &Option<InterfaceAccount<'info, Mint>>,
 ) -> Result<()> {
     if let Some(mint) = mint {
-        let mint_account_info = mint.to_account_info().clone();
+        let mint_account_info = mint.to_account_info();
 
         validate_mint_fee(&mint_account_info)?;
 
         let cpi_accounts = TransferChecked {
-            from: from.to_account_info().clone(),
-            to: to.to_account_info().clone(),
+            from: from.to_account_info(),
+            to: to.to_account_info(),
             mint: mint_account_info,
-            authority: authority.to_account_info().clone(),
+            authority: authority.to_account_info(),
         };
         let cpi_program = token_program.to_account_info();
         let cpi_context = CpiContext::new(cpi_program, cpi_accounts);
         token_interface::transfer_checked(cpi_context, amount, mint.decimals)
     } else {
         let cpi_accounts = Transfer {
-            from: from.to_account_info().clone(),
-            to: to.to_account_info().clone(),
-            authority: authority.to_account_info().clone(),
+            from: from.to_account_info(),
+            to: to.to_account_info(),
+            authority: authority.to_account_info(),
         };
         let cpi_program = token_program.to_account_info();
         let cpi_context = CpiContext::new(cpi_program, cpi_accounts);
@@ -97,9 +97,9 @@ pub fn close_vault<'info>(
     let signature_seeds = get_signer_seeds(&nonce);
     let signers = &[&signature_seeds[..]];
     let cpi_accounts = CloseAccount {
-        account: account.to_account_info().clone(),
+        account: account.to_account_info(),
         destination: destination.clone(),
-        authority: authority.to_account_info().clone(),
+        authority: authority.to_account_info(),
     };
     let cpi_program = token_program.to_account_info();
     let cpi_context = CpiContext::new_with_signer(cpi_program, cpi_accounts, signers);

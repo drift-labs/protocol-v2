@@ -9,7 +9,66 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Features
 
+- program: allow disable high leverage mode after 1 hour ([#1289](https://github.com/drift-labs/protocol-v2/pull/1289))
+
 ### Fixes
+
+- program: admin can sign everywhere hot wallet can ([#1290](https://github.com/drift-labs/protocol-v2/pull/1290))
+
+### Breaking
+
+## [2.97.0] - 2024-10-23
+
+### Features
+
+- program: high leverage mode ([#1240](https://github.com/drift-labs/protocol-v2/pull/1240))
+- program: add flag for is_referred and is_referrer ([#1256 ](https://github.com/drift-labs/protocol-v2/pull/1256))
+- program/sdk: rfq for devnet ([#1254](https://github.com/drift-labs/protocol-v2/pull/1254))
+- program: let oracle offset orders have auctions ([#1273](https://github.com/drift-labs/protocol-v2/pull/1273))
+
+### Fixes
+
+### Breaking
+
+## [2.96.0] - 2024-10-10
+
+### Features
+
+- program: reusue unused maker order id as success condition for place and take perp order ([#1218](https://github.com/drift-labs/protocol-v2/pull/1218))
+- program/sdk: swift for devnet ([#1195](https://github.com/drift-labs/protocol-v2/pull/1195))
+- sdk: EventSubscriber: support events server ([#1222](https://github.com/drift-labs/protocol-v2/pull/1222))
+- sdk: add new DelistMarketSetting to handle delisted markets ([#1229](https://github.com/drift-labs/protocol-v2/pull/1229))
+- program: add update-user-fuel-bonus ix ([#1247](https://github.com/drift-labs/protocol-v2/pull/1247))
+
+### Fixes
+
+- program: remove trigger limit resting limit order hook ([#1233](https://github.com/drift-labs/protocol-v2/pull/1233))
+- program: fix max liquidation fee overflow ([#1232](https://github.com/drift-labs/protocol-v2/pull/1232))
+
+### Breaking
+
+## [2.95.0] - 2024-09-16
+
+### Features
+
+- program: update settle market guards ([#1216](https://github.com/drift-labs/protocol-v2/pull/1216))
+- sdk:: cache toStringing oracle for drift client account subscribers ([#1220](https://github.com/drift-labs/protocol-v2/pull/1220))
+
+### Fixes
+
+- program: return early in update_perp_bid_ask_twap for prediction market with no bid/asks ([#1223](https://github.com/drift-labs/protocol-v2/pull/1223))
+- sdk: avoid spamming getAccountInfo in drift client ws sub ([#1219](https://github.com/drift-labs/protocol-v2/pull/1219))
+
+### Breaking
+
+## [2.93.0] - 2024-08-29
+
+### Features
+
+### Fixes
+
+- program: remove redundant clones ([#1199](https://github.com/drift-labs/protocol-v2/pull/1199))
+- program: fix spot market map in force_cancel_orders ([#1209](https://github.com/drift-labs/protocol-v2/pull/1209))
 
 ### Breaking
 

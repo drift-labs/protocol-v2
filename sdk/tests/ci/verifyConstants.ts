@@ -6,6 +6,7 @@ import {
 	MainnetPerpMarkets,
 	BulkAccountLoader,
 	getVariant,
+	isOneOfVariant,
 } from '../../src';
 import { Connection, Keypair } from '@solana/web3.js';
 import { Wallet } from '@coral-xyz/anchor';
@@ -61,13 +62,14 @@ describe('Verify Constants', function () {
 		},
 	});
 
-	let lutAccounts : string[];
+	let lutAccounts: string[];
 
 	before(async () => {
 		await devnetDriftClient.subscribe();
 		await mainnetDriftClient.subscribe();
 
-		const lookupTable = await mainnetDriftClient.fetchMarketLookupTableAccount();
+		const lookupTable =
+			await mainnetDriftClient.fetchMarketLookupTableAccount();
 		lutAccounts = lookupTable.state.addresses.map((x) => x.toBase58());
 	});
 
@@ -113,10 +115,26 @@ describe('Verify Constants', function () {
 			);
 
 			const lutHasMarket = lutAccounts.includes(market.pubkey.toBase58());
-			assert(lutHasMarket, `Mainnet LUT is missing spot market ${market.marketIndex} pubkey ${market.pubkey.toBase58()}`);
+			assert(
+				lutHasMarket,
+				`Mainnet LUT is missing spot market ${
+					market.marketIndex
+				} pubkey ${market.pubkey.toBase58()}`
+			);
 
 			const lutHasMarketOracle = lutAccounts.includes(market.oracle.toBase58());
-			assert(lutHasMarketOracle, `Mainnet LUT is missing spot market ${market.marketIndex} oracle ${market.oracle.toBase58()}`);
+			assert(
+				lutHasMarketOracle,
+				`Mainnet LUT is missing spot market ${
+					market.marketIndex
+				} oracle ${market.oracle.toBase58()}`
+			);
+
+			if (isOneOfVariant(market.oracleSource, ['pythPull', 'pyth1KPull', 'pyth1MPull', 'pythStableCoinPull'])) {
+				if (!correspondingConfigMarket.pythFeedId) {
+					assert(false, `spot market ${market.marketIndex} missing feed id`);
+				}
+			}
 		}
 
 		const perpMarkets = mainnetDriftClient.getPerpMarketAccounts();
@@ -150,10 +168,28 @@ describe('Verify Constants', function () {
 			);
 
 			const lutHasMarket = lutAccounts.includes(market.pubkey.toBase58());
-			assert(lutHasMarket, `Mainnet LUT is missing perp market ${market.marketIndex} pubkey ${market.pubkey.toBase58()}`);
+			assert(
+				lutHasMarket,
+				`Mainnet LUT is missing perp market ${
+					market.marketIndex
+				} pubkey ${market.pubkey.toBase58()}`
+			);
 
-			const lutHasMarketOracle = lutAccounts.includes(market.amm.oracle.toBase58());
-			assert(lutHasMarketOracle, `Mainnet LUT is missing perp market ${market.marketIndex} oracle ${market.amm.oracle.toBase58()}`);
+			const lutHasMarketOracle = lutAccounts.includes(
+				market.amm.oracle.toBase58()
+			);
+			assert(
+				lutHasMarketOracle,
+				`Mainnet LUT is missing perp market ${
+					market.marketIndex
+				} oracle ${market.amm.oracle.toBase58()}`
+			);
+
+			if (isOneOfVariant(market.amm.oracleSource, ['pythPull', 'pyth1KPull', 'pyth1MPull', 'pythStableCoinPull'])) {
+				if (!correspondingConfigMarket.pythFeedId) {
+					assert(false, `perp market ${market.marketIndex} missing feed id`);
+				}
+			}
 		}
 	});
 

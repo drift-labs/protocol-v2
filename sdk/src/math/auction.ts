@@ -27,14 +27,15 @@ export function getAuctionPrice(
 	oraclePrice: BN
 ): BN {
 	if (
-		isOneOfVariant(order.orderType, [
-			'market',
-			'triggerMarket',
-			'limit',
-			'triggerLimit',
-		])
+		isOneOfVariant(order.orderType, ['market', 'triggerMarket', 'triggerLimit'])
 	) {
 		return getAuctionPriceForFixedAuction(order, slot);
+	} else if (isVariant(order.orderType, 'limit')) {
+		if (order.oraclePriceOffset !== 0) {
+			return getAuctionPriceForOracleOffsetAuction(order, slot, oraclePrice);
+		} else {
+			return getAuctionPriceForFixedAuction(order, slot);
+		}
 	} else if (isVariant(order.orderType, 'oracle')) {
 		return getAuctionPriceForOracleOffsetAuction(order, slot, oraclePrice);
 	} else {
@@ -120,12 +121,17 @@ export function deriveOracleAuctionParams({
 	auctionStartPrice,
 	auctionEndPrice,
 	limitPrice,
+	auctionPriceCaps,
 }: {
 	direction: PositionDirection;
 	oraclePrice: BN;
 	auctionStartPrice: BN;
 	auctionEndPrice: BN;
 	limitPrice: BN;
+	auctionPriceCaps?: {
+		min: BN;
+		max: BN;
+	};
 }): { auctionStartPrice: BN; auctionEndPrice: BN; oraclePriceOffset: number } {
 	let oraclePriceOffset;
 
@@ -146,6 +152,17 @@ export function deriveOracleAuctionParams({
 		oraclePriceOffsetNum = oraclePriceOffset.toNumber();
 	} catch (e) {
 		oraclePriceOffsetNum = 0;
+	}
+
+	if (auctionPriceCaps) {
+		auctionStartPrice = BN.min(
+			BN.max(auctionStartPrice, auctionPriceCaps.min),
+			auctionPriceCaps.max
+		);
+		auctionEndPrice = BN.min(
+			BN.max(auctionEndPrice, auctionPriceCaps.min),
+			auctionPriceCaps.max
+		);
 	}
 
 	return {

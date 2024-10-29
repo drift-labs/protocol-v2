@@ -38,6 +38,12 @@ pub trait SpotFulfillmentParams {
         base_market: &Ref<SpotMarket>,
         quote_market: &Ref<SpotMarket>,
     ) -> DriftResult<()>;
+
+    fn validate_markets(
+        &self,
+        base_market: &SpotMarket,
+        quote_market: &SpotMarket,
+    ) -> DriftResult<()>;
 }
 
 pub struct ExternalSpotFill {
@@ -99,5 +105,13 @@ impl SpotFulfillmentParams for TestFulfillmentParams {
         _quote_market: &Ref<SpotMarket>,
     ) -> DriftResult<()> {
         Err(ErrorCode::InvalidSpotFulfillmentParams)
+    }
+
+    fn validate_markets(
+        &self,
+        base_market: &SpotMarket,
+        quote_market: &SpotMarket,
+    ) -> DriftResult<()> {
+        Ok(())
     }
 }

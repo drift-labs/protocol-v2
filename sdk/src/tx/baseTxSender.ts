@@ -15,22 +15,22 @@ import {
 	TransactionSignature,
 	Connection,
 	VersionedTransaction,
-	SendTransactionError,
 	TransactionInstruction,
 	AddressLookupTableAccount,
 	BlockhashWithExpiryBlockHeight,
 } from '@solana/web3.js';
-import { AnchorProvider } from '@coral-xyz/anchor';
 import assert from 'assert';
 import bs58 from 'bs58';
 import { TxHandler } from './txHandler';
 import { IWallet } from '../types';
 import NodeCache from 'node-cache';
+import { DEFAULT_CONFIRMATION_OPTS } from '../config';
+import { NOT_CONFIRMED_ERROR_CODE } from '../constants/txConstants';
+import { throwTransactionError } from './reportTransactionError';
 
 const BASELINE_TX_LAND_RATE = 0.9;
 const DEFAULT_TIMEOUT = 35000;
 const DEFAULT_TX_LAND_RATE_LOOKBACK_WINDOW_MINUTES = 10;
-const NOT_CONFIRMED_ERROR_CODE = -1001;
 
 export abstract class BaseTxSender implements TxSender {
 	connection: Connection;
@@ -43,6 +43,7 @@ export abstract class BaseTxSender implements TxSender {
 	additionalTxSenderCallbacks: ((base58EncodedTx: string) => void)[];
 	txHandler: TxHandler;
 	trackTxLandRate?: boolean;
+	throwOnTimeoutError: boolean;
 
 	// For landing rate calcs
 	lookbackWindowMinutes: number;
@@ -54,16 +55,16 @@ export abstract class BaseTxSender implements TxSender {
 	public constructor({
 		connection,
 		wallet,
-		opts = AnchorProvider.defaultOptions(),
+		opts = DEFAULT_CONFIRMATION_OPTS,
 		timeout = DEFAULT_TIMEOUT,
 		additionalConnections = new Array<Connection>(),
 		confirmationStrategy = ConfirmationStrategy.Combo,
 		additionalTxSenderCallbacks,
 		trackTxLandRate,
 		txHandler,
-		txLandRateLookbackWindowMinutes = DEFAULT_TX_LAND_RATE_LOOKBACK_WINDOW_MINUTES *
-			60,
+		txLandRateLookbackWindowMinutes = DEFAULT_TX_LAND_RATE_LOOKBACK_WINDOW_MINUTES,
 		landRateToFeeFunc,
+		throwOnTimeoutError = true,
 	}: {
 		connection: Connection;
 		wallet: IWallet;
@@ -76,6 +77,7 @@ export abstract class BaseTxSender implements TxSender {
 		trackTxLandRate?: boolean;
 		txLandRateLookbackWindowMinutes?: number;
 		landRateToFeeFunc?: (landRate: number) => number;
+		throwOnTimeoutError?: boolean;
 	}) {
 		this.connection = connection;
 		this.wallet = wallet;
@@ -101,6 +103,7 @@ export abstract class BaseTxSender implements TxSender {
 		}
 		this.landRateToFeeFunc =
 			landRateToFeeFunc ?? this.defaultLandRateToFeeFunc.bind(this);
+		this.throwOnTimeoutError = throwOnTimeoutError;
 	}
 
 	async send(
@@ -267,13 +270,14 @@ export abstract class BaseTxSender implements TxSender {
 		if (response === null) {
 			if (this.confirmationStrategy === ConfirmationStrategy.Combo) {
 				try {
-					const rpcResponse = await this.connection.getSignatureStatus(
-						signature
-					);
-					if (rpcResponse?.value?.confirmationStatus) {
+					const rpcResponse = await this.connection.getSignatureStatuses([
+						signature,
+					]);
+
+					if (rpcResponse?.value?.[0]?.confirmationStatus) {
 						response = {
 							context: rpcResponse.context,
-							value: { err: rpcResponse.value.err },
+							value: { err: rpcResponse.value[0].err },
 						};
 						return response;
 					}
@@ -283,12 +287,14 @@ export abstract class BaseTxSender implements TxSender {
 			}
 			this.timeoutCount += 1;
 			const duration = (Date.now() - start) / 1000;
-			throw new TxSendError(
-				`Transaction was not confirmed in ${duration.toFixed(
-					2
-				)} seconds. It is unknown if it succeeded or failed. Check signature ${signature} using the Solana Explorer or CLI tools.`,
-				NOT_CONFIRMED_ERROR_CODE
-			);
+			if (this.throwOnTimeoutError) {
+				throw new TxSendError(
+					`Transaction was not confirmed in ${duration.toFixed(
+						2
+					)} seconds. It is unknown if it succeeded or failed. Check signature ${signature} using the Solana Explorer or CLI tools.`,
+					NOT_CONFIRMED_ERROR_CODE
+				);
+			}
 		}
 
 		return response;
@@ -305,11 +311,18 @@ export abstract class BaseTxSender implements TxSender {
 		while (totalTime < this.timeout) {
 			await new Promise((resolve) => setTimeout(resolve, backoffTime));
 
-			const response = await this.connection.getSignatureStatus(signature);
-			const result = response && response.value?.[0];
+			const rpcResponse = await this.connection.getSignatureStatuses([
+				signature,
+			]);
 
-			if (result && result.confirmationStatus === commitment) {
-				return { context: result.context, value: { err: null } };
+			const signatureResult = rpcResponse && rpcResponse.value?.[0];
+
+			if (
+				rpcResponse &&
+				signatureResult &&
+				signatureResult.confirmationStatus === commitment
+			) {
+				return { context: rpcResponse.context, value: { err: null } };
 			}
 
 			totalTime += backoffTime;
@@ -319,12 +332,14 @@ export abstract class BaseTxSender implements TxSender {
 		// Transaction not confirmed within 30 seconds
 		this.timeoutCount += 1;
 		const duration = (Date.now() - start) / 1000;
-		throw new TxSendError(
-			`Transaction was not confirmed in ${duration.toFixed(
-				2
-			)} seconds. It is unknown if it succeeded or failed. Check signature ${signature} using the Solana Explorer or CLI tools.`,
-			NOT_CONFIRMED_ERROR_CODE
-		);
+		if (this.throwOnTimeoutError) {
+			throw new TxSendError(
+				`Transaction was not confirmed in ${duration.toFixed(
+					2
+				)} seconds. It is unknown if it succeeded or failed. Check signature ${signature} using the Solana Explorer or CLI tools.`,
+				NOT_CONFIRMED_ERROR_CODE
+			);
+		}
 	}
 
 	async confirmTransaction(
@@ -398,39 +413,17 @@ export abstract class BaseTxSender implements TxSender {
 
 	public async checkConfirmationResultForError(
 		txSig: string,
-		result: RpcResponseAndContext<SignatureResult>
-	) {
-		if (result.value.err) {
-			await this.reportTransactionError(txSig);
+		result: SignatureResult
+	): Promise<void> {
+		if (result?.err) {
+			await throwTransactionError(
+				txSig,
+				this.connection,
+				this.opts?.commitment
+			);
 		}
 
 		return;
-	}
-
-	public async reportTransactionError(txSig: string) {
-		const transactionResult = await this.connection.getTransaction(txSig, {
-			maxSupportedTransactionVersion: 0,
-		});
-
-		if (!transactionResult?.meta?.err) {
-			return undefined;
-		}
-
-		const logs = transactionResult.meta.logMessages;
-
-		const lastLog = logs[logs.length - 1];
-
-		const friendlyMessage = lastLog?.match(/(failed:) (.+)/)?.[2];
-
-		// @ts-ignore
-		throw new SendTransactionError({
-			action: 'send',
-			signature: txSig,
-			transactionMessage: `Transaction Failed${
-				friendlyMessage ? `: ${friendlyMessage}` : ''
-			}`,
-			logs,
-		});
 	}
 
 	public getTxLandRate(): number {

@@ -465,6 +465,26 @@ impl<'a, 'b> SpotFulfillmentParams for OpenbookV2FulfillmentParams<'a, 'b> {
         validate_spot_market_vault_amount(quote_market, self.quote_market_vault.amount)?;
         Ok(())
     }
+
+    fn validate_markets(
+        &self,
+        base_market: &SpotMarket,
+        quote_market: &SpotMarket,
+    ) -> DriftResult<()> {
+        validate!(
+            self.base_market_vault.mint == base_market.mint,
+            ErrorCode::DefaultError,
+            "base mints dont match"
+        )?;
+
+        validate!(
+            self.quote_market_vault.mint == quote_market.mint,
+            ErrorCode::DefaultError,
+            "base mints dont match"
+        )?;
+
+        Ok(())
+    }
 }
 
 #[cfg(test)]

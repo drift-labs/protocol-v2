@@ -117,7 +117,7 @@ impl<'a, 'b> SerumContext<'a, 'b> {
             self.serum_open_orders.clone(),
             authority.clone(),
             self.serum_market.clone(),
-            rent.to_account_info().clone(),
+            rent.to_account_info(),
         ];
         solana_program::program::invoke_signed(&instruction, &account_infos, signers_seeds).map_err(
             |e| {
@@ -690,6 +690,26 @@ impl<'a, 'b> SpotFulfillmentParams for SerumFulfillmentParams<'a, 'b> {
     ) -> DriftResult {
         validate_spot_market_vault_amount(base_market, self.base_market_vault.amount)?;
         validate_spot_market_vault_amount(quote_market, self.quote_market_vault.amount)?;
+        Ok(())
+    }
+
+    fn validate_markets(
+        &self,
+        base_market: &SpotMarket,
+        quote_market: &SpotMarket,
+    ) -> DriftResult<()> {
+        validate!(
+            self.base_market_vault.mint == base_market.mint,
+            ErrorCode::DefaultError,
+            "base mints dont match"
+        )?;
+
+        validate!(
+            self.quote_market_vault.mint == quote_market.mint,
+            ErrorCode::DefaultError,
+            "base mints dont match"
+        )?;
+
         Ok(())
     }
 }

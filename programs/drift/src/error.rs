@@ -575,6 +575,30 @@ pub enum ErrorCode {
     LiquidationOrderFailedToFill,
     #[msg("Invalid prediction market order")]
     InvalidPredictionMarketOrder,
+    #[msg("Ed25519 Ix must be before place and make swift order ix")]
+    InvalidVerificationIxIndex,
+    #[msg("Swift message verificaiton failed")]
+    SigVerificationFailed,
+    #[msg("Market index mismatched b/w taker and maker swift order params")]
+    MismatchedSwiftOrderParamsMarketIndex,
+    #[msg("Swift only available for market/oracle perp orders")]
+    InvalidSwiftOrderParam,
+    #[msg("Place and take order success condition failed")]
+    PlaceAndTakeOrderSuccessConditionFailed,
+    #[msg("Invalid High Leverage Mode Config")]
+    InvalidHighLeverageModeConfig,
+    #[msg("Invalid RFQ User Account")]
+    InvalidRFQUserAccount,
+    #[msg("RFQUserAccount should be mutable")]
+    RFQUserAccountWrongMutability,
+    #[msg("RFQUserAccount has too many active RFQs")]
+    RFQUserAccountFull,
+    #[msg("RFQ order not filled as expected")]
+    RFQOrderNotFilled,
+    #[msg("RFQ orders must be jit makers")]
+    InvalidRFQOrder,
+    #[msg("RFQ matches must be valid")]
+    InvalidRFQMatch,
 }
 
 #[macro_export]

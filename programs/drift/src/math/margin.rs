@@ -101,6 +101,7 @@ pub fn calculate_perp_position_value_and_pnl(
     strict_quote_price: &StrictOraclePrice,
     margin_requirement_type: MarginRequirementType,
     user_custom_margin_ratio: u32,
+    user_high_leverage_mode: bool,
     track_open_order_fraction: bool,
 ) -> DriftResult<(u128, i128, u128, u128, u128)> {
     let valuation_price = if market.status == MarketStatus::Settlement {
@@ -140,6 +141,7 @@ pub fn calculate_perp_position_value_and_pnl(
         let margin_ratio = user_custom_margin_ratio.max(market.get_margin_ratio(
             worst_case_base_asset_amount.unsigned_abs(),
             margin_requirement_type,
+            user_high_leverage_mode,
         )?);
 
         worse_case_liability_value
@@ -245,6 +247,8 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
     } else {
         0_u32
     };
+
+    let user_high_leverage_mode = user.is_high_leverage_mode();
 
     for spot_position in user.spot_positions.iter() {
         validation::position::validate_spot_position(spot_position)?;
@@ -497,6 +501,7 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
             &strict_quote_price,
             context.margin_type,
             user_custom_margin_ratio,
+            user_high_leverage_mode,
             calculation.track_open_orders_fraction(),
         )?;
 

@@ -6,10 +6,10 @@ import {
 	Commitment,
 	BlockhashWithExpiryBlockHeight,
 } from '@solana/web3.js';
-import { AnchorProvider } from '@coral-xyz/anchor';
 import { BaseTxSender } from './baseTxSender';
 import { TxHandler } from './txHandler';
 import { IWallet } from '../types';
+import { DEFAULT_CONFIRMATION_OPTS } from '../config';
 
 const DEFAULT_TIMEOUT = 35000;
 const DEFAULT_BLOCKHASH_REFRESH = 10000;
@@ -31,7 +31,7 @@ export class FastSingleTxSender extends BaseTxSender {
 	public constructor({
 		connection,
 		wallet,
-		opts = { ...AnchorProvider.defaultOptions(), maxRetries: 0 },
+		opts = { ...DEFAULT_CONFIRMATION_OPTS, maxRetries: 0 },
 		timeout = DEFAULT_TIMEOUT,
 		blockhashRefreshInterval = DEFAULT_BLOCKHASH_REFRESH,
 		additionalConnections = new Array<Connection>(),
@@ -43,6 +43,7 @@ export class FastSingleTxSender extends BaseTxSender {
 		txHandler,
 		txLandRateLookbackWindowMinutes,
 		landRateToFeeFunc,
+		throwOnTimeoutError = true,
 	}: {
 		connection: Connection;
 		wallet: IWallet;
@@ -58,6 +59,7 @@ export class FastSingleTxSender extends BaseTxSender {
 		txHandler?: TxHandler;
 		txLandRateLookbackWindowMinutes?: number;
 		landRateToFeeFunc?: (landRate: number) => number;
+		throwOnTimeoutError?: boolean;
 	}) {
 		super({
 			connection,
@@ -70,6 +72,7 @@ export class FastSingleTxSender extends BaseTxSender {
 			trackTxLandRate,
 			txLandRateLookbackWindowMinutes,
 			landRateToFeeFunc,
+			throwOnTimeoutError,
 		});
 		this.connection = connection;
 		this.wallet = wallet;
@@ -118,15 +121,15 @@ export class FastSingleTxSender extends BaseTxSender {
 					this.confirmTransaction(txid, opts.commitment).then(
 						async (result) => {
 							this.txSigCache?.set(txid, true);
-							await this.checkConfirmationResultForError(txid, result);
+							await this.checkConfirmationResultForError(txid, result?.value);
 							slot = result.context.slot;
 						}
 					);
 				} else {
 					const result = await this.confirmTransaction(txid, opts.commitment);
 					this.txSigCache?.set(txid, true);
-					await this.checkConfirmationResultForError(txid, result);
-					slot = result.context.slot;
+					await this.checkConfirmationResultForError(txid, result?.value);
+					slot = result?.context?.slot;
 				}
 			} catch (e) {
 				console.error(e);

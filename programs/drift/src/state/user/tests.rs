@@ -1862,7 +1862,7 @@ mod resting_limit_order {
 
         let slot = 12;
 
-        assert!(!order.is_resting_limit_order(slot).unwrap());
+        assert!(order.is_resting_limit_order(slot).unwrap());
 
         // trigger order long doesnt cross trigger, auction complete
         let order = Order {
@@ -1892,7 +1892,7 @@ mod resting_limit_order {
 
         let slot = 12;
 
-        assert!(!order.is_resting_limit_order(slot).unwrap());
+        assert!(order.is_resting_limit_order(slot).unwrap());
 
         // trigger order long doesnt cross trigger, auction complete
         let order = Order {

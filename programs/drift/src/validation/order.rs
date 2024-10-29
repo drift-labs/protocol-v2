@@ -106,50 +106,7 @@ fn validate_market_order(order: &Order, step_size: u64, min_order_size: u64) -> 
 fn validate_oracle_order(order: &Order, step_size: u64, min_order_size: u64) -> DriftResult {
     validate_base_asset_amount(order, step_size, min_order_size, order.reduce_only)?;
 
-    match order.direction {
-        PositionDirection::Long => {
-            if order.auction_start_price > order.auction_end_price {
-                msg!(
-                    "Auction start price offset ({}) was greater than auction end price offset ({})",
-                    order.auction_start_price,
-                    order.auction_end_price
-                );
-                return Err(ErrorCode::InvalidOrderAuction);
-            }
-
-            if order.has_oracle_price_offset()
-                && order.auction_end_price > order.oracle_price_offset.cast()?
-            {
-                msg!(
-                    "Auction end price offset ({}) was greater than oracle price offset ({})",
-                    order.auction_end_price,
-                    order.oracle_price_offset
-                );
-                return Err(ErrorCode::InvalidOrderAuction);
-            }
-        }
-        PositionDirection::Short => {
-            if order.auction_start_price < order.auction_end_price {
-                msg!(
-                    "Auction start price ({}) was less than auction end price ({})",
-                    order.auction_start_price,
-                    order.auction_end_price
-                );
-                return Err(ErrorCode::InvalidOrderAuction);
-            }
-
-            if order.has_oracle_price_offset()
-                && order.auction_end_price < order.oracle_price_offset.cast()?
-            {
-                msg!(
-                    "Auction end price offset ({}) was less than oracle price offset ({})",
-                    order.auction_end_price,
-                    order.oracle_price_offset
-                );
-                return Err(ErrorCode::InvalidOrderAuction);
-            }
-        }
-    }
+    validate_oracle_auction_params(order)?;
 
     if order.trigger_price > 0 {
         msg!("Oracle order should not have trigger price");
@@ -219,13 +176,11 @@ fn validate_limit_order(
 
 fn validate_limit_order_auction_params(order: &Order) -> DriftResult {
     if order.has_auction() {
-        validate!(
-            !order.has_oracle_price_offset(),
-            ErrorCode::InvalidOrder,
-            "limit order with auction can not have an oracle price offset"
-        )?;
-
-        validate_auction_params(order)?;
+        if order.has_oracle_price_offset() {
+            validate_oracle_auction_params(order)?;
+        } else {
+            validate_auction_params(order)?;
+        }
     } else {
         validate!(
             order.auction_start_price == 0,
@@ -452,6 +407,55 @@ fn validate_auction_params(order: &Order) -> DriftResult {
                     "Order price ({}) was greater than auction end price ({})",
                     order.price,
                     order.auction_end_price
+                );
+                return Err(ErrorCode::InvalidOrderAuction);
+            }
+        }
+    }
+
+    Ok(())
+}
+
+fn validate_oracle_auction_params(order: &Order) -> DriftResult {
+    match order.direction {
+        PositionDirection::Long => {
+            if order.auction_start_price > order.auction_end_price {
+                msg!(
+                    "Auction start price offset ({}) was greater than auction end price offset ({})",
+                    order.auction_start_price,
+                    order.auction_end_price
+                );
+                return Err(ErrorCode::InvalidOrderAuction);
+            }
+
+            if order.has_oracle_price_offset()
+                && order.auction_end_price > order.oracle_price_offset.cast()?
+            {
+                msg!(
+                    "Auction end price offset ({}) was greater than oracle price offset ({})",
+                    order.auction_end_price,
+                    order.oracle_price_offset
+                );
+                return Err(ErrorCode::InvalidOrderAuction);
+            }
+        }
+        PositionDirection::Short => {
+            if order.auction_start_price < order.auction_end_price {
+                msg!(
+                    "Auction start price ({}) was less than auction end price ({})",
+                    order.auction_start_price,
+                    order.auction_end_price
+                );
+                return Err(ErrorCode::InvalidOrderAuction);
+            }
+
+            if order.has_oracle_price_offset()
+                && order.auction_end_price < order.oracle_price_offset.cast()?
+            {
+                msg!(
+                    "Auction end price offset ({}) was less than oracle price offset ({})",
+                    order.auction_end_price,
+                    order.oracle_price_offset
                 );
                 return Err(ErrorCode::InvalidOrderAuction);
             }
