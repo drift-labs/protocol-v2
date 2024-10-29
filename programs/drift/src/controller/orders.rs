@@ -1085,6 +1085,7 @@ pub fn fill_perp_order(
         order_price,
         order_oracle_price_offset,
         order_direction,
+        order_auction_duration,
     ) = get_struct_values!(
         user.orders[order_index],
         status,
@@ -1092,7 +1093,8 @@ pub fn fill_perp_order(
         market_type,
         price,
         oracle_price_offset,
-        direction
+        direction,
+        auction_duration
     );
 
     validate!(
@@ -1187,32 +1189,18 @@ pub fn fill_perp_order(
         amm_is_available &= !market.is_operation_paused(PerpOperation::AmmFill);
         amm_is_available &= !market.has_too_much_drawdown()?;
 
-        let mut order_offset: i64 = if order_price != 0 {
-            order_price
-                .cast::<i64>()?
-                .safe_sub(oracle_price_data.price)?
-        } else {
-            order_oracle_price_offset.cast::<i64>()?
-        };
-
-        if order_direction == PositionDirection::Short {
-            order_offset = -order_offset;
-        }
-
-        // worst price is 10 bps past oracle
-        let sufficient_slippage = order_offset
-            .safe_mul(PERCENTAGE_PRECISION_I64)?
-            .safe_div(oracle_price_data.price)?
-            >= 1000;
-
         let amm_wants_to_jit_make = market.amm.amm_wants_to_jit_make(order_direction)?;
         amm_lp_allowed_to_jit_make = market
             .amm
             .amm_lp_allowed_to_jit_make(amm_wants_to_jit_make)?;
         amm_can_skip_duration =
             market.can_skip_auction_duration(&state, amm_lp_allowed_to_jit_make)?;
-        user_can_skip_duration =
-            user.can_skip_auction_duration(user_stats, now, sufficient_slippage)?;
+        
+        user_can_skip_duration = if amm_can_skip_duration && amm_is_available {
+            user.can_skip_auction_duration(user_stats, order_auction_duration > 0, fill_mode.is_ioc(), order_direction, order_price, order_oracle_price_offset, oracle_price_data.price)?
+        } else {
+            false
+        };
 
         reserve_price_before = market.amm.reserve_price()?;
         oracle_price = oracle_price_data.price;

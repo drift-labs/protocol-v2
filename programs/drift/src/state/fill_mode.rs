@@ -11,7 +11,7 @@ mod tests;
 pub enum FillMode {
     Fill,
     PlaceAndMake,
-    PlaceAndTake,
+    PlaceAndTake(bool),
     Liquidation,
     RFQ,
 }
@@ -35,7 +35,7 @@ impl FillMode {
                     is_prediction_market,
                 )
             }
-            FillMode::PlaceAndTake => {
+            FillMode::PlaceAndTake(_) => {
                 if order.has_auction() {
                     calculate_auction_price(
                         order,
@@ -64,5 +64,9 @@ impl FillMode {
 
     pub fn is_rfq(&self) -> bool {
         self == &FillMode::RFQ
+    }
+
+    pub fn is_ioc(&self) -> bool {
+        self == &FillMode::PlaceAndTake(true)
     }
 }
