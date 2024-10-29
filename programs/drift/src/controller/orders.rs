@@ -23,8 +23,7 @@ use crate::controller::spot_position::{
 };
 use crate::error::DriftResult;
 use crate::error::ErrorCode;
-use crate::get_struct_values;
-use crate::get_then_update_id;
+use crate::{get_then_update_id, PERCENTAGE_PRECISION_I64};
 use crate::load_mut;
 use crate::math::amm::calculate_amm_available_liquidity;
 use crate::math::amm_jit::calculate_amm_jit_liquidity;
@@ -81,6 +80,7 @@ use crate::validation::order::{
     validate_order, validate_order_for_force_reduce_only, validate_spot_order,
 };
 use crate::{controller, ID};
+use crate::{get_struct_values, PERCENTAGE_PRECISION};
 
 #[cfg(test)]
 mod tests;
@@ -1078,11 +1078,20 @@ pub fn fill_perp_order(
         .position(|order| order.order_id == order_id)
         .ok_or_else(print_error!(ErrorCode::OrderDoesNotExist))?;
 
-    let (order_status, market_index, order_market_type, order_direction) = get_struct_values!(
+    let (
+        order_status,
+        market_index,
+        order_market_type,
+        order_price,
+        order_oracle_price_offset,
+        order_direction,
+    ) = get_struct_values!(
         user.orders[order_index],
         status,
         market_index,
         market_type,
+        price,
+        oracle_price_offset,
         direction
     );
 
@@ -1178,13 +1187,32 @@ pub fn fill_perp_order(
         amm_is_available &= !market.is_operation_paused(PerpOperation::AmmFill);
         amm_is_available &= !market.has_too_much_drawdown()?;
 
+        let mut order_offset: i64 = if order_price != 0 {
+            order_price
+                .cast::<i64>()?
+                .safe_sub(oracle_price_data.price)?
+        } else {
+            order_oracle_price_offset.cast::<i64>()?
+        };
+
+        if order_direction == PositionDirection::Short {
+            order_offset = -order_offset;
+        }
+
+        // worst price is 10 bps past oracle
+        let sufficient_slippage = order_offset
+            .safe_mul(PERCENTAGE_PRECISION_I64)?
+            .safe_div(oracle_price_data.price)?
+            >= 1000;
+
         let amm_wants_to_jit_make = market.amm.amm_wants_to_jit_make(order_direction)?;
         amm_lp_allowed_to_jit_make = market
             .amm
             .amm_lp_allowed_to_jit_make(amm_wants_to_jit_make)?;
         amm_can_skip_duration =
             market.can_skip_auction_duration(&state, amm_lp_allowed_to_jit_make)?;
-        user_can_skip_duration = user.can_skip_auction_duration(user_stats, now)?;
+        user_can_skip_duration =
+            user.can_skip_auction_duration(user_stats, now, sufficient_slippage)?;
 
         reserve_price_before = market.amm.reserve_price()?;
         oracle_price = oracle_price_data.price;

@@ -546,10 +546,16 @@ impl User {
         Ok(true)
     }
 
-    pub fn can_skip_auction_duration(&self, user_stats: &UserStats, now: i64) -> DriftResult<bool> {
+    pub fn can_skip_auction_duration(
+        &self,
+        user_stats: &UserStats,
+        now: i64,
+        sufficient_slippage: bool,
+    ) -> DriftResult<bool> {
         Ok(self.next_order_id < 3000
+            && sufficient_slippage
             && self.has_open_auction
-            && (self.number_of_sub_accounts_created < 10 && self.sub_account_id <= 5)
+            && (user_stats.number_of_sub_accounts_created < 10 && self.sub_account_id <= 5)
             && !user_stats.disable_update_perp_bid_ask_twap)
     }
 }

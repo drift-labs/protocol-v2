@@ -182,7 +182,7 @@ pub fn calculate_amm_jit_liquidity(
         Some(allowed) => allowed,
         None => market
             .amm
-            .amm_lp_allowed_to_jit_make(amm_wants_to_jit_make)?
+            .amm_lp_allowed_to_jit_make(amm_wants_to_jit_make)?,
     };
     let split_with_lps = amm_lp_allowed_to_jit_make && amm_lp_wants_to_jit_make;
 
