@@ -548,9 +548,7 @@ impl User {
 
     pub fn can_skip_auction_duration(&self, user_stats: &UserStats, now: i64) -> DriftResult<bool> {
         Ok(self.next_order_id < 3000
-            && self.settled_perp_pnl < TEN_THOUSAND_QUOTE.cast::<i64>()?
-            && self.total_withdraws < TWO_HUNDRED_FIFTY_THOUSAND_QUOTE
-            && user_stats.get_age_ts(now) > TWENTY_FOUR_HOUR
+            && self.has_open_auction
             && !user_stats.disable_update_perp_bid_ask_twap)
     }
 }

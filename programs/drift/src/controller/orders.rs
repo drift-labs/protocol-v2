@@ -1178,7 +1178,10 @@ pub fn fill_perp_order(
         amm_is_available &= !market.is_operation_paused(PerpOperation::AmmFill);
         amm_is_available &= !market.has_too_much_drawdown()?;
 
-        amm_lp_allowed_to_jit_make = market.amm.amm_lp_allowed_to_jit_make(true)?;
+        let amm_wants_to_jit_make = market.amm.amm_wants_to_jit_make(order_direction)?;
+        amm_lp_allowed_to_jit_make = market
+            .amm
+            .amm_lp_allowed_to_jit_make(amm_wants_to_jit_make)?;
         amm_can_skip_duration =
             market.can_skip_auction_duration(&state, amm_lp_allowed_to_jit_make)?;
         user_can_skip_duration = user.can_skip_auction_duration(user_stats, now)?;
@@ -1360,7 +1363,7 @@ pub fn fill_perp_order(
         state.min_perp_auction_duration,
         amm_availability,
         fill_mode,
-        None,
+        Some(amm_lp_allowed_to_jit_make),
     )?;
 
     if base_asset_amount != 0 {
