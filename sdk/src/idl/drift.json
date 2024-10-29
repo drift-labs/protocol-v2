@@ -130,6 +130,42 @@
       "args": []
     },
     {
+      "name": "initializeSwiftUser",
+      "accounts": [
+        {
+          "name": "rfqUser",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "user",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "payer",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "rent",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "systemProgram",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": []
+    },
+    {
       "name": "initializeReferrerName",
       "accounts": [
         {
@@ -7469,6 +7505,29 @@
       }
     },
     {
+      "name": "SwiftUser",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "userPubkey",
+            "type": "publicKey"
+          },
+          {
+            "name": "swiftOrderData",
+            "type": {
+              "array": [
+                {
+                  "defined": "SwiftOrderId"
+                },
+                32
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
       "name": "User",
       "type": {
         "kind": "struct",
@@ -9643,6 +9702,27 @@
       }
     },
     {
+      "name": "SwiftOrderId",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "uuid",
+            "type": {
+              "array": [
+                "u8",
+                8
+              ]
+            }
+          },
+          {
+            "name": "maxTs",
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
       "name": "UserFees",
       "type": {
         "kind": "struct",
@@ -11548,6 +11628,11 @@
         {
           "name": "userNextOrderId",
           "type": "u32",
+          "index": false
+        },
+        {
+          "name": "ts",
+          "type": "i64",
           "index": false
         }
       ]
@@ -13671,6 +13756,21 @@
       "code": 6296,
       "name": "InvalidRFQMatch",
       "msg": "RFQ matches must be valid"
+    },
+    {
+      "code": 6297,
+      "name": "InvalidSwiftUserAccount",
+      "msg": "Invalid swift user account"
+    },
+    {
+      "code": 6298,
+      "name": "SwiftUserAccountWrongMutability",
+      "msg": "Swift account wrong mutability"
+    },
+    {
+      "code": 6299,
+      "name": "SwiftUserAccountFull",
+      "msg": "SwiftUserAccount has too many active orders"
     }
   ],
   "metadata": {

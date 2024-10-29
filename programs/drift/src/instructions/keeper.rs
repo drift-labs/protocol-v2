@@ -632,6 +632,7 @@ pub fn place_swift_taker_order<'c: 'info, 'info>(
             );
         return Ok(());
     }
+
     controller::orders::place_perp_order(
         state,
         taker,
@@ -656,6 +657,7 @@ pub fn place_swift_taker_order<'c: 'info, 'info>(
         matching_order_params: matching_taker_order_params.clone(),
         hash: order_params_hash,
         swift_order_slot: order_slot,
+        ts: clock.unix_timestamp,
     });
 
     if let Some(stop_loss_order_params) = taker_order_params_message.stop_loss_order_params {

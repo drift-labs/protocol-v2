@@ -599,6 +599,12 @@ pub enum ErrorCode {
     InvalidRFQOrder,
     #[msg("RFQ matches must be valid")]
     InvalidRFQMatch,
+    #[msg("Invalid swift user account")]
+    InvalidSwiftUserAccount,
+    #[msg("Swift account wrong mutability")]
+    SwiftUserAccountWrongMutability,
+    #[msg("SwiftUserAccount has too many active orders")]
+    SwiftUserAccountFull,
 }
 
 #[macro_export]

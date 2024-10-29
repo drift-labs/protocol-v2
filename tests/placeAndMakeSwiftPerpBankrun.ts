@@ -217,6 +217,9 @@ describe('place and make swift order', () => {
 			},
 		});
 		await takerDriftClientUser.subscribe();
+		await takerDriftClient.initializeSwiftUser(
+			takerDriftClientUser.userAccountPublicKey
+		);
 
 		const marketIndex = 0;
 		const baseAssetAmount = BASE_PRECISION;
@@ -369,6 +372,9 @@ describe('place and make swift order', () => {
 			},
 		});
 		await takerDriftClientUser.subscribe();
+		await takerDriftClient.initializeSwiftUser(
+			takerDriftClientUser.userAccountPublicKey
+		);
 
 		const marketIndex = 0;
 		const baseAssetAmount = BASE_PRECISION;
@@ -551,6 +557,9 @@ describe('place and make swift order', () => {
 			},
 		});
 		await takerDriftClientUser.subscribe();
+		await takerDriftClient.initializeSwiftUser(
+			takerDriftClientUser.userAccountPublicKey
+		);
 
 		const marketIndex = 0;
 		const baseAssetAmount = BASE_PRECISION;
@@ -673,6 +682,9 @@ describe('place and make swift order', () => {
 			},
 		});
 		await takerDriftClientUser.subscribe();
+		await takerDriftClient.initializeSwiftUser(
+			takerDriftClientUser.userAccountPublicKey
+		);
 
 		const marketIndex = 0;
 		const baseAssetAmount = BASE_PRECISION;

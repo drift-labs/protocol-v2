@@ -70,6 +70,7 @@ use crate::state::spot_market_map::{
     get_writable_spot_market_set, get_writable_spot_market_set_from_many,
 };
 use crate::state::state::State;
+use crate::state::swift_user::{load_swift_user_account_map, SwiftUser, SWIFT_PDA_SEED};
 use crate::state::traits::Size;
 use crate::state::user::ReferrerStatus;
 use crate::state::user::{MarginMode, MarketType, OrderType, ReferrerName, User, UserStats};
@@ -273,6 +274,18 @@ pub fn handle_initialize_referrer_name(
 
 pub fn handle_initialize_rfq_user<'c: 'info, 'info>(
     ctx: Context<'_, '_, 'c, 'info, InitializeRFQUser<'info>>,
+) -> Result<()> {
+    let mut rfq_user = ctx
+        .accounts
+        .rfq_user
+        .load_init()
+        .or(Err(ErrorCode::UnableToLoadAccountLoader))?;
+    rfq_user.user_pubkey = ctx.accounts.user.key();
+    Ok(())
+}
+
+pub fn handle_initialize_swift_user<'c: 'info, 'info>(
+    ctx: Context<'_, '_, 'c, 'info, InitializeSwiftUser<'info>>,
 ) -> Result<()> {
     let mut rfq_user = ctx
         .accounts
@@ -2303,6 +2316,28 @@ pub struct InitializeRFQUser<'info> {
         payer = payer
     )]
     pub rfq_user: AccountLoader<'info, RFQUser>,
+    pub authority: Signer<'info>,
+    #[account(
+        mut,
+        constraint = can_sign_for_user(&user, &authority)?
+    )]
+    pub user: AccountLoader<'info, User>,
+    #[account(mut)]
+    pub payer: Signer<'info>,
+    pub rent: Sysvar<'info, Rent>,
+    pub system_program: Program<'info, System>,
+}
+
+#[derive(Accounts)]
+pub struct InitializeSwiftUser<'info> {
+    #[account(
+        init,
+        seeds = [SWIFT_PDA_SEED.as_ref(), user.key().as_ref()],
+        space = SwiftUser::SIZE,
+        bump,
+        payer = payer
+    )]
+    pub rfq_user: AccountLoader<'info, SwiftUser>,
     pub authority: Signer<'info>,
     #[account(
         mut,

@@ -172,6 +172,7 @@ pub struct SwiftOrderRecord {
     pub matching_order_params: OrderParams,
     pub swift_order_slot: u64,
     pub user_next_order_id: u32,
+    pub ts: i64,
 }
 
 #[event]
