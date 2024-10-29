@@ -217,10 +217,15 @@ export type GrpcConfigs = {
 };
 
 export interface HighLeverageModeConfigAccountSubscriber {
-	eventEmitter: StrictEventEmitter<EventEmitter, HighLeverageModeConfigAccountEvents>;
+	eventEmitter: StrictEventEmitter<
+		EventEmitter,
+		HighLeverageModeConfigAccountEvents
+	>;
 	isSubscribed: boolean;
 
-	subscribe(highLeverageModeConfigAccount?: HighLeverageModeConfig): Promise<boolean>;
+	subscribe(
+		highLeverageModeConfigAccount?: HighLeverageModeConfig
+	): Promise<boolean>;
 	fetch(): Promise<void>;
 	unsubscribe(): Promise<void>;
 
@@ -228,8 +233,9 @@ export interface HighLeverageModeConfigAccountSubscriber {
 }
 
 export interface HighLeverageModeConfigAccountEvents {
-	highLeverageModeConfigAccountUpdate: (payload: HighLeverageModeConfig) => void;
+	highLeverageModeConfigAccountUpdate: (
+		payload: HighLeverageModeConfig
+	) => void;
 	update: void;
 	error: (e: Error) => void;
 }
-

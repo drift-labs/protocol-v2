@@ -40,7 +40,9 @@ export class PollingHighLeverageModeConfigAccountSubscriber
 		this.eventEmitter = new EventEmitter();
 	}
 
-	async subscribe(highLeverageModeConfig?: HighLeverageModeConfig): Promise<boolean> {
+	async subscribe(
+		highLeverageModeConfig?: HighLeverageModeConfig
+	): Promise<boolean> {
 		if (this.isSubscribed) {
 			return true;
 		}
@@ -54,7 +56,7 @@ export class PollingHighLeverageModeConfigAccountSubscriber
 
 		await this.addToAccountLoader();
 
-        await this.fetchIfUnloaded();
+		await this.fetchIfUnloaded();
 
 		if (this.doesAccountExist()) {
 			this.eventEmitter.emit('update');

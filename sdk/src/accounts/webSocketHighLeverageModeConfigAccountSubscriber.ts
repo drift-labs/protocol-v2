@@ -80,7 +80,9 @@ export class WebSocketHighLeverageModeConfigAccountSubscriber
 	}
 
 	async fetch(): Promise<void> {
-		await Promise.all([this.highLeverageModeConfigDataAccountSubscriber.fetch()]);
+		await Promise.all([
+			this.highLeverageModeConfigDataAccountSubscriber.fetch(),
+		]);
 	}
 
 	async unsubscribe(): Promise<void> {
