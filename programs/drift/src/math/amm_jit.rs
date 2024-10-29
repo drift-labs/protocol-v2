@@ -178,10 +178,9 @@ pub fn calculate_amm_jit_liquidity(
     let amm_wants_to_jit_make = market.amm.amm_wants_to_jit_make(taker_direction)?;
 
     let amm_lp_wants_to_jit_make = market.amm.amm_lp_wants_to_jit_make(taker_direction)?;
-    let amm_lp_allowed_to_jit_make = if amm_lp_allowed_to_jit_make.is_some() {
-        amm_lp_allowed_to_jit_make.unwrap()
-    } else {
-        market
+    let amm_lp_allowed_to_jit_make = match amm_lp_allowed_to_jit_make {
+        Some(allowed) => allowed,
+        None => market
             .amm
             .amm_lp_allowed_to_jit_make(amm_wants_to_jit_make)?
     };
