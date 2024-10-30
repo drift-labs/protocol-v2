@@ -856,6 +856,10 @@ impl PlaceOrderOptions {
     pub fn set_is_rfq(&mut self, is_rfq_order: bool) {
         self.is_rfq_order = is_rfq_order;
     }
+
+    pub fn is_swift_order(&self) -> bool {
+        self.swift_taker_order_slot.is_some()
+    }
 }
 
 pub enum PlaceAndTakeOrderSuccessCondition {

@@ -27,19 +27,19 @@ impl SwiftOrderId {
     }
 }
 
-impl Size for SwiftUser {
+impl Size for SwiftUserOrder {
     const SIZE: usize = 808;
 }
 
 #[account(zero_copy(unsafe))]
 #[derive(Default, Eq, PartialEq, Debug)]
 #[repr(C)]
-pub struct SwiftUser {
+pub struct SwiftUserOrder {
     pub user_pubkey: Pubkey,
     pub swift_order_data: [SwiftOrderId; 32],
 }
 
-impl SwiftUser {
+impl SwiftUserOrder {
     pub fn check_exists_and_prune_stale_swift_order_ids(
         &mut self,
         swift_order_id: SwiftOrderId,
@@ -71,7 +71,7 @@ impl SwiftUser {
             }
         }
 
-        Err(ErrorCode::SwiftUserAccountFull.into())
+        Err(ErrorCode::SwiftUserOrderAccountFull.into())
     }
 }
 

@@ -1023,14 +1023,16 @@ export class DriftClient {
 		return [rfqUserAccountPublicKey, initializeUserAccountIx];
 	}
 
-	public async initializeSwiftUser(
+	public async initializeSwiftUserOrderAccount(
 		userAccountPublicKey: PublicKey,
 		txParams?: TxParams
 	): Promise<[TransactionSignature, PublicKey]> {
 		const initializeIxs = [];
 
 		const [swiftUserAccountPublicKey, initializeUserAccountIx] =
-			await this.getInitializeSwiftUserInstruction(userAccountPublicKey);
+			await this.getInitializeSwiftUserOrderAccountInstruction(
+				userAccountPublicKey
+			);
 		initializeIxs.push(initializeUserAccountIx);
 		const tx = await this.buildTransaction(initializeIxs, txParams);
 		const { txSig } = await this.sendTransaction(tx, [], this.opts);
@@ -1038,7 +1040,7 @@ export class DriftClient {
 		return [txSig, swiftUserAccountPublicKey];
 	}
 
-	async getInitializeSwiftUserInstruction(
+	async getInitializeSwiftUserOrderAccountInstruction(
 		userAccountPublicKey: PublicKey
 	): Promise<[PublicKey, TransactionInstruction]> {
 		const swiftUserAccountPublicKey = getSwiftUserAccountPublicKey(
@@ -1046,9 +1048,9 @@ export class DriftClient {
 			userAccountPublicKey
 		);
 		const initializeUserAccountIx =
-			await this.program.instruction.initializeSwiftUser({
+			await this.program.instruction.initializeSwiftUserOrder({
 				accounts: {
-					swiftUser: swiftUserAccountPublicKey,
+					swiftUserOrder: swiftUserAccountPublicKey,
 					authority: this.wallet.publicKey,
 					user: userAccountPublicKey,
 					payer: this.wallet.publicKey,
@@ -5687,7 +5689,7 @@ export class DriftClient {
 						state: await this.getStatePublicKey(),
 						user: takerInfo.taker,
 						userStats: takerInfo.takerStats,
-						swiftUser: getSwiftUserAccountPublicKey(
+						swiftUserOrder: getSwiftUserAccountPublicKey(
 							this.program.programId,
 							takerInfo.taker
 						),
@@ -5808,7 +5810,7 @@ export class DriftClient {
 						taker: takerInfo.taker,
 						takerStats: takerInfo.takerStats,
 						authority: this.wallet.publicKey,
-						takerSwift: getSwiftUserAccountPublicKey(
+						takerSwiftUser: getSwiftUserAccountPublicKey(
 							this.program.programId,
 							takerInfo.taker
 						),

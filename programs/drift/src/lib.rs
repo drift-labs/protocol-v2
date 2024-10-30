@@ -65,10 +65,10 @@ pub mod drift {
         handle_initialize_rfq_user(ctx)
     }
 
-    pub fn initialize_swift_user<'c: 'info, 'info>(
-        ctx: Context<'_, '_, 'c, 'info, InitializeSwiftUser<'info>>,
+    pub fn initialize_swift_user_order<'c: 'info, 'info>(
+        ctx: Context<'_, '_, 'c, 'info, InitializeSwiftUserOrder<'info>>,
     ) -> Result<()> {
-        handle_initialize_swift_user(ctx)
+        handle_initialize_swift_user_order(ctx)
     }
 
     pub fn initialize_referrer_name(

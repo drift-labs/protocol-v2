@@ -70,7 +70,7 @@ use crate::state::spot_market_map::{
     get_writable_spot_market_set, get_writable_spot_market_set_from_many,
 };
 use crate::state::state::State;
-use crate::state::swift_user::{SwiftUser, SWIFT_PDA_SEED};
+use crate::state::swift_user::{SwiftUserOrder, SWIFT_PDA_SEED};
 use crate::state::traits::Size;
 use crate::state::user::ReferrerStatus;
 use crate::state::user::{MarginMode, MarketType, OrderType, ReferrerName, User, UserStats};
@@ -284,15 +284,15 @@ pub fn handle_initialize_rfq_user<'c: 'info, 'info>(
     Ok(())
 }
 
-pub fn handle_initialize_swift_user<'c: 'info, 'info>(
-    ctx: Context<'_, '_, 'c, 'info, InitializeSwiftUser<'info>>,
+pub fn handle_initialize_swift_user_order<'c: 'info, 'info>(
+    ctx: Context<'_, '_, 'c, 'info, InitializeSwiftUserOrder<'info>>,
 ) -> Result<()> {
-    let mut swift_user = ctx
+    let mut swift_user_order = ctx
         .accounts
-        .swift_user
+        .swift_user_order
         .load_init()
         .or(Err(ErrorCode::UnableToLoadAccountLoader))?;
-    swift_user.user_pubkey = ctx.accounts.user.key();
+    swift_user_order.user_pubkey = ctx.accounts.user.key();
     Ok(())
 }
 
@@ -1552,7 +1552,7 @@ pub fn handle_place_and_make_swift_perp_order<'c: 'info, 'info>(
     makers_and_referrer.insert(ctx.accounts.user.key(), ctx.accounts.user.clone())?;
     makers_and_referrer_stats.insert(authority, ctx.accounts.user_stats.clone())?;
 
-    let taker_swift_account = load!(ctx.accounts.taker_swift)?;
+    let taker_swift_account = load!(ctx.accounts.taker_swift_user)?;
     let taker_order_id = taker_swift_account
         .swift_order_data
         .iter()
@@ -2437,15 +2437,15 @@ pub struct InitializeRFQUser<'info> {
 }
 
 #[derive(Accounts)]
-pub struct InitializeSwiftUser<'info> {
+pub struct InitializeSwiftUserOrder<'info> {
     #[account(
         init,
         seeds = [SWIFT_PDA_SEED.as_ref(), user.key().as_ref()],
-        space = SwiftUser::SIZE,
+        space = SwiftUserOrder::SIZE,
         bump,
         payer = payer
     )]
-    pub swift_user: AccountLoader<'info, SwiftUser>,
+    pub swift_user_order: AccountLoader<'info, SwiftUserOrder>,
     pub authority: Signer<'info>,
     #[account(
         mut,
@@ -2686,7 +2686,7 @@ pub struct PlaceAndMakeSwift<'info> {
         seeds = [SWIFT_PDA_SEED.as_ref(), taker.key().as_ref()],
         bump,
     )]
-    pub taker_swift: AccountLoader<'info, SwiftUser>,
+    pub taker_swift_user: AccountLoader<'info, SwiftUserOrder>,
     pub authority: Signer<'info>,
 }
 

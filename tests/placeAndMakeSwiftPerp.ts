@@ -211,7 +211,7 @@ describe('place and make swift order', () => {
 			},
 		});
 		await takerDriftClientUser.subscribe();
-		await takerDriftClient.initializeSwiftUser(
+		await takerDriftClient.initializeSwiftUserOrderAccount(
 			takerDriftClientUser.userAccountPublicKey
 		);
 
@@ -343,7 +343,7 @@ describe('place and make swift order', () => {
 			},
 		});
 		await takerDriftClientUser.subscribe();
-		await takerDriftClient.initializeSwiftUser(
+		await takerDriftClient.initializeSwiftUserOrderAccount(
 			takerDriftClientUser.userAccountPublicKey
 		);
 
@@ -468,7 +468,7 @@ describe('place and make swift order', () => {
 			},
 		});
 		await takerDriftClientUser.subscribe();
-		await takerDriftClient.initializeSwiftUser(
+		await takerDriftClient.initializeSwiftUserOrderAccount(
 			takerDriftClientUser.userAccountPublicKey
 		);
 
@@ -586,7 +586,7 @@ describe('place and make swift order', () => {
 			},
 		});
 		await takerDriftClientUser.subscribe();
-		await takerDriftClient.initializeSwiftUser(
+		await takerDriftClient.initializeSwiftUserOrderAccount(
 			takerDriftClientUser.userAccountPublicKey
 		);
 

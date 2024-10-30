@@ -604,7 +604,7 @@ pub enum ErrorCode {
     #[msg("Swift account wrong mutability")]
     SwiftUserAccountWrongMutability,
     #[msg("SwiftUserAccount has too many active orders")]
-    SwiftUserAccountFull,
+    SwiftUserOrderAccountFull,
     #[msg("Order with swift uuid does not exist")]
     SwiftOrderDoesNotExist,
 }
