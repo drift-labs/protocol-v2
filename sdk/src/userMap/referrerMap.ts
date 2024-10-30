@@ -85,26 +85,31 @@ export class ReferrerMap {
 		if (referrerInfo || referrerInfo === null) {
 			this.referrerMap.set(authority, referrerInfo);
 		} else if (referrerInfo === undefined) {
-			const userStat = new UserStats({
-				driftClient: this.driftClient,
-				userStatsAccountPublicKey: getUserStatsAccountPublicKey(
-					this.driftClient.program.programId,
-					new PublicKey(authority)
-				),
-				accountSubscription: {
-					type: 'polling',
-					accountLoader: this.bulkAccountLoader,
-				},
-			});
-			await userStat.fetchAccounts();
+			const userStatsAccountPublicKey =  getUserStatsAccountPublicKey(
+				this.driftClient.program.programId,
+				new PublicKey(authority)
+			);
+			const buffer = (await this.driftClient.connection.getAccountInfo(userStatsAccountPublicKey, 'processed')).data;
 
-			const newReferrerInfo = userStat.getReferrerInfo();
+			const referrer = bs58.encode(buffer.subarray(40, 72));
 
-			if (newReferrerInfo) {
-				this.referrerMap.set(authority.toString(), newReferrerInfo);
-			} else {
-				this.referrerMap.set(authority.toString(), null);
-			}
+			const referrerKey = new PublicKey(referrer);
+			this.addReferrerInfo(
+				authority,
+				referrer === DEFAULT_PUBLIC_KEY
+					? null
+					: {
+							referrer: getUserAccountPublicKeySync(
+								this.driftClient.program.programId,
+								referrerKey,
+								0
+							),
+							referrerStats: getUserStatsAccountPublicKey(
+								this.driftClient.program.programId,
+								referrerKey
+							),
+					  }
+			);
 		}
 	}
 
