@@ -1023,14 +1023,14 @@ export class DriftClient {
 		return [rfqUserAccountPublicKey, initializeUserAccountIx];
 	}
 
-	public async initializeSwiftUserOrderAccount(
+	public async initializeSwiftUserOrdersAccount(
 		userAccountPublicKey: PublicKey,
 		txParams?: TxParams
 	): Promise<[TransactionSignature, PublicKey]> {
 		const initializeIxs = [];
 
 		const [swiftUserAccountPublicKey, initializeUserAccountIx] =
-			await this.getInitializeSwiftUserOrderAccountInstruction(
+			await this.getInitializeSwiftUserOrdersAccountInstruction(
 				userAccountPublicKey
 			);
 		initializeIxs.push(initializeUserAccountIx);
@@ -1040,7 +1040,7 @@ export class DriftClient {
 		return [txSig, swiftUserAccountPublicKey];
 	}
 
-	async getInitializeSwiftUserOrderAccountInstruction(
+	async getInitializeSwiftUserOrdersAccountInstruction(
 		userAccountPublicKey: PublicKey
 	): Promise<[PublicKey, TransactionInstruction]> {
 		const swiftUserAccountPublicKey = getSwiftUserAccountPublicKey(
@@ -1048,9 +1048,9 @@ export class DriftClient {
 			userAccountPublicKey
 		);
 		const initializeUserAccountIx =
-			await this.program.instruction.initializeSwiftUserOrder({
+			await this.program.instruction.initializeSwiftUserOrders({
 				accounts: {
-					swiftUserOrder: swiftUserAccountPublicKey,
+					swiftUserOrders: swiftUserAccountPublicKey,
 					authority: this.wallet.publicKey,
 					user: userAccountPublicKey,
 					payer: this.wallet.publicKey,
@@ -5689,7 +5689,7 @@ export class DriftClient {
 						state: await this.getStatePublicKey(),
 						user: takerInfo.taker,
 						userStats: takerInfo.takerStats,
-						swiftUserOrder: getSwiftUserAccountPublicKey(
+						swiftUserOrders: getSwiftUserAccountPublicKey(
 							this.program.programId,
 							takerInfo.taker
 						),
@@ -5810,7 +5810,7 @@ export class DriftClient {
 						taker: takerInfo.taker,
 						takerStats: takerInfo.takerStats,
 						authority: this.wallet.publicKey,
-						takerSwiftUser: getSwiftUserAccountPublicKey(
+						takerSwiftUserOrders: getSwiftUserAccountPublicKey(
 							this.program.programId,
 							takerInfo.taker
 						),

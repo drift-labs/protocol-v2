@@ -861,7 +861,7 @@ async function initializeNewTakerClientAndUser(
 		},
 	});
 	await takerDriftClientUser.subscribe();
-	await takerDriftClient.initializeSwiftUserOrderAccount(
+	await takerDriftClient.initializeSwiftUserOrdersAccount(
 		takerDriftClientUser.userAccountPublicKey
 	);
 	return [takerDriftClient, takerDriftClientUser];

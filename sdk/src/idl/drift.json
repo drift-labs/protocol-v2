@@ -130,10 +130,10 @@
       "args": []
     },
     {
-      "name": "initializeSwiftUserOrder",
+      "name": "initializeSwiftUserOrders",
       "accounts": [
         {
-          "name": "swiftUserOrder",
+          "name": "swiftUserOrders",
           "isMut": true,
           "isSigner": false
         },
@@ -709,7 +709,7 @@
           "isSigner": false
         },
         {
-          "name": "takerSwiftUser",
+          "name": "takerSwiftUserOrders",
           "isMut": false,
           "isSigner": false
         },
@@ -756,7 +756,7 @@
           "isSigner": false
         },
         {
-          "name": "swiftUserOrder",
+          "name": "swiftUserOrders",
           "isMut": true,
           "isSigner": false
         },
@@ -7567,7 +7567,7 @@
       }
     },
     {
-      "name": "SwiftUserOrder",
+      "name": "SwiftUserOrders",
       "type": {
         "kind": "struct",
         "fields": [
@@ -13850,7 +13850,7 @@
     },
     {
       "code": 6299,
-      "name": "SwiftUserOrderAccountFull",
+      "name": "SwiftUserOrdersAccountFull",
       "msg": "SwiftUserAccount has too many active orders"
     },
     {

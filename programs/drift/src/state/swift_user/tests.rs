@@ -3,12 +3,12 @@ mod swift_order_id_eviction {
 
     use crate::{
         error::ErrorCode,
-        state::swift_user::{SwiftOrderId, SwiftUserOrder},
+        state::swift_user::{SwiftOrderId, SwiftUserOrders},
     };
 
     #[test]
     fn swift_order_id_exists() {
-        let mut swift_user = SwiftUserOrder {
+        let mut swift_user = SwiftUserOrders {
             user_pubkey: Pubkey::new_unique(),
             swift_order_data: [SwiftOrderId::new([0; 8], 0, 0); 32],
         };
@@ -42,7 +42,7 @@ mod swift_order_id_eviction {
 
     #[test]
     fn swift_user_order_account_full() {
-        let mut swift_user = SwiftUserOrder {
+        let mut swift_user = SwiftUserOrders {
             user_pubkey: Pubkey::new_unique(),
             swift_order_data: [SwiftOrderId::new([7; 8], 10, 1); 32],
         };
@@ -52,7 +52,30 @@ mod swift_order_id_eviction {
         assert!(add_result.is_err());
         assert_eq!(
             add_result.err().unwrap(),
-            ErrorCode::SwiftUserOrderAccountFull
+            ErrorCode::SwiftUserOrdersAccountFull
         )
+    }
+
+    #[test]
+    fn bad_swift_order_ids() {
+        let mut swift_user = SwiftUserOrders {
+            user_pubkey: Pubkey::new_unique(),
+            swift_order_data: [SwiftOrderId::new([7; 8], 10, 1); 32],
+        };
+
+        let new_swift_order_id = SwiftOrderId::new([7; 8], 10, 0);
+        let add_result = swift_user.add_swift_order_id(new_swift_order_id);
+        assert!(add_result.is_err());
+        assert_eq!(add_result.err().unwrap(), ErrorCode::InvalidSwiftOrderId);
+
+        let new_swift_order_id = SwiftOrderId::new([0; 8], 10, 10);
+        let add_result = swift_user.add_swift_order_id(new_swift_order_id);
+        assert!(add_result.is_err());
+        assert_eq!(add_result.err().unwrap(), ErrorCode::InvalidSwiftOrderId);
+
+        let new_swift_order_id = SwiftOrderId::new([7; 8], 0, 10);
+        let add_result = swift_user.add_swift_order_id(new_swift_order_id);
+        assert!(add_result.is_err());
+        assert_eq!(add_result.err().unwrap(), ErrorCode::InvalidSwiftOrderId);
     }
 }

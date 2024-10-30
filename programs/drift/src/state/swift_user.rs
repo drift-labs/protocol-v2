@@ -29,19 +29,19 @@ impl SwiftOrderId {
     }
 }
 
-impl Size for SwiftUserOrder {
+impl Size for SwiftUserOrders {
     const SIZE: usize = 808;
 }
 
 #[account(zero_copy(unsafe))]
 #[derive(Default, Eq, PartialEq, Debug)]
 #[repr(C)]
-pub struct SwiftUserOrder {
+pub struct SwiftUserOrders {
     pub user_pubkey: Pubkey,
     pub swift_order_data: [SwiftOrderId; 32],
 }
 
-impl SwiftUserOrder {
+impl SwiftUserOrders {
     pub fn check_exists_and_prune_stale_swift_order_ids(
         &mut self,
         swift_order_id: SwiftOrderId,
@@ -66,6 +66,13 @@ impl SwiftUserOrder {
     }
 
     pub fn add_swift_order_id(&mut self, swift_order_id: SwiftOrderId) -> DriftResult {
+        if swift_order_id.max_slot == 0
+            || swift_order_id.order_id == 0
+            || swift_order_id.uuid == [0; 8]
+        {
+            return Err(ErrorCode::InvalidSwiftOrderId.into());
+        }
+
         for i in 0..self.swift_order_data.len() {
             if self.swift_order_data[i].max_slot == 0 {
                 self.swift_order_data[i] = swift_order_id;
@@ -73,7 +80,7 @@ impl SwiftUserOrder {
             }
         }
 
-        Err(ErrorCode::SwiftUserOrderAccountFull.into())
+        Err(ErrorCode::SwiftUserOrdersAccountFull.into())
     }
 }
 
