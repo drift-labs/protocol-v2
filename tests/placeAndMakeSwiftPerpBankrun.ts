@@ -3,7 +3,14 @@ import { assert } from 'chai';
 
 import { Program } from '@coral-xyz/anchor';
 
-import { Keypair, PublicKey } from '@solana/web3.js';
+import {
+	AddressLookupTableAccount,
+	Connection,
+	Keypair,
+	PublicKey,
+	Transaction,
+	TransactionInstruction,
+} from '@solana/web3.js';
 
 import {
 	BN,
@@ -411,7 +418,7 @@ describe('place and make swift order', () => {
 			swiftKeypair
 		);
 
-		await makerDriftClient.placeAndMakeSwiftPerpOrder(
+		const ixs = await makerDriftClient.getPlaceAndMakeSwiftPerpOrderIxs(
 			encodedSwiftServerMessage,
 			swiftSignature,
 			takerDriftClient.encodeSwiftOrderParamsMessage(takerOrderParamsMessage),
@@ -424,6 +431,21 @@ describe('place and make swift order', () => {
 			},
 			makerOrderParams
 		);
+
+		/*
+		 Transaction size should be largest for filling with trigger orders w/ place and take
+		 Max size: 1232
+		 We currently trade on sol market w/ sol oracle so would be better with LUT, so -64 bytes + 2 bytes
+		 We dont have referrers for maker so need to add 64 bytes
+		 We want to allow for positions to be full with maximally different markets for maker/taker and spot/perp, 
+				so add 30 bytes for market/oracle for taker and 30 bytes for maker
+		 Add 32 bytes for LUT
+			size of transaction + 32 + 2 + 30 + 30 < 1232
+		*/
+		assert(getSizeOfTransaction(ixs, false) < 1138);
+
+		const tx = await makerDriftClient.buildTransaction(ixs);
+		await makerDriftClient.sendTransaction(tx as Transaction);
 
 		const makerPosition = makerDriftClient.getUser().getPerpPosition(0);
 		assert(makerPosition.baseAssetAmount.eq(BASE_PRECISION.neg().muln(3)));
@@ -843,4 +865,83 @@ async function initializeNewTakerClientAndUser(
 		takerDriftClientUser.userAccountPublicKey
 	);
 	return [takerDriftClient, takerDriftClientUser];
+}
+
+export function getSizeOfTransaction(
+	instructions: TransactionInstruction[],
+	versionedTransaction = true,
+	addressLookupTables: AddressLookupTableAccount[] = []
+): number {
+	const programs = new Set<string>();
+	const signers = new Set<string>();
+	let accounts = new Set<string>();
+
+	instructions.map((ix) => {
+		programs.add(ix.programId.toBase58());
+		accounts.add(ix.programId.toBase58());
+		ix.keys.map((key) => {
+			if (key.isSigner) {
+				signers.add(key.pubkey.toBase58());
+			}
+			accounts.add(key.pubkey.toBase58());
+		});
+	});
+
+	const instruction_sizes: number = instructions
+		.map(
+			(ix) =>
+				1 +
+				getSizeOfCompressedU16(ix.keys.length) +
+				ix.keys.length +
+				getSizeOfCompressedU16(ix.data.length) +
+				ix.data.length
+		)
+		.reduce((a, b) => a + b, 0);
+
+	let numberOfAddressLookups = 0;
+	if (addressLookupTables.length > 0) {
+		const lookupTableAddresses = addressLookupTables
+			.map((addressLookupTable) =>
+				addressLookupTable.state.addresses.map((address) => address.toBase58())
+			)
+			.flat();
+		const totalNumberOfAccounts = accounts.size;
+		accounts = new Set(
+			[...accounts].filter((account) => !lookupTableAddresses.includes(account))
+		);
+		accounts = new Set([...accounts, ...programs, ...signers]);
+		numberOfAddressLookups = totalNumberOfAccounts - accounts.size;
+	}
+
+	return (
+		getSizeOfCompressedU16(signers.size) +
+		signers.size * 64 + // array of signatures
+		3 +
+		getSizeOfCompressedU16(accounts.size) +
+		32 * accounts.size + // array of account addresses
+		32 + // recent blockhash
+		getSizeOfCompressedU16(instructions.length) +
+		instruction_sizes + // array of instructions
+		(versionedTransaction ? 1 + getSizeOfCompressedU16(0) : 0) +
+		(versionedTransaction ? 32 * addressLookupTables.length : 0) +
+		(versionedTransaction && addressLookupTables.length > 0 ? 2 : 0) +
+		numberOfAddressLookups
+	);
+}
+
+function getSizeOfCompressedU16(n: number) {
+	return 1 + Number(n >= 128) + Number(n >= 16384);
+}
+
+export async function checkIfAccountExists(
+	connection: Connection,
+	account: PublicKey
+): Promise<boolean> {
+	try {
+		const accountInfo = await connection.getAccountInfo(account);
+		return accountInfo != null;
+	} catch (e) {
+		// Doesn't already exist
+		return false;
+	}
 }
