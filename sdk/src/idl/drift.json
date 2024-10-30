@@ -13857,6 +13857,11 @@
       "code": 6300,
       "name": "SwiftOrderDoesNotExist",
       "msg": "Order with swift uuid does not exist"
+    },
+    {
+      "code": 6301,
+      "name": "InvalidSwiftOrderId",
+      "msg": "Swift order id cannot be 0s"
     }
   ],
   "metadata": {

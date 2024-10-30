@@ -731,6 +731,9 @@ describe('place and make swift order', () => {
 		} catch (error) {
 			assert(error.message.includes('custom program error: 0x1890'));
 		}
+
+		await takerDriftClientUser.unsubscribe();
+		await takerDriftClient.unsubscribe();
 	});
 
 	it('should verify that auction params are not sanitized', async () => {
@@ -806,6 +809,9 @@ describe('place and make swift order', () => {
 				.getOrderByUserOrderId(1)
 				.auctionEndPrice.eq(new BN(10000).mul(PRICE_PRECISION))
 		);
+
+		await takerDriftClientUser.unsubscribe();
+		await takerDriftClient.unsubscribe();
 	});
 });
 
