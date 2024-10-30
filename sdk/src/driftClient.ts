@@ -363,7 +363,7 @@ export class DriftClient {
 		}
 
 		const delistedMarketSetting =
-			config.delistedMarketSetting || DelistedMarketSetting.Subscribe;
+			config.delistedMarketSetting || DelistedMarketSetting.Unsubscribe;
 		const noMarketsAndOraclesSpecified =
 			config.perpMarketIndexes === undefined &&
 			config.spotMarketIndexes === undefined &&
