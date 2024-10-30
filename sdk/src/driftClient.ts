@@ -98,6 +98,7 @@ import {
 	getSerumFulfillmentConfigPublicKey,
 	getSerumSignerPublicKey,
 	getSpotMarketPublicKey,
+	getSwiftUserAccountPublicKey,
 	getUserAccountPublicKey,
 	getUserAccountPublicKeySync,
 	getUserStatsAccountPublicKey,
@@ -1022,6 +1023,45 @@ export class DriftClient {
 			});
 
 		return [rfqUserAccountPublicKey, initializeUserAccountIx];
+	}
+
+	public async initializeSwiftUserOrdersAccount(
+		userAccountPublicKey: PublicKey,
+		txParams?: TxParams
+	): Promise<[TransactionSignature, PublicKey]> {
+		const initializeIxs = [];
+
+		const [swiftUserAccountPublicKey, initializeUserAccountIx] =
+			await this.getInitializeSwiftUserOrdersAccountInstruction(
+				userAccountPublicKey
+			);
+		initializeIxs.push(initializeUserAccountIx);
+		const tx = await this.buildTransaction(initializeIxs, txParams);
+		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+
+		return [txSig, swiftUserAccountPublicKey];
+	}
+
+	async getInitializeSwiftUserOrdersAccountInstruction(
+		userAccountPublicKey: PublicKey
+	): Promise<[PublicKey, TransactionInstruction]> {
+		const swiftUserAccountPublicKey = getSwiftUserAccountPublicKey(
+			this.program.programId,
+			userAccountPublicKey
+		);
+		const initializeUserAccountIx =
+			await this.program.instruction.initializeSwiftUserOrders({
+				accounts: {
+					swiftUserOrders: swiftUserAccountPublicKey,
+					authority: this.wallet.publicKey,
+					user: userAccountPublicKey,
+					payer: this.wallet.publicKey,
+					rent: anchor.web3.SYSVAR_RENT_PUBKEY,
+					systemProgram: anchor.web3.SystemProgram.programId,
+				},
+			});
+
+		return [swiftUserAccountPublicKey, initializeUserAccountIx];
 	}
 
 	async getInitializeUserInstructions(
@@ -5525,14 +5565,7 @@ export class DriftClient {
 	}
 
 	public encodeSwiftServerMessage(message: SwiftServerMessage): Buffer {
-		const messageWithBuffer = {
-			slot: message.slot,
-			swiftOrderSignature: message.swiftOrderSignature,
-		};
-		return this.program.coder.types.encode(
-			'SwiftServerMessage',
-			messageWithBuffer
-		);
+		return this.program.coder.types.encode('SwiftServerMessage', message);
 	}
 
 	public decodeSwiftServerMessage(encodedMessage: Buffer): SwiftServerMessage {
@@ -5541,6 +5574,7 @@ export class DriftClient {
 			encodedMessage
 		);
 		return {
+			uuid: decodedSwiftMessage.uuid,
 			slot: decodedSwiftMessage.slot,
 			swiftOrderSignature: decodedSwiftMessage.swiftSignature,
 		};
@@ -5657,6 +5691,10 @@ export class DriftClient {
 						state: await this.getStatePublicKey(),
 						user: takerInfo.taker,
 						userStats: takerInfo.takerStats,
+						swiftUserOrders: getSwiftUserAccountPublicKey(
+							this.program.programId,
+							takerInfo.taker
+						),
 						authority: this.wallet.publicKey,
 						ixSysvar: SYSVAR_INSTRUCTIONS_PUBKEY,
 					},
@@ -5676,7 +5714,7 @@ export class DriftClient {
 		swiftSignature: Buffer,
 		encodedSwiftOrderParamsMessage: Buffer,
 		swiftOrderParamsSignature: Buffer,
-		takerExpectedOrderId: number,
+		swiftOrderUuid: Uint8Array,
 		takerInfo: {
 			taker: PublicKey;
 			takerStats: PublicKey;
@@ -5692,7 +5730,7 @@ export class DriftClient {
 			swiftSignature,
 			encodedSwiftOrderParamsMessage,
 			swiftOrderParamsSignature,
-			takerExpectedOrderId,
+			swiftOrderUuid,
 			takerInfo,
 			orderParams,
 			referrerInfo,
@@ -5713,7 +5751,7 @@ export class DriftClient {
 		swiftSignature: Buffer,
 		encodedSwiftOrderParamsMessage: Buffer,
 		swiftOrderParamsSignature: Buffer,
-		takerExpectedOrderId: number,
+		swiftOrderUuid: Uint8Array,
 		takerInfo: {
 			taker: PublicKey;
 			takerStats: PublicKey;
@@ -5762,21 +5800,26 @@ export class DriftClient {
 			});
 		}
 
-		const placeAndMakeIx = await this.program.instruction.placeAndMakePerpOrder(
-			orderParams,
-			takerExpectedOrderId,
-			{
-				accounts: {
-					state: await this.getStatePublicKey(),
-					user,
-					userStats: userStatsPublicKey,
-					taker: takerInfo.taker,
-					takerStats: takerInfo.takerStats,
-					authority: this.wallet.publicKey,
-				},
-				remainingAccounts,
-			}
-		);
+		const placeAndMakeIx =
+			await this.program.instruction.placeAndMakeSwiftPerpOrder(
+				orderParams,
+				swiftOrderUuid,
+				{
+					accounts: {
+						state: await this.getStatePublicKey(),
+						user,
+						userStats: userStatsPublicKey,
+						taker: takerInfo.taker,
+						takerStats: takerInfo.takerStats,
+						authority: this.wallet.publicKey,
+						takerSwiftUserOrders: getSwiftUserAccountPublicKey(
+							this.program.programId,
+							takerInfo.taker
+						),
+					},
+					remainingAccounts,
+				}
+			);
 
 		return [
 			swiftServerSignatureIx,
