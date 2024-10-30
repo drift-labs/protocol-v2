@@ -655,7 +655,7 @@ pub fn place_swift_taker_order<'c: 'info, 'info>(
 
     // Dont place order if swift order already exists
     let swift_order_id = SwiftOrderId::new(swift_message.uuid, max_slot, taker.next_order_id);
-    if swift_account.check_exists_and_prune_stale_swift_order_ids(swift_order_id, clock.slot)? {
+    if swift_account.check_exists_and_prune_stale_swift_order_ids(swift_order_id, clock.slot) {
         msg!("Swift order already exists for taker {}");
         return Ok(());
     }

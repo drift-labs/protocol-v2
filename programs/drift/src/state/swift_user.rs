@@ -8,6 +8,8 @@ use crate::state::traits::Size;
 pub const SWIFT_PDA_SEED: &str = "SWIFT";
 pub const SWIFT_SLOT_EVICTION_BUFFER: u64 = 10;
 
+mod tests;
+
 #[zero_copy(unsafe)]
 #[derive(Default, Eq, PartialEq, Debug)]
 #[repr(C)]
@@ -44,12 +46,12 @@ impl SwiftUserOrder {
         &mut self,
         swift_order_id: SwiftOrderId,
         current_slot: u64,
-    ) -> DriftResult<bool> {
+    ) -> bool {
         let mut uuid_exists = false;
         for i in 0..self.swift_order_data.len() {
             let existing_swift_order_id = &mut self.swift_order_data[i];
             if existing_swift_order_id.uuid == swift_order_id.uuid
-                && existing_swift_order_id.max_slot + SWIFT_SLOT_EVICTION_BUFFER > current_slot
+                && existing_swift_order_id.max_slot + SWIFT_SLOT_EVICTION_BUFFER >= current_slot
             {
                 uuid_exists = true;
             } else {
@@ -60,7 +62,7 @@ impl SwiftUserOrder {
                 }
             }
         }
-        Ok(uuid_exists)
+        uuid_exists
     }
 
     pub fn add_swift_order_id(&mut self, swift_order_id: SwiftOrderId) -> DriftResult {
