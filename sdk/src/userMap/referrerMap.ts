@@ -192,6 +192,8 @@ export class ReferrerMap {
 		> = rpcJSONResponse.result;
 
 		for (const account of rpcResponseAndContext.value) {
+			// only add if it isn't already in the map
+			// so that if syncReferrer already set it, we dont overwrite
 			if (!this.has(account.pubkey)) {
 				this.addReferrerInfo(account.pubkey, null);
 			}
