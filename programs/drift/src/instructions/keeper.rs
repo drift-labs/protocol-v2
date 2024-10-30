@@ -486,7 +486,7 @@ pub fn handle_update_user_stats_referrer_info<'c: 'info, 'info>(
 ) -> Result<()> {
     let mut user_stats = load_mut!(ctx.accounts.user_stats)?;
 
-user_stats.update_referrer_status();
+    user_stats.update_referrer_status();
 
     Ok(())
 }

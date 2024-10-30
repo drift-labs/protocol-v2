@@ -2186,7 +2186,6 @@ mod update_referrer_status {
 
     use crate::state::user::{ReferrerStatus, UserStats};
 
-
     #[test]
     fn test() {
         let mut user_stats = UserStats {
