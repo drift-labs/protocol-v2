@@ -1816,6 +1816,14 @@ impl UserStats {
     pub fn is_referrer(&self) -> bool {
         ReferrerStatus::is_referrer(self.referrer_status)
     }
+
+    pub fn update_referrer_status(&mut self) {
+        if !self.referrer.eq(&Pubkey::default()) {
+            self.referrer_status |= ReferrerStatus::IsReferred as u8;
+        } else {
+            self.referrer_status &= !(ReferrerStatus::IsReferred as u8);
+        }
+    }
 }
 
 #[account(zero_copy(unsafe))]
