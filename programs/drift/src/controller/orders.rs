@@ -215,7 +215,10 @@ pub fn place_perp_order(
 
     // updates auction params for crossing limit orders w/out auction duration
     // dont modify if it's a liquidation
-    if !options.is_liquidation() && !options.is_rfq_order {
+    if !options.is_liquidation()
+        && !options.is_rfq_order
+        && options.swift_taker_order_slot.is_none()
+    {
         params.update_perp_auction_params(market, oracle_price_data.price)?;
     }
 
@@ -1073,7 +1076,7 @@ pub fn fill_perp_order(
     let user = &mut load_mut!(user)?;
     let user_stats = &mut load_mut!(user_stats)?;
 
-    let order_index = user
+    let order_index: usize = user
         .orders
         .iter()
         .position(|order| order.order_id == order_id)

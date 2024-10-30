@@ -1077,11 +1077,11 @@ export const DefaultOrderParams: OrderParams = {
 export type SwiftServerMessage = {
 	slot: BN;
 	swiftOrderSignature: Uint8Array;
+	uuid: Uint8Array; // From buffer of standard UUID string
 };
 
 export type SwiftOrderParamsMessage = {
 	swiftOrderParams: OptionalOrderParams;
-	expectedOrderId: number;
 	subAccountId: number;
 	takeProfitOrderParams: SwiftTriggerOrderParams | null;
 	stopLossOrderParams: SwiftTriggerOrderParams | null;

@@ -173,6 +173,14 @@ pub mod drift {
         handle_place_and_make_perp_order(ctx, params, taker_order_id)
     }
 
+    pub fn place_and_make_swift_perp_order<'c: 'info, 'info>(
+        ctx: Context<'_, '_, 'c, 'info, PlaceAndMakeSwift<'info>>,
+        params: OrderParams,
+        swift_order_uuid: [u8; 8],
+    ) -> Result<()> {
+        handle_place_and_make_swift_perp_order(ctx, params, swift_order_uuid)
+    }
+
     pub fn place_swift_taker_order<'c: 'info, 'info>(
         ctx: Context<'_, '_, 'c, 'info, PlaceSwiftTakerOrder<'info>>,
         swift_message_bytes: Vec<u8>,

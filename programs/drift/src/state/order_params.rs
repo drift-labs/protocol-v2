@@ -702,6 +702,7 @@ impl OrderParams {
 
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Eq, PartialEq, Debug)]
 pub struct SwiftServerMessage {
+    pub uuid: [u8; 8],
     pub swift_order_signature: [u8; 64],
     pub slot: u64,
 }
@@ -709,7 +710,6 @@ pub struct SwiftServerMessage {
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Default, Eq, PartialEq, Debug)]
 pub struct SwiftOrderParamsMessage {
     pub swift_order_params: OrderParams,
-    pub expected_order_id: i32,
     pub sub_account_id: u16,
     pub take_profit_order_params: Option<SwiftTriggerOrderParams>,
     pub stop_loss_order_params: Option<SwiftTriggerOrderParams>,
