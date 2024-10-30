@@ -710,6 +710,81 @@ describe('place and make swift order', () => {
 			assert(error.message.includes('custom program error: 0x1890'));
 		}
 	});
+
+	it('should verify that auction params are not sanitized', async () => {
+		slot = new BN(
+			await bankrunContextWrapper.connection.toConnection().getSlot()
+		);
+		const [takerDriftClient, takerDriftClientUser] =
+			await initializeNewTakerClientAndUser(
+				bankrunContextWrapper,
+				chProgram,
+				usdcMint,
+				usdcAmount,
+				marketIndexes,
+				spotMarketIndexes,
+				oracleInfos,
+				bulkAccountLoader
+			);
+		await takerDriftClientUser.fetchAccounts();
+
+		const marketIndex = 0;
+		const baseAssetAmount = BASE_PRECISION;
+		const takerOrderParams = getMarketOrderParams({
+			marketIndex,
+			direction: PositionDirection.LONG,
+			baseAssetAmount: baseAssetAmount.muln(2),
+			auctionStartPrice: new BN(33).mul(PRICE_PRECISION),
+			auctionEndPrice: new BN(10000).mul(PRICE_PRECISION),
+			auctionDuration: 50,
+			userOrderId: 1,
+			postOnly: PostOnlyParams.NONE,
+			marketType: MarketType.PERP,
+		});
+		const takerOrderParamsMessage: SwiftOrderParamsMessage = {
+			swiftOrderParams: takerOrderParams,
+			subAccountId: 0,
+			takeProfitOrderParams: null,
+			stopLossOrderParams: null,
+		};
+
+		const takerOrderParamsSig = takerDriftClient.signSwiftOrderParamsMessage(
+			takerOrderParamsMessage
+		);
+
+		const swiftServerMessage: SwiftServerMessage = {
+			slot,
+			swiftOrderSignature: takerOrderParamsSig,
+			uuid: Uint8Array.from(Buffer.from(nanoid(8))),
+		};
+
+		const encodedSwiftServerMessage =
+			makerDriftClient.encodeSwiftServerMessage(swiftServerMessage);
+
+		const swiftSignature = makerDriftClient.signMessage(
+			Uint8Array.from(encodedSwiftServerMessage),
+			swiftKeypair
+		);
+
+		await makerDriftClient.placeSwiftTakerOrder(
+			encodedSwiftServerMessage,
+			swiftSignature,
+			takerDriftClient.encodeSwiftOrderParamsMessage(takerOrderParamsMessage),
+			takerOrderParamsSig,
+			0,
+			{
+				taker: await takerDriftClient.getUserAccountPublicKey(),
+				takerUserAccount: takerDriftClient.getUserAccount(),
+				takerStats: takerDriftClient.getUserStatsAccountPublicKey(),
+			}
+		);
+
+		assert(
+			takerDriftClientUser
+				.getOrderByUserOrderId(1)
+				.auctionEndPrice.eq(new BN(10000).mul(PRICE_PRECISION))
+		);
+	});
 });
 
 async function initializeNewTakerClientAndUser(
