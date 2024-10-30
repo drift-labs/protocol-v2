@@ -107,6 +107,7 @@ export * from './dlob/DLOBApiClient';
 export * from './dlob/types';
 export * from './dlob/orderBookLevels';
 export * from './userMap/userMap';
+export * from './userMap/referrerMap';
 export * from './userMap/userStatsMap';
 export * from './userMap/userMapConfig';
 export * from './math/bankruptcy';

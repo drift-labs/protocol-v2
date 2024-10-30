@@ -56,3 +56,30 @@ export function getUserWithName(name: string): MemcmpFilter {
 		},
 	};
 }
+
+export function getUserStatsFilter(): MemcmpFilter {
+	return {
+		memcmp: {
+			offset: 0,
+			bytes: bs58.encode(BorshAccountsCoder.accountDiscriminator('UserStats')),
+		},
+	};
+}
+
+export function getUserStatsIsReferredFilter(): MemcmpFilter {
+	return {
+		memcmp: {
+			offset: 188,
+			bytes: bs58.encode(Buffer.from(Uint8Array.from([2]))),
+		},
+	};
+}
+
+export function getUserStatsIsReferredOrReferrerFilter(): MemcmpFilter {
+	return {
+		memcmp: {
+			offset: 188,
+			bytes: bs58.encode(Buffer.from(Uint8Array.from([3]))),
+		},
+	};
+}
