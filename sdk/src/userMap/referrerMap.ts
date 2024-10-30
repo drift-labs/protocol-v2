@@ -85,11 +85,16 @@ export class ReferrerMap {
 		if (referrerInfo || referrerInfo === null) {
 			this.referrerMap.set(authority, referrerInfo);
 		} else if (referrerInfo === undefined) {
-			const userStatsAccountPublicKey =  getUserStatsAccountPublicKey(
+			const userStatsAccountPublicKey = getUserStatsAccountPublicKey(
 				this.driftClient.program.programId,
 				new PublicKey(authority)
 			);
-			const buffer = (await this.driftClient.connection.getAccountInfo(userStatsAccountPublicKey, 'processed')).data;
+			const buffer = (
+				await this.driftClient.connection.getAccountInfo(
+					userStatsAccountPublicKey,
+					'processed'
+				)
+			).data;
 
 			const referrer = bs58.encode(buffer.subarray(40, 72));
 
