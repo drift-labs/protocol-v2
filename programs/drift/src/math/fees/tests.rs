@@ -30,6 +30,7 @@ mod calculate_fee_for_taker_and_maker {
             &None,
             &MarketType::Perp,
             0,
+            false,
         )
         .unwrap();
 
@@ -73,6 +74,7 @@ mod calculate_fee_for_taker_and_maker {
             &None,
             &MarketType::Perp,
             0,
+            false,
         )
         .unwrap();
 
@@ -115,6 +117,7 @@ mod calculate_fee_for_taker_and_maker {
             &None,
             &MarketType::Perp,
             0,
+            false,
         )
         .unwrap();
 
@@ -157,6 +160,7 @@ mod calculate_fee_for_taker_and_maker {
             &None,
             &MarketType::Perp,
             0,
+            false,
         )
         .unwrap();
 
@@ -197,6 +201,7 @@ mod calculate_fee_for_taker_and_maker {
             &None,
             &MarketType::Perp,
             0,
+            false,
         )
         .unwrap();
 
@@ -234,6 +239,7 @@ mod calculate_fee_for_taker_and_maker {
             &None,
             &MarketType::Perp,
             -50,
+            false,
         )
         .unwrap();
 
@@ -264,6 +270,7 @@ mod calculate_fee_for_taker_and_maker {
             &None,
             &MarketType::Perp,
             50,
+            false,
         )
         .unwrap();
 
@@ -295,6 +302,7 @@ mod calculate_fee_for_taker_and_maker {
             &None,
             &MarketType::Perp,
             -50,
+            false,
         )
         .unwrap();
 
@@ -326,6 +334,7 @@ mod calculate_fee_for_taker_and_maker {
             &None,
             &MarketType::Perp,
             -50,
+            false,
         )
         .unwrap();
 
@@ -370,6 +379,7 @@ mod calculate_fee_for_order_fulfill_against_amm {
             0,
             false,
             0,
+            false,
         )
         .unwrap();
 
@@ -406,6 +416,7 @@ mod calculate_fee_for_order_fulfill_against_amm {
             0,
             false,
             -50,
+            false,
         )
         .unwrap();
 
@@ -434,6 +445,7 @@ mod calculate_fee_for_order_fulfill_against_amm {
             0,
             false,
             50,
+            false,
         )
         .unwrap();
 
@@ -463,6 +475,7 @@ mod calculate_fee_for_order_fulfill_against_amm {
             0,
             false,
             -50,
+            false,
         )
         .unwrap();
 
@@ -492,6 +505,7 @@ mod calculate_fee_for_order_fulfill_against_amm {
             0,
             false,
             -50,
+            false,
         )
         .unwrap();
 

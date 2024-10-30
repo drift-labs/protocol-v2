@@ -2103,7 +2103,7 @@ pub fn fulfill_perp_order_with_amm(
             (override_base_asset_amount, limit_price, override_fill_price)
         }
         None => {
-            let fee_tier = determine_user_fee_tier(user_stats, fee_structure, &MarketType::Perp)?;
+            let fee_tier = determine_user_fee_tier(user_stats, fee_structure, &MarketType::Perp, user.is_high_leverage_mode())?;
             let (base_asset_amount, limit_price) = calculate_base_asset_amount_for_amm_to_fulfill(
                 &user.orders[order_index],
                 market,
@@ -2208,6 +2208,7 @@ pub fn fulfill_perp_order_with_amm(
         quote_asset_amount_surplus,
         order_post_only,
         market.fee_adjustment,
+        user.is_high_leverage_mode(),
     )?;
 
     let user_position_delta =
@@ -2655,6 +2656,7 @@ pub fn fulfill_perp_order_with_match(
         referrer_stats,
         &MarketType::Perp,
         market.fee_adjustment,
+        taker.is_high_leverage_mode(),
     )?;
 
     // Increment the markets house's total fee variables
@@ -4670,6 +4672,7 @@ pub fn fulfill_spot_order_with_match(
         &None,
         &MarketType::Spot,
         base_market.fee_adjustment,
+        false,
     )?;
 
     // Update taker state
