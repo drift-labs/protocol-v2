@@ -546,8 +546,9 @@ export type SwiftOrderRecord = {
 	user: PublicKey;
 	hash: string;
 	matchingOrderParams: OrderParams;
-	swiftOrderSlot: BN;
-	userNextOrderId: number;
+	swiftOrderMaxSlot: BN;
+	swiftOrderUuid: Uint8Array;
+	userOrderId: number;
 };
 
 export type OrderRecord = {
