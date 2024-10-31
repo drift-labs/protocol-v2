@@ -345,6 +345,45 @@ mod calculate_fee_for_taker_and_maker {
         assert_eq!(referrer_reward, 5000);
         assert_eq!(referee_discount, 5000);
     }
+
+    #[test]
+    fn high_leverage_mode() {
+        let quote_asset_amount = 100 * QUOTE_PRECISION_U64;
+        let taker_stats = UserStats::default();
+        let mut maker_stats = UserStats::default();
+
+        println!("here");
+        let FillFees {
+            user_fee: taker_fee,
+            maker_rebate,
+            fee_to_market,
+            filler_reward,
+            referee_discount,
+            referrer_reward,
+            ..
+        } = calculate_fee_for_fulfillment_with_match(
+            &taker_stats,
+            &Some(&mut maker_stats),
+            quote_asset_amount,
+            &FeeStructure::test_default(),
+            0,
+            0,
+            1,
+            false,
+            &None,
+            &MarketType::Perp,
+            -50,
+            true,
+        )
+        .unwrap();
+
+        assert_eq!(taker_fee, 200000);
+        assert_eq!(maker_rebate, 30000);
+        assert_eq!(fee_to_market, 160000);
+        assert_eq!(filler_reward, 10000);
+        assert_eq!(referrer_reward, 0);
+        assert_eq!(referee_discount, 0);
+    }
 }
 
 mod calculate_fee_for_order_fulfill_against_amm {
@@ -514,6 +553,43 @@ mod calculate_fee_for_order_fulfill_against_amm {
         assert_eq!(filler_reward, 4500);
         assert_eq!(referrer_reward, 5000);
         assert_eq!(referee_discount, 5000);
+    }
+
+    #[test]
+    fn high_leverage_mode() {
+        let quote_asset_amount = 100 * QUOTE_PRECISION_U64;
+
+        let taker_stats = UserStats::default();
+        let fee_structure = FeeStructure::test_default();
+
+        let FillFees {
+            user_fee,
+            fee_to_market,
+            filler_reward,
+            referee_discount,
+            referrer_reward,
+            ..
+        } = calculate_fee_for_fulfillment_with_amm(
+            &taker_stats,
+            quote_asset_amount,
+            &fee_structure,
+            0,
+            60,
+            false,
+            false,
+            &None,
+            0,
+            false,
+            -50,
+            true,
+        )
+        .unwrap();
+
+        assert_eq!(user_fee, 200000);
+        assert_eq!(fee_to_market, 200000);
+        assert_eq!(filler_reward, 0);
+        assert_eq!(referrer_reward, 0);
+        assert_eq!(referee_discount, 0);
     }
 }
 
