@@ -352,7 +352,6 @@ mod calculate_fee_for_taker_and_maker {
         let taker_stats = UserStats::default();
         let mut maker_stats = UserStats::default();
 
-        println!("here");
         let FillFees {
             user_fee: taker_fee,
             maker_rebate,

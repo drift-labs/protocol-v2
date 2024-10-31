@@ -265,6 +265,9 @@ fn calculate_filler_reward(
         .safe_div(100)? // 1e2 = sqrt(sqrt(1e8))
         .cast::<u64>()?;
 
+    println!("time_filler_reward {}", time_filler_reward);
+    println!("size_filler_reward {}", size_filler_reward);
+
     // lesser of size-based and time-based reward
     let fee = min(size_filler_reward, time_filler_reward);
 
