@@ -7907,6 +7907,14 @@ export class DriftClient {
 			} else {
 				marketAccount = this.getSpotMarketAccount(marketIndex);
 			}
+
+			let takeFeeAdjustment;
+			if (user && user.isHighLeverageMode()) {
+				takeFeeAdjustment = 100;
+			} else {
+				takeFeeAdjustment = marketAccount.feeAdjustment;
+			}
+
 			takerFee += (takerFee * marketAccount.feeAdjustment) / 100;
 			makerFee += (makerFee * marketAccount.feeAdjustment) / 100;
 		}
