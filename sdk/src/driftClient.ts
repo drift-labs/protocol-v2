@@ -7879,10 +7879,10 @@ export class DriftClient {
 
 	/**
 	 * This ix will donate your funds to drift revenue pool. It does not deposit into your user account
-	 * @param marketIndex 
-	 * @param amount 
-	 * @param userTokenAccountPublicKey 
-	 * @returns 
+	 * @param marketIndex
+	 * @param amount
+	 * @param userTokenAccountPublicKey
+	 * @returns
 	 */
 	public async depositIntoSpotMarketRevenuePool(
 		marketIndex: number,
