@@ -8240,6 +8240,8 @@ export class DriftClient {
 
 	public async getPostSwitchboardOnDemandUpdateAtomicIx(
 		feed: PublicKey,
+		recentSlot: number,
+		recentBlockhash: string,
 		numSignatures = 3
 	): Promise<TransactionInstruction | undefined> {
 		const program = await this.getSwitchboardOnDemandProgram();
@@ -8251,10 +8253,12 @@ export class DriftClient {
 			const feedConfig = await feedAccount.loadConfigs();
 			this.sbProgramFeedConfigs.set(feed.toString(), feedConfig);
 		}
-
-		const [pullIx, _responses, success] = await feedAccount.fetchUpdateIx({
-			numSignatures,
-		});
+		const [pullIx, _responses, success] = await feedAccount.fetchUpdateIx(
+			{
+				numSignatures,
+			},
+			[[new BN(recentSlot), recentBlockhash]]
+		);
 		if (!success) {
 			return undefined;
 		}
@@ -8263,10 +8267,14 @@ export class DriftClient {
 
 	public async postSwitchboardOnDemandUpdate(
 		feed: PublicKey,
+		recentSlot: number,
+		recentBlockhash: string,
 		numSignatures = 3
 	): Promise<TransactionSignature> {
 		const pullIx = await this.getPostSwitchboardOnDemandUpdateAtomicIx(
 			feed,
+			recentSlot,
+			recentBlockhash,
 			numSignatures
 		);
 		if (!pullIx) {
