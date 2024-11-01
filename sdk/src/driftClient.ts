@@ -7451,12 +7451,14 @@ export class DriftClient {
 		const isSolMarket = spotMarketAccount.mint.equals(WRAPPED_SOL_MINT);
 		const createWSOLTokenAccount =
 			isSolMarket && collateralAccountPublicKey.equals(this.wallet.publicKey);
+		const tokenProgramId = this.getTokenProgramForSpotMarket(spotMarketAccount);
 
 		// create associated token account because it may not exist
 		const associatedTokenAccountPublicKey = getAssociatedTokenAddressSync(
 			spotMarketAccount.mint,
 			this.wallet.publicKey,
-			true
+			true,
+			tokenProgramId
 		);
 
 		addIfStakeIxs.push(
@@ -7464,7 +7466,8 @@ export class DriftClient {
 				this.wallet.publicKey,
 				associatedTokenAccountPublicKey,
 				this.wallet.publicKey,
-				spotMarketAccount.mint
+				spotMarketAccount.mint,
+				tokenProgramId
 			)
 		);
 
@@ -7617,6 +7620,7 @@ export class DriftClient {
 		const isSolMarket = spotMarketAccount.mint.equals(WRAPPED_SOL_MINT);
 		const createWSOLTokenAccount =
 			isSolMarket && collateralAccountPublicKey.equals(this.wallet.publicKey);
+		const tokenProgramId = this.getTokenProgramForSpotMarket(spotMarketAccount);
 
 		let tokenAccount;
 
@@ -7638,7 +7642,8 @@ export class DriftClient {
 						tokenAccount,
 						this.wallet.publicKey,
 						this.wallet.publicKey,
-						spotMarketAccount.mint
+						spotMarketAccount.mint,
+						tokenProgramId
 					);
 				removeIfStakeIxs.push(createTokenAccountIx);
 			}
