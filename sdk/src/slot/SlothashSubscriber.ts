@@ -14,7 +14,7 @@ type SlothashSubscriberConfig = {
 
 export type Slothash = {
 	slot: number;
-	blockhash: string;
+	hash: string;
 };
 
 export class SlothashSubscriber {
@@ -118,9 +118,9 @@ export class SlothashSubscriber {
 
 function deserializeSlothash(data: Buffer): Slothash {
 	const slotNumber = new BN(data.subarray(8, 16), 10, 'le');
-	const blockhash = bs58.encode(data.subarray(16, 48));
+	const hash = bs58.encode(data.subarray(16, 48));
 	return {
 		slot: slotNumber.toNumber(),
-		blockhash,
+		hash,
 	};
 }
