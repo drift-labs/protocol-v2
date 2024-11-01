@@ -175,6 +175,7 @@ pub fn update_funding_rate(
         reserve_price,
         slot,
     )?;
+    crate::dlog!(block_funding_rate_update);
 
     let time_until_next_update = on_the_hour_update(
         now,
@@ -185,6 +186,7 @@ pub fn update_funding_rate(
     let valid_funding_update =
         !funding_paused && !block_funding_rate_update && (time_until_next_update == 0);
 
+    crate::dlog!(valid_funding_update, funding_paused, time_until_next_update);
     if valid_funding_update {
         let oracle_price_data = oracle_map.get_price_data(&market.amm.oracle)?;
         let sanitize_clamp_denominator = market.get_sanitize_clamp_denominator()?;
