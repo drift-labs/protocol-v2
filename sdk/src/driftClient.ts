@@ -173,6 +173,7 @@ import { asV0Tx, PullFeed } from '@switchboard-xyz/on-demand';
 import { gprcDriftClientAccountSubscriber } from './accounts/grpcDriftClientAccountSubscriber';
 import nacl from 'tweetnacl';
 import { digest } from './util/digest';
+import { Slothash } from './slot/SlothashSubscriber';
 
 type RemainingAccountParams = {
 	userAccounts: UserAccount[];
@@ -8240,6 +8241,7 @@ export class DriftClient {
 
 	public async getPostSwitchboardOnDemandUpdateAtomicIx(
 		feed: PublicKey,
+		recentSlothash?: Slothash,
 		numSignatures = 3
 	): Promise<TransactionInstruction | undefined> {
 		const program = await this.getSwitchboardOnDemandProgram();
@@ -8251,10 +8253,14 @@ export class DriftClient {
 			const feedConfig = await feedAccount.loadConfigs();
 			this.sbProgramFeedConfigs.set(feed.toString(), feedConfig);
 		}
-
-		const [pullIx, _responses, success] = await feedAccount.fetchUpdateIx({
-			numSignatures,
-		});
+		const [pullIx, _responses, success] = await feedAccount.fetchUpdateIx(
+			{
+				numSignatures,
+			},
+			recentSlothash
+				? [[new BN(recentSlothash.slot), recentSlothash.hash]]
+				: undefined
+		);
 		if (!success) {
 			return undefined;
 		}
@@ -8263,10 +8269,12 @@ export class DriftClient {
 
 	public async postSwitchboardOnDemandUpdate(
 		feed: PublicKey,
+		recentSlothash?: Slothash,
 		numSignatures = 3
 	): Promise<TransactionSignature> {
 		const pullIx = await this.getPostSwitchboardOnDemandUpdateAtomicIx(
 			feed,
+			recentSlothash,
 			numSignatures
 		);
 		if (!pullIx) {
