@@ -74,8 +74,9 @@ export class ReferrerMap {
 		return this.referrerMap.has(authorityPublicKey);
 	}
 
-	public get(authorityPublicKey: string): ReferrerInfo | undefined | null {
-		return this.referrerMap.get(authorityPublicKey);
+	public get(authorityPublicKey: string): ReferrerInfo | undefined {
+		const info = this.referrerMap.get(authorityPublicKey);
+		return info === null ? undefined : info;
 	}
 
 	public async addReferrerInfo(
@@ -126,7 +127,7 @@ export class ReferrerMap {
 	 */
 	public async mustGet(
 		authorityPublicKey: string
-	): Promise<ReferrerInfo | null | undefined> {
+	): Promise<ReferrerInfo | undefined> {
 		if (!this.has(authorityPublicKey)) {
 			await this.addReferrerInfo(authorityPublicKey);
 		}
