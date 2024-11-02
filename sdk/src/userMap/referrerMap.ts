@@ -6,7 +6,6 @@ import {
 import { BulkAccountLoader } from '../accounts/bulkAccountLoader';
 import { DriftClient } from '../driftClient';
 import { ReferrerInfo } from '../types';
-import { UserStats } from '../userStats';
 import {
 	getUserAccountPublicKeySync,
 	getUserStatsAccountPublicKey,
@@ -74,8 +73,9 @@ export class ReferrerMap {
 		return this.referrerMap.has(authorityPublicKey);
 	}
 
-	public get(authorityPublicKey: string): ReferrerInfo | undefined | null {
-		return this.referrerMap.get(authorityPublicKey);
+	public get(authorityPublicKey: string): ReferrerInfo | undefined {
+		const info = this.referrerMap.get(authorityPublicKey);
+		return info === null ? undefined : info;
 	}
 
 	public async addReferrerInfo(
@@ -85,26 +85,36 @@ export class ReferrerMap {
 		if (referrerInfo || referrerInfo === null) {
 			this.referrerMap.set(authority, referrerInfo);
 		} else if (referrerInfo === undefined) {
-			const userStat = new UserStats({
-				driftClient: this.driftClient,
-				userStatsAccountPublicKey: getUserStatsAccountPublicKey(
-					this.driftClient.program.programId,
-					new PublicKey(authority)
-				),
-				accountSubscription: {
-					type: 'polling',
-					accountLoader: this.bulkAccountLoader,
-				},
-			});
-			await userStat.fetchAccounts();
+			const userStatsAccountPublicKey = getUserStatsAccountPublicKey(
+				this.driftClient.program.programId,
+				new PublicKey(authority)
+			);
+			const buffer = (
+				await this.driftClient.connection.getAccountInfo(
+					userStatsAccountPublicKey,
+					'processed'
+				)
+			).data;
 
-			const newReferrerInfo = userStat.getReferrerInfo();
+			const referrer = bs58.encode(buffer.subarray(40, 72));
 
-			if (newReferrerInfo) {
-				this.referrerMap.set(authority.toString(), newReferrerInfo);
-			} else {
-				this.referrerMap.set(authority.toString(), null);
-			}
+			const referrerKey = new PublicKey(referrer);
+			this.addReferrerInfo(
+				authority,
+				referrer === DEFAULT_PUBLIC_KEY
+					? null
+					: {
+							referrer: getUserAccountPublicKeySync(
+								this.driftClient.program.programId,
+								referrerKey,
+								0
+							),
+							referrerStats: getUserStatsAccountPublicKey(
+								this.driftClient.program.programId,
+								referrerKey
+							),
+					  }
+			);
 		}
 	}
 
@@ -116,7 +126,7 @@ export class ReferrerMap {
 	 */
 	public async mustGet(
 		authorityPublicKey: string
-	): Promise<ReferrerInfo | null | undefined> {
+	): Promise<ReferrerInfo | undefined> {
 		if (!this.has(authorityPublicKey)) {
 			await this.addReferrerInfo(authorityPublicKey);
 		}
