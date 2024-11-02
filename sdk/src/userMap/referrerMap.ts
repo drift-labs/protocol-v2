@@ -6,7 +6,6 @@ import {
 import { BulkAccountLoader } from '../accounts/bulkAccountLoader';
 import { DriftClient } from '../driftClient';
 import { ReferrerInfo } from '../types';
-import { UserStats } from '../userStats';
 import {
 	getUserAccountPublicKeySync,
 	getUserStatsAccountPublicKey,
