@@ -326,16 +326,19 @@ impl PerpMarket {
             return Ok(false);
         }
 
-        let amm_low_inventory_and_profitable = (self.amm.net_revenue_since_last_funding > 0 && amm_lp_allowed_to_jit_make);
+        let amm_low_inventory_and_profitable =
+            (self.amm.net_revenue_since_last_funding > 0 && amm_lp_allowed_to_jit_make);
         let amm_oracle_no_latency = self.amm.oracle_source == OracleSource::Prelaunch;
         let can_skip = amm_low_inventory_and_profitable || amm_oracle_no_latency;
 
         if can_skip {
             msg!("market {} amm skipping auction duration", self.market_index);
-            crate::dlog!(self.amm.net_revenue_since_last_funding, amm_lp_allowed_to_jit_make);
+            crate::dlog!(
+                self.amm.net_revenue_since_last_funding,
+                amm_lp_allowed_to_jit_make
+            );
             crate::dlog!(amm_low_inventory_and_profitable, amm_oracle_no_latency);
         }
-
 
         Ok(can_skip)
     }

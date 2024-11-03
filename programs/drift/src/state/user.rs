@@ -576,17 +576,15 @@ impl User {
             Ok(true)
         } else {
             let mut order_offset: i64 = if order_price != 0 {
-                order_price
-                    .cast::<i64>()?
-                    .safe_sub(oracle_price)?
+                order_price.cast::<i64>()?.safe_sub(oracle_price)?
             } else {
                 oracle_price_offset.cast::<i64>()?
             };
-    
+
             if order_direction == PositionDirection::Short {
                 order_offset = -order_offset;
             }
-    
+
             // worst price is 10 bps past oracle
             Ok(order_offset
                 .safe_mul(PERCENTAGE_PRECISION_I64)?

@@ -23,7 +23,6 @@ use crate::controller::spot_position::{
 };
 use crate::error::DriftResult;
 use crate::error::ErrorCode;
-use crate::{get_then_update_id, PERCENTAGE_PRECISION_I64};
 use crate::load_mut;
 use crate::math::amm::calculate_amm_available_liquidity;
 use crate::math::amm_jit::calculate_amm_jit_liquidity;
@@ -81,6 +80,7 @@ use crate::validation::order::{
 };
 use crate::{controller, ID};
 use crate::{get_struct_values, PERCENTAGE_PRECISION};
+use crate::{get_then_update_id, PERCENTAGE_PRECISION_I64};
 
 #[cfg(test)]
 mod tests;
@@ -1195,9 +1195,17 @@ pub fn fill_perp_order(
             .amm_lp_allowed_to_jit_make(amm_wants_to_jit_make)?;
         amm_can_skip_duration =
             market.can_skip_auction_duration(&state, amm_lp_allowed_to_jit_make)?;
-        
+
         user_can_skip_duration = if amm_can_skip_duration && amm_is_available {
-            user.can_skip_auction_duration(user_stats, order_auction_duration > 0, fill_mode.is_ioc(), order_direction, order_price, order_oracle_price_offset, oracle_price_data.price)?
+            user.can_skip_auction_duration(
+                user_stats,
+                order_auction_duration > 0,
+                fill_mode.is_ioc(),
+                order_direction,
+                order_price,
+                order_oracle_price_offset,
+                oracle_price_data.price,
+            )?
         } else {
             false
         };

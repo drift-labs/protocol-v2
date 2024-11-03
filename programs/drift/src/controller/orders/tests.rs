@@ -2711,9 +2711,6 @@ pub mod fulfill_order {
         assert!(state.amm_immediate_fill_paused().unwrap());
 
         assert!(!market.can_skip_auction_duration(&state, true).unwrap());
-
-
-
     }
 
     #[test]
