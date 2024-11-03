@@ -11,15 +11,17 @@ pub enum PerpOperation {
     SettlePnl = 0b00001000,
     SettlePnlWithPosition = 0b00010000,
     Liquidation = 0b00100000,
+    AmmImmediateFill = 0b01000000,
 }
 
-const ALL_PERP_OPERATIONS: [PerpOperation; 6] = [
+const ALL_PERP_OPERATIONS: [PerpOperation; 7] = [
     PerpOperation::UpdateFunding,
     PerpOperation::AmmFill,
     PerpOperation::Fill,
     PerpOperation::SettlePnl,
     PerpOperation::SettlePnlWithPosition,
     PerpOperation::Liquidation,
+    PerpOperation::AmmImmediateFill,
 ];
 
 impl PerpOperation {

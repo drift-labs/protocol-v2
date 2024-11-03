@@ -1350,7 +1350,7 @@ pub fn handle_place_and_take_perp_order<'c: 'info, 'info>(
         &makers_and_referrer_stats,
         None,
         &Clock::get()?,
-        FillMode::PlaceAndTake,
+        FillMode::PlaceAndTake(is_immediate_or_cancel || success_condition.is_some()),
     )?;
 
     let order_exists = load!(ctx.accounts.user)?
