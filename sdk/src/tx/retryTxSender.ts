@@ -122,7 +122,7 @@ export class RetryTxSender extends BaseTxSender {
 
 			await this.checkConfirmationResultForError(txid, result?.value);
 
-			slot = result.context.slot;
+			slot = result?.context?.slot;
 			// eslint-disable-next-line no-useless-catch
 		} catch (e) {
 			throw e;

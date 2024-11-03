@@ -541,6 +541,16 @@ export type SettlePnlRecord = {
 	explanation: SettlePnlExplanation;
 };
 
+export type SwiftOrderRecord = {
+	ts: BN;
+	user: PublicKey;
+	hash: string;
+	matchingOrderParams: OrderParams;
+	swiftOrderMaxSlot: BN;
+	swiftOrderUuid: Uint8Array;
+	userOrderId: number;
+};
+
 export type OrderRecord = {
 	ts: BN;
 	user: PublicKey;
@@ -1068,11 +1078,11 @@ export const DefaultOrderParams: OrderParams = {
 export type SwiftServerMessage = {
 	slot: BN;
 	swiftOrderSignature: Uint8Array;
+	uuid: Uint8Array; // From buffer of standard UUID string
 };
 
 export type SwiftOrderParamsMessage = {
 	swiftOrderParams: OptionalOrderParams;
-	expectedOrderId: number;
 	subAccountId: number;
 	takeProfitOrderParams: SwiftTriggerOrderParams | null;
 	stopLossOrderParams: SwiftTriggerOrderParams | null;

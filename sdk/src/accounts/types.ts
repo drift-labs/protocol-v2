@@ -11,7 +11,7 @@ import StrictEventEmitter from 'strict-event-emitter-types';
 import { EventEmitter } from 'events';
 import { Context, PublicKey } from '@solana/web3.js';
 import { Account } from '@solana/spl-token';
-import { OracleInfo, OraclePriceData } from '..';
+import { HighLeverageModeConfig, OracleInfo, OraclePriceData } from '..';
 import { ChannelOptions, CommitmentLevel } from '../isomorphic/grpc';
 
 export interface AccountSubscriber<T> {
@@ -215,3 +215,27 @@ export type GrpcConfigs = {
 	commitmentLevel?: CommitmentLevel;
 	channelOptions?: ChannelOptions;
 };
+
+export interface HighLeverageModeConfigAccountSubscriber {
+	eventEmitter: StrictEventEmitter<
+		EventEmitter,
+		HighLeverageModeConfigAccountEvents
+	>;
+	isSubscribed: boolean;
+
+	subscribe(
+		highLeverageModeConfigAccount?: HighLeverageModeConfig
+	): Promise<boolean>;
+	fetch(): Promise<void>;
+	unsubscribe(): Promise<void>;
+
+	getHighLeverageModeConfigAccountAndSlot(): DataAndSlot<HighLeverageModeConfig>;
+}
+
+export interface HighLeverageModeConfigAccountEvents {
+	highLeverageModeConfigAccountUpdate: (
+		payload: HighLeverageModeConfig
+	) => void;
+	update: void;
+	error: (e: Error) => void;
+}
