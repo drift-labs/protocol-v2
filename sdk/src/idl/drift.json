@@ -7578,12 +7578,9 @@
           {
             "name": "swiftOrderData",
             "type": {
-              "array": [
-                {
-                  "defined": "SwiftOrderId"
-                },
-                32
-              ]
+              "vec": {
+                "defined": "SwiftOrderId"
+              }
             }
           }
         ]

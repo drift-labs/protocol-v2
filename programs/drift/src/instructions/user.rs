@@ -70,6 +70,7 @@ use crate::state::spot_market_map::{
     get_writable_spot_market_set, get_writable_spot_market_set_from_many,
 };
 use crate::state::state::State;
+use crate::state::swift_user::SwiftOrderId;
 use crate::state::swift_user::{SwiftUserOrders, SWIFT_PDA_SEED};
 use crate::state::traits::Size;
 use crate::state::user::ReferrerStatus;
@@ -287,12 +288,13 @@ pub fn handle_initialize_rfq_user<'c: 'info, 'info>(
 pub fn handle_initialize_swift_user_orders<'c: 'info, 'info>(
     ctx: Context<'_, '_, 'c, 'info, InitializeSwiftUserOrders<'info>>,
 ) -> Result<()> {
-    let mut swift_user_orders = ctx
+    let mut swift_user_orders = &mut ctx
         .accounts
-        .swift_user_orders
-        .load_init()
-        .or(Err(ErrorCode::UnableToLoadAccountLoader))?;
+        .swift_user_orders;
     swift_user_orders.user_pubkey = ctx.accounts.user.key();
+    for i in 0..32 {
+        swift_user_orders.swift_order_data.push(SwiftOrderId::default());
+    }
     Ok(())
 }
 
@@ -1552,7 +1554,7 @@ pub fn handle_place_and_make_swift_perp_order<'c: 'info, 'info>(
     makers_and_referrer.insert(ctx.accounts.user.key(), ctx.accounts.user.clone())?;
     makers_and_referrer_stats.insert(authority, ctx.accounts.user_stats.clone())?;
 
-    let taker_swift_account = load!(ctx.accounts.taker_swift_user_orders)?;
+    let taker_swift_account = &mut ctx.accounts.taker_swift_user_orders;
     let taker_order_id = taker_swift_account
         .swift_order_data
         .iter()
@@ -2445,7 +2447,7 @@ pub struct InitializeSwiftUserOrders<'info> {
         bump,
         payer = payer
     )]
-    pub swift_user_orders: AccountLoader<'info, SwiftUserOrders>,
+    pub swift_user_orders: Box<Account<'info, SwiftUserOrders>>,
     pub authority: Signer<'info>,
     #[account(
         mut,
@@ -2686,7 +2688,7 @@ pub struct PlaceAndMakeSwift<'info> {
         seeds = [SWIFT_PDA_SEED.as_ref(), taker.key().as_ref()],
         bump,
     )]
-    pub taker_swift_user_orders: AccountLoader<'info, SwiftUserOrders>,
+    pub taker_swift_user_orders: Box<Account<'info, SwiftUserOrders>>,
     pub authority: Signer<'info>,
 }
 

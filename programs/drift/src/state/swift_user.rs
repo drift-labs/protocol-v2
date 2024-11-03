@@ -1,3 +1,5 @@
+use anchor_lang::*;
+use borsh::{BorshDeserialize, BorshSerialize};
 use crate::error::{DriftResult, ErrorCode};
 use crate::ID;
 use anchor_lang::prelude::Pubkey;
@@ -11,7 +13,7 @@ pub const SWIFT_SLOT_EVICTION_BUFFER: u64 = 10;
 mod tests;
 
 #[zero_copy(unsafe)]
-#[derive(Default, Eq, PartialEq, Debug)]
+#[derive(Default, Eq, PartialEq, Debug, BorshDeserialize, BorshSerialize)]
 #[repr(C)]
 pub struct SwiftOrderId {
     pub uuid: [u8; 8],
@@ -30,15 +32,15 @@ impl SwiftOrderId {
 }
 
 impl Size for SwiftUserOrders {
-    const SIZE: usize = 808;
+    const SIZE: usize = 832;
 }
 
-#[account(zero_copy(unsafe))]
+#[account]
 #[derive(Default, Eq, PartialEq, Debug)]
 #[repr(C)]
 pub struct SwiftUserOrders {
     pub user_pubkey: Pubkey,
-    pub swift_order_data: [SwiftOrderId; 32],
+    pub swift_order_data: Vec<SwiftOrderId>,
 }
 
 impl SwiftUserOrders {

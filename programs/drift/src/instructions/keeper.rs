@@ -1,4 +1,5 @@
 use std::cell::RefMut;
+use std::ops::DerefMut;
 
 use anchor_lang::prelude::*;
 use anchor_spl::token_interface::{TokenAccount, TokenInterface};
@@ -548,12 +549,12 @@ pub fn handle_place_swift_taker_order<'c: 'info, 'info>(
 
     let taker_key = ctx.accounts.user.key();
     let mut taker = load_mut!(ctx.accounts.user)?;
-    let mut swift_taker = load_mut!(ctx.accounts.swift_user_orders)?;
+    let swift_taker = &mut ctx.accounts.swift_user_orders;
 
     place_swift_taker_order(
         taker_key,
         &mut taker,
-        &mut swift_taker,
+        swift_taker.deref_mut().deref_mut(),
         swift_message,
         taker_order_params_message,
         &ctx.accounts.ix_sysvar.to_account_info(),
@@ -568,7 +569,7 @@ pub fn handle_place_swift_taker_order<'c: 'info, 'info>(
 pub fn place_swift_taker_order<'c: 'info, 'info>(
     taker_key: Pubkey,
     taker: &mut RefMut<User>,
-    swift_account: &mut RefMut<SwiftUserOrders>,
+    swift_account: &mut SwiftUserOrders,
     swift_message: SwiftServerMessage,
     taker_order_params_message: SwiftOrderParamsMessage,
     ix_sysvar: &AccountInfo<'info>,
@@ -2230,7 +2231,7 @@ pub struct PlaceSwiftTakerOrder<'info> {
         seeds = [SWIFT_PDA_SEED.as_ref(), user.key().as_ref()],
         bump,
     )]
-    pub swift_user_orders: AccountLoader<'info, SwiftUserOrders>,
+    pub swift_user_orders: Box<Account<'info, SwiftUserOrders>>,
     pub authority: Signer<'info>,
     /// CHECK: The address check is needed because otherwise
     /// the supplied Sysvar could be anything else.
