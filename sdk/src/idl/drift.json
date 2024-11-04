@@ -10692,7 +10692,10 @@
             "name": "PlaceAndMake"
           },
           {
-            "name": "PlaceAndTake"
+            "name": "PlaceAndTake",
+            "fields": [
+              "bool"
+            ]
           },
           {
             "name": "Liquidation"
@@ -10888,6 +10891,9 @@
           },
           {
             "name": "Liquidation"
+          },
+          {
+            "name": "AmmImmediateFill"
           }
         ]
       }
@@ -11031,6 +11037,23 @@
       }
     },
     {
+      "name": "AMMAvailability",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "Immediate"
+          },
+          {
+            "name": "AfterMinDuration"
+          },
+          {
+            "name": "Unavailable"
+          }
+        ]
+      }
+    },
+    {
       "name": "SettlePnlMode",
       "type": {
         "kind": "enum",
@@ -11120,6 +11143,9 @@
           },
           {
             "name": "SettlePnlPaused"
+          },
+          {
+            "name": "AmmImmediateFillPaused"
           }
         ]
       }
