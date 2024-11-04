@@ -287,6 +287,11 @@ pub fn handle_initialize_rfq_user<'c: 'info, 'info>(
 pub fn handle_initialize_swift_user_orders<'c: 'info, 'info>(
     ctx: Context<'_, '_, 'c, 'info, InitializeSwiftUserOrders<'info>>,
 ) -> Result<()> {
+    #[cfg(all(feature = "mainnet-beta", not(feature = "anchor-test")))]
+    {
+        panic!("Swift orders are disabled on mainnet-beta");
+    }
+
     let mut swift_user_orders = ctx
         .accounts
         .swift_user_orders
