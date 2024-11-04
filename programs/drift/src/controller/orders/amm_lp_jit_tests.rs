@@ -326,6 +326,7 @@ pub mod amm_lp_jit {
             BASE_PRECISION_U64,
             BASE_PRECISION_U64,
             false,
+            None,
         )
         .unwrap();
         assert_eq!(amm_liquidity_split, AMMLiquiditySplit::ProtocolOwned);
@@ -412,6 +413,7 @@ pub mod amm_lp_jit {
             BASE_PRECISION_U64,
             BASE_PRECISION_U64,
             false,
+            None,
         )
         .unwrap();
         assert_eq!(amm_liquidity_split, AMMLiquiditySplit::Shared);
@@ -427,6 +429,7 @@ pub mod amm_lp_jit {
             BASE_PRECISION_U64 * 2,
             BASE_PRECISION_U64,
             false,
+            None,
         )
         .unwrap();
         assert_eq!(amm_liquidity_split, AMMLiquiditySplit::ProtocolOwned);
@@ -442,6 +445,7 @@ pub mod amm_lp_jit {
             BASE_PRECISION_U64 * 100,
             BASE_PRECISION_U64 * 100,
             false,
+            None,
         )
         .unwrap();
         assert_eq!(amm_liquidity_split, AMMLiquiditySplit::Shared);
@@ -457,6 +461,7 @@ pub mod amm_lp_jit {
             BASE_PRECISION_U64,
             BASE_PRECISION_U64,
             false,
+            None,
         )
         .unwrap();
         assert_eq!(amm_liquidity_split, AMMLiquiditySplit::ProtocolOwned);
@@ -647,8 +652,9 @@ pub mod amm_lp_jit {
             now,
             slot,
             0,
-            true,
+            crate::state::perp_market::AMMAvailability::AfterMinDuration,
             FillMode::Fill,
+            None,
         )
         .unwrap();
 
@@ -849,8 +855,9 @@ pub mod amm_lp_jit {
             now,
             slot,
             10,
-            true,
+            crate::state::perp_market::AMMAvailability::AfterMinDuration,
             FillMode::Fill,
+            None,
         )
         .unwrap();
 
@@ -1058,8 +1065,9 @@ pub mod amm_lp_jit {
             now,
             slot,
             10,
-            true,
+            crate::state::perp_market::AMMAvailability::AfterMinDuration,
             FillMode::Fill,
+            None,
         )
         .unwrap();
 
@@ -1274,8 +1282,9 @@ pub mod amm_lp_jit {
             now,
             slot,
             10,
-            true,
+            crate::state::perp_market::AMMAvailability::AfterMinDuration,
             FillMode::Fill,
+            None,
         )
         .unwrap();
 
@@ -1493,8 +1502,9 @@ pub mod amm_lp_jit {
             now,
             slot,
             10,
-            true,
+            crate::state::perp_market::AMMAvailability::AfterMinDuration,
             FillMode::Fill,
+            None,
         )
         .unwrap();
 
@@ -1694,8 +1704,9 @@ pub mod amm_lp_jit {
             now,
             slot,
             0,
-            true,
+            crate::state::perp_market::AMMAvailability::AfterMinDuration,
             FillMode::Fill,
+            None,
         )
         .unwrap();
 
@@ -1904,8 +1915,9 @@ pub mod amm_lp_jit {
             now,
             slot,
             0,
-            true,
+            crate::state::perp_market::AMMAvailability::AfterMinDuration,
             FillMode::Fill,
+            None,
         )
         .unwrap();
 
@@ -2106,8 +2118,9 @@ pub mod amm_lp_jit {
             now,
             slot,
             0,
-            true,
+            crate::state::perp_market::AMMAvailability::AfterMinDuration,
             FillMode::Fill,
+            None,
         )
         .unwrap();
 
@@ -2296,8 +2309,9 @@ pub mod amm_lp_jit {
             now,
             slot,
             10,
-            true,
+            crate::state::perp_market::AMMAvailability::AfterMinDuration,
             FillMode::Fill,
+            None,
         )
         .unwrap();
 
@@ -2498,8 +2512,9 @@ pub mod amm_lp_jit {
             now,
             slot,
             10,
-            true,
+            crate::state::perp_market::AMMAvailability::AfterMinDuration,
             FillMode::Fill,
+            None,
         )
         .unwrap();
 
@@ -2748,8 +2763,9 @@ pub mod amm_lp_jit {
                 now,
                 slot,
                 auction_duration,
-                true,
+                crate::state::perp_market::AMMAvailability::AfterMinDuration,
                 FillMode::Fill,
+                None,
             )
             .unwrap();
 
@@ -3031,8 +3047,9 @@ pub mod amm_lp_jit {
                 now,
                 slot,
                 10,
-                true,
+                crate::state::perp_market::AMMAvailability::AfterMinDuration,
                 FillMode::Fill,
+                None,
             )
             .unwrap();
 
@@ -3262,8 +3279,9 @@ pub mod amm_lp_jit {
             now,
             slot,
             0,
-            true,
+            crate::state::perp_market::AMMAvailability::AfterMinDuration,
             FillMode::Fill,
+            None,
         )
         .unwrap();
 

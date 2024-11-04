@@ -65,6 +65,12 @@ pub mod drift {
         handle_initialize_rfq_user(ctx)
     }
 
+    pub fn initialize_swift_user_orders<'c: 'info, 'info>(
+        ctx: Context<'_, '_, 'c, 'info, InitializeSwiftUserOrders<'info>>,
+    ) -> Result<()> {
+        handle_initialize_swift_user_orders(ctx)
+    }
+
     pub fn initialize_referrer_name(
         ctx: Context<InitializeReferrerName>,
         name: [u8; 32],
@@ -165,6 +171,14 @@ pub mod drift {
         taker_order_id: u32,
     ) -> Result<()> {
         handle_place_and_make_perp_order(ctx, params, taker_order_id)
+    }
+
+    pub fn place_and_make_swift_perp_order<'c: 'info, 'info>(
+        ctx: Context<'_, '_, 'c, 'info, PlaceAndMakeSwift<'info>>,
+        params: OrderParams,
+        swift_order_uuid: [u8; 8],
+    ) -> Result<()> {
+        handle_place_and_make_swift_perp_order(ctx, params, swift_order_uuid)
     }
 
     pub fn place_swift_taker_order<'c: 'info, 'info>(

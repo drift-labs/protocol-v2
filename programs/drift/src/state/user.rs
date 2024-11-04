@@ -5,7 +5,8 @@ use crate::math::auction::{calculate_auction_price, is_auction_complete};
 use crate::math::casting::Cast;
 use crate::math::constants::{
     EPOCH_DURATION, FUEL_START_TS, OPEN_ORDER_MARGIN_REQUIREMENT,
-    PRICE_TIMES_AMM_TO_QUOTE_PRECISION_RATIO, QUOTE_PRECISION, QUOTE_SPOT_MARKET_INDEX, THIRTY_DAY,
+    PRICE_TIMES_AMM_TO_QUOTE_PRECISION_RATIO, QUOTE_PRECISION, QUOTE_SPOT_MARKET_INDEX,
+    TEN_THOUSAND_QUOTE, THIRTY_DAY, TWENTY_FOUR_HOUR, TWO_HUNDRED_FIFTY_THOUSAND_QUOTE,
 };
 use crate::math::lp::{calculate_lp_open_bids_asks, calculate_settle_lp_metrics};
 use crate::math::margin::MarginRequirementType;
@@ -23,7 +24,7 @@ use crate::state::oracle::StrictOraclePrice;
 use crate::state::perp_market::{ContractType, PerpMarket};
 use crate::state::spot_market::{SpotBalance, SpotBalanceType, SpotMarket};
 use crate::state::traits::Size;
-use crate::{get_then_update_id, ID, QUOTE_PRECISION_U64};
+use crate::{get_then_update_id, ID, PERCENTAGE_PRECISION_I64, QUOTE_PRECISION_U64};
 use crate::{math_error, SPOT_WEIGHT_PRECISION_I128};
 use crate::{safe_increment, SPOT_WEIGHT_PRECISION};
 use crate::{validate, MAX_PREDICTION_MARKET_PRICE};
@@ -543,6 +544,53 @@ impl User {
         )?;
 
         Ok(true)
+    }
+
+    pub fn can_skip_auction_duration(
+        &self,
+        user_stats: &UserStats,
+        is_auction: bool,
+        is_ioc: bool,
+        order_direction: PositionDirection,
+        order_price: u64,
+        oracle_price_offset: i32,
+        oracle_price: i64,
+    ) -> DriftResult<bool> {
+        if self.next_order_id > 3000 {
+            return Ok(false);
+        }
+
+        if !is_auction || is_ioc {
+            return Ok(false);
+        }
+
+        if user_stats.number_of_sub_accounts_created > 10 {
+            return Ok(false);
+        }
+
+        if user_stats.disable_update_perp_bid_ask_twap {
+            return Ok(false);
+        }
+
+        return if order_price == 0 {
+            Ok(true)
+        } else {
+            let mut order_offset: i64 = if order_price != 0 {
+                order_price.cast::<i64>()?.safe_sub(oracle_price)?
+            } else {
+                oracle_price_offset.cast::<i64>()?
+            };
+
+            if order_direction == PositionDirection::Short {
+                order_offset = -order_offset;
+            }
+
+            // worst price is 10 bps past oracle
+            Ok(order_offset
+                .safe_mul(PERCENTAGE_PRECISION_I64)?
+                .safe_div(oracle_price)?
+                >= 1000)
+        };
     }
 }
 
@@ -1815,6 +1863,14 @@ impl UserStats {
 
     pub fn is_referrer(&self) -> bool {
         ReferrerStatus::is_referrer(self.referrer_status)
+    }
+
+    pub fn update_referrer_status(&mut self) {
+        if !self.referrer.eq(&Pubkey::default()) {
+            self.referrer_status |= ReferrerStatus::IsReferred as u8;
+        } else {
+            self.referrer_status &= !(ReferrerStatus::IsReferred as u8);
+        }
     }
 }
 

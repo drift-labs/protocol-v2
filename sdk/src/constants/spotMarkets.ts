@@ -417,13 +417,13 @@ export const MainnetSpotMarkets: SpotMarketConfig[] = [
 	{
 		symbol: 'BNSOL',
 		marketIndex: 25,
-		oracle: new PublicKey('BAtFj4kQttZRVep3UZS2aZRDixkGYgWsbqTBVDbnSsPF'),
+		oracle: new PublicKey('8DmXTfhhtb9kTcpTVfb6Ygx8WhZ8wexGqcpxfn23zooe'),
 		oracleSource: OracleSource.PYTH_PULL,
 		mint: new PublicKey('BNso1VUJnh4zcfpZa6986Ea66P6TCp59hvtNJ8b1X85'),
 		precision: LAMPORTS_PRECISION,
 		precisionExp: LAMPORTS_EXP,
 		pythFeedId:
-			'0xef0d8b6fda2ceba41da15d4095d1da392a0d2f8ed0c6c7bc0f4cfac8c280b56d',
+			'0x55f8289be7450f1ae564dd9798e49e7d797d89adbc54fe4f8c906b1fcb94b0c3',
 	},
 	{
 		symbol: 'MOTHER',

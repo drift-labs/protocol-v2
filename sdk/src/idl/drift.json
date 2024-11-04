@@ -130,6 +130,42 @@
       "args": []
     },
     {
+      "name": "initializeSwiftUserOrders",
+      "accounts": [
+        {
+          "name": "swiftUserOrders",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "user",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "payer",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "rent",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "systemProgram",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": []
+    },
+    {
       "name": "initializeReferrerName",
       "accounts": [
         {
@@ -645,6 +681,63 @@
       ]
     },
     {
+      "name": "placeAndMakeSwiftPerpOrder",
+      "accounts": [
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "user",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "userStats",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "taker",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "takerStats",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "takerSwiftUserOrders",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": true
+        }
+      ],
+      "args": [
+        {
+          "name": "params",
+          "type": {
+            "defined": "OrderParams"
+          }
+        },
+        {
+          "name": "swiftOrderUuid",
+          "type": {
+            "array": [
+              "u8",
+              8
+            ]
+          }
+        }
+      ]
+    },
+    {
       "name": "placeSwiftTakerOrder",
       "accounts": [
         {
@@ -659,6 +752,11 @@
         },
         {
           "name": "userStats",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "swiftUserOrders",
           "isMut": true,
           "isSigner": false
         },
@@ -7469,6 +7567,29 @@
       }
     },
     {
+      "name": "SwiftUserOrders",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "userPubkey",
+            "type": "publicKey"
+          },
+          {
+            "name": "swiftOrderData",
+            "type": {
+              "array": [
+                {
+                  "defined": "SwiftOrderId"
+                },
+                32
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
       "name": "User",
       "type": {
         "kind": "struct",
@@ -8433,6 +8554,15 @@
         "kind": "struct",
         "fields": [
           {
+            "name": "uuid",
+            "type": {
+              "array": [
+                "u8",
+                8
+              ]
+            }
+          },
+          {
             "name": "swiftOrderSignature",
             "type": {
               "array": [
@@ -8458,10 +8588,6 @@
             "type": {
               "defined": "OrderParams"
             }
-          },
-          {
-            "name": "expectedOrderId",
-            "type": "i32"
           },
           {
             "name": "subAccountId",
@@ -9638,6 +9764,31 @@
           {
             "name": "timeBasedRewardLowerBound",
             "type": "u128"
+          }
+        ]
+      }
+    },
+    {
+      "name": "SwiftOrderId",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "uuid",
+            "type": {
+              "array": [
+                "u8",
+                8
+              ]
+            }
+          },
+          {
+            "name": "maxSlot",
+            "type": "u64"
+          },
+          {
+            "name": "orderId",
+            "type": "u32"
           }
         ]
       }
@@ -11541,13 +11692,28 @@
           "index": false
         },
         {
-          "name": "swiftOrderSlot",
+          "name": "userOrderId",
+          "type": "u32",
+          "index": false
+        },
+        {
+          "name": "swiftOrderMaxSlot",
           "type": "u64",
           "index": false
         },
         {
-          "name": "userNextOrderId",
-          "type": "u32",
+          "name": "swiftOrderUuid",
+          "type": {
+            "array": [
+              "u8",
+              8
+            ]
+          },
+          "index": false
+        },
+        {
+          "name": "ts",
+          "type": "i64",
           "index": false
         }
       ]
@@ -13671,6 +13837,31 @@
       "code": 6296,
       "name": "InvalidRFQMatch",
       "msg": "RFQ matches must be valid"
+    },
+    {
+      "code": 6297,
+      "name": "InvalidSwiftUserAccount",
+      "msg": "Invalid swift user account"
+    },
+    {
+      "code": 6298,
+      "name": "SwiftUserAccountWrongMutability",
+      "msg": "Swift account wrong mutability"
+    },
+    {
+      "code": 6299,
+      "name": "SwiftUserOrdersAccountFull",
+      "msg": "SwiftUserAccount has too many active orders"
+    },
+    {
+      "code": 6300,
+      "name": "SwiftOrderDoesNotExist",
+      "msg": "Order with swift uuid does not exist"
+    },
+    {
+      "code": 6301,
+      "name": "InvalidSwiftOrderId",
+      "msg": "Swift order id cannot be 0s"
     }
   ],
   "metadata": {

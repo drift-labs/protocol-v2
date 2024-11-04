@@ -67,6 +67,7 @@ export * from './math/tiers';
 export * from './marinade';
 export * from './orderParams';
 export * from './slot/SlotSubscriber';
+export * from './slot/SlothashSubscriber';
 export * from './wallet';
 export * from './keypair';
 export * from './types';

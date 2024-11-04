@@ -131,6 +131,7 @@ pub mod fulfill_order_with_maker_order {
             &fee_structure,
             &mut get_oracle_map(),
             false,
+            None,
         )
         .unwrap();
 
@@ -251,6 +252,7 @@ pub mod fulfill_order_with_maker_order {
             &fee_structure,
             &mut get_oracle_map(),
             false,
+            None,
         )
         .unwrap();
 
@@ -371,6 +373,7 @@ pub mod fulfill_order_with_maker_order {
             &fee_structure,
             &mut get_oracle_map(),
             false,
+            None,
         )
         .unwrap();
 
@@ -491,6 +494,7 @@ pub mod fulfill_order_with_maker_order {
             &fee_structure,
             &mut get_oracle_map(),
             false,
+            None,
         )
         .unwrap();
 
@@ -611,6 +615,7 @@ pub mod fulfill_order_with_maker_order {
             &fee_structure,
             &mut get_oracle_map(),
             false,
+            None,
         )
         .unwrap();
 
@@ -697,6 +702,7 @@ pub mod fulfill_order_with_maker_order {
             &fee_structure,
             &mut get_oracle_map(),
             false,
+            None,
         )
         .unwrap();
 
@@ -784,6 +790,7 @@ pub mod fulfill_order_with_maker_order {
             &fee_structure,
             &mut get_oracle_map(),
             false,
+            None,
         )
         .unwrap();
 
@@ -871,6 +878,7 @@ pub mod fulfill_order_with_maker_order {
             &fee_structure,
             &mut get_oracle_map(),
             false,
+            None,
         )
         .unwrap();
 
@@ -958,6 +966,7 @@ pub mod fulfill_order_with_maker_order {
             &fee_structure,
             &mut get_oracle_map(),
             false,
+            None,
         )
         .unwrap();
 
@@ -1065,6 +1074,7 @@ pub mod fulfill_order_with_maker_order {
             &fee_structure,
             &mut get_oracle_map(),
             false,
+            None,
         )
         .unwrap();
 
@@ -1175,6 +1185,7 @@ pub mod fulfill_order_with_maker_order {
             &fee_structure,
             &mut get_oracle_map(),
             false,
+            None,
         )
         .unwrap();
 
@@ -1292,6 +1303,7 @@ pub mod fulfill_order_with_maker_order {
             &fee_structure,
             &mut get_oracle_map(),
             false,
+            None,
         )
         .unwrap();
 
@@ -1410,6 +1422,7 @@ pub mod fulfill_order_with_maker_order {
             &fee_structure,
             &mut get_oracle_map(),
             false,
+            None,
         )
         .unwrap();
 
@@ -1552,6 +1565,7 @@ pub mod fulfill_order_with_maker_order {
             &fee_structure,
             &mut get_oracle_map(),
             false,
+            None,
         )
         .unwrap();
 
@@ -1669,6 +1683,7 @@ pub mod fulfill_order_with_maker_order {
             &fee_structure,
             &mut get_oracle_map(),
             false,
+            None,
         )
         .unwrap();
 
@@ -1794,6 +1809,7 @@ pub mod fulfill_order_with_maker_order {
             &fee_structure,
             &mut oracle_map,
             false,
+            None,
         )
         .unwrap();
 
@@ -1936,6 +1952,7 @@ pub mod fulfill_order_with_maker_order {
             &fee_structure,
             &mut oracle_map,
             false,
+            None,
         )
         .unwrap();
 
@@ -2076,6 +2093,7 @@ pub mod fulfill_order_with_maker_order {
             &fee_structure,
             &mut oracle_map,
             false,
+            None,
         )
         .unwrap();
 
@@ -2217,6 +2235,7 @@ pub mod fulfill_order_with_maker_order {
             &fee_structure,
             &mut oracle_map,
             false,
+            None,
         )
         .unwrap();
 
@@ -2345,6 +2364,7 @@ pub mod fulfill_order_with_maker_order {
             &fee_structure,
             &mut get_oracle_map(),
             false,
+            None,
         )
         .unwrap();
 
@@ -2472,6 +2492,7 @@ pub mod fulfill_order_with_maker_order {
             &fee_structure,
             &mut get_oracle_map(),
             false,
+            None,
         )
         .unwrap();
 
@@ -2621,6 +2642,75 @@ pub mod fulfill_order {
             .historical_oracle_data
             .last_oracle_price_twap_5min = 20 * PRICE_PRECISION as i64;
         assert!(validate_market_within_price_band(&market, &state, oracle_price).is_err());
+    }
+
+    #[test]
+    fn fulfill_with_amm_skip_auction_duration() {
+        let now = 0_i64;
+        let slot = 0_u64;
+
+        let mut oracle_price = get_pyth_price(100, 6);
+        let oracle_price_key =
+            Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
+        let pyth_program = crate::ids::pyth_program::id();
+        create_account_info!(
+            oracle_price,
+            &oracle_price_key,
+            &pyth_program,
+            oracle_account_info
+        );
+        let oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
+
+        let mut market = PerpMarket {
+            amm: AMM {
+                base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
+                quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
+                bid_base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
+                bid_quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
+                ask_base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
+                ask_quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
+                sqrt_k: 100 * AMM_RESERVE_PRECISION,
+                peg_multiplier: 100 * PEG_PRECISION,
+                max_slippage_ratio: 50,
+                max_fill_reserve_fraction: 100,
+                order_step_size: 1000,
+                order_tick_size: 1,
+                oracle: oracle_price_key,
+                base_spread: 0, // 1 basis point
+                historical_oracle_data: HistoricalOracleData {
+                    last_oracle_price: (100 * PRICE_PRECISION) as i64,
+                    last_oracle_price_twap: (100 * PRICE_PRECISION) as i64,
+                    last_oracle_price_twap_5min: (100 * PRICE_PRECISION) as i64,
+
+                    ..HistoricalOracleData::default()
+                },
+                ..AMM::default()
+            },
+            margin_ratio_initial: 1000,
+            margin_ratio_maintenance: 500,
+            status: MarketStatus::Initialized,
+            ..PerpMarket::default_test()
+        };
+        market.amm.max_base_asset_reserve = i128::MAX as u128;
+        market.amm.min_base_asset_reserve = 0;
+
+        let mut state = State {
+            min_perp_auction_duration: 1,
+            default_market_order_time_in_force: 10,
+            ..State::default()
+        };
+
+        assert!(!market.can_skip_auction_duration(&state, false).unwrap());
+
+        market.amm.net_revenue_since_last_funding = 1;
+        assert!(!market.can_skip_auction_duration(&state, false).unwrap());
+        assert!(market.can_skip_auction_duration(&state, true).unwrap());
+
+        assert!(!state.amm_immediate_fill_paused().unwrap());
+        state.exchange_status = 0b10000000;
+        assert!(state.amm_immediate_fill_paused().unwrap());
+
+        assert!(!market.can_skip_auction_duration(&state, true).unwrap());
     }
 
     #[test]
@@ -2790,8 +2880,9 @@ pub mod fulfill_order {
             now,
             slot,
             0,
-            true,
+            crate::state::perp_market::AMMAvailability::AfterMinDuration,
             FillMode::Fill,
+            None,
         )
         .unwrap();
 
@@ -3033,8 +3124,9 @@ pub mod fulfill_order {
             now,
             slot,
             10,
-            true,
+            crate::state::perp_market::AMMAvailability::AfterMinDuration,
             FillMode::Fill,
+            None,
         )
         .unwrap();
 
@@ -3222,8 +3314,9 @@ pub mod fulfill_order {
             now,
             slot,
             0,
-            true,
+            crate::state::perp_market::AMMAvailability::AfterMinDuration,
             FillMode::Fill,
+            None,
         )
         .unwrap();
 
@@ -3427,8 +3520,9 @@ pub mod fulfill_order {
             now,
             slot,
             10,
-            true,
+            crate::state::perp_market::AMMAvailability::AfterMinDuration,
             FillMode::Fill,
+            None,
         )
         .unwrap();
 
@@ -3592,8 +3686,9 @@ pub mod fulfill_order {
             now,
             slot,
             0,
-            true,
+            crate::state::perp_market::AMMAvailability::AfterMinDuration,
             FillMode::Fill,
+            None,
         )
         .unwrap();
 
@@ -3789,8 +3884,9 @@ pub mod fulfill_order {
             now,
             slot,
             10,
-            true,
+            crate::state::perp_market::AMMAvailability::AfterMinDuration,
             FillMode::Fill,
+            None,
         );
 
         assert!(result.is_ok());
@@ -3975,8 +4071,9 @@ pub mod fulfill_order {
             now,
             slot,
             10,
-            true,
+            crate::state::perp_market::AMMAvailability::AfterMinDuration,
             FillMode::Fill,
+            None,
         );
 
         assert_eq!(result, Err(ErrorCode::InsufficientCollateral));
@@ -4114,8 +4211,9 @@ pub mod fulfill_order {
             now,
             slot,
             0,
-            true,
+            crate::state::perp_market::AMMAvailability::Immediate,
             FillMode::Fill,
+            None,
         )
         .unwrap();
 
@@ -4280,8 +4378,9 @@ pub mod fulfill_order {
             now,
             slot,
             0,
-            true,
+            crate::state::perp_market::AMMAvailability::AfterMinDuration,
             FillMode::Fill,
+            None,
         )
         .unwrap();
 
@@ -4686,8 +4785,9 @@ pub mod fulfill_order {
             now,
             slot,
             10,
-            true,
+            crate::state::perp_market::AMMAvailability::AfterMinDuration,
             FillMode::Fill,
+            None,
         )
         .unwrap();
 
@@ -4929,8 +5029,9 @@ pub mod fulfill_order {
             now,
             slot,
             0,
-            true,
+            crate::state::perp_market::AMMAvailability::AfterMinDuration,
             FillMode::Fill,
+            None,
         )
         .unwrap();
 
@@ -5051,7 +5152,7 @@ pub mod fill_order {
             ..PerpMarket::default()
         };
         market.status = MarketStatus::Active;
-        market.amm.max_base_asset_reserve = u128::MAX;
+        market.amm.max_base_asset_reserve = i128::MAX as u128;
         market.amm.min_base_asset_reserve = 0;
         let (new_ask_base_asset_reserve, new_ask_quote_asset_reserve) =
             crate::math::amm_spread::calculate_spread_reserves(&market, PositionDirection::Long)
@@ -5250,7 +5351,7 @@ pub mod fill_order {
             ..PerpMarket::default()
         };
         market.status = MarketStatus::Active;
-        market.amm.max_base_asset_reserve = u128::MAX;
+        market.amm.max_base_asset_reserve = i128::MAX as u128;
         market.amm.min_base_asset_reserve = 0;
         let (new_ask_base_asset_reserve, new_ask_quote_asset_reserve) =
             crate::math::amm_spread::calculate_spread_reserves(&market, PositionDirection::Long)
@@ -5586,7 +5687,7 @@ pub mod fill_order {
             ..PerpMarket::default()
         };
         market.status = MarketStatus::Active;
-        market.amm.max_base_asset_reserve = u128::MAX;
+        market.amm.max_base_asset_reserve = i128::MAX as u128;
         market.amm.min_base_asset_reserve = 0;
         let (new_ask_base_asset_reserve, new_ask_quote_asset_reserve) =
             crate::math::amm_spread::calculate_spread_reserves(&market, PositionDirection::Long)
@@ -10683,7 +10784,7 @@ pub mod get_maker_orders_info {
             Some(2),
             clock.unix_timestamp,
             clock.slot,
-            FillMode::PlaceAndTake,
+            FillMode::PlaceAndTake(false),
         )
         .unwrap();
 
