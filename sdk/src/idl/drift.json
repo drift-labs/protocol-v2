@@ -1752,6 +1752,27 @@
       "args": []
     },
     {
+      "name": "updateUserStatsReferrerStatus",
+      "accounts": [
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "userStats",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": []
+    },
+    {
       "name": "updateUserOpenOrdersCount",
       "accounts": [
         {

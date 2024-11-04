@@ -406,6 +406,12 @@ pub mod drift {
         handle_update_user_fuel_bonus(ctx)
     }
 
+    pub fn update_user_stats_referrer_status<'c: 'info, 'info>(
+        ctx: Context<'_, '_, 'c, 'info, UpdateUserStatsReferrerInfo<'info>>,
+    ) -> Result<()> {
+        handle_update_user_stats_referrer_info(ctx)
+    }
+
     pub fn update_user_open_orders_count(ctx: Context<UpdateUserIdle>) -> Result<()> {
         handle_update_user_open_orders_count(ctx)
     }
