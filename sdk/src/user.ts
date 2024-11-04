@@ -3475,6 +3475,10 @@ export class User {
 
 		let feeTierIndex = 0;
 		if (isVariant(marketType, 'perp')) {
+			if (this.isHighLeverageMode()) {
+				return state.perpFeeStructure.feeTiers[0];
+			}
+
 			const userStatsAccount: UserStatsAccount = this.driftClient
 				.getUserStats()
 				.getAccount();
