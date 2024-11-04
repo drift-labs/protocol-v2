@@ -2235,6 +2235,10 @@ pub fn handle_delete_user(ctx: Context<DeleteUser>) -> Result<()> {
     Ok(())
 }
 
+pub fn handle_delete_swift_user_orders(_ctx: Context<DeleteSwiftUserOrders>) -> Result<()> {
+    Ok(())
+}
+
 pub fn handle_reclaim_rent(ctx: Context<ReclaimRent>) -> Result<()> {
     let user_size = ctx.accounts.user.to_account_info().data_len();
     let minimum_lamports = ctx.accounts.rent.minimum_balance(user_size);
@@ -2759,6 +2763,25 @@ pub struct DeleteUser<'info> {
         has_one = authority
     )]
     pub user_stats: AccountLoader<'info, UserStats>,
+    #[account(mut)]
+    pub state: Box<Account<'info, State>>,
+    pub authority: Signer<'info>,
+}
+
+#[derive(Accounts)]
+pub struct DeleteSwiftUserOrders<'info> {
+    #[account(
+        mut,
+        has_one = authority,
+    )]
+    pub user: AccountLoader<'info, User>,
+    #[account(
+        mut,
+        close = user,
+        seeds = [SWIFT_PDA_SEED.as_ref(), user.key().as_ref()],
+        bump,
+    )]
+    pub swift_user_orders: AccountLoader<'info, SwiftUserOrders>,
     #[account(mut)]
     pub state: Box<Account<'info, State>>,
     pub authority: Signer<'info>,
