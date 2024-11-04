@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Features
 
+### Fixes
+
+### Breaking
+
+## [2.98.0] - 2024-11-04
+
+### Features
+
 - sdk: init referrerMap ([#1295](https://github.com/drift-labs/protocol-v2/pull/1295))
 - program: allow disable high leverage mode after 1 hour ([#1289](https://github.com/drift-labs/protocol-v2/pull/1289))
 - sdk: driftClient unsub from delisted markets by default ([#1298](https://github.com/drift-labs/protocol-v2/pull/1298))
