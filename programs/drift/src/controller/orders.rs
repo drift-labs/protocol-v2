@@ -2150,7 +2150,12 @@ pub fn fulfill_perp_order_with_amm(
             (override_base_asset_amount, limit_price, override_fill_price)
         }
         None => {
-            let fee_tier = determine_user_fee_tier(user_stats, fee_structure, &MarketType::Perp, user.is_high_leverage_mode())?;
+            let fee_tier = determine_user_fee_tier(
+                user_stats,
+                fee_structure,
+                &MarketType::Perp,
+                user.is_high_leverage_mode(),
+            )?;
             let (base_asset_amount, limit_price) = calculate_base_asset_amount_for_amm_to_fulfill(
                 &user.orders[order_index],
                 market,

@@ -47,7 +47,12 @@ pub fn calculate_fee_for_fulfillment_with_amm(
     fee_adjustment: i16,
     user_high_leverage_mode: bool,
 ) -> DriftResult<FillFees> {
-    let fee_tier = determine_user_fee_tier(user_stats, fee_structure, &MarketType::Perp, user_high_leverage_mode)?;
+    let fee_tier = determine_user_fee_tier(
+        user_stats,
+        fee_structure,
+        &MarketType::Perp,
+        user_high_leverage_mode,
+    )?;
 
     // if there was a quote_asset_amount_surplus, the order was a maker order and fee_to_market comes from surplus
     if is_post_only {
@@ -91,7 +96,7 @@ pub fn calculate_fee_for_fulfillment_with_amm(
         })
     } else {
         let taker_fee_adjustment = if user_high_leverage_mode {
-            FEE_ADJUSTMENT_MAX_I16  // high lev mode gets 2x fees
+            FEE_ADJUSTMENT_MAX_I16 // high lev mode gets 2x fees
         } else {
             fee_adjustment
         };
@@ -285,7 +290,12 @@ pub fn calculate_fee_for_fulfillment_with_match(
     fee_adjustment: i16,
     user_high_leverage_mode: bool,
 ) -> DriftResult<FillFees> {
-    let taker_fee_tier = determine_user_fee_tier(taker_stats, fee_structure, market_type, user_high_leverage_mode)?;
+    let taker_fee_tier = determine_user_fee_tier(
+        taker_stats,
+        fee_structure,
+        market_type,
+        user_high_leverage_mode,
+    )?;
     let maker_fee_tier = if let Some(maker_stats) = maker_stats {
         determine_user_fee_tier(maker_stats, fee_structure, market_type, false)?
     } else {
@@ -293,7 +303,7 @@ pub fn calculate_fee_for_fulfillment_with_match(
     };
 
     let taker_fee_adjustment = if user_high_leverage_mode {
-        FEE_ADJUSTMENT_MAX_I16  // high lev mode gets 2x fees
+        FEE_ADJUSTMENT_MAX_I16 // high lev mode gets 2x fees
     } else {
         fee_adjustment
     };
@@ -362,7 +372,8 @@ pub fn calculate_fee_for_fulfillment_with_external_market(
     fee_pool_amount: u64,
     fee_adjustment: i16,
 ) -> DriftResult<ExternalFillFees> {
-    let taker_fee_tier = determine_user_fee_tier(user_stats, fee_structure, &MarketType::Spot, false)?;
+    let taker_fee_tier =
+        determine_user_fee_tier(user_stats, fee_structure, &MarketType::Spot, false)?;
 
     let fee = calculate_taker_fee(quote_asset_amount, taker_fee_tier, fee_adjustment)?;
 
