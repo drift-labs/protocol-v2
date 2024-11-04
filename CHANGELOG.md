@@ -11,6 +11,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixes
 
+### Breaking
+
+## [2.99.0] - 2024-11-04
+
+### Features
+
+### Fixes
+
 - program: add update_user_stats_referrer_status to lib
 
 ### Breaking
