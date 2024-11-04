@@ -341,6 +341,12 @@ pub mod drift {
         handle_delete_user(ctx)
     }
 
+    pub fn delete_swift_user_orders<'c: 'info, 'info>(
+        ctx: Context<'_, '_, 'c, 'info, DeleteSwiftUserOrders>,
+    ) -> Result<()> {
+        handle_delete_swift_user_orders(ctx)
+    }
+
     pub fn reclaim_rent(ctx: Context<ReclaimRent>) -> Result<()> {
         handle_reclaim_rent(ctx)
     }
