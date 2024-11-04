@@ -7915,7 +7915,7 @@ export class DriftClient {
 				takeFeeAdjustment = marketAccount.feeAdjustment;
 			}
 
-			takerFee += (takerFee * marketAccount.feeAdjustment) / 100;
+			takerFee += (takerFee * takeFeeAdjustment) / 100;
 			makerFee += (makerFee * marketAccount.feeAdjustment) / 100;
 		}
 
