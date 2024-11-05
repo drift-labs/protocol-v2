@@ -249,7 +249,7 @@ export class WhileValidTxSender extends BaseTxSender {
 				});
 			}
 
-			slot = result.context.slot;
+			slot = result?.context?.slot;
 			// eslint-disable-next-line no-useless-catch
 		} catch (e) {
 			throw e;

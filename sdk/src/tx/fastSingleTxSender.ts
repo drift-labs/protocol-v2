@@ -129,7 +129,7 @@ export class FastSingleTxSender extends BaseTxSender {
 					const result = await this.confirmTransaction(txid, opts.commitment);
 					this.txSigCache?.set(txid, true);
 					await this.checkConfirmationResultForError(txid, result?.value);
-					slot = result.context.slot;
+					slot = result?.context?.slot;
 				}
 			} catch (e) {
 				console.error(e);

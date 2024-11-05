@@ -9,9 +9,44 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Features
 
+### Fixes
+
+### Breaking
+
+## [2.99.0] - 2024-11-04
+
+### Features
+
+### Fixes
+
+- program: add update_user_stats_referrer_status to lib
+
+### Breaking
+
+## [2.98.0] - 2024-11-04
+
+### Features
+
+- sdk: init referrerMap ([#1295](https://github.com/drift-labs/protocol-v2/pull/1295))
+- program: allow disable high leverage mode after 1 hour ([#1289](https://github.com/drift-labs/protocol-v2/pull/1289))
+- sdk: driftClient unsub from delisted markets by default ([#1298](https://github.com/drift-labs/protocol-v2/pull/1298))
+- program: allow amm to fill immediately ([#1258](https://github.com/drift-labs/protocol-v2/pull/1258))
+- program: high leverage users pay higher fee ([#1287](https://github.com/drift-labs/protocol-v2/pull/1287))
+
+### Fixes
+
+- program: admin can sign everywhere hot wallet can ([#1290](https://github.com/drift-labs/protocol-v2/pull/1290))
+
+### Breaking
+
+## [2.97.0] - 2024-10-23
+
+### Features
+
 - program: high leverage mode ([#1240](https://github.com/drift-labs/protocol-v2/pull/1240))
 - program: add flag for is_referred and is_referrer ([#1256 ](https://github.com/drift-labs/protocol-v2/pull/1256))
 - program/sdk: rfq for devnet ([#1254](https://github.com/drift-labs/protocol-v2/pull/1254))
+- program: let oracle offset orders have auctions ([#1273](https://github.com/drift-labs/protocol-v2/pull/1273))
 
 ### Fixes
 

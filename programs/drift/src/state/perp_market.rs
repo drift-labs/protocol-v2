@@ -41,6 +41,8 @@ use crate::state::paused_operations::PerpOperation;
 use drift_macros::assert_no_slop;
 use static_assertions::const_assert_eq;
 
+use super::oracle::PrelaunchOracle;
+
 #[cfg(test)]
 mod tests;
 
@@ -315,14 +317,30 @@ impl PerpMarket {
         PerpOperation::is_operation_paused(self.paused_operations, operation)
     }
 
-    pub fn can_skip_auction_duration(&self, state: &State) -> DriftResult<bool> {
+    pub fn can_skip_auction_duration(
+        &self,
+        state: &State,
+        amm_lp_allowed_to_jit_make: bool,
+    ) -> DriftResult<bool> {
         if state.amm_immediate_fill_paused()? {
             return Ok(false);
         }
 
-        Ok((self.amm.net_revenue_since_last_funding > 0
-            && self.amm.amm_lp_allowed_to_jit_make(true)?)
-            || self.amm.oracle_source == OracleSource::Prelaunch)
+        let amm_low_inventory_and_profitable =
+            (self.amm.net_revenue_since_last_funding > 0 && amm_lp_allowed_to_jit_make);
+        let amm_oracle_no_latency = self.amm.oracle_source == OracleSource::Prelaunch;
+        let can_skip = amm_low_inventory_and_profitable || amm_oracle_no_latency;
+
+        if can_skip {
+            msg!("market {} amm skipping auction duration", self.market_index);
+            crate::dlog!(
+                self.amm.net_revenue_since_last_funding,
+                amm_lp_allowed_to_jit_make
+            );
+            crate::dlog!(amm_low_inventory_and_profitable, amm_oracle_no_latency);
+        }
+
+        Ok(can_skip)
     }
 
     pub fn has_too_much_drawdown(&self) -> DriftResult<bool> {
