@@ -163,8 +163,6 @@ export class ReferrerMap {
 				await this.syncReferrer(getUserStatsIsReferredFilter());
 				await this.syncReferrer(getUserStatsIsReferredOrReferrerFilter());
 			}
-		} catch (e) {
-			console.error('error in referrerMap.sync', e);
 		} finally {
 			this.fetchPromiseResolver();
 			this.fetchPromise = undefined;
