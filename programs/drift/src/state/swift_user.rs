@@ -1,5 +1,8 @@
+use std::cell::Ref;
+
 use anchor_lang::*;
 use borsh::{BorshDeserialize, BorshSerialize};
+use bytemuck::Pod;
 use crate::error::{DriftResult, ErrorCode};
 use crate::ID;
 use anchor_lang::prelude::Pubkey;
@@ -92,4 +95,95 @@ pub fn derive_swift_user_pda(user_account_pubkey: &Pubkey) -> DriftResult<Pubkey
         &ID,
     );
     Ok(swift_pubkey)
+}
+
+#[account]
+#[derive(Default, Eq, PartialEq, Debug)]
+pub struct SwiftUserOrders2 {
+    pub user_pubkey: Pubkey,
+    pub padding: u32,
+    pub swift_order_data: Vec<SwiftOrderId2>,
+}
+
+#[zero_copy]
+#[derive(Default, Eq, PartialEq, Debug, BorshDeserialize, BorshSerialize)]
+pub struct SwiftOrderId2 {
+    pub uuid: [u8; 8],
+    pub max_slot: u64,
+    pub order_id: u32,
+    pub padding: u32,
+}
+
+#[zero_copy]
+#[derive(Default, Eq, PartialEq, Debug)]
+pub struct SwiftUserOrdersFixed {
+    pub user_pubkey: Pubkey,
+    pub padding: u32,
+    pub len: u32,
+}
+
+#[derive(Debug)]
+pub struct SwiftUserOrdersZeroCopy<'a> {
+    pub fixed: Ref<'a, SwiftUserOrdersFixed>,
+    pub data: Ref<'a, [u8]>,
+}
+
+impl<'a> SwiftUserOrdersZeroCopy<'a> {
+    pub fn deserialize(data: Ref<'a, &[u8]>) -> DriftResult<Self> {
+        let (fixed, data) = Ref::map_split(data, |d| d.split_at(40));
+        Ok(Self { fixed: Ref::map(fixed, |b| bytemuck::from_bytes(b)), data })
+    }
+
+    pub fn len(&self) -> u32 {
+        self.fixed.len
+    }
+
+    pub fn get(&self, index: u32) -> &SwiftOrderId2 {
+        let size = std::mem::size_of::<SwiftOrderId2>();
+        let start = index as usize * size;
+        println!("size {}", size);
+        println!("start {}", start);
+        bytemuck::from_bytes(&self.data[start..start + size])
+    }
+}
+
+
+
+#[cfg(test)]
+mod tests2 {
+    use std::cell::RefCell;
+
+    use super::*;
+
+    #[test]
+    fn test_swift_user_orders_3() {
+        println!("fixed size {}", std::mem::size_of::<SwiftUserOrdersFixed>());
+        let mut orders: SwiftUserOrders2 = SwiftUserOrders2 {
+            user_pubkey: Pubkey::default(),
+            padding: 0,
+            swift_order_data: Vec::with_capacity(100),
+        };
+
+        for i in 0..100 {
+            orders.swift_order_data.push(SwiftOrderId2 {
+                uuid: [0; 8],
+                max_slot: 0,
+                order_id: i as u32,
+                padding: 0,
+            });
+        }
+        let bytes = orders.try_to_vec().unwrap();
+        let bytes_ref = RefCell::new(&bytes[..]);
+        let orders_fixed = SwiftUserOrdersZeroCopy::deserialize(bytes_ref.borrow()).unwrap();
+        assert_eq!(orders_fixed.fixed.len, 100);
+        for i in 0..100 {
+            println!("i {}", i);
+            assert_eq!(orders_fixed.get(i), &SwiftOrderId2 {
+                uuid: [0; 8],
+                max_slot: 0,
+                order_id: i as u32,
+                padding: 0,
+            });
+        }
+    }
 }
