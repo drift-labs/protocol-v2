@@ -46,7 +46,6 @@
 		"@pythnetwork/pyth-solana-receiver": "^0.7.0",
 		"@solana/spl-token": "0.3.7",
 		"@solana/web3.js": "1.92.3",
-		"@switchboard-xyz/on-demand": "1.2.42",
 		"@triton-one/yellowstone-grpc": "0.6.0",
 		"anchor-bankrun": "^0.3.0",
 		"node-cache": "^5.1.2",

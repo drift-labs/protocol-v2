@@ -14,10 +14,13 @@ import {
 } from './constants/spotMarkets';
 import { OracleInfo } from './oracles/types';
 import { Program, ProgramAccount } from '@coral-xyz/anchor';
-import {
-	ON_DEMAND_DEVNET_PID,
-	ON_DEMAND_MAINNET_PID,
-} from '@switchboard-xyz/on-demand';
+
+export const ON_DEMAND_MAINNET_PID = new PublicKey(
+	'SBondMDrcV3K4kxZR1HNVT7osZxAHVHgYXL5Ze1oMUv'
+);
+export const ON_DEMAND_DEVNET_PID = new PublicKey(
+	'Aio4gaXjXzJNVLtzwtNVmSqGKpANtXhybbkhtAC94ji2'
+);
 
 type DriftConfig = {
 	ENV: DriftEnv;

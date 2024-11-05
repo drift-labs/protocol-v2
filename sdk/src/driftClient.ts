@@ -169,7 +169,10 @@ import { PythSolanaReceiver } from '@pythnetwork/pyth-solana-receiver/lib/idl/py
 import { getFeedIdUint8Array, trimFeedId } from './util/pythPullOracleUtils';
 import { isVersionedTransaction } from './tx/utils';
 import pythSolanaReceiverIdl from './idl/pyth_solana_receiver.json';
-import { asV0Tx, PullFeed } from '@switchboard-xyz/on-demand';
+// import { asV0Tx, PullFeed } from '@switchboard-xyz/on-demand';
+// mock imports because make it work
+const asV0Tx: any = undefined;
+const PullFeed: any = undefined;
 import { gprcDriftClientAccountSubscriber } from './accounts/grpcDriftClientAccountSubscriber';
 import nacl from 'tweetnacl';
 import { digest } from './util/digest';
