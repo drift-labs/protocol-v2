@@ -3,7 +3,6 @@ import {
 	PublicKey,
 	RpcResponseAndContext,
 } from '@solana/web3.js';
-import { BulkAccountLoader } from '../accounts/bulkAccountLoader';
 import { DriftClient } from '../driftClient';
 import { ReferrerInfo } from '../types';
 import {
@@ -21,14 +20,15 @@ const DEFAULT_PUBLIC_KEY = PublicKey.default.toBase58();
 
 export class ReferrerMap {
 	/**
-	 * map from authority pubkey to ReferrerInfo.
-	 * - if a user has not been entered into the map, the value is undefined
-	 * - if a user has no referrer, the value is null
-	 * - if a user has a referrer, the value is a ReferrerInfo object
+	 * map from authority pubkey to referrer pubkey.
 	 */
-	private referrerMap = new Map<string, ReferrerInfo | null>();
+	private authorityReferrerMap = new Map<string, string>();
+	/**
+	 * map from referrer pubkey to ReferrerInfo.
+	 * Will be undefined if the referrer is not in the map yet.
+	 */
+	private referrerReferrerInfoMap = new Map<string, ReferrerInfo>();
 	private driftClient: DriftClient;
-	private bulkAccountLoader: BulkAccountLoader;
 	private parallelSync: boolean;
 
 	private fetchPromise?: Promise<void>;
@@ -38,22 +38,9 @@ export class ReferrerMap {
 	 * Creates a new UserStatsMap instance.
 	 *
 	 * @param {DriftClient} driftClient - The DriftClient instance.
-	 * @param {BulkAccountLoader} [bulkAccountLoader] - If not provided, a new BulkAccountLoader with polling disabled will be created.
 	 */
-	constructor(
-		driftClient: DriftClient,
-		bulkAccountLoader?: BulkAccountLoader,
-		parallelSync?: boolean
-	) {
+	constructor(driftClient: DriftClient, parallelSync?: boolean) {
 		this.driftClient = driftClient;
-		if (!bulkAccountLoader) {
-			bulkAccountLoader = new BulkAccountLoader(
-				driftClient.connection,
-				driftClient.opts.commitment,
-				0
-			);
-		}
-		this.bulkAccountLoader = bulkAccountLoader;
 		this.parallelSync = parallelSync !== undefined ? parallelSync : true;
 	}
 
@@ -70,21 +57,17 @@ export class ReferrerMap {
 	}
 
 	public has(authorityPublicKey: string): boolean {
-		return this.referrerMap.has(authorityPublicKey);
+		return this.authorityReferrerMap.has(authorityPublicKey);
 	}
 
 	public get(authorityPublicKey: string): ReferrerInfo | undefined {
-		const info = this.referrerMap.get(authorityPublicKey);
-		return info === null ? undefined : info;
+		return this.getReferrer(authorityPublicKey);
 	}
 
-	public async addReferrerInfo(
-		authority: string,
-		referrerInfo?: ReferrerInfo | null
-	) {
-		if (referrerInfo || referrerInfo === null) {
-			this.referrerMap.set(authority, referrerInfo);
-		} else if (referrerInfo === undefined) {
+	public async addReferrer(authority: string, referrer?: string) {
+		if (referrer) {
+			this.authorityReferrerMap.set(authority, referrer);
+		} else if (referrer === undefined) {
 			const userStatsAccountPublicKey = getUserStatsAccountPublicKey(
 				this.driftClient.program.programId,
 				new PublicKey(authority)
@@ -98,23 +81,7 @@ export class ReferrerMap {
 
 			const referrer = bs58.encode(buffer.subarray(40, 72));
 
-			const referrerKey = new PublicKey(referrer);
-			this.addReferrerInfo(
-				authority,
-				referrer === DEFAULT_PUBLIC_KEY
-					? null
-					: {
-							referrer: getUserAccountPublicKeySync(
-								this.driftClient.program.programId,
-								referrerKey,
-								0
-							),
-							referrerStats: getUserStatsAccountPublicKey(
-								this.driftClient.program.programId,
-								referrerKey
-							),
-					  }
-			);
+			this.addReferrer(authority, referrer);
 		}
 	}
 
@@ -128,17 +95,51 @@ export class ReferrerMap {
 		authorityPublicKey: string
 	): Promise<ReferrerInfo | undefined> {
 		if (!this.has(authorityPublicKey)) {
-			await this.addReferrerInfo(authorityPublicKey);
+			await this.addReferrer(authorityPublicKey);
 		}
-		return this.get(authorityPublicKey);
+		return this.getReferrer(authorityPublicKey);
 	}
 
-	public values(): IterableIterator<ReferrerInfo | null> {
-		return this.referrerMap.values();
+	public getReferrer(authorityPublicKey: string): ReferrerInfo | undefined {
+		const referrer = this.authorityReferrerMap.get(authorityPublicKey);
+		if (!referrer) {
+			// return undefined if the referrer is not in the map
+			return undefined;
+		}
+
+		if (referrer === DEFAULT_PUBLIC_KEY) {
+			return undefined;
+		}
+
+		if (this.referrerReferrerInfoMap.has(referrer)) {
+			return this.referrerReferrerInfoMap.get(referrer);
+		}
+
+		const referrerKey = new PublicKey(referrer);
+		const referrerInfo = {
+			referrer: getUserAccountPublicKeySync(
+				this.driftClient.program.programId,
+				referrerKey,
+				0
+			),
+			referrerStats: getUserStatsAccountPublicKey(
+				this.driftClient.program.programId,
+				referrerKey
+			),
+		};
+
+		this.referrerReferrerInfoMap.set(referrer, referrerInfo);
+		return referrerInfo;
 	}
 
 	public size(): number {
-		return this.referrerMap.size;
+		return this.authorityReferrerMap.size;
+	}
+
+	public numberOfReferred(): number {
+		return Array.from(this.authorityReferrerMap.values()).filter(
+			(referrer) => referrer !== DEFAULT_PUBLIC_KEY
+		).length;
 	}
 
 	public async sync(): Promise<void> {
@@ -205,7 +206,7 @@ export class ReferrerMap {
 			// only add if it isn't already in the map
 			// so that if syncReferrer already set it, we dont overwrite
 			if (!this.has(account.pubkey)) {
-				this.addReferrerInfo(account.pubkey, null);
+				this.addReferrer(account.pubkey, DEFAULT_PUBLIC_KEY);
 			}
 		}
 	}
@@ -254,23 +255,7 @@ export class ReferrerMap {
 					const authority = bs58.encode(buffer.subarray(8, 40));
 					const referrer = bs58.encode(buffer.subarray(40, 72));
 
-					const referrerKey = new PublicKey(referrer);
-					this.addReferrerInfo(
-						authority,
-						referrer === DEFAULT_PUBLIC_KEY
-							? null
-							: {
-									referrer: getUserAccountPublicKeySync(
-										this.driftClient.program.programId,
-										referrerKey,
-										0
-									),
-									referrerStats: getUserStatsAccountPublicKey(
-										this.driftClient.program.programId,
-										referrerKey
-									),
-							  }
-					);
+					this.addReferrer(authority, referrer);
 				})
 			);
 			await new Promise((resolve) => setTimeout(resolve, 0));
@@ -278,6 +263,7 @@ export class ReferrerMap {
 	}
 
 	public async unsubscribe() {
-		this.referrerMap.clear();
+		this.authorityReferrerMap.clear();
+		this.referrerReferrerInfoMap.clear();
 	}
 }
