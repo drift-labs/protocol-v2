@@ -39,10 +39,7 @@ export class ReferrerMap {
 	 *
 	 * @param {DriftClient} driftClient - The DriftClient instance.
 	 */
-	constructor(
-		driftClient: DriftClient,
-		parallelSync?: boolean
-	) {
+	constructor(driftClient: DriftClient, parallelSync?: boolean) {
 		this.driftClient = driftClient;
 		this.parallelSync = parallelSync !== undefined ? parallelSync : true;
 	}
@@ -67,10 +64,7 @@ export class ReferrerMap {
 		return this.getReferrer(authorityPublicKey);
 	}
 
-	public async addReferrer(
-		authority: string,
-		referrer?: string
-	) {
+	public async addReferrer(authority: string, referrer?: string) {
 		if (referrer) {
 			this.authorityReferrerMap.set(authority, referrer);
 		} else if (referrer === undefined) {
@@ -87,10 +81,7 @@ export class ReferrerMap {
 
 			const referrer = bs58.encode(buffer.subarray(40, 72));
 
-			this.addReferrer(
-				authority,
-				referrer
-			);
+			this.addReferrer(authority, referrer);
 		}
 	}
 
@@ -264,10 +255,7 @@ export class ReferrerMap {
 					const authority = bs58.encode(buffer.subarray(8, 40));
 					const referrer = bs58.encode(buffer.subarray(40, 72));
 
-					this.addReferrer(
-						authority,
-						referrer
-					);
+					this.addReferrer(authority, referrer);
 				})
 			);
 			await new Promise((resolve) => setTimeout(resolve, 0));
