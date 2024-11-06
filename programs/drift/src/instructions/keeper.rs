@@ -49,7 +49,7 @@ use crate::state::spot_market_map::{
     get_writable_spot_market_set, get_writable_spot_market_set_from_many, SpotMarketMap,
 };
 use crate::state::state::State;
-use crate::state::swift_user::{SwiftOrderId, SwiftUserOrders, SWIFT_PDA_SEED};
+use crate::state::swift_user::{SwiftOrderId, SwiftUserOrders, SwiftUserOrdersZeroCopyMut, SWIFT_PDA_SEED};
 use crate::state::user::{
     MarginMode, MarketType, OrderStatus, OrderTriggerCondition, OrderType, ReferrerStatus, User,
     UserStats,
@@ -549,12 +549,12 @@ pub fn handle_place_swift_taker_order<'c: 'info, 'info>(
 
     let taker_key = ctx.accounts.user.key();
     let mut taker = load_mut!(ctx.accounts.user)?;
-    let swift_taker = &mut ctx.accounts.swift_user_orders;
+    let mut swift_taker = SwiftUserOrdersZeroCopyMut::deserialize(ctx.accounts.swift_user_orders.try_borrow_mut_data()?)?;
 
     place_swift_taker_order(
         taker_key,
         &mut taker,
-        swift_taker.deref_mut().deref_mut(),
+        &mut swift_taker,
         swift_message,
         taker_order_params_message,
         &ctx.accounts.ix_sysvar.to_account_info(),
@@ -569,7 +569,7 @@ pub fn handle_place_swift_taker_order<'c: 'info, 'info>(
 pub fn place_swift_taker_order<'c: 'info, 'info>(
     taker_key: Pubkey,
     taker: &mut RefMut<User>,
-    swift_account: &mut SwiftUserOrders,
+    swift_account: &mut SwiftUserOrdersZeroCopyMut,
     swift_message: SwiftServerMessage,
     taker_order_params_message: SwiftOrderParamsMessage,
     ix_sysvar: &AccountInfo<'info>,
@@ -2231,7 +2231,7 @@ pub struct PlaceSwiftTakerOrder<'info> {
         seeds = [SWIFT_PDA_SEED.as_ref(), user.key().as_ref()],
         bump,
     )]
-    pub swift_user_orders: Box<Account<'info, SwiftUserOrders>>,
+    pub swift_user_orders: AccountInfo<'info>,
     pub authority: Signer<'info>,
     /// CHECK: The address check is needed because otherwise
     /// the supplied Sysvar could be anything else.

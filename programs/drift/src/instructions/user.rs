@@ -71,6 +71,7 @@ use crate::state::spot_market_map::{
 };
 use crate::state::state::State;
 use crate::state::swift_user::SwiftOrderId;
+use crate::state::swift_user::SwiftUserOrdersZeroCopy;
 use crate::state::swift_user::{SwiftUserOrders, SWIFT_PDA_SEED};
 use crate::state::traits::Size;
 use crate::state::user::ReferrerStatus;
@@ -1554,9 +1555,8 @@ pub fn handle_place_and_make_swift_perp_order<'c: 'info, 'info>(
     makers_and_referrer.insert(ctx.accounts.user.key(), ctx.accounts.user.clone())?;
     makers_and_referrer_stats.insert(authority, ctx.accounts.user_stats.clone())?;
 
-    let taker_swift_account = &mut ctx.accounts.taker_swift_user_orders;
+    let taker_swift_account = SwiftUserOrdersZeroCopy::deserialize(ctx.accounts.taker_swift_user_orders.try_borrow_data()?)?;
     let taker_order_id = taker_swift_account
-        .swift_order_data
         .iter()
         .find(|swift_order_id| swift_order_id.uuid == swift_order_uuid)
         .ok_or(ErrorCode::SwiftOrderDoesNotExist)?
@@ -2688,7 +2688,7 @@ pub struct PlaceAndMakeSwift<'info> {
         seeds = [SWIFT_PDA_SEED.as_ref(), taker.key().as_ref()],
         bump,
     )]
-    pub taker_swift_user_orders: Box<Account<'info, SwiftUserOrders>>,
+    pub taker_swift_user_orders: AccountInfo<'info>,
     pub authority: Signer<'info>,
 }
 

@@ -7576,6 +7576,10 @@
             "type": "publicKey"
           },
           {
+            "name": "padding",
+            "type": "u32"
+          },
+          {
             "name": "swiftOrderData",
             "type": {
               "vec": {
@@ -9785,6 +9789,30 @@
           },
           {
             "name": "orderId",
+            "type": "u32"
+          },
+          {
+            "name": "padding",
+            "type": "u32"
+          }
+        ]
+      }
+    },
+    {
+      "name": "SwiftUserOrdersFixed",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "userPubkey",
+            "type": "publicKey"
+          },
+          {
+            "name": "padding",
+            "type": "u32"
+          },
+          {
+            "name": "len",
             "type": "u32"
           }
         ]
