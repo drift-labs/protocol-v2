@@ -71,6 +71,7 @@ use crate::state::spot_market_map::{
 };
 use crate::state::state::State;
 use crate::state::swift_user::SwiftOrderId;
+use crate::state::swift_user::SwiftUserOrdersLoader;
 use crate::state::swift_user::SwiftUserOrdersZeroCopy;
 use crate::state::swift_user::{SwiftUserOrders, SWIFT_PDA_SEED};
 use crate::state::traits::Size;
@@ -1555,7 +1556,7 @@ pub fn handle_place_and_make_swift_perp_order<'c: 'info, 'info>(
     makers_and_referrer.insert(ctx.accounts.user.key(), ctx.accounts.user.clone())?;
     makers_and_referrer_stats.insert(authority, ctx.accounts.user_stats.clone())?;
 
-    let taker_swift_account = SwiftUserOrdersZeroCopy::deserialize(ctx.accounts.taker_swift_user_orders.try_borrow_data()?)?;
+    let taker_swift_account = ctx.accounts.taker_swift_user_orders.load()?;
     let taker_order_id = taker_swift_account
         .iter()
         .find(|swift_order_id| swift_order_id.uuid == swift_order_uuid)
