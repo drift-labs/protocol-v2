@@ -64,12 +64,6 @@ pub struct SwiftUserOrdersZeroCopy<'a> {
 }
 
 impl<'a> SwiftUserOrdersZeroCopy<'a> {
-    pub fn deserialize(data: Ref<'a, &mut [u8]>) -> DriftResult<Self> {
-        let (discriminator, data) = Ref::map_split(data, |d| d.split_at(8));
-        let (fixed, data) = Ref::map_split(data, |d| d.split_at(40));
-        Ok(Self { fixed: Ref::map(fixed, |b| bytemuck::from_bytes(b)), data })
-    }
-
     pub fn len(&self) -> u32 {
         self.fixed.len
     }
@@ -91,12 +85,6 @@ pub struct SwiftUserOrdersZeroCopyMut<'a> {
 }
 
 impl<'a> SwiftUserOrdersZeroCopyMut<'a> {
-    pub fn deserialize(data: RefMut<'a, &mut [u8]>) -> DriftResult<Self> {
-        let (discriminator, data) = RefMut::map_split(data, |d| d.split_at_mut(8));
-        let (fixed, data) = RefMut::map_split(data, |d| d.split_at_mut(40));
-        Ok(Self { fixed: RefMut::map(fixed, |b| bytemuck::from_bytes_mut(b)), data })
-    }
-
     pub fn len(&self) -> u32 {
         self.fixed.len
     }
