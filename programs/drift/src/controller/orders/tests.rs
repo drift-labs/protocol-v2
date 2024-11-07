@@ -5073,7 +5073,7 @@ pub mod fill_order {
 
     use anchor_lang::prelude::{AccountLoader, Clock};
 
-    use crate::controller::orders::{fill_perp_order, get_order_fill_rules};
+    use crate::controller::orders::{fill_perp_order, determine_order_fill_rules};
     use crate::controller::position::PositionDirection;
     use crate::create_anchor_account_info;
     use crate::math::constants::{
@@ -5933,7 +5933,7 @@ pub mod fill_order {
             amm_can_skip_duration,
             user_can_skip_duration,
             user_can_fill_vs_protected_maker,
-        ) = get_order_fill_rules(
+        ) = determine_order_fill_rules(
             &market,
             PositionDirection::Long,
             &state,
@@ -5960,7 +5960,7 @@ pub mod fill_order {
             amm_can_skip_duration,
             user_can_skip_duration,
             user_can_fill_vs_protected_maker,
-        ) = get_order_fill_rules(
+        ) = determine_order_fill_rules(
             &market,
             PositionDirection::Long,
             &state,
@@ -5979,6 +5979,65 @@ pub mod fill_order {
 
         assert!(amm_lp_allowed_to_jit_make);
         assert!(!amm_can_skip_duration);
+        assert!(!user_can_skip_duration);
+        assert!(user_can_fill_vs_protected_maker);
+
+        market.amm.net_revenue_since_last_funding = 2;
+
+        let (
+            amm_lp_allowed_to_jit_make,
+            amm_can_skip_duration,
+            user_can_skip_duration,
+            user_can_fill_vs_protected_maker,
+        ) = determine_order_fill_rules(
+            &market,
+            PositionDirection::Long,
+            &state,
+            &user,
+            user_stats,
+            10,
+            FillMode::PlaceAndTake(false),
+            100_200_000,
+            0,
+            &oracle_price_data,
+            1000,
+            1015,
+            true,
+        )
+        .unwrap();
+
+        assert!(amm_lp_allowed_to_jit_make);
+        assert!(amm_can_skip_duration);
+        assert!(user_can_skip_duration);
+        assert!(user_can_fill_vs_protected_maker);
+
+
+        user.next_order_id = 3002;
+
+        let (
+            amm_lp_allowed_to_jit_make,
+            amm_can_skip_duration,
+            user_can_skip_duration,
+            user_can_fill_vs_protected_maker,
+        ) = determine_order_fill_rules(
+            &market,
+            PositionDirection::Long,
+            &state,
+            &user,
+            user_stats,
+            10,
+            FillMode::PlaceAndTake(false),
+            100_200_000,
+            0,
+            &oracle_price_data,
+            1000,
+            1015,
+            true,
+        )
+        .unwrap();
+
+        assert!(amm_lp_allowed_to_jit_make);
+        assert!(amm_can_skip_duration);
         assert!(!user_can_skip_duration);
         assert!(user_can_fill_vs_protected_maker);
     }

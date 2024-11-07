@@ -1049,7 +1049,7 @@ fn merge_modify_order_params_with_existing_order(
     })
 }
 
-pub fn get_order_fill_rules(
+pub fn determine_order_fill_rules(
     market: &PerpMarket,
     order_direction: PositionDirection,
     state: &State,
@@ -1245,7 +1245,7 @@ pub fn fill_perp_order(
             amm_can_skip_duration,
             user_can_skip_duration,
             user_can_fill_vs_protected_maker,
-        ) = get_order_fill_rules(
+        ) = determine_order_fill_rules(
             market,
             order_direction,
             state,
