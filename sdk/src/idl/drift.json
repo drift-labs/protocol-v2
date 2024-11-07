@@ -1,5 +1,5 @@
 {
-  "version": "2.97.0",
+  "version": "2.99.0",
   "name": "drift",
   "instructions": [
     {
@@ -1462,6 +1462,32 @@
       "args": []
     },
     {
+      "name": "deleteSwiftUserOrders",
+      "accounts": [
+        {
+          "name": "user",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "swiftUserOrders",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "state",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": true
+        }
+      ],
+      "args": []
+    },
+    {
       "name": "reclaimRent",
       "accounts": [
         {
@@ -1781,6 +1807,27 @@
           "name": "user",
           "isMut": true,
           "isSigner": false
+        },
+        {
+          "name": "userStats",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "updateUserStatsReferrerStatus",
+      "accounts": [
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": true
         },
         {
           "name": "userStats",
@@ -10756,7 +10803,10 @@
             "name": "PlaceAndMake"
           },
           {
-            "name": "PlaceAndTake"
+            "name": "PlaceAndTake",
+            "fields": [
+              "bool"
+            ]
           },
           {
             "name": "Liquidation"
@@ -10952,6 +11002,9 @@
           },
           {
             "name": "Liquidation"
+          },
+          {
+            "name": "AmmImmediateFill"
           }
         ]
       }
@@ -11095,6 +11148,23 @@
       }
     },
     {
+      "name": "AMMAvailability",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "Immediate"
+          },
+          {
+            "name": "AfterMinDuration"
+          },
+          {
+            "name": "Unavailable"
+          }
+        ]
+      }
+    },
+    {
       "name": "SettlePnlMode",
       "type": {
         "kind": "enum",
@@ -11184,6 +11254,9 @@
           },
           {
             "name": "SettlePnlPaused"
+          },
+          {
+            "name": "AmmImmediateFillPaused"
           }
         ]
       }

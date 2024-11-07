@@ -1577,6 +1577,47 @@ export class DriftClient {
 		return ix;
 	}
 
+	public async deleteSwiftUserOrders(
+		subAccountId = 0,
+		txParams?: TxParams
+	): Promise<TransactionSignature> {
+		const userAccountPublicKey = getUserAccountPublicKeySync(
+			this.program.programId,
+			this.wallet.publicKey,
+			subAccountId
+		);
+
+		const ix = await this.getSwiftUserOrdersDeletionIx(userAccountPublicKey);
+
+		const { txSig } = await this.sendTransaction(
+			await this.buildTransaction(ix, txParams),
+			[],
+			this.opts
+		);
+
+		const userMapKey = this.getUserMapKey(subAccountId, this.wallet.publicKey);
+		await this.users.get(userMapKey)?.unsubscribe();
+		this.users.delete(userMapKey);
+
+		return txSig;
+	}
+
+	public async getSwiftUserOrdersDeletionIx(userAccountPublicKey: PublicKey) {
+		const ix = await this.program.instruction.deleteSwiftUserOrders({
+			accounts: {
+				user: userAccountPublicKey,
+				swiftUserOrders: getSwiftUserAccountPublicKey(
+					this.program.programId,
+					userAccountPublicKey
+				),
+				authority: this.wallet.publicKey,
+				state: await this.getStatePublicKey(),
+			},
+		});
+
+		return ix;
+	}
+
 	public async reclaimRent(
 		subAccountId = 0,
 		txParams?: TxParams
@@ -5136,13 +5177,13 @@ export class DriftClient {
 		});
 	}
 
-	public async updateUserStatsReferrerInfo(
-		userStatsAccountPublicKey: PublicKey,
+	public async updateUserStatsReferrerStatus(
+		userAuthority: PublicKey,
 		txParams?: TxParams
 	): Promise<TransactionSignature> {
 		const { txSig } = await this.sendTransaction(
 			await this.buildTransaction(
-				await this.getUpdateUserStatsReferrerInfoIx(userStatsAccountPublicKey),
+				await this.getUpdateUserStatsReferrerStatusIx(userAuthority),
 				txParams
 			),
 			[],
@@ -5151,10 +5192,15 @@ export class DriftClient {
 		return txSig;
 	}
 
-	public async getUpdateUserStatsReferrerInfoIx(
-		userStatsAccountPublicKey: PublicKey
+	public async getUpdateUserStatsReferrerStatusIx(
+		userAuthority: PublicKey
 	): Promise<TransactionInstruction> {
-		return await this.program.instruction.updateUserStatsReferrerInfo({
+		const userStatsAccountPublicKey = getUserStatsAccountPublicKey(
+			this.program.programId,
+			userAuthority
+		);
+
+		return await this.program.instruction.updateUserStatsReferrerStatus({
 			accounts: {
 				state: await this.getStatePublicKey(),
 				userStats: userStatsAccountPublicKey,
@@ -7183,6 +7229,7 @@ export class DriftClient {
 		});
 
 		const spotMarket = this.getSpotMarketAccount(marketIndex);
+		const tokenProgramId = this.getTokenProgramForSpotMarket(spotMarket);
 
 		this.addTokenMintToRemainingAccounts(spotMarket, remainingAccounts);
 
@@ -7197,7 +7244,7 @@ export class DriftClient {
 				spotMarketVault: spotMarket.vault,
 				insuranceFundVault: spotMarket.insuranceFund.vault,
 				driftSigner: this.getSignerPublicKey(),
-				tokenProgram: TOKEN_PROGRAM_ID,
+				tokenProgram: tokenProgramId,
 			},
 			remainingAccounts: remainingAccounts,
 		});
@@ -7831,6 +7878,8 @@ export class DriftClient {
 		spotMarketIndex: number
 	): Promise<TransactionInstruction> {
 		const spotMarketAccount = this.getSpotMarketAccount(spotMarketIndex);
+		const tokenProgramId = this.getTokenProgramForSpotMarket(spotMarketAccount);
+
 		const remainingAccounts = [];
 		this.addTokenMintToRemainingAccounts(spotMarketAccount, remainingAccounts);
 		const ix = await this.program.instruction.settleRevenueToInsuranceFund(
@@ -7842,7 +7891,7 @@ export class DriftClient {
 					spotMarketVault: spotMarketAccount.vault,
 					driftSigner: this.getSignerPublicKey(),
 					insuranceFundVault: spotMarketAccount.insuranceFund.vault,
-					tokenProgram: TOKEN_PROGRAM_ID,
+					tokenProgram: tokenProgramId,
 				},
 				remainingAccounts,
 			}
@@ -7878,6 +7927,7 @@ export class DriftClient {
 		});
 
 		const spotMarket = this.getSpotMarketAccount(spotMarketIndex);
+		const tokenProgramId = this.getTokenProgramForSpotMarket(spotMarket);
 
 		return await this.program.instruction.resolvePerpPnlDeficit(
 			spotMarketIndex,
@@ -7889,7 +7939,7 @@ export class DriftClient {
 					spotMarketVault: spotMarket.vault,
 					insuranceFundVault: spotMarket.insuranceFund.vault,
 					driftSigner: this.getSignerPublicKey(),
-					tokenProgram: TOKEN_PROGRAM_ID,
+					tokenProgram: tokenProgramId,
 				},
 				remainingAccounts: remainingAccounts,
 			}
@@ -8003,7 +8053,15 @@ export class DriftClient {
 			} else {
 				marketAccount = this.getSpotMarketAccount(marketIndex);
 			}
-			takerFee += (takerFee * marketAccount.feeAdjustment) / 100;
+
+			let takeFeeAdjustment;
+			if (user && user.isHighLeverageMode()) {
+				takeFeeAdjustment = 100;
+			} else {
+				takeFeeAdjustment = marketAccount.feeAdjustment;
+			}
+
+			takerFee += (takerFee * takeFeeAdjustment) / 100;
 			makerFee += (makerFee * marketAccount.feeAdjustment) / 100;
 		}
 

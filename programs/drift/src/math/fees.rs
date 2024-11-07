@@ -13,10 +13,11 @@ use crate::math::constants::{
 use crate::math::helpers::get_proportion_u128;
 use crate::math::safe_math::SafeMath;
 
+use crate::state::high_leverage_mode_config;
 use crate::state::state::{FeeStructure, FeeTier, OrderFillerRewardStructure};
 use crate::state::user::{MarketType, UserStats};
 
-use crate::{FEE_ADJUSTMENT_MAX, QUOTE_PRECISION_U64};
+use crate::{FEE_ADJUSTMENT_MAX, FEE_ADJUSTMENT_MAX_I16, QUOTE_PRECISION_U64};
 use solana_program::msg;
 
 #[cfg(test)]
@@ -44,8 +45,14 @@ pub fn calculate_fee_for_fulfillment_with_amm(
     quote_asset_amount_surplus: i64,
     is_post_only: bool,
     fee_adjustment: i16,
+    user_high_leverage_mode: bool,
 ) -> DriftResult<FillFees> {
-    let fee_tier = determine_user_fee_tier(user_stats, fee_structure, &MarketType::Perp)?;
+    let fee_tier = determine_user_fee_tier(
+        user_stats,
+        fee_structure,
+        &MarketType::Perp,
+        user_high_leverage_mode,
+    )?;
 
     // if there was a quote_asset_amount_surplus, the order was a maker order and fee_to_market comes from surplus
     if is_post_only {
@@ -88,7 +95,13 @@ pub fn calculate_fee_for_fulfillment_with_amm(
             referee_discount: 0,
         })
     } else {
-        let fee = calculate_taker_fee(quote_asset_amount, fee_tier, fee_adjustment)?;
+        let taker_fee_adjustment = if user_high_leverage_mode {
+            FEE_ADJUSTMENT_MAX_I16 // high lev mode gets 2x fees
+        } else {
+            fee_adjustment
+        };
+
+        let fee = calculate_taker_fee(quote_asset_amount, fee_tier, taker_fee_adjustment)?;
 
         let (fee, referee_discount, referrer_reward) = if reward_referrer {
             calculate_referee_fee_and_referrer_reward(
@@ -275,15 +288,27 @@ pub fn calculate_fee_for_fulfillment_with_match(
     referrer_stats: &Option<&mut UserStats>,
     market_type: &MarketType,
     fee_adjustment: i16,
+    user_high_leverage_mode: bool,
 ) -> DriftResult<FillFees> {
-    let taker_fee_tier = determine_user_fee_tier(taker_stats, fee_structure, market_type)?;
+    let taker_fee_tier = determine_user_fee_tier(
+        taker_stats,
+        fee_structure,
+        market_type,
+        user_high_leverage_mode,
+    )?;
     let maker_fee_tier = if let Some(maker_stats) = maker_stats {
-        determine_user_fee_tier(maker_stats, fee_structure, market_type)?
+        determine_user_fee_tier(maker_stats, fee_structure, market_type, false)?
     } else {
-        determine_user_fee_tier(taker_stats, fee_structure, market_type)?
+        determine_user_fee_tier(taker_stats, fee_structure, market_type, false)?
     };
 
-    let taker_fee = calculate_taker_fee(quote_asset_amount, taker_fee_tier, fee_adjustment)?;
+    let taker_fee_adjustment = if user_high_leverage_mode {
+        FEE_ADJUSTMENT_MAX_I16 // high lev mode gets 2x fees
+    } else {
+        fee_adjustment
+    };
+
+    let taker_fee = calculate_taker_fee(quote_asset_amount, taker_fee_tier, taker_fee_adjustment)?;
 
     let (taker_fee, referee_discount, referrer_reward) = if reward_referrer {
         calculate_referee_fee_and_referrer_reward(
@@ -347,7 +372,8 @@ pub fn calculate_fee_for_fulfillment_with_external_market(
     fee_pool_amount: u64,
     fee_adjustment: i16,
 ) -> DriftResult<ExternalFillFees> {
-    let taker_fee_tier = determine_user_fee_tier(user_stats, fee_structure, &MarketType::Spot)?;
+    let taker_fee_tier =
+        determine_user_fee_tier(user_stats, fee_structure, &MarketType::Spot, false)?;
 
     let fee = calculate_taker_fee(quote_asset_amount, taker_fee_tier, fee_adjustment)?;
 
@@ -398,8 +424,10 @@ pub fn determine_user_fee_tier<'a>(
     user_stats: &UserStats,
     fee_structure: &'a FeeStructure,
     market_type: &MarketType,
+    user_high_leverage_mode: bool,
 ) -> DriftResult<&'a FeeTier> {
     match market_type {
+        MarketType::Perp if user_high_leverage_mode => Ok(&fee_structure.fee_tiers[0]),
         MarketType::Perp => determine_perp_fee_tier(user_stats, fee_structure),
         MarketType::Spot => determine_spot_fee_tier(user_stats, fee_structure),
     }

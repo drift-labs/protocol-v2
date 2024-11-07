@@ -27,7 +27,7 @@ fn test() {
 
     assert_eq!(limit_price, Some(100 * PRICE_PRECISION_U64));
 
-    let place_and_take_mode = FillMode::PlaceAndTake;
+    let place_and_take_mode = FillMode::PlaceAndTake(false);
 
     let limit_price = place_and_take_mode
         .get_limit_price(&market_order, oracle_price, slot, tick_size, false)

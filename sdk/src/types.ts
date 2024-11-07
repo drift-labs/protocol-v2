@@ -22,7 +22,8 @@ export enum ExchangeStatus {
 	LIQ_PAUSED = 16,
 	FUNDING_PAUSED = 32,
 	SETTLE_PNL_PAUSED = 64,
-	PAUSED = 127,
+	AMM_IMMEDIATE_FILL_PAUSED = 128,
+	PAUSED = 255,
 }
 
 export class MarketStatus {
@@ -924,7 +925,7 @@ export type UserStatsAccount = {
 		current_epoch_referrer_reward: BN;
 	};
 	referrer: PublicKey;
-	referrerStatus: boolean;
+	referrerStatus: number;
 	authority: PublicKey;
 	ifStakedQuoteAssetAmount: BN;
 

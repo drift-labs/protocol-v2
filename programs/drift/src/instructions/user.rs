@@ -130,6 +130,7 @@ pub fn handle_initialize_user<'c: 'info, 'info>(
             )?;
 
             referrer_stats.referrer_status |= ReferrerStatus::IsReferrer as u8;
+            user_stats.referrer_status |= ReferrerStatus::IsReferred as u8;
 
             referrer.authority
         } else {
@@ -137,7 +138,6 @@ pub fn handle_initialize_user<'c: 'info, 'info>(
         };
 
         user_stats.referrer = referrer;
-        user_stats.referrer_status |= ReferrerStatus::IsReferred as u8;
     }
 
     let whitelist_mint = &ctx.accounts.state.whitelist_mint;
@@ -291,7 +291,12 @@ pub fn handle_initialize_swift_user_orders<'c: 'info, 'info>(
     ctx: Context<'_, '_, 'c, 'info, InitializeSwiftUserOrders<'info>>,
     num_orders: u16,
 ) -> Result<()> {
-    let mut swift_user_orders = &mut ctx
+    #[cfg(all(feature = "mainnet-beta", not(feature = "anchor-test")))]
+    {
+        panic!("Swift orders are disabled on mainnet-beta");
+    }
+
+    let mut swift_user_orders = ctx
         .accounts
         .swift_user_orders;
     swift_user_orders.user_pubkey = ctx.accounts.user.key();
@@ -1365,7 +1370,7 @@ pub fn handle_place_and_take_perp_order<'c: 'info, 'info>(
         &makers_and_referrer_stats,
         None,
         &Clock::get()?,
-        FillMode::PlaceAndTake,
+        FillMode::PlaceAndTake(is_immediate_or_cancel || success_condition.is_some()),
     )?;
 
     let order_exists = load!(ctx.accounts.user)?
@@ -2244,6 +2249,10 @@ pub fn handle_delete_user(ctx: Context<DeleteUser>) -> Result<()> {
     Ok(())
 }
 
+pub fn handle_delete_swift_user_orders(_ctx: Context<DeleteSwiftUserOrders>) -> Result<()> {
+    Ok(())
+}
+
 pub fn handle_reclaim_rent(ctx: Context<ReclaimRent>) -> Result<()> {
     let user_size = ctx.accounts.user.to_account_info().data_len();
     let minimum_lamports = ctx.accounts.rent.minimum_balance(user_size);
@@ -2790,6 +2799,25 @@ pub struct DeleteUser<'info> {
         has_one = authority
     )]
     pub user_stats: AccountLoader<'info, UserStats>,
+    #[account(mut)]
+    pub state: Box<Account<'info, State>>,
+    pub authority: Signer<'info>,
+}
+
+#[derive(Accounts)]
+pub struct DeleteSwiftUserOrders<'info> {
+    #[account(
+        mut,
+        has_one = authority,
+    )]
+    pub user: AccountLoader<'info, User>,
+    #[account(
+        mut,
+        close = user,
+        seeds = [SWIFT_PDA_SEED.as_ref(), user.key().as_ref()],
+        bump,
+    )]
+    pub swift_user_orders: AccountLoader<'info, SwiftUserOrders>,
     #[account(mut)]
     pub state: Box<Account<'info, State>>,
     pub authority: Signer<'info>,

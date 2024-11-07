@@ -349,6 +349,12 @@ pub mod drift {
         handle_delete_user(ctx)
     }
 
+    pub fn delete_swift_user_orders<'c: 'info, 'info>(
+        ctx: Context<'_, '_, 'c, 'info, DeleteSwiftUserOrders>,
+    ) -> Result<()> {
+        handle_delete_swift_user_orders(ctx)
+    }
+
     pub fn reclaim_rent(ctx: Context<ReclaimRent>) -> Result<()> {
         handle_reclaim_rent(ctx)
     }
@@ -412,6 +418,12 @@ pub mod drift {
         ctx: Context<'_, '_, 'c, 'info, UpdateUserFuelBonus<'info>>,
     ) -> Result<()> {
         handle_update_user_fuel_bonus(ctx)
+    }
+
+    pub fn update_user_stats_referrer_status<'c: 'info, 'info>(
+        ctx: Context<'_, '_, 'c, 'info, UpdateUserStatsReferrerInfo<'info>>,
+    ) -> Result<()> {
+        handle_update_user_stats_referrer_info(ctx)
     }
 
     pub fn update_user_open_orders_count(ctx: Context<UpdateUserIdle>) -> Result<()> {

@@ -93,6 +93,7 @@ export * from './tx/forwardOnlyTxSender';
 export * from './tx/types';
 export * from './tx/txHandler';
 export * from './util/computeUnits';
+export * from './util/digest';
 export * from './util/tps';
 export * from './util/promiseTimeout';
 export * from './util/pythPullOracleUtils';

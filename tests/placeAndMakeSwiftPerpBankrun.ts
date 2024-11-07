@@ -31,6 +31,7 @@ import {
 	SwiftServerMessage,
 	ANCHOR_TEST_SWIFT_ID,
 	SwiftOrderRecord,
+	getSwiftUserAccountPublicKey,
 } from '../sdk/src';
 
 import {
@@ -808,6 +809,38 @@ describe('place and make swift order', () => {
 			takerDriftClientUser
 				.getOrderByUserOrderId(1)
 				.auctionEndPrice.eq(new BN(10000).mul(PRICE_PRECISION))
+		);
+
+		await takerDriftClientUser.unsubscribe();
+		await takerDriftClient.unsubscribe();
+	});
+
+	it('can let user delete their account', async () => {
+		const [takerDriftClient, takerDriftClientUser] =
+			await initializeNewTakerClientAndUser(
+				bankrunContextWrapper,
+				chProgram,
+				usdcMint,
+				usdcAmount,
+				marketIndexes,
+				spotMarketIndexes,
+				oracleInfos,
+				bulkAccountLoader
+			);
+		await takerDriftClientUser.fetchAccounts();
+
+		const userAccountPubkey = await takerDriftClient.getUserAccountPublicKey();
+
+		await takerDriftClient.deleteSwiftUserOrders();
+
+		assert(
+			(await checkIfAccountExists(
+				takerDriftClient.connection,
+				getSwiftUserAccountPublicKey(
+					takerDriftClient.program.programId,
+					userAccountPubkey
+				)
+			)) == false
 		);
 
 		await takerDriftClientUser.unsubscribe();

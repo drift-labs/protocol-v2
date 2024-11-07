@@ -488,9 +488,7 @@ pub fn handle_update_user_stats_referrer_info<'c: 'info, 'info>(
 ) -> Result<()> {
     let mut user_stats = load_mut!(ctx.accounts.user_stats)?;
 
-    if !user_stats.referrer.eq(&Pubkey::default()) {
-        user_stats.referrer_status |= ReferrerStatus::IsReferred as u8;
-    }
+    user_stats.update_referrer_status();
 
     Ok(())
 }
