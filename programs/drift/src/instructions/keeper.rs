@@ -2231,7 +2231,7 @@ pub struct PlaceSwiftTakerOrder<'info> {
         seeds = [SWIFT_PDA_SEED.as_ref(), user.key().as_ref()],
         bump,
     )]
-    /// CHECK
+    /// CHECK: checked in SwiftUserOrdersZeroCopy checks
     pub swift_user_orders: AccountInfo<'info>,
     pub authority: Signer<'info>,
     /// CHECK: The address check is needed because otherwise

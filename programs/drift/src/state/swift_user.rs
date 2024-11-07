@@ -51,6 +51,10 @@ pub struct SwiftUserOrders {
 }
 
 impl SwiftUserOrders {
+    /// 8 orders - 268 bytes - 0.00275616 SOL for rent
+    /// 16 orders - 460 bytes - 0.00409248 SOL for rent
+    /// 32 orders - 844 bytes - 0.00676512 SOL for rent
+    /// 64 orders - 1612 bytes - 0.012110400 SOL for rent
     pub fn space(num_orders: usize) -> usize {
         8 + 32 + 4 + 32 + num_orders * 24
     }
@@ -63,7 +67,7 @@ impl SwiftUserOrders {
         );
         Ok(())
     }
-}   
+}
 
 #[zero_copy]
 #[derive(Default, Eq, PartialEq, Debug)]
