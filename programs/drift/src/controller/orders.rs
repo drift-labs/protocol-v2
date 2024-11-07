@@ -26,6 +26,7 @@ use crate::error::ErrorCode;
 use crate::load_mut;
 use crate::math::amm::calculate_amm_available_liquidity;
 use crate::math::amm_jit::calculate_amm_jit_liquidity;
+use crate::math::auction::is_auction_complete;
 use crate::math::auction::{calculate_auction_params_for_trigger_order, calculate_auction_prices};
 use crate::math::casting::Cast;
 use crate::math::constants::{BASE_PRECISION_U64, PERP_DECIMALS, QUOTE_SPOT_MARKET_INDEX};
@@ -1048,6 +1049,53 @@ fn merge_modify_order_params_with_existing_order(
     })
 }
 
+pub fn determine_order_fill_rules(
+    market: &PerpMarket,
+    order_direction: PositionDirection,
+    state: &State,
+    user: &User,
+    user_stats: &UserStats,
+    order_auction_duration: u8,
+    fill_mode: FillMode,
+    order_price: u64,
+    order_oracle_price_offset: i32,
+    oracle_price_data: &OraclePriceData,
+    order_creation_slot: u64,
+    slot: u64,
+    amm_is_available: bool,
+) -> DriftResult<(bool, bool, bool, bool)> {
+    let amm_wants_to_jit_make = market.amm.amm_wants_to_jit_make(order_direction)?;
+    let amm_lp_allowed_to_jit_make = market
+        .amm
+        .amm_lp_allowed_to_jit_make(amm_wants_to_jit_make)?;
+    let amm_can_skip_duration =
+        market.can_skip_auction_duration(&state, amm_lp_allowed_to_jit_make)?;
+
+    let user_can_skip_duration = (amm_can_skip_duration && amm_is_available && {
+        user.can_skip_auction_duration(
+            user_stats,
+            order_auction_duration > 0,
+            fill_mode.is_ioc(),
+            order_direction,
+            order_price,
+            order_oracle_price_offset,
+            oracle_price_data.price,
+        )?
+    });
+
+    let is_auction_complete =
+        is_auction_complete(order_creation_slot, state.min_perp_auction_duration, slot)?;
+
+    let user_can_fill_vs_protected_maker = user_can_skip_duration || is_auction_complete;
+
+    Ok((
+        amm_lp_allowed_to_jit_make,
+        amm_can_skip_duration,
+        user_can_skip_duration,
+        user_can_fill_vs_protected_maker,
+    ))
+}
+
 pub fn fill_perp_order(
     order_id: u32,
     state: &State,
@@ -1086,6 +1134,7 @@ pub fn fill_perp_order(
         order_oracle_price_offset,
         order_direction,
         order_auction_duration,
+        order_creation_slot,
     ) = get_struct_values!(
         user.orders[order_index],
         status,
@@ -1094,7 +1143,8 @@ pub fn fill_perp_order(
         price,
         oracle_price_offset,
         direction,
-        auction_duration
+        auction_duration,
+        slot
     );
 
     validate!(
@@ -1163,6 +1213,7 @@ pub fn fill_perp_order(
     let oracle_twap_5min: i64;
     let perp_market_index: u16;
     let user_can_skip_duration: bool;
+    let user_can_fill_vs_protected_maker: bool;
     let amm_can_skip_duration: bool;
     let amm_lp_allowed_to_jit_make: bool;
 
@@ -1189,26 +1240,26 @@ pub fn fill_perp_order(
         amm_is_available &= !market.is_operation_paused(PerpOperation::AmmFill);
         amm_is_available &= !market.has_too_much_drawdown()?;
 
-        let amm_wants_to_jit_make = market.amm.amm_wants_to_jit_make(order_direction)?;
-        amm_lp_allowed_to_jit_make = market
-            .amm
-            .amm_lp_allowed_to_jit_make(amm_wants_to_jit_make)?;
-        amm_can_skip_duration =
-            market.can_skip_auction_duration(&state, amm_lp_allowed_to_jit_make)?;
-
-        user_can_skip_duration = if amm_can_skip_duration && amm_is_available {
-            user.can_skip_auction_duration(
-                user_stats,
-                order_auction_duration > 0,
-                fill_mode.is_ioc(),
-                order_direction,
-                order_price,
-                order_oracle_price_offset,
-                oracle_price_data.price,
-            )?
-        } else {
-            false
-        };
+        (
+            amm_lp_allowed_to_jit_make,
+            amm_can_skip_duration,
+            user_can_skip_duration,
+            user_can_fill_vs_protected_maker,
+        ) = determine_order_fill_rules(
+            market,
+            order_direction,
+            state,
+            user,
+            user_stats,
+            order_auction_duration,
+            fill_mode,
+            order_price,
+            order_oracle_price_offset,
+            oracle_price_data,
+            order_creation_slot,
+            slot,
+            amm_is_available,
+        )?;
 
         reserve_price_before = market.amm.reserve_price()?;
         oracle_price = oracle_price_data.price;
@@ -1257,6 +1308,7 @@ pub fn fill_perp_order(
         now,
         slot,
         fill_mode,
+        user_can_fill_vs_protected_maker,
     )?;
 
     // no referrer bonus for liquidations
@@ -1560,6 +1612,7 @@ fn get_maker_orders_info(
     now: i64,
     slot: u64,
     fill_mode: FillMode,
+    user_can_fill_vs_protected_maker: bool,
 ) -> DriftResult<Vec<(Pubkey, usize, u64)>> {
     let maker_direction = taker_order.direction.opposite();
 
@@ -1573,6 +1626,10 @@ fn get_maker_orders_info(
         let mut maker = load_mut!(user_account_loader)?;
 
         if maker.is_being_liquidated() || maker.is_bankrupt() {
+            continue;
+        }
+
+        if maker.is_protected_maker() && !user_can_fill_vs_protected_maker {
             continue;
         }
 
@@ -1887,6 +1944,12 @@ fn fulfill_perp_order(
             }
             PerpFulfillmentMethod::Match(maker_key, maker_order_index) => {
                 let mut maker = makers_and_referrer.get_ref_mut(maker_key)?;
+
+                // doesn't meet match condition for protected maker
+                if maker.is_protected_maker() && valid_oracle_price.is_none() {
+                    continue;
+                }
+
                 let mut maker_stats = if maker.authority == user.authority {
                     None
                 } else {
