@@ -41,6 +41,11 @@ impl Size for SwiftUserOrders {
     const SIZE: usize = 816;
 }
 
+/**
+ * This struct is a duplicate of SwiftUserOrdersZeroCopy
+ * It is used to give anchor an struct to generate the idl for clients
+ * The struct SwiftUserOrdersZeroCopy is used to load the data in efficiently
+ */
 #[account]
 #[derive(Default, Eq, PartialEq, Debug)]
 #[repr(C)]
