@@ -54,6 +54,15 @@ impl SwiftUserOrders {
     pub fn space(num_orders: usize) -> usize {
         8 + 32 + 4 + 32 + num_orders * 24
     }
+
+    pub fn validate(&self) -> DriftResult<()> {
+        validate!(
+            self.swift_order_data.len() >= 1 && self.swift_order_data.len() <= 128,
+            ErrorCode::DefaultError,
+            "SwiftUserOrders len must be between 1 and 128"
+        );
+        Ok(())
+    }
 }   
 
 #[zero_copy]

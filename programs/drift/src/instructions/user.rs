@@ -296,6 +296,7 @@ pub fn handle_initialize_swift_user_orders<'c: 'info, 'info>(
         .swift_user_orders;
     swift_user_orders.user_pubkey = ctx.accounts.user.key();
     swift_user_orders.swift_order_data.resize_with(num_orders as usize, SwiftOrderId::default);
+    swift_user_orders.validate()?;
     Ok(())
 }
 
@@ -305,6 +306,7 @@ pub fn handle_resize_swift_user_orders<'c: 'info, 'info>(
 ) -> Result<()> {
     let mut swift_user_orders = &mut ctx.accounts.swift_user_orders;
     swift_user_orders.swift_order_data.resize_with(num_orders as usize, SwiftOrderId::default);
+    swift_user_orders.validate()?;
     Ok(())
 }
 
