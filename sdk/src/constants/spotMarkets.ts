@@ -147,9 +147,6 @@ export const MainnetSpotMarkets: SpotMarketConfig[] = [
 		phoenixMarket: new PublicKey(
 			'Ew3vFDdtdGrknJAVVfraxCA37uNJtimXYPY4QjnfhFHH'
 		),
-		openbookMarket: new PublicKey(
-			'AT1R2jUNb9iTo4EaRfKSTPiNTX4Jb64KSwnVmig6Hu4t'
-		),
 		pythFeedId:
 			'0xff61491a931112ddf1bd8147cd1b641375f79f5825126d665480874634fd0ace',
 	},
