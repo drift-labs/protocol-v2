@@ -211,8 +211,9 @@ describe('place and make swift order', () => {
 			},
 		});
 		await takerDriftClientUser.subscribe();
-		await takerDriftClient.initializeSwiftUserOrdersAccount(
-			takerDriftClientUser.userAccountPublicKey
+		await takerDriftClient.initializeSwiftUserOrders(
+			takerDriftClientUser.userAccountPublicKey,
+			32,
 		);
 
 		const marketIndex = 0;
@@ -343,8 +344,9 @@ describe('place and make swift order', () => {
 			},
 		});
 		await takerDriftClientUser.subscribe();
-		await takerDriftClient.initializeSwiftUserOrdersAccount(
-			takerDriftClientUser.userAccountPublicKey
+		await takerDriftClient.initializeSwiftUserOrders(
+			takerDriftClientUser.userAccountPublicKey,
+			32
 		);
 
 		const marketIndex = 0;
@@ -468,8 +470,9 @@ describe('place and make swift order', () => {
 			},
 		});
 		await takerDriftClientUser.subscribe();
-		await takerDriftClient.initializeSwiftUserOrdersAccount(
-			takerDriftClientUser.userAccountPublicKey
+		await takerDriftClient.initializeSwiftUserOrders(
+			takerDriftClientUser.userAccountPublicKey,
+			32
 		);
 
 		const marketIndex = 0;
@@ -586,8 +589,9 @@ describe('place and make swift order', () => {
 			},
 		});
 		await takerDriftClientUser.subscribe();
-		await takerDriftClient.initializeSwiftUserOrdersAccount(
-			takerDriftClientUser.userAccountPublicKey
+		await takerDriftClient.initializeSwiftUserOrders(
+			takerDriftClientUser.userAccountPublicKey,
+			32
 		);
 
 		const marketIndex = 0;

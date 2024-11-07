@@ -144,7 +144,7 @@
         },
         {
           "name": "user",
-          "isMut": true,
+          "isMut": false,
           "isSigner": false
         },
         {
@@ -163,7 +163,12 @@
           "isSigner": false
         }
       ],
-      "args": []
+      "args": [
+        {
+          "name": "numOrders",
+          "type": "u16"
+        }
+      ]
     },
     {
       "name": "resizeSwiftUserOrders",
@@ -13922,8 +13927,5 @@
       "name": "InvalidSwiftOrderId",
       "msg": "Swift order id cannot be 0s"
     }
-  ],
-  "metadata": {
-    "address": "dRiftyHA39MWEi3m9aunc5MzRF1JYuBsbn6VPcn33UH"
-  }
+  ]
 }

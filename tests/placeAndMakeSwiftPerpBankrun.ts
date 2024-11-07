@@ -862,13 +862,14 @@ async function initializeNewTakerClientAndUser(
 		driftClient: takerDriftClient,
 		userAccountPublicKey: await takerDriftClient.getUserAccountPublicKey(),
 		accountSubscription: {
-			type: 'polling',
+			type: 'polling',	
 			accountLoader: bulkAccountLoader,
 		},
 	});
 	await takerDriftClientUser.subscribe();
-	await takerDriftClient.initializeSwiftUserOrdersAccount(
-		takerDriftClientUser.userAccountPublicKey
+	await takerDriftClient.initializeSwiftUserOrders(
+		takerDriftClientUser.userAccountPublicKey,
+		32
 	);
 	return [takerDriftClient, takerDriftClientUser];
 }

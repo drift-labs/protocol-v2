@@ -289,14 +289,13 @@ pub fn handle_initialize_rfq_user<'c: 'info, 'info>(
 
 pub fn handle_initialize_swift_user_orders<'c: 'info, 'info>(
     ctx: Context<'_, '_, 'c, 'info, InitializeSwiftUserOrders<'info>>,
+    num_orders: u16,
 ) -> Result<()> {
     let mut swift_user_orders = &mut ctx
         .accounts
         .swift_user_orders;
     swift_user_orders.user_pubkey = ctx.accounts.user.key();
-    for i in 0..32 {
-        swift_user_orders.swift_order_data.push(SwiftOrderId::default());
-    }
+    swift_user_orders.swift_order_data.resize_with(num_orders as usize, SwiftOrderId::default);
     Ok(())
 }
 
@@ -2450,18 +2449,18 @@ pub struct InitializeRFQUser<'info> {
 }
 
 #[derive(Accounts)]
+#[instruction(num_orders: u16)]
 pub struct InitializeSwiftUserOrders<'info> {
     #[account(
         init,
         seeds = [SWIFT_PDA_SEED.as_ref(), user.key().as_ref()],
-        space = SwiftUserOrders::SIZE,
+        space = SwiftUserOrders::space(num_orders as usize),
         bump,
         payer = payer
     )]
     pub swift_user_orders: Box<Account<'info, SwiftUserOrders>>,
     pub authority: Signer<'info>,
     #[account(
-        mut,
         constraint = can_sign_for_user(&user, &authority)?
     )]
     pub user: AccountLoader<'info, User>,

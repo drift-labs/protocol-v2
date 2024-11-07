@@ -1026,15 +1026,17 @@ export class DriftClient {
 		return [rfqUserAccountPublicKey, initializeUserAccountIx];
 	}
 
-	public async initializeSwiftUserOrdersAccount(
+	public async initializeSwiftUserOrders(
 		userAccountPublicKey: PublicKey,
+		numOrders: number,
 		txParams?: TxParams
 	): Promise<[TransactionSignature, PublicKey]> {
 		const initializeIxs = [];
 
 		const [swiftUserAccountPublicKey, initializeUserAccountIx] =
-			await this.getInitializeSwiftUserOrdersAccountInstruction(
-				userAccountPublicKey
+			await this.getInitializeSwiftUserOrdersAccountIx(
+				userAccountPublicKey,
+				numOrders
 			);
 		initializeIxs.push(initializeUserAccountIx);
 		const tx = await this.buildTransaction(initializeIxs, txParams);
@@ -1043,15 +1045,16 @@ export class DriftClient {
 		return [txSig, swiftUserAccountPublicKey];
 	}
 
-	async getInitializeSwiftUserOrdersAccountInstruction(
-		userAccountPublicKey: PublicKey
+	async getInitializeSwiftUserOrdersAccountIx(
+		userAccountPublicKey: PublicKey,
+		numOrders: number
 	): Promise<[PublicKey, TransactionInstruction]> {
 		const swiftUserAccountPublicKey = getSwiftUserAccountPublicKey(
 			this.program.programId,
 			userAccountPublicKey
 		);
 		const initializeUserAccountIx =
-			await this.program.instruction.initializeSwiftUserOrders({
+			await this.program.instruction.initializeSwiftUserOrders(numOrders, {
 				accounts: {
 					swiftUserOrders: swiftUserAccountPublicKey,
 					authority: this.wallet.publicKey,
