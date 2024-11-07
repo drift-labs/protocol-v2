@@ -315,7 +315,6 @@ pub fn handle_resize_swift_user_orders<'c: 'info, 'info>(
     Ok(())
 }
 
-
 #[access_control(
     deposit_not_paused(&ctx.accounts.state)
 )]

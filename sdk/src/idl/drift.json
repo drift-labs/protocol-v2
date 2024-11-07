@@ -794,10 +794,7 @@
         {
           "name": "swiftUserOrders",
           "isMut": true,
-          "isSigner": false,
-          "docs": [
-            "CHECK"
-          ]
+          "isSigner": false
         },
         {
           "name": "authority",
@@ -7654,6 +7651,9 @@
     },
     {
       "name": "SwiftUserOrders",
+      "docs": [
+        "* This struct is a duplicate of SwiftUserOrdersZeroCopy\n * It is used to give anchor an struct to generate the idl for clients\n * The struct SwiftUserOrdersZeroCopy is used to load the data in efficiently"
+      ],
       "type": {
         "kind": "struct",
         "fields": [
