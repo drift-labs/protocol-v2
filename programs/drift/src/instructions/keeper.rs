@@ -49,7 +49,7 @@ use crate::state::spot_market_map::{
     get_writable_spot_market_set, get_writable_spot_market_set_from_many, SpotMarketMap,
 };
 use crate::state::state::State;
-use crate::state::swift_user::{SwiftOrderId, SwiftUserOrders, SwiftUserOrdersZeroCopyMut, SWIFT_PDA_SEED};
+use crate::state::swift_user::{SwiftOrderId, SwiftUserOrders, SwiftUserOrdersLoader, SwiftUserOrdersZeroCopyMut, SWIFT_PDA_SEED};
 use crate::state::user::{
     MarginMode, MarketType, OrderStatus, OrderTriggerCondition, OrderType, ReferrerStatus, User,
     UserStats,
@@ -549,7 +549,7 @@ pub fn handle_place_swift_taker_order<'c: 'info, 'info>(
 
     let taker_key = ctx.accounts.user.key();
     let mut taker = load_mut!(ctx.accounts.user)?;
-    let mut swift_taker = SwiftUserOrdersZeroCopyMut::deserialize(ctx.accounts.swift_user_orders.try_borrow_mut_data()?)?;
+    let mut swift_taker = ctx.accounts.swift_user_orders.load_mut()?;
 
     place_swift_taker_order(
         taker_key,
