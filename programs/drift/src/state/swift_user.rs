@@ -50,6 +50,12 @@ pub struct SwiftUserOrders {
     pub swift_order_data: Vec<SwiftOrderId>,
 }
 
+impl SwiftUserOrders {
+    pub fn space(num_orders: usize) -> usize {
+        8 + 32 + 4 + 32 + num_orders * 24
+    }
+}   
+
 #[zero_copy]
 #[derive(Default, Eq, PartialEq, Debug)]
 pub struct SwiftUserOrdersFixed {

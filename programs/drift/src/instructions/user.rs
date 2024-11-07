@@ -300,6 +300,16 @@ pub fn handle_initialize_swift_user_orders<'c: 'info, 'info>(
     Ok(())
 }
 
+pub fn handle_resize_swift_user_orders<'c: 'info, 'info>(
+    ctx: Context<'_, '_, 'c, 'info, ResizeSwiftUserOrders<'info>>,
+    num_orders: u16,
+) -> Result<()> {
+    let mut swift_user_orders = &mut ctx.accounts.swift_user_orders;
+    swift_user_orders.swift_order_data.resize_with(num_orders as usize, SwiftOrderId::default);
+    Ok(())
+}
+
+
 #[access_control(
     deposit_not_paused(&ctx.accounts.state)
 )]
@@ -2462,6 +2472,27 @@ pub struct InitializeSwiftUserOrders<'info> {
 }
 
 #[derive(Accounts)]
+#[instruction(num_orders: u16)]
+pub struct ResizeSwiftUserOrders<'info> {
+    #[account(
+        mut,
+        seeds = [SWIFT_PDA_SEED.as_ref(), user.key().as_ref()],
+        bump,
+        realloc = SwiftUserOrders::space(num_orders as usize),
+        realloc::payer = authority,
+        realloc::zero = false,
+    )]
+    pub swift_user_orders: Box<Account<'info, SwiftUserOrders>>,
+    #[account(mut)]
+    pub authority: Signer<'info>,
+    #[account(
+        constraint = can_sign_for_user(&user, &authority)?
+    )]
+    pub user: AccountLoader<'info, User>,
+    pub system_program: Program<'info, System>,
+}
+
+#[derive(Accounts)]
 #[instruction(
     name: [u8; 32],
 )]
@@ -2689,6 +2720,7 @@ pub struct PlaceAndMakeSwift<'info> {
         seeds = [SWIFT_PDA_SEED.as_ref(), taker.key().as_ref()],
         bump,
     )]
+    /// CHECK: checked in SwiftUserOrdersZeroCopy checks
     pub taker_swift_user_orders: AccountInfo<'info>,
     pub authority: Signer<'info>,
 }
