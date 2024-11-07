@@ -151,7 +151,7 @@ impl<'a> SwiftUserOrdersLoader<'a> for AccountInfo<'a> {
             owner == &ID,
             ErrorCode::DefaultError,
             "invalid swift user orders owner",
-        );
+        )?;
 
         let data = self.try_borrow_data().safe_unwrap()?;
 
@@ -160,7 +160,7 @@ impl<'a> SwiftUserOrdersLoader<'a> for AccountInfo<'a> {
             *discriminator == SwiftUserOrders::discriminator(),
             ErrorCode::DefaultError,
             "invalid swift user orders discriminator",
-        );
+        )?;
 
         let (fixed, data) = Ref::map_split(data, |d| d.split_at(40));
         Ok(SwiftUserOrdersZeroCopy { fixed: Ref::map(fixed, |b| bytemuck::from_bytes(b)), data })
@@ -173,7 +173,7 @@ impl<'a> SwiftUserOrdersLoader<'a> for AccountInfo<'a> {
             owner == &ID,
             ErrorCode::DefaultError,
             "invalid swift user orders owner",
-        );
+        )?;
 
         let data = self.try_borrow_mut_data().safe_unwrap()?;
 
@@ -182,7 +182,7 @@ impl<'a> SwiftUserOrdersLoader<'a> for AccountInfo<'a> {
             *discriminator == SwiftUserOrders::discriminator(),
             ErrorCode::DefaultError,
             "invalid swift user orders discriminator",
-        );
+        )?;
 
         let (fixed, data) = RefMut::map_split(data, |d| d.split_at_mut(40));
         Ok(SwiftUserOrdersZeroCopyMut { fixed: RefMut::map(fixed, |b| bytemuck::from_bytes_mut(b)), data })

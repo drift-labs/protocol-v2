@@ -171,6 +171,30 @@ mod zero_copy {
                 padding: 0,
             });
         }
+
+        drop(orders_zero_copy);
+
+        // invalid owner
+        let random_pubkey = Pubkey::new_unique();
+        let orders_account_info = create_account_info(&random_pubkey, false, &mut lamports, &mut bytes, &random_pubkey);
+        let result = orders_account_info.load();
+        assert!(result.is_err());
+        assert_eq!(
+            result.err().unwrap(),
+            ErrorCode::DefaultError
+        );
+
+        // invalid discriminator
+        let mut bytes = Vec::with_capacity(8 + orders.try_to_vec().unwrap().len());
+        bytes.extend_from_slice(&orders.try_to_vec().unwrap());
+        bytes.extend_from_slice(&SwiftUserOrders::discriminator());
+        let orders_account_info = create_account_info(&random_pubkey, false, &mut lamports, &mut bytes, &ID);
+        let result = orders_account_info.load();
+        assert!(result.is_err());
+        assert_eq!(
+            result.err().unwrap(),
+            ErrorCode::DefaultError
+        );
     }
 
     #[test]
@@ -210,5 +234,29 @@ mod zero_copy {
                 padding: 0,
             });
         }
+
+        drop(orders_zero_copy_mut);
+
+        // invalid owner
+        let random_pubkey = Pubkey::new_unique();
+        let mut orders_account_info = create_account_info(&random_pubkey, true, &mut lamports, &mut bytes, &random_pubkey);
+        let result = orders_account_info.load_mut();
+        assert!(result.is_err());
+        assert_eq!(
+            result.err().unwrap(),
+            ErrorCode::DefaultError
+        );
+
+        // invalid discriminator
+        let mut bytes = Vec::with_capacity(8 + orders.try_to_vec().unwrap().len());
+        bytes.extend_from_slice(&orders.try_to_vec().unwrap());
+        bytes.extend_from_slice(&SwiftUserOrders::discriminator());
+        let mut orders_account_info = create_account_info(&random_pubkey, true, &mut lamports, &mut bytes, &ID);
+        let result = orders_account_info.load_mut();
+        assert!(result.is_err());
+        assert_eq!(
+            result.err().unwrap(),
+            ErrorCode::DefaultError
+        );
     }
 }
