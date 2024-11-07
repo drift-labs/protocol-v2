@@ -895,7 +895,7 @@ async function initializeNewTakerClientAndUser(
 		driftClient: takerDriftClient,
 		userAccountPublicKey: await takerDriftClient.getUserAccountPublicKey(),
 		accountSubscription: {
-			type: 'polling',	
+			type: 'polling',
 			accountLoader: bulkAccountLoader,
 		},
 	});

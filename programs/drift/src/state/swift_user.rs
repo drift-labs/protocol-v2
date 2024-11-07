@@ -1,13 +1,13 @@
 use std::cell::{Ref, RefMut};
 
-use anchor_lang::*;
-use borsh::{BorshDeserialize, BorshSerialize};
-use prelude::AccountInfo;
 use crate::error::{DriftResult, ErrorCode};
 use crate::math::safe_unwrap::SafeUnwrap;
 use crate::{validate, ID};
 use anchor_lang::prelude::Pubkey;
+use anchor_lang::*;
 use anchor_lang::{account, zero_copy};
+use borsh::{BorshDeserialize, BorshSerialize};
+use prelude::AccountInfo;
 use solana_program::msg;
 
 use crate::state::traits::Size;
@@ -116,8 +116,7 @@ impl<'a> SwiftUserOrdersZeroCopyMut<'a> {
     pub fn get_mut(&mut self, index: u32) -> &mut SwiftOrderId {
         let size = std::mem::size_of::<SwiftOrderId>();
         let start = index as usize * size;
-        bytemuck::from_bytes_mut(&mut 
-            self.data[start..start + size])
+        bytemuck::from_bytes_mut(&mut self.data[start..start + size])
     }
 
     pub fn check_exists_and_prune_stale_swift_order_ids(
@@ -187,7 +186,10 @@ impl<'a> SwiftUserOrdersLoader<'a> for AccountInfo<'a> {
         )?;
 
         let (fixed, data) = Ref::map_split(data, |d| d.split_at(40));
-        Ok(SwiftUserOrdersZeroCopy { fixed: Ref::map(fixed, |b| bytemuck::from_bytes(b)), data })
+        Ok(SwiftUserOrdersZeroCopy {
+            fixed: Ref::map(fixed, |b| bytemuck::from_bytes(b)),
+            data,
+        })
     }
 
     fn load_mut(&self) -> DriftResult<SwiftUserOrdersZeroCopyMut> {
@@ -209,10 +211,12 @@ impl<'a> SwiftUserOrdersLoader<'a> for AccountInfo<'a> {
         )?;
 
         let (fixed, data) = RefMut::map_split(data, |d| d.split_at_mut(40));
-        Ok(SwiftUserOrdersZeroCopyMut { fixed: RefMut::map(fixed, |b| bytemuck::from_bytes_mut(b)), data })
+        Ok(SwiftUserOrdersZeroCopyMut {
+            fixed: RefMut::map(fixed, |b| bytemuck::from_bytes_mut(b)),
+            data,
+        })
     }
 }
-
 
 pub fn derive_swift_user_pda(user_account_pubkey: &Pubkey) -> DriftResult<Pubkey> {
     let (swift_pubkey, _) = Pubkey::find_program_address(

@@ -296,11 +296,11 @@ pub fn handle_initialize_swift_user_orders<'c: 'info, 'info>(
         panic!("Swift orders are disabled on mainnet-beta");
     }
 
-    let mut swift_user_orders = ctx
-        .accounts
-        .swift_user_orders;
+    let mut swift_user_orders = ctx.accounts.swift_user_orders;
     swift_user_orders.user_pubkey = ctx.accounts.user.key();
-    swift_user_orders.swift_order_data.resize_with(num_orders as usize, SwiftOrderId::default);
+    swift_user_orders
+        .swift_order_data
+        .resize_with(num_orders as usize, SwiftOrderId::default);
     swift_user_orders.validate()?;
     Ok(())
 }
@@ -310,7 +310,9 @@ pub fn handle_resize_swift_user_orders<'c: 'info, 'info>(
     num_orders: u16,
 ) -> Result<()> {
     let mut swift_user_orders = &mut ctx.accounts.swift_user_orders;
-    swift_user_orders.swift_order_data.resize_with(num_orders as usize, SwiftOrderId::default);
+    swift_user_orders
+        .swift_order_data
+        .resize_with(num_orders as usize, SwiftOrderId::default);
     swift_user_orders.validate()?;
     Ok(())
 }
@@ -2816,7 +2818,7 @@ pub struct DeleteSwiftUserOrders<'info> {
         seeds = [SWIFT_PDA_SEED.as_ref(), user.key().as_ref()],
         bump,
     )]
-    pub swift_user_orders: AccountLoader<'info, SwiftUserOrders>,
+    pub swift_user_orders: Box<Account<'info, SwiftUserOrders>>,
     #[account(mut)]
     pub state: Box<Account<'info, State>>,
     pub authority: Signer<'info>,

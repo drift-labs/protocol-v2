@@ -1073,11 +1073,10 @@ export class DriftClient {
 		numOrders: number,
 		txParams?: TxParams
 	): Promise<TransactionSignature> {
-		const resizeUserAccountIx =
-			await this.getResizeSwiftUserOrdersInstruction(
-				userAccountPublicKey,
-				numOrders
-			);
+		const resizeUserAccountIx = await this.getResizeSwiftUserOrdersInstruction(
+			userAccountPublicKey,
+			numOrders
+		);
 		const tx = await this.buildTransaction([resizeUserAccountIx], txParams);
 		const { txSig } = await this.sendTransaction(tx, [], this.opts);
 

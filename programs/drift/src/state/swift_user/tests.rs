@@ -6,7 +6,10 @@ mod swift_order_id_eviction {
 
     use crate::{
         error::ErrorCode,
-        state::swift_user::{SwiftOrderId, SwiftUserOrders, SwiftUserOrdersFixed, SwiftUserOrdersZeroCopy, SwiftUserOrdersZeroCopyMut},
+        state::swift_user::{
+            SwiftOrderId, SwiftUserOrders, SwiftUserOrdersFixed, SwiftUserOrdersZeroCopy,
+            SwiftUserOrdersZeroCopyMut,
+        },
     };
 
     #[test]
@@ -124,8 +127,8 @@ mod swift_order_id_eviction {
 mod zero_copy {
     use std::cell::RefCell;
 
-    use crate::ID;
     use crate::test_utils::create_account_info;
+    use crate::ID;
 
     use anchor_lang::{prelude::Pubkey, Discriminator};
     use borsh::BorshSerialize;
@@ -158,43 +161,48 @@ mod zero_copy {
 
         let pubkey = Pubkey::default();
         let mut lamports = 0;
-        let orders_account_info = create_account_info(&pubkey, false, &mut lamports, &mut bytes, &ID);
-    
+        let orders_account_info =
+            create_account_info(&pubkey, false, &mut lamports, &mut bytes, &ID);
+
         let orders_zero_copy = orders_account_info.load().unwrap();
         assert_eq!(orders_zero_copy.fixed.len, 100);
         for i in 0..100 {
             println!("i {}", i);
-            assert_eq!(orders_zero_copy.get(i), &SwiftOrderId {
-                uuid: [0; 8],
-                max_slot: 0,
-                order_id: i as u32,
-                padding: 0,
-            });
+            assert_eq!(
+                orders_zero_copy.get(i),
+                &SwiftOrderId {
+                    uuid: [0; 8],
+                    max_slot: 0,
+                    order_id: i as u32,
+                    padding: 0,
+                }
+            );
         }
 
         drop(orders_zero_copy);
 
         // invalid owner
         let random_pubkey = Pubkey::new_unique();
-        let orders_account_info = create_account_info(&random_pubkey, false, &mut lamports, &mut bytes, &random_pubkey);
+        let orders_account_info = create_account_info(
+            &random_pubkey,
+            false,
+            &mut lamports,
+            &mut bytes,
+            &random_pubkey,
+        );
         let result = orders_account_info.load();
         assert!(result.is_err());
-        assert_eq!(
-            result.err().unwrap(),
-            ErrorCode::DefaultError
-        );
+        assert_eq!(result.err().unwrap(), ErrorCode::DefaultError);
 
         // invalid discriminator
         let mut bytes = Vec::with_capacity(8 + orders.try_to_vec().unwrap().len());
         bytes.extend_from_slice(&orders.try_to_vec().unwrap());
         bytes.extend_from_slice(&SwiftUserOrders::discriminator());
-        let orders_account_info = create_account_info(&random_pubkey, false, &mut lamports, &mut bytes, &ID);
+        let orders_account_info =
+            create_account_info(&random_pubkey, false, &mut lamports, &mut bytes, &ID);
         let result = orders_account_info.load();
         assert!(result.is_err());
-        assert_eq!(
-            result.err().unwrap(),
-            ErrorCode::DefaultError
-        );
+        assert_eq!(result.err().unwrap(), ErrorCode::DefaultError);
     }
 
     #[test]
@@ -220,43 +228,48 @@ mod zero_copy {
 
         let pubkey = Pubkey::default();
         let mut lamports = 0;
-        let mut orders_account_info = create_account_info(&pubkey, true, &mut lamports, &mut bytes, &ID);
+        let mut orders_account_info =
+            create_account_info(&pubkey, true, &mut lamports, &mut bytes, &ID);
 
         let mut orders_zero_copy_mut = orders_account_info.load_mut().unwrap();
 
         assert_eq!(orders_zero_copy_mut.fixed.len, 100);
         for i in 0..100 {
             println!("i {}", i);
-            assert_eq!(orders_zero_copy_mut.get_mut(i), &SwiftOrderId {
-                uuid: [0; 8],
-                max_slot: 0,
-                order_id: i as u32,
-                padding: 0,
-            });
+            assert_eq!(
+                orders_zero_copy_mut.get_mut(i),
+                &SwiftOrderId {
+                    uuid: [0; 8],
+                    max_slot: 0,
+                    order_id: i as u32,
+                    padding: 0,
+                }
+            );
         }
 
         drop(orders_zero_copy_mut);
 
         // invalid owner
         let random_pubkey = Pubkey::new_unique();
-        let mut orders_account_info = create_account_info(&random_pubkey, true, &mut lamports, &mut bytes, &random_pubkey);
+        let mut orders_account_info = create_account_info(
+            &random_pubkey,
+            true,
+            &mut lamports,
+            &mut bytes,
+            &random_pubkey,
+        );
         let result = orders_account_info.load_mut();
         assert!(result.is_err());
-        assert_eq!(
-            result.err().unwrap(),
-            ErrorCode::DefaultError
-        );
+        assert_eq!(result.err().unwrap(), ErrorCode::DefaultError);
 
         // invalid discriminator
         let mut bytes = Vec::with_capacity(8 + orders.try_to_vec().unwrap().len());
         bytes.extend_from_slice(&orders.try_to_vec().unwrap());
         bytes.extend_from_slice(&SwiftUserOrders::discriminator());
-        let mut orders_account_info = create_account_info(&random_pubkey, true, &mut lamports, &mut bytes, &ID);
+        let mut orders_account_info =
+            create_account_info(&random_pubkey, true, &mut lamports, &mut bytes, &ID);
         let result = orders_account_info.load_mut();
         assert!(result.is_err());
-        assert_eq!(
-            result.err().unwrap(),
-            ErrorCode::DefaultError
-        );
+        assert_eq!(result.err().unwrap(), ErrorCode::DefaultError);
     }
 }

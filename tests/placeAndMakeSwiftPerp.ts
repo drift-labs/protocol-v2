@@ -213,7 +213,7 @@ describe('place and make swift order', () => {
 		await takerDriftClientUser.subscribe();
 		await takerDriftClient.initializeSwiftUserOrders(
 			takerDriftClientUser.userAccountPublicKey,
-			32,
+			32
 		);
 
 		const marketIndex = 0;

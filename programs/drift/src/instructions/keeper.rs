@@ -49,7 +49,10 @@ use crate::state::spot_market_map::{
     get_writable_spot_market_set, get_writable_spot_market_set_from_many, SpotMarketMap,
 };
 use crate::state::state::State;
-use crate::state::swift_user::{SwiftOrderId, SwiftUserOrders, SwiftUserOrdersLoader, SwiftUserOrdersZeroCopyMut, SWIFT_PDA_SEED};
+use crate::state::swift_user::{
+    SwiftOrderId, SwiftUserOrders, SwiftUserOrdersLoader, SwiftUserOrdersZeroCopyMut,
+    SWIFT_PDA_SEED,
+};
 use crate::state::user::{
     MarginMode, MarketType, OrderStatus, OrderTriggerCondition, OrderType, ReferrerStatus, User,
     UserStats,

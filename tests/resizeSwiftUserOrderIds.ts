@@ -4,34 +4,20 @@ import { assert } from 'chai';
 import { Program } from '@coral-xyz/anchor';
 
 import {
-	AddressLookupTableAccount,
-	Connection,
 	Keypair,
 	PublicKey,
-	Transaction,
-	TransactionInstruction,
 } from '@solana/web3.js';
 
 import {
 	BN,
 	PRICE_PRECISION,
 	TestClient,
-	PositionDirection,
 	User,
 	Wallet,
 	EventSubscriber,
-	BASE_PRECISION,
-	getLimitOrderParams,
 	OracleSource,
-	OrderTriggerCondition,
-	SwiftOrderParamsMessage,
-	MarketType,
-	getMarketOrderParams,
-	loadKeypair,
-	SwiftServerMessage,
 	ANCHOR_TEST_SWIFT_ID,
-	SwiftOrderRecord,
-    getSwiftUserAccountPublicKey,
+	getSwiftUserAccountPublicKey,
 } from '../sdk/src';
 
 import {
@@ -41,23 +27,15 @@ import {
 	mockUserUSDCAccount,
 	sleep,
 } from './testHelpers';
-import {
-	getTriggerLimitOrderParams,
-	PEG_PRECISION,
-	PostOnlyParams,
-} from '../sdk/src';
+import { PEG_PRECISION } from '../sdk/src';
 import { startAnchor } from 'solana-bankrun';
 import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
 import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
 import dotenv from 'dotenv';
-import { nanoid } from 'nanoid';
-import { createHash } from 'crypto';
 dotenv.config();
 
 describe('place and make swift order', () => {
 	const chProgram = anchor.workspace.Drift as Program;
-
-	let slot: BN;
 
 	let makerDriftClient: TestClient;
 	let makerDriftClientUser: User;
@@ -91,10 +69,6 @@ describe('place and make swift order', () => {
 
 		// @ts-ignore
 		bankrunContextWrapper = new BankrunContextWrapper(context);
-
-		slot = new BN(
-			await bankrunContextWrapper.connection.toConnection().getSlot()
-		);
 
 		bulkAccountLoader = new TestBulkAccountLoader(
 			bankrunContextWrapper.connection,
@@ -178,9 +152,6 @@ describe('place and make swift order', () => {
 	});
 
 	it('increase size of swift user orders', async () => {
-		slot = new BN(
-			await bankrunContextWrapper.connection.toConnection().getSlot()
-		);
 		const [takerDriftClient, takerDriftClientUser] =
 			await initializeNewTakerClientAndUser(
 				bankrunContextWrapper,
@@ -199,22 +170,22 @@ describe('place and make swift order', () => {
 			100
 		);
 
-        const swiftUserOrdersAccountPublicKey = getSwiftUserAccountPublicKey(takerDriftClient.program.programId, takerDriftClientUser.userAccountPublicKey);
-        const swiftUserOrders = (await takerDriftClient.program.account.swiftUserOrders.fetch(swiftUserOrdersAccountPublicKey)) as any;
-
-		assert.equal(
-			swiftUserOrders.swiftOrderData.length,
-			100
+		const swiftUserOrdersAccountPublicKey = getSwiftUserAccountPublicKey(
+			takerDriftClient.program.programId,
+			takerDriftClientUser.userAccountPublicKey
 		);
+		const swiftUserOrders =
+			(await takerDriftClient.program.account.swiftUserOrders.fetch(
+				swiftUserOrdersAccountPublicKey
+			)) as any;
+
+		assert.equal(swiftUserOrders.swiftOrderData.length, 100);
 
 		await takerDriftClientUser.unsubscribe();
 		await takerDriftClient.unsubscribe();
 	});
 
-    it('decrease size of swift user orders', async () => {
-		slot = new BN(
-			await bankrunContextWrapper.connection.toConnection().getSlot()
-		);
+	it('decrease size of swift user orders', async () => {
 		const [takerDriftClient, takerDriftClientUser] =
 			await initializeNewTakerClientAndUser(
 				bankrunContextWrapper,
@@ -233,18 +204,20 @@ describe('place and make swift order', () => {
 			4
 		);
 
-        const swiftUserOrdersAccountPublicKey = getSwiftUserAccountPublicKey(takerDriftClient.program.programId, takerDriftClientUser.userAccountPublicKey);
-        const swiftUserOrders = (await takerDriftClient.program.account.swiftUserOrders.fetch(swiftUserOrdersAccountPublicKey)) as any;
-
-		assert.equal(
-			swiftUserOrders.swiftOrderData.length,
-			4
+		const swiftUserOrdersAccountPublicKey = getSwiftUserAccountPublicKey(
+			takerDriftClient.program.programId,
+			takerDriftClientUser.userAccountPublicKey
 		);
+		const swiftUserOrders =
+			(await takerDriftClient.program.account.swiftUserOrders.fetch(
+				swiftUserOrdersAccountPublicKey
+			)) as any;
+
+		assert.equal(swiftUserOrders.swiftOrderData.length, 4);
 
 		await takerDriftClientUser.unsubscribe();
 		await takerDriftClient.unsubscribe();
 	});
-
 });
 
 async function initializeNewTakerClientAndUser(
