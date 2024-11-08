@@ -1005,7 +1005,7 @@ impl PerpPosition {
 pub type PerpPositions = [PerpPosition; 8];
 
 #[repr(C)]
-#[derive(AnchorSerialize, Clone, AnchorDeserialize, PartialEq, Debug, Eq)]
+#[derive(AnchorSerialize, Clone, Copy, AnchorDeserialize, PartialEq, Debug, Eq)]
 pub struct Order {
     /// The slot the order was placed
     pub slot: u64,
