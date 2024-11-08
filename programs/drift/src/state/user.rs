@@ -1004,7 +1004,6 @@ impl PerpPosition {
 
 pub type PerpPositions = [PerpPosition; 8];
 
-#[zero_copy(unsafe)]
 #[repr(C)]
 #[derive(AnchorSerialize, Clone, AnchorDeserialize, PartialEq, Debug, Eq)]
 pub struct Order {
