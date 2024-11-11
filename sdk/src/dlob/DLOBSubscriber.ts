@@ -22,7 +22,7 @@ export class DLOBSubscriber {
 	dlobSource: DLOBSource;
 	slotSource: SlotSource;
 	updateFrequency: number;
-	intervalId?: NodeJS.Timeout;
+	intervalId?: ReturnType<typeof setInterval>;
 	dlob = new DLOB();
 	public eventEmitter: StrictEventEmitter<EventEmitter, DLOBSubscriberEvents>;
 

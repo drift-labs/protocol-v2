@@ -13,7 +13,7 @@ export class grpcSubscription {
 	private resyncIntervalMs?: number;
 
 	private subscriber?: grpcProgramAccountSubscriber<UserAccount>;
-	private resyncTimeoutId?: NodeJS.Timeout;
+	private resyncTimeoutId?: ReturnType<typeof setTimeout>;
 
 	private decoded?: boolean;
 

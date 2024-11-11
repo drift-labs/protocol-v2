@@ -29,7 +29,7 @@ export class ClockSubscriber {
 	}
 
 	// Reconnection
-	private timeoutId?: NodeJS.Timeout;
+	private timeoutId?: ReturnType<typeof setTimeout>;
 	private resubTimeoutMs?: number;
 	private isUnsubscribing = false;
 	private receivingData = false;
