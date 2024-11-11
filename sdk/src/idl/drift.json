@@ -144,7 +144,7 @@
         },
         {
           "name": "user",
-          "isMut": true,
+          "isMut": false,
           "isSigner": false
         },
         {
@@ -163,7 +163,43 @@
           "isSigner": false
         }
       ],
-      "args": []
+      "args": [
+        {
+          "name": "numOrders",
+          "type": "u16"
+        }
+      ]
+    },
+    {
+      "name": "resizeSwiftUserOrders",
+      "accounts": [
+        {
+          "name": "swiftUserOrders",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "user",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "systemProgram",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "numOrders",
+          "type": "u16"
+        }
+      ]
     },
     {
       "name": "initializeReferrerName",
@@ -7615,6 +7651,9 @@
     },
     {
       "name": "SwiftUserOrders",
+      "docs": [
+        "* This struct is a duplicate of SwiftUserOrdersZeroCopy\n * It is used to give anchor an struct to generate the idl for clients\n * The struct SwiftUserOrdersZeroCopy is used to load the data in efficiently"
+      ],
       "type": {
         "kind": "struct",
         "fields": [
@@ -7623,14 +7662,15 @@
             "type": "publicKey"
           },
           {
+            "name": "padding",
+            "type": "u32"
+          },
+          {
             "name": "swiftOrderData",
             "type": {
-              "array": [
-                {
-                  "defined": "SwiftOrderId"
-                },
-                32
-              ]
+              "vec": {
+                "defined": "SwiftOrderId"
+              }
             }
           }
         ]
@@ -9835,6 +9875,30 @@
           },
           {
             "name": "orderId",
+            "type": "u32"
+          },
+          {
+            "name": "padding",
+            "type": "u32"
+          }
+        ]
+      }
+    },
+    {
+      "name": "SwiftUserOrdersFixed",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "userPubkey",
+            "type": "publicKey"
+          },
+          {
+            "name": "padding",
+            "type": "u32"
+          },
+          {
+            "name": "len",
             "type": "u32"
           }
         ]

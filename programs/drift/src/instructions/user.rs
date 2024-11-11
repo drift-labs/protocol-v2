@@ -70,6 +70,9 @@ use crate::state::spot_market_map::{
     get_writable_spot_market_set, get_writable_spot_market_set_from_many,
 };
 use crate::state::state::State;
+use crate::state::swift_user::SwiftOrderId;
+use crate::state::swift_user::SwiftUserOrdersLoader;
+use crate::state::swift_user::SwiftUserOrdersZeroCopy;
 use crate::state::swift_user::{SwiftUserOrders, SWIFT_PDA_SEED};
 use crate::state::traits::Size;
 use crate::state::user::ReferrerStatus;
@@ -286,18 +289,31 @@ pub fn handle_initialize_rfq_user<'c: 'info, 'info>(
 
 pub fn handle_initialize_swift_user_orders<'c: 'info, 'info>(
     ctx: Context<'_, '_, 'c, 'info, InitializeSwiftUserOrders<'info>>,
+    num_orders: u16,
 ) -> Result<()> {
     #[cfg(all(feature = "mainnet-beta", not(feature = "anchor-test")))]
     {
         panic!("Swift orders are disabled on mainnet-beta");
     }
 
-    let mut swift_user_orders = ctx
-        .accounts
-        .swift_user_orders
-        .load_init()
-        .or(Err(ErrorCode::UnableToLoadAccountLoader))?;
+    let swift_user_orders = &mut ctx.accounts.swift_user_orders;
     swift_user_orders.user_pubkey = ctx.accounts.user.key();
+    swift_user_orders
+        .swift_order_data
+        .resize_with(num_orders as usize, SwiftOrderId::default);
+    swift_user_orders.validate()?;
+    Ok(())
+}
+
+pub fn handle_resize_swift_user_orders<'c: 'info, 'info>(
+    ctx: Context<'_, '_, 'c, 'info, ResizeSwiftUserOrders<'info>>,
+    num_orders: u16,
+) -> Result<()> {
+    let swift_user_orders = &mut ctx.accounts.swift_user_orders;
+    swift_user_orders
+        .swift_order_data
+        .resize_with(num_orders as usize, SwiftOrderId::default);
+    swift_user_orders.validate()?;
     Ok(())
 }
 
@@ -1557,9 +1573,8 @@ pub fn handle_place_and_make_swift_perp_order<'c: 'info, 'info>(
     makers_and_referrer.insert(ctx.accounts.user.key(), ctx.accounts.user.clone())?;
     makers_and_referrer_stats.insert(authority, ctx.accounts.user_stats.clone())?;
 
-    let taker_swift_account = load!(ctx.accounts.taker_swift_user_orders)?;
+    let taker_swift_account = ctx.accounts.taker_swift_user_orders.load()?;
     let taker_order_id = taker_swift_account
-        .swift_order_data
         .iter()
         .find(|swift_order_id| swift_order_id.uuid == swift_order_uuid)
         .ok_or(ErrorCode::SwiftOrderDoesNotExist)?
@@ -2446,24 +2461,45 @@ pub struct InitializeRFQUser<'info> {
 }
 
 #[derive(Accounts)]
+#[instruction(num_orders: u16)]
 pub struct InitializeSwiftUserOrders<'info> {
     #[account(
         init,
         seeds = [SWIFT_PDA_SEED.as_ref(), user.key().as_ref()],
-        space = SwiftUserOrders::SIZE,
+        space = SwiftUserOrders::space(num_orders as usize),
         bump,
         payer = payer
     )]
-    pub swift_user_orders: AccountLoader<'info, SwiftUserOrders>,
+    pub swift_user_orders: Box<Account<'info, SwiftUserOrders>>,
     pub authority: Signer<'info>,
     #[account(
-        mut,
         constraint = can_sign_for_user(&user, &authority)?
     )]
     pub user: AccountLoader<'info, User>,
     #[account(mut)]
     pub payer: Signer<'info>,
     pub rent: Sysvar<'info, Rent>,
+    pub system_program: Program<'info, System>,
+}
+
+#[derive(Accounts)]
+#[instruction(num_orders: u16)]
+pub struct ResizeSwiftUserOrders<'info> {
+    #[account(
+        mut,
+        seeds = [SWIFT_PDA_SEED.as_ref(), user.key().as_ref()],
+        bump,
+        realloc = SwiftUserOrders::space(num_orders as usize),
+        realloc::payer = authority,
+        realloc::zero = false,
+    )]
+    pub swift_user_orders: Box<Account<'info, SwiftUserOrders>>,
+    #[account(mut)]
+    pub authority: Signer<'info>,
+    #[account(
+        constraint = can_sign_for_user(&user, &authority)?
+    )]
+    pub user: AccountLoader<'info, User>,
     pub system_program: Program<'info, System>,
 }
 
@@ -2695,7 +2731,8 @@ pub struct PlaceAndMakeSwift<'info> {
         seeds = [SWIFT_PDA_SEED.as_ref(), taker.key().as_ref()],
         bump,
     )]
-    pub taker_swift_user_orders: AccountLoader<'info, SwiftUserOrders>,
+    /// CHECK: checked in SwiftUserOrdersZeroCopy checks
+    pub taker_swift_user_orders: AccountInfo<'info>,
     pub authority: Signer<'info>,
 }
 
@@ -2781,7 +2818,7 @@ pub struct DeleteSwiftUserOrders<'info> {
         seeds = [SWIFT_PDA_SEED.as_ref(), user.key().as_ref()],
         bump,
     )]
-    pub swift_user_orders: AccountLoader<'info, SwiftUserOrders>,
+    pub swift_user_orders: Box<Account<'info, SwiftUserOrders>>,
     #[account(mut)]
     pub state: Box<Account<'info, State>>,
     pub authority: Signer<'info>,

@@ -67,8 +67,16 @@ pub mod drift {
 
     pub fn initialize_swift_user_orders<'c: 'info, 'info>(
         ctx: Context<'_, '_, 'c, 'info, InitializeSwiftUserOrders<'info>>,
+        num_orders: u16,
     ) -> Result<()> {
-        handle_initialize_swift_user_orders(ctx)
+        handle_initialize_swift_user_orders(ctx, num_orders)
+    }
+
+    pub fn resize_swift_user_orders<'c: 'info, 'info>(
+        ctx: Context<'_, '_, 'c, 'info, ResizeSwiftUserOrders<'info>>,
+        num_orders: u16,
+    ) -> Result<()> {
+        handle_resize_swift_user_orders(ctx, num_orders)
     }
 
     pub fn initialize_referrer_name(
