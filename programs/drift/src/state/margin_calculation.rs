@@ -313,6 +313,10 @@ impl MarginCalculation {
         self.total_collateral >= self.margin_requirement as i128
     }
 
+    pub fn meets_margin_requirement_with_buffer(&self) -> bool {
+        self.total_collateral >= self.margin_requirement_plus_buffer as i128
+    }
+
     pub fn positions_meets_margin_requirement(&self) -> DriftResult<bool> {
         Ok(self.total_collateral
             >= self
