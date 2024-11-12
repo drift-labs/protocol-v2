@@ -1240,6 +1240,15 @@ export class DLOB {
 		);
 	}
 
+	/**
+	 * This will look at both the taking and resting limit asks
+	 * @param marketIndex
+	 * @param fallbackAsk
+	 * @param slot
+	 * @param marketType
+	 * @param oraclePriceData
+	 * @param filterFcn
+	 */
 	*getAsks(
 		marketIndex: number,
 		fallbackAsk: BN | undefined,
@@ -1281,6 +1290,15 @@ export class DLOB {
 		);
 	}
 
+	/**
+	 * This will look at both the taking and resting limit bids
+	 * @param marketIndex
+	 * @param fallbackBid
+	 * @param slot
+	 * @param marketType
+	 * @param oraclePriceData
+	 * @param filterFcn
+	 */
 	*getBids(
 		marketIndex: number,
 		fallbackBid: BN | undefined,
