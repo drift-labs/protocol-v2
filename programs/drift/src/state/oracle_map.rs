@@ -93,6 +93,14 @@ impl<'a> OracleMap<'a> {
         self.price_data.get(pubkey).safe_unwrap()
     }
 
+    pub fn get_oracle_source(&self, pubkey: &Pubkey) -> DriftResult<OracleSource> {
+        Ok(self
+            .oracles
+            .get(pubkey)
+            .ok_or(ErrorCode::OracleNotFound)?
+            .oracle_source)
+    }
+
     pub fn get_price_data_and_validity(
         &mut self,
         market_type: MarketType,
@@ -111,6 +119,7 @@ impl<'a> OracleMap<'a> {
             let oracle_validity = if let Some(oracle_validity) = self.validity.get(pubkey) {
                 *oracle_validity
             } else {
+                let oracle_source = self.get_oracle_source(pubkey)?;
                 let oracle_validity = oracle_validity(
                     market_type,
                     market_index,
@@ -118,6 +127,7 @@ impl<'a> OracleMap<'a> {
                     oracle_price_data,
                     &self.oracle_guard_rails.validity,
                     max_confidence_interval_multiplier,
+                    &oracle_source,
                     true,
                 )?;
                 self.validity.insert(*pubkey, oracle_validity);
@@ -149,6 +159,7 @@ impl<'a> OracleMap<'a> {
             oracle_price_data,
             &self.oracle_guard_rails.validity,
             max_confidence_interval_multiplier,
+            &oracle_source,
             true,
         )?;
         self.validity.insert(*pubkey, oracle_validity);
