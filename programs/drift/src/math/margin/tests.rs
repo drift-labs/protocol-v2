@@ -1136,7 +1136,8 @@ mod calculate_margin_requirement_and_total_collateral {
         let MarginCalculation {
             total_collateral,
             margin_requirement,
-            all_oracles_valid: oracles_valid,
+            all_deposit_oracles_valid: deposit_oracles_valid,
+            all_liability_oracles_valid: liability_oracles_valid,
             ..
         } = calculate_margin_requirement_and_total_collateral_and_liability_info(
             &user,
@@ -1161,7 +1162,8 @@ mod calculate_margin_requirement_and_total_collateral {
             10
         );
 
-        assert_eq!(oracles_valid, false);
+        assert_eq!(deposit_oracles_valid, false);
+        assert_eq!(liability_oracles_valid, true);
         assert_eq!(total_collateral, 0); // todo not 0
         assert_eq!(margin_requirement, 0);
     }
@@ -1257,7 +1259,8 @@ mod calculate_margin_requirement_and_total_collateral {
         let MarginCalculation {
             total_collateral,
             margin_requirement,
-            all_oracles_valid: oracles_valid,
+            all_deposit_oracles_valid: deposit_oracles_valid,
+            all_liability_oracles_valid: liability_oracles_valid,
             ..
         } = calculate_margin_requirement_and_total_collateral_and_liability_info(
             &user,
@@ -1282,7 +1285,8 @@ mod calculate_margin_requirement_and_total_collateral {
             1
         );
 
-        assert_eq!(oracles_valid, false);
+        assert_eq!(deposit_oracles_valid, true);
+        assert_eq!(liability_oracles_valid, false);
         assert_eq!(total_collateral, 0); // todo not 0
         assert_eq!(margin_requirement, 3);
 
@@ -1302,7 +1306,8 @@ mod calculate_margin_requirement_and_total_collateral {
         let MarginCalculation {
             total_collateral,
             margin_requirement,
-            all_oracles_valid: oracles_valid,
+            all_deposit_oracles_valid: deposit_oracles_valid,
+            all_liability_oracles_valid: liability_oracles_valid,
             ..
         } = calculate_margin_requirement_and_total_collateral_and_liability_info(
             &user,
@@ -1327,7 +1332,8 @@ mod calculate_margin_requirement_and_total_collateral {
             1
         );
 
-        assert_eq!(oracles_valid, false);
+        assert_eq!(deposit_oracles_valid, true);
+        assert_eq!(liability_oracles_valid, false);
         assert_eq!(total_collateral, 0); // todo not 0
         assert_eq!(margin_requirement, 3);
     }
