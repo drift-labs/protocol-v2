@@ -5256,6 +5256,7 @@ export class DriftClient {
 		makerInfo?: MakerInfo | MakerInfo[],
 		referrerInfo?: ReferrerInfo,
 		successCondition?: PlaceAndTakeOrderSuccessCondition,
+		auctionDurationPercentage?: number,
 		txParams?: TxParams,
 		subAccountId?: number
 	): Promise<TransactionSignature> {
@@ -5266,6 +5267,7 @@ export class DriftClient {
 					makerInfo,
 					referrerInfo,
 					successCondition,
+					auctionDurationPercentage,
 					subAccountId
 				),
 				txParams
@@ -5313,6 +5315,7 @@ export class DriftClient {
 				orderParams,
 				makerInfo,
 				referrerInfo,
+				undefined,
 				undefined,
 				subAccountId
 			);
@@ -5505,6 +5508,7 @@ export class DriftClient {
 		makerInfo?: MakerInfo | MakerInfo[],
 		referrerInfo?: ReferrerInfo,
 		successCondition?: PlaceAndTakeOrderSuccessCondition,
+		auctionDurationPercentage?: number,
 		subAccountId?: number
 	): Promise<TransactionInstruction> {
 		orderParams = getOrderParams(orderParams, { marketType: MarketType.PERP });
@@ -5559,9 +5563,14 @@ export class DriftClient {
 			}
 		}
 
+		let optionalParams = null;
+		if (auctionDurationPercentage || successCondition) {
+			optionalParams = (successCondition ?? 0) << 8 | (auctionDurationPercentage ?? 0);
+		}
+
 		return await this.program.instruction.placeAndTakePerpOrder(
 			orderParams,
-			successCondition ?? null,
+			optionalParams,
 			{
 				accounts: {
 					state: await this.getStatePublicKey(),

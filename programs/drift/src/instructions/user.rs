@@ -1300,7 +1300,7 @@ pub fn handle_place_orders<'c: 'info, 'info>(
 pub fn handle_place_and_take_perp_order<'c: 'info, 'info>(
     ctx: Context<'_, '_, 'c, 'info, PlaceAndTake<'info>>,
     params: OrderParams,
-    success_condition: Option<u32>, // u32 for backwards compatibility
+    optional_params: Option<u32>, // u32 for backwards compatibility
 ) -> Result<()> {
     let clock = Clock::get()?;
     let state = &ctx.accounts.state;
@@ -1340,6 +1340,15 @@ pub fn handle_place_and_take_perp_order<'c: 'info, 'info>(
     let mut user = load_mut!(ctx.accounts.user)?;
     let clock = Clock::get()?;
 
+    let (success_condition, auction_duration_percentage) = match optional_params {
+        Some(optional_params) => {
+            let success_condition = (optional_params & 0xFF) as u8;
+            let auction_duration_percentage = ((optional_params >> 8) & 0xFF) as u8;
+            (success_condition, auction_duration_percentage)
+        }
+        None => (0, 0),
+    };
+
     controller::orders::place_perp_order(
         &ctx.accounts.state,
         &mut user,
@@ -1371,7 +1380,7 @@ pub fn handle_place_and_take_perp_order<'c: 'info, 'info>(
         &makers_and_referrer_stats,
         None,
         &Clock::get()?,
-        FillMode::PlaceAndTake(is_immediate_or_cancel || success_condition.is_some()),
+        FillMode::PlaceAndTake(is_immediate_or_cancel || optional_params.is_some(), auction_duration_percentage),
     )?;
 
     let order_exists = load!(ctx.accounts.user)?
@@ -1390,20 +1399,18 @@ pub fn handle_place_and_take_perp_order<'c: 'info, 'info>(
         )?;
     }
 
-    if let Some(success_condition) = success_condition {
-        if success_condition == PlaceAndTakeOrderSuccessCondition::PartialFill as u32 {
-            validate!(
-                base_asset_amount_filled > 0,
-                ErrorCode::PlaceAndTakeOrderSuccessConditionFailed,
-                "no partial fill"
-            )?;
-        } else if success_condition == PlaceAndTakeOrderSuccessCondition::FullFill as u32 {
-            validate!(
-                base_asset_amount_filled > 0 && !order_exists,
-                ErrorCode::PlaceAndTakeOrderSuccessConditionFailed,
-                "no full fill"
-            )?;
-        }
+    if success_condition == PlaceAndTakeOrderSuccessCondition::PartialFill as u8 {
+        validate!(
+            base_asset_amount_filled > 0,
+            ErrorCode::PlaceAndTakeOrderSuccessConditionFailed,
+            "no partial fill"
+        )?;
+    } else if success_condition == PlaceAndTakeOrderSuccessCondition::FullFill as u8 {
+        validate!(
+            base_asset_amount_filled > 0 && !order_exists,
+            ErrorCode::PlaceAndTakeOrderSuccessConditionFailed,
+            "no full fill"
+        )?;
     }
 
     Ok(())
