@@ -123,7 +123,8 @@ pub struct OracleSubmission {
     pub oracle: Pubkey,
     /// The slot at which this value was signed.
     pub slot: u64,
-    padding1: [u8; 8],
+    /// The slot at which this value was landed on chain.
+    pub landed_at: u64,
     /// The value that was submitted.
     pub value: i128,
 }
