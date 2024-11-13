@@ -12,6 +12,7 @@ import { EventEmitter } from 'events';
 import { Commitment, PublicKey } from '@solana/web3.js';
 import { WebSocketAccountSubscriber } from './webSocketAccountSubscriber';
 import { Account } from '@solana/spl-token';
+import { parseTokenAccount } from '../token';
 
 export class WebSocketTokenAccountSubscriber implements TokenAccountSubscriber {
 	isSubscribed: boolean;
@@ -43,10 +44,10 @@ export class WebSocketTokenAccountSubscriber implements TokenAccountSubscriber {
 		}
 
 		this.tokenAccountSubscriber = new WebSocketAccountSubscriber(
-			'user',
+			'token',
 			this.program,
 			this.tokenAccountPublicKey,
-			undefined,
+			(buffer) => parseTokenAccount(buffer, this.tokenAccountPublicKey),
 			this.resubOpts,
 			this.commitment
 		);
