@@ -2950,73 +2950,59 @@ export class User {
 		let inSwap = ZERO;
 		let outSwap = ZERO;
 		const inTokenAmount = this.getTokenAmount(inMarketIndex);
-		const outTokenAmount = this.getTokenAmount(outMarketIndex);
 
-		const outSaferThanIn =
-			// selling asset to close borrow
-			(inTokenAmount.gt(ZERO) && outTokenAmount.lt(ZERO)) ||
-			// buying asset with higher initial asset weight
-			inMarket.initialAssetWeight < outMarket.initialAssetWeight;
+		let minSwap = ZERO;
+		let maxSwap = BN.max(
+			freeCollateral.mul(inPrecision).mul(new BN(100)).div(inOraclePrice), // 100x current free collateral
+			inTokenAmount.abs().mul(new BN(10)) // 10x current position
+		);
+		inSwap = maxSwap.div(TWO);
+		const error = freeCollateral.div(new BN(10000));
 
-		if (freeCollateral.lt(ONE)) {
-			if (outSaferThanIn && inTokenAmount.gt(ZERO)) {
-				inSwap = inTokenAmount;
-				outSwap = calculateSwap(inSwap);
-			}
-		} else {
-			let minSwap = ZERO;
-			let maxSwap = BN.max(
-				freeCollateral.mul(inPrecision).mul(new BN(100)).div(inOraclePrice), // 100x current free collateral
-				inTokenAmount.abs().mul(new BN(10)) // 10x current position
+		let i = 0;
+		let freeCollateralAfter = freeCollateral;
+		while (freeCollateralAfter.gt(error) || freeCollateralAfter.isNeg()) {
+			outSwap = calculateSwap(inSwap);
+
+			const inPositionAfter = this.cloneAndUpdateSpotPosition(
+				inSpotPosition,
+				inSwap.neg(),
+				inMarket
 			);
-			inSwap = maxSwap.div(TWO);
-			const error = freeCollateral.div(new BN(10000));
+			const outPositionAfter = this.cloneAndUpdateSpotPosition(
+				outSpotPosition,
+				outSwap,
+				outMarket
+			);
 
-			let i = 0;
-			let freeCollateralAfter = freeCollateral;
-			while (freeCollateralAfter.gt(error) || freeCollateralAfter.isNeg()) {
-				outSwap = calculateSwap(inSwap);
-
-				const inPositionAfter = this.cloneAndUpdateSpotPosition(
-					inSpotPosition,
-					inSwap.neg(),
-					inMarket
+			const inContributionAfter =
+				this.calculateSpotPositionFreeCollateralContribution(
+					inPositionAfter,
+					inStrictOraclePrice
 				);
-				const outPositionAfter = this.cloneAndUpdateSpotPosition(
-					outSpotPosition,
-					outSwap,
-					outMarket
+			const outContributionAfter =
+				this.calculateSpotPositionFreeCollateralContribution(
+					outPositionAfter,
+					outStrictOraclePrice
 				);
 
-				const inContributionAfter =
-					this.calculateSpotPositionFreeCollateralContribution(
-						inPositionAfter,
-						inStrictOraclePrice
-					);
-				const outContributionAfter =
-					this.calculateSpotPositionFreeCollateralContribution(
-						outPositionAfter,
-						outStrictOraclePrice
-					);
+			const contributionAfter = inContributionAfter.add(outContributionAfter);
 
-				const contributionAfter = inContributionAfter.add(outContributionAfter);
+			const contributionDelta = contributionAfter.sub(initialContribution);
 
-				const contributionDelta = contributionAfter.sub(initialContribution);
+			freeCollateralAfter = freeCollateral.add(contributionDelta);
 
-				freeCollateralAfter = freeCollateral.add(contributionDelta);
+			if (freeCollateralAfter.gt(error)) {
+				minSwap = inSwap;
+				inSwap = minSwap.add(maxSwap).div(TWO);
+			} else if (freeCollateralAfter.isNeg()) {
+				maxSwap = inSwap;
+				inSwap = minSwap.add(maxSwap).div(TWO);
+			}
 
-				if (freeCollateralAfter.gt(error)) {
-					minSwap = inSwap;
-					inSwap = minSwap.add(maxSwap).div(TWO);
-				} else if (freeCollateralAfter.isNeg()) {
-					maxSwap = inSwap;
-					inSwap = minSwap.add(maxSwap).div(TWO);
-				}
-
-				if (i++ > iterationLimit) {
-					console.log('getMaxSwapAmount iteration limit reached');
-					break;
-				}
+			if (i++ > iterationLimit) {
+				console.log('getMaxSwapAmount iteration limit reached');
+				break;
 			}
 		}
 
