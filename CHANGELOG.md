@@ -12,6 +12,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - program: add auction_duration_percentage to place and take ([#1320](https://github.com/drift-labs/protocol-v2/pull/1320))
 - program: more lenient w invalid deposit oracles ([#1324](https://github.com/drift-labs/protocol-v2/pull/1324))
 - program: rm usdc staking fee discount ([#1316](https://github.com/drift-labs/protocol-v2/pull/1316))
+- program: allow hot admin wallet to init pyth oracle ([#1327](https://github.com/drift-labs/protocol-v2/pull/1327))
+- program: update hlm fees ([#1317](https://github.com/drift-labs/protocol-v2/pull/1317))
+- program: update hlm disable ([#1318](https://github.com/drift-labs/protocol-v2/pull/1318))
 
 ### Fixes
 
