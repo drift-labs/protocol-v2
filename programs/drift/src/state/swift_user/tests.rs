@@ -1,3 +1,4 @@
+#[cfg(test)]
 mod swift_order_id_eviction {
     use std::cell::{Ref, RefCell};
 

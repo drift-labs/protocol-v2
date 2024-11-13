@@ -72,7 +72,6 @@ use crate::state::spot_market_map::{
 use crate::state::state::State;
 use crate::state::swift_user::SwiftOrderId;
 use crate::state::swift_user::SwiftUserOrdersLoader;
-use crate::state::swift_user::SwiftUserOrdersZeroCopy;
 use crate::state::swift_user::{SwiftUserOrders, SWIFT_PDA_SEED};
 use crate::state::traits::Size;
 use crate::state::user::ReferrerStatus;

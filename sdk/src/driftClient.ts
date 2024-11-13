@@ -243,9 +243,12 @@ export class DriftClient {
 		this.wallet = config.wallet;
 		this.opts = config.opts || {
 			...DEFAULT_CONFIRMATION_OPTS,
-			commitment: config?.connection?.commitment,
-			preflightCommitment: config?.connection?.commitment, // At the moment this ensures that our transaction simulations (which use Connection object) will use the same commitment level as our Transaction blockhashes (which use these opts)
 		};
+		if (config?.connection?.commitment) {
+			// At the moment this ensures that our transaction simulations (which use Connection object) will use the same commitment level as our Transaction blockhashes (which use these opts)
+			this.opts.commitment = config.connection.commitment;
+			this.opts.preflightCommitment = config.connection.commitment;
+		}
 		this.provider = new AnchorProvider(
 			config.connection,
 			// @ts-ignore
@@ -2645,7 +2648,8 @@ export class DriftClient {
 		marketIndex: number,
 		associatedTokenAddress: PublicKey,
 		reduceOnly = false,
-		subAccountId?: number
+		subAccountId?: number,
+		updateFuel = false
 	) {
 		const withdrawIxs: anchor.web3.TransactionInstruction[] = [];
 
@@ -2654,6 +2658,15 @@ export class DriftClient {
 		const isSolMarket = spotMarketAccount.mint.equals(WRAPPED_SOL_MINT);
 
 		const authority = this.wallet.publicKey;
+
+		if (updateFuel) {
+			const updateFuelIx = await this.getUpdateUserFuelBonusIx(
+				await this.getUserAccountPublicKey(subAccountId),
+				this.getUserAccount(subAccountId),
+				this.authority
+			);
+			withdrawIxs.push(updateFuelIx);
+		}
 
 		const createWSOLTokenAccount =
 			isSolMarket && associatedTokenAddress.equals(authority);
@@ -2722,7 +2735,8 @@ export class DriftClient {
 		associatedTokenAddress: PublicKey,
 		reduceOnly = false,
 		subAccountId?: number,
-		txParams?: TxParams
+		txParams?: TxParams,
+		updateFuel = false
 	): Promise<TransactionSignature> {
 		const additionalSigners: Array<Signer> = [];
 
@@ -2731,7 +2745,8 @@ export class DriftClient {
 			marketIndex,
 			associatedTokenAddress,
 			reduceOnly,
-			subAccountId
+			subAccountId,
+			updateFuel
 		);
 
 		const tx = await this.buildTransaction(
