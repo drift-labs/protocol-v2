@@ -2958,7 +2958,7 @@ export class User {
 			// buying asset with higher initial asset weight
 			inMarket.initialAssetWeight < outMarket.initialAssetWeight;
 
-		if (freeCollateral.lt(ONE)) {
+		if (freeCollateral.lt(PRICE_PRECISION.divn(100))) {
 			if (outSaferThanIn && inTokenAmount.gt(ZERO)) {
 				inSwap = inTokenAmount;
 				outSwap = calculateSwap(inSwap);
