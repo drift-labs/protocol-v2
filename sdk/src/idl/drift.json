@@ -2738,6 +2738,27 @@
       "args": []
     },
     {
+      "name": "updateUserGovTokenInsuranceStakeDevnet",
+      "accounts": [
+        {
+          "name": "userStats",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "signer",
+          "isMut": false,
+          "isSigner": true
+        }
+      ],
+      "args": [
+        {
+          "name": "govStakeAmount",
+          "type": "u64"
+        }
+      ]
+    },
+    {
       "name": "initializeInsuranceFundStake",
       "accounts": [
         {
