@@ -332,13 +332,9 @@ pub fn get_sb_on_demand_price(
     .cast::<i64>()?
     .unsigned_abs();
 
-    let current_submssion_slot = pull_feed_account_info
-        .current_value
-        .ok_or(ErrorCode::UnableToLoadOracle)?;
-
     let delay = clock_slot
         .cast::<i64>()?
-        .safe_sub(max_submissions_slot.cast()?)?;
+        .safe_sub(pull_feed_account_info.result_land_slot().cast()?)?;
 
     let has_sufficient_number_of_data_points = true;
 
