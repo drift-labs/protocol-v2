@@ -7888,7 +7888,7 @@ export class DriftClient {
 			authority
 		);
 
-		const ix = this.program.instruction.updateUserGovTokenInsuranceStake(
+		const ix = this.program.instruction.updateUserGovTokenInsuranceStakeDevnet(
 			amount,
 			{
 				accounts: {
