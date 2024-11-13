@@ -159,6 +159,7 @@ pub fn _update_amm(
         oracle_price_data,
         &state.oracle_guard_rails.validity,
         market.get_max_confidence_interval_multiplier()?,
+        &market.amm.oracle_source,
         true,
     )?;
 
@@ -246,6 +247,7 @@ pub fn update_amm_and_check_validity(
         oracle_price_data,
         &state.oracle_guard_rails.validity,
         market.get_max_confidence_interval_multiplier()?,
+        &market.amm.oracle_source,
         false,
     )?;
 
