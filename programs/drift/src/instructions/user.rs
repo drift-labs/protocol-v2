@@ -56,7 +56,7 @@ use crate::state::oracle::StrictOraclePrice;
 use crate::state::order_params::RFQMatch;
 use crate::state::order_params::{
     ModifyOrderParams, OrderParams, PlaceAndTakeOrderSuccessCondition, PlaceOrderOptions,
-    PostOnlyParam,
+    PostOnlyParam, parse_optional_params,
 };
 use crate::state::paused_operations::{PerpOperation, SpotOperation};
 use crate::state::perp_market::ContractType;
@@ -1340,14 +1340,7 @@ pub fn handle_place_and_take_perp_order<'c: 'info, 'info>(
     let mut user = load_mut!(ctx.accounts.user)?;
     let clock = Clock::get()?;
 
-    let (success_condition, auction_duration_percentage) = match optional_params {
-        Some(optional_params) => {
-            let success_condition = (optional_params & 0xFF) as u8;
-            let auction_duration_percentage = ((optional_params >> 8) & 0xFF) as u8;
-            (success_condition, auction_duration_percentage)
-        }
-        None => (0, 0),
-    };
+    let (success_condition, auction_duration_percentage) = parse_optional_params(optional_params);
 
     controller::orders::place_perp_order(
         &ctx.accounts.state,

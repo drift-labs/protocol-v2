@@ -10784,7 +10784,7 @@ pub mod get_maker_orders_info {
             Some(2),
             clock.unix_timestamp,
             clock.slot,
-            FillMode::PlaceAndTake(false),
+            FillMode::PlaceAndTake(false, 0),
         )
         .unwrap();
 

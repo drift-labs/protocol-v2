@@ -36,12 +36,12 @@ impl FillMode {
                 )
             }
             FillMode::PlaceAndTake(_, auction_duration_percentage) => {
-                let auction_duration_percentage  = *auction_duration_percentage;
-                let auction_duration = if auction_duration_percentage == 0 || auction_duration_percentage >= 100 {
-                    order.auction_duration.cast::<u64>()?
-                } else {
-                    order.auction_duration.cast::<u64>()?.safe_mul(auction_duration_percentage.cast()?)?.safe_div(100)?.cast::<u64>()?
-                };
+                let auction_duration = order
+                    .auction_duration
+                    .cast::<u64>()?
+                    .safe_mul(auction_duration_percentage.min(&100).cast()?)?
+                    .safe_div(100)?
+                    .cast::<u64>()?;
 
                 if order.has_auction() {
                     calculate_auction_price(
