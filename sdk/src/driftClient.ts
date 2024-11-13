@@ -243,9 +243,12 @@ export class DriftClient {
 		this.wallet = config.wallet;
 		this.opts = config.opts || {
 			...DEFAULT_CONFIRMATION_OPTS,
-			commitment: config?.connection?.commitment,
-			preflightCommitment: config?.connection?.commitment, // At the moment this ensures that our transaction simulations (which use Connection object) will use the same commitment level as our Transaction blockhashes (which use these opts)
 		};
+		if (config?.connection?.commitment) {
+			// At the moment this ensures that our transaction simulations (which use Connection object) will use the same commitment level as our Transaction blockhashes (which use these opts)
+			this.opts.commitment = config.connection.commitment;
+			this.opts.preflightCommitment = config.connection.commitment;
+		}
 		this.provider = new AnchorProvider(
 			config.connection,
 			// @ts-ignore
@@ -1026,15 +1029,17 @@ export class DriftClient {
 		return [rfqUserAccountPublicKey, initializeUserAccountIx];
 	}
 
-	public async initializeSwiftUserOrdersAccount(
+	public async initializeSwiftUserOrders(
 		userAccountPublicKey: PublicKey,
+		numOrders: number,
 		txParams?: TxParams
 	): Promise<[TransactionSignature, PublicKey]> {
 		const initializeIxs = [];
 
 		const [swiftUserAccountPublicKey, initializeUserAccountIx] =
-			await this.getInitializeSwiftUserOrdersAccountInstruction(
-				userAccountPublicKey
+			await this.getInitializeSwiftUserOrdersAccountIx(
+				userAccountPublicKey,
+				numOrders
 			);
 		initializeIxs.push(initializeUserAccountIx);
 		const tx = await this.buildTransaction(initializeIxs, txParams);
@@ -1043,15 +1048,16 @@ export class DriftClient {
 		return [txSig, swiftUserAccountPublicKey];
 	}
 
-	async getInitializeSwiftUserOrdersAccountInstruction(
-		userAccountPublicKey: PublicKey
+	async getInitializeSwiftUserOrdersAccountIx(
+		userAccountPublicKey: PublicKey,
+		numOrders: number
 	): Promise<[PublicKey, TransactionInstruction]> {
 		const swiftUserAccountPublicKey = getSwiftUserAccountPublicKey(
 			this.program.programId,
 			userAccountPublicKey
 		);
 		const initializeUserAccountIx =
-			await this.program.instruction.initializeSwiftUserOrders({
+			await this.program.instruction.initializeSwiftUserOrders(numOrders, {
 				accounts: {
 					swiftUserOrders: swiftUserAccountPublicKey,
 					authority: this.wallet.publicKey,
@@ -1063,6 +1069,42 @@ export class DriftClient {
 			});
 
 		return [swiftUserAccountPublicKey, initializeUserAccountIx];
+	}
+
+	public async resizeSwiftUserOrders(
+		userAccountPublicKey: PublicKey,
+		numOrders: number,
+		txParams?: TxParams
+	): Promise<TransactionSignature> {
+		const resizeUserAccountIx = await this.getResizeSwiftUserOrdersInstruction(
+			userAccountPublicKey,
+			numOrders
+		);
+		const tx = await this.buildTransaction([resizeUserAccountIx], txParams);
+		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+
+		return txSig;
+	}
+
+	async getResizeSwiftUserOrdersInstruction(
+		userAccountPublicKey: PublicKey,
+		numOrders: number
+	): Promise<TransactionInstruction> {
+		const swiftUserAccountPublicKey = getSwiftUserAccountPublicKey(
+			this.program.programId,
+			userAccountPublicKey
+		);
+		const resizeUserAccountIx =
+			await this.program.instruction.resizeSwiftUserOrders(numOrders, {
+				accounts: {
+					swiftUserOrders: swiftUserAccountPublicKey,
+					authority: this.wallet.publicKey,
+					user: userAccountPublicKey,
+					systemProgram: anchor.web3.SystemProgram.programId,
+				},
+			});
+
+		return resizeUserAccountIx;
 	}
 
 	async getInitializeUserInstructions(
@@ -2606,7 +2648,8 @@ export class DriftClient {
 		marketIndex: number,
 		associatedTokenAddress: PublicKey,
 		reduceOnly = false,
-		subAccountId?: number
+		subAccountId?: number,
+		updateFuel = false
 	) {
 		const withdrawIxs: anchor.web3.TransactionInstruction[] = [];
 
@@ -2615,6 +2658,15 @@ export class DriftClient {
 		const isSolMarket = spotMarketAccount.mint.equals(WRAPPED_SOL_MINT);
 
 		const authority = this.wallet.publicKey;
+
+		if (updateFuel) {
+			const updateFuelIx = await this.getUpdateUserFuelBonusIx(
+				await this.getUserAccountPublicKey(subAccountId),
+				this.getUserAccount(subAccountId),
+				this.authority
+			);
+			withdrawIxs.push(updateFuelIx);
+		}
 
 		const createWSOLTokenAccount =
 			isSolMarket && associatedTokenAddress.equals(authority);
@@ -2683,7 +2735,8 @@ export class DriftClient {
 		associatedTokenAddress: PublicKey,
 		reduceOnly = false,
 		subAccountId?: number,
-		txParams?: TxParams
+		txParams?: TxParams,
+		updateFuel = false
 	): Promise<TransactionSignature> {
 		const additionalSigners: Array<Signer> = [];
 
@@ -2692,7 +2745,8 @@ export class DriftClient {
 			marketIndex,
 			associatedTokenAddress,
 			reduceOnly,
-			subAccountId
+			subAccountId,
+			updateFuel
 		);
 
 		const tx = await this.buildTransaction(
@@ -5217,6 +5271,7 @@ export class DriftClient {
 		makerInfo?: MakerInfo | MakerInfo[],
 		referrerInfo?: ReferrerInfo,
 		successCondition?: PlaceAndTakeOrderSuccessCondition,
+		auctionDurationPercentage?: number,
 		txParams?: TxParams,
 		subAccountId?: number
 	): Promise<TransactionSignature> {
@@ -5227,6 +5282,7 @@ export class DriftClient {
 					makerInfo,
 					referrerInfo,
 					successCondition,
+					auctionDurationPercentage,
 					subAccountId
 				),
 				txParams
@@ -5274,6 +5330,7 @@ export class DriftClient {
 				orderParams,
 				makerInfo,
 				referrerInfo,
+				undefined,
 				undefined,
 				subAccountId
 			);
@@ -5466,6 +5523,7 @@ export class DriftClient {
 		makerInfo?: MakerInfo | MakerInfo[],
 		referrerInfo?: ReferrerInfo,
 		successCondition?: PlaceAndTakeOrderSuccessCondition,
+		auctionDurationPercentage?: number,
 		subAccountId?: number
 	): Promise<TransactionInstruction> {
 		orderParams = getOrderParams(orderParams, { marketType: MarketType.PERP });
@@ -5520,9 +5578,15 @@ export class DriftClient {
 			}
 		}
 
+		let optionalParams = null;
+		if (auctionDurationPercentage || successCondition) {
+			optionalParams =
+				((successCondition ?? 0) << 8) | (auctionDurationPercentage ?? 100);
+		}
+
 		return await this.program.instruction.placeAndTakePerpOrder(
 			orderParams,
-			successCondition ?? null,
+			optionalParams,
 			{
 				accounts: {
 					state: await this.getStatePublicKey(),
@@ -8014,14 +8078,10 @@ export class DriftClient {
 				marketAccount = this.getSpotMarketAccount(marketIndex);
 			}
 
-			let takeFeeAdjustment;
+			takerFee += (takerFee * marketAccount.feeAdjustment) / 100;
 			if (user && user.isHighLeverageMode()) {
-				takeFeeAdjustment = 100;
-			} else {
-				takeFeeAdjustment = marketAccount.feeAdjustment;
+				takerFee *= 2;
 			}
-
-			takerFee += (takerFee * takeFeeAdjustment) / 100;
 			makerFee += (makerFee * marketAccount.feeAdjustment) / 100;
 		}
 

@@ -347,6 +347,16 @@ export const DevnetPerpMarkets: PerpMarketConfig[] = [
 		launchTs: 1722214583000,
 		oracleSource: OracleSource.Prelaunch,
 	},
+	{
+		fullName: 'RANDOM-2024',
+		category: ['Prediction'],
+		symbol: 'RANDOM-2024-PREDICT',
+		baseAssetSymbol: 'RANDOM-2024',
+		marketIndex: 28,
+		oracle: new PublicKey('sDAQaZQJQ4RXAxH3x526mbEXyQZT15ktkL84d7hmk7M'),
+		launchTs: 1729622442000,
+		oracleSource: OracleSource.Prelaunch,
+	},
 ];
 
 export const MainnetPerpMarkets: PerpMarketConfig[] = [
@@ -961,6 +971,18 @@ export const MainnetPerpMarkets: PerpMarketConfig[] = [
 		oracleSource: OracleSource.PYTH_PULL,
 		pythFeedId:
 			'0x63a45218d6b13ffd28ca04748615511bf70eff80a3411c97d96b8ed74a6decab',
+	},
+	{
+		fullName: 'GOAT',
+		category: ['Meme'],
+		symbol: 'GOAT-PERP',
+		baseAssetSymbol: 'GOAT',
+		marketIndex: 53,
+		oracle: new PublicKey('5RgXW13Kq1RgCLEsJhhchWt3W4R2XLJnd6KqgZk6dSY7'),
+		launchTs: 1731443152000,
+		oracleSource: OracleSource.PYTH_PULL,
+		pythFeedId:
+			'0xf7731dc812590214d3eb4343bfb13d1b4cfa9b1d4e020644b5d5d8e07d60c66c',
 	},
 ];
 

@@ -41,8 +41,6 @@ use crate::state::paused_operations::PerpOperation;
 use drift_macros::assert_no_slop;
 use static_assertions::const_assert_eq;
 
-use super::oracle::PrelaunchOracle;
-
 #[cfg(test)]
 mod tests;
 
@@ -327,7 +325,7 @@ impl PerpMarket {
         }
 
         let amm_low_inventory_and_profitable =
-            (self.amm.net_revenue_since_last_funding > 0 && amm_lp_allowed_to_jit_make);
+            self.amm.net_revenue_since_last_funding > 0 && amm_lp_allowed_to_jit_make;
         let amm_oracle_no_latency = self.amm.oracle_source == OracleSource::Prelaunch;
         let can_skip = amm_low_inventory_and_profitable || amm_oracle_no_latency;
 

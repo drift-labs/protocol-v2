@@ -265,10 +265,7 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
             spot_market.get_max_confidence_interval_multiplier()?,
         )?;
 
-        calculation.update_all_oracles_valid(is_oracle_valid_for_action(
-            oracle_validity,
-            Some(DriftAction::MarginCalc),
-        )?);
+        let oracle_valid = is_oracle_valid_for_action(oracle_validity, Some(DriftAction::MarginCalc))?;
 
         let strict_oracle_price = StrictOraclePrice::new(
             oracle_price_data.price,
@@ -293,12 +290,19 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
 
             calculation.update_fuel_spot_bonus(&spot_market, token_amount, &strict_oracle_price)?;
 
-            let token_value =
+            let mut token_value =
                 get_strict_token_value(token_amount, spot_market.decimals, &strict_oracle_price)?;
 
             match spot_position.balance_type {
                 SpotBalanceType::Deposit => {
+                    if calculation.context.ignore_invalid_deposit_oracles && !oracle_valid {
+                        msg!("token_value set to 0 for market_index={}", spot_market.market_index);
+                        token_value = 0;
+                    }
+
                     calculation.add_total_collateral(token_value)?;
+
+                    calculation.update_all_deposit_oracles_valid(oracle_valid);
 
                     #[cfg(feature = "drift-rs")]
                     calculation.add_spot_asset_value(token_value)?;
@@ -322,6 +326,8 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
 
                     calculation.add_spot_liability()?;
 
+                    calculation.update_all_liability_oracles_valid(oracle_valid);
+
                     #[cfg(feature = "drift-rs")]
                     calculation.add_spot_liability_value(token_value)?;
                 }
@@ -337,9 +343,9 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
 
             let OrderFillSimulation {
                 token_amount: worst_case_token_amount,
-                orders_value: worst_case_orders_value,
+                orders_value: mut worst_case_orders_value,
                 token_value: worst_case_token_value,
-                weighted_token_value: worst_case_weighted_token_value,
+                weighted_token_value: mut worst_case_weighted_token_value,
                 ..
             } = spot_position
                 .get_worst_case_fill_simulation(
@@ -372,8 +378,15 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
 
             match worst_case_token_value.cmp(&0) {
                 Ordering::Greater => {
+                    if calculation.context.ignore_invalid_deposit_oracles && !oracle_valid {
+                        msg!("worst_case_weighted_token_value set to 0 for market_index={}", spot_market.market_index);
+                        worst_case_weighted_token_value = 0;
+                    }
+
                     calculation
                         .add_total_collateral(worst_case_weighted_token_value.cast::<i128>()?)?;
+
+                    calculation.update_all_deposit_oracles_valid(oracle_valid);
 
                     #[cfg(feature = "drift-rs")]
                     calculation.add_spot_asset_value(worst_case_token_value)?;
@@ -405,12 +418,15 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
                         spot_market.asset_tier == AssetTier::Isolated,
                     );
 
+                    calculation.update_all_liability_oracles_valid(oracle_valid);
+
                     #[cfg(feature = "drift-rs")]
                     calculation.add_spot_liability_value(worst_case_token_value.unsigned_abs())?;
                 }
                 Ordering::Equal => {
                     if spot_position.has_open_order() {
                         calculation.add_spot_liability()?;
+                        calculation.update_all_liability_oracles_valid(oracle_valid);
                         calculation.update_with_spot_isolated_liability(
                             spot_market.asset_tier == AssetTier::Isolated,
                         );
@@ -420,6 +436,11 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
 
             match worst_case_orders_value.cmp(&0) {
                 Ordering::Greater => {
+                    if calculation.context.ignore_invalid_deposit_oracles && !oracle_valid {
+                        msg!("worst_case_orders_value set to 0 for market_index={}", spot_market.market_index);
+                        worst_case_orders_value = 0;
+                    }
+
                     calculation.add_total_collateral(worst_case_orders_value.cast::<i128>()?)?;
 
                     #[cfg(feature = "drift-rs")]
@@ -458,11 +479,6 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
                     .last_oracle_price_twap,
                 quote_spot_market.get_max_confidence_interval_multiplier()?,
             )?;
-
-        calculation.update_all_oracles_valid(is_oracle_valid_for_action(
-            quote_oracle_validity,
-            Some(DriftAction::MarginCalc),
-        )?);
 
         let strict_quote_price = StrictOraclePrice::new(
             quote_oracle_price_data.price,
@@ -535,7 +551,11 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
         }
 
         if has_perp_liability || calculation.context.margin_type != MarginRequirementType::Initial {
-            calculation.update_all_oracles_valid(is_oracle_valid_for_action(
+            calculation.update_all_liability_oracles_valid(is_oracle_valid_for_action(
+                quote_oracle_validity,
+                Some(DriftAction::MarginCalc),
+            )?);
+            calculation.update_all_liability_oracles_valid(is_oracle_valid_for_action(
                 oracle_validity,
                 Some(DriftAction::MarginCalc),
             )?);
@@ -594,7 +614,9 @@ pub fn meets_withdraw_margin_requirement(
     margin_requirement_type: MarginRequirementType,
 ) -> DriftResult<bool> {
     let strict = margin_requirement_type == MarginRequirementType::Initial;
-    let context = MarginContext::standard(margin_requirement_type).strict(strict);
+    let context = MarginContext::standard(margin_requirement_type)
+        .strict(strict)
+        .ignore_invalid_deposit_oracles(true);
 
     let calculation = calculate_margin_requirement_and_total_collateral_and_liability_info(
         user,
@@ -606,9 +628,9 @@ pub fn meets_withdraw_margin_requirement(
 
     if calculation.margin_requirement > 0 || calculation.get_num_of_liabilities()? > 0 {
         validate!(
-            calculation.all_oracles_valid,
+            calculation.all_liability_oracles_valid,
             ErrorCode::InvalidOracle,
-            "User attempting to withdraw with outstanding liabilities when an oracle is invalid"
+            "User attempting to withdraw with outstanding liabilities when a liability oracle is invalid"
         )?;
     }
 

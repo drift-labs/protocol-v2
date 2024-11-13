@@ -9,7 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Features
 
+- program: add auction_duration_percentage to place and take ([#1320](https://github.com/drift-labs/protocol-v2/pull/1320))
+- program: more lenient w invalid deposit oracles ([#1324](https://github.com/drift-labs/protocol-v2/pull/1324))
+
 ### Fixes
+
+- sdk: getBestBids/Asks only considers price/time priority ([#1322](https://github.com/drift-labs/protocol-v2/pull/1322))
 
 ### Breaking
 

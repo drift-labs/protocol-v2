@@ -13,11 +13,10 @@ use crate::math::constants::{
 use crate::math::helpers::get_proportion_u128;
 use crate::math::safe_math::SafeMath;
 
-use crate::state::high_leverage_mode_config;
 use crate::state::state::{FeeStructure, FeeTier, OrderFillerRewardStructure};
 use crate::state::user::{MarketType, UserStats};
 
-use crate::{FEE_ADJUSTMENT_MAX, FEE_ADJUSTMENT_MAX_I16, QUOTE_PRECISION_U64};
+use crate::{FEE_ADJUSTMENT_MAX, QUOTE_PRECISION_U64};
 use solana_program::msg;
 
 #[cfg(test)]
@@ -95,13 +94,11 @@ pub fn calculate_fee_for_fulfillment_with_amm(
             referee_discount: 0,
         })
     } else {
-        let taker_fee_adjustment = if user_high_leverage_mode {
-            FEE_ADJUSTMENT_MAX_I16 // high lev mode gets 2x fees
-        } else {
-            fee_adjustment
-        };
+        let mut fee = calculate_taker_fee(quote_asset_amount, fee_tier, fee_adjustment)?;
 
-        let fee = calculate_taker_fee(quote_asset_amount, fee_tier, taker_fee_adjustment)?;
+        if user_high_leverage_mode {
+            fee = fee.safe_mul(2)?;
+        }
 
         let (fee, referee_discount, referrer_reward) = if reward_referrer {
             calculate_referee_fee_and_referrer_reward(
@@ -302,13 +299,11 @@ pub fn calculate_fee_for_fulfillment_with_match(
         determine_user_fee_tier(taker_stats, fee_structure, market_type, false)?
     };
 
-    let taker_fee_adjustment = if user_high_leverage_mode {
-        FEE_ADJUSTMENT_MAX_I16 // high lev mode gets 2x fees
-    } else {
-        fee_adjustment
-    };
+    let mut taker_fee = calculate_taker_fee(quote_asset_amount, taker_fee_tier, fee_adjustment)?;
 
-    let taker_fee = calculate_taker_fee(quote_asset_amount, taker_fee_tier, taker_fee_adjustment)?;
+    if user_high_leverage_mode {
+        taker_fee = taker_fee.safe_mul(2)?;
+    }
 
     let (taker_fee, referee_discount, referrer_reward) = if reward_referrer {
         calculate_referee_fee_and_referrer_reward(

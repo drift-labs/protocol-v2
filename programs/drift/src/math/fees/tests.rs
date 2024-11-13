@@ -376,9 +376,9 @@ mod calculate_fee_for_taker_and_maker {
         )
         .unwrap();
 
-        assert_eq!(taker_fee, 200000);
+        assert_eq!(taker_fee, 100000);
         assert_eq!(maker_rebate, 30000);
-        assert_eq!(fee_to_market, 160000);
+        assert_eq!(fee_to_market, 60000);
         assert_eq!(filler_reward, 10000);
         assert_eq!(referrer_reward, 0);
         assert_eq!(referee_discount, 0);
@@ -584,8 +584,8 @@ mod calculate_fee_for_order_fulfill_against_amm {
         )
         .unwrap();
 
-        assert_eq!(user_fee, 200000);
-        assert_eq!(fee_to_market, 200000);
+        assert_eq!(user_fee, 100000);
+        assert_eq!(fee_to_market, 100000);
         assert_eq!(filler_reward, 0);
         assert_eq!(referrer_reward, 0);
         assert_eq!(referee_discount, 0);

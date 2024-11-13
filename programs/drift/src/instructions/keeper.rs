@@ -15,10 +15,7 @@ use crate::instructions::constraints::*;
 use crate::instructions::optional_accounts::{load_maps, AccountMaps};
 use crate::math::casting::Cast;
 use crate::math::constants::QUOTE_SPOT_MARKET_INDEX;
-use crate::math::margin::{
-    calculate_user_equity, meets_maintenance_margin_requirement,
-    meets_settle_pnl_maintenance_margin_requirement,
-};
+use crate::math::margin::{calculate_user_equity, meets_settle_pnl_maintenance_margin_requirement};
 use crate::math::orders::{estimate_price_from_side, find_bids_and_asks_from_users};
 use crate::math::safe_math::SafeMath;
 use crate::math::spot_withdraw::validate_spot_market_vault_amount;
@@ -48,16 +45,18 @@ use crate::state::spot_market_map::{
     get_writable_spot_market_set, get_writable_spot_market_set_from_many, SpotMarketMap,
 };
 use crate::state::state::State;
-use crate::state::swift_user::{SwiftOrderId, SwiftUserOrders, SWIFT_PDA_SEED};
+use crate::state::swift_user::{
+    SwiftOrderId, SwiftUserOrdersLoader, SwiftUserOrdersZeroCopyMut, SWIFT_PDA_SEED,
+};
 use crate::state::user::{
-    MarginMode, MarketType, OrderStatus, OrderTriggerCondition, OrderType, ReferrerStatus, User,
-    UserStats,
+    MarginMode, MarketType, OrderStatus, OrderTriggerCondition, OrderType, User, UserStats,
 };
 use crate::state::user_map::{load_user_map, load_user_maps, UserMap, UserStatsMap};
 use crate::validation::sig_verification::{extract_ed25519_ix_signature, verify_ed25519_digest};
 use crate::validation::user::validate_user_is_idle;
 use crate::{
     controller, digest_struct, load, math, print_error, OracleSource, GOV_SPOT_MARKET_INDEX,
+    MARGIN_PRECISION,
 };
 use crate::{load_mut, QUOTE_PRECISION_U64};
 use crate::{validate, QUOTE_PRECISION_I128};
@@ -546,7 +545,7 @@ pub fn handle_place_swift_taker_order<'c: 'info, 'info>(
 
     let taker_key = ctx.accounts.user.key();
     let mut taker = load_mut!(ctx.accounts.user)?;
-    let mut swift_taker = load_mut!(ctx.accounts.swift_user_orders)?;
+    let mut swift_taker = ctx.accounts.swift_user_orders.load_mut()?;
 
     place_swift_taker_order(
         taker_key,
@@ -566,7 +565,7 @@ pub fn handle_place_swift_taker_order<'c: 'info, 'info>(
 pub fn place_swift_taker_order<'c: 'info, 'info>(
     taker_key: Pubkey,
     taker: &mut RefMut<User>,
-    swift_account: &mut RefMut<SwiftUserOrders>,
+    swift_account: &mut SwiftUserOrdersZeroCopyMut,
     swift_message: SwiftServerMessage,
     taker_order_params_message: SwiftOrderParamsMessage,
     ix_sysvar: &AccountInfo<'info>,
@@ -2073,11 +2072,21 @@ pub fn handle_disable_user_high_leverage_mode<'c: 'info, 'info>(
 
     user.margin_mode = MarginMode::Default;
 
-    meets_maintenance_margin_requirement(
-        &user,
-        &perp_market_map,
-        &spot_market_map,
-        &mut oracle_map,
+    let meets_margin_requirement_with_buffer =
+        calculate_margin_requirement_and_total_collateral_and_liability_info(
+            &user,
+            &perp_market_map,
+            &spot_market_map,
+            &mut oracle_map,
+            MarginContext::standard(MarginRequirementType::Initial)
+                .margin_buffer(MARGIN_PRECISION / 100), // 1% buffer
+        )
+        .map(|calc| calc.meets_margin_requirement_with_buffer())?;
+
+    validate!(
+        meets_margin_requirement_with_buffer,
+        ErrorCode::DefaultError,
+        "user does not meet margin requirement with buffer"
     )?;
 
     // only check if signer is not user authority
@@ -2228,7 +2237,8 @@ pub struct PlaceSwiftTakerOrder<'info> {
         seeds = [SWIFT_PDA_SEED.as_ref(), user.key().as_ref()],
         bump,
     )]
-    pub swift_user_orders: AccountLoader<'info, SwiftUserOrders>,
+    /// CHECK: checked in SwiftUserOrdersZeroCopy checks
+    pub swift_user_orders: AccountInfo<'info>,
     pub authority: Signer<'info>,
     /// CHECK: The address check is needed because otherwise
     /// the supplied Sysvar could be anything else.
