@@ -1541,7 +1541,8 @@ mod calculate_margin_requirement_and_total_collateral {
             &perp_market_map,
             &spot_market_map,
             &mut oracle_map,
-            MarginContext::standard(MarginRequirementType::Initial).ignore_invalid_deposit_oracles(true),
+            MarginContext::standard(MarginRequirementType::Initial)
+                .ignore_invalid_deposit_oracles(true),
         )
         .unwrap();
 
@@ -1652,7 +1653,8 @@ mod calculate_margin_requirement_and_total_collateral {
             &perp_market_map,
             &spot_market_map,
             &mut oracle_map,
-            MarginContext::standard(MarginRequirementType::Initial).ignore_invalid_deposit_oracles(true),
+            MarginContext::standard(MarginRequirementType::Initial)
+                .ignore_invalid_deposit_oracles(true),
         )
         .unwrap();
 
@@ -1763,7 +1765,8 @@ mod calculate_margin_requirement_and_total_collateral {
             &perp_market_map,
             &spot_market_map,
             &mut oracle_map,
-            MarginContext::standard(MarginRequirementType::Initial).ignore_invalid_deposit_oracles(true),
+            MarginContext::standard(MarginRequirementType::Initial)
+                .ignore_invalid_deposit_oracles(true),
         )
         .unwrap();
 
@@ -1772,7 +1775,6 @@ mod calculate_margin_requirement_and_total_collateral {
         assert_eq!(total_collateral, 0);
         assert_ne!(margin_requirement, 0);
     }
-
 }
 
 #[cfg(test)]

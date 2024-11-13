@@ -242,9 +242,13 @@ pub fn oracle_validity(
 
     let is_stale_for_amm = oracle_delay.gt(&valid_oracle_guard_rails.slots_before_stale_for_amm);
 
-    let is_stale_for_margin = if matches!(oracle_source, OracleSource::PythStableCoinPull | OracleSource::PythStableCoin)
-    {
-        oracle_delay.gt(&(valid_oracle_guard_rails.slots_before_stale_for_margin.saturating_mul(3)))
+    let is_stale_for_margin = if matches!(
+        oracle_source,
+        OracleSource::PythStableCoinPull | OracleSource::PythStableCoin
+    ) {
+        oracle_delay.gt(&(valid_oracle_guard_rails
+            .slots_before_stale_for_margin
+            .saturating_mul(3)))
     } else {
         oracle_delay.gt(&valid_oracle_guard_rails.slots_before_stale_for_margin)
     };

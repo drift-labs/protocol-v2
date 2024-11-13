@@ -265,7 +265,8 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
             spot_market.get_max_confidence_interval_multiplier()?,
         )?;
 
-        let oracle_valid = is_oracle_valid_for_action(oracle_validity, Some(DriftAction::MarginCalc))?;
+        let oracle_valid =
+            is_oracle_valid_for_action(oracle_validity, Some(DriftAction::MarginCalc))?;
 
         let strict_oracle_price = StrictOraclePrice::new(
             oracle_price_data.price,
@@ -296,7 +297,10 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
             match spot_position.balance_type {
                 SpotBalanceType::Deposit => {
                     if calculation.context.ignore_invalid_deposit_oracles && !oracle_valid {
-                        msg!("token_value set to 0 for market_index={}", spot_market.market_index);
+                        msg!(
+                            "token_value set to 0 for market_index={}",
+                            spot_market.market_index
+                        );
                         token_value = 0;
                     }
 
@@ -379,7 +383,10 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
             match worst_case_token_value.cmp(&0) {
                 Ordering::Greater => {
                     if calculation.context.ignore_invalid_deposit_oracles && !oracle_valid {
-                        msg!("worst_case_weighted_token_value set to 0 for market_index={}", spot_market.market_index);
+                        msg!(
+                            "worst_case_weighted_token_value set to 0 for market_index={}",
+                            spot_market.market_index
+                        );
                         worst_case_weighted_token_value = 0;
                     }
 
@@ -437,7 +444,10 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
             match worst_case_orders_value.cmp(&0) {
                 Ordering::Greater => {
                     if calculation.context.ignore_invalid_deposit_oracles && !oracle_valid {
-                        msg!("worst_case_orders_value set to 0 for market_index={}", spot_market.market_index);
+                        msg!(
+                            "worst_case_orders_value set to 0 for market_index={}",
+                            spot_market.market_index
+                        );
                         worst_case_orders_value = 0;
                     }
 
