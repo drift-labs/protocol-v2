@@ -5565,7 +5565,7 @@ export class DriftClient {
 
 		let optionalParams = null;
 		if (auctionDurationPercentage || successCondition) {
-			optionalParams = (successCondition ?? 0) << 8 | (auctionDurationPercentage ?? 0);
+			optionalParams = (successCondition ?? 0) << 8 | (auctionDurationPercentage ?? 100);
 		}
 
 		return await this.program.instruction.placeAndTakePerpOrder(
