@@ -61,7 +61,8 @@ use crate::state::user_map::{load_user_map, load_user_maps, UserMap, UserStatsMa
 use crate::validation::sig_verification::{extract_ed25519_ix_signature, verify_ed25519_digest};
 use crate::validation::user::validate_user_is_idle;
 use crate::{
-    controller, digest_struct, load, math, print_error, OracleSource, GOV_SPOT_MARKET_INDEX, MARGIN_PRECISION,
+    controller, digest_struct, load, math, print_error, OracleSource, GOV_SPOT_MARKET_INDEX,
+    MARGIN_PRECISION,
 };
 use crate::{load_mut, QUOTE_PRECISION_U64};
 use crate::{validate, QUOTE_PRECISION_I128};
@@ -2077,14 +2078,16 @@ pub fn handle_disable_user_high_leverage_mode<'c: 'info, 'info>(
 
     user.margin_mode = MarginMode::Default;
 
-    let meets_margin_requirement_with_buffer = calculate_margin_requirement_and_total_collateral_and_liability_info(
-        &user,
-        &perp_market_map,
-        &spot_market_map,
-        &mut oracle_map,
-        MarginContext::standard(MarginRequirementType::Initial).margin_buffer(MARGIN_PRECISION / 100), // 1% buffer
-    )
-    .map(|calc| calc.meets_margin_requirement_with_buffer())?;
+    let meets_margin_requirement_with_buffer =
+        calculate_margin_requirement_and_total_collateral_and_liability_info(
+            &user,
+            &perp_market_map,
+            &spot_market_map,
+            &mut oracle_map,
+            MarginContext::standard(MarginRequirementType::Initial)
+                .margin_buffer(MARGIN_PRECISION / 100), // 1% buffer
+        )
+        .map(|calc| calc.meets_margin_requirement_with_buffer())?;
 
     validate!(
         meets_margin_requirement_with_buffer,

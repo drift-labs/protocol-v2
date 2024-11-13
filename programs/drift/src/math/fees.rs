@@ -101,7 +101,6 @@ pub fn calculate_fee_for_fulfillment_with_amm(
             fee = fee.safe_mul(2)?;
         }
 
-
         let (fee, referee_discount, referrer_reward) = if reward_referrer {
             calculate_referee_fee_and_referrer_reward(
                 fee,

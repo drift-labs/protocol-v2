@@ -55,8 +55,8 @@ use crate::state::high_leverage_mode_config::HighLeverageModeConfig;
 use crate::state::oracle::StrictOraclePrice;
 use crate::state::order_params::RFQMatch;
 use crate::state::order_params::{
-    ModifyOrderParams, OrderParams, PlaceAndTakeOrderSuccessCondition, PlaceOrderOptions,
-    PostOnlyParam, parse_optional_params,
+    parse_optional_params, ModifyOrderParams, OrderParams, PlaceAndTakeOrderSuccessCondition,
+    PlaceOrderOptions, PostOnlyParam,
 };
 use crate::state::paused_operations::{PerpOperation, SpotOperation};
 use crate::state::perp_market::ContractType;
@@ -1373,7 +1373,10 @@ pub fn handle_place_and_take_perp_order<'c: 'info, 'info>(
         &makers_and_referrer_stats,
         None,
         &Clock::get()?,
-        FillMode::PlaceAndTake(is_immediate_or_cancel || optional_params.is_some(), auction_duration_percentage),
+        FillMode::PlaceAndTake(
+            is_immediate_or_cancel || optional_params.is_some(),
+            auction_duration_percentage,
+        ),
     )?;
 
     let order_exists = load!(ctx.accounts.user)?
