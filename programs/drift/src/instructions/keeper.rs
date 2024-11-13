@@ -1,5 +1,4 @@
 use std::cell::RefMut;
-use std::ops::DerefMut;
 
 use anchor_lang::prelude::*;
 use anchor_spl::token_interface::{TokenAccount, TokenInterface};
@@ -16,10 +15,7 @@ use crate::instructions::constraints::*;
 use crate::instructions::optional_accounts::{load_maps, AccountMaps};
 use crate::math::casting::Cast;
 use crate::math::constants::QUOTE_SPOT_MARKET_INDEX;
-use crate::math::margin::{
-    calculate_user_equity, meets_maintenance_margin_requirement,
-    meets_settle_pnl_maintenance_margin_requirement,
-};
+use crate::math::margin::{calculate_user_equity, meets_settle_pnl_maintenance_margin_requirement};
 use crate::math::orders::{estimate_price_from_side, find_bids_and_asks_from_users};
 use crate::math::safe_math::SafeMath;
 use crate::math::spot_withdraw::validate_spot_market_vault_amount;
@@ -50,12 +46,10 @@ use crate::state::spot_market_map::{
 };
 use crate::state::state::State;
 use crate::state::swift_user::{
-    SwiftOrderId, SwiftUserOrders, SwiftUserOrdersLoader, SwiftUserOrdersZeroCopyMut,
-    SWIFT_PDA_SEED,
+    SwiftOrderId, SwiftUserOrdersLoader, SwiftUserOrdersZeroCopyMut, SWIFT_PDA_SEED,
 };
 use crate::state::user::{
-    MarginMode, MarketType, OrderStatus, OrderTriggerCondition, OrderType, ReferrerStatus, User,
-    UserStats,
+    MarginMode, MarketType, OrderStatus, OrderTriggerCondition, OrderType, User, UserStats,
 };
 use crate::state::user_map::{load_user_map, load_user_maps, UserMap, UserStatsMap};
 use crate::validation::sig_verification::{extract_ed25519_ix_signature, verify_ed25519_digest};
