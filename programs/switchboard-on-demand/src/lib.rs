@@ -36,8 +36,11 @@ pub struct CurrentResult {
     pub min_value: i128,
     /// The maximum value of the submissions needed for quorom size
     pub max_value: i128,
+    /// The number of samples used to calculate this result
     pub num_samples: u8,
-    pub padding1: [u8; 7],
+    /// The index of the submission that was used to calculate this result
+    pub submission_idx: u8,
+    pub padding1: [u8; 6],
     /// The slot at which this value was signed.
     pub slot: u64,
     /// The slot at which the first considered submission was made
@@ -123,7 +126,8 @@ pub struct OracleSubmission {
     pub oracle: Pubkey,
     /// The slot at which this value was signed.
     pub slot: u64,
-    padding1: [u8; 8],
+    /// The slot at which this value was landed on chain.
+    pub landed_at: u64,
     /// The value that was submitted.
     pub value: i128,
 }
@@ -207,5 +211,11 @@ impl PullFeedAccountData {
     /// The maximum value of the submissions needed for quorom size
     pub fn max_value(&self) -> Option<i128> {
         self.result.max_value()
+    }
+}
+impl PullFeedAccountData {
+    pub fn result_land_slot(&self) -> u64 {
+        let submission = self.submissions[self.result.submission_idx as usize];
+        submission.landed_at
     }
 }
