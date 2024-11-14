@@ -21,7 +21,7 @@ use crate::math::spot_balance::{
 };
 use crate::math::stats::calculate_rolling_sum;
 use crate::state::oracle::StrictOraclePrice;
-use crate::state::perp_market::PerpMarket;
+use crate::state::perp_market::{ContractType, PerpMarket};
 use crate::state::spot_market::{SpotBalance, SpotBalanceType, SpotMarket};
 use crate::state::traits::Size;
 use crate::validate;
