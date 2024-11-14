@@ -23,6 +23,8 @@ use crate::controller::spot_position::{
 };
 use crate::error::DriftResult;
 use crate::error::ErrorCode;
+use crate::get_struct_values;
+use crate::get_then_update_id;
 use crate::load_mut;
 use crate::math::amm::calculate_amm_available_liquidity;
 use crate::math::amm_jit::calculate_amm_jit_liquidity;
@@ -79,8 +81,6 @@ use crate::validation::order::{
     validate_order, validate_order_for_force_reduce_only, validate_spot_order,
 };
 use crate::{controller, ID};
-use crate::{get_struct_values, PERCENTAGE_PRECISION};
-use crate::{get_then_update_id, PERCENTAGE_PRECISION_I64};
 
 #[cfg(test)]
 mod tests;

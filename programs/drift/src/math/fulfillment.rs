@@ -1,7 +1,6 @@
 use crate::controller::position::PositionDirection;
 use crate::error::DriftResult;
 use crate::math::auction::can_fill_with_amm;
-use crate::math::auction::is_amm_available_liquidity_source;
 use crate::math::casting::Cast;
 use crate::math::matching::do_orders_cross;
 use crate::math::safe_unwrap::SafeUnwrap;

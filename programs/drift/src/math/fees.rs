@@ -13,11 +13,10 @@ use crate::math::constants::{
 use crate::math::helpers::get_proportion_u128;
 use crate::math::safe_math::SafeMath;
 
-use crate::state::high_leverage_mode_config;
 use crate::state::state::{FeeStructure, FeeTier, OrderFillerRewardStructure};
 use crate::state::user::{MarketType, UserStats};
 
-use crate::{FEE_ADJUSTMENT_MAX, FEE_ADJUSTMENT_MAX_I16, QUOTE_PRECISION_U64};
+use crate::{FEE_ADJUSTMENT_MAX, QUOTE_PRECISION_U64};
 use solana_program::msg;
 
 #[cfg(test)]
@@ -434,39 +433,33 @@ fn determine_perp_fee_tier<'a>(
     fee_structure: &'a FeeStructure,
 ) -> DriftResult<&'a FeeTier> {
     let total_30d_volume = user_stats.get_total_30d_volume()?;
-    let staked_quote_asset_amount = user_stats.if_staked_quote_asset_amount;
     let staked_gov_token_amount = user_stats.if_staked_gov_token_amount;
 
     if total_30d_volume >= ONE_HUNDRED_MILLION_QUOTE
-        || staked_quote_asset_amount >= TEN_THOUSAND_QUOTE - QUOTE_PRECISION_U64
         || staked_gov_token_amount >= ONE_HUNDRED_THOUSAND_QUOTE + 19_500 * QUOTE_PRECISION_U64
     {
         return Ok(&fee_structure.fee_tiers[5]);
     }
 
     if total_30d_volume >= FIFTY_MILLION_QUOTE
-        || staked_quote_asset_amount >= ONE_THOUSAND_QUOTE * 5 - QUOTE_PRECISION_U64
         || staked_gov_token_amount >= ONE_HUNDRED_THOUSAND_QUOTE - QUOTE_PRECISION_U64
     {
         return Ok(&fee_structure.fee_tiers[4]);
     }
 
     if total_30d_volume >= TEN_MILLION_QUOTE
-        || staked_quote_asset_amount >= ONE_THOUSAND_QUOTE * 2 - QUOTE_PRECISION_U64
         || staked_gov_token_amount >= TWENTY_FIVE_THOUSAND_QUOTE * 2 - QUOTE_PRECISION_U64
     {
         return Ok(&fee_structure.fee_tiers[3]);
     }
 
     if total_30d_volume >= FIVE_MILLION_QUOTE
-        || staked_quote_asset_amount >= ONE_THOUSAND_QUOTE - QUOTE_PRECISION_U64
         || staked_gov_token_amount >= TEN_THOUSAND_QUOTE - QUOTE_PRECISION_U64
     {
         return Ok(&fee_structure.fee_tiers[2]);
     }
 
     if total_30d_volume >= ONE_MILLION_QUOTE
-        || staked_quote_asset_amount >= ONE_THOUSAND_QUOTE / 2 - QUOTE_PRECISION_U64
         || staked_gov_token_amount >= ONE_THOUSAND_QUOTE - QUOTE_PRECISION_U64
     {
         return Ok(&fee_structure.fee_tiers[1]);

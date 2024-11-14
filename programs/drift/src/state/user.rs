@@ -5,8 +5,7 @@ use crate::math::auction::{calculate_auction_price, is_auction_complete};
 use crate::math::casting::Cast;
 use crate::math::constants::{
     EPOCH_DURATION, FUEL_START_TS, OPEN_ORDER_MARGIN_REQUIREMENT,
-    PRICE_TIMES_AMM_TO_QUOTE_PRECISION_RATIO, QUOTE_PRECISION, QUOTE_SPOT_MARKET_INDEX,
-    TEN_THOUSAND_QUOTE, THIRTY_DAY, TWENTY_FOUR_HOUR, TWO_HUNDRED_FIFTY_THOUSAND_QUOTE,
+    PRICE_TIMES_AMM_TO_QUOTE_PRECISION_RATIO, QUOTE_PRECISION, QUOTE_SPOT_MARKET_INDEX, THIRTY_DAY,
 };
 use crate::math::lp::{calculate_lp_open_bids_asks, calculate_settle_lp_metrics};
 use crate::math::margin::MarginRequirementType;
@@ -506,6 +505,7 @@ impl User {
         let strict = margin_requirement_type == MarginRequirementType::Initial;
         let context = MarginContext::standard(margin_requirement_type)
             .strict(strict)
+            .ignore_invalid_deposit_oracles(true)
             .fuel_spot_delta(withdraw_market_index, withdraw_amount.cast::<i128>()?)
             .fuel_numerator(self, now);
 
@@ -519,7 +519,7 @@ impl User {
 
         if calculation.margin_requirement > 0 || calculation.get_num_of_liabilities()? > 0 {
             validate!(
-                calculation.all_oracles_valid,
+                calculation.all_liability_oracles_valid,
                 ErrorCode::InvalidOracle,
                 "User attempting to withdraw with outstanding liabilities when an oracle is invalid"
             )?;

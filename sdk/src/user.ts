@@ -1424,12 +1424,13 @@ export class User {
 	 */
 	public getTotalCollateral(
 		marginCategory: MarginCategory = 'Initial',
-		strict = false
+		strict = false,
+		includeOpenOrders = true
 	): BN {
 		return this.getSpotMarketAssetValue(
 			undefined,
 			marginCategory,
-			true,
+			includeOpenOrders,
 			strict
 		).add(this.getUnrealizedPNL(true, undefined, marginCategory, strict));
 	}
@@ -2309,7 +2310,11 @@ export class User {
 		includeOpenOrders = false,
 		offsetCollateral = ZERO
 	): BN {
-		const totalCollateral = this.getTotalCollateral(marginCategory);
+		const totalCollateral = this.getTotalCollateral(
+			marginCategory,
+			false,
+			includeOpenOrders
+		);
 		const marginRequirement = this.getMarginRequirement(
 			marginCategory,
 			undefined,
@@ -2958,7 +2963,7 @@ export class User {
 			// buying asset with higher initial asset weight
 			inMarket.initialAssetWeight < outMarket.initialAssetWeight;
 
-		if (freeCollateral.lt(ONE)) {
+		if (freeCollateral.lt(PRICE_PRECISION.divn(100))) {
 			if (outSaferThanIn && inTokenAmount.gt(ZERO)) {
 				inSwap = inTokenAmount;
 				outSwap = calculateSwap(inSwap);

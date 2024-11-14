@@ -26,6 +26,7 @@ pub struct MarginContext {
     pub margin_type: MarginRequirementType,
     pub mode: MarginCalculationMode,
     pub strict: bool,
+    pub ignore_invalid_deposit_oracles: bool,
     pub margin_buffer: u128,
     pub fuel_bonus_numerator: i64,
     pub fuel_bonus: u64,
@@ -63,6 +64,7 @@ impl MarginContext {
                 track_open_orders_fraction: false,
             },
             strict: false,
+            ignore_invalid_deposit_oracles: false,
             margin_buffer: 0,
             fuel_bonus_numerator: 0,
             fuel_bonus: 0,
@@ -73,6 +75,11 @@ impl MarginContext {
 
     pub fn strict(mut self, strict: bool) -> Self {
         self.strict = strict;
+        self
+    }
+
+    pub fn ignore_invalid_deposit_oracles(mut self, ignore: bool) -> Self {
+        self.ignore_invalid_deposit_oracles = ignore;
         self
     }
 
@@ -126,6 +133,7 @@ impl MarginContext {
             },
             margin_buffer: margin_buffer as u128,
             strict: false,
+            ignore_invalid_deposit_oracles: false,
             fuel_bonus_numerator: 0,
             fuel_bonus: 0,
             fuel_perp_delta: None,
@@ -164,7 +172,8 @@ pub struct MarginCalculation {
     pub margin_requirement_plus_buffer: u128,
     pub num_spot_liabilities: u8,
     pub num_perp_liabilities: u8,
-    pub all_oracles_valid: bool,
+    pub all_deposit_oracles_valid: bool,
+    pub all_liability_oracles_valid: bool,
     pub with_perp_isolated_liability: bool,
     pub with_spot_isolated_liability: bool,
     pub total_spot_asset_value: i128,
@@ -187,7 +196,8 @@ impl MarginCalculation {
             margin_requirement_plus_buffer: 0,
             num_spot_liabilities: 0,
             num_perp_liabilities: 0,
-            all_oracles_valid: true,
+            all_deposit_oracles_valid: true,
+            all_liability_oracles_valid: true,
             with_perp_isolated_liability: false,
             with_spot_isolated_liability: false,
             total_spot_asset_value: 0,
@@ -280,8 +290,12 @@ impl MarginCalculation {
         Ok(())
     }
 
-    pub fn update_all_oracles_valid(&mut self, valid: bool) {
-        self.all_oracles_valid &= valid;
+    pub fn update_all_deposit_oracles_valid(&mut self, valid: bool) {
+        self.all_deposit_oracles_valid &= valid;
+    }
+
+    pub fn update_all_liability_oracles_valid(&mut self, valid: bool) {
+        self.all_liability_oracles_valid &= valid;
     }
 
     pub fn update_with_spot_isolated_liability(&mut self, isolated: bool) {
