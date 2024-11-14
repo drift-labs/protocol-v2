@@ -14,7 +14,7 @@ use crate::math::helpers::get_proportion_u128;
 use crate::math::pnl::calculate_pnl;
 use crate::math::safe_math::SafeMath;
 
-use crate::state::perp_market::{PerpMarket, AMM};
+use crate::state::perp_market::{PerpMarket, AMM, ContractType};
 use crate::state::user::PerpPosition;
 use crate::validate;
 
