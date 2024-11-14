@@ -13,6 +13,7 @@ use crate::math::orders::{standardize_base_asset_amount, standardize_price};
 use crate::math::position::{
     calculate_base_asset_value_and_pnl_with_oracle_price,
     calculate_base_asset_value_with_oracle_price,
+    calculate_perp_liability_value,
 };
 use crate::math::safe_math::SafeMath;
 use crate::math::spot_balance::{
@@ -897,6 +898,45 @@ impl PerpPosition {
             base_asset_amount_all_bids_fill.cast()
         } else {
             base_asset_amount_all_asks_fill.cast()
+        }
+    }
+
+    pub fn worst_case_liability_value(
+        &self,
+        oracle_price: i64,
+        contract_type: ContractType,
+    ) -> DriftResult<(i128, u128)> {
+        let base_asset_amount_all_bids_fill = self
+            .base_asset_amount
+            .safe_add(self.open_bids)?
+            .cast::<i128>()?;
+        let base_asset_amount_all_asks_fill = self
+            .base_asset_amount
+            .safe_add(self.open_asks)?
+            .cast::<i128>()?;
+
+        let liability_value_all_bids_fill = calculate_perp_liability_value(
+            base_asset_amount_all_bids_fill,
+            oracle_price,
+            contract_type,
+        )?;
+
+        let liability_value_all_asks_fill = calculate_perp_liability_value(
+            base_asset_amount_all_asks_fill,
+            oracle_price,
+            contract_type,
+        )?;
+
+        if liability_value_all_asks_fill >= liability_value_all_bids_fill {
+            Ok((
+                base_asset_amount_all_asks_fill,
+                liability_value_all_asks_fill,
+            ))
+        } else {
+            Ok((
+                base_asset_amount_all_bids_fill,
+                liability_value_all_bids_fill,
+            ))
         }
     }
 
