@@ -14,7 +14,7 @@ use crate::controller::orders::{cancel_orders, ModifyOrderId};
 use crate::controller::position::PositionDirection;
 use crate::controller::spot_balance::update_revenue_pool_balances;
 use crate::controller::spot_position::{
-    charge_withdraw_fee, update_spot_balances_and_cumulative_deposits,
+    update_spot_balances_and_cumulative_deposits,
     update_spot_balances_and_cumulative_deposits_with_limits,
 };
 use crate::error::ErrorCode;
@@ -567,12 +567,6 @@ pub fn handle_withdraw<'c: 'info, 'info>(
 
         let spot_market = &mut spot_market_map.get_ref_mut(&market_index)?;
         let oracle_price_data = oracle_map.get_price_data(&spot_market.oracle)?;
-
-        if user.qualifies_for_withdraw_fee(&user_stats, slot) {
-            let fee =
-                charge_withdraw_fee(spot_market, oracle_price_data.price, user, &mut user_stats)?;
-            amount = amount.safe_sub(fee.cast()?)?;
-        }
 
         user.increment_total_withdraws(
             amount,
