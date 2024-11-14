@@ -5306,7 +5306,7 @@ export class DriftClient {
 		cancelExistingOrders?: boolean,
 		settlePnl?: boolean,
 		exitEarlyIfSimFails?: boolean,
-		auctionDurationPercentage = 20
+		auctionDurationPercentage?: number
 	): Promise<{
 		placeAndTakeTx: Transaction | VersionedTransaction;
 		cancelExistingOrdersTx: Transaction | VersionedTransaction;
