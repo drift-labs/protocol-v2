@@ -1,9 +1,4 @@
-import {
-	DataAndSlot,
-	BufferAndSlot,
-	ProgramAccountSubscriber,
-	ResubOpts,
-} from './types';
+import { BufferAndSlot, ProgramAccountSubscriber, ResubOpts } from './types';
 import { AnchorProvider, Program } from '@coral-xyz/anchor';
 import {
 	Commitment,
@@ -19,8 +14,8 @@ export class WebSocketProgramAccountSubscriber<T>
 {
 	subscriptionName: string;
 	accountDiscriminator: string;
-	dataAndSlot?: DataAndSlot<T> & { accountId: PublicKey };
 	bufferAndSlot?: BufferAndSlot;
+	bufferAndSlotMap: Map<string, BufferAndSlot> = new Map();
 	program: Program;
 	decodeBuffer: (accountName: string, ix: Buffer) => T;
 	onChange: (
@@ -134,39 +129,32 @@ export class WebSocketProgramAccountSubscriber<T>
 			newBuffer = keyedAccountInfo.accountInfo.data;
 		}
 
-		if (!this.bufferAndSlot) {
-			this.bufferAndSlot = {
-				buffer: newBuffer,
-				slot: newSlot,
-			};
+		const accountId = keyedAccountInfo.accountId.toBase58();
+		const existingBufferAndSlot = this.bufferAndSlotMap.get(accountId);
+
+		if (!existingBufferAndSlot) {
 			if (newBuffer) {
-				const account = this.decodeBuffer(this.accountDiscriminator, newBuffer);
-				this.dataAndSlot = {
-					data: account,
+				this.bufferAndSlotMap.set(accountId, {
+					buffer: newBuffer,
 					slot: newSlot,
-					accountId: keyedAccountInfo.accountId,
-				};
+				});
+				const account = this.decodeBuffer(this.accountDiscriminator, newBuffer);
 				this.onChange(keyedAccountInfo.accountId, account, context, newBuffer);
 			}
 			return;
 		}
 
-		if (newSlot < this.bufferAndSlot.slot) {
+		if (newSlot < existingBufferAndSlot.slot) {
 			return;
 		}
 
-		const oldBuffer = this.bufferAndSlot.buffer;
+		const oldBuffer = existingBufferAndSlot.buffer;
 		if (newBuffer && (!oldBuffer || !newBuffer.equals(oldBuffer))) {
-			this.bufferAndSlot = {
+			this.bufferAndSlotMap.set(accountId, {
 				buffer: newBuffer,
 				slot: newSlot,
-			};
+			});
 			const account = this.decodeBuffer(this.accountDiscriminator, newBuffer);
-			this.dataAndSlot = {
-				data: account,
-				slot: newSlot,
-				accountId: keyedAccountInfo.accountId,
-			};
 			this.onChange(keyedAccountInfo.accountId, account, context, newBuffer);
 		}
 	}
