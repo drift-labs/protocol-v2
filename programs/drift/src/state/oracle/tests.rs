@@ -116,7 +116,7 @@ fn switchboard_on_demand() {
         339848045,
     )
     .unwrap();
-    assert_eq!(oracle_price_data.price, 226512645);
+    assert_eq!(oracle_price_data.price, 226645545);
 
     let amm = AMM {
         oracle_source: OracleSource::SwitchboardOnDemand,
@@ -124,5 +124,5 @@ fn switchboard_on_demand() {
     };
 
     let twap = amm.get_oracle_twap(&dsol_oracle_info, 0).unwrap();
-    assert_eq!(twap, Some(226512645));
+    assert_eq!(twap, Some(226645545));
 }

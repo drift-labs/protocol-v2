@@ -217,4 +217,16 @@ impl PullFeedAccountData {
         let submission = self.submissions[self.result.submission_idx as usize];
         submission.landed_at
     }
+
+    pub fn get_latest_submission_index(&self) -> Option<usize> {
+        self.submissions
+            .iter()
+            .enumerate()
+            .max_by_key(|&(_, submission)| submission.landed_at)
+            .map(|(index, _)| index)
+    }
+
+    pub fn latest_submission(&self) -> OracleSubmission {
+        self.submissions[self.get_latest_submission_index().unwrap()]
+    }
 }
