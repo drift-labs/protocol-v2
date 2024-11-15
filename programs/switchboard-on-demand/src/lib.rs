@@ -184,7 +184,7 @@ impl PullFeedAccountData {
     }
 
     /// The median value of the submissions needed for quorom size
-    pub fn value(&self) -> Option<i128> {
+    pub fn median_value(&self) -> Option<i128> {
         self.result.value()
     }
 
@@ -213,20 +213,22 @@ impl PullFeedAccountData {
         self.result.max_value()
     }
 
-    pub fn result_land_slot(&self) -> u64 {
-        let submission = self.submissions[self.result.submission_idx as usize];
+    pub fn median_result_land_slot(&self) -> u64 {
+        let submission: OracleSubmission = self.submissions[self.result.submission_idx as usize];
         submission.landed_at
     }
 
-    pub fn get_latest_submission_index(&self) -> Option<usize> {
+    pub fn latest_submissions(&self) -> Vec<OracleSubmission> {
+        let max_landed_at = self
+            .submissions
+            .iter()
+            .map(|s| s.landed_at)
+            .max()
+            .unwrap_or(0);
         self.submissions
             .iter()
-            .enumerate()
-            .max_by_key(|&(_, submission)| submission.landed_at)
-            .map(|(index, _)| index)
-    }
-
-    pub fn latest_submission(&self) -> OracleSubmission {
-        self.submissions[self.get_latest_submission_index().unwrap()]
+            .filter(|submission| submission.landed_at == max_landed_at)
+            .cloned()
+            .collect()
     }
 }
