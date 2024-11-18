@@ -3859,10 +3859,12 @@ export class AdminClient extends DriftClient {
 	}
 
 	public async initializePythPullOracle(
-		feedId: string
+		feedId: string,
+		isAdmin: boolean = false,
 	): Promise<TransactionSignature> {
 		const initializePythPullOracleIx = await this.getInitializePythPullOracleIx(
-			feedId
+			feedId,
+			isAdmin
 		);
 		const tx = await this.buildTransaction(initializePythPullOracleIx);
 		const { txSig } = await this.sendTransaction(tx, [], this.opts);
@@ -3871,14 +3873,15 @@ export class AdminClient extends DriftClient {
 	}
 
 	public async getInitializePythPullOracleIx(
-		feedId: string
+		feedId: string,
+		isAdmin: boolean = false
 	): Promise<TransactionInstruction> {
 		const feedIdBuffer = getFeedIdUint8Array(feedId);
 		return await this.program.instruction.initializePythPullOracle(
 			feedIdBuffer,
 			{
 				accounts: {
-					admin: this.isSubscribed
+					admin: isAdmin
 						? this.getStateAccount().admin
 						: this.wallet.publicKey,
 					state: await this.getStatePublicKey(),
