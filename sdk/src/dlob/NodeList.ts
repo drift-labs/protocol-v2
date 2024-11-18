@@ -180,5 +180,6 @@ export function* getVammNodeGenerator(
 		userAccount: undefined,
 		isBaseFilled: () => false,
 		haveFilled: false,
+		isSwift: false,
 	};
 }

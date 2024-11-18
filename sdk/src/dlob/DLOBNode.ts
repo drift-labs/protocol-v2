@@ -19,6 +19,7 @@ export interface DLOBNode {
 	isBaseFilled(): boolean;
 	haveFilled: boolean;
 	userAccount: string | undefined;
+	isSwift: boolean | undefined;
 }
 
 export abstract class OrderNode implements DLOBNode {
@@ -27,12 +28,14 @@ export abstract class OrderNode implements DLOBNode {
 	sortValue: BN;
 	haveFilled = false;
 	haveTrigger = false;
+	isSwift: boolean;
 
-	constructor(order: Order, userAccount: string) {
+	constructor(order: Order, userAccount: string, isSwift = false) {
 		// Copy the order over to the node
 		this.order = { ...order };
 		this.userAccount = userAccount;
 		this.sortValue = this.getSortValue(order);
+		this.isSwift = isSwift;
 	}
 
 	abstract getSortValue(order: Order): BN;
@@ -122,15 +125,31 @@ export class TriggerOrderNode extends OrderNode {
 	}
 }
 
+// We'll use the swift uuid for the order id since it's not yet on-chain
+export class SwiftOrderNode extends OrderNode {
+	next?: SwiftOrderNode;
+	previous?: SwiftOrderNode;
+
+	constructor(order: Order, userAccount: string) {
+		super(order, userAccount, true);
+	}
+
+	getSortValue(order: Order): BN {
+		return order.slot;
+	}
+}
+
 export type DLOBNodeMap = {
 	restingLimit: RestingLimitOrderNode;
 	takingLimit: TakingLimitOrderNode;
 	floatingLimit: FloatingLimitOrderNode;
 	market: MarketOrderNode;
 	trigger: TriggerOrderNode;
+	swift: SwiftOrderNode;
 };
 
 export type DLOBNodeType =
+	| 'swift'
 	| 'restingLimit'
 	| 'takingLimit'
 	| 'floatingLimit'
@@ -153,6 +172,8 @@ export function createNode<T extends DLOBNodeType>(
 			return new MarketOrderNode(order, userAccount);
 		case 'trigger':
 			return new TriggerOrderNode(order, userAccount);
+		case 'swift':
+			return new SwiftOrderNode(order, userAccount);
 		default:
 			throw Error(`Unknown DLOBNode type ${nodeType}`);
 	}
