@@ -8,7 +8,6 @@ import {
 	SIX,
 	EIGHT,
 	NINE,
-	FIVE,
 } from './numericConstants';
 
 export type SpotMarketConfig = {
