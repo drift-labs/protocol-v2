@@ -10826,7 +10826,8 @@
           {
             "name": "PlaceAndTake",
             "fields": [
-              "bool"
+              "bool",
+              "u8"
             ]
           },
           {
