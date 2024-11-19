@@ -26,6 +26,7 @@ use crate::error::ErrorCode;
 use crate::get_struct_values;
 use crate::get_then_update_id;
 use crate::load_mut;
+use crate::math::amm::calculate_amm_available_liquidity;
 use crate::math::amm_jit::calculate_amm_jit_liquidity;
 use crate::math::auction::{calculate_auction_params_for_trigger_order, calculate_auction_prices};
 use crate::math::casting::Cast;
@@ -35,23 +36,17 @@ use crate::math::fulfillment::{
     determine_perp_fulfillment_methods, determine_spot_fulfillment_methods,
 };
 use crate::math::liquidation::validate_user_not_being_liquidated;
+use crate::math::lp::calculate_lp_shares_to_burn_for_risk_reduction;
 use crate::math::matching::{
     are_orders_same_market_but_different_sides, calculate_fill_for_matched_orders,
     calculate_filler_multiplier_for_matched_orders, do_orders_cross, is_maker_for_taker,
 };
 use crate::math::oracle::{is_oracle_valid_for_action, DriftAction, OracleValidity};
 use crate::math::safe_math::SafeMath;
-use crate::math::spot_balance::{get_signed_token_amount, get_token_amount};
-use crate::math::{amm, fees, margin::*, orders::*};
-use crate::state::order_params::{
-    ModifyOrderParams, ModifyOrderPolicy, OrderParams, PlaceOrderOptions, PostOnlyParam, RFQMatch,
-};
-use crate::{controller, ID};
-
-use crate::math::amm::calculate_amm_available_liquidity;
-use crate::math::lp::calculate_lp_shares_to_burn_for_risk_reduction;
 use crate::math::safe_unwrap::SafeUnwrap;
+use crate::math::spot_balance::{get_signed_token_amount, get_token_amount};
 use crate::math::spot_swap::select_margin_type_for_swap;
+use crate::math::{amm, fees, margin::*, orders::*};
 use crate::print_error;
 use crate::state::events::{
     emit_stack, get_order_action_record, LPAction, LPRecord, OrderActionRecord, OrderRecord,
@@ -62,8 +57,11 @@ use crate::state::fulfillment::{PerpFulfillmentMethod, SpotFulfillmentMethod};
 use crate::state::margin_calculation::{MarginCalculation, MarginContext};
 use crate::state::oracle::{OraclePriceData, StrictOraclePrice};
 use crate::state::oracle_map::OracleMap;
+use crate::state::order_params::{
+    ModifyOrderParams, ModifyOrderPolicy, OrderParams, PlaceOrderOptions, PostOnlyParam, RFQMatch,
+};
 use crate::state::paused_operations::{PerpOperation, SpotOperation};
-use crate::state::perp_market::{AMMLiquiditySplit, MarketStatus, PerpMarket};
+use crate::state::perp_market::{AMMAvailability, AMMLiquiditySplit, MarketStatus, PerpMarket};
 use crate::state::perp_market_map::PerpMarketMap;
 use crate::state::rfq_user::{RFQOrderId, RFQUser};
 use crate::state::spot_fulfillment_params::{ExternalSpotFill, SpotFulfillmentParams};
@@ -82,6 +80,7 @@ use crate::validation;
 use crate::validation::order::{
     validate_order, validate_order_for_force_reduce_only, validate_spot_order,
 };
+use crate::{controller, ID};
 
 #[cfg(test)]
 mod tests;
@@ -215,7 +214,7 @@ pub fn place_perp_order(
 
     // updates auction params for crossing limit orders w/out auction duration
     // dont modify if it's a liquidation
-    if !options.is_liquidation() && !options.is_rfq_order {
+    if !options.is_liquidation() && !options.is_rfq_order && !options.is_swift_order() {
         params.update_perp_auction_params(market, oracle_price_data.price)?;
     }
 
@@ -1079,12 +1078,23 @@ pub fn fill_perp_order(
         .position(|order| order.order_id == order_id)
         .ok_or_else(print_error!(ErrorCode::OrderDoesNotExist))?;
 
-    let (order_status, market_index, order_market_type, order_direction) = get_struct_values!(
+    let (
+        order_status,
+        market_index,
+        order_market_type,
+        order_price,
+        order_oracle_price_offset,
+        order_direction,
+        order_auction_duration,
+    ) = get_struct_values!(
         user.orders[order_index],
         status,
         market_index,
         market_type,
-        direction
+        price,
+        oracle_price_offset,
+        direction,
+        auction_duration
     );
 
     validate!(
@@ -1152,6 +1162,9 @@ pub fn fill_perp_order(
     let oracle_price: i64;
     let oracle_twap_5min: i64;
     let perp_market_index: u16;
+    let user_can_skip_duration: bool;
+    let amm_can_skip_duration: bool;
+    let amm_lp_allowed_to_jit_make: bool;
 
     let mut amm_is_available = !state.amm_paused()? && !fill_mode.is_rfq();
     {
@@ -1175,6 +1188,27 @@ pub fn fill_perp_order(
             is_oracle_valid_for_action(_oracle_validity, Some(DriftAction::FillOrderAmm))?;
         amm_is_available &= !market.is_operation_paused(PerpOperation::AmmFill);
         amm_is_available &= !market.has_too_much_drawdown()?;
+
+        let amm_wants_to_jit_make = market.amm.amm_wants_to_jit_make(order_direction)?;
+        amm_lp_allowed_to_jit_make = market
+            .amm
+            .amm_lp_allowed_to_jit_make(amm_wants_to_jit_make)?;
+        amm_can_skip_duration =
+            market.can_skip_auction_duration(&state, amm_lp_allowed_to_jit_make)?;
+
+        user_can_skip_duration = if amm_can_skip_duration && amm_is_available {
+            user.can_skip_auction_duration(
+                user_stats,
+                order_auction_duration > 0,
+                fill_mode.is_ioc(),
+                order_direction,
+                order_price,
+                order_oracle_price_offset,
+                oracle_price_data.price,
+            )?
+        } else {
+            false
+        };
 
         reserve_price_before = market.amm.reserve_price()?;
         oracle_price = oracle_price_data.price;
@@ -1320,6 +1354,16 @@ pub fn fill_perp_order(
         return Ok((0, 0));
     }
 
+    let amm_availability = if amm_is_available {
+        if amm_can_skip_duration && user_can_skip_duration {
+            AMMAvailability::Immediate
+        } else {
+            AMMAvailability::AfterMinDuration
+        }
+    } else {
+        AMMAvailability::Unavailable
+    };
+
     let (base_asset_amount, quote_asset_amount) = fulfill_perp_order(
         user,
         order_index,
@@ -1341,8 +1385,9 @@ pub fn fill_perp_order(
         now,
         slot,
         state.min_perp_auction_duration,
-        amm_is_available,
+        amm_availability,
         fill_mode,
+        Some(amm_lp_allowed_to_jit_make),
     )?;
 
     if base_asset_amount != 0 {
@@ -1735,8 +1780,9 @@ fn fulfill_perp_order(
     now: i64,
     slot: u64,
     min_auction_duration: u8,
-    amm_is_available: bool,
+    amm_availability: AMMAvailability,
     fill_mode: FillMode,
+    amm_lp_allowed_to_jit_make: Option<bool>,
 ) -> DriftResult<(u64, u64)> {
     let market_index = user.orders[user_order_index].market_index;
 
@@ -1764,7 +1810,7 @@ fn fulfill_perp_order(
             reserve_price_before,
             Some(oracle_price),
             limit_price,
-            amm_is_available,
+            amm_availability,
             slot,
             min_auction_duration,
             fill_mode,
@@ -1878,6 +1924,7 @@ fn fulfill_perp_order(
                         fee_structure,
                         oracle_map,
                         fill_mode.is_liquidation(),
+                        None,
                     )?;
 
                 if maker_fill_base_asset_amount != 0 {
@@ -2103,7 +2150,12 @@ pub fn fulfill_perp_order_with_amm(
             (override_base_asset_amount, limit_price, override_fill_price)
         }
         None => {
-            let fee_tier = determine_user_fee_tier(user_stats, fee_structure, &MarketType::Perp)?;
+            let fee_tier = determine_user_fee_tier(
+                user_stats,
+                fee_structure,
+                &MarketType::Perp,
+                user.is_high_leverage_mode(),
+            )?;
             let (base_asset_amount, limit_price) = calculate_base_asset_amount_for_amm_to_fulfill(
                 &user.orders[order_index],
                 market,
@@ -2208,6 +2260,7 @@ pub fn fulfill_perp_order_with_amm(
         quote_asset_amount_surplus,
         order_post_only,
         market.fee_adjustment,
+        user.is_high_leverage_mode(),
     )?;
 
     let user_position_delta =
@@ -2424,6 +2477,7 @@ pub fn fulfill_perp_order_with_match(
     fee_structure: &FeeStructure,
     oracle_map: &mut OracleMap,
     is_liquidation: bool,
+    amm_lp_allowed_to_jit_make: Option<bool>,
 ) -> DriftResult<(u64, u64, u64)> {
     if !are_orders_same_market_but_different_sides(
         &maker.orders[maker_order_index],
@@ -2512,6 +2566,7 @@ pub fn fulfill_perp_order_with_match(
         taker_base_asset_amount,
         maker_base_asset_amount,
         taker.orders[taker_order_index].has_limit_price(slot)?,
+        amm_lp_allowed_to_jit_make,
     )?;
 
     if jit_base_asset_amount > 0 {
@@ -2655,6 +2710,7 @@ pub fn fulfill_perp_order_with_match(
         referrer_stats,
         &MarketType::Perp,
         market.fee_adjustment,
+        taker.is_high_leverage_mode(),
     )?;
 
     // Increment the markets house's total fee variables
@@ -4670,6 +4726,7 @@ pub fn fulfill_spot_order_with_match(
         &None,
         &MarketType::Spot,
         base_market.fee_adjustment,
+        false,
     )?;
 
     // Update taker state

@@ -8,6 +8,7 @@ import {
 	SIX,
 	EIGHT,
 	NINE,
+	FIVE,
 } from './numericConstants';
 
 export type SpotMarketConfig = {
@@ -146,6 +147,9 @@ export const MainnetSpotMarkets: SpotMarketConfig[] = [
 		serumMarket: new PublicKey('BbJgE7HZMaDp5NTYvRh5jZSkQPVDTU8ubPFtpogUkEj4'),
 		phoenixMarket: new PublicKey(
 			'Ew3vFDdtdGrknJAVVfraxCA37uNJtimXYPY4QjnfhFHH'
+		),
+		openbookMarket: new PublicKey(
+			'AT1R2jUNb9iTo4EaRfKSTPiNTX4Jb64KSwnVmig6Hu4t'
 		),
 		pythFeedId:
 			'0xff61491a931112ddf1bd8147cd1b641375f79f5825126d665480874634fd0ace',
@@ -417,13 +421,13 @@ export const MainnetSpotMarkets: SpotMarketConfig[] = [
 	{
 		symbol: 'BNSOL',
 		marketIndex: 25,
-		oracle: new PublicKey('BAtFj4kQttZRVep3UZS2aZRDixkGYgWsbqTBVDbnSsPF'),
+		oracle: new PublicKey('8DmXTfhhtb9kTcpTVfb6Ygx8WhZ8wexGqcpxfn23zooe'),
 		oracleSource: OracleSource.PYTH_PULL,
 		mint: new PublicKey('BNso1VUJnh4zcfpZa6986Ea66P6TCp59hvtNJ8b1X85'),
 		precision: LAMPORTS_PRECISION,
 		precisionExp: LAMPORTS_EXP,
 		pythFeedId:
-			'0xef0d8b6fda2ceba41da15d4095d1da392a0d2f8ed0c6c7bc0f4cfac8c280b56d',
+			'0x55f8289be7450f1ae564dd9798e49e7d797d89adbc54fe4f8c906b1fcb94b0c3',
 	},
 	{
 		symbol: 'MOTHER',
@@ -435,6 +439,28 @@ export const MainnetSpotMarkets: SpotMarketConfig[] = [
 		precisionExp: SIX,
 		pythFeedId:
 			'0x62742a997d01f7524f791fdb2dd43aaf0e567d765ebf8fd0406a994239e874d4',
+	},
+	{
+		symbol: 'cbBTC',
+		marketIndex: 27,
+		oracle: new PublicKey('486kr3pmFPfTsS4aZgcsQ7kS4i9rjMsYYZup6HQNSTT4'),
+		oracleSource: OracleSource.PYTH_PULL,
+		mint: new PublicKey('cbbtcf3aa214zXHbiAZQwf4122FBYbraNdFqgw4iMij'),
+		precision: new BN(10).pow(EIGHT),
+		precisionExp: EIGHT,
+		pythFeedId:
+			'0xe62df6c8b4a85fe1a67db44dc12de5db330f7ac66b72dc658afedf0f4a415b43',
+	},
+	{
+		symbol: 'USDS',
+		marketIndex: 28,
+		oracle: new PublicKey('7pT9mxKXyvfaZKeKy1oe2oV2K1RFtF7tPEJHUY3h2vVV'),
+		oracleSource: OracleSource.PYTH_PULL,
+		mint: new PublicKey('USDSwr9ApdHk5bvJKMjzff41FfuX8bSxdKcR81vTwcA'),
+		precision: new BN(10).pow(SIX),
+		precisionExp: SIX,
+		pythFeedId:
+			'0x77f0971af11cc8bac224917275c1bf55f2319ed5c654a1ca955c82fa2d297ea1',
 	},
 ];
 

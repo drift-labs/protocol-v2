@@ -173,7 +173,7 @@ fn amm_pred_expiry_price_yes_market_example() {
     .unwrap();
 
     {
-        let mut perp_market = perp_market_loader.load_mut().unwrap();
+        let perp_market = perp_market_loader.load_mut().unwrap();
         market_index = perp_market.market_index;
         assert_eq!(perp_market.expiry_price, 1_000_000);
     }
@@ -364,10 +364,10 @@ fn amm_pred_settle_market_example() {
     create_anchor_account_info!(spot_market, SpotMarket, spot_market_account_info);
     let spot_market_map: SpotMarketMap<'_> =
         SpotMarketMap::load_one(&spot_market_account_info, true).unwrap();
-    let mut market_index;
+    let market_index;
 
     {
-        let mut perp_market = perp_market_loader.load_mut().unwrap();
+        let perp_market = perp_market_loader.load_mut().unwrap();
         market_index = perp_market.market_index;
         assert_eq!(perp_market.expiry_ts, 1725559200);
     }

@@ -2180,3 +2180,42 @@ mod get_limit_price {
         assert_eq!(limit_price, Some(1));
     }
 }
+
+mod update_referrer_status {
+    use anchor_lang::prelude::Pubkey;
+
+    use crate::state::user::{ReferrerStatus, UserStats};
+
+    #[test]
+    fn test() {
+        let mut user_stats = UserStats {
+            referrer: Pubkey::new_unique(),
+            referrer_status: 0,
+            ..UserStats::default()
+        };
+
+        user_stats.update_referrer_status();
+
+        assert_eq!(user_stats.referrer_status, ReferrerStatus::IsReferred as u8);
+
+        let mut user_stats = UserStats {
+            referrer: Pubkey::default(),
+            referrer_status: ReferrerStatus::IsReferred as u8,
+            ..UserStats::default()
+        };
+
+        user_stats.update_referrer_status();
+
+        assert_eq!(user_stats.referrer_status, 0);
+
+        let mut user_stats = UserStats {
+            referrer: Pubkey::default(),
+            referrer_status: 3,
+            ..UserStats::default()
+        };
+
+        user_stats.update_referrer_status();
+
+        assert_eq!(user_stats.referrer_status, 1);
+    }
+}

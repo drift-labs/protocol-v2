@@ -1,3 +1,5 @@
+use crate::state::order_params::parse_optional_params;
+
 mod get_auction_duration {
     use crate::state::order_params::get_auction_duration;
     use crate::{ContractTier, PRICE_PRECISION_U64};
@@ -1442,4 +1444,11 @@ mod get_close_perp_params {
 
         validate_order(&order, &perp_market, Some(oracle_price), slot).unwrap();
     }
+}
+
+#[test]
+fn test_parse_optional_params() {
+    let (success_condition, auction_duration_percentage) = parse_optional_params(Some(0x00001234));
+    assert_eq!(success_condition, 0x34);
+    assert_eq!(auction_duration_percentage, 0x12);
 }

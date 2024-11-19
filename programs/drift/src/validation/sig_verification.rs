@@ -78,3 +78,90 @@ fn check_ed25519_data(data: &[u8], pubkey: &[u8], msg: &[u8], sig: &[u8]) -> Res
 
     Ok(())
 }
+
+/// Check Ed25519Program instruction data verifies the given digest
+///
+/// `ix` an Ed25519Program instruction [see](https://github.com/solana-labs/solana/blob/master/sdk/src/ed25519_instruction.rs))
+///
+/// `digest` expected digest signed by the offchain client i.e 'sha256(appMessage.serialize())'
+///
+/// `pubkey` expected pubkey of the signer
+///
+pub fn verify_ed25519_digest(ix: &Instruction, pubkey: &[u8; 32], digest: &[u8; 32]) -> Result<()> {
+    if ix.program_id != ED25519_ID || ix.accounts.len() != 0 {
+        msg!("Invalid Ix: program ID: {:?}", ix.program_id);
+        msg!("Invalid Ix: accounts: {:?}", ix.accounts.len());
+        return Err(ErrorCode::SigVerificationFailed.into());
+    }
+
+    let ix_data = &ix.data;
+    // According to this layout used by the Ed25519Program]
+    if ix_data.len() <= 112 {
+        msg!(
+            "Invalid Ix: data: {:?}, len: {:?}",
+            ix.data.len(),
+            16 + 64 + 32 + digest.len()
+        );
+        return Err(ErrorCode::SigVerificationFailed.into());
+    }
+
+    // Check the ed25519 verify ix header is sound
+    let num_signatures = ix_data[0];
+    let padding = ix_data[1];
+    let signature_offset = u16::from_le_bytes(ix_data[2..=3].try_into().unwrap());
+    let signature_instruction_index = u16::from_le_bytes(ix_data[4..=5].try_into().unwrap());
+    let public_key_offset = u16::from_le_bytes(ix_data[6..=7].try_into().unwrap());
+    let public_key_instruction_index = u16::from_le_bytes(ix_data[8..=9].try_into().unwrap());
+    let message_data_offset = u16::from_le_bytes(ix_data[10..=11].try_into().unwrap());
+    let message_data_size = u16::from_le_bytes(ix_data[12..=13].try_into().unwrap());
+    let message_instruction_index = u16::from_le_bytes(ix_data[14..=15].try_into().unwrap());
+
+    // Expected values
+    let exp_public_key_offset: u16 = 16;
+    let exp_signature_offset: u16 = exp_public_key_offset + 32_u16;
+    let exp_message_data_offset: u16 = exp_signature_offset + 64_u16;
+    let exp_num_signatures: u8 = 1;
+
+    // Header
+    if num_signatures != exp_num_signatures
+        || padding != 0
+        || signature_offset != exp_signature_offset
+        || signature_instruction_index != u16::MAX
+        || public_key_offset != exp_public_key_offset
+        || public_key_instruction_index != u16::MAX
+        || message_data_offset != exp_message_data_offset
+        || message_instruction_index != u16::MAX
+    {
+        return Err(ErrorCode::SigVerificationFailed.into());
+    }
+
+    // verify data is for digest and pubkey
+    let ix_msg_data = &ix_data[112..];
+    if ix_msg_data != digest || message_data_size != digest.len() as u16 {
+        return Err(ErrorCode::SigVerificationFailed.into());
+    }
+
+    let ix_pubkey = &ix_data[16..16 + 32];
+    if ix_pubkey != pubkey {
+        msg!("Invalid Ix: pubkey: {:?}", ix_pubkey);
+        msg!("Invalid Ix: expected pubkey: {:?}", pubkey);
+        return Err(ErrorCode::SigVerificationFailed.into());
+    }
+
+    Ok(())
+}
+
+/// Extract pubkey from serialized Ed25519Program instruction data
+pub fn extract_ed25519_ix_pubkey(ix_data: &[u8]) -> Result<[u8; 32]> {
+    match ix_data[16..16 + 32].try_into() {
+        Ok(raw) => Ok(raw),
+        Err(_) => Err(ErrorCode::SigVerificationFailed.into()),
+    }
+}
+
+pub fn extract_ed25519_ix_signature(ix_data: &[u8]) -> Result<[u8; 64]> {
+    match ix_data[48..48 + 64].try_into() {
+        Ok(raw) => Ok(raw),
+        Err(_) => Err(ErrorCode::SigVerificationFailed.into()),
+    }
+}

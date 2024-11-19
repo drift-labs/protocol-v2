@@ -29,9 +29,9 @@ use crate::instructions::SpotFulfillmentType;
 use crate::math::casting::Cast;
 use crate::math::liquidation::is_user_being_liquidated;
 use crate::math::margin::{
-    calculate_max_withdrawable_amount, meets_initial_margin_requirement,
-    meets_maintenance_margin_requirement, meets_place_order_margin_requirement,
-    meets_withdraw_margin_requirement, validate_spot_margin_trading, MarginRequirementType,
+    calculate_max_withdrawable_amount, meets_maintenance_margin_requirement,
+    meets_place_order_margin_requirement, meets_withdraw_margin_requirement,
+    validate_spot_margin_trading, MarginRequirementType,
 };
 use crate::math::safe_math::SafeMath;
 use crate::math::spot_balance::get_token_value;
@@ -55,8 +55,8 @@ use crate::state::high_leverage_mode_config::HighLeverageModeConfig;
 use crate::state::oracle::StrictOraclePrice;
 use crate::state::order_params::RFQMatch;
 use crate::state::order_params::{
-    ModifyOrderParams, OrderParams, PlaceAndTakeOrderSuccessCondition, PlaceOrderOptions,
-    PostOnlyParam,
+    parse_optional_params, ModifyOrderParams, OrderParams, PlaceAndTakeOrderSuccessCondition,
+    PlaceOrderOptions, PostOnlyParam,
 };
 use crate::state::paused_operations::{PerpOperation, SpotOperation};
 use crate::state::perp_market::ContractType;
@@ -70,6 +70,9 @@ use crate::state::spot_market_map::{
     get_writable_spot_market_set, get_writable_spot_market_set_from_many,
 };
 use crate::state::state::State;
+use crate::state::swift_user::SwiftOrderId;
+use crate::state::swift_user::SwiftUserOrdersLoader;
+use crate::state::swift_user::{SwiftUserOrders, SWIFT_PDA_SEED};
 use crate::state::traits::Size;
 use crate::state::user::ReferrerStatus;
 use crate::state::user::{MarginMode, MarketType, OrderType, ReferrerName, User, UserStats};
@@ -126,6 +129,7 @@ pub fn handle_initialize_user<'c: 'info, 'info>(
             )?;
 
             referrer_stats.referrer_status |= ReferrerStatus::IsReferrer as u8;
+            user_stats.referrer_status |= ReferrerStatus::IsReferred as u8;
 
             referrer.authority
         } else {
@@ -133,7 +137,6 @@ pub fn handle_initialize_user<'c: 'info, 'info>(
         };
 
         user_stats.referrer = referrer;
-        user_stats.referrer_status |= ReferrerStatus::IsReferred as u8;
     }
 
     let whitelist_mint = &ctx.accounts.state.whitelist_mint;
@@ -280,6 +283,36 @@ pub fn handle_initialize_rfq_user<'c: 'info, 'info>(
         .load_init()
         .or(Err(ErrorCode::UnableToLoadAccountLoader))?;
     rfq_user.user_pubkey = ctx.accounts.user.key();
+    Ok(())
+}
+
+pub fn handle_initialize_swift_user_orders<'c: 'info, 'info>(
+    ctx: Context<'_, '_, 'c, 'info, InitializeSwiftUserOrders<'info>>,
+    num_orders: u16,
+) -> Result<()> {
+    #[cfg(all(feature = "mainnet-beta", not(feature = "anchor-test")))]
+    {
+        panic!("Swift orders are disabled on mainnet-beta");
+    }
+
+    let swift_user_orders = &mut ctx.accounts.swift_user_orders;
+    swift_user_orders.user_pubkey = ctx.accounts.user.key();
+    swift_user_orders
+        .swift_order_data
+        .resize_with(num_orders as usize, SwiftOrderId::default);
+    swift_user_orders.validate()?;
+    Ok(())
+}
+
+pub fn handle_resize_swift_user_orders<'c: 'info, 'info>(
+    ctx: Context<'_, '_, 'c, 'info, ResizeSwiftUserOrders<'info>>,
+    num_orders: u16,
+) -> Result<()> {
+    let swift_user_orders = &mut ctx.accounts.swift_user_orders;
+    swift_user_orders
+        .swift_order_data
+        .resize_with(num_orders as usize, SwiftOrderId::default);
+    swift_user_orders.validate()?;
     Ok(())
 }
 
@@ -1266,7 +1299,7 @@ pub fn handle_place_orders<'c: 'info, 'info>(
 pub fn handle_place_and_take_perp_order<'c: 'info, 'info>(
     ctx: Context<'_, '_, 'c, 'info, PlaceAndTake<'info>>,
     params: OrderParams,
-    success_condition: Option<u32>, // u32 for backwards compatibility
+    optional_params: Option<u32>, // u32 for backwards compatibility
 ) -> Result<()> {
     let clock = Clock::get()?;
     let state = &ctx.accounts.state;
@@ -1306,6 +1339,8 @@ pub fn handle_place_and_take_perp_order<'c: 'info, 'info>(
     let mut user = load_mut!(ctx.accounts.user)?;
     let clock = Clock::get()?;
 
+    let (success_condition, auction_duration_percentage) = parse_optional_params(optional_params);
+
     controller::orders::place_perp_order(
         &ctx.accounts.state,
         &mut user,
@@ -1337,7 +1372,10 @@ pub fn handle_place_and_take_perp_order<'c: 'info, 'info>(
         &makers_and_referrer_stats,
         None,
         &Clock::get()?,
-        FillMode::PlaceAndTake,
+        FillMode::PlaceAndTake(
+            is_immediate_or_cancel || optional_params.is_some(),
+            auction_duration_percentage,
+        ),
     )?;
 
     let order_exists = load!(ctx.accounts.user)?
@@ -1356,20 +1394,18 @@ pub fn handle_place_and_take_perp_order<'c: 'info, 'info>(
         )?;
     }
 
-    if let Some(success_condition) = success_condition {
-        if success_condition == PlaceAndTakeOrderSuccessCondition::PartialFill as u32 {
-            validate!(
-                base_asset_amount_filled > 0,
-                ErrorCode::PlaceAndTakeOrderSuccessConditionFailed,
-                "no partial fill"
-            )?;
-        } else if success_condition == PlaceAndTakeOrderSuccessCondition::FullFill as u32 {
-            validate!(
-                base_asset_amount_filled > 0 && !order_exists,
-                ErrorCode::PlaceAndTakeOrderSuccessConditionFailed,
-                "no full fill"
-            )?;
-        }
+    if success_condition == PlaceAndTakeOrderSuccessCondition::PartialFill as u8 {
+        validate!(
+            base_asset_amount_filled > 0,
+            ErrorCode::PlaceAndTakeOrderSuccessConditionFailed,
+            "no partial fill"
+        )?;
+    } else if success_condition == PlaceAndTakeOrderSuccessCondition::FullFill as u8 {
+        validate!(
+            base_asset_amount_filled > 0 && !order_exists,
+            ErrorCode::PlaceAndTakeOrderSuccessConditionFailed,
+            "no full fill"
+        )?;
     }
 
     Ok(())
@@ -1438,6 +1474,113 @@ pub fn handle_place_and_make_perp_order<'c: 'info, 'info>(
         load_user_maps(remaining_accounts_iter, true)?;
     makers_and_referrer.insert(ctx.accounts.user.key(), ctx.accounts.user.clone())?;
     makers_and_referrer_stats.insert(authority, ctx.accounts.user_stats.clone())?;
+
+    controller::orders::fill_perp_order(
+        taker_order_id,
+        state,
+        &ctx.accounts.taker,
+        &ctx.accounts.taker_stats,
+        &spot_market_map,
+        &perp_market_map,
+        &mut oracle_map,
+        &ctx.accounts.user.clone(),
+        &ctx.accounts.user_stats.clone(),
+        &makers_and_referrer,
+        &makers_and_referrer_stats,
+        Some(order_id),
+        clock,
+        FillMode::PlaceAndMake,
+    )?;
+
+    let order_exists = load!(ctx.accounts.user)?
+        .orders
+        .iter()
+        .any(|order| order.order_id == order_id);
+
+    if order_exists {
+        controller::orders::cancel_order_by_order_id(
+            order_id,
+            &ctx.accounts.user,
+            &perp_market_map,
+            &spot_market_map,
+            &mut oracle_map,
+            clock,
+        )?;
+    }
+
+    Ok(())
+}
+
+#[access_control(
+    fill_not_paused(&ctx.accounts.state)
+)]
+pub fn handle_place_and_make_swift_perp_order<'c: 'info, 'info>(
+    ctx: Context<'_, '_, 'c, 'info, PlaceAndMakeSwift<'info>>,
+    params: OrderParams,
+    swift_order_uuid: [u8; 8],
+) -> Result<()> {
+    let clock = &Clock::get()?;
+    let state = &ctx.accounts.state;
+
+    let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
+    let AccountMaps {
+        perp_market_map,
+        spot_market_map,
+        mut oracle_map,
+    } = load_maps(
+        remaining_accounts_iter,
+        &get_writable_perp_market_set(params.market_index),
+        &MarketSet::new(),
+        Clock::get()?.slot,
+        Some(state.oracle_guard_rails),
+    )?;
+
+    if !params.immediate_or_cancel
+        || params.post_only == PostOnlyParam::None
+        || params.order_type != OrderType::Limit
+    {
+        msg!("place_and_make must use IOC post only limit order");
+        return Err(print_error!(ErrorCode::InvalidOrderIOCPostOnly)().into());
+    }
+
+    controller::repeg::update_amm(
+        params.market_index,
+        &perp_market_map,
+        &mut oracle_map,
+        state,
+        clock,
+    )?;
+
+    let user_key = ctx.accounts.user.key();
+    let mut user = load_mut!(ctx.accounts.user)?;
+
+    controller::orders::place_perp_order(
+        state,
+        &mut user,
+        user_key,
+        &perp_market_map,
+        &spot_market_map,
+        &mut oracle_map,
+        clock,
+        params,
+        PlaceOrderOptions::default(),
+    )?;
+
+    let (order_id, authority) = (user.get_last_order_id(), user.authority);
+
+    drop(user);
+
+    let (mut makers_and_referrer, mut makers_and_referrer_stats) =
+        load_user_maps(remaining_accounts_iter, true)?;
+    makers_and_referrer.insert(ctx.accounts.user.key(), ctx.accounts.user.clone())?;
+    makers_and_referrer_stats.insert(authority, ctx.accounts.user_stats.clone())?;
+
+    let taker_swift_account = ctx.accounts.taker_swift_user_orders.load()?;
+    let taker_order_id = taker_swift_account
+        .iter()
+        .find(|swift_order_id| swift_order_id.uuid == swift_order_uuid)
+        .ok_or(ErrorCode::SwiftOrderDoesNotExist)?
+        .order_id;
 
     controller::orders::fill_perp_order(
         taker_order_id,
@@ -2109,6 +2252,10 @@ pub fn handle_delete_user(ctx: Context<DeleteUser>) -> Result<()> {
     Ok(())
 }
 
+pub fn handle_delete_swift_user_orders(_ctx: Context<DeleteSwiftUserOrders>) -> Result<()> {
+    Ok(())
+}
+
 pub fn handle_reclaim_rent(ctx: Context<ReclaimRent>) -> Result<()> {
     let user_size = ctx.accounts.user.to_account_info().data_len();
     let minimum_lamports = ctx.accounts.rent.minimum_balance(user_size);
@@ -2312,6 +2459,49 @@ pub struct InitializeRFQUser<'info> {
     #[account(mut)]
     pub payer: Signer<'info>,
     pub rent: Sysvar<'info, Rent>,
+    pub system_program: Program<'info, System>,
+}
+
+#[derive(Accounts)]
+#[instruction(num_orders: u16)]
+pub struct InitializeSwiftUserOrders<'info> {
+    #[account(
+        init,
+        seeds = [SWIFT_PDA_SEED.as_ref(), user.key().as_ref()],
+        space = SwiftUserOrders::space(num_orders as usize),
+        bump,
+        payer = payer
+    )]
+    pub swift_user_orders: Box<Account<'info, SwiftUserOrders>>,
+    pub authority: Signer<'info>,
+    #[account(
+        constraint = can_sign_for_user(&user, &authority)?
+    )]
+    pub user: AccountLoader<'info, User>,
+    #[account(mut)]
+    pub payer: Signer<'info>,
+    pub rent: Sysvar<'info, Rent>,
+    pub system_program: Program<'info, System>,
+}
+
+#[derive(Accounts)]
+#[instruction(num_orders: u16)]
+pub struct ResizeSwiftUserOrders<'info> {
+    #[account(
+        mut,
+        seeds = [SWIFT_PDA_SEED.as_ref(), user.key().as_ref()],
+        bump,
+        realloc = SwiftUserOrders::space(num_orders as usize),
+        realloc::payer = authority,
+        realloc::zero = false,
+    )]
+    pub swift_user_orders: Box<Account<'info, SwiftUserOrders>>,
+    #[account(mut)]
+    pub authority: Signer<'info>,
+    #[account(
+        constraint = can_sign_for_user(&user, &authority)?
+    )]
+    pub user: AccountLoader<'info, User>,
     pub system_program: Program<'info, System>,
 }
 
@@ -2520,6 +2710,35 @@ pub struct PlaceAndMake<'info> {
 }
 
 #[derive(Accounts)]
+pub struct PlaceAndMakeSwift<'info> {
+    pub state: Box<Account<'info, State>>,
+    #[account(
+        mut,
+        constraint = can_sign_for_user(&user, &authority)?
+    )]
+    pub user: AccountLoader<'info, User>,
+    #[account(
+        mut,
+        constraint = is_stats_for_user(&user, &user_stats)?
+    )]
+    pub user_stats: AccountLoader<'info, UserStats>,
+    #[account(mut)]
+    pub taker: AccountLoader<'info, User>,
+    #[account(
+        mut,
+        constraint = is_stats_for_user(&taker, &taker_stats)?
+    )]
+    pub taker_stats: AccountLoader<'info, UserStats>,
+    #[account(
+        seeds = [SWIFT_PDA_SEED.as_ref(), taker.key().as_ref()],
+        bump,
+    )]
+    /// CHECK: checked in SwiftUserOrdersZeroCopy checks
+    pub taker_swift_user_orders: AccountInfo<'info>,
+    pub authority: Signer<'info>,
+}
+
+#[derive(Accounts)]
 pub struct PlaceAndMatchRFQOrders<'info> {
     pub state: Box<Account<'info, State>>,
     #[account(mut)]
@@ -2583,6 +2802,25 @@ pub struct DeleteUser<'info> {
         has_one = authority
     )]
     pub user_stats: AccountLoader<'info, UserStats>,
+    #[account(mut)]
+    pub state: Box<Account<'info, State>>,
+    pub authority: Signer<'info>,
+}
+
+#[derive(Accounts)]
+pub struct DeleteSwiftUserOrders<'info> {
+    #[account(
+        mut,
+        has_one = authority,
+    )]
+    pub user: AccountLoader<'info, User>,
+    #[account(
+        mut,
+        close = user,
+        seeds = [SWIFT_PDA_SEED.as_ref(), user.key().as_ref()],
+        bump,
+    )]
+    pub swift_user_orders: Box<Account<'info, SwiftUserOrders>>,
     #[account(mut)]
     pub state: Box<Account<'info, State>>,
     pub authority: Signer<'info>,

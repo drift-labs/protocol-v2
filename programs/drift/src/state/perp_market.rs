@@ -1,5 +1,6 @@
 use anchor_lang::prelude::*;
 
+use crate::state::state::State;
 use std::cmp::max;
 
 use crate::controller::position::{PositionDelta, PositionDirection};
@@ -144,6 +145,13 @@ impl AMMLiquiditySplit {
             AMMLiquiditySplit::Shared => OrderActionExplanation::OrderFilledWithAMMJitLPSplit,
         }
     }
+}
+
+#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Debug, Eq, PartialOrd, Ord)]
+pub enum AMMAvailability {
+    Immediate,
+    AfterMinDuration,
+    Unavailable,
 }
 
 #[account(zero_copy(unsafe))]
@@ -305,6 +313,32 @@ impl PerpMarket {
 
     pub fn is_operation_paused(&self, operation: PerpOperation) -> bool {
         PerpOperation::is_operation_paused(self.paused_operations, operation)
+    }
+
+    pub fn can_skip_auction_duration(
+        &self,
+        state: &State,
+        amm_lp_allowed_to_jit_make: bool,
+    ) -> DriftResult<bool> {
+        if state.amm_immediate_fill_paused()? {
+            return Ok(false);
+        }
+
+        let amm_low_inventory_and_profitable =
+            self.amm.net_revenue_since_last_funding > 0 && amm_lp_allowed_to_jit_make;
+        let amm_oracle_no_latency = self.amm.oracle_source == OracleSource::Prelaunch;
+        let can_skip = amm_low_inventory_and_profitable || amm_oracle_no_latency;
+
+        if can_skip {
+            msg!("market {} amm skipping auction duration", self.market_index);
+            crate::dlog!(
+                self.amm.net_revenue_since_last_funding,
+                amm_lp_allowed_to_jit_make
+            );
+            crate::dlog!(amm_low_inventory_and_profitable, amm_oracle_no_latency);
+        }
+
+        Ok(can_skip)
     }
 
     pub fn has_too_much_drawdown(&self) -> DriftResult<bool> {

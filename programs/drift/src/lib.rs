@@ -65,6 +65,20 @@ pub mod drift {
         handle_initialize_rfq_user(ctx)
     }
 
+    pub fn initialize_swift_user_orders<'c: 'info, 'info>(
+        ctx: Context<'_, '_, 'c, 'info, InitializeSwiftUserOrders<'info>>,
+        num_orders: u16,
+    ) -> Result<()> {
+        handle_initialize_swift_user_orders(ctx, num_orders)
+    }
+
+    pub fn resize_swift_user_orders<'c: 'info, 'info>(
+        ctx: Context<'_, '_, 'c, 'info, ResizeSwiftUserOrders<'info>>,
+        num_orders: u16,
+    ) -> Result<()> {
+        handle_resize_swift_user_orders(ctx, num_orders)
+    }
+
     pub fn initialize_referrer_name(
         ctx: Context<InitializeReferrerName>,
         name: [u8; 32],
@@ -167,18 +181,20 @@ pub mod drift {
         handle_place_and_make_perp_order(ctx, params, taker_order_id)
     }
 
+    pub fn place_and_make_swift_perp_order<'c: 'info, 'info>(
+        ctx: Context<'_, '_, 'c, 'info, PlaceAndMakeSwift<'info>>,
+        params: OrderParams,
+        swift_order_uuid: [u8; 8],
+    ) -> Result<()> {
+        handle_place_and_make_swift_perp_order(ctx, params, swift_order_uuid)
+    }
+
     pub fn place_swift_taker_order<'c: 'info, 'info>(
         ctx: Context<'_, '_, 'c, 'info, PlaceSwiftTakerOrder<'info>>,
         swift_message_bytes: Vec<u8>,
         swift_order_params_message_bytes: Vec<u8>,
-        swift_message_signature: [u8; 64],
     ) -> Result<()> {
-        handle_place_swift_taker_order(
-            ctx,
-            swift_message_bytes,
-            swift_order_params_message_bytes,
-            swift_message_signature,
-        )
+        handle_place_swift_taker_order(ctx, swift_message_bytes, swift_order_params_message_bytes)
     }
 
     pub fn place_and_match_rfq_orders<'c: 'info, 'info>(
@@ -333,6 +349,12 @@ pub mod drift {
         handle_delete_user(ctx)
     }
 
+    pub fn delete_swift_user_orders<'c: 'info, 'info>(
+        ctx: Context<'_, '_, 'c, 'info, DeleteSwiftUserOrders>,
+    ) -> Result<()> {
+        handle_delete_swift_user_orders(ctx)
+    }
+
     pub fn reclaim_rent(ctx: Context<ReclaimRent>) -> Result<()> {
         handle_reclaim_rent(ctx)
     }
@@ -396,6 +418,12 @@ pub mod drift {
         ctx: Context<'_, '_, 'c, 'info, UpdateUserFuelBonus<'info>>,
     ) -> Result<()> {
         handle_update_user_fuel_bonus(ctx)
+    }
+
+    pub fn update_user_stats_referrer_status<'c: 'info, 'info>(
+        ctx: Context<'_, '_, 'c, 'info, UpdateUserStatsReferrerInfo<'info>>,
+    ) -> Result<()> {
+        handle_update_user_stats_referrer_info(ctx)
     }
 
     pub fn update_user_open_orders_count(ctx: Context<UpdateUserIdle>) -> Result<()> {
@@ -593,6 +621,13 @@ pub mod drift {
         ctx: Context<UpdateUserGovTokenInsuranceStake>,
     ) -> Result<()> {
         handle_update_user_gov_token_insurance_stake(ctx)
+    }
+
+    pub fn update_user_gov_token_insurance_stake_devnet(
+        ctx: Context<UpdateUserGovTokenInsuranceStakeDevnet>,
+        gov_stake_amount: u64,
+    ) -> Result<()> {
+        handle_update_user_gov_token_insurance_stake_devnet(ctx, gov_stake_amount)
     }
 
     // IF stakers

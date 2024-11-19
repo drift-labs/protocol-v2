@@ -317,12 +317,15 @@ pub fn get_sb_on_demand_price(
     let pull_feed_account_info: Ref<PullFeedAccountData> =
         load_ref(price_oracle).or(Err(ErrorCode::UnableToLoadOracle))?;
 
-    let price = convert_sb_i128(
-        &pull_feed_account_info
-            .value()
-            .ok_or(ErrorCode::UnableToLoadOracle)?,
-    )?
-    .cast::<i64>()?;
+    let latest_oracle_submssions: Vec<switchboard_on_demand::OracleSubmission> =
+        pull_feed_account_info.latest_submissions();
+    let average_price = latest_oracle_submssions
+        .iter()
+        .map(|submission| submission.value)
+        .sum::<i128>()
+        / latest_oracle_submssions.len() as i128;
+
+    let price = convert_sb_i128(&average_price)?.cast::<i64>()?;
 
     let confidence = convert_sb_i128(
         &pull_feed_account_info
@@ -332,13 +335,9 @@ pub fn get_sb_on_demand_price(
     .cast::<i64>()?
     .unsigned_abs();
 
-    let delay = clock_slot.cast::<i64>()?.safe_sub(
-        pull_feed_account_info
-            .result
-            .result_slot()
-            .ok_or(ErrorCode::UnableToLoadOracle)?
-            .cast()?,
-    )?;
+    let delay = clock_slot
+        .cast::<i64>()?
+        .safe_sub(latest_oracle_submssions[0].landed_at.cast()?)?;
 
     let has_sufficient_number_of_data_points = true;
 

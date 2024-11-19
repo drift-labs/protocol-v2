@@ -6,7 +6,7 @@ fi
 
 export ANCHOR_WALLET=~/.config/solana/id.json
 
-test_files=(referrer.ts)
+test_files=(placeAndMakeSwiftPerpBankrun.ts)
 
 for test_file in ${test_files[@]}; do
   ts-mocha -t 300000 ./tests/${test_file}

@@ -3,7 +3,14 @@ import { assert } from 'chai';
 
 import { Program } from '@coral-xyz/anchor';
 
-import { Keypair, PublicKey } from '@solana/web3.js';
+import {
+	AddressLookupTableAccount,
+	Connection,
+	Keypair,
+	PublicKey,
+	Transaction,
+	TransactionInstruction,
+} from '@solana/web3.js';
 
 import {
 	BN,
@@ -24,6 +31,7 @@ import {
 	SwiftServerMessage,
 	ANCHOR_TEST_SWIFT_ID,
 	SwiftOrderRecord,
+	getSwiftUserAccountPublicKey,
 } from '../sdk/src';
 
 import {
@@ -42,6 +50,8 @@ import { startAnchor } from 'solana-bankrun';
 import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
 import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
 import dotenv from 'dotenv';
+import { nanoid } from 'nanoid';
+import { createHash } from 'crypto';
 dotenv.config();
 
 describe('place and make swift order', () => {
@@ -84,6 +94,7 @@ describe('place and make swift order', () => {
 	before(async () => {
 		const context = await startAnchor('', [], []);
 
+		// @ts-ignore
 		bankrunContextWrapper = new BankrunContextWrapper(context);
 
 		slot = new BN(
@@ -171,52 +182,22 @@ describe('place and make swift order', () => {
 		await eventSubscriber.unsubscribe();
 	});
 
-	it('makeSwiftOrder', async () => {
+	it('makeSwiftOrder and reject bad orders', async () => {
 		slot = new BN(
 			await bankrunContextWrapper.connection.toConnection().getSlot()
 		);
-		const keypair = new Keypair();
-		await bankrunContextWrapper.fundKeypair(keypair, 10 ** 9);
-		await sleep(1000);
-		const wallet = new Wallet(keypair);
-		const userUSDCAccount = await mockUserUSDCAccount(
-			usdcMint,
-			usdcAmount,
-			bankrunContextWrapper,
-			keypair.publicKey
-		);
-		const takerDriftClient = new TestClient({
-			connection: bankrunContextWrapper.connection.toConnection(),
-			wallet,
-			programID: chProgram.programId,
-			opts: {
-				commitment: 'confirmed',
-			},
-			activeSubAccountId: 0,
-			perpMarketIndexes: marketIndexes,
-			spotMarketIndexes: spotMarketIndexes,
-			subAccountIds: [],
-			oracleInfos,
-			userStats: true,
-			accountSubscription: {
-				type: 'polling',
-				accountLoader: bulkAccountLoader,
-			},
-		});
-		await takerDriftClient.subscribe();
-		await takerDriftClient.initializeUserAccountAndDepositCollateral(
-			usdcAmount,
-			userUSDCAccount.publicKey
-		);
-		const takerDriftClientUser = new User({
-			driftClient: takerDriftClient,
-			userAccountPublicKey: await takerDriftClient.getUserAccountPublicKey(),
-			accountSubscription: {
-				type: 'polling',
-				accountLoader: bulkAccountLoader,
-			},
-		});
-		await takerDriftClientUser.subscribe();
+		const [takerDriftClient, takerDriftClientUser] =
+			await initializeNewTakerClientAndUser(
+				bankrunContextWrapper,
+				chProgram,
+				usdcMint,
+				usdcAmount,
+				marketIndexes,
+				spotMarketIndexes,
+				oracleInfos,
+				bulkAccountLoader
+			);
+		await takerDriftClientUser.fetchAccounts();
 
 		const marketIndex = 0;
 		const baseAssetAmount = BASE_PRECISION;
@@ -234,13 +215,10 @@ describe('place and make swift order', () => {
 		});
 		const takerOrderParamsMessage: SwiftOrderParamsMessage = {
 			swiftOrderParams: takerOrderParams,
-			expectedOrderId: 1,
 			subAccountId: 0,
 			takeProfitOrderParams: null,
 			stopLossOrderParams: null,
 		};
-
-		await takerDriftClientUser.fetchAccounts();
 
 		const makerOrderParams = getLimitOrderParams({
 			marketIndex,
@@ -259,6 +237,7 @@ describe('place and make swift order', () => {
 		const swiftServerMessage: SwiftServerMessage = {
 			slot,
 			swiftOrderSignature: takerOrderParamsSig,
+			uuid: Uint8Array.from(Buffer.from(nanoid(8))),
 		};
 
 		const encodedSwiftServerMessage =
@@ -274,7 +253,7 @@ describe('place and make swift order', () => {
 			swiftSignature,
 			takerDriftClient.encodeSwiftOrderParamsMessage(takerOrderParamsMessage),
 			takerOrderParamsSig,
-			takerOrderParamsMessage.expectedOrderId,
+			swiftServerMessage.uuid,
 			{
 				taker: await takerDriftClient.getUserAccountPublicKey(),
 				takerUserAccount: takerDriftClient.getUserAccount(),
@@ -289,20 +268,23 @@ describe('place and make swift order', () => {
 		const takerPosition = takerDriftClient.getUser().getPerpPosition(0);
 		assert(takerPosition.baseAssetAmount.eq(BASE_PRECISION));
 
-		// Mkae sure that the event is in the logs
+		// Make sure that the event is in the logs
 		const events = eventSubscriber.getEventsByTx(txSig);
 		const event = events.find((event) => event.eventType == 'SwiftOrderRecord');
 		assert(event !== undefined);
-		assert((event as SwiftOrderRecord).userNextOrderId == 1);
-
-		console.log('######################################');
+		assert(
+			(event as SwiftOrderRecord).hash ==
+				createHash('sha256')
+					.update(Uint8Array.from(takerOrderParamsSig))
+					.digest('base64')
+		);
 
 		await makerDriftClient.placeAndMakeSwiftPerpOrder(
 			encodedSwiftServerMessage,
 			swiftSignature,
 			takerDriftClient.encodeSwiftOrderParamsMessage(takerOrderParamsMessage),
 			takerOrderParamsSig,
-			takerOrderParamsMessage.expectedOrderId,
+			swiftServerMessage.uuid,
 			{
 				taker: await takerDriftClient.getUserAccountPublicKey(),
 				takerUserAccount: takerDriftClient.getUserAccount(),
@@ -327,48 +309,18 @@ describe('place and make swift order', () => {
 		slot = new BN(
 			await bankrunContextWrapper.connection.toConnection().getSlot()
 		);
-		const keypair = new Keypair();
-		await bankrunContextWrapper.fundKeypair(keypair, 10 ** 9);
-		await sleep(1000);
-		const wallet = new Wallet(keypair);
-		const userUSDCAccount = await mockUserUSDCAccount(
-			usdcMint,
-			usdcAmount,
-			bankrunContextWrapper,
-			keypair.publicKey
-		);
-		const takerDriftClient = new TestClient({
-			connection: bankrunContextWrapper.connection.toConnection(),
-			wallet,
-			programID: chProgram.programId,
-			opts: {
-				commitment: 'confirmed',
-			},
-			activeSubAccountId: 0,
-			perpMarketIndexes: marketIndexes,
-			spotMarketIndexes: spotMarketIndexes,
-			subAccountIds: [],
-			oracleInfos,
-			userStats: true,
-			accountSubscription: {
-				type: 'polling',
-				accountLoader: bulkAccountLoader,
-			},
-		});
-		await takerDriftClient.subscribe();
-		await takerDriftClient.initializeUserAccountAndDepositCollateral(
-			usdcAmount,
-			userUSDCAccount.publicKey
-		);
-		const takerDriftClientUser = new User({
-			driftClient: takerDriftClient,
-			userAccountPublicKey: await takerDriftClient.getUserAccountPublicKey(),
-			accountSubscription: {
-				type: 'polling',
-				accountLoader: bulkAccountLoader,
-			},
-		});
-		await takerDriftClientUser.subscribe();
+		const [takerDriftClient, takerDriftClientUser] =
+			await initializeNewTakerClientAndUser(
+				bankrunContextWrapper,
+				chProgram,
+				usdcMint,
+				usdcAmount,
+				marketIndexes,
+				spotMarketIndexes,
+				oracleInfos,
+				bulkAccountLoader
+			);
+		await takerDriftClientUser.fetchAccounts();
 
 		const marketIndex = 0;
 		const baseAssetAmount = BASE_PRECISION;
@@ -419,7 +371,6 @@ describe('place and make swift order', () => {
 
 		const takerOrderParamsMessage: SwiftOrderParamsMessage = {
 			swiftOrderParams: takerOrderParams,
-			expectedOrderId: 1,
 			subAccountId: 0,
 			stopLossOrderParams: {
 				triggerPrice: stopLossTakerParams.triggerPrice,
@@ -457,6 +408,7 @@ describe('place and make swift order', () => {
 		const swiftServerMessage: SwiftServerMessage = {
 			slot,
 			swiftOrderSignature: takerOrderParamsSig,
+			uuid: Uint8Array.from(Buffer.from(nanoid(8))),
 		};
 
 		const encodedSwiftServerMessage =
@@ -467,12 +419,12 @@ describe('place and make swift order', () => {
 			swiftKeypair
 		);
 
-		await makerDriftClient.placeAndMakeSwiftPerpOrder(
+		const ixs = await makerDriftClient.getPlaceAndMakeSwiftPerpOrderIxs(
 			encodedSwiftServerMessage,
 			swiftSignature,
 			takerDriftClient.encodeSwiftOrderParamsMessage(takerOrderParamsMessage),
 			takerOrderParamsSig,
-			takerOrderParamsMessage.expectedOrderId,
+			swiftServerMessage.uuid,
 			{
 				taker: await takerDriftClient.getUserAccountPublicKey(),
 				takerUserAccount: takerDriftClient.getUserAccount(),
@@ -480,6 +432,21 @@ describe('place and make swift order', () => {
 			},
 			makerOrderParams
 		);
+
+		/*
+		 Transaction size should be largest for filling with trigger orders w/ place and take
+		 Max size: 1232
+		 We currently trade on sol market w/ sol oracle so would be better with LUT, so -64 bytes + 2 bytes
+		 We dont have referrers for maker so need to add 64 bytes
+		 We want to allow for positions to be full with maximally different markets for maker/taker and spot/perp, 
+				so add 30 bytes for market/oracle for taker and 30 bytes for maker
+		 Add 32 bytes for LUT
+			size of transaction + 32 + 2 + 30 + 30 < 1232
+		*/
+		assert(getSizeOfTransaction(ixs, false) < 1138);
+
+		const tx = await makerDriftClient.buildTransaction(ixs);
+		await makerDriftClient.sendTransaction(tx as Transaction);
 
 		const makerPosition = makerDriftClient.getUser().getPerpPosition(0);
 		assert(makerPosition.baseAssetAmount.eq(BASE_PRECISION.neg().muln(3)));
@@ -509,48 +476,18 @@ describe('place and make swift order', () => {
 		slot = new BN(
 			await bankrunContextWrapper.connection.toConnection().getSlot()
 		);
-		const keypair = new Keypair();
-		await bankrunContextWrapper.fundKeypair(keypair, 10 ** 9);
-		await sleep(1000);
-		const wallet = new Wallet(keypair);
-		const userUSDCAccount = await mockUserUSDCAccount(
-			usdcMint,
-			usdcAmount,
-			bankrunContextWrapper,
-			keypair.publicKey
-		);
-		const takerDriftClient = new TestClient({
-			connection: bankrunContextWrapper.connection.toConnection(),
-			wallet,
-			programID: chProgram.programId,
-			opts: {
-				commitment: 'confirmed',
-			},
-			activeSubAccountId: 0,
-			perpMarketIndexes: marketIndexes,
-			spotMarketIndexes: spotMarketIndexes,
-			subAccountIds: [],
-			oracleInfos,
-			userStats: true,
-			accountSubscription: {
-				type: 'polling',
-				accountLoader: bulkAccountLoader,
-			},
-		});
-		await takerDriftClient.subscribe();
-		await takerDriftClient.initializeUserAccountAndDepositCollateral(
-			usdcAmount,
-			userUSDCAccount.publicKey
-		);
-		const takerDriftClientUser = new User({
-			driftClient: takerDriftClient,
-			userAccountPublicKey: await takerDriftClient.getUserAccountPublicKey(),
-			accountSubscription: {
-				type: 'polling',
-				accountLoader: bulkAccountLoader,
-			},
-		});
-		await takerDriftClientUser.subscribe();
+		const [takerDriftClient, takerDriftClientUser] =
+			await initializeNewTakerClientAndUser(
+				bankrunContextWrapper,
+				chProgram,
+				usdcMint,
+				usdcAmount,
+				marketIndexes,
+				spotMarketIndexes,
+				oracleInfos,
+				bulkAccountLoader
+			);
+		await takerDriftClientUser.fetchAccounts();
 
 		const marketIndex = 0;
 		const baseAssetAmount = BASE_PRECISION;
@@ -578,7 +515,6 @@ describe('place and make swift order', () => {
 
 		const takerOrderParamsMessage: SwiftOrderParamsMessage = {
 			swiftOrderParams: takerOrderParams,
-			expectedOrderId: 1,
 			subAccountId: 0,
 			takeProfitOrderParams: null,
 			stopLossOrderParams: null,
@@ -591,6 +527,7 @@ describe('place and make swift order', () => {
 		const swiftServerMessage: SwiftServerMessage = {
 			slot,
 			swiftOrderSignature: takerOrderParamsSig,
+			uuid: Uint8Array.from(Buffer.from(nanoid(8))),
 		};
 
 		const encodedSwiftServerMessage =
@@ -607,7 +544,7 @@ describe('place and make swift order', () => {
 				swiftSignature,
 				takerDriftClient.encodeSwiftOrderParamsMessage(takerOrderParamsMessage),
 				takerOrderParamsSig,
-				takerOrderParamsMessage.expectedOrderId,
+				swiftServerMessage.uuid,
 				{
 					taker: await takerDriftClient.getUserAccountPublicKey(),
 					takerUserAccount: takerDriftClient.getUserAccount(),
@@ -631,48 +568,18 @@ describe('place and make swift order', () => {
 			await bankrunContextWrapper.connection.toConnection().getSlot()
 		);
 
-		const keypair = new Keypair();
-		await bankrunContextWrapper.fundKeypair(keypair, 10 ** 9);
-		await sleep(1000);
-		const wallet = new Wallet(keypair);
-		const userUSDCAccount = await mockUserUSDCAccount(
-			usdcMint,
-			usdcAmount,
-			bankrunContextWrapper,
-			keypair.publicKey
-		);
-		const takerDriftClient = new TestClient({
-			connection: bankrunContextWrapper.connection.toConnection(),
-			wallet,
-			programID: chProgram.programId,
-			opts: {
-				commitment: 'confirmed',
-			},
-			activeSubAccountId: 0,
-			perpMarketIndexes: marketIndexes,
-			spotMarketIndexes: spotMarketIndexes,
-			subAccountIds: [],
-			oracleInfos,
-			userStats: true,
-			accountSubscription: {
-				type: 'polling',
-				accountLoader: bulkAccountLoader,
-			},
-		});
-		await takerDriftClient.subscribe();
-		await takerDriftClient.initializeUserAccountAndDepositCollateral(
-			usdcAmount,
-			userUSDCAccount.publicKey
-		);
-		const takerDriftClientUser = new User({
-			driftClient: takerDriftClient,
-			userAccountPublicKey: await takerDriftClient.getUserAccountPublicKey(),
-			accountSubscription: {
-				type: 'polling',
-				accountLoader: bulkAccountLoader,
-			},
-		});
-		await takerDriftClientUser.subscribe();
+		const [takerDriftClient, takerDriftClientUser] =
+			await initializeNewTakerClientAndUser(
+				bankrunContextWrapper,
+				chProgram,
+				usdcMint,
+				usdcAmount,
+				marketIndexes,
+				spotMarketIndexes,
+				oracleInfos,
+				bulkAccountLoader
+			);
+		await takerDriftClientUser.fetchAccounts();
 
 		const marketIndex = 0;
 		const baseAssetAmount = BASE_PRECISION;
@@ -686,12 +593,8 @@ describe('place and make swift order', () => {
 			userOrderId: 1,
 			postOnly: PostOnlyParams.NONE,
 		});
-
-		await takerDriftClientUser.fetchAccounts();
-
 		const takerOrderParamsMessage: SwiftOrderParamsMessage = {
 			swiftOrderParams: takerOrderParams,
-			expectedOrderId: 1,
 			subAccountId: 0,
 			takeProfitOrderParams: null,
 			stopLossOrderParams: null,
@@ -703,6 +606,7 @@ describe('place and make swift order', () => {
 		const swiftServerMessage: SwiftServerMessage = {
 			slot: slot.subn(5),
 			swiftOrderSignature: takerOrderParamsSig,
+			uuid: Uint8Array.from(Buffer.from(nanoid(8))),
 		};
 
 		const encodedSwiftServerMessage =
@@ -712,14 +616,6 @@ describe('place and make swift order', () => {
 			Uint8Array.from(encodedSwiftServerMessage),
 			swiftKeypair
 		);
-
-		console.log(encodedSwiftServerMessage.length);
-		console.log(swiftSignature.length);
-		console.log(
-			takerDriftClient.encodeSwiftOrderParamsMessage(takerOrderParamsMessage)
-				.length
-		);
-		console.log(takerOrderParamsSig.length);
 
 		await makerDriftClient.placeSwiftTakerOrder(
 			encodedSwiftServerMessage,
@@ -750,7 +646,7 @@ describe('place and make swift order', () => {
 			swiftSignature,
 			takerDriftClient.encodeSwiftOrderParamsMessage(takerOrderParamsMessage),
 			takerOrderParamsSig,
-			takerOrderParamsMessage.expectedOrderId,
+			swiftServerMessage.uuid,
 			{
 				taker: await takerDriftClient.getUserAccountPublicKey(),
 				takerUserAccount: takerDriftClient.getUserAccount(),
@@ -765,4 +661,327 @@ describe('place and make swift order', () => {
 		await takerDriftClientUser.unsubscribe();
 		await takerDriftClient.unsubscribe();
 	});
+
+	it('should fail if auction params are not set', async () => {
+		slot = new BN(
+			await bankrunContextWrapper.connection.toConnection().getSlot()
+		);
+		const [takerDriftClient, takerDriftClientUser] =
+			await initializeNewTakerClientAndUser(
+				bankrunContextWrapper,
+				chProgram,
+				usdcMint,
+				usdcAmount,
+				marketIndexes,
+				spotMarketIndexes,
+				oracleInfos,
+				bulkAccountLoader
+			);
+		await takerDriftClientUser.fetchAccounts();
+
+		const marketIndex = 0;
+		const baseAssetAmount = BASE_PRECISION;
+		const takerOrderParams = getMarketOrderParams({
+			marketIndex,
+			direction: PositionDirection.LONG,
+			baseAssetAmount: baseAssetAmount.muln(2),
+			price: new BN(34).mul(PRICE_PRECISION),
+			userOrderId: 1,
+			postOnly: PostOnlyParams.NONE,
+			marketType: MarketType.PERP,
+		});
+		const takerOrderParamsMessage: SwiftOrderParamsMessage = {
+			swiftOrderParams: takerOrderParams,
+			subAccountId: 0,
+			takeProfitOrderParams: null,
+			stopLossOrderParams: null,
+		};
+
+		const takerOrderParamsSig = takerDriftClient.signSwiftOrderParamsMessage(
+			takerOrderParamsMessage
+		);
+
+		const swiftServerMessage: SwiftServerMessage = {
+			slot,
+			swiftOrderSignature: takerOrderParamsSig,
+			uuid: Uint8Array.from(Buffer.from(nanoid(8))),
+		};
+
+		const encodedSwiftServerMessage =
+			makerDriftClient.encodeSwiftServerMessage(swiftServerMessage);
+
+		const swiftSignature = makerDriftClient.signMessage(
+			Uint8Array.from(encodedSwiftServerMessage),
+			swiftKeypair
+		);
+
+		try {
+			await makerDriftClient.placeSwiftTakerOrder(
+				encodedSwiftServerMessage,
+				swiftSignature,
+				takerDriftClient.encodeSwiftOrderParamsMessage(takerOrderParamsMessage),
+				takerOrderParamsSig,
+				0,
+				{
+					taker: await takerDriftClient.getUserAccountPublicKey(),
+					takerUserAccount: takerDriftClient.getUserAccount(),
+					takerStats: takerDriftClient.getUserStatsAccountPublicKey(),
+				}
+			);
+			assert.fail('Should have failed');
+		} catch (error) {
+			assert(error.message.includes('custom program error: 0x1890'));
+		}
+
+		await takerDriftClientUser.unsubscribe();
+		await takerDriftClient.unsubscribe();
+	});
+
+	it('should verify that auction params are not sanitized', async () => {
+		slot = new BN(
+			await bankrunContextWrapper.connection.toConnection().getSlot()
+		);
+		const [takerDriftClient, takerDriftClientUser] =
+			await initializeNewTakerClientAndUser(
+				bankrunContextWrapper,
+				chProgram,
+				usdcMint,
+				usdcAmount,
+				marketIndexes,
+				spotMarketIndexes,
+				oracleInfos,
+				bulkAccountLoader
+			);
+		await takerDriftClientUser.fetchAccounts();
+
+		const marketIndex = 0;
+		const baseAssetAmount = BASE_PRECISION;
+		const takerOrderParams = getMarketOrderParams({
+			marketIndex,
+			direction: PositionDirection.LONG,
+			baseAssetAmount: baseAssetAmount.muln(2),
+			auctionStartPrice: new BN(33).mul(PRICE_PRECISION),
+			auctionEndPrice: new BN(10000).mul(PRICE_PRECISION),
+			auctionDuration: 50,
+			userOrderId: 1,
+			postOnly: PostOnlyParams.NONE,
+			marketType: MarketType.PERP,
+		});
+		const takerOrderParamsMessage: SwiftOrderParamsMessage = {
+			swiftOrderParams: takerOrderParams,
+			subAccountId: 0,
+			takeProfitOrderParams: null,
+			stopLossOrderParams: null,
+		};
+
+		const takerOrderParamsSig = takerDriftClient.signSwiftOrderParamsMessage(
+			takerOrderParamsMessage
+		);
+
+		const swiftServerMessage: SwiftServerMessage = {
+			slot,
+			swiftOrderSignature: takerOrderParamsSig,
+			uuid: Uint8Array.from(Buffer.from(nanoid(8))),
+		};
+
+		const encodedSwiftServerMessage =
+			makerDriftClient.encodeSwiftServerMessage(swiftServerMessage);
+
+		const swiftSignature = makerDriftClient.signMessage(
+			Uint8Array.from(encodedSwiftServerMessage),
+			swiftKeypair
+		);
+
+		await makerDriftClient.placeSwiftTakerOrder(
+			encodedSwiftServerMessage,
+			swiftSignature,
+			takerDriftClient.encodeSwiftOrderParamsMessage(takerOrderParamsMessage),
+			takerOrderParamsSig,
+			0,
+			{
+				taker: await takerDriftClient.getUserAccountPublicKey(),
+				takerUserAccount: takerDriftClient.getUserAccount(),
+				takerStats: takerDriftClient.getUserStatsAccountPublicKey(),
+			}
+		);
+
+		assert(
+			takerDriftClientUser
+				.getOrderByUserOrderId(1)
+				.auctionEndPrice.eq(new BN(10000).mul(PRICE_PRECISION))
+		);
+
+		await takerDriftClientUser.unsubscribe();
+		await takerDriftClient.unsubscribe();
+	});
+
+	it('can let user delete their account', async () => {
+		const [takerDriftClient, takerDriftClientUser] =
+			await initializeNewTakerClientAndUser(
+				bankrunContextWrapper,
+				chProgram,
+				usdcMint,
+				usdcAmount,
+				marketIndexes,
+				spotMarketIndexes,
+				oracleInfos,
+				bulkAccountLoader
+			);
+		await takerDriftClientUser.fetchAccounts();
+
+		const userAccountPubkey = await takerDriftClient.getUserAccountPublicKey();
+
+		await takerDriftClient.deleteSwiftUserOrders();
+
+		assert(
+			(await checkIfAccountExists(
+				takerDriftClient.connection,
+				getSwiftUserAccountPublicKey(
+					takerDriftClient.program.programId,
+					userAccountPubkey
+				)
+			)) == false
+		);
+
+		await takerDriftClientUser.unsubscribe();
+		await takerDriftClient.unsubscribe();
+	});
 });
+
+async function initializeNewTakerClientAndUser(
+	bankrunContextWrapper: BankrunContextWrapper,
+	chProgram: Program,
+	usdcMint: Keypair,
+	usdcAmount: BN,
+	marketIndexes: number[],
+	spotMarketIndexes: number[],
+	oracleInfos: { publicKey: PublicKey; source: OracleSource }[],
+	bulkAccountLoader: TestBulkAccountLoader
+): Promise<[TestClient, User]> {
+	const keypair = new Keypair();
+	await bankrunContextWrapper.fundKeypair(keypair, 10 ** 9);
+	await sleep(1000);
+	const wallet = new Wallet(keypair);
+	const userUSDCAccount = await mockUserUSDCAccount(
+		usdcMint,
+		usdcAmount,
+		bankrunContextWrapper,
+		keypair.publicKey
+	);
+	const takerDriftClient = new TestClient({
+		connection: bankrunContextWrapper.connection.toConnection(),
+		wallet,
+		programID: chProgram.programId,
+		opts: {
+			commitment: 'confirmed',
+		},
+		activeSubAccountId: 0,
+		perpMarketIndexes: marketIndexes,
+		spotMarketIndexes: spotMarketIndexes,
+		subAccountIds: [],
+		oracleInfos,
+		userStats: true,
+		accountSubscription: {
+			type: 'polling',
+			accountLoader: bulkAccountLoader,
+		},
+	});
+	await takerDriftClient.subscribe();
+	await takerDriftClient.initializeUserAccountAndDepositCollateral(
+		usdcAmount,
+		userUSDCAccount.publicKey
+	);
+	const takerDriftClientUser = new User({
+		driftClient: takerDriftClient,
+		userAccountPublicKey: await takerDriftClient.getUserAccountPublicKey(),
+		accountSubscription: {
+			type: 'polling',
+			accountLoader: bulkAccountLoader,
+		},
+	});
+	await takerDriftClientUser.subscribe();
+	await takerDriftClient.initializeSwiftUserOrders(
+		takerDriftClientUser.userAccountPublicKey,
+		32
+	);
+	return [takerDriftClient, takerDriftClientUser];
+}
+
+export function getSizeOfTransaction(
+	instructions: TransactionInstruction[],
+	versionedTransaction = true,
+	addressLookupTables: AddressLookupTableAccount[] = []
+): number {
+	const programs = new Set<string>();
+	const signers = new Set<string>();
+	let accounts = new Set<string>();
+
+	instructions.map((ix) => {
+		programs.add(ix.programId.toBase58());
+		accounts.add(ix.programId.toBase58());
+		ix.keys.map((key) => {
+			if (key.isSigner) {
+				signers.add(key.pubkey.toBase58());
+			}
+			accounts.add(key.pubkey.toBase58());
+		});
+	});
+
+	const instruction_sizes: number = instructions
+		.map(
+			(ix) =>
+				1 +
+				getSizeOfCompressedU16(ix.keys.length) +
+				ix.keys.length +
+				getSizeOfCompressedU16(ix.data.length) +
+				ix.data.length
+		)
+		.reduce((a, b) => a + b, 0);
+
+	let numberOfAddressLookups = 0;
+	if (addressLookupTables.length > 0) {
+		const lookupTableAddresses = addressLookupTables
+			.map((addressLookupTable) =>
+				addressLookupTable.state.addresses.map((address) => address.toBase58())
+			)
+			.flat();
+		const totalNumberOfAccounts = accounts.size;
+		accounts = new Set(
+			[...accounts].filter((account) => !lookupTableAddresses.includes(account))
+		);
+		accounts = new Set([...accounts, ...programs, ...signers]);
+		numberOfAddressLookups = totalNumberOfAccounts - accounts.size;
+	}
+
+	return (
+		getSizeOfCompressedU16(signers.size) +
+		signers.size * 64 + // array of signatures
+		3 +
+		getSizeOfCompressedU16(accounts.size) +
+		32 * accounts.size + // array of account addresses
+		32 + // recent blockhash
+		getSizeOfCompressedU16(instructions.length) +
+		instruction_sizes + // array of instructions
+		(versionedTransaction ? 1 + getSizeOfCompressedU16(0) : 0) +
+		(versionedTransaction ? 32 * addressLookupTables.length : 0) +
+		(versionedTransaction && addressLookupTables.length > 0 ? 2 : 0) +
+		numberOfAddressLookups
+	);
+}
+
+function getSizeOfCompressedU16(n: number) {
+	return 1 + Number(n >= 128) + Number(n >= 16384);
+}
+
+export async function checkIfAccountExists(
+	connection: Connection,
+	account: PublicKey
+): Promise<boolean> {
+	try {
+		const accountInfo = await connection.getAccountInfo(account);
+		return accountInfo != null;
+	} catch (e) {
+		// Doesn't already exist
+		return false;
+	}
+}
