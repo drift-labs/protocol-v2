@@ -284,12 +284,6 @@ pub fn request_remove_insurance_fund_stake(
     )?
     .min(insurance_vault_amount.saturating_sub(1));
 
-    insurance_fund_stake.last_withdraw_request_shares = vault_amount_to_if_shares(
-        insurance_fund_stake.last_withdraw_request_value,
-        spot_market.insurance_fund.total_shares,
-        insurance_vault_amount,
-    )?;
-
     validate!(
         insurance_fund_stake.last_withdraw_request_value == 0
             || insurance_fund_stake.last_withdraw_request_value < insurance_vault_amount,
