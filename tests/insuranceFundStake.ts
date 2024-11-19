@@ -1204,4 +1204,103 @@ describe('insurance fund stake', () => {
 	// 	assert(spotMarket0.revenuePool.scaledBalance.eq(ZERO));
 	// 	assert(spotMarket0.insurance.totalIfShares.eq(ZERO));
 	// });
+
+	it('test rounding math for single user in IF requests unstake and cancel', async () => {
+		const marketIndex = driftClient.getStateAccount().numberOfSpotMarkets;
+		const [
+			userDriftClient,
+			userDriftClientWSOLAccount,
+			userDriftClientUSDCAccount,
+		] = await createUserWithUSDCAndWSOLAccount(
+			bankrunContextWrapper,
+			usdcMint,
+			chProgram,
+			solAmount,
+			ZERO,
+			[0],
+			[0, 1, marketIndex],
+			[
+				{
+					publicKey: solOracle,
+					source: OracleSource.PYTH,
+				},
+			],
+			bulkAccountLoader
+		);
+
+		try {
+			await initializeSolSpotMarket(driftClient, solOracle);
+			await userDriftClient.initializeInsuranceFundStake(marketIndex);
+		} catch (e) {
+			console.error(e);
+			assert(false);
+		}
+
+		console.log(
+			`Initialized insurance fund stake for spot market ${marketIndex}`
+		);
+
+		try {
+			const txSig = await userDriftClient.addInsuranceFundStake({
+				marketIndex: marketIndex,
+				amount: solAmount,
+				collateralAccountPublicKey: userDriftClientWSOLAccount,
+			});
+			bankrunContextWrapper.connection.printTxLogs(txSig);
+		} catch (e) {
+			console.error(e);
+			assert(false);
+		}
+
+		const spotMarket0 = driftClient.getSpotMarketAccount(marketIndex);
+		console.log(
+			'spotMarket0.insurance.totalIfShares:',
+			spotMarket0.insuranceFund.totalShares.toString()
+		);
+		console.log(
+			'spotMarket0.insurance.userShares:',
+			spotMarket0.insuranceFund.userShares.toString()
+		);
+
+		assert(spotMarket0.revenuePool.scaledBalance.eq(ZERO));
+		assert(spotMarket0.insuranceFund.totalShares.gt(ZERO));
+		assert(spotMarket0.insuranceFund.totalShares.eq(solAmount));
+		assert(spotMarket0.insuranceFund.userShares.eq(solAmount));
+
+		try {
+			const txSig = await userDriftClient.requestRemoveInsuranceFundStake(
+				marketIndex,
+				solAmount
+			);
+			bankrunContextWrapper.connection.printTxLogs(txSig);
+		} catch (e) {
+			console.error(e);
+			assert(false);
+		}
+
+		try {
+			const txSig = await userDriftClient.cancelRequestRemoveInsuranceFundStake(
+				marketIndex
+			);
+			bankrunContextWrapper.connection.printTxLogs(txSig);
+		} catch (e) {
+			console.error(e);
+			assert(false);
+		}
+
+		const spotMarket1 = driftClient.getSpotMarketAccount(marketIndex);
+		console.log(
+			'spotMarket1.insurance.totalIfShares:',
+			spotMarket1.insuranceFund.totalShares.toString()
+		);
+		console.log(
+			'spotMarket1.insurance.userShares:',
+			spotMarket1.insuranceFund.userShares.toString()
+		);
+
+		assert(spotMarket1.revenuePool.scaledBalance.eq(ZERO));
+		assert(spotMarket1.insuranceFund.totalShares.gt(ZERO));
+		assert(spotMarket1.insuranceFund.totalShares.eq(solAmount));
+		assert(spotMarket1.insuranceFund.userShares.eq(solAmount));
+	});
 });
