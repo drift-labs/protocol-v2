@@ -428,7 +428,8 @@ export class DLOB {
 		const expiredNodesToFill = this.findExpiredNodesToFill(
 			marketIndex,
 			ts,
-			marketType
+			marketType,
+			new BN(slot)
 		);
 
 		return this.mergeNodesToFill(
@@ -844,7 +845,7 @@ export class DLOB {
 		marketIndex: number,
 		ts: number,
 		marketType: MarketType,
-		slot?: BN,
+		slot?: BN
 	): NodeToFill[] {
 		const nodesToFill = new Array<NodeToFill>();
 
@@ -874,10 +875,15 @@ export class DLOB {
 
 		for (const bidGenerator of bidGenerators) {
 			for (const bid of bidGenerator) {
-				if (bid.isSwift && slot.gt(bid.order.slot.addn(bid.order.auctionDuration))) {
-					this.orderLists.get(marketTypeStr).get(marketIndex).swift.bid.remove(bid.order, bid.userAccount);
-				}	
-				else if (isOrderExpired(bid.order, ts, true, 25)) {
+				if (
+					bid.isSwift &&
+					slot.gt(bid.order.slot.addn(bid.order.auctionDuration))
+				) {
+					this.orderLists
+						.get(marketTypeStr)
+						.get(marketIndex)
+						.swift.bid.remove(bid.order, bid.userAccount);
+				} else if (isOrderExpired(bid.order, ts, true, 25)) {
 					nodesToFill.push({
 						node: bid,
 						makerNodes: [],

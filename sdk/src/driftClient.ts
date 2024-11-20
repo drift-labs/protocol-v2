@@ -3890,7 +3890,8 @@ export class DriftClient {
 		order: Pick<Order, 'marketIndex' | 'orderId'>,
 		makerInfo?: MakerInfo | MakerInfo[],
 		referrerInfo?: ReferrerInfo,
-		fillerSubAccountId?: number
+		fillerSubAccountId?: number,
+		isSwift?: boolean
 	): Promise<TransactionInstruction> {
 		const userStatsPublicKey = getUserStatsAccountPublicKey(
 			this.program.programId,
@@ -3952,7 +3953,7 @@ export class DriftClient {
 			}
 		}
 
-		const orderId = order.orderId;
+		const orderId = isSwift ? null : order.orderId;
 		return await this.program.instruction.fillPerpOrder(orderId, null, {
 			accounts: {
 				state: await this.getStatePublicKey(),
@@ -5774,8 +5775,13 @@ export class DriftClient {
 			taker: PublicKey;
 			takerStats: PublicKey;
 			takerUserAccount: UserAccount;
-		}
+		},
+		authority?: PublicKey
 	): Promise<TransactionInstruction[]> {
+		if (!authority && !takerInfo.takerUserAccount) {
+			throw new Error('authority or takerUserAccount must be provided');
+		}
+
 		const remainingAccounts = this.getRemainingAccounts({
 			userAccounts: [takerInfo.takerUserAccount],
 			useMarketLastSlotCache: true,
@@ -5789,9 +5795,10 @@ export class DriftClient {
 				message: Uint8Array.from(digest(encodedSwiftServerMessage)),
 			});
 
+		const authorityToUse = authority || takerInfo.takerUserAccount.authority;
 		const swiftOrderParamsSignatureIx =
 			Ed25519Program.createInstructionWithPublicKey({
-				publicKey: takerInfo.takerUserAccount.authority.toBytes(),
+				publicKey: authorityToUse.toBytes(),
 				signature: Uint8Array.from(swiftOrderParamsSignature),
 				message: Uint8Array.from(digest(encodedSwiftOrderParamsMessage)),
 			});
