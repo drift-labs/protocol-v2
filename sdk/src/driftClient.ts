@@ -1580,6 +1580,82 @@ export class DriftClient {
 		return ix;
 	}
 
+	public async forceDeleteUser(
+		userAccountPublicKey: PublicKey,
+		userAccount: UserAccount,
+		txParams?: TxParams
+	): Promise<TransactionSignature> {
+		const tx = await this.buildTransaction(
+			await this.getForceDeleteUserIx(userAccountPublicKey, userAccount),
+			txParams
+		);
+
+		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+		return txSig;
+	}
+
+	public async getForceDeleteUserIx(
+		userAccountPublicKey: PublicKey,
+		userAccount: UserAccount
+	) {
+		const writableSpotMarketIndexes = [];
+		for (const spotPosition of userAccount.spotPositions) {
+			if (isSpotPositionAvailable(spotPosition)) {
+				continue;
+			}
+			writableSpotMarketIndexes.push(spotPosition.marketIndex);
+		}
+		const remainingAccounts = this.getRemainingAccounts({
+			userAccounts: [userAccount],
+			writableSpotMarketIndexes,
+		});
+
+		for (const spotPosition of userAccount.spotPositions) {
+			if (isSpotPositionAvailable(spotPosition)) {
+				continue;
+			}
+			const spotMarket = this.getSpotMarketAccount(spotPosition.marketIndex);
+			remainingAccounts.push({
+				isSigner: false,
+				isWritable: true,
+				pubkey: spotMarket.vault,
+			});
+			const keeperVault = await this.getAssociatedTokenAccount(
+				spotPosition.marketIndex
+			);
+			remainingAccounts.push({
+				isSigner: false,
+				isWritable: true,
+				pubkey: keeperVault,
+			});
+			if (spotMarket.tokenProgram > 0) {
+				const tokenProgram = this.getTokenProgramForSpotMarket(spotMarket);
+				remainingAccounts.push({
+					isSigner: false,
+					isWritable: false,
+					pubkey: tokenProgram,
+				});
+			}
+		}
+
+		const authority = userAccount.authority;
+		const userStats = getUserStatsAccountPublicKey(
+			this.program.programId,
+			authority
+		);
+		const ix = await this.program.instruction.forceDeleteUser({
+			accounts: {
+				user: userAccountPublicKey,
+				userStats,
+				authority,
+				state: await this.getStatePublicKey(),
+				driftSigner: this.getSignerPublicKey(),
+			},
+		});
+
+		return ix;
+	}
+
 	public async deleteSwiftUserOrders(
 		subAccountId = 0,
 		txParams?: TxParams
