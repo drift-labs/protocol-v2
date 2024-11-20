@@ -454,7 +454,7 @@ export const MainnetSpotMarkets: SpotMarketConfig[] = [
 		symbol: 'USDS',
 		marketIndex: 28,
 		oracle: new PublicKey('7pT9mxKXyvfaZKeKy1oe2oV2K1RFtF7tPEJHUY3h2vVV'),
-		oracleSource: OracleSource.PYTH_PULL,
+		oracleSource: OracleSource.PYTH_STABLE_COIN_PULL,
 		mint: new PublicKey('USDSwr9ApdHk5bvJKMjzff41FfuX8bSxdKcR81vTwcA'),
 		precision: new BN(10).pow(SIX),
 		precisionExp: SIX,
