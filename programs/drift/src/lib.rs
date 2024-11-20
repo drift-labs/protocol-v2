@@ -349,6 +349,12 @@ pub mod drift {
         handle_delete_user(ctx)
     }
 
+    pub fn force_delete_user<'c: 'info, 'info>(
+        ctx: Context<'_, '_, 'c, 'info, ForceDeleteUser<'info>>,
+    ) -> Result<()> {
+        handle_force_delete_user(ctx)
+    }
+
     pub fn delete_swift_user_orders<'c: 'info, 'info>(
         ctx: Context<'_, '_, 'c, 'info, DeleteSwiftUserOrders>,
     ) -> Result<()> {

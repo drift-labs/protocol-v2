@@ -1,6 +1,10 @@
 use std::cell::RefMut;
+use std::convert::TryFrom;
 
 use anchor_lang::prelude::*;
+use anchor_spl::associated_token::get_associated_token_address;
+use anchor_spl::token::spl_token;
+use anchor_spl::token_2022::spl_token_2022;
 use anchor_spl::token_interface::{TokenAccount, TokenInterface};
 use solana_program::instruction::Instruction;
 use solana_program::sysvar::instructions::{
@@ -8,7 +12,10 @@ use solana_program::sysvar::instructions::{
 };
 
 use crate::controller::insurance::update_user_stats_if_stake_amount;
+use crate::controller::orders::cancel_orders;
 use crate::controller::position::PositionDirection;
+use crate::controller::spot_balance::update_spot_balances;
+use crate::controller::token::{receive, send_from_program_vault};
 use crate::error::ErrorCode;
 use crate::ids::swift_server;
 use crate::instructions::constraints::*;
@@ -19,8 +26,9 @@ use crate::math::margin::{calculate_user_equity, meets_settle_pnl_maintenance_ma
 use crate::math::orders::{estimate_price_from_side, find_bids_and_asks_from_users};
 use crate::math::safe_math::SafeMath;
 use crate::math::spot_withdraw::validate_spot_market_vault_amount;
+use crate::math_error;
 use crate::optional_accounts::{get_token_mint, update_prelaunch_oracle};
-use crate::state::events::SwiftOrderRecord;
+use crate::state::events::{OrderActionExplanation, SwiftOrderRecord};
 use crate::state::fill_mode::FillMode;
 use crate::state::fulfillment_params::drift::MatchFulfillmentParams;
 use crate::state::fulfillment_params::openbook_v2::OpenbookV2FulfillmentParams;
@@ -35,12 +43,12 @@ use crate::state::order_params::{
 use crate::state::paused_operations::PerpOperation;
 use crate::state::perp_market::{ContractType, MarketStatus, PerpMarket};
 use crate::state::perp_market_map::{
-    get_market_set_for_user_positions, get_market_set_from_list, get_writable_perp_market_set,
-    get_writable_perp_market_set_from_vec, MarketSet, PerpMarketMap,
+    get_market_set_for_spot_positions, get_market_set_for_user_positions, get_market_set_from_list,
+    get_writable_perp_market_set, get_writable_perp_market_set_from_vec, MarketSet, PerpMarketMap,
 };
 use crate::state::settle_pnl_mode::SettlePnlMode;
 use crate::state::spot_fulfillment_params::SpotFulfillmentParams;
-use crate::state::spot_market::SpotMarket;
+use crate::state::spot_market::{SpotBalanceType, SpotMarket};
 use crate::state::spot_market_map::{
     get_writable_spot_market_set, get_writable_spot_market_set_from_many, SpotMarketMap,
 };
@@ -53,10 +61,10 @@ use crate::state::user::{
 };
 use crate::state::user_map::{load_user_map, load_user_maps, UserMap, UserStatsMap};
 use crate::validation::sig_verification::{extract_ed25519_ix_signature, verify_ed25519_digest};
-use crate::validation::user::validate_user_is_idle;
+use crate::validation::user::{validate_user_deletion, validate_user_is_idle};
 use crate::{
-    controller, digest_struct, load, math, print_error, OracleSource, GOV_SPOT_MARKET_INDEX,
-    MARGIN_PRECISION,
+    controller, digest_struct, load, math, print_error, safe_decrement, OracleSource,
+    GOV_SPOT_MARKET_INDEX, MARGIN_PRECISION,
 };
 use crate::{load_mut, QUOTE_PRECISION_U64};
 use crate::{validate, QUOTE_PRECISION_I128};
@@ -2124,6 +2132,183 @@ pub fn handle_disable_user_high_leverage_mode<'c: 'info, 'info>(
     Ok(())
 }
 
+pub fn handle_force_delete_user<'c: 'info, 'info>(
+    ctx: Context<'_, '_, 'c, 'info, ForceDeleteUser<'info>>,
+) -> Result<()> {
+    let state = &ctx.accounts.state;
+
+    let keeper_key = *ctx.accounts.keeper.key;
+
+    let user_key = ctx.accounts.user.key();
+    let user = &mut load_mut!(ctx.accounts.user)?;
+    let user_stats = &mut load_mut!(ctx.accounts.user_stats)?;
+
+    let slot = Clock::get()?.slot;
+    let now = Clock::get()?.unix_timestamp;
+    let AccountMaps {
+        perp_market_map,
+        spot_market_map,
+        mut oracle_map,
+    } = load_maps(
+        &mut ctx.remaining_accounts.iter().peekable(),
+        &get_market_set_for_spot_positions(&user.spot_positions),
+        &MarketSet::new(),
+        slot,
+        Some(state.oracle_guard_rails),
+    )?;
+
+    // check the user equity
+
+    let (user_equity, _) =
+        calculate_user_equity(user, &perp_market_map, &spot_market_map, &mut oracle_map)?;
+
+    let max_equity = QUOTE_PRECISION_I128 / 20;
+    validate!(
+        user_equity <= max_equity,
+        ErrorCode::DefaultError,
+        "user equity must be less than {}",
+        max_equity
+    )?;
+
+    let slots_since_last_active = slot.safe_sub(user.last_active_slot)?;
+
+    validate!(
+        slots_since_last_active >= 18144000, // 60 * 60 * 24 * 7 * 4 * 3 / .4 (~3 months)
+        ErrorCode::DefaultError,
+        "user not inactive for long enough: {}",
+        slots_since_last_active
+    )?;
+
+    // cancel all open orders
+    let canceled_order_ids = cancel_orders(
+        user,
+        &user_key,
+        Some(&keeper_key),
+        &perp_market_map,
+        &spot_market_map,
+        &mut oracle_map,
+        now,
+        slot,
+        OrderActionExplanation::None,
+        None,
+        None,
+        None,
+    )?;
+
+    for spot_position in user.spot_positions.iter_mut() {
+        if spot_position.is_available() {
+            continue;
+        }
+
+        let spot_market = &mut spot_market_map.get_ref_mut(&spot_position.market_index)?;
+        let oracle_price_data = oracle_map.get_price_data(&spot_market.oracle)?;
+
+        controller::spot_balance::update_spot_market_cumulative_interest(
+            spot_market,
+            Some(oracle_price_data),
+            now,
+        )?;
+
+        let token_amount = spot_position.get_token_amount(spot_market)?;
+        let balance_type = spot_position.balance_type;
+
+        let token_program_pubkey = if spot_market.token_program == 1 {
+            spl_token_2022::ID
+        } else {
+            spl_token::ID
+        };
+        let token_program = &ctx
+            .remaining_accounts
+            .iter()
+            .find(|acc| acc.key() == token_program_pubkey)
+            .map(|acc| Interface::try_from(acc))
+            .unwrap()
+            .unwrap();
+
+        let spot_market_mint = &spot_market.mint;
+        let mint_account_info = ctx
+            .remaining_accounts
+            .iter()
+            .find(|acc| acc.key() == spot_market_mint.key())
+            .map(|acc| InterfaceAccount::try_from(acc).unwrap());
+
+        let keeper_vault = get_associated_token_address(&keeper_key, spot_market_mint);
+        let keeper_vault_account_info = ctx
+            .remaining_accounts
+            .iter()
+            .find(|acc| acc.key() == keeper_vault.key())
+            .map(|acc| InterfaceAccount::try_from(acc))
+            .unwrap()
+            .unwrap();
+
+        let spot_market_vault = spot_market.vault;
+        let mut spot_market_vault_account_info = ctx
+            .remaining_accounts
+            .iter()
+            .find(|acc| acc.key() == spot_market_vault.key())
+            .map(|acc| InterfaceAccount::try_from(acc))
+            .unwrap()
+            .unwrap();
+
+        if balance_type == SpotBalanceType::Deposit {
+            update_spot_balances(
+                token_amount,
+                &SpotBalanceType::Borrow,
+                spot_market,
+                spot_position,
+                true,
+            )?;
+
+            send_from_program_vault(
+                &token_program,
+                &spot_market_vault_account_info,
+                &keeper_vault_account_info,
+                &ctx.accounts.drift_signer,
+                state.signer_nonce,
+                token_amount.cast()?,
+                &mint_account_info,
+            )?;
+        } else {
+            update_spot_balances(
+                token_amount,
+                &SpotBalanceType::Deposit,
+                spot_market,
+                spot_position,
+                false,
+            )?;
+
+            receive(
+                token_program,
+                &keeper_vault_account_info,
+                &spot_market_vault_account_info,
+                &ctx.accounts.keeper.to_account_info(),
+                token_amount.cast()?,
+                &mint_account_info,
+            )?;
+        }
+
+        spot_market_vault_account_info.reload()?;
+        math::spot_withdraw::validate_spot_market_vault_amount(
+            spot_market,
+            spot_market_vault_account_info.amount,
+        )?;
+    }
+
+    validate_user_deletion(
+        user,
+        user_stats,
+        &ctx.accounts.state,
+        Clock::get()?.unix_timestamp,
+    )?;
+
+    safe_decrement!(user_stats.number_of_sub_accounts, 1);
+
+    let state = &mut ctx.accounts.state;
+    safe_decrement!(state.number_of_sub_accounts, 1);
+
+    Ok(())
+}
+
 #[derive(Accounts)]
 pub struct FillOrder<'info> {
     pub state: Box<Account<'info, State>>,
@@ -2587,4 +2772,26 @@ pub struct DisableUserHighLeverageMode<'info> {
     pub user: AccountLoader<'info, User>,
     #[account(mut)]
     pub high_leverage_mode_config: AccountLoader<'info, HighLeverageModeConfig>,
+}
+
+#[derive(Accounts)]
+pub struct ForceDeleteUser<'info> {
+    #[account(
+        mut,
+        has_one = authority,
+        close = authority
+    )]
+    pub user: AccountLoader<'info, User>,
+    #[account(
+        mut,
+        has_one = authority
+    )]
+    pub user_stats: AccountLoader<'info, UserStats>,
+    #[account(mut)]
+    pub state: Box<Account<'info, State>>,
+    /// CHECK: authority
+    pub authority: AccountInfo<'info>,
+    pub keeper: Signer<'info>,
+    /// CHECK: forced drift_signer
+    pub drift_signer: AccountInfo<'info>,
 }
