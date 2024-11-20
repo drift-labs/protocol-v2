@@ -2,7 +2,6 @@ use anchor_lang::accounts::account_loader::AccountLoader;
 use std::cell::{Ref, RefMut};
 use std::collections::{BTreeMap, BTreeSet};
 use std::iter::Peekable;
-use std::slice::Iter;
 
 use anchor_lang::prelude::AccountInfo;
 
@@ -87,10 +86,13 @@ impl<'a> PerpMarketMap<'a> {
         }
     }
 
-    pub fn load<'b, 'c>(
+    pub fn load<'b, 'c, I>(
         writable_markets: &'b MarketSet,
-        account_info_iter: &'c mut Peekable<Iter<'a, AccountInfo<'a>>>,
-    ) -> DriftResult<PerpMarketMap<'a>> {
+        account_info_iter: &'c mut Peekable<I>,
+    ) -> DriftResult<PerpMarketMap<'a>>
+    where
+        I: Iterator<Item = &'a AccountInfo<'a>>,
+    {
         let mut perp_market_map: PerpMarketMap = PerpMarketMap(BTreeMap::new());
 
         let market_discriminator: [u8; 8] = PerpMarket::discriminator();
