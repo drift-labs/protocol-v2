@@ -1,4 +1,4 @@
-import { OpenbookV2Subscriber, PRICE_PRECISION } from '../../lib';
+import { OpenbookV2Subscriber, PRICE_PRECISION } from '../../src';
 import { Connection, PublicKey } from '@solana/web3.js';
 
 describe('openbook v2 subscriber', function () {

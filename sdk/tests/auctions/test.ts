@@ -1,6 +1,10 @@
-import { PRICE_PRECISION, BN, deriveOracleAuctionParams } from '../../src';
+import {
+	PRICE_PRECISION,
+	BN,
+	deriveOracleAuctionParams,
+	PositionDirection,
+} from '../../src';
 import { assert } from 'chai';
-import { PositionDirection } from '../../lib';
 
 describe('Auction Tests', () => {
 	it('deriveOracleAuctionParams', async () => {

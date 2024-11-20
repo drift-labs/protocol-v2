@@ -5786,17 +5786,20 @@ export class DriftClient {
 	public signSwiftOrderParamsMessage(
 		orderParamsMessage: SwiftOrderParamsMessage
 	): Buffer {
-		const takerOrderParamsMessage = this.encodeSwiftOrderParamsMessage(orderParamsMessage);
+		const takerOrderParamsMessage =
+			this.encodeSwiftOrderParamsMessage(orderParamsMessage);
 		return this.signMessage(new TextEncoder().encode(takerOrderParamsMessage));
 	}
 
 	public encodeSwiftOrderParamsMessage(
 		orderParamsMessage: SwiftOrderParamsMessage
 	): string {
-		return digest(this.program.coder.types.encode(
-			'SwiftOrderParamsMessage',
-			orderParamsMessage
-		)).toString("hex");
+		return digest(
+			this.program.coder.types.encode(
+				'SwiftOrderParamsMessage',
+				orderParamsMessage
+			)
+		).toString('hex');
 	}
 
 	public decodeSwiftOrderParamsMessage(
