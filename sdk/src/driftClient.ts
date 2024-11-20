@@ -5704,19 +5704,17 @@ export class DriftClient {
 	public signSwiftOrderParamsMessage(
 		orderParamsMessage: SwiftOrderParamsMessage
 	): Buffer {
-		const takerOrderParamsMessage = Uint8Array.from(
-			digest(this.encodeSwiftOrderParamsMessage(orderParamsMessage))
-		);
-		return this.signMessage(takerOrderParamsMessage);
+		const takerOrderParamsMessage = this.encodeSwiftOrderParamsMessage(orderParamsMessage);
+		return this.signMessage(new TextEncoder().encode(takerOrderParamsMessage));
 	}
 
 	public encodeSwiftOrderParamsMessage(
 		orderParamsMessage: SwiftOrderParamsMessage
-	): Buffer {
-		return this.program.coder.types.encode(
+	): string {
+		return digest(this.program.coder.types.encode(
 			'SwiftOrderParamsMessage',
 			orderParamsMessage
-		);
+		)).toString("hex");
 	}
 
 	public decodeSwiftOrderParamsMessage(
