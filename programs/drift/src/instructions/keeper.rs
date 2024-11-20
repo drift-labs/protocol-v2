@@ -1,5 +1,5 @@
 use std::cell::RefMut;
-use std::convert::TryFrom;
+use std::convert::{TryFrom, TryInto};
 
 use anchor_lang::prelude::*;
 use anchor_spl::associated_token::get_associated_token_address;
@@ -60,10 +60,10 @@ use crate::state::user::{
     MarginMode, MarketType, OrderStatus, OrderTriggerCondition, OrderType, User, UserStats,
 };
 use crate::state::user_map::{load_user_map, load_user_maps, UserMap, UserStatsMap};
-use crate::validation::sig_verification::{extract_ed25519_ix_signature, verify_ed25519_digest};
+use crate::validation::sig_verification::{extract_ed25519_ix_signature, verify_ed25519_msg};
 use crate::validation::user::{validate_user_deletion, validate_user_is_idle};
 use crate::{
-    controller, digest_struct, load, math, print_error, safe_decrement, OracleSource,
+    controller, digest_struct, digest_struct_hex, load, math, print_error, safe_decrement, OracleSource,
     GOV_SPOT_MARKET_INDEX, MARGIN_PRECISION,
 };
 use crate::{load_mut, QUOTE_PRECISION_U64};
@@ -597,7 +597,7 @@ pub fn place_swift_taker_order<'c: 'info, 'info>(
 
     // Verify data from first verify ix
     let ix: Instruction = load_instruction_at_checked(ix_idx as usize - 2, ix_sysvar)?;
-    verify_ed25519_digest(
+    verify_ed25519_msg(
         &ix,
         &swift_server::id().to_bytes(),
         &digest_struct!(swift_message),
@@ -605,10 +605,10 @@ pub fn place_swift_taker_order<'c: 'info, 'info>(
 
     // Verify data from second verify ix
     let ix: Instruction = load_instruction_at_checked(ix_idx as usize - 1, ix_sysvar)?;
-    verify_ed25519_digest(
+    verify_ed25519_msg(
         &ix,
         &taker.authority.to_bytes(),
-        &digest_struct!(&taker_order_params_message),
+        digest_struct_hex!(taker_order_params_message),
     )?;
 
     // Verify that sig from swift server corresponds to order message

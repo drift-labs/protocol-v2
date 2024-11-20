@@ -886,6 +886,7 @@ dependencies = [
  "bytes",
  "drift-macros",
  "enumflags2",
+ "hex",
  "num-derive 0.3.3",
  "num-integer",
  "num-traits",
