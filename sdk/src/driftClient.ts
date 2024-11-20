@@ -6717,7 +6717,6 @@ export class DriftClient {
 		mode: SettlePnlMode,
 		txParams?: TxParams
 	): Promise<TransactionSignature[]> {
-
 		// need multiple TXs because settling more than 4 markets won't fit in a single TX
 		const txsToSign: (Transaction | VersionedTransaction)[] = [];
 		const marketIndexesInFourGroups: number[][] = [];
@@ -6732,10 +6731,7 @@ export class DriftClient {
 				marketIndexes,
 				mode
 			);
-			const computeUnits = Math.min(
-				300_000 * marketIndexes.length,
-				1_400_000
-			);
+			const computeUnits = Math.min(300_000 * marketIndexes.length, 1_400_000);
 			const tx = await this.buildTransaction(ix, {
 				...txParams,
 				computeUnits,
@@ -6750,21 +6746,13 @@ export class DriftClient {
 			i++;
 		}
 		const signedTxs = (
-			await this.txHandler.getSignedTransactionMap(
-				txsMap,
-				this.provider.wallet
-			)
+			await this.txHandler.getSignedTransactionMap(txsMap, this.provider.wallet)
 		).signedTxMap;
 
 		const txSigs: TransactionSignature[] = [];
 		for (const key in signedTxs) {
 			const tx = signedTxs[key];
-			const { txSig } = await this.sendTransaction(
-				tx,
-				[],
-				this.opts,
-				true
-			);
+			const { txSig } = await this.sendTransaction(tx, [], this.opts, true);
 			txSigs.push(txSig);
 		}
 
