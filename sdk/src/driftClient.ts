@@ -1610,6 +1610,7 @@ export class DriftClient {
 			writableSpotMarketIndexes,
 		});
 
+		const tokenPrograms = new Set<string>();
 		for (const spotPosition of userAccount.spotPositions) {
 			if (isSpotPositionAvailable(spotPosition)) {
 				continue;
@@ -1621,21 +1622,24 @@ export class DriftClient {
 				pubkey: spotMarket.vault,
 			});
 			const keeperVault = await this.getAssociatedTokenAccount(
-				spotPosition.marketIndex
+				spotPosition.marketIndex,
+				false
 			);
 			remainingAccounts.push({
 				isSigner: false,
 				isWritable: true,
 				pubkey: keeperVault,
 			});
-			if (spotMarket.tokenProgram > 0) {
-				const tokenProgram = this.getTokenProgramForSpotMarket(spotMarket);
-				remainingAccounts.push({
-					isSigner: false,
-					isWritable: false,
-					pubkey: tokenProgram,
-				});
-			}
+			const tokenProgram = this.getTokenProgramForSpotMarket(spotMarket);
+			tokenPrograms.add(tokenProgram.toBase58());
+		}
+
+		for (const tokenProgram of tokenPrograms) {
+			remainingAccounts.push({
+				isSigner: false,
+				isWritable: false,
+				pubkey: new PublicKey(tokenProgram),
+			});
 		}
 
 		const authority = userAccount.authority;
@@ -1650,7 +1654,9 @@ export class DriftClient {
 				authority,
 				state: await this.getStatePublicKey(),
 				driftSigner: this.getSignerPublicKey(),
+				keeper: this.wallet.publicKey,
 			},
+			remainingAccounts,
 		});
 
 		return ix;

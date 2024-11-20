@@ -2151,8 +2151,8 @@ pub fn handle_force_delete_user<'c: 'info, 'info>(
         mut oracle_map,
     } = load_maps(
         &mut ctx.remaining_accounts.iter().peekable(),
-        &get_market_set_for_spot_positions(&user.spot_positions),
         &MarketSet::new(),
+        &get_market_set_for_spot_positions(&user.spot_positions),
         slot,
         Some(state.oracle_guard_rails),
     )?;
@@ -2170,14 +2170,17 @@ pub fn handle_force_delete_user<'c: 'info, 'info>(
         max_equity
     )?;
 
-    let slots_since_last_active = slot.safe_sub(user.last_active_slot)?;
+    #[cfg(not(feature = "anchor-test"))]
+    {
+        let slots_since_last_active = slot.safe_sub(user.last_active_slot)?;
 
-    validate!(
-        slots_since_last_active >= 18144000, // 60 * 60 * 24 * 7 * 4 * 3 / .4 (~3 months)
-        ErrorCode::DefaultError,
-        "user not inactive for long enough: {}",
-        slots_since_last_active
-    )?;
+        validate!(
+            slots_since_last_active >= 18144000, // 60 * 60 * 24 * 7 * 4 * 3 / .4 (~3 months)
+            ErrorCode::DefaultError,
+            "user not inactive for long enough: {}",
+            slots_since_last_active
+        )?;
+    }
 
     // cancel all open orders
     let canceled_order_ids = cancel_orders(
@@ -2790,7 +2793,9 @@ pub struct ForceDeleteUser<'info> {
     #[account(mut)]
     pub state: Box<Account<'info, State>>,
     /// CHECK: authority
+    #[account(mut)]
     pub authority: AccountInfo<'info>,
+    #[account(mut)]
     pub keeper: Signer<'info>,
     /// CHECK: forced drift_signer
     pub drift_signer: AccountInfo<'info>,
