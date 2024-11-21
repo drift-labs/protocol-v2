@@ -2309,7 +2309,6 @@ pub fn handle_force_delete_user<'c: 'info, 'info>(
     let state = &mut ctx.accounts.state;
     safe_decrement!(state.number_of_sub_accounts, 1);
 
-    // todo emit record
     emit!(DeleteUserRecord {
         ts: now,
         user_authority: *ctx.accounts.authority.key,
