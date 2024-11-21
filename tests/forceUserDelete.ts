@@ -24,10 +24,7 @@ import {
 	sleep,
 } from './testHelpers';
 import { NATIVE_MINT } from '@solana/spl-token';
-import {
-	QUOTE_PRECISION,
-	ZERO,
-} from '../sdk';
+import { QUOTE_PRECISION, ZERO } from '../sdk';
 import { startAnchor } from 'solana-bankrun';
 import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
 import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
@@ -47,12 +44,11 @@ describe('spot deposit and withdraw', () => {
 	let usdcMint;
 
 	let firstUserDriftClient: TestClient;
-    let firstUserDriftClientWSOLAccount: PublicKey;
+	let firstUserDriftClientWSOLAccount: PublicKey;
 	let firstUserDriftClientUSDCAccount: PublicKey;
 
 	let secondUserDriftClient: TestClient;
 	let secondUserDriftClientWSOLAccount: PublicKey;
-	let secondUserDriftClientUSDCAccount: PublicKey;
 
 	const usdcAmount = new BN(10 ** 6 / 20);
 	const largeUsdcAmount = new BN(10_000 * 10 ** 6);
@@ -192,18 +188,21 @@ describe('spot deposit and withdraw', () => {
 	});
 
 	it('First User Deposit USDC', async () => {
-		[firstUserDriftClient, firstUserDriftClientWSOLAccount, firstUserDriftClientUSDCAccount] =
-			await createUserWithUSDCAndWSOLAccount(
-				bankrunContextWrapper,
-				usdcMint,
-				chProgram,
-                ZERO,
-				usdcAmount,
-				marketIndexes,
-				spotMarketIndexes,
-				oracleInfos,
-				bulkAccountLoader
-			);
+		[
+			firstUserDriftClient,
+			firstUserDriftClientWSOLAccount,
+			firstUserDriftClientUSDCAccount,
+		] = await createUserWithUSDCAndWSOLAccount(
+			bankrunContextWrapper,
+			usdcMint,
+			chProgram,
+			ZERO,
+			usdcAmount,
+			marketIndexes,
+			spotMarketIndexes,
+			oracleInfos,
+			bulkAccountLoader
+		);
 
 		const marketIndex = 0;
 		await sleep(100);
@@ -220,7 +219,6 @@ describe('spot deposit and withdraw', () => {
 		[
 			secondUserDriftClient,
 			secondUserDriftClientWSOLAccount,
-			secondUserDriftClientUSDCAccount,
 		] = await createUserWithUSDCAndWSOLAccount(
 			bankrunContextWrapper,
 			usdcMint,
@@ -254,25 +252,39 @@ describe('spot deposit and withdraw', () => {
 	});
 
 	it('Force delete', async () => {
-        await firstUserDriftClient.fetchAccounts();
-        // @ts-ignore
-        await createWSolTokenAccountForUser(bankrunContextWrapper, secondUserDriftClient.wallet, new BN(LAMPORTS_PER_SOL));
-        // @ts-ignore
-        await secondUserDriftClient.sendTransaction(await secondUserDriftClient.buildTransaction([await secondUserDriftClient.createAssociatedTokenAccountIdempotentInstruction(
-            await secondUserDriftClient.getAssociatedTokenAccount(0),
-            secondUserDriftClient.wallet.publicKey,
-            secondUserDriftClient.wallet.publicKey,
-            secondUserDriftClient.getSpotMarketAccount(0).mint
-        )]));
-        const ixs = [];
-        ixs.push(await secondUserDriftClient.getForceDeleteUserIx(
-			await firstUserDriftClient.getUserAccountPublicKey(),
-			await firstUserDriftClient.getUserAccount()
-		));
-        // @ts-ignore
-		await secondUserDriftClient.sendTransaction(await secondUserDriftClient.buildTransaction(ixs));
+		await firstUserDriftClient.fetchAccounts();
+		// @ts-ignore
+		await createWSolTokenAccountForUser(
+			bankrunContextWrapper,
+			secondUserDriftClient.wallet,
+			new BN(LAMPORTS_PER_SOL)
+		);
+		// @ts-ignore
+		await secondUserDriftClient.sendTransaction(
+			await secondUserDriftClient.buildTransaction([
+				await secondUserDriftClient.createAssociatedTokenAccountIdempotentInstruction(
+					await secondUserDriftClient.getAssociatedTokenAccount(0),
+					secondUserDriftClient.wallet.publicKey,
+					secondUserDriftClient.wallet.publicKey,
+					secondUserDriftClient.getSpotMarketAccount(0).mint
+				),
+			])
+		);
+		const ixs = [];
+		ixs.push(
+			await secondUserDriftClient.getForceDeleteUserIx(
+				await firstUserDriftClient.getUserAccountPublicKey(),
+				await firstUserDriftClient.getUserAccount()
+			)
+		);
+		// @ts-ignore
+		await secondUserDriftClient.sendTransaction(
+			await secondUserDriftClient.buildTransaction(ixs)
+		);
 
-        const accountInfo = await bankrunContextWrapper.connection.getAccountInfo(await firstUserDriftClient.getUserAccountPublicKey());
-        assert(accountInfo === null);
+		const accountInfo = await bankrunContextWrapper.connection.getAccountInfo(
+			await firstUserDriftClient.getUserAccountPublicKey()
+		);
+		assert(accountInfo === null);
 	});
 });
