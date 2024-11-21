@@ -122,7 +122,10 @@ import { findDirectionToClose, positionIsAvailable } from './math/position';
 import { getSignedTokenAmount, getTokenAmount } from './math/spotBalance';
 import { decodeName, DEFAULT_USER_NAME, encodeName } from './userName';
 import { OraclePriceData } from './oracles/types';
-import { ConnectionRotationConfig, DriftClientConfig } from './driftClientConfig';
+import {
+	ConnectionRotationConfig,
+	DriftClientConfig,
+} from './driftClientConfig';
 import { PollingDriftClientAccountSubscriber } from './accounts/pollingDriftClientAccountSubscriber';
 import { WebSocketDriftClientAccountSubscriber } from './accounts/webSocketDriftClientAccountSubscriber';
 import { RetryTxSender } from './tx/retryTxSender';
@@ -442,9 +445,12 @@ export class DriftClient {
 		this.sbOnDemandProgramdId =
 			configs[config.env ?? 'mainnet-beta'].SB_ON_DEMAND_PID;
 
-		this.connectionRotationSlotTimeoutThreshold = config.connectionRotationConfig.rotationTimeoutMs || 10_000;
+		this.connectionRotationSlotTimeoutThreshold =
+			config.connectionRotationConfig.rotationTimeoutMs || 10_000;
 		if (this.connectionRotationSlotTimeoutThreshold < 0) {
-			throw new Error('connectionRotationSlotTimeoutThreshold should be at least 10_000ms to avoid spamming connection resub');
+			throw new Error(
+				'connectionRotationSlotTimeoutThreshold should be at least 10_000ms to avoid spamming connection resub'
+			);
 		}
 		const backupConnections = config.connectionRotationConfig.backupConnections;
 		if (backupConnections?.length > 0) {
@@ -485,32 +491,38 @@ export class DriftClient {
 			const slotSubscriber = new SlotSubscriber(
 				this.allConnections[this.activeConnectionIndex],
 				{
-					resubTimeoutMs: Math.floor(this.connectionRotationSlotTimeoutThreshold / 2),
+					resubTimeoutMs: Math.floor(
+						this.connectionRotationSlotTimeoutThreshold / 2
+					),
 				}
 			);
-	
+
 			slotSubscriber.eventEmitter.on('newSlot', async (_slot) => {
 				if (this.connectionRotationTimeout) {
 					clearTimeout(this.connectionRotationTimeout);
 					this.setRotationTimeout();
 				}
 			});
-	
+
 			this.activeConnectionSlotSubscriber = slotSubscriber;
-			subscribePromises = subscribePromises.concat(this.activeConnectionSlotSubscriber.subscribe().then(
-				() => this.setRotationTimeout()
-			));
+			subscribePromises = subscribePromises.concat(
+				this.activeConnectionSlotSubscriber
+					.subscribe()
+					.then(() => this.setRotationTimeout())
+			);
 		}
 		return subscribePromises;
 	}
 
 	public async subscribe(): Promise<boolean> {
-		
 		const subscribePromises = this.assembleSubscribePromises();
 
 		if (this.allConnections.length > 1) {
 			let numAttempts = 0;
-			while (!this.isSubscribed && numAttempts < this.allConnections.length * 2) {
+			while (
+				!this.isSubscribed &&
+				numAttempts < this.allConnections.length * 2
+			) {
 				try {
 					this.isSubscribed = (await Promise.all(subscribePromises)).reduce(
 						(success, prevSuccess) => success && prevSuccess
@@ -526,7 +538,7 @@ export class DriftClient {
 				(success, prevSuccess) => success && prevSuccess
 			);
 		}
-		
+
 		return this.isSubscribed;
 	}
 
@@ -547,7 +559,8 @@ export class DriftClient {
 	public async rotateRpcConnection(): Promise<void> {
 		this.activeConnectionSlotSubscriber?.eventEmitter?.removeAllListeners();
 		this.activeConnectionSlotSubscriber?.unsubscribe();
-		this.activeConnectionIndex = (this.activeConnectionIndex + 1) % this.allConnections.length;
+		this.activeConnectionIndex =
+			(this.activeConnectionIndex + 1) % this.allConnections.length;
 		await this.unsubscribe();
 
 		// Rebuild things that use connection in the constructor
@@ -580,7 +593,9 @@ export class DriftClient {
 			);
 		}
 		if (this.activeConnectionSlotSubscriber) {
-			unsubscribePromises.push(this.activeConnectionSlotSubscriber.unsubscribe());
+			unsubscribePromises.push(
+				this.activeConnectionSlotSubscriber.unsubscribe()
+			);
 		}
 		if (this.connectionRotationTimeout) {
 			clearTimeout(this.connectionRotationTimeout);
