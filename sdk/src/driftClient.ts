@@ -2644,14 +2644,14 @@ export class DriftClient {
 		return [txSig, userAccountPublicKey];
 	}
 
-	private async getWithdrawalIxs(
+	public async getWithdrawalIxs(
 		amount: BN,
 		marketIndex: number,
 		associatedTokenAddress: PublicKey,
 		reduceOnly = false,
 		subAccountId?: number,
 		updateFuel = false
-	) {
+	): Promise<TransactionInstruction[]> {
 		const withdrawIxs: anchor.web3.TransactionInstruction[] = [];
 
 		const spotMarketAccount = this.getSpotMarketAccount(marketIndex);
