@@ -15,6 +15,7 @@ use crate::controller::token::close_vault;
 use crate::error::ErrorCode;
 use crate::ids::admin_hot_wallet;
 use crate::instructions::constraints::*;
+use crate::instructions::optional_accounts::{load_maps, AccountMaps};
 use crate::math::casting::Cast;
 use crate::math::constants::{
     DEFAULT_LIQUIDATION_MARGIN_BUFFER_RATIO, FEE_POOL_TO_REVENUE_POOL_THRESHOLD, FUEL_START_TS,
@@ -40,6 +41,7 @@ use crate::state::fulfillment_params::phoenix::PhoenixMarketContext;
 use crate::state::fulfillment_params::phoenix::PhoenixV1FulfillmentConfig;
 use crate::state::fulfillment_params::serum::SerumContext;
 use crate::state::fulfillment_params::serum::SerumV3FulfillmentConfig;
+use crate::state::high_leverage_mode_config::HighLeverageModeConfig;
 use crate::state::insurance_fund_stake::ProtocolIfSharesTransferConfig;
 use crate::state::oracle::get_sb_on_demand_price;
 use crate::state::oracle::{
@@ -52,9 +54,11 @@ use crate::state::paused_operations::{InsuranceFundOperation, PerpOperation, Spo
 use crate::state::perp_market::{
     ContractTier, ContractType, InsuranceClaim, MarketStatus, PerpMarket, PoolBalance, AMM,
 };
+use crate::state::perp_market_map::get_writable_perp_market_set;
 use crate::state::spot_market::{
     AssetTier, InsuranceFund, SpotBalanceType, SpotFulfillmentConfigStatus, SpotMarket,
 };
+use crate::state::spot_market_map::get_writable_spot_market_set;
 use crate::state::state::{ExchangeStatus, FeeStructure, OracleGuardRails, State};
 use crate::state::traits::Size;
 use crate::state::user::{User, UserStats};
@@ -800,6 +804,8 @@ pub fn handle_initialize_perp_market(
     validate_margin(
         margin_ratio_initial,
         margin_ratio_maintenance,
+        0,
+        0,
         liquidator_fee,
         max_spread,
     )?;
@@ -852,7 +858,10 @@ pub fn handle_initialize_perp_market(
         fuel_boost_position: 0,
         fuel_boost_taker: 0,
         fuel_boost_maker: 0,
-        padding: [0; 43],
+        padding1: 0,
+        high_leverage_margin_ratio_initial: 0,
+        high_leverage_margin_ratio_maintenance: 0,
+        padding: [0; 38],
         amm: AMM {
             oracle: *ctx.accounts.oracle.key,
             oracle_source,
@@ -2224,6 +2233,8 @@ pub fn handle_update_perp_market_margin_ratio(
     validate_margin(
         margin_ratio_initial,
         margin_ratio_maintenance,
+        perp_market.high_leverage_margin_ratio_initial.cast()?,
+        perp_market.high_leverage_margin_ratio_maintenance.cast()?,
         perp_market.liquidator_fee,
         perp_market.amm.max_spread,
     )?;
@@ -2242,6 +2253,48 @@ pub fn handle_update_perp_market_margin_ratio(
 
     perp_market.margin_ratio_initial = margin_ratio_initial;
     perp_market.margin_ratio_maintenance = margin_ratio_maintenance;
+    Ok(())
+}
+
+#[access_control(
+    perp_market_valid(&ctx.accounts.perp_market)
+)]
+pub fn handle_update_perp_market_high_leverage_margin_ratio(
+    ctx: Context<AdminUpdatePerpMarket>,
+    margin_ratio_initial: u16,
+    margin_ratio_maintenance: u16,
+) -> Result<()> {
+    let perp_market = &mut load_mut!(ctx.accounts.perp_market)?;
+
+    msg!(
+        "updating perp market {} margin ratio",
+        perp_market.market_index
+    );
+
+    validate_margin(
+        perp_market.margin_ratio_initial,
+        perp_market.margin_ratio_maintenance,
+        margin_ratio_initial.cast()?,
+        margin_ratio_maintenance.cast()?,
+        perp_market.liquidator_fee,
+        perp_market.amm.max_spread,
+    )?;
+
+    msg!(
+        "perp_market.high_leverage_margin_ratio_initial: {:?} -> {:?}",
+        perp_market.high_leverage_margin_ratio_initial,
+        margin_ratio_initial
+    );
+
+    msg!(
+        "perp_market.high_leverage_margin_ratio_maintenance: {:?} -> {:?}",
+        perp_market.high_leverage_margin_ratio_maintenance,
+        margin_ratio_maintenance
+    );
+
+    perp_market.high_leverage_margin_ratio_initial = margin_ratio_initial;
+    perp_market.high_leverage_margin_ratio_maintenance = margin_ratio_maintenance;
+
     Ok(())
 }
 
@@ -2397,6 +2450,8 @@ pub fn handle_update_perp_liquidation_fee(
     validate_margin(
         perp_market.margin_ratio_initial,
         perp_market.margin_ratio_maintenance,
+        perp_market.high_leverage_margin_ratio_initial.cast()?,
+        perp_market.high_leverage_margin_ratio_maintenance.cast()?,
         liquidator_fee,
         perp_market.amm.max_spread,
     )?;
@@ -4028,12 +4083,12 @@ pub fn handle_initialize_pyth_pull_oracle(
     ctx: Context<InitPythPullPriceFeed>,
     feed_id: [u8; 32],
 ) -> Result<()> {
-    let cpi_program = ctx.accounts.pyth_solana_receiver.to_account_info().clone();
+    let cpi_program = ctx.accounts.pyth_solana_receiver.to_account_info();
     let cpi_accounts = InitPriceUpdate {
-        payer: ctx.accounts.admin.to_account_info().clone(),
-        price_update_account: ctx.accounts.price_feed.to_account_info().clone(),
-        system_program: ctx.accounts.system_program.to_account_info().clone(),
-        write_authority: ctx.accounts.price_feed.to_account_info().clone(),
+        payer: ctx.accounts.admin.to_account_info(),
+        price_update_account: ctx.accounts.price_feed.to_account_info(),
+        system_program: ctx.accounts.system_program.to_account_info(),
+        write_authority: ctx.accounts.price_feed.to_account_info(),
     };
 
     let seeds = &[
@@ -4045,6 +4100,75 @@ pub fn handle_initialize_pyth_pull_oracle(
     let cpi_context = CpiContext::new_with_signer(cpi_program, cpi_accounts, signer_seeds);
 
     pyth_solana_receiver_sdk::cpi::init_price_update(cpi_context, feed_id)?;
+
+    Ok(())
+}
+
+pub fn handle_settle_expired_market<'c: 'info, 'info>(
+    ctx: Context<'_, '_, 'c, 'info, AdminUpdatePerpMarket<'info>>,
+    market_index: u16,
+) -> Result<()> {
+    let clock = Clock::get()?;
+    let _now = clock.unix_timestamp;
+    let state = &ctx.accounts.state;
+
+    let AccountMaps {
+        perp_market_map,
+        spot_market_map,
+        mut oracle_map,
+    } = load_maps(
+        &mut ctx.remaining_accounts.iter().peekable(),
+        &get_writable_perp_market_set(market_index),
+        &get_writable_spot_market_set(QUOTE_SPOT_MARKET_INDEX),
+        clock.slot,
+        Some(state.oracle_guard_rails),
+    )?;
+
+    controller::repeg::update_amm(
+        market_index,
+        &perp_market_map,
+        &mut oracle_map,
+        state,
+        &clock,
+    )?;
+
+    controller::repeg::settle_expired_market(
+        market_index,
+        &perp_market_map,
+        &mut oracle_map,
+        &spot_market_map,
+        state,
+        &clock,
+    )?;
+
+    Ok(())
+}
+
+pub fn handle_initialize_high_leverage_mode_config(
+    ctx: Context<InitializeHighLeverageModeConfig>,
+    max_users: u32,
+) -> Result<()> {
+    let mut config = ctx.accounts.high_leverage_mode_config.load_init()?;
+
+    config.max_users = max_users;
+
+    config.validate()?;
+
+    Ok(())
+}
+
+pub fn handle_update_high_leverage_mode_config(
+    ctx: Context<UpdateHighLeverageModeConfig>,
+    max_users: u32,
+    reduce_only: bool,
+) -> Result<()> {
+    let mut config = load_mut!(ctx.accounts.high_leverage_mode_config)?;
+
+    config.max_users = max_users;
+
+    config.reduce_only = reduce_only as u8;
+
+    config.validate()?;
 
     Ok(())
 }
@@ -4321,7 +4445,7 @@ pub struct AdminUpdatePerpMarket<'info> {
 #[derive(Accounts)]
 pub struct AdminUpdatePerpMarketAmmSummaryStats<'info> {
     #[account(
-        address = admin_hot_wallet::id()
+        constraint = admin.key() == admin_hot_wallet::id() || admin.key() == state.admin
     )]
     pub admin: Signer<'info>,
     pub state: Box<Account<'info, State>>,
@@ -4484,7 +4608,7 @@ pub struct AdminDisableBidAskTwapUpdate<'info> {
 #[derive(Accounts)]
 pub struct InitUserFuel<'info> {
     #[account(
-        address = admin_hot_wallet::id()
+        constraint = admin.key() == admin_hot_wallet::id() || admin.key() == state.admin
     )]
     pub admin: Signer<'info>, // todo
     pub state: Box<Account<'info, State>>,
@@ -4651,13 +4775,49 @@ pub struct UpdateOpenbookV2FulfillmentConfig<'info> {
 #[derive(Accounts)]
 #[instruction(feed_id : [u8; 32])]
 pub struct InitPythPullPriceFeed<'info> {
-    #[account(mut)]
+    #[account(
+        mut,
+        constraint = admin.key() == admin_hot_wallet::id() || admin.key() == state.admin
+    )]
     pub admin: Signer<'info>,
     pub pyth_solana_receiver: Program<'info, PythSolanaReceiver>,
     /// CHECK: This account's seeds are checked
     #[account(mut, seeds = [PTYH_PRICE_FEED_SEED_PREFIX, &feed_id], bump)]
     pub price_feed: AccountInfo<'info>,
     pub system_program: Program<'info, System>,
+    pub state: Box<Account<'info, State>>,
+}
+
+#[derive(Accounts)]
+pub struct InitializeHighLeverageModeConfig<'info> {
+    #[account(mut)]
+    pub admin: Signer<'info>,
+    #[account(
+        init,
+        seeds = [b"high_leverage_mode_config".as_ref()],
+        space = HighLeverageModeConfig::SIZE,
+        bump,
+        payer = admin
+    )]
+    pub high_leverage_mode_config: AccountLoader<'info, HighLeverageModeConfig>,
+    #[account(
+        has_one = admin
+    )]
+    pub state: Box<Account<'info, State>>,
+    pub rent: Sysvar<'info, Rent>,
+    pub system_program: Program<'info, System>,
+}
+
+#[derive(Accounts)]
+pub struct UpdateHighLeverageModeConfig<'info> {
+    #[account(mut)]
+    pub admin: Signer<'info>,
+    #[account(
+        mut,
+        seeds = [b"high_leverage_mode_config".as_ref()],
+        bump,
+    )]
+    pub high_leverage_mode_config: AccountLoader<'info, HighLeverageModeConfig>,
     #[account(
         has_one = admin
     )]

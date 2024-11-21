@@ -1,9 +1,9 @@
 use crate::error::ErrorCode::UnableToLoadOracle;
 use crate::error::{DriftResult, ErrorCode};
 use crate::ids::{
-    bonk_oracle, bonk_pull_oracle, drift_oracle_receiver_program, pepe_oracle, pepe_pull_oracle,
-    pyth_program, switchboard_program, usdc_oracle, usdc_pull_oracle, usdt_oracle,
-    usdt_pull_oracle, wen_oracle, wen_pull_oracle,
+    bonk_oracle, bonk_pull_oracle, drift_oracle_receiver_program, mew_pull_oracle, pepe_oracle,
+    pepe_pull_oracle, pyth_program, switchboard_on_demand, switchboard_program, usdc_oracle,
+    usdc_pull_oracle, usdt_oracle, usdt_pull_oracle, wen_oracle, wen_pull_oracle,
 };
 use crate::math::constants::PRICE_PRECISION_I64;
 use crate::math::oracle::{oracle_validity, OracleValidity};
@@ -28,7 +28,7 @@ pub const PYTH_1M_IDS: [Pubkey; 2] = [bonk_oracle::id(), pepe_oracle::id()];
 pub const PYTH_PULL_1M_IDS: [Pubkey; 2] = [bonk_pull_oracle::id(), pepe_pull_oracle::id()];
 
 pub const PYTH_1K_IDS: [Pubkey; 1] = [wen_oracle::id()];
-pub const PYTH_PULL_1K_IDS: [Pubkey; 1] = [wen_pull_oracle::id()];
+pub const PYTH_PULL_1K_IDS: [Pubkey; 2] = [wen_pull_oracle::id(), mew_pull_oracle::id()];
 
 pub const PYTH_STABLECOIN_IDS: [Pubkey; 2] = [usdc_oracle::id(), usdt_oracle::id()];
 pub const PYTH_PULL_STABLECOIN_IDS: [Pubkey; 2] = [usdc_pull_oracle::id(), usdt_pull_oracle::id()];
@@ -93,6 +93,14 @@ impl<'a> OracleMap<'a> {
         self.price_data.get(pubkey).safe_unwrap()
     }
 
+    pub fn get_oracle_source(&self, pubkey: &Pubkey) -> DriftResult<OracleSource> {
+        Ok(self
+            .oracles
+            .get(pubkey)
+            .ok_or(ErrorCode::OracleNotFound)?
+            .oracle_source)
+    }
+
     pub fn get_price_data_and_validity(
         &mut self,
         market_type: MarketType,
@@ -111,6 +119,7 @@ impl<'a> OracleMap<'a> {
             let oracle_validity = if let Some(oracle_validity) = self.validity.get(pubkey) {
                 *oracle_validity
             } else {
+                let oracle_source = self.get_oracle_source(pubkey)?;
                 let oracle_validity = oracle_validity(
                     market_type,
                     market_index,
@@ -118,6 +127,7 @@ impl<'a> OracleMap<'a> {
                     oracle_price_data,
                     &self.oracle_guard_rails.validity,
                     max_confidence_interval_multiplier,
+                    &oracle_source,
                     true,
                 )?;
                 self.validity.insert(*pubkey, oracle_validity);
@@ -149,6 +159,7 @@ impl<'a> OracleMap<'a> {
             oracle_price_data,
             &self.oracle_guard_rails.validity,
             max_confidence_interval_multiplier,
+            &oracle_source,
             true,
         )?;
         self.validity.insert(*pubkey, oracle_validity);

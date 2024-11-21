@@ -2,6 +2,7 @@ import { getOrderSignature, getVammNodeGenerator, NodeList } from './NodeList';
 import {
 	BASE_PRECISION,
 	BN,
+	BN_MAX,
 	convertToNumber,
 	decodeName,
 	DLOBNode,
@@ -13,7 +14,6 @@ import {
 	isOneOfVariant,
 	isOrderExpired,
 	isRestingLimitOrder,
-	isTakingOrder,
 	isTriggered,
 	isVariant,
 	MarketType,
@@ -1240,6 +1240,15 @@ export class DLOB {
 		);
 	}
 
+	/**
+	 * This will look at both the taking and resting limit asks
+	 * @param marketIndex
+	 * @param fallbackAsk
+	 * @param slot
+	 * @param marketType
+	 * @param oraclePriceData
+	 * @param filterFcn
+	 */
 	*getAsks(
 		marketIndex: number,
 		fallbackAsk: BN | undefined,
@@ -1267,33 +1276,29 @@ export class DLOB {
 			oraclePriceData,
 			slot,
 			(bestNode, currentNode, slot, oraclePriceData) => {
-				const bestNodeTaking = bestNode.order
-					? isTakingOrder(bestNode.order, slot)
-					: false;
-				const currentNodeTaking = currentNode.order
-					? isTakingOrder(currentNode.order, slot)
-					: false;
+				const bestNodePrice = bestNode.getPrice(oraclePriceData, slot) ?? ZERO;
+				const currentNodePrice =
+					currentNode.getPrice(oraclePriceData, slot) ?? ZERO;
 
-				if (bestNodeTaking && currentNodeTaking) {
+				if (bestNodePrice.eq(currentNodePrice)) {
 					return bestNode.order.slot.lt(currentNode.order.slot);
 				}
 
-				if (bestNodeTaking) {
-					return true;
-				}
-
-				if (currentNodeTaking) {
-					return false;
-				}
-
-				return bestNode
-					.getPrice(oraclePriceData, slot)
-					.lt(currentNode.getPrice(oraclePriceData, slot));
+				return bestNodePrice.lt(currentNodePrice);
 			},
 			filterFcn
 		);
 	}
 
+	/**
+	 * This will look at both the taking and resting limit bids
+	 * @param marketIndex
+	 * @param fallbackBid
+	 * @param slot
+	 * @param marketType
+	 * @param oraclePriceData
+	 * @param filterFcn
+	 */
 	*getBids(
 		marketIndex: number,
 		fallbackBid: BN | undefined,
@@ -1321,28 +1326,16 @@ export class DLOB {
 			oraclePriceData,
 			slot,
 			(bestNode, currentNode, slot, oraclePriceData) => {
-				const bestNodeTaking = bestNode.order
-					? isTakingOrder(bestNode.order, slot)
-					: false;
-				const currentNodeTaking = currentNode.order
-					? isTakingOrder(currentNode.order, slot)
-					: false;
+				const bestNodePrice =
+					bestNode.getPrice(oraclePriceData, slot) ?? BN_MAX;
+				const currentNodePrice =
+					currentNode.getPrice(oraclePriceData, slot) ?? BN_MAX;
 
-				if (bestNodeTaking && currentNodeTaking) {
+				if (bestNodePrice.eq(currentNodePrice)) {
 					return bestNode.order.slot.lt(currentNode.order.slot);
 				}
 
-				if (bestNodeTaking) {
-					return true;
-				}
-
-				if (currentNodeTaking) {
-					return false;
-				}
-
-				return bestNode
-					.getPrice(oraclePriceData, slot)
-					.gt(currentNode.getPrice(oraclePriceData, slot));
+				return bestNodePrice.gt(currentNodePrice);
 			},
 			filterFcn
 		);

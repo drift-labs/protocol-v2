@@ -6,6 +6,7 @@ wallet = "~/.config/solana/id.json"
 exclude = ["programs/openbook_v2"]
 
 [scripts]
+# to run local validator tests, use "./test-scripts/run-ts-mocha" in "test"
 test = "echo" # need to call anchor test to update metadata field in idl before running tests, so just do a noop
 lint = "yarn prettify:fix && cargo fmt"
 fulltest = 'cargo test && bash ./test-scripts/run-anchor-tests.sh'
@@ -17,3 +18,7 @@ watch_cargo = 'find ./programs/clearing_house/src/* ./tests ./sdk/src | entr -c 
 drift = "dRiftyHA39MWEi3m9aunc5MzRF1JYuBsbn6VPcn33UH"
 pyth = "FsJ3A3u2vn5cTVofAjvy6y5kwABJAqYWpe4975bi2epH"
 token_faucet = "V4v1mQiAdLz4qwckEb45WqHYceYizoib39cDBHSWfaB"
+
+[[test.validator.account]]
+address = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"
+filename = "./deps/configs/usdc.json"

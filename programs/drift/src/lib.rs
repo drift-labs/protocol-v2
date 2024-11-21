@@ -12,7 +12,7 @@ use state::oracle::OracleSource;
 
 use crate::controller::position::PositionDirection;
 use crate::state::oracle::PrelaunchOracleParams;
-use crate::state::order_params::{ModifyOrderParams, OrderParams};
+use crate::state::order_params::{ModifyOrderParams, OrderParams, RFQMatch};
 use crate::state::perp_market::{ContractTier, MarketStatus};
 use crate::state::settle_pnl_mode::SettlePnlMode;
 use crate::state::spot_market::AssetTier;
@@ -57,6 +57,26 @@ pub mod drift {
         ctx: Context<'_, '_, 'c, 'info, InitializeUserStats>,
     ) -> Result<()> {
         handle_initialize_user_stats(ctx)
+    }
+
+    pub fn initialize_rfq_user<'c: 'info, 'info>(
+        ctx: Context<'_, '_, 'c, 'info, InitializeRFQUser<'info>>,
+    ) -> Result<()> {
+        handle_initialize_rfq_user(ctx)
+    }
+
+    pub fn initialize_swift_user_orders<'c: 'info, 'info>(
+        ctx: Context<'_, '_, 'c, 'info, InitializeSwiftUserOrders<'info>>,
+        num_orders: u16,
+    ) -> Result<()> {
+        handle_initialize_swift_user_orders(ctx, num_orders)
+    }
+
+    pub fn resize_swift_user_orders<'c: 'info, 'info>(
+        ctx: Context<'_, '_, 'c, 'info, ResizeSwiftUserOrders<'info>>,
+        num_orders: u16,
+    ) -> Result<()> {
+        handle_resize_swift_user_orders(ctx, num_orders)
     }
 
     pub fn initialize_referrer_name(
@@ -148,9 +168,9 @@ pub mod drift {
     pub fn place_and_take_perp_order<'c: 'info, 'info>(
         ctx: Context<'_, '_, 'c, 'info, PlaceAndTake<'info>>,
         params: OrderParams,
-        maker_order_id: Option<u32>,
+        success_condition: Option<u32>,
     ) -> Result<()> {
-        handle_place_and_take_perp_order(ctx, params, maker_order_id)
+        handle_place_and_take_perp_order(ctx, params, success_condition)
     }
 
     pub fn place_and_make_perp_order<'c: 'info, 'info>(
@@ -159,6 +179,29 @@ pub mod drift {
         taker_order_id: u32,
     ) -> Result<()> {
         handle_place_and_make_perp_order(ctx, params, taker_order_id)
+    }
+
+    pub fn place_and_make_swift_perp_order<'c: 'info, 'info>(
+        ctx: Context<'_, '_, 'c, 'info, PlaceAndMakeSwift<'info>>,
+        params: OrderParams,
+        swift_order_uuid: [u8; 8],
+    ) -> Result<()> {
+        handle_place_and_make_swift_perp_order(ctx, params, swift_order_uuid)
+    }
+
+    pub fn place_swift_taker_order<'c: 'info, 'info>(
+        ctx: Context<'_, '_, 'c, 'info, PlaceSwiftTakerOrder<'info>>,
+        swift_message_bytes: Vec<u8>,
+        swift_order_params_message_bytes: Vec<u8>,
+    ) -> Result<()> {
+        handle_place_swift_taker_order(ctx, swift_message_bytes, swift_order_params_message_bytes)
+    }
+
+    pub fn place_and_match_rfq_orders<'c: 'info, 'info>(
+        ctx: Context<'_, '_, 'c, 'info, PlaceAndMatchRFQOrders<'info>>,
+        rfq_matches: Vec<RFQMatch>,
+    ) -> Result<()> {
+        handle_place_and_match_rfq_orders(ctx, rfq_matches)
     }
 
     pub fn place_spot_order<'c: 'info, 'info>(
@@ -306,8 +349,21 @@ pub mod drift {
         handle_delete_user(ctx)
     }
 
+    pub fn delete_swift_user_orders<'c: 'info, 'info>(
+        ctx: Context<'_, '_, 'c, 'info, DeleteSwiftUserOrders>,
+    ) -> Result<()> {
+        handle_delete_swift_user_orders(ctx)
+    }
+
     pub fn reclaim_rent(ctx: Context<ReclaimRent>) -> Result<()> {
         handle_reclaim_rent(ctx)
+    }
+
+    pub fn enable_user_high_leverage_mode<'c: 'info, 'info>(
+        ctx: Context<'_, '_, 'c, 'info, EnableUserHighLeverageMode>,
+        sub_account_id: u16,
+    ) -> Result<()> {
+        handle_enable_user_high_leverage_mode(ctx, sub_account_id)
     }
 
     // Keeper Instructions
@@ -352,6 +408,24 @@ pub mod drift {
         handle_update_user_idle(ctx)
     }
 
+    pub fn disable_user_high_leverage_mode<'c: 'info, 'info>(
+        ctx: Context<'_, '_, 'c, 'info, DisableUserHighLeverageMode<'info>>,
+    ) -> Result<()> {
+        handle_disable_user_high_leverage_mode(ctx)
+    }
+
+    pub fn update_user_fuel_bonus<'c: 'info, 'info>(
+        ctx: Context<'_, '_, 'c, 'info, UpdateUserFuelBonus<'info>>,
+    ) -> Result<()> {
+        handle_update_user_fuel_bonus(ctx)
+    }
+
+    pub fn update_user_stats_referrer_status<'c: 'info, 'info>(
+        ctx: Context<'_, '_, 'c, 'info, UpdateUserStatsReferrerInfo<'info>>,
+    ) -> Result<()> {
+        handle_update_user_stats_referrer_info(ctx)
+    }
+
     pub fn update_user_open_orders_count(ctx: Context<UpdateUserIdle>) -> Result<()> {
         handle_update_user_open_orders_count(ctx)
     }
@@ -392,7 +466,7 @@ pub mod drift {
     }
 
     pub fn settle_expired_market<'c: 'info, 'info>(
-        ctx: Context<'_, '_, 'c, 'info, UpdateAMM<'info>>,
+        ctx: Context<'_, '_, 'c, 'info, AdminUpdatePerpMarket<'info>>,
         market_index: u16,
     ) -> Result<()> {
         handle_settle_expired_market(ctx, market_index)
@@ -547,6 +621,13 @@ pub mod drift {
         ctx: Context<UpdateUserGovTokenInsuranceStake>,
     ) -> Result<()> {
         handle_update_user_gov_token_insurance_stake(ctx)
+    }
+
+    pub fn update_user_gov_token_insurance_stake_devnet(
+        ctx: Context<UpdateUserGovTokenInsuranceStakeDevnet>,
+        gov_stake_amount: u64,
+    ) -> Result<()> {
+        handle_update_user_gov_token_insurance_stake_devnet(ctx, gov_stake_amount)
     }
 
     // IF stakers
@@ -874,6 +955,18 @@ pub mod drift {
         margin_ratio_maintenance: u32,
     ) -> Result<()> {
         handle_update_perp_market_margin_ratio(ctx, margin_ratio_initial, margin_ratio_maintenance)
+    }
+
+    pub fn update_perp_market_high_leverage_margin_ratio(
+        ctx: Context<AdminUpdatePerpMarket>,
+        margin_ratio_initial: u16,
+        margin_ratio_maintenance: u16,
+    ) -> Result<()> {
+        handle_update_perp_market_high_leverage_margin_ratio(
+            ctx,
+            margin_ratio_initial,
+            margin_ratio_maintenance,
+        )
     }
 
     pub fn update_perp_market_funding_period(
@@ -1430,6 +1523,21 @@ pub mod drift {
         feed_id: [u8; 32],
     ) -> Result<()> {
         handle_initialize_pyth_pull_oracle(ctx, feed_id)
+    }
+
+    pub fn initialize_high_leverage_mode_config(
+        ctx: Context<InitializeHighLeverageModeConfig>,
+        max_users: u32,
+    ) -> Result<()> {
+        handle_initialize_high_leverage_mode_config(ctx, max_users)
+    }
+
+    pub fn update_high_leverage_mode_config(
+        ctx: Context<UpdateHighLeverageModeConfig>,
+        max_users: u32,
+        reduce_only: bool,
+    ) -> Result<()> {
+        handle_update_high_leverage_mode_config(ctx, max_users, reduce_only)
     }
 }
 

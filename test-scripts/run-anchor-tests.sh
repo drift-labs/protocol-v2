@@ -53,12 +53,14 @@ test_files=(
   perpLpRiskMitigation.ts
   phoenixTest.ts
   placeAndMakePerp.ts
+  placeAndMakeSwiftPerpBankrun.ts
   placeAndMakeSpotOrder.ts
   postOnly.ts
   prelisting.ts
   pyth.ts
   pythPull.ts
   referrer.ts
+  rfq.ts
   roundInFavorBaseAsset.ts
   serumTest.ts
   spotDepositWithdraw.ts

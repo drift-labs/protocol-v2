@@ -11,7 +11,7 @@ pub fn validate_user_deletion(
     now: i64,
 ) -> DriftResult {
     validate!(
-        !user_stats.is_referrer || user.sub_account_id != 0,
+        !user_stats.is_referrer() || user.sub_account_id != 0,
         ErrorCode::UserCantBeDeleted,
         "user id 0 cant be deleted if user is a referrer"
     )?;

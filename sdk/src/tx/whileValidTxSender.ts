@@ -1,21 +1,19 @@
-import { TxSigAndSlot } from './types';
+import { ConfirmationStrategy, TxSigAndSlot } from './types';
 import {
-	Commitment,
 	ConfirmOptions,
 	Connection,
+	SendTransactionError,
 	Signer,
 	Transaction,
 	VersionedTransaction,
 } from '@solana/web3.js';
-import { AnchorProvider } from '@coral-xyz/anchor';
 import { BaseTxSender } from './baseTxSender';
 import bs58 from 'bs58';
 import { TxHandler } from './txHandler';
 import { IWallet } from '../types';
+import { DEFAULT_CONFIRMATION_OPTS } from '../config';
 
 const DEFAULT_RETRY = 2000;
-
-const VALID_BLOCK_HEIGHT_OFFSET = -150; // This is a bit of weirdness but the lastValidBlockHeight value returned from connection.getLatestBlockhash is always 300 blocks ahead of the current block, even though the transaction actually expires after 150 blocks. This accounts for that so that we can at least accuractely estimate the transaction expiry.
 
 type ResolveReference = {
 	resolve?: () => void;
@@ -33,20 +31,44 @@ export class WhileValidTxSender extends BaseTxSender {
 		string,
 		{ blockhash: string; lastValidBlockHeight: number }
 	>();
-	blockhashCommitment: Commitment;
+
+	useBlockHeightOffset = true;
+
+	private async checkAndSetUseBlockHeightOffset() {
+		this.connection.getVersion().then((version) => {
+			const solanaCoreVersion = version['solana-core'];
+
+			if (!solanaCoreVersion) return;
+
+			const majorVersion = solanaCoreVersion.split('.')[0];
+
+			if (!majorVersion) return;
+
+			const parsedMajorVersion = parseInt(majorVersion);
+
+			if (isNaN(parsedMajorVersion)) return;
+
+			if (parsedMajorVersion >= 2) {
+				this.useBlockHeightOffset = false;
+			} else {
+				this.useBlockHeightOffset = true;
+			}
+		});
+	}
 
 	public constructor({
 		connection,
 		wallet,
-		opts = { ...AnchorProvider.defaultOptions(), maxRetries: 0 },
+		opts = { ...DEFAULT_CONFIRMATION_OPTS, maxRetries: 0 },
 		retrySleep = DEFAULT_RETRY,
 		additionalConnections = new Array<Connection>(),
+		confirmationStrategy = ConfirmationStrategy.Combo,
 		additionalTxSenderCallbacks = [],
-		blockhashCommitment = 'finalized',
 		txHandler,
 		trackTxLandRate,
 		txLandRateLookbackWindowMinutes,
 		landRateToFeeFunc,
+		throwOnTimeoutError = true,
 	}: {
 		connection: Connection;
 		wallet: IWallet;
@@ -54,11 +76,12 @@ export class WhileValidTxSender extends BaseTxSender {
 		retrySleep?: number;
 		additionalConnections?;
 		additionalTxSenderCallbacks?: ((base58EncodedTx: string) => void)[];
-		blockhashCommitment?: Commitment;
+		confirmationStrategy?: ConfirmationStrategy;
 		txHandler?: TxHandler;
 		trackTxLandRate?: boolean;
 		txLandRateLookbackWindowMinutes?: number;
 		landRateToFeeFunc?: (landRate: number) => number;
+		throwOnTimeoutError?: boolean;
 	}) {
 		super({
 			connection,
@@ -69,10 +92,13 @@ export class WhileValidTxSender extends BaseTxSender {
 			txHandler,
 			trackTxLandRate,
 			txLandRateLookbackWindowMinutes,
+			confirmationStrategy,
 			landRateToFeeFunc,
+			throwOnTimeoutError,
 		});
 		this.retrySleep = retrySleep;
-		this.blockhashCommitment = blockhashCommitment;
+
+		this.checkAndSetUseBlockHeightOffset();
 	}
 
 	async sleep(reference: ResolveReference): Promise<void> {
@@ -113,7 +139,7 @@ export class WhileValidTxSender extends BaseTxSender {
 
 		// handle subclass-specific side effects
 		const txSig = bs58.encode(
-			signedTx.signatures[0]?.signature || signedTx.signatures[0]
+			signedTx?.signature || signedTx.signatures[0]?.signature
 		);
 		this.untilValid.set(txSig, latestBlockhash);
 
@@ -208,20 +234,22 @@ export class WhileValidTxSender extends BaseTxSender {
 
 		let slot: number;
 		try {
-			const { blockhash, lastValidBlockHeight } = this.untilValid.get(txid);
-			const result = await this.connection.confirmTransaction(
-				{
-					signature: txid,
-					lastValidBlockHeight:
-						lastValidBlockHeight + VALID_BLOCK_HEIGHT_OFFSET,
-					blockhash,
-				},
-				opts.commitment
-			);
-			this.txSigCache?.set(txid, true);
-			await this.checkConfirmationResultForError(txid, result);
+			const result = await this.confirmTransaction(txid, opts.commitment);
 
-			slot = result.context.slot;
+			this.txSigCache?.set(txid, true);
+
+			await this.checkConfirmationResultForError(txid, result?.value);
+
+			if (result?.value?.err) {
+				// Fallback error handling if there's a problem reporting the error in checkConfirmationResultForError
+				throw new SendTransactionError({
+					action: 'send',
+					signature: txid,
+					transactionMessage: `Transaction Failed`,
+				});
+			}
+
+			slot = result?.context?.slot;
 			// eslint-disable-next-line no-useless-catch
 		} catch (e) {
 			throw e;

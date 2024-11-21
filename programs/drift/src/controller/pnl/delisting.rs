@@ -189,7 +189,7 @@ pub mod delisting_test {
         );
         let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
 
-        // net users are short
+        // net users are long
         let mut market = PerpMarket {
             amm: AMM {
                 base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
@@ -2345,6 +2345,7 @@ pub mod delisting_test {
                     MarginRequirementType::Initial,
                     0,
                     false,
+                    false,
                 )
                 .unwrap();
 
@@ -2423,6 +2424,7 @@ pub mod delisting_test {
                         &strict_quote_price,
                         MarginRequirementType::Initial,
                         0,
+                        false,
                         false,
                     )
                     .unwrap();
@@ -2510,6 +2512,7 @@ pub mod delisting_test {
                         &strict_quote_price,
                         MarginRequirementType::Initial,
                         0,
+                        false,
                         false,
                     )
                     .unwrap();
@@ -2601,6 +2604,7 @@ pub mod delisting_test {
                         &strict_quote_price,
                         MarginRequirementType::Initial,
                         0,
+                        false,
                         false,
                     )
                     .unwrap();

@@ -9,7 +9,7 @@ use crate::math::casting::Cast;
 use crate::math::constants::BID_ASK_SPREAD_PRECISION;
 use crate::math::safe_math::SafeMath;
 
-use crate::state::oracle::OraclePriceData;
+use crate::state::oracle::{OraclePriceData, OracleSource};
 use crate::state::paused_operations::PerpOperation;
 use crate::state::perp_market::PerpMarket;
 use crate::state::state::{OracleGuardRails, ValidityGuardRails};
@@ -189,6 +189,7 @@ pub fn get_oracle_status(
         oracle_price_data,
         &guard_rails.validity,
         market.get_max_confidence_interval_multiplier()?,
+        &market.amm.oracle_source,
         false,
     )?;
     let oracle_reserve_price_spread_pct =
@@ -213,6 +214,7 @@ pub fn oracle_validity(
     oracle_price_data: &OraclePriceData,
     valid_oracle_guard_rails: &ValidityGuardRails,
     max_confidence_interval_multiplier: u64,
+    oracle_source: &OracleSource,
     log_validity: bool,
 ) -> DriftResult<OracleValidity> {
     let OraclePriceData {
@@ -239,8 +241,17 @@ pub fn oracle_validity(
         .safe_mul(max_confidence_interval_multiplier)?);
 
     let is_stale_for_amm = oracle_delay.gt(&valid_oracle_guard_rails.slots_before_stale_for_amm);
-    let is_stale_for_margin =
-        oracle_delay.gt(&valid_oracle_guard_rails.slots_before_stale_for_margin);
+
+    let is_stale_for_margin = if matches!(
+        oracle_source,
+        OracleSource::PythStableCoinPull | OracleSource::PythStableCoin
+    ) {
+        oracle_delay.gt(&(valid_oracle_guard_rails
+            .slots_before_stale_for_margin
+            .saturating_mul(3)))
+    } else {
+        oracle_delay.gt(&valid_oracle_guard_rails.slots_before_stale_for_margin)
+    };
 
     let oracle_validity = if is_oracle_price_nonpositive {
         OracleValidity::NonPositive

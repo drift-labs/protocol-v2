@@ -1,5 +1,6 @@
 use anchor_lang::prelude::*;
 
+use crate::state::state::State;
 use std::cmp::max;
 
 use crate::controller::position::{PositionDelta, PositionDirection};
@@ -146,6 +147,13 @@ impl AMMLiquiditySplit {
     }
 }
 
+#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Debug, Eq, PartialOrd, Ord)]
+pub enum AMMAvailability {
+    Immediate,
+    AfterMinDuration,
+    Unavailable,
+}
+
 #[account(zero_copy(unsafe))]
 #[derive(Eq, PartialEq, Debug)]
 #[repr(C)]
@@ -233,7 +241,10 @@ pub struct PerpMarket {
     /// fuel multiplier for perp maker
     /// precision: 10
     pub fuel_boost_maker: u8,
-    pub padding: [u8; 43],
+    pub padding1: u8,
+    pub high_leverage_margin_ratio_initial: u16,
+    pub high_leverage_margin_ratio_maintenance: u16,
+    pub padding: [u8; 38],
 }
 
 impl Default for PerpMarket {
@@ -270,7 +281,10 @@ impl Default for PerpMarket {
             fuel_boost_position: 0,
             fuel_boost_taker: 0,
             fuel_boost_maker: 0,
-            padding: [0; 43],
+            padding1: 0,
+            high_leverage_margin_ratio_initial: 0,
+            high_leverage_margin_ratio_maintenance: 0,
+            padding: [0; 38],
         }
     }
 }
@@ -299,6 +313,32 @@ impl PerpMarket {
 
     pub fn is_operation_paused(&self, operation: PerpOperation) -> bool {
         PerpOperation::is_operation_paused(self.paused_operations, operation)
+    }
+
+    pub fn can_skip_auction_duration(
+        &self,
+        state: &State,
+        amm_lp_allowed_to_jit_make: bool,
+    ) -> DriftResult<bool> {
+        if state.amm_immediate_fill_paused()? {
+            return Ok(false);
+        }
+
+        let amm_low_inventory_and_profitable =
+            self.amm.net_revenue_since_last_funding > 0 && amm_lp_allowed_to_jit_make;
+        let amm_oracle_no_latency = self.amm.oracle_source == OracleSource::Prelaunch;
+        let can_skip = amm_low_inventory_and_profitable || amm_oracle_no_latency;
+
+        if can_skip {
+            msg!("market {} amm skipping auction duration", self.market_index);
+            crate::dlog!(
+                self.amm.net_revenue_since_last_funding,
+                amm_lp_allowed_to_jit_make
+            );
+            crate::dlog!(amm_low_inventory_and_profitable, amm_oracle_no_latency);
+        }
+
+        Ok(can_skip)
     }
 
     pub fn has_too_much_drawdown(&self) -> DriftResult<bool> {
@@ -388,23 +428,37 @@ impl PerpMarket {
         }
     }
 
+    pub fn is_high_leverage_mode_enabled(&self) -> bool {
+        self.high_leverage_margin_ratio_initial > 0
+            && self.high_leverage_margin_ratio_maintenance > 0
+    }
+
     pub fn get_margin_ratio(
         &self,
         size: u128,
         margin_type: MarginRequirementType,
+        user_high_leverage_mode: bool,
     ) -> DriftResult<u32> {
         if self.status == MarketStatus::Settlement {
             return Ok(0); // no liability weight on size
         }
 
+        let (margin_ratio_initial, margin_ratio_maintenance) =
+            if user_high_leverage_mode && self.is_high_leverage_mode_enabled() {
+                (
+                    self.high_leverage_margin_ratio_initial.cast::<u32>()?,
+                    self.high_leverage_margin_ratio_maintenance.cast::<u32>()?,
+                )
+            } else {
+                (self.margin_ratio_initial, self.margin_ratio_maintenance)
+            };
+
         let default_margin_ratio = match margin_type {
-            MarginRequirementType::Initial => self.margin_ratio_initial,
+            MarginRequirementType::Initial => margin_ratio_initial,
             MarginRequirementType::Fill => {
-                self.margin_ratio_initial
-                    .safe_add(self.margin_ratio_maintenance)?
-                    / 2
+                margin_ratio_initial.safe_add(margin_ratio_maintenance)? / 2
             }
-            MarginRequirementType::Maintenance => self.margin_ratio_maintenance,
+            MarginRequirementType::Maintenance => margin_ratio_maintenance,
         };
 
         let size_adj_margin_ratio = calculate_size_premium_liability_weight(
@@ -422,8 +476,8 @@ impl PerpMarket {
     pub fn get_max_liquidation_fee(&self) -> DriftResult<u32> {
         let max_liquidation_fee = (self.liquidator_fee.safe_mul(MAX_LIQUIDATION_MULTIPLIER)?).min(
             self.margin_ratio_maintenance
-                .safe_mul(LIQUIDATION_FEE_PRECISION)?
-                .safe_div(MARGIN_PRECISION)?,
+                .safe_mul(LIQUIDATION_FEE_PRECISION / MARGIN_PRECISION)
+                .unwrap_or(u32::MAX),
         );
         Ok(max_liquidation_fee)
     }

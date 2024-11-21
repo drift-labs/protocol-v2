@@ -72,6 +72,32 @@ export function getUserStatsAccountPublicKey(
 	)[0];
 }
 
+export function getRFQUserAccountPublicKey(
+	programId: PublicKey,
+	userAccountPublicKey: PublicKey
+): PublicKey {
+	return PublicKey.findProgramAddressSync(
+		[
+			Buffer.from(anchor.utils.bytes.utf8.encode('RFQ')),
+			userAccountPublicKey.toBuffer(),
+		],
+		programId
+	)[0];
+}
+
+export function getSwiftUserAccountPublicKey(
+	programId: PublicKey,
+	userAccountPublicKey: PublicKey
+): PublicKey {
+	return PublicKey.findProgramAddressSync(
+		[
+			Buffer.from(anchor.utils.bytes.utf8.encode('SWIFT')),
+			userAccountPublicKey.toBuffer(),
+		],
+		programId
+	)[0];
+}
+
 export async function getPerpMarketPublicKey(
 	programId: PublicKey,
 	marketIndex: number
@@ -87,6 +113,19 @@ export async function getPerpMarketPublicKey(
 	)[0];
 }
 
+export function getPerpMarketPublicKeySync(
+	programId: PublicKey,
+	marketIndex: number
+): PublicKey {
+	return PublicKey.findProgramAddressSync(
+		[
+			Buffer.from(anchor.utils.bytes.utf8.encode('perp_market')),
+			new anchor.BN(marketIndex).toArrayLike(Buffer, 'le', 2),
+		],
+		programId
+	)[0];
+}
+
 export async function getSpotMarketPublicKey(
 	programId: PublicKey,
 	marketIndex: number
@@ -99,6 +138,19 @@ export async function getSpotMarketPublicKey(
 			],
 			programId
 		)
+	)[0];
+}
+
+export function getSpotMarketPublicKeySync(
+	programId: PublicKey,
+	marketIndex: number
+): PublicKey {
+	return PublicKey.findProgramAddressSync(
+		[
+			Buffer.from(anchor.utils.bytes.utf8.encode('spot_market')),
+			new anchor.BN(marketIndex).toArrayLike(Buffer, 'le', 2),
+		],
+		programId
 	)[0];
 }
 
@@ -273,4 +325,13 @@ export function getTokenProgramForSpotMarket(
 		return TOKEN_2022_PROGRAM_ID;
 	}
 	return TOKEN_PROGRAM_ID;
+}
+
+export function getHighLeverageModeConfigPublicKey(
+	programId: PublicKey
+): PublicKey {
+	return PublicKey.findProgramAddressSync(
+		[Buffer.from(anchor.utils.bytes.utf8.encode('high_leverage_mode_config'))],
+		programId
+	)[0];
 }

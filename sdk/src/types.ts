@@ -1,4 +1,9 @@
-import { PublicKey, Transaction, VersionedTransaction } from '@solana/web3.js';
+import {
+	Keypair,
+	PublicKey,
+	Transaction,
+	VersionedTransaction,
+} from '@solana/web3.js';
 import { BN, ZERO } from '.';
 
 // Utility type which lets you denote record with values of type A mapped to a record with the same keys but values of type B
@@ -17,7 +22,8 @@ export enum ExchangeStatus {
 	LIQ_PAUSED = 16,
 	FUNDING_PAUSED = 32,
 	SETTLE_PNL_PAUSED = 64,
-	PAUSED = 127,
+	AMM_IMMEDIATE_FILL_PAUSED = 128,
+	PAUSED = 255,
 }
 
 export class MarketStatus {
@@ -61,6 +67,11 @@ export enum UserStatus {
 	BANKRUPT = 2,
 	REDUCE_ONLY = 4,
 	ADVANCED_LP = 8,
+}
+
+export class MarginMode {
+	static readonly DEFAULT = { default: {} };
+	static readonly HIGH_LEVERAGE = { highLeverage: {} };
 }
 
 export class ContractType {
@@ -191,6 +202,9 @@ export class OrderActionExplanation {
 	};
 	static readonly ORDER_FILLED_WITH_SERUM = {
 		orderFillWithSerum: {},
+	};
+	static readonly ORDER_FILLED_WITH_OPENBOOK_V2 = {
+		orderFilledWithOpenbookV2: {},
 	};
 	static readonly ORDER_FILLED_WITH_PHOENIX = {
 		orderFillWithPhoenix: {},
@@ -528,6 +542,16 @@ export type SettlePnlRecord = {
 	explanation: SettlePnlExplanation;
 };
 
+export type SwiftOrderRecord = {
+	ts: BN;
+	user: PublicKey;
+	hash: string;
+	matchingOrderParams: OrderParams;
+	swiftOrderMaxSlot: BN;
+	swiftOrderUuid: Uint8Array;
+	userOrderId: number;
+};
+
 export type OrderRecord = {
 	ts: BN;
 	user: PublicKey;
@@ -653,6 +677,9 @@ export type PerpMarketAccount = {
 	fuelBoostTaker: number;
 	fuelBoostMaker: number;
 	fuelBoostPosition: number;
+
+	highLeverageMarginRatioInitial: number;
+	highLeverageMarginRatioMaintenance: number;
 };
 
 export type HistoricalOracleData = {
@@ -898,7 +925,7 @@ export type UserStatsAccount = {
 		current_epoch_referrer_reward: BN;
 	};
 	referrer: PublicKey;
-	isReferrer: boolean;
+	referrerStatus: number;
 	authority: PublicKey;
 	ifStakedQuoteAssetAmount: BN;
 
@@ -942,6 +969,7 @@ export type UserAccount = {
 	openAuctions: number;
 	hasOpenAuction: boolean;
 	lastFuelBonusUpdateTs: number;
+	marginMode: MarginMode;
 };
 
 export type SpotPosition = {
@@ -1048,6 +1076,47 @@ export const DefaultOrderParams: OrderParams = {
 	auctionEndPrice: null,
 };
 
+export type SwiftServerMessage = {
+	slot: BN;
+	swiftOrderSignature: Uint8Array;
+	uuid: Uint8Array; // From buffer of standard UUID string
+};
+
+export type SwiftOrderParamsMessage = {
+	swiftOrderParams: OptionalOrderParams;
+	subAccountId: number;
+	takeProfitOrderParams: SwiftTriggerOrderParams | null;
+	stopLossOrderParams: SwiftTriggerOrderParams | null;
+};
+
+export type SwiftTriggerOrderParams = {
+	triggerPrice: BN;
+	baseAssetAmount: BN;
+};
+
+export type RFQMakerOrderParams = {
+	uuid: Uint8Array; // From buffer of standard UUID string
+	authority: PublicKey;
+	subAccountId: number;
+	marketIndex: number;
+	marketType: MarketType;
+	baseAssetAmount: BN;
+	price: BN;
+	direction: PositionDirection;
+	maxTs: BN;
+};
+
+export type RFQMakerMessage = {
+	orderParams: RFQMakerOrderParams;
+	signature: Uint8Array;
+};
+
+export type RFQMatch = {
+	baseAssetAmount: BN;
+	makerOrderParams: RFQMakerOrderParams;
+	makerSignature: Uint8Array;
+};
+
 export type MakerInfo = {
 	maker: PublicKey;
 	makerStats: PublicKey;
@@ -1066,6 +1135,16 @@ export type ReferrerInfo = {
 	referrer: PublicKey;
 	referrerStats: PublicKey;
 };
+
+export enum ReferrerStatus {
+	IsReferrer = 1,
+	IsReferred = 2,
+}
+
+export enum PlaceAndTakeOrderSuccessCondition {
+	PartialFill = 1,
+	FullFill = 2,
+}
 
 type ExactType<T> = Pick<T, keyof T>;
 
@@ -1094,6 +1173,7 @@ export interface IWallet {
 	signTransaction(tx: Transaction): Promise<Transaction>;
 	signAllTransactions(txs: Transaction[]): Promise<Transaction[]>;
 	publicKey: PublicKey;
+	payer?: Keypair;
 }
 export interface IVersionedWallet {
 	signVersionedTransaction(
@@ -1103,6 +1183,7 @@ export interface IVersionedWallet {
 		txs: VersionedTransaction[]
 	): Promise<VersionedTransaction[]>;
 	publicKey: PublicKey;
+	payer?: Keypair;
 }
 
 export type FeeStructure = {
@@ -1267,4 +1348,10 @@ export type SignedTxData = {
 	signedTx: Transaction | VersionedTransaction;
 	lastValidBlockHeight?: number;
 	blockHash: string;
+};
+
+export type HighLeverageModeConfig = {
+	maxUsers: number;
+	currentUsers: number;
+	reduceOnly: boolean;
 };

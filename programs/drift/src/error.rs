@@ -575,6 +575,40 @@ pub enum ErrorCode {
     LiquidationOrderFailedToFill,
     #[msg("Invalid prediction market order")]
     InvalidPredictionMarketOrder,
+    #[msg("Ed25519 Ix must be before place and make swift order ix")]
+    InvalidVerificationIxIndex,
+    #[msg("Swift message verificaiton failed")]
+    SigVerificationFailed,
+    #[msg("Market index mismatched b/w taker and maker swift order params")]
+    MismatchedSwiftOrderParamsMarketIndex,
+    #[msg("Swift only available for market/oracle perp orders")]
+    InvalidSwiftOrderParam,
+    #[msg("Place and take order success condition failed")]
+    PlaceAndTakeOrderSuccessConditionFailed,
+    #[msg("Invalid High Leverage Mode Config")]
+    InvalidHighLeverageModeConfig,
+    #[msg("Invalid RFQ User Account")]
+    InvalidRFQUserAccount,
+    #[msg("RFQUserAccount should be mutable")]
+    RFQUserAccountWrongMutability,
+    #[msg("RFQUserAccount has too many active RFQs")]
+    RFQUserAccountFull,
+    #[msg("RFQ order not filled as expected")]
+    RFQOrderNotFilled,
+    #[msg("RFQ orders must be jit makers")]
+    InvalidRFQOrder,
+    #[msg("RFQ matches must be valid")]
+    InvalidRFQMatch,
+    #[msg("Invalid swift user account")]
+    InvalidSwiftUserAccount,
+    #[msg("Swift account wrong mutability")]
+    SwiftUserAccountWrongMutability,
+    #[msg("SwiftUserAccount has too many active orders")]
+    SwiftUserOrdersAccountFull,
+    #[msg("Order with swift uuid does not exist")]
+    SwiftOrderDoesNotExist,
+    #[msg("Swift order id cannot be 0s")]
+    InvalidSwiftOrderId,
 }
 
 #[macro_export]

@@ -4,11 +4,22 @@ use anchor_lang::program;
 use anchor_lang::AnchorDeserialize;
 use solana_program::pubkey::Pubkey;
 
+#[cfg(feature = "mainnet-beta")]
 declare_id!("SBondMDrcV3K4kxZR1HNVT7osZxAHVHgYXL5Ze1oMUv");
+#[cfg(not(feature = "mainnet-beta"))]
+declare_id!("Aio4gaXjXzJNVLtzwtNVmSqGKpANtXhybbkhtAC94ji2");
 
 #[program]
 pub mod switchboard_on_demand {}
 pub const SB_ON_DEMAND_PRECISION: u32 = 18;
+
+#[repr(C)]
+#[derive(Clone, Copy, Debug, bytemuck::Pod, bytemuck::Zeroable)]
+pub struct CompactResult {
+    pub std_dev: f32,
+    pub mean: f32,
+    pub slot: u64,
+}
 
 #[repr(C)]
 #[derive(Clone, Copy, Debug, bytemuck::Pod, bytemuck::Zeroable)]
@@ -25,7 +36,11 @@ pub struct CurrentResult {
     pub min_value: i128,
     /// The maximum value of the submissions needed for quorom size
     pub max_value: i128,
-    pub padding1: [u8; 8],
+    /// The number of samples used to calculate this result
+    pub num_samples: u8,
+    /// The index of the submission that was used to calculate this result
+    pub submission_idx: u8,
+    pub padding1: [u8; 6],
     /// The slot at which this value was signed.
     pub slot: u64,
     /// The slot at which the first considered submission was made
@@ -111,7 +126,8 @@ pub struct OracleSubmission {
     pub oracle: Pubkey,
     /// The slot at which this value was signed.
     pub slot: u64,
-    padding1: [u8; 8],
+    /// The slot at which this value was landed on chain.
+    pub landed_at: u64,
     /// The value that was submitted.
     pub value: i128,
 }
@@ -147,17 +163,19 @@ pub struct PullFeedAccountData {
     pub max_variance: u64,
     pub min_responses: u32,
     pub name: [u8; 32],
-    _padding1: [u8; 3],
-    pub sample_size: u8,
+    _padding1: [u8; 2],
+    pub historical_result_idx: u8,
+    pub min_sample_size: u8,
     pub last_update_timestamp: i64,
     pub lut_slot: u64,
-    pub ipfs_hash: [u8; 32], // deprecated
+    _reserved1: [u8; 32], // deprecated
     pub result: CurrentResult,
     pub max_staleness: u32,
-    _ebuf4: [u8; 20],
+    _padding2: [u8; 12],
+    pub historical_results: [CompactResult; 32],
+    _ebuf4: [u8; 8],
     _ebuf3: [u8; 24],
     _ebuf2: [u8; 256],
-    _ebuf1: [u8; 512],
 }
 
 impl PullFeedAccountData {
@@ -166,7 +184,7 @@ impl PullFeedAccountData {
     }
 
     /// The median value of the submissions needed for quorom size
-    pub fn value(&self) -> Option<i128> {
+    pub fn median_value(&self) -> Option<i128> {
         self.result.value()
     }
 
@@ -193,5 +211,24 @@ impl PullFeedAccountData {
     /// The maximum value of the submissions needed for quorom size
     pub fn max_value(&self) -> Option<i128> {
         self.result.max_value()
+    }
+
+    pub fn median_result_land_slot(&self) -> u64 {
+        let submission: OracleSubmission = self.submissions[self.result.submission_idx as usize];
+        submission.landed_at
+    }
+
+    pub fn latest_submissions(&self) -> Vec<OracleSubmission> {
+        let max_landed_at = self
+            .submissions
+            .iter()
+            .map(|s| s.landed_at)
+            .max()
+            .unwrap_or(0);
+        self.submissions
+            .iter()
+            .filter(|submission| submission.landed_at == max_landed_at)
+            .cloned()
+            .collect()
     }
 }
