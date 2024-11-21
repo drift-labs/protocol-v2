@@ -445,15 +445,16 @@ export class DriftClient {
 		this.sbOnDemandProgramdId =
 			configs[config.env ?? 'mainnet-beta'].SB_ON_DEMAND_PID;
 
-		this.connectionRotationSlotTimeoutThreshold =
-			config.connectionRotationConfig.rotationTimeoutMs || 10_000;
-		if (this.connectionRotationSlotTimeoutThreshold < 0) {
-			throw new Error(
-				'connectionRotationSlotTimeoutThreshold should be at least 10_000ms to avoid spamming connection resub'
-			);
-		}
-		const backupConnections = config.connectionRotationConfig.backupConnections;
+		const backupConnections = config.connectionRotationConfig?.backupConnections;
 		if (backupConnections?.length > 0) {
+			this.connectionRotationSlotTimeoutThreshold =
+				config.connectionRotationConfig?.rotationTimeoutMs || 10_000;
+			if (this.connectionRotationSlotTimeoutThreshold < 10_000) {
+				throw new Error(
+					'connectionRotationSlotTimeoutThreshold should be at least 10_000ms to avoid spamming connection resub'
+				);
+			}
+
 			this.allConnections = [this.connection, ...backupConnections];
 		}
 	}
