@@ -40,7 +40,9 @@ export class SlotSubscriber {
 			return;
 		}
 
-		this.currentSlot = await this.connection.getSlot('confirmed');
+		if (this.currentSlot === undefined) {
+			this.currentSlot = await this.connection.getSlot('confirmed');
+		}
 
 		this.subscriptionId = this.connection.onSlotChange((slotInfo) => {
 			if (!this.currentSlot || this.currentSlot < slotInfo.slot) {
