@@ -445,7 +445,8 @@ export class DriftClient {
 		this.sbOnDemandProgramdId =
 			configs[config.env ?? 'mainnet-beta'].SB_ON_DEMAND_PID;
 
-		const backupConnections = config.connectionRotationConfig?.backupConnections;
+		const backupConnections =
+			config.connectionRotationConfig?.backupConnections;
 		if (backupConnections?.length > 0) {
 			this.connectionRotationSlotTimeoutThreshold =
 				config.connectionRotationConfig?.rotationTimeoutMs || 10_000;
