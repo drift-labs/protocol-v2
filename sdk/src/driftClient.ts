@@ -2644,14 +2644,14 @@ export class DriftClient {
 		return [txSig, userAccountPublicKey];
 	}
 
-	private async getWithdrawalIxs(
+	public async getWithdrawalIxs(
 		amount: BN,
 		marketIndex: number,
 		associatedTokenAddress: PublicKey,
 		reduceOnly = false,
 		subAccountId?: number,
 		updateFuel = false
-	) {
+	): Promise<TransactionInstruction[]> {
 		const withdrawIxs: anchor.web3.TransactionInstruction[] = [];
 
 		const spotMarketAccount = this.getSpotMarketAccount(marketIndex);
@@ -5305,7 +5305,8 @@ export class DriftClient {
 		subAccountId?: number,
 		cancelExistingOrders?: boolean,
 		settlePnl?: boolean,
-		exitEarlyIfSimFails?: boolean
+		exitEarlyIfSimFails?: boolean,
+		auctionDurationPercentage?: number
 	): Promise<{
 		placeAndTakeTx: Transaction | VersionedTransaction;
 		cancelExistingOrdersTx: Transaction | VersionedTransaction;
@@ -5333,7 +5334,7 @@ export class DriftClient {
 				makerInfo,
 				referrerInfo,
 				undefined,
-				undefined,
+				auctionDurationPercentage,
 				subAccountId
 			);
 

@@ -1002,7 +1002,7 @@ export const MainnetPerpMarkets: PerpMarketConfig[] = [
 		symbol: 'PNUT-PERP',
 		baseAssetSymbol: 'PNUT',
 		marketIndex: 55,
-		oracle: new PublicKey('5RgXW13Kq1RgCLEsJhhchWt3W4R2XLJnd6KqgZk6dSY7'),
+		oracle: new PublicKey('5AcetMtdRHxkse2ny44NcRdsysnXu9deW7Yy5Y63qAHE'),
 		launchTs: 1731443152000,
 		oracleSource: OracleSource.PYTH_PULL,
 		pythFeedId:

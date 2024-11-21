@@ -2957,11 +2957,24 @@ export class User {
 		const inTokenAmount = this.getTokenAmount(inMarketIndex);
 		const outTokenAmount = this.getTokenAmount(outMarketIndex);
 
+		const inAssetWeight = calculateAssetWeight(
+			inTokenAmount,
+			inOraclePriceData.price,
+			inMarket,
+			'Initial'
+		);
+		const outAssetWeight = calculateAssetWeight(
+			outTokenAmount,
+			outOraclePriceData.price,
+			outMarket,
+			'Initial'
+		);
+
 		const outSaferThanIn =
 			// selling asset to close borrow
 			(inTokenAmount.gt(ZERO) && outTokenAmount.lt(ZERO)) ||
 			// buying asset with higher initial asset weight
-			inMarket.initialAssetWeight < outMarket.initialAssetWeight;
+			inAssetWeight.lt(outAssetWeight);
 
 		if (freeCollateral.lt(PRICE_PRECISION.divn(100))) {
 			if (outSaferThanIn && inTokenAmount.gt(ZERO)) {

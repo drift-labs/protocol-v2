@@ -11,6 +11,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixes
 
+- program: skip validate_post_only_order if amm paused ([#1202](https://github.com/drift-labs/protocol-v2/pull/1202))
+
+### Breaking
+
+## [2.101.0] - 2024-11-15
+
+### Features
+
+- program: upgrade switchboard on demand oracles ([#1329](https://github.com/drift-labs/protocol-v2/pull/1329))
+
+### Fixes
+
 ### Breaking
 
 ## [2.100.0] - 2024-11-14
