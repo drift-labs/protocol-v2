@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixes
 
+- program: can update k looks at min order size ([#1338](https://github.com/drift-labs/protocol-v2/pull/1338))
 - program: skip validate_post_only_order if amm paused ([#1202](https://github.com/drift-labs/protocol-v2/pull/1202))
 
 ### Breaking
