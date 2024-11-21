@@ -28,7 +28,7 @@ use crate::math::safe_math::SafeMath;
 use crate::math::spot_withdraw::validate_spot_market_vault_amount;
 use crate::math_error;
 use crate::optional_accounts::{get_token_mint, update_prelaunch_oracle};
-use crate::state::events::{OrderActionExplanation, SwiftOrderRecord};
+use crate::state::events::{DeleteUserRecord, OrderActionExplanation, SwiftOrderRecord};
 use crate::state::fill_mode::FillMode;
 use crate::state::fulfillment_params::drift::MatchFulfillmentParams;
 use crate::state::fulfillment_params::openbook_v2::OpenbookV2FulfillmentParams;
@@ -2308,6 +2308,15 @@ pub fn handle_force_delete_user<'c: 'info, 'info>(
 
     let state = &mut ctx.accounts.state;
     safe_decrement!(state.number_of_sub_accounts, 1);
+
+    // todo emit record
+    emit!(DeleteUserRecord {
+        ts: now,
+        user_authority: *ctx.accounts.authority.key,
+        user: user_key,
+        sub_account_id: user.sub_account_id,
+        keeper: Some(*ctx.accounts.keeper.key),
+    });
 
     Ok(())
 }
