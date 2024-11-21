@@ -2135,6 +2135,15 @@ pub fn handle_disable_user_high_leverage_mode<'c: 'info, 'info>(
 pub fn handle_force_delete_user<'c: 'info, 'info>(
     ctx: Context<'_, '_, 'c, 'info, ForceDeleteUser<'info>>,
 ) -> Result<()> {
+    #[cfg(not(feature = "anchor-test"))]
+    {
+        validate!(
+            *ctx.accounts.keeper.key == admin_hot_wallet::id(),
+            ErrorCode::DefaultError,
+            "only admin hot wallet can force delete user"
+        )?;
+    }
+
     let state = &ctx.accounts.state;
 
     let keeper_key = *ctx.accounts.keeper.key;
@@ -2803,10 +2812,7 @@ pub struct ForceDeleteUser<'info> {
     /// CHECK: authority
     #[account(mut)]
     pub authority: AccountInfo<'info>,
-    #[account(
-        mut,
-        constraint = keeper.key() == admin_hot_wallet::id()
-    )]
+    #[account(mut)]
     pub keeper: Signer<'info>,
     /// CHECK: forced drift_signer
     pub drift_signer: AccountInfo<'info>,
