@@ -2,6 +2,7 @@ import {
 	AddressLookupTableAccount,
 	BlockhashWithExpiryBlockHeight,
 	ConfirmOptions,
+	Connection,
 	Signer,
 	Transaction,
 	TransactionInstruction,
@@ -23,6 +24,8 @@ export type TxSigAndSlot = {
 
 export interface TxSender {
 	wallet: IWallet;
+
+	updateConnection(connection: Connection): void;
 
 	send(
 		tx: Transaction,

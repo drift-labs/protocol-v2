@@ -122,7 +122,7 @@ import { findDirectionToClose, positionIsAvailable } from './math/position';
 import { getSignedTokenAmount, getTokenAmount } from './math/spotBalance';
 import { decodeName, DEFAULT_USER_NAME, encodeName } from './userName';
 import { OraclePriceData } from './oracles/types';
-import { DriftClientConfig } from './driftClientConfig';
+import { ConnectionRotationConfig, DriftClientConfig } from './driftClientConfig';
 import { PollingDriftClientAccountSubscriber } from './accounts/pollingDriftClientAccountSubscriber';
 import { WebSocketDriftClientAccountSubscriber } from './accounts/webSocketDriftClientAccountSubscriber';
 import { RetryTxSender } from './tx/retryTxSender';
@@ -175,6 +175,7 @@ import { gprcDriftClientAccountSubscriber } from './accounts/grpcDriftClientAcco
 import nacl from 'tweetnacl';
 import { digest } from './util/digest';
 import { Slothash } from './slot/SlothashSubscriber';
+import { SlotSubscriber } from './slot/SlotSubscriber';
 
 type RemainingAccountParams = {
 	userAccounts: UserAccount[];
@@ -230,6 +231,14 @@ export class DriftClient {
 	sbOnDemandProgramdId: PublicKey;
 	sbOnDemandProgram?: Program30<Idl30>;
 	sbProgramFeedConfigs?: Map<string, any>;
+
+	// For connection rotation
+	connectionRotationConfig?: ConnectionRotationConfig;
+	activeConnectionIndex = 0;
+	allConnections: Connection[] = [];
+	connectionRotationSlotTimeoutThreshold?: number;
+	connectionRotationTimeout?: NodeJS.Timeout;
+	activeConnectionSlotSubscriber?: SlotSubscriber;
 
 	public get isSubscribed() {
 		return this._isSubscribed && this.accountSubscriber.isSubscribed;
@@ -432,6 +441,15 @@ export class DriftClient {
 
 		this.sbOnDemandProgramdId =
 			configs[config.env ?? 'mainnet-beta'].SB_ON_DEMAND_PID;
+
+		this.connectionRotationSlotTimeoutThreshold = config.connectionRotationConfig.rotationTimeoutMs || 10_000;
+		if (this.connectionRotationSlotTimeoutThreshold < 10_000) {
+			throw new Error('connectionRotationSlotTimeoutThreshold should be at least 10_000ms to avoid spamming connection resub');
+		}
+		const backupConnections = config.connectionRotationConfig.backupConnections;
+		if (backupConnections?.length > 0) {
+			this.allConnections = [this.connection, ...backupConnections];
+		}
 	}
 
 	public getUserMapKey(subAccountId: number, authority: PublicKey): string {
@@ -456,23 +474,85 @@ export class DriftClient {
 		});
 	}
 
-	public async subscribe(): Promise<boolean> {
+	public assembleSubscribePromises(): Promise<boolean>[] {
 		let subscribePromises = [this.addAndSubscribeToUsers()].concat(
 			this.accountSubscriber.subscribe()
 		);
-
 		if (this.userStats !== undefined) {
 			subscribePromises = subscribePromises.concat(this.userStats.subscribe());
 		}
-		this.isSubscribed = (await Promise.all(subscribePromises)).reduce(
-			(success, prevSuccess) => success && prevSuccess
-		);
+		if (this.allConnections.length > 0) {
+			const slotSubscriber = new SlotSubscriber(
+				this.allConnections[this.activeConnectionIndex],
+				{
+					resubTimeoutMs: Math.floor(this.connectionRotationSlotTimeoutThreshold / 2),
+				}
+			);
+	
+			slotSubscriber.eventEmitter.on('newSlot', async (_slot) => {
+				if (this.connectionRotationTimeout) {
+					clearTimeout(this.connectionRotationTimeout);
+					this.setRotationTimeout();
+				}
+			});
+	
+			this.activeConnectionSlotSubscriber = slotSubscriber;
+			subscribePromises = subscribePromises.concat(this.activeConnectionSlotSubscriber.subscribe().then(
+				() => this.setRotationTimeout()
+			));
+		}
+		return subscribePromises;
+	}
 
+	public async subscribe(): Promise<boolean> {
+		
+		const subscribePromises = this.assembleSubscribePromises();
+
+		if (this.allConnections.length > 1) {
+			let numAttempts = 0;
+			while (!this.isSubscribed && numAttempts < this.allConnections.length * 2) {
+				try {
+					this.isSubscribed = (await Promise.all(subscribePromises)).reduce(
+						(success, prevSuccess) => success && prevSuccess
+					);
+				} catch (error) {
+					console.error('RPC Error executing subscribes', error);
+					await this.rotateRpcConnection();
+				}
+				numAttempts++;
+			}
+		} else {
+			this.isSubscribed = (await Promise.all(subscribePromises)).reduce(
+				(success, prevSuccess) => success && prevSuccess
+			);
+		}
+		
 		return this.isSubscribed;
 	}
 
 	subscribeUsers(): Promise<boolean>[] {
 		return [...this.users.values()].map((user) => user.subscribe());
+	}
+
+	public setRotationTimeout(): boolean {
+		this.connectionRotationTimeout = setTimeout(async () => {
+			await this.rotateRpcConnection();
+			await this.subscribe();
+		});
+		return true;
+	}
+
+	public async rotateRpcConnection(): Promise<void> {
+		this.activeConnectionSlotSubscriber?.eventEmitter?.removeAllListeners();
+		this.activeConnectionSlotSubscriber?.unsubscribe();
+		this.activeConnectionIndex = (this.activeConnectionIndex + 1) % this.allConnections.length;
+		await this.unsubscribe();
+
+		// Rebuild things that use connection in the constructor
+		this.connection = this.allConnections[this.activeConnectionIndex];
+		this.updateProviderConnection(this.connection);
+		this.txHandler.updateConnection(this.connection);
+		this.txSender.updateConnection(this.connection);
 	}
 
 	/**
@@ -778,6 +858,15 @@ export class DriftClient {
 		}
 
 		return success;
+	}
+
+	private updateProviderConnection(connection: Connection) {
+		this.provider = new AnchorProvider(
+			connection,
+			// @ts-ignore
+			this.wallet,
+			this.opts
+		);
 	}
 
 	/**

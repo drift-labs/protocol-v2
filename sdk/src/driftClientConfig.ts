@@ -39,6 +39,7 @@ export type DriftClientConfig = {
 	enableMetricsEvents?: boolean;
 	txHandlerConfig?: TxHandlerConfig;
 	delistedMarketSetting?: DelistedMarketSetting;
+	connectionRotationConfig: ConnectionRotationConfig;
 };
 
 export type DriftClientSubscriptionConfig =
@@ -58,3 +59,8 @@ export type DriftClientSubscriptionConfig =
 			type: 'polling';
 			accountLoader: BulkAccountLoader;
 	  };
+
+export type ConnectionRotationConfig = {
+	backupConnections: Connection[];
+	rotationTimeoutMs?: number;
+};

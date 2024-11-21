@@ -145,6 +145,10 @@ export class TxHandler {
 		this.wallet = wallet;
 	}
 
+	public updateConnection(connection: Connection) {
+		this.connection = connection;
+	}
+
 	/**
 	 * Created this to prevent non-finalized blockhashes being used when building transactions. We want to always use finalized because otherwise it's easy to get the BlockHashNotFound error (RPC uses finalized to validate a transaction). Using an older blockhash when building transactions should never really be a problem right now.
 	 *

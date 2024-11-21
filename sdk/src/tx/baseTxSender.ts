@@ -106,6 +106,11 @@ export abstract class BaseTxSender implements TxSender {
 		this.throwOnTimeoutError = throwOnTimeoutError;
 	}
 
+	public updateConnection(newConnection: Connection): void {
+		this.connection = newConnection;
+		this.txHandler.updateConnection(newConnection);
+	}
+
 	async send(
 		tx: Transaction,
 		additionalSigners?: Array<Signer>,
