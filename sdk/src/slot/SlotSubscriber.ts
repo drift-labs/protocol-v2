@@ -21,6 +21,7 @@ export class SlotSubscriber {
 	resubTimeoutMs?: number;
 	isUnsubscribing = false;
 	receivingData = false;
+	initialSubDone = false;
 
 	public constructor(
 		private connection: Connection,
@@ -40,7 +41,8 @@ export class SlotSubscriber {
 			return;
 		}
 
-		if (this.currentSlot === undefined) {
+		if (!this.initialSubDone) {
+			this.initialSubDone = true;
 			this.currentSlot = await this.connection.getSlot('confirmed');
 		}
 
