@@ -1459,6 +1459,42 @@
       "args": []
     },
     {
+      "name": "forceDeleteUser",
+      "accounts": [
+        {
+          "name": "user",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "userStats",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "state",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "keeper",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "driftSigner",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": []
+    },
+    {
       "name": "deleteSwiftUserOrders",
       "accounts": [
         {
@@ -10826,7 +10862,8 @@
           {
             "name": "PlaceAndTake",
             "fields": [
-              "bool"
+              "bool",
+              "u8"
             ]
           },
           {
@@ -12505,6 +12542,38 @@
         {
           "name": "amount",
           "type": "u64",
+          "index": false
+        }
+      ]
+    },
+    {
+      "name": "DeleteUserRecord",
+      "fields": [
+        {
+          "name": "ts",
+          "type": "i64",
+          "index": false
+        },
+        {
+          "name": "userAuthority",
+          "type": "publicKey",
+          "index": false
+        },
+        {
+          "name": "user",
+          "type": "publicKey",
+          "index": false
+        },
+        {
+          "name": "subAccountId",
+          "type": "u16",
+          "index": false
+        },
+        {
+          "name": "keeper",
+          "type": {
+            "option": "publicKey"
+          },
           "index": false
         }
       ]
