@@ -10,37 +10,23 @@ import {
 	BN,
 	EventSubscriber,
 	SPOT_MARKET_RATE_PRECISION,
-	SpotBalanceType,
-	isVariant,
 	OracleSource,
 	SPOT_MARKET_WEIGHT_PRECISION,
-	SPOT_MARKET_CUMULATIVE_INTEREST_PRECISION,
 	OracleInfo,
 } from '../sdk/src';
 
 import {
-    createUSDCAccountForUser,
-	createUserWithUSDCAccount,
 	createUserWithUSDCAndWSOLAccount,
 	createWSolTokenAccountForUser,
-	mintUSDCToUser,
 	mockOracleNoProgram,
 	mockUSDCMint,
 	mockUserUSDCAccount,
 	sleep,
 } from './testHelpers';
-import {
-	getBalance,
-	calculateInterestAccumulated,
-	getTokenAmount,
-} from '../sdk/src/math/spotBalance';
-import { createAssociatedTokenAccountIdempotent, createSyncNativeInstruction, NATIVE_MINT } from '@solana/spl-token';
+import { NATIVE_MINT } from '@solana/spl-token';
 import {
 	QUOTE_PRECISION,
 	ZERO,
-	ONE,
-	SPOT_MARKET_BALANCE_PRECISION,
-	PRICE_PRECISION,
 } from '../sdk';
 import { startAnchor } from 'solana-bankrun';
 import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
