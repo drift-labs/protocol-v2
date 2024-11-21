@@ -1398,10 +1398,17 @@ impl AMM {
 
     pub fn can_lower_k(&self) -> DriftResult<bool> {
         let (max_bids, max_asks) = amm::calculate_market_open_bids_asks(self)?;
-        let can_lower = self.base_asset_amount_with_amm.unsigned_abs()
-            < max_bids.unsigned_abs().min(max_asks.unsigned_abs())
-            && self.base_asset_amount_with_amm.unsigned_abs()
-                < self.sqrt_k.safe_sub(self.user_lp_shares)?;
+        let min_order_size_u128 = self.min_order_size.cast::<u128>()?;
+
+        let can_lower = (self.base_asset_amount_with_amm.unsigned_abs()
+            < max_bids.unsigned_abs().min(max_asks.unsigned_abs()))
+            && (self
+                .base_asset_amount_with_amm
+                .unsigned_abs()
+                .max(min_order_size_u128)
+                < self.sqrt_k.safe_sub(self.user_lp_shares)?)
+            && (min_order_size_u128 < max_bids.unsigned_abs().max(max_asks.unsigned_abs()));
+
         Ok(can_lower)
     }
 
