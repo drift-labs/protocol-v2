@@ -285,5 +285,8 @@ describe('spot deposit and withdraw', () => {
 		));
         // @ts-ignore
 		await secondUserDriftClient.sendTransaction(await secondUserDriftClient.buildTransaction(ixs));
+
+        const accountInfo = await bankrunContextWrapper.connection.getAccountInfo(await firstUserDriftClient.getUserAccountPublicKey());
+        assert(accountInfo === null);
 	});
 });

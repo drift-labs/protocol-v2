@@ -12545,6 +12545,38 @@
           "index": false
         }
       ]
+    },
+    {
+      "name": "DeleteUserRecord",
+      "fields": [
+        {
+          "name": "ts",
+          "type": "i64",
+          "index": false
+        },
+        {
+          "name": "userAuthority",
+          "type": "publicKey",
+          "index": false
+        },
+        {
+          "name": "user",
+          "type": "publicKey",
+          "index": false
+        },
+        {
+          "name": "subAccountId",
+          "type": "u16",
+          "index": false
+        },
+        {
+          "name": "keeper",
+          "type": {
+            "option": "publicKey"
+          },
+          "index": false
+        }
+      ]
     }
   ],
   "errors": [
