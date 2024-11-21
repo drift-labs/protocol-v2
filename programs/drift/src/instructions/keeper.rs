@@ -17,7 +17,7 @@ use crate::controller::position::PositionDirection;
 use crate::controller::spot_balance::update_spot_balances;
 use crate::controller::token::{receive, send_from_program_vault};
 use crate::error::ErrorCode;
-use crate::ids::swift_server;
+use crate::ids::{admin_hot_wallet, swift_server};
 use crate::instructions::constraints::*;
 use crate::instructions::optional_accounts::{load_maps, AccountMaps};
 use crate::math::casting::Cast;
@@ -2804,7 +2804,10 @@ pub struct ForceDeleteUser<'info> {
     /// CHECK: authority
     #[account(mut)]
     pub authority: AccountInfo<'info>,
-    #[account(mut)]
+    #[account(
+        mut,
+        constraint = keeper.key() == admin_hot_wallet::id()
+    )]
     pub keeper: Signer<'info>,
     /// CHECK: forced drift_signer
     pub drift_signer: AccountInfo<'info>,
