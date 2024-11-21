@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Features
 
+- program: rm withdraw fee ([#1334](https://github.com/drift-labs/protocol-v2/pull/1334))
+
 ### Fixes
 
 - program: skip validate_post_only_order if amm paused ([#1202](https://github.com/drift-labs/protocol-v2/pull/1202))
