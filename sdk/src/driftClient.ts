@@ -443,7 +443,7 @@ export class DriftClient {
 			configs[config.env ?? 'mainnet-beta'].SB_ON_DEMAND_PID;
 
 		this.connectionRotationSlotTimeoutThreshold = config.connectionRotationConfig.rotationTimeoutMs || 10_000;
-		if (this.connectionRotationSlotTimeoutThreshold < 10_000) {
+		if (this.connectionRotationSlotTimeoutThreshold < 0) {
 			throw new Error('connectionRotationSlotTimeoutThreshold should be at least 10_000ms to avoid spamming connection resub');
 		}
 		const backupConnections = config.connectionRotationConfig.backupConnections;
@@ -536,9 +536,11 @@ export class DriftClient {
 
 	public setRotationTimeout(): boolean {
 		this.connectionRotationTimeout = setTimeout(async () => {
+			console.error(`Rotating connection due to unhealty rpc: 
+				${this.allConnections[this.activeConnectionIndex].rpcEndpoint}`);
 			await this.rotateRpcConnection();
 			await this.subscribe();
-		});
+		}, this.connectionRotationSlotTimeoutThreshold);
 		return true;
 	}
 
@@ -577,6 +579,13 @@ export class DriftClient {
 				this.userStats.unsubscribe()
 			);
 		}
+		if (this.activeConnectionSlotSubscriber) {
+			unsubscribePromises.push(this.activeConnectionSlotSubscriber.unsubscribe());
+		}
+		if (this.connectionRotationTimeout) {
+			clearTimeout(this.connectionRotationTimeout);
+		}
+
 		await Promise.all(unsubscribePromises);
 		this.isSubscribed = false;
 	}

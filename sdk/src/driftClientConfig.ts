@@ -39,7 +39,7 @@ export type DriftClientConfig = {
 	enableMetricsEvents?: boolean;
 	txHandlerConfig?: TxHandlerConfig;
 	delistedMarketSetting?: DelistedMarketSetting;
-	connectionRotationConfig: ConnectionRotationConfig;
+	connectionRotationConfig?: ConnectionRotationConfig;
 };
 
 export type DriftClientSubscriptionConfig =
