@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Features
 
+- program: force delete user init ([#1341](https://github.com/drift-labs/protocol-v2/pull/1341))
 - program: rm withdraw fee ([#1334](https://github.com/drift-labs/protocol-v2/pull/1334))
 
 ### Fixes
