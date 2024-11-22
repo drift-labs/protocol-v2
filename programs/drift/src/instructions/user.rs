@@ -355,7 +355,7 @@ pub fn handle_deposit<'c: 'info, 'info>(
     validate!(!user.is_bankrupt(), ErrorCode::UserBankrupt)?;
 
     let mut spot_market = spot_market_map.get_ref_mut(&market_index)?;
-    let oracle_price_data = &oracle_map.get_price_data(&spot_market.oracle)?.clone();
+    let oracle_price_data = *oracle_map.get_price_data(&spot_market.get_oracle_id())?;
 
     validate!(
         !matches!(spot_market.status, MarketStatus::Initialized),
@@ -365,7 +365,7 @@ pub fn handle_deposit<'c: 'info, 'info>(
 
     controller::spot_balance::update_spot_market_cumulative_interest(
         &mut spot_market,
-        Some(oracle_price_data),
+        Some(&oracle_price_data),
         now,
     )?;
 
@@ -523,7 +523,7 @@ pub fn handle_withdraw<'c: 'info, 'info>(
 
     let spot_market_is_reduce_only = {
         let spot_market = &mut spot_market_map.get_ref_mut(&market_index)?;
-        let oracle_price_data = oracle_map.get_price_data(&spot_market.oracle)?;
+        let oracle_price_data = oracle_map.get_price_data(&spot_market.get_oracle_id())?;
 
         controller::spot_balance::update_spot_market_cumulative_interest(
             spot_market,
@@ -566,7 +566,7 @@ pub fn handle_withdraw<'c: 'info, 'info>(
         };
 
         let spot_market = &mut spot_market_map.get_ref_mut(&market_index)?;
-        let oracle_price_data = oracle_map.get_price_data(&spot_market.oracle)?;
+        let oracle_price_data = oracle_map.get_price_data(&spot_market.get_oracle_id())?;
 
         user.increment_total_withdraws(
             amount,
@@ -605,7 +605,7 @@ pub fn handle_withdraw<'c: 'info, 'info>(
     user.update_last_active_slot(slot);
 
     let mut spot_market = spot_market_map.get_ref_mut(&market_index)?;
-    let oracle_price = oracle_map.get_price_data(&spot_market.oracle)?.price;
+    let oracle_price = oracle_map.get_price_data(&spot_market.get_oracle_id())?.price;
 
     let is_borrow = user
         .get_spot_position(market_index)
@@ -714,7 +714,7 @@ pub fn handle_transfer_deposit<'c: 'info, 'info>(
 
     {
         let spot_market = &mut spot_market_map.get_ref_mut(&market_index)?;
-        let oracle_price_data = oracle_map.get_price_data(&spot_market.oracle)?;
+        let oracle_price_data = oracle_map.get_price_data(&spot_market.get_oracle_id())?;
         controller::spot_balance::update_spot_market_cumulative_interest(
             spot_market,
             Some(oracle_price_data),
@@ -724,7 +724,7 @@ pub fn handle_transfer_deposit<'c: 'info, 'info>(
 
     let oracle_price = {
         let spot_market = &spot_market_map.get_ref(&market_index)?;
-        oracle_map.get_price_data(&spot_market.oracle)?.price
+        oracle_map.get_price_data(&spot_market.get_oracle_id())?.price
     };
 
     {
@@ -2963,7 +2963,7 @@ pub fn handle_begin_swap<'c: 'info, 'info>(
         "begin_swap ended in invalid state"
     )?;
 
-    let in_oracle_data = oracle_map.get_price_data(&in_spot_market.oracle)?;
+    let in_oracle_data = oracle_map.get_price_data(&in_spot_market.get_oracle_id())?;
     controller::spot_balance::update_spot_market_cumulative_interest(
         &mut in_spot_market,
         Some(in_oracle_data),
@@ -2986,7 +2986,7 @@ pub fn handle_begin_swap<'c: 'info, 'info>(
         "begin_swap ended in invalid state"
     )?;
 
-    let out_oracle_data = oracle_map.get_price_data(&out_spot_market.oracle)?;
+    let out_oracle_data = oracle_map.get_price_data(&out_spot_market.get_oracle_id())?;
     controller::spot_balance::update_spot_market_cumulative_interest(
         &mut out_spot_market,
         Some(out_oracle_data),
@@ -3220,7 +3220,7 @@ pub fn handle_end_swap<'c: 'info, 'info>(
         "the in_spot_market must have a flash loan amount set"
     )?;
 
-    let in_oracle_data = oracle_map.get_price_data(&in_spot_market.oracle)?;
+    let in_oracle_data = oracle_map.get_price_data(&in_spot_market.get_oracle_id())?;
     let in_oracle_price = in_oracle_data.price;
 
     let mut out_spot_market = spot_market_map.get_ref_mut(&out_market_index)?;
@@ -3232,7 +3232,7 @@ pub fn handle_end_swap<'c: 'info, 'info>(
         out_market_index
     )?;
 
-    let out_oracle_data = oracle_map.get_price_data(&out_spot_market.oracle)?;
+    let out_oracle_data = oracle_map.get_price_data(&out_spot_market.get_oracle_id())?;
     let out_oracle_price = out_oracle_data.price;
 
     let in_vault = &mut ctx.accounts.in_spot_market_vault;

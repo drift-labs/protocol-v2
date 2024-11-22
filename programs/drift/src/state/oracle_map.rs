@@ -1,9 +1,7 @@
 use crate::error::ErrorCode::UnableToLoadOracle;
 use crate::error::{DriftResult, ErrorCode};
 use crate::ids::{
-    bonk_oracle, bonk_pull_oracle, drift_oracle_receiver_program, mew_pull_oracle, pepe_oracle,
-    pepe_pull_oracle, pyth_program, switchboard_on_demand, switchboard_program, usdc_oracle,
-    usdc_pull_oracle, usdt_oracle, usdt_pull_oracle, wen_oracle, wen_pull_oracle,
+    drift_oracle_receiver_program, switchboard_on_demand, switchboard_program, pyth_program
 };
 use crate::math::constants::PRICE_PRECISION_I64;
 use crate::math::oracle::{oracle_validity, OracleValidity};
@@ -24,25 +22,12 @@ use crate::math::safe_unwrap::SafeUnwrap;
 use crate::state::traits::Size;
 use crate::validate;
 
-pub const PYTH_1M_IDS: [Pubkey; 2] = [bonk_oracle::id(), pepe_oracle::id()];
-pub const PYTH_PULL_1M_IDS: [Pubkey; 2] = [bonk_pull_oracle::id(), pepe_pull_oracle::id()];
-
-pub const PYTH_1K_IDS: [Pubkey; 1] = [wen_oracle::id()];
-pub const PYTH_PULL_1K_IDS: [Pubkey; 2] = [wen_pull_oracle::id(), mew_pull_oracle::id()];
-
-pub const PYTH_STABLECOIN_IDS: [Pubkey; 2] = [usdc_oracle::id(), usdt_oracle::id()];
-pub const PYTH_PULL_STABLECOIN_IDS: [Pubkey; 2] = [usdc_pull_oracle::id(), usdt_pull_oracle::id()];
-
-pub struct AccountInfoAndOracleSource<'a> {
-    /// CHECK: ownders are validated in OracleMap::load
-    pub account_info: AccountInfo<'a>,
-    pub oracle_source: OracleSource,
-}
+pub type OracleIdentifier = (Pubkey, OracleSource);
 
 pub struct OracleMap<'a> {
-    oracles: BTreeMap<Pubkey, AccountInfoAndOracleSource<'a>>,
-    price_data: BTreeMap<Pubkey, OraclePriceData>,
-    validity: BTreeMap<Pubkey, OracleValidity>,
+    oracles: BTreeMap<Pubkey, AccountInfo<'a>>,
+    price_data: BTreeMap<OracleIdentifier, OraclePriceData>,
+    validity: BTreeMap<OracleIdentifier, OracleValidity>,
     pub slot: u64,
     pub oracle_guard_rails: OracleGuardRails,
     pub quote_asset_price_data: OraclePriceData,
@@ -58,7 +43,6 @@ impl<'a> OracleMap<'a> {
             .oracles
             .get(pubkey)
             .ok_or(ErrorCode::OracleNotFound)?
-            .account_info
             .clone())
     }
 
@@ -66,60 +50,47 @@ impl<'a> OracleMap<'a> {
         pubkey == &Pubkey::default()
     }
 
-    pub fn get_price_data(&mut self, pubkey: &Pubkey) -> DriftResult<&OraclePriceData> {
-        if self.should_get_quote_asset_price_data(pubkey) {
+    pub fn get_price_data(&mut self, id: &OracleIdentifier) -> DriftResult<&OraclePriceData> {
+        if self.should_get_quote_asset_price_data(&id.0) {
             return Ok(&self.quote_asset_price_data);
         }
 
-        if self.price_data.contains_key(pubkey) {
-            return self.price_data.get(pubkey).safe_unwrap();
+        if self.price_data.contains_key(id) {
+            return self.price_data.get(id).safe_unwrap();
         }
 
-        let (account_info, oracle_source) = match self.oracles.get(pubkey) {
-            Some(AccountInfoAndOracleSource {
-                account_info,
-                oracle_source,
-            }) => (account_info, oracle_source),
+        let (account_info) = match self.oracles.get(&id.0) {
+            Some(account_info) => account_info,
             None => {
-                msg!("oracle pubkey not found in oracle_map: {}", pubkey);
+                msg!("oracle pubkey not found in oracle_map: {}", id.0);
                 return Err(ErrorCode::OracleNotFound);
             }
         };
 
-        let price_data = get_oracle_price(oracle_source, account_info, self.slot)?;
+        let price_data = get_oracle_price(&id.1, account_info, self.slot)?;
 
-        self.price_data.insert(*pubkey, price_data);
-
-        self.price_data.get(pubkey).safe_unwrap()
-    }
-
-    pub fn get_oracle_source(&self, pubkey: &Pubkey) -> DriftResult<OracleSource> {
-        Ok(self
-            .oracles
-            .get(pubkey)
-            .ok_or(ErrorCode::OracleNotFound)?
-            .oracle_source)
+        self.price_data.insert(*id, price_data);
+        self.price_data.get(id).safe_unwrap()
     }
 
     pub fn get_price_data_and_validity(
         &mut self,
         market_type: MarketType,
         market_index: u16,
-        pubkey: &Pubkey,
+        oracle_id: &OracleIdentifier,
         last_oracle_price_twap: i64,
         max_confidence_interval_multiplier: u64,
     ) -> DriftResult<(&OraclePriceData, OracleValidity)> {
-        if self.should_get_quote_asset_price_data(pubkey) {
+        if self.should_get_quote_asset_price_data(&oracle_id.0) {
             return Ok((&self.quote_asset_price_data, OracleValidity::Valid));
         }
 
-        if self.price_data.contains_key(pubkey) {
-            let oracle_price_data = self.price_data.get(pubkey).safe_unwrap()?;
+        if self.price_data.contains_key(oracle_id) {
+            let oracle_price_data = self.price_data.get(oracle_id).safe_unwrap()?;
 
-            let oracle_validity = if let Some(oracle_validity) = self.validity.get(pubkey) {
+            let oracle_validity = if let Some(oracle_validity) = self.validity.get(oracle_id) {
                 *oracle_validity
             } else {
-                let oracle_source = self.get_oracle_source(pubkey)?;
                 let oracle_validity = oracle_validity(
                     market_type,
                     market_index,
@@ -127,31 +98,28 @@ impl<'a> OracleMap<'a> {
                     oracle_price_data,
                     &self.oracle_guard_rails.validity,
                     max_confidence_interval_multiplier,
-                    &oracle_source,
+                    &oracle_id.1,
                     true,
                 )?;
-                self.validity.insert(*pubkey, oracle_validity);
+                self.validity.insert(*oracle_id, oracle_validity);
                 oracle_validity
             };
             return Ok((oracle_price_data, oracle_validity));
         }
 
-        let (account_info, oracle_source) = match self.oracles.get(pubkey) {
-            Some(AccountInfoAndOracleSource {
-                account_info,
-                oracle_source,
-            }) => (account_info, oracle_source),
+        let account_info = match self.oracles.get(&oracle_id.0) {
+            Some(account_info) => account_info,
             None => {
-                msg!("oracle pubkey not found in oracle_map: {}", pubkey);
+                msg!("oracle pubkey not found in oracle_map: {}", oracle_id.0);
                 return Err(ErrorCode::OracleNotFound);
             }
         };
 
-        let price_data = get_oracle_price(oracle_source, account_info, self.slot)?;
+        let price_data = get_oracle_price(&oracle_id.1, account_info, self.slot)?;
 
-        self.price_data.insert(*pubkey, price_data);
+        self.price_data.insert(*oracle_id, price_data);
 
-        let oracle_price_data = self.price_data.get(pubkey).safe_unwrap()?;
+        let oracle_price_data = self.price_data.get(oracle_id).safe_unwrap()?;
         let oracle_validity = oracle_validity(
             market_type,
             market_index,
@@ -159,46 +127,43 @@ impl<'a> OracleMap<'a> {
             oracle_price_data,
             &self.oracle_guard_rails.validity,
             max_confidence_interval_multiplier,
-            &oracle_source,
+            &oracle_id.1,
             true,
         )?;
-        self.validity.insert(*pubkey, oracle_validity);
+        self.validity.insert(*oracle_id, oracle_validity);
 
         Ok((oracle_price_data, oracle_validity))
     }
 
     pub fn get_price_data_and_guard_rails(
         &mut self,
-        pubkey: &Pubkey,
+        oracle_id: &OracleIdentifier,
     ) -> DriftResult<(&OraclePriceData, &ValidityGuardRails)> {
-        if self.should_get_quote_asset_price_data(pubkey) {
+        if self.should_get_quote_asset_price_data(&oracle_id.0) {
             let validity_guard_rails = &self.oracle_guard_rails.validity;
             return Ok((&self.quote_asset_price_data, validity_guard_rails));
         }
-
-        if self.price_data.contains_key(pubkey) {
-            let oracle_price_data = self.price_data.get(pubkey).safe_unwrap()?;
+        
+        if self.price_data.contains_key(oracle_id) {
+            let oracle_price_data = self.price_data.get(oracle_id).safe_unwrap()?;
             let validity_guard_rails = &self.oracle_guard_rails.validity;
 
             return Ok((oracle_price_data, validity_guard_rails));
         }
 
-        let (account_info, oracle_source) = match self.oracles.get(pubkey) {
-            Some(AccountInfoAndOracleSource {
-                account_info,
-                oracle_source,
-            }) => (account_info, oracle_source),
+        let account_info = match self.oracles.get(&oracle_id.0) {
+            Some(account_info) => account_info,
             None => {
-                msg!("oracle pubkey not found in oracle_map: {}", pubkey);
+                msg!("oracle pubkey not found in oracle_map: {}", oracle_id.0);
                 return Err(ErrorCode::OracleNotFound);
             }
         };
 
-        let price_data = get_oracle_price(oracle_source, account_info, self.slot)?;
+        let price_data = get_oracle_price(&oracle_id.1, account_info, self.slot)?;
 
-        self.price_data.insert(*pubkey, price_data);
+        self.price_data.insert(*oracle_id, price_data);
 
-        let oracle_price_data = self.price_data.get(pubkey).safe_unwrap()?;
+        let oracle_price_data = self.price_data.get(oracle_id).safe_unwrap()?;
         let validity_guard_rails = &self.oracle_guard_rails.validity;
 
         Ok((oracle_price_data, validity_guard_rails))
@@ -209,53 +174,21 @@ impl<'a> OracleMap<'a> {
         slot: u64,
         oracle_guard_rails: Option<OracleGuardRails>,
     ) -> DriftResult<OracleMap<'a>> {
-        let mut oracles: BTreeMap<Pubkey, AccountInfoAndOracleSource<'a>> = BTreeMap::new();
+        let mut oracles: BTreeMap<Pubkey, AccountInfo<'a>> = BTreeMap::new();
 
         while let Some(account_info) = account_info_iter.peek() {
             if account_info.owner == &pyth_program::id() {
                 let account_info: &AccountInfo<'a> = account_info_iter.next().safe_unwrap()?;
                 let pubkey = account_info.key();
 
-                let oracle_source = if PYTH_1M_IDS.contains(&pubkey) {
-                    OracleSource::Pyth1M
-                } else if PYTH_1K_IDS.contains(&pubkey) {
-                    OracleSource::Pyth1K
-                } else if PYTH_STABLECOIN_IDS.contains(&pubkey) {
-                    OracleSource::PythStableCoin
-                } else {
-                    OracleSource::Pyth
-                };
-
-                oracles.insert(
-                    pubkey,
-                    AccountInfoAndOracleSource {
-                        account_info: account_info.clone(),
-                        oracle_source,
-                    },
-                );
+                oracles.insert(pubkey, account_info.clone());
 
                 continue;
             } else if account_info.owner == &drift_oracle_receiver_program::id() {
                 let account_info: &AccountInfo<'a> = account_info_iter.next().safe_unwrap()?;
                 let pubkey = account_info.key();
 
-                let oracle_source = if PYTH_PULL_1M_IDS.contains(&pubkey) {
-                    OracleSource::Pyth1MPull
-                } else if PYTH_PULL_1K_IDS.contains(&pubkey) {
-                    OracleSource::Pyth1KPull
-                } else if PYTH_PULL_STABLECOIN_IDS.contains(&pubkey) {
-                    OracleSource::PythStableCoinPull
-                } else {
-                    OracleSource::PythPull
-                };
-
-                oracles.insert(
-                    pubkey,
-                    AccountInfoAndOracleSource {
-                        account_info: account_info.clone(),
-                        oracle_source,
-                    },
-                );
+                oracles.insert(pubkey, account_info.clone());
 
                 continue;
             } else if account_info.owner == &crate::id() {
@@ -277,39 +210,22 @@ impl<'a> OracleMap<'a> {
                 let account_info = account_info_iter.next().safe_unwrap()?;
                 let pubkey = account_info.key();
 
-                oracles.insert(
-                    pubkey,
-                    AccountInfoAndOracleSource {
-                        account_info: account_info.clone(),
-                        oracle_source: OracleSource::Prelaunch,
-                    },
-                );
+                oracles.insert(pubkey, account_info.clone());
 
                 continue;
             } else if account_info.owner == &switchboard_program::id() {
                 let account_info = account_info_iter.next().safe_unwrap()?;
                 let pubkey = account_info.key();
 
-                oracles.insert(
-                    pubkey,
-                    AccountInfoAndOracleSource {
-                        account_info: account_info.clone(),
-                        oracle_source: OracleSource::Switchboard,
-                    },
-                );
+                oracles.insert(pubkey, account_info.clone());
 
                 continue;
             } else if account_info.owner == &switchboard_on_demand::id() {
                 let account_info = account_info_iter.next().safe_unwrap()?;
                 let pubkey = account_info.key();
 
-                oracles.insert(
-                    pubkey,
-                    AccountInfoAndOracleSource {
-                        account_info: account_info.clone(),
-                        oracle_source: OracleSource::SwitchboardOnDemand,
-                    },
-                );
+                oracles.insert(pubkey, account_info.clone());
+
 
                 continue;
             }
@@ -343,48 +259,16 @@ impl<'a> OracleMap<'a> {
         slot: u64,
         oracle_guard_rails: Option<OracleGuardRails>,
     ) -> DriftResult<OracleMap<'a>> {
-        let mut oracles: BTreeMap<Pubkey, AccountInfoAndOracleSource<'a>> = BTreeMap::new();
+        let mut oracles: BTreeMap<Pubkey, AccountInfo<'a>> = BTreeMap::new();
 
         if account_info.owner == &pyth_program::id() {
             let pubkey = account_info.key();
 
-            let oracle_source = if PYTH_1M_IDS.contains(&pubkey) {
-                OracleSource::Pyth1M
-            } else if PYTH_1K_IDS.contains(&pubkey) {
-                OracleSource::Pyth1K
-            } else if PYTH_STABLECOIN_IDS.contains(&pubkey) {
-                OracleSource::PythStableCoin
-            } else {
-                OracleSource::Pyth
-            };
-
-            oracles.insert(
-                pubkey,
-                AccountInfoAndOracleSource {
-                    account_info: account_info.clone(),
-                    oracle_source,
-                },
-            );
+            oracles.insert(pubkey, account_info.clone());
         } else if account_info.owner == &drift_oracle_receiver_program::id() {
             let pubkey = account_info.key();
 
-            let oracle_source = if PYTH_PULL_1M_IDS.contains(&pubkey) {
-                OracleSource::Pyth1MPull
-            } else if PYTH_PULL_1K_IDS.contains(&pubkey) {
-                OracleSource::Pyth1KPull
-            } else if PYTH_PULL_STABLECOIN_IDS.contains(&pubkey) {
-                OracleSource::PythStableCoinPull
-            } else {
-                OracleSource::PythPull
-            };
-
-            oracles.insert(
-                pubkey,
-                AccountInfoAndOracleSource {
-                    account_info: account_info.clone(),
-                    oracle_source,
-                },
-            );
+            oracles.insert(pubkey, account_info.clone());
         } else if account_info.owner == &crate::id() {
             let data = account_info.try_borrow_data().map_err(|e| {
                 msg!("Failed to borrow data while loading oracle map {:?}", e);
@@ -404,31 +288,13 @@ impl<'a> OracleMap<'a> {
             }
 
             let pubkey = account_info.key();
-            oracles.insert(
-                pubkey,
-                AccountInfoAndOracleSource {
-                    account_info: account_info.clone(),
-                    oracle_source: OracleSource::Prelaunch,
-                },
-            );
+            oracles.insert(pubkey, account_info.clone());
         } else if account_info.owner == &switchboard_program::id() {
             let pubkey = account_info.key();
-            oracles.insert(
-                pubkey,
-                AccountInfoAndOracleSource {
-                    account_info: account_info.clone(),
-                    oracle_source: OracleSource::Switchboard,
-                },
-            );
+            oracles.insert(pubkey, account_info.clone());
         } else if account_info.owner == &switchboard_on_demand::id() {
             let pubkey = account_info.key();
-            oracles.insert(
-                pubkey,
-                AccountInfoAndOracleSource {
-                    account_info: account_info.clone(),
-                    oracle_source: OracleSource::SwitchboardOnDemand,
-                },
-            );
+            oracles.insert(pubkey, account_info.clone());
         } else if account_info.key() != Pubkey::default() {
             return Err(ErrorCode::InvalidOracle);
         }
