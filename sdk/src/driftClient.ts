@@ -6792,6 +6792,55 @@ export class DriftClient {
 		return txSig;
 	}
 
+	public async settleMultiplePNLsMultipleTxs(
+		settleeUserAccountPublicKey: PublicKey,
+		settleeUserAccount: UserAccount,
+		marketIndexes: number[],
+		mode: SettlePnlMode,
+		txParams?: TxParams
+	): Promise<TransactionSignature[]> {
+		// need multiple TXs because settling more than 4 markets won't fit in a single TX
+		const txsToSign: (Transaction | VersionedTransaction)[] = [];
+		const marketIndexesInFourGroups: number[][] = [];
+		for (let i = 0; i < marketIndexes.length; i += 4) {
+			marketIndexesInFourGroups.push(marketIndexes.slice(i, i + 4));
+		}
+
+		for (const marketIndexes of marketIndexesInFourGroups) {
+			const ix = await this.settleMultiplePNLsIx(
+				settleeUserAccountPublicKey,
+				settleeUserAccount,
+				marketIndexes,
+				mode
+			);
+			const computeUnits = Math.min(300_000 * marketIndexes.length, 1_400_000);
+			const tx = await this.buildTransaction(ix, {
+				...txParams,
+				computeUnits,
+			});
+			txsToSign.push(tx);
+		}
+
+		const txsMap: Record<string, Transaction | VersionedTransaction> = {};
+		let i = 1;
+		for (const tx of txsToSign) {
+			txsMap[`tx-${i}`] = tx;
+			i++;
+		}
+		const signedTxs = (
+			await this.txHandler.getSignedTransactionMap(txsMap, this.provider.wallet)
+		).signedTxMap;
+
+		const txSigs: TransactionSignature[] = [];
+		for (const key in signedTxs) {
+			const tx = signedTxs[key];
+			const { txSig } = await this.sendTransaction(tx, [], this.opts, true);
+			txSigs.push(txSig);
+		}
+
+		return txSigs;
+	}
+
 	public async settleMultiplePNLsIx(
 		settleeUserAccountPublicKey: PublicKey,
 		settleeUserAccount: UserAccount,
