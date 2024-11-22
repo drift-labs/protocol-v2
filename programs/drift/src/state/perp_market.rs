@@ -301,7 +301,7 @@ impl MarketIndexOffset for PerpMarket {
 
 impl PerpMarket {
     pub fn get_oracle_id(&self) -> OracleIdentifier {
-        self.amm.get_oracle_id()
+        (self.amm.oracle, self.amm.oracle_source)
     }
 
     pub fn is_in_settlement(&self, now: i64) -> bool {
@@ -1108,10 +1108,6 @@ impl Default for AMM {
 }
 
 impl AMM {
-    pub fn get_oracle_id(&self) -> OracleIdentifier {
-        (self.oracle, self.oracle_source)
-    }
-
     pub fn get_fallback_price(
         self,
         direction: &PositionDirection,
