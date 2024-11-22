@@ -1190,7 +1190,9 @@ export class AdminClient extends DriftClient {
 			},
 			{
 				accounts: {
-					admin: this.wallet.publicKey,
+					admin: this.isSubscribed
+						? this.getStateAccount().admin
+						: this.wallet.publicKey,
 					state: await this.getStatePublicKey(),
 					perpMarket: await getPerpMarketPublicKey(
 						this.program.programId,
@@ -3860,7 +3862,7 @@ export class AdminClient extends DriftClient {
 
 	public async initializePythPullOracle(
 		feedId: string,
-		isAdmin = false
+		isAdmin: boolean = false
 	): Promise<TransactionSignature> {
 		const initializePythPullOracleIx = await this.getInitializePythPullOracleIx(
 			feedId,
