@@ -55,4 +55,7 @@ export type UserMapConfig = {
 	disableSyncOnTotalAccountsChange?: boolean;
 
 	syncConfig?: SyncConfig;
+
+	// Whether to throw an error if the userMap fails to sync. Defaults to true.
+	throwOnFailedSync?: boolean;
 };
