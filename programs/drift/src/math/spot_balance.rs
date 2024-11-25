@@ -1,12 +1,12 @@
 use crate::error::{DriftResult, ErrorCode};
 use crate::math::casting::Cast;
+#[cfg(feature = "drift-rs")]
+use crate::math::constants::PERCENTAGE_PRECISION;
 use crate::math::constants::{ONE_YEAR, SPOT_RATE_PRECISION, SPOT_UTILIZATION_PRECISION};
 use crate::math::safe_math::{SafeDivFloor, SafeMath};
 use crate::state::oracle::{OraclePriceData, StrictOraclePrice};
 use crate::state::spot_market::{SpotBalanceType, SpotMarket};
 use crate::state::user::SpotPosition;
-#[cfg(feature = "drift-rs")]
-use crate::math::constants::PERCENTAGE_PRECISION;
 
 pub fn get_spot_balance(
     token_amount: u128,
