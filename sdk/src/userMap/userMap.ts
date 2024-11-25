@@ -160,7 +160,7 @@ export class UserMap implements UserMapInterface {
 			type: 'default',
 		};
 
-		this.throwOnFailedSync = config.throwOnFailedSync ?? true;
+		this.throwOnFailedSync = config.throwOnFailedSync ?? false;
 	}
 
 	public async subscribe() {
