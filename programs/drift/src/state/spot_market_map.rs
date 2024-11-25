@@ -5,7 +5,6 @@ use std::cell::{Ref, RefMut};
 use std::collections::{BTreeMap, BTreeSet};
 
 use std::iter::Peekable;
-use std::slice::Iter;
 
 use crate::math::constants::QUOTE_SPOT_MARKET_INDEX;
 use anchor_lang::Discriminator;
@@ -176,10 +175,13 @@ impl<'a> SpotMarketMap<'a> {
         }
     }
 
-    pub fn load<'b, 'c>(
+    pub fn load<'b, 'c, I>(
         writable_spot_markets: &'b SpotMarketSet,
-        account_info_iter: &'c mut Peekable<Iter<'a, AccountInfo<'a>>>,
-    ) -> DriftResult<SpotMarketMap<'a>> {
+        account_info_iter: &'c mut Peekable<I>,
+    ) -> DriftResult<SpotMarketMap<'a>>
+    where
+        I: Iterator<Item = &'a AccountInfo<'a>>,
+    {
         let mut spot_market_map: SpotMarketMap =
             SpotMarketMap(BTreeMap::new(), writable_spot_markets.clone());
 

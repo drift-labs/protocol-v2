@@ -17,7 +17,6 @@ use arrayref::array_ref;
 use solana_program::msg;
 use std::collections::BTreeMap;
 use std::iter::Peekable;
-use std::slice::Iter;
 
 use super::state::ValidityGuardRails;
 use crate::math::safe_unwrap::SafeUnwrap;
@@ -204,131 +203,109 @@ impl<'a> OracleMap<'a> {
         Ok((oracle_price_data, validity_guard_rails))
     }
 
-    pub fn load<'c>(
-        account_info_iter: &'c mut Peekable<Iter<AccountInfo<'a>>>,
+    pub fn load<'c, I>(
+        account_info_iter: &'c mut Peekable<I>,
         slot: u64,
         oracle_guard_rails: Option<OracleGuardRails>,
-    ) -> DriftResult<OracleMap<'a>> {
+    ) -> DriftResult<OracleMap<'a>>
+    where
+        I: Iterator<Item = &'a AccountInfo<'a>>,
+    {
         let mut oracles: BTreeMap<Pubkey, AccountInfoAndOracleSource<'a>> = BTreeMap::new();
 
         while let Some(account_info) = account_info_iter.peek() {
-            if account_info.owner == &pyth_program::id() {
-                let account_info: &AccountInfo<'a> = account_info_iter.next().safe_unwrap()?;
-                let pubkey = account_info.key();
+            let pubkey = account_info.key();
+            match account_info.owner {
+                &pyth_program::ID => {
+                    let oracle_source = if PYTH_1M_IDS.contains(&pubkey) {
+                        OracleSource::Pyth1M
+                    } else if PYTH_1K_IDS.contains(&pubkey) {
+                        OracleSource::Pyth1K
+                    } else if PYTH_STABLECOIN_IDS.contains(&pubkey) {
+                        OracleSource::PythStableCoin
+                    } else {
+                        OracleSource::Pyth
+                    };
 
-                let oracle_source = if PYTH_1M_IDS.contains(&pubkey) {
-                    OracleSource::Pyth1M
-                } else if PYTH_1K_IDS.contains(&pubkey) {
-                    OracleSource::Pyth1K
-                } else if PYTH_STABLECOIN_IDS.contains(&pubkey) {
-                    OracleSource::PythStableCoin
-                } else {
-                    OracleSource::Pyth
-                };
-
-                oracles.insert(
-                    pubkey,
-                    AccountInfoAndOracleSource {
-                        account_info: account_info.clone(),
-                        oracle_source,
-                    },
-                );
-
-                continue;
-            } else if account_info.owner == &drift_oracle_receiver_program::id() {
-                let account_info: &AccountInfo<'a> = account_info_iter.next().safe_unwrap()?;
-                let pubkey = account_info.key();
-
-                let oracle_source = if PYTH_PULL_1M_IDS.contains(&pubkey) {
-                    OracleSource::Pyth1MPull
-                } else if PYTH_PULL_1K_IDS.contains(&pubkey) {
-                    OracleSource::Pyth1KPull
-                } else if PYTH_PULL_STABLECOIN_IDS.contains(&pubkey) {
-                    OracleSource::PythStableCoinPull
-                } else {
-                    OracleSource::PythPull
-                };
-
-                oracles.insert(
-                    pubkey,
-                    AccountInfoAndOracleSource {
-                        account_info: account_info.clone(),
-                        oracle_source,
-                    },
-                );
-
-                continue;
-            } else if account_info.owner == &crate::id() {
-                let data = account_info.try_borrow_data().map_err(|e| {
-                    msg!("Failed to borrow data while loading oracle map {:?}", e);
-                    UnableToLoadOracle
-                })?;
-
-                let expected_data_len = PrelaunchOracle::SIZE;
-                if data.len() < expected_data_len {
-                    break;
+                    oracles.insert(
+                        pubkey,
+                        AccountInfoAndOracleSource {
+                            account_info: account_info_iter.next().safe_unwrap()?.clone(),
+                            oracle_source,
+                        },
+                    );
                 }
+                &drift_oracle_receiver_program::ID => {
+                    let oracle_source = if PYTH_PULL_1M_IDS.contains(&pubkey) {
+                        OracleSource::Pyth1MPull
+                    } else if PYTH_PULL_1K_IDS.contains(&pubkey) {
+                        OracleSource::Pyth1KPull
+                    } else if PYTH_PULL_STABLECOIN_IDS.contains(&pubkey) {
+                        OracleSource::PythStableCoinPull
+                    } else {
+                        OracleSource::PythPull
+                    };
 
-                let account_discriminator = array_ref![data, 0, 8];
-                if account_discriminator != &PrelaunchOracle::discriminator() {
-                    break;
+                    oracles.insert(
+                        pubkey,
+                        AccountInfoAndOracleSource {
+                            account_info: account_info_iter.next().safe_unwrap()?.clone(),
+                            oracle_source,
+                        },
+                    );
                 }
+                &crate::ID => {
+                    let data = account_info.try_borrow_data().map_err(|e| {
+                        msg!("Failed to borrow data while loading oracle map {:?}", e);
+                        UnableToLoadOracle
+                    })?;
 
-                let account_info = account_info_iter.next().safe_unwrap()?;
-                let pubkey = account_info.key();
+                    let expected_data_len = PrelaunchOracle::SIZE;
+                    if data.len() < expected_data_len {
+                        break;
+                    }
 
-                oracles.insert(
-                    pubkey,
-                    AccountInfoAndOracleSource {
-                        account_info: account_info.clone(),
-                        oracle_source: OracleSource::Prelaunch,
-                    },
-                );
+                    let account_discriminator = array_ref![data, 0, 8];
+                    if account_discriminator != &PrelaunchOracle::discriminator() {
+                        break;
+                    }
 
-                continue;
-            } else if account_info.owner == &switchboard_program::id() {
-                let account_info = account_info_iter.next().safe_unwrap()?;
-                let pubkey = account_info.key();
-
-                oracles.insert(
-                    pubkey,
-                    AccountInfoAndOracleSource {
-                        account_info: account_info.clone(),
-                        oracle_source: OracleSource::Switchboard,
-                    },
-                );
-
-                continue;
-            } else if account_info.owner == &switchboard_on_demand::id() {
-                let account_info = account_info_iter.next().safe_unwrap()?;
-                let pubkey = account_info.key();
-
-                oracles.insert(
-                    pubkey,
-                    AccountInfoAndOracleSource {
-                        account_info: account_info.clone(),
-                        oracle_source: OracleSource::SwitchboardOnDemand,
-                    },
-                );
-
-                continue;
+                    oracles.insert(
+                        pubkey,
+                        AccountInfoAndOracleSource {
+                            account_info: account_info_iter.next().safe_unwrap()?.clone(),
+                            oracle_source: OracleSource::Prelaunch,
+                        },
+                    );
+                }
+                &switchboard_program::ID => {
+                    oracles.insert(
+                        pubkey,
+                        AccountInfoAndOracleSource {
+                            account_info: account_info_iter.next().safe_unwrap()?.clone(),
+                            oracle_source: OracleSource::Switchboard,
+                        },
+                    );
+                }
+                &switchboard_on_demand::ID => {
+                    oracles.insert(
+                        pubkey,
+                        AccountInfoAndOracleSource {
+                            account_info: account_info_iter.next().safe_unwrap()?.clone(),
+                            oracle_source: OracleSource::SwitchboardOnDemand,
+                        },
+                    );
+                }
+                _ => break,
             }
-
-            break;
         }
-
-        let ogr: OracleGuardRails = if let Some(o) = oracle_guard_rails {
-            o
-        } else {
-            OracleGuardRails::default()
-        };
 
         Ok(OracleMap {
             oracles,
             price_data: BTreeMap::new(),
             validity: BTreeMap::new(),
             slot,
-            oracle_guard_rails: ogr,
+            oracle_guard_rails: oracle_guard_rails.unwrap_or_default(),
             quote_asset_price_data: OraclePriceData {
                 price: PRICE_PRECISION_I64,
                 confidence: 1,
