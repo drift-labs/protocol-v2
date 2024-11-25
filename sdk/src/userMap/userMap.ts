@@ -160,6 +160,7 @@ export class UserMap implements UserMapInterface {
 			type: 'default',
 		};
 
+		// Whether to throw an error if the userMap fails to sync. Defaults to false.
 		this.throwOnFailedSync = config.throwOnFailedSync ?? false;
 	}
 
