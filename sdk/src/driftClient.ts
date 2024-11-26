@@ -603,7 +603,7 @@ export class DriftClient {
 
 	public getOraclePriceDataAndSlot(
 		oraclePublicKey: PublicKey,
-		oracleSource: OracleSource,
+		oracleSource: OracleSource
 	): DataAndSlot<OraclePriceData> | undefined {
 		return this.accountSubscriber.getOraclePriceDataAndSlot(
 			getOracleId(oraclePublicKey, oracleSource)

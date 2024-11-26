@@ -238,7 +238,10 @@ export class WebSocketDriftClientAccountSubscriber
 					oracleAccountInfos[i].data
 				);
 
-				result.push([getOracleId(oracleInfo.publicKey, oracleInfo.source), oraclePriceData]);
+				result.push([
+					getOracleId(oracleInfo.publicKey, oracleInfo.source),
+					oraclePriceData,
+				]);
 				return result;
 			}, [])
 		);
@@ -343,13 +346,17 @@ export class WebSocketDriftClientAccountSubscriber
 			this.resubOpts,
 			this.commitment
 		);
-		const initialOraclePriceData =
-			this.initialOraclePriceData.get(oracleId);
+		const initialOraclePriceData = this.initialOraclePriceData.get(oracleId);
 		if (initialOraclePriceData) {
 			accountSubscriber.setData(initialOraclePriceData);
 		}
 		await accountSubscriber.subscribe((data: OraclePriceData) => {
-			this.eventEmitter.emit('oraclePriceUpdate', oracleInfo.publicKey, oracleInfo.source, data);
+			this.eventEmitter.emit(
+				'oraclePriceUpdate',
+				oracleInfo.publicKey,
+				oracleInfo.source,
+				data
+			);
 			this.eventEmitter.emit('update');
 		});
 

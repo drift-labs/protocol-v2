@@ -369,7 +369,8 @@ export class PollingDriftClientAccountSubscriber
 					{
 						data: oraclePriceData,
 						slot,
-				});
+					}
+				);
 			}
 		}
 	}
@@ -495,10 +496,7 @@ export class PollingDriftClientAccountSubscriber
 				);
 			}
 			this.perpOracleMap.set(perpMarketIndex, oracle);
-			this.perpOracleStringMap.set(
-				perpMarketIndex,
-				oracleId
-			);
+			this.perpOracleStringMap.set(perpMarketIndex, oracleId);
 		}
 		await Promise.all(oraclePromises);
 	}
