@@ -66,7 +66,7 @@ impl<'a> OracleMap<'a> {
             return self.price_data.get(id).safe_unwrap();
         }
 
-        let (account_info) = match self.oracles.get(&id.0) {
+        let account_info = match self.oracles.get(&id.0) {
             Some(account_info) => account_info,
             None => {
                 msg!("oracle pubkey not found in oracle_map: {}", id.0);
