@@ -110,16 +110,19 @@ fn amm_pred_expiry_price_yes_market_example() {
     // let mut oracle_map: OracleMap<'_> =
     //     OracleMap::load_one(&jto_market_account_info, clock_slot, None).unwrap();
 
-    let mut sol_oracle_price: pyth::pc::Price = get_hardcoded_pyth_price(1000000, 6);
-    sol_oracle_price.agg.conf = 1655389;
+    let mut prelaunch_oracle_price = PrelaunchOracle {
+        price: PRICE_PRECISION_I64,
+        confidence: 1655389,
+        ..PrelaunchOracle::default()
+    };
 
-    let sol_oracle_price_key: Pubkey =
+    let prelaunch_oracle_price_key: Pubkey =
         Pubkey::from_str("3TVuLmEGBRfVgrmFRtYTheczXaaoRBwcHw1yibZHSeNA").unwrap();
-    let pyth_program = crate::ids::pyth_program::id();
-    create_account_info!(
-        sol_oracle_price,
-        &sol_oracle_price_key,
-        &pyth_program,
+    let drift_program = crate::id();
+    create_anchor_account_info!(
+        prelaunch_oracle_price,
+        &prelaunch_oracle_price_key,
+        PrelaunchOracle,
         oracle_account_info
     );
     let mut oracle_map = OracleMap::load_one(&oracle_account_info, clock_slot, None).unwrap();
@@ -336,16 +339,19 @@ fn amm_pred_settle_market_example() {
     // let mut oracle_map: OracleMap<'_> =
     //     OracleMap::load_one(&jto_market_account_info, clock_slot, None).unwrap();
 
-    let mut sol_oracle_price: pyth::pc::Price = get_hardcoded_pyth_price(1, 6);
-    sol_oracle_price.agg.conf = 1655389;
+    let mut prelaunch_oracle_price = PrelaunchOracle {
+        price: PRICE_PRECISION_I64,
+        confidence: 1655389,
+        ..PrelaunchOracle::default()
+    };
 
-    let sol_oracle_price_key: Pubkey =
+    let prelaunch_oracle_price_key: Pubkey =
         Pubkey::from_str("3TVuLmEGBRfVgrmFRtYTheczXaaoRBwcHw1yibZHSeNA").unwrap();
-    let pyth_program = crate::ids::pyth_program::id();
-    create_account_info!(
-        sol_oracle_price,
-        &sol_oracle_price_key,
-        &pyth_program,
+    let drift_program = crate::id();
+    create_anchor_account_info!(
+        prelaunch_oracle_price,
+        &prelaunch_oracle_price_key,
+        PrelaunchOracle,
         oracle_account_info
     );
     let mut oracle_map = OracleMap::load_one(&oracle_account_info, clock_slot, None).unwrap();
@@ -2001,7 +2007,7 @@ fn update_amm_near_boundary() {
 
     println!("perp_market: {:?}", perp_market.amm.last_update_slot);
 
-    let oracle_price_data = oracle_map.get_price_data(&(key, OracleSource::Pyth)).unwrap();
+    let oracle_price_data = oracle_map.get_price_data(&perp_market.oracle_id()).unwrap();
 
     let state = State::default();
 
@@ -2043,7 +2049,7 @@ fn update_amm_near_boundary2() {
 
     println!("perp_market: {:?}", perp_market.amm.last_update_slot);
 
-    let oracle_price_data = oracle_map.get_price_data(&(key, OracleSource::Pyth)).unwrap();
+    let oracle_price_data = oracle_map.get_price_data(&perp_market.oracle_id()).unwrap();
 
     let state = State::default();
 
@@ -2085,7 +2091,7 @@ fn recenter_amm_1() {
 
     println!("perp_market: {:?}", perp_market.amm.last_update_slot);
 
-    let oracle_price_data = oracle_map.get_price_data(&(key, OracleSource::Pyth)).unwrap();
+    let oracle_price_data = oracle_map.get_price_data(&perp_market.oracle_id()).unwrap();
 
     let state = State::default();
 
