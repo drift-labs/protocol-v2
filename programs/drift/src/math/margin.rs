@@ -260,7 +260,7 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
         let (oracle_price_data, oracle_validity) = oracle_map.get_price_data_and_validity(
             MarketType::Spot,
             spot_market.market_index,
-            &spot_market.get_oracle_id(),
+            &spot_market.oracle_id(),
             spot_market.historical_oracle_data.last_oracle_price_twap,
             spot_market.get_max_confidence_interval_multiplier()?,
         )?;
@@ -483,7 +483,7 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
             .get_price_data_and_validity(
                 MarketType::Spot,
                 quote_spot_market.market_index,
-                &quote_spot_market.get_oracle_id(),
+                &quote_spot_market.oracle_id(),
                 quote_spot_market
                     .historical_oracle_data
                     .last_oracle_price_twap,
@@ -502,7 +502,7 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
         let (oracle_price_data, oracle_validity) = oracle_map.get_price_data_and_validity(
             MarketType::Perp,
             market.market_index,
-            &market.get_oracle_id(),
+            &market.oracle_id(),
             market.amm.historical_oracle_data.last_oracle_price_twap,
             market.get_max_confidence_interval_multiplier()?,
         )?;
@@ -763,7 +763,7 @@ pub fn calculate_max_withdrawable_amount(
         .get_spot_position(market_index)?
         .get_token_amount(spot_market)?;
 
-    let oracle_price = oracle_map.get_price_data(&spot_market.get_oracle_id())?.price;
+    let oracle_price = oracle_map.get_price_data(&spot_market.oracle_id())?.price;
 
     let asset_weight = spot_market.get_asset_weight(
         token_amount,
@@ -837,7 +837,7 @@ pub fn validate_spot_margin_trading(
         let bids = spot_position.open_bids;
         if bids > 0 {
             let spot_market = spot_market_map.get_ref(&spot_position.market_index)?;
-            let oracle_price_data = oracle_map.get_price_data(&spot_market.get_oracle_id())?;
+            let oracle_price_data = oracle_map.get_price_data(&spot_market.oracle_id())?;
             let open_bids_value =
                 get_token_value(-bids as i128, spot_market.decimals, oracle_price_data.price)?;
 
@@ -880,7 +880,7 @@ pub fn calculate_user_equity(
         let (oracle_price_data, oracle_validity) = oracle_map.get_price_data_and_validity(
             MarketType::Spot,
             spot_market.market_index,
-            &spot_market.get_oracle_id(),
+            &spot_market.oracle_id(),
             spot_market.historical_oracle_data.last_oracle_price_twap,
             spot_market.get_max_confidence_interval_multiplier()?,
         )?;
@@ -907,7 +907,7 @@ pub fn calculate_user_equity(
                 .get_price_data_and_validity(
                     MarketType::Spot,
                     quote_spot_market.market_index,
-                    &quote_spot_market.get_oracle_id(),
+                    &quote_spot_market.oracle_id(),
                     quote_spot_market
                         .historical_oracle_data
                         .last_oracle_price_twap,
@@ -923,7 +923,7 @@ pub fn calculate_user_equity(
         let (oracle_price_data, oracle_validity) = oracle_map.get_price_data_and_validity(
             MarketType::Perp,
             market.market_index,
-            &market.get_oracle_id(),
+            &market.oracle_id(),
             market.amm.historical_oracle_data.last_oracle_price_twap,
             market.get_max_confidence_interval_multiplier()?,
         )?;

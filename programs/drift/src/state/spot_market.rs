@@ -285,7 +285,7 @@ impl MarketIndexOffset for SpotMarket {
 }
 
 impl SpotMarket {
-    pub fn get_oracle_id(&self) -> OracleIdentifier {
+    pub fn oracle_id(&self) -> OracleIdentifier {
         (self.oracle, self.oracle_source)
     }
 

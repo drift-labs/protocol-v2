@@ -1,7 +1,7 @@
 use crate::error::ErrorCode::UnableToLoadOracle;
 use crate::error::{DriftResult, ErrorCode};
 use crate::ids::{
-    drift_oracle_receiver_program, switchboard_on_demand, switchboard_program, pyth_program
+    drift_oracle_receiver_program, pyth_program, switchboard_on_demand, switchboard_program,
 };
 use crate::math::constants::PRICE_PRECISION_I64;
 use crate::math::oracle::{oracle_validity, OracleValidity};
@@ -143,7 +143,7 @@ impl<'a> OracleMap<'a> {
             let validity_guard_rails = &self.oracle_guard_rails.validity;
             return Ok((&self.quote_asset_price_data, validity_guard_rails));
         }
-        
+
         if self.price_data.contains_key(oracle_id) {
             let oracle_price_data = self.price_data.get(oracle_id).safe_unwrap()?;
             let validity_guard_rails = &self.oracle_guard_rails.validity;
@@ -225,7 +225,6 @@ impl<'a> OracleMap<'a> {
                 let pubkey = account_info.key();
 
                 oracles.insert(pubkey, account_info.clone());
-
 
                 continue;
             }

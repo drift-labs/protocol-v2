@@ -194,7 +194,7 @@ pub fn liquidate_perp(
     )?;
 
     let mut market = perp_market_map.get_ref_mut(&market_index)?;
-    let oracle_price_data = oracle_map.get_price_data(&market.get_oracle_id())?;
+    let oracle_price_data = oracle_map.get_price_data(&market.oracle_id())?;
 
     update_amm_and_check_validity(
         &mut market,
@@ -333,7 +333,9 @@ pub fn liquidate_perp(
 
     let market = perp_market_map.get_ref(&market_index)?;
     let quote_spot_market = spot_market_map.get_ref(&market.quote_spot_market_index)?;
-    let quote_oracle_price = oracle_map.get_price_data(&quote_spot_market.get_oracle_id())?.price;
+    let quote_oracle_price = oracle_map
+        .get_price_data(&quote_spot_market.oracle_id())?
+        .price;
     let liquidator_fee = market.liquidator_fee;
     let if_liquidation_fee = calculate_perp_if_fee(
         intermediate_margin_calculation.tracked_market_margin_shortage(margin_shortage)?,
@@ -773,7 +775,7 @@ pub fn liquidate_perp_with_fill(
     )?;
 
     let mut market = perp_market_map.get_ref_mut(&market_index)?;
-    let oracle_price_data = oracle_map.get_price_data(&market.get_oracle_id())?;
+    let oracle_price_data = oracle_map.get_price_data(&market.oracle_id())?;
 
     update_amm_and_check_validity(
         &mut market,
@@ -901,7 +903,9 @@ pub fn liquidate_perp_with_fill(
 
     let market = perp_market_map.get_ref(&market_index)?;
     let quote_spot_market = spot_market_map.get_ref(&market.quote_spot_market_index)?;
-    let quote_oracle_price = oracle_map.get_price_data(&quote_spot_market.get_oracle_id())?.price;
+    let quote_oracle_price = oracle_map
+        .get_price_data(&quote_spot_market.oracle_id())?
+        .price;
     let liquidator_fee = market.liquidator_fee;
     let if_liquidation_fee = calculate_perp_if_fee(
         intermediate_margin_calculation.tracked_market_margin_shortage(margin_shortage)?,
@@ -1203,7 +1207,7 @@ pub fn liquidate_spot(
     let (asset_amount, asset_price, asset_decimals, asset_weight, asset_liquidation_multiplier) = {
         let mut asset_market = spot_market_map.get_ref_mut(&asset_market_index)?;
         let (asset_price_data, validity_guard_rails) =
-            oracle_map.get_price_data_and_guard_rails(&asset_market.get_oracle_id())?;
+            oracle_map.get_price_data_and_guard_rails(&asset_market.oracle_id())?;
 
         update_spot_market_and_check_validity(
             &mut asset_market,
@@ -1252,7 +1256,7 @@ pub fn liquidate_spot(
     ) = {
         let mut liability_market = spot_market_map.get_ref_mut(&liability_market_index)?;
         let (liability_price_data, validity_guard_rails) =
-            oracle_map.get_price_data_and_guard_rails(&liability_market.get_oracle_id())?;
+            oracle_map.get_price_data_and_guard_rails(&liability_market.oracle_id())?;
 
         update_spot_market_and_check_validity(
             &mut liability_market,
@@ -1783,7 +1787,9 @@ pub fn liquidate_borrow_for_perp_pnl(
         let market = perp_market_map.get_ref(&perp_market_index)?;
 
         let quote_spot_market = spot_market_map.get_ref(&market.quote_spot_market_index)?;
-        let quote_price = oracle_map.get_price_data(&quote_spot_market.get_oracle_id())?.price;
+        let quote_price = oracle_map
+            .get_price_data(&quote_spot_market.oracle_id())?
+            .price;
 
         let pnl_asset_weight =
             market.get_unrealized_asset_weight(pnl, MarginRequirementType::Maintenance)?;
@@ -1809,7 +1815,7 @@ pub fn liquidate_borrow_for_perp_pnl(
     ) = {
         let mut liability_market = spot_market_map.get_ref_mut(&liability_market_index)?;
         let (liability_price_data, validity_guard_rails) =
-            oracle_map.get_price_data_and_guard_rails(&liability_market.get_oracle_id())?;
+            oracle_map.get_price_data_and_guard_rails(&liability_market.oracle_id())?;
 
         update_spot_market_and_check_validity(
             &mut liability_market,
@@ -1903,7 +1909,7 @@ pub fn liquidate_borrow_for_perp_pnl(
 
         if intermediate_margin_calculation.can_exit_liquidation()? {
             let market = perp_market_map.get_ref(&perp_market_index)?;
-            let market_oracle_price = oracle_map.get_price_data(&market.get_oracle_id())?.price;
+            let market_oracle_price = oracle_map.get_price_data(&market.oracle_id())?.price;
 
             emit!(LiquidationRecord {
                 ts: now,
@@ -2094,7 +2100,7 @@ pub fn liquidate_borrow_for_perp_pnl(
 
     let market_oracle_price = {
         let market = perp_market_map.get_ref_mut(&perp_market_index)?;
-        oracle_map.get_price_data(&market.get_oracle_id())?.price
+        oracle_map.get_price_data(&market.oracle_id())?.price
     };
 
     emit!(LiquidationRecord {
@@ -2232,7 +2238,7 @@ pub fn liquidate_perp_pnl_for_deposit(
     ) = {
         let mut asset_market = spot_market_map.get_ref_mut(&asset_market_index)?;
         let (asset_price_data, validity_guard_rails) =
-            oracle_map.get_price_data_and_guard_rails(&asset_market.get_oracle_id())?;
+            oracle_map.get_price_data_and_guard_rails(&asset_market.oracle_id())?;
 
         update_spot_market_and_check_validity(
             &mut asset_market,
@@ -2309,7 +2315,9 @@ pub fn liquidate_perp_pnl_for_deposit(
         let market = perp_market_map.get_ref(&perp_market_index)?;
 
         let quote_spot_market = spot_market_map.get_ref(&market.quote_spot_market_index)?;
-        let quote_price = oracle_map.get_price_data(&quote_spot_market.get_oracle_id())?.price;
+        let quote_price = oracle_map
+            .get_price_data(&quote_spot_market.oracle_id())?
+            .price;
 
         (
             unsettled_pnl.unsigned_abs(),
@@ -2386,7 +2394,7 @@ pub fn liquidate_perp_pnl_for_deposit(
 
         if exiting_liq_territory || is_contract_tier_violation {
             let market = perp_market_map.get_ref(&perp_market_index)?;
-            let market_oracle_price = oracle_map.get_price_data(&market.get_oracle_id())?.price;
+            let market_oracle_price = oracle_map.get_price_data(&market.oracle_id())?.price;
 
             emit!(LiquidationRecord {
                 ts: now,
@@ -2589,7 +2597,7 @@ pub fn liquidate_perp_pnl_for_deposit(
 
     let market_oracle_price = {
         let market = perp_market_map.get_ref_mut(&perp_market_index)?;
-        oracle_map.get_price_data(&market.get_oracle_id())?.price
+        oracle_map.get_price_data(&market.oracle_id())?.price
     };
 
     emit!(LiquidationRecord {
@@ -2715,7 +2723,7 @@ pub fn resolve_perp_bankruptcy(
 
         // move if payment to pnl pool
         let spot_market = &mut spot_market_map.get_ref_mut(&QUOTE_SPOT_MARKET_INDEX)?;
-        let oracle_price_data = oracle_map.get_price_data(&spot_market.get_oracle_id())?;
+        let oracle_price_data = oracle_map.get_price_data(&spot_market.oracle_id())?;
         update_spot_market_cumulative_interest(spot_market, Some(oracle_price_data), now)?;
 
         update_spot_balances(
@@ -2936,7 +2944,7 @@ pub fn resolve_spot_bankruptcy(
 
     {
         let mut spot_market = spot_market_map.get_ref_mut(&market_index)?;
-        let oracle_price_data = &oracle_map.get_price_data(&spot_market.get_oracle_id())?;
+        let oracle_price_data = &oracle_map.get_price_data(&spot_market.oracle_id())?;
         let quote_social_loss = get_token_value(
             -borrow_amount.cast()?,
             spot_market.decimals,

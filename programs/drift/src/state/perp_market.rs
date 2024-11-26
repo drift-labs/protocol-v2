@@ -300,7 +300,7 @@ impl MarketIndexOffset for PerpMarket {
 }
 
 impl PerpMarket {
-    pub fn get_oracle_id(&self) -> OracleIdentifier {
+    pub fn oracle_id(&self) -> OracleIdentifier {
         (self.amm.oracle, self.amm.oracle_source)
     }
 
