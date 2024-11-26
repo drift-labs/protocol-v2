@@ -24,6 +24,13 @@ use crate::validate;
 
 pub type OracleIdentifier = (Pubkey, OracleSource);
 
+const EXTERNAL_ORACLE_PROGRAM_IDS: [Pubkey; 4] = [
+    pyth_program::id(),
+    drift_oracle_receiver_program::id(),
+    switchboard_program::id(),
+    switchboard_on_demand::id(),
+];
+
 pub struct OracleMap<'a> {
     oracles: BTreeMap<Pubkey, AccountInfo<'a>>,
     price_data: BTreeMap<OracleIdentifier, OraclePriceData>,
@@ -177,14 +184,7 @@ impl<'a> OracleMap<'a> {
         let mut oracles: BTreeMap<Pubkey, AccountInfo<'a>> = BTreeMap::new();
 
         while let Some(account_info) = account_info_iter.peek() {
-            if account_info.owner == &pyth_program::id() {
-                let account_info: &AccountInfo<'a> = account_info_iter.next().safe_unwrap()?;
-                let pubkey = account_info.key();
-
-                oracles.insert(pubkey, account_info.clone());
-
-                continue;
-            } else if account_info.owner == &drift_oracle_receiver_program::id() {
+            if EXTERNAL_ORACLE_PROGRAM_IDS.contains(&account_info.owner) {
                 let account_info: &AccountInfo<'a> = account_info_iter.next().safe_unwrap()?;
                 let pubkey = account_info.key();
 
@@ -207,20 +207,6 @@ impl<'a> OracleMap<'a> {
                     break;
                 }
 
-                let account_info = account_info_iter.next().safe_unwrap()?;
-                let pubkey = account_info.key();
-
-                oracles.insert(pubkey, account_info.clone());
-
-                continue;
-            } else if account_info.owner == &switchboard_program::id() {
-                let account_info = account_info_iter.next().safe_unwrap()?;
-                let pubkey = account_info.key();
-
-                oracles.insert(pubkey, account_info.clone());
-
-                continue;
-            } else if account_info.owner == &switchboard_on_demand::id() {
                 let account_info = account_info_iter.next().safe_unwrap()?;
                 let pubkey = account_info.key();
 
@@ -260,11 +246,7 @@ impl<'a> OracleMap<'a> {
     ) -> DriftResult<OracleMap<'a>> {
         let mut oracles: BTreeMap<Pubkey, AccountInfo<'a>> = BTreeMap::new();
 
-        if account_info.owner == &pyth_program::id() {
-            let pubkey = account_info.key();
-
-            oracles.insert(pubkey, account_info.clone());
-        } else if account_info.owner == &drift_oracle_receiver_program::id() {
+        if EXTERNAL_ORACLE_PROGRAM_IDS.contains(&account_info.owner) {
             let pubkey = account_info.key();
 
             oracles.insert(pubkey, account_info.clone());
@@ -286,12 +268,6 @@ impl<'a> OracleMap<'a> {
                 return Err(UnableToLoadOracle);
             }
 
-            let pubkey = account_info.key();
-            oracles.insert(pubkey, account_info.clone());
-        } else if account_info.owner == &switchboard_program::id() {
-            let pubkey = account_info.key();
-            oracles.insert(pubkey, account_info.clone());
-        } else if account_info.owner == &switchboard_on_demand::id() {
             let pubkey = account_info.key();
             oracles.insert(pubkey, account_info.clone());
         } else if account_info.key() != Pubkey::default() {
