@@ -1,6 +1,7 @@
 import { PublicKey } from '@solana/web3.js';
 import { DataAndSlot } from './types';
 import { isVariant, PerpMarketAccount, SpotMarketAccount } from '../types';
+import { OracleInfo } from '../oracles/types';
 
 export function capitalize(value: string): string {
 	return value[0].toUpperCase() + value.slice(1);
@@ -9,9 +10,9 @@ export function capitalize(value: string): string {
 export function findDelistedPerpMarketsAndOracles(
 	perpMarkets: DataAndSlot<PerpMarketAccount>[],
 	spotMarkets: DataAndSlot<SpotMarketAccount>[]
-): { perpMarketIndexes: number[]; oracles: PublicKey[] } {
+): { perpMarketIndexes: number[]; oracles: OracleInfo[] } {
 	const delistedPerpMarketIndexes = [];
-	const delistedOracles = [];
+	const delistedOracles: OracleInfo[] = [];
 	for (const perpMarket of perpMarkets) {
 		if (!perpMarket.data) {
 			continue;
@@ -19,7 +20,10 @@ export function findDelistedPerpMarketsAndOracles(
 
 		if (isVariant(perpMarket.data.status, 'delisted')) {
 			delistedPerpMarketIndexes.push(perpMarket.data.marketIndex);
-			delistedOracles.push(perpMarket.data.amm.oracle);
+			delistedOracles.push({
+				publicKey: perpMarket.data.amm.oracle,
+				source: perpMarket.data.amm.oracleSource,
+			});
 		}
 	}
 
@@ -31,7 +35,7 @@ export function findDelistedPerpMarketsAndOracles(
 				continue;
 			}
 
-			if (spotMarket.data.oracle.equals(delistedOracle)) {
+			if (spotMarket.data.oracle.equals(delistedOracle.publicKey)) {
 				break;
 			}
 		}

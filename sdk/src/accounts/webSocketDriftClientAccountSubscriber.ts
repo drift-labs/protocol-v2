@@ -508,9 +508,9 @@ export class WebSocketDriftClientAccountSubscriber
 		}
 
 		for (const oracle of oracles) {
-			await this.oracleSubscribers.get(oracle.toBase58()).unsubscribe();
+			await this.oracleSubscribers.get(oracle.publicKey.toBase58()).unsubscribe();
 			if (this.delistedMarketSetting === DelistedMarketSetting.Discard) {
-				this.oracleSubscribers.delete(oracle.toBase58());
+				this.oracleSubscribers.delete(oracle.publicKey.toBase58());
 			}
 		}
 	}
