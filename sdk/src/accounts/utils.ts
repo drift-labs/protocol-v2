@@ -2,6 +2,7 @@ import { PublicKey } from '@solana/web3.js';
 import { DataAndSlot } from './types';
 import { isVariant, PerpMarketAccount, SpotMarketAccount } from '../types';
 import { OracleInfo } from '../oracles/types';
+import { getOracleId } from '../oracles/oracleId';
 
 export function capitalize(value: string): string {
 	return value[0].toUpperCase() + value.slice(1);
@@ -35,11 +36,20 @@ export function findDelistedPerpMarketsAndOracles(
 				continue;
 			}
 
-			if (spotMarket.data.oracle.equals(delistedOracle.publicKey)) {
+			const delistedOracleId = getOracleId(
+				delistedOracle.publicKey,
+				delistedOracle.source
+			);
+			const spotMarketOracleId = getOracleId(
+				spotMarket.data.oracle,
+				spotMarket.data.oracleSource
+			);
+			if (spotMarketOracleId === delistedOracleId) {
 				break;
 			}
+
+			filteredDelistedOracles.push(delistedOracle);
 		}
-		filteredDelistedOracles.push(delistedOracle);
 	}
 
 	return {
