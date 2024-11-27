@@ -201,7 +201,8 @@ pub struct SpotMarket {
     /// precision: 10
     pub fuel_boost_insurance: u8,
     pub token_program: u8,
-    pub padding: [u8; 41],
+    pub pool_id: u8,
+    pub padding: [u8; 40],
 }
 
 impl Default for SpotMarket {
@@ -269,7 +270,8 @@ impl Default for SpotMarket {
             fuel_boost_maker: 0,
             fuel_boost_insurance: 0,
             token_program: 0,
-            padding: [0; 41],
+            pool_id: 0,
+            padding: [0; 40],
         }
     }
 }

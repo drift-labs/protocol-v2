@@ -107,6 +107,13 @@ pub fn liquidate_perp(
         "liquidator bankrupt",
     )?;
 
+    validate!(
+        liquidator.pool_id == 0,
+        ErrorCode::InvalidPoolId,
+        "liquidator pool id ({}) != 0",
+        liquidator.pool_id
+    )?;
+
     let market = perp_market_map.get_ref(&market_index)?;
 
     validate!(
@@ -691,6 +698,13 @@ pub fn liquidate_perp_with_fill(
     )?;
 
     validate!(
+        liquidator.pool_id == 0,
+        ErrorCode::InvalidPoolId,
+        "liquidator pool id ({}) != 0",
+        liquidator.pool_id
+    )?;
+
+    validate!(
         !liquidator.is_bankrupt(),
         ErrorCode::UserBankrupt,
         "liquidator bankrupt",
@@ -1155,6 +1169,14 @@ pub fn liquidate_spot(
         asset_market_index
     )?;
 
+    validate!(
+        liquidator.pool_id == asset_spot_market.pool_id,
+        ErrorCode::InvalidPoolId,
+        "liquidator pool id ({}) != asset spot market pool id ({})",
+        liquidator.pool_id,
+        asset_spot_market.pool_id
+    )?;
+
     drop(asset_spot_market);
 
     let liability_spot_market = spot_market_map.get_ref(&liability_market_index)?;
@@ -1164,6 +1186,14 @@ pub fn liquidate_spot(
         ErrorCode::InvalidLiquidation,
         "Liquidation operation is paused for market {}",
         liability_market_index
+    )?;
+
+    validate!(
+        liquidator.pool_id == liability_spot_market.pool_id,
+        ErrorCode::InvalidPoolId,
+        "liquidator pool id ({}) != liablity spot market pool id ({})",
+        liquidator.pool_id,
+        liability_spot_market.pool_id
     )?;
 
     drop(liability_spot_market);
@@ -1687,6 +1717,13 @@ pub fn liquidate_borrow_for_perp_pnl(
         "liquidator bankrupt",
     )?;
 
+    validate!(
+        liquidator.pool_id == 0,
+        ErrorCode::InvalidPoolId,
+        "liquidator pool id ({}) != 0",
+        liquidator.pool_id
+    )?;
+
     let perp_market = perp_market_map.get_ref(&perp_market_index)?;
 
     validate!(
@@ -2154,6 +2191,13 @@ pub fn liquidate_perp_pnl_for_deposit(
         !liquidator.is_bankrupt(),
         ErrorCode::UserBankrupt,
         "liquidator bankrupt",
+    )?;
+
+    validate!(
+        liquidator.pool_id == 0,
+        ErrorCode::InvalidPoolId,
+        "liquidator pool id ({}) != 0",
+        liquidator.pool_id
     )?;
 
     let asset_spot_market = spot_market_map.get_ref(&asset_market_index)?;

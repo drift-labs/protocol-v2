@@ -169,6 +169,13 @@ pub fn place_perp_order(
     )?;
 
     validate!(
+        user.pool_id == 0,
+        ErrorCode::InvalidPoolId,
+        "user pool id ({}) != 0",
+        user.pool_id
+    )?;
+
+    validate!(
         !market.is_in_settlement(now),
         ErrorCode::MarketPlaceOrderPaused,
         "Market is in settlement mode",
@@ -1233,6 +1240,14 @@ pub fn fill_perp_order(
     let is_filler_maker = makers_and_referrer.0.contains_key(&filler_key);
     let (mut filler, mut filler_stats) = if !is_filler_maker && !is_filler_taker {
         let filler = load_mut!(filler)?;
+
+        validate!(
+            filler.pool_id == 0,
+            ErrorCode::InvalidPoolId,
+            "filler pool id ({}) != 0",
+            filler.pool_id
+        )?;
+
         if filler.authority != user.authority {
             (Some(filler), Some(load_mut!(filler_stats)?))
         } else {
@@ -3522,6 +3537,13 @@ pub fn place_spot_order(
     let step_size = spot_market.order_step_size;
 
     validate!(
+        user.pool_id == 0,
+        ErrorCode::InvalidPoolId,
+        "user pool id ({}) != 0",
+        user.pool_id
+    )?;
+
+    validate!(
         !matches!(spot_market.status, MarketStatus::Initialized),
         ErrorCode::MarketBeingInitialized,
         "Market is being initialized"
@@ -3802,6 +3824,14 @@ pub fn fill_spot_order(
     let is_filler_maker = makers_and_referrer.0.contains_key(&filler_key);
     let (mut filler, mut filler_stats) = if !is_filler_maker && !is_filler_taker {
         let filler = load_mut!(filler)?;
+
+        validate!(
+            filler.pool_id == 0,
+            ErrorCode::InvalidPoolId,
+            "filler pool id ({}) != 0",
+            filler.pool_id
+        )?;
+
         if filler.authority != user.authority {
             (Some(filler), Some(load_mut!(filler_stats)?))
         } else {

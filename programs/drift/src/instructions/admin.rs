@@ -157,12 +157,6 @@ pub fn handle_initialize_spot_market(
             ErrorCode::InvalidSpotMarketInitialization,
             "For OracleSource::QuoteAsset, oracle must be default public key"
         )?;
-
-        validate!(
-            spot_market_index == QUOTE_SPOT_MARKET_INDEX,
-            ErrorCode::InvalidSpotMarketInitialization,
-            "For OracleSource::QuoteAsset, spot_market_index must be QUOTE_SPOT_MARKET_INDEX"
-        )?;
     } else {
         OracleMap::validate_oracle_account_info(&ctx.accounts.oracle)?;
     }
@@ -314,7 +308,8 @@ pub fn handle_initialize_spot_market(
         fuel_boost_maker: 0,
         fuel_boost_insurance: 0,
         token_program,
-        padding: [0; 41],
+        pool_id: 0,
+        padding: [0; 40],
         insurance_fund: InsuranceFund {
             vault: *ctx.accounts.insurance_fund_vault.to_account_info().key,
             unstaking_period: THIRTEEN_DAY,
@@ -323,6 +318,36 @@ pub fn handle_initialize_spot_market(
             ..InsuranceFund::default()
         },
     };
+
+    Ok(())
+}
+
+#[access_control(
+    spot_market_valid(&ctx.accounts.spot_market)
+)]
+pub fn handle_update_spot_market_pool_id(
+    ctx: Context<AdminUpdateSpotMarket>,
+    pool_id: u8,
+) -> Result<()> {
+    #[cfg(all(feature = "mainnet-beta", not(feature = "anchor-test")))]
+    {
+        panic!("pools disabled on mainnet-beta");
+    }
+
+    let mut spot_market = load_mut!(ctx.accounts.spot_market)?;
+    msg!(
+        "updating spot market {} pool id to {}",
+        spot_market.market_index,
+        pool_id
+    );
+
+    validate!(
+        spot_market.status == MarketStatus::Initialized,
+        ErrorCode::DefaultError,
+        "Market must be just initialized to update pool"
+    )?;
+
+    spot_market.pool_id = pool_id;
 
     Ok(())
 }
@@ -858,7 +883,7 @@ pub fn handle_initialize_perp_market(
         fuel_boost_position: 0,
         fuel_boost_taker: 0,
         fuel_boost_maker: 0,
-        padding1: 0,
+        pool_id: 0,
         high_leverage_margin_ratio_initial: 0,
         high_leverage_margin_ratio_maintenance: 0,
         padding: [0; 38],
