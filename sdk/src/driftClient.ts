@@ -125,6 +125,7 @@ import { OraclePriceData } from './oracles/types';
 import {
 	ConnectionRotationConfig,
 	DriftClientConfig,
+	DriftClientSubscriptionConfig,
 } from './driftClientConfig';
 import { PollingDriftClientAccountSubscriber } from './accounts/pollingDriftClientAccountSubscriber';
 import { WebSocketDriftClientAccountSubscriber } from './accounts/webSocketDriftClientAccountSubscriber';
@@ -203,6 +204,8 @@ export class DriftClient {
 	users = new Map<string, User>();
 	userStats?: UserStats;
 	activeSubAccountId: number;
+	config: DriftClientConfig;
+	accountSubscription: DriftClientSubscriptionConfig;
 	userAccountSubscriptionConfig: UserSubscriptionConfig;
 	userStatsAccountSubscriptionConfig: UserStatsSubscriptionConfig;
 	accountSubscriber: DriftClientAccountSubscriber;
@@ -252,6 +255,7 @@ export class DriftClient {
 	}
 
 	public constructor(config: DriftClientConfig) {
+		this.config = config;
 		this.connection = config.connection;
 		this.wallet = config.wallet;
 		this.opts = config.opts || {
@@ -283,6 +287,8 @@ export class DriftClient {
 			computeUnits: config.txParams?.computeUnits ?? 600_000,
 			computeUnitsPrice: config.txParams?.computeUnitsPrice ?? 0,
 		};
+
+		this.accountSubscription = config.accountSubscription;
 
 		this.txHandler =
 			config?.txHandler ??
@@ -325,53 +331,44 @@ export class DriftClient {
 			: new Map<string, number[]>();
 
 		this.includeDelegates = config.includeDelegates ?? false;
-		if (config.accountSubscription?.type === 'polling') {
+		if (this.accountSubscription?.type === 'polling') {
 			this.userAccountSubscriptionConfig = {
 				type: 'polling',
-				accountLoader: config.accountSubscription.accountLoader,
+				accountLoader: this.accountSubscription.accountLoader,
 			};
 			this.userStatsAccountSubscriptionConfig = {
 				type: 'polling',
-				accountLoader: config.accountSubscription.accountLoader,
+				accountLoader: this.accountSubscription.accountLoader,
 			};
-		} else if (config.accountSubscription?.type === 'grpc') {
+		} else if (this.accountSubscription?.type === 'grpc') {
 			this.userAccountSubscriptionConfig = {
 				type: 'grpc',
-				resubTimeoutMs: config.accountSubscription?.resubTimeoutMs,
-				logResubMessages: config.accountSubscription?.logResubMessages,
-				grpcConfigs: config.accountSubscription?.grpcConfigs,
+				resubTimeoutMs: this.accountSubscription?.resubTimeoutMs,
+				logResubMessages: this.accountSubscription?.logResubMessages,
+				grpcConfigs: this.accountSubscription?.grpcConfigs,
 			};
 			this.userStatsAccountSubscriptionConfig = {
 				type: 'grpc',
-				grpcConfigs: config.accountSubscription?.grpcConfigs,
-				resubTimeoutMs: config.accountSubscription?.resubTimeoutMs,
-				logResubMessages: config.accountSubscription?.logResubMessages,
+				grpcConfigs: this.accountSubscription?.grpcConfigs,
+				resubTimeoutMs: this.accountSubscription?.resubTimeoutMs,
+				logResubMessages: this.accountSubscription?.logResubMessages,
 			};
 		} else {
 			this.userAccountSubscriptionConfig = {
 				type: 'websocket',
-				resubTimeoutMs: config.accountSubscription?.resubTimeoutMs,
-				logResubMessages: config.accountSubscription?.logResubMessages,
-				commitment: config.accountSubscription?.commitment,
+				resubTimeoutMs: this.accountSubscription?.resubTimeoutMs,
+				logResubMessages: this.accountSubscription?.logResubMessages,
+				commitment: this.accountSubscription?.commitment,
 			};
 			this.userStatsAccountSubscriptionConfig = {
 				type: 'websocket',
-				resubTimeoutMs: config.accountSubscription?.resubTimeoutMs,
-				logResubMessages: config.accountSubscription?.logResubMessages,
-				commitment: config.accountSubscription?.commitment,
+				resubTimeoutMs: this.accountSubscription?.resubTimeoutMs,
+				logResubMessages: this.accountSubscription?.logResubMessages,
+				commitment: this.accountSubscription?.commitment,
 			};
 		}
 
-		if (config.userStats) {
-			this.userStats = new UserStats({
-				driftClient: this,
-				userStatsAccountPublicKey: getUserStatsAccountPublicKey(
-					this.program.programId,
-					this.authority
-				),
-				accountSubscription: this.userAccountSubscriptionConfig,
-			});
-		}
+		this.initSubscriptions(config);
 
 		this.marketLookupTable = config.marketLookupTable;
 		if (config.env && !this.marketLookupTable) {
@@ -379,53 +376,6 @@ export class DriftClient {
 				configs[config.env].MARKET_LOOKUP_TABLE
 			);
 		}
-
-		const delistedMarketSetting =
-			config.delistedMarketSetting || DelistedMarketSetting.Unsubscribe;
-		const noMarketsAndOraclesSpecified =
-			config.perpMarketIndexes === undefined &&
-			config.spotMarketIndexes === undefined &&
-			config.oracleInfos === undefined;
-		if (config.accountSubscription?.type === 'polling') {
-			this.accountSubscriber = new PollingDriftClientAccountSubscriber(
-				this.program,
-				config.accountSubscription.accountLoader,
-				config.perpMarketIndexes ?? [],
-				config.spotMarketIndexes ?? [],
-				config.oracleInfos ?? [],
-				noMarketsAndOraclesSpecified,
-				delistedMarketSetting
-			);
-		} else if (config.accountSubscription?.type === 'grpc') {
-			this.accountSubscriber = new gprcDriftClientAccountSubscriber(
-				config.accountSubscription.grpcConfigs,
-				this.program,
-				config.perpMarketIndexes ?? [],
-				config.spotMarketIndexes ?? [],
-				config.oracleInfos ?? [],
-				noMarketsAndOraclesSpecified,
-				delistedMarketSetting,
-				{
-					resubTimeoutMs: config.accountSubscription?.resubTimeoutMs,
-					logResubMessages: config.accountSubscription?.logResubMessages,
-				}
-			);
-		} else {
-			this.accountSubscriber = new WebSocketDriftClientAccountSubscriber(
-				this.program,
-				config.perpMarketIndexes ?? [],
-				config.spotMarketIndexes ?? [],
-				config.oracleInfos ?? [],
-				noMarketsAndOraclesSpecified,
-				delistedMarketSetting,
-				{
-					resubTimeoutMs: config.accountSubscription?.resubTimeoutMs,
-					logResubMessages: config.accountSubscription?.logResubMessages,
-				},
-				config.accountSubscription?.commitment
-			);
-		}
-		this.eventEmitter = this.accountSubscriber.eventEmitter;
 
 		this.metricsEventEmitter = new EventEmitter();
 
@@ -483,9 +433,10 @@ export class DriftClient {
 	}
 
 	public assembleSubscribePromises(): Promise<boolean>[] {
-		let subscribePromises = [this.addAndSubscribeToUsers()].concat(
-			this.accountSubscriber.subscribe()
-		);
+		// let subscribePromises = [this.addAndSubscribeToUsers()].concat(
+		// 	this.accountSubscriber.subscribe()
+		// );
+		let subscribePromises = [this.accountSubscriber.subscribe()];
 		if (this.userStats !== undefined) {
 			subscribePromises = subscribePromises.concat(this.userStats.subscribe());
 		}
@@ -516,6 +467,66 @@ export class DriftClient {
 		return subscribePromises;
 	}
 
+	public initSubscriptions(config: DriftClientConfig): void {
+		if (config.userStats) {
+			this.userStats = new UserStats({
+				driftClient: this,
+				userStatsAccountPublicKey: getUserStatsAccountPublicKey(
+					this.program.programId,
+					this.authority
+				),
+				accountSubscription: this.userAccountSubscriptionConfig,
+			});
+		}
+
+		const delistedMarketSetting =
+			config.delistedMarketSetting || DelistedMarketSetting.Unsubscribe;
+		const noMarketsAndOraclesSpecified =
+			config.perpMarketIndexes === undefined &&
+			config.spotMarketIndexes === undefined &&
+			config.oracleInfos === undefined;
+		if (this.accountSubscription?.type === 'polling') {
+			this.accountSubscriber = new PollingDriftClientAccountSubscriber(
+				this.program,
+				this.accountSubscription.accountLoader,
+				config.perpMarketIndexes ?? [],
+				config.spotMarketIndexes ?? [],
+				config.oracleInfos ?? [],
+				noMarketsAndOraclesSpecified,
+				delistedMarketSetting
+			);
+		} else if (this.accountSubscription?.type === 'grpc') {
+			this.accountSubscriber = new gprcDriftClientAccountSubscriber(
+				this.accountSubscription.grpcConfigs,
+				this.program,
+				config.perpMarketIndexes ?? [],
+				config.spotMarketIndexes ?? [],
+				config.oracleInfos ?? [],
+				noMarketsAndOraclesSpecified,
+				delistedMarketSetting,
+				{
+					resubTimeoutMs: this.accountSubscription?.resubTimeoutMs,
+					logResubMessages: this.accountSubscription?.logResubMessages,
+				}
+			);
+		} else {
+			this.accountSubscriber = new WebSocketDriftClientAccountSubscriber(
+				this.program,
+				config.perpMarketIndexes ?? [],
+				config.spotMarketIndexes ?? [],
+				config.oracleInfos ?? [],
+				noMarketsAndOraclesSpecified,
+				delistedMarketSetting,
+				{
+					resubTimeoutMs: this.accountSubscription?.resubTimeoutMs,
+					logResubMessages: this.accountSubscription?.logResubMessages,
+				},
+				this.accountSubscription?.commitment
+			);
+		}
+		this.eventEmitter = this.accountSubscriber.eventEmitter;
+	}
+
 	public async subscribe(): Promise<boolean> {
 		const subscribePromises = this.assembleSubscribePromises();
 
@@ -526,11 +537,16 @@ export class DriftClient {
 				numAttempts < this.allConnections.length * 2
 			) {
 				try {
+					this.assembleSubscribePromises();
 					this.isSubscribed = (await Promise.all(subscribePromises)).reduce(
 						(success, prevSuccess) => success && prevSuccess
 					);
 				} catch (error) {
-					console.error('RPC Error executing subscribes', error);
+					console.error(
+						`RPC Error executing subscribes. URL: ${this.connection.rpcEndpoint}: `,
+						error.message,
+						error
+					);
 					await this.rotateRpcConnection();
 				}
 				numAttempts++;
@@ -567,7 +583,13 @@ export class DriftClient {
 
 		// Rebuild things that use connection in the constructor
 		this.connection = this.allConnections[this.activeConnectionIndex];
+		console.log('rotating to connection: ', this.connection.rpcEndpoint);
+		this.config.connection = this.connection;
+		if (this.accountSubscription?.type === 'polling') {
+			this.accountSubscription.accountLoader.connection = this.connection;
+		}
 		this.updateProviderConnection(this.connection);
+		this.initSubscriptions(this.config);
 		this.txHandler.updateConnection(this.connection);
 		this.txSender.updateConnection(this.connection);
 	}
@@ -887,11 +909,17 @@ export class DriftClient {
 	}
 
 	private updateProviderConnection(connection: Connection) {
+		console.log('provider endpoint', connection.rpcEndpoint);
 		this.provider = new AnchorProvider(
 			connection,
 			// @ts-ignore
 			this.wallet,
 			this.opts
+		);
+		this.program = new Program(
+			driftIDL as Idl,
+			this.program.programId,
+			this.provider
 		);
 	}
 
