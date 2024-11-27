@@ -216,6 +216,12 @@ export interface QuoteResponse {
 	 * @memberof QuoteResponse
 	 */
 	error?: string;
+	/**
+	 *
+	 * @type {string}
+	 * @memberof QuoteResponse
+	 */
+	errorCode?: string;
 }
 
 export class JupiterClient {

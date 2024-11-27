@@ -13,6 +13,73 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Breaking
 
+## [2.102.0] - 2024-11-21
+
+### Features
+
+- program: force delete user init ([#1341](https://github.com/drift-labs/protocol-v2/pull/1341))
+- program: rm withdraw fee ([#1334](https://github.com/drift-labs/protocol-v2/pull/1334))
+
+### Fixes
+
+- program: can update k looks at min order size ([#1338](https://github.com/drift-labs/protocol-v2/pull/1338))
+- program: skip validate_post_only_order if amm paused ([#1202](https://github.com/drift-labs/protocol-v2/pull/1202))
+
+### Breaking
+
+## [2.101.0] - 2024-11-15
+
+### Features
+
+- program: upgrade switchboard on demand oracles ([#1329](https://github.com/drift-labs/protocol-v2/pull/1329))
+
+### Fixes
+
+### Breaking
+
+## [2.100.0] - 2024-11-14
+
+### Features
+
+- program: add auction_duration_percentage to place and take ([#1320](https://github.com/drift-labs/protocol-v2/pull/1320))
+- program: more lenient w invalid deposit oracles ([#1324](https://github.com/drift-labs/protocol-v2/pull/1324))
+- program: rm usdc staking fee discount ([#1316](https://github.com/drift-labs/protocol-v2/pull/1316))
+- program: allow hot admin wallet to init pyth oracle ([#1327](https://github.com/drift-labs/protocol-v2/pull/1327))
+- program: update hlm fees ([#1317](https://github.com/drift-labs/protocol-v2/pull/1317))
+- program: update hlm disable ([#1318](https://github.com/drift-labs/protocol-v2/pull/1318))
+
+### Fixes
+
+- sdk: getBestBids/Asks only considers price/time priority ([#1322](https://github.com/drift-labs/protocol-v2/pull/1322))
+
+### Breaking
+
+## [2.99.0] - 2024-11-04
+
+### Features
+
+### Fixes
+
+- program: add update_user_stats_referrer_status to lib
+
+### Breaking
+
+## [2.98.0] - 2024-11-04
+
+### Features
+
+- sdk: init referrerMap ([#1295](https://github.com/drift-labs/protocol-v2/pull/1295))
+- program: allow disable high leverage mode after 1 hour ([#1289](https://github.com/drift-labs/protocol-v2/pull/1289))
+- sdk: driftClient unsub from delisted markets by default ([#1298](https://github.com/drift-labs/protocol-v2/pull/1298))
+- program: allow amm to fill immediately ([#1258](https://github.com/drift-labs/protocol-v2/pull/1258))
+- program: high leverage users pay higher fee ([#1287](https://github.com/drift-labs/protocol-v2/pull/1287))
+
+### Fixes
+
+- program: admin can sign everywhere hot wallet can ([#1290](https://github.com/drift-labs/protocol-v2/pull/1290))
+
+### Breaking
+
 ## [2.97.0] - 2024-10-23
 
 ### Features

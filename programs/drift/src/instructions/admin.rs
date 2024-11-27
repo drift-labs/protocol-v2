@@ -4461,7 +4461,7 @@ pub struct AdminUpdatePerpMarket<'info> {
 #[derive(Accounts)]
 pub struct AdminUpdatePerpMarketAmmSummaryStats<'info> {
     #[account(
-        address = admin_hot_wallet::id()
+        constraint = admin.key() == admin_hot_wallet::id() || admin.key() == state.admin
     )]
     pub admin: Signer<'info>,
     pub state: Box<Account<'info, State>>,
@@ -4624,7 +4624,7 @@ pub struct AdminDisableBidAskTwapUpdate<'info> {
 #[derive(Accounts)]
 pub struct InitUserFuel<'info> {
     #[account(
-        address = admin_hot_wallet::id()
+        constraint = admin.key() == admin_hot_wallet::id() || admin.key() == state.admin
     )]
     pub admin: Signer<'info>, // todo
     pub state: Box<Account<'info, State>>,
@@ -4791,16 +4791,16 @@ pub struct UpdateOpenbookV2FulfillmentConfig<'info> {
 #[derive(Accounts)]
 #[instruction(feed_id : [u8; 32])]
 pub struct InitPythPullPriceFeed<'info> {
-    #[account(mut)]
+    #[account(
+        mut,
+        constraint = admin.key() == admin_hot_wallet::id() || admin.key() == state.admin
+    )]
     pub admin: Signer<'info>,
     pub pyth_solana_receiver: Program<'info, PythSolanaReceiver>,
     /// CHECK: This account's seeds are checked
     #[account(mut, seeds = [PTYH_PRICE_FEED_SEED_PREFIX, &feed_id], bump)]
     pub price_feed: AccountInfo<'info>,
     pub system_program: Program<'info, System>,
-    #[account(
-        has_one = admin
-    )]
     pub state: Box<Account<'info, State>>,
 }
 

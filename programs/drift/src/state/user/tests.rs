@@ -1663,88 +1663,6 @@ mod open_orders {
     }
 }
 
-mod qualifies_for_withdraw_fee {
-    use crate::state::user::{User, UserFees, UserStats};
-    use crate::QUOTE_PRECISION_U64;
-
-    #[test]
-    fn test() {
-        let user = User::default();
-        let user_stats = UserStats::default();
-
-        let qualifies = user.qualifies_for_withdraw_fee(&user_stats, 0);
-
-        assert!(!qualifies);
-
-        let user = User {
-            total_withdraws: 9_999_999 * QUOTE_PRECISION_U64,
-            ..User::default()
-        };
-
-        let qualifies = user.qualifies_for_withdraw_fee(&user_stats, 0);
-
-        assert!(!qualifies);
-
-        let user = User {
-            total_withdraws: 10_000_000 * QUOTE_PRECISION_U64,
-            ..User::default()
-        };
-
-        let user_stats = UserStats {
-            fees: UserFees {
-                total_fee_paid: 1_000 * QUOTE_PRECISION_U64,
-                ..UserFees::default()
-            },
-            ..UserStats::default()
-        };
-
-        let qualifies = user.qualifies_for_withdraw_fee(&user_stats, 0);
-
-        assert!(!qualifies);
-
-        let user = User {
-            total_withdraws: 10_000_000 * QUOTE_PRECISION_U64,
-
-            ..User::default()
-        };
-
-        let user_stats = UserStats {
-            fees: UserFees {
-                total_fee_paid: 999 * QUOTE_PRECISION_U64,
-                ..UserFees::default()
-            },
-            ..UserStats::default()
-        };
-
-        let qualifies = user.qualifies_for_withdraw_fee(&user_stats, 0);
-
-        assert!(qualifies);
-
-        // fee
-        let user = User {
-            total_withdraws: 13_000_000 * QUOTE_PRECISION_U64,
-            last_active_slot: 8900877,
-            ..User::default()
-        };
-
-        let user_stats = UserStats {
-            fees: UserFees {
-                total_fee_paid: QUOTE_PRECISION_U64,
-                ..UserFees::default()
-            },
-            ..UserStats::default()
-        };
-
-        let qualifies = user.qualifies_for_withdraw_fee(&user_stats, user.last_active_slot + 1);
-
-        assert!(qualifies);
-
-        let qualifies = user.qualifies_for_withdraw_fee(&user_stats, user.last_active_slot + 50);
-
-        assert!(!qualifies);
-    }
-}
-
 mod update_user_status {
     use crate::state::user::{User, UserStatus};
 
@@ -2178,5 +2096,44 @@ mod get_limit_price {
             .unwrap();
 
         assert_eq!(limit_price, Some(1));
+    }
+}
+
+mod update_referrer_status {
+    use anchor_lang::prelude::Pubkey;
+
+    use crate::state::user::{ReferrerStatus, UserStats};
+
+    #[test]
+    fn test() {
+        let mut user_stats = UserStats {
+            referrer: Pubkey::new_unique(),
+            referrer_status: 0,
+            ..UserStats::default()
+        };
+
+        user_stats.update_referrer_status();
+
+        assert_eq!(user_stats.referrer_status, ReferrerStatus::IsReferred as u8);
+
+        let mut user_stats = UserStats {
+            referrer: Pubkey::default(),
+            referrer_status: ReferrerStatus::IsReferred as u8,
+            ..UserStats::default()
+        };
+
+        user_stats.update_referrer_status();
+
+        assert_eq!(user_stats.referrer_status, 0);
+
+        let mut user_stats = UserStats {
+            referrer: Pubkey::default(),
+            referrer_status: 3,
+            ..UserStats::default()
+        };
+
+        user_stats.update_referrer_status();
+
+        assert_eq!(user_stats.referrer_status, 1);
     }
 }

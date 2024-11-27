@@ -22,7 +22,7 @@ export function oraclePriceBands(
 		.mul(new BN(maxPercentDiff))
 		.div(MARGIN_PRECISION);
 
-	assert(offset.gt(ZERO));
+	assert(offset.gte(ZERO));
 
 	return [oraclePriceData.price.sub(offset), oraclePriceData.price.add(offset)];
 }

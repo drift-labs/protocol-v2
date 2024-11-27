@@ -1,6 +1,10 @@
 use std::cell::RefMut;
+use std::convert::TryFrom;
 
 use anchor_lang::prelude::*;
+use anchor_spl::associated_token::get_associated_token_address;
+use anchor_spl::token::spl_token;
+use anchor_spl::token_2022::spl_token_2022;
 use anchor_spl::token_interface::{TokenAccount, TokenInterface};
 use solana_program::instruction::Instruction;
 use solana_program::sysvar::instructions::{
@@ -8,21 +12,23 @@ use solana_program::sysvar::instructions::{
 };
 
 use crate::controller::insurance::update_user_stats_if_stake_amount;
+use crate::controller::orders::cancel_orders;
 use crate::controller::position::PositionDirection;
+use crate::controller::spot_balance::update_spot_balances;
+use crate::controller::token::{receive, send_from_program_vault};
 use crate::error::ErrorCode;
-use crate::ids::swift_server;
+use crate::ids::{admin_hot_wallet, swift_server};
 use crate::instructions::constraints::*;
 use crate::instructions::optional_accounts::{load_maps, AccountMaps};
 use crate::math::casting::Cast;
 use crate::math::constants::QUOTE_SPOT_MARKET_INDEX;
-use crate::math::margin::{
-    calculate_user_equity, meets_maintenance_margin_requirement,
-    meets_settle_pnl_maintenance_margin_requirement,
-};
+use crate::math::margin::{calculate_user_equity, meets_settle_pnl_maintenance_margin_requirement};
 use crate::math::orders::{estimate_price_from_side, find_bids_and_asks_from_users};
 use crate::math::safe_math::SafeMath;
 use crate::math::spot_withdraw::validate_spot_market_vault_amount;
+use crate::math_error;
 use crate::optional_accounts::{get_token_mint, update_prelaunch_oracle};
+use crate::state::events::{DeleteUserRecord, OrderActionExplanation, SwiftOrderRecord};
 use crate::state::fill_mode::FillMode;
 use crate::state::fulfillment_params::drift::MatchFulfillmentParams;
 use crate::state::fulfillment_params::openbook_v2::OpenbookV2FulfillmentParams;
@@ -37,24 +43,29 @@ use crate::state::order_params::{
 use crate::state::paused_operations::PerpOperation;
 use crate::state::perp_market::{ContractType, MarketStatus, PerpMarket};
 use crate::state::perp_market_map::{
-    get_market_set_for_user_positions, get_market_set_from_list, get_writable_perp_market_set,
-    get_writable_perp_market_set_from_vec, MarketSet, PerpMarketMap,
+    get_market_set_for_spot_positions, get_market_set_for_user_positions, get_market_set_from_list,
+    get_writable_perp_market_set, get_writable_perp_market_set_from_vec, MarketSet, PerpMarketMap,
 };
 use crate::state::settle_pnl_mode::SettlePnlMode;
 use crate::state::spot_fulfillment_params::SpotFulfillmentParams;
-use crate::state::spot_market::SpotMarket;
+use crate::state::spot_market::{SpotBalanceType, SpotMarket};
 use crate::state::spot_market_map::{
     get_writable_spot_market_set, get_writable_spot_market_set_from_many, SpotMarketMap,
 };
 use crate::state::state::State;
+use crate::state::swift_user::{
+    SwiftOrderId, SwiftUserOrdersLoader, SwiftUserOrdersZeroCopyMut, SWIFT_PDA_SEED,
+};
 use crate::state::user::{
-    MarginMode, MarketType, OrderStatus, OrderTriggerCondition, OrderType, ReferrerStatus, User,
-    UserStats,
+    MarginMode, MarketType, OrderStatus, OrderTriggerCondition, OrderType, User, UserStats,
 };
 use crate::state::user_map::{load_user_map, load_user_maps, UserMap, UserStatsMap};
-use crate::validation::sig_verification::verify_ed25519_ix;
-use crate::validation::user::validate_user_is_idle;
-use crate::{controller, load, math, print_error, OracleSource, GOV_SPOT_MARKET_INDEX};
+use crate::validation::sig_verification::{extract_ed25519_ix_signature, verify_ed25519_digest};
+use crate::validation::user::{validate_user_deletion, validate_user_is_idle};
+use crate::{
+    controller, digest_struct, load, math, print_error, safe_decrement, OracleSource,
+    GOV_SPOT_MARKET_INDEX, MARGIN_PRECISION,
+};
 use crate::{load_mut, QUOTE_PRECISION_U64};
 use crate::{validate, QUOTE_PRECISION_I128};
 
@@ -483,9 +494,7 @@ pub fn handle_update_user_stats_referrer_info<'c: 'info, 'info>(
 ) -> Result<()> {
     let mut user_stats = load_mut!(ctx.accounts.user_stats)?;
 
-    if !user_stats.referrer.eq(&Pubkey::default()) {
-        user_stats.referrer_status |= ReferrerStatus::IsReferred as u8;
-    }
+    user_stats.update_referrer_status();
 
     Ok(())
 }
@@ -521,7 +530,6 @@ pub fn handle_place_swift_taker_order<'c: 'info, 'info>(
     ctx: Context<'_, '_, 'c, 'info, PlaceSwiftTakerOrder<'info>>,
     swift_message_bytes: Vec<u8>,
     swift_order_params_message_bytes: Vec<u8>,
-    sig: [u8; 64],
 ) -> Result<()> {
     let swift_message: SwiftServerMessage =
         SwiftServerMessage::deserialize(&mut &swift_message_bytes[..]).unwrap();
@@ -545,14 +553,15 @@ pub fn handle_place_swift_taker_order<'c: 'info, 'info>(
 
     let taker_key = ctx.accounts.user.key();
     let mut taker = load_mut!(ctx.accounts.user)?;
+    let mut swift_taker = ctx.accounts.swift_user_orders.load_mut()?;
 
     place_swift_taker_order(
         taker_key,
         &mut taker,
+        &mut swift_taker,
         swift_message,
         taker_order_params_message,
         &ctx.accounts.ix_sysvar.to_account_info(),
-        sig,
         &perp_market_map,
         &spot_market_map,
         &mut oracle_map,
@@ -564,10 +573,10 @@ pub fn handle_place_swift_taker_order<'c: 'info, 'info>(
 pub fn place_swift_taker_order<'c: 'info, 'info>(
     taker_key: Pubkey,
     taker: &mut RefMut<User>,
+    swift_account: &mut SwiftUserOrdersZeroCopyMut,
     swift_message: SwiftServerMessage,
     taker_order_params_message: SwiftOrderParamsMessage,
     ix_sysvar: &AccountInfo<'info>,
-    sig: [u8; 64],
     perp_market_map: &PerpMarketMap,
     spot_market_map: &SpotMarketMap,
     oracle_map: &mut OracleMap,
@@ -585,21 +594,28 @@ pub fn place_swift_taker_order<'c: 'info, 'info>(
         ErrorCode::InvalidVerificationIxIndex,
         "instruction index must be greater than 1 for two sig verifies"
     )?;
+
+    // Verify data from first verify ix
     let ix: Instruction = load_instruction_at_checked(ix_idx as usize - 2, ix_sysvar)?;
-    verify_ed25519_ix(
+    verify_ed25519_digest(
         &ix,
         &swift_server::id().to_bytes(),
-        &swift_message.clone().try_to_vec()?,
-        &sig,
+        &digest_struct!(swift_message),
     )?;
 
+    // Verify data from second verify ix
     let ix: Instruction = load_instruction_at_checked(ix_idx as usize - 1, ix_sysvar)?;
-    verify_ed25519_ix(
+    verify_ed25519_digest(
         &ix,
         &taker.authority.to_bytes(),
-        &taker_order_params_message.clone().try_to_vec()?,
-        &swift_message.swift_order_signature,
+        &digest_struct!(&taker_order_params_message),
     )?;
+
+    // Verify that sig from swift server corresponds to order message
+    if swift_message.swift_order_signature != extract_ed25519_ix_signature(&ix.data)? {
+        msg!("Swift order signature does not match the order signature");
+        return Err(ErrorCode::SigVerificationFailed.into());
+    }
 
     let clock = &Clock::get()?;
 
@@ -613,18 +629,43 @@ pub fn place_swift_taker_order<'c: 'info, 'info>(
         return Err(print_error!(ErrorCode::InvalidSwiftOrderParam)().into());
     }
 
-    let market_index = matching_taker_order_params.market_index;
-    let expected_order_id = taker_order_params_message.expected_order_id;
-    let taker_next_order_id = taker.next_order_id;
+    // Make sure that them auction parameters are set
+    if matching_taker_order_params.auction_duration.is_none()
+        || matching_taker_order_params.auction_start_price.is_none()
+        || matching_taker_order_params.auction_end_price.is_none()
+    {
+        msg!("Auction params must be set for swift orders");
+        return Err(print_error!(ErrorCode::InvalidSwiftOrderParam)().into());
+    }
+
+    // Set max slot for the order early so we set correct swift order id
     let order_slot = swift_message.slot;
-    if expected_order_id.cast::<u32>()? != taker_next_order_id {
+    let market_index = matching_taker_order_params.market_index;
+    let max_slot = order_slot.safe_add(
+        matching_taker_order_params
+            .auction_duration
+            .unwrap()
+            .cast::<u64>()?,
+    )?;
+
+    // Dont place order if max slot already passed
+    if max_slot < clock.slot {
         msg!(
-                "Orders not placed due to taker order id mismatch: taker account next order id {}, order params expected next order id {:?}",
-                taker.next_order_id,
-                expected_order_id
-            );
+            "Swift order max_slot {} < current slot {}",
+            max_slot,
+            clock.slot
+        );
         return Ok(());
     }
+
+    // Dont place order if swift order already exists
+    let swift_order_id = SwiftOrderId::new(swift_message.uuid, max_slot, taker.next_order_id);
+    if swift_account.check_exists_and_prune_stale_swift_order_ids(swift_order_id, clock.slot) {
+        msg!("Swift order already exists for taker {}");
+        return Ok(());
+    }
+    swift_account.add_swift_order_id(swift_order_id)?;
+
     controller::orders::place_perp_order(
         state,
         taker,
@@ -639,6 +680,21 @@ pub fn place_swift_taker_order<'c: 'info, 'info>(
             ..PlaceOrderOptions::default()
         },
     )?;
+
+    let order_params_hash = base64::encode(
+        solana_program::hash::hash(&swift_message.swift_order_signature.try_to_vec().unwrap())
+            .as_ref(),
+    );
+
+    emit!(SwiftOrderRecord {
+        user: taker_key,
+        swift_order_max_slot: swift_order_id.max_slot,
+        swift_order_uuid: swift_order_id.uuid,
+        user_order_id: swift_order_id.order_id,
+        matching_order_params: matching_taker_order_params.clone(),
+        hash: order_params_hash,
+        ts: clock.unix_timestamp,
+    });
 
     if let Some(stop_loss_order_params) = taker_order_params_message.stop_loss_order_params {
         let stop_loss_order = OrderParams {
@@ -1996,6 +2052,20 @@ pub fn handle_update_user_gov_token_insurance_stake(
     Ok(())
 }
 
+pub fn handle_update_user_gov_token_insurance_stake_devnet(
+    ctx: Context<UpdateUserGovTokenInsuranceStakeDevnet>,
+    gov_stake_amount: u64,
+) -> Result<()> {
+    #[cfg(all(feature = "mainnet-beta", not(feature = "anchor-test")))]
+    {
+        panic!("Devnet function is disabled on mainnet-beta");
+    }
+
+    let user_stats = &mut load_mut!(ctx.accounts.user_stats)?;
+    user_stats.if_staked_gov_token_amount = gov_stake_amount;
+    Ok(())
+}
+
 pub fn handle_disable_user_high_leverage_mode<'c: 'info, 'info>(
     ctx: Context<'_, '_, 'c, 'info, DisableUserHighLeverageMode<'info>>,
 ) -> Result<()> {
@@ -2024,11 +2094,21 @@ pub fn handle_disable_user_high_leverage_mode<'c: 'info, 'info>(
 
     user.margin_mode = MarginMode::Default;
 
-    meets_maintenance_margin_requirement(
-        &user,
-        &perp_market_map,
-        &spot_market_map,
-        &mut oracle_map,
+    let meets_margin_requirement_with_buffer =
+        calculate_margin_requirement_and_total_collateral_and_liability_info(
+            &user,
+            &perp_market_map,
+            &spot_market_map,
+            &mut oracle_map,
+            MarginContext::standard(MarginRequirementType::Initial)
+                .margin_buffer(MARGIN_PRECISION / 100), // 1% buffer
+        )
+        .map(|calc| calc.meets_margin_requirement_with_buffer())?;
+
+    validate!(
+        meets_margin_requirement_with_buffer,
+        ErrorCode::DefaultError,
+        "user does not meet margin requirement with buffer"
     )?;
 
     // only check if signer is not user authority
@@ -2036,7 +2116,7 @@ pub fn handle_disable_user_high_leverage_mode<'c: 'info, 'info>(
         let slots_since_last_active = slot.safe_sub(user.last_active_slot)?;
 
         validate!(
-            slots_since_last_active >= 216000, // 60 * 60 * 24 / .4
+            slots_since_last_active >= 9000, // 60 * 60 / .4
             ErrorCode::DefaultError,
             "user not inactive for long enough: {}",
             slots_since_last_active
@@ -2048,6 +2128,203 @@ pub fn handle_disable_user_high_leverage_mode<'c: 'info, 'info>(
     config.current_users = config.current_users.safe_sub(1)?;
 
     config.validate()?;
+
+    Ok(())
+}
+
+pub fn handle_force_delete_user<'c: 'info, 'info>(
+    ctx: Context<'_, '_, 'c, 'info, ForceDeleteUser<'info>>,
+) -> Result<()> {
+    #[cfg(not(feature = "anchor-test"))]
+    {
+        validate!(
+            *ctx.accounts.keeper.key == admin_hot_wallet::id(),
+            ErrorCode::DefaultError,
+            "only admin hot wallet can force delete user"
+        )?;
+    }
+
+    let state = &ctx.accounts.state;
+
+    let keeper_key = *ctx.accounts.keeper.key;
+
+    let user_key = ctx.accounts.user.key();
+    let user = &mut load_mut!(ctx.accounts.user)?;
+    let user_stats = &mut load_mut!(ctx.accounts.user_stats)?;
+
+    let slot = Clock::get()?.slot;
+    let now = Clock::get()?.unix_timestamp;
+    let AccountMaps {
+        perp_market_map,
+        spot_market_map,
+        mut oracle_map,
+    } = load_maps(
+        &mut ctx.remaining_accounts.iter().peekable(),
+        &MarketSet::new(),
+        &get_market_set_for_spot_positions(&user.spot_positions),
+        slot,
+        Some(state.oracle_guard_rails),
+    )?;
+
+    // check the user equity
+
+    let (user_equity, _) =
+        calculate_user_equity(user, &perp_market_map, &spot_market_map, &mut oracle_map)?;
+
+    let max_equity = QUOTE_PRECISION_I128 / 20;
+    validate!(
+        user_equity <= max_equity,
+        ErrorCode::DefaultError,
+        "user equity must be less than {}",
+        max_equity
+    )?;
+
+    #[cfg(not(feature = "anchor-test"))]
+    {
+        let slots_since_last_active = slot.safe_sub(user.last_active_slot)?;
+
+        validate!(
+            slots_since_last_active >= 18144000, // 60 * 60 * 24 * 7 * 4 * 3 / .4 (~3 months)
+            ErrorCode::DefaultError,
+            "user not inactive for long enough: {}",
+            slots_since_last_active
+        )?;
+    }
+
+    // cancel all open orders
+    let canceled_order_ids = cancel_orders(
+        user,
+        &user_key,
+        Some(&keeper_key),
+        &perp_market_map,
+        &spot_market_map,
+        &mut oracle_map,
+        now,
+        slot,
+        OrderActionExplanation::None,
+        None,
+        None,
+        None,
+    )?;
+
+    for spot_position in user.spot_positions.iter_mut() {
+        if spot_position.is_available() {
+            continue;
+        }
+
+        let spot_market = &mut spot_market_map.get_ref_mut(&spot_position.market_index)?;
+        let oracle_price_data = oracle_map.get_price_data(&spot_market.oracle)?;
+
+        controller::spot_balance::update_spot_market_cumulative_interest(
+            spot_market,
+            Some(oracle_price_data),
+            now,
+        )?;
+
+        let token_amount = spot_position.get_token_amount(spot_market)?;
+        let balance_type = spot_position.balance_type;
+
+        let token_program_pubkey = if spot_market.token_program == 1 {
+            spl_token_2022::ID
+        } else {
+            spl_token::ID
+        };
+        let token_program = &ctx
+            .remaining_accounts
+            .iter()
+            .find(|acc| acc.key() == token_program_pubkey)
+            .map(|acc| Interface::try_from(acc))
+            .unwrap()
+            .unwrap();
+
+        let spot_market_mint = &spot_market.mint;
+        let mint_account_info = ctx
+            .remaining_accounts
+            .iter()
+            .find(|acc| acc.key() == spot_market_mint.key())
+            .map(|acc| InterfaceAccount::try_from(acc).unwrap());
+
+        let keeper_vault = get_associated_token_address(&keeper_key, spot_market_mint);
+        let keeper_vault_account_info = ctx
+            .remaining_accounts
+            .iter()
+            .find(|acc| acc.key() == keeper_vault.key())
+            .map(|acc| InterfaceAccount::try_from(acc))
+            .unwrap()
+            .unwrap();
+
+        let spot_market_vault = spot_market.vault;
+        let mut spot_market_vault_account_info = ctx
+            .remaining_accounts
+            .iter()
+            .find(|acc| acc.key() == spot_market_vault.key())
+            .map(|acc| InterfaceAccount::try_from(acc))
+            .unwrap()
+            .unwrap();
+
+        if balance_type == SpotBalanceType::Deposit {
+            update_spot_balances(
+                token_amount,
+                &SpotBalanceType::Borrow,
+                spot_market,
+                spot_position,
+                true,
+            )?;
+
+            send_from_program_vault(
+                &token_program,
+                &spot_market_vault_account_info,
+                &keeper_vault_account_info,
+                &ctx.accounts.drift_signer,
+                state.signer_nonce,
+                token_amount.cast()?,
+                &mint_account_info,
+            )?;
+        } else {
+            update_spot_balances(
+                token_amount,
+                &SpotBalanceType::Deposit,
+                spot_market,
+                spot_position,
+                false,
+            )?;
+
+            receive(
+                token_program,
+                &keeper_vault_account_info,
+                &spot_market_vault_account_info,
+                &ctx.accounts.keeper.to_account_info(),
+                token_amount.cast()?,
+                &mint_account_info,
+            )?;
+        }
+
+        spot_market_vault_account_info.reload()?;
+        math::spot_withdraw::validate_spot_market_vault_amount(
+            spot_market,
+            spot_market_vault_account_info.amount,
+        )?;
+    }
+
+    validate_user_deletion(
+        user,
+        user_stats,
+        &ctx.accounts.state,
+        Clock::get()?.unix_timestamp,
+    )?;
+
+    safe_decrement!(user_stats.number_of_sub_accounts, 1);
+
+    let state = &mut ctx.accounts.state;
+    safe_decrement!(state.number_of_sub_accounts, 1);
+
+    emit!(DeleteUserRecord {
+        ts: now,
+        user_authority: *ctx.accounts.authority.key,
+        user: user_key,
+        sub_account_id: user.sub_account_id,
+        keeper: Some(*ctx.accounts.keeper.key),
+    });
 
     Ok(())
 }
@@ -2174,6 +2451,13 @@ pub struct PlaceSwiftTakerOrder<'info> {
         constraint = is_stats_for_user(&user, &user_stats)?
     )]
     pub user_stats: AccountLoader<'info, UserStats>,
+    #[account(
+        mut,
+        seeds = [SWIFT_PDA_SEED.as_ref(), user.key().as_ref()],
+        bump,
+    )]
+    /// CHECK: checked in SwiftUserOrdersZeroCopy checks
+    pub swift_user_orders: AccountInfo<'info>,
     pub authority: Signer<'info>,
     /// CHECK: The address check is needed because otherwise
     /// the supplied Sysvar could be anything else.
@@ -2485,6 +2769,13 @@ pub struct UpdateUserGovTokenInsuranceStake<'info> {
 }
 
 #[derive(Accounts)]
+pub struct UpdateUserGovTokenInsuranceStakeDevnet<'info> {
+    #[account(mut)]
+    pub user_stats: AccountLoader<'info, UserStats>,
+    pub signer: Signer<'info>,
+}
+
+#[derive(Accounts)]
 pub struct UpdatePrelaunchOracle<'info> {
     pub state: Box<Account<'info, State>>,
     pub perp_market: AccountLoader<'info, PerpMarket>,
@@ -2501,4 +2792,28 @@ pub struct DisableUserHighLeverageMode<'info> {
     pub user: AccountLoader<'info, User>,
     #[account(mut)]
     pub high_leverage_mode_config: AccountLoader<'info, HighLeverageModeConfig>,
+}
+
+#[derive(Accounts)]
+pub struct ForceDeleteUser<'info> {
+    #[account(
+        mut,
+        has_one = authority,
+        close = authority
+    )]
+    pub user: AccountLoader<'info, User>,
+    #[account(
+        mut,
+        has_one = authority
+    )]
+    pub user_stats: AccountLoader<'info, UserStats>,
+    #[account(mut)]
+    pub state: Box<Account<'info, State>>,
+    /// CHECK: authority
+    #[account(mut)]
+    pub authority: AccountInfo<'info>,
+    #[account(mut)]
+    pub keeper: Signer<'info>,
+    /// CHECK: forced drift_signer
+    pub drift_signer: AccountInfo<'info>,
 }

@@ -85,6 +85,19 @@ export function getRFQUserAccountPublicKey(
 	)[0];
 }
 
+export function getSwiftUserAccountPublicKey(
+	programId: PublicKey,
+	userAccountPublicKey: PublicKey
+): PublicKey {
+	return PublicKey.findProgramAddressSync(
+		[
+			Buffer.from(anchor.utils.bytes.utf8.encode('SWIFT')),
+			userAccountPublicKey.toBuffer(),
+		],
+		programId
+	)[0];
+}
+
 export async function getPerpMarketPublicKey(
 	programId: PublicKey,
 	marketIndex: number

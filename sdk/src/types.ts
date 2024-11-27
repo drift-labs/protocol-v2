@@ -22,7 +22,8 @@ export enum ExchangeStatus {
 	LIQ_PAUSED = 16,
 	FUNDING_PAUSED = 32,
 	SETTLE_PNL_PAUSED = 64,
-	PAUSED = 127,
+	AMM_IMMEDIATE_FILL_PAUSED = 128,
+	PAUSED = 255,
 }
 
 export class MarketStatus {
@@ -541,6 +542,16 @@ export type SettlePnlRecord = {
 	explanation: SettlePnlExplanation;
 };
 
+export type SwiftOrderRecord = {
+	ts: BN;
+	user: PublicKey;
+	hash: string;
+	matchingOrderParams: OrderParams;
+	swiftOrderMaxSlot: BN;
+	swiftOrderUuid: Uint8Array;
+	userOrderId: number;
+};
+
 export type OrderRecord = {
 	ts: BN;
 	user: PublicKey;
@@ -598,6 +609,14 @@ export type SpotMarketVaultDepositRecord = {
 	cumulativeDepositInterestAfter: BN;
 	depositTokenAmountBefore: BN;
 	amount: BN;
+};
+
+export type DeleteUserRecord = {
+	ts: BN;
+	userAuthority: PublicKey;
+	user: PublicKey;
+	subAccountId: number;
+	keeper: PublicKey | null;
 };
 
 export type StateAccount = {
@@ -916,7 +935,7 @@ export type UserStatsAccount = {
 		current_epoch_referrer_reward: BN;
 	};
 	referrer: PublicKey;
-	referrerStatus: boolean;
+	referrerStatus: number;
 	authority: PublicKey;
 	ifStakedQuoteAssetAmount: BN;
 
@@ -1070,11 +1089,11 @@ export const DefaultOrderParams: OrderParams = {
 export type SwiftServerMessage = {
 	slot: BN;
 	swiftOrderSignature: Uint8Array;
+	uuid: Uint8Array; // From buffer of standard UUID string
 };
 
 export type SwiftOrderParamsMessage = {
 	swiftOrderParams: OptionalOrderParams;
-	expectedOrderId: number;
 	subAccountId: number;
 	takeProfitOrderParams: SwiftTriggerOrderParams | null;
 	stopLossOrderParams: SwiftTriggerOrderParams | null;

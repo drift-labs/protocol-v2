@@ -90,7 +90,10 @@ impl OrderParams {
                                 new_auction_start_price
                             );
                             self.auction_start_price = Some(new_auction_start_price);
-                            msg!("Updating oracle auction end price to {}", self.price);
+                            msg!(
+                                "Updating oracle auction end price to {}",
+                                oracle_price_offset
+                            );
                             self.auction_end_price = Some(oracle_price_offset as i64);
                         } else {
                             msg!(
@@ -129,7 +132,10 @@ impl OrderParams {
                                 new_auction_start_price
                             );
                             self.auction_start_price = Some(new_auction_start_price);
-                            msg!("Updating oracle auction end price to {}", self.price);
+                            msg!(
+                                "Updating oracle auction end price to {}",
+                                oracle_price_offset
+                            );
                             self.auction_end_price = Some(oracle_price_offset as i64);
                         } else {
                             msg!(
@@ -702,6 +708,7 @@ impl OrderParams {
 
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Eq, PartialEq, Debug)]
 pub struct SwiftServerMessage {
+    pub uuid: [u8; 8],
     pub swift_order_signature: [u8; 64],
     pub slot: u64,
 }
@@ -709,7 +716,6 @@ pub struct SwiftServerMessage {
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Default, Eq, PartialEq, Debug)]
 pub struct SwiftOrderParamsMessage {
     pub swift_order_params: OrderParams,
-    pub expected_order_id: i32,
     pub sub_account_id: u16,
     pub take_profit_order_params: Option<SwiftTriggerOrderParams>,
     pub stop_loss_order_params: Option<SwiftTriggerOrderParams>,
@@ -856,9 +862,23 @@ impl PlaceOrderOptions {
     pub fn set_is_rfq(&mut self, is_rfq_order: bool) {
         self.is_rfq_order = is_rfq_order;
     }
+
+    pub fn is_swift_order(&self) -> bool {
+        self.swift_taker_order_slot.is_some()
+    }
 }
 
 pub enum PlaceAndTakeOrderSuccessCondition {
     PartialFill = 1,
     FullFill = 2,
+}
+
+pub fn parse_optional_params(optional_params: Option<u32>) -> (u8, u8) {
+    match optional_params {
+        Some(optional_params) => (
+            (optional_params & 255) as u8,
+            ((optional_params >> 8) & 255) as u8,
+        ),
+        None => (0, 100),
+    }
 }

@@ -1424,12 +1424,13 @@ export class User {
 	 */
 	public getTotalCollateral(
 		marginCategory: MarginCategory = 'Initial',
-		strict = false
+		strict = false,
+		includeOpenOrders = true
 	): BN {
 		return this.getSpotMarketAssetValue(
 			undefined,
 			marginCategory,
-			true,
+			includeOpenOrders,
 			strict
 		).add(this.getUnrealizedPNL(true, undefined, marginCategory, strict));
 	}
@@ -2309,7 +2310,11 @@ export class User {
 		includeOpenOrders = false,
 		offsetCollateral = ZERO
 	): BN {
-		const totalCollateral = this.getTotalCollateral(marginCategory);
+		const totalCollateral = this.getTotalCollateral(
+			marginCategory,
+			false,
+			includeOpenOrders
+		);
 		const marginRequirement = this.getMarginRequirement(
 			marginCategory,
 			undefined,
@@ -2952,13 +2957,26 @@ export class User {
 		const inTokenAmount = this.getTokenAmount(inMarketIndex);
 		const outTokenAmount = this.getTokenAmount(outMarketIndex);
 
+		const inAssetWeight = calculateAssetWeight(
+			inTokenAmount,
+			inOraclePriceData.price,
+			inMarket,
+			'Initial'
+		);
+		const outAssetWeight = calculateAssetWeight(
+			outTokenAmount,
+			outOraclePriceData.price,
+			outMarket,
+			'Initial'
+		);
+
 		const outSaferThanIn =
 			// selling asset to close borrow
 			(inTokenAmount.gt(ZERO) && outTokenAmount.lt(ZERO)) ||
 			// buying asset with higher initial asset weight
-			inMarket.initialAssetWeight < outMarket.initialAssetWeight;
+			inAssetWeight.lt(outAssetWeight);
 
-		if (freeCollateral.lt(ONE)) {
+		if (freeCollateral.lt(PRICE_PRECISION.divn(100))) {
 			if (outSaferThanIn && inTokenAmount.gt(ZERO)) {
 				inSwap = inTokenAmount;
 				outSwap = calculateSwap(inSwap);
@@ -3475,6 +3493,10 @@ export class User {
 
 		let feeTierIndex = 0;
 		if (isVariant(marketType, 'perp')) {
+			if (this.isHighLeverageMode()) {
+				return state.perpFeeStructure.feeTiers[0];
+			}
+
 			const userStatsAccount: UserStatsAccount = this.driftClient
 				.getUserStats()
 				.getAccount();

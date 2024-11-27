@@ -2397,11 +2397,18 @@
             "type": "u8"
           },
           {
+            "name": "submission_idx",
+            "docs": [
+              "The index of the submission that was used to calculate this result"
+            ],
+            "type": "u8"
+          },
+          {
             "name": "padding1",
             "type": {
               "array": [
                 "u8",
-                7
+                6
               ]
             }
           },
@@ -3019,13 +3026,11 @@
             "type": "u64"
           },
           {
-            "name": "padding1",
-            "type": {
-              "array": [
-                "u8",
-                8
-              ]
-            }
+            "name": "landed_at",
+            "docs": [
+              "The slot at which this value was landed on chain."
+            ],
+            "type": "u64"
           },
           {
             "name": "value",

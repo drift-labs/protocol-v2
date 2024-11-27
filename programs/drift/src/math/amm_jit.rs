@@ -161,6 +161,7 @@ pub fn calculate_amm_jit_liquidity(
     taker_base_asset_amount: u64,
     maker_base_asset_amount: u64,
     taker_has_limit_price: bool,
+    amm_lp_allowed_to_jit_make: Option<bool>,
 ) -> DriftResult<(u64, AMMLiquiditySplit)> {
     let mut jit_base_asset_amount: u64 = 0;
     let mut liquidity_split: AMMLiquiditySplit = AMMLiquiditySplit::ProtocolOwned;
@@ -177,9 +178,12 @@ pub fn calculate_amm_jit_liquidity(
     let amm_wants_to_jit_make = market.amm.amm_wants_to_jit_make(taker_direction)?;
 
     let amm_lp_wants_to_jit_make = market.amm.amm_lp_wants_to_jit_make(taker_direction)?;
-    let amm_lp_allowed_to_jit_make = market
-        .amm
-        .amm_lp_allowed_to_jit_make(amm_wants_to_jit_make)?;
+    let amm_lp_allowed_to_jit_make = match amm_lp_allowed_to_jit_make {
+        Some(allowed) => allowed,
+        None => market
+            .amm
+            .amm_lp_allowed_to_jit_make(amm_wants_to_jit_make)?,
+    };
     let split_with_lps = amm_lp_allowed_to_jit_make && amm_lp_wants_to_jit_make;
 
     if amm_wants_to_jit_make {

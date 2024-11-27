@@ -5,6 +5,7 @@ use crate::controller::position::PositionDirection;
 use crate::error::{DriftResult, ErrorCode::InvalidOrder};
 use crate::math::casting::Cast;
 use crate::math::safe_unwrap::SafeUnwrap;
+use crate::state::order_params::OrderParams;
 use crate::state::traits::Size;
 use crate::state::user::{MarketType, Order};
 use anchor_lang::Discriminator;
@@ -162,6 +163,17 @@ pub struct CurveRecord {
     pub fill_record: u128,
     pub number_of_users: u32,
     pub market_index: u16,
+}
+
+#[event]
+pub struct SwiftOrderRecord {
+    pub user: Pubkey,
+    pub hash: String,
+    pub matching_order_params: OrderParams,
+    pub user_order_id: u32,
+    pub swift_order_max_slot: u64,
+    pub swift_order_uuid: [u8; 8],
+    pub ts: i64,
 }
 
 #[event]
@@ -568,6 +580,16 @@ pub struct SpotMarketVaultDepositRecord {
     pub cumulative_deposit_interest_after: u128,
     pub deposit_token_amount_before: u64,
     pub amount: u64,
+}
+
+#[event]
+pub struct DeleteUserRecord {
+    /// unix_timestamp of action
+    pub ts: i64,
+    pub user_authority: Pubkey,
+    pub user: Pubkey,
+    pub sub_account_id: u16,
+    pub keeper: Option<Pubkey>,
 }
 
 pub fn emit_stack<T: AnchorSerialize + Discriminator, const N: usize>(event: T) -> DriftResult {
