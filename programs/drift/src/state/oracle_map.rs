@@ -22,7 +22,7 @@ use crate::math::safe_unwrap::SafeUnwrap;
 use crate::state::traits::Size;
 use crate::validate;
 
-pub type OracleIdentifier = (Pubkey, OracleSource);
+pub(crate) type OracleIdentifier = (Pubkey, OracleSource);
 
 const EXTERNAL_ORACLE_PROGRAM_IDS: [Pubkey; 4] = [
     pyth_program::id(),
