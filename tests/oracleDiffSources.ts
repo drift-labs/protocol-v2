@@ -11,8 +11,10 @@ import {
 	EventSubscriber,
 	OracleSource,
 	OracleInfo,
-    PRICE_PRECISION, Wallet, DriftClient,
-    PEG_PRECISION
+	PRICE_PRECISION,
+	Wallet,
+	DriftClient,
+	PEG_PRECISION,
 } from '../sdk/src';
 
 import {
@@ -118,15 +120,15 @@ describe('oracle diff sources', () => {
 			OracleSource.PYTH
 		);
 
-        await initializeSolSpotMarket(
+		await initializeSolSpotMarket(
 			admin,
 			solOracle,
 			undefined,
 			OracleSource.PYTH_1K
 		);
 
-        const periodicity = new BN(0);
-        await admin.initializePerpMarket(
+		const periodicity = new BN(0);
+		await admin.initializePerpMarket(
 			0,
 			solOracle,
 			ammInitialBaseAssetReserve,
@@ -136,7 +138,7 @@ describe('oracle diff sources', () => {
 			OracleSource.PYTH
 		);
 
-        await admin.initializePerpMarket(
+		await admin.initializePerpMarket(
 			1,
 			solOracle,
 			ammInitialBaseAssetReserve,
@@ -170,17 +172,13 @@ describe('oracle diff sources', () => {
 				bulkAccountLoader
 			);
 
-		const normalPrice = await driftClient.getOracleDataForSpotMarket(
-			1
-		);
+		const normalPrice = await driftClient.getOracleDataForSpotMarket(1);
 		assert(normalPrice.price.eq(PRICE_PRECISION.muln(3)));
 
 		const oneKPrice = await driftClient.getOracleDataForSpotMarket(2);
 		assert(oneKPrice.price.eq(PRICE_PRECISION.muln(3000)));
 
-        const normalPerpPrice = await driftClient.getOracleDataForPerpMarket(
-			0
-		);
+		const normalPerpPrice = await driftClient.getOracleDataForPerpMarket(0);
 		assert(normalPerpPrice.price.eq(PRICE_PRECISION.muln(3)));
 
 		const oneKPerpPrice = await driftClient.getOracleDataForPerpMarket(1);
@@ -209,20 +207,16 @@ describe('oracle diff sources', () => {
 		});
 		await driftClient.subscribe();
 
-		const normalPrice = await driftClient.getOracleDataForSpotMarket(
-			1
-		);
+		const normalPrice = await driftClient.getOracleDataForSpotMarket(1);
 		assert(normalPrice.price.eq(PRICE_PRECISION.muln(3)));
 
 		const oneKPrice = await driftClient.getOracleDataForSpotMarket(2);
 		assert(oneKPrice.price.eq(PRICE_PRECISION.muln(3000)));
 
-        const normalPerpPrice = await driftClient.getOracleDataForPerpMarket(
-			0
-		);
+		const normalPerpPrice = await driftClient.getOracleDataForPerpMarket(0);
 		assert(normalPerpPrice.price.eq(PRICE_PRECISION.muln(3)));
 
-        const oneKPerpPrice = await driftClient.getOracleDataForPerpMarket(1);
+		const oneKPerpPrice = await driftClient.getOracleDataForPerpMarket(1);
 		assert(oneKPerpPrice.price.eq(PRICE_PRECISION.muln(3000)));
 
 		await driftClient.unsubscribe();
