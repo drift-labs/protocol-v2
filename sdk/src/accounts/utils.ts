@@ -31,6 +31,7 @@ export function findDelistedPerpMarketsAndOracles(
 	// make sure oracle isn't used by spot market
 	const filteredDelistedOracles = [];
 	for (const delistedOracle of delistedOracles) {
+		let isUsedBySpotMarket = false;
 		for (const spotMarket of spotMarkets) {
 			if (!spotMarket.data) {
 				continue;
@@ -45,9 +46,12 @@ export function findDelistedPerpMarketsAndOracles(
 				spotMarket.data.oracleSource
 			);
 			if (spotMarketOracleId === delistedOracleId) {
+				isUsedBySpotMarket = true;
 				break;
 			}
+		}
 
+		if (!isUsedBySpotMarket) {
 			filteredDelistedOracles.push(delistedOracle);
 		}
 	}
