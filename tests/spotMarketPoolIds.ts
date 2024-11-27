@@ -3,43 +3,28 @@ import { assert } from 'chai';
 
 import { Program } from '@coral-xyz/anchor';
 
-import { LAMPORTS_PER_SOL, PublicKey } from '@solana/web3.js';
+import { PublicKey } from '@solana/web3.js';
 
 import {
 	TestClient,
 	BN,
 	EventSubscriber,
 	SPOT_MARKET_RATE_PRECISION,
-	SpotBalanceType,
-	isVariant,
 	OracleSource,
 	SPOT_MARKET_WEIGHT_PRECISION,
-	SPOT_MARKET_CUMULATIVE_INTEREST_PRECISION,
 	OracleInfo,
 	MarketStatus,
 } from '../sdk/src';
 
 import {
 	createUserWithUSDCAccount,
-	createUserWithUSDCAndWSOLAccount,
-	mintUSDCToUser,
 	mockOracleNoProgram,
 	mockUSDCMint,
 	mockUserUSDCAccount,
 	sleep,
 } from './testHelpers';
 import {
-	getBalance,
-	calculateInterestAccumulated,
-	getTokenAmount,
-} from '../sdk/src/math/spotBalance';
-import { NATIVE_MINT } from '@solana/spl-token';
-import {
 	QUOTE_PRECISION,
-	ZERO,
-	ONE,
-	SPOT_MARKET_BALANCE_PRECISION,
-	PRICE_PRECISION,
 } from '../sdk';
 import { startAnchor } from 'solana-bankrun';
 import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
@@ -63,13 +48,10 @@ describe('spot deposit and withdraw', () => {
 	let firstUserDriftClientUSDCAccount: PublicKey;
 
 	let secondUserDriftClient: TestClient;
-	let secondUserDriftClientWSOLAccount: PublicKey;
 	let secondUserDriftClientUSDCAccount: PublicKey;
 
 	const usdcAmount = new BN(10 * 10 ** 6);
 	const largeUsdcAmount = new BN(10_000 * 10 ** 6);
-
-	const solAmount = new BN(1 * 10 ** 9);
 
 	let marketIndexes: number[];
 	let spotMarketIndexes: number[];
@@ -175,7 +157,7 @@ describe('spot deposit and withdraw', () => {
 			undefined,
 			undefined,
 			undefined,
-			false,
+			false
 		);
 		await admin.updateSpotMarketPoolId(1, 1);
 		await admin.updateSpotMarketStatus(1, MarketStatus.ACTIVE);
@@ -235,7 +217,9 @@ describe('spot deposit and withdraw', () => {
 				bulkAccountLoader
 			);
 
-		await secondUserDriftClient.updateUserPoolId([{subAccountId: 0, poolId: 1}]);
+		await secondUserDriftClient.updateUserPoolId([
+			{ subAccountId: 0, poolId: 1 },
+		]);
 		await sleep(100);
 		await secondUserDriftClient.fetchAccounts();
 		await secondUserDriftClient.deposit(

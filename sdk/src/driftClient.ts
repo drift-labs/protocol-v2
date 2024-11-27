@@ -1455,10 +1455,7 @@ export class DriftClient {
 		return txSig;
 	}
 
-	public async getUpdateUserPoolIdIx(
-		poolId: number,
-		subAccountId: number
-	) {
+	public async getUpdateUserPoolIdIx(poolId: number, subAccountId: number) {
 		const ix = await this.program.instruction.updateUserPoolId(
 			subAccountId,
 			poolId,

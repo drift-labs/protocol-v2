@@ -335,7 +335,11 @@ pub fn handle_update_spot_market_pool_id(
     }
 
     let mut spot_market = load_mut!(ctx.accounts.spot_market)?;
-    msg!("updating spot market {} pool id to {}", spot_market.market_index, pool_id);
+    msg!(
+        "updating spot market {} pool id to {}",
+        spot_market.market_index,
+        pool_id
+    );
 
     validate!(
         spot_market.status == MarketStatus::Initialized,
