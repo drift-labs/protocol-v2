@@ -167,3 +167,46 @@ export class LogParser {
 		return records;
 	}
 }
+
+export async function oneShotFetchLogs(
+	connection: Connection,
+	address: PublicKey,
+	finality: Finality,
+	txSig: TransactionSignature,
+): Promise<{
+	transactionLogs: Log[];
+	mostRecentBlockTime: number | undefined;
+} | undefined> {
+	try {
+		const signatures = await connection.getSignaturesForAddress(
+			address,
+			{
+				until: txSig,
+				limit: 1,
+			},
+			finality
+		);
+
+		if (signatures.length === 0) {
+			return undefined;
+		}
+
+		const transactionLogs = await fetchTransactionLogs(
+			connection,
+			[txSig],
+			finality
+		);
+
+		if (transactionLogs.length === 0) {
+			return undefined;
+		}
+
+		return {
+			transactionLogs,
+			mostRecentBlockTime: signatures[0].blockTime,
+		};
+	} catch (e) {
+		console.error('Error fetching logs:', e);
+		return undefined;
+	}
+}

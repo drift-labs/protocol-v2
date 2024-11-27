@@ -24,6 +24,7 @@ import StrictEventEmitter from 'strict-event-emitter-types';
 import { getSortFn } from './sort';
 import { parseLogs } from './parse';
 import { EventsServerLogProvider } from './eventsServerLogProvider';
+import { DevOneShotLogProvider } from './devOneShotLogProvider';
 
 export class EventSubscriber {
 	private address: PublicKey;
@@ -31,7 +32,7 @@ export class EventSubscriber {
 	private txEventCache: TxEventCache;
 	private awaitTxPromises = new Map<string, Promise<void>>();
 	private awaitTxResolver = new Map<string, () => void>();
-	private logProvider: LogProvider;
+	public logProvider: LogProvider;
 	private currentProviderType: LogProviderType;
 	public eventEmitter: StrictEventEmitter<EventEmitter, EventSubscriberEvents>;
 	private lastSeenSlot: number;
@@ -56,7 +57,9 @@ export class EventSubscriber {
 	private initializeLogProvider(subscribe = false) {
 		const logProviderConfig = this.options.logProviderConfig;
 
-		if (this.currentProviderType === 'websocket') {
+		if (this.currentProviderType === 'dev-one-shot') {
+			this.logProvider = new DevOneShotLogProvider(this.connection, this.address);
+		} else if (this.currentProviderType === 'websocket') {
 			this.logProvider = new WebSocketLogProvider(
 				// @ts-ignore
 				this.connection,

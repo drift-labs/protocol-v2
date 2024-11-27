@@ -148,7 +148,7 @@ export interface LogProvider {
 	eventEmitter?: EventEmitter;
 }
 
-export type LogProviderType = 'websocket' | 'polling' | 'events-server';
+export type LogProviderType = 'websocket' | 'polling' | 'events-server' | 'dev-one-shot';
 
 export type StreamingLogProviderConfig = {
 	/// Max number of times to try reconnecting before failing over to fallback provider
@@ -179,7 +179,12 @@ export type EventsServerLogProviderConfig = StreamingLogProviderConfig & {
 	url: string;
 };
 
+export type DevOneShotLogProviderConfig = {
+	type: 'dev-one-shot';
+};
+
 export type LogProviderConfig =
 	| WebSocketLogProviderConfig
 	| PollingLogProviderConfig
-	| EventsServerLogProviderConfig;
+	| EventsServerLogProviderConfig
+	| DevOneShotLogProviderConfig;

@@ -45,6 +45,8 @@ export * from './events/txEventCache';
 export * from './events/webSocketLogProvider';
 export * from './events/parse';
 export * from './events/pollingLogProvider';
+export * from './events/getOneShotTxEvents';
+export * from './events/devOneShotLogProvider';
 export * from './jupiter/jupiterClient';
 export * from './math/auction';
 export * from './math/spotMarket';
