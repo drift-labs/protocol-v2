@@ -441,7 +441,8 @@ export class WebSocketDriftClientAccountSubscriber
 	}
 
 	async addOracle(oracleInfo: OracleInfo): Promise<boolean> {
-		if (this.oracleSubscribers.has(oracleInfo.publicKey.toString())) {
+		const oracleId = getOracleId(oracleInfo.publicKey, oracleInfo.source);
+		if (this.oracleSubscribers.has(oracleId)) {
 			return true;
 		}
 
@@ -462,7 +463,8 @@ export class WebSocketDriftClientAccountSubscriber
 			const perpMarketAccount = perpMarket.data;
 			const perpMarketIndex = perpMarketAccount.marketIndex;
 			const oracle = perpMarketAccount.amm.oracle;
-			if (!this.oracleSubscribers.has(oracle.toBase58())) {
+			const oracleId = getOracleId(oracle, perpMarket.data.amm.oracleSource);
+			if (!this.oracleSubscribers.has(oracleId)) {
 				addOraclePromises.push(
 					this.addOracle({
 						publicKey: oracle,
@@ -471,7 +473,7 @@ export class WebSocketDriftClientAccountSubscriber
 				);
 			}
 			this.perpOracleMap.set(perpMarketIndex, oracle);
-			this.perpOracleStringMap.set(perpMarketIndex, oracle.toBase58());
+			this.perpOracleStringMap.set(perpMarketIndex, oracleId);
 		}
 		await Promise.all(addOraclePromises);
 	}
@@ -486,7 +488,8 @@ export class WebSocketDriftClientAccountSubscriber
 			const spotMarketAccount = spotMarket.data;
 			const spotMarketIndex = spotMarketAccount.marketIndex;
 			const oracle = spotMarketAccount.oracle;
-			if (!this.oracleSubscribers.has(oracle.toBase58())) {
+			const oracleId = getOracleId(oracle, spotMarketAccount.oracleSource);
+			if (!this.oracleSubscribers.has(oracleId)) {
 				addOraclePromises.push(
 					this.addOracle({
 						publicKey: oracle,
@@ -495,7 +498,7 @@ export class WebSocketDriftClientAccountSubscriber
 				);
 			}
 			this.spotOracleMap.set(spotMarketIndex, oracle);
-			this.spotOracleStringMap.set(spotMarketIndex, oracle.toBase58());
+			this.spotOracleStringMap.set(spotMarketIndex, oracleId);
 		}
 		await Promise.all(addOraclePromises);
 	}
