@@ -172,11 +172,17 @@ describe('oracle diff sources', () => {
 				bulkAccountLoader
 			);
 
+		assert(driftClient.getSpotMarketAccount(1).oracle.equals(solOracle));
+		assert(driftClient.getSpotMarketAccount(2).oracle.equals(solOracle));
+
 		const normalPrice = await driftClient.getOracleDataForSpotMarket(1);
 		assert(normalPrice.price.eq(PRICE_PRECISION.muln(3)));
 
 		const oneKPrice = await driftClient.getOracleDataForSpotMarket(2);
 		assert(oneKPrice.price.eq(PRICE_PRECISION.muln(3000)));
+
+		assert(driftClient.getPerpMarketAccount(0).amm.oracle.equals(solOracle));
+		assert(driftClient.getPerpMarketAccount(1).amm.oracle.equals(solOracle));
 
 		const normalPerpPrice = await driftClient.getOracleDataForPerpMarket(0);
 		assert(normalPerpPrice.price.eq(PRICE_PRECISION.muln(3)));
