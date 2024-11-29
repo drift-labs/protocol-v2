@@ -2285,6 +2285,19 @@ pub fn handle_update_user_advanced_lp(
     Ok(())
 }
 
+pub fn handle_update_user_protected_maker_orders(
+    ctx: Context<UpdateUser>,
+    _sub_account_id: u16,
+    protected_maker_orders: bool,
+) -> Result<()> {
+    let mut user = load_mut!(ctx.accounts.user)?;
+
+    validate!(!user.is_being_liquidated(), ErrorCode::LiquidationsOngoing)?;
+
+    user.update_protected_maker_orders_status(protected_maker_orders)?;
+    Ok(())
+}
+
 pub fn handle_delete_user(ctx: Context<DeleteUser>) -> Result<()> {
     let user = &load!(ctx.accounts.user)?;
     let user_stats = &mut load_mut!(ctx.accounts.user_stats)?;
