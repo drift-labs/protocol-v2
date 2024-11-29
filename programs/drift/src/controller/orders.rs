@@ -1274,6 +1274,7 @@ pub fn fill_perp_order(
         fill_mode,
         oracle_limit_order_immediately_available,
         user_can_skip_duration,
+        state.min_perp_auction_duration as u64,
     )?;
 
     // no referrer bonus for liquidations
@@ -1579,6 +1580,7 @@ fn get_maker_orders_info(
     fill_mode: FillMode,
     oracle_limit_order_immediately_available: bool,
     user_can_skip_duration: bool,
+    protected_maker_min_age: u64,
 ) -> DriftResult<Vec<(Pubkey, usize, u64)>> {
     let maker_direction = taker_order.direction.opposite();
 
@@ -1707,7 +1709,7 @@ fn get_maker_orders_info(
             }
 
             if maker_order.has_oracle_price_offset() && is_protected_maker {
-                if !oracle_limit_order_immediately_available && !user_can_skip_duration && taker_order_age < 10 {
+                if !oracle_limit_order_immediately_available && !user_can_skip_duration && taker_order_age < protected_maker_min_age {
                     continue;
                 }
             }
