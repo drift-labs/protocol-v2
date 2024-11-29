@@ -604,11 +604,12 @@ pub fn place_swift_taker_order<'c: 'info, 'info>(
     )?;
 
     // Verify data from second verify ix
+    let digest_hex = digest_struct_hex!(taker_order_params_message);
     let ix: Instruction = load_instruction_at_checked(ix_idx as usize - 1, ix_sysvar)?;
     verify_ed25519_msg(
         &ix,
         &taker.authority.to_bytes(),
-        digest_struct_hex!(taker_order_params_message),
+        arrayref::array_ref!(digest_hex, 0, 64),
     )?;
 
     // Verify that sig from swift server corresponds to order message

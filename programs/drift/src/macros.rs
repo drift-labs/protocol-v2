@@ -100,7 +100,7 @@ macro_rules! digest_struct {
 /// Calculate the hexified sha256 digest of anchor encoded `struct`
 #[macro_export]
 macro_rules! digest_struct_hex {
-    ($struct:expr) => {
-        arrayref::array_ref!(hex::encode(digest_struct!($struct)).as_bytes(), 0, 64)
-    };
+    ($struct:expr) => {{
+        hex::encode(digest_struct!($struct)).into_bytes()
+    }};
 }
