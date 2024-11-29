@@ -1711,7 +1711,7 @@ fn get_maker_orders_info(
             }
 
             if maker_order.has_oracle_price_offset() && is_protected_maker {
-                if !oracle_valid_for_amm_fill || (oracle_delay > 0 && !user_can_skip_duration && taker_order_age < protected_maker_min_age) {
+                if !protected_maker_oracle_limit_can_fill(oracle_valid_for_amm_fill, oracle_delay, user_can_skip_duration, taker_order_age, protected_maker_min_age) {
                     continue;
                 }
             }
@@ -1725,6 +1725,17 @@ fn get_maker_orders_info(
     }
 
     Ok(maker_orders_info)
+}
+
+#[inline(always)]
+fn protected_maker_oracle_limit_can_fill(
+    oracle_valid_for_amm_fill: bool,
+    oracle_delay: i64,
+    user_can_skip_duration: bool,
+    taker_order_age: u64,
+    protected_maker_min_age: u64,
+) -> bool {
+    oracle_valid_for_amm_fill && (oracle_delay == 0 || user_can_skip_duration || taker_order_age > protected_maker_min_age)
 }
 
 #[inline(always)]
