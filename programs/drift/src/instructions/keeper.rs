@@ -63,8 +63,8 @@ use crate::state::user_map::{load_user_map, load_user_maps, UserMap, UserStatsMa
 use crate::validation::sig_verification::{extract_ed25519_ix_signature, verify_ed25519_msg};
 use crate::validation::user::{validate_user_deletion, validate_user_is_idle};
 use crate::{
-    controller, digest_struct, digest_struct_hex, load, math, print_error, safe_decrement, OracleSource,
-    GOV_SPOT_MARKET_INDEX, MARGIN_PRECISION,
+    controller, digest_struct, digest_struct_hex, load, math, print_error, safe_decrement,
+    OracleSource, GOV_SPOT_MARKET_INDEX, MARGIN_PRECISION,
 };
 use crate::{load_mut, QUOTE_PRECISION_U64};
 use crate::{validate, QUOTE_PRECISION_I128};
