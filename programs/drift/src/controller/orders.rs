@@ -1707,7 +1707,7 @@ fn get_maker_orders_info(
             }
 
             if maker_order.has_oracle_price_offset() && is_protected_maker {
-                if !oracle_limit_order_immediately_available && !user_can_skip_duration && taker_order_age < 0 {
+                if !oracle_limit_order_immediately_available && !user_can_skip_duration && taker_order_age < 10 {
                     continue;
                 }
             }
