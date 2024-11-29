@@ -5876,7 +5876,9 @@ export class DriftClient {
 			Ed25519Program.createInstructionWithPublicKey({
 				publicKey: takerInfo.takerUserAccount.authority.toBytes(),
 				signature: Uint8Array.from(swiftOrderParamsSignature),
-				message: Uint8Array.from(digest(encodedSwiftOrderParamsMessage)),
+				message: new TextEncoder().encode(
+					digest(encodedSwiftOrderParamsMessage).toString('hex')
+				),
 			});
 
 		const placeTakerSwiftPerpOrderIx =

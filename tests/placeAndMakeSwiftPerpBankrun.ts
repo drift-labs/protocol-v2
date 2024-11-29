@@ -32,6 +32,7 @@ import {
 	ANCHOR_TEST_SWIFT_ID,
 	SwiftOrderRecord,
 	getSwiftUserAccountPublicKey,
+	digest,
 } from '../sdk/src';
 
 import {
@@ -415,7 +416,9 @@ describe('place and make swift order', () => {
 			swiftDriftClient.encodeSwiftServerMessage(swiftServerMessage);
 
 		const swiftSignature = swiftDriftClient.signMessage(
-			Uint8Array.from(encodedSwiftServerMessage),
+			new TextEncoder().encode(
+				digest(encodedSwiftServerMessage).toString('hex')
+			),
 			swiftKeypair
 		);
 
@@ -534,7 +537,9 @@ describe('place and make swift order', () => {
 			takerDriftClient.encodeSwiftServerMessage(swiftServerMessage);
 
 		const swiftSignature = takerDriftClient.signMessage(
-			Uint8Array.from(encodedSwiftServerMessage),
+			new TextEncoder().encode(
+				digest(encodedSwiftServerMessage).toString('hex')
+			),
 			swiftKeypair
 		);
 
@@ -613,7 +618,9 @@ describe('place and make swift order', () => {
 			takerDriftClient.encodeSwiftServerMessage(swiftServerMessage);
 
 		const swiftSignature = takerDriftClient.signMessage(
-			Uint8Array.from(encodedSwiftServerMessage),
+			new TextEncoder().encode(
+				digest(encodedSwiftServerMessage).toString('hex')
+			),
 			swiftKeypair
 		);
 
@@ -788,7 +795,9 @@ describe('place and make swift order', () => {
 			makerDriftClient.encodeSwiftServerMessage(swiftServerMessage);
 
 		const swiftSignature = makerDriftClient.signMessage(
-			Uint8Array.from(encodedSwiftServerMessage),
+			new TextEncoder().encode(
+				digest(encodedSwiftServerMessage).toString('hex')
+			),
 			swiftKeypair
 		);
 
