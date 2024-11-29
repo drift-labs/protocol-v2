@@ -1167,12 +1167,13 @@ pub fn fill_perp_order(
     let reserve_price_before: u64;
     let oracle_validity: OracleValidity;
     let oracle_price: i64;
+    let oracle_delay: i64;
     let oracle_twap_5min: i64;
     let perp_market_index: u16;
     let user_can_skip_duration: bool;
     let amm_can_skip_duration: bool;
     let amm_lp_allowed_to_jit_make: bool;
-    let oracle_limit_order_immediately_available: bool;
+    let oracle_valid_for_amm_fill: bool;
 
     let mut amm_is_available = !state.amm_paused()? && !fill_mode.is_rfq();
     {
@@ -1192,9 +1193,7 @@ pub fn fill_perp_order(
             market.get_max_confidence_interval_multiplier()?,
         )?;
 
-        let oracle_valid_for_amm_fill = is_oracle_valid_for_action(_oracle_validity, Some(DriftAction::FillOrderAmm))?;
-
-        oracle_limit_order_immediately_available = oracle_valid_for_amm_fill && oracle_price_data.delay == 0;
+        oracle_valid_for_amm_fill = is_oracle_valid_for_action(_oracle_validity, Some(DriftAction::FillOrderAmm))?;
 
         amm_is_available &= oracle_valid_for_amm_fill;
         amm_is_available &= !market.is_operation_paused(PerpOperation::AmmFill);
@@ -1224,6 +1223,7 @@ pub fn fill_perp_order(
             .historical_oracle_data
             .last_oracle_price_twap_5min;
         oracle_validity = _oracle_validity;
+        oracle_delay = oracle_price_data.delay;
         perp_market_index = market.market_index;
     }
 
@@ -1272,7 +1272,8 @@ pub fn fill_perp_order(
         now,
         slot,
         fill_mode,
-        oracle_limit_order_immediately_available,
+        oracle_valid_for_amm_fill,
+        oracle_delay,
         user_can_skip_duration,
         state.min_perp_auction_duration as u64,
     )?;
@@ -1578,7 +1579,8 @@ fn get_maker_orders_info(
     now: i64,
     slot: u64,
     fill_mode: FillMode,
-    oracle_limit_order_immediately_available: bool,
+    oracle_valid_for_amm_fill: bool,
+    oracle_delay: i64,
     user_can_skip_duration: bool,
     protected_maker_min_age: u64,
 ) -> DriftResult<Vec<(Pubkey, usize, u64)>> {
@@ -1709,7 +1711,7 @@ fn get_maker_orders_info(
             }
 
             if maker_order.has_oracle_price_offset() && is_protected_maker {
-                if !oracle_limit_order_immediately_available && !user_can_skip_duration && taker_order_age < protected_maker_min_age {
+                if !oracle_valid_for_amm_fill || (oracle_delay > 0 && !user_can_skip_duration && taker_order_age < protected_maker_min_age) {
                     continue;
                 }
             }
