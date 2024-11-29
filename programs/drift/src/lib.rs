@@ -352,7 +352,7 @@ pub mod drift {
     }
 
     pub fn update_user_protected_maker_orders(
-        ctx: Context<UpdateUser>,
+        ctx: Context<UpdateUserProtectedMakerMode>,
         _sub_account_id: u16,
         protected_maker_orders: bool,
     ) -> Result<()> {
