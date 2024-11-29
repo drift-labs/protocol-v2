@@ -1622,8 +1622,7 @@ fn get_maker_orders_info(
 
         drop(market);
 
-        // todo add flag
-        let is_protected_maker = false;
+        let is_protected_maker = maker.is_protected_maker();
 
         for (maker_order_index, maker_order_price) in maker_order_price_and_indexes.iter() {
             let maker_order_index = *maker_order_index;
