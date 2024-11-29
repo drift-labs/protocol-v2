@@ -611,6 +611,8 @@ pub enum ErrorCode {
     InvalidSwiftOrderId,
     #[msg("Invalid pool id")]
     InvalidPoolId,
+    #[msg("Invalid Protected Maker Mode Config")]
+    InvalidProtectedMakerModeConfig,
 }
 
 #[macro_export]

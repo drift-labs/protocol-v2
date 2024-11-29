@@ -1568,6 +1568,21 @@ pub mod drift {
     ) -> Result<()> {
         handle_update_high_leverage_mode_config(ctx, max_users, reduce_only)
     }
+
+    pub fn initialize_protected_maker_mode_config(
+        ctx: Context<InitializeProtectedMakerModeConfig>,
+        max_users: u32,
+    ) -> Result<()> {
+        handle_initialize_protected_maker_mode_config(ctx, max_users)
+    }
+
+    pub fn update_protected_maker_mode_config(
+        ctx: Context<UpdateProtectedMakerModeConfig>,
+        max_users: u32,
+        reduce_only: bool,
+    ) -> Result<()> {
+        handle_update_protected_maker_mode_config(ctx, max_users, reduce_only)
+    }
 }
 
 #[cfg(not(feature = "no-entrypoint"))]
