@@ -245,7 +245,9 @@ describe('place and make swift order', () => {
 			makerDriftClient.encodeSwiftServerMessage(swiftServerMessage);
 
 		const swiftSignature = makerDriftClient.signMessage(
-			Uint8Array.from(encodedSwiftServerMessage),
+			new TextEncoder().encode(
+				digest(encodedSwiftServerMessage).toString('hex')
+			),
 			swiftKeypair
 		);
 
@@ -718,7 +720,9 @@ describe('place and make swift order', () => {
 			makerDriftClient.encodeSwiftServerMessage(swiftServerMessage);
 
 		const swiftSignature = makerDriftClient.signMessage(
-			Uint8Array.from(encodedSwiftServerMessage),
+			new TextEncoder().encode(
+				digest(encodedSwiftServerMessage).toString('hex')
+			),
 			swiftKeypair
 		);
 
