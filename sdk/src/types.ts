@@ -995,6 +995,7 @@ export type UserAccount = {
 	hasOpenAuction: boolean;
 	lastFuelBonusUpdateTs: number;
 	marginMode: MarginMode;
+	poolId: number;
 };
 
 export type SpotPosition = {
