@@ -47,7 +47,7 @@ pub mod fulfill_order_with_maker_order {
     };
 
     use super::*;
-    use crate::state::oracle::HistoricalOracleData;
+    use crate::state::oracle::{HistoricalOracleData, OracleSource};
     use std::str::FromStr;
 
     #[test]
@@ -1758,7 +1758,7 @@ pub mod fulfill_order_with_maker_order {
             .get_price_data_and_validity(
                 MarketType::Perp,
                 market.market_index,
-                &oracle_price_key,
+                &(oracle_price_key, OracleSource::Pyth),
                 market.amm.historical_oracle_data.last_oracle_price_twap,
                 market.get_max_confidence_interval_multiplier().unwrap(),
             )
@@ -1909,7 +1909,12 @@ pub mod fulfill_order_with_maker_order {
 
         let taker_price = taker.orders[0]
             .get_limit_price(
-                Some(oracle_map.get_price_data(&oracle_price_key).unwrap().price),
+                Some(
+                    oracle_map
+                        .get_price_data(&(oracle_price_key, OracleSource::Pyth))
+                        .unwrap()
+                        .price,
+                ),
                 None,
                 slot,
                 1,
@@ -2059,7 +2064,12 @@ pub mod fulfill_order_with_maker_order {
         let mut taker_stats = UserStats::default();
         let mut maker_stats = UserStats::default();
 
-        let valid_oracle_price = Some(oracle_map.get_price_data(&oracle_price_key).unwrap().price);
+        let valid_oracle_price = Some(
+            oracle_map
+                .get_price_data(&(oracle_price_key, OracleSource::Pyth))
+                .unwrap()
+                .price,
+        );
         let taker_limit_price = taker.orders[0]
             .get_limit_price(
                 valid_oracle_price,
@@ -2196,7 +2206,12 @@ pub mod fulfill_order_with_maker_order {
 
         let taker_price = taker.orders[0]
             .get_limit_price(
-                Some(oracle_map.get_price_data(&oracle_price_key).unwrap().price),
+                Some(
+                    oracle_map
+                        .get_price_data(&(oracle_price_key, OracleSource::Pyth))
+                        .unwrap()
+                        .price,
+                ),
                 None,
                 slot,
                 1,
