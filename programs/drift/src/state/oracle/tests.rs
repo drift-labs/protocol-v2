@@ -3,6 +3,7 @@ use std::str::FromStr;
 
 use crate::create_account_info;
 use crate::state::oracle::{get_oracle_price, OracleSource};
+use crate::state::oracle_map::OracleMap;
 use crate::state::perp_market::AMM;
 use crate::test_utils::*;
 
@@ -125,4 +126,34 @@ fn switchboard_on_demand() {
 
     let twap = amm.get_oracle_twap(&dsol_oracle_info, 0).unwrap();
     assert_eq!(twap, Some(226556945));
+}
+
+#[test]
+fn oracle_map_diff_oracle_source() {
+    let oracle_price_key =
+        Pubkey::from_str("DBE3N8uNjhKPRHfANdwGvCZghWXyLPdqdSbEW2XFwBiX").unwrap();
+    let oracle_market_str = String::from("IvEjY51+9M206svkAq6RZcKrffzb5QRNJ/KEEG+IqQv93vpfv/YMoAFysCEhfKP+aJIqGar5kBCcudhOmtAEtNICWtb1KTFEGbZFBQAAAAAABQIAAAAAAAD2////xXhYZgAAAADFeFhmAAAAAJMfBQAAAAAAnwEAAAAAAAAFMwYQAAAAAAA=");
+    let mut decoded_bytes = base64::decode(oracle_market_str).unwrap();
+    let oracle_market_bytes = decoded_bytes.as_mut_slice();
+    let mut lamports = 0;
+    let pyth_program = crate::ids::drift_oracle_receiver_program::id();
+    let bonk_market_account_info = create_account_info(
+        &oracle_price_key,
+        true,
+        &mut lamports,
+        oracle_market_bytes,
+        &pyth_program,
+    );
+
+    let mut oracle_map = OracleMap::load_one(&bonk_market_account_info, 0, None).unwrap();
+
+    let oracle_price_data = oracle_map
+        .get_price_data(&(oracle_price_key, OracleSource::Pyth1MPull))
+        .unwrap();
+    assert_eq!(oracle_price_data.price, 34552600);
+
+    let oracle_price_data = oracle_map
+        .get_price_data(&(oracle_price_key, OracleSource::PythPull))
+        .unwrap();
+    assert_eq!(oracle_price_data.price, 34);
 }

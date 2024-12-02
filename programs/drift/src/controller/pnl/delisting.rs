@@ -2333,7 +2333,7 @@ pub mod delisting_test {
             assert_eq!(shorter.perp_positions[0].base_asset_amount, -1000000000000);
             assert_eq!(shorter.perp_positions[0].quote_asset_amount, 97000000000);
 
-            let oracle_price_data = oracle_map.get_price_data(&market.amm.oracle).unwrap();
+            let oracle_price_data = oracle_map.get_price_data(&market.oracle_id()).unwrap();
 
             let strict_quote_price = StrictOraclePrice::test(QUOTE_PRECISION_I64);
             let (perp_margin_requirement, weighted_pnl, _, _, _) =
@@ -2413,7 +2413,7 @@ pub mod delisting_test {
 
             {
                 let market = market_map.get_ref_mut(&0).unwrap();
-                let oracle_price_data = oracle_map.get_price_data(&market.amm.oracle).unwrap();
+                let oracle_price_data = oracle_map.get_price_data(&market.oracle_id()).unwrap();
 
                 let strict_quote_price = StrictOraclePrice::test(QUOTE_PRECISION_I64);
                 let (perp_margin_requirement, weighted_pnl, _, _, _) =
@@ -2496,7 +2496,7 @@ pub mod delisting_test {
 
             {
                 let mut market = market_map.get_ref_mut(&0).unwrap();
-                let oracle_price_data = oracle_map.get_price_data(&market.amm.oracle).unwrap();
+                let oracle_price_data = oracle_map.get_price_data(&market.oracle_id()).unwrap();
 
                 assert_eq!(market.amm.quote_asset_amount, 97200000000);
 
@@ -2588,7 +2588,7 @@ pub mod delisting_test {
 
             {
                 let market = market_map.get_ref_mut(&0).unwrap();
-                let oracle_price_data = oracle_map.get_price_data(&market.amm.oracle).unwrap();
+                let oracle_price_data = oracle_map.get_price_data(&market.oracle_id()).unwrap();
 
                 assert_eq!(market.amm.quote_asset_amount, 20000010000 + 77199990000);
 
@@ -2832,7 +2832,7 @@ pub mod delisting_test {
 
             assert_eq!(market.amm.total_social_loss, 3449991000);
 
-            let oracle_price_data = oracle_map.get_price_data(&market.amm.oracle).unwrap();
+            let oracle_price_data = oracle_map.get_price_data(&market.oracle_id()).unwrap();
             assert_eq!(oracle_price_data.price, 100 * PRICE_PRECISION_I64);
             let net_pnl = calculate_net_user_pnl(&market.amm, oracle_price_data.price).unwrap();
             assert_eq!(net_pnl, 3449991000);

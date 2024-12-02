@@ -43,7 +43,11 @@ export interface DriftClientAccountEvents {
 	stateAccountUpdate: (payload: StateAccount) => void;
 	perpMarketAccountUpdate: (payload: PerpMarketAccount) => void;
 	spotMarketAccountUpdate: (payload: SpotMarketAccount) => void;
-	oraclePriceUpdate: (publicKey: PublicKey, data: OraclePriceData) => void;
+	oraclePriceUpdate: (
+		publicKey: PublicKey,
+		oracleSource: OracleSource,
+		data: OraclePriceData
+	) => void;
 	userAccountUpdate: (payload: UserAccount) => void;
 	update: void;
 	error: (e: Error) => void;
@@ -73,7 +77,7 @@ export interface DriftClientAccountSubscriber {
 	): DataAndSlot<SpotMarketAccount> | undefined;
 	getSpotMarketAccountsAndSlots(): DataAndSlot<SpotMarketAccount>[];
 	getOraclePriceDataAndSlot(
-		oraclePublicKey: PublicKey | string
+		oracleId: string
 	): DataAndSlot<OraclePriceData> | undefined;
 	getOraclePriceDataAndSlotForPerpMarket(
 		marketIndex: number

@@ -70,7 +70,7 @@ pub fn settle_pnl(
 
     let mut market = perp_market_map.get_ref_mut(&market_index)?;
 
-    let oracle_price = oracle_map.get_price_data(&market.amm.oracle)?.price;
+    let oracle_price = oracle_map.get_price_data(&market.oracle_id())?.price;
 
     validate_market_within_price_band(&market, state, oracle_price)?;
 
@@ -159,7 +159,7 @@ pub fn settle_pnl(
             let (_, oracle_validity) = oracle_map.get_price_data_and_validity(
                 MarketType::Perp,
                 perp_market.market_index,
-                &perp_market.amm.oracle,
+                &perp_market.oracle_id(),
                 perp_market
                     .amm
                     .historical_oracle_data

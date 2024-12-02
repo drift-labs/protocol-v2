@@ -170,7 +170,7 @@ pub fn update_funding_rate(
     // Pause funding if oracle is invalid or if mark/oracle spread is too divergent
     let block_funding_rate_update = oracle::block_operation(
         market,
-        oracle_map.get_price_data(&market.amm.oracle)?,
+        oracle_map.get_price_data(&market.oracle_id())?,
         guard_rails,
         reserve_price,
         slot,
@@ -186,7 +186,7 @@ pub fn update_funding_rate(
         !funding_paused && !block_funding_rate_update && (time_until_next_update == 0);
 
     if valid_funding_update {
-        let oracle_price_data = oracle_map.get_price_data(&market.amm.oracle)?;
+        let oracle_price_data = oracle_map.get_price_data(&market.oracle_id())?;
         let sanitize_clamp_denominator = market.get_sanitize_clamp_denominator()?;
 
         let oracle_price_twap = amm::update_oracle_price_twap(

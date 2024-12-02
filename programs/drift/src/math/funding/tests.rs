@@ -652,7 +652,7 @@ fn unsettled_funding_pnl() {
         market.amm.funding_period,
     )
     .unwrap();
-    let oracle_price_data = oracle_map.get_price_data(&market.amm.oracle).unwrap();
+    let oracle_price_data = oracle_map.get_price_data(&market.oracle_id()).unwrap();
 
     assert_eq!(time_until_next_update, 0);
     let block_funding_rate_update = block_operation(

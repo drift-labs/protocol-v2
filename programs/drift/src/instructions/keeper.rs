@@ -1399,7 +1399,7 @@ pub fn handle_resolve_perp_pnl_deficit<'c: 'info, 'info>(
             "Market is in settlement mode",
         )?;
 
-        let oracle_price = oracle_map.get_price_data(&perp_market.amm.oracle)?.price;
+        let oracle_price = oracle_map.get_price_data(&perp_market.oracle_id())?.price;
         controller::orders::validate_market_within_price_band(perp_market, state, oracle_price)?;
 
         controller::insurance::resolve_perp_pnl_deficit(
@@ -1682,7 +1682,7 @@ pub fn handle_update_funding_rate(
         Some(state.oracle_guard_rails),
     )?;
 
-    let oracle_price_data = &oracle_map.get_price_data(&perp_market.amm.oracle)?;
+    let oracle_price_data = &oracle_map.get_price_data(&perp_market.oracle_id())?;
     controller::repeg::_update_amm(perp_market, oracle_price_data, state, now, clock_slot)?;
 
     validate!(
@@ -1777,7 +1777,7 @@ pub fn handle_update_perp_bid_ask_twap<'c: 'info, 'info>(
         min_if_stake
     )?;
 
-    let oracle_price_data = oracle_map.get_price_data(&perp_market.amm.oracle)?;
+    let oracle_price_data = oracle_map.get_price_data(&perp_market.oracle_id())?;
     controller::repeg::_update_amm(perp_market, oracle_price_data, state, now, slot)?;
 
     let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
@@ -1939,7 +1939,7 @@ pub fn handle_update_spot_market_cumulative_interest(
         Some(state.oracle_guard_rails),
     )?;
 
-    let oracle_price_data = oracle_map.get_price_data(&spot_market.oracle)?;
+    let oracle_price_data = oracle_map.get_price_data(&spot_market.oracle_id())?;
 
     if !state.funding_paused()? {
         controller::spot_balance::update_spot_market_cumulative_interest(
@@ -2213,7 +2213,7 @@ pub fn handle_force_delete_user<'c: 'info, 'info>(
         }
 
         let spot_market = &mut spot_market_map.get_ref_mut(&spot_position.market_index)?;
-        let oracle_price_data = oracle_map.get_price_data(&spot_market.oracle)?;
+        let oracle_price_data = oracle_map.get_price_data(&spot_market.oracle_id())?;
 
         controller::spot_balance::update_spot_market_cumulative_interest(
             spot_market,
