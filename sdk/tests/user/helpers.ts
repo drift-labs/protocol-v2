@@ -88,4 +88,5 @@ export const mockUserAccount: UserAccount = {
 	hasOpenAuction: false,
 	lastFuelBonusUpdateTs: 0,
 	marginMode: MarginMode.DEFAULT,
+	poolId: 0,
 };
