@@ -245,9 +245,7 @@ describe('place and make swift order', () => {
 			makerDriftClient.encodeSwiftServerMessage(swiftServerMessage);
 
 		const swiftSignature = makerDriftClient.signMessage(
-			new TextEncoder().encode(
-				digest(encodedSwiftServerMessage).toString('hex')
-			),
+			digest(encodedSwiftServerMessage),
 			swiftKeypair
 		);
 
@@ -418,9 +416,7 @@ describe('place and make swift order', () => {
 			swiftDriftClient.encodeSwiftServerMessage(swiftServerMessage);
 
 		const swiftSignature = swiftDriftClient.signMessage(
-			new TextEncoder().encode(
-				digest(encodedSwiftServerMessage).toString('hex')
-			),
+			digest(encodedSwiftServerMessage),
 			swiftKeypair
 		);
 
@@ -539,9 +535,7 @@ describe('place and make swift order', () => {
 			takerDriftClient.encodeSwiftServerMessage(swiftServerMessage);
 
 		const swiftSignature = takerDriftClient.signMessage(
-			new TextEncoder().encode(
-				digest(encodedSwiftServerMessage).toString('hex')
-			),
+			digest(encodedSwiftServerMessage),
 			swiftKeypair
 		);
 
@@ -620,9 +614,7 @@ describe('place and make swift order', () => {
 			takerDriftClient.encodeSwiftServerMessage(swiftServerMessage);
 
 		const swiftSignature = takerDriftClient.signMessage(
-			new TextEncoder().encode(
-				digest(encodedSwiftServerMessage).toString('hex')
-			),
+			digest(encodedSwiftServerMessage),
 			swiftKeypair
 		);
 
@@ -720,9 +712,7 @@ describe('place and make swift order', () => {
 			makerDriftClient.encodeSwiftServerMessage(swiftServerMessage);
 
 		const swiftSignature = makerDriftClient.signMessage(
-			new TextEncoder().encode(
-				digest(encodedSwiftServerMessage).toString('hex')
-			),
+			digest(encodedSwiftServerMessage),
 			swiftKeypair
 		);
 
@@ -799,9 +789,7 @@ describe('place and make swift order', () => {
 			makerDriftClient.encodeSwiftServerMessage(swiftServerMessage);
 
 		const swiftSignature = makerDriftClient.signMessage(
-			new TextEncoder().encode(
-				digest(encodedSwiftServerMessage).toString('hex')
-			),
+			digest(encodedSwiftServerMessage),
 			swiftKeypair
 		);
 
