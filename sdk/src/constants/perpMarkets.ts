@@ -1008,6 +1008,38 @@ export const MainnetPerpMarkets: PerpMarketConfig[] = [
 		pythFeedId:
 			'0x116da895807f81f6b5c5f01b109376e7f6834dc8b51365ab7cdfa66634340e54',
 	},
+	{
+		fullName: 'RAY',
+		category: ['DEX'],
+		symbol: 'RAY-PERP',
+		baseAssetSymbol: 'RAY',
+		marketIndex: 56,
+		oracle: new PublicKey('DPvPBacXhEyA1VXF4E3EYH3h83Bynh5uP3JLeN25TWzm'),
+		launchTs: 1732721897000,
+		oracleSource: OracleSource.PYTH_PULL,
+		pythFeedId:
+			'0x91568baa8beb53db23eb3fb7f22c6e8bd303d103919e19733f2bb642d3e7987a',
+	},
+	{
+		fullName: 'SUPERBOWL-LIX-LIONS',
+		category: ['Prediction', 'Sport'],
+		symbol: 'SUPERBOWL-LIX-LIONS-BET',
+		baseAssetSymbol: 'SUPERBOWL-LIX-LIONS',
+		marketIndex: 57,
+		oracle: new PublicKey('GfTeKKnBxeLSB1Hm24ArjduQM4yqaAgoGgiC99gq5E2P'),
+		launchTs: 1732721897000,
+		oracleSource: OracleSource.Prelaunch,
+	},
+	{
+		fullName: 'SUPERBOWL-LIX-CHIEFS',
+		category: ['Prediction', 'Sport'],
+		symbol: 'SUPERBOWL-LIX-CHIEFS-BET',
+		baseAssetSymbol: 'SUPERBOWL-LIX-CHIEFS',
+		marketIndex: 58,
+		oracle: new PublicKey('EdB17Nyu4bnEBiSEfFrwvp4VCUvtq9eDJHc6Ujys3Jwd'),
+		launchTs: 1732721897000,
+		oracleSource: OracleSource.Prelaunch,
+	},
 ];
 
 export const PerpMarkets: { [key in DriftEnv]: PerpMarketConfig[] } = {
