@@ -319,6 +319,14 @@ pub mod drift {
         handle_update_user_margin_trading_enabled(ctx, _sub_account_id, margin_trading_enabled)
     }
 
+    pub fn update_user_pool_id<'c: 'info, 'info>(
+        ctx: Context<'_, '_, 'c, 'info, UpdateUser<'info>>,
+        _sub_account_id: u16,
+        pool_id: u8,
+    ) -> Result<()> {
+        handle_update_user_pool_id(ctx, _sub_account_id, pool_id)
+    }
+
     pub fn update_user_delegate(
         ctx: Context<UpdateUser>,
         _sub_account_id: u16,
@@ -1009,6 +1017,13 @@ pub mod drift {
         insurance_fund_unstaking_period: i64,
     ) -> Result<()> {
         handle_update_insurance_fund_unstaking_period(ctx, insurance_fund_unstaking_period)
+    }
+
+    pub fn update_spot_market_pool_id(
+        ctx: Context<AdminUpdateSpotMarket>,
+        pool_id: u8,
+    ) -> Result<()> {
+        handle_update_spot_market_pool_id(ctx, pool_id)
     }
 
     pub fn update_spot_market_liquidation_fee(

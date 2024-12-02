@@ -609,6 +609,8 @@ pub enum ErrorCode {
     SwiftOrderDoesNotExist,
     #[msg("Swift order id cannot be 0s")]
     InvalidSwiftOrderId,
+    #[msg("Invalid pool id")]
+    InvalidPoolId,
 }
 
 #[macro_export]

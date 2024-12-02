@@ -1358,6 +1358,31 @@
       ]
     },
     {
+      "name": "updateUserPoolId",
+      "accounts": [
+        {
+          "name": "user",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": true
+        }
+      ],
+      "args": [
+        {
+          "name": "subAccountId",
+          "type": "u16"
+        },
+        {
+          "name": "poolId",
+          "type": "u8"
+        }
+      ]
+    },
+    {
       "name": "updateUserDelegate",
       "accounts": [
         {
@@ -4501,6 +4526,32 @@
       ]
     },
     {
+      "name": "updateSpotMarketPoolId",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "spotMarket",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "poolId",
+          "type": "u8"
+        }
+      ]
+    },
+    {
       "name": "updateSpotMarketLiquidationFee",
       "accounts": [
         {
@@ -7039,7 +7090,7 @@
             "type": "u8"
           },
           {
-            "name": "padding1",
+            "name": "poolId",
             "type": "u8"
           },
           {
@@ -7576,11 +7627,15 @@
             "type": "u8"
           },
           {
+            "name": "poolId",
+            "type": "u8"
+          },
+          {
             "name": "padding",
             "type": {
               "array": [
                 "u8",
-                41
+                40
               ]
             }
           }
@@ -7962,11 +8017,15 @@
             }
           },
           {
+            "name": "poolId",
+            "type": "u8"
+          },
+          {
             "name": "padding1",
             "type": {
               "array": [
                 "u8",
-                4
+                3
               ]
             }
           },
@@ -14089,6 +14148,11 @@
       "code": 6301,
       "name": "InvalidSwiftOrderId",
       "msg": "Swift order id cannot be 0s"
+    },
+    {
+      "code": 6302,
+      "name": "InvalidPoolId",
+      "msg": "Invalid pool id"
     }
   ],
   "metadata": {

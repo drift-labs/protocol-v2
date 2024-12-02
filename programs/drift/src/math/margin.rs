@@ -247,6 +247,7 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
         0_u32
     };
 
+    let user_pool_id = user.pool_id;
     let user_high_leverage_mode = user.is_high_leverage_mode();
 
     for spot_position in user.spot_positions.iter() {
@@ -263,6 +264,14 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
             &spot_market.oracle_id(),
             spot_market.historical_oracle_data.last_oracle_price_twap,
             spot_market.get_max_confidence_interval_multiplier()?,
+        )?;
+
+        validate!(
+            user_pool_id == spot_market.pool_id,
+            ErrorCode::InvalidPoolId,
+            "user pool id ({}) == spot market pool id ({})",
+            user_pool_id,
+            spot_market.pool_id,
         )?;
 
         let oracle_valid =
@@ -477,6 +486,14 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
         }
 
         let market = &perp_market_map.get_ref(&market_position.market_index)?;
+
+        validate!(
+            user_pool_id == market.pool_id,
+            ErrorCode::InvalidPoolId,
+            "user pool id ({}) == perp market pool id ({})",
+            user_pool_id,
+            market.pool_id,
+        )?;
 
         let quote_spot_market = spot_market_map.get_ref(&market.quote_spot_market_index)?;
         let (quote_oracle_price_data, quote_oracle_validity) = oracle_map
