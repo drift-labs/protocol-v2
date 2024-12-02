@@ -293,7 +293,7 @@ pub fn place_perp_order(
         padding: [0; 3],
     };
 
-    let valid_oracle_price = Some(oracle_map.get_price_data(&market.oracle_id())?.price);
+    let valid_oracle_price = Some(oracle_price_data.price);
     match validate_order(&new_order, market, valid_oracle_price, slot) {
         Ok(()) => {}
         Err(ErrorCode::PlacePostOnlyLimitFailure)
