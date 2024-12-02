@@ -8,6 +8,7 @@ import {
 	SIX,
 	EIGHT,
 	NINE,
+	FIVE,
 } from './numericConstants';
 
 export type SpotMarketConfig = {
@@ -78,6 +79,17 @@ export const DevnetSpotMarkets: SpotMarketConfig[] = [
 		precisionExp: SIX,
 		pythFeedId:
 			'0xc1da1b73d7f01e7ddd54b3766cf7fcd644395ad14f70aa706ec5384c59e76692',
+	},
+	{
+		symbol: 'Bonk',
+		marketIndex: 4,
+		oracle: new PublicKey('GojbSnJuPdKDT1ZuHuAM5t9oz6bxTo1xhUKpTua2F72p'),
+		oracleSource: OracleSource.PYTH_PULL,
+		mint: new PublicKey('7SekVZDmKCCDgTP8m6Hk4CfexFSru9RkwDCczmcwcsP6'),
+		precision: new BN(10).pow(FIVE),
+		precisionExp: FIVE,
+		pythFeedId:
+			'0x72b021217ca3fe68922a19aaf990109cb9d84e9ad004b4d2025ad6f529314419',
 	},
 ];
 
