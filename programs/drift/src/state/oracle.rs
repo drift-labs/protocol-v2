@@ -107,9 +107,7 @@ impl HistoricalIndexData {
     }
 }
 
-#[derive(
-    AnchorSerialize, AnchorDeserialize, Clone, Copy, Eq, PartialEq, Debug, Default, Ord, PartialOrd,
-)]
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, Copy, Eq, PartialEq, Debug, Default)]
 pub enum OracleSource {
     #[default]
     Pyth,

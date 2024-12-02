@@ -217,7 +217,7 @@ pub fn place_perp_order(
         (existing_position_direction, base_asset_amount)
     };
 
-    let oracle_price_data = oracle_map.get_price_data(&market.oracle_id())?;
+    let oracle_price_data = oracle_map.get_price_data(&market.amm.oracle)?;
 
     // updates auction params for crossing limit orders w/out auction duration
     // dont modify if it's a liquidation
@@ -293,7 +293,7 @@ pub fn place_perp_order(
         padding: [0; 3],
     };
 
-    let valid_oracle_price = Some(oracle_map.get_price_data(&market.oracle_id())?.price);
+    let valid_oracle_price = Some(oracle_map.get_price_data(&market.amm.oracle)?.price);
     match validate_order(&new_order, market, valid_oracle_price, slot) {
         Ok(()) => {}
         Err(ErrorCode::PlacePostOnlyLimitFailure)
@@ -389,7 +389,7 @@ pub fn place_perp_order(
         taker_order,
         maker,
         maker_order,
-        oracle_map.get_price_data(&market.oracle_id())?.price,
+        oracle_map.get_price_data(&market.amm.oracle)?.price,
     )?;
     emit_stack::<_, { OrderActionRecord::SIZE }>(order_action_record)?;
 
@@ -808,10 +808,10 @@ pub fn cancel_order(
 
     validate!(order_status == OrderStatus::Open, ErrorCode::OrderNotOpen)?;
 
-    let oracle_id = if is_perp_order {
-        perp_market_map.get_ref(&order_market_index)?.oracle_id()
+    let oracle = if is_perp_order {
+        perp_market_map.get_ref(&order_market_index)?.amm.oracle
     } else {
-        spot_market_map.get_ref(&order_market_index)?.oracle_id()
+        spot_market_map.get_ref(&order_market_index)?.oracle
     };
 
     if !skip_log {
@@ -837,7 +837,7 @@ pub fn cancel_order(
             taker_order,
             maker,
             maker_order,
-            oracle_map.get_price_data(&oracle_id)?.price,
+            oracle_map.get_price_data(&oracle)?.price,
         )?;
         emit_stack::<_, { OrderActionRecord::SIZE }>(order_action_record)?;
     }
@@ -1186,7 +1186,7 @@ pub fn fill_perp_order(
         let (oracle_price_data, _oracle_validity) = oracle_map.get_price_data_and_validity(
             MarketType::Perp,
             market.market_index,
-            &market.oracle_id(),
+            &market.amm.oracle,
             market.amm.historical_oracle_data.last_oracle_price_twap,
             market.get_max_confidence_interval_multiplier()?,
         )?;
@@ -1816,7 +1816,7 @@ fn fulfill_perp_order(
 
     let fulfillment_methods = {
         let market = perp_market_map.get_ref(&market_index)?;
-        let oracle_price = oracle_map.get_price_data(&market.oracle_id())?.price;
+        let oracle_price = oracle_map.get_price_data(&market.amm.oracle)?.price;
 
         determine_perp_fulfillment_methods(
             &user.orders[user_order_index],
@@ -2424,7 +2424,7 @@ pub fn fulfill_perp_order_with_amm(
         taker_order,
         maker,
         maker_order,
-        oracle_map.get_price_data(&market.oracle_id())?.price,
+        oracle_map.get_price_data(&market.amm.oracle)?.price,
     )?;
     emit_stack::<_, { OrderActionRecord::SIZE }>(order_action_record)?;
 
@@ -2501,7 +2501,7 @@ pub fn fulfill_perp_order_with_match(
         return Ok((0_u64, 0_u64, 0_u64));
     }
 
-    let oracle_price = oracle_map.get_price_data(&market.oracle_id())?.price;
+    let oracle_price = oracle_map.get_price_data(&market.amm.oracle)?.price;
     let taker_direction: PositionDirection = taker.orders[taker_order_index].direction;
 
     let taker_price = if let Some(taker_limit_price) = taker_limit_price {
@@ -2845,7 +2845,7 @@ pub fn fulfill_perp_order_with_match(
         Some(taker.orders[taker_order_index]),
         Some(*maker_key),
         Some(maker.orders[maker_order_index]),
-        oracle_map.get_price_data(&market.oracle_id())?.price,
+        oracle_map.get_price_data(&market.amm.oracle)?.price,
     )?;
     emit_stack::<_, { OrderActionRecord::SIZE }>(order_action_record)?;
 
@@ -2964,7 +2964,7 @@ pub fn trigger_order(
     let (oracle_price_data, oracle_validity) = oracle_map.get_price_data_and_validity(
         MarketType::Perp,
         perp_market.market_index,
-        &perp_market.oracle_id(),
+        &perp_market.amm.oracle,
         perp_market
             .amm
             .historical_oracle_data
@@ -3312,12 +3312,12 @@ pub fn burn_user_lp_shares_for_risk_reduction(
 
     let mut market = perp_market_map.get_ref_mut(&market_index)?;
 
-    let quote_oracle_id = spot_market_map
+    let quote_oracle = spot_market_map
         .get_ref(&market.quote_spot_market_index)?
-        .oracle_id();
-    let quote_oracle_price = oracle_map.get_price_data(&quote_oracle_id)?.price;
+        .oracle;
+    let quote_oracle_price = oracle_map.get_price_data(&quote_oracle)?.price;
 
-    let oracle_price_data = oracle_map.get_price_data(&market.oracle_id())?;
+    let oracle_price_data = oracle_map.get_price_data(&market.amm.oracle)?;
 
     let oracle_price = if market.status == MarketStatus::Settlement {
         market.expiry_price
@@ -3557,7 +3557,7 @@ pub fn place_spot_order(
     let token_amount = user.spot_positions[spot_position_index].get_token_amount(spot_market)?;
     let signed_token_amount = get_signed_token_amount(token_amount, &balance_type)?;
 
-    let oracle_price_data = *oracle_map.get_price_data(&spot_market.oracle_id())?;
+    let oracle_price_data = *oracle_map.get_price_data(&spot_market.oracle)?;
 
     // Increment open orders for existing position
     let (existing_position_direction, order_base_asset_amount) = {
@@ -3842,11 +3842,7 @@ pub fn fill_spot_order(
     };
 
     let oracle_price = oracle_map
-        .get_price_data(
-            &spot_market_map
-                .get_ref_mut(&order_market_index)?
-                .oracle_id(),
-        )?
+        .get_price_data(&spot_market_map.get_ref_mut(&order_market_index)?.oracle)?
         .price;
     let maker_order_info = get_spot_maker_orders_info(
         perp_market_map,
@@ -3866,11 +3862,11 @@ pub fn fill_spot_order(
 
     {
         let mut quote_market = spot_market_map.get_quote_spot_market_mut()?;
-        let oracle_price_data = oracle_map.get_price_data(&quote_market.oracle_id())?;
+        let oracle_price_data = oracle_map.get_price_data(&quote_market.oracle)?;
         update_spot_market_cumulative_interest(&mut quote_market, Some(oracle_price_data), now)?;
 
         let mut base_market = spot_market_map.get_ref_mut(&order_market_index)?;
-        let oracle_price_data = oracle_map.get_price_data(&base_market.oracle_id())?;
+        let oracle_price_data = oracle_map.get_price_data(&base_market.oracle)?;
         update_spot_market_cumulative_interest(&mut base_market, Some(oracle_price_data), now)?;
 
         fulfillment_params.validate_markets(&base_market, &quote_market)?;
@@ -3986,7 +3982,7 @@ pub fn fill_spot_order(
             spot_market.get_precision(),
         )?;
 
-        let oracle_price = oracle_map.get_price_data(&spot_market.oracle_id())?.price;
+        let oracle_price = oracle_map.get_price_data(&spot_market.oracle)?.price;
         let oracle_twap_5min = spot_market
             .historical_oracle_data
             .last_oracle_price_twap_5min;
@@ -4299,7 +4295,7 @@ fn fulfill_spot_order(
     }
 
     // todo come up with fallback price
-    let oracle_price = oracle_map.get_price_data(&base_market.oracle_id())?.price;
+    let oracle_price = oracle_map.get_price_data(&base_market.oracle)?.price;
     let limit_price = user.orders[user_order_index].get_limit_price(
         Some(oracle_price),
         None,
@@ -4401,8 +4397,8 @@ fn fulfill_spot_order(
         .force_get_spot_position_mut(base_market_index)?
         .get_signed_token_amount(&base_market)?;
 
-    let quote_price = oracle_map.get_price_data(&quote_market.oracle_id())?.price;
-    let base_price = oracle_map.get_price_data(&base_market.oracle_id())?.price;
+    let quote_price = oracle_map.get_price_data(&quote_market.oracle)?.price;
+    let base_price = oracle_map.get_price_data(&base_market.oracle)?.price;
 
     let strict_quote_price = StrictOraclePrice::new(
         quote_price,
@@ -4613,7 +4609,7 @@ pub fn fulfill_spot_order_with_match(
     }
 
     let market_index = taker.orders[taker_order_index].market_index;
-    let oracle_price = oracle_map.get_price_data(&base_market.oracle_id())?.price;
+    let oracle_price = oracle_map.get_price_data(&base_market.oracle)?.price;
     let taker_price = match taker.orders[taker_order_index].get_limit_price(
         Some(oracle_price),
         None,
@@ -4915,7 +4911,7 @@ pub fn fulfill_spot_order_with_match(
         Some(taker.orders[taker_order_index]),
         Some(*maker_key),
         Some(maker.orders[maker_order_index]),
-        oracle_map.get_price_data(&base_market.oracle_id())?.price,
+        oracle_map.get_price_data(&base_market.oracle)?.price,
     )?;
     emit_stack::<_, { OrderActionRecord::SIZE }>(order_action_record)?;
 
@@ -4951,7 +4947,7 @@ pub fn fulfill_spot_order_with_external_market(
     fee_structure: &FeeStructure,
     fulfillment_params: &mut dyn SpotFulfillmentParams,
 ) -> DriftResult<(u64, u64)> {
-    let oracle_price = oracle_map.get_price_data(&base_market.oracle_id())?.price;
+    let oracle_price = oracle_map.get_price_data(&base_market.oracle)?.price;
     let taker_price = taker.orders[taker_order_index].get_limit_price(
         Some(oracle_price),
         None,
@@ -5258,7 +5254,7 @@ pub fn trigger_spot_order(
     let (oracle_price_data, oracle_validity) = oracle_map.get_price_data_and_validity(
         MarketType::Spot,
         spot_market.market_index,
-        &spot_market.oracle_id(),
+        &spot_market.oracle,
         spot_market.historical_oracle_data.last_oracle_price_twap,
         spot_market.get_max_confidence_interval_multiplier()?,
     )?;

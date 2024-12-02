@@ -18,7 +18,6 @@ import {
 	ON_DEMAND_DEVNET_PID,
 	ON_DEMAND_MAINNET_PID,
 } from '@switchboard-xyz/on-demand';
-import { getOracleId } from './oracles/oracleId';
 
 type DriftConfig = {
 	ENV: DriftEnv;
@@ -135,7 +134,7 @@ export function getMarketsAndOraclesForSubscription(
 
 	for (const market of perpMarketsToUse) {
 		perpMarketIndexes.push(market.marketIndex);
-		oracleInfos.set(getOracleId(market.oracle, market.oracleSource), {
+		oracleInfos.set(market.oracle.toString(), {
 			publicKey: market.oracle,
 			source: market.oracleSource,
 		});
@@ -143,7 +142,7 @@ export function getMarketsAndOraclesForSubscription(
 
 	for (const spotMarket of spotMarketsToUse) {
 		spotMarketIndexes.push(spotMarket.marketIndex);
-		oracleInfos.set(getOracleId(spotMarket.oracle, spotMarket.oracleSource), {
+		oracleInfos.set(spotMarket.oracle.toString(), {
 			publicKey: spotMarket.oracle,
 			source: spotMarket.oracleSource,
 		});
@@ -175,19 +174,16 @@ export async function findAllMarketAndOracles(program: Program): Promise<{
 	for (const perpMarketProgramAccount of perpMarketProgramAccounts) {
 		const perpMarket = perpMarketProgramAccount.account as PerpMarketAccount;
 		perpMarketIndexes.push(perpMarket.marketIndex);
-		oracleInfos.set(
-			getOracleId(perpMarket.amm.oracle, perpMarket.amm.oracleSource),
-			{
-				publicKey: perpMarket.amm.oracle,
-				source: perpMarket.amm.oracleSource,
-			}
-		);
+		oracleInfos.set(perpMarket.amm.oracle.toString(), {
+			publicKey: perpMarket.amm.oracle,
+			source: perpMarket.amm.oracleSource,
+		});
 	}
 
 	for (const spotMarketProgramAccount of spotMarketProgramAccounts) {
 		const spotMarket = spotMarketProgramAccount.account as SpotMarketAccount;
 		spotMarketIndexes.push(spotMarket.marketIndex);
-		oracleInfos.set(getOracleId(spotMarket.oracle, spotMarket.oracleSource), {
+		oracleInfos.set(spotMarket.oracle.toString(), {
 			publicKey: spotMarket.oracle,
 			source: spotMarket.oracleSource,
 		});

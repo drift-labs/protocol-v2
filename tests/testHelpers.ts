@@ -1033,8 +1033,7 @@ export async function initializeQuoteSpotMarket(
 export async function initializeSolSpotMarket(
 	admin: TestClient,
 	solOracle: PublicKey,
-	solMint = NATIVE_MINT,
-	oracleSource: OracleSource = OracleSource.PYTH
+	solMint = NATIVE_MINT
 ): Promise<string> {
 	const optimalUtilization = SPOT_MARKET_RATE_PRECISION.div(
 		new BN(2)
@@ -1063,7 +1062,7 @@ export async function initializeSolSpotMarket(
 		optimalRate,
 		maxRate,
 		solOracle,
-		oracleSource,
+		OracleSource.PYTH,
 		initialAssetWeight,
 		maintenanceAssetWeight,
 		initialLiabilityWeight,

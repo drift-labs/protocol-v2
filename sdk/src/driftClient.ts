@@ -31,7 +31,6 @@ import {
 	ModifyOrderPolicy,
 	OpenbookV2FulfillmentConfigAccount,
 	OptionalOrderParams,
-	OracleSource,
 	Order,
 	OrderParams,
 	OrderTriggerCondition,
@@ -176,7 +175,6 @@ import { gprcDriftClientAccountSubscriber } from './accounts/grpcDriftClientAcco
 import nacl from 'tweetnacl';
 import { digest } from './util/digest';
 import { Slothash } from './slot/SlothashSubscriber';
-import { getOracleId } from './oracles/oracleId';
 
 type RemainingAccountParams = {
 	userAccounts: UserAccount[];
@@ -602,11 +600,10 @@ export class DriftClient {
 	}
 
 	public getOraclePriceDataAndSlot(
-		oraclePublicKey: PublicKey,
-		oracleSource: OracleSource
+		oraclePublicKey: PublicKey
 	): DataAndSlot<OraclePriceData> | undefined {
 		return this.accountSubscriber.getOraclePriceDataAndSlot(
-			getOracleId(oraclePublicKey, oracleSource)
+			oraclePublicKey.toBase58()
 		);
 	}
 

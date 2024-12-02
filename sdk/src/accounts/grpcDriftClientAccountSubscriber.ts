@@ -10,7 +10,6 @@ import {
 import { DelistedMarketSetting, GrpcConfigs, ResubOpts } from './types';
 import { grpcAccountSubscriber } from './grpcAccountSubscriber';
 import { PerpMarketAccount, SpotMarketAccount, StateAccount } from '../types';
-import { getOracleId } from '../oracles/oracleId';
 
 export class gprcDriftClientAccountSubscriber extends WebSocketDriftClientAccountSubscriber {
 	private grpcConfigs: GrpcConfigs;
@@ -170,7 +169,7 @@ export class gprcDriftClientAccountSubscriber extends WebSocketDriftClientAccoun
 	}
 
 	async subscribeToOracle(oracleInfo: OracleInfo): Promise<boolean> {
-		const oracleId = getOracleId(oracleInfo.publicKey, oracleInfo.source);
+		const oracleString = oracleInfo.publicKey.toString();
 		const client = this.oracleClientCache.get(
 			oracleInfo.source,
 			this.program.provider.connection,
@@ -186,18 +185,13 @@ export class gprcDriftClientAccountSubscriber extends WebSocketDriftClientAccoun
 			},
 			this.resubOpts
 		);
-		accountSubscriber.setData(this.initialOraclePriceData.get(oracleId));
+		accountSubscriber.setData(this.initialOraclePriceData.get(oracleString));
 		await accountSubscriber.subscribe((data: OraclePriceData) => {
-			this.eventEmitter.emit(
-				'oraclePriceUpdate',
-				oracleInfo.publicKey,
-				oracleInfo.source,
-				data
-			);
+			this.eventEmitter.emit('oraclePriceUpdate', oracleInfo.publicKey, data);
 			this.eventEmitter.emit('update');
 		});
 
-		this.oracleSubscribers.set(oracleId, accountSubscriber);
+		this.oracleSubscribers.set(oracleString, accountSubscriber);
 		return true;
 	}
 }
