@@ -8,6 +8,10 @@ use crate::state::oracle::{OraclePriceData, StrictOraclePrice};
 use crate::state::spot_market::{SpotBalanceType, SpotMarket};
 use crate::state::user::SpotPosition;
 
+
+#[cfg(test)]
+mod tests;
+
 pub fn get_spot_balance(
     token_amount: u128,
     spot_market: &SpotMarket,
