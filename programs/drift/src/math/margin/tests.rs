@@ -2278,7 +2278,10 @@ mod calculate_margin_requirement_and_total_collateral_and_liability_info {
         )
         .unwrap();
 
-        let usdc_price = oracle_map.get_price_data(&(usdc_oracle_price_key, OracleSource::QuoteAsset)).unwrap().price;
+        let usdc_price = oracle_map
+            .get_price_data(&(usdc_oracle_price_key, OracleSource::QuoteAsset))
+            .unwrap()
+            .price;
         println!("usdc_price: {}", usdc_price);
 
         assert_eq!(margin_requirement, 0);

@@ -1,4 +1,3 @@
-import { PublicKey } from '@solana/web3.js';
 import { DataAndSlot } from './types';
 import { isVariant, PerpMarketAccount, SpotMarketAccount } from '../types';
 import { OracleInfo } from '../oracles/types';

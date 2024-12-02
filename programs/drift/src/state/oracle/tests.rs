@@ -147,9 +147,13 @@ fn oracle_map_diff_oracle_source() {
 
     let mut oracle_map = OracleMap::load_one(&bonk_market_account_info, 0, None).unwrap();
 
-    let oracle_price_data = oracle_map.get_price_data(&(oracle_price_key, OracleSource::Pyth1MPull)).unwrap();
+    let oracle_price_data = oracle_map
+        .get_price_data(&(oracle_price_key, OracleSource::Pyth1MPull))
+        .unwrap();
     assert_eq!(oracle_price_data.price, 34552600);
 
-    let oracle_price_data = oracle_map.get_price_data(&(oracle_price_key, OracleSource::PythPull)).unwrap();
+    let oracle_price_data = oracle_map
+        .get_price_data(&(oracle_price_key, OracleSource::PythPull))
+        .unwrap();
     assert_eq!(oracle_price_data.price, 34);
 }

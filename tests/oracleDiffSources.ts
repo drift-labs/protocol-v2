@@ -25,7 +25,6 @@ import {
 	mockOracleNoProgram,
 	mockUSDCMint,
 	mockUserUSDCAccount,
-	sleep,
 } from './testHelpers';
 // import { PRICE_PRECISION, PEG_PRECISION, Wallet, DriftClient } from '../sdk';
 import { startAnchor } from 'solana-bankrun';

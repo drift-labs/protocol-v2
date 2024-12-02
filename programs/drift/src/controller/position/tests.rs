@@ -2189,7 +2189,9 @@ fn recenter_amm_2() {
     assert_eq!(perp_market.amm.quote_asset_reserve, 64381518181749930705);
     assert_eq!(perp_market.amm.base_asset_reserve, 307161425106214);
 
-    let oracle_price_data = oracle_map.get_price_data(&(oracle_price_key, OracleSource::Pyth)).unwrap();
+    let oracle_price_data = oracle_map
+        .get_price_data(&(oracle_price_key, OracleSource::Pyth))
+        .unwrap();
 
     let state = State::default();
 
@@ -2316,7 +2318,9 @@ fn test_move_amm() {
     assert_eq!(perp_market.amm.quote_asset_reserve, 64381518181749930705);
     assert_eq!(perp_market.amm.base_asset_reserve, 307161425106214);
 
-    let oracle_price_data = oracle_map.get_price_data(&(oracle_price_key, OracleSource::Pyth)).unwrap();
+    let oracle_price_data = oracle_map
+        .get_price_data(&(oracle_price_key, OracleSource::Pyth))
+        .unwrap();
 
     let state = State::default();
 
