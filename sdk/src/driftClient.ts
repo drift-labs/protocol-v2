@@ -5823,10 +5823,11 @@ export class DriftClient {
 	public signSwiftOrderParamsMessage(
 		orderParamsMessage: SwiftOrderParamsMessage
 	): Buffer {
-		const takerOrderParamsMessage = Uint8Array.from(
-			digest(this.encodeSwiftOrderParamsMessage(orderParamsMessage))
+		const takerOrderParamsMessage =
+			this.encodeSwiftOrderParamsMessage(orderParamsMessage);
+		return this.signMessage(
+			new TextEncoder().encode(digest(takerOrderParamsMessage).toString('hex'))
 		);
-		return this.signMessage(takerOrderParamsMessage);
 	}
 
 	public encodeSwiftOrderParamsMessage(
@@ -5912,7 +5913,9 @@ export class DriftClient {
 			Ed25519Program.createInstructionWithPublicKey({
 				publicKey: takerInfo.takerUserAccount.authority.toBytes(),
 				signature: Uint8Array.from(swiftOrderParamsSignature),
-				message: Uint8Array.from(digest(encodedSwiftOrderParamsMessage)),
+				message: new TextEncoder().encode(
+					digest(encodedSwiftOrderParamsMessage).toString('hex')
+				),
 			});
 
 		const placeTakerSwiftPerpOrderIx =
