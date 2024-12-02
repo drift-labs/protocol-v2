@@ -193,7 +193,7 @@ pub fn handle_initialize_spot_market(
             )
         } else {
             validate!(
-                ctx.accounts.spot_market_mint.decimals >= 6,
+                ctx.accounts.spot_market_mint.decimals >= 4,
                 ErrorCode::InvalidSpotMarketInitialization,
                 "Mint decimals must be greater than or equal to 6"
             )?;
