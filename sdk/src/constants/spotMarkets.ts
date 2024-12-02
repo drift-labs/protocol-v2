@@ -100,6 +100,7 @@ export const DevnetSpotMarkets: SpotMarketConfig[] = [
 	{
 		symbol: 'JLP',
 		marketIndex: 5,
+		poolId: 1,
 		oracle: new PublicKey('5Mb11e5rt1Sp6A286B145E4TmgMzsM2UX9nCF2vas5bs'),
 		oracleSource: OracleSource.PYTH_PULL,
 		mint: new PublicKey('HGe9FejFyhWSx6zdvx2RjynX7rmoEXFiJiLU437NXemZ'),
@@ -111,6 +112,7 @@ export const DevnetSpotMarkets: SpotMarketConfig[] = [
 	{
 		symbol: 'USDC',
 		marketIndex: 6,
+		poolId: 1,
 		oracle: new PublicKey('En8hkHLkRe9d9DraYmBTrus518BvmVH448YcvmrFM6Ce'),
 		oracleSource: OracleSource.PYTH_STABLE_COIN_PULL,
 		mint: new PublicKey('8zGuJQqwhZafTah7Uc7Z4tXRnguqkn5KLFAP8oV6PHe2'),
