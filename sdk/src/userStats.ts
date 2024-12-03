@@ -13,10 +13,10 @@ import { grpcUserStatsAccountSubscriber } from './accounts/grpcUserStatsAccountS
 import { FUEL_START_TS } from './constants/numericConstants';
 import { ZERO } from './constants/numericConstants';
 import {
-	BN,
 	GOV_SPOT_MARKET_INDEX,
 	QUOTE_SPOT_MARKET_INDEX,
-} from '@drift-labs/sdk';
+} from './constants/numericConstants';
+import { BN } from '@coral-xyz/anchor';
 import { calculateInsuranceFuelBonus } from './math/fuel';
 
 export class UserStats {
