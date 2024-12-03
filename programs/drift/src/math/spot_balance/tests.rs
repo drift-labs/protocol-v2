@@ -14,9 +14,11 @@ mod test {
 
         let one_bonk = 10_u128.pow(spot_market.decimals);
 
-        let balance = get_spot_balance(one_bonk, &spot_market, &SpotBalanceType::Deposit, false).unwrap();
+        let balance =
+            get_spot_balance(one_bonk, &spot_market, &SpotBalanceType::Deposit, false).unwrap();
 
-        let token_amount = get_token_amount(balance, &spot_market, &SpotBalanceType::Deposit).unwrap();
+        let token_amount =
+            get_token_amount(balance, &spot_market, &SpotBalanceType::Deposit).unwrap();
         assert_eq!(token_amount, one_bonk);
     }
 }

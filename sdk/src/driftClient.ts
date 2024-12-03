@@ -6476,7 +6476,7 @@ export class DriftClient {
 			postOnly?: boolean;
 			immediateOrCancel?: boolean;
 			maxTs?: BN;
-			policy?: ModifyOrderPolicy;
+			policy?: number;
 		},
 		txParams?: TxParams,
 		subAccountId?: number
@@ -6524,7 +6524,7 @@ export class DriftClient {
 			postOnly?: boolean;
 			immediateOrCancel?: boolean;
 			maxTs?: BN;
-			policy?: ModifyOrderPolicy;
+			policy?: number;
 		},
 		subAccountId?: number
 	): Promise<TransactionInstruction> {

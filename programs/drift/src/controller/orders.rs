@@ -904,7 +904,7 @@ pub fn modify_order(
                 Ok(order_index) => order_index,
                 Err(e) => {
                     msg!("User order id {} not found", user_order_id);
-                    if modify_order_params.policy == Some(ModifyOrderPolicy::MustModify) {
+                    if modify_order_params.must_modify() {
                         return Err(e);
                     } else {
                         return Ok(());
@@ -916,7 +916,7 @@ pub fn modify_order(
             Ok(order_index) => order_index,
             Err(e) => {
                 msg!("Order id {} not found", order_id);
-                if modify_order_params.policy == Some(ModifyOrderPolicy::MustModify) {
+                if modify_order_params.must_modify() {
                     return Err(e);
                 } else {
                     return Ok(());
@@ -986,9 +986,22 @@ fn merge_modify_order_params_with_existing_order(
         .direction
         .unwrap_or(existing_order.direction);
     let user_order_id = existing_order.user_order_id;
-    let base_asset_amount = modify_order_params
-        .base_asset_amount
-        .unwrap_or(existing_order.get_base_asset_amount_unfilled(None)?);
+    let base_asset_amount = match modify_order_params.base_asset_amount {
+        Some(base_asset_amount) if modify_order_params.exclude_previous_fill() => {
+            let base_asset_amount =
+                base_asset_amount.saturating_sub(existing_order.base_asset_amount_filled);
+
+            validate!(
+                base_asset_amount > 0,
+                ErrorCode::InvalidOrder,
+                "modify order lead to 0 base asset amount"
+            )?;
+
+            base_asset_amount
+        }
+        Some(base_asset_amount) => base_asset_amount,
+        None => existing_order.get_base_asset_amount_unfilled(None)?,
+    };
     let price = modify_order_params.price.unwrap_or(existing_order.price);
     let market_index = existing_order.market_index;
     let reduce_only = modify_order_params

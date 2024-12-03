@@ -1077,9 +1077,9 @@ export type ModifyOrderParams = {
 	[Property in keyof OrderParams]?: OrderParams[Property] | null;
 } & { policy?: ModifyOrderPolicy };
 
-export class ModifyOrderPolicy {
-	static readonly MUST_MODIFY = { mustModify: {} };
-	static readonly TRY_MODIFY = { tryModify: {} };
+export enum ModifyOrderPolicy {
+	MustModify = 1,
+	ExcludePreviousFill = 2,
 }
 
 export const DefaultOrderParams: OrderParams = {
