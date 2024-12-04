@@ -947,30 +947,32 @@ pub fn modify_order(
     let order_params =
         merge_modify_order_params_with_existing_order(&existing_order, &modify_order_params)?;
 
-    if order_params.market_type == MarketType::Perp {
-        place_perp_order(
-            state,
-            &mut user,
-            user_key,
-            perp_market_map,
-            spot_market_map,
-            oracle_map,
-            clock,
-            order_params,
-            PlaceOrderOptions::default(),
-        )?;
-    } else {
-        place_spot_order(
-            state,
-            &mut user,
-            user_key,
-            perp_market_map,
-            spot_market_map,
-            oracle_map,
-            clock,
-            order_params,
-            PlaceOrderOptions::default(),
-        )?;
+    if let Some(order_params) = order_params {
+        if order_params.market_type == MarketType::Perp {
+            place_perp_order(
+                state,
+                &mut user,
+                user_key,
+                perp_market_map,
+                spot_market_map,
+                oracle_map,
+                clock,
+                order_params,
+                PlaceOrderOptions::default(),
+            )?;
+        } else {
+            place_spot_order(
+                state,
+                &mut user,
+                user_key,
+                perp_market_map,
+                spot_market_map,
+                oracle_map,
+                clock,
+                order_params,
+                PlaceOrderOptions::default(),
+            )?;
+        }
     }
 
     Ok(())
@@ -979,7 +981,7 @@ pub fn modify_order(
 fn merge_modify_order_params_with_existing_order(
     existing_order: &Order,
     modify_order_params: &ModifyOrderParams,
-) -> DriftResult<OrderParams> {
+) -> DriftResult<Option<OrderParams>> {
     let order_type = existing_order.order_type;
     let market_type = existing_order.market_type;
     let direction = modify_order_params
@@ -991,11 +993,9 @@ fn merge_modify_order_params_with_existing_order(
             let base_asset_amount =
                 base_asset_amount.saturating_sub(existing_order.base_asset_amount_filled);
 
-            validate!(
-                base_asset_amount > 0,
-                ErrorCode::InvalidOrder,
-                "modify order lead to 0 base asset amount"
-            )?;
+            if base_asset_amount == 0 {
+                return Ok(None);
+            }
 
             base_asset_amount
         }
@@ -1047,7 +1047,7 @@ fn merge_modify_order_params_with_existing_order(
             (None, None, None)
         };
 
-    Ok(OrderParams {
+    Ok(Some(OrderParams {
         order_type,
         market_type,
         direction,
@@ -1065,7 +1065,7 @@ fn merge_modify_order_params_with_existing_order(
         auction_duration,
         auction_start_price,
         auction_end_price,
-    })
+    }))
 }
 
 pub fn fill_perp_order(
