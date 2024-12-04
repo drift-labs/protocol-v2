@@ -761,6 +761,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f7144d30dcf0fafbce74250a3963025d8d52177934239851c917d29f1df280c2"
 
 [[package]]
+name = "convert_case"
+version = "0.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6245d59a3e82a7fc217c5828a6692dbc6dfb63a0c8c90495621f7b9d79704a0e"
+
+[[package]]
 name = "cpufeatures"
 version = "0.2.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -917,21 +923,14 @@ dependencies = [
 
 [[package]]
 name = "derive_more"
-version = "1.0.0"
+version = "0.99.18"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4a9b99b9cbbe49445b21764dc0625032a89b145a2642e67603e1c936f5458d05"
+checksum = "5f33878137e4dafd7fa914ad4e259e18a4e8e532b9617a2d0150262bf53abfce"
 dependencies = [
- "derive_more-impl",
-]
-
-[[package]]
-name = "derive_more-impl"
-version = "1.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cb7330aeadfbe296029522e6c40f315320aba36fc43a5b3632f3795348f3bd22"
-dependencies = [
+ "convert_case",
  "proc-macro2",
  "quote",
+ "rustc_version 0.4.0",
  "syn 2.0.48",
 ]
 
@@ -976,10 +975,10 @@ dependencies = [
  "num-traits",
  "openbook-v2-light",
  "phoenix-v1",
- "pyth",
  "pyth-client",
  "pyth-lazer",
  "pyth-lazer-sdk",
+ "pyth-pull",
  "pyth-solana-receiver-sdk",
  "pythnet-sdk",
  "serum_dex",
@@ -1865,7 +1864,7 @@ dependencies = [
 [[package]]
 name = "pyth-lazer-protocol"
 version = "0.1.0"
-source = "git+https://github.com/drift-labs/pyth-crosschain?rev=424342f8e6995e2f7b0af14a3cff59b27b0c0c21#424342f8e6995e2f7b0af14a3cff59b27b0c0c21"
+source = "git+https://github.com/drift-labs/pyth-crosschain?rev=bc9ec1a69c845892959b5ca2e068f2ea005915a0#bc9ec1a69c845892959b5ca2e068f2ea005915a0"
 dependencies = [
  "anyhow",
  "byteorder",
@@ -1878,7 +1877,7 @@ dependencies = [
 [[package]]
 name = "pyth-lazer-sdk"
 version = "0.1.0"
-source = "git+https://github.com/drift-labs/pyth-crosschain?rev=424342f8e6995e2f7b0af14a3cff59b27b0c0c21#424342f8e6995e2f7b0af14a3cff59b27b0c0c21"
+source = "git+https://github.com/drift-labs/pyth-crosschain?rev=bc9ec1a69c845892959b5ca2e068f2ea005915a0#bc9ec1a69c845892959b5ca2e068f2ea005915a0"
 dependencies = [
  "anchor-lang",
  "bytemuck",
@@ -1892,9 +1891,19 @@ dependencies = [
 [[package]]
 name = "pyth-lazer-solana-contract"
 version = "0.1.0"
-source = "git+https://github.com/drift-labs/pyth-crosschain?rev=424342f8e6995e2f7b0af14a3cff59b27b0c0c21#424342f8e6995e2f7b0af14a3cff59b27b0c0c21"
+source = "git+https://github.com/drift-labs/pyth-crosschain?rev=bc9ec1a69c845892959b5ca2e068f2ea005915a0#bc9ec1a69c845892959b5ca2e068f2ea005915a0"
 dependencies = [
  "anchor-lang",
+]
+
+[[package]]
+name = "pyth-pull"
+version = "0.1.0"
+dependencies = [
+ "anchor-lang",
+ "base64 0.13.0",
+ "bytemuck",
+ "solana-program",
 ]
 
 [[package]]

@@ -322,7 +322,7 @@ describe('AMM Curve', () => {
 	// 	const newOraclePriceWithMantissa = new BN(
 	// 		newOraclePrice * PRICE_PRECISION.toNumber()
 	// 	);
-	// 	await setFeedPrice(anchor.workspace.Pyth, newOraclePrice, solUsdOracle);
+	// 	await setFeedPrice(anchor.workspace.PythPull, newOraclePrice, solUsdOracle);
 	// 	showCurve(marketIndex);
 
 	// 	await driftClient.openPosition(

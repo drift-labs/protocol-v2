@@ -126,11 +126,10 @@ pub mod amm_jit {
         let mut oracle_price = get_pyth_price(100, 6);
         let oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
-        let pyth_program = crate::ids::pyth_program::id();
-        create_account_info!(
+        let pyth_pull_program = crate::ids::drift_oracle_receiver_program::id();        create_account_info!(
             oracle_price,
             &oracle_price_key,
-            &pyth_program,
+            &pyth_pull_program,
             oracle_account_info
         );
         let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
@@ -320,11 +319,10 @@ pub mod amm_jit {
         let mut oracle_price = get_pyth_price(100, 6);
         let oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
-        let pyth_program = crate::ids::pyth_program::id();
-        create_account_info!(
+        let pyth_pull_program = crate::ids::drift_oracle_receiver_program::id();        create_account_info!(
             oracle_price,
             &oracle_price_key,
-            &pyth_program,
+            &pyth_pull_program,
             oracle_account_info
         );
         let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
@@ -518,11 +516,10 @@ pub mod amm_jit {
         let mut oracle_price = get_pyth_price(100, 6);
         let oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
-        let pyth_program = crate::ids::pyth_program::id();
-        create_account_info!(
+        let pyth_pull_program = crate::ids::drift_oracle_receiver_program::id();        create_account_info!(
             oracle_price,
             &oracle_price_key,
-            &pyth_program,
+            &pyth_pull_program,
             oracle_account_info
         );
         let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
@@ -716,11 +713,10 @@ pub mod amm_jit {
         let mut oracle_price = get_pyth_price(100, 6);
         let oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
-        let pyth_program = crate::ids::pyth_program::id();
-        create_account_info!(
+        let pyth_pull_program = crate::ids::drift_oracle_receiver_program::id();        create_account_info!(
             oracle_price,
             &oracle_price_key,
-            &pyth_program,
+            &pyth_pull_program,
             oracle_account_info
         );
         let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
@@ -910,11 +906,10 @@ pub mod amm_jit {
         let mut oracle_price = get_pyth_price(100, 6);
         let oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
-        let pyth_program = crate::ids::pyth_program::id();
-        create_account_info!(
+        let pyth_pull_program = crate::ids::drift_oracle_receiver_program::id();        create_account_info!(
             oracle_price,
             &oracle_price_key,
-            &pyth_program,
+            &pyth_pull_program,
             oracle_account_info
         );
         let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
@@ -1114,11 +1109,10 @@ pub mod amm_jit {
         let mut oracle_price = get_pyth_price(100, 6);
         let oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
-        let pyth_program = crate::ids::pyth_program::id();
-        create_account_info!(
+        let pyth_pull_program = crate::ids::drift_oracle_receiver_program::id();        create_account_info!(
             oracle_price,
             &oracle_price_key,
-            &pyth_program,
+            &pyth_pull_program,
             oracle_account_info
         );
         let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
@@ -1317,11 +1311,10 @@ pub mod amm_jit {
         let mut oracle_price = get_pyth_price(100, 6);
         let oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
-        let pyth_program = crate::ids::pyth_program::id();
-        create_account_info!(
+        let pyth_pull_program = crate::ids::drift_oracle_receiver_program::id();        create_account_info!(
             oracle_price,
             &oracle_price_key,
-            &pyth_program,
+            &pyth_pull_program,
             oracle_account_info
         );
         let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
@@ -1546,11 +1539,10 @@ pub mod amm_jit {
         let mut oracle_price = get_pyth_price(100, 6);
         let oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
-        let pyth_program = crate::ids::pyth_program::id();
-        create_account_info!(
+        let pyth_pull_program = crate::ids::drift_oracle_receiver_program::id();        create_account_info!(
             oracle_price,
             &oracle_price_key,
-            &pyth_program,
+            &pyth_pull_program,
             oracle_account_info
         );
         let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
@@ -1752,11 +1744,10 @@ pub mod amm_jit {
         let mut oracle_price = get_pyth_price(100, 6);
         let oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
-        let pyth_program = crate::ids::pyth_program::id();
-        create_account_info!(
+        let pyth_pull_program = crate::ids::drift_oracle_receiver_program::id();        create_account_info!(
             oracle_price,
             &oracle_price_key,
-            &pyth_program,
+            &pyth_pull_program,
             oracle_account_info
         );
         let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
@@ -1947,11 +1938,10 @@ pub mod amm_jit {
         let mut oracle_price = get_pyth_price(100, 6);
         let oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
-        let pyth_program = crate::ids::pyth_program::id();
-        create_account_info!(
+        let pyth_pull_program = crate::ids::drift_oracle_receiver_program::id();        create_account_info!(
             oracle_price,
             &oracle_price_key,
-            &pyth_program,
+            &pyth_pull_program,
             oracle_account_info
         );
         let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
@@ -2147,11 +2137,10 @@ pub mod amm_jit {
         let mut oracle_price = get_pyth_price(100, 6);
         let oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
-        let pyth_program = crate::ids::pyth_program::id();
-        create_account_info!(
+        let pyth_pull_program = crate::ids::drift_oracle_receiver_program::id();        create_account_info!(
             oracle_price,
             &oracle_price_key,
-            &pyth_program,
+            &pyth_pull_program,
             oracle_account_info
         );
         let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
@@ -2343,11 +2332,10 @@ pub mod amm_jit {
         let mut oracle_price = get_pyth_price(100, 6);
         let oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
-        let pyth_program = crate::ids::pyth_program::id();
-        create_account_info!(
+        let pyth_pull_program = crate::ids::drift_oracle_receiver_program::id();        create_account_info!(
             oracle_price,
             &oracle_price_key,
-            &pyth_program,
+            &pyth_pull_program,
             oracle_account_info
         );
         let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
@@ -2623,11 +2611,10 @@ pub mod amm_jit {
         let mut oracle_price = get_pyth_price(100, 6);
         let oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
-        let pyth_program = crate::ids::pyth_program::id();
-        create_account_info!(
+        let pyth_pull_program = crate::ids::drift_oracle_receiver_program::id();        create_account_info!(
             oracle_price,
             &oracle_price_key,
-            &pyth_program,
+            &pyth_pull_program,
             oracle_account_info
         );
         let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
@@ -2906,11 +2893,10 @@ pub mod amm_jit {
         let mut oracle_price = get_pyth_price(100, 6);
         let oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
-        let pyth_program = crate::ids::pyth_program::id();
-        create_account_info!(
+        let pyth_pull_program = crate::ids::drift_oracle_receiver_program::id();        create_account_info!(
             oracle_price,
             &oracle_price_key,
-            &pyth_program,
+            &pyth_pull_program,
             oracle_account_info
         );
         let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();

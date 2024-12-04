@@ -86,8 +86,8 @@ describe('oracle diff sources', () => {
 		marketIndexes = [0, 1];
 		spotMarketIndexes = [0, 1, 2];
 		oracleInfos = [
-			{ publicKey: solOracle, source: OracleSource.PYTH },
-			{ publicKey: solOracle, source: OracleSource.PYTH_1K },
+			{ publicKey: solOracle, source: OracleSource.PYTH_PULL },
+			{ publicKey: solOracle, source: OracleSource.PYTH_1K_PULL},
 		];
 
 		admin = new TestClient({
@@ -116,14 +116,14 @@ describe('oracle diff sources', () => {
 			admin,
 			solOracle,
 			undefined,
-			OracleSource.PYTH
+			OracleSource.PYTH_PULL
 		);
 
 		await initializeSolSpotMarket(
 			admin,
 			solOracle,
 			undefined,
-			OracleSource.PYTH_1K
+			OracleSource.PYTH_1K_PULL
 		);
 
 		const periodicity = new BN(0);
@@ -134,7 +134,7 @@ describe('oracle diff sources', () => {
 			ammInitialQuoteAssetReserve,
 			periodicity,
 			new BN(3 * PEG_PRECISION.toNumber()),
-			OracleSource.PYTH
+			OracleSource.PYTH_PULL
 		);
 
 		await admin.initializePerpMarket(
@@ -144,7 +144,7 @@ describe('oracle diff sources', () => {
 			ammInitialQuoteAssetReserve,
 			periodicity,
 			new BN(3000 * PEG_PRECISION.toNumber()),
-			OracleSource.PYTH_1K
+			OracleSource.PYTH_1K_PULL
 		);
 	});
 

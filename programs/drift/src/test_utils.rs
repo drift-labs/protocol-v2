@@ -1,8 +1,7 @@
 use anchor_lang::prelude::{AccountInfo, Pubkey};
 use anchor_lang::{Owner, ZeroCopy};
 use bytes::BytesMut;
-
-use pyth::pc::Price;
+use pyth_pull::{PriceFeedMessage, PriceUpdateV2, VerificationLevel};
 
 use crate::state::user::{Order, PerpPosition, SpotPosition};
 
@@ -68,21 +67,46 @@ pub fn create_account_info<'a>(
     AccountInfo::new(key, false, is_writable, lamports, bytes, owner, false, 0)
 }
 
-pub fn get_pyth_price(price: i64, expo: i32) -> Price {
-    let mut pyth_price = Price::default();
+pub fn get_pyth_price(price: i64, expo: i32) -> PriceUpdateV2 {
     let price = price * 10_i64.pow(expo as u32);
-    pyth_price.agg.price = price;
-    pyth_price.twap = price;
-    pyth_price.expo = expo;
-    pyth_price
+    let price_message = PriceFeedMessage {
+        feed_id: [0; 32],
+        price,
+        conf: 0,
+        exponent: expo,
+        publish_time: 0,
+        prev_publish_time: 0,
+        ema_price: price,
+        ema_conf: 0,
+    };
+    let price_update = PriceUpdateV2 {
+        verification_level: VerificationLevel::Partial { num_signatures: 2 },
+        write_authority: Pubkey::default(),
+        price_message,
+        posted_slot: 0,
+    };
+    price_update
 }
 
-pub fn get_hardcoded_pyth_price(price: i64, expo: i32) -> Price {
-    let mut pyth_price = Price::default();
-    pyth_price.agg.price = price;
-    pyth_price.twap = price;
-    pyth_price.expo = expo;
-    pyth_price
+pub fn get_hardcoded_pyth_price(price: i64, expo: i32) -> PriceUpdateV2 {
+    let price = price * 10_i64.pow(expo as u32);
+    let price_message = PriceFeedMessage {
+        feed_id: [0; 32],
+        price,
+        conf: 0,
+        exponent: expo,
+        publish_time: 0,
+        prev_publish_time: 0,
+        ema_price: price,
+        ema_conf: 0,
+    };
+    let price_update = PriceUpdateV2 {
+        verification_level: VerificationLevel::Partial { num_signatures: 2 },
+        write_authority: Pubkey::default(),
+        price_message,
+        posted_slot: 0,
+    };
+    price_update
 }
 
 #[macro_export]

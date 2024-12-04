@@ -438,11 +438,11 @@ pub fn test_lp_settle_pnl() {
     let mut oracle_price = get_pyth_price(100, 6);
     let oracle_price_key =
         Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
-    let pyth_program = crate::ids::pyth_program::id();
+    let pyth_pull_program = crate::ids::drift_oracle_receiver_program::id();
     create_account_info!(
         oracle_price,
         &oracle_price_key,
-        &pyth_program,
+        &pyth_pull_program,
         oracle_account_info
     );
     let clock = Clock {
@@ -473,9 +473,9 @@ pub fn test_lp_settle_pnl() {
             oracle: oracle_price_key,
             concentration_coef: 1000001,
             historical_oracle_data: HistoricalOracleData {
-                last_oracle_price: oracle_price.agg.price,
-                last_oracle_price_twap_5min: oracle_price.agg.price,
-                last_oracle_price_twap: oracle_price.agg.price,
+                last_oracle_price: oracle_price.price_message.price,
+                last_oracle_price_twap_5min: oracle_price.price_message.price,
+                last_oracle_price_twap: oracle_price.price_message.price,
                 ..HistoricalOracleData::default()
             },
             ..AMM::default()
@@ -591,11 +591,11 @@ fn test_lp_margin_calc() {
     let mut oracle_price = get_pyth_price(100, 6);
     let oracle_price_key =
         Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
-    let pyth_program = crate::ids::pyth_program::id();
+    let pyth_pull_program = crate::ids::drift_oracle_receiver_program::id();
     create_account_info!(
         oracle_price,
         &oracle_price_key,
-        &pyth_program,
+        &pyth_pull_program,
         oracle_account_info
     );
     let slot = 0;
@@ -620,9 +620,9 @@ fn test_lp_margin_calc() {
             oracle: oracle_price_key,
             concentration_coef: 1000001,
             historical_oracle_data: HistoricalOracleData {
-                last_oracle_price: oracle_price.agg.price,
-                last_oracle_price_twap_5min: oracle_price.agg.price,
-                last_oracle_price_twap: oracle_price.agg.price,
+                last_oracle_price: oracle_price.price_message.price,
+                last_oracle_price_twap_5min: oracle_price.price_message.price,
+                last_oracle_price_twap: oracle_price.price_message.price,
                 ..HistoricalOracleData::default()
             },
             ..AMM::default()
@@ -697,7 +697,7 @@ fn test_lp_margin_calc() {
 
     // add move lower
     let oracle_price_data = OraclePriceData {
-        price: oracle_price.agg.price,
+        price: oracle_price.price_message.price,
         confidence: 100000,
         delay: 1,
         has_sufficient_number_of_data_points: true,

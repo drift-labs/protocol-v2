@@ -579,11 +579,10 @@ mod calculate_margin_requirement_and_total_collateral {
         let mut sol_oracle_price = get_pyth_price(100, 6);
         let sol_oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
-        let pyth_program = crate::ids::pyth_program::id();
-        create_account_info!(
+        let pyth_pull_program = crate::ids::drift_oracle_receiver_program::id();        create_account_info!(
             sol_oracle_price,
             &sol_oracle_price_key,
-            &pyth_program,
+            &pyth_pull_program,
             oracle_account_info
         );
         let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
@@ -670,11 +669,10 @@ mod calculate_margin_requirement_and_total_collateral {
         let mut sol_oracle_price = get_pyth_price(100, 6);
         let sol_oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
-        let pyth_program = crate::ids::pyth_program::id();
-        create_account_info!(
+        let pyth_pull_program = crate::ids::drift_oracle_receiver_program::id();        create_account_info!(
             sol_oracle_price,
             &sol_oracle_price_key,
-            &pyth_program,
+            &pyth_pull_program,
             oracle_account_info
         );
         let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
@@ -761,11 +759,10 @@ mod calculate_margin_requirement_and_total_collateral {
         let mut sol_oracle_price = get_pyth_price(100, 6);
         let sol_oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
-        let pyth_program = crate::ids::pyth_program::id();
-        create_account_info!(
+        let pyth_pull_program = crate::ids::drift_oracle_receiver_program::id();        create_account_info!(
             sol_oracle_price,
             &sol_oracle_price_key,
-            &pyth_program,
+            &pyth_pull_program,
             oracle_account_info
         );
         let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
@@ -855,11 +852,10 @@ mod calculate_margin_requirement_and_total_collateral {
         let mut sol_oracle_price = get_pyth_price(100, 6);
         let sol_oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
-        let pyth_program = crate::ids::pyth_program::id();
-        create_account_info!(
+        let pyth_pull_program = crate::ids::drift_oracle_receiver_program::id();        create_account_info!(
             sol_oracle_price,
             &sol_oracle_price_key,
-            &pyth_program,
+            &pyth_pull_program,
             oracle_account_info
         );
         let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
@@ -1052,11 +1048,10 @@ mod calculate_margin_requirement_and_total_collateral {
         let mut sol_oracle_price = get_pyth_price(100, 6);
         let sol_oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
-        let pyth_program = crate::ids::pyth_program::id();
-        create_account_info!(
+        let pyth_pull_program = crate::ids::drift_oracle_receiver_program::id();        create_account_info!(
             sol_oracle_price,
             &sol_oracle_price_key,
-            &pyth_program,
+            &pyth_pull_program,
             oracle_account_info
         );
         let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
@@ -1175,11 +1170,10 @@ mod calculate_margin_requirement_and_total_collateral {
         let mut sol_oracle_price = get_pyth_price(100, 6);
         let sol_oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
-        let pyth_program = crate::ids::pyth_program::id();
-        create_account_info!(
+        let pyth_pull_program = crate::ids::drift_oracle_receiver_program::id();        create_account_info!(
             sol_oracle_price,
             &sol_oracle_price_key,
-            &pyth_program,
+            &pyth_pull_program,
             oracle_account_info
         );
         let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
@@ -1291,15 +1285,14 @@ mod calculate_margin_requirement_and_total_collateral {
         assert_eq!(margin_requirement, 3);
 
         let mut sol_oracle_price = get_pyth_price(1, 6);
-        sol_oracle_price.agg.price /= 10000; // < 1 penny
+        sol_oracle_price.price_message.price /= 10000; // < 1 penny
 
         let sol_oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
-        let pyth_program = crate::ids::pyth_program::id();
-        create_account_info!(
+        let pyth_pull_program = crate::ids::drift_oracle_receiver_program::id();        create_account_info!(
             sol_oracle_price,
             &sol_oracle_price_key,
-            &pyth_program,
+            &pyth_pull_program,
             oracle_account_info
         );
         let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
@@ -1345,11 +1338,10 @@ mod calculate_margin_requirement_and_total_collateral {
         let mut sol_oracle_price = get_pyth_price(100, 6);
         let sol_oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
-        let pyth_program = crate::ids::pyth_program::id();
-        create_account_info!(
+        let pyth_pull_program = crate::ids::drift_oracle_receiver_program::id();        create_account_info!(
             sol_oracle_price,
             &sol_oracle_price_key,
-            &pyth_program,
+            &pyth_pull_program,
             oracle_account_info
         );
         let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
@@ -1442,11 +1434,10 @@ mod calculate_margin_requirement_and_total_collateral {
         let mut sol_oracle_price = get_pyth_price(100, 6);
         let sol_oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
-        let pyth_program = crate::ids::pyth_program::id();
-        create_account_info!(
+        let pyth_pull_program = crate::ids::drift_oracle_receiver_program::id();        create_account_info!(
             sol_oracle_price,
             &sol_oracle_price_key,
-            &pyth_program,
+            &pyth_pull_program,
             oracle_account_info
         );
         let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
@@ -1559,11 +1550,10 @@ mod calculate_margin_requirement_and_total_collateral {
         let mut sol_oracle_price = get_pyth_price(100, 6);
         let sol_oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
-        let pyth_program = crate::ids::pyth_program::id();
-        create_account_info!(
+        let pyth_pull_program = crate::ids::drift_oracle_receiver_program::id();        create_account_info!(
             sol_oracle_price,
             &sol_oracle_price_key,
-            &pyth_program,
+            &pyth_pull_program,
             oracle_account_info
         );
         let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
@@ -1671,11 +1661,10 @@ mod calculate_margin_requirement_and_total_collateral {
         let mut sol_oracle_price = get_pyth_price(100, 6);
         let sol_oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
-        let pyth_program = crate::ids::pyth_program::id();
-        create_account_info!(
+        let pyth_pull_program = crate::ids::drift_oracle_receiver_program::id();        create_account_info!(
             sol_oracle_price,
             &sol_oracle_price_key,
-            &pyth_program,
+            &pyth_pull_program,
             oracle_account_info
         );
         let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
@@ -1813,11 +1802,10 @@ mod calculate_margin_requirement_and_total_collateral_and_liability_info {
         let mut sol_oracle_price = get_pyth_price(100, 6);
         let sol_oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
-        let pyth_program = crate::ids::pyth_program::id();
-        create_account_info!(
+        let pyth_pull_program = crate::ids::drift_oracle_receiver_program::id();        create_account_info!(
             sol_oracle_price,
             &sol_oracle_price_key,
-            &pyth_program,
+            &pyth_pull_program,
             oracle_account_info
         );
         let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
@@ -1924,11 +1912,10 @@ mod calculate_margin_requirement_and_total_collateral_and_liability_info {
         let mut sol_oracle_price = get_pyth_price(100, 6);
         let sol_oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
-        let pyth_program = crate::ids::pyth_program::id();
-        create_account_info!(
+        let pyth_pull_program = crate::ids::drift_oracle_receiver_program::id();        create_account_info!(
             sol_oracle_price,
             &sol_oracle_price_key,
-            &pyth_program,
+            &pyth_pull_program,
             oracle_account_info
         );
         let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
@@ -2081,11 +2068,10 @@ mod calculate_margin_requirement_and_total_collateral_and_liability_info {
         let mut sol_oracle_price = get_pyth_price(100, 6);
         let sol_oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
-        let pyth_program = crate::ids::pyth_program::id();
-        create_account_info!(
+        let pyth_pull_program = crate::ids::drift_oracle_receiver_program::id();        create_account_info!(
             sol_oracle_price,
             &sol_oracle_price_key,
-            &pyth_program,
+            &pyth_pull_program,
             oracle_account_info
         );
         let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
@@ -2191,22 +2177,20 @@ mod calculate_margin_requirement_and_total_collateral_and_liability_info {
         let mut sol_oracle_price = get_pyth_price(100, 6);
         let sol_oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
-        let pyth_program = crate::ids::pyth_program::id();
-        create_account_info!(
+        let pyth_pull_program = crate::ids::drift_oracle_receiver_program::id();        create_account_info!(
             sol_oracle_price,
             &sol_oracle_price_key,
-            &pyth_program,
+            &pyth_pull_program,
             sol_oracle_account_info
         );
 
         let mut usdc_oracle_price = get_hardcoded_pyth_price(99 * 10000, 6); // $.99
         let usdc_oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
-        let pyth_program = crate::ids::pyth_program::id();
-        create_account_info!(
+        let pyth_pull_program = crate::ids::drift_oracle_receiver_program::id();        create_account_info!(
             usdc_oracle_price,
             &usdc_oracle_price_key,
-            &pyth_program,
+            &pyth_pull_program,
             usdc_oracle_account_info
         );
         let oracle_account_infos = Vec::from([sol_oracle_account_info, usdc_oracle_account_info]);
@@ -2342,22 +2326,20 @@ mod calculate_margin_requirement_and_total_collateral_and_liability_info {
         let mut sol_oracle_price = get_pyth_price(100, 6);
         let sol_oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
-        let pyth_program = crate::ids::pyth_program::id();
-        create_account_info!(
+        let pyth_pull_program = crate::ids::drift_oracle_receiver_program::id();        create_account_info!(
             sol_oracle_price,
             &sol_oracle_price_key,
-            &pyth_program,
+            &pyth_pull_program,
             sol_oracle_account_info
         );
 
         let mut usdc_oracle_price = get_hardcoded_pyth_price(101 * 10000, 6); // $1.01
         let usdc_oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
-        let pyth_program = crate::ids::pyth_program::id();
-        create_account_info!(
+        let pyth_pull_program = crate::ids::drift_oracle_receiver_program::id();        create_account_info!(
             usdc_oracle_price,
             &usdc_oracle_price_key,
-            &pyth_program,
+            &pyth_pull_program,
             usdc_oracle_account_info
         );
         let oracle_account_infos = Vec::from([sol_oracle_account_info, usdc_oracle_account_info]);
@@ -2489,11 +2471,10 @@ mod calculate_margin_requirement_and_total_collateral_and_liability_info {
         let mut sol_oracle_price = get_pyth_price(100, 6);
         let sol_oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
-        let pyth_program = crate::ids::pyth_program::id();
-        create_account_info!(
+        let pyth_pull_program = crate::ids::drift_oracle_receiver_program::id();        create_account_info!(
             sol_oracle_price,
             &sol_oracle_price_key,
-            &pyth_program,
+            &pyth_pull_program,
             sol_oracle_account_info
         );
 
@@ -2501,11 +2482,10 @@ mod calculate_margin_requirement_and_total_collateral_and_liability_info {
         let mut usdc_oracle_price = get_hardcoded_pyth_price(usdc_price, 6);
         let usdc_oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkiF").unwrap();
-        let pyth_program = crate::ids::pyth_program::id();
-        create_account_info!(
+        let pyth_pull_program = crate::ids::drift_oracle_receiver_program::id();        create_account_info!(
             usdc_oracle_price,
             &usdc_oracle_price_key,
-            &pyth_program,
+            &pyth_pull_program,
             usdc_oracle_account_info
         );
         let oracle_account_infos = Vec::from([sol_oracle_account_info, usdc_oracle_account_info]);
@@ -2682,11 +2662,10 @@ mod calculate_max_withdrawable_amount {
         let mut sol_oracle_price = get_pyth_price(100, 6);
         let sol_oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
-        let pyth_program = crate::ids::pyth_program::id();
-        create_account_info!(
+        let pyth_pull_program = crate::ids::drift_oracle_receiver_program::id();        create_account_info!(
             sol_oracle_price,
             &sol_oracle_price_key,
-            &pyth_program,
+            &pyth_pull_program,
             oracle_account_info
         );
         let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
@@ -2768,11 +2747,10 @@ mod calculate_max_withdrawable_amount {
         let mut sol_oracle_price = get_pyth_price(100, 6);
         let sol_oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
-        let pyth_program = crate::ids::pyth_program::id();
-        create_account_info!(
+        let pyth_pull_program = crate::ids::drift_oracle_receiver_program::id();        create_account_info!(
             sol_oracle_price,
             &sol_oracle_price_key,
-            &pyth_program,
+            &pyth_pull_program,
             oracle_account_info
         );
         let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
@@ -2856,11 +2834,10 @@ mod calculate_max_withdrawable_amount {
         let mut sol_oracle_price = get_pyth_price(100, 6);
         let sol_oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
-        let pyth_program = crate::ids::pyth_program::id();
-        create_account_info!(
+        let pyth_pull_program = crate::ids::drift_oracle_receiver_program::id();        create_account_info!(
             sol_oracle_price,
             &sol_oracle_price_key,
-            &pyth_program,
+            &pyth_pull_program,
             oracle_account_info
         );
         let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
@@ -2972,11 +2949,10 @@ mod validate_spot_margin_trading {
         let mut sol_oracle_price = get_pyth_price(100, 6);
         let sol_oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
-        let pyth_program = crate::ids::pyth_program::id();
-        create_account_info!(
+        let pyth_pull_program = crate::ids::drift_oracle_receiver_program::id();        create_account_info!(
             sol_oracle_price,
             &sol_oracle_price_key,
-            &pyth_program,
+            &pyth_pull_program,
             oracle_account_info
         );
         let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
@@ -3055,11 +3031,10 @@ mod validate_spot_margin_trading {
         let mut sol_oracle_price = get_pyth_price(100, 6);
         let sol_oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
-        let pyth_program = crate::ids::pyth_program::id();
-        create_account_info!(
+        let pyth_pull_program = crate::ids::drift_oracle_receiver_program::id();        create_account_info!(
             sol_oracle_price,
             &sol_oracle_price_key,
-            &pyth_program,
+            &pyth_pull_program,
             oracle_account_info
         );
         let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
@@ -3138,11 +3113,10 @@ mod validate_spot_margin_trading {
         let mut sol_oracle_price = get_pyth_price(100, 6);
         let sol_oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
-        let pyth_program = crate::ids::pyth_program::id();
-        create_account_info!(
+        let pyth_pull_program = crate::ids::drift_oracle_receiver_program::id();        create_account_info!(
             sol_oracle_price,
             &sol_oracle_price_key,
-            &pyth_program,
+            &pyth_pull_program,
             oracle_account_info
         );
         let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
@@ -3221,11 +3195,10 @@ mod validate_spot_margin_trading {
         let mut sol_oracle_price = get_pyth_price(100, 6);
         let sol_oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
-        let pyth_program = crate::ids::pyth_program::id();
-        create_account_info!(
+        let pyth_pull_program = crate::ids::drift_oracle_receiver_program::id();        create_account_info!(
             sol_oracle_price,
             &sol_oracle_price_key,
-            &pyth_program,
+            &pyth_pull_program,
             oracle_account_info
         );
         let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
@@ -3304,11 +3277,10 @@ mod validate_spot_margin_trading {
         let mut sol_oracle_price = get_pyth_price(100, 6);
         let sol_oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
-        let pyth_program = crate::ids::pyth_program::id();
-        create_account_info!(
+        let pyth_pull_program = crate::ids::drift_oracle_receiver_program::id();        create_account_info!(
             sol_oracle_price,
             &sol_oracle_price_key,
-            &pyth_program,
+            &pyth_pull_program,
             oracle_account_info
         );
         let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
@@ -3387,11 +3359,10 @@ mod validate_spot_margin_trading {
         let mut sol_oracle_price = get_pyth_price(100, 6);
         let sol_oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
-        let pyth_program = crate::ids::pyth_program::id();
-        create_account_info!(
+        let pyth_pull_program = crate::ids::drift_oracle_receiver_program::id();        create_account_info!(
             sol_oracle_price,
             &sol_oracle_price_key,
-            &pyth_program,
+            &pyth_pull_program,
             oracle_account_info
         );
         let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
@@ -3470,11 +3441,10 @@ mod validate_spot_margin_trading {
         let mut sol_oracle_price = get_pyth_price(100, 6);
         let sol_oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
-        let pyth_program = crate::ids::pyth_program::id();
-        create_account_info!(
+        let pyth_pull_program = crate::ids::drift_oracle_receiver_program::id();        create_account_info!(
             sol_oracle_price,
             &sol_oracle_price_key,
-            &pyth_program,
+            &pyth_pull_program,
             oracle_account_info
         );
         let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
@@ -3617,11 +3587,10 @@ mod calculate_user_equity {
         let mut oracle_price = get_pyth_price(100, 6);
         let oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
-        let pyth_program = crate::ids::pyth_program::id();
-        create_account_info!(
+        let pyth_pull_program = crate::ids::drift_oracle_receiver_program::id();        create_account_info!(
             oracle_price,
             &oracle_price_key,
-            &pyth_program,
+            &pyth_pull_program,
             oracle_account_info
         );
         let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
@@ -3715,11 +3684,10 @@ mod calculate_user_equity {
         let mut oracle_price = get_pyth_price(100, 6);
         let oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
-        let pyth_program = crate::ids::pyth_program::id();
-        create_account_info!(
+        let pyth_pull_program = crate::ids::drift_oracle_receiver_program::id();        create_account_info!(
             oracle_price,
             &oracle_price_key,
-            &pyth_program,
+            &pyth_pull_program,
             oracle_account_info
         );
         let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
@@ -3813,11 +3781,10 @@ mod calculate_user_equity {
         let mut sol_oracle_price = get_pyth_price(100, 6);
         let sol_oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
-        let pyth_program = crate::ids::pyth_program::id();
-        create_account_info!(
+        let pyth_pull_program = crate::ids::drift_oracle_receiver_program::id();        create_account_info!(
             sol_oracle_price,
             &sol_oracle_price_key,
-            &pyth_program,
+            &pyth_pull_program,
             oracle_account_info
         );
         let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
@@ -4065,11 +4032,10 @@ mod pools {
         let mut sol_oracle_price = get_pyth_price(100, 6);
         let sol_oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
-        let pyth_program = crate::ids::pyth_program::id();
-        create_account_info!(
+        let pyth_pull_program = crate::ids::drift_oracle_receiver_program::id();        create_account_info!(
             sol_oracle_price,
             &sol_oracle_price_key,
-            &pyth_program,
+            &pyth_pull_program,
             oracle_account_info
         );
         let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
@@ -4124,11 +4090,10 @@ mod pools {
         let mut sol_oracle_price = get_pyth_price(100, 6);
         let sol_oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
-        let pyth_program = crate::ids::pyth_program::id();
-        create_account_info!(
+        let pyth_pull_program = crate::ids::drift_oracle_receiver_program::id();        create_account_info!(
             sol_oracle_price,
             &sol_oracle_price_key,
-            &pyth_program,
+            &pyth_pull_program,
             oracle_account_info
         );
         let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();

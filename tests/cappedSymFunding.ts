@@ -49,7 +49,7 @@ async function updateFundingRateHelper(
 		await new Promise((r) => setTimeout(r, 1000)); // wait 1 second
 
 		const newprice = prices[i];
-		await setFeedPrice(anchor.workspace.Pyth, newprice, priceFeedAddress);
+		await setFeedPrice(anchor.workspace.PythPull, newprice, priceFeedAddress);
 		// just to update funding trade .1 cent
 		// await driftClient.openPosition(
 		// 	PositionDirection.LONG,
@@ -60,7 +60,7 @@ async function updateFundingRateHelper(
 		const marketData0 = driftClient.getPerpMarketAccount(marketIndex);
 		const ammAccountState0 = marketData0.amm;
 		const oraclePx0 = await getFeedData(
-			anchor.workspace.Pyth,
+			anchor.workspace.PythPull,
 			ammAccountState0.oracle
 		);
 
@@ -69,7 +69,7 @@ async function updateFundingRateHelper(
 			convertToNumber(
 				ammAccountState0.historicalOracleData.lastOraclePriceTwap
 			);
-		const frontEndFundingCalc0 = priceSpread0 / oraclePx0.twap / (24 * 3600);
+		const frontEndFundingCalc0 = priceSpread0 / oraclePx0.priceMessage.emaPrice / (24 * 3600);
 
 		console.log(
 			'funding rate frontend calc0:',
@@ -83,7 +83,7 @@ async function updateFundingRateHelper(
 			'markTwap0:',
 			ammAccountState0.lastMarkPriceTwap.toNumber(),
 			'oracleTwapPyth:',
-			oraclePx0.twap,
+			oraclePx0.priceMessage.emaPrice,
 			'priceSpread',
 			priceSpread0
 		);
@@ -145,7 +145,7 @@ async function updateFundingRateHelper(
 		assert(ammAccountState.lastFundingRate.abs().gte(lastFundingShort.abs()));
 
 		const oraclePx = await getFeedData(
-			anchor.workspace.Pyth,
+			anchor.workspace.PythPull,
 			ammAccountState.oracle
 		);
 
@@ -170,7 +170,7 @@ async function updateFundingRateHelper(
 			'markTwap:',
 			ammAccountState.lastMarkPriceTwap.toNumber(),
 			'oracleTwapPyth:',
-			oraclePx.twap,
+			oraclePx.priceMessage.emaPrice,
 			'priceSpread:',
 			priceSpread
 		);
@@ -399,7 +399,7 @@ async function cappedSymFundingScenario(
 	// 	new BN(priceAction[1] * PRICE_PRECISION.toNumber())
 	// );
 
-	setFeedPrice(anchor.workspace.Pyth, priceAction[0], priceFeedAddress);
+	setFeedPrice(anchor.workspace.PythPull, priceAction[0], priceFeedAddress);
 	await driftClient.updateExchangeStatus(ExchangeStatus.FUNDING_PAUSED);
 
 	assert(fundingRateShort.lte(fundingRateLong));
@@ -420,7 +420,7 @@ async function cappedSymFundingScenario(
 		);
 	}
 	await driftClient.updateExchangeStatus(ExchangeStatus.ACTIVE);
-	setFeedPrice(anchor.workspace.Pyth, priceAction[1], priceFeedAddress);
+	setFeedPrice(anchor.workspace.PythPull, priceAction[1], priceFeedAddress);
 
 	await sleep(2000);
 

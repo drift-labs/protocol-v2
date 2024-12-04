@@ -2158,8 +2158,7 @@ fn recenter_amm_2() {
     let mut oracle_price = get_hardcoded_pyth_price(1_120_000, 6);
     let oracle_price_key =
         Pubkey::from_str("3Qub3HaAJaa2xNY7SUqPKd3vVwTqDfDDkEUMPjXD2c1q").unwrap();
-    let pyth_program = crate::ids::pyth_program::id();
-    let mut data = get_account_bytes(&mut oracle_price);
+    let pyth_pull_program = crate::ids::drift_oracle_receiver_program::id();    let mut data = get_account_bytes(&mut oracle_price);
     let mut lamports2 = 0;
 
     let oracle_account_info = create_account_info(
@@ -2167,7 +2166,7 @@ fn recenter_amm_2() {
         true,
         &mut lamports2,
         &mut data[..],
-        &pyth_program,
+        &pyth_pull_program,
     );
 
     //https://explorer.solana.com/block/243485436
@@ -2287,8 +2286,7 @@ fn test_move_amm() {
     let mut oracle_price = get_hardcoded_pyth_price(1_120_000, 6);
     let oracle_price_key =
         Pubkey::from_str("3Qub3HaAJaa2xNY7SUqPKd3vVwTqDfDDkEUMPjXD2c1q").unwrap();
-    let pyth_program = crate::ids::pyth_program::id();
-    let mut data = get_account_bytes(&mut oracle_price);
+    let pyth_pull_program = crate::ids::drift_oracle_receiver_program::id();    let mut data = get_account_bytes(&mut oracle_price);
     let mut lamports2 = 0;
 
     let oracle_account_info = create_account_info(
@@ -2296,7 +2294,7 @@ fn test_move_amm() {
         true,
         &mut lamports2,
         &mut data[..],
-        &pyth_program,
+        &pyth_pull_program,
     );
 
     //https://explorer.solana.com/block/243485436

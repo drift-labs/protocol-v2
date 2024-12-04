@@ -92,7 +92,7 @@ describe('update k', () => {
 		const periodicity = new BN(60 * 60); // 1 HOUR
 
 		const solUsdOracle = await createPriceFeed({
-			oracleProgram: anchor.workspace.Pyth,
+			oracleProgram: anchor.workspace.PythPull,
 			initPrice: initialSOLPrice,
 		});
 

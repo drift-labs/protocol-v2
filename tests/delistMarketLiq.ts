@@ -367,7 +367,7 @@ describe('delist market, liquidation of expired position', () => {
 			0,
 			new BN(tankPrice * PRICE_PRECISION.toNumber())
 		);
-		await setFeedPrice(anchor.workspace.Pyth, tankPrice, solOracle);
+		await setFeedPrice(anchor.workspace.PythPull, tankPrice, solOracle);
 		console.log('price move to $', tankPrice);
 
 		await driftClientLoser.fetchAccounts();
@@ -516,7 +516,7 @@ describe('delist market, liquidation of expired position', () => {
 			convertToNumber(market.expiryPrice)
 		);
 
-		const curPrice = (await getFeedData(anchor.workspace.Pyth, solOracle))
+		const curPrice = (await getFeedData(anchor.workspace.PythPull, solOracle))
 			.price;
 		console.log('new oracle price:', curPrice);
 

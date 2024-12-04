@@ -1,11 +1,3 @@
-pub mod pyth_program {
-    use solana_program::declare_id;
-    #[cfg(feature = "mainnet-beta")]
-    declare_id!("FsJ3A3u2vn5cTVofAjvy6y5kwABJAqYWpe4975bi2epH");
-    #[cfg(not(feature = "mainnet-beta"))]
-    declare_id!("gSbePebfvPy7tRqimPoVecS2UsBvYv46ynrzWocc92s");
-}
-
 pub mod wormhole_program {
     use solana_program::declare_id;
     declare_id!("HDwcJBJXjL9FpJ7UBsYBtaDjsBUhuLCUYoz3zr8SWWaQ");
@@ -14,6 +6,11 @@ pub mod wormhole_program {
 pub mod drift_oracle_receiver_program {
     use solana_program::declare_id;
     declare_id!("G6EoTTTgpkNBtVXo96EQp2m6uwwVh2Kt6YidjkmQqoha");
+}
+
+pub mod pyth_lazer_program {
+    use solana_program::declare_id;
+    declare_id!("pytd2yyk641x7ak7mkaasSJVXh6YYZnC7wTmtgAyxPt");
 }
 
 pub mod switchboard_program {

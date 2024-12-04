@@ -7,6 +7,8 @@ declare_id!("pytd2yyk641x7ak7mkaasSJVXh6YYZnC7wTmtgAyxPt");
 pub const PYTH_LAZER_ORACLE_SEED: &[u8] = b"pyth-lazer";
 pub const PYTH_LAZER_STORAGE_ID: Pubkey = pubkey!("3rdJbqfnagQ4yx9HXJViD4zc4xpiSqmFsKpPuSCQVyQL");
 
+#[program]
+pub mod pyth_lazer {}
 pub trait Size {
     const SIZE: usize;
 }

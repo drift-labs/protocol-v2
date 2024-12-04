@@ -498,7 +498,7 @@ describe('delist market', () => {
 			0,
 			new BN(43.1337 * PRICE_PRECISION.toNumber()).div(new BN(10))
 		);
-		await setFeedPrice(anchor.workspace.Pyth, 43.1337 / 10, solOracle);
+		await setFeedPrice(anchor.workspace.PythPull, 43.1337 / 10, solOracle);
 	});
 	// return 0;
 
@@ -619,7 +619,7 @@ describe('delist market', () => {
 		const winningUserBefore = driftClient.getUserAccount();
 		console.log(winningUserBefore.perpPositions[0]);
 		const oraclePriceDataBefore = await getOraclePriceData(
-			anchor.workspace.Pyth,
+			anchor.workspace.PythPull,
 			solOracle
 		);
 		const beforeExpiryValue = calculateBaseAssetValueWithOracle(
@@ -649,11 +649,11 @@ describe('delist market', () => {
 			market.amm.historicalOracleData.lastOraclePriceTwap.eq(new BN(12780356))
 		);
 
-		const curPrice = (await getFeedData(anchor.workspace.Pyth, solOracle))
+		const curPrice = (await getFeedData(anchor.workspace.PythPull, solOracle))
 			.price;
 		console.log('new oracle price:', curPrice);
 		const oraclePriceData = await getOraclePriceData(
-			anchor.workspace.Pyth,
+			anchor.workspace.PythPull,
 			solOracle
 		);
 		assert(Math.abs(convertToNumber(oraclePriceData.price) - curPrice) < 1e-4);

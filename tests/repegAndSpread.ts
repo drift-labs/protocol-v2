@@ -330,12 +330,12 @@ describe('repeg and spread amm', () => {
 		assert(btcPerpAccount.amm.oracleStd.gt(ZERO));
 
 		// old oracle price: 21966
-		await setFeedPrice(anchor.workspace.Pyth, 19790, btcUsd);
-		const curPrice = (await getFeedData(anchor.workspace.Pyth, btcUsd)).price;
+		await setFeedPrice(anchor.workspace.PythPull, 19790, btcUsd);
+		const curPrice = (await getFeedData(anchor.workspace.PythPull, btcUsd)).price;
 		console.log('new oracle price:', curPrice);
 
 		const oraclePriceData = await getOraclePriceData(
-			anchor.workspace.Pyth,
+			anchor.workspace.PythPull,
 			btcUsd
 		);
 		const market0 = driftClient.getPerpMarketAccount(0);
@@ -773,9 +773,9 @@ describe('repeg and spread amm', () => {
 				btcPrice *= 0.999;
 				// btcPrice *= 0.925;
 			}
-			await setFeedPrice(anchor.workspace.Pyth, btcPrice, btcUsd);
+			await setFeedPrice(anchor.workspace.PythPull, btcPrice, btcUsd);
 			const oraclePriceData = await getOraclePriceData(
-				anchor.workspace.Pyth,
+				anchor.workspace.PythPull,
 				btcUsd
 			);
 
@@ -855,7 +855,7 @@ describe('repeg and spread amm', () => {
 		await driftClientUser.unsubscribe();
 
 		const oraclePriceData1 = await getOraclePriceData(
-			anchor.workspace.Pyth,
+			anchor.workspace.PythPull,
 			btcUsd
 		);
 

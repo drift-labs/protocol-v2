@@ -1279,7 +1279,7 @@ describe('orders', () => {
 		}
 
 		// move price to make liquidity for order @ $1.05 (5%)
-		// setFeedPrice(anchor.workspace.Pyth, 1.55, solUsd);
+		// setFeedPrice(anchor.workspace.PythPull, 1.55, solUsd);
 		// await driftClient.moveAmmToPrice(
 		// 	marketIndex,
 		// 	new BN(1.55 * PRICE_PRECISION.toNumber())

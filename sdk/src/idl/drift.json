@@ -6402,6 +6402,37 @@
       ]
     },
     {
+      "name": "initializePythLazerOracle",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "lazerOracle",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "rent",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "systemProgram",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": []
+    },
+    {
       "name": "initializeHighLeverageModeConfig",
       "accounts": [
         {
@@ -11045,6 +11076,9 @@
           },
           {
             "name": "SwitchboardOnDemand"
+          },
+          {
+            "name": "PythLazer"
           }
         ]
       }
@@ -14153,6 +14187,26 @@
       "code": 6302,
       "name": "InvalidPoolId",
       "msg": "Invalid pool id"
+    },
+    {
+      "code": 6303,
+      "name": "InvalidPythLazerStorageOwner",
+      "msg": "Invalid pyth lazer storage owner"
+    },
+    {
+      "code": 6304,
+      "name": "UnverifiedPythLazerMessage",
+      "msg": "Verification of pyth lazer message failed"
+    },
+    {
+      "code": 6305,
+      "name": "InvalidPythLazerMessage",
+      "msg": "Invalid pyth lazer message"
+    },
+    {
+      "code": 6306,
+      "name": "PythLazerMessagePriceFeedMismatch",
+      "msg": "Pyth lazer message does not correspond to correct fed id"
     }
   ],
   "metadata": {

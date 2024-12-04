@@ -687,7 +687,7 @@ pub fn handle_initialize_perp_market(
     )?;
 
     validate!(![OracleSource::Pyth, OracleSource::Pyth1K, OracleSource::Pyth1M, OracleSource::PythStableCoin]
-        .contains(&oracle_source), ErrorCode::InvalidOracle, "Invalid oracle source");
+        .contains(&oracle_source), ErrorCode::InvalidOracle, "Invalid oracle source")?;
 
     let init_reserve_price = amm::calculate_price(
         amm_quote_asset_reserve,

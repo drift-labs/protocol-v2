@@ -66,11 +66,11 @@ pub mod delisting_test {
         let mut oracle_price = get_pyth_price(100, 6);
         let oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
-        let pyth_program = crate::ids::pyth_program::id();
+        let pyth_pull_program = crate::ids::drift_oracle_receiver_program::id();
         create_account_info!(
             oracle_price,
             &oracle_price_key,
-            &pyth_program,
+            &pyth_pull_program,
             oracle_account_info
         );
         let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
@@ -180,11 +180,11 @@ pub mod delisting_test {
         let mut oracle_price = get_pyth_price(100, 6);
         let oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
-        let pyth_program = crate::ids::pyth_program::id();
+        let pyth_pull_program = crate::ids::drift_oracle_receiver_program::id();
         create_account_info!(
             oracle_price,
             &oracle_price_key,
-            &pyth_program,
+            &pyth_pull_program,
             oracle_account_info
         );
         let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
@@ -289,11 +289,11 @@ pub mod delisting_test {
         let mut oracle_price = get_pyth_price(100, 6);
         let oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
-        let pyth_program = crate::ids::pyth_program::id();
+        let pyth_pull_program = crate::ids::drift_oracle_receiver_program::id();
         create_account_info!(
             oracle_price,
             &oracle_price_key,
-            &pyth_program,
+            &pyth_pull_program,
             oracle_account_info
         );
         let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
@@ -401,11 +401,11 @@ pub mod delisting_test {
         let mut oracle_price = get_pyth_price(100, 6);
         let oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
-        let pyth_program = crate::ids::pyth_program::id();
+        let pyth_pull_program = crate::ids::drift_oracle_receiver_program::id();
         create_account_info!(
             oracle_price,
             &oracle_price_key,
-            &pyth_program,
+            &pyth_pull_program,
             oracle_account_info
         );
         let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
@@ -514,11 +514,11 @@ pub mod delisting_test {
         let mut oracle_price = get_pyth_price(100, 6);
         let oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
-        let pyth_program = crate::ids::pyth_program::id();
+        let pyth_pull_program = crate::ids::drift_oracle_receiver_program::id();
         create_account_info!(
             oracle_price,
             &oracle_price_key,
-            &pyth_program,
+            &pyth_pull_program,
             oracle_account_info
         );
         let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
@@ -623,11 +623,11 @@ pub mod delisting_test {
         let mut oracle_price = get_pyth_price(100, 6);
         let oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
-        let pyth_program = crate::ids::pyth_program::id();
+        let pyth_pull_program = crate::ids::drift_oracle_receiver_program::id();
         create_account_info!(
             oracle_price,
             &oracle_price_key,
-            &pyth_program,
+            &pyth_pull_program,
             oracle_account_info
         );
         let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
@@ -841,11 +841,11 @@ pub mod delisting_test {
         let mut oracle_price = get_pyth_price(100, 6);
         let oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
-        let pyth_program = crate::ids::pyth_program::id();
+        let pyth_pull_program = crate::ids::drift_oracle_receiver_program::id();
         create_account_info!(
             oracle_price,
             &oracle_price_key,
-            &pyth_program,
+            &pyth_pull_program,
             oracle_account_info
         );
         let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
@@ -1062,11 +1062,11 @@ pub mod delisting_test {
         let mut oracle_price = get_pyth_price(100, 6);
         let oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
-        let pyth_program = crate::ids::pyth_program::id();
+        let pyth_pull_program = crate::ids::drift_oracle_receiver_program::id();
         create_account_info!(
             oracle_price,
             &oracle_price_key,
-            &pyth_program,
+            &pyth_pull_program,
             oracle_account_info
         );
         let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
@@ -1264,11 +1264,11 @@ pub mod delisting_test {
         let mut oracle_price = get_pyth_price(100, 6);
         let oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
-        let pyth_program = crate::ids::pyth_program::id();
+        let pyth_pull_program = crate::ids::drift_oracle_receiver_program::id();
         create_account_info!(
             oracle_price,
             &oracle_price_key,
-            &pyth_program,
+            &pyth_pull_program,
             oracle_account_info
         );
         let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
@@ -1350,7 +1350,7 @@ pub mod delisting_test {
             borrow_balance: SPOT_BALANCE_PRECISION,
             liquidator_fee: 0,
             historical_oracle_data: HistoricalOracleData {
-                last_oracle_price_twap: (oracle_price.agg.price * 99 / 100),
+                last_oracle_price_twap: (oracle_price.price_message.price * 99 / 100),
                 ..HistoricalOracleData::default()
             },
             ..SpotMarket::default()
@@ -1687,11 +1687,11 @@ pub mod delisting_test {
         let mut oracle_price = get_pyth_price(100, 6);
         let oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
-        let pyth_program = crate::ids::pyth_program::id();
+        let pyth_pull_program = crate::ids::drift_oracle_receiver_program::id();
         create_account_info!(
             oracle_price,
             &oracle_price_key,
-            &pyth_program,
+            &pyth_pull_program,
             oracle_account_info
         );
         let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
@@ -1774,7 +1774,7 @@ pub mod delisting_test {
             borrow_balance: SPOT_BALANCE_PRECISION,
             liquidator_fee: 0,
             historical_oracle_data: HistoricalOracleData {
-                last_oracle_price_twap: (oracle_price.agg.price * 99 / 100),
+                last_oracle_price_twap: (oracle_price.price_message.price * 99 / 100),
                 ..HistoricalOracleData::default()
             },
             ..SpotMarket::default()
@@ -2069,11 +2069,11 @@ pub mod delisting_test {
         let mut oracle_price = get_pyth_price(100, 6);
         let oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
-        let pyth_program = crate::ids::pyth_program::id();
+        let pyth_pull_program = crate::ids::drift_oracle_receiver_program::id();
         create_account_info!(
             oracle_price,
             &oracle_price_key,
-            &pyth_program,
+            &pyth_pull_program,
             oracle_account_info
         );
         let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
@@ -2158,8 +2158,8 @@ pub mod delisting_test {
             borrow_balance: SPOT_BALANCE_PRECISION,
             liquidator_fee: 0,
             historical_oracle_data: HistoricalOracleData {
-                last_oracle_price_twap: (oracle_price.agg.price * 99 / 100),
-                last_oracle_price_twap_5min: (oracle_price.agg.price * 99 / 100),
+                last_oracle_price_twap: (oracle_price.price_message.price * 99 / 100),
+                last_oracle_price_twap_5min: (oracle_price.price_message.price * 99 / 100),
 
                 ..HistoricalOracleData::default()
             },
