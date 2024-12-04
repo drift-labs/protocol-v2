@@ -611,6 +611,14 @@ pub enum ErrorCode {
     InvalidSwiftOrderId,
     #[msg("Invalid pool id")]
     InvalidPoolId,
+    #[msg("Invalid pyth lazer storage owner")]
+    InvalidPythLazerStorageOwner,
+    #[msg("Verification of pyth lazer message failed")]
+    UnverifiedPythLazerMessage,
+    #[msg("Invalid pyth lazer message")]
+    InvalidPythLazerMessage,
+    #[msg("Pyth lazer message does not correspond to correct fed id")]
+    PythLazerMessagePriceFeedMismatch,
 }
 
 #[macro_export]

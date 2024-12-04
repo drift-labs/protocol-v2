@@ -1,4 +1,5 @@
 use anchor_lang::prelude::*;
+use pyth_lazer::PythLazerOracle;
 use std::cell::Ref;
 
 use crate::error::{DriftResult, ErrorCode};
@@ -124,6 +125,7 @@ pub enum OracleSource {
     Pyth1MPull,
     PythStableCoinPull,
     SwitchboardOnDemand,
+    PythLazer,
 }
 
 #[derive(Default, Clone, Copy, Debug)]
@@ -150,11 +152,15 @@ pub fn get_oracle_price(
     price_oracle: &AccountInfo,
     clock_slot: u64,
 ) -> DriftResult<OraclePriceData> {
+    if oracle_source == &OracleSource::Pyth
+        || oracle_source == &OracleSource::Pyth1K
+        || oracle_source == &OracleSource::Pyth1M
+        || oracle_source == &OracleSource::PythStableCoin
+    {
+        msg!("Invalid oracle type: {:?}", oracle_source);
+        return Err(InvalidOracle.into());
+    }
     match oracle_source {
-        OracleSource::Pyth => get_pyth_price(price_oracle, clock_slot, 1, false),
-        OracleSource::Pyth1K => get_pyth_price(price_oracle, clock_slot, 1000, false),
-        OracleSource::Pyth1M => get_pyth_price(price_oracle, clock_slot, 1000000, false),
-        OracleSource::PythStableCoin => get_pyth_stable_coin_price(price_oracle, clock_slot, false),
         OracleSource::Switchboard => get_switchboard_price(price_oracle, clock_slot),
         OracleSource::SwitchboardOnDemand => get_sb_on_demand_price(price_oracle, clock_slot),
         OracleSource::QuoteAsset => Ok(OraclePriceData {
@@ -169,6 +175,11 @@ pub fn get_oracle_price(
         OracleSource::Pyth1MPull => get_pyth_price(price_oracle, clock_slot, 1000000, true),
         OracleSource::PythStableCoinPull => {
             get_pyth_stable_coin_price(price_oracle, clock_slot, true)
+        }
+        OracleSource::PythLazer => get_pyth_price(price_oracle, clock_slot, 1, false),
+        _ => {
+            msg!("Invalid oracle type: {:?}", oracle_source);
+            Err(InvalidOracle.into())
         }
     }
 }
@@ -199,23 +210,12 @@ pub fn get_pyth_price(
         oracle_precision = 10_u128.pow(price_message.price_message.exponent.unsigned_abs());
         published_slot = price_message.posted_slot;
     } else {
-        let price_data = pyth_client::cast::<pyth_client::Price>(pyth_price_data);
-        oracle_price = price_data.agg.price;
-        oracle_conf = price_data.agg.conf;
-        let min_publishers = price_data.num.min(3);
-        let publisher_count = price_data.num_qt;
-
-        #[cfg(feature = "mainnet-beta")]
-        {
-            has_sufficient_number_of_data_points = publisher_count >= min_publishers;
-        }
-        #[cfg(not(feature = "mainnet-beta"))]
-        {
-            has_sufficient_number_of_data_points = true;
-        }
-
-        oracle_precision = 10_u128.pow(price_data.expo.unsigned_abs());
-        published_slot = price_data.valid_slot;
+        let price_data = PythLazerOracle::try_deserialize(&mut pyth_price_data).unwrap();
+        oracle_price = price_data.price;
+        oracle_conf = price_data.conf;
+        has_sufficient_number_of_data_points = true;
+        oracle_precision = 10_u128.pow(price_data.exponent.unsigned_abs());
+        published_slot = price_data.posted_slot;
     }
 
     if oracle_precision <= multiple {

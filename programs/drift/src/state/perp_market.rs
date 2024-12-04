@@ -1,4 +1,5 @@
 use anchor_lang::prelude::*;
+use pyth_lazer::PythLazerOracle;
 
 use crate::state::state::State;
 use std::cmp::max;
@@ -1423,12 +1424,15 @@ impl AMM {
         price_oracle: &AccountInfo,
         slot: u64,
     ) -> DriftResult<Option<i64>> {
+        if self.oracle_source == OracleSource::Pyth
+            || self.oracle_source == OracleSource::Pyth1K
+            || self.oracle_source == OracleSource::Pyth1M
+            || self.oracle_source == OracleSource::PythStableCoin
+        {
+            msg!("Invalid oracle type: {:?}", self.oracle_source);
+            return Err(ErrorCode::InvalidOracle.into());
+        }
         match self.oracle_source {
-            OracleSource::Pyth | OracleSource::PythStableCoin => {
-                Ok(Some(self.get_pyth_twap(price_oracle, 1, false)?))
-            }
-            OracleSource::Pyth1K => Ok(Some(self.get_pyth_twap(price_oracle, 1000, false)?)),
-            OracleSource::Pyth1M => Ok(Some(self.get_pyth_twap(price_oracle, 1000000, false)?)),
             OracleSource::Switchboard => Ok(Some(get_switchboard_price(price_oracle, slot)?.price)),
             OracleSource::SwitchboardOnDemand => {
                 Ok(Some(get_sb_on_demand_price(price_oracle, slot)?.price))
@@ -1444,6 +1448,11 @@ impl AMM {
             OracleSource::Pyth1KPull => Ok(Some(self.get_pyth_twap(price_oracle, 1000, true)?)),
             OracleSource::Pyth1MPull => {
                 Ok(Some(self.get_pyth_twap(price_oracle, 1000000, true)?))
+            }
+            OracleSource::PythLazer => Ok(Some(self.get_pyth_twap(price_oracle, 1, false)?)),
+            _ => {
+                msg!("Invalid oracle type: {:?}", self.oracle_source);
+                Err(ErrorCode::InvalidOracle.into())
             }
         }
     }
@@ -1463,14 +1472,11 @@ impl AMM {
         let oracle_exponent: i32;
 
         if is_pull_oracle {
-            let price_message =
-                pyth_solana_receiver_sdk::price_update::PriceUpdateV2::try_deserialize(
-                    &mut pyth_price_data,
-                )
+            let price_data = PythLazerOracle::try_deserialize(&mut pyth_price_data)
                 .or(Err(crate::error::ErrorCode::UnableToLoadOracle))?;
-            oracle_price = price_message.price_message.price;
-            oracle_twap = price_message.price_message.ema_price;
-            oracle_exponent = price_message.price_message.exponent;
+            oracle_price = price_data.price;
+            oracle_twap = price_data.price;
+            oracle_exponent = price_data.exponent;
         } else {
             let price_data = pyth_client::cast::<pyth_client::Price>(pyth_price_data);
             oracle_price = price_data.agg.price;

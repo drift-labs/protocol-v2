@@ -1546,6 +1546,10 @@ pub mod drift {
         handle_initialize_pyth_pull_oracle(ctx, feed_id)
     }
 
+    pub fn initialize_pyth_lazer_oracle(ctx: Context<InitPythLazerOracle>) -> Result<()> {
+        handle_initialize_pyth_lazer_oracle(ctx)
+    }
+
     pub fn initialize_high_leverage_mode_config(
         ctx: Context<InitializeHighLeverageModeConfig>,
         max_users: u32,

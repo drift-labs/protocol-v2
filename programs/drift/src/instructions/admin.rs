@@ -6,6 +6,7 @@ use anchor_spl::token::Token;
 use anchor_spl::token_2022::Token2022;
 use anchor_spl::token_interface::{Mint, TokenAccount, TokenInterface};
 use phoenix::quantities::WrapperU64;
+use pyth_lazer::{PythLazerOracle, Size as PythLazerSize, PYTH_LAZER_ORACLE_SEED};
 use pyth_solana_receiver_sdk::cpi::accounts::InitPriceUpdate;
 use pyth_solana_receiver_sdk::program::PythSolanaReceiver;
 use serum_dex::state::ToAlignedBytes;
@@ -685,6 +686,9 @@ pub fn handle_initialize_perp_market(
         "invalid amm_jit_intensity",
     )?;
 
+    validate!(![OracleSource::Pyth, OracleSource::Pyth1K, OracleSource::Pyth1M, OracleSource::PythStableCoin]
+        .contains(&oracle_source), ErrorCode::InvalidOracle, "Invalid oracle source");
+
     let init_reserve_price = amm::calculate_price(
         amm_quote_asset_reserve,
         amm_base_asset_reserve,
@@ -706,50 +710,6 @@ pub fn handle_initialize_perp_market(
 
     // Verify oracle is readable
     let (oracle_price, oracle_delay, last_oracle_price_twap) = match oracle_source {
-        OracleSource::Pyth => {
-            let OraclePriceData {
-                price: oracle_price,
-                delay: oracle_delay,
-                ..
-            } = get_pyth_price(&ctx.accounts.oracle, clock_slot, 1, false)?;
-            let last_oracle_price_twap =
-                perp_market
-                    .amm
-                    .get_pyth_twap(&ctx.accounts.oracle, 1, false)?;
-            (oracle_price, oracle_delay, last_oracle_price_twap)
-        }
-        OracleSource::Pyth1K => {
-            let OraclePriceData {
-                price: oracle_price,
-                delay: oracle_delay,
-                ..
-            } = get_pyth_price(&ctx.accounts.oracle, clock_slot, 1000, false)?;
-            let last_oracle_price_twap =
-                perp_market
-                    .amm
-                    .get_pyth_twap(&ctx.accounts.oracle, 1000, false)?;
-            (oracle_price, oracle_delay, last_oracle_price_twap)
-        }
-        OracleSource::Pyth1M => {
-            let OraclePriceData {
-                price: oracle_price,
-                delay: oracle_delay,
-                ..
-            } = get_pyth_price(&ctx.accounts.oracle, clock_slot, 1000000, false)?;
-            let last_oracle_price_twap =
-                perp_market
-                    .amm
-                    .get_pyth_twap(&ctx.accounts.oracle, 1000000, false)?;
-            (oracle_price, oracle_delay, last_oracle_price_twap)
-        }
-        OracleSource::PythStableCoin => {
-            let OraclePriceData {
-                price: oracle_price,
-                delay: oracle_delay,
-                ..
-            } = get_pyth_price(&ctx.accounts.oracle, clock_slot, 1, false)?;
-            (oracle_price, oracle_delay, QUOTE_PRECISION_I64)
-        }
         OracleSource::Switchboard => {
             let OraclePriceData {
                 price: oracle_price,
@@ -823,6 +783,21 @@ pub fn handle_initialize_perp_market(
             } = get_sb_on_demand_price(&ctx.accounts.oracle, clock_slot)?;
 
             (oracle_price, oracle_delay, oracle_price)
+        }
+        OracleSource::PythLazer => {
+            let OraclePriceData {
+                price: oracle_price,
+                delay: oracle_delay,
+                ..
+            } = get_pyth_price(&ctx.accounts.oracle, clock_slot, 1, false)?;
+            let last_oracle_price_twap =
+                perp_market
+                    .amm
+                    .get_pyth_twap(&ctx.accounts.oracle, 1, false)?;
+            (oracle_price, oracle_delay, last_oracle_price_twap)
+        },
+        _ => {
+            return Err(ErrorCode::InvalidOracle.into());
         }
     };
 
@@ -4129,6 +4104,14 @@ pub fn handle_initialize_pyth_pull_oracle(
     Ok(())
 }
 
+pub fn handle_initialize_pyth_lazer_oracle(
+    ctx: Context<InitPythLazerOracle>,
+) -> Result<()> {
+    let pubkey = ctx.accounts.lazer_oracle.to_account_info().key;
+    msg!("Lazer price feed initted {}", pubkey);
+    Ok(())
+}
+
 pub fn handle_settle_expired_market<'c: 'info, 'info>(
     ctx: Context<'_, '_, 'c, 'info, AdminUpdatePerpMarket<'info>>,
     market_index: u16,
@@ -4811,6 +4794,27 @@ pub struct InitPythPullPriceFeed<'info> {
     pub price_feed: AccountInfo<'info>,
     pub system_program: Program<'info, System>,
     pub state: Box<Account<'info, State>>,
+}
+
+#[derive(Accounts)]
+#[instruction(feed_id: u16)]
+pub struct InitPythLazerOracle<'info> {
+    #[account(
+    mut,
+    constraint = admin.key() == admin_hot_wallet::id() || admin.key() == state.admin
+)]
+    pub admin: Signer<'info>,
+    #[account(init, seeds = [PYTH_LAZER_ORACLE_SEED, &feed_id.to_le_bytes()], 
+    space=PythLazerOracle::SIZE,
+    bump,
+    payer=admin)]
+    pub lazer_oracle: AccountLoader<'info, PythLazerOracle>,
+    #[account(
+        has_one = admin
+    )]
+    pub state: Box<Account<'info, State>>,
+    pub rent: Sysvar<'info, Rent>,
+    pub system_program: Program<'info, System>,
 }
 
 #[derive(Accounts)]
