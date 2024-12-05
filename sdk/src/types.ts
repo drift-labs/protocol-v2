@@ -133,6 +133,21 @@ export class OracleSource {
 	static readonly SWITCHBOARD_ON_DEMAND = { switchboardOnDemand: {} };
 }
 
+export class OracleSourceNum {
+	static readonly PYTH = 0;
+	static readonly PYTH_1K = 1;
+	static readonly PYTH_1M = 2;
+	static readonly PYTH_PULL = 3;
+	static readonly PYTH_1K_PULL = 4;
+	static readonly PYTH_1M_PULL = 5;
+	static readonly SWITCHBOARD = 6;
+	static readonly QUOTE_ASSET = 7;
+	static readonly PYTH_STABLE_COIN = 8;
+	static readonly PYTH_STABLE_COIN_PULL = 9;
+	static readonly PRELAUNCH = 10;
+	static readonly SWITCHBOARD_ON_DEMAND = 11;
+}
+
 export class OrderType {
 	static readonly LIMIT = { limit: {} };
 	static readonly TRIGGER_MARKET = { triggerMarket: {} };
@@ -981,6 +996,7 @@ export type UserAccount = {
 	hasOpenAuction: boolean;
 	lastFuelBonusUpdateTs: number;
 	marginMode: MarginMode;
+	poolId: number;
 };
 
 export type SpotPosition = {
@@ -1062,9 +1078,9 @@ export type ModifyOrderParams = {
 	[Property in keyof OrderParams]?: OrderParams[Property] | null;
 } & { policy?: ModifyOrderPolicy };
 
-export class ModifyOrderPolicy {
-	static readonly MUST_MODIFY = { mustModify: {} };
-	static readonly TRY_MODIFY = { tryModify: {} };
+export enum ModifyOrderPolicy {
+	MustModify = 1,
+	ExcludePreviousFill = 2,
 }
 
 export const DefaultOrderParams: OrderParams = {

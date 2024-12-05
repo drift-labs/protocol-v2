@@ -31,6 +31,7 @@ import {
 	ModifyOrderPolicy,
 	OpenbookV2FulfillmentConfigAccount,
 	OptionalOrderParams,
+	OracleSource,
 	Order,
 	OrderParams,
 	OrderTriggerCondition,
@@ -175,6 +176,7 @@ import { gprcDriftClientAccountSubscriber } from './accounts/grpcDriftClientAcco
 import nacl from 'tweetnacl';
 import { digest } from './util/digest';
 import { Slothash } from './slot/SlothashSubscriber';
+import { getOracleId } from './oracles/oracleId';
 
 type RemainingAccountParams = {
 	userAccounts: UserAccount[];
@@ -600,10 +602,11 @@ export class DriftClient {
 	}
 
 	public getOraclePriceDataAndSlot(
-		oraclePublicKey: PublicKey
+		oraclePublicKey: PublicKey,
+		oracleSource: OracleSource
 	): DataAndSlot<OraclePriceData> | undefined {
 		return this.accountSubscriber.getOraclePriceDataAndSlot(
-			oraclePublicKey.toBase58()
+			getOracleId(oraclePublicKey, oracleSource)
 		);
 	}
 
@@ -1655,16 +1658,17 @@ export class DriftClient {
 				isWritable: true,
 				pubkey: spotMarket.vault,
 			});
+			const tokenProgram = this.getTokenProgramForSpotMarket(spotMarket);
 			const keeperVault = await this.getAssociatedTokenAccount(
 				spotPosition.marketIndex,
-				false
+				false,
+				tokenProgram
 			);
 			remainingAccounts.push({
 				isSigner: false,
 				isWritable: true,
 				pubkey: keeperVault,
 			});
-			const tokenProgram = this.getTokenProgramForSpotMarket(spotMarket);
 			tokenPrograms.add(tokenProgram.toBase58());
 		}
 
@@ -5820,10 +5824,11 @@ export class DriftClient {
 	public signSwiftOrderParamsMessage(
 		orderParamsMessage: SwiftOrderParamsMessage
 	): Buffer {
-		const takerOrderParamsMessage = Uint8Array.from(
-			digest(this.encodeSwiftOrderParamsMessage(orderParamsMessage))
+		const takerOrderParamsMessage =
+			this.encodeSwiftOrderParamsMessage(orderParamsMessage);
+		return this.signMessage(
+			new TextEncoder().encode(digest(takerOrderParamsMessage).toString('hex'))
 		);
-		return this.signMessage(takerOrderParamsMessage);
 	}
 
 	public encodeSwiftOrderParamsMessage(
@@ -5909,7 +5914,9 @@ export class DriftClient {
 			Ed25519Program.createInstructionWithPublicKey({
 				publicKey: takerInfo.takerUserAccount.authority.toBytes(),
 				signature: Uint8Array.from(swiftOrderParamsSignature),
-				message: Uint8Array.from(digest(encodedSwiftOrderParamsMessage)),
+				message: new TextEncoder().encode(
+					digest(encodedSwiftOrderParamsMessage).toString('hex')
+				),
 			});
 
 		const placeTakerSwiftPerpOrderIx =
@@ -6470,7 +6477,7 @@ export class DriftClient {
 			postOnly?: boolean;
 			immediateOrCancel?: boolean;
 			maxTs?: BN;
-			policy?: ModifyOrderPolicy;
+			policy?: number;
 		},
 		txParams?: TxParams,
 		subAccountId?: number
@@ -6518,7 +6525,7 @@ export class DriftClient {
 			postOnly?: boolean;
 			immediateOrCancel?: boolean;
 			maxTs?: BN;
-			policy?: ModifyOrderPolicy;
+			policy?: number;
 		},
 		subAccountId?: number
 	): Promise<TransactionInstruction> {

@@ -2217,7 +2217,7 @@ mod calculate_margin_requirement_and_total_collateral_and_liability_info {
 
         let mut usdc_spot_market = SpotMarket {
             market_index: 0,
-            oracle_source: OracleSource::QuoteAsset,
+            oracle_source: OracleSource::PythStableCoin,
             cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
             decimals: 6,
             initial_asset_weight: SPOT_WEIGHT_PRECISION,
@@ -2277,6 +2277,12 @@ mod calculate_margin_requirement_and_total_collateral_and_liability_info {
             MarginContext::standard(MarginRequirementType::Initial).strict(true),
         )
         .unwrap();
+
+        let usdc_price = oracle_map
+            .get_price_data(&(usdc_oracle_price_key, OracleSource::QuoteAsset))
+            .unwrap()
+            .price;
+        println!("usdc_price: {}", usdc_price);
 
         assert_eq!(margin_requirement, 0);
         assert_eq!(total_collateral, 990000);
@@ -2362,7 +2368,7 @@ mod calculate_margin_requirement_and_total_collateral_and_liability_info {
 
         let mut usdc_spot_market = SpotMarket {
             market_index: 0,
-            oracle_source: OracleSource::QuoteAsset,
+            oracle_source: OracleSource::PythStableCoin,
             cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
             cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
             decimals: 6,
@@ -2508,7 +2514,7 @@ mod calculate_margin_requirement_and_total_collateral_and_liability_info {
 
         let mut usdc_spot_market = SpotMarket {
             market_index: 0,
-            oracle_source: OracleSource::QuoteAsset,
+            oracle_source: OracleSource::PythStableCoin,
             cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
             decimals: 6,
             initial_asset_weight: SPOT_WEIGHT_PRECISION,

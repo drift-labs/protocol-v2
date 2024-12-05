@@ -41,6 +41,8 @@ use crate::state::paused_operations::PerpOperation;
 use drift_macros::assert_no_slop;
 use static_assertions::const_assert_eq;
 
+use super::oracle_map::OracleIdentifier;
+
 #[cfg(test)]
 mod tests;
 
@@ -298,6 +300,10 @@ impl MarketIndexOffset for PerpMarket {
 }
 
 impl PerpMarket {
+    pub fn oracle_id(&self) -> OracleIdentifier {
+        (self.amm.oracle, self.amm.oracle_source)
+    }
+
     pub fn is_in_settlement(&self, now: i64) -> bool {
         let in_settlement = matches!(
             self.status,

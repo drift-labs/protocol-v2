@@ -10,10 +10,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Features
 
 - program: add spot market pool ids ([#1250](https://github.com/drift-labs/protocol-v2/pull/1250))
+- program: make oracle map work with different sources ([#1346](https://github.com/drift-labs/protocol-v2/pull/1346))
+- program: allow read only ix after swap ([#1356](https://github.com/drift-labs/protocol-v2/pull/1356))
 
 ### Fixes
 
+- program: fix force delete user for token 2022 ([#1358](https://github.com/drift-labs/protocol-v2/pull/1358))
+
 ### Breaking
+
+- program: make ModifyOrderParams a bit flag and add ExcludePreviousFill ([#1357](https://github.com/drift-labs/protocol-v2/pull/1357))
 
 ## [2.102.0] - 2024-11-21
 

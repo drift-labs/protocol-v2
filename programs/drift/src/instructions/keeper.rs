@@ -1,8 +1,10 @@
 use std::cell::RefMut;
-use std::convert::TryFrom;
+use std::convert::{TryFrom, TryInto};
 
 use anchor_lang::prelude::*;
-use anchor_spl::associated_token::get_associated_token_address;
+use anchor_spl::associated_token::{
+    get_associated_token_address, get_associated_token_address_with_program_id,
+};
 use anchor_spl::token::spl_token;
 use anchor_spl::token_2022::spl_token_2022;
 use anchor_spl::token_interface::{TokenAccount, TokenInterface};
@@ -60,11 +62,11 @@ use crate::state::user::{
     MarginMode, MarketType, OrderStatus, OrderTriggerCondition, OrderType, User, UserStats,
 };
 use crate::state::user_map::{load_user_map, load_user_maps, UserMap, UserStatsMap};
-use crate::validation::sig_verification::{extract_ed25519_ix_signature, verify_ed25519_digest};
+use crate::validation::sig_verification::{extract_ed25519_ix_signature, verify_ed25519_msg};
 use crate::validation::user::{validate_user_deletion, validate_user_is_idle};
 use crate::{
-    controller, digest_struct, load, math, print_error, safe_decrement, OracleSource,
-    GOV_SPOT_MARKET_INDEX, MARGIN_PRECISION,
+    controller, digest_struct, digest_struct_hex, load, math, print_error, safe_decrement,
+    OracleSource, GOV_SPOT_MARKET_INDEX, MARGIN_PRECISION,
 };
 use crate::{load_mut, QUOTE_PRECISION_U64};
 use crate::{validate, QUOTE_PRECISION_I128};
@@ -597,18 +599,19 @@ pub fn place_swift_taker_order<'c: 'info, 'info>(
 
     // Verify data from first verify ix
     let ix: Instruction = load_instruction_at_checked(ix_idx as usize - 2, ix_sysvar)?;
-    verify_ed25519_digest(
+    verify_ed25519_msg(
         &ix,
         &swift_server::id().to_bytes(),
         &digest_struct!(swift_message),
     )?;
 
     // Verify data from second verify ix
+    let digest_hex = digest_struct_hex!(taker_order_params_message);
     let ix: Instruction = load_instruction_at_checked(ix_idx as usize - 1, ix_sysvar)?;
-    verify_ed25519_digest(
+    verify_ed25519_msg(
         &ix,
         &taker.authority.to_bytes(),
-        &digest_struct!(&taker_order_params_message),
+        arrayref::array_ref!(digest_hex, 0, 64),
     )?;
 
     // Verify that sig from swift server corresponds to order message
@@ -1399,7 +1402,7 @@ pub fn handle_resolve_perp_pnl_deficit<'c: 'info, 'info>(
             "Market is in settlement mode",
         )?;
 
-        let oracle_price = oracle_map.get_price_data(&perp_market.amm.oracle)?.price;
+        let oracle_price = oracle_map.get_price_data(&perp_market.oracle_id())?.price;
         controller::orders::validate_market_within_price_band(perp_market, state, oracle_price)?;
 
         controller::insurance::resolve_perp_pnl_deficit(
@@ -1682,7 +1685,7 @@ pub fn handle_update_funding_rate(
         Some(state.oracle_guard_rails),
     )?;
 
-    let oracle_price_data = &oracle_map.get_price_data(&perp_market.amm.oracle)?;
+    let oracle_price_data = &oracle_map.get_price_data(&perp_market.oracle_id())?;
     controller::repeg::_update_amm(perp_market, oracle_price_data, state, now, clock_slot)?;
 
     validate!(
@@ -1777,7 +1780,7 @@ pub fn handle_update_perp_bid_ask_twap<'c: 'info, 'info>(
         min_if_stake
     )?;
 
-    let oracle_price_data = oracle_map.get_price_data(&perp_market.amm.oracle)?;
+    let oracle_price_data = oracle_map.get_price_data(&perp_market.oracle_id())?;
     controller::repeg::_update_amm(perp_market, oracle_price_data, state, now, slot)?;
 
     let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
@@ -1939,7 +1942,7 @@ pub fn handle_update_spot_market_cumulative_interest(
         Some(state.oracle_guard_rails),
     )?;
 
-    let oracle_price_data = oracle_map.get_price_data(&spot_market.oracle)?;
+    let oracle_price_data = oracle_map.get_price_data(&spot_market.oracle_id())?;
 
     if !state.funding_paused()? {
         controller::spot_balance::update_spot_market_cumulative_interest(
@@ -2213,7 +2216,7 @@ pub fn handle_force_delete_user<'c: 'info, 'info>(
         }
 
         let spot_market = &mut spot_market_map.get_ref_mut(&spot_position.market_index)?;
-        let oracle_price_data = oracle_map.get_price_data(&spot_market.oracle)?;
+        let oracle_price_data = oracle_map.get_price_data(&spot_market.oracle_id())?;
 
         controller::spot_balance::update_spot_market_cumulative_interest(
             spot_market,
@@ -2244,7 +2247,11 @@ pub fn handle_force_delete_user<'c: 'info, 'info>(
             .find(|acc| acc.key() == spot_market_mint.key())
             .map(|acc| InterfaceAccount::try_from(acc).unwrap());
 
-        let keeper_vault = get_associated_token_address(&keeper_key, spot_market_mint);
+        let keeper_vault = get_associated_token_address_with_program_id(
+            &keeper_key,
+            spot_market_mint,
+            &token_program_pubkey,
+        );
         let keeper_vault_account_info = ctx
             .remaining_accounts
             .iter()
