@@ -55,6 +55,7 @@ use crate::state::perp_market::{
     ContractTier, ContractType, InsuranceClaim, MarketStatus, PerpMarket, PoolBalance, AMM,
 };
 use crate::state::perp_market_map::get_writable_perp_market_set;
+use crate::state::protected_maker_mode_config::ProtectedMakerModeConfig;
 use crate::state::spot_market::{
     AssetTier, InsuranceFund, SpotBalanceType, SpotFulfillmentConfigStatus, SpotMarket,
 };
@@ -4198,6 +4199,32 @@ pub fn handle_update_high_leverage_mode_config(
     Ok(())
 }
 
+pub fn handle_initialize_protected_maker_mode_config(
+    ctx: Context<InitializeProtectedMakerModeConfig>,
+    max_users: u32,
+) -> Result<()> {
+    let mut config = ctx.accounts.protected_maker_mode_config.load_init()?;
+
+    config.max_users = max_users;
+
+    Ok(())
+}
+
+pub fn handle_update_protected_maker_mode_config(
+    ctx: Context<UpdateProtectedMakerModeConfig>,
+    max_users: u32,
+    reduce_only: bool,
+) -> Result<()> {
+    let mut config = load_mut!(ctx.accounts.protected_maker_mode_config)?;
+
+    config.max_users = max_users;
+    config.reduce_only = reduce_only as u8;
+
+    config.validate()?;
+
+    Ok(())
+}
+
 #[derive(Accounts)]
 pub struct Initialize<'info> {
     #[account(mut)]
@@ -4843,6 +4870,45 @@ pub struct UpdateHighLeverageModeConfig<'info> {
         bump,
     )]
     pub high_leverage_mode_config: AccountLoader<'info, HighLeverageModeConfig>,
+    #[account(
+        has_one = admin
+    )]
+    pub state: Box<Account<'info, State>>,
+}
+
+#[derive(Accounts)]
+pub struct InitializeProtectedMakerModeConfig<'info> {
+    #[account(
+        mut,
+        constraint = admin.key() == admin_hot_wallet::id() || admin.key() == state.admin
+    )]
+    pub admin: Signer<'info>,
+    #[account(
+        init,
+        seeds = [b"protected_maker_mode_config".as_ref()],
+        space = ProtectedMakerModeConfig::SIZE,
+        bump,
+        payer = admin
+    )]
+    pub protected_maker_mode_config: AccountLoader<'info, ProtectedMakerModeConfig>,
+    #[account(
+        has_one = admin
+    )]
+    pub state: Box<Account<'info, State>>,
+    pub rent: Sysvar<'info, Rent>,
+    pub system_program: Program<'info, System>,
+}
+
+#[derive(Accounts)]
+pub struct UpdateProtectedMakerModeConfig<'info> {
+    #[account(mut)]
+    pub admin: Signer<'info>,
+    #[account(
+        mut,
+        seeds = [b"protected_maker_mode_config".as_ref()],
+        bump,
+    )]
+    pub protected_maker_mode_config: AccountLoader<'info, ProtectedMakerModeConfig>,
     #[account(
         has_one = admin
     )]

@@ -36,13 +36,19 @@ export class NodeList<NodeType extends keyof DLOBNodeMap>
 	public insert(
 		order: Order,
 		marketType: MarketTypeStr,
-		userAccount: string
+		userAccount: string,
+		isUserProtectedMaker: boolean
 	): void {
 		if (isVariant(order.status, 'init')) {
 			return;
 		}
 
-		const newNode = createNode(this.nodeType, order, userAccount);
+		const newNode = createNode(
+			this.nodeType,
+			order,
+			userAccount,
+			isUserProtectedMaker
+		);
 
 		const orderSignature = getOrderSignature(order.orderId, userAccount);
 		if (this.nodeMap.has(orderSignature)) {
@@ -178,6 +184,7 @@ export function* getVammNodeGenerator(
 		isVammNode: () => true,
 		order: undefined,
 		userAccount: undefined,
+		isUserProtectedMaker: false,
 		isBaseFilled: () => false,
 		haveFilled: false,
 	};

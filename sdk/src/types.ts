@@ -67,6 +67,7 @@ export enum UserStatus {
 	BANKRUPT = 2,
 	REDUCE_ONLY = 4,
 	ADVANCED_LP = 8,
+	PROTECTED_MAKER = 16,
 }
 
 export class MarginMode {

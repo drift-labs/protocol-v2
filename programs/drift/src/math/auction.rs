@@ -230,7 +230,7 @@ pub fn can_fill_with_amm(
     slot: u64,
     fill_mode: FillMode,
 ) -> DriftResult<bool> {
-    Ok(!(amm_availability == AMMAvailability::Unavailable)
+    Ok(amm_availability != AMMAvailability::Unavailable
         && valid_oracle_price.is_some()
         && (amm_availability == AMMAvailability::Immediate
             || is_amm_available_liquidity_source(order, min_auction_duration, slot, fill_mode)?))

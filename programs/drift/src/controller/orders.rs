@@ -1180,11 +1180,13 @@ pub fn fill_perp_order(
     let reserve_price_before: u64;
     let oracle_validity: OracleValidity;
     let oracle_price: i64;
+    let oracle_delay: i64;
     let oracle_twap_5min: i64;
     let perp_market_index: u16;
     let user_can_skip_duration: bool;
     let amm_can_skip_duration: bool;
     let amm_lp_allowed_to_jit_make: bool;
+    let oracle_valid_for_amm_fill: bool;
 
     let mut amm_is_available = !state.amm_paused()? && !fill_mode.is_rfq();
     {
@@ -1204,8 +1206,10 @@ pub fn fill_perp_order(
             market.get_max_confidence_interval_multiplier()?,
         )?;
 
-        amm_is_available &=
+        oracle_valid_for_amm_fill =
             is_oracle_valid_for_action(_oracle_validity, Some(DriftAction::FillOrderAmm))?;
+
+        amm_is_available &= oracle_valid_for_amm_fill;
         amm_is_available &= !market.is_operation_paused(PerpOperation::AmmFill);
         amm_is_available &= !market.has_too_much_drawdown()?;
 
@@ -1216,19 +1220,15 @@ pub fn fill_perp_order(
         amm_can_skip_duration =
             market.can_skip_auction_duration(&state, amm_lp_allowed_to_jit_make)?;
 
-        user_can_skip_duration = if amm_can_skip_duration && amm_is_available {
-            user.can_skip_auction_duration(
-                user_stats,
-                order_auction_duration > 0,
-                fill_mode.is_ioc(),
-                order_direction,
-                order_price,
-                order_oracle_price_offset,
-                oracle_price_data.price,
-            )?
-        } else {
-            false
-        };
+        user_can_skip_duration = user.can_skip_auction_duration(
+            user_stats,
+            order_auction_duration > 0,
+            fill_mode.is_ioc(),
+            order_direction,
+            order_price,
+            order_oracle_price_offset,
+            oracle_price_data.price,
+        )?;
 
         reserve_price_before = market.amm.reserve_price()?;
         oracle_price = oracle_price_data.price;
@@ -1237,6 +1237,7 @@ pub fn fill_perp_order(
             .historical_oracle_data
             .last_oracle_price_twap_5min;
         oracle_validity = _oracle_validity;
+        oracle_delay = oracle_price_data.delay;
         perp_market_index = market.market_index;
     }
 
@@ -1285,6 +1286,10 @@ pub fn fill_perp_order(
         now,
         slot,
         fill_mode,
+        oracle_valid_for_amm_fill,
+        oracle_delay,
+        user_can_skip_duration,
+        state.min_perp_auction_duration as u64,
     )?;
 
     // no referrer bonus for liquidations
@@ -1588,10 +1593,16 @@ fn get_maker_orders_info(
     now: i64,
     slot: u64,
     fill_mode: FillMode,
+    oracle_valid_for_amm_fill: bool,
+    oracle_delay: i64,
+    user_can_skip_duration: bool,
+    protected_maker_min_age: u64,
 ) -> DriftResult<Vec<(Pubkey, usize, u64)>> {
     let maker_direction = taker_order.direction.opposite();
 
     let mut maker_orders_info = Vec::with_capacity(16);
+
+    let taker_order_age = slot.safe_sub(taker_order.slot)?;
 
     for (maker_key, user_account_loader) in makers_and_referrer.0.iter() {
         if maker_key == taker_key {
@@ -1628,6 +1639,8 @@ fn get_maker_orders_info(
         let step_size = market.amm.order_step_size;
 
         drop(market);
+
+        let is_protected_maker = maker.is_protected_maker();
 
         for (maker_order_index, maker_order_price) in maker_order_price_and_indexes.iter() {
             let maker_order_index = *maker_order_index;
@@ -1711,6 +1724,19 @@ fn get_maker_orders_info(
                 continue;
             }
 
+            if is_protected_maker && maker_order.has_oracle_price_offset() {
+                if !protected_maker_oracle_limit_can_fill(
+                    oracle_valid_for_amm_fill,
+                    oracle_delay,
+                    user_can_skip_duration,
+                    taker_order_age,
+                    protected_maker_min_age,
+                ) {
+                    msg!("Protected maker oracle limit cannot fill. oracle delay = {}, user can skip duration = {}, taker order age = {}", oracle_delay, user_can_skip_duration, taker_order_age);
+                    continue;
+                }
+            }
+
             insert_maker_order_info(
                 &mut maker_orders_info,
                 (*maker_key, maker_order_index, maker_order_price),
@@ -1720,6 +1746,20 @@ fn get_maker_orders_info(
     }
 
     Ok(maker_orders_info)
+}
+
+#[inline(always)]
+fn protected_maker_oracle_limit_can_fill(
+    oracle_valid_for_amm_fill: bool,
+    oracle_delay: i64,
+    user_can_skip_duration: bool,
+    taker_order_age: u64,
+    protected_maker_min_age: u64,
+) -> bool {
+    oracle_valid_for_amm_fill
+        && (oracle_delay == 0
+            || user_can_skip_duration
+            || taker_order_age > protected_maker_min_age)
 }
 
 #[inline(always)]

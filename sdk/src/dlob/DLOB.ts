@@ -46,6 +46,7 @@ import {
 	L3OrderBook,
 	mergeL2LevelGenerators,
 } from './orderBookLevels';
+import { isUserProtectedMaker } from '../math/userStatus';
 
 export type MarketNodeLists = {
 	restingLimit: {
@@ -158,9 +159,10 @@ export class DLOB {
 			const userAccount = user.getUserAccount();
 			const userAccountPubkey = user.getUserAccountPublicKey();
 			const userAccountPubkeyString = userAccountPubkey.toString();
+			const protectedMaker = isUserProtectedMaker(userAccount);
 
 			for (const order of userAccount.orders) {
-				this.insertOrder(order, userAccountPubkeyString, slot);
+				this.insertOrder(order, userAccountPubkeyString, slot, protectedMaker);
 			}
 		}
 
@@ -174,7 +176,7 @@ export class DLOB {
 		}
 
 		for (const { user, order } of dlobOrders) {
-			this.insertOrder(order, user.toString(), slot);
+			this.insertOrder(order, user.toString(), slot, false);
 		}
 
 		this.initialized = true;
@@ -182,7 +184,7 @@ export class DLOB {
 	}
 
 	public handleOrderRecord(record: OrderRecord, slot: number): void {
-		this.insertOrder(record.order, record.user.toString(), slot);
+		this.insertOrder(record.order, record.user.toString(), slot, false);
 	}
 
 	public handleOrderActionRecord(
@@ -197,14 +199,14 @@ export class DLOB {
 			if (record.taker !== null) {
 				const takerOrder = this.getOrder(record.takerOrderId, record.taker);
 				if (takerOrder) {
-					this.trigger(takerOrder, record.taker, slot);
+					this.trigger(takerOrder, record.taker, slot, false);
 				}
 			}
 
 			if (record.maker !== null) {
 				const makerOrder = this.getOrder(record.makerOrderId, record.maker);
 				if (makerOrder) {
-					this.trigger(makerOrder, record.maker, slot);
+					this.trigger(makerOrder, record.maker, slot, false);
 				}
 			}
 		} else if (isVariant(record.action, 'fill')) {
@@ -252,6 +254,7 @@ export class DLOB {
 		order: Order,
 		userAccount: string,
 		slot: number,
+		isUserProtectedMaker: boolean,
 		onInsert?: OrderBookCallback
 	): void {
 		if (isVariant(order.status, 'init')) {
@@ -273,7 +276,12 @@ export class DLOB {
 				.get(marketType)
 				.add(getOrderSignature(order.orderId, userAccount));
 		}
-		this.getListForOrder(order, slot)?.insert(order, marketType, userAccount);
+		this.getListForOrder(order, slot)?.insert(
+			order,
+			marketType,
+			userAccount,
+			isUserProtectedMaker
+		);
 
 		if (onInsert) {
 			onInsert();
@@ -339,6 +347,7 @@ export class DLOB {
 		order: Order,
 		userAccount: PublicKey,
 		slot: number,
+		isUserProtectedMaker: boolean,
 		onTrigger?: OrderBookCallback
 	): void {
 		if (isVariant(order.status, 'init')) {
@@ -360,7 +369,8 @@ export class DLOB {
 		this.getListForOrder(order, slot)?.insert(
 			order,
 			marketType,
-			userAccount.toString()
+			userAccount.toString(),
+			isUserProtectedMaker
 		);
 		if (onTrigger) {
 			onTrigger();

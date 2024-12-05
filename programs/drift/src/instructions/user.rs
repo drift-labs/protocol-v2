@@ -63,6 +63,7 @@ use crate::state::paused_operations::{PerpOperation, SpotOperation};
 use crate::state::perp_market::ContractType;
 use crate::state::perp_market::MarketStatus;
 use crate::state::perp_market_map::{get_writable_perp_market_set, MarketSet};
+use crate::state::protected_maker_mode_config::ProtectedMakerModeConfig;
 use crate::state::rfq_user::{load_rfq_user_account_map, RFQUser, RFQ_PDA_SEED};
 use crate::state::spot_fulfillment_params::SpotFulfillmentParams;
 use crate::state::spot_market::SpotBalanceType;
@@ -2285,6 +2286,36 @@ pub fn handle_update_user_advanced_lp(
     Ok(())
 }
 
+pub fn handle_update_user_protected_maker_orders(
+    ctx: Context<UpdateUserProtectedMakerMode>,
+    _sub_account_id: u16,
+    protected_maker_orders: bool,
+) -> Result<()> {
+    let mut user = load_mut!(ctx.accounts.user)?;
+
+    validate!(!user.is_being_liquidated(), ErrorCode::LiquidationsOngoing)?;
+
+    user.update_protected_maker_orders_status(protected_maker_orders)?;
+
+    let mut config = load_mut!(ctx.accounts.protected_maker_mode_config)?;
+
+    if protected_maker_orders {
+        validate!(
+            !config.is_reduce_only(),
+            ErrorCode::DefaultError,
+            "protected maker mode config reduce only"
+        )?;
+
+        config.current_users = config.current_users.safe_add(1)?;
+    } else {
+        config.current_users = config.current_users.safe_sub(1)?;
+    }
+
+    config.validate()?;
+
+    Ok(())
+}
+
 pub fn handle_delete_user(ctx: Context<DeleteUser>) -> Result<()> {
     let user = &load!(ctx.accounts.user)?;
     let user_stats = &mut load_mut!(ctx.accounts.user_stats)?;
@@ -2963,6 +2994,23 @@ pub struct EnableUserHighLeverageMode<'info> {
     pub high_leverage_mode_config: AccountLoader<'info, HighLeverageModeConfig>,
 }
 
+#[derive(Accounts)]
+#[instruction(
+    sub_account_id: u16,
+)]
+pub struct UpdateUserProtectedMakerMode<'info> {
+    pub state: Box<Account<'info, State>>,
+    #[account(
+        mut,
+        seeds = [b"user", authority.key.as_ref(), sub_account_id.to_le_bytes().as_ref()],
+        bump,
+    )]
+    pub user: AccountLoader<'info, User>,
+    pub authority: Signer<'info>,
+    #[account(mut)]
+    pub protected_maker_mode_config: AccountLoader<'info, ProtectedMakerModeConfig>,
+}
+
 #[access_control(
     fill_not_paused(&ctx.accounts.state)
 )]
@@ -3182,7 +3230,7 @@ pub fn handle_begin_swap<'c: 'info, 'info>(
                         "instructions after swap end must not have writable accounts"
                     )?;
                 }
-            } else {  
+            } else {
                 let mut whitelisted_programs = vec![
                     serum_program::id(),
                     AssociatedToken::id(),

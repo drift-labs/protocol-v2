@@ -54,6 +54,7 @@ pub enum UserStatus {
     Bankrupt = 0b00000010,
     ReduceOnly = 0b00000100,
     AdvancedLp = 0b00001000,
+    ProtectedMakerOrders = 0b00010000,
 }
 
 // implement SIZE const for User
@@ -148,6 +149,10 @@ impl User {
 
     pub fn is_advanced_lp(&self) -> bool {
         self.status & (UserStatus::AdvancedLp as u8) > 0
+    }
+
+    pub fn is_protected_maker(&self) -> bool {
+        self.status & (UserStatus::ProtectedMakerOrders as u8) > 0
     }
 
     pub fn add_user_status(&mut self, status: UserStatus) {
@@ -406,6 +411,19 @@ impl User {
             self.add_user_status(UserStatus::AdvancedLp);
         } else {
             self.remove_user_status(UserStatus::AdvancedLp);
+        }
+
+        Ok(())
+    }
+
+    pub fn update_protected_maker_orders_status(
+        &mut self,
+        protected_maker_orders: bool,
+    ) -> DriftResult {
+        if protected_maker_orders {
+            self.add_user_status(UserStatus::ProtectedMakerOrders);
+        } else {
+            self.remove_user_status(UserStatus::ProtectedMakerOrders);
         }
 
         Ok(())
