@@ -2,7 +2,9 @@ use std::cell::RefMut;
 use std::convert::{TryFrom, TryInto};
 
 use anchor_lang::prelude::*;
-use anchor_spl::associated_token::get_associated_token_address;
+use anchor_spl::associated_token::{
+    get_associated_token_address, get_associated_token_address_with_program_id,
+};
 use anchor_spl::token::spl_token;
 use anchor_spl::token_2022::spl_token_2022;
 use anchor_spl::token_interface::{TokenAccount, TokenInterface};
@@ -2245,7 +2247,11 @@ pub fn handle_force_delete_user<'c: 'info, 'info>(
             .find(|acc| acc.key() == spot_market_mint.key())
             .map(|acc| InterfaceAccount::try_from(acc).unwrap());
 
-        let keeper_vault = get_associated_token_address(&keeper_key, spot_market_mint);
+        let keeper_vault = get_associated_token_address_with_program_id(
+            &keeper_key,
+            spot_market_mint,
+            &token_program_pubkey,
+        );
         let keeper_vault_account_info = ctx
             .remaining_accounts
             .iter()

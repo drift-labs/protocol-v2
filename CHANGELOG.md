@@ -14,6 +14,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixes
 
+- program: make ModifyOrderParams a bit flag and add ExcludePreviousFill ([#1357](https://github.com/drift-labs/protocol-v2/pull/1357))
+
+- program: fix force delete user for token 2022 ([#1358](https://github.com/drift-labs/protocol-v2/pull/1358))
+
 ### Breaking
 
 ## [2.102.0] - 2024-11-21

@@ -1658,16 +1658,17 @@ export class DriftClient {
 				isWritable: true,
 				pubkey: spotMarket.vault,
 			});
+			const tokenProgram = this.getTokenProgramForSpotMarket(spotMarket);
 			const keeperVault = await this.getAssociatedTokenAccount(
 				spotPosition.marketIndex,
-				false
+				false,
+				tokenProgram
 			);
 			remainingAccounts.push({
 				isSigner: false,
 				isWritable: true,
 				pubkey: keeperVault,
 			});
-			const tokenProgram = this.getTokenProgramForSpotMarket(spotMarket);
 			tokenPrograms.add(tokenProgram.toBase58());
 		}
 
@@ -6476,7 +6477,7 @@ export class DriftClient {
 			postOnly?: boolean;
 			immediateOrCancel?: boolean;
 			maxTs?: BN;
-			policy?: ModifyOrderPolicy;
+			policy?: number;
 		},
 		txParams?: TxParams,
 		subAccountId?: number
@@ -6524,7 +6525,7 @@ export class DriftClient {
 			postOnly?: boolean;
 			immediateOrCancel?: boolean;
 			maxTs?: BN;
-			policy?: ModifyOrderPolicy;
+			policy?: number;
 		},
 		subAccountId?: number
 	): Promise<TransactionInstruction> {

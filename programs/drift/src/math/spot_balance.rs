@@ -8,7 +8,6 @@ use crate::state::oracle::{OraclePriceData, StrictOraclePrice};
 use crate::state::spot_market::{SpotBalanceType, SpotMarket};
 use crate::state::user::SpotPosition;
 
-
 #[cfg(test)]
 mod tests;
 

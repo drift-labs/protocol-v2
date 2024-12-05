@@ -36,7 +36,6 @@ import {
 	QUOTE_PRECISION_EXP,
 	QUOTE_SPOT_MARKET_INDEX,
 	SPOT_MARKET_WEIGHT_PRECISION,
-	GOV_SPOT_MARKET_INDEX,
 	TEN,
 	TEN_THOUSAND,
 	TWO,
@@ -98,11 +97,7 @@ import { calculateLiveOracleTwap } from './math/oracles';
 import { getPerpMarketTierNumber, getSpotMarketTierNumber } from './math/tiers';
 import { StrictOraclePrice } from './oracles/strictOraclePrice';
 
-import {
-	calculateSpotFuelBonus,
-	calculatePerpFuelBonus,
-	calculateInsuranceFuelBonus,
-} from './math/fuel';
+import { calculateSpotFuelBonus, calculatePerpFuelBonus } from './math/fuel';
 import { grpcUserAccountSubscriber } from './accounts/grpcUserAccountSubscriber';
 
 export class User {
@@ -931,21 +926,24 @@ export class User {
 			positionFuel: ZERO,
 		};
 
+		const userStats = this.driftClient.getUserStats();
+		const userStatsAccount: UserStatsAccount = userStats.getAccount();
+
 		if (includeSettled) {
-			const userStats: UserStatsAccount = this.driftClient
-				.getUserStats()
-				.getAccount();
-			result.insuranceFuel = result.insuranceFuel.add(
-				new BN(userStats.fuelInsurance)
+			result.takerFuel = result.takerFuel.add(
+				new BN(userStatsAccount.fuelTaker)
 			);
-			result.takerFuel = result.takerFuel.add(new BN(userStats.fuelTaker));
-			result.makerFuel = result.makerFuel.add(new BN(userStats.fuelMaker));
+			result.makerFuel = result.makerFuel.add(
+				new BN(userStatsAccount.fuelMaker)
+			);
 			result.depositFuel = result.depositFuel.add(
-				new BN(userStats.fuelDeposits)
+				new BN(userStatsAccount.fuelDeposits)
 			);
-			result.borrowFuel = result.borrowFuel.add(new BN(userStats.fuelBorrows));
+			result.borrowFuel = result.borrowFuel.add(
+				new BN(userStatsAccount.fuelBorrows)
+			);
 			result.positionFuel = result.positionFuel.add(
-				new BN(userStats.fuelPositions)
+				new BN(userStatsAccount.fuelPositions)
 			);
 		}
 
@@ -1027,52 +1025,13 @@ export class User {
 					);
 				}
 			}
-
-			const userStats: UserStatsAccount = this.driftClient
-				.getUserStats()
-				.getAccount();
-
-			// todo: get real time ifStakedGovTokenAmount using ifStakeAccount
-			if (userStats.ifStakedGovTokenAmount.gt(ZERO)) {
-				const spotMarketAccount: SpotMarketAccount =
-					this.driftClient.getSpotMarketAccount(GOV_SPOT_MARKET_INDEX);
-
-				const fuelBonusNumeratorUserStats = BN.max(
-					now.sub(
-						BN.max(new BN(userStats.lastFuelIfBonusUpdateTs), FUEL_START_TS)
-					),
-					ZERO
-				);
-
-				result.insuranceFuel = result.insuranceFuel.add(
-					calculateInsuranceFuelBonus(
-						spotMarketAccount,
-						userStats.ifStakedGovTokenAmount,
-						fuelBonusNumeratorUserStats
-					)
-				);
-			}
-
-			if (userStats.ifStakedQuoteAssetAmount.gt(ZERO)) {
-				const spotMarketAccount: SpotMarketAccount =
-					this.driftClient.getSpotMarketAccount(QUOTE_SPOT_MARKET_INDEX);
-
-				const fuelBonusNumeratorUserStats = BN.max(
-					now.sub(
-						BN.max(new BN(userStats.lastFuelIfBonusUpdateTs), FUEL_START_TS)
-					),
-					ZERO
-				);
-
-				result.insuranceFuel = result.insuranceFuel.add(
-					calculateInsuranceFuelBonus(
-						spotMarketAccount,
-						userStats.ifStakedQuoteAssetAmount,
-						fuelBonusNumeratorUserStats
-					)
-				);
-			}
 		}
+
+		result.insuranceFuel = userStats.getInsuranceFuelBonus(
+			now,
+			includeSettled,
+			includeUnsettled
+		);
 
 		return result;
 	}
