@@ -123,5 +123,6 @@ export * from './blockhashSubscriber';
 export * from './util/chainClock';
 export * from './util/TransactionConfirmationManager';
 export * from './clock/clockSubscriber';
+export * from './math/userStatus';
 
 export { BN, PublicKey, pyth };
