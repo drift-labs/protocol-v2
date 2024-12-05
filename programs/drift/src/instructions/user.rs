@@ -2980,8 +2980,7 @@ pub struct EnableUserHighLeverageMode<'info> {
     pub state: Box<Account<'info, State>>,
     #[account(
         mut,
-        seeds = [b"user", authority.key.as_ref(), sub_account_id.to_le_bytes().as_ref()],
-        bump,
+        constraint = can_sign_for_user(&user, &authority)?
     )]
     pub user: AccountLoader<'info, User>,
     pub authority: Signer<'info>,
