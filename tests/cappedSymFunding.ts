@@ -69,7 +69,8 @@ async function updateFundingRateHelper(
 			convertToNumber(
 				ammAccountState0.historicalOracleData.lastOraclePriceTwap
 			);
-		const frontEndFundingCalc0 = priceSpread0 / oraclePx0.priceMessage.emaPrice / (24 * 3600);
+		const frontEndFundingCalc0 =
+			priceSpread0 / oraclePx0.priceMessage.emaPrice / (24 * 3600);
 
 		console.log(
 			'funding rate frontend calc0:',

@@ -1,11 +1,11 @@
 [package]
-name = "pyth-lazer"
+name = "pyth_pull"
 version = "0.1.0"
 edition = "2021"
 
 [lib]
 crate-type = ["cdylib", "lib"]
-name = "pyth_lazer"
+name = "pyth_pull"
 
 [features]
 no-entrypoint = []
@@ -18,7 +18,6 @@ anchor-test= []
 [dependencies]
 anchor-lang = "0.29.0"
 bytemuck = { version = "1.4.0" }
-solana-program = "1.16"
 
 [dev-dependencies]
 base64 = "0.13.0"

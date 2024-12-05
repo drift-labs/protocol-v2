@@ -976,10 +976,10 @@ dependencies = [
  "openbook-v2-light",
  "phoenix-v1",
  "pyth-client",
- "pyth-lazer",
  "pyth-lazer-sdk",
- "pyth-pull",
  "pyth-solana-receiver-sdk",
+ "pyth_lazer",
+ "pyth_pull",
  "pythnet-sdk",
  "serum_dex",
  "solana-program",
@@ -1852,16 +1852,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "44de48029c54ec1ca570786b5baeb906b0fc2409c8e0145585e287ee7a526c72"
 
 [[package]]
-name = "pyth-lazer"
-version = "0.1.0"
-dependencies = [
- "anchor-lang",
- "base64 0.13.0",
- "bytemuck",
- "solana-program",
-]
-
-[[package]]
 name = "pyth-lazer-protocol"
 version = "0.1.0"
 source = "git+https://github.com/drift-labs/pyth-crosschain?rev=bc9ec1a69c845892959b5ca2e068f2ea005915a0#bc9ec1a69c845892959b5ca2e068f2ea005915a0"
@@ -1897,7 +1887,18 @@ dependencies = [
 ]
 
 [[package]]
-name = "pyth-pull"
+name = "pyth-solana-receiver-sdk"
+version = "0.3.0"
+source = "git+https://github.com/drift-labs/pyth-crosschain?rev=3e8a24ecd0bcf22b787313e2020f4186bb22c729#3e8a24ecd0bcf22b787313e2020f4186bb22c729"
+dependencies = [
+ "anchor-lang",
+ "hex",
+ "pythnet-sdk",
+ "solana-program",
+]
+
+[[package]]
+name = "pyth_lazer"
 version = "0.1.0"
 dependencies = [
  "anchor-lang",
@@ -1907,14 +1908,12 @@ dependencies = [
 ]
 
 [[package]]
-name = "pyth-solana-receiver-sdk"
-version = "0.3.0"
-source = "git+https://github.com/drift-labs/pyth-crosschain?rev=3e8a24ecd0bcf22b787313e2020f4186bb22c729#3e8a24ecd0bcf22b787313e2020f4186bb22c729"
+name = "pyth_pull"
+version = "0.1.0"
 dependencies = [
  "anchor-lang",
- "hex",
- "pythnet-sdk",
- "solana-program",
+ "base64 0.13.0",
+ "bytemuck",
 ]
 
 [[package]]

@@ -33,6 +33,7 @@ import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
 
 describe('oracle diff sources', () => {
 	const chProgram = anchor.workspace.Drift as Program;
+	console.log(Object.keys(anchor.workspace));
 
 	let admin: TestClient;
 	let eventSubscriber: EventSubscriber;
@@ -64,7 +65,6 @@ describe('oracle diff sources', () => {
 		const context = await startAnchor('', [], []);
 
 		bankrunContextWrapper = new BankrunContextWrapper(context);
-
 		bulkAccountLoader = new TestBulkAccountLoader(
 			bankrunContextWrapper.connection,
 			'processed',
@@ -87,7 +87,7 @@ describe('oracle diff sources', () => {
 		spotMarketIndexes = [0, 1, 2];
 		oracleInfos = [
 			{ publicKey: solOracle, source: OracleSource.PYTH_PULL },
-			{ publicKey: solOracle, source: OracleSource.PYTH_1K_PULL},
+			{ publicKey: solOracle, source: OracleSource.PYTH_1K_PULL },
 		];
 
 		admin = new TestClient({

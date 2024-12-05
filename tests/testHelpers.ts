@@ -65,7 +65,12 @@ export async function mockOracle(
 
 	const feedData = await getFeedData(program, priceFeedAddress);
 	if (feedData.priceMessage.price !== price) {
-		console.log('mockOracle precision error:', feedData.priceMessage.price, '!=', price);
+		console.log(
+			'mockOracle precision error:',
+			feedData.priceMessage.price,
+			'!=',
+			price
+		);
 	}
 	assert.ok(Math.abs(feedData.priceMessage.price - price) < 1e-10);
 
@@ -106,7 +111,12 @@ export async function mockOracleNoProgram(
 		priceFeedAddress
 	);
 	if (feedData.priceMessage.price !== price) {
-		console.log('mockOracle precision error:', feedData.priceMessage.price, '!=', price);
+		console.log(
+			'mockOracle precision error:',
+			feedData.priceMessage.price,
+			'!=',
+			price
+		);
 	}
 	assert.ok(Math.abs(feedData.priceMessage.price - price) < 1e-10);
 
@@ -595,10 +605,10 @@ export const createPriceFeed = async ({
 					// @ts-ignore
 					fromPubkey: oracleProgram.provider.wallet.publicKey,
 					newAccountPubkey: collateralTokenFeed.publicKey,
-					space: 3312,
+					space: 136,
 					lamports:
 						await oracleProgram.provider.connection.getMinimumBalanceForRentExemption(
-							3312
+							136
 						),
 					programId: oracleProgram.programId,
 				}),
@@ -627,7 +637,7 @@ export const createPriceFeedBankrun = async ({
 	const createAccountIx = anchor.web3.SystemProgram.createAccount({
 		fromPubkey: context.context.payer.publicKey,
 		newAccountPubkey: collateralTokenFeed.publicKey,
-		space: 3312,
+		space: 136,
 		lamports: LAMPORTS_PER_SOL / 20, // just hardcode based on mainnet
 		programId: oracleProgram.programId,
 	});
@@ -655,9 +665,12 @@ export const setFeedPrice = async (
 		priceFeed
 	);
 	const data = parsePriceUpdateV2(info.data);
-	await oracleProgram.rpc.setPrice(new BN(newPrice * 10 ** -data.priceMessage.exponent), {
-		accounts: { priceUpdate: priceFeed },
-	});
+	await oracleProgram.rpc.setPrice(
+		new BN(newPrice * 10 ** -data.priceMessage.exponent),
+		{
+			accounts: { priceUpdate: priceFeed },
+		}
+	);
 };
 
 export const setFeedPriceNoProgram = async (
@@ -705,9 +718,12 @@ export const setFeedTwap = async (
 		priceFeed
 	);
 	const data = parsePriceUpdateV2(info.data);
-	await oracleProgram.rpc.setTwap(new BN(newTwap * 10 ** -data.priceMessage.exponent), {
-		accounts: { priceUpdate: priceFeed },
-	});
+	await oracleProgram.rpc.setTwap(
+		new BN(newTwap * 10 ** -data.priceMessage.exponent),
+		{
+			accounts: { priceUpdate: priceFeed },
+		}
+	);
 };
 export const getFeedData = async (
 	oracleProgram: Program,
@@ -739,7 +755,9 @@ export const getOraclePriceData = async (
 	const oraclePriceData: OraclePriceData = {
 		price: new BN(interData.priceMessage.price * PRICE_PRECISION.toNumber()),
 		slot: new BN(interData.postedSlot.toString()),
-		confidence: new BN(interData.priceMessage.conf * PRICE_PRECISION.toNumber()),
+		confidence: new BN(
+			interData.priceMessage.conf * PRICE_PRECISION.toNumber()
+		),
 		hasSufficientNumberOfDataPoints: true,
 	};
 
@@ -815,51 +833,64 @@ function readBigUInt64LE(buffer, offset = 0) {
 }
 
 const parsePriceUpdateV2 = (data: Buffer) => {
-  // Parse fields
-  const writeAuthority = new anchor.web3.PublicKey(data.slice(0, 32)); // Public key (32 bytes)
+	// Parse fields based on the observed offsets
+	const writeAuthority = new anchor.web3.PublicKey(data.slice(0, 32)); // 0-31
 
-  const verificationLevel = (() => {
-    const levelType = data.readUInt8(32); // First byte determines the type
-    if (levelType === 0) {
-      const numSignatures = data.readUInt8(33);
-      return { type: "Partial", numSignatures };
-    } else if (levelType === 1) {
-      return { type: "Full" };
-    } else {
-      throw new Error("Unknown verification level type");
-    }
-  })();
+	const feedId = data.slice(32, 64); // 32-63 (32 bytes)
+	const price = Number(readBigInt64LE(data, 64)); // i64 at offset 64-71
+	const conf = Number(readBigUInt64LE(data, 72)); // u64 at offset 72-79
+	const exponent = data.readInt32LE(80); // i32 at offset 80-83
 
-  const feedId = data.slice(34, 66); // FeedId (32 bytes)
+	const publishTime = Number(readBigInt64LE(data, 84)); // i64 at offset 84-91
+	const prevPublishTime = Number(readBigInt64LE(data, 92)); // i64 at offset 92-99
 
-  const price = readBigInt64LE(data, 66); // i64 (8 bytes)
-  const conf = readBigUInt64LE(data, 74); // u64 (8 bytes)
-  const exponent = data.readInt32LE(82); // i32 (4 bytes)
+	const emaPrice = Number(readBigInt64LE(data, 100)); // i64 at offset 100-107
+	const emaConf = Number(readBigUInt64LE(data, 108)); // u64 at offset 108-115
 
-  const publishTime = readBigInt64LE(data, 86); // i64 (8 bytes)
-  const prevPublishTime = readBigInt64LE(data, 94); // i64 (8 bytes)
+	const postedSlot = Number(readBigUInt64LE(data, 120)); // u64 at offset 120-127
 
-  const emaPrice = readBigInt64LE(data, 102); // i64 (8 bytes)
-  const emaConf = readBigUInt64LE(data, 110); // u64 (8 bytes)
+	const verificationLevel = (() => {
+		const levelType = data.readUInt8(128); // Discriminant at offset 128
+		if (levelType === 0) {
+			const numSignatures = data.readUInt8(129); // Value at offset 129
+			return { type: 'Partial', numSignatures };
+		} else if (levelType === 1) {
+			return { type: 'Full' };
+		} else {
+			throw new Error('Unknown verification level type');
+		}
+	})();
 
-  const postedSlot = readBigUInt64LE(data, 118); // u64 (8 bytes)
-
-  // Build result object
-  return {
-    writeAuthority: writeAuthority.toBase58(),
-    verificationLevel,
-    priceMessage: {
-      feedId: feedId.toString('hex'),
-      price: Number(price),
-      conf: Number(conf),
-      exponent,
-      publishTime: Number(publishTime),
-      prevPublishTime: Number(prevPublishTime),
-      emaPrice: Number(emaPrice),
-      emaConf: Number(emaConf),
-    },
-    postedSlot: Number(postedSlot),
-  };
+	console.log({
+		writeAuthority: writeAuthority.toBase58(),
+		verificationLevel,
+		priceMessage: {
+			feedId: feedId.toString('hex'),
+			price,
+			conf,
+			exponent,
+			publishTime,
+			prevPublishTime,
+			emaPrice,
+			emaConf,
+		},
+		postedSlot,
+	});
+	return {
+		writeAuthority: writeAuthority.toBase58(),
+		verificationLevel,
+		priceMessage: {
+			feedId: feedId.toString('hex'),
+			price,
+			conf,
+			exponent,
+			publishTime,
+			prevPublishTime,
+			emaPrice,
+			emaConf,
+		},
+		postedSlot,
+	};
 };
 
 export function sleep(ms) {

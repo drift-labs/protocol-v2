@@ -1,11 +1,11 @@
 [package]
-name = "pyth-pull"
+name = "pyth_lazer"
 version = "0.1.0"
 edition = "2021"
 
 [lib]
 crate-type = ["cdylib", "lib"]
-name = "pyth_pull"
+name = "pyth_lazer"
 
 [features]
 no-entrypoint = []

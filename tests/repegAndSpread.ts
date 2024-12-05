@@ -331,7 +331,8 @@ describe('repeg and spread amm', () => {
 
 		// old oracle price: 21966
 		await setFeedPrice(anchor.workspace.PythPull, 19790, btcUsd);
-		const curPrice = (await getFeedData(anchor.workspace.PythPull, btcUsd)).price;
+		const curPrice = (await getFeedData(anchor.workspace.PythPull, btcUsd))
+			.price;
 		console.log('new oracle price:', curPrice);
 
 		const oraclePriceData = await getOraclePriceData(

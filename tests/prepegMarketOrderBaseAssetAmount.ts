@@ -205,7 +205,8 @@ describe('prepeg', () => {
 		const market0 = driftClient.getPerpMarketAccount(0);
 
 		// await setFeedPrice(anchor.workspace.PythPull, 1.01, solUsd);
-		const curPrice = (await getFeedData(anchor.workspace.PythPull, solUsd)).price;
+		const curPrice = (await getFeedData(anchor.workspace.PythPull, solUsd))
+			.price;
 		console.log('new oracle price:', curPrice);
 		const oraclePriceData = await getOraclePriceData(
 			anchor.workspace.PythPull,
@@ -346,7 +347,8 @@ describe('prepeg', () => {
 		const market0 = driftClient.getPerpMarketAccount(0);
 
 		await setFeedPrice(anchor.workspace.PythPull, 1.0281, solUsd);
-		const curPrice = (await getFeedData(anchor.workspace.PythPull, solUsd)).price;
+		const curPrice = (await getFeedData(anchor.workspace.PythPull, solUsd))
+			.price;
 		console.log('new oracle price:', curPrice);
 
 		const oraclePriceData = await getOraclePriceData(
@@ -612,7 +614,8 @@ describe('prepeg', () => {
 		});
 
 		await setFeedPrice(anchor.workspace.PythPull, 1.02234232, solUsd);
-		const curPrice = (await getFeedData(anchor.workspace.PythPull, solUsd)).price;
+		const curPrice = (await getFeedData(anchor.workspace.PythPull, solUsd))
+			.price;
 		console.log('new oracle price:', curPrice);
 		const oraclePriceData = await getOraclePriceData(
 			anchor.workspace.PythPull,
@@ -771,9 +774,14 @@ describe('prepeg', () => {
 				.price;
 			await setFeedPrice(anchor.workspace.PythPull, curPrice * 1.03, thisUsd);
 		}
-		const curPrice = (await getFeedData(anchor.workspace.PythPull, mockOracles[0]))
-			.price;
-		await setFeedPrice(anchor.workspace.PythPull, curPrice * 1.01, mockOracles[0]);
+		const curPrice = (
+			await getFeedData(anchor.workspace.PythPull, mockOracles[0])
+		).price;
+		await setFeedPrice(
+			anchor.workspace.PythPull,
+			curPrice * 1.01,
+			mockOracles[0]
+		);
 
 		const orderParams = getMarketOrderParams({
 			marketIndex: 0,

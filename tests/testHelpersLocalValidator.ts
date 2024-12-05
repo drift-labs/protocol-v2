@@ -22,7 +22,6 @@ import {
 	TransactionSignature,
 } from '@solana/web3.js';
 import { assert } from 'chai';
-import buffer from 'buffer';
 import {
 	BN,
 	Wallet,
@@ -46,7 +45,7 @@ export async function mockOracle(
 	confidence?: number
 ): Promise<PublicKey> {
 	// default: create a $50 coin oracle
-	const program = anchor.workspace.Pyth;
+	const program = anchor.workspace.PythPull;
 	anchor.setProvider(
 		anchor.AnchorProvider.local(undefined, {
 			commitment: 'confirmed',
@@ -60,10 +59,15 @@ export async function mockOracle(
 		confidence,
 	});
 	const feedData = await getFeedData(program, priceFeedAddress);
-	if (feedData.price !== price) {
-		console.log('mockOracle precision error:', feedData.price, '!=', price);
+	if (feedData.priceMessage.price !== price) {
+		console.log(
+			'mockOracle precision error:',
+			feedData.priceMessage.price,
+			'!=',
+			price
+		);
 	}
-	assert.ok(Math.abs(feedData.price - price) < 1e-10);
+	assert.ok(Math.abs(feedData.priceMessage.price - price) < 1e-10);
 	return priceFeedAddress;
 }
 
@@ -439,9 +443,6 @@ export async function initUserAccounts(
 	}
 	return [userUSDCAccounts, user_keys, driftClients, userAccountInfos];
 }
-const empty32Buffer = buffer.Buffer.alloc(32);
-const PKorNull = (data) =>
-	data.equals(empty32Buffer) ? null : new anchor.web3.PublicKey(data);
 export const createPriceFeed = async ({
 	oracleProgram,
 	initPrice,
@@ -460,16 +461,16 @@ export const createPriceFeed = async ({
 		expo,
 		conf,
 		{
-			accounts: { price: collateralTokenFeed.publicKey },
+			accounts: { priceUpdate: collateralTokenFeed.publicKey },
 			signers: [collateralTokenFeed],
 			instructions: [
 				anchor.web3.SystemProgram.createAccount({
 					fromPubkey: oracleProgram.provider.publicKey,
 					newAccountPubkey: collateralTokenFeed.publicKey,
-					space: 3312,
+					space: 136,
 					lamports:
 						await oracleProgram.provider.connection.getMinimumBalanceForRentExemption(
-							3312
+							136
 						),
 					programId: oracleProgram.programId,
 				}),
@@ -487,10 +488,13 @@ export const setFeedPrice = async (
 	const info = await oracleProgram.provider.connection.getAccountInfo(
 		priceFeed
 	);
-	const data = parsePriceData(info.data);
-	await oracleProgram.rpc.setPrice(new BN(newPrice * 10 ** -data.exponent), {
-		accounts: { price: priceFeed },
-	});
+	const data = parsePriceUpdateV2(info.data);
+	await oracleProgram.rpc.setPrice(
+		new BN(newPrice * 10 ** -data.priceMessage.exponent),
+		{
+			accounts: { priceUpdate: priceFeed },
+		}
+	);
 };
 export const setFeedTwap = async (
 	oracleProgram: Program,
@@ -500,10 +504,13 @@ export const setFeedTwap = async (
 	const info = await oracleProgram.provider.connection.getAccountInfo(
 		priceFeed
 	);
-	const data = parsePriceData(info.data);
-	await oracleProgram.rpc.setTwap(new BN(newTwap * 10 ** -data.exponent), {
-		accounts: { price: priceFeed },
-	});
+	const data = parsePriceUpdateV2(info.data);
+	await oracleProgram.rpc.setTwap(
+		new BN(newTwap * 10 ** -data.priceMessage.exponent),
+		{
+			accounts: { priceUpdate: priceFeed },
+		}
+	);
 };
 export const getFeedData = async (
 	oracleProgram: Program,
@@ -512,7 +519,7 @@ export const getFeedData = async (
 	const info = await oracleProgram.provider.connection.getAccountInfo(
 		priceFeed
 	);
-	return parsePriceData(info.data);
+	return parsePriceUpdateV2(info.data);
 };
 
 export const getOraclePriceData = async (
@@ -522,11 +529,13 @@ export const getOraclePriceData = async (
 	const info = await oracleProgram.provider.connection.getAccountInfo(
 		priceFeed
 	);
-	const interData = parsePriceData(info.data);
+	const interData = parsePriceUpdateV2(info.data);
 	const oraclePriceData: OraclePriceData = {
-		price: new BN(interData.price * PRICE_PRECISION.toNumber()),
-		slot: new BN(interData.currentSlot.toString()),
-		confidence: new BN(interData.confidence * PRICE_PRECISION.toNumber()),
+		price: new BN(interData.priceMessage.price * PRICE_PRECISION.toNumber()),
+		slot: new BN(interData.postedSlot.toString()),
+		confidence: new BN(
+			interData.priceMessage.conf * PRICE_PRECISION.toNumber()
+		),
 		hasSufficientNumberOfDataPoints: true,
 	};
 	return oraclePriceData;
@@ -598,162 +607,51 @@ function readBigUInt64LE(buffer, offset = 0) {
 		last * 2 ** 24;
 	return BigInt(lo) + (BigInt(hi) << BigInt(32)); // tslint:disable-line:no-bitwise
 }
-const parsePriceData = (data) => {
-	// Pyth magic number.
-	const magic = data.readUInt32LE(0);
-	// Program version.
-	const version = data.readUInt32LE(4);
-	// Account type.
-	const type = data.readUInt32LE(8);
-	// Price account size.
-	const size = data.readUInt32LE(12);
-	// Price or calculation type.
-	const priceType = data.readUInt32LE(16);
-	// Price exponent.
-	const exponent = data.readInt32LE(20);
-	// Number of component prices.
-	const numComponentPrices = data.readUInt32LE(24);
-	// unused
-	// const unused = accountInfo.data.readUInt32LE(28)
-	// Currently accumulating price slot.
-	const currentSlot = readBigUInt64LE(data, 32);
-	// Valid on-chain slot of aggregate price.
-	const validSlot = readBigUInt64LE(data, 40);
-	// Time-weighted average price.
-	const twapComponent = readBigInt64LE(data, 48);
-	const twap = Number(twapComponent) * 10 ** exponent;
-	// Annualized price volatility.
-	const avolComponent = readBigUInt64LE(data, 56);
-	const avol = Number(avolComponent) * 10 ** exponent;
-	// Space for future derived values.
-	const drv0Component = readBigInt64LE(data, 64);
-	const drv0 = Number(drv0Component) * 10 ** exponent;
-	const drv1Component = readBigInt64LE(data, 72);
-	const drv1 = Number(drv1Component) * 10 ** exponent;
-	const drv2Component = readBigInt64LE(data, 80);
-	const drv2 = Number(drv2Component) * 10 ** exponent;
-	const drv3Component = readBigInt64LE(data, 88);
-	const drv3 = Number(drv3Component) * 10 ** exponent;
-	const drv4Component = readBigInt64LE(data, 96);
-	const drv4 = Number(drv4Component) * 10 ** exponent;
-	const drv5Component = readBigInt64LE(data, 104);
-	const drv5 = Number(drv5Component) * 10 ** exponent;
-	// Product id / reference account.
-	const productAccountKey = new anchor.web3.PublicKey(data.slice(112, 144));
-	// Next price account in list.
-	const nextPriceAccountKey = PKorNull(data.slice(144, 176));
-	// Aggregate price updater.
-	const aggregatePriceUpdaterAccountKey = new anchor.web3.PublicKey(
-		data.slice(176, 208)
-	);
-	const aggregatePriceInfo = parsePriceInfo(data.slice(208, 240), exponent);
-	// Price components - up to 32.
-	const priceComponents = [];
-	let offset = 240;
-	let shouldContinue = true;
-	while (offset < data.length && shouldContinue) {
-		const publisher = PKorNull(data.slice(offset, offset + 32));
-		offset += 32;
-		if (publisher) {
-			const aggregate = parsePriceInfo(
-				data.slice(offset, offset + 32),
-				exponent
-			);
-			offset += 32;
-			const latest = parsePriceInfo(data.slice(offset, offset + 32), exponent);
-			offset += 32;
-			priceComponents.push({ publisher, aggregate, latest });
+const parsePriceUpdateV2 = (data: Buffer) => {
+	// Parse fields
+	const writeAuthority = new anchor.web3.PublicKey(data.slice(0, 32)); // Public key (32 bytes)
+
+	const verificationLevel = (() => {
+		const levelType = data.readUInt8(32); // First byte determines the type
+		if (levelType === 0) {
+			const numSignatures = data.readUInt8(33);
+			return { type: 'Partial', numSignatures };
+		} else if (levelType === 1) {
+			return { type: 'Full' };
 		} else {
-			shouldContinue = false;
+			throw new Error('Unknown verification level type');
 		}
-	}
-	return Object.assign(
-		Object.assign(
-			{
-				magic,
-				version,
-				type,
-				size,
-				priceType,
-				exponent,
-				numComponentPrices,
-				currentSlot,
-				validSlot,
-				twapComponent,
-				twap,
-				avolComponent,
-				avol,
-				drv0Component,
-				drv0,
-				drv1Component,
-				drv1,
-				drv2Component,
-				drv2,
-				drv3Component,
-				drv3,
-				drv4Component,
-				drv4,
-				drv5Component,
-				drv5,
-				productAccountKey,
-				nextPriceAccountKey,
-				aggregatePriceUpdaterAccountKey,
-			},
-			aggregatePriceInfo
-		),
-		{ priceComponents }
-	);
-};
-const _parseProductData = (data) => {
-	// Pyth magic number.
-	const magic = data.readUInt32LE(0);
-	// Program version.
-	const version = data.readUInt32LE(4);
-	// Account type.
-	const type = data.readUInt32LE(8);
-	// Price account size.
-	const size = data.readUInt32LE(12);
-	// First price account in list.
-	const priceAccountBytes = data.slice(16, 48);
-	const priceAccountKey = new anchor.web3.PublicKey(priceAccountBytes);
-	const product = {};
-	let idx = 48;
-	while (idx < data.length) {
-		const keyLength = data[idx];
-		idx++;
-		if (keyLength) {
-			const key = data.slice(idx, idx + keyLength).toString();
-			idx += keyLength;
-			const valueLength = data[idx];
-			idx++;
-			const value = data.slice(idx, idx + valueLength).toString();
-			idx += valueLength;
-			product[key] = value;
-		}
-	}
-	return { magic, version, type, size, priceAccountKey, product };
-};
-const parsePriceInfo = (data, exponent) => {
-	// Aggregate price.
-	const priceComponent = data.readBigUInt64LE(0);
-	const price = Number(priceComponent) * 10 ** exponent;
-	// Aggregate confidence.
-	const confidenceComponent = data.readBigUInt64LE(8);
-	const confidence = Number(confidenceComponent) * 10 ** exponent;
-	// Aggregate status.
-	const status = data.readUInt32LE(16);
-	// Aggregate corporate action.
-	const corporateAction = data.readUInt32LE(20);
-	// Aggregate publish slot.
-	const publishSlot = data.readBigUInt64LE(24);
+	})();
+
+	const feedId = data.slice(34, 66); // FeedId (32 bytes)
+
+	const price = readBigInt64LE(data, 66); // i64 (8 bytes)
+	const conf = readBigUInt64LE(data, 74); // u64 (8 bytes)
+	const exponent = data.readInt32LE(82); // i32 (4 bytes)
+
+	const publishTime = readBigInt64LE(data, 86); // i64 (8 bytes)
+	const prevPublishTime = readBigInt64LE(data, 94); // i64 (8 bytes)
+
+	const emaPrice = readBigInt64LE(data, 102); // i64 (8 bytes)
+	const emaConf = readBigUInt64LE(data, 110); // u64 (8 bytes)
+
+	const postedSlot = readBigUInt64LE(data, 118); // u64 (8 bytes)
+
+	// Build result object
 	return {
-		priceComponent,
-		price,
-		confidenceComponent,
-		confidence,
-		status,
-		corporateAction,
-		publishSlot,
+		writeAuthority: writeAuthority.toBase58(),
+		verificationLevel,
+		priceMessage: {
+			feedId: feedId.toString('hex'),
+			price: Number(price),
+			conf: Number(conf),
+			exponent,
+			publishTime: Number(publishTime),
+			prevPublishTime: Number(prevPublishTime),
+			emaPrice: Number(emaPrice),
+			emaConf: Number(emaConf),
+		},
+		postedSlot: Number(postedSlot),
 	};
 };
 export function sleep(ms) {

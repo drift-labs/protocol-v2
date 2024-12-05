@@ -1,12 +1,9 @@
 use std::cell::RefMut;
 
 use anchor_lang::prelude::*;
+use bytemuck::offset_of;
 use bytemuck::{cast_slice_mut, from_bytes_mut, try_cast_slice_mut};
-use {
-    anchor_lang::prelude::borsh::BorshSchema,
-    bytemuck::{Pod, Zeroable},
-    solana_program::pubkey::Pubkey,
-};
+use bytemuck::{Pod, Zeroable};
 
 declare_id!("G6EoTTTgpkNBtVXo96EQp2m6uwwVh2Kt6YidjkmQqoha");
 
@@ -15,23 +12,27 @@ pub mod pyth_pull {
     use super::*;
 
     pub fn initialize(ctx: Context<Initialize>, price: i64, expo: i32, conf: u64) -> Result<()> {
+        msg!(
+            "PriceUpdateV2 size: {}",
+            std::mem::size_of::<PriceUpdateV2>()
+        );
+
         let price_update = &ctx.accounts.price_update;
         let mut price_oracle = PriceUpdateV2::load(price_update).unwrap();
 
-        let price_message = PriceFeedMessage {
+        price_oracle.posted_slot = 2712847316;
+        price_oracle.price_message = PriceFeedMessage {
             feed_id: [0; 32],
             price,
             conf,
             exponent: expo,
             publish_time: 0,
             prev_publish_time: 0,
-            ema_price: 0,
-            ema_conf: 0,
+            ema_price: price,
+            ema_conf: conf,
         };
-        price_oracle.posted_slot = 2712847316;
-        price_oracle.price_message = price_message;
         price_oracle.verification_level = VerificationLevel::Partial { num_signatures: 2 };
-        price_oracle.write_authority = Pubkey::new_unique();
+        price_oracle.write_authority = anchor_lang::prelude::Pubkey::default();
         Ok(())
     }
 
@@ -45,26 +46,8 @@ pub mod pyth_pull {
             .checked_add(price)
             .unwrap()
             .checked_div(2)
-            .unwrap(); //todo
+            .unwrap();
         price_oracle.price_message.price = price;
-        Ok(())
-    }
-
-    pub fn set_price_info(ctx: Context<SetPrice>, price: i64, conf: u64, slot: u64) -> Result<()> {
-        let price_update = &ctx.accounts.price_update;
-        let mut price_oracle = PriceUpdateV2::load(price_update).unwrap();
-
-        price_oracle.price_message.ema_price = price_oracle
-            .price_message
-            .ema_price
-            .checked_add(price)
-            .unwrap()
-            .checked_div(2)
-            .unwrap(); //todo
-        price_oracle.price_message.price = price;
-        price_oracle.price_message.conf = conf;
-        price_oracle.posted_slot = slot;
-
         Ok(())
     }
 
@@ -77,13 +60,16 @@ pub mod pyth_pull {
     }
 }
 
-#[derive(AnchorSerialize, AnchorDeserialize, Copy, Clone, PartialEq, BorshSchema, Debug)]
+#[derive(Copy, Clone, Default)]
 pub enum VerificationLevel {
-    Partial { num_signatures: u8 },
+    Partial {
+        num_signatures: u8,
+    },
+    #[default]
     Full,
 }
 
-#[derive(BorshSchema, Copy, Clone)]
+#[derive(Copy, Clone, Default)]
 pub struct PriceUpdateV2 {
     pub write_authority: Pubkey,
     pub verification_level: VerificationLevel,
@@ -108,20 +94,10 @@ impl PriceUpdateV2 {
     }
 }
 
-#[derive(PartialEq, Debug, Clone, Copy)]
-pub struct Price {
-    pub price: i64,
-    pub conf: u64,
-    pub exponent: i32,
-    pub publish_time: i64,
-}
-
-pub type FeedId = [u8; 32];
-
+#[derive(Copy, Clone, Default)]
 #[repr(C)]
-#[derive(Debug, Copy, Clone, PartialEq, BorshSchema, AnchorSerialize, AnchorDeserialize)]
 pub struct PriceFeedMessage {
-    pub feed_id: FeedId,
+    pub feed_id: [u8; 32],
     pub price: i64,
     pub conf: u64,
     pub exponent: i32,
@@ -131,7 +107,10 @@ pub struct PriceFeedMessage {
     pub ema_conf: u64,
 }
 
+#[cfg(target_endian = "little")]
 unsafe impl Pod for PriceUpdateV2 {}
+
+#[cfg(target_endian = "little")]
 unsafe impl Zeroable for PriceUpdateV2 {}
 
 #[derive(Accounts)]

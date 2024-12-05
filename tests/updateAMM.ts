@@ -235,7 +235,8 @@ describe('update amm', () => {
 		);
 		const market0 = driftClient.getPerpMarketAccount(0);
 		await setFeedPrice(anchor.workspace.PythPull, 1.003, solUsd);
-		const curPrice = (await getFeedData(anchor.workspace.PythPull, solUsd)).price;
+		const curPrice = (await getFeedData(anchor.workspace.PythPull, solUsd))
+			.priceMessage.price;
 		console.log('new oracle price:', curPrice);
 
 		const oraclePriceData = await getOraclePriceData(
@@ -343,8 +344,9 @@ describe('update amm', () => {
 		);
 		const market0 = driftClient.getPerpMarketAccount(1);
 		await setFeedPrice(anchor.workspace.PythPull, 0.9378, mockOracles[1]);
-		const curPrice = (await getFeedData(anchor.workspace.PythPull, mockOracles[1]))
-			.price;
+		const curPrice = (
+			await getFeedData(anchor.workspace.PythPull, mockOracles[1])
+		).priceMessage.price;
 		console.log('new oracle price:', curPrice);
 
 		const oraclePriceData = await getOraclePriceData(
@@ -494,10 +496,14 @@ describe('update amm', () => {
 				.logMessages
 		);
 
-		await setFeedPrice(anchor.workspace.PythPull, 1.9378, mockOracles[marketIndex]);
+		await setFeedPrice(
+			anchor.workspace.PythPull,
+			1.9378,
+			mockOracles[marketIndex]
+		);
 		const curPrice = (
 			await getFeedData(anchor.workspace.PythPull, mockOracles[marketIndex])
-		).price;
+		).priceMessage.price;
 		console.log('new oracle price:', curPrice);
 
 		const _txSig2 = await driftClient.updateAMMs([marketIndex]);
@@ -545,7 +551,7 @@ describe('update amm', () => {
 			});
 
 			const curPrice = (await getFeedData(anchor.workspace.PythPull, thisUsd))
-				.price;
+				.priceMessage.price;
 			console.log('new oracle price:', curPrice);
 			const oraclePriceData = await getOraclePriceData(
 				anchor.workspace.PythPull,
@@ -615,11 +621,11 @@ describe('update amm', () => {
 			const market0 = driftClient.getPerpMarketAccount(marketIndex);
 			market0s.push(market0);
 			const curPrice = (await getFeedData(anchor.workspace.PythPull, thisUsd))
-				.price;
+				.priceMessage.price;
 
 			await setFeedPrice(anchor.workspace.PythPull, curPrice * 1.02, thisUsd);
 			const newPrice = (await getFeedData(anchor.workspace.PythPull, thisUsd))
-				.price;
+				.priceMessage.price;
 
 			// const curPrice = (await getFeedData(anchor.workspace.PythPull, solUsd)).price;
 			console.log('new oracle price:', newPrice);
