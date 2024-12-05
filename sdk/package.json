@@ -47,7 +47,7 @@
 		"@solana/spl-token": "0.3.7",
 		"@solana/web3.js": "1.92.3",
 		"@switchboard-xyz/on-demand": "1.2.42",
-		"@triton-one/yellowstone-grpc": "0.6.0",
+		"@triton-one/yellowstone-grpc": "1.3.0",
 		"anchor-bankrun": "^0.3.0",
 		"node-cache": "^5.1.2",
 		"rpc-websockets": "7.5.1",
@@ -81,7 +81,7 @@
 	},
 	"description": "SDK for Drift Protocol",
 	"engines": {
-		"node": ">=18"
+		"node": ">=20.18.0"
 	},
 	"resolutions": {
 		"@solana/errors": "2.0.0-preview.4",
