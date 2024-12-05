@@ -318,6 +318,23 @@ export function getPythPullOraclePublicKey(
 		progarmId
 	)[0];
 }
+
+export function getPythLazerOraclePublicKey(
+	progarmId: PublicKey,
+	feedId: number
+): PublicKey {
+	if (feedId < 0 || feedId > 255) {
+		throw new RangeError('Value out of range for u8');
+	}
+	return PublicKey.findProgramAddressSync(
+		[
+			Buffer.from(anchor.utils.bytes.utf8.encode('pyth_lazer')),
+			Buffer.from([feedId]),
+		],
+		progarmId
+	)[0];
+}
+
 export function getTokenProgramForSpotMarket(
 	spotMarketAccount: SpotMarketAccount
 ): PublicKey {

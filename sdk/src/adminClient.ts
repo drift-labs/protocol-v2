@@ -33,6 +33,7 @@ import {
 	getPythPullOraclePublicKey,
 	getUserStatsAccountPublicKey,
 	getHighLeverageModeConfigPublicKey,
+	getPythLazerOraclePublicKey,
 } from './addresses/pda';
 import { squareRootBN } from './math/utils';
 import { TOKEN_PROGRAM_ID } from '@solana/spl-token';
@@ -3926,6 +3927,36 @@ export class AdminClient extends DriftClient {
 				},
 			}
 		);
+	}
+
+	public async initializePythLazerOracle(
+		feedId: number,
+		isAdmin = false
+	): Promise<TransactionSignature> {
+		const initializePythPullOracleIx =
+			await this.getInitializePythLazerOracleIx(feedId, isAdmin);
+		const tx = await this.buildTransaction(initializePythPullOracleIx);
+		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+
+		return txSig;
+	}
+
+	public async getInitializePythLazerOracleIx(
+		feedId: number,
+		isAdmin = false
+	): Promise<TransactionInstruction> {
+		return await this.program.instruction.initializePythLazerOracle(feedId, {
+			accounts: {
+				admin: isAdmin ? this.getStateAccount().admin : this.wallet.publicKey,
+				state: await this.getStatePublicKey(),
+				systemProgram: SystemProgram.programId,
+				lazerOracle: getPythLazerOraclePublicKey(
+					this.program.programId,
+					feedId
+				),
+				rent: SYSVAR_RENT_PUBKEY,
+			},
+		});
 	}
 
 	public async initializeHighLeverageModeConfig(

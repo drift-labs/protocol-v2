@@ -6437,6 +6437,42 @@
       ]
     },
     {
+      "name": "initializePythLazerOracle",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "lazerOracle",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "rent",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "systemProgram",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "feedId",
+          "type": "u8"
+        }
+      ]
+    },
+    {
       "name": "initializeHighLeverageModeConfig",
       "accounts": [
         {
@@ -7237,6 +7273,43 @@
               "array": [
                 "u8",
                 31
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "PythLazerOracle",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "price",
+            "type": "i64"
+          },
+          {
+            "name": "publishTime",
+            "type": "u64"
+          },
+          {
+            "name": "postedSlot",
+            "type": "u64"
+          },
+          {
+            "name": "exponent",
+            "type": "i32"
+          },
+          {
+            "name": "conf",
+            "type": "u64"
+          },
+          {
+            "name": "padding",
+            "type": {
+              "array": [
+                "u8",
+                4
               ]
             }
           }
@@ -11173,6 +11246,9 @@
           },
           {
             "name": "SwitchboardOnDemand"
+          },
+          {
+            "name": "PythLazer"
           }
         ]
       }
@@ -14289,6 +14365,26 @@
       "code": 6303,
       "name": "InvalidProtectedMakerModeConfig",
       "msg": "Invalid Protected Maker Mode Config"
+    },
+    {
+      "code": 6304,
+      "name": "InvalidPythLazerStorageOwner",
+      "msg": "Invalid pyth lazer storage owner"
+    },
+    {
+      "code": 6305,
+      "name": "UnverifiedPythLazerMessage",
+      "msg": "Verification of pyth lazer message failed"
+    },
+    {
+      "code": 6306,
+      "name": "InvalidPythLazerMessage",
+      "msg": "Invalid pyth lazer message"
+    },
+    {
+      "code": 6307,
+      "name": "PythLazerMessagePriceFeedMismatch",
+      "msg": "Pyth lazer message does not correspond to correct fed id"
     }
   ],
   "metadata": {
