@@ -3230,7 +3230,7 @@ pub fn handle_begin_swap<'c: 'info, 'info>(
                         "instructions after swap end must not have writable accounts"
                     )?;
                 }
-            } else {  
+            } else {
                 let mut whitelisted_programs = vec![
                     serum_program::id(),
                     AssociatedToken::id(),
