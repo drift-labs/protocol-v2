@@ -1193,7 +1193,8 @@ pub fn fill_perp_order(
             market.get_max_confidence_interval_multiplier()?,
         )?;
 
-        oracle_valid_for_amm_fill = is_oracle_valid_for_action(_oracle_validity, Some(DriftAction::FillOrderAmm))?;
+        oracle_valid_for_amm_fill =
+            is_oracle_valid_for_action(_oracle_validity, Some(DriftAction::FillOrderAmm))?;
 
         amm_is_available &= oracle_valid_for_amm_fill;
         amm_is_available &= !market.is_operation_paused(PerpOperation::AmmFill);
@@ -1710,8 +1711,15 @@ fn get_maker_orders_info(
                 continue;
             }
 
-            if maker_order.has_oracle_price_offset() && is_protected_maker {
-                if !protected_maker_oracle_limit_can_fill(oracle_valid_for_amm_fill, oracle_delay, user_can_skip_duration, taker_order_age, protected_maker_min_age) {
+            if is_protected_maker && maker_order.has_oracle_price_offset() {
+                if !protected_maker_oracle_limit_can_fill(
+                    oracle_valid_for_amm_fill,
+                    oracle_delay,
+                    user_can_skip_duration,
+                    taker_order_age,
+                    protected_maker_min_age,
+                ) {
+                    msg!("Protected maker oracle limit cannot fill. oracle delay = {}, user can skip duration = {}, taker order age = {}", oracle_delay, user_can_skip_duration, taker_order_age);
                     continue;
                 }
             }
@@ -1735,7 +1743,10 @@ fn protected_maker_oracle_limit_can_fill(
     taker_order_age: u64,
     protected_maker_min_age: u64,
 ) -> bool {
-    oracle_valid_for_amm_fill && (oracle_delay == 0 || user_can_skip_duration || taker_order_age > protected_maker_min_age)
+    oracle_valid_for_amm_fill
+        && (oracle_delay == 0
+            || user_can_skip_duration
+            || taker_order_age > protected_maker_min_age)
 }
 
 #[inline(always)]

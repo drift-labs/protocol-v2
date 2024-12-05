@@ -12236,7 +12236,11 @@ pub mod protected_maker_oracle_limit_can_fill {
         assert!(protected_maker_oracle_limit_can_fill(true, 0, false, 9, 10)); // oracle delay is 0
         assert!(protected_maker_oracle_limit_can_fill(true, 1, false, 10, 9)); // min age passed
         assert!(protected_maker_oracle_limit_can_fill(true, 1, true, 9, 10)); // user exempt
-        assert!(!protected_maker_oracle_limit_can_fill(true, 1, false, 10, 11)); // no condition met
-        assert!(!protected_maker_oracle_limit_can_fill(false, 0, true, 10, 10)); // oracle valid for amm fill is false
+        assert!(!protected_maker_oracle_limit_can_fill(
+            true, 1, false, 10, 11
+        )); // no condition met
+        assert!(!protected_maker_oracle_limit_can_fill(
+            false, 0, true, 10, 10
+        )); // oracle valid for amm fill is false
     }
 }

@@ -2305,7 +2305,7 @@ pub fn handle_update_user_protected_maker_orders(
             ErrorCode::DefaultError,
             "protected maker mode config reduce only"
         )?;
-    
+
         config.current_users = config.current_users.safe_add(1)?;
     } else {
         config.current_users = config.current_users.safe_sub(1)?;
@@ -3010,7 +3010,6 @@ pub struct UpdateUserProtectedMakerMode<'info> {
     #[account(mut)]
     pub protected_maker_mode_config: AccountLoader<'info, ProtectedMakerModeConfig>,
 }
-
 
 #[access_control(
     fill_not_paused(&ctx.accounts.state)
