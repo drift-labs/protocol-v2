@@ -1458,6 +1458,41 @@
       ]
     },
     {
+      "name": "updateUserProtectedMakerOrders",
+      "accounts": [
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "user",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "protectedMakerModeConfig",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "subAccountId",
+          "type": "u16"
+        },
+        {
+          "name": "protectedMakerOrders",
+          "type": "bool"
+        }
+      ]
+    },
+    {
       "name": "deleteUser",
       "accounts": [
         {
@@ -6466,6 +6501,72 @@
           "type": "bool"
         }
       ]
+    },
+    {
+      "name": "initializeProtectedMakerModeConfig",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "protectedMakerModeConfig",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "rent",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "systemProgram",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "maxUsers",
+          "type": "u32"
+        }
+      ]
+    },
+    {
+      "name": "updateProtectedMakerModeConfig",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "protectedMakerModeConfig",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "maxUsers",
+          "type": "u32"
+        },
+        {
+          "name": "reduceOnly",
+          "type": "bool"
+        }
+      ]
     }
   ],
   "accounts": [
@@ -7107,6 +7208,35 @@
               "array": [
                 "u8",
                 38
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "ProtectedMakerModeConfig",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "maxUsers",
+            "type": "u32"
+          },
+          {
+            "name": "currentUsers",
+            "type": "u32"
+          },
+          {
+            "name": "reduceOnly",
+            "type": "u8"
+          },
+          {
+            "name": "padding",
+            "type": {
+              "array": [
+                "u8",
+                31
               ]
             }
           }
@@ -9026,9 +9156,7 @@
           {
             "name": "policy",
             "type": {
-              "option": {
-                "defined": "ModifyOrderPolicy"
-              }
+              "option": "u8"
             }
           }
         ]
@@ -11075,10 +11203,10 @@
         "kind": "enum",
         "variants": [
           {
-            "name": "TryModify"
+            "name": "MustModify"
           },
           {
-            "name": "MustModify"
+            "name": "ExcludePreviousFill"
           }
         ]
       }
@@ -11394,6 +11522,9 @@
           },
           {
             "name": "AdvancedLp"
+          },
+          {
+            "name": "ProtectedMakerOrders"
           }
         ]
       }
@@ -14153,6 +14284,11 @@
       "code": 6302,
       "name": "InvalidPoolId",
       "msg": "Invalid pool id"
+    },
+    {
+      "code": 6303,
+      "name": "InvalidProtectedMakerModeConfig",
+      "msg": "Invalid Protected Maker Mode Config"
     }
   ],
   "metadata": {
