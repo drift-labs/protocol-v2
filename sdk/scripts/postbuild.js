@@ -34,7 +34,7 @@ environments.forEach((environment) => {
 			fs.writeFileSync(isomorphPath, content);
 		} catch (error) {
 			console.error(
-				`Error processing isomophic package : ${package} :: ${error.message}`
+				`Error processing isomorphic package : ${package} :: ${error.message}`
 			);
 		}
 
