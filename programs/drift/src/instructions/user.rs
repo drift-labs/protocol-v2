@@ -2222,11 +2222,6 @@ pub fn handle_update_user_pool_id<'c: 'info, 'info>(
     _sub_account_id: u16,
     pool_id: u8,
 ) -> Result<()> {
-    #[cfg(all(feature = "mainnet-beta", not(feature = "anchor-test")))]
-    {
-        panic!("pools disabled on mainnet-beta");
-    }
-
     let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
     let AccountMaps {
         perp_market_map,
