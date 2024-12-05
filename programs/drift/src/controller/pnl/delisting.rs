@@ -1337,7 +1337,7 @@ pub mod delisting_test {
         create_anchor_account_info!(spot_market, SpotMarket, spot_market_account_info);
         let mut sol_market = SpotMarket {
             market_index: 1,
-            oracle_source: OracleSource::Pyth,
+            oracle_source: OracleSource::PythPull,
             oracle: oracle_price_key,
             cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
             cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
@@ -1761,7 +1761,7 @@ pub mod delisting_test {
         create_anchor_account_info!(spot_market, SpotMarket, spot_market_account_info);
         let mut sol_market = SpotMarket {
             market_index: 1,
-            oracle_source: OracleSource::Pyth,
+            oracle_source: OracleSource::PythPull,
             oracle: oracle_price_key,
             cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
             cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
@@ -2145,7 +2145,7 @@ pub mod delisting_test {
         create_anchor_account_info!(spot_market, SpotMarket, spot_market_account_info);
         let mut sol_market = SpotMarket {
             market_index: 1,
-            oracle_source: OracleSource::Pyth,
+            oracle_source: OracleSource::PythPull,
             oracle: oracle_price_key,
             cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
             cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,

@@ -786,7 +786,7 @@ pub mod liquidate_perp {
         );
 
         let oracle_price = oracle_map
-            .get_price_data(&(oracle_price_key, OracleSource::Pyth))
+            .get_price_data(&(oracle_price_key, OracleSource::PythPull))
             .unwrap()
             .price;
 
@@ -2391,7 +2391,7 @@ pub mod liquidate_perp {
         );
 
         let oracle_price = oracle_map
-            .get_price_data(&(oracle_price_key, OracleSource::Pyth))
+            .get_price_data(&(oracle_price_key, OracleSource::PythPull))
             .unwrap()
             .price;
 
@@ -3284,7 +3284,7 @@ pub mod liquidate_spot {
         create_anchor_account_info!(usdc_market, SpotMarket, usdc_spot_market_account_info);
         let mut sol_market = SpotMarket {
             market_index: 1,
-            oracle_source: OracleSource::Pyth,
+            oracle_source: OracleSource::PythPull,
             oracle: sol_oracle_price_key,
             cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
             cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
@@ -3427,7 +3427,7 @@ pub mod liquidate_spot {
         create_anchor_account_info!(usdc_market, SpotMarket, usdc_spot_market_account_info);
         let mut sol_market = SpotMarket {
             market_index: 1,
-            oracle_source: OracleSource::Pyth,
+            oracle_source: OracleSource::PythPull,
             oracle: sol_oracle_price_key,
             cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
             cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
@@ -3601,7 +3601,7 @@ pub mod liquidate_spot {
         create_anchor_account_info!(usdc_market, SpotMarket, usdc_spot_market_account_info);
         let mut sol_market = SpotMarket {
             market_index: 1,
-            oracle_source: OracleSource::Pyth,
+            oracle_source: OracleSource::PythPull,
             oracle: sol_oracle_price_key,
             cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
             cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
@@ -3717,7 +3717,7 @@ pub mod liquidate_spot {
         )
         .unwrap();
         let oracle_price_data = oracle_map
-            .get_price_data(&(sol_oracle_price_key, OracleSource::Pyth))
+            .get_price_data(&(sol_oracle_price_key, OracleSource::PythPull))
             .unwrap();
         let token_value =
             get_token_value(token_amount as i128, 6, oracle_price_data.price).unwrap();
@@ -3820,7 +3820,7 @@ pub mod liquidate_spot {
         create_anchor_account_info!(usdc_market, SpotMarket, usdc_spot_market_account_info);
         let mut sol_market = SpotMarket {
             market_index: 1,
-            oracle_source: OracleSource::Pyth,
+            oracle_source: OracleSource::PythPull,
             oracle: sol_oracle_price_key,
             cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
             cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
@@ -3947,7 +3947,7 @@ pub mod liquidate_spot {
         create_anchor_account_info!(usdc_market, SpotMarket, usdc_spot_market_account_info);
         let mut sol_market = SpotMarket {
             market_index: 1,
-            oracle_source: OracleSource::Pyth,
+            oracle_source: OracleSource::PythPull,
             oracle: sol_oracle_price_key,
             cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
             cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
@@ -4074,7 +4074,7 @@ pub mod liquidate_spot {
         create_anchor_account_info!(usdc_market, SpotMarket, usdc_spot_market_account_info);
         let mut sol_market = SpotMarket {
             market_index: 1,
-            oracle_source: OracleSource::Pyth,
+            oracle_source: OracleSource::PythPull,
             oracle: sol_oracle_price_key,
             cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
             cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
@@ -4206,7 +4206,7 @@ pub mod liquidate_spot {
         create_anchor_account_info!(usdc_market, SpotMarket, usdc_spot_market_account_info);
         let mut sol_market = SpotMarket {
             market_index: 1,
-            oracle_source: OracleSource::Pyth,
+            oracle_source: OracleSource::PythPull,
             oracle: sol_oracle_price_key,
             cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
             cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
@@ -4436,7 +4436,7 @@ pub mod liquidate_spot {
         create_anchor_account_info!(usdc_market, SpotMarket, usdc_spot_market_account_info);
         let mut sol_market = SpotMarket {
             market_index: 1,
-            oracle_source: OracleSource::Pyth,
+            oracle_source: OracleSource::PythPull,
             oracle: sol_oracle_price_key,
             cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
             cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
@@ -4668,7 +4668,7 @@ pub mod liquidate_borrow_for_perp_pnl {
         create_anchor_account_info!(usdc_market, SpotMarket, usdc_spot_market_account_info);
         let mut sol_market = SpotMarket {
             market_index: 1,
-            oracle_source: OracleSource::Pyth,
+            oracle_source: OracleSource::PythPull,
             oracle: sol_oracle_price_key,
             cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
             cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
@@ -4823,7 +4823,7 @@ pub mod liquidate_borrow_for_perp_pnl {
         create_anchor_account_info!(usdc_market, SpotMarket, usdc_spot_market_account_info);
         let mut sol_market = SpotMarket {
             market_index: 1,
-            oracle_source: OracleSource::Pyth,
+            oracle_source: OracleSource::PythPull,
             oracle: sol_oracle_price_key,
             cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
             cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
@@ -4929,7 +4929,7 @@ pub mod liquidate_borrow_for_perp_pnl {
         )
         .unwrap();
         let oracle_price_data = oracle_map
-            .get_price_data(&(sol_oracle_price_key, OracleSource::Pyth))
+            .get_price_data(&(sol_oracle_price_key, OracleSource::PythPull))
             .unwrap();
         let token_value =
             get_token_value(token_amount as i128, 6, oracle_price_data.price).unwrap();
@@ -5022,7 +5022,7 @@ pub mod liquidate_borrow_for_perp_pnl {
         create_anchor_account_info!(usdc_market, SpotMarket, usdc_spot_market_account_info);
         let mut sol_market = SpotMarket {
             market_index: 1,
-            oracle_source: OracleSource::Pyth,
+            oracle_source: OracleSource::PythPull,
             oracle: sol_oracle_price_key,
             cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
             cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
@@ -5177,7 +5177,7 @@ pub mod liquidate_borrow_for_perp_pnl {
         create_anchor_account_info!(usdc_market, SpotMarket, usdc_spot_market_account_info);
         let mut sol_market = SpotMarket {
             market_index: 1,
-            oracle_source: OracleSource::Pyth,
+            oracle_source: OracleSource::PythPull,
             oracle: sol_oracle_price_key,
             cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
             cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
@@ -5324,7 +5324,7 @@ pub mod liquidate_borrow_for_perp_pnl {
         create_anchor_account_info!(usdc_market, SpotMarket, usdc_spot_market_account_info);
         let mut sol_market = SpotMarket {
             market_index: 1,
-            oracle_source: OracleSource::Pyth,
+            oracle_source: OracleSource::PythPull,
             oracle: sol_oracle_price_key,
             cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
             cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
@@ -5471,7 +5471,7 @@ pub mod liquidate_borrow_for_perp_pnl {
         create_anchor_account_info!(usdc_market, SpotMarket, usdc_spot_market_account_info);
         let mut sol_market = SpotMarket {
             market_index: 1,
-            oracle_source: OracleSource::Pyth,
+            oracle_source: OracleSource::PythPull,
             oracle: sol_oracle_price_key,
             cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
             cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
@@ -5628,7 +5628,7 @@ pub mod liquidate_borrow_for_perp_pnl {
         create_anchor_account_info!(usdc_market, SpotMarket, usdc_spot_market_account_info);
         let mut sol_market = SpotMarket {
             market_index: 1,
-            oracle_source: OracleSource::Pyth,
+            oracle_source: OracleSource::PythPull,
             oracle: sol_oracle_price_key,
             cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
             cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
@@ -5902,7 +5902,7 @@ pub mod liquidate_perp_pnl_for_deposit {
         create_anchor_account_info!(usdc_market, SpotMarket, usdc_spot_market_account_info);
         let mut sol_market = SpotMarket {
             market_index: 1,
-            oracle_source: OracleSource::Pyth,
+            oracle_source: OracleSource::PythPull,
             oracle: sol_oracle_price_key,
             cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
             cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
@@ -6058,7 +6058,7 @@ pub mod liquidate_perp_pnl_for_deposit {
         create_anchor_account_info!(usdc_market, SpotMarket, usdc_spot_market_account_info);
         let mut sol_market = SpotMarket {
             market_index: 1,
-            oracle_source: OracleSource::Pyth,
+            oracle_source: OracleSource::PythPull,
             oracle: sol_oracle_price_key,
             cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
             cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
@@ -6216,7 +6216,7 @@ pub mod liquidate_perp_pnl_for_deposit {
         create_anchor_account_info!(usdc_market, SpotMarket, usdc_spot_market_account_info);
         let mut sol_market = SpotMarket {
             market_index: 1,
-            oracle_source: OracleSource::Pyth,
+            oracle_source: OracleSource::PythPull,
             oracle: sol_oracle_price_key,
             cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
             cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
@@ -6371,7 +6371,7 @@ pub mod liquidate_perp_pnl_for_deposit {
         create_anchor_account_info!(usdc_market, SpotMarket, usdc_spot_market_account_info);
         let mut sol_market = SpotMarket {
             market_index: 1,
-            oracle_source: OracleSource::Pyth,
+            oracle_source: OracleSource::PythPull,
             oracle: sol_oracle_price_key,
             cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
             cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
@@ -6518,7 +6518,7 @@ pub mod liquidate_perp_pnl_for_deposit {
         create_anchor_account_info!(usdc_market, SpotMarket, usdc_spot_market_account_info);
         let mut sol_market = SpotMarket {
             market_index: 1,
-            oracle_source: OracleSource::Pyth,
+            oracle_source: OracleSource::PythPull,
             oracle: sol_oracle_price_key,
             cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
             cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
@@ -6666,7 +6666,7 @@ pub mod liquidate_perp_pnl_for_deposit {
         create_anchor_account_info!(usdc_market, SpotMarket, usdc_spot_market_account_info);
         let mut sol_market = SpotMarket {
             market_index: 1,
-            oracle_source: OracleSource::Pyth,
+            oracle_source: OracleSource::PythPull,
             oracle: sol_oracle_price_key,
             cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
             cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
@@ -6822,7 +6822,7 @@ pub mod liquidate_perp_pnl_for_deposit {
         create_anchor_account_info!(usdc_market, SpotMarket, usdc_spot_market_account_info);
         let mut sol_market = SpotMarket {
             market_index: 1,
-            oracle_source: OracleSource::Pyth,
+            oracle_source: OracleSource::PythPull,
             oracle: sol_oracle_price_key,
             cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
             cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
@@ -7066,7 +7066,7 @@ pub mod liquidate_perp_pnl_for_deposit {
         create_anchor_account_info!(usdc_market, SpotMarket, usdc_spot_market_account_info);
         let mut sol_market = SpotMarket {
             market_index: 1,
-            oracle_source: OracleSource::Pyth,
+            oracle_source: OracleSource::PythPull,
             oracle: sol_oracle_price_key,
             cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
             cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
@@ -7334,7 +7334,7 @@ pub mod liquidate_perp_pnl_for_deposit {
         create_anchor_account_info!(usdc_market, SpotMarket, usdc_spot_market_account_info);
         let mut sol_market = SpotMarket {
             market_index: 1,
-            oracle_source: OracleSource::Pyth,
+            oracle_source: OracleSource::PythPull,
             oracle: sol_oracle_price_key,
             cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
             cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,

@@ -1758,7 +1758,7 @@ pub mod fulfill_order_with_maker_order {
             .get_price_data_and_validity(
                 MarketType::Perp,
                 market.market_index,
-                &(oracle_price_key, OracleSource::Pyth),
+                &(oracle_price_key, OracleSource::PythPull),
                 market.amm.historical_oracle_data.last_oracle_price_twap,
                 market.get_max_confidence_interval_multiplier().unwrap(),
             )
@@ -1911,7 +1911,7 @@ pub mod fulfill_order_with_maker_order {
             .get_limit_price(
                 Some(
                     oracle_map
-                        .get_price_data(&(oracle_price_key, OracleSource::Pyth))
+                        .get_price_data(&(oracle_price_key, OracleSource::PythPull))
                         .unwrap()
                         .price,
                 ),
@@ -2066,7 +2066,7 @@ pub mod fulfill_order_with_maker_order {
 
         let valid_oracle_price = Some(
             oracle_map
-                .get_price_data(&(oracle_price_key, OracleSource::Pyth))
+                .get_price_data(&(oracle_price_key, OracleSource::PythPull))
                 .unwrap()
                 .price,
         );
@@ -2208,7 +2208,7 @@ pub mod fulfill_order_with_maker_order {
             .get_limit_price(
                 Some(
                     oracle_map
-                        .get_price_data(&(oracle_price_key, OracleSource::Pyth))
+                        .get_price_data(&(oracle_price_key, OracleSource::PythPull))
                         .unwrap()
                         .price,
                 ),

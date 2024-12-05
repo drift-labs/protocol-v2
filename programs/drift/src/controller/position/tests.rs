@@ -2158,7 +2158,8 @@ fn recenter_amm_2() {
     let mut oracle_price = get_hardcoded_pyth_price(1_120_000, 6);
     let oracle_price_key =
         Pubkey::from_str("3Qub3HaAJaa2xNY7SUqPKd3vVwTqDfDDkEUMPjXD2c1q").unwrap();
-    let pyth_pull_program = crate::ids::drift_oracle_receiver_program::id();    let mut data = get_account_bytes(&mut oracle_price);
+    let pyth_pull_program = crate::ids::drift_oracle_receiver_program::id();
+    let mut data = get_account_bytes(&mut oracle_price);
     let mut lamports2 = 0;
 
     let oracle_account_info = create_account_info(
@@ -2189,7 +2190,7 @@ fn recenter_amm_2() {
     assert_eq!(perp_market.amm.base_asset_reserve, 307161425106214);
 
     let oracle_price_data = oracle_map
-        .get_price_data(&(oracle_price_key, OracleSource::Pyth))
+        .get_price_data(&(oracle_price_key, OracleSource::PythPull))
         .unwrap();
 
     let state = State::default();
@@ -2286,7 +2287,8 @@ fn test_move_amm() {
     let mut oracle_price = get_hardcoded_pyth_price(1_120_000, 6);
     let oracle_price_key =
         Pubkey::from_str("3Qub3HaAJaa2xNY7SUqPKd3vVwTqDfDDkEUMPjXD2c1q").unwrap();
-    let pyth_pull_program = crate::ids::drift_oracle_receiver_program::id();    let mut data = get_account_bytes(&mut oracle_price);
+    let pyth_pull_program = crate::ids::drift_oracle_receiver_program::id();
+    let mut data = get_account_bytes(&mut oracle_price);
     let mut lamports2 = 0;
 
     let oracle_account_info = create_account_info(
@@ -2317,7 +2319,7 @@ fn test_move_amm() {
     assert_eq!(perp_market.amm.base_asset_reserve, 307161425106214);
 
     let oracle_price_data = oracle_map
-        .get_price_data(&(oracle_price_key, OracleSource::Pyth))
+        .get_price_data(&(oracle_price_key, OracleSource::PythPull))
         .unwrap();
 
     let state = State::default();

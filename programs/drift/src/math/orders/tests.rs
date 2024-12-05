@@ -1086,7 +1086,8 @@ mod calculate_max_spot_order_size {
         let mut sol_oracle_price = get_pyth_price(100, 6);
         let sol_oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
-        let pyth_pull_program = crate::ids::drift_oracle_receiver_program::id();        create_account_info!(
+        let pyth_pull_program = crate::ids::drift_oracle_receiver_program::id();
+        create_account_info!(
             sol_oracle_price,
             &sol_oracle_price_key,
             &pyth_pull_program,
@@ -1111,7 +1112,7 @@ mod calculate_max_spot_order_size {
         create_anchor_account_info!(usdc_spot_market, SpotMarket, usdc_spot_market_account_info);
         let mut sol_spot_market = SpotMarket {
             market_index: 1,
-            oracle_source: OracleSource::Pyth,
+            oracle_source: OracleSource::PythPull,
             oracle: sol_oracle_price_key,
             cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
             cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
@@ -1192,7 +1193,8 @@ mod calculate_max_spot_order_size {
         let mut sol_oracle_price = get_pyth_price(100, 6);
         let sol_oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
-        let pyth_pull_program = crate::ids::drift_oracle_receiver_program::id();        create_account_info!(
+        let pyth_pull_program = crate::ids::drift_oracle_receiver_program::id();
+        create_account_info!(
             sol_oracle_price,
             &sol_oracle_price_key,
             &pyth_pull_program,
@@ -1217,7 +1219,7 @@ mod calculate_max_spot_order_size {
         create_anchor_account_info!(usdc_spot_market, SpotMarket, usdc_spot_market_account_info);
         let mut sol_spot_market = SpotMarket {
             market_index: 1,
-            oracle_source: OracleSource::Pyth,
+            oracle_source: OracleSource::PythPull,
             oracle: sol_oracle_price_key,
             cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
             cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
@@ -1299,7 +1301,8 @@ mod calculate_max_spot_order_size {
         let mut sol_oracle_price = get_pyth_price(100, 6);
         let sol_oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
-        let pyth_pull_program = crate::ids::drift_oracle_receiver_program::id();        create_account_info!(
+        let pyth_pull_program = crate::ids::drift_oracle_receiver_program::id();
+        create_account_info!(
             sol_oracle_price,
             &sol_oracle_price_key,
             &pyth_pull_program,
@@ -1324,7 +1327,7 @@ mod calculate_max_spot_order_size {
         create_anchor_account_info!(usdc_spot_market, SpotMarket, usdc_spot_market_account_info);
         let mut sol_spot_market = SpotMarket {
             market_index: 1,
-            oracle_source: OracleSource::Pyth,
+            oracle_source: OracleSource::PythPull,
             oracle: sol_oracle_price_key,
             cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
             cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
@@ -1405,7 +1408,8 @@ mod calculate_max_spot_order_size {
         let mut sol_oracle_price = get_pyth_price(100, 6);
         let sol_oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
-        let pyth_pull_program = crate::ids::drift_oracle_receiver_program::id();        create_account_info!(
+        let pyth_pull_program = crate::ids::drift_oracle_receiver_program::id();
+        create_account_info!(
             sol_oracle_price,
             &sol_oracle_price_key,
             &pyth_pull_program,
@@ -1430,7 +1434,7 @@ mod calculate_max_spot_order_size {
         create_anchor_account_info!(usdc_spot_market, SpotMarket, usdc_spot_market_account_info);
         let mut sol_spot_market = SpotMarket {
             market_index: 1,
-            oracle_source: OracleSource::Pyth,
+            oracle_source: OracleSource::PythPull,
             oracle: sol_oracle_price_key,
             cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
             cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
@@ -1494,7 +1498,8 @@ mod calculate_max_spot_order_size {
         let mut sol_oracle_price = get_pyth_price(100, 6);
         let sol_oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
-        let pyth_pull_program = crate::ids::drift_oracle_receiver_program::id();        create_account_info!(
+        let pyth_pull_program = crate::ids::drift_oracle_receiver_program::id();
+        create_account_info!(
             sol_oracle_price,
             &sol_oracle_price_key,
             &pyth_pull_program,
@@ -1519,7 +1524,7 @@ mod calculate_max_spot_order_size {
         create_anchor_account_info!(usdc_spot_market, SpotMarket, usdc_spot_market_account_info);
         let mut sol_spot_market = SpotMarket {
             market_index: 1,
-            oracle_source: OracleSource::Pyth,
+            oracle_source: OracleSource::PythPull,
             oracle: sol_oracle_price_key,
             cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
             cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
@@ -1601,7 +1606,8 @@ mod calculate_max_spot_order_size {
         let mut sol_oracle_price = get_pyth_price(100, 6);
         let sol_oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
-        let pyth_pull_program = crate::ids::drift_oracle_receiver_program::id();        create_account_info!(
+        let pyth_pull_program = crate::ids::drift_oracle_receiver_program::id();
+        create_account_info!(
             sol_oracle_price,
             &sol_oracle_price_key,
             &pyth_pull_program,
@@ -1626,7 +1632,7 @@ mod calculate_max_spot_order_size {
         create_anchor_account_info!(usdc_spot_market, SpotMarket, usdc_spot_market_account_info);
         let mut sol_spot_market = SpotMarket {
             market_index: 1,
-            oracle_source: OracleSource::Pyth,
+            oracle_source: OracleSource::PythPull,
             oracle: sol_oracle_price_key,
             cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
             cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
@@ -1708,7 +1714,8 @@ mod calculate_max_spot_order_size {
         let mut sol_oracle_price = get_pyth_price(100, 6);
         let sol_oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
-        let pyth_pull_program = crate::ids::drift_oracle_receiver_program::id();        create_account_info!(
+        let pyth_pull_program = crate::ids::drift_oracle_receiver_program::id();
+        create_account_info!(
             sol_oracle_price,
             &sol_oracle_price_key,
             &pyth_pull_program,
@@ -1733,7 +1740,7 @@ mod calculate_max_spot_order_size {
         create_anchor_account_info!(usdc_spot_market, SpotMarket, usdc_spot_market_account_info);
         let mut sol_spot_market = SpotMarket {
             market_index: 1,
-            oracle_source: OracleSource::Pyth,
+            oracle_source: OracleSource::PythPull,
             oracle: sol_oracle_price_key,
             cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
             cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
@@ -1815,7 +1822,8 @@ mod calculate_max_spot_order_size {
         let mut sol_oracle_price = get_pyth_price(100, 6);
         let sol_oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
-        let pyth_pull_program = crate::ids::drift_oracle_receiver_program::id();        create_account_info!(
+        let pyth_pull_program = crate::ids::drift_oracle_receiver_program::id();
+        create_account_info!(
             sol_oracle_price,
             &sol_oracle_price_key,
             &pyth_pull_program,
@@ -1840,7 +1848,7 @@ mod calculate_max_spot_order_size {
         create_anchor_account_info!(usdc_spot_market, SpotMarket, usdc_spot_market_account_info);
         let mut sol_spot_market = SpotMarket {
             market_index: 1,
-            oracle_source: OracleSource::Pyth,
+            oracle_source: OracleSource::PythPull,
             oracle: sol_oracle_price_key,
             cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
             cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
@@ -1957,7 +1965,8 @@ mod calculate_max_perp_order_size {
         let mut oracle_price = get_pyth_price(100, 6);
         let oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
-        let pyth_pull_program = crate::ids::drift_oracle_receiver_program::id();        create_account_info!(
+        let pyth_pull_program = crate::ids::drift_oracle_receiver_program::id();
+        create_account_info!(
             oracle_price,
             &oracle_price_key,
             &pyth_pull_program,
@@ -2078,7 +2087,8 @@ mod calculate_max_perp_order_size {
         let mut oracle_price = get_pyth_price(100, 6);
         let oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
-        let pyth_pull_program = crate::ids::drift_oracle_receiver_program::id();        create_account_info!(
+        let pyth_pull_program = crate::ids::drift_oracle_receiver_program::id();
+        create_account_info!(
             oracle_price,
             &oracle_price_key,
             &pyth_pull_program,
@@ -2182,7 +2192,8 @@ mod calculate_max_perp_order_size {
         let mut oracle_price = get_pyth_price(100, 6);
         let oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
-        let pyth_pull_program = crate::ids::drift_oracle_receiver_program::id();        create_account_info!(
+        let pyth_pull_program = crate::ids::drift_oracle_receiver_program::id();
+        create_account_info!(
             oracle_price,
             &oracle_price_key,
             &pyth_pull_program,
@@ -2303,7 +2314,8 @@ mod calculate_max_perp_order_size {
         let mut oracle_price = get_pyth_price(100, 6);
         let oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
-        let pyth_pull_program = crate::ids::drift_oracle_receiver_program::id();        create_account_info!(
+        let pyth_pull_program = crate::ids::drift_oracle_receiver_program::id();
+        create_account_info!(
             oracle_price,
             &oracle_price_key,
             &pyth_pull_program,
@@ -2407,7 +2419,8 @@ mod calculate_max_perp_order_size {
         let mut oracle_price = get_pyth_price(100, 6);
         let oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
-        let pyth_pull_program = crate::ids::drift_oracle_receiver_program::id();        create_account_info!(
+        let pyth_pull_program = crate::ids::drift_oracle_receiver_program::id();
+        create_account_info!(
             oracle_price,
             &oracle_price_key,
             &pyth_pull_program,
@@ -2529,7 +2542,8 @@ mod calculate_max_perp_order_size {
         let mut oracle_price = get_pyth_price(100, 6);
         let oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
-        let pyth_pull_program = crate::ids::drift_oracle_receiver_program::id();        create_account_info!(
+        let pyth_pull_program = crate::ids::drift_oracle_receiver_program::id();
+        create_account_info!(
             oracle_price,
             &oracle_price_key,
             &pyth_pull_program,
@@ -2651,7 +2665,8 @@ mod calculate_max_perp_order_size {
         let mut oracle_price = get_pyth_price(100, 6);
         let oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
-        let pyth_pull_program = crate::ids::drift_oracle_receiver_program::id();        create_account_info!(
+        let pyth_pull_program = crate::ids::drift_oracle_receiver_program::id();
+        create_account_info!(
             oracle_price,
             &oracle_price_key,
             &pyth_pull_program,
@@ -2773,7 +2788,8 @@ mod calculate_max_perp_order_size {
         let mut oracle_price = get_pyth_price(100, 6);
         let oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
-        let pyth_pull_program = crate::ids::drift_oracle_receiver_program::id();        create_account_info!(
+        let pyth_pull_program = crate::ids::drift_oracle_receiver_program::id();
+        create_account_info!(
             oracle_price,
             &oracle_price_key,
             &pyth_pull_program,

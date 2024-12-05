@@ -861,32 +861,17 @@ const parsePriceUpdateV2 = (data: Buffer) => {
 		}
 	})();
 
-	console.log({
-		writeAuthority: writeAuthority.toBase58(),
-		verificationLevel,
-		priceMessage: {
-			feedId: feedId.toString('hex'),
-			price,
-			conf,
-			exponent,
-			publishTime,
-			prevPublishTime,
-			emaPrice,
-			emaConf,
-		},
-		postedSlot,
-	});
 	return {
 		writeAuthority: writeAuthority.toBase58(),
 		verificationLevel,
 		priceMessage: {
 			feedId: feedId.toString('hex'),
-			price,
+			price: price * 10 ** exponent,
 			conf,
 			exponent,
 			publishTime,
 			prevPublishTime,
-			emaPrice,
+			emaPrice: emaPrice * 10 ** exponent,
 			emaConf,
 		},
 		postedSlot,

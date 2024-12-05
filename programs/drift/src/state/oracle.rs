@@ -112,7 +112,6 @@ impl HistoricalIndexData {
     AnchorSerialize, AnchorDeserialize, Clone, Copy, Eq, PartialEq, Debug, Default, Ord, PartialOrd,
 )]
 pub enum OracleSource {
-    #[default]
     Pyth,
     Switchboard,
     QuoteAsset,
@@ -120,6 +119,7 @@ pub enum OracleSource {
     Pyth1M,
     PythStableCoin,
     Prelaunch,
+    #[default]
     PythPull,
     Pyth1KPull,
     Pyth1MPull,

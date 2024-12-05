@@ -33,7 +33,6 @@ import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
 
 describe('oracle diff sources', () => {
 	const chProgram = anchor.workspace.Drift as Program;
-	console.log(Object.keys(anchor.workspace));
 
 	let admin: TestClient;
 	let eventSubscriber: EventSubscriber;
@@ -110,6 +109,7 @@ describe('oracle diff sources', () => {
 
 		await admin.initialize(usdcMint.publicKey, true);
 		await admin.subscribe();
+
 		await initializeQuoteSpotMarket(admin, usdcMint.publicKey);
 
 		await initializeSolSpotMarket(
@@ -119,12 +119,16 @@ describe('oracle diff sources', () => {
 			OracleSource.PYTH_PULL
 		);
 
+		console.log('made it here!');
+
 		await initializeSolSpotMarket(
 			admin,
 			solOracle,
 			undefined,
 			OracleSource.PYTH_1K_PULL
 		);
+
+		console.log('made it here!!');
 
 		const periodicity = new BN(0);
 		await admin.initializePerpMarket(

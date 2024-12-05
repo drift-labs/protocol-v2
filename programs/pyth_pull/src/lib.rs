@@ -1,6 +1,7 @@
 use std::cell::RefMut;
 
 use anchor_lang::prelude::*;
+use borsh::BorshSchema;
 use bytemuck::offset_of;
 use bytemuck::{cast_slice_mut, from_bytes_mut, try_cast_slice_mut};
 use bytemuck::{Pod, Zeroable};
@@ -15,6 +16,23 @@ pub mod pyth_pull {
         msg!(
             "PriceUpdateV2 size: {}",
             std::mem::size_of::<PriceUpdateV2>()
+        );
+
+        msg!(
+            "Offset of write_authority: {}",
+            offset_of!(PriceUpdateV2, write_authority)
+        );
+        msg!(
+            "Offset of verification_level: {}",
+            offset_of!(PriceUpdateV2, verification_level)
+        );
+        msg!(
+            "Offset of price_message: {}",
+            offset_of!(PriceUpdateV2, price_message)
+        );
+        msg!(
+            "Offset of posted_slot: {}",
+            offset_of!(PriceUpdateV2, posted_slot)
         );
 
         let price_update = &ctx.accounts.price_update;
@@ -60,7 +78,9 @@ pub mod pyth_pull {
     }
 }
 
-#[derive(Copy, Clone, Default)]
+#[derive(
+    AnchorSerialize, AnchorDeserialize, Copy, Clone, PartialEq, BorshSchema, Debug, Default,
+)]
 pub enum VerificationLevel {
     Partial {
         num_signatures: u8,
@@ -69,7 +89,7 @@ pub enum VerificationLevel {
     Full,
 }
 
-#[derive(Copy, Clone, Default)]
+#[derive(BorshSchema, Clone, Copy, Default, AnchorSerialize, AnchorDeserialize)]
 pub struct PriceUpdateV2 {
     pub write_authority: Pubkey,
     pub verification_level: VerificationLevel,
@@ -94,8 +114,10 @@ impl PriceUpdateV2 {
     }
 }
 
-#[derive(Copy, Clone, Default)]
 #[repr(C)]
+#[derive(
+    Debug, Copy, Clone, PartialEq, BorshSchema, Default, AnchorSerialize, AnchorDeserialize,
+)]
 pub struct PriceFeedMessage {
     pub feed_id: [u8; 32],
     pub price: i64,

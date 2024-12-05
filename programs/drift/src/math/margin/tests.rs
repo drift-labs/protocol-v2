@@ -579,7 +579,8 @@ mod calculate_margin_requirement_and_total_collateral {
         let mut sol_oracle_price = get_pyth_price(100, 6);
         let sol_oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
-        let pyth_pull_program = crate::ids::drift_oracle_receiver_program::id();        create_account_info!(
+        let pyth_pull_program = crate::ids::drift_oracle_receiver_program::id();
+        create_account_info!(
             sol_oracle_price,
             &sol_oracle_price_key,
             &pyth_pull_program,
@@ -604,7 +605,7 @@ mod calculate_margin_requirement_and_total_collateral {
         create_anchor_account_info!(usdc_spot_market, SpotMarket, usdc_spot_market_account_info);
         let mut sol_spot_market = SpotMarket {
             market_index: 1,
-            oracle_source: OracleSource::Pyth,
+            oracle_source: OracleSource::PythPull,
             oracle: sol_oracle_price_key,
             cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
             cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
@@ -669,7 +670,8 @@ mod calculate_margin_requirement_and_total_collateral {
         let mut sol_oracle_price = get_pyth_price(100, 6);
         let sol_oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
-        let pyth_pull_program = crate::ids::drift_oracle_receiver_program::id();        create_account_info!(
+        let pyth_pull_program = crate::ids::drift_oracle_receiver_program::id();
+        create_account_info!(
             sol_oracle_price,
             &sol_oracle_price_key,
             &pyth_pull_program,
@@ -694,7 +696,7 @@ mod calculate_margin_requirement_and_total_collateral {
         create_anchor_account_info!(usdc_spot_market, SpotMarket, usdc_spot_market_account_info);
         let mut sol_spot_market = SpotMarket {
             market_index: 1,
-            oracle_source: OracleSource::Pyth,
+            oracle_source: OracleSource::PythPull,
             oracle: sol_oracle_price_key,
             cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
             cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
@@ -759,7 +761,8 @@ mod calculate_margin_requirement_and_total_collateral {
         let mut sol_oracle_price = get_pyth_price(100, 6);
         let sol_oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
-        let pyth_pull_program = crate::ids::drift_oracle_receiver_program::id();        create_account_info!(
+        let pyth_pull_program = crate::ids::drift_oracle_receiver_program::id();
+        create_account_info!(
             sol_oracle_price,
             &sol_oracle_price_key,
             &pyth_pull_program,
@@ -786,7 +789,7 @@ mod calculate_margin_requirement_and_total_collateral {
         create_anchor_account_info!(usdc_spot_market, SpotMarket, usdc_spot_market_account_info);
         let mut sol_spot_market = SpotMarket {
             market_index: 1,
-            oracle_source: OracleSource::Pyth,
+            oracle_source: OracleSource::PythPull,
             oracle: sol_oracle_price_key,
             cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
             cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
@@ -852,7 +855,8 @@ mod calculate_margin_requirement_and_total_collateral {
         let mut sol_oracle_price = get_pyth_price(100, 6);
         let sol_oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
-        let pyth_pull_program = crate::ids::drift_oracle_receiver_program::id();        create_account_info!(
+        let pyth_pull_program = crate::ids::drift_oracle_receiver_program::id();
+        create_account_info!(
             sol_oracle_price,
             &sol_oracle_price_key,
             &pyth_pull_program,
@@ -897,7 +901,7 @@ mod calculate_margin_requirement_and_total_collateral {
         create_anchor_account_info!(usdc_spot_market, SpotMarket, usdc_spot_market_account_info);
         let mut sol_spot_market = SpotMarket {
             market_index: 1,
-            oracle_source: OracleSource::Pyth,
+            oracle_source: OracleSource::PythPull,
             oracle: sol_oracle_price_key,
             cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
             cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
@@ -1048,7 +1052,8 @@ mod calculate_margin_requirement_and_total_collateral {
         let mut sol_oracle_price = get_pyth_price(100, 6);
         let sol_oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
-        let pyth_pull_program = crate::ids::drift_oracle_receiver_program::id();        create_account_info!(
+        let pyth_pull_program = crate::ids::drift_oracle_receiver_program::id();
+        create_account_info!(
             sol_oracle_price,
             &sol_oracle_price_key,
             &pyth_pull_program,
@@ -1093,7 +1098,7 @@ mod calculate_margin_requirement_and_total_collateral {
         create_anchor_account_info!(usdc_spot_market, SpotMarket, usdc_spot_market_account_info);
         let mut sol_spot_market = SpotMarket {
             market_index: 1,
-            oracle_source: OracleSource::Pyth,
+            oracle_source: OracleSource::PythPull,
             oracle: sol_oracle_price_key,
             cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION / 99, // big loss
             cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
@@ -1170,7 +1175,8 @@ mod calculate_margin_requirement_and_total_collateral {
         let mut sol_oracle_price = get_pyth_price(100, 6);
         let sol_oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
-        let pyth_pull_program = crate::ids::drift_oracle_receiver_program::id();        create_account_info!(
+        let pyth_pull_program = crate::ids::drift_oracle_receiver_program::id();
+        create_account_info!(
             sol_oracle_price,
             &sol_oracle_price_key,
             &pyth_pull_program,
@@ -1215,7 +1221,7 @@ mod calculate_margin_requirement_and_total_collateral {
         create_anchor_account_info!(usdc_spot_market, SpotMarket, usdc_spot_market_account_info);
         let mut sol_spot_market = SpotMarket {
             market_index: 1,
-            oracle_source: OracleSource::Pyth,
+            oracle_source: OracleSource::PythPull,
             oracle: sol_oracle_price_key,
             cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
             cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
@@ -1289,7 +1295,8 @@ mod calculate_margin_requirement_and_total_collateral {
 
         let sol_oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
-        let pyth_pull_program = crate::ids::drift_oracle_receiver_program::id();        create_account_info!(
+        let pyth_pull_program = crate::ids::drift_oracle_receiver_program::id();
+        create_account_info!(
             sol_oracle_price,
             &sol_oracle_price_key,
             &pyth_pull_program,
@@ -1338,7 +1345,8 @@ mod calculate_margin_requirement_and_total_collateral {
         let mut sol_oracle_price = get_pyth_price(100, 6);
         let sol_oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
-        let pyth_pull_program = crate::ids::drift_oracle_receiver_program::id();        create_account_info!(
+        let pyth_pull_program = crate::ids::drift_oracle_receiver_program::id();
+        create_account_info!(
             sol_oracle_price,
             &sol_oracle_price_key,
             &pyth_pull_program,
@@ -1366,7 +1374,7 @@ mod calculate_margin_requirement_and_total_collateral {
         create_anchor_account_info!(usdc_spot_market, SpotMarket, usdc_spot_market_account_info);
         let mut sol_spot_market = SpotMarket {
             market_index: 1,
-            oracle_source: OracleSource::Pyth,
+            oracle_source: OracleSource::PythPull,
             oracle: sol_oracle_price_key,
             cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
             cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
@@ -1434,7 +1442,8 @@ mod calculate_margin_requirement_and_total_collateral {
         let mut sol_oracle_price = get_pyth_price(100, 6);
         let sol_oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
-        let pyth_pull_program = crate::ids::drift_oracle_receiver_program::id();        create_account_info!(
+        let pyth_pull_program = crate::ids::drift_oracle_receiver_program::id();
+        create_account_info!(
             sol_oracle_price,
             &sol_oracle_price_key,
             &pyth_pull_program,
@@ -1480,7 +1489,7 @@ mod calculate_margin_requirement_and_total_collateral {
         create_anchor_account_info!(usdc_spot_market, SpotMarket, usdc_spot_market_account_info);
         let mut sol_spot_market = SpotMarket {
             market_index: 1,
-            oracle_source: OracleSource::Pyth,
+            oracle_source: OracleSource::PythPull,
             oracle: sol_oracle_price_key,
             cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
             cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
@@ -1550,7 +1559,8 @@ mod calculate_margin_requirement_and_total_collateral {
         let mut sol_oracle_price = get_pyth_price(100, 6);
         let sol_oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
-        let pyth_pull_program = crate::ids::drift_oracle_receiver_program::id();        create_account_info!(
+        let pyth_pull_program = crate::ids::drift_oracle_receiver_program::id();
+        create_account_info!(
             sol_oracle_price,
             &sol_oracle_price_key,
             &pyth_pull_program,
@@ -1596,7 +1606,7 @@ mod calculate_margin_requirement_and_total_collateral {
         create_anchor_account_info!(usdc_spot_market, SpotMarket, usdc_spot_market_account_info);
         let mut sol_spot_market = SpotMarket {
             market_index: 1,
-            oracle_source: OracleSource::Pyth,
+            oracle_source: OracleSource::PythPull,
             oracle: sol_oracle_price_key,
             cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
             cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
@@ -1661,7 +1671,8 @@ mod calculate_margin_requirement_and_total_collateral {
         let mut sol_oracle_price = get_pyth_price(100, 6);
         let sol_oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
-        let pyth_pull_program = crate::ids::drift_oracle_receiver_program::id();        create_account_info!(
+        let pyth_pull_program = crate::ids::drift_oracle_receiver_program::id();
+        create_account_info!(
             sol_oracle_price,
             &sol_oracle_price_key,
             &pyth_pull_program,
@@ -1707,7 +1718,7 @@ mod calculate_margin_requirement_and_total_collateral {
         create_anchor_account_info!(usdc_spot_market, SpotMarket, usdc_spot_market_account_info);
         let mut sol_spot_market = SpotMarket {
             market_index: 1,
-            oracle_source: OracleSource::Pyth,
+            oracle_source: OracleSource::PythPull,
             oracle: sol_oracle_price_key,
             cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
             cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
@@ -1802,7 +1813,8 @@ mod calculate_margin_requirement_and_total_collateral_and_liability_info {
         let mut sol_oracle_price = get_pyth_price(100, 6);
         let sol_oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
-        let pyth_pull_program = crate::ids::drift_oracle_receiver_program::id();        create_account_info!(
+        let pyth_pull_program = crate::ids::drift_oracle_receiver_program::id();
+        create_account_info!(
             sol_oracle_price,
             &sol_oracle_price_key,
             &pyth_pull_program,
@@ -1847,7 +1859,7 @@ mod calculate_margin_requirement_and_total_collateral_and_liability_info {
         create_anchor_account_info!(usdc_spot_market, SpotMarket, usdc_spot_market_account_info);
         let mut sol_spot_market = SpotMarket {
             market_index: 1,
-            oracle_source: OracleSource::Pyth,
+            oracle_source: OracleSource::PythPull,
             oracle: sol_oracle_price_key,
             cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
             cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
@@ -1912,7 +1924,8 @@ mod calculate_margin_requirement_and_total_collateral_and_liability_info {
         let mut sol_oracle_price = get_pyth_price(100, 6);
         let sol_oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
-        let pyth_pull_program = crate::ids::drift_oracle_receiver_program::id();        create_account_info!(
+        let pyth_pull_program = crate::ids::drift_oracle_receiver_program::id();
+        create_account_info!(
             sol_oracle_price,
             &sol_oracle_price_key,
             &pyth_pull_program,
@@ -1958,7 +1971,7 @@ mod calculate_margin_requirement_and_total_collateral_and_liability_info {
         create_anchor_account_info!(usdc_spot_market, SpotMarket, usdc_spot_market_account_info);
         let mut sol_spot_market = SpotMarket {
             market_index: 1,
-            oracle_source: OracleSource::Pyth,
+            oracle_source: OracleSource::PythPull,
             oracle: sol_oracle_price_key,
             cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
             cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
@@ -2068,7 +2081,8 @@ mod calculate_margin_requirement_and_total_collateral_and_liability_info {
         let mut sol_oracle_price = get_pyth_price(100, 6);
         let sol_oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
-        let pyth_pull_program = crate::ids::drift_oracle_receiver_program::id();        create_account_info!(
+        let pyth_pull_program = crate::ids::drift_oracle_receiver_program::id();
+        create_account_info!(
             sol_oracle_price,
             &sol_oracle_price_key,
             &pyth_pull_program,
@@ -2113,7 +2127,7 @@ mod calculate_margin_requirement_and_total_collateral_and_liability_info {
         create_anchor_account_info!(usdc_spot_market, SpotMarket, usdc_spot_market_account_info);
         let mut sol_spot_market = SpotMarket {
             market_index: 1,
-            oracle_source: OracleSource::Pyth,
+            oracle_source: OracleSource::PythPull,
             oracle: sol_oracle_price_key,
             cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
             cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
@@ -2177,7 +2191,8 @@ mod calculate_margin_requirement_and_total_collateral_and_liability_info {
         let mut sol_oracle_price = get_pyth_price(100, 6);
         let sol_oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
-        let pyth_pull_program = crate::ids::drift_oracle_receiver_program::id();        create_account_info!(
+        let pyth_pull_program = crate::ids::drift_oracle_receiver_program::id();
+        create_account_info!(
             sol_oracle_price,
             &sol_oracle_price_key,
             &pyth_pull_program,
@@ -2187,7 +2202,8 @@ mod calculate_margin_requirement_and_total_collateral_and_liability_info {
         let mut usdc_oracle_price = get_hardcoded_pyth_price(99 * 10000, 6); // $.99
         let usdc_oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
-        let pyth_pull_program = crate::ids::drift_oracle_receiver_program::id();        create_account_info!(
+        let pyth_pull_program = crate::ids::drift_oracle_receiver_program::id();
+        create_account_info!(
             usdc_oracle_price,
             &usdc_oracle_price_key,
             &pyth_pull_program,
@@ -2201,7 +2217,7 @@ mod calculate_margin_requirement_and_total_collateral_and_liability_info {
 
         let mut usdc_spot_market = SpotMarket {
             market_index: 0,
-            oracle_source: OracleSource::PythStableCoin,
+            oracle_source: OracleSource::PythStableCoinPull,
             cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
             decimals: 6,
             initial_asset_weight: SPOT_WEIGHT_PRECISION,
@@ -2215,7 +2231,7 @@ mod calculate_margin_requirement_and_total_collateral_and_liability_info {
         create_anchor_account_info!(usdc_spot_market, SpotMarket, usdc_spot_market_account_info);
         let mut sol_spot_market = SpotMarket {
             market_index: 1,
-            oracle_source: OracleSource::Pyth,
+            oracle_source: OracleSource::PythPull,
             oracle: usdc_oracle_price_key,
             cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
             cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
@@ -2326,7 +2342,8 @@ mod calculate_margin_requirement_and_total_collateral_and_liability_info {
         let mut sol_oracle_price = get_pyth_price(100, 6);
         let sol_oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
-        let pyth_pull_program = crate::ids::drift_oracle_receiver_program::id();        create_account_info!(
+        let pyth_pull_program = crate::ids::drift_oracle_receiver_program::id();
+        create_account_info!(
             sol_oracle_price,
             &sol_oracle_price_key,
             &pyth_pull_program,
@@ -2336,7 +2353,8 @@ mod calculate_margin_requirement_and_total_collateral_and_liability_info {
         let mut usdc_oracle_price = get_hardcoded_pyth_price(101 * 10000, 6); // $1.01
         let usdc_oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
-        let pyth_pull_program = crate::ids::drift_oracle_receiver_program::id();        create_account_info!(
+        let pyth_pull_program = crate::ids::drift_oracle_receiver_program::id();
+        create_account_info!(
             usdc_oracle_price,
             &usdc_oracle_price_key,
             &pyth_pull_program,
@@ -2350,7 +2368,7 @@ mod calculate_margin_requirement_and_total_collateral_and_liability_info {
 
         let mut usdc_spot_market = SpotMarket {
             market_index: 0,
-            oracle_source: OracleSource::PythStableCoin,
+            oracle_source: OracleSource::PythStableCoinPull,
             cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
             cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
             decimals: 6,
@@ -2366,7 +2384,7 @@ mod calculate_margin_requirement_and_total_collateral_and_liability_info {
         create_anchor_account_info!(usdc_spot_market, SpotMarket, usdc_spot_market_account_info);
         let mut sol_spot_market = SpotMarket {
             market_index: 1,
-            oracle_source: OracleSource::Pyth,
+            oracle_source: OracleSource::PythPull,
             oracle: usdc_oracle_price_key,
             cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
             cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
@@ -2471,7 +2489,8 @@ mod calculate_margin_requirement_and_total_collateral_and_liability_info {
         let mut sol_oracle_price = get_pyth_price(100, 6);
         let sol_oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
-        let pyth_pull_program = crate::ids::drift_oracle_receiver_program::id();        create_account_info!(
+        let pyth_pull_program = crate::ids::drift_oracle_receiver_program::id();
+        create_account_info!(
             sol_oracle_price,
             &sol_oracle_price_key,
             &pyth_pull_program,
@@ -2482,7 +2501,8 @@ mod calculate_margin_requirement_and_total_collateral_and_liability_info {
         let mut usdc_oracle_price = get_hardcoded_pyth_price(usdc_price, 6);
         let usdc_oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkiF").unwrap();
-        let pyth_pull_program = crate::ids::drift_oracle_receiver_program::id();        create_account_info!(
+        let pyth_pull_program = crate::ids::drift_oracle_receiver_program::id();
+        create_account_info!(
             usdc_oracle_price,
             &usdc_oracle_price_key,
             &pyth_pull_program,
@@ -2494,7 +2514,7 @@ mod calculate_margin_requirement_and_total_collateral_and_liability_info {
 
         let mut usdc_spot_market = SpotMarket {
             market_index: 0,
-            oracle_source: OracleSource::PythStableCoin,
+            oracle_source: OracleSource::PythStableCoinPull,
             cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
             decimals: 6,
             initial_asset_weight: SPOT_WEIGHT_PRECISION,
@@ -2508,7 +2528,7 @@ mod calculate_margin_requirement_and_total_collateral_and_liability_info {
         create_anchor_account_info!(usdc_spot_market, SpotMarket, usdc_spot_market_account_info);
         let mut sol_spot_market = SpotMarket {
             market_index: 1,
-            oracle_source: OracleSource::Pyth,
+            oracle_source: OracleSource::PythPull,
             oracle: usdc_oracle_price_key,
             cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
             cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
@@ -2662,7 +2682,8 @@ mod calculate_max_withdrawable_amount {
         let mut sol_oracle_price = get_pyth_price(100, 6);
         let sol_oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
-        let pyth_pull_program = crate::ids::drift_oracle_receiver_program::id();        create_account_info!(
+        let pyth_pull_program = crate::ids::drift_oracle_receiver_program::id();
+        create_account_info!(
             sol_oracle_price,
             &sol_oracle_price_key,
             &pyth_pull_program,
@@ -2687,7 +2708,7 @@ mod calculate_max_withdrawable_amount {
         create_anchor_account_info!(usdc_spot_market, SpotMarket, usdc_spot_market_account_info);
         let mut sol_spot_market = SpotMarket {
             market_index: 1,
-            oracle_source: OracleSource::Pyth,
+            oracle_source: OracleSource::PythPull,
             oracle: sol_oracle_price_key,
             cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
             cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
@@ -2747,7 +2768,8 @@ mod calculate_max_withdrawable_amount {
         let mut sol_oracle_price = get_pyth_price(100, 6);
         let sol_oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
-        let pyth_pull_program = crate::ids::drift_oracle_receiver_program::id();        create_account_info!(
+        let pyth_pull_program = crate::ids::drift_oracle_receiver_program::id();
+        create_account_info!(
             sol_oracle_price,
             &sol_oracle_price_key,
             &pyth_pull_program,
@@ -2775,7 +2797,7 @@ mod calculate_max_withdrawable_amount {
         create_anchor_account_info!(usdc_spot_market, SpotMarket, usdc_spot_market_account_info);
         let mut sol_spot_market = SpotMarket {
             market_index: 1,
-            oracle_source: OracleSource::Pyth,
+            oracle_source: OracleSource::PythPull,
             oracle: sol_oracle_price_key,
             cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
             cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
@@ -2834,7 +2856,8 @@ mod calculate_max_withdrawable_amount {
         let mut sol_oracle_price = get_pyth_price(100, 6);
         let sol_oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
-        let pyth_pull_program = crate::ids::drift_oracle_receiver_program::id();        create_account_info!(
+        let pyth_pull_program = crate::ids::drift_oracle_receiver_program::id();
+        create_account_info!(
             sol_oracle_price,
             &sol_oracle_price_key,
             &pyth_pull_program,
@@ -2862,7 +2885,7 @@ mod calculate_max_withdrawable_amount {
         create_anchor_account_info!(usdc_spot_market, SpotMarket, usdc_spot_market_account_info);
         let mut sol_spot_market = SpotMarket {
             market_index: 1,
-            oracle_source: OracleSource::Pyth,
+            oracle_source: OracleSource::PythPull,
             oracle: sol_oracle_price_key,
             cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
             cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
@@ -2949,7 +2972,8 @@ mod validate_spot_margin_trading {
         let mut sol_oracle_price = get_pyth_price(100, 6);
         let sol_oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
-        let pyth_pull_program = crate::ids::drift_oracle_receiver_program::id();        create_account_info!(
+        let pyth_pull_program = crate::ids::drift_oracle_receiver_program::id();
+        create_account_info!(
             sol_oracle_price,
             &sol_oracle_price_key,
             &pyth_pull_program,
@@ -2973,7 +2997,7 @@ mod validate_spot_margin_trading {
         create_anchor_account_info!(usdc_spot_market, SpotMarket, usdc_spot_market_account_info);
         let mut sol_spot_market = SpotMarket {
             market_index: 1,
-            oracle_source: OracleSource::Pyth,
+            oracle_source: OracleSource::PythPull,
             oracle: sol_oracle_price_key,
             cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
             cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
@@ -3031,7 +3055,8 @@ mod validate_spot_margin_trading {
         let mut sol_oracle_price = get_pyth_price(100, 6);
         let sol_oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
-        let pyth_pull_program = crate::ids::drift_oracle_receiver_program::id();        create_account_info!(
+        let pyth_pull_program = crate::ids::drift_oracle_receiver_program::id();
+        create_account_info!(
             sol_oracle_price,
             &sol_oracle_price_key,
             &pyth_pull_program,
@@ -3055,7 +3080,7 @@ mod validate_spot_margin_trading {
         create_anchor_account_info!(usdc_spot_market, SpotMarket, usdc_spot_market_account_info);
         let mut sol_spot_market = SpotMarket {
             market_index: 1,
-            oracle_source: OracleSource::Pyth,
+            oracle_source: OracleSource::PythPull,
             oracle: sol_oracle_price_key,
             cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
             cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
@@ -3113,7 +3138,8 @@ mod validate_spot_margin_trading {
         let mut sol_oracle_price = get_pyth_price(100, 6);
         let sol_oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
-        let pyth_pull_program = crate::ids::drift_oracle_receiver_program::id();        create_account_info!(
+        let pyth_pull_program = crate::ids::drift_oracle_receiver_program::id();
+        create_account_info!(
             sol_oracle_price,
             &sol_oracle_price_key,
             &pyth_pull_program,
@@ -3137,7 +3163,7 @@ mod validate_spot_margin_trading {
         create_anchor_account_info!(usdc_spot_market, SpotMarket, usdc_spot_market_account_info);
         let mut sol_spot_market = SpotMarket {
             market_index: 1,
-            oracle_source: OracleSource::Pyth,
+            oracle_source: OracleSource::PythPull,
             oracle: sol_oracle_price_key,
             cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
             cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
@@ -3195,7 +3221,8 @@ mod validate_spot_margin_trading {
         let mut sol_oracle_price = get_pyth_price(100, 6);
         let sol_oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
-        let pyth_pull_program = crate::ids::drift_oracle_receiver_program::id();        create_account_info!(
+        let pyth_pull_program = crate::ids::drift_oracle_receiver_program::id();
+        create_account_info!(
             sol_oracle_price,
             &sol_oracle_price_key,
             &pyth_pull_program,
@@ -3219,7 +3246,7 @@ mod validate_spot_margin_trading {
         create_anchor_account_info!(usdc_spot_market, SpotMarket, usdc_spot_market_account_info);
         let mut sol_spot_market = SpotMarket {
             market_index: 1,
-            oracle_source: OracleSource::Pyth,
+            oracle_source: OracleSource::PythPull,
             oracle: sol_oracle_price_key,
             cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
             cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
@@ -3277,7 +3304,8 @@ mod validate_spot_margin_trading {
         let mut sol_oracle_price = get_pyth_price(100, 6);
         let sol_oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
-        let pyth_pull_program = crate::ids::drift_oracle_receiver_program::id();        create_account_info!(
+        let pyth_pull_program = crate::ids::drift_oracle_receiver_program::id();
+        create_account_info!(
             sol_oracle_price,
             &sol_oracle_price_key,
             &pyth_pull_program,
@@ -3301,7 +3329,7 @@ mod validate_spot_margin_trading {
         create_anchor_account_info!(usdc_spot_market, SpotMarket, usdc_spot_market_account_info);
         let mut sol_spot_market = SpotMarket {
             market_index: 1,
-            oracle_source: OracleSource::Pyth,
+            oracle_source: OracleSource::PythPull,
             oracle: sol_oracle_price_key,
             cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
             cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
@@ -3359,7 +3387,8 @@ mod validate_spot_margin_trading {
         let mut sol_oracle_price = get_pyth_price(100, 6);
         let sol_oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
-        let pyth_pull_program = crate::ids::drift_oracle_receiver_program::id();        create_account_info!(
+        let pyth_pull_program = crate::ids::drift_oracle_receiver_program::id();
+        create_account_info!(
             sol_oracle_price,
             &sol_oracle_price_key,
             &pyth_pull_program,
@@ -3383,7 +3412,7 @@ mod validate_spot_margin_trading {
         create_anchor_account_info!(usdc_spot_market, SpotMarket, usdc_spot_market_account_info);
         let mut sol_spot_market = SpotMarket {
             market_index: 1,
-            oracle_source: OracleSource::Pyth,
+            oracle_source: OracleSource::PythPull,
             oracle: sol_oracle_price_key,
             cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
             cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
@@ -3441,7 +3470,8 @@ mod validate_spot_margin_trading {
         let mut sol_oracle_price = get_pyth_price(100, 6);
         let sol_oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
-        let pyth_pull_program = crate::ids::drift_oracle_receiver_program::id();        create_account_info!(
+        let pyth_pull_program = crate::ids::drift_oracle_receiver_program::id();
+        create_account_info!(
             sol_oracle_price,
             &sol_oracle_price_key,
             &pyth_pull_program,
@@ -3487,7 +3517,7 @@ mod validate_spot_margin_trading {
         create_anchor_account_info!(usdc_spot_market, SpotMarket, usdc_spot_market_account_info);
         let mut sol_spot_market = SpotMarket {
             market_index: 1,
-            oracle_source: OracleSource::Pyth,
+            oracle_source: OracleSource::PythPull,
             oracle: sol_oracle_price_key,
             cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
             cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
@@ -3587,7 +3617,8 @@ mod calculate_user_equity {
         let mut oracle_price = get_pyth_price(100, 6);
         let oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
-        let pyth_pull_program = crate::ids::drift_oracle_receiver_program::id();        create_account_info!(
+        let pyth_pull_program = crate::ids::drift_oracle_receiver_program::id();
+        create_account_info!(
             oracle_price,
             &oracle_price_key,
             &pyth_pull_program,
@@ -3684,7 +3715,8 @@ mod calculate_user_equity {
         let mut oracle_price = get_pyth_price(100, 6);
         let oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
-        let pyth_pull_program = crate::ids::drift_oracle_receiver_program::id();        create_account_info!(
+        let pyth_pull_program = crate::ids::drift_oracle_receiver_program::id();
+        create_account_info!(
             oracle_price,
             &oracle_price_key,
             &pyth_pull_program,
@@ -3781,7 +3813,8 @@ mod calculate_user_equity {
         let mut sol_oracle_price = get_pyth_price(100, 6);
         let sol_oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
-        let pyth_pull_program = crate::ids::drift_oracle_receiver_program::id();        create_account_info!(
+        let pyth_pull_program = crate::ids::drift_oracle_receiver_program::id();
+        create_account_info!(
             sol_oracle_price,
             &sol_oracle_price_key,
             &pyth_pull_program,
@@ -3806,7 +3839,7 @@ mod calculate_user_equity {
         create_anchor_account_info!(usdc_spot_market, SpotMarket, usdc_spot_market_account_info);
         let mut sol_spot_market = SpotMarket {
             market_index: 1,
-            oracle_source: OracleSource::Pyth,
+            oracle_source: OracleSource::PythPull,
             oracle: sol_oracle_price_key,
             cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
             cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
@@ -4032,7 +4065,8 @@ mod pools {
         let mut sol_oracle_price = get_pyth_price(100, 6);
         let sol_oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
-        let pyth_pull_program = crate::ids::drift_oracle_receiver_program::id();        create_account_info!(
+        let pyth_pull_program = crate::ids::drift_oracle_receiver_program::id();
+        create_account_info!(
             sol_oracle_price,
             &sol_oracle_price_key,
             &pyth_pull_program,
@@ -4090,7 +4124,8 @@ mod pools {
         let mut sol_oracle_price = get_pyth_price(100, 6);
         let sol_oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
-        let pyth_pull_program = crate::ids::drift_oracle_receiver_program::id();        create_account_info!(
+        let pyth_pull_program = crate::ids::drift_oracle_receiver_program::id();
+        create_account_info!(
             sol_oracle_price,
             &sol_oracle_price_key,
             &pyth_pull_program,
