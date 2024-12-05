@@ -3174,30 +3174,40 @@ pub fn handle_begin_swap<'c: 'info, 'info>(
                 )?;
             }
         } else {
-            let mut whitelisted_programs = vec![
-                serum_program::id(),
-                AssociatedToken::id(),
-                jupiter_mainnet_3::ID,
-                jupiter_mainnet_4::ID,
-                jupiter_mainnet_6::ID,
-            ];
-            if !delegate_is_signer {
-                whitelisted_programs.push(Token::id());
-                whitelisted_programs.push(Token2022::id());
-                whitelisted_programs.push(marinade_mainnet::ID);
-            }
-            validate!(
-                whitelisted_programs.contains(&ix.program_id),
-                ErrorCode::InvalidSwap,
-                "only allowed to pass in ixs to token, openbook, and Jupiter v3/v4/v6 programs"
-            )?;
-
-            for meta in ix.accounts.iter() {
+            if found_end {
+                for meta in ix.accounts.iter() {
+                    validate!(
+                        meta.is_writable == false,
+                        ErrorCode::InvalidSwap,
+                        "instructions after swap end must not have writable accounts"
+                    )?;
+                }
+            } else {  
+                let mut whitelisted_programs = vec![
+                    serum_program::id(),
+                    AssociatedToken::id(),
+                    jupiter_mainnet_3::ID,
+                    jupiter_mainnet_4::ID,
+                    jupiter_mainnet_6::ID,
+                ];
+                if !delegate_is_signer {
+                    whitelisted_programs.push(Token::id());
+                    whitelisted_programs.push(Token2022::id());
+                    whitelisted_programs.push(marinade_mainnet::ID);
+                }
                 validate!(
-                    meta.pubkey != crate::id(),
+                    whitelisted_programs.contains(&ix.program_id),
                     ErrorCode::InvalidSwap,
-                    "instructions between begin and end must not be drift instructions"
+                    "only allowed to pass in ixs to token, openbook, and Jupiter v3/v4/v6 programs"
                 )?;
+
+                for meta in ix.accounts.iter() {
+                    validate!(
+                        meta.pubkey != crate::id(),
+                        ErrorCode::InvalidSwap,
+                        "instructions between begin and end must not be drift instructions"
+                    )?;
+                }
             }
         }
 
