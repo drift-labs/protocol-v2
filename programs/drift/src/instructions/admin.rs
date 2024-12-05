@@ -4879,6 +4879,7 @@ pub struct UpdateHighLeverageModeConfig<'info> {
 #[derive(Accounts)]
 pub struct InitializeProtectedMakerModeConfig<'info> {
     #[account(
+        mut,
         constraint = admin.key() == admin_hot_wallet::id() || admin.key() == state.admin
     )]
     pub admin: Signer<'info>,
