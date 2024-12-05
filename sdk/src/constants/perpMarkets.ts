@@ -1040,6 +1040,30 @@ export const MainnetPerpMarkets: PerpMarketConfig[] = [
 		launchTs: 1732721897000,
 		oracleSource: OracleSource.Prelaunch,
 	},
+	{
+		fullName: 'Hyperliquid',
+		category: ['DEX'],
+		symbol: 'HYPE-PERP',
+		baseAssetSymbol: 'HYPE',
+		marketIndex: 59,
+		oracle: new PublicKey('Hn9JHQHKSvtnZ2xTWCgRGVNmav2TPffH7T72T6WoJ1cw'),
+		launchTs: 1733374800000,
+		oracleSource: OracleSource.PYTH_PULL,
+		pythFeedId:
+			'0x4279e31cc369bbcc2faf022b382b080e32a8e689ff20fbc530d2a603eb6cd98b',
+	},
+	{
+		fullName: 'LiteCoin',
+		category: ['Payment'],
+		symbol: 'LTC-PERP',
+		baseAssetSymbol: 'LTC',
+		marketIndex: 60,
+		oracle: new PublicKey('AmjHowvVkVJApCPUiwV9CdHVFn29LiBYZQqtZQ3xMqdg'),
+		launchTs: 1733374800000,
+		oracleSource: OracleSource.PYTH_PULL,
+		pythFeedId:
+			'0x6e3f3fa8253588df9326580180233eb791e03b443a3ba7a1d892e73874e19a54',
+	},
 ];
 
 export const PerpMarkets: { [key in DriftEnv]: PerpMarketConfig[] } = {
