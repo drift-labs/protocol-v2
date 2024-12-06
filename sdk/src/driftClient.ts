@@ -4166,7 +4166,7 @@ export class DriftClient {
 	public async fillSpotOrder(
 		userAccountPublicKey: PublicKey,
 		user: UserAccount,
-		order?: Order,
+		order?: Pick<Order, 'marketIndex' | 'orderId'>,
 		fulfillmentConfig?:
 			| SerumV3FulfillmentConfigAccount
 			| PhoenixV1FulfillmentConfigAccount
@@ -4196,7 +4196,7 @@ export class DriftClient {
 	public async getFillSpotOrderIx(
 		userAccountPublicKey: PublicKey,
 		userAccount: UserAccount,
-		order?: Order,
+		order?: Pick<Order, 'marketIndex' | 'orderId'>,
 		fulfillmentConfig?:
 			| SerumV3FulfillmentConfigAccount
 			| PhoenixV1FulfillmentConfigAccount
