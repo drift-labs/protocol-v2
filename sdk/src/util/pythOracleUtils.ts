@@ -74,7 +74,6 @@ export function createMinimalEd25519VerifyIx(
 	messageOffset: number,
 	customInstructionData: Uint8Array
 ): TransactionInstruction {
-	// Calculate the offsets as per the verify_message logic
 	const signatureOffset = messageOffset + MAGIC_LEN;
 	const publicKeyOffset = signatureOffset + SIGNATURE_LEN;
 	const messageDataSizeOffset = publicKeyOffset + PUBKEY_LEN;
