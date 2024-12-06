@@ -424,7 +424,7 @@ impl PerpMarket {
         self,
         oracle_price_twap: i64,
     ) -> DriftResult<i64> {
-        // clamp to to 3% price divergence for safer markets and higher for lower contract tiers
+        // clamp to 3% price divergence for safer markets and higher for lower contract tiers
         if self.contract_tier.is_as_safe_as_contract(&ContractTier::B) {
             oracle_price_twap.safe_div(33) // 3%
         } else if self.contract_tier.is_as_safe_as_contract(&ContractTier::C) {
