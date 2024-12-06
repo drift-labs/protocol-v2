@@ -13,6 +13,7 @@
 	"scripts": {
 		"lint": "eslint './**/*.{ts,tsx}' --quiet",
 		"build": "yarn clean && tsc -p tsconfig.json && tsc -p tsconfig.browser.json && node scripts/postbuild.js",
+		"build:browser": "yarn clean && tsc -p tsconfig.json && tsc -p tsconfig.browser.json && node scripts/postbuild.js --force-env browser",
 		"clean": "rm -rf lib",
 		"test": "mocha -r ts-node/register tests/**/*.ts",
 		"test:inspect": "mocha --inspect-brk -r ts-node/register tests/**/*.ts",
@@ -55,6 +56,7 @@
 		"strict-event-emitter-types": "^2.0.0",
 		"tweetnacl": "1.0.3",
 		"uuid": "^8.3.2",
+		"yargs": "^17.7.2",
 		"zstddec": "^0.1.0"
 	},
 	"devDependencies": {
