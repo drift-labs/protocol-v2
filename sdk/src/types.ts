@@ -131,6 +131,7 @@ export class OracleSource {
 	static readonly PYTH_STABLE_COIN_PULL = { pythStableCoinPull: {} };
 	static readonly Prelaunch = { prelaunch: {} };
 	static readonly SWITCHBOARD_ON_DEMAND = { switchboardOnDemand: {} };
+	static readonly PYTH_LAZER = { pythLazer: {} };
 }
 
 export class OracleSourceNum {
@@ -146,6 +147,7 @@ export class OracleSourceNum {
 	static readonly PYTH_STABLE_COIN_PULL = 9;
 	static readonly PRELAUNCH = 10;
 	static readonly SWITCHBOARD_ON_DEMAND = 11;
+	static readonly PYTH_LAZER = 12;
 }
 
 export class OrderType {

@@ -47,6 +47,11 @@ export const DRIFT_ORACLE_RECEIVER_ID =
 export const SWIFT_ID = 'SW1fThqrxLzVprnCMpiybiqYQfoNCdduC5uWsSUKChS';
 export const ANCHOR_TEST_SWIFT_ID =
 	'DpaEdAPW3ZX67fnczT14AoX12Lx9VMkxvtT81nCHy3Nv';
+export const PTYH_LAZER_PROGRAM_ID =
+	'pytd2yyk641x7ak7mkaasSJVXh6YYZnC7wTmtgAyxPt';
+export const PYTH_LAZER_STORAGE_ACCOUNT_KEY = new PublicKey(
+	'3rdJbqfnagQ4yx9HXJViD4zc4xpiSqmFsKpPuSCQVyQL'
+);
 
 export const DEFAULT_CONFIRMATION_OPTS: ConfirmOptions = {
 	preflightCommitment: 'confirmed',

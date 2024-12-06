@@ -63,5 +63,9 @@ export function getOracleClient(
 		return new SwitchboardOnDemandClient(connection);
 	}
 
+	if (isVariant(oracleSource, 'pythLazer')) {
+		return new SwitchboardOnDemandClient(connection);
+	}
+
 	throw new Error(`Unknown oracle source ${oracleSource}`);
 }
