@@ -115,8 +115,6 @@ describe('BigNum Tests', () => {
 		expect(val4.toNum().toFixed(3)).to.equal('0.025');
 		expect(val4.toPrecision(4)).to.equal('0.025');
 	
-
-		// TEST CASE TO FIX 001 :: THE OUTPUT IS 0.000 :: BECAUSE TO_PRECISION IS INCLUDING THE LEADING ZEROES AS PRECISION WHEN IT SHOULD TREAT THEM THE SAME AS SCIENTIFIC "SIGNIFICANT FIGURES".
 		expect(bnBaseAmount(
 			0.001234
 		).toPrecision(4)).to.equal('0.001234');
