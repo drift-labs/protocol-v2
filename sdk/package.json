@@ -13,6 +13,7 @@
 	"scripts": {
 		"lint": "eslint './**/*.{ts,tsx}' --quiet",
 		"build": "yarn clean && tsc -p tsconfig.json && tsc -p tsconfig.browser.json && node scripts/postbuild.js",
+		"build:browser": "yarn clean && tsc -p tsconfig.json && tsc -p tsconfig.browser.json && node scripts/post-browser-build.js",
 		"clean": "rm -rf lib",
 		"test": "mocha -r ts-node/register tests/**/*.ts",
 		"test:inspect": "mocha --inspect-brk -r ts-node/register tests/**/*.ts",
