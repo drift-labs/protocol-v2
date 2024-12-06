@@ -6468,7 +6468,42 @@
       "args": [
         {
           "name": "feedId",
-          "type": "u8"
+          "type": "u32"
+        }
+      ]
+    },
+    {
+      "name": "postPythLazerOracleUpdate",
+      "accounts": [
+        {
+          "name": "keeper",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "pythLazerStorage",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "ixSysvar",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "pythLazerOracle",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "feedId",
+          "type": "u32"
+        },
+        {
+          "name": "pythMessage",
+          "type": "bytes"
         }
       ]
     },
@@ -7301,10 +7336,6 @@
             "type": "i32"
           },
           {
-            "name": "conf",
-            "type": "u64"
-          },
-          {
             "name": "padding",
             "type": {
               "array": [
@@ -7312,6 +7343,10 @@
                 4
               ]
             }
+          },
+          {
+            "name": "conf",
+            "type": "u64"
           }
         ]
       }

@@ -1,18 +1,17 @@
 import * as anchor from '@coral-xyz/anchor';
 import { Program } from '@coral-xyz/anchor';
 import {
-	BulkAccountLoader,
 	OracleSource,
 	PTYH_LAZER_PROGRAM_ID,
+	PYTH_LAZER_STORAGE_ACCOUNT_KEY,
 	TestClient,
 	getPythLazerOraclePublicKey,
 } from '../sdk/src';
+import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
+import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
+import { startAnchor } from 'solana-bankrun';
 import { AccountInfo, LAMPORTS_PER_SOL, PublicKey } from '@solana/web3.js';
-import {
-	initializeQuoteSpotMarket,
-	mockUSDCMint,
-} from './testHelpersLocalValidator';
-import { Wallet, loadKeypair } from '../sdk/src';
+import { initializeQuoteSpotMarket, mockUSDCMint } from './testHelpers';
 
 const PYTH_STORAGE_DATA =
 	'0XX/ucSvRAkL/td28gTUmmjn6CkzKyvYXJOMcup4pEKu3cXcP7cvDAH2UhC+5Pz1sc7h5Tf6vP2VAQKXZTuUrwTUVPxHPpSDT+g2BnoAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==';
@@ -28,49 +27,63 @@ const PYTH_STORAGE_ACCOUNT_INFO: AccountInfo<Buffer> = {
 	data: Buffer.from(PYTH_STORAGE_DATA, 'base64'),
 };
 
-describe('pyth lazer oracles', () => {
-	const provider = anchor.AnchorProvider.local(undefined, {
-		commitment: 'confirmed',
-		preflightCommitment: 'confirmed',
-	});
-	const connection = provider.connection;
-	anchor.setProvider(provider);
+describe('pyth pull oracles', () => {
 	const chProgram = anchor.workspace.Drift as Program;
 
 	let driftClient: TestClient;
 
-	const bulkAccountLoader = new BulkAccountLoader(connection, 'confirmed', 0);
+	let bulkAccountLoader: TestBulkAccountLoader;
 
+	let bankrunContextWrapper: BankrunContextWrapper;
 	let usdcMint;
+
 	const feedId = 0;
-	let solUsd: PublicKey;
+
+	let feedAddress: PublicKey;
 
 	before(async () => {
 		// use bankrun builtin function to start solana program test
-
-		await provider.connection.requestAirdrop(
-			provider.wallet.publicKey,
-			10 ** 9
+		const context = await startAnchor(
+			'',
+			[],
+			[
+				{
+					address: PYTH_LAZER_STORAGE_ACCOUNT_KEY,
+					info: PYTH_STORAGE_ACCOUNT_INFO,
+				},
+			]
 		);
-		usdcMint = await mockUSDCMint(provider);
-		solUsd = getPythLazerOraclePublicKey(chProgram.programId, feedId);
 
-		const marketIndexes = [0];
-		const spotMarketIndexes = [0, 1];
-		const oracleInfos = [{ publicKey: solUsd, source: OracleSource.PYTH }];
+		// wrap the context to use it with the test helpers
+		bankrunContextWrapper = new BankrunContextWrapper(context);
+
+		// don't use regular bulk account loader, use test
+		bulkAccountLoader = new TestBulkAccountLoader(
+			bankrunContextWrapper.connection,
+			'processed',
+			1
+		);
+
+		usdcMint = await mockUSDCMint(bankrunContextWrapper);
+		feedAddress = getPythLazerOraclePublicKey(chProgram.programId, feedId);
 
 		driftClient = new TestClient({
-			connection,
-			//@ts-ignore
-			wallet: new Wallet(loadKeypair(process.env.ANCHOR_WALLET)),
+			connection: bankrunContextWrapper.connection.toConnection(),
+			wallet: bankrunContextWrapper.provider.wallet,
 			programID: chProgram.programId,
 			opts: {
 				commitment: 'confirmed',
 			},
 			activeSubAccountId: 0,
-			perpMarketIndexes: marketIndexes,
-			spotMarketIndexes: spotMarketIndexes,
-			oracleInfos,
+			perpMarketIndexes: [],
+			spotMarketIndexes: [0],
+			subAccountIds: [],
+			oracleInfos: [
+				{
+					publicKey: feedAddress,
+					source: OracleSource.PYTH_LAZER,
+				},
+			],
 			accountSubscription: {
 				type: 'polling',
 				accountLoader: bulkAccountLoader,

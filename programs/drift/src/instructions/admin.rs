@@ -4143,7 +4143,7 @@ pub fn handle_initialize_pyth_pull_oracle(
     Ok(())
 }
 
-pub fn handle_initialize_pyth_lazer_oracle(ctx: Context<InitPythLazerOracle>, feed_id: u8) -> Result<()> {
+pub fn handle_initialize_pyth_lazer_oracle(ctx: Context<InitPythLazerOracle>, feed_id: u32) -> Result<()> {
     let pubkey = ctx.accounts.lazer_oracle.to_account_info().key;
     msg!("Lazer price feed initted {} with feed_id {}", pubkey, feed_id);
     Ok(())
@@ -4860,7 +4860,7 @@ pub struct InitPythPullPriceFeed<'info> {
 }
 
 #[derive(Accounts)]
-#[instruction(feed_id: u8)]
+#[instruction(feed_id: u32)]
 pub struct InitPythLazerOracle<'info> {
     #[account(
         mut,

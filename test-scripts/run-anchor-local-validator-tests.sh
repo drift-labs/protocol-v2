@@ -6,7 +6,8 @@ fi
 export ANCHOR_WALLET=~/.config/solana/id.json
 
 test_files=(
-  placeAndMakeSwiftPerp.ts
+  #placeAndMakeSwiftPerp.ts,
+  pythLazer.ts
 )
 
 

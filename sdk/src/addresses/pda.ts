@@ -323,13 +323,14 @@ export function getPythLazerOraclePublicKey(
 	progarmId: PublicKey,
 	feedId: number
 ): PublicKey {
-	if (feedId < 0 || feedId > 255) {
-		throw new RangeError('Value out of range for u8');
-	}
+	const buffer = new ArrayBuffer(4);
+	const view = new DataView(buffer);
+	view.setUint32(0, feedId, true); // true for little-endian
+	const feedIdBytes = new Uint8Array(buffer);
 	return PublicKey.findProgramAddressSync(
 		[
 			Buffer.from(anchor.utils.bytes.utf8.encode('pyth_lazer')),
-			Buffer.from([feedId]),
+			Buffer.from(feedIdBytes),
 		],
 		progarmId
 	)[0];

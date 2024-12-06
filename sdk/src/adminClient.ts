@@ -50,7 +50,7 @@ import { calculateTargetPriceTrade } from './math/trade';
 import { calculateAmmReservesAfterSwap, getSwapDirection } from './math/amm';
 import { PROGRAM_ID as PHOENIX_PROGRAM_ID } from '@ellipsis-labs/phoenix-sdk';
 import { DRIFT_ORACLE_RECEIVER_ID } from './config';
-import { getFeedIdUint8Array } from './util/pythPullOracleUtils';
+import { getFeedIdUint8Array } from './util/pythOracleUtils';
 
 const OPENBOOK_PROGRAM_ID = new PublicKey(
 	'opnb2LAfJYbRMAHHvqjCwQxanZn7ReEHp1k81EohpZb'

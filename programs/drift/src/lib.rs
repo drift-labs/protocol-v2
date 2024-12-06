@@ -1556,9 +1556,17 @@ pub mod drift {
 
     pub fn initialize_pyth_lazer_oracle(
         ctx: Context<InitPythLazerOracle>,
-        feed_id: u8,
+        feed_id: u32,
     ) -> Result<()> {
         handle_initialize_pyth_lazer_oracle(ctx, feed_id)
+    }
+
+    pub fn post_pyth_lazer_oracle_update(
+        ctx: Context<UpdatePythLazerOracle>,
+        feed_id: u32,
+        pyth_message: Vec<u8>,
+    ) -> Result<()> {
+        handle_update_pyth_lazer_oracle(ctx, feed_id, pyth_message)
     }
 
     pub fn initialize_high_leverage_mode_config(
