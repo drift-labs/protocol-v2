@@ -22,6 +22,7 @@ import {
 import {
 	Commitment,
 	Connection,
+	MemcmpFilter,
 	PublicKey,
 	RpcResponseAndContext,
 } from '@solana/web3.js';
@@ -74,6 +75,7 @@ export class UserMap implements UserMapInterface {
 	private connection: Connection;
 	private commitment: Commitment;
 	private includeIdle: boolean;
+	private additionalFilters?: MemcmpFilter[];
 	private disableSyncOnTotalAccountsChange: boolean;
 	private lastNumberOfSubAccounts: BN;
 	private subscription:
@@ -112,6 +114,7 @@ export class UserMap implements UserMapInterface {
 				  this.driftClient.opts.commitment
 				: this.driftClient.opts.commitment;
 		this.includeIdle = config.includeIdle ?? false;
+		this.additionalFilters = config.additionalFilters;
 		this.disableSyncOnTotalAccountsChange =
 			config.disableSyncOnTotalAccountsChange ?? false;
 
@@ -395,7 +398,9 @@ export class UserMap implements UserMapInterface {
 			if (!this.includeIdle) {
 				filters.push(getNonIdleUserFilter());
 			}
-
+			if (this.additionalFilters) {
+				filters.push(...this.additionalFilters);
+			}
 			const rpcRequestArgs = [
 				this.driftClient.program.programId.toBase58(),
 				{

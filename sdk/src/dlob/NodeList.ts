@@ -187,5 +187,6 @@ export function* getVammNodeGenerator(
 		isUserProtectedMaker: false,
 		isBaseFilled: () => false,
 		haveFilled: false,
+		isSwift: false,
 	};
 }
