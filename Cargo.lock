@@ -873,7 +873,7 @@ dependencies = [
 
 [[package]]
 name = "drift"
-version = "2.101.0"
+version = "2.103.0"
 dependencies = [
  "ahash 0.8.6",
  "anchor-lang",
@@ -886,6 +886,7 @@ dependencies = [
  "bytes",
  "drift-macros",
  "enumflags2",
+ "hex",
  "num-derive 0.3.3",
  "num-integer",
  "num-traits",

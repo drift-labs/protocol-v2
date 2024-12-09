@@ -14,7 +14,7 @@ use crate::controller::orders::{cancel_orders, ModifyOrderId};
 use crate::controller::position::PositionDirection;
 use crate::controller::spot_balance::update_revenue_pool_balances;
 use crate::controller::spot_position::{
-    charge_withdraw_fee, update_spot_balances_and_cumulative_deposits,
+    update_spot_balances_and_cumulative_deposits,
     update_spot_balances_and_cumulative_deposits_with_limits,
 };
 use crate::error::ErrorCode;
@@ -28,6 +28,7 @@ use crate::instructions::optional_accounts::{
 use crate::instructions::SpotFulfillmentType;
 use crate::math::casting::Cast;
 use crate::math::liquidation::is_user_being_liquidated;
+use crate::math::margin::meets_initial_margin_requirement;
 use crate::math::margin::{
     calculate_max_withdrawable_amount, meets_maintenance_margin_requirement,
     meets_place_order_margin_requirement, meets_withdraw_margin_requirement,
@@ -62,6 +63,7 @@ use crate::state::paused_operations::{PerpOperation, SpotOperation};
 use crate::state::perp_market::ContractType;
 use crate::state::perp_market::MarketStatus;
 use crate::state::perp_market_map::{get_writable_perp_market_set, MarketSet};
+use crate::state::protected_maker_mode_config::ProtectedMakerModeConfig;
 use crate::state::rfq_user::{load_rfq_user_account_map, RFQUser, RFQ_PDA_SEED};
 use crate::state::spot_fulfillment_params::SpotFulfillmentParams;
 use crate::state::spot_market::SpotBalanceType;
@@ -355,7 +357,15 @@ pub fn handle_deposit<'c: 'info, 'info>(
     validate!(!user.is_bankrupt(), ErrorCode::UserBankrupt)?;
 
     let mut spot_market = spot_market_map.get_ref_mut(&market_index)?;
-    let oracle_price_data = &oracle_map.get_price_data(&spot_market.oracle)?.clone();
+    let oracle_price_data = *oracle_map.get_price_data(&spot_market.oracle_id())?;
+
+    validate!(
+        user.pool_id == spot_market.pool_id,
+        ErrorCode::InvalidPoolId,
+        "user pool id ({}) != market pool id ({})",
+        user.pool_id,
+        spot_market.pool_id
+    )?;
 
     validate!(
         !matches!(spot_market.status, MarketStatus::Initialized),
@@ -365,7 +375,7 @@ pub fn handle_deposit<'c: 'info, 'info>(
 
     controller::spot_balance::update_spot_market_cumulative_interest(
         &mut spot_market,
-        Some(oracle_price_data),
+        Some(&oracle_price_data),
         now,
     )?;
 
@@ -523,7 +533,7 @@ pub fn handle_withdraw<'c: 'info, 'info>(
 
     let spot_market_is_reduce_only = {
         let spot_market = &mut spot_market_map.get_ref_mut(&market_index)?;
-        let oracle_price_data = oracle_map.get_price_data(&spot_market.oracle)?;
+        let oracle_price_data = oracle_map.get_price_data(&spot_market.oracle_id())?;
 
         controller::spot_balance::update_spot_market_cumulative_interest(
             spot_market,
@@ -566,13 +576,7 @@ pub fn handle_withdraw<'c: 'info, 'info>(
         };
 
         let spot_market = &mut spot_market_map.get_ref_mut(&market_index)?;
-        let oracle_price_data = oracle_map.get_price_data(&spot_market.oracle)?;
-
-        if user.qualifies_for_withdraw_fee(&user_stats, slot) {
-            let fee =
-                charge_withdraw_fee(spot_market, oracle_price_data.price, user, &mut user_stats)?;
-            amount = amount.safe_sub(fee.cast()?)?;
-        }
+        let oracle_price_data = oracle_map.get_price_data(&spot_market.oracle_id())?;
 
         user.increment_total_withdraws(
             amount,
@@ -611,7 +615,7 @@ pub fn handle_withdraw<'c: 'info, 'info>(
     user.update_last_active_slot(slot);
 
     let mut spot_market = spot_market_map.get_ref_mut(&market_index)?;
-    let oracle_price = oracle_map.get_price_data(&spot_market.oracle)?.price;
+    let oracle_price = oracle_map.get_price_data(&spot_market.oracle_id())?.price;
 
     let is_borrow = user
         .get_spot_position(market_index)
@@ -720,7 +724,7 @@ pub fn handle_transfer_deposit<'c: 'info, 'info>(
 
     {
         let spot_market = &mut spot_market_map.get_ref_mut(&market_index)?;
-        let oracle_price_data = oracle_map.get_price_data(&spot_market.oracle)?;
+        let oracle_price_data = oracle_map.get_price_data(&spot_market.oracle_id())?;
         controller::spot_balance::update_spot_market_cumulative_interest(
             spot_market,
             Some(oracle_price_data),
@@ -730,11 +734,19 @@ pub fn handle_transfer_deposit<'c: 'info, 'info>(
 
     let oracle_price = {
         let spot_market = &spot_market_map.get_ref(&market_index)?;
-        oracle_map.get_price_data(&spot_market.oracle)?.price
+        oracle_map.get_price_data(&spot_market.oracle_id())?.price
     };
 
     {
         let spot_market = &mut spot_market_map.get_ref_mut(&market_index)?;
+
+        validate!(
+            from_user.pool_id == spot_market.pool_id,
+            ErrorCode::InvalidPoolId,
+            "user pool id ({}) != market pool id ({})",
+            from_user.pool_id,
+            spot_market.pool_id
+        )?;
 
         from_user.increment_total_withdraws(
             amount,
@@ -802,6 +814,14 @@ pub fn handle_transfer_deposit<'c: 'info, 'info>(
 
     {
         let spot_market = &mut spot_market_map.get_ref_mut(&market_index)?;
+
+        validate!(
+            to_user.pool_id == spot_market.pool_id,
+            ErrorCode::InvalidPoolId,
+            "user pool id ({}) != market pool id ({})",
+            to_user.pool_id,
+            spot_market.pool_id
+        )?;
 
         to_user.increment_total_deposits(
             amount,
@@ -2197,6 +2217,34 @@ pub fn handle_update_user_margin_trading_enabled<'c: 'info, 'info>(
     Ok(())
 }
 
+pub fn handle_update_user_pool_id<'c: 'info, 'info>(
+    ctx: Context<'_, '_, 'c, 'info, UpdateUser<'info>>,
+    _sub_account_id: u16,
+    pool_id: u8,
+) -> Result<()> {
+    let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
+    let AccountMaps {
+        perp_market_map,
+        spot_market_map,
+        mut oracle_map,
+        ..
+    } = load_maps(
+        remaining_accounts_iter,
+        &MarketSet::new(),
+        &MarketSet::new(),
+        Clock::get()?.slot,
+        None,
+    )?;
+
+    let mut user = load_mut!(ctx.accounts.user)?;
+    user.pool_id = pool_id;
+
+    // will throw if user has deposits/positions in other pools
+    meets_initial_margin_requirement(&user, &perp_market_map, &spot_market_map, &mut oracle_map)?;
+
+    Ok(())
+}
+
 pub fn handle_update_user_delegate(
     ctx: Context<UpdateUser>,
     _sub_account_id: u16,
@@ -2230,6 +2278,36 @@ pub fn handle_update_user_advanced_lp(
     validate!(!user.is_being_liquidated(), ErrorCode::LiquidationsOngoing)?;
 
     user.update_advanced_lp_status(advanced_lp)?;
+    Ok(())
+}
+
+pub fn handle_update_user_protected_maker_orders(
+    ctx: Context<UpdateUserProtectedMakerMode>,
+    _sub_account_id: u16,
+    protected_maker_orders: bool,
+) -> Result<()> {
+    let mut user = load_mut!(ctx.accounts.user)?;
+
+    validate!(!user.is_being_liquidated(), ErrorCode::LiquidationsOngoing)?;
+
+    user.update_protected_maker_orders_status(protected_maker_orders)?;
+
+    let mut config = load_mut!(ctx.accounts.protected_maker_mode_config)?;
+
+    if protected_maker_orders {
+        validate!(
+            !config.is_reduce_only(),
+            ErrorCode::DefaultError,
+            "protected maker mode config reduce only"
+        )?;
+
+        config.current_users = config.current_users.safe_add(1)?;
+    } else {
+        config.current_users = config.current_users.safe_sub(1)?;
+    }
+
+    config.validate()?;
+
     Ok(())
 }
 
@@ -2902,13 +2980,29 @@ pub struct EnableUserHighLeverageMode<'info> {
     pub state: Box<Account<'info, State>>,
     #[account(
         mut,
+        constraint = can_sign_for_user(&user, &authority)?
+    )]
+    pub user: AccountLoader<'info, User>,
+    pub authority: Signer<'info>,
+    #[account(mut)]
+    pub high_leverage_mode_config: AccountLoader<'info, HighLeverageModeConfig>,
+}
+
+#[derive(Accounts)]
+#[instruction(
+    sub_account_id: u16,
+)]
+pub struct UpdateUserProtectedMakerMode<'info> {
+    pub state: Box<Account<'info, State>>,
+    #[account(
+        mut,
         seeds = [b"user", authority.key.as_ref(), sub_account_id.to_le_bytes().as_ref()],
         bump,
     )]
     pub user: AccountLoader<'info, User>,
     pub authority: Signer<'info>,
     #[account(mut)]
-    pub high_leverage_mode_config: AccountLoader<'info, HighLeverageModeConfig>,
+    pub protected_maker_mode_config: AccountLoader<'info, ProtectedMakerModeConfig>,
 }
 
 #[access_control(
@@ -2969,7 +3063,7 @@ pub fn handle_begin_swap<'c: 'info, 'info>(
         "begin_swap ended in invalid state"
     )?;
 
-    let in_oracle_data = oracle_map.get_price_data(&in_spot_market.oracle)?;
+    let in_oracle_data = oracle_map.get_price_data(&in_spot_market.oracle_id())?;
     controller::spot_balance::update_spot_market_cumulative_interest(
         &mut in_spot_market,
         Some(in_oracle_data),
@@ -2992,7 +3086,7 @@ pub fn handle_begin_swap<'c: 'info, 'info>(
         "begin_swap ended in invalid state"
     )?;
 
-    let out_oracle_data = oracle_map.get_price_data(&out_spot_market.oracle)?;
+    let out_oracle_data = oracle_map.get_price_data(&out_spot_market.oracle_id())?;
     controller::spot_balance::update_spot_market_cumulative_interest(
         &mut out_spot_market,
         Some(out_oracle_data),
@@ -3122,30 +3216,40 @@ pub fn handle_begin_swap<'c: 'info, 'info>(
                 )?;
             }
         } else {
-            let mut whitelisted_programs = vec![
-                serum_program::id(),
-                AssociatedToken::id(),
-                jupiter_mainnet_3::ID,
-                jupiter_mainnet_4::ID,
-                jupiter_mainnet_6::ID,
-            ];
-            if !delegate_is_signer {
-                whitelisted_programs.push(Token::id());
-                whitelisted_programs.push(Token2022::id());
-                whitelisted_programs.push(marinade_mainnet::ID);
-            }
-            validate!(
-                whitelisted_programs.contains(&ix.program_id),
-                ErrorCode::InvalidSwap,
-                "only allowed to pass in ixs to token, openbook, and Jupiter v3/v4/v6 programs"
-            )?;
-
-            for meta in ix.accounts.iter() {
+            if found_end {
+                for meta in ix.accounts.iter() {
+                    validate!(
+                        meta.is_writable == false,
+                        ErrorCode::InvalidSwap,
+                        "instructions after swap end must not have writable accounts"
+                    )?;
+                }
+            } else {
+                let mut whitelisted_programs = vec![
+                    serum_program::id(),
+                    AssociatedToken::id(),
+                    jupiter_mainnet_3::ID,
+                    jupiter_mainnet_4::ID,
+                    jupiter_mainnet_6::ID,
+                ];
+                if !delegate_is_signer {
+                    whitelisted_programs.push(Token::id());
+                    whitelisted_programs.push(Token2022::id());
+                    whitelisted_programs.push(marinade_mainnet::ID);
+                }
                 validate!(
-                    meta.pubkey != crate::id(),
+                    whitelisted_programs.contains(&ix.program_id),
                     ErrorCode::InvalidSwap,
-                    "instructions between begin and end must not be drift instructions"
+                    "only allowed to pass in ixs to token, openbook, and Jupiter v3/v4/v6 programs"
                 )?;
+
+                for meta in ix.accounts.iter() {
+                    validate!(
+                        meta.pubkey != crate::id(),
+                        ErrorCode::InvalidSwap,
+                        "instructions between begin and end must not be drift instructions"
+                    )?;
+                }
             }
         }
 
@@ -3226,7 +3330,7 @@ pub fn handle_end_swap<'c: 'info, 'info>(
         "the in_spot_market must have a flash loan amount set"
     )?;
 
-    let in_oracle_data = oracle_map.get_price_data(&in_spot_market.oracle)?;
+    let in_oracle_data = oracle_map.get_price_data(&in_spot_market.oracle_id())?;
     let in_oracle_price = in_oracle_data.price;
 
     let mut out_spot_market = spot_market_map.get_ref_mut(&out_market_index)?;
@@ -3238,7 +3342,7 @@ pub fn handle_end_swap<'c: 'info, 'info>(
         out_market_index
     )?;
 
-    let out_oracle_data = oracle_map.get_price_data(&out_spot_market.oracle)?;
+    let out_oracle_data = oracle_map.get_price_data(&out_spot_market.oracle_id())?;
     let out_oracle_price = out_oracle_data.price;
 
     let in_vault = &mut ctx.accounts.in_spot_market_vault;

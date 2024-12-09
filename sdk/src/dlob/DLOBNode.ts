@@ -20,6 +20,7 @@ export interface DLOBNode {
 	haveFilled: boolean;
 	userAccount: string | undefined;
 	isSwift: boolean | undefined;
+	isUserProtectedMaker: boolean;
 }
 
 export abstract class OrderNode implements DLOBNode {
@@ -28,13 +29,18 @@ export abstract class OrderNode implements DLOBNode {
 	sortValue: BN;
 	haveFilled = false;
 	haveTrigger = false;
-	isSwift: boolean;
+	isUserProtectedMaker: boolean;	isSwift: boolean;
 
-	constructor(order: Order, userAccount: string, isSwift = false) {
+	constructor(
+		order: Order,
+		userAccount: string,
+		isUserProtectedMaker: boolean
+	, isSwift = false) {
 		// Copy the order over to the node
 		this.order = { ...order };
 		this.userAccount = userAccount;
 		this.sortValue = this.getSortValue(order);
+		this.isUserProtectedMaker = isUserProtectedMaker;
 		this.isSwift = isSwift;
 	}
 
@@ -159,19 +165,28 @@ export type DLOBNodeType =
 export function createNode<T extends DLOBNodeType>(
 	nodeType: T,
 	order: Order,
-	userAccount: string
+	userAccount: string,
+	isUserProtectedMaker: boolean
 ): DLOBNodeMap[T] {
 	switch (nodeType) {
 		case 'floatingLimit':
-			return new FloatingLimitOrderNode(order, userAccount);
+			return new FloatingLimitOrderNode(
+				order,
+				userAccount,
+				isUserProtectedMaker
+			);
 		case 'restingLimit':
-			return new RestingLimitOrderNode(order, userAccount);
+			return new RestingLimitOrderNode(
+				order,
+				userAccount,
+				isUserProtectedMaker
+			);
 		case 'takingLimit':
-			return new TakingLimitOrderNode(order, userAccount);
+			return new TakingLimitOrderNode(order, userAccount, isUserProtectedMaker);
 		case 'market':
-			return new MarketOrderNode(order, userAccount);
+			return new MarketOrderNode(order, userAccount, isUserProtectedMaker);
 		case 'trigger':
-			return new TriggerOrderNode(order, userAccount);
+			return new TriggerOrderNode(order, userAccount, isUserProtectedMaker);
 		case 'swift':
 			return new SwiftOrderNode(order, userAccount);
 		default:

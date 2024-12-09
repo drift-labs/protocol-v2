@@ -582,6 +582,16 @@ pub struct SpotMarketVaultDepositRecord {
     pub amount: u64,
 }
 
+#[event]
+pub struct DeleteUserRecord {
+    /// unix_timestamp of action
+    pub ts: i64,
+    pub user_authority: Pubkey,
+    pub user: Pubkey,
+    pub sub_account_id: u16,
+    pub keeper: Option<Pubkey>,
+}
+
 pub fn emit_stack<T: AnchorSerialize + Discriminator, const N: usize>(event: T) -> DriftResult {
     let mut data_buf = [0u8; N];
     let mut out_buf = [0u8; N];

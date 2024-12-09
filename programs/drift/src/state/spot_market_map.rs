@@ -271,6 +271,10 @@ impl<'a> SpotMarketMap<'a> {
         Ok(SpotMarketMap(map, writable_markets))
     }
 
+    pub fn empty() -> Self {
+        SpotMarketMap(BTreeMap::new(), BTreeSet::new())
+    }
+
     pub fn load_multiple<'c: 'a>(
         account_info: Vec<&'c AccountInfo<'a>>,
         must_be_writable: bool,

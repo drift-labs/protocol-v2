@@ -18,6 +18,8 @@ use crate::state::traits::Size;
 use solana_program::msg;
 use std::panic::Location;
 
+use super::user::SpotPosition;
+
 pub struct PerpMarketMap<'a>(pub BTreeMap<u16, AccountLoader<'a, PerpMarket>>);
 
 impl<'a> PerpMarketMap<'a> {
@@ -247,7 +249,19 @@ pub fn get_market_set_from_list(market_indexes: [u16; 5]) -> MarketSet {
 pub fn get_market_set_for_user_positions(user_positions: &PerpPositions) -> MarketSet {
     let mut writable_markets = MarketSet::new();
     for position in user_positions.iter() {
-        writable_markets.insert(position.market_index);
+        if !position.is_available() {
+            writable_markets.insert(position.market_index);
+        }
+    }
+    writable_markets
+}
+
+pub fn get_market_set_for_spot_positions(spot_positions: &[SpotPosition]) -> MarketSet {
+    let mut writable_markets = MarketSet::new();
+    for position in spot_positions.iter() {
+        if !position.is_available() {
+            writable_markets.insert(position.market_index);
+        }
     }
     writable_markets
 }

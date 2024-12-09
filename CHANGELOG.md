@@ -10,6 +10,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Features
 
 ### Fixes
+program: fix force delete user for token 2022 ([#1358](https://github.com/drift-labs/protocol-v2/pull/1358))
+
+### Breaking
+
+## [2.103.0] - 2024-12-04
+
+### Features
+
+- program: add spot market pool ids ([#1250](https://github.com/drift-labs/protocol-v2/pull/1250))
+- program: make oracle map work with different sources ([#1346](https://github.com/drift-labs/protocol-v2/pull/1346))
+- program: allow read only ix after swap ([#1356](https://github.com/drift-labs/protocol-v2/pull/1356))
+
+### Fixes
+
+- program: fix force delete user for token 2022 ([#1358](https://github.com/drift-labs/protocol-v2/pull/1358))
+
+### Breaking
+
+- program: make ModifyOrderParams a bit flag and add ExcludePreviousFill ([#1357](https://github.com/drift-labs/protocol-v2/pull/1357))
+
+## [2.102.0] - 2024-11-21
+
+### Features
+
+- program: force delete user init ([#1341](https://github.com/drift-labs/protocol-v2/pull/1341))
+- program: rm withdraw fee ([#1334](https://github.com/drift-labs/protocol-v2/pull/1334))
+
+### Fixes
+
+- program: can update k looks at min order size ([#1338](https://github.com/drift-labs/protocol-v2/pull/1338))
+- program: skip validate_post_only_order if amm paused ([#1202](https://github.com/drift-labs/protocol-v2/pull/1202))
 
 ### Breaking
 

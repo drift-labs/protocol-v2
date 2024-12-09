@@ -382,7 +382,7 @@ pub fn remove_perp_lp_shares(
         ErrorCode::InsufficientLPTokens
     )?;
 
-    let oracle_price = oracle_map.get_price_data(&market.amm.oracle)?.price;
+    let oracle_price = oracle_map.get_price_data(&market.oracle_id())?.price;
     let (position_delta, pnl) =
         burn_lp_shares(position, &mut market, shares_to_burn, oracle_price)?;
 

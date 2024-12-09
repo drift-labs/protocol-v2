@@ -1,5 +1,5 @@
 {
-  "version": "2.101.0",
+  "version": "2.103.0",
   "name": "drift",
   "instructions": [
     {
@@ -1358,6 +1358,31 @@
       ]
     },
     {
+      "name": "updateUserPoolId",
+      "accounts": [
+        {
+          "name": "user",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": true
+        }
+      ],
+      "args": [
+        {
+          "name": "subAccountId",
+          "type": "u16"
+        },
+        {
+          "name": "poolId",
+          "type": "u8"
+        }
+      ]
+    },
+    {
       "name": "updateUserDelegate",
       "accounts": [
         {
@@ -1433,6 +1458,41 @@
       ]
     },
     {
+      "name": "updateUserProtectedMakerOrders",
+      "accounts": [
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "user",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "protectedMakerModeConfig",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "subAccountId",
+          "type": "u16"
+        },
+        {
+          "name": "protectedMakerOrders",
+          "type": "bool"
+        }
+      ]
+    },
+    {
       "name": "deleteUser",
       "accounts": [
         {
@@ -1454,6 +1514,42 @@
           "name": "authority",
           "isMut": false,
           "isSigner": true
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "forceDeleteUser",
+      "accounts": [
+        {
+          "name": "user",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "userStats",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "state",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "keeper",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "driftSigner",
+          "isMut": false,
+          "isSigner": false
         }
       ],
       "args": []
@@ -4465,6 +4561,32 @@
       ]
     },
     {
+      "name": "updateSpotMarketPoolId",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "spotMarket",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "poolId",
+          "type": "u8"
+        }
+      ]
+    },
+    {
       "name": "updateSpotMarketLiquidationFee",
       "accounts": [
         {
@@ -6379,6 +6501,72 @@
           "type": "bool"
         }
       ]
+    },
+    {
+      "name": "initializeProtectedMakerModeConfig",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "protectedMakerModeConfig",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "rent",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "systemProgram",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "maxUsers",
+          "type": "u32"
+        }
+      ]
+    },
+    {
+      "name": "updateProtectedMakerModeConfig",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "protectedMakerModeConfig",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "maxUsers",
+          "type": "u32"
+        },
+        {
+          "name": "reduceOnly",
+          "type": "bool"
+        }
+      ]
     }
   ],
   "accounts": [
@@ -7003,7 +7191,7 @@
             "type": "u8"
           },
           {
-            "name": "padding1",
+            "name": "poolId",
             "type": "u8"
           },
           {
@@ -7020,6 +7208,35 @@
               "array": [
                 "u8",
                 38
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "ProtectedMakerModeConfig",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "maxUsers",
+            "type": "u32"
+          },
+          {
+            "name": "currentUsers",
+            "type": "u32"
+          },
+          {
+            "name": "reduceOnly",
+            "type": "u8"
+          },
+          {
+            "name": "padding",
+            "type": {
+              "array": [
+                "u8",
+                31
               ]
             }
           }
@@ -7540,11 +7757,15 @@
             "type": "u8"
           },
           {
+            "name": "poolId",
+            "type": "u8"
+          },
+          {
             "name": "padding",
             "type": {
               "array": [
                 "u8",
-                41
+                40
               ]
             }
           }
@@ -7926,11 +8147,15 @@
             }
           },
           {
+            "name": "poolId",
+            "type": "u8"
+          },
+          {
             "name": "padding1",
             "type": {
               "array": [
                 "u8",
-                4
+                3
               ]
             }
           },
@@ -8931,9 +9156,7 @@
           {
             "name": "policy",
             "type": {
-              "option": {
-                "defined": "ModifyOrderPolicy"
-              }
+              "option": "u8"
             }
           }
         ]
@@ -10826,7 +11049,8 @@
           {
             "name": "PlaceAndTake",
             "fields": [
-              "bool"
+              "bool",
+              "u8"
             ]
           },
           {
@@ -10979,10 +11203,10 @@
         "kind": "enum",
         "variants": [
           {
-            "name": "TryModify"
+            "name": "MustModify"
           },
           {
-            "name": "MustModify"
+            "name": "ExcludePreviousFill"
           }
         ]
       }
@@ -11298,6 +11522,9 @@
           },
           {
             "name": "AdvancedLp"
+          },
+          {
+            "name": "ProtectedMakerOrders"
           }
         ]
       }
@@ -12505,6 +12732,38 @@
         {
           "name": "amount",
           "type": "u64",
+          "index": false
+        }
+      ]
+    },
+    {
+      "name": "DeleteUserRecord",
+      "fields": [
+        {
+          "name": "ts",
+          "type": "i64",
+          "index": false
+        },
+        {
+          "name": "userAuthority",
+          "type": "publicKey",
+          "index": false
+        },
+        {
+          "name": "user",
+          "type": "publicKey",
+          "index": false
+        },
+        {
+          "name": "subAccountId",
+          "type": "u16",
+          "index": false
+        },
+        {
+          "name": "keeper",
+          "type": {
+            "option": "publicKey"
+          },
           "index": false
         }
       ]
@@ -14020,6 +14279,16 @@
       "code": 6301,
       "name": "InvalidSwiftOrderId",
       "msg": "Swift order id cannot be 0s"
+    },
+    {
+      "code": 6302,
+      "name": "InvalidPoolId",
+      "msg": "Invalid pool id"
+    },
+    {
+      "code": 6303,
+      "name": "InvalidProtectedMakerModeConfig",
+      "msg": "Invalid Protected Maker Mode Config"
     }
   ],
   "metadata": {

@@ -775,7 +775,10 @@ pub mod liquidate_perp {
             margin_requirement_plus_buffer
         );
 
-        let oracle_price = oracle_map.get_price_data(&oracle_price_key).unwrap().price;
+        let oracle_price = oracle_map
+            .get_price_data(&(oracle_price_key, OracleSource::Pyth))
+            .unwrap()
+            .price;
 
         let perp_value = calculate_base_asset_value_with_oracle_price(
             user.perp_positions[0].base_asset_amount as i128,
@@ -2357,7 +2360,10 @@ pub mod liquidate_perp {
             margin_requirement_plus_buffer
         );
 
-        let oracle_price = oracle_map.get_price_data(&oracle_price_key).unwrap().price;
+        let oracle_price = oracle_map
+            .get_price_data(&(oracle_price_key, OracleSource::Pyth))
+            .unwrap()
+            .price;
 
         let perp_value = calculate_base_asset_value_with_oracle_price(
             user.perp_positions[0].base_asset_amount as i128,
@@ -3674,7 +3680,9 @@ pub mod liquidate_spot {
             &user.spot_positions[1].balance_type,
         )
         .unwrap();
-        let oracle_price_data = oracle_map.get_price_data(&sol_oracle_price_key).unwrap();
+        let oracle_price_data = oracle_map
+            .get_price_data(&(sol_oracle_price_key, OracleSource::Pyth))
+            .unwrap();
         let token_value =
             get_token_value(token_amount as i128, 6, oracle_price_data.price).unwrap();
 
@@ -4884,7 +4892,9 @@ pub mod liquidate_borrow_for_perp_pnl {
             &user.spot_positions[0].balance_type,
         )
         .unwrap();
-        let oracle_price_data = oracle_map.get_price_data(&sol_oracle_price_key).unwrap();
+        let oracle_price_data = oracle_map
+            .get_price_data(&(sol_oracle_price_key, OracleSource::Pyth))
+            .unwrap();
         let token_value =
             get_token_value(token_amount as i128, 6, oracle_price_data.price).unwrap();
 

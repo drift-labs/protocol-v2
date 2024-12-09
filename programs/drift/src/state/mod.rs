@@ -12,6 +12,7 @@ pub mod order_params;
 pub mod paused_operations;
 pub mod perp_market;
 pub mod perp_market_map;
+pub mod protected_maker_mode_config;
 pub mod rfq_user;
 pub mod settle_pnl_mode;
 pub mod spot_fulfillment_params;

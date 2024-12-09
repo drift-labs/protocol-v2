@@ -206,34 +206,3 @@ pub fn transfer_spot_position_deposit(
 
     Ok(())
 }
-
-pub fn charge_withdraw_fee(
-    spot_market: &mut SpotMarket,
-    oracle_price: i64,
-    user: &mut User,
-    user_stats: &mut UserStats,
-) -> DriftResult<u128> {
-    let fee_quote = QUOTE_PRECISION / 2000;
-    let fee = fee_quote
-        .safe_mul(spot_market.get_precision().cast()?)?
-        .safe_div(oracle_price.unsigned_abs().cast()?)?;
-
-    user.update_cumulative_spot_fees(-fee.cast()?)?;
-    user_stats.increment_total_fees(fee.cast()?)?;
-
-    msg!("Charging withdraw fee of {}", fee);
-
-    update_revenue_pool_balances(fee, &SpotBalanceType::Deposit, spot_market)?;
-
-    let position_index = user.force_get_spot_position_index(spot_market.market_index)?;
-    update_spot_balances_and_cumulative_deposits(
-        fee,
-        &SpotBalanceType::Borrow,
-        spot_market,
-        &mut user.spot_positions[position_index],
-        false,
-        Some(0), // to make fee show in cumulative deposits
-    )?;
-
-    Ok(fee)
-}

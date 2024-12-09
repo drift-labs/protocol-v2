@@ -11,6 +11,7 @@ import {
 	OrderTriggerCondition,
 	UserAccount,
 	ZERO,
+	MarginMode,
 } from '../../src';
 
 import { mockPerpPosition } from '../dlob/helpers';
@@ -86,4 +87,6 @@ export const mockUserAccount: UserAccount = {
 	openAuctions: 0,
 	hasOpenAuction: false,
 	lastFuelBonusUpdateTs: 0,
+	marginMode: MarginMode.DEFAULT,
+	poolId: 0,
 };

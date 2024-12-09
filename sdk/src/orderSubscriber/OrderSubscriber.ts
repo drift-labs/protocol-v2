@@ -12,6 +12,7 @@ import { EventEmitter } from 'events';
 import { BN } from '../index';
 import { decodeUser } from '../decode/user';
 import { grpcSubscription } from './grpcSubscription';
+import { isUserProtectedMaker } from '../math/userStatus';
 
 export class OrderSubscriber {
 	driftClient: DriftClient;
@@ -229,8 +230,9 @@ export class OrderSubscriber {
 	public async getDLOB(slot: number): Promise<DLOB> {
 		const dlob = this.createDLOB();
 		for (const [key, { userAccount }] of this.usersAccounts.entries()) {
+			const protectedMaker = isUserProtectedMaker(userAccount);
 			for (const order of userAccount.orders) {
-				dlob.insertOrder(order, key, slot);
+				dlob.insertOrder(order, key, slot, protectedMaker);
 			}
 		}
 		return dlob;

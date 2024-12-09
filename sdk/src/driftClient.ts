@@ -31,6 +31,7 @@ import {
 	ModifyOrderPolicy,
 	OpenbookV2FulfillmentConfigAccount,
 	OptionalOrderParams,
+	OracleSource,
 	Order,
 	OrderParams,
 	OrderTriggerCondition,
@@ -175,6 +176,7 @@ import { gprcDriftClientAccountSubscriber } from './accounts/grpcDriftClientAcco
 import nacl from 'tweetnacl';
 import { digest } from './util/digest';
 import { Slothash } from './slot/SlothashSubscriber';
+import { getOracleId } from './oracles/oracleId';
 
 type RemainingAccountParams = {
 	userAccounts: UserAccount[];
@@ -600,10 +602,11 @@ export class DriftClient {
 	}
 
 	public getOraclePriceDataAndSlot(
-		oraclePublicKey: PublicKey
+		oraclePublicKey: PublicKey,
+		oracleSource: OracleSource
 	): DataAndSlot<OraclePriceData> | undefined {
 		return this.accountSubscriber.getOraclePriceDataAndSlot(
-			oraclePublicKey.toBase58()
+			getOracleId(oraclePublicKey, oracleSource)
 		);
 	}
 
@@ -1440,6 +1443,40 @@ export class DriftClient {
 		return ix;
 	}
 
+	public async updateUserPoolId(
+		updates: { poolId: number; subAccountId: number }[]
+	): Promise<TransactionSignature> {
+		const ixs = await Promise.all(
+			updates.map(async ({ poolId, subAccountId }) => {
+				return await this.getUpdateUserPoolIdIx(poolId, subAccountId);
+			})
+		);
+
+		const tx = await this.buildTransaction(ixs, this.txParams);
+
+		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+		return txSig;
+	}
+
+	public async getUpdateUserPoolIdIx(poolId: number, subAccountId: number) {
+		const ix = await this.program.instruction.updateUserPoolId(
+			subAccountId,
+			poolId,
+			{
+				accounts: {
+					user: getUserAccountPublicKeySync(
+						this.program.programId,
+						this.wallet.publicKey,
+						subAccountId
+					),
+					authority: this.wallet.publicKey,
+				},
+			}
+		);
+
+		return ix;
+	}
+
 	public async fetchAllUserAccounts(
 		includeIdle = true
 	): Promise<ProgramAccount<UserAccount>[]> {
@@ -1575,6 +1612,89 @@ export class DriftClient {
 				authority: this.wallet.publicKey,
 				state: await this.getStatePublicKey(),
 			},
+		});
+
+		return ix;
+	}
+
+	public async forceDeleteUser(
+		userAccountPublicKey: PublicKey,
+		userAccount: UserAccount,
+		txParams?: TxParams
+	): Promise<TransactionSignature> {
+		const tx = await this.buildTransaction(
+			await this.getForceDeleteUserIx(userAccountPublicKey, userAccount),
+			txParams
+		);
+
+		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+		return txSig;
+	}
+
+	public async getForceDeleteUserIx(
+		userAccountPublicKey: PublicKey,
+		userAccount: UserAccount
+	) {
+		const writableSpotMarketIndexes = [];
+		for (const spotPosition of userAccount.spotPositions) {
+			if (isSpotPositionAvailable(spotPosition)) {
+				continue;
+			}
+			writableSpotMarketIndexes.push(spotPosition.marketIndex);
+		}
+		const remainingAccounts = this.getRemainingAccounts({
+			userAccounts: [userAccount],
+			writableSpotMarketIndexes,
+		});
+
+		const tokenPrograms = new Set<string>();
+		for (const spotPosition of userAccount.spotPositions) {
+			if (isSpotPositionAvailable(spotPosition)) {
+				continue;
+			}
+			const spotMarket = this.getSpotMarketAccount(spotPosition.marketIndex);
+			remainingAccounts.push({
+				isSigner: false,
+				isWritable: true,
+				pubkey: spotMarket.vault,
+			});
+			const tokenProgram = this.getTokenProgramForSpotMarket(spotMarket);
+			const keeperVault = await this.getAssociatedTokenAccount(
+				spotPosition.marketIndex,
+				false,
+				tokenProgram
+			);
+			remainingAccounts.push({
+				isSigner: false,
+				isWritable: true,
+				pubkey: keeperVault,
+			});
+			tokenPrograms.add(tokenProgram.toBase58());
+		}
+
+		for (const tokenProgram of tokenPrograms) {
+			remainingAccounts.push({
+				isSigner: false,
+				isWritable: false,
+				pubkey: new PublicKey(tokenProgram),
+			});
+		}
+
+		const authority = userAccount.authority;
+		const userStats = getUserStatsAccountPublicKey(
+			this.program.programId,
+			authority
+		);
+		const ix = await this.program.instruction.forceDeleteUser({
+			accounts: {
+				user: userAccountPublicKey,
+				userStats,
+				authority,
+				state: await this.getStatePublicKey(),
+				driftSigner: this.getSignerPublicKey(),
+				keeper: this.wallet.publicKey,
+			},
+			remainingAccounts,
 		});
 
 		return ix;
@@ -2644,14 +2764,14 @@ export class DriftClient {
 		return [txSig, userAccountPublicKey];
 	}
 
-	private async getWithdrawalIxs(
+	public async getWithdrawalIxs(
 		amount: BN,
 		marketIndex: number,
 		associatedTokenAddress: PublicKey,
 		reduceOnly = false,
 		subAccountId?: number,
 		updateFuel = false
-	) {
+	): Promise<TransactionInstruction[]> {
 		const withdrawIxs: anchor.web3.TransactionInstruction[] = [];
 
 		const spotMarketAccount = this.getSpotMarketAccount(marketIndex);
@@ -5705,10 +5825,11 @@ export class DriftClient {
 	public signSwiftOrderParamsMessage(
 		orderParamsMessage: SwiftOrderParamsMessage
 	): Buffer {
-		const takerOrderParamsMessage = Uint8Array.from(
-			digest(this.encodeSwiftOrderParamsMessage(orderParamsMessage))
+		const takerOrderParamsMessage =
+			this.encodeSwiftOrderParamsMessage(orderParamsMessage);
+		return this.signMessage(
+			new TextEncoder().encode(digest(takerOrderParamsMessage).toString('hex'))
 		);
-		return this.signMessage(takerOrderParamsMessage);
 	}
 
 	public encodeSwiftOrderParamsMessage(
@@ -5800,7 +5921,9 @@ export class DriftClient {
 			Ed25519Program.createInstructionWithPublicKey({
 				publicKey: authorityToUse.toBytes(),
 				signature: Uint8Array.from(swiftOrderParamsSignature),
-				message: Uint8Array.from(digest(encodedSwiftOrderParamsMessage)),
+				message: new TextEncoder().encode(
+					digest(encodedSwiftOrderParamsMessage).toString('hex')
+				),
 			});
 
 		const placeTakerSwiftPerpOrderIx =
@@ -6361,7 +6484,7 @@ export class DriftClient {
 			postOnly?: boolean;
 			immediateOrCancel?: boolean;
 			maxTs?: BN;
-			policy?: ModifyOrderPolicy;
+			policy?: number;
 		},
 		txParams?: TxParams,
 		subAccountId?: number
@@ -6409,7 +6532,7 @@ export class DriftClient {
 			postOnly?: boolean;
 			immediateOrCancel?: boolean;
 			maxTs?: BN;
-			policy?: ModifyOrderPolicy;
+			policy?: number;
 		},
 		subAccountId?: number
 	): Promise<TransactionInstruction> {
@@ -6715,6 +6838,55 @@ export class DriftClient {
 			this.opts
 		);
 		return txSig;
+	}
+
+	public async settleMultiplePNLsMultipleTxs(
+		settleeUserAccountPublicKey: PublicKey,
+		settleeUserAccount: UserAccount,
+		marketIndexes: number[],
+		mode: SettlePnlMode,
+		txParams?: TxParams
+	): Promise<TransactionSignature[]> {
+		// need multiple TXs because settling more than 4 markets won't fit in a single TX
+		const txsToSign: (Transaction | VersionedTransaction)[] = [];
+		const marketIndexesInFourGroups: number[][] = [];
+		for (let i = 0; i < marketIndexes.length; i += 4) {
+			marketIndexesInFourGroups.push(marketIndexes.slice(i, i + 4));
+		}
+
+		for (const marketIndexes of marketIndexesInFourGroups) {
+			const ix = await this.settleMultiplePNLsIx(
+				settleeUserAccountPublicKey,
+				settleeUserAccount,
+				marketIndexes,
+				mode
+			);
+			const computeUnits = Math.min(300_000 * marketIndexes.length, 1_400_000);
+			const tx = await this.buildTransaction(ix, {
+				...txParams,
+				computeUnits,
+			});
+			txsToSign.push(tx);
+		}
+
+		const txsMap: Record<string, Transaction | VersionedTransaction> = {};
+		let i = 1;
+		for (const tx of txsToSign) {
+			txsMap[`tx-${i}`] = tx;
+			i++;
+		}
+		const signedTxs = (
+			await this.txHandler.getSignedTransactionMap(txsMap, this.provider.wallet)
+		).signedTxMap;
+
+		const txSigs: TransactionSignature[] = [];
+		for (const key in signedTxs) {
+			const tx = signedTxs[key];
+			const { txSig } = await this.sendTransaction(tx, [], this.opts, true);
+			txSigs.push(txSig);
+		}
+
+		return txSigs;
 	}
 
 	public async settleMultiplePNLsIx(

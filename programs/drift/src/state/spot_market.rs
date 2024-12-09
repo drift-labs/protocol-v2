@@ -25,6 +25,8 @@ use crate::state::perp_market::{MarketStatus, PoolBalance};
 use crate::state::traits::{MarketIndexOffset, Size};
 use crate::{validate, PERCENTAGE_PRECISION};
 
+use super::oracle_map::OracleIdentifier;
+
 #[account(zero_copy(unsafe))]
 #[derive(PartialEq, Eq, Debug)]
 #[repr(C)]
@@ -201,7 +203,8 @@ pub struct SpotMarket {
     /// precision: 10
     pub fuel_boost_insurance: u8,
     pub token_program: u8,
-    pub padding: [u8; 41],
+    pub pool_id: u8,
+    pub padding: [u8; 40],
 }
 
 impl Default for SpotMarket {
@@ -269,7 +272,8 @@ impl Default for SpotMarket {
             fuel_boost_maker: 0,
             fuel_boost_insurance: 0,
             token_program: 0,
-            padding: [0; 41],
+            pool_id: 0,
+            padding: [0; 40],
         }
     }
 }
@@ -283,6 +287,10 @@ impl MarketIndexOffset for SpotMarket {
 }
 
 impl SpotMarket {
+    pub fn oracle_id(&self) -> OracleIdentifier {
+        (self.oracle, self.oracle_source)
+    }
+
     pub fn is_in_settlement(&self, now: i64) -> bool {
         let in_settlement = matches!(
             self.status,

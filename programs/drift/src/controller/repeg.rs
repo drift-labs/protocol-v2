@@ -110,7 +110,7 @@ pub fn update_amms(
     let updated = true; // todo
     for (_key, market_account_loader) in perp_market_map.0.iter_mut() {
         let market = &mut load_mut!(market_account_loader)?;
-        let oracle_price_data = &oracle_map.get_price_data(&market.amm.oracle)?;
+        let oracle_price_data = &oracle_map.get_price_data(&market.oracle_id())?;
         _update_amm(market, oracle_price_data, state, now, clock_slot)?;
     }
 
@@ -125,7 +125,7 @@ pub fn update_amm(
     clock: &Clock,
 ) -> DriftResult<i128> {
     let market = &mut perp_market_map.get_ref_mut(&market_index)?;
-    let oracle_price_data = oracle_map.get_price_data(&market.amm.oracle)?;
+    let oracle_price_data = oracle_map.get_price_data(&market.oracle_id())?;
 
     let cost_of_update = _update_amm(
         market,

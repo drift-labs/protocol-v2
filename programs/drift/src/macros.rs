@@ -89,9 +89,18 @@ macro_rules! safe_decrement {
     }};
 }
 
+/// Calculate the sha256 digest of anchor encoded `struct`
 #[macro_export]
 macro_rules! digest_struct {
     ($struct:expr) => {
         solana_program::hash::hash(&$struct.try_to_vec().unwrap()).to_bytes()
     };
+}
+
+/// Calculate the hexified sha256 digest of anchor encoded `struct`
+#[macro_export]
+macro_rules! digest_struct_hex {
+    ($struct:expr) => {{
+        hex::encode(digest_struct!($struct)).into_bytes()
+    }};
 }

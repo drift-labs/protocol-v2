@@ -79,15 +79,19 @@ fn check_ed25519_data(data: &[u8], pubkey: &[u8], msg: &[u8], sig: &[u8]) -> Res
     Ok(())
 }
 
-/// Check Ed25519Program instruction data verifies the given digest
+/// Check Ed25519Program instruction data verifies the given msg
 ///
 /// `ix` an Ed25519Program instruction [see](https://github.com/solana-labs/solana/blob/master/sdk/src/ed25519_instruction.rs))
 ///
-/// `digest` expected digest signed by the offchain client i.e 'sha256(appMessage.serialize())'
+/// `msg` expected msg signed by the offchain client e.g 'sha256(appMessage.serialize())' for a digest
 ///
 /// `pubkey` expected pubkey of the signer
 ///
-pub fn verify_ed25519_digest(ix: &Instruction, pubkey: &[u8; 32], digest: &[u8; 32]) -> Result<()> {
+pub fn verify_ed25519_msg<const N: usize>(
+    ix: &Instruction,
+    pubkey: &[u8; 32],
+    msg: &[u8; N],
+) -> Result<()> {
     if ix.program_id != ED25519_ID || ix.accounts.len() != 0 {
         msg!("Invalid Ix: program ID: {:?}", ix.program_id);
         msg!("Invalid Ix: accounts: {:?}", ix.accounts.len());
@@ -100,7 +104,7 @@ pub fn verify_ed25519_digest(ix: &Instruction, pubkey: &[u8; 32], digest: &[u8; 
         msg!(
             "Invalid Ix: data: {:?}, len: {:?}",
             ix.data.len(),
-            16 + 64 + 32 + digest.len()
+            16 + 64 + 32 + N
         );
         return Err(ErrorCode::SigVerificationFailed.into());
     }
@@ -137,7 +141,7 @@ pub fn verify_ed25519_digest(ix: &Instruction, pubkey: &[u8; 32], digest: &[u8; 
 
     // verify data is for digest and pubkey
     let ix_msg_data = &ix_data[112..];
-    if ix_msg_data != digest || message_data_size != digest.len() as u16 {
+    if ix_msg_data != msg || message_data_size != N as u16 {
         return Err(ErrorCode::SigVerificationFailed.into());
     }
 

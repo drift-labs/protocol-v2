@@ -41,6 +41,8 @@ use crate::state::paused_operations::PerpOperation;
 use drift_macros::assert_no_slop;
 use static_assertions::const_assert_eq;
 
+use super::oracle_map::OracleIdentifier;
+
 #[cfg(test)]
 mod tests;
 
@@ -241,7 +243,7 @@ pub struct PerpMarket {
     /// fuel multiplier for perp maker
     /// precision: 10
     pub fuel_boost_maker: u8,
-    pub padding1: u8,
+    pub pool_id: u8,
     pub high_leverage_margin_ratio_initial: u16,
     pub high_leverage_margin_ratio_maintenance: u16,
     pub padding: [u8; 38],
@@ -281,7 +283,7 @@ impl Default for PerpMarket {
             fuel_boost_position: 0,
             fuel_boost_taker: 0,
             fuel_boost_maker: 0,
-            padding1: 0,
+            pool_id: 0,
             high_leverage_margin_ratio_initial: 0,
             high_leverage_margin_ratio_maintenance: 0,
             padding: [0; 38],
@@ -298,6 +300,10 @@ impl MarketIndexOffset for PerpMarket {
 }
 
 impl PerpMarket {
+    pub fn oracle_id(&self) -> OracleIdentifier {
+        (self.amm.oracle, self.amm.oracle_source)
+    }
+
     pub fn is_in_settlement(&self, now: i64) -> bool {
         let in_settlement = matches!(
             self.status,
@@ -1398,10 +1404,17 @@ impl AMM {
 
     pub fn can_lower_k(&self) -> DriftResult<bool> {
         let (max_bids, max_asks) = amm::calculate_market_open_bids_asks(self)?;
-        let can_lower = self.base_asset_amount_with_amm.unsigned_abs()
-            < max_bids.unsigned_abs().min(max_asks.unsigned_abs())
-            && self.base_asset_amount_with_amm.unsigned_abs()
-                < self.sqrt_k.safe_sub(self.user_lp_shares)?;
+        let min_order_size_u128 = self.min_order_size.cast::<u128>()?;
+
+        let can_lower = (self.base_asset_amount_with_amm.unsigned_abs()
+            < max_bids.unsigned_abs().min(max_asks.unsigned_abs()))
+            && (self
+                .base_asset_amount_with_amm
+                .unsigned_abs()
+                .max(min_order_size_u128)
+                < self.sqrt_k.safe_sub(self.user_lp_shares)?)
+            && (min_order_size_u128 < max_bids.unsigned_abs().max(max_asks.unsigned_abs()));
+
         Ok(can_lower)
     }
 

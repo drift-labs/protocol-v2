@@ -163,6 +163,8 @@ export const mockPerpMarkets: Array<PerpMarketAccount> = [
 		numberOfUsers: 0,
 		marginRatioInitial: 2000,
 		marginRatioMaintenance: 1000,
+		highLeverageMarginRatioInitial: 0,
+		highLeverageMarginRatioMaintenance: 0,
 		nextFillRecordId: new BN(0),
 		pnlPool: {
 			scaledBalance: new BN(0),
@@ -207,6 +209,8 @@ export const mockPerpMarkets: Array<PerpMarketAccount> = [
 		numberOfUsers: 0,
 		marginRatioInitial: 0,
 		marginRatioMaintenance: 0,
+		highLeverageMarginRatioInitial: 0,
+		highLeverageMarginRatioMaintenance: 0,
 		nextFillRecordId: new BN(0),
 		pnlPool: {
 			scaledBalance: new BN(0),
@@ -249,6 +253,8 @@ export const mockPerpMarkets: Array<PerpMarketAccount> = [
 		numberOfUsers: 0,
 		marginRatioInitial: 0,
 		marginRatioMaintenance: 0,
+		highLeverageMarginRatioInitial: 0,
+		highLeverageMarginRatioMaintenance: 0,
 		nextFillRecordId: new BN(0),
 		pnlPool: {
 			scaledBalance: new BN(0),
@@ -368,6 +374,7 @@ export const mockSpotMarkets: Array<SpotMarketAccount> = [
 		fuelBoostMaker: 0,
 		fuelBoostInsurance: 0,
 		tokenProgram: 0,
+		poolId: 0,
 	},
 	{
 		status: MarketStatus.ACTIVE,
@@ -459,6 +466,7 @@ export const mockSpotMarkets: Array<SpotMarketAccount> = [
 		fuelBoostMaker: 0,
 		fuelBoostInsurance: 0,
 		tokenProgram: 0,
+		poolId: 0,
 	},
 	{
 		status: MarketStatus.ACTIVE,
@@ -550,6 +558,7 @@ export const mockSpotMarkets: Array<SpotMarketAccount> = [
 		fuelBoostMaker: 0,
 		fuelBoostInsurance: 0,
 		tokenProgram: 0,
+		poolId: 0,
 	},
 ];
 

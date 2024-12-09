@@ -44,6 +44,7 @@ import {
 	L3OrderBook,
 	mergeL2LevelGenerators,
 } from './orderBookLevels';
+import { isUserProtectedMaker } from '../math/userStatus';
 
 export type MarketNodeLists = {
 	restingLimit: {
@@ -160,9 +161,10 @@ export class DLOB {
 			const userAccount = user.getUserAccount();
 			const userAccountPubkey = user.getUserAccountPublicKey();
 			const userAccountPubkeyString = userAccountPubkey.toString();
+			const protectedMaker = isUserProtectedMaker(userAccount);
 
 			for (const order of userAccount.orders) {
-				this.insertOrder(order, userAccountPubkeyString, slot);
+				this.insertOrder(order, userAccountPubkeyString, slot, protectedMaker);
 			}
 		}
 
@@ -176,17 +178,85 @@ export class DLOB {
 		}
 
 		for (const { user, order } of dlobOrders) {
-			this.insertOrder(order, user.toString(), slot);
+			this.insertOrder(order, user.toString(), slot, false);
 		}
 
 		this.initialized = true;
 		return true;
 	}
 
+	public handleOrderRecord(record: OrderRecord, slot: number): void {
+		this.insertOrder(record.order, record.user.toString(), slot, false);
+	}
+
+	public handleOrderActionRecord(
+		record: OrderActionRecord,
+		slot: number
+	): void {
+		if (isOneOfVariant(record.action, ['place', 'expire'])) {
+			return;
+		}
+
+		if (isVariant(record.action, 'trigger')) {
+			if (record.taker !== null) {
+				const takerOrder = this.getOrder(record.takerOrderId, record.taker);
+				if (takerOrder) {
+					this.trigger(takerOrder, record.taker, slot, false);
+				}
+			}
+
+			if (record.maker !== null) {
+				const makerOrder = this.getOrder(record.makerOrderId, record.maker);
+				if (makerOrder) {
+					this.trigger(makerOrder, record.maker, slot, false);
+				}
+			}
+		} else if (isVariant(record.action, 'fill')) {
+			if (record.taker !== null) {
+				const takerOrder = this.getOrder(record.takerOrderId, record.taker);
+				if (takerOrder) {
+					this.updateOrder(
+						takerOrder,
+						record.taker,
+						slot,
+						record.takerOrderCumulativeBaseAssetAmountFilled
+					);
+				}
+			}
+
+			if (record.maker !== null) {
+				const makerOrder = this.getOrder(record.makerOrderId, record.maker);
+				if (makerOrder) {
+					this.updateOrder(
+						makerOrder,
+						record.maker,
+						slot,
+						record.makerOrderCumulativeBaseAssetAmountFilled
+					);
+				}
+			}
+		} else if (isVariant(record.action, 'cancel')) {
+			if (record.taker !== null) {
+				const takerOrder = this.getOrder(record.takerOrderId, record.taker);
+				if (takerOrder) {
+					this.delete(takerOrder, record.taker, slot);
+				}
+			}
+
+			if (record.maker !== null) {
+				const makerOrder = this.getOrder(record.makerOrderId, record.maker);
+				if (makerOrder) {
+					this.delete(makerOrder, record.maker, slot);
+				}
+			}
+		}
+	}
+
 	public insertOrder(
 		order: Order,
 		userAccount: string,
 		slot: number,
+		isUserProtectedMaker: boolean,
 		onInsert?: OrderBookCallback
 	): void {
 		if (isVariant(order.status, 'init')) {
@@ -211,7 +281,8 @@ export class DLOB {
 		this.getListForOnChainOrder(order, slot)?.insert(
 			order,
 			marketType,
-			userAccount
+			userAccount,
+			isUserProtectedMaker
 		);
 
 		if (onInsert) {

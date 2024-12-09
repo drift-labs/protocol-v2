@@ -826,10 +826,10 @@
     js-yaml "^4.1.0"
     protobufjs "^7.2.6"
 
-"@triton-one/yellowstone-grpc@0.6.0":
-  version "0.6.0"
-  resolved "https://registry.yarnpkg.com/@triton-one/yellowstone-grpc/-/yellowstone-grpc-0.6.0.tgz#9e6376cec8a42284c23dc195df2c3423c87c4f27"
-  integrity sha512-rgdZM2N3U9/d/QKOI5PP+9rSHUl2oSI5Uwzvuss8y/mtTaHFjbOMpXpQXviIeDkusOa+mef4wLYrbjEZCwTXiw==
+"@triton-one/yellowstone-grpc@1.3.0":
+  version "1.3.0"
+  resolved "https://registry.yarnpkg.com/@triton-one/yellowstone-grpc/-/yellowstone-grpc-1.3.0.tgz#7caa7006b525149b4780d1295c7d4c34bc6a6ff6"
+  integrity sha512-tuwHtoYzvqnahsMrecfNNkQceCYwgiY0qKS8RwqtaxvDEgjm0E+0bXwKz2eUD3ZFYifomJmRKDmSBx9yQzAeMQ==
   dependencies:
     "@grpc/grpc-js" "^1.8.0"
 

@@ -825,11 +825,11 @@ pub fn calculate_max_perp_order_size(
 
     let perp_market = perp_market_map.get_ref(&market_index)?;
 
-    let oracle_price_data_price = oracle_map.get_price_data(&perp_market.amm.oracle)?.price;
+    let oracle_price_data_price = oracle_map.get_price_data(&perp_market.oracle_id())?.price;
 
     let quote_spot_market = spot_market_map.get_ref(&perp_market.quote_spot_market_index)?;
     let quote_oracle_price = oracle_map
-        .get_price_data(&quote_spot_market.oracle)?
+        .get_price_data(&quote_spot_market.oracle_id())?
         .price
         .max(
             quote_spot_market
@@ -971,7 +971,7 @@ pub fn calculate_max_spot_order_size(
 
     let spot_market = spot_market_map.get_ref(&market_index)?;
 
-    let oracle_price_data = oracle_map.get_price_data(&spot_market.oracle)?;
+    let oracle_price_data = oracle_map.get_price_data(&spot_market.oracle_id())?;
     let twap = spot_market
         .historical_oracle_data
         .last_oracle_price_twap_5min;

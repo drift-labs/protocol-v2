@@ -1,8 +1,9 @@
 import { AnchorProvider, Idl, Program } from '@coral-xyz/anchor';
 import driftIDL from '../../src/idl/drift.json';
 import { Connection, Keypair } from '@solana/web3.js';
-import { Wallet } from '../../src';
 import {
+	decodeUser,
+	Wallet,
 	DRIFT_PROGRAM_ID,
 	isSpotPositionAvailable,
 	isVariant,
@@ -10,8 +11,7 @@ import {
 	PerpPosition,
 	positionIsAvailable,
 	SpotPosition,
-} from '../../lib';
-import { decodeUser } from '../../lib/decode/user';
+} from '../../src';
 import { assert } from 'chai';
 import { userAccountBufferStrings } from './userAccountBufferStrings';
 const sizeof = require('object-sizeof');

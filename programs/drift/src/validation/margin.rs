@@ -117,7 +117,7 @@ pub fn validate_margin_weights(
         )?;
     } else {
         validate!(
-            initial_asset_weight < SPOT_WEIGHT_PRECISION,
+            initial_asset_weight <= SPOT_WEIGHT_PRECISION,
             ErrorCode::InvalidSpotMarketInitialization,
             "Initial asset weight must be less than {}",
             SPOT_WEIGHT_PRECISION
@@ -126,14 +126,14 @@ pub fn validate_margin_weights(
         validate!(
             initial_asset_weight <= maintenance_asset_weight
                 && maintenance_asset_weight > 0
-                && maintenance_asset_weight < SPOT_WEIGHT_PRECISION,
+                && maintenance_asset_weight <= SPOT_WEIGHT_PRECISION,
             ErrorCode::InvalidSpotMarketInitialization,
             "Maintenance asset weight must be between 0 {}",
             SPOT_WEIGHT_PRECISION
         )?;
 
         validate!(
-            initial_liability_weight > SPOT_WEIGHT_PRECISION,
+            initial_liability_weight >= SPOT_WEIGHT_PRECISION,
             ErrorCode::InvalidSpotMarketInitialization,
             "Initial liability weight must be greater than {}",
             SPOT_WEIGHT_PRECISION
@@ -141,7 +141,7 @@ pub fn validate_margin_weights(
 
         validate!(
             initial_liability_weight >= maintenance_liability_weight
-                && maintenance_liability_weight > SPOT_WEIGHT_PRECISION,
+                && maintenance_liability_weight >= SPOT_WEIGHT_PRECISION,
             ErrorCode::InvalidSpotMarketInitialization,
             "Maintenance liability weight must be greater than {}",
             SPOT_WEIGHT_PRECISION

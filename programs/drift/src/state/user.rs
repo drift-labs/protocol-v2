@@ -54,6 +54,7 @@ pub enum UserStatus {
     Bankrupt = 0b00000010,
     ReduceOnly = 0b00000100,
     AdvancedLp = 0b00001000,
+    ProtectedMakerOrders = 0b00010000,
 }
 
 // implement SIZE const for User
@@ -127,7 +128,8 @@ pub struct User {
     /// Whether or not user has open order with auction
     pub has_open_auction: bool,
     pub margin_mode: MarginMode,
-    pub padding1: [u8; 4],
+    pub pool_id: u8,
+    pub padding1: [u8; 3],
     pub last_fuel_bonus_update_ts: u32,
     pub padding: [u8; 12],
 }
@@ -147,6 +149,10 @@ impl User {
 
     pub fn is_advanced_lp(&self) -> bool {
         self.status & (UserStatus::AdvancedLp as u8) > 0
+    }
+
+    pub fn is_protected_maker(&self) -> bool {
+        self.status & (UserStatus::ProtectedMakerOrders as u8) > 0
     }
 
     pub fn add_user_status(&mut self, status: UserStatus) {
@@ -390,19 +396,6 @@ impl User {
         }
     }
 
-    pub fn qualifies_for_withdraw_fee(&self, user_stats: &UserStats, slot: u64) -> bool {
-        // only qualifies for user with recent last_active_slot (~25 seconds)
-        if slot.saturating_sub(self.last_active_slot) >= 50 {
-            return false;
-        }
-
-        let min_total_withdraws = 10_000_000 * QUOTE_PRECISION_U64; // $10M
-
-        // if total withdraws are greater than $10M and user has paid more than %.01 of it in fees
-        self.total_withdraws >= min_total_withdraws
-            && self.total_withdraws / user_stats.fees.total_fee_paid.max(1) > 10_000
-    }
-
     pub fn update_reduce_only_status(&mut self, reduce_only: bool) -> DriftResult {
         if reduce_only {
             self.add_user_status(UserStatus::ReduceOnly);
@@ -418,6 +411,19 @@ impl User {
             self.add_user_status(UserStatus::AdvancedLp);
         } else {
             self.remove_user_status(UserStatus::AdvancedLp);
+        }
+
+        Ok(())
+    }
+
+    pub fn update_protected_maker_orders_status(
+        &mut self,
+        protected_maker_orders: bool,
+    ) -> DriftResult {
+        if protected_maker_orders {
+            self.add_user_status(UserStatus::ProtectedMakerOrders);
+        } else {
+            self.remove_user_status(UserStatus::ProtectedMakerOrders);
         }
 
         Ok(())

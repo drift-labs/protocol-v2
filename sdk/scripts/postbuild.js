@@ -1,9 +1,18 @@
 // scripts/postbuild.js
 const fs = require('fs');
 const path = require('path');
+const yargs = require('yargs/yargs');
+const { hideBin } = require('yargs/helpers');
+
+const forceEnv = yargs(hideBin(process.argv))
+	.option('force-env', {
+		type: 'string',
+		description: 'Specify environment to force (node or browser)',
+		choices: ['node', 'browser']
+	})
+	.argv?.forceEnv;
 
 const isomorphicPackages = ['grpc'];
-
 const environments = ['node', 'browser'];
 
 environments.forEach((environment) => {
@@ -20,13 +29,15 @@ environments.forEach((environment) => {
 			package + '.js'
 		);
 
+		const targetEnv = forceEnv ? forceEnv : environment;
+
 		const targetPath = path.join(
 			__dirname,
 			'..',
 			'lib',
 			environment,
 			'isomorphic',
-			`${package}.${environment}.js`
+			`${package}.${targetEnv}.js`
 		);
 
 		try {
