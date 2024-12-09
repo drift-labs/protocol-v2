@@ -56,7 +56,7 @@ use crate::state::perp_market::{
 };
 use crate::state::perp_market_map::get_writable_perp_market_set;
 use crate::state::protected_maker_mode_config::ProtectedMakerModeConfig;
-use crate::state::pyth_lazer_oracle::{PYTH_LAZER_ORACLE_SEED,PythLazerOracle};
+use crate::state::pyth_lazer_oracle::{PythLazerOracle, PYTH_LAZER_ORACLE_SEED};
 use crate::state::spot_market::{
     AssetTier, InsuranceFund, SpotBalanceType, SpotFulfillmentConfigStatus, SpotMarket,
 };
@@ -725,7 +725,12 @@ pub fn handle_initialize_perp_market(
                 price: oracle_price,
                 delay: oracle_delay,
                 ..
-            } = get_pyth_price(&ctx.accounts.oracle, clock_slot, 1000, &OracleSource::Pyth1K)?;
+            } = get_pyth_price(
+                &ctx.accounts.oracle,
+                clock_slot,
+                1000,
+                &OracleSource::Pyth1K,
+            )?;
             let last_oracle_price_twap =
                 perp_market
                     .amm
@@ -737,11 +742,17 @@ pub fn handle_initialize_perp_market(
                 price: oracle_price,
                 delay: oracle_delay,
                 ..
-            } = get_pyth_price(&ctx.accounts.oracle, clock_slot, 1000000, &OracleSource::Pyth1M)?;
-            let last_oracle_price_twap =
-                perp_market
-                    .amm
-                    .get_pyth_twap(&ctx.accounts.oracle, 1000000, &OracleSource::Pyth1M)?;
+            } = get_pyth_price(
+                &ctx.accounts.oracle,
+                clock_slot,
+                1000000,
+                &OracleSource::Pyth1M,
+            )?;
+            let last_oracle_price_twap = perp_market.amm.get_pyth_twap(
+                &ctx.accounts.oracle,
+                1000000,
+                &OracleSource::Pyth1M,
+            )?;
             (oracle_price, oracle_delay, last_oracle_price_twap)
         }
         OracleSource::PythStableCoin => {
@@ -749,7 +760,12 @@ pub fn handle_initialize_perp_market(
                 price: oracle_price,
                 delay: oracle_delay,
                 ..
-            } = get_pyth_price(&ctx.accounts.oracle, clock_slot, 1, &OracleSource::PythStableCoin)?;
+            } = get_pyth_price(
+                &ctx.accounts.oracle,
+                clock_slot,
+                1,
+                &OracleSource::PythStableCoin,
+            )?;
             (oracle_price, oracle_delay, QUOTE_PRECISION_I64)
         }
         OracleSource::Switchboard => {
@@ -790,11 +806,17 @@ pub fn handle_initialize_perp_market(
                 price: oracle_price,
                 delay: oracle_delay,
                 ..
-            } = get_pyth_price(&ctx.accounts.oracle, clock_slot, 1000, &OracleSource::Pyth1KPull)?;
-            let last_oracle_price_twap =
-                perp_market
-                    .amm
-                    .get_pyth_twap(&ctx.accounts.oracle, 1000, &OracleSource::Pyth1KPull)?;
+            } = get_pyth_price(
+                &ctx.accounts.oracle,
+                clock_slot,
+                1000,
+                &OracleSource::Pyth1KPull,
+            )?;
+            let last_oracle_price_twap = perp_market.amm.get_pyth_twap(
+                &ctx.accounts.oracle,
+                1000,
+                &OracleSource::Pyth1KPull,
+            )?;
             (oracle_price, oracle_delay, last_oracle_price_twap)
         }
         OracleSource::Pyth1MPull => {
@@ -802,11 +824,17 @@ pub fn handle_initialize_perp_market(
                 price: oracle_price,
                 delay: oracle_delay,
                 ..
-            } = get_pyth_price(&ctx.accounts.oracle, clock_slot, 1000000, &OracleSource::Pyth1MPull)?;
-            let last_oracle_price_twap =
-                perp_market
-                    .amm
-                    .get_pyth_twap(&ctx.accounts.oracle, 1000000, &OracleSource::Pyth1MPull)?;
+            } = get_pyth_price(
+                &ctx.accounts.oracle,
+                clock_slot,
+                1000000,
+                &OracleSource::Pyth1MPull,
+            )?;
+            let last_oracle_price_twap = perp_market.amm.get_pyth_twap(
+                &ctx.accounts.oracle,
+                1000000,
+                &OracleSource::Pyth1MPull,
+            )?;
             (oracle_price, oracle_delay, last_oracle_price_twap)
         }
         OracleSource::PythStableCoinPull => {
@@ -814,7 +842,12 @@ pub fn handle_initialize_perp_market(
                 price: oracle_price,
                 delay: oracle_delay,
                 ..
-            } = get_pyth_price(&ctx.accounts.oracle, clock_slot, 1, &OracleSource::PythStableCoinPull)?;
+            } = get_pyth_price(
+                &ctx.accounts.oracle,
+                clock_slot,
+                1,
+                &OracleSource::PythStableCoinPull,
+            )?;
             (oracle_price, oracle_delay, QUOTE_PRECISION_I64)
         }
         OracleSource::SwitchboardOnDemand => {
@@ -831,7 +864,12 @@ pub fn handle_initialize_perp_market(
                 price: oracle_price,
                 delay: oracle_delay,
                 ..
-            } = get_pyth_price(&ctx.accounts.oracle, clock_slot, 1, &OracleSource::PythLazer)?;
+            } = get_pyth_price(
+                &ctx.accounts.oracle,
+                clock_slot,
+                1,
+                &OracleSource::PythLazer,
+            )?;
             let last_oracle_price_twap =
                 perp_market
                     .amm
@@ -4143,9 +4181,16 @@ pub fn handle_initialize_pyth_pull_oracle(
     Ok(())
 }
 
-pub fn handle_initialize_pyth_lazer_oracle(ctx: Context<InitPythLazerOracle>, feed_id: u32) -> Result<()> {
+pub fn handle_initialize_pyth_lazer_oracle(
+    ctx: Context<InitPythLazerOracle>,
+    feed_id: u32,
+) -> Result<()> {
     let pubkey = ctx.accounts.lazer_oracle.to_account_info().key;
-    msg!("Lazer price feed initted {} with feed_id {}", pubkey, feed_id);
+    msg!(
+        "Lazer price feed initted {} with feed_id {}",
+        pubkey,
+        feed_id
+    );
     Ok(())
 }
 
@@ -4867,7 +4912,7 @@ pub struct InitPythLazerOracle<'info> {
         constraint = admin.key() == admin_hot_wallet::id() || admin.key() == state.admin
     )]
     pub admin: Signer<'info>,
-    #[account(init, seeds = [PYTH_LAZER_ORACLE_SEED, &feed_id.to_le_bytes()], 
+    #[account(init, seeds = [PYTH_LAZER_ORACLE_SEED, &feed_id.to_le_bytes()],
         space=PythLazerOracle::SIZE,
         bump,
         payer=admin

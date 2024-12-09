@@ -12,11 +12,7 @@ import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
 import { startAnchor } from 'solana-bankrun';
 import { AccountInfo, LAMPORTS_PER_SOL, PublicKey } from '@solana/web3.js';
 import { initializeQuoteSpotMarket, mockUSDCMint } from './testHelpers';
-
-const PYTH_STORAGE_DATA =
-	'0XX/ucSvRAkL/td28gTUmmjn6CkzKyvYXJOMcup4pEKu3cXcP7cvDAH2UhC+5Pz1sc7h5Tf6vP2VAQKXZTuUrwTUVPxHPpSDT+g2BnoAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==';
-const PYTH_LAZER_HEX_STRING =
-	'b9011a82cb2701fd7ef39a113d32e1f8e5b759e1a0d41aa2f587521979d3ff10178b34b56bb9e2c0bdbc5a55fe2162ed81e90b5d0d36bd43286f9e99e49e242a00dd860ef65210bee4fcf5b1cee1e537fabcfd95010297653b94af04d454fc473e94834f1c0075d3c79340d732d48f2806000301010000000100daa8b56fe2080000';
+import { PYTH_LAZER_HEX_STRING_BTC, PYTH_STORAGE_DATA } from './pythLazerData';
 
 // set up account infos to load into banks client
 const PYTH_STORAGE_ACCOUNT_INFO: AccountInfo<Buffer> = {
@@ -107,7 +103,7 @@ describe('pyth pull oracles', () => {
 	it('crank', async () => {
 		const tx = await driftClient.postPythLazerOracleUpdate(
 			1,
-			PYTH_LAZER_HEX_STRING
+			PYTH_LAZER_HEX_STRING_BTC
 		);
 		console.log(tx);
 	});

@@ -8579,7 +8579,7 @@ export class DriftClient {
 	public getPostPythLazerOracleUpdateIxs(
 		feedId: number,
 		pythMessageHex: string,
-		existingIxs: TransactionInstruction[] = []
+		precedingIxs: TransactionInstruction[] = []
 	): TransactionInstruction[] {
 		const pythMessageBytes = Buffer.from(pythMessageHex, 'hex');
 		const messageOffset = 1;
@@ -8589,7 +8589,7 @@ export class DriftClient {
 		updateData.set(pythMessageBytes, 1);
 
 		const verifyIx = createMinimalEd25519VerifyIx(
-			existingIxs.length + 2,
+			precedingIxs.length + 2,
 			messageOffset,
 			updateData
 		);

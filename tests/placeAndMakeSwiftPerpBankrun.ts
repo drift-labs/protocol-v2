@@ -4,9 +4,11 @@ import { assert } from 'chai';
 import { Program } from '@coral-xyz/anchor';
 
 import {
+	AccountInfo,
 	AddressLookupTableAccount,
 	Connection,
 	Keypair,
+	LAMPORTS_PER_SOL,
 	PublicKey,
 	Transaction,
 	TransactionInstruction,
@@ -33,6 +35,8 @@ import {
 	SwiftOrderRecord,
 	getSwiftUserAccountPublicKey,
 	digest,
+	PYTH_LAZER_STORAGE_ACCOUNT_KEY,
+	PTYH_LAZER_PROGRAM_ID,
 } from '../sdk/src';
 
 import {
@@ -53,7 +57,17 @@ import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
 import dotenv from 'dotenv';
 import { nanoid } from 'nanoid';
 import { createHash } from 'crypto';
+import { PYTH_LAZER_HEX_STRING_SOL, PYTH_STORAGE_DATA } from './pythLazerData';
+
 dotenv.config();
+
+const PYTH_STORAGE_ACCOUNT_INFO: AccountInfo<Buffer> = {
+	executable: false,
+	lamports: LAMPORTS_PER_SOL,
+	owner: new PublicKey(PTYH_LAZER_PROGRAM_ID),
+	rentEpoch: 0,
+	data: Buffer.from(PYTH_STORAGE_DATA, 'base64'),
+};
 
 describe('place and make swift order', () => {
 	const chProgram = anchor.workspace.Drift as Program;
@@ -75,17 +89,17 @@ describe('place and make swift order', () => {
 
 	// ammInvariant == k == x * y
 	const mantissaSqrtScale = new BN(Math.sqrt(PRICE_PRECISION.toNumber()));
-	const ammInitialQuoteAssetReserve = new anchor.BN(5 * 10 ** 13).mul(
+	const ammInitialQuoteAssetReserve = new anchor.BN(10 * 10 ** 13).mul(
 		mantissaSqrtScale
 	);
-	const ammInitialBaseAssetReserve = new anchor.BN(5 * 10 ** 13).mul(
+	const ammInitialBaseAssetReserve = new anchor.BN(10 * 10 ** 13).mul(
 		mantissaSqrtScale
 	);
 
 	let usdcMint;
 	let userUSDCAccount;
 
-	const usdcAmount = new BN(100 * 10 ** 6);
+	const usdcAmount = new BN(10000 * 10 ** 6);
 
 	let solUsd;
 	let marketIndexes;
@@ -93,7 +107,16 @@ describe('place and make swift order', () => {
 	let oracleInfos;
 
 	before(async () => {
-		const context = await startAnchor('', [], []);
+		const context = await startAnchor(
+			'',
+			[],
+			[
+				{
+					address: PYTH_LAZER_STORAGE_ACCOUNT_KEY,
+					info: PYTH_STORAGE_ACCOUNT_INFO,
+				},
+			]
+		);
 
 		// @ts-ignore
 		bankrunContextWrapper = new BankrunContextWrapper(context);
@@ -123,11 +146,11 @@ describe('place and make swift order', () => {
 			bankrunContextWrapper
 		);
 
-		solUsd = await mockOracleNoProgram(bankrunContextWrapper, 32.821);
+		solUsd = await mockOracleNoProgram(bankrunContextWrapper, 224.3);
 
 		marketIndexes = [0];
 		spotMarketIndexes = [0, 1];
-		oracleInfos = [{ publicKey: solUsd, source: OracleSource.PYTH }];
+		oracleInfos = [{ publicKey: solUsd, source: OracleSource.PYTH_LAZER }];
 
 		makerDriftClient = new TestClient({
 			connection: bankrunContextWrapper.connection.toConnection(),
@@ -158,7 +181,7 @@ describe('place and make swift order', () => {
 			ammInitialBaseAssetReserve,
 			ammInitialQuoteAssetReserve,
 			periodicity,
-			new BN(33 * PEG_PRECISION.toNumber())
+			new BN(224 * PEG_PRECISION.toNumber())
 		);
 
 		await makerDriftClient.initializeUserAccountAndDepositCollateral(
@@ -206,9 +229,9 @@ describe('place and make swift order', () => {
 			marketIndex,
 			direction: PositionDirection.LONG,
 			baseAssetAmount: baseAssetAmount.muln(2),
-			price: new BN(34).mul(PRICE_PRECISION),
-			auctionStartPrice: new BN(33).mul(PRICE_PRECISION),
-			auctionEndPrice: new BN(34).mul(PRICE_PRECISION),
+			price: new BN(224).mul(PRICE_PRECISION),
+			auctionStartPrice: new BN(223).mul(PRICE_PRECISION),
+			auctionEndPrice: new BN(224).mul(PRICE_PRECISION),
 			auctionDuration: 10,
 			userOrderId: 1,
 			postOnly: PostOnlyParams.NONE,
@@ -225,7 +248,7 @@ describe('place and make swift order', () => {
 			marketIndex,
 			direction: PositionDirection.SHORT,
 			baseAssetAmount: BASE_PRECISION,
-			price: new BN(33).mul(PRICE_PRECISION),
+			price: new BN(223).mul(PRICE_PRECISION),
 			userOrderId: 1,
 			postOnly: PostOnlyParams.MUST_POST_ONLY,
 			immediateOrCancel: true,
@@ -306,6 +329,93 @@ describe('place and make swift order', () => {
 		await takerDriftClient.unsubscribe();
 	});
 
+	it('should work with pyth lazer crank and filling against vamm in one tx', async () => {
+		const slot = new BN(
+			await bankrunContextWrapper.connection.toConnection().getSlot()
+		);
+
+		const [takerDriftClient, takerDriftClientUser] =
+			await initializeNewTakerClientAndUser(
+				bankrunContextWrapper,
+				chProgram,
+				usdcMint,
+				usdcAmount,
+				marketIndexes,
+				spotMarketIndexes,
+				oracleInfos,
+				bulkAccountLoader
+			);
+		await takerDriftClientUser.fetchAccounts();
+
+		const marketIndex = 0;
+		const baseAssetAmount = BASE_PRECISION;
+		const takerOrderParams = getMarketOrderParams({
+			marketIndex,
+			direction: PositionDirection.LONG,
+			baseAssetAmount,
+			auctionStartPrice: new BN(33).mul(PRICE_PRECISION),
+			auctionEndPrice: new BN(37).mul(PRICE_PRECISION),
+			auctionDuration: 10,
+			userOrderId: 1,
+			postOnly: PostOnlyParams.NONE,
+		});
+		const takerOrderParamsMessage: SwiftOrderParamsMessage = {
+			swiftOrderParams: takerOrderParams,
+			subAccountId: 0,
+			takeProfitOrderParams: null,
+			stopLossOrderParams: null,
+		};
+		const takerOrderParamsSig = takerDriftClient.signSwiftOrderParamsMessage(
+			takerOrderParamsMessage
+		);
+
+		const swiftServerMessage: SwiftServerMessage = {
+			slot: slot.subn(5),
+			swiftOrderSignature: takerOrderParamsSig,
+			uuid: Uint8Array.from(Buffer.from(nanoid(8))),
+		};
+
+		const encodedSwiftServerMessage =
+			takerDriftClient.encodeSwiftServerMessage(swiftServerMessage);
+
+		const swiftSignature = takerDriftClient.signMessage(
+			digest(encodedSwiftServerMessage),
+			swiftKeypair
+		);
+
+		// Get pyth lazer instruction
+
+		const pythLazerCrankIx = makerDriftClient.getPostPythLazerOracleUpdateIxs(
+			6,
+			PYTH_LAZER_HEX_STRING_SOL
+		);
+
+		const placeSwiftTakerOrderIxs =
+			await makerDriftClient.getPlaceSwiftTakerPerpOrderIxs(
+				encodedSwiftServerMessage,
+				swiftSignature,
+				takerDriftClient.encodeSwiftOrderParamsMessage(takerOrderParamsMessage),
+				takerOrderParamsSig,
+				takerOrderParams.marketIndex,
+				{
+					taker: await takerDriftClient.getUserAccountPublicKey(),
+					takerUserAccount: takerDriftClient.getUserAccount(),
+					takerStats: takerDriftClient.getUserStatsAccountPublicKey(),
+				}
+			);
+
+		const fillIx = await makerDriftClient.getFillPerpOrderIx(
+			takerDriftClientUser.getUserAccountPublicKey(),
+			takerDriftClientUser.getUserAccount()
+		);
+
+		assert(takerDriftClient.getOrderByUserId(1) !== undefined);
+		assert(takerDriftClient.getOrderByUserId(1).slot.eq(slot.subn(5)));
+
+		await takerDriftClientUser.unsubscribe();
+		await takerDriftClient.unsubscribe();
+	});
+
 	it('fills swift with trigger orders ', async () => {
 		slot = new BN(
 			await bankrunContextWrapper.connection.toConnection().getSlot()
@@ -329,9 +439,9 @@ describe('place and make swift order', () => {
 			marketIndex,
 			direction: PositionDirection.LONG,
 			baseAssetAmount,
-			price: new BN(34).mul(PRICE_PRECISION),
-			auctionStartPrice: new BN(33).mul(PRICE_PRECISION),
-			auctionEndPrice: new BN(34).mul(PRICE_PRECISION),
+			price: new BN(224).mul(PRICE_PRECISION),
+			auctionStartPrice: new BN(223).mul(PRICE_PRECISION),
+			auctionEndPrice: new BN(224).mul(PRICE_PRECISION),
 			auctionDuration: 10,
 			userOrderId: 1,
 			postOnly: PostOnlyParams.NONE,
@@ -341,8 +451,8 @@ describe('place and make swift order', () => {
 			marketIndex,
 			direction: PositionDirection.SHORT,
 			baseAssetAmount,
-			price: new BN(20).mul(PRICE_PRECISION),
-			triggerPrice: new BN(20).mul(PRICE_PRECISION),
+			price: new BN(220).mul(PRICE_PRECISION),
+			triggerPrice: new BN(220).mul(PRICE_PRECISION),
 			userOrderId: 2,
 			triggerCondition: OrderTriggerCondition.BELOW,
 			marketType: MarketType.PERP,
@@ -352,8 +462,8 @@ describe('place and make swift order', () => {
 			marketIndex,
 			direction: PositionDirection.SHORT,
 			baseAssetAmount,
-			price: new BN(40).mul(PRICE_PRECISION),
-			triggerPrice: new BN(40).mul(PRICE_PRECISION),
+			price: new BN(240).mul(PRICE_PRECISION),
+			triggerPrice: new BN(240).mul(PRICE_PRECISION),
 			userOrderId: 3,
 			triggerCondition: OrderTriggerCondition.ABOVE,
 			marketType: MarketType.PERP,
@@ -364,7 +474,7 @@ describe('place and make swift order', () => {
 			marketIndex,
 			direction: PositionDirection.SHORT,
 			baseAssetAmount,
-			price: new BN(33).mul(PRICE_PRECISION),
+			price: new BN(223).mul(PRICE_PRECISION),
 			postOnly: PostOnlyParams.MUST_POST_ONLY,
 			immediateOrCancel: true,
 			marketType: MarketType.PERP,
@@ -496,9 +606,9 @@ describe('place and make swift order', () => {
 			marketIndex,
 			direction: PositionDirection.LONG,
 			baseAssetAmount,
-			price: new BN(34).mul(PRICE_PRECISION),
-			auctionStartPrice: new BN(33).mul(PRICE_PRECISION),
-			auctionEndPrice: new BN(34).mul(PRICE_PRECISION),
+			price: new BN(224).mul(PRICE_PRECISION),
+			auctionStartPrice: new BN(223).mul(PRICE_PRECISION),
+			auctionEndPrice: new BN(224).mul(PRICE_PRECISION),
 			auctionDuration: 10,
 			userOrderId: 1,
 			postOnly: PostOnlyParams.NONE,
@@ -509,7 +619,7 @@ describe('place and make swift order', () => {
 			marketIndex,
 			direction: PositionDirection.SHORT,
 			baseAssetAmount,
-			price: new BN(33).mul(PRICE_PRECISION),
+			price: new BN(223).mul(PRICE_PRECISION),
 			postOnly: PostOnlyParams.MUST_POST_ONLY,
 			immediateOrCancel: true,
 		});
@@ -588,8 +698,8 @@ describe('place and make swift order', () => {
 			marketIndex,
 			direction: PositionDirection.LONG,
 			baseAssetAmount,
-			auctionStartPrice: new BN(33).mul(PRICE_PRECISION),
-			auctionEndPrice: new BN(37).mul(PRICE_PRECISION),
+			auctionStartPrice: new BN(223).mul(PRICE_PRECISION),
+			auctionEndPrice: new BN(227).mul(PRICE_PRECISION),
 			auctionDuration: 10,
 			userOrderId: 1,
 			postOnly: PostOnlyParams.NONE,
@@ -638,7 +748,7 @@ describe('place and make swift order', () => {
 			marketIndex,
 			direction: PositionDirection.SHORT,
 			baseAssetAmount,
-			price: new BN(35).mul(PRICE_PRECISION),
+			price: new BN(225).mul(PRICE_PRECISION),
 			postOnly: PostOnlyParams.MUST_POST_ONLY,
 			immediateOrCancel: true,
 		});
@@ -686,7 +796,7 @@ describe('place and make swift order', () => {
 			marketIndex,
 			direction: PositionDirection.LONG,
 			baseAssetAmount: baseAssetAmount.muln(2),
-			price: new BN(34).mul(PRICE_PRECISION),
+			price: new BN(224).mul(PRICE_PRECISION),
 			userOrderId: 1,
 			postOnly: PostOnlyParams.NONE,
 			marketType: MarketType.PERP,
@@ -761,7 +871,7 @@ describe('place and make swift order', () => {
 			marketIndex,
 			direction: PositionDirection.LONG,
 			baseAssetAmount: baseAssetAmount.muln(2),
-			auctionStartPrice: new BN(33).mul(PRICE_PRECISION),
+			auctionStartPrice: new BN(223).mul(PRICE_PRECISION),
 			auctionEndPrice: new BN(10000).mul(PRICE_PRECISION),
 			auctionDuration: 50,
 			userOrderId: 1,
