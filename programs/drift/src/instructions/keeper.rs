@@ -475,6 +475,10 @@ pub fn handle_log_user_balances<'c: 'info, 'info>(
     msg!("Equity {}", equity);
 
     for spot_position in user.spot_positions.iter() {
+        if spot_position.scale_balance == 0 {
+            continue;
+        }
+
         let spot_market = spot_market_map.get_ref(&spot_position.market_index)?;
         let token_amount = spot_position.get_signed_token_amount(&spot_market)?;
         msg!("Spot position {} {}", spot_position.market_index, token_amount);
