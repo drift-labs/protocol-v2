@@ -1858,6 +1858,27 @@
       "args": []
     },
     {
+      "name": "logUserBalances",
+      "accounts": [
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "user",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": []
+    },
+    {
       "name": "disableUserHighLeverageMode",
       "accounts": [
         {

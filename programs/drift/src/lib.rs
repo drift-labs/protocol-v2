@@ -430,6 +430,12 @@ pub mod drift {
         handle_update_user_idle(ctx)
     }
 
+    pub fn log_user_balances<'c: 'info, 'info>(
+        ctx: Context<'_, '_, 'c, 'info, LogUserBalances<'info>>,
+    ) -> Result<()> {
+        handle_log_user_balances(ctx)
+    }
+
     pub fn disable_user_high_leverage_mode<'c: 'info, 'info>(
         ctx: Context<'_, '_, 'c, 'info, DisableUserHighLeverageMode<'info>>,
     ) -> Result<()> {
