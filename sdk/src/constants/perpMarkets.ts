@@ -1064,6 +1064,18 @@ export const MainnetPerpMarkets: PerpMarketConfig[] = [
 		pythFeedId:
 			'0x6e3f3fa8253588df9326580180233eb791e03b443a3ba7a1d892e73874e19a54',
 	},
+	{
+		fullName: 'Magic Eden',
+		category: ['DEX'],
+		symbol: 'ME-PERP',
+		baseAssetSymbol: 'ME',
+		marketIndex: 61,
+		oracle: new PublicKey('FLQjrmEPGwbCKRYZ1eYM5FPccHBrCv2cN4GBu3mWfmPH'),
+		launchTs: 1733839936000,
+		oracleSource: OracleSource.PYTH_PULL,
+		pythFeedId:
+			'0x91519e3e48571e1232a85a938e714da19fe5ce05107f3eebb8a870b2e8020169',
+	},
 ];
 
 export const PerpMarkets: { [key in DriftEnv]: PerpMarketConfig[] } = {
