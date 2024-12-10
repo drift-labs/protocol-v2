@@ -5269,12 +5269,11 @@ export class DriftClient {
 
 	public async logUserBalances(
 		userAccountPublicKey: PublicKey,
-		userAccount: UserAccount,
 		txParams?: TxParams
 	): Promise<TransactionSignature> {
 		const { txSig } = await this.sendTransaction(
 			await this.buildTransaction(
-				await this.getLogUserBalancesIx(userAccountPublicKey, userAccount),
+				await this.getLogUserBalancesIx(userAccountPublicKey),
 				txParams
 			),
 			[],
@@ -5285,8 +5284,8 @@ export class DriftClient {
 
 	public async getLogUserBalancesIx(
 		userAccountPublicKey: PublicKey,
-		userAccount: UserAccount
 	): Promise<TransactionInstruction> {
+		const userAccount = (await this.program.account.user.fetch(userAccountPublicKey)) as UserAccount;
 		const remainingAccounts = this.getRemainingAccounts({
 			userAccounts: [userAccount],
 		});

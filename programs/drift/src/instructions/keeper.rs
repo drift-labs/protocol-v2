@@ -495,10 +495,19 @@ pub fn handle_log_user_balances<'c: 'info, 'info>(
     }
 
     for perp_position in user.perp_positions.iter() {
+        if perp_position.is_available() {
+            continue;
+        }
+
         let perp_market = perp_market_map.get_ref(&perp_position.market_index)?;
         let oracle_price = oracle_map.get_price_data(&perp_market.oracle_id())?.price;
         let (_, unrealized_pnl) =
             calculate_base_asset_value_and_pnl_with_oracle_price(&perp_position, oracle_price)?;
+
+        if unrealized_pnl == 0 {
+            continue;
+        }
+
         msg!(
             "Perp position {} unrealized pnl {}",
             perp_position.market_index,
