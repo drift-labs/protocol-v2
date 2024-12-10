@@ -129,7 +129,7 @@ pub enum OracleSource {
 }
 
 impl OracleSource {
-    pub fn is_pull_oracle(&self) -> bool {
+    pub fn is_pyth_pull_oracle(&self) -> bool {
         matches!(
             self,
             OracleSource::PythPull
@@ -139,7 +139,7 @@ impl OracleSource {
         )
     }
 
-    pub fn is_push_oracle(&self) -> bool {
+    pub fn is_pyth_push_oracle(&self) -> bool {
         matches!(
             self,
             OracleSource::Pyth
@@ -218,7 +218,7 @@ pub fn get_pyth_price(
     let mut oracle_precision: u128;
     let published_slot: u64;
 
-    if oracle_source.is_pull_oracle() {
+    if oracle_source.is_pyth_pull_oracle() {
         let price_message = pyth_solana_receiver_sdk::price_update::PriceUpdateV2::try_deserialize(
             &mut pyth_price_data,
         )
@@ -227,7 +227,7 @@ pub fn get_pyth_price(
         oracle_conf = price_message.price_message.conf;
         oracle_precision = 10_u128.pow(price_message.price_message.exponent.unsigned_abs());
         published_slot = price_message.posted_slot;
-    } else if oracle_source.is_push_oracle() {
+    } else if oracle_source.is_pyth_push_oracle() {
         let price_data = pyth_client::cast::<pyth_client::Price>(pyth_price_data);
         oracle_price = price_data.agg.price;
         oracle_conf = price_data.agg.conf;

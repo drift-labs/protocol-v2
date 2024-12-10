@@ -325,7 +325,7 @@ export function getPythLazerOraclePublicKey(
 ): PublicKey {
 	const buffer = new ArrayBuffer(4);
 	const view = new DataView(buffer);
-	view.setUint32(0, feedId, true); // true for little-endian
+	view.setUint32(0, feedId, true);
 	const feedIdBytes = new Uint8Array(buffer);
 	return PublicKey.findProgramAddressSync(
 		[

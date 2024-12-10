@@ -16,7 +16,7 @@ pub fn handle_update_pyth_lazer_oracle(
     validate!(
         ix_idx > 0,
         ErrorCode::InvalidVerificationIxIndex,
-        "instruction index must be greater than 1 for two sig verifies"
+        "instruction index must be greater than 0 to include the sig verify ix"
     )?;
 
     let verified = pyth_lazer_sdk::verify_message(
@@ -36,10 +36,16 @@ pub fn handle_update_pyth_lazer_oracle(
         .map_err(|_| ProgramError::InvalidInstructionData)?;
 
     if data.feeds.is_empty() || data.feeds[0].properties.is_empty() {
+        msg!("Invalid Pyth lazer message. No feeds or properties found");
         return Err(ErrorCode::InvalidPythLazerMessage.into());
     }
 
     if data.feeds[0].feed_id.0 != feed_id {
+        msg!(
+            "Feed ID mismatch. Expected {} but got {}",
+            feed_id,
+            data.feeds[0].feed_id.0
+        );
         return Err(ErrorCode::InvalidPythLazerMessage.into());
     }
 
