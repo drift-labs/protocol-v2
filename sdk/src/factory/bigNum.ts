@@ -386,9 +386,41 @@ export class BigNum {
 		}
 
 		const isNeg = this.isNeg();
-
 		const printString = this.abs().print();
 		const thisString = this.abs().toString();
+
+		// Handle small numbers (those with leading zeros after decimal)
+		if (printString.includes(BigNum.delim)) {
+			const [leftSide, rightSide] = printString.split(BigNum.delim);
+			if (leftSide === '0' && rightSide) {
+				// Count leading zeros
+				let leadingZeros = 0;
+				for (let i = 0; i < rightSide.length; i++) {
+					if (rightSide[i] === '0') {
+						leadingZeros++;
+					} else {
+						break;
+					}
+				}
+				// Get significant digits starting after leading zeros
+				const significantPart = rightSide.slice(leadingZeros);
+				let significantDigits = significantPart.slice(0, fixedPrecision);
+
+				// Remove trailing zeros if not requested
+				if (!trailingZeroes) {
+					significantDigits = significantDigits.replace(/0+$/, '');
+				}
+
+				// Only return result if we have significant digits
+				if (significantDigits.length > 0) {
+					const result = `${isNeg ? '-' : ''}0${BigNum.delim}${rightSide.slice(
+						0,
+						leadingZeros
+					)}${significantDigits}`;
+					return result;
+				}
+			}
+		}
 
 		let precisionPrintString = printString.slice(0, fixedPrecision + 1);
 
