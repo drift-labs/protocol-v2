@@ -25,6 +25,7 @@ import {
 	LogsCallback,
 	AccountChangeCallback,
 	LAMPORTS_PER_SOL,
+	AddressLookupTableAccount,
 } from '@solana/web3.js';
 import {
 	ProgramTestContext,
@@ -339,6 +340,26 @@ export class BankrunConnection {
 		return {
 			blockhash: blockhashAndBlockheight[0],
 			lastValidBlockHeight: Number(blockhashAndBlockheight[1]),
+		};
+	}
+
+	async getAddressLookupTable(
+		accountKey: PublicKey
+	): Promise<RpcResponseAndContext<null | AddressLookupTableAccount>> {
+		const { context, value: accountInfo } = await this.getParsedAccountInfo(
+			accountKey
+		);
+		let value = null;
+		if (accountInfo !== null) {
+			value = new AddressLookupTableAccount({
+				key: accountKey,
+				state: AddressLookupTableAccount.deserialize(accountInfo.data),
+			});
+		}
+
+		return {
+			context,
+			value,
 		};
 	}
 

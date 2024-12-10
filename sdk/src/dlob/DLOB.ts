@@ -15,6 +15,7 @@ import {
 	isOrderExpired,
 	isRestingLimitOrder,
 	isTriggered,
+	isUserProtectedMaker,
 	isVariant,
 	MarketType,
 	MarketTypeStr,
@@ -44,7 +45,6 @@ import {
 	L3OrderBook,
 	mergeL2LevelGenerators,
 } from './orderBookLevels';
-import { isUserProtectedMaker } from '../math/userStatus';
 
 export type MarketNodeLists = {
 	restingLimit: {
@@ -185,73 +185,6 @@ export class DLOB {
 		return true;
 	}
 
-	public handleOrderRecord(record: OrderRecord, slot: number): void {
-		this.insertOrder(record.order, record.user.toString(), slot, false);
-	}
-
-	public handleOrderActionRecord(
-		record: OrderActionRecord,
-		slot: number
-	): void {
-		if (isOneOfVariant(record.action, ['place', 'expire'])) {
-			return;
-		}
-
-		if (isVariant(record.action, 'trigger')) {
-			if (record.taker !== null) {
-				const takerOrder = this.getOrder(record.takerOrderId, record.taker);
-				if (takerOrder) {
-					this.trigger(takerOrder, record.taker, slot, false);
-				}
-			}
-
-			if (record.maker !== null) {
-				const makerOrder = this.getOrder(record.makerOrderId, record.maker);
-				if (makerOrder) {
-					this.trigger(makerOrder, record.maker, slot, false);
-				}
-			}
-		} else if (isVariant(record.action, 'fill')) {
-			if (record.taker !== null) {
-				const takerOrder = this.getOrder(record.takerOrderId, record.taker);
-				if (takerOrder) {
-					this.updateOrder(
-						takerOrder,
-						record.taker,
-						slot,
-						record.takerOrderCumulativeBaseAssetAmountFilled
-					);
-				}
-			}
-
-			if (record.maker !== null) {
-				const makerOrder = this.getOrder(record.makerOrderId, record.maker);
-				if (makerOrder) {
-					this.updateOrder(
-						makerOrder,
-						record.maker,
-						slot,
-						record.makerOrderCumulativeBaseAssetAmountFilled
-					);
-				}
-			}
-		} else if (isVariant(record.action, 'cancel')) {
-			if (record.taker !== null) {
-				const takerOrder = this.getOrder(record.takerOrderId, record.taker);
-				if (takerOrder) {
-					this.delete(takerOrder, record.taker, slot);
-				}
-			}
-
-			if (record.maker !== null) {
-				const makerOrder = this.getOrder(record.makerOrderId, record.maker);
-				if (makerOrder) {
-					this.delete(makerOrder, record.maker, slot);
-				}
-			}
-		}
-	}
-
 	public insertOrder(
 		order: Order,
 		userAccount: string,
@@ -278,7 +211,7 @@ export class DLOB {
 				.get(marketType)
 				.add(getOrderSignature(order.orderId, userAccount));
 		}
-		this.getListForOrder(order, slot)?.insert(
+		this.getListForOnChainOrder(order, slot)?.insert(
 			order,
 			marketType,
 			userAccount,
@@ -293,6 +226,7 @@ export class DLOB {
 	public insertSwiftOrder(
 		order: Order,
 		userAccount: string,
+		isUserProtectedMaker: boolean,
 		onInsert?: OrderBookCallback
 	): void {
 		const marketType = getVariant(order.marketType) as MarketTypeStr;
@@ -307,7 +241,12 @@ export class DLOB {
 		this.orderLists
 			.get(marketType)
 			.get(marketIndex)
-			.swift[bidOrAsk].insert(order, marketType, userAccount);
+			.swift[bidOrAsk].insert(
+				order,
+				marketType,
+				userAccount,
+				isUserProtectedMaker
+			);
 		if (onInsert) {
 			onInsert();
 		}
@@ -340,70 +279,6 @@ export class DLOB {
 				bid: new NodeList('swift', 'asc'),
 			},
 		});
-	}
-
-	public updateOrder(
-		order: Order,
-		userAccount: PublicKey,
-		slot: number,
-		cumulativeBaseAssetAmountFilled: BN,
-		onUpdate?: OrderBookCallback
-	): void {
-		this.updateRestingLimitOrders(slot);
-
-		if (order.baseAssetAmount.eq(cumulativeBaseAssetAmountFilled)) {
-			this.delete(order, userAccount, slot);
-			return;
-		}
-
-		if (order.baseAssetAmountFilled.eq(cumulativeBaseAssetAmountFilled)) {
-			return;
-		}
-
-		const newOrder = {
-			...order,
-		};
-		newOrder.baseAssetAmountFilled = cumulativeBaseAssetAmountFilled;
-
-		this.getListForOrder(order, slot)?.update(newOrder, userAccount.toString());
-
-		if (onUpdate) {
-			onUpdate();
-		}
-	}
-
-	public trigger(
-		order: Order,
-		userAccount: PublicKey,
-		slot: number,
-		isUserProtectedMaker: boolean,
-		onTrigger?: OrderBookCallback
-	): void {
-		if (isVariant(order.status, 'init')) {
-			return;
-		}
-
-		this.updateRestingLimitOrders(slot);
-
-		if (isTriggered(order)) {
-			return;
-		}
-
-		const marketType = getVariant(order.marketType) as MarketTypeStr;
-
-		const triggerList = this.orderLists.get(marketType).get(order.marketIndex)
-			.trigger[isVariant(order.triggerCondition, 'above') ? 'above' : 'below'];
-		triggerList.remove(order, userAccount.toString());
-
-		this.getListForOrder(order, slot)?.insert(
-			order,
-			marketType,
-			userAccount.toString(),
-			isUserProtectedMaker
-		);
-		if (onTrigger) {
-			onTrigger();
-		}
 	}
 
 	public getListForOnChainOrder(

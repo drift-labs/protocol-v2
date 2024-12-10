@@ -84,6 +84,7 @@ export * from './openbook/openbookV2Subscriber';
 export * from './openbook/openbookV2FulfillmentConfigMap';
 export * from './oracles/pythClient';
 export * from './oracles/pythPullClient';
+export * from './oracles/pythLazerClient';
 export * from './oracles/switchboardOnDemandClient';
 export * from './tx/fastSingleTxSender';
 export * from './tx/retryTxSender';

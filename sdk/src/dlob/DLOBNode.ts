@@ -29,13 +29,15 @@ export abstract class OrderNode implements DLOBNode {
 	sortValue: BN;
 	haveFilled = false;
 	haveTrigger = false;
-	isUserProtectedMaker: boolean;	isSwift: boolean;
+	isUserProtectedMaker: boolean;
+	isSwift: boolean;
 
 	constructor(
 		order: Order,
 		userAccount: string,
-		isUserProtectedMaker: boolean
-	, isSwift = false) {
+		isUserProtectedMaker: boolean,
+		isSwift = false
+	) {
 		// Copy the order over to the node
 		this.order = { ...order };
 		this.userAccount = userAccount;

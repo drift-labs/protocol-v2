@@ -10,7 +10,7 @@ import {
 import { DRIFT_PROGRAM_ID, Wallet } from '..';
 import driftIDL from '../idl/drift.json';
 
-export class PythPullClient implements OracleClient {
+export class PythLazerClient implements OracleClient {
 	private connection: Connection;
 	private multiple: BN;
 	private stableCoin: boolean;
@@ -52,7 +52,7 @@ export class PythPullClient implements OracleClient {
 	}
 
 	public getOraclePriceDataFromBuffer(buffer: Buffer): OraclePriceData {
-		const priceData = this.decodeFunc('pythLazerOracle', buffer);
+		const priceData = this.decodeFunc('PythLazerOracle', buffer);
 		const confidence = convertPythPrice(
 			priceData.conf,
 			priceData.exponent,
@@ -86,11 +86,7 @@ export class PythPullClient implements OracleClient {
 	}
 }
 
-export function convertPythPrice(
-	price: BN,
-	exponent: number,
-	multiple: BN
-): BN {
+function convertPythPrice(price: BN, exponent: number, multiple: BN): BN {
 	exponent = Math.abs(exponent);
 	const pythPrecision = TEN.pow(new BN(exponent).abs()).div(multiple);
 	return price.mul(PRICE_PRECISION).div(pythPrecision);

@@ -1,7 +1,8 @@
 use crate::error::ErrorCode::UnableToLoadOracle;
 use crate::error::{DriftResult, ErrorCode};
 use crate::ids::{
-    drift_oracle_receiver_program, pyth_program, switchboard_on_demand, switchboard_program,
+    drift_oracle_receiver_program, pyth_lazer_program, pyth_program, switchboard_on_demand,
+    switchboard_program,
 };
 use crate::math::constants::PRICE_PRECISION_I64;
 use crate::math::oracle::{oracle_validity, OracleValidity};
@@ -17,6 +18,7 @@ use std::collections::BTreeMap;
 use std::iter::Peekable;
 use std::slice::Iter;
 
+use super::pyth_lazer_oracle::PythLazerOracle;
 use super::state::ValidityGuardRails;
 use crate::math::safe_unwrap::SafeUnwrap;
 use crate::state::traits::Size;
@@ -197,13 +199,19 @@ impl<'a> OracleMap<'a> {
                     UnableToLoadOracle
                 })?;
 
-                let expected_data_len = PrelaunchOracle::SIZE;
-                if data.len() < expected_data_len {
-                    break;
-                }
-
                 let account_discriminator = array_ref![data, 0, 8];
-                if account_discriminator != &PrelaunchOracle::discriminator() {
+
+                if account_discriminator == &PrelaunchOracle::discriminator() {
+                    let expected_data_len = PrelaunchOracle::SIZE;
+                    if data.len() < expected_data_len {
+                        break;
+                    }
+                } else if account_discriminator == &PythLazerOracle::discriminator() {
+                    let expected_data_len = PythLazerOracle::SIZE;
+                    if data.len() < expected_data_len {
+                        break;
+                    }
+                } else {
                     break;
                 }
 
@@ -256,14 +264,21 @@ impl<'a> OracleMap<'a> {
                 UnableToLoadOracle
             })?;
 
-            let expected_data_len = PrelaunchOracle::SIZE;
-            if data.len() < expected_data_len {
-                msg!("Unexpected account data len loading oracle");
-                return Err(UnableToLoadOracle);
-            }
-
             let account_discriminator = array_ref![data, 0, 8];
-            if account_discriminator != &PrelaunchOracle::discriminator() {
+
+            if account_discriminator == &PrelaunchOracle::discriminator() {
+                let expected_data_len = PrelaunchOracle::SIZE;
+                if data.len() < expected_data_len {
+                    msg!("Unexpected account data len loading oracle");
+                    return Err(UnableToLoadOracle);
+                }
+            } else if account_discriminator == &PythLazerOracle::discriminator() {
+                let expected_data_len = PythLazerOracle::SIZE;
+                if data.len() < expected_data_len {
+                    msg!("Unexpected account data len loading oracle");
+                    return Err(UnableToLoadOracle);
+                }
+            } else {
                 msg!("Unexpected account discriminator");
                 return Err(UnableToLoadOracle);
             }
