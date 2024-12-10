@@ -405,15 +405,18 @@ export class BigNum {
 				// Get significant digits starting after leading zeros
 				const significantPart = rightSide.slice(leadingZeros);
 				let significantDigits = significantPart.slice(0, fixedPrecision);
-				
+
 				// Remove trailing zeros if not requested
 				if (!trailingZeroes) {
 					significantDigits = significantDigits.replace(/0+$/, '');
 				}
-				
+
 				// Only return result if we have significant digits
 				if (significantDigits.length > 0) {
-					const result = `${isNeg ? '-' : ''}0${BigNum.delim}${rightSide.slice(0, leadingZeros)}${significantDigits}`;
+					const result = `${isNeg ? '-' : ''}0${BigNum.delim}${rightSide.slice(
+						0,
+						leadingZeros
+					)}${significantDigits}`;
 					return result;
 				}
 			}
