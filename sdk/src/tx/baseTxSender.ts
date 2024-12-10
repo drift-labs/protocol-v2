@@ -44,6 +44,7 @@ export abstract class BaseTxSender implements TxSender {
 	txHandler: TxHandler;
 	trackTxLandRate?: boolean;
 	throwOnTimeoutError: boolean;
+	throwOnTransactionError: boolean;
 
 	// For landing rate calcs
 	lookbackWindowMinutes: number;
@@ -65,6 +66,7 @@ export abstract class BaseTxSender implements TxSender {
 		txLandRateLookbackWindowMinutes = DEFAULT_TX_LAND_RATE_LOOKBACK_WINDOW_MINUTES,
 		landRateToFeeFunc,
 		throwOnTimeoutError = true,
+		throwOnTransactionError = true,
 	}: {
 		connection: Connection;
 		wallet: IWallet;
@@ -78,6 +80,7 @@ export abstract class BaseTxSender implements TxSender {
 		txLandRateLookbackWindowMinutes?: number;
 		landRateToFeeFunc?: (landRate: number) => number;
 		throwOnTimeoutError?: boolean;
+		throwOnTransactionError?: boolean;
 	}) {
 		this.connection = connection;
 		this.wallet = wallet;
@@ -104,6 +107,7 @@ export abstract class BaseTxSender implements TxSender {
 		this.landRateToFeeFunc =
 			landRateToFeeFunc ?? this.defaultLandRateToFeeFunc.bind(this);
 		this.throwOnTimeoutError = throwOnTimeoutError;
+		this.throwOnTransactionError = throwOnTransactionError;
 	}
 
 	async send(
