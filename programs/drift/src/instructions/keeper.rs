@@ -26,6 +26,7 @@ use crate::math::casting::Cast;
 use crate::math::constants::QUOTE_SPOT_MARKET_INDEX;
 use crate::math::margin::{calculate_user_equity, meets_settle_pnl_maintenance_margin_requirement};
 use crate::math::orders::{estimate_price_from_side, find_bids_and_asks_from_users};
+use crate::math::position::calculate_base_asset_value_and_pnl_with_oracle_price;
 use crate::math::safe_math::SafeMath;
 use crate::math::spot_withdraw::validate_spot_market_vault_amount;
 use crate::math_error;
@@ -441,6 +442,69 @@ pub fn handle_update_user_idle<'c: 'info, 'info>(
     validate_user_is_idle(&user, clock.slot, accelerated)?;
 
     user.idle = true;
+
+    Ok(())
+}
+
+#[access_control(
+    exchange_not_paused(&ctx.accounts.state)
+)]
+pub fn handle_log_user_balances<'c: 'info, 'info>(
+    ctx: Context<'_, '_, 'c, 'info, LogUserBalances<'info>>,
+) -> Result<()> {
+    let user_key = ctx.accounts.user.key();
+    let mut user = load_mut!(ctx.accounts.user)?;
+    let clock = Clock::get()?;
+
+    let AccountMaps {
+        perp_market_map,
+        spot_market_map,
+        mut oracle_map,
+    } = load_maps(
+        &mut ctx.remaining_accounts.iter().peekable(),
+        &MarketSet::new(),
+        &MarketSet::new(),
+        Clock::get()?.slot,
+        None,
+    )?;
+
+    let (equity, _) =
+        calculate_user_equity(&user, &perp_market_map, &spot_market_map, &mut oracle_map)?;
+
+    msg!(
+        "Authority key {} subaccount id {} user key {}",
+        user.authority,
+        user.sub_account_id,
+        user_key
+    );
+
+    msg!("Equity {}", equity);
+
+    for spot_position in user.spot_positions.iter() {
+        if spot_position.scaled_balance == 0 {
+            continue;
+        }
+
+        let spot_market = spot_market_map.get_ref(&spot_position.market_index)?;
+        let token_amount = spot_position.get_signed_token_amount(&spot_market)?;
+        msg!(
+            "Spot position {} balance {}",
+            spot_position.market_index,
+            token_amount
+        );
+    }
+
+    for perp_position in user.perp_positions.iter() {
+        let perp_market = perp_market_map.get_ref(&perp_position.market_index)?;
+        let oracle_price = oracle_map.get_price_data(&perp_market.oracle_id())?.price;
+        let (_, unrealized_pnl) =
+            calculate_base_asset_value_and_pnl_with_oracle_price(&perp_position, oracle_price)?;
+        msg!(
+            "Perp position {} unrealized pnl {}",
+            perp_position.market_index,
+            unrealized_pnl
+        );
+    }
 
     Ok(())
 }
@@ -2410,6 +2474,14 @@ pub struct UpdateUserIdle<'info> {
         constraint = can_sign_for_user(&filler, &authority)?
     )]
     pub filler: AccountLoader<'info, User>,
+    #[account(mut)]
+    pub user: AccountLoader<'info, User>,
+}
+
+#[derive(Accounts)]
+pub struct LogUserBalances<'info> {
+    pub state: Box<Account<'info, State>>,
+    pub authority: Signer<'info>,
     #[account(mut)]
     pub user: AccountLoader<'info, User>,
 }
