@@ -172,20 +172,3 @@ export class NodeList<NodeType extends keyof DLOBNodeMap>
 		}
 	}
 }
-
-export function* getVammNodeGenerator(
-	price: BN | undefined
-): Generator<DLOBNode> {
-	if (!price) {
-		return;
-	}
-	yield {
-		getPrice: () => price,
-		isVammNode: () => true,
-		order: undefined,
-		userAccount: undefined,
-		isUserProtectedMaker: false,
-		isBaseFilled: () => false,
-		haveFilled: false,
-	};
-}
