@@ -713,11 +713,10 @@ pub fn handle_initialize_perp_market(
                 price: oracle_price,
                 delay: oracle_delay,
                 ..
-            } = get_pyth_price(&ctx.accounts.oracle, clock_slot, 1, &OracleSource::Pyth)?;
-            let last_oracle_price_twap =
-                perp_market
-                    .amm
-                    .get_pyth_twap(&ctx.accounts.oracle, 1, &OracleSource::Pyth)?;
+            } = get_pyth_price(&ctx.accounts.oracle, clock_slot, &OracleSource::Pyth)?;
+            let last_oracle_price_twap = perp_market
+                .amm
+                .get_pyth_twap(&ctx.accounts.oracle, &OracleSource::Pyth)?;
             (oracle_price, oracle_delay, last_oracle_price_twap)
         }
         OracleSource::Pyth1K => {
@@ -725,16 +724,10 @@ pub fn handle_initialize_perp_market(
                 price: oracle_price,
                 delay: oracle_delay,
                 ..
-            } = get_pyth_price(
-                &ctx.accounts.oracle,
-                clock_slot,
-                1000,
-                &OracleSource::Pyth1K,
-            )?;
-            let last_oracle_price_twap =
-                perp_market
-                    .amm
-                    .get_pyth_twap(&ctx.accounts.oracle, 1000, &OracleSource::Pyth1K)?;
+            } = get_pyth_price(&ctx.accounts.oracle, clock_slot, &OracleSource::Pyth1K)?;
+            let last_oracle_price_twap = perp_market
+                .amm
+                .get_pyth_twap(&ctx.accounts.oracle, &OracleSource::Pyth1K)?;
             (oracle_price, oracle_delay, last_oracle_price_twap)
         }
         OracleSource::Pyth1M => {
@@ -742,17 +735,10 @@ pub fn handle_initialize_perp_market(
                 price: oracle_price,
                 delay: oracle_delay,
                 ..
-            } = get_pyth_price(
-                &ctx.accounts.oracle,
-                clock_slot,
-                1000000,
-                &OracleSource::Pyth1M,
-            )?;
-            let last_oracle_price_twap = perp_market.amm.get_pyth_twap(
-                &ctx.accounts.oracle,
-                1000000,
-                &OracleSource::Pyth1M,
-            )?;
+            } = get_pyth_price(&ctx.accounts.oracle, clock_slot, &OracleSource::Pyth1M)?;
+            let last_oracle_price_twap = perp_market
+                .amm
+                .get_pyth_twap(&ctx.accounts.oracle, &OracleSource::Pyth1M)?;
             (oracle_price, oracle_delay, last_oracle_price_twap)
         }
         OracleSource::PythStableCoin => {
@@ -763,7 +749,6 @@ pub fn handle_initialize_perp_market(
             } = get_pyth_price(
                 &ctx.accounts.oracle,
                 clock_slot,
-                1,
                 &OracleSource::PythStableCoin,
             )?;
             (oracle_price, oracle_delay, QUOTE_PRECISION_I64)
@@ -794,11 +779,10 @@ pub fn handle_initialize_perp_market(
                 price: oracle_price,
                 delay: oracle_delay,
                 ..
-            } = get_pyth_price(&ctx.accounts.oracle, clock_slot, 1, &OracleSource::PythPull)?;
-            let last_oracle_price_twap =
-                perp_market
-                    .amm
-                    .get_pyth_twap(&ctx.accounts.oracle, 1, &OracleSource::PythPull)?;
+            } = get_pyth_price(&ctx.accounts.oracle, clock_slot, &OracleSource::PythPull)?;
+            let last_oracle_price_twap = perp_market
+                .amm
+                .get_pyth_twap(&ctx.accounts.oracle, &OracleSource::PythPull)?;
             (oracle_price, oracle_delay, last_oracle_price_twap)
         }
         OracleSource::Pyth1KPull => {
@@ -806,17 +790,10 @@ pub fn handle_initialize_perp_market(
                 price: oracle_price,
                 delay: oracle_delay,
                 ..
-            } = get_pyth_price(
-                &ctx.accounts.oracle,
-                clock_slot,
-                1000,
-                &OracleSource::Pyth1KPull,
-            )?;
-            let last_oracle_price_twap = perp_market.amm.get_pyth_twap(
-                &ctx.accounts.oracle,
-                1000,
-                &OracleSource::Pyth1KPull,
-            )?;
+            } = get_pyth_price(&ctx.accounts.oracle, clock_slot, &OracleSource::Pyth1KPull)?;
+            let last_oracle_price_twap = perp_market
+                .amm
+                .get_pyth_twap(&ctx.accounts.oracle, &OracleSource::Pyth1KPull)?;
             (oracle_price, oracle_delay, last_oracle_price_twap)
         }
         OracleSource::Pyth1MPull => {
@@ -824,17 +801,10 @@ pub fn handle_initialize_perp_market(
                 price: oracle_price,
                 delay: oracle_delay,
                 ..
-            } = get_pyth_price(
-                &ctx.accounts.oracle,
-                clock_slot,
-                1000000,
-                &OracleSource::Pyth1MPull,
-            )?;
-            let last_oracle_price_twap = perp_market.amm.get_pyth_twap(
-                &ctx.accounts.oracle,
-                1000000,
-                &OracleSource::Pyth1MPull,
-            )?;
+            } = get_pyth_price(&ctx.accounts.oracle, clock_slot, &OracleSource::Pyth1MPull)?;
+            let last_oracle_price_twap = perp_market
+                .amm
+                .get_pyth_twap(&ctx.accounts.oracle, &OracleSource::Pyth1MPull)?;
             (oracle_price, oracle_delay, last_oracle_price_twap)
         }
         OracleSource::PythStableCoinPull => {
@@ -845,7 +815,6 @@ pub fn handle_initialize_perp_market(
             } = get_pyth_price(
                 &ctx.accounts.oracle,
                 clock_slot,
-                1,
                 &OracleSource::PythStableCoinPull,
             )?;
             (oracle_price, oracle_delay, QUOTE_PRECISION_I64)
@@ -864,16 +833,10 @@ pub fn handle_initialize_perp_market(
                 price: oracle_price,
                 delay: oracle_delay,
                 ..
-            } = get_pyth_price(
-                &ctx.accounts.oracle,
-                clock_slot,
-                1,
-                &OracleSource::PythLazer,
-            )?;
-            let last_oracle_price_twap =
-                perp_market
-                    .amm
-                    .get_pyth_twap(&ctx.accounts.oracle, 1, &OracleSource::PythLazer)?;
+            } = get_pyth_price(&ctx.accounts.oracle, clock_slot, &OracleSource::PythLazer)?;
+            let last_oracle_price_twap = perp_market
+                .amm
+                .get_pyth_twap(&ctx.accounts.oracle, &OracleSource::PythLazer)?;
             (oracle_price, oracle_delay, last_oracle_price_twap)
         }
     };
@@ -4918,9 +4881,6 @@ pub struct InitPythLazerOracle<'info> {
         payer=admin
     )]
     pub lazer_oracle: AccountLoader<'info, PythLazerOracle>,
-    #[account(
-        has_one = admin
-    )]
     pub state: Box<Account<'info, State>>,
     pub rent: Sysvar<'info, Rent>,
     pub system_program: Program<'info, System>,

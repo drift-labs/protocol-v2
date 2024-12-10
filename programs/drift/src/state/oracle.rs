@@ -148,6 +148,21 @@ impl OracleSource {
                 | OracleSource::PythStableCoin
         )
     }
+
+    pub fn get_pyth_multiple(&self) -> u128 {
+        match self {
+            OracleSource::Pyth
+            | OracleSource::PythPull
+            | OracleSource::PythLazer
+            | OracleSource::PythStableCoin
+            | OracleSource::PythStableCoinPull => 1,
+            OracleSource::Pyth1K | OracleSource::Pyth1KPull => 1000,
+            OracleSource::Pyth1M | OracleSource::Pyth1MPull => 1000000,
+            _ => {
+                panic!("Calling get_pyth_multiple on non-pyth oracle source");
+            }
+        }
+    }
 }
 
 #[derive(Default, Clone, Copy, Debug)]
@@ -175,9 +190,9 @@ pub fn get_oracle_price(
     clock_slot: u64,
 ) -> DriftResult<OraclePriceData> {
     match oracle_source {
-        OracleSource::Pyth => get_pyth_price(price_oracle, clock_slot, 1, oracle_source),
-        OracleSource::Pyth1K => get_pyth_price(price_oracle, clock_slot, 1000, oracle_source),
-        OracleSource::Pyth1M => get_pyth_price(price_oracle, clock_slot, 1000000, oracle_source),
+        OracleSource::Pyth => get_pyth_price(price_oracle, clock_slot, oracle_source),
+        OracleSource::Pyth1K => get_pyth_price(price_oracle, clock_slot, oracle_source),
+        OracleSource::Pyth1M => get_pyth_price(price_oracle, clock_slot, oracle_source),
         OracleSource::PythStableCoin => {
             get_pyth_stable_coin_price(price_oracle, clock_slot, oracle_source)
         }
@@ -190,24 +205,22 @@ pub fn get_oracle_price(
             has_sufficient_number_of_data_points: true,
         }),
         OracleSource::Prelaunch => get_prelaunch_price(price_oracle, clock_slot),
-        OracleSource::PythPull => get_pyth_price(price_oracle, clock_slot, 1, oracle_source),
-        OracleSource::Pyth1KPull => get_pyth_price(price_oracle, clock_slot, 1000, oracle_source),
-        OracleSource::Pyth1MPull => {
-            get_pyth_price(price_oracle, clock_slot, 1000000, oracle_source)
-        }
+        OracleSource::PythPull => get_pyth_price(price_oracle, clock_slot, oracle_source),
+        OracleSource::Pyth1KPull => get_pyth_price(price_oracle, clock_slot, oracle_source),
+        OracleSource::Pyth1MPull => get_pyth_price(price_oracle, clock_slot, oracle_source),
         OracleSource::PythStableCoinPull => {
             get_pyth_stable_coin_price(price_oracle, clock_slot, oracle_source)
         }
-        OracleSource::PythLazer => get_pyth_price(price_oracle, clock_slot, 1, oracle_source),
+        OracleSource::PythLazer => get_pyth_price(price_oracle, clock_slot, oracle_source),
     }
 }
 
 pub fn get_pyth_price(
     price_oracle: &AccountInfo,
     clock_slot: u64,
-    multiple: u128,
     oracle_source: &OracleSource,
 ) -> DriftResult<OraclePriceData> {
+    let multiple = oracle_source.get_pyth_multiple();
     let mut pyth_price_data: &[u8] = &price_oracle
         .try_borrow_data()
         .or(Err(crate::error::ErrorCode::UnableToLoadOracle))?;
@@ -295,7 +308,7 @@ pub fn get_pyth_stable_coin_price(
     clock_slot: u64,
     oracle_source: &OracleSource,
 ) -> DriftResult<OraclePriceData> {
-    let mut oracle_price_data = get_pyth_price(price_oracle, clock_slot, 1, oracle_source)?;
+    let mut oracle_price_data = get_pyth_price(price_oracle, clock_slot, oracle_source)?;
 
     let price = oracle_price_data.price;
     let confidence = oracle_price_data.confidence;

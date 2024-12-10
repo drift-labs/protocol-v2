@@ -35,7 +35,6 @@ import {
 } from '..';
 import { PublicKey } from '@solana/web3.js';
 import { ammPaused, exchangePaused, fillPaused } from '../math/exchangeStatus';
-import { DLOBOrders } from './DLOBOrders';
 import {
 	createL2Levels,
 	getL2GeneratorFromDLOBNodes,
@@ -45,6 +44,9 @@ import {
 	L3OrderBook,
 	mergeL2LevelGenerators,
 } from './orderBookLevels';
+
+export type DLOBOrder = { user: PublicKey; order: Order };
+export type DLOBOrders = DLOBOrder[];
 
 export type MarketNodeLists = {
 	restingLimit: {

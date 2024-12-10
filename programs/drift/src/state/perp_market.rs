@@ -1425,21 +1425,15 @@ impl AMM {
         slot: u64,
     ) -> DriftResult<Option<i64>> {
         match self.oracle_source {
-            OracleSource::Pyth | OracleSource::PythStableCoin => Ok(Some(self.get_pyth_twap(
-                price_oracle,
-                1,
-                &OracleSource::Pyth,
-            )?)),
-            OracleSource::Pyth1K => Ok(Some(self.get_pyth_twap(
-                price_oracle,
-                1000,
-                &OracleSource::Pyth1K,
-            )?)),
-            OracleSource::Pyth1M => Ok(Some(self.get_pyth_twap(
-                price_oracle,
-                1000000,
-                &OracleSource::Pyth1M,
-            )?)),
+            OracleSource::Pyth | OracleSource::PythStableCoin => {
+                Ok(Some(self.get_pyth_twap(price_oracle, &OracleSource::Pyth)?))
+            }
+            OracleSource::Pyth1K => Ok(Some(
+                self.get_pyth_twap(price_oracle, &OracleSource::Pyth1K)?,
+            )),
+            OracleSource::Pyth1M => Ok(Some(
+                self.get_pyth_twap(price_oracle, &OracleSource::Pyth1M)?,
+            )),
             OracleSource::Switchboard => Ok(Some(get_switchboard_price(price_oracle, slot)?.price)),
             OracleSource::SwitchboardOnDemand => {
                 Ok(Some(get_sb_on_demand_price(price_oracle, slot)?.price))
@@ -1450,32 +1444,26 @@ impl AMM {
             }
             OracleSource::Prelaunch => Ok(Some(get_prelaunch_price(price_oracle, slot)?.price)),
             OracleSource::PythPull | OracleSource::PythStableCoinPull => Ok(Some(
-                self.get_pyth_twap(price_oracle, 1, &OracleSource::PythPull)?,
+                self.get_pyth_twap(price_oracle, &OracleSource::PythPull)?,
             )),
-            OracleSource::Pyth1KPull => Ok(Some(self.get_pyth_twap(
-                price_oracle,
-                1000,
-                &OracleSource::Pyth1KPull,
-            )?)),
-            OracleSource::Pyth1MPull => Ok(Some(self.get_pyth_twap(
-                price_oracle,
-                1000000,
-                &OracleSource::Pyth1MPull,
-            )?)),
-            OracleSource::PythLazer => Ok(Some(self.get_pyth_twap(
-                price_oracle,
-                1,
-                &OracleSource::PythLazer,
-            )?)),
+            OracleSource::Pyth1KPull => Ok(Some(
+                self.get_pyth_twap(price_oracle, &OracleSource::Pyth1KPull)?,
+            )),
+            OracleSource::Pyth1MPull => Ok(Some(
+                self.get_pyth_twap(price_oracle, &OracleSource::Pyth1MPull)?,
+            )),
+            OracleSource::PythLazer => Ok(Some(
+                self.get_pyth_twap(price_oracle, &OracleSource::PythLazer)?,
+            )),
         }
     }
 
     pub fn get_pyth_twap(
         &self,
         price_oracle: &AccountInfo,
-        multiple: u128,
         oracle_source: &OracleSource,
     ) -> DriftResult<i64> {
+        let multiple = oracle_source.get_pyth_multiple();
         let mut pyth_price_data: &[u8] = &price_oracle
             .try_borrow_data()
             .or(Err(ErrorCode::UnableToLoadOracle))?;
