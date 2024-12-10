@@ -1,4 +1,4 @@
-import { getOrderSignature, getVammNodeGenerator, NodeList } from './NodeList';
+import { getOrderSignature, NodeList } from './NodeList';
 import {
 	BASE_PRECISION,
 	BN,
@@ -166,19 +166,6 @@ export class DLOB {
 			for (const order of userAccount.orders) {
 				this.insertOrder(order, userAccountPubkeyString, slot, protectedMaker);
 			}
-		}
-
-		this.initialized = true;
-		return true;
-	}
-
-	public initFromOrders(dlobOrders: DLOBOrders, slot: number): boolean {
-		if (this.initialized) {
-			return false;
-		}
-
-		for (const { user, order } of dlobOrders) {
-			this.insertOrder(order, user.toString(), slot, false);
 		}
 
 		this.initialized = true;
@@ -1127,7 +1114,7 @@ export class DLOB {
 	 */
 	*getAsks(
 		marketIndex: number,
-		fallbackAsk: BN | undefined,
+		_fallbackAsk: BN | undefined,
 		slot: number,
 		marketType: MarketType,
 		oraclePriceData: OraclePriceData,
@@ -1141,11 +1128,6 @@ export class DLOB {
 			this.getTakingAsks(marketIndex, marketType, slot, oraclePriceData),
 			this.getRestingLimitAsks(marketIndex, slot, marketType, oraclePriceData),
 		];
-
-		const marketTypeStr = getVariant(marketType) as MarketTypeStr;
-		if (marketTypeStr === 'perp' && fallbackAsk) {
-			generatorList.push(getVammNodeGenerator(fallbackAsk));
-		}
 
 		yield* this.getBestNode(
 			generatorList,
@@ -1177,7 +1159,7 @@ export class DLOB {
 	 */
 	*getBids(
 		marketIndex: number,
-		fallbackBid: BN | undefined,
+		_fallbackBid: BN | undefined,
 		slot: number,
 		marketType: MarketType,
 		oraclePriceData: OraclePriceData,
@@ -1191,11 +1173,6 @@ export class DLOB {
 			this.getTakingBids(marketIndex, marketType, slot, oraclePriceData),
 			this.getRestingLimitBids(marketIndex, slot, marketType, oraclePriceData),
 		];
-
-		const marketTypeStr = getVariant(marketType) as MarketTypeStr;
-		if (marketTypeStr === 'perp' && fallbackBid) {
-			generatorList.push(getVammNodeGenerator(fallbackBid));
-		}
 
 		yield* this.getBestNode(
 			generatorList,
