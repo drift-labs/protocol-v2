@@ -114,18 +114,12 @@ describe('BigNum Tests', () => {
 		expect(val4.print()).to.equal('0.025000000');
 		expect(val4.toNum().toFixed(3)).to.equal('0.025');
 		expect(val4.toPrecision(4)).to.equal('0.025');
-	
-		expect(bnBaseAmount(
-			0.001234
-		).toPrecision(4)).to.equal('0.001234');
 
-		expect(bnBaseAmount(
-			0.001004
-		).toPrecision(4)).to.equal('0.001004');
-		
-		expect(bnBaseAmount(
-			0.001000
-		).toPrecision(4)).to.equal('0.001');
+		expect(bnBaseAmount(0.001234).toPrecision(4)).to.equal('0.001234');
+
+		expect(bnBaseAmount(0.001004).toPrecision(4)).to.equal('0.001004');
+
+		expect(bnBaseAmount(0.001).toPrecision(4)).to.equal('0.001');
 
 		// Case 5
 		expect(BigNum.fromPrint('1').toMillified()).to.equal('1.00');
