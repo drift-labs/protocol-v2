@@ -35,6 +35,7 @@ import {
 	getHighLeverageModeConfigPublicKey,
 	getPythLazerOraclePublicKey,
 	getProtectedMakerModeConfigPublicKey,
+	getZerofiFulfillmentConfigPublicKey,
 } from './addresses/pda';
 import { squareRootBN } from './math/utils';
 import { TOKEN_PROGRAM_ID } from '@solana/spl-token';
@@ -55,6 +56,10 @@ import { getFeedIdUint8Array } from './util/pythOracleUtils';
 
 const OPENBOOK_PROGRAM_ID = new PublicKey(
 	'opnb2LAfJYbRMAHHvqjCwQxanZn7ReEHp1k81EohpZb'
+);
+
+const ZEROFI_PROGRAM_ID = new PublicKey(
+	'ZERor4xhbUycZ6gb9ntrhqscUcZmAbQDjEAtCf4hbZY'
 );
 
 export class AdminClient extends DriftClient {
@@ -432,6 +437,52 @@ export class AdminClient extends DriftClient {
 					openbookV2Market: openbookMarket,
 					driftSigner: this.getSignerPublicKey(),
 					openbookV2FulfillmentConfig: openbookFulfillmentConfig,
+					admin: this.isSubscribed
+						? this.getStateAccount().admin
+						: this.wallet.publicKey,
+					rent: SYSVAR_RENT_PUBKEY,
+					systemProgram: anchor.web3.SystemProgram.programId,
+				},
+			}
+		);
+	}
+
+	public async initializeZerofiFulfillmentConfig(
+		marketIndex: number,
+		zerofiMarket: PublicKey
+	): Promise<TransactionSignature> {
+		const initializeIx = await this.getInitializeZerofiFulfillmentConfigIx(
+			marketIndex,
+			zerofiMarket
+		);
+
+		const tx = await this.buildTransaction(initializeIx);
+
+		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+
+		return txSig;
+	}
+
+	public async getInitializeZerofiFulfillmentConfigIx(
+		marketIndex: number,
+		zerofiMarket: PublicKey
+	): Promise<TransactionInstruction> {
+		const zerofiFulfillmentConfig = getZerofiFulfillmentConfigPublicKey(
+			this.program.programId,
+			zerofiMarket
+		);
+
+		return this.program.instruction.initializeZerofiFulfillmentConfig(
+			marketIndex,
+			{
+				accounts: {
+					baseSpotMarket: this.getSpotMarketAccount(marketIndex).pubkey,
+					quoteSpotMarket: this.getQuoteSpotMarketAccount().pubkey,
+					state: await this.getStatePublicKey(),
+					zerofiProgram: ZEROFI_PROGRAM_ID,
+					zerofiMarket: zerofiMarket,
+					driftSigner: this.getSignerPublicKey(),
+					zerofiFulfillmentConfig: zerofiFulfillmentConfig,
 					admin: this.isSubscribed
 						? this.getStateAccount().admin
 						: this.wallet.publicKey,

@@ -58,6 +58,7 @@ import {
 	TxParams,
 	UserAccount,
 	UserStatsAccount,
+	ZerofiFulfillmentConfigAccount,
 } from './types';
 import driftIDL from './idl/drift.json';
 
@@ -104,6 +105,7 @@ import {
 	getUserAccountPublicKey,
 	getUserAccountPublicKeySync,
 	getUserStatsAccountPublicKey,
+	getZerofiFulfillmentConfigPublicKey,
 } from './addresses/pda';
 import {
 	DataAndSlot,
@@ -679,6 +681,27 @@ export class DriftClient {
 		return accounts.map(
 			(account) => account.account
 		) as OpenbookV2FulfillmentConfigAccount[];
+	}
+
+	public async getZerofiFulfillmentConfig(
+		zerofiMarket: PublicKey
+	): Promise<ZerofiFulfillmentConfigAccount> {
+		const address = getZerofiFulfillmentConfigPublicKey(
+			this.program.programId,
+			zerofiMarket
+		);
+		return (await this.program.account.zerofiFulfillmentConfig.fetch(
+			address
+		)) as ZerofiFulfillmentConfigAccount;
+	}
+
+	public async getZerofiFulfillmentConfigs(): Promise<
+		ZerofiFulfillmentConfigAccount[]
+	> {
+		const accounts = await this.program.account.zerofiFulfillmentConfig.all();
+		return accounts.map(
+			(account) => account.account
+		) as ZerofiFulfillmentConfigAccount[];
 	}
 
 	public async fetchMarketLookupTableAccount(): Promise<AddressLookupTableAccount> {
@@ -4218,7 +4241,8 @@ export class DriftClient {
 		fulfillmentConfig?:
 			| SerumV3FulfillmentConfigAccount
 			| PhoenixV1FulfillmentConfigAccount
-			| OpenbookV2FulfillmentConfigAccount,
+			| OpenbookV2FulfillmentConfigAccount
+			| ZerofiFulfillmentConfigAccount,
 		makerInfo?: MakerInfo | MakerInfo[],
 		referrerInfo?: ReferrerInfo,
 		txParams?: TxParams
@@ -4248,7 +4272,8 @@ export class DriftClient {
 		fulfillmentConfig?:
 			| SerumV3FulfillmentConfigAccount
 			| PhoenixV1FulfillmentConfigAccount
-			| OpenbookV2FulfillmentConfigAccount,
+			| OpenbookV2FulfillmentConfigAccount
+			| ZerofiFulfillmentConfigAccount,
 		makerInfo?: MakerInfo | MakerInfo[],
 		referrerInfo?: ReferrerInfo,
 		fillerPublicKey?: PublicKey
@@ -4328,6 +4353,7 @@ export class DriftClient {
 			| SerumV3FulfillmentConfigAccount
 			| PhoenixV1FulfillmentConfigAccount
 			| OpenbookV2FulfillmentConfigAccount
+			| ZerofiFulfillmentConfigAccount
 	): void {
 		if (fulfillmentConfig) {
 			if ('serumProgramId' in fulfillmentConfig) {
@@ -4344,6 +4370,12 @@ export class DriftClient {
 				);
 			} else if ('openbookV2ProgramId' in fulfillmentConfig) {
 				this.addOpenbookRemainingAccounts(
+					marketIndex,
+					remainingAccounts,
+					fulfillmentConfig
+				);
+			} else if ('zerofiProgramId' in fulfillmentConfig) {
+				this.addZerofiRemainingAccounts(
 					marketIndex,
 					remainingAccounts,
 					fulfillmentConfig
@@ -4608,6 +4640,73 @@ export class DriftClient {
 				});
 			}
 		}
+	}
+
+	addZerofiRemainingAccounts(
+		marketIndex: number,
+		remainingAccounts: AccountMeta[],
+		fulfillmentConfig: ZerofiFulfillmentConfigAccount
+	): void {
+		remainingAccounts.push({
+			pubkey: fulfillmentConfig.pubkey,
+			isWritable: false,
+			isSigner: false,
+		});
+		remainingAccounts.push({
+			pubkey: this.getSignerPublicKey(),
+			isWritable: true,
+			isSigner: false,
+		});
+		remainingAccounts.push({
+			pubkey: fulfillmentConfig.zerofiProgramId,
+			isWritable: false,
+			isSigner: false,
+		});
+		remainingAccounts.push({
+			pubkey: fulfillmentConfig.zerofiMarket,
+			isWritable: true,
+			isSigner: false,
+		});
+		remainingAccounts.push({
+			pubkey: fulfillmentConfig.zerofiVaultBaseInfo,
+			isWritable: true,
+			isSigner: false,
+		});
+		remainingAccounts.push({
+			pubkey: fulfillmentConfig.zerofiVaultQuoteInfo,
+			isWritable: true,
+			isSigner: false,
+		});
+		remainingAccounts.push({
+			pubkey: fulfillmentConfig.zerofiVaultBase,
+			isWritable: true,
+			isSigner: false,
+		});
+		remainingAccounts.push({
+			pubkey: fulfillmentConfig.zerofiVaultQuote,
+			isWritable: true,
+			isSigner: false,
+		});
+		remainingAccounts.push({
+			pubkey: this.getSpotMarketAccount(marketIndex).vault,
+			isWritable: true,
+			isSigner: false,
+		});
+		remainingAccounts.push({
+			pubkey: this.getQuoteSpotMarketAccount().vault,
+			isWritable: true,
+			isSigner: false,
+		});
+		remainingAccounts.push({
+			pubkey: TOKEN_PROGRAM_ID,
+			isWritable: false,
+			isSigner: false,
+		});
+		remainingAccounts.push({
+			pubkey: SYSVAR_INSTRUCTIONS_PUBKEY,
+			isWritable: false,
+			isSigner: false,
+		});
 	}
 
 	/**

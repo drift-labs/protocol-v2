@@ -82,6 +82,7 @@ test_files=(
   userDelegate.ts 
   userOrderId.ts
   whitelist.ts
+  zerofiTest.ts
 )
 
 

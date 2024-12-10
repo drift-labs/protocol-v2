@@ -3787,6 +3787,95 @@
       ]
     },
     {
+      "name": "initializeZerofiFulfillmentConfig",
+      "accounts": [
+        {
+          "name": "baseSpotMarket",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "quoteSpotMarket",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "state",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "zerofiProgram",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "zerofiMarket",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "driftSigner",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "zerofiFulfillmentConfig",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "admin",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "rent",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "systemProgram",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "marketIndex",
+          "type": "u16"
+        }
+      ]
+    },
+    {
+      "name": "zerofiFulfillmentConfigStatus",
+      "accounts": [
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "zerofiFulfillmentConfig",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "admin",
+          "isMut": true,
+          "isSigner": true
+        }
+      ],
+      "args": [
+        {
+          "name": "status",
+          "type": {
+            "defined": "SpotFulfillmentConfigStatus"
+          }
+        }
+      ]
+    },
+    {
       "name": "updateSerumVault",
       "accounts": [
         {
@@ -6823,6 +6912,67 @@
           {
             "name": "serumSignerNonce",
             "type": "u64"
+          },
+          {
+            "name": "marketIndex",
+            "type": "u16"
+          },
+          {
+            "name": "fulfillmentType",
+            "type": {
+              "defined": "SpotFulfillmentType"
+            }
+          },
+          {
+            "name": "status",
+            "type": {
+              "defined": "SpotFulfillmentConfigStatus"
+            }
+          },
+          {
+            "name": "padding",
+            "type": {
+              "array": [
+                "u8",
+                4
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "ZerofiFulfillmentConfig",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "pubkey",
+            "type": "publicKey"
+          },
+          {
+            "name": "zerofiProgramId",
+            "type": "publicKey"
+          },
+          {
+            "name": "zerofiMarket",
+            "type": "publicKey"
+          },
+          {
+            "name": "zerofiVaultBase",
+            "type": "publicKey"
+          },
+          {
+            "name": "zerofiVaultBaseInfo",
+            "type": "publicKey"
+          },
+          {
+            "name": "zerofiVaultQuote",
+            "type": "publicKey"
+          },
+          {
+            "name": "zerofiVaultQuoteInfo",
+            "type": "publicKey"
           },
           {
             "name": "marketIndex",
@@ -10770,6 +10920,9 @@
           },
           {
             "name": "OpenbookV2"
+          },
+          {
+            "name": "Zerofi"
           }
         ]
       }
@@ -11044,6 +11197,9 @@
           },
           {
             "name": "OrderFilledWithOpenbookV2"
+          },
+          {
+            "name": "OrderFilledWithZerofi"
           }
         ]
       }
@@ -14411,6 +14567,21 @@
       "code": 6307,
       "name": "PythLazerMessagePriceFeedMismatch",
       "msg": "Pyth lazer message does not correspond to correct fed id"
+    },
+    {
+      "code": 6308,
+      "name": "FailedZerofiCPI",
+      "msg": "FailedZerofiCPI"
+    },
+    {
+      "code": 6309,
+      "name": "InvalidZerofiProgram",
+      "msg": "InvalidZerofiProgram"
+    },
+    {
+      "code": 6310,
+      "name": "InvalidZerofiMarket",
+      "msg": "InvalidZerofiMarket"
     }
   ],
   "metadata": {

@@ -813,6 +813,7 @@ pub mod drift {
     ) -> Result<()> {
         handle_update_openbook_v2_fulfillment_config_status(ctx, status)
     }
+
     pub fn initialize_phoenix_fulfillment_config(
         ctx: Context<InitializePhoenixFulfillmentConfig>,
         market_index: u16,
@@ -825,6 +826,20 @@ pub mod drift {
         status: SpotFulfillmentConfigStatus,
     ) -> Result<()> {
         handle_update_phoenix_fulfillment_config_status(ctx, status)
+    }
+
+    pub fn initialize_zerofi_fulfillment_config(
+        ctx: Context<InitializeZerofiFulfillmentConfig>,
+        market_index: u16,
+    ) -> Result<()> {
+        handle_initialize_zerofi_fulfillment_config(ctx, market_index)
+    }
+
+    pub fn zerofi_fulfillment_config_status(
+        ctx: Context<UpdateZerofiFulfillmentConfig>,
+        status: SpotFulfillmentConfigStatus,
+    ) -> Result<()> {
+        handle_update_zerofi_fulfillment_config_status(ctx, status)
     }
 
     pub fn update_serum_vault(ctx: Context<UpdateSerumVault>) -> Result<()> {

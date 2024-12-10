@@ -621,6 +621,12 @@ pub enum ErrorCode {
     InvalidPythLazerMessage,
     #[msg("Pyth lazer message does not correspond to correct fed id")]
     PythLazerMessagePriceFeedMismatch,
+    #[msg("FailedZerofiCPI")]
+    FailedZerofiCPI,
+    #[msg("InvalidZerofiProgram")]
+    InvalidZerofiProgram,
+    #[msg("InvalidZerofiMarket")]
+    InvalidZerofiMarket,
 }
 
 #[macro_export]
