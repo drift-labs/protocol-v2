@@ -55,17 +55,24 @@ environments.forEach((environment) => {
 				return;
 			}
 
-			const otherTargetPath = path.join(
-				__dirname,
-				'..',
-				'lib',
-				environment,
-				'isomorphic',
-				`${package}.${otherEnvironment}.js`
-			);
+			const otherTargetFiles = [
+				`${package}.${otherEnvironment}.js`,
+				`${package}.${otherEnvironment}.d.ts`,
+			];
 
-			if (fs.existsSync(otherTargetPath)) {
-				fs.unlinkSync(otherTargetPath);
+			for (const otherTargetFile of otherTargetFiles) {
+				const otherTargetPath = path.join(
+					__dirname,
+					'..',
+					'lib',
+					environment,
+					'isomorphic',
+					otherTargetFile
+				);
+
+				if (fs.existsSync(otherTargetPath)) {
+					fs.unlinkSync(otherTargetPath);
+				}
 			}
 		});
 	});
