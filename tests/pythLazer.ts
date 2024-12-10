@@ -3,26 +3,21 @@ import { Program } from '@coral-xyz/anchor';
 import {
 	BulkAccountLoader,
 	OracleSource,
-	PTYH_LAZER_PROGRAM_ID,
 	TestClient,
+	assert,
 	getPythLazerOraclePublicKey,
 } from '../sdk/src';
-import { AccountInfo, LAMPORTS_PER_SOL, PublicKey } from '@solana/web3.js';
+import {
+	PublicKey,
+	TransactionMessage,
+	VersionedTransaction,
+} from '@solana/web3.js';
 import {
 	initializeQuoteSpotMarket,
 	mockUSDCMint,
 } from './testHelpersLocalValidator';
-import { Wallet, loadKeypair } from '../sdk/src';
-import { PYTH_LAZER_HEX_STRING_BTC, PYTH_STORAGE_DATA } from './pythLazerData';
-
-// set up account infos to load into banks client
-const PYTH_STORAGE_ACCOUNT_INFO: AccountInfo<Buffer> = {
-	executable: false,
-	lamports: LAMPORTS_PER_SOL,
-	owner: new PublicKey(PTYH_LAZER_PROGRAM_ID),
-	rentEpoch: 0,
-	data: Buffer.from(PYTH_STORAGE_DATA, 'base64'),
-};
+import { Wallet, loadKeypair, EventSubscriber } from '../sdk/src';
+import { PYTH_LAZER_HEX_STRING_BTC } from './pythLazerData';
 
 describe('pyth lazer oracles', () => {
 	const provider = anchor.AnchorProvider.local(undefined, {
@@ -40,6 +35,12 @@ describe('pyth lazer oracles', () => {
 	let usdcMint;
 	const feedId = 3;
 	let solUsd: PublicKey;
+
+	//@ts-ignore
+	const eventSubscriber = new EventSubscriber(connection, chProgram, {
+		commitment: 'recent',
+	});
+	eventSubscriber.subscribe();
 
 	before(async () => {
 		// use bankrun builtin function to start solana program test
@@ -88,10 +89,19 @@ describe('pyth lazer oracles', () => {
 	});
 
 	it('crank', async () => {
-		const tx = await driftClient.postPythLazerOracleUpdate(
+		const ixs = await driftClient.getPostPythLazerOracleUpdateIxs(
 			1,
 			PYTH_LAZER_HEX_STRING_BTC
 		);
-		console.log(tx);
+
+		const message = new TransactionMessage({
+			instructions: ixs,
+			payerKey: driftClient.wallet.payer.publicKey,
+			recentBlockhash: (await connection.getLatestBlockhash()).blockhash,
+		}).compileToV0Message();
+		const tx = new VersionedTransaction(message);
+		const simResult = await provider.connection.simulateTransaction(tx);
+		console.log(simResult.value.logs);
+		assert(simResult.value.err === null);
 	});
 });

@@ -15,7 +15,6 @@ import {
 	Transaction,
 	TransactionInstruction,
 	TransactionMessage,
-	VersionedMessage,
 	VersionedTransaction,
 } from '@solana/web3.js';
 
