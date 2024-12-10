@@ -170,19 +170,6 @@ export class DLOB {
 		return true;
 	}
 
-	public initFromOrders(dlobOrders: DLOBOrders, slot: number): boolean {
-		if (this.initialized) {
-			return false;
-		}
-
-		for (const { user, order } of dlobOrders) {
-			this.insertOrder(order, user.toString(), slot, false);
-		}
-
-		this.initialized = true;
-		return true;
-	}
-
 	public handleOrderRecord(record: OrderRecord, slot: number): void {
 		this.insertOrder(record.order, record.user.toString(), slot, false);
 	}
