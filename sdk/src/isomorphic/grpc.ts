@@ -22,4 +22,6 @@ export {
 };
 
 // Declare the function type without implementation
-export declare function createClient(...args: ConstructorParameters<typeof Client>): Client;
+export declare function createClient(
+	...args: ConstructorParameters<typeof Client>
+): Client;
