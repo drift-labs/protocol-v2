@@ -2,7 +2,7 @@ import { UserMap } from './userMap';
 import { getNonIdleUserFilter, getUserFilter } from '../memcmp';
 import { WebSocketProgramAccountSubscriber } from '../accounts/webSocketProgramAccountSubscriber';
 import { UserAccount } from '../types';
-import { Commitment, Context, PublicKey } from '@solana/web3.js';
+import { Commitment, Context, MemcmpFilter, PublicKey } from '@solana/web3.js';
 import { ResubOpts } from '../accounts/types';
 
 export class WebsocketSubscription {
@@ -11,6 +11,7 @@ export class WebsocketSubscription {
 	private skipInitialLoad: boolean;
 	private resubOpts?: ResubOpts;
 	private includeIdle?: boolean;
+	private additionalFilters?: MemcmpFilter[];
 	private decodeFn: (name: string, data: Buffer) => UserAccount;
 
 	private subscriber: WebSocketProgramAccountSubscriber<UserAccount>;
@@ -22,6 +23,7 @@ export class WebsocketSubscription {
 		resubOpts,
 		includeIdle = false,
 		decodeFn,
+		additionalFilters = undefined,
 	}: {
 		userMap: UserMap;
 		commitment: Commitment;
@@ -29,6 +31,7 @@ export class WebsocketSubscription {
 		resubOpts?: ResubOpts;
 		includeIdle?: boolean;
 		decodeFn: (name: string, data: Buffer) => UserAccount;
+		additionalFilters?: MemcmpFilter[];
 	}) {
 		this.userMap = userMap;
 		this.commitment = commitment;
@@ -36,6 +39,7 @@ export class WebsocketSubscription {
 		this.resubOpts = resubOpts;
 		this.includeIdle = includeIdle || false;
 		this.decodeFn = decodeFn;
+		this.additionalFilters = additionalFilters;
 	}
 
 	public async subscribe(): Promise<void> {
@@ -43,6 +47,9 @@ export class WebsocketSubscription {
 			const filters = [getUserFilter()];
 			if (!this.includeIdle) {
 				filters.push(getNonIdleUserFilter());
+			}
+			if (this.additionalFilters) {
+				filters.push(...this.additionalFilters);
 			}
 			this.subscriber = new WebSocketProgramAccountSubscriber<UserAccount>(
 				'UserMap',

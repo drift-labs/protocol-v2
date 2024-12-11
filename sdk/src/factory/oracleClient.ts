@@ -9,6 +9,7 @@ import { PrelaunchOracleClient } from '../oracles/prelaunchOracleClient';
 import { SwitchboardClient } from '../oracles/switchboardClient';
 import { PythPullClient } from '../oracles/pythPullClient';
 import { SwitchboardOnDemandClient } from '../oracles/switchboardOnDemandClient';
+import { PythLazerClient } from '../oracles/pythLazerClient';
 
 export function getOracleClient(
 	oracleSource: OracleSource,
@@ -61,6 +62,10 @@ export function getOracleClient(
 
 	if (isVariant(oracleSource, 'switchboardOnDemand')) {
 		return new SwitchboardOnDemandClient(connection);
+	}
+
+	if (isVariant(oracleSource, 'pythLazer')) {
+		return new PythLazerClient(connection);
 	}
 
 	throw new Error(`Unknown oracle source ${oracleSource}`);

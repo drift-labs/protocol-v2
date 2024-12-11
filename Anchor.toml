@@ -22,3 +22,7 @@ token_faucet = "V4v1mQiAdLz4qwckEb45WqHYceYizoib39cDBHSWfaB"
 [[test.validator.account]]
 address = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"
 filename = "./deps/configs/usdc.json"
+
+[[test.validator.account]]
+address = "3rdJbqfnagQ4yx9HXJViD4zc4xpiSqmFsKpPuSCQVyQL"
+filename = "./deps/configs/pyth_lazer_storage.json"

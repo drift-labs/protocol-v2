@@ -5,6 +5,7 @@ import { startAnchor } from 'solana-bankrun';
 import {
 	BN,
 	ExchangeStatus,
+	getPythLazerOraclePublicKey,
 	OracleGuardRails,
 	OracleSource,
 	TestClient,
@@ -20,6 +21,7 @@ import {
 import { PublicKey } from '@solana/web3.js';
 import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
 import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
+import { checkIfAccountExists } from './placeAndMakeSwiftPerpBankrun';
 
 describe('admin', () => {
 	const chProgram = anchor.workspace.Drift as Program;
@@ -382,6 +384,19 @@ describe('admin', () => {
 			`exchange status does not match \n actual: ${state2.exchangeStatus} \n expected: ${ExchangeStatus.ACTIVE}`
 		);
 		console.log('unpaused deposits and withdraws!');
+	});
+
+	it('Init pyth lazer', async () => {
+		await driftClient.fetchAccounts();
+		const tx = await driftClient.initializePythLazerOracle(0);
+		console.log(tx);
+
+		assert(
+			await checkIfAccountExists(
+				driftClient.connection,
+				getPythLazerOraclePublicKey(driftClient.program.programId, 0)
+			)
+		);
 	});
 
 	it('Update admin', async () => {
