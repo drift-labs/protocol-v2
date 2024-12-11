@@ -318,6 +318,24 @@ export function getPythPullOraclePublicKey(
 		progarmId
 	)[0];
 }
+
+export function getPythLazerOraclePublicKey(
+	progarmId: PublicKey,
+	feedId: number
+): PublicKey {
+	const buffer = new ArrayBuffer(4);
+	const view = new DataView(buffer);
+	view.setUint32(0, feedId, true);
+	const feedIdBytes = new Uint8Array(buffer);
+	return PublicKey.findProgramAddressSync(
+		[
+			Buffer.from(anchor.utils.bytes.utf8.encode('pyth_lazer')),
+			Buffer.from(feedIdBytes),
+		],
+		progarmId
+	)[0];
+}
+
 export function getTokenProgramForSpotMarket(
 	spotMarketAccount: SpotMarketAccount
 ): PublicKey {

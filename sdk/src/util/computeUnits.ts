@@ -32,6 +32,7 @@ export function isSetComputeUnitsIx(ix: TransactionInstruction): boolean {
 	// 3: set compute unit price
 	if (
 		ix.programId.equals(ComputeBudgetProgram.programId) &&
+		// @ts-ignore
 		ix.data.at(0) === 2
 	) {
 		return true;
@@ -45,6 +46,7 @@ export function isSetComputeUnitPriceIx(ix: TransactionInstruction): boolean {
 	// 3: set compute unit price
 	if (
 		ix.programId.equals(ComputeBudgetProgram.programId) &&
+		// @ts-ignore
 		ix.data.at(0) === 3
 	) {
 		return true;

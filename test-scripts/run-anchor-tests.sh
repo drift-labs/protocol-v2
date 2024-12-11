@@ -60,6 +60,7 @@ test_files=(
   prelisting.ts
   pyth.ts
   pythPull.ts
+  pythLazerBankrun.ts
   referrer.ts
   rfq.ts
   roundInFavorBaseAsset.ts
