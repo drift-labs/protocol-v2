@@ -88,7 +88,7 @@ export function createMinimalEd25519VerifyIx(
 		(customInstructionData[messageDataSizeOffset + 1] << 8);
 
 	// Construct Ed25519SignatureOffsets
-	// struct Ed25519SignatureOffsets (14 bytes total):
+	// struct Ed25519SignatureOffsets (14 bytes):
 	// u16 signature_offset
 	// u16 signature_instruction_index
 	// u16 public_key_offset
