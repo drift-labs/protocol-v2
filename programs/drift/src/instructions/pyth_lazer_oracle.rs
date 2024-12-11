@@ -87,7 +87,6 @@ pub struct UpdatePythLazerOracle<'info> {
     pub keeper: Signer<'info>,
     /// CHECK: Pyth lazer storage account not available to us
     #[account(
-      mut,
       address = PYTH_LAZER_STORAGE_ID @ ErrorCode::InvalidPythLazerStorageOwner
     )]
     pub pyth_lazer_storage: AccountInfo<'info>,
