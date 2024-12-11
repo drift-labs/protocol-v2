@@ -5290,9 +5290,11 @@ export class DriftClient {
 	}
 
 	public async getLogUserBalancesIx(
-		userAccountPublicKey: PublicKey,
+		userAccountPublicKey: PublicKey
 	): Promise<TransactionInstruction> {
-		const userAccount = (await this.program.account.user.fetch(userAccountPublicKey)) as UserAccount;
+		const userAccount = (await this.program.account.user.fetch(
+			userAccountPublicKey
+		)) as UserAccount;
 		const remainingAccounts = this.getRemainingAccounts({
 			userAccounts: [userAccount],
 		});
