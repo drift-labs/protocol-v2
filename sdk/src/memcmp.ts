@@ -30,6 +30,15 @@ export function getUserWithOrderFilter(): MemcmpFilter {
 	};
 }
 
+export function getUserWithoutOrderFilter(): MemcmpFilter {
+	return {
+		memcmp: {
+			offset: 4352,
+			bytes: bs58.encode(Uint8Array.from([0])),
+		},
+	};
+}
+
 export function getUserWithAuctionFilter(): MemcmpFilter {
 	return {
 		memcmp: {

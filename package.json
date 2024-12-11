@@ -12,6 +12,7 @@
 		"@pythnetwork/client": "^2.5.1",
 		"@solana/spl-token": "0.3.7",
 		"@solana/web3.js": "1.73.2",
+		"@types/bn.js": "5.1.6",
 		"@types/chai": "^5.0.0",
 		"@types/mocha": "^8.2.2",
 		"@typescript-eslint/eslint-plugin": "^4.28.0",

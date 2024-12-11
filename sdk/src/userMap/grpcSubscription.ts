@@ -2,7 +2,7 @@ import { UserMap } from './userMap';
 import { getNonIdleUserFilter, getUserFilter } from '../memcmp';
 import { WebSocketProgramAccountSubscriber } from '../accounts/webSocketProgramAccountSubscriber';
 import { UserAccount } from '../types';
-import { Context, PublicKey } from '@solana/web3.js';
+import { Context, MemcmpFilter, PublicKey } from '@solana/web3.js';
 import { GrpcConfigs, ResubOpts } from '../accounts/types';
 import { grpcProgramAccountSubscriber } from '../accounts/grpcProgramAccountSubscriber';
 
@@ -12,6 +12,7 @@ export class grpcSubscription {
 	private skipInitialLoad: boolean;
 	private resubOpts?: ResubOpts;
 	private includeIdle?: boolean;
+	private additionalFilters?: MemcmpFilter[];
 	private decodeFn: (name: string, data: Buffer) => UserAccount;
 
 	private subscriber: WebSocketProgramAccountSubscriber<UserAccount>;
@@ -23,6 +24,7 @@ export class grpcSubscription {
 		resubOpts,
 		includeIdle = false,
 		decodeFn,
+		additionalFilters = undefined,
 	}: {
 		grpcConfigs: GrpcConfigs;
 		userMap: UserMap;
@@ -30,6 +32,7 @@ export class grpcSubscription {
 		resubOpts?: ResubOpts;
 		includeIdle?: boolean;
 		decodeFn: (name: string, data: Buffer) => UserAccount;
+		additionalFilters?: MemcmpFilter[];
 	}) {
 		this.userMap = userMap;
 		this.skipInitialLoad = skipInitialLoad;
@@ -37,6 +40,7 @@ export class grpcSubscription {
 		this.includeIdle = includeIdle || false;
 		this.decodeFn = decodeFn;
 		this.grpcConfigs = grpcConfigs;
+		this.additionalFilters = additionalFilters;
 	}
 
 	public async subscribe(): Promise<void> {
@@ -44,6 +48,9 @@ export class grpcSubscription {
 			const filters = [getUserFilter()];
 			if (!this.includeIdle) {
 				filters.push(getNonIdleUserFilter());
+			}
+			if (this.additionalFilters) {
+				filters.push(...this.additionalFilters);
 			}
 			this.subscriber = new grpcProgramAccountSubscriber<UserAccount>(
 				this.grpcConfigs,

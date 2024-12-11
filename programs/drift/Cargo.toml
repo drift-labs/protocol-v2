@@ -22,6 +22,7 @@ anchor-lang = "0.29.0"
 solana-program = "1.16"
 anchor-spl = "0.29.0"
 pyth-client = "0.2.2"
+pyth-lazer-sdk = { git = "https://github.com/drift-labs/pyth-crosschain", rev = "776b6f772ba8ae49f26d16d04649073c3d6f77cf"}
 pythnet-sdk = { git = "https://github.com/drift-labs/pyth-crosschain", rev = "3e8a24ecd0bcf22b787313e2020f4186bb22c729"}
 pyth-solana-receiver-sdk = { git = "https://github.com/drift-labs/pyth-crosschain", rev = "3e8a24ecd0bcf22b787313e2020f4186bb22c729"}
 bytemuck = { version = "1.4.0" }

@@ -93,6 +93,7 @@ import {
 	getOpenbookV2FulfillmentConfigPublicKey,
 	getPerpMarketPublicKey,
 	getPhoenixFulfillmentConfigPublicKey,
+	getPythLazerOraclePublicKey,
 	getPythPullOraclePublicKey,
 	getReferrerNamePublicKeySync,
 	getRFQUserAccountPublicKey,
@@ -136,6 +137,7 @@ import {
 	DRIFT_PROGRAM_ID,
 	SWIFT_ID,
 	DriftEnv,
+	PYTH_LAZER_STORAGE_ACCOUNT_KEY,
 } from './config';
 import { WRAPPED_SOL_MINT } from './constants/spotMarkets';
 import { UserStats } from './userStats';
@@ -168,7 +170,11 @@ import {
 } from '@pythnetwork/pyth-solana-receiver/lib/address';
 import { WormholeCoreBridgeSolana } from '@pythnetwork/pyth-solana-receiver/lib/idl/wormhole_core_bridge_solana';
 import { PythSolanaReceiver } from '@pythnetwork/pyth-solana-receiver/lib/idl/pyth_solana_receiver';
-import { getFeedIdUint8Array, trimFeedId } from './util/pythPullOracleUtils';
+import {
+	getFeedIdUint8Array,
+	trimFeedId,
+	createMinimalEd25519VerifyIx,
+} from './util/pythOracleUtils';
 import { isVersionedTransaction } from './tx/utils';
 import pythSolanaReceiverIdl from './idl/pyth_solana_receiver.json';
 import { asV0Tx, PullFeed } from '@switchboard-xyz/on-demand';
@@ -4010,7 +4016,8 @@ export class DriftClient {
 		order: Pick<Order, 'marketIndex' | 'orderId'>,
 		makerInfo?: MakerInfo | MakerInfo[],
 		referrerInfo?: ReferrerInfo,
-		fillerSubAccountId?: number
+		fillerSubAccountId?: number,
+		isSwift?: boolean
 	): Promise<TransactionInstruction> {
 		const userStatsPublicKey = getUserStatsAccountPublicKey(
 			this.program.programId,
@@ -4072,7 +4079,7 @@ export class DriftClient {
 			}
 		}
 
-		const orderId = order.orderId;
+		const orderId = isSwift ? null : order.orderId;
 		return await this.program.instruction.fillPerpOrder(orderId, null, {
 			accounts: {
 				state: await this.getStatePublicKey(),
@@ -5928,8 +5935,13 @@ export class DriftClient {
 			taker: PublicKey;
 			takerStats: PublicKey;
 			takerUserAccount: UserAccount;
-		}
+		},
+		authority?: PublicKey
 	): Promise<TransactionInstruction[]> {
+		if (!authority && !takerInfo.takerUserAccount) {
+			throw new Error('authority or takerUserAccount must be provided');
+		}
+
 		const remainingAccounts = this.getRemainingAccounts({
 			userAccounts: [takerInfo.takerUserAccount],
 			useMarketLastSlotCache: true,
@@ -5943,9 +5955,10 @@ export class DriftClient {
 				message: Uint8Array.from(digest(encodedSwiftServerMessage)),
 			});
 
+		const authorityToUse = authority || takerInfo.takerUserAccount.authority;
 		const swiftOrderParamsSignatureIx =
 			Ed25519Program.createInstructionWithPublicKey({
-				publicKey: takerInfo.takerUserAccount.authority.toBytes(),
+				publicKey: authorityToUse.toBytes(),
 				signature: Uint8Array.from(swiftOrderParamsSignature),
 				message: new TextEncoder().encode(
 					digest(encodedSwiftOrderParamsMessage).toString('hex')
@@ -8588,6 +8601,58 @@ export class DriftClient {
 				},
 			}
 		);
+	}
+
+	public async postPythLazerOracleUpdate(
+		feedId: number,
+		pythMessageHex: string
+	): Promise<string> {
+		const postIxs = this.getPostPythLazerOracleUpdateIxs(
+			feedId,
+			pythMessageHex,
+			undefined,
+			2
+		);
+		const tx = await this.buildTransaction(postIxs);
+		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+		return txSig;
+	}
+
+	public getPostPythLazerOracleUpdateIxs(
+		feedId: number,
+		pythMessageHex: string,
+		precedingIxs: TransactionInstruction[] = [],
+		overrideIxCount?: number
+	): TransactionInstruction[] {
+		const pythMessageBytes = Buffer.from(pythMessageHex, 'hex');
+		const messageOffset = 1;
+
+		const updateData = new Uint8Array(1 + pythMessageBytes.length);
+		updateData[0] = feedId;
+		updateData.set(pythMessageBytes, 1);
+
+		const verifyIx = createMinimalEd25519VerifyIx(
+			overrideIxCount || precedingIxs.length + 1,
+			messageOffset,
+			updateData
+		);
+
+		const ix = this.program.instruction.postPythLazerOracleUpdate(
+			feedId,
+			pythMessageBytes,
+			{
+				accounts: {
+					keeper: this.wallet.publicKey,
+					pythLazerStorage: PYTH_LAZER_STORAGE_ACCOUNT_KEY,
+					pythLazerOracle: getPythLazerOraclePublicKey(
+						this.program.programId,
+						feedId
+					),
+					ixSysvar: SYSVAR_INSTRUCTIONS_PUBKEY,
+				},
+			}
+		);
+		return [verifyIx, ix];
 	}
 
 	public async getPostSwitchboardOnDemandUpdateAtomicIx(
