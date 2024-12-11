@@ -39,7 +39,7 @@ interface TransactionConfirmationRequest {
 }
 
 /**
- * Class to await for transaction confirmations in an optimised manner. It tracks a shared list of all pending transactions and fetches them in bulk in a shared RPC request whenever they have an "overlapping" polling interval. E.g. tx1 with an interval of 200ms and tx2 with an interval of 300ms (if sent at the same time) will be fetched together at at 600ms, 1200ms, 1800ms, etc.
+ * Class to await for transaction confirmations in an optimised manner. It tracks a shared list of all pending transactions and fetches them in bulk in a shared RPC request whenever they have an "overlapping" polling interval. E.g. tx1 with an interval of 200ms and tx2 with an interval of 300ms (if sent at the same time) will be fetched together at 600ms, 1200ms, 1800ms, etc.
  */
 export class TransactionConfirmationManager {
 	private connection: Connection;
