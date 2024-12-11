@@ -189,6 +189,36 @@ mod test {
         assert_eq!(res, 0);
     }
 
+
+    #[test]
+    fn calculate_extreme_spread_tests() {
+        let amm = AMM {
+            base_asset_reserve: 2 * AMM_RESERVE_PRECISION,
+            quote_asset_reserve: 2 * AMM_RESERVE_PRECISION,
+            sqrt_k: 2 * AMM_RESERVE_PRECISION,
+            peg_multiplier: PEG_PRECISION,
+            long_spread:  (BID_ASK_SPREAD_PRECISION as u32) + 1000,
+            short_spread: (BID_ASK_SPREAD_PRECISION as u32) + 1000,
+            max_spread: (BID_ASK_SPREAD_PRECISION/2) as u32,
+            curve_update_intensity: 100,
+            ..AMM::default()
+        };
+
+        let mut market = PerpMarket {
+            amm,
+            ..PerpMarket::default()
+        };
+
+        let (bar_l, qar_l) = calculate_spread_reserves(&market, PositionDirection::Long).unwrap();
+        let (bar_s, qar_s) = calculate_spread_reserves(&market, PositionDirection::Short).unwrap();
+
+        assert_eq!(bar_s, 4000000000000000000);
+        assert_eq!(qar_s, 1);
+
+        assert_eq!(bar_l, 1000000000);
+        assert_eq!(qar_l, 4000000000);
+    }
+
     #[test]
     fn calculate_spread_tests() {
         let base_spread = 1000; // .1%

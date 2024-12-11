@@ -486,8 +486,14 @@ pub fn calculate_spread_reserves(
     };
 
     let quote_asset_reserve_delta = if spread_with_offset.abs() > 1 {
-        let quote_reserve_divisor =
-            BID_ASK_SPREAD_PRECISION_I128 / (spread_with_offset / 2).cast::<i128>()?;
+        let mut quote_reserve_divisor =
+            (BID_ASK_SPREAD_PRECISION_I128 / (spread_with_offset / 2).cast::<i128>()?);
+
+        // ensure the divisor is not zero
+        if quote_reserve_divisor == 0 {
+            quote_reserve_divisor = if spread_with_offset > 0 { 1 } else { -1 };
+        }
+        
         market
             .amm
             .quote_asset_reserve
@@ -507,6 +513,7 @@ pub fn calculate_spread_reserves(
             .amm
             .quote_asset_reserve
             .safe_sub(quote_asset_reserve_delta.unsigned_abs())?
+            .max(1)
     };
 
     if market.contract_type == ContractType::Prediction {
