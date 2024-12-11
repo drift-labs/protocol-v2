@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Features
 
 - program: pyth lazer integration ([#1361](https://github.com/drift-labs/protocol-v2/pull/1361))
+- program: add ix to log user balances ([#1366](https://github.com/drift-labs/protocol-v2/pull/1366))
 
 ### Fixes
 

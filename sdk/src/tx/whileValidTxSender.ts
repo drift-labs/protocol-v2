@@ -69,6 +69,7 @@ export class WhileValidTxSender extends BaseTxSender {
 		txLandRateLookbackWindowMinutes,
 		landRateToFeeFunc,
 		throwOnTimeoutError = true,
+		throwOnTransactionError = true,
 	}: {
 		connection: Connection;
 		wallet: IWallet;
@@ -82,6 +83,7 @@ export class WhileValidTxSender extends BaseTxSender {
 		txLandRateLookbackWindowMinutes?: number;
 		landRateToFeeFunc?: (landRate: number) => number;
 		throwOnTimeoutError?: boolean;
+		throwOnTransactionError?: boolean;
 	}) {
 		super({
 			connection,
@@ -95,6 +97,7 @@ export class WhileValidTxSender extends BaseTxSender {
 			confirmationStrategy,
 			landRateToFeeFunc,
 			throwOnTimeoutError,
+			throwOnTransactionError,
 		});
 		this.retrySleep = retrySleep;
 
@@ -240,7 +243,7 @@ export class WhileValidTxSender extends BaseTxSender {
 
 			await this.checkConfirmationResultForError(txid, result?.value);
 
-			if (result?.value?.err) {
+			if (result?.value?.err && this.throwOnTransactionError) {
 				// Fallback error handling if there's a problem reporting the error in checkConfirmationResultForError
 				throw new SendTransactionError({
 					action: 'send',

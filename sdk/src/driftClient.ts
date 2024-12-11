@@ -5274,6 +5274,39 @@ export class DriftClient {
 		});
 	}
 
+	public async logUserBalances(
+		userAccountPublicKey: PublicKey,
+		txParams?: TxParams
+	): Promise<TransactionSignature> {
+		const { txSig } = await this.sendTransaction(
+			await this.buildTransaction(
+				await this.getLogUserBalancesIx(userAccountPublicKey),
+				txParams
+			),
+			[],
+			this.opts
+		);
+		return txSig;
+	}
+
+	public async getLogUserBalancesIx(
+		userAccountPublicKey: PublicKey,
+	): Promise<TransactionInstruction> {
+		const userAccount = (await this.program.account.user.fetch(userAccountPublicKey)) as UserAccount;
+		const remainingAccounts = this.getRemainingAccounts({
+			userAccounts: [userAccount],
+		});
+
+		return await this.program.instruction.logUserBalances({
+			accounts: {
+				state: await this.getStatePublicKey(),
+				user: userAccountPublicKey,
+				authority: this.wallet.publicKey,
+			},
+			remainingAccounts,
+		});
+	}
+
 	public async updateUserFuelBonus(
 		userAccountPublicKey: PublicKey,
 		user: UserAccount,

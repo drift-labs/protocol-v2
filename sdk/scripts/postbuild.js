@@ -20,52 +20,75 @@ environments.forEach((environment) => {
 	console.log(``);
 
 	isomorphicPackages.forEach((package) => {
-		const isomorphPath = path.join(
+
+		// We want to overwrite the base isomorphic files (the "target" files) with the concrete implementation code and definition files (the "source" files).
+
+		const isomorphicFolderPath = path.join(
 			__dirname,
 			'..',
 			'lib',
 			environment,
-			'isomorphic',
-			package + '.js'
+			'isomorphic'
 		);
 
 		const targetEnv = forceEnv ? forceEnv : environment;
 
-		const targetPath = path.join(
-			__dirname,
-			'..',
-			'lib',
-			environment,
-			'isomorphic',
-			`${package}.${targetEnv}.js`
-		);
+		const filesToSwap = [
+			{
+				source: `${package}.${targetEnv}.js`,
+				target: `${package}.js`,
+			},
+			{
+				source: `${package}.${targetEnv}.d.ts`,
+				target: `${package}.d.ts`,
+			},
+		];
 
-		try {
-			const content = fs.readFileSync(targetPath, 'utf8');
-			fs.writeFileSync(isomorphPath, content);
-		} catch (error) {
-			console.error(
-				`Error processing isomophic package : ${package} :: ${error.message}`
+		for (const file of filesToSwap) {
+			const sourcePath = path.join(
+				isomorphicFolderPath,
+				file.source
 			);
+
+			const targetPath = path.join(
+				isomorphicFolderPath,
+				file.target
+			);
+
+			try {
+				const sourceContent = fs.readFileSync(sourcePath, 'utf8');
+				fs.writeFileSync(targetPath, sourceContent);
+			} catch (error) {
+				console.error(
+					`Error processing isomophic package : ${package} :: ${error.message}`
+				);
+			}
 		}
 
 		// Delete other environment files for safety
 		environments.forEach((otherEnvironment) => {
-			if (otherEnvironment === environment) {
+			if (otherEnvironment === targetEnv) {
 				return;
 			}
 
-			const otherTargetPath = path.join(
-				__dirname,
-				'..',
-				'lib',
-				environment,
-				'isomorphic',
-				`${package}.${otherEnvironment}.js`
-			);
+			const otherTargetFiles = [
+				`${package}.${otherEnvironment}.js`,
+				`${package}.${otherEnvironment}.d.ts`,
+			];
 
-			if (fs.existsSync(otherTargetPath)) {
-				fs.unlinkSync(otherTargetPath);
+			for (const otherTargetFile of otherTargetFiles) {
+				const otherTargetPath = path.join(
+					__dirname,
+					'..',
+					'lib',
+					environment,
+					'isomorphic',
+					otherTargetFile
+				);
+
+				if (fs.existsSync(otherTargetPath)) {
+					fs.unlinkSync(otherTargetPath);
+				}
 			}
 		});
 	});
