@@ -22,7 +22,7 @@ import {
 	ZERO,
 	convertToNumber,
 	QUOTE_PRECISION,
-	isVariant,
+	//isVariant,
 	uncrossL2,
 	L2Level,
 } from '../../src';
