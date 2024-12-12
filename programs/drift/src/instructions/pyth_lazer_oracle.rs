@@ -122,7 +122,6 @@ pub fn handle_update_pyth_lazer_oracle<'c: 'info, 'info>(
 }
 
 #[derive(Accounts)]
-#[instruction(pyth_message: Vec<u8>)]
 pub struct UpdatePythLazerOracle<'info> {
     #[account(mut)]
     pub keeper: Signer<'info>,
