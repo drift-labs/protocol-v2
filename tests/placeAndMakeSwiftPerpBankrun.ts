@@ -350,12 +350,12 @@ describe('place and make swift order', () => {
 		// Switch the oracle over to using pyth lazer
 		await makerDriftClient.initializePythLazerOracle(6);
 		await makerDriftClient.postPythLazerOracleUpdate(
-			6,
+			[6],
 			PYTH_LAZER_HEX_STRING_SOL
 		);
 
 		await makerDriftClient.postPythLazerOracleUpdate(
-			6,
+			[6],
 			PYTH_LAZER_HEX_STRING_SOL
 		);
 		await makerDriftClient.updatePerpMarketOracle(
@@ -452,7 +452,7 @@ describe('place and make swift order', () => {
 
 		// Get pyth lazer instruction
 		const pythLazerCrankIxs = makerDriftClient.getPostPythLazerOracleUpdateIxs(
-			6,
+			[6],
 			PYTH_LAZER_HEX_STRING_SOL,
 			undefined,
 			1
