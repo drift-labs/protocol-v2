@@ -6503,25 +6503,16 @@
         },
         {
           "name": "pythLazerStorage",
-          "isMut": true,
+          "isMut": false,
           "isSigner": false
         },
         {
           "name": "ixSysvar",
           "isMut": false,
           "isSigner": false
-        },
-        {
-          "name": "pythLazerOracle",
-          "isMut": true,
-          "isSigner": false
         }
       ],
       "args": [
-        {
-          "name": "feedId",
-          "type": "u32"
-        },
         {
           "name": "pythMessage",
           "type": "bytes"
@@ -14290,12 +14281,12 @@
     {
       "code": 6277,
       "name": "OracleMismatchedVaaAndPriceUpdates",
-      "msg": "Don't have the same remaining accounts number and merkle price updates left"
+      "msg": "Don't have the same remaining accounts number and pyth updates left"
     },
     {
       "code": 6278,
       "name": "OracleBadRemainingAccountPublicKey",
-      "msg": "Remaining account passed is not a valid pda"
+      "msg": "Remaining account passed does not match oracle update derived pda"
     },
     {
       "code": 6279,
