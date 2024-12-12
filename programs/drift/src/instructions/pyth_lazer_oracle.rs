@@ -89,8 +89,8 @@ pub fn handle_update_pyth_lazer_oracle<'c: 'info, 'info>(
                 }
             }
 
-            // Default to 2% of the price for conf if bid > ask or one-sided market
-            let mut conf: i64 = price.0.get().safe_div(50)?;
+            // Default to 20bps of the price for conf if bid > ask or one-sided market
+            let mut conf: i64 = price.0.get().safe_div(500)?;
             if let (Some(bid), Some(ask)) = (best_bid_price, best_ask_price) {
                 if bid.0.get() < ask.0.get() {
                     conf = ask.0.get() - bid.0.get();
