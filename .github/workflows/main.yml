@@ -249,9 +249,9 @@ jobs:
       - name: Update browser package version
         run: |
           VERSION=$(node -e "console.log(require('./package.json').version);")
-          [[ "$VERSION" == *beta* ]] && npm version prerelease --preid=beta.browser || npm version preminor --preid=beta.browser
+          [[ "$VERSION" == *beta* ]] && npm version prerelease --preid=beta || npm version preminor --preid=beta
       - name: Publish browser version to npm
-        run: npm publish --access=public
+        run: npm publish --access=public  --tag browser
   emit-dispatch-events:
     runs-on: ubicloud
     needs: [release, check-for-sdk-changes]
