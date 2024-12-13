@@ -1,8 +1,4 @@
-import {
-	SYSVAR_INSTRUCTIONS_PUBKEY,
-	TransactionInstruction,
-	Ed25519Program,
-} from '@solana/web3.js';
+import { TransactionInstruction, Ed25519Program } from '@solana/web3.js';
 
 export function trimFeedId(feedId: string): string {
 	if (feedId.startsWith('0x')) {
@@ -21,10 +17,14 @@ const PUBKEY_LEN = 32;
 const MAGIC_LEN = 4;
 const MESSAGE_SIZE_LEN = 2;
 
-export function getEd25519ArgsFromHex(hex: string): {
+export function getEd25519ArgsFromHex(
+	hex: string,
+	customInstructionIndex?: number
+): {
 	publicKey: Uint8Array;
 	signature: Uint8Array;
 	message: Uint8Array;
+	instructionIndex?: number;
 } {
 	const cleanedHex = hex.startsWith('0x') ? hex.slice(2) : hex;
 	const buffer = new Uint8Array(Buffer.from(cleanedHex, 'hex'));
@@ -58,6 +58,7 @@ export function getEd25519ArgsFromHex(hex: string): {
 		publicKey,
 		signature,
 		message,
+		instructionIndex: customInstructionIndex,
 	};
 }
 
@@ -123,13 +124,7 @@ export function createMinimalEd25519VerifyIx(
 	ixData.set(offsets, 2);
 
 	return new TransactionInstruction({
-		keys: [
-			{
-				pubkey: SYSVAR_INSTRUCTIONS_PUBKEY,
-				isSigner: false,
-				isWritable: false,
-			},
-		],
+		keys: [],
 		programId: Ed25519Program.programId,
 		data: Buffer.from(ixData),
 	});
