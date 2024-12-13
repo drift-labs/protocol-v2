@@ -64,7 +64,6 @@ use crate::state::spot_market_map::get_writable_spot_market_set;
 use crate::state::state::{ExchangeStatus, FeeStructure, OracleGuardRails, State};
 use crate::state::traits::Size;
 use crate::state::user::{User, UserStats};
-use crate::validate;
 use crate::validation::fee_structure::validate_fee_structure;
 use crate::validation::margin::{validate_margin, validate_margin_weights};
 use crate::validation::perp_market::validate_perp_market;
@@ -75,6 +74,7 @@ use crate::{load, FEE_ADJUSTMENT_MAX};
 use crate::{load_mut, PTYH_PRICE_FEED_SEED_PREFIX};
 use crate::{math, safe_decrement, safe_increment};
 use crate::{math_error, SPOT_BALANCE_PRECISION};
+use crate::{validate, BASE_PRECISION, BID_ASK_SPREAD_PRECISION, PRICE_PRECISION, QUOTE_PRECISION};
 
 pub fn handle_initialize(ctx: Context<Initialize>) -> Result<()> {
     let (drift_signer, drift_signer_nonce) =
@@ -1003,6 +1003,402 @@ pub fn handle_initialize_perp_market(
     safe_increment!(state.number_of_markets, 1);
 
     controller::amm::update_concentration_coef(perp_market, concentration_coef_scale)?;
+
+    let (amm_bids, amm_asks) = amm::calculate_market_open_bids_asks(&market.amm)?;
+    crate::dlog!(amm_bids, amm_asks);
+
+    Ok(())
+}
+
+pub fn handle_initialize_template_derivative_market(
+    ctx: Context<InitializePerpMarket>,
+    name: [u8; 32],
+    oracle: Pubkey,
+    oracle_source: OracleSource,
+    contract_type: ContractType,
+    contract_tier: ContractTier,
+    rough_price: Option<i64>,
+    target_quote_liquidity: u64,
+    active_status: boolean,
+) -> Result<()> {
+    let market_index = state.number_of_markets;
+    msg!("perp market {}", market_index);
+
+    let perp_market_pubkey = ctx.accounts.perp_market.to_account_info().key;
+    let perp_market = &mut ctx.accounts.perp_market.load_init()?;
+    let clock = Clock::get()?;
+    let now = clock.unix_timestamp;
+    let clock_slot = clock.slot;
+
+    let oracle_price: i64;
+    if rough_price.is_none() {
+        OracleMap::validate_oracle_account_info(&ctx.accounts.oracle)?;
+
+        // Verify oracle is readable
+        let (oracle_price, oracle_delay, last_oracle_price_twap) = match oracle_source {
+            OracleSource::Pyth => {
+                let OraclePriceData {
+                    price: oracle_price,
+                    delay: oracle_delay,
+                    ..
+                } = get_pyth_price(&ctx.accounts.oracle, clock_slot, 1, false)?;
+                let last_oracle_price_twap =
+                    perp_market
+                        .amm
+                        .get_pyth_twap(&ctx.accounts.oracle, 1, false)?;
+                (oracle_price, oracle_delay, last_oracle_price_twap)
+            }
+            OracleSource::Pyth1K => {
+                let OraclePriceData {
+                    price: oracle_price,
+                    delay: oracle_delay,
+                    ..
+                } = get_pyth_price(&ctx.accounts.oracle, clock_slot, 1000, false)?;
+                let last_oracle_price_twap =
+                    perp_market
+                        .amm
+                        .get_pyth_twap(&ctx.accounts.oracle, 1000, false)?;
+                (oracle_price, oracle_delay, last_oracle_price_twap)
+            }
+            OracleSource::Pyth1M => {
+                let OraclePriceData {
+                    price: oracle_price,
+                    delay: oracle_delay,
+                    ..
+                } = get_pyth_price(&ctx.accounts.oracle, clock_slot, 1000000, false)?;
+                let last_oracle_price_twap =
+                    perp_market
+                        .amm
+                        .get_pyth_twap(&ctx.accounts.oracle, 1000000, false)?;
+                (oracle_price, oracle_delay, last_oracle_price_twap)
+            }
+            OracleSource::PythStableCoin => {
+                let OraclePriceData {
+                    price: oracle_price,
+                    delay: oracle_delay,
+                    ..
+                } = get_pyth_price(&ctx.accounts.oracle, clock_slot, 1, false)?;
+                (oracle_price, oracle_delay, QUOTE_PRECISION_I64)
+            }
+            OracleSource::Switchboard => {
+                let OraclePriceData {
+                    price: oracle_price,
+                    delay: oracle_delay,
+                    ..
+                } = get_switchboard_price(&ctx.accounts.oracle, clock_slot)?;
+
+                (oracle_price, oracle_delay, oracle_price)
+            }
+            OracleSource::QuoteAsset => {
+                msg!("Quote asset oracle cant be used for perp market");
+                return Err(ErrorCode::InvalidOracle.into());
+            }
+            OracleSource::Prelaunch => {
+                let OraclePriceData {
+                    price: oracle_price,
+                    delay: oracle_delay,
+                    ..
+                } = get_prelaunch_price(&ctx.accounts.oracle, clock_slot)?;
+                (oracle_price, oracle_delay, oracle_price)
+            }
+            OracleSource::PythPull => {
+                let OraclePriceData {
+                    price: oracle_price,
+                    delay: oracle_delay,
+                    ..
+                } = get_pyth_price(&ctx.accounts.oracle, clock_slot, 1, true)?;
+                let last_oracle_price_twap =
+                    perp_market
+                        .amm
+                        .get_pyth_twap(&ctx.accounts.oracle, 1, true)?;
+                (oracle_price, oracle_delay, last_oracle_price_twap)
+            }
+            OracleSource::Pyth1KPull => {
+                let OraclePriceData {
+                    price: oracle_price,
+                    delay: oracle_delay,
+                    ..
+                } = get_pyth_price(&ctx.accounts.oracle, clock_slot, 1000, true)?;
+                let last_oracle_price_twap =
+                    perp_market
+                        .amm
+                        .get_pyth_twap(&ctx.accounts.oracle, 1000, true)?;
+                (oracle_price, oracle_delay, last_oracle_price_twap)
+            }
+            OracleSource::Pyth1MPull => {
+                let OraclePriceData {
+                    price: oracle_price,
+                    delay: oracle_delay,
+                    ..
+                } = get_pyth_price(&ctx.accounts.oracle, clock_slot, 1000000, true)?;
+                let last_oracle_price_twap =
+                    perp_market
+                        .amm
+                        .get_pyth_twap(&ctx.accounts.oracle, 1000000, true)?;
+                (oracle_price, oracle_delay, last_oracle_price_twap)
+            }
+            OracleSource::PythStableCoinPull => {
+                let OraclePriceData {
+                    price: oracle_price,
+                    delay: oracle_delay,
+                    ..
+                } = get_pyth_price(&ctx.accounts.oracle, clock_slot, 1, true)?;
+                (oracle_price, oracle_delay, QUOTE_PRECISION_I64)
+            }
+            OracleSource::SwitchboardOnDemand => {
+                let OraclePriceData {
+                    price: oracle_price,
+                    delay: oracle_delay,
+                    ..
+                } = get_sb_on_demand_price(&ctx.accounts.oracle, clock_slot)?;
+
+                (oracle_price, oracle_delay, oracle_price)
+            }
+        };
+
+        init_reserve_price = amm::calculate_price(
+            amm_quote_asset_reserve,
+            amm_base_asset_reserve,
+            oracle_price,
+        )?;
+        assert_eq!(oracle_price, init_reserve_price.cast::<u128>()?);
+    } else {
+        init_reserve_price =
+            amm::calculate_price(amm_quote_asset_reserve, amm_base_asset_reserve, rough_price)?;
+        assert_eq!(rough_price, init_reserve_price.cast::<u128>()?);
+    }
+
+    let price_for_fields = rough_price.unwrap_or(oracle_price);
+
+    // Verify there's no overflow
+    let _k =
+        bn::U192::from(amm_base_asset_reserve).safe_mul(bn::U192::from(amm_quote_asset_reserve))?;
+
+    let concentration_coef: u128 = MAX_CONCENTRATION_COEFFICIENT;
+    let amm_jit_intensity = 100;
+    let max_revenue_withdraw_per_period: u64;
+    let amm_periodicity = 3600;
+    let mut margin_ratio_initial = 1000;
+    let mut margin_ratio_maintenance = 500;
+    let liquidator_fee = LIQUIDATION_FEE_PRECISION / 100;
+    let imf_factor = 1;
+    let base_spread = BID_ASK_SPREAD_PRECISION / 500;
+    let max_spread = BID_ASK_SPREAD_PRECISION / 50;
+    let mut quote_max_insurance = 0;
+
+    let order_step_size: u64;
+    let min_order_size: u64;
+    let order_tick_size: u64;
+
+    assert!(price_for_fields >= PRICE_PRECISION / 100);
+
+    if price_for_fields < PRICE_PRECISION / 10 {
+        order_step_size = BASE_PRECISION * 2;
+        min_order_size = BASE_PRECISION * 50;
+        order_tick_size = PRICE_PRECISION / 10000; // 4 decimal places
+    } else if price_for_fields < PRICE_PRECISION * 2 {
+        order_step_size = BASE_PRECISION;
+        min_order_size = BASE_PRECISION * 5;
+        order_tick_size = PRICE_PRECISION / 10000; // 4 decimal places
+    } else if price_for_fields < PRICE_PRECISION * 10 {
+        order_step_size = BASE_PRECISION / 10;
+        min_order_size = BASE_PRECISION;
+        order_tick_size = PRICE_PRECISION / 1000; // 3 decimal places
+    } else if price_for_fields < PRICE_PRECISION * 100 {
+        order_step_size = BASE_PRECISION / 100;
+        min_order_size = BASE_PRECISION / 100;
+        order_tick_size = PRICE_PRECISION / 100; // 2 decimal places
+    }
+
+    let concentration_coef_scale = 5;
+    let curve_update_intensity = 100;
+
+    if contract_tier == ContractTier::A {
+        max_revenue_withdraw_per_period = 250 * QUOTE_PRECISION;
+        if_liquidation_fee = LIQUIDATION_FEE_PRECISION / 10000 * 125;
+        quote_max_insurance = (QUOTE_PRECISION * 1_000_000) as u64;
+    } else if contract_tier == ContractTier::B {
+        max_revenue_withdraw_per_period = 100 * QUOTE_PRECISION;
+        if_liquidation_fee = LIQUIDATION_FEE_PRECISION / 1000 * 15;
+        quote_max_insurance = (QUOTE_PRECISION * 100_000) as u64;
+    } else if contract_tier == ContractTier::C {
+        max_revenue_withdraw_per_period = 25 * QUOTE_PRECISION;
+        if_liquidation_fee = LIQUIDATION_FEE_PRECISION / 100 * 2;
+        quote_max_insurance = (QUOTE_PRECISION * 5000) as u64;
+    } else if contract_tier == ContractTier::Speculative {
+        max_revenue_withdraw_per_period = 5 * QUOTE_PRECISION;
+        if_liquidation_fee = LIQUIDATION_FEE_PRECISION / 100 * 5;
+        if_liquidation_fee = LIQUIDATION_FEE_PRECISION / 100 * 5;
+    }
+
+    let (min_base_asset_reserve, max_base_asset_reserve) =
+        amm::calculate_bid_ask_bounds(MAX_CONCENTRATION_COEFFICIENT, amm_base_asset_reserve)?;
+
+    validate_margin(
+        margin_ratio_initial,
+        margin_ratio_maintenance,
+        0,
+        0,
+        liquidator_fee,
+        max_spread,
+    )?;
+
+    let state = &mut ctx.accounts.state;
+    // validate!(
+    //     market_index == state.number_of_markets,
+    //     ErrorCode::MarketIndexAlreadyInitialized,
+    //     "market_index={} != state.number_of_markets={}",
+    //     market_index,
+    //     state.number_of_markets
+    // )?;
+
+    **perp_market = PerpMarket {
+        contract_type: ContractType::Perpetual,
+        contract_tier,
+        status: if active_status {
+            MarketStatus::Active
+        } else {
+            MarketStatus::Initialized
+        },
+        name,
+        expiry_price: 0,
+        expiry_ts: 0,
+        pubkey: *perp_market_pubkey,
+        market_index,
+        number_of_users_with_base: 0,
+        number_of_users: 0,
+        margin_ratio_initial, // unit is 20% (+2 decimal places)
+        margin_ratio_maintenance,
+        imf_factor,
+        next_fill_record_id: 1,
+        next_funding_rate_record_id: 1,
+        next_curve_record_id: 1,
+        pnl_pool: PoolBalance::default(),
+        insurance_claim: InsuranceClaim {
+            max_revenue_withdraw_per_period,
+            quote_max_insurance,
+            ..InsuranceClaim::default()
+        },
+        unrealized_pnl_initial_asset_weight: 0, // 100%
+        unrealized_pnl_maintenance_asset_weight: SPOT_WEIGHT_PRECISION.cast()?, // 100%
+        unrealized_pnl_imf_factor: 0,
+        unrealized_pnl_max_imbalance: 0,
+        liquidator_fee,
+        if_liquidation_fee,
+        paused_operations: 0,
+        quote_spot_market_index: QUOTE_SPOT_MARKET_INDEX,
+        fee_adjustment: 0,
+        fuel_boost_position: 0,
+        fuel_boost_taker: 0,
+        fuel_boost_maker: 0,
+        padding1: 0,
+        high_leverage_margin_ratio_initial: 0,
+        high_leverage_margin_ratio_maintenance: 0,
+        padding: [0; 38],
+        amm: AMM {
+            oracle: *ctx.accounts.oracle.key,
+            oracle_source,
+            base_asset_reserve: amm_base_asset_reserve,
+            quote_asset_reserve: amm_quote_asset_reserve,
+            terminal_quote_asset_reserve: amm_quote_asset_reserve,
+            ask_base_asset_reserve: amm_base_asset_reserve,
+            ask_quote_asset_reserve: amm_quote_asset_reserve,
+            bid_base_asset_reserve: amm_base_asset_reserve,
+            bid_quote_asset_reserve: amm_quote_asset_reserve,
+            cumulative_funding_rate_long: 0,
+            cumulative_funding_rate_short: 0,
+            total_social_loss: 0,
+            last_funding_rate: 0,
+            last_funding_rate_long: 0,
+            last_funding_rate_short: 0,
+            last_24h_avg_funding_rate: 0,
+            last_funding_rate_ts: now,
+            funding_period: amm_periodicity,
+            last_mark_price_twap: init_reserve_price,
+            last_mark_price_twap_5min: init_reserve_price,
+            last_mark_price_twap_ts: now,
+            sqrt_k: amm_base_asset_reserve,
+            concentration_coef,
+            min_base_asset_reserve,
+            max_base_asset_reserve,
+            peg_multiplier: amm_peg_multiplier,
+            total_fee: 0,
+            total_fee_withdrawn: 0,
+            total_fee_minus_distributions: 0,
+            total_mm_fee: 0,
+            total_exchange_fee: 0,
+            total_liquidation_fee: 0,
+            net_revenue_since_last_funding: 0,
+            historical_oracle_data: HistoricalOracleData {
+                last_oracle_price: oracle_price,
+                last_oracle_delay: oracle_delay,
+                last_oracle_price_twap,
+                last_oracle_price_twap_5min: oracle_price,
+                last_oracle_price_twap_ts: now,
+                ..HistoricalOracleData::default()
+            },
+            last_oracle_normalised_price: oracle_price,
+            last_oracle_conf_pct: 0,
+            last_oracle_reserve_price_spread_pct: 0, // todo
+            order_step_size,
+            order_tick_size,
+            min_order_size,
+            max_position_size: 0,
+            max_slippage_ratio: 50,         // ~2%
+            max_fill_reserve_fraction: 100, // moves price ~2%
+            base_spread,
+            long_spread: 0,
+            short_spread: 0,
+            max_spread,
+            last_bid_price_twap: init_reserve_price,
+            last_ask_price_twap: init_reserve_price,
+            base_asset_amount_with_amm: 0,
+            base_asset_amount_long: 0,
+            base_asset_amount_short: 0,
+            quote_asset_amount: 0,
+            quote_entry_amount_long: 0,
+            quote_entry_amount_short: 0,
+            quote_break_even_amount_long: 0,
+            quote_break_even_amount_short: 0,
+            max_open_interest,
+            mark_std: 0,
+            oracle_std: 0,
+            volume_24h: 0,
+            long_intensity_count: 0,
+            long_intensity_volume: 0,
+            short_intensity_count: 0,
+            short_intensity_volume: 0,
+            last_trade_ts: now,
+            curve_update_intensity,
+            fee_pool: PoolBalance::default(),
+            base_asset_amount_per_lp: 0,
+            quote_asset_amount_per_lp: 0,
+            last_update_slot: clock_slot,
+
+            // lp stuff
+            base_asset_amount_with_unsettled_lp: 0,
+            user_lp_shares: 0,
+            amm_jit_intensity,
+
+            last_oracle_valid: false,
+            target_base_asset_amount_per_lp: 0,
+            per_lp_base: 0,
+            padding1: 0,
+            padding2: 0,
+            total_fee_earned_per_lp: 0,
+            net_unsettled_funding_pnl: 0,
+            quote_asset_amount_with_unsettled_lp: 0,
+            reference_price_offset: 0,
+            padding: [0; 12],
+        },
+    };
+
+    safe_increment!(state.number_of_markets, 1);
+
+    controller::amm::update_concentration_coef(perp_market, concentration_coef_scale)?;
+
+    let (amm_bids, amm_asks) = amm::calculate_market_open_bids_asks(&market.amm)?;
+    crate::dlog!(market_index, amm_bids, amm_asks);
 
     Ok(())
 }
