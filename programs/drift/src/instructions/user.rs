@@ -2882,6 +2882,7 @@ pub struct DeleteUser<'info> {
     pub user_stats: AccountLoader<'info, UserStats>,
     #[account(mut)]
     pub state: Box<Account<'info, State>>,
+    #[account(mut)]
     pub authority: Signer<'info>,
 }
 
