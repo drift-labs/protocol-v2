@@ -278,7 +278,8 @@ pub fn handle_initialize_spot_market(
         flash_loan_initial_token_amount: 0,
         total_swap_fee: 0,
         scale_initial_asset_weight_start,
-        padding: [0; 48],
+        padding: [0; 40],
+        pool_id: 0,
         insurance_fund: InsuranceFund {
             vault: *ctx.accounts.insurance_fund_vault.to_account_info().key,
             unstaking_period: THIRTEEN_DAY,
@@ -680,7 +681,7 @@ pub fn handle_initialize_perp_market(
         fuel_boost_taker: 0,
         fuel_boost_maker: 0,
         padding: [0; 38],
-        padding1: 0,
+        pool_id: 0,
         high_leverage_margin_ratio_initial: 0,
         high_leverage_margin_ratio_maintenance: 0,
         amm: AMM {
