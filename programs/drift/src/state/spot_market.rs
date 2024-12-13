@@ -181,7 +181,8 @@ pub struct SpotMarket {
     /// disabled when 0
     /// precision: QUOTE_PRECISION
     pub scale_initial_asset_weight_start: u64,
-    pub padding: [u8; 48],
+    pub padding: [u8; 40],
+    pub pool_id: u8,
 }
 
 impl Default for SpotMarket {
@@ -242,7 +243,8 @@ impl Default for SpotMarket {
             flash_loan_initial_token_amount: 0,
             total_swap_fee: 0,
             scale_initial_asset_weight_start: 0,
-            padding: [0; 48],
+            padding: [0; 40],
+            pool_id: 0,
         }
     }
 }
