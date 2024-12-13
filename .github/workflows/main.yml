@@ -243,6 +243,15 @@ jobs:
         run: npm publish --access=public
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+      - name: Build sdk for browser
+        run: yarn
+      - run: yarn build:browser
+      - name: Update browser package version
+        run: |
+          VERSION=$(node -e "console.log(require('./package.json').version);")
+          [[ "$VERSION" == *beta* ]] && npm version prerelease --preid=beta.browser || npm version preminor --preid=beta.browser
+      - name: Publish browser version to npm
+        run: npm publish --access=public
   emit-dispatch-events:
     runs-on: ubicloud
     needs: [release, check-for-sdk-changes]
