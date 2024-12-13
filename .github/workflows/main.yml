@@ -252,6 +252,8 @@ jobs:
           [[ "$VERSION" == *beta* ]] && npm version prerelease --preid=beta || npm version preminor --preid=beta
       - name: Publish browser version to npm
         run: npm publish --access=public  --tag browser
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
   emit-dispatch-events:
     runs-on: ubicloud
     needs: [release, check-for-sdk-changes]
