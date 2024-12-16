@@ -175,7 +175,13 @@ export class EventSubscriber {
 								reconnectAttempts > logProviderConfig.maxReconnectAttempts;
 
 							console.log(
-								`EventSubscriber: Reconnect attempts ${reconnectAttempts}/${logProviderConfig.maxReconnectAttempts}, ${hitMaxReconnectAttempts ? 'Falling Back...' : 'Reconnecting...'}`
+								`EventSubscriber: Reconnect attempts ${reconnectAttempts}/${
+									logProviderConfig.maxReconnectAttempts
+								}, ${
+									hitMaxReconnectAttempts
+										? 'Falling Back...'
+										: 'Reconnecting...'
+								}`
 							);
 
 							if (hitMaxReconnectAttempts) {
