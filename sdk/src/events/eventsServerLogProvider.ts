@@ -77,7 +77,17 @@ export class EventsServerLogProvider implements LogProvider {
 				if (parsedData.message !== undefined) {
 					return;
 				}
-				const event = JSON.parse(parsedData.data);
+				let event = JSON.parse(parsedData.data);
+
+				try {
+					// Handling for double-serialised events
+					if (typeof event === 'string') {
+						event = JSON.parse(event);
+					}
+				} catch (error) {
+					// swallow
+				}
+
 				this.callback(
 					event.txSig,
 					event.slot,

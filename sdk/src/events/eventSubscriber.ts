@@ -171,10 +171,14 @@ export class EventSubscriber {
 					this.logProvider.eventEmitter.on(
 						'reconnect',
 						async (reconnectAttempts) => {
-							if (reconnectAttempts > logProviderConfig.maxReconnectAttempts) {
-								console.log(
-									`EventSubscriber: Reconnect attempts ${reconnectAttempts}/${logProviderConfig.maxReconnectAttempts}, reconnecting...`
-								);
+							const hitMaxReconnectAttempts =
+								reconnectAttempts > logProviderConfig.maxReconnectAttempts;
+
+							console.log(
+								`EventSubscriber: Reconnect attempts ${reconnectAttempts}/${logProviderConfig.maxReconnectAttempts}, ${hitMaxReconnectAttempts ? 'Falling Back...' : 'Reconnecting...'}`
+							);
+
+							if (hitMaxReconnectAttempts) {
 								this.logProvider.eventEmitter.removeAllListeners('reconnect');
 								await this.unsubscribe();
 								this.updateFallbackProviderType(
