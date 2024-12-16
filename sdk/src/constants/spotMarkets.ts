@@ -557,6 +557,18 @@ export const MainnetSpotMarkets: SpotMarketConfig[] = [
 		pythFeedId:
 			'0x91519e3e48571e1232a85a938e714da19fe5ce05107f3eebb8a870b2e8020169',
 	},
+	{
+		symbol: 'PENGU',
+		marketIndex: 31,
+		poolId: 0,
+		oracle: new PublicKey('7vGHChuBJyFMYBqMLXRzBmRxWdSuwEmg8RvRm3RWQsxi'),
+		oracleSource: OracleSource.PYTH_PULL,
+		mint: new PublicKey('2zMMhcVQEXDtdE6vsFS7S7D5oUodfJHE8vd1gnBouauv'),
+		precision: new BN(10).pow(SIX),
+		precisionExp: SIX,
+		pythFeedId:
+			'0xbed3097008b9b5e3c93bec20be79cb43986b85a996475589351a21e67bae9b61',
+	},
 ];
 
 export const SpotMarkets: { [key in DriftEnv]: SpotMarketConfig[] } = {
