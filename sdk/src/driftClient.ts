@@ -93,6 +93,7 @@ import {
 	getOpenbookV2FulfillmentConfigPublicKey,
 	getPerpMarketPublicKey,
 	getPhoenixFulfillmentConfigPublicKey,
+	getProtectedMakerModeConfigPublicKey,
 	getPythLazerOraclePublicKey,
 	getPythPullOraclePublicKey,
 	getReferrerNamePublicKeySync,
@@ -8894,6 +8895,45 @@ export class DriftClient {
 			getHighLeverageModeConfigPublicKey(this.program.programId)
 		);
 		return config as HighLeverageModeConfig;
+	}
+
+	public async updateUserProtectedMakerOrders(
+		subAccountId: number,
+		txParams?: TxParams
+	): Promise<TransactionSignature> {
+		const { txSig } = await this.sendTransaction(
+			await this.buildTransaction(
+				await this.getUpdateUserProtectedMakerOrdersIx(subAccountId),
+				txParams
+			),
+			[],
+			this.opts
+		);
+		return txSig;
+	}
+
+	public async getUpdateUserProtectedMakerOrdersIx(
+		subAccountId: number
+	): Promise<TransactionInstruction> {
+		const ix = await this.program.instruction.updateUserProtectedMakerOrders(
+			subAccountId,
+			{
+				accounts: {
+					state: await this.getStatePublicKey(),
+					user: getUserAccountPublicKeySync(
+						this.program.programId,
+						this.wallet.publicKey,
+						subAccountId
+					),
+					authority: this.wallet.publicKey,
+					protectedMakerModeConfig: getProtectedMakerModeConfigPublicKey(
+						this.program.programId
+					),
+				},
+			}
+		);
+
+		return ix;
 	}
 
 	private handleSignedTransaction(signedTxs: SignedTxData[]) {
