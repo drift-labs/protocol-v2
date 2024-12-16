@@ -728,6 +728,12 @@ pub mod drift {
         handle_post_multi_pyth_pull_oracle_updates_atomic(ctx, params)
     }
 
+    pub fn pause_spot_market_deposit_withdraw(
+        ctx: Context<PauseSpotMarketDepositWithdraw>,
+    ) -> Result<()> {
+        handle_pause_spot_market_deposit_withdraw(ctx)
+    }
+
     // Admin Instructions
 
     pub fn initialize(ctx: Context<Initialize>) -> Result<()> {

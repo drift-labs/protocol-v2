@@ -8936,6 +8936,38 @@ export class DriftClient {
 		return ix;
 	}
 
+	public async getPauseSpotMarketDepositWithdrawIx(
+		spotMarketIndex: number
+	): Promise<TransactionInstruction> {
+		const spotMarket = await this.getSpotMarketAccount(spotMarketIndex);
+		return this.program.instruction.pauseSpotMarketDepositWithdraw(
+			spotMarketIndex,
+			{
+				accounts: {
+					state: await this.getStatePublicKey(),
+					keeper: this.wallet.publicKey,
+					spotMarket: spotMarket.pubkey,
+					spotMarketVault: spotMarket.vault,
+				},
+			}
+		);
+	}
+
+	public async pauseSpotMarketDepositWithdraw(
+		spotMarketIndex: number,
+		txParams?: TxParams
+	): Promise<TransactionSignature> {
+		const { txSig } = await this.sendTransaction(
+			await this.buildTransaction(
+				await this.getPauseSpotMarketDepositWithdrawIx(spotMarketIndex),
+				txParams
+			),
+			[],
+			this.opts
+		);
+		return txSig;
+	}
+
 	private handleSignedTransaction(signedTxs: SignedTxData[]) {
 		if (this.enableMetricsEvents && this.metricsEventEmitter) {
 			this.metricsEventEmitter.emit('txSigned', signedTxs);
