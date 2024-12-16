@@ -1105,15 +1105,11 @@ export const DefaultOrderParams: OrderParams = {
 	auctionEndPrice: null,
 };
 
-export type SwiftServerMessage = {
-	slot: BN;
-	swiftOrderSignature: Uint8Array;
-	uuid: Uint8Array; // From buffer of standard UUID string
-};
-
 export type SwiftOrderParamsMessage = {
 	swiftOrderParams: OptionalOrderParams;
 	subAccountId: number;
+	uuid: Uint8Array;
+	slot: BN;
 	takeProfitOrderParams: SwiftTriggerOrderParams | null;
 	stopLossOrderParams: SwiftTriggerOrderParams | null;
 };
