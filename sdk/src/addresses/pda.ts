@@ -353,3 +353,16 @@ export function getHighLeverageModeConfigPublicKey(
 		programId
 	)[0];
 }
+
+export function getProtectedMakerModeConfigPublicKey(
+	programId: PublicKey
+): PublicKey {
+	return PublicKey.findProgramAddressSync(
+		[
+			Buffer.from(
+				anchor.utils.bytes.utf8.encode('protected_maker_mode_config')
+			),
+		],
+		programId
+	)[0];
+}

@@ -778,7 +778,6 @@ export class DriftClient {
 
 		const subscriptionPromises: Promise<any>[] = [this.userStats.subscribe()];
 
-
 		let success = true;
 
 		if (this.isSubscribed) {
