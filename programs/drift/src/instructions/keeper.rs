@@ -696,6 +696,13 @@ pub fn place_swift_taker_order<'c: 'info, 'info>(
 
     // Set max slot for the order early so we set correct swift order id
     let order_slot = taker_order_params_message.slot;
+    if order_slot < clock.slot - 500 {
+        msg!(
+            "Swift order slot {} is too old: must be within 500 slots of current slot",
+            order_slot
+        );
+        return Err(print_error!(ErrorCode::InvalidSwiftOrderParam)().into());
+    }
     let market_index = matching_taker_order_params.market_index;
     let max_slot = order_slot.safe_add(
         matching_taker_order_params
