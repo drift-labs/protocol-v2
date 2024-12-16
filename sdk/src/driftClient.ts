@@ -776,15 +776,22 @@ export class DriftClient {
 			accountSubscription: this.userStatsAccountSubscriptionConfig,
 		});
 
-		await this.userStats.subscribe();
+		const subscriptionPromises: Promise<any>[] = [this.userStats.subscribe()];
+
 
 		let success = true;
 
 		if (this.isSubscribed) {
-			await Promise.all(this.unsubscribeUsers());
-			this.users.clear();
-			success = await this.addAndSubscribeToUsers();
+			const reSubscribeUsersPromise = async () => {
+				await Promise.all(this.unsubscribeUsers());
+				this.users.clear();
+				success = await this.addAndSubscribeToUsers();
+			};
+
+			subscriptionPromises.push(reSubscribeUsersPromise());
 		}
+
+		await Promise.all(subscriptionPromises);
 
 		return success;
 	}
