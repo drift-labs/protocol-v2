@@ -17,7 +17,11 @@ import {
 	mockUSDCMint,
 } from './testHelpersLocalValidator';
 import { Wallet, loadKeypair, EventSubscriber } from '../sdk/src';
-import { PYTH_LAZER_HEX_STRING_BTC } from './pythLazerData';
+import {
+	PYTH_LAZER_HEX_STRING_BTC,
+	PYTH_LAZER_HEX_STRING_MULTI,
+	PYTH_LAZER_HEX_STRING_SOL,
+} from './pythLazerData';
 
 describe('pyth lazer oracles', () => {
 	const provider = anchor.AnchorProvider.local(undefined, {
@@ -86,11 +90,13 @@ describe('pyth lazer oracles', () => {
 
 	it('init feed', async () => {
 		await driftClient.initializePythLazerOracle(1);
+		await driftClient.initializePythLazerOracle(2);
+		await driftClient.initializePythLazerOracle(6);
 	});
 
 	it('crank', async () => {
 		const ixs = await driftClient.getPostPythLazerOracleUpdateIxs(
-			1,
+			[1],
 			PYTH_LAZER_HEX_STRING_BTC
 		);
 
@@ -103,5 +109,39 @@ describe('pyth lazer oracles', () => {
 		const simResult = await provider.connection.simulateTransaction(tx);
 		console.log(simResult.value.logs);
 		assert(simResult.value.err === null);
+	});
+
+	it('crank multi', async () => {
+		const ixs = driftClient.getPostPythLazerOracleUpdateIxs(
+			[1, 2, 6],
+			PYTH_LAZER_HEX_STRING_MULTI
+		);
+
+		const message = new TransactionMessage({
+			instructions: ixs,
+			payerKey: driftClient.wallet.payer.publicKey,
+			recentBlockhash: (await connection.getLatestBlockhash()).blockhash,
+		}).compileToV0Message();
+		const tx = new VersionedTransaction(message);
+		const simResult = await provider.connection.simulateTransaction(tx);
+		console.log(simResult.value.logs);
+		assert(simResult.value.err === null);
+	});
+
+	it('fails on wrong message passed', async () => {
+		const ixs = driftClient.getPostPythLazerOracleUpdateIxs(
+			[1],
+			PYTH_LAZER_HEX_STRING_SOL
+		);
+
+		const message = new TransactionMessage({
+			instructions: ixs,
+			payerKey: driftClient.wallet.payer.publicKey,
+			recentBlockhash: (await connection.getLatestBlockhash()).blockhash,
+		}).compileToV0Message();
+		const tx = new VersionedTransaction(message);
+		const simResult = await provider.connection.simulateTransaction(tx);
+		console.log(simResult.value.logs);
+		assert(simResult.value.err !== null);
 	});
 });

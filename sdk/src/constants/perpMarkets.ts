@@ -78,8 +78,8 @@ export const DevnetPerpMarkets: PerpMarketConfig[] = [
 	{
 		fullName: 'Polygon',
 		category: ['L2', 'Infra'],
-		symbol: 'MATIC-PERP',
-		baseAssetSymbol: 'MATIC',
+		symbol: 'POL-PERP',
+		baseAssetSymbol: 'POL',
 		marketIndex: 5,
 		oracle: new PublicKey('BrzyDgwELy4jjjsqLQpBeUxzrsueYyMhuWpYBaUYcXvi'),
 		launchTs: 1677690149000, //todo
@@ -423,8 +423,8 @@ export const MainnetPerpMarkets: PerpMarketConfig[] = [
 	{
 		fullName: 'Polygon',
 		category: ['L2', 'Infra'],
-		symbol: 'MATIC-PERP',
-		baseAssetSymbol: 'MATIC',
+		symbol: 'POL-PERP',
+		baseAssetSymbol: 'POL',
 		marketIndex: 5,
 		oracle: new PublicKey('BrzyDgwELy4jjjsqLQpBeUxzrsueYyMhuWpYBaUYcXvi'),
 		launchTs: 1677690149000, //todo

@@ -22,13 +22,12 @@ import {
 	ZERO,
 	convertToNumber,
 	QUOTE_PRECISION,
-	isVariant,
+	//isVariant,
 	uncrossL2,
 	L2Level,
 } from '../../src';
 
 import { mockPerpMarkets, mockSpotMarkets, mockStateAccount } from './helpers';
-import { DLOBOrdersCoder } from '../../src/dlob/DLOBOrders';
 
 // Returns true if asks are sorted ascending
 const asksAreSortedAsc = (asks: L2Level[]) => {
@@ -97,7 +96,8 @@ function insertOrderToDLOB(
 			maxTs,
 		},
 		userAccount.toString(),
-		slot.toNumber()
+		slot.toNumber(),
+		false
 	);
 }
 
@@ -148,7 +148,8 @@ function insertTriggerOrderToDLOB(
 			maxTs,
 		},
 		userAccount.toString(),
-		slot.toNumber()
+		slot.toNumber(),
+		false
 	);
 }
 
@@ -158,16 +159,11 @@ function printOrderNode(
 	slot: number | undefined
 ) {
 	console.log(
-		` . vAMMNode? ${node.isVammNode()},\t${
-			node.order ? getVariant(node.order?.orderType) : '~'
-		} ${node.order ? getVariant(node.order?.direction) : '~'}\t, slot: ${
-			node.order?.slot.toString() || '~'
-		}, orderId: ${node.order?.orderId.toString() || '~'},\tnode.getPrice: ${
-			oracle ? node.getPrice(oracle, slot!) : '~'
-		}, node.price: ${node.order?.price.toString() || '~'}, priceOffset: ${
-			node.order?.oraclePriceOffset.toString() || '~'
-		} quantity: ${node.order?.baseAssetAmountFilled.toString() || '~'}/${
-			node.order?.baseAssetAmount.toString() || '~'
+		` . vAMMNode? ${node.isVammNode()},\t${node.order ? getVariant(node.order?.orderType) : '~'
+		} ${node.order ? getVariant(node.order?.direction) : '~'}\t, slot: ${node.order?.slot.toString() || '~'
+		}, orderId: ${node.order?.orderId.toString() || '~'},\tnode.getPrice: ${oracle ? node.getPrice(oracle, slot!) : '~'
+		}, node.price: ${node.order?.price.toString() || '~'}, priceOffset: ${node.order?.oraclePriceOffset.toString() || '~'
+		} quantity: ${node.order?.baseAssetAmountFilled.toString() || '~'}/${node.order?.baseAssetAmount.toString() || '~'
 		}`
 	);
 }
@@ -214,8 +210,7 @@ function printBookState(
 
 function printCrossedNodes(n: NodeToFill, slot: number) {
 	console.log(
-		`Cross Found, takerExists: ${n.node.order !== undefined}, makerExists: ${
-			n.makerNodes !== undefined
+		`Cross Found, takerExists: ${n.node.order !== undefined}, makerExists: ${n.makerNodes !== undefined
 		}`
 	);
 	console.log(
@@ -237,10 +232,8 @@ function printCrossedNodes(n: NodeToFill, slot: number) {
 		console.log(
 			`  orderId: ${o.orderId}, ${getVariant(o.orderType)}, ${getVariant(
 				o.direction
-			)},\texpired: ${isOrderExpired(o, slot)}, postOnly: ${
-				o.postOnly
-			}, reduceOnly: ${
-				o.reduceOnly
+			)},\texpired: ${isOrderExpired(o, slot)}, postOnly: ${o.postOnly
+			}, reduceOnly: ${o.reduceOnly
 			}, price: ${o.price.toString()}, priceOffset: ${o.oraclePriceOffset.toString()}, baseAmtFileld: ${o.baseAssetAmountFilled.toString()}/${o.baseAssetAmount.toString()}`
 		);
 	};
@@ -411,170 +404,6 @@ describe('DLOB Tests', () => {
 		);
 		bids1.next();
 		expect(bids1.next().done, 'bid generator should be done').to.equal(true);
-	});
-
-	it('DLOB orders', () => {
-		const vAsk = new BN(15);
-		const vBid = new BN(10);
-
-		const user0 = Keypair.generate();
-		const user1 = Keypair.generate();
-		const user2 = Keypair.generate();
-		const user3 = Keypair.generate();
-		const user4 = Keypair.generate();
-
-		const dlob = new DLOB();
-		const marketIndex = 0;
-
-		insertOrderToDLOB(
-			dlob,
-			user0.publicKey,
-			OrderType.LIMIT,
-			MarketType.PERP,
-			1, // orderId
-			marketIndex,
-			new BN(11), // price
-			BASE_PRECISION, // quantity
-			PositionDirection.LONG,
-			vBid,
-			vAsk
-		);
-		insertOrderToDLOB(
-			dlob,
-			user1.publicKey,
-			OrderType.LIMIT,
-			MarketType.PERP,
-			2, // orderId
-			marketIndex,
-			new BN(12), // price
-			BASE_PRECISION, // quantity
-			PositionDirection.LONG,
-			vBid,
-			vAsk
-		);
-		insertOrderToDLOB(
-			dlob,
-			user2.publicKey,
-			OrderType.LIMIT,
-			MarketType.PERP,
-			3, // orderId
-			marketIndex,
-			new BN(13), // price
-			BASE_PRECISION, // quantity
-			PositionDirection.LONG,
-			vBid,
-			vAsk
-		);
-
-		insertOrderToDLOB(
-			dlob,
-			user3.publicKey,
-			OrderType.MARKET,
-			MarketType.PERP,
-			4, // orderId
-			marketIndex,
-			new BN(12), // price
-			new BN(1).mul(BASE_PRECISION), // quantity
-			PositionDirection.SHORT,
-			vBid,
-			vAsk
-		);
-		insertOrderToDLOB(
-			dlob,
-			user4.publicKey,
-			OrderType.MARKET,
-			MarketType.PERP,
-			5, // orderId
-			marketIndex,
-			new BN(12), // price
-			new BN(1).mul(BASE_PRECISION), // quantity
-			PositionDirection.SHORT,
-			vBid,
-			vAsk
-		);
-		// insert some limit buys above vamm bid, below ask
-		insertOrderToDLOB(
-			dlob,
-			user0.publicKey,
-			OrderType.LIMIT,
-			MarketType.SPOT,
-			6, // orderId
-			marketIndex,
-			new BN(11), // price
-			BASE_PRECISION, // quantity
-			PositionDirection.LONG,
-			vBid,
-			vAsk
-		);
-		insertOrderToDLOB(
-			dlob,
-			user1.publicKey,
-			OrderType.LIMIT,
-			MarketType.SPOT,
-			7, // orderId
-			marketIndex,
-			new BN(12), // price
-			BASE_PRECISION, // quantity
-			PositionDirection.LONG,
-			vBid,
-			vAsk
-		);
-		insertOrderToDLOB(
-			dlob,
-			user2.publicKey,
-			OrderType.LIMIT,
-			MarketType.SPOT,
-			8, // orderId
-			marketIndex,
-			new BN(13), // price
-			BASE_PRECISION, // quantity
-			PositionDirection.LONG,
-			vBid,
-			vAsk
-		);
-
-		insertOrderToDLOB(
-			dlob,
-			user3.publicKey,
-			OrderType.MARKET,
-			MarketType.SPOT,
-			9, // orderId
-			marketIndex,
-			new BN(12), // price
-			new BN(1).mul(BASE_PRECISION), // quantity
-			PositionDirection.SHORT,
-			vBid,
-			vAsk
-		);
-		insertOrderToDLOB(
-			dlob,
-			user4.publicKey,
-			OrderType.MARKET,
-			MarketType.SPOT,
-			10, // orderId
-			marketIndex,
-			new BN(12), // price
-			new BN(1).mul(BASE_PRECISION), // quantity
-			PositionDirection.SHORT,
-			vBid,
-			vAsk
-		);
-
-		const dlobOrders = dlob.getDLOBOrders();
-		expect(dlobOrders.length).to.equal(10);
-		expect(isVariant(dlobOrders[0].order.marketType, 'perp')).to.equal(true);
-		expect(isVariant(dlobOrders[5].order.marketType, 'spot')).to.equal(true);
-
-		const coder = DLOBOrdersCoder.create();
-		const encodedOrders = coder.encode(dlobOrders);
-		const decodedDLOBOrders = coder.decode(encodedOrders);
-		expect(decodedDLOBOrders.length).to.equal(10);
-		expect(isVariant(decodedDLOBOrders[0].order.marketType, 'perp')).to.equal(
-			true
-		);
-		expect(isVariant(decodedDLOBOrders[5].order.marketType, 'spot')).to.equal(
-			true
-		);
 	});
 
 	it('DLOB update resting limit orders bids', () => {

@@ -114,7 +114,7 @@ export const DevnetSpotMarkets: SpotMarketConfig[] = [
 		marketIndex: 6,
 		poolId: 1,
 		oracle: new PublicKey('En8hkHLkRe9d9DraYmBTrus518BvmVH448YcvmrFM6Ce'),
-		oracleSource: OracleSource.PYTH_STABLE_COIN_PULL,
+		oracleSource: OracleSource.PYTH_PULL,
 		mint: new PublicKey('8zGuJQqwhZafTah7Uc7Z4tXRnguqkn5KLFAP8oV6PHe2'),
 		precision: new BN(10).pow(SIX),
 		precisionExp: SIX,

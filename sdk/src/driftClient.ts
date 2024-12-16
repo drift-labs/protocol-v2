@@ -8606,11 +8606,11 @@ export class DriftClient {
 	}
 
 	public async postPythLazerOracleUpdate(
-		feedId: number,
+		feedIds: number[],
 		pythMessageHex: string
 	): Promise<string> {
 		const postIxs = this.getPostPythLazerOracleUpdateIxs(
-			feedId,
+			feedIds,
 			pythMessageHex,
 			undefined,
 			2
@@ -8621,37 +8621,37 @@ export class DriftClient {
 	}
 
 	public getPostPythLazerOracleUpdateIxs(
-		feedId: number,
+		feedIds: number[],
 		pythMessageHex: string,
 		precedingIxs: TransactionInstruction[] = [],
 		overrideIxCount?: number
 	): TransactionInstruction[] {
 		const pythMessageBytes = Buffer.from(pythMessageHex, 'hex');
-		const messageOffset = 1;
-
-		const updateData = new Uint8Array(1 + pythMessageBytes.length);
-		updateData[0] = feedId;
-		updateData.set(pythMessageBytes, 1);
+		const updateData = new Uint8Array(pythMessageBytes);
 
 		const verifyIx = createMinimalEd25519VerifyIx(
 			overrideIxCount || precedingIxs.length + 1,
-			messageOffset,
+			0,
 			updateData
 		);
 
+		const remainingAccountsMeta = feedIds.map((feedId) => {
+			return {
+				pubkey: getPythLazerOraclePublicKey(this.program.programId, feedId),
+				isSigner: false,
+				isWritable: true,
+			};
+		});
+
 		const ix = this.program.instruction.postPythLazerOracleUpdate(
-			feedId,
 			pythMessageBytes,
 			{
 				accounts: {
 					keeper: this.wallet.publicKey,
 					pythLazerStorage: PYTH_LAZER_STORAGE_ACCOUNT_KEY,
-					pythLazerOracle: getPythLazerOraclePublicKey(
-						this.program.programId,
-						feedId
-					),
 					ixSysvar: SYSVAR_INSTRUCTIONS_PUBKEY,
 				},
+				remainingAccounts: remainingAccountsMeta,
 			}
 		);
 		return [verifyIx, ix];
