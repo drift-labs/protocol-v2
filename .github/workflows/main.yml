@@ -238,6 +238,7 @@ jobs:
             git pull --rebase origin master
             git push origin HEAD
           }
+          echo "version=$PACKAGE_VERSION" >> $GITHUB_OUTPUT
       - name: Publish to npm
         run: npm publish --access=public
         env:
