@@ -191,10 +191,9 @@ pub mod drift {
 
     pub fn place_swift_taker_order<'c: 'info, 'info>(
         ctx: Context<'_, '_, 'c, 'info, PlaceSwiftTakerOrder<'info>>,
-        swift_message_bytes: Vec<u8>,
         swift_order_params_message_bytes: Vec<u8>,
     ) -> Result<()> {
-        handle_place_swift_taker_order(ctx, swift_message_bytes, swift_order_params_message_bytes)
+        handle_place_swift_taker_order(ctx, swift_order_params_message_bytes)
     }
 
     pub fn place_and_match_rfq_orders<'c: 'info, 'info>(

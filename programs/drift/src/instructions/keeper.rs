@@ -40,9 +40,7 @@ use crate::state::fulfillment_params::serum::SerumFulfillmentParams;
 use crate::state::high_leverage_mode_config::HighLeverageModeConfig;
 use crate::state::insurance_fund_stake::InsuranceFundStake;
 use crate::state::oracle_map::OracleMap;
-use crate::state::order_params::{
-    OrderParams, PlaceOrderOptions, SwiftOrderParamsMessage, SwiftServerMessage,
-};
+use crate::state::order_params::{OrderParams, PlaceOrderOptions, SwiftOrderParamsMessage};
 use crate::state::paused_operations::PerpOperation;
 use crate::state::perp_market::{ContractType, MarketStatus, PerpMarket};
 use crate::state::perp_market_map::{
@@ -603,11 +601,8 @@ pub fn handle_update_user_open_orders_count<'info>(ctx: Context<UpdateUserIdle>)
 
 pub fn handle_place_swift_taker_order<'c: 'info, 'info>(
     ctx: Context<'_, '_, 'c, 'info, PlaceSwiftTakerOrder<'info>>,
-    swift_message_bytes: Vec<u8>,
     swift_order_params_message_bytes: Vec<u8>,
 ) -> Result<()> {
-    let swift_message: SwiftServerMessage =
-        SwiftServerMessage::deserialize(&mut &swift_message_bytes[..]).unwrap();
     let taker_order_params_message: SwiftOrderParamsMessage =
         SwiftOrderParamsMessage::deserialize(&mut &swift_order_params_message_bytes[..]).unwrap();
 
@@ -634,7 +629,6 @@ pub fn handle_place_swift_taker_order<'c: 'info, 'info>(
         taker_key,
         &mut taker,
         &mut swift_taker,
-        swift_message,
         taker_order_params_message,
         &ctx.accounts.ix_sysvar.to_account_info(),
         &perp_market_map,
@@ -649,7 +643,6 @@ pub fn place_swift_taker_order<'c: 'info, 'info>(
     taker_key: Pubkey,
     taker: &mut RefMut<User>,
     swift_account: &mut SwiftUserOrdersZeroCopyMut,
-    swift_message: SwiftServerMessage,
     taker_order_params_message: SwiftOrderParamsMessage,
     ix_sysvar: &AccountInfo<'info>,
     perp_market_map: &PerpMarketMap,
@@ -665,20 +658,12 @@ pub fn place_swift_taker_order<'c: 'info, 'info>(
     // Authenticate the swift param message
     let ix_idx = load_current_index_checked(ix_sysvar)?;
     validate!(
-        ix_idx > 1,
+        ix_idx > 0,
         ErrorCode::InvalidVerificationIxIndex,
-        "instruction index must be greater than 1 for two sig verifies"
+        "instruction index must be greater than 0 for one sig verifies"
     )?;
 
-    // Verify data from first verify ix
-    let ix: Instruction = load_instruction_at_checked(ix_idx as usize - 2, ix_sysvar)?;
-    verify_ed25519_msg(
-        &ix,
-        &swift_server::id().to_bytes(),
-        &digest_struct!(swift_message),
-    )?;
-
-    // Verify data from second verify ix
+    // Verify data from verify ix
     let digest_hex = digest_struct_hex!(taker_order_params_message);
     let ix: Instruction = load_instruction_at_checked(ix_idx as usize - 1, ix_sysvar)?;
     verify_ed25519_msg(
@@ -687,12 +672,7 @@ pub fn place_swift_taker_order<'c: 'info, 'info>(
         arrayref::array_ref!(digest_hex, 0, 64),
     )?;
 
-    // Verify that sig from swift server corresponds to order message
-    if swift_message.swift_order_signature != extract_ed25519_ix_signature(&ix.data)? {
-        msg!("Swift order signature does not match the order signature");
-        return Err(ErrorCode::SigVerificationFailed.into());
-    }
-
+    let signature = extract_ed25519_ix_signature(&ix.data)?;
     let clock = &Clock::get()?;
 
     // First order must be a taker order
@@ -715,7 +695,7 @@ pub fn place_swift_taker_order<'c: 'info, 'info>(
     }
 
     // Set max slot for the order early so we set correct swift order id
-    let order_slot = swift_message.slot;
+    let order_slot = taker_order_params_message.slot;
     let market_index = matching_taker_order_params.market_index;
     let max_slot = order_slot.safe_add(
         matching_taker_order_params
@@ -735,7 +715,11 @@ pub fn place_swift_taker_order<'c: 'info, 'info>(
     }
 
     // Dont place order if swift order already exists
-    let swift_order_id = SwiftOrderId::new(swift_message.uuid, max_slot, taker.next_order_id);
+    let swift_order_id = SwiftOrderId::new(
+        taker_order_params_message.uuid,
+        max_slot,
+        taker.next_order_id,
+    );
     if swift_account.check_exists_and_prune_stale_swift_order_ids(swift_order_id, clock.slot) {
         msg!("Swift order already exists for taker {}");
         return Ok(());
@@ -757,10 +741,8 @@ pub fn place_swift_taker_order<'c: 'info, 'info>(
         },
     )?;
 
-    let order_params_hash = base64::encode(
-        solana_program::hash::hash(&swift_message.swift_order_signature.try_to_vec().unwrap())
-            .as_ref(),
-    );
+    let order_params_hash =
+        base64::encode(solana_program::hash::hash(&signature.try_to_vec().unwrap()).as_ref());
 
     emit!(SwiftOrderRecord {
         user: taker_key,
