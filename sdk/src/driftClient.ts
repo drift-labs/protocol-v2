@@ -8940,17 +8940,14 @@ export class DriftClient {
 		spotMarketIndex: number
 	): Promise<TransactionInstruction> {
 		const spotMarket = await this.getSpotMarketAccount(spotMarketIndex);
-		return this.program.instruction.pauseSpotMarketDepositWithdraw(
-			spotMarketIndex,
-			{
-				accounts: {
-					state: await this.getStatePublicKey(),
-					keeper: this.wallet.publicKey,
-					spotMarket: spotMarket.pubkey,
-					spotMarketVault: spotMarket.vault,
-				},
-			}
-		);
+		return this.program.instruction.pauseSpotMarketDepositWithdraw({
+			accounts: {
+				state: await this.getStatePublicKey(),
+				keeper: this.wallet.publicKey,
+				spotMarket: spotMarket.pubkey,
+				spotMarketVault: spotMarket.vault,
+			},
+		});
 	}
 
 	public async pauseSpotMarketDepositWithdraw(
