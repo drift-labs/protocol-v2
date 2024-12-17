@@ -696,7 +696,7 @@ pub fn place_swift_taker_order<'c: 'info, 'info>(
 
     // Set max slot for the order early so we set correct swift order id
     let order_slot = taker_order_params_message.slot;
-    if order_slot < clock.slot - 500 {
+    if order_slot < clock.slot.saturating_sub(500) {
         msg!(
             "Swift order slot {} is too old: must be within 500 slots of current slot",
             order_slot
