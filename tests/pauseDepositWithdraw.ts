@@ -44,6 +44,7 @@ import {
 	ONE,
 	SPOT_MARKET_BALANCE_PRECISION,
 	PRICE_PRECISION,
+    SpotOperation,
 } from '../sdk';
 import { startAnchor } from 'solana-bankrun';
 import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
@@ -271,5 +272,10 @@ describe('spot deposit and withdraw 22', () => {
 		const txSig = await admin.sendTransaction(tx);
 
 		await admin.pauseSpotMarketDepositWithdraw(0);
+
+		await admin.fetchAccounts();
+		const spotMarketAfter = await admin.getSpotMarketAccount(0);
+		const pausedOperations = spotMarketAfter.pausedOperations;
+		assert(pausedOperations === (SpotOperation.DEPOSIT | SpotOperation.WITHDRAW));
 	});
 });
