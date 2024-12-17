@@ -1035,13 +1035,15 @@ export class AdminClient extends DriftClient {
 	public async depositIntoSpotMarketVault(
 		spotMarketIndex: number,
 		amount: BN,
-		sourceVault: PublicKey
+		sourceVault: PublicKey,
+		stateAdmin?: boolean
 	): Promise<TransactionSignature> {
 		const depositIntoPerpMarketFeePoolIx =
 			await this.getDepositIntoSpotMarketVaultIx(
 				spotMarketIndex,
 				amount,
-				sourceVault
+				sourceVault,
+				stateAdmin
 			);
 
 		const tx = await this.buildTransaction(depositIntoPerpMarketFeePoolIx);
@@ -1054,7 +1056,8 @@ export class AdminClient extends DriftClient {
 	public async getDepositIntoSpotMarketVaultIx(
 		spotMarketIndex: number,
 		amount: BN,
-		sourceVault: PublicKey
+		sourceVault: PublicKey,
+		stateAdmin?: boolean
 	): Promise<TransactionInstruction> {
 		const spotMarket = this.getSpotMarketAccount(spotMarketIndex);
 
@@ -1063,7 +1066,9 @@ export class AdminClient extends DriftClient {
 		const tokenProgram = this.getTokenProgramForSpotMarket(spotMarket);
 		return await this.program.instruction.depositIntoSpotMarketVault(amount, {
 			accounts: {
-				admin: this.wallet.publicKey,
+				admin: stateAdmin
+					? this.getStateAccount().admin
+					: this.wallet.publicKey,
 				state: await this.getStatePublicKey(),
 				sourceVault,
 				spotMarket: spotMarket.pubkey,
@@ -1160,14 +1165,16 @@ export class AdminClient extends DriftClient {
 		perpMarketIndex: number,
 		updateAmmSummaryStats?: boolean,
 		quoteAssetAmountWithUnsettledLp?: BN,
-		netUnsettledFundingPnl?: BN
+		netUnsettledFundingPnl?: BN,
+		stateAdmin?: boolean
 	): Promise<TransactionSignature> {
 		const updatePerpMarketMarginRatioIx =
 			await this.getUpdatePerpMarketAmmSummaryStatsIx(
 				perpMarketIndex,
 				updateAmmSummaryStats,
 				quoteAssetAmountWithUnsettledLp,
-				netUnsettledFundingPnl
+				netUnsettledFundingPnl,
+				stateAdmin
 			);
 
 		const tx = await this.buildTransaction(updatePerpMarketMarginRatioIx);
@@ -1181,7 +1188,8 @@ export class AdminClient extends DriftClient {
 		perpMarketIndex: number,
 		updateAmmSummaryStats?: boolean,
 		quoteAssetAmountWithUnsettledLp?: BN,
-		netUnsettledFundingPnl?: BN
+		netUnsettledFundingPnl?: BN,
+		stateAdmin?: boolean
 	): Promise<TransactionInstruction> {
 		return await this.program.instruction.updatePerpMarketAmmSummaryStats(
 			{
@@ -1192,7 +1200,9 @@ export class AdminClient extends DriftClient {
 			},
 			{
 				accounts: {
-					admin: this.wallet.publicKey,
+					admin: stateAdmin
+						? this.getStateAccount().admin
+						: this.wallet.publicKey,
 					state: await this.getStatePublicKey(),
 					perpMarket: await getPerpMarketPublicKey(
 						this.program.programId,
@@ -3845,7 +3855,8 @@ export class AdminClient extends DriftClient {
 		fuelBonusBorrows?: number,
 		fuelBonusTaker?: number,
 		fuelBonusMaker?: number,
-		fuelBonusInsurance?: number
+		fuelBonusInsurance?: number,
+		stateAdmin?: boolean
 	): Promise<TransactionSignature> {
 		const updatePerpMarketFuelIx = await this.getInitUserFuelIx(
 			user,
@@ -3854,7 +3865,8 @@ export class AdminClient extends DriftClient {
 			fuelBonusBorrows,
 			fuelBonusTaker,
 			fuelBonusMaker,
-			fuelBonusInsurance
+			fuelBonusInsurance,
+			stateAdmin
 		);
 
 		const tx = await this.buildTransaction(updatePerpMarketFuelIx);
@@ -3870,7 +3882,8 @@ export class AdminClient extends DriftClient {
 		fuelBonusBorrows?: number,
 		fuelBonusTaker?: number,
 		fuelBonusMaker?: number,
-		fuelBonusInsurance?: number
+		fuelBonusInsurance?: number,
+		stateAdmin?: boolean
 	): Promise<TransactionInstruction> {
 		const userStats = await getUserStatsAccountPublicKey(
 			this.program.programId,
@@ -3885,7 +3898,9 @@ export class AdminClient extends DriftClient {
 			fuelBonusInsurance || null,
 			{
 				accounts: {
-					admin: this.wallet.publicKey,
+					admin: stateAdmin
+						? this.getStateAccount().admin
+						: this.wallet.publicKey,
 					state: await this.getStatePublicKey(),
 					user,
 					userStats,
@@ -3910,14 +3925,16 @@ export class AdminClient extends DriftClient {
 
 	public async getInitializePythPullOracleIx(
 		feedId: string,
-		isAdmin = false
+		stateAdmin = false
 	): Promise<TransactionInstruction> {
 		const feedIdBuffer = getFeedIdUint8Array(feedId);
 		return await this.program.instruction.initializePythPullOracle(
 			feedIdBuffer,
 			{
 				accounts: {
-					admin: isAdmin ? this.getStateAccount().admin : this.wallet.publicKey,
+					admin: stateAdmin
+						? this.getStateAccount().admin
+						: this.wallet.publicKey,
 					state: await this.getStatePublicKey(),
 					systemProgram: SystemProgram.programId,
 					priceFeed: getPythPullOraclePublicKey(
@@ -3932,10 +3949,10 @@ export class AdminClient extends DriftClient {
 
 	public async initializePythLazerOracle(
 		feedId: number,
-		isAdmin = false
+		stateAdmin = false
 	): Promise<TransactionSignature> {
 		const initializePythPullOracleIx =
-			await this.getInitializePythLazerOracleIx(feedId, isAdmin);
+			await this.getInitializePythLazerOracleIx(feedId, stateAdmin);
 		const tx = await this.buildTransaction(initializePythPullOracleIx);
 		const { txSig } = await this.sendTransaction(tx, [], this.opts);
 
@@ -3944,11 +3961,13 @@ export class AdminClient extends DriftClient {
 
 	public async getInitializePythLazerOracleIx(
 		feedId: number,
-		isAdmin = false
+		stateAdmin = false
 	): Promise<TransactionInstruction> {
 		return await this.program.instruction.initializePythLazerOracle(feedId, {
 			accounts: {
-				admin: isAdmin ? this.getStateAccount().admin : this.wallet.publicKey,
+				admin: stateAdmin
+					? this.getStateAccount().admin
+					: this.wallet.publicKey,
 				state: await this.getStatePublicKey(),
 				systemProgram: SystemProgram.programId,
 				lazerOracle: getPythLazerOraclePublicKey(
@@ -4030,10 +4049,11 @@ export class AdminClient extends DriftClient {
 	}
 
 	public async initializeProtectedMakerModeConfig(
-		maxUsers: number
+		maxUsers: number,
+		stateAdmin?: boolean
 	): Promise<TransactionSignature> {
 		const initializeProtectedMakerModeConfigIx =
-			await this.getInitializeProtectedMakerModeConfigIx(maxUsers);
+			await this.getInitializeProtectedMakerModeConfigIx(maxUsers, stateAdmin);
 
 		const tx = await this.buildTransaction(
 			initializeProtectedMakerModeConfigIx
@@ -4045,13 +4065,14 @@ export class AdminClient extends DriftClient {
 	}
 
 	public async getInitializeProtectedMakerModeConfigIx(
-		maxUsers: number
+		maxUsers: number,
+		stateAdmin?: boolean
 	): Promise<TransactionInstruction> {
 		return await this.program.instruction.initializeProtectedMakerModeConfig(
 			maxUsers,
 			{
 				accounts: {
-					admin: this.isSubscribed
+					admin: stateAdmin
 						? this.getStateAccount().admin
 						: this.wallet.publicKey,
 					state: await this.getStatePublicKey(),
