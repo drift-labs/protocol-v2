@@ -2414,7 +2414,8 @@ pub fn handle_pause_spot_market_deposit_withdraw(
 ) -> Result<()> {
     let spot_market = &mut load_mut!(ctx.accounts.spot_market)?;
 
-    let result =validate_spot_market_vault_amount(spot_market, ctx.accounts.spot_market_vault.amount);
+    let result =
+        validate_spot_market_vault_amount(spot_market, ctx.accounts.spot_market_vault.amount);
 
     validate!(
         matches!(result, Err(ErrorCode::SpotMarketVaultInvariantViolated)),
@@ -2422,13 +2423,11 @@ pub fn handle_pause_spot_market_deposit_withdraw(
         "spot market vault amount is valid"
     )?;
 
-
     spot_market.paused_operations = spot_market.paused_operations | SpotOperation::Deposit as u8;
     spot_market.paused_operations = spot_market.paused_operations | SpotOperation::Withdraw as u8;
 
     Ok(())
 }
-
 
 #[derive(Accounts)]
 pub struct FillOrder<'info> {
