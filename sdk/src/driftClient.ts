@@ -202,6 +202,7 @@ export class DriftClient {
 	public program: Program;
 	provider: AnchorProvider;
 	opts?: ConfirmOptions;
+	useHotWalletAdmin?: boolean;
 	users = new Map<string, User>();
 	userStats?: UserStats;
 	activeSubAccountId: number;
@@ -251,6 +252,7 @@ export class DriftClient {
 		this.opts = config.opts || {
 			...DEFAULT_CONFIRMATION_OPTS,
 		};
+		this.useHotWalletAdmin = config.useHotWalletAdmin ?? false;
 		if (config?.connection?.commitment) {
 			// At the moment this ensures that our transaction simulations (which use Connection object) will use the same commitment level as our Transaction blockhashes (which use these opts)
 			this.opts.commitment = config.connection.commitment;

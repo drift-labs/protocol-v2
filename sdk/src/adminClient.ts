@@ -1035,15 +1035,13 @@ export class AdminClient extends DriftClient {
 	public async depositIntoSpotMarketVault(
 		spotMarketIndex: number,
 		amount: BN,
-		sourceVault: PublicKey,
-		stateAdmin?: boolean
+		sourceVault: PublicKey
 	): Promise<TransactionSignature> {
 		const depositIntoPerpMarketFeePoolIx =
 			await this.getDepositIntoSpotMarketVaultIx(
 				spotMarketIndex,
 				amount,
-				sourceVault,
-				stateAdmin
+				sourceVault
 			);
 
 		const tx = await this.buildTransaction(depositIntoPerpMarketFeePoolIx);
@@ -1056,8 +1054,7 @@ export class AdminClient extends DriftClient {
 	public async getDepositIntoSpotMarketVaultIx(
 		spotMarketIndex: number,
 		amount: BN,
-		sourceVault: PublicKey,
-		stateAdmin?: boolean
+		sourceVault: PublicKey
 	): Promise<TransactionInstruction> {
 		const spotMarket = this.getSpotMarketAccount(spotMarketIndex);
 
@@ -1066,9 +1063,9 @@ export class AdminClient extends DriftClient {
 		const tokenProgram = this.getTokenProgramForSpotMarket(spotMarket);
 		return await this.program.instruction.depositIntoSpotMarketVault(amount, {
 			accounts: {
-				admin: stateAdmin
-					? this.getStateAccount().admin
-					: this.wallet.publicKey,
+				admin: this.useHotWalletAdmin
+					? this.wallet.publicKey
+					: this.getStateAccount().admin,
 				state: await this.getStatePublicKey(),
 				sourceVault,
 				spotMarket: spotMarket.pubkey,
@@ -1165,16 +1162,14 @@ export class AdminClient extends DriftClient {
 		perpMarketIndex: number,
 		updateAmmSummaryStats?: boolean,
 		quoteAssetAmountWithUnsettledLp?: BN,
-		netUnsettledFundingPnl?: BN,
-		stateAdmin?: boolean
+		netUnsettledFundingPnl?: BN
 	): Promise<TransactionSignature> {
 		const updatePerpMarketMarginRatioIx =
 			await this.getUpdatePerpMarketAmmSummaryStatsIx(
 				perpMarketIndex,
 				updateAmmSummaryStats,
 				quoteAssetAmountWithUnsettledLp,
-				netUnsettledFundingPnl,
-				stateAdmin
+				netUnsettledFundingPnl
 			);
 
 		const tx = await this.buildTransaction(updatePerpMarketMarginRatioIx);
@@ -1188,8 +1183,7 @@ export class AdminClient extends DriftClient {
 		perpMarketIndex: number,
 		updateAmmSummaryStats?: boolean,
 		quoteAssetAmountWithUnsettledLp?: BN,
-		netUnsettledFundingPnl?: BN,
-		stateAdmin?: boolean
+		netUnsettledFundingPnl?: BN
 	): Promise<TransactionInstruction> {
 		return await this.program.instruction.updatePerpMarketAmmSummaryStats(
 			{
@@ -1200,9 +1194,9 @@ export class AdminClient extends DriftClient {
 			},
 			{
 				accounts: {
-					admin: stateAdmin
-						? this.getStateAccount().admin
-						: this.wallet.publicKey,
+					admin: this.useHotWalletAdmin
+						? this.wallet.publicKey
+						: this.getStateAccount().admin,
 					state: await this.getStatePublicKey(),
 					perpMarket: await getPerpMarketPublicKey(
 						this.program.programId,
@@ -3855,8 +3849,7 @@ export class AdminClient extends DriftClient {
 		fuelBonusBorrows?: number,
 		fuelBonusTaker?: number,
 		fuelBonusMaker?: number,
-		fuelBonusInsurance?: number,
-		stateAdmin?: boolean
+		fuelBonusInsurance?: number
 	): Promise<TransactionSignature> {
 		const updatePerpMarketFuelIx = await this.getInitUserFuelIx(
 			user,
@@ -3865,8 +3858,7 @@ export class AdminClient extends DriftClient {
 			fuelBonusBorrows,
 			fuelBonusTaker,
 			fuelBonusMaker,
-			fuelBonusInsurance,
-			stateAdmin
+			fuelBonusInsurance
 		);
 
 		const tx = await this.buildTransaction(updatePerpMarketFuelIx);
@@ -3882,8 +3874,7 @@ export class AdminClient extends DriftClient {
 		fuelBonusBorrows?: number,
 		fuelBonusTaker?: number,
 		fuelBonusMaker?: number,
-		fuelBonusInsurance?: number,
-		stateAdmin?: boolean
+		fuelBonusInsurance?: number
 	): Promise<TransactionInstruction> {
 		const userStats = await getUserStatsAccountPublicKey(
 			this.program.programId,
@@ -3898,9 +3889,9 @@ export class AdminClient extends DriftClient {
 			fuelBonusInsurance || null,
 			{
 				accounts: {
-					admin: stateAdmin
-						? this.getStateAccount().admin
-						: this.wallet.publicKey,
+					admin: this.useHotWalletAdmin
+						? this.wallet.publicKey
+						: this.getStateAccount().admin,
 					state: await this.getStatePublicKey(),
 					user,
 					userStats,
@@ -3910,12 +3901,10 @@ export class AdminClient extends DriftClient {
 	}
 
 	public async initializePythPullOracle(
-		feedId: string,
-		isAdmin = false
+		feedId: string
 	): Promise<TransactionSignature> {
 		const initializePythPullOracleIx = await this.getInitializePythPullOracleIx(
-			feedId,
-			isAdmin
+			feedId
 		);
 		const tx = await this.buildTransaction(initializePythPullOracleIx);
 		const { txSig } = await this.sendTransaction(tx, [], this.opts);
@@ -3924,17 +3913,16 @@ export class AdminClient extends DriftClient {
 	}
 
 	public async getInitializePythPullOracleIx(
-		feedId: string,
-		stateAdmin = false
+		feedId: string
 	): Promise<TransactionInstruction> {
 		const feedIdBuffer = getFeedIdUint8Array(feedId);
 		return await this.program.instruction.initializePythPullOracle(
 			feedIdBuffer,
 			{
 				accounts: {
-					admin: stateAdmin
-						? this.getStateAccount().admin
-						: this.wallet.publicKey,
+					admin: this.useHotWalletAdmin
+						? this.wallet.publicKey
+						: this.getStateAccount().admin,
 					state: await this.getStatePublicKey(),
 					systemProgram: SystemProgram.programId,
 					priceFeed: getPythPullOraclePublicKey(
@@ -3948,11 +3936,10 @@ export class AdminClient extends DriftClient {
 	}
 
 	public async initializePythLazerOracle(
-		feedId: number,
-		stateAdmin = false
+		feedId: number
 	): Promise<TransactionSignature> {
 		const initializePythPullOracleIx =
-			await this.getInitializePythLazerOracleIx(feedId, stateAdmin);
+			await this.getInitializePythLazerOracleIx(feedId);
 		const tx = await this.buildTransaction(initializePythPullOracleIx);
 		const { txSig } = await this.sendTransaction(tx, [], this.opts);
 
@@ -3960,14 +3947,13 @@ export class AdminClient extends DriftClient {
 	}
 
 	public async getInitializePythLazerOracleIx(
-		feedId: number,
-		stateAdmin = false
+		feedId: number
 	): Promise<TransactionInstruction> {
 		return await this.program.instruction.initializePythLazerOracle(feedId, {
 			accounts: {
-				admin: stateAdmin
-					? this.getStateAccount().admin
-					: this.wallet.publicKey,
+				admin: this.useHotWalletAdmin
+					? this.wallet.publicKey
+					: this.getStateAccount().admin,
 				state: await this.getStatePublicKey(),
 				systemProgram: SystemProgram.programId,
 				lazerOracle: getPythLazerOraclePublicKey(
