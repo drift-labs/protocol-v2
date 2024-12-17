@@ -581,7 +581,7 @@ pub enum ErrorCode {
     SigVerificationFailed,
     #[msg("Market index mismatched b/w taker and maker swift order params")]
     MismatchedSwiftOrderParamsMarketIndex,
-    #[msg("Swift only available for market/oracle perp orders")]
+    #[msg("Invalid swift order param")]
     InvalidSwiftOrderParam,
     #[msg("Place and take order success condition failed")]
     PlaceAndTakeOrderSuccessConditionFailed,

@@ -44,9 +44,6 @@ export type DriftEnv = 'devnet' | 'mainnet-beta';
 export const DRIFT_PROGRAM_ID = 'dRiftyHA39MWEi3m9aunc5MzRF1JYuBsbn6VPcn33UH';
 export const DRIFT_ORACLE_RECEIVER_ID =
 	'G6EoTTTgpkNBtVXo96EQp2m6uwwVh2Kt6YidjkmQqoha';
-export const SWIFT_ID = 'SW1fThqrxLzVprnCMpiybiqYQfoNCdduC5uWsSUKChS';
-export const ANCHOR_TEST_SWIFT_ID =
-	'DpaEdAPW3ZX67fnczT14AoX12Lx9VMkxvtT81nCHy3Nv';
 export const PTYH_LAZER_PROGRAM_ID =
 	'pytd2yyk641x7ak7mkaasSJVXh6YYZnC7wTmtgAyxPt';
 export const PYTH_LAZER_STORAGE_ACCOUNT_KEY = new PublicKey(

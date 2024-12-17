@@ -33,12 +33,8 @@ import {
 	SwiftOrderParamsMessage,
 	MarketType,
 	getMarketOrderParams,
-	loadKeypair,
-	SwiftServerMessage,
-	ANCHOR_TEST_SWIFT_ID,
 	SwiftOrderRecord,
 	getSwiftUserAccountPublicKey,
-	digest,
 	PYTH_LAZER_STORAGE_ACCOUNT_KEY,
 	PTYH_LAZER_PROGRAM_ID,
 	OrderType,
@@ -80,12 +76,7 @@ const PYTH_STORAGE_ACCOUNT_INFO: AccountInfo<Buffer> = {
 describe('place and make swift order', () => {
 	const chProgram = anchor.workspace.Drift as Program;
 
-	if (!process.env.SWIFT_PRIVATE_KEY) {
-		throw new Error('SWIFT_PRIVATE_KEY not set');
-	}
 	let slot: BN;
-
-	const swiftKeypair = loadKeypair(process.env.SWIFT_PRIVATE_KEY);
 
 	let makerDriftClient: TestClient;
 	let makerDriftClientUser: User;
@@ -181,7 +172,6 @@ describe('place and make swift order', () => {
 				type: 'polling',
 				accountLoader: bulkAccountLoader,
 			},
-			swiftID: new PublicKey(ANCHOR_TEST_SWIFT_ID),
 		});
 		await makerDriftClient.initialize(usdcMint.publicKey, true);
 		await makerDriftClient.subscribe();
@@ -250,9 +240,12 @@ describe('place and make swift order', () => {
 			postOnly: PostOnlyParams.NONE,
 			marketType: MarketType.PERP,
 		});
+		const uuid = Uint8Array.from(Buffer.from(nanoid(8)));
 		const takerOrderParamsMessage: SwiftOrderParamsMessage = {
 			swiftOrderParams: takerOrderParams,
 			subAccountId: 0,
+			slot,
+			uuid,
 			takeProfitOrderParams: null,
 			stopLossOrderParams: null,
 		};
@@ -271,26 +264,10 @@ describe('place and make swift order', () => {
 			takerOrderParamsMessage
 		);
 
-		const swiftServerMessage: SwiftServerMessage = {
-			slot,
-			swiftOrderSignature: takerOrderParamsSig,
-			uuid: Uint8Array.from(Buffer.from(nanoid(8))),
-		};
-
-		const encodedSwiftServerMessage =
-			makerDriftClient.encodeSwiftServerMessage(swiftServerMessage);
-
-		const swiftSignature = makerDriftClient.signMessage(
-			digest(encodedSwiftServerMessage),
-			swiftKeypair
-		);
-
 		const txSig = await makerDriftClient.placeAndMakeSwiftPerpOrder(
-			encodedSwiftServerMessage,
-			swiftSignature,
 			takerDriftClient.encodeSwiftOrderParamsMessage(takerOrderParamsMessage),
 			takerOrderParamsSig,
-			swiftServerMessage.uuid,
+			uuid,
 			{
 				taker: await takerDriftClient.getUserAccountPublicKey(),
 				takerUserAccount: takerDriftClient.getUserAccount(),
@@ -317,11 +294,9 @@ describe('place and make swift order', () => {
 		);
 
 		await makerDriftClient.placeAndMakeSwiftPerpOrder(
-			encodedSwiftServerMessage,
-			swiftSignature,
 			takerDriftClient.encodeSwiftOrderParamsMessage(takerOrderParamsMessage),
 			takerOrderParamsSig,
-			swiftServerMessage.uuid,
+			uuid,
 			{
 				taker: await takerDriftClient.getUserAccountPublicKey(),
 				takerUserAccount: takerDriftClient.getUserAccount(),
@@ -424,30 +399,18 @@ describe('place and make swift order', () => {
 			userOrderId: 1,
 			postOnly: PostOnlyParams.NONE,
 		});
+		const uuid = nanoid(8);
+		const swiftSlot = slot.subn(15);
 		const takerOrderParamsMessage: SwiftOrderParamsMessage = {
 			swiftOrderParams: takerOrderParams,
 			subAccountId: 0,
+			uuid: Uint8Array.from(Buffer.from(uuid)),
+			slot: swiftSlot,
 			takeProfitOrderParams: null,
 			stopLossOrderParams: null,
 		};
 		const takerOrderParamsSig = takerDriftClient.signSwiftOrderParamsMessage(
 			takerOrderParamsMessage
-		);
-
-		const uuid = nanoid(8);
-		const swiftSlot = slot.subn(15);
-		const swiftServerMessage: SwiftServerMessage = {
-			slot: swiftSlot,
-			swiftOrderSignature: takerOrderParamsSig,
-			uuid: Uint8Array.from(Buffer.from(uuid)),
-		};
-
-		const encodedSwiftServerMessage =
-			takerDriftClient.encodeSwiftServerMessage(swiftServerMessage);
-
-		const swiftSignature = takerDriftClient.signMessage(
-			digest(encodedSwiftServerMessage),
-			swiftKeypair
 		);
 
 		// Get pyth lazer instruction
@@ -460,8 +423,6 @@ describe('place and make swift order', () => {
 
 		const placeSwiftTakerOrderIxs =
 			await makerDriftClient.getPlaceSwiftTakerPerpOrderIxs(
-				encodedSwiftServerMessage,
-				swiftSignature,
 				takerDriftClient.encodeSwiftOrderParamsMessage(takerOrderParamsMessage),
 				takerOrderParamsSig,
 				takerOrderParams.marketIndex,
@@ -605,9 +566,12 @@ describe('place and make swift order', () => {
 			marketType: MarketType.PERP,
 		});
 
+		const uuid = Uint8Array.from(Buffer.from(nanoid(8)));
 		const takerOrderParamsMessage: SwiftOrderParamsMessage = {
 			swiftOrderParams: takerOrderParams,
 			subAccountId: 0,
+			slot,
+			uuid,
 			stopLossOrderParams: {
 				triggerPrice: stopLossTakerParams.triggerPrice,
 				baseAssetAmount: stopLossTakerParams.baseAssetAmount,
@@ -622,45 +586,10 @@ describe('place and make swift order', () => {
 			takerOrderParamsMessage
 		);
 
-		const swiftDriftClient = new TestClient({
-			connection: bankrunContextWrapper.connection.toConnection(),
-			wallet: new Wallet(swiftKeypair),
-			programID: chProgram.programId,
-			opts: {
-				commitment: 'confirmed',
-			},
-			activeSubAccountId: 0,
-			perpMarketIndexes: marketIndexes,
-			spotMarketIndexes: spotMarketIndexes,
-			subAccountIds: [],
-			oracleInfos,
-			userStats: true,
-			accountSubscription: {
-				type: 'polling',
-				accountLoader: bulkAccountLoader,
-			},
-		});
-
-		const swiftServerMessage: SwiftServerMessage = {
-			slot,
-			swiftOrderSignature: takerOrderParamsSig,
-			uuid: Uint8Array.from(Buffer.from(nanoid(8))),
-		};
-
-		const encodedSwiftServerMessage =
-			swiftDriftClient.encodeSwiftServerMessage(swiftServerMessage);
-
-		const swiftSignature = swiftDriftClient.signMessage(
-			digest(encodedSwiftServerMessage),
-			swiftKeypair
-		);
-
 		const ixs = await makerDriftClient.getPlaceAndMakeSwiftPerpOrderIxs(
-			encodedSwiftServerMessage,
-			swiftSignature,
 			takerDriftClient.encodeSwiftOrderParamsMessage(takerOrderParamsMessage),
 			takerOrderParamsSig,
-			swiftServerMessage.uuid,
+			uuid,
 			{
 				taker: await takerDriftClient.getUserAccountPublicKey(),
 				takerUserAccount: takerDriftClient.getUserAccount(),
@@ -749,9 +678,12 @@ describe('place and make swift order', () => {
 			immediateOrCancel: true,
 		});
 
+		const uuid = Uint8Array.from(Buffer.from(nanoid(8)));
 		const takerOrderParamsMessage: SwiftOrderParamsMessage = {
 			swiftOrderParams: takerOrderParams,
 			subAccountId: 0,
+			slot,
+			uuid,
 			takeProfitOrderParams: null,
 			stopLossOrderParams: null,
 		};
@@ -760,27 +692,11 @@ describe('place and make swift order', () => {
 			takerOrderParamsMessage
 		);
 
-		const swiftServerMessage: SwiftServerMessage = {
-			slot,
-			swiftOrderSignature: takerOrderParamsSig,
-			uuid: Uint8Array.from(Buffer.from(nanoid(8))),
-		};
-
-		const encodedSwiftServerMessage =
-			takerDriftClient.encodeSwiftServerMessage(swiftServerMessage);
-
-		const swiftSignature = takerDriftClient.signMessage(
-			digest(encodedSwiftServerMessage),
-			swiftKeypair
-		);
-
 		try {
 			await makerDriftClient.placeAndMakeSwiftPerpOrder(
-				encodedSwiftServerMessage,
-				swiftSignature,
 				takerDriftClient.encodeSwiftOrderParamsMessage(takerOrderParamsMessage),
 				takerOrderParamsSig,
-				swiftServerMessage.uuid,
+				uuid,
 				{
 					taker: await takerDriftClient.getUserAccountPublicKey(),
 					takerUserAccount: takerDriftClient.getUserAccount(),
@@ -829,9 +745,13 @@ describe('place and make swift order', () => {
 			userOrderId: 1,
 			postOnly: PostOnlyParams.NONE,
 		});
+		const swiftSlot = slot.subn(5);
+		const uuid = Uint8Array.from(Buffer.from(nanoid(8)));
 		const takerOrderParamsMessage: SwiftOrderParamsMessage = {
 			swiftOrderParams: takerOrderParams,
 			subAccountId: 0,
+			slot: swiftSlot,
+			uuid,
 			takeProfitOrderParams: null,
 			stopLossOrderParams: null,
 		};
@@ -839,23 +759,7 @@ describe('place and make swift order', () => {
 			takerOrderParamsMessage
 		);
 
-		const swiftServerMessage: SwiftServerMessage = {
-			slot: slot.subn(5),
-			swiftOrderSignature: takerOrderParamsSig,
-			uuid: Uint8Array.from(Buffer.from(nanoid(8))),
-		};
-
-		const encodedSwiftServerMessage =
-			takerDriftClient.encodeSwiftServerMessage(swiftServerMessage);
-
-		const swiftSignature = takerDriftClient.signMessage(
-			digest(encodedSwiftServerMessage),
-			swiftKeypair
-		);
-
 		await makerDriftClient.placeSwiftTakerOrder(
-			encodedSwiftServerMessage,
-			swiftSignature,
 			takerDriftClient.encodeSwiftOrderParamsMessage(takerOrderParamsMessage),
 			takerOrderParamsSig,
 			takerOrderParams.marketIndex,
@@ -878,11 +782,9 @@ describe('place and make swift order', () => {
 			immediateOrCancel: true,
 		});
 		await makerDriftClient.placeAndMakeSwiftPerpOrder(
-			encodedSwiftServerMessage,
-			swiftSignature,
 			takerDriftClient.encodeSwiftOrderParamsMessage(takerOrderParamsMessage),
 			takerOrderParamsSig,
-			swiftServerMessage.uuid,
+			uuid,
 			{
 				taker: await takerDriftClient.getUserAccountPublicKey(),
 				takerUserAccount: takerDriftClient.getUserAccount(),
@@ -929,6 +831,8 @@ describe('place and make swift order', () => {
 		const takerOrderParamsMessage: SwiftOrderParamsMessage = {
 			swiftOrderParams: takerOrderParams,
 			subAccountId: 0,
+			slot,
+			uuid: Uint8Array.from(Buffer.from(nanoid(8))),
 			takeProfitOrderParams: null,
 			stopLossOrderParams: null,
 		};
@@ -937,24 +841,8 @@ describe('place and make swift order', () => {
 			takerOrderParamsMessage
 		);
 
-		const swiftServerMessage: SwiftServerMessage = {
-			slot,
-			swiftOrderSignature: takerOrderParamsSig,
-			uuid: Uint8Array.from(Buffer.from(nanoid(8))),
-		};
-
-		const encodedSwiftServerMessage =
-			makerDriftClient.encodeSwiftServerMessage(swiftServerMessage);
-
-		const swiftSignature = makerDriftClient.signMessage(
-			digest(encodedSwiftServerMessage),
-			swiftKeypair
-		);
-
 		try {
 			await makerDriftClient.placeSwiftTakerOrder(
-				encodedSwiftServerMessage,
-				swiftSignature,
 				takerDriftClient.encodeSwiftOrderParamsMessage(takerOrderParamsMessage),
 				takerOrderParamsSig,
 				0,
@@ -1006,6 +894,8 @@ describe('place and make swift order', () => {
 		const takerOrderParamsMessage: SwiftOrderParamsMessage = {
 			swiftOrderParams: takerOrderParams,
 			subAccountId: 0,
+			slot,
+			uuid: Uint8Array.from(Buffer.from(nanoid(8))),
 			takeProfitOrderParams: null,
 			stopLossOrderParams: null,
 		};
@@ -1014,23 +904,7 @@ describe('place and make swift order', () => {
 			takerOrderParamsMessage
 		);
 
-		const swiftServerMessage: SwiftServerMessage = {
-			slot,
-			swiftOrderSignature: takerOrderParamsSig,
-			uuid: Uint8Array.from(Buffer.from(nanoid(8))),
-		};
-
-		const encodedSwiftServerMessage =
-			makerDriftClient.encodeSwiftServerMessage(swiftServerMessage);
-
-		const swiftSignature = makerDriftClient.signMessage(
-			digest(encodedSwiftServerMessage),
-			swiftKeypair
-		);
-
 		await makerDriftClient.placeSwiftTakerOrder(
-			encodedSwiftServerMessage,
-			swiftSignature,
 			takerDriftClient.encodeSwiftOrderParamsMessage(takerOrderParamsMessage),
 			takerOrderParamsSig,
 			0,
