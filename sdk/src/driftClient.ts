@@ -2529,7 +2529,8 @@ export class DriftClient {
 		fromSubAccountId?: number,
 		referrerInfo?: ReferrerInfo,
 		donateAmount?: BN,
-		customMaxMarginRatio?: number
+		customMaxMarginRatio?: number,
+		poolId?: number
 	): Promise<{
 		ixs: TransactionInstruction[];
 		userAccountPublicKey: PublicKey;
@@ -2601,7 +2602,13 @@ export class DriftClient {
 				ixs.push(await this.getInitializeUserStatsIx());
 			}
 		}
-		ixs.push(initializeUserAccountIx, depositCollateralIx);
+		ixs.push(initializeUserAccountIx);
+
+		if (poolId) {
+			ixs.push(await this.getUpdateUserPoolIdIx(poolId, subAccountId));
+		}
+
+		ixs.push(depositCollateralIx);
 
 		if (!donateAmount.eq(ZERO)) {
 			const donateIx = await this.getDepositIntoSpotMarketRevenuePoolIx(
@@ -2650,7 +2657,8 @@ export class DriftClient {
 		referrerInfo?: ReferrerInfo,
 		donateAmount?: BN,
 		txParams?: TxParams,
-		customMaxMarginRatio?: number
+		customMaxMarginRatio?: number,
+		poolId?: number
 	): Promise<[Transaction | VersionedTransaction, PublicKey]> {
 		const { ixs, userAccountPublicKey } =
 			await this.createInitializeUserAccountAndDepositCollateralIxs(
@@ -2662,7 +2670,8 @@ export class DriftClient {
 				fromSubAccountId,
 				referrerInfo,
 				donateAmount,
-				customMaxMarginRatio
+				customMaxMarginRatio,
+				poolId
 			);
 
 		const tx = await this.buildTransaction(ixs, txParams);
@@ -2693,7 +2702,8 @@ export class DriftClient {
 		referrerInfo?: ReferrerInfo,
 		donateAmount?: BN,
 		txParams?: TxParams,
-		customMaxMarginRatio?: number
+		customMaxMarginRatio?: number,
+		poolId?: number
 	): Promise<[TransactionSignature, PublicKey]> {
 		const [tx, userAccountPublicKey] =
 			await this.createInitializeUserAccountAndDepositCollateral(
@@ -2706,7 +2716,8 @@ export class DriftClient {
 				referrerInfo,
 				donateAmount,
 				txParams,
-				customMaxMarginRatio
+				customMaxMarginRatio,
+				poolId
 			);
 		const additionalSigners: Array<Signer> = [];
 
