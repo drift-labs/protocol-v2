@@ -1,3 +1,5 @@
+use std::borrow::Borrow;
+
 use crate::error::ErrorCode;
 use crate::math::casting::Cast;
 use crate::math::safe_math::SafeMath;
@@ -6,13 +8,11 @@ use crate::state::pyth_lazer_oracle::{
 };
 use crate::validate;
 use anchor_lang::prelude::*;
-use anchor_lang::InstructionData;
-use pyth_lazer_solana_contract::instruction::VerifyMessage;
 use pyth_lazer_solana_contract::protocol::message::SolanaMessage;
 use pyth_lazer_solana_contract::protocol::payload::{PayloadData, PayloadPropertyValue};
 use pyth_lazer_solana_contract::protocol::router::Price;
+use pyth_lazer_solana_contract::Storage;
 use solana_program::sysvar::instructions::load_current_index_checked;
-use solana_program::{instruction::Instruction as ProgramInstruction, program::invoke};
 
 pub fn handle_update_pyth_lazer_oracle<'c: 'info, 'info>(
     ctx: Context<'_, '_, 'c, 'info, UpdatePythLazerOracle>,
@@ -26,38 +26,23 @@ pub fn handle_update_pyth_lazer_oracle<'c: 'info, 'info>(
         "instruction index must be greater than 0 to include the sig verify ix"
     )?;
 
-    invoke(
-        &ProgramInstruction::new_with_bytes(
-            pyth_lazer_solana_contract::ID,
-            &VerifyMessage {
-                message_data: pyth_message.to_vec(),
-                ed25519_instruction_index: ix_idx - 1,
-                signature_index: 0,
-                message_offset: 12,
-            }
-            .data(),
-            vec![
-                AccountMeta::new(*ctx.accounts.keeper.key, true),
-                AccountMeta::new_readonly(*ctx.accounts.pyth_lazer_storage.key, false),
-                AccountMeta::new(*ctx.accounts.pyth_lazer_treasury.key, false),
-                AccountMeta::new_readonly(*ctx.accounts.pyth_lazer_treasury.key, false),
-                AccountMeta::new_readonly(*ctx.accounts.ix_sysvar.key, false),
-            ],
-        ),
-        &[
-            ctx.accounts.keeper.to_account_info(),
-            ctx.accounts.pyth_lazer_storage.clone(),
-            ctx.accounts.pyth_lazer_treasury.clone(),
-            ctx.accounts.system_program.to_account_info(),
-            ctx.accounts.ix_sysvar.to_account_info(),
-        ],
-    )?;
-
     // Load oracle accounts from remaining accounts
     let remaining_accounts = ctx.remaining_accounts;
     validate!(
         remaining_accounts.len() <= 3,
         ErrorCode::OracleTooManyPriceAccountUpdates
+    )?;
+
+    let storage_account_data = ctx.accounts.pyth_lazer_storage.try_borrow_data()?;
+    let pyth_storage = Storage::try_deserialize(&mut &storage_account_data[..])?;
+
+    pyth_lazer_solana_contract::verify_message_direct(
+        &pyth_storage,
+        &ctx.accounts.ix_sysvar,
+        &pyth_message,
+        ix_idx - 1,
+        0,
+        12,
     )?;
 
     let deserialized_pyth_message = SolanaMessage::deserialize_slice(&pyth_message)
@@ -150,10 +135,7 @@ pub struct UpdatePythLazerOracle<'info> {
       address = PYTH_LAZER_STORAGE_ID @ ErrorCode::InvalidPythLazerStorageOwner,
     )]
     pub pyth_lazer_storage: AccountInfo<'info>,
-    /// CHECK: this account doesn't need additional constraints.
-    pub pyth_lazer_treasury: AccountInfo<'info>,
     /// CHECK: checked by ed25519 verify
     #[account(address = solana_program::sysvar::instructions::ID)]
     pub ix_sysvar: AccountInfo<'info>,
-    pub system_program: Program<'info, System>,
 }

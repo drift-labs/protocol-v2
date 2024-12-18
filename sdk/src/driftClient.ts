@@ -233,7 +233,6 @@ export class DriftClient {
 	txHandler: TxHandler;
 
 	receiverProgram?: Program<PythSolanaReceiver>;
-	pythLazerTreausryPubkey?: PublicKey;
 	wormholeProgram?: Program<WormholeCoreBridgeSolana>;
 	sbOnDemandProgramdId: PublicKey;
 	sbOnDemandProgram?: Program30<Idl30>;
@@ -8530,13 +8529,6 @@ export class DriftClient {
 		return txSig;
 	}
 
-	public async loadPythLazerTreasuryPubkey(): Promise<PublicKey> {
-		const accountInfo = await this.connection.getAccountInfo(
-			PYTH_LAZER_STORAGE_ACCOUNT_KEY
-		);
-		return new PublicKey(accountInfo!.data.slice(40, 72));
-	}
-
 	public async getUpdatePythPullOracleIxs(
 		params: {
 			merklePriceUpdate: {
@@ -8593,10 +8585,6 @@ export class DriftClient {
 		precedingIxs: TransactionInstruction[] = [],
 		overrideIxCount?: number
 	): Promise<TransactionInstruction[]> {
-		if (!this.pythLazerTreausryPubkey) {
-			this.pythLazerTreausryPubkey = await this.loadPythLazerTreasuryPubkey();
-		}
-
 		const pythMessageBytes = Buffer.from(pythMessageHex, 'hex');
 
 		const verifyIx = createMinimalEd25519VerifyIx(
@@ -8620,8 +8608,6 @@ export class DriftClient {
 					keeper: this.wallet.publicKey,
 					pythLazerStorage: PYTH_LAZER_STORAGE_ACCOUNT_KEY,
 					ixSysvar: SYSVAR_INSTRUCTIONS_PUBKEY,
-					systemProgram: anchor.web3.SystemProgram.programId,
-					pythLazerTreasury: this.pythLazerTreausryPubkey,
 				},
 				remainingAccounts: remainingAccountsMeta,
 			}
