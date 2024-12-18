@@ -96,11 +96,10 @@ describe('pyth lazer oracles', () => {
 	});
 
 	it('crank', async () => {
-		const ixs = await driftClient.getPostPythLazerOracleUpdateIxs(
+		const ixs = driftClient.getPostPythLazerOracleUpdateIxs(
 			[1],
 			PYTH_LAZER_HEX_STRING_BTC,
-			undefined,
-			1
+			[]
 		);
 
 		const message = new TransactionMessage({
