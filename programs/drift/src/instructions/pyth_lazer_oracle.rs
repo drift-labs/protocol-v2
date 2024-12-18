@@ -28,11 +28,6 @@ pub fn handle_update_pyth_lazer_oracle<'c: 'info, 'info>(
 
     // Load oracle accounts from remaining accounts
     let remaining_accounts = ctx.remaining_accounts;
-    validate!(
-        remaining_accounts.len() <= 3,
-        ErrorCode::OracleTooManyPriceAccountUpdates
-    )?;
-
     let storage_account_data = ctx.accounts.pyth_lazer_storage.try_borrow_data()?;
     let pyth_storage = Storage::try_deserialize(&mut &storage_account_data[..])?;
 
