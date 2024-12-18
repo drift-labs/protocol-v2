@@ -28,7 +28,7 @@ pub fn handle_update_pyth_lazer_oracle<'c: 'info, 'info>(
         &pyth_message,
         ix_idx - 1,
         0,
-        0,
+        12, // 8 bytes for anchor ix discriminator, 4 bytes for borsh vec len encoding
     );
 
     if verified.is_err() {

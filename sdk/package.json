@@ -45,6 +45,7 @@
 		"@pythnetwork/client": "2.5.3",
 		"@pythnetwork/price-service-sdk": "1.7.1",
 		"@pythnetwork/pyth-solana-receiver": "0.7.0",
+		"@solana/buffer-layout": "4.0.1",
 		"@solana/spl-token": "0.3.7",
 		"@solana/web3.js": "1.92.3",
 		"@switchboard-xyz/on-demand": "1.2.42",

@@ -8575,12 +8575,11 @@ export class DriftClient {
 		overrideIxCount?: number
 	): TransactionInstruction[] {
 		const pythMessageBytes = Buffer.from(pythMessageHex, 'hex');
-		const updateData = new Uint8Array(pythMessageBytes);
 
 		const verifyIx = createMinimalEd25519VerifyIx(
 			overrideIxCount || precedingIxs.length + 1,
-			0,
-			updateData
+			12,
+			pythMessageBytes
 		);
 
 		const remainingAccountsMeta = feedIds.map((feedId) => {

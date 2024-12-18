@@ -14315,7 +14315,7 @@
     {
       "code": 6288,
       "name": "InvalidSwiftOrderParam",
-      "msg": "Swift only available for market/oracle perp orders"
+      "msg": "Invalid swift order param"
     },
     {
       "code": 6289,
