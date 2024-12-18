@@ -139,7 +139,7 @@ export class SwiftOrderNode extends OrderNode {
 	previous?: SwiftOrderNode;
 
 	constructor(order: Order, userAccount: string) {
-		super(order, userAccount, true);
+		super(order, userAccount, false, true);
 	}
 
 	getSortValue(order: Order): BN {

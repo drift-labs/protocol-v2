@@ -18,7 +18,6 @@ export type DriftClientConfig = {
 	wallet: IWallet;
 	env?: DriftEnv;
 	programID?: PublicKey;
-	swiftID?: PublicKey;
 	accountSubscription?: DriftClientSubscriptionConfig;
 	opts?: ConfirmOptions;
 	txSender?: TxSender;
@@ -39,6 +38,7 @@ export type DriftClientConfig = {
 	enableMetricsEvents?: boolean;
 	txHandlerConfig?: TxHandlerConfig;
 	delistedMarketSetting?: DelistedMarketSetting;
+	useHotWalletAdmin?: boolean;
 };
 
 export type DriftClientSubscriptionConfig =

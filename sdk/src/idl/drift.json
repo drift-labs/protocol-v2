@@ -814,10 +814,6 @@
       ],
       "args": [
         {
-          "name": "swiftMessageBytes",
-          "type": "bytes"
-        },
-        {
           "name": "swiftOrderParamsMessageBytes",
           "type": "bytes"
         }
@@ -9002,36 +8998,6 @@
       }
     },
     {
-      "name": "SwiftServerMessage",
-      "type": {
-        "kind": "struct",
-        "fields": [
-          {
-            "name": "uuid",
-            "type": {
-              "array": [
-                "u8",
-                8
-              ]
-            }
-          },
-          {
-            "name": "swiftOrderSignature",
-            "type": {
-              "array": [
-                "u8",
-                64
-              ]
-            }
-          },
-          {
-            "name": "slot",
-            "type": "u64"
-          }
-        ]
-      }
-    },
-    {
       "name": "SwiftOrderParamsMessage",
       "type": {
         "kind": "struct",
@@ -9045,6 +9011,19 @@
           {
             "name": "subAccountId",
             "type": "u16"
+          },
+          {
+            "name": "slot",
+            "type": "u64"
+          },
+          {
+            "name": "uuid",
+            "type": {
+              "array": [
+                "u8",
+                8
+              ]
+            }
           },
           {
             "name": "takeProfitOrderParams",

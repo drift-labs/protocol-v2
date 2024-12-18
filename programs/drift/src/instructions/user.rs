@@ -2472,539 +2472,6 @@ pub fn handle_enable_user_high_leverage_mode<'c: 'info, 'info>(
     Ok(())
 }
 
-#[derive(Accounts)]
-#[instruction(
-    sub_account_id: u16,
-)]
-pub struct InitializeUser<'info> {
-    #[account(
-        init,
-        seeds = [b"user", authority.key.as_ref(), sub_account_id.to_le_bytes().as_ref()],
-        space = User::SIZE,
-        bump,
-        payer = payer
-    )]
-    pub user: AccountLoader<'info, User>,
-    #[account(
-        mut,
-        has_one = authority
-    )]
-    pub user_stats: AccountLoader<'info, UserStats>,
-    #[account(mut)]
-    pub state: Box<Account<'info, State>>,
-    pub authority: Signer<'info>,
-    #[account(mut)]
-    pub payer: Signer<'info>,
-    pub rent: Sysvar<'info, Rent>,
-    pub system_program: Program<'info, System>,
-}
-
-#[derive(Accounts)]
-pub struct InitializeUserStats<'info> {
-    #[account(
-        init,
-        seeds = [b"user_stats", authority.key.as_ref()],
-        space = UserStats::SIZE,
-        bump,
-        payer = payer
-    )]
-    pub user_stats: AccountLoader<'info, UserStats>,
-    #[account(mut)]
-    pub state: Box<Account<'info, State>>,
-    pub authority: Signer<'info>,
-    #[account(mut)]
-    pub payer: Signer<'info>,
-    pub rent: Sysvar<'info, Rent>,
-    pub system_program: Program<'info, System>,
-}
-
-#[derive(Accounts)]
-pub struct InitializeRFQUser<'info> {
-    #[account(
-        init,
-        seeds = [RFQ_PDA_SEED.as_ref(), user.key().as_ref()],
-        space = RFQUser::SIZE,
-        bump,
-        payer = payer
-    )]
-    pub rfq_user: AccountLoader<'info, RFQUser>,
-    pub authority: Signer<'info>,
-    #[account(
-        mut,
-        constraint = can_sign_for_user(&user, &authority)?
-    )]
-    pub user: AccountLoader<'info, User>,
-    #[account(mut)]
-    pub payer: Signer<'info>,
-    pub rent: Sysvar<'info, Rent>,
-    pub system_program: Program<'info, System>,
-}
-
-#[derive(Accounts)]
-#[instruction(num_orders: u16)]
-pub struct InitializeSwiftUserOrders<'info> {
-    #[account(
-        init,
-        seeds = [SWIFT_PDA_SEED.as_ref(), user.key().as_ref()],
-        space = SwiftUserOrders::space(num_orders as usize),
-        bump,
-        payer = payer
-    )]
-    pub swift_user_orders: Box<Account<'info, SwiftUserOrders>>,
-    pub authority: Signer<'info>,
-    #[account(
-        constraint = can_sign_for_user(&user, &authority)?
-    )]
-    pub user: AccountLoader<'info, User>,
-    #[account(mut)]
-    pub payer: Signer<'info>,
-    pub rent: Sysvar<'info, Rent>,
-    pub system_program: Program<'info, System>,
-}
-
-#[derive(Accounts)]
-#[instruction(num_orders: u16)]
-pub struct ResizeSwiftUserOrders<'info> {
-    #[account(
-        mut,
-        seeds = [SWIFT_PDA_SEED.as_ref(), user.key().as_ref()],
-        bump,
-        realloc = SwiftUserOrders::space(num_orders as usize),
-        realloc::payer = authority,
-        realloc::zero = false,
-    )]
-    pub swift_user_orders: Box<Account<'info, SwiftUserOrders>>,
-    #[account(mut)]
-    pub authority: Signer<'info>,
-    #[account(
-        constraint = can_sign_for_user(&user, &authority)?
-    )]
-    pub user: AccountLoader<'info, User>,
-    pub system_program: Program<'info, System>,
-}
-
-#[derive(Accounts)]
-#[instruction(
-    name: [u8; 32],
-)]
-pub struct InitializeReferrerName<'info> {
-    #[account(
-        init,
-        seeds = [b"referrer_name", name.as_ref()],
-        space = ReferrerName::SIZE,
-        bump,
-        payer = payer
-    )]
-    pub referrer_name: AccountLoader<'info, ReferrerName>,
-    #[account(
-        mut,
-        constraint = can_sign_for_user(&user, &authority)?
-    )]
-    pub user: AccountLoader<'info, User>,
-    #[account(
-        mut,
-        constraint = is_stats_for_user(&user, &user_stats)?
-    )]
-    pub user_stats: AccountLoader<'info, UserStats>,
-    pub authority: Signer<'info>,
-    #[account(mut)]
-    pub payer: Signer<'info>,
-    pub rent: Sysvar<'info, Rent>,
-    pub system_program: Program<'info, System>,
-}
-
-#[derive(Accounts)]
-#[instruction(market_index: u16,)]
-pub struct Deposit<'info> {
-    pub state: Box<Account<'info, State>>,
-    #[account(
-        mut,
-        constraint = can_sign_for_user(&user, &authority)?
-    )]
-    pub user: AccountLoader<'info, User>,
-    #[account(
-        mut,
-        constraint = is_stats_for_user(&user, &user_stats)?
-    )]
-    pub user_stats: AccountLoader<'info, UserStats>,
-    pub authority: Signer<'info>,
-    #[account(
-        mut,
-        seeds = [b"spot_market_vault".as_ref(), market_index.to_le_bytes().as_ref()],
-        bump,
-    )]
-    pub spot_market_vault: Box<InterfaceAccount<'info, TokenAccount>>,
-    #[account(
-        mut,
-        constraint = &spot_market_vault.mint.eq(&user_token_account.mint),
-        token::authority = authority
-    )]
-    pub user_token_account: Box<InterfaceAccount<'info, TokenAccount>>,
-    pub token_program: Interface<'info, TokenInterface>,
-}
-
-#[derive(Accounts)]
-pub struct RevenuePoolDeposit<'info> {
-    pub state: Box<Account<'info, State>>,
-    #[account(mut)]
-    pub spot_market: AccountLoader<'info, SpotMarket>,
-    #[account(mut)]
-    pub authority: Signer<'info>,
-    #[account(
-        mut,
-        seeds = [b"spot_market_vault".as_ref(), spot_market.load()?.market_index.to_le_bytes().as_ref()],
-        bump,
-    )]
-    pub spot_market_vault: Box<InterfaceAccount<'info, TokenAccount>>,
-    #[account(
-        mut,
-        constraint = &spot_market_vault.mint.eq(&user_token_account.mint),
-        token::authority = authority
-    )]
-    pub user_token_account: Box<InterfaceAccount<'info, TokenAccount>>,
-    pub token_program: Interface<'info, TokenInterface>,
-}
-
-#[derive(Accounts)]
-#[instruction(market_index: u16,)]
-pub struct Withdraw<'info> {
-    pub state: Box<Account<'info, State>>,
-    #[account(
-        mut,
-        has_one = authority,
-    )]
-    pub user: AccountLoader<'info, User>,
-    #[account(
-        mut,
-        has_one = authority
-    )]
-    pub user_stats: AccountLoader<'info, UserStats>,
-    pub authority: Signer<'info>,
-    #[account(
-        mut,
-        seeds = [b"spot_market_vault".as_ref(), market_index.to_le_bytes().as_ref()],
-        bump,
-    )]
-    pub spot_market_vault: Box<InterfaceAccount<'info, TokenAccount>>,
-    #[account(
-        constraint = state.signer.eq(&drift_signer.key())
-    )]
-    /// CHECK: forced drift_signer
-    pub drift_signer: AccountInfo<'info>,
-    #[account(
-        mut,
-        constraint = &spot_market_vault.mint.eq(&user_token_account.mint)
-    )]
-    pub user_token_account: Box<InterfaceAccount<'info, TokenAccount>>,
-    pub token_program: Interface<'info, TokenInterface>,
-}
-
-#[derive(Accounts)]
-#[instruction(market_index: u16,)]
-pub struct TransferDeposit<'info> {
-    #[account(
-        mut,
-        has_one = authority,
-    )]
-    pub from_user: AccountLoader<'info, User>,
-    #[account(
-        mut,
-        has_one = authority,
-    )]
-    pub to_user: AccountLoader<'info, User>,
-    #[account(
-        mut,
-        has_one = authority
-    )]
-    pub user_stats: AccountLoader<'info, UserStats>,
-    pub authority: Signer<'info>,
-    pub state: Box<Account<'info, State>>,
-    #[account(
-        seeds = [b"spot_market_vault".as_ref(), market_index.to_le_bytes().as_ref()],
-        bump,
-    )]
-    pub spot_market_vault: Box<InterfaceAccount<'info, TokenAccount>>,
-}
-
-#[derive(Accounts)]
-pub struct PlaceOrder<'info> {
-    pub state: Box<Account<'info, State>>,
-    #[account(
-        mut,
-        constraint = can_sign_for_user(&user, &authority)?
-    )]
-    pub user: AccountLoader<'info, User>,
-    pub authority: Signer<'info>,
-}
-
-#[derive(Accounts)]
-pub struct CancelOrder<'info> {
-    pub state: Box<Account<'info, State>>,
-    #[account(
-        mut,
-        constraint = can_sign_for_user(&user, &authority)?
-    )]
-    pub user: AccountLoader<'info, User>,
-    pub authority: Signer<'info>,
-}
-
-#[derive(Accounts)]
-pub struct PlaceAndTake<'info> {
-    pub state: Box<Account<'info, State>>,
-    #[account(
-        mut,
-        constraint = can_sign_for_user(&user, &authority)?
-    )]
-    pub user: AccountLoader<'info, User>,
-    #[account(
-        mut,
-        constraint = is_stats_for_user(&user, &user_stats)?
-    )]
-    pub user_stats: AccountLoader<'info, UserStats>,
-    pub authority: Signer<'info>,
-}
-
-#[derive(Accounts)]
-pub struct PlaceAndMake<'info> {
-    pub state: Box<Account<'info, State>>,
-    #[account(
-        mut,
-        constraint = can_sign_for_user(&user, &authority)?
-    )]
-    pub user: AccountLoader<'info, User>,
-    #[account(
-        mut,
-        constraint = is_stats_for_user(&user, &user_stats)?
-    )]
-    pub user_stats: AccountLoader<'info, UserStats>,
-    #[account(mut)]
-    pub taker: AccountLoader<'info, User>,
-    #[account(
-        mut,
-        constraint = is_stats_for_user(&taker, &taker_stats)?
-    )]
-    pub taker_stats: AccountLoader<'info, UserStats>,
-    pub authority: Signer<'info>,
-}
-
-#[derive(Accounts)]
-pub struct PlaceAndMakeSwift<'info> {
-    pub state: Box<Account<'info, State>>,
-    #[account(
-        mut,
-        constraint = can_sign_for_user(&user, &authority)?
-    )]
-    pub user: AccountLoader<'info, User>,
-    #[account(
-        mut,
-        constraint = is_stats_for_user(&user, &user_stats)?
-    )]
-    pub user_stats: AccountLoader<'info, UserStats>,
-    #[account(mut)]
-    pub taker: AccountLoader<'info, User>,
-    #[account(
-        mut,
-        constraint = is_stats_for_user(&taker, &taker_stats)?
-    )]
-    pub taker_stats: AccountLoader<'info, UserStats>,
-    #[account(
-        seeds = [SWIFT_PDA_SEED.as_ref(), taker.key().as_ref()],
-        bump,
-    )]
-    /// CHECK: checked in SwiftUserOrdersZeroCopy checks
-    pub taker_swift_user_orders: AccountInfo<'info>,
-    pub authority: Signer<'info>,
-}
-
-#[derive(Accounts)]
-pub struct PlaceAndMatchRFQOrders<'info> {
-    pub state: Box<Account<'info, State>>,
-    #[account(mut)]
-    pub user: AccountLoader<'info, User>,
-    #[account(
-        mut,
-        constraint = is_stats_for_user(&user, &user_stats)?
-    )]
-    pub user_stats: AccountLoader<'info, UserStats>,
-    pub authority: Signer<'info>,
-    /// CHECK: The address check is needed because otherwise
-    /// the supplied Sysvar could be anything else.
-    /// The Instruction Sysvar has not been implemented
-    /// in the Anchor framework yet, so this is the safe approach.
-    #[account(address = IX_ID)]
-    pub ix_sysvar: AccountInfo<'info>,
-}
-
-#[derive(Accounts)]
-pub struct AddRemoveLiquidity<'info> {
-    pub state: Box<Account<'info, State>>,
-    #[account(
-        mut,
-        constraint = can_sign_for_user(&user, &authority)?,
-    )]
-    pub user: AccountLoader<'info, User>,
-    pub authority: Signer<'info>,
-}
-
-#[derive(Accounts)]
-pub struct RemoveLiquidityInExpiredMarket<'info> {
-    pub state: Box<Account<'info, State>>,
-    #[account(mut)]
-    pub user: AccountLoader<'info, User>,
-}
-
-#[derive(Accounts)]
-#[instruction(
-    sub_account_id: u16,
-)]
-pub struct UpdateUser<'info> {
-    #[account(
-        mut,
-        seeds = [b"user", authority.key.as_ref(), sub_account_id.to_le_bytes().as_ref()],
-        bump,
-    )]
-    pub user: AccountLoader<'info, User>,
-    pub authority: Signer<'info>,
-}
-
-#[derive(Accounts)]
-pub struct DeleteUser<'info> {
-    #[account(
-        mut,
-        has_one = authority,
-        close = authority
-    )]
-    pub user: AccountLoader<'info, User>,
-    #[account(
-        mut,
-        has_one = authority
-    )]
-    pub user_stats: AccountLoader<'info, UserStats>,
-    #[account(mut)]
-    pub state: Box<Account<'info, State>>,
-    pub authority: Signer<'info>,
-}
-
-#[derive(Accounts)]
-pub struct DeleteSwiftUserOrders<'info> {
-    #[account(
-        mut,
-        has_one = authority,
-    )]
-    pub user: AccountLoader<'info, User>,
-    #[account(
-        mut,
-        close = user,
-        seeds = [SWIFT_PDA_SEED.as_ref(), user.key().as_ref()],
-        bump,
-    )]
-    pub swift_user_orders: Box<Account<'info, SwiftUserOrders>>,
-    #[account(mut)]
-    pub state: Box<Account<'info, State>>,
-    pub authority: Signer<'info>,
-}
-
-#[derive(Accounts)]
-pub struct ReclaimRent<'info> {
-    #[account(
-        mut,
-        has_one = authority,
-    )]
-    pub user: AccountLoader<'info, User>,
-    #[account(
-        mut,
-        has_one = authority
-    )]
-    pub user_stats: AccountLoader<'info, UserStats>,
-    pub state: Box<Account<'info, State>>,
-    pub authority: Signer<'info>,
-    pub rent: Sysvar<'info, Rent>,
-}
-
-#[derive(Accounts)]
-#[instruction(in_market_index: u16, out_market_index: u16, )]
-pub struct Swap<'info> {
-    pub state: Box<Account<'info, State>>,
-    #[account(
-        mut,
-        constraint = can_sign_for_user(&user, &authority)?
-    )]
-    pub user: AccountLoader<'info, User>,
-    #[account(
-        mut,
-        constraint = is_stats_for_user(&user, &user_stats)?
-    )]
-    pub user_stats: AccountLoader<'info, UserStats>,
-    pub authority: Signer<'info>,
-    #[account(
-        mut,
-        seeds = [b"spot_market_vault".as_ref(), out_market_index.to_le_bytes().as_ref()],
-        bump,
-    )]
-    pub out_spot_market_vault: Box<InterfaceAccount<'info, TokenAccount>>,
-    #[account(
-        mut,
-        seeds = [b"spot_market_vault".as_ref(), in_market_index.to_le_bytes().as_ref()],
-        bump,
-    )]
-    pub in_spot_market_vault: Box<InterfaceAccount<'info, TokenAccount>>,
-    #[account(
-        mut,
-        constraint = &out_spot_market_vault.mint.eq(&out_token_account.mint),
-        token::authority = authority
-    )]
-    pub out_token_account: Box<InterfaceAccount<'info, TokenAccount>>,
-    #[account(
-        mut,
-        constraint = &in_spot_market_vault.mint.eq(&in_token_account.mint),
-        token::authority = authority
-    )]
-    pub in_token_account: Box<InterfaceAccount<'info, TokenAccount>>,
-    pub token_program: Interface<'info, TokenInterface>,
-    #[account(
-        constraint = state.signer.eq(&drift_signer.key())
-    )]
-    /// CHECK: forced drift_signer
-    pub drift_signer: AccountInfo<'info>,
-    /// Instructions Sysvar for instruction introspection
-    /// CHECK: fixed instructions sysvar account
-    #[account(address = instructions::ID)]
-    pub instructions: UncheckedAccount<'info>,
-}
-
-#[derive(Accounts)]
-#[instruction(
-    sub_account_id: u16,
-)]
-pub struct EnableUserHighLeverageMode<'info> {
-    pub state: Box<Account<'info, State>>,
-    #[account(
-        mut,
-        constraint = can_sign_for_user(&user, &authority)?
-    )]
-    pub user: AccountLoader<'info, User>,
-    pub authority: Signer<'info>,
-    #[account(mut)]
-    pub high_leverage_mode_config: AccountLoader<'info, HighLeverageModeConfig>,
-}
-
-#[derive(Accounts)]
-#[instruction(
-    sub_account_id: u16,
-)]
-pub struct UpdateUserProtectedMakerMode<'info> {
-    pub state: Box<Account<'info, State>>,
-    #[account(
-        mut,
-        seeds = [b"user", authority.key.as_ref(), sub_account_id.to_le_bytes().as_ref()],
-        bump,
-    )]
-    pub user: AccountLoader<'info, User>,
-    pub authority: Signer<'info>,
-    #[account(mut)]
-    pub protected_maker_mode_config: AccountLoader<'info, ProtectedMakerModeConfig>,
-}
-
 #[access_control(
     fill_not_paused(&ctx.accounts.state)
 )]
@@ -3644,4 +3111,537 @@ pub fn handle_end_swap<'c: 'info, 'info>(
     )?;
 
     Ok(())
+}
+
+#[derive(Accounts)]
+#[instruction(
+    sub_account_id: u16,
+)]
+pub struct InitializeUser<'info> {
+    #[account(
+        init,
+        seeds = [b"user", authority.key.as_ref(), sub_account_id.to_le_bytes().as_ref()],
+        space = User::SIZE,
+        bump,
+        payer = payer
+    )]
+    pub user: AccountLoader<'info, User>,
+    #[account(
+        mut,
+        has_one = authority
+    )]
+    pub user_stats: AccountLoader<'info, UserStats>,
+    #[account(mut)]
+    pub state: Box<Account<'info, State>>,
+    pub authority: Signer<'info>,
+    #[account(mut)]
+    pub payer: Signer<'info>,
+    pub rent: Sysvar<'info, Rent>,
+    pub system_program: Program<'info, System>,
+}
+
+#[derive(Accounts)]
+pub struct InitializeUserStats<'info> {
+    #[account(
+        init,
+        seeds = [b"user_stats", authority.key.as_ref()],
+        space = UserStats::SIZE,
+        bump,
+        payer = payer
+    )]
+    pub user_stats: AccountLoader<'info, UserStats>,
+    #[account(mut)]
+    pub state: Box<Account<'info, State>>,
+    pub authority: Signer<'info>,
+    #[account(mut)]
+    pub payer: Signer<'info>,
+    pub rent: Sysvar<'info, Rent>,
+    pub system_program: Program<'info, System>,
+}
+
+#[derive(Accounts)]
+pub struct InitializeRFQUser<'info> {
+    #[account(
+        init,
+        seeds = [RFQ_PDA_SEED.as_ref(), user.key().as_ref()],
+        space = RFQUser::SIZE,
+        bump,
+        payer = payer
+    )]
+    pub rfq_user: AccountLoader<'info, RFQUser>,
+    pub authority: Signer<'info>,
+    #[account(
+        mut,
+        constraint = can_sign_for_user(&user, &authority)?
+    )]
+    pub user: AccountLoader<'info, User>,
+    #[account(mut)]
+    pub payer: Signer<'info>,
+    pub rent: Sysvar<'info, Rent>,
+    pub system_program: Program<'info, System>,
+}
+
+#[derive(Accounts)]
+#[instruction(num_orders: u16)]
+pub struct InitializeSwiftUserOrders<'info> {
+    #[account(
+        init,
+        seeds = [SWIFT_PDA_SEED.as_ref(), user.key().as_ref()],
+        space = SwiftUserOrders::space(num_orders as usize),
+        bump,
+        payer = payer
+    )]
+    pub swift_user_orders: Box<Account<'info, SwiftUserOrders>>,
+    pub authority: Signer<'info>,
+    #[account(
+        constraint = can_sign_for_user(&user, &authority)?
+    )]
+    pub user: AccountLoader<'info, User>,
+    #[account(mut)]
+    pub payer: Signer<'info>,
+    pub rent: Sysvar<'info, Rent>,
+    pub system_program: Program<'info, System>,
+}
+
+#[derive(Accounts)]
+#[instruction(num_orders: u16)]
+pub struct ResizeSwiftUserOrders<'info> {
+    #[account(
+        mut,
+        seeds = [SWIFT_PDA_SEED.as_ref(), user.key().as_ref()],
+        bump,
+        realloc = SwiftUserOrders::space(num_orders as usize),
+        realloc::payer = authority,
+        realloc::zero = false,
+    )]
+    pub swift_user_orders: Box<Account<'info, SwiftUserOrders>>,
+    #[account(mut)]
+    pub authority: Signer<'info>,
+    #[account(
+        constraint = can_sign_for_user(&user, &authority)?
+    )]
+    pub user: AccountLoader<'info, User>,
+    pub system_program: Program<'info, System>,
+}
+
+#[derive(Accounts)]
+#[instruction(
+    name: [u8; 32],
+)]
+pub struct InitializeReferrerName<'info> {
+    #[account(
+        init,
+        seeds = [b"referrer_name", name.as_ref()],
+        space = ReferrerName::SIZE,
+        bump,
+        payer = payer
+    )]
+    pub referrer_name: AccountLoader<'info, ReferrerName>,
+    #[account(
+        mut,
+        constraint = can_sign_for_user(&user, &authority)?
+    )]
+    pub user: AccountLoader<'info, User>,
+    #[account(
+        mut,
+        constraint = is_stats_for_user(&user, &user_stats)?
+    )]
+    pub user_stats: AccountLoader<'info, UserStats>,
+    pub authority: Signer<'info>,
+    #[account(mut)]
+    pub payer: Signer<'info>,
+    pub rent: Sysvar<'info, Rent>,
+    pub system_program: Program<'info, System>,
+}
+
+#[derive(Accounts)]
+#[instruction(market_index: u16,)]
+pub struct Deposit<'info> {
+    pub state: Box<Account<'info, State>>,
+    #[account(
+        mut,
+        constraint = can_sign_for_user(&user, &authority)?
+    )]
+    pub user: AccountLoader<'info, User>,
+    #[account(
+        mut,
+        constraint = is_stats_for_user(&user, &user_stats)?
+    )]
+    pub user_stats: AccountLoader<'info, UserStats>,
+    pub authority: Signer<'info>,
+    #[account(
+        mut,
+        seeds = [b"spot_market_vault".as_ref(), market_index.to_le_bytes().as_ref()],
+        bump,
+    )]
+    pub spot_market_vault: Box<InterfaceAccount<'info, TokenAccount>>,
+    #[account(
+        mut,
+        constraint = &spot_market_vault.mint.eq(&user_token_account.mint),
+        token::authority = authority
+    )]
+    pub user_token_account: Box<InterfaceAccount<'info, TokenAccount>>,
+    pub token_program: Interface<'info, TokenInterface>,
+}
+
+#[derive(Accounts)]
+pub struct RevenuePoolDeposit<'info> {
+    pub state: Box<Account<'info, State>>,
+    #[account(mut)]
+    pub spot_market: AccountLoader<'info, SpotMarket>,
+    #[account(mut)]
+    pub authority: Signer<'info>,
+    #[account(
+        mut,
+        seeds = [b"spot_market_vault".as_ref(), spot_market.load()?.market_index.to_le_bytes().as_ref()],
+        bump,
+    )]
+    pub spot_market_vault: Box<InterfaceAccount<'info, TokenAccount>>,
+    #[account(
+        mut,
+        constraint = &spot_market_vault.mint.eq(&user_token_account.mint),
+        token::authority = authority
+    )]
+    pub user_token_account: Box<InterfaceAccount<'info, TokenAccount>>,
+    pub token_program: Interface<'info, TokenInterface>,
+}
+
+#[derive(Accounts)]
+#[instruction(market_index: u16,)]
+pub struct Withdraw<'info> {
+    pub state: Box<Account<'info, State>>,
+    #[account(
+        mut,
+        has_one = authority,
+    )]
+    pub user: AccountLoader<'info, User>,
+    #[account(
+        mut,
+        has_one = authority
+    )]
+    pub user_stats: AccountLoader<'info, UserStats>,
+    pub authority: Signer<'info>,
+    #[account(
+        mut,
+        seeds = [b"spot_market_vault".as_ref(), market_index.to_le_bytes().as_ref()],
+        bump,
+    )]
+    pub spot_market_vault: Box<InterfaceAccount<'info, TokenAccount>>,
+    #[account(
+        constraint = state.signer.eq(&drift_signer.key())
+    )]
+    /// CHECK: forced drift_signer
+    pub drift_signer: AccountInfo<'info>,
+    #[account(
+        mut,
+        constraint = &spot_market_vault.mint.eq(&user_token_account.mint)
+    )]
+    pub user_token_account: Box<InterfaceAccount<'info, TokenAccount>>,
+    pub token_program: Interface<'info, TokenInterface>,
+}
+
+#[derive(Accounts)]
+#[instruction(market_index: u16,)]
+pub struct TransferDeposit<'info> {
+    #[account(
+        mut,
+        has_one = authority,
+    )]
+    pub from_user: AccountLoader<'info, User>,
+    #[account(
+        mut,
+        has_one = authority,
+    )]
+    pub to_user: AccountLoader<'info, User>,
+    #[account(
+        mut,
+        has_one = authority
+    )]
+    pub user_stats: AccountLoader<'info, UserStats>,
+    pub authority: Signer<'info>,
+    pub state: Box<Account<'info, State>>,
+    #[account(
+        seeds = [b"spot_market_vault".as_ref(), market_index.to_le_bytes().as_ref()],
+        bump,
+    )]
+    pub spot_market_vault: Box<InterfaceAccount<'info, TokenAccount>>,
+}
+
+#[derive(Accounts)]
+pub struct PlaceOrder<'info> {
+    pub state: Box<Account<'info, State>>,
+    #[account(
+        mut,
+        constraint = can_sign_for_user(&user, &authority)?
+    )]
+    pub user: AccountLoader<'info, User>,
+    pub authority: Signer<'info>,
+}
+
+#[derive(Accounts)]
+pub struct CancelOrder<'info> {
+    pub state: Box<Account<'info, State>>,
+    #[account(
+        mut,
+        constraint = can_sign_for_user(&user, &authority)?
+    )]
+    pub user: AccountLoader<'info, User>,
+    pub authority: Signer<'info>,
+}
+
+#[derive(Accounts)]
+pub struct PlaceAndTake<'info> {
+    pub state: Box<Account<'info, State>>,
+    #[account(
+        mut,
+        constraint = can_sign_for_user(&user, &authority)?
+    )]
+    pub user: AccountLoader<'info, User>,
+    #[account(
+        mut,
+        constraint = is_stats_for_user(&user, &user_stats)?
+    )]
+    pub user_stats: AccountLoader<'info, UserStats>,
+    pub authority: Signer<'info>,
+}
+
+#[derive(Accounts)]
+pub struct PlaceAndMake<'info> {
+    pub state: Box<Account<'info, State>>,
+    #[account(
+        mut,
+        constraint = can_sign_for_user(&user, &authority)?
+    )]
+    pub user: AccountLoader<'info, User>,
+    #[account(
+        mut,
+        constraint = is_stats_for_user(&user, &user_stats)?
+    )]
+    pub user_stats: AccountLoader<'info, UserStats>,
+    #[account(mut)]
+    pub taker: AccountLoader<'info, User>,
+    #[account(
+        mut,
+        constraint = is_stats_for_user(&taker, &taker_stats)?
+    )]
+    pub taker_stats: AccountLoader<'info, UserStats>,
+    pub authority: Signer<'info>,
+}
+
+#[derive(Accounts)]
+pub struct PlaceAndMakeSwift<'info> {
+    pub state: Box<Account<'info, State>>,
+    #[account(
+        mut,
+        constraint = can_sign_for_user(&user, &authority)?
+    )]
+    pub user: AccountLoader<'info, User>,
+    #[account(
+        mut,
+        constraint = is_stats_for_user(&user, &user_stats)?
+    )]
+    pub user_stats: AccountLoader<'info, UserStats>,
+    #[account(mut)]
+    pub taker: AccountLoader<'info, User>,
+    #[account(
+        mut,
+        constraint = is_stats_for_user(&taker, &taker_stats)?
+    )]
+    pub taker_stats: AccountLoader<'info, UserStats>,
+    #[account(
+        seeds = [SWIFT_PDA_SEED.as_ref(), taker.key().as_ref()],
+        bump,
+    )]
+    /// CHECK: checked in SwiftUserOrdersZeroCopy checks
+    pub taker_swift_user_orders: AccountInfo<'info>,
+    pub authority: Signer<'info>,
+}
+
+#[derive(Accounts)]
+pub struct PlaceAndMatchRFQOrders<'info> {
+    pub state: Box<Account<'info, State>>,
+    #[account(mut)]
+    pub user: AccountLoader<'info, User>,
+    #[account(
+        mut,
+        constraint = is_stats_for_user(&user, &user_stats)?
+    )]
+    pub user_stats: AccountLoader<'info, UserStats>,
+    pub authority: Signer<'info>,
+    /// CHECK: The address check is needed because otherwise
+    /// the supplied Sysvar could be anything else.
+    /// The Instruction Sysvar has not been implemented
+    /// in the Anchor framework yet, so this is the safe approach.
+    #[account(address = IX_ID)]
+    pub ix_sysvar: AccountInfo<'info>,
+}
+
+#[derive(Accounts)]
+pub struct AddRemoveLiquidity<'info> {
+    pub state: Box<Account<'info, State>>,
+    #[account(
+        mut,
+        constraint = can_sign_for_user(&user, &authority)?,
+    )]
+    pub user: AccountLoader<'info, User>,
+    pub authority: Signer<'info>,
+}
+
+#[derive(Accounts)]
+pub struct RemoveLiquidityInExpiredMarket<'info> {
+    pub state: Box<Account<'info, State>>,
+    #[account(mut)]
+    pub user: AccountLoader<'info, User>,
+}
+
+#[derive(Accounts)]
+#[instruction(
+    sub_account_id: u16,
+)]
+pub struct UpdateUser<'info> {
+    #[account(
+        mut,
+        seeds = [b"user", authority.key.as_ref(), sub_account_id.to_le_bytes().as_ref()],
+        bump,
+    )]
+    pub user: AccountLoader<'info, User>,
+    pub authority: Signer<'info>,
+}
+
+#[derive(Accounts)]
+pub struct DeleteUser<'info> {
+    #[account(
+        mut,
+        has_one = authority,
+        close = authority
+    )]
+    pub user: AccountLoader<'info, User>,
+    #[account(
+        mut,
+        has_one = authority
+    )]
+    pub user_stats: AccountLoader<'info, UserStats>,
+    #[account(mut)]
+    pub state: Box<Account<'info, State>>,
+    pub authority: Signer<'info>,
+}
+
+#[derive(Accounts)]
+pub struct DeleteSwiftUserOrders<'info> {
+    #[account(
+        mut,
+        has_one = authority,
+    )]
+    pub user: AccountLoader<'info, User>,
+    #[account(
+        mut,
+        close = user,
+        seeds = [SWIFT_PDA_SEED.as_ref(), user.key().as_ref()],
+        bump,
+    )]
+    pub swift_user_orders: Box<Account<'info, SwiftUserOrders>>,
+    #[account(mut)]
+    pub state: Box<Account<'info, State>>,
+    pub authority: Signer<'info>,
+}
+
+#[derive(Accounts)]
+pub struct ReclaimRent<'info> {
+    #[account(
+        mut,
+        has_one = authority,
+    )]
+    pub user: AccountLoader<'info, User>,
+    #[account(
+        mut,
+        has_one = authority
+    )]
+    pub user_stats: AccountLoader<'info, UserStats>,
+    pub state: Box<Account<'info, State>>,
+    pub authority: Signer<'info>,
+    pub rent: Sysvar<'info, Rent>,
+}
+
+#[derive(Accounts)]
+#[instruction(in_market_index: u16, out_market_index: u16, )]
+pub struct Swap<'info> {
+    pub state: Box<Account<'info, State>>,
+    #[account(
+        mut,
+        constraint = can_sign_for_user(&user, &authority)?
+    )]
+    pub user: AccountLoader<'info, User>,
+    #[account(
+        mut,
+        constraint = is_stats_for_user(&user, &user_stats)?
+    )]
+    pub user_stats: AccountLoader<'info, UserStats>,
+    pub authority: Signer<'info>,
+    #[account(
+        mut,
+        seeds = [b"spot_market_vault".as_ref(), out_market_index.to_le_bytes().as_ref()],
+        bump,
+    )]
+    pub out_spot_market_vault: Box<InterfaceAccount<'info, TokenAccount>>,
+    #[account(
+        mut,
+        seeds = [b"spot_market_vault".as_ref(), in_market_index.to_le_bytes().as_ref()],
+        bump,
+    )]
+    pub in_spot_market_vault: Box<InterfaceAccount<'info, TokenAccount>>,
+    #[account(
+        mut,
+        constraint = &out_spot_market_vault.mint.eq(&out_token_account.mint),
+        token::authority = authority
+    )]
+    pub out_token_account: Box<InterfaceAccount<'info, TokenAccount>>,
+    #[account(
+        mut,
+        constraint = &in_spot_market_vault.mint.eq(&in_token_account.mint),
+        token::authority = authority
+    )]
+    pub in_token_account: Box<InterfaceAccount<'info, TokenAccount>>,
+    pub token_program: Interface<'info, TokenInterface>,
+    #[account(
+        constraint = state.signer.eq(&drift_signer.key())
+    )]
+    /// CHECK: forced drift_signer
+    pub drift_signer: AccountInfo<'info>,
+    /// Instructions Sysvar for instruction introspection
+    /// CHECK: fixed instructions sysvar account
+    #[account(address = instructions::ID)]
+    pub instructions: UncheckedAccount<'info>,
+}
+
+#[derive(Accounts)]
+#[instruction(
+    sub_account_id: u16,
+)]
+pub struct EnableUserHighLeverageMode<'info> {
+    pub state: Box<Account<'info, State>>,
+    #[account(
+        mut,
+        constraint = can_sign_for_user(&user, &authority)?
+    )]
+    pub user: AccountLoader<'info, User>,
+    pub authority: Signer<'info>,
+    #[account(mut)]
+    pub high_leverage_mode_config: AccountLoader<'info, HighLeverageModeConfig>,
+}
+
+#[derive(Accounts)]
+#[instruction(
+    sub_account_id: u16,
+)]
+pub struct UpdateUserProtectedMakerMode<'info> {
+    pub state: Box<Account<'info, State>>,
+    #[account(
+        mut,
+        seeds = [b"user", authority.key.as_ref(), sub_account_id.to_le_bytes().as_ref()],
+        bump,
+    )]
+    pub user: AccountLoader<'info, User>,
+    pub authority: Signer<'info>,
+    #[account(mut)]
+    pub protected_maker_mode_config: AccountLoader<'info, ProtectedMakerModeConfig>,
 }

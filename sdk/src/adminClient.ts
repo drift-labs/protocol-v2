@@ -34,6 +34,7 @@ import {
 	getUserStatsAccountPublicKey,
 	getHighLeverageModeConfigPublicKey,
 	getPythLazerOraclePublicKey,
+	getProtectedMakerModeConfigPublicKey,
 } from './addresses/pda';
 import { squareRootBN } from './math/utils';
 import { TOKEN_PROGRAM_ID } from '@solana/spl-token';
@@ -1062,7 +1063,9 @@ export class AdminClient extends DriftClient {
 		const tokenProgram = this.getTokenProgramForSpotMarket(spotMarket);
 		return await this.program.instruction.depositIntoSpotMarketVault(amount, {
 			accounts: {
-				admin: this.wallet.publicKey,
+				admin: this.useHotWalletAdmin
+					? this.wallet.publicKey
+					: this.getStateAccount().admin,
 				state: await this.getStatePublicKey(),
 				sourceVault,
 				spotMarket: spotMarket.pubkey,
@@ -1191,7 +1194,9 @@ export class AdminClient extends DriftClient {
 			},
 			{
 				accounts: {
-					admin: this.wallet.publicKey,
+					admin: this.useHotWalletAdmin
+						? this.wallet.publicKey
+						: this.getStateAccount().admin,
 					state: await this.getStatePublicKey(),
 					perpMarket: await getPerpMarketPublicKey(
 						this.program.programId,
@@ -3884,7 +3889,9 @@ export class AdminClient extends DriftClient {
 			fuelBonusInsurance || null,
 			{
 				accounts: {
-					admin: this.wallet.publicKey,
+					admin: this.useHotWalletAdmin
+						? this.wallet.publicKey
+						: this.getStateAccount().admin,
 					state: await this.getStatePublicKey(),
 					user,
 					userStats,
@@ -3894,12 +3901,10 @@ export class AdminClient extends DriftClient {
 	}
 
 	public async initializePythPullOracle(
-		feedId: string,
-		isAdmin = false
+		feedId: string
 	): Promise<TransactionSignature> {
 		const initializePythPullOracleIx = await this.getInitializePythPullOracleIx(
-			feedId,
-			isAdmin
+			feedId
 		);
 		const tx = await this.buildTransaction(initializePythPullOracleIx);
 		const { txSig } = await this.sendTransaction(tx, [], this.opts);
@@ -3908,15 +3913,16 @@ export class AdminClient extends DriftClient {
 	}
 
 	public async getInitializePythPullOracleIx(
-		feedId: string,
-		isAdmin = false
+		feedId: string
 	): Promise<TransactionInstruction> {
 		const feedIdBuffer = getFeedIdUint8Array(feedId);
 		return await this.program.instruction.initializePythPullOracle(
 			feedIdBuffer,
 			{
 				accounts: {
-					admin: isAdmin ? this.getStateAccount().admin : this.wallet.publicKey,
+					admin: this.useHotWalletAdmin
+						? this.wallet.publicKey
+						: this.getStateAccount().admin,
 					state: await this.getStatePublicKey(),
 					systemProgram: SystemProgram.programId,
 					priceFeed: getPythPullOraclePublicKey(
@@ -3930,11 +3936,10 @@ export class AdminClient extends DriftClient {
 	}
 
 	public async initializePythLazerOracle(
-		feedId: number,
-		isAdmin = false
+		feedId: number
 	): Promise<TransactionSignature> {
 		const initializePythPullOracleIx =
-			await this.getInitializePythLazerOracleIx(feedId, isAdmin);
+			await this.getInitializePythLazerOracleIx(feedId);
 		const tx = await this.buildTransaction(initializePythPullOracleIx);
 		const { txSig } = await this.sendTransaction(tx, [], this.opts);
 
@@ -3942,12 +3947,13 @@ export class AdminClient extends DriftClient {
 	}
 
 	public async getInitializePythLazerOracleIx(
-		feedId: number,
-		isAdmin = false
+		feedId: number
 	): Promise<TransactionInstruction> {
 		return await this.program.instruction.initializePythLazerOracle(feedId, {
 			accounts: {
-				admin: isAdmin ? this.getStateAccount().admin : this.wallet.publicKey,
+				admin: this.useHotWalletAdmin
+					? this.wallet.publicKey
+					: this.getStateAccount().admin,
 				state: await this.getStatePublicKey(),
 				systemProgram: SystemProgram.programId,
 				lazerOracle: getPythLazerOraclePublicKey(
@@ -4021,6 +4027,79 @@ export class AdminClient extends DriftClient {
 						: this.wallet.publicKey,
 					state: await this.getStatePublicKey(),
 					highLeverageModeConfig: getHighLeverageModeConfigPublicKey(
+						this.program.programId
+					),
+				},
+			}
+		);
+	}
+
+	public async initializeProtectedMakerModeConfig(
+		maxUsers: number,
+		stateAdmin?: boolean
+	): Promise<TransactionSignature> {
+		const initializeProtectedMakerModeConfigIx =
+			await this.getInitializeProtectedMakerModeConfigIx(maxUsers, stateAdmin);
+
+		const tx = await this.buildTransaction(
+			initializeProtectedMakerModeConfigIx
+		);
+
+		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+
+		return txSig;
+	}
+
+	public async getInitializeProtectedMakerModeConfigIx(
+		maxUsers: number,
+		stateAdmin?: boolean
+	): Promise<TransactionInstruction> {
+		return await this.program.instruction.initializeProtectedMakerModeConfig(
+			maxUsers,
+			{
+				accounts: {
+					admin: stateAdmin
+						? this.getStateAccount().admin
+						: this.wallet.publicKey,
+					state: await this.getStatePublicKey(),
+					rent: SYSVAR_RENT_PUBKEY,
+					systemProgram: anchor.web3.SystemProgram.programId,
+					protectedMakerModeConfig: getProtectedMakerModeConfigPublicKey(
+						this.program.programId
+					),
+				},
+			}
+		);
+	}
+
+	public async updateProtectedMakerModeConfig(
+		maxUsers: number,
+		reduceOnly: boolean
+	): Promise<TransactionSignature> {
+		const updateProtectedMakerModeConfigIx =
+			await this.getUpdateProtectedMakerModeConfigIx(maxUsers, reduceOnly);
+
+		const tx = await this.buildTransaction(updateProtectedMakerModeConfigIx);
+
+		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+
+		return txSig;
+	}
+
+	public async getUpdateProtectedMakerModeConfigIx(
+		maxUsers: number,
+		reduceOnly: boolean
+	): Promise<TransactionInstruction> {
+		return await this.program.instruction.updateProtectedMakerModeConfig(
+			maxUsers,
+			reduceOnly,
+			{
+				accounts: {
+					admin: this.isSubscribed
+						? this.getStateAccount().admin
+						: this.wallet.publicKey,
+					state: await this.getStatePublicKey(),
+					protectedMakerModeConfig: getProtectedMakerModeConfigPublicKey(
 						this.program.programId
 					),
 				},
