@@ -11,6 +11,13 @@ import {
 // if you used the '@types/mocha' method to install mocha type definitions, uncomment the following line
 // import 'mocha';
 
+const bn = (value: number, precision: number) =>
+	new BigNum(Math.round(value * 10 ** precision), precision);
+const _bnPrice = (value: number) => bn(value, 6); // Price precision (6 decimals)
+const _bnNotional = (value: number) => bn(value, 6); // USDC precision (6 decimals)
+const _bnPercentage = (value: number) => bn(value, 4); // Percentage precision (4 decimals)
+const bnBaseAmount = (value: number) => bn(value, 8); // BTC-like precision (8 decimals)
+
 describe('BigNum Tests', () => {
 	it('basic string representations are correct', () => {
 		const bn = BigNum.from(TEN_THOUSAND);
@@ -107,6 +114,12 @@ describe('BigNum Tests', () => {
 		expect(val4.print()).to.equal('0.025000000');
 		expect(val4.toNum().toFixed(3)).to.equal('0.025');
 		expect(val4.toPrecision(4)).to.equal('0.025');
+
+		expect(bnBaseAmount(0.001234).toPrecision(4)).to.equal('0.001234');
+
+		expect(bnBaseAmount(0.001004).toPrecision(4)).to.equal('0.001004');
+
+		expect(bnBaseAmount(0.001).toPrecision(4)).to.equal('0.001');
 
 		// Case 5
 		expect(BigNum.fromPrint('1').toMillified()).to.equal('1.00');
