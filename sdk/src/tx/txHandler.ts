@@ -44,7 +44,7 @@ export const COMPUTE_UNITS_DEFAULT = 200_000;
 
 const BLOCKHASH_FETCH_RETRY_COUNT = 3;
 const BLOCKHASH_FETCH_RETRY_SLEEP = 200;
-const RECENT_BLOCKHASH_STALE_TIME_MS = 2_000; // Reuse blockhashes within this timeframe during bursts of tx contruction
+const RECENT_BLOCKHASH_STALE_TIME_MS = 2_000; // Reuse blockhashes within this timeframe during bursts of tx construction
 
 export type TxBuildingProps = {
 	instructions: TransactionInstruction | TransactionInstruction[];
