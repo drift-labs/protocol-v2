@@ -96,7 +96,7 @@ describe('pyth lazer oracles', () => {
 	});
 
 	it('crank', async () => {
-		const ixs = driftClient.getPostPythLazerOracleUpdateIxs(
+		const ixs = await driftClient.getPostPythLazerOracleUpdateIxs(
 			[1],
 			PYTH_LAZER_HEX_STRING_BTC,
 			[]
@@ -118,7 +118,7 @@ describe('pyth lazer oracles', () => {
 	});
 
 	it('crank multi', async () => {
-		const ixs = driftClient.getPostPythLazerOracleUpdateIxs(
+		const ixs = await driftClient.getPostPythLazerOracleUpdateIxs(
 			[1, 2, 6],
 			PYTH_LAZER_HEX_STRING_MULTI
 		);
@@ -135,7 +135,7 @@ describe('pyth lazer oracles', () => {
 	});
 
 	it('fails on wrong message passed', async () => {
-		const ixs = driftClient.getPostPythLazerOracleUpdateIxs(
+		const ixs = await driftClient.getPostPythLazerOracleUpdateIxs(
 			[1],
 			PYTH_LAZER_HEX_STRING_SOL
 		);
