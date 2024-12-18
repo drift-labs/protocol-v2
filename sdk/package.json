@@ -68,8 +68,8 @@
 		"@types/chai": "4.3.20",
 		"@types/jest": "28.1.8",
 		"@types/mocha": "9.1.1",
-		"@typescript-eslint/eslint-plugin": "4.28.0",
-		"@typescript-eslint/parser": "4.28.0",
+		"@typescript-eslint/eslint-plugin": "^5.49.0",
+		"@typescript-eslint/parser": "^5.49.0",
 		"chai": "4.5.0",
 		"encoding": "0.1.13",
 		"eslint": "7.29.0",
@@ -81,7 +81,7 @@
 		"prettier": "3.0.1",
 		"sinon": "18.0.1",
 		"ts-node": "10.9.2",
-		"typescript": "4.9.5"
+		"typescript": "5.2.2"
 	},
 	"description": "SDK for Drift Protocol",
 	"engines": {
