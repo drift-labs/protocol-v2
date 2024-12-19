@@ -12,6 +12,7 @@ export type PerpMarketConfig = {
 	oracle: PublicKey;
 	oracleSource: OracleSource;
 	pythFeedId?: string;
+	pythLazerId?: number;
 };
 
 export const DevnetPerpMarkets: PerpMarketConfig[] = [
@@ -38,6 +39,7 @@ export const DevnetPerpMarkets: PerpMarketConfig[] = [
 		oracleSource: OracleSource.PYTH_PULL,
 		pythFeedId:
 			'0xe62df6c8b4a85fe1a67db44dc12de5db330f7ac66b72dc658afedf0f4a415b43',
+		pythLazerId: 1,
 	},
 	{
 		fullName: 'Ethereum',
@@ -50,6 +52,7 @@ export const DevnetPerpMarkets: PerpMarketConfig[] = [
 		oracleSource: OracleSource.PYTH_PULL,
 		pythFeedId:
 			'0xff61491a931112ddf1bd8147cd1b641375f79f5825126d665480874634fd0ace',
+		pythLazerId: 2,
 	},
 	{
 		fullName: 'Aptos',

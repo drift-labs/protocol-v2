@@ -25,6 +25,7 @@ export type SpotMarketConfig = {
 	openbookMarket?: PublicKey;
 	launchTs?: number;
 	pythFeedId?: string;
+	pythLazerId?: number;
 };
 
 export const WRAPPED_SOL_MINT = new PublicKey(
@@ -43,6 +44,7 @@ export const DevnetSpotMarkets: SpotMarketConfig[] = [
 		precisionExp: SIX,
 		pythFeedId:
 			'0xeaa020c61cc479712813461ce153894a96a6c00b21ed0cfc2798d1f9a9e9c94a',
+		pythLazerId: 7,
 	},
 	{
 		symbol: 'SOL',
