@@ -2159,32 +2159,47 @@ pub fn handle_disable_user_high_leverage_mode<'c: 'info, 'info>(
 
     user.margin_mode = MarginMode::Default;
 
-    let meets_margin_requirement_with_buffer =
-        calculate_margin_requirement_and_total_collateral_and_liability_info(
-            &user,
-            &perp_market_map,
-            &spot_market_map,
-            &mut oracle_map,
-            MarginContext::standard(MarginRequirementType::Initial)
-                .margin_buffer(MARGIN_PRECISION / 100), // 1% buffer
-        )
-        .map(|calc| calc.meets_margin_requirement_with_buffer())?;
-
-    validate!(
-        meets_margin_requirement_with_buffer,
-        ErrorCode::DefaultError,
-        "user does not meet margin requirement with buffer"
+    let margin_calc = calculate_margin_requirement_and_total_collateral_and_liability_info(
+        &user,
+        &perp_market_map,
+        &spot_market_map,
+        &mut oracle_map,
+        MarginContext::standard(MarginRequirementType::Initial)
+            .margin_buffer(MARGIN_PRECISION / 100), // 1% buffer
     )?;
+
+    if margin_calc.num_perp_liabilities > 0 {
+        let mut requires_invariant_check = false;
+
+        for position in user.perp_positions.iter().filter(|p| !p.is_available()) {
+            let perp_market = perp_market_map.get_ref(&position.market_index)?;
+            if perp_market.is_high_leverage_mode_enabled() {
+                requires_invariant_check = true;
+                break; // Exit early if invariant check is required
+            }
+        }
+
+        if requires_invariant_check {
+            validate!(
+                margin_calc.meets_margin_requirement_with_buffer(),
+                ErrorCode::DefaultError,
+                "User does not meet margin requirement with buffer"
+            )?;
+        }
+    }
 
     // only check if signer is not user authority
     if user.authority != *ctx.accounts.authority.key {
         let slots_since_last_active = slot.safe_sub(user.last_active_slot)?;
 
+        let min_slots_inactive = 9000; // 60 * 60 / .4
+
         validate!(
-            slots_since_last_active >= 9000, // 60 * 60 / .4
+            slots_since_last_active >= min_slots_inactive || user.idle,
             ErrorCode::DefaultError,
-            "user not inactive for long enough: {}",
-            slots_since_last_active
+            "user not inactive for long enough: {} < {}",
+            slots_since_last_active,
+            min_slots_inactive
         )?;
     }
 
