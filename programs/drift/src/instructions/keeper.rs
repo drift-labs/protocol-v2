@@ -2183,13 +2183,10 @@ pub fn handle_disable_user_high_leverage_mode<'c: 'info, 'info>(
         let mut requires_invariant_check = false;
 
         for position in user.perp_positions.iter().filter(|p| !p.is_available()) {
-            if let Ok(market) = perp_market_map.get_ref(&position.market_index) {
-                if market.high_leverage_margin_ratio_initial > 0
-                    && market.high_leverage_margin_ratio_maintenance > 0
-                {
-                    requires_invariant_check = true;
-                    break; // Exit early if invariant check is required
-                }
+            let perp_market = perp_market_map.get_ref(&position.market_index)?;
+            if perp_market.is_high_leverage_mode_enabled() {
+                requires_invariant_check = true;
+                break; // Exit early if invariant check is required
             }
         }
 
