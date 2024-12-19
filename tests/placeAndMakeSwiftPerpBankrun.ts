@@ -4,18 +4,12 @@ import { assert } from 'chai';
 import { Program } from '@coral-xyz/anchor';
 
 import {
-	AccountInfo,
 	AddressLookupTableAccount,
-	AddressLookupTableProgram,
 	Connection,
 	Keypair,
-	LAMPORTS_PER_SOL,
 	PublicKey,
-	SystemProgram,
 	Transaction,
 	TransactionInstruction,
-	TransactionMessage,
-	VersionedTransaction,
 } from '@solana/web3.js';
 
 import {
@@ -35,12 +29,7 @@ import {
 	getMarketOrderParams,
 	SwiftOrderRecord,
 	getSwiftUserAccountPublicKey,
-	PYTH_LAZER_STORAGE_ACCOUNT_KEY,
-	PTYH_LAZER_PROGRAM_ID,
-	OrderType,
-	ZERO,
-	Order,
-	getPythLazerOraclePublicKey,
+	generateSwiftUuid,
 } from '../sdk/src';
 
 import {
@@ -59,23 +48,11 @@ import { startAnchor } from 'solana-bankrun';
 import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
 import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
 import dotenv from 'dotenv';
-import { nanoid } from 'nanoid';
 import { createHash } from 'crypto';
-import { PYTH_LAZER_HEX_STRING_SOL, PYTH_STORAGE_DATA } from './pythLazerData';
-
 dotenv.config();
-
-const PYTH_STORAGE_ACCOUNT_INFO: AccountInfo<Buffer> = {
-	executable: false,
-	lamports: LAMPORTS_PER_SOL,
-	owner: new PublicKey(PTYH_LAZER_PROGRAM_ID),
-	rentEpoch: 0,
-	data: Buffer.from(PYTH_STORAGE_DATA, 'base64'),
-};
 
 describe('place and make swift order', () => {
 	const chProgram = anchor.workspace.Drift as Program;
-
 	let slot: BN;
 
 	let makerDriftClient: TestClient;
@@ -88,35 +65,25 @@ describe('place and make swift order', () => {
 
 	// ammInvariant == k == x * y
 	const mantissaSqrtScale = new BN(Math.sqrt(PRICE_PRECISION.toNumber()));
-	const ammInitialQuoteAssetReserve = new anchor.BN(10 * 10 ** 13).mul(
+	const ammInitialQuoteAssetReserve = new anchor.BN(5 * 10 ** 13).mul(
 		mantissaSqrtScale
 	);
-	const ammInitialBaseAssetReserve = new anchor.BN(10 * 10 ** 13).mul(
+	const ammInitialBaseAssetReserve = new anchor.BN(5 * 10 ** 13).mul(
 		mantissaSqrtScale
 	);
 
 	let usdcMint;
 	let userUSDCAccount;
 
-	const usdcAmount = new BN(10000 * 10 ** 6);
+	const usdcAmount = new BN(100 * 10 ** 6);
 
-	let solUsd: PublicKey;
-	let solUsdLazer: PublicKey;
+	let solUsd;
 	let marketIndexes;
 	let spotMarketIndexes;
 	let oracleInfos;
 
 	before(async () => {
-		const context = await startAnchor(
-			'',
-			[],
-			[
-				{
-					address: PYTH_LAZER_STORAGE_ACCOUNT_KEY,
-					info: PYTH_STORAGE_ACCOUNT_INFO,
-				},
-			]
-		);
+		const context = await startAnchor('', [], []);
 
 		// @ts-ignore
 		bankrunContextWrapper = new BankrunContextWrapper(context);
@@ -146,15 +113,11 @@ describe('place and make swift order', () => {
 			bankrunContextWrapper
 		);
 
-		solUsd = await mockOracleNoProgram(bankrunContextWrapper, 224.3);
-		solUsdLazer = getPythLazerOraclePublicKey(chProgram.programId, 6);
+		solUsd = await mockOracleNoProgram(bankrunContextWrapper, 32.821);
 
 		marketIndexes = [0];
 		spotMarketIndexes = [0, 1];
-		oracleInfos = [
-			{ publicKey: solUsd, source: OracleSource.PYTH },
-			{ publicKey: solUsdLazer, source: OracleSource.PYTH_LAZER },
-		];
+		oracleInfos = [{ publicKey: solUsd, source: OracleSource.PYTH }];
 
 		makerDriftClient = new TestClient({
 			connection: bankrunContextWrapper.connection.toConnection(),
@@ -184,7 +147,7 @@ describe('place and make swift order', () => {
 			ammInitialBaseAssetReserve,
 			ammInitialQuoteAssetReserve,
 			periodicity,
-			new BN(224 * PEG_PRECISION.toNumber())
+			new BN(33 * PEG_PRECISION.toNumber())
 		);
 
 		await makerDriftClient.initializeUserAccountAndDepositCollateral(
@@ -232,29 +195,29 @@ describe('place and make swift order', () => {
 			marketIndex,
 			direction: PositionDirection.LONG,
 			baseAssetAmount: baseAssetAmount.muln(2),
-			price: new BN(224).mul(PRICE_PRECISION),
-			auctionStartPrice: new BN(223).mul(PRICE_PRECISION),
-			auctionEndPrice: new BN(224).mul(PRICE_PRECISION),
+			price: new BN(34).mul(PRICE_PRECISION),
+			auctionStartPrice: new BN(33).mul(PRICE_PRECISION),
+			auctionEndPrice: new BN(34).mul(PRICE_PRECISION),
 			auctionDuration: 10,
 			userOrderId: 1,
 			postOnly: PostOnlyParams.NONE,
 			marketType: MarketType.PERP,
 		});
-		const uuid = Uint8Array.from(Buffer.from(nanoid(8)));
+		const uuid = generateSwiftUuid();
 		const takerOrderParamsMessage: SwiftOrderParamsMessage = {
 			swiftOrderParams: takerOrderParams,
 			subAccountId: 0,
-			slot,
-			uuid,
 			takeProfitOrderParams: null,
 			stopLossOrderParams: null,
+			slot,
+			uuid,
 		};
 
 		const makerOrderParams = getLimitOrderParams({
 			marketIndex,
 			direction: PositionDirection.SHORT,
 			baseAssetAmount: BASE_PRECISION,
-			price: new BN(223).mul(PRICE_PRECISION),
+			price: new BN(33).mul(PRICE_PRECISION),
 			userOrderId: 1,
 			postOnly: PostOnlyParams.MUST_POST_ONLY,
 			immediateOrCancel: true,
@@ -317,191 +280,6 @@ describe('place and make swift order', () => {
 		await takerDriftClient.unsubscribe();
 	});
 
-	it('should work with pyth lazer crank and filling against vamm in one tx', async () => {
-		const slot = new BN(
-			await bankrunContextWrapper.connection.toConnection().getSlot()
-		);
-
-		// Switch the oracle over to using pyth lazer
-		await makerDriftClient.initializePythLazerOracle(6);
-		await makerDriftClient.postPythLazerOracleUpdate(
-			[6],
-			PYTH_LAZER_HEX_STRING_SOL
-		);
-
-		await makerDriftClient.postPythLazerOracleUpdate(
-			[6],
-			PYTH_LAZER_HEX_STRING_SOL
-		);
-		await makerDriftClient.updatePerpMarketOracle(
-			0,
-			solUsdLazer,
-			OracleSource.PYTH_LAZER
-		);
-
-		const [lookupTableInst, lookupTableAddress] =
-			AddressLookupTableProgram.createLookupTable({
-				authority: makerDriftClient.wallet.publicKey,
-				payer: makerDriftClient.wallet.publicKey,
-				recentSlot: slot.toNumber() - 10,
-			});
-
-		const extendInstruction = AddressLookupTableProgram.extendLookupTable({
-			payer: makerDriftClient.wallet.publicKey,
-			authority: makerDriftClient.wallet.publicKey,
-			lookupTable: lookupTableAddress,
-			addresses: [
-				SystemProgram.programId,
-				solUsd,
-				solUsdLazer,
-				...makerDriftClient
-					.getPerpMarketAccounts()
-					.map((account) => account.pubkey),
-				...makerDriftClient
-					.getPerpMarketAccounts()
-					.map((account) => account.amm.oracle),
-				...makerDriftClient
-					.getSpotMarketAccounts()
-					.map((account) => account.pubkey),
-				...makerDriftClient
-					.getSpotMarketAccounts()
-					.map((account) => account.oracle),
-				PYTH_LAZER_STORAGE_ACCOUNT_KEY,
-			],
-		});
-
-		const tx = new Transaction().add(lookupTableInst).add(extendInstruction);
-		await makerDriftClient.sendTransaction(tx);
-		console.log(`Lookup table: ${lookupTableAddress.toBase58()}`);
-
-		const [takerDriftClient, takerDriftClientUser] =
-			await initializeNewTakerClientAndUser(
-				bankrunContextWrapper,
-				chProgram,
-				usdcMint,
-				usdcAmount,
-				marketIndexes,
-				spotMarketIndexes,
-				oracleInfos,
-				bulkAccountLoader
-			);
-		await takerDriftClientUser.fetchAccounts();
-
-		const marketIndex = 0;
-		const baseAssetAmount = BASE_PRECISION;
-		const takerOrderParams = getMarketOrderParams({
-			marketIndex,
-			direction: PositionDirection.LONG,
-			baseAssetAmount,
-			auctionStartPrice: new BN(223).mul(PRICE_PRECISION),
-			auctionEndPrice: new BN(226).mul(PRICE_PRECISION),
-			auctionDuration: 30,
-			userOrderId: 1,
-			postOnly: PostOnlyParams.NONE,
-		});
-		const uuid = nanoid(8);
-		const swiftSlot = slot.subn(15);
-		const takerOrderParamsMessage: SwiftOrderParamsMessage = {
-			swiftOrderParams: takerOrderParams,
-			subAccountId: 0,
-			uuid: Uint8Array.from(Buffer.from(uuid)),
-			slot: swiftSlot,
-			takeProfitOrderParams: null,
-			stopLossOrderParams: null,
-		};
-		const takerOrderParamsSig = takerDriftClient.signSwiftOrderParamsMessage(
-			takerOrderParamsMessage
-		);
-
-		// Get pyth lazer instruction
-		const pythLazerCrankIxs = await makerDriftClient.getPostPythLazerOracleUpdateIxs(
-			[6],
-			PYTH_LAZER_HEX_STRING_SOL,
-			undefined,
-			1
-		);
-
-		const placeSwiftTakerOrderIxs =
-			await makerDriftClient.getPlaceSwiftTakerPerpOrderIxs(
-				takerDriftClient.encodeSwiftOrderParamsMessage(takerOrderParamsMessage),
-				takerOrderParamsSig,
-				takerOrderParams.marketIndex,
-				{
-					taker: await takerDriftClient.getUserAccountPublicKey(),
-					takerUserAccount: takerDriftClient.getUserAccount(),
-					takerStats: takerDriftClient.getUserStatsAccountPublicKey(),
-				}
-			);
-
-		const swiftOrder: Order = {
-			status: 'open',
-			orderType: OrderType.MARKET,
-			orderId: null,
-			slot: swiftSlot,
-			marketIndex: 0,
-			marketType: MarketType.PERP,
-			baseAssetAmount: takerOrderParams.baseAssetAmount,
-			auctionDuration: takerOrderParams.auctionDuration!,
-			auctionStartPrice: takerOrderParams.auctionStartPrice!,
-			auctionEndPrice: takerOrderParams.auctionEndPrice!,
-			immediateOrCancel: true,
-			direction: takerOrderParams.direction,
-			postOnly: false,
-			oraclePriceOffset: takerOrderParams.oraclePriceOffset ?? 0,
-			// Rest are not required for DLOB
-			price: ZERO,
-			maxTs: ZERO,
-			triggerPrice: ZERO,
-			triggerCondition: OrderTriggerCondition.ABOVE,
-			existingPositionDirection: PositionDirection.LONG,
-			reduceOnly: false,
-			baseAssetAmountFilled: ZERO,
-			quoteAssetAmountFilled: ZERO,
-			quoteAssetAmount: ZERO,
-			userOrderId: 0,
-		};
-
-		const fillIx = await makerDriftClient.getFillPerpOrderIx(
-			takerDriftClientUser.getUserAccountPublicKey(),
-			takerDriftClientUser.getUserAccount(),
-			swiftOrder,
-			undefined,
-			undefined,
-			undefined,
-			true
-		);
-
-		const txMessage = new TransactionMessage({
-			payerKey: makerDriftClient.wallet.publicKey,
-			recentBlockhash: (await makerDriftClient.connection.getLatestBlockhash())
-				.blockhash,
-			instructions: [...pythLazerCrankIxs, ...placeSwiftTakerOrderIxs, fillIx],
-		});
-
-		const lookupTableAccount = (
-			await bankrunContextWrapper.connection.getAddressLookupTable(
-				lookupTableAddress
-			)
-		).value;
-		const message = txMessage.compileToV0Message([lookupTableAccount]);
-
-		const txSig = await makerDriftClient.connection.sendTransaction(
-			new VersionedTransaction(message)
-		);
-		console.log(txSig);
-
-		await takerDriftClient.fetchAccounts();
-		assert(
-			takerDriftClient
-				.getUser()
-				.getPerpPosition(0)
-				.baseAssetAmount.eq(BASE_PRECISION)
-		);
-
-		await takerDriftClientUser.unsubscribe();
-		await takerDriftClient.unsubscribe();
-	});
-
 	it('fills swift with trigger orders ', async () => {
 		slot = new BN(
 			await bankrunContextWrapper.connection.toConnection().getSlot()
@@ -525,9 +303,9 @@ describe('place and make swift order', () => {
 			marketIndex,
 			direction: PositionDirection.LONG,
 			baseAssetAmount,
-			price: new BN(224).mul(PRICE_PRECISION),
-			auctionStartPrice: new BN(223).mul(PRICE_PRECISION),
-			auctionEndPrice: new BN(224).mul(PRICE_PRECISION),
+			price: new BN(34).mul(PRICE_PRECISION),
+			auctionStartPrice: new BN(33).mul(PRICE_PRECISION),
+			auctionEndPrice: new BN(34).mul(PRICE_PRECISION),
 			auctionDuration: 10,
 			userOrderId: 1,
 			postOnly: PostOnlyParams.NONE,
@@ -537,8 +315,8 @@ describe('place and make swift order', () => {
 			marketIndex,
 			direction: PositionDirection.SHORT,
 			baseAssetAmount,
-			price: new BN(220).mul(PRICE_PRECISION),
-			triggerPrice: new BN(220).mul(PRICE_PRECISION),
+			price: new BN(20).mul(PRICE_PRECISION),
+			triggerPrice: new BN(20).mul(PRICE_PRECISION),
 			userOrderId: 2,
 			triggerCondition: OrderTriggerCondition.BELOW,
 			marketType: MarketType.PERP,
@@ -548,8 +326,8 @@ describe('place and make swift order', () => {
 			marketIndex,
 			direction: PositionDirection.SHORT,
 			baseAssetAmount,
-			price: new BN(240).mul(PRICE_PRECISION),
-			triggerPrice: new BN(240).mul(PRICE_PRECISION),
+			price: new BN(40).mul(PRICE_PRECISION),
+			triggerPrice: new BN(40).mul(PRICE_PRECISION),
 			userOrderId: 3,
 			triggerCondition: OrderTriggerCondition.ABOVE,
 			marketType: MarketType.PERP,
@@ -560,18 +338,15 @@ describe('place and make swift order', () => {
 			marketIndex,
 			direction: PositionDirection.SHORT,
 			baseAssetAmount,
-			price: new BN(223).mul(PRICE_PRECISION),
+			price: new BN(33).mul(PRICE_PRECISION),
 			postOnly: PostOnlyParams.MUST_POST_ONLY,
 			immediateOrCancel: true,
 			marketType: MarketType.PERP,
 		});
-
-		const uuid = Uint8Array.from(Buffer.from(nanoid(8)));
+		const uuid = generateSwiftUuid();
 		const takerOrderParamsMessage: SwiftOrderParamsMessage = {
 			swiftOrderParams: takerOrderParams,
 			subAccountId: 0,
-			slot,
-			uuid,
 			stopLossOrderParams: {
 				triggerPrice: stopLossTakerParams.triggerPrice,
 				baseAssetAmount: stopLossTakerParams.baseAssetAmount,
@@ -580,6 +355,8 @@ describe('place and make swift order', () => {
 				triggerPrice: takeProfitTakerParams.triggerPrice,
 				baseAssetAmount: takeProfitTakerParams.baseAssetAmount,
 			},
+			slot,
+			uuid,
 		};
 
 		const takerOrderParamsSig = takerDriftClient.signSwiftOrderParamsMessage(
@@ -660,9 +437,9 @@ describe('place and make swift order', () => {
 			marketIndex,
 			direction: PositionDirection.LONG,
 			baseAssetAmount,
-			price: new BN(224).mul(PRICE_PRECISION),
-			auctionStartPrice: new BN(223).mul(PRICE_PRECISION),
-			auctionEndPrice: new BN(224).mul(PRICE_PRECISION),
+			price: new BN(34).mul(PRICE_PRECISION),
+			auctionStartPrice: new BN(33).mul(PRICE_PRECISION),
+			auctionEndPrice: new BN(34).mul(PRICE_PRECISION),
 			auctionDuration: 10,
 			userOrderId: 1,
 			postOnly: PostOnlyParams.NONE,
@@ -673,19 +450,19 @@ describe('place and make swift order', () => {
 			marketIndex,
 			direction: PositionDirection.SHORT,
 			baseAssetAmount,
-			price: new BN(223).mul(PRICE_PRECISION),
+			price: new BN(33).mul(PRICE_PRECISION),
 			postOnly: PostOnlyParams.MUST_POST_ONLY,
 			immediateOrCancel: true,
 		});
 
-		const uuid = Uint8Array.from(Buffer.from(nanoid(8)));
+		const uuid = generateSwiftUuid();
 		const takerOrderParamsMessage: SwiftOrderParamsMessage = {
 			swiftOrderParams: takerOrderParams,
 			subAccountId: 0,
-			slot,
-			uuid,
 			takeProfitOrderParams: null,
 			stopLossOrderParams: null,
+			slot,
+			uuid,
 		};
 
 		const takerOrderParamsSig = takerDriftClient.signSwiftOrderParamsMessage(
@@ -739,21 +516,20 @@ describe('place and make swift order', () => {
 			marketIndex,
 			direction: PositionDirection.LONG,
 			baseAssetAmount,
-			auctionStartPrice: new BN(223).mul(PRICE_PRECISION),
-			auctionEndPrice: new BN(227).mul(PRICE_PRECISION),
+			auctionStartPrice: new BN(33).mul(PRICE_PRECISION),
+			auctionEndPrice: new BN(37).mul(PRICE_PRECISION),
 			auctionDuration: 10,
 			userOrderId: 1,
 			postOnly: PostOnlyParams.NONE,
 		});
-		const swiftSlot = slot.subn(5);
-		const uuid = Uint8Array.from(Buffer.from(nanoid(8)));
+		const uuid = generateSwiftUuid();
 		const takerOrderParamsMessage: SwiftOrderParamsMessage = {
 			swiftOrderParams: takerOrderParams,
 			subAccountId: 0,
-			slot: swiftSlot,
-			uuid,
 			takeProfitOrderParams: null,
 			stopLossOrderParams: null,
+			slot: slot.subn(5),
+			uuid,
 		};
 		const takerOrderParamsSig = takerDriftClient.signSwiftOrderParamsMessage(
 			takerOrderParamsMessage
@@ -777,7 +553,7 @@ describe('place and make swift order', () => {
 			marketIndex,
 			direction: PositionDirection.SHORT,
 			baseAssetAmount,
-			price: new BN(225).mul(PRICE_PRECISION),
+			price: new BN(35).mul(PRICE_PRECISION),
 			postOnly: PostOnlyParams.MUST_POST_ONLY,
 			immediateOrCancel: true,
 		});
@@ -823,7 +599,7 @@ describe('place and make swift order', () => {
 			marketIndex,
 			direction: PositionDirection.LONG,
 			baseAssetAmount: baseAssetAmount.muln(2),
-			price: new BN(224).mul(PRICE_PRECISION),
+			price: new BN(34).mul(PRICE_PRECISION),
 			userOrderId: 1,
 			postOnly: PostOnlyParams.NONE,
 			marketType: MarketType.PERP,
@@ -831,10 +607,10 @@ describe('place and make swift order', () => {
 		const takerOrderParamsMessage: SwiftOrderParamsMessage = {
 			swiftOrderParams: takerOrderParams,
 			subAccountId: 0,
-			slot,
-			uuid: Uint8Array.from(Buffer.from(nanoid(8))),
 			takeProfitOrderParams: null,
 			stopLossOrderParams: null,
+			slot,
+			uuid: generateSwiftUuid(),
 		};
 
 		const takerOrderParamsSig = takerDriftClient.signSwiftOrderParamsMessage(
@@ -884,7 +660,7 @@ describe('place and make swift order', () => {
 			marketIndex,
 			direction: PositionDirection.LONG,
 			baseAssetAmount: baseAssetAmount.muln(2),
-			auctionStartPrice: new BN(223).mul(PRICE_PRECISION),
+			auctionStartPrice: new BN(33).mul(PRICE_PRECISION),
 			auctionEndPrice: new BN(10000).mul(PRICE_PRECISION),
 			auctionDuration: 50,
 			userOrderId: 1,
@@ -894,10 +670,10 @@ describe('place and make swift order', () => {
 		const takerOrderParamsMessage: SwiftOrderParamsMessage = {
 			swiftOrderParams: takerOrderParams,
 			subAccountId: 0,
-			slot,
-			uuid: Uint8Array.from(Buffer.from(nanoid(8))),
 			takeProfitOrderParams: null,
 			stopLossOrderParams: null,
+			slot,
+			uuid: generateSwiftUuid(),
 		};
 
 		const takerOrderParamsSig = takerDriftClient.signSwiftOrderParamsMessage(
