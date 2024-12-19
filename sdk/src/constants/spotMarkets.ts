@@ -571,6 +571,18 @@ export const MainnetSpotMarkets: SpotMarketConfig[] = [
 		pythFeedId:
 			'0xbed3097008b9b5e3c93bec20be79cb43986b85a996475589351a21e67bae9b61',
 	},
+	{
+		symbol: 'BONK',
+		marketIndex: 32,
+		poolId: 0,
+		oracle: new PublicKey('GojbSnJuPdKDT1ZuHuAM5t9oz6bxTo1xhUKpTua2F72p'),
+		oracleSource: OracleSource.PYTH_PULL,
+		mint: new PublicKey('DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263'),
+		precision: new BN(10).pow(FIVE),
+		precisionExp: FIVE,
+		pythFeedId:
+			'0x72b021217ca3fe68922a19aaf990109cb9d84e9ad004b4d2025ad6f529314419',
+	},
 ];
 
 export const SpotMarkets: { [key in DriftEnv]: SpotMarketConfig[] } = {
