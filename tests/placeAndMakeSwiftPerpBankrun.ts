@@ -414,7 +414,7 @@ describe('place and make swift order', () => {
 		);
 
 		// Get pyth lazer instruction
-		const pythLazerCrankIxs = makerDriftClient.getPostPythLazerOracleUpdateIxs(
+		const pythLazerCrankIxs = await makerDriftClient.getPostPythLazerOracleUpdateIxs(
 			[6],
 			PYTH_LAZER_HEX_STRING_SOL,
 			undefined,

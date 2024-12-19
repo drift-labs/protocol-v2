@@ -29,11 +29,16 @@ export class TestClient extends AdminClient {
 			this.accountSubscriber as PollingDriftClientAccountSubscriber
 		).accountLoader.mostRecentSlot;
 		await this.fetchAccounts();
+		let tries = 0;
 		while (lastFetchedSlot < slot) {
 			await this.fetchAccounts();
 			lastFetchedSlot = (
 				this.accountSubscriber as PollingDriftClientAccountSubscriber
 			).accountLoader.mostRecentSlot;
+			tries++;
+			if (tries > 10) {
+				break;
+			}
 		}
 
 		return { txSig, slot };
