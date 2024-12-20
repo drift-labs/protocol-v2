@@ -582,6 +582,10 @@ export const MainnetSpotMarkets: SpotMarketConfig[] = [
 		precisionExp: FIVE,
 		pythFeedId:
 			'0x72b021217ca3fe68922a19aaf990109cb9d84e9ad004b4d2025ad6f529314419',
+		openbookMarket: new PublicKey(
+			'D3gZwng2MgZGjktYcKpbR8Bz8653i4qCgzHCf5E4TcZb'
+		),
+		launchTs: 1734717937000,
 	},
 ];
 
