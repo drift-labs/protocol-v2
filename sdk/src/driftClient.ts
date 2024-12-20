@@ -4047,8 +4047,12 @@ export class DriftClient {
 		let filler;
 
 		if (fillerAuthority) {
-			filler = getUserAccountPublicKeySync(this.program.programId, fillerAuthority, fillerSubAccountId)
-		} else{
+			filler = getUserAccountPublicKeySync(
+				this.program.programId,
+				fillerAuthority,
+				fillerSubAccountId
+			);
+		} else {
 			filler = await this.getUserAccountPublicKey(fillerSubAccountId);
 		}
 
