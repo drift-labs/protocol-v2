@@ -343,14 +343,7 @@ pub fn liquidate_perp(
     let quote_oracle_price = oracle_map
         .get_price_data(&quote_spot_market.oracle_id())?
         .price;
-
-    let liquidator_fee = get_liquidation_fee(
-        market.liquidator_fee,
-        market.get_max_liquidation_fee()?,
-        user.last_active_slot,
-        slot,
-    )?;
-
+    let liquidator_fee = market.liquidator_fee;
     let if_liquidation_fee = calculate_perp_if_fee(
         intermediate_margin_calculation.tracked_market_margin_shortage(margin_shortage)?,
         user_base_asset_amount,
