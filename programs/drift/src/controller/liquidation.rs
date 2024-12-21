@@ -407,21 +407,32 @@ pub fn liquidate_perp(
 
     // Make sure liquidator enters at better than limit price
     if let Some(limit_price) = limit_price {
+        // calculate fee in price terms
+        let oracle_price_u128 = oracle_price.cast::<u128>()?;
+        let fee = oracle_price_u128
+            .safe_mul(liquidator_fee.cast()?)?
+            .safe_div(LIQUIDATION_FEE_PRECISION_U128)?;
         match user.perp_positions[position_index].get_direction() {
-            PositionDirection::Long => validate!(
-                oracle_price <= limit_price.cast()?,
-                ErrorCode::LiquidationDoesntSatisfyLimitPrice,
-                "limit price ({}) > oracle price ({})",
-                limit_price,
-                oracle_price
-            )?,
-            PositionDirection::Short => validate!(
-                oracle_price >= limit_price.cast()?,
-                ErrorCode::LiquidationDoesntSatisfyLimitPrice,
-                "limit price ({}) < oracle price ({})",
-                limit_price,
-                oracle_price
-            )?,
+            PositionDirection::Long => {
+                let transfer_price = oracle_price_u128.safe_sub(fee)?;
+                validate!(
+                    transfer_price <= limit_price.cast()?,
+                    ErrorCode::LiquidationDoesntSatisfyLimitPrice,
+                    "limit price ({}) > transfer price ({})",
+                    limit_price,
+                    transfer_price
+                )?
+            }
+            PositionDirection::Short => {
+                let transfer_price = oracle_price_u128.safe_add(fee)?;
+                validate!(
+                    transfer_price >= limit_price.cast()?,
+                    ErrorCode::LiquidationDoesntSatisfyLimitPrice,
+                    "limit price ({}) < transfer price ({})",
+                    limit_price,
+                    transfer_price
+                )?
+            }
         }
     }
 
