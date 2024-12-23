@@ -22,11 +22,12 @@ export const DevnetPerpMarkets: PerpMarketConfig[] = [
 		symbol: 'SOL-PERP',
 		baseAssetSymbol: 'SOL',
 		marketIndex: 0,
-		oracle: new PublicKey('BAtFj4kQttZRVep3UZS2aZRDixkGYgWsbqTBVDbnSsPF'),
+		oracle: new PublicKey('3m6i4RFWEDw2Ft4tFHPJtYgmpPe21k56M3FHeWYrgGBz'),
 		launchTs: 1655751353000,
-		oracleSource: OracleSource.PYTH_PULL,
+		oracleSource: OracleSource.PYTH_LAZER,
 		pythFeedId:
 			'0xef0d8b6fda2ceba41da15d4095d1da392a0d2f8ed0c6c7bc0f4cfac8c280b56d',
+		pythLazerId: 6,
 	},
 	{
 		fullName: 'Bitcoin',
@@ -34,9 +35,9 @@ export const DevnetPerpMarkets: PerpMarketConfig[] = [
 		symbol: 'BTC-PERP',
 		baseAssetSymbol: 'BTC',
 		marketIndex: 1,
-		oracle: new PublicKey('486kr3pmFPfTsS4aZgcsQ7kS4i9rjMsYYZup6HQNSTT4'),
+		oracle: new PublicKey('35MbvS1Juz2wf7GsyHrkCw8yfKciRLxVpEhfZDZFrB4R'),
 		launchTs: 1655751353000,
-		oracleSource: OracleSource.PYTH_PULL,
+		oracleSource: OracleSource.PYTH_LAZER,
 		pythFeedId:
 			'0xe62df6c8b4a85fe1a67db44dc12de5db330f7ac66b72dc658afedf0f4a415b43',
 		pythLazerId: 1,
@@ -47,9 +48,9 @@ export const DevnetPerpMarkets: PerpMarketConfig[] = [
 		symbol: 'ETH-PERP',
 		baseAssetSymbol: 'ETH',
 		marketIndex: 2,
-		oracle: new PublicKey('6bEp2MiyoiiiDxcVqE8rUHQWwHirXUXtKfAEATTVqNzT'),
+		oracle: new PublicKey('93FG52TzNKCnMiasV14Ba34BYcHDb9p4zK4GjZnLwqWR'),
 		launchTs: 1637691133472,
-		oracleSource: OracleSource.PYTH_PULL,
+		oracleSource: OracleSource.PYTH_LAZER,
 		pythFeedId:
 			'0xff61491a931112ddf1bd8147cd1b641375f79f5825126d665480874634fd0ace',
 		pythLazerId: 2,

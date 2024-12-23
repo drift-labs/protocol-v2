@@ -343,7 +343,14 @@ pub fn liquidate_perp(
     let quote_oracle_price = oracle_map
         .get_price_data(&quote_spot_market.oracle_id())?
         .price;
-    let liquidator_fee = market.liquidator_fee;
+
+    let liquidator_fee = get_liquidation_fee(
+        market.liquidator_fee,
+        market.get_max_liquidation_fee()?,
+        user.last_active_slot,
+        slot,
+    )?;
+
     let if_liquidation_fee = calculate_perp_if_fee(
         intermediate_margin_calculation.tracked_market_margin_shortage(margin_shortage)?,
         user_base_asset_amount,
@@ -353,17 +360,23 @@ pub fn liquidate_perp(
         quote_oracle_price,
         market.if_liquidation_fee,
     )?;
-    let base_asset_amount_to_cover_margin_shortage = standardize_base_asset_amount_ceil(
-        calculate_base_asset_amount_to_cover_margin_shortage(
-            margin_shortage,
-            margin_ratio_with_buffer,
-            liquidator_fee,
-            if_liquidation_fee,
-            oracle_price,
-            quote_oracle_price,
-        )?,
-        market.amm.order_step_size,
+
+    let mut base_asset_amount_to_cover_margin_shortage = calculate_base_asset_amount_to_cover_margin_shortage(
+        margin_shortage,
+        margin_ratio_with_buffer,
+        liquidator_fee,
+        if_liquidation_fee,
+        oracle_price,
+        quote_oracle_price,
     )?;
+
+    if base_asset_amount_to_cover_margin_shortage != u64::MAX {
+        base_asset_amount_to_cover_margin_shortage = standardize_base_asset_amount_ceil(
+            base_asset_amount_to_cover_margin_shortage,
+            market.amm.order_step_size,
+        )?;
+    }
+
     drop(market);
     drop(quote_spot_market);
 
@@ -407,21 +420,32 @@ pub fn liquidate_perp(
 
     // Make sure liquidator enters at better than limit price
     if let Some(limit_price) = limit_price {
+        // calculate fee in price terms
+        let oracle_price_u128 = oracle_price.cast::<u128>()?;
+        let fee = oracle_price_u128
+            .safe_mul(liquidator_fee.cast()?)?
+            .safe_div(LIQUIDATION_FEE_PRECISION_U128)?;
         match user.perp_positions[position_index].get_direction() {
-            PositionDirection::Long => validate!(
-                oracle_price <= limit_price.cast()?,
-                ErrorCode::LiquidationDoesntSatisfyLimitPrice,
-                "limit price ({}) > oracle price ({})",
-                limit_price,
-                oracle_price
-            )?,
-            PositionDirection::Short => validate!(
-                oracle_price >= limit_price.cast()?,
-                ErrorCode::LiquidationDoesntSatisfyLimitPrice,
-                "limit price ({}) < oracle price ({})",
-                limit_price,
-                oracle_price
-            )?,
+            PositionDirection::Long => {
+                let transfer_price = oracle_price_u128.safe_sub(fee)?;
+                validate!(
+                    transfer_price <= limit_price.cast()?,
+                    ErrorCode::LiquidationDoesntSatisfyLimitPrice,
+                    "limit price ({}) > transfer price ({})",
+                    limit_price,
+                    transfer_price
+                )?
+            }
+            PositionDirection::Short => {
+                let transfer_price = oracle_price_u128.safe_add(fee)?;
+                validate!(
+                    transfer_price >= limit_price.cast()?,
+                    ErrorCode::LiquidationDoesntSatisfyLimitPrice,
+                    "limit price ({}) < transfer price ({})",
+                    limit_price,
+                    transfer_price
+                )?
+            }
         }
     }
 
