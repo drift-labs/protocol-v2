@@ -15,6 +15,7 @@ use solana_program::sysvar::instructions::{
 };
 
 use crate::controller::insurance::update_user_stats_if_stake_amount;
+use crate::controller::liquidation::liquidate_spot_with_swap_begin;
 use crate::controller::orders::cancel_orders;
 use crate::controller::position::PositionDirection;
 use crate::controller::spot_balance::update_spot_balances;
@@ -1236,11 +1237,11 @@ pub fn handle_liquidate_spot<'c: 'info, 'info>(
 #[access_control(
     liq_not_paused(&ctx.accounts.state)
 )]
-pub fn handle_liquidate_spot_with_swap<'c: 'info, 'info>(
+pub fn handle_liquidate_spot_with_swap_in<'c: 'info, 'info>(
     ctx: Context<'_, '_, 'c, 'info, LiquidateSpotWithSwap<'info>>,
-    in_market_index: u16,
-    out_market_index: u16,
-    amount_in: u64,
+    asset_market_index: u16,
+    liability_market_index: u16,
+    swap_amount: u64,
 ) -> Result<()> {
     let state = &ctx.accounts.state;
     let clock = Clock::get()?;
@@ -1254,7 +1255,7 @@ pub fn handle_liquidate_spot_with_swap<'c: 'info, 'info>(
     } = load_maps(
         remaining_accounts_iter,
         &MarketSet::new(),
-        &get_writable_spot_market_set_from_many(vec![in_market_index, out_market_index]),
+        &get_writable_spot_market_set_from_many(vec![asset_market_index, liability_market_index]),
         clock.slot,
         Some(state.oracle_guard_rails),
     )?;
@@ -1275,66 +1276,83 @@ pub fn handle_liquidate_spot_with_swap<'c: 'info, 'info>(
     let liquidator = &mut load_mut!(ctx.accounts.liquidator)?;
     let liquidator_stats = &mut load_mut!(ctx.accounts.liquidator_stats)?;
 
-    let mut in_spot_market = spot_market_map.get_ref_mut(&in_market_index)?;
+    let mut asset_spot_market = spot_market_map.get_ref_mut(&asset_market_index)?;
     validate!(
-        in_spot_market.flash_loan_initial_token_amount == 0
-            && in_spot_market.flash_loan_amount == 0,
+        asset_spot_market.flash_loan_initial_token_amount == 0
+            && asset_spot_market.flash_loan_amount == 0,
         ErrorCode::InvalidLiquidateSpotWithSwap,
         "begin_swap ended in invalid state"
     )?;
 
-    let in_oracle_data = oracle_map.get_price_data(&in_spot_market.oracle_id())?;
+    let asset_oracle_data = oracle_map.get_price_data(&asset_spot_market.oracle_id())?;
     controller::spot_balance::update_spot_market_cumulative_interest(
-        &mut in_spot_market,
-        Some(in_oracle_data),
+        &mut asset_spot_market,
+        Some(asset_oracle_data),
         now,
     )?;
 
-    let mut out_spot_market = spot_market_map.get_ref_mut(&out_market_index)?;
+    let mut liability_spot_market = spot_market_map.get_ref_mut(&liability_market_index)?;
 
     validate!(
-        out_spot_market.flash_loan_initial_token_amount == 0
-            && out_spot_market.flash_loan_amount == 0,
+        liability_spot_market.flash_loan_initial_token_amount == 0
+            && liability_spot_market.flash_loan_amount == 0,
         ErrorCode::InvalidLiquidateSpotWithSwap,
         "begin_swap ended in invalid state"
     )?;
 
-    let out_oracle_data = oracle_map.get_price_data(&out_spot_market.oracle_id())?;
+    let liability_oracle_data = oracle_map.get_price_data(&liability_spot_market.oracle_id())?;
     controller::spot_balance::update_spot_market_cumulative_interest(
-        &mut out_spot_market,
-        Some(out_oracle_data),
+        &mut liability_spot_market,
+        Some(liability_oracle_data),
         now,
     )?;
 
-    drop(out_spot_market);
-    drop(in_spot_market);
+    drop(liability_spot_market);
+    drop(asset_spot_market);
 
     // todo add validation here;
+    liquidate_spot_with_swap_begin(
+        asset_market_index,
+        liability_market_index,
+        user,
+        &user_key,
+        user_stats,
+        liquidator,
+        &liquidator_key,
+        liquidator_stats,
+        &perp_market_map,
+        &spot_market_map,
+        &mut oracle_map,
+        now,
+        clock.slot,
+        state,
+        swap_amount,
+    )?;
 
-    let mut in_spot_market = spot_market_map.get_ref_mut(&in_market_index)?;
-    let mut out_spot_market = spot_market_map.get_ref_mut(&out_market_index)?;
+    let mut asset_spot_market = spot_market_map.get_ref_mut(&asset_market_index)?;
+    let mut liability_spot_market = spot_market_map.get_ref_mut(&liability_market_index)?;
 
     validate!(
-        in_market_index != out_market_index,
+        asset_market_index != liability_market_index,
         ErrorCode::InvalidLiquidateSpotWithSwap,
-        "in and out market the same"
+        "asset and liability market the same"
     )?;
 
     validate!(
-        amount_in != 0,
+        swap_amount != 0,
         ErrorCode::InvalidLiquidateSpotWithSwap,
-        "amount_out cannot be zero"
+        "amount_in cannot be zero"
     )?;
 
     let in_vault = &ctx.accounts.in_spot_market_vault;
     let in_token_account = &ctx.accounts.in_token_account;
 
-    in_spot_market.flash_loan_amount = amount_in;
-    in_spot_market.flash_loan_initial_token_amount = in_token_account.amount;
+    asset_spot_market.flash_loan_amount = swap_amount;
+    asset_spot_market.flash_loan_initial_token_amount = in_token_account.amount;
 
     let out_token_account = &ctx.accounts.out_token_account;
 
-    out_spot_market.flash_loan_initial_token_amount = out_token_account.amount;
+    liability_spot_market.flash_loan_initial_token_amount = out_token_account.amount;
 
     controller::token::send_from_program_vault(
         &ctx.accounts.token_program,
@@ -1342,7 +1360,7 @@ pub fn handle_liquidate_spot_with_swap<'c: 'info, 'info>(
         &ctx.accounts.in_token_account,
         &ctx.accounts.drift_signer,
         state.signer_nonce,
-        amount_in,
+        swap_amount,
         &mint,
     )?;
 
