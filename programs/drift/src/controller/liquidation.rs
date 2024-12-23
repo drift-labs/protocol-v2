@@ -1687,6 +1687,29 @@ pub fn liquidate_spot(
     Ok(())
 }
 
+pub fn liquidate_spot_with_swap_begin(
+    asset_market_index: u16,
+    liability_market_index: u16,
+    liquidator_max_liability_transfer: u128,
+    limit_price: Option<u64>,
+    user: &mut User,
+    user_key: &Pubkey,
+    user_stats: &mut UserStats,
+    liquidator: &mut User,
+    liquidator_key: &Pubkey,
+    liquidator_stats: &mut UserStats,
+    perp_market_map: &PerpMarketMap,
+    spot_market_map: &SpotMarketMap,
+    oracle_map: &mut OracleMap,
+    now: i64,
+    slot: u64,
+    state: &State,
+) -> DriftResult {
+
+    
+    Ok(())
+}
+
 pub fn liquidate_borrow_for_perp_pnl(
     perp_market_index: u16,
     liability_market_index: u16,

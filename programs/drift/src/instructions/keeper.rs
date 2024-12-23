@@ -1275,8 +1275,6 @@ pub fn handle_liquidate_spot_with_swap<'c: 'info, 'info>(
     let liquidator = &mut load_mut!(ctx.accounts.liquidator)?;
     let liquidator_stats = &mut load_mut!(ctx.accounts.liquidator_stats)?;
 
-    // TODO: validate can be liquidated and amount is ok
-
     let mut in_spot_market = spot_market_map.get_ref_mut(&in_market_index)?;
     validate!(
         in_spot_market.flash_loan_initial_token_amount == 0
@@ -1307,6 +1305,14 @@ pub fn handle_liquidate_spot_with_swap<'c: 'info, 'info>(
         Some(out_oracle_data),
         now,
     )?;
+
+    drop(out_spot_market);
+    drop(in_spot_market);
+
+    // todo add validation here;
+
+    let mut in_spot_market = spot_market_map.get_ref_mut(&in_market_index)?;
+    let mut out_spot_market = spot_market_map.get_ref_mut(&out_market_index)?;
 
     validate!(
         in_market_index != out_market_index,
