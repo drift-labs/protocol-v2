@@ -4006,7 +4006,8 @@ export class DriftClient {
 		makerInfo?: MakerInfo | MakerInfo[],
 		referrerInfo?: ReferrerInfo,
 		txParams?: TxParams,
-		fillerPublicKey?: number
+		fillerSubAccountId?: number,
+		fillerAuthority?: PublicKey
 	): Promise<TransactionSignature> {
 		const { txSig } = await this.sendTransaction(
 			await this.buildTransaction(
@@ -4016,7 +4017,9 @@ export class DriftClient {
 					order,
 					makerInfo,
 					referrerInfo,
-					fillerPublicKey
+					fillerSubAccountId,
+					undefined,
+					fillerAuthority
 				),
 				txParams
 			),
@@ -4033,15 +4036,36 @@ export class DriftClient {
 		makerInfo?: MakerInfo | MakerInfo[],
 		referrerInfo?: ReferrerInfo,
 		fillerSubAccountId?: number,
-		isSwift?: boolean
+		isSwift?: boolean,
+		fillerAuthority?: PublicKey
 	): Promise<TransactionInstruction> {
 		const userStatsPublicKey = getUserStatsAccountPublicKey(
 			this.program.programId,
 			userAccount.authority
 		);
 
-		const filler = await this.getUserAccountPublicKey(fillerSubAccountId);
-		const fillerStatsPublicKey = this.getUserStatsAccountPublicKey();
+		let filler;
+
+		if (fillerAuthority) {
+			filler = getUserAccountPublicKeySync(
+				this.program.programId,
+				fillerAuthority,
+				fillerSubAccountId
+			);
+		} else {
+			filler = await this.getUserAccountPublicKey(fillerSubAccountId);
+		}
+
+		let fillerStatsPublicKey;
+
+		if (fillerAuthority) {
+			fillerStatsPublicKey = getUserStatsAccountPublicKey(
+				this.program.programId,
+				fillerAuthority
+			);
+		} else {
+			fillerStatsPublicKey = this.getUserStatsAccountPublicKey();
+		}
 
 		const marketIndex = order
 			? order.marketIndex
