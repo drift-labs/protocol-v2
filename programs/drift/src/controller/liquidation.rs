@@ -361,14 +361,15 @@ pub fn liquidate_perp(
         market.if_liquidation_fee,
     )?;
 
-    let mut base_asset_amount_to_cover_margin_shortage = calculate_base_asset_amount_to_cover_margin_shortage(
-        margin_shortage,
-        margin_ratio_with_buffer,
-        liquidator_fee,
-        if_liquidation_fee,
-        oracle_price,
-        quote_oracle_price,
-    )?;
+    let mut base_asset_amount_to_cover_margin_shortage =
+        calculate_base_asset_amount_to_cover_margin_shortage(
+            margin_shortage,
+            margin_ratio_with_buffer,
+            liquidator_fee,
+            if_liquidation_fee,
+            oracle_price,
+            quote_oracle_price,
+        )?;
 
     if base_asset_amount_to_cover_margin_shortage != u64::MAX {
         base_asset_amount_to_cover_margin_shortage = standardize_base_asset_amount_ceil(

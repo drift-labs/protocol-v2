@@ -8379,12 +8379,12 @@ mod liquidate_dust_prediction_market {
 
     use crate::controller::liquidation::liquidate_perp;
 
-    use crate::{MARGIN_PRECISION, SPOT_BALANCE_PRECISION_U64};
     use crate::state::oracle_map::OracleMap;
     use crate::state::perp_market_map::PerpMarketMap;
     use crate::state::state::State;
     use crate::state::user::{SpotPosition, User, UserStats};
     use crate::test_utils::{create_account_info, get_spot_positions};
+    use crate::{MARGIN_PRECISION, SPOT_BALANCE_PRECISION_U64};
 
     use crate::state::spot_market_map::SpotMarketMap;
     use anchor_lang::prelude::{AccountLoader, Clock};
@@ -8428,8 +8428,11 @@ mod liquidate_dust_prediction_market {
         let sol_market_account_info =
             create_account_info(&key, true, &mut lamports, sol_market_bytes, &owner);
 
-        let spot_market_map = SpotMarketMap::load_multiple( vec![&sol_market_account_info, &usdc_market_account_info], false).unwrap();
-
+        let spot_market_map = SpotMarketMap::load_multiple(
+            vec![&sol_market_account_info, &usdc_market_account_info],
+            false,
+        )
+        .unwrap();
 
         let perp_market_oracle_str = String::from("XA6L6kj0RBoCAAAAAAAAAAIAAAAAAAAAAgAAAAAAAADgKWESAAAAAJcEHBIAAAAAJQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA");
 
@@ -8477,8 +8480,8 @@ mod liquidate_dust_prediction_market {
             usdc_oracle_account_info,
             sol_oracle_account_info,
         ];
-        let mut oracle_map = OracleMap::load(&mut account_infos.iter().peekable(), clock_slot, None).unwrap();
-
+        let mut oracle_map =
+            OracleMap::load(&mut account_infos.iter().peekable(), clock_slot, None).unwrap();
 
         let mut state = State::default();
         state
@@ -8494,7 +8497,8 @@ mod liquidate_dust_prediction_market {
         let user_key = Pubkey::from_str("5smUuFz1ZzW3FVAF2W1GjYWzxsXQaVyPGdFKfvSnPpaL").unwrap();
         let owner = Pubkey::from_str("dRiftyHA39MWEi3m9aunc5MzRF1JYuBsbn6VPcn33UH").unwrap();
         let mut lamports = 0;
-        let user_account_info = create_account_info(&user_key, true, &mut lamports, user_bytes, &owner);
+        let user_account_info =
+            create_account_info(&user_key, true, &mut lamports, user_bytes, &owner);
 
         let user_account_loader: AccountLoader<User> =
             AccountLoader::try_from(&user_account_info).unwrap();
@@ -8509,13 +8513,29 @@ mod liquidate_dust_prediction_market {
             scaled_balance: 100 * SPOT_BALANCE_PRECISION_U64,
             ..SpotPosition::default()
         });
-        let liquidator_key = Pubkey::from_str("5smUuFz1ZzW3FVAF2W1GjYWzxsXQaVyPGdFKfvSnPpaL").unwrap();
+        let liquidator_key =
+            Pubkey::from_str("5smUuFz1ZzW3FVAF2W1GjYWzxsXQaVyPGdFKfvSnPpaL").unwrap();
         let mut liquidator_stats = UserStats::default();
 
-        let result = liquidate_perp(37, 1000000000000000000, None, &mut user, &user_key, &mut user_stats, &mut liquidator, &liquidator_key, &mut liquidator_stats, &perp_market_map, &spot_market_map, &mut oracle_map, clock_slot, now, &state);
+        let result = liquidate_perp(
+            37,
+            1000000000000000000,
+            None,
+            &mut user,
+            &user_key,
+            &mut user_stats,
+            &mut liquidator,
+            &liquidator_key,
+            &mut liquidator_stats,
+            &perp_market_map,
+            &spot_market_map,
+            &mut oracle_map,
+            clock_slot,
+            now,
+            &state,
+        );
 
         assert_eq!(result, Ok(()));
-
     }
 }
 
@@ -8523,12 +8543,12 @@ mod liquidate_dust_spot_market {
 
     use crate::controller::liquidation::liquidate_spot;
 
-    use crate::{MARGIN_PRECISION, SPOT_BALANCE_PRECISION_U64};
     use crate::state::oracle_map::OracleMap;
     use crate::state::perp_market_map::PerpMarketMap;
     use crate::state::state::State;
     use crate::state::user::{SpotPosition, User, UserStats};
     use crate::test_utils::{create_account_info, get_spot_positions};
+    use crate::{MARGIN_PRECISION, SPOT_BALANCE_PRECISION_U64};
 
     use crate::state::spot_market_map::SpotMarketMap;
     use anchor_lang::prelude::{AccountLoader, Clock};
@@ -8572,7 +8592,15 @@ mod liquidate_dust_spot_market {
         let btc_market_account_info =
             create_account_info(&key, true, &mut lamports, btc_market_bytes, &owner);
 
-        let spot_market_map = SpotMarketMap::load_multiple( vec![&sol_market_account_info, &usdc_market_account_info, &btc_market_account_info], true).unwrap();
+        let spot_market_map = SpotMarketMap::load_multiple(
+            vec![
+                &sol_market_account_info,
+                &usdc_market_account_info,
+                &btc_market_account_info,
+            ],
+            true,
+        )
+        .unwrap();
         let usdc_oracle_str = String::from("IvEjY51+9M3Mt8aVjwPz6dRn5EI8Gsat6wewXzwVooLo4DMVwF9WdwAC6qAgxhzEeXEoE0Yc4VOJSpamwAsh7Qz8J5jR+anpyUrj3/UFAAAAAEV0AQAAAAAA+P///9a/ZWcAAAAA1b9lZwAAAACf5vUFAAAAAO80AQAAAAAALNNmEgAAAAA=");
 
         let mut decoded_bytes = base64::decode(usdc_oracle_str).unwrap();
@@ -8619,8 +8647,8 @@ mod liquidate_dust_spot_market {
             usdc_oracle_account_info,
             sol_oracle_account_info,
         ];
-        let mut oracle_map = OracleMap::load(&mut account_infos.iter().peekable(), clock_slot, None).unwrap();
-
+        let mut oracle_map =
+            OracleMap::load(&mut account_infos.iter().peekable(), clock_slot, None).unwrap();
 
         let mut state = State::default();
         state
@@ -8636,7 +8664,8 @@ mod liquidate_dust_spot_market {
         let user_key = Pubkey::from_str("4U5qwCPc3fVfNjFpoLnBjtDNgbcyStpjmGuQiVgPQfdE").unwrap();
         let owner = Pubkey::from_str("dRiftyHA39MWEi3m9aunc5MzRF1JYuBsbn6VPcn33UH").unwrap();
         let mut lamports = 0;
-        let user_account_info = create_account_info(&user_key, true, &mut lamports, user_bytes, &owner);
+        let user_account_info =
+            create_account_info(&user_key, true, &mut lamports, user_bytes, &owner);
 
         let user_account_loader: AccountLoader<User> =
             AccountLoader::try_from(&user_account_info).unwrap();
@@ -8651,12 +8680,29 @@ mod liquidate_dust_spot_market {
             scaled_balance: 100 * SPOT_BALANCE_PRECISION_U64,
             ..SpotPosition::default()
         });
-        let liquidator_key = Pubkey::from_str("5smUuFz1ZzW3FVAF2W1GjYWzxsXQaVyPGdFKfvSnPpaL").unwrap();
+        let liquidator_key =
+            Pubkey::from_str("5smUuFz1ZzW3FVAF2W1GjYWzxsXQaVyPGdFKfvSnPpaL").unwrap();
         let mut liquidator_stats = UserStats::default();
 
-        let result = liquidate_spot(1, 3, 1, None, &mut user, &user_key, &mut user_stats, &mut liquidator, &liquidator_key, &mut liquidator_stats, &perp_market_map, &spot_market_map, &mut oracle_map, now, clock_slot, &state);
+        let result = liquidate_spot(
+            1,
+            3,
+            1,
+            None,
+            &mut user,
+            &user_key,
+            &mut user_stats,
+            &mut liquidator,
+            &liquidator_key,
+            &mut liquidator_stats,
+            &perp_market_map,
+            &spot_market_map,
+            &mut oracle_map,
+            now,
+            clock_slot,
+            &state,
+        );
 
         assert_eq!(result, Ok(()));
-
     }
 }
