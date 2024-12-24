@@ -6,6 +6,7 @@ import { DriftClientConfig } from './driftClientConfig';
 
 export class TestClient extends AdminClient {
 	public constructor(config: DriftClientConfig) {
+		config.txVersion = 'legacy';
 		if (config.accountSubscription.type !== 'polling') {
 			throw new Error('Test client must be polling');
 		}
