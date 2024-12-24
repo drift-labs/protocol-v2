@@ -414,12 +414,13 @@ describe('place and make swift order', () => {
 		);
 
 		// Get pyth lazer instruction
-		const pythLazerCrankIxs = makerDriftClient.getPostPythLazerOracleUpdateIxs(
-			[6],
-			PYTH_LAZER_HEX_STRING_SOL,
-			undefined,
-			1
-		);
+		const pythLazerCrankIxs =
+			await makerDriftClient.getPostPythLazerOracleUpdateIxs(
+				[6],
+				PYTH_LAZER_HEX_STRING_SOL,
+				undefined,
+				1
+			);
 
 		const placeSwiftTakerOrderIxs =
 			await makerDriftClient.getPlaceSwiftTakerPerpOrderIxs(
@@ -1083,7 +1084,7 @@ function getSizeOfCompressedU16(n: number) {
 	return 1 + Number(n >= 128) + Number(n >= 16384);
 }
 
-export async function checkIfAccountExists(
+async function checkIfAccountExists(
 	connection: Connection,
 	account: PublicKey
 ): Promise<boolean> {
