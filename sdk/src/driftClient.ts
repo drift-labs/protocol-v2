@@ -201,6 +201,7 @@ export class DriftClient {
 	wallet: IWallet;
 	public program: Program;
 	provider: AnchorProvider;
+	env: DriftEnv;
 	opts?: ConfirmOptions;
 	useHotWalletAdmin?: boolean;
 	users = new Map<string, User>();
@@ -249,6 +250,7 @@ export class DriftClient {
 	public constructor(config: DriftClientConfig) {
 		this.connection = config.connection;
 		this.wallet = config.wallet;
+		this.env = config.env ?? 'mainnet-beta';
 		this.opts = config.opts || {
 			...DEFAULT_CONFIRMATION_OPTS,
 		};
@@ -369,9 +371,9 @@ export class DriftClient {
 		}
 
 		this.marketLookupTable = config.marketLookupTable;
-		if (config.env && !this.marketLookupTable) {
+		if (!this.marketLookupTable) {
 			this.marketLookupTable = new PublicKey(
-				configs[config.env].MARKET_LOOKUP_TABLE
+				configs[this.env].MARKET_LOOKUP_TABLE
 			);
 		}
 
@@ -437,8 +439,7 @@ export class DriftClient {
 				txHandler: this.txHandler,
 			});
 
-		this.sbOnDemandProgramdId =
-			configs[config.env ?? 'mainnet-beta'].SB_ON_DEMAND_PID;
+		this.sbOnDemandProgramdId = configs[this.env].SB_ON_DEMAND_PID;
 	}
 
 	public getUserMapKey(subAccountId: number, authority: PublicKey): string {
