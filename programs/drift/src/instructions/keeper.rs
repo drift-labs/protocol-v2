@@ -2,6 +2,7 @@ use std::cell::RefMut;
 use std::convert::{TryFrom, TryInto};
 
 use anchor_lang::prelude::*;
+use anchor_lang::Discriminator;
 use anchor_spl::associated_token::{
     get_associated_token_address, get_associated_token_address_with_program_id,
 };
@@ -10,16 +11,20 @@ use anchor_spl::token_2022::spl_token_2022;
 use anchor_spl::token_interface::{TokenAccount, TokenInterface};
 use solana_program::instruction::Instruction;
 use solana_program::sysvar::instructions::{
-    load_current_index_checked, load_instruction_at_checked, ID as IX_ID,
+    self, load_current_index_checked, load_instruction_at_checked, ID as IX_ID
 };
 
 use crate::controller::insurance::update_user_stats_if_stake_amount;
+use crate::controller::liquidation::liquidate_spot_with_swap_begin;
 use crate::controller::orders::cancel_orders;
 use crate::controller::position::PositionDirection;
 use crate::controller::spot_balance::update_spot_balances;
 use crate::controller::token::{receive, send_from_program_vault};
 use crate::error::ErrorCode;
 use crate::ids::{admin_hot_wallet, swift_server};
+use crate::ids::{
+    jupiter_mainnet_3, jupiter_mainnet_4, jupiter_mainnet_6, marinade_mainnet, serum_program,
+};
 use crate::instructions::constraints::*;
 use crate::instructions::optional_accounts::{load_maps, AccountMaps};
 use crate::math::casting::Cast;
@@ -69,10 +74,13 @@ use crate::{
 };
 use crate::{load_mut, QUOTE_PRECISION_U64};
 use crate::{validate, QUOTE_PRECISION_I128};
+use anchor_spl::associated_token::AssociatedToken;
 
 use crate::math::margin::calculate_margin_requirement_and_total_collateral_and_liability_info;
 use crate::math::margin::MarginRequirementType;
 use crate::state::margin_calculation::MarginContext;
+
+use super::optional_accounts::get_token_interface;
 
 #[access_control(
     fill_not_paused(&ctx.accounts.state)
@@ -1225,6 +1233,271 @@ pub fn handle_liquidate_spot<'c: 'info, 'info>(
 
     Ok(())
 }
+
+#[access_control(
+    liq_not_paused(&ctx.accounts.state)
+)]
+pub fn handle_liquidate_spot_with_swap_in<'c: 'info, 'info>(
+    ctx: Context<'_, '_, 'c, 'info, LiquidateSpotWithSwap<'info>>,
+    asset_market_index: u16,
+    liability_market_index: u16,
+    swap_amount: u64,
+) -> Result<()> {
+    let state = &ctx.accounts.state;
+    let clock = Clock::get()?;
+    let now = clock.unix_timestamp;
+
+    let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
+    let AccountMaps {
+        perp_market_map,
+        spot_market_map,
+        mut oracle_map,
+    } = load_maps(
+        remaining_accounts_iter,
+        &MarketSet::new(),
+        &get_writable_spot_market_set_from_many(vec![asset_market_index, liability_market_index]),
+        clock.slot,
+        Some(state.oracle_guard_rails),
+    )?;
+
+    let _token_interface = get_token_interface(remaining_accounts_iter)?;
+    let mint = get_token_mint(remaining_accounts_iter)?;
+
+    let user_key = ctx.accounts.user.key();
+    let liquidator_key = ctx.accounts.liquidator.key();
+
+    validate!(
+        user_key != liquidator_key,
+        ErrorCode::UserCantLiquidateThemself
+    )?;
+
+    let user = &mut load_mut!(ctx.accounts.user)?;
+    let user_stats = &mut load_mut!(ctx.accounts.user_stats)?;
+    let liquidator = &mut load_mut!(ctx.accounts.liquidator)?;
+    let liquidator_stats = &mut load_mut!(ctx.accounts.liquidator_stats)?;
+
+    let mut asset_spot_market = spot_market_map.get_ref_mut(&asset_market_index)?;
+    validate!(
+        asset_spot_market.flash_loan_initial_token_amount == 0
+            && asset_spot_market.flash_loan_amount == 0,
+        ErrorCode::InvalidLiquidateSpotWithSwap,
+        "begin_swap ended in invalid state"
+    )?;
+
+    let asset_oracle_data = oracle_map.get_price_data(&asset_spot_market.oracle_id())?;
+    controller::spot_balance::update_spot_market_cumulative_interest(
+        &mut asset_spot_market,
+        Some(asset_oracle_data),
+        now,
+    )?;
+
+    let mut liability_spot_market = spot_market_map.get_ref_mut(&liability_market_index)?;
+
+    validate!(
+        liability_spot_market.flash_loan_initial_token_amount == 0
+            && liability_spot_market.flash_loan_amount == 0,
+        ErrorCode::InvalidLiquidateSpotWithSwap,
+        "begin_swap ended in invalid state"
+    )?;
+
+    let liability_oracle_data = oracle_map.get_price_data(&liability_spot_market.oracle_id())?;
+    controller::spot_balance::update_spot_market_cumulative_interest(
+        &mut liability_spot_market,
+        Some(liability_oracle_data),
+        now,
+    )?;
+
+    drop(liability_spot_market);
+    drop(asset_spot_market);
+
+    // todo add validation here;
+    liquidate_spot_with_swap_begin(
+        asset_market_index,
+        liability_market_index,
+        user,
+        &user_key,
+        user_stats,
+        liquidator,
+        &liquidator_key,
+        liquidator_stats,
+        &perp_market_map,
+        &spot_market_map,
+        &mut oracle_map,
+        now,
+        clock.slot,
+        state,
+        swap_amount,
+    )?;
+
+    let mut asset_spot_market = spot_market_map.get_ref_mut(&asset_market_index)?;
+    let mut liability_spot_market = spot_market_map.get_ref_mut(&liability_market_index)?;
+
+    validate!(
+        asset_market_index != liability_market_index,
+        ErrorCode::InvalidLiquidateSpotWithSwap,
+        "asset and liability market the same"
+    )?;
+
+    validate!(
+        swap_amount != 0,
+        ErrorCode::InvalidLiquidateSpotWithSwap,
+        "amount_in cannot be zero"
+    )?;
+
+    let in_vault = &ctx.accounts.in_spot_market_vault;
+    let in_token_account = &ctx.accounts.in_token_account;
+
+    asset_spot_market.flash_loan_amount = swap_amount;
+    asset_spot_market.flash_loan_initial_token_amount = in_token_account.amount;
+
+    let out_token_account = &ctx.accounts.out_token_account;
+
+    liability_spot_market.flash_loan_initial_token_amount = out_token_account.amount;
+
+    controller::token::send_from_program_vault(
+        &ctx.accounts.token_program,
+        in_vault,
+        &ctx.accounts.in_token_account,
+        &ctx.accounts.drift_signer,
+        state.signer_nonce,
+        swap_amount,
+        &mint,
+    )?;
+
+    let ixs = ctx.accounts.instructions.as_ref();
+    let current_index = instructions::load_current_index_checked(ixs)? as usize;
+
+    let current_ix = instructions::load_instruction_at_checked(current_index, ixs)?;
+    validate!(
+        current_ix.program_id == *ctx.program_id,
+        ErrorCode::InvalidLiquidateSpotWithSwap,
+        "LiquidateSpotWithSwap must be a top-level instruction (cant be cpi)"
+    )?;
+
+    let mut index = current_index + 1;
+    let mut found_end = false;
+    loop {
+        let ix = match instructions::load_instruction_at_checked(index, ixs) {
+            Ok(ix) => ix,
+            Err(ProgramError::InvalidArgument) => break,
+            Err(e) => return Err(e.into()),
+        };
+
+        // Check that the drift program key is not used
+        if ix.program_id == crate::id() {
+            // must be the last ix -- this could possibly be relaxed
+            validate!(
+                !found_end,
+                ErrorCode::InvalidLiquidateSpotWithSwap,
+                "the transaction must not contain a Drift instruction after FlashLoanEnd"
+            )?;
+            found_end = true;
+
+            // must be the SwapEnd instruction
+            let discriminator = crate::instruction::LiquidateSpotWithSwap::discriminator();
+            validate!(
+                ix.data[0..8] == discriminator,
+                ErrorCode::InvalidLiquidateSpotWithSwap,
+                "last drift ix must be end of swap"
+            )?;
+
+            validate!(
+                ctx.accounts.user.key() == ix.accounts[1].pubkey,
+                ErrorCode::InvalidLiquidateSpotWithSwap,
+                "the user passed to SwapBegin and End must match"
+            )?;
+
+            validate!(
+                ctx.accounts.authority.key() == ix.accounts[3].pubkey,
+                ErrorCode::InvalidLiquidateSpotWithSwap,
+                "the authority passed to SwapBegin and End must match"
+            )?;
+
+            validate!(
+                ctx.accounts.out_spot_market_vault.key() == ix.accounts[4].pubkey,
+                ErrorCode::InvalidLiquidateSpotWithSwap,
+                "the out_spot_market_vault passed to SwapBegin and End must match"
+            )?;
+
+            validate!(
+                ctx.accounts.in_spot_market_vault.key() == ix.accounts[5].pubkey,
+                ErrorCode::InvalidLiquidateSpotWithSwap,
+                "the in_spot_market_vault passed to SwapBegin and End must match"
+            )?;
+
+            validate!(
+                ctx.accounts.out_token_account.key() == ix.accounts[6].pubkey,
+                ErrorCode::InvalidLiquidateSpotWithSwap,
+                "the out_token_account passed to SwapBegin and End must match"
+            )?;
+
+            validate!(
+                ctx.accounts.in_token_account.key() == ix.accounts[7].pubkey,
+                ErrorCode::InvalidLiquidateSpotWithSwap,
+                "the in_token_account passed to SwapBegin and End must match"
+            )?;
+
+            validate!(
+                ctx.remaining_accounts.len() == ix.accounts.len() - 11,
+                ErrorCode::InvalidLiquidateSpotWithSwap,
+                "begin and end ix must have the same number of accounts"
+            )?;
+
+            for i in 11..ix.accounts.len() {
+                validate!(
+                    *ctx.remaining_accounts[i - 11].key == ix.accounts[i].pubkey,
+                    ErrorCode::InvalidLiquidateSpotWithSwap,
+                    "begin and end ix must have the same accounts. {}th account mismatch. begin: {}, end: {}",
+                    i,
+                    ctx.remaining_accounts[i - 11].key,
+                    ix.accounts[i].pubkey
+                )?;
+            }
+        } else {
+            if found_end {
+                for meta in ix.accounts.iter() {
+                    validate!(
+                        meta.is_writable == false,
+                        ErrorCode::InvalidLiquidateSpotWithSwap,
+                        "instructions after swap end must not have writable accounts"
+                    )?;
+                }
+            } else {
+                let mut whitelisted_programs = vec![
+                    serum_program::id(),
+                    AssociatedToken::id(),
+                    jupiter_mainnet_3::ID,
+                    jupiter_mainnet_4::ID,
+                    jupiter_mainnet_6::ID,
+                ];
+                validate!(
+                    whitelisted_programs.contains(&ix.program_id),
+                    ErrorCode::InvalidLiquidateSpotWithSwap,
+                    "only allowed to pass in ixs to token, openbook, and Jupiter v3/v4/v6 programs"
+                )?;
+
+                for meta in ix.accounts.iter() {
+                    validate!(
+                        meta.pubkey != crate::id(),
+                        ErrorCode::InvalidLiquidateSpotWithSwap,
+                        "instructions between begin and end must not be drift instructions"
+                    )?;
+                }
+            }
+        }
+
+        index += 1;
+    }
+
+    validate!(
+        found_end,
+        ErrorCode::InvalidLiquidateSpotWithSwap,
+        "found no LiquidateSpotWithSwapEnd instruction in transaction"
+    )?;
+
+    Ok(())
+}
+
 
 #[access_control(
     liq_not_paused(&ctx.accounts.state)
@@ -2412,7 +2685,6 @@ pub fn handle_force_delete_user<'c: 'info, 'info>(
 
     Ok(())
 }
-
 #[derive(Accounts)]
 pub struct FillOrder<'info> {
     pub state: Box<Account<'info, State>>,
@@ -2671,6 +2943,64 @@ pub struct SetUserStatusToBeingLiquidated<'info> {
     #[account(mut)]
     pub user: AccountLoader<'info, User>,
     pub authority: Signer<'info>,
+}
+
+#[derive(Accounts)]
+#[instruction(in_market_index: u16, out_market_index: u16, )]
+pub struct LiquidateSpotWithSwap<'info> {
+    pub state: Box<Account<'info, State>>,
+    pub authority: Signer<'info>,
+    #[account(
+        mut,
+        constraint = can_sign_for_user(&liquidator, &authority)?
+    )]
+    pub liquidator: AccountLoader<'info, User>,
+    #[account(
+        mut,
+        constraint = is_stats_for_user(&liquidator, &liquidator_stats)?
+    )]
+    pub liquidator_stats: AccountLoader<'info, UserStats>,
+    #[account(mut)]
+    pub user: AccountLoader<'info, User>,
+    #[account(
+        mut,
+        constraint = is_stats_for_user(&user, &user_stats)?
+    )]
+    pub user_stats: AccountLoader<'info, UserStats>,
+    #[account(
+        mut,
+        seeds = [b"spot_market_vault".as_ref(), out_market_index.to_le_bytes().as_ref()],
+        bump,
+    )]
+    pub out_spot_market_vault: Box<InterfaceAccount<'info, TokenAccount>>,
+    #[account(
+        mut,
+        seeds = [b"spot_market_vault".as_ref(), in_market_index.to_le_bytes().as_ref()],
+        bump,
+    )]
+    pub in_spot_market_vault: Box<InterfaceAccount<'info, TokenAccount>>,
+    #[account(
+        mut,
+        constraint = &out_spot_market_vault.mint.eq(&out_token_account.mint),
+        token::authority = authority
+    )]
+    pub out_token_account: Box<InterfaceAccount<'info, TokenAccount>>,
+    #[account(
+        mut,
+        constraint = &in_spot_market_vault.mint.eq(&in_token_account.mint),
+        token::authority = authority
+    )]
+    pub in_token_account: Box<InterfaceAccount<'info, TokenAccount>>,
+    pub token_program: Interface<'info, TokenInterface>,
+    #[account(
+        constraint = state.signer.eq(&drift_signer.key())
+    )]
+    /// CHECK: forced drift_signer
+    pub drift_signer: AccountInfo<'info>,
+    /// Instructions Sysvar for instruction introspection
+    /// CHECK: fixed instructions sysvar account
+    #[account(address = instructions::ID)]
+    pub instructions: UncheckedAccount<'info>,
 }
 
 #[derive(Accounts)]
