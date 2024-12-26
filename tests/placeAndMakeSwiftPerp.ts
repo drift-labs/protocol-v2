@@ -27,7 +27,6 @@ import {
 	loadKeypair,
 	getMarketOrderParams,
 	MarketType,
-	DriftClient,
 } from '../sdk/src';
 
 import {
@@ -293,7 +292,7 @@ describe('place and make swift order', () => {
 			provider,
 			keypair.publicKey
 		);
-		const takerDriftClient = new DriftClient({
+		const takerDriftClient = new TestClient({
 			connection,
 			wallet,
 			programID: chProgram.programId,
@@ -310,11 +309,13 @@ describe('place and make swift order', () => {
 				accountLoader: bulkAccountLoader,
 			},
 		});
+
 		await takerDriftClient.subscribe();
 		await takerDriftClient.initializeUserAccountAndDepositCollateral(
 			usdcAmount,
 			userUSDCAccount.publicKey
 		);
+
 		const takerDriftClientUser = new User({
 			driftClient: takerDriftClient,
 			userAccountPublicKey: await takerDriftClient.getUserAccountPublicKey(),
@@ -334,66 +335,71 @@ describe('place and make swift order', () => {
 		const takerOrderParams = getMarketOrderParams({
 			marketIndex,
 			direction: PositionDirection.LONG,
-			baseAssetAmount,
+			baseAssetAmount: baseAssetAmount.muln(2),
 			price: new BN(34).mul(PRICE_PRECISION),
 			auctionStartPrice: new BN(33).mul(PRICE_PRECISION),
 			auctionEndPrice: new BN(34).mul(PRICE_PRECISION),
 			auctionDuration: 10,
 			userOrderId: 1,
 			postOnly: PostOnlyParams.NONE,
+			marketType: MarketType.PERP,
 		});
+		const uuid = Uint8Array.from(Buffer.from(nanoid(8)));
+		const takerOrderParamsMessage: SwiftOrderParamsMessage = {
+			swiftOrderParams: takerOrderParams,
+			subAccountId: 0,
+			slot: new BN(await connection.getSlot()),
+			uuid,
+			takeProfitOrderParams: null,
+			stopLossOrderParams: null,
+		};
 
 		await takerDriftClientUser.fetchAccounts();
+
 		const makerOrderParams = getLimitOrderParams({
 			marketIndex,
 			direction: PositionDirection.SHORT,
-			baseAssetAmount,
+			baseAssetAmount: BASE_PRECISION,
 			price: new BN(33).mul(PRICE_PRECISION),
 			userOrderId: 1,
 			postOnly: PostOnlyParams.MUST_POST_ONLY,
 			immediateOrCancel: true,
 		});
 
-		const uuid = Uint8Array.from(Buffer.from(nanoid(8)));
-		const takerOrderParamsMessage: SwiftOrderParamsMessage = {
-			swiftOrderParams: takerOrderParams,
-			takeProfitOrderParams: null,
-			subAccountId: 0,
-			slot: new BN(await connection.getSlot()),
-			uuid,
-			stopLossOrderParams: null,
-		};
-		const takerOrderParamsSig = makerDriftClient.signSwiftOrderParamsMessage(
-			takerOrderParamsMessage
+		const takerOrderParamsMessageEncoded =
+			takerDriftClient.encodeSwiftOrderParamsMessage(takerOrderParamsMessage);
+		const takerOrderParamsSig = takerDriftClient.signMessage(
+			takerOrderParamsMessageEncoded,
+			makerDriftClient.wallet.payer
+		);
+
+		const ixs = [
+			ComputeBudgetProgram.setComputeUnitLimit({
+				units: 10_000_000,
+			}),
+		];
+		ixs.push(
+			...(await makerDriftClient.getPlaceAndMakeSwiftPerpOrderIxs(
+				takerDriftClient.encodeSwiftOrderParamsMessage(takerOrderParamsMessage),
+				takerOrderParamsSig,
+				uuid,
+				{
+					taker: await takerDriftClient.getUserAccountPublicKey(),
+					takerUserAccount: takerDriftClient.getUserAccount(),
+					takerStats: takerDriftClient.getUserStatsAccountPublicKey(),
+				},
+				makerOrderParams,
+				undefined,
+				undefined,
+				ixs
+			))
 		);
 
 		try {
-			const ixs = [
-				ComputeBudgetProgram.setComputeUnitLimit({
-					units: 10_000_000,
-				}),
-			];
-			ixs.push(
-				...(await makerDriftClient.getPlaceAndMakeSwiftPerpOrderIxs(
-					takerDriftClient.encodeSwiftOrderParamsMessage(
-						takerOrderParamsMessage
-					),
-					takerOrderParamsSig,
-					uuid,
-					{
-						taker: await takerDriftClient.getUserAccountPublicKey(),
-						takerUserAccount: takerDriftClient.getUserAccount(),
-						takerStats: takerDriftClient.getUserStatsAccountPublicKey(),
-					},
-					makerOrderParams,
-					undefined,
-					undefined,
-					ixs
-				))
-			);
-			const tx = new Transaction().add(...ixs);
-			await makerDriftClient.sendTransaction(tx);
-			assert.fail('Should have failed');
+			const normalTx = new Transaction();
+			normalTx.add(...ixs);
+			await makerDriftClient.sendTransaction(normalTx);
+			assert.fail('should have thrown');
 		} catch (error) {
 			assert.equal(
 				error.transactionMessage,
