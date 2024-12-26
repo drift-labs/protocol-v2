@@ -201,6 +201,7 @@ export class DriftClient {
 	wallet: IWallet;
 	public program: Program;
 	provider: AnchorProvider;
+	env: DriftEnv;
 	opts?: ConfirmOptions;
 	useHotWalletAdmin?: boolean;
 	users = new Map<string, User>();
@@ -249,6 +250,7 @@ export class DriftClient {
 	public constructor(config: DriftClientConfig) {
 		this.connection = config.connection;
 		this.wallet = config.wallet;
+		this.env = config.env ?? 'mainnet-beta';
 		this.opts = config.opts || {
 			...DEFAULT_CONFIRMATION_OPTS,
 		};
@@ -273,7 +275,7 @@ export class DriftClient {
 		this.authority = config.authority ?? this.wallet.publicKey;
 		this.activeSubAccountId = config.activeSubAccountId ?? 0;
 		this.skipLoadUsers = config.skipLoadUsers ?? false;
-		this.txVersion = config.txVersion ?? 'legacy';
+		this.txVersion = config.txVersion ?? 0;
 		this.txParams = {
 			computeUnits: config.txParams?.computeUnits ?? 600_000,
 			computeUnitsPrice: config.txParams?.computeUnitsPrice ?? 0,
@@ -369,9 +371,9 @@ export class DriftClient {
 		}
 
 		this.marketLookupTable = config.marketLookupTable;
-		if (config.env && !this.marketLookupTable) {
+		if (!this.marketLookupTable) {
 			this.marketLookupTable = new PublicKey(
-				configs[config.env].MARKET_LOOKUP_TABLE
+				configs[this.env].MARKET_LOOKUP_TABLE
 			);
 		}
 
@@ -437,8 +439,7 @@ export class DriftClient {
 				txHandler: this.txHandler,
 			});
 
-		this.sbOnDemandProgramdId =
-			configs[config.env ?? 'mainnet-beta'].SB_ON_DEMAND_PID;
+		this.sbOnDemandProgramdId = configs[this.env].SB_ON_DEMAND_PID;
 	}
 
 	public getUserMapKey(subAccountId: number, authority: PublicKey): string {
@@ -4006,7 +4007,8 @@ export class DriftClient {
 		makerInfo?: MakerInfo | MakerInfo[],
 		referrerInfo?: ReferrerInfo,
 		txParams?: TxParams,
-		fillerPublicKey?: number
+		fillerSubAccountId?: number,
+		fillerAuthority?: PublicKey
 	): Promise<TransactionSignature> {
 		const { txSig } = await this.sendTransaction(
 			await this.buildTransaction(
@@ -4016,7 +4018,9 @@ export class DriftClient {
 					order,
 					makerInfo,
 					referrerInfo,
-					fillerPublicKey
+					fillerSubAccountId,
+					undefined,
+					fillerAuthority
 				),
 				txParams
 			),
@@ -4033,15 +4037,36 @@ export class DriftClient {
 		makerInfo?: MakerInfo | MakerInfo[],
 		referrerInfo?: ReferrerInfo,
 		fillerSubAccountId?: number,
-		isSwift?: boolean
+		isSwift?: boolean,
+		fillerAuthority?: PublicKey
 	): Promise<TransactionInstruction> {
 		const userStatsPublicKey = getUserStatsAccountPublicKey(
 			this.program.programId,
 			userAccount.authority
 		);
 
-		const filler = await this.getUserAccountPublicKey(fillerSubAccountId);
-		const fillerStatsPublicKey = this.getUserStatsAccountPublicKey();
+		let filler;
+
+		if (fillerAuthority) {
+			filler = getUserAccountPublicKeySync(
+				this.program.programId,
+				fillerAuthority,
+				fillerSubAccountId
+			);
+		} else {
+			filler = await this.getUserAccountPublicKey(fillerSubAccountId);
+		}
+
+		let fillerStatsPublicKey;
+
+		if (fillerAuthority) {
+			fillerStatsPublicKey = getUserStatsAccountPublicKey(
+				this.program.programId,
+				fillerAuthority
+			);
+		} else {
+			fillerStatsPublicKey = this.getUserStatsAccountPublicKey();
+		}
 
 		const marketIndex = order
 			? order.marketIndex

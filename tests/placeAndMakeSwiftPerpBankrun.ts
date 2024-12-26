@@ -1096,7 +1096,7 @@ function getSizeOfCompressedU16(n: number) {
 	return 1 + Number(n >= 128) + Number(n >= 16384);
 }
 
-export async function checkIfAccountExists(
+async function checkIfAccountExists(
 	connection: Connection,
 	account: PublicKey
 ): Promise<boolean> {

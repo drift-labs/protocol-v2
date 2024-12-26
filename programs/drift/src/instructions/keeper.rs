@@ -729,7 +729,7 @@ pub fn place_swift_taker_order<'c: 'info, 'info>(
         taker.next_order_id,
     );
     if swift_account.check_exists_and_prune_stale_swift_order_ids(swift_order_id, clock.slot) {
-        msg!("Swift order already exists for taker {}");
+        msg!("Swift order already exists for taker {:?}", taker_key);
         return Ok(());
     }
     swift_account.add_swift_order_id(swift_order_id)?;
