@@ -179,7 +179,6 @@ import pythSolanaReceiverIdl from './idl/pyth_solana_receiver.json';
 import { asV0Tx, PullFeed } from '@switchboard-xyz/on-demand';
 import { gprcDriftClientAccountSubscriber } from './accounts/grpcDriftClientAccountSubscriber';
 import nacl from 'tweetnacl';
-import { digest } from './util/digest';
 import { Slothash } from './slot/SlothashSubscriber';
 import { getOracleId } from './oracles/oracleId';
 
@@ -5886,9 +5885,7 @@ export class DriftClient {
 	): Buffer {
 		const takerOrderParamsMessage =
 			this.encodeSwiftOrderParamsMessage(orderParamsMessage);
-		return this.signMessage(
-			new TextEncoder().encode(digest(takerOrderParamsMessage).toString('hex'))
-		);
+		return this.signMessage(takerOrderParamsMessage);
 	}
 
 	public encodeSwiftOrderParamsMessage(
@@ -8974,7 +8971,6 @@ export class DriftClient {
 		preSigned?: boolean
 	): Promise<TxSigAndSlot> {
 		const isVersionedTx = this.isVersionedTransaction(tx);
-
 		if (isVersionedTx) {
 			return this.txSender.sendVersionedTransaction(
 				tx as VersionedTransaction,

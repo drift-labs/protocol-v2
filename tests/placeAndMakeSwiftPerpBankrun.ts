@@ -608,7 +608,11 @@ describe('place and make swift order', () => {
 				takerUserAccount: takerDriftClient.getUserAccount(),
 				takerStats: takerDriftClient.getUserStatsAccountPublicKey(),
 			},
-			makerOrderParams
+			makerOrderParams,
+			undefined,
+			undefined,
+			undefined,
+			2
 		);
 
 		/*
@@ -715,7 +719,12 @@ describe('place and make swift order', () => {
 					takerUserAccount: takerDriftClient.getUserAccount(),
 					takerStats: takerDriftClient.getUserStatsAccountPublicKey(),
 				},
-				makerOrderParams
+				makerOrderParams,
+				undefined,
+				undefined,
+				undefined,
+				undefined,
+				2
 			);
 		} catch (e) {
 			assert(e);
@@ -780,7 +789,9 @@ describe('place and make swift order', () => {
 				taker: await takerDriftClient.getUserAccountPublicKey(),
 				takerUserAccount: takerDriftClient.getUserAccount(),
 				takerStats: takerDriftClient.getUserStatsAccountPublicKey(),
-			}
+			},
+			undefined,
+			2
 		);
 
 		assert(takerDriftClient.getOrderByUserId(1) !== undefined);
@@ -803,7 +814,12 @@ describe('place and make swift order', () => {
 				takerUserAccount: takerDriftClient.getUserAccount(),
 				takerStats: takerDriftClient.getUserStatsAccountPublicKey(),
 			},
-			makerOrderParams
+			makerOrderParams,
+			undefined,
+			undefined,
+			undefined,
+			undefined,
+			2
 		);
 
 		const takerPosition = takerDriftClient.getUser().getPerpPosition(0);
@@ -863,7 +879,9 @@ describe('place and make swift order', () => {
 					taker: await takerDriftClient.getUserAccountPublicKey(),
 					takerUserAccount: takerDriftClient.getUserAccount(),
 					takerStats: takerDriftClient.getUserStatsAccountPublicKey(),
-				}
+				},
+				undefined,
+				2
 			);
 			assert.fail('Should have failed');
 		} catch (error) {
@@ -925,7 +943,9 @@ describe('place and make swift order', () => {
 				taker: await takerDriftClient.getUserAccountPublicKey(),
 				takerUserAccount: takerDriftClient.getUserAccount(),
 				takerStats: takerDriftClient.getUserStatsAccountPublicKey(),
-			}
+			},
+			undefined,
+			2
 		);
 
 		assert(

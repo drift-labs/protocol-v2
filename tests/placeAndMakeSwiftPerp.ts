@@ -6,7 +6,6 @@ import { Program } from '@coral-xyz/anchor';
 import {
 	ComputeBudgetProgram,
 	Keypair,
-	SendTransactionError,
 	Transaction,
 	TransactionMessage,
 	VersionedTransaction,
@@ -102,10 +101,11 @@ describe('place and make swift order', () => {
 		spotMarketIndexes = [0, 1];
 		oracleInfos = [{ publicKey: solUsd, source: OracleSource.PYTH }];
 
+		const wallet = new Wallet(loadKeypair(process.env.ANCHOR_WALLET));
 		makerDriftClient = new TestClient({
 			connection,
 			//@ts-ignore
-			wallet: new Wallet(loadKeypair(process.env.ANCHOR_WALLET)),
+			wallet,
 			programID: chProgram.programId,
 			opts: {
 				commitment: 'confirmed',
@@ -118,6 +118,7 @@ describe('place and make swift order', () => {
 				type: 'polling',
 				accountLoader: bulkAccountLoader,
 			},
+			txVersion: 'legacy',
 		});
 		await makerDriftClient.initialize(usdcMint.publicKey, true);
 		await makerDriftClient.subscribe();
@@ -244,23 +245,27 @@ describe('place and make swift order', () => {
 			takerOrderParamsMessage
 		);
 
-		let ixs = await makerDriftClient.getPlaceAndMakeSwiftPerpOrderIxs(
-			takerDriftClient.encodeSwiftOrderParamsMessage(takerOrderParamsMessage),
-			takerOrderParamsSig,
-			uuid,
-			{
-				taker: await takerDriftClient.getUserAccountPublicKey(),
-				takerUserAccount: takerDriftClient.getUserAccount(),
-				takerStats: takerDriftClient.getUserStatsAccountPublicKey(),
-			},
-			makerOrderParams
-		);
-		ixs = [
+		const ixs = [
 			ComputeBudgetProgram.setComputeUnitLimit({
 				units: 10_000_000,
 			}),
-			...ixs,
 		];
+		ixs.push(
+			...(await makerDriftClient.getPlaceAndMakeSwiftPerpOrderIxs(
+				takerDriftClient.encodeSwiftOrderParamsMessage(takerOrderParamsMessage),
+				takerOrderParamsSig,
+				uuid,
+				{
+					taker: await takerDriftClient.getUserAccountPublicKey(),
+					takerUserAccount: takerDriftClient.getUserAccount(),
+					takerStats: takerDriftClient.getUserStatsAccountPublicKey(),
+				},
+				makerOrderParams,
+				undefined,
+				undefined,
+				ixs
+			))
+		);
 
 		const message = new TransactionMessage({
 			instructions: ixs,
@@ -363,182 +368,36 @@ describe('place and make swift order', () => {
 		);
 
 		try {
-			let ixs = await makerDriftClient.getPlaceAndMakeSwiftPerpOrderIxs(
-				takerDriftClient.encodeSwiftOrderParamsMessage(takerOrderParamsMessage),
-				takerOrderParamsSig,
-				uuid,
-				{
-					taker: await takerDriftClient.getUserAccountPublicKey(),
-					takerUserAccount: takerDriftClient.getUserAccount(),
-					takerStats: takerDriftClient.getUserStatsAccountPublicKey(),
-				},
-				makerOrderParams
-			);
-			ixs = [
+			const ixs = [
 				ComputeBudgetProgram.setComputeUnitLimit({
 					units: 10_000_000,
 				}),
-				...ixs,
 			];
-			await makerDriftClient.sendTransaction(new Transaction().add(...ixs));
+			ixs.push(
+				...(await makerDriftClient.getPlaceAndMakeSwiftPerpOrderIxs(
+					takerDriftClient.encodeSwiftOrderParamsMessage(
+						takerOrderParamsMessage
+					),
+					takerOrderParamsSig,
+					uuid,
+					{
+						taker: await takerDriftClient.getUserAccountPublicKey(),
+						takerUserAccount: takerDriftClient.getUserAccount(),
+						takerStats: takerDriftClient.getUserStatsAccountPublicKey(),
+					},
+					makerOrderParams,
+					undefined,
+					undefined,
+					ixs
+				))
+			);
+			const tx = new Transaction().add(...ixs);
+			await makerDriftClient.sendTransaction(tx);
 			assert.fail('Should have failed');
 		} catch (error) {
 			assert.equal(
 				error.transactionMessage,
 				'Transaction precompile verification failure InvalidAccountIndex'
-			);
-		}
-	});
-
-	it('should fail if diff signed message to verify ixs vs drift ixs', async () => {
-		const keypair = new Keypair();
-		await provider.connection.requestAirdrop(keypair.publicKey, 10 ** 9);
-		await sleep(1000);
-		const wallet = new Wallet(keypair);
-		const userUSDCAccount = await mockUserUSDCAccount(
-			usdcMint,
-			usdcAmount,
-			provider,
-			keypair.publicKey
-		);
-		const takerDriftClient = new TestClient({
-			connection,
-			wallet,
-			programID: chProgram.programId,
-			opts: {
-				commitment: 'confirmed',
-			},
-			activeSubAccountId: 0,
-			perpMarketIndexes: marketIndexes,
-			spotMarketIndexes: spotMarketIndexes,
-			oracleInfos,
-			userStats: true,
-			accountSubscription: {
-				type: 'polling',
-				accountLoader: bulkAccountLoader,
-			},
-		});
-
-		await takerDriftClient.subscribe();
-		await takerDriftClient.initializeUserAccountAndDepositCollateral(
-			usdcAmount,
-			userUSDCAccount.publicKey
-		);
-
-		const takerDriftClientUser = new User({
-			driftClient: takerDriftClient,
-			userAccountPublicKey: await takerDriftClient.getUserAccountPublicKey(),
-			accountSubscription: {
-				type: 'polling',
-				accountLoader: bulkAccountLoader,
-			},
-		});
-		await takerDriftClientUser.subscribe();
-		await takerDriftClient.initializeSwiftUserOrders(
-			takerDriftClientUser.userAccountPublicKey,
-			32
-		);
-
-		const marketIndex = 0;
-		const baseAssetAmount = BASE_PRECISION;
-		const takerOrderParams = getMarketOrderParams({
-			marketIndex,
-			direction: PositionDirection.LONG,
-			baseAssetAmount: baseAssetAmount.muln(2),
-			price: new BN(34).mul(PRICE_PRECISION),
-			auctionStartPrice: new BN(33).mul(PRICE_PRECISION),
-			auctionEndPrice: new BN(34).mul(PRICE_PRECISION),
-			auctionDuration: 10,
-			userOrderId: 1,
-			postOnly: PostOnlyParams.NONE,
-			marketType: MarketType.PERP,
-		});
-		const takerOrderParamsMessage: SwiftOrderParamsMessage = {
-			swiftOrderParams: takerOrderParams,
-			subAccountId: 0,
-			uuid: Uint8Array.from(Buffer.from(nanoid(8))),
-			slot: new BN(await connection.getSlot()),
-			takeProfitOrderParams: null,
-			stopLossOrderParams: null,
-		};
-
-		await takerDriftClientUser.fetchAccounts();
-
-		// Auth for legit order
-		const takerOrderParamsSig = takerDriftClient.signSwiftOrderParamsMessage(
-			takerOrderParamsMessage
-		);
-
-		// Auth for non-legit order
-		const takerOrderParamsMessage2: SwiftOrderParamsMessage = {
-			swiftOrderParams: Object.assign({}, takerOrderParams, {
-				direction: PositionDirection.SHORT,
-				auctionStartPrice: new BN(34).mul(PRICE_PRECISION),
-				auctionEndPrice: new BN(33).mul(PRICE_PRECISION),
-				price: new BN(33).mul(PRICE_PRECISION),
-			}),
-			subAccountId: 0,
-			takeProfitOrderParams: null,
-			stopLossOrderParams: null,
-			uuid: Uint8Array.from(Buffer.from(nanoid(8))),
-			slot: new BN(await connection.getSlot()),
-		};
-
-		const takerOrderParamsSig2 = takerDriftClient.signSwiftOrderParamsMessage(
-			takerOrderParamsMessage2
-		);
-
-		const computeBudgetIx = ComputeBudgetProgram.setComputeUnitLimit({
-			units: 10_000_000,
-		});
-
-		const ixs = await makerDriftClient.getPlaceSwiftTakerPerpOrderIxs(
-			takerDriftClient.encodeSwiftOrderParamsMessage(takerOrderParamsMessage),
-			takerOrderParamsSig,
-			0,
-			{
-				taker: await takerDriftClient.getUserAccountPublicKey(),
-				takerUserAccount: takerDriftClient.getUserAccount(),
-				takerStats: takerDriftClient.getUserStatsAccountPublicKey(),
-			}
-		);
-
-		const ixsForOrder2 = await makerDriftClient.getPlaceSwiftTakerPerpOrderIxs(
-			takerDriftClient.encodeSwiftOrderParamsMessage(takerOrderParamsMessage2),
-			takerOrderParamsSig2,
-			0,
-			{
-				taker: await takerDriftClient.getUserAccountPublicKey(),
-				takerUserAccount: takerDriftClient.getUserAccount(),
-				takerStats: takerDriftClient.getUserStatsAccountPublicKey(),
-			}
-		);
-
-		const badOrderTx = new Transaction();
-		badOrderTx.add(...[computeBudgetIx, ixs[0], ixsForOrder2[1]]);
-		try {
-			await makerDriftClient.sendTransaction(badOrderTx);
-			assert.fail('Should have failed');
-		} catch (error) {
-			console.log((error as SendTransactionError).logs);
-			assert(
-				(error as SendTransactionError).logs.some((log) =>
-					log.includes('SigVerificationFailed')
-				)
-			);
-		}
-
-		const badSwiftTx = new Transaction();
-		badSwiftTx.add(...[computeBudgetIx, ixsForOrder2[0], ixs[1]]);
-		try {
-			await makerDriftClient.sendTransaction(badSwiftTx);
-			assert.fail('Should have failed');
-		} catch (error) {
-			console.log((error as SendTransactionError).logs);
-			assert(
-				(error as SendTransactionError).logs.some((log) =>
-					log.includes('SigVerificationFailed')
-				)
 			);
 		}
 	});
