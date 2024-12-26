@@ -538,7 +538,7 @@ pub fn validate_swap_within_liquidation_boundaries(
         .safe_mul(PRICE_PRECISION)?
         .safe_mul(liability_liquidation_multiplier.cast()?)?
         .safe_div(liability_price.cast()?)?
-        .safe_mul(asset_liquidation_multiplier.cast()?)?;
+        .safe_div(asset_liquidation_multiplier.cast()?)?;
 
     validate!(
         swap_price >= worst_case_price,
