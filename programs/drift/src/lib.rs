@@ -536,13 +536,21 @@ pub mod drift {
         )
     }
 
-    pub fn liquidate_spot_with_swap<'c: 'info, 'info>(
+    pub fn liquidate_spot_with_swap_in<'c: 'info, 'info>(
         ctx: Context<'_, '_, 'c, 'info, LiquidateSpotWithSwap<'info>>,
-        in_market_index: u16,
-        out_market_index: u16,
-        amount_in: u64,
+        asset_market_index: u16,
+        liability_market_index: u16,
+        swap_amount: u64,
     ) -> Result<()> {
-        handle_liquidate_spot_with_swap(ctx, in_market_index, out_market_index, amount_in)
+        handle_liquidate_spot_with_swap_in(ctx, asset_market_index, liability_market_index, swap_amount)
+    }
+
+    pub fn liquidate_spot_with_swap_end<'c: 'info, 'info>(
+        ctx: Context<'_, '_, 'c, 'info, LiquidateSpotWithSwap<'info>>,
+        asset_market_index: u16,
+        liability_market_index: u16,
+    ) -> Result<()> {
+        handle_liquidate_spot_with_swap_end(ctx, asset_market_index, liability_market_index)
     }
 
     pub fn liquidate_borrow_for_perp_pnl<'c: 'info, 'info>(

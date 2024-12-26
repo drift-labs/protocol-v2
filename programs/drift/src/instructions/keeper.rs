@@ -1394,7 +1394,7 @@ pub fn handle_liquidate_spot_with_swap_in<'c: 'info, 'info>(
             found_end = true;
 
             // must be the SwapEnd instruction
-            let discriminator = crate::instruction::LiquidateSpotWithSwap::discriminator();
+            let discriminator = crate::instruction::LiquidateSpotWithSwapEnd::discriminator();
             validate!(
                 ix.data[0..8] == discriminator,
                 ErrorCode::InvalidLiquidateSpotWithSwap,
@@ -1498,6 +1498,153 @@ pub fn handle_liquidate_spot_with_swap_in<'c: 'info, 'info>(
     Ok(())
 }
 
+#[access_control(
+    liq_not_paused(&ctx.accounts.state)
+)]
+pub fn handle_liquidate_spot_with_swap_end<'c: 'info, 'info>(
+    ctx: Context<'_, '_, 'c, 'info, LiquidateSpotWithSwap<'info>>,
+    asset_market_index: u16,
+    liability_market_index: u16,
+) -> Result<()> {
+    let state = &ctx.accounts.state;
+    let clock = Clock::get()?;
+    let slot = clock.slot;
+    let now = clock.unix_timestamp;
+
+    let remaining_accounts = &mut ctx.remaining_accounts.iter().peekable();
+    let AccountMaps {
+        perp_market_map,
+        spot_market_map,
+        mut oracle_map,
+    } = load_maps(
+        remaining_accounts,
+        &MarketSet::new(),
+        &get_writable_spot_market_set_from_many(vec![asset_market_index, liability_market_index]),
+        clock.slot,
+        Some(state.oracle_guard_rails),
+    )?;
+    let out_token_program = get_token_interface(remaining_accounts)?;
+
+    let in_mint = get_token_mint(remaining_accounts)?;
+    let out_mint = get_token_mint(remaining_accounts)?;
+
+    let user_key = ctx.accounts.user.key();
+    let mut user = load_mut!(&ctx.accounts.user)?;
+
+    let mut user_stats = load_mut!(&ctx.accounts.user_stats)?;
+
+    let mut in_spot_market = spot_market_map.get_ref_mut(&asset_market_index)?;
+
+    validate!(
+        in_spot_market.flash_loan_amount != 0,
+        ErrorCode::InvalidSwap,
+        "the in_spot_market must have a flash loan amount set"
+    )?;
+
+    let in_oracle_data = oracle_map.get_price_data(&in_spot_market.oracle_id())?;
+    let in_oracle_price = in_oracle_data.price;
+
+    let mut out_spot_market = spot_market_map.get_ref_mut(&liability_market_index)?;
+
+    let out_oracle_data = oracle_map.get_price_data(&out_spot_market.oracle_id())?;
+    let out_oracle_price = out_oracle_data.price;
+
+    let in_vault = &mut ctx.accounts.in_spot_market_vault;
+    let in_token_account = &mut ctx.accounts.in_token_account;
+
+    let mut amount_in = in_spot_market.flash_loan_amount;
+    if in_token_account.amount > in_spot_market.flash_loan_initial_token_amount {
+        let residual = in_token_account
+            .amount
+            .safe_sub(in_spot_market.flash_loan_initial_token_amount)?;
+
+        controller::token::receive(
+            &ctx.accounts.token_program,
+            in_token_account,
+            in_vault,
+            &ctx.accounts.authority,
+            residual,
+            &in_mint,
+        )?;
+        in_token_account.reload()?;
+        in_vault.reload()?;
+
+        amount_in = amount_in.safe_sub(residual)?;
+    }
+
+    in_spot_market.flash_loan_initial_token_amount = 0;
+    in_spot_market.flash_loan_amount = 0;
+
+    let out_vault = &mut ctx.accounts.out_spot_market_vault;
+    let out_token_account = &mut ctx.accounts.out_token_account;
+
+    let mut amount_out = 0_u64;
+    if out_token_account.amount > out_spot_market.flash_loan_initial_token_amount {
+        amount_out = out_token_account
+            .amount
+            .safe_sub(out_spot_market.flash_loan_initial_token_amount)?;
+
+        if let Some(token_interface) = out_token_program {
+            controller::token::receive(
+                &token_interface,
+                out_token_account,
+                out_vault,
+                &ctx.accounts.authority,
+                amount_out,
+                &out_mint,
+            )?;
+        } else {
+            controller::token::receive(
+                &ctx.accounts.token_program,
+                out_token_account,
+                out_vault,
+                &ctx.accounts.authority,
+                amount_out,
+                &out_mint,
+            )?;
+        }
+
+        out_vault.reload()?;
+    }
+
+    validate!(
+        amount_out != 0,
+        ErrorCode::InvalidSwap,
+        "amount_out must be greater than 0"
+    )?;
+
+    out_spot_market.flash_loan_initial_token_amount = 0;
+    out_spot_market.flash_loan_amount = 0;
+
+    drop(out_spot_market);
+    drop(in_spot_market);
+
+    // todo liquidate spot with swap end
+
+    let out_spot_market = spot_market_map.get_ref_mut(&liability_market_index)?;
+
+    validate!(
+        out_spot_market.flash_loan_initial_token_amount == 0
+            && out_spot_market.flash_loan_amount == 0,
+        ErrorCode::InvalidSwap,
+        "end_swap ended in invalid state"
+    )?;
+
+    math::spot_withdraw::validate_spot_market_vault_amount(&out_spot_market, out_vault.amount)?;
+
+    let in_spot_market = spot_market_map.get_ref_mut(&asset_market_index)?;
+
+    validate!(
+        in_spot_market.flash_loan_initial_token_amount == 0
+            && in_spot_market.flash_loan_amount == 0,
+        ErrorCode::InvalidSwap,
+        "end_swap ended in invalid state"
+    )?;
+
+    math::spot_withdraw::validate_spot_market_vault_amount(&in_spot_market, in_vault.amount)?;
+
+    Ok(())
+}
 
 #[access_control(
     liq_not_paused(&ctx.accounts.state)
