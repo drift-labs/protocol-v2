@@ -1508,7 +1508,7 @@
         },
         {
           "name": "authority",
-          "isMut": false,
+          "isMut": true,
           "isSigner": true
         }
       ],
@@ -11746,6 +11746,41 @@
           },
           {
             "name": "HighLeverage"
+          }
+        ]
+      }
+    },
+    {
+      "name": "SignatureVerificationError",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "InvalidEd25519InstructionProgramId"
+          },
+          {
+            "name": "InvalidEd25519InstructionDataLength"
+          },
+          {
+            "name": "InvalidSignatureIndex"
+          },
+          {
+            "name": "InvalidSignatureOffset"
+          },
+          {
+            "name": "InvalidPublicKeyOffset"
+          },
+          {
+            "name": "InvalidMessageOffset"
+          },
+          {
+            "name": "InvalidMessageDataSize"
+          },
+          {
+            "name": "InvalidInstructionIndex"
+          },
+          {
+            "name": "MessageOffsetOverflow"
           }
         ]
       }
