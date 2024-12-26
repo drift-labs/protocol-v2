@@ -542,7 +542,12 @@ pub mod drift {
         liability_market_index: u16,
         swap_amount: u64,
     ) -> Result<()> {
-        handle_liquidate_spot_with_swap_in(ctx, asset_market_index, liability_market_index, swap_amount)
+        handle_liquidate_spot_with_swap_in(
+            ctx,
+            asset_market_index,
+            liability_market_index,
+            swap_amount,
+        )
     }
 
     pub fn liquidate_spot_with_swap_end<'c: 'info, 'info>(

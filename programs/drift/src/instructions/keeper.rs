@@ -11,7 +11,7 @@ use anchor_spl::token_2022::spl_token_2022;
 use anchor_spl::token_interface::{TokenAccount, TokenInterface};
 use solana_program::instruction::Instruction;
 use solana_program::sysvar::instructions::{
-    self, load_current_index_checked, load_instruction_at_checked, ID as IX_ID
+    self, load_current_index_checked, load_instruction_at_checked, ID as IX_ID,
 };
 
 use crate::controller::insurance::update_user_stats_if_stake_amount;
@@ -1630,7 +1630,10 @@ pub fn handle_liquidate_spot_with_swap_end<'c: 'info, 'info>(
         "end_swap ended in invalid state"
     )?;
 
-    math::spot_withdraw::validate_spot_market_vault_amount(&liability_spot_market, liability_vault.amount)?;
+    math::spot_withdraw::validate_spot_market_vault_amount(
+        &liability_spot_market,
+        liability_vault.amount,
+    )?;
 
     let asset_spot_market = spot_market_map.get_ref_mut(&asset_market_index)?;
 

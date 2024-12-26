@@ -34,7 +34,7 @@ use crate::math::liquidation::{
     calculate_liability_transfer_to_cover_margin_shortage, calculate_liquidation_multiplier,
     calculate_max_pct_to_liquidate, calculate_perp_if_fee, calculate_spot_if_fee,
     get_liquidation_fee, get_liquidation_order_params, validate_transfer_satisfies_limit_price,
-    LiquidationMultiplierType,
+    LiquidationMultiplierType, validate_swap_within_liquidation_boundaries,
 };
 use crate::math::margin::{
     calculate_margin_requirement_and_total_collateral_and_liability_info,
@@ -68,8 +68,8 @@ use crate::state::state::State;
 use crate::state::traits::Size;
 use crate::state::user::{MarketType, Order, OrderStatus, OrderType, User, UserStats};
 use crate::state::user_map::{UserMap, UserStatsMap};
-use crate::{validate, LIQUIDATION_FEE_PRECISION};
 use crate::{get_then_update_id, load_mut};
+use crate::{validate, LIQUIDATION_FEE_PRECISION};
 
 #[cfg(test)]
 mod tests;
@@ -1753,7 +1753,7 @@ pub fn liquidate_spot_with_swap_begin(
         let mut asset_market = spot_market_map.get_ref_mut(&asset_market_index)?;
         let (asset_price_data, validity_guard_rails) =
             oracle_map.get_price_data_and_guard_rails(&asset_market.oracle_id())?;
-        
+
         update_spot_market_and_check_validity(
             &mut asset_market,
             asset_price_data,
@@ -1904,6 +1904,29 @@ pub fn liquidate_spot_with_swap_begin(
             .cast::<u64>()?;
         user.increment_margin_freed(margin_freed)?;
 
+        emit!(LiquidationRecord {
+            ts: now,
+            liquidation_id,
+            liquidation_type: LiquidationType::LiquidateSpot,
+            user: *user_key,
+            liquidator: *liquidator_key,
+            margin_requirement: margin_calculation.margin_requirement,
+            total_collateral: margin_calculation.total_collateral,
+            bankrupt: user.is_bankrupt(),
+            canceled_order_ids,
+            margin_freed,
+            liquidate_spot: LiquidateSpotRecord {
+                asset_market_index,
+                asset_price,
+                asset_transfer: 0,
+                liability_market_index,
+                liability_price,
+                liability_transfer: 0,
+                if_fee: 0,
+            },
+            ..LiquidationRecord::default()
+        });
+
         // must throw error to stop swap
         if intermediate_margin_calculation.can_exit_liquidation()? {
             return Err(ErrorCode::InvalidLiquidation);
@@ -1950,7 +1973,7 @@ pub fn liquidate_spot_with_swap_begin(
     }
 
     // Given the borrow amount to transfer, determine how much deposit amount to transfer
-    let max_asset_transfer = calculate_asset_transfer_for_liability_transfer(
+    let asset_transfer_to_cover_margin_shortage = calculate_asset_transfer_for_liability_transfer(
         asset_amount,
         LIQUIDATION_FEE_PRECISION,
         asset_decimals,
@@ -1961,13 +1984,19 @@ pub fn liquidate_spot_with_swap_begin(
         liability_price,
     )?;
 
+    let max_asset_transfer = asset_transfer_to_cover_margin_shortage.safe_add(asset_transfer_to_cover_margin_shortage / 400)?; // 25bps buffer
+
     if max_asset_transfer == 0 {
         msg!(
             "asset_market_index {} liability_market_index {}",
             asset_market_index,
             liability_market_index
         );
-        msg!("max_asset_transfer {} liability_transfer_to_cover_margin_shortage {}", max_asset_transfer, liability_transfer_to_cover_margin_shortage);
+        msg!(
+            "max_asset_transfer {} liability_transfer_to_cover_margin_shortage {}",
+            max_asset_transfer,
+            liability_transfer_to_cover_margin_shortage
+        );
         msg!(
             "max_liability_allowed_to_be_transferred {} liability_transfer_to_cover_margin_shortage {}",
             max_liability_allowed_to_be_transferred,
@@ -1979,7 +2008,13 @@ pub fn liquidate_spot_with_swap_begin(
     validate!(
         max_asset_transfer >= swap_amount.cast()?,
         ErrorCode::InvalidLiquidation,
-        "swap_amount is too large"
+        "swap_amount larger than max_asset_transfer"
+    )?;
+
+    validate!(
+        asset_amount >= swap_amount.cast()?,
+        ErrorCode::InvalidLiquidation,
+        "swap_amount larger than asset_amount"
     )?;
 
     let liability_oracle_too_divergent = is_oracle_too_divergent_with_twap_5min(
@@ -2017,7 +2052,173 @@ pub fn liquidate_spot_with_swap_begin(
         ErrorCode::PriceBandsBreached,
         "asset oracle too divergent"
     )?;
-    
+
+    Ok(())
+}
+
+pub fn liquidate_spot_with_swap_end(
+    asset_market_index: u16,
+    liability_market_index: u16,
+    user: &mut User,
+    user_key: &Pubkey,
+    user_stats: &mut UserStats,
+    liquidator: &mut User,
+    liquidator_key: &Pubkey,
+    _liquidator_stats: &mut UserStats,
+    perp_market_map: &PerpMarketMap,
+    spot_market_map: &SpotMarketMap,
+    oracle_map: &mut OracleMap,
+    now: i64,
+    slot: u64,
+    state: &State,
+    asset_transfer: u128,
+    liability_transfer: u128,
+) -> DriftResult {
+    let liquidation_margin_buffer_ratio = state.liquidation_margin_buffer_ratio;
+
+    let (asset_price, asset_decimals, asset_weight, asset_liquidation_multiplier) = {
+        let mut asset_market = spot_market_map.get_ref_mut(&asset_market_index)?;
+        let (asset_price_data, validity_guard_rails) =
+            oracle_map.get_price_data_and_guard_rails(&asset_market.oracle_id())?;
+
+        let asset_price = asset_price_data.price;
+        (
+            asset_price,
+            asset_market.decimals,
+            asset_market.maintenance_asset_weight,
+            calculate_liquidation_multiplier(
+                asset_market.liquidator_fee,
+                LiquidationMultiplierType::Premium,
+            )?,
+        )
+    };
+
+    let (
+        liability_price,
+        liability_decimals,
+        liability_weight,
+        liability_liquidation_multiplier,
+        liquidation_if_fee,
+    ) = {
+        let mut liability_market = spot_market_map.get_ref_mut(&liability_market_index)?;
+        let (liability_price_data, validity_guard_rails) =
+            oracle_map.get_price_data_and_guard_rails(&liability_market.oracle_id())?;
+
+        let liability_price = liability_price_data.price;
+
+        let liquidation_if_fee = liability_market.if_liquidation_fee;
+        (
+            liability_price,
+            liability_market.decimals,
+            liability_market.maintenance_liability_weight,
+            calculate_liquidation_multiplier(
+                liability_market.liquidator_fee,
+                LiquidationMultiplierType::Discount,
+            )?,
+            liquidation_if_fee,
+        )
+    };
+
+    validate_swap_within_liquidation_boundaries(
+        asset_transfer,
+        liability_transfer,
+        asset_decimals,
+        liability_decimals,
+        asset_price,
+        liability_price,
+        asset_liquidation_multiplier,
+        liability_liquidation_multiplier,
+    )?;
+
+    let margin_context = MarginContext::liquidation(liquidation_margin_buffer_ratio)
+        .track_market_margin_requirement(MarketIdentifier::spot(liability_market_index))?
+        .fuel_numerator(user, now);
+
+    let margin_calculation = user.calculate_margin_and_increment_fuel_bonus(
+        perp_market_map,
+        spot_market_map,
+        oracle_map,
+        margin_context,
+        user_stats,
+        now,
+    )?;
+
+    let liquidation_id = user.enter_liquidation(slot)?;
+    let mut margin_freed = 0_u64;
+
+    let margin_shortage = margin_calculation.margin_shortage()?;
+
+    let if_fee = liability_transfer.cast::<u128>()?
+        .safe_mul(liquidation_if_fee.cast()?)?
+        .safe_div(LIQUIDATION_FEE_PRECISION_U128)?;
+    {
+        let mut liability_market = spot_market_map.get_ref_mut(&liability_market_index)?;
+
+        update_spot_balances_and_cumulative_deposits(
+            liability_transfer.safe_sub(if_fee)?,
+            &SpotBalanceType::Deposit,
+            &mut liability_market,
+            user.get_spot_position_mut(liability_market_index)?,
+            false,
+            Some(liability_transfer.safe_sub(if_fee)?),
+        )?;
+
+        update_revenue_pool_balances(if_fee, &SpotBalanceType::Deposit, &mut liability_market)?;
+    }
+
+    {
+        let mut asset_market = spot_market_map.get_ref_mut(&asset_market_index)?;
+
+        update_spot_balances_and_cumulative_deposits(
+            asset_transfer,
+            &SpotBalanceType::Borrow,
+            &mut asset_market,
+            user.force_get_spot_position_mut(asset_market_index)?,
+            false,
+            Some(asset_transfer),
+        )?;
+    }
+
+    let (margin_freed_from_liability, margin_calulcation_after) = calculate_margin_freed(
+        user,
+        perp_market_map,
+        spot_market_map,
+        oracle_map,
+        liquidation_margin_buffer_ratio,
+        margin_shortage,
+    )?;
+
+    margin_freed = margin_freed.safe_add(margin_freed_from_liability)?;
+    user.increment_margin_freed(margin_freed_from_liability)?;
+
+    if margin_calulcation_after.can_exit_liquidation()? {
+        user.exit_liquidation();
+    } else if is_user_bankrupt(user) {
+        user.enter_bankruptcy();
+    }
+
+    emit!(LiquidationRecord {
+        ts: now,
+        liquidation_id,
+        liquidation_type: LiquidationType::LiquidateSpot,
+        user: *user_key,
+        liquidator: *liquidator_key,
+        margin_requirement: margin_calculation.margin_requirement,
+        total_collateral: margin_calculation.total_collateral,
+        bankrupt: user.is_bankrupt(),
+        margin_freed,
+        liquidate_spot: LiquidateSpotRecord {
+            asset_market_index,
+            asset_price,
+            asset_transfer,
+            liability_market_index,
+            liability_price,
+            liability_transfer,
+            if_fee: if_fee.cast()?,
+        },
+        ..LiquidationRecord::default()
+    });
+
     Ok(())
 }
 

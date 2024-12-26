@@ -623,7 +623,6 @@ pub enum ErrorCode {
     PythLazerMessagePriceFeedMismatch,
     #[msg("InvalidLiquidateSpotWithSwap")]
     InvalidLiquidateSpotWithSwap,
-    
 }
 
 #[macro_export]
