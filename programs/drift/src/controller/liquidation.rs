@@ -1977,7 +1977,7 @@ pub fn liquidate_spot_with_swap_begin(
     }
 
     validate!(
-        max_asset_transfer < swap_amount.cast()?,
+        max_asset_transfer >= swap_amount.cast()?,
         ErrorCode::InvalidLiquidation,
         "swap_amount is too large"
     )?;
