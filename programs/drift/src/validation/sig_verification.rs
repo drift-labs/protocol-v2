@@ -158,7 +158,7 @@ pub fn verify_ed25519_msg(
             ErrorCode::SigVerificationFailed
         })?;
 
-    let offsets = &args[usize::from(0_u16)];
+    let offsets = &args[0];
     if offsets.signature_offset != message_offset {
         msg!(
             "Invalid Ix: signature offset: {:?}",
