@@ -1,8 +1,44 @@
 use crate::error::ErrorCode;
+use crate::state::order_params::SwiftOrderParamsMessage;
 use anchor_lang::prelude::*;
+use bytemuck::try_cast_slice;
+use bytemuck::{Pod, Zeroable};
+use byteorder::ByteOrder;
+use byteorder::LE;
 use solana_program::ed25519_program::ID as ED25519_ID;
 use solana_program::instruction::Instruction;
 use std::convert::TryInto;
+
+const ED25519_PROGRAM_INPUT_HEADER_LEN: usize = 2;
+
+const SIGNATURE_LEN: u16 = 64;
+const PUBKEY_LEN: u16 = 32;
+const MESSAGE_SIZE_LEN: u16 = 2;
+
+/// Part of the inputs to the built-in `ed25519_program` on Solana that represents a single
+/// signature verification request.
+///
+/// `ed25519_program` does not receive the signature data directly. Instead, it receives
+/// these fields that indicate the location of the signature data within data of other
+/// instructions within the same transaction.
+#[derive(Debug, Clone, Copy, Zeroable, Pod)]
+#[repr(C)]
+pub struct Ed25519SignatureOffsets {
+    /// Offset to the ed25519 signature within the instruction data.
+    pub signature_offset: u16,
+    /// Index of the instruction that contains the signature.
+    pub signature_instruction_index: u16,
+    /// Offset to the public key within the instruction data.
+    pub public_key_offset: u16,
+    /// Index of the instruction that contains the public key.
+    pub public_key_instruction_index: u16,
+    /// Offset to the signed payload within the instruction data.
+    pub message_data_offset: u16,
+    // Size of the signed payload.
+    pub message_data_size: u16,
+    /// Index of the instruction that contains the signed payload.
+    pub message_instruction_index: u16,
+}
 
 /// Verify Ed25519Program instruction fields
 pub fn verify_ed25519_ix(ix: &Instruction, pubkey: &[u8], msg: &[u8], sig: &[u8]) -> Result<()> {
@@ -79,6 +115,11 @@ fn check_ed25519_data(data: &[u8], pubkey: &[u8], msg: &[u8], sig: &[u8]) -> Res
     Ok(())
 }
 
+pub struct VerifiedMessage {
+    pub swift_order_params_message: SwiftOrderParamsMessage,
+    pub signature: [u8; 64],
+}
+
 /// Check Ed25519Program instruction data verifies the given msg
 ///
 /// `ix` an Ed25519Program instruction [see](https://github.com/solana-labs/solana/blob/master/sdk/src/ed25519_instruction.rs))
@@ -87,11 +128,13 @@ fn check_ed25519_data(data: &[u8], pubkey: &[u8], msg: &[u8], sig: &[u8]) -> Res
 ///
 /// `pubkey` expected pubkey of the signer
 ///
-pub fn verify_ed25519_msg<const N: usize>(
+pub fn verify_ed25519_msg(
     ix: &Instruction,
-    pubkey: &[u8; 32],
-    msg: &[u8; N],
-) -> Result<()> {
+    current_ix_index: u16,
+    signer: &[u8; 32],
+    msg: &[u8],
+    message_offset: u16,
+) -> Result<VerifiedMessage> {
     if ix.program_id != ED25519_ID || ix.accounts.len() != 0 {
         msg!("Invalid Ix: program ID: {:?}", ix.program_id);
         msg!("Invalid Ix: accounts: {:?}", ix.accounts.len());
@@ -100,72 +143,143 @@ pub fn verify_ed25519_msg<const N: usize>(
 
     let ix_data = &ix.data;
     // According to this layout used by the Ed25519Program]
-    if ix_data.len() <= 112 {
+    if ix_data.len() < 2 {
         msg!(
-            "Invalid Ix: data: {:?}, len: {:?}",
+            "Invalid Ix, should be header len = 2. data: {:?}",
             ix.data.len(),
-            16 + 64 + 32 + N
+        );
+        return Err(SignatureVerificationError::InvalidEd25519InstructionDataLength.into());
+    }
+
+    // Parse the ix data into the offsets
+    let args: &[Ed25519SignatureOffsets] =
+        try_cast_slice(&ix_data[ED25519_PROGRAM_INPUT_HEADER_LEN..]).map_err(|_| {
+            msg!("Invalid Ix: failed to cast slice");
+            ErrorCode::SigVerificationFailed
+        })?;
+
+    let offsets = &args[0];
+    if offsets.signature_offset != message_offset {
+        msg!(
+            "Invalid Ix: signature offset: {:?}",
+            offsets.signature_offset
         );
         return Err(ErrorCode::SigVerificationFailed.into());
     }
 
-    // Check the ed25519 verify ix header is sound
-    let num_signatures = ix_data[0];
-    let padding = ix_data[1];
-    let signature_offset = u16::from_le_bytes(ix_data[2..=3].try_into().unwrap());
-    let signature_instruction_index = u16::from_le_bytes(ix_data[4..=5].try_into().unwrap());
-    let public_key_offset = u16::from_le_bytes(ix_data[6..=7].try_into().unwrap());
-    let public_key_instruction_index = u16::from_le_bytes(ix_data[8..=9].try_into().unwrap());
-    let message_data_offset = u16::from_le_bytes(ix_data[10..=11].try_into().unwrap());
-    let message_data_size = u16::from_le_bytes(ix_data[12..=13].try_into().unwrap());
-    let message_instruction_index = u16::from_le_bytes(ix_data[14..=15].try_into().unwrap());
+    let expected_public_key_offset = message_offset
+        .checked_add(SIGNATURE_LEN)
+        .ok_or(ErrorCode::SigVerificationFailed)?;
+    if offsets.public_key_offset != expected_public_key_offset {
+        msg!(
+            "Invalid Ix: public key offset: {:?}, expected: {:?}",
+            offsets.public_key_offset,
+            expected_public_key_offset
+        );
+        return Err(ErrorCode::SigVerificationFailed.into());
+    }
 
-    // Expected values
-    let exp_public_key_offset: u16 = 16;
-    let exp_signature_offset: u16 = exp_public_key_offset + 32_u16;
-    let exp_message_data_offset: u16 = exp_signature_offset + 64_u16;
-    let exp_num_signatures: u8 = 1;
+    let expected_message_size_offset = expected_public_key_offset
+        .checked_add(PUBKEY_LEN)
+        .ok_or(ErrorCode::SigVerificationFailed)?;
 
-    // Header
-    if num_signatures != exp_num_signatures
-        || padding != 0
-        || signature_offset != exp_signature_offset
-        || signature_instruction_index != u16::MAX
-        || public_key_offset != exp_public_key_offset
-        || public_key_instruction_index != u16::MAX
-        || message_data_offset != exp_message_data_offset
-        || message_instruction_index != u16::MAX
+    let expected_message_data_offset = expected_message_size_offset
+        .checked_add(MESSAGE_SIZE_LEN)
+        .ok_or(SignatureVerificationError::MessageOffsetOverflow)?;
+    if offsets.message_data_offset != expected_message_data_offset {
+        return Err(SignatureVerificationError::InvalidMessageOffset.into());
+    }
+
+    let expected_message_size: u16 = {
+        let start = usize::from(
+            expected_message_size_offset
+                .checked_sub(message_offset)
+                .unwrap(),
+        );
+        let end = usize::from(
+            expected_message_data_offset
+                .checked_sub(message_offset)
+                .unwrap(),
+        );
+        LE::read_u16(&msg[start..end])
+    };
+    if offsets.message_data_size != expected_message_size {
+        return Err(SignatureVerificationError::InvalidMessageDataSize.into());
+    }
+    if offsets.signature_instruction_index != current_ix_index
+        || offsets.public_key_instruction_index != current_ix_index
+        || offsets.message_instruction_index != current_ix_index
     {
+        return Err(SignatureVerificationError::InvalidInstructionIndex.into());
+    }
+
+    let public_key = {
+        let start = usize::from(
+            expected_public_key_offset
+                .checked_sub(message_offset)
+                .unwrap(),
+        );
+        let end = start
+            .checked_add(anchor_lang::solana_program::pubkey::PUBKEY_BYTES)
+            .ok_or(SignatureVerificationError::MessageOffsetOverflow)?;
+        &msg[start..end]
+    };
+    let mut payload = {
+        let start = usize::from(
+            expected_message_data_offset
+                .checked_sub(message_offset)
+                .unwrap(),
+        );
+        let end = start
+            .checked_add(expected_message_size.into())
+            .ok_or(SignatureVerificationError::MessageOffsetOverflow)?;
+        &msg[start..end]
+    };
+
+    if public_key != signer {
+        msg!("Invalid Ix: message signed by: {:?}", public_key);
+        msg!("Invalid Ix: expected pubkey: {:?}", signer);
         return Err(ErrorCode::SigVerificationFailed.into());
     }
 
-    // verify data is for digest and pubkey
-    let ix_msg_data = &ix_data[112..];
-    if ix_msg_data != msg || message_data_size != N as u16 {
-        return Err(ErrorCode::SigVerificationFailed.into());
-    }
+    let signature = {
+        let start = usize::from(
+            offsets
+                .signature_offset
+                .checked_sub(message_offset)
+                .unwrap(),
+        );
+        let end = start
+            .checked_add(SIGNATURE_LEN.into())
+            .ok_or(SignatureVerificationError::InvalidSignatureOffset)?;
+        &msg[start..end].try_into().unwrap()
+    };
 
-    let ix_pubkey = &ix_data[16..16 + 32];
-    if ix_pubkey != pubkey {
-        msg!("Invalid Ix: pubkey: {:?}", ix_pubkey);
-        msg!("Invalid Ix: expected pubkey: {:?}", pubkey);
-        return Err(ErrorCode::SigVerificationFailed.into());
-    }
-
-    Ok(())
+    Ok(VerifiedMessage {
+        swift_order_params_message: SwiftOrderParamsMessage::deserialize(&mut payload).unwrap(),
+        signature: *signature,
+    })
 }
 
-/// Extract pubkey from serialized Ed25519Program instruction data
-pub fn extract_ed25519_ix_pubkey(ix_data: &[u8]) -> Result<[u8; 32]> {
-    match ix_data[16..16 + 32].try_into() {
-        Ok(raw) => Ok(raw),
-        Err(_) => Err(ErrorCode::SigVerificationFailed.into()),
-    }
-}
-
-pub fn extract_ed25519_ix_signature(ix_data: &[u8]) -> Result<[u8; 64]> {
-    match ix_data[48..48 + 64].try_into() {
-        Ok(raw) => Ok(raw),
-        Err(_) => Err(ErrorCode::SigVerificationFailed.into()),
-    }
+#[error_code]
+#[derive(PartialEq, Eq)]
+pub enum SignatureVerificationError {
+    #[msg("invalid ed25519 instruction program")]
+    InvalidEd25519InstructionProgramId,
+    #[msg("invalid ed25519 instruction data length")]
+    InvalidEd25519InstructionDataLength,
+    #[msg("invalid signature index")]
+    InvalidSignatureIndex,
+    #[msg("invalid signature offset")]
+    InvalidSignatureOffset,
+    #[msg("invalid public key offset")]
+    InvalidPublicKeyOffset,
+    #[msg("invalid message offset")]
+    InvalidMessageOffset,
+    #[msg("invalid message data size")]
+    InvalidMessageDataSize,
+    #[msg("invalid instruction index")]
+    InvalidInstructionIndex,
+    #[msg("message offset overflow")]
+    MessageOffsetOverflow,
 }

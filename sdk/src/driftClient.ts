@@ -179,7 +179,6 @@ import pythSolanaReceiverIdl from './idl/pyth_solana_receiver.json';
 import { asV0Tx, PullFeed } from '@switchboard-xyz/on-demand';
 import { gprcDriftClientAccountSubscriber } from './accounts/grpcDriftClientAccountSubscriber';
 import nacl from 'tweetnacl';
-import { digest } from './util/digest';
 import { Slothash } from './slot/SlothashSubscriber';
 import { getOracleId } from './oracles/oracleId';
 
@@ -5886,9 +5885,7 @@ export class DriftClient {
 	): Buffer {
 		const takerOrderParamsMessage =
 			this.encodeSwiftOrderParamsMessage(orderParamsMessage);
-		return this.signMessage(
-			new TextEncoder().encode(digest(takerOrderParamsMessage).toString('hex'))
-		);
+		return this.signMessage(takerOrderParamsMessage);
 	}
 
 	public encodeSwiftOrderParamsMessage(
@@ -5925,13 +5922,18 @@ export class DriftClient {
 			takerStats: PublicKey;
 			takerUserAccount: UserAccount;
 		},
+		precedingIxs: TransactionInstruction[] = [],
+		overrideIxCount?: number,
 		txParams?: TxParams
 	): Promise<TransactionSignature> {
 		const ixs = await this.getPlaceSwiftTakerPerpOrderIxs(
 			swiftOrderParamsMessage,
 			swiftOrderParamsSignature,
 			marketIndex,
-			takerInfo
+			takerInfo,
+			undefined,
+			precedingIxs,
+			overrideIxCount
 		);
 		const { txSig } = await this.sendTransaction(
 			await this.buildTransaction(ixs, txParams),
@@ -5950,7 +5952,9 @@ export class DriftClient {
 			takerStats: PublicKey;
 			takerUserAccount: UserAccount;
 		},
-		authority?: PublicKey
+		authority?: PublicKey,
+		precedingIxs: TransactionInstruction[] = [],
+		overrideIxCount?: number
 	): Promise<TransactionInstruction[]> {
 		if (!authority && !takerInfo.takerUserAccount) {
 			throw new Error('authority or takerUserAccount must be provided');
@@ -5963,33 +5967,39 @@ export class DriftClient {
 		});
 
 		const authorityToUse = authority || takerInfo.takerUserAccount.authority;
-		const swiftOrderParamsSignatureIx =
-			Ed25519Program.createInstructionWithPublicKey({
-				publicKey: authorityToUse.toBytes(),
-				signature: Uint8Array.from(swiftOrderParamsSignature),
-				message: new TextEncoder().encode(
-					digest(encodedSwiftOrderParamsMessage).toString('hex')
-				),
-			});
+
+		const messageLengthBuffer = Buffer.alloc(2);
+		messageLengthBuffer.writeUInt16LE(encodedSwiftOrderParamsMessage.length);
+
+		const swiftIxData = Buffer.concat([
+			swiftOrderParamsSignature,
+			authorityToUse.toBytes(),
+			messageLengthBuffer,
+			encodedSwiftOrderParamsMessage,
+		]);
+
+		const swiftOrderParamsSignatureIx = createMinimalEd25519VerifyIx(
+			overrideIxCount || precedingIxs.length + 1,
+			12,
+			swiftIxData,
+			0
+		);
 
 		const placeTakerSwiftPerpOrderIx =
-			await this.program.instruction.placeSwiftTakerOrder(
-				encodedSwiftOrderParamsMessage,
-				{
-					accounts: {
-						state: await this.getStatePublicKey(),
-						user: takerInfo.taker,
-						userStats: takerInfo.takerStats,
-						swiftUserOrders: getSwiftUserAccountPublicKey(
-							this.program.programId,
-							takerInfo.taker
-						),
-						authority: this.wallet.publicKey,
-						ixSysvar: SYSVAR_INSTRUCTIONS_PUBKEY,
-					},
-					remainingAccounts,
-				}
-			);
+			this.program.instruction.placeSwiftTakerOrder(swiftIxData, {
+				accounts: {
+					state: await this.getStatePublicKey(),
+					user: takerInfo.taker,
+					userStats: takerInfo.takerStats,
+					swiftUserOrders: getSwiftUserAccountPublicKey(
+						this.program.programId,
+						takerInfo.taker
+					),
+					authority: this.wallet.publicKey,
+					ixSysvar: SYSVAR_INSTRUCTIONS_PUBKEY,
+				},
+				remainingAccounts,
+			});
 
 		return [swiftOrderParamsSignatureIx, placeTakerSwiftPerpOrderIx];
 	}
@@ -6006,7 +6016,9 @@ export class DriftClient {
 		orderParams: OptionalOrderParams,
 		referrerInfo?: ReferrerInfo,
 		txParams?: TxParams,
-		subAccountId?: number
+		subAccountId?: number,
+		precedingIxs: TransactionInstruction[] = [],
+		overrideIxCount?: number
 	): Promise<TransactionSignature> {
 		const ixs = await this.getPlaceAndMakeSwiftPerpOrderIxs(
 			encodedSwiftOrderParamsMessage,
@@ -6015,7 +6027,9 @@ export class DriftClient {
 			takerInfo,
 			orderParams,
 			referrerInfo,
-			subAccountId
+			subAccountId,
+			precedingIxs,
+			overrideIxCount
 		);
 		const { txSig, slot } = await this.sendTransaction(
 			await this.buildTransaction(ixs, txParams),
@@ -6038,14 +6052,19 @@ export class DriftClient {
 		},
 		orderParams: OptionalOrderParams,
 		referrerInfo?: ReferrerInfo,
-		subAccountId?: number
+		subAccountId?: number,
+		precedingIxs: TransactionInstruction[] = [],
+		overrideIxCount?: number
 	): Promise<TransactionInstruction[]> {
 		const [swiftOrderSignatureIx, placeTakerSwiftPerpOrderIx] =
 			await this.getPlaceSwiftTakerPerpOrderIxs(
 				encodedSwiftOrderParamsMessage,
 				swiftOrderParamsSignature,
 				orderParams.marketIndex,
-				takerInfo
+				takerInfo,
+				undefined,
+				precedingIxs,
+				overrideIxCount
 			);
 
 		orderParams = getOrderParams(orderParams, { marketType: MarketType.PERP });
@@ -8952,7 +8971,6 @@ export class DriftClient {
 		preSigned?: boolean
 	): Promise<TxSigAndSlot> {
 		const isVersionedTx = this.isVersionedTransaction(tx);
-
 		if (isVersionedTx) {
 			return this.txSender.sendVersionedTransaction(
 				tx as VersionedTransaction,
