@@ -252,10 +252,7 @@ pub fn verify_ed25519_msg(
         let end = start
             .checked_add(SIGNATURE_LEN.into())
             .ok_or(SignatureVerificationError::InvalidSignatureOffset)?;
-        let sig_slice = &msg[start..end];
-        let mut sig_array = [0u8; 64];
-        sig_array.copy_from_slice(sig_slice);
-        sig_array
+        &msg[start..end].try_into().unwrap()
     };
 
     Ok(VerifiedMessage {
