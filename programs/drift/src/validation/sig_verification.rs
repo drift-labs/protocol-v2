@@ -257,7 +257,7 @@ pub fn verify_ed25519_msg(
 
     Ok(VerifiedMessage {
         swift_order_params_message: SwiftOrderParamsMessage::deserialize(&mut payload).unwrap(),
-        signature,
+        signature: *signature,
     })
 }
 
