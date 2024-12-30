@@ -33,8 +33,8 @@ use crate::math::liquidation::{
     calculate_liability_transfer_implied_by_asset_amount,
     calculate_liability_transfer_to_cover_margin_shortage, calculate_liquidation_multiplier,
     calculate_max_pct_to_liquidate, calculate_perp_if_fee, calculate_spot_if_fee,
-    get_liquidation_fee, get_liquidation_order_params, validate_transfer_satisfies_limit_price,
-    LiquidationMultiplierType, validate_swap_within_liquidation_boundaries,
+    get_liquidation_fee, get_liquidation_order_params, validate_swap_within_liquidation_boundaries,
+    validate_transfer_satisfies_limit_price, LiquidationMultiplierType,
 };
 use crate::math::margin::{
     calculate_margin_requirement_and_total_collateral_and_liability_info,
@@ -1798,6 +1798,7 @@ pub fn liquidate_spot_with_swap_begin(
         liability_decimals,
         liability_weight,
         liability_liquidation_multiplier,
+        liability_if_fee,
     ) = {
         let mut liability_market = spot_market_map.get_ref_mut(&liability_market_index)?;
         let (liability_price_data, validity_guard_rails) =
@@ -1839,6 +1840,7 @@ pub fn liquidate_spot_with_swap_begin(
                 liability_market.liquidator_fee,
                 LiquidationMultiplierType::Discount,
             )?,
+            liability_market.if_liquidation_fee,
         )
     };
 
@@ -1860,7 +1862,8 @@ pub fn liquidate_spot_with_swap_begin(
         return Err(ErrorCode::SufficientCollateral);
     } else if user.is_being_liquidated() && margin_calculation.can_exit_liquidation()? {
         user.exit_liquidation();
-        return Ok(());
+        msg!("user exited liquidation");
+        return Err(ErrorCode::InvalidLiquidation);
     }
 
     let liquidation_id = user.enter_liquidation(slot)?;
@@ -1953,7 +1956,7 @@ pub fn liquidate_spot_with_swap_begin(
             LIQUIDATION_FEE_PRECISION,
             liability_decimals,
             liability_price,
-            0,
+            liability_if_fee,
         )?;
 
     let max_pct_allowed = calculate_max_pct_to_liquidate(
@@ -1969,7 +1972,7 @@ pub fn liquidate_spot_with_swap_begin(
 
     if max_liability_allowed_to_be_transferred == 0 {
         msg!("max_liability_allowed_to_be_transferred == 0");
-        return Ok(());
+        return Err(ErrorCode::InvalidLiquidation);
     }
 
     // Given the borrow amount to transfer, determine how much deposit amount to transfer
@@ -1984,7 +1987,8 @@ pub fn liquidate_spot_with_swap_begin(
         liability_price,
     )?;
 
-    let max_asset_transfer = asset_transfer_to_cover_margin_shortage.safe_add(asset_transfer_to_cover_margin_shortage / 400)?; // 25bps buffer
+    let max_asset_transfer = asset_transfer_to_cover_margin_shortage
+        .safe_add(asset_transfer_to_cover_margin_shortage / 400)?; // 25bps buffer
 
     if max_asset_transfer == 0 {
         msg!(
@@ -2002,8 +2006,15 @@ pub fn liquidate_spot_with_swap_begin(
             max_liability_allowed_to_be_transferred,
             liability_transfer_to_cover_margin_shortage
         );
+        msg!("swap_amount {}", swap_amount);
         return Err(ErrorCode::InvalidLiquidation);
     }
+
+    validate!(
+        swap_amount > 0,
+        ErrorCode::InvalidLiquidation,
+        "swap_amount is 0"
+    )?;
 
     validate!(
         max_asset_transfer >= swap_amount.cast()?,
@@ -2148,7 +2159,8 @@ pub fn liquidate_spot_with_swap_end(
 
     let margin_shortage = margin_calculation.margin_shortage()?;
 
-    let if_fee = liability_transfer.cast::<u128>()?
+    let if_fee = liability_transfer
+        .cast::<u128>()?
         .safe_mul(liquidation_if_fee.cast()?)?
         .safe_div(LIQUIDATION_FEE_PRECISION_U128)?;
     {
