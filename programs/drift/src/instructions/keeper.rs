@@ -15,7 +15,7 @@ use solana_program::sysvar::instructions::{
 };
 
 use crate::controller::insurance::update_user_stats_if_stake_amount;
-use crate::controller::liquidation::liquidate_spot_with_swap_begin;
+use crate::controller::liquidation::{liquidate_spot_with_swap_begin, liquidate_spot_with_swap_end};
 use crate::controller::orders::cancel_orders;
 use crate::controller::position::PositionDirection;
 use crate::controller::spot_balance::update_spot_balances;
@@ -1237,7 +1237,7 @@ pub fn handle_liquidate_spot<'c: 'info, 'info>(
 #[access_control(
     liq_not_paused(&ctx.accounts.state)
 )]
-pub fn handle_liquidate_spot_with_swap_in<'c: 'info, 'info>(
+pub fn handle_liquidate_spot_with_swap_begin<'c: 'info, 'info>(
     ctx: Context<'_, '_, 'c, 'info, LiquidateSpotWithSwap<'info>>,
     asset_market_index: u16,
     liability_market_index: u16,
@@ -1402,54 +1402,60 @@ pub fn handle_liquidate_spot_with_swap_in<'c: 'info, 'info>(
             )?;
 
             validate!(
-                ctx.accounts.user.key() == ix.accounts[1].pubkey,
-                ErrorCode::InvalidLiquidateSpotWithSwap,
-                "the user passed to SwapBegin and End must match"
-            )?;
-
-            validate!(
-                ctx.accounts.authority.key() == ix.accounts[3].pubkey,
+                ctx.accounts.authority.key() == ix.accounts[1].pubkey,
                 ErrorCode::InvalidLiquidateSpotWithSwap,
                 "the authority passed to SwapBegin and End must match"
             )?;
 
             validate!(
-                ctx.accounts.liability_spot_market_vault.key() == ix.accounts[4].pubkey,
+                ctx.accounts.liquidator.key() == ix.accounts[2].pubkey,
+                ErrorCode::InvalidLiquidateSpotWithSwap,
+                "the liquidator passed to SwapBegin and End must match"
+            )?;
+
+            validate!(
+                ctx.accounts.user.key() == ix.accounts[4].pubkey,
+                ErrorCode::InvalidLiquidateSpotWithSwap,
+                "the user passed to SwapBegin and End must match"
+            )?;
+
+            validate!(
+                ctx.accounts.liability_spot_market_vault.key() == ix.accounts[6].pubkey,
                 ErrorCode::InvalidLiquidateSpotWithSwap,
                 "the liability_spot_market_vault passed to SwapBegin and End must match"
             )?;
 
             validate!(
-                ctx.accounts.asset_spot_market_vault.key() == ix.accounts[5].pubkey,
+                ctx.accounts.asset_spot_market_vault.key() == ix.accounts[7].pubkey,
                 ErrorCode::InvalidLiquidateSpotWithSwap,
                 "the asset_spot_market_vault passed to SwapBegin and End must match"
             )?;
 
             validate!(
-                ctx.accounts.liability_token_account.key() == ix.accounts[6].pubkey,
+                ctx.accounts.liability_token_account.key() == ix.accounts[8].pubkey,
                 ErrorCode::InvalidLiquidateSpotWithSwap,
                 "the liability_token_account passed to SwapBegin and End must match"
             )?;
 
             validate!(
-                ctx.accounts.asset_token_account.key() == ix.accounts[7].pubkey,
+                ctx.accounts.asset_token_account.key() == ix.accounts[9].pubkey,
                 ErrorCode::InvalidLiquidateSpotWithSwap,
                 "the asset_token_account passed to SwapBegin and End must match"
             )?;
 
             validate!(
-                ctx.remaining_accounts.len() == ix.accounts.len() - 11,
+                ctx.remaining_accounts.len() == ix.accounts.len() - 13,
                 ErrorCode::InvalidLiquidateSpotWithSwap,
                 "begin and end ix must have the same number of accounts"
             )?;
 
-            for i in 11..ix.accounts.len() {
+            for i in 13..ix.accounts.len() {
                 validate!(
-                    *ctx.remaining_accounts[i - 11].key == ix.accounts[i].pubkey,
+                    *ctx.remaining_accounts[i - 13].key == ix.accounts[i].pubkey,
                     ErrorCode::InvalidLiquidateSpotWithSwap,
                     "begin and end ix must have the same accounts. {}th account mismatch. begin: {}, end: {}",
                     i,
-                    ctx.remaining_accounts[i - 11].key,
+                    ctx.remaining_accounts[i - 13].key,
                     ix.accounts[i].pubkey
                 )?;
             }
@@ -1530,8 +1536,11 @@ pub fn handle_liquidate_spot_with_swap_end<'c: 'info, 'info>(
 
     let user_key = ctx.accounts.user.key();
     let mut user = load_mut!(&ctx.accounts.user)?;
-
     let mut user_stats = load_mut!(&ctx.accounts.user_stats)?;
+
+    let liquidator_key = ctx.accounts.liquidator.key();
+    let mut liquidator = load_mut!(&ctx.accounts.liquidator)?;
+    let mut liquidator_stats = load_mut!(&ctx.accounts.liquidator_stats)?;
 
     let mut asset_spot_market = spot_market_map.get_ref_mut(&asset_market_index)?;
 
@@ -1619,7 +1628,24 @@ pub fn handle_liquidate_spot_with_swap_end<'c: 'info, 'info>(
     drop(liability_spot_market);
     drop(asset_spot_market);
 
-    // todo liquidate spot with swap end
+    liquidate_spot_with_swap_end(
+        asset_market_index,
+        liability_market_index,
+        &mut user,
+        &user_key,
+        &mut user_stats,
+        &mut liquidator,
+        &liquidator_key,
+        &mut liquidator_stats,
+        &perp_market_map,
+        &spot_market_map,
+        &mut oracle_map,
+        now,
+        slot,
+        state,
+        amount_in.cast()?,
+        amount_out.cast()?,
+    )?;
 
     let liability_spot_market = spot_market_map.get_ref_mut(&liability_market_index)?;
 

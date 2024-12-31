@@ -2019,13 +2019,17 @@ pub fn liquidate_spot_with_swap_begin(
     validate!(
         max_asset_transfer >= swap_amount.cast()?,
         ErrorCode::InvalidLiquidation,
-        "swap_amount larger than max_asset_transfer"
+        "swap_amount larger than max_asset_transfer (swap_amount: {}, max_asset_transfer: {})",
+        swap_amount,
+        max_asset_transfer
     )?;
 
     validate!(
         asset_amount >= swap_amount.cast()?,
         ErrorCode::InvalidLiquidation,
-        "swap_amount larger than asset_amount"
+        "swap_amount larger than asset_amount (swap_amount: {}, asset_amount: {})",
+        swap_amount,
+        asset_amount
     )?;
 
     let liability_oracle_too_divergent = is_oracle_too_divergent_with_twap_5min(

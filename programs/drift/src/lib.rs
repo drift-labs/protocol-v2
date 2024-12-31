@@ -536,13 +536,13 @@ pub mod drift {
         )
     }
 
-    pub fn liquidate_spot_with_swap_in<'c: 'info, 'info>(
+    pub fn liquidate_spot_with_swap_begin<'c: 'info, 'info>(
         ctx: Context<'_, '_, 'c, 'info, LiquidateSpotWithSwap<'info>>,
         asset_market_index: u16,
         liability_market_index: u16,
         swap_amount: u64,
     ) -> Result<()> {
-        handle_liquidate_spot_with_swap_in(
+        handle_liquidate_spot_with_swap_begin(
             ctx,
             asset_market_index,
             liability_market_index,

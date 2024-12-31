@@ -7179,8 +7179,8 @@ export class DriftClient {
 		jupiterClient: JupiterClient;
 		liabilityMarketIndex: number;
 		assetMarketIndex: number;
-		assetTokenAccount: PublicKey;
-		liabilityTokenAccount: PublicKey;
+		assetTokenAccount?: PublicKey;
+		liabilityTokenAccount?: PublicKey;
 		swapAmount: BN;
 		slippageBps?: number;
 		swapMode?: SwapMode;
@@ -7369,7 +7369,7 @@ export class DriftClient {
 				});
 			}
 	
-			const beginSwapIx = await this.program.instruction.beginSwap(
+			const beginSwapIx = await this.program.instruction.liquidateSpotWithSwapBegin(
 				assetMarketIndex,
 				liabilityMarketIndex,
 				swapAmount,
@@ -7393,7 +7393,7 @@ export class DriftClient {
 				}
 			);
 	
-			const endSwapIx = await this.program.instruction.endSwap(
+			const endSwapIx = await this.program.instruction.liquidateSpotWithSwapEnd(
 				assetMarketIndex,
 				liabilityMarketIndex,
 				{

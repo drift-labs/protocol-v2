@@ -2280,6 +2280,176 @@
       ]
     },
     {
+      "name": "liquidateSpotWithSwapBegin",
+      "accounts": [
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "liquidator",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "liquidatorStats",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "user",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "userStats",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "liabilitySpotMarketVault",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "assetSpotMarketVault",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "liabilityTokenAccount",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "assetTokenAccount",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "tokenProgram",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "driftSigner",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "instructions",
+          "isMut": false,
+          "isSigner": false,
+          "docs": [
+            "Instructions Sysvar for instruction introspection"
+          ]
+        }
+      ],
+      "args": [
+        {
+          "name": "assetMarketIndex",
+          "type": "u16"
+        },
+        {
+          "name": "liabilityMarketIndex",
+          "type": "u16"
+        },
+        {
+          "name": "swapAmount",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "liquidateSpotWithSwapEnd",
+      "accounts": [
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "liquidator",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "liquidatorStats",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "user",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "userStats",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "liabilitySpotMarketVault",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "assetSpotMarketVault",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "liabilityTokenAccount",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "assetTokenAccount",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "tokenProgram",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "driftSigner",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "instructions",
+          "isMut": false,
+          "isSigner": false,
+          "docs": [
+            "Instructions Sysvar for instruction introspection"
+          ]
+        }
+      ],
+      "args": [
+        {
+          "name": "assetMarketIndex",
+          "type": "u16"
+        },
+        {
+          "name": "liabilityMarketIndex",
+          "type": "u16"
+        }
+      ]
+    },
+    {
       "name": "liquidateBorrowForPerpPnl",
       "accounts": [
         {
@@ -14315,7 +14485,7 @@
     {
       "code": 6288,
       "name": "InvalidSwiftOrderParam",
-      "msg": "Swift only available for market/oracle perp orders"
+      "msg": "Invalid swift order param"
     },
     {
       "code": 6289,
@@ -14411,6 +14581,11 @@
       "code": 6307,
       "name": "PythLazerMessagePriceFeedMismatch",
       "msg": "Pyth lazer message does not correspond to correct fed id"
+    },
+    {
+      "code": 6308,
+      "name": "InvalidLiquidateSpotWithSwap",
+      "msg": "InvalidLiquidateSpotWithSwap"
     }
   ],
   "metadata": {
