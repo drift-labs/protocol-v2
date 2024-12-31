@@ -2,17 +2,23 @@ import {
 	DevnetPerpMarkets,
 	DriftClient,
 	DriftEnv,
+	getUserAccountPublicKey,
+	getUserStatsAccountPublicKey,
 	MainnetPerpMarkets,
+	MarketType,
 	OptionalOrderParams,
+	PostOnlyParams,
 	SwiftOrderParamsMessage,
+	UserMap,
 } from '..';
-import { Keypair } from '@solana/web3.js';
+import { Keypair, PublicKey, TransactionInstruction } from '@solana/web3.js';
 import nacl from 'tweetnacl';
 import { decodeUTF8 } from 'tweetnacl-util';
 import WebSocket from 'ws';
 
 export type SwiftOrderSubscriberConfig = {
 	driftClient: DriftClient;
+	userMap: UserMap;
 	driftEnv: DriftEnv;
 	endpoint?: string;
 	marketIndexes: number[];
@@ -24,19 +30,21 @@ export class SwiftOrderSubscriber {
 	private readonly heartbeatIntervalMs = 60000;
 	private ws: WebSocket | null = null;
 	private driftClient: DriftClient;
+	private userMap: UserMap;
 	subscribed = false;
 
 	constructor(
 		private config: SwiftOrderSubscriberConfig,
 		private onOrder: (
-			swiftOrderParams: OptionalOrderParams,
-			orderSlot: number
-		) => void
+			orderMessageRaw: any,
+			swiftOrderParamsMessage: SwiftOrderParamsMessage
+		) => Promise<void>
 	) {
 		this.driftClient = config.driftClient;
+		this.userMap = config.userMap;
 	}
 
-	getSymbolForMarketIndex(marketIndex: number) {
+	getSymbolForMarketIndex(marketIndex: number): string {
 		const markets =
 			this.config.driftEnv === 'devnet'
 				? DevnetPerpMarkets
@@ -44,7 +52,7 @@ export class SwiftOrderSubscriber {
 		return markets[marketIndex].symbol;
 	}
 
-	generateChallengeResponse(nonce: string) {
+	generateChallengeResponse(nonce: string): string {
 		const messageBytes = decodeUTF8(nonce);
 		const signature = nacl.sign.detached(
 			messageBytes,
@@ -54,7 +62,7 @@ export class SwiftOrderSubscriber {
 		return signatureBase64;
 	}
 
-	handleAuthMessage(message: any) {
+	handleAuthMessage(message: any): void {
 		if (message['channel'] === 'auth' && message['nonce'] != null) {
 			const signatureBase64 = this.generateChallengeResponse(message['nonce']);
 			this.ws?.send(
@@ -83,7 +91,7 @@ export class SwiftOrderSubscriber {
 		}
 	}
 
-	async subscribe() {
+	async subscribe(): Promise<void> {
 		const endpoint =
 			this.config.endpoint || this.config.driftEnv === 'devnet'
 				? 'wss://master.swift.drift.trade/ws'
@@ -109,20 +117,22 @@ export class SwiftOrderSubscriber {
 						order['order_message'],
 						'base64'
 					);
-					const { swiftOrderParams, slot }: SwiftOrderParamsMessage =
+					const swiftOrderParamsMessage: SwiftOrderParamsMessage =
 						this.driftClient.program.coder.types.decode(
 							'SwiftOrderParamsMessage',
 							swiftOrderParamsBuf
 						);
 
-					if (!swiftOrderParams.price) {
+					if (!swiftOrderParamsMessage.swiftOrderParams.price) {
 						console.error(
-							`order has no price: ${JSON.stringify(swiftOrderParams)}`
+							`order has no price: ${JSON.stringify(
+								swiftOrderParamsMessage.swiftOrderParams
+							)}`
 						);
 						return;
 					}
 
-					this.onOrder(swiftOrderParams, slot.toNumber());
+					this.onOrder(order, swiftOrderParamsMessage);
 				}
 			});
 
@@ -136,6 +146,45 @@ export class SwiftOrderSubscriber {
 				this.reconnect();
 			});
 		});
+	}
+
+	async getPlaceAndMakeSwiftOrderIxs(
+		orderMessageRaw: any,
+		swiftOrderParamsMessage: SwiftOrderParamsMessage,
+		makerOrderParams: OptionalOrderParams
+	): Promise<TransactionInstruction[]> {
+		const swiftOrderParamsBuf = Buffer.from(
+			orderMessageRaw['order_message'],
+			'base64'
+		);
+		const takerAuthority = new PublicKey(orderMessageRaw['taker_authority']);
+		const takerUserPubkey = await getUserAccountPublicKey(
+			this.driftClient.program.programId,
+			takerAuthority,
+			swiftOrderParamsMessage.subAccountId
+		);
+		const takerUserAccount = (
+			await this.userMap.mustGet(takerUserPubkey.toString())
+		).getUserAccount();
+		const ixs = await this.driftClient.getPlaceAndMakeSwiftPerpOrderIxs(
+			swiftOrderParamsBuf,
+			Buffer.from(orderMessageRaw['order_signature'], 'base64'),
+			decodeUTF8(orderMessageRaw['uuid']),
+			{
+				taker: takerUserPubkey,
+				takerUserAccount,
+				takerStats: getUserStatsAccountPublicKey(
+					this.driftClient.program.programId,
+					takerUserAccount.authority
+				),
+			},
+			Object.assign({}, makerOrderParams, {
+				postOnly: PostOnlyParams.MUST_POST_ONLY,
+				immediateOrCancel: true,
+				marketType: MarketType.PERP,
+			})
+		);
+		return ixs;
 	}
 
 	private startHeartbeatTimer() {
