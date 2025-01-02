@@ -15,7 +15,9 @@ use solana_program::sysvar::instructions::{
 };
 
 use crate::controller::insurance::update_user_stats_if_stake_amount;
-use crate::controller::liquidation::{liquidate_spot_with_swap_begin, liquidate_spot_with_swap_end};
+use crate::controller::liquidation::{
+    liquidate_spot_with_swap_begin, liquidate_spot_with_swap_end,
+};
 use crate::controller::orders::cancel_orders;
 use crate::controller::position::PositionDirection;
 use crate::controller::spot_balance::update_spot_balances;

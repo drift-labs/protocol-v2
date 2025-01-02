@@ -8385,13 +8385,15 @@ pub mod liquidate_spot_with_swap {
     use anchor_lang::Owner;
     use solana_program::pubkey::Pubkey;
 
-    use crate::controller::liquidation::{liquidate_spot_with_swap_begin, liquidate_spot_with_swap_end};
+    use crate::controller::liquidation::{
+        liquidate_spot_with_swap_begin, liquidate_spot_with_swap_end,
+    };
     use crate::create_anchor_account_info;
     use crate::error::ErrorCode;
     use crate::math::constants::{
         LIQUIDATION_FEE_PRECISION, LIQUIDATION_PCT_PRECISION, MARGIN_PRECISION,
-        SPOT_BALANCE_PRECISION,
-        SPOT_BALANCE_PRECISION_U64, SPOT_CUMULATIVE_INTEREST_PRECISION, SPOT_WEIGHT_PRECISION,
+        SPOT_BALANCE_PRECISION, SPOT_BALANCE_PRECISION_U64, SPOT_CUMULATIVE_INTEREST_PRECISION,
+        SPOT_WEIGHT_PRECISION,
     };
     use crate::state::oracle_map::OracleMap;
     use crate::state::perp_market_map::PerpMarketMap;
@@ -8572,15 +8574,26 @@ pub mod liquidate_spot_with_swap {
             &state,
             asset_transfer as u128,
             liability_transfer as u128,
-        ).unwrap();
+        )
+        .unwrap();
 
         assert_eq!(user.is_being_liquidated(), false);
 
         let quote_spot_market = spot_market_map.get_ref(&0).unwrap();
         let sol_spot_market = spot_market_map.get_ref(&1).unwrap();
 
-        assert_eq!(user.spot_positions[0].get_signed_token_amount(&quote_spot_market).unwrap(), 40661800);
-        assert_eq!(user.spot_positions[1].get_signed_token_amount(&sol_spot_market).unwrap(), -363051);
+        assert_eq!(
+            user.spot_positions[0]
+                .get_signed_token_amount(&quote_spot_market)
+                .unwrap(),
+            40661800
+        );
+        assert_eq!(
+            user.spot_positions[1]
+                .get_signed_token_amount(&sol_spot_market)
+                .unwrap(),
+            -363051
+        );
 
         let market_revenue = get_token_amount(
             sol_spot_market.revenue_pool.scaled_balance,
@@ -8590,6 +8603,5 @@ pub mod liquidate_spot_with_swap {
         .unwrap();
 
         assert_eq!(market_revenue, liability_transfer / 100);
-
     }
 }
