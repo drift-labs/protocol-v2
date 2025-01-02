@@ -8375,6 +8375,237 @@ pub mod set_user_status_to_being_liquidated {
     }
 }
 
+pub mod liquidate_spot_with_swap {
+    use crate::math::spot_balance::get_token_amount;
+    use crate::state::oracle::{HistoricalOracleData, OracleSource};
+    use crate::state::state::State;
+    use std::ops::Deref;
+    use std::str::FromStr;
+
+    use anchor_lang::Owner;
+    use solana_program::pubkey::Pubkey;
+
+    use crate::controller::liquidation::{
+        liquidate_spot_with_swap_begin, liquidate_spot_with_swap_end,
+    };
+    use crate::create_anchor_account_info;
+    use crate::error::ErrorCode;
+    use crate::math::constants::{
+        LIQUIDATION_FEE_PRECISION, LIQUIDATION_PCT_PRECISION, MARGIN_PRECISION,
+        SPOT_BALANCE_PRECISION, SPOT_BALANCE_PRECISION_U64, SPOT_CUMULATIVE_INTEREST_PRECISION,
+        SPOT_WEIGHT_PRECISION,
+    };
+    use crate::state::oracle_map::OracleMap;
+    use crate::state::perp_market_map::PerpMarketMap;
+    use crate::state::spot_market::{SpotBalanceType, SpotMarket};
+    use crate::state::spot_market_map::SpotMarketMap;
+    use crate::state::user::UserStats;
+    use crate::state::user::{Order, PerpPosition, SpotPosition, User};
+    use crate::test_utils::*;
+    use crate::test_utils::{get_pyth_price, get_spot_positions};
+    use crate::{create_account_info, QUOTE_PRECISION_I64};
+
+    #[test]
+    pub fn successful_liquidation_liability_transfer_to_cover_margin_shortage() {
+        let now = 0_i64;
+        let slot = 0_u64;
+
+        let mut user_stats = UserStats::default();
+        let mut liquidator_stats = UserStats::default();
+
+        let mut sol_oracle_price = get_pyth_price(100, 6);
+        let sol_oracle_price_key =
+            Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
+        let pyth_program = crate::ids::pyth_program::id();
+        create_account_info!(
+            sol_oracle_price,
+            &sol_oracle_price_key,
+            &pyth_program,
+            oracle_account_info
+        );
+        let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
+
+        let market_map = PerpMarketMap::empty();
+
+        let mut usdc_market = SpotMarket {
+            market_index: 0,
+            oracle_source: OracleSource::QuoteAsset,
+            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+            decimals: 6,
+            initial_asset_weight: SPOT_WEIGHT_PRECISION,
+            maintenance_asset_weight: SPOT_WEIGHT_PRECISION,
+            deposit_balance: 200 * SPOT_BALANCE_PRECISION,
+            liquidator_fee: 0,
+            historical_oracle_data: HistoricalOracleData {
+                last_oracle_price_twap: QUOTE_PRECISION_I64,
+                last_oracle_price_twap_5min: QUOTE_PRECISION_I64,
+                ..HistoricalOracleData::default()
+            },
+            ..SpotMarket::default()
+        };
+        create_anchor_account_info!(usdc_market, SpotMarket, usdc_spot_market_account_info);
+        let mut sol_market = SpotMarket {
+            market_index: 1,
+            oracle_source: OracleSource::Pyth,
+            oracle: sol_oracle_price_key,
+            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+            cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+            decimals: 6,
+            initial_asset_weight: 8 * SPOT_WEIGHT_PRECISION / 10,
+            maintenance_asset_weight: 9 * SPOT_WEIGHT_PRECISION / 10,
+            initial_liability_weight: 12 * SPOT_WEIGHT_PRECISION / 10,
+            maintenance_liability_weight: 11 * SPOT_WEIGHT_PRECISION / 10,
+            deposit_balance: SPOT_BALANCE_PRECISION,
+            borrow_balance: SPOT_BALANCE_PRECISION,
+            liquidator_fee: LIQUIDATION_FEE_PRECISION / 100,
+            if_liquidation_fee: LIQUIDATION_FEE_PRECISION / 100,
+            historical_oracle_data: HistoricalOracleData {
+                last_oracle_price_twap: (sol_oracle_price.agg.price * 99 / 100),
+                last_oracle_price_twap_5min: (sol_oracle_price.agg.price * 99 / 100),
+                ..HistoricalOracleData::default()
+            },
+            ..SpotMarket::default()
+        };
+        create_anchor_account_info!(sol_market, SpotMarket, sol_spot_market_account_info);
+        let spot_market_account_infos = Vec::from([
+            &usdc_spot_market_account_info,
+            &sol_spot_market_account_info,
+        ]);
+        let spot_market_map =
+            SpotMarketMap::load_multiple(spot_market_account_infos, true).unwrap();
+
+        let mut spot_positions = [SpotPosition::default(); 8];
+        spot_positions[0] = SpotPosition {
+            market_index: 0,
+            balance_type: SpotBalanceType::Deposit,
+            scaled_balance: 105 * SPOT_BALANCE_PRECISION_U64,
+            ..SpotPosition::default()
+        };
+        spot_positions[1] = SpotPosition {
+            market_index: 1,
+            balance_type: SpotBalanceType::Borrow,
+            scaled_balance: SPOT_BALANCE_PRECISION_U64,
+            ..SpotPosition::default()
+        };
+        let mut user = User {
+            orders: [Order::default(); 32],
+            perp_positions: [PerpPosition::default(); 8],
+            spot_positions,
+            ..User::default()
+        };
+
+        let mut liquidator = User {
+            spot_positions: get_spot_positions(SpotPosition {
+                market_index: 0,
+                balance_type: SpotBalanceType::Deposit,
+                scaled_balance: 100 * SPOT_BALANCE_PRECISION_U64,
+                ..SpotPosition::default()
+            }),
+            ..User::default()
+        };
+
+        let user_key = Pubkey::default();
+        let liquidator_key = Pubkey::default();
+
+        let state = State {
+            liquidation_margin_buffer_ratio: MARGIN_PRECISION / 50,
+            initial_pct_to_liquidate: LIQUIDATION_PCT_PRECISION as u16,
+            liquidation_duration: 150,
+            ..Default::default()
+        };
+
+        let asset_transfer = 64338200;
+        let liability_transfer = 643382;
+
+        let res = liquidate_spot_with_swap_begin(
+            0,
+            1,
+            asset_transfer + (asset_transfer / 400) + 1,
+            &mut user,
+            &user_key,
+            &mut user_stats,
+            &mut liquidator,
+            &liquidator_key,
+            &mut liquidator_stats,
+            &market_map,
+            &spot_market_map,
+            &mut oracle_map,
+            now,
+            slot,
+            &state,
+        );
+
+        assert_eq!(res, Err(ErrorCode::InvalidLiquidation));
+
+        let res = liquidate_spot_with_swap_begin(
+            0,
+            1,
+            asset_transfer,
+            &mut user,
+            &user_key,
+            &mut user_stats,
+            &mut liquidator,
+            &liquidator_key,
+            &mut liquidator_stats,
+            &market_map,
+            &spot_market_map,
+            &mut oracle_map,
+            now,
+            slot,
+            &state,
+        );
+
+        assert_eq!(res, Ok(()));
+
+        liquidate_spot_with_swap_end(
+            0,
+            1,
+            &mut user,
+            &user_key,
+            &mut user_stats,
+            &mut liquidator,
+            &liquidator_key,
+            &mut liquidator_stats,
+            &market_map,
+            &spot_market_map,
+            &mut oracle_map,
+            now,
+            slot,
+            &state,
+            asset_transfer as u128,
+            liability_transfer as u128,
+        )
+        .unwrap();
+
+        assert_eq!(user.is_being_liquidated(), false);
+
+        let quote_spot_market = spot_market_map.get_ref(&0).unwrap();
+        let sol_spot_market = spot_market_map.get_ref(&1).unwrap();
+
+        assert_eq!(
+            user.spot_positions[0]
+                .get_signed_token_amount(&quote_spot_market)
+                .unwrap(),
+            40661800
+        );
+        assert_eq!(
+            user.spot_positions[1]
+                .get_signed_token_amount(&sol_spot_market)
+                .unwrap(),
+            -363051
+        );
+
+        let market_revenue = get_token_amount(
+            sol_spot_market.revenue_pool.scaled_balance,
+            &sol_spot_market,
+            &SpotBalanceType::Deposit,
+        )
+        .unwrap();
+
+        assert_eq!(market_revenue, liability_transfer / 100);
+    }
+}
+
 mod liquidate_dust_prediction_market {
 
     use crate::controller::liquidation::liquidate_perp;

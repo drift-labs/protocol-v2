@@ -621,6 +621,8 @@ pub enum ErrorCode {
     InvalidPythLazerMessage,
     #[msg("Pyth lazer message does not correspond to correct fed id")]
     PythLazerMessagePriceFeedMismatch,
+    #[msg("InvalidLiquidateSpotWithSwap")]
+    InvalidLiquidateSpotWithSwap,
 }
 
 #[macro_export]

@@ -854,3 +854,56 @@ mod get_liquidation_fee {
         assert_eq!(fee, target_liq_fee);
     }
 }
+
+mod validate_swap_within_liquidation_boundaries {
+    use crate::math::liquidation::validate_swap_within_liquidation_boundaries;
+    use crate::{LIQUIDATION_FEE_PRECISION, PRICE_PRECISION_I64, QUOTE_PRECISION};
+
+    #[test]
+    fn success() {
+        let asset_decimals = 9;
+        let liability_decimals = 6;
+        let asset_transfer = 1 * 10_u128.pow(asset_decimals);
+        let liability_transfer = 200 * 10_u128.pow(liability_decimals);
+        let asset_price = 200 * PRICE_PRECISION_I64;
+        let liability_price = PRICE_PRECISION_I64;
+        let asset_liquidation_multiplier = LIQUIDATION_FEE_PRECISION * 101 / 100;
+        let liability_liquidation_multiplier = LIQUIDATION_FEE_PRECISION;
+
+        validate_swap_within_liquidation_boundaries(
+            asset_transfer,
+            liability_transfer,
+            asset_decimals,
+            liability_decimals,
+            asset_price,
+            liability_price,
+            asset_liquidation_multiplier,
+            liability_liquidation_multiplier,
+        )
+        .unwrap();
+    }
+
+    #[test]
+    fn failure() {
+        let asset_decimals = 9;
+        let liability_decimals = 6;
+        let asset_transfer = 1 * 10_u128.pow(asset_decimals);
+        let liability_transfer = 198 * 10_u128.pow(liability_decimals);
+        let asset_price = 200 * PRICE_PRECISION_I64;
+        let liability_price = PRICE_PRECISION_I64;
+        let asset_liquidation_multiplier = LIQUIDATION_FEE_PRECISION * 101 / 100;
+        let liability_liquidation_multiplier = LIQUIDATION_FEE_PRECISION;
+
+        let res = validate_swap_within_liquidation_boundaries(
+            asset_transfer,
+            liability_transfer,
+            asset_decimals,
+            liability_decimals,
+            asset_price,
+            liability_price,
+            asset_liquidation_multiplier,
+            liability_liquidation_multiplier,
+        )
+        .unwrap_err();
+    }
+}
