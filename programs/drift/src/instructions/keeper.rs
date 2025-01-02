@@ -41,7 +41,7 @@ use crate::state::high_leverage_mode_config::HighLeverageModeConfig;
 use crate::state::insurance_fund_stake::InsuranceFundStake;
 use crate::state::oracle_map::OracleMap;
 use crate::state::order_params::{OrderParams, PlaceOrderOptions, SwiftOrderParamsMessage};
-use crate::state::paused_operations::PerpOperation;
+use crate::state::paused_operations::{PerpOperation, SpotOperation};
 use crate::state::perp_market::{ContractType, MarketStatus, PerpMarket};
 use crate::state::perp_market_map::{
     get_market_set_for_spot_positions, get_market_set_for_user_positions, get_market_set_from_list,
@@ -2414,6 +2414,26 @@ pub fn handle_force_delete_user<'c: 'info, 'info>(
     Ok(())
 }
 
+pub fn handle_pause_spot_market_deposit_withdraw(
+    ctx: Context<PauseSpotMarketDepositWithdraw>,
+) -> Result<()> {
+    let spot_market = &mut load_mut!(ctx.accounts.spot_market)?;
+
+    let result =
+        validate_spot_market_vault_amount(spot_market, ctx.accounts.spot_market_vault.amount);
+
+    validate!(
+        matches!(result, Err(ErrorCode::SpotMarketVaultInvariantViolated)),
+        ErrorCode::DefaultError,
+        "spot market vault amount is valid"
+    )?;
+
+    spot_market.paused_operations = spot_market.paused_operations | SpotOperation::Deposit as u8;
+    spot_market.paused_operations = spot_market.paused_operations | SpotOperation::Withdraw as u8;
+
+    Ok(())
+}
+
 #[derive(Accounts)]
 pub struct FillOrder<'info> {
     pub state: Box<Account<'info, State>>,
@@ -2909,4 +2929,17 @@ pub struct ForceDeleteUser<'info> {
     pub keeper: Signer<'info>,
     /// CHECK: forced drift_signer
     pub drift_signer: AccountInfo<'info>,
+}
+
+#[derive(Accounts)]
+pub struct PauseSpotMarketDepositWithdraw<'info> {
+    pub state: Box<Account<'info, State>>,
+    pub keeper: Signer<'info>,
+    #[account(mut)]
+    pub spot_market: AccountLoader<'info, SpotMarket>,
+    #[account(
+        seeds = [b"spot_market_vault".as_ref(), spot_market.load()?.market_index.to_le_bytes().as_ref()],
+        bump,
+    )]
+    pub spot_market_vault: Box<InterfaceAccount<'info, TokenAccount>>,
 }

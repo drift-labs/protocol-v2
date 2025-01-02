@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Features
 
+- program: add ix to pause deposits/withdraws if vault invariant broken ([#1387](https://github.com/drift-labs/protocol-v2/pull/1387))
+
 ### Fixes
 
 - program: skip liq perp oracle twap check if market is in settlement ([#1406](https://github.com/drift-labs/protocol-v2/pull/1406))
