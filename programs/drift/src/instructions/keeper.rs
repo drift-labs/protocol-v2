@@ -41,7 +41,7 @@ use crate::state::high_leverage_mode_config::HighLeverageModeConfig;
 use crate::state::insurance_fund_stake::InsuranceFundStake;
 use crate::state::oracle_map::OracleMap;
 use crate::state::order_params::{OrderParams, PlaceOrderOptions, SwiftOrderParamsMessage};
-use crate::state::paused_operations::PerpOperation;
+use crate::state::paused_operations::{PerpOperation, SpotOperation};
 use crate::state::perp_market::{ContractType, MarketStatus, PerpMarket};
 use crate::state::perp_market_map::{
     get_market_set_for_spot_positions, get_market_set_for_user_positions, get_market_set_from_list,
@@ -61,11 +61,11 @@ use crate::state::user::{
     MarginMode, MarketType, OrderStatus, OrderTriggerCondition, OrderType, User, UserStats,
 };
 use crate::state::user_map::{load_user_map, load_user_maps, UserMap, UserStatsMap};
-use crate::validation::sig_verification::{extract_ed25519_ix_signature, verify_ed25519_msg};
+use crate::validation::sig_verification::verify_ed25519_msg;
 use crate::validation::user::{validate_user_deletion, validate_user_is_idle};
 use crate::{
-    controller, digest_struct, digest_struct_hex, load, math, print_error, safe_decrement,
-    OracleSource, GOV_SPOT_MARKET_INDEX, MARGIN_PRECISION,
+    controller, load, math, print_error, safe_decrement, OracleSource, GOV_SPOT_MARKET_INDEX,
+    MARGIN_PRECISION,
 };
 use crate::{load_mut, QUOTE_PRECISION_U64};
 use crate::{validate, QUOTE_PRECISION_I128};
@@ -603,9 +603,6 @@ pub fn handle_place_swift_taker_order<'c: 'info, 'info>(
     ctx: Context<'_, '_, 'c, 'info, PlaceSwiftTakerOrder<'info>>,
     swift_order_params_message_bytes: Vec<u8>,
 ) -> Result<()> {
-    let taker_order_params_message: SwiftOrderParamsMessage =
-        SwiftOrderParamsMessage::deserialize(&mut &swift_order_params_message_bytes[..]).unwrap();
-
     let state = &ctx.accounts.state;
 
     // TODO: generalize to support multiple market types
@@ -629,7 +626,7 @@ pub fn handle_place_swift_taker_order<'c: 'info, 'info>(
         taker_key,
         &mut taker,
         &mut swift_taker,
-        taker_order_params_message,
+        swift_order_params_message_bytes,
         &ctx.accounts.ix_sysvar.to_account_info(),
         &perp_market_map,
         &spot_market_map,
@@ -643,7 +640,7 @@ pub fn place_swift_taker_order<'c: 'info, 'info>(
     taker_key: Pubkey,
     taker: &mut RefMut<User>,
     swift_account: &mut SwiftUserOrdersZeroCopyMut,
-    taker_order_params_message: SwiftOrderParamsMessage,
+    taker_order_params_message_bytes: Vec<u8>,
     ix_sysvar: &AccountInfo<'info>,
     perp_market_map: &PerpMarketMap,
     spot_market_map: &SpotMarketMap,
@@ -664,15 +661,19 @@ pub fn place_swift_taker_order<'c: 'info, 'info>(
     )?;
 
     // Verify data from verify ix
-    let digest_hex = digest_struct_hex!(taker_order_params_message);
     let ix: Instruction = load_instruction_at_checked(ix_idx as usize - 1, ix_sysvar)?;
-    verify_ed25519_msg(
+    let verified_message_and_signature = verify_ed25519_msg(
         &ix,
+        ix_idx,
         &taker.authority.to_bytes(),
-        arrayref::array_ref!(digest_hex, 0, 64),
+        &taker_order_params_message_bytes[..],
+        12,
     )?;
 
-    let signature = extract_ed25519_ix_signature(&ix.data)?;
+    let taker_order_params_message: SwiftOrderParamsMessage =
+        verified_message_and_signature.swift_order_params_message;
+
+    let signature = verified_message_and_signature.signature;
     let clock = &Clock::get()?;
 
     // First order must be a taker order
@@ -2413,6 +2414,26 @@ pub fn handle_force_delete_user<'c: 'info, 'info>(
     Ok(())
 }
 
+pub fn handle_pause_spot_market_deposit_withdraw(
+    ctx: Context<PauseSpotMarketDepositWithdraw>,
+) -> Result<()> {
+    let spot_market = &mut load_mut!(ctx.accounts.spot_market)?;
+
+    let result =
+        validate_spot_market_vault_amount(spot_market, ctx.accounts.spot_market_vault.amount);
+
+    validate!(
+        matches!(result, Err(ErrorCode::SpotMarketVaultInvariantViolated)),
+        ErrorCode::DefaultError,
+        "spot market vault amount is valid"
+    )?;
+
+    spot_market.paused_operations = spot_market.paused_operations | SpotOperation::Deposit as u8;
+    spot_market.paused_operations = spot_market.paused_operations | SpotOperation::Withdraw as u8;
+
+    Ok(())
+}
+
 #[derive(Accounts)]
 pub struct FillOrder<'info> {
     pub state: Box<Account<'info, State>>,
@@ -2908,4 +2929,17 @@ pub struct ForceDeleteUser<'info> {
     pub keeper: Signer<'info>,
     /// CHECK: forced drift_signer
     pub drift_signer: AccountInfo<'info>,
+}
+
+#[derive(Accounts)]
+pub struct PauseSpotMarketDepositWithdraw<'info> {
+    pub state: Box<Account<'info, State>>,
+    pub keeper: Signer<'info>,
+    #[account(mut)]
+    pub spot_market: AccountLoader<'info, SpotMarket>,
+    #[account(
+        seeds = [b"spot_market_vault".as_ref(), spot_market.load()?.market_index.to_le_bytes().as_ref()],
+        bump,
+    )]
+    pub spot_market_vault: Box<InterfaceAccount<'info, TokenAccount>>,
 }

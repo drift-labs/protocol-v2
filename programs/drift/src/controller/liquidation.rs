@@ -309,20 +309,25 @@ pub fn liquidate_perp(
         "liquidator_max_base_asset_amount must be greater or equal to the step size",
     )?;
 
-    let oracle_price_too_divergent = is_oracle_too_divergent_with_twap_5min(
-        oracle_price,
-        perp_market_map
-            .get_ref(&market_index)?
-            .amm
-            .historical_oracle_data
-            .last_oracle_price_twap_5min,
-        state
-            .oracle_guard_rails
-            .max_oracle_twap_5min_percent_divergence()
-            .cast()?,
-    )?;
+    {
+        let perp_market = perp_market_map.get_ref(&market_index)?;
 
-    validate!(!oracle_price_too_divergent, ErrorCode::PriceBandsBreached)?;
+        if perp_market.status != MarketStatus::Settlement {
+            let oracle_price_too_divergent = is_oracle_too_divergent_with_twap_5min(
+                oracle_price,
+                perp_market
+                    .amm
+                    .historical_oracle_data
+                    .last_oracle_price_twap_5min,
+                state
+                    .oracle_guard_rails
+                    .max_oracle_twap_5min_percent_divergence()
+                    .cast()?,
+            )?;
+
+            validate!(!oracle_price_too_divergent, ErrorCode::PriceBandsBreached)?;
+        }
+    }
 
     let user_base_asset_amount = user.perp_positions[position_index]
         .base_asset_amount

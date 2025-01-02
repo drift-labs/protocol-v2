@@ -50,11 +50,12 @@ test_files=(
   order.ts
   ordersWithSpread.ts
   pauseExchange.ts
+  pauseDepositWithdraw.ts
   perpLpJit.ts
   perpLpRiskMitigation.ts
   phoenixTest.ts
   placeAndMakePerp.ts
-  # placeAndMakeSwiftPerpBankrun.ts
+  placeAndMakeSwiftPerpBankrun.ts
   placeAndMakeSpotOrder.ts
   postOnly.ts
   prelisting.ts

@@ -12,6 +12,9 @@ import {
 	createAssociatedTokenAccountIdempotentInstruction,
 	ACCOUNT_SIZE,
 	createSyncNativeInstruction,
+	createInitializePermanentDelegateInstruction,
+	getMintLen,
+	ExtensionType,
 } from '@solana/spl-token';
 import {
 	AccountInfo,
@@ -116,16 +119,24 @@ export async function mockOracleNoProgram(
 
 export async function mockUSDCMint(
 	context: BankrunContextWrapper,
-	tokenProgram = TOKEN_PROGRAM_ID
+	tokenProgram = TOKEN_PROGRAM_ID,
+	permanentDelegate?: boolean
 ): Promise<Keypair> {
 	const fakeUSDCMint = anchor.web3.Keypair.generate();
+
+	let space = MintLayout.span;
+	if (permanentDelegate) {
+		space = getMintLen([ExtensionType.PermanentDelegate]);
+	}
+
 	const createUSDCMintAccountIx = SystemProgram.createAccount({
 		fromPubkey: context.provider.wallet.publicKey,
 		newAccountPubkey: fakeUSDCMint.publicKey,
 		lamports: 10_000_000_000,
-		space: MintLayout.span,
+		space: space,
 		programId: tokenProgram,
 	});
+
 	const initCollateralMintIx = createInitializeMintInstruction(
 		fakeUSDCMint.publicKey,
 		6,
@@ -138,7 +149,20 @@ export async function mockUSDCMint(
 
 	const fakeUSDCTx = new Transaction();
 	fakeUSDCTx.add(createUSDCMintAccountIx);
+
+	if (permanentDelegate) {
+		fakeUSDCTx.add(
+			createInitializePermanentDelegateInstruction(
+				fakeUSDCMint.publicKey,
+				// @ts-ignore
+				context.provider.wallet.publicKey,
+				tokenProgram
+			)
+		);
+	}
+
 	fakeUSDCTx.add(initCollateralMintIx);
+
 	await context.sendTransaction(fakeUSDCTx, [fakeUSDCMint]);
 	return fakeUSDCMint;
 }

@@ -1108,8 +1108,8 @@ export const DefaultOrderParams: OrderParams = {
 export type SwiftOrderParamsMessage = {
 	swiftOrderParams: OptionalOrderParams;
 	subAccountId: number;
-	uuid: Uint8Array;
 	slot: BN;
+	uuid: Uint8Array;
 	takeProfitOrderParams: SwiftTriggerOrderParams | null;
 	stopLossOrderParams: SwiftTriggerOrderParams | null;
 };
