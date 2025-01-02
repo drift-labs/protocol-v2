@@ -495,7 +495,6 @@ impl User {
         )?;
 
         Ok(margin_calculation)
-
     }
     pub fn meets_withdraw_margin_requirement_and_increment_fuel_bonus_swap(
         &mut self,
