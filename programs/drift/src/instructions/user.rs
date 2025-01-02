@@ -31,7 +31,7 @@ use crate::math::liquidation::is_user_being_liquidated;
 use crate::math::margin::meets_initial_margin_requirement;
 use crate::math::margin::{
     calculate_max_withdrawable_amount, meets_maintenance_margin_requirement,
-    meets_place_order_margin_requirement, meets_withdraw_margin_requirement,
+    meets_place_order_margin_requirement,
     validate_spot_margin_trading, MarginRequirementType,
 };
 use crate::math::safe_math::SafeMath;
@@ -3063,9 +3063,9 @@ pub fn handle_end_swap<'c: 'info, 'info>(
         &mut oracle_map,
         margin_type,
         in_market_index,
-        in_token_amount_after.safe_sub(in_token_amount_before)? as u128,
+        in_token_amount_before.safe_sub(in_token_amount_after)?,
         out_market_index,
-        out_token_amount_after.safe_sub(out_token_amount_before)? as u128,
+        out_token_amount_before.safe_sub(out_token_amount_after)?,
         &mut user_stats,
         now,
     )?;

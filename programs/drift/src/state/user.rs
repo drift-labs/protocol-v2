@@ -504,9 +504,9 @@ impl User {
         oracle_map: &mut OracleMap,
         margin_requirement_type: MarginRequirementType,
         in_market_index: u16,
-        in_market_amount: u128,
+        in_delta: i128,
         out_market_index: u16,
-        out_market_amount: u128,
+        out_delta: i128,
         user_stats: &mut UserStats,
         now: i64,
     ) -> DriftResult<bool> {
@@ -514,8 +514,8 @@ impl User {
         let context = MarginContext::standard(margin_requirement_type)
             .strict(strict)
             .ignore_invalid_deposit_oracles(true)
-            .fuel_spot_delta(in_market_index, in_market_amount.cast::<i128>()?)
-            .fuel_spot_delta(out_market_index, out_market_amount.cast::<i128>()?)
+            .fuel_spot_delta(in_market_index, in_delta)
+            .fuel_spot_delta(out_market_index, out_delta)
             .fuel_numerator(self, now);
 
         let calculation = calculate_margin_requirement_and_total_collateral_and_liability_info(
