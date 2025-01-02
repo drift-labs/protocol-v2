@@ -8520,6 +8520,7 @@ pub mod liquidate_spot_with_swap {
         let res = liquidate_spot_with_swap_begin(
             0,
             1,
+            asset_transfer + (asset_transfer / 400) + 1,
             &mut user,
             &user_key,
             &mut user_stats,
@@ -8532,7 +8533,6 @@ pub mod liquidate_spot_with_swap {
             now,
             slot,
             &state,
-            asset_transfer + (asset_transfer / 400) + 1,
         );
 
         assert_eq!(res, Err(ErrorCode::InvalidLiquidation));
@@ -8540,6 +8540,7 @@ pub mod liquidate_spot_with_swap {
         let res = liquidate_spot_with_swap_begin(
             0,
             1,
+            asset_transfer,
             &mut user,
             &user_key,
             &mut user_stats,
@@ -8552,7 +8553,6 @@ pub mod liquidate_spot_with_swap {
             now,
             slot,
             &state,
-            asset_transfer,
         );
 
         assert_eq!(res, Ok(()));

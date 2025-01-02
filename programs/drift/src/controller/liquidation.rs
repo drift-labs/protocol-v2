@@ -1715,6 +1715,7 @@ pub fn liquidate_spot(
 pub fn liquidate_spot_with_swap_begin(
     asset_market_index: u16,
     liability_market_index: u16,
+    swap_amount: u64,
     user: &mut User,
     user_key: &Pubkey,
     user_stats: &mut UserStats,
@@ -1727,7 +1728,6 @@ pub fn liquidate_spot_with_swap_begin(
     now: i64,
     slot: u64,
     state: &State,
-    swap_amount: u64,
 ) -> DriftResult {
     let liquidation_margin_buffer_ratio = state.liquidation_margin_buffer_ratio;
     let initial_pct_to_liquidate = state.initial_pct_to_liquidate as u128;
@@ -1971,7 +1971,7 @@ pub fn liquidate_spot_with_swap_begin(
         liability_weight.safe_add(liquidation_margin_buffer_ratio)?;
 
     // Determine what amount of borrow to transfer to reduce margin shortage to 0
-    // assume 0 fee and swap is executed at oracle price
+    // assume 0 liquidator fee and swap is executed at oracle price
     let liability_transfer_to_cover_margin_shortage =
         calculate_liability_transfer_to_cover_margin_shortage(
             margin_shortage,
@@ -2036,12 +2036,6 @@ pub fn liquidate_spot_with_swap_begin(
     }
 
     validate!(
-        swap_amount > 0,
-        ErrorCode::InvalidLiquidation,
-        "swap_amount is 0"
-    )?;
-
-    validate!(
         max_asset_transfer >= swap_amount.cast()?,
         ErrorCode::InvalidLiquidation,
         "swap_amount larger than max_asset_transfer (swap_amount: {}, max_asset_transfer: {})",
@@ -2102,7 +2096,7 @@ pub fn liquidate_spot_with_swap_end(
     user: &mut User,
     user_key: &Pubkey,
     user_stats: &mut UserStats,
-    liquidator: &mut User,
+    _liquidator: &mut User,
     liquidator_key: &Pubkey,
     _liquidator_stats: &mut UserStats,
     perp_market_map: &PerpMarketMap,

@@ -1250,6 +1250,19 @@ pub fn handle_liquidate_spot_with_swap_begin<'c: 'info, 'info>(
     let clock = Clock::get()?;
     let now = clock.unix_timestamp;
 
+    let user_key = ctx.accounts.user.key();
+    let liquidator_key = ctx.accounts.liquidator.key();
+
+    validate!(
+        user_key != liquidator_key,
+        ErrorCode::UserCantLiquidateThemself
+    )?;
+
+    let user = &mut load_mut!(ctx.accounts.user)?;
+    let user_stats = &mut load_mut!(ctx.accounts.user_stats)?;
+    let liquidator = &mut load_mut!(ctx.accounts.liquidator)?;
+    let liquidator_stats = &mut load_mut!(ctx.accounts.liquidator_stats)?;
+
     let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
     let AccountMaps {
         perp_market_map,
@@ -1265,19 +1278,6 @@ pub fn handle_liquidate_spot_with_swap_begin<'c: 'info, 'info>(
 
     let _token_interface = get_token_interface(remaining_accounts_iter)?;
     let mint = get_token_mint(remaining_accounts_iter)?;
-
-    let user_key = ctx.accounts.user.key();
-    let liquidator_key = ctx.accounts.liquidator.key();
-
-    validate!(
-        user_key != liquidator_key,
-        ErrorCode::UserCantLiquidateThemself
-    )?;
-
-    let user = &mut load_mut!(ctx.accounts.user)?;
-    let user_stats = &mut load_mut!(ctx.accounts.user_stats)?;
-    let liquidator = &mut load_mut!(ctx.accounts.liquidator)?;
-    let liquidator_stats = &mut load_mut!(ctx.accounts.liquidator_stats)?;
 
     let mut asset_spot_market = spot_market_map.get_ref_mut(&asset_market_index)?;
     validate!(
@@ -1313,10 +1313,22 @@ pub fn handle_liquidate_spot_with_swap_begin<'c: 'info, 'info>(
     drop(liability_spot_market);
     drop(asset_spot_market);
 
-    // todo add validation here;
+    validate!(
+        asset_market_index != liability_market_index,
+        ErrorCode::InvalidSwap,
+        "asset and liability market the same"
+    )?;
+
+    validate!(
+        swap_amount != 0,
+        ErrorCode::InvalidSwap,
+        "swap_amount cannot be zero"
+    )?;
+
     liquidate_spot_with_swap_begin(
         asset_market_index,
         liability_market_index,
+        swap_amount,
         user,
         &user_key,
         user_stats,
@@ -1329,23 +1341,10 @@ pub fn handle_liquidate_spot_with_swap_begin<'c: 'info, 'info>(
         now,
         clock.slot,
         state,
-        swap_amount,
     )?;
 
     let mut asset_spot_market = spot_market_map.get_ref_mut(&asset_market_index)?;
     let mut liability_spot_market = spot_market_map.get_ref_mut(&liability_market_index)?;
-
-    validate!(
-        asset_market_index != liability_market_index,
-        ErrorCode::InvalidLiquidateSpotWithSwap,
-        "asset and liability market the same"
-    )?;
-
-    validate!(
-        swap_amount != 0,
-        ErrorCode::InvalidLiquidateSpotWithSwap,
-        "amount_in cannot be zero"
-    )?;
 
     let asset_vault = &ctx.accounts.asset_spot_market_vault;
     let asset_token_account = &ctx.accounts.asset_token_account;
@@ -1374,7 +1373,7 @@ pub fn handle_liquidate_spot_with_swap_begin<'c: 'info, 'info>(
     validate!(
         current_ix.program_id == *ctx.program_id,
         ErrorCode::InvalidLiquidateSpotWithSwap,
-        "LiquidateSpotWithSwap must be a top-level instruction (cant be cpi)"
+        "LiquidateSpotWithSwapBegin must be a top-level instruction (cant be cpi)"
     )?;
 
     let mut index = current_index + 1;
