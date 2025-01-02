@@ -11,6 +11,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixes
 
+- program: fix spot swap fuel bonus ([#1411](https://github.com/drift-labs/protocol-v2/pull/1411))
+
 ### Breaking
 
 ## [2.104.0] - 2024-12-23
