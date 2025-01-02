@@ -1244,12 +1244,6 @@ pub fn handle_init_user_fuel(
     let user = &mut load_mut!(ctx.accounts.user)?;
     let user_stats = &mut load_mut!(ctx.accounts.user_stats)?;
 
-    validate!(
-        user.last_fuel_bonus_update_ts < FUEL_START_TS as u32,
-        ErrorCode::DefaultError,
-        "User must not have begun earning fuel"
-    )?;
-
     if let Some(fuel_bonus_deposits) = fuel_bonus_deposits {
         msg!(
             "user_stats.fuel_deposits {:?} -> {:?}",

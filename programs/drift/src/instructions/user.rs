@@ -3057,12 +3057,17 @@ pub fn handle_end_swap<'c: 'info, 'info>(
     drop(out_spot_market);
     drop(in_spot_market);
 
-    meets_withdraw_margin_requirement(
-        &user,
+    user.meets_withdraw_margin_requirement_and_increment_fuel_bonus_swap(
         &perp_market_map,
         &spot_market_map,
         &mut oracle_map,
         margin_type,
+        in_market_index,
+        in_token_amount_after.safe_sub(in_token_amount_before)? as u128,
+        out_market_index,
+        out_token_amount_after.safe_sub(out_token_amount_before)? as u128,
+        &mut user_stats,
+        now,
     )?;
 
     user.update_last_active_slot(slot);
