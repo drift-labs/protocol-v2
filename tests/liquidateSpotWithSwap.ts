@@ -1,5 +1,4 @@
 import * as anchor from '@coral-xyz/anchor';
-import { assert } from 'chai';
 
 import { Program } from '@coral-xyz/anchor';
 
@@ -18,14 +17,8 @@ import {
 	EventSubscriber,
 	OracleSource,
 	OracleInfo,
-	getTokenAmount,
-	SpotBalanceType,
-	ZERO,
 	getSerumSignerPublicKey,
-	QUOTE_PRECISION,
-	UserStatsAccount,
-	getUserStatsAccountPublicKey,
-    PERCENTAGE_PRECISION,
+	PERCENTAGE_PRECISION,
 } from '../sdk/src';
 
 import {
@@ -36,14 +29,13 @@ import {
 	mockOracleNoProgram,
 	mockUSDCMint,
 	mockUserUSDCAccount,
-    setFeedPriceNoProgram
+	setFeedPriceNoProgram,
 } from './testHelpers';
 import { NATIVE_MINT } from '@solana/spl-token';
 import { DexInstructions, Market, OpenOrders } from '@project-serum/serum';
 import { startAnchor } from 'solana-bankrun';
 import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
 import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
-import { DRIFT_PROGRAM_ID } from '../sdk/src';
 
 describe('spot swap', () => {
 	const chProgram = anchor.workspace.Drift as Program;
@@ -71,18 +63,16 @@ describe('spot swap', () => {
 	const usdcAmount = new BN(200 * 10 ** 6).muln(10);
 	const solAmount = new BN(10 * 10 ** 9).muln(10);
 
-    const takerUsdcDepositAmount = new BN(10 ** 6).muln(200);
-    const takerSolDepositAmount = new BN(10 ** 9).muln(2);
-    const makerUsdcDepositAmount = new BN(10 ** 6).muln(200);
-    const makerSolWithdrawAmount = new BN(10 ** 9).muln(1);
+	const takerUsdcDepositAmount = new BN(10 ** 6).muln(200);
+	const takerSolDepositAmount = new BN(10 ** 9).muln(2);
+	const makerUsdcDepositAmount = new BN(10 ** 6).muln(200);
+	const makerSolWithdrawAmount = new BN(10 ** 9).muln(1);
 
 	let marketIndexes: number[];
 	let spotMarketIndexes: number[];
 	let oracleInfos: OracleInfo[];
 
 	const solSpotMarketIndex = 1;
-
-	let openOrdersAccount: PublicKey;
 
 	let takerKeypair: Keypair;
 
@@ -156,8 +146,9 @@ describe('spot swap', () => {
 		await makerDriftClient.subscribe();
 		await makerDriftClient.initializeUserAccount();
 
-		const oracleGuardrails = await makerDriftClient.getStateAccount().oracleGuardRails;
-        oracleGuardrails.validity.tooVolatileRatio = new BN(10000);
+		const oracleGuardrails = await makerDriftClient.getStateAccount()
+			.oracleGuardRails;
+		oracleGuardrails.validity.tooVolatileRatio = new BN(10000);
 		oracleGuardrails.priceDivergence.oracleTwap5MinPercentDivergence = new BN(
 			100
 		).mul(PERCENTAGE_PRECISION);
@@ -197,13 +188,17 @@ describe('spot swap', () => {
 		);
 		await takerDriftClient.deposit(takerUsdcDepositAmount, 0, takerUSDC);
 
-        await takerDriftClient.deposit(takerSolDepositAmount, 1, takerWSOL);
+		await takerDriftClient.deposit(takerSolDepositAmount, 1, takerWSOL);
 
-        await makerDriftClient.deposit(makerUsdcDepositAmount, 0, makerUSDC.publicKey);
+		await makerDriftClient.deposit(
+			makerUsdcDepositAmount,
+			0,
+			makerUSDC.publicKey
+		);
 
-        await makerDriftClient.withdraw(makerSolWithdrawAmount, 1, makerWSOL);
+		await makerDriftClient.withdraw(makerSolWithdrawAmount, 1, makerWSOL);
 
-        await setFeedPriceNoProgram(bankrunContextWrapper, 200, solOracle);
+		await setFeedPriceNoProgram(bankrunContextWrapper, 200, solOracle);
 	});
 
 	after(async () => {
@@ -270,43 +265,6 @@ describe('spot swap', () => {
 		takerOpenOrders = openOrdersAccount.publicKey;
 	});
 
-	const crankMarkets = async () => {
-		const openOrdersAccounts = [];
-
-		const market = await Market.load(
-			bankrunContextWrapper.connection.toConnection(),
-			serumMarketPublicKey,
-			{ commitment: 'processed' },
-			SERUM
-		);
-
-		openOrdersAccounts.push(openOrdersAccount);
-
-		const serumFulfillmentConfigAccount =
-			await makerDriftClient.getSerumV3FulfillmentConfig(serumMarketPublicKey);
-		openOrdersAccounts.push(serumFulfillmentConfigAccount.serumOpenOrders);
-
-		const consumeEventsIx = await market.makeConsumeEventsInstruction(
-			openOrdersAccounts,
-			10
-		);
-
-		const consumeEventsTx = new Transaction().add(consumeEventsIx);
-		await bankrunContextWrapper.sendTransaction(consumeEventsTx);
-		// await provider.sendAndConfirm(consumeEventsTx, []);
-
-		// Open orders need to be sorted correctly but not sure how to do it in js, so will run this
-		// ix sorted in both direction
-		const consumeEventsIx2 = await market.makeConsumeEventsInstruction(
-			openOrdersAccounts.reverse(),
-			10
-		);
-
-		const consumeEventsTx2 = new Transaction().add(consumeEventsIx2);
-		await bankrunContextWrapper.sendTransaction(consumeEventsTx2);
-		// await provider.sendAndConfirm(consumeEventsTx2, []);
-	};
-
 	it('swap usdc for sol', async () => {
 		const market = await Market.load(
 			bankrunContextWrapper.connection.toConnection(),
@@ -336,8 +294,6 @@ describe('spot swap', () => {
 			}
 		);
 
-		openOrdersAccount = signers[0].publicKey;
-
 		const signerKeypairs = signers.map((signer) => {
 			return Keypair.fromSecretKey(signer.secretKey);
 		});
@@ -345,16 +301,18 @@ describe('spot swap', () => {
 		await bankrunContextWrapper.sendTransaction(transaction, signerKeypairs);
 
 		const amountIn = makerUsdcDepositAmount;
-		const { beginSwapIx, endSwapIx } = await takerDriftClient.getLiquidateSpotWithSwapIx({
-			swapAmount: amountIn,
-			assetMarketIndex: 0,
-			liabilityMarketIndex: 1,
-			assetTokenAccount: takerUSDC,
-			liabilityTokenAccount: takerWSOL,
-			userAccount: makerDriftClient.getUserAccount(),
-			userAccountPublicKey: await makerDriftClient.getUserAccountPublicKey(),
-			userStatsAccountPublicKey: makerDriftClient.getUserStatsAccountPublicKey(),
-		});
+		const { beginSwapIx, endSwapIx } =
+			await takerDriftClient.getLiquidateSpotWithSwapIx({
+				swapAmount: amountIn,
+				assetMarketIndex: 0,
+				liabilityMarketIndex: 1,
+				assetTokenAccount: takerUSDC,
+				liabilityTokenAccount: takerWSOL,
+				userAccount: makerDriftClient.getUserAccount(),
+				userAccountPublicKey: await makerDriftClient.getUserAccountPublicKey(),
+				userStatsAccountPublicKey:
+					makerDriftClient.getUserStatsAccountPublicKey(),
+			});
 
 		// @ts-ignore
 		const serumBidIx = await market.makePlaceOrderInstruction(
@@ -401,10 +359,14 @@ describe('spot swap', () => {
 			.add(settleFundsIx)
 			.add(endSwapIx);
 
-		const { txSig } = await takerDriftClient.sendTransaction(tx);
+		await takerDriftClient.sendTransaction(tx);
 
-        await makerDriftClient.fetchAccounts();
+		await makerDriftClient.fetchAccounts();
 
-        console.log('maker is being liquidated', makerDriftClient.getUser().isBeingLiquidated(), makerDriftClient.getUserAccount().status);
+		console.log(
+			'maker is being liquidated',
+			makerDriftClient.getUser().isBeingLiquidated(),
+			makerDriftClient.getUserAccount().status
+		);
 	});
 });

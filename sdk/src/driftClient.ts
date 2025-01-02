@@ -7363,70 +7363,76 @@ export class DriftClient {
 	 * @param userAccountPublicKey
 	 * @param userStatsAccountPublicKey
 	 */
-		public async getLiquidateSpotWithSwapIx({
-			liabilityMarketIndex,
-			assetMarketIndex,
-			swapAmount: swapAmount,
-			assetTokenAccount,
-			liabilityTokenAccount,
-			userAccount,
-			userAccountPublicKey,
-			userStatsAccountPublicKey,
-			liquidatorSubAccountId,
-		}: {
-			liabilityMarketIndex: number;
-			assetMarketIndex: number;
-			swapAmount: BN;
-			assetTokenAccount: PublicKey;
-			liabilityTokenAccount: PublicKey;
-			userAccount: UserAccount;
-			userAccountPublicKey: PublicKey;
-			userStatsAccountPublicKey: PublicKey;
-			liquidatorSubAccountId?: number;
-		}): Promise<{
-			beginSwapIx: TransactionInstruction;
-			endSwapIx: TransactionInstruction;
-		}> {
-			const liquidatorAccountPublicKey = await this.getUserAccountPublicKey(
-				liquidatorSubAccountId
-			);
-			const liquidatorStatsPublicKey = this.getUserStatsAccountPublicKey();
+	public async getLiquidateSpotWithSwapIx({
+		liabilityMarketIndex,
+		assetMarketIndex,
+		swapAmount: swapAmount,
+		assetTokenAccount,
+		liabilityTokenAccount,
+		userAccount,
+		userAccountPublicKey,
+		userStatsAccountPublicKey,
+		liquidatorSubAccountId,
+	}: {
+		liabilityMarketIndex: number;
+		assetMarketIndex: number;
+		swapAmount: BN;
+		assetTokenAccount: PublicKey;
+		liabilityTokenAccount: PublicKey;
+		userAccount: UserAccount;
+		userAccountPublicKey: PublicKey;
+		userStatsAccountPublicKey: PublicKey;
+		liquidatorSubAccountId?: number;
+	}): Promise<{
+		beginSwapIx: TransactionInstruction;
+		endSwapIx: TransactionInstruction;
+	}> {
+		const liquidatorAccountPublicKey = await this.getUserAccountPublicKey(
+			liquidatorSubAccountId
+		);
+		const liquidatorStatsPublicKey = this.getUserStatsAccountPublicKey();
 
-			const userAccounts = [userAccount];		
-			const remainingAccounts = this.getRemainingAccounts({
-				userAccounts,
-				writableSpotMarketIndexes: [liabilityMarketIndex, assetMarketIndex],
-				readableSpotMarketIndexes: [QUOTE_SPOT_MARKET_INDEX],
+		const userAccounts = [userAccount];
+		const remainingAccounts = this.getRemainingAccounts({
+			userAccounts,
+			writableSpotMarketIndexes: [liabilityMarketIndex, assetMarketIndex],
+			readableSpotMarketIndexes: [QUOTE_SPOT_MARKET_INDEX],
+		});
+
+		const liabilitySpotMarket = this.getSpotMarketAccount(liabilityMarketIndex);
+		const assetSpotMarket = this.getSpotMarketAccount(assetMarketIndex);
+
+		const liabilityTokenProgram =
+			this.getTokenProgramForSpotMarket(liabilitySpotMarket);
+		const assetTokenProgram =
+			this.getTokenProgramForSpotMarket(assetSpotMarket);
+
+		if (!liabilityTokenProgram.equals(assetTokenProgram)) {
+			remainingAccounts.push({
+				pubkey: liabilityTokenProgram,
+				isWritable: false,
+				isSigner: false,
 			});
-	
-			const liabilitySpotMarket = this.getSpotMarketAccount(liabilityMarketIndex);
-			const assetSpotMarket = this.getSpotMarketAccount(assetMarketIndex);
-	
-			const liabilityTokenProgram = this.getTokenProgramForSpotMarket(liabilitySpotMarket);
-			const assetTokenProgram = this.getTokenProgramForSpotMarket(assetSpotMarket);
-	
-			if (!liabilityTokenProgram.equals(assetTokenProgram)) {
-				remainingAccounts.push({
-					pubkey: liabilityTokenProgram,
-					isWritable: false,
-					isSigner: false,
-				});
-			}
-	
-			if (liabilitySpotMarket.tokenProgram === 1 || assetSpotMarket.tokenProgram === 1) {
-				remainingAccounts.push({
-					pubkey: assetSpotMarket.mint,
-					isWritable: false,
-					isSigner: false,
-				});
-				remainingAccounts.push({
-					pubkey: liabilitySpotMarket.mint,
-					isWritable: false,
-					isSigner: false,
-				});
-			}
-	
-			const beginSwapIx = await this.program.instruction.liquidateSpotWithSwapBegin(
+		}
+
+		if (
+			liabilitySpotMarket.tokenProgram === 1 ||
+			assetSpotMarket.tokenProgram === 1
+		) {
+			remainingAccounts.push({
+				pubkey: assetSpotMarket.mint,
+				isWritable: false,
+				isSigner: false,
+			});
+			remainingAccounts.push({
+				pubkey: liabilitySpotMarket.mint,
+				isWritable: false,
+				isSigner: false,
+			});
+		}
+
+		const beginSwapIx =
+			await this.program.instruction.liquidateSpotWithSwapBegin(
 				assetMarketIndex,
 				liabilityMarketIndex,
 				swapAmount,
@@ -7449,32 +7455,32 @@ export class DriftClient {
 					remainingAccounts,
 				}
 			);
-	
-			const endSwapIx = await this.program.instruction.liquidateSpotWithSwapEnd(
-				assetMarketIndex,
-				liabilityMarketIndex,
-				{
-					accounts: {
-						state: await this.getStatePublicKey(),
-						user: userAccountPublicKey,
-						userStats: userStatsAccountPublicKey,
-						liquidator: liquidatorAccountPublicKey,
-						liquidatorStats: liquidatorStatsPublicKey,
-						authority: this.wallet.publicKey,
-						liabilitySpotMarketVault: liabilitySpotMarket.vault,
-						assetSpotMarketVault: assetSpotMarket.vault,
-						assetTokenAccount: assetTokenAccount,
-						liabilityTokenAccount: liabilityTokenAccount,
-						tokenProgram: assetTokenProgram,
-						driftSigner: this.getStateAccount().signer,
-						instructions: anchor.web3.SYSVAR_INSTRUCTIONS_PUBKEY,
-					},
-					remainingAccounts,
-				}
-			);
-	
-			return { beginSwapIx, endSwapIx };
-		}
+
+		const endSwapIx = await this.program.instruction.liquidateSpotWithSwapEnd(
+			assetMarketIndex,
+			liabilityMarketIndex,
+			{
+				accounts: {
+					state: await this.getStatePublicKey(),
+					user: userAccountPublicKey,
+					userStats: userStatsAccountPublicKey,
+					liquidator: liquidatorAccountPublicKey,
+					liquidatorStats: liquidatorStatsPublicKey,
+					authority: this.wallet.publicKey,
+					liabilitySpotMarketVault: liabilitySpotMarket.vault,
+					assetSpotMarketVault: assetSpotMarket.vault,
+					assetTokenAccount: assetTokenAccount,
+					liabilityTokenAccount: liabilityTokenAccount,
+					tokenProgram: assetTokenProgram,
+					driftSigner: this.getStateAccount().signer,
+					instructions: anchor.web3.SYSVAR_INSTRUCTIONS_PUBKEY,
+				},
+				remainingAccounts,
+			}
+		);
+
+		return { beginSwapIx, endSwapIx };
+	}
 
 	public async liquidateBorrowForPerpPnl(
 		userAccountPublicKey: PublicKey,
