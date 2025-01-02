@@ -273,7 +273,12 @@ describe('place and make swift order', () => {
 				takerUserAccount: takerDriftClient.getUserAccount(),
 				takerStats: takerDriftClient.getUserStatsAccountPublicKey(),
 			},
-			makerOrderParams
+			makerOrderParams,
+			undefined,
+			undefined,
+			undefined,
+			undefined,
+			2
 		);
 
 		const makerPosition = makerDriftClient.getUser().getPerpPosition(0);
@@ -302,7 +307,12 @@ describe('place and make swift order', () => {
 				takerUserAccount: takerDriftClient.getUserAccount(),
 				takerStats: takerDriftClient.getUserStatsAccountPublicKey(),
 			},
-			makerOrderParams
+			makerOrderParams,
+			undefined,
+			undefined,
+			undefined,
+			undefined,
+			2
 		);
 
 		const takerPositionAfter = takerDriftClient.getUser().getPerpPosition(0);
@@ -414,12 +424,13 @@ describe('place and make swift order', () => {
 		);
 
 		// Get pyth lazer instruction
-		const pythLazerCrankIxs = makerDriftClient.getPostPythLazerOracleUpdateIxs(
-			[6],
-			PYTH_LAZER_HEX_STRING_SOL,
-			undefined,
-			1
-		);
+		const pythLazerCrankIxs =
+			await makerDriftClient.getPostPythLazerOracleUpdateIxs(
+				[6],
+				PYTH_LAZER_HEX_STRING_SOL,
+				undefined,
+				1
+			);
 
 		const placeSwiftTakerOrderIxs =
 			await makerDriftClient.getPlaceSwiftTakerPerpOrderIxs(
@@ -430,7 +441,9 @@ describe('place and make swift order', () => {
 					taker: await takerDriftClient.getUserAccountPublicKey(),
 					takerUserAccount: takerDriftClient.getUserAccount(),
 					takerStats: takerDriftClient.getUserStatsAccountPublicKey(),
-				}
+				},
+				undefined,
+				pythLazerCrankIxs
 			);
 
 		const swiftOrder: Order = {
@@ -595,7 +608,11 @@ describe('place and make swift order', () => {
 				takerUserAccount: takerDriftClient.getUserAccount(),
 				takerStats: takerDriftClient.getUserStatsAccountPublicKey(),
 			},
-			makerOrderParams
+			makerOrderParams,
+			undefined,
+			undefined,
+			undefined,
+			2
 		);
 
 		/*
@@ -702,7 +719,12 @@ describe('place and make swift order', () => {
 					takerUserAccount: takerDriftClient.getUserAccount(),
 					takerStats: takerDriftClient.getUserStatsAccountPublicKey(),
 				},
-				makerOrderParams
+				makerOrderParams,
+				undefined,
+				undefined,
+				undefined,
+				undefined,
+				2
 			);
 		} catch (e) {
 			assert(e);
@@ -767,7 +789,9 @@ describe('place and make swift order', () => {
 				taker: await takerDriftClient.getUserAccountPublicKey(),
 				takerUserAccount: takerDriftClient.getUserAccount(),
 				takerStats: takerDriftClient.getUserStatsAccountPublicKey(),
-			}
+			},
+			undefined,
+			2
 		);
 
 		assert(takerDriftClient.getOrderByUserId(1) !== undefined);
@@ -790,7 +814,12 @@ describe('place and make swift order', () => {
 				takerUserAccount: takerDriftClient.getUserAccount(),
 				takerStats: takerDriftClient.getUserStatsAccountPublicKey(),
 			},
-			makerOrderParams
+			makerOrderParams,
+			undefined,
+			undefined,
+			undefined,
+			undefined,
+			2
 		);
 
 		const takerPosition = takerDriftClient.getUser().getPerpPosition(0);
@@ -850,7 +879,9 @@ describe('place and make swift order', () => {
 					taker: await takerDriftClient.getUserAccountPublicKey(),
 					takerUserAccount: takerDriftClient.getUserAccount(),
 					takerStats: takerDriftClient.getUserStatsAccountPublicKey(),
-				}
+				},
+				undefined,
+				2
 			);
 			assert.fail('Should have failed');
 		} catch (error) {
@@ -912,7 +943,9 @@ describe('place and make swift order', () => {
 				taker: await takerDriftClient.getUserAccountPublicKey(),
 				takerUserAccount: takerDriftClient.getUserAccount(),
 				takerStats: takerDriftClient.getUserStatsAccountPublicKey(),
-			}
+			},
+			undefined,
+			2
 		);
 
 		assert(
@@ -1083,7 +1116,7 @@ function getSizeOfCompressedU16(n: number) {
 	return 1 + Number(n >= 128) + Number(n >= 16384);
 }
 
-export async function checkIfAccountExists(
+async function checkIfAccountExists(
 	connection: Connection,
 	account: PublicKey
 ): Promise<boolean> {

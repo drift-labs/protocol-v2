@@ -801,14 +801,19 @@ pub fn calculate_max_withdrawable_amount(
 
     let free_collateral = calculation.get_free_collateral()?;
 
-    let precision_increase = 10u128.pow(spot_market.decimals - 6);
+    let (numerator_scale, denominator_scale) = if spot_market.decimals > 6 {
+        (10_u128.pow(spot_market.decimals - 6), 1)
+    } else {
+        (1, 10_u128.pow(6 - spot_market.decimals))
+    };
 
     free_collateral
         .safe_mul(MARGIN_PRECISION_U128)?
         .safe_div(asset_weight.cast()?)?
         .safe_mul(PRICE_PRECISION)?
         .safe_div(oracle_price.cast()?)?
-        .safe_mul(precision_increase)?
+        .safe_mul(numerator_scale)?
+        .safe_div(denominator_scale)?
         .cast()
 }
 

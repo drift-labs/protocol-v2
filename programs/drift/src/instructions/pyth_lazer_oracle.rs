@@ -1,3 +1,5 @@
+use std::borrow::Borrow;
+
 use crate::error::ErrorCode;
 use crate::math::casting::Cast;
 use crate::math::safe_math::SafeMath;
@@ -6,8 +8,10 @@ use crate::state::pyth_lazer_oracle::{
 };
 use crate::validate;
 use anchor_lang::prelude::*;
-use pyth_lazer_sdk::protocol::payload::{PayloadData, PayloadPropertyValue};
-use pyth_lazer_sdk::protocol::router::Price;
+use pyth_lazer_solana_contract::protocol::message::SolanaMessage;
+use pyth_lazer_solana_contract::protocol::payload::{PayloadData, PayloadPropertyValue};
+use pyth_lazer_solana_contract::protocol::router::Price;
+use pyth_lazer_solana_contract::Storage;
 use solana_program::sysvar::instructions::load_current_index_checked;
 
 pub fn handle_update_pyth_lazer_oracle<'c: 'info, 'info>(
@@ -22,28 +26,24 @@ pub fn handle_update_pyth_lazer_oracle<'c: 'info, 'info>(
         "instruction index must be greater than 0 to include the sig verify ix"
     )?;
 
-    let verified = pyth_lazer_sdk::verify_message(
-        &ctx.accounts.pyth_lazer_storage,
-        &ctx.accounts.ix_sysvar.to_account_info(),
+    // Load oracle accounts from remaining accounts
+    let remaining_accounts = ctx.remaining_accounts;
+    let storage_account_data = ctx.accounts.pyth_lazer_storage.try_borrow_data()?;
+    let pyth_storage = Storage::try_deserialize(&mut &storage_account_data[..])?;
+
+    pyth_lazer_solana_contract::verify_message_direct(
+        &pyth_storage,
+        &ctx.accounts.ix_sysvar,
         &pyth_message,
         ix_idx - 1,
         0,
-        0,
-    );
-
-    if verified.is_err() {
-        msg!("{:?}", verified);
-        return Err(ErrorCode::UnverifiedPythLazerMessage.into());
-    }
-
-    // Load oracle accounts from remaining accounts
-    let remaining_accounts = ctx.remaining_accounts;
-    validate!(
-        remaining_accounts.len() <= 3,
-        ErrorCode::OracleTooManyPriceAccountUpdates
+        12,
     )?;
 
-    let data = PayloadData::deserialize_slice_le(verified.unwrap().payload)
+    let deserialized_pyth_message = SolanaMessage::deserialize_slice(&pyth_message)
+        .map_err(|_| ProgramError::InvalidInstructionData)?;
+
+    let data = PayloadData::deserialize_slice_le(&deserialized_pyth_message.payload)
         .map_err(|_| ProgramError::InvalidInstructionData)?;
     let next_timestamp = data.timestamp_us.0;
 
@@ -127,7 +127,7 @@ pub struct UpdatePythLazerOracle<'info> {
     pub keeper: Signer<'info>,
     /// CHECK: Pyth lazer storage account not available to us
     #[account(
-      address = PYTH_LAZER_STORAGE_ID @ ErrorCode::InvalidPythLazerStorageOwner
+      address = PYTH_LAZER_STORAGE_ID @ ErrorCode::InvalidPythLazerStorageOwner,
     )]
     pub pyth_lazer_storage: AccountInfo<'info>,
     /// CHECK: checked by ed25519 verify

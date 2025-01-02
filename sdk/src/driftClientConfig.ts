@@ -38,6 +38,7 @@ export type DriftClientConfig = {
 	enableMetricsEvents?: boolean;
 	txHandlerConfig?: TxHandlerConfig;
 	delistedMarketSetting?: DelistedMarketSetting;
+	useHotWalletAdmin?: boolean;
 };
 
 export type DriftClientSubscriptionConfig =
