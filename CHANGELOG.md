@@ -11,6 +11,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixes
 
+- program: skip liq perp oracle twap check if market is in settlement ([#1406](https://github.com/drift-labs/protocol-v2/pull/1406))
+
 ### Breaking
 
 ## [2.104.0] - 2024-12-23
