@@ -25,7 +25,6 @@ import {
 	sendAndConfirmTransaction,
 	SystemProgram,
 	Transaction,
-	TransactionInstruction,
 	TransactionSignature,
 } from '@solana/web3.js';
 import { assert } from 'chai';

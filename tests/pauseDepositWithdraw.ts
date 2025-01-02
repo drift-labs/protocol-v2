@@ -3,7 +3,7 @@ import { assert } from 'chai';
 
 import { Program } from '@coral-xyz/anchor';
 
-import { LAMPORTS_PER_SOL, PublicKey, Transaction } from '@solana/web3.js';
+import { PublicKey } from '@solana/web3.js';
 
 import {
 	TestClient,
@@ -20,8 +20,6 @@ import {
 
 import {
 	createUserWithUSDCAccount,
-	createUserWithUSDCAndWSOLAccount,
-	mintUSDCToUser,
 	mockOracleNoProgram,
 	mockUSDCMint,
 	mockUserUSDCAccount,
@@ -29,22 +27,15 @@ import {
 } from './testHelpers';
 import {
 	getBalance,
-	calculateInterestAccumulated,
-	getTokenAmount,
 } from '../sdk/src/math/spotBalance';
 import {
 	createBurnInstruction,
-	NATIVE_MINT,
 	TOKEN_2022_PROGRAM_ID,
-	TOKEN_PROGRAM_ID,
 } from '@solana/spl-token';
 import {
 	QUOTE_PRECISION,
-	ZERO,
-	ONE,
 	SPOT_MARKET_BALANCE_PRECISION,
-	PRICE_PRECISION,
-    SpotOperation,
+	SpotOperation,
 } from '../sdk';
 import { startAnchor } from 'solana-bankrun';
 import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
@@ -69,8 +60,6 @@ describe('spot deposit and withdraw 22', () => {
 
 	const usdcAmount = new BN(10 * 10 ** 6);
 	const largeUsdcAmount = new BN(10_000 * 10 ** 6);
-
-	const solAmount = new BN(1 * 10 ** 9);
 
 	let marketIndexes: number[];
 	let spotMarketIndexes: number[];
@@ -269,13 +258,15 @@ describe('spot deposit and withdraw 22', () => {
 		);
 		const tx = await admin.buildTransaction([burnIx]);
 		// @ts-ignore
-		const txSig = await admin.sendTransaction(tx);
+		await admin.sendTransaction(tx);
 
 		await admin.pauseSpotMarketDepositWithdraw(0);
 
 		await admin.fetchAccounts();
 		const spotMarketAfter = await admin.getSpotMarketAccount(0);
 		const pausedOperations = spotMarketAfter.pausedOperations;
-		assert(pausedOperations === (SpotOperation.DEPOSIT | SpotOperation.WITHDRAW));
+		assert(
+			pausedOperations === (SpotOperation.DEPOSIT | SpotOperation.WITHDRAW)
+		);
 	});
 });
