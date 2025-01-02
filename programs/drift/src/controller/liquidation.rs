@@ -315,13 +315,16 @@ pub fn liquidate_perp(
         if perp_market.status != MarketStatus::Settlement {
             let oracle_price_too_divergent = is_oracle_too_divergent_with_twap_5min(
                 oracle_price,
-                perp_market.amm.historical_oracle_data.last_oracle_price_twap_5min,
+                perp_market
+                    .amm
+                    .historical_oracle_data
+                    .last_oracle_price_twap_5min,
                 state
                     .oracle_guard_rails
                     .max_oracle_twap_5min_percent_divergence()
                     .cast()?,
             )?;
-        
+
             validate!(!oracle_price_too_divergent, ErrorCode::PriceBandsBreached)?;
         }
     }
