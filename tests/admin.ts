@@ -19,9 +19,11 @@ import {
 	mockUSDCMint,
 } from './testHelpers';
 import { PublicKey } from '@solana/web3.js';
-import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
+import {
+	BankrunContextWrapper,
+	Connection,
+} from '../sdk/src/bankrun/bankrunConnection';
 import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
-import { checkIfAccountExists } from './placeAndMakeSwiftPerpBankrun';
 
 describe('admin', () => {
 	const chProgram = anchor.workspace.Drift as Program;
@@ -417,3 +419,16 @@ describe('admin', () => {
 		await driftClient.unsubscribe();
 	});
 });
+
+async function checkIfAccountExists(
+	connection: Connection,
+	account: PublicKey
+): Promise<boolean> {
+	try {
+		const accountInfo = await connection.getAccountInfo(account);
+		return accountInfo != null;
+	} catch (e) {
+		// Doesn't already exist
+		return false;
+	}
+}

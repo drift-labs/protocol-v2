@@ -331,11 +331,6 @@ pub fn handle_update_spot_market_pool_id(
     ctx: Context<AdminUpdateSpotMarket>,
     pool_id: u8,
 ) -> Result<()> {
-    #[cfg(all(feature = "mainnet-beta", not(feature = "anchor-test")))]
-    {
-        panic!("pools disabled on mainnet-beta");
-    }
-
     let mut spot_market = load_mut!(ctx.accounts.spot_market)?;
     msg!(
         "updating spot market {} pool id to {}",

@@ -114,6 +114,7 @@ pub fn calculate_liability_transfer_to_cover_margin_shortage(
                 )?,
         )?
         .safe_div(denominator_scale)
+        .map(|x| x.max(1))
 }
 
 pub fn calculate_liability_transfer_implied_by_asset_amount(

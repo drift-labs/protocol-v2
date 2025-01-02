@@ -9,6 +9,7 @@ import {
 } from '../sdk/src';
 import {
 	PublicKey,
+	Transaction,
 	TransactionMessage,
 	VersionedTransaction,
 } from '@solana/web3.js';
@@ -97,7 +98,8 @@ describe('pyth lazer oracles', () => {
 	it('crank', async () => {
 		const ixs = await driftClient.getPostPythLazerOracleUpdateIxs(
 			[1],
-			PYTH_LAZER_HEX_STRING_BTC
+			PYTH_LAZER_HEX_STRING_BTC,
+			[]
 		);
 
 		const message = new TransactionMessage({
@@ -109,10 +111,14 @@ describe('pyth lazer oracles', () => {
 		const simResult = await provider.connection.simulateTransaction(tx);
 		console.log(simResult.value.logs);
 		assert(simResult.value.err === null);
+
+		const normalTx = new Transaction();
+		normalTx.add(...ixs);
+		await driftClient.sendTransaction(normalTx);
 	});
 
 	it('crank multi', async () => {
-		const ixs = driftClient.getPostPythLazerOracleUpdateIxs(
+		const ixs = await driftClient.getPostPythLazerOracleUpdateIxs(
 			[1, 2, 6],
 			PYTH_LAZER_HEX_STRING_MULTI
 		);
@@ -129,7 +135,7 @@ describe('pyth lazer oracles', () => {
 	});
 
 	it('fails on wrong message passed', async () => {
-		const ixs = driftClient.getPostPythLazerOracleUpdateIxs(
+		const ixs = await driftClient.getPostPythLazerOracleUpdateIxs(
 			[1],
 			PYTH_LAZER_HEX_STRING_SOL
 		);

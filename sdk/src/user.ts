@@ -36,7 +36,6 @@ import {
 	QUOTE_PRECISION_EXP,
 	QUOTE_SPOT_MARKET_INDEX,
 	SPOT_MARKET_WEIGHT_PRECISION,
-	TEN,
 	TEN_THOUSAND,
 	TWO,
 	ZERO,
@@ -3540,7 +3539,16 @@ export class User {
 		const freeCollateral = this.getFreeCollateral();
 		const initialMarginRequirement = this.getInitialMarginRequirement();
 		const oracleData = this.getOracleDataForSpotMarket(marketIndex);
-		const precisionIncrease = TEN.pow(new BN(spotMarket.decimals - 6));
+		const { numeratorScale, denominatorScale } =
+			spotMarket.decimals > 6
+				? {
+						numeratorScale: new BN(10).pow(new BN(spotMarket.decimals - 6)),
+						denominatorScale: new BN(1),
+				  }
+				: {
+						numeratorScale: new BN(1),
+						denominatorScale: new BN(10).pow(new BN(6 - spotMarket.decimals)),
+				  };
 
 		const { canBypass, depositAmount: userDepositAmount } =
 			this.canBypassWithdrawLimits(marketIndex);
@@ -3566,7 +3574,9 @@ export class User {
 					PRICE_PRECISION
 				),
 				oracleData.price
-			).mul(precisionIncrease);
+			)
+				.mul(numeratorScale)
+				.div(denominatorScale);
 		}
 
 		const maxWithdrawValue = BN.min(
@@ -3592,7 +3602,8 @@ export class User {
 				.div(new BN(spotMarket.initialLiabilityWeight))
 				.mul(PRICE_PRECISION)
 				.div(oracleData.price)
-				.mul(precisionIncrease);
+				.mul(numeratorScale)
+				.div(denominatorScale);
 
 			const maxBorrowValue = BN.min(
 				maxWithdrawValue.add(maxLiabilityAllowed),

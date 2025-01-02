@@ -1,5 +1,5 @@
 {
-  "version": "2.103.0",
+  "version": "2.104.0",
   "name": "drift",
   "instructions": [
     {
@@ -1508,7 +1508,7 @@
         },
         {
           "name": "authority",
-          "isMut": false,
+          "isMut": true,
           "isSigner": true
         }
       ],
@@ -11775,6 +11775,41 @@
           }
         ]
       }
+    },
+    {
+      "name": "SignatureVerificationError",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "InvalidEd25519InstructionProgramId"
+          },
+          {
+            "name": "InvalidEd25519InstructionDataLength"
+          },
+          {
+            "name": "InvalidSignatureIndex"
+          },
+          {
+            "name": "InvalidSignatureOffset"
+          },
+          {
+            "name": "InvalidPublicKeyOffset"
+          },
+          {
+            "name": "InvalidMessageOffset"
+          },
+          {
+            "name": "InvalidMessageDataSize"
+          },
+          {
+            "name": "InvalidInstructionIndex"
+          },
+          {
+            "name": "MessageOffsetOverflow"
+          }
+        ]
+      }
     }
   ],
   "events": [
@@ -14341,7 +14376,7 @@
     {
       "code": 6288,
       "name": "InvalidSwiftOrderParam",
-      "msg": "Swift only available for market/oracle perp orders"
+      "msg": "Invalid swift order param"
     },
     {
       "code": 6289,

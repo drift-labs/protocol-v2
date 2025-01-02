@@ -402,7 +402,6 @@ export class PollingDriftClientAccountSubscriber
 		this.accountsToPoll.clear();
 		this.oraclesToPoll.clear();
 		this.isSubscribed = false;
-		this.accountLoader.accountsToLoad = new Map();
 	}
 
 	async addSpotMarket(marketIndex: number): Promise<boolean> {

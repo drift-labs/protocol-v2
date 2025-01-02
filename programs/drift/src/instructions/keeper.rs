@@ -61,11 +61,11 @@ use crate::state::user::{
     MarginMode, MarketType, OrderStatus, OrderTriggerCondition, OrderType, User, UserStats,
 };
 use crate::state::user_map::{load_user_map, load_user_maps, UserMap, UserStatsMap};
-use crate::validation::sig_verification::{extract_ed25519_ix_signature, verify_ed25519_msg};
+use crate::validation::sig_verification::verify_ed25519_msg;
 use crate::validation::user::{validate_user_deletion, validate_user_is_idle};
 use crate::{
-    controller, digest_struct, digest_struct_hex, load, math, print_error, safe_decrement,
-    OracleSource, GOV_SPOT_MARKET_INDEX, MARGIN_PRECISION,
+    controller, load, math, print_error, safe_decrement, OracleSource, GOV_SPOT_MARKET_INDEX,
+    MARGIN_PRECISION,
 };
 use crate::{load_mut, QUOTE_PRECISION_U64};
 use crate::{validate, QUOTE_PRECISION_I128};
@@ -603,9 +603,6 @@ pub fn handle_place_swift_taker_order<'c: 'info, 'info>(
     ctx: Context<'_, '_, 'c, 'info, PlaceSwiftTakerOrder<'info>>,
     swift_order_params_message_bytes: Vec<u8>,
 ) -> Result<()> {
-    let taker_order_params_message: SwiftOrderParamsMessage =
-        SwiftOrderParamsMessage::deserialize(&mut &swift_order_params_message_bytes[..]).unwrap();
-
     let state = &ctx.accounts.state;
 
     // TODO: generalize to support multiple market types
@@ -629,7 +626,7 @@ pub fn handle_place_swift_taker_order<'c: 'info, 'info>(
         taker_key,
         &mut taker,
         &mut swift_taker,
-        taker_order_params_message,
+        swift_order_params_message_bytes,
         &ctx.accounts.ix_sysvar.to_account_info(),
         &perp_market_map,
         &spot_market_map,
@@ -643,7 +640,7 @@ pub fn place_swift_taker_order<'c: 'info, 'info>(
     taker_key: Pubkey,
     taker: &mut RefMut<User>,
     swift_account: &mut SwiftUserOrdersZeroCopyMut,
-    taker_order_params_message: SwiftOrderParamsMessage,
+    taker_order_params_message_bytes: Vec<u8>,
     ix_sysvar: &AccountInfo<'info>,
     perp_market_map: &PerpMarketMap,
     spot_market_map: &SpotMarketMap,
@@ -664,15 +661,19 @@ pub fn place_swift_taker_order<'c: 'info, 'info>(
     )?;
 
     // Verify data from verify ix
-    let digest_hex = digest_struct_hex!(taker_order_params_message);
     let ix: Instruction = load_instruction_at_checked(ix_idx as usize - 1, ix_sysvar)?;
-    verify_ed25519_msg(
+    let verified_message_and_signature = verify_ed25519_msg(
         &ix,
+        ix_idx,
         &taker.authority.to_bytes(),
-        arrayref::array_ref!(digest_hex, 0, 64),
+        &taker_order_params_message_bytes[..],
+        12,
     )?;
 
-    let signature = extract_ed25519_ix_signature(&ix.data)?;
+    let taker_order_params_message: SwiftOrderParamsMessage =
+        verified_message_and_signature.swift_order_params_message;
+
+    let signature = verified_message_and_signature.signature;
     let clock = &Clock::get()?;
 
     // First order must be a taker order
@@ -696,7 +697,7 @@ pub fn place_swift_taker_order<'c: 'info, 'info>(
 
     // Set max slot for the order early so we set correct swift order id
     let order_slot = taker_order_params_message.slot;
-    if order_slot < clock.slot - 500 {
+    if order_slot < clock.slot.saturating_sub(500) {
         msg!(
             "Swift order slot {} is too old: must be within 500 slots of current slot",
             order_slot
@@ -728,7 +729,7 @@ pub fn place_swift_taker_order<'c: 'info, 'info>(
         taker.next_order_id,
     );
     if swift_account.check_exists_and_prune_stale_swift_order_ids(swift_order_id, clock.slot) {
-        msg!("Swift order already exists for taker {}");
+        msg!("Swift order already exists for taker {:?}", taker_key);
         return Ok(());
     }
     swift_account.add_swift_order_id(swift_order_id)?;
@@ -2159,32 +2160,47 @@ pub fn handle_disable_user_high_leverage_mode<'c: 'info, 'info>(
 
     user.margin_mode = MarginMode::Default;
 
-    let meets_margin_requirement_with_buffer =
-        calculate_margin_requirement_and_total_collateral_and_liability_info(
-            &user,
-            &perp_market_map,
-            &spot_market_map,
-            &mut oracle_map,
-            MarginContext::standard(MarginRequirementType::Initial)
-                .margin_buffer(MARGIN_PRECISION / 100), // 1% buffer
-        )
-        .map(|calc| calc.meets_margin_requirement_with_buffer())?;
-
-    validate!(
-        meets_margin_requirement_with_buffer,
-        ErrorCode::DefaultError,
-        "user does not meet margin requirement with buffer"
+    let margin_calc = calculate_margin_requirement_and_total_collateral_and_liability_info(
+        &user,
+        &perp_market_map,
+        &spot_market_map,
+        &mut oracle_map,
+        MarginContext::standard(MarginRequirementType::Initial)
+            .margin_buffer(MARGIN_PRECISION / 100), // 1% buffer
     )?;
+
+    if margin_calc.num_perp_liabilities > 0 {
+        let mut requires_invariant_check = false;
+
+        for position in user.perp_positions.iter().filter(|p| !p.is_available()) {
+            let perp_market = perp_market_map.get_ref(&position.market_index)?;
+            if perp_market.is_high_leverage_mode_enabled() {
+                requires_invariant_check = true;
+                break; // Exit early if invariant check is required
+            }
+        }
+
+        if requires_invariant_check {
+            validate!(
+                margin_calc.meets_margin_requirement_with_buffer(),
+                ErrorCode::DefaultError,
+                "User does not meet margin requirement with buffer"
+            )?;
+        }
+    }
 
     // only check if signer is not user authority
     if user.authority != *ctx.accounts.authority.key {
         let slots_since_last_active = slot.safe_sub(user.last_active_slot)?;
 
+        let min_slots_inactive = 9000; // 60 * 60 / .4
+
         validate!(
-            slots_since_last_active >= 9000, // 60 * 60 / .4
+            slots_since_last_active >= min_slots_inactive || user.idle,
             ErrorCode::DefaultError,
-            "user not inactive for long enough: {}",
-            slots_since_last_active
+            "user not inactive for long enough: {} < {}",
+            slots_since_last_active,
+            min_slots_inactive
         )?;
     }
 
