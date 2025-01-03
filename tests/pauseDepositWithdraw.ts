@@ -25,9 +25,7 @@ import {
 	mockUserUSDCAccount,
 	sleep,
 } from './testHelpers';
-import {
-	getBalance,
-} from '../sdk/src/math/spotBalance';
+import { getBalance } from '../sdk/src/math/spotBalance';
 import {
 	createBurnInstruction,
 	TOKEN_2022_PROGRAM_ID,
