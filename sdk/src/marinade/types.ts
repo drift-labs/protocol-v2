@@ -57,7 +57,7 @@ export type MarinadeFinance = {
 							name: 'msolLeg';
 							isMut: false;
 							isSigner: false;
-						}
+						},
 					];
 				},
 				{
@@ -74,7 +74,7 @@ export type MarinadeFinance = {
 					name: 'rent';
 					isMut: false;
 					isSigner: false;
-				}
+				},
 			];
 			args: [
 				{
@@ -82,7 +82,7 @@ export type MarinadeFinance = {
 					type: {
 						defined: 'InitializeData';
 					};
-				}
+				},
 			];
 		},
 		{
@@ -97,7 +97,7 @@ export type MarinadeFinance = {
 					name: 'adminAuthority';
 					isMut: false;
 					isSigner: true;
-				}
+				},
 			];
 			args: [
 				{
@@ -105,7 +105,7 @@ export type MarinadeFinance = {
 					type: {
 						defined: 'ChangeAuthorityData';
 					};
-				}
+				},
 			];
 		},
 		{
@@ -155,13 +155,13 @@ export type MarinadeFinance = {
 					name: 'systemProgram';
 					isMut: false;
 					isSigner: false;
-				}
+				},
 			];
 			args: [
 				{
 					name: 'score';
 					type: 'u32';
-				}
+				},
 			];
 		},
 		{
@@ -191,7 +191,7 @@ export type MarinadeFinance = {
 					name: 'operationalSolAccount';
 					isMut: true;
 					isSigner: false;
-				}
+				},
 			];
 			args: [
 				{
@@ -201,7 +201,7 @@ export type MarinadeFinance = {
 				{
 					name: 'validatorVote';
 					type: 'publicKey';
-				}
+				},
 			];
 		},
 		{
@@ -221,7 +221,7 @@ export type MarinadeFinance = {
 					name: 'validatorList';
 					isMut: true;
 					isSigner: false;
-				}
+				},
 			];
 			args: [
 				{
@@ -235,7 +235,7 @@ export type MarinadeFinance = {
 				{
 					name: 'score';
 					type: 'u32';
-				}
+				},
 			];
 		},
 		{
@@ -250,13 +250,13 @@ export type MarinadeFinance = {
 					name: 'managerAuthority';
 					isMut: false;
 					isSigner: true;
-				}
+				},
 			];
 			args: [
 				{
 					name: 'extraRuns';
 					type: 'u32';
-				}
+				},
 			];
 		},
 		{
@@ -316,13 +316,13 @@ export type MarinadeFinance = {
 					name: 'tokenProgram';
 					isMut: false;
 					isSigner: false;
-				}
+				},
 			];
 			args: [
 				{
 					name: 'lamports';
 					type: 'u64';
-				}
+				},
 			];
 		},
 		{
@@ -402,13 +402,13 @@ export type MarinadeFinance = {
 					name: 'stakeProgram';
 					isMut: false;
 					isSigner: false;
-				}
+				},
 			];
 			args: [
 				{
 					name: 'validatorIndex';
 					type: 'u32';
-				}
+				},
 			];
 		},
 		{
@@ -463,13 +463,13 @@ export type MarinadeFinance = {
 					name: 'tokenProgram';
 					isMut: false;
 					isSigner: false;
-				}
+				},
 			];
 			args: [
 				{
 					name: 'msolAmount';
 					type: 'u64';
-				}
+				},
 			];
 		},
 		{
@@ -519,13 +519,13 @@ export type MarinadeFinance = {
 					name: 'tokenProgram';
 					isMut: false;
 					isSigner: false;
-				}
+				},
 			];
 			args: [
 				{
 					name: 'lamports';
 					type: 'u64';
-				}
+				},
 			];
 		},
 		{
@@ -585,13 +585,13 @@ export type MarinadeFinance = {
 					name: 'tokenProgram';
 					isMut: false;
 					isSigner: false;
-				}
+				},
 			];
 			args: [
 				{
 					name: 'tokens';
 					type: 'u64';
-				}
+				},
 			];
 		},
 		{
@@ -606,7 +606,7 @@ export type MarinadeFinance = {
 					name: 'adminAuthority';
 					isMut: false;
 					isSigner: true;
-				}
+				},
 			];
 			args: [
 				{
@@ -614,7 +614,7 @@ export type MarinadeFinance = {
 					type: {
 						defined: 'ConfigLpParams';
 					};
-				}
+				},
 			];
 		},
 		{
@@ -629,7 +629,7 @@ export type MarinadeFinance = {
 					name: 'adminAuthority';
 					isMut: false;
 					isSigner: true;
-				}
+				},
 			];
 			args: [
 				{
@@ -637,7 +637,7 @@ export type MarinadeFinance = {
 					type: {
 						defined: 'ConfigMarinadeParams';
 					};
-				}
+				},
 			];
 		},
 		{
@@ -682,13 +682,13 @@ export type MarinadeFinance = {
 					name: 'tokenProgram';
 					isMut: false;
 					isSigner: false;
-				}
+				},
 			];
 			args: [
 				{
 					name: 'msolAmount';
 					type: 'u64';
-				}
+				},
 			];
 		},
 		{
@@ -723,7 +723,7 @@ export type MarinadeFinance = {
 					name: 'systemProgram';
 					isMut: false;
 					isSigner: false;
-				}
+				},
 			];
 			args: [];
 		},
@@ -799,13 +799,13 @@ export type MarinadeFinance = {
 					name: 'stakeProgram';
 					isMut: false;
 					isSigner: false;
-				}
+				},
 			];
 			args: [
 				{
 					name: 'validatorIndex';
 					type: 'u32';
-				}
+				},
 			];
 		},
 		{
@@ -873,14 +873,14 @@ export type MarinadeFinance = {
 							name: 'tokenProgram';
 							isMut: false;
 							isSigner: false;
-						}
+						},
 					];
 				},
 				{
 					name: 'validatorList';
 					isMut: true;
 					isSigner: false;
-				}
+				},
 			];
 			args: [
 				{
@@ -890,7 +890,7 @@ export type MarinadeFinance = {
 				{
 					name: 'validatorIndex';
 					type: 'u32';
-				}
+				},
 			];
 		},
 		{
@@ -958,7 +958,7 @@ export type MarinadeFinance = {
 							name: 'tokenProgram';
 							isMut: false;
 							isSigner: false;
-						}
+						},
 					];
 				},
 				{
@@ -970,13 +970,13 @@ export type MarinadeFinance = {
 					name: 'systemProgram';
 					isMut: false;
 					isSigner: false;
-				}
+				},
 			];
 			args: [
 				{
 					name: 'stakeIndex';
 					type: 'u32';
-				}
+				},
 			];
 		},
 		{
@@ -1051,7 +1051,7 @@ export type MarinadeFinance = {
 					name: 'stakeProgram';
 					isMut: false;
 					isSigner: false;
-				}
+				},
 			];
 			args: [
 				{
@@ -1061,7 +1061,7 @@ export type MarinadeFinance = {
 				{
 					name: 'validatorIndex';
 					type: 'u32';
-				}
+				},
 			];
 		},
 		{
@@ -1106,7 +1106,7 @@ export type MarinadeFinance = {
 					name: 'stakeProgram';
 					isMut: false;
 					isSigner: false;
-				}
+				},
 			];
 			args: [
 				{
@@ -1116,7 +1116,7 @@ export type MarinadeFinance = {
 				{
 					name: 'validatorIndex';
 					type: 'u32';
-				}
+				},
 			];
 		},
 		{
@@ -1191,7 +1191,7 @@ export type MarinadeFinance = {
 					name: 'stakeProgram';
 					isMut: false;
 					isSigner: false;
-				}
+				},
 			];
 			args: [
 				{
@@ -1205,7 +1205,7 @@ export type MarinadeFinance = {
 				{
 					name: 'desiredUnstakeAmount';
 					type: 'u64';
-				}
+				},
 			];
 		},
 		{
@@ -1265,7 +1265,7 @@ export type MarinadeFinance = {
 					name: 'stakeProgram';
 					isMut: false;
 					isSigner: false;
-				}
+				},
 			];
 			args: [
 				{
@@ -1279,9 +1279,9 @@ export type MarinadeFinance = {
 				{
 					name: 'validatorIndex';
 					type: 'u32';
-				}
+				},
 			];
-		}
+		},
 	];
 	accounts: [
 		{
@@ -1361,7 +1361,7 @@ export type MarinadeFinance = {
 					{
 						name: 'circulatingTicketBalance';
 						docs: [
-							'total lamports amount of generated and not claimed yet tickets'
+							'total lamports amount of generated and not claimed yet tickets',
 						];
 						type: 'u64';
 					},
@@ -1384,7 +1384,7 @@ export type MarinadeFinance = {
 					{
 						name: 'emergencyCoolingDown';
 						type: 'u64';
-					}
+					},
 				];
 			};
 		},
@@ -1408,10 +1408,10 @@ export type MarinadeFinance = {
 					{
 						name: 'createdEpoch';
 						type: 'u64';
-					}
+					},
 				];
 			};
-		}
+		},
 	];
 	types: [
 		{
@@ -1442,7 +1442,7 @@ export type MarinadeFinance = {
 					{
 						name: 'lpLiquidityTarget';
 						docs: [
-							'Liquidity target. If the Liquidity reach this amount, the fee reaches lp_min_discount_fee'
+							'Liquidity target. If the Liquidity reach this amount, the fee reaches lp_min_discount_fee',
 						];
 						type: 'u64';
 					},
@@ -1478,7 +1478,7 @@ export type MarinadeFinance = {
 					{
 						name: 'liquiditySolCap';
 						type: 'u64';
-					}
+					},
 				];
 			};
 		},
@@ -1506,7 +1506,7 @@ export type MarinadeFinance = {
 					{
 						name: 'copiedCount';
 						type: 'u32';
-					}
+					},
 				];
 			};
 		},
@@ -1530,7 +1530,7 @@ export type MarinadeFinance = {
 					{
 						name: 'isEmergencyUnstaking';
 						type: 'u8';
-					}
+					},
 				];
 			};
 		},
@@ -1560,7 +1560,7 @@ export type MarinadeFinance = {
 					{
 						name: 'slotsForStakeDelta';
 						docs: [
-							'set by admin, how much slots before the end of the epoch, stake-delta can start'
+							'set by admin, how much slots before the end of the epoch, stake-delta can start',
 						];
 						type: 'u64';
 					},
@@ -1569,7 +1569,7 @@ export type MarinadeFinance = {
 						docs: [
 							'Marks the start of stake-delta operations, meaning that if somebody starts a delayed-unstake ticket',
 							'after this var is set with epoch_num the ticket will have epoch_created = current_epoch+1',
-							'(the user must wait one more epoch, because their unstake-delta will be execute in this epoch)'
+							'(the user must wait one more epoch, because their unstake-delta will be execute in this epoch)',
 						];
 						type: 'u64';
 					},
@@ -1581,10 +1581,10 @@ export type MarinadeFinance = {
 						name: 'extraStakeDeltaRuns';
 						docs: [
 							'can be set by validator-manager-auth to allow a second run of stake-delta to stake late stakers in the last minute of the epoch',
-							"so we maximize user's rewards"
+							"so we maximize user's rewards",
 						];
 						type: 'u32';
-					}
+					},
 				];
 			};
 		},
@@ -1614,7 +1614,7 @@ export type MarinadeFinance = {
 					{
 						name: 'duplicationFlagBumpSeed';
 						type: 'u8';
-					}
+					},
 				];
 			};
 		},
@@ -1645,10 +1645,10 @@ export type MarinadeFinance = {
 					{
 						name: 'autoAddValidatorEnabled';
 						docs: [
-							'allow & auto-add validator when a user deposits a stake-account of a non-listed validator'
+							'allow & auto-add validator when a user deposits a stake-account of a non-listed validator',
 						];
 						type: 'u8';
-					}
+					},
 				];
 			};
 		},
@@ -1660,7 +1660,7 @@ export type MarinadeFinance = {
 					{
 						name: 'basisPoints';
 						type: 'u32';
-					}
+					},
 				];
 			};
 		},
@@ -1704,7 +1704,7 @@ export type MarinadeFinance = {
 					{
 						name: 'slotsForStakeDelta';
 						type: 'u64';
-					}
+					},
 				];
 			};
 		},
@@ -1734,7 +1734,7 @@ export type MarinadeFinance = {
 						type: {
 							defined: 'Fee';
 						};
-					}
+					},
 				];
 			};
 		},
@@ -1766,7 +1766,7 @@ export type MarinadeFinance = {
 						type: {
 							option: 'publicKey';
 						};
-					}
+					},
 				];
 			};
 		},
@@ -1804,7 +1804,7 @@ export type MarinadeFinance = {
 								defined: 'Fee';
 							};
 						};
-					}
+					},
 				];
 			};
 		},
@@ -1862,7 +1862,7 @@ export type MarinadeFinance = {
 						type: {
 							option: 'bool';
 						};
-					}
+					},
 				];
 			};
 		},
@@ -1954,10 +1954,10 @@ export type MarinadeFinance = {
 					},
 					{
 						name: 'InvalidValidator';
-					}
+					},
 				];
 			};
-		}
+		},
 	];
 };
 

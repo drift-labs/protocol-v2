@@ -138,7 +138,7 @@ export class TxHandler {
 	private getProps = (wallet?: IWallet, confirmationOpts?: ConfirmOptions) =>
 		[wallet ?? this.wallet, confirmationOpts ?? this.confirmationOptions] as [
 			IWallet,
-			ConfirmOptions
+			ConfirmOptions,
 		];
 
 	public updateWallet(wallet: IWallet) {
@@ -595,7 +595,7 @@ export class TxHandler {
 	 * @returns
 	 */
 	public async getPreparedAndSignedLegacyTransactionMap<
-		T extends Record<string, Transaction | undefined>
+		T extends Record<string, Transaction | undefined>,
 	>(
 		txsMap: T,
 		wallet?: IWallet,
@@ -628,7 +628,7 @@ export class TxHandler {
 	 * @returns
 	 */
 	public async getSignedTransactionMap<
-		T extends Record<string, Transaction | VersionedTransaction | undefined>
+		T extends Record<string, Transaction | VersionedTransaction | undefined>,
 	>(
 		txsToSignMap: T,
 		wallet?: IWallet
@@ -693,7 +693,7 @@ export class TxHandler {
 	 * @returns
 	 */
 	public async buildTransactionsMap<
-		T extends Record<string, TransactionInstruction | TransactionInstruction[]>
+		T extends Record<string, TransactionInstruction | TransactionInstruction[]>,
 	>(
 		props: Omit<TxBuildingProps, 'instructions'> & {
 			instructionsMap: T;
@@ -716,7 +716,7 @@ export class TxHandler {
 	 * @returns
 	 */
 	public async buildAndSignTransactionMap<
-		T extends Record<string, TransactionInstruction | TransactionInstruction[]>
+		T extends Record<string, TransactionInstruction | TransactionInstruction[]>,
 	>(
 		props: Omit<TxBuildingProps, 'instructions'> & {
 			instructionsMap: T;
