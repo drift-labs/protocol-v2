@@ -64,7 +64,7 @@ describe('spot deposit and withdraw 22', () => {
 	let oracleInfos: OracleInfo[];
 
 	before(async () => {
-		const context = await startAnchor('', [], []);
+		const context = (await startAnchor('', [], [])) as any;
 
 		bankrunContextWrapper = new BankrunContextWrapper(context);
 
