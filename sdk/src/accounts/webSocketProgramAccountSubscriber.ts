@@ -97,26 +97,23 @@ export class WebSocketProgramAccountSubscriber<T>
 		if (!this.onChange) {
 			throw new Error('onChange callback function must be set');
 		}
-		this.timeoutId = setTimeout(
-			async () => {
-				if (this.isUnsubscribing) {
-					// If we are in the process of unsubscribing, do not attempt to resubscribe
-					return;
-				}
+		this.timeoutId = setTimeout(async () => {
+			if (this.isUnsubscribing) {
+				// If we are in the process of unsubscribing, do not attempt to resubscribe
+				return;
+			}
 
-				if (this.receivingData) {
-					if (this.resubOpts?.logResubMessages) {
-						console.log(
-							`No ws data from ${this.subscriptionName} in ${this.resubOpts?.resubTimeoutMs}ms, resubscribing`
-						);
-					}
-					await this.unsubscribe(true);
-					this.receivingData = false;
-					await this.subscribe(this.onChange);
+			if (this.receivingData) {
+				if (this.resubOpts?.logResubMessages) {
+					console.log(
+						`No ws data from ${this.subscriptionName} in ${this.resubOpts?.resubTimeoutMs}ms, resubscribing`
+					);
 				}
-			},
-			this.resubOpts?.resubTimeoutMs
-		);
+				await this.unsubscribe(true);
+				this.receivingData = false;
+				await this.subscribe(this.onChange);
+			}
+		}, this.resubOpts?.resubTimeoutMs);
 	}
 
 	handleRpcResponse(

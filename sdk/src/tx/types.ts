@@ -59,10 +59,7 @@ export interface TxSender {
 }
 
 export class TxSendError extends Error {
-	constructor(
-		public message: string,
-		public code: number
-	) {
+	constructor(public message: string, public code: number) {
 		super(message);
 		if (Error.captureStackTrace) {
 			Error.captureStackTrace(this, TxSendError);
