@@ -233,6 +233,9 @@ export class OrderActionExplanation {
 	static readonly DERISK_LP = {
 		deriskLp: {},
 	};
+	static readonly ORDER_FILLED_WITH_ZEROFI = {
+		orderFilledWithZerofi: {},
+	};
 }
 
 export class OrderTriggerCondition {
@@ -1317,6 +1320,19 @@ export type OpenbookV2FulfillmentConfigAccount = {
 	status: SpotFulfillmentStatus;
 	// not actually on the account, just used to pass around remaining accounts in ts
 	remainingAccounts?: PublicKey[];
+};
+
+export type ZerofiFulfillmentConfigAccount = {
+	pubkey: PublicKey;
+	zerofiProgramId: PublicKey;
+	zerofiMarket: PublicKey;
+	zerofiVaultBase: PublicKey;
+	zerofiVaultBaseInfo: PublicKey;
+	zerofiVaultQuote: PublicKey;
+	zerofiVaultQuoteInfo: PublicKey;
+	marketIndex: number;
+	fulfillmentType: SpotFulfillmentType;
+	status: SpotFulfillmentStatus;
 };
 
 export type ReferrerNameAccount = {

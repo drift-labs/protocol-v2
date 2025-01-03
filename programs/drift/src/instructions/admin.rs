@@ -41,6 +41,7 @@ use crate::state::fulfillment_params::phoenix::PhoenixMarketContext;
 use crate::state::fulfillment_params::phoenix::PhoenixV1FulfillmentConfig;
 use crate::state::fulfillment_params::serum::SerumContext;
 use crate::state::fulfillment_params::serum::SerumV3FulfillmentConfig;
+use crate::state::fulfillment_params::zerofi::{ZerofiContext, ZerofiFulfillmentConfig};
 use crate::state::high_leverage_mode_config::HighLeverageModeConfig;
 use crate::state::insurance_fund_stake::ProtocolIfSharesTransferConfig;
 use crate::state::oracle::get_sb_on_demand_price;
@@ -627,6 +628,60 @@ pub fn handle_update_phoenix_fulfillment_config_status(
     status: SpotFulfillmentConfigStatus,
 ) -> Result<()> {
     let mut config = load_mut!(ctx.accounts.phoenix_fulfillment_config)?;
+    msg!("config.status {:?} -> {:?}", config.status, status);
+    config.status = status;
+    Ok(())
+}
+
+pub fn handle_initialize_zerofi_fulfillment_config(
+    ctx: Context<InitializeZerofiFulfillmentConfig>,
+    market_index: u16,
+) -> Result<()> {
+    validate!(
+        market_index != QUOTE_SPOT_MARKET_INDEX,
+        ErrorCode::InvalidSpotMarketAccount,
+        "Cannot add zerofi market to quote asset"
+    )?;
+
+    let base_spot_market = load!(&ctx.accounts.base_spot_market)?;
+    let quote_spot_market = load!(&ctx.accounts.quote_spot_market)?;
+
+    let zerofi_program_id = crate::state::fulfillment_params::zerofi::zerofi_program_id::id();
+
+    validate!(
+        ctx.accounts.zerofi_program.key() == zerofi_program_id,
+        ErrorCode::InvalidZerofiProgram
+    )?;
+
+    let zerofi_market_context = ZerofiContext {
+        zerofi_program: &ctx.accounts.zerofi_program,
+        zerofi_market: &ctx.accounts.zerofi_market,
+    };
+    let market = zerofi_market_context.load_zerofi_market()?;
+    validate!(
+        market.mint_base == base_spot_market.mint,
+        ErrorCode::InvalidZerofiMarket,
+        "Invalid base mint"
+    )?;
+
+    validate!(
+        market.mint_quote == quote_spot_market.mint,
+        ErrorCode::InvalidZerofiMarket,
+        "Invalid quote mint"
+    )?;
+
+    let zerofi_fulfillment_config_key = ctx.accounts.zerofi_fulfillment_config.key();
+    let mut zerofi_fulfillment_config = ctx.accounts.zerofi_fulfillment_config.load_init()?;
+    *zerofi_fulfillment_config = zerofi_market_context
+        .to_zerofi_fulfillment_config(&zerofi_fulfillment_config_key, market_index)?;
+    Ok(())
+}
+
+pub fn handle_update_zerofi_fulfillment_config_status(
+    ctx: Context<UpdateZerofiFulfillmentConfig>,
+    status: SpotFulfillmentConfigStatus,
+) -> Result<()> {
+    let mut config = load_mut!(ctx.accounts.zerofi_fulfillment_config)?;
     msg!("config.status {:?} -> {:?}", config.status, status);
     config.status = status;
     Ok(())
@@ -4464,6 +4519,59 @@ pub struct UpdatePhoenixFulfillmentConfig<'info> {
     pub state: Box<Account<'info, State>>,
     #[account(mut)]
     pub phoenix_fulfillment_config: AccountLoader<'info, PhoenixV1FulfillmentConfig>,
+    #[account(mut)]
+    pub admin: Signer<'info>,
+}
+
+#[derive(Accounts)]
+#[instruction(market_index: u16)]
+pub struct InitializeZerofiFulfillmentConfig<'info> {
+    #[account(
+        seeds = [b"spot_market", market_index.to_le_bytes().as_ref()],
+        bump,
+    )]
+    pub base_spot_market: AccountLoader<'info, SpotMarket>,
+    #[account(
+        seeds = [b"spot_market", 0_u16.to_le_bytes().as_ref()],
+        bump,
+    )]
+    pub quote_spot_market: AccountLoader<'info, SpotMarket>,
+    #[account(
+        mut,
+        has_one = admin
+    )]
+    pub state: Box<Account<'info, State>>,
+    /// CHECK: checked in ix
+    pub zerofi_program: AccountInfo<'info>,
+    /// CHECK: checked in ix
+    pub zerofi_market: AccountInfo<'info>,
+    #[account(
+        constraint = state.signer.eq(&drift_signer.key())
+    )]
+    /// CHECK: program signer
+    pub drift_signer: AccountInfo<'info>,
+    #[account(
+        init,
+        seeds = [b"zerofi_fulfillment_config".as_ref(), zerofi_market.key.as_ref()],
+        space = ZerofiFulfillmentConfig::SIZE,
+        bump,
+        payer = admin,
+    )]
+    pub zerofi_fulfillment_config: AccountLoader<'info, ZerofiFulfillmentConfig>,
+    #[account(mut)]
+    pub admin: Signer<'info>,
+    pub rent: Sysvar<'info, Rent>,
+    pub system_program: Program<'info, System>,
+}
+
+#[derive(Accounts)]
+pub struct UpdateZerofiFulfillmentConfig<'info> {
+    #[account(
+        has_one = admin
+    )]
+    pub state: Box<Account<'info, State>>,
+    #[account(mut)]
+    pub zerofi_fulfillment_config: AccountLoader<'info, ZerofiFulfillmentConfig>,
     #[account(mut)]
     pub admin: Signer<'info>,
 }

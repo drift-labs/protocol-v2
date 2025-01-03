@@ -271,6 +271,19 @@ export function getOpenbookV2FulfillmentConfigPublicKey(
 	)[0];
 }
 
+export function getZerofiFulfillmentConfigPublicKey(
+	programId: PublicKey,
+	market: PublicKey
+): PublicKey {
+	return PublicKey.findProgramAddressSync(
+		[
+			Buffer.from(anchor.utils.bytes.utf8.encode('zerofi_fulfillment_config')),
+			market.toBuffer(),
+		],
+		programId
+	)[0];
+}
+
 export function getReferrerNamePublicKeySync(
 	programId: PublicKey,
 	nameBuffer: number[]

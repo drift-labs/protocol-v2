@@ -52,6 +52,7 @@ use crate::state::fulfillment_params::drift::MatchFulfillmentParams;
 use crate::state::fulfillment_params::openbook_v2::OpenbookV2FulfillmentParams;
 use crate::state::fulfillment_params::phoenix::PhoenixFulfillmentParams;
 use crate::state::fulfillment_params::serum::SerumFulfillmentParams;
+use crate::state::fulfillment_params::zerofi::ZerofiFulfillmentParams;
 use crate::state::high_leverage_mode_config::HighLeverageModeConfig;
 use crate::state::oracle::StrictOraclePrice;
 use crate::state::order_params::RFQMatch;
@@ -1747,6 +1748,17 @@ pub fn handle_place_and_take_spot_order<'c: 'info, 'info>(
                 clock.unix_timestamp,
             )?)
         }
+        SpotFulfillmentType::Zerofi => {
+            let base_market = spot_market_map.get_ref(&market_index)?;
+            let quote_market = spot_market_map.get_quote_spot_market()?;
+            Box::new(ZerofiFulfillmentParams::new(
+                remaining_accounts_iter,
+                &ctx.accounts.state,
+                &base_market,
+                &quote_market,
+                clock.unix_timestamp,
+            )?)
+        }
         SpotFulfillmentType::Match => {
             let base_market = spot_market_map.get_ref(&market_index)?;
             let quote_market = spot_market_map.get_quote_spot_market()?;
@@ -1888,6 +1900,17 @@ pub fn handle_place_and_make_spot_order<'c: 'info, 'info>(
             let base_market = spot_market_map.get_ref(&market_index)?;
             let quote_market = spot_market_map.get_quote_spot_market()?;
             Box::new(OpenbookV2FulfillmentParams::new(
+                remaining_accounts_iter,
+                &ctx.accounts.state,
+                &base_market,
+                &quote_market,
+                clock.unix_timestamp,
+            )?)
+        }
+        SpotFulfillmentType::Zerofi => {
+            let base_market = spot_market_map.get_ref(&market_index)?;
+            let quote_market = spot_market_map.get_quote_spot_market()?;
+            Box::new(ZerofiFulfillmentParams::new(
                 remaining_accounts_iter,
                 &ctx.accounts.state,
                 &base_market,

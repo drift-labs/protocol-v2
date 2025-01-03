@@ -37,6 +37,7 @@ use crate::state::fulfillment_params::drift::MatchFulfillmentParams;
 use crate::state::fulfillment_params::openbook_v2::OpenbookV2FulfillmentParams;
 use crate::state::fulfillment_params::phoenix::PhoenixFulfillmentParams;
 use crate::state::fulfillment_params::serum::SerumFulfillmentParams;
+use crate::state::fulfillment_params::zerofi::ZerofiFulfillmentParams;
 use crate::state::high_leverage_mode_config::HighLeverageModeConfig;
 use crate::state::insurance_fund_stake::InsuranceFundStake;
 use crate::state::oracle_map::OracleMap;
@@ -186,6 +187,7 @@ pub enum SpotFulfillmentType {
     Match,
     PhoenixV1,
     OpenbookV2,
+    Zerofi,
 }
 
 #[access_control(
@@ -276,6 +278,17 @@ fn fill_spot_order<'c: 'info, 'info>(
             let base_market = spot_market_map.get_ref(&market_index)?;
             let quote_market = spot_market_map.get_quote_spot_market()?;
             Box::new(OpenbookV2FulfillmentParams::new(
+                remaining_accounts_iter,
+                &ctx.accounts.state,
+                &base_market,
+                &quote_market,
+                clock.unix_timestamp,
+            )?)
+        }
+        SpotFulfillmentType::Zerofi => {
+            let base_market = spot_market_map.get_ref(&market_index)?;
+            let quote_market = spot_market_map.get_quote_spot_market()?;
+            Box::new(ZerofiFulfillmentParams::new(
                 remaining_accounts_iter,
                 &ctx.accounts.state,
                 &base_market,
