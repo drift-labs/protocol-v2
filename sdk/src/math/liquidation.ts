@@ -75,7 +75,5 @@ export function calculateMaxPctToLiquidate(
 		new BN(0)
 	);
 
-	return marginFreeable
-		.mul(LIQUIDATION_PCT_PRECISION)
-		.div(marginShortage);
+	return marginFreeable.mul(LIQUIDATION_PCT_PRECISION).div(marginShortage);
 }
