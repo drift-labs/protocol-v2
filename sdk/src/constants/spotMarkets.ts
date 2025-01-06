@@ -587,6 +587,32 @@ export const MainnetSpotMarkets: SpotMarketConfig[] = [
 		),
 		launchTs: 1734717937000,
 	},
+	{
+		symbol: 'JLP',
+		marketIndex: 33,
+		poolId: 1,
+		oracle: new PublicKey('5Mb11e5rt1Sp6A286B145E4TmgMzsM2UX9nCF2vas5bs'),
+		oracleSource: OracleSource.PYTH_PULL,
+		mint: new PublicKey('27G8MtK7VtTcCHkpASjSDdkWWYfoqT6ggEuKidVJidD4'),
+		precision: new BN(10).pow(SIX),
+		precisionExp: SIX,
+		pythFeedId:
+			'0xc811abc82b4bad1f9bd711a2773ccaa935b03ecef974236942cec5e0eb845a3a',
+		launchTs: 1735255852000,
+	},
+	{
+		symbol: 'USDC',
+		marketIndex: 34,
+		poolId: 1,
+		oracle: new PublicKey('En8hkHLkRe9d9DraYmBTrus518BvmVH448YcvmrFM6Ce'),
+		oracleSource: OracleSource.PYTH_STABLE_COIN_PULL,
+		mint: new PublicKey('EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v'),
+		precision: new BN(10).pow(SIX),
+		precisionExp: SIX,
+		pythFeedId:
+			'0xeaa020c61cc479712813461ce153894a96a6c00b21ed0cfc2798d1f9a9e9c94a',
+		launchTs: 1735255852000,
+	},
 ];
 
 export const SpotMarkets: { [key in DriftEnv]: SpotMarketConfig[] } = {
