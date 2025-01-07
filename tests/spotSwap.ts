@@ -25,6 +25,7 @@ import {
 	QUOTE_PRECISION,
 	UserStatsAccount,
 	getUserStatsAccountPublicKey,
+	FUEL_WINDOW,
 } from '../sdk/src';
 
 import {
@@ -158,6 +159,8 @@ describe('spot swap', () => {
 		);
 		await makerDriftClient.updateSpotAuctionDuration(0);
 
+		await makerDriftClient.updateSpotMarketFuel(0, 1);
+
 		[takerDriftClient, takerWSOL, takerUSDC, takerKeypair] =
 			await createUserWithUSDCAndWSOLAccount(
 				bankrunContextWrapper,
@@ -181,6 +184,8 @@ describe('spot swap', () => {
 			10 * LAMPORTS_PER_SOL
 		);
 		await takerDriftClient.deposit(usdcAmount, 0, takerUSDC);
+
+		await bankrunContextWrapper.moveTimeForward(FUEL_WINDOW.toNumber());
 	});
 
 	after(async () => {
@@ -404,6 +409,8 @@ describe('spot swap', () => {
 					accountInfo.data
 			  ) as UserStatsAccount)
 			: undefined;
+
+		assert(userStatsAccount.fuelDeposits === 2000);
 
 		// assert(userStatsAccount.fees.totalFeePaid.eq(new BN(50000)));
 		assert(userStatsAccount.takerVolume30D.eq(new BN(0)));

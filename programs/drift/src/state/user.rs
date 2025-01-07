@@ -513,8 +513,7 @@ impl User {
         let context = MarginContext::standard(margin_requirement_type)
             .strict(strict)
             .ignore_invalid_deposit_oracles(true)
-            .fuel_spot_delta(in_market_index, in_delta)
-            .fuel_spot_delta(out_market_index, out_delta)
+            .fuel_spot_deltas([(in_market_index, in_delta), (out_market_index, out_delta)])
             .fuel_numerator(self, now);
 
         let calculation = calculate_margin_requirement_and_total_collateral_and_liability_info(
