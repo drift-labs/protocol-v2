@@ -315,17 +315,15 @@ export class JupiterClient {
 			inputMint: inputMint.toString(),
 			outputMint: outputMint.toString(),
 			amount: amount.toString(),
-			slippageBps: autoSlippage ? undefined : slippageBps.toString(),
+			slippageBps: autoSlippage ? '0' : slippageBps.toString(),
 			swapMode,
 			onlyDirectRoutes: onlyDirectRoutes.toString(),
 			maxAccounts: maxAccounts.toString(),
 			autoSlippage: autoSlippage.toString(),
-			maxAutoSlippageBps: autoSlippage
-				? maxAutoSlippageBps.toString()
-				: undefined,
+			maxAutoSlippageBps: autoSlippage ? maxAutoSlippageBps.toString() : '0',
 			autoSlippageCollisionUsdValue: autoSlippage
 				? usdEstimate.toString()
-				: undefined,
+				: '0',
 			...(excludeDexes && { excludeDexes: excludeDexes.join(',') }),
 		});
 		if (swapMode === 'ExactOut') {
