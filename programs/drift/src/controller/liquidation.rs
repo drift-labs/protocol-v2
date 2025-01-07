@@ -1715,7 +1715,7 @@ pub fn liquidate_spot(
 pub fn liquidate_spot_with_swap_begin(
     asset_market_index: u16,
     liability_market_index: u16,
-    swap_amount: u64,
+    swap_amount_in: u64,
     user: &mut User,
     user_key: &Pubkey,
     user_stats: &mut UserStats,
@@ -1886,8 +1886,7 @@ pub fn liquidate_spot_with_swap_begin(
         msg!("margin calculation: {:?}", margin_calculation);
         return Err(ErrorCode::SufficientCollateral);
     } else if user.is_being_liquidated() && margin_calculation.can_exit_liquidation()? {
-        user.exit_liquidation();
-        msg!("user exited liquidation");
+        msg!("margin calculation: {:?}", margin_calculation);
         return Err(ErrorCode::InvalidLiquidation);
     }
 
@@ -2031,23 +2030,23 @@ pub fn liquidate_spot_with_swap_begin(
             max_liability_allowed_to_be_transferred,
             liability_transfer_to_cover_margin_shortage
         );
-        msg!("swap_amount {}", swap_amount);
+        msg!("swap_amount_in {}", swap_amount_in);
         return Err(ErrorCode::InvalidLiquidation);
     }
 
     validate!(
-        max_asset_transfer >= swap_amount.cast()?,
+        max_asset_transfer >= swap_amount_in.cast()?,
         ErrorCode::InvalidLiquidation,
-        "swap_amount larger than max_asset_transfer (swap_amount: {}, max_asset_transfer: {})",
-        swap_amount,
+        "swap_amount_in larger than max_asset_transfer (swap_amount_in: {}, max_asset_transfer: {})",
+        swap_amount_in,
         max_asset_transfer
     )?;
 
     validate!(
-        asset_amount >= swap_amount.cast()?,
+        asset_amount >= swap_amount_in.cast()?,
         ErrorCode::InvalidLiquidation,
-        "swap_amount larger than asset_amount (swap_amount: {}, asset_amount: {})",
-        swap_amount,
+        "swap_amount_in larger than asset_amount (swap_amount_in: {}, asset_amount: {})",
+        swap_amount_in,
         asset_amount
     )?;
 
