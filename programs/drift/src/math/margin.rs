@@ -254,6 +254,29 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
         validation::position::validate_spot_position(spot_position)?;
 
         if spot_position.is_available() {
+            // might need to update fuel to account for spot market deltas
+            if calculation.context.has_fuel_spot_delta(spot_position.market_index) {
+                let spot_market = spot_market_map.get_ref(&spot_position.market_index)?;
+                let (oracle_price_data, oracle_validity) = oracle_map.get_price_data_and_validity(
+                    MarketType::Spot,
+                    spot_market.market_index,
+                    &spot_market.oracle_id(),
+                    spot_market.historical_oracle_data.last_oracle_price_twap,
+                    spot_market.get_max_confidence_interval_multiplier()?,
+                )?;
+
+                let strict_oracle_price = StrictOraclePrice::new(
+                    oracle_price_data.price,
+                    spot_market
+                        .historical_oracle_data
+                        .last_oracle_price_twap_5min,
+                    calculation.context.strict,
+                );
+                strict_oracle_price.validate()?;
+
+                calculation.update_fuel_spot_bonus(&spot_market, 0, &strict_oracle_price)?;
+            }
+
             continue;
         }
 
