@@ -9,7 +9,7 @@ import {
 	FIVE_MINUTE,
 	PERCENTAGE_PRECISION,
 } from '../constants/numericConstants';
-import { BN, HistoricalOracleData, PerpMarketAccount } from '../index';
+import { BN, HistoricalOracleData, OracleSource, PerpMarketAccount } from '../index';
 import { assert } from '../assert/assert';
 
 export function oraclePriceBands(
@@ -225,4 +225,19 @@ export function trimVaaSignatures(vaa: Buffer, n = 3): Buffer {
 
 	trimmedVaa[5] = n;
 	return trimmedVaa;
+}
+
+export function getMultipleBetweenOracleSources(
+	firstOracleSource: OracleSource,
+	secondOracleSource: OracleSource
+): { numerator: BN; denominator: BN } {
+	if (isVariant(firstOracleSource, 'pythPull') && isVariant(secondOracleSource, 'pyth1MPull')) {
+		return { numerator: new BN(1000000), denominator: new BN(1) };
+	}
+
+	if (isVariant(firstOracleSource, 'pyth1MPull') && isVariant(secondOracleSource, 'pythPull')) {
+		return { numerator: new BN(1), denominator: new BN(1000000) };
+	}
+
+	return { numerator: new BN(1), denominator: new BN(1) };
 }
