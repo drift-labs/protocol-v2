@@ -235,8 +235,17 @@ export function getMultipleBetweenOracleSources(
 		return { numerator: new BN(1000000), denominator: new BN(1) };
 	}
 
+	if (isVariant(firstOracleSource, 'pythPull') && isVariant(secondOracleSource, 'pyth1KPull')) {
+		return { numerator: new BN(1000), denominator: new BN(1) };
+	}
+	
+
 	if (isVariant(firstOracleSource, 'pyth1MPull') && isVariant(secondOracleSource, 'pythPull')) {
 		return { numerator: new BN(1), denominator: new BN(1000000) };
+	}
+
+	if (isVariant(firstOracleSource, 'pyth1KPull') && isVariant(secondOracleSource, 'pythPull')) {
+		return { numerator: new BN(1), denominator: new BN(1000) };
 	}
 
 	return { numerator: new BN(1), denominator: new BN(1) };
