@@ -761,6 +761,7 @@ pub fn find_maker_orders(
     slot: u64,
     tick_size: u64,
     is_prediction_market: bool,
+    price_offset_bps: u64,
 ) -> DriftResult<Vec<(usize, u64)>> {
     let mut orders: Vec<(usize, u64)> = Vec::with_capacity(32);
 
@@ -782,13 +783,26 @@ pub fn find_maker_orders(
             continue;
         }
 
-        let limit_price = order.force_get_limit_price(
+        let mut limit_price = order.force_get_limit_price(
             valid_oracle_price,
             None,
             slot,
             tick_size,
             is_prediction_market,
         )?;
+
+        if price_offset_bps > 0 {
+            let price_offset = limit_price
+            .safe_mul(price_offset_bps)?
+        .safe_div(PRICE_PRECISION_U64)?;
+
+            if order.direction == PositionDirection::Long {
+                limit_price = limit_price.saturating_sub(price_offset).max(tick_size);
+            } else {
+                limit_price = limit_price.saturating_add(price_offset);
+            }
+            limit_price = standardize_price(limit_price, tick_size, order.direction)?
+        }
 
         orders.push((order_index, limit_price));
     }

@@ -735,6 +735,7 @@ mod find_maker_orders {
             slot,
             tick_size,
             false,
+            0
         )
         .unwrap();
 
@@ -770,6 +771,7 @@ mod find_maker_orders {
             slot,
             tick_size,
             false,
+            0
         )
         .unwrap();
 
@@ -806,6 +808,7 @@ mod find_maker_orders {
             slot,
             tick_size,
             false,
+            0
         )
         .unwrap();
 
@@ -842,6 +845,7 @@ mod find_maker_orders {
             slot,
             tick_size,
             false,
+            0
         )
         .unwrap();
 
@@ -878,6 +882,7 @@ mod find_maker_orders {
             slot,
             tick_size,
             false,
+            0
         )
         .unwrap();
 
@@ -914,6 +919,7 @@ mod find_maker_orders {
             slot,
             tick_size,
             false,
+            0
         )
         .unwrap();
 
@@ -953,6 +959,7 @@ mod find_maker_orders {
             slot,
             tick_size,
             false,
+            0
         )
         .unwrap();
 
@@ -994,6 +1001,7 @@ mod find_maker_orders {
             slot,
             tick_size,
             false,
+            0
         )
         .unwrap();
 
@@ -1040,6 +1048,7 @@ mod find_maker_orders {
             slot,
             tick_size,
             false,
+            0,
         )
         .unwrap();
 

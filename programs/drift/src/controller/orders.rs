@@ -23,7 +23,7 @@ use crate::controller::spot_position::{
 };
 use crate::error::DriftResult;
 use crate::error::ErrorCode;
-use crate::get_struct_values;
+use crate::{get_struct_values, PERCENTAGE_PRECISION_U64};
 use crate::get_then_update_id;
 use crate::load_mut;
 use crate::math::amm::calculate_amm_available_liquidity;
@@ -61,7 +61,7 @@ use crate::state::order_params::{
     ModifyOrderParams, ModifyOrderPolicy, OrderParams, PlaceOrderOptions, PostOnlyParam, RFQMatch,
 };
 use crate::state::paused_operations::{PerpOperation, SpotOperation};
-use crate::state::perp_market::{AMMAvailability, AMMLiquiditySplit, MarketStatus, PerpMarket};
+use crate::state::perp_market::{AMMAvailability, AMMLiquiditySplit, ContractTier, MarketStatus, PerpMarket};
 use crate::state::perp_market_map::PerpMarketMap;
 use crate::state::rfq_user::{RFQOrderId, RFQUser};
 use crate::state::spot_fulfillment_params::{ExternalSpotFill, SpotFulfillmentParams};
@@ -1615,6 +1615,8 @@ fn get_maker_orders_info(
             continue;
         }
 
+        let is_protected_maker = maker.is_protected_maker();
+
         let mut market = perp_market_map.get_ref_mut(&taker_order.market_index)?;
         let maker_order_price_and_indexes = find_maker_orders(
             &maker,
@@ -1625,6 +1627,12 @@ fn get_maker_orders_info(
             slot,
             market.amm.order_tick_size,
             market.is_prediction_market(),
+            protected_maker_oracle_limit_price_bps_offset(
+                user_can_skip_duration, 
+                taker_order_age, 
+                protected_maker_min_age,
+                &market.contract_tier
+            )?
         )?;
 
         if maker_order_price_and_indexes.is_empty() {
@@ -1639,8 +1647,6 @@ fn get_maker_orders_info(
         let step_size = market.amm.order_step_size;
 
         drop(market);
-
-        let is_protected_maker = maker.is_protected_maker();
 
         for (maker_order_index, maker_order_price) in maker_order_price_and_indexes.iter() {
             let maker_order_index = *maker_order_index;
@@ -1760,6 +1766,25 @@ fn protected_maker_oracle_limit_can_fill(
         && (oracle_delay == 0
             || user_can_skip_duration
             || taker_order_age > protected_maker_min_age)
+}
+
+#[inline(always)]
+fn protected_maker_oracle_limit_price_bps_offset(
+    user_can_skip_duration: bool,
+    taker_order_age: u64,
+    protected_maker_min_age: u64,
+    contract_tier: &ContractTier
+) -> DriftResult<u64> {
+    if user_can_skip_duration || taker_order_age > protected_maker_min_age {
+        return Ok(0);
+    }
+
+    if contract_tier.is_as_safe_as_contract(&ContractTier::B) {
+        return Ok(PERCENTAGE_PRECISION_U64 / 10000)
+    } else {
+        return Ok(PERCENTAGE_PRECISION_U64 / 2000)
+    }
+
 }
 
 #[inline(always)]
@@ -4168,6 +4193,7 @@ fn get_spot_maker_orders_info(
             slot,
             market.order_tick_size,
             false,
+            0
         )?;
 
         if maker_order_price_and_indexes.is_empty() {
