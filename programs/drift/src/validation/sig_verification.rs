@@ -253,9 +253,11 @@ pub fn verify_ed25519_msg(
         &msg[start..end].try_into().unwrap()
     };
 
-    let payload = hex::decode(payload).map_err(|_| SignatureVerificationError::InvalidMessageHex)?;
+    let payload =
+        hex::decode(payload).map_err(|_| SignatureVerificationError::InvalidMessageHex)?;
     Ok(VerifiedMessage {
-        swift_order_params_message: SwiftOrderParamsMessage::deserialize(&mut payload.as_slice()).unwrap(),
+        swift_order_params_message: SwiftOrderParamsMessage::deserialize(&mut payload.as_slice())
+            .unwrap(),
         signature: *signature,
     })
 }
