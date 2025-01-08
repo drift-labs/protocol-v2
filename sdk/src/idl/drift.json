@@ -6111,7 +6111,7 @@
         {
           "name": "fuelBoostDeposits",
           "type": {
-            "option": "u32"
+            "option": "i32"
           }
         },
         {
@@ -11807,6 +11807,9 @@
           },
           {
             "name": "MessageOffsetOverflow"
+          },
+          {
+            "name": "InvalidMessageHex"
           }
         ]
       }

@@ -412,6 +412,45 @@ describe('spot swap', () => {
 
 		assert(userStatsAccount.fuelDeposits === 2000);
 
+		await makerDriftClient.initUserFuel(
+			await takerDriftClient.getUserAccountPublicKey(),
+			takerDriftClient.wallet.publicKey,
+			1000
+		);
+		await takerDriftClient.fetchAccounts();
+		const accountInfo2 = await bankrunContextWrapper.connection.getAccountInfo(
+			userStatsPublicKey
+		);
+		const userStatsAccount2 = accountInfo2
+			? (takerDriftClient.program.account.user.coder.accounts.decodeUnchecked(
+					'UserStats',
+					accountInfo2.data
+			  ) as UserStatsAccount)
+			: undefined;
+
+		console.log(userStatsAccount2.fuelDeposits.toString());
+		assert(userStatsAccount2.fuelDeposits === 3000);
+
+		await makerDriftClient.initUserFuel(
+			await takerDriftClient.getUserAccountPublicKey(),
+			takerDriftClient.wallet.publicKey,
+			-2501
+		);
+		await takerDriftClient.fetchAccounts();
+
+		const accountInfo3 = await bankrunContextWrapper.connection.getAccountInfo(
+			userStatsPublicKey
+		);
+		const userStatsAccount3 = accountInfo3
+			? (takerDriftClient.program.account.user.coder.accounts.decodeUnchecked(
+					'UserStats',
+					accountInfo3.data
+			  ) as UserStatsAccount)
+			: undefined;
+		console.log(userStatsAccount3.fuelDeposits.toString());
+
+		// assert(userStatsAccount3.fuelDeposits === 499);
+
 		// assert(userStatsAccount.fees.totalFeePaid.eq(new BN(50000)));
 		assert(userStatsAccount.takerVolume30D.eq(new BN(0)));
 
