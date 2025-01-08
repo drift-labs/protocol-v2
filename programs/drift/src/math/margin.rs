@@ -665,47 +665,6 @@ pub fn validate_any_isolated_tier_requirements(
     Ok(())
 }
 
-pub fn meets_withdraw_margin_requirement(
-    user: &User,
-    perp_market_map: &PerpMarketMap,
-    spot_market_map: &SpotMarketMap,
-    oracle_map: &mut OracleMap,
-    margin_requirement_type: MarginRequirementType,
-) -> DriftResult<bool> {
-    let strict = margin_requirement_type == MarginRequirementType::Initial;
-    let context = MarginContext::standard(margin_requirement_type)
-        .strict(strict)
-        .ignore_invalid_deposit_oracles(true);
-
-    let calculation = calculate_margin_requirement_and_total_collateral_and_liability_info(
-        user,
-        perp_market_map,
-        spot_market_map,
-        oracle_map,
-        context,
-    )?;
-
-    if calculation.margin_requirement > 0 || calculation.get_num_of_liabilities()? > 0 {
-        validate!(
-            calculation.all_liability_oracles_valid,
-            ErrorCode::InvalidOracle,
-            "User attempting to withdraw with outstanding liabilities when a liability oracle is invalid"
-        )?;
-    }
-
-    validate_any_isolated_tier_requirements(user, calculation)?;
-
-    validate!(
-        calculation.meets_margin_requirement(),
-        ErrorCode::InsufficientCollateral,
-        "User attempting to withdraw where total_collateral {} is below initial_margin_requirement {}",
-        calculation.total_collateral,
-        calculation.margin_requirement
-    )?;
-
-    Ok(true)
-}
-
 pub fn meets_place_order_margin_requirement(
     user: &User,
     perp_market_map: &PerpMarketMap,

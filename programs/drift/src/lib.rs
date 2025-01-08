@@ -1464,7 +1464,7 @@ pub mod drift {
 
     pub fn init_user_fuel(
         ctx: Context<InitUserFuel>,
-        fuel_boost_deposits: Option<u32>,
+        fuel_boost_deposits: Option<i32>,
         fuel_boost_borrows: Option<u32>,
         fuel_boost_taker: Option<u32>,
         fuel_boost_maker: Option<u32>,
