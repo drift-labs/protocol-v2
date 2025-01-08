@@ -599,16 +599,11 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
             continue;
         }
 
-        let spot_position = match user
-            .spot_positions
-            .iter()
-            .find(|p| p.market_index == *market_index && !p.is_available())
-        {
-            Some(p) => p,
-            None => continue,
-        };
+        if user.spot_positions.iter().any(|p| p.market_index == *market_index && !p.is_available()) {
+            continue;
+        }
 
-        let spot_market = spot_market_map.get_ref(&spot_position.market_index)?;
+        let spot_market = spot_market_map.get_ref(market_index)?;
         let oracle_price_data = oracle_map.get_price_data(&spot_market.oracle_id())?;
 
         let strict_oracle_price = StrictOraclePrice::new(
