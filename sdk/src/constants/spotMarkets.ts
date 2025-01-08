@@ -390,12 +390,14 @@ export const MainnetSpotMarkets: SpotMarketConfig[] = [
 		symbol: 'dSOL',
 		marketIndex: 17,
 		poolId: 0,
-		oracle: new PublicKey('7QJ6e57t3yM8HYVg6bAnJiCiZ3wQQ5CSVsa6GA16nJuK'),
-		oracleSource: OracleSource.SWITCHBOARD_ON_DEMAND,
+		oracle: new PublicKey('4YstsHafLyDbYFxmJbgoEr33iJJEp6rNPgLTQRgXDkG2'),
+		oracleSource: OracleSource.PYTH_PULL,
 		mint: new PublicKey('Dso1bDeDjCQxTrWHqUUi63oBvV7Mdm6WaobLbQ7gnPQ'),
 		precision: new BN(10).pow(NINE),
 		precisionExp: NINE,
 		launchTs: 1716595200000,
+		pythFeedId:
+			'0x41f858bae36e7ee3f4a3a6d4f176f0893d4a261460a52763350d00f8648195ee',
 	},
 	{
 		symbol: 'USDY',
