@@ -1782,9 +1782,9 @@ fn protected_maker_oracle_limit_price_bps_offset(
     }
 
     if contract_tier.is_as_safe_as_contract(&ContractTier::B) {
-        return Ok(PERCENTAGE_PRECISION_U64 / 1000);
+        return Ok(PERCENTAGE_PRECISION_U64 / 1000); // 10 bps
     } else {
-        return Ok(PERCENTAGE_PRECISION_U64 / 333);
+        return Ok(PERCENTAGE_PRECISION_U64 / 400); // 25 bps
     }
 }
 
