@@ -5885,7 +5885,9 @@ export class DriftClient {
 	): Buffer {
 		const takerOrderParamsMessage =
 			this.encodeSwiftOrderParamsMessage(orderParamsMessage);
-		return this.signMessage(takerOrderParamsMessage);
+		return this.signMessage(
+			new TextEncoder().encode(takerOrderParamsMessage.toString('hex'))
+		);
 	}
 
 	public encodeSwiftOrderParamsMessage(
