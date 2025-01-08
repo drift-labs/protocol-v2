@@ -5888,13 +5888,15 @@ export class DriftClient {
 		return this.signMessage(takerOrderParamsMessage);
 	}
 
+	// encode the swift order for use in program Ix/signing
 	public encodeSwiftOrderParamsMessage(
 		orderParamsMessage: SwiftOrderParamsMessage
 	): Buffer {
-		return this.program.coder.types.encode(
+		const borshBuf = this.program.coder.types.encode(
 			'SwiftOrderParamsMessage',
 			orderParamsMessage
 		);
+		return Buffer.from(borshBuf.toString('hex'));
 	}
 
 	public decodeSwiftOrderParamsMessage(

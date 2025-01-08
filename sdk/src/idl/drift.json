@@ -11807,6 +11807,9 @@
           },
           {
             "name": "MessageOffsetOverflow"
+          },
+          {
+            "name": "InvalidMessageHex"
           }
         ]
       }
