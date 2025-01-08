@@ -396,7 +396,8 @@ export const MainnetSpotMarkets: SpotMarketConfig[] = [
 		precision: new BN(10).pow(NINE),
 		precisionExp: NINE,
 		launchTs: 1716595200000,
-		pythFeedId: '0x41f858bae36e7ee3f4a3a6d4f176f0893d4a261460a52763350d00f8648195ee'
+		pythFeedId:
+			'0x41f858bae36e7ee3f4a3a6d4f176f0893d4a261460a52763350d00f8648195ee',
 	},
 	{
 		symbol: 'USDY',
