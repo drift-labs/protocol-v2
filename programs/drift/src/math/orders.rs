@@ -792,16 +792,19 @@ pub fn find_maker_orders(
         )?;
 
         if price_offset_bps > 0 {
+            // ensure a minimum price offset of 10 ticks
+            let min_offset = tick_size.safe_mul(10)?;
             let price_offset = limit_price
-            .safe_mul(price_offset_bps)?
-        .safe_div(PRICE_PRECISION_U64)?;
+                .safe_mul(price_offset_bps)?
+                .safe_div(PRICE_PRECISION_U64)?
+                .max(min_offset);
 
-            if order.direction == PositionDirection::Long {
-                limit_price = limit_price.saturating_sub(price_offset).max(tick_size);
-            } else {
-                limit_price = limit_price.saturating_add(price_offset);
-            }
-            limit_price = standardize_price(limit_price, tick_size, order.direction)?
+            // adjust limit price based on order direction and standarize
+            limit_price = match order.direction {
+                PositionDirection::Long => limit_price.saturating_sub(price_offset).max(tick_size),
+                PositionDirection::Short => limit_price.saturating_add(price_offset),
+            };
+            limit_price = standardize_price(limit_price, tick_size, order.direction)?;
         }
 
         orders.push((order_index, limit_price));

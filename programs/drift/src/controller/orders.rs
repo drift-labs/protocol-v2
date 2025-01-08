@@ -23,7 +23,6 @@ use crate::controller::spot_position::{
 };
 use crate::error::DriftResult;
 use crate::error::ErrorCode;
-use crate::{get_struct_values, PERCENTAGE_PRECISION_U64};
 use crate::get_then_update_id;
 use crate::load_mut;
 use crate::math::amm::calculate_amm_available_liquidity;
@@ -61,7 +60,9 @@ use crate::state::order_params::{
     ModifyOrderParams, ModifyOrderPolicy, OrderParams, PlaceOrderOptions, PostOnlyParam, RFQMatch,
 };
 use crate::state::paused_operations::{PerpOperation, SpotOperation};
-use crate::state::perp_market::{AMMAvailability, AMMLiquiditySplit, ContractTier, MarketStatus, PerpMarket};
+use crate::state::perp_market::{
+    AMMAvailability, AMMLiquiditySplit, ContractTier, MarketStatus, PerpMarket,
+};
 use crate::state::perp_market_map::PerpMarketMap;
 use crate::state::rfq_user::{RFQOrderId, RFQUser};
 use crate::state::spot_fulfillment_params::{ExternalSpotFill, SpotFulfillmentParams};
@@ -81,6 +82,7 @@ use crate::validation::order::{
     validate_order, validate_order_for_force_reduce_only, validate_spot_order,
 };
 use crate::{controller, ID};
+use crate::{get_struct_values, PERCENTAGE_PRECISION_U64};
 
 #[cfg(test)]
 mod tests;
@@ -1628,11 +1630,11 @@ fn get_maker_orders_info(
             market.amm.order_tick_size,
             market.is_prediction_market(),
             protected_maker_oracle_limit_price_bps_offset(
-                user_can_skip_duration, 
-                taker_order_age, 
+                user_can_skip_duration,
+                taker_order_age,
                 protected_maker_min_age,
-                &market.contract_tier
-            )?
+                &market.contract_tier,
+            )?,
         )?;
 
         if maker_order_price_and_indexes.is_empty() {
@@ -1773,18 +1775,17 @@ fn protected_maker_oracle_limit_price_bps_offset(
     user_can_skip_duration: bool,
     taker_order_age: u64,
     protected_maker_min_age: u64,
-    contract_tier: &ContractTier
+    contract_tier: &ContractTier,
 ) -> DriftResult<u64> {
     if user_can_skip_duration || taker_order_age > protected_maker_min_age {
         return Ok(0);
     }
 
     if contract_tier.is_as_safe_as_contract(&ContractTier::B) {
-        return Ok(PERCENTAGE_PRECISION_U64 / 10000)
+        return Ok(PERCENTAGE_PRECISION_U64 / 1000);
     } else {
-        return Ok(PERCENTAGE_PRECISION_U64 / 2000)
+        return Ok(PERCENTAGE_PRECISION_U64 / 333);
     }
-
 }
 
 #[inline(always)]
@@ -4193,7 +4194,7 @@ fn get_spot_maker_orders_info(
             slot,
             market.order_tick_size,
             false,
-            0
+            0,
         )?;
 
         if maker_order_price_and_indexes.is_empty() {
