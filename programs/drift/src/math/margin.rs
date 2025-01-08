@@ -592,6 +592,37 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
 
     calculation.validate_num_spot_liabilities()?;
 
+    // update fuel to account for spot market deltas where there is no spot position
+    let spot_fuel_deltas = calculation.context.fuel_spot_deltas;
+    for (market_index, delta) in spot_fuel_deltas.iter() {
+        if *delta == 0 {
+            continue;
+        }
+
+        let spot_position = match user
+            .spot_positions
+            .iter()
+            .find(|p| p.market_index == *market_index && !p.is_available())
+        {
+            Some(p) => p,
+            None => continue,
+        };
+
+        let spot_market = spot_market_map.get_ref(&spot_position.market_index)?;
+        let oracle_price_data = oracle_map.get_price_data(&spot_market.oracle_id())?;
+
+        let strict_oracle_price = StrictOraclePrice::new(
+            oracle_price_data.price,
+            spot_market
+                .historical_oracle_data
+                .last_oracle_price_twap_5min,
+            calculation.context.strict,
+        );
+        strict_oracle_price.validate()?;
+
+        calculation.update_fuel_spot_bonus(&spot_market, 0, &strict_oracle_price)?;
+    }
+
     Ok(calculation)
 }
 
