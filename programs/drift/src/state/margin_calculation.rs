@@ -105,12 +105,6 @@ impl MarginContext {
         self
     }
 
-    pub fn has_fuel_spot_delta(&self, market_index: u16) -> bool {
-        self.fuel_spot_deltas
-            .iter()
-            .any(|(index, amount)| *index == market_index && *amount != 0)
-    }
-
     pub fn fuel_numerator(mut self, user: &User, now: i64) -> Self {
         self.fuel_bonus_numerator = user.get_fuel_bonus_numerator(now).unwrap();
         self
