@@ -749,6 +749,12 @@ pub mod drift {
         handle_post_multi_pyth_pull_oracle_updates_atomic(ctx, params)
     }
 
+    pub fn pause_spot_market_deposit_withdraw(
+        ctx: Context<PauseSpotMarketDepositWithdraw>,
+    ) -> Result<()> {
+        handle_pause_spot_market_deposit_withdraw(ctx)
+    }
+
     // Admin Instructions
 
     pub fn initialize(ctx: Context<Initialize>) -> Result<()> {
@@ -1480,7 +1486,7 @@ pub mod drift {
 
     pub fn init_user_fuel(
         ctx: Context<InitUserFuel>,
-        fuel_boost_deposits: Option<u32>,
+        fuel_boost_deposits: Option<i32>,
         fuel_boost_borrows: Option<u32>,
         fuel_boost_taker: Option<u32>,
         fuel_boost_maker: Option<u32>,

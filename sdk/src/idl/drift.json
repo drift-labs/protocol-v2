@@ -1,5 +1,5 @@
 {
-  "version": "2.104.0",
+  "version": "2.105.0",
   "name": "drift",
   "instructions": [
     {
@@ -3451,6 +3451,32 @@
       ]
     },
     {
+      "name": "pauseSpotMarketDepositWithdraw",
+      "accounts": [
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "keeper",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "spotMarket",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "spotMarketVault",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": []
+    },
+    {
       "name": "initialize",
       "accounts": [
         {
@@ -6255,7 +6281,7 @@
         {
           "name": "fuelBoostDeposits",
           "type": {
-            "option": "u32"
+            "option": "i32"
           }
         },
         {
@@ -11951,6 +11977,9 @@
           },
           {
             "name": "MessageOffsetOverflow"
+          },
+          {
+            "name": "InvalidMessageHex"
           }
         ]
       }
@@ -14622,8 +14651,5 @@
       "name": "InvalidLiquidateSpotWithSwap",
       "msg": "InvalidLiquidateSpotWithSwap"
     }
-  ],
-  "metadata": {
-    "address": "dRiftyHA39MWEi3m9aunc5MzRF1JYuBsbn6VPcn33UH"
-  }
+  ]
 }

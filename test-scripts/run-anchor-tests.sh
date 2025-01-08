@@ -50,6 +50,7 @@ test_files=(
   order.ts
   ordersWithSpread.ts
   pauseExchange.ts
+  pauseDepositWithdraw.ts
   perpLpJit.ts
   perpLpRiskMitigation.ts
   phoenixTest.ts

@@ -306,8 +306,8 @@ pub fn handle_initialize_spot_market(
         min_borrow_rate: 0,
         fuel_boost_deposits: 0,
         fuel_boost_borrows: 0,
-        fuel_boost_taker: 0,
-        fuel_boost_maker: 0,
+        fuel_boost_taker: 1,
+        fuel_boost_maker: 1,
         fuel_boost_insurance: 0,
         token_program,
         pool_id: 0,
@@ -317,6 +317,7 @@ pub fn handle_initialize_spot_market(
             unstaking_period: THIRTEEN_DAY,
             total_factor: if_total_factor,
             user_factor: if_total_factor / 2,
+            revenue_settle_period: 3600,
             ..InsuranceFund::default()
         },
     };
@@ -891,8 +892,8 @@ pub fn handle_initialize_perp_market(
         quote_spot_market_index: QUOTE_SPOT_MARKET_INDEX,
         fee_adjustment: 0,
         fuel_boost_position: 0,
-        fuel_boost_taker: 0,
-        fuel_boost_maker: 0,
+        fuel_boost_taker: 1,
+        fuel_boost_maker: 1,
         pool_id: 0,
         high_leverage_margin_ratio_initial: 0,
         high_leverage_margin_ratio_maintenance: 0,
@@ -998,6 +999,16 @@ pub fn handle_initialize_perp_market(
     safe_increment!(state.number_of_markets, 1);
 
     controller::amm::update_concentration_coef(perp_market, concentration_coef_scale)?;
+    crate::dlog!(oracle_price);
+
+    let (amm_bid_size, amm_ask_size) = amm::calculate_market_open_bids_asks(&perp_market.amm)?;
+    crate::dlog!(amm_bid_size, amm_ask_size);
+
+    let mrk = perp_market.amm.reserve_price()?;
+    let (amm_bid_price, amm_ask_price) = perp_market.amm.bid_ask_price(mrk)?;
+    crate::dlog!(amm_bid_price, amm_ask_price);
+
+    crate::validation::perp_market::validate_perp_market(perp_market)?;
 
     Ok(())
 }
@@ -1227,7 +1238,7 @@ pub fn handle_update_spot_market_expiry(
 
 pub fn handle_init_user_fuel(
     ctx: Context<InitUserFuel>,
-    fuel_bonus_deposits: Option<u32>,
+    fuel_bonus_deposits: Option<i32>,
     fuel_bonus_borrows: Option<u32>,
     fuel_bonus_taker: Option<u32>,
     fuel_bonus_maker: Option<u32>,
@@ -1239,19 +1250,23 @@ pub fn handle_init_user_fuel(
     let user = &mut load_mut!(ctx.accounts.user)?;
     let user_stats = &mut load_mut!(ctx.accounts.user_stats)?;
 
-    validate!(
-        user.last_fuel_bonus_update_ts < FUEL_START_TS as u32,
-        ErrorCode::DefaultError,
-        "User must not have begun earning fuel"
-    )?;
-
     if let Some(fuel_bonus_deposits) = fuel_bonus_deposits {
+        let new_fuel_bonus_deposits = if fuel_bonus_deposits >= 0 {
+            user_stats
+                .fuel_deposits
+                .saturating_add(fuel_bonus_deposits.cast()?)
+        } else {
+            user_stats
+                .fuel_deposits
+                .saturating_sub(fuel_bonus_deposits.unsigned_abs())
+        };
+
         msg!(
             "user_stats.fuel_deposits {:?} -> {:?}",
             user_stats.fuel_deposits,
-            user_stats.fuel_deposits.saturating_add(fuel_bonus_deposits)
+            new_fuel_bonus_deposits
         );
-        user_stats.fuel_deposits = user_stats.fuel_deposits.saturating_add(fuel_bonus_deposits);
+        user_stats.fuel_deposits = new_fuel_bonus_deposits;
     }
     if let Some(fuel_bonus_borrows) = fuel_bonus_borrows {
         msg!(
