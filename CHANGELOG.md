@@ -11,6 +11,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixes
 
+- program: account for fuel when there is full withdraw ([#1413](https://github.com/drift-labs/protocol-v2/pull/1413))
+
 ### Breaking
 
 ## [2.105.0] - 2025-01-02
