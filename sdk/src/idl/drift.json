@@ -14476,8 +14476,5 @@
       "name": "PythLazerMessagePriceFeedMismatch",
       "msg": "Pyth lazer message does not correspond to correct fed id"
     }
-  ],
-  "metadata": {
-    "address": "dRiftyHA39MWEi3m9aunc5MzRF1JYuBsbn6VPcn33UH"
-  }
+  ]
 }
