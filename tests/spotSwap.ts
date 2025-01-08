@@ -449,7 +449,7 @@ describe('spot swap', () => {
 			: undefined;
 		console.log(userStatsAccount3.fuelDeposits.toString());
 
-		// assert(userStatsAccount3.fuelDeposits === 499);
+		assert(userStatsAccount3.fuelDeposits === 499);
 
 		// assert(userStatsAccount.fees.totalFeePaid.eq(new BN(50000)));
 		assert(userStatsAccount.takerVolume30D.eq(new BN(0)));
