@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Features
 
+- program: liquidate spot with swap ([#1402](https://github.com/drift-labs/protocol-v2/pull/1402))
+
 ### Fixes
 
 - program: account for fuel in swaps ([#1411](https://github.com/drift-labs/protocol-v2/pull/1411))
