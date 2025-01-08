@@ -68,7 +68,6 @@ fn check_ed25519_data(data: &[u8], pubkey: &[u8], msg: &[u8], sig: &[u8]) -> Res
     // https://github.com/solana-labs/solana-web3.js/blob/master/src/ed25519-program.ts#L33
 
     // "Deserializing" byte slices
-
     let num_signatures = &[data[0]]; // Byte  0
     let padding = &[data[1]]; // Byte  1
     let signature_offset = &data[2..=3]; // Bytes 2,3
@@ -84,7 +83,6 @@ fn check_ed25519_data(data: &[u8], pubkey: &[u8], msg: &[u8], sig: &[u8]) -> Res
     let data_msg = &data[112..]; // Bytes 112..end
 
     // Expected values
-
     let exp_public_key_offset: u16 = 16; // 2*u8 + 7*u16
     let exp_signature_offset: u16 = exp_public_key_offset + pubkey.len() as u16;
     let exp_message_data_offset: u16 = exp_signature_offset + sig.len() as u16;
@@ -224,7 +222,7 @@ pub fn verify_ed25519_msg(
             .ok_or(SignatureVerificationError::MessageOffsetOverflow)?;
         &msg[start..end]
     };
-    let mut payload = {
+    let payload = {
         let start = usize::from(
             expected_message_data_offset
                 .checked_sub(message_offset)
@@ -255,8 +253,11 @@ pub fn verify_ed25519_msg(
         &msg[start..end].try_into().unwrap()
     };
 
+    let payload =
+        hex::decode(payload).map_err(|_| SignatureVerificationError::InvalidMessageHex)?;
     Ok(VerifiedMessage {
-        swift_order_params_message: SwiftOrderParamsMessage::deserialize(&mut payload).unwrap(),
+        swift_order_params_message: SwiftOrderParamsMessage::deserialize(&mut payload.as_slice())
+            .unwrap(),
         signature: *signature,
     })
 }
@@ -282,4 +283,6 @@ pub enum SignatureVerificationError {
     InvalidInstructionIndex,
     #[msg("message offset overflow")]
     MessageOffsetOverflow,
+    #[msg("invalid message hex")]
+    InvalidMessageHex,
 }
