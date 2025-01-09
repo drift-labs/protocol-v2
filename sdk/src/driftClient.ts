@@ -181,6 +181,7 @@ import { gprcDriftClientAccountSubscriber } from './accounts/grpcDriftClientAcco
 import nacl from 'tweetnacl';
 import { Slothash } from './slot/SlothashSubscriber';
 import { getOracleId } from './oracles/oracleId';
+import { SignedSwiftOrderParams } from './swift/types';
 
 type RemainingAccountParams = {
 	userAccounts: UserAccount[];
@@ -5882,23 +5883,30 @@ export class DriftClient {
 
 	public signSwiftOrderParamsMessage(
 		orderParamsMessage: SwiftOrderParamsMessage
-	): Buffer {
-		const takerOrderParamsMessage =
-			this.encodeSwiftOrderParamsMessage(orderParamsMessage);
-		return this.signMessage(takerOrderParamsMessage);
+	): SignedSwiftOrderParams {
+		const borshBuf = this.encodeSwiftOrderParamsMessage(orderParamsMessage);
+		const orderParams = Buffer.from(borshBuf.toString('hex'));
+		return {
+			orderParams,
+			signature: this.signMessage(Buffer.from(borshBuf.toString('hex'))),
+		};
 	}
 
-	// encode the swift order for use in program Ix/signing
+	/*
+	 * Borsh encode swift taker order params
+	 */
 	public encodeSwiftOrderParamsMessage(
 		orderParamsMessage: SwiftOrderParamsMessage
 	): Buffer {
-		const borshBuf = this.program.coder.types.encode(
+		return this.program.coder.types.encode(
 			'SwiftOrderParamsMessage',
 			orderParamsMessage
 		);
-		return Buffer.from(borshBuf.toString('hex'));
 	}
 
+	/*
+	 * Decode swift taker order params from borsh buffer
+	 */
 	public decodeSwiftOrderParamsMessage(
 		encodedMessage: Buffer
 	): SwiftOrderParamsMessage {
@@ -5916,8 +5924,7 @@ export class DriftClient {
 	}
 
 	public async placeSwiftTakerOrder(
-		swiftOrderParamsMessage: Buffer,
-		swiftOrderParamsSignature: Buffer,
+		signedSwiftOrderParams: SignedSwiftOrderParams,
 		marketIndex: number,
 		takerInfo: {
 			taker: PublicKey;
@@ -5929,8 +5936,7 @@ export class DriftClient {
 		txParams?: TxParams
 	): Promise<TransactionSignature> {
 		const ixs = await this.getPlaceSwiftTakerPerpOrderIxs(
-			swiftOrderParamsMessage,
-			swiftOrderParamsSignature,
+			signedSwiftOrderParams,
 			marketIndex,
 			takerInfo,
 			undefined,
@@ -5946,8 +5952,7 @@ export class DriftClient {
 	}
 
 	public async getPlaceSwiftTakerPerpOrderIxs(
-		encodedSwiftOrderParamsMessage: Buffer,
-		swiftOrderParamsSignature: Buffer,
+		signedSwiftOrderParams: SignedSwiftOrderParams,
 		marketIndex: number,
 		takerInfo: {
 			taker: PublicKey;
@@ -5971,13 +5976,15 @@ export class DriftClient {
 		const authorityToUse = authority || takerInfo.takerUserAccount.authority;
 
 		const messageLengthBuffer = Buffer.alloc(2);
-		messageLengthBuffer.writeUInt16LE(encodedSwiftOrderParamsMessage.length);
+		messageLengthBuffer.writeUInt16LE(
+			signedSwiftOrderParams.orderParams.length
+		);
 
 		const swiftIxData = Buffer.concat([
-			swiftOrderParamsSignature,
+			signedSwiftOrderParams.signature,
 			authorityToUse.toBytes(),
 			messageLengthBuffer,
-			encodedSwiftOrderParamsMessage,
+			signedSwiftOrderParams.orderParams,
 		]);
 
 		const swiftOrderParamsSignatureIx = createMinimalEd25519VerifyIx(
@@ -6007,8 +6014,7 @@ export class DriftClient {
 	}
 
 	public async placeAndMakeSwiftPerpOrder(
-		encodedSwiftOrderParamsMessage: Buffer,
-		swiftOrderParamsSignature: Buffer,
+		signedSwiftOrderParams: SignedSwiftOrderParams,
 		swiftOrderUuid: Uint8Array,
 		takerInfo: {
 			taker: PublicKey;
@@ -6023,8 +6029,7 @@ export class DriftClient {
 		overrideIxCount?: number
 	): Promise<TransactionSignature> {
 		const ixs = await this.getPlaceAndMakeSwiftPerpOrderIxs(
-			encodedSwiftOrderParamsMessage,
-			swiftOrderParamsSignature,
+			signedSwiftOrderParams,
 			swiftOrderUuid,
 			takerInfo,
 			orderParams,
@@ -6044,8 +6049,7 @@ export class DriftClient {
 	}
 
 	public async getPlaceAndMakeSwiftPerpOrderIxs(
-		encodedSwiftOrderParamsMessage: Buffer,
-		swiftOrderParamsSignature: Buffer,
+		signedSwiftOrderParams: SignedSwiftOrderParams,
 		swiftOrderUuid: Uint8Array,
 		takerInfo: {
 			taker: PublicKey;
@@ -6060,8 +6064,7 @@ export class DriftClient {
 	): Promise<TransactionInstruction[]> {
 		const [swiftOrderSignatureIx, placeTakerSwiftPerpOrderIx] =
 			await this.getPlaceSwiftTakerPerpOrderIxs(
-				encodedSwiftOrderParamsMessage,
-				swiftOrderParamsSignature,
+				signedSwiftOrderParams,
 				orderParams.marketIndex,
 				takerInfo,
 				undefined,
