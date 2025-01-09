@@ -599,7 +599,11 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
             continue;
         }
 
-        if user.spot_positions.iter().any(|p| p.market_index == *market_index && !p.is_available()) {
+        if user
+            .spot_positions
+            .iter()
+            .any(|p| p.market_index == *market_index && !p.is_available())
+        {
             continue;
         }
 
