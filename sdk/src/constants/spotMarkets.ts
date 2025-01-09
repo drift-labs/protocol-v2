@@ -615,6 +615,19 @@ export const MainnetSpotMarkets: SpotMarketConfig[] = [
 			'0xeaa020c61cc479712813461ce153894a96a6c00b21ed0cfc2798d1f9a9e9c94a',
 		launchTs: 1735255852000,
 	},
+	{
+		symbol: 'AI16Z',
+		marketIndex: 35,
+		poolId: 0,
+		oracle: new PublicKey('3gdGkrmBdYR7B1MRRdRVysqhZCvYvLGHonr9b7o9WVki'),
+		oracleSource: OracleSource.PYTH_PULL,
+		mint: new PublicKey('HeLp6NuQkmYB4pYWo2zYs22mESHXPQYzXbB8n4V98jwC'),
+		precision: new BN(10).pow(NINE),
+		precisionExp: NINE,
+		pythFeedId:
+			'0x2551eca7784671173def2c41e6f3e51e11cd87494863f1d208fdd8c64a1f85ae',
+		launchTs: 1736384970000,
+	},
 ];
 
 export const SpotMarkets: { [key in DriftEnv]: SpotMarketConfig[] } = {
