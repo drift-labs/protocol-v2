@@ -153,6 +153,10 @@ export class SwiftOrderSubscriber {
 		swiftOrderParamsMessage: SwiftOrderParamsMessage,
 		makerOrderParams: OptionalOrderParams
 	): Promise<TransactionInstruction[]> {
+		const swiftOrderParamsBuf = Buffer.from(
+			orderMessageRaw['order_message'],
+			'hex'
+		);
 		const takerAuthority = new PublicKey(orderMessageRaw['taker_authority']);
 		const takerUserPubkey = await getUserAccountPublicKey(
 			this.driftClient.program.programId,
@@ -164,7 +168,7 @@ export class SwiftOrderSubscriber {
 		).getUserAccount();
 		const ixs = await this.driftClient.getPlaceAndMakeSwiftPerpOrderIxs(
 			{
-				orderParams: orderMessageRaw['order_message'],
+				orderParams: swiftOrderParamsBuf,
 				signature: Buffer.from(orderMessageRaw['order_signature'], 'base64'),
 			},
 			decodeUTF8(orderMessageRaw['uuid']),
