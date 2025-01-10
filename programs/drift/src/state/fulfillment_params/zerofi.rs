@@ -4,6 +4,7 @@ use crate::error::{DriftResult, ErrorCode};
 use crate::instructions::SpotFulfillmentType;
 use crate::math::casting::Cast;
 use crate::math::constants::PRICE_TO_QUOTE_PRECISION_RATIO;
+use crate::math::orders::{standardize_base_asset_amount, standardize_base_asset_amount_ceil};
 use crate::math::safe_math::SafeMath;
 use crate::math::serum::{
     calculate_price_from_serum_limit_price, calculate_serum_limit_price,
@@ -138,6 +139,7 @@ pub struct ZerofiFulfillmentParams<'a, 'b> {
     pub signer_nonce: u8,
     pub now: i64,
     pub base_precision: u64,
+    pub base_step_size: u64,
 }
 
 impl<'a, 'b> ZerofiFulfillmentParams<'a, 'b> {
@@ -278,6 +280,7 @@ impl<'a, 'b> ZerofiFulfillmentParams<'a, 'b> {
             signer_nonce: state.signer_nonce,
             now,
             base_precision: base_market.get_precision(),
+            base_step_size: base_market.order_step_size,
         })
     }
 }
@@ -356,17 +359,17 @@ impl<'a, 'b> SpotFulfillmentParams for ZerofiFulfillmentParams<'a, 'b> {
         let market = self.zerofi_context.load_zerofi_market()?;
 
         // According to calculate_fill_price(), this is how taker_price works
-        let taker_quote_asset_amount: u64 = taker_price
+        let taker_quote_asset_amount: u64 = taker_base_asset_amount
             .cast::<u128>()?
-            .safe_mul(taker_base_asset_amount.cast()?)?
+            .safe_mul(taker_price.cast()?)?
             .safe_div(self.base_precision.cast()?)?
             .cast::<u64>()?;
 
         // Convert the max_quote limitation to max_base using taker_price
-        let taker_max_base_asset_amount: u64 = taker_price
+        let taker_max_base_asset_amount: u64 = taker_max_quote_asset_amount
             .cast::<u128>()?
             .safe_mul(self.base_precision.cast()?)?
-            .safe_div(taker_max_quote_asset_amount.cast()?)?
+            .safe_div(taker_price.cast()?)?
             .cast::<u64>()?;
 
         let is_base_to_quote = taker_direction == PositionDirection::Short;
@@ -400,10 +403,24 @@ impl<'a, 'b> SpotFulfillmentParams for ZerofiFulfillmentParams<'a, 'b> {
         let base_after = self.base_market_vault.amount;
         let quote_after = self.quote_market_vault.amount;
 
+        // Forcing the step size will make the fill have a slightly worse price,
+        // with the extra tokens being left on the base market vault.
         let (base_update_direction, base_asset_amount_filled) = if base_after > base_before {
-            (SpotBalanceType::Deposit, base_after.safe_sub(base_before)?)
+            (
+                SpotBalanceType::Deposit,
+                standardize_base_asset_amount(
+                    base_after.safe_sub(base_before)?,
+                    self.base_step_size,
+                )?,
+            )
         } else {
-            (SpotBalanceType::Borrow, base_before.safe_sub(base_after)?)
+            (
+                SpotBalanceType::Borrow,
+                standardize_base_asset_amount_ceil(
+                    base_before.safe_sub(base_after)?,
+                    self.base_step_size,
+                )?,
+            )
         };
 
         if base_asset_amount_filled == 0 {
