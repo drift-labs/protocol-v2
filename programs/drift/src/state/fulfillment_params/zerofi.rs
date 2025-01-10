@@ -62,7 +62,7 @@ pub struct ZerofiContext<'a, 'b> {
 
 #[derive(Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
 #[repr(C)]
-pub struct Market {
+pub struct ZerofiMarket {
     pub discriminator: u64,
     pub _config_authority: Pubkey,
     pub _update_authority: Pubkey,
@@ -74,24 +74,29 @@ pub struct Market {
     pub vault_quote_info: Pubkey,
 }
 
-impl Market {
+impl ZerofiMarket {
     pub fn load_ref<'a>(account_info: &'a AccountInfo) -> Result<Ref<'a, Self>> {
         use anchor_lang::error::ErrorCode;
+        validate!(
+            account_info.owner == &zerofi_program_id::ID,
+            ErrorCode::AccountOwnedByWrongProgram
+        )?;
         let data = account_info.try_borrow_data()?;
-        let market: Ref<Market> = Ref::map(data, |data| {
-            bytemuck::from_bytes(&data[..std::mem::size_of::<Market>()])
+        let market: Ref<ZerofiMarket> = Ref::map(data, |data| {
+            bytemuck::from_bytes(&data[..std::mem::size_of::<ZerofiMarket>()])
         });
-        if market.discriminator != 4 {
-            return Err(ErrorCode::AccountDiscriminatorMismatch.into());
-        }
+        validate!(
+            market.discriminator == 4,
+            ErrorCode::AccountDiscriminatorMismatch
+        )?;
         Ok(market)
     }
 }
 
 impl<'a, 'b> ZerofiContext<'a, 'b> {
-    pub fn load_zerofi_market(&self) -> DriftResult<Ref<'a, Market>> {
+    pub fn load_zerofi_market(&self) -> DriftResult<Ref<'a, ZerofiMarket>> {
         let market =
-            Market::load_ref(self.zerofi_market).map_err(|_| ErrorCode::FailedZerofiCPI)?;
+            ZerofiMarket::load_ref(self.zerofi_market).map_err(|_| ErrorCode::FailedZerofiCPI)?;
         Ok(market)
     }
 
@@ -184,7 +189,8 @@ impl<'a, 'b> ZerofiFulfillmentParams<'a, 'b> {
         )?;
 
         // loading market data, validating discriminator
-        let market = Market::load_ref(zerofi_market).map_err(|_| ErrorCode::FailedZerofiCPI)?;
+        let market =
+            ZerofiMarket::load_ref(zerofi_market).map_err(|_| ErrorCode::FailedZerofiCPI)?;
 
         validate!(
             zerofi_fulfillment_config.status == SpotFulfillmentConfigStatus::Enabled,
@@ -356,12 +362,20 @@ impl<'a, 'b> SpotFulfillmentParams for ZerofiFulfillmentParams<'a, 'b> {
             .safe_div(self.base_precision.cast()?)?
             .cast::<u64>()?;
 
+        // Convert the max_quote limitation to max_base using taker_price
+        let taker_max_base_asset_amount: u64 = taker_price
+            .cast::<u128>()?
+            .safe_mul(self.base_precision.cast()?)?
+            .safe_div(taker_max_quote_asset_amount.cast()?)?
+            .cast::<u64>()?;
+
         let is_base_to_quote = taker_direction == PositionDirection::Short;
         let (in_amount, out_amount) = if !is_base_to_quote {
             let max_quote_in = taker_quote_asset_amount.min(taker_max_quote_asset_amount);
             (max_quote_in, taker_base_asset_amount)
         } else {
-            (taker_base_asset_amount, taker_quote_asset_amount)
+            let max_base_in = taker_base_asset_amount.min(taker_max_base_asset_amount);
+            (max_base_in, taker_quote_asset_amount)
         };
 
         let mut args = vec![0u8; 17];

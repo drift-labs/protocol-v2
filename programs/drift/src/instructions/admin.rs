@@ -656,13 +656,15 @@ pub fn handle_initialize_zerofi_fulfillment_config(
         zerofi_program: &ctx.accounts.zerofi_program,
         zerofi_market: &ctx.accounts.zerofi_market,
     };
+
+    // Validates owner and discriminator
     let market = zerofi_market_context.load_zerofi_market()?;
+
     validate!(
         market.mint_base == base_spot_market.mint,
         ErrorCode::InvalidZerofiMarket,
         "Invalid base mint"
     )?;
-
     validate!(
         market.mint_quote == quote_spot_market.mint,
         ErrorCode::InvalidZerofiMarket,
@@ -4530,9 +4532,9 @@ pub struct InitializeZerofiFulfillmentConfig<'info> {
         has_one = admin
     )]
     pub state: Box<Account<'info, State>>,
-    /// CHECK: checked in ix
+    /// CHECK: single valid pubkey checked in ix
     pub zerofi_program: AccountInfo<'info>,
-    /// CHECK: checked in ix
+    /// CHECK: owner and discriminator checked in ix
     pub zerofi_market: AccountInfo<'info>,
     #[account(
         constraint = state.signer.eq(&drift_signer.key())
