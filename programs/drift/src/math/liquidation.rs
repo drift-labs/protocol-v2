@@ -176,7 +176,7 @@ pub fn calculate_asset_transfer_for_liability_transfer(
     let (asset_value_numerator_scale, asset_value_denominator_scale) = if asset_decimals > 6 {
         (10_u128.pow(asset_decimals - 6), 1)
     } else {
-        (1, 10_u128.pow(asset_decimals - 6))
+        (1, 10_u128.pow(6 - asset_decimals))
     };
 
     let asset_delta = if asset_transfer > asset_amount {
