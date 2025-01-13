@@ -1238,7 +1238,7 @@ pub fn handle_update_spot_market_expiry(
 
 pub fn handle_init_user_fuel(
     ctx: Context<InitUserFuel>,
-    fuel_bonus_deposits: Option<u32>,
+    fuel_bonus_deposits: Option<i32>,
     fuel_bonus_borrows: Option<u32>,
     fuel_bonus_taker: Option<u32>,
     fuel_bonus_maker: Option<u32>,
@@ -1250,19 +1250,23 @@ pub fn handle_init_user_fuel(
     let user = &mut load_mut!(ctx.accounts.user)?;
     let user_stats = &mut load_mut!(ctx.accounts.user_stats)?;
 
-    validate!(
-        user.last_fuel_bonus_update_ts < FUEL_START_TS as u32,
-        ErrorCode::DefaultError,
-        "User must not have begun earning fuel"
-    )?;
-
     if let Some(fuel_bonus_deposits) = fuel_bonus_deposits {
+        let new_fuel_bonus_deposits = if fuel_bonus_deposits >= 0 {
+            user_stats
+                .fuel_deposits
+                .saturating_add(fuel_bonus_deposits.cast()?)
+        } else {
+            user_stats
+                .fuel_deposits
+                .saturating_sub(fuel_bonus_deposits.unsigned_abs())
+        };
+
         msg!(
             "user_stats.fuel_deposits {:?} -> {:?}",
             user_stats.fuel_deposits,
-            user_stats.fuel_deposits.saturating_add(fuel_bonus_deposits)
+            new_fuel_bonus_deposits
         );
-        user_stats.fuel_deposits = user_stats.fuel_deposits.saturating_add(fuel_bonus_deposits);
+        user_stats.fuel_deposits = new_fuel_bonus_deposits;
     }
     if let Some(fuel_bonus_borrows) = fuel_bonus_borrows {
         msg!(

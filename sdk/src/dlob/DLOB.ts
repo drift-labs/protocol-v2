@@ -270,6 +270,28 @@ export class DLOB {
 		});
 	}
 
+	public delete(
+		order: Order,
+		userAccount: PublicKey,
+		slot: number,
+		onDelete?: OrderBookCallback
+	): void {
+		if (isVariant(order.status, 'init')) {
+			return;
+		}
+
+		this.updateRestingLimitOrders(slot);
+
+		this.getListForOnChainOrder(order, slot)?.remove(
+			order,
+			userAccount.toString()
+		);
+
+		if (onDelete) {
+			onDelete();
+		}
+	}
+
 	public getListForOnChainOrder(
 		order: Order,
 		slot: number

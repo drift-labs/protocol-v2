@@ -13,6 +13,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Breaking
 
+## [2.106.0] - 2025-01-08
+
+### Features
+
+- program: liquidate spot with swap ([#1402](https://github.com/drift-labs/protocol-v2/pull/1402))
+
+### Fixes
+
+- program: account for fuel in swaps ([#1411](https://github.com/drift-labs/protocol-v2/pull/1411))
+- program: account for fuel when there is full withdraw ([#1413](https://github.com/drift-labs/protocol-v2/pull/1413))
+
+### Breaking
+
 ## [2.105.0] - 2025-01-02
 
 ### Features
@@ -21,6 +34,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixes
 
+- program: fix spot swap fuel bonus ([#1411](https://github.com/drift-labs/protocol-v2/pull/1411))
 - program: skip liq perp oracle twap check if market is in settlement ([#1406](https://github.com/drift-labs/protocol-v2/pull/1406))
 
 ### Breaking

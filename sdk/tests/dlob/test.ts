@@ -159,11 +159,16 @@ function printOrderNode(
 	slot: number | undefined
 ) {
 	console.log(
-		` . vAMMNode? ${node.isVammNode()},\t${node.order ? getVariant(node.order?.orderType) : '~'
-		} ${node.order ? getVariant(node.order?.direction) : '~'}\t, slot: ${node.order?.slot.toString() || '~'
-		}, orderId: ${node.order?.orderId.toString() || '~'},\tnode.getPrice: ${oracle ? node.getPrice(oracle, slot!) : '~'
-		}, node.price: ${node.order?.price.toString() || '~'}, priceOffset: ${node.order?.oraclePriceOffset.toString() || '~'
-		} quantity: ${node.order?.baseAssetAmountFilled.toString() || '~'}/${node.order?.baseAssetAmount.toString() || '~'
+		` . vAMMNode? ${node.isVammNode()},\t${
+			node.order ? getVariant(node.order?.orderType) : '~'
+		} ${node.order ? getVariant(node.order?.direction) : '~'}\t, slot: ${
+			node.order?.slot.toString() || '~'
+		}, orderId: ${node.order?.orderId.toString() || '~'},\tnode.getPrice: ${
+			oracle ? node.getPrice(oracle, slot!) : '~'
+		}, node.price: ${node.order?.price.toString() || '~'}, priceOffset: ${
+			node.order?.oraclePriceOffset.toString() || '~'
+		} quantity: ${node.order?.baseAssetAmountFilled.toString() || '~'}/${
+			node.order?.baseAssetAmount.toString() || '~'
 		}`
 	);
 }
@@ -210,7 +215,8 @@ function printBookState(
 
 function printCrossedNodes(n: NodeToFill, slot: number) {
 	console.log(
-		`Cross Found, takerExists: ${n.node.order !== undefined}, makerExists: ${n.makerNodes !== undefined
+		`Cross Found, takerExists: ${n.node.order !== undefined}, makerExists: ${
+			n.makerNodes !== undefined
 		}`
 	);
 	console.log(
@@ -232,8 +238,10 @@ function printCrossedNodes(n: NodeToFill, slot: number) {
 		console.log(
 			`  orderId: ${o.orderId}, ${getVariant(o.orderType)}, ${getVariant(
 				o.direction
-			)},\texpired: ${isOrderExpired(o, slot)}, postOnly: ${o.postOnly
-			}, reduceOnly: ${o.reduceOnly
+			)},\texpired: ${isOrderExpired(o, slot)}, postOnly: ${
+				o.postOnly
+			}, reduceOnly: ${
+				o.reduceOnly
 			}, price: ${o.price.toString()}, priceOffset: ${o.oraclePriceOffset.toString()}, baseAmtFileld: ${o.baseAssetAmountFilled.toString()}/${o.baseAssetAmount.toString()}`
 		);
 	};

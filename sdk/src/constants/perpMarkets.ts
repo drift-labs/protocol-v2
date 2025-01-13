@@ -1092,6 +1092,18 @@ export const MainnetPerpMarkets: PerpMarketConfig[] = [
 		pythFeedId:
 			'0xbed3097008b9b5e3c93bec20be79cb43986b85a996475589351a21e67bae9b61',
 	},
+	{
+		fullName: 'AI16Z',
+		category: ['AI'],
+		symbol: 'AI16Z-PERP',
+		baseAssetSymbol: 'AI16Z',
+		marketIndex: 63,
+		oracle: new PublicKey('3gdGkrmBdYR7B1MRRdRVysqhZCvYvLGHonr9b7o9WVki'),
+		launchTs: 1736384970000,
+		oracleSource: OracleSource.PYTH_PULL,
+		pythFeedId:
+			'0x2551eca7784671173def2c41e6f3e51e11cd87494863f1d208fdd8c64a1f85ae',
+	},
 ];
 
 export const PerpMarkets: { [key in DriftEnv]: PerpMarketConfig[] } = {
