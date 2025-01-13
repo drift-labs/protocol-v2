@@ -413,6 +413,84 @@ mod calculate_asset_transfer_for_liability_transfer {
 
         assert_eq!(asset_transfer, 102020202); // 100 quote
     }
+
+    #[test]
+    pub fn full_liability_tranfer_same_decimals() {
+        let asset_decimals = 6;
+        let asset_amount = 200 * 10_u128.pow(asset_decimals as u32);
+        let asset_liquidation_multiplier = LIQUIDATION_FEE_PRECISION;
+        let asset_price = PRICE_PRECISION_I64;
+        let liability_decimals = 6;
+        let liability_transfer = 10_u128.pow(liability_decimals as u32);
+        let liability_liquidation_multiplier = LIQUIDATION_FEE_PRECISION;
+        let liability_price = PRICE_PRECISION_I64;
+
+        let asset_transfer = calculate_asset_transfer_for_liability_transfer(
+            asset_amount,
+            asset_liquidation_multiplier,
+            asset_decimals,
+            asset_price,
+            liability_transfer,
+            liability_liquidation_multiplier,
+            liability_decimals,
+            liability_price,
+        )
+        .unwrap();
+
+        assert_eq!(asset_transfer, 1_000_000); // 1e6 liability = 1e6 asset (decimals equal)
+    }
+
+    #[test]
+    pub fn full_liability_tranfer_asset_decimals_less_than_liability_decimals() {
+        let asset_decimals = 5;
+        let asset_amount = 200 * 10_u128.pow(asset_decimals as u32);
+        let asset_liquidation_multiplier = LIQUIDATION_FEE_PRECISION;
+        let asset_price = PRICE_PRECISION_I64;
+        let liability_decimals = 6;
+        let liability_transfer = 10_u128.pow(liability_decimals as u32);
+        let liability_liquidation_multiplier = LIQUIDATION_FEE_PRECISION;
+        let liability_price = PRICE_PRECISION_I64;
+
+        let asset_transfer = calculate_asset_transfer_for_liability_transfer(
+            asset_amount,
+            asset_liquidation_multiplier,
+            asset_decimals,
+            asset_price,
+            liability_transfer,
+            liability_liquidation_multiplier,
+            liability_decimals,
+            liability_price,
+        )
+        .unwrap();
+
+        assert_eq!(asset_transfer, 100_000); // 1e6 liability = 1e5 asset
+    }
+
+    #[test]
+    pub fn full_liability_tranfer_liability_decimals_less_than_asset_decimals() {
+        let asset_decimals = 6;
+        let asset_amount = 200 * 10_u128.pow(asset_decimals as u32);
+        let asset_liquidation_multiplier = LIQUIDATION_FEE_PRECISION;
+        let asset_price = PRICE_PRECISION_I64;
+        let liability_decimals = 5;
+        let liability_transfer = 10_u128.pow(liability_decimals as u32);
+        let liability_liquidation_multiplier = LIQUIDATION_FEE_PRECISION;
+        let liability_price = PRICE_PRECISION_I64;
+
+        let asset_transfer = calculate_asset_transfer_for_liability_transfer(
+            asset_amount,
+            asset_liquidation_multiplier,
+            asset_decimals,
+            asset_price,
+            liability_transfer,
+            liability_liquidation_multiplier,
+            liability_decimals,
+            liability_price,
+        )
+        .unwrap();
+
+        assert_eq!(asset_transfer, 1_000_000); // 1e5 liability = 1e6 asset
+    }
 }
 
 mod calculate_funding_rate_deltas_to_resolve_bankruptcy {
