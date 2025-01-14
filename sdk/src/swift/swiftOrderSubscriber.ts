@@ -31,15 +31,14 @@ export class SwiftOrderSubscriber {
 	private ws: WebSocket | null = null;
 	private driftClient: DriftClient;
 	private userMap: UserMap;
+	private onOrder: (
+		orderMessageRaw: any,
+		swiftOrderParamsMessage: SwiftOrderParamsMessage
+	) => Promise<void>;
+
 	subscribed = false;
 
-	constructor(
-		private config: SwiftOrderSubscriberConfig,
-		private onOrder: (
-			orderMessageRaw: any,
-			swiftOrderParamsMessage: SwiftOrderParamsMessage
-		) => Promise<void>
-	) {
+	constructor(private config: SwiftOrderSubscriberConfig) {
 		this.driftClient = config.driftClient;
 		this.userMap = config.userMap;
 	}
@@ -91,7 +90,14 @@ export class SwiftOrderSubscriber {
 		}
 	}
 
-	async subscribe(): Promise<void> {
+	async subscribe(
+		onOrder: (
+			orderMessageRaw: any,
+			swiftOrderParamsMessage: SwiftOrderParamsMessage
+		) => Promise<void>
+	): Promise<void> {
+		this.onOrder = onOrder;
+
 		const endpoint =
 			this.config.endpoint || this.config.driftEnv === 'devnet'
 				? 'wss://master.swift.drift.trade/ws'
@@ -132,7 +138,7 @@ export class SwiftOrderSubscriber {
 						return;
 					}
 
-					this.onOrder(order, swiftOrderParamsMessage);
+					onOrder(order, swiftOrderParamsMessage);
 				}
 			});
 
@@ -193,6 +199,9 @@ export class SwiftOrderSubscriber {
 		if (this.heartbeatTimeout) {
 			clearTimeout(this.heartbeatTimeout);
 		}
+		if (!this.onOrder) {
+			throw new Error('onOrder callback function must be set');
+		}
 		this.heartbeatTimeout = setTimeout(() => {
 			console.warn('No heartbeat received within 30 seconds, reconnecting...');
 			this.reconnect();
@@ -207,7 +216,7 @@ export class SwiftOrderSubscriber {
 
 		console.log('Reconnecting to WebSocket...');
 		setTimeout(() => {
-			this.subscribe();
+			this.subscribe(this.onOrder);
 		}, 1000);
 	}
 }
