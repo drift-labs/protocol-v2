@@ -109,7 +109,10 @@ export class DLOB {
 
 	initialized = false;
 
-	public constructor() {
+	protectedMakerView: boolean;
+
+	public constructor(protectedMakerView?: boolean) {
+		this.protectedMakerView = protectedMakerView || false;
 		this.init();
 	}
 
@@ -740,7 +743,11 @@ export class DLOB {
 					continue;
 				}
 
-				const makerPrice = makerNode.getPrice(oraclePriceData, slot);
+				const makerPrice = makerNode.getPrice(
+					oraclePriceData,
+					slot,
+					this.protectedMakerView
+				);
 				const takerPrice = takerNode.getPrice(oraclePriceData, slot);
 
 				const ordersCross = doesCross(takerPrice, makerPrice);
@@ -1060,8 +1067,10 @@ export class DLOB {
 			slot,
 			(bestNode, currentNode, slot, oraclePriceData) => {
 				return bestNode
-					.getPrice(oraclePriceData, slot)
-					.lt(currentNode.getPrice(oraclePriceData, slot));
+					.getPrice(oraclePriceData, slot, this.protectedMakerView)
+					.lt(
+						currentNode.getPrice(oraclePriceData, slot, this.protectedMakerView)
+					);
 			},
 			filterFcn
 		);
@@ -1098,8 +1107,10 @@ export class DLOB {
 			slot,
 			(bestNode, currentNode, slot, oraclePriceData) => {
 				return bestNode
-					.getPrice(oraclePriceData, slot)
-					.gt(currentNode.getPrice(oraclePriceData, slot));
+					.getPrice(oraclePriceData, slot, this.protectedMakerView)
+					.gt(
+						currentNode.getPrice(oraclePriceData, slot, this.protectedMakerView)
+					);
 			},
 			filterFcn
 		);
@@ -1136,9 +1147,15 @@ export class DLOB {
 			oraclePriceData,
 			slot,
 			(bestNode, currentNode, slot, oraclePriceData) => {
-				const bestNodePrice = bestNode.getPrice(oraclePriceData, slot) ?? ZERO;
+				const bestNodePrice =
+					bestNode.getPrice(oraclePriceData, slot, this.protectedMakerView) ??
+					ZERO;
 				const currentNodePrice =
-					currentNode.getPrice(oraclePriceData, slot) ?? ZERO;
+					currentNode.getPrice(
+						oraclePriceData,
+						slot,
+						this.protectedMakerView
+					) ?? ZERO;
 
 				if (bestNodePrice.eq(currentNodePrice)) {
 					return bestNode.order.slot.lt(currentNode.order.slot);
@@ -1182,9 +1199,14 @@ export class DLOB {
 			slot,
 			(bestNode, currentNode, slot, oraclePriceData) => {
 				const bestNodePrice =
-					bestNode.getPrice(oraclePriceData, slot) ?? BN_MAX;
+					bestNode.getPrice(oraclePriceData, slot, this.protectedMakerView) ??
+					BN_MAX;
 				const currentNodePrice =
-					currentNode.getPrice(oraclePriceData, slot) ?? BN_MAX;
+					currentNode.getPrice(
+						oraclePriceData,
+						slot,
+						this.protectedMakerView
+					) ?? BN_MAX;
 
 				if (bestNodePrice.eq(currentNodePrice)) {
 					return bestNode.order.slot.lt(currentNode.order.slot);
@@ -1218,8 +1240,16 @@ export class DLOB {
 			);
 
 			for (const bidNode of bidGenerator) {
-				const bidPrice = bidNode.getPrice(oraclePriceData, slot);
-				const askPrice = askNode.getPrice(oraclePriceData, slot);
+				const bidPrice = bidNode.getPrice(
+					oraclePriceData,
+					slot,
+					this.protectedMakerView
+				);
+				const askPrice = askNode.getPrice(
+					oraclePriceData,
+					slot,
+					this.protectedMakerView
+				);
 
 				// orders don't cross
 				if (bidPrice.lt(askPrice)) {
@@ -1334,7 +1364,7 @@ export class DLOB {
 		).next().value;
 
 		if (bestAsk) {
-			return bestAsk.getPrice(oraclePriceData, slot);
+			return bestAsk.getPrice(oraclePriceData, slot, this.protectedMakerView);
 		}
 		return undefined;
 	}
