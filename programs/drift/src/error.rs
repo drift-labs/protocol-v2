@@ -621,6 +621,14 @@ pub enum ErrorCode {
     InvalidPythLazerMessage,
     #[msg("Pyth lazer message does not correspond to correct fed id")]
     PythLazerMessagePriceFeedMismatch,
+    #[msg("InvalidLiquidateSpotWithSwap")]
+    InvalidLiquidateSpotWithSwap,
+    #[msg("Unable to load Constituent")]
+    UnableToLoadConstituent,
+    #[msg("Constituent wrong mutability")]
+    ConstituentWrongMutability,
+    #[msg("Constituent not found")]
+    ConstituentNotFound,
 }
 
 #[macro_export]
