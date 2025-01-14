@@ -1633,7 +1633,6 @@ fn get_maker_orders_info(
                 user_can_skip_duration,
                 taker_order_age,
                 protected_maker_min_age,
-                &market.contract_tier,
             )?,
         )?;
 
@@ -1775,17 +1774,12 @@ fn protected_maker_oracle_limit_price_bps_offset(
     user_can_skip_duration: bool,
     taker_order_age: u64,
     protected_maker_min_age: u64,
-    contract_tier: &ContractTier,
 ) -> DriftResult<u64> {
     if user_can_skip_duration || taker_order_age > protected_maker_min_age {
         return Ok(0);
     }
 
-    if contract_tier.is_as_safe_as_contract(&ContractTier::B) {
-        return Ok(PERCENTAGE_PRECISION_U64 / 1000); // 10 bps
-    } else {
-        return Ok(PERCENTAGE_PRECISION_U64 / 400); // 25 bps
-    }
+    return Ok(PERCENTAGE_PRECISION_U64 / 1000); // 10 bps
 }
 
 #[inline(always)]

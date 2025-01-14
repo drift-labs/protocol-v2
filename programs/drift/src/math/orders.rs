@@ -793,7 +793,7 @@ pub fn find_maker_orders(
 
         if price_offset_bps > 0 {
             // ensure a minimum price offset of 10 ticks
-            let min_offset = tick_size.safe_mul(10)?;
+            let min_offset = tick_size.safe_shl(3)?;
             let price_offset = limit_price
                 .safe_mul(price_offset_bps)?
                 .safe_div(PRICE_PRECISION_U64)?
