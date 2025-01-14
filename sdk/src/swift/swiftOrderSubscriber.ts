@@ -30,8 +30,8 @@ export class SwiftOrderSubscriber {
 	private readonly heartbeatIntervalMs = 60000;
 	private ws: WebSocket | null = null;
 	private driftClient: DriftClient;
-	private userMap: UserMap;
-	private onOrder: (
+	public userMap: UserMap;
+	public onOrder: (
 		orderMessageRaw: any,
 		swiftOrderParamsMessage: SwiftOrderParamsMessage
 	) => Promise<void>;
