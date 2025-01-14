@@ -92,7 +92,10 @@ import {
 	getWorstCaseTokenAmounts,
 	isSpotPositionAvailable,
 } from './math/spotPosition';
-import { calculateLiveOracleTwap } from './math/oracles';
+import {
+	calculateLiveOracleTwap,
+	getMultipleBetweenOracleSources,
+} from './math/oracles';
 import { getPerpMarketTierNumber, getSpotMarketTierNumber } from './math/tiers';
 import { StrictOraclePrice } from './oracles/strictOraclePrice';
 
@@ -2219,13 +2222,23 @@ export class User {
 				true
 			)[0];
 			if (perpPosition) {
-				const freeCollateralDeltaForPerp =
+				let freeCollateralDeltaForPerp =
 					this.calculateFreeCollateralDeltaForPerp(
 						perpMarketWithSameOracle,
 						perpPosition,
 						ZERO,
 						oraclePrice
 					);
+
+				if (freeCollateralDeltaForPerp) {
+					const { numerator, denominator } = getMultipleBetweenOracleSources(
+						market.oracleSource,
+						perpMarketWithSameOracle.amm.oracleSource
+					);
+					freeCollateralDeltaForPerp = freeCollateralDeltaForPerp
+						.mul(numerator)
+						.div(denominator);
+				}
 
 				freeCollateralDelta = freeCollateralDelta.add(
 					freeCollateralDeltaForPerp || ZERO
@@ -2342,12 +2355,22 @@ export class User {
 					spotPosition.balanceType
 				);
 
-				const spotFreeCollateralDelta =
-					this.calculateFreeCollateralDeltaForSpot(
-						spotMarketWithSameOracle,
-						signedTokenAmount,
-						marginCategory
+				let spotFreeCollateralDelta = this.calculateFreeCollateralDeltaForSpot(
+					spotMarketWithSameOracle,
+					signedTokenAmount,
+					marginCategory
+				);
+
+				if (spotFreeCollateralDelta) {
+					const { numerator, denominator } = getMultipleBetweenOracleSources(
+						market.amm.oracleSource,
+						spotMarketWithSameOracle.oracleSource
 					);
+					spotFreeCollateralDelta = spotFreeCollateralDelta
+						.mul(numerator)
+						.div(denominator);
+				}
+
 				freeCollateralDelta = freeCollateralDelta.add(
 					spotFreeCollateralDelta || ZERO
 				);

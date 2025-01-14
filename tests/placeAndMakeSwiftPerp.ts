@@ -240,7 +240,7 @@ describe('place and make swift order', () => {
 			immediateOrCancel: true,
 		});
 
-		const takerOrderParamsSig = takerDriftClient.signSwiftOrderParamsMessage(
+		const signedOrderParams = takerDriftClient.signSwiftOrderParamsMessage(
 			takerOrderParamsMessage
 		);
 
@@ -251,8 +251,7 @@ describe('place and make swift order', () => {
 		];
 		ixs.push(
 			...(await makerDriftClient.getPlaceAndMakeSwiftPerpOrderIxs(
-				takerDriftClient.encodeSwiftOrderParamsMessage(takerOrderParamsMessage),
-				takerOrderParamsSig,
+				signedOrderParams,
 				uuid,
 				{
 					taker: await takerDriftClient.getUserAccountPublicKey(),
@@ -369,7 +368,7 @@ describe('place and make swift order', () => {
 		const takerOrderParamsMessageEncoded =
 			takerDriftClient.encodeSwiftOrderParamsMessage(takerOrderParamsMessage);
 		const takerOrderParamsSig = takerDriftClient.signMessage(
-			takerOrderParamsMessageEncoded,
+			Buffer.from(takerOrderParamsMessageEncoded.toString('hex')),
 			makerDriftClient.wallet.payer
 		);
 
@@ -380,8 +379,12 @@ describe('place and make swift order', () => {
 		];
 		ixs.push(
 			...(await makerDriftClient.getPlaceAndMakeSwiftPerpOrderIxs(
-				takerDriftClient.encodeSwiftOrderParamsMessage(takerOrderParamsMessage),
-				takerOrderParamsSig,
+				{
+					orderParams: Buffer.from(
+						takerOrderParamsMessageEncoded.toString('hex')
+					),
+					signature: takerOrderParamsSig,
+				},
 				uuid,
 				{
 					taker: await takerDriftClient.getUserAccountPublicKey(),

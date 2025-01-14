@@ -536,6 +536,28 @@ pub mod drift {
         )
     }
 
+    pub fn liquidate_spot_with_swap_begin<'c: 'info, 'info>(
+        ctx: Context<'_, '_, 'c, 'info, LiquidateSpotWithSwap<'info>>,
+        asset_market_index: u16,
+        liability_market_index: u16,
+        swap_amount: u64,
+    ) -> Result<()> {
+        handle_liquidate_spot_with_swap_begin(
+            ctx,
+            asset_market_index,
+            liability_market_index,
+            swap_amount,
+        )
+    }
+
+    pub fn liquidate_spot_with_swap_end<'c: 'info, 'info>(
+        ctx: Context<'_, '_, 'c, 'info, LiquidateSpotWithSwap<'info>>,
+        asset_market_index: u16,
+        liability_market_index: u16,
+    ) -> Result<()> {
+        handle_liquidate_spot_with_swap_end(ctx, asset_market_index, liability_market_index)
+    }
+
     pub fn liquidate_borrow_for_perp_pnl<'c: 'info, 'info>(
         ctx: Context<'_, '_, 'c, 'info, LiquidateBorrowForPerpPnl<'info>>,
         perp_market_index: u16,
@@ -1464,7 +1486,7 @@ pub mod drift {
 
     pub fn init_user_fuel(
         ctx: Context<InitUserFuel>,
-        fuel_boost_deposits: Option<u32>,
+        fuel_boost_deposits: Option<i32>,
         fuel_boost_borrows: Option<u32>,
         fuel_boost_taker: Option<u32>,
         fuel_boost_maker: Option<u32>,

@@ -295,6 +295,9 @@ export class JupiterClient {
 		swapMode = 'ExactIn',
 		onlyDirectRoutes = false,
 		excludeDexes,
+		autoSlippage = false,
+		maxAutoSlippageBps,
+		usdEstimate,
 	}: {
 		inputMint: PublicKey;
 		outputMint: PublicKey;
@@ -304,15 +307,23 @@ export class JupiterClient {
 		swapMode?: SwapMode;
 		onlyDirectRoutes?: boolean;
 		excludeDexes?: string[];
+		autoSlippage?: boolean;
+		maxAutoSlippageBps?: number;
+		usdEstimate?: number;
 	}): Promise<QuoteResponse> {
 		const params = new URLSearchParams({
 			inputMint: inputMint.toString(),
 			outputMint: outputMint.toString(),
 			amount: amount.toString(),
-			slippageBps: slippageBps.toString(),
+			slippageBps: autoSlippage ? '0' : slippageBps.toString(),
 			swapMode,
 			onlyDirectRoutes: onlyDirectRoutes.toString(),
 			maxAccounts: maxAccounts.toString(),
+			autoSlippage: autoSlippage.toString(),
+			maxAutoSlippageBps: autoSlippage ? maxAutoSlippageBps.toString() : '0',
+			autoSlippageCollisionUsdValue: autoSlippage
+				? usdEstimate.toString()
+				: '0',
 			...(excludeDexes && { excludeDexes: excludeDexes.join(',') }),
 		});
 		if (swapMode === 'ExactOut') {

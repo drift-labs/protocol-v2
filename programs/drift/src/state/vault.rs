@@ -134,7 +134,6 @@ impl Vault {
         out_constituent: Option<Pubkey>,
         in_amount: u128,
     ) -> DriftResult<u128> {
-
         validate!(
             in_constituent.is_some() || out_constituent.is_some(),
             ErrorCode::DefaultError,
@@ -300,10 +299,14 @@ mod tests {
 
     #[test]
     fn test_get_nav() {
-        let sol_account_key = Pubkey::from_str("B3VkEqUtGPMPu95iLVifzrtfzKQsrEy1trYrwLCRFQ6m").unwrap();
-        let sol_oracle_key = Pubkey::from_str("BAtFj4kQttZRVep3UZS2aZRDixkGYgWsbqTBVDbnSsPF").unwrap();
-        let btc_account_key = Pubkey::from_str("9nnLbotNTcUhvbrsA6Mdkx45Sm82G35zo28AqUvjExn8").unwrap();
-        let btc_oracle_key = Pubkey::from_str("486kr3pmFPfTsS4aZgcsQ7kS4i9rjMsYYZup6HQNSTT4").unwrap();
+        let sol_account_key =
+            Pubkey::from_str("B3VkEqUtGPMPu95iLVifzrtfzKQsrEy1trYrwLCRFQ6m").unwrap();
+        let sol_oracle_key =
+            Pubkey::from_str("BAtFj4kQttZRVep3UZS2aZRDixkGYgWsbqTBVDbnSsPF").unwrap();
+        let btc_account_key =
+            Pubkey::from_str("9nnLbotNTcUhvbrsA6Mdkx45Sm82G35zo28AqUvjExn8").unwrap();
+        let btc_oracle_key =
+            Pubkey::from_str("486kr3pmFPfTsS4aZgcsQ7kS4i9rjMsYYZup6HQNSTT4").unwrap();
 
         let vault = Vault {
             constituents: vec![sol_account_key, btc_account_key],
@@ -368,9 +371,7 @@ mod tests {
         ])
         .expect("failed to load constituents");
 
-        let nav = vault
-            .get_nav()
-            .expect("failed to get nav");
+        let nav = vault.get_nav().expect("failed to get nav");
 
         assert_eq!(nav, 2 * PRICE_PRECISION);
     }
