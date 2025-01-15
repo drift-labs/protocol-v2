@@ -108,6 +108,8 @@ pub mod fulfill_order_with_maker_order {
             .get_limit_price(None, None, slot, market.amm.order_tick_size, false)
             .unwrap();
 
+        let maker_price = maker.orders[0].price;
+
         fulfill_perp_order_with_match(
             &mut market,
             &mut taker,
@@ -126,6 +128,7 @@ pub mod fulfill_order_with_maker_order {
             0,
             None,
             taker_limit_price,
+            maker_price,
             now,
             slot,
             &fee_structure,
@@ -229,6 +232,8 @@ pub mod fulfill_order_with_maker_order {
             .get_limit_price(None, None, slot, market.amm.order_tick_size, false)
             .unwrap();
 
+        let maker_price = maker.orders[0].price;
+
         fulfill_perp_order_with_match(
             &mut market,
             &mut taker,
@@ -247,6 +252,7 @@ pub mod fulfill_order_with_maker_order {
             0,
             None,
             taker_limit_price,
+            maker_price,
             now,
             slot,
             &fee_structure,
@@ -350,6 +356,8 @@ pub mod fulfill_order_with_maker_order {
             .get_limit_price(None, None, slot, market.amm.order_tick_size, false)
             .unwrap();
 
+        let maker_price = maker.orders[0].price;
+
         fulfill_perp_order_with_match(
             &mut market,
             &mut taker,
@@ -368,6 +376,7 @@ pub mod fulfill_order_with_maker_order {
             0,
             None,
             taker_limit_price,
+            maker_price,
             now,
             slot,
             &fee_structure,
@@ -471,6 +480,8 @@ pub mod fulfill_order_with_maker_order {
             .get_limit_price(None, None, slot, market.amm.order_tick_size, false)
             .unwrap();
 
+        let maker_price = maker.orders[0].price;
+
         fulfill_perp_order_with_match(
             &mut market,
             &mut taker,
@@ -489,6 +500,7 @@ pub mod fulfill_order_with_maker_order {
             0,
             None,
             taker_limit_price,
+            maker_price,
             now,
             slot,
             &fee_structure,
@@ -592,6 +604,7 @@ pub mod fulfill_order_with_maker_order {
             .get_limit_price(None, None, slot, market.amm.order_tick_size, false)
             .unwrap();
 
+        let maker_price = maker.orders[0].price;
         let (base_asset_amount, _, _) = fulfill_perp_order_with_match(
             &mut market,
             &mut taker,
@@ -610,6 +623,7 @@ pub mod fulfill_order_with_maker_order {
             0,
             None,
             taker_limit_price,
+            maker_price,
             now,
             slot,
             &fee_structure,
@@ -679,6 +693,8 @@ pub mod fulfill_order_with_maker_order {
             .get_limit_price(None, None, slot, market.amm.order_tick_size, false)
             .unwrap();
 
+        let maker_price = maker.orders[0].price;
+
         let (base_asset_amount, _, _) = fulfill_perp_order_with_match(
             &mut market,
             &mut taker,
@@ -697,6 +713,7 @@ pub mod fulfill_order_with_maker_order {
             0,
             None,
             taker_limit_price,
+            maker_price,
             now,
             slot,
             &fee_structure,
@@ -767,6 +784,8 @@ pub mod fulfill_order_with_maker_order {
             .get_limit_price(None, None, slot, market.amm.order_tick_size, false)
             .unwrap();
 
+        let maker_price = maker.orders[0].price;
+
         let (base_asset_amount, _, _) = fulfill_perp_order_with_match(
             &mut market,
             &mut taker,
@@ -785,6 +804,7 @@ pub mod fulfill_order_with_maker_order {
             0,
             None,
             taker_limit_price,
+            maker_price,
             now,
             slot,
             &fee_structure,
@@ -855,6 +875,8 @@ pub mod fulfill_order_with_maker_order {
             .get_limit_price(None, None, slot, market.amm.order_tick_size, false)
             .unwrap();
 
+        let maker_price = maker.orders[0].price;
+
         let (base_asset_amount, _, _) = fulfill_perp_order_with_match(
             &mut market,
             &mut taker,
@@ -873,6 +895,7 @@ pub mod fulfill_order_with_maker_order {
             0,
             None,
             taker_limit_price,
+            maker_price,
             now,
             slot,
             &fee_structure,
@@ -943,6 +966,8 @@ pub mod fulfill_order_with_maker_order {
             .get_limit_price(None, None, slot, market.amm.order_tick_size, false)
             .unwrap();
 
+        let maker_price = maker.orders[0].price;
+
         fulfill_perp_order_with_match(
             &mut market,
             &mut taker,
@@ -961,6 +986,7 @@ pub mod fulfill_order_with_maker_order {
             0,
             None,
             taker_limit_price,
+            maker_price,
             now,
             slot,
             &fee_structure,
@@ -1051,6 +1077,8 @@ pub mod fulfill_order_with_maker_order {
             .get_limit_price(None, None, slot, market.amm.order_tick_size, false)
             .unwrap();
 
+        let maker_price = maker.orders[0].price;
+
         fulfill_perp_order_with_match(
             &mut market,
             &mut taker,
@@ -1069,6 +1097,7 @@ pub mod fulfill_order_with_maker_order {
             0,
             None,
             taker_limit_price,
+            maker_price,
             now,
             slot,
             &fee_structure,
@@ -1162,6 +1191,10 @@ pub mod fulfill_order_with_maker_order {
             .get_limit_price(None, None, slot, market.amm.order_tick_size, false)
             .unwrap();
 
+        let maker_price = taker.orders[0]
+            .force_get_limit_price(None, None, slot, market.amm.order_tick_size, false)
+            .unwrap();
+
         fulfill_perp_order_with_match(
             &mut market,
             &mut taker,
@@ -1180,6 +1213,7 @@ pub mod fulfill_order_with_maker_order {
             0,
             None,
             taker_limit_price,
+            maker_price,
             now,
             slot,
             &fee_structure,
@@ -1280,6 +1314,8 @@ pub mod fulfill_order_with_maker_order {
             .get_limit_price(None, None, slot, market.amm.order_tick_size, false)
             .unwrap();
 
+        let maker_price = maker.orders[0].price;
+
         fulfill_perp_order_with_match(
             &mut market,
             &mut taker,
@@ -1298,6 +1334,7 @@ pub mod fulfill_order_with_maker_order {
             0,
             None,
             taker_limit_price,
+            maker_price,
             now,
             slot,
             &fee_structure,
@@ -1399,6 +1436,8 @@ pub mod fulfill_order_with_maker_order {
             .get_limit_price(None, None, slot, market.amm.order_tick_size, false)
             .unwrap();
 
+        let maker_price = maker.orders[0].price;
+
         fulfill_perp_order_with_match(
             &mut market,
             &mut taker,
@@ -1417,6 +1456,7 @@ pub mod fulfill_order_with_maker_order {
             0,
             None,
             taker_limit_price,
+            maker_price,
             now,
             slot,
             &fee_structure,
@@ -1542,6 +1582,8 @@ pub mod fulfill_order_with_maker_order {
             .get_limit_price(None, None, slot, market.amm.order_tick_size, false)
             .unwrap();
 
+        let maker_price = maker.orders[0].price;
+
         let (base_asset_amount, _, _) = fulfill_perp_order_with_match(
             &mut market,
             &mut taker,
@@ -1560,6 +1602,7 @@ pub mod fulfill_order_with_maker_order {
             0,
             None,
             taker_limit_price,
+            maker_price,
             now,
             slot,
             &fee_structure,
@@ -1660,6 +1703,8 @@ pub mod fulfill_order_with_maker_order {
             .get_limit_price(None, None, slot, market.amm.order_tick_size, false)
             .unwrap();
 
+        let maker_price = maker.orders[0].price;
+
         let (base_asset_amount, _, _) = fulfill_perp_order_with_match(
             &mut market,
             &mut taker,
@@ -1678,6 +1723,7 @@ pub mod fulfill_order_with_maker_order {
             0,
             None,
             taker_limit_price,
+            maker_price,
             now,
             slot,
             &fee_structure,
@@ -1786,6 +1832,8 @@ pub mod fulfill_order_with_maker_order {
             )
             .unwrap();
 
+        let maker_price = maker.orders[0].price;
+
         fulfill_perp_order_with_match(
             &mut market,
             &mut taker,
@@ -1804,6 +1852,7 @@ pub mod fulfill_order_with_maker_order {
             0,
             Some(oracle_price),
             taker_limit_price,
+            maker_price,
             now,
             slot,
             &fee_structure,
@@ -1934,6 +1983,8 @@ pub mod fulfill_order_with_maker_order {
 
         let oracle_price = 100 * PRICE_PRECISION_I64;
 
+        let maker_price = maker.orders[0].price;
+
         fulfill_perp_order_with_match(
             &mut market,
             &mut taker,
@@ -1952,6 +2003,7 @@ pub mod fulfill_order_with_maker_order {
             0,
             Some(oracle_price),
             taker_price,
+            maker_price,
             now,
             slot,
             &fee_structure,
@@ -2080,6 +2132,8 @@ pub mod fulfill_order_with_maker_order {
             )
             .unwrap();
 
+        let maker_price = maker.orders[0].price;
+
         fulfill_perp_order_with_match(
             &mut market,
             &mut taker,
@@ -2098,6 +2152,7 @@ pub mod fulfill_order_with_maker_order {
             0,
             None,
             taker_limit_price,
+            maker_price,
             now,
             slot,
             &fee_structure,
@@ -2227,6 +2282,8 @@ pub mod fulfill_order_with_maker_order {
         let mut taker_stats = UserStats::default();
         let mut maker_stats = UserStats::default();
 
+        let maker_price = maker.orders[0].price;
+
         fulfill_perp_order_with_match(
             &mut market,
             &mut taker,
@@ -2245,6 +2302,7 @@ pub mod fulfill_order_with_maker_order {
             0,
             None,
             taker_price,
+            maker_price,
             now,
             slot,
             &fee_structure,
@@ -2356,6 +2414,8 @@ pub mod fulfill_order_with_maker_order {
             .get_limit_price(None, None, slot, market.amm.order_tick_size, false)
             .unwrap();
 
+        let maker_price = maker.orders[0].price;
+
         fulfill_perp_order_with_match(
             &mut market,
             &mut taker,
@@ -2374,6 +2434,7 @@ pub mod fulfill_order_with_maker_order {
             0,
             None,
             taker_limit_price,
+            maker_price,
             now,
             slot,
             &fee_structure,
@@ -2484,6 +2545,8 @@ pub mod fulfill_order_with_maker_order {
             .get_limit_price(None, None, slot, market.amm.order_tick_size, false)
             .unwrap();
 
+        let maker_price = maker.orders[0].price;
+
         fulfill_perp_order_with_match(
             &mut market,
             &mut taker,
@@ -2502,6 +2565,7 @@ pub mod fulfill_order_with_maker_order {
             0,
             None,
             taker_limit_price,
+            maker_price,
             now,
             slot,
             &fee_structure,

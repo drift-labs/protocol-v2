@@ -1630,6 +1630,7 @@ fn get_maker_orders_info(
             market.amm.order_tick_size,
             market.is_prediction_market(),
             protected_maker_oracle_limit_price_bps_offset(
+                is_protected_maker,
                 user_can_skip_duration,
                 taker_order_age,
                 protected_maker_min_age,
@@ -1771,10 +1772,15 @@ fn protected_maker_oracle_limit_can_fill(
 
 #[inline(always)]
 fn protected_maker_oracle_limit_price_bps_offset(
+    is_protected_maker: bool,
     user_can_skip_duration: bool,
     taker_order_age: u64,
     protected_maker_min_age: u64,
 ) -> DriftResult<u64> {
+    if !is_protected_maker {
+        return Ok(0);
+    }
+
     if user_can_skip_duration || taker_order_age > protected_maker_min_age {
         return Ok(0);
     }
@@ -1973,7 +1979,7 @@ fn fulfill_perp_order(
 
                 (fill_base_asset_amount, fill_quote_asset_amount)
             }
-            PerpFulfillmentMethod::Match(maker_key, maker_order_index) => {
+            PerpFulfillmentMethod::Match(maker_key, maker_order_index, maker_price) => {
                 let mut maker = makers_and_referrer.get_ref_mut(maker_key)?;
                 let mut maker_stats = if maker.authority == user.authority {
                     None
@@ -2007,6 +2013,7 @@ fn fulfill_perp_order(
                         reserve_price_before,
                         valid_oracle_price,
                         limit_price,
+                        *maker_price,
                         now,
                         slot,
                         fee_structure,
@@ -2560,6 +2567,7 @@ pub fn fulfill_perp_order_with_match(
     reserve_price_before: u64,
     valid_oracle_price: Option<i64>,
     taker_limit_price: Option<u64>,
+    maker_price: u64,
     now: i64,
     slot: u64,
     fee_structure: &FeeStructure,
@@ -2596,13 +2604,6 @@ pub fn fulfill_perp_order_with_match(
     let taker_base_asset_amount = taker.orders[taker_order_index]
         .get_base_asset_amount_unfilled(Some(taker_existing_position))?;
 
-    let maker_price = maker.orders[maker_order_index].force_get_limit_price(
-        Some(oracle_price),
-        None,
-        slot,
-        market.amm.order_tick_size,
-        market.is_prediction_market(),
-    )?;
     let maker_direction = maker.orders[maker_order_index].direction;
     let maker_existing_position = maker
         .get_perp_position(market.market_index)?
