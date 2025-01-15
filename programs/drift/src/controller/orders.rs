@@ -1631,6 +1631,7 @@ fn get_maker_orders_info(
             market.is_prediction_market(),
             apply_protected_maker_offset(
                 is_protected_maker,
+                jit_maker_order_id.is_some(),
                 user_can_skip_duration,
                 taker_order_age,
                 protected_maker_min_age,
@@ -1746,11 +1747,12 @@ fn get_maker_orders_info(
 #[inline(always)]
 fn apply_protected_maker_offset(
     is_protected_maker: bool,
+    jit_maker: bool,
     user_can_skip_duration: bool,
     taker_order_age: u64,
     protected_maker_min_age: u64,
 ) -> bool {
-    is_protected_maker && !user_can_skip_duration && taker_order_age < protected_maker_min_age
+    is_protected_maker && !jit_maker && !user_can_skip_duration && taker_order_age < protected_maker_min_age
 }
 
 #[inline(always)]
