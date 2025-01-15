@@ -793,7 +793,7 @@ pub fn find_maker_orders(
 
         if price_offset_divisor > 0 {
             // ensure a minimum price offset of 8 ticks (using bit shift)
-            let min_offset = tick_size.checked_shl(3).ok_or(ErrorCode::MathError)?;;
+            let min_offset = tick_size.checked_shl(3).ok_or(ErrorCode::MathError)?;
             let price_offset = limit_price
                 .safe_div(price_offset_divisor)?
                 .max(min_offset);
