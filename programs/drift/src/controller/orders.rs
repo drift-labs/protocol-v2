@@ -1629,12 +1629,12 @@ fn get_maker_orders_info(
             slot,
             market.amm.order_tick_size,
             market.is_prediction_market(),
-            protected_maker_oracle_limit_price_bps_offset(
+            apply_protected_maker_offset(
                 is_protected_maker,
                 user_can_skip_duration,
                 taker_order_age,
                 protected_maker_min_age,
-            )?,
+            ),
         )?;
 
         if maker_order_price_and_indexes.is_empty() {
@@ -1744,21 +1744,13 @@ fn get_maker_orders_info(
 }
 
 #[inline(always)]
-fn protected_maker_oracle_limit_price_bps_offset(
+fn apply_protected_maker_offset(
     is_protected_maker: bool,
     user_can_skip_duration: bool,
     taker_order_age: u64,
     protected_maker_min_age: u64,
-) -> DriftResult<u64> {
-    if !is_protected_maker {
-        return Ok(0);
-    }
-
-    if user_can_skip_duration || taker_order_age > protected_maker_min_age {
-        return Ok(0);
-    }
-
-    return Ok(1000); // divisor for 10 bps
+) -> bool {
+    is_protected_maker && !user_can_skip_duration && taker_order_age < protected_maker_min_age
 }
 
 #[inline(always)]
@@ -4162,7 +4154,7 @@ fn get_spot_maker_orders_info(
             slot,
             market.order_tick_size,
             false,
-            0,
+            false,
         )?;
 
         if maker_order_price_and_indexes.is_empty() {
@@ -4353,6 +4345,7 @@ fn fulfill_spot_order(
         None,
         slot,
         base_market.order_tick_size,
+        false,
         false,
     )?;
 
@@ -4668,6 +4661,7 @@ pub fn fulfill_spot_order_with_match(
         slot,
         base_market.order_tick_size,
         false,
+        false,
     )? {
         Some(price) => price,
         None => {
@@ -4691,6 +4685,7 @@ pub fn fulfill_spot_order_with_match(
         None,
         slot,
         base_market.order_tick_size,
+        false,
         false,
     )?;
     let maker_direction = maker.orders[maker_order_index].direction;
@@ -5005,6 +5000,7 @@ pub fn fulfill_spot_order_with_external_market(
         None,
         slot,
         base_market.order_tick_size,
+        false,
         false,
     )?;
     let taker_token_amount = taker

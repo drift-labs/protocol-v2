@@ -272,6 +272,29 @@ pub fn standardize_price_i64(
     }
 }
 
+pub fn apply_protected_maker_limit_price_offset(
+    price: u64,
+    tick_size: u64,
+    direction: PositionDirection,
+    standardize: bool,
+) -> DriftResult<u64> {
+    let min_offset = tick_size.checked_shl(3).ok_or(ErrorCode::MathError)?;
+    let price_offset = price
+        .safe_div(1000)? // 10 bps
+        .max(min_offset);
+
+    let price = match direction {
+        PositionDirection::Long => price.saturating_sub(price_offset).max(tick_size),
+        PositionDirection::Short => price.saturating_add(price_offset),
+    };
+
+    if standardize {
+        standardize_price(price, tick_size, direction)
+    } else {
+        Ok(price)
+    }
+}
+
 pub fn get_price_for_perp_order(
     price: u64,
     direction: PositionDirection,
@@ -397,6 +420,7 @@ pub fn order_breaches_maker_oracle_price_bands(
         slot,
         tick_size,
         is_prediction_market,
+        false,
     )?;
     limit_price_breaches_maker_oracle_price_bands(
         order_limit_price,
@@ -761,7 +785,7 @@ pub fn find_maker_orders(
     slot: u64,
     tick_size: u64,
     is_prediction_market: bool,
-    price_offset_divisor: u64,
+    apply_protected_maker_offset: bool,
 ) -> DriftResult<Vec<(usize, u64)>> {
     let mut orders: Vec<(usize, u64)> = Vec::with_capacity(32);
 
@@ -789,22 +813,8 @@ pub fn find_maker_orders(
             slot,
             tick_size,
             is_prediction_market,
+            apply_protected_maker_offset,
         )?;
-
-        if price_offset_divisor > 0 {
-            // ensure a minimum price offset of 8 ticks (using bit shift)
-            let min_offset = tick_size.checked_shl(3).ok_or(ErrorCode::MathError)?;
-            let price_offset = limit_price
-                .safe_div(price_offset_divisor)?
-                .max(min_offset);
-
-            // adjust limit price based on order direction and standarize
-            limit_price = match order.direction {
-                PositionDirection::Long => limit_price.saturating_sub(price_offset).max(tick_size),
-                PositionDirection::Short => limit_price.saturating_add(price_offset),
-            };
-            limit_price = standardize_price(limit_price, tick_size, order.direction)?;
-        }
 
         orders.push((order_index, limit_price));
     }
@@ -1305,6 +1315,7 @@ pub fn find_bids_and_asks_from_users(
                 slot,
                 tick_size,
                 perp_market.is_prediction_market(),
+                false,
             )?;
 
             insert_order(base_amount, limit_price, order.direction);

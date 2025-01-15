@@ -2047,7 +2047,7 @@ mod get_limit_price {
         let oracle_price = Some(MAX_PREDICTION_MARKET_PRICE_I64 / 2);
 
         let limit_price = order
-            .get_limit_price(oracle_price, None, 0, 1, true)
+            .get_limit_price(oracle_price, None, 0, 1, true, false)
             .unwrap();
 
         assert_eq!(limit_price, Some(MAX_PREDICTION_MARKET_PRICE));
@@ -2059,7 +2059,7 @@ mod get_limit_price {
         };
 
         let limit_price = order
-            .get_limit_price(oracle_price, None, 0, 1, true)
+            .get_limit_price(oracle_price, None, 0, 1, true, false)
             .unwrap();
 
         assert_eq!(limit_price, Some(1));
@@ -2075,7 +2075,7 @@ mod get_limit_price {
         };
 
         let limit_price = order
-            .get_limit_price(oracle_price, None, 2, 1, true)
+            .get_limit_price(oracle_price, None, 2, 1, true, false)
             .unwrap();
 
         assert_eq!(limit_price, Some(MAX_PREDICTION_MARKET_PRICE));
@@ -2092,7 +2092,7 @@ mod get_limit_price {
         };
 
         let limit_price = order
-            .get_limit_price(oracle_price, None, 2, 1, true)
+            .get_limit_price(oracle_price, None, 2, 1, true, false)
             .unwrap();
 
         assert_eq!(limit_price, Some(1));
