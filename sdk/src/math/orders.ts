@@ -155,7 +155,7 @@ export function getLimitPrice(
 	oraclePriceData: OraclePriceData,
 	slot: number,
 	fallbackPrice?: BN,
-	protectedMaker?: boolean
+	protectedMaker? : boolean,
 ): BN | undefined {
 	let limitPrice;
 	if (hasAuctionPrice(order, slot)) {
@@ -171,14 +171,18 @@ export function getLimitPrice(
 		limitPrice = order.price;
 	}
 
-	// if (pmmView) {
+	if (protectedMaker) {
+		const offset = limitPrice.divn(1000);
 
-	// }
+		if (isVariant(order.direction, 'long')) {
+			limitPrice = limitPrice.sub(offset);
+		} else {
+			limitPrice = limitPrice.add(offset);
+		}
+	}
 
 	return limitPrice;
 }
-
-// export function protectedMakerOffset(order)
 
 export function hasLimitPrice(order: Order, slot: number): boolean {
 	return (
