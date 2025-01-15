@@ -1779,7 +1779,7 @@ fn protected_maker_oracle_limit_price_bps_offset(
         return Ok(0);
     }
 
-    return Ok(PERCENTAGE_PRECISION_U64 / 1000); // 10 bps
+    return Ok(1000); // divisor for 10 bps
 }
 
 #[inline(always)]

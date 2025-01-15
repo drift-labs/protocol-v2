@@ -761,7 +761,7 @@ pub fn find_maker_orders(
     slot: u64,
     tick_size: u64,
     is_prediction_market: bool,
-    price_offset_bps: u64,
+    price_offset_divisor: u64,
 ) -> DriftResult<Vec<(usize, u64)>> {
     let mut orders: Vec<(usize, u64)> = Vec::with_capacity(32);
 
@@ -791,12 +791,11 @@ pub fn find_maker_orders(
             is_prediction_market,
         )?;
 
-        if price_offset_bps > 0 {
-            // ensure a minimum price offset of 10 ticks
-            let min_offset = tick_size.safe_shl(3)?;
+        if price_offset_divisor > 0 {
+            // ensure a minimum price offset of 8 ticks (using bit shift)
+            let min_offset = tick_size.checked_shl(3).ok_or(ErrorCode::MathError)?;;
             let price_offset = limit_price
-                .safe_mul(price_offset_bps)?
-                .safe_div(PRICE_PRECISION_U64)?
+                .safe_div(price_offset_divisor)?
                 .max(min_offset);
 
             // adjust limit price based on order direction and standarize
