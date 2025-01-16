@@ -4939,11 +4939,11 @@ pub struct InitPythLazerOracle<'info> {
 }
 
 #[derive(Accounts)]
-#[instruction(feed_id: u32, exponent: i32)]
+#[instruction(feed_id: u32)]
 pub struct UpdatePythLazerOracleExponent<'info> {
     #[account(
         mut,
-        constraint = admin.key() == admin_hot_wallet::id() || admin.key() == state.admin
+        constraint = admin.key() == state.admin
     )]
     pub admin: Signer<'info>,
     #[account(mut, seeds = [PYTH_LAZER_ORACLE_SEED, &feed_id.to_le_bytes()],
