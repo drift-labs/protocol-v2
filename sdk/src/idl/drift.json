@@ -6682,6 +6682,10 @@
         {
           "name": "feedId",
           "type": "u32"
+        },
+        {
+          "name": "exponent",
+          "type": "i32"
         }
       ]
     },
@@ -11471,6 +11475,12 @@
           },
           {
             "name": "PythLazer"
+          },
+          {
+            "name": "PythLazer1K"
+          },
+          {
+            "name": "PythLazer1M"
           }
         ]
       }

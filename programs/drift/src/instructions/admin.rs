@@ -835,6 +835,28 @@ pub fn handle_initialize_perp_market(
                 .get_pyth_twap(&ctx.accounts.oracle, &OracleSource::PythLazer)?;
             (oracle_price, oracle_delay, last_oracle_price_twap)
         }
+        OracleSource::PythLazer1K => {
+            let OraclePriceData {
+                price: oracle_price,
+                delay: oracle_delay,
+                ..
+            } = get_pyth_price(&ctx.accounts.oracle, clock_slot, &OracleSource::PythLazer1K)?;
+            let last_oracle_price_twap = perp_market
+                .amm
+                .get_pyth_twap(&ctx.accounts.oracle, &OracleSource::PythLazer1K)?;
+            (oracle_price, oracle_delay, last_oracle_price_twap)
+        }
+        OracleSource::PythLazer1M => {
+            let OraclePriceData {
+                price: oracle_price,
+                delay: oracle_delay,
+                ..
+            } = get_pyth_price(&ctx.accounts.oracle, clock_slot, &OracleSource::PythLazer1M)?;
+            let last_oracle_price_twap = perp_market
+                .amm
+                .get_pyth_twap(&ctx.accounts.oracle, &OracleSource::PythLazer1M)?;
+            (oracle_price, oracle_delay, last_oracle_price_twap)
+        }
     };
 
     validate_margin(
@@ -4157,8 +4179,11 @@ pub fn handle_initialize_pyth_pull_oracle(
 pub fn handle_initialize_pyth_lazer_oracle(
     ctx: Context<InitPythLazerOracle>,
     feed_id: u32,
+    exponent: i32,
 ) -> Result<()> {
     let pubkey = ctx.accounts.lazer_oracle.to_account_info().key;
+    let mut pyth_lazer_account = ctx.accounts.lazer_oracle.load_init()?;
+    pyth_lazer_account.exponent = exponent;
     msg!(
         "Lazer price feed initted {} with feed_id {}",
         pubkey,
@@ -4878,7 +4903,7 @@ pub struct InitPythPullPriceFeed<'info> {
 }
 
 #[derive(Accounts)]
-#[instruction(feed_id: u32)]
+#[instruction(feed_id: u32, exponent: i32)]
 pub struct InitPythLazerOracle<'info> {
     #[account(
         mut,

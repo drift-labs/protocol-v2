@@ -124,9 +124,9 @@ describe('pyth pull oracles', () => {
 	});
 
 	it('init feed', async () => {
-		await driftClient.initializePythLazerOracle(1);
-		await driftClient.initializePythLazerOracle(2);
-		await driftClient.initializePythLazerOracle(6);
+		await driftClient.initializePythLazerOracle(1, -8);
+		await driftClient.initializePythLazerOracle(2, -8);
+		await driftClient.initializePythLazerOracle(6, -8);
 	});
 
 	it('crank single', async () => {
