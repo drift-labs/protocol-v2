@@ -338,11 +338,6 @@ impl PerpMarket {
 
         if can_skip {
             msg!("market {} amm skipping auction duration", self.market_index);
-            crate::dlog!(
-                self.amm.net_revenue_since_last_funding,
-                amm_lp_allowed_to_jit_make
-            );
-            crate::dlog!(amm_low_inventory_and_profitable, amm_oracle_no_latency);
         }
 
         Ok(can_skip)
