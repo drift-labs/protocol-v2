@@ -12,16 +12,16 @@ use crate::{PositionDirection, PRICE_PRECISION, SPOT_WEIGHT_PRECISION_U128};
 mod tests;
 
 pub fn calculate_swap_price(
-    asset_amount: u128,
-    liability_amount: u128,
-    asset_decimals: u32,
-    liability_decimals: u32,
+    amount_out: u128,
+    amount_in: u128,
+    out_decimals: u32,
+    in_decimals: u32,
 ) -> DriftResult<u128> {
-    asset_amount
+    amount_out
         .safe_mul(PRICE_PRECISION)?
-        .safe_div(10_u128.pow(asset_decimals))?
-        .safe_mul(10_u128.pow(liability_decimals))?
-        .safe_div(liability_amount)
+        .safe_div(10_u128.pow(out_decimals))?
+        .safe_mul(10_u128.pow(in_decimals))?
+        .safe_div(amount_in)
 }
 
 pub fn select_margin_type_for_swap(

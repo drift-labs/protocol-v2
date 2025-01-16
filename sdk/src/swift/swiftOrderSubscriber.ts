@@ -30,16 +30,15 @@ export class SwiftOrderSubscriber {
 	private readonly heartbeatIntervalMs = 60000;
 	private ws: WebSocket | null = null;
 	private driftClient: DriftClient;
-	private userMap: UserMap;
+	public userMap: UserMap;
+	public onOrder: (
+		orderMessageRaw: any,
+		swiftOrderParamsMessage: SwiftOrderParamsMessage
+	) => Promise<void>;
+
 	subscribed = false;
 
-	constructor(
-		private config: SwiftOrderSubscriberConfig,
-		private onOrder: (
-			orderMessageRaw: any,
-			swiftOrderParamsMessage: SwiftOrderParamsMessage
-		) => Promise<void>
-	) {
+	constructor(private config: SwiftOrderSubscriberConfig) {
 		this.driftClient = config.driftClient;
 		this.userMap = config.userMap;
 	}
@@ -91,7 +90,14 @@ export class SwiftOrderSubscriber {
 		}
 	}
 
-	async subscribe(): Promise<void> {
+	async subscribe(
+		onOrder: (
+			orderMessageRaw: any,
+			swiftOrderParamsMessage: SwiftOrderParamsMessage
+		) => Promise<void>
+	): Promise<void> {
+		this.onOrder = onOrder;
+
 		const endpoint =
 			this.config.endpoint || this.config.driftEnv === 'devnet'
 				? 'wss://master.swift.drift.trade/ws'
@@ -115,7 +121,7 @@ export class SwiftOrderSubscriber {
 					const order = JSON.parse(message['order']);
 					const swiftOrderParamsBuf = Buffer.from(
 						order['order_message'],
-						'base64'
+						'hex'
 					);
 					const swiftOrderParamsMessage: SwiftOrderParamsMessage =
 						this.driftClient.program.coder.types.decode(
@@ -132,7 +138,7 @@ export class SwiftOrderSubscriber {
 						return;
 					}
 
-					this.onOrder(order, swiftOrderParamsMessage);
+					onOrder(order, swiftOrderParamsMessage);
 				}
 			});
 
@@ -155,7 +161,7 @@ export class SwiftOrderSubscriber {
 	): Promise<TransactionInstruction[]> {
 		const swiftOrderParamsBuf = Buffer.from(
 			orderMessageRaw['order_message'],
-			'base64'
+			'hex'
 		);
 		const takerAuthority = new PublicKey(orderMessageRaw['taker_authority']);
 		const takerUserPubkey = await getUserAccountPublicKey(
@@ -167,8 +173,10 @@ export class SwiftOrderSubscriber {
 			await this.userMap.mustGet(takerUserPubkey.toString())
 		).getUserAccount();
 		const ixs = await this.driftClient.getPlaceAndMakeSwiftPerpOrderIxs(
-			swiftOrderParamsBuf,
-			Buffer.from(orderMessageRaw['order_signature'], 'base64'),
+			{
+				orderParams: swiftOrderParamsBuf,
+				signature: Buffer.from(orderMessageRaw['order_signature'], 'base64'),
+			},
 			decodeUTF8(orderMessageRaw['uuid']),
 			{
 				taker: takerUserPubkey,
@@ -191,6 +199,9 @@ export class SwiftOrderSubscriber {
 		if (this.heartbeatTimeout) {
 			clearTimeout(this.heartbeatTimeout);
 		}
+		if (!this.onOrder) {
+			throw new Error('onOrder callback function must be set');
+		}
 		this.heartbeatTimeout = setTimeout(() => {
 			console.warn('No heartbeat received within 30 seconds, reconnecting...');
 			this.reconnect();
@@ -205,7 +216,7 @@ export class SwiftOrderSubscriber {
 
 		console.log('Reconnecting to WebSocket...');
 		setTimeout(() => {
-			this.subscribe();
+			this.subscribe(this.onOrder);
 		}, 1000);
 	}
 }

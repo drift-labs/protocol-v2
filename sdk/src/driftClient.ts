@@ -181,6 +181,7 @@ import { gprcDriftClientAccountSubscriber } from './accounts/grpcDriftClientAcco
 import nacl from 'tweetnacl';
 import { Slothash } from './slot/SlothashSubscriber';
 import { getOracleId } from './oracles/oracleId';
+import { SignedSwiftOrderParams } from './swift/types';
 
 type RemainingAccountParams = {
 	userAccounts: UserAccount[];
@@ -5882,12 +5883,18 @@ export class DriftClient {
 
 	public signSwiftOrderParamsMessage(
 		orderParamsMessage: SwiftOrderParamsMessage
-	): Buffer {
-		const takerOrderParamsMessage =
-			this.encodeSwiftOrderParamsMessage(orderParamsMessage);
-		return this.signMessage(takerOrderParamsMessage);
+	): SignedSwiftOrderParams {
+		const borshBuf = this.encodeSwiftOrderParamsMessage(orderParamsMessage);
+		const orderParams = Buffer.from(borshBuf.toString('hex'));
+		return {
+			orderParams,
+			signature: this.signMessage(Buffer.from(borshBuf.toString('hex'))),
+		};
 	}
 
+	/*
+	 * Borsh encode swift taker order params
+	 */
 	public encodeSwiftOrderParamsMessage(
 		orderParamsMessage: SwiftOrderParamsMessage
 	): Buffer {
@@ -5897,6 +5904,9 @@ export class DriftClient {
 		);
 	}
 
+	/*
+	 * Decode swift taker order params from borsh buffer
+	 */
 	public decodeSwiftOrderParamsMessage(
 		encodedMessage: Buffer
 	): SwiftOrderParamsMessage {
@@ -5914,8 +5924,7 @@ export class DriftClient {
 	}
 
 	public async placeSwiftTakerOrder(
-		swiftOrderParamsMessage: Buffer,
-		swiftOrderParamsSignature: Buffer,
+		signedSwiftOrderParams: SignedSwiftOrderParams,
 		marketIndex: number,
 		takerInfo: {
 			taker: PublicKey;
@@ -5927,8 +5936,7 @@ export class DriftClient {
 		txParams?: TxParams
 	): Promise<TransactionSignature> {
 		const ixs = await this.getPlaceSwiftTakerPerpOrderIxs(
-			swiftOrderParamsMessage,
-			swiftOrderParamsSignature,
+			signedSwiftOrderParams,
 			marketIndex,
 			takerInfo,
 			undefined,
@@ -5944,8 +5952,7 @@ export class DriftClient {
 	}
 
 	public async getPlaceSwiftTakerPerpOrderIxs(
-		encodedSwiftOrderParamsMessage: Buffer,
-		swiftOrderParamsSignature: Buffer,
+		signedSwiftOrderParams: SignedSwiftOrderParams,
 		marketIndex: number,
 		takerInfo: {
 			taker: PublicKey;
@@ -5969,13 +5976,15 @@ export class DriftClient {
 		const authorityToUse = authority || takerInfo.takerUserAccount.authority;
 
 		const messageLengthBuffer = Buffer.alloc(2);
-		messageLengthBuffer.writeUInt16LE(encodedSwiftOrderParamsMessage.length);
+		messageLengthBuffer.writeUInt16LE(
+			signedSwiftOrderParams.orderParams.length
+		);
 
 		const swiftIxData = Buffer.concat([
-			swiftOrderParamsSignature,
+			signedSwiftOrderParams.signature,
 			authorityToUse.toBytes(),
 			messageLengthBuffer,
-			encodedSwiftOrderParamsMessage,
+			signedSwiftOrderParams.orderParams,
 		]);
 
 		const swiftOrderParamsSignatureIx = createMinimalEd25519VerifyIx(
@@ -6005,8 +6014,7 @@ export class DriftClient {
 	}
 
 	public async placeAndMakeSwiftPerpOrder(
-		encodedSwiftOrderParamsMessage: Buffer,
-		swiftOrderParamsSignature: Buffer,
+		signedSwiftOrderParams: SignedSwiftOrderParams,
 		swiftOrderUuid: Uint8Array,
 		takerInfo: {
 			taker: PublicKey;
@@ -6021,8 +6029,7 @@ export class DriftClient {
 		overrideIxCount?: number
 	): Promise<TransactionSignature> {
 		const ixs = await this.getPlaceAndMakeSwiftPerpOrderIxs(
-			encodedSwiftOrderParamsMessage,
-			swiftOrderParamsSignature,
+			signedSwiftOrderParams,
 			swiftOrderUuid,
 			takerInfo,
 			orderParams,
@@ -6042,8 +6049,7 @@ export class DriftClient {
 	}
 
 	public async getPlaceAndMakeSwiftPerpOrderIxs(
-		encodedSwiftOrderParamsMessage: Buffer,
-		swiftOrderParamsSignature: Buffer,
+		signedSwiftOrderParams: SignedSwiftOrderParams,
 		swiftOrderUuid: Uint8Array,
 		takerInfo: {
 			taker: PublicKey;
@@ -6058,8 +6064,7 @@ export class DriftClient {
 	): Promise<TransactionInstruction[]> {
 		const [swiftOrderSignatureIx, placeTakerSwiftPerpOrderIx] =
 			await this.getPlaceSwiftTakerPerpOrderIxs(
-				encodedSwiftOrderParamsMessage,
-				swiftOrderParamsSignature,
+				signedSwiftOrderParams,
 				orderParams.marketIndex,
 				takerInfo,
 				undefined,
@@ -7215,6 +7220,271 @@ export class DriftClient {
 				remainingAccounts: remainingAccounts,
 			}
 		);
+	}
+
+	public async getJupiterLiquidateSpotWithSwapIxV6({
+		jupiterClient,
+		liabilityMarketIndex,
+		assetMarketIndex,
+		swapAmount,
+		assetTokenAccount,
+		liabilityTokenAccount,
+		slippageBps,
+		swapMode,
+		onlyDirectRoutes,
+		quote,
+		userAccount,
+		userAccountPublicKey,
+		userStatsAccountPublicKey,
+		liquidatorSubAccountId,
+	}: {
+		jupiterClient: JupiterClient;
+		liabilityMarketIndex: number;
+		assetMarketIndex: number;
+		assetTokenAccount?: PublicKey;
+		liabilityTokenAccount?: PublicKey;
+		swapAmount: BN;
+		slippageBps?: number;
+		swapMode?: SwapMode;
+		onlyDirectRoutes?: boolean;
+		quote?: QuoteResponse;
+		userAccount: UserAccount;
+		userAccountPublicKey: PublicKey;
+		userStatsAccountPublicKey: PublicKey;
+		liquidatorSubAccountId?: number;
+	}): Promise<{
+		ixs: TransactionInstruction[];
+		lookupTables: AddressLookupTableAccount[];
+	}> {
+		const liabilityMarket = this.getSpotMarketAccount(liabilityMarketIndex);
+		const assetMarket = this.getSpotMarketAccount(assetMarketIndex);
+
+		if (!quote) {
+			const fetchedQuote = await jupiterClient.getQuote({
+				inputMint: assetMarket.mint,
+				outputMint: liabilityMarket.mint,
+				amount: swapAmount,
+				slippageBps,
+				swapMode,
+				onlyDirectRoutes,
+			});
+
+			quote = fetchedQuote;
+		}
+
+		if (!quote) {
+			throw new Error("Could not fetch Jupiter's quote. Please try again.");
+		}
+
+		const amountIn = new BN(quote.inAmount);
+
+		const transaction = await jupiterClient.getSwap({
+			quote,
+			userPublicKey: this.provider.wallet.publicKey,
+			slippageBps,
+		});
+
+		const { transactionMessage, lookupTables } =
+			await jupiterClient.getTransactionMessageAndLookupTables({
+				transaction,
+			});
+
+		const jupiterInstructions = jupiterClient.getJupiterInstructions({
+			transactionMessage,
+			inputMint: assetMarket.mint,
+			outputMint: liabilityMarket.mint,
+		});
+
+		const preInstructions = [];
+		if (!liabilityTokenAccount) {
+			const tokenProgram = this.getTokenProgramForSpotMarket(liabilityMarket);
+			liabilityTokenAccount = await this.getAssociatedTokenAccount(
+				liabilityMarket.marketIndex,
+				false,
+				tokenProgram
+			);
+
+			preInstructions.push(
+				this.createAssociatedTokenAccountIdempotentInstruction(
+					liabilityTokenAccount,
+					this.provider.wallet.publicKey,
+					this.provider.wallet.publicKey,
+					liabilityMarket.mint,
+					tokenProgram
+				)
+			);
+		}
+
+		if (!assetTokenAccount) {
+			const tokenProgram = this.getTokenProgramForSpotMarket(assetMarket);
+			assetTokenAccount = await this.getAssociatedTokenAccount(
+				assetMarket.marketIndex,
+				false,
+				tokenProgram
+			);
+
+			preInstructions.push(
+				this.createAssociatedTokenAccountIdempotentInstruction(
+					assetTokenAccount,
+					this.provider.wallet.publicKey,
+					this.provider.wallet.publicKey,
+					assetMarket.mint,
+					tokenProgram
+				)
+			);
+		}
+
+		const { beginSwapIx, endSwapIx } = await this.getLiquidateSpotWithSwapIx({
+			liabilityMarketIndex,
+			assetMarketIndex,
+			swapAmount: amountIn,
+			assetTokenAccount,
+			liabilityTokenAccount,
+			userAccount,
+			userAccountPublicKey,
+			userStatsAccountPublicKey,
+			liquidatorSubAccountId,
+		});
+
+		const ixs = [
+			...preInstructions,
+			beginSwapIx,
+			...jupiterInstructions,
+			endSwapIx,
+		];
+
+		return { ixs, lookupTables };
+	}
+
+	/**
+	 * Get the drift liquidate_spot_with_swap instructions
+	 *
+	 * @param liabilityMarketIndex the market index of the token you're buying
+	 * @param assetMarketIndex the market index of the token you're selling
+	 * @param amountIn the amount of the token to sell
+	 * @param assetTokenAccount the token account to move the tokens being sold
+	 * @param liabilityTokenAccount the token account to receive the tokens being bought
+	 * @param userAccount
+	 * @param userAccountPublicKey
+	 * @param userStatsAccountPublicKey
+	 */
+	public async getLiquidateSpotWithSwapIx({
+		liabilityMarketIndex,
+		assetMarketIndex,
+		swapAmount: swapAmount,
+		assetTokenAccount,
+		liabilityTokenAccount,
+		userAccount,
+		userAccountPublicKey,
+		userStatsAccountPublicKey,
+		liquidatorSubAccountId,
+	}: {
+		liabilityMarketIndex: number;
+		assetMarketIndex: number;
+		swapAmount: BN;
+		assetTokenAccount: PublicKey;
+		liabilityTokenAccount: PublicKey;
+		userAccount: UserAccount;
+		userAccountPublicKey: PublicKey;
+		userStatsAccountPublicKey: PublicKey;
+		liquidatorSubAccountId?: number;
+	}): Promise<{
+		beginSwapIx: TransactionInstruction;
+		endSwapIx: TransactionInstruction;
+	}> {
+		const liquidatorAccountPublicKey = await this.getUserAccountPublicKey(
+			liquidatorSubAccountId
+		);
+		const liquidatorStatsPublicKey = this.getUserStatsAccountPublicKey();
+
+		const userAccounts = [userAccount];
+		const remainingAccounts = this.getRemainingAccounts({
+			userAccounts,
+			writableSpotMarketIndexes: [liabilityMarketIndex, assetMarketIndex],
+			readableSpotMarketIndexes: [QUOTE_SPOT_MARKET_INDEX],
+		});
+
+		const liabilitySpotMarket = this.getSpotMarketAccount(liabilityMarketIndex);
+		const assetSpotMarket = this.getSpotMarketAccount(assetMarketIndex);
+
+		const liabilityTokenProgram =
+			this.getTokenProgramForSpotMarket(liabilitySpotMarket);
+		const assetTokenProgram =
+			this.getTokenProgramForSpotMarket(assetSpotMarket);
+
+		if (!liabilityTokenProgram.equals(assetTokenProgram)) {
+			remainingAccounts.push({
+				pubkey: liabilityTokenProgram,
+				isWritable: false,
+				isSigner: false,
+			});
+		}
+
+		if (
+			liabilitySpotMarket.tokenProgram === 1 ||
+			assetSpotMarket.tokenProgram === 1
+		) {
+			remainingAccounts.push({
+				pubkey: assetSpotMarket.mint,
+				isWritable: false,
+				isSigner: false,
+			});
+			remainingAccounts.push({
+				pubkey: liabilitySpotMarket.mint,
+				isWritable: false,
+				isSigner: false,
+			});
+		}
+
+		const beginSwapIx =
+			await this.program.instruction.liquidateSpotWithSwapBegin(
+				assetMarketIndex,
+				liabilityMarketIndex,
+				swapAmount,
+				{
+					accounts: {
+						state: await this.getStatePublicKey(),
+						user: userAccountPublicKey,
+						userStats: userStatsAccountPublicKey,
+						liquidator: liquidatorAccountPublicKey,
+						liquidatorStats: liquidatorStatsPublicKey,
+						authority: this.wallet.publicKey,
+						liabilitySpotMarketVault: liabilitySpotMarket.vault,
+						assetSpotMarketVault: assetSpotMarket.vault,
+						assetTokenAccount: assetTokenAccount,
+						liabilityTokenAccount: liabilityTokenAccount,
+						tokenProgram: assetTokenProgram,
+						driftSigner: this.getStateAccount().signer,
+						instructions: anchor.web3.SYSVAR_INSTRUCTIONS_PUBKEY,
+					},
+					remainingAccounts,
+				}
+			);
+
+		const endSwapIx = await this.program.instruction.liquidateSpotWithSwapEnd(
+			assetMarketIndex,
+			liabilityMarketIndex,
+			{
+				accounts: {
+					state: await this.getStatePublicKey(),
+					user: userAccountPublicKey,
+					userStats: userStatsAccountPublicKey,
+					liquidator: liquidatorAccountPublicKey,
+					liquidatorStats: liquidatorStatsPublicKey,
+					authority: this.wallet.publicKey,
+					liabilitySpotMarketVault: liabilitySpotMarket.vault,
+					assetSpotMarketVault: assetSpotMarket.vault,
+					assetTokenAccount: assetTokenAccount,
+					liabilityTokenAccount: liabilityTokenAccount,
+					tokenProgram: assetTokenProgram,
+					driftSigner: this.getStateAccount().signer,
+					instructions: anchor.web3.SYSVAR_INSTRUCTIONS_PUBKEY,
+				},
+				remainingAccounts,
+			}
+		);
+
+		return { beginSwapIx, endSwapIx };
 	}
 
 	public async liquidateBorrowForPerpPnl(

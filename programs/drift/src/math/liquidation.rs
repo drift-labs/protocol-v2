@@ -176,7 +176,7 @@ pub fn calculate_asset_transfer_for_liability_transfer(
     let (asset_value_numerator_scale, asset_value_denominator_scale) = if asset_decimals > 6 {
         (10_u128.pow(asset_decimals - 6), 1)
     } else {
-        (1, 10_u128.pow(asset_decimals - 6))
+        (1, 10_u128.pow(6 - asset_decimals))
     };
 
     let asset_delta = if asset_transfer > asset_amount {
@@ -513,4 +513,41 @@ pub fn get_liquidation_fee(
             .unwrap_or(u32::MAX),
     );
     Ok(liquidation_fee.min(max_liquidation_fee))
+}
+
+pub fn validate_swap_within_liquidation_boundaries(
+    asset_transfer: u128,
+    liability_transfer: u128,
+    asset_decimals: u32,
+    liability_decimals: u32,
+    asset_price: i64,
+    liability_price: i64,
+    asset_liquidation_multiplier: u32,
+    liability_liquidation_multiplier: u32,
+) -> DriftResult {
+    let asset_precision = 10_u128.pow(asset_decimals);
+    let liability_precision = 10_u128.pow(liability_decimals);
+
+    let swap_price = liability_transfer
+        .safe_mul(PRICE_PRECISION)?
+        .safe_div(liability_precision)?
+        .safe_mul(asset_precision)?
+        .safe_div(asset_transfer)?;
+
+    let worst_case_price = asset_price
+        .cast::<u128>()?
+        .safe_mul(PRICE_PRECISION)?
+        .safe_mul(liability_liquidation_multiplier.cast()?)?
+        .safe_div(liability_price.cast()?)?
+        .safe_div(asset_liquidation_multiplier.cast()?)?;
+
+    validate!(
+        swap_price >= worst_case_price,
+        ErrorCode::InvalidLiquidation,
+        "swap price ({}/1000000) < worst case price ({}/1000000)",
+        swap_price,
+        worst_case_price
+    )?;
+
+    Ok(())
 }
