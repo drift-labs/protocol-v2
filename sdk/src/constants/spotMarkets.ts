@@ -61,6 +61,7 @@ export const DevnetSpotMarkets: SpotMarketConfig[] = [
 		),
 		pythFeedId:
 			'0xef0d8b6fda2ceba41da15d4095d1da392a0d2f8ed0c6c7bc0f4cfac8c280b56d',
+		pythLazerId: 6,
 	},
 	{
 		symbol: 'BTC',
@@ -74,6 +75,7 @@ export const DevnetSpotMarkets: SpotMarketConfig[] = [
 		serumMarket: new PublicKey('AGsmbVu3MS9u68GEYABWosQQCZwmLcBHu4pWEuBYH7Za'),
 		pythFeedId:
 			'0xe62df6c8b4a85fe1a67db44dc12de5db330f7ac66b72dc658afedf0f4a415b43',
+		pythLazerId: 1,
 	},
 	{
 		symbol: 'PYUSD',
@@ -98,6 +100,7 @@ export const DevnetSpotMarkets: SpotMarketConfig[] = [
 		precisionExp: FIVE,
 		pythFeedId:
 			'0x72b021217ca3fe68922a19aaf990109cb9d84e9ad004b4d2025ad6f529314419',
+		pythLazerId: 9,
 	},
 	{
 		symbol: 'JLP',
@@ -122,6 +125,7 @@ export const DevnetSpotMarkets: SpotMarketConfig[] = [
 		precisionExp: SIX,
 		pythFeedId:
 			'0xeaa020c61cc479712813461ce153894a96a6c00b21ed0cfc2798d1f9a9e9c94a',
+		pythLazerId: 7,
 	},
 ];
 
@@ -137,6 +141,7 @@ export const MainnetSpotMarkets: SpotMarketConfig[] = [
 		precisionExp: QUOTE_PRECISION_EXP,
 		pythFeedId:
 			'0xeaa020c61cc479712813461ce153894a96a6c00b21ed0cfc2798d1f9a9e9c94a',
+		pythLazerId: 7,
 	},
 	{
 		symbol: 'SOL',
@@ -156,6 +161,7 @@ export const MainnetSpotMarkets: SpotMarketConfig[] = [
 		),
 		pythFeedId:
 			'0xef0d8b6fda2ceba41da15d4095d1da392a0d2f8ed0c6c7bc0f4cfac8c280b56d',
+		pythLazerId: 6,
 	},
 	{
 		symbol: 'mSOL',
@@ -182,6 +188,7 @@ export const MainnetSpotMarkets: SpotMarketConfig[] = [
 		serumMarket: new PublicKey('3BAKsQd3RuhZKES2DGysMhjBdwjZYKYmxRqnSMtZ4KSN'),
 		pythFeedId:
 			'0xc9d8b075a5c69303365ae23633d4e085199bf5c520a3b90fed1322a0342ffc33',
+		pythLazerId: 103,
 	},
 	{
 		symbol: 'wETH',
@@ -214,6 +221,7 @@ export const MainnetSpotMarkets: SpotMarketConfig[] = [
 		serumMarket: new PublicKey('B2na8Awyd7cpC59iEU43FagJAPLigr3AP3s38KM982bu'),
 		pythFeedId:
 			'0x2b89b9dc8fdf9f34709a5b106b472f0f39bb6ca9ce04b0fd7f2e971688e2e53b',
+		pythLazerId: 8,
 	},
 	{
 		symbol: 'jitoSOL',
@@ -246,6 +254,7 @@ export const MainnetSpotMarkets: SpotMarketConfig[] = [
 		),
 		pythFeedId:
 			'0x0bbf28e9a841a1cc788f6a361b17ca072d0ea3098a1e5df1c3922d06719579ff',
+		pythLazerId: 3,
 	},
 	{
 		symbol: 'bSOL',
@@ -275,6 +284,7 @@ export const MainnetSpotMarkets: SpotMarketConfig[] = [
 		),
 		pythFeedId:
 			'0xb43660a5f790c69354b0729a5ef9d50d68f1df92107540210b9cccba1f947cc2',
+		pythLazerId: 91,
 	},
 	{
 		symbol: 'WIF',
@@ -294,6 +304,7 @@ export const MainnetSpotMarkets: SpotMarketConfig[] = [
 		),
 		pythFeedId:
 			'0x4ca4beeca86f0d164160323817a4e42b10010a724c2217c6ee41b54cd4cc61fc',
+		pythLazerId: 10,
 	},
 	{
 		symbol: 'JUP',
@@ -310,6 +321,7 @@ export const MainnetSpotMarkets: SpotMarketConfig[] = [
 		launchTs: 1706731200000,
 		pythFeedId:
 			'0x0a0408d619e9380abad35060f9192039ed5042fa6f82301d0e48bb52be830996',
+		pythLazerId: 92,
 	},
 	{
 		symbol: 'RENDER',
@@ -324,6 +336,7 @@ export const MainnetSpotMarkets: SpotMarketConfig[] = [
 		launchTs: 1708964021000,
 		pythFeedId:
 			'0x3d4a2bd9535be6ce8059d75eadeba507b043257321aa544717c56fa19b49e35d',
+		pythLazerId: 34,
 	},
 	{
 		symbol: 'W',
@@ -340,6 +353,7 @@ export const MainnetSpotMarkets: SpotMarketConfig[] = [
 		launchTs: 1712149014000,
 		pythFeedId:
 			'0xeff7446475e218517566ea99e72a4abec2e1bd8498b43b7d8331e29dcb059389',
+		pythLazerId: 102,
 	},
 	{
 		symbol: 'TNSR',
@@ -356,6 +370,7 @@ export const MainnetSpotMarkets: SpotMarketConfig[] = [
 		launchTs: 1712593532000,
 		pythFeedId:
 			'0x05ecd4597cd48fe13d6cc3596c62af4f9675aee06e2e0b94c06d8bee2b659e05',
+		pythLazerId: 99,
 	},
 	{
 		symbol: 'DRIFT',
@@ -560,6 +575,7 @@ export const MainnetSpotMarkets: SpotMarketConfig[] = [
 		precisionExp: SIX,
 		pythFeedId:
 			'0x91519e3e48571e1232a85a938e714da19fe5ce05107f3eebb8a870b2e8020169',
+		pythLazerId: 93,
 	},
 	{
 		symbol: 'PENGU',
@@ -572,6 +588,7 @@ export const MainnetSpotMarkets: SpotMarketConfig[] = [
 		precisionExp: SIX,
 		pythFeedId:
 			'0xbed3097008b9b5e3c93bec20be79cb43986b85a996475589351a21e67bae9b61',
+		pythLazerId: 97,
 	},
 	{
 		symbol: 'BONK',
@@ -588,6 +605,7 @@ export const MainnetSpotMarkets: SpotMarketConfig[] = [
 			'D3gZwng2MgZGjktYcKpbR8Bz8653i4qCgzHCf5E4TcZb'
 		),
 		launchTs: 1734717937000,
+		pythLazerId: 9,
 	},
 	{
 		symbol: 'JLP',
@@ -614,6 +632,7 @@ export const MainnetSpotMarkets: SpotMarketConfig[] = [
 		pythFeedId:
 			'0xeaa020c61cc479712813461ce153894a96a6c00b21ed0cfc2798d1f9a9e9c94a',
 		launchTs: 1735255852000,
+		pythLazerId: 7,
 	},
 	{
 		symbol: 'AI16Z',

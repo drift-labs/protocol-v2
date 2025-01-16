@@ -6682,6 +6682,40 @@
         {
           "name": "feedId",
           "type": "u32"
+        },
+        {
+          "name": "exponent",
+          "type": "i32"
+        }
+      ]
+    },
+    {
+      "name": "updatePythLazerOracleExponent",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "lazerOracle",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "feedId",
+          "type": "u32"
+        },
+        {
+          "name": "exponent",
+          "type": "i32"
         }
       ]
     },
@@ -11471,6 +11505,12 @@
           },
           {
             "name": "PythLazer"
+          },
+          {
+            "name": "PythLazer1K"
+          },
+          {
+            "name": "PythLazer1M"
           }
         ]
       }

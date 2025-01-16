@@ -1455,6 +1455,12 @@ impl AMM {
             OracleSource::PythLazer => Ok(Some(
                 self.get_pyth_twap(price_oracle, &OracleSource::PythLazer)?,
             )),
+            OracleSource::PythLazer1K => Ok(Some(
+                self.get_pyth_twap(price_oracle, &OracleSource::PythLazer1K)?,
+            )),
+            OracleSource::PythLazer1M => Ok(Some(
+                self.get_pyth_twap(price_oracle, &OracleSource::PythLazer1M)?,
+            )),
         }
     }
 
