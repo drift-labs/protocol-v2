@@ -45,6 +45,7 @@ pub mod fill_order_protected_maker {
     use crate::state::oracle::HistoricalOracleData;
     use crate::state::oracle::OracleSource;
     use crate::state::perp_market::{PerpMarket, AMM};
+    use crate::state::paused_operations::PerpOperation;
     use crate::state::perp_market_map::PerpMarketMap;
     use crate::state::spot_market::{SpotBalanceType, SpotMarket};
     use crate::state::spot_market_map::SpotMarketMap;
@@ -84,6 +85,7 @@ pub mod fill_order_protected_maker {
         let mut oracle_map = OracleMap::load_one(&oracle_account_info, clock.slot, None).unwrap();
 
         let mut market = PerpMarket {
+            paused_operations: PerpOperation::AmmFill as u8,
             amm: AMM {
                 base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
                 quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
@@ -95,10 +97,10 @@ pub mod fill_order_protected_maker {
                 order_step_size: 1000,
                 order_tick_size: 1,
                 oracle: oracle_price_key,
-                max_spread: 1000,
-                base_spread: 0,
-                long_spread: 0,
-                short_spread: 0,
+                max_spread: 100000,
+                base_spread: 10000,
+                long_spread: 10000,
+                short_spread: 10000,
                 historical_oracle_data: HistoricalOracleData {
                     last_oracle_price_twap: oracle_price.twap,
                     last_oracle_price_twap_5min: oracle_price.twap,
@@ -107,8 +109,8 @@ pub mod fill_order_protected_maker {
                 },
                 ..AMM::default()
             },
-            margin_ratio_initial: 1000,
-            margin_ratio_maintenance: 500,
+            margin_ratio_initial: 2000,
+            margin_ratio_maintenance: 1000,
             status: MarketStatus::Initialized,
             ..PerpMarket::default()
         };
@@ -143,6 +145,7 @@ pub mod fill_order_protected_maker {
 
         let mut user = User {
             next_order_id: 10000000,
+            // next_order_id: 2,
             authority: Pubkey::from_str("My11111111111111111111111111111111111111111").unwrap(), // different authority than filler
             orders: get_orders(Order {
                 market_index: 0,
@@ -152,11 +155,11 @@ pub mod fill_order_protected_maker {
                 direction: PositionDirection::Long,
                 market_type: MarketType::Perp,
                 base_asset_amount: BASE_PRECISION_U64,
-                slot: 0,
+                slot: clock.slot - 1, // fresh
                 auction_start_price: 0,
-                auction_end_price: 100 * PRICE_PRECISION_I64,
-                auction_duration: 5,
-                price: 100 * PRICE_PRECISION_U64,
+                auction_end_price: 100 * PRICE_PRECISION_I64 + (100 * PRICE_PRECISION_I64)/1000,
+                auction_duration: 1,
+                price: 100 * PRICE_PRECISION_U64 + (100 * PRICE_PRECISION_U64)/1000, // 10 bps higher than maker order price
                 ..Order::default()
             }),
             perp_positions: get_positions(PerpPosition {
@@ -196,7 +199,7 @@ pub mod fill_order_protected_maker {
                 market_type: MarketType::Perp,
                 direction: PositionDirection::Short,
                 base_asset_amount: BASE_PRECISION_U64,
-                slot: 0,
+                slot: clock.slot - 3,
                 price: 100 * PRICE_PRECISION_U64,
                 post_only: true,
                 ..Order::default()
@@ -235,7 +238,7 @@ pub mod fill_order_protected_maker {
             AccountLoader::try_from(&filler_stats_account_info).unwrap();
 
         let state = State {
-            min_perp_auction_duration: 1,
+            min_perp_auction_duration: 10,
             default_market_order_time_in_force: 10,
             ..State::default()
         };
@@ -257,6 +260,108 @@ pub mod fill_order_protected_maker {
             FillMode::Fill,
         )
         .unwrap();
+
+        assert_eq!(base_asset_amount, 1000000000);
+        assert_eq!(quote_asset_amount, 100_000_000 + 100_000_000/1000); // $100 + 10 bps
+
+        // user exempt, no 10 bps applied for pmm
+        let mut user = User {
+            // next_order_id: 10000000,
+            next_order_id: 3000 - 2,
+            authority: Pubkey::from_str("My11111111111111111111111111111111111111111").unwrap(), // different authority than filler
+            orders: get_orders(Order {
+                market_index: 0,
+                order_id: 1,
+                status: OrderStatus::Open,
+                order_type: OrderType::Market,
+                direction: PositionDirection::Long,
+                market_type: MarketType::Perp,
+                base_asset_amount: BASE_PRECISION_U64,
+                slot: clock.slot - 1, // fresh
+                auction_start_price: 0,
+                auction_end_price: 100 * PRICE_PRECISION_I64 + (100 * PRICE_PRECISION_I64)/1000,
+                auction_duration: 1,
+                price: 100 * PRICE_PRECISION_U64 + (100 * PRICE_PRECISION_U64)/1000, // 10 bps higher than maker order price
+                ..Order::default()
+            }),
+            perp_positions: get_positions(PerpPosition {
+                market_index: 0,
+                open_orders: 1,
+                open_bids: BASE_PRECISION_I64,
+                ..PerpPosition::default()
+            }),
+            spot_positions: get_spot_positions(SpotPosition {
+                market_index: 0,
+                balance_type: SpotBalanceType::Deposit,
+                scaled_balance: 100 * SPOT_BALANCE_PRECISION_U64,
+                ..SpotPosition::default()
+            }),
+            ..User::default()
+        };
+
+        create_anchor_account_info!(user, User, user_account_info);
+        let user_account_loader: AccountLoader<User> =
+            AccountLoader::try_from(&user_account_info).unwrap();
+
+            let mut maker = User {
+                status: UserStatus::ProtectedMakerOrders as u8,
+                authority: maker_authority,
+                orders: get_orders(Order {
+                    market_index: 0,
+                    order_id: maker_order_id,
+                    status: OrderStatus::Open,
+                    order_type: OrderType::Limit,
+                    market_type: MarketType::Perp,
+                    direction: PositionDirection::Short,
+                    base_asset_amount: BASE_PRECISION_U64,
+                    slot: clock.slot - 3,
+                    price: 100 * PRICE_PRECISION_U64,
+                    post_only: true,
+                    ..Order::default()
+                }),
+                perp_positions: get_positions(PerpPosition {
+                    market_index: 0,
+                    open_orders: 1,
+                    open_asks: -BASE_PRECISION_I64,
+                    ..PerpPosition::default()
+                }),
+                spot_positions: get_spot_positions(SpotPosition {
+                    market_index: 0,
+                    balance_type: SpotBalanceType::Deposit,
+                    scaled_balance: 100 * SPOT_BALANCE_PRECISION_U64,
+                    ..SpotPosition::default()
+                }),
+                ..User::default()
+            };
+            create_anchor_account_info!(maker, &maker_key, User, maker_account_info);
+            let makers_and_referrers = UserMap::load_one(&maker_account_info).unwrap();
+    
+            let mut maker_stats = UserStats {
+                authority: maker_authority,
+                ..UserStats::default()
+            };
+            create_anchor_account_info!(maker_stats, UserStats, maker_stats_account_info);
+            let maker_and_referrer_stats = UserStatsMap::load_one(&maker_stats_account_info).unwrap();    
+
+
+        let (base_asset_amount, quote_asset_amount) = fill_perp_order(
+            1,
+            &state,
+            &user_account_loader,
+            &user_stats_account_loader,
+            &spot_market_map,
+            &market_map,
+            &mut oracle_map,
+            &filler_account_loader,
+            &filler_stats_account_loader,
+            &makers_and_referrers,
+            &maker_and_referrer_stats,
+            None,
+            &clock,
+            FillMode::Fill,
+        )
+        .unwrap();
+
 
         assert_eq!(base_asset_amount, 1000000000);
         assert_eq!(quote_asset_amount, 100_000_000); // $100
