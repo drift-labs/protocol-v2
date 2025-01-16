@@ -3971,6 +3971,40 @@ export class AdminClient extends DriftClient {
 		);
 	}
 
+	public async updatePythLazerOracleExponent(
+		feedId: number,
+		exponent: number
+	): Promise<TransactionSignature> {
+		const initializePythPullOracleIx =
+			await this.getUpdatePythLazerOracleExponentIx(feedId, exponent);
+		const tx = await this.buildTransaction(initializePythPullOracleIx);
+		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+
+		return txSig;
+	}
+
+	public async getUpdatePythLazerOracleExponentIx(
+		feedId: number,
+		exponent: number
+	): Promise<TransactionInstruction> {
+		return await this.program.instruction.updatePythLazerOracleExponent(
+			feedId,
+			exponent,
+			{
+				accounts: {
+					admin: this.useHotWalletAdmin
+						? this.wallet.publicKey
+						: this.getStateAccount().admin,
+					state: await this.getStatePublicKey(),
+					lazerOracle: getPythLazerOraclePublicKey(
+						this.program.programId,
+						feedId
+					),
+				},
+			}
+		);
+	}
+
 	public async initializeHighLeverageModeConfig(
 		maxUsers: number
 	): Promise<TransactionSignature> {

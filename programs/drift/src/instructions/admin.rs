@@ -4192,6 +4192,23 @@ pub fn handle_initialize_pyth_lazer_oracle(
     Ok(())
 }
 
+pub fn handle_update_pyth_lazer_exponent(
+    ctx: Context<UpdatePythLazerOracleExponent>,
+    feed_id: u32,
+    exponent: i32,
+) -> Result<()> {
+    let mut pyth_lazer_account = ctx.accounts.lazer_oracle.load_mut()?;
+    let old_exponent = pyth_lazer_account.exponent;
+    pyth_lazer_account.exponent = exponent;
+    msg!(
+        "Lazer exponent updated for feed_id {}. {} -> {} ",
+        feed_id,
+        old_exponent,
+        exponent
+    );
+    Ok(())
+}
+
 pub fn handle_settle_expired_market<'c: 'info, 'info>(
     ctx: Context<'_, '_, 'c, 'info, AdminUpdatePerpMarket<'info>>,
     market_index: u16,
@@ -4919,6 +4936,21 @@ pub struct InitPythLazerOracle<'info> {
     pub state: Box<Account<'info, State>>,
     pub rent: Sysvar<'info, Rent>,
     pub system_program: Program<'info, System>,
+}
+
+#[derive(Accounts)]
+#[instruction(feed_id: u32, exponent: i32)]
+pub struct UpdatePythLazerOracleExponent<'info> {
+    #[account(
+        mut,
+        constraint = admin.key() == admin_hot_wallet::id() || admin.key() == state.admin
+    )]
+    pub admin: Signer<'info>,
+    #[account(mut, seeds = [PYTH_LAZER_ORACLE_SEED, &feed_id.to_le_bytes()],
+        bump,
+    )]
+    pub lazer_oracle: AccountLoader<'info, PythLazerOracle>,
+    pub state: Box<Account<'info, State>>,
 }
 
 #[derive(Accounts)]

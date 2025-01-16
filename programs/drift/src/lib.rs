@@ -1595,6 +1595,14 @@ pub mod drift {
         handle_initialize_pyth_lazer_oracle(ctx, feed_id, exponent)
     }
 
+    pub fn update_pyth_lazer_oracle_exponent(
+        ctx: Context<UpdatePythLazerOracleExponent>,
+        feed_id: u32,
+        exponent: i32,
+    ) -> Result<()> {
+        handle_update_pyth_lazer_exponent(ctx, feed_id, exponent)
+    }
+
     pub fn post_pyth_lazer_oracle_update<'c: 'info, 'info>(
         ctx: Context<'_, '_, 'c, 'info, UpdatePythLazerOracle>,
         pyth_message: Vec<u8>,
