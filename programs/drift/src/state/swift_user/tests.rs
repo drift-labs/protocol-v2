@@ -142,7 +142,7 @@ mod zero_copy {
     #[test]
     fn zero_copy() {
         let mut orders: SwiftUserOrders = SwiftUserOrders {
-            user_pubkey: Pubkey::default(),
+            authority_pubkey: Pubkey::default(),
             padding: 0,
             swift_order_data: Vec::with_capacity(100),
         };
@@ -209,7 +209,7 @@ mod zero_copy {
     #[test]
     fn zero_copy_mut() {
         let mut orders: SwiftUserOrders = SwiftUserOrders {
-            user_pubkey: Pubkey::default(),
+            authority_pubkey: Pubkey::default(),
             padding: 0,
             swift_order_data: Vec::with_capacity(100),
         };

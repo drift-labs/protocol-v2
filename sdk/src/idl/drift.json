@@ -143,11 +143,6 @@
           "isSigner": true
         },
         {
-          "name": "user",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
           "name": "payer",
           "isMut": true,
           "isSigner": true
@@ -182,11 +177,6 @@
           "name": "authority",
           "isMut": true,
           "isSigner": true
-        },
-        {
-          "name": "user",
-          "isMut": false,
-          "isSigner": false
         },
         {
           "name": "systemProgram",
@@ -1553,11 +1543,6 @@
     {
       "name": "deleteSwiftUserOrders",
       "accounts": [
-        {
-          "name": "user",
-          "isMut": true,
-          "isSigner": false
-        },
         {
           "name": "swiftUserOrders",
           "isMut": true,
@@ -8246,7 +8231,7 @@
         "kind": "struct",
         "fields": [
           {
-            "name": "userPubkey",
+            "name": "authorityPubkey",
             "type": "publicKey"
           },
           {

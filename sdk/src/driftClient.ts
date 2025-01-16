@@ -1046,17 +1046,14 @@ export class DriftClient {
 	}
 
 	public async initializeSwiftUserOrders(
-		userAccountPublicKey: PublicKey,
+		authority: PublicKey,
 		numOrders: number,
 		txParams?: TxParams
 	): Promise<[TransactionSignature, PublicKey]> {
 		const initializeIxs = [];
 
 		const [swiftUserAccountPublicKey, initializeUserAccountIx] =
-			await this.getInitializeSwiftUserOrdersAccountIx(
-				userAccountPublicKey,
-				numOrders
-			);
+			await this.getInitializeSwiftUserOrdersAccountIx(authority, numOrders);
 		initializeIxs.push(initializeUserAccountIx);
 		const tx = await this.buildTransaction(initializeIxs, txParams);
 		const { txSig } = await this.sendTransaction(tx, [], this.opts);
@@ -1065,19 +1062,18 @@ export class DriftClient {
 	}
 
 	async getInitializeSwiftUserOrdersAccountIx(
-		userAccountPublicKey: PublicKey,
+		authority: PublicKey,
 		numOrders: number
 	): Promise<[PublicKey, TransactionInstruction]> {
 		const swiftUserAccountPublicKey = getSwiftUserAccountPublicKey(
 			this.program.programId,
-			userAccountPublicKey
+			authority
 		);
 		const initializeUserAccountIx =
 			await this.program.instruction.initializeSwiftUserOrders(numOrders, {
 				accounts: {
 					swiftUserOrders: swiftUserAccountPublicKey,
 					authority: this.wallet.publicKey,
-					user: userAccountPublicKey,
 					payer: this.wallet.publicKey,
 					rent: anchor.web3.SYSVAR_RENT_PUBKEY,
 					systemProgram: anchor.web3.SystemProgram.programId,
@@ -1088,12 +1084,12 @@ export class DriftClient {
 	}
 
 	public async resizeSwiftUserOrders(
-		userAccountPublicKey: PublicKey,
+		authority: PublicKey,
 		numOrders: number,
 		txParams?: TxParams
 	): Promise<TransactionSignature> {
 		const resizeUserAccountIx = await this.getResizeSwiftUserOrdersInstruction(
-			userAccountPublicKey,
+			authority,
 			numOrders
 		);
 		const tx = await this.buildTransaction([resizeUserAccountIx], txParams);
@@ -1103,19 +1099,18 @@ export class DriftClient {
 	}
 
 	async getResizeSwiftUserOrdersInstruction(
-		userAccountPublicKey: PublicKey,
+		authority: PublicKey,
 		numOrders: number
 	): Promise<TransactionInstruction> {
 		const swiftUserAccountPublicKey = getSwiftUserAccountPublicKey(
 			this.program.programId,
-			userAccountPublicKey
+			authority
 		);
 		const resizeUserAccountIx =
 			await this.program.instruction.resizeSwiftUserOrders(numOrders, {
 				accounts: {
 					swiftUserOrders: swiftUserAccountPublicKey,
 					authority: this.wallet.publicKey,
-					user: userAccountPublicKey,
 					systemProgram: anchor.web3.SystemProgram.programId,
 				},
 			});
@@ -1713,16 +1708,9 @@ export class DriftClient {
 	}
 
 	public async deleteSwiftUserOrders(
-		subAccountId = 0,
 		txParams?: TxParams
 	): Promise<TransactionSignature> {
-		const userAccountPublicKey = getUserAccountPublicKeySync(
-			this.program.programId,
-			this.wallet.publicKey,
-			subAccountId
-		);
-
-		const ix = await this.getSwiftUserOrdersDeletionIx(userAccountPublicKey);
+		const ix = await this.getSwiftUserOrdersDeletionIx(this.wallet.publicKey);
 
 		const { txSig } = await this.sendTransaction(
 			await this.buildTransaction(ix, txParams),
@@ -1730,20 +1718,16 @@ export class DriftClient {
 			this.opts
 		);
 
-		const userMapKey = this.getUserMapKey(subAccountId, this.wallet.publicKey);
-		await this.users.get(userMapKey)?.unsubscribe();
-		this.users.delete(userMapKey);
-
 		return txSig;
 	}
 
-	public async getSwiftUserOrdersDeletionIx(userAccountPublicKey: PublicKey) {
+	public async getSwiftUserOrdersDeletionIx(authority: PublicKey) {
 		const ix = await this.program.instruction.deleteSwiftUserOrders({
 			accounts: {
-				user: userAccountPublicKey,
+				user: authority,
 				swiftUserOrders: getSwiftUserAccountPublicKey(
 					this.program.programId,
-					userAccountPublicKey
+					authority
 				),
 				authority: this.wallet.publicKey,
 				state: await this.getStatePublicKey(),
@@ -6002,7 +5986,7 @@ export class DriftClient {
 					userStats: takerInfo.takerStats,
 					swiftUserOrders: getSwiftUserAccountPublicKey(
 						this.program.programId,
-						takerInfo.taker
+						takerInfo.takerUserAccount.authority
 					),
 					authority: this.wallet.publicKey,
 					ixSysvar: SYSVAR_INSTRUCTIONS_PUBKEY,
@@ -6112,7 +6096,7 @@ export class DriftClient {
 						authority: this.wallet.publicKey,
 						takerSwiftUserOrders: getSwiftUserAccountPublicKey(
 							this.program.programId,
-							takerInfo.taker
+							takerInfo.takerUserAccount.authority
 						),
 					},
 					remainingAccounts,

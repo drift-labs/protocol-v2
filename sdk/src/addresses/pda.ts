@@ -87,12 +87,12 @@ export function getRFQUserAccountPublicKey(
 
 export function getSwiftUserAccountPublicKey(
 	programId: PublicKey,
-	userAccountPublicKey: PublicKey
+	authority: PublicKey
 ): PublicKey {
 	return PublicKey.findProgramAddressSync(
 		[
 			Buffer.from(anchor.utils.bytes.utf8.encode('SWIFT')),
-			userAccountPublicKey.toBuffer(),
+			authority.toBuffer(),
 		],
 		programId
 	)[0];
