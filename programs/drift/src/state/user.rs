@@ -1369,7 +1369,7 @@ impl Order {
         is_prediction_market: bool,
         apply_protected_maker_offset: bool,
     ) -> DriftResult<Option<u64>> {
-        let mut price = if self.has_auction_price(self.slot, self.auction_duration, slot)? {
+        let price = if self.has_auction_price(self.slot, self.auction_duration, slot)? {
             Some(calculate_auction_price(
                 self,
                 slot,
@@ -1406,7 +1406,7 @@ impl Order {
             let mut price = self.price;
 
             if apply_protected_maker_offset {
-                let price = apply_protected_maker_limit_price_offset(price, tick_size, self.direction, true)?;
+                price = apply_protected_maker_limit_price_offset(price, tick_size, self.direction, true)?;
             }
 
             Some(price)
