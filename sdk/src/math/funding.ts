@@ -257,15 +257,17 @@ const getFundingRatePct = (rawFundingRate: BN) => {
 
 /**
  * Calculate funding rates in human-readable form. Values will have some lost precision and shouldn't be used in strict accounting.
+ * @param period : 'hour' | 'year' :: Use 'hour' for the hourly payment as a percentage, 'year' for the payment as an estimated APR.
  */
-export async function calculateFriendlyLiveFundingRate(
+export async function calculateFormattedLiveFundingRate(
 	market: PerpMarketAccount,
 	oraclePriceData: OraclePriceData,
 	period: 'hour'|'year'
 ): Promise<{
 	longRate: number;
 	shortRate: number;
-	friendlyString: string;
+	fundingRateUnit: string;
+	formattedFundingRateSummary: string;
 }> {
 	const nowBN = new BN((Date.now() / 1000));
 
@@ -299,14 +301,15 @@ export async function calculateFriendlyLiveFundingRate(
 	const formattedLongRatePct = absoluteLongFundingRateNum.toFixed(period == 'hour' ? 5 : 2);
 	const formattedShortRatePct = absoluteShortFundingRateNum.toFixed(period == 'hour' ? 5 : 2);
 
-	const paymentUnit = period == 'year' ? '% APR' : '%';
+	const fundingRateUnit = period == 'year' ? '% APR' : '%';
 
-	const friendlyString = `At this rate, longs would ${longsAreString} ${formattedLongRatePct} ${paymentUnit} and shorts would ${shortsAreString} ${formattedShortRatePct} ${paymentUnit} at the end of the hour.`;
+	const formattedFundingRateSummary = `At this rate, longs would ${longsAreString} ${formattedLongRatePct} ${fundingRateUnit} and shorts would ${shortsAreString} ${formattedShortRatePct} ${fundingRateUnit} at the end of the hour.`;
 	
 	return {
 		longRate: longsArePaying ? -absoluteLongFundingRateNum : absoluteLongFundingRateNum,
 		shortRate: shortsArePaying ? -absoluteShortFundingRateNum : absoluteShortFundingRateNum,
-		friendlyString,
+		fundingRateUnit: fundingRateUnit,
+		formattedFundingRateSummary,
 	};
 }
 
