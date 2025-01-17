@@ -182,6 +182,7 @@ import nacl from 'tweetnacl';
 import { Slothash } from './slot/SlothashSubscriber';
 import { getOracleId } from './oracles/oracleId';
 import { SignedSwiftOrderParams } from './swift/types';
+import { hash } from '@coral-xyz/anchor/dist/cjs/utils/sha256';
 
 type RemainingAccountParams = {
 	userAccounts: UserAccount[];
@@ -5882,10 +5883,15 @@ export class DriftClient {
 	public encodeSwiftOrderParamsMessage(
 		orderParamsMessage: SwiftOrderParamsMessage
 	): Buffer {
-		return this.program.coder.types.encode(
-			'SwiftOrderParamsMessage',
-			orderParamsMessage
-		);
+		const anchorIxName = 'global' + ':' + 'swiftOrderMessageParams';
+		const prefix = Buffer.from(hash(anchorIxName).slice(0, 8));
+		return Buffer.concat([
+			prefix,
+			this.program.coder.types.encode(
+				'SwiftOrderParamsMessage',
+				orderParamsMessage
+			),
+		]);
 	}
 
 	/*
