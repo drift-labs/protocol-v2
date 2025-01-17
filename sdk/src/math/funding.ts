@@ -12,6 +12,7 @@ import { OraclePriceData } from '../oracles/types';
 import { calculateBidAskPrice } from './amm';
 import { calculateLiveOracleTwap } from './oracles';
 import { clampBN } from './utils';
+import { BigNum, FUNDING_RATE_BUFFER_PRECISION, FUNDING_RATE_PRECISION_EXP } from '@drift-labs/sdk';
 
 function calculateLiveMarkTwap(
 	market: PerpMarketAccount,
@@ -240,6 +241,73 @@ export async function calculateAllEstimatedFundingRate(
 	}
 
 	return [markTwap, oracleTwap, lowerboundEst, cappedAltEst, interpEst];
+}
+
+/**
+ * To get funding rate as a percentage, you need to multiply by the funding rate buffer precision
+ * @param rawFundingRate
+ * @returns
+ */
+const getFundingRatePct = (rawFundingRate: BN) => {
+	return BigNum.from(
+		rawFundingRate.mul(FUNDING_RATE_BUFFER_PRECISION),
+		FUNDING_RATE_PRECISION_EXP
+	).toNum();
+};
+
+/**
+ * Calculate funding rates in human-readable form. Values will have some lost precision and shouldn't be used in strict accounting.
+ */
+export async function calculateFriendlyLiveFundingRate(
+	market: PerpMarketAccount,
+	oraclePriceData: OraclePriceData,
+	period: 'hour'|'year'
+): Promise<{
+	longRate: number;
+	shortRate: number;
+	friendlyString: string;
+}> {
+	const nowBN = new BN((Date.now() / 1000));
+
+	const [_markTwapLive, _oracleTwapLive, longFundingRate, shortFundingRate] =
+	await calculateLongShortFundingRateAndLiveTwaps(
+		market,
+		oraclePriceData,
+		undefined,
+		nowBN
+	);
+
+	let longFundingRateNum = getFundingRatePct(longFundingRate);
+	let shortFundingRateNum = getFundingRatePct(shortFundingRate);
+	
+	if (period == 'year') {
+		const paymentsPerYear = 24 * 365.25;
+
+		longFundingRateNum *= paymentsPerYear;
+		shortFundingRateNum *= paymentsPerYear;
+	}
+
+	const longsArePaying = longFundingRateNum > 0;
+	const shortsArePaying = !(shortFundingRateNum > 0);
+
+	const longsAreString = longsArePaying ? 'pay' : 'receive';
+	const shortsAreString = !shortsArePaying ? 'receive' : 'pay';
+
+	const absoluteLongFundingRateNum = Math.abs(longFundingRateNum);
+	const absoluteShortFundingRateNum = Math.abs(shortFundingRateNum);
+
+	const formattedLongRatePct = absoluteLongFundingRateNum.toFixed(period == 'hour' ? 5 : 2);
+	const formattedShortRatePct = absoluteShortFundingRateNum.toFixed(period == 'hour' ? 5 : 2);
+
+	const paymentUnit = period == 'year' ? '% APR' : '%';
+
+	const friendlyString = `At this rate, longs would ${longsAreString} ${formattedLongRatePct} ${paymentUnit} and shorts would ${shortsAreString} ${formattedShortRatePct} ${paymentUnit} at the end of the hour.`;
+	
+	return {
+		longRate: longsArePaying ? -absoluteLongFundingRateNum : absoluteLongFundingRateNum,
+		shortRate: shortsArePaying ? -absoluteShortFundingRateNum : absoluteShortFundingRateNum,
+		friendlyString,
+	};
 }
 
 function getMaxPriceDivergenceForFundingRate(
