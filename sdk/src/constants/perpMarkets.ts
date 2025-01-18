@@ -1156,6 +1156,16 @@ export const MainnetPerpMarkets: PerpMarketConfig[] = [
 		pythFeedId:
 			'0x2551eca7784671173def2c41e6f3e51e11cd87494863f1d208fdd8c64a1f85ae',
 	},
+	{
+		fullName: 'TRUMP',
+		category: ['Meme'],
+		symbol: 'TRUMP-PERP',
+		baseAssetSymbol: 'TRUMP',
+		marketIndex: 64,
+		oracle: new PublicKey('FgPVZKJQyoCyDgu1aFzgfbSFFySX8Y9hX1Gp6zJpUug3'),
+		launchTs: 1737219250000,
+		oracleSource: OracleSource.SWITCHBOARD_ON_DEMAND,
+	},
 ];
 
 export const PerpMarkets: { [key in DriftEnv]: PerpMarketConfig[] } = {
