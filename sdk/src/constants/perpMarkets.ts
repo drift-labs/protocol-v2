@@ -1164,7 +1164,7 @@ export const MainnetPerpMarkets: PerpMarketConfig[] = [
 		marketIndex: 64,
 		oracle: new PublicKey('FgPVZKJQyoCyDgu1aFzgfbSFFySX8Y9hX1Gp6zJpUug3'),
 		launchTs: 1737219250000,
-		oracleSource: OracleSource.SWITCHBOARD_ON_DEMAND
+		oracleSource: OracleSource.SWITCHBOARD_ON_DEMAND,
 	},
 ];
 
