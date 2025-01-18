@@ -647,6 +647,17 @@ export const MainnetSpotMarkets: SpotMarketConfig[] = [
 			'0x2551eca7784671173def2c41e6f3e51e11cd87494863f1d208fdd8c64a1f85ae',
 		launchTs: 1736384970000,
 	},
+	{
+		symbol: 'TRUMP',
+		marketIndex: 36,
+		poolId: 0,
+		oracle: new PublicKey('FgPVZKJQyoCyDgu1aFzgfbSFFySX8Y9hX1Gp6zJpUug3'),
+		oracleSource: OracleSource.SWITCHBOARD_ON_DEMAND,
+		mint: new PublicKey('6p6xgHyF7AeE6TZkSmFsko444wqoP15icUSqi2jfGiPN'),
+		precision: new BN(10).pow(SIX),
+		precisionExp: SIX,
+		launchTs: 1737219250000,
+	},
 ];
 
 export const SpotMarkets: { [key in DriftEnv]: SpotMarketConfig[] } = {
