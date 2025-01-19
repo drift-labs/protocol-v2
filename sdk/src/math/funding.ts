@@ -12,7 +12,11 @@ import { OraclePriceData } from '../oracles/types';
 import { calculateBidAskPrice } from './amm';
 import { calculateLiveOracleTwap } from './oracles';
 import { clampBN } from './utils';
-import { BigNum, FUNDING_RATE_BUFFER_PRECISION, FUNDING_RATE_PRECISION_EXP } from '@drift-labs/sdk';
+import {
+	BigNum,
+	FUNDING_RATE_BUFFER_PRECISION,
+	FUNDING_RATE_PRECISION_EXP,
+} from '@drift-labs/sdk';
 
 function calculateLiveMarkTwap(
 	market: PerpMarketAccount,
@@ -262,26 +266,26 @@ const getFundingRatePct = (rawFundingRate: BN) => {
 export async function calculateFormattedLiveFundingRate(
 	market: PerpMarketAccount,
 	oraclePriceData: OraclePriceData,
-	period: 'hour'|'year'
+	period: 'hour' | 'year'
 ): Promise<{
 	longRate: number;
 	shortRate: number;
 	fundingRateUnit: string;
 	formattedFundingRateSummary: string;
 }> {
-	const nowBN = new BN((Date.now() / 1000));
+	const nowBN = new BN(Date.now() / 1000);
 
 	const [_markTwapLive, _oracleTwapLive, longFundingRate, shortFundingRate] =
-	await calculateLongShortFundingRateAndLiveTwaps(
-		market,
-		oraclePriceData,
-		undefined,
-		nowBN
-	);
+		await calculateLongShortFundingRateAndLiveTwaps(
+			market,
+			oraclePriceData,
+			undefined,
+			nowBN
+		);
 
 	let longFundingRateNum = getFundingRatePct(longFundingRate);
 	let shortFundingRateNum = getFundingRatePct(shortFundingRate);
-	
+
 	if (period == 'year') {
 		const paymentsPerYear = 24 * 365.25;
 
@@ -298,16 +302,24 @@ export async function calculateFormattedLiveFundingRate(
 	const absoluteLongFundingRateNum = Math.abs(longFundingRateNum);
 	const absoluteShortFundingRateNum = Math.abs(shortFundingRateNum);
 
-	const formattedLongRatePct = absoluteLongFundingRateNum.toFixed(period == 'hour' ? 5 : 2);
-	const formattedShortRatePct = absoluteShortFundingRateNum.toFixed(period == 'hour' ? 5 : 2);
+	const formattedLongRatePct = absoluteLongFundingRateNum.toFixed(
+		period == 'hour' ? 5 : 2
+	);
+	const formattedShortRatePct = absoluteShortFundingRateNum.toFixed(
+		period == 'hour' ? 5 : 2
+	);
 
 	const fundingRateUnit = period == 'year' ? '% APR' : '%';
 
 	const formattedFundingRateSummary = `At this rate, longs would ${longsAreString} ${formattedLongRatePct} ${fundingRateUnit} and shorts would ${shortsAreString} ${formattedShortRatePct} ${fundingRateUnit} at the end of the hour.`;
-	
+
 	return {
-		longRate: longsArePaying ? -absoluteLongFundingRateNum : absoluteLongFundingRateNum,
-		shortRate: shortsArePaying ? -absoluteShortFundingRateNum : absoluteShortFundingRateNum,
+		longRate: longsArePaying
+			? -absoluteLongFundingRateNum
+			: absoluteLongFundingRateNum,
+		shortRate: shortsArePaying
+			? -absoluteShortFundingRateNum
+			: absoluteShortFundingRateNum,
 		fundingRateUnit: fundingRateUnit,
 		formattedFundingRateSummary,
 	};
