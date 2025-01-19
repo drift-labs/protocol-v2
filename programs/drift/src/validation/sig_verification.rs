@@ -256,8 +256,10 @@ pub fn verify_ed25519_msg(
     let payload =
         hex::decode(payload).map_err(|_| SignatureVerificationError::InvalidMessageHex)?;
     Ok(VerifiedMessage {
-        swift_order_params_message: SwiftOrderParamsMessage::deserialize(&mut payload.as_slice())
-            .unwrap(),
+        swift_order_params_message: SwiftOrderParamsMessage::deserialize(
+            &mut &payload[8..], // 8 byte manual discriminator
+        )
+        .unwrap(),
         signature: *signature,
     })
 }
