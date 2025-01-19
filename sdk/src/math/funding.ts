@@ -7,16 +7,16 @@ import {
 	ONE,
 	FUNDING_RATE_OFFSET_DENOMINATOR,
 } from '../constants/numericConstants';
+import { BigNum } from '../factory/bigNum';
 import { PerpMarketAccount, isVariant } from '../types';
 import { OraclePriceData } from '../oracles/types';
 import { calculateBidAskPrice } from './amm';
 import { calculateLiveOracleTwap } from './oracles';
 import { clampBN } from './utils';
 import {
-	BigNum,
 	FUNDING_RATE_BUFFER_PRECISION,
 	FUNDING_RATE_PRECISION_EXP,
-} from '@drift-labs/sdk';
+} from '../constants/numericConstants';
 
 function calculateLiveMarkTwap(
 	market: PerpMarketAccount,
