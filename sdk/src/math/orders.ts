@@ -155,7 +155,7 @@ export function getLimitPrice(
 	oraclePriceData: OraclePriceData,
 	slot: number,
 	fallbackPrice?: BN,
-	protectedMaker? : boolean,
+	protectedMaker?: boolean
 ): BN | undefined {
 	let limitPrice;
 	if (hasAuctionPrice(order, slot)) {

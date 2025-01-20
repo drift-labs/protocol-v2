@@ -355,7 +355,11 @@ mod determine_perp_fulfillment_methods {
             fulfillment_methods,
             [
                 PerpFulfillmentMethod::Match(Pubkey::default(), 0, 99 * PRICE_PRECISION_U64),
-                PerpFulfillmentMethod::Match(Pubkey::default(), 1, 99 * PRICE_PRECISION_U64 + PRICE_PRECISION_U64 / 2),
+                PerpFulfillmentMethod::Match(
+                    Pubkey::default(),
+                    1,
+                    99 * PRICE_PRECISION_U64 + PRICE_PRECISION_U64 / 2
+                ),
                 PerpFulfillmentMethod::AMM(None),
             ]
         );

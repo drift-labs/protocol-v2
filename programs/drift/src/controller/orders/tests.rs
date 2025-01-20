@@ -44,13 +44,15 @@ pub mod fill_order_protected_maker {
     };
     use crate::state::oracle::HistoricalOracleData;
     use crate::state::oracle::OracleSource;
-    use crate::state::perp_market::{PerpMarket, AMM};
     use crate::state::paused_operations::PerpOperation;
+    use crate::state::perp_market::{PerpMarket, AMM};
     use crate::state::perp_market_map::PerpMarketMap;
     use crate::state::spot_market::{SpotBalanceType, SpotMarket};
     use crate::state::spot_market_map::SpotMarketMap;
     use crate::state::state::State;
-    use crate::state::user::{MarketType, OrderStatus, OrderType, SpotPosition, User, UserStats, UserStatus};
+    use crate::state::user::{
+        MarketType, OrderStatus, OrderType, SpotPosition, User, UserStats, UserStatus,
+    };
     use crate::test_utils::*;
     use crate::test_utils::{
         create_account_info, get_orders, get_positions, get_pyth_price, get_spot_positions,
@@ -157,9 +159,9 @@ pub mod fill_order_protected_maker {
                 base_asset_amount: BASE_PRECISION_U64,
                 slot: clock.slot - 1, // fresh
                 auction_start_price: 0,
-                auction_end_price: 100 * PRICE_PRECISION_I64 + (100 * PRICE_PRECISION_I64)/1000,
+                auction_end_price: 100 * PRICE_PRECISION_I64 + (100 * PRICE_PRECISION_I64) / 1000,
                 auction_duration: 1,
-                price: 100 * PRICE_PRECISION_U64 + (100 * PRICE_PRECISION_U64)/1000, // 10 bps higher than maker order price
+                price: 100 * PRICE_PRECISION_U64 + (100 * PRICE_PRECISION_U64) / 1000, // 10 bps higher than maker order price
                 ..Order::default()
             }),
             perp_positions: get_positions(PerpPosition {
@@ -262,7 +264,7 @@ pub mod fill_order_protected_maker {
         .unwrap();
 
         assert_eq!(base_asset_amount, 1000000000);
-        assert_eq!(quote_asset_amount, 100_000_000 + 100_000_000/1000); // $100 + 10 bps
+        assert_eq!(quote_asset_amount, 100_000_000 + 100_000_000 / 1000); // $100 + 10 bps
 
         // user exempt, no 10 bps applied for pmm
         let mut user = User {
@@ -279,9 +281,9 @@ pub mod fill_order_protected_maker {
                 base_asset_amount: BASE_PRECISION_U64,
                 slot: clock.slot - 1, // fresh
                 auction_start_price: 0,
-                auction_end_price: 100 * PRICE_PRECISION_I64 + (100 * PRICE_PRECISION_I64)/1000,
+                auction_end_price: 100 * PRICE_PRECISION_I64 + (100 * PRICE_PRECISION_I64) / 1000,
                 auction_duration: 1,
-                price: 100 * PRICE_PRECISION_U64 + (100 * PRICE_PRECISION_U64)/1000, // 10 bps higher than maker order price
+                price: 100 * PRICE_PRECISION_U64 + (100 * PRICE_PRECISION_U64) / 1000, // 10 bps higher than maker order price
                 ..Order::default()
             }),
             perp_positions: get_positions(PerpPosition {
@@ -303,46 +305,45 @@ pub mod fill_order_protected_maker {
         let user_account_loader: AccountLoader<User> =
             AccountLoader::try_from(&user_account_info).unwrap();
 
-            let mut maker = User {
-                status: UserStatus::ProtectedMakerOrders as u8,
-                authority: maker_authority,
-                orders: get_orders(Order {
-                    market_index: 0,
-                    order_id: maker_order_id,
-                    status: OrderStatus::Open,
-                    order_type: OrderType::Limit,
-                    market_type: MarketType::Perp,
-                    direction: PositionDirection::Short,
-                    base_asset_amount: BASE_PRECISION_U64,
-                    slot: clock.slot - 3,
-                    price: 100 * PRICE_PRECISION_U64,
-                    post_only: true,
-                    ..Order::default()
-                }),
-                perp_positions: get_positions(PerpPosition {
-                    market_index: 0,
-                    open_orders: 1,
-                    open_asks: -BASE_PRECISION_I64,
-                    ..PerpPosition::default()
-                }),
-                spot_positions: get_spot_positions(SpotPosition {
-                    market_index: 0,
-                    balance_type: SpotBalanceType::Deposit,
-                    scaled_balance: 100 * SPOT_BALANCE_PRECISION_U64,
-                    ..SpotPosition::default()
-                }),
-                ..User::default()
-            };
-            create_anchor_account_info!(maker, &maker_key, User, maker_account_info);
-            let makers_and_referrers = UserMap::load_one(&maker_account_info).unwrap();
-    
-            let mut maker_stats = UserStats {
-                authority: maker_authority,
-                ..UserStats::default()
-            };
-            create_anchor_account_info!(maker_stats, UserStats, maker_stats_account_info);
-            let maker_and_referrer_stats = UserStatsMap::load_one(&maker_stats_account_info).unwrap();    
+        let mut maker = User {
+            status: UserStatus::ProtectedMakerOrders as u8,
+            authority: maker_authority,
+            orders: get_orders(Order {
+                market_index: 0,
+                order_id: maker_order_id,
+                status: OrderStatus::Open,
+                order_type: OrderType::Limit,
+                market_type: MarketType::Perp,
+                direction: PositionDirection::Short,
+                base_asset_amount: BASE_PRECISION_U64,
+                slot: clock.slot - 3,
+                price: 100 * PRICE_PRECISION_U64,
+                post_only: true,
+                ..Order::default()
+            }),
+            perp_positions: get_positions(PerpPosition {
+                market_index: 0,
+                open_orders: 1,
+                open_asks: -BASE_PRECISION_I64,
+                ..PerpPosition::default()
+            }),
+            spot_positions: get_spot_positions(SpotPosition {
+                market_index: 0,
+                balance_type: SpotBalanceType::Deposit,
+                scaled_balance: 100 * SPOT_BALANCE_PRECISION_U64,
+                ..SpotPosition::default()
+            }),
+            ..User::default()
+        };
+        create_anchor_account_info!(maker, &maker_key, User, maker_account_info);
+        let makers_and_referrers = UserMap::load_one(&maker_account_info).unwrap();
 
+        let mut maker_stats = UserStats {
+            authority: maker_authority,
+            ..UserStats::default()
+        };
+        create_anchor_account_info!(maker_stats, UserStats, maker_stats_account_info);
+        let maker_and_referrer_stats = UserStatsMap::load_one(&maker_stats_account_info).unwrap();
 
         let (base_asset_amount, quote_asset_amount) = fill_perp_order(
             1,
@@ -362,12 +363,9 @@ pub mod fill_order_protected_maker {
         )
         .unwrap();
 
-
         assert_eq!(base_asset_amount, 1000000000);
         assert_eq!(quote_asset_amount, 100_000_000); // $100
-
     }
-
 }
 
 pub mod fulfill_order_with_maker_order {
@@ -6210,10 +6208,6 @@ pub mod fill_order {
 
         assert_eq!(err, Err(ErrorCode::MaxOpenInterest));
     }
-
-
-
-
 }
 
 #[cfg(test)]

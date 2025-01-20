@@ -9,7 +9,9 @@ use crate::math::constants::{
 };
 use crate::math::lp::{calculate_lp_open_bids_asks, calculate_settle_lp_metrics};
 use crate::math::margin::MarginRequirementType;
-use crate::math::orders::{apply_protected_maker_limit_price_offset, standardize_base_asset_amount, standardize_price};
+use crate::math::orders::{
+    apply_protected_maker_limit_price_offset, standardize_base_asset_amount, standardize_price,
+};
 use crate::math::position::{
     calculate_base_asset_value_and_pnl_with_oracle_price,
     calculate_base_asset_value_with_oracle_price, calculate_perp_liability_value,
@@ -1393,7 +1395,12 @@ impl Order {
             }
 
             if apply_protected_maker_offset {
-                limit_price = apply_protected_maker_limit_price_offset(limit_price, tick_size, self.direction, false)?;
+                limit_price = apply_protected_maker_limit_price_offset(
+                    limit_price,
+                    tick_size,
+                    self.direction,
+                    false,
+                )?;
             }
 
             Some(standardize_price(limit_price, tick_size, self.direction)?)
@@ -1406,7 +1413,12 @@ impl Order {
             let mut price = self.price;
 
             if apply_protected_maker_offset {
-                price = apply_protected_maker_limit_price_offset(price, tick_size, self.direction, true)?;
+                price = apply_protected_maker_limit_price_offset(
+                    price,
+                    tick_size,
+                    self.direction,
+                    true,
+                )?;
             }
 
             Some(price)

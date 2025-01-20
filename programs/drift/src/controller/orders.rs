@@ -1752,7 +1752,10 @@ fn apply_protected_maker_offset(
     taker_order_age: u64,
     protected_maker_min_age: u64,
 ) -> bool {
-    is_protected_maker && !jit_maker && !user_can_skip_duration && taker_order_age < protected_maker_min_age
+    is_protected_maker
+        && !jit_maker
+        && !user_can_skip_duration
+        && taker_order_age < protected_maker_min_age
 }
 
 #[inline(always)]
