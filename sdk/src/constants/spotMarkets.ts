@@ -660,6 +660,17 @@ export const MainnetSpotMarkets: SpotMarketConfig[] = [
 			'0x879551021853eec7a7dc827578e8e69da7e4fa8148339aa0d3d5296405be4b1a',
 		launchTs: 1737219250000,
 	},
+	{
+		symbol: 'MELANIA',
+		marketIndex: 37,
+		poolId: 0,
+		oracle: new PublicKey('3uFMuqGg3GCZK1XSdBfpvSrj28uqFBzz6xTTAaFeobBP'),
+		oracleSource: OracleSource.PYTH_PULL,
+		mint: new PublicKey('FUAfBo2jgks6gB4Z4LfZkqSZgzNucisEHqnNebaRxM1P'),
+		precision: new BN(10).pow(SIX),
+		precisionExp: SIX,
+		launchTs: 1737360280000,
+	},
 ];
 
 export const SpotMarkets: { [key in DriftEnv]: SpotMarketConfig[] } = {
