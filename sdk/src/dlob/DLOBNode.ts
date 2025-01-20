@@ -13,7 +13,11 @@ import {
 import { getOrderSignature } from './NodeList';
 
 export interface DLOBNode {
-	getPrice(oraclePriceData: OraclePriceData, slot: number): BN;
+	getPrice(
+		oraclePriceData: OraclePriceData,
+		slot: number,
+		protectedMakerView?: boolean
+	): BN;
 	isVammNode(): boolean;
 	order: Order | undefined;
 	isBaseFilled(): boolean;
@@ -75,8 +79,18 @@ export abstract class OrderNode implements DLOBNode {
 		return msg;
 	}
 
-	getPrice(oraclePriceData: OraclePriceData, slot: number): BN {
-		return getLimitPrice(this.order, oraclePriceData, slot);
+	getPrice(
+		oraclePriceData: OraclePriceData,
+		slot: number,
+		protectedMakerView?: boolean
+	): BN {
+		return getLimitPrice(
+			this.order,
+			oraclePriceData,
+			slot,
+			undefined,
+			protectedMakerView && this.isUserProtectedMaker
+		);
 	}
 
 	isBaseFilled(): boolean {

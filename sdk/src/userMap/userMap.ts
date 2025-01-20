@@ -281,8 +281,11 @@ export class UserMap implements UserMapInterface {
 	 * create a DLOB from all the subscribed users
 	 * @param slot
 	 */
-	public async getDLOB(slot: number): Promise<DLOB> {
-		const dlob = new DLOB();
+	public async getDLOB(
+		slot: number,
+		protectedMakerView?: boolean
+	): Promise<DLOB> {
+		const dlob = new DLOB(protectedMakerView);
 		await dlob.initFromUserMap(this, slot);
 		return dlob;
 	}

@@ -23,14 +23,16 @@ export class DLOBSubscriber {
 	slotSource: SlotSource;
 	updateFrequency: number;
 	intervalId?: NodeJS.Timeout;
-	dlob = new DLOB();
+	dlob: DLOB;
 	public eventEmitter: StrictEventEmitter<EventEmitter, DLOBSubscriberEvents>;
-
+	protectedMakerView: boolean;
 	constructor(config: DLOBSubscriptionConfig) {
 		this.driftClient = config.driftClient;
 		this.dlobSource = config.dlobSource;
 		this.slotSource = config.slotSource;
 		this.updateFrequency = config.updateFrequency;
+		this.protectedMakerView = config.protectedMakerView || false;
+		this.dlob = new DLOB(this.protectedMakerView);
 		this.eventEmitter = new EventEmitter();
 	}
 
@@ -52,7 +54,10 @@ export class DLOBSubscriber {
 	}
 
 	async updateDLOB(): Promise<void> {
-		this.dlob = await this.dlobSource.getDLOB(this.slotSource.getSlot());
+		this.dlob = await this.dlobSource.getDLOB(
+			this.slotSource.getSlot(),
+			this.protectedMakerView
+		);
 	}
 
 	public getDLOB(): DLOB {

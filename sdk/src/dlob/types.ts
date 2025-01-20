@@ -6,6 +6,7 @@ export type DLOBSubscriptionConfig = {
 	dlobSource: DLOBSource;
 	slotSource: SlotSource;
 	updateFrequency: number;
+	protectedMakerView?: boolean;
 };
 
 export interface DLOBSubscriberEvents {
@@ -14,7 +15,7 @@ export interface DLOBSubscriberEvents {
 }
 
 export interface DLOBSource {
-	getDLOB(slot: number): Promise<DLOB>;
+	getDLOB(slot: number, protectedMakerView?: boolean): Promise<DLOB>;
 }
 
 export interface SlotSource {

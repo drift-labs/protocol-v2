@@ -223,12 +223,15 @@ export class OrderSubscriber {
 	 * caller to extend the DLOB Subscriber with a custom DLOB type.
 	 * @returns New, empty DLOB object.
 	 */
-	protected createDLOB(): DLOB {
-		return new DLOB();
+	protected createDLOB(protectedMakerView?: boolean): DLOB {
+		return new DLOB(protectedMakerView);
 	}
 
-	public async getDLOB(slot: number): Promise<DLOB> {
-		const dlob = this.createDLOB();
+	public async getDLOB(
+		slot: number,
+		protectedMakerView?: boolean
+	): Promise<DLOB> {
+		const dlob = this.createDLOB(protectedMakerView);
 		for (const [key, { userAccount }] of this.usersAccounts.entries()) {
 			const protectedMaker = isUserProtectedMaker(userAccount);
 			for (const order of userAccount.orders) {
