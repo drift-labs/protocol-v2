@@ -5885,13 +5885,14 @@ export class DriftClient {
 	): Buffer {
 		const anchorIxName = 'global' + ':' + 'swiftOrderMessageParams';
 		const prefix = Buffer.from(hash(anchorIxName).slice(0, 8));
-		return Buffer.concat([
+		const buf = Buffer.concat([
 			prefix,
 			this.program.coder.types.encode(
 				'SwiftOrderParamsMessage',
 				orderParamsMessage
 			),
 		]);
+		return buf;
 	}
 
 	/*
@@ -5902,7 +5903,7 @@ export class DriftClient {
 	): SwiftOrderParamsMessage {
 		return this.program.coder.types.decode(
 			'SwiftOrderParamsMessage',
-			encodedMessage
+			encodedMessage.slice(8) // assumes discriminator
 		);
 	}
 
