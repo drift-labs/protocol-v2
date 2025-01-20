@@ -3936,10 +3936,11 @@ export class AdminClient extends DriftClient {
 	}
 
 	public async initializePythLazerOracle(
-		feedId: number
+		feedId: number,
+		exponent: number
 	): Promise<TransactionSignature> {
 		const initializePythPullOracleIx =
-			await this.getInitializePythLazerOracleIx(feedId);
+			await this.getInitializePythLazerOracleIx(feedId, exponent);
 		const tx = await this.buildTransaction(initializePythPullOracleIx);
 		const { txSig } = await this.sendTransaction(tx, [], this.opts);
 
@@ -3947,22 +3948,61 @@ export class AdminClient extends DriftClient {
 	}
 
 	public async getInitializePythLazerOracleIx(
-		feedId: number
+		feedId: number,
+		exponent: number
 	): Promise<TransactionInstruction> {
-		return await this.program.instruction.initializePythLazerOracle(feedId, {
-			accounts: {
-				admin: this.useHotWalletAdmin
-					? this.wallet.publicKey
-					: this.getStateAccount().admin,
-				state: await this.getStatePublicKey(),
-				systemProgram: SystemProgram.programId,
-				lazerOracle: getPythLazerOraclePublicKey(
-					this.program.programId,
-					feedId
-				),
-				rent: SYSVAR_RENT_PUBKEY,
-			},
-		});
+		return await this.program.instruction.initializePythLazerOracle(
+			feedId,
+			exponent,
+			{
+				accounts: {
+					admin: this.useHotWalletAdmin
+						? this.wallet.publicKey
+						: this.getStateAccount().admin,
+					state: await this.getStatePublicKey(),
+					systemProgram: SystemProgram.programId,
+					lazerOracle: getPythLazerOraclePublicKey(
+						this.program.programId,
+						feedId
+					),
+					rent: SYSVAR_RENT_PUBKEY,
+				},
+			}
+		);
+	}
+
+	public async updatePythLazerOracleExponent(
+		feedId: number,
+		exponent: number
+	): Promise<TransactionSignature> {
+		const initializePythPullOracleIx =
+			await this.getUpdatePythLazerOracleExponentIx(feedId, exponent);
+		const tx = await this.buildTransaction(initializePythPullOracleIx);
+		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+
+		return txSig;
+	}
+
+	public async getUpdatePythLazerOracleExponentIx(
+		feedId: number,
+		exponent: number
+	): Promise<TransactionInstruction> {
+		return await this.program.instruction.updatePythLazerOracleExponent(
+			feedId,
+			exponent,
+			{
+				accounts: {
+					admin: this.useHotWalletAdmin
+						? this.wallet.publicKey
+						: this.getStateAccount().admin,
+					state: await this.getStatePublicKey(),
+					lazerOracle: getPythLazerOraclePublicKey(
+						this.program.programId,
+						feedId
+					),
+				},
+			}
+		);
 	}
 
 	public async initializeHighLeverageModeConfig(

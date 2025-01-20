@@ -176,6 +176,13 @@ export class WebSocketDriftClientAccountSubscriber
 		return true;
 	}
 
+	chunks = <T>(array: readonly T[], size: number): T[][] => {
+		return new Array(Math.ceil(array.length / size))
+			.fill(null)
+			.map((_, index) => index * size)
+			.map((begin) => array.slice(begin, begin + size));
+	};
+
 	async setInitialData(): Promise<void> {
 		const connection = this.program.provider.connection;
 
@@ -183,9 +190,14 @@ export class WebSocketDriftClientAccountSubscriber
 			const perpMarketPublicKeys = this.perpMarketIndexes.map((marketIndex) =>
 				getPerpMarketPublicKeySync(this.program.programId, marketIndex)
 			);
-			const perpMarketAccountInfos = await connection.getMultipleAccountsInfo(
-				perpMarketPublicKeys
-			);
+			const perpMarketPublicKeysChunks = this.chunks(perpMarketPublicKeys, 75);
+			const perpMarketAccountInfos = (
+				await Promise.all(
+					perpMarketPublicKeysChunks.map((perpMarketPublicKeysChunk) =>
+						connection.getMultipleAccountsInfo(perpMarketPublicKeysChunk)
+					)
+				)
+			).flat();
 			this.initialPerpMarketAccountData = new Map(
 				perpMarketAccountInfos
 					.filter((accountInfo) => !!accountInfo)
@@ -203,9 +215,14 @@ export class WebSocketDriftClientAccountSubscriber
 			const spotMarketPublicKeys = this.spotMarketIndexes.map((marketIndex) =>
 				getSpotMarketPublicKeySync(this.program.programId, marketIndex)
 			);
-			const spotMarketAccountInfos = await connection.getMultipleAccountsInfo(
-				spotMarketPublicKeys
-			);
+			const spotMarketPublicKeysChunks = this.chunks(spotMarketPublicKeys, 75);
+			const spotMarketAccountInfos = (
+				await Promise.all(
+					spotMarketPublicKeysChunks.map((spotMarketPublicKeysChunk) =>
+						connection.getMultipleAccountsInfo(spotMarketPublicKeysChunk)
+					)
+				)
+			).flat();
 			this.initialSpotMarketAccountData = new Map(
 				spotMarketAccountInfos
 					.filter((accountInfo) => !!accountInfo)
@@ -219,9 +236,17 @@ export class WebSocketDriftClientAccountSubscriber
 			);
 		}
 
-		const oracleAccountInfos = await connection.getMultipleAccountsInfo(
-			this.oracleInfos.map((oracleInfo) => oracleInfo.publicKey)
+		const oracleAccountPubkeyChunks = this.chunks(
+			this.oracleInfos.map((oracleInfo) => oracleInfo.publicKey),
+			75
 		);
+		const oracleAccountInfos = (
+			await Promise.all(
+				oracleAccountPubkeyChunks.map((oracleAccountPublicKeysChunk) =>
+					connection.getMultipleAccountsInfo(oracleAccountPublicKeysChunk)
+				)
+			)
+		).flat();
 		this.initialOraclePriceData = new Map(
 			this.oracleInfos.reduce((result, oracleInfo, i) => {
 				if (!oracleAccountInfos[i]) {

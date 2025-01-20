@@ -101,7 +101,6 @@ pub fn handle_update_pyth_lazer_oracle<'c: 'info, 'info>(
             pyth_lazer_oracle.posted_slot = Clock::get()?.slot;
             pyth_lazer_oracle.publish_time = next_timestamp;
             pyth_lazer_oracle.conf = conf.cast::<u64>()?;
-            pyth_lazer_oracle.exponent = -8;
             msg!("Price updated to {}", price.0.get());
 
             msg!(

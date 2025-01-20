@@ -13,7 +13,6 @@ import {
 	Wallet,
 	EventSubscriber,
 	OracleSource,
-	ANCHOR_TEST_SWIFT_ID,
 	getSwiftUserAccountPublicKey,
 } from '../sdk/src';
 
@@ -110,7 +109,6 @@ describe('place and make swift order', () => {
 				type: 'polling',
 				accountLoader: bulkAccountLoader,
 			},
-			swiftID: new PublicKey(ANCHOR_TEST_SWIFT_ID),
 		});
 		await makerDriftClient.initialize(usdcMint.publicKey, true);
 		await makerDriftClient.subscribe();
@@ -163,13 +161,13 @@ describe('place and make swift order', () => {
 		await takerDriftClientUser.fetchAccounts();
 
 		await takerDriftClient.resizeSwiftUserOrders(
-			takerDriftClientUser.userAccountPublicKey,
+			takerDriftClientUser.getUserAccount().authority,
 			100
 		);
 
 		const swiftUserOrdersAccountPublicKey = getSwiftUserAccountPublicKey(
 			takerDriftClient.program.programId,
-			takerDriftClientUser.userAccountPublicKey
+			takerDriftClientUser.getUserAccount().authority
 		);
 		const swiftUserOrders =
 			(await takerDriftClient.program.account.swiftUserOrders.fetch(
@@ -197,13 +195,13 @@ describe('place and make swift order', () => {
 		await takerDriftClientUser.fetchAccounts();
 
 		await takerDriftClient.resizeSwiftUserOrders(
-			takerDriftClientUser.userAccountPublicKey,
+			takerDriftClientUser.getUserAccount().authority,
 			4
 		);
 
 		const swiftUserOrdersAccountPublicKey = getSwiftUserAccountPublicKey(
 			takerDriftClient.program.programId,
-			takerDriftClientUser.userAccountPublicKey
+			takerDriftClientUser.getUserAccount().authority
 		);
 		const swiftUserOrders =
 			(await takerDriftClient.program.account.swiftUserOrders.fetch(
@@ -270,7 +268,7 @@ async function initializeNewTakerClientAndUser(
 	});
 	await takerDriftClientUser.subscribe();
 	await takerDriftClient.initializeSwiftUserOrders(
-		takerDriftClientUser.userAccountPublicKey,
+		takerDriftClientUser.getUserAccount().authority,
 		32
 	);
 	return [takerDriftClient, takerDriftClientUser];
