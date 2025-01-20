@@ -19,7 +19,8 @@ use crate::controller::spot_position::{
 };
 use crate::error::ErrorCode;
 use crate::ids::{
-    jupiter_mainnet_3, jupiter_mainnet_4, jupiter_mainnet_6, marinade_mainnet, serum_program,
+    jupiter_mainnet_3, jupiter_mainnet_4, jupiter_mainnet_6, lighthouse, marinade_mainnet,
+    serum_program,
 };
 use crate::instructions::constraints::*;
 use crate::instructions::optional_accounts::{
@@ -2683,6 +2684,10 @@ pub fn handle_begin_swap<'c: 'info, 'info>(
             }
         } else {
             if found_end {
+                if ix.program_id == lighthouse::ID {
+                    continue;
+                }
+
                 for meta in ix.accounts.iter() {
                     validate!(
                         meta.is_writable == false,

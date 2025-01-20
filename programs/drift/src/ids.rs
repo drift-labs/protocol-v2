@@ -82,3 +82,8 @@ pub mod swift_server {
     #[cfg(feature = "anchor-test")]
     declare_id!("DpaEdAPW3ZX67fnczT14AoX12Lx9VMkxvtT81nCHy3Nv");
 }
+
+pub mod lighthouse {
+    use solana_program::declare_id;
+    declare_id!("L2TExMFKdjpN9kozasaurPirfHy9P8sbXoAN1qA3S95");
+}
