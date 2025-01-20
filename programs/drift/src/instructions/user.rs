@@ -19,8 +19,8 @@ use crate::controller::spot_position::{
 };
 use crate::error::ErrorCode;
 use crate::ids::{
-    jupiter_mainnet_3, jupiter_mainnet_4, jupiter_mainnet_6, marinade_mainnet, serum_program,
-    lighthouse,
+    jupiter_mainnet_3, jupiter_mainnet_4, jupiter_mainnet_6, lighthouse, marinade_mainnet,
+    serum_program,
 };
 use crate::instructions::constraints::*;
 use crate::instructions::optional_accounts::{
