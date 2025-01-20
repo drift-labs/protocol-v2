@@ -272,6 +272,7 @@ pub fn standardize_price_i64(
     }
 }
 
+#[inline(always)]
 pub fn apply_protected_maker_limit_price_offset(
     price: u64,
     tick_size: u64,
