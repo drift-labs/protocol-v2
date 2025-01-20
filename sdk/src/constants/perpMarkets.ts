@@ -1168,6 +1168,16 @@ export const MainnetPerpMarkets: PerpMarketConfig[] = [
 		pythFeedId:
 			'0x879551021853eec7a7dc827578e8e69da7e4fa8148339aa0d3d5296405be4b1a',
 	},
+	{
+		fullName: 'MELANIA',
+		category: ['Meme'],
+		symbol: 'MELANIA-PERP',
+		baseAssetSymbol: 'MELANIA',
+		marketIndex: 65,
+		oracle: new PublicKey('3uFMuqGg3GCZK1XSdBfpvSrj28uqFBzz6xTTAaFeobBP'),
+		launchTs: 1737360280000,
+		oracleSource: OracleSource.SWITCHBOARD_ON_DEMAND,
+	},
 ];
 
 export const PerpMarkets: { [key in DriftEnv]: PerpMarketConfig[] } = {
