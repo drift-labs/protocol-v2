@@ -669,7 +669,8 @@ export const MainnetSpotMarkets: SpotMarketConfig[] = [
 		mint: new PublicKey('FUAfBo2jgks6gB4Z4LfZkqSZgzNucisEHqnNebaRxM1P'),
 		precision: new BN(10).pow(SIX),
 		precisionExp: SIX,
-		pythFeedId: '0x8fef7d52c7f4e3a6258d663f9d27e64a1b6fd95ab5f7d545dbf9a515353d0064',
+		pythFeedId:
+			'0x8fef7d52c7f4e3a6258d663f9d27e64a1b6fd95ab5f7d545dbf9a515353d0064',
 		launchTs: 1737360280000,
 	},
 ];
