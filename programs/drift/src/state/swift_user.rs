@@ -50,7 +50,7 @@ impl Size for SwiftUserOrders {
 #[derive(Default, Eq, PartialEq, Debug)]
 #[repr(C)]
 pub struct SwiftUserOrders {
-    pub user_pubkey: Pubkey,
+    pub authority_pubkey: Pubkey,
     pub padding: u32,
     pub swift_order_data: Vec<SwiftOrderId>,
 }

@@ -331,7 +331,7 @@ describe('place and make swift order', () => {
 		);
 
 		// Switch the oracle over to using pyth lazer
-		await makerDriftClient.initializePythLazerOracle(6);
+		await makerDriftClient.initializePythLazerOracle(6, -8);
 		await makerDriftClient.postPythLazerOracleUpdate(
 			[6],
 			PYTH_LAZER_HEX_STRING_SOL
@@ -962,9 +962,6 @@ describe('place and make swift order', () => {
 				bulkAccountLoader
 			);
 		await takerDriftClientUser.fetchAccounts();
-
-		const userAccountPubkey = await takerDriftClient.getUserAccountPublicKey();
-
 		await takerDriftClient.deleteSwiftUserOrders();
 
 		assert(
@@ -972,7 +969,7 @@ describe('place and make swift order', () => {
 				takerDriftClient.connection,
 				getSwiftUserAccountPublicKey(
 					takerDriftClient.program.programId,
-					userAccountPubkey
+					takerDriftClient.authority
 				)
 			)) == false
 		);
@@ -1035,7 +1032,7 @@ async function initializeNewTakerClientAndUser(
 	});
 	await takerDriftClientUser.subscribe();
 	await takerDriftClient.initializeSwiftUserOrders(
-		takerDriftClientUser.userAccountPublicKey,
+		takerDriftClientUser.getUserAccount().authority,
 		32
 	);
 	return [takerDriftClient, takerDriftClientUser];

@@ -200,7 +200,7 @@ describe('place and make swift order', () => {
 		});
 		await takerDriftClientUser.subscribe();
 		await takerDriftClient.initializeSwiftUserOrders(
-			takerDriftClientUser.userAccountPublicKey,
+			takerDriftClientUser.getUserAccount().authority,
 			32
 		);
 
@@ -325,7 +325,7 @@ describe('place and make swift order', () => {
 		});
 		await takerDriftClientUser.subscribe();
 		await takerDriftClient.initializeSwiftUserOrders(
-			takerDriftClientUser.userAccountPublicKey,
+			takerDriftClientUser.getUserAccount().authority,
 			32
 		);
 

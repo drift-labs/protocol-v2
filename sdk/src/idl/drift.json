@@ -143,11 +143,6 @@
           "isSigner": true
         },
         {
-          "name": "user",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
           "name": "payer",
           "isMut": true,
           "isSigner": true
@@ -182,11 +177,6 @@
           "name": "authority",
           "isMut": true,
           "isSigner": true
-        },
-        {
-          "name": "user",
-          "isMut": false,
-          "isSigner": false
         },
         {
           "name": "systemProgram",
@@ -1553,11 +1543,6 @@
     {
       "name": "deleteSwiftUserOrders",
       "accounts": [
-        {
-          "name": "user",
-          "isMut": true,
-          "isSigner": false
-        },
         {
           "name": "swiftUserOrders",
           "isMut": true,
@@ -6682,6 +6667,40 @@
         {
           "name": "feedId",
           "type": "u32"
+        },
+        {
+          "name": "exponent",
+          "type": "i32"
+        }
+      ]
+    },
+    {
+      "name": "updatePythLazerOracleExponent",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "lazerOracle",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "feedId",
+          "type": "u32"
+        },
+        {
+          "name": "exponent",
+          "type": "i32"
         }
       ]
     },
@@ -8212,7 +8231,7 @@
         "kind": "struct",
         "fields": [
           {
-            "name": "userPubkey",
+            "name": "authorityPubkey",
             "type": "publicKey"
           },
           {
@@ -11471,6 +11490,12 @@
           },
           {
             "name": "PythLazer"
+          },
+          {
+            "name": "PythLazer1K"
+          },
+          {
+            "name": "PythLazer1M"
           }
         ]
       }

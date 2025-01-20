@@ -338,11 +338,6 @@ impl PerpMarket {
 
         if can_skip {
             msg!("market {} amm skipping auction duration", self.market_index);
-            crate::dlog!(
-                self.amm.net_revenue_since_last_funding,
-                amm_lp_allowed_to_jit_make
-            );
-            crate::dlog!(amm_low_inventory_and_profitable, amm_oracle_no_latency);
         }
 
         Ok(can_skip)
@@ -1454,6 +1449,12 @@ impl AMM {
             )),
             OracleSource::PythLazer => Ok(Some(
                 self.get_pyth_twap(price_oracle, &OracleSource::PythLazer)?,
+            )),
+            OracleSource::PythLazer1K => Ok(Some(
+                self.get_pyth_twap(price_oracle, &OracleSource::PythLazer1K)?,
+            )),
+            OracleSource::PythLazer1M => Ok(Some(
+                self.get_pyth_twap(price_oracle, &OracleSource::PythLazer1M)?,
             )),
         }
     }

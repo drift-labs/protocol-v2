@@ -7,6 +7,7 @@ import {
 	PRICE_PRECISION,
 	PTYH_LAZER_PROGRAM_ID,
 	PYTH_LAZER_STORAGE_ACCOUNT_KEY,
+	PythLazerClient,
 	TestClient,
 	assert,
 	getPythLazerOraclePublicKey,
@@ -124,9 +125,9 @@ describe('pyth pull oracles', () => {
 	});
 
 	it('init feed', async () => {
-		await driftClient.initializePythLazerOracle(1);
-		await driftClient.initializePythLazerOracle(2);
-		await driftClient.initializePythLazerOracle(6);
+		await driftClient.initializePythLazerOracle(1, -8);
+		await driftClient.initializePythLazerOracle(2, -8);
+		await driftClient.initializePythLazerOracle(6, -8);
 	});
 
 	it('crank single', async () => {
@@ -151,5 +152,20 @@ describe('pyth pull oracles', () => {
 			PYTH_LAZER_HEX_STRING_MULTI
 		);
 		console.log(tx);
+	});
+
+	it('update exponent', async () => {
+		await driftClient.updatePythLazerOracleExponent(1, -10);
+		const pythLazerClient = new PythLazerClient(
+			bankrunContextWrapper.connection.toConnection()
+		);
+		const accountData = await bankrunContextWrapper.connection.getAccountInfo(
+			getPythLazerOraclePublicKey(driftClient.program.programId, 1)
+		);
+		const oracleData = pythLazerClient.decodeFunc(
+			'PythLazerOracle',
+			accountData.data
+		);
+		assert(oracleData.exponent === -10);
 	});
 });

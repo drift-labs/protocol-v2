@@ -3016,7 +3016,7 @@ pub struct PlaceSwiftTakerOrder<'info> {
     pub user_stats: AccountLoader<'info, UserStats>,
     #[account(
         mut,
-        seeds = [SWIFT_PDA_SEED.as_ref(), user.key().as_ref()],
+        seeds = [SWIFT_PDA_SEED.as_ref(), user.load()?.authority.as_ref()],
         bump,
     )]
     /// CHECK: checked in SwiftUserOrdersZeroCopy checks
