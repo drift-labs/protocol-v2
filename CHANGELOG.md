@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Features
 
+### Fixes
+
+### Breaking
+
+## [2.107.0] - 2025-01-20
+
+### Features
+
 - program: apply 10bps to protected market maker limit orders ([#1417](https://github.com/drift-labs/protocol-v2/pull/1417))
 - program: allow lighthouse at end of swap ([#1429](https://github.com/drift-labs/protocol-v2/pull/1429))
 
