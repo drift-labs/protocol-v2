@@ -23,7 +23,6 @@ use crate::controller::spot_position::{
 };
 use crate::error::DriftResult;
 use crate::error::ErrorCode;
-use crate::get_struct_values;
 use crate::get_then_update_id;
 use crate::load_mut;
 use crate::math::amm::calculate_amm_available_liquidity;
@@ -61,7 +60,9 @@ use crate::state::order_params::{
     ModifyOrderParams, ModifyOrderPolicy, OrderParams, PlaceOrderOptions, PostOnlyParam, RFQMatch,
 };
 use crate::state::paused_operations::{PerpOperation, SpotOperation};
-use crate::state::perp_market::{AMMAvailability, AMMLiquiditySplit, MarketStatus, PerpMarket};
+use crate::state::perp_market::{
+    AMMAvailability, AMMLiquiditySplit, ContractTier, MarketStatus, PerpMarket,
+};
 use crate::state::perp_market_map::PerpMarketMap;
 use crate::state::rfq_user::{RFQOrderId, RFQUser};
 use crate::state::spot_fulfillment_params::{ExternalSpotFill, SpotFulfillmentParams};
@@ -81,6 +82,7 @@ use crate::validation::order::{
     validate_order, validate_order_for_force_reduce_only, validate_spot_order,
 };
 use crate::{controller, ID};
+use crate::{get_struct_values, PERCENTAGE_PRECISION_U64};
 
 #[cfg(test)]
 mod tests;
@@ -1615,6 +1617,8 @@ fn get_maker_orders_info(
             continue;
         }
 
+        let is_protected_maker = maker.is_protected_maker();
+
         let mut market = perp_market_map.get_ref_mut(&taker_order.market_index)?;
         let maker_order_price_and_indexes = find_maker_orders(
             &maker,
@@ -1625,6 +1629,13 @@ fn get_maker_orders_info(
             slot,
             market.amm.order_tick_size,
             market.is_prediction_market(),
+            apply_protected_maker_offset(
+                is_protected_maker,
+                jit_maker_order_id.is_some(),
+                user_can_skip_duration,
+                taker_order_age,
+                protected_maker_min_age,
+            ),
         )?;
 
         if maker_order_price_and_indexes.is_empty() {
@@ -1639,8 +1650,6 @@ fn get_maker_orders_info(
         let step_size = market.amm.order_step_size;
 
         drop(market);
-
-        let is_protected_maker = maker.is_protected_maker();
 
         for (maker_order_index, maker_order_price) in maker_order_price_and_indexes.iter() {
             let maker_order_index = *maker_order_index;
@@ -1724,19 +1733,6 @@ fn get_maker_orders_info(
                 continue;
             }
 
-            if is_protected_maker && maker_order.has_oracle_price_offset() {
-                if !protected_maker_oracle_limit_can_fill(
-                    oracle_valid_for_amm_fill,
-                    oracle_delay,
-                    user_can_skip_duration,
-                    taker_order_age,
-                    protected_maker_min_age,
-                ) {
-                    msg!("Protected maker oracle limit cannot fill. oracle delay = {}, user can skip duration = {}, taker order age = {}", oracle_delay, user_can_skip_duration, taker_order_age);
-                    continue;
-                }
-            }
-
             insert_maker_order_info(
                 &mut maker_orders_info,
                 (*maker_key, maker_order_index, maker_order_price),
@@ -1749,17 +1745,17 @@ fn get_maker_orders_info(
 }
 
 #[inline(always)]
-fn protected_maker_oracle_limit_can_fill(
-    oracle_valid_for_amm_fill: bool,
-    oracle_delay: i64,
+fn apply_protected_maker_offset(
+    is_protected_maker: bool,
+    jit_maker: bool,
     user_can_skip_duration: bool,
     taker_order_age: u64,
     protected_maker_min_age: u64,
 ) -> bool {
-    oracle_valid_for_amm_fill
-        && (oracle_delay == 0
-            || user_can_skip_duration
-            || taker_order_age > protected_maker_min_age)
+    is_protected_maker
+        && !jit_maker
+        && !user_can_skip_duration
+        && taker_order_age < protected_maker_min_age
 }
 
 #[inline(always)]
@@ -1953,7 +1949,7 @@ fn fulfill_perp_order(
 
                 (fill_base_asset_amount, fill_quote_asset_amount)
             }
-            PerpFulfillmentMethod::Match(maker_key, maker_order_index) => {
+            PerpFulfillmentMethod::Match(maker_key, maker_order_index, maker_price) => {
                 let mut maker = makers_and_referrer.get_ref_mut(maker_key)?;
                 let mut maker_stats = if maker.authority == user.authority {
                     None
@@ -1987,6 +1983,7 @@ fn fulfill_perp_order(
                         reserve_price_before,
                         valid_oracle_price,
                         limit_price,
+                        *maker_price,
                         now,
                         slot,
                         fee_structure,
@@ -2540,6 +2537,7 @@ pub fn fulfill_perp_order_with_match(
     reserve_price_before: u64,
     valid_oracle_price: Option<i64>,
     taker_limit_price: Option<u64>,
+    maker_price: u64,
     now: i64,
     slot: u64,
     fee_structure: &FeeStructure,
@@ -2576,13 +2574,6 @@ pub fn fulfill_perp_order_with_match(
     let taker_base_asset_amount = taker.orders[taker_order_index]
         .get_base_asset_amount_unfilled(Some(taker_existing_position))?;
 
-    let maker_price = maker.orders[maker_order_index].force_get_limit_price(
-        Some(oracle_price),
-        None,
-        slot,
-        market.amm.order_tick_size,
-        market.is_prediction_market(),
-    )?;
     let maker_direction = maker.orders[maker_order_index].direction;
     let maker_existing_position = maker
         .get_perp_position(market.market_index)?
@@ -4168,6 +4159,7 @@ fn get_spot_maker_orders_info(
             slot,
             market.order_tick_size,
             false,
+            false,
         )?;
 
         if maker_order_price_and_indexes.is_empty() {
@@ -4358,6 +4350,7 @@ fn fulfill_spot_order(
         None,
         slot,
         base_market.order_tick_size,
+        false,
         false,
     )?;
 
@@ -4673,6 +4666,7 @@ pub fn fulfill_spot_order_with_match(
         slot,
         base_market.order_tick_size,
         false,
+        false,
     )? {
         Some(price) => price,
         None => {
@@ -4696,6 +4690,7 @@ pub fn fulfill_spot_order_with_match(
         None,
         slot,
         base_market.order_tick_size,
+        false,
         false,
     )?;
     let maker_direction = maker.orders[maker_order_index].direction;
@@ -5010,6 +5005,7 @@ pub fn fulfill_spot_order_with_external_market(
         None,
         slot,
         base_market.order_tick_size,
+        false,
         false,
     )?;
     let taker_token_amount = taker

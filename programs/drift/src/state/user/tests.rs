@@ -2034,7 +2034,137 @@ mod worst_case_liability_value {
 
 mod get_limit_price {
     use crate::state::user::{Order, OrderType};
-    use crate::{PositionDirection, MAX_PREDICTION_MARKET_PRICE, MAX_PREDICTION_MARKET_PRICE_I64};
+    use crate::{
+        PositionDirection, MAX_PREDICTION_MARKET_PRICE, MAX_PREDICTION_MARKET_PRICE_I64,
+        PRICE_PRECISION, PRICE_PRECISION_U64,
+    };
+
+    #[test]
+    fn protected_maker_limit_fixed_price() {
+        let long_order = Order {
+            direction: PositionDirection::Long,
+            order_type: OrderType::Limit,
+            price: (100 * PRICE_PRECISION) as u64,
+            ..Order::default()
+        };
+
+        let oracle_price: Option<i64> = Some((101 * PRICE_PRECISION) as i64);
+
+        let limit_price = long_order
+            .get_limit_price(oracle_price, None, 0, 1, false, false)
+            .unwrap();
+
+        assert_eq!(limit_price, Some(long_order.price));
+
+        let long_order = Order {
+            direction: PositionDirection::Long,
+            order_type: OrderType::Limit,
+            price: (100 * PRICE_PRECISION) as u64,
+            ..Order::default()
+        };
+
+        let limit_price = long_order
+            .get_limit_price(oracle_price, None, 0, 1, false, true)
+            .unwrap();
+
+        assert_ne!(limit_price, Some(long_order.price));
+        assert_eq!(limit_price, Some(99900000));
+
+        // double check no mut or state issues
+        let limit_price = long_order
+            .get_limit_price(oracle_price, None, 0, 1, false, false)
+            .unwrap();
+
+        assert_eq!(limit_price, Some(long_order.price));
+    }
+
+    #[test]
+    fn protected_maker_limit_fixed_price_short() {
+        let short_order = Order {
+            direction: PositionDirection::Short,
+            order_type: OrderType::Limit,
+            price: (100 * PRICE_PRECISION) as u64,
+            ..Order::default()
+        };
+
+        let oracle_price: Option<i64> = Some((99 * PRICE_PRECISION) as i64);
+
+        // Case 1: Protected maker mode disabled
+        let limit_price = short_order
+            .get_limit_price(oracle_price, None, 0, 1, false, false)
+            .unwrap();
+
+        assert_eq!(limit_price, Some(short_order.price));
+
+        // Case 2: Protected maker mode enabled
+        let limit_price = short_order
+            .get_limit_price(oracle_price, None, 0, 1, false, true)
+            .unwrap();
+
+        assert_ne!(limit_price, Some(short_order.price));
+        assert_eq!(limit_price, Some(100100000)); // 10bps adjusted price
+
+        // Double-check no mutation or state issues
+        let limit_price = short_order
+            .get_limit_price(oracle_price, None, 0, 1, false, false)
+            .unwrap();
+
+        assert_eq!(limit_price, Some(short_order.price));
+    }
+
+    #[test]
+    fn protected_maker_limit_oracle_offset() {
+        let long_order_small = Order {
+            direction: PositionDirection::Long,
+            order_type: OrderType::Limit,
+            oracle_price_offset: (PRICE_PRECISION_U64 / 10) as i32,
+            ..Order::default()
+        };
+
+        let oracle_price: Option<i64> =
+            Some((PRICE_PRECISION_U64 * 10 + PRICE_PRECISION_U64 / 150) as i64);
+
+        // test min price
+        let limit_price = long_order_small
+            .get_limit_price(oracle_price, None, 0, 100, false, false)
+            .unwrap();
+
+        assert_eq!(limit_price, Some(10106600));
+
+        // test min price
+        let limit_price = long_order_small
+            .get_limit_price(oracle_price, None, 0, 100, false, true)
+            .unwrap();
+
+        assert_eq!(limit_price, Some(10096500));
+    }
+
+    #[test]
+    fn protected_maker_limit_oracle_offset_small_ticks() {
+        let long_order_small = Order {
+            direction: PositionDirection::Long,
+            order_type: OrderType::Limit,
+            oracle_price_offset: (PRICE_PRECISION_U64 / 100) as i32,
+            ..Order::default()
+        };
+
+        let oracle_price: Option<i64> =
+            Some((PRICE_PRECISION_U64 / 100 + PRICE_PRECISION_U64 / 1500) as i64);
+
+        // test min price
+        let limit_price = long_order_small
+            .get_limit_price(oracle_price, None, 0, 10000, false, false)
+            .unwrap();
+
+        assert_eq!(limit_price, Some(20000));
+
+        // test min price
+        let limit_price = long_order_small
+            .get_limit_price(oracle_price, None, 0, 10000, false, true)
+            .unwrap();
+
+        assert_eq!(limit_price, Some(10000));
+    }
 
     #[test]
     fn prediction_market() {
@@ -2047,7 +2177,7 @@ mod get_limit_price {
         let oracle_price = Some(MAX_PREDICTION_MARKET_PRICE_I64 / 2);
 
         let limit_price = order
-            .get_limit_price(oracle_price, None, 0, 1, true)
+            .get_limit_price(oracle_price, None, 0, 1, true, false)
             .unwrap();
 
         assert_eq!(limit_price, Some(MAX_PREDICTION_MARKET_PRICE));
@@ -2059,7 +2189,7 @@ mod get_limit_price {
         };
 
         let limit_price = order
-            .get_limit_price(oracle_price, None, 0, 1, true)
+            .get_limit_price(oracle_price, None, 0, 1, true, false)
             .unwrap();
 
         assert_eq!(limit_price, Some(1));
@@ -2075,7 +2205,7 @@ mod get_limit_price {
         };
 
         let limit_price = order
-            .get_limit_price(oracle_price, None, 2, 1, true)
+            .get_limit_price(oracle_price, None, 2, 1, true, false)
             .unwrap();
 
         assert_eq!(limit_price, Some(MAX_PREDICTION_MARKET_PRICE));
@@ -2092,7 +2222,7 @@ mod get_limit_price {
         };
 
         let limit_price = order
-            .get_limit_price(oracle_price, None, 2, 1, true)
+            .get_limit_price(oracle_price, None, 2, 1, true, false)
             .unwrap();
 
         assert_eq!(limit_price, Some(1));

@@ -82,6 +82,7 @@ pub fn determine_perp_fulfillment_methods(
         fulfillment_methods.push(PerpFulfillmentMethod::Match(
             *maker_key,
             maker_order_index.cast()?,
+            *maker_price,
         ));
 
         if fulfillment_methods.len() > 6 {

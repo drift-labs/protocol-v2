@@ -29,6 +29,345 @@ fn get_oracle_map<'a>() -> OracleMap<'a> {
     OracleMap::empty()
 }
 
+pub mod fill_order_protected_maker {
+    use std::str::FromStr;
+
+    use anchor_lang::prelude::{AccountLoader, Clock};
+
+    use crate::controller::orders::fill_perp_order;
+    use crate::controller::position::PositionDirection;
+    use crate::create_anchor_account_info;
+    use crate::math::constants::{
+        AMM_RESERVE_PRECISION, BASE_PRECISION_I64, BASE_PRECISION_U64, PEG_PRECISION,
+        PRICE_PRECISION_I64, PRICE_PRECISION_U64, SPOT_BALANCE_PRECISION_U64,
+        SPOT_CUMULATIVE_INTEREST_PRECISION, SPOT_WEIGHT_PRECISION,
+    };
+    use crate::state::oracle::HistoricalOracleData;
+    use crate::state::oracle::OracleSource;
+    use crate::state::paused_operations::PerpOperation;
+    use crate::state::perp_market::{PerpMarket, AMM};
+    use crate::state::perp_market_map::PerpMarketMap;
+    use crate::state::spot_market::{SpotBalanceType, SpotMarket};
+    use crate::state::spot_market_map::SpotMarketMap;
+    use crate::state::state::State;
+    use crate::state::user::{
+        MarketType, OrderStatus, OrderType, SpotPosition, User, UserStats, UserStatus,
+    };
+    use crate::test_utils::*;
+    use crate::test_utils::{
+        create_account_info, get_orders, get_positions, get_pyth_price, get_spot_positions,
+    };
+    use crate::{create_account_info, QUOTE_PRECISION_I64};
+
+    use super::*;
+    use crate::error::ErrorCode;
+    use crate::state::fill_mode::FillMode;
+    use crate::state::user_map::{UserMap, UserStatsMap};
+
+    #[test]
+    fn dynamic_limit_pmm() {
+        let clock = Clock {
+            slot: 56,
+            epoch_start_timestamp: 0,
+            epoch: 0,
+            leader_schedule_epoch: 0,
+            unix_timestamp: 0,
+        };
+
+        let mut oracle_price = get_pyth_price(100, 6);
+        let oracle_price_key =
+            Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
+        let pyth_program = crate::ids::pyth_program::id();
+        create_account_info!(
+            oracle_price,
+            &oracle_price_key,
+            &pyth_program,
+            oracle_account_info
+        );
+        let mut oracle_map = OracleMap::load_one(&oracle_account_info, clock.slot, None).unwrap();
+
+        let mut market = PerpMarket {
+            paused_operations: PerpOperation::AmmFill as u8,
+            amm: AMM {
+                base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
+                quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
+                terminal_quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
+                sqrt_k: 100 * AMM_RESERVE_PRECISION,
+                peg_multiplier: 100 * PEG_PRECISION,
+                max_slippage_ratio: 100,
+                max_fill_reserve_fraction: 100,
+                order_step_size: 1000,
+                order_tick_size: 1,
+                oracle: oracle_price_key,
+                max_spread: 100000,
+                base_spread: 10000,
+                long_spread: 10000,
+                short_spread: 10000,
+                historical_oracle_data: HistoricalOracleData {
+                    last_oracle_price_twap: oracle_price.twap,
+                    last_oracle_price_twap_5min: oracle_price.twap,
+                    last_oracle_price: oracle_price.agg.price,
+                    ..HistoricalOracleData::default()
+                },
+                ..AMM::default()
+            },
+            margin_ratio_initial: 2000,
+            margin_ratio_maintenance: 1000,
+            status: MarketStatus::Initialized,
+            ..PerpMarket::default()
+        };
+        market.status = MarketStatus::Active;
+        market.amm.max_base_asset_reserve = i128::MAX as u128;
+        market.amm.min_base_asset_reserve = 0;
+        let (new_ask_base_asset_reserve, new_ask_quote_asset_reserve) =
+            crate::math::amm_spread::calculate_spread_reserves(&market, PositionDirection::Long)
+                .unwrap();
+        let (new_bid_base_asset_reserve, new_bid_quote_asset_reserve) =
+            crate::math::amm_spread::calculate_spread_reserves(&market, PositionDirection::Short)
+                .unwrap();
+        market.amm.ask_base_asset_reserve = new_ask_base_asset_reserve;
+        market.amm.bid_base_asset_reserve = new_bid_base_asset_reserve;
+        market.amm.ask_quote_asset_reserve = new_ask_quote_asset_reserve;
+        market.amm.bid_quote_asset_reserve = new_bid_quote_asset_reserve;
+        create_anchor_account_info!(market, PerpMarket, market_account_info);
+        let market_map = PerpMarketMap::load_one(&market_account_info, true).unwrap();
+
+        let mut spot_market = SpotMarket {
+            market_index: 0,
+            oracle_source: OracleSource::QuoteAsset,
+            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+            decimals: 6,
+            initial_asset_weight: SPOT_WEIGHT_PRECISION,
+            maintenance_asset_weight: SPOT_WEIGHT_PRECISION,
+            historical_oracle_data: HistoricalOracleData::default_price(QUOTE_PRECISION_I64),
+            ..SpotMarket::default()
+        };
+        create_anchor_account_info!(spot_market, SpotMarket, spot_market_account_info);
+        let spot_market_map = SpotMarketMap::load_one(&spot_market_account_info, true).unwrap();
+
+        let mut user = User {
+            next_order_id: 10000000,
+            // next_order_id: 2,
+            authority: Pubkey::from_str("My11111111111111111111111111111111111111111").unwrap(), // different authority than filler
+            orders: get_orders(Order {
+                market_index: 0,
+                order_id: 1,
+                status: OrderStatus::Open,
+                order_type: OrderType::Market,
+                direction: PositionDirection::Long,
+                market_type: MarketType::Perp,
+                base_asset_amount: BASE_PRECISION_U64,
+                slot: clock.slot - 1, // fresh
+                auction_start_price: 0,
+                auction_end_price: 100 * PRICE_PRECISION_I64 + (100 * PRICE_PRECISION_I64) / 1000,
+                auction_duration: 1,
+                price: 100 * PRICE_PRECISION_U64 + (100 * PRICE_PRECISION_U64) / 1000, // 10 bps higher than maker order price
+                ..Order::default()
+            }),
+            perp_positions: get_positions(PerpPosition {
+                market_index: 0,
+                open_orders: 1,
+                open_bids: BASE_PRECISION_I64,
+                ..PerpPosition::default()
+            }),
+            spot_positions: get_spot_positions(SpotPosition {
+                market_index: 0,
+                balance_type: SpotBalanceType::Deposit,
+                scaled_balance: 100 * SPOT_BALANCE_PRECISION_U64,
+                ..SpotPosition::default()
+            }),
+            ..User::default()
+        };
+        create_anchor_account_info!(user, User, user_account_info);
+        let user_account_loader: AccountLoader<User> =
+            AccountLoader::try_from(&user_account_info).unwrap();
+
+        create_anchor_account_info!(UserStats::default(), UserStats, user_stats_account_info);
+        let user_stats_account_loader: AccountLoader<UserStats> =
+            AccountLoader::try_from(&user_stats_account_info).unwrap();
+
+        let maker_key = Pubkey::from_str("My11111111111111111111111111111111111111113").unwrap();
+        let maker_authority =
+            Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
+        let maker_order_id = 1;
+        let mut maker = User {
+            status: UserStatus::ProtectedMakerOrders as u8,
+            authority: maker_authority,
+            orders: get_orders(Order {
+                market_index: 0,
+                order_id: maker_order_id,
+                status: OrderStatus::Open,
+                order_type: OrderType::Limit,
+                market_type: MarketType::Perp,
+                direction: PositionDirection::Short,
+                base_asset_amount: BASE_PRECISION_U64,
+                slot: clock.slot - 3,
+                price: 100 * PRICE_PRECISION_U64,
+                post_only: true,
+                ..Order::default()
+            }),
+            perp_positions: get_positions(PerpPosition {
+                market_index: 0,
+                open_orders: 1,
+                open_asks: -BASE_PRECISION_I64,
+                ..PerpPosition::default()
+            }),
+            spot_positions: get_spot_positions(SpotPosition {
+                market_index: 0,
+                balance_type: SpotBalanceType::Deposit,
+                scaled_balance: 100 * SPOT_BALANCE_PRECISION_U64,
+                ..SpotPosition::default()
+            }),
+            ..User::default()
+        };
+        create_anchor_account_info!(maker, &maker_key, User, maker_account_info);
+        let makers_and_referrers = UserMap::load_one(&maker_account_info).unwrap();
+
+        let mut maker_stats = UserStats {
+            authority: maker_authority,
+            ..UserStats::default()
+        };
+        create_anchor_account_info!(maker_stats, UserStats, maker_stats_account_info);
+        let maker_and_referrer_stats = UserStatsMap::load_one(&maker_stats_account_info).unwrap();
+
+        let filler_key = Pubkey::from_str("My11111111111111111111111111111111111111111").unwrap();
+        create_anchor_account_info!(User::default(), &filler_key, User, user_account_info);
+        let filler_account_loader: AccountLoader<User> =
+            AccountLoader::try_from(&user_account_info).unwrap();
+
+        create_anchor_account_info!(UserStats::default(), UserStats, filler_stats_account_info);
+        let filler_stats_account_loader: AccountLoader<UserStats> =
+            AccountLoader::try_from(&filler_stats_account_info).unwrap();
+
+        let state = State {
+            min_perp_auction_duration: 10,
+            default_market_order_time_in_force: 10,
+            ..State::default()
+        };
+
+        let (base_asset_amount, quote_asset_amount) = fill_perp_order(
+            1,
+            &state,
+            &user_account_loader,
+            &user_stats_account_loader,
+            &spot_market_map,
+            &market_map,
+            &mut oracle_map,
+            &filler_account_loader,
+            &filler_stats_account_loader,
+            &makers_and_referrers,
+            &maker_and_referrer_stats,
+            None,
+            &clock,
+            FillMode::Fill,
+        )
+        .unwrap();
+
+        assert_eq!(base_asset_amount, 1000000000);
+        assert_eq!(quote_asset_amount, 100_000_000 + 100_000_000 / 1000); // $100 + 10 bps
+
+        // user exempt, no 10 bps applied for pmm
+        let mut user = User {
+            // next_order_id: 10000000,
+            next_order_id: 3000 - 2,
+            authority: Pubkey::from_str("My11111111111111111111111111111111111111111").unwrap(), // different authority than filler
+            orders: get_orders(Order {
+                market_index: 0,
+                order_id: 1,
+                status: OrderStatus::Open,
+                order_type: OrderType::Market,
+                direction: PositionDirection::Long,
+                market_type: MarketType::Perp,
+                base_asset_amount: BASE_PRECISION_U64,
+                slot: clock.slot - 1, // fresh
+                auction_start_price: 0,
+                auction_end_price: 100 * PRICE_PRECISION_I64 + (100 * PRICE_PRECISION_I64) / 1000,
+                auction_duration: 1,
+                price: 100 * PRICE_PRECISION_U64 + (100 * PRICE_PRECISION_U64) / 1000, // 10 bps higher than maker order price
+                ..Order::default()
+            }),
+            perp_positions: get_positions(PerpPosition {
+                market_index: 0,
+                open_orders: 1,
+                open_bids: BASE_PRECISION_I64,
+                ..PerpPosition::default()
+            }),
+            spot_positions: get_spot_positions(SpotPosition {
+                market_index: 0,
+                balance_type: SpotBalanceType::Deposit,
+                scaled_balance: 100 * SPOT_BALANCE_PRECISION_U64,
+                ..SpotPosition::default()
+            }),
+            ..User::default()
+        };
+
+        create_anchor_account_info!(user, User, user_account_info);
+        let user_account_loader: AccountLoader<User> =
+            AccountLoader::try_from(&user_account_info).unwrap();
+
+        let mut maker = User {
+            status: UserStatus::ProtectedMakerOrders as u8,
+            authority: maker_authority,
+            orders: get_orders(Order {
+                market_index: 0,
+                order_id: maker_order_id,
+                status: OrderStatus::Open,
+                order_type: OrderType::Limit,
+                market_type: MarketType::Perp,
+                direction: PositionDirection::Short,
+                base_asset_amount: BASE_PRECISION_U64,
+                slot: clock.slot - 3,
+                price: 100 * PRICE_PRECISION_U64,
+                post_only: true,
+                ..Order::default()
+            }),
+            perp_positions: get_positions(PerpPosition {
+                market_index: 0,
+                open_orders: 1,
+                open_asks: -BASE_PRECISION_I64,
+                ..PerpPosition::default()
+            }),
+            spot_positions: get_spot_positions(SpotPosition {
+                market_index: 0,
+                balance_type: SpotBalanceType::Deposit,
+                scaled_balance: 100 * SPOT_BALANCE_PRECISION_U64,
+                ..SpotPosition::default()
+            }),
+            ..User::default()
+        };
+        create_anchor_account_info!(maker, &maker_key, User, maker_account_info);
+        let makers_and_referrers = UserMap::load_one(&maker_account_info).unwrap();
+
+        let mut maker_stats = UserStats {
+            authority: maker_authority,
+            ..UserStats::default()
+        };
+        create_anchor_account_info!(maker_stats, UserStats, maker_stats_account_info);
+        let maker_and_referrer_stats = UserStatsMap::load_one(&maker_stats_account_info).unwrap();
+
+        let (base_asset_amount, quote_asset_amount) = fill_perp_order(
+            1,
+            &state,
+            &user_account_loader,
+            &user_stats_account_loader,
+            &spot_market_map,
+            &market_map,
+            &mut oracle_map,
+            &filler_account_loader,
+            &filler_stats_account_loader,
+            &makers_and_referrers,
+            &maker_and_referrer_stats,
+            None,
+            &clock,
+            FillMode::Fill,
+        )
+        .unwrap();
+
+        assert_eq!(base_asset_amount, 1000000000);
+        assert_eq!(quote_asset_amount, 100_000_000); // $100
+    }
+}
+
 pub mod fulfill_order_with_maker_order {
     use crate::controller::orders::fulfill_perp_order_with_match;
     use crate::controller::position::PositionDirection;
@@ -105,8 +444,10 @@ pub mod fulfill_order_with_maker_order {
         let mut maker_stats = UserStats::default();
 
         let taker_limit_price = taker.orders[0]
-            .get_limit_price(None, None, slot, market.amm.order_tick_size, false)
+            .get_limit_price(None, None, slot, market.amm.order_tick_size, false, false)
             .unwrap();
+
+        let maker_price = maker.orders[0].price;
 
         fulfill_perp_order_with_match(
             &mut market,
@@ -126,6 +467,7 @@ pub mod fulfill_order_with_maker_order {
             0,
             None,
             taker_limit_price,
+            maker_price,
             now,
             slot,
             &fee_structure,
@@ -226,8 +568,10 @@ pub mod fulfill_order_with_maker_order {
         let mut maker_stats = UserStats::default();
 
         let taker_limit_price = taker.orders[0]
-            .get_limit_price(None, None, slot, market.amm.order_tick_size, false)
+            .get_limit_price(None, None, slot, market.amm.order_tick_size, false, false)
             .unwrap();
+
+        let maker_price = maker.orders[0].price;
 
         fulfill_perp_order_with_match(
             &mut market,
@@ -247,6 +591,7 @@ pub mod fulfill_order_with_maker_order {
             0,
             None,
             taker_limit_price,
+            maker_price,
             now,
             slot,
             &fee_structure,
@@ -347,8 +692,10 @@ pub mod fulfill_order_with_maker_order {
         let mut maker_stats = UserStats::default();
 
         let taker_limit_price = taker.orders[0]
-            .get_limit_price(None, None, slot, market.amm.order_tick_size, false)
+            .get_limit_price(None, None, slot, market.amm.order_tick_size, false, false)
             .unwrap();
+
+        let maker_price = maker.orders[0].price;
 
         fulfill_perp_order_with_match(
             &mut market,
@@ -368,6 +715,7 @@ pub mod fulfill_order_with_maker_order {
             0,
             None,
             taker_limit_price,
+            maker_price,
             now,
             slot,
             &fee_structure,
@@ -468,8 +816,10 @@ pub mod fulfill_order_with_maker_order {
         let mut maker_stats = UserStats::default();
 
         let taker_limit_price = taker.orders[0]
-            .get_limit_price(None, None, slot, market.amm.order_tick_size, false)
+            .get_limit_price(None, None, slot, market.amm.order_tick_size, false, false)
             .unwrap();
+
+        let maker_price = maker.orders[0].price;
 
         fulfill_perp_order_with_match(
             &mut market,
@@ -489,6 +839,7 @@ pub mod fulfill_order_with_maker_order {
             0,
             None,
             taker_limit_price,
+            maker_price,
             now,
             slot,
             &fee_structure,
@@ -589,9 +940,10 @@ pub mod fulfill_order_with_maker_order {
         let mut maker_stats = UserStats::default();
 
         let taker_limit_price = taker.orders[0]
-            .get_limit_price(None, None, slot, market.amm.order_tick_size, false)
+            .get_limit_price(None, None, slot, market.amm.order_tick_size, false, false)
             .unwrap();
 
+        let maker_price = maker.orders[0].price;
         let (base_asset_amount, _, _) = fulfill_perp_order_with_match(
             &mut market,
             &mut taker,
@@ -610,6 +962,7 @@ pub mod fulfill_order_with_maker_order {
             0,
             None,
             taker_limit_price,
+            maker_price,
             now,
             slot,
             &fee_structure,
@@ -676,8 +1029,10 @@ pub mod fulfill_order_with_maker_order {
         let mut maker_stats = UserStats::default();
 
         let taker_limit_price = taker.orders[0]
-            .get_limit_price(None, None, slot, market.amm.order_tick_size, false)
+            .get_limit_price(None, None, slot, market.amm.order_tick_size, false, false)
             .unwrap();
+
+        let maker_price = maker.orders[0].price;
 
         let (base_asset_amount, _, _) = fulfill_perp_order_with_match(
             &mut market,
@@ -697,6 +1052,7 @@ pub mod fulfill_order_with_maker_order {
             0,
             None,
             taker_limit_price,
+            maker_price,
             now,
             slot,
             &fee_structure,
@@ -764,8 +1120,10 @@ pub mod fulfill_order_with_maker_order {
         let mut maker_stats = UserStats::default();
 
         let taker_limit_price = taker.orders[0]
-            .get_limit_price(None, None, slot, market.amm.order_tick_size, false)
+            .get_limit_price(None, None, slot, market.amm.order_tick_size, false, false)
             .unwrap();
+
+        let maker_price = maker.orders[0].price;
 
         let (base_asset_amount, _, _) = fulfill_perp_order_with_match(
             &mut market,
@@ -785,6 +1143,7 @@ pub mod fulfill_order_with_maker_order {
             0,
             None,
             taker_limit_price,
+            maker_price,
             now,
             slot,
             &fee_structure,
@@ -852,8 +1211,10 @@ pub mod fulfill_order_with_maker_order {
         let mut maker_stats = UserStats::default();
 
         let taker_limit_price = taker.orders[0]
-            .get_limit_price(None, None, slot, market.amm.order_tick_size, false)
+            .get_limit_price(None, None, slot, market.amm.order_tick_size, false, false)
             .unwrap();
+
+        let maker_price = maker.orders[0].price;
 
         let (base_asset_amount, _, _) = fulfill_perp_order_with_match(
             &mut market,
@@ -873,6 +1234,7 @@ pub mod fulfill_order_with_maker_order {
             0,
             None,
             taker_limit_price,
+            maker_price,
             now,
             slot,
             &fee_structure,
@@ -940,8 +1302,10 @@ pub mod fulfill_order_with_maker_order {
         let mut maker_stats = UserStats::default();
 
         let taker_limit_price = taker.orders[0]
-            .get_limit_price(None, None, slot, market.amm.order_tick_size, false)
+            .get_limit_price(None, None, slot, market.amm.order_tick_size, false, false)
             .unwrap();
+
+        let maker_price = maker.orders[0].price;
 
         fulfill_perp_order_with_match(
             &mut market,
@@ -961,6 +1325,7 @@ pub mod fulfill_order_with_maker_order {
             0,
             None,
             taker_limit_price,
+            maker_price,
             now,
             slot,
             &fee_structure,
@@ -1048,8 +1413,10 @@ pub mod fulfill_order_with_maker_order {
         let mut maker_stats = UserStats::default();
 
         let taker_limit_price = taker.orders[0]
-            .get_limit_price(None, None, slot, market.amm.order_tick_size, false)
+            .get_limit_price(None, None, slot, market.amm.order_tick_size, false, false)
             .unwrap();
+
+        let maker_price = maker.orders[0].price;
 
         fulfill_perp_order_with_match(
             &mut market,
@@ -1069,6 +1436,7 @@ pub mod fulfill_order_with_maker_order {
             0,
             None,
             taker_limit_price,
+            maker_price,
             now,
             slot,
             &fee_structure,
@@ -1159,7 +1527,11 @@ pub mod fulfill_order_with_maker_order {
         let mut maker_stats = UserStats::default();
 
         let taker_limit_price = taker.orders[0]
-            .get_limit_price(None, None, slot, market.amm.order_tick_size, false)
+            .get_limit_price(None, None, slot, market.amm.order_tick_size, false, false)
+            .unwrap();
+
+        let maker_price = taker.orders[0]
+            .force_get_limit_price(None, None, slot, market.amm.order_tick_size, false, false)
             .unwrap();
 
         fulfill_perp_order_with_match(
@@ -1180,6 +1552,7 @@ pub mod fulfill_order_with_maker_order {
             0,
             None,
             taker_limit_price,
+            maker_price,
             now,
             slot,
             &fee_structure,
@@ -1277,8 +1650,10 @@ pub mod fulfill_order_with_maker_order {
         let mut maker_stats = UserStats::default();
 
         let taker_limit_price = taker.orders[0]
-            .get_limit_price(None, None, slot, market.amm.order_tick_size, false)
+            .get_limit_price(None, None, slot, market.amm.order_tick_size, false, false)
             .unwrap();
+
+        let maker_price = maker.orders[0].price;
 
         fulfill_perp_order_with_match(
             &mut market,
@@ -1298,6 +1673,7 @@ pub mod fulfill_order_with_maker_order {
             0,
             None,
             taker_limit_price,
+            maker_price,
             now,
             slot,
             &fee_structure,
@@ -1396,8 +1772,10 @@ pub mod fulfill_order_with_maker_order {
         let mut maker_stats = UserStats::default();
 
         let taker_limit_price = taker.orders[0]
-            .get_limit_price(None, None, slot, market.amm.order_tick_size, false)
+            .get_limit_price(None, None, slot, market.amm.order_tick_size, false, false)
             .unwrap();
+
+        let maker_price = maker.orders[0].price;
 
         fulfill_perp_order_with_match(
             &mut market,
@@ -1417,6 +1795,7 @@ pub mod fulfill_order_with_maker_order {
             0,
             None,
             taker_limit_price,
+            maker_price,
             now,
             slot,
             &fee_structure,
@@ -1539,8 +1918,10 @@ pub mod fulfill_order_with_maker_order {
         let mut maker_stats = UserStats::default();
 
         let taker_limit_price = taker.orders[0]
-            .get_limit_price(None, None, slot, market.amm.order_tick_size, false)
+            .get_limit_price(None, None, slot, market.amm.order_tick_size, false, false)
             .unwrap();
+
+        let maker_price = maker.orders[0].price;
 
         let (base_asset_amount, _, _) = fulfill_perp_order_with_match(
             &mut market,
@@ -1560,6 +1941,7 @@ pub mod fulfill_order_with_maker_order {
             0,
             None,
             taker_limit_price,
+            maker_price,
             now,
             slot,
             &fee_structure,
@@ -1657,8 +2039,10 @@ pub mod fulfill_order_with_maker_order {
         let mut maker_stats = UserStats::default();
 
         let taker_limit_price = taker.orders[0]
-            .get_limit_price(None, None, slot, market.amm.order_tick_size, false)
+            .get_limit_price(None, None, slot, market.amm.order_tick_size, false, false)
             .unwrap();
+
+        let maker_price = maker.orders[0].price;
 
         let (base_asset_amount, _, _) = fulfill_perp_order_with_match(
             &mut market,
@@ -1678,6 +2062,7 @@ pub mod fulfill_order_with_maker_order {
             0,
             None,
             taker_limit_price,
+            maker_price,
             now,
             slot,
             &fee_structure,
@@ -1783,8 +2168,11 @@ pub mod fulfill_order_with_maker_order {
                 slot,
                 market.amm.order_tick_size,
                 false,
+                false,
             )
             .unwrap();
+
+        let maker_price = maker.orders[0].price;
 
         fulfill_perp_order_with_match(
             &mut market,
@@ -1804,6 +2192,7 @@ pub mod fulfill_order_with_maker_order {
             0,
             Some(oracle_price),
             taker_limit_price,
+            maker_price,
             now,
             slot,
             &fee_structure,
@@ -1919,6 +2308,7 @@ pub mod fulfill_order_with_maker_order {
                 slot,
                 1,
                 false,
+                false,
             )
             .unwrap();
         assert_eq!(taker_price, Some(199000000)); // $51
@@ -1933,6 +2323,8 @@ pub mod fulfill_order_with_maker_order {
         let mut maker_stats = UserStats::default();
 
         let oracle_price = 100 * PRICE_PRECISION_I64;
+
+        let maker_price = maker.orders[0].price;
 
         fulfill_perp_order_with_match(
             &mut market,
@@ -1952,6 +2344,7 @@ pub mod fulfill_order_with_maker_order {
             0,
             Some(oracle_price),
             taker_price,
+            maker_price,
             now,
             slot,
             &fee_structure,
@@ -2077,8 +2470,11 @@ pub mod fulfill_order_with_maker_order {
                 slot,
                 market.amm.order_tick_size,
                 false,
+                false,
             )
             .unwrap();
+
+        let maker_price = maker.orders[0].price;
 
         fulfill_perp_order_with_match(
             &mut market,
@@ -2098,6 +2494,7 @@ pub mod fulfill_order_with_maker_order {
             0,
             None,
             taker_limit_price,
+            maker_price,
             now,
             slot,
             &fee_structure,
@@ -2216,6 +2613,7 @@ pub mod fulfill_order_with_maker_order {
                 slot,
                 1,
                 false,
+                false,
             )
             .unwrap();
         assert_eq!(taker_price, Some(51000000)); // $51
@@ -2226,6 +2624,8 @@ pub mod fulfill_order_with_maker_order {
 
         let mut taker_stats = UserStats::default();
         let mut maker_stats = UserStats::default();
+
+        let maker_price = maker.orders[0].price;
 
         fulfill_perp_order_with_match(
             &mut market,
@@ -2245,6 +2645,7 @@ pub mod fulfill_order_with_maker_order {
             0,
             None,
             taker_price,
+            maker_price,
             now,
             slot,
             &fee_structure,
@@ -2340,7 +2741,7 @@ pub mod fulfill_order_with_maker_order {
 
         assert_eq!(
             taker.orders[0]
-                .get_limit_price(None, None, slot, market.amm.order_tick_size, false)
+                .get_limit_price(None, None, slot, market.amm.order_tick_size, false, false)
                 .unwrap(),
             Some(55000000)
         );
@@ -2353,8 +2754,10 @@ pub mod fulfill_order_with_maker_order {
         let mut maker_stats = UserStats::default();
 
         let taker_limit_price = taker.orders[0]
-            .get_limit_price(None, None, slot, market.amm.order_tick_size, false)
+            .get_limit_price(None, None, slot, market.amm.order_tick_size, false, false)
             .unwrap();
+
+        let maker_price = maker.orders[0].price;
 
         fulfill_perp_order_with_match(
             &mut market,
@@ -2374,6 +2777,7 @@ pub mod fulfill_order_with_maker_order {
             0,
             None,
             taker_limit_price,
+            maker_price,
             now,
             slot,
             &fee_structure,
@@ -2469,7 +2873,7 @@ pub mod fulfill_order_with_maker_order {
 
         assert_eq!(
             taker.orders[0]
-                .get_limit_price(None, None, slot, market.amm.order_tick_size, false)
+                .get_limit_price(None, None, slot, market.amm.order_tick_size, false, false)
                 .unwrap(),
             Some(100000000)
         );
@@ -2481,8 +2885,10 @@ pub mod fulfill_order_with_maker_order {
         let mut maker_stats = UserStats::default();
 
         let taker_limit_price = taker.orders[0]
-            .get_limit_price(None, None, slot, market.amm.order_tick_size, false)
+            .get_limit_price(None, None, slot, market.amm.order_tick_size, false, false)
             .unwrap();
+
+        let maker_price = maker.orders[0].price;
 
         fulfill_perp_order_with_match(
             &mut market,
@@ -2502,6 +2908,7 @@ pub mod fulfill_order_with_maker_order {
             0,
             None,
             taker_limit_price,
+            maker_price,
             now,
             slot,
             &fee_structure,
@@ -12239,23 +12646,5 @@ mod update_maker_fills_map {
         update_maker_fills_map(&mut map, &maker_key, direction, fill).unwrap();
 
         assert_eq!(*map.get(&maker_key).unwrap(), -2 * fill as i64);
-    }
-}
-
-pub mod protected_maker_oracle_limit_can_fill {
-    use crate::controller::orders::protected_maker_oracle_limit_can_fill;
-
-    #[test]
-    fn test() {
-        assert!(protected_maker_oracle_limit_can_fill(true, 0, true, 10, 10)); // all cases
-        assert!(protected_maker_oracle_limit_can_fill(true, 0, false, 9, 10)); // oracle delay is 0
-        assert!(protected_maker_oracle_limit_can_fill(true, 1, false, 10, 9)); // min age passed
-        assert!(protected_maker_oracle_limit_can_fill(true, 1, true, 9, 10)); // user exempt
-        assert!(!protected_maker_oracle_limit_can_fill(
-            true, 1, false, 10, 11
-        )); // no condition met
-        assert!(!protected_maker_oracle_limit_can_fill(
-            false, 0, true, 10, 10
-        )); // oracle valid for amm fill is false
     }
 }

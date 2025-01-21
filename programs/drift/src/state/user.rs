@@ -9,7 +9,9 @@ use crate::math::constants::{
 };
 use crate::math::lp::{calculate_lp_open_bids_asks, calculate_settle_lp_metrics};
 use crate::math::margin::MarginRequirementType;
-use crate::math::orders::{standardize_base_asset_amount, standardize_price};
+use crate::math::orders::{
+    apply_protected_maker_limit_price_offset, standardize_base_asset_amount, standardize_price,
+};
 use crate::math::position::{
     calculate_base_asset_value_and_pnl_with_oracle_price,
     calculate_base_asset_value_with_oracle_price, calculate_perp_liability_value,
@@ -1367,6 +1369,7 @@ impl Order {
         slot: u64,
         tick_size: u64,
         is_prediction_market: bool,
+        apply_protected_maker_offset: bool,
     ) -> DriftResult<Option<u64>> {
         let price = if self.has_auction_price(self.slot, self.auction_duration, slot)? {
             Some(calculate_auction_price(
@@ -1391,6 +1394,15 @@ impl Order {
                 limit_price = limit_price.min(MAX_PREDICTION_MARKET_PRICE)
             }
 
+            if apply_protected_maker_offset {
+                limit_price = apply_protected_maker_limit_price_offset(
+                    limit_price,
+                    tick_size,
+                    self.direction,
+                    false,
+                )?;
+            }
+
             Some(standardize_price(limit_price, tick_size, self.direction)?)
         } else if self.price == 0 {
             match fallback_price {
@@ -1398,7 +1410,18 @@ impl Order {
                 None => None,
             }
         } else {
-            Some(self.price)
+            let mut price = self.price;
+
+            if apply_protected_maker_offset {
+                price = apply_protected_maker_limit_price_offset(
+                    price,
+                    tick_size,
+                    self.direction,
+                    true,
+                )?;
+            }
+
+            Some(price)
         };
 
         Ok(price)
@@ -1413,6 +1436,7 @@ impl Order {
         slot: u64,
         tick_size: u64,
         is_prediction_market: bool,
+        apply_protected_maker_offset: bool,
     ) -> DriftResult<u64> {
         match self.get_limit_price(
             valid_oracle_price,
@@ -1420,6 +1444,7 @@ impl Order {
             slot,
             tick_size,
             is_prediction_market,
+            apply_protected_maker_offset,
         )? {
             Some(price) => Ok(price),
             None => {

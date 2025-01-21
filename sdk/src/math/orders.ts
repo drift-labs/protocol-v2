@@ -154,7 +154,8 @@ export function getLimitPrice(
 	order: Order,
 	oraclePriceData: OraclePriceData,
 	slot: number,
-	fallbackPrice?: BN
+	fallbackPrice?: BN,
+	protectedMaker?: boolean
 ): BN | undefined {
 	let limitPrice;
 	if (hasAuctionPrice(order, slot)) {
@@ -168,6 +169,16 @@ export function getLimitPrice(
 		limitPrice = fallbackPrice;
 	} else {
 		limitPrice = order.price;
+	}
+
+	if (protectedMaker) {
+		const offset = limitPrice.divn(1000);
+
+		if (isVariant(order.direction, 'long')) {
+			limitPrice = limitPrice.sub(offset);
+		} else {
+			limitPrice = limitPrice.add(offset);
+		}
 	}
 
 	return limitPrice;

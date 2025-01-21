@@ -735,6 +735,7 @@ mod find_maker_orders {
             slot,
             tick_size,
             false,
+            false,
         )
         .unwrap();
 
@@ -769,6 +770,7 @@ mod find_maker_orders {
             Some(oracle_price),
             slot,
             tick_size,
+            false,
             false,
         )
         .unwrap();
@@ -806,6 +808,7 @@ mod find_maker_orders {
             slot,
             tick_size,
             false,
+            false,
         )
         .unwrap();
 
@@ -841,6 +844,7 @@ mod find_maker_orders {
             Some(oracle_price),
             slot,
             tick_size,
+            false,
             false,
         )
         .unwrap();
@@ -878,6 +882,7 @@ mod find_maker_orders {
             slot,
             tick_size,
             false,
+            false,
         )
         .unwrap();
 
@@ -913,6 +918,7 @@ mod find_maker_orders {
             Some(oracle_price),
             slot,
             tick_size,
+            false,
             false,
         )
         .unwrap();
@@ -952,6 +958,7 @@ mod find_maker_orders {
             Some(oracle_price),
             slot,
             tick_size,
+            false,
             false,
         )
         .unwrap();
@@ -993,6 +1000,7 @@ mod find_maker_orders {
             Some(oracle_price),
             slot,
             tick_size,
+            false,
             false,
         )
         .unwrap();
@@ -1039,6 +1047,7 @@ mod find_maker_orders {
             Some(oracle_price),
             slot,
             tick_size,
+            false,
             false,
         )
         .unwrap();
