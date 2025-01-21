@@ -132,6 +132,8 @@ export class OracleSource {
 	static readonly Prelaunch = { prelaunch: {} };
 	static readonly SWITCHBOARD_ON_DEMAND = { switchboardOnDemand: {} };
 	static readonly PYTH_LAZER = { pythLazer: {} };
+	static readonly PYTH_LAZER_1K = { pythLazer1K: {} };
+	static readonly PYTH_LAZER_1M = { pythLazer1M: {} };
 }
 
 export class OracleSourceNum {
@@ -148,6 +150,8 @@ export class OracleSourceNum {
 	static readonly PRELAUNCH = 10;
 	static readonly SWITCHBOARD_ON_DEMAND = 11;
 	static readonly PYTH_LAZER = 12;
+	static readonly PYTH_LAZER_1K = 12;
+	static readonly PYTH_LAZER_1M = 12;
 }
 
 export class OrderType {

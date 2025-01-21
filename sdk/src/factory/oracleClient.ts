@@ -68,5 +68,13 @@ export function getOracleClient(
 		return new PythLazerClient(connection);
 	}
 
+	if (isVariant(oracleSource, 'pythLazer1K')) {
+		return new PythLazerClient(connection, new BN(1000));
+	}
+
+	if (isVariant(oracleSource, 'pythLazer1M')) {
+		return new PythLazerClient(connection, new BN(1000000));
+	}
+
 	throw new Error(`Unknown oracle source ${oracleSource}`);
 }
