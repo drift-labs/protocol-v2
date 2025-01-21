@@ -17,6 +17,8 @@ export function getOracleSourceNum(source: OracleSource): number {
 	if ('switchboardOnDemand' in source)
 		return OracleSourceNum.SWITCHBOARD_ON_DEMAND;
 	if ('pythLazer' in source) return OracleSourceNum.PYTH_LAZER;
+	if ('pythLazer1K' in source) return OracleSourceNum.PYTH_LAZER_1K;
+	if ('pythLazer1M' in source) return OracleSourceNum.PYTH_LAZER_1M;
 	throw new Error('Invalid oracle source');
 }
 
