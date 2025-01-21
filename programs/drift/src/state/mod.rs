@@ -25,3 +25,6 @@ pub mod swift_user;
 pub mod traits;
 pub mod user;
 pub mod user_map;
+pub mod vault;
+pub mod vault_constituent;
+pub mod vault_constituent_map;
