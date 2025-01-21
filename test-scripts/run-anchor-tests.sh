@@ -55,7 +55,7 @@ test_files=(
   perpLpRiskMitigation.ts
   phoenixTest.ts
   placeAndMakePerp.ts
-  # placeAndMakeSwiftPerpBankrun.ts
+  placeAndMakeSwiftPerpBankrun.ts
   placeAndMakeSpotOrder.ts
   postOnly.ts
   prelisting.ts
