@@ -7228,13 +7228,14 @@ export class DriftClient {
 		userAccountPublicKey,
 		userStatsAccountPublicKey,
 		liquidatorSubAccountId,
+		maxAccounts,
 	}: {
 		jupiterClient: JupiterClient;
 		liabilityMarketIndex: number;
 		assetMarketIndex: number;
+		swapAmount: BN;
 		assetTokenAccount?: PublicKey;
 		liabilityTokenAccount?: PublicKey;
-		swapAmount: BN;
 		slippageBps?: number;
 		swapMode?: SwapMode;
 		onlyDirectRoutes?: boolean;
@@ -7243,6 +7244,7 @@ export class DriftClient {
 		userAccountPublicKey: PublicKey;
 		userStatsAccountPublicKey: PublicKey;
 		liquidatorSubAccountId?: number;
+		maxAccounts?: number;
 	}): Promise<{
 		ixs: TransactionInstruction[];
 		lookupTables: AddressLookupTableAccount[];
@@ -7258,6 +7260,7 @@ export class DriftClient {
 				slippageBps,
 				swapMode,
 				onlyDirectRoutes,
+				maxAccounts,
 			});
 
 			quote = fetchedQuote;
