@@ -109,7 +109,9 @@ export const getCombinedInstructions = (
 		txSize > MAX_SIZE &&
 		allInstructions.length > baseInstructions.length
 	) {
-		console.log('Tx too large, remove first instruction');
+		console.log(
+			`Tx too large (${txSize} > ${MAX_SIZE}), remove first instruction`
+		);
 		allInstructions.shift();
 		txSize = getSizeOfTransaction(
 			allInstructions,
