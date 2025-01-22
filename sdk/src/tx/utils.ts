@@ -100,7 +100,9 @@ export const getInstructionsWithOracleCranks = async (
 		if (isPythPull(oracleToCrank.oracleSource)) {
 			// init the pyth connection if it's not already
 			if (!hermesClient) {
-				hermesClient = new HermesClient(process.env.DRIFT_HERMES_URL);
+				hermesClient = new HermesClient(
+					process.env.NEXT_PUBLIC_DRIFT_HERMES_URL
+				);
 			}
 
 			pythPullFeeds.push(oracleToCrank.feedId);
