@@ -5514,6 +5514,8 @@ export class DriftClient {
 		cancelExistingOrdersTx: Transaction | VersionedTransaction;
 		settlePnlTx: Transaction | VersionedTransaction;
 	}> {
+		console.log(`place and take with oracle cranks: `, oracleCranks);
+
 		const placeAndTakeIxs: TransactionInstruction[] = [];
 
 		type TxKeys = 'placeAndTakeTx' | 'cancelExistingOrdersTx' | 'settlePnlTx';
@@ -5592,7 +5594,8 @@ export class DriftClient {
 					undefined,
 					undefined,
 					undefined,
-					recentBlockHash
+					recentBlockHash,
+					oracleCranks
 				);
 			} else {
 				txsToSign.placeAndTakeTx = await this.buildTransaction(
@@ -5601,7 +5604,8 @@ export class DriftClient {
 					undefined,
 					undefined,
 					undefined,
-					recentBlockHash
+					recentBlockHash,
+					oracleCranks
 				);
 			}
 
