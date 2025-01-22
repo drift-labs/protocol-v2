@@ -5627,7 +5627,8 @@ export class DriftClient {
 					this.txVersion,
 					undefined,
 					undefined,
-					recentBlockHash
+					recentBlockHash,
+					optionalIxs
 				);
 			}
 
@@ -5652,7 +5653,8 @@ export class DriftClient {
 					this.txVersion,
 					undefined,
 					undefined,
-					recentBlockHash
+					recentBlockHash,
+					optionalIxs
 				);
 			}
 			return;
@@ -6837,7 +6839,8 @@ export class DriftClient {
 		settleeUserAccountPublicKey: PublicKey,
 		settleeUserAccount: UserAccount,
 		marketIndex: number,
-		txParams?: TxParams
+		txParams?: TxParams,
+		optionalIxs?: TransactionInstruction[]
 	): Promise<TransactionSignature> {
 		const { txSig } = await this.sendTransaction(
 			await this.buildTransaction(
@@ -6846,7 +6849,12 @@ export class DriftClient {
 					settleeUserAccount,
 					marketIndex
 				),
-				txParams
+				txParams,
+				undefined,
+				undefined,
+				undefined,
+				undefined,
+				optionalIxs
 			),
 			[],
 			this.opts
