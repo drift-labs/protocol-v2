@@ -3919,11 +3919,18 @@ export class DriftClient {
 	public async placeOrders(
 		params: OrderParams[],
 		txParams?: TxParams,
-		subAccountId?: number
+		subAccountId?: number,
+		oracleCranks?: { feedId: string; oracleSource: OracleSource }[]
 	): Promise<TransactionSignature> {
 		const { txSig } = await this.sendTransaction(
-			(await this.preparePlaceOrdersTx(params, txParams, subAccountId))
-				.placeOrdersTx,
+			(
+				await this.preparePlaceOrdersTx(
+					params,
+					txParams,
+					subAccountId,
+					oracleCranks
+				)
+			).placeOrdersTx,
 			[],
 			this.opts,
 			false
@@ -3934,11 +3941,17 @@ export class DriftClient {
 	public async preparePlaceOrdersTx(
 		params: OrderParams[],
 		txParams?: TxParams,
-		subAccountId?: number
+		subAccountId?: number,
+		oracleCranks?: { feedId: string; oracleSource: OracleSource }[]
 	) {
 		const tx = await this.buildTransaction(
 			await this.getPlaceOrdersIx(params, subAccountId),
-			txParams
+			txParams,
+			undefined,
+			undefined,
+			undefined,
+			undefined,
+			oracleCranks
 		);
 
 		return {
@@ -5494,7 +5507,8 @@ export class DriftClient {
 		cancelExistingOrders?: boolean,
 		settlePnl?: boolean,
 		exitEarlyIfSimFails?: boolean,
-		auctionDurationPercentage?: number
+		auctionDurationPercentage?: number,
+		oracleCranks?: { feedId: string; oracleSource: OracleSource }[]
 	): Promise<{
 		placeAndTakeTx: Transaction | VersionedTransaction;
 		cancelExistingOrdersTx: Transaction | VersionedTransaction;
@@ -5552,7 +5566,8 @@ export class DriftClient {
 					undefined,
 					undefined,
 					true,
-					recentBlockHash
+					recentBlockHash,
+					oracleCranks
 				)) as VersionedTransaction;
 
 				const simulationResult =
@@ -9284,7 +9299,8 @@ export class DriftClient {
 		txVersion?: TransactionVersion,
 		lookupTables?: AddressLookupTableAccount[],
 		forceVersionedTransaction?: boolean,
-		recentBlockhash?: BlockhashWithExpiryBlockHeight
+		recentBlockhash?: BlockhashWithExpiryBlockHeight,
+		oracleCranks?: { feedId: string; oracleSource: OracleSource }[]
 	): Promise<Transaction | VersionedTransaction> {
 		return this.txHandler.buildTransaction({
 			instructions,
@@ -9297,6 +9313,7 @@ export class DriftClient {
 			lookupTables,
 			forceVersionedTransaction,
 			recentBlockhash,
+			oracleCranks,
 		});
 	}
 

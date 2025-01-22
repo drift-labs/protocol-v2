@@ -43,6 +43,7 @@
 		"@openbook-dex/openbook-v2": "0.2.10",
 		"@project-serum/serum": "0.13.65",
 		"@pythnetwork/client": "2.5.3",
+		"@pythnetwork/hermes-client": "^1.3.0",
 		"@pythnetwork/price-service-sdk": "1.7.1",
 		"@pythnetwork/pyth-solana-receiver": "0.7.0",
 		"@solana/spl-token": "0.3.7",

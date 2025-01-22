@@ -21,6 +21,7 @@ import {
 	DriftClientMetricsEvents,
 	IWallet,
 	MappedRecord,
+	OracleSource,
 	SignedTxData,
 	TxParams,
 } from '../types';
@@ -28,8 +29,12 @@ import { containsComputeUnitIxs } from '../util/computeUnits';
 import { CachedBlockhashFetcher } from './blockhashFetcher/cachedBlockhashFetcher';
 import { BaseBlockhashFetcher } from './blockhashFetcher/baseBlockhashFetcher';
 import { BlockhashFetcher } from './blockhashFetcher/types';
-import { isVersionedTransaction } from './utils';
+import {
+	getInstructionsWithOracleCranks,
+	isVersionedTransaction,
+} from './utils';
 import { DEFAULT_CONFIRMATION_OPTS } from '../config';
+import { DriftClient } from '../driftClient';
 
 /**
  * Explanation for SIGNATURE_BLOCK_AND_EXPIRY:
@@ -57,6 +62,8 @@ export type TxBuildingProps = {
 	txParams?: TxParams;
 	recentBlockhash?: BlockhashWithExpiryBlockHeight;
 	wallet?: IWallet;
+	oracleCranks?: { feedId: string; oracleSource: OracleSource }[];
+	driftClient?: DriftClient;
 };
 
 export type TxHandlerConfig = {
@@ -470,7 +477,6 @@ export class TxHandler {
 		props: TxBuildingProps
 	): Promise<Transaction | VersionedTransaction> {
 		const {
-			instructions,
 			txVersion,
 			txParams,
 			connection: _connection,
@@ -479,7 +485,7 @@ export class TxHandler {
 			forceVersionedTransaction,
 		} = props;
 
-		let { lookupTables } = props;
+		let { lookupTables, instructions } = props;
 
 		// # Collect and process Tx Params
 		let baseTxParams: BaseTxParams = {
@@ -487,8 +493,25 @@ export class TxHandler {
 			computeUnitsPrice: txParams?.computeUnitsPrice,
 		};
 
+		const instructionsArray = Array.isArray(instructions)
+			? instructions
+			: [instructions];
+
+		if (props.oracleCranks && props.driftClient) {
+			instructions = await getInstructionsWithOracleCranks(
+				instructionsArray,
+				props.driftClient,
+				txVersion === 0,
+				lookupTables,
+				props.oracleCranks
+			);
+		}
+
 		if (txParams?.useSimulatedComputeUnits) {
-			const processedTxParams = await this.getProcessedTransactionParams(props);
+			const processedTxParams = await this.getProcessedTransactionParams({
+				...props,
+				instructions,
+			});
 
 			baseTxParams = {
 				...baseTxParams,
@@ -496,9 +519,6 @@ export class TxHandler {
 			};
 		}
 
-		const instructionsArray = Array.isArray(instructions)
-			? instructions
-			: [instructions];
 		const { hasSetComputeUnitLimitIx, hasSetComputeUnitPriceIx } =
 			containsComputeUnitIxs(instructionsArray);
 
