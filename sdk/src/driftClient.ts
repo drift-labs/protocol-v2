@@ -3920,7 +3920,7 @@ export class DriftClient {
 		params: OrderParams[],
 		txParams?: TxParams,
 		subAccountId?: number,
-		oracleCranks?: { feedId: string; oracleSource: OracleSource }[]
+		optionalIxs?: TransactionInstruction[]
 	): Promise<TransactionSignature> {
 		const { txSig } = await this.sendTransaction(
 			(
@@ -3928,7 +3928,7 @@ export class DriftClient {
 					params,
 					txParams,
 					subAccountId,
-					oracleCranks
+					optionalIxs
 				)
 			).placeOrdersTx,
 			[],
@@ -3942,7 +3942,7 @@ export class DriftClient {
 		params: OrderParams[],
 		txParams?: TxParams,
 		subAccountId?: number,
-		oracleCranks?: { feedId: string; oracleSource: OracleSource }[]
+		optionalIxs?: TransactionInstruction[]
 	) {
 		const tx = await this.buildTransaction(
 			await this.getPlaceOrdersIx(params, subAccountId),
@@ -3951,7 +3951,7 @@ export class DriftClient {
 			undefined,
 			undefined,
 			undefined,
-			oracleCranks
+			optionalIxs
 		);
 
 		return {
@@ -5508,13 +5508,13 @@ export class DriftClient {
 		settlePnl?: boolean,
 		exitEarlyIfSimFails?: boolean,
 		auctionDurationPercentage?: number,
-		oracleCranks?: { feedId: string; oracleSource: OracleSource }[]
+		optionalIxs?: TransactionInstruction[]
 	): Promise<{
 		placeAndTakeTx: Transaction | VersionedTransaction;
 		cancelExistingOrdersTx: Transaction | VersionedTransaction;
 		settlePnlTx: Transaction | VersionedTransaction;
 	}> {
-		console.log(`place and take with oracle cranks: `, oracleCranks);
+		console.log(`place and take with optionalIxs: `, optionalIxs);
 
 		const placeAndTakeIxs: TransactionInstruction[] = [];
 
@@ -5569,7 +5569,7 @@ export class DriftClient {
 					undefined,
 					true,
 					recentBlockHash,
-					oracleCranks
+					optionalIxs
 				)) as VersionedTransaction;
 
 				const simulationResult =
@@ -5595,7 +5595,7 @@ export class DriftClient {
 					undefined,
 					undefined,
 					recentBlockHash,
-					oracleCranks
+					optionalIxs
 				);
 			} else {
 				txsToSign.placeAndTakeTx = await this.buildTransaction(
@@ -5605,7 +5605,7 @@ export class DriftClient {
 					undefined,
 					undefined,
 					recentBlockHash,
-					oracleCranks
+					optionalIxs
 				);
 			}
 
@@ -9304,7 +9304,7 @@ export class DriftClient {
 		lookupTables?: AddressLookupTableAccount[],
 		forceVersionedTransaction?: boolean,
 		recentBlockhash?: BlockhashWithExpiryBlockHeight,
-		oracleCranks?: { feedId: string; oracleSource: OracleSource }[]
+		optionalIxs?: TransactionInstruction[]
 	): Promise<Transaction | VersionedTransaction> {
 		return this.txHandler.buildTransaction({
 			instructions,
@@ -9317,8 +9317,7 @@ export class DriftClient {
 			lookupTables,
 			forceVersionedTransaction,
 			recentBlockhash,
-			driftClient: this,
-			oracleCranks,
+			optionalIxs,
 		});
 	}
 

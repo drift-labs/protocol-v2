@@ -8,6 +8,8 @@ import { DriftClient } from '../driftClient';
 import { isVariant, OracleSource, PublicKey } from '..';
 import { HermesClient } from '@pythnetwork/hermes-client';
 
+const MAX_SIZE = 1232;
+
 export const isVersionedTransaction = (
 	tx: Transaction | VersionedTransaction
 ): boolean => {
@@ -27,20 +29,26 @@ export const getSizeOfTransaction = (
 	const signers = new Set<string>();
 	let accounts = new Set<string>();
 
-	instructions.map((ix) => {
-		if (ix.programId) {
-			programs.add(ix.programId.toBase58());
-			accounts.add(ix.programId.toBase58());
-		}
-		ix.keys.map((key) => {
-			if (key.isSigner) {
-				signers.add(key.pubkey.toBase58());
+	instructions.forEach((ix) => {
+		try {
+			if (ix.programId) {
+				programs.add(ix.programId.toBase58());
+				accounts.add(ix.programId.toBase58());
 			}
-			accounts.add(key.pubkey.toBase58());
-		});
+			if (ix.keys) {
+				ix.keys.forEach((key) => {
+					if (key.isSigner) {
+						signers.add(key.pubkey.toBase58());
+					}
+					accounts.add(key.pubkey.toBase58());
+				});
+			}
+		} catch (e) {
+			console.log(e);
+		}
 	});
 
-	const instruction_sizes: number = instructions
+	const instructionSizes: number = instructions
 		.map(
 			(ix) =>
 				1 +
@@ -74,7 +82,7 @@ export const getSizeOfTransaction = (
 		32 * accounts.size + // array of account addresses
 		32 + // recent blockhash
 		getSizeOfCompressedU16(instructions.length) +
-		instruction_sizes + // array of instructions
+		instructionSizes + // array of instructions
 		(versionedTransaction ? 1 + getSizeOfCompressedU16(0) : 0) +
 		(versionedTransaction ? 32 * addressLookupTables.length : 0) +
 		(versionedTransaction && addressLookupTables.length > 0 ? 2 : 0) +
@@ -82,89 +90,40 @@ export const getSizeOfTransaction = (
 	);
 };
 
-export const getInstructionsWithOracleCranks = async (
-	instructions: TransactionInstruction[],
-	driftClient: DriftClient,
+export const getCombinedInstructions = (
+	baseInstructions: TransactionInstruction[],
+	optionalInstructions: TransactionInstruction[] = [],
 	versionedTransaction = true,
-	addressLookupTables: AddressLookupTableAccount[] = [],
-	oraclesToCrank: {
-		oracleSource: OracleSource;
-		feedId?: string;
-		oracleAddress?: PublicKey;
-	}[]
-): Promise<TransactionInstruction[]> => {
-	const originalInstructionsLength = instructions.length;
-	const instructionsToAdd = [];
-
-	const pythPullFeeds = [];
-	const switchboardFeeds = [];
-
-	// filter out any without a feedId or oracleAddress
-	for (const oracleToCrank of oraclesToCrank.filter(
-		(entry) => !!entry.feedId || !!entry.oracleAddress
-	)) {
-		if (isPythPull(oracleToCrank.oracleSource)) {
-			pythPullFeeds.push(oracleToCrank.feedId);
-		} else if (isVariant(oracleToCrank.oracleSource, 'switchboard')) {
-			switchboardFeeds.push(oracleToCrank.oracleAddress);
-		} else if (isVariant(oracleToCrank.oracleSource, 'pythLazer')) {
-			// todo
-		}
+	addressLookupTables: AddressLookupTableAccount[] = []
+): TransactionInstruction[] => {
+	if (optionalInstructions.length === 0) {
+		return baseInstructions;
 	}
 
-	if (pythPullFeeds.length) {
-		// can switch this to use HermesClient if issues get resolved
-		const idsParamString = pythPullFeeds.map((id) => `ids[]=${id}`).join('&');
-		const response = await fetch(
-			`${process.env.NEXT_PUBLIC_DRIFT_HERMES_URL}/v2/updates/price/latest?${idsParamString}&encoding=base64`
-		);
-
-		const latestPriceUpdates = (await response.json())?.binary?.data?.join('');
-
-		const postPythPullOracleUpdateAtomicIx =
-			await driftClient.getPostPythPullOracleUpdateAtomicIxs(
-				latestPriceUpdates,
-				pythPullFeeds,
-				2
-			);
-
-		instructionsToAdd.push(postPythPullOracleUpdateAtomicIx);
-	}
-
-	if (instructionsToAdd.length === 0) {
-		return instructions;
-	}
-
-	instructions.unshift(...instructionsToAdd);
+	const allInstructions = [...optionalInstructions, ...baseInstructions];
 
 	let txSize = getSizeOfTransaction(
-		instructions,
+		allInstructions,
 		versionedTransaction,
 		addressLookupTables
 	);
 
-	while (txSize > 1232 && instructions.length > originalInstructionsLength) {
+	while (
+		txSize > MAX_SIZE &&
+		allInstructions.length > baseInstructions.length
+	) {
 		console.log('Tx too large, remove first instruction');
-		instructions.shift();
+		allInstructions.shift();
 		txSize = getSizeOfTransaction(
-			instructions,
+			allInstructions,
 			versionedTransaction,
 			addressLookupTables
 		);
 	}
 
-	return instructions;
+	return allInstructions;
 };
 
 function getSizeOfCompressedU16(n: number) {
 	return 1 + Number(n >= 128) + Number(n >= 16384);
-}
-
-function isPythPull(oracleSource: OracleSource): boolean {
-	return (
-		isVariant(oracleSource, 'pythPull') ||
-		isVariant(oracleSource, 'pyth1KPull') ||
-		isVariant(oracleSource, 'pyth1MPull') ||
-		isVariant(oracleSource, 'pythStableCoinPull')
-	);
 }

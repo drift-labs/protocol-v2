@@ -21,7 +21,6 @@ import {
 	DriftClientMetricsEvents,
 	IWallet,
 	MappedRecord,
-	OracleSource,
 	SignedTxData,
 	TxParams,
 } from '../types';
@@ -29,12 +28,8 @@ import { containsComputeUnitIxs } from '../util/computeUnits';
 import { CachedBlockhashFetcher } from './blockhashFetcher/cachedBlockhashFetcher';
 import { BaseBlockhashFetcher } from './blockhashFetcher/baseBlockhashFetcher';
 import { BlockhashFetcher } from './blockhashFetcher/types';
-import {
-	getInstructionsWithOracleCranks,
-	isVersionedTransaction,
-} from './utils';
+import { getCombinedInstructions, isVersionedTransaction } from './utils';
 import { DEFAULT_CONFIRMATION_OPTS } from '../config';
-import { DriftClient } from '../driftClient';
 
 /**
  * Explanation for SIGNATURE_BLOCK_AND_EXPIRY:
@@ -62,8 +57,7 @@ export type TxBuildingProps = {
 	txParams?: TxParams;
 	recentBlockhash?: BlockhashWithExpiryBlockHeight;
 	wallet?: IWallet;
-	oracleCranks?: { feedId: string; oracleSource: OracleSource }[];
-	driftClient?: DriftClient;
+	optionalIxs?: TransactionInstruction[]; // additional instructions to add to the front of ixs if there's enough room, such as oracle cranks
 };
 
 export type TxHandlerConfig = {
@@ -497,13 +491,13 @@ export class TxHandler {
 			? instructions
 			: [instructions];
 
-		if (props.oracleCranks && props.driftClient) {
-			instructions = await getInstructionsWithOracleCranks(
+		// add optional ixs if there's room (usually oracle cranks)
+		if (props.optionalIxs) {
+			instructions = getCombinedInstructions(
 				instructionsArray,
-				props.driftClient,
+				props.optionalIxs,
 				txVersion === 0,
-				lookupTables,
-				props.oracleCranks
+				lookupTables
 			);
 		}
 
