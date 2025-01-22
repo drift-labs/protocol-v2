@@ -28,8 +28,10 @@ export const getSizeOfTransaction = (
 	let accounts = new Set<string>();
 
 	instructions.map((ix) => {
-		programs.add(ix.programId.toBase58());
-		accounts.add(ix.programId.toBase58());
+		if (ix.programId) {
+			programs.add(ix.programId.toBase58());
+			accounts.add(ix.programId.toBase58());
+		}
 		ix.keys.map((key) => {
 			if (key.isSigner) {
 				signers.add(key.pubkey.toBase58());
