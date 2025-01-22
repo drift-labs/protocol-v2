@@ -104,13 +104,9 @@ export const getInstructionsWithOracleCranks = async (
 			}
 
 			pythPullFeeds.push(oracleToCrank.feedId);
-		} else if (
-			isVariant(oracleToCrank.oracleSource, 'switchboard')
-		) {
+		} else if (isVariant(oracleToCrank.oracleSource, 'switchboard')) {
 			// todo
-		} else if (
-			isVariant(oracleToCrank.oracleSource, 'pythLazer')
-		) {
+		} else if (isVariant(oracleToCrank.oracleSource, 'pythLazer')) {
 			// todo
 		}
 	}

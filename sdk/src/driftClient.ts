@@ -9317,6 +9317,7 @@ export class DriftClient {
 			lookupTables,
 			forceVersionedTransaction,
 			recentBlockhash,
+			driftClient: this,
 			oracleCranks,
 		});
 	}
