@@ -4,9 +4,6 @@ import {
 	TransactionInstruction,
 	VersionedTransaction,
 } from '@solana/web3.js';
-import { DriftClient } from '../driftClient';
-import { isVariant, OracleSource, PublicKey } from '..';
-import { HermesClient } from '@pythnetwork/hermes-client';
 
 const MAX_SIZE = 1232;
 
