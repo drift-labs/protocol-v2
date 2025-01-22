@@ -5,7 +5,7 @@ import {
 	VersionedTransaction,
 } from '@solana/web3.js';
 import { DriftClient } from '../driftClient';
-import { isVariant, OracleSource } from '..';
+import { isVariant, OracleSource, PublicKey } from '..';
 import { HermesClient } from '@pythnetwork/hermes-client';
 
 export const isVersionedTransaction = (
@@ -85,26 +85,23 @@ export const getInstructionsWithOracleCranks = async (
 	driftClient: DriftClient,
 	versionedTransaction = true,
 	addressLookupTables: AddressLookupTableAccount[] = [],
-	oraclesToCrank: { feedId: string; oracleSource: OracleSource }[]
+	oraclesToCrank: {
+		oracleSource: OracleSource;
+		feedId?: string;
+		oracleAddress?: PublicKey;
+	}[]
 ): Promise<TransactionInstruction[]> => {
 	const originalInstructionsLength = instructions.length;
 	const instructionsToAdd = [];
 
 	const pythPullFeeds = [];
 	const _switchboardFeeds = [];
-	let hermesClient: HermesClient;
 
+	// filter out any without a feedId or oracleAddress
 	for (const oracleToCrank of oraclesToCrank.filter(
-		(entry) => !!entry.feedId
+		(entry) => !!entry.feedId || !!entry.oracleAddress
 	)) {
 		if (isPythPull(oracleToCrank.oracleSource)) {
-			// init the pyth connection if it's not already
-			if (!hermesClient) {
-				hermesClient = new HermesClient(
-					process.env.NEXT_PUBLIC_DRIFT_HERMES_URL
-				);
-			}
-
 			pythPullFeeds.push(oracleToCrank.feedId);
 		} else if (isVariant(oracleToCrank.oracleSource, 'switchboard')) {
 			// todo
@@ -114,20 +111,21 @@ export const getInstructionsWithOracleCranks = async (
 	}
 
 	if (pythPullFeeds.length) {
-		const latestPriceUpdates = await hermesClient.getLatestPriceUpdates(
-			pythPullFeeds,
-			{ encoding: 'base64' }
+		// can switch this to use HermesClient if issues get resolved
+		const idsParamString = pythPullFeeds.map((id) => `ids[]=${id}`).join('&');
+		const response = await fetch(
+			`${process.env.NEXT_PUBLIC_DRIFT_HERMES_URL}/api/v2/updates/price/latest?${idsParamString}&encoding=base64`
 		);
-		console.log(
-			'data pulled from hermes: ',
-			latestPriceUpdates.binary?.data?.join('')
-		);
+
+		const latestPriceUpdates = (await response.json())?.binary?.data?.join('');
+
 		const postPythPullOracleUpdateAtomicIx =
 			await driftClient.getPostPythPullOracleUpdateAtomicIxs(
-				latestPriceUpdates.binary?.data?.join(''),
+				latestPriceUpdates,
 				pythPullFeeds,
 				2
 			);
+
 		instructionsToAdd.push(postPythPullOracleUpdateAtomicIx);
 	}
 
@@ -142,6 +140,7 @@ export const getInstructionsWithOracleCranks = async (
 		versionedTransaction,
 		addressLookupTables
 	);
+
 	while (txSize > 1232 && instructions.length > originalInstructionsLength) {
 		console.log('Tx too large, remove first instruction');
 		instructions.shift();
