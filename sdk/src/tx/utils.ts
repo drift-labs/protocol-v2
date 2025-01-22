@@ -95,7 +95,7 @@ export const getInstructionsWithOracleCranks = async (
 	const instructionsToAdd = [];
 
 	const pythPullFeeds = [];
-	const _switchboardFeeds = [];
+	const switchboardFeeds = [];
 
 	// filter out any without a feedId or oracleAddress
 	for (const oracleToCrank of oraclesToCrank.filter(
@@ -104,7 +104,7 @@ export const getInstructionsWithOracleCranks = async (
 		if (isPythPull(oracleToCrank.oracleSource)) {
 			pythPullFeeds.push(oracleToCrank.feedId);
 		} else if (isVariant(oracleToCrank.oracleSource, 'switchboard')) {
-			// todo
+			switchboardFeeds.push(oracleToCrank.oracleAddress);
 		} else if (isVariant(oracleToCrank.oracleSource, 'pythLazer')) {
 			// todo
 		}
@@ -114,7 +114,7 @@ export const getInstructionsWithOracleCranks = async (
 		// can switch this to use HermesClient if issues get resolved
 		const idsParamString = pythPullFeeds.map((id) => `ids[]=${id}`).join('&');
 		const response = await fetch(
-			`${process.env.NEXT_PUBLIC_DRIFT_HERMES_URL}/api/v2/updates/price/latest?${idsParamString}&encoding=base64`
+			`${process.env.NEXT_PUBLIC_DRIFT_HERMES_URL}/v2/updates/price/latest?${idsParamString}&encoding=base64`
 		);
 
 		const latestPriceUpdates = (await response.json())?.binary?.data?.join('');
