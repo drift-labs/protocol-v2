@@ -124,10 +124,7 @@ export class SwiftOrderSubscriber {
 						'hex'
 					);
 					const swiftOrderParamsMessage: SwiftOrderParamsMessage =
-						this.driftClient.program.coder.types.decode(
-							'SwiftOrderParamsMessage',
-							swiftOrderParamsBuf
-						);
+						this.driftClient.decodeSwiftOrderParamsMessage(swiftOrderParamsBuf);
 
 					if (!swiftOrderParamsMessage.swiftOrderParams.price) {
 						console.error(
