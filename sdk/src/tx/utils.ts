@@ -97,9 +97,6 @@ export const getCombinedInstructions = (
 		return baseInstructions;
 	}
 
-	console.log('optionalInstructions: ', optionalInstructions);
-	console.log('base instructions: ', baseInstructions);
-
 	let allInstructions = [...optionalInstructions, ...baseInstructions];
 
 	let txSize = getSizeOfTransaction(
@@ -108,27 +105,17 @@ export const getCombinedInstructions = (
 		addressLookupTables
 	);
 
-	console.log('Size with all ixs: ', txSize);
-	console.log('All ixs ', allInstructions.length);
-	console.log('All Ixs: ', allInstructions);
-
-	// while (
-	// 	txSize > MAX_SIZE &&
-	// 	allInstructions.length > baseInstructions.length
-	// ) {
-	// 	console.log(
-	// 		`Tx too large (${txSize} > ${MAX_SIZE}), remove first instruction`
-	// 	);
-	// 	allInstructions = allInstructions.slice(1);
-	// 	console.log('new allIxs ', allInstructions.length);
-	// 	txSize = getSizeOfTransaction(
-	// 		allInstructions,
-	// 		versionedTransaction,
-	// 		addressLookupTables
-	// 	);
-	// 	console.log('NEW TX SIZE: ', txSize);
-	// 	console.log('NEW IXS: ', allInstructions);
-	// }
+	while (
+		txSize > MAX_SIZE &&
+		allInstructions.length > baseInstructions.length
+	) {
+		allInstructions = allInstructions.slice(1);
+		txSize = getSizeOfTransaction(
+			allInstructions,
+			versionedTransaction,
+			addressLookupTables
+		);
+	}
 
 	return allInstructions;
 };

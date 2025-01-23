@@ -477,7 +477,7 @@ export class TxHandler {
 			preFlightCommitment: _preFlightCommitment,
 			fetchMarketLookupTableAccount,
 			forceVersionedTransaction,
-			instructions
+			instructions,
 		} = props;
 
 		let { lookupTables } = props;

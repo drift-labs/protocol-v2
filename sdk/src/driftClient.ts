@@ -6842,9 +6842,6 @@ export class DriftClient {
 		txParams?: TxParams,
 		optionalIxs?: TransactionInstruction[]
 	): Promise<TransactionSignature> {
-		console.log('optionalIxs::: ', optionalIxs.length);
-		console.log('txParams: ', txParams);
-
 		const lookupTableAccount = await this.fetchMarketLookupTableAccount();
 
 		const { txSig } = await this.sendTransaction(
