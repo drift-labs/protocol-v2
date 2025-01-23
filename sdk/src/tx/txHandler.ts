@@ -477,9 +477,10 @@ export class TxHandler {
 			preFlightCommitment: _preFlightCommitment,
 			fetchMarketLookupTableAccount,
 			forceVersionedTransaction,
+			instructions
 		} = props;
 
-		let { lookupTables, instructions } = props;
+		let { lookupTables } = props;
 
 		// # Collect and process Tx Params
 		let baseTxParams: BaseTxParams = {
@@ -491,20 +492,24 @@ export class TxHandler {
 			? instructions
 			: [instructions];
 
+		let instructionsToUse: TransactionInstruction[];
+
 		// add optional ixs if there's room (usually oracle cranks)
 		if (props.optionalIxs) {
-			instructions = getCombinedInstructions(
+			instructionsToUse = getCombinedInstructions(
 				instructionsArray,
 				props.optionalIxs,
 				txVersion === 0,
 				lookupTables
 			);
+		} else {
+			instructionsToUse = instructionsArray;
 		}
 
 		if (txParams?.useSimulatedComputeUnits) {
 			const processedTxParams = await this.getProcessedTransactionParams({
 				...props,
-				instructions,
+				instructions: instructionsToUse,
 			});
 
 			baseTxParams = {
@@ -514,7 +519,7 @@ export class TxHandler {
 		}
 
 		const { hasSetComputeUnitLimitIx, hasSetComputeUnitPriceIx } =
-			containsComputeUnitIxs(instructionsArray);
+			containsComputeUnitIxs(instructionsToUse);
 
 		// # Create Tx Instructions
 		const allIx = [];
@@ -543,7 +548,7 @@ export class TxHandler {
 			);
 		}
 
-		allIx.push(...instructionsArray);
+		allIx.push(...instructionsToUse);
 
 		const recentBlockhash =
 			props?.recentBlockhash ?? (await this.getLatestBlockhashForTransaction());
