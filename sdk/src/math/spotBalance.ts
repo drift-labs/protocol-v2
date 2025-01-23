@@ -3,6 +3,7 @@ import {
 	SpotBalanceType,
 	isVariant,
 	MarginCategory,
+	SpotPosition,
 } from '../types';
 import { BN } from '@coral-xyz/anchor';
 import {
@@ -23,6 +24,8 @@ import { OraclePriceData } from '../oracles/types';
 import { PERCENTAGE_PRECISION } from '../constants/numericConstants';
 import { divCeil } from './utils';
 import { StrictOraclePrice } from '../oracles/strictOraclePrice';
+import { DriftClient } from '../driftClient';
+import { BigNum } from '../factory/bigNum';
 
 /**
  * Calculates the balance of a given token amount including any accumulated interest. This
@@ -628,3 +631,28 @@ export function calculateWithdrawLimit(
 		currentBorrowAmount: marketBorrowTokenAmount,
 	};
 }
+
+export const calculateFormattedSpotMarketBalance = (
+	spotPosition: SpotPosition,
+	driftClient: DriftClient
+): {
+	balance: number;
+	type: 'deposit' | 'borrow';
+} => {
+	const spotMarketAccount = driftClient.getSpotMarketAccount(
+		spotPosition.marketIndex
+	);
+	const spotMarketPrecision = spotMarketAccount.decimals;
+
+	const scaledBalance = spotPosition.scaledBalance;
+
+	const tokenBalance = BigNum.from(
+		getTokenAmount(scaledBalance, spotMarketAccount, spotPosition.balanceType),
+		spotMarketPrecision
+	);
+
+	return {
+		balance: tokenBalance.toNum(),
+		type: isVariant(spotPosition.balanceType, 'deposit') ? 'deposit' : 'borrow',
+	};
+};
