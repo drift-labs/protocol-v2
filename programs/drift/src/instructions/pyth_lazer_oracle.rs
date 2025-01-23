@@ -1,5 +1,3 @@
-use std::borrow::Borrow;
-
 use crate::error::ErrorCode;
 use crate::math::casting::Cast;
 use crate::math::safe_math::SafeMath;
@@ -37,7 +35,6 @@ pub fn handle_update_pyth_lazer_oracle<'c: 'info, 'info>(
         &pyth_message,
         ix_idx - 1,
         0,
-        12,
     )?;
 
     let deserialized_pyth_message = SolanaMessage::deserialize_slice(&pyth_message)
@@ -80,14 +77,20 @@ pub fn handle_update_pyth_lazer_oracle<'c: 'info, 'info>(
 
             let mut best_bid_price: Option<Price> = None;
             let mut best_ask_price: Option<Price> = None;
+            let mut exponent: Option<i16> = None;
 
             for property in &payload_data.properties {
                 match property {
                     PayloadPropertyValue::BestBidPrice(price) => best_bid_price = *price,
                     PayloadPropertyValue::BestAskPrice(price) => best_ask_price = *price,
+                    PayloadPropertyValue::Exponent(exp) => exponent = Some(*exp),
                     _ => {}
                 }
             }
+
+            msg!("Properties: {:?}", payload_data.properties);
+            let exponent = exponent.ok_or(ErrorCode::InvalidPythLazerMessage)?;
+            msg!("Exponent: {}", exponent);
 
             // Default to 20bps of the price for conf if bid > ask or one-sided market
             let mut conf: i64 = price.0.get().safe_div(500)?;
@@ -100,6 +103,7 @@ pub fn handle_update_pyth_lazer_oracle<'c: 'info, 'info>(
             pyth_lazer_oracle.price = price.0.get();
             pyth_lazer_oracle.posted_slot = Clock::get()?.slot;
             pyth_lazer_oracle.publish_time = next_timestamp;
+            pyth_lazer_oracle.exponent = exponent.cast::<i32>()?;
             pyth_lazer_oracle.conf = conf.cast::<u64>()?;
             msg!("Price updated to {}", price.0.get());
 

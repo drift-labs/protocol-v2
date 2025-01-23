@@ -331,7 +331,7 @@ describe('place and make swift order', () => {
 		);
 
 		// Switch the oracle over to using pyth lazer
-		await makerDriftClient.initializePythLazerOracle(6, -8);
+		await makerDriftClient.initializePythLazerOracle(6);
 		await makerDriftClient.postPythLazerOracleUpdate(
 			[6],
 			PYTH_LAZER_HEX_STRING_SOL

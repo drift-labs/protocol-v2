@@ -5981,8 +5981,7 @@ export class DriftClient {
 		const swiftOrderParamsSignatureIx = createMinimalEd25519VerifyIx(
 			overrideIxCount || precedingIxs.length + 1,
 			12,
-			swiftIxData,
-			0
+			swiftIxData
 		);
 
 		const placeTakerSwiftPerpOrderIx =
@@ -8900,6 +8899,7 @@ export class DriftClient {
 			12,
 			pythMessageBytes
 		);
+		console.log(Uint8Array.from(verifyIx.data));
 
 		const remainingAccountsMeta = feedIds.map((feedId) => {
 			return {

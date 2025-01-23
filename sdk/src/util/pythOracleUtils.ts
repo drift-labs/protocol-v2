@@ -13,6 +13,7 @@ export function getFeedIdUint8Array(feedId: string): Uint8Array {
 	return Uint8Array.from(Buffer.from(trimmedFeedId, 'hex'));
 }
 
+const ED25519_INSTRUCTION_LEN = 16;
 const SIGNATURE_LEN = 64;
 const PUBKEY_LEN = 32;
 const MAGIC_LEN = 4;
@@ -102,11 +103,9 @@ const ED25519_INSTRUCTION_LAYOUT = BufferLayout.struct<
 export function createMinimalEd25519VerifyIx(
 	customInstructionIndex: number,
 	messageOffset: number,
-	customInstructionData: Uint8Array,
-	magicLen?: number
+	customInstructionData: Uint8Array
 ): TransactionInstruction {
-	const signatureOffset =
-		messageOffset + (magicLen === undefined ? MAGIC_LEN : magicLen);
+	const signatureOffset = messageOffset + MAGIC_LEN;
 	const publicKeyOffset = signatureOffset + SIGNATURE_LEN;
 	const messageDataSizeOffset = publicKeyOffset + PUBKEY_LEN;
 	const messageDataOffset = messageDataSizeOffset + MESSAGE_SIZE_LEN;
@@ -116,7 +115,7 @@ export function createMinimalEd25519VerifyIx(
 		messageDataSizeOffset - messageOffset
 	);
 
-	const instructionData = Buffer.alloc(16);
+	const instructionData = Buffer.alloc(ED25519_INSTRUCTION_LEN);
 
 	ED25519_INSTRUCTION_LAYOUT.encode(
 		{
