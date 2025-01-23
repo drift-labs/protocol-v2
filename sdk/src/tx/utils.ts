@@ -105,6 +105,9 @@ export const getCombinedInstructions = (
 		addressLookupTables
 	);
 
+	console.log('Size with all ixs: ', txSize);
+	console.log('All ixs ', allInstructions.length);
+
 	while (
 		txSize > MAX_SIZE &&
 		allInstructions.length > baseInstructions.length
@@ -113,11 +116,13 @@ export const getCombinedInstructions = (
 			`Tx too large (${txSize} > ${MAX_SIZE}), remove first instruction`
 		);
 		allInstructions.shift();
+		console.log('new allIxs ', allInstructions.length);
 		txSize = getSizeOfTransaction(
 			allInstructions,
 			versionedTransaction,
 			addressLookupTables
 		);
+		console.log('NEW TX SIZE', txSize)
 	}
 
 	return allInstructions;
