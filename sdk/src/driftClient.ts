@@ -8721,6 +8721,11 @@ export class DriftClient {
 		feedIds: string | string[],
 		numSignatures = 2
 	): Promise<TransactionInstruction[]> {
+		console.log('vaaString: ', vaaString);
+		console.log('feedIds: ', feedIds);
+		console.log('numSignatures: ', numSignatures);
+
+
 		const accumulatorUpdateData = parseAccumulatorUpdateData(
 			Buffer.from(vaaString, 'base64')
 		);
@@ -8729,10 +8734,18 @@ export class DriftClient {
 			guardianSetIndex,
 			DEFAULT_WORMHOLE_PROGRAM_ID
 		);
+
+		console.log('accumulatorUpdateData.vaa', accumulatorUpdateData.vaa);
+
 		const trimmedVaa = trimVaaSignatures(
 			accumulatorUpdateData.vaa,
 			numSignatures
 		);
+
+
+		console.log('trimmedVaa', trimmedVaa);
+
+		console.log('accumulatorUpdateData.updates', accumulatorUpdateData.updates);
 
 		const postIxs: TransactionInstruction[] = [];
 		if (accumulatorUpdateData.updates.length > 1) {
