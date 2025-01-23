@@ -5514,8 +5514,6 @@ export class DriftClient {
 		cancelExistingOrdersTx: Transaction | VersionedTransaction;
 		settlePnlTx: Transaction | VersionedTransaction;
 	}> {
-		console.log(`place and take with optionalIxs: `, optionalIxs);
-
 		const placeAndTakeIxs: TransactionInstruction[] = [];
 
 		type TxKeys = 'placeAndTakeTx' | 'cancelExistingOrdersTx' | 'settlePnlTx';
