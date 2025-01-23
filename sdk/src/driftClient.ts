@@ -3944,11 +3944,13 @@ export class DriftClient {
 		subAccountId?: number,
 		optionalIxs?: TransactionInstruction[]
 	) {
+		const lookupTableAccount = await this.fetchMarketLookupTableAccount();
+
 		const tx = await this.buildTransaction(
 			await this.getPlaceOrdersIx(params, subAccountId),
 			txParams,
 			undefined,
-			undefined,
+			[lookupTableAccount],
 			undefined,
 			undefined,
 			optionalIxs
