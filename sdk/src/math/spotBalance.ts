@@ -24,7 +24,6 @@ import { OraclePriceData } from '../oracles/types';
 import { PERCENTAGE_PRECISION } from '../constants/numericConstants';
 import { divCeil } from './utils';
 import { StrictOraclePrice } from '../oracles/strictOraclePrice';
-import { DriftClient } from '../driftClient';
 import { BigNum } from '../factory/bigNum';
 
 /**
@@ -632,16 +631,19 @@ export function calculateWithdrawLimit(
 	};
 }
 
+/**
+ * Simple way to get a formatted balance for a spot position. This may lose precision, to get balance without losing precision use `getTokenAmount`.
+ * @param spotPosition 
+ * @param spotMarketAccount 
+ * @returns 
+ */
 export const calculateFormattedSpotMarketBalance = (
 	spotPosition: SpotPosition,
-	driftClient: DriftClient
+	spotMarketAccount: SpotMarketAccount,
 ): {
 	balance: number;
 	type: 'deposit' | 'borrow';
 } => {
-	const spotMarketAccount = driftClient.getSpotMarketAccount(
-		spotPosition.marketIndex
-	);
 	const spotMarketPrecision = spotMarketAccount.decimals;
 
 	const scaledBalance = spotPosition.scaledBalance;
