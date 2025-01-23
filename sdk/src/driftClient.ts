@@ -5528,6 +5528,8 @@ export class DriftClient {
 		const recentBlockHash =
 			await this.txHandler.getLatestBlockhashForTransaction();
 
+		const lookupTableAccount = await this.fetchMarketLookupTableAccount();
+
 		let earlyExitFailedPlaceAndTakeSim = false;
 
 		const prepPlaceAndTakeTx = async () => {
@@ -5564,7 +5566,7 @@ export class DriftClient {
 					placeAndTakeIxs,
 					txParams,
 					undefined,
-					undefined,
+					[lookupTableAccount],
 					true,
 					recentBlockHash,
 					optionalIxs
@@ -5590,7 +5592,7 @@ export class DriftClient {
 						computeUnits: simulationResult.computeUnits,
 					},
 					undefined,
-					undefined,
+					[lookupTableAccount],
 					undefined,
 					recentBlockHash,
 					optionalIxs
@@ -5600,7 +5602,7 @@ export class DriftClient {
 					placeAndTakeIxs,
 					txParams,
 					undefined,
-					undefined,
+					[lookupTableAccount],
 					undefined,
 					recentBlockHash,
 					optionalIxs
@@ -5623,7 +5625,7 @@ export class DriftClient {
 					[cancelOrdersIx],
 					txParams,
 					this.txVersion,
-					undefined,
+					[lookupTableAccount],
 					undefined,
 					recentBlockHash,
 					optionalIxs
@@ -5649,7 +5651,7 @@ export class DriftClient {
 					[settlePnlIx],
 					txParams,
 					this.txVersion,
-					undefined,
+					[lookupTableAccount],
 					undefined,
 					recentBlockHash,
 					optionalIxs
@@ -6840,6 +6842,8 @@ export class DriftClient {
 		txParams?: TxParams,
 		optionalIxs?: TransactionInstruction[]
 	): Promise<TransactionSignature> {
+		const lookupTableAccount = await this.fetchMarketLookupTableAccount();
+
 		const { txSig } = await this.sendTransaction(
 			await this.buildTransaction(
 				await this.settlePNLIx(
@@ -6849,7 +6853,7 @@ export class DriftClient {
 				),
 				txParams,
 				undefined,
-				undefined,
+				[lookupTableAccount],
 				undefined,
 				undefined,
 				optionalIxs
