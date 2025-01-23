@@ -59,7 +59,6 @@ export class BankrunContextWrapper {
 
 	constructor(context: ProgramTestContext, verifySignatures = true) {
 		this.context = context;
-		//@ts-ignore
 		this.provider = new BankrunProvider(context);
 		this.connection = new BankrunConnection(
 			this.context.banksClient,
