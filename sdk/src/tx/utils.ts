@@ -97,7 +97,10 @@ export const getCombinedInstructions = (
 		return baseInstructions;
 	}
 
-	const allInstructions = [...optionalInstructions, ...baseInstructions];
+	console.log('optionalInstructions: ', optionalInstructions);
+	console.log('base instructions: ', baseInstructions);
+
+	let allInstructions = [...optionalInstructions, ...baseInstructions];
 
 	let txSize = getSizeOfTransaction(
 		allInstructions,
@@ -107,7 +110,7 @@ export const getCombinedInstructions = (
 
 	console.log('Size with all ixs: ', txSize);
 	console.log('All ixs ', allInstructions.length);
-	console.log('Ixs: ', allInstructions);
+	console.log('All Ixs: ', allInstructions);
 
 	while (
 		txSize > MAX_SIZE &&
@@ -116,7 +119,7 @@ export const getCombinedInstructions = (
 		console.log(
 			`Tx too large (${txSize} > ${MAX_SIZE}), remove first instruction`
 		);
-		allInstructions.shift();
+		allInstructions = allInstructions.slice(1);
 		console.log('new allIxs ', allInstructions.length);
 		txSize = getSizeOfTransaction(
 			allInstructions,
