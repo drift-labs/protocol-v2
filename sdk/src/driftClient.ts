@@ -3470,7 +3470,7 @@ export class DriftClient {
 	 * @param makerInfo
 	 * @param txParams
 	 * @param bracketOrdersParams
-	 * @param cancelExistingOrders - Builds and returns an extra transaciton to cancel the existing orders in the same perp market. Intended use is to auto-cancel TP/SL orders when closing a position. Ignored if orderParams.marketType is not MarketType.PERP
+	 * @param cancelExistingOrders - Builds and returns an extra transaction to cancel the existing orders in the same perp market. Intended use is to auto-cancel TP/SL orders when closing a position. Ignored if orderParams.marketType is not MarketType.PERP
 	 * @returns
 	 */
 	public async sendMarketOrderAndGetSignedFillTx(
@@ -8038,7 +8038,7 @@ export class DriftClient {
 		 */
 		collateralAccountPublicKey: PublicKey;
 		/**
-		 * Add instructions to initialize the staking account -- required if its the first time the currrent authority has staked in this market
+		 * Add instructions to initialize the staking account -- required if its the first time the current authority has staked in this market
 		 */
 		initializeStakeAccount?: boolean;
 		/**
