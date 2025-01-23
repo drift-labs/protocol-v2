@@ -1853,6 +1853,7 @@ checksum = "44de48029c54ec1ca570786b5baeb906b0fc2409c8e0145585e287ee7a526c72"
 [[package]]
 name = "pyth-lazer-protocol"
 version = "0.1.2"
+source = "git+https://github.com/drift-labs/pyth-crosschain?rev=7258ea498fe2c09a130612c006edd6ecede38912#7258ea498fe2c09a130612c006edd6ecede38912"
 dependencies = [
  "anyhow",
  "byteorder",
@@ -1865,6 +1866,7 @@ dependencies = [
 [[package]]
 name = "pyth-lazer-solana-contract"
 version = "0.2.0"
+source = "git+https://github.com/drift-labs/pyth-crosschain?rev=7258ea498fe2c09a130612c006edd6ecede38912#7258ea498fe2c09a130612c006edd6ecede38912"
 dependencies = [
  "anchor-lang",
  "bytemuck",
