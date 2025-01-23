@@ -107,6 +107,7 @@ export const getCombinedInstructions = (
 
 	console.log('Size with all ixs: ', txSize);
 	console.log('All ixs ', allInstructions.length);
+	console.log('Ixs: ', allInstructions);
 
 	while (
 		txSize > MAX_SIZE &&
@@ -122,7 +123,8 @@ export const getCombinedInstructions = (
 			versionedTransaction,
 			addressLookupTables
 		);
-		console.log('NEW TX SIZE', txSize)
+		console.log('NEW TX SIZE: ', txSize);
+		console.log('NEW IXS: ', allInstructions);
 	}
 
 	return allInstructions;
