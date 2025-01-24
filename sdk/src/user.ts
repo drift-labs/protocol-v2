@@ -755,6 +755,15 @@ export class User {
 		return this.getMarginRequirement('Maintenance', liquidationBuffer);
 	}
 
+	public getMarginShortage(
+		maintenanceMarginRequirementPlusBuffer: BN,
+		maintenanceTotalCollateral: BN
+	): BN {
+		return maintenanceMarginRequirementPlusBuffer
+			.sub(maintenanceTotalCollateral)
+			.abs();
+	}
+
 	public getActivePerpPositionsForUserAccount(
 		userAccount: UserAccount
 	): PerpPosition[] {

@@ -6,6 +6,9 @@ import {
 	PRICE_TIMES_AMM_TO_QUOTE_PRECISION_RATIO,
 	QUOTE_PRECISION,
 	LIQUIDATION_PCT_PRECISION,
+	SPOT_MARKET_WEIGHT_PRECISION,
+	TEN,
+	ONE,
 } from '../constants/numericConstants';
 
 export function calculateBaseAssetAmountToCoverMarginShortage(
@@ -36,6 +39,124 @@ export function calculateBaseAssetAmountToCoverMarginShortage(
 				oraclePrice.mul(new BN(ifLiquidationFee)).div(LIQUIDATION_FEE_PRECISION)
 			)
 	);
+}
+
+export function calculateLiabilityTransferToCoverMarginShortage(
+	marginShortage: BN,
+	assetWeight: number,
+	assetLiquidationMultiplier: number,
+	liabilityWeight: number,
+	liabilityLiquidationMultiplier: number,
+	liabilityDecimals: number,
+	liabilityPrice: BN,
+	ifLiquidationFee: number
+): BN | undefined {
+	if (assetWeight >= liabilityWeight) {
+		// undefined is max
+		return undefined;
+	}
+
+	let numeratorScale: BN;
+	let denominatorScale: BN;
+	if (liabilityDecimals > 6) {
+		numeratorScale = new BN(10).pow(new BN(liabilityDecimals - 6));
+		denominatorScale = new BN(1);
+	} else {
+		numeratorScale = new BN(1);
+		denominatorScale = new BN(10).pow(new BN(6 - liabilityDecimals));
+	}
+
+	// multiply market weights by extra 10 to increase precision
+	const liabilityWeightComponent = liabilityWeight * 10;
+	const assetWeightComponent =
+		(assetWeight * 10 * assetLiquidationMultiplier) /
+		liabilityLiquidationMultiplier;
+
+	if (assetWeightComponent >= liabilityWeightComponent) {
+		return undefined;
+	}
+
+	return BN.max(
+		marginShortage
+			.mul(numeratorScale)
+			.mul(PRICE_PRECISION.mul(SPOT_MARKET_WEIGHT_PRECISION).mul(TEN))
+			.div(
+				liabilityPrice
+					.mul(
+						new BN(liabilityWeightComponent).sub(new BN(assetWeightComponent))
+					)
+					.sub(
+						liabilityPrice
+							.mul(new BN(ifLiquidationFee))
+							.div(LIQUIDATION_FEE_PRECISION)
+							.mul(new BN(liabilityWeight))
+							.mul(new BN(10))
+					)
+			)
+			.div(denominatorScale),
+		ONE
+	);
+}
+
+export function calculateAssetTransferForLiabilityTransfer(
+	assetAmount: BN,
+	assetLiquidationMultiplier: number,
+	assetDecimals: number,
+	assetPrice: BN,
+	liabilityAmount: BN,
+	liabilityLiquidationMultiplier: number,
+	liabilityDecimals: number,
+	liabilityPrice: BN
+): BN | undefined {
+	let numeratorScale: BN;
+	let denominatorScale: BN;
+	if (assetDecimals > liabilityDecimals) {
+		numeratorScale = new BN(10).pow(new BN(assetDecimals - liabilityDecimals));
+		denominatorScale = new BN(1);
+	} else {
+		numeratorScale = new BN(1);
+		denominatorScale = new BN(10).pow(
+			new BN(liabilityDecimals - assetDecimals)
+		);
+	}
+
+	let assetTransfer = liabilityAmount
+		.mul(numeratorScale)
+		.mul(liabilityPrice)
+		.mul(new BN(assetLiquidationMultiplier))
+		.div(assetPrice.mul(new BN(liabilityLiquidationMultiplier)))
+		.div(denominatorScale);
+	assetTransfer = BN.max(assetTransfer, ONE);
+
+	// Need to check if asset_transfer should be rounded to asset amount
+	let assetValueNumeratorScale: BN;
+	let assetValueDenominatorScale: BN;
+	if (assetDecimals > 6) {
+		assetValueNumeratorScale = new BN(10).pow(new BN(assetDecimals - 6));
+		assetValueDenominatorScale = new BN(1);
+	} else {
+		assetValueNumeratorScale = new BN(1);
+		assetValueDenominatorScale = new BN(10).pow(new BN(6 - assetDecimals));
+	}
+
+	let assetDelta: BN;
+	if (assetTransfer > assetAmount) {
+		assetDelta = assetTransfer.sub(assetAmount);
+	} else {
+		assetDelta = assetAmount.sub(assetTransfer);
+	}
+
+	const assetValueDelta = assetDelta
+		.mul(assetPrice)
+		.div(PRICE_PRECISION)
+		.mul(assetValueNumeratorScale)
+		.div(assetValueDenominatorScale);
+
+	if (assetValueDelta.lt(QUOTE_PRECISION)) {
+		assetTransfer = assetAmount;
+	}
+
+	return assetTransfer;
 }
 
 export function calculateMaxPctToLiquidate(
