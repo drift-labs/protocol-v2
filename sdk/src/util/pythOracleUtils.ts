@@ -13,6 +13,7 @@ export function getFeedIdUint8Array(feedId: string): Uint8Array {
 	return Uint8Array.from(Buffer.from(trimmedFeedId, 'hex'));
 }
 
+const ED25519_INSTRUCTION_LEN = 16;
 const SIGNATURE_LEN = 64;
 const PUBKEY_LEN = 32;
 const MAGIC_LEN = 4;
@@ -116,7 +117,7 @@ export function createMinimalEd25519VerifyIx(
 		messageDataSizeOffset - messageOffset
 	);
 
-	const instructionData = Buffer.alloc(16);
+	const instructionData = Buffer.alloc(ED25519_INSTRUCTION_LEN);
 
 	ED25519_INSTRUCTION_LAYOUT.encode(
 		{

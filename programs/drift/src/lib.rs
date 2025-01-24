@@ -1590,17 +1590,8 @@ pub mod drift {
     pub fn initialize_pyth_lazer_oracle(
         ctx: Context<InitPythLazerOracle>,
         feed_id: u32,
-        exponent: i32,
     ) -> Result<()> {
-        handle_initialize_pyth_lazer_oracle(ctx, feed_id, exponent)
-    }
-
-    pub fn update_pyth_lazer_oracle_exponent(
-        ctx: Context<UpdatePythLazerOracleExponent>,
-        feed_id: u32,
-        exponent: i32,
-    ) -> Result<()> {
-        handle_update_pyth_lazer_exponent(ctx, feed_id, exponent)
+        handle_initialize_pyth_lazer_oracle(ctx, feed_id)
     }
 
     pub fn post_pyth_lazer_oracle_update<'c: 'info, 'info>(

@@ -4179,32 +4179,12 @@ pub fn handle_initialize_pyth_pull_oracle(
 pub fn handle_initialize_pyth_lazer_oracle(
     ctx: Context<InitPythLazerOracle>,
     feed_id: u32,
-    exponent: i32,
 ) -> Result<()> {
     let pubkey = ctx.accounts.lazer_oracle.to_account_info().key;
-    let mut pyth_lazer_account = ctx.accounts.lazer_oracle.load_init()?;
-    pyth_lazer_account.exponent = exponent;
     msg!(
         "Lazer price feed initted {} with feed_id {}",
         pubkey,
         feed_id
-    );
-    Ok(())
-}
-
-pub fn handle_update_pyth_lazer_exponent(
-    ctx: Context<UpdatePythLazerOracleExponent>,
-    feed_id: u32,
-    exponent: i32,
-) -> Result<()> {
-    let mut pyth_lazer_account = ctx.accounts.lazer_oracle.load_mut()?;
-    let old_exponent = pyth_lazer_account.exponent;
-    pyth_lazer_account.exponent = exponent;
-    msg!(
-        "Lazer exponent updated for feed_id {}. {} -> {} ",
-        feed_id,
-        old_exponent,
-        exponent
     );
     Ok(())
 }
@@ -4920,7 +4900,7 @@ pub struct InitPythPullPriceFeed<'info> {
 }
 
 #[derive(Accounts)]
-#[instruction(feed_id: u32, exponent: i32)]
+#[instruction(feed_id: u32)]
 pub struct InitPythLazerOracle<'info> {
     #[account(
         mut,
@@ -4936,21 +4916,6 @@ pub struct InitPythLazerOracle<'info> {
     pub state: Box<Account<'info, State>>,
     pub rent: Sysvar<'info, Rent>,
     pub system_program: Program<'info, System>,
-}
-
-#[derive(Accounts)]
-#[instruction(feed_id: u32)]
-pub struct UpdatePythLazerOracleExponent<'info> {
-    #[account(
-        mut,
-        constraint = admin.key() == state.admin
-    )]
-    pub admin: Signer<'info>,
-    #[account(mut, seeds = [PYTH_LAZER_ORACLE_SEED, &feed_id.to_le_bytes()],
-        bump,
-    )]
-    pub lazer_oracle: AccountLoader<'info, PythLazerOracle>,
-    pub state: Box<Account<'info, State>>,
 }
 
 #[derive(Accounts)]
