@@ -495,7 +495,7 @@ export class TxHandler {
 		let instructionsToUse: TransactionInstruction[];
 
 		// add optional ixs if there's room (usually oracle cranks)
-		if (props.optionalIxs) {
+		if (props.optionalIxs && txVersion === 0) {
 			instructionsToUse = getCombinedInstructions(
 				instructionsArray,
 				props.optionalIxs,
