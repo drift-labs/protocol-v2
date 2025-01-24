@@ -88,9 +88,7 @@ pub fn handle_update_pyth_lazer_oracle<'c: 'info, 'info>(
                 }
             }
 
-            msg!("Properties: {:?}", payload_data.properties);
             let exponent = exponent.ok_or(ErrorCode::InvalidPythLazerMessage)?;
-            msg!("Exponent: {}", exponent);
 
             // Default to 20bps of the price for conf if bid > ask or one-sided market
             let mut conf: i64 = price.0.get().safe_div(500)?;

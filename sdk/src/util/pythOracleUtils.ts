@@ -103,9 +103,11 @@ const ED25519_INSTRUCTION_LAYOUT = BufferLayout.struct<
 export function createMinimalEd25519VerifyIx(
 	customInstructionIndex: number,
 	messageOffset: number,
-	customInstructionData: Uint8Array
+	customInstructionData: Uint8Array,
+	magicLen?: number
 ): TransactionInstruction {
-	const signatureOffset = messageOffset + MAGIC_LEN;
+	const signatureOffset =
+		messageOffset + (magicLen === undefined ? MAGIC_LEN : magicLen);
 	const publicKeyOffset = signatureOffset + SIGNATURE_LEN;
 	const messageDataSizeOffset = publicKeyOffset + PUBKEY_LEN;
 	const messageDataOffset = messageDataSizeOffset + MESSAGE_SIZE_LEN;
