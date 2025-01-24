@@ -198,3 +198,12 @@ export function calculateMaxPctToLiquidate(
 
 	return marginFreeable.mul(LIQUIDATION_PCT_PRECISION).div(marginShortage);
 }
+
+export function getMarginShortage(
+	maintenanceMarginRequirementPlusBuffer: BN,
+	maintenanceTotalCollateral: BN
+): BN {
+	return maintenanceMarginRequirementPlusBuffer
+		.sub(maintenanceTotalCollateral)
+		.abs();
+}
