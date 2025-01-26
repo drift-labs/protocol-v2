@@ -264,5 +264,33 @@ export function getMultipleBetweenOracleSources(
 		return { numerator: new BN(1), denominator: new BN(1000) };
 	}
 
+	if (
+		isVariant(firstOracleSource, 'pythLazer') &&
+		isVariant(secondOracleSource, 'pythLazer1M')
+	) {
+		return { numerator: new BN(1000000), denominator: new BN(1) };
+	}
+
+	if (
+		isVariant(firstOracleSource, 'pythLazer') &&
+		isVariant(secondOracleSource, 'pythLazer1K')
+	) {
+		return { numerator: new BN(1000), denominator: new BN(1) };
+	}
+
+	if (
+		isVariant(firstOracleSource, 'pythLazer1M') &&
+		isVariant(secondOracleSource, 'pythLazer')
+	) {
+		return { numerator: new BN(1), denominator: new BN(1000000) };
+	}
+
+	if (
+		isVariant(firstOracleSource, 'pythLazer1K') &&
+		isVariant(secondOracleSource, 'pythLazer')
+	) {
+		return { numerator: new BN(1), denominator: new BN(1000) };
+	}
+
 	return { numerator: new BN(1), denominator: new BN(1) };
 }
