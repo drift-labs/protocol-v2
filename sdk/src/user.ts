@@ -743,15 +743,7 @@ export class User {
 	/**
 	 * @returns The maintenance margin requirement in USDC. : QUOTE_PRECISION
 	 */
-	public getMaintenanceMarginRequirement(): BN {
-		// if user being liq'd, can continue to be liq'd until total collateral above the margin requirement plus buffer
-		let liquidationBuffer = undefined;
-		if (this.isBeingLiquidated()) {
-			liquidationBuffer = new BN(
-				this.driftClient.getStateAccount().liquidationMarginBufferRatio
-			);
-		}
-
+	public getMaintenanceMarginRequirement(liquidationBuffer?: BN): BN {
 		return this.getMarginRequirement('Maintenance', liquidationBuffer);
 	}
 
@@ -813,7 +805,8 @@ export class User {
 		withFunding?: boolean,
 		marketIndex?: number,
 		withWeightMarginCategory?: MarginCategory,
-		strict = false
+		strict = false,
+		liquidationBuffer?: BN
 	): BN {
 		return this.getActivePerpPositions()
 			.filter((pos) =>
@@ -881,6 +874,12 @@ export class User {
 								)
 							)
 							.div(new BN(SPOT_MARKET_WEIGHT_PRECISION));
+					}
+
+					if (positionUnrealizedPnl.lt(ZERO)) {
+						positionUnrealizedPnl = positionUnrealizedPnl.add(
+							positionUnrealizedPnl.mul(liquidationBuffer).div(MARGIN_PRECISION)
+						);
 					}
 				}
 
@@ -1386,14 +1385,34 @@ export class User {
 	public getTotalCollateral(
 		marginCategory: MarginCategory = 'Initial',
 		strict = false,
-		includeOpenOrders = true
+		includeOpenOrders = true,
+		liquidationBuffer?: BN
 	): BN {
 		return this.getSpotMarketAssetValue(
 			undefined,
 			marginCategory,
 			includeOpenOrders,
 			strict
-		).add(this.getUnrealizedPNL(true, undefined, marginCategory, strict));
+		).add(
+			this.getUnrealizedPNL(
+				true,
+				undefined,
+				marginCategory,
+				strict,
+				liquidationBuffer
+			)
+		);
+	}
+
+	public getLiquidationBuffer(): BN | undefined {
+		// if user being liq'd, can continue to be liq'd until total collateral above the margin requirement plus buffer
+		let liquidationBuffer = undefined;
+		if (this.isBeingLiquidated()) {
+			liquidationBuffer = new BN(
+				this.driftClient.getStateAccount().liquidationMarginBufferRatio
+			);
+		}
+		return liquidationBuffer;
 	}
 
 	/**
@@ -2106,9 +2125,17 @@ export class User {
 		marginRequirement: BN;
 		totalCollateral: BN;
 	} {
-		const totalCollateral = this.getTotalCollateral('Maintenance');
+		const liquidationBuffer = this.getLiquidationBuffer();
 
-		const marginRequirement = this.getMaintenanceMarginRequirement();
+		const totalCollateral = this.getTotalCollateral(
+			'Maintenance',
+			undefined,
+			undefined,
+			liquidationBuffer
+		);
+
+		const marginRequirement =
+			this.getMaintenanceMarginRequirement(liquidationBuffer);
 		const canBeLiquidated = totalCollateral.lt(marginRequirement);
 
 		return {

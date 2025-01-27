@@ -8,7 +8,9 @@ use crate::state::oracle::StrictOraclePrice;
 use crate::state::perp_market::PerpMarket;
 use crate::state::spot_market::SpotMarket;
 use crate::state::user::{PerpPosition, User};
-use crate::{validate, MarketType, AMM_RESERVE_PRECISION_I128, MARGIN_PRECISION_U128};
+use crate::{
+    validate, MarketType, AMM_RESERVE_PRECISION_I128, MARGIN_PRECISION_I128, MARGIN_PRECISION_U128,
+};
 use anchor_lang::{prelude::*, solana_program::msg};
 
 #[derive(Clone, Copy, Debug)]
@@ -165,6 +167,10 @@ impl MarginContext {
 pub struct MarginCalculation {
     pub context: MarginContext,
     pub total_collateral: i128,
+    #[cfg(not(test))]
+    total_collateral_buffer: i128,
+    #[cfg(test)]
+    pub total_collateral_buffer: i128,
     pub margin_requirement: u128,
     #[cfg(not(test))]
     margin_requirement_plus_buffer: u128,
@@ -192,6 +198,7 @@ impl MarginCalculation {
         Self {
             context,
             total_collateral: 0,
+            total_collateral_buffer: 0,
             margin_requirement: 0,
             margin_requirement_plus_buffer: 0,
             num_spot_liabilities: 0,
@@ -214,6 +221,14 @@ impl MarginCalculation {
 
     pub fn add_total_collateral(&mut self, total_collateral: i128) -> DriftResult {
         self.total_collateral = self.total_collateral.safe_add(total_collateral)?;
+
+        if self.context.margin_buffer > 0 && total_collateral < 0 {
+            self.total_collateral_buffer = self.total_collateral_buffer.safe_add(
+                total_collateral.safe_mul(self.context.margin_buffer.cast::<i128>()?)?
+                    / MARGIN_PRECISION_I128,
+            )?;
+        }
+
         Ok(())
     }
 
@@ -323,12 +338,18 @@ impl MarginCalculation {
             .safe_add(self.num_perp_liabilities)
     }
 
+    #[inline(always)]
+    pub fn get_total_collateral_plus_buffer(&self) -> i128 {
+        self.total_collateral
+            .saturating_add(self.total_collateral_buffer)
+    }
+
     pub fn meets_margin_requirement(&self) -> bool {
         self.total_collateral >= self.margin_requirement as i128
     }
 
     pub fn meets_margin_requirement_with_buffer(&self) -> bool {
-        self.total_collateral >= self.margin_requirement_plus_buffer as i128
+        self.get_total_collateral_plus_buffer() >= self.margin_requirement_plus_buffer as i128
     }
 
     pub fn positions_meets_margin_requirement(&self) -> DriftResult<bool> {
@@ -345,7 +366,7 @@ impl MarginCalculation {
             return Err(ErrorCode::InvalidMarginCalculation);
         }
 
-        Ok(self.total_collateral >= self.margin_requirement_plus_buffer as i128)
+        Ok(self.get_total_collateral_plus_buffer() >= self.margin_requirement_plus_buffer as i128)
     }
 
     pub fn margin_shortage(&self) -> DriftResult<u128> {
@@ -357,7 +378,7 @@ impl MarginCalculation {
         Ok(self
             .margin_requirement_plus_buffer
             .cast::<i128>()?
-            .safe_sub(self.total_collateral)?
+            .safe_sub(self.get_total_collateral_plus_buffer())?
             .unsigned_abs())
     }
 

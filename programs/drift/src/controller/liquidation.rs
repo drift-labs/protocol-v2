@@ -3067,13 +3067,16 @@ pub fn liquidate_perp_pnl_for_deposit(
 
     let margin_shortage = intermediate_margin_calculation.margin_shortage()?;
 
+    let pnl_liability_weight_plus_buffer =
+        pnl_liability_weight.safe_add(liquidation_margin_buffer_ratio)?;
+
     // Determine what amount of borrow to transfer to reduce margin shortage to 0
     let pnl_transfer_to_cover_margin_shortage =
         calculate_liability_transfer_to_cover_margin_shortage(
             margin_shortage,
             asset_weight,
             asset_liquidation_multiplier,
-            pnl_liability_weight,
+            pnl_liability_weight_plus_buffer,
             pnl_liquidation_multiplier,
             quote_decimals,
             quote_price,
