@@ -863,7 +863,7 @@ export class DriftClient {
 				accountSubscription: this.userAccountSubscriptionConfig,
 			});
 
-			this.userStats.subscribe();
+			await this.userStats.subscribe();
 		}
 	}
 
@@ -1834,10 +1834,10 @@ export class DriftClient {
 		return this.userStatsAccountPublicKey;
 	}
 
-	public async getUserAccountPublicKey(
+	public getUserAccountPublicKey(
 		subAccountId?: number,
 		authority?: PublicKey
-	): Promise<PublicKey> {
+	): PublicKey {
 		return this.getUser(subAccountId, authority).userAccountPublicKey;
 	}
 
@@ -2952,7 +2952,7 @@ export class DriftClient {
 		reduceOnly = false,
 		subAccountId?: number
 	): Promise<TransactionInstruction> {
-		const user = await this.getUserAccountPublicKey(subAccountId);
+		const user = this.getUserAccountPublicKey(subAccountId);
 
 		const remainingAccounts = this.getRemainingAccounts({
 			userAccounts: [this.getUserAccount(subAccountId)],
