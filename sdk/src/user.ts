@@ -2709,7 +2709,7 @@ export class User {
 			lpBuffer
 		);
 
-		if (maxPositionSize.gte(ZERO)) {
+		if (maxPositionSize.gt(ZERO)) {
 			if (oppositeSizeLiabilityValue.eq(ZERO)) {
 				// case 1 : Regular trade where current total position less than max, and no opposite position to account for
 				// do nothing
@@ -2731,8 +2731,18 @@ export class User {
 				);
 				const totalCollateral = this.getTotalCollateral();
 				const marginRequirement = this.getInitialMarginRequirement();
+
+				let marginRatio = new BN(
+					calculateMarketMarginRatio(
+						market,
+						currentPosition.baseAssetAmount.abs(),
+						'Initial',
+						this.getUserAccount().maxMarginRatio,
+						this.isHighLeverageMode()
+					)
+				);
 				const marginFreedByClosing = perpLiabilityValue
-					.mul(new BN(market.marginRatioInitial))
+					.mul(marginRatio)
 					.div(MARGIN_PRECISION);
 				const marginRequirementAfterClosing =
 					marginRequirement.sub(marginFreedByClosing);
