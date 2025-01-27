@@ -5906,7 +5906,7 @@ export class DriftClient {
 	public encodeSwiftOrderParamsMessage(
 		orderParamsMessage: SwiftOrderParamsMessage
 	): Buffer {
-		const anchorIxName = 'global' + ':' + 'swiftOrderMessageParams';
+		const anchorIxName = 'global' + ':' + 'SwiftOrderParamsMessage';
 		const prefix = Buffer.from(sha256(anchorIxName).slice(0, 8));
 		const buf = Buffer.concat([
 			prefix,
