@@ -283,7 +283,7 @@ pub mod fuel_scoring {
         now += 100000;
 
         let mut margin_context = MarginContext::standard(MarginRequirementType::Initial);
-
+        margin_context.fuel_bonus_numerator = 1;
         // todo? is assert bad?
         // need to pass correct time since last fuel bonus update in context
         let is_errored_attempted = taker
@@ -467,6 +467,8 @@ pub mod fuel_scoring {
                 scaled_balance: 100 * SPOT_BALANCE_PRECISION_U64,
                 ..SpotPosition::default()
             }),
+            last_fuel_bonus_update_ts: FUEL_START_TS as u32,
+
             ..User::default()
         };
 
@@ -503,6 +505,8 @@ pub mod fuel_scoring {
                 scaled_balance: 100 * 100 * SPOT_BALANCE_PRECISION_U64,
                 ..SpotPosition::default()
             }),
+            last_fuel_bonus_update_ts: FUEL_START_TS as u32,
+
             ..User::default()
         };
         create_anchor_account_info!(maker, &maker_key, User, maker_account_info);
@@ -703,6 +707,7 @@ pub mod fuel_scoring {
                 scaled_balance: 100 * SPOT_BALANCE_PRECISION_U64,
                 ..SpotPosition::default()
             }),
+            last_fuel_bonus_update_ts: FUEL_START_TS as u32,
             ..User::default()
         };
 
@@ -732,6 +737,7 @@ pub mod fuel_scoring {
                 scaled_balance: 100 * 100 * SPOT_BALANCE_PRECISION_U64,
                 ..SpotPosition::default()
             }),
+            last_fuel_bonus_update_ts: FUEL_START_TS as u32,
             ..User::default()
         };
         create_anchor_account_info!(maker, &maker_key, User, maker_account_info);

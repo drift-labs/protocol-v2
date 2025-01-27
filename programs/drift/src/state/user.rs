@@ -446,15 +446,10 @@ impl User {
     }
 
     pub fn get_fuel_bonus_numerator(&self, now: i64) -> DriftResult<i64> {
-        if self.last_fuel_bonus_update_ts > 0 {
+        if self.last_fuel_bonus_update_ts.cast::<i64>()? >= FUEL_START_TS {
             now.safe_sub(self.last_fuel_bonus_update_ts.cast()?)
         } else {
-            // start ts for existing accounts pre fuel
-            if now > FUEL_START_TS {
-                now.safe_sub(FUEL_START_TS)
-            } else {
-                Ok(0)
-            }
+            Ok(0)
         }
     }
 
