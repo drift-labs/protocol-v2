@@ -949,6 +949,93 @@ describe('place and make swift order', () => {
 		await takerDriftClient.unsubscribe();
 	});
 
+	it('should fail on malicious subaccount id supplied to custom ix', async () => {
+		slot = new BN(
+			await bankrunContextWrapper.connection.toConnection().getSlot()
+		);
+		const [takerDriftClient, takerDriftClientUser] =
+			await initializeNewTakerClientAndUser(
+				bankrunContextWrapper,
+				chProgram,
+				usdcMint,
+				usdcAmount,
+				marketIndexes,
+				spotMarketIndexes,
+				oracleInfos,
+				bulkAccountLoader
+			);
+		await takerDriftClientUser.fetchAccounts();
+
+		// Create new user account w/ diff subaccount id but same authority
+		await takerDriftClient.initializeUserAccountAndDepositCollateral(
+			new BN(1000),
+			userUSDCAccount.publicKey,
+			0,
+			1,
+			undefined,
+			0
+		);
+
+		const takerDriftClientUser2 = new User({
+			driftClient: takerDriftClient,
+			userAccountPublicKey: await takerDriftClient.getUserAccountPublicKey(1),
+			accountSubscription: {
+				type: 'polling',
+				accountLoader: bulkAccountLoader,
+			},
+		});
+		await takerDriftClientUser2.subscribe();
+
+		const marketIndex = 0;
+		const baseAssetAmount = BASE_PRECISION;
+		const takerOrderParams = getMarketOrderParams({
+			marketIndex,
+			direction: PositionDirection.LONG,
+			baseAssetAmount: baseAssetAmount.muln(2),
+			auctionStartPrice: new BN(223).mul(PRICE_PRECISION),
+			auctionEndPrice: new BN(10000).mul(PRICE_PRECISION),
+			auctionDuration: 50,
+			userOrderId: 1,
+			postOnly: PostOnlyParams.NONE,
+			marketType: MarketType.PERP,
+		});
+		const takerOrderParamsMessage: SwiftOrderParamsMessage = {
+			swiftOrderParams: takerOrderParams,
+			subAccountId: 0,
+			slot,
+			uuid: Uint8Array.from(Buffer.from(nanoid(8))),
+			takeProfitOrderParams: null,
+			stopLossOrderParams: null,
+		};
+
+		const signedOrderParams = takerDriftClient.signSwiftOrderParamsMessage(
+			takerOrderParamsMessage
+		);
+
+		try {
+			await makerDriftClient.placeSwiftTakerOrder(
+				signedOrderParams,
+				0,
+				{
+					taker: await takerDriftClient.getUserAccountPublicKey(1),
+					takerUserAccount: takerDriftClientUser2.getUserAccount(),
+					takerStats: takerDriftClient.getUserStatsAccountPublicKey(),
+				},
+				undefined,
+				2
+			);
+			assert.fail('Should have failed');
+		} catch (error) {
+			assert(error);
+		}
+
+		const takerPosition = takerDriftClient.getUser().getPerpPosition(0);
+		assert(takerPosition == undefined);
+
+		await takerDriftClientUser.unsubscribe();
+		await takerDriftClient.unsubscribe();
+	});
+
 	it('can let user delete their account', async () => {
 		const [takerDriftClient, takerDriftClientUser] =
 			await initializeNewTakerClientAndUser(
