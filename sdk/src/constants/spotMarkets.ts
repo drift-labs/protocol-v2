@@ -608,7 +608,7 @@ export const MainnetSpotMarkets: SpotMarketConfig[] = [
 		pythLazerId: 9,
 	},
 	{
-		symbol: 'JLP',
+		symbol: 'JLP-1',
 		marketIndex: 33,
 		poolId: 1,
 		oracle: new PublicKey('5Mb11e5rt1Sp6A286B145E4TmgMzsM2UX9nCF2vas5bs'),
@@ -621,7 +621,7 @@ export const MainnetSpotMarkets: SpotMarketConfig[] = [
 		launchTs: 1735255852000,
 	},
 	{
-		symbol: 'USDC',
+		symbol: 'USDC-1',
 		marketIndex: 34,
 		poolId: 1,
 		oracle: new PublicKey('En8hkHLkRe9d9DraYmBTrus518BvmVH448YcvmrFM6Ce'),
