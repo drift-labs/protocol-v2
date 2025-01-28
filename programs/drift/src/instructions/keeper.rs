@@ -36,7 +36,6 @@ use crate::math::orders::{estimate_price_from_side, find_bids_and_asks_from_user
 use crate::math::position::calculate_base_asset_value_and_pnl_with_oracle_price;
 use crate::math::safe_math::SafeMath;
 use crate::math::spot_withdraw::validate_spot_market_vault_amount;
-use crate::math_error;
 use crate::optional_accounts::{get_token_mint, update_prelaunch_oracle};
 use crate::state::events::{DeleteUserRecord, OrderActionExplanation, SwiftOrderRecord};
 use crate::state::fill_mode::FillMode;
@@ -75,6 +74,7 @@ use crate::{
     MARGIN_PRECISION,
 };
 use crate::{load_mut, QUOTE_PRECISION_U64};
+use crate::{math_error, ID};
 use crate::{validate, QUOTE_PRECISION_I128};
 use anchor_spl::associated_token::AssociatedToken;
 
@@ -682,6 +682,24 @@ pub fn place_swift_taker_order<'c: 'info, 'info>(
 
     let taker_order_params_message: SwiftOrderParamsMessage =
         verified_message_and_signature.swift_order_params_message;
+
+    // Verify taker passed to the ix matches pda derived from subaccount id + authority
+    let taker_pda = Pubkey::find_program_address(
+        &[
+            "user".as_bytes(),
+            &taker.authority.to_bytes(),
+            &taker_order_params_message.sub_account_id.to_le_bytes(),
+        ],
+        &ID,
+    );
+    if taker_pda.0 != taker_key {
+        msg!(
+            "Taker key {:?} does not match pda {:?}",
+            taker_key,
+            taker_pda.0
+        );
+        return Err(ErrorCode::SwiftUserContextUserMismatch.into());
+    }
 
     let signature = verified_message_and_signature.signature;
     let clock = &Clock::get()?;
