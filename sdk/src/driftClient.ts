@@ -2766,6 +2766,18 @@ export class DriftClient {
 				referrerInfo
 			);
 
+		const isSwiftUserOrdersAccountInitialized =
+			await this.isSwiftUserOrdersAccountInitialized(this.wallet.publicKey);
+
+		if (!isSwiftUserOrdersAccountInitialized) {
+			ixs.push(
+				await this.getInitializeSwiftUserOrdersAccountIx(
+					this.wallet.publicKey,
+					8
+				)
+			);
+		}
+
 		const spotMarket = this.getSpotMarketAccount(marketIndex);
 
 		const isSolMarket = spotMarket.mint.equals(WRAPPED_SOL_MINT);
