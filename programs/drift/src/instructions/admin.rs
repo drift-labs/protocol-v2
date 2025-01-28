@@ -5,6 +5,7 @@ use anchor_lang::prelude::*;
 use anchor_spl::token::Token;
 use anchor_spl::token_2022::Token2022;
 use anchor_spl::token_interface::{Mint, TokenAccount, TokenInterface};
+use num_integer::sqrt;
 use phoenix::quantities::WrapperU64;
 use pyth_solana_receiver_sdk::cpi::accounts::InitPriceUpdate;
 use pyth_solana_receiver_sdk::program::PythSolanaReceiver;
@@ -18,12 +19,12 @@ use crate::instructions::constraints::*;
 use crate::instructions::optional_accounts::{load_maps, AccountMaps};
 use crate::math::casting::Cast;
 use crate::math::constants::{
-    DEFAULT_LIQUIDATION_MARGIN_BUFFER_RATIO, FEE_POOL_TO_REVENUE_POOL_THRESHOLD, FUEL_START_TS,
-    IF_FACTOR_PRECISION, INSURANCE_A_MAX, INSURANCE_B_MAX, INSURANCE_C_MAX,
+    BASE_PRECISION, DEFAULT_LIQUIDATION_MARGIN_BUFFER_RATIO, FEE_POOL_TO_REVENUE_POOL_THRESHOLD,
+    FUEL_START_TS, IF_FACTOR_PRECISION, INSURANCE_A_MAX, INSURANCE_B_MAX, INSURANCE_C_MAX,
     INSURANCE_SPECULATIVE_MAX, LIQUIDATION_FEE_PRECISION, MAX_CONCENTRATION_COEFFICIENT,
-    MAX_SQRT_K, MAX_UPDATE_K_PRICE_CHANGE, PERCENTAGE_PRECISION, QUOTE_SPOT_MARKET_INDEX,
-    SPOT_CUMULATIVE_INTEREST_PRECISION, SPOT_IMF_PRECISION, SPOT_WEIGHT_PRECISION, THIRTEEN_DAY,
-    TWENTY_FOUR_HOUR,
+    MAX_SQRT_K, MAX_UPDATE_K_PRICE_CHANGE, ONE_MILLION_QUOTE, PEG_PRECISION, PERCENTAGE_PRECISION,
+    QUOTE_PRECISION, QUOTE_SPOT_MARKET_INDEX, SPOT_CUMULATIVE_INTEREST_PRECISION,
+    SPOT_IMF_PRECISION, SPOT_WEIGHT_PRECISION, THIRTEEN_DAY, TWENTY_FOUR_HOUR,
 };
 use crate::math::cp_curve::get_update_k_result;
 use crate::math::orders::is_multiple_of_step_size;
@@ -1454,6 +1455,150 @@ pub fn handle_recenter_perp_market_amm(
 
     controller::amm::recenter_perp_market_amm(perp_market, peg_multiplier, sqrt_k)?;
     validate_perp_market(perp_market)?;
+
+    let base_asset_reserve_after = perp_market.amm.base_asset_reserve;
+    let quote_asset_reserve_after = perp_market.amm.quote_asset_reserve;
+    let sqrt_k_after = perp_market.amm.sqrt_k;
+    let peg_multiplier_after = perp_market.amm.peg_multiplier;
+    let max_base_asset_reserve_after = perp_market.amm.max_base_asset_reserve;
+    let min_base_asset_reserve_after = perp_market.amm.min_base_asset_reserve;
+
+    msg!(
+        "base_asset_reserve {} -> {}",
+        base_asset_reserve_before,
+        base_asset_reserve_after
+    );
+
+    msg!(
+        "quote_asset_reserve {} -> {}",
+        quote_asset_reserve_before,
+        quote_asset_reserve_after
+    );
+
+    msg!("sqrt_k {} -> {}", sqrt_k_before, sqrt_k_after);
+
+    msg!(
+        "peg_multiplier {} -> {}",
+        peg_multiplier_before,
+        peg_multiplier_after
+    );
+
+    msg!(
+        "max_base_asset_reserve {} -> {}",
+        max_base_asset_reserve_before,
+        max_base_asset_reserve_after
+    );
+
+    msg!(
+        "min_base_asset_reserve {} -> {}",
+        min_base_asset_reserve_before,
+        min_base_asset_reserve_after
+    );
+
+    Ok(())
+}
+
+#[access_control(
+    perp_market_valid(&ctx.accounts.perp_market)
+)]
+pub fn handle_recenter_perp_market_amm_preset(
+    ctx: Context<AdminUpdatePerpMarketAmmSummaryStats>,
+) -> Result<()> {
+    let perp_market = &mut load_mut!(ctx.accounts.perp_market)?;
+    let spot_market = &mut load!(ctx.accounts.spot_market)?;
+
+    msg!(
+        "updating amm summary stats for perp market {}",
+        perp_market.market_index
+    );
+
+    msg!(
+        "updating amm summary stats for spot market {}",
+        spot_market.market_index
+    );
+
+    let clock = Clock::get()?;
+    let price_oracle = &ctx.accounts.oracle;
+
+    let OraclePriceData {
+        price: oracle_price,
+        ..
+    } = get_oracle_price(&perp_market.amm.oracle_source, price_oracle, clock.slot)?;
+
+    msg!(
+        "recentering amm for perp market {}",
+        perp_market.market_index
+    );
+
+    let new_total_fee_minus_distributions =
+        controller::amm::calculate_perp_market_amm_summary_stats(
+            perp_market,
+            spot_market,
+            oracle_price,
+        )?;
+
+    msg!(
+        "updating amm summary stats for market index = {}",
+        perp_market.market_index,
+    );
+
+    msg!(
+        "total_fee_minus_distributions: {:?} -> {:?}",
+        perp_market.amm.total_fee_minus_distributions,
+        new_total_fee_minus_distributions,
+    );
+
+    let fee_difference = new_total_fee_minus_distributions
+        .safe_sub(perp_market.amm.total_fee_minus_distributions)?;
+
+    msg!(
+        "perp_market.amm.total_fee: {} -> {}",
+        perp_market.amm.total_fee,
+        perp_market.amm.total_fee.saturating_add(fee_difference)
+    );
+
+    msg!(
+        "perp_market.amm.total_mm_fee: {} -> {}",
+        perp_market.amm.total_mm_fee,
+        perp_market.amm.total_mm_fee.saturating_add(fee_difference)
+    );
+
+    perp_market.amm.total_fee = perp_market.amm.total_fee.saturating_add(fee_difference);
+    perp_market.amm.total_mm_fee = perp_market.amm.total_mm_fee.saturating_add(fee_difference);
+    perp_market.amm.total_fee_minus_distributions = new_total_fee_minus_distributions;
+
+    let liquidity_upper_bound = new_total_fee_minus_distributions
+        .safe_div(2)?
+        .min(ONE_MILLION_QUOTE.cast()?);
+
+    let base_asset_reserve_before = perp_market.amm.base_asset_reserve;
+    let quote_asset_reserve_before = perp_market.amm.quote_asset_reserve;
+    let sqrt_k_before = perp_market.amm.sqrt_k;
+    let peg_multiplier_before = perp_market.amm.peg_multiplier;
+    let max_base_asset_reserve_before = perp_market.amm.max_base_asset_reserve;
+    let min_base_asset_reserve_before = perp_market.amm.min_base_asset_reserve;
+
+    let mut new_sqrt_k = sqrt_k * 10;
+    assert_eq!(PEG_PRECISION, QUOTE_PRECISION);
+    let mut (amm_bid_size, amm_ask_size) = amm::calculate_market_open_bids_asks(&perp_market.amm)?;
+
+    while (count < 10 && new_sqrt_k > perp_market.amm.min_order_size) {
+        controller::amm::recenter_perp_market_amm(perp_market, oracle_price.cast()?, sqrt_k)?;
+        validate_perp_market(perp_market)?;
+        (amm_bid_size, amm_ask_size) = amm::calculate_market_open_bids_asks(&perp_market.amm)?;
+
+        if amm_bid_size
+            .safe_add(amm_ask_size)?
+            .safe_mul(oracle_price.cast()?)?
+            < liquidity_upper_bound
+        {
+            count = 100;
+        } else {
+            new_sqrt_k /= 2;
+        }
+        count += 1;
+    }
+    crate::dlog!(amm_bid_size, amm_ask_size);
 
     let base_asset_reserve_after = perp_market.amm.base_asset_reserve;
     let quote_asset_reserve_after = perp_market.amm.quote_asset_reserve;
