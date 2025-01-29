@@ -87,6 +87,7 @@ import StrictEventEmitter from 'strict-event-emitter-types';
 import {
 	getDriftSignerPublicKey,
 	getDriftStateAccountPublicKey,
+	getFuelSweepAccountPublicKey,
 	getHighLeverageModeConfigPublicKey,
 	getInsuranceFundStakeAccountPublicKey,
 	getOpenbookV2FulfillmentConfigPublicKey,
@@ -1117,6 +1118,67 @@ export class DriftClient {
 			});
 
 		return resizeUserAccountIx;
+	}
+
+	public async initializeFuelSweep(
+		authority?: PublicKey
+	): Promise<TransactionSignature> {
+		const initializeFuelSweepIx = await this.getInitializeFuelSweepIx(
+			authority
+		);
+		const tx = await this.buildTransaction(
+			[initializeFuelSweepIx],
+			this.txParams
+		);
+		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+		return txSig;
+	}
+
+	public async getInitializeFuelSweepIx(
+		authority?: PublicKey
+	): Promise<TransactionInstruction> {
+		return await this.program.instruction.initializeFuelSweep({
+			accounts: {
+				fuelSweep: getFuelSweepAccountPublicKey(
+					this.program.programId,
+					authority ?? this.wallet.publicKey
+				),
+				userStats: getUserStatsAccountPublicKey(
+					this.program.programId,
+					authority ?? this.wallet.publicKey
+				),
+				authority: authority ?? this.wallet.publicKey,
+				payer: this.wallet.publicKey,
+				rent: anchor.web3.SYSVAR_RENT_PUBKEY,
+				systemProgram: anchor.web3.SystemProgram.programId,
+			},
+		});
+	}
+
+	public async sweepFuel(authority?: PublicKey): Promise<TransactionSignature> {
+		const sweepFuelIx = await this.getSweepFuelIx(authority);
+		const tx = await this.buildTransaction([sweepFuelIx], this.txParams);
+		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+		return txSig;
+	}
+
+	public async getSweepFuelIx(
+		authority?: PublicKey
+	): Promise<TransactionInstruction> {
+		return await this.program.instruction.sweepFuel({
+			accounts: {
+				fuelSweep: getFuelSweepAccountPublicKey(
+					this.program.programId,
+					authority ?? this.wallet.publicKey
+				),
+				userStats: getUserStatsAccountPublicKey(
+					this.program.programId,
+					authority ?? this.wallet.publicKey
+				),
+				authority: authority ?? this.wallet.publicKey,
+				systemProgram: anchor.web3.SystemProgram.programId,
+			},
+		});
 	}
 
 	async getInitializeUserInstructions(

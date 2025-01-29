@@ -4,7 +4,7 @@ use crate::error::{DriftResult, ErrorCode};
 use crate::math::auction::{calculate_auction_price, is_auction_complete};
 use crate::math::casting::Cast;
 use crate::math::constants::{
-    EPOCH_DURATION, FUEL_START_TS, OPEN_ORDER_MARGIN_REQUIREMENT,
+    EPOCH_DURATION, FUEL_START_TS, FUEL_SWEEP_THRESHOLD_U32, OPEN_ORDER_MARGIN_REQUIREMENT,
     PRICE_TIMES_AMM_TO_QUOTE_PRECISION_RATIO, QUOTE_PRECISION, QUOTE_SPOT_MARKET_INDEX, THIRTY_DAY,
 };
 use crate::math::lp::{calculate_lp_open_bids_asks, calculate_settle_lp_metrics};
@@ -1959,6 +1959,28 @@ impl UserStats {
             self.referrer_status &= !(ReferrerStatus::IsReferred as u8);
         }
     }
+
+    pub fn can_sweep_fuel(&self) -> bool {
+        if self.fuel_insurance > FUEL_SWEEP_THRESHOLD_U32 {
+            return true;
+        }
+        if self.fuel_deposits > FUEL_SWEEP_THRESHOLD_U32 {
+            return true;
+        }
+        if self.fuel_borrows > FUEL_SWEEP_THRESHOLD_U32 {
+            return true;
+        }
+        if self.fuel_positions > FUEL_SWEEP_THRESHOLD_U32 {
+            return true;
+        }
+        if self.fuel_taker > FUEL_SWEEP_THRESHOLD_U32 {
+            return true;
+        }
+        if self.fuel_maker > FUEL_SWEEP_THRESHOLD_U32 {
+            return true;
+        }
+        false
+    }
 }
 
 #[account(zero_copy(unsafe))]
@@ -1980,4 +2002,26 @@ pub enum MarginMode {
     #[default]
     Default,
     HighLeverage,
+}
+
+#[account(zero_copy(unsafe))]
+#[derive(Default)]
+#[repr(C)]
+pub struct FuelSweep {
+    /// The authority of this sweep account
+    pub authority: Pubkey,
+
+    pub fuel_insurance: u128,
+    pub fuel_deposits: u128,
+    pub fuel_borrows: u128,
+    pub fuel_positions: u128,
+    pub fuel_taker: u128,
+    pub fuel_maker: u128,
+    pub last_fuel_sweep_ts: u32,
+    pub last_reset_ts: u32,
+    pub padding: [u8; 16],
+}
+
+impl Size for FuelSweep {
+    const SIZE: usize = 160;
 }

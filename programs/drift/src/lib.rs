@@ -79,6 +79,18 @@ pub mod drift {
         handle_resize_swift_user_orders(ctx, num_orders)
     }
 
+    pub fn initialize_fuel_sweep<'c: 'info, 'info>(
+        ctx: Context<'_, '_, 'c, 'info, InitializeFuelSweep<'info>>,
+    ) -> Result<()> {
+        handle_initialize_fuel_sweep(ctx)
+    }
+
+    pub fn sweep_fuel<'c: 'info, 'info>(
+        ctx: Context<'_, '_, 'c, 'info, SweepFuel<'info>>,
+    ) -> Result<()> {
+        handle_sweep_fuel(ctx)
+    }
+
     pub fn initialize_referrer_name(
         ctx: Context<InitializeReferrerName>,
         name: [u8; 32],

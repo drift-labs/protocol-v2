@@ -43,6 +43,7 @@ use crate::optional_accounts::{get_token_interface, get_token_mint};
 use crate::print_error;
 use crate::safe_decrement;
 use crate::safe_increment;
+use crate::state::events::FuelSweepRecord;
 use crate::state::events::{
     DepositDirection, DepositExplanation, DepositRecord, LPAction, LPRecord, NewUserRecord,
     OrderActionExplanation, SwapRecord,
@@ -77,7 +78,9 @@ use crate::state::swift_user::SwiftUserOrdersLoader;
 use crate::state::swift_user::{SwiftUserOrders, SWIFT_PDA_SEED};
 use crate::state::traits::Size;
 use crate::state::user::ReferrerStatus;
-use crate::state::user::{MarginMode, MarketType, OrderType, ReferrerName, User, UserStats};
+use crate::state::user::{
+    FuelSweep, MarginMode, MarketType, OrderType, ReferrerName, User, UserStats,
+};
 use crate::state::user_map::{load_user_maps, UserMap, UserStatsMap};
 use crate::validate;
 use crate::validation::sig_verification::verify_ed25519_ix;
@@ -315,6 +318,92 @@ pub fn handle_resize_swift_user_orders<'c: 'info, 'info>(
         .swift_order_data
         .resize_with(num_orders as usize, SwiftOrderId::default);
     swift_user_orders.validate()?;
+    Ok(())
+}
+
+pub fn handle_initialize_fuel_sweep<'c: 'info, 'info>(
+    ctx: Context<'_, '_, 'c, 'info, InitializeFuelSweep<'info>>,
+) -> Result<()> {
+    let user_stats = load!(&ctx.accounts.user_stats)?;
+    validate!(
+        user_stats.can_sweep_fuel(),
+        ErrorCode::UserFuelSweepThresholdNotMet,
+        "User fuel sweep threshold not met"
+    )?;
+
+    let mut fuel_sweep = ctx
+        .accounts
+        .fuel_sweep
+        .load_init()
+        .or(Err(ErrorCode::UnableToLoadAccountLoader))?;
+
+    *fuel_sweep = FuelSweep {
+        authority: ctx.accounts.authority.key(),
+        ..FuelSweep::default()
+    };
+
+    Ok(())
+}
+
+pub fn handle_sweep_fuel<'c: 'info, 'info>(
+    ctx: Context<'_, '_, 'c, 'info, SweepFuel<'info>>,
+) -> anchor_lang::Result<()> {
+    let clock = Clock::get()?;
+
+    let mut user_stats = load_mut!(&ctx.accounts.user_stats)?;
+    validate!(
+        user_stats.can_sweep_fuel(),
+        ErrorCode::UserFuelSweepThresholdNotMet,
+        "User fuel sweep threshold not met"
+    )?;
+
+    let mut fuel_sweep = load_mut!(&ctx.accounts.fuel_sweep)?;
+
+    emit!(FuelSweepRecord {
+        ts: clock.unix_timestamp.cast()?,
+        authority: ctx.accounts.authority.key(),
+        user_stats_fuel_insurance: user_stats.fuel_insurance,
+        user_stats_fuel_deposits: user_stats.fuel_deposits,
+        user_stats_fuel_borrows: user_stats.fuel_borrows,
+        user_stats_fuel_positions: user_stats.fuel_positions,
+        user_stats_fuel_taker: user_stats.fuel_taker,
+        user_stats_fuel_maker: user_stats.fuel_maker,
+        fuel_sweep_fuel_insurance: fuel_sweep.fuel_insurance,
+        fuel_sweep_fuel_deposits: fuel_sweep.fuel_deposits,
+        fuel_sweep_fuel_borrows: fuel_sweep.fuel_borrows,
+        fuel_sweep_fuel_positions: fuel_sweep.fuel_positions,
+        fuel_sweep_fuel_taker: fuel_sweep.fuel_taker,
+        fuel_sweep_fuel_maker: fuel_sweep.fuel_maker,
+    });
+
+    fuel_sweep.fuel_insurance = fuel_sweep
+        .fuel_insurance
+        .safe_add(user_stats.fuel_insurance.cast()?)?;
+    fuel_sweep.fuel_deposits = fuel_sweep
+        .fuel_deposits
+        .safe_add(user_stats.fuel_deposits.cast()?)?;
+    fuel_sweep.fuel_borrows = fuel_sweep
+        .fuel_borrows
+        .safe_add(user_stats.fuel_borrows.cast()?)?;
+    fuel_sweep.fuel_positions = fuel_sweep
+        .fuel_positions
+        .safe_add(user_stats.fuel_positions.cast()?)?;
+    fuel_sweep.fuel_taker = fuel_sweep
+        .fuel_taker
+        .safe_add(user_stats.fuel_taker.cast()?)?;
+    fuel_sweep.fuel_maker = fuel_sweep
+        .fuel_maker
+        .safe_add(user_stats.fuel_maker.cast()?)?;
+
+    fuel_sweep.last_fuel_sweep_ts = clock.unix_timestamp.cast()?;
+
+    user_stats.fuel_insurance = 0;
+    user_stats.fuel_deposits = 0;
+    user_stats.fuel_borrows = 0;
+    user_stats.fuel_positions = 0;
+    user_stats.fuel_taker = 0;
+    user_stats.fuel_maker = 0;
+
     Ok(())
 }
 
@@ -3222,6 +3311,45 @@ pub struct ResizeSwiftUserOrders<'info> {
     pub swift_user_orders: Box<Account<'info, SwiftUserOrders>>,
     #[account(mut)]
     pub authority: Signer<'info>,
+    pub system_program: Program<'info, System>,
+}
+
+#[derive(Accounts)]
+pub struct InitializeFuelSweep<'info> {
+    #[account(
+        init,
+        seeds = [b"fuel_sweep", authority.key.as_ref()],
+        space = FuelSweep::SIZE,
+        bump,
+        payer = payer
+    )]
+    pub fuel_sweep: AccountLoader<'info, FuelSweep>,
+    #[account(
+        has_one = authority
+    )]
+    pub user_stats: AccountLoader<'info, UserStats>,
+    /// CHECK: authority
+    pub authority: AccountInfo<'info>,
+    #[account(mut)]
+    pub payer: Signer<'info>,
+    pub rent: Sysvar<'info, Rent>,
+    pub system_program: Program<'info, System>,
+}
+
+#[derive(Accounts)]
+pub struct SweepFuel<'info> {
+    #[account(
+        mut,
+        has_one = authority,
+    )]
+    pub fuel_sweep: AccountLoader<'info, FuelSweep>,
+    #[account(
+        mut,
+        has_one = authority
+    )]
+    pub user_stats: AccountLoader<'info, UserStats>,
+    /// CHECK: authority
+    pub authority: AccountInfo<'info>,
     pub system_program: Program<'info, System>,
 }
 

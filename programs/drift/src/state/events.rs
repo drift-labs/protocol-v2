@@ -592,6 +592,26 @@ pub struct DeleteUserRecord {
     pub keeper: Option<Pubkey>,
 }
 
+#[event]
+pub struct FuelSweepRecord {
+    pub ts: i64,
+    pub authority: Pubkey,
+    // fuel values on UserStats before sweep
+    pub user_stats_fuel_insurance: u32,
+    pub user_stats_fuel_deposits: u32,
+    pub user_stats_fuel_borrows: u32,
+    pub user_stats_fuel_positions: u32,
+    pub user_stats_fuel_taker: u32,
+    pub user_stats_fuel_maker: u32,
+    // fuel values on FuelSweep before sweep
+    pub fuel_sweep_fuel_insurance: u128,
+    pub fuel_sweep_fuel_deposits: u128,
+    pub fuel_sweep_fuel_borrows: u128,
+    pub fuel_sweep_fuel_positions: u128,
+    pub fuel_sweep_fuel_taker: u128,
+    pub fuel_sweep_fuel_maker: u128,
+}
+
 pub fn emit_stack<T: AnchorSerialize + Discriminator, const N: usize>(event: T) -> DriftResult {
     let mut data_buf = [0u8; N];
     let mut out_buf = [0u8; N];

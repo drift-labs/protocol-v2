@@ -192,6 +192,68 @@
       ]
     },
     {
+      "name": "initializeFuelSweep",
+      "accounts": [
+        {
+          "name": "fuelSweep",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "userStats",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "payer",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "rent",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "systemProgram",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "sweepFuel",
+      "accounts": [
+        {
+          "name": "fuelSweep",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "userStats",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "systemProgram",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": []
+    },
+    {
       "name": "initializeReferrerName",
       "accounts": [
         {
@@ -8693,6 +8755,62 @@
           }
         ]
       }
+    },
+    {
+      "name": "FuelSweep",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "authority",
+            "docs": [
+              "The authority of this sweep account"
+            ],
+            "type": "publicKey"
+          },
+          {
+            "name": "fuelInsurance",
+            "type": "u128"
+          },
+          {
+            "name": "fuelDeposits",
+            "type": "u128"
+          },
+          {
+            "name": "fuelBorrows",
+            "type": "u128"
+          },
+          {
+            "name": "fuelPositions",
+            "type": "u128"
+          },
+          {
+            "name": "fuelTaker",
+            "type": "u128"
+          },
+          {
+            "name": "fuelMaker",
+            "type": "u128"
+          },
+          {
+            "name": "lastFuelSweepTs",
+            "type": "u32"
+          },
+          {
+            "name": "lastResetTs",
+            "type": "u32"
+          },
+          {
+            "name": "padding",
+            "type": {
+              "array": [
+                "u8",
+                16
+              ]
+            }
+          }
+        ]
+      }
     }
   ],
   "types": [
@@ -13095,6 +13213,81 @@
           "index": false
         }
       ]
+    },
+    {
+      "name": "FuelSweepRecord",
+      "fields": [
+        {
+          "name": "ts",
+          "type": "i64",
+          "index": false
+        },
+        {
+          "name": "authority",
+          "type": "publicKey",
+          "index": false
+        },
+        {
+          "name": "userStatsFuelInsurance",
+          "type": "u32",
+          "index": false
+        },
+        {
+          "name": "userStatsFuelDeposits",
+          "type": "u32",
+          "index": false
+        },
+        {
+          "name": "userStatsFuelBorrows",
+          "type": "u32",
+          "index": false
+        },
+        {
+          "name": "userStatsFuelPositions",
+          "type": "u32",
+          "index": false
+        },
+        {
+          "name": "userStatsFuelTaker",
+          "type": "u32",
+          "index": false
+        },
+        {
+          "name": "userStatsFuelMaker",
+          "type": "u32",
+          "index": false
+        },
+        {
+          "name": "fuelSweepFuelInsurance",
+          "type": "u128",
+          "index": false
+        },
+        {
+          "name": "fuelSweepFuelDeposits",
+          "type": "u128",
+          "index": false
+        },
+        {
+          "name": "fuelSweepFuelBorrows",
+          "type": "u128",
+          "index": false
+        },
+        {
+          "name": "fuelSweepFuelPositions",
+          "type": "u128",
+          "index": false
+        },
+        {
+          "name": "fuelSweepFuelTaker",
+          "type": "u128",
+          "index": false
+        },
+        {
+          "name": "fuelSweepFuelMaker",
+          "type": "u128",
+          "index": false
+        }
+      ]
     }
   ],
   "errors": [
@@ -14647,6 +14840,11 @@
       "code": 6309,
       "name": "SwiftUserContextUserMismatch",
       "msg": "User in swift message does not match user in ix context"
+    },
+    {
+      "code": 6310,
+      "name": "UserFuelSweepThresholdNotMet",
+      "msg": "User fuel sweep threshold not met"
     }
   ],
   "metadata": {
