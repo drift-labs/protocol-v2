@@ -199,10 +199,6 @@ describe('place and make signedMsg order', () => {
 			},
 		});
 		await takerDriftClientUser.subscribe();
-		await takerDriftClient.initializeSignedMsgUserOrders(
-			takerDriftClientUser.getUserAccount().authority,
-			32
-		);
 
 		const marketIndex = 0;
 		const baseAssetAmount = BASE_PRECISION;
@@ -325,10 +321,6 @@ describe('place and make signedMsg order', () => {
 			},
 		});
 		await takerDriftClientUser.subscribe();
-		await takerDriftClient.initializeSignedMsgUserOrders(
-			takerDriftClientUser.getUserAccount().authority,
-			32
-		);
 
 		const marketIndex = 0;
 		const baseAssetAmount = BASE_PRECISION;
