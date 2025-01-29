@@ -1032,6 +1032,7 @@ describe('place and make swift order', () => {
 		const takerPosition = takerDriftClient.getUser().getPerpPosition(0);
 		assert(takerPosition == undefined);
 
+		await takerDriftClientUser2.unsubscribe();
 		await takerDriftClientUser.unsubscribe();
 		await takerDriftClient.unsubscribe();
 	});
