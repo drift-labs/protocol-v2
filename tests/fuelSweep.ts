@@ -3,31 +3,22 @@ import { assert } from 'chai';
 
 import { Program } from '@coral-xyz/anchor';
 
-import { Keypair, PublicKey } from '@solana/web3.js';
+import { Keypair } from '@solana/web3.js';
 
 import {
 	BN,
-	PRICE_PRECISION,
 	TestClient,
-	User,
 	Wallet,
-	EventSubscriber,
-	OracleSource,
-	getSwiftUserAccountPublicKey,
 	QUOTE_PRECISION,
-	UserStats,
 	UserStatsAccount,
 	getFuelSweepAccountPublicKey,
 } from '../sdk/src';
 
 import {
 	initializeQuoteSpotMarket,
-	mockOracleNoProgram,
 	mockUSDCMint,
 	mockUserUSDCAccount,
-	sleep,
 } from './testHelpers';
-import { PEG_PRECISION } from '../sdk/src';
 import { startAnchor } from 'solana-bankrun';
 import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
 import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
@@ -65,7 +56,6 @@ describe('fuel sweep', () => {
 
 		const keypair = new Keypair();
 		await bankrunContextWrapper.fundKeypair(keypair, 10 ** 9);
-		const wallet = new Wallet(keypair);
 
 		usdcMint = await mockUSDCMint(bankrunContextWrapper);
 		userUSDCAccount = await mockUserUSDCAccount(
@@ -108,7 +98,7 @@ describe('fuel sweep', () => {
 	it('cannot init fuel sweep with low fuel amount', async () => {
 		let success = false;
 		try {
-			const tx = await userDriftClient.initializeFuelSweep(
+			await userDriftClient.initializeFuelSweep(
 				userDriftClient.wallet.publicKey
 			);
 			success = true;
@@ -165,8 +155,8 @@ describe('fuel sweep', () => {
 					userDriftClient.wallet.publicKey
 				)
 			);
-		// @ts-ignore
 		assert.isTrue(
+			// @ts-ignore
 			userFuelSweepAccount.authority.equals(userDriftClient.wallet.publicKey)
 		);
 		assert.equal(userFuelSweepAccount.fuelTaker, 4_000_000_001);
