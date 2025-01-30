@@ -131,17 +131,7 @@ export class FloatingLimitOrderNode extends OrderNode {
 	previous?: FloatingLimitOrderNode;
 
 	getSortValue(order: Order): BN {
-		let sortValue = new BN(order.oraclePriceOffset);
-		if (this.applyProtectedMakerOffset) {
-			const offset = sortValue.divn(1000);
-
-			if (isVariant(order.direction, 'long')) {
-				sortValue = sortValue.sub(offset);
-			} else {
-				sortValue = sortValue.add(offset);
-			}
-		}
-		return sortValue;
+		return new BN(order.oraclePriceOffset);
 	}
 }
 
@@ -181,6 +171,7 @@ export type DLOBNodeMap = {
 	restingLimit: RestingLimitOrderNode;
 	takingLimit: TakingLimitOrderNode;
 	floatingLimit: FloatingLimitOrderNode;
+	protectedFloatingLimit: FloatingLimitOrderNode;
 	market: MarketOrderNode;
 	trigger: TriggerOrderNode;
 	swift: SwiftOrderNode;
@@ -191,6 +182,7 @@ export type DLOBNodeType =
 	| 'restingLimit'
 	| 'takingLimit'
 	| 'floatingLimit'
+	| 'protectedFloatingLimit'
 	| 'market'
 	| ('trigger' & keyof DLOBNodeMap);
 
@@ -203,6 +195,13 @@ export function createNode<T extends DLOBNodeType>(
 ): DLOBNodeMap[T] {
 	switch (nodeType) {
 		case 'floatingLimit':
+			return new FloatingLimitOrderNode(
+				order,
+				userAccount,
+				isProtectedMaker,
+				applyProtectedMakerOffset
+			);
+		case 'protectedFloatingLimit':
 			return new FloatingLimitOrderNode(
 				order,
 				userAccount,

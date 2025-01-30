@@ -57,6 +57,10 @@ export type MarketNodeLists = {
 		ask: NodeList<'floatingLimit'>;
 		bid: NodeList<'floatingLimit'>;
 	};
+	protectedFloatingLimit: {
+		ask: NodeList<'protectedFloatingLimit'>;
+		bid: NodeList<'protectedFloatingLimit'>;
+	};
 	takingLimit: {
 		ask: NodeList<'takingLimit'>;
 		bid: NodeList<'takingLimit'>;
@@ -203,7 +207,7 @@ export class DLOB {
 				.get(marketType)
 				.add(getOrderSignature(order.orderId, userAccount));
 		}
-		this.getListForOnChainOrder(order, slot)?.insert(
+		this.getListForOnChainOrder(order, slot, isUserProtectedMaker)?.insert(
 			order,
 			marketType,
 			userAccount,
@@ -256,6 +260,10 @@ export class DLOB {
 				ask: new NodeList('floatingLimit', 'asc'),
 				bid: new NodeList('floatingLimit', 'desc'),
 			},
+			protectedFloatingLimit: {
+				ask: new NodeList('protectedFloatingLimit', 'asc'),
+				bid: new NodeList('protectedFloatingLimit', 'desc'),
+			},
 			takingLimit: {
 				ask: new NodeList('takingLimit', 'asc'),
 				bid: new NodeList('takingLimit', 'asc'), // always sort ascending for market orders
@@ -279,6 +287,7 @@ export class DLOB {
 		order: Order,
 		userAccount: PublicKey,
 		slot: number,
+		isUserProtectedMaker: boolean,
 		onDelete?: OrderBookCallback
 	): void {
 		if (isVariant(order.status, 'init')) {
@@ -287,7 +296,7 @@ export class DLOB {
 
 		this.updateRestingLimitOrders(slot);
 
-		this.getListForOnChainOrder(order, slot)?.remove(
+		this.getListForOnChainOrder(order, slot, isUserProtectedMaker)?.remove(
 			order,
 			userAccount.toString()
 		);
@@ -299,7 +308,8 @@ export class DLOB {
 
 	public getListForOnChainOrder(
 		order: Order,
-		slot: number
+		slot: number,
+		isProtectedMaker: boolean
 	): NodeList<any> | undefined {
 		const isInactiveTriggerOrder =
 			mustBeTriggered(order) && !isTriggered(order);
@@ -312,7 +322,7 @@ export class DLOB {
 		) {
 			type = 'market';
 		} else if (order.oraclePriceOffset !== 0) {
-			type = 'floatingLimit';
+			type = isProtectedMaker ? 'protectedFloatingLimit' : 'floatingLimit';
 		} else {
 			const isResting = isRestingLimitOrder(order, slot);
 			type = isResting ? 'restingLimit' : 'takingLimit';
@@ -799,18 +809,20 @@ export class DLOB {
 				const newMakerOrder = { ...makerOrder };
 				newMakerOrder.baseAssetAmountFilled =
 					makerOrder.baseAssetAmountFilled.add(baseFilled);
-				this.getListForOnChainOrder(newMakerOrder, slot).update(
+				this.getListForOnChainOrder(
 					newMakerOrder,
-					makerNode.userAccount
-				);
+					slot,
+					makerNode.isProtectedMaker
+				).update(newMakerOrder, makerNode.userAccount);
 
 				const newTakerOrder = { ...takerOrder };
 				newTakerOrder.baseAssetAmountFilled =
 					takerOrder.baseAssetAmountFilled.add(baseFilled);
-				this.getListForOnChainOrder(newTakerOrder, slot).update(
+				this.getListForOnChainOrder(
 					newTakerOrder,
-					takerNode.userAccount
-				);
+					slot,
+					takerNode.isProtectedMaker
+				).update(newTakerOrder, takerNode.userAccount);
 
 				if (
 					newTakerOrder.baseAssetAmountFilled.eq(takerOrder.baseAssetAmount)
@@ -1285,19 +1297,21 @@ export class DLOB {
 				const newBidOrder = { ...bidOrder };
 				newBidOrder.baseAssetAmountFilled =
 					bidOrder.baseAssetAmountFilled.add(baseFilled);
-				this.getListForOnChainOrder(newBidOrder, slot).update(
+				this.getListForOnChainOrder(
 					newBidOrder,
-					bidNode.userAccount
-				);
+					slot,
+					bidNode.isProtectedMaker
+				).update(newBidOrder, bidNode.userAccount);
 
 				// ask completely filled
 				const newAskOrder = { ...askOrder };
 				newAskOrder.baseAssetAmountFilled =
 					askOrder.baseAssetAmountFilled.add(baseFilled);
-				this.getListForOnChainOrder(newAskOrder, slot).update(
+				this.getListForOnChainOrder(
 					newAskOrder,
-					askNode.userAccount
-				);
+					slot,
+					askNode.isProtectedMaker
+				).update(newAskOrder, askNode.userAccount);
 
 				nodesToFill.push({
 					node: takerNode,
@@ -1661,6 +1675,8 @@ export class DLOB {
 			yield nodeLists.market.ask;
 			yield nodeLists.floatingLimit.bid;
 			yield nodeLists.floatingLimit.ask;
+			yield nodeLists.protectedFloatingLimit.bid;
+			yield nodeLists.protectedFloatingLimit.ask;
 			yield nodeLists.trigger.above;
 			yield nodeLists.trigger.below;
 		}
@@ -1674,6 +1690,8 @@ export class DLOB {
 			yield nodeLists.market.ask;
 			yield nodeLists.floatingLimit.bid;
 			yield nodeLists.floatingLimit.ask;
+			yield nodeLists.protectedFloatingLimit.bid;
+			yield nodeLists.protectedFloatingLimit.ask;
 			yield nodeLists.trigger.above;
 			yield nodeLists.trigger.below;
 		}
