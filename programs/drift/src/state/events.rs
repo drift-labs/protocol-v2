@@ -612,6 +612,19 @@ pub struct FuelSweepRecord {
     pub fuel_sweep_fuel_maker: u128,
 }
 
+#[event]
+pub struct FuelSeasonRecord {
+    pub ts: i64,
+    pub authority: Pubkey,
+    pub fuel_insurance: u128,
+    pub fuel_deposits: u128,
+    pub fuel_borrows: u128,
+    pub fuel_positions: u128,
+    pub fuel_taker: u128,
+    pub fuel_maker: u128,
+    pub fuel_total: u128,
+}
+
 pub fn emit_stack<T: AnchorSerialize + Discriminator, const N: usize>(event: T) -> DriftResult {
     let mut data_buf = [0u8; N];
     let mut out_buf = [0u8; N];

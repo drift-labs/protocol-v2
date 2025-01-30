@@ -1176,7 +1176,6 @@ export class DriftClient {
 					authority ?? this.wallet.publicKey
 				),
 				authority: authority ?? this.wallet.publicKey,
-				systemProgram: anchor.web3.SystemProgram.programId,
 			},
 		});
 	}

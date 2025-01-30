@@ -960,9 +960,9 @@ export type UserStatsAccount = {
 	referrerStatus: number;
 	authority: PublicKey;
 	ifStakedQuoteAssetAmount: BN;
-
 	lastFuelIfBonusUpdateTs: number; // u32 onchain
 
+	fuelSweepExists: boolean;
 	fuelInsurance: number;
 	fuelDeposits: number;
 	fuelBorrows: number;

@@ -201,7 +201,7 @@
         },
         {
           "name": "userStats",
-          "isMut": false,
+          "isMut": true,
           "isSigner": false
         },
         {
@@ -244,11 +244,32 @@
           "name": "authority",
           "isMut": false,
           "isSigner": false
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "resetFuelSeason",
+      "accounts": [
+        {
+          "name": "userStats",
+          "isMut": true,
+          "isSigner": false
         },
         {
-          "name": "systemProgram",
+          "name": "authority",
           "isMut": false,
           "isSigner": false
+        },
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true
         }
       ],
       "args": []
@@ -8655,9 +8676,16 @@
             "type": {
               "array": [
                 "u8",
-                2
+                1
               ]
             }
+          },
+          {
+            "name": "fuelSweepExists",
+            "docs": [
+              "whether the user has a FuelSweep account"
+            ],
+            "type": "bool"
           },
           {
             "name": "fuelInsurance",
@@ -13288,6 +13316,56 @@
           "index": false
         }
       ]
+    },
+    {
+      "name": "FuelSeasonRecord",
+      "fields": [
+        {
+          "name": "ts",
+          "type": "i64",
+          "index": false
+        },
+        {
+          "name": "authority",
+          "type": "publicKey",
+          "index": false
+        },
+        {
+          "name": "fuelInsurance",
+          "type": "u128",
+          "index": false
+        },
+        {
+          "name": "fuelDeposits",
+          "type": "u128",
+          "index": false
+        },
+        {
+          "name": "fuelBorrows",
+          "type": "u128",
+          "index": false
+        },
+        {
+          "name": "fuelPositions",
+          "type": "u128",
+          "index": false
+        },
+        {
+          "name": "fuelTaker",
+          "type": "u128",
+          "index": false
+        },
+        {
+          "name": "fuelMaker",
+          "type": "u128",
+          "index": false
+        },
+        {
+          "name": "fuelTotal",
+          "type": "u128",
+          "index": false
+        }
+      ]
     }
   ],
   "errors": [
@@ -14845,6 +14923,11 @@
       "code": 6310,
       "name": "UserFuelSweepThresholdNotMet",
       "msg": "User fuel sweep threshold not met"
+    },
+    {
+      "code": 6311,
+      "name": "FuelSweepAccountNotFound",
+      "msg": "FuelSweep account not found"
     }
   ],
   "metadata": {

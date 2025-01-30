@@ -1716,7 +1716,9 @@ pub struct UserStats {
     /// Second bit: 1 if user was referred, 0 otherwise
     pub referrer_status: u8,
     pub disable_update_perp_bid_ask_twap: bool,
-    pub padding1: [u8; 2],
+    pub padding1: [u8; 1],
+    /// whether the user has a FuelSweep account
+    pub fuel_sweep_exists: bool,
     /// accumulated fuel for token amounts of insurance
     pub fuel_insurance: u32,
     /// accumulated fuel for notional of deposits
@@ -1981,6 +1983,84 @@ impl UserStats {
         }
         false
     }
+
+    pub fn reset_fuel(&mut self) {
+        self.fuel_insurance = 0;
+        self.fuel_deposits = 0;
+        self.fuel_borrows = 0;
+        self.fuel_positions = 0;
+        self.fuel_taker = 0;
+        self.fuel_maker = 0;
+    }
+
+    pub fn total_fuel(&self) -> DriftResult<u128> {
+        self.fuel_insurance
+            .cast::<u128>()?
+            .safe_add(self.fuel_deposits.cast::<u128>()?)?
+            .safe_add(self.fuel_borrows.cast::<u128>()?)?
+            .safe_add(self.fuel_positions.cast::<u128>()?)?
+            .safe_add(self.fuel_taker.cast::<u128>()?)?
+            .safe_add(self.fuel_maker.cast::<u128>()?)
+    }
+
+    pub fn validate_fuel_sweep(
+        &self,
+        fuel_sweep: &Option<AccountLoader<FuelSweep>>,
+    ) -> DriftResult<()> {
+        match fuel_sweep {
+            None => {
+                if self.fuel_sweep_exists {
+                    let ec = ErrorCode::FuelSweepAccountNotFound;
+                    msg!("Error {} thrown at {}:{}", ec, file!(), line!());
+                    msg!("FuelSweep missing in remaining accounts");
+                    return Err(ec);
+                } else {
+                    // no FuelSweep account and none was given
+                    Ok(())
+                }
+            }
+            Some(fuel_sweep) => {
+                if self.fuel_sweep_exists {
+                    // check PDA matches
+                    let (expected, _) = Pubkey::find_program_address(
+                        &[b"fuel_sweep", self.authority.as_ref()],
+                        &crate::id(),
+                    );
+                    let actual = fuel_sweep.to_account_info().key();
+                    if actual != expected {
+                        let ec = ErrorCode::InvalidPDA;
+                        msg!("Error {} thrown at {}:{}", ec, file!(), line!());
+                        msg!("PDA mismatch. Expected: {}, Actual: {}", expected, actual);
+                        return Err(ec);
+                    } else {
+                        Ok(())
+                    }
+                } else {
+                    // no FuelSweep account but one was provided
+                    let ec = ErrorCode::FuelSweepAccountNotFound;
+                    msg!("Error {} thrown at {}:{}", ec, file!(), line!());
+                    msg!("Unexpected FuelSweep account provided in remaining accounts");
+                    return Err(ec);
+                }
+            }
+        }
+    }
+}
+
+pub trait FuelSweepProvider<'a> {
+    fn fuel_sweep(&self) -> Option<AccountLoader<'a, FuelSweep>>;
+}
+
+impl<'a: 'info, 'info, T: anchor_lang::Bumps> FuelSweepProvider<'a>
+    for Context<'_, '_, 'a, 'info, T>
+{
+    fn fuel_sweep(&self) -> Option<AccountLoader<'a, FuelSweep>> {
+        let acct = match self.remaining_accounts.get(0) {
+            Some(acct) => acct,
+            None => return None,
+        };
+        AccountLoader::<'a, FuelSweep>::try_from(acct).ok()
+    }
 }
 
 #[account(zero_copy(unsafe))]
@@ -2005,7 +2085,7 @@ pub enum MarginMode {
 }
 
 #[account(zero_copy(unsafe))]
-#[derive(Default)]
+#[derive(Default, Debug)]
 #[repr(C)]
 pub struct FuelSweep {
     /// The authority of this sweep account
@@ -2024,4 +2104,45 @@ pub struct FuelSweep {
 
 impl Size for FuelSweep {
     const SIZE: usize = 160;
+}
+
+impl FuelSweep {
+    pub fn update_from_user_stats(&mut self, user_stats: &UserStats, now: u32) -> DriftResult<()> {
+        self.fuel_insurance = self
+            .fuel_insurance
+            .safe_add(user_stats.fuel_insurance.cast()?)?;
+        self.fuel_deposits = self
+            .fuel_deposits
+            .safe_add(user_stats.fuel_deposits.cast()?)?;
+        self.fuel_borrows = self
+            .fuel_borrows
+            .safe_add(user_stats.fuel_borrows.cast()?)?;
+        self.fuel_positions = self
+            .fuel_positions
+            .safe_add(user_stats.fuel_positions.cast()?)?;
+        self.fuel_taker = self.fuel_taker.safe_add(user_stats.fuel_taker.cast()?)?;
+        self.fuel_maker = self.fuel_maker.safe_add(user_stats.fuel_maker.cast()?)?;
+        self.last_fuel_sweep_ts = now;
+
+        Ok(())
+    }
+
+    pub fn reset_fuel(&mut self, now: u32) {
+        self.fuel_insurance = 0;
+        self.fuel_deposits = 0;
+        self.fuel_borrows = 0;
+        self.fuel_positions = 0;
+        self.fuel_taker = 0;
+        self.fuel_maker = 0;
+        self.last_reset_ts = now;
+    }
+
+    pub fn total_fuel(&self) -> DriftResult<u128> {
+        self.fuel_insurance
+            .safe_add(self.fuel_deposits)?
+            .safe_add(self.fuel_borrows)?
+            .safe_add(self.fuel_positions)?
+            .safe_add(self.fuel_taker)?
+            .safe_add(self.fuel_maker)
+    }
 }

@@ -91,6 +91,12 @@ pub mod drift {
         handle_sweep_fuel(ctx)
     }
 
+    pub fn reset_fuel_season<'c: 'info, 'info>(
+        ctx: Context<'_, '_, 'c, 'info, ResetFuelSeason<'info>>,
+    ) -> Result<()> {
+        handle_reset_fuel_season(ctx)
+    }
+
     pub fn initialize_referrer_name(
         ctx: Context<InitializeReferrerName>,
         name: [u8; 32],

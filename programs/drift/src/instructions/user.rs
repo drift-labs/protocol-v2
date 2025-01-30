@@ -18,6 +18,7 @@ use crate::controller::spot_position::{
     update_spot_balances_and_cumulative_deposits_with_limits,
 };
 use crate::error::ErrorCode;
+use crate::ids::admin_hot_wallet;
 use crate::ids::{
     jupiter_mainnet_3, jupiter_mainnet_4, jupiter_mainnet_6, lighthouse, marinade_mainnet,
     serum_program,
@@ -43,10 +44,9 @@ use crate::optional_accounts::{get_token_interface, get_token_mint};
 use crate::print_error;
 use crate::safe_decrement;
 use crate::safe_increment;
-use crate::state::events::FuelSweepRecord;
 use crate::state::events::{
-    DepositDirection, DepositExplanation, DepositRecord, LPAction, LPRecord, NewUserRecord,
-    OrderActionExplanation, SwapRecord,
+    DepositDirection, DepositExplanation, DepositRecord, FuelSeasonRecord, FuelSweepRecord,
+    LPAction, LPRecord, NewUserRecord, OrderActionExplanation, SwapRecord,
 };
 use crate::state::fill_mode::FillMode;
 use crate::state::fulfillment_params::drift::MatchFulfillmentParams;
@@ -79,7 +79,7 @@ use crate::state::swift_user::{SwiftUserOrders, SWIFT_PDA_SEED};
 use crate::state::traits::Size;
 use crate::state::user::ReferrerStatus;
 use crate::state::user::{
-    FuelSweep, MarginMode, MarketType, OrderType, ReferrerName, User, UserStats,
+    FuelSweep, FuelSweepProvider, MarginMode, MarketType, OrderType, ReferrerName, User, UserStats,
 };
 use crate::state::user_map::{load_user_maps, UserMap, UserStatsMap};
 use crate::validate;
@@ -324,7 +324,7 @@ pub fn handle_resize_swift_user_orders<'c: 'info, 'info>(
 pub fn handle_initialize_fuel_sweep<'c: 'info, 'info>(
     ctx: Context<'_, '_, 'c, 'info, InitializeFuelSweep<'info>>,
 ) -> Result<()> {
-    let user_stats = load!(&ctx.accounts.user_stats)?;
+    let mut user_stats = load_mut!(&ctx.accounts.user_stats)?;
     validate!(
         user_stats.can_sweep_fuel(),
         ErrorCode::UserFuelSweepThresholdNotMet,
@@ -341,6 +341,7 @@ pub fn handle_initialize_fuel_sweep<'c: 'info, 'info>(
         authority: ctx.accounts.authority.key(),
         ..FuelSweep::default()
     };
+    user_stats.fuel_sweep_exists = true;
 
     Ok(())
 }
@@ -348,8 +349,6 @@ pub fn handle_initialize_fuel_sweep<'c: 'info, 'info>(
 pub fn handle_sweep_fuel<'c: 'info, 'info>(
     ctx: Context<'_, '_, 'c, 'info, SweepFuel<'info>>,
 ) -> anchor_lang::Result<()> {
-    let clock = Clock::get()?;
-
     let mut user_stats = load_mut!(&ctx.accounts.user_stats)?;
     validate!(
         user_stats.can_sweep_fuel(),
@@ -359,6 +358,7 @@ pub fn handle_sweep_fuel<'c: 'info, 'info>(
 
     let mut fuel_sweep = load_mut!(&ctx.accounts.fuel_sweep)?;
 
+    let clock = Clock::get()?;
     emit!(FuelSweepRecord {
         ts: clock.unix_timestamp.cast()?,
         authority: ctx.accounts.authority.key(),
@@ -376,33 +376,69 @@ pub fn handle_sweep_fuel<'c: 'info, 'info>(
         fuel_sweep_fuel_maker: fuel_sweep.fuel_maker,
     });
 
-    fuel_sweep.fuel_insurance = fuel_sweep
-        .fuel_insurance
-        .safe_add(user_stats.fuel_insurance.cast()?)?;
-    fuel_sweep.fuel_deposits = fuel_sweep
-        .fuel_deposits
-        .safe_add(user_stats.fuel_deposits.cast()?)?;
-    fuel_sweep.fuel_borrows = fuel_sweep
-        .fuel_borrows
-        .safe_add(user_stats.fuel_borrows.cast()?)?;
-    fuel_sweep.fuel_positions = fuel_sweep
-        .fuel_positions
-        .safe_add(user_stats.fuel_positions.cast()?)?;
-    fuel_sweep.fuel_taker = fuel_sweep
-        .fuel_taker
-        .safe_add(user_stats.fuel_taker.cast()?)?;
-    fuel_sweep.fuel_maker = fuel_sweep
-        .fuel_maker
-        .safe_add(user_stats.fuel_maker.cast()?)?;
+    fuel_sweep.update_from_user_stats(&user_stats, clock.unix_timestamp.cast()?)?;
+    user_stats.reset_fuel();
 
-    fuel_sweep.last_fuel_sweep_ts = clock.unix_timestamp.cast()?;
+    Ok(())
+}
 
-    user_stats.fuel_insurance = 0;
-    user_stats.fuel_deposits = 0;
-    user_stats.fuel_borrows = 0;
-    user_stats.fuel_positions = 0;
-    user_stats.fuel_taker = 0;
-    user_stats.fuel_maker = 0;
+pub fn handle_reset_fuel_season<'c: 'info, 'info>(
+    ctx: Context<'_, '_, 'c, 'info, ResetFuelSeason<'info>>,
+) -> Result<()> {
+    let mut user_stats = load_mut!(&ctx.accounts.user_stats)?;
+
+    let fuel_sweep = ctx.fuel_sweep();
+    user_stats.validate_fuel_sweep(&fuel_sweep)?;
+
+    let clock = Clock::get()?;
+    if let Some(fuel_sweep_account) = fuel_sweep {
+        // if FuelSweep exists, sweep before resetting user_stats
+        let mut fuel_sweep = load_mut!(fuel_sweep_account)?;
+        emit!(FuelSweepRecord {
+            ts: clock.unix_timestamp.cast()?,
+            authority: ctx.accounts.authority.key(),
+            user_stats_fuel_insurance: user_stats.fuel_insurance,
+            user_stats_fuel_deposits: user_stats.fuel_deposits,
+            user_stats_fuel_borrows: user_stats.fuel_borrows,
+            user_stats_fuel_positions: user_stats.fuel_positions,
+            user_stats_fuel_taker: user_stats.fuel_taker,
+            user_stats_fuel_maker: user_stats.fuel_maker,
+            fuel_sweep_fuel_insurance: fuel_sweep.fuel_insurance,
+            fuel_sweep_fuel_deposits: fuel_sweep.fuel_deposits,
+            fuel_sweep_fuel_borrows: fuel_sweep.fuel_borrows,
+            fuel_sweep_fuel_positions: fuel_sweep.fuel_positions,
+            fuel_sweep_fuel_taker: fuel_sweep.fuel_taker,
+            fuel_sweep_fuel_maker: fuel_sweep.fuel_maker,
+        });
+        fuel_sweep.update_from_user_stats(&user_stats, clock.unix_timestamp.cast()?)?;
+
+        emit!(FuelSeasonRecord {
+            ts: clock.unix_timestamp.cast()?,
+            authority: ctx.accounts.authority.key(),
+            fuel_insurance: fuel_sweep.fuel_insurance,
+            fuel_deposits: fuel_sweep.fuel_deposits,
+            fuel_borrows: fuel_sweep.fuel_borrows,
+            fuel_positions: fuel_sweep.fuel_positions,
+            fuel_taker: fuel_sweep.fuel_taker,
+            fuel_maker: fuel_sweep.fuel_maker,
+            fuel_total: fuel_sweep.total_fuel()?,
+        });
+        fuel_sweep.reset_fuel(clock.unix_timestamp.cast()?);
+    } else {
+        emit!(FuelSeasonRecord {
+            ts: clock.unix_timestamp.cast()?,
+            authority: ctx.accounts.authority.key(),
+            fuel_insurance: user_stats.fuel_insurance.cast()?,
+            fuel_deposits: user_stats.fuel_deposits.cast()?,
+            fuel_borrows: user_stats.fuel_borrows.cast()?,
+            fuel_positions: user_stats.fuel_positions.cast()?,
+            fuel_taker: user_stats.fuel_taker.cast()?,
+            fuel_maker: user_stats.fuel_maker.cast()?,
+            fuel_total: user_stats.total_fuel()?,
+        });
+    };
+
+    user_stats.reset_fuel();
 
     Ok(())
 }
@@ -3325,6 +3361,7 @@ pub struct InitializeFuelSweep<'info> {
     )]
     pub fuel_sweep: AccountLoader<'info, FuelSweep>,
     #[account(
+        mut,
         has_one = authority
     )]
     pub user_stats: AccountLoader<'info, UserStats>,
@@ -3350,7 +3387,22 @@ pub struct SweepFuel<'info> {
     pub user_stats: AccountLoader<'info, UserStats>,
     /// CHECK: authority
     pub authority: AccountInfo<'info>,
-    pub system_program: Program<'info, System>,
+}
+
+#[derive(Accounts)]
+pub struct ResetFuelSeason<'info> {
+    #[account(
+        mut,
+        has_one = authority
+    )]
+    pub user_stats: AccountLoader<'info, UserStats>,
+    /// CHECK: authority
+    pub authority: AccountInfo<'info>,
+    pub state: Box<Account<'info, State>>,
+    #[account(
+        constraint = admin.key() == admin_hot_wallet::id() || admin.key() == state.admin
+    )]
+    pub admin: Signer<'info>,
 }
 
 #[derive(Accounts)]

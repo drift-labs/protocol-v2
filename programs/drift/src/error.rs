@@ -627,6 +627,8 @@ pub enum ErrorCode {
     SwiftUserContextUserMismatch,
     #[msg("User fuel sweep threshold not met")]
     UserFuelSweepThresholdNotMet,
+    #[msg("FuelSweep account not found")]
+    FuelSweepAccountNotFound,
 }
 
 #[macro_export]
