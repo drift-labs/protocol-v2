@@ -876,7 +876,7 @@ export class User {
 							.div(new BN(SPOT_MARKET_WEIGHT_PRECISION));
 					}
 
-					if (positionUnrealizedPnl.lt(ZERO)) {
+					if (liquidationBuffer && positionUnrealizedPnl.lt(ZERO)) {
 						positionUnrealizedPnl = positionUnrealizedPnl.add(
 							positionUnrealizedPnl.mul(liquidationBuffer).div(MARGIN_PRECISION)
 						);
