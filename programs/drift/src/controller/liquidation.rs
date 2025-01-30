@@ -350,7 +350,7 @@ pub fn liquidate_perp(
         .price;
 
     let liquidator_fee = get_liquidation_fee(
-        market.liquidator_fee,
+        market.get_base_liquidator_fee(user.is_high_leverage_mode()),
         market.get_max_liquidation_fee()?,
         user.last_active_slot,
         slot,

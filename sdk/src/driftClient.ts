@@ -1738,6 +1738,24 @@ export class DriftClient {
 		return ix;
 	}
 
+	/**
+	 * Checks if a Swift User Orders account exists for the given authority.
+	 * The account pubkey is derived using the program ID and authority as seeds.
+	 * Makes an RPC call to check if the account exists on-chain.
+	 *
+	 * @param authority The authority public key to check for
+	 * @returns Promise that resolves to true if the account exists, false otherwise
+	 */
+	public async isSwiftUserOrdersAccountInitialized(
+		authority: PublicKey
+	): Promise<boolean> {
+		const swiftUserOrdersAccountPublicKey = getSwiftUserAccountPublicKey(
+			this.program.programId,
+			authority
+		);
+		return this.checkIfAccountExists(swiftUserOrdersAccountPublicKey);
+	}
+
 	public async reclaimRent(
 		subAccountId = 0,
 		txParams?: TxParams
@@ -3919,11 +3937,18 @@ export class DriftClient {
 	public async placeOrders(
 		params: OrderParams[],
 		txParams?: TxParams,
-		subAccountId?: number
+		subAccountId?: number,
+		optionalIxs?: TransactionInstruction[]
 	): Promise<TransactionSignature> {
 		const { txSig } = await this.sendTransaction(
-			(await this.preparePlaceOrdersTx(params, txParams, subAccountId))
-				.placeOrdersTx,
+			(
+				await this.preparePlaceOrdersTx(
+					params,
+					txParams,
+					subAccountId,
+					optionalIxs
+				)
+			).placeOrdersTx,
 			[],
 			this.opts,
 			false
@@ -3934,11 +3959,19 @@ export class DriftClient {
 	public async preparePlaceOrdersTx(
 		params: OrderParams[],
 		txParams?: TxParams,
-		subAccountId?: number
+		subAccountId?: number,
+		optionalIxs?: TransactionInstruction[]
 	) {
+		const lookupTableAccount = await this.fetchMarketLookupTableAccount();
+
 		const tx = await this.buildTransaction(
 			await this.getPlaceOrdersIx(params, subAccountId),
-			txParams
+			txParams,
+			undefined,
+			[lookupTableAccount],
+			undefined,
+			undefined,
+			optionalIxs
 		);
 
 		return {
@@ -5494,7 +5527,8 @@ export class DriftClient {
 		cancelExistingOrders?: boolean,
 		settlePnl?: boolean,
 		exitEarlyIfSimFails?: boolean,
-		auctionDurationPercentage?: number
+		auctionDurationPercentage?: number,
+		optionalIxs?: TransactionInstruction[]
 	): Promise<{
 		placeAndTakeTx: Transaction | VersionedTransaction;
 		cancelExistingOrdersTx: Transaction | VersionedTransaction;
@@ -5513,6 +5547,8 @@ export class DriftClient {
 		// Get recent block hash so that we can re-use it for all transactions. Makes this logic run faster with fewer RPC requests
 		const recentBlockHash =
 			await this.txHandler.getLatestBlockhashForTransaction();
+
+		const lookupTableAccount = await this.fetchMarketLookupTableAccount();
 
 		let earlyExitFailedPlaceAndTakeSim = false;
 
@@ -5550,9 +5586,10 @@ export class DriftClient {
 					placeAndTakeIxs,
 					txParams,
 					undefined,
-					undefined,
+					[lookupTableAccount],
 					true,
-					recentBlockHash
+					recentBlockHash,
+					optionalIxs
 				)) as VersionedTransaction;
 
 				const simulationResult =
@@ -5575,18 +5612,20 @@ export class DriftClient {
 						computeUnits: simulationResult.computeUnits,
 					},
 					undefined,
+					[lookupTableAccount],
 					undefined,
-					undefined,
-					recentBlockHash
+					recentBlockHash,
+					optionalIxs
 				);
 			} else {
 				txsToSign.placeAndTakeTx = await this.buildTransaction(
 					placeAndTakeIxs,
 					txParams,
 					undefined,
+					[lookupTableAccount],
 					undefined,
-					undefined,
-					recentBlockHash
+					recentBlockHash,
+					optionalIxs
 				);
 			}
 
@@ -5606,9 +5645,10 @@ export class DriftClient {
 					[cancelOrdersIx],
 					txParams,
 					this.txVersion,
+					[lookupTableAccount],
 					undefined,
-					undefined,
-					recentBlockHash
+					recentBlockHash,
+					optionalIxs
 				);
 			}
 
@@ -5631,9 +5671,10 @@ export class DriftClient {
 					[settlePnlIx],
 					txParams,
 					this.txVersion,
+					[lookupTableAccount],
 					undefined,
-					undefined,
-					recentBlockHash
+					recentBlockHash,
+					optionalIxs
 				);
 			}
 			return;
@@ -5883,7 +5924,7 @@ export class DriftClient {
 	public encodeSwiftOrderParamsMessage(
 		orderParamsMessage: SwiftOrderParamsMessage
 	): Buffer {
-		const anchorIxName = 'global' + ':' + 'swiftOrderMessageParams';
+		const anchorIxName = 'global' + ':' + 'SwiftOrderParamsMessage';
 		const prefix = Buffer.from(sha256(anchorIxName).slice(0, 8));
 		const buf = Buffer.concat([
 			prefix,
@@ -6818,8 +6859,11 @@ export class DriftClient {
 		settleeUserAccountPublicKey: PublicKey,
 		settleeUserAccount: UserAccount,
 		marketIndex: number,
-		txParams?: TxParams
+		txParams?: TxParams,
+		optionalIxs?: TransactionInstruction[]
 	): Promise<TransactionSignature> {
+		const lookupTableAccount = await this.fetchMarketLookupTableAccount();
+
 		const { txSig } = await this.sendTransaction(
 			await this.buildTransaction(
 				await this.settlePNLIx(
@@ -6827,7 +6871,12 @@ export class DriftClient {
 					settleeUserAccount,
 					marketIndex
 				),
-				txParams
+				txParams,
+				undefined,
+				[lookupTableAccount],
+				undefined,
+				undefined,
+				optionalIxs
 			),
 			[],
 			this.opts
@@ -8700,6 +8749,7 @@ export class DriftClient {
 			guardianSetIndex,
 			DEFAULT_WORMHOLE_PROGRAM_ID
 		);
+
 		const trimmedVaa = trimVaaSignatures(
 			accumulatorUpdateData.vaa,
 			numSignatures
@@ -9287,7 +9337,8 @@ export class DriftClient {
 		txVersion?: TransactionVersion,
 		lookupTables?: AddressLookupTableAccount[],
 		forceVersionedTransaction?: boolean,
-		recentBlockhash?: BlockhashWithExpiryBlockHeight
+		recentBlockhash?: BlockhashWithExpiryBlockHeight,
+		optionalIxs?: TransactionInstruction[]
 	): Promise<Transaction | VersionedTransaction> {
 		return this.txHandler.buildTransaction({
 			instructions,
@@ -9300,6 +9351,7 @@ export class DriftClient {
 			lookupTables,
 			forceVersionedTransaction,
 			recentBlockhash,
+			optionalIxs,
 		});
 	}
 

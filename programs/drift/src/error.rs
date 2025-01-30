@@ -623,6 +623,8 @@ pub enum ErrorCode {
     PythLazerMessagePriceFeedMismatch,
     #[msg("InvalidLiquidateSpotWithSwap")]
     InvalidLiquidateSpotWithSwap,
+    #[msg("User in swift message does not match user in ix context")]
+    SwiftUserContextUserMismatch,
 }
 
 #[macro_export]

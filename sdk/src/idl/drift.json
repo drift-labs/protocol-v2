@@ -14642,6 +14642,11 @@
       "code": 6308,
       "name": "InvalidLiquidateSpotWithSwap",
       "msg": "InvalidLiquidateSpotWithSwap"
+    },
+    {
+      "code": 6309,
+      "name": "SwiftUserContextUserMismatch",
+      "msg": "User in swift message does not match user in ix context"
     }
   ],
   "metadata": {
