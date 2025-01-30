@@ -1738,6 +1738,24 @@ export class DriftClient {
 		return ix;
 	}
 
+	/**
+	 * Checks if a Swift User Orders account exists for the given authority.
+	 * The account pubkey is derived using the program ID and authority as seeds.
+	 * Makes an RPC call to check if the account exists on-chain.
+	 *
+	 * @param authority The authority public key to check for
+	 * @returns Promise that resolves to true if the account exists, false otherwise
+	 */
+	public async isSwiftUserOrdersAccountInitialized(
+		authority: PublicKey
+	): Promise<boolean> {
+		const swiftUserOrdersAccountPublicKey = getSwiftUserAccountPublicKey(
+			this.program.programId,
+			authority
+		);
+		return this.checkIfAccountExists(swiftUserOrdersAccountPublicKey);
+	}
+
 	public async reclaimRent(
 		subAccountId = 0,
 		txParams?: TxParams
