@@ -334,3 +334,19 @@ export function calculateAvailablePerpLiquidity(
 		asks: asks,
 	};
 }
+
+export function calculatePerpMarketBaseLiquidatorFee(
+	market: PerpMarketAccount,
+	userHighLeverageMode: boolean
+): number {
+	if (userHighLeverageMode && market.highLeverageMarginRatioMaintenance > 0) {
+		// min(liquidator_fee, .8 * high_leverage_margin_ratio_maintenance)
+		return Math.min(
+			market.liquidatorFee,
+			market.highLeverageMarginRatioMaintenance -
+				Math.floor(market.highLeverageMarginRatioMaintenance / 5)
+		);
+	} else {
+		return market.liquidatorFee;
+	}
+}

@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Features
 
+- program: add separate liquidator fee for high leverage mode ([#1451](https://github.com/drift-labs/protocol-v2/pull/1451))
 - program: update pyth lazer verification ([#1441](https://github.com/drift-labs/protocol-v2/pull/1441))
 
 ### Fixes

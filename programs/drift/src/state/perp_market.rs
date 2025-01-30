@@ -475,6 +475,19 @@ impl PerpMarket {
         Ok(margin_ratio)
     }
 
+    pub fn get_base_liquidator_fee(&self, user_high_leverage_mode: bool) -> u32 {
+        if user_high_leverage_mode && self.is_high_leverage_mode_enabled() {
+            // min(liquidator_fee, .8 * high_leverage_margin_ratio_maintenance)
+            self.liquidator_fee.min(
+                self.high_leverage_margin_ratio_maintenance
+                    .saturating_sub(self.high_leverage_margin_ratio_maintenance / 5)
+                    as u32,
+            )
+        } else {
+            self.liquidator_fee
+        }
+    }
+
     pub fn get_max_liquidation_fee(&self) -> DriftResult<u32> {
         let max_liquidation_fee = (self.liquidator_fee.safe_mul(MAX_LIQUIDATION_MULTIPLIER)?).min(
             self.margin_ratio_maintenance
