@@ -12,7 +12,7 @@ export const convertToNumber = (
 	);
 };
 
-function convertToBN(value: number, precision: BN): BN {
+export function convertToBN(value: number, precision: BN): BN {
 	// Get the whole part using Math.floor
 	const wholePart = Math.floor(value);
 
