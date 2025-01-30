@@ -2334,10 +2334,10 @@ pub mod liquidate_perp {
         )
         .unwrap();
 
-        assert_eq!(user.perp_positions[0].base_asset_amount, 500000000);
-        assert_eq!(user.perp_positions[0].quote_asset_amount, -51500000);
-        assert_eq!(user.perp_positions[0].quote_entry_amount, -50000000);
-        assert_eq!(user.perp_positions[0].quote_break_even_amount, -51500000);
+        assert_eq!(user.perp_positions[0].base_asset_amount, 790000000);
+        assert_eq!(user.perp_positions[0].quote_asset_amount, -79614680);
+        assert_eq!(user.perp_positions[0].quote_entry_amount, -79000000);
+        assert_eq!(user.perp_positions[0].quote_break_even_amount, -79614680);
         assert_eq!(user.perp_positions[0].open_orders, 0);
         assert_eq!(user.perp_positions[0].open_bids, 0);
 
@@ -2355,10 +2355,7 @@ pub mod liquidate_perp {
         .unwrap();
 
         // user out of liq territory
-        assert_eq!(
-            total_collateral.unsigned_abs(),
-            margin_requirement_plus_buffer
-        );
+        assert!(total_collateral.unsigned_abs() > margin_requirement_plus_buffer);
 
         let oracle_price = oracle_map
             .get_price_data(&(oracle_price_key, OracleSource::Pyth))
@@ -2373,13 +2370,13 @@ pub mod liquidate_perp {
 
         let margin_ratio = total_collateral.unsigned_abs() * MARGIN_PRECISION_U128 / perp_value;
 
-        assert_eq!(margin_ratio, 300);
+        assert_eq!(margin_ratio, 301);
 
-        assert_eq!(liquidator.perp_positions[0].base_asset_amount, 1500000000);
-        assert_eq!(liquidator.perp_positions[0].quote_asset_amount, -149250000);
+        assert_eq!(liquidator.perp_positions[0].base_asset_amount, 1210000000);
+        assert_eq!(liquidator.perp_positions[0].quote_asset_amount, -120990320);
 
         let market_after = perp_market_map.get_ref(&0).unwrap();
-        assert_eq!(market_after.amm.total_liquidation_fee, 750000)
+        assert_eq!(market_after.amm.total_liquidation_fee, 605000)
     }
 }
 

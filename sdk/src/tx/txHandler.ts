@@ -28,7 +28,7 @@ import { containsComputeUnitIxs } from '../util/computeUnits';
 import { CachedBlockhashFetcher } from './blockhashFetcher/cachedBlockhashFetcher';
 import { BaseBlockhashFetcher } from './blockhashFetcher/baseBlockhashFetcher';
 import { BlockhashFetcher } from './blockhashFetcher/types';
-import { isVersionedTransaction } from './utils';
+import { getCombinedInstructions, isVersionedTransaction } from './utils';
 import { DEFAULT_CONFIRMATION_OPTS } from '../config';
 
 /**
@@ -57,6 +57,7 @@ export type TxBuildingProps = {
 	txParams?: TxParams;
 	recentBlockhash?: BlockhashWithExpiryBlockHeight;
 	wallet?: IWallet;
+	optionalIxs?: TransactionInstruction[]; // additional instructions to add to the front of ixs if there's enough room, such as oracle cranks
 };
 
 export type TxHandlerConfig = {
@@ -470,13 +471,13 @@ export class TxHandler {
 		props: TxBuildingProps
 	): Promise<Transaction | VersionedTransaction> {
 		const {
-			instructions,
 			txVersion,
 			txParams,
 			connection: _connection,
 			preFlightCommitment: _preFlightCommitment,
 			fetchMarketLookupTableAccount,
 			forceVersionedTransaction,
+			instructions,
 		} = props;
 
 		let { lookupTables } = props;
@@ -487,8 +488,29 @@ export class TxHandler {
 			computeUnitsPrice: txParams?.computeUnitsPrice,
 		};
 
+		const instructionsArray = Array.isArray(instructions)
+			? instructions
+			: [instructions];
+
+		let instructionsToUse: TransactionInstruction[];
+
+		// add optional ixs if there's room (usually oracle cranks)
+		if (props.optionalIxs && txVersion === 0) {
+			instructionsToUse = getCombinedInstructions(
+				instructionsArray,
+				props.optionalIxs,
+				txVersion === 0,
+				lookupTables
+			);
+		} else {
+			instructionsToUse = instructionsArray;
+		}
+
 		if (txParams?.useSimulatedComputeUnits) {
-			const processedTxParams = await this.getProcessedTransactionParams(props);
+			const processedTxParams = await this.getProcessedTransactionParams({
+				...props,
+				instructions: instructionsToUse,
+			});
 
 			baseTxParams = {
 				...baseTxParams,
@@ -496,11 +518,8 @@ export class TxHandler {
 			};
 		}
 
-		const instructionsArray = Array.isArray(instructions)
-			? instructions
-			: [instructions];
 		const { hasSetComputeUnitLimitIx, hasSetComputeUnitPriceIx } =
-			containsComputeUnitIxs(instructionsArray);
+			containsComputeUnitIxs(instructionsToUse);
 
 		// # Create Tx Instructions
 		const allIx = [];
@@ -529,7 +548,7 @@ export class TxHandler {
 			);
 		}
 
-		allIx.push(...instructionsArray);
+		allIx.push(...instructionsToUse);
 
 		const recentBlockhash =
 			props?.recentBlockhash ?? (await this.getLatestBlockhashForTransaction());
