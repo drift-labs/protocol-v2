@@ -327,7 +327,7 @@ jobs:
           solana-verify build --library-name drift --base-image ellipsislabs/solana:1.16.6
 
       - name: Upload Artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: build
           path: target/deploy/drift.so

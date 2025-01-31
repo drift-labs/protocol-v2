@@ -36,7 +36,8 @@ export class NodeList<NodeType extends keyof DLOBNodeMap>
 		order: Order,
 		marketType: MarketTypeStr,
 		userAccount: string,
-		isUserProtectedMaker: boolean
+		isProtectedMaker: boolean,
+		applyProtectedMakerOffset: boolean
 	): void {
 		if (isVariant(order.status, 'init')) {
 			return;
@@ -46,7 +47,8 @@ export class NodeList<NodeType extends keyof DLOBNodeMap>
 			this.nodeType,
 			order,
 			userAccount,
-			isUserProtectedMaker
+			isProtectedMaker,
+			applyProtectedMakerOffset
 		);
 
 		const orderSignature = getOrderSignature(order.orderId, userAccount);

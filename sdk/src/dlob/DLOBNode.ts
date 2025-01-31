@@ -13,17 +13,14 @@ import {
 import { getOrderSignature } from './NodeList';
 
 export interface DLOBNode {
-	getPrice(
-		oraclePriceData: OraclePriceData,
-		slot: number,
-		protectedMakerView?: boolean
-	): BN;
+	getPrice(oraclePriceData: OraclePriceData, slot: number): BN;
 	isVammNode(): boolean;
 	order: Order | undefined;
 	isBaseFilled(): boolean;
 	haveFilled: boolean;
 	userAccount: string | undefined;
-	isUserProtectedMaker: boolean;
+	isProtectedMaker: boolean;
+	applyProtectedMakerOffset: boolean;
 	isSwift: boolean | undefined;
 }
 
@@ -33,20 +30,23 @@ export abstract class OrderNode implements DLOBNode {
 	sortValue: BN;
 	haveFilled = false;
 	haveTrigger = false;
-	isUserProtectedMaker: boolean;
+	isProtectedMaker: boolean;
+	applyProtectedMakerOffset: boolean;
 	isSwift: boolean;
 
 	constructor(
 		order: Order,
 		userAccount: string,
-		isUserProtectedMaker: boolean,
+		isProtectedMaker: boolean,
+		applyProtectedMakerOffset: boolean,
 		isSwift = false
 	) {
 		// Copy the order over to the node
 		this.order = { ...order };
 		this.userAccount = userAccount;
 		this.sortValue = this.getSortValue(order);
-		this.isUserProtectedMaker = isUserProtectedMaker;
+		this.isProtectedMaker = isProtectedMaker;
+		this.applyProtectedMakerOffset = applyProtectedMakerOffset;
 		this.isSwift = isSwift;
 	}
 
@@ -79,17 +79,13 @@ export abstract class OrderNode implements DLOBNode {
 		return msg;
 	}
 
-	getPrice(
-		oraclePriceData: OraclePriceData,
-		slot: number,
-		protectedMakerView?: boolean
-	): BN {
+	getPrice(oraclePriceData: OraclePriceData, slot: number): BN {
 		return getLimitPrice(
 			this.order,
 			oraclePriceData,
 			slot,
 			undefined,
-			protectedMakerView && this.isUserProtectedMaker
+			this.applyProtectedMakerOffset
 		);
 	}
 
@@ -116,7 +112,17 @@ export class RestingLimitOrderNode extends OrderNode {
 	previous?: RestingLimitOrderNode;
 
 	getSortValue(order: Order): BN {
-		return order.price;
+		let sortValue = order.price;
+		if (this.applyProtectedMakerOffset) {
+			const offset = sortValue.divn(1000);
+
+			if (isVariant(order.direction, 'long')) {
+				sortValue = sortValue.sub(offset);
+			} else {
+				sortValue = sortValue.add(offset);
+			}
+		}
+		return sortValue;
 	}
 }
 
@@ -153,7 +159,7 @@ export class SwiftOrderNode extends OrderNode {
 	previous?: SwiftOrderNode;
 
 	constructor(order: Order, userAccount: string) {
-		super(order, userAccount, false, true);
+		super(order, userAccount, false, false, true);
 	}
 
 	getSortValue(order: Order): BN {
@@ -165,6 +171,7 @@ export type DLOBNodeMap = {
 	restingLimit: RestingLimitOrderNode;
 	takingLimit: TakingLimitOrderNode;
 	floatingLimit: FloatingLimitOrderNode;
+	protectedFloatingLimit: FloatingLimitOrderNode;
 	market: MarketOrderNode;
 	trigger: TriggerOrderNode;
 	swift: SwiftOrderNode;
@@ -175,6 +182,7 @@ export type DLOBNodeType =
 	| 'restingLimit'
 	| 'takingLimit'
 	| 'floatingLimit'
+	| 'protectedFloatingLimit'
 	| 'market'
 	| ('trigger' & keyof DLOBNodeMap);
 
@@ -182,27 +190,42 @@ export function createNode<T extends DLOBNodeType>(
 	nodeType: T,
 	order: Order,
 	userAccount: string,
-	isUserProtectedMaker: boolean
+	isProtectedMaker: boolean,
+	applyProtectedMakerOffset: boolean
 ): DLOBNodeMap[T] {
 	switch (nodeType) {
 		case 'floatingLimit':
 			return new FloatingLimitOrderNode(
 				order,
 				userAccount,
-				isUserProtectedMaker
+				isProtectedMaker,
+				applyProtectedMakerOffset
+			);
+		case 'protectedFloatingLimit':
+			return new FloatingLimitOrderNode(
+				order,
+				userAccount,
+				isProtectedMaker,
+				applyProtectedMakerOffset
 			);
 		case 'restingLimit':
 			return new RestingLimitOrderNode(
 				order,
 				userAccount,
-				isUserProtectedMaker
+				isProtectedMaker,
+				applyProtectedMakerOffset
 			);
 		case 'takingLimit':
-			return new TakingLimitOrderNode(order, userAccount, isUserProtectedMaker);
+			return new TakingLimitOrderNode(
+				order,
+				userAccount,
+				isProtectedMaker,
+				applyProtectedMakerOffset
+			);
 		case 'market':
-			return new MarketOrderNode(order, userAccount, isUserProtectedMaker);
+			return new MarketOrderNode(order, userAccount, isProtectedMaker, false);
 		case 'trigger':
-			return new TriggerOrderNode(order, userAccount, isUserProtectedMaker);
+			return new TriggerOrderNode(order, userAccount, isProtectedMaker, false);
 		case 'swift':
 			return new SwiftOrderNode(order, userAccount);
 		default:
