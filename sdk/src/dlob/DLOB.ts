@@ -1094,6 +1094,9 @@ export class DLOB {
 			nodeLists.restingLimit.ask.getGenerator(),
 			nodeLists.floatingLimit.ask.getGenerator(),
 		];
+		if (this.protectedMakerView) {
+			generatorList.push(nodeLists.protectedFloatingLimit.ask.getGenerator());
+		}
 
 		yield* this.getBestNode(
 			generatorList,
@@ -1132,6 +1135,9 @@ export class DLOB {
 			nodeLists.restingLimit.bid.getGenerator(),
 			nodeLists.floatingLimit.bid.getGenerator(),
 		];
+		if (this.protectedMakerView) {
+			generatorList.push(nodeLists.protectedFloatingLimit.bid.getGenerator());
+		}
 
 		yield* this.getBestNode(
 			generatorList,
