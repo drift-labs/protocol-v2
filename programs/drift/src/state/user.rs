@@ -4,7 +4,7 @@ use crate::error::{DriftResult, ErrorCode};
 use crate::math::auction::{calculate_auction_price, is_auction_complete};
 use crate::math::casting::Cast;
 use crate::math::constants::{
-    EPOCH_DURATION, FUEL_START_TS, FUEL_SWEEP_THRESHOLD_U32, OPEN_ORDER_MARGIN_REQUIREMENT,
+    EPOCH_DURATION, FUEL_OVERFLOW_THRESHOLD_U32, FUEL_START_TS, OPEN_ORDER_MARGIN_REQUIREMENT,
     PRICE_TIMES_AMM_TO_QUOTE_PRECISION_RATIO, QUOTE_PRECISION, QUOTE_SPOT_MARKET_INDEX, THIRTY_DAY,
 };
 use crate::math::lp::{calculate_lp_open_bids_asks, calculate_settle_lp_metrics};
@@ -446,10 +446,15 @@ impl User {
     }
 
     pub fn get_fuel_bonus_numerator(&self, now: i64) -> DriftResult<i64> {
-        if self.last_fuel_bonus_update_ts.cast::<i64>()? >= FUEL_START_TS {
+        if self.last_fuel_bonus_update_ts > 0 {
             now.safe_sub(self.last_fuel_bonus_update_ts.cast()?)
         } else {
-            Ok(0)
+            // start ts for existing accounts pre fuel
+            if now > FUEL_START_TS {
+                now.safe_sub(FUEL_START_TS)
+            } else {
+                Ok(0)
+            }
         }
     }
 
@@ -1712,8 +1717,8 @@ pub struct UserStats {
     pub referrer_status: u8,
     pub disable_update_perp_bid_ask_twap: bool,
     pub padding1: [u8; 1],
-    /// whether the user has a FuelSweep account
-    pub fuel_sweep_exists: bool,
+    /// whether the user has a FuelOverflow account
+    pub fuel_overflow_status: u8,
     /// accumulated fuel for token amounts of insurance
     pub fuel_insurance: u32,
     /// accumulated fuel for notional of deposits
@@ -1957,23 +1962,31 @@ impl UserStats {
         }
     }
 
+    pub fn update_fuel_overflow_status(&mut self, has_overflow: bool) {
+        if has_overflow {
+            self.fuel_overflow_status |= FuelOverflowStatus::Exists as u8;
+        } else {
+            self.fuel_overflow_status &= !(FuelOverflowStatus::Exists as u8);
+        }
+    }
+
     pub fn can_sweep_fuel(&self) -> bool {
-        if self.fuel_insurance > FUEL_SWEEP_THRESHOLD_U32 {
+        if self.fuel_insurance > FUEL_OVERFLOW_THRESHOLD_U32 {
             return true;
         }
-        if self.fuel_deposits > FUEL_SWEEP_THRESHOLD_U32 {
+        if self.fuel_deposits > FUEL_OVERFLOW_THRESHOLD_U32 {
             return true;
         }
-        if self.fuel_borrows > FUEL_SWEEP_THRESHOLD_U32 {
+        if self.fuel_borrows > FUEL_OVERFLOW_THRESHOLD_U32 {
             return true;
         }
-        if self.fuel_positions > FUEL_SWEEP_THRESHOLD_U32 {
+        if self.fuel_positions > FUEL_OVERFLOW_THRESHOLD_U32 {
             return true;
         }
-        if self.fuel_taker > FUEL_SWEEP_THRESHOLD_U32 {
+        if self.fuel_taker > FUEL_OVERFLOW_THRESHOLD_U32 {
             return true;
         }
-        if self.fuel_maker > FUEL_SWEEP_THRESHOLD_U32 {
+        if self.fuel_maker > FUEL_OVERFLOW_THRESHOLD_U32 {
             return true;
         }
         false
@@ -1998,30 +2011,30 @@ impl UserStats {
             .safe_add(self.fuel_maker.cast::<u128>()?)
     }
 
-    pub fn validate_fuel_sweep(
+    pub fn validate_fuel_overflow(
         &self,
-        fuel_sweep: &Option<AccountLoader<FuelSweep>>,
+        fuel_overflow: &Option<AccountLoader<FuelOverflow>>,
     ) -> DriftResult<()> {
-        match fuel_sweep {
+        match fuel_overflow {
             None => {
-                if self.fuel_sweep_exists {
-                    let ec = ErrorCode::FuelSweepAccountNotFound;
+                if FuelOverflowStatus::exists(self.fuel_overflow_status) {
+                    let ec = ErrorCode::FuelOverflowAccountNotFound;
                     msg!("Error {} thrown at {}:{}", ec, file!(), line!());
-                    msg!("FuelSweep missing in remaining accounts");
+                    msg!("FuelOverflow missing in remaining accounts");
                     return Err(ec);
                 } else {
-                    // no FuelSweep account and none was given
+                    // no FuelOverflow account and none was given
                     Ok(())
                 }
             }
-            Some(fuel_sweep) => {
-                if self.fuel_sweep_exists {
+            Some(fuel_overflow) => {
+                if FuelOverflowStatus::exists(self.fuel_overflow_status) {
                     // check PDA matches
                     let (expected, _) = Pubkey::find_program_address(
-                        &[b"fuel_sweep", self.authority.as_ref()],
+                        &[b"fuel_overflow", self.authority.as_ref()],
                         &crate::id(),
                     );
-                    let actual = fuel_sweep.to_account_info().key();
+                    let actual = fuel_overflow.to_account_info().key();
                     if actual != expected {
                         let ec = ErrorCode::InvalidPDA;
                         msg!("Error {} thrown at {}:{}", ec, file!(), line!());
@@ -2031,10 +2044,10 @@ impl UserStats {
                         Ok(())
                     }
                 } else {
-                    // no FuelSweep account but one was provided
-                    let ec = ErrorCode::FuelSweepAccountNotFound;
+                    // no FuelOverflow account but one was provided
+                    let ec = ErrorCode::FuelOverflowAccountNotFound;
                     msg!("Error {} thrown at {}:{}", ec, file!(), line!());
-                    msg!("Unexpected FuelSweep account provided in remaining accounts");
+                    msg!("Unexpected FuelOverflow account provided in remaining accounts");
                     return Err(ec);
                 }
             }
@@ -2042,19 +2055,19 @@ impl UserStats {
     }
 }
 
-pub trait FuelSweepProvider<'a> {
-    fn fuel_sweep(&self) -> Option<AccountLoader<'a, FuelSweep>>;
+pub trait FuelOverflowProvider<'a> {
+    fn fuel_overflow(&self) -> Option<AccountLoader<'a, FuelOverflow>>;
 }
 
-impl<'a: 'info, 'info, T: anchor_lang::Bumps> FuelSweepProvider<'a>
+impl<'a: 'info, 'info, T: anchor_lang::Bumps> FuelOverflowProvider<'a>
     for Context<'_, '_, 'a, 'info, T>
 {
-    fn fuel_sweep(&self) -> Option<AccountLoader<'a, FuelSweep>> {
+    fn fuel_overflow(&self) -> Option<AccountLoader<'a, FuelOverflow>> {
         let acct = match self.remaining_accounts.get(0) {
             Some(acct) => acct,
             None => return None,
         };
-        AccountLoader::<'a, FuelSweep>::try_from(acct).ok()
+        AccountLoader::<'a, FuelOverflow>::try_from(acct).ok()
     }
 }
 
@@ -2079,11 +2092,22 @@ pub enum MarginMode {
     HighLeverage,
 }
 
+#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Debug, Eq)]
+#[repr(u8)]
+pub enum FuelOverflowStatus {
+    Exists = 0b00000001,
+}
+
+impl FuelOverflowStatus {
+    pub fn exists(status: u8) -> bool {
+        status & FuelOverflowStatus::Exists as u8 != 0
+    }
+}
 #[account(zero_copy(unsafe))]
 #[derive(Default, Debug)]
 #[repr(C)]
-pub struct FuelSweep {
-    /// The authority of this sweep account
+pub struct FuelOverflow {
+    /// The authority of this overflow account
     pub authority: Pubkey,
 
     pub fuel_insurance: u128,
@@ -2094,14 +2118,14 @@ pub struct FuelSweep {
     pub fuel_maker: u128,
     pub last_fuel_sweep_ts: u32,
     pub last_reset_ts: u32,
-    pub padding: [u8; 16],
+    pub padding: [u128; 6],
 }
 
-impl Size for FuelSweep {
-    const SIZE: usize = 160;
+impl Size for FuelOverflow {
+    const SIZE: usize = 240;
 }
 
-impl FuelSweep {
+impl FuelOverflow {
     pub fn update_from_user_stats(&mut self, user_stats: &UserStats, now: u32) -> DriftResult<()> {
         self.fuel_insurance = self
             .fuel_insurance

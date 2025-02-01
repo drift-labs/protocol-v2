@@ -10,8 +10,9 @@ import {
 	TestClient,
 	QUOTE_PRECISION,
 	UserStatsAccount,
-	getFuelSweepAccountPublicKey,
+	getFuelOverflowAccountPublicKey,
 	parseLogs,
+	FuelOverflowStatus,
 } from '../sdk/src';
 
 import {
@@ -102,8 +103,9 @@ describe('fuel sweep', () => {
 			userStatsKey
 		);
 		assert.isFalse(
-			userStatsBefore.data.fuelSweepExists,
-			'FuelSweep account should not exist'
+			(userStatsBefore.data.fuelOverflowStatus & FuelOverflowStatus.Exists) ===
+				FuelOverflowStatus.Exists,
+			'FuelOverflow account should not exist'
 		);
 		userStatsBefore.data.fuelTaker = 1_000_000_000;
 		userStatsBefore.data.fuelMaker = 2_000_000_000;
@@ -150,7 +152,7 @@ describe('fuel sweep', () => {
 	it('cannot init fuel sweep with low fuel amount', async () => {
 		let success = false;
 		try {
-			await userDriftClient.initializeFuelSweep(
+			await userDriftClient.initializeFuelOverflow(
 				userDriftClient.wallet.publicKey
 			);
 			success = true;
@@ -186,7 +188,9 @@ describe('fuel sweep', () => {
 		assert.equal(userStatsAfter.data.fuelMaker, 4_000_000_000);
 
 		// initialize FuelSweep account
-		await userDriftClient.initializeFuelSweep(userDriftClient.wallet.publicKey);
+		await userDriftClient.initializeFuelOverflow(
+			userDriftClient.wallet.publicKey
+		);
 		await userDriftClient.sweepFuel(userDriftClient.wallet.publicKey);
 
 		// check
@@ -194,11 +198,14 @@ describe('fuel sweep', () => {
 			await userDriftClient.program.account.userStats.fetch(userStatsKey);
 		assert.equal(userStatsAfterSweep.fuelTaker, 0);
 		assert.equal(userStatsAfterSweep.fuelMaker, 0);
-		assert.isTrue(userStatsAfterSweep.fuelSweepExists);
+		assert.isTrue(
+			(userStatsAfterSweep.fuelOverflowStatus as number &
+				FuelOverflowStatus.Exists) === FuelOverflowStatus.Exists
+		);
 
 		const userFuelSweepAccount =
-			await userDriftClient.program.account.fuelSweep.fetch(
-				getFuelSweepAccountPublicKey(
+			await userDriftClient.program.account.fuelOverflow.fetch(
+				getFuelOverflowAccountPublicKey(
 					userDriftClient.program.programId,
 					userDriftClient.wallet.publicKey
 				)
@@ -219,13 +226,14 @@ describe('fuel sweep', () => {
 			userStatsKey
 		);
 		assert.isTrue(
-			userStatsBefore.data.fuelSweepExists,
+			(userStatsBefore.data.fuelOverflowStatus & FuelOverflowStatus.Exists) ===
+				FuelOverflowStatus.Exists,
 			'FuelSweep account should exist'
 		);
 
 		const userFuelSweepAccount =
-			await userDriftClient.program.account.fuelSweep.fetch(
-				getFuelSweepAccountPublicKey(
+			await userDriftClient.program.account.fuelOverflow.fetch(
+				getFuelOverflowAccountPublicKey(
 					userDriftClient.program.programId,
 					userDriftClient.wallet.publicKey
 				)
@@ -273,8 +281,8 @@ describe('fuel sweep', () => {
 		assert.equal(userStatsAfter.data.fuelMaker, 0);
 
 		const userFuelSweepAccountAfter =
-			await userDriftClient.program.account.fuelSweep.fetch(
-				getFuelSweepAccountPublicKey(
+			await userDriftClient.program.account.fuelOverflow.fetch(
+				getFuelOverflowAccountPublicKey(
 					userDriftClient.program.programId,
 					userDriftClient.wallet.publicKey
 				)

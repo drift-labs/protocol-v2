@@ -87,7 +87,7 @@ import StrictEventEmitter from 'strict-event-emitter-types';
 import {
 	getDriftSignerPublicKey,
 	getDriftStateAccountPublicKey,
-	getFuelSweepAccountPublicKey,
+	getFuelOverflowAccountPublicKey,
 	getHighLeverageModeConfigPublicKey,
 	getInsuranceFundStakeAccountPublicKey,
 	getOpenbookV2FulfillmentConfigPublicKey,
@@ -1120,26 +1120,21 @@ export class DriftClient {
 		return resizeUserAccountIx;
 	}
 
-	public async initializeFuelSweep(
+	public async initializeFuelOverflow(
 		authority?: PublicKey
 	): Promise<TransactionSignature> {
-		const initializeFuelSweepIx = await this.getInitializeFuelSweepIx(
-			authority
-		);
-		const tx = await this.buildTransaction(
-			[initializeFuelSweepIx],
-			this.txParams
-		);
+		const ix = await this.getInitializeFuelOverflowIx(authority);
+		const tx = await this.buildTransaction([ix], this.txParams);
 		const { txSig } = await this.sendTransaction(tx, [], this.opts);
 		return txSig;
 	}
 
-	public async getInitializeFuelSweepIx(
+	public async getInitializeFuelOverflowIx(
 		authority?: PublicKey
 	): Promise<TransactionInstruction> {
-		return await this.program.instruction.initializeFuelSweep({
+		return await this.program.instruction.initializeFuelOverflow({
 			accounts: {
-				fuelSweep: getFuelSweepAccountPublicKey(
+				fuelOverflow: getFuelOverflowAccountPublicKey(
 					this.program.programId,
 					authority ?? this.wallet.publicKey
 				),
@@ -1156,8 +1151,8 @@ export class DriftClient {
 	}
 
 	public async sweepFuel(authority?: PublicKey): Promise<TransactionSignature> {
-		const sweepFuelIx = await this.getSweepFuelIx(authority);
-		const tx = await this.buildTransaction([sweepFuelIx], this.txParams);
+		const ix = await this.getSweepFuelIx(authority);
+		const tx = await this.buildTransaction([ix], this.txParams);
 		const { txSig } = await this.sendTransaction(tx, [], this.opts);
 		return txSig;
 	}
@@ -1167,7 +1162,7 @@ export class DriftClient {
 	): Promise<TransactionInstruction> {
 		return await this.program.instruction.sweepFuel({
 			accounts: {
-				fuelSweep: getFuelSweepAccountPublicKey(
+				fuelOverflow: getFuelOverflowAccountPublicKey(
 					this.program.programId,
 					authority ?? this.wallet.publicKey
 				),

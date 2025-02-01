@@ -625,10 +625,10 @@ pub enum ErrorCode {
     InvalidLiquidateSpotWithSwap,
     #[msg("User in swift message does not match user in ix context")]
     SwiftUserContextUserMismatch,
-    #[msg("User fuel sweep threshold not met")]
-    UserFuelSweepThresholdNotMet,
-    #[msg("FuelSweep account not found")]
-    FuelSweepAccountNotFound,
+    #[msg("User fuel overflow threshold not met")]
+    UserFuelOverflowThresholdNotMet,
+    #[msg("FuelOverflow account not found")]
+    FuelOverflowAccountNotFound,
 }
 
 #[macro_export]

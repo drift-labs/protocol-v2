@@ -192,10 +192,10 @@
       ]
     },
     {
-      "name": "initializeFuelSweep",
+      "name": "initializeFuelOverflow",
       "accounts": [
         {
-          "name": "fuelSweep",
+          "name": "fuelOverflow",
           "isMut": true,
           "isSigner": false
         },
@@ -231,7 +231,7 @@
       "name": "sweepFuel",
       "accounts": [
         {
-          "name": "fuelSweep",
+          "name": "fuelOverflow",
           "isMut": true,
           "isSigner": false
         },
@@ -8681,11 +8681,11 @@
             }
           },
           {
-            "name": "fuelSweepExists",
+            "name": "fuelOverflowStatus",
             "docs": [
-              "whether the user has a FuelSweep account"
+              "whether the user has a FuelOverflow account"
             ],
-            "type": "bool"
+            "type": "u8"
           },
           {
             "name": "fuelInsurance",
@@ -8785,14 +8785,14 @@
       }
     },
     {
-      "name": "FuelSweep",
+      "name": "FuelOverflow",
       "type": {
         "kind": "struct",
         "fields": [
           {
             "name": "authority",
             "docs": [
-              "The authority of this sweep account"
+              "The authority of this overflow account"
             ],
             "type": "publicKey"
           },
@@ -8832,8 +8832,8 @@
             "name": "padding",
             "type": {
               "array": [
-                "u8",
-                16
+                "u128",
+                6
               ]
             }
           }
@@ -12085,6 +12085,17 @@
       }
     },
     {
+      "name": "FuelOverflowStatus",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "Exists"
+          }
+        ]
+      }
+    },
+    {
       "name": "SignatureVerificationError",
       "type": {
         "kind": "enum",
@@ -13286,32 +13297,32 @@
           "index": false
         },
         {
-          "name": "fuelSweepFuelInsurance",
+          "name": "fuelOverflowFuelInsurance",
           "type": "u128",
           "index": false
         },
         {
-          "name": "fuelSweepFuelDeposits",
+          "name": "fuelOverflowFuelDeposits",
           "type": "u128",
           "index": false
         },
         {
-          "name": "fuelSweepFuelBorrows",
+          "name": "fuelOverflowFuelBorrows",
           "type": "u128",
           "index": false
         },
         {
-          "name": "fuelSweepFuelPositions",
+          "name": "fuelOverflowFuelPositions",
           "type": "u128",
           "index": false
         },
         {
-          "name": "fuelSweepFuelTaker",
+          "name": "fuelOverflowFuelTaker",
           "type": "u128",
           "index": false
         },
         {
-          "name": "fuelSweepFuelMaker",
+          "name": "fuelOverflowFuelMaker",
           "type": "u128",
           "index": false
         }
@@ -14921,13 +14932,13 @@
     },
     {
       "code": 6310,
-      "name": "UserFuelSweepThresholdNotMet",
-      "msg": "User fuel sweep threshold not met"
+      "name": "UserFuelOverflowThresholdNotMet",
+      "msg": "User fuel overflow threshold not met"
     },
     {
       "code": 6311,
-      "name": "FuelSweepAccountNotFound",
-      "msg": "FuelSweep account not found"
+      "name": "FuelOverflowAccountNotFound",
+      "msg": "FuelOverflow account not found"
     }
   ],
   "metadata": {

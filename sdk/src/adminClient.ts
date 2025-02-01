@@ -35,7 +35,7 @@ import {
 	getHighLeverageModeConfigPublicKey,
 	getPythLazerOraclePublicKey,
 	getProtectedMakerModeConfigPublicKey,
-	getFuelSweepAccountPublicKey,
+	getFuelOverflowAccountPublicKey,
 } from './addresses/pda';
 import { squareRootBN } from './math/utils';
 import { TOKEN_PROGRAM_ID } from '@solana/spl-token';
@@ -3927,7 +3927,7 @@ export class AdminClient extends DriftClient {
 		const remainingAccounts = [];
 		if (fuelSweepExists) {
 			remainingAccounts.push({
-				pubkey: getFuelSweepAccountPublicKey(
+				pubkey: getFuelOverflowAccountPublicKey(
 					this.program.programId,
 					authority ?? this.wallet.publicKey
 				),

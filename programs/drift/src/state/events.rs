@@ -603,13 +603,13 @@ pub struct FuelSweepRecord {
     pub user_stats_fuel_positions: u32,
     pub user_stats_fuel_taker: u32,
     pub user_stats_fuel_maker: u32,
-    // fuel values on FuelSweep before sweep
-    pub fuel_sweep_fuel_insurance: u128,
-    pub fuel_sweep_fuel_deposits: u128,
-    pub fuel_sweep_fuel_borrows: u128,
-    pub fuel_sweep_fuel_positions: u128,
-    pub fuel_sweep_fuel_taker: u128,
-    pub fuel_sweep_fuel_maker: u128,
+    // fuel values on FuelOverflow before sweep
+    pub fuel_overflow_fuel_insurance: u128,
+    pub fuel_overflow_fuel_deposits: u128,
+    pub fuel_overflow_fuel_borrows: u128,
+    pub fuel_overflow_fuel_positions: u128,
+    pub fuel_overflow_fuel_taker: u128,
+    pub fuel_overflow_fuel_maker: u128,
 }
 
 #[event]

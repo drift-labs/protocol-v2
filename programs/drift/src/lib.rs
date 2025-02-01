@@ -79,10 +79,10 @@ pub mod drift {
         handle_resize_swift_user_orders(ctx, num_orders)
     }
 
-    pub fn initialize_fuel_sweep<'c: 'info, 'info>(
-        ctx: Context<'_, '_, 'c, 'info, InitializeFuelSweep<'info>>,
+    pub fn initialize_fuel_overflow<'c: 'info, 'info>(
+        ctx: Context<'_, '_, 'c, 'info, InitializeFuelOverflow<'info>>,
     ) -> Result<()> {
-        handle_initialize_fuel_sweep(ctx)
+        handle_initialize_fuel_overflow(ctx)
     }
 
     pub fn sweep_fuel<'c: 'info, 'info>(

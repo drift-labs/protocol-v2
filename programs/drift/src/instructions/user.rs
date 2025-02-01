@@ -79,7 +79,8 @@ use crate::state::swift_user::{SwiftUserOrders, SWIFT_PDA_SEED};
 use crate::state::traits::Size;
 use crate::state::user::ReferrerStatus;
 use crate::state::user::{
-    FuelSweep, FuelSweepProvider, MarginMode, MarketType, OrderType, ReferrerName, User, UserStats,
+    FuelOverflow, FuelOverflowProvider, MarginMode, MarketType, OrderType, ReferrerName, User,
+    UserStats,
 };
 use crate::state::user_map::{load_user_maps, UserMap, UserStatsMap};
 use crate::validate;
@@ -321,27 +322,27 @@ pub fn handle_resize_swift_user_orders<'c: 'info, 'info>(
     Ok(())
 }
 
-pub fn handle_initialize_fuel_sweep<'c: 'info, 'info>(
-    ctx: Context<'_, '_, 'c, 'info, InitializeFuelSweep<'info>>,
+pub fn handle_initialize_fuel_overflow<'c: 'info, 'info>(
+    ctx: Context<'_, '_, 'c, 'info, InitializeFuelOverflow<'info>>,
 ) -> Result<()> {
     let mut user_stats = load_mut!(&ctx.accounts.user_stats)?;
     validate!(
         user_stats.can_sweep_fuel(),
-        ErrorCode::UserFuelSweepThresholdNotMet,
+        ErrorCode::UserFuelOverflowThresholdNotMet,
         "User fuel sweep threshold not met"
     )?;
 
-    let mut fuel_sweep = ctx
+    let mut fuel_overflow = ctx
         .accounts
-        .fuel_sweep
+        .fuel_overflow
         .load_init()
         .or(Err(ErrorCode::UnableToLoadAccountLoader))?;
 
-    *fuel_sweep = FuelSweep {
+    *fuel_overflow = FuelOverflow {
         authority: ctx.accounts.authority.key(),
-        ..FuelSweep::default()
+        ..FuelOverflow::default()
     };
-    user_stats.fuel_sweep_exists = true;
+    user_stats.update_fuel_overflow_status(true);
 
     Ok(())
 }
@@ -352,11 +353,11 @@ pub fn handle_sweep_fuel<'c: 'info, 'info>(
     let mut user_stats = load_mut!(&ctx.accounts.user_stats)?;
     validate!(
         user_stats.can_sweep_fuel(),
-        ErrorCode::UserFuelSweepThresholdNotMet,
+        ErrorCode::UserFuelOverflowThresholdNotMet,
         "User fuel sweep threshold not met"
     )?;
 
-    let mut fuel_sweep = load_mut!(&ctx.accounts.fuel_sweep)?;
+    let mut fuel_overflow = load_mut!(&ctx.accounts.fuel_overflow)?;
 
     let clock = Clock::get()?;
     emit!(FuelSweepRecord {
@@ -368,15 +369,15 @@ pub fn handle_sweep_fuel<'c: 'info, 'info>(
         user_stats_fuel_positions: user_stats.fuel_positions,
         user_stats_fuel_taker: user_stats.fuel_taker,
         user_stats_fuel_maker: user_stats.fuel_maker,
-        fuel_sweep_fuel_insurance: fuel_sweep.fuel_insurance,
-        fuel_sweep_fuel_deposits: fuel_sweep.fuel_deposits,
-        fuel_sweep_fuel_borrows: fuel_sweep.fuel_borrows,
-        fuel_sweep_fuel_positions: fuel_sweep.fuel_positions,
-        fuel_sweep_fuel_taker: fuel_sweep.fuel_taker,
-        fuel_sweep_fuel_maker: fuel_sweep.fuel_maker,
+        fuel_overflow_fuel_insurance: fuel_overflow.fuel_insurance,
+        fuel_overflow_fuel_deposits: fuel_overflow.fuel_deposits,
+        fuel_overflow_fuel_borrows: fuel_overflow.fuel_borrows,
+        fuel_overflow_fuel_positions: fuel_overflow.fuel_positions,
+        fuel_overflow_fuel_taker: fuel_overflow.fuel_taker,
+        fuel_overflow_fuel_maker: fuel_overflow.fuel_maker,
     });
 
-    fuel_sweep.update_from_user_stats(&user_stats, clock.unix_timestamp.cast()?)?;
+    fuel_overflow.update_from_user_stats(&user_stats, clock.unix_timestamp.cast()?)?;
     user_stats.reset_fuel();
 
     Ok(())
@@ -387,13 +388,13 @@ pub fn handle_reset_fuel_season<'c: 'info, 'info>(
 ) -> Result<()> {
     let mut user_stats = load_mut!(&ctx.accounts.user_stats)?;
 
-    let fuel_sweep = ctx.fuel_sweep();
-    user_stats.validate_fuel_sweep(&fuel_sweep)?;
+    let fuel_overflow = ctx.fuel_overflow();
+    user_stats.validate_fuel_overflow(&fuel_overflow)?;
 
     let clock = Clock::get()?;
-    if let Some(fuel_sweep_account) = fuel_sweep {
-        // if FuelSweep exists, sweep before resetting user_stats
-        let mut fuel_sweep = load_mut!(fuel_sweep_account)?;
+    if let Some(fuel_overflow_account) = fuel_overflow {
+        // if FuelOverflow exists, sweep before resetting user_stats
+        let mut fuel_overflow = load_mut!(fuel_overflow_account)?;
         emit!(FuelSweepRecord {
             ts: clock.unix_timestamp.cast()?,
             authority: ctx.accounts.authority.key(),
@@ -403,27 +404,27 @@ pub fn handle_reset_fuel_season<'c: 'info, 'info>(
             user_stats_fuel_positions: user_stats.fuel_positions,
             user_stats_fuel_taker: user_stats.fuel_taker,
             user_stats_fuel_maker: user_stats.fuel_maker,
-            fuel_sweep_fuel_insurance: fuel_sweep.fuel_insurance,
-            fuel_sweep_fuel_deposits: fuel_sweep.fuel_deposits,
-            fuel_sweep_fuel_borrows: fuel_sweep.fuel_borrows,
-            fuel_sweep_fuel_positions: fuel_sweep.fuel_positions,
-            fuel_sweep_fuel_taker: fuel_sweep.fuel_taker,
-            fuel_sweep_fuel_maker: fuel_sweep.fuel_maker,
+            fuel_overflow_fuel_insurance: fuel_overflow.fuel_insurance,
+            fuel_overflow_fuel_deposits: fuel_overflow.fuel_deposits,
+            fuel_overflow_fuel_borrows: fuel_overflow.fuel_borrows,
+            fuel_overflow_fuel_positions: fuel_overflow.fuel_positions,
+            fuel_overflow_fuel_taker: fuel_overflow.fuel_taker,
+            fuel_overflow_fuel_maker: fuel_overflow.fuel_maker,
         });
-        fuel_sweep.update_from_user_stats(&user_stats, clock.unix_timestamp.cast()?)?;
+        fuel_overflow.update_from_user_stats(&user_stats, clock.unix_timestamp.cast()?)?;
 
         emit!(FuelSeasonRecord {
             ts: clock.unix_timestamp.cast()?,
             authority: ctx.accounts.authority.key(),
-            fuel_insurance: fuel_sweep.fuel_insurance,
-            fuel_deposits: fuel_sweep.fuel_deposits,
-            fuel_borrows: fuel_sweep.fuel_borrows,
-            fuel_positions: fuel_sweep.fuel_positions,
-            fuel_taker: fuel_sweep.fuel_taker,
-            fuel_maker: fuel_sweep.fuel_maker,
-            fuel_total: fuel_sweep.total_fuel()?,
+            fuel_insurance: fuel_overflow.fuel_insurance,
+            fuel_deposits: fuel_overflow.fuel_deposits,
+            fuel_borrows: fuel_overflow.fuel_borrows,
+            fuel_positions: fuel_overflow.fuel_positions,
+            fuel_taker: fuel_overflow.fuel_taker,
+            fuel_maker: fuel_overflow.fuel_maker,
+            fuel_total: fuel_overflow.total_fuel()?,
         });
-        fuel_sweep.reset_fuel(clock.unix_timestamp.cast()?);
+        fuel_overflow.reset_fuel(clock.unix_timestamp.cast()?);
     } else {
         emit!(FuelSeasonRecord {
             ts: clock.unix_timestamp.cast()?,
@@ -3351,15 +3352,15 @@ pub struct ResizeSwiftUserOrders<'info> {
 }
 
 #[derive(Accounts)]
-pub struct InitializeFuelSweep<'info> {
+pub struct InitializeFuelOverflow<'info> {
     #[account(
         init,
-        seeds = [b"fuel_sweep", authority.key.as_ref()],
-        space = FuelSweep::SIZE,
+        seeds = [b"fuel_overflow", authority.key.as_ref()],
+        space = FuelOverflow::SIZE,
         bump,
         payer = payer
     )]
-    pub fuel_sweep: AccountLoader<'info, FuelSweep>,
+    pub fuel_overflow: AccountLoader<'info, FuelOverflow>,
     #[account(
         mut,
         has_one = authority
@@ -3379,7 +3380,7 @@ pub struct SweepFuel<'info> {
         mut,
         has_one = authority,
     )]
-    pub fuel_sweep: AccountLoader<'info, FuelSweep>,
+    pub fuel_overflow: AccountLoader<'info, FuelOverflow>,
     #[account(
         mut,
         has_one = authority
