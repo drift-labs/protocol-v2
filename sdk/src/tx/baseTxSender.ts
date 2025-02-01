@@ -156,7 +156,7 @@ export abstract class BaseTxSender implements TxSender {
 		blockhash?: BlockhashWithExpiryBlockHeight
 	): Promise<VersionedTransaction> {
 		return this.txHandler.generateVersionedTransaction(
-			blockhash,
+			blockhash ?? (await this.connection.getLatestBlockhash()),
 			ixs,
 			lookupTableAccounts,
 			this.wallet
