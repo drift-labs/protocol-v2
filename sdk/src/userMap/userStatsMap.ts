@@ -15,6 +15,8 @@ import {
 	InsuranceFundStakeRecord,
 	BulkAccountLoader,
 	PollingUserStatsAccountSubscriber,
+	SyncConfig,
+	getUserStatsFilter,
 } from '..';
 import { PublicKey } from '@solana/web3.js';
 
@@ -27,6 +29,11 @@ export class UserStatsMap {
 	private userStatsMap = new Map<string, UserStats>();
 	private driftClient: DriftClient;
 	private bulkAccountLoader: BulkAccountLoader;
+	private decode;
+	private syncConfig: SyncConfig;
+
+	private syncPromise?: Promise<void>;
+	private syncPromiseResolver: () => void;
 
 	/**
 	 * Creates a new UserStatsMap instance.
@@ -34,7 +41,11 @@ export class UserStatsMap {
 	 * @param {DriftClient} driftClient - The DriftClient instance.
 	 * @param {BulkAccountLoader} [bulkAccountLoader] - If not provided, a new BulkAccountLoader with polling disabled will be created.
 	 */
-	constructor(driftClient: DriftClient, bulkAccountLoader?: BulkAccountLoader) {
+	constructor(
+		driftClient: DriftClient,
+		bulkAccountLoader?: BulkAccountLoader,
+		syncConfig?: SyncConfig
+	) {
 		this.driftClient = driftClient;
 		if (!bulkAccountLoader) {
 			bulkAccountLoader = new BulkAccountLoader(
@@ -44,6 +55,15 @@ export class UserStatsMap {
 			);
 		}
 		this.bulkAccountLoader = bulkAccountLoader;
+
+		this.syncConfig = syncConfig ?? {
+			type: 'default',
+		};
+
+		this.decode =
+			this.driftClient.program.account.userStats.coder.accounts.decodeUnchecked.bind(
+				this.driftClient.program.account.userStats.coder.accounts
+			);
 	}
 
 	public async subscribe(authorities: PublicKey[]) {
@@ -201,12 +221,144 @@ export class UserStatsMap {
 	 * You may want to get this list from UserMap in order to filter out idle users
 	 */
 	public async sync(authorities: PublicKey[]) {
+		if (this.syncConfig.type === 'default') {
+			return this.defaultSync(authorities);
+		} else {
+			return this.paginatedSync(authorities);
+		}
+	}
+
+	/**
+	 * Sync the UserStatsMap using the default sync method, which loads individual users into the bulkAccountLoader and
+	 * loads them. (bulkAccountLoader uses batch getMultipleAccounts)
+	 * @param authorities
+	 */
+	private async defaultSync(authorities: PublicKey[]) {
 		await Promise.all(
 			authorities.map((authority) =>
 				this.addUserStat(authority, undefined, true)
 			)
 		);
-		await this.bulkAccountLoader.load();
+	}
+
+	/**
+	 * Sync the UserStatsMap using the paginated sync method, which uses multiple getMultipleAccounts calls (without RPC batching), and limits concurrency.
+	 * @param authorities
+	 */
+	private async paginatedSync(authorities: PublicKey[]) {
+		if (this.syncPromise) {
+			return this.syncPromise;
+		}
+
+		this.syncPromise = new Promise<void>((resolve) => {
+			this.syncPromiseResolver = resolve;
+		});
+
+		try {
+			let accountsToLoad = authorities;
+			const start = new Date();
+			if (authorities.length === 0) {
+				const accountsPrefetch =
+					await this.driftClient.connection.getProgramAccounts(
+						this.driftClient.program.programId,
+						{
+							dataSlice: { offset: 0, length: 0 },
+							filters: [getUserStatsFilter()],
+						}
+					);
+				accountsToLoad = accountsPrefetch.map((account) => account.pubkey);
+			}
+			console.log(
+				`prefetch took ${new Date().getTime() - start.getTime()}ms, got ${
+					accountsToLoad.length
+				} accounts to load`
+			);
+
+			const limitConcurrency = async (tasks, limit) => {
+				const executing = [];
+				const results = [];
+
+				for (let i = 0; i < tasks.length; i++) {
+					const executor = Promise.resolve().then(tasks[i]);
+					results.push(executor);
+
+					if (executing.length < limit) {
+						executing.push(executor);
+						executor.finally(() => {
+							const index = executing.indexOf(executor);
+							if (index > -1) {
+								executing.splice(index, 1);
+							}
+						});
+					} else {
+						await Promise.race(executing);
+					}
+				}
+
+				return Promise.all(results);
+			};
+
+			const programAccountBufferMap = new Set<string>();
+
+			// @ts-ignore
+			const chunkSize = this.syncConfig.chunkSize ?? 100;
+			const tasks = [];
+			for (let i = 0; i < accountsToLoad.length; i += chunkSize) {
+				const chunk = accountsToLoad.slice(i, i + chunkSize);
+				tasks.push(async () => {
+					const accountInfos =
+						await this.driftClient.connection.getMultipleAccountsInfoAndContext(
+							chunk,
+							{
+								commitment: this.driftClient.opts.commitment,
+							}
+						);
+
+					for (let j = 0; j < accountInfos.value.length; j += 1) {
+						const accountInfo = accountInfos.value[j];
+						if (accountInfo === null) continue;
+
+						const publicKeyString = chunk[j].toString();
+						if (!this.has(publicKeyString)) {
+							const buffer = Buffer.from(accountInfo.data);
+							const decodedUserStats = this.decode(
+								'UserStats',
+								buffer
+							) as UserStatsAccount;
+							programAccountBufferMap.add(
+								decodedUserStats.authority.toBase58()
+							);
+							this.addUserStat(
+								decodedUserStats.authority,
+								decodedUserStats,
+								false
+							);
+						}
+					}
+				});
+			}
+
+			// @ts-ignore
+			const concurrencyLimit = this.syncConfig.concurrencyLimit ?? 10;
+			await limitConcurrency(tasks, concurrencyLimit);
+
+			for (const [key] of this.userStatsMap.entries()) {
+				if (!programAccountBufferMap.has(key)) {
+					const user = this.get(key);
+					if (user) {
+						await user.unsubscribe();
+						this.userStatsMap.delete(key);
+					}
+				}
+			}
+		} catch (err) {
+			console.error(`Error in UserStatsMap.paginatedSync():`, err);
+		} finally {
+			if (this.syncPromiseResolver) {
+				this.syncPromiseResolver();
+			}
+			this.syncPromise = undefined;
+		}
 	}
 
 	public async unsubscribe() {
