@@ -16,7 +16,7 @@ mainnet-beta=[]
 anchor-test= []
 
 [dependencies]
-anchor-lang = "0.29.0"
+anchor-lang = "0.28.0"
 bytemuck = { version = "1.4.0" }
 solana-program = "1.16"
 

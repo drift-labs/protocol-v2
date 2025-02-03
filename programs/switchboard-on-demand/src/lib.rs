@@ -3,6 +3,7 @@ use anchor_lang::prelude::*;
 use anchor_lang::program;
 use anchor_lang::AnchorDeserialize;
 use solana_program::pubkey::Pubkey;
+use anchor_lang::ZeroCopy;
 
 #[cfg(feature = "mainnet-beta")]
 declare_id!("SBondMDrcV3K4kxZR1HNVT7osZxAHVHgYXL5Ze1oMUv");

@@ -1,8 +1,9 @@
 use anchor_lang::prelude::*;
-
+use anchor_lang::AccountDeserialize;
 use std::cmp::max;
 
 use crate::controller::position::{PositionDelta, PositionDirection};
+use crate::state::pyth_lazer_oracle::PythLazerOracle;
 use crate::error::{DriftResult, ErrorCode};
 use crate::math::amm;
 use crate::math::casting::Cast;
@@ -1377,57 +1378,62 @@ impl AMM {
     //     }
     // }
 
-    // pub fn get_pyth_twap(
-    //     &self,
-    //     price_oracle: &AccountInfo,
-    //     multiple: u128,
-    //     is_pull_oracle: bool,
-    // ) -> DriftResult<i64> {
-    //     let mut pyth_price_data: &[u8] = &price_oracle
-    //         .try_borrow_data()
-    //         .or(Err(ErrorCode::UnableToLoadOracle))?;
+    pub fn get_pyth_twap(
+        &self,
+        price_oracle: &AccountInfo,
+        oracle_source: &OracleSource,
+    ) -> DriftResult<i64> {
+        let multiple = oracle_source.get_pyth_multiple();
+        let mut pyth_price_data: &[u8] = &price_oracle
+            .try_borrow_data()
+            .or(Err(ErrorCode::UnableToLoadOracle))?;
 
-    //     let oracle_price: i64;
-    //     let oracle_twap: i64;
-    //     let oracle_exponent: i32;
+        let oracle_price: i64;
+        let oracle_twap: i64;
+        let oracle_exponent: i32;
 
-    //     if is_pull_oracle {
-    //         let price_message =
-    //             pyth_solana_receiver_sdk::price_update::PriceUpdateV2::try_deserialize(
-    //                 &mut pyth_price_data,
-    //             )
-    //             .or(Err(crate::error::ErrorCode::UnableToLoadOracle))?;
-    //         oracle_price = price_message.price_message.price;
-    //         oracle_twap = price_message.price_message.ema_price;
-    //         oracle_exponent = price_message.price_message.exponent;
-    //     } else {
-    //         let price_data = pyth_client::cast::<pyth_client::Price>(pyth_price_data);
-    //         oracle_price = price_data.agg.price;
-    //         oracle_twap = price_data.twap.val;
-    //         oracle_exponent = price_data.expo;
-    //     }
+        if oracle_source.is_pyth_pull_oracle() {
+            let price_message = pyth_solana_receiver_sdk::price_update::PriceUpdateV2::deserialize(
+                &mut pyth_price_data,
+            )
+            .or(Err(crate::error::ErrorCode::UnableToLoadOracle))?;
+            oracle_price = price_message.price_message.price;
+            oracle_twap = price_message.price_message.ema_price;
+            oracle_exponent = price_message.price_message.exponent;
+        } else if oracle_source.is_pyth_push_oracle() {
+            let price_data = pyth_client::cast::<pyth_client::Price>(pyth_price_data);
+            oracle_price = price_data.agg.price;
+            oracle_twap = price_data.twap.val;
+            oracle_exponent = price_data.expo;
+        } else {
+            let price_data = PythLazerOracle::try_deserialize(&mut pyth_price_data)
+                .or(Err(ErrorCode::UnableToLoadOracle))?;
+            oracle_price = price_data.price;
+            oracle_twap = price_data.price;
+            oracle_exponent = price_data.exponent;
+        }
 
-    //     assert!(oracle_twap > oracle_price / 10);
+        assert!(oracle_twap > oracle_price / 10);
 
-    //     let oracle_precision = 10_u128
-    //         .pow(oracle_exponent.unsigned_abs())
-    //         .safe_div(multiple)?;
+        let oracle_precision = 10_u128
+            .pow(oracle_exponent.unsigned_abs())
+            .safe_div(multiple)?;
 
-    //     let mut oracle_scale_mult = 1;
-    //     let mut oracle_scale_div = 1;
+        let mut oracle_scale_mult = 1;
+        let mut oracle_scale_div = 1;
 
-    //     if oracle_precision > PRICE_PRECISION {
-    //         oracle_scale_div = oracle_precision.safe_div(PRICE_PRECISION)?;
-    //     } else {
-    //         oracle_scale_mult = PRICE_PRECISION.safe_div(oracle_precision)?;
-    //     }
+        if oracle_precision > PRICE_PRECISION {
+            oracle_scale_div = oracle_precision.safe_div(PRICE_PRECISION)?;
+        } else {
+            oracle_scale_mult = PRICE_PRECISION.safe_div(oracle_precision)?;
+        }
 
-    //     oracle_twap
-    //         .cast::<i128>()?
-    //         .safe_mul(oracle_scale_mult.cast()?)?
-    //         .safe_div(oracle_scale_div.cast()?)?
-    //         .cast::<i64>()
-    // }
+        oracle_twap
+            .cast::<i128>()?
+            .safe_mul(oracle_scale_mult.cast()?)?
+            .safe_div(oracle_scale_div.cast()?)?
+            .cast::<i64>()
+    }
 
     pub fn update_volume_24h(
         &mut self,

@@ -1,5 +1,6 @@
 use anchor_lang::prelude::{AnchorSerialize, AnchorDeserialize, AccountInfo, msg, account, AccountLoader, zero_copy, Pubkey};
 use std::cell::Ref;
+use anchor_lang::AccountDeserialize;
 use crate::error::{DriftResult, ErrorCode};
 use crate::math::casting::Cast;
 use crate::math::constants::{PRICE_PRECISION, PRICE_PRECISION_I64, PRICE_PRECISION_U64};
@@ -7,7 +8,6 @@ use crate::math::safe_math::SafeMath;
 use crate::state::load_ref::load_ref;
 use switchboard::{AggregatorAccountData, SwitchboardDecimal};
 use switchboard_on_demand::{PullFeedAccountData, SB_ON_DEMAND_PRECISION};
-
 use crate::error::ErrorCode::{InvalidOracle, UnableToLoadOracle};
 use crate::math::safe_unwrap::SafeUnwrap;
 use crate::state::perp_market::PerpMarket;
@@ -235,10 +235,10 @@ pub fn get_pyth_price(
     let published_slot: u64;
 
     if oracle_source.is_pyth_pull_oracle() {
-        let price_message = pyth_solana_receiver_sdk::price_update::PriceUpdateV2::try_deserialize(
+        let price_message = pyth_solana_receiver_sdk::price_update::PriceUpdateV2::deserialize(
             &mut pyth_price_data,
         )
-        .unwrap();
+        .or(Err(crate::error::ErrorCode::UnableToLoadOracle))?;
         oracle_price = price_message.price_message.price;
         oracle_conf = price_message.price_message.conf;
         oracle_precision = 10_u128.pow(price_message.price_message.exponent.unsigned_abs());

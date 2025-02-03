@@ -105,7 +105,7 @@ impl<'a> UserMap<'a> {
 
 #[cfg(test)]
 impl<'a> UserMap<'a> {
-    pub fn load_one<'b>(account_info: &'b AccountInfo<'a>) -> DriftResult<UserMap<'a>> {
+    pub fn load_one<'b: 'a>(account_info: &'b AccountInfo<'a>) -> DriftResult<UserMap<'a>> {
         let mut user_map = UserMap(BTreeMap::new());
 
         let user_discriminator: [u8; 8] = User::discriminator();
@@ -233,7 +233,7 @@ impl<'a> UserStatsMap<'a> {
 
 #[cfg(test)]
 impl<'a> UserStatsMap<'a> {
-    pub fn load_one<'b>(account_info: &'b AccountInfo<'a>) -> DriftResult<UserStatsMap<'a>> {
+    pub fn load_one<'b: 'a>(account_info: &'b AccountInfo<'a>) -> DriftResult<UserStatsMap<'a>> {
         let mut user_stats_map = UserStatsMap(BTreeMap::new());
 
         let user_stats_discriminator: [u8; 8] = UserStats::discriminator();
@@ -273,10 +273,10 @@ impl<'a> UserStatsMap<'a> {
     }
 }
 
-pub fn load_user_maps<'a>(
-    account_info_iter: &mut Peekable<Iter<AccountInfo<'a>>>,
+pub fn load_user_maps<'a: 'b, 'b>(
+    account_info_iter: &mut Peekable<Iter<'a, AccountInfo<'b>>>,
     must_be_writable: bool,
-) -> DriftResult<(UserMap<'a>, UserStatsMap<'a>)> {
+) -> DriftResult<(UserMap<'b>, UserStatsMap<'b>)> {
     let mut user_map = UserMap::empty();
     let mut user_stats_map = UserStatsMap::empty();
 
@@ -354,4 +354,53 @@ pub fn load_user_maps<'a>(
     }
 
     Ok((user_map, user_stats_map))
+}
+
+pub fn load_user_map<'a: 'b, 'b>(
+    account_info_iter: &mut Peekable<Iter<'a, AccountInfo<'b>>>,
+    must_be_writable: bool,
+) -> DriftResult<UserMap<'b>> {
+    let mut user_map = UserMap::empty();
+
+    let user_discriminator: [u8; 8] = User::discriminator();
+    let user_stats_discriminator: [u8; 8] = UserStats::discriminator();
+    while let Some(user_account_info) = account_info_iter.peek() {
+        let user_key = user_account_info.key;
+
+        let data = user_account_info
+            .try_borrow_data()
+            .or(Err(ErrorCode::CouldNotLoadUserData))?;
+
+        let expected_user_data_len = User::SIZE;
+        let expected_user_stats_len = UserStats::SIZE;
+        if data.len() < expected_user_data_len && data.len() < expected_user_stats_len {
+            break;
+        }
+
+        let account_discriminator = array_ref![data, 0, 8];
+
+        // if it is user stats, for backwards compatability, just move iter forward
+        if account_discriminator == &user_stats_discriminator {
+            account_info_iter.next().safe_unwrap()?;
+            continue;
+        }
+
+        if account_discriminator != &user_discriminator {
+            break;
+        }
+
+        let user_account_info = account_info_iter.next().safe_unwrap()?;
+
+        let is_writable = user_account_info.is_writable;
+        if !is_writable && must_be_writable {
+            return Err(ErrorCode::UserWrongMutability);
+        }
+
+        let user_account_loader: AccountLoader<User> =
+            AccountLoader::try_from(user_account_info).or(Err(ErrorCode::InvalidUserAccount))?;
+
+        user_map.0.insert(*user_key, user_account_loader);
+    }
+
+    Ok(user_map)
 }

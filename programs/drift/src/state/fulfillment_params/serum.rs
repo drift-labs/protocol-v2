@@ -212,7 +212,7 @@ impl<'a, 'b> Deref for SerumFulfillmentParams<'a, 'b> {
 /// Constructor for SerumFulfillmentParams
 impl<'a, 'b> SerumFulfillmentParams<'a, 'b> {
     #[allow(clippy::type_complexity)]
-    pub fn new<'c>(
+    pub fn new<'c: 'b>(
         account_info_iter: &'a mut std::iter::Peekable<std::slice::Iter<'c, AccountInfo<'b>>>,
         state: &State,
         base_market: &SpotMarket,

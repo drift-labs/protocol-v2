@@ -427,6 +427,23 @@ impl User {
     }
 }
 
+#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Debug, Eq)]
+#[repr(u8)]
+pub enum ReferrerStatus {
+    IsReferrer = 0b00000001,
+    IsReferred = 0b00000010,
+}
+
+impl ReferrerStatus {
+    pub fn is_referrer(status: u8) -> bool {
+        status & ReferrerStatus::IsReferrer as u8 != 0
+    }
+
+    pub fn is_referred(status: u8) -> bool {
+        status & ReferrerStatus::IsReferred as u8 != 0
+    }
+}
+
 #[zero_copy(unsafe)]
 #[derive(Default, Eq, PartialEq, Debug)]
 #[repr(C)]

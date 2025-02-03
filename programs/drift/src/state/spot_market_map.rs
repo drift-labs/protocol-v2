@@ -16,7 +16,10 @@ use crate::state::traits::Size;
 use solana_program::msg;
 use std::panic::Location;
 
-pub struct SpotMarketMap<'a>(pub BTreeMap<u16, AccountLoader<'a, SpotMarket>>);
+pub struct SpotMarketMap<'a>(
+    pub BTreeMap<u16, AccountLoader<'a, SpotMarket>>,
+    SpotMarketSet,
+);
 
 impl<'a> SpotMarketMap<'a> {
     #[track_caller]
@@ -55,6 +58,17 @@ impl<'a> SpotMarketMap<'a> {
     #[track_caller]
     #[inline(always)]
     pub fn get_ref_mut(&self, market_index: &u16) -> DriftResult<RefMut<SpotMarket>> {
+        if !self.1.contains(market_index) {
+            let caller = Location::caller();
+            msg!(
+                "Spot market {} not expected to be mutable at {}:{}",
+                market_index,
+                caller.file(),
+                caller.line()
+            );
+            return Err(ErrorCode::SpotMarketWrongMutability);
+        }
+
         let loader = match self.0.get(market_index) {
             Some(loader) => loader,
             None => {
@@ -121,6 +135,17 @@ impl<'a> SpotMarketMap<'a> {
     #[track_caller]
     #[inline(always)]
     pub fn get_quote_spot_market_mut(&self) -> DriftResult<RefMut<SpotMarket>> {
+        if !self.1.contains(&QUOTE_SPOT_MARKET_INDEX) {
+            let caller = Location::caller();
+            msg!(
+                "Spot market {} not expected to be mutable at {}:{}",
+                QUOTE_SPOT_MARKET_INDEX,
+                caller.file(),
+                caller.line()
+            );
+            return Err(ErrorCode::SpotMarketWrongMutability);
+        }
+
         let loader = match self.0.get(&QUOTE_SPOT_MARKET_INDEX) {
             Some(loader) => loader,
             None => {
@@ -153,9 +178,10 @@ impl<'a> SpotMarketMap<'a> {
 
     pub fn load<'b, 'c>(
         writable_spot_markets: &'b SpotMarketSet,
-        account_info_iter: &'c mut Peekable<Iter<AccountInfo<'a>>>,
+        account_info_iter: &'c mut Peekable<Iter<'a, AccountInfo<'a>>>,
     ) -> DriftResult<SpotMarketMap<'a>> {
-        let mut spot_market_map: SpotMarketMap = SpotMarketMap(BTreeMap::new());
+        let mut spot_market_map: SpotMarketMap =
+            SpotMarketMap(BTreeMap::new(), writable_spot_markets.clone());
 
         let spot_market_discriminator: [u8; 8] = SpotMarket::discriminator();
         while let Some(account_info) = account_info_iter.peek() {
@@ -199,11 +225,12 @@ impl<'a> SpotMarketMap<'a> {
 
 #[cfg(test)]
 impl<'a> SpotMarketMap<'a> {
-    pub fn load_one<'c>(
+    pub fn load_one<'c: 'a>(
         account_info: &'c AccountInfo<'a>,
         must_be_writable: bool,
     ) -> DriftResult<SpotMarketMap<'a>> {
-        let mut spot_market_map: SpotMarketMap = SpotMarketMap(BTreeMap::new());
+        let mut writable_markets = SpotMarketSet::new();
+        let mut map = BTreeMap::new();
 
         let spot_market_discriminator: [u8; 8] = SpotMarket::discriminator();
         let data = account_info
@@ -230,16 +257,30 @@ impl<'a> SpotMarketMap<'a> {
             return Err(ErrorCode::SpotMarketWrongMutability);
         }
 
-        spot_market_map.0.insert(market_index, account_loader);
+        if must_be_writable {
+            writable_markets.insert(market_index);
+        }
 
-        Ok(spot_market_map)
+        if !must_be_writable && is_writable {
+            msg!("spot market {} not expected to be writeable", market_index);
+            return Err(ErrorCode::SpotMarketWrongMutability);
+        }
+
+        map.insert(market_index, account_loader);
+
+        Ok(SpotMarketMap(map, writable_markets))
     }
 
-    pub fn load_multiple<'c>(
+    pub fn empty() -> Self {
+        SpotMarketMap(BTreeMap::new(), BTreeSet::new())
+    }
+
+    pub fn load_multiple<'c: 'a>(
         account_info: Vec<&'c AccountInfo<'a>>,
         must_be_writable: bool,
     ) -> DriftResult<SpotMarketMap<'a>> {
-        let mut spot_market_map: SpotMarketMap = SpotMarketMap(BTreeMap::new());
+        let mut writable_markets = SpotMarketSet::new();
+        let mut map = BTreeMap::new();
 
         let account_info_iter = account_info.into_iter();
         for account_info in account_info_iter {
@@ -265,18 +306,22 @@ impl<'a> SpotMarketMap<'a> {
                 AccountLoader::try_from(account_info)
                     .or(Err(ErrorCode::InvalidSpotMarketAccount))?;
 
+            if must_be_writable {
+                writable_markets.insert(market_index);
+            }
+
             if must_be_writable && !is_writable {
                 return Err(ErrorCode::SpotMarketWrongMutability);
             }
 
-            spot_market_map.0.insert(market_index, account_loader);
+            map.insert(market_index, account_loader);
         }
 
-        Ok(spot_market_map)
+        Ok(SpotMarketMap(map, writable_markets))
     }
 }
 
-pub type SpotMarketSet = BTreeSet<u16>;
+pub(crate) type SpotMarketSet = BTreeSet<u16>;
 
 pub fn get_writable_spot_market_set(market_index: u16) -> SpotMarketSet {
     let mut writable_markets = SpotMarketSet::new();

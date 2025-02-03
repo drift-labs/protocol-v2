@@ -8,9 +8,9 @@ use crate::state::spot_market::SpotMarket;
 
 use crate::{validate, PositionDirection};
 
-use anchor_lang::prelude::Account;
+use anchor_lang::prelude::InterfaceAccount;
 
-use anchor_spl::token::TokenAccount;
+use anchor_spl::token_interface::TokenAccount;
 use arrayref::array_ref;
 
 use solana_program::account_info::AccountInfo;
@@ -18,12 +18,12 @@ use solana_program::msg;
 use std::cell::Ref;
 
 pub struct MatchFulfillmentParams<'a> {
-    pub base_market_vault: Box<Account<'a, TokenAccount>>,
-    pub quote_market_vault: Box<Account<'a, TokenAccount>>,
+    pub base_market_vault: Box<InterfaceAccount<'a, TokenAccount>>,
+    pub quote_market_vault: Box<InterfaceAccount<'a, TokenAccount>>,
 }
 
 impl<'a> MatchFulfillmentParams<'a> {
-    pub fn new<'b, 'c>(
+    pub fn new<'b, 'c: 'a>(
         account_info_iter: &'b mut std::iter::Peekable<std::slice::Iter<'c, AccountInfo<'a>>>,
         base_market: &SpotMarket,
         quote_market: &SpotMarket,
@@ -42,13 +42,13 @@ impl<'a> MatchFulfillmentParams<'a> {
             ErrorCode::InvalidFulfillmentConfig
         )?;
 
-        let base_market_vault: Box<Account<TokenAccount>> =
-            Box::new(Account::try_from(base_market_vault).map_err(|e| {
+        let base_market_vault: Box<InterfaceAccount<TokenAccount>> =
+            Box::new(InterfaceAccount::try_from(base_market_vault).map_err(|e| {
                 msg!("{:?}", e);
                 ErrorCode::InvalidFulfillmentConfig
             })?);
-        let quote_market_vault: Box<Account<TokenAccount>> =
-            Box::new(Account::try_from(quote_market_vault).map_err(|e| {
+        let quote_market_vault: Box<InterfaceAccount<TokenAccount>> =
+            Box::new(InterfaceAccount::try_from(quote_market_vault).map_err(|e| {
                 msg!("{:?}", e);
                 ErrorCode::InvalidFulfillmentConfig
             })?);

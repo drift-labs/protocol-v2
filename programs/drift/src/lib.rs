@@ -3,6 +3,7 @@
 #![allow(clippy::comparison_chain)]
 
 use anchor_lang::prelude::*;
+use anchor_attribute_program::program;
 
 use instructions::*;
 #[cfg(test)]
@@ -37,18 +38,36 @@ declare_id!("dRiftyHA39MWEi3m9aunc5MzRF1JYuBsbn6VPcn33UH");
 #[cfg(not(feature = "mainnet-beta"))]
 declare_id!("dRiftyHA39MWEi3m9aunc5MzRF1JYuBsbn6VPcn33UH");
 
-#[program]
+/// Workaround for Anchor 0.28.0 lifetime issues
+#[doc(hidden)]
+pub trait ProgramAccountInfo<'info> {
+    fn to_account_infos(&'info self) -> Vec<AccountInfo<'info>>;
+}
+
+impl<'info> ProgramAccountInfo<'info> for Context<'info, 'info, 'info, 'info, InitializeUser<'info>> {
+    fn to_account_infos(&'info self) -> Vec<AccountInfo<'info>> {
+        self.accounts.to_account_infos()
+    }
+}
+
+#[anchor_attribute_program::program]
+#[allow(clippy::result_large_err)]
 pub mod drift {
     use super::*;
     use crate::state::spot_market::SpotFulfillmentConfigStatus;
 
     // User Instructions
 
-    pub fn initialize_user(
-        ctx: Context<InitializeUser>,
+    pub fn initialize_user<'a, 'b, 'c, 'info>(
+        ctx: Context<'a, 'b, 'c, 'info, InitializeUser<'info>>,
         sub_account_id: u16,
         name: [u8; 32],
-    ) -> Result<()> {
+    ) -> Result<()>
+    where
+        'info: 'a,
+        'info: 'b,
+        'info: 'c,
+    {
         handle_initialize_user(ctx, sub_account_id, name)
     }
 
