@@ -3388,6 +3388,7 @@ pub struct SweepFuel<'info> {
     pub user_stats: AccountLoader<'info, UserStats>,
     /// CHECK: authority
     pub authority: AccountInfo<'info>,
+    pub signer: Signer<'info>,
 }
 
 #[derive(Accounts)]
