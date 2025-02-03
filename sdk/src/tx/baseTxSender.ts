@@ -151,12 +151,12 @@ export abstract class BaseTxSender implements TxSender {
 	async getVersionedTransaction(
 		ixs: TransactionInstruction[],
 		lookupTableAccounts: AddressLookupTableAccount[],
-		additionalSigners: Array<Signer> | undefined,
-		opts: ConfirmOptions | undefined,
-		blockhash: BlockhashWithExpiryBlockHeight
+		_additionalSigners?: Array<Signer>,
+		opts?: ConfirmOptions,
+		blockhash?: BlockhashWithExpiryBlockHeight
 	): Promise<VersionedTransaction> {
 		return this.txHandler.generateVersionedTransaction(
-			blockhash,
+			blockhash ?? (await this.connection.getLatestBlockhash()),
 			ixs,
 			lookupTableAccounts,
 			this.wallet
