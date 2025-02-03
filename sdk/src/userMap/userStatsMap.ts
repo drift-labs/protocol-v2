@@ -256,7 +256,6 @@ export class UserStatsMap {
 
 		try {
 			let accountsToLoad = authorities;
-			const start = new Date();
 			if (authorities.length === 0) {
 				const accountsPrefetch =
 					await this.driftClient.connection.getProgramAccounts(
