@@ -9,6 +9,7 @@ pub mod oracle_map;
 pub mod order_params;
 pub mod paused_operations;
 pub mod perp_market;
+pub mod pyth_lazer_oracle;
 pub mod perp_market_map;
 pub mod spot_fulfillment_params;
 pub mod spot_market;

@@ -9,6 +9,7 @@ use switchboard::{AggregatorAccountData, SwitchboardDecimal};
 use crate::error::ErrorCode::{InvalidOracle, UnableToLoadOracle};
 use crate::math::safe_unwrap::SafeUnwrap;
 use crate::state::perp_market::PerpMarket;
+use crate::state::pyth_lazer_oracle::PythLazerOracle;
 use crate::state::traits::Size;
 use crate::{load, validate};
 
@@ -360,33 +361,42 @@ pub fn get_switchboard_price(
     })
 }
 
-/// Given a decimal number represented as a mantissa (the digits) plus an
-/// original_precision (10.pow(some number of decimals)), scale the
-/// mantissa/digits to make sense with a new_precision.
-fn convert_switchboard_decimal(switchboard_decimal: &SwitchboardDecimal) -> DriftResult<i128> {
-    let switchboard_precision = 10_u128.pow(switchboard_decimal.scale);
-    if switchboard_precision > PRICE_PRECISION {
-        switchboard_decimal
-            .mantissa
-            .safe_div((switchboard_precision / PRICE_PRECISION) as i128)
-    } else {
-        switchboard_decimal
-            .mantissa
-            .safe_mul((PRICE_PRECISION / switchboard_precision) as i128)
-    }
-}
+pub fn get_sb_on_demand_price(
+    price_oracle: &AccountInfo,
+    clock_slot: u64,
+) -> DriftResult<OraclePriceData> {
+    let pull_feed_account_info: Ref<PullFeedAccountData> =
+        load_ref(price_oracle).or(Err(ErrorCode::UnableToLoadOracle))?;
 
-pub fn get_prelaunch_price(price_oracle: &AccountInfo, slot: u64) -> DriftResult<OraclePriceData> {
-    let oracle_account_loader: AccountLoader<PrelaunchOracle> =
-        AccountLoader::try_from(price_oracle).or(Err(UnableToLoadOracle))?;
+    let latest_oracle_submssions: Vec<switchboard_on_demand::OracleSubmission> =
+        pull_feed_account_info.latest_submissions();
+    let average_price = latest_oracle_submssions
+        .iter()
+        .map(|submission| submission.value)
+        .sum::<i128>()
+        / latest_oracle_submssions.len() as i128;
 
-    let oracle = load!(oracle_account_loader)?;
+    let price = convert_sb_i128(&average_price)?.cast::<i64>()?;
+
+    let confidence = convert_sb_i128(
+        &pull_feed_account_info
+            .range()
+            .ok_or(ErrorCode::UnableToLoadOracle)?,
+    )?
+    .cast::<i64>()?
+    .unsigned_abs();
+
+    let delay = clock_slot
+        .cast::<i64>()?
+        .safe_sub(latest_oracle_submssions[0].landed_at.cast()?)?;
+
+    let has_sufficient_number_of_data_points = true;
 
     Ok(OraclePriceData {
-        price: oracle.price,
-        confidence: oracle.confidence,
-        delay: oracle.amm_last_update_slot.saturating_sub(slot).cast()?,
-        has_sufficient_number_of_data_points: true,
+        price,
+        confidence,
+        delay,
+        has_sufficient_number_of_data_points,
     })
 }
 
