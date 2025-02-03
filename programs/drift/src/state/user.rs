@@ -1339,7 +1339,9 @@ pub struct Order {
     pub trigger_condition: OrderTriggerCondition,
     /// How many slots the auction lasts
     pub auction_duration: u8,
-    pub padding: [u8; 3],
+    /// Last 8 bits of the slot the order was posted on-chain (not order slot for swift orders)
+    pub posted_slot_tail: u8,
+    pub padding: [u8; 2],
 }
 
 #[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Eq, Debug)]
@@ -1614,7 +1616,8 @@ impl Default for Order {
             auction_end_price: 0,
             auction_duration: 0,
             max_ts: 0,
-            padding: [0; 3],
+            posted_slot_tail: 0,
+            padding: [0; 2],
         }
     }
 }
