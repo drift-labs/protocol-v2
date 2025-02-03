@@ -268,11 +268,6 @@ export class UserStatsMap {
 					);
 				accountsToLoad = accountsPrefetch.map((account) => account.pubkey);
 			}
-			console.log(
-				`prefetch took ${new Date().getTime() - start.getTime()}ms, got ${
-					accountsToLoad.length
-				} accounts to load`
-			);
 
 			const limitConcurrency = async (tasks, limit) => {
 				const executing = [];
