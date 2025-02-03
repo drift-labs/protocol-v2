@@ -732,7 +732,6 @@ impl SpotBalance for PoolBalance {
         Err(ErrorCode::CantUpdatePoolBalanceType)
     }
 }
-
 #[assert_no_slop]
 #[zero_copy(unsafe)]
 #[derive(Debug, PartialEq, Eq)]
