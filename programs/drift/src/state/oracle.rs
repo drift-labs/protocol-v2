@@ -1,10 +1,12 @@
 use anchor_lang::prelude::{AnchorSerialize, AnchorDeserialize, AccountInfo, msg, account, AccountLoader, zero_copy, Pubkey};
-
+use std::cell::Ref;
 use crate::error::{DriftResult, ErrorCode};
 use crate::math::casting::Cast;
 use crate::math::constants::{PRICE_PRECISION, PRICE_PRECISION_I64, PRICE_PRECISION_U64};
 use crate::math::safe_math::SafeMath;
+use crate::state::load_ref::load_ref;
 use switchboard::{AggregatorAccountData, SwitchboardDecimal};
+use switchboard_on_demand::{PullFeedAccountData, SB_ON_DEMAND_PRECISION};
 
 use crate::error::ErrorCode::{InvalidOracle, UnableToLoadOracle};
 use crate::math::safe_unwrap::SafeUnwrap;
@@ -361,6 +363,17 @@ pub fn get_switchboard_price(
     })
 }
 
+pub fn get_prelaunch_price(price_oracle: &AccountInfo, slot: u64) -> DriftResult<OraclePriceData> {
+    let oracle: Ref<PrelaunchOracle> = load_ref(price_oracle).or(Err(UnableToLoadOracle))?;
+
+    Ok(OraclePriceData {
+        price: oracle.price,
+        confidence: oracle.confidence,
+        delay: oracle.amm_last_update_slot.saturating_sub(slot).cast()?,
+        has_sufficient_number_of_data_points: true,
+    })
+}
+
 pub fn get_sb_on_demand_price(
     price_oracle: &AccountInfo,
     clock_slot: u64,
@@ -398,6 +411,34 @@ pub fn get_sb_on_demand_price(
         delay,
         has_sufficient_number_of_data_points,
     })
+}
+
+/// Given a decimal number represented as a mantissa (the digits) plus an
+/// original_precision (10.pow(some number of decimals)), scale the
+/// mantissa/digits to make sense with a new_precision.
+fn convert_switchboard_decimal(switchboard_decimal: &SwitchboardDecimal) -> DriftResult<i128> {
+    let switchboard_precision = 10_u128.pow(switchboard_decimal.scale);
+    if switchboard_precision > PRICE_PRECISION {
+        switchboard_decimal
+            .mantissa
+            .safe_div((switchboard_precision / PRICE_PRECISION) as i128)
+    } else {
+        switchboard_decimal
+            .mantissa
+            .safe_mul((PRICE_PRECISION / switchboard_precision) as i128)
+    }
+}
+
+/// Given a decimal number represented as a mantissa (the digits) plus an
+/// original_precision (10.pow(some number of decimals)), scale the
+/// mantissa/digits to make sense with a new_precision.
+fn convert_sb_i128(switchboard_i128: &i128) -> DriftResult<i128> {
+    let switchboard_precision = 10_u128.pow(SB_ON_DEMAND_PRECISION);
+    if switchboard_precision > PRICE_PRECISION {
+        switchboard_i128.safe_div((switchboard_precision / PRICE_PRECISION) as i128)
+    } else {
+        switchboard_i128.safe_mul((PRICE_PRECISION / switchboard_precision) as i128)
+    }
 }
 
 #[derive(Clone, Copy)]

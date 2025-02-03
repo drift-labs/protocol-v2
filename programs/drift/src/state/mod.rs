@@ -14,6 +14,7 @@ pub mod perp_market_map;
 pub mod spot_fulfillment_params;
 pub mod spot_market;
 pub mod spot_market_map;
+pub mod load_ref;
 #[allow(clippy::module_inception)]
 pub mod state;
 pub mod traits;
