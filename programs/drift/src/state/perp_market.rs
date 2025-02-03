@@ -232,10 +232,10 @@ pub struct PerpMarket {
     /// fuel multiplier for perp maker
     /// precision: 10
     pub fuel_boost_maker: u8,
-    pub padding: [u8; 38],
     pub pool_id: u8,
     pub high_leverage_margin_ratio_initial: u16,
     pub high_leverage_margin_ratio_maintenance: u16,
+    pub padding: [u8; 38],
 }
 
 impl Default for PerpMarket {
@@ -732,6 +732,7 @@ impl SpotBalance for PoolBalance {
         Err(ErrorCode::CantUpdatePoolBalanceType)
     }
 }
+
 #[assert_no_slop]
 #[zero_copy(unsafe)]
 #[derive(Debug, PartialEq, Eq)]
