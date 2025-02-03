@@ -104,8 +104,11 @@ impl HistoricalIndexData {
     }
 }
 
-#[derive(AnchorSerialize, AnchorDeserialize, Clone, Copy, Eq, PartialEq, Debug)]
+#[derive(
+    AnchorSerialize, AnchorDeserialize, Clone, Copy, Eq, PartialEq, Debug, Default, Ord, PartialOrd,
+)]
 pub enum OracleSource {
+    #[default]
     Pyth,
     Switchboard,
     QuoteAsset,
@@ -113,12 +116,50 @@ pub enum OracleSource {
     Pyth1M,
     PythStableCoin,
     Prelaunch,
+    PythPull,
+    Pyth1KPull,
+    Pyth1MPull,
+    PythStableCoinPull,
+    SwitchboardOnDemand,
+    PythLazer,
+    PythLazer1K,
+    PythLazer1M,
 }
 
-impl Default for OracleSource {
-    // UpOnly
-    fn default() -> Self {
-        OracleSource::Pyth
+impl OracleSource {
+    pub fn is_pyth_pull_oracle(&self) -> bool {
+        matches!(
+            self,
+            OracleSource::PythPull
+                | OracleSource::Pyth1KPull
+                | OracleSource::Pyth1MPull
+                | OracleSource::PythStableCoinPull
+        )
+    }
+
+    pub fn is_pyth_push_oracle(&self) -> bool {
+        matches!(
+            self,
+            OracleSource::Pyth
+                | OracleSource::Pyth1K
+                | OracleSource::Pyth1M
+                | OracleSource::PythStableCoin
+        )
+    }
+
+    pub fn get_pyth_multiple(&self) -> u128 {
+        match self {
+            OracleSource::Pyth
+            | OracleSource::PythPull
+            | OracleSource::PythLazer
+            | OracleSource::PythStableCoin
+            | OracleSource::PythStableCoinPull => 1,
+            OracleSource::Pyth1K | OracleSource::Pyth1KPull | OracleSource::PythLazer1K => 1000,
+            OracleSource::Pyth1M | OracleSource::Pyth1MPull | OracleSource::PythLazer1M => 1000000,
+            _ => {
+                panic!("Calling get_pyth_multiple on non-pyth oracle source");
+            }
+        }
     }
 }
 
@@ -147,11 +188,14 @@ pub fn get_oracle_price(
     clock_slot: u64,
 ) -> DriftResult<OraclePriceData> {
     match oracle_source {
-        OracleSource::Pyth => get_pyth_price(price_oracle, clock_slot, 1),
-        OracleSource::Pyth1K => get_pyth_price(price_oracle, clock_slot, 1000),
-        OracleSource::Pyth1M => get_pyth_price(price_oracle, clock_slot, 1000000),
-        OracleSource::PythStableCoin => get_pyth_stable_coin_price(price_oracle, clock_slot),
+        OracleSource::Pyth => get_pyth_price(price_oracle, clock_slot, oracle_source),
+        OracleSource::Pyth1K => get_pyth_price(price_oracle, clock_slot, oracle_source),
+        OracleSource::Pyth1M => get_pyth_price(price_oracle, clock_slot, oracle_source),
+        OracleSource::PythStableCoin => {
+            get_pyth_stable_coin_price(price_oracle, clock_slot, oracle_source)
+        }
         OracleSource::Switchboard => get_switchboard_price(price_oracle, clock_slot),
+        OracleSource::SwitchboardOnDemand => get_sb_on_demand_price(price_oracle, clock_slot),
         OracleSource::QuoteAsset => Ok(OraclePriceData {
             price: PRICE_PRECISION_I64,
             confidence: 1,
@@ -159,33 +203,74 @@ pub fn get_oracle_price(
             has_sufficient_number_of_data_points: true,
         }),
         OracleSource::Prelaunch => get_prelaunch_price(price_oracle, clock_slot),
+        OracleSource::PythPull => get_pyth_price(price_oracle, clock_slot, oracle_source),
+        OracleSource::Pyth1KPull => get_pyth_price(price_oracle, clock_slot, oracle_source),
+        OracleSource::Pyth1MPull => get_pyth_price(price_oracle, clock_slot, oracle_source),
+        OracleSource::PythStableCoinPull => {
+            get_pyth_stable_coin_price(price_oracle, clock_slot, oracle_source)
+        }
+        OracleSource::PythLazer => get_pyth_price(price_oracle, clock_slot, oracle_source),
+        OracleSource::PythLazer1K => get_pyth_price(price_oracle, clock_slot, oracle_source),
+        OracleSource::PythLazer1M => get_pyth_price(price_oracle, clock_slot, oracle_source),
     }
 }
 
 pub fn get_pyth_price(
     price_oracle: &AccountInfo,
     clock_slot: u64,
-    multiple: u128,
+    oracle_source: &OracleSource,
 ) -> DriftResult<OraclePriceData> {
-    let pyth_price_data = price_oracle
+    let multiple = oracle_source.get_pyth_multiple();
+    let mut pyth_price_data: &[u8] = &price_oracle
         .try_borrow_data()
         .or(Err(crate::error::ErrorCode::UnableToLoadOracle))?;
-    let price_data = pyth_client::cast::<pyth_client::Price>(&pyth_price_data);
 
-    let oracle_price = price_data.agg.price;
-    let oracle_conf = price_data.agg.conf;
+    let oracle_price: i64;
+    let oracle_conf: u64;
+    let mut has_sufficient_number_of_data_points: bool = true;
+    let mut oracle_precision: u128;
+    let published_slot: u64;
 
-    let min_publishers = price_data.num.min(3);
-    let publisher_count = price_data.num_qt;
+    if oracle_source.is_pyth_pull_oracle() {
+        let price_message = pyth_solana_receiver_sdk::price_update::PriceUpdateV2::try_deserialize(
+            &mut pyth_price_data,
+        )
+        .unwrap();
+        oracle_price = price_message.price_message.price;
+        oracle_conf = price_message.price_message.conf;
+        oracle_precision = 10_u128.pow(price_message.price_message.exponent.unsigned_abs());
+        published_slot = price_message.posted_slot;
+    } else if oracle_source.is_pyth_push_oracle() {
+        let price_data = pyth_client::cast::<pyth_client::Price>(pyth_price_data);
+        oracle_price = price_data.agg.price;
+        oracle_conf = price_data.agg.conf;
+        let min_publishers = price_data.num.min(3);
+        let publisher_count = price_data.num_qt;
 
-    let oracle_precision = 10_u128.pow(price_data.expo.unsigned_abs());
+        #[cfg(feature = "mainnet-beta")]
+        {
+            has_sufficient_number_of_data_points = publisher_count >= min_publishers;
+        }
+        #[cfg(not(feature = "mainnet-beta"))]
+        {
+            has_sufficient_number_of_data_points = true;
+        }
+
+        oracle_precision = 10_u128.pow(price_data.expo.unsigned_abs());
+        published_slot = price_data.valid_slot;
+    } else {
+        let price_data = PythLazerOracle::try_deserialize(&mut pyth_price_data).unwrap();
+        oracle_price = price_data.price;
+        oracle_conf = price_data.conf;
+        oracle_precision = 10_u128.pow(price_data.exponent.unsigned_abs());
+        published_slot = price_data.posted_slot;
+    }
 
     if oracle_precision <= multiple {
         msg!("Multiple larger than oracle precision");
         return Err(crate::error::ErrorCode::InvalidOracle);
     }
-
-    let oracle_precision = oracle_precision.safe_div(multiple)?;
+    oracle_precision = oracle_precision.safe_div(multiple)?;
 
     let mut oracle_scale_mult = 1;
     let mut oracle_scale_div = 1;
@@ -208,14 +293,7 @@ pub fn get_pyth_price(
         .safe_div(oracle_scale_div)?
         .cast::<u64>()?;
 
-    let oracle_delay: i64 = clock_slot
-        .cast::<i64>()?
-        .safe_sub(price_data.valid_slot.cast()?)?;
-
-    #[cfg(feature = "mainnet-beta")]
-    let has_sufficient_number_of_data_points = publisher_count >= min_publishers;
-    #[cfg(not(feature = "mainnet-beta"))]
-    let has_sufficient_number_of_data_points = true;
+    let oracle_delay: i64 = clock_slot.cast::<i64>()?.safe_sub(published_slot.cast()?)?;
 
     Ok(OraclePriceData {
         price: oracle_price_scaled,
@@ -228,8 +306,9 @@ pub fn get_pyth_price(
 pub fn get_pyth_stable_coin_price(
     price_oracle: &AccountInfo,
     clock_slot: u64,
+    oracle_source: &OracleSource,
 ) -> DriftResult<OraclePriceData> {
-    let mut oracle_price_data = get_pyth_price(price_oracle, clock_slot, 1)?;
+    let mut oracle_price_data = get_pyth_price(price_oracle, clock_slot, oracle_source)?;
 
     let price = oracle_price_data.price;
     let confidence = oracle_price_data.confidence;
@@ -246,11 +325,8 @@ pub fn get_switchboard_price(
     price_oracle: &AccountInfo,
     clock_slot: u64,
 ) -> DriftResult<OraclePriceData> {
-    let aggregator_data_loader: AccountLoader<AggregatorAccountData> =
-        AccountLoader::try_from(price_oracle).or(Err(ErrorCode::UnableToLoadOracle))?;
-    let aggregator_data = aggregator_data_loader
-        .load()
-        .or(Err(ErrorCode::UnableToLoadOracle))?;
+    let aggregator_data: Ref<AggregatorAccountData> =
+        load_ref(price_oracle).or(Err(ErrorCode::UnableToLoadOracle))?;
 
     let price = convert_switchboard_decimal(&aggregator_data.latest_confirmed_round.result)?
         .cast::<i64>()?;
