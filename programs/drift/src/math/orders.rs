@@ -1379,3 +1379,7 @@ pub fn select_margin_type_for_perp_maker(
 
     Ok(MarginRequirementType::Fill)
 }
+
+pub fn get_posted_slot_from_clock_slot(slot: u64) -> u8 {
+    (slot & 0xFF) as u8
+}

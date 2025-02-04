@@ -41,6 +41,7 @@ export const mockOrder: Order = {
 	auctionStartPrice: ZERO,
 	auctionEndPrice: ZERO,
 	maxTs: ZERO,
+	postedSlotTail: 0,
 };
 
 export const mockSpotPosition: SpotPosition = {

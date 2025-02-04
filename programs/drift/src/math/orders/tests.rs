@@ -3891,3 +3891,27 @@ mod fallback_price_logic {
         assert_eq!(result, 99500000);
     }
 }
+
+mod posted_slot_tail {
+    use crate::math::orders::get_posted_slot_from_clock_slot;
+
+    #[test]
+    fn easy_test() {
+        let slot: u64 = 318454856;
+        let posted_slot_tail = get_posted_slot_from_clock_slot(slot);
+        assert_eq!(posted_slot_tail, (slot % 256) as u8);
+    }
+
+    #[test]
+    fn constant_diff() {
+        let starting_slot: u64 = 318454856;
+
+        for i in 0..1000 {
+            let slot = starting_slot + i;
+            let slot_minus_50 = slot - 50;
+            let posted_slot_tail = get_posted_slot_from_clock_slot(slot);
+            let posted_slot_tail_minus_50 = get_posted_slot_from_clock_slot(slot_minus_50);
+            assert_eq!(posted_slot_tail.wrapping_sub(posted_slot_tail_minus_50), 50);
+        }
+    }
+}
