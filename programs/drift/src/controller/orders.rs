@@ -1398,7 +1398,8 @@ pub fn fill_perp_order(
         if amm_can_skip_duration && user_can_skip_duration {
             AMMAvailability::Immediate
         } else if !user_can_skip_duration
-            && (clock_slot_tail - order_posted_slot_tail < state.min_perp_auction_duration)
+            && (clock_slot_tail.wrapping_sub(order_posted_slot_tail)
+                < state.min_perp_auction_duration)
         {
             msg!("Overriding toxic user from afterminduration to unavailble");
             AMMAvailability::Unavailable
