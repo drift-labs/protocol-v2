@@ -475,6 +475,7 @@ describe('place and make swift order', () => {
 			quoteAssetAmountFilled: ZERO,
 			quoteAssetAmount: ZERO,
 			userOrderId: 0,
+			postedSlotTail: 0,
 		};
 
 		const fillIx = await makerDriftClient.getFillPerpOrderIx(
@@ -665,6 +666,7 @@ describe('place and make swift order', () => {
 			quoteAssetAmountFilled: ZERO,
 			quoteAssetAmount: ZERO,
 			userOrderId: 0,
+			postedSlotTail: 0,
 		};
 
 		const fillIx = await makerDriftClient.getFillPerpOrderIx(
