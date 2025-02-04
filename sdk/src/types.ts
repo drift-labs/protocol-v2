@@ -1040,6 +1040,7 @@ export type Order = {
 	auctionStartPrice: BN;
 	auctionEndPrice: BN;
 	maxTs: BN;
+	postedSlotTail: number;
 };
 
 export type OrderParams = {
