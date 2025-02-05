@@ -857,6 +857,18 @@ pub fn handle_initialize_perp_market(
                 .get_pyth_twap(&ctx.accounts.oracle, &OracleSource::PythLazer1M)?;
             (oracle_price, oracle_delay, last_oracle_price_twap)
         }
+        OracleSource::PythLazerStableCoin => {
+            let OraclePriceData {
+                price: oracle_price,
+                delay: oracle_delay,
+                ..
+            } = get_pyth_price(
+                &ctx.accounts.oracle,
+                clock_slot,
+                &OracleSource::PythLazerStableCoin,
+            )?;
+            (oracle_price, oracle_delay, QUOTE_PRECISION_I64)
+        }
     };
 
     validate_margin(

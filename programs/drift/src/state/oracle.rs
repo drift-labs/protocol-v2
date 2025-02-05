@@ -128,6 +128,7 @@ pub enum OracleSource {
     PythLazer,
     PythLazer1K,
     PythLazer1M,
+    PythLazerStableCoin,
 }
 
 impl OracleSource {
@@ -157,7 +158,8 @@ impl OracleSource {
             | OracleSource::PythPull
             | OracleSource::PythLazer
             | OracleSource::PythStableCoin
-            | OracleSource::PythStableCoinPull => 1,
+            | OracleSource::PythStableCoinPull
+            | OracleSource::PythLazerStableCoin => 1,
             OracleSource::Pyth1K | OracleSource::Pyth1KPull | OracleSource::PythLazer1K => 1000,
             OracleSource::Pyth1M | OracleSource::Pyth1MPull | OracleSource::PythLazer1M => 1000000,
             _ => {
@@ -216,6 +218,9 @@ pub fn get_oracle_price(
         OracleSource::PythLazer => get_pyth_price(price_oracle, clock_slot, oracle_source),
         OracleSource::PythLazer1K => get_pyth_price(price_oracle, clock_slot, oracle_source),
         OracleSource::PythLazer1M => get_pyth_price(price_oracle, clock_slot, oracle_source),
+        OracleSource::PythLazerStableCoin => {
+            get_pyth_stable_coin_price(price_oracle, clock_slot, oracle_source)
+        }
     }
 }
 

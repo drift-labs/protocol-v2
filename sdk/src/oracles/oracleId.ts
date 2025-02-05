@@ -19,6 +19,8 @@ export function getOracleSourceNum(source: OracleSource): number {
 	if ('pythLazer' in source) return OracleSourceNum.PYTH_LAZER;
 	if ('pythLazer1K' in source) return OracleSourceNum.PYTH_LAZER_1K;
 	if ('pythLazer1M' in source) return OracleSourceNum.PYTH_LAZER_1M;
+	if ('pythLazerStableCoin' in source)
+		return OracleSourceNum.PYTH_LAZER_STABLE_COIN;
 	throw new Error('Invalid oracle source');
 }
 
