@@ -14,13 +14,14 @@ import {
 } from '../isomorphic/grpc';
 
 export class grpcAccountSubscriber<T> extends WebSocketAccountSubscriber<T> {
-	client: Client;
-	stream: ClientDuplexStream<SubscribeRequest, SubscribeUpdate>;
-	commitmentLevel: CommitmentLevel;
-	listenerId?: number;
+	private client: Client;
+	private stream: ClientDuplexStream<SubscribeRequest, SubscribeUpdate>;
+	private commitmentLevel: CommitmentLevel;
+	public listenerId?: number;
 
-	public constructor(
-		grpcConfigs: GrpcConfigs,
+	private constructor(
+		client: Client,
+		commitmentLevel: CommitmentLevel,
 		accountName: string,
 		program: Program,
 		accountPublicKey: PublicKey,
@@ -28,14 +29,36 @@ export class grpcAccountSubscriber<T> extends WebSocketAccountSubscriber<T> {
 		resubOpts?: ResubOpts
 	) {
 		super(accountName, program, accountPublicKey, decodeBuffer, resubOpts);
-		this.client = createClient(
+		this.client = client;
+		this.commitmentLevel = commitmentLevel;
+	}
+
+	public static async create<U>(
+		grpcConfigs: GrpcConfigs,
+		accountName: string,
+		program: Program,
+		accountPublicKey: PublicKey,
+		decodeBuffer?: (buffer: Buffer) => U,
+		resubOpts?: ResubOpts
+	): Promise<grpcAccountSubscriber<U>> {
+		const client = await createClient(
 			grpcConfigs.endpoint,
 			grpcConfigs.token,
 			grpcConfigs.channelOptions ?? {}
 		);
-		this.commitmentLevel =
+		const commitmentLevel =
 			// @ts-ignore :: isomorphic exported enum fails typescript but will work at runtime
 			grpcConfigs.commitmentLevel ?? CommitmentLevel.CONFIRMED;
+
+		return new grpcAccountSubscriber(
+			client,
+			commitmentLevel,
+			accountName,
+			program,
+			accountPublicKey,
+			decodeBuffer,
+			resubOpts
+		);
 	}
 
 	override async subscribe(onChange: (data: T) => void): Promise<void> {

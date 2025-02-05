@@ -23,7 +23,7 @@ export class grpcUserAccountSubscriber extends WebSocketUserAccountSubscriber {
 			return true;
 		}
 
-		this.userDataAccountSubscriber = new grpcAccountSubscriber(
+		this.userDataAccountSubscriber = await grpcAccountSubscriber.create(
 			this.grpcConfigs,
 			'user',
 			this.program,

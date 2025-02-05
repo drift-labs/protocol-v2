@@ -77,7 +77,7 @@ export class gprcDriftClientAccountSubscriber extends WebSocketDriftClientAccoun
 		);
 
 		// create and activate main state account subscription
-		this.stateAccountSubscriber = new grpcAccountSubscriber(
+		this.stateAccountSubscriber = await grpcAccountSubscriber.create<StateAccount>(
 			this.grpcConfigs,
 			'state',
 			this.program,
@@ -126,7 +126,7 @@ export class gprcDriftClientAccountSubscriber extends WebSocketDriftClientAccoun
 			this.program.programId,
 			marketIndex
 		);
-		const accountSubscriber = new grpcAccountSubscriber<SpotMarketAccount>(
+		const accountSubscriber = await grpcAccountSubscriber.create<SpotMarketAccount>(
 			this.grpcConfigs,
 			'spotMarket',
 			this.program,
@@ -150,7 +150,7 @@ export class gprcDriftClientAccountSubscriber extends WebSocketDriftClientAccoun
 			this.program.programId,
 			marketIndex
 		);
-		const accountSubscriber = new grpcAccountSubscriber<PerpMarketAccount>(
+		const accountSubscriber = await grpcAccountSubscriber.create<PerpMarketAccount>(
 			this.grpcConfigs,
 			'perpMarket',
 			this.program,
@@ -176,7 +176,7 @@ export class gprcDriftClientAccountSubscriber extends WebSocketDriftClientAccoun
 			this.program.provider.connection,
 			this.program
 		);
-		const accountSubscriber = new grpcAccountSubscriber<OraclePriceData>(
+		const accountSubscriber = await grpcAccountSubscriber.create<OraclePriceData>(
 			this.grpcConfigs,
 			'oracle',
 			this.program,

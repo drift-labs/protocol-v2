@@ -25,7 +25,7 @@ export class grpcInsuranceFundStakeAccountSubscriber extends WebSocketInsuranceF
 			return true;
 		}
 
-		this.insuranceFundStakeDataAccountSubscriber = new grpcAccountSubscriber(
+		this.insuranceFundStakeDataAccountSubscriber = await grpcAccountSubscriber.create(
 			this.grpcConfigs,
 			'insuranceFundStake',
 			this.program,
