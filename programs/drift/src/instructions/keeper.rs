@@ -657,11 +657,6 @@ pub fn place_swift_taker_order<'c: 'info, 'info>(
     oracle_map: &mut OracleMap,
     state: &State,
 ) -> Result<()> {
-    #[cfg(all(feature = "mainnet-beta", not(feature = "anchor-test")))]
-    {
-        panic!("Swift orders are disabled on mainnet-beta");
-    }
-
     // Authenticate the swift param message
     let ix_idx = load_current_index_checked(ix_sysvar)?;
     validate!(
@@ -674,10 +669,10 @@ pub fn place_swift_taker_order<'c: 'info, 'info>(
     let ix: Instruction = load_instruction_at_checked(ix_idx as usize - 1, ix_sysvar)?;
     let verified_message_and_signature = verify_ed25519_msg(
         &ix,
+        ix_sysvar,
         ix_idx,
         &taker.authority.to_bytes(),
         &taker_order_params_message_bytes[..],
-        12,
     )?;
 
     let taker_order_params_message: SwiftOrderParamsMessage =

@@ -11982,6 +11982,12 @@
           },
           {
             "name": "InvalidMessageHex"
+          },
+          {
+            "name": "InvalidMessageData"
+          },
+          {
+            "name": "LoadInstructionAtFailed"
           }
         ]
       }
