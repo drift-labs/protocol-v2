@@ -133,7 +133,7 @@ pub fn calculate_fee_for_fulfillment_with_amm(
     }
 }
 
-fn calculate_taker_fee(
+pub fn calculate_taker_fee(
     quote_asset_amount: u64,
     fee_tier: &FeeTier,
     fee_adjustment: i16,
