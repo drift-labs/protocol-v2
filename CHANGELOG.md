@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Features
 
 - program: add posted slot tail to order struct, use it to determine vamm availability for high volume users ([#1459](https://github.com/drift-labs/protocol-v2/pull/1459))
+- program: add pyth lazer stable coin oracle type ([#1463](https://github.com/drift-labs/protocol-v2/pull/1463))
 
 ### Fixes
 
