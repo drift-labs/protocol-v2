@@ -1035,6 +1035,7 @@ mod update_perp_auction_params {
 }
 
 mod get_close_perp_params {
+    use crate::math::orders::get_posted_slot_from_clock_slot;
     use crate::state::oracle::HistoricalOracleData;
     use crate::state::order_params::PostOnlyParam;
     use crate::state::perp_market::{PerpMarket, AMM};
@@ -1380,7 +1381,8 @@ mod get_close_perp_params {
             auction_end_price: params.auction_end_price.unwrap_or(0),
             auction_duration: params.auction_duration.unwrap_or(0),
             max_ts: 100,
-            padding: [0; 3],
+            posted_slot_tail: get_posted_slot_from_clock_slot(slot),
+            padding: [0; 2],
         }
     }
 

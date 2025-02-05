@@ -292,7 +292,8 @@ pub fn place_perp_order(
         auction_end_price,
         auction_duration,
         max_ts,
-        padding: [0; 3],
+        posted_slot_tail: get_posted_slot_from_clock_slot(slot),
+        padding: [0; 2],
     };
 
     let valid_oracle_price = Some(oracle_price_data.price);
@@ -1108,6 +1109,7 @@ pub fn fill_perp_order(
         order_oracle_price_offset,
         order_direction,
         order_auction_duration,
+        order_posted_slot_tail,
     ) = get_struct_values!(
         user.orders[order_index],
         status,
@@ -1116,7 +1118,8 @@ pub fn fill_perp_order(
         price,
         oracle_price_offset,
         direction,
-        auction_duration
+        auction_duration,
+        posted_slot_tail
     );
 
     validate!(
@@ -1389,9 +1392,17 @@ pub fn fill_perp_order(
         return Ok((0, 0));
     }
 
+    let clock_slot_tail = get_posted_slot_from_clock_slot(slot);
+
     let amm_availability = if amm_is_available {
         if amm_can_skip_duration && user_can_skip_duration {
             AMMAvailability::Immediate
+        } else if !user_can_skip_duration
+            && (clock_slot_tail.wrapping_sub(order_posted_slot_tail)
+                < state.min_perp_auction_duration)
+        {
+            msg!("Overriding toxic user from afterminduration to unavailble");
+            AMMAvailability::Unavailable
         } else {
             AMMAvailability::AfterMinDuration
         }
@@ -3694,7 +3705,8 @@ pub fn place_spot_order(
         auction_end_price,
         auction_duration,
         max_ts,
-        padding: [0; 3],
+        posted_slot_tail: get_posted_slot_from_clock_slot(slot),
+        padding: [0; 2],
     };
 
     validate_spot_order(
