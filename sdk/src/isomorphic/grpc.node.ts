@@ -15,7 +15,7 @@ export {
 	Client,
 };
 
-// Export a function to create a new Client instanceFLSKJDFlkSDJflsakjfalkdfj
+// Export a function to create a new Client instance
 export async function createClient(
 	...args: ConstructorParameters<typeof Client>
 ): Promise<Client> {
