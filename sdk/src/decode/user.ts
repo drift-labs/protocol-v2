@@ -237,7 +237,8 @@ export function decodeUser(buffer: Buffer): UserAccount {
 		offset += 1;
 		const auctionDuration = buffer.readUInt8(offset);
 		offset += 1;
-		offset += 3; // padding
+		const postedSlotTail = buffer.readUint8(offset);
+		offset += 2; // padding
 		orders.push({
 			slot,
 			price,
@@ -263,6 +264,7 @@ export function decodeUser(buffer: Buffer): UserAccount {
 			immediateOrCancel,
 			triggerCondition,
 			auctionDuration,
+			postedSlotTail,
 		});
 	}
 

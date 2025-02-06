@@ -9265,13 +9265,15 @@ export class DriftClient {
 	public async updateUserProtectedMakerOrders(
 		subAccountId: number,
 		protectedOrders: boolean,
+		authority?: PublicKey,
 		txParams?: TxParams
 	): Promise<TransactionSignature> {
 		const { txSig } = await this.sendTransaction(
 			await this.buildTransaction(
 				await this.getUpdateUserProtectedMakerOrdersIx(
 					subAccountId,
-					protectedOrders
+					protectedOrders,
+					authority
 				),
 				txParams
 			),
@@ -9283,7 +9285,8 @@ export class DriftClient {
 
 	public async getUpdateUserProtectedMakerOrdersIx(
 		subAccountId: number,
-		protectedOrders: boolean
+		protectedOrders: boolean,
+		authority?: PublicKey
 	): Promise<TransactionInstruction> {
 		const ix = await this.program.instruction.updateUserProtectedMakerOrders(
 			subAccountId,
@@ -9293,7 +9296,7 @@ export class DriftClient {
 					state: await this.getStatePublicKey(),
 					user: getUserAccountPublicKeySync(
 						this.program.programId,
-						this.wallet.publicKey,
+						authority ?? this.authority,
 						subAccountId
 					),
 					authority: this.wallet.publicKey,
