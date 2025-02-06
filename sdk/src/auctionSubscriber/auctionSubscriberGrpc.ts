@@ -34,7 +34,7 @@ export class AuctionSubscriberGrpc {
 
 	public async subscribe() {
 		if (!this.subscriber) {
-			this.subscriber = new grpcProgramAccountSubscriber<UserAccount>(
+			this.subscriber = await grpcProgramAccountSubscriber.create<UserAccount>(
 				this.grpcConfigs,
 				'AuctionSubscriber',
 				'User',

@@ -25,16 +25,17 @@ export class grpcInsuranceFundStakeAccountSubscriber extends WebSocketInsuranceF
 			return true;
 		}
 
-		this.insuranceFundStakeDataAccountSubscriber = new grpcAccountSubscriber(
-			this.grpcConfigs,
-			'insuranceFundStake',
-			this.program,
-			this.insuranceFundStakeAccountPublicKey,
-			undefined,
-			{
-				resubTimeoutMs: this.resubTimeoutMs,
-			}
-		);
+		this.insuranceFundStakeDataAccountSubscriber =
+			await grpcAccountSubscriber.create(
+				this.grpcConfigs,
+				'insuranceFundStake',
+				this.program,
+				this.insuranceFundStakeAccountPublicKey,
+				undefined,
+				{
+					resubTimeoutMs: this.resubTimeoutMs,
+				}
+			);
 
 		if (insuranceFundStakeAccount) {
 			this.insuranceFundStakeDataAccountSubscriber.setData(

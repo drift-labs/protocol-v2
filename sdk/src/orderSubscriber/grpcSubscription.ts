@@ -47,7 +47,7 @@ export class grpcSubscription {
 			return;
 		}
 
-		this.subscriber = new grpcProgramAccountSubscriber<UserAccount>(
+		this.subscriber = await grpcProgramAccountSubscriber.create<UserAccount>(
 			this.grpcConfigs,
 			'OrderSubscriber',
 			'User',
