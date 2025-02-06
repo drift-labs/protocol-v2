@@ -235,3 +235,20 @@ pub fn get_token_mint<'a>(
         Err(_) => Ok(None),
     }
 }
+
+pub fn get_token_interfaces<'a>(
+    account_info_iter: &mut Peekable<Iter<'a, AccountInfo<'a>>>,
+) -> DriftResult<Vec<Interface<'a, TokenInterface>>> {
+    let mut token_interfaces = vec![];
+
+    while let Some(account_info) = account_info_iter.peek() {
+        if let Ok(token_interface) = Interface::<TokenInterface>::try_from(*account_info) {
+            token_interfaces.push(token_interface);
+            account_info_iter.next();
+        } else {
+            break;
+        }
+    }
+
+    Ok(token_interfaces)
+}

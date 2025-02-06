@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 use anchor_lang::prelude::*;
 use anchor_lang::Discriminator;
 use anchor_spl::{
@@ -883,6 +885,109 @@ pub fn handle_transfer_deposit<'c: 'info, 'info>(
         &spot_market,
         ctx.accounts.spot_market_vault.amount,
     )?;
+
+    Ok(())
+}
+
+#[access_control(
+    deposit_not_paused(&ctx.accounts.state)
+    withdraw_not_paused(&ctx.accounts.state)
+)]
+pub fn handle_transfer_pools<'c: 'info, 'info>(
+    ctx: Context<'_, '_, 'c, 'info, TransferPools<'info>>,
+    deposit_from_market_index: u16,
+    deposit_to_market_index: u16,
+    borrow_from_market_index: u16,
+    borrow_to_market_index: u16,
+    deposit_amount: Option<u64>,
+    borrow_amount: Option<u64>,
+) -> anchor_lang::Result<()> {
+    let authority_key = ctx.accounts.authority.key;
+    let to_user_key = ctx.accounts.to_user.key();
+    let from_user_key = ctx.accounts.from_user.key();
+
+    let state = &ctx.accounts.state;
+    let clock = Clock::get()?;
+    let slot = clock.slot;
+
+    let to_user = &mut load_mut!(ctx.accounts.to_user)?;
+    let from_user = &mut load_mut!(ctx.accounts.from_user)?;
+    let user_stats = &mut load_mut!(ctx.accounts.user_stats)?;
+
+    let clock = Clock::get()?;
+    let now = clock.unix_timestamp;
+
+    validate!(
+        !to_user.is_bankrupt(),
+        ErrorCode::UserBankrupt,
+        "to_user bankrupt"
+    )?;
+    validate!(
+        !from_user.is_bankrupt(),
+        ErrorCode::UserBankrupt,
+        "from_user bankrupt"
+    )?;
+
+    validate!(
+        from_user_key != to_user_key,
+        ErrorCode::CantTransferBetweenSameUserAccount,
+        "cant transfer between the same user account"
+    )?;
+
+    validate!(
+        from_user.pool_id != to_user.pool_id,
+        ErrorCode::InvalidPoolId,
+        "cant transfer between the same pool"
+    )?;
+
+    let AccountMaps {
+        perp_market_map,
+        spot_market_map,
+        mut oracle_map,
+    } = load_maps(
+        &mut ctx.remaining_accounts.iter().peekable(),
+        &MarketSet::new(),
+        &get_writable_spot_market_set_from_many(vec![deposit_from_market_index, deposit_to_market_index, borrow_from_market_index, borrow_to_market_index]),
+        clock.slot,
+        Some(state.oracle_guard_rails),
+    )?;
+
+    let deposit_from_spot_market = &mut spot_market_map.get_ref_mut(&deposit_from_market_index)?;
+    let deposit_to_spot_market = &mut spot_market_map.get_ref_mut(&deposit_to_market_index)?;
+    let borrow_from_spot_market = &mut spot_market_map.get_ref_mut(&borrow_from_market_index)?;
+    let borrow_to_spot_market = &mut spot_market_map.get_ref_mut(&borrow_to_market_index)?;
+
+    validate!(
+        deposit_from_spot_market.mint == deposit_to_spot_market.mint,
+        ErrorCode::InvalidPoolId,
+        "deposit from and to spot markets must have the same mint"
+    )?;
+
+    validate!(
+        borrow_from_spot_market.mint == borrow_to_spot_market.mint,
+        ErrorCode::InvalidPoolId,
+        "borrow from and to spot markets must have the same mint"
+    )?;
+
+    validate!(
+        deposit_from_spot_market.pool_id == borrow_from_spot_market.pool_id,
+        ErrorCode::InvalidPoolId,
+        "deposit from and borrow from spot markets must have the same pool id"
+    )?;
+
+    validate!(
+        deposit_to_spot_market.pool_id == borrow_to_spot_market.pool_id,
+        ErrorCode::InvalidPoolId,
+        "deposit to and borrow to spot markets must have the same pool id"
+    )?;
+
+    validate!(
+        deposit_from_spot_market.pool_id != deposit_to_spot_market.pool_id,
+        ErrorCode::InvalidPoolId,
+        "deposit from and to spot markets must have different pool ids"
+    )?;
+    
+     
 
     Ok(())
 }
@@ -3366,6 +3471,53 @@ pub struct TransferDeposit<'info> {
         bump,
     )]
     pub spot_market_vault: Box<InterfaceAccount<'info, TokenAccount>>,
+}
+
+#[derive(Accounts)]
+#[instruction(
+    deposit_from_market_index: u16,
+    deposit_to_market_index: u16,
+    borrow_from_market_index: u16,
+    borrow_to_market_index: u16,
+)]
+pub struct TransferPools<'info> {
+    #[account(
+        mut,
+        has_one = authority,
+    )]
+    pub from_user: AccountLoader<'info, User>,
+    #[account(
+        mut,
+        has_one = authority,
+    )]
+    pub to_user: AccountLoader<'info, User>,
+    #[account(
+        mut,
+        has_one = authority
+    )]
+    pub user_stats: AccountLoader<'info, UserStats>,
+    pub authority: Signer<'info>,
+    pub state: Box<Account<'info, State>>,
+    #[account(
+        seeds = [b"spot_market_vault".as_ref(), deposit_from_market_index.to_le_bytes().as_ref()],
+        bump,
+    )]
+    pub deposit_from_spot_market_vault: Box<InterfaceAccount<'info, TokenAccount>>,
+    #[account(
+        seeds = [b"spot_market_vault".as_ref(), deposit_to_market_index.to_le_bytes().as_ref()],
+        bump,
+    )]
+    pub deposit_to_spot_market_vault: Box<InterfaceAccount<'info, TokenAccount>>,
+    #[account(
+        seeds = [b"spot_market_vault".as_ref(), borrow_from_market_index.to_le_bytes().as_ref()],
+        bump,
+    )]
+    pub borrow_from_spot_market_vault: Box<InterfaceAccount<'info, TokenAccount>>,
+    #[account(
+        seeds = [b"spot_market_vault".as_ref(), borrow_to_market_index.to_le_bytes().as_ref()],
+        bump,
+    )]
+    pub borrow_to_spot_market_vault: Box<InterfaceAccount<'info, TokenAccount>>, 
 }
 
 #[derive(Accounts)]
