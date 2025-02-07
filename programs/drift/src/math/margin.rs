@@ -797,6 +797,7 @@ pub fn calculate_max_withdrawable_amount(
     };
 
     free_collateral
+        .saturating_sub(1) // add buffer to avoid insufficient collateral
         .safe_mul(MARGIN_PRECISION_U128)?
         .safe_div(asset_weight.cast()?)?
         .safe_mul(PRICE_PRECISION)?
