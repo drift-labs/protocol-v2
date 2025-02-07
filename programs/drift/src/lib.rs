@@ -79,6 +79,24 @@ pub mod drift {
         handle_resize_swift_user_orders(ctx, num_orders)
     }
 
+    pub fn initialize_fuel_overflow<'c: 'info, 'info>(
+        ctx: Context<'_, '_, 'c, 'info, InitializeFuelOverflow<'info>>,
+    ) -> Result<()> {
+        handle_initialize_fuel_overflow(ctx)
+    }
+
+    pub fn sweep_fuel<'c: 'info, 'info>(
+        ctx: Context<'_, '_, 'c, 'info, SweepFuel<'info>>,
+    ) -> Result<()> {
+        handle_sweep_fuel(ctx)
+    }
+
+    pub fn reset_fuel_season<'c: 'info, 'info>(
+        ctx: Context<'_, '_, 'c, 'info, ResetFuelSeason<'info>>,
+    ) -> Result<()> {
+        handle_reset_fuel_season(ctx)
+    }
+
     pub fn initialize_referrer_name(
         ctx: Context<InitializeReferrerName>,
         name: [u8; 32],

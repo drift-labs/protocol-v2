@@ -192,6 +192,89 @@
       ]
     },
     {
+      "name": "initializeFuelOverflow",
+      "accounts": [
+        {
+          "name": "fuelOverflow",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "userStats",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "payer",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "rent",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "systemProgram",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "sweepFuel",
+      "accounts": [
+        {
+          "name": "fuelOverflow",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "userStats",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "resetFuelSeason",
+      "accounts": [
+        {
+          "name": "userStats",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true
+        }
+      ],
+      "args": []
+    },
+    {
       "name": "initializeReferrerName",
       "accounts": [
         {
@@ -8593,9 +8676,16 @@
             "type": {
               "array": [
                 "u8",
-                2
+                1
               ]
             }
+          },
+          {
+            "name": "fuelOverflowStatus",
+            "docs": [
+              "whether the user has a FuelOverflow account"
+            ],
+            "type": "u8"
           },
           {
             "name": "fuelInsurance",
@@ -8688,6 +8778,62 @@
               "array": [
                 "u8",
                 32
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "FuelOverflow",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "authority",
+            "docs": [
+              "The authority of this overflow account"
+            ],
+            "type": "publicKey"
+          },
+          {
+            "name": "fuelInsurance",
+            "type": "u128"
+          },
+          {
+            "name": "fuelDeposits",
+            "type": "u128"
+          },
+          {
+            "name": "fuelBorrows",
+            "type": "u128"
+          },
+          {
+            "name": "fuelPositions",
+            "type": "u128"
+          },
+          {
+            "name": "fuelTaker",
+            "type": "u128"
+          },
+          {
+            "name": "fuelMaker",
+            "type": "u128"
+          },
+          {
+            "name": "lastFuelSweepTs",
+            "type": "u32"
+          },
+          {
+            "name": "lastResetTs",
+            "type": "u32"
+          },
+          {
+            "name": "padding",
+            "type": {
+              "array": [
+                "u128",
+                6
               ]
             }
           }
@@ -11949,6 +12095,17 @@
       }
     },
     {
+      "name": "FuelOverflowStatus",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "Exists"
+          }
+        ]
+      }
+    },
+    {
       "name": "SignatureVerificationError",
       "type": {
         "kind": "enum",
@@ -13102,6 +13259,131 @@
           "type": {
             "option": "publicKey"
           },
+          "index": false
+        }
+      ]
+    },
+    {
+      "name": "FuelSweepRecord",
+      "fields": [
+        {
+          "name": "ts",
+          "type": "i64",
+          "index": false
+        },
+        {
+          "name": "authority",
+          "type": "publicKey",
+          "index": false
+        },
+        {
+          "name": "userStatsFuelInsurance",
+          "type": "u32",
+          "index": false
+        },
+        {
+          "name": "userStatsFuelDeposits",
+          "type": "u32",
+          "index": false
+        },
+        {
+          "name": "userStatsFuelBorrows",
+          "type": "u32",
+          "index": false
+        },
+        {
+          "name": "userStatsFuelPositions",
+          "type": "u32",
+          "index": false
+        },
+        {
+          "name": "userStatsFuelTaker",
+          "type": "u32",
+          "index": false
+        },
+        {
+          "name": "userStatsFuelMaker",
+          "type": "u32",
+          "index": false
+        },
+        {
+          "name": "fuelOverflowFuelInsurance",
+          "type": "u128",
+          "index": false
+        },
+        {
+          "name": "fuelOverflowFuelDeposits",
+          "type": "u128",
+          "index": false
+        },
+        {
+          "name": "fuelOverflowFuelBorrows",
+          "type": "u128",
+          "index": false
+        },
+        {
+          "name": "fuelOverflowFuelPositions",
+          "type": "u128",
+          "index": false
+        },
+        {
+          "name": "fuelOverflowFuelTaker",
+          "type": "u128",
+          "index": false
+        },
+        {
+          "name": "fuelOverflowFuelMaker",
+          "type": "u128",
+          "index": false
+        }
+      ]
+    },
+    {
+      "name": "FuelSeasonRecord",
+      "fields": [
+        {
+          "name": "ts",
+          "type": "i64",
+          "index": false
+        },
+        {
+          "name": "authority",
+          "type": "publicKey",
+          "index": false
+        },
+        {
+          "name": "fuelInsurance",
+          "type": "u128",
+          "index": false
+        },
+        {
+          "name": "fuelDeposits",
+          "type": "u128",
+          "index": false
+        },
+        {
+          "name": "fuelBorrows",
+          "type": "u128",
+          "index": false
+        },
+        {
+          "name": "fuelPositions",
+          "type": "u128",
+          "index": false
+        },
+        {
+          "name": "fuelTaker",
+          "type": "u128",
+          "index": false
+        },
+        {
+          "name": "fuelMaker",
+          "type": "u128",
+          "index": false
+        },
+        {
+          "name": "fuelTotal",
+          "type": "u128",
           "index": false
         }
       ]
@@ -14657,6 +14939,16 @@
       "code": 6309,
       "name": "SwiftUserContextUserMismatch",
       "msg": "User in swift message does not match user in ix context"
+    },
+    {
+      "code": 6310,
+      "name": "UserFuelOverflowThresholdNotMet",
+      "msg": "User fuel overflow threshold not met"
+    },
+    {
+      "code": 6311,
+      "name": "FuelOverflowAccountNotFound",
+      "msg": "FuelOverflow account not found"
     }
   ],
   "metadata": {

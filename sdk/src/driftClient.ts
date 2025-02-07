@@ -87,6 +87,7 @@ import StrictEventEmitter from 'strict-event-emitter-types';
 import {
 	getDriftSignerPublicKey,
 	getDriftStateAccountPublicKey,
+	getFuelOverflowAccountPublicKey,
 	getHighLeverageModeConfigPublicKey,
 	getInsuranceFundStakeAccountPublicKey,
 	getOpenbookV2FulfillmentConfigPublicKey,
@@ -1117,6 +1118,62 @@ export class DriftClient {
 			});
 
 		return resizeUserAccountIx;
+	}
+
+	public async initializeFuelOverflow(
+		authority?: PublicKey
+	): Promise<TransactionSignature> {
+		const ix = await this.getInitializeFuelOverflowIx(authority);
+		const tx = await this.buildTransaction([ix], this.txParams);
+		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+		return txSig;
+	}
+
+	public async getInitializeFuelOverflowIx(
+		authority?: PublicKey
+	): Promise<TransactionInstruction> {
+		return await this.program.instruction.initializeFuelOverflow({
+			accounts: {
+				fuelOverflow: getFuelOverflowAccountPublicKey(
+					this.program.programId,
+					authority ?? this.wallet.publicKey
+				),
+				userStats: getUserStatsAccountPublicKey(
+					this.program.programId,
+					authority ?? this.wallet.publicKey
+				),
+				authority: authority ?? this.wallet.publicKey,
+				payer: this.wallet.publicKey,
+				rent: anchor.web3.SYSVAR_RENT_PUBKEY,
+				systemProgram: anchor.web3.SystemProgram.programId,
+			},
+		});
+	}
+
+	public async sweepFuel(authority?: PublicKey): Promise<TransactionSignature> {
+		const ix = await this.getSweepFuelIx(authority);
+		const tx = await this.buildTransaction([ix], this.txParams);
+		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+		return txSig;
+	}
+
+	public async getSweepFuelIx(
+		authority?: PublicKey
+	): Promise<TransactionInstruction> {
+		return await this.program.instruction.sweepFuel({
+			accounts: {
+				fuelOverflow: getFuelOverflowAccountPublicKey(
+					this.program.programId,
+					authority ?? this.wallet.publicKey
+				),
+				userStats: getUserStatsAccountPublicKey(
+					this.program.programId,
+					authority ?? this.wallet.publicKey
+				),
+				authority: authority ?? this.wallet.publicKey,
+				signer: this.wallet.publicKey,
+			},
+		});
 	}
 
 	async getInitializeUserInstructions(
