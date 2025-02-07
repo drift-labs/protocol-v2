@@ -15,10 +15,10 @@ use crate::math::constants::{
 use crate::math::constants::{
     AMM_RESERVE_PRECISION_I128, AMM_TO_QUOTE_PRECISION_RATIO, BID_ASK_SPREAD_PRECISION,
     BID_ASK_SPREAD_PRECISION_U128, DEFAULT_REVENUE_SINCE_LAST_FUNDING_SPREAD_RETREAT,
-    LIQUIDATION_FEE_PRECISION, LP_FEE_SLICE_DENOMINATOR, LP_FEE_SLICE_NUMERATOR, MARGIN_PRECISION,
-    MARGIN_PRECISION_U128, MAX_LIQUIDATION_MULTIPLIER, PEG_PRECISION, PERCENTAGE_PRECISION,
-    PERCENTAGE_PRECISION_I128, PERCENTAGE_PRECISION_I64, PERCENTAGE_PRECISION_U64, PRICE_PRECISION,
-    SPOT_WEIGHT_PRECISION, TWENTY_FOUR_HOUR,
+    LIQUIDATION_FEE_PRECISION, LIQUIDATION_FEE_TO_MARGIN_PRECISION_RATIO, LP_FEE_SLICE_DENOMINATOR,
+    LP_FEE_SLICE_NUMERATOR, MARGIN_PRECISION, MARGIN_PRECISION_U128, MAX_LIQUIDATION_MULTIPLIER,
+    PEG_PRECISION, PERCENTAGE_PRECISION, PERCENTAGE_PRECISION_I128, PERCENTAGE_PRECISION_I64,
+    PERCENTAGE_PRECISION_U64, PRICE_PRECISION, SPOT_WEIGHT_PRECISION, TWENTY_FOUR_HOUR,
 };
 use crate::math::helpers::get_proportion_i128;
 use crate::math::margin::{
@@ -478,11 +478,10 @@ impl PerpMarket {
     pub fn get_base_liquidator_fee(&self, user_high_leverage_mode: bool) -> u32 {
         if user_high_leverage_mode && self.is_high_leverage_mode_enabled() {
             // min(liquidator_fee, .8 * high_leverage_margin_ratio_maintenance)
-            self.liquidator_fee.min(
-                self.high_leverage_margin_ratio_maintenance
-                    .saturating_sub(self.high_leverage_margin_ratio_maintenance / 5)
-                    as u32,
-            )
+            let margin_ratio = (self.high_leverage_margin_ratio_maintenance as u32)
+                .saturating_mul(LIQUIDATION_FEE_TO_MARGIN_PRECISION_RATIO);
+            self.liquidator_fee
+                .min(margin_ratio.saturating_sub(margin_ratio / 5))
         } else {
             self.liquidator_fee
         }
