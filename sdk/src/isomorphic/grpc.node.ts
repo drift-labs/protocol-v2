@@ -1,5 +1,5 @@
-import Client from '@triton-one/yellowstone-grpc';
-import {
+import type Client from '@triton-one/yellowstone-grpc';
+import type {
 	SubscribeRequest,
 	SubscribeUpdate,
 	CommitmentLevel,
@@ -16,8 +16,9 @@ export {
 };
 
 // Export a function to create a new Client instance
-export function createClient(
+export async function createClient(
 	...args: ConstructorParameters<typeof Client>
-): Client {
-	return new Client(...args);
+): Promise<Client> {
+	const { default: Client_ } = await import('@triton-one/yellowstone-grpc');
+	return new Client_(...args);
 }

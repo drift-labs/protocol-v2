@@ -1,5 +1,5 @@
 {
-  "version": "2.107.0",
+  "version": "2.108.0",
   "name": "drift",
   "instructions": [
     {
@@ -10876,11 +10876,18 @@
             "type": "u8"
           },
           {
+            "name": "postedSlotTail",
+            "docs": [
+              "Last 8 bits of the slot the order was posted on-chain (not order slot for swift orders)"
+            ],
+            "type": "u8"
+          },
+          {
             "name": "padding",
             "type": {
               "array": [
                 "u8",
-                3
+                2
               ]
             }
           }
@@ -11463,6 +11470,9 @@
           },
           {
             "name": "PythLazer1M"
+          },
+          {
+            "name": "PythLazerStableCoin"
           }
         ]
       }

@@ -446,15 +446,10 @@ impl User {
     }
 
     pub fn get_fuel_bonus_numerator(&self, now: i64) -> DriftResult<i64> {
-        if self.last_fuel_bonus_update_ts > 0 {
+        if self.last_fuel_bonus_update_ts.cast::<i64>()? >= FUEL_START_TS {
             now.safe_sub(self.last_fuel_bonus_update_ts.cast()?)
         } else {
-            // start ts for existing accounts pre fuel
-            if now > FUEL_START_TS {
-                now.safe_sub(FUEL_START_TS)
-            } else {
-                Ok(0)
-            }
+            Ok(0)
         }
     }
 
@@ -1344,7 +1339,9 @@ pub struct Order {
     pub trigger_condition: OrderTriggerCondition,
     /// How many slots the auction lasts
     pub auction_duration: u8,
-    pub padding: [u8; 3],
+    /// Last 8 bits of the slot the order was posted on-chain (not order slot for swift orders)
+    pub posted_slot_tail: u8,
+    pub padding: [u8; 2],
 }
 
 #[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Eq, Debug)]
@@ -1619,7 +1616,8 @@ impl Default for Order {
             auction_end_price: 0,
             auction_duration: 0,
             max_ts: 0,
-            padding: [0; 3],
+            posted_slot_tail: 0,
+            padding: [0; 2],
         }
     }
 }

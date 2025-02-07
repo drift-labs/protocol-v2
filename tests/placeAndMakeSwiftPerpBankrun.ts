@@ -41,6 +41,8 @@ import {
 	ZERO,
 	Order,
 	getPythLazerOraclePublicKey,
+	getUserStatsAccountPublicKey,
+	UserStatsAccount,
 } from '../sdk/src';
 
 import {
@@ -61,7 +63,11 @@ import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
 import dotenv from 'dotenv';
 import { nanoid } from 'nanoid';
 import { createHash } from 'crypto';
-import { PYTH_LAZER_HEX_STRING_SOL, PYTH_STORAGE_DATA } from './pythLazerData';
+import {
+	PYTH_LAZER_HEX_STRING_SOL,
+	PYTH_LAZER_HEX_STRING_SOL_LATER,
+	PYTH_STORAGE_DATA,
+} from './pythLazerData';
 
 dotenv.config();
 
@@ -469,6 +475,7 @@ describe('place and make swift order', () => {
 			quoteAssetAmountFilled: ZERO,
 			quoteAssetAmount: ZERO,
 			userOrderId: 0,
+			postedSlotTail: 0,
 		};
 
 		const fillIx = await makerDriftClient.getFillPerpOrderIx(
@@ -506,6 +513,194 @@ describe('place and make swift order', () => {
 				.getUser()
 				.getPerpPosition(0)
 				.baseAssetAmount.eq(BASE_PRECISION)
+		);
+
+		await takerDriftClientUser.unsubscribe();
+		await takerDriftClient.unsubscribe();
+	});
+
+	it('should not fill against the vamm if the user is toxic', async () => {
+		const slot = new BN(
+			await bankrunContextWrapper.connection.toConnection().getSlot()
+		);
+
+		const [lookupTableInst, lookupTableAddress] =
+			AddressLookupTableProgram.createLookupTable({
+				authority: makerDriftClient.wallet.publicKey,
+				payer: makerDriftClient.wallet.publicKey,
+				recentSlot: slot.toNumber() - 10,
+			});
+
+		const extendInstruction = AddressLookupTableProgram.extendLookupTable({
+			payer: makerDriftClient.wallet.publicKey,
+			authority: makerDriftClient.wallet.publicKey,
+			lookupTable: lookupTableAddress,
+			addresses: [
+				SystemProgram.programId,
+				solUsd,
+				solUsdLazer,
+				...makerDriftClient
+					.getPerpMarketAccounts()
+					.map((account) => account.pubkey),
+				...makerDriftClient
+					.getPerpMarketAccounts()
+					.map((account) => account.amm.oracle),
+				...makerDriftClient
+					.getSpotMarketAccounts()
+					.map((account) => account.pubkey),
+				...makerDriftClient
+					.getSpotMarketAccounts()
+					.map((account) => account.oracle),
+				PYTH_LAZER_STORAGE_ACCOUNT_KEY,
+			],
+		});
+
+		const tx = new Transaction().add(lookupTableInst).add(extendInstruction);
+		await makerDriftClient.sendTransaction(tx);
+		console.log(`Lookup table: ${lookupTableAddress.toBase58()}`);
+
+		const [takerDriftClient, takerDriftClientUser] =
+			await initializeNewTakerClientAndUser(
+				bankrunContextWrapper,
+				chProgram,
+				usdcMint,
+				usdcAmount,
+				marketIndexes,
+				spotMarketIndexes,
+				oracleInfos,
+				bulkAccountLoader
+			);
+		await takerDriftClientUser.fetchAccounts();
+
+		// Create 11 subaccounts so our user is considered toxic
+		for (let i = 1; i < 11; i++) {
+			await takerDriftClient.initializeUserAccount(i);
+		}
+
+		const userStatsPubkey = getUserStatsAccountPublicKey(
+			chProgram.programId,
+			takerDriftClient.wallet.publicKey
+		);
+		const userStatsData = await bankrunContextWrapper.connection.getAccountInfo(
+			userStatsPubkey
+		);
+		const userStats: UserStatsAccount =
+			chProgram.account.userStats.coder.accounts.decodeUnchecked(
+				'UserStats',
+				userStatsData.data
+			);
+
+		assert(userStats.numberOfSubAccounts == 11);
+
+		const marketIndex = 0;
+		const baseAssetAmount = BASE_PRECISION;
+		const takerOrderParams = getMarketOrderParams({
+			marketIndex,
+			direction: PositionDirection.LONG,
+			baseAssetAmount,
+			auctionStartPrice: new BN(223).mul(PRICE_PRECISION),
+			auctionEndPrice: new BN(226).mul(PRICE_PRECISION),
+			auctionDuration: 30,
+			userOrderId: 1,
+			postOnly: PostOnlyParams.NONE,
+		});
+		const uuid = nanoid(8);
+		const swiftSlot = slot.subn(50);
+		const takerOrderParamsMessage: SwiftOrderParamsMessage = {
+			swiftOrderParams: takerOrderParams,
+			subAccountId: 0,
+			uuid: Uint8Array.from(Buffer.from(uuid)),
+			slot: swiftSlot,
+			takeProfitOrderParams: null,
+			stopLossOrderParams: null,
+		};
+		const signedOrderParams = takerDriftClient.signSwiftOrderParamsMessage(
+			takerOrderParamsMessage
+		);
+
+		// Get pyth lazer instruction
+		const pythLazerCrankIxs =
+			await makerDriftClient.getPostPythLazerOracleUpdateIxs(
+				[6],
+				PYTH_LAZER_HEX_STRING_SOL_LATER,
+				undefined,
+				1
+			);
+
+		const placeSwiftTakerOrderIxs =
+			await makerDriftClient.getPlaceSwiftTakerPerpOrderIxs(
+				signedOrderParams,
+				takerOrderParams.marketIndex,
+				{
+					taker: await takerDriftClient.getUserAccountPublicKey(),
+					takerUserAccount: takerDriftClient.getUserAccount(),
+					takerStats: takerDriftClient.getUserStatsAccountPublicKey(),
+				},
+				undefined,
+				pythLazerCrankIxs
+			);
+
+		const swiftOrder: Order = {
+			status: 'open',
+			orderType: OrderType.MARKET,
+			orderId: null,
+			slot: swiftSlot,
+			marketIndex: 0,
+			marketType: MarketType.PERP,
+			baseAssetAmount: takerOrderParams.baseAssetAmount,
+			auctionDuration: takerOrderParams.auctionDuration!,
+			auctionStartPrice: takerOrderParams.auctionStartPrice!,
+			auctionEndPrice: takerOrderParams.auctionEndPrice!,
+			immediateOrCancel: true,
+			direction: takerOrderParams.direction,
+			postOnly: false,
+			oraclePriceOffset: takerOrderParams.oraclePriceOffset ?? 0,
+			// Rest are not required for DLOB
+			price: ZERO,
+			maxTs: ZERO,
+			triggerPrice: ZERO,
+			triggerCondition: OrderTriggerCondition.ABOVE,
+			existingPositionDirection: PositionDirection.LONG,
+			reduceOnly: false,
+			baseAssetAmountFilled: ZERO,
+			quoteAssetAmountFilled: ZERO,
+			quoteAssetAmount: ZERO,
+			userOrderId: 0,
+			postedSlotTail: 0,
+		};
+
+		const fillIx = await makerDriftClient.getFillPerpOrderIx(
+			takerDriftClientUser.getUserAccountPublicKey(),
+			takerDriftClientUser.getUserAccount(),
+			swiftOrder,
+			undefined,
+			undefined,
+			undefined,
+			true
+		);
+
+		const txMessage = new TransactionMessage({
+			payerKey: makerDriftClient.wallet.publicKey,
+			recentBlockhash: (await makerDriftClient.connection.getLatestBlockhash())
+				.blockhash,
+			instructions: [...pythLazerCrankIxs, ...placeSwiftTakerOrderIxs, fillIx],
+		});
+
+		const lookupTableAccount = (
+			await bankrunContextWrapper.connection.getAddressLookupTable(
+				lookupTableAddress
+			)
+		).value;
+		const message = txMessage.compileToV0Message([lookupTableAccount]);
+
+		const txSig = await makerDriftClient.connection.sendTransaction(
+			new VersionedTransaction(message)
+		);
+		console.log(txSig);
+
+		await takerDriftClient.fetchAccounts();
+		assert(
+			takerDriftClient.getUser().getPerpPosition(0).baseAssetAmount.eq(ZERO)
 		);
 
 		await takerDriftClientUser.unsubscribe();

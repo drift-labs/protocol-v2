@@ -1469,6 +1469,9 @@ impl AMM {
             OracleSource::PythLazer1M => Ok(Some(
                 self.get_pyth_twap(price_oracle, &OracleSource::PythLazer1M)?,
             )),
+            OracleSource::PythLazerStableCoin => Ok(Some(
+                self.get_pyth_twap(price_oracle, &OracleSource::PythLazerStableCoin)?,
+            )),
         }
     }
 

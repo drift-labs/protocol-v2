@@ -388,6 +388,11 @@ export class UserMap implements UserMapInterface {
 		}
 	}
 
+	/**
+	 * Syncs the UserMap using the default sync method (single getProgramAccounts call with filters).
+	 * This method may fail when drift has too many users. (nodejs response size limits)
+	 * @returns
+	 */
 	private async defaultSync() {
 		if (this.syncPromise) {
 			return this.syncPromise;
@@ -487,6 +492,11 @@ export class UserMap implements UserMapInterface {
 		}
 	}
 
+	/**
+	 * Syncs the UserMap using the paginated sync method (multiple getMultipleAccounts calls with filters).
+	 * This method is more reliable when drift has many users.
+	 * @returns
+	 */
 	private async paginatedSync() {
 		if (this.syncPromise) {
 			return this.syncPromise;

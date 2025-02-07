@@ -1093,6 +1093,7 @@ export class DLOB {
 		const generatorList = [
 			nodeLists.restingLimit.ask.getGenerator(),
 			nodeLists.floatingLimit.ask.getGenerator(),
+			nodeLists.protectedFloatingLimit.ask.getGenerator(),
 		];
 
 		yield* this.getBestNode(
@@ -1131,6 +1132,7 @@ export class DLOB {
 		const generatorList = [
 			nodeLists.restingLimit.bid.getGenerator(),
 			nodeLists.floatingLimit.bid.getGenerator(),
+			nodeLists.protectedFloatingLimit.bid.getGenerator(),
 		];
 
 		yield* this.getBestNode(

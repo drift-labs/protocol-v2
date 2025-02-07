@@ -77,14 +77,15 @@ export class gprcDriftClientAccountSubscriber extends WebSocketDriftClientAccoun
 		);
 
 		// create and activate main state account subscription
-		this.stateAccountSubscriber = new grpcAccountSubscriber(
-			this.grpcConfigs,
-			'state',
-			this.program,
-			statePublicKey,
-			undefined,
-			undefined
-		);
+		this.stateAccountSubscriber =
+			await grpcAccountSubscriber.create<StateAccount>(
+				this.grpcConfigs,
+				'state',
+				this.program,
+				statePublicKey,
+				undefined,
+				undefined
+			);
 		await this.stateAccountSubscriber.subscribe((data: StateAccount) => {
 			this.eventEmitter.emit('stateAccountUpdate', data);
 			this.eventEmitter.emit('update');
@@ -126,14 +127,15 @@ export class gprcDriftClientAccountSubscriber extends WebSocketDriftClientAccoun
 			this.program.programId,
 			marketIndex
 		);
-		const accountSubscriber = new grpcAccountSubscriber<SpotMarketAccount>(
-			this.grpcConfigs,
-			'spotMarket',
-			this.program,
-			marketPublicKey,
-			undefined,
-			this.resubOpts
-		);
+		const accountSubscriber =
+			await grpcAccountSubscriber.create<SpotMarketAccount>(
+				this.grpcConfigs,
+				'spotMarket',
+				this.program,
+				marketPublicKey,
+				undefined,
+				this.resubOpts
+			);
 		accountSubscriber.setData(
 			this.initialSpotMarketAccountData.get(marketIndex)
 		);
@@ -150,14 +152,15 @@ export class gprcDriftClientAccountSubscriber extends WebSocketDriftClientAccoun
 			this.program.programId,
 			marketIndex
 		);
-		const accountSubscriber = new grpcAccountSubscriber<PerpMarketAccount>(
-			this.grpcConfigs,
-			'perpMarket',
-			this.program,
-			perpMarketPublicKey,
-			undefined,
-			this.resubOpts
-		);
+		const accountSubscriber =
+			await grpcAccountSubscriber.create<PerpMarketAccount>(
+				this.grpcConfigs,
+				'perpMarket',
+				this.program,
+				perpMarketPublicKey,
+				undefined,
+				this.resubOpts
+			);
 		accountSubscriber.setData(
 			this.initialPerpMarketAccountData.get(marketIndex)
 		);
@@ -176,16 +179,17 @@ export class gprcDriftClientAccountSubscriber extends WebSocketDriftClientAccoun
 			this.program.provider.connection,
 			this.program
 		);
-		const accountSubscriber = new grpcAccountSubscriber<OraclePriceData>(
-			this.grpcConfigs,
-			'oracle',
-			this.program,
-			oracleInfo.publicKey,
-			(buffer: Buffer) => {
-				return client.getOraclePriceDataFromBuffer(buffer);
-			},
-			this.resubOpts
-		);
+		const accountSubscriber =
+			await grpcAccountSubscriber.create<OraclePriceData>(
+				this.grpcConfigs,
+				'oracle',
+				this.program,
+				oracleInfo.publicKey,
+				(buffer: Buffer) => {
+					return client.getOraclePriceDataFromBuffer(buffer);
+				},
+				this.resubOpts
+			);
 		accountSubscriber.setData(this.initialOraclePriceData.get(oracleId));
 		await accountSubscriber.subscribe((data: OraclePriceData) => {
 			this.eventEmitter.emit(

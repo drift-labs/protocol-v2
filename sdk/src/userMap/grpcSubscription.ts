@@ -52,7 +52,7 @@ export class grpcSubscription {
 			if (this.additionalFilters) {
 				filters.push(...this.additionalFilters);
 			}
-			this.subscriber = new grpcProgramAccountSubscriber<UserAccount>(
+			this.subscriber = await grpcProgramAccountSubscriber.create<UserAccount>(
 				this.grpcConfigs,
 				'UserMap',
 				'User',

@@ -9,10 +9,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Features
 
+- program: add posted slot tail to order struct, use it to determine vamm availability for high volume users ([#1459](https://github.com/drift-labs/protocol-v2/pull/1459))
+- program: add pyth lazer stable coin oracle type ([#1463](https://github.com/drift-labs/protocol-v2/pull/1463))
+
+### Fixes
+
+### Breaking
+
+## [2.108.0] - 2025-01-30
+
+### Features
+
 - program: add separate liquidator fee for high leverage mode ([#1451](https://github.com/drift-labs/protocol-v2/pull/1451))
 - program: update pyth lazer verification ([#1441](https://github.com/drift-labs/protocol-v2/pull/1441))
 
 ### Fixes
+
+- program: apply liq buffer to negative pnl ([#1445](https://github.com/drift-labs/protocol-v2/pull/1445))
+- program: update get fuel bonus numerator ts ([#1446](https://github.com/drift-labs/protocol-v2/pull/1446))
 
 ### Breaking
 
