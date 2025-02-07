@@ -4354,10 +4354,7 @@ pub struct InitializeSpotMarket<'info> {
     )]
     /// CHECK: program signer
     pub drift_signer: AccountInfo<'info>,
-    #[account(
-        mut,
-        has_one = admin
-    )]
+    #[account(mut)]
     pub state: Box<Account<'info, State>>,
     /// CHECK: checked in `initialize_spot_market`
     pub oracle: AccountInfo<'info>,
@@ -4532,10 +4529,7 @@ pub struct InitializePerpMarket<'info> {
         constraint = admin.key() == admin_hot_wallet::id() || admin.key() == state.admin
     )]
     pub admin: Signer<'info>,
-    #[account(
-        mut,
-        has_one = admin
-    )]
+    #[account(mut)]
     pub state: Box<Account<'info, State>>,
     #[account(
         init,
