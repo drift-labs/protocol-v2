@@ -2364,7 +2364,8 @@ pub mod liquidate_perp {
         )
         .unwrap();
 
-        let margin_ratio = margin_calc.total_collateral.unsigned_abs() * MARGIN_PRECISION_U128 / perp_value;
+        let margin_ratio =
+            margin_calc.total_collateral.unsigned_abs() * MARGIN_PRECISION_U128 / perp_value;
 
         assert_eq!(margin_ratio, 300);
 
