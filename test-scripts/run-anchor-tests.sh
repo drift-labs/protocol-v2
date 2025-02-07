@@ -17,6 +17,7 @@ test_files=(
   # updateK.ts
   # postOnlyAmmFulfillment.ts
   # TODO BROKEN ^^
+  decodeUser.ts
   fuel.ts
   fuelSweep.ts
   admin.ts
