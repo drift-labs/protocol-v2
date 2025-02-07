@@ -11470,6 +11470,9 @@
           },
           {
             "name": "PythLazer1M"
+          },
+          {
+            "name": "PythLazerStableCoin"
           }
         ]
       }

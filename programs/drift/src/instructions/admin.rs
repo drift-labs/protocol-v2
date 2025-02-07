@@ -240,6 +240,14 @@ pub fn handle_initialize_spot_market(
         return Err(ErrorCode::DefaultError.into());
     };
 
+    if active_status {
+        validate!(
+            ctx.accounts.admin.key() == state.admin,
+            ErrorCode::DefaultError,
+            "admin must be state admin"
+        )?;
+    }
+
     **spot_market = SpotMarket {
         market_index: spot_market_index,
         pubkey: spot_market_pubkey,
@@ -857,6 +865,18 @@ pub fn handle_initialize_perp_market(
                 .get_pyth_twap(&ctx.accounts.oracle, &OracleSource::PythLazer1M)?;
             (oracle_price, oracle_delay, last_oracle_price_twap)
         }
+        OracleSource::PythLazerStableCoin => {
+            let OraclePriceData {
+                price: oracle_price,
+                delay: oracle_delay,
+                ..
+            } = get_pyth_price(
+                &ctx.accounts.oracle,
+                clock_slot,
+                &OracleSource::PythLazerStableCoin,
+            )?;
+            (oracle_price, oracle_delay, QUOTE_PRECISION_I64)
+        }
     };
 
     validate_margin(
@@ -876,6 +896,14 @@ pub fn handle_initialize_perp_market(
         market_index,
         state.number_of_markets
     )?;
+
+    if active_status {
+        validate!(
+            ctx.accounts.admin.key() == state.admin,
+            ErrorCode::DefaultError,
+            "admin must be state admin"
+        )?;
+    }
 
     **perp_market = PerpMarket {
         contract_type: ContractType::Perpetual,
@@ -4338,14 +4366,14 @@ pub struct InitializeSpotMarket<'info> {
     )]
     /// CHECK: program signer
     pub drift_signer: AccountInfo<'info>,
-    #[account(
-        mut,
-        has_one = admin
-    )]
+    #[account(mut)]
     pub state: Box<Account<'info, State>>,
     /// CHECK: checked in `initialize_spot_market`
     pub oracle: AccountInfo<'info>,
-    #[account(mut)]
+    #[account(
+        mut,
+        constraint = admin.key() == admin_hot_wallet::id() || admin.key() == state.admin
+    )]
     pub admin: Signer<'info>,
     pub rent: Sysvar<'info, Rent>,
     pub system_program: Program<'info, System>,
@@ -4508,12 +4536,12 @@ pub struct UpdateSerumVault<'info> {
 
 #[derive(Accounts)]
 pub struct InitializePerpMarket<'info> {
-    #[account(mut)]
-    pub admin: Signer<'info>,
     #[account(
         mut,
-        has_one = admin
+        constraint = admin.key() == admin_hot_wallet::id() || admin.key() == state.admin
     )]
+    pub admin: Signer<'info>,
+    #[account(mut)]
     pub state: Box<Account<'info, State>>,
     #[account(
         init,

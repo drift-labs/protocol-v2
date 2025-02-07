@@ -76,5 +76,9 @@ export function getOracleClient(
 		return new PythLazerClient(connection, new BN(1000000));
 	}
 
+	if (isVariant(oracleSource, 'pythLazerStableCoin')) {
+		return new PythLazerClient(connection, undefined, true);
+	}
+
 	throw new Error(`Unknown oracle source ${oracleSource}`);
 }

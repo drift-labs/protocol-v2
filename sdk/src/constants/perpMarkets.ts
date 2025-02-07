@@ -1180,6 +1180,18 @@ export const MainnetPerpMarkets: PerpMarketConfig[] = [
 		pythFeedId:
 			'0x8fef7d52c7f4e3a6258d663f9d27e64a1b6fd95ab5f7d545dbf9a515353d0064',
 	},
+	{
+		fullName: 'BERA',
+		category: ['L1', 'EVM'],
+		symbol: 'BERA-PERP',
+		baseAssetSymbol: 'BERA',
+		marketIndex: 66,
+		oracle: new PublicKey('53Ae7ArP9yCnjqL2CqxJ1zdv3ba64NoVTqRcwjrCg181'),
+		launchTs: 1738850177000,
+		oracleSource: OracleSource.PYTH_PULL,
+		pythFeedId:
+			'0x962088abcfdbdb6e30db2e340c8cf887d9efb311b1f2f17b155a63dbb6d40265',
+	},
 ];
 
 export const PerpMarkets: { [key in DriftEnv]: PerpMarketConfig[] } = {
