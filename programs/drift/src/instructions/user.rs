@@ -1255,6 +1255,59 @@ pub fn handle_transfer_pools<'c: 'info, 'info>(
 
     to_user.update_last_active_slot(slot);
 
+    let deposit_from_spot_market = spot_market_map.get_ref(&deposit_from_market_index)?;
+    let deposit_to_spot_market = spot_market_map.get_ref(&deposit_to_market_index)?;
+    let borrow_from_spot_market = spot_market_map.get_ref(&borrow_from_market_index)?;
+    let borrow_to_spot_market = spot_market_map.get_ref(&borrow_to_market_index)?;
+
+    if deposit_transfer > 0 {
+        controller::token::send_from_program_vault(
+            &ctx.accounts.token_program,
+            &ctx.accounts.deposit_from_spot_market_vault,
+            &ctx.accounts.deposit_to_spot_market_vault,
+            &ctx.accounts.drift_signer,
+            state.signer_nonce,
+            deposit_transfer,
+            &None,
+        )?;
+    }
+
+    if borrow_amount > 0 {
+        controller::token::send_from_program_vault(
+            &ctx.accounts.token_program,
+            &ctx.accounts.borrow_to_spot_market_vault,
+            &ctx.accounts.borrow_from_spot_market_vault,
+            &ctx.accounts.drift_signer,
+            state.signer_nonce,
+            borrow_amount,
+            &None,
+        )?;
+    }
+
+    ctx.accounts.deposit_from_spot_market_vault.reload()?;
+    math::spot_withdraw::validate_spot_market_vault_amount(
+        &deposit_from_spot_market,
+        ctx.accounts.deposit_from_spot_market_vault.amount,
+    )?;
+
+    ctx.accounts.deposit_to_spot_market_vault.reload()?;
+    math::spot_withdraw::validate_spot_market_vault_amount(
+        &deposit_to_spot_market,
+        ctx.accounts.deposit_to_spot_market_vault.amount,
+    )?;
+
+    ctx.accounts.borrow_from_spot_market_vault.reload()?;
+    math::spot_withdraw::validate_spot_market_vault_amount(
+        &borrow_from_spot_market,
+        ctx.accounts.borrow_from_spot_market_vault.amount,
+    )?;
+
+    ctx.accounts.borrow_to_spot_market_vault.reload()?;
+    math::spot_withdraw::validate_spot_market_vault_amount(
+        &borrow_to_spot_market,
+        ctx.accounts.borrow_to_spot_market_vault.amount,
+    )?;
+
     Ok(())
 }
 
@@ -3784,6 +3837,12 @@ pub struct TransferPools<'info> {
         bump,
     )]
     pub borrow_to_spot_market_vault: Box<InterfaceAccount<'info, TokenAccount>>, 
+    pub token_program: Interface<'info, TokenInterface>,
+    #[account(
+        constraint = state.signer.eq(&drift_signer.key())
+    )]
+    /// CHECK: forced drift_signer
+    pub drift_signer: AccountInfo<'info>,
 }
 
 #[derive(Accounts)]
