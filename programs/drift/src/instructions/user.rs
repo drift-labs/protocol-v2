@@ -1,4 +1,5 @@
 use std::collections::HashSet;
+use std::convert::TryFrom;
 
 use anchor_lang::prelude::*;
 use anchor_lang::Discriminator;
@@ -947,7 +948,12 @@ pub fn handle_transfer_pools<'c: 'info, 'info>(
     } = load_maps(
         &mut ctx.remaining_accounts.iter().peekable(),
         &MarketSet::new(),
-        &get_writable_spot_market_set_from_many(vec![deposit_from_market_index, deposit_to_market_index, borrow_from_market_index, borrow_to_market_index]),
+        &get_writable_spot_market_set_from_many(vec![
+            deposit_from_market_index,
+            deposit_to_market_index,
+            borrow_from_market_index,
+            borrow_to_market_index,
+        ]),
         clock.slot,
         Some(state.oracle_guard_rails),
     )?;
@@ -987,10 +993,14 @@ pub fn handle_transfer_pools<'c: 'info, 'info>(
         "deposit from and to spot markets must have different pool ids"
     )?;
 
-    let deposit_from_oracle_price_data = *oracle_map.get_price_data(&deposit_from_spot_market.oracle_id())?;
-    let deposit_to_oracle_price_data = *oracle_map.get_price_data(&deposit_to_spot_market.oracle_id())?;
-    let borrow_from_oracle_price_data = *oracle_map.get_price_data(&borrow_from_spot_market.oracle_id())?;
-    let borrow_to_oracle_price_data = *oracle_map.get_price_data(&borrow_to_spot_market.oracle_id())?;
+    let deposit_from_oracle_price_data =
+        *oracle_map.get_price_data(&deposit_from_spot_market.oracle_id())?;
+    let deposit_to_oracle_price_data =
+        *oracle_map.get_price_data(&deposit_to_spot_market.oracle_id())?;
+    let borrow_from_oracle_price_data =
+        *oracle_map.get_price_data(&borrow_from_spot_market.oracle_id())?;
+    let borrow_to_oracle_price_data =
+        *oracle_map.get_price_data(&borrow_to_spot_market.oracle_id())?;
 
     controller::spot_balance::update_spot_market_cumulative_interest(
         &mut deposit_from_spot_market,
@@ -1015,7 +1025,7 @@ pub fn handle_transfer_pools<'c: 'info, 'info>(
         Some(&borrow_to_oracle_price_data),
         clock.unix_timestamp,
     )?;
-    
+
     let deposit_transfer = {
         let spot_position = from_user.force_get_spot_position_mut(deposit_from_market_index)?;
 
@@ -1025,7 +1035,9 @@ pub fn handle_transfer_pools<'c: 'info, 'info>(
             "deposit amount is greater than the spot position balance"
         )?;
 
-        let token_amount = spot_position.get_token_amount(&deposit_from_spot_market)?.cast::<u64>()?;
+        let token_amount = spot_position
+            .get_token_amount(&deposit_from_spot_market)?
+            .cast::<u64>()?;
 
         let amount = match deposit_amount {
             Some(amount) => amount,
@@ -1055,7 +1067,8 @@ pub fn handle_transfer_pools<'c: 'info, 'info>(
             from_user,
         )?;
 
-        let deposit_record_id = get_then_update_id!(deposit_from_spot_market, next_deposit_record_id);
+        let deposit_record_id =
+            get_then_update_id!(deposit_from_spot_market, next_deposit_record_id);
         let deposit_record = DepositRecord {
             ts: clock.unix_timestamp,
             deposit_record_id,
@@ -1067,7 +1080,8 @@ pub fn handle_transfer_pools<'c: 'info, 'info>(
             market_index: deposit_from_market_index,
             market_deposit_balance: deposit_from_spot_market.deposit_balance,
             market_withdraw_balance: deposit_from_spot_market.borrow_balance,
-            market_cumulative_deposit_interest: deposit_from_spot_market.cumulative_deposit_interest,
+            market_cumulative_deposit_interest: deposit_from_spot_market
+                .cumulative_deposit_interest,
             market_cumulative_borrow_interest: deposit_from_spot_market.cumulative_borrow_interest,
             total_deposits_after: from_user.total_deposits,
             total_withdraws_after: from_user.total_withdraws,
@@ -1120,7 +1134,9 @@ pub fn handle_transfer_pools<'c: 'info, 'info>(
             "borrow amount is greater than the spot position balance"
         )?;
 
-        let token_amount = spot_position.get_token_amount(&borrow_from_spot_market)?.cast::<u64>()?;
+        let token_amount = spot_position
+            .get_token_amount(&borrow_from_spot_market)?
+            .cast::<u64>()?;
 
         let amount = match borrow_amount {
             Some(amount) => amount,
@@ -1135,7 +1151,7 @@ pub fn handle_transfer_pools<'c: 'info, 'info>(
 
         amount
     };
-    
+
     if borrow_amount > 0 {
         from_user.increment_total_deposits(
             borrow_amount,
@@ -1150,7 +1166,8 @@ pub fn handle_transfer_pools<'c: 'info, 'info>(
             from_user,
         )?;
 
-        let deposit_record_id = get_then_update_id!(borrow_from_spot_market, next_deposit_record_id);
+        let deposit_record_id =
+            get_then_update_id!(borrow_from_spot_market, next_deposit_record_id);
         let deposit_record = DepositRecord {
             ts: clock.unix_timestamp,
             deposit_record_id,
@@ -1183,7 +1200,7 @@ pub fn handle_transfer_pools<'c: 'info, 'info>(
             &mut borrow_to_spot_market,
             to_user,
         )?;
-        
+
         let deposit_record_id = get_then_update_id!(borrow_to_spot_market, next_deposit_record_id);
         let deposit_record = DepositRecord {
             ts: clock.unix_timestamp,
@@ -1246,12 +1263,7 @@ pub fn handle_transfer_pools<'c: 'info, 'info>(
 
     from_user.update_last_active_slot(slot);
 
-    validate_spot_margin_trading(
-        to_user,
-        &perp_market_map,
-        &spot_market_map,
-        &mut oracle_map,
-    )?;
+    validate_spot_margin_trading(to_user, &perp_market_map, &spot_market_map, &mut oracle_map)?;
 
     to_user.update_last_active_slot(slot);
 
@@ -1261,26 +1273,58 @@ pub fn handle_transfer_pools<'c: 'info, 'info>(
     let borrow_to_spot_market = spot_market_map.get_ref(&borrow_to_market_index)?;
 
     if deposit_transfer > 0 {
+        let token_program_pubkey = deposit_from_spot_market.get_token_program();
+        let token_program = &ctx
+            .remaining_accounts
+            .iter()
+            .find(|acc| acc.key() == token_program_pubkey)
+            .map(|acc| Interface::try_from(acc))
+            .unwrap()
+            .unwrap();
+
+        let spot_market_mint = &deposit_from_spot_market.mint;
+        let mint_account_info = ctx
+            .remaining_accounts
+            .iter()
+            .find(|acc| acc.key() == spot_market_mint.key())
+            .map(|acc| InterfaceAccount::try_from(acc).unwrap());
+
         controller::token::send_from_program_vault(
-            &ctx.accounts.token_program,
+            token_program,
             &ctx.accounts.deposit_from_spot_market_vault,
             &ctx.accounts.deposit_to_spot_market_vault,
             &ctx.accounts.drift_signer,
             state.signer_nonce,
             deposit_transfer,
-            &None,
+            &mint_account_info,
         )?;
     }
 
     if borrow_amount > 0 {
+        let token_program_pubkey = borrow_to_spot_market.get_token_program();
+        let token_program = &ctx
+            .remaining_accounts
+            .iter()
+            .find(|acc| acc.key() == token_program_pubkey)
+            .map(|acc| Interface::try_from(acc))
+            .unwrap()
+            .unwrap();
+
+        let spot_market_mint = &borrow_to_spot_market.mint;
+        let mint_account_info = ctx
+            .remaining_accounts
+            .iter()
+            .find(|acc| acc.key() == spot_market_mint.key())
+            .map(|acc| InterfaceAccount::try_from(acc).unwrap());
+
         controller::token::send_from_program_vault(
-            &ctx.accounts.token_program,
+            token_program,
             &ctx.accounts.borrow_to_spot_market_vault,
             &ctx.accounts.borrow_from_spot_market_vault,
             &ctx.accounts.drift_signer,
             state.signer_nonce,
             borrow_amount,
-            &None,
+            &mint_account_info,
         )?;
     }
 
@@ -3836,8 +3880,7 @@ pub struct TransferPools<'info> {
         seeds = [b"spot_market_vault".as_ref(), borrow_to_market_index.to_le_bytes().as_ref()],
         bump,
     )]
-    pub borrow_to_spot_market_vault: Box<InterfaceAccount<'info, TokenAccount>>, 
-    pub token_program: Interface<'info, TokenInterface>,
+    pub borrow_to_spot_market_vault: Box<InterfaceAccount<'info, TokenAccount>>,
     #[account(
         constraint = state.signer.eq(&drift_signer.key())
     )]

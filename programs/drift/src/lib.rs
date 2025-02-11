@@ -121,7 +121,15 @@ pub mod drift {
         deposit_amount: Option<u64>,
         borrow_amount: Option<u64>,
     ) -> Result<()> {
-        handle_transfer_pools(ctx, deposit_from_market_index, deposit_to_market_index, borrow_from_market_index, borrow_to_market_index, deposit_amount, borrow_amount)
+        handle_transfer_pools(
+            ctx,
+            deposit_from_market_index,
+            deposit_to_market_index,
+            borrow_from_market_index,
+            borrow_to_market_index,
+            deposit_amount,
+            borrow_amount,
+        )
     }
 
     pub fn place_perp_order<'c: 'info, 'info>(
