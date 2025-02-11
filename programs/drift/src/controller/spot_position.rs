@@ -103,7 +103,7 @@ pub fn update_spot_balances_and_cumulative_deposits_with_limits(
     spot_market: &mut SpotMarket,
     user: &mut User,
 ) -> DriftResult {
-    let spot_position_index = user.get_spot_position_index(spot_market.market_index)?;
+    let spot_position_index = user.force_get_spot_position_index(spot_market.market_index)?;
 
     update_spot_balances_and_cumulative_deposits(
         token_amount,

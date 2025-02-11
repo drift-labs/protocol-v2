@@ -1032,7 +1032,7 @@ pub fn handle_transfer_pools<'c: 'info, 'info>(
         validate!(
             spot_position.balance_type == SpotBalanceType::Deposit,
             ErrorCode::InvalidSpotPosition,
-            "deposit amount is greater than the spot position balance"
+            "deposit from market must be a deposit spot position"
         )?;
 
         let token_amount = spot_position
@@ -1131,7 +1131,7 @@ pub fn handle_transfer_pools<'c: 'info, 'info>(
         validate!(
             spot_position.balance_type == SpotBalanceType::Borrow,
             ErrorCode::InvalidSpotPosition,
-            "borrow amount is greater than the spot position balance"
+            "borrow from market must be a borrow spot position"
         )?;
 
         let token_amount = spot_position
@@ -3862,21 +3862,25 @@ pub struct TransferPools<'info> {
     pub authority: Signer<'info>,
     pub state: Box<Account<'info, State>>,
     #[account(
+        mut,
         seeds = [b"spot_market_vault".as_ref(), deposit_from_market_index.to_le_bytes().as_ref()],
         bump,
     )]
     pub deposit_from_spot_market_vault: Box<InterfaceAccount<'info, TokenAccount>>,
     #[account(
+        mut,
         seeds = [b"spot_market_vault".as_ref(), deposit_to_market_index.to_le_bytes().as_ref()],
         bump,
     )]
     pub deposit_to_spot_market_vault: Box<InterfaceAccount<'info, TokenAccount>>,
     #[account(
+        mut,
         seeds = [b"spot_market_vault".as_ref(), borrow_from_market_index.to_le_bytes().as_ref()],
         bump,
     )]
     pub borrow_from_spot_market_vault: Box<InterfaceAccount<'info, TokenAccount>>,
     #[account(
+        mut,
         seeds = [b"spot_market_vault".as_ref(), borrow_to_market_index.to_le_bytes().as_ref()],
         bump,
     )]

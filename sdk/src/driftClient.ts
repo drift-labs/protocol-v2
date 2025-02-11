@@ -3106,8 +3106,8 @@ export class DriftClient {
 		depositToMarketIndex: number,
 		borrowFromMarketIndex: number,
 		borrowToMarketIndex: number,
-		depositAmount: BN,
-		borrowAmount: BN,
+		depositAmount: BN | undefined,
+		borrowAmount: BN | undefined,
 		fromSubAccountId: number,
 		toSubAccountId: number,
 		txParams?: TxParams
@@ -3147,8 +3147,8 @@ export class DriftClient {
 		depositToMarketIndex: number,
 		borrowFromMarketIndex: number,
 		borrowToMarketIndex: number,
-		depositAmount: BN,
-		borrowAmount: BN,
+		depositAmount: BN | undefined,
+		borrowAmount: BN | undefined,
 		fromSubAccountId: number,
 		toSubAccountId: number
 	): Promise<TransactionInstruction> {
@@ -3163,7 +3163,7 @@ export class DriftClient {
 			toSubAccountId
 		);
 
-		let userAccounts = [
+		const userAccounts = [
 			this.getUserAccount(fromSubAccountId),
 			this.getUserAccount(toSubAccountId),
 		];
@@ -3207,8 +3207,8 @@ export class DriftClient {
 			depositToMarketIndex,
 			borrowFromMarketIndex,
 			borrowToMarketIndex,
-			depositAmount,
-			borrowAmount,
+			depositAmount ?? null,
+			borrowAmount ?? null,
 			{
 				accounts: {
 					authority: this.wallet.publicKey,
@@ -3216,9 +3216,10 @@ export class DriftClient {
 					toUser,
 					userStats: this.getUserStatsAccountPublicKey(),
 					state: await this.getStatePublicKey(),
-					fromSpotMarketVault: this.getSpotMarketAccount(depositFromMarketIndex)
-						.vault,
-					toSpotMarketVault:
+					depositFromSpotMarketVault: this.getSpotMarketAccount(
+						depositFromMarketIndex
+					).vault,
+					depositToSpotMarketVault:
 						this.getSpotMarketAccount(depositToMarketIndex).vault,
 					borrowFromSpotMarketVault: this.getSpotMarketAccount(
 						borrowFromMarketIndex
