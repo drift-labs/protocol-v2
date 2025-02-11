@@ -51,7 +51,7 @@ export type TxBuildingProps = {
 	txVersion: TransactionVersion;
 	connection: Connection;
 	preFlightCommitment: Commitment;
-	fetchMarketLookupTableAccount: () => Promise<AddressLookupTableAccount>;
+	fetchAllMarketLookupTableAccounts: () => Promise<AddressLookupTableAccount[]>;
 	lookupTables?: AddressLookupTableAccount[];
 	forceVersionedTransaction?: boolean;
 	txParams?: TxParams;
@@ -475,7 +475,7 @@ export class TxHandler {
 			txParams,
 			connection: _connection,
 			preFlightCommitment: _preFlightCommitment,
-			fetchMarketLookupTableAccount,
+			fetchAllMarketLookupTableAccounts,
 			forceVersionedTransaction,
 			instructions,
 		} = props;
@@ -561,10 +561,10 @@ export class TxHandler {
 				return this.generateLegacyTransaction(allIx, recentBlockhash);
 			}
 		} else {
-			const marketLookupTable = await fetchMarketLookupTableAccount();
+			const marketLookupTables = await fetchAllMarketLookupTableAccounts();
 			lookupTables = lookupTables
-				? [...lookupTables, marketLookupTable]
-				: [marketLookupTable];
+				? [...lookupTables, ...marketLookupTables]
+				: marketLookupTables;
 
 			return this.generateVersionedTransaction(
 				recentBlockhash,
