@@ -126,5 +126,6 @@ export * from './util/chainClock';
 export * from './util/TransactionConfirmationManager';
 export * from './clock/clockSubscriber';
 export * from './math/userStatus';
+export * from './constants/txConstants';
 
 export { BN, PublicKey, pyth };
