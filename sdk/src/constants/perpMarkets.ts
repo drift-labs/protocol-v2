@@ -583,9 +583,9 @@ export const MainnetPerpMarkets: PerpMarketConfig[] = [
 		symbol: 'INJ-PERP',
 		baseAssetSymbol: 'INJ',
 		marketIndex: 15,
-		oracle: new PublicKey('BfXcyDWJmYADa5eZD7gySSDd6giqgjvm7xsAhQ239SUD'),
+		oracle: new PublicKey('Ac442xcU276nb6gJFUCsNYAwAo6KWuw4xocxmG3nvDym'),
 		launchTs: 1698074659000,
-		oracleSource: OracleSource.PYTH_PULL,
+		oracleSource: OracleSource.PYTH_LAZER,
 		pythFeedId:
 			'0x7a5bc1d2b56ad029048cd63964b3ad2776eadf812edc1a43a31406cb54bff592',
 		pythLazerId: 46,

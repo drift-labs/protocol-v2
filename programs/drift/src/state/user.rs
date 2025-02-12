@@ -4,7 +4,7 @@ use crate::error::{DriftResult, ErrorCode};
 use crate::math::auction::{calculate_auction_price, is_auction_complete};
 use crate::math::casting::Cast;
 use crate::math::constants::{
-    EPOCH_DURATION, FUEL_START_TS, OPEN_ORDER_MARGIN_REQUIREMENT,
+    EPOCH_DURATION, FUEL_OVERFLOW_THRESHOLD_U32, FUEL_START_TS, OPEN_ORDER_MARGIN_REQUIREMENT,
     PRICE_TIMES_AMM_TO_QUOTE_PRECISION_RATIO, QUOTE_PRECISION, QUOTE_SPOT_MARKET_INDEX, THIRTY_DAY,
 };
 use crate::math::lp::{calculate_lp_open_bids_asks, calculate_settle_lp_metrics};
@@ -446,10 +446,15 @@ impl User {
     }
 
     pub fn get_fuel_bonus_numerator(&self, now: i64) -> DriftResult<i64> {
-        if self.last_fuel_bonus_update_ts.cast::<i64>()? >= FUEL_START_TS {
+        if self.last_fuel_bonus_update_ts > 0 {
             now.safe_sub(self.last_fuel_bonus_update_ts.cast()?)
         } else {
-            Ok(0)
+            // start ts for existing accounts pre fuel
+            if now > FUEL_START_TS {
+                now.safe_sub(FUEL_START_TS)
+            } else {
+                Ok(0)
+            }
         }
     }
 
@@ -1714,7 +1719,9 @@ pub struct UserStats {
     /// Second bit: 1 if user was referred, 0 otherwise
     pub referrer_status: u8,
     pub disable_update_perp_bid_ask_twap: bool,
-    pub padding1: [u8; 2],
+    pub padding1: [u8; 1],
+    /// whether the user has a FuelOverflow account
+    pub fuel_overflow_status: u8,
     /// accumulated fuel for token amounts of insurance
     pub fuel_insurance: u32,
     /// accumulated fuel for notional of deposits
@@ -1957,6 +1964,114 @@ impl UserStats {
             self.referrer_status &= !(ReferrerStatus::IsReferred as u8);
         }
     }
+
+    pub fn update_fuel_overflow_status(&mut self, has_overflow: bool) {
+        if has_overflow {
+            self.fuel_overflow_status |= FuelOverflowStatus::Exists as u8;
+        } else {
+            self.fuel_overflow_status &= !(FuelOverflowStatus::Exists as u8);
+        }
+    }
+
+    pub fn can_sweep_fuel(&self) -> bool {
+        if self.fuel_insurance > FUEL_OVERFLOW_THRESHOLD_U32 {
+            return true;
+        }
+        if self.fuel_deposits > FUEL_OVERFLOW_THRESHOLD_U32 {
+            return true;
+        }
+        if self.fuel_borrows > FUEL_OVERFLOW_THRESHOLD_U32 {
+            return true;
+        }
+        if self.fuel_positions > FUEL_OVERFLOW_THRESHOLD_U32 {
+            return true;
+        }
+        if self.fuel_taker > FUEL_OVERFLOW_THRESHOLD_U32 {
+            return true;
+        }
+        if self.fuel_maker > FUEL_OVERFLOW_THRESHOLD_U32 {
+            return true;
+        }
+        false
+    }
+
+    pub fn reset_fuel(&mut self) {
+        self.fuel_insurance = 0;
+        self.fuel_deposits = 0;
+        self.fuel_borrows = 0;
+        self.fuel_positions = 0;
+        self.fuel_taker = 0;
+        self.fuel_maker = 0;
+    }
+
+    pub fn total_fuel(&self) -> DriftResult<u128> {
+        self.fuel_insurance
+            .cast::<u128>()?
+            .safe_add(self.fuel_deposits.cast::<u128>()?)?
+            .safe_add(self.fuel_borrows.cast::<u128>()?)?
+            .safe_add(self.fuel_positions.cast::<u128>()?)?
+            .safe_add(self.fuel_taker.cast::<u128>()?)?
+            .safe_add(self.fuel_maker.cast::<u128>()?)
+    }
+
+    pub fn validate_fuel_overflow(
+        &self,
+        fuel_overflow: &Option<AccountLoader<FuelOverflow>>,
+    ) -> DriftResult<()> {
+        match fuel_overflow {
+            None => {
+                if FuelOverflowStatus::exists(self.fuel_overflow_status) {
+                    let ec = ErrorCode::FuelOverflowAccountNotFound;
+                    msg!("Error {} thrown at {}:{}", ec, file!(), line!());
+                    msg!("FuelOverflow missing in remaining accounts");
+                    return Err(ec);
+                } else {
+                    // no FuelOverflow account and none was given
+                    Ok(())
+                }
+            }
+            Some(fuel_overflow) => {
+                if FuelOverflowStatus::exists(self.fuel_overflow_status) {
+                    // check PDA matches
+                    let (expected, _) = Pubkey::find_program_address(
+                        &[b"fuel_overflow", self.authority.as_ref()],
+                        &crate::id(),
+                    );
+                    let actual = fuel_overflow.to_account_info().key();
+                    if actual != expected {
+                        let ec = ErrorCode::InvalidPDA;
+                        msg!("Error {} thrown at {}:{}", ec, file!(), line!());
+                        msg!("PDA mismatch. Expected: {}, Actual: {}", expected, actual);
+                        return Err(ec);
+                    } else {
+                        Ok(())
+                    }
+                } else {
+                    // no FuelOverflow account but one was provided
+                    let ec = ErrorCode::FuelOverflowAccountNotFound;
+                    msg!("Error {} thrown at {}:{}", ec, file!(), line!());
+                    msg!("Unexpected FuelOverflow account provided in remaining accounts");
+                    return Err(ec);
+                }
+            }
+        }
+    }
+}
+
+pub trait FuelOverflowProvider<'a> {
+    fn fuel_overflow(&self) -> Option<AccountLoader<'a, FuelOverflow>>;
+}
+
+impl<'a: 'info, 'info, T: anchor_lang::Bumps> FuelOverflowProvider<'a>
+    for Context<'_, '_, 'a, 'info, T>
+{
+    fn fuel_overflow(&self) -> Option<AccountLoader<'a, FuelOverflow>> {
+        let acct = match self.remaining_accounts.get(0) {
+            Some(acct) => acct,
+            None => return None,
+        };
+        AccountLoader::<'a, FuelOverflow>::try_from(acct).ok()
+    }
 }
 
 #[account(zero_copy(unsafe))]
@@ -1978,4 +2093,78 @@ pub enum MarginMode {
     #[default]
     Default,
     HighLeverage,
+}
+
+#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Debug, Eq)]
+#[repr(u8)]
+pub enum FuelOverflowStatus {
+    Exists = 0b00000001,
+}
+
+impl FuelOverflowStatus {
+    pub fn exists(status: u8) -> bool {
+        status & FuelOverflowStatus::Exists as u8 != 0
+    }
+}
+#[account(zero_copy(unsafe))]
+#[derive(Default, Debug)]
+#[repr(C)]
+pub struct FuelOverflow {
+    /// The authority of this overflow account
+    pub authority: Pubkey,
+
+    pub fuel_insurance: u128,
+    pub fuel_deposits: u128,
+    pub fuel_borrows: u128,
+    pub fuel_positions: u128,
+    pub fuel_taker: u128,
+    pub fuel_maker: u128,
+    pub last_fuel_sweep_ts: u32,
+    pub last_reset_ts: u32,
+    pub padding: [u128; 6],
+}
+
+impl Size for FuelOverflow {
+    const SIZE: usize = 240;
+}
+
+impl FuelOverflow {
+    pub fn update_from_user_stats(&mut self, user_stats: &UserStats, now: u32) -> DriftResult<()> {
+        self.fuel_insurance = self
+            .fuel_insurance
+            .safe_add(user_stats.fuel_insurance.cast()?)?;
+        self.fuel_deposits = self
+            .fuel_deposits
+            .safe_add(user_stats.fuel_deposits.cast()?)?;
+        self.fuel_borrows = self
+            .fuel_borrows
+            .safe_add(user_stats.fuel_borrows.cast()?)?;
+        self.fuel_positions = self
+            .fuel_positions
+            .safe_add(user_stats.fuel_positions.cast()?)?;
+        self.fuel_taker = self.fuel_taker.safe_add(user_stats.fuel_taker.cast()?)?;
+        self.fuel_maker = self.fuel_maker.safe_add(user_stats.fuel_maker.cast()?)?;
+        self.last_fuel_sweep_ts = now;
+
+        Ok(())
+    }
+
+    pub fn reset_fuel(&mut self, now: u32) {
+        self.fuel_insurance = 0;
+        self.fuel_deposits = 0;
+        self.fuel_borrows = 0;
+        self.fuel_positions = 0;
+        self.fuel_taker = 0;
+        self.fuel_maker = 0;
+        self.last_reset_ts = now;
+    }
+
+    pub fn total_fuel(&self) -> DriftResult<u128> {
+        self.fuel_insurance
+            .safe_add(self.fuel_deposits)?
+            .safe_add(self.fuel_borrows)?
+            .safe_add(self.fuel_positions)?
+            .safe_add(self.fuel_taker)?
+            .safe_add(self.fuel_maker)
+    }
 }

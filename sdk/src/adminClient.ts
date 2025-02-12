@@ -35,6 +35,7 @@ import {
 	getHighLeverageModeConfigPublicKey,
 	getPythLazerOraclePublicKey,
 	getProtectedMakerModeConfigPublicKey,
+	getFuelOverflowAccountPublicKey,
 } from './addresses/pda';
 import { squareRootBN } from './math/utils';
 import { TOKEN_PROGRAM_ID } from '@solana/spl-token';
@@ -52,6 +53,7 @@ import { calculateAmmReservesAfterSwap, getSwapDirection } from './math/amm';
 import { PROGRAM_ID as PHOENIX_PROGRAM_ID } from '@ellipsis-labs/phoenix-sdk';
 import { DRIFT_ORACLE_RECEIVER_ID } from './config';
 import { getFeedIdUint8Array } from './util/pythOracleUtils';
+import { FUEL_RESET_LOG_ACCOUNT } from './constants/txConstants';
 
 const OPENBOOK_PROGRAM_ID = new PublicKey(
 	'opnb2LAfJYbRMAHHvqjCwQxanZn7ReEHp1k81EohpZb'
@@ -3898,6 +3900,56 @@ export class AdminClient extends DriftClient {
 				},
 			}
 		);
+	}
+
+	/**
+	 * @param fuelSweepExists - whether the fuel sweep account exists, must provide this if the user has a FuelSweep account in order to properly reset the fuel season
+	 * @param authority - the authority to reset fuel for
+	 * @returns the transaction signature
+	 */
+	public async resetFuelSeason(
+		fuelSweepExists: boolean,
+		authority?: PublicKey
+	): Promise<TransactionSignature> {
+		const resetFuelSeasonIx = await this.getResetFuelSeasonIx(
+			fuelSweepExists,
+			authority
+		);
+		const tx = await this.buildTransaction([resetFuelSeasonIx], this.txParams);
+		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+		return txSig;
+	}
+
+	public async getResetFuelSeasonIx(
+		fuelSweepExists: boolean,
+		authority?: PublicKey
+	): Promise<TransactionInstruction> {
+		const remainingAccounts = [];
+		if (fuelSweepExists) {
+			remainingAccounts.push({
+				pubkey: getFuelOverflowAccountPublicKey(
+					this.program.programId,
+					authority ?? this.wallet.publicKey
+				),
+				isSigner: false,
+				isWritable: true,
+			});
+		}
+		return this.program.instruction.resetFuelSeason({
+			accounts: {
+				userStats: getUserStatsAccountPublicKey(
+					this.program.programId,
+					authority ?? this.wallet.publicKey
+				),
+				authority: authority ?? this.wallet.publicKey,
+				state: await this.getStatePublicKey(),
+				admin: this.useHotWalletAdmin
+					? this.wallet.publicKey
+					: this.getStateAccount().admin,
+				logAccount: FUEL_RESET_LOG_ACCOUNT,
+			},
+			remainingAccounts,
+		});
 	}
 
 	public async initializePythPullOracle(

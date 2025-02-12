@@ -33,7 +33,9 @@ type DriftConfig = {
 	V2_ALPHA_TICKET_MINT_ADDRESS: string;
 	PERP_MARKETS: PerpMarketConfig[];
 	SPOT_MARKETS: SpotMarketConfig[];
+	/** @deprecated use MARKET_LOOKUP_TABLES */
 	MARKET_LOOKUP_TABLE: string;
+	MARKET_LOOKUP_TABLES: string[];
 	SERUM_LOOKUP_TABLE?: string;
 	PYTH_PULL_ORACLE_LOOKUP_TABLE?: string;
 	SB_ON_DEMAND_PID: PublicKey;
@@ -69,7 +71,9 @@ export const configs: { [key in DriftEnv]: DriftConfig } = {
 			'DeEiGWfCMP9psnLGkxGrBBMEAW5Jv8bBGMN8DCtFRCyB',
 		PERP_MARKETS: DevnetPerpMarkets,
 		SPOT_MARKETS: DevnetSpotMarkets,
+		/** @deprecated use MARKET_LOOKUP_TABLES */
 		MARKET_LOOKUP_TABLE: 'FaMS3U4uBojvGn5FSDEPimddcXsCfwkKsFgMVVnDdxGb',
+		MARKET_LOOKUP_TABLES: ['FaMS3U4uBojvGn5FSDEPimddcXsCfwkKsFgMVVnDdxGb'],
 		DRIFT_ORACLE_RECEIVER_ID,
 		SB_ON_DEMAND_PID: ON_DEMAND_DEVNET_PID,
 	},
@@ -86,7 +90,12 @@ export const configs: { [key in DriftEnv]: DriftConfig } = {
 			'Cmvhycb6LQvvzaShGw4iDHRLzeSSryioAsU98DSSkMNa',
 		PERP_MARKETS: MainnetPerpMarkets,
 		SPOT_MARKETS: MainnetSpotMarkets,
+		/** @deprecated use MARKET_LOOKUP_TABLES */
 		MARKET_LOOKUP_TABLE: 'Fpys8GRa5RBWfyeN7AaDUwFGD1zkDCA4z3t4CJLV8dfL',
+		MARKET_LOOKUP_TABLES: [
+			'Fpys8GRa5RBWfyeN7AaDUwFGD1zkDCA4z3t4CJLV8dfL',
+			'EiWSskK5HXnBTptiS5DH6gpAJRVNQ3cAhTKBGaiaysAb',
+		],
 		SERUM_LOOKUP_TABLE: 'GPZkp76cJtNL2mphCvT6FXkJCVPpouidnacckR6rzKDN',
 		DRIFT_ORACLE_RECEIVER_ID,
 		SB_ON_DEMAND_PID: ON_DEMAND_MAINNET_PID,

@@ -2982,7 +2982,7 @@ export class User {
 			// selling asset to close borrow
 			(inTokenAmount.gt(ZERO) && outTokenAmount.lt(ZERO)) ||
 			// buying asset with higher initial asset weight
-			inAssetWeight.lt(outAssetWeight);
+			inAssetWeight.lte(outAssetWeight);
 
 		if (freeCollateral.lt(PRICE_PRECISION.divn(100))) {
 			if (outSaferThanIn && inTokenAmount.gt(ZERO)) {

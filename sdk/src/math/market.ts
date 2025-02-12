@@ -340,11 +340,11 @@ export function calculatePerpMarketBaseLiquidatorFee(
 	userHighLeverageMode: boolean
 ): number {
 	if (userHighLeverageMode && market.highLeverageMarginRatioMaintenance > 0) {
+		const marginRatio = market.highLeverageMarginRatioMaintenance * 100;
 		// min(liquidator_fee, .8 * high_leverage_margin_ratio_maintenance)
 		return Math.min(
 			market.liquidatorFee,
-			market.highLeverageMarginRatioMaintenance -
-				Math.floor(market.highLeverageMarginRatioMaintenance / 5)
+			marginRatio - Math.floor(marginRatio / 5)
 		);
 	} else {
 		return market.liquidatorFee;

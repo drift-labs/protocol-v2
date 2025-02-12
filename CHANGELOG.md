@@ -9,10 +9,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Features
 
+### Fixes
+
+### Breaking
+
+## [2.109.0] - 2025-02-06
+
+### Features
+
 - program: add posted slot tail to order struct, use it to determine vamm availability for high volume users ([#1459](https://github.com/drift-labs/protocol-v2/pull/1459))
 - program: add pyth lazer stable coin oracle type ([#1463](https://github.com/drift-labs/protocol-v2/pull/1463))
+- program: allow hot wallet admin to init market if not active ([#1454](https://github.com/drift-labs/protocol-v2/pull/1454))
+- program: round down 1 for calculate_max_withdrawable ([#1461](https://github.com/drift-labs/protocol-v2/pull/1461))
+- program: add fuel overflow account ([#1449](https://github.com/drift-labs/protocol-v2/pull/1449))
 
 ### Fixes
+
+- program: fix hlm liq fee ([#1465](https://github.com/drift-labs/protocol-v2/pull/1465))
 
 ### Breaking
 
