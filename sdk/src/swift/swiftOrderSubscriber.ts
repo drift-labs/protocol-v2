@@ -182,6 +182,7 @@ export class SwiftOrderSubscriber {
 					this.driftClient.program.programId,
 					takerUserAccount.authority
 				),
+				signingAuthority: takerAuthority,
 			},
 			Object.assign({}, makerOrderParams, {
 				postOnly: PostOnlyParams.MUST_POST_ONLY,
