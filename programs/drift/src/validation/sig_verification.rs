@@ -174,10 +174,9 @@ pub fn verify_ed25519_msg(
     if signature_index >= args_len {
         return Err(SignatureVerificationError::InvalidSignatureIndex.into());
     }
-    let offsets = &args[usize::from(signature_index)];
 
-    let message_offset = offsets.signature_offset;
     let offsets = &args[0];
+    let message_offset = offsets.signature_offset;
     if offsets.signature_offset != message_offset {
         msg!(
             "Invalid Ix: signature offset: {:?}",
