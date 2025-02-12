@@ -244,6 +244,11 @@
           "name": "authority",
           "isMut": false,
           "isSigner": false
+        },
+        {
+          "name": "signer",
+          "isMut": false,
+          "isSigner": true
         }
       ],
       "args": []
@@ -889,6 +894,10 @@
         {
           "name": "swiftOrderParamsMessageBytes",
           "type": "bytes"
+        },
+        {
+          "name": "isDelegateSigner",
+          "type": "bool"
         }
       ]
     },

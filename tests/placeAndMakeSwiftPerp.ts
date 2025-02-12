@@ -257,6 +257,7 @@ describe('place and make swift order', () => {
 					taker: await takerDriftClient.getUserAccountPublicKey(),
 					takerUserAccount: takerDriftClient.getUserAccount(),
 					takerStats: takerDriftClient.getUserStatsAccountPublicKey(),
+					signingAuthority: takerDriftClient.authority,
 				},
 				makerOrderParams,
 				undefined,
@@ -390,6 +391,142 @@ describe('place and make swift order', () => {
 					taker: await takerDriftClient.getUserAccountPublicKey(),
 					takerUserAccount: takerDriftClient.getUserAccount(),
 					takerStats: takerDriftClient.getUserStatsAccountPublicKey(),
+					signingAuthority: takerDriftClient.authority,
+				},
+				makerOrderParams,
+				undefined,
+				undefined,
+				ixs
+			))
+		);
+
+		try {
+			const normalTx = new Transaction();
+			normalTx.add(...ixs);
+			await makerDriftClient.sendTransaction(normalTx);
+			assert.fail('should have thrown');
+		} catch (error) {
+			assert.equal(
+				error.transactionMessage,
+				'Transaction precompile verification failure InvalidAccountIndex'
+			);
+		}
+	});
+
+	it('should work with delegates', async () => {
+		const keypair = new Keypair();
+		await provider.connection.requestAirdrop(keypair.publicKey, 10 ** 9);
+		await sleep(1000);
+		const wallet = new Wallet(keypair);
+		const userUSDCAccount = await mockUserUSDCAccount(
+			usdcMint,
+			usdcAmount,
+			provider,
+			keypair.publicKey
+		);
+		const takerDriftClient = new TestClient({
+			connection,
+			wallet,
+			programID: chProgram.programId,
+			opts: {
+				commitment: 'confirmed',
+			},
+			activeSubAccountId: 0,
+			perpMarketIndexes: marketIndexes,
+			spotMarketIndexes: spotMarketIndexes,
+			oracleInfos,
+			userStats: true,
+			accountSubscription: {
+				type: 'polling',
+				accountLoader: bulkAccountLoader,
+			},
+		});
+
+		await takerDriftClient.subscribe();
+		await takerDriftClient.initializeUserAccountAndDepositCollateral(
+			usdcAmount,
+			userUSDCAccount.publicKey
+		);
+
+		const takerDriftClientUser = new User({
+			driftClient: takerDriftClient,
+			userAccountPublicKey: await takerDriftClient.getUserAccountPublicKey(),
+			accountSubscription: {
+				type: 'polling',
+				accountLoader: bulkAccountLoader,
+			},
+		});
+		await takerDriftClientUser.subscribe();
+		await takerDriftClient.initializeSwiftUserOrders(
+			takerDriftClientUser.getUserAccount().authority,
+			32
+		);
+
+		const delegate = Keypair.generate();
+		await takerDriftClient.updateUserDelegate(delegate.publicKey);
+
+		const marketIndex = 0;
+		const baseAssetAmount = BASE_PRECISION;
+		const takerOrderParams = getMarketOrderParams({
+			marketIndex,
+			direction: PositionDirection.LONG,
+			baseAssetAmount: baseAssetAmount.muln(2),
+			price: new BN(34).mul(PRICE_PRECISION),
+			auctionStartPrice: new BN(33).mul(PRICE_PRECISION),
+			auctionEndPrice: new BN(34).mul(PRICE_PRECISION),
+			auctionDuration: 10,
+			userOrderId: 1,
+			postOnly: PostOnlyParams.NONE,
+			marketType: MarketType.PERP,
+		});
+		const uuid = Uint8Array.from(Buffer.from(nanoid(8)));
+		const takerOrderParamsMessage: SwiftOrderParamsMessage = {
+			swiftOrderParams: takerOrderParams,
+			subAccountId: 0,
+			slot: new BN(await connection.getSlot()),
+			uuid,
+			takeProfitOrderParams: null,
+			stopLossOrderParams: null,
+		};
+
+		await takerDriftClientUser.fetchAccounts();
+
+		const makerOrderParams = getLimitOrderParams({
+			marketIndex,
+			direction: PositionDirection.SHORT,
+			baseAssetAmount: BASE_PRECISION,
+			price: new BN(33).mul(PRICE_PRECISION),
+			userOrderId: 1,
+			postOnly: PostOnlyParams.MUST_POST_ONLY,
+			immediateOrCancel: true,
+		});
+
+		const takerOrderParamsMessageEncoded =
+			takerDriftClient.encodeSwiftOrderParamsMessage(takerOrderParamsMessage);
+		const takerOrderParamsSig = takerDriftClient.signMessage(
+			Buffer.from(takerOrderParamsMessageEncoded.toString('hex')),
+			makerDriftClient.wallet.payer
+		);
+
+		const ixs = [
+			ComputeBudgetProgram.setComputeUnitLimit({
+				units: 10_000_000,
+			}),
+		];
+		ixs.push(
+			...(await makerDriftClient.getPlaceAndMakeSwiftPerpOrderIxs(
+				{
+					orderParams: Buffer.from(
+						takerOrderParamsMessageEncoded.toString('hex')
+					),
+					signature: takerOrderParamsSig,
+				},
+				uuid,
+				{
+					taker: await takerDriftClient.getUserAccountPublicKey(),
+					takerUserAccount: takerDriftClient.getUserAccount(),
+					takerStats: takerDriftClient.getUserStatsAccountPublicKey(),
+					signingAuthority: delegate.publicKey,
 				},
 				makerOrderParams,
 				undefined,

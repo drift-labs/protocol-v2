@@ -75,14 +75,6 @@ pub mod admin_hot_wallet {
     declare_id!("5hMjmxexWu954pX9gB9jkHxMqdjpxArQS2XdvkaevRax");
 }
 
-pub mod swift_server {
-    use solana_program::declare_id;
-    #[cfg(not(feature = "anchor-test"))]
-    declare_id!("SW1fThqrxLzVprnCMpiybiqYQfoNCdduC5uWsSUKChS");
-    #[cfg(feature = "anchor-test")]
-    declare_id!("DpaEdAPW3ZX67fnczT14AoX12Lx9VMkxvtT81nCHy3Nv");
-}
-
 pub mod lighthouse {
     use solana_program::declare_id;
     declare_id!("L2TExMFKdjpN9kozasaurPirfHy9P8sbXoAN1qA3S95");

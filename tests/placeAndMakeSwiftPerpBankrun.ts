@@ -277,6 +277,7 @@ describe('place and make swift order', () => {
 				taker: await takerDriftClient.getUserAccountPublicKey(),
 				takerUserAccount: takerDriftClient.getUserAccount(),
 				takerStats: takerDriftClient.getUserStatsAccountPublicKey(),
+				signingAuthority: takerDriftClient.wallet.publicKey,
 			},
 			makerOrderParams,
 			undefined,
@@ -310,6 +311,7 @@ describe('place and make swift order', () => {
 				taker: await takerDriftClient.getUserAccountPublicKey(),
 				takerUserAccount: takerDriftClient.getUserAccount(),
 				takerStats: takerDriftClient.getUserStatsAccountPublicKey(),
+				signingAuthority: takerDriftClient.wallet.publicKey,
 			},
 			makerOrderParams,
 			undefined,
@@ -325,6 +327,85 @@ describe('place and make swift order', () => {
 		assert(takerPositionAfter.baseAssetAmount.eq(baseAssetAmount.muln(2)));
 		assert(
 			makerPositionAfter.baseAssetAmount.eq(baseAssetAmount.muln(2).neg())
+		);
+
+		await takerDriftClientUser.unsubscribe();
+		await takerDriftClient.unsubscribe();
+	});
+
+	it('should work with delegates', async () => {
+		slot = new BN(
+			await bankrunContextWrapper.connection.toConnection().getSlot()
+		);
+		const [takerDriftClient, takerDriftClientUser] =
+			await initializeNewTakerClientAndUser(
+				bankrunContextWrapper,
+				chProgram,
+				usdcMint,
+				usdcAmount,
+				marketIndexes,
+				spotMarketIndexes,
+				oracleInfos,
+				bulkAccountLoader
+			);
+		await takerDriftClientUser.fetchAccounts();
+
+		const delegate = Keypair.generate();
+		await takerDriftClient.updateUserDelegate(delegate.publicKey);
+
+		const marketIndex = 0;
+		const baseAssetAmount = BASE_PRECISION;
+		const takerOrderParams = getMarketOrderParams({
+			marketIndex,
+			direction: PositionDirection.LONG,
+			baseAssetAmount: baseAssetAmount.muln(2),
+			price: new BN(224).mul(PRICE_PRECISION),
+			auctionStartPrice: new BN(223).mul(PRICE_PRECISION),
+			auctionEndPrice: new BN(224).mul(PRICE_PRECISION),
+			auctionDuration: 10,
+			userOrderId: 1,
+			postOnly: PostOnlyParams.NONE,
+			marketType: MarketType.PERP,
+		});
+		const uuid = Uint8Array.from(Buffer.from(nanoid(8)));
+		const takerOrderParamsMessage: SwiftOrderParamsMessage = {
+			swiftOrderParams: takerOrderParams,
+			subAccountId: 0,
+			slot,
+			uuid,
+			takeProfitOrderParams: null,
+			stopLossOrderParams: null,
+		};
+
+		const signedOrderParams = takerDriftClient.signSwiftOrderParamsMessage(
+			takerOrderParamsMessage
+		);
+
+		const txSig = await makerDriftClient.placeSwiftTakerOrder(
+			signedOrderParams,
+			marketIndex,
+			{
+				taker: await takerDriftClient.getUserAccountPublicKey(),
+				takerUserAccount: takerDriftClient.getUserAccount(),
+				takerStats: takerDriftClient.getUserStatsAccountPublicKey(),
+				signingAuthority: delegate.publicKey,
+			},
+			undefined,
+			2
+		);
+
+		const takerOrders = takerDriftClient.getUser().getOpenOrders();
+		assert(takerOrders.length > 0);
+
+		// Make sure that the event is in the logs
+		const events = eventSubscriber.getEventsByTx(txSig);
+		const event = events.find((event) => event.eventType == 'SwiftOrderRecord');
+		assert(event !== undefined);
+		assert(
+			(event as SwiftOrderRecord).hash ==
+				createHash('sha256')
+					.update(Uint8Array.from(signedOrderParams.signature))
+					.digest('base64')
 		);
 
 		await takerDriftClientUser.unsubscribe();
@@ -444,8 +525,8 @@ describe('place and make swift order', () => {
 					taker: await takerDriftClient.getUserAccountPublicKey(),
 					takerUserAccount: takerDriftClient.getUserAccount(),
 					takerStats: takerDriftClient.getUserStatsAccountPublicKey(),
+					signingAuthority: takerDriftClient.wallet.publicKey,
 				},
-				undefined,
 				pythLazerCrankIxs
 			);
 
@@ -635,8 +716,8 @@ describe('place and make swift order', () => {
 					taker: await takerDriftClient.getUserAccountPublicKey(),
 					takerUserAccount: takerDriftClient.getUserAccount(),
 					takerStats: takerDriftClient.getUserStatsAccountPublicKey(),
+					signingAuthority: takerDriftClient.wallet.publicKey,
 				},
-				undefined,
 				pythLazerCrankIxs
 			);
 
@@ -798,6 +879,7 @@ describe('place and make swift order', () => {
 				taker: await takerDriftClient.getUserAccountPublicKey(),
 				takerUserAccount: takerDriftClient.getUserAccount(),
 				takerStats: takerDriftClient.getUserStatsAccountPublicKey(),
+				signingAuthority: takerDriftClient.wallet.publicKey,
 			},
 			makerOrderParams,
 			undefined,
@@ -908,6 +990,7 @@ describe('place and make swift order', () => {
 					taker: await takerDriftClient.getUserAccountPublicKey(),
 					takerUserAccount: takerDriftClient.getUserAccount(),
 					takerStats: takerDriftClient.getUserStatsAccountPublicKey(),
+					signingAuthority: takerDriftClient.wallet.publicKey,
 				},
 				makerOrderParams,
 				undefined,
@@ -978,6 +1061,7 @@ describe('place and make swift order', () => {
 				taker: await takerDriftClient.getUserAccountPublicKey(),
 				takerUserAccount: takerDriftClient.getUserAccount(),
 				takerStats: takerDriftClient.getUserStatsAccountPublicKey(),
+				signingAuthority: takerDriftClient.wallet.publicKey,
 			},
 			undefined,
 			2
@@ -1001,6 +1085,7 @@ describe('place and make swift order', () => {
 				taker: await takerDriftClient.getUserAccountPublicKey(),
 				takerUserAccount: takerDriftClient.getUserAccount(),
 				takerStats: takerDriftClient.getUserStatsAccountPublicKey(),
+				signingAuthority: takerDriftClient.wallet.publicKey,
 			},
 			makerOrderParams,
 			undefined,
@@ -1066,6 +1151,7 @@ describe('place and make swift order', () => {
 					taker: await takerDriftClient.getUserAccountPublicKey(),
 					takerUserAccount: takerDriftClient.getUserAccount(),
 					takerStats: takerDriftClient.getUserStatsAccountPublicKey(),
+					signingAuthority: takerDriftClient.wallet.publicKey,
 				},
 				undefined,
 				2
@@ -1129,6 +1215,7 @@ describe('place and make swift order', () => {
 				taker: await takerDriftClient.getUserAccountPublicKey(),
 				takerUserAccount: takerDriftClient.getUserAccount(),
 				takerStats: takerDriftClient.getUserStatsAccountPublicKey(),
+				signingAuthority: takerDriftClient.wallet.publicKey,
 			},
 			undefined,
 			2
@@ -1215,6 +1302,7 @@ describe('place and make swift order', () => {
 					taker: await takerDriftClient.getUserAccountPublicKey(1),
 					takerUserAccount: takerDriftClientUser2.getUserAccount(),
 					takerStats: takerDriftClient.getUserStatsAccountPublicKey(),
+					signingAuthority: takerDriftClient.wallet.publicKey,
 				},
 				undefined,
 				2

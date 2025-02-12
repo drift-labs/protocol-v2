@@ -23,7 +23,7 @@ use crate::controller::position::PositionDirection;
 use crate::controller::spot_balance::update_spot_balances;
 use crate::controller::token::{receive, send_from_program_vault};
 use crate::error::ErrorCode;
-use crate::ids::{admin_hot_wallet, swift_server};
+use crate::ids::admin_hot_wallet;
 use crate::ids::{
     jupiter_mainnet_3, jupiter_mainnet_4, jupiter_mainnet_6, marinade_mainnet, serum_program,
 };
@@ -612,6 +612,7 @@ pub fn handle_update_user_open_orders_count<'info>(ctx: Context<UpdateUserIdle>)
 pub fn handle_place_swift_taker_order<'c: 'info, 'info>(
     ctx: Context<'_, '_, 'c, 'info, PlaceSwiftTakerOrder<'info>>,
     swift_order_params_message_bytes: Vec<u8>,
+    is_delegate_signer: bool,
 ) -> Result<()> {
     let state = &ctx.accounts.state;
 
@@ -642,6 +643,7 @@ pub fn handle_place_swift_taker_order<'c: 'info, 'info>(
         &spot_market_map,
         &mut oracle_map,
         state,
+        is_delegate_signer,
     )?;
     Ok(())
 }
@@ -656,6 +658,7 @@ pub fn place_swift_taker_order<'c: 'info, 'info>(
     spot_market_map: &SpotMarketMap,
     oracle_map: &mut OracleMap,
     state: &State,
+    is_delegate_signer: bool,
 ) -> Result<()> {
     #[cfg(all(feature = "mainnet-beta", not(feature = "anchor-test")))]
     {
@@ -672,10 +675,15 @@ pub fn place_swift_taker_order<'c: 'info, 'info>(
 
     // Verify data from verify ix
     let ix: Instruction = load_instruction_at_checked(ix_idx as usize - 1, ix_sysvar)?;
+
+    let signer = match is_delegate_signer {
+        true => taker.delegate.to_bytes(),
+        false => taker.authority.to_bytes(),
+    };
     let verified_message_and_signature = verify_ed25519_msg(
         &ix,
         ix_idx,
-        &taker.authority.to_bytes(),
+        &signer,
         &taker_order_params_message_bytes[..],
         12,
     )?;

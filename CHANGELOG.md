@@ -22,6 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - program: allow hot wallet admin to init market if not active ([#1454](https://github.com/drift-labs/protocol-v2/pull/1454))
 - program: round down 1 for calculate_max_withdrawable ([#1461](https://github.com/drift-labs/protocol-v2/pull/1461))
 - program: add fuel overflow account ([#1449](https://github.com/drift-labs/protocol-v2/pull/1449))
+- program: add delegates to swift ([#1474](https://github.com/drift-labs/protocol-v2/pull/1474))
 
 ### Fixes
 
