@@ -6058,6 +6058,7 @@ export class DriftClient {
 			taker: PublicKey;
 			takerStats: PublicKey;
 			takerUserAccount: UserAccount;
+			signingAuthority: PublicKey;
 		},
 		precedingIxs: TransactionInstruction[] = [],
 		overrideIxCount?: number,
@@ -6067,7 +6068,6 @@ export class DriftClient {
 			signedSwiftOrderParams,
 			marketIndex,
 			takerInfo,
-			undefined,
 			precedingIxs,
 			overrideIxCount
 		);
@@ -6086,22 +6086,16 @@ export class DriftClient {
 			taker: PublicKey;
 			takerStats: PublicKey;
 			takerUserAccount: UserAccount;
+			signingAuthority: PublicKey;
 		},
-		authority?: PublicKey,
 		precedingIxs: TransactionInstruction[] = [],
 		overrideIxCount?: number
 	): Promise<TransactionInstruction[]> {
-		if (!authority && !takerInfo.takerUserAccount) {
-			throw new Error('authority or takerUserAccount must be provided');
-		}
-
 		const remainingAccounts = this.getRemainingAccounts({
 			userAccounts: [takerInfo.takerUserAccount],
 			useMarketLastSlotCache: true,
 			readablePerpMarketIndex: marketIndex,
 		});
-
-		const authorityToUse = authority || takerInfo.takerUserAccount.authority;
 
 		const messageLengthBuffer = Buffer.alloc(2);
 		messageLengthBuffer.writeUInt16LE(
@@ -6110,7 +6104,7 @@ export class DriftClient {
 
 		const swiftIxData = Buffer.concat([
 			signedSwiftOrderParams.signature,
-			authorityToUse.toBytes(),
+			takerInfo.signingAuthority.toBytes(),
 			messageLengthBuffer,
 			signedSwiftOrderParams.orderParams,
 		]);
@@ -6122,21 +6116,28 @@ export class DriftClient {
 			0
 		);
 
+		const isDelegateSigner = takerInfo.signingAuthority.equals(
+			takerInfo.takerUserAccount.delegate
+		);
 		const placeTakerSwiftPerpOrderIx =
-			this.program.instruction.placeSwiftTakerOrder(swiftIxData, {
-				accounts: {
-					state: await this.getStatePublicKey(),
-					user: takerInfo.taker,
-					userStats: takerInfo.takerStats,
-					swiftUserOrders: getSwiftUserAccountPublicKey(
-						this.program.programId,
-						takerInfo.takerUserAccount.authority
-					),
-					authority: this.wallet.publicKey,
-					ixSysvar: SYSVAR_INSTRUCTIONS_PUBKEY,
-				},
-				remainingAccounts,
-			});
+			this.program.instruction.placeSwiftTakerOrder(
+				swiftIxData,
+				isDelegateSigner,
+				{
+					accounts: {
+						state: await this.getStatePublicKey(),
+						user: takerInfo.taker,
+						userStats: takerInfo.takerStats,
+						swiftUserOrders: getSwiftUserAccountPublicKey(
+							this.program.programId,
+							takerInfo.takerUserAccount.authority
+						),
+						authority: this.wallet.publicKey,
+						ixSysvar: SYSVAR_INSTRUCTIONS_PUBKEY,
+					},
+					remainingAccounts,
+				}
+			);
 
 		return [swiftOrderParamsSignatureIx, placeTakerSwiftPerpOrderIx];
 	}
@@ -6148,6 +6149,7 @@ export class DriftClient {
 			taker: PublicKey;
 			takerStats: PublicKey;
 			takerUserAccount: UserAccount;
+			signingAuthority: PublicKey;
 		},
 		orderParams: OptionalOrderParams,
 		referrerInfo?: ReferrerInfo,
@@ -6183,6 +6185,7 @@ export class DriftClient {
 			taker: PublicKey;
 			takerStats: PublicKey;
 			takerUserAccount: UserAccount;
+			signingAuthority: PublicKey;
 		},
 		orderParams: OptionalOrderParams,
 		referrerInfo?: ReferrerInfo,
@@ -6195,7 +6198,6 @@ export class DriftClient {
 				signedSwiftOrderParams,
 				orderParams.marketIndex,
 				takerInfo,
-				undefined,
 				precedingIxs,
 				overrideIxCount
 			);
