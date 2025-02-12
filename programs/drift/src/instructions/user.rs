@@ -670,7 +670,7 @@ pub fn handle_withdraw<'c: 'info, 'info>(
 
         let position_index = user.force_get_spot_position_index(market_index)?;
 
-        let mut amount = if reduce_only {
+        let amount = if reduce_only {
             validate!(
                 user.spot_positions[position_index].balance_type == SpotBalanceType::Deposit,
                 ErrorCode::ReduceOnlyWithdrawIncreasedRisk

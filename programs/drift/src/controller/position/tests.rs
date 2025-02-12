@@ -7,7 +7,6 @@ use crate::controller::position::{
 };
 use crate::controller::repeg::_update_amm;
 
-use crate::create_account_info;
 use crate::math::amm::calculate_market_open_bids_asks;
 use crate::math::constants::{
     AMM_RESERVE_PRECISION, AMM_RESERVE_PRECISION_I128, BASE_PRECISION, BASE_PRECISION_I64,
@@ -118,7 +117,6 @@ fn amm_pred_expiry_price_yes_market_example() {
 
     let prelaunch_oracle_price_key: Pubkey =
         Pubkey::from_str("3TVuLmEGBRfVgrmFRtYTheczXaaoRBwcHw1yibZHSeNA").unwrap();
-    let drift_program = crate::id();
     create_anchor_account_info!(
         prelaunch_oracle_price,
         &prelaunch_oracle_price_key,
@@ -144,7 +142,7 @@ fn amm_pred_expiry_price_yes_market_example() {
     create_anchor_account_info!(spot_market, SpotMarket, spot_market_account_info);
     let spot_market_map: SpotMarketMap<'_> =
         SpotMarketMap::load_one(&spot_market_account_info, true).unwrap();
-    let mut market_index;
+    let market_index;
 
     {
         let mut perp_market = perp_market_loader.load_mut().unwrap();
@@ -177,7 +175,6 @@ fn amm_pred_expiry_price_yes_market_example() {
 
     {
         let perp_market = perp_market_loader.load_mut().unwrap();
-        market_index = perp_market.market_index;
         assert_eq!(perp_market.expiry_price, 1_000_000);
     }
 }
@@ -233,7 +230,6 @@ fn amm_pred_expiry_price_market_example() {
 
     let prelaunch_oracle_price_key: Pubkey =
         Pubkey::from_str("3TVuLmEGBRfVgrmFRtYTheczXaaoRBwcHw1yibZHSeNA").unwrap();
-    let drift_program = crate::id();
     create_anchor_account_info!(
         prelaunch_oracle_price,
         &prelaunch_oracle_price_key,
@@ -259,7 +255,7 @@ fn amm_pred_expiry_price_market_example() {
     create_anchor_account_info!(spot_market, SpotMarket, spot_market_account_info);
     let spot_market_map: SpotMarketMap<'_> =
         SpotMarketMap::load_one(&spot_market_account_info, true).unwrap();
-    let mut market_index;
+    let market_index;
 
     {
         let mut perp_market = perp_market_loader.load_mut().unwrap();
@@ -291,8 +287,7 @@ fn amm_pred_expiry_price_market_example() {
     .unwrap();
 
     {
-        let mut perp_market = perp_market_loader.load_mut().unwrap();
-        market_index = perp_market.market_index;
+        let perp_market = perp_market_loader.load_mut().unwrap();
         assert_eq!(perp_market.expiry_price, 1);
     }
 }
@@ -347,7 +342,6 @@ fn amm_pred_settle_market_example() {
 
     let prelaunch_oracle_price_key: Pubkey =
         Pubkey::from_str("3TVuLmEGBRfVgrmFRtYTheczXaaoRBwcHw1yibZHSeNA").unwrap();
-    let drift_program = crate::id();
     create_anchor_account_info!(
         prelaunch_oracle_price,
         &prelaunch_oracle_price_key,

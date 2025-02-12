@@ -808,7 +808,7 @@ pub fn find_maker_orders(
             continue;
         }
 
-        let mut limit_price = order.force_get_limit_price(
+        let limit_price = order.force_get_limit_price(
             valid_oracle_price,
             None,
             slot,

@@ -23,6 +23,7 @@ use crate::controller::spot_position::{
 };
 use crate::error::DriftResult;
 use crate::error::ErrorCode;
+use crate::get_struct_values;
 use crate::get_then_update_id;
 use crate::load_mut;
 use crate::math::amm::calculate_amm_available_liquidity;
@@ -57,12 +58,10 @@ use crate::state::margin_calculation::{MarginCalculation, MarginContext};
 use crate::state::oracle::{OraclePriceData, StrictOraclePrice};
 use crate::state::oracle_map::OracleMap;
 use crate::state::order_params::{
-    ModifyOrderParams, ModifyOrderPolicy, OrderParams, PlaceOrderOptions, PostOnlyParam, RFQMatch,
+    ModifyOrderParams, OrderParams, PlaceOrderOptions, PostOnlyParam, RFQMatch,
 };
 use crate::state::paused_operations::{PerpOperation, SpotOperation};
-use crate::state::perp_market::{
-    AMMAvailability, AMMLiquiditySplit, ContractTier, MarketStatus, PerpMarket,
-};
+use crate::state::perp_market::{AMMAvailability, AMMLiquiditySplit, MarketStatus, PerpMarket};
 use crate::state::perp_market_map::PerpMarketMap;
 use crate::state::rfq_user::{RFQOrderId, RFQUser};
 use crate::state::spot_fulfillment_params::{ExternalSpotFill, SpotFulfillmentParams};
@@ -82,7 +81,6 @@ use crate::validation::order::{
     validate_order, validate_order_for_force_reduce_only, validate_spot_order,
 };
 use crate::{controller, ID};
-use crate::{get_struct_values, PERCENTAGE_PRECISION_U64};
 
 #[cfg(test)]
 mod tests;
@@ -1185,7 +1183,6 @@ pub fn fill_perp_order(
     let reserve_price_before: u64;
     let oracle_validity: OracleValidity;
     let oracle_price: i64;
-    let oracle_delay: i64;
     let oracle_twap_5min: i64;
     let perp_market_index: u16;
     let user_can_skip_duration: bool;
@@ -1242,7 +1239,6 @@ pub fn fill_perp_order(
             .historical_oracle_data
             .last_oracle_price_twap_5min;
         oracle_validity = _oracle_validity;
-        oracle_delay = oracle_price_data.delay;
         perp_market_index = market.market_index;
     }
 
@@ -1291,8 +1287,6 @@ pub fn fill_perp_order(
         now,
         slot,
         fill_mode,
-        oracle_valid_for_amm_fill,
-        oracle_delay,
         user_can_skip_duration,
         state.min_perp_auction_duration as u64,
     )?;
@@ -1433,7 +1427,6 @@ pub fn fill_perp_order(
         state.min_perp_auction_duration,
         amm_availability,
         fill_mode,
-        Some(amm_lp_allowed_to_jit_make),
     )?;
 
     if base_asset_amount != 0 {
@@ -1606,8 +1599,6 @@ fn get_maker_orders_info(
     now: i64,
     slot: u64,
     fill_mode: FillMode,
-    oracle_valid_for_amm_fill: bool,
-    oracle_delay: i64,
     user_can_skip_duration: bool,
     protected_maker_min_age: u64,
 ) -> DriftResult<Vec<(Pubkey, usize, u64)>> {
@@ -1857,7 +1848,6 @@ fn fulfill_perp_order(
     min_auction_duration: u8,
     amm_availability: AMMAvailability,
     fill_mode: FillMode,
-    amm_lp_allowed_to_jit_make: Option<bool>,
 ) -> DriftResult<(u64, u64)> {
     let market_index = user.orders[user_order_index].market_index;
 
