@@ -296,11 +296,6 @@ pub fn handle_initialize_swift_user_orders<'c: 'info, 'info>(
     ctx: Context<'_, '_, 'c, 'info, InitializeSwiftUserOrders<'info>>,
     num_orders: u16,
 ) -> Result<()> {
-    #[cfg(all(feature = "mainnet-beta", not(feature = "anchor-test")))]
-    {
-        panic!("Swift orders are disabled on mainnet-beta");
-    }
-
     let swift_user_orders = &mut ctx.accounts.swift_user_orders;
     swift_user_orders.authority_pubkey = ctx.accounts.authority.key();
     swift_user_orders

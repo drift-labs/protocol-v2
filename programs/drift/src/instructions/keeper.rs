@@ -660,11 +660,6 @@ pub fn place_swift_taker_order<'c: 'info, 'info>(
     state: &State,
     is_delegate_signer: bool,
 ) -> Result<()> {
-    #[cfg(all(feature = "mainnet-beta", not(feature = "anchor-test")))]
-    {
-        panic!("Swift orders are disabled on mainnet-beta");
-    }
-
     // Authenticate the swift param message
     let ix_idx = load_current_index_checked(ix_sysvar)?;
     validate!(
@@ -682,10 +677,10 @@ pub fn place_swift_taker_order<'c: 'info, 'info>(
     };
     let verified_message_and_signature = verify_ed25519_msg(
         &ix,
+        ix_sysvar,
         ix_idx,
         &signer,
         &taker_order_params_message_bytes[..],
-        12,
     )?;
 
     let taker_order_params_message: SwiftOrderParamsMessage =

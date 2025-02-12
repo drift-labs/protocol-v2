@@ -7,6 +7,8 @@ use byteorder::ByteOrder;
 use byteorder::LE;
 use solana_program::ed25519_program::ID as ED25519_ID;
 use solana_program::instruction::Instruction;
+use solana_program::program_memory::sol_memcmp;
+use solana_program::sysvar;
 use std::convert::TryInto;
 
 const ED25519_PROGRAM_INPUT_HEADER_LEN: usize = 2;
@@ -118,6 +120,10 @@ pub struct VerifiedMessage {
     pub signature: [u8; 64],
 }
 
+fn slice_eq(a: &[u8], b: &[u8]) -> bool {
+    a.len() == b.len() && sol_memcmp(a, b, a.len()) == 0
+}
+
 /// Check Ed25519Program instruction data verifies the given msg
 ///
 /// `ix` an Ed25519Program instruction [see](https://github.com/solana-labs/solana/blob/master/sdk/src/ed25519_instruction.rs))
@@ -127,36 +133,50 @@ pub struct VerifiedMessage {
 /// `pubkey` expected pubkey of the signer
 ///
 pub fn verify_ed25519_msg(
-    ix: &Instruction,
+    ed25519_ix: &Instruction,
+    instructions_sysvar: &AccountInfo,
     current_ix_index: u16,
     signer: &[u8; 32],
     msg: &[u8],
-    message_offset: u16,
 ) -> Result<VerifiedMessage> {
-    if ix.program_id != ED25519_ID || ix.accounts.len() != 0 {
-        msg!("Invalid Ix: program ID: {:?}", ix.program_id);
-        msg!("Invalid Ix: accounts: {:?}", ix.accounts.len());
+    if ed25519_ix.program_id != ED25519_ID || ed25519_ix.accounts.len() != 0 {
+        msg!("Invalid Ix: program ID: {:?}", ed25519_ix.program_id);
+        msg!("Invalid Ix: accounts: {:?}", ed25519_ix.accounts.len());
         return Err(ErrorCode::SigVerificationFailed.into());
     }
 
-    let ix_data = &ix.data;
+    let ed25519_ix_data = &ed25519_ix.data;
     // According to this layout used by the Ed25519Program]
-    if ix_data.len() < 2 {
+    if ed25519_ix_data.len() < 2 {
         msg!(
             "Invalid Ix, should be header len = 2. data: {:?}",
-            ix.data.len(),
+            ed25519_ix.data.len(),
         );
         return Err(SignatureVerificationError::InvalidEd25519InstructionDataLength.into());
     }
 
     // Parse the ix data into the offsets
+    let num_signatures = ed25519_ix_data[0];
+    let signature_index = 0;
+    if signature_index >= num_signatures {
+        return Err(SignatureVerificationError::InvalidSignatureIndex.into());
+    }
     let args: &[Ed25519SignatureOffsets] =
-        try_cast_slice(&ix_data[ED25519_PROGRAM_INPUT_HEADER_LEN..]).map_err(|_| {
+        try_cast_slice(&ed25519_ix_data[ED25519_PROGRAM_INPUT_HEADER_LEN..]).map_err(|_| {
             msg!("Invalid Ix: failed to cast slice");
             ErrorCode::SigVerificationFailed
         })?;
 
+    let args_len = args
+        .len()
+        .try_into()
+        .map_err(|_| SignatureVerificationError::InvalidEd25519InstructionDataLength)?;
+    if signature_index >= args_len {
+        return Err(SignatureVerificationError::InvalidSignatureIndex.into());
+    }
+
     let offsets = &args[0];
+    let message_offset = offsets.signature_offset;
     if offsets.signature_offset != message_offset {
         msg!(
             "Invalid Ix: signature offset: {:?}",
@@ -165,9 +185,28 @@ pub fn verify_ed25519_msg(
         return Err(ErrorCode::SigVerificationFailed.into());
     }
 
-    let expected_public_key_offset = message_offset
+    let self_instruction = sysvar::instructions::load_instruction_at_checked(
+        current_ix_index.into(),
+        instructions_sysvar,
+    )
+    .map_err(|_| SignatureVerificationError::LoadInstructionAtFailed)?;
+
+    let message_end_offset = offsets
+        .message_data_offset
+        .checked_add(offsets.message_data_size)
+        .ok_or(SignatureVerificationError::MessageOffsetOverflow)?;
+    let expected_message_data = self_instruction
+        .data
+        .get(usize::from(message_offset)..usize::from(message_end_offset))
+        .ok_or(SignatureVerificationError::InvalidMessageOffset)?;
+    if !slice_eq(expected_message_data, msg) {
+        return Err(SignatureVerificationError::InvalidMessageData.into());
+    }
+
+    let expected_public_key_offset = offsets
+        .signature_offset
         .checked_add(SIGNATURE_LEN)
-        .ok_or(ErrorCode::SigVerificationFailed)?;
+        .ok_or(SignatureVerificationError::MessageOffsetOverflow)?;
     if offsets.public_key_offset != expected_public_key_offset {
         msg!(
             "Invalid Ix: public key offset: {:?}, expected: {:?}",
@@ -287,4 +326,8 @@ pub enum SignatureVerificationError {
     MessageOffsetOverflow,
     #[msg("invalid message hex")]
     InvalidMessageHex,
+    #[msg("invalid message data")]
+    InvalidMessageData,
+    #[msg("loading custom ix at index failed")]
+    LoadInstructionAtFailed,
 }
