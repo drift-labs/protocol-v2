@@ -211,6 +211,7 @@ pub const SPOT_MARKET_TOKEN_TWAP_WINDOW: i64 = TWENTY_FOUR_HOUR;
 // FUEL
 pub const FUEL_WINDOW_U128: u128 = EPOCH_DURATION as u128;
 pub const FUEL_START_TS: i64 = 1723147200_i64; // August 8 2024 UTC
+pub const FUEL_OVERFLOW_THRESHOLD_U32: u32 = 4_000_000_000; // slightly below u32 max to allow sweeping before limit is hit
 
 // PREDICTION
 pub const MAX_PREDICTION_MARKET_PRICE: u64 = PRICE_PRECISION_U64;

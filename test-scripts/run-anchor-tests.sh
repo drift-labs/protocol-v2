@@ -17,7 +17,9 @@ test_files=(
   # updateK.ts
   # postOnlyAmmFulfillment.ts
   # TODO BROKEN ^^
+  decodeUser.ts
   fuel.ts
+  fuelSweep.ts
   admin.ts
   assetTier.ts
   cancelAllOrders.ts
@@ -80,7 +82,7 @@ test_files=(
   triggerOrders.ts
   triggerSpotOrder.ts
   userAccount.ts
-  userDelegate.ts 
+  userDelegate.ts
   userOrderId.ts
   whitelist.ts
 )

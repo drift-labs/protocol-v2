@@ -962,9 +962,9 @@ export type UserStatsAccount = {
 	referrerStatus: number;
 	authority: PublicKey;
 	ifStakedQuoteAssetAmount: BN;
-
 	lastFuelIfBonusUpdateTs: number; // u32 onchain
 
+	fuelOverflowStatus: number;
 	fuelInsurance: number;
 	fuelDeposits: number;
 	fuelBorrows: number;
@@ -973,6 +973,19 @@ export type UserStatsAccount = {
 	fuelMaker: number;
 
 	ifStakedGovTokenAmount: BN;
+};
+
+export type FuelOverflowAccount = {
+	authority: PublicKey;
+	fuelInsurance: number;
+	fuelDeposits: BN;
+	fuelBorrows: BN;
+	fuelPositions: BN;
+	fuelTaker: BN;
+	fuelMaker: BN;
+	lastFuelSweepTs: number;
+	lastResetTs: number;
+	padding: number[];
 };
 
 export type UserAccount = {
@@ -1171,6 +1184,10 @@ export type ReferrerInfo = {
 export enum ReferrerStatus {
 	IsReferrer = 1,
 	IsReferred = 2,
+}
+
+export enum FuelOverflowStatus {
+	Exists = 1,
 }
 
 export enum PlaceAndTakeOrderSuccessCondition {

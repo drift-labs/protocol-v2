@@ -26,7 +26,9 @@ export type DriftClientConfig = {
 	activeSubAccountId?: number;
 	perpMarketIndexes?: number[];
 	spotMarketIndexes?: number[];
+	/** @deprecated use marketLookupTables */
 	marketLookupTable?: PublicKey;
+	marketLookupTables?: PublicKey[];
 	oracleInfos?: OracleInfo[];
 	userStats?: boolean;
 	authority?: PublicKey; // explicitly pass an authority if signer is delegate

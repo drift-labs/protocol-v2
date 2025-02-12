@@ -79,6 +79,24 @@ pub mod drift {
         handle_resize_swift_user_orders(ctx, num_orders)
     }
 
+    pub fn initialize_fuel_overflow<'c: 'info, 'info>(
+        ctx: Context<'_, '_, 'c, 'info, InitializeFuelOverflow<'info>>,
+    ) -> Result<()> {
+        handle_initialize_fuel_overflow(ctx)
+    }
+
+    pub fn sweep_fuel<'c: 'info, 'info>(
+        ctx: Context<'_, '_, 'c, 'info, SweepFuel<'info>>,
+    ) -> Result<()> {
+        handle_sweep_fuel(ctx)
+    }
+
+    pub fn reset_fuel_season<'c: 'info, 'info>(
+        ctx: Context<'_, '_, 'c, 'info, ResetFuelSeason<'info>>,
+    ) -> Result<()> {
+        handle_reset_fuel_season(ctx)
+    }
+
     pub fn initialize_referrer_name(
         ctx: Context<InitializeReferrerName>,
         name: [u8; 32],
@@ -192,8 +210,9 @@ pub mod drift {
     pub fn place_swift_taker_order<'c: 'info, 'info>(
         ctx: Context<'_, '_, 'c, 'info, PlaceSwiftTakerOrder<'info>>,
         swift_order_params_message_bytes: Vec<u8>,
+        is_delegate_signer: bool,
     ) -> Result<()> {
-        handle_place_swift_taker_order(ctx, swift_order_params_message_bytes)
+        handle_place_swift_taker_order(ctx, swift_order_params_message_bytes, is_delegate_signer)
     }
 
     pub fn place_and_match_rfq_orders<'c: 'info, 'info>(

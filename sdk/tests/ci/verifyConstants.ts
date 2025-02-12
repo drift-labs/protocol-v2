@@ -68,9 +68,9 @@ describe('Verify Constants', function () {
 		await devnetDriftClient.subscribe();
 		await mainnetDriftClient.subscribe();
 
-		const lookupTable =
-			await mainnetDriftClient.fetchMarketLookupTableAccount();
-		lutAccounts = lookupTable.state.addresses.map((x) => x.toBase58());
+		const lookupTables =
+			await mainnetDriftClient.fetchAllLookupTableAccounts();
+		lutAccounts = lookupTables.map((lut) => lut.state.addresses.map((x) => x.toBase58())).flat();
 	});
 
 	after(async () => {

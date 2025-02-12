@@ -87,6 +87,7 @@ import StrictEventEmitter from 'strict-event-emitter-types';
 import {
 	getDriftSignerPublicKey,
 	getDriftStateAccountPublicKey,
+	getFuelOverflowAccountPublicKey,
 	getHighLeverageModeConfigPublicKey,
 	getInsuranceFundStakeAccountPublicKey,
 	getOpenbookV2FulfillmentConfigPublicKey,
@@ -223,8 +224,15 @@ export class DriftClient {
 	mustIncludePerpMarketIndexes = new Set<number>();
 	mustIncludeSpotMarketIndexes = new Set<number>();
 	authority: PublicKey;
+
+	/** @deprecated use marketLookupTables */
 	marketLookupTable: PublicKey;
+	/** @deprecated use lookupTableAccounts */
 	lookupTableAccount: AddressLookupTableAccount;
+
+	marketLookupTables: PublicKey[];
+	lookupTableAccounts: AddressLookupTableAccount[];
+
 	includeDelegates?: boolean;
 	authoritySubAccountMap?: Map<string, number[]>;
 	skipLoadUsers?: boolean;
@@ -375,6 +383,13 @@ export class DriftClient {
 		if (!this.marketLookupTable) {
 			this.marketLookupTable = new PublicKey(
 				configs[this.env].MARKET_LOOKUP_TABLE
+			);
+		}
+
+		this.marketLookupTables = config.marketLookupTables;
+		if (!this.marketLookupTables) {
+			this.marketLookupTables = configs[this.env].MARKET_LOOKUP_TABLES.map(
+				(tableAddr) => new PublicKey(tableAddr)
 			);
 		}
 
@@ -682,6 +697,7 @@ export class DriftClient {
 		) as OpenbookV2FulfillmentConfigAccount[];
 	}
 
+	/** @deprecated use fetchAllLookupTableAccounts() */
 	public async fetchMarketLookupTableAccount(): Promise<AddressLookupTableAccount> {
 		if (this.lookupTableAccount) return this.lookupTableAccount;
 
@@ -696,6 +712,30 @@ export class DriftClient {
 		this.lookupTableAccount = lookupTableAccount;
 
 		return lookupTableAccount;
+	}
+
+	public async fetchAllLookupTableAccounts(): Promise<
+		AddressLookupTableAccount[]
+	> {
+		if (this.lookupTableAccounts) return this.lookupTableAccounts;
+
+		if (!this.marketLookupTables) {
+			console.log('Market lookup table address not set');
+			return;
+		}
+
+		const lookupTableAccountResults = await Promise.all(
+			this.marketLookupTables.map((lookupTable) =>
+				this.connection.getAddressLookupTable(lookupTable)
+			)
+		);
+
+		const lookupTableAccounts = lookupTableAccountResults.map(
+			(result) => result.value
+		);
+		this.lookupTableAccounts = lookupTableAccounts;
+
+		return lookupTableAccounts;
 	}
 
 	/**
@@ -1117,6 +1157,62 @@ export class DriftClient {
 			});
 
 		return resizeUserAccountIx;
+	}
+
+	public async initializeFuelOverflow(
+		authority?: PublicKey
+	): Promise<TransactionSignature> {
+		const ix = await this.getInitializeFuelOverflowIx(authority);
+		const tx = await this.buildTransaction([ix], this.txParams);
+		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+		return txSig;
+	}
+
+	public async getInitializeFuelOverflowIx(
+		authority?: PublicKey
+	): Promise<TransactionInstruction> {
+		return await this.program.instruction.initializeFuelOverflow({
+			accounts: {
+				fuelOverflow: getFuelOverflowAccountPublicKey(
+					this.program.programId,
+					authority ?? this.wallet.publicKey
+				),
+				userStats: getUserStatsAccountPublicKey(
+					this.program.programId,
+					authority ?? this.wallet.publicKey
+				),
+				authority: authority ?? this.wallet.publicKey,
+				payer: this.wallet.publicKey,
+				rent: anchor.web3.SYSVAR_RENT_PUBKEY,
+				systemProgram: anchor.web3.SystemProgram.programId,
+			},
+		});
+	}
+
+	public async sweepFuel(authority?: PublicKey): Promise<TransactionSignature> {
+		const ix = await this.getSweepFuelIx(authority);
+		const tx = await this.buildTransaction([ix], this.txParams);
+		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+		return txSig;
+	}
+
+	public async getSweepFuelIx(
+		authority?: PublicKey
+	): Promise<TransactionInstruction> {
+		return await this.program.instruction.sweepFuel({
+			accounts: {
+				fuelOverflow: getFuelOverflowAccountPublicKey(
+					this.program.programId,
+					authority ?? this.wallet.publicKey
+				),
+				userStats: getUserStatsAccountPublicKey(
+					this.program.programId,
+					authority ?? this.wallet.publicKey
+				),
+				authority: authority ?? this.wallet.publicKey,
+				signer: this.wallet.publicKey,
+			},
+		});
 	}
 
 	async getInitializeUserInstructions(
@@ -3962,13 +4058,13 @@ export class DriftClient {
 		subAccountId?: number,
 		optionalIxs?: TransactionInstruction[]
 	) {
-		const lookupTableAccount = await this.fetchMarketLookupTableAccount();
+		const lookupTableAccounts = await this.fetchAllLookupTableAccounts();
 
 		const tx = await this.buildTransaction(
 			await this.getPlaceOrdersIx(params, subAccountId),
 			txParams,
 			undefined,
-			[lookupTableAccount],
+			lookupTableAccounts,
 			undefined,
 			undefined,
 			optionalIxs
@@ -5548,7 +5644,7 @@ export class DriftClient {
 		const recentBlockHash =
 			await this.txHandler.getLatestBlockhashForTransaction();
 
-		const lookupTableAccount = await this.fetchMarketLookupTableAccount();
+		const lookupTableAccounts = await this.fetchAllLookupTableAccounts();
 
 		let earlyExitFailedPlaceAndTakeSim = false;
 
@@ -5586,7 +5682,7 @@ export class DriftClient {
 					placeAndTakeIxs,
 					txParams,
 					undefined,
-					[lookupTableAccount],
+					lookupTableAccounts,
 					true,
 					recentBlockHash,
 					optionalIxs
@@ -5612,7 +5708,7 @@ export class DriftClient {
 						computeUnits: simulationResult.computeUnits,
 					},
 					undefined,
-					[lookupTableAccount],
+					lookupTableAccounts,
 					undefined,
 					recentBlockHash,
 					optionalIxs
@@ -5622,7 +5718,7 @@ export class DriftClient {
 					placeAndTakeIxs,
 					txParams,
 					undefined,
-					[lookupTableAccount],
+					lookupTableAccounts,
 					undefined,
 					recentBlockHash,
 					optionalIxs
@@ -5645,7 +5741,7 @@ export class DriftClient {
 					[cancelOrdersIx],
 					txParams,
 					this.txVersion,
-					[lookupTableAccount],
+					lookupTableAccounts,
 					undefined,
 					recentBlockHash,
 					optionalIxs
@@ -5671,7 +5767,7 @@ export class DriftClient {
 					[settlePnlIx],
 					txParams,
 					this.txVersion,
-					[lookupTableAccount],
+					lookupTableAccounts,
 					undefined,
 					recentBlockHash,
 					optionalIxs
@@ -5962,6 +6058,7 @@ export class DriftClient {
 			taker: PublicKey;
 			takerStats: PublicKey;
 			takerUserAccount: UserAccount;
+			signingAuthority: PublicKey;
 		},
 		precedingIxs: TransactionInstruction[] = [],
 		overrideIxCount?: number,
@@ -5971,7 +6068,6 @@ export class DriftClient {
 			signedSwiftOrderParams,
 			marketIndex,
 			takerInfo,
-			undefined,
 			precedingIxs,
 			overrideIxCount
 		);
@@ -5990,22 +6086,16 @@ export class DriftClient {
 			taker: PublicKey;
 			takerStats: PublicKey;
 			takerUserAccount: UserAccount;
+			signingAuthority: PublicKey;
 		},
-		authority?: PublicKey,
 		precedingIxs: TransactionInstruction[] = [],
 		overrideIxCount?: number
 	): Promise<TransactionInstruction[]> {
-		if (!authority && !takerInfo.takerUserAccount) {
-			throw new Error('authority or takerUserAccount must be provided');
-		}
-
 		const remainingAccounts = this.getRemainingAccounts({
 			userAccounts: [takerInfo.takerUserAccount],
 			useMarketLastSlotCache: true,
 			readablePerpMarketIndex: marketIndex,
 		});
-
-		const authorityToUse = authority || takerInfo.takerUserAccount.authority;
 
 		const messageLengthBuffer = Buffer.alloc(2);
 		messageLengthBuffer.writeUInt16LE(
@@ -6014,7 +6104,7 @@ export class DriftClient {
 
 		const swiftIxData = Buffer.concat([
 			signedSwiftOrderParams.signature,
-			authorityToUse.toBytes(),
+			takerInfo.signingAuthority.toBytes(),
 			messageLengthBuffer,
 			signedSwiftOrderParams.orderParams,
 		]);
@@ -6026,21 +6116,28 @@ export class DriftClient {
 			0
 		);
 
+		const isDelegateSigner = takerInfo.signingAuthority.equals(
+			takerInfo.takerUserAccount.delegate
+		);
 		const placeTakerSwiftPerpOrderIx =
-			this.program.instruction.placeSwiftTakerOrder(swiftIxData, {
-				accounts: {
-					state: await this.getStatePublicKey(),
-					user: takerInfo.taker,
-					userStats: takerInfo.takerStats,
-					swiftUserOrders: getSwiftUserAccountPublicKey(
-						this.program.programId,
-						takerInfo.takerUserAccount.authority
-					),
-					authority: this.wallet.publicKey,
-					ixSysvar: SYSVAR_INSTRUCTIONS_PUBKEY,
-				},
-				remainingAccounts,
-			});
+			this.program.instruction.placeSwiftTakerOrder(
+				swiftIxData,
+				isDelegateSigner,
+				{
+					accounts: {
+						state: await this.getStatePublicKey(),
+						user: takerInfo.taker,
+						userStats: takerInfo.takerStats,
+						swiftUserOrders: getSwiftUserAccountPublicKey(
+							this.program.programId,
+							takerInfo.takerUserAccount.authority
+						),
+						authority: this.wallet.publicKey,
+						ixSysvar: SYSVAR_INSTRUCTIONS_PUBKEY,
+					},
+					remainingAccounts,
+				}
+			);
 
 		return [swiftOrderParamsSignatureIx, placeTakerSwiftPerpOrderIx];
 	}
@@ -6052,6 +6149,7 @@ export class DriftClient {
 			taker: PublicKey;
 			takerStats: PublicKey;
 			takerUserAccount: UserAccount;
+			signingAuthority: PublicKey;
 		},
 		orderParams: OptionalOrderParams,
 		referrerInfo?: ReferrerInfo,
@@ -6087,6 +6185,7 @@ export class DriftClient {
 			taker: PublicKey;
 			takerStats: PublicKey;
 			takerUserAccount: UserAccount;
+			signingAuthority: PublicKey;
 		},
 		orderParams: OptionalOrderParams,
 		referrerInfo?: ReferrerInfo,
@@ -6099,7 +6198,6 @@ export class DriftClient {
 				signedSwiftOrderParams,
 				orderParams.marketIndex,
 				takerInfo,
-				undefined,
 				precedingIxs,
 				overrideIxCount
 			);
@@ -6862,7 +6960,7 @@ export class DriftClient {
 		txParams?: TxParams,
 		optionalIxs?: TransactionInstruction[]
 	): Promise<TransactionSignature> {
-		const lookupTableAccount = await this.fetchMarketLookupTableAccount();
+		const lookupTableAccounts = await this.fetchAllLookupTableAccounts();
 
 		const { txSig } = await this.sendTransaction(
 			await this.buildTransaction(
@@ -6873,7 +6971,7 @@ export class DriftClient {
 				),
 				txParams,
 				undefined,
-				[lookupTableAccount],
+				lookupTableAccounts,
 				undefined,
 				undefined,
 				optionalIxs
@@ -9019,7 +9117,7 @@ export class DriftClient {
 			ixs: [pullIx],
 			payer: this.wallet.publicKey,
 			computeUnitLimitMultiple: 1.3,
-			lookupTables: [await this.fetchMarketLookupTableAccount()],
+			lookupTables: await this.fetchAllLookupTableAccounts(),
 		});
 		const { txSig } = await this.sendTransaction(tx, [], {
 			commitment: 'processed',
@@ -9349,8 +9447,8 @@ export class DriftClient {
 			txParams: txParams ?? this.txParams,
 			connection: this.connection,
 			preFlightCommitment: this.opts.preflightCommitment,
-			fetchMarketLookupTableAccount:
-				this.fetchMarketLookupTableAccount.bind(this),
+			fetchAllMarketLookupTableAccounts:
+				this.fetchAllLookupTableAccounts.bind(this),
 			lookupTables,
 			forceVersionedTransaction,
 			recentBlockhash,
@@ -9371,8 +9469,8 @@ export class DriftClient {
 			txParams: txParams ?? this.txParams,
 			connection: this.connection,
 			preFlightCommitment: this.opts.preflightCommitment,
-			fetchMarketLookupTableAccount:
-				this.fetchMarketLookupTableAccount.bind(this),
+			fetchAllMarketLookupTableAccounts:
+				this.fetchAllLookupTableAccounts.bind(this),
 			lookupTables,
 			forceVersionedTransaction,
 		});
@@ -9394,8 +9492,8 @@ export class DriftClient {
 			txParams: txParams ?? this.txParams,
 			connection: this.connection,
 			preFlightCommitment: this.opts.preflightCommitment,
-			fetchMarketLookupTableAccount:
-				this.fetchMarketLookupTableAccount.bind(this),
+			fetchAllMarketLookupTableAccounts:
+				this.fetchAllLookupTableAccounts.bind(this),
 			lookupTables,
 			forceVersionedTransaction,
 		});
@@ -9417,8 +9515,8 @@ export class DriftClient {
 			txParams: txParams ?? this.txParams,
 			connection: this.connection,
 			preFlightCommitment: this.opts.preflightCommitment,
-			fetchMarketLookupTableAccount:
-				this.fetchMarketLookupTableAccount.bind(this),
+			fetchAllMarketLookupTableAccounts:
+				this.fetchAllLookupTableAccounts.bind(this),
 			lookupTables,
 			forceVersionedTransaction,
 		});
