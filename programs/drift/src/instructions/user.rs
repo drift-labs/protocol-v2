@@ -701,6 +701,7 @@ pub fn handle_transfer_deposit<'c: 'info, 'info>(
         ErrorCode::UserBankrupt,
         "to_user bankrupt"
     )?;
+
     validate!(
         !from_user.is_bankrupt(),
         ErrorCode::UserBankrupt,
@@ -1266,6 +1267,14 @@ pub fn handle_transfer_pools<'c: 'info, 'info>(
     validate_spot_margin_trading(to_user, &perp_market_map, &spot_market_map, &mut oracle_map)?;
 
     to_user.update_last_active_slot(slot);
+
+    if from_user.is_being_liquidated() {
+        from_user.exit_liquidation();
+    }
+
+    if to_user.is_being_liquidated() {
+        to_user.exit_liquidation();
+    }
 
     let deposit_from_spot_market = spot_market_map.get_ref(&deposit_from_market_index)?;
     let deposit_to_spot_market = spot_market_map.get_ref(&deposit_to_market_index)?;
