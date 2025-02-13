@@ -12,7 +12,7 @@ use state::oracle::OracleSource;
 
 use crate::controller::position::PositionDirection;
 use crate::state::oracle::PrelaunchOracleParams;
-use crate::state::order_params::{ModifyOrderParams, OrderParams, RFQMatch};
+use crate::state::order_params::{ModifyOrderParams, OrderParams};
 use crate::state::perp_market::{ContractTier, MarketStatus};
 use crate::state::settle_pnl_mode::SettlePnlMode;
 use crate::state::spot_market::AssetTier;
@@ -57,12 +57,6 @@ pub mod drift {
         ctx: Context<'_, '_, 'c, 'info, InitializeUserStats>,
     ) -> Result<()> {
         handle_initialize_user_stats(ctx)
-    }
-
-    pub fn initialize_rfq_user<'c: 'info, 'info>(
-        ctx: Context<'_, '_, 'c, 'info, InitializeRFQUser<'info>>,
-    ) -> Result<()> {
-        handle_initialize_rfq_user(ctx)
     }
 
     pub fn initialize_swift_user_orders<'c: 'info, 'info>(
@@ -213,13 +207,6 @@ pub mod drift {
         is_delegate_signer: bool,
     ) -> Result<()> {
         handle_place_swift_taker_order(ctx, swift_order_params_message_bytes, is_delegate_signer)
-    }
-
-    pub fn place_and_match_rfq_orders<'c: 'info, 'info>(
-        ctx: Context<'_, '_, 'c, 'info, PlaceAndMatchRFQOrders<'info>>,
-        rfq_matches: Vec<RFQMatch>,
-    ) -> Result<()> {
-        handle_place_and_match_rfq_orders(ctx, rfq_matches)
     }
 
     pub fn place_spot_order<'c: 'info, 'info>(
