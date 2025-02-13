@@ -113,7 +113,7 @@ export class RestingLimitOrderNode extends OrderNode {
 
 	getSortValue(order: Order): BN {
 		let sortValue = order.price;
-		if (this.applyProtectedMakerOffset) {
+		if (this.applyProtectedMakerOffset && this.isProtectedMaker) {
 			const offset = sortValue.divn(1000);
 
 			if (isVariant(order.direction, 'long')) {
