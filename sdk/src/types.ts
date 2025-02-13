@@ -1139,29 +1139,6 @@ export type SwiftTriggerOrderParams = {
 	baseAssetAmount: BN;
 };
 
-export type RFQMakerOrderParams = {
-	uuid: Uint8Array; // From buffer of standard UUID string
-	authority: PublicKey;
-	subAccountId: number;
-	marketIndex: number;
-	marketType: MarketType;
-	baseAssetAmount: BN;
-	price: BN;
-	direction: PositionDirection;
-	maxTs: BN;
-};
-
-export type RFQMakerMessage = {
-	orderParams: RFQMakerOrderParams;
-	signature: Uint8Array;
-};
-
-export type RFQMatch = {
-	baseAssetAmount: BN;
-	makerOrderParams: RFQMakerOrderParams;
-	makerSignature: Uint8Array;
-};
-
 export type MakerInfo = {
 	maker: PublicKey;
 	makerStats: PublicKey;
