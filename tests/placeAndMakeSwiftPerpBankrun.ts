@@ -1402,10 +1402,6 @@ async function initializeNewTakerClientAndUser(
 		},
 	});
 	await takerDriftClientUser.subscribe();
-	await takerDriftClient.initializeSwiftUserOrders(
-		takerDriftClientUser.getUserAccount().authority,
-		32
-	);
 	return [takerDriftClient, takerDriftClientUser];
 }
 
