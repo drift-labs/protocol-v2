@@ -1192,6 +1192,26 @@ export const MainnetPerpMarkets: PerpMarketConfig[] = [
 		pythFeedId:
 			'0x962088abcfdbdb6e30db2e340c8cf887d9efb311b1f2f17b155a63dbb6d40265',
 	},
+	{
+		fullName: 'NBAFINALS25-OKC',
+		category: ['Prediction', 'Sport'],
+		symbol: 'NBAFINALS25-OKC-BET',
+		baseAssetSymbol: 'NBAFINALS25-OKC',
+		marketIndex: 67,
+		oracle: new PublicKey('HieNNSAy9tjtU2mLEcGtgCMViCeZ1881fX7tfezL7wdV'),
+		launchTs: 1739463226000,
+		oracleSource: OracleSource.Prelaunch,
+	},
+	{
+		fullName: 'NBAFINALS25-BOS',
+		category: ['Prediction', 'Sport'],
+		symbol: 'NBAFINALS25-BOS-BET',
+		baseAssetSymbol: 'NBAFINALS25-BOS',
+		marketIndex: 68,
+		oracle: new PublicKey('HorrnsG8RBMv7dhzbgPX4wqcWbUTV5NwV8r59UwTu4CJ'),
+		launchTs: 1739463226000,
+		oracleSource: OracleSource.Prelaunch,
+	},
 ];
 
 export const PerpMarkets: { [key in DriftEnv]: PerpMarketConfig[] } = {
