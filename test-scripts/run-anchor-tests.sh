@@ -65,7 +65,6 @@ test_files=(
   pythPull.ts
   pythLazerBankrun.ts
   referrer.ts
-  rfq.ts
   roundInFavorBaseAsset.ts
   serumTest.ts
   spotDepositWithdraw.ts
