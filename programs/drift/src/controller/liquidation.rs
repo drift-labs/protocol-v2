@@ -1779,7 +1779,7 @@ pub fn liquidate_spot_with_swap_begin(
     drop(asset_spot_market);
     drop(liability_spot_market);
 
-    let (asset_amount, asset_price, asset_decimals, asset_weight, _asset_liquidation_multiplier) = {
+    let (asset_amount, asset_price, asset_decimals, asset_weight) = {
         let mut asset_market = spot_market_map.get_ref_mut(&asset_market_index)?;
         let (asset_price_data, validity_guard_rails) =
             oracle_map.get_price_data_and_guard_rails(&asset_market.oracle_id())?;
@@ -1815,10 +1815,6 @@ pub fn liquidate_spot_with_swap_begin(
             asset_price,
             asset_market.decimals,
             asset_market.maintenance_asset_weight,
-            calculate_liquidation_multiplier(
-                asset_market.liquidator_fee,
-                LiquidationMultiplierType::Premium,
-            )?,
         )
     };
 
