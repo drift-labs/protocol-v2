@@ -85,7 +85,7 @@ export abstract class OrderNode implements DLOBNode {
 			oraclePriceData,
 			slot,
 			undefined,
-			this.applyProtectedMakerOffset
+			this.applyProtectedMakerOffset && this.isProtectedMaker
 		);
 	}
 
