@@ -161,6 +161,9 @@ export class SwiftOrderSubscriber {
 			'hex'
 		);
 		const takerAuthority = new PublicKey(orderMessageRaw['taker_authority']);
+		const signingAuthority = new PublicKey(
+			orderMessageRaw['signing_authority']
+		);
 		const takerUserPubkey = await getUserAccountPublicKey(
 			this.driftClient.program.programId,
 			takerAuthority,
@@ -182,7 +185,7 @@ export class SwiftOrderSubscriber {
 					this.driftClient.program.programId,
 					takerUserAccount.authority
 				),
-				signingAuthority: takerAuthority,
+				signingAuthority: signingAuthority,
 			},
 			Object.assign({}, makerOrderParams, {
 				postOnly: PostOnlyParams.MUST_POST_ONLY,
