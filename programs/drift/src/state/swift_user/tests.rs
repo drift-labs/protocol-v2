@@ -1,16 +1,13 @@
 #[cfg(test)]
 mod swift_order_id_eviction {
-    use std::cell::{Ref, RefCell};
+    use std::cell::RefCell;
 
     use anchor_lang::prelude::Pubkey;
     use borsh::BorshSerialize;
 
     use crate::{
         error::ErrorCode,
-        state::swift_user::{
-            SwiftOrderId, SwiftUserOrders, SwiftUserOrdersFixed, SwiftUserOrdersZeroCopy,
-            SwiftUserOrdersZeroCopyMut,
-        },
+        state::swift_user::{SwiftOrderId, SwiftUserOrdersFixed, SwiftUserOrdersZeroCopyMut},
     };
 
     #[test]
@@ -126,8 +123,6 @@ mod swift_order_id_eviction {
 
 #[cfg(test)]
 mod zero_copy {
-    use std::cell::RefCell;
-
     use crate::test_utils::create_account_info;
     use crate::ID;
 
@@ -229,7 +224,7 @@ mod zero_copy {
 
         let pubkey = Pubkey::default();
         let mut lamports = 0;
-        let mut orders_account_info =
+        let orders_account_info =
             create_account_info(&pubkey, true, &mut lamports, &mut bytes, &ID);
 
         let mut orders_zero_copy_mut = orders_account_info.load_mut().unwrap();
@@ -252,7 +247,7 @@ mod zero_copy {
 
         // invalid owner
         let random_pubkey = Pubkey::new_unique();
-        let mut orders_account_info = create_account_info(
+        let orders_account_info = create_account_info(
             &random_pubkey,
             true,
             &mut lamports,
@@ -267,7 +262,7 @@ mod zero_copy {
         let mut bytes = Vec::with_capacity(8 + orders.try_to_vec().unwrap().len());
         bytes.extend_from_slice(&orders.try_to_vec().unwrap());
         bytes.extend_from_slice(&SwiftUserOrders::discriminator());
-        let mut orders_account_info =
+        let orders_account_info =
             create_account_info(&random_pubkey, true, &mut lamports, &mut bytes, &ID);
         let result = orders_account_info.load_mut();
         assert!(result.is_err());

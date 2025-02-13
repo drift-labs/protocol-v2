@@ -43,8 +43,6 @@ import {
 	PositionDirection,
 	ReferrerInfo,
 	ReferrerNameAccount,
-	RFQMakerOrderParams,
-	RFQMatch,
 	SerumV3FulfillmentConfigAccount,
 	SettlePnlMode,
 	SignedTxData,
@@ -67,7 +65,6 @@ import {
 	BlockhashWithExpiryBlockHeight,
 	ConfirmOptions,
 	Connection,
-	Ed25519Program,
 	Keypair,
 	LAMPORTS_PER_SOL,
 	PublicKey,
@@ -97,7 +94,6 @@ import {
 	getPythLazerOraclePublicKey,
 	getPythPullOraclePublicKey,
 	getReferrerNamePublicKeySync,
-	getRFQUserAccountPublicKey,
 	getSerumFulfillmentConfigPublicKey,
 	getSerumSignerPublicKey,
 	getSpotMarketPublicKey,
@@ -1047,43 +1043,6 @@ export class DriftClient {
 				state: await this.getStatePublicKey(),
 			},
 		});
-	}
-
-	public async initializeRFQUser(
-		userAccountPublicKey: PublicKey,
-		txParams?: TxParams
-	): Promise<[TransactionSignature, PublicKey]> {
-		const initializeIxs = [];
-
-		const [rfqUserAccountPublicKey, initializeUserAccountIx] =
-			await this.getInitializeRFQUserInstruction(userAccountPublicKey);
-		initializeIxs.push(initializeUserAccountIx);
-		const tx = await this.buildTransaction(initializeIxs, txParams);
-		const { txSig } = await this.sendTransaction(tx, [], this.opts);
-
-		return [txSig, rfqUserAccountPublicKey];
-	}
-
-	async getInitializeRFQUserInstruction(
-		userAccountPublicKey: PublicKey
-	): Promise<[PublicKey, TransactionInstruction]> {
-		const rfqUserAccountPublicKey = getRFQUserAccountPublicKey(
-			this.program.programId,
-			userAccountPublicKey
-		);
-		const initializeUserAccountIx =
-			await this.program.instruction.initializeRfqUser({
-				accounts: {
-					rfqUser: rfqUserAccountPublicKey,
-					authority: this.wallet.publicKey,
-					user: userAccountPublicKey,
-					payer: this.wallet.publicKey,
-					rent: anchor.web3.SYSVAR_RENT_PUBKEY,
-					systemProgram: anchor.web3.SystemProgram.programId,
-				},
-			});
-
-		return [rfqUserAccountPublicKey, initializeUserAccountIx];
 	}
 
 	public async initializeSwiftUserOrders(
@@ -6250,91 +6209,6 @@ export class DriftClient {
 			);
 
 		return [swiftOrderSignatureIx, placeTakerSwiftPerpOrderIx, placeAndMakeIx];
-	}
-
-	public encodeRFQMakerOrderParams(message: RFQMakerOrderParams): Buffer {
-		return this.program.coder.types.encode('RFQMakerOrderParams', message);
-	}
-
-	public async placeAndMatchRFQOrders(
-		rfqMatches: RFQMatch[],
-		txParams?: TxParams
-	): Promise<TransactionSignature> {
-		const ixs = await this.getPlaceAndMatchRFQOrdersIxs(rfqMatches);
-		const { txSig } = await this.sendTransaction(
-			await this.buildTransaction(ixs, txParams),
-			[],
-			this.opts
-		);
-		return txSig;
-	}
-
-	public async getPlaceAndMatchRFQOrdersIxs(
-		rfqMatches: RFQMatch[]
-	): Promise<TransactionInstruction[]> {
-		const remainingAccounts = this.getRemainingAccounts({
-			userAccounts: [this.getUserAccount()],
-			useMarketLastSlotCache: true,
-			writablePerpMarketIndexes: [rfqMatches[0].makerOrderParams.marketIndex],
-		});
-
-		const makerAccountMetas = [];
-		const verifyIxs = [];
-		for (const match of rfqMatches) {
-			const verifyIx = Ed25519Program.createInstructionWithPublicKey({
-				publicKey: match.makerOrderParams.authority.toBytes(),
-				signature: match.makerSignature,
-				message: Uint8Array.from(
-					this.encodeRFQMakerOrderParams(match.makerOrderParams)
-				),
-			});
-			verifyIxs.push(verifyIx);
-
-			const userAccountPubkey = await getUserAccountPublicKey(
-				this.program.programId,
-				match.makerOrderParams.authority,
-				match.makerOrderParams.subAccountId
-			);
-			makerAccountMetas.push({
-				pubkey: userAccountPubkey,
-				isWritable: true,
-				isSigner: false,
-			});
-
-			makerAccountMetas.push({
-				pubkey: getUserStatsAccountPublicKey(
-					this.program.programId,
-					match.makerOrderParams.authority
-				),
-				isWritable: true,
-				isSigner: false,
-			});
-
-			makerAccountMetas.push({
-				pubkey: getRFQUserAccountPublicKey(
-					this.program.programId,
-					userAccountPubkey
-				),
-				isWritable: true,
-				isSigner: false,
-			});
-		}
-		remainingAccounts.push(...makerAccountMetas);
-
-		const userStatsPublicKey = this.getUserStatsAccountPublicKey();
-		const user = await this.getUserAccountPublicKey();
-		const placeAndMatchRFQOrdersIx =
-			await this.program.instruction.placeAndMatchRfqOrders(rfqMatches, {
-				accounts: {
-					state: await this.getStatePublicKey(),
-					user,
-					userStats: userStatsPublicKey,
-					authority: this.wallet.publicKey,
-					ixSysvar: SYSVAR_INSTRUCTIONS_PUBKEY,
-				},
-				remainingAccounts,
-			});
-		return [...verifyIxs, placeAndMatchRFQOrdersIx];
 	}
 
 	public async preparePlaceAndTakeSpotOrder(

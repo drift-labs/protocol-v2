@@ -6,6 +6,7 @@ use std::u64;
 use anchor_lang::prelude::*;
 use solana_program::msg;
 
+use crate::controller;
 use crate::controller::funding::settle_funding_payment;
 use crate::controller::lp::burn_lp_shares;
 use crate::controller::position;
@@ -23,6 +24,7 @@ use crate::controller::spot_position::{
 };
 use crate::error::DriftResult;
 use crate::error::ErrorCode;
+use crate::get_struct_values;
 use crate::get_then_update_id;
 use crate::load_mut;
 use crate::math::amm::calculate_amm_available_liquidity;
@@ -57,14 +59,11 @@ use crate::state::margin_calculation::{MarginCalculation, MarginContext};
 use crate::state::oracle::{OraclePriceData, StrictOraclePrice};
 use crate::state::oracle_map::OracleMap;
 use crate::state::order_params::{
-    ModifyOrderParams, ModifyOrderPolicy, OrderParams, PlaceOrderOptions, PostOnlyParam, RFQMatch,
+    ModifyOrderParams, OrderParams, PlaceOrderOptions, PostOnlyParam,
 };
 use crate::state::paused_operations::{PerpOperation, SpotOperation};
-use crate::state::perp_market::{
-    AMMAvailability, AMMLiquiditySplit, ContractTier, MarketStatus, PerpMarket,
-};
+use crate::state::perp_market::{AMMAvailability, AMMLiquiditySplit, MarketStatus, PerpMarket};
 use crate::state::perp_market_map::PerpMarketMap;
-use crate::state::rfq_user::{RFQOrderId, RFQUser};
 use crate::state::spot_fulfillment_params::{ExternalSpotFill, SpotFulfillmentParams};
 use crate::state::spot_market::{SpotBalanceType, SpotMarket};
 use crate::state::spot_market_map::SpotMarketMap;
@@ -81,8 +80,6 @@ use crate::validation;
 use crate::validation::order::{
     validate_order, validate_order_for_force_reduce_only, validate_spot_order,
 };
-use crate::{controller, ID};
-use crate::{get_struct_values, PERCENTAGE_PRECISION_U64};
 
 #[cfg(test)]
 mod tests;
@@ -223,7 +220,7 @@ pub fn place_perp_order(
 
     // updates auction params for crossing limit orders w/out auction duration
     // dont modify if it's a liquidation
-    if !options.is_liquidation() && !options.is_rfq_order && !options.is_swift_order() {
+    if !options.is_liquidation() && !options.is_swift_order() {
         params.update_perp_auction_params(market, oracle_price_data.price)?;
     }
 
@@ -404,180 +401,6 @@ pub fn place_perp_order(
     emit_stack::<_, { OrderRecord::SIZE }>(order_record)?;
 
     user.update_last_active_slot(slot);
-
-    Ok(())
-}
-
-pub fn place_and_match_rfq_orders<'c: 'info, 'info>(
-    taker_account_loader: &AccountLoader<'info, User>,
-    taker_stats_account_loader: &AccountLoader<'info, UserStats>,
-    rfq_matches: Vec<RFQMatch>,
-    maker_rfq_account_map: BTreeMap<Pubkey, AccountLoader<'c, RFQUser>>,
-    makers_and_referrer: &UserMap,
-    makers_and_referrer_stats: &UserStatsMap,
-    perp_market_map: &PerpMarketMap,
-    spot_market_map: &SpotMarketMap,
-    oracle_map: &mut OracleMap,
-    state: &State,
-) -> Result<()> {
-    #[cfg(all(feature = "mainnet-beta", not(feature = "anchor-test")))]
-    {
-        panic!("RFQ orders are disabled on mainnet-beta");
-    }
-
-    let taker_key = taker_account_loader.key();
-    let clock = &Clock::get()?;
-
-    for rfq_match in rfq_matches {
-        if rfq_match.maker_order_params.max_ts < clock.unix_timestamp {
-            msg!(
-                "RFQ order expired for maker authority {} and uuid {:?}",
-                rfq_match.maker_order_params.authority,
-                rfq_match.maker_order_params.uuid
-            );
-            continue;
-        }
-
-        let mut taker = load_mut!(taker_account_loader)?;
-        let maker_order_params = rfq_match.maker_order_params;
-        let (maker_pubkey, _) = Pubkey::find_program_address(
-            &[
-                &b"user"[..],
-                maker_order_params.authority.as_ref(),
-                &maker_order_params.sub_account_id.to_le_bytes(),
-            ],
-            &ID,
-        );
-
-        let maker_order_params = OrderParams {
-            order_type: OrderType::Limit,
-            market_type: maker_order_params.market_type,
-            market_index: maker_order_params.market_index,
-            direction: maker_order_params.direction,
-            base_asset_amount: rfq_match.base_asset_amount,
-            price: maker_order_params.price,
-            max_ts: Some(maker_order_params.max_ts),
-            immediate_or_cancel: true,
-            post_only: PostOnlyParam::TryPostOnly,
-            auction_duration: None,
-            auction_end_price: None,
-            auction_start_price: None,
-            ..OrderParams::default()
-        };
-        let mut maker = makers_and_referrer.get_ref_mut(&maker_pubkey)?;
-
-        // See if the UUID already exists in the RFQ Account data
-        let mut rfq_account =
-            load_mut!(maker_rfq_account_map.get(&maker_pubkey).ok_or_else(|| {
-                msg!("RFQ account not found for maker {}", maker_pubkey);
-                ErrorCode::InvalidRFQUserAccount
-            })?)?;
-
-        let rfq_order_id = RFQOrderId::new(
-            rfq_match.maker_order_params.uuid,
-            rfq_match.maker_order_params.max_ts,
-        );
-        if rfq_account
-            .check_exists_and_prune_stale_rfq_order_ids(rfq_order_id, clock.unix_timestamp)?
-        {
-            msg!("RFQ order already exists for maker {}", maker_pubkey);
-            continue;
-        }
-        rfq_account.add_rfq_order_id(rfq_order_id)?;
-
-        let taker_order_params = OrderParams {
-            order_type: OrderType::Limit,
-            market_type: maker_order_params.market_type,
-            market_index: maker_order_params.market_index,
-            direction: maker_order_params.direction.opposite(),
-            base_asset_amount: rfq_match.base_asset_amount,
-            price: maker_order_params.price,
-            immediate_or_cancel: true,
-            post_only: PostOnlyParam::None,
-            auction_duration: None,
-            auction_end_price: None,
-            auction_start_price: None,
-            ..OrderParams::default()
-        };
-
-        let mut place_order_options = PlaceOrderOptions::default();
-        place_order_options.set_is_rfq(true);
-
-        if maker_order_params.market_type == MarketType::Perp {
-            // place maker order
-            let maker_order_id = maker.next_order_id;
-            controller::orders::place_perp_order(
-                state,
-                &mut maker,
-                maker_pubkey,
-                perp_market_map,
-                spot_market_map,
-                oracle_map,
-                clock,
-                maker_order_params,
-                place_order_options.clone(),
-            )?;
-
-            // place taker order
-            let taker_order_id = taker.next_order_id;
-            controller::orders::place_perp_order(
-                state,
-                &mut taker,
-                taker_key,
-                perp_market_map,
-                spot_market_map,
-                oracle_map,
-                &clock,
-                taker_order_params,
-                place_order_options,
-            )?;
-
-            drop(taker);
-            drop(maker);
-
-            let (base_asset_amount_filled, _) = fill_perp_order(
-                taker_order_id,
-                state,
-                taker_account_loader,
-                taker_stats_account_loader,
-                spot_market_map,
-                perp_market_map,
-                oracle_map,
-                &taker_account_loader.clone(),
-                &taker_stats_account_loader.clone(),
-                makers_and_referrer,
-                makers_and_referrer_stats,
-                Some(maker_order_id),
-                clock,
-                FillMode::RFQ,
-            )?;
-
-            if base_asset_amount_filled != taker_order_params.base_asset_amount {
-                msg!(
-                    "RFQ order was partially filled for maker {} and taker {}",
-                    maker_pubkey,
-                    taker_key
-                );
-                return Err(ErrorCode::RFQOrderNotFilled.into());
-            }
-
-            // Bring taker and maker back into scope
-            let taker = load_mut!(taker_account_loader)?;
-            let maker = makers_and_referrer.get_ref_mut(&maker_pubkey)?;
-
-            if taker.get_order_index(taker_order_id).is_ok() {
-                msg!("Taker order still exists after placing rfq order");
-                return Err(ErrorCode::RFQOrderNotFilled.into());
-            }
-
-            if maker.get_order_index(maker_order_id).is_ok() {
-                msg!("Maker order still exists after placing rfq order");
-                return Err(ErrorCode::RFQOrderNotFilled.into());
-            }
-        } else {
-            msg!("RFQ for spot market not supported");
-        }
-    }
 
     Ok(())
 }
@@ -1185,7 +1008,6 @@ pub fn fill_perp_order(
     let reserve_price_before: u64;
     let oracle_validity: OracleValidity;
     let oracle_price: i64;
-    let oracle_delay: i64;
     let oracle_twap_5min: i64;
     let perp_market_index: u16;
     let user_can_skip_duration: bool;
@@ -1193,7 +1015,7 @@ pub fn fill_perp_order(
     let amm_lp_allowed_to_jit_make: bool;
     let oracle_valid_for_amm_fill: bool;
 
-    let mut amm_is_available = !state.amm_paused()? && !fill_mode.is_rfq();
+    let mut amm_is_available = !state.amm_paused()?;
     {
         let market = &mut perp_market_map.get_ref_mut(&market_index)?;
         validation::perp_market::validate_perp_market(market)?;
@@ -1242,7 +1064,6 @@ pub fn fill_perp_order(
             .historical_oracle_data
             .last_oracle_price_twap_5min;
         oracle_validity = _oracle_validity;
-        oracle_delay = oracle_price_data.delay;
         perp_market_index = market.market_index;
     }
 
@@ -1290,9 +1111,6 @@ pub fn fill_perp_order(
         jit_maker_order_id,
         now,
         slot,
-        fill_mode,
-        oracle_valid_for_amm_fill,
-        oracle_delay,
         user_can_skip_duration,
         state.min_perp_auction_duration as u64,
     )?;
@@ -1433,7 +1251,6 @@ pub fn fill_perp_order(
         state.min_perp_auction_duration,
         amm_availability,
         fill_mode,
-        Some(amm_lp_allowed_to_jit_make),
     )?;
 
     if base_asset_amount != 0 {
@@ -1605,9 +1422,6 @@ fn get_maker_orders_info(
     jit_maker_order_id: Option<u32>,
     now: i64,
     slot: u64,
-    fill_mode: FillMode,
-    oracle_valid_for_amm_fill: bool,
-    oracle_delay: i64,
     user_can_skip_duration: bool,
     protected_maker_min_age: u64,
 ) -> DriftResult<Vec<(Pubkey, usize, u64)>> {
@@ -1667,7 +1481,7 @@ fn get_maker_orders_info(
             let maker_order_price = *maker_order_price;
 
             let maker_order = &maker.orders[maker_order_index];
-            if !is_maker_for_taker(maker_order, taker_order, slot, fill_mode)? {
+            if !is_maker_for_taker(maker_order, taker_order, slot)? {
                 continue;
             }
 
@@ -1857,7 +1671,6 @@ fn fulfill_perp_order(
     min_auction_duration: u8,
     amm_availability: AMMAvailability,
     fill_mode: FillMode,
-    amm_lp_allowed_to_jit_make: Option<bool>,
 ) -> DriftResult<(u64, u64)> {
     let market_index = user.orders[user_order_index].market_index;
 
@@ -4194,7 +4007,7 @@ fn get_spot_maker_orders_info(
             let maker_order_price = *maker_order_price;
 
             let maker_order = &maker.orders[maker_order_index];
-            if !is_maker_for_taker(maker_order, taker_order, slot, FillMode::Fill)? {
+            if !is_maker_for_taker(maker_order, taker_order, slot)? {
                 continue;
             }
 

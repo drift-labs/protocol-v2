@@ -60,7 +60,6 @@ pub mod fill_order_protected_maker {
     use crate::{create_account_info, QUOTE_PRECISION_I64};
 
     use super::*;
-    use crate::error::ErrorCode;
     use crate::state::fill_mode::FillMode;
     use crate::state::user_map::{UserMap, UserStatsMap};
 
@@ -3068,9 +3067,6 @@ pub mod fulfill_order {
 
     #[test]
     fn fulfill_with_amm_skip_auction_duration() {
-        let now = 0_i64;
-        let slot = 0_u64;
-
         let mut oracle_price = get_pyth_price(100, 6);
         let oracle_price_key =
             Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
@@ -3079,9 +3075,8 @@ pub mod fulfill_order {
             oracle_price,
             &oracle_price_key,
             &pyth_program,
-            oracle_account_info
+            _oracle_account_info
         );
-        let oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
 
         let mut market = PerpMarket {
             amm: AMM {
@@ -3304,7 +3299,6 @@ pub mod fulfill_order {
             0,
             crate::state::perp_market::AMMAvailability::AfterMinDuration,
             FillMode::Fill,
-            None,
         )
         .unwrap();
 
@@ -3548,7 +3542,6 @@ pub mod fulfill_order {
             10,
             crate::state::perp_market::AMMAvailability::AfterMinDuration,
             FillMode::Fill,
-            None,
         )
         .unwrap();
 
@@ -3738,7 +3731,6 @@ pub mod fulfill_order {
             0,
             crate::state::perp_market::AMMAvailability::AfterMinDuration,
             FillMode::Fill,
-            None,
         )
         .unwrap();
 
@@ -3944,7 +3936,6 @@ pub mod fulfill_order {
             10,
             crate::state::perp_market::AMMAvailability::AfterMinDuration,
             FillMode::Fill,
-            None,
         )
         .unwrap();
 
@@ -4110,7 +4101,6 @@ pub mod fulfill_order {
             0,
             crate::state::perp_market::AMMAvailability::AfterMinDuration,
             FillMode::Fill,
-            None,
         )
         .unwrap();
 
@@ -4308,7 +4298,6 @@ pub mod fulfill_order {
             10,
             crate::state::perp_market::AMMAvailability::AfterMinDuration,
             FillMode::Fill,
-            None,
         );
 
         assert!(result.is_ok());
@@ -4495,7 +4484,6 @@ pub mod fulfill_order {
             10,
             crate::state::perp_market::AMMAvailability::AfterMinDuration,
             FillMode::Fill,
-            None,
         );
 
         assert_eq!(result, Err(ErrorCode::InsufficientCollateral));
@@ -4635,7 +4623,6 @@ pub mod fulfill_order {
             0,
             crate::state::perp_market::AMMAvailability::Immediate,
             FillMode::Fill,
-            None,
         )
         .unwrap();
 
@@ -4802,7 +4789,6 @@ pub mod fulfill_order {
             0,
             crate::state::perp_market::AMMAvailability::AfterMinDuration,
             FillMode::Fill,
-            None,
         )
         .unwrap();
 
@@ -5209,7 +5195,6 @@ pub mod fulfill_order {
             10,
             crate::state::perp_market::AMMAvailability::AfterMinDuration,
             FillMode::Fill,
-            None,
         )
         .unwrap();
 
@@ -5453,7 +5438,6 @@ pub mod fulfill_order {
             0,
             crate::state::perp_market::AMMAvailability::AfterMinDuration,
             FillMode::Fill,
-            None,
         )
         .unwrap();
 
@@ -10201,7 +10185,6 @@ pub mod get_maker_orders_info {
         PRICE_PRECISION_I64, PRICE_PRECISION_U64, SPOT_BALANCE_PRECISION_U64,
         SPOT_CUMULATIVE_INTEREST_PRECISION, SPOT_WEIGHT_PRECISION,
     };
-    use crate::state::fill_mode::FillMode;
     use crate::state::oracle::HistoricalOracleData;
     use crate::state::oracle::OracleSource;
     use crate::state::perp_market::{PerpMarket, AMM};
@@ -10398,9 +10381,6 @@ pub mod get_maker_orders_info {
             None,
             clock.unix_timestamp,
             clock.slot,
-            FillMode::Fill,
-            true,
-            0,
             true,
             10,
         )
@@ -10592,9 +10572,6 @@ pub mod get_maker_orders_info {
             None,
             clock.unix_timestamp,
             clock.slot,
-            FillMode::Fill,
-            true,
-            0,
             true,
             10,
         )
@@ -10775,9 +10752,6 @@ pub mod get_maker_orders_info {
             None,
             clock.unix_timestamp,
             clock.slot,
-            FillMode::Fill,
-            true,
-            0,
             true,
             10,
         )
@@ -11021,9 +10995,6 @@ pub mod get_maker_orders_info {
             None,
             clock.unix_timestamp,
             clock.slot,
-            FillMode::Fill,
-            true,
-            0,
             true,
             10,
         )
@@ -11222,9 +11193,6 @@ pub mod get_maker_orders_info {
             Some(2),
             clock.unix_timestamp,
             clock.slot,
-            FillMode::PlaceAndTake(false, 0),
-            true,
-            0,
             true,
             10,
         )
@@ -11445,9 +11413,6 @@ pub mod get_maker_orders_info {
             None,
             clock.unix_timestamp,
             clock.slot,
-            FillMode::Fill,
-            true,
-            0,
             true,
             10,
         )

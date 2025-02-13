@@ -1779,7 +1779,7 @@ pub fn liquidate_spot_with_swap_begin(
     drop(asset_spot_market);
     drop(liability_spot_market);
 
-    let (asset_amount, asset_price, asset_decimals, asset_weight, asset_liquidation_multiplier) = {
+    let (asset_amount, asset_price, asset_decimals, asset_weight) = {
         let mut asset_market = spot_market_map.get_ref_mut(&asset_market_index)?;
         let (asset_price_data, validity_guard_rails) =
             oracle_map.get_price_data_and_guard_rails(&asset_market.oracle_id())?;
@@ -1815,21 +1815,10 @@ pub fn liquidate_spot_with_swap_begin(
             asset_price,
             asset_market.decimals,
             asset_market.maintenance_asset_weight,
-            calculate_liquidation_multiplier(
-                asset_market.liquidator_fee,
-                LiquidationMultiplierType::Premium,
-            )?,
         )
     };
 
-    let (
-        liability_amount,
-        liability_price,
-        liability_decimals,
-        liability_weight,
-        liability_liquidation_multiplier,
-        liability_if_fee,
-    ) = {
+    let (liability_price, liability_decimals, liability_weight, liability_if_fee) = {
         let mut liability_market = spot_market_map.get_ref_mut(&liability_market_index)?;
         let (liability_price_data, validity_guard_rails) =
             oracle_map.get_price_data_and_guard_rails(&liability_market.oracle_id())?;
@@ -1862,14 +1851,9 @@ pub fn liquidate_spot_with_swap_begin(
         let liability_price = liability_price_data.price;
 
         (
-            token_amount,
             liability_price,
             liability_market.decimals,
             liability_market.maintenance_liability_weight,
-            calculate_liquidation_multiplier(
-                liability_market.liquidator_fee,
-                LiquidationMultiplierType::Discount,
-            )?,
             liability_market.if_liquidation_fee,
         )
     };
@@ -1896,7 +1880,6 @@ pub fn liquidate_spot_with_swap_begin(
     }
 
     let liquidation_id = user.enter_liquidation(slot)?;
-    let mut margin_freed = 0_u64;
 
     let canceled_order_ids = orders::cancel_orders(
         user,
@@ -1931,7 +1914,7 @@ pub fn liquidate_spot_with_swap_begin(
         let initial_margin_shortage = margin_calculation.margin_shortage()?;
         let new_margin_shortage = intermediate_margin_calculation.margin_shortage()?;
 
-        margin_freed = initial_margin_shortage
+        let margin_freed = initial_margin_shortage
             .saturating_sub(new_margin_shortage)
             .cast::<u64>()?;
         user.increment_margin_freed(margin_freed)?;
@@ -2114,16 +2097,15 @@ pub fn liquidate_spot_with_swap_end(
 ) -> DriftResult {
     let liquidation_margin_buffer_ratio = state.liquidation_margin_buffer_ratio;
 
-    let (asset_price, asset_decimals, asset_weight, asset_liquidation_multiplier) = {
-        let mut asset_market = spot_market_map.get_ref_mut(&asset_market_index)?;
-        let (asset_price_data, validity_guard_rails) =
+    let (asset_price, asset_decimals, asset_liquidation_multiplier) = {
+        let asset_market = spot_market_map.get_ref_mut(&asset_market_index)?;
+        let (asset_price_data, _validity_guard_rails) =
             oracle_map.get_price_data_and_guard_rails(&asset_market.oracle_id())?;
 
         let asset_price = asset_price_data.price;
         (
             asset_price,
             asset_market.decimals,
-            asset_market.maintenance_asset_weight,
             calculate_liquidation_multiplier(
                 asset_market.liquidator_fee,
                 LiquidationMultiplierType::Premium,
@@ -2131,15 +2113,9 @@ pub fn liquidate_spot_with_swap_end(
         )
     };
 
-    let (
-        liability_price,
-        liability_decimals,
-        liability_weight,
-        liability_liquidation_multiplier,
-        liquidation_if_fee,
-    ) = {
-        let mut liability_market = spot_market_map.get_ref_mut(&liability_market_index)?;
-        let (liability_price_data, validity_guard_rails) =
+    let (liability_price, liability_decimals, liability_liquidation_multiplier, liquidation_if_fee) = {
+        let liability_market = spot_market_map.get_ref_mut(&liability_market_index)?;
+        let (liability_price_data, _validity_guard_rails) =
             oracle_map.get_price_data_and_guard_rails(&liability_market.oracle_id())?;
 
         let liability_price = liability_price_data.price;
@@ -2148,7 +2124,6 @@ pub fn liquidate_spot_with_swap_end(
         (
             liability_price,
             liability_market.decimals,
-            liability_market.maintenance_liability_weight,
             calculate_liquidation_multiplier(
                 liability_market.liquidator_fee,
                 LiquidationMultiplierType::Discount,

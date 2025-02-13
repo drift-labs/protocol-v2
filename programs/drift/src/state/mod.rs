@@ -14,7 +14,6 @@ pub mod perp_market;
 pub mod perp_market_map;
 pub mod protected_maker_mode_config;
 pub mod pyth_lazer_oracle;
-pub mod rfq_user;
 pub mod settle_pnl_mode;
 pub mod spot_fulfillment_params;
 pub mod spot_market;

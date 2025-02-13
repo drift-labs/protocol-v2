@@ -935,7 +935,7 @@ mod get_liquidation_fee {
 
 mod validate_swap_within_liquidation_boundaries {
     use crate::math::liquidation::validate_swap_within_liquidation_boundaries;
-    use crate::{LIQUIDATION_FEE_PRECISION, PRICE_PRECISION_I64, QUOTE_PRECISION};
+    use crate::{LIQUIDATION_FEE_PRECISION, PRICE_PRECISION_I64};
 
     #[test]
     fn success() {
@@ -972,7 +972,7 @@ mod validate_swap_within_liquidation_boundaries {
         let asset_liquidation_multiplier = LIQUIDATION_FEE_PRECISION * 101 / 100;
         let liability_liquidation_multiplier = LIQUIDATION_FEE_PRECISION;
 
-        let res = validate_swap_within_liquidation_boundaries(
+        validate_swap_within_liquidation_boundaries(
             asset_transfer,
             liability_transfer,
             asset_decimals,

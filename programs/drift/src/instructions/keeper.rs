@@ -1,11 +1,9 @@
 use std::cell::RefMut;
-use std::convert::{TryFrom, TryInto};
+use std::convert::TryFrom;
 
 use anchor_lang::prelude::*;
 use anchor_lang::Discriminator;
-use anchor_spl::associated_token::{
-    get_associated_token_address, get_associated_token_address_with_program_id,
-};
+use anchor_spl::associated_token::get_associated_token_address_with_program_id;
 use anchor_spl::token::spl_token;
 use anchor_spl::token_2022::spl_token_2022;
 use anchor_spl::token_interface::{TokenAccount, TokenInterface};
@@ -24,9 +22,7 @@ use crate::controller::spot_balance::update_spot_balances;
 use crate::controller::token::{receive, send_from_program_vault};
 use crate::error::ErrorCode;
 use crate::ids::admin_hot_wallet;
-use crate::ids::{
-    jupiter_mainnet_3, jupiter_mainnet_4, jupiter_mainnet_6, marinade_mainnet, serum_program,
-};
+use crate::ids::{jupiter_mainnet_3, jupiter_mainnet_4, jupiter_mainnet_6, serum_program};
 use crate::instructions::constraints::*;
 use crate::instructions::optional_accounts::{load_maps, AccountMaps};
 use crate::math::casting::Cast;
@@ -461,8 +457,7 @@ pub fn handle_log_user_balances<'c: 'info, 'info>(
     ctx: Context<'_, '_, 'c, 'info, LogUserBalances<'info>>,
 ) -> Result<()> {
     let user_key = ctx.accounts.user.key();
-    let mut user = load_mut!(ctx.accounts.user)?;
-    let clock = Clock::get()?;
+    let user = load!(ctx.accounts.user)?;
 
     let AccountMaps {
         perp_market_map,
@@ -1492,7 +1487,7 @@ pub fn handle_liquidate_spot_with_swap_begin<'c: 'info, 'info>(
                     )?;
                 }
             } else {
-                let mut whitelisted_programs = vec![
+                let whitelisted_programs = vec![
                     serum_program::id(),
                     AssociatedToken::id(),
                     jupiter_mainnet_3::ID,
@@ -1573,13 +1568,7 @@ pub fn handle_liquidate_spot_with_swap_end<'c: 'info, 'info>(
         "the asset_spot_market must have a flash loan amount set"
     )?;
 
-    let asset_oracle_data = oracle_map.get_price_data(&asset_spot_market.oracle_id())?;
-    let asset_oracle_price = asset_oracle_data.price;
-
     let mut liability_spot_market = spot_market_map.get_ref_mut(&liability_market_index)?;
-
-    let liability_oracle_data = oracle_map.get_price_data(&liability_spot_market.oracle_id())?;
-    let liability_oracle_price = liability_oracle_data.price;
 
     let asset_vault = &mut ctx.accounts.asset_spot_market_vault;
     let asset_token_account = &mut ctx.accounts.asset_token_account;
@@ -2744,7 +2733,7 @@ pub fn handle_force_delete_user<'c: 'info, 'info>(
     }
 
     // cancel all open orders
-    let canceled_order_ids = cancel_orders(
+    cancel_orders(
         user,
         &user_key,
         Some(&keeper_key),

@@ -1,19 +1,19 @@
 use solana_program::msg;
 
 use crate::controller::position::PositionDirection;
-use crate::controller::spot_balance::{update_revenue_pool_balances, update_spot_balances};
+use crate::controller::spot_balance::update_spot_balances;
 use crate::error::DriftResult;
 use crate::error::ErrorCode;
 use crate::math::casting::Cast;
 use crate::math::safe_math::SafeMath;
 use crate::math::spot_withdraw::check_withdraw_limits;
+use crate::math_error;
 use crate::safe_decrement;
 use crate::safe_increment;
 use crate::state::paused_operations::SpotOperation;
 use crate::state::perp_market::MarketStatus;
 use crate::state::spot_market::{AssetTier, SpotBalance, SpotBalanceType, SpotMarket};
-use crate::state::user::{SpotPosition, User, UserStats};
-use crate::{math_error, QUOTE_PRECISION};
+use crate::state::user::{SpotPosition, User};
 
 use crate::validate;
 

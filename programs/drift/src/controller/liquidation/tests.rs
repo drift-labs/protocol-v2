@@ -5782,7 +5782,7 @@ pub mod liquidate_perp_pnl_for_deposit {
         SPOT_WEIGHT_PRECISION,
     };
     use crate::math::margin::calculate_margin_requirement_and_total_collateral_and_liability_info;
-    use crate::state::margin_calculation::{MarginCalculation, MarginContext};
+    use crate::state::margin_calculation::MarginContext;
     use crate::state::oracle::HistoricalOracleData;
     use crate::state::oracle::OracleSource;
     use crate::state::oracle_map::OracleMap;
@@ -8363,7 +8363,6 @@ pub mod liquidate_spot_with_swap {
     use crate::math::spot_balance::get_token_amount;
     use crate::state::oracle::{HistoricalOracleData, OracleSource};
     use crate::state::state::State;
-    use std::ops::Deref;
     use std::str::FromStr;
 
     use anchor_lang::Owner;
@@ -8602,7 +8601,7 @@ mod liquidate_dust_prediction_market {
     use crate::{MARGIN_PRECISION, SPOT_BALANCE_PRECISION_U64};
 
     use crate::state::spot_market_map::SpotMarketMap;
-    use anchor_lang::prelude::{AccountLoader, Clock};
+    use anchor_lang::prelude::AccountLoader;
     use solana_program::pubkey::Pubkey;
     use std::str::FromStr;
 
@@ -8684,11 +8683,6 @@ mod liquidate_dust_prediction_market {
 
         let now = 1734646601;
         let clock_slot = 308552347;
-        let clock = Clock {
-            unix_timestamp: now,
-            slot: clock_slot,
-            ..Clock::default()
-        };
 
         let account_infos = vec![
             perp_market_oracle_account_info,
@@ -8766,7 +8760,7 @@ mod liquidate_dust_spot_market {
     use crate::{MARGIN_PRECISION, SPOT_BALANCE_PRECISION_U64};
 
     use crate::state::spot_market_map::SpotMarketMap;
-    use anchor_lang::prelude::{AccountLoader, Clock};
+    use anchor_lang::prelude::AccountLoader;
     use solana_program::pubkey::Pubkey;
     use std::str::FromStr;
 
@@ -8851,11 +8845,6 @@ mod liquidate_dust_spot_market {
 
         let now = 1734721516;
         let clock_slot = 308728664;
-        let clock = Clock {
-            unix_timestamp: now,
-            slot: clock_slot,
-            ..Clock::default()
-        };
 
         let account_infos = vec![
             btc_oracle_account_info,
