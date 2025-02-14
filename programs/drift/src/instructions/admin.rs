@@ -21,9 +21,9 @@ use crate::math::constants::{
     DEFAULT_LIQUIDATION_MARGIN_BUFFER_RATIO, FEE_POOL_TO_REVENUE_POOL_THRESHOLD,
     IF_FACTOR_PRECISION, INSURANCE_A_MAX, INSURANCE_B_MAX, INSURANCE_C_MAX,
     INSURANCE_SPECULATIVE_MAX, LIQUIDATION_FEE_PRECISION, MAX_CONCENTRATION_COEFFICIENT,
-    MAX_SQRT_K, MAX_UPDATE_K_PRICE_CHANGE, PERCENTAGE_PRECISION, QUOTE_SPOT_MARKET_INDEX,
-    SPOT_CUMULATIVE_INTEREST_PRECISION, SPOT_IMF_PRECISION, SPOT_WEIGHT_PRECISION, THIRTEEN_DAY,
-    TWENTY_FOUR_HOUR,
+    MAX_SQRT_K, MAX_UPDATE_K_PRICE_CHANGE, PERCENTAGE_PRECISION, PERCENTAGE_PRECISION_I64,
+    QUOTE_SPOT_MARKET_INDEX, SPOT_CUMULATIVE_INTEREST_PRECISION, SPOT_IMF_PRECISION,
+    SPOT_WEIGHT_PRECISION, THIRTEEN_DAY, TWENTY_FOUR_HOUR,
 };
 use crate::math::cp_curve::get_update_k_result;
 use crate::math::orders::is_multiple_of_step_size;
@@ -3434,6 +3434,7 @@ pub fn handle_update_perp_market_oracle(
     ctx: Context<RepegCurve>,
     oracle: Pubkey,
     oracle_source: OracleSource,
+    skip_invariant_check: bool,
 ) -> Result<()> {
     let perp_market = &mut load_mut!(ctx.accounts.perp_market)?;
     msg!("perp market {}", perp_market.market_index);
@@ -3450,9 +3451,9 @@ pub fn handle_update_perp_market_oracle(
         oracle
     )?;
 
-    // Verify oracle is readable
+    // Verify new oracle is readable
     let OraclePriceData {
-        price: _oracle_price,
+        price: new_oracle_price,
         delay: _oracle_delay,
         ..
     } = get_oracle_price(&oracle_source, &ctx.accounts.oracle, clock.slot)?;
@@ -3468,6 +3469,30 @@ pub fn handle_update_perp_market_oracle(
         perp_market.amm.oracle_source,
         oracle_source
     );
+
+    if !skip_invariant_check {
+        let OraclePriceData {
+            price: old_oracle_price,
+            ..
+        } = get_oracle_price(&perp_market.amm.oracle_source, price_oracle, clock.slot)?;
+
+        msg!(
+            "Oracle Price: {:?} -> {:?}",
+            old_oracle_price,
+            new_oracle_price
+        );
+
+        let oracle_change_divergence = new_oracle_price
+            .safe_sub(old_oracle_price)?
+            .safe_mul(PERCENTAGE_PRECISION_I64)?
+            .safe_div(old_oracle_price)?;
+
+        validate!(
+            oracle_change_divergence.abs() < (PERCENTAGE_PRECISION_I64 / 10),
+            ErrorCode::DefaultError,
+            "invalid new oracle price, more than 10% divergence"
+        )?;
+    }
 
     perp_market.amm.oracle = oracle;
     perp_market.amm.oracle_source = oracle_source;

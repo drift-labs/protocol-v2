@@ -1373,8 +1373,9 @@ pub mod drift {
         ctx: Context<RepegCurve>,
         oracle: Pubkey,
         oracle_source: OracleSource,
+        skip_invariant_check: bool,
     ) -> Result<()> {
-        handle_update_perp_market_oracle(ctx, oracle, oracle_source)
+        handle_update_perp_market_oracle(ctx, oracle, oracle_source, skip_invariant_check)
     }
 
     pub fn update_perp_market_base_spread(
