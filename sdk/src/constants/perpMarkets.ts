@@ -1212,6 +1212,16 @@ export const MainnetPerpMarkets: PerpMarketConfig[] = [
 		launchTs: 1739463226000,
 		oracleSource: OracleSource.Prelaunch,
 	},
+	{
+		fullName: 'KAITO',
+		category: ['AI'],
+		symbol: 'KAITO-PERP',
+		baseAssetSymbol: 'KAITO',
+		marketIndex: 69,
+		oracle: new PublicKey('92178mkEc5EFbHPaRNrsv9KPBpgbbDQCPzbSpxmDVy6a'),
+		launchTs: 1739545901000,
+		oracleSource: OracleSource.Prelaunch,
+	},
 ];
 
 export const PerpMarkets: { [key in DriftEnv]: PerpMarketConfig[] } = {
