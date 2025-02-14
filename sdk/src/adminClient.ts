@@ -2175,12 +2175,14 @@ export class AdminClient extends DriftClient {
 	public async updatePerpMarketOracle(
 		perpMarketIndex: number,
 		oracle: PublicKey,
-		oracleSource: OracleSource
+		oracleSource: OracleSource,
+		skipInvaraintCheck?: boolean,
 	): Promise<TransactionSignature> {
 		const updatePerpMarketOracleIx = await this.getUpdatePerpMarketOracleIx(
 			perpMarketIndex,
 			oracle,
-			oracleSource
+			oracleSource,
+			skipInvaraintCheck
 		);
 
 		const tx = await this.buildTransaction(updatePerpMarketOracleIx);
@@ -2193,11 +2195,13 @@ export class AdminClient extends DriftClient {
 	public async getUpdatePerpMarketOracleIx(
 		perpMarketIndex: number,
 		oracle: PublicKey,
-		oracleSource: OracleSource
+		oracleSource: OracleSource,
+		skipInvaraintCheck?: boolean,
 	): Promise<TransactionInstruction> {
 		return await this.program.instruction.updatePerpMarketOracle(
 			oracle,
 			oracleSource,
+			skipInvaraintCheck,
 			{
 				accounts: {
 					admin: this.isSubscribed
