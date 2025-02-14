@@ -17,6 +17,8 @@ import {
 	SpotMarketVaultDepositRecord,
 	SwiftOrderRecord,
 	DeleteUserRecord,
+	FuelSweepRecord,
+	FuelSeasonRecord,
 } from '../index';
 import { EventEmitter } from 'events';
 
@@ -53,6 +55,8 @@ export const DefaultEventSubscriptionOptions: EventSubscriptionOptions = {
 		'SpotMarketVaultDepositRecord',
 		'SwiftOrderRecord',
 		'DeleteUserRecord',
+		'FuelSweepRecord',
+		'FuelSeasonRecord',
 	],
 	maxEventsPerType: 4096,
 	orderBy: 'blockchain',
@@ -98,6 +102,8 @@ export type EventMap = {
 	SpotMarketVaultDepositRecord: Event<SpotMarketVaultDepositRecord>;
 	SwiftOrderRecord: Event<SwiftOrderRecord>;
 	DeleteUserRecord: Event<DeleteUserRecord>;
+	FuelSweepRecord: Event<FuelSweepRecord>;
+	FuelSeasonRecord: Event<FuelSeasonRecord>;
 };
 
 export type EventType = keyof EventMap;
@@ -119,7 +125,9 @@ export type DriftEvent =
 	| Event<SwapRecord>
 	| Event<SpotMarketVaultDepositRecord>
 	| Event<SwiftOrderRecord>
-	| Event<DeleteUserRecord>;
+	| Event<DeleteUserRecord>
+	| Event<FuelSweepRecord>
+	| Event<FuelSeasonRecord>;
 
 export interface EventSubscriberEvents {
 	newEvent: (event: WrappedEvent<EventType>) => void;

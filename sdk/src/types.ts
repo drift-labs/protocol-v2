@@ -643,6 +643,37 @@ export type DeleteUserRecord = {
 	keeper: PublicKey | null;
 };
 
+export type FuelSeasonRecord = {
+	ts: BN;
+	authority: PublicKey;
+	fuelInsurance: BN;
+	fuelDeposits: BN;
+	fuelBorrows: BN;
+	fuelPositions: BN;
+	fuelTaker: BN;
+	fuelMaker: BN;
+	fuelTotal: BN;
+};
+
+export type FuelSweepRecord = {
+	ts: BN;
+	authority: PublicKey;
+	// fuel values on UserStats before sweep
+	userStatsFuelInsurance: BN;
+	userStatsFuelDeposits: BN;
+	userStatsFuelBorrows: BN;
+	userStatsFuelPositions: BN;
+	userStatsFuelTaker: BN;
+	userStatsFuelMaker: BN;
+	// fuel values on FuelOverflow before sweep
+	fuelOverflowFuelInsurance: BN;
+	fuelOverflowFuelDeposits: BN;
+	fuelOverflowFuelBorrows: BN;
+	fuelOverflowFuelPositions: BN;
+	fuelOverflowFuelTaker: BN;
+	fuelOverflowFuelMaker: BN;
+};
+
 export type StateAccount = {
 	admin: PublicKey;
 	exchangeStatus: number;
