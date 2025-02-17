@@ -2,6 +2,8 @@ use std::fmt;
 use std::fmt::{Display, Formatter};
 
 use anchor_lang::prelude::*;
+use anchor_spl::token::spl_token;
+use anchor_spl::token_2022::spl_token_2022;
 use borsh::{BorshDeserialize, BorshSerialize};
 
 use crate::error::{DriftResult, ErrorCode};
@@ -567,6 +569,14 @@ impl SpotMarket {
         self.historical_index_data.last_index_price_twap_ts = now;
 
         Ok(())
+    }
+
+    pub fn get_token_program(&self) -> Pubkey {
+        match self.token_program {
+            0 => spl_token::ID,
+            1 => spl_token_2022::ID,
+            _ => panic!("Invalid token program"),
+        }
     }
 }
 

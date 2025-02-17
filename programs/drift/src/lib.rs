@@ -124,6 +124,26 @@ pub mod drift {
         handle_transfer_deposit(ctx, market_index, amount)
     }
 
+    pub fn transfer_pools<'c: 'info, 'info>(
+        ctx: Context<'_, '_, 'c, 'info, TransferPools<'info>>,
+        deposit_from_market_index: u16,
+        deposit_to_market_index: u16,
+        borrow_from_market_index: u16,
+        borrow_to_market_index: u16,
+        deposit_amount: Option<u64>,
+        borrow_amount: Option<u64>,
+    ) -> Result<()> {
+        handle_transfer_pools(
+            ctx,
+            deposit_from_market_index,
+            deposit_to_market_index,
+            borrow_from_market_index,
+            borrow_to_market_index,
+            deposit_amount,
+            borrow_amount,
+        )
+    }
+
     pub fn place_perp_order<'c: 'info, 'info>(
         ctx: Context<'_, '_, 'c, 'info, PlaceOrder>,
         params: OrderParams,

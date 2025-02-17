@@ -2768,11 +2768,8 @@ pub fn handle_force_delete_user<'c: 'info, 'info>(
         let token_amount = spot_position.get_token_amount(spot_market)?;
         let balance_type = spot_position.balance_type;
 
-        let token_program_pubkey = if spot_market.token_program == 1 {
-            spl_token_2022::ID
-        } else {
-            spl_token::ID
-        };
+        let token_program_pubkey = spot_market.get_token_program();
+
         let token_program = &ctx
             .remaining_accounts
             .iter()
