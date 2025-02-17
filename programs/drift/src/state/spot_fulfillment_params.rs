@@ -109,8 +109,8 @@ impl SpotFulfillmentParams for TestFulfillmentParams {
 
     fn validate_markets(
         &self,
-        base_market: &SpotMarket,
-        quote_market: &SpotMarket,
+        _base_market: &SpotMarket,
+        _quote_market: &SpotMarket,
     ) -> DriftResult<()> {
         Ok(())
     }

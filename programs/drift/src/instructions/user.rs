@@ -5,11 +5,9 @@ use anchor_spl::{
     token_2022::Token2022,
     token_interface::{TokenAccount, TokenInterface},
 };
-use solana_program::instruction::Instruction;
 use solana_program::program::invoke;
 use solana_program::system_instruction::transfer;
 
-use crate::controller::orders::place_and_match_rfq_orders;
 use crate::controller::orders::{cancel_orders, ModifyOrderId};
 use crate::controller::position::PositionDirection;
 use crate::controller::spot_balance::update_revenue_pool_balances;
@@ -55,7 +53,6 @@ use crate::state::fulfillment_params::phoenix::PhoenixFulfillmentParams;
 use crate::state::fulfillment_params::serum::SerumFulfillmentParams;
 use crate::state::high_leverage_mode_config::HighLeverageModeConfig;
 use crate::state::oracle::StrictOraclePrice;
-use crate::state::order_params::RFQMatch;
 use crate::state::order_params::{
     parse_optional_params, ModifyOrderParams, OrderParams, PlaceAndTakeOrderSuccessCondition,
     PlaceOrderOptions, PostOnlyParam,
@@ -65,7 +62,9 @@ use crate::state::perp_market::ContractType;
 use crate::state::perp_market::MarketStatus;
 use crate::state::perp_market_map::{get_writable_perp_market_set, MarketSet};
 use crate::state::protected_maker_mode_config::ProtectedMakerModeConfig;
-use crate::state::rfq_user::{load_rfq_user_account_map, RFQUser, RFQ_PDA_SEED};
+use crate::state::signed_msg_user::SignedMsgOrderId;
+use crate::state::signed_msg_user::SignedMsgUserOrdersLoader;
+use crate::state::signed_msg_user::{SignedMsgUserOrders, SIGNED_MSG_PDA_SEED};
 use crate::state::spot_fulfillment_params::SpotFulfillmentParams;
 use crate::state::spot_market::SpotBalanceType;
 use crate::state::spot_market::SpotMarket;
@@ -73,9 +72,6 @@ use crate::state::spot_market_map::{
     get_writable_spot_market_set, get_writable_spot_market_set_from_many,
 };
 use crate::state::state::State;
-use crate::state::swift_user::SwiftOrderId;
-use crate::state::swift_user::SwiftUserOrdersLoader;
-use crate::state::swift_user::{SwiftUserOrders, SWIFT_PDA_SEED};
 use crate::state::traits::Size;
 use crate::state::user::ReferrerStatus;
 use crate::state::user::{
@@ -84,7 +80,6 @@ use crate::state::user::{
 };
 use crate::state::user_map::{load_user_maps, UserMap, UserStatsMap};
 use crate::validate;
-use crate::validation::sig_verification::verify_ed25519_ix;
 use crate::validation::user::validate_user_deletion;
 use crate::validation::whitelist::validate_whitelist_token;
 use crate::{controller, math};
@@ -94,9 +89,7 @@ use crate::{load_mut, ExchangeStatus};
 use anchor_lang::solana_program::sysvar::instructions;
 use anchor_spl::associated_token::AssociatedToken;
 use borsh::{BorshDeserialize, BorshSerialize};
-use solana_program::sysvar::instructions::{
-    load_current_index_checked, load_instruction_at_checked, ID as IX_ID,
-};
+use solana_program::sysvar::instructions::ID as IX_ID;
 
 pub fn handle_initialize_user<'c: 'info, 'info>(
     ctx: Context<'_, '_, 'c, 'info, InitializeUser<'info>>,
@@ -280,45 +273,28 @@ pub fn handle_initialize_referrer_name(
     Ok(())
 }
 
-pub fn handle_initialize_rfq_user<'c: 'info, 'info>(
-    ctx: Context<'_, '_, 'c, 'info, InitializeRFQUser<'info>>,
+pub fn handle_initialize_signed_msg_user_orders<'c: 'info, 'info>(
+    ctx: Context<'_, '_, 'c, 'info, InitializeSignedMsgUserOrders<'info>>,
+    num_orders: u16,
 ) -> Result<()> {
-    let mut rfq_user = ctx
-        .accounts
-        .rfq_user
-        .load_init()
-        .or(Err(ErrorCode::UnableToLoadAccountLoader))?;
-    rfq_user.user_pubkey = ctx.accounts.user.key();
+    let signed_msg_user_orders = &mut ctx.accounts.signed_msg_user_orders;
+    signed_msg_user_orders.authority_pubkey = ctx.accounts.authority.key();
+    signed_msg_user_orders
+        .signed_msg_order_data
+        .resize_with(num_orders as usize, SignedMsgOrderId::default);
+    signed_msg_user_orders.validate()?;
     Ok(())
 }
 
-pub fn handle_initialize_swift_user_orders<'c: 'info, 'info>(
-    ctx: Context<'_, '_, 'c, 'info, InitializeSwiftUserOrders<'info>>,
+pub fn handle_resize_signed_msg_user_orders<'c: 'info, 'info>(
+    ctx: Context<'_, '_, 'c, 'info, ResizeSignedMsgUserOrders<'info>>,
     num_orders: u16,
 ) -> Result<()> {
-    #[cfg(all(feature = "mainnet-beta", not(feature = "anchor-test")))]
-    {
-        panic!("Swift orders are disabled on mainnet-beta");
-    }
-
-    let swift_user_orders = &mut ctx.accounts.swift_user_orders;
-    swift_user_orders.authority_pubkey = ctx.accounts.authority.key();
-    swift_user_orders
-        .swift_order_data
-        .resize_with(num_orders as usize, SwiftOrderId::default);
-    swift_user_orders.validate()?;
-    Ok(())
-}
-
-pub fn handle_resize_swift_user_orders<'c: 'info, 'info>(
-    ctx: Context<'_, '_, 'c, 'info, ResizeSwiftUserOrders<'info>>,
-    num_orders: u16,
-) -> Result<()> {
-    let swift_user_orders = &mut ctx.accounts.swift_user_orders;
-    swift_user_orders
-        .swift_order_data
-        .resize_with(num_orders as usize, SwiftOrderId::default);
-    swift_user_orders.validate()?;
+    let signed_msg_user_orders = &mut ctx.accounts.signed_msg_user_orders;
+    signed_msg_user_orders
+        .signed_msg_order_data
+        .resize_with(num_orders as usize, SignedMsgOrderId::default);
+    signed_msg_user_orders.validate()?;
     Ok(())
 }
 
@@ -675,7 +651,7 @@ pub fn handle_withdraw<'c: 'info, 'info>(
 
         let position_index = user.force_get_spot_position_index(market_index)?;
 
-        let mut amount = if reduce_only {
+        let amount = if reduce_only {
             validate!(
                 user.spot_positions[position_index].balance_type == SpotBalanceType::Deposit,
                 ErrorCode::ReduceOnlyWithdrawIncreasedRisk
@@ -1058,75 +1034,6 @@ pub fn handle_place_perp_order<'c: 'info, 'info>(
     Ok(())
 }
 
-pub fn handle_place_and_match_rfq_orders<'c: 'info, 'info>(
-    ctx: Context<'_, '_, 'c, 'info, PlaceAndMatchRFQOrders<'info>>,
-    rfq_matches: Vec<RFQMatch>,
-) -> Result<()> {
-    // Verify everything before proceeding to match the rfq orders
-
-    let ix_sysvar = &ctx.accounts.ix_sysvar.to_account_info();
-    let number_of_verify_ixs_needed = rfq_matches.len();
-    let ix_idx = load_current_index_checked(ix_sysvar)?;
-
-    for i in 0..rfq_matches.len() {
-        // First verify that the message is legitimate
-        let maker_order_params = &rfq_matches[i].maker_order_params;
-        if rfq_matches[i].base_asset_amount > maker_order_params.base_asset_amount {
-            msg!(
-                "RFQ match amount exceeds maker order amount: {} > {}",
-                rfq_matches[i].base_asset_amount,
-                maker_order_params.base_asset_amount
-            );
-            return Err(ErrorCode::InvalidRFQMatch.into());
-        }
-
-        let ix: Instruction = load_instruction_at_checked(
-            ix_idx as usize - number_of_verify_ixs_needed + i,
-            ix_sysvar,
-        )?;
-        verify_ed25519_ix(
-            &ix,
-            &maker_order_params.authority.to_bytes(),
-            &maker_order_params.clone().try_to_vec()?,
-            &rfq_matches[i].maker_signature,
-        )?;
-    }
-
-    // TODO: generalize to support multiple market types
-    let state = &ctx.accounts.state;
-    let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
-    let AccountMaps {
-        perp_market_map,
-        spot_market_map,
-        mut oracle_map,
-    } = load_maps(
-        remaining_accounts_iter,
-        &MarketSet::new(),
-        &MarketSet::new(),
-        Clock::get()?.slot,
-        Some(state.oracle_guard_rails),
-    )?;
-
-    let (makers_and_referrer, makers_and_referrer_stats) =
-        load_user_maps(remaining_accounts_iter, true)?;
-
-    let maker_rfq_account_map = load_rfq_user_account_map(remaining_accounts_iter)?;
-
-    place_and_match_rfq_orders(
-        &ctx.accounts.user,
-        &ctx.accounts.user_stats,
-        rfq_matches,
-        maker_rfq_account_map,
-        &makers_and_referrer,
-        &makers_and_referrer_stats,
-        &perp_market_map,
-        &spot_market_map,
-        &mut oracle_map,
-        state,
-    )?;
-    Ok(())
-}
-
 #[access_control(
     exchange_not_paused(&ctx.accounts.state)
 )]
@@ -1401,12 +1308,11 @@ pub fn handle_place_orders<'c: 'info, 'info>(
 
         // only enforce margin on last order and only try to expire on first order
         let options = PlaceOrderOptions {
-            swift_taker_order_slot: None,
+            signed_msg_taker_order_slot: None,
             enforce_margin_check: i == num_orders - 1,
             try_expire_orders: i == 0,
             risk_increasing: false,
             explanation: OrderActionExplanation::None,
-            is_rfq_order: false,
         };
 
         if params.market_type == MarketType::Perp {
@@ -1660,10 +1566,10 @@ pub fn handle_place_and_make_perp_order<'c: 'info, 'info>(
 #[access_control(
     fill_not_paused(&ctx.accounts.state)
 )]
-pub fn handle_place_and_make_swift_perp_order<'c: 'info, 'info>(
-    ctx: Context<'_, '_, 'c, 'info, PlaceAndMakeSwift<'info>>,
+pub fn handle_place_and_make_signed_msg_perp_order<'c: 'info, 'info>(
+    ctx: Context<'_, '_, 'c, 'info, PlaceAndMakeSignedMsg<'info>>,
     params: OrderParams,
-    swift_order_uuid: [u8; 8],
+    signed_msg_order_uuid: [u8; 8],
 ) -> Result<()> {
     let clock = &Clock::get()?;
     let state = &ctx.accounts.state;
@@ -1721,11 +1627,11 @@ pub fn handle_place_and_make_swift_perp_order<'c: 'info, 'info>(
     makers_and_referrer.insert(ctx.accounts.user.key(), ctx.accounts.user.clone())?;
     makers_and_referrer_stats.insert(authority, ctx.accounts.user_stats.clone())?;
 
-    let taker_swift_account = ctx.accounts.taker_swift_user_orders.load()?;
-    let taker_order_id = taker_swift_account
+    let taker_signed_msg_account = ctx.accounts.taker_signed_msg_user_orders.load()?;
+    let taker_order_id = taker_signed_msg_account
         .iter()
-        .find(|swift_order_id| swift_order_id.uuid == swift_order_uuid)
-        .ok_or(ErrorCode::SwiftOrderDoesNotExist)?
+        .find(|signed_msg_order_id| signed_msg_order_id.uuid == signed_msg_order_uuid)
+        .ok_or(ErrorCode::SignedMsgOrderDoesNotExist)?
         .order_id;
 
     controller::orders::fill_perp_order(
@@ -2456,7 +2362,9 @@ pub fn handle_delete_user(ctx: Context<DeleteUser>) -> Result<()> {
     Ok(())
 }
 
-pub fn handle_delete_swift_user_orders(_ctx: Context<DeleteSwiftUserOrders>) -> Result<()> {
+pub fn handle_delete_signed_msg_user_orders(
+    _ctx: Context<DeleteSignedMsgUserOrders>,
+) -> Result<()> {
     Ok(())
 }
 
@@ -3295,38 +3203,16 @@ pub struct InitializeUserStats<'info> {
 }
 
 #[derive(Accounts)]
-pub struct InitializeRFQUser<'info> {
-    #[account(
-        init,
-        seeds = [RFQ_PDA_SEED.as_ref(), user.key().as_ref()],
-        space = RFQUser::SIZE,
-        bump,
-        payer = payer
-    )]
-    pub rfq_user: AccountLoader<'info, RFQUser>,
-    pub authority: Signer<'info>,
-    #[account(
-        mut,
-        constraint = can_sign_for_user(&user, &authority)?
-    )]
-    pub user: AccountLoader<'info, User>,
-    #[account(mut)]
-    pub payer: Signer<'info>,
-    pub rent: Sysvar<'info, Rent>,
-    pub system_program: Program<'info, System>,
-}
-
-#[derive(Accounts)]
 #[instruction(num_orders: u16)]
-pub struct InitializeSwiftUserOrders<'info> {
+pub struct InitializeSignedMsgUserOrders<'info> {
     #[account(
         init,
-        seeds = [SWIFT_PDA_SEED.as_ref(), authority.key().as_ref()],
-        space = SwiftUserOrders::space(num_orders as usize),
+        seeds = [SIGNED_MSG_PDA_SEED.as_ref(), authority.key().as_ref()],
+        space = SignedMsgUserOrders::space(num_orders as usize),
         bump,
         payer = payer
     )]
-    pub swift_user_orders: Box<Account<'info, SwiftUserOrders>>,
+    pub signed_msg_user_orders: Box<Account<'info, SignedMsgUserOrders>>,
     pub authority: Signer<'info>,
     #[account(mut)]
     pub payer: Signer<'info>,
@@ -3336,16 +3222,16 @@ pub struct InitializeSwiftUserOrders<'info> {
 
 #[derive(Accounts)]
 #[instruction(num_orders: u16)]
-pub struct ResizeSwiftUserOrders<'info> {
+pub struct ResizeSignedMsgUserOrders<'info> {
     #[account(
         mut,
-        seeds = [SWIFT_PDA_SEED.as_ref(), authority.key().as_ref()],
+        seeds = [SIGNED_MSG_PDA_SEED.as_ref(), authority.key().as_ref()],
         bump,
-        realloc = SwiftUserOrders::space(num_orders as usize),
+        realloc = SignedMsgUserOrders::space(num_orders as usize),
         realloc::payer = authority,
         realloc::zero = false,
     )]
-    pub swift_user_orders: Box<Account<'info, SwiftUserOrders>>,
+    pub signed_msg_user_orders: Box<Account<'info, SignedMsgUserOrders>>,
     #[account(mut)]
     pub authority: Signer<'info>,
     pub system_program: Program<'info, System>,
@@ -3612,7 +3498,7 @@ pub struct PlaceAndMake<'info> {
 }
 
 #[derive(Accounts)]
-pub struct PlaceAndMakeSwift<'info> {
+pub struct PlaceAndMakeSignedMsg<'info> {
     pub state: Box<Account<'info, State>>,
     #[account(
         mut,
@@ -3632,11 +3518,11 @@ pub struct PlaceAndMakeSwift<'info> {
     )]
     pub taker_stats: AccountLoader<'info, UserStats>,
     #[account(
-        seeds = [SWIFT_PDA_SEED.as_ref(), taker.load()?.authority.as_ref()],
+        seeds = [SIGNED_MSG_PDA_SEED.as_ref(), taker.load()?.authority.as_ref()],
         bump,
     )]
-    /// CHECK: checked in SwiftUserOrdersZeroCopy checks
-    pub taker_swift_user_orders: AccountInfo<'info>,
+    /// CHECK: checked in SignedMsgUserOrdersZeroCopy checks
+    pub taker_signed_msg_user_orders: AccountInfo<'info>,
     pub authority: Signer<'info>,
 }
 
@@ -3711,14 +3597,14 @@ pub struct DeleteUser<'info> {
 }
 
 #[derive(Accounts)]
-pub struct DeleteSwiftUserOrders<'info> {
+pub struct DeleteSignedMsgUserOrders<'info> {
     #[account(
         mut,
         close = authority,
-        seeds = [SWIFT_PDA_SEED.as_ref(), authority.key().as_ref()],
+        seeds = [SIGNED_MSG_PDA_SEED.as_ref(), authority.key().as_ref()],
         bump,
     )]
-    pub swift_user_orders: Box<Account<'info, SwiftUserOrders>>,
+    pub signed_msg_user_orders: Box<Account<'info, SignedMsgUserOrders>>,
     #[account(mut)]
     pub state: Box<Account<'info, State>>,
     pub authority: Signer<'info>,

@@ -566,13 +566,13 @@ export type SettlePnlRecord = {
 	explanation: SettlePnlExplanation;
 };
 
-export type SwiftOrderRecord = {
+export type SignedMsgOrderRecord = {
 	ts: BN;
 	user: PublicKey;
 	hash: string;
 	matchingOrderParams: OrderParams;
-	swiftOrderMaxSlot: BN;
-	swiftOrderUuid: Uint8Array;
+	signedMsgOrderMaxSlot: BN;
+	signedMsgOrderUuid: Uint8Array;
 	userOrderId: number;
 };
 
@@ -1156,41 +1156,18 @@ export const DefaultOrderParams: OrderParams = {
 	auctionEndPrice: null,
 };
 
-export type SwiftOrderParamsMessage = {
-	swiftOrderParams: OptionalOrderParams;
+export type SignedMsgOrderParamsMessage = {
+	signedMsgOrderParams: OptionalOrderParams;
 	subAccountId: number;
 	slot: BN;
 	uuid: Uint8Array;
-	takeProfitOrderParams: SwiftTriggerOrderParams | null;
-	stopLossOrderParams: SwiftTriggerOrderParams | null;
+	takeProfitOrderParams: SignedMsgTriggerOrderParams | null;
+	stopLossOrderParams: SignedMsgTriggerOrderParams | null;
 };
 
-export type SwiftTriggerOrderParams = {
+export type SignedMsgTriggerOrderParams = {
 	triggerPrice: BN;
 	baseAssetAmount: BN;
-};
-
-export type RFQMakerOrderParams = {
-	uuid: Uint8Array; // From buffer of standard UUID string
-	authority: PublicKey;
-	subAccountId: number;
-	marketIndex: number;
-	marketType: MarketType;
-	baseAssetAmount: BN;
-	price: BN;
-	direction: PositionDirection;
-	maxTs: BN;
-};
-
-export type RFQMakerMessage = {
-	orderParams: RFQMakerOrderParams;
-	signature: Uint8Array;
-};
-
-export type RFQMatch = {
-	baseAssetAmount: BN;
-	makerOrderParams: RFQMakerOrderParams;
-	makerSignature: Uint8Array;
 };
 
 export type MakerInfo = {
@@ -1435,3 +1412,17 @@ export type HighLeverageModeConfig = {
 	currentUsers: number;
 	reduceOnly: boolean;
 };
+
+/* Represents proof of a signed msg taker order
+ * It can be provided to drift program to fill a signed msg order
+ */
+export interface SignedMsgOrderParams {
+	/**
+	 * The encoded order params that were signed (borsh encoded then hexified).
+	 */
+	orderParams: Buffer;
+	/**
+	 * The signature generated for the orderParams
+	 */
+	signature: Buffer;
+}

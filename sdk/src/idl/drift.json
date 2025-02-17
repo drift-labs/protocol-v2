@@ -94,46 +94,10 @@
       "args": []
     },
     {
-      "name": "initializeRfqUser",
+      "name": "initializeSignedMsgUserOrders",
       "accounts": [
         {
-          "name": "rfqUser",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "authority",
-          "isMut": false,
-          "isSigner": true
-        },
-        {
-          "name": "user",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "payer",
-          "isMut": true,
-          "isSigner": true
-        },
-        {
-          "name": "rent",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "systemProgram",
-          "isMut": false,
-          "isSigner": false
-        }
-      ],
-      "args": []
-    },
-    {
-      "name": "initializeSwiftUserOrders",
-      "accounts": [
-        {
-          "name": "swiftUserOrders",
+          "name": "signedMsgUserOrders",
           "isMut": true,
           "isSigner": false
         },
@@ -166,10 +130,10 @@
       ]
     },
     {
-      "name": "resizeSwiftUserOrders",
+      "name": "resizeSignedMsgUserOrders",
       "accounts": [
         {
-          "name": "swiftUserOrders",
+          "name": "signedMsgUserOrders",
           "isMut": true,
           "isSigner": false
         },
@@ -244,6 +208,11 @@
           "name": "authority",
           "isMut": false,
           "isSigner": false
+        },
+        {
+          "name": "signer",
+          "isMut": false,
+          "isSigner": true
         }
       ],
       "args": []
@@ -790,7 +759,7 @@
       ]
     },
     {
-      "name": "placeAndMakeSwiftPerpOrder",
+      "name": "placeAndMakeSignedMsgPerpOrder",
       "accounts": [
         {
           "name": "state",
@@ -818,7 +787,7 @@
           "isSigner": false
         },
         {
-          "name": "takerSwiftUserOrders",
+          "name": "takerSignedMsgUserOrders",
           "isMut": false,
           "isSigner": false
         },
@@ -836,7 +805,7 @@
           }
         },
         {
-          "name": "swiftOrderUuid",
+          "name": "signedMsgOrderUuid",
           "type": {
             "array": [
               "u8",
@@ -847,7 +816,7 @@
       ]
     },
     {
-      "name": "placeSwiftTakerOrder",
+      "name": "placeSignedMsgTakerOrder",
       "accounts": [
         {
           "name": "state",
@@ -865,7 +834,7 @@
           "isSigner": false
         },
         {
-          "name": "swiftUserOrders",
+          "name": "signedMsgUserOrders",
           "isMut": true,
           "isSigner": false
         },
@@ -887,53 +856,12 @@
       ],
       "args": [
         {
-          "name": "swiftOrderParamsMessageBytes",
+          "name": "signedMsgOrderParamsMessageBytes",
           "type": "bytes"
-        }
-      ]
-    },
-    {
-      "name": "placeAndMatchRfqOrders",
-      "accounts": [
-        {
-          "name": "state",
-          "isMut": false,
-          "isSigner": false
         },
         {
-          "name": "user",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "userStats",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "authority",
-          "isMut": false,
-          "isSigner": true
-        },
-        {
-          "name": "ixSysvar",
-          "isMut": false,
-          "isSigner": false,
-          "docs": [
-            "the supplied Sysvar could be anything else.",
-            "The Instruction Sysvar has not been implemented",
-            "in the Anchor framework yet, so this is the safe approach."
-          ]
-        }
-      ],
-      "args": [
-        {
-          "name": "rfqMatches",
-          "type": {
-            "vec": {
-              "defined": "RFQMatch"
-            }
-          }
+          "name": "isDelegateSigner",
+          "type": "bool"
         }
       ]
     },
@@ -1624,10 +1552,10 @@
       "args": []
     },
     {
-      "name": "deleteSwiftUserOrders",
+      "name": "deleteSignedMsgUserOrders",
       "accounts": [
         {
-          "name": "swiftUserOrders",
+          "name": "signedMsgUserOrders",
           "isMut": true,
           "isSigner": false
         },
@@ -7624,23 +7552,27 @@
       }
     },
     {
-      "name": "RFQUser",
+      "name": "SignedMsgUserOrders",
+      "docs": [
+        "* This struct is a duplicate of SignedMsgUserOrdersZeroCopy\n * It is used to give anchor an struct to generate the idl for clients\n * The struct SignedMsgUserOrdersZeroCopy is used to load the data in efficiently"
+      ],
       "type": {
         "kind": "struct",
         "fields": [
           {
-            "name": "userPubkey",
+            "name": "authorityPubkey",
             "type": "publicKey"
           },
           {
-            "name": "rfqOrderData",
+            "name": "padding",
+            "type": "u32"
+          },
+          {
+            "name": "signedMsgOrderData",
             "type": {
-              "array": [
-                {
-                  "defined": "RFQOrderId"
-                },
-                32
-              ]
+              "vec": {
+                "defined": "SignedMsgOrderId"
+              }
             }
           }
         ]
@@ -8266,33 +8198,6 @@
                 "u8",
                 10
               ]
-            }
-          }
-        ]
-      }
-    },
-    {
-      "name": "SwiftUserOrders",
-      "docs": [
-        "* This struct is a duplicate of SwiftUserOrdersZeroCopy\n * It is used to give anchor an struct to generate the idl for clients\n * The struct SwiftUserOrdersZeroCopy is used to load the data in efficiently"
-      ],
-      "type": {
-        "kind": "struct",
-        "fields": [
-          {
-            "name": "authorityPubkey",
-            "type": "publicKey"
-          },
-          {
-            "name": "padding",
-            "type": "u32"
-          },
-          {
-            "name": "swiftOrderData",
-            "type": {
-              "vec": {
-                "defined": "SwiftOrderId"
-              }
             }
           }
         ]
@@ -9325,12 +9230,12 @@
       }
     },
     {
-      "name": "SwiftOrderParamsMessage",
+      "name": "SignedMsgOrderParamsMessage",
       "type": {
         "kind": "struct",
         "fields": [
           {
-            "name": "swiftOrderParams",
+            "name": "signedMsgOrderParams",
             "type": {
               "defined": "OrderParams"
             }
@@ -9356,7 +9261,7 @@
             "name": "takeProfitOrderParams",
             "type": {
               "option": {
-                "defined": "SwiftTriggerOrderParams"
+                "defined": "SignedMsgTriggerOrderParams"
               }
             }
           },
@@ -9364,7 +9269,7 @@
             "name": "stopLossOrderParams",
             "type": {
               "option": {
-                "defined": "SwiftTriggerOrderParams"
+                "defined": "SignedMsgTriggerOrderParams"
               }
             }
           }
@@ -9372,7 +9277,7 @@
       }
     },
     {
-      "name": "SwiftTriggerOrderParams",
+      "name": "SignedMsgTriggerOrderParams",
       "type": {
         "kind": "struct",
         "fields": [
@@ -9383,109 +9288,6 @@
           {
             "name": "baseAssetAmount",
             "type": "u64"
-          }
-        ]
-      }
-    },
-    {
-      "name": "RFQMakerOrderParams",
-      "type": {
-        "kind": "struct",
-        "fields": [
-          {
-            "name": "uuid",
-            "type": {
-              "array": [
-                "u8",
-                8
-              ]
-            }
-          },
-          {
-            "name": "authority",
-            "type": "publicKey"
-          },
-          {
-            "name": "subAccountId",
-            "type": "u16"
-          },
-          {
-            "name": "marketIndex",
-            "type": "u16"
-          },
-          {
-            "name": "marketType",
-            "type": {
-              "defined": "MarketType"
-            }
-          },
-          {
-            "name": "baseAssetAmount",
-            "type": "u64"
-          },
-          {
-            "name": "price",
-            "type": "u64"
-          },
-          {
-            "name": "direction",
-            "type": {
-              "defined": "PositionDirection"
-            }
-          },
-          {
-            "name": "maxTs",
-            "type": "i64"
-          }
-        ]
-      }
-    },
-    {
-      "name": "RFQMakerMessage",
-      "type": {
-        "kind": "struct",
-        "fields": [
-          {
-            "name": "orderParams",
-            "type": {
-              "defined": "RFQMakerOrderParams"
-            }
-          },
-          {
-            "name": "signature",
-            "type": {
-              "array": [
-                "u8",
-                64
-              ]
-            }
-          }
-        ]
-      }
-    },
-    {
-      "name": "RFQMatch",
-      "type": {
-        "kind": "struct",
-        "fields": [
-          {
-            "name": "baseAssetAmount",
-            "type": "u64"
-          },
-          {
-            "name": "makerOrderParams",
-            "type": {
-              "defined": "RFQMakerOrderParams"
-            }
-          },
-          {
-            "name": "makerSignature",
-            "type": {
-              "array": [
-                "u8",
-                64
-              ]
-            }
           }
         ]
       }
@@ -10308,7 +10110,7 @@
       }
     },
     {
-      "name": "RFQOrderId",
+      "name": "SignedMsgOrderId",
       "type": {
         "kind": "struct",
         "fields": [
@@ -10322,8 +10124,36 @@
             }
           },
           {
-            "name": "maxTs",
-            "type": "i64"
+            "name": "maxSlot",
+            "type": "u64"
+          },
+          {
+            "name": "orderId",
+            "type": "u32"
+          },
+          {
+            "name": "padding",
+            "type": "u32"
+          }
+        ]
+      }
+    },
+    {
+      "name": "SignedMsgUserOrdersFixed",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "userPubkey",
+            "type": "publicKey"
+          },
+          {
+            "name": "padding",
+            "type": "u32"
+          },
+          {
+            "name": "len",
+            "type": "u32"
           }
         ]
       }
@@ -10521,55 +10351,6 @@
           {
             "name": "timeBasedRewardLowerBound",
             "type": "u128"
-          }
-        ]
-      }
-    },
-    {
-      "name": "SwiftOrderId",
-      "type": {
-        "kind": "struct",
-        "fields": [
-          {
-            "name": "uuid",
-            "type": {
-              "array": [
-                "u8",
-                8
-              ]
-            }
-          },
-          {
-            "name": "maxSlot",
-            "type": "u64"
-          },
-          {
-            "name": "orderId",
-            "type": "u32"
-          },
-          {
-            "name": "padding",
-            "type": "u32"
-          }
-        ]
-      }
-    },
-    {
-      "name": "SwiftUserOrdersFixed",
-      "type": {
-        "kind": "struct",
-        "fields": [
-          {
-            "name": "userPubkey",
-            "type": "publicKey"
-          },
-          {
-            "name": "padding",
-            "type": "u32"
-          },
-          {
-            "name": "len",
-            "type": "u32"
           }
         ]
       }
@@ -11488,9 +11269,6 @@
           },
           {
             "name": "Liquidation"
-          },
-          {
-            "name": "RFQ"
           }
         ]
       }
@@ -12139,6 +11917,12 @@
           },
           {
             "name": "InvalidMessageHex"
+          },
+          {
+            "name": "InvalidMessageData"
+          },
+          {
+            "name": "LoadInstructionAtFailed"
           }
         ]
       }
@@ -12552,7 +12336,7 @@
       ]
     },
     {
-      "name": "SwiftOrderRecord",
+      "name": "SignedMsgOrderRecord",
       "fields": [
         {
           "name": "user",
@@ -12577,12 +12361,12 @@
           "index": false
         },
         {
-          "name": "swiftOrderMaxSlot",
+          "name": "signedMsgOrderMaxSlot",
           "type": "u64",
           "index": false
         },
         {
-          "name": "swiftOrderUuid",
+          "name": "signedMsgOrderUuid",
           "type": {
             "array": [
               "u8",
@@ -14818,22 +14602,22 @@
     {
       "code": 6285,
       "name": "InvalidVerificationIxIndex",
-      "msg": "Ed25519 Ix must be before place and make swift order ix"
+      "msg": "Ed25519 Ix must be before place and make SignedMsg order ix"
     },
     {
       "code": 6286,
       "name": "SigVerificationFailed",
-      "msg": "Swift message verificaiton failed"
+      "msg": "SignedMsg message verificaiton failed"
     },
     {
       "code": 6287,
-      "name": "MismatchedSwiftOrderParamsMarketIndex",
-      "msg": "Market index mismatched b/w taker and maker swift order params"
+      "name": "MismatchedSignedMsgOrderParamsMarketIndex",
+      "msg": "Market index mismatched b/w taker and maker SignedMsg order params"
     },
     {
       "code": 6288,
-      "name": "InvalidSwiftOrderParam",
-      "msg": "Invalid swift order param"
+      "name": "InvalidSignedMsgOrderParam",
+      "msg": "Invalid SignedMsg order param"
     },
     {
       "code": 6289,
@@ -14877,28 +14661,28 @@
     },
     {
       "code": 6297,
-      "name": "InvalidSwiftUserAccount",
-      "msg": "Invalid swift user account"
+      "name": "InvalidSignedMsgUserAccount",
+      "msg": "Invalid SignedMsg user account"
     },
     {
       "code": 6298,
-      "name": "SwiftUserAccountWrongMutability",
-      "msg": "Swift account wrong mutability"
+      "name": "SignedMsgUserAccountWrongMutability",
+      "msg": "SignedMsg account wrong mutability"
     },
     {
       "code": 6299,
-      "name": "SwiftUserOrdersAccountFull",
-      "msg": "SwiftUserAccount has too many active orders"
+      "name": "SignedMsgUserOrdersAccountFull",
+      "msg": "SignedMsgUserAccount has too many active orders"
     },
     {
       "code": 6300,
-      "name": "SwiftOrderDoesNotExist",
-      "msg": "Order with swift uuid does not exist"
+      "name": "SignedMsgOrderDoesNotExist",
+      "msg": "Order with SignedMsg uuid does not exist"
     },
     {
       "code": 6301,
-      "name": "InvalidSwiftOrderId",
-      "msg": "Swift order id cannot be 0s"
+      "name": "InvalidSignedMsgOrderId",
+      "msg": "SignedMsg order id cannot be 0s"
     },
     {
       "code": 6302,
@@ -14937,8 +14721,8 @@
     },
     {
       "code": 6309,
-      "name": "SwiftUserContextUserMismatch",
-      "msg": "User in swift message does not match user in ix context"
+      "name": "SignedMsgUserContextUserMismatch",
+      "msg": "User in SignedMsg message does not match user in ix context"
     },
     {
       "code": 6310,

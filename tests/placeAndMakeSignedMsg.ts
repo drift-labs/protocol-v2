@@ -23,7 +23,7 @@ import {
 	getLimitOrderParams,
 	OracleSource,
 	BulkAccountLoader,
-	SwiftOrderParamsMessage,
+	SignedMsgOrderParamsMessage,
 	loadKeypair,
 	getMarketOrderParams,
 	MarketType,
@@ -41,7 +41,7 @@ import dotenv from 'dotenv';
 import { nanoid } from 'nanoid';
 dotenv.config();
 
-describe('place and make swift order', () => {
+describe('place and make signedMsg order', () => {
 	if (!process.env.ANCHOR_WALLET) {
 		throw new Error('ANCHOR_WALLET not set');
 	}
@@ -199,7 +199,7 @@ describe('place and make swift order', () => {
 			},
 		});
 		await takerDriftClientUser.subscribe();
-		await takerDriftClient.initializeSwiftUserOrders(
+		await takerDriftClient.initializeSignedMsgUserOrders(
 			takerDriftClientUser.getUserAccount().authority,
 			32
 		);
@@ -219,8 +219,8 @@ describe('place and make swift order', () => {
 			marketType: MarketType.PERP,
 		});
 		const uuid = Uint8Array.from(Buffer.from(nanoid(8)));
-		const takerOrderParamsMessage: SwiftOrderParamsMessage = {
-			swiftOrderParams: takerOrderParams,
+		const takerOrderParamsMessage: SignedMsgOrderParamsMessage = {
+			signedMsgOrderParams: takerOrderParams,
 			subAccountId: 0,
 			slot: new BN(await connection.getSlot()),
 			uuid,
@@ -240,7 +240,7 @@ describe('place and make swift order', () => {
 			immediateOrCancel: true,
 		});
 
-		const signedOrderParams = takerDriftClient.signSwiftOrderParamsMessage(
+		const signedOrderParams = takerDriftClient.signSignedMsgOrderParamsMessage(
 			takerOrderParamsMessage
 		);
 
@@ -250,13 +250,14 @@ describe('place and make swift order', () => {
 			}),
 		];
 		ixs.push(
-			...(await makerDriftClient.getPlaceAndMakeSwiftPerpOrderIxs(
+			...(await makerDriftClient.getPlaceAndMakeSignedMsgPerpOrderIxs(
 				signedOrderParams,
 				uuid,
 				{
 					taker: await takerDriftClient.getUserAccountPublicKey(),
 					takerUserAccount: takerDriftClient.getUserAccount(),
 					takerStats: takerDriftClient.getUserStatsAccountPublicKey(),
+					signingAuthority: takerDriftClient.authority,
 				},
 				makerOrderParams,
 				undefined,
@@ -324,7 +325,7 @@ describe('place and make swift order', () => {
 			},
 		});
 		await takerDriftClientUser.subscribe();
-		await takerDriftClient.initializeSwiftUserOrders(
+		await takerDriftClient.initializeSignedMsgUserOrders(
 			takerDriftClientUser.getUserAccount().authority,
 			32
 		);
@@ -344,8 +345,8 @@ describe('place and make swift order', () => {
 			marketType: MarketType.PERP,
 		});
 		const uuid = Uint8Array.from(Buffer.from(nanoid(8)));
-		const takerOrderParamsMessage: SwiftOrderParamsMessage = {
-			swiftOrderParams: takerOrderParams,
+		const takerOrderParamsMessage: SignedMsgOrderParamsMessage = {
+			signedMsgOrderParams: takerOrderParams,
 			subAccountId: 0,
 			slot: new BN(await connection.getSlot()),
 			uuid,
@@ -366,7 +367,9 @@ describe('place and make swift order', () => {
 		});
 
 		const takerOrderParamsMessageEncoded =
-			takerDriftClient.encodeSwiftOrderParamsMessage(takerOrderParamsMessage);
+			takerDriftClient.encodeSignedMsgOrderParamsMessage(
+				takerOrderParamsMessage
+			);
 		const takerOrderParamsSig = takerDriftClient.signMessage(
 			Buffer.from(takerOrderParamsMessageEncoded.toString('hex')),
 			makerDriftClient.wallet.payer
@@ -378,7 +381,7 @@ describe('place and make swift order', () => {
 			}),
 		];
 		ixs.push(
-			...(await makerDriftClient.getPlaceAndMakeSwiftPerpOrderIxs(
+			...(await makerDriftClient.getPlaceAndMakeSignedMsgPerpOrderIxs(
 				{
 					orderParams: Buffer.from(
 						takerOrderParamsMessageEncoded.toString('hex')
@@ -390,6 +393,144 @@ describe('place and make swift order', () => {
 					taker: await takerDriftClient.getUserAccountPublicKey(),
 					takerUserAccount: takerDriftClient.getUserAccount(),
 					takerStats: takerDriftClient.getUserStatsAccountPublicKey(),
+					signingAuthority: takerDriftClient.authority,
+				},
+				makerOrderParams,
+				undefined,
+				undefined,
+				ixs
+			))
+		);
+
+		try {
+			const normalTx = new Transaction();
+			normalTx.add(...ixs);
+			await makerDriftClient.sendTransaction(normalTx);
+			assert.fail('should have thrown');
+		} catch (error) {
+			assert.equal(
+				error.transactionMessage,
+				'Transaction precompile verification failure InvalidAccountIndex'
+			);
+		}
+	});
+
+	it('should work with delegates', async () => {
+		const keypair = new Keypair();
+		await provider.connection.requestAirdrop(keypair.publicKey, 10 ** 9);
+		await sleep(1000);
+		const wallet = new Wallet(keypair);
+		const userUSDCAccount = await mockUserUSDCAccount(
+			usdcMint,
+			usdcAmount,
+			provider,
+			keypair.publicKey
+		);
+		const takerDriftClient = new TestClient({
+			connection,
+			wallet,
+			programID: chProgram.programId,
+			opts: {
+				commitment: 'confirmed',
+			},
+			activeSubAccountId: 0,
+			perpMarketIndexes: marketIndexes,
+			spotMarketIndexes: spotMarketIndexes,
+			oracleInfos,
+			userStats: true,
+			accountSubscription: {
+				type: 'polling',
+				accountLoader: bulkAccountLoader,
+			},
+		});
+
+		await takerDriftClient.subscribe();
+		await takerDriftClient.initializeUserAccountAndDepositCollateral(
+			usdcAmount,
+			userUSDCAccount.publicKey
+		);
+
+		const takerDriftClientUser = new User({
+			driftClient: takerDriftClient,
+			userAccountPublicKey: await takerDriftClient.getUserAccountPublicKey(),
+			accountSubscription: {
+				type: 'polling',
+				accountLoader: bulkAccountLoader,
+			},
+		});
+		await takerDriftClientUser.subscribe();
+		await takerDriftClient.initializeSignedMsgUserOrders(
+			takerDriftClientUser.getUserAccount().authority,
+			32
+		);
+
+		const delegate = Keypair.generate();
+		await takerDriftClient.updateUserDelegate(delegate.publicKey);
+
+		const marketIndex = 0;
+		const baseAssetAmount = BASE_PRECISION;
+		const takerOrderParams = getMarketOrderParams({
+			marketIndex,
+			direction: PositionDirection.LONG,
+			baseAssetAmount: baseAssetAmount.muln(2),
+			price: new BN(34).mul(PRICE_PRECISION),
+			auctionStartPrice: new BN(33).mul(PRICE_PRECISION),
+			auctionEndPrice: new BN(34).mul(PRICE_PRECISION),
+			auctionDuration: 10,
+			userOrderId: 1,
+			postOnly: PostOnlyParams.NONE,
+			marketType: MarketType.PERP,
+		});
+		const uuid = Uint8Array.from(Buffer.from(nanoid(8)));
+		const takerOrderParamsMessage: SignedMsgOrderParamsMessage = {
+			signedMsgOrderParams: takerOrderParams,
+			subAccountId: 0,
+			slot: new BN(await connection.getSlot()),
+			uuid,
+			takeProfitOrderParams: null,
+			stopLossOrderParams: null,
+		};
+
+		await takerDriftClientUser.fetchAccounts();
+
+		const makerOrderParams = getLimitOrderParams({
+			marketIndex,
+			direction: PositionDirection.SHORT,
+			baseAssetAmount: BASE_PRECISION,
+			price: new BN(33).mul(PRICE_PRECISION),
+			userOrderId: 1,
+			postOnly: PostOnlyParams.MUST_POST_ONLY,
+			immediateOrCancel: true,
+		});
+
+		const takerOrderParamsMessageEncoded =
+			takerDriftClient.encodeSignedMsgOrderParamsMessage(
+				takerOrderParamsMessage
+			);
+		const takerOrderParamsSig = takerDriftClient.signMessage(
+			Buffer.from(takerOrderParamsMessageEncoded.toString('hex')),
+			makerDriftClient.wallet.payer
+		);
+
+		const ixs = [
+			ComputeBudgetProgram.setComputeUnitLimit({
+				units: 10_000_000,
+			}),
+		];
+		ixs.push(
+			...(await makerDriftClient.getPlaceAndMakeSignedMsgPerpOrderIxs(
+				{
+					orderParams: Buffer.from(
+						takerOrderParamsMessageEncoded.toString('hex')
+					),
+					signature: takerOrderParamsSig,
+				},
+				uuid,
+				{
+					taker: await takerDriftClient.getUserAccountPublicKey(),
+					takerUserAccount: takerDriftClient.getUserAccount(),
+					takerStats: takerDriftClient.getUserStatsAccountPublicKey(),
+					signingAuthority: delegate.publicKey,
 				},
 				makerOrderParams,
 				undefined,

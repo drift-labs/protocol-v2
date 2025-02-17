@@ -15,7 +15,7 @@ import {
 	CurveRecord,
 	SwapRecord,
 	SpotMarketVaultDepositRecord,
-	SwiftOrderRecord,
+	SignedMsgOrderRecord,
 	DeleteUserRecord,
 	FuelSweepRecord,
 	FuelSeasonRecord,
@@ -53,7 +53,7 @@ export const DefaultEventSubscriptionOptions: EventSubscriptionOptions = {
 		'CurveRecord',
 		'SwapRecord',
 		'SpotMarketVaultDepositRecord',
-		'SwiftOrderRecord',
+		'SignedMsgOrderRecord',
 		'DeleteUserRecord',
 		'FuelSweepRecord',
 		'FuelSeasonRecord',
@@ -100,7 +100,7 @@ export type EventMap = {
 	CurveRecord: Event<CurveRecord>;
 	SwapRecord: Event<SwapRecord>;
 	SpotMarketVaultDepositRecord: Event<SpotMarketVaultDepositRecord>;
-	SwiftOrderRecord: Event<SwiftOrderRecord>;
+	SignedMsgOrderRecord: Event<SignedMsgOrderRecord>;
 	DeleteUserRecord: Event<DeleteUserRecord>;
 	FuelSweepRecord: Event<FuelSweepRecord>;
 	FuelSeasonRecord: Event<FuelSeasonRecord>;
@@ -124,7 +124,7 @@ export type DriftEvent =
 	| Event<CurveRecord>
 	| Event<SwapRecord>
 	| Event<SpotMarketVaultDepositRecord>
-	| Event<SwiftOrderRecord>
+	| Event<SignedMsgOrderRecord>
 	| Event<DeleteUserRecord>
 	| Event<FuelSweepRecord>
 	| Event<FuelSeasonRecord>;

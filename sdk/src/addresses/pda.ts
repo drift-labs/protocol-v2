@@ -85,26 +85,13 @@ export function getFuelOverflowAccountPublicKey(
 	)[0];
 }
 
-export function getRFQUserAccountPublicKey(
-	programId: PublicKey,
-	userAccountPublicKey: PublicKey
-): PublicKey {
-	return PublicKey.findProgramAddressSync(
-		[
-			Buffer.from(anchor.utils.bytes.utf8.encode('RFQ')),
-			userAccountPublicKey.toBuffer(),
-		],
-		programId
-	)[0];
-}
-
-export function getSwiftUserAccountPublicKey(
+export function getSignedMsgUserAccountPublicKey(
 	programId: PublicKey,
 	authority: PublicKey
 ): PublicKey {
 	return PublicKey.findProgramAddressSync(
 		[
-			Buffer.from(anchor.utils.bytes.utf8.encode('SWIFT')),
+			Buffer.from(anchor.utils.bytes.utf8.encode('SIGNED_MSG')),
 			authority.toBuffer(),
 		],
 		programId

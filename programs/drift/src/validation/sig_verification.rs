@@ -1,5 +1,5 @@
 use crate::error::ErrorCode;
-use crate::state::order_params::SwiftOrderParamsMessage;
+use crate::state::order_params::SignedMsgOrderParamsMessage;
 use anchor_lang::prelude::*;
 use bytemuck::try_cast_slice;
 use bytemuck::{Pod, Zeroable};
@@ -7,6 +7,8 @@ use byteorder::ByteOrder;
 use byteorder::LE;
 use solana_program::ed25519_program::ID as ED25519_ID;
 use solana_program::instruction::Instruction;
+use solana_program::program_memory::sol_memcmp;
+use solana_program::sysvar;
 use std::convert::TryInto;
 
 const ED25519_PROGRAM_INPUT_HEADER_LEN: usize = 2;
@@ -40,82 +42,13 @@ pub struct Ed25519SignatureOffsets {
     pub message_instruction_index: u16,
 }
 
-/// Verify Ed25519Program instruction fields
-pub fn verify_ed25519_ix(ix: &Instruction, pubkey: &[u8], msg: &[u8], sig: &[u8]) -> Result<()> {
-    if ix.program_id       != ED25519_ID                   ||  // The program id we expect
-        ix.accounts.len()   != 0                            ||  // With no context accounts
-        ix.data.len()       != (16 + 64 + 32 + msg.len())
-    // And data of this size
-    {
-        msg!("Ix not present: program ID: {:?}", ix.program_id);
-        msg!("Ix not present: accounts: {:?}", ix.accounts.len());
-        msg!(
-            "Ix not present: data: {:?}, len: {:?}",
-            ix.data.len(),
-            16 + 64 + 32 + msg.len()
-        );
-        return Err(ErrorCode::SigVerificationFailed.into()); // Otherwise, we can already throw err
-    }
-
-    check_ed25519_data(&ix.data, pubkey, msg, sig)?; // If that's not the case, check data
-
-    Ok(())
-}
-
-/// Verify serialized Ed25519Program instruction data
-fn check_ed25519_data(data: &[u8], pubkey: &[u8], msg: &[u8], sig: &[u8]) -> Result<()> {
-    // According to this layout used by the Ed25519Program
-    // https://github.com/solana-labs/solana-web3.js/blob/master/src/ed25519-program.ts#L33
-
-    // "Deserializing" byte slices
-    let num_signatures = &[data[0]]; // Byte  0
-    let padding = &[data[1]]; // Byte  1
-    let signature_offset = &data[2..=3]; // Bytes 2,3
-    let signature_instruction_index = &data[4..=5]; // Bytes 4,5
-    let public_key_offset = &data[6..=7]; // Bytes 6,7
-    let public_key_instruction_index = &data[8..=9]; // Bytes 8,9
-    let message_data_offset = &data[10..=11]; // Bytes 10,11
-    let message_data_size = &data[12..=13]; // Bytes 12,13
-    let message_instruction_index = &data[14..=15]; // Bytes 14,15
-
-    let data_pubkey = &data[16..16 + 32]; // Bytes 16..16+32
-    let data_sig = &data[48..48 + 64]; // Bytes 48..48+64
-    let data_msg = &data[112..]; // Bytes 112..end
-
-    // Expected values
-    let exp_public_key_offset: u16 = 16; // 2*u8 + 7*u16
-    let exp_signature_offset: u16 = exp_public_key_offset + pubkey.len() as u16;
-    let exp_message_data_offset: u16 = exp_signature_offset + sig.len() as u16;
-    let exp_num_signatures: u8 = 1;
-    let exp_message_data_size: u16 = msg.len().try_into().unwrap();
-
-    // Header and Arg Checks
-
-    // Header
-    if num_signatures != &exp_num_signatures.to_le_bytes()
-        || padding != &[0]
-        || signature_offset != &exp_signature_offset.to_le_bytes()
-        || signature_instruction_index != &u16::MAX.to_le_bytes()
-        || public_key_offset != &exp_public_key_offset.to_le_bytes()
-        || public_key_instruction_index != &u16::MAX.to_le_bytes()
-        || message_data_offset != &exp_message_data_offset.to_le_bytes()
-        || message_data_size != &exp_message_data_size.to_le_bytes()
-        || message_instruction_index != &u16::MAX.to_le_bytes()
-    {
-        return Err(ErrorCode::SigVerificationFailed.into());
-    }
-
-    // Arguments
-    if data_pubkey != pubkey || data_msg != msg || data_sig != sig {
-        return Err(ErrorCode::SigVerificationFailed.into());
-    }
-
-    Ok(())
-}
-
 pub struct VerifiedMessage {
-    pub swift_order_params_message: SwiftOrderParamsMessage,
+    pub signed_msg_order_params_message: SignedMsgOrderParamsMessage,
     pub signature: [u8; 64],
+}
+
+fn slice_eq(a: &[u8], b: &[u8]) -> bool {
+    a.len() == b.len() && sol_memcmp(a, b, a.len()) == 0
 }
 
 /// Check Ed25519Program instruction data verifies the given msg
@@ -127,36 +60,50 @@ pub struct VerifiedMessage {
 /// `pubkey` expected pubkey of the signer
 ///
 pub fn verify_ed25519_msg(
-    ix: &Instruction,
+    ed25519_ix: &Instruction,
+    instructions_sysvar: &AccountInfo,
     current_ix_index: u16,
     signer: &[u8; 32],
     msg: &[u8],
-    message_offset: u16,
 ) -> Result<VerifiedMessage> {
-    if ix.program_id != ED25519_ID || ix.accounts.len() != 0 {
-        msg!("Invalid Ix: program ID: {:?}", ix.program_id);
-        msg!("Invalid Ix: accounts: {:?}", ix.accounts.len());
+    if ed25519_ix.program_id != ED25519_ID || ed25519_ix.accounts.len() != 0 {
+        msg!("Invalid Ix: program ID: {:?}", ed25519_ix.program_id);
+        msg!("Invalid Ix: accounts: {:?}", ed25519_ix.accounts.len());
         return Err(ErrorCode::SigVerificationFailed.into());
     }
 
-    let ix_data = &ix.data;
+    let ed25519_ix_data = &ed25519_ix.data;
     // According to this layout used by the Ed25519Program]
-    if ix_data.len() < 2 {
+    if ed25519_ix_data.len() < 2 {
         msg!(
             "Invalid Ix, should be header len = 2. data: {:?}",
-            ix.data.len(),
+            ed25519_ix.data.len(),
         );
         return Err(SignatureVerificationError::InvalidEd25519InstructionDataLength.into());
     }
 
     // Parse the ix data into the offsets
+    let num_signatures = ed25519_ix_data[0];
+    let signature_index = 0;
+    if signature_index >= num_signatures {
+        return Err(SignatureVerificationError::InvalidSignatureIndex.into());
+    }
     let args: &[Ed25519SignatureOffsets] =
-        try_cast_slice(&ix_data[ED25519_PROGRAM_INPUT_HEADER_LEN..]).map_err(|_| {
+        try_cast_slice(&ed25519_ix_data[ED25519_PROGRAM_INPUT_HEADER_LEN..]).map_err(|_| {
             msg!("Invalid Ix: failed to cast slice");
             ErrorCode::SigVerificationFailed
         })?;
 
+    let args_len = args
+        .len()
+        .try_into()
+        .map_err(|_| SignatureVerificationError::InvalidEd25519InstructionDataLength)?;
+    if signature_index >= args_len {
+        return Err(SignatureVerificationError::InvalidSignatureIndex.into());
+    }
+
     let offsets = &args[0];
+    let message_offset = offsets.signature_offset;
     if offsets.signature_offset != message_offset {
         msg!(
             "Invalid Ix: signature offset: {:?}",
@@ -165,9 +112,28 @@ pub fn verify_ed25519_msg(
         return Err(ErrorCode::SigVerificationFailed.into());
     }
 
-    let expected_public_key_offset = message_offset
+    let self_instruction = sysvar::instructions::load_instruction_at_checked(
+        current_ix_index.into(),
+        instructions_sysvar,
+    )
+    .map_err(|_| SignatureVerificationError::LoadInstructionAtFailed)?;
+
+    let message_end_offset = offsets
+        .message_data_offset
+        .checked_add(offsets.message_data_size)
+        .ok_or(SignatureVerificationError::MessageOffsetOverflow)?;
+    let expected_message_data = self_instruction
+        .data
+        .get(usize::from(message_offset)..usize::from(message_end_offset))
+        .ok_or(SignatureVerificationError::InvalidMessageOffset)?;
+    if !slice_eq(expected_message_data, msg) {
+        return Err(SignatureVerificationError::InvalidMessageData.into());
+    }
+
+    let expected_public_key_offset = offsets
+        .signature_offset
         .checked_add(SIGNATURE_LEN)
-        .ok_or(ErrorCode::SigVerificationFailed)?;
+        .ok_or(SignatureVerificationError::MessageOffsetOverflow)?;
     if offsets.public_key_offset != expected_public_key_offset {
         msg!(
             "Invalid Ix: public key offset: {:?}, expected: {:?}",
@@ -256,7 +222,7 @@ pub fn verify_ed25519_msg(
     let payload =
         hex::decode(payload).map_err(|_| SignatureVerificationError::InvalidMessageHex)?;
     Ok(VerifiedMessage {
-        swift_order_params_message: SwiftOrderParamsMessage::deserialize(
+        signed_msg_order_params_message: SignedMsgOrderParamsMessage::deserialize(
             &mut &payload[8..], // 8 byte manual discriminator
         )
         .unwrap(),
@@ -287,4 +253,8 @@ pub enum SignatureVerificationError {
     MessageOffsetOverflow,
     #[msg("invalid message hex")]
     InvalidMessageHex,
+    #[msg("invalid message data")]
+    InvalidMessageData,
+    #[msg("loading custom ix at index failed")]
+    LoadInstructionAtFailed,
 }

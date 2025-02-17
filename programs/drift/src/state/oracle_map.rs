@@ -1,8 +1,7 @@
 use crate::error::ErrorCode::UnableToLoadOracle;
 use crate::error::{DriftResult, ErrorCode};
 use crate::ids::{
-    drift_oracle_receiver_program, pyth_lazer_program, pyth_program, switchboard_on_demand,
-    switchboard_program,
+    drift_oracle_receiver_program, pyth_program, switchboard_on_demand, switchboard_program,
 };
 use crate::math::constants::PRICE_PRECISION_I64;
 use crate::math::oracle::{oracle_validity, OracleValidity};

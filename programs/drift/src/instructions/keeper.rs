@@ -1,11 +1,9 @@
 use std::cell::RefMut;
-use std::convert::{TryFrom, TryInto};
+use std::convert::TryFrom;
 
 use anchor_lang::prelude::*;
 use anchor_lang::Discriminator;
-use anchor_spl::associated_token::{
-    get_associated_token_address, get_associated_token_address_with_program_id,
-};
+use anchor_spl::associated_token::get_associated_token_address_with_program_id;
 use anchor_spl::token::spl_token;
 use anchor_spl::token_2022::spl_token_2022;
 use anchor_spl::token_interface::{TokenAccount, TokenInterface};
@@ -23,10 +21,8 @@ use crate::controller::position::PositionDirection;
 use crate::controller::spot_balance::update_spot_balances;
 use crate::controller::token::{receive, send_from_program_vault};
 use crate::error::ErrorCode;
-use crate::ids::{admin_hot_wallet, swift_server};
-use crate::ids::{
-    jupiter_mainnet_3, jupiter_mainnet_4, jupiter_mainnet_6, marinade_mainnet, serum_program,
-};
+use crate::ids::admin_hot_wallet;
+use crate::ids::{jupiter_mainnet_3, jupiter_mainnet_4, jupiter_mainnet_6, serum_program};
 use crate::instructions::constraints::*;
 use crate::instructions::optional_accounts::{load_maps, AccountMaps};
 use crate::math::casting::Cast;
@@ -37,7 +33,7 @@ use crate::math::position::calculate_base_asset_value_and_pnl_with_oracle_price;
 use crate::math::safe_math::SafeMath;
 use crate::math::spot_withdraw::validate_spot_market_vault_amount;
 use crate::optional_accounts::{get_token_mint, update_prelaunch_oracle};
-use crate::state::events::{DeleteUserRecord, OrderActionExplanation, SwiftOrderRecord};
+use crate::state::events::{DeleteUserRecord, OrderActionExplanation, SignedMsgOrderRecord};
 use crate::state::fill_mode::FillMode;
 use crate::state::fulfillment_params::drift::MatchFulfillmentParams;
 use crate::state::fulfillment_params::openbook_v2::OpenbookV2FulfillmentParams;
@@ -46,7 +42,7 @@ use crate::state::fulfillment_params::serum::SerumFulfillmentParams;
 use crate::state::high_leverage_mode_config::HighLeverageModeConfig;
 use crate::state::insurance_fund_stake::InsuranceFundStake;
 use crate::state::oracle_map::OracleMap;
-use crate::state::order_params::{OrderParams, PlaceOrderOptions, SwiftOrderParamsMessage};
+use crate::state::order_params::{OrderParams, PlaceOrderOptions, SignedMsgOrderParamsMessage};
 use crate::state::paused_operations::{PerpOperation, SpotOperation};
 use crate::state::perp_market::{ContractType, MarketStatus, PerpMarket};
 use crate::state::perp_market_map::{
@@ -54,15 +50,16 @@ use crate::state::perp_market_map::{
     get_writable_perp_market_set, get_writable_perp_market_set_from_vec, MarketSet, PerpMarketMap,
 };
 use crate::state::settle_pnl_mode::SettlePnlMode;
+use crate::state::signed_msg_user::{
+    SignedMsgOrderId, SignedMsgUserOrdersLoader, SignedMsgUserOrdersZeroCopyMut,
+    SIGNED_MSG_PDA_SEED,
+};
 use crate::state::spot_fulfillment_params::SpotFulfillmentParams;
 use crate::state::spot_market::{SpotBalanceType, SpotMarket};
 use crate::state::spot_market_map::{
     get_writable_spot_market_set, get_writable_spot_market_set_from_many, SpotMarketMap,
 };
 use crate::state::state::State;
-use crate::state::swift_user::{
-    SwiftOrderId, SwiftUserOrdersLoader, SwiftUserOrdersZeroCopyMut, SWIFT_PDA_SEED,
-};
 use crate::state::user::{
     MarginMode, MarketType, OrderStatus, OrderTriggerCondition, OrderType, User, UserStats,
 };
@@ -461,8 +458,7 @@ pub fn handle_log_user_balances<'c: 'info, 'info>(
     ctx: Context<'_, '_, 'c, 'info, LogUserBalances<'info>>,
 ) -> Result<()> {
     let user_key = ctx.accounts.user.key();
-    let mut user = load_mut!(ctx.accounts.user)?;
-    let clock = Clock::get()?;
+    let user = load!(ctx.accounts.user)?;
 
     let AccountMaps {
         perp_market_map,
@@ -609,9 +605,10 @@ pub fn handle_update_user_open_orders_count<'info>(ctx: Context<UpdateUserIdle>)
     Ok(())
 }
 
-pub fn handle_place_swift_taker_order<'c: 'info, 'info>(
-    ctx: Context<'_, '_, 'c, 'info, PlaceSwiftTakerOrder<'info>>,
-    swift_order_params_message_bytes: Vec<u8>,
+pub fn handle_place_signed_msg_taker_order<'c: 'info, 'info>(
+    ctx: Context<'_, '_, 'c, 'info, PlaceSignedMsgTakerOrder<'info>>,
+    signed_msg_order_params_message_bytes: Vec<u8>,
+    is_delegate_signer: bool,
 ) -> Result<()> {
     let state = &ctx.accounts.state;
 
@@ -630,39 +627,36 @@ pub fn handle_place_swift_taker_order<'c: 'info, 'info>(
 
     let taker_key = ctx.accounts.user.key();
     let mut taker = load_mut!(ctx.accounts.user)?;
-    let mut swift_taker = ctx.accounts.swift_user_orders.load_mut()?;
+    let mut signed_msg_taker = ctx.accounts.signed_msg_user_orders.load_mut()?;
 
-    place_swift_taker_order(
+    place_signed_msg_taker_order(
         taker_key,
         &mut taker,
-        &mut swift_taker,
-        swift_order_params_message_bytes,
+        &mut signed_msg_taker,
+        signed_msg_order_params_message_bytes,
         &ctx.accounts.ix_sysvar.to_account_info(),
         &perp_market_map,
         &spot_market_map,
         &mut oracle_map,
         state,
+        is_delegate_signer,
     )?;
     Ok(())
 }
 
-pub fn place_swift_taker_order<'c: 'info, 'info>(
+pub fn place_signed_msg_taker_order<'c: 'info, 'info>(
     taker_key: Pubkey,
     taker: &mut RefMut<User>,
-    swift_account: &mut SwiftUserOrdersZeroCopyMut,
+    signed_msg_account: &mut SignedMsgUserOrdersZeroCopyMut,
     taker_order_params_message_bytes: Vec<u8>,
     ix_sysvar: &AccountInfo<'info>,
     perp_market_map: &PerpMarketMap,
     spot_market_map: &SpotMarketMap,
     oracle_map: &mut OracleMap,
     state: &State,
+    is_delegate_signer: bool,
 ) -> Result<()> {
-    #[cfg(all(feature = "mainnet-beta", not(feature = "anchor-test")))]
-    {
-        panic!("Swift orders are disabled on mainnet-beta");
-    }
-
-    // Authenticate the swift param message
+    // Authenticate the signed msg order param message
     let ix_idx = load_current_index_checked(ix_sysvar)?;
     validate!(
         ix_idx > 0,
@@ -672,16 +666,21 @@ pub fn place_swift_taker_order<'c: 'info, 'info>(
 
     // Verify data from verify ix
     let ix: Instruction = load_instruction_at_checked(ix_idx as usize - 1, ix_sysvar)?;
+
+    let signer = match is_delegate_signer {
+        true => taker.delegate.to_bytes(),
+        false => taker.authority.to_bytes(),
+    };
     let verified_message_and_signature = verify_ed25519_msg(
         &ix,
+        ix_sysvar,
         ix_idx,
-        &taker.authority.to_bytes(),
+        &signer,
         &taker_order_params_message_bytes[..],
-        12,
     )?;
 
-    let taker_order_params_message: SwiftOrderParamsMessage =
-        verified_message_and_signature.swift_order_params_message;
+    let taker_order_params_message: SignedMsgOrderParamsMessage =
+        verified_message_and_signature.signed_msg_order_params_message;
 
     // Verify taker passed to the ix matches pda derived from subaccount id + authority
     let taker_pda = Pubkey::find_program_address(
@@ -698,20 +697,20 @@ pub fn place_swift_taker_order<'c: 'info, 'info>(
             taker_key,
             taker_pda.0
         );
-        return Err(ErrorCode::SwiftUserContextUserMismatch.into());
+        return Err(ErrorCode::SignedMsgUserContextUserMismatch.into());
     }
 
     let signature = verified_message_and_signature.signature;
     let clock = &Clock::get()?;
 
     // First order must be a taker order
-    let matching_taker_order_params = &taker_order_params_message.swift_order_params;
+    let matching_taker_order_params = &taker_order_params_message.signed_msg_order_params;
     if (matching_taker_order_params.order_type != OrderType::Market
         && matching_taker_order_params.order_type != OrderType::Oracle)
         || matching_taker_order_params.market_type != MarketType::Perp
     {
         msg!("First order must be a market or oracle perp taker order");
-        return Err(print_error!(ErrorCode::InvalidSwiftOrderParam)().into());
+        return Err(print_error!(ErrorCode::InvalidSignedMsgOrderParam)().into());
     }
 
     // Make sure that them auction parameters are set
@@ -719,18 +718,18 @@ pub fn place_swift_taker_order<'c: 'info, 'info>(
         || matching_taker_order_params.auction_start_price.is_none()
         || matching_taker_order_params.auction_end_price.is_none()
     {
-        msg!("Auction params must be set for swift orders");
-        return Err(print_error!(ErrorCode::InvalidSwiftOrderParam)().into());
+        msg!("Auction params must be set for signed msg orders");
+        return Err(print_error!(ErrorCode::InvalidSignedMsgOrderParam)().into());
     }
 
-    // Set max slot for the order early so we set correct swift order id
+    // Set max slot for the order early so we set correct signed msg order id
     let order_slot = taker_order_params_message.slot;
     if order_slot < clock.slot.saturating_sub(500) {
         msg!(
-            "Swift order slot {} is too old: must be within 500 slots of current slot",
+            "SignedMsg order slot {} is too old: must be within 500 slots of current slot",
             order_slot
         );
-        return Err(print_error!(ErrorCode::InvalidSwiftOrderParam)().into());
+        return Err(print_error!(ErrorCode::InvalidSignedMsgOrderParam)().into());
     }
     let market_index = matching_taker_order_params.market_index;
     let max_slot = order_slot.safe_add(
@@ -743,24 +742,26 @@ pub fn place_swift_taker_order<'c: 'info, 'info>(
     // Dont place order if max slot already passed
     if max_slot < clock.slot {
         msg!(
-            "Swift order max_slot {} < current slot {}",
+            "SignedMsg order max_slot {} < current slot {}",
             max_slot,
             clock.slot
         );
         return Ok(());
     }
 
-    // Dont place order if swift order already exists
-    let swift_order_id = SwiftOrderId::new(
+    // Dont place order if signed msg order already exists
+    let signed_msg_order_id = SignedMsgOrderId::new(
         taker_order_params_message.uuid,
         max_slot,
         taker.next_order_id,
     );
-    if swift_account.check_exists_and_prune_stale_swift_order_ids(swift_order_id, clock.slot) {
-        msg!("Swift order already exists for taker {:?}", taker_key);
+    if signed_msg_account
+        .check_exists_and_prune_stale_signed_msg_order_ids(signed_msg_order_id, clock.slot)
+    {
+        msg!("SignedMsg order already exists for taker {:?}", taker_key);
         return Ok(());
     }
-    swift_account.add_swift_order_id(swift_order_id)?;
+    signed_msg_account.add_signed_msg_order_id(signed_msg_order_id)?;
 
     controller::orders::place_perp_order(
         state,
@@ -772,7 +773,7 @@ pub fn place_swift_taker_order<'c: 'info, 'info>(
         clock,
         *matching_taker_order_params,
         PlaceOrderOptions {
-            swift_taker_order_slot: Some(order_slot),
+            signed_msg_taker_order_slot: Some(order_slot),
             ..PlaceOrderOptions::default()
         },
     )?;
@@ -780,11 +781,11 @@ pub fn place_swift_taker_order<'c: 'info, 'info>(
     let order_params_hash =
         base64::encode(solana_program::hash::hash(&signature.try_to_vec().unwrap()).as_ref());
 
-    emit!(SwiftOrderRecord {
+    emit!(SignedMsgOrderRecord {
         user: taker_key,
-        swift_order_max_slot: swift_order_id.max_slot,
-        swift_order_uuid: swift_order_id.uuid,
-        user_order_id: swift_order_id.order_id,
+        signed_msg_order_max_slot: signed_msg_order_id.max_slot,
+        signed_msg_order_uuid: signed_msg_order_id.uuid,
+        user_order_id: signed_msg_order_id.order_id,
         matching_order_params: matching_taker_order_params.clone(),
         hash: order_params_hash,
         ts: clock.unix_timestamp,
@@ -849,7 +850,7 @@ pub fn place_swift_taker_order<'c: 'info, 'info>(
             clock,
             take_profit_order,
             PlaceOrderOptions {
-                swift_taker_order_slot: Some(order_slot),
+                signed_msg_taker_order_slot: Some(order_slot),
                 ..PlaceOrderOptions::default()
             },
         )?;
@@ -1489,7 +1490,7 @@ pub fn handle_liquidate_spot_with_swap_begin<'c: 'info, 'info>(
                     )?;
                 }
             } else {
-                let mut whitelisted_programs = vec![
+                let whitelisted_programs = vec![
                     serum_program::id(),
                     AssociatedToken::id(),
                     jupiter_mainnet_3::ID,
@@ -1570,13 +1571,7 @@ pub fn handle_liquidate_spot_with_swap_end<'c: 'info, 'info>(
         "the asset_spot_market must have a flash loan amount set"
     )?;
 
-    let asset_oracle_data = oracle_map.get_price_data(&asset_spot_market.oracle_id())?;
-    let asset_oracle_price = asset_oracle_data.price;
-
     let mut liability_spot_market = spot_market_map.get_ref_mut(&liability_market_index)?;
-
-    let liability_oracle_data = oracle_map.get_price_data(&liability_spot_market.oracle_id())?;
-    let liability_oracle_price = liability_oracle_data.price;
 
     let asset_vault = &mut ctx.accounts.asset_spot_market_vault;
     let asset_token_account = &mut ctx.accounts.asset_token_account;
@@ -2741,7 +2736,7 @@ pub fn handle_force_delete_user<'c: 'info, 'info>(
     }
 
     // cancel all open orders
-    let canceled_order_ids = cancel_orders(
+    cancel_orders(
         user,
         &user_key,
         Some(&keeper_key),
@@ -3023,7 +3018,7 @@ pub struct SettlePNL<'info> {
 }
 
 #[derive(Accounts)]
-pub struct PlaceSwiftTakerOrder<'info> {
+pub struct PlaceSignedMsgTakerOrder<'info> {
     pub state: Box<Account<'info, State>>,
     #[account(mut)]
     pub user: AccountLoader<'info, User>,
@@ -3034,11 +3029,11 @@ pub struct PlaceSwiftTakerOrder<'info> {
     pub user_stats: AccountLoader<'info, UserStats>,
     #[account(
         mut,
-        seeds = [SWIFT_PDA_SEED.as_ref(), user.load()?.authority.as_ref()],
+        seeds = [SIGNED_MSG_PDA_SEED.as_ref(), user.load()?.authority.as_ref()],
         bump,
     )]
-    /// CHECK: checked in SwiftUserOrdersZeroCopy checks
-    pub swift_user_orders: AccountInfo<'info>,
+    /// CHECK: checked in SignedMsgUserOrdersZeroCopy checks
+    pub signed_msg_user_orders: AccountInfo<'info>,
     pub authority: Signer<'info>,
     /// CHECK: The address check is needed because otherwise
     /// the supplied Sysvar could be anything else.
