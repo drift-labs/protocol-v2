@@ -1,5 +1,5 @@
 use crate::error::ErrorCode;
-use crate::state::order_params::SwiftOrderParamsMessage;
+use crate::state::order_params::SignedMsgOrderParamsMessage;
 use anchor_lang::prelude::*;
 use bytemuck::try_cast_slice;
 use bytemuck::{Pod, Zeroable};
@@ -43,7 +43,7 @@ pub struct Ed25519SignatureOffsets {
 }
 
 pub struct VerifiedMessage {
-    pub swift_order_params_message: SwiftOrderParamsMessage,
+    pub signed_msg_order_params_message: SignedMsgOrderParamsMessage,
     pub signature: [u8; 64],
 }
 
@@ -222,7 +222,7 @@ pub fn verify_ed25519_msg(
     let payload =
         hex::decode(payload).map_err(|_| SignatureVerificationError::InvalidMessageHex)?;
     Ok(VerifiedMessage {
-        swift_order_params_message: SwiftOrderParamsMessage::deserialize(
+        signed_msg_order_params_message: SignedMsgOrderParamsMessage::deserialize(
             &mut &payload[8..], // 8 byte manual discriminator
         )
         .unwrap(),

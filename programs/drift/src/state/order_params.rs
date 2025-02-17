@@ -707,17 +707,17 @@ impl OrderParams {
 }
 
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Default, Eq, PartialEq, Debug)]
-pub struct SwiftOrderParamsMessage {
-    pub swift_order_params: OrderParams,
+pub struct SignedMsgOrderParamsMessage {
+    pub signed_msg_order_params: OrderParams,
     pub sub_account_id: u16,
     pub slot: u64,
     pub uuid: [u8; 8],
-    pub take_profit_order_params: Option<SwiftTriggerOrderParams>,
-    pub stop_loss_order_params: Option<SwiftTriggerOrderParams>,
+    pub take_profit_order_params: Option<SignedMsgTriggerOrderParams>,
+    pub stop_loss_order_params: Option<SignedMsgTriggerOrderParams>,
 }
 
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Default, Eq, PartialEq, Debug)]
-pub struct SwiftTriggerOrderParams {
+pub struct SignedMsgTriggerOrderParams {
     pub trigger_price: u64,
     pub base_asset_amount: u64,
 }
@@ -785,7 +785,7 @@ pub enum ModifyOrderPolicy {
 
 #[derive(Clone)]
 pub struct PlaceOrderOptions {
-    pub swift_taker_order_slot: Option<u64>,
+    pub signed_msg_taker_order_slot: Option<u64>,
     pub try_expire_orders: bool,
     pub enforce_margin_check: bool,
     pub risk_increasing: bool,
@@ -795,7 +795,7 @@ pub struct PlaceOrderOptions {
 impl Default for PlaceOrderOptions {
     fn default() -> Self {
         Self {
-            swift_taker_order_slot: None,
+            signed_msg_taker_order_slot: None,
             try_expire_orders: true,
             enforce_margin_check: true,
             risk_increasing: false,
@@ -819,19 +819,19 @@ impl PlaceOrderOptions {
     }
 
     pub fn set_order_slot(&mut self, slot: u64) {
-        self.swift_taker_order_slot = Some(slot);
+        self.signed_msg_taker_order_slot = Some(slot);
     }
 
     pub fn get_order_slot(&self, order_slot: u64) -> u64 {
         let mut min_order_slot = order_slot;
-        if let Some(swift_taker_order_slot) = self.swift_taker_order_slot {
-            min_order_slot = order_slot.min(swift_taker_order_slot);
+        if let Some(signed_msg_taker_order_slot) = self.signed_msg_taker_order_slot {
+            min_order_slot = order_slot.min(signed_msg_taker_order_slot);
         }
         min_order_slot
     }
 
-    pub fn is_swift_order(&self) -> bool {
-        self.swift_taker_order_slot.is_some()
+    pub fn is_signed_msg_order(&self) -> bool {
+        self.signed_msg_taker_order_slot.is_some()
     }
 }
 

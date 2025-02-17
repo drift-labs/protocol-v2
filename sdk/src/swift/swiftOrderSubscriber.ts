@@ -8,7 +8,7 @@ import {
 	MarketType,
 	OptionalOrderParams,
 	PostOnlyParams,
-	SwiftOrderParamsMessage,
+	SignedMsgOrderParamsMessage,
 	UserMap,
 } from '..';
 import { Keypair, PublicKey, TransactionInstruction } from '@solana/web3.js';
@@ -16,7 +16,7 @@ import nacl from 'tweetnacl';
 import { decodeUTF8 } from 'tweetnacl-util';
 import WebSocket from 'ws';
 
-export type SwiftOrderSubscriberConfig = {
+export type SignedMsgOrderSubscriberConfig = {
 	driftClient: DriftClient;
 	userMap: UserMap;
 	driftEnv: DriftEnv;
@@ -25,7 +25,7 @@ export type SwiftOrderSubscriberConfig = {
 	keypair: Keypair;
 };
 
-export class SwiftOrderSubscriber {
+export class SignedMsgOrderSubscriber {
 	private heartbeatTimeout: NodeJS.Timeout | null = null;
 	private readonly heartbeatIntervalMs = 60000;
 	private ws: WebSocket | null = null;
@@ -33,12 +33,12 @@ export class SwiftOrderSubscriber {
 	public userMap: UserMap;
 	public onOrder: (
 		orderMessageRaw: any,
-		swiftOrderParamsMessage: SwiftOrderParamsMessage
+		signedMsgOrderParamsMessage: SignedMsgOrderParamsMessage
 	) => Promise<void>;
 
 	subscribed = false;
 
-	constructor(private config: SwiftOrderSubscriberConfig) {
+	constructor(private config: SignedMsgOrderSubscriberConfig) {
 		this.driftClient = config.driftClient;
 		this.userMap = config.userMap;
 	}
@@ -93,7 +93,7 @@ export class SwiftOrderSubscriber {
 	async subscribe(
 		onOrder: (
 			orderMessageRaw: any,
-			swiftOrderParamsMessage: SwiftOrderParamsMessage
+			signedMsgOrderParamsMessage: SignedMsgOrderParamsMessage
 		) => Promise<void>
 	): Promise<void> {
 		this.onOrder = onOrder;
@@ -119,23 +119,25 @@ export class SwiftOrderSubscriber {
 
 				if (message['order']) {
 					const order = JSON.parse(message['order']);
-					const swiftOrderParamsBuf = Buffer.from(
+					const signedMsgOrderParamsBuf = Buffer.from(
 						order['order_message'],
 						'hex'
 					);
-					const swiftOrderParamsMessage: SwiftOrderParamsMessage =
-						this.driftClient.decodeSwiftOrderParamsMessage(swiftOrderParamsBuf);
+					const signedMsgOrderParamsMessage: SignedMsgOrderParamsMessage =
+						this.driftClient.decodeSignedMsgOrderParamsMessage(
+							signedMsgOrderParamsBuf
+						);
 
-					if (!swiftOrderParamsMessage.swiftOrderParams.price) {
+					if (!signedMsgOrderParamsMessage.signedMsgOrderParams.price) {
 						console.error(
 							`order has no price: ${JSON.stringify(
-								swiftOrderParamsMessage.swiftOrderParams
+								signedMsgOrderParamsMessage.signedMsgOrderParams
 							)}`
 						);
 						return;
 					}
 
-					onOrder(order, swiftOrderParamsMessage);
+					onOrder(order, signedMsgOrderParamsMessage);
 				}
 			});
 
@@ -151,12 +153,12 @@ export class SwiftOrderSubscriber {
 		});
 	}
 
-	async getPlaceAndMakeSwiftOrderIxs(
+	async getPlaceAndMakeSignedMsgOrderIxs(
 		orderMessageRaw: any,
-		swiftOrderParamsMessage: SwiftOrderParamsMessage,
+		signedMsgOrderParamsMessage: SignedMsgOrderParamsMessage,
 		makerOrderParams: OptionalOrderParams
 	): Promise<TransactionInstruction[]> {
-		const swiftOrderParamsBuf = Buffer.from(
+		const signedMsgOrderParamsBuf = Buffer.from(
 			orderMessageRaw['order_message'],
 			'hex'
 		);
@@ -167,14 +169,14 @@ export class SwiftOrderSubscriber {
 		const takerUserPubkey = await getUserAccountPublicKey(
 			this.driftClient.program.programId,
 			takerAuthority,
-			swiftOrderParamsMessage.subAccountId
+			signedMsgOrderParamsMessage.subAccountId
 		);
 		const takerUserAccount = (
 			await this.userMap.mustGet(takerUserPubkey.toString())
 		).getUserAccount();
-		const ixs = await this.driftClient.getPlaceAndMakeSwiftPerpOrderIxs(
+		const ixs = await this.driftClient.getPlaceAndMakeSignedMsgPerpOrderIxs(
 			{
-				orderParams: swiftOrderParamsBuf,
+				orderParams: signedMsgOrderParamsBuf,
 				signature: Buffer.from(orderMessageRaw['order_signature'], 'base64'),
 			},
 			decodeUTF8(orderMessageRaw['uuid']),
