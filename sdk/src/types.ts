@@ -1130,11 +1130,11 @@ export type SignedMsgOrderParamsMessage = {
 	subAccountId: number;
 	slot: BN;
 	uuid: Uint8Array;
-	takeProfitOrderParams: SwiftTriggerOrderParams | null;
-	stopLossOrderParams: SwiftTriggerOrderParams | null;
+	takeProfitOrderParams: SignedMsgTriggerOrderParams | null;
+	stopLossOrderParams: SignedMsgTriggerOrderParams | null;
 };
 
-export type SwiftTriggerOrderParams = {
+export type SignedMsgTriggerOrderParams = {
 	triggerPrice: BN;
 	baseAssetAmount: BN;
 };
@@ -1382,8 +1382,8 @@ export type HighLeverageModeConfig = {
 	reduceOnly: boolean;
 };
 
-/* Represents proof of a swift taker order
- * It can be provided to drift program to fill a swift order
+/* Represents proof of a signed msg taker order
+ * It can be provided to drift program to fill a signed msg order
  */
 export interface SignedMsgOrderParams {
 	/**

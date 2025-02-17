@@ -73,9 +73,9 @@ export type MarketNodeLists = {
 		above: NodeList<'trigger'>;
 		below: NodeList<'trigger'>;
 	};
-	swift: {
-		ask: NodeList<'swift'>;
-		bid: NodeList<'swift'>;
+	signedMsg: {
+		ask: NodeList<'signedMsg'>;
+		bid: NodeList<'signedMsg'>;
 	};
 };
 
@@ -220,7 +220,7 @@ export class DLOB {
 		}
 	}
 
-	public insertSwiftOrder(
+	public insertSignedMsgOrder(
 		order: Order,
 		userAccount: string,
 		isUserProtectedMaker: boolean,
@@ -238,7 +238,7 @@ export class DLOB {
 		this.orderLists
 			.get(marketType)
 			.get(marketIndex)
-			.swift[bidOrAsk].insert(
+			.signedMsg[bidOrAsk].insert(
 				order,
 				marketType,
 				userAccount,
@@ -276,9 +276,9 @@ export class DLOB {
 				above: new NodeList('trigger', 'asc'),
 				below: new NodeList('trigger', 'desc'),
 			},
-			swift: {
-				ask: new NodeList('swift', 'asc'),
-				bid: new NodeList('swift', 'asc'),
+			signedMsg: {
+				ask: new NodeList('signedMsg', 'asc'),
+				bid: new NodeList('signedMsg', 'asc'),
 			},
 		});
 	}
@@ -903,26 +903,26 @@ export class DLOB {
 			nodeLists.restingLimit.bid.getGenerator(),
 			nodeLists.floatingLimit.bid.getGenerator(),
 			nodeLists.market.bid.getGenerator(),
-			nodeLists.swift.bid.getGenerator(),
+			nodeLists.signedMsg.bid.getGenerator(),
 		];
 		const askGenerators = [
 			nodeLists.takingLimit.ask.getGenerator(),
 			nodeLists.restingLimit.ask.getGenerator(),
 			nodeLists.floatingLimit.ask.getGenerator(),
 			nodeLists.market.ask.getGenerator(),
-			nodeLists.swift.ask.getGenerator(),
+			nodeLists.signedMsg.ask.getGenerator(),
 		];
 
 		for (const bidGenerator of bidGenerators) {
 			for (const bid of bidGenerator) {
 				if (
-					bid.isSwift &&
+					bid.isSignedMsg &&
 					slot.gt(bid.order.slot.addn(bid.order.auctionDuration))
 				) {
 					this.orderLists
 						.get(marketTypeStr)
 						.get(marketIndex)
-						.swift.bid.remove(bid.order, bid.userAccount);
+						.signedMsg.bid.remove(bid.order, bid.userAccount);
 				} else if (isOrderExpired(bid.order, ts, true, 25)) {
 					nodesToFill.push({
 						node: bid,
@@ -964,7 +964,7 @@ export class DLOB {
 		const generatorList = [
 			orderLists.market.bid.getGenerator(),
 			orderLists.takingLimit.bid.getGenerator(),
-			orderLists.swift.bid.getGenerator(),
+			orderLists.signedMsg.bid.getGenerator(),
 		];
 
 		yield* this.getBestNode(
@@ -996,7 +996,7 @@ export class DLOB {
 		const generatorList = [
 			orderLists.market.ask.getGenerator(),
 			orderLists.takingLimit.ask.getGenerator(),
-			orderLists.swift.ask.getGenerator(),
+			orderLists.signedMsg.ask.getGenerator(),
 		];
 
 		yield* this.getBestNode(
