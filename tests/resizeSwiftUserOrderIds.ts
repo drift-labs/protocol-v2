@@ -13,7 +13,7 @@ import {
 	Wallet,
 	EventSubscriber,
 	OracleSource,
-	getSwiftUserAccountPublicKey,
+	getSignedMsgUserAccountPublicKey,
 } from '../sdk/src';
 
 import {
@@ -30,7 +30,7 @@ import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
 import dotenv from 'dotenv';
 dotenv.config();
 
-describe('place and make swift order', () => {
+describe('place and make signedMsg order', () => {
 	const chProgram = anchor.workspace.Drift as Program;
 
 	let makerDriftClient: TestClient;
@@ -146,7 +146,7 @@ describe('place and make swift order', () => {
 		await eventSubscriber.unsubscribe();
 	});
 
-	it('increase size of swift user orders', async () => {
+	it('increase size of signedMsg user orders', async () => {
 		const [takerDriftClient, takerDriftClientUser] =
 			await initializeNewTakerClientAndUser(
 				bankrunContextWrapper,
@@ -160,27 +160,28 @@ describe('place and make swift order', () => {
 			);
 		await takerDriftClientUser.fetchAccounts();
 
-		await takerDriftClient.resizeSwiftUserOrders(
+		await takerDriftClient.resizeSignedMsgUserOrders(
 			takerDriftClientUser.getUserAccount().authority,
 			100
 		);
 
-		const swiftUserOrdersAccountPublicKey = getSwiftUserAccountPublicKey(
-			takerDriftClient.program.programId,
-			takerDriftClientUser.getUserAccount().authority
-		);
-		const swiftUserOrders =
-			(await takerDriftClient.program.account.swiftUserOrders.fetch(
-				swiftUserOrdersAccountPublicKey
+		const signedMsgUserOrdersAccountPublicKey =
+			getSignedMsgUserAccountPublicKey(
+				takerDriftClient.program.programId,
+				takerDriftClientUser.getUserAccount().authority
+			);
+		const signedMsgUserOrders =
+			(await takerDriftClient.program.account.signedMsgUserOrders.fetch(
+				signedMsgUserOrdersAccountPublicKey
 			)) as any;
 
-		assert.equal(swiftUserOrders.swiftOrderData.length, 100);
+		assert.equal(signedMsgUserOrders.signedMsgOrderData.length, 100);
 
 		await takerDriftClientUser.unsubscribe();
 		await takerDriftClient.unsubscribe();
 	});
 
-	it('decrease size of swift user orders', async () => {
+	it('decrease size of signedMsg user orders', async () => {
 		const [takerDriftClient, takerDriftClientUser] =
 			await initializeNewTakerClientAndUser(
 				bankrunContextWrapper,
@@ -194,21 +195,22 @@ describe('place and make swift order', () => {
 			);
 		await takerDriftClientUser.fetchAccounts();
 
-		await takerDriftClient.resizeSwiftUserOrders(
+		await takerDriftClient.resizeSignedMsgUserOrders(
 			takerDriftClientUser.getUserAccount().authority,
 			4
 		);
 
-		const swiftUserOrdersAccountPublicKey = getSwiftUserAccountPublicKey(
-			takerDriftClient.program.programId,
-			takerDriftClientUser.getUserAccount().authority
-		);
-		const swiftUserOrders =
-			(await takerDriftClient.program.account.swiftUserOrders.fetch(
-				swiftUserOrdersAccountPublicKey
+		const signedMsgUserOrdersAccountPublicKey =
+			getSignedMsgUserAccountPublicKey(
+				takerDriftClient.program.programId,
+				takerDriftClientUser.getUserAccount().authority
+			);
+		const signedMsgUserOrders =
+			(await takerDriftClient.program.account.signedMsgUserOrders.fetch(
+				signedMsgUserOrdersAccountPublicKey
 			)) as any;
 
-		assert.equal(swiftUserOrders.swiftOrderData.length, 4);
+		assert.equal(signedMsgUserOrders.signedMsgOrderData.length, 4);
 
 		await takerDriftClientUser.unsubscribe();
 		await takerDriftClient.unsubscribe();
@@ -267,7 +269,7 @@ async function initializeNewTakerClientAndUser(
 		},
 	});
 	await takerDriftClientUser.subscribe();
-	await takerDriftClient.initializeSwiftUserOrders(
+	await takerDriftClient.initializeSignedMsgUserOrders(
 		takerDriftClientUser.getUserAccount().authority,
 		32
 	);

@@ -656,7 +656,7 @@ pub fn place_signed_msg_taker_order<'c: 'info, 'info>(
     state: &State,
     is_delegate_signer: bool,
 ) -> Result<()> {
-    // Authenticate the swift param message
+    // Authenticate the signed msg order param message
     let ix_idx = load_current_index_checked(ix_sysvar)?;
     validate!(
         ix_idx > 0,
@@ -718,11 +718,11 @@ pub fn place_signed_msg_taker_order<'c: 'info, 'info>(
         || matching_taker_order_params.auction_start_price.is_none()
         || matching_taker_order_params.auction_end_price.is_none()
     {
-        msg!("Auction params must be set for swift orders");
+        msg!("Auction params must be set for signed msg orders");
         return Err(print_error!(ErrorCode::InvalidSignedMsgOrderParam)().into());
     }
 
-    // Set max slot for the order early so we set correct swift order id
+    // Set max slot for the order early so we set correct signed msg order id
     let order_slot = taker_order_params_message.slot;
     if order_slot < clock.slot.saturating_sub(500) {
         msg!(
@@ -749,7 +749,7 @@ pub fn place_signed_msg_taker_order<'c: 'info, 'info>(
         return Ok(());
     }
 
-    // Dont place order if swift order already exists
+    // Dont place order if signed msg order already exists
     let signed_msg_order_id = SignedMsgOrderId::new(
         taker_order_params_message.uuid,
         max_slot,
