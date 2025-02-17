@@ -166,13 +166,13 @@ pub struct CurveRecord {
 }
 
 #[event]
-pub struct SwiftOrderRecord {
+pub struct SignedMsgOrderRecord {
     pub user: Pubkey,
     pub hash: String,
     pub matching_order_params: OrderParams,
     pub user_order_id: u32,
-    pub swift_order_max_slot: u64,
-    pub swift_order_uuid: [u8; 8],
+    pub signed_msg_order_max_slot: u64,
+    pub signed_msg_order_uuid: [u8; 8],
     pub ts: i64,
 }
 

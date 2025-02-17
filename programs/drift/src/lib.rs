@@ -59,18 +59,18 @@ pub mod drift {
         handle_initialize_user_stats(ctx)
     }
 
-    pub fn initialize_swift_user_orders<'c: 'info, 'info>(
-        ctx: Context<'_, '_, 'c, 'info, InitializeSwiftUserOrders<'info>>,
+    pub fn initialize_signed_msg_user_orders<'c: 'info, 'info>(
+        ctx: Context<'_, '_, 'c, 'info, InitializeSignedMsgUserOrders<'info>>,
         num_orders: u16,
     ) -> Result<()> {
-        handle_initialize_swift_user_orders(ctx, num_orders)
+        handle_initialize_signed_msg_user_orders(ctx, num_orders)
     }
 
-    pub fn resize_swift_user_orders<'c: 'info, 'info>(
-        ctx: Context<'_, '_, 'c, 'info, ResizeSwiftUserOrders<'info>>,
+    pub fn resize_signed_msg_user_orders<'c: 'info, 'info>(
+        ctx: Context<'_, '_, 'c, 'info, ResizeSignedMsgUserOrders<'info>>,
         num_orders: u16,
     ) -> Result<()> {
-        handle_resize_swift_user_orders(ctx, num_orders)
+        handle_resize_signed_msg_user_orders(ctx, num_orders)
     }
 
     pub fn initialize_fuel_overflow<'c: 'info, 'info>(
@@ -193,20 +193,24 @@ pub mod drift {
         handle_place_and_make_perp_order(ctx, params, taker_order_id)
     }
 
-    pub fn place_and_make_swift_perp_order<'c: 'info, 'info>(
-        ctx: Context<'_, '_, 'c, 'info, PlaceAndMakeSwift<'info>>,
+    pub fn place_and_make_signed_msg_perp_order<'c: 'info, 'info>(
+        ctx: Context<'_, '_, 'c, 'info, PlaceAndMakeSignedMsg<'info>>,
         params: OrderParams,
-        swift_order_uuid: [u8; 8],
+        signed_msg_order_uuid: [u8; 8],
     ) -> Result<()> {
-        handle_place_and_make_swift_perp_order(ctx, params, swift_order_uuid)
+        handle_place_and_make_signed_msg_perp_order(ctx, params, signed_msg_order_uuid)
     }
 
-    pub fn place_swift_taker_order<'c: 'info, 'info>(
-        ctx: Context<'_, '_, 'c, 'info, PlaceSwiftTakerOrder<'info>>,
-        swift_order_params_message_bytes: Vec<u8>,
+    pub fn place_signed_msg_taker_order<'c: 'info, 'info>(
+        ctx: Context<'_, '_, 'c, 'info, PlaceSignedMsgTakerOrder<'info>>,
+        signed_msg_order_params_message_bytes: Vec<u8>,
         is_delegate_signer: bool,
     ) -> Result<()> {
-        handle_place_swift_taker_order(ctx, swift_order_params_message_bytes, is_delegate_signer)
+        handle_place_signed_msg_taker_order(
+            ctx,
+            signed_msg_order_params_message_bytes,
+            is_delegate_signer,
+        )
     }
 
     pub fn place_spot_order<'c: 'info, 'info>(
@@ -376,10 +380,10 @@ pub mod drift {
         handle_force_delete_user(ctx)
     }
 
-    pub fn delete_swift_user_orders<'c: 'info, 'info>(
-        ctx: Context<'_, '_, 'c, 'info, DeleteSwiftUserOrders>,
+    pub fn delete_signed_msg_user_orders<'c: 'info, 'info>(
+        ctx: Context<'_, '_, 'c, 'info, DeleteSignedMsgUserOrders>,
     ) -> Result<()> {
-        handle_delete_swift_user_orders(ctx)
+        handle_delete_signed_msg_user_orders(ctx)
     }
 
     pub fn reclaim_rent(ctx: Context<ReclaimRent>) -> Result<()> {
