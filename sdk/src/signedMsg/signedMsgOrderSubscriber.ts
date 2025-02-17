@@ -118,7 +118,7 @@ export class SignedMsgOrderSubscriber {
 				}
 
 				if (message['order']) {
-					const order = JSON.parse(message['order']);
+					const order = message['order'];
 					const signedMsgOrderParamsBuf = Buffer.from(
 						order['order_message'],
 						'hex'

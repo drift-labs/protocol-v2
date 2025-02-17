@@ -88,7 +88,7 @@ export * from './oracles/pythPullClient';
 export * from './oracles/pythLazerClient';
 export * from './oracles/switchboardOnDemandClient';
 export * from './oracles/oracleId';
-export * from './swift/swiftOrderSubscriber';
+export * from './signedMsg/signedMsgOrderSubscriber';
 export * from './tx/fastSingleTxSender';
 export * from './tx/retryTxSender';
 export * from './tx/whileValidTxSender';
