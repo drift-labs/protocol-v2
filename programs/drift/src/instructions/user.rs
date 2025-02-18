@@ -1153,9 +1153,10 @@ pub fn handle_transfer_pools<'c: 'info, 'info>(
         clock.unix_timestamp,
     )?;
 
-    let deposit_transfer = {
+    let deposit_transfer = if let Some(0) = deposit_amount {
+        0_u64
+    } else {
         let spot_position = from_user.force_get_spot_position_mut(deposit_from_market_index)?;
-
         validate!(
             spot_position.balance_type == SpotBalanceType::Deposit,
             ErrorCode::InvalidSpotPosition,
@@ -1252,7 +1253,9 @@ pub fn handle_transfer_pools<'c: 'info, 'info>(
         emit!(deposit_record);
     }
 
-    let borrow_amount = {
+    let borrow_transfer = if let Some(0) = borrow_amount {
+        0_u64
+    } else {
         let spot_position = from_user.force_get_spot_position_mut(borrow_from_market_index)?;
 
         validate!(
@@ -1279,15 +1282,15 @@ pub fn handle_transfer_pools<'c: 'info, 'info>(
         amount
     };
 
-    if borrow_amount > 0 {
+    if borrow_transfer > 0 {
         from_user.increment_total_deposits(
-            borrow_amount,
+            borrow_transfer,
             borrow_from_oracle_price_data.price,
             borrow_from_spot_market.get_precision().cast()?,
         )?;
 
         controller::spot_position::update_spot_balances_and_cumulative_deposits_with_limits(
-            borrow_amount as u128,
+            borrow_transfer as u128,
             &SpotBalanceType::Deposit,
             &mut borrow_from_spot_market,
             from_user,
@@ -1301,7 +1304,7 @@ pub fn handle_transfer_pools<'c: 'info, 'info>(
             user_authority: *authority_key,
             user: from_user_key,
             direction: DepositDirection::Deposit,
-            amount: borrow_amount,
+            amount: borrow_transfer,
             oracle_price: borrow_from_oracle_price_data.price,
             market_index: borrow_from_market_index,
             market_deposit_balance: borrow_from_spot_market.deposit_balance,
@@ -1316,13 +1319,13 @@ pub fn handle_transfer_pools<'c: 'info, 'info>(
         emit!(deposit_record);
 
         to_user.increment_total_withdraws(
-            borrow_amount,
+            borrow_transfer,
             borrow_to_oracle_price_data.price,
             borrow_to_spot_market.get_precision().cast()?,
         )?;
 
         controller::spot_position::update_spot_balances_and_cumulative_deposits_with_limits(
-            borrow_amount as u128,
+            borrow_transfer as u128,
             &SpotBalanceType::Borrow,
             &mut borrow_to_spot_market,
             to_user,
@@ -1335,7 +1338,7 @@ pub fn handle_transfer_pools<'c: 'info, 'info>(
             user_authority: *authority_key,
             user: to_user_key,
             direction: DepositDirection::Withdraw,
-            amount: borrow_amount,
+            amount: borrow_transfer,
             oracle_price: borrow_to_oracle_price_data.price,
             market_index: borrow_to_market_index,
             market_deposit_balance: borrow_to_spot_market.deposit_balance,
@@ -1363,7 +1366,7 @@ pub fn handle_transfer_pools<'c: 'info, 'info>(
         deposit_from_market_index,
         deposit_transfer.cast::<i128>()?,
         borrow_from_market_index,
-        -borrow_amount.cast::<i128>()?,
+        -borrow_transfer.cast::<i128>()?,
         user_stats,
         clock.unix_timestamp,
     )?;
@@ -1376,7 +1379,7 @@ pub fn handle_transfer_pools<'c: 'info, 'info>(
         deposit_to_market_index,
         -deposit_transfer.cast::<i128>()?,
         borrow_to_market_index,
-        borrow_amount.cast::<i128>()?,
+        borrow_transfer.cast::<i128>()?,
         user_stats,
         clock.unix_timestamp,
     )?;
@@ -1435,7 +1438,7 @@ pub fn handle_transfer_pools<'c: 'info, 'info>(
         )?;
     }
 
-    if borrow_amount > 0 {
+    if borrow_transfer > 0 {
         let token_program_pubkey = borrow_to_spot_market.get_token_program();
         let token_program = &ctx
             .remaining_accounts
@@ -1458,7 +1461,7 @@ pub fn handle_transfer_pools<'c: 'info, 'info>(
             &ctx.accounts.borrow_from_spot_market_vault,
             &ctx.accounts.drift_signer,
             state.signer_nonce,
-            borrow_amount,
+            borrow_transfer,
             &mint_account_info,
         )?;
     }
