@@ -958,7 +958,6 @@ dependencies = [
 name = "drift"
 version = "2.109.0"
 dependencies = [
- "ahash 0.8.6",
  "anchor-lang",
  "anchor-spl",
  "arrayref",
@@ -970,7 +969,6 @@ dependencies = [
  "drift-macros",
  "enumflags2",
  "hex",
- "num-derive 0.3.3",
  "num-integer",
  "num-traits",
  "openbook-v2-light",
@@ -986,7 +984,6 @@ dependencies = [
  "static_assertions",
  "switchboard",
  "switchboard-on-demand",
- "thiserror",
  "uint",
 ]
 
@@ -1840,7 +1837,6 @@ name = "pyth"
 version = "0.1.0"
 dependencies = [
  "anchor-lang",
- "arrayref",
  "bytemuck",
 ]
 
@@ -2972,7 +2968,6 @@ dependencies = [
  "anchor-lang",
  "anchor-spl",
  "bytemuck",
- "solana-program",
 ]
 
 [[package]]

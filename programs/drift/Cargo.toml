@@ -30,8 +30,6 @@ borsh = "0.10.3"
 hex = "0.4.3"
 num-traits = "0.2"
 uint = { version = "0.9.1", default-features = false }
-num-derive = "0.3"
-thiserror = "1.0"
 num-integer = "0.1.44"
 arrayref = "0.3.6"
 base64 = "0.13.0"
@@ -43,7 +41,6 @@ static_assertions = "1.1.0"
 drift-macros = { git = "https://github.com/drift-labs/drift-macros.git", rev = "c57d87" }
 switchboard = { path = "../switchboard", features = ["no-entrypoint"] }
 openbook-v2-light = { path = "../openbook_v2", features = ["no-entrypoint"] }
-ahash = "=0.8.6"
 switchboard-on-demand = { path = "../switchboard-on-demand", features = ["no-entrypoint"] }
 byteorder = "1.4.3"
 
