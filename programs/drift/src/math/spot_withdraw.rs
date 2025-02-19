@@ -31,7 +31,7 @@ pub fn calculate_max_borrow_token_amount(
     borrow_token_twap: u128,
     withdraw_guard_threshold: u128,
     max_token_borrows: u128,
-    pool_id: u32,
+    pool_id: u8,
 ) -> DriftResult<u128> {
     // maximum permitted borrows after withdrawal
     // allows at least up to the withdraw_guard_threshold
