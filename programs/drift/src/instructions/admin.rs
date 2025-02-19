@@ -1555,7 +1555,7 @@ pub fn handle_update_perp_market_amm_summary_stats(
     );
 
     let clock = Clock::get()?;
-    let price_oracle = &ctx.accounts.oracle;
+    let price_oracle: &AccountInfo<'_> = &ctx.accounts.oracle;
 
     let OraclePriceData {
         price: oracle_price,
@@ -3451,12 +3451,14 @@ pub fn handle_update_perp_market_oracle(
         oracle
     )?;
 
+    let price_oracle = &ctx.accounts.oracle;
+
     // Verify new oracle is readable
     let OraclePriceData {
         price: new_oracle_price,
         delay: _oracle_delay,
         ..
-    } = get_oracle_price(&oracle_source, &ctx.accounts.oracle, clock.slot)?;
+    } = get_oracle_price(&oracle_source, price_oracle, clock.slot)?;
 
     msg!(
         "perp_market.amm.oracle: {:?} -> {:?}",
