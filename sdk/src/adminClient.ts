@@ -2176,7 +2176,7 @@ export class AdminClient extends DriftClient {
 		perpMarketIndex: number,
 		oracle: PublicKey,
 		oracleSource: OracleSource,
-		skipInvaraintCheck=false,
+		skipInvaraintCheck = false
 	): Promise<TransactionSignature> {
 		const updatePerpMarketOracleIx = await this.getUpdatePerpMarketOracleIx(
 			perpMarketIndex,
@@ -2196,7 +2196,7 @@ export class AdminClient extends DriftClient {
 		perpMarketIndex: number,
 		oracle: PublicKey,
 		oracleSource: OracleSource,
-		skipInvaraintCheck=false,
+		skipInvaraintCheck = false
 	): Promise<TransactionInstruction> {
 		return await this.program.instruction.updatePerpMarketOracle(
 			oracle,
