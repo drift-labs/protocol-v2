@@ -643,6 +643,37 @@ export type DeleteUserRecord = {
 	keeper: PublicKey | null;
 };
 
+export type FuelSeasonRecord = {
+	ts: BN;
+	authority: PublicKey;
+	fuelInsurance: BN;
+	fuelDeposits: BN;
+	fuelBorrows: BN;
+	fuelPositions: BN;
+	fuelTaker: BN;
+	fuelMaker: BN;
+	fuelTotal: BN;
+};
+
+export type FuelSweepRecord = {
+	ts: BN;
+	authority: PublicKey;
+	// fuel values on UserStats before sweep
+	userStatsFuelInsurance: BN;
+	userStatsFuelDeposits: BN;
+	userStatsFuelBorrows: BN;
+	userStatsFuelPositions: BN;
+	userStatsFuelTaker: BN;
+	userStatsFuelMaker: BN;
+	// fuel values on FuelOverflow before sweep
+	fuelOverflowFuelInsurance: BN;
+	fuelOverflowFuelDeposits: BN;
+	fuelOverflowFuelBorrows: BN;
+	fuelOverflowFuelPositions: BN;
+	fuelOverflowFuelTaker: BN;
+	fuelOverflowFuelMaker: BN;
+};
+
 export type StateAccount = {
 	admin: PublicKey;
 	exchangeStatus: number;
@@ -1130,11 +1161,11 @@ export type SignedMsgOrderParamsMessage = {
 	subAccountId: number;
 	slot: BN;
 	uuid: Uint8Array;
-	takeProfitOrderParams: SwiftTriggerOrderParams | null;
-	stopLossOrderParams: SwiftTriggerOrderParams | null;
+	takeProfitOrderParams: SignedMsgTriggerOrderParams | null;
+	stopLossOrderParams: SignedMsgTriggerOrderParams | null;
 };
 
-export type SwiftTriggerOrderParams = {
+export type SignedMsgTriggerOrderParams = {
 	triggerPrice: BN;
 	baseAssetAmount: BN;
 };
@@ -1382,8 +1413,8 @@ export type HighLeverageModeConfig = {
 	reduceOnly: boolean;
 };
 
-/* Represents proof of a swift taker order
- * It can be provided to drift program to fill a swift order
+/* Represents proof of a signed msg taker order
+ * It can be provided to drift program to fill a signed msg order
  */
 export interface SignedMsgOrderParams {
 	/**

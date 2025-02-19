@@ -21,7 +21,7 @@ export interface DLOBNode {
 	userAccount: string | undefined;
 	isProtectedMaker: boolean;
 	applyProtectedMakerOffset: boolean;
-	isSwift: boolean | undefined;
+	isSignedMsg: boolean | undefined;
 }
 
 export abstract class OrderNode implements DLOBNode {
@@ -32,14 +32,14 @@ export abstract class OrderNode implements DLOBNode {
 	haveTrigger = false;
 	isProtectedMaker: boolean;
 	applyProtectedMakerOffset: boolean;
-	isSwift: boolean;
+	isSignedMsg: boolean;
 
 	constructor(
 		order: Order,
 		userAccount: string,
 		isProtectedMaker: boolean,
 		applyProtectedMakerOffset: boolean,
-		isSwift = false
+		isSignedMsg = false
 	) {
 		// Copy the order over to the node
 		this.order = { ...order };
@@ -47,7 +47,7 @@ export abstract class OrderNode implements DLOBNode {
 		this.sortValue = this.getSortValue(order);
 		this.isProtectedMaker = isProtectedMaker;
 		this.applyProtectedMakerOffset = applyProtectedMakerOffset;
-		this.isSwift = isSwift;
+		this.isSignedMsg = isSignedMsg;
 	}
 
 	abstract getSortValue(order: Order): BN;
@@ -153,10 +153,10 @@ export class TriggerOrderNode extends OrderNode {
 	}
 }
 
-// We'll use the swift uuid for the order id since it's not yet on-chain
-export class SwiftOrderNode extends OrderNode {
-	next?: SwiftOrderNode;
-	previous?: SwiftOrderNode;
+// We'll use the signedMsg uuid for the order id since it's not yet on-chain
+export class SignedMsgOrderNode extends OrderNode {
+	next?: SignedMsgOrderNode;
+	previous?: SignedMsgOrderNode;
 
 	constructor(order: Order, userAccount: string) {
 		super(order, userAccount, false, false, true);
@@ -174,11 +174,11 @@ export type DLOBNodeMap = {
 	protectedFloatingLimit: FloatingLimitOrderNode;
 	market: MarketOrderNode;
 	trigger: TriggerOrderNode;
-	swift: SwiftOrderNode;
+	signedMsg: SignedMsgOrderNode;
 };
 
 export type DLOBNodeType =
-	| 'swift'
+	| 'signedMsg'
 	| 'restingLimit'
 	| 'takingLimit'
 	| 'floatingLimit'
@@ -226,8 +226,8 @@ export function createNode<T extends DLOBNodeType>(
 			return new MarketOrderNode(order, userAccount, isProtectedMaker, false);
 		case 'trigger':
 			return new TriggerOrderNode(order, userAccount, isProtectedMaker, false);
-		case 'swift':
-			return new SwiftOrderNode(order, userAccount);
+		case 'signedMsg':
+			return new SignedMsgOrderNode(order, userAccount);
 		default:
 			throw Error(`Unknown DLOBNode type ${nodeType}`);
 	}

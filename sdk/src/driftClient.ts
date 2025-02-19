@@ -167,7 +167,7 @@ import {
 import { WormholeCoreBridgeSolana } from '@pythnetwork/pyth-solana-receiver/lib/idl/wormhole_core_bridge_solana';
 import { PythSolanaReceiver } from '@pythnetwork/pyth-solana-receiver/lib/idl/pyth_solana_receiver';
 import { getFeedIdUint8Array, trimFeedId } from './util/pythOracleUtils';
-import { createMinimalEd25519VerifyIx } from './signedMsg/ed25519Utils';
+import { createMinimalEd25519VerifyIx } from './util/ed25519Utils';
 import { isVersionedTransaction } from './tx/utils';
 import pythSolanaReceiverIdl from './idl/pyth_solana_receiver.json';
 import { asV0Tx, PullFeed } from '@switchboard-xyz/on-demand';
@@ -3152,6 +3152,138 @@ export class DriftClient {
 			},
 			remainingAccounts,
 		});
+	}
+
+	public async transferPools(
+		depositFromMarketIndex: number,
+		depositToMarketIndex: number,
+		borrowFromMarketIndex: number,
+		borrowToMarketIndex: number,
+		depositAmount: BN | undefined,
+		borrowAmount: BN | undefined,
+		fromSubAccountId: number,
+		toSubAccountId: number,
+		txParams?: TxParams
+	): Promise<TransactionSignature> {
+		const { txSig, slot } = await this.sendTransaction(
+			await this.buildTransaction(
+				await this.getTransferPoolsIx(
+					depositFromMarketIndex,
+					depositToMarketIndex,
+					borrowFromMarketIndex,
+					borrowToMarketIndex,
+					depositAmount,
+					borrowAmount,
+					fromSubAccountId,
+					toSubAccountId
+				),
+				txParams
+			),
+			[],
+			this.opts
+		);
+
+		if (
+			fromSubAccountId === this.activeSubAccountId ||
+			toSubAccountId === this.activeSubAccountId
+		) {
+			this.spotMarketLastSlotCache.set(depositFromMarketIndex, slot);
+			this.spotMarketLastSlotCache.set(depositToMarketIndex, slot);
+			this.spotMarketLastSlotCache.set(borrowFromMarketIndex, slot);
+			this.spotMarketLastSlotCache.set(borrowToMarketIndex, slot);
+		}
+		return txSig;
+	}
+
+	public async getTransferPoolsIx(
+		depositFromMarketIndex: number,
+		depositToMarketIndex: number,
+		borrowFromMarketIndex: number,
+		borrowToMarketIndex: number,
+		depositAmount: BN | undefined,
+		borrowAmount: BN | undefined,
+		fromSubAccountId: number,
+		toSubAccountId: number
+	): Promise<TransactionInstruction> {
+		const fromUser = await getUserAccountPublicKey(
+			this.program.programId,
+			this.wallet.publicKey,
+			fromSubAccountId
+		);
+		const toUser = await getUserAccountPublicKey(
+			this.program.programId,
+			this.wallet.publicKey,
+			toSubAccountId
+		);
+
+		const userAccounts = [
+			this.getUserAccount(fromSubAccountId),
+			this.getUserAccount(toSubAccountId),
+		];
+
+		const remainingAccounts = this.getRemainingAccounts({
+			userAccounts,
+			useMarketLastSlotCache: true,
+			writableSpotMarketIndexes: [
+				depositFromMarketIndex,
+				depositToMarketIndex,
+				borrowFromMarketIndex,
+				borrowToMarketIndex,
+			],
+		});
+
+		const tokenPrograms = new Set<string>();
+		const depositFromSpotMarket = this.getSpotMarketAccount(
+			depositFromMarketIndex
+		);
+		const borrowFromSpotMarket = this.getSpotMarketAccount(
+			borrowFromMarketIndex
+		);
+
+		tokenPrograms.add(
+			this.getTokenProgramForSpotMarket(depositFromSpotMarket).toBase58()
+		);
+		tokenPrograms.add(
+			this.getTokenProgramForSpotMarket(borrowFromSpotMarket).toBase58()
+		);
+
+		for (const tokenProgram of tokenPrograms) {
+			remainingAccounts.push({
+				isSigner: false,
+				isWritable: false,
+				pubkey: new PublicKey(tokenProgram),
+			});
+		}
+
+		return await this.program.instruction.transferPools(
+			depositFromMarketIndex,
+			depositToMarketIndex,
+			borrowFromMarketIndex,
+			borrowToMarketIndex,
+			depositAmount ?? null,
+			borrowAmount ?? null,
+			{
+				accounts: {
+					authority: this.wallet.publicKey,
+					fromUser,
+					toUser,
+					userStats: this.getUserStatsAccountPublicKey(),
+					state: await this.getStatePublicKey(),
+					depositFromSpotMarketVault: this.getSpotMarketAccount(
+						depositFromMarketIndex
+					).vault,
+					depositToSpotMarketVault:
+						this.getSpotMarketAccount(depositToMarketIndex).vault,
+					borrowFromSpotMarketVault: this.getSpotMarketAccount(
+						borrowFromMarketIndex
+					).vault,
+					borrowToSpotMarketVault:
+						this.getSpotMarketAccount(borrowToMarketIndex).vault,
+					driftSigner: this.getSignerPublicKey(),
+				},
+				remainingAccounts,
+			}
+		);
 	}
 
 	public async updateSpotMarketCumulativeInterest(

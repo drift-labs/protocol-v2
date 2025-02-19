@@ -115,7 +115,15 @@ jobs:
 
       - uses: ./.github/actions/setup-solana/
 
-      - name: install anchor cli
+      - name: Cache Anchor CLI
+        id: cache-anchor
+        uses: actions/cache@v4
+        with:
+          path: ~/.cargo/bin/anchor
+          key: ${{ runner.os }}-anchor-cli-0.29.0
+
+      - name: Install Anchor CLI
+        if: steps.cache-anchor.outputs.cache-hit != 'true'
         run: cargo install --git https://github.com/coral-xyz/anchor --tag v0.29.0 anchor-cli --locked
 
       - name: Setup node

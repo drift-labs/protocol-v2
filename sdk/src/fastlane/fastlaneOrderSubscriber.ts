@@ -16,7 +16,7 @@ import nacl from 'tweetnacl';
 import { decodeUTF8 } from 'tweetnacl-util';
 import WebSocket from 'ws';
 
-export type SignedMsgOrderSubscriberConfig = {
+export type FastlaneOrderSubscriberConfig = {
 	driftClient: DriftClient;
 	userMap: UserMap;
 	driftEnv: DriftEnv;
@@ -25,7 +25,7 @@ export type SignedMsgOrderSubscriberConfig = {
 	keypair: Keypair;
 };
 
-export class SignedMsgOrderSubscriber {
+export class FastlaneOrderSubscriber {
 	private heartbeatTimeout: NodeJS.Timeout | null = null;
 	private readonly heartbeatIntervalMs = 60000;
 	private ws: WebSocket | null = null;
@@ -38,7 +38,7 @@ export class SignedMsgOrderSubscriber {
 
 	subscribed = false;
 
-	constructor(private config: SignedMsgOrderSubscriberConfig) {
+	constructor(private config: FastlaneOrderSubscriberConfig) {
 		this.driftClient = config.driftClient;
 		this.userMap = config.userMap;
 	}
@@ -100,8 +100,8 @@ export class SignedMsgOrderSubscriber {
 
 		const endpoint =
 			this.config.endpoint || this.config.driftEnv === 'devnet'
-				? 'wss://master.swift.drift.trade/ws'
-				: 'wss://swift.drift.trade/ws';
+				? 'wss://master.fastlane.drift.trade/ws'
+				: 'wss://fastlane.drift.trade/ws';
 		const ws = new WebSocket(
 			endpoint + '?pubkey=' + this.config.keypair.publicKey.toBase58()
 		);
