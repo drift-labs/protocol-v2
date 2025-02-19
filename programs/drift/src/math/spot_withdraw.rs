@@ -179,7 +179,7 @@ pub fn check_withdraw_limits(
         spot_market.borrow_token_twap.cast()?,
         spot_market.withdraw_guard_threshold.cast()?,
         max_token_borrows,
-        spot_market.pool_id
+        spot_market.pool_id,
     )?;
 
     let (min_deposit_token_for_utilization, max_borrow_token_for_utilization) =
