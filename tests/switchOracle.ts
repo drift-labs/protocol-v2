@@ -120,8 +120,8 @@ describe('switch oracles', () => {
 	});
 
 	beforeEach(async () => {
-		await admin.updateSpotMarketOracle(1, solOracle, OracleSource.PYTH);
-		await admin.updatePerpMarketOracle(0, solOracle, OracleSource.PYTH);
+		await admin.updateSpotMarketOracle(1, solOracle, OracleSource.PYTH, true);
+		await admin.updatePerpMarketOracle(0, solOracle, OracleSource.PYTH, true);
 	});
 
 	after(async () => {
@@ -144,7 +144,7 @@ describe('switch oracles', () => {
 
 		const newSolOracle = await mockOracleNoProgram(bankrunContextWrapper, 100);
 
-		await admin.updatePerpMarketOracle(0, newSolOracle, OracleSource.PYTH);
+		await admin.updatePerpMarketOracle(0, newSolOracle, OracleSource.PYTH, true);
 
 		await admin.fetchAccounts();
 		const perpOraclePriceBefore = await driftClient.getOracleDataForPerpMarket(
@@ -159,7 +159,7 @@ describe('switch oracles', () => {
 		);
 		assert(perpOraclePriceAfter.price.eq(PRICE_PRECISION.muln(100)));
 
-		await admin.updateSpotMarketOracle(1, newSolOracle, OracleSource.PYTH);
+		await admin.updateSpotMarketOracle(1, newSolOracle, OracleSource.PYTH, true);
 
 		await driftClient.fetchAccounts();
 		const spotOraclePriceBefore = await driftClient.getOracleDataForSpotMarket(
@@ -200,7 +200,7 @@ describe('switch oracles', () => {
 
 		const newSolOracle = await mockOracleNoProgram(bankrunContextWrapper, 100);
 
-		await admin.updatePerpMarketOracle(0, newSolOracle, OracleSource.PYTH);
+		await admin.updatePerpMarketOracle(0, newSolOracle, OracleSource.PYTH, true);
 
 		const perpOraclePriceBefore = await driftClient.getOracleDataForPerpMarket(
 			0
@@ -215,7 +215,7 @@ describe('switch oracles', () => {
 		);
 		assert(perpOraclePriceAfter.price.eq(PRICE_PRECISION.muln(100)));
 
-		await admin.updateSpotMarketOracle(1, newSolOracle, OracleSource.PYTH);
+		await admin.updateSpotMarketOracle(1, newSolOracle, OracleSource.PYTH, true);
 
 		const spotOraclePriceBefore = await driftClient.getOracleDataForSpotMarket(
 			1
