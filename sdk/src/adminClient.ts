@@ -2213,6 +2213,7 @@ export class AdminClient extends DriftClient {
 						perpMarketIndex
 					),
 					oracle: oracle,
+					oldOracle: this.getPerpMarketAccount(perpMarketIndex).amm.oracle,
 				},
 			}
 		);
@@ -2461,6 +2462,7 @@ export class AdminClient extends DriftClient {
 						spotMarketIndex
 					),
 					oracle: oracle,
+					oldOracle: this.getSpotMarketAccount(spotMarketIndex).oracle,
 				},
 			}
 		);
