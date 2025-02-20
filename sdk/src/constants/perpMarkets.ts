@@ -415,9 +415,9 @@ export const MainnetPerpMarkets: PerpMarketConfig[] = [
 		symbol: 'ETH-PERP',
 		baseAssetSymbol: 'ETH',
 		marketIndex: 2,
-		oracle: new PublicKey('6bEp2MiyoiiiDxcVqE8rUHQWwHirXUXtKfAEATTVqNzT'),
+		oracle: new PublicKey('93FG52TzNKCnMiasV14Ba34BYcHDb9p4zK4GjZnLwqWR'),
 		launchTs: 1670347281000,
-		oracleSource: OracleSource.PYTH_PULL,
+		oracleSource: OracleSource.PYTH_LAZER,
 		pythFeedId:
 			'0xff61491a931112ddf1bd8147cd1b641375f79f5825126d665480874634fd0ace',
 		pythLazerId: 2,
