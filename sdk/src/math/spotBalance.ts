@@ -554,16 +554,31 @@ export function calculateWithdrawLimit(
 		marketDepositTokenAmount,
 		depositTokenTwapLive
 	);
-	const maxBorrowTokensTwap = BN.max(
-		spotMarket.withdrawGuardThreshold,
-		BN.min(
-			BN.max(
-				marketDepositTokenAmount.div(new BN(6)),
-				borrowTokenTwapLive.add(lesserDepositAmount.div(new BN(10)))
-			),
-			lesserDepositAmount.sub(lesserDepositAmount.div(new BN(5)))
-		)
-	); // between ~15-80% utilization with friction on twap
+	let maxBorrowTokensTwap;
+
+	if (spotMarket.poolId == 0) {
+		maxBorrowTokensTwap = BN.max(
+			spotMarket.withdrawGuardThreshold,
+			BN.min(
+				BN.max(
+					marketDepositTokenAmount.div(new BN(6)),
+					borrowTokenTwapLive.add(lesserDepositAmount.div(new BN(10)))
+				),
+				lesserDepositAmount.sub(lesserDepositAmount.div(new BN(5)))
+			)
+		); // main pool between ~15-80% utilization with 10% friction on twap
+	} else {
+		maxBorrowTokensTwap = BN.max(
+			spotMarket.withdrawGuardThreshold,
+			BN.min(
+				BN.max(
+					marketDepositTokenAmount.div(new BN(2)),
+					borrowTokenTwapLive.add(lesserDepositAmount.div(new BN(3)))
+				),
+				lesserDepositAmount.sub(lesserDepositAmount.div(new BN(10)))
+			)
+		); // isolated pool between ~50-90% utilization with 33% friction on twap
+	}
 
 	const minDepositTokensTwap = depositTokenTwapLive.sub(
 		BN.max(

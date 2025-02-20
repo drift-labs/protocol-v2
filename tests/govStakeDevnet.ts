@@ -6,7 +6,6 @@ import {
 	TestClient,
 	EventSubscriber,
 	User,
-	ANCHOR_TEST_SWIFT_ID,
 	OracleSource,
 	PEG_PRECISION,
 	PRICE_PRECISION,
@@ -22,7 +21,6 @@ import {
 	mockUSDCMint,
 	mockUserUSDCAccount,
 } from './testHelpers';
-import { PublicKey } from '@solana/web3.js';
 dotenv.config();
 
 describe('gov stake increase on devnet', () => {
@@ -105,7 +103,6 @@ describe('gov stake increase on devnet', () => {
 				type: 'polling',
 				accountLoader: bulkAccountLoader,
 			},
-			swiftID: new PublicKey(ANCHOR_TEST_SWIFT_ID),
 		});
 		await makerDriftClient.initialize(usdcMint.publicKey, true);
 		await makerDriftClient.subscribe();

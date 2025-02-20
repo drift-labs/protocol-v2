@@ -575,14 +575,14 @@ pub enum ErrorCode {
     LiquidationOrderFailedToFill,
     #[msg("Invalid prediction market order")]
     InvalidPredictionMarketOrder,
-    #[msg("Ed25519 Ix must be before place and make swift order ix")]
+    #[msg("Ed25519 Ix must be before place and make SignedMsg order ix")]
     InvalidVerificationIxIndex,
-    #[msg("Swift message verificaiton failed")]
+    #[msg("SignedMsg message verificaiton failed")]
     SigVerificationFailed,
-    #[msg("Market index mismatched b/w taker and maker swift order params")]
-    MismatchedSwiftOrderParamsMarketIndex,
-    #[msg("Invalid swift order param")]
-    InvalidSwiftOrderParam,
+    #[msg("Market index mismatched b/w taker and maker SignedMsg order params")]
+    MismatchedSignedMsgOrderParamsMarketIndex,
+    #[msg("Invalid SignedMsg order param")]
+    InvalidSignedMsgOrderParam,
     #[msg("Place and take order success condition failed")]
     PlaceAndTakeOrderSuccessConditionFailed,
     #[msg("Invalid High Leverage Mode Config")]
@@ -599,16 +599,16 @@ pub enum ErrorCode {
     InvalidRFQOrder,
     #[msg("RFQ matches must be valid")]
     InvalidRFQMatch,
-    #[msg("Invalid swift user account")]
-    InvalidSwiftUserAccount,
-    #[msg("Swift account wrong mutability")]
-    SwiftUserAccountWrongMutability,
-    #[msg("SwiftUserAccount has too many active orders")]
-    SwiftUserOrdersAccountFull,
-    #[msg("Order with swift uuid does not exist")]
-    SwiftOrderDoesNotExist,
-    #[msg("Swift order id cannot be 0s")]
-    InvalidSwiftOrderId,
+    #[msg("Invalid SignedMsg user account")]
+    InvalidSignedMsgUserAccount,
+    #[msg("SignedMsg account wrong mutability")]
+    SignedMsgUserAccountWrongMutability,
+    #[msg("SignedMsgUserAccount has too many active orders")]
+    SignedMsgUserOrdersAccountFull,
+    #[msg("Order with SignedMsg uuid does not exist")]
+    SignedMsgOrderDoesNotExist,
+    #[msg("SignedMsg order id cannot be 0s")]
+    InvalidSignedMsgOrderId,
     #[msg("Invalid pool id")]
     InvalidPoolId,
     #[msg("Invalid Protected Maker Mode Config")]
@@ -623,8 +623,8 @@ pub enum ErrorCode {
     PythLazerMessagePriceFeedMismatch,
     #[msg("InvalidLiquidateSpotWithSwap")]
     InvalidLiquidateSpotWithSwap,
-    #[msg("User in swift message does not match user in ix context")]
-    SwiftUserContextUserMismatch,
+    #[msg("User in SignedMsg message does not match user in ix context")]
+    SignedMsgUserContextUserMismatch,
     #[msg("User fuel overflow threshold not met")]
     UserFuelOverflowThresholdNotMet,
     #[msg("FuelOverflow account not found")]

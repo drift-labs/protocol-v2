@@ -15,12 +15,12 @@ pub mod perp_market_map;
 pub mod protected_maker_mode_config;
 pub mod pyth_lazer_oracle;
 pub mod settle_pnl_mode;
+pub mod signed_msg_user;
 pub mod spot_fulfillment_params;
 pub mod spot_market;
 pub mod spot_market_map;
 #[allow(clippy::module_inception)]
 pub mod state;
-pub mod swift_user;
 pub mod traits;
 pub mod user;
 pub mod user_map;

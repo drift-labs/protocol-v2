@@ -31,20 +31,33 @@ pub fn calculate_max_borrow_token_amount(
     borrow_token_twap: u128,
     withdraw_guard_threshold: u128,
     max_token_borrows: u128,
+    pool_id: u8,
 ) -> DriftResult<u128> {
     // maximum permitted borrows after withdrawal
     // allows at least up to the withdraw_guard_threshold
-    // and between ~15-80% utilization with friction on twap in 10% increments
 
     let lesser_deposit_amount = deposit_token_amount.min(deposit_token_twap);
 
-    let max_borrow_token = withdraw_guard_threshold
-        .max(
-            (lesser_deposit_amount / 6)
-                .max(borrow_token_twap.safe_add(lesser_deposit_amount / 10)?)
-                .min(lesser_deposit_amount.safe_sub(lesser_deposit_amount / 5)?),
-        )
-        .min(max_token_borrows);
+    let max_borrow_token = if pool_id == 0 {
+        // main pool between ~15-80% utilization with friction on twap in 10% increments
+
+        withdraw_guard_threshold
+            .max(
+                (lesser_deposit_amount / 6)
+                    .max(borrow_token_twap.safe_add(lesser_deposit_amount / 10)?)
+                    .min(lesser_deposit_amount.safe_sub(lesser_deposit_amount / 5)?),
+            )
+            .min(max_token_borrows)
+    } else {
+        // isolated pools between 50-90% utilization with friction on twap in 33% increments
+        withdraw_guard_threshold
+            .max(
+                (lesser_deposit_amount / 2)
+                    .max(borrow_token_twap.safe_add(lesser_deposit_amount / 3)?)
+                    .min(lesser_deposit_amount.safe_sub(lesser_deposit_amount / 10)?),
+            )
+            .min(max_token_borrows)
+    };
 
     Ok(max_borrow_token)
 }
@@ -166,6 +179,7 @@ pub fn check_withdraw_limits(
         spot_market.borrow_token_twap.cast()?,
         spot_market.withdraw_guard_threshold.cast()?,
         max_token_borrows,
+        spot_market.pool_id,
     )?;
 
     let (min_deposit_token_for_utilization, max_borrow_token_for_utilization) =
@@ -269,6 +283,7 @@ pub fn get_max_withdraw_for_market_with_token_amount(
         spot_market.borrow_token_twap.cast()?,
         spot_market.withdraw_guard_threshold.cast()?,
         max_token_borrows,
+        spot_market.pool_id,
     )?;
 
     let max_borrow_token = max_borrow_token_for_twap.min(max_borrow_token_for_utilization);
