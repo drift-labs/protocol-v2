@@ -483,6 +483,7 @@ fn test_check_withdraw_limits() {
         QUOTE_PRECISION / 2,
         0,
         u128::MAX,
+        0,
     )
     .unwrap();
     assert_eq!(mbt, 600000);
@@ -558,6 +559,7 @@ fn test_check_withdraw_limits_below_optimal_utilization() {
         sol_spot_market.borrow_token_twap as u128,
         0,
         u128::MAX,
+        0,
     )
     .unwrap();
 
@@ -658,6 +660,7 @@ fn test_check_withdraw_limits_above_optimal_utilization() {
         sol_spot_market.borrow_token_twap as u128,
         0,
         u128::MAX,
+        0,
     )
     .unwrap();
 
