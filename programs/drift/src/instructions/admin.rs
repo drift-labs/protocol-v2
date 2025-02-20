@@ -1257,7 +1257,7 @@ pub fn handle_update_spot_market_oracle(
     let OraclePriceData {
         price: old_oracle_price,
         ..
-    } = get_oracle_price(&spot_market.oracle_source, &ctx.accounts.oracle, clock.slot)?;
+    } = get_oracle_price(&spot_market.oracle_source, &ctx.accounts.old_oracle, clock.slot)?;
 
     msg!(
         "Oracle Price: {:?} -> {:?}",
@@ -3519,7 +3519,7 @@ pub fn handle_update_perp_market_oracle(
     let OraclePriceData {
         price: old_oracle_price,
         ..
-    } = get_oracle_price(&perp_market.amm.oracle_source, &ctx.accounts.oracle, clock.slot)?;
+    } = get_oracle_price(&perp_market.amm.oracle_source, &ctx.accounts.old_oracle, clock.slot)?;
 
     msg!(
         "Oracle Price: {:?} -> {:?}",
