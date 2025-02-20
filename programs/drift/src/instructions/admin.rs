@@ -1212,6 +1212,7 @@ pub fn handle_update_spot_market_oracle(
     ctx: Context<AdminUpdateSpotMarketOracle>,
     oracle: Pubkey,
     oracle_source: OracleSource,
+    skip_invariant_check: bool,
 ) -> Result<()> {
     let spot_market = &mut load_mut!(ctx.accounts.spot_market)?;
     msg!("updating spot market {} oracle", spot_market.market_index);
@@ -1227,10 +1228,17 @@ pub fn handle_update_spot_market_oracle(
         oracle
     )?;
 
+    validate!(
+        ctx.accounts.old_oracle.key == &spot_market.oracle,
+        ErrorCode::DefaultError,
+        "old oracle account info ({:?}) and spot market oracle ({:?}) must match",
+        ctx.accounts.old_oracle.key,
+        spot_market.oracle
+    )?;
+
     // Verify oracle is readable
     let OraclePriceData {
-        price: _oracle_price,
-        delay: _oracle_delay,
+        price: new_oracle_price,
         ..
     } = get_oracle_price(&oracle_source, &ctx.accounts.oracle, clock.slot)?;
 
@@ -1245,6 +1253,36 @@ pub fn handle_update_spot_market_oracle(
         spot_market.oracle_source,
         oracle_source
     );
+
+    let OraclePriceData {
+        price: old_oracle_price,
+        ..
+    } = get_oracle_price(&spot_market.oracle_source, &ctx.accounts.oracle, clock.slot)?;
+
+    msg!(
+        "Oracle Price: {:?} -> {:?}",
+        old_oracle_price,
+        new_oracle_price
+    );
+
+    if !skip_invariant_check {
+        validate!(
+            new_oracle_price > 0,
+            ErrorCode::DefaultError,
+            "invalid oracle price, must be greater than 0"
+        )?;
+
+        let oracle_change_divergence = new_oracle_price
+            .safe_sub(old_oracle_price)?
+            .safe_mul(PERCENTAGE_PRECISION_I64)?
+            .safe_div(old_oracle_price)?;
+
+        validate!(
+            oracle_change_divergence.abs() < (PERCENTAGE_PRECISION_I64 / 10),
+            ErrorCode::DefaultError,
+            "invalid new oracle price, more than 10% divergence"
+        )?;
+    }
 
     spot_market.oracle = oracle;
     spot_market.oracle_source = oracle_source;
@@ -1555,7 +1593,7 @@ pub fn handle_update_perp_market_amm_summary_stats(
     );
 
     let clock = Clock::get()?;
-    let price_oracle: &AccountInfo<'_> = &ctx.accounts.oracle;
+    let price_oracle = &ctx.accounts.oracle;
 
     let OraclePriceData {
         price: oracle_price,
@@ -3431,7 +3469,7 @@ pub fn handle_update_state_max_initialize_user_fee(
     perp_market_valid(&ctx.accounts.perp_market)
 )]
 pub fn handle_update_perp_market_oracle(
-    ctx: Context<RepegCurve>,
+    ctx: Context<AdminUpdatePerpMarketOracle>,
     oracle: Pubkey,
     oracle_source: OracleSource,
     skip_invariant_check: bool,
@@ -3451,14 +3489,20 @@ pub fn handle_update_perp_market_oracle(
         oracle
     )?;
 
-    let price_oracle = &ctx.accounts.oracle;
+    validate!(
+        ctx.accounts.old_oracle.key == &perp_market.amm.oracle,
+        ErrorCode::DefaultError,
+        "old oracle account info ({:?}) and perp market oracle ({:?}) must match",
+        ctx.accounts.old_oracle.key,
+        perp_market.amm.oracle
+    )?;
 
     // Verify new oracle is readable
     let OraclePriceData {
         price: new_oracle_price,
         delay: _oracle_delay,
         ..
-    } = get_oracle_price(&oracle_source, price_oracle, clock.slot)?;
+    } = get_oracle_price(&oracle_source, &ctx.accounts.oracle, clock.slot)?;
 
     msg!(
         "perp_market.amm.oracle: {:?} -> {:?}",
@@ -3472,17 +3516,23 @@ pub fn handle_update_perp_market_oracle(
         oracle_source
     );
 
-    if !skip_invariant_check {
-        let OraclePriceData {
-            price: old_oracle_price,
-            ..
-        } = get_oracle_price(&perp_market.amm.oracle_source, price_oracle, clock.slot)?;
+    let OraclePriceData {
+        price: old_oracle_price,
+        ..
+    } = get_oracle_price(&perp_market.amm.oracle_source, &ctx.accounts.oracle, clock.slot)?;
 
-        msg!(
-            "Oracle Price: {:?} -> {:?}",
-            old_oracle_price,
-            new_oracle_price
-        );
+    msg!(
+        "Oracle Price: {:?} -> {:?}",
+        old_oracle_price,
+        new_oracle_price
+    );
+
+    if !skip_invariant_check {
+        validate!(
+            new_oracle_price > 0,
+            ErrorCode::DefaultError,
+            "invalid oracle price, must be greater than 0"
+        )?;
 
         let oracle_change_divergence = new_oracle_price
             .safe_sub(old_oracle_price)?
@@ -4758,6 +4808,23 @@ pub struct AdminUpdateSpotMarketOracle<'info> {
     pub spot_market: AccountLoader<'info, SpotMarket>,
     /// CHECK: checked in `initialize_spot_market`
     pub oracle: AccountInfo<'info>,
+    /// CHECK: checked in `admin_update_spot_market_oracle` ix constraint
+    pub old_oracle: AccountInfo<'info>,
+}
+
+#[derive(Accounts)]
+pub struct AdminUpdatePerpMarketOracle<'info> {
+    pub admin: Signer<'info>,
+    #[account(
+        has_one = admin
+    )]
+    pub state: Box<Account<'info, State>>,
+    #[account(mut)]
+    pub perp_market: AccountLoader<'info, PerpMarket>,
+    /// CHECK: checked in `admin_update_perp_market_oracle` ix constraint
+    pub oracle: AccountInfo<'info>,
+    /// CHECK: checked in `admin_update_perp_market_oracle` ix constraint
+    pub old_oracle: AccountInfo<'info>,
 }
 
 #[derive(Accounts)]
