@@ -5260,6 +5260,11 @@
           "name": "oracle",
           "isMut": false,
           "isSigner": false
+        },
+        {
+          "name": "oldOracle",
+          "isMut": false,
+          "isSigner": false
         }
       ],
       "args": [
@@ -5272,6 +5277,10 @@
           "type": {
             "defined": "OracleSource"
           }
+        },
+        {
+          "name": "skipInvariantCheck",
+          "type": "bool"
         }
       ]
     },
@@ -5880,6 +5889,11 @@
       "name": "updatePerpMarketOracle",
       "accounts": [
         {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
           "name": "state",
           "isMut": false,
           "isSigner": false
@@ -5895,9 +5909,9 @@
           "isSigner": false
         },
         {
-          "name": "admin",
+          "name": "oldOracle",
           "isMut": false,
-          "isSigner": true
+          "isSigner": false
         }
       ],
       "args": [
@@ -5910,6 +5924,10 @@
           "type": {
             "defined": "OracleSource"
           }
+        },
+        {
+          "name": "skipInvariantCheck",
+          "type": "bool"
         }
       ]
     },
@@ -10890,7 +10908,7 @@
           {
             "name": "postedSlotTail",
             "docs": [
-              "Last 8 bits of the slot the order was posted on-chain (not order slot for swift orders)"
+              "Last 8 bits of the slot the order was posted on-chain (not order slot for signed msg orders)"
             ],
             "type": "u8"
           },

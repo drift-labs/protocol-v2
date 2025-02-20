@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Features
 
+- program: add update oracle source invariant checks and logs ([#1480](https://github.com/drift-labs/protocol-v2/pull/1480))
 - program: add transfer_pools ix ([#1472](https://github.com/drift-labs/protocol-v2/pull/1472))
 - program: updated borrow thresholds for ([#1483](https://github.com/drift-labs/protocol-v2/pull/1483))
 

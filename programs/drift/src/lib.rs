@@ -1211,8 +1211,9 @@ pub mod drift {
         ctx: Context<AdminUpdateSpotMarketOracle>,
         oracle: Pubkey,
         oracle_source: OracleSource,
+        skip_invariant_check: bool,
     ) -> Result<()> {
-        handle_update_spot_market_oracle(ctx, oracle, oracle_source)
+        handle_update_spot_market_oracle(ctx, oracle, oracle_source, skip_invariant_check)
     }
 
     pub fn update_spot_market_step_size_and_tick_size(
@@ -1394,11 +1395,12 @@ pub mod drift {
     }
 
     pub fn update_perp_market_oracle(
-        ctx: Context<RepegCurve>,
+        ctx: Context<AdminUpdatePerpMarketOracle>,
         oracle: Pubkey,
         oracle_source: OracleSource,
+        skip_invariant_check: bool,
     ) -> Result<()> {
-        handle_update_perp_market_oracle(ctx, oracle, oracle_source)
+        handle_update_perp_market_oracle(ctx, oracle, oracle_source, skip_invariant_check)
     }
 
     pub fn update_perp_market_base_spread(

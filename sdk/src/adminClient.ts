@@ -2175,12 +2175,14 @@ export class AdminClient extends DriftClient {
 	public async updatePerpMarketOracle(
 		perpMarketIndex: number,
 		oracle: PublicKey,
-		oracleSource: OracleSource
+		oracleSource: OracleSource,
+		skipInvaraintCheck = false
 	): Promise<TransactionSignature> {
 		const updatePerpMarketOracleIx = await this.getUpdatePerpMarketOracleIx(
 			perpMarketIndex,
 			oracle,
-			oracleSource
+			oracleSource,
+			skipInvaraintCheck
 		);
 
 		const tx = await this.buildTransaction(updatePerpMarketOracleIx);
@@ -2193,11 +2195,13 @@ export class AdminClient extends DriftClient {
 	public async getUpdatePerpMarketOracleIx(
 		perpMarketIndex: number,
 		oracle: PublicKey,
-		oracleSource: OracleSource
+		oracleSource: OracleSource,
+		skipInvaraintCheck = false
 	): Promise<TransactionInstruction> {
 		return await this.program.instruction.updatePerpMarketOracle(
 			oracle,
 			oracleSource,
+			skipInvaraintCheck,
 			{
 				accounts: {
 					admin: this.isSubscribed
@@ -2209,6 +2213,7 @@ export class AdminClient extends DriftClient {
 						perpMarketIndex
 					),
 					oracle: oracle,
+					oldOracle: this.getPerpMarketAccount(perpMarketIndex).amm.oracle,
 				},
 			}
 		);
@@ -2419,12 +2424,14 @@ export class AdminClient extends DriftClient {
 	public async updateSpotMarketOracle(
 		spotMarketIndex: number,
 		oracle: PublicKey,
-		oracleSource: OracleSource
+		oracleSource: OracleSource,
+		skipInvaraintCheck = false
 	): Promise<TransactionSignature> {
 		const updateSpotMarketOracleIx = await this.getUpdateSpotMarketOracleIx(
 			spotMarketIndex,
 			oracle,
-			oracleSource
+			oracleSource,
+			skipInvaraintCheck
 		);
 
 		const tx = await this.buildTransaction(updateSpotMarketOracleIx);
@@ -2437,11 +2444,13 @@ export class AdminClient extends DriftClient {
 	public async getUpdateSpotMarketOracleIx(
 		spotMarketIndex: number,
 		oracle: PublicKey,
-		oracleSource: OracleSource
+		oracleSource: OracleSource,
+		skipInvaraintCheck = false
 	): Promise<TransactionInstruction> {
 		return await this.program.instruction.updateSpotMarketOracle(
 			oracle,
 			oracleSource,
+			skipInvaraintCheck,
 			{
 				accounts: {
 					admin: this.isSubscribed
@@ -2453,6 +2462,7 @@ export class AdminClient extends DriftClient {
 						spotMarketIndex
 					),
 					oracle: oracle,
+					oldOracle: this.getSpotMarketAccount(spotMarketIndex).oracle,
 				},
 			}
 		);
