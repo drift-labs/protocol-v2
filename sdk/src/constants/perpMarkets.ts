@@ -1226,7 +1226,7 @@ export const MainnetPerpMarkets: PerpMarketConfig[] = [
 		symbol: 'KAITO-PERP',
 		baseAssetSymbol: 'KAITO',
 		marketIndex: 69,
-		oracle: new PublicKey('tbd'),
+		oracle: new PublicKey('DRCNnwxET1URxGMvpCPncBkZsWf1Xh26TMxXNSGTrGpU'),
 		launchTs: 1739545901000,
 		oracleSource: OracleSource.PYTH_PULL,
 		pythFeedId:
