@@ -1232,6 +1232,18 @@ export const MainnetPerpMarkets: PerpMarketConfig[] = [
 		pythFeedId:
 			'0x7302dee641a08507c297a7b0c8b3efa74a48a3baa6c040acab1e5209692b7e59',
 	},
+	{
+		fullName: 'Story Protocol',
+		category: ['L1'],
+		symbol: 'IP-PERP',
+		baseAssetSymbol: 'IP',
+		marketIndex: 70,
+		oracle: new PublicKey('E8A2iky96tzM8YuNNcJateE8S4e5N8FYspg17XHLp2aY'),
+		launchTs: 1740150623000,
+		oracleSource: OracleSource.PYTH_PULL,
+		pythFeedId:
+			'0xb620ba83044577029da7e4ded7a2abccf8e6afc2a0d4d26d89ccdd39ec109025',
+	},
 ];
 
 export const PerpMarkets: { [key in DriftEnv]: PerpMarketConfig[] } = {
