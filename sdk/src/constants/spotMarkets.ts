@@ -534,7 +534,7 @@ export const MainnetSpotMarkets: SpotMarketConfig[] = [
 		symbol: 'cbBTC',
 		marketIndex: 27,
 		poolId: 0,
-		oracle: new PublicKey('486kr3pmFPfTsS4aZgcsQ7kS4i9rjMsYYZup6HQNSTT4'),
+		oracle: new PublicKey('9jPy6EHpLkXaMdvfkoVnRnSdJoQysQDKKj3bW5Amz4Ci'),
 		oracleSource: OracleSource.PYTH_PULL,
 		mint: new PublicKey('cbbtcf3aa214zXHbiAZQwf4122FBYbraNdFqgw4iMij'),
 		precision: new BN(10).pow(EIGHT),
@@ -543,7 +543,7 @@ export const MainnetSpotMarkets: SpotMarketConfig[] = [
 			'2HXgKaXKsMUEzQaSBZiXSd54eMHaS3roiefyGWtkW97W'
 		),
 		pythFeedId:
-			'0xe62df6c8b4a85fe1a67db44dc12de5db330f7ac66b72dc658afedf0f4a415b43',
+			'0x2817d7bfe5c64b8ea956e9a26f573ef64e72e4d7891f2d6af9bcc93f7aff9a97',
 	},
 	{
 		symbol: 'USDS',
