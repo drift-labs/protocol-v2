@@ -996,6 +996,13 @@ export class DriftClient {
 		return result;
 	}
 
+	/**
+	 * Returns the instructions to initialize a user account and the public key of the user account.
+	 * @param subAccountId 
+	 * @param name 
+	 * @param referrerInfo 
+	 * @returns [instructions, userAccountPublicKey]
+	 */
 	public async getInitializeUserAccountIxs(
 		subAccountId = 0,
 		name?: string,
@@ -1023,6 +1030,14 @@ export class DriftClient {
 		return [initializeIxs, userAccountPublicKey];
 	}
 
+	/**
+	 * Initializes a user account and returns the transaction signature and the public key of the user account.
+	 * @param subAccountId 
+	 * @param name 
+	 * @param referrerInfo 
+	 * @param txParams 
+	 * @returns [transactionSignature, userAccountPublicKey]
+	 */
 	public async initializeUserAccount(
 		subAccountId = 0,
 		name?: string,
