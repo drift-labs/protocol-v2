@@ -482,6 +482,12 @@ export class TxHandler {
 
 		let { lookupTables } = props;
 
+		const marketLookupTables = await fetchAllMarketLookupTableAccounts();
+
+		lookupTables = lookupTables
+			? [...lookupTables, ...marketLookupTables]
+			: marketLookupTables;
+
 		// # Collect and process Tx Params
 		let baseTxParams: BaseTxParams = {
 			computeUnits: txParams?.computeUnits,
@@ -561,11 +567,6 @@ export class TxHandler {
 				return this.generateLegacyTransaction(allIx, recentBlockhash);
 			}
 		} else {
-			const marketLookupTables = await fetchAllMarketLookupTableAccounts();
-			lookupTables = lookupTables
-				? [...lookupTables, ...marketLookupTables]
-				: marketLookupTables;
-
 			return this.generateVersionedTransaction(
 				recentBlockhash,
 				allIx,
