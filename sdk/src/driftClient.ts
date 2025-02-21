@@ -996,13 +996,19 @@ export class DriftClient {
 		return result;
 	}
 
-	public async initializeUserAccount(
+	/**
+	 * Returns the instructions to initialize a user account and the public key of the user account.
+	 * @param subAccountId
+	 * @param name
+	 * @param referrerInfo
+	 * @returns [instructions, userAccountPublicKey]
+	 */
+	public async getInitializeUserAccountIxs(
 		subAccountId = 0,
 		name?: string,
-		referrerInfo?: ReferrerInfo,
-		txParams?: TxParams
-	): Promise<[TransactionSignature, PublicKey]> {
-		const initializeIxs = [];
+		referrerInfo?: ReferrerInfo
+	): Promise<[TransactionInstruction[], PublicKey]> {
+		const initializeIxs: TransactionInstruction[] = [];
 
 		const [userAccountPublicKey, initializeUserAccountIx] =
 			await this.getInitializeUserInstructions(
@@ -1020,6 +1026,27 @@ export class DriftClient {
 		}
 
 		initializeIxs.push(initializeUserAccountIx);
+
+		return [initializeIxs, userAccountPublicKey];
+	}
+
+	/**
+	 * Initializes a user account and returns the transaction signature and the public key of the user account.
+	 * @param subAccountId
+	 * @param name
+	 * @param referrerInfo
+	 * @param txParams
+	 * @returns [transactionSignature, userAccountPublicKey]
+	 */
+	public async initializeUserAccount(
+		subAccountId = 0,
+		name?: string,
+		referrerInfo?: ReferrerInfo,
+		txParams?: TxParams
+	): Promise<[TransactionSignature, PublicKey]> {
+		const [initializeIxs, userAccountPublicKey] =
+			await this.getInitializeUserAccountIxs(subAccountId, name, referrerInfo);
+
 		const tx = await this.buildTransaction(initializeIxs, txParams);
 
 		const { txSig } = await this.sendTransaction(tx, [], this.opts);
@@ -1172,7 +1199,7 @@ export class DriftClient {
 		});
 	}
 
-	async getInitializeUserInstructions(
+	private async getInitializeUserInstructions(
 		subAccountId = 0,
 		name?: string,
 		referrerInfo?: ReferrerInfo
