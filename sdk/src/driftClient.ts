@@ -996,13 +996,12 @@ export class DriftClient {
 		return result;
 	}
 
-	public async initializeUserAccount(
+	public async getInitializeUserAccountIxs(
 		subAccountId = 0,
 		name?: string,
-		referrerInfo?: ReferrerInfo,
-		txParams?: TxParams
-	): Promise<[TransactionSignature, PublicKey]> {
-		const initializeIxs = [];
+		referrerInfo?: ReferrerInfo
+	): Promise<[TransactionInstruction[], PublicKey]> {
+		const initializeIxs: TransactionInstruction[] = [];
 
 		const [userAccountPublicKey, initializeUserAccountIx] =
 			await this.getInitializeUserInstructions(
@@ -1020,6 +1019,19 @@ export class DriftClient {
 		}
 
 		initializeIxs.push(initializeUserAccountIx);
+
+		return [initializeIxs, userAccountPublicKey];
+	}
+
+	public async initializeUserAccount(
+		subAccountId = 0,
+		name?: string,
+		referrerInfo?: ReferrerInfo,
+		txParams?: TxParams
+	): Promise<[TransactionSignature, PublicKey]> {
+		const [initializeIxs, userAccountPublicKey] =
+			await this.getInitializeUserAccountIxs(subAccountId, name, referrerInfo);
+
 		const tx = await this.buildTransaction(initializeIxs, txParams);
 
 		const { txSig } = await this.sendTransaction(tx, [], this.opts);
@@ -1172,7 +1184,7 @@ export class DriftClient {
 		});
 	}
 
-	async getInitializeUserInstructions(
+	private async getInitializeUserInstructions(
 		subAccountId = 0,
 		name?: string,
 		referrerInfo?: ReferrerInfo
