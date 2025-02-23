@@ -560,7 +560,7 @@ export class BigNum {
 			type === 'financial'
 				? ['', 'K', 'M', 'B', 'T', 'Q']
 				: ['', 'K', 'M', 'G', 'T', 'P', 'E', 'Z', 'Y'];
-		// TODO -- handle nubers which are larger than the max unit tick
+		// TODO -- handle numbers which are larger than the max unit tick
 
 		const unitNumber = Math.floor((leftSide.length - 1) / 3);
 		const unit = unitTicks[unitNumber];
