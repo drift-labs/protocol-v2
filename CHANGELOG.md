@@ -23,6 +23,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixes
 
+- program: change ordering of SL/TP order placement within signed msg orders ([#1495](https://github.com/drift-labs/protocol-v2/pull/1495))
+
 ### Breaking
 
 ## [2.109.0] - 2025-02-06
