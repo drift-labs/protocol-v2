@@ -926,13 +926,13 @@ describe('place and make signedMsg order', () => {
 			takerDriftClient
 				.getUser()
 				.getOpenOrders()
-				.some((order) => order.orderId == 2)
+				.some((order) => order.orderId == 1)
 		);
 		assert(
 			takerDriftClient
 				.getUser()
 				.getOpenOrders()
-				.some((order) => order.orderId == 3)
+				.some((order) => order.orderId == 2)
 		);
 
 		await takerDriftClientUser.unsubscribe();

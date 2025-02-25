@@ -750,22 +750,19 @@ pub fn place_signed_msg_taker_order<'c: 'info, 'info>(
     }
 
     // Dont place order if signed msg order already exists
-    let signed_msg_order_id = SignedMsgOrderId::new(
-        taker_order_params_message.uuid,
-        max_slot,
-        taker.next_order_id,
-    );
+    let mut taker_order_id_to_use = taker.next_order_id;
+    let mut signed_msg_order_id =
+        SignedMsgOrderId::new(taker_order_params_message.uuid, max_slot, 0);
     if signed_msg_account
         .check_exists_and_prune_stale_signed_msg_order_ids(signed_msg_order_id, clock.slot)
     {
         msg!("SignedMsg order already exists for taker {:?}", taker_key);
         return Ok(());
     }
-    signed_msg_account.add_signed_msg_order_id(signed_msg_order_id)?;
 
     // Good to place orders, do stop loss and take profit orders first
-
     if let Some(stop_loss_order_params) = taker_order_params_message.stop_loss_order_params {
+        taker_order_id_to_use += 1;
         let stop_loss_order = OrderParams {
             order_type: OrderType::TriggerMarket,
             direction: matching_taker_order_params.direction.opposite(),
@@ -799,6 +796,7 @@ pub fn place_signed_msg_taker_order<'c: 'info, 'info>(
     }
 
     if let Some(take_profit_order_params) = taker_order_params_message.take_profit_order_params {
+        taker_order_id_to_use += 1;
         let take_profit_order = OrderParams {
             order_type: OrderType::TriggerMarket,
             direction: matching_taker_order_params.direction.opposite(),
@@ -830,6 +828,8 @@ pub fn place_signed_msg_taker_order<'c: 'info, 'info>(
             },
         )?;
     }
+    signed_msg_order_id.order_id = taker_order_id_to_use;
+    signed_msg_account.add_signed_msg_order_id(signed_msg_order_id)?;
 
     controller::orders::place_perp_order(
         state,
