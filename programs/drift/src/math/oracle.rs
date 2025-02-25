@@ -231,7 +231,7 @@ pub fn oracle_validity(
         .safe_div(last_oracle_twap.min(oracle_price).max(1))?
         .gt(&valid_oracle_guard_rails.too_volatile_ratio);
 
-    let conf_pct_of_price = max(1, oracle_conf)
+    let conf_pct_of_price = oracle_conf
         .safe_mul(BID_ASK_SPREAD_PRECISION)?
         .safe_div(oracle_price.cast()?)?;
 
