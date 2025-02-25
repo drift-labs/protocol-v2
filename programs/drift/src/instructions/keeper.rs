@@ -763,33 +763,7 @@ pub fn place_signed_msg_taker_order<'c: 'info, 'info>(
     }
     signed_msg_account.add_signed_msg_order_id(signed_msg_order_id)?;
 
-    controller::orders::place_perp_order(
-        state,
-        taker,
-        taker_key,
-        perp_market_map,
-        spot_market_map,
-        oracle_map,
-        clock,
-        *matching_taker_order_params,
-        PlaceOrderOptions {
-            signed_msg_taker_order_slot: Some(order_slot),
-            ..PlaceOrderOptions::default()
-        },
-    )?;
-
-    let order_params_hash =
-        base64::encode(solana_program::hash::hash(&signature.try_to_vec().unwrap()).as_ref());
-
-    emit!(SignedMsgOrderRecord {
-        user: taker_key,
-        signed_msg_order_max_slot: signed_msg_order_id.max_slot,
-        signed_msg_order_uuid: signed_msg_order_id.uuid,
-        user_order_id: signed_msg_order_id.order_id,
-        matching_order_params: matching_taker_order_params.clone(),
-        hash: order_params_hash,
-        ts: clock.unix_timestamp,
-    });
+    // Good to place orders, do stop loss and take profit orders first
 
     if let Some(stop_loss_order_params) = taker_order_params_message.stop_loss_order_params {
         let stop_loss_order = OrderParams {
@@ -818,6 +792,7 @@ pub fn place_signed_msg_taker_order<'c: 'info, 'info>(
             clock,
             stop_loss_order,
             PlaceOrderOptions {
+                existing_position_direction_override: Some(matching_taker_order_params.direction),
                 ..PlaceOrderOptions::default()
             },
         )?;
@@ -850,11 +825,39 @@ pub fn place_signed_msg_taker_order<'c: 'info, 'info>(
             clock,
             take_profit_order,
             PlaceOrderOptions {
-                signed_msg_taker_order_slot: Some(order_slot),
+                existing_position_direction_override: Some(matching_taker_order_params.direction),
                 ..PlaceOrderOptions::default()
             },
         )?;
     }
+
+    controller::orders::place_perp_order(
+        state,
+        taker,
+        taker_key,
+        perp_market_map,
+        spot_market_map,
+        oracle_map,
+        clock,
+        *matching_taker_order_params,
+        PlaceOrderOptions {
+            signed_msg_taker_order_slot: Some(order_slot),
+            ..PlaceOrderOptions::default()
+        },
+    )?;
+
+    let order_params_hash =
+        base64::encode(solana_program::hash::hash(&signature.try_to_vec().unwrap()).as_ref());
+
+    emit!(SignedMsgOrderRecord {
+        user: taker_key,
+        signed_msg_order_max_slot: signed_msg_order_id.max_slot,
+        signed_msg_order_uuid: signed_msg_order_id.uuid,
+        user_order_id: signed_msg_order_id.order_id,
+        matching_order_params: matching_taker_order_params.clone(),
+        hash: order_params_hash,
+        ts: clock.unix_timestamp,
+    });
 
     Ok(())
 }
