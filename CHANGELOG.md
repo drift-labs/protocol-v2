@@ -11,6 +11,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixes
 
+- program: rm oracle conf max 1 in validity checker ([#1497](https://github.com/drift-labs/protocol-v2/pull/1497))
+
 ### Breaking
 
 ## [2.110.0] - 2025-02-19
