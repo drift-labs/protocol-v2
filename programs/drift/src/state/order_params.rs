@@ -790,6 +790,7 @@ pub struct PlaceOrderOptions {
     pub enforce_margin_check: bool,
     pub risk_increasing: bool,
     pub explanation: OrderActionExplanation,
+    pub existing_position_direction_override: Option<PositionDirection>,
 }
 
 impl Default for PlaceOrderOptions {
@@ -800,6 +801,7 @@ impl Default for PlaceOrderOptions {
             enforce_margin_check: true,
             risk_increasing: false,
             explanation: OrderActionExplanation::None,
+            existing_position_direction_override: None,
         }
     }
 }

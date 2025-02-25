@@ -207,12 +207,19 @@ pub fn place_perp_order(
             standardize_base_asset_amount(params.base_asset_amount, market.amm.order_step_size)?
         };
 
-        let market_position = &user.perp_positions[position_index];
-        let existing_position_direction = if market_position.base_asset_amount >= 0 {
-            PositionDirection::Long
+        let existing_position_direction = if let Some(existing_position_direction_override) =
+            options.existing_position_direction_override
+        {
+            existing_position_direction_override
         } else {
-            PositionDirection::Short
+            let market_position = &user.perp_positions[position_index];
+            if market_position.base_asset_amount >= 0 {
+                PositionDirection::Long
+            } else {
+                PositionDirection::Short
+            }
         };
+
         (existing_position_direction, base_asset_amount)
     };
 
