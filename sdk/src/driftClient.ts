@@ -6177,7 +6177,7 @@ export class DriftClient {
 			signingAuthority: PublicKey;
 		},
 		precedingIxs: TransactionInstruction[] = [],
-		overrideIxCount?: number,
+		overrideCustomIxIndex?: number,
 		txParams?: TxParams
 	): Promise<TransactionSignature> {
 		const ixs = await this.getPlaceSignedMsgTakerPerpOrderIxs(
@@ -6185,7 +6185,7 @@ export class DriftClient {
 			marketIndex,
 			takerInfo,
 			precedingIxs,
-			overrideIxCount
+			overrideCustomIxIndex
 		);
 		const { txSig } = await this.sendTransaction(
 			await this.buildTransaction(ixs, txParams),
@@ -6205,7 +6205,7 @@ export class DriftClient {
 			signingAuthority: PublicKey;
 		},
 		precedingIxs: TransactionInstruction[] = [],
-		overrideIxCount?: number
+		overrideCustomIxIndex?: number
 	): Promise<TransactionInstruction[]> {
 		const remainingAccounts = this.getRemainingAccounts({
 			userAccounts: [takerInfo.takerUserAccount],
@@ -6226,7 +6226,7 @@ export class DriftClient {
 		]);
 
 		const signedMsgOrderParamsSignatureIx = createMinimalEd25519VerifyIx(
-			overrideIxCount || precedingIxs.length + 1,
+			overrideCustomIxIndex || precedingIxs.length + 1,
 			12,
 			signedMsgIxData,
 			0
@@ -6272,7 +6272,7 @@ export class DriftClient {
 		txParams?: TxParams,
 		subAccountId?: number,
 		precedingIxs: TransactionInstruction[] = [],
-		overrideIxCount?: number
+		overrideCustomIxIndex?: number
 	): Promise<TransactionSignature> {
 		const ixs = await this.getPlaceAndMakeSignedMsgPerpOrderIxs(
 			signedSignedMsgOrderParams,
@@ -6282,7 +6282,7 @@ export class DriftClient {
 			referrerInfo,
 			subAccountId,
 			precedingIxs,
-			overrideIxCount
+			overrideCustomIxIndex
 		);
 		const { txSig, slot } = await this.sendTransaction(
 			await this.buildTransaction(ixs, txParams),
@@ -6307,7 +6307,7 @@ export class DriftClient {
 		referrerInfo?: ReferrerInfo,
 		subAccountId?: number,
 		precedingIxs: TransactionInstruction[] = [],
-		overrideIxCount?: number
+		overrideCustomIxIndex?: number
 	): Promise<TransactionInstruction[]> {
 		const [signedMsgOrderSignatureIx, placeTakerSignedMsgPerpOrderIx] =
 			await this.getPlaceSignedMsgTakerPerpOrderIxs(
@@ -6315,7 +6315,7 @@ export class DriftClient {
 				orderParams.marketIndex,
 				takerInfo,
 				precedingIxs,
-				overrideIxCount
+				overrideCustomIxIndex
 			);
 
 		orderParams = getOrderParams(orderParams, { marketType: MarketType.PERP });
@@ -9074,12 +9074,12 @@ export class DriftClient {
 		feedIds: number[],
 		pythMessageHex: string,
 		precedingIxs: TransactionInstruction[] = [],
-		overrideIxCount?: number
+		overrideCustomIxIndex?: number
 	): Promise<TransactionInstruction[]> {
 		const pythMessageBytes = Buffer.from(pythMessageHex, 'hex');
 
 		const verifyIx = createMinimalEd25519VerifyIx(
-			overrideIxCount || precedingIxs.length + 1,
+			overrideCustomIxIndex || precedingIxs.length + 1,
 			12,
 			pythMessageBytes
 		);
