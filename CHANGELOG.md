@@ -11,6 +11,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixes
 
+### Breaking
+
+## [2.111.0] - 2025-02-25
+
+### Features
+
+### Fixes
+
+- program: place signed order after tp/sl ([#1496](https://github.com/drift-labs/protocol-v2/pull/1496))
 - program: rm oracle conf max 1 in validity checker ([#1497](https://github.com/drift-labs/protocol-v2/pull/1497))
 
 ### Breaking
