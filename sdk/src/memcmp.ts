@@ -92,3 +92,14 @@ export function getUserStatsIsReferredOrReferrerFilter(): MemcmpFilter {
 		},
 	};
 }
+
+export function getSignedMsgUserOrdersFilter(): MemcmpFilter {
+	return {
+		memcmp: {
+			offset: 0,
+			bytes: bs58.encode(
+				BorshAccountsCoder.accountDiscriminator('SignedMsgUserOrders')
+			),
+		},
+	};
+}
