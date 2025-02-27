@@ -304,8 +304,6 @@ pub fn place_perp_order(
     // Set bitflags
     new_order.set_signed_msg(options.is_signed_msg_order());
 
-    let new_order = new_order; // Make immutable after setting bitflags
-
     let valid_oracle_price = Some(oracle_price_data.price);
     match validate_order(&new_order, market, valid_oracle_price, slot) {
         Ok(()) => {}
