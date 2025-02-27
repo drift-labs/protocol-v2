@@ -3561,7 +3561,7 @@ pub fn handle_end_swap<'c: 'info, 'info>(
         true,
     );
 
-    let margin_type = spot_swap::select_margin_type_for_swap(
+    let (margin_type, _) = spot_swap::select_margin_type_for_swap(
         &in_spot_market,
         &out_spot_market,
         &in_strict_price,

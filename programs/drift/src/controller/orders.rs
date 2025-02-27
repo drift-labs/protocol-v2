@@ -6,7 +6,7 @@ use std::u64;
 use anchor_lang::prelude::*;
 use solana_program::msg;
 
-use crate::controller;
+use crate::{controller, MARGIN_PRECISION, ORACLE_DELAY_TOO_STALE_FOR_FILL};
 use crate::controller::funding::settle_funding_payment;
 use crate::controller::lp::burn_lp_shares;
 use crate::controller::position;
@@ -1021,7 +1021,7 @@ pub fn fill_perp_order(
     let amm_can_skip_duration: bool;
     let amm_lp_allowed_to_jit_make: bool;
     let oracle_valid_for_amm_fill: bool;
-
+    let oracle_stale_for_fill: bool;
     let mut amm_is_available = !state.amm_paused()?;
     {
         let market = &mut perp_market_map.get_ref_mut(&market_index)?;
@@ -1042,6 +1042,8 @@ pub fn fill_perp_order(
 
         oracle_valid_for_amm_fill =
             is_oracle_valid_for_action(_oracle_validity, Some(DriftAction::FillOrderAmm))?;
+
+        oracle_stale_for_fill = oracle_price_data.delay > ORACLE_DELAY_TOO_STALE_FOR_FILL;
 
         amm_is_available &= oracle_valid_for_amm_fill;
         amm_is_available &= !market.is_operation_paused(PerpOperation::AmmFill);
@@ -1258,6 +1260,7 @@ pub fn fill_perp_order(
         state.min_perp_auction_duration,
         amm_availability,
         fill_mode,
+        oracle_stale_for_fill,
     )?;
 
     if base_asset_amount != 0 {
@@ -1678,6 +1681,7 @@ fn fulfill_perp_order(
     min_auction_duration: u8,
     amm_availability: AMMAvailability,
     fill_mode: FillMode,
+    oracle_stale_for_fill: bool,
 ) -> DriftResult<(u64, u64)> {
     let market_index = user.orders[user_order_index].market_index;
 
@@ -1869,19 +1873,25 @@ fn fulfill_perp_order(
             -(base_asset_amount as i64)
         };
 
+        let mut context = MarginContext::standard(if user_order_position_decreasing {
+            MarginRequirementType::Maintenance
+        } else {
+            MarginRequirementType::Fill
+        })
+        .fuel_perp_delta(market_index, taker_base_asset_amount_delta)
+        .fuel_numerator(user, now);
+
+        if oracle_stale_for_fill && !user_order_position_decreasing {
+            context = context.margin_ratio_override(MARGIN_PRECISION);
+        }
+
         let taker_margin_calculation =
             calculate_margin_requirement_and_total_collateral_and_liability_info(
                 user,
                 perp_market_map,
                 spot_market_map,
                 oracle_map,
-                MarginContext::standard(if user_order_position_decreasing {
-                    MarginRequirementType::Maintenance
-                } else {
-                    MarginRequirementType::Fill
-                })
-                .fuel_perp_delta(market_index, taker_base_asset_amount_delta)
-                .fuel_numerator(user, now),
+                context,
             )?;
 
         user_stats.update_fuel_bonus(
@@ -1911,11 +1921,19 @@ fn fulfill_perp_order(
             Some(makers_and_referrer_stats.get_ref_mut(&maker.authority)?)
         };
 
-        let margin_type = select_margin_type_for_perp_maker(
+        let (margin_type, maker_position_increasing) = select_margin_type_for_perp_maker(
             &maker,
             maker_base_asset_amount_filled,
             market_index,
         )?;
+
+        let mut context = MarginContext::standard(margin_type)
+            .fuel_perp_delta(market_index, -maker_base_asset_amount_filled)
+            .fuel_numerator(&maker, now);
+
+        if oracle_stale_for_fill && maker_position_increasing {
+            context = context.margin_ratio_override(MARGIN_PRECISION);
+        }
 
         let maker_margin_calculation =
             calculate_margin_requirement_and_total_collateral_and_liability_info(
@@ -1923,9 +1941,7 @@ fn fulfill_perp_order(
                 perp_market_map,
                 spot_market_map,
                 oracle_map,
-                MarginContext::standard(margin_type)
-                    .fuel_perp_delta(market_index, -maker_base_asset_amount_filled)
-                    .fuel_numerator(&maker, now),
+                context,
             )?;
 
         if let Some(mut maker_stats) = maker_stats {
@@ -3740,6 +3756,7 @@ pub fn fill_spot_order(
         slot,
     )?;
 
+    let mut oracle_stale_for_fill = false;
     {
         let mut quote_market = spot_market_map.get_quote_spot_market_mut()?;
         let oracle_price_data = oracle_map.get_price_data(&quote_market.oracle_id())?;
@@ -3748,6 +3765,8 @@ pub fn fill_spot_order(
         let mut base_market = spot_market_map.get_ref_mut(&order_market_index)?;
         let oracle_price_data = oracle_map.get_price_data(&base_market.oracle_id())?;
         update_spot_market_cumulative_interest(&mut base_market, Some(oracle_price_data), now)?;
+
+        oracle_stale_for_fill = oracle_price_data.delay > ORACLE_DELAY_TOO_STALE_FOR_FILL;
 
         fulfillment_params.validate_markets(&base_market, &quote_market)?;
 
@@ -3852,6 +3871,7 @@ pub fn fill_spot_order(
         slot,
         &state.spot_fee_structure,
         fulfillment_params,
+        oracle_stale_for_fill,
     )?;
 
     if base_asset_amount != 0 {
@@ -4115,6 +4135,7 @@ fn fulfill_spot_order(
     slot: u64,
     fee_structure: &FeeStructure,
     fulfillment_params: &mut dyn SpotFulfillmentParams,
+    oracle_stale_for_fill: bool,
 ) -> DriftResult<(u64, u64)> {
     let base_market_index = user.orders[user_order_index].market_index;
     let order_direction = user.orders[user_order_index].direction;
@@ -4297,7 +4318,7 @@ fn fulfill_spot_order(
         true,
     );
 
-    let margin_type = if order_direction == PositionDirection::Long {
+    let (margin_type, risk_increasing) = if order_direction == PositionDirection::Long {
         // sell quote, buy base
         select_margin_type_for_swap(
             &quote_market,
@@ -4328,24 +4349,30 @@ fn fulfill_spot_order(
     drop(base_market);
     drop(quote_market);
 
+    let mut context = MarginContext::standard(margin_type)
+        .fuel_spot_deltas([
+            (
+                base_market_index,
+                base_token_amount_before.safe_sub(base_token_amount_after)?,
+            ),
+            (
+                QUOTE_SPOT_MARKET_INDEX,
+                quote_token_amount_before.safe_sub(quote_token_amount_after)?,
+            ),
+        ])
+        .fuel_numerator(user, now);
+
+    if oracle_stale_for_fill && risk_increasing {
+        context = context.margin_ratio_override(MARGIN_PRECISION);
+    }
+
     let taker_margin_calculation =
         calculate_margin_requirement_and_total_collateral_and_liability_info(
             user,
             perp_market_map,
             spot_market_map,
             oracle_map,
-            MarginContext::standard(margin_type)
-                .fuel_spot_deltas([
-                    (
-                        base_market_index,
-                        base_token_amount_before.safe_sub(base_token_amount_after)?,
-                    ),
-                    (
-                        QUOTE_SPOT_MARKET_INDEX,
-                        quote_token_amount_before.safe_sub(quote_token_amount_after)?,
-                    ),
-                ])
-                .fuel_numerator(user, now),
+            context,
         )?;
 
     // user hasnt recieved initial fuel or below global start time
@@ -4387,7 +4414,7 @@ fn fulfill_spot_order(
             .get_spot_position(base_market_index)?
             .get_signed_token_amount(&base_market)?;
 
-        let margin_type = if maker_direction == PositionDirection::Long {
+        let (margin_type, risk_increasing) = if maker_direction == PositionDirection::Long {
             // sell quote, buy base
             select_margin_type_for_swap(
                 &quote_market,
@@ -4418,26 +4445,32 @@ fn fulfill_spot_order(
         drop(base_market);
         drop(quote_market);
 
+        let mut context = MarginContext::standard(margin_type)
+            .fuel_spot_deltas([
+                (
+                    base_market_index,
+                    maker_base_token_amount_before
+                        .safe_sub(maker_base_token_amount_after)?,
+                ),
+                (
+                    QUOTE_SPOT_MARKET_INDEX,
+                    maker_quote_token_amount_before
+                        .safe_sub(maker_quote_token_amount_after)?,
+                ),
+            ])
+            .fuel_numerator(&maker, now);
+
+        if oracle_stale_for_fill && risk_increasing {
+            context = context.margin_ratio_override(MARGIN_PRECISION);
+        }
+
         let maker_margin_calculation: MarginCalculation =
             calculate_margin_requirement_and_total_collateral_and_liability_info(
                 &maker,
                 perp_market_map,
                 spot_market_map,
                 oracle_map,
-                MarginContext::standard(margin_type)
-                    .fuel_spot_deltas([
-                        (
-                            base_market_index,
-                            maker_base_token_amount_before
-                                .safe_sub(maker_base_token_amount_after)?,
-                        ),
-                        (
-                            QUOTE_SPOT_MARKET_INDEX,
-                            maker_quote_token_amount_before
-                                .safe_sub(maker_quote_token_amount_after)?,
-                        ),
-                    ])
-                    .fuel_numerator(&maker, now),
+                context,
             )?;
 
         if let Some(mut maker_stats) = maker_stats {
