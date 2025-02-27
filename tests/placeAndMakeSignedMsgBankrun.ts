@@ -1086,7 +1086,10 @@ describe('place and make signedMsg order', () => {
 		await bankrunContextWrapper.moveTimeForward(10);
 
 		await takerDriftClientUser.fetchAccounts();
-		assert(convertToNumber(takerDriftClient.getUser().getOpenOrders()[0].price) == 225);
+		assert(
+			convertToNumber(takerDriftClient.getUser().getOpenOrders()[0].price) ==
+				225
+		);
 
 		await takerDriftClientUser.unsubscribe();
 		await takerDriftClient.unsubscribe();
