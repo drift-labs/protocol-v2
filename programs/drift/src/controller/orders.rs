@@ -263,6 +263,10 @@ pub fn place_perp_order(
         "must be perp order"
     )?;
 
+    // Start with 0 and set bit flags
+    let mut bit_flags: u8 = 0;
+    bit_flags = set_is_signed_msg_flag(bit_flags, options.is_signed_msg_order());
+
     let new_order = Order {
         status: OrderStatus::Open,
         order_type: params.order_type,
@@ -297,7 +301,8 @@ pub fn place_perp_order(
         auction_duration,
         max_ts,
         posted_slot_tail: get_posted_slot_from_clock_slot(slot),
-        padding: [0; 2],
+        bit_flags,
+        padding: [0; 1],
     };
 
     let valid_oracle_price = Some(oracle_price_data.price);
@@ -3526,7 +3531,8 @@ pub fn place_spot_order(
         auction_duration,
         max_ts,
         posted_slot_tail: get_posted_slot_from_clock_slot(slot),
-        padding: [0; 2],
+        bit_flags: 0,
+        padding: [0; 1],
     };
 
     validate_spot_order(

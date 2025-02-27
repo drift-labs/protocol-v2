@@ -1086,6 +1086,7 @@ export type Order = {
 	auctionStartPrice: BN;
 	auctionEndPrice: BN;
 	maxTs: BN;
+	bitFlags: number;
 	postedSlotTail: number;
 };
 

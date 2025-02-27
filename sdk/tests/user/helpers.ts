@@ -41,6 +41,7 @@ export const mockOrder: Order = {
 	auctionStartPrice: ZERO,
 	auctionEndPrice: ZERO,
 	maxTs: ZERO,
+	bitFlags: 0,
 	postedSlotTail: 0,
 };
 
