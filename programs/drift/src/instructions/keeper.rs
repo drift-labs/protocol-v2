@@ -705,11 +705,10 @@ pub fn place_signed_msg_taker_order<'c: 'info, 'info>(
 
     // First order must be a taker order
     let matching_taker_order_params = &taker_order_params_message.signed_msg_order_params;
-    if (matching_taker_order_params.order_type != OrderType::Market
-        && matching_taker_order_params.order_type != OrderType::Oracle)
-        || matching_taker_order_params.market_type != MarketType::Perp
+    if matching_taker_order_params.market_type != MarketType::Perp
+        || !matching_taker_order_params.has_valid_auction_params()?
     {
-        msg!("First order must be a market or oracle perp taker order");
+        msg!("First order must be a perp taker order");
         return Err(print_error!(ErrorCode::InvalidSignedMsgOrderParam)().into());
     }
 
