@@ -2805,6 +2805,13 @@ pub fn handle_update_user_protected_maker_orders(
 
     user.update_protected_maker_orders_status(protected_maker_orders)?;
 
+    validate!(
+        protected_maker_orders != user.is_protected_maker(),
+        ErrorCode::DefaultError,
+        "user already {} protected maker mode",
+        if protected_maker_orders { "in" } else { "out of" }
+    )?;
+
     let mut config = load_mut!(ctx.accounts.protected_maker_mode_config)?;
 
     if protected_maker_orders {
