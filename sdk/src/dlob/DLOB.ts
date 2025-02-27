@@ -934,7 +934,15 @@ export class DLOB {
 
 		for (const askGenerator of askGenerators) {
 			for (const ask of askGenerator) {
-				if (isOrderExpired(ask.order, ts, true, 25)) {
+				if (
+					ask.isSignedMsg &&
+					slot.gt(ask.order.slot.addn(ask.order.auctionDuration))
+				) {
+					this.orderLists
+						.get(marketTypeStr)
+						.get(marketIndex)
+						.signedMsg.bid.remove(ask.order, ask.userAccount);
+				} else if (isOrderExpired(ask.order, ts, true, 25)) {
 					nodesToFill.push({
 						node: ask,
 						makerNodes: [],
