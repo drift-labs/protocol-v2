@@ -6,7 +6,7 @@ use std::u64;
 use anchor_lang::prelude::*;
 use solana_program::msg;
 
-use crate::{controller, MARGIN_PRECISION, ORACLE_DELAY_TOO_STALE_FOR_FILL};
+use crate::{controller, MARGIN_PRECISION};
 use crate::controller::funding::settle_funding_payment;
 use crate::controller::lp::burn_lp_shares;
 use crate::controller::position;
@@ -1043,7 +1043,7 @@ pub fn fill_perp_order(
         oracle_valid_for_amm_fill =
             is_oracle_valid_for_action(_oracle_validity, Some(DriftAction::FillOrderAmm))?;
 
-        oracle_stale_for_fill = oracle_price_data.delay > ORACLE_DELAY_TOO_STALE_FOR_FILL;
+        oracle_stale_for_fill = oracle_price_data.delay > state.oracle_guard_rails.validity.slots_before_stale_for_margin;
 
         amm_is_available &= oracle_valid_for_amm_fill;
         amm_is_available &= !market.is_operation_paused(PerpOperation::AmmFill);
@@ -3766,7 +3766,7 @@ pub fn fill_spot_order(
         let oracle_price_data = oracle_map.get_price_data(&base_market.oracle_id())?;
         update_spot_market_cumulative_interest(&mut base_market, Some(oracle_price_data), now)?;
 
-        oracle_stale_for_fill = oracle_price_data.delay > ORACLE_DELAY_TOO_STALE_FOR_FILL;
+        oracle_stale_for_fill = oracle_price_data.delay > state.oracle_guard_rails.validity.slots_before_stale_for_margin;
 
         fulfillment_params.validate_markets(&base_market, &quote_market)?;
 
