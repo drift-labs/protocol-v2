@@ -39,6 +39,23 @@ pub struct OrderParams {
 }
 
 impl OrderParams {
+    pub fn has_valid_auction_params(&self) -> DriftResult<bool> {
+        if self.auction_duration.is_none()
+            || self.auction_start_price.is_none()
+            || self.auction_end_price.is_none()
+        {
+            return Ok(false);
+        } else {
+            if self.direction == PositionDirection::Long {
+                return Ok(self.auction_start_price.safe_unwrap()?
+                    <= self.auction_end_price.safe_unwrap()?);
+            } else {
+                return Ok(self.auction_start_price.safe_unwrap()?
+                    >= self.auction_end_price.safe_unwrap()?);
+            }
+        }
+    }
+
     pub fn update_perp_auction_params_limit_orders(
         &mut self,
         perp_market: &PerpMarket,

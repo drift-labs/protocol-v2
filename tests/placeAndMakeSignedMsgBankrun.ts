@@ -43,6 +43,7 @@ import {
 	getPythLazerOraclePublicKey,
 	getUserStatsAccountPublicKey,
 	UserStatsAccount,
+	convertToNumber,
 } from '../sdk/src';
 
 import {
@@ -939,7 +940,7 @@ describe('place and make signedMsg order', () => {
 		await takerDriftClient.unsubscribe();
 	});
 
-	it('should fail if taker order is a limit order ', async () => {
+	it('should fail if taker order is a limit order without an auction', async () => {
 		slot = new BN(
 			await bankrunContextWrapper.connection.toConnection().getSlot()
 		);
@@ -963,9 +964,6 @@ describe('place and make signedMsg order', () => {
 			direction: PositionDirection.LONG,
 			baseAssetAmount,
 			price: new BN(224).mul(PRICE_PRECISION),
-			auctionStartPrice: new BN(223).mul(PRICE_PRECISION),
-			auctionEndPrice: new BN(224).mul(PRICE_PRECISION),
-			auctionDuration: 10,
 			userOrderId: 1,
 			postOnly: PostOnlyParams.NONE,
 		});
@@ -1017,6 +1015,81 @@ describe('place and make signedMsg order', () => {
 
 		const takerPosition = takerDriftClient.getUser().getPerpPosition(0);
 		assert(takerPosition == undefined);
+
+		await takerDriftClientUser.unsubscribe();
+		await takerDriftClient.unsubscribe();
+	});
+
+	it('should succeed if taker order is a limit order with an auction', async () => {
+		slot = new BN(
+			await bankrunContextWrapper.connection.toConnection().getSlot()
+		);
+		const [takerDriftClient, takerDriftClientUser] =
+			await initializeNewTakerClientAndUser(
+				bankrunContextWrapper,
+				chProgram,
+				usdcMint,
+				usdcAmount,
+				marketIndexes,
+				spotMarketIndexes,
+				oracleInfos,
+				bulkAccountLoader
+			);
+		await takerDriftClientUser.fetchAccounts();
+
+		const marketIndex = 0;
+		const baseAssetAmount = BASE_PRECISION;
+		const takerOrderParams = getLimitOrderParams({
+			marketIndex,
+			direction: PositionDirection.LONG,
+			baseAssetAmount,
+			price: new BN(225).mul(PRICE_PRECISION),
+			auctionStartPrice: new BN(223).mul(PRICE_PRECISION),
+			auctionEndPrice: new BN(224).mul(PRICE_PRECISION),
+			auctionDuration: 10,
+			userOrderId: 1,
+			postOnly: PostOnlyParams.NONE,
+		});
+
+		await takerDriftClientUser.fetchAccounts();
+
+		const uuid = Uint8Array.from(Buffer.from(nanoid(8)));
+		const takerOrderParamsMessage: SignedMsgOrderParamsMessage = {
+			signedMsgOrderParams: takerOrderParams,
+			subAccountId: 0,
+			slot,
+			uuid,
+			takeProfitOrderParams: null,
+			stopLossOrderParams: null,
+		};
+
+		const signedOrderParams = takerDriftClient.signSignedMsgOrderParamsMessage(
+			takerOrderParamsMessage
+		);
+
+		try {
+			await makerDriftClient.placeSignedMsgTakerOrder(
+				signedOrderParams,
+				marketIndex,
+				{
+					taker: await takerDriftClient.getUserAccountPublicKey(),
+					takerUserAccount: takerDriftClient.getUserAccount(),
+					takerStats: takerDriftClient.getUserStatsAccountPublicKey(),
+					signingAuthority: takerDriftClient.wallet.publicKey,
+				},
+				undefined,
+				2
+			);
+		} catch (e) {
+			assert(e);
+		}
+		await bankrunContextWrapper.moveTimeForward(10);
+
+		await takerDriftClientUser.fetchAccounts();
+		assert(
+			convertToNumber(takerDriftClient.getUser().getOpenOrders()[0].price) ==
+				225
+		);
 
 		await takerDriftClientUser.unsubscribe();
 		await takerDriftClient.unsubscribe();
