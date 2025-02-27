@@ -90,7 +90,6 @@ export * from './oracles/switchboardOnDemandClient';
 export * from './oracles/oracleId';
 export * from './fastlane/fastlaneOrderSubscriber';
 export * from './fastlane/signedMsgUserAccountSubscriber';
-export * from './fastlane/grpcSignedMsgUserAccountSubscriber';
 export * from './tx/fastSingleTxSender';
 export * from './tx/retryTxSender';
 export * from './tx/whileValidTxSender';
