@@ -10,7 +10,8 @@ use crate::math::constants::{
 use crate::math::lp::{calculate_lp_open_bids_asks, calculate_settle_lp_metrics};
 use crate::math::margin::MarginRequirementType;
 use crate::math::orders::{
-    apply_protected_maker_limit_price_offset, standardize_base_asset_amount, standardize_price,
+    apply_protected_maker_limit_price_offset, set_is_signed_msg_flag,
+    standardize_base_asset_amount, standardize_price, FLAG_IS_SIGNED_MSG,
 };
 use crate::math::position::{
     calculate_base_asset_value_and_pnl_with_oracle_price,
@@ -1598,17 +1599,12 @@ impl Order {
     }
 
     // Bit flags here
-    const FLAG_IS_SIGNED_MSG: u8 = 0x01;
     pub fn set_signed_msg(&mut self, value: bool) {
-        if value {
-            self.bit_flags |= Self::FLAG_IS_SIGNED_MSG;
-        } else {
-            self.bit_flags &= !Self::FLAG_IS_SIGNED_MSG;
-        }
+        self.bit_flags = set_is_signed_msg_flag(self.bit_flags, value)
     }
 
     pub fn is_signed_msg(&self) -> bool {
-        (self.bit_flags & Self::FLAG_IS_SIGNED_MSG) != 0
+        (self.bit_flags & FLAG_IS_SIGNED_MSG) != 0
     }
 }
 

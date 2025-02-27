@@ -788,6 +788,7 @@ pub fn place_signed_msg_taker_order<'c: 'info, 'info>(
             clock,
             stop_loss_order,
             PlaceOrderOptions {
+                enforce_margin_check: false,
                 existing_position_direction_override: Some(matching_taker_order_params.direction),
                 ..PlaceOrderOptions::default()
             },
@@ -822,6 +823,7 @@ pub fn place_signed_msg_taker_order<'c: 'info, 'info>(
             clock,
             take_profit_order,
             PlaceOrderOptions {
+                enforce_margin_check: false,
                 existing_position_direction_override: Some(matching_taker_order_params.direction),
                 ..PlaceOrderOptions::default()
             },
@@ -840,6 +842,7 @@ pub fn place_signed_msg_taker_order<'c: 'info, 'info>(
         clock,
         *matching_taker_order_params,
         PlaceOrderOptions {
+            enforce_margin_check: true,
             signed_msg_taker_order_slot: Some(order_slot),
             ..PlaceOrderOptions::default()
         },

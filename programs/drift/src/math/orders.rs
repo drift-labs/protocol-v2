@@ -1383,3 +1383,14 @@ pub fn select_margin_type_for_perp_maker(
 pub fn get_posted_slot_from_clock_slot(slot: u64) -> u8 {
     (slot & 0xFF) as u8
 }
+
+// Bit flag operators
+pub const FLAG_IS_SIGNED_MSG: u8 = 0x01;
+pub fn set_is_signed_msg_flag(mut flags: u8, value: bool) -> u8 {
+    if value {
+        flags |= FLAG_IS_SIGNED_MSG;
+    } else {
+        flags &= !FLAG_IS_SIGNED_MSG;
+    }
+    flags
+}
