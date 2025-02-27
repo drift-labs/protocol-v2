@@ -1426,3 +1426,14 @@ export interface SignedMsgOrderParams {
 	 */
 	signature: Buffer;
 }
+
+export type SignedMsgOrderId = {
+	maxSlot: BN;
+	uuid: Uint8Array;
+	orderId: number;
+};
+
+export type SignedMsgUserOrdersAccount = {
+	authorityPubkey: PublicKey;
+	signedMsgOrderData: SignedMsgOrderId[];
+};
