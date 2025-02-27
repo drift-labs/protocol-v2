@@ -769,8 +769,8 @@ export class DriftClient {
 		this.userStatsAccountPublicKey = undefined;
 		this.includeDelegates = includeDelegates ?? false;
 		const walletSupportsVersionedTxns =
-			//@ts-ignore
-			this.wallet.supportedTransactionVersions?.size ?? 0 > 1;
+			//@ts-expect-error
+			(this.wallet.supportedTransactionVersions?.size ?? 0) > 1;
 		this.txVersion = walletSupportsVersionedTxns ? 0 : 'legacy';
 
 		if (includeDelegates && subAccountIds) {
