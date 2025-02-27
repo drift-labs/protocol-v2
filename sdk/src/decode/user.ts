@@ -237,9 +237,9 @@ export function decodeUser(buffer: Buffer): UserAccount {
 		offset += 1;
 		const auctionDuration = buffer.readUInt8(offset);
 		offset += 1;
-		const bitFlags = buffer.readUint8(offset);
-		offset += 1;
 		const postedSlotTail = buffer.readUint8(offset);
+		offset += 1;
+		const bitFlags = buffer.readUint8(offset);
 		offset += 1;
 		offset += 1; // padding
 		orders.push({
