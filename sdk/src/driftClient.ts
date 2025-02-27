@@ -56,6 +56,7 @@ import {
 	TxParams,
 	UserAccount,
 	UserStatsAccount,
+	ProtectedMakerModeConfig,
 } from './types';
 import driftIDL from './idl/drift.json';
 
@@ -9337,6 +9338,13 @@ export class DriftClient {
 			getHighLeverageModeConfigPublicKey(this.program.programId)
 		);
 		return config as HighLeverageModeConfig;
+	}
+
+	public async fetchProtectedMakerModeConfig(): Promise<ProtectedMakerModeConfig> {
+		const config = await this.program.account.protectedMakerModeConfig.fetch(
+			getProtectedMakerModeConfigPublicKey(this.program.programId)
+		);
+		return config as ProtectedMakerModeConfig;
 	}
 
 	public async updateUserProtectedMakerOrders(

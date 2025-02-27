@@ -1413,6 +1413,12 @@ export type HighLeverageModeConfig = {
 	reduceOnly: boolean;
 };
 
+export type ProtectedMakerModeConfig = {
+	maxUsers: number;
+	currentUsers: number;
+	reduceOnly: boolean;
+};
+
 /* Represents proof of a signed msg taker order
  * It can be provided to drift program to fill a signed msg order
  */
