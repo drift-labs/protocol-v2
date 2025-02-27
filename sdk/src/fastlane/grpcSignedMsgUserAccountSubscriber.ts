@@ -58,7 +58,6 @@ export class grpcSignedMsgUserOrdersAccountSubscriber extends SignedMsgUserOrder
 				context: Context
 			) => {
 				this.tryUpdateSignedMsgUserOrdersAccount(
-					account.authorityPubkey.toBase58(),
 					account,
 					'decoded',
 					context.slot

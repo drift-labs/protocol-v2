@@ -92,7 +92,6 @@ export class SignedMsgUserOrdersAccountSubscriber {
 				context: Context
 			) => {
 				this.tryUpdateSignedMsgUserOrdersAccount(
-					account.authorityPubkey.toBase58(),
 					account,
 					'decoded',
 					context.slot
@@ -146,9 +145,7 @@ export class SignedMsgUserOrdersAccountSubscriber {
 			const slot: number = rpcResponseAndContext.context.slot;
 
 			for (const programAccount of rpcResponseAndContext.value) {
-				const key = programAccount.pubkey.toString();
 				this.tryUpdateSignedMsgUserOrdersAccount(
-					key,
 					programAccount.account.data,
 					'buffer',
 					slot,
@@ -165,7 +162,6 @@ export class SignedMsgUserOrdersAccountSubscriber {
 	}
 
 	tryUpdateSignedMsgUserOrdersAccount(
-		key: string, // authority
 		data: Buffer | SignedMsgUserOrdersAccount,
 		dataType: 'buffer' | 'decoded',
 		slot: number,
@@ -175,17 +171,19 @@ export class SignedMsgUserOrdersAccountSubscriber {
 			this.mostRecentSlot = slot;
 		}
 
+		const signedMsgUserOrdersAccount =
+			dataType === 'buffer'
+				? this.decodeFn('SignedMsgUserOrders', data as Buffer)
+				: (data as SignedMsgUserOrdersAccount);
+
+		const key = signedMsgUserOrdersAccount.authorityPubkey.toBase58();
+
 		const slotAndSignedMsgUserOrdersAccount =
 			this.signedMsgUserOrderAccounts.get(key);
 		if (
 			!slotAndSignedMsgUserOrdersAccount ||
 			slotAndSignedMsgUserOrdersAccount.slot <= slot
 		) {
-			const signedMsgUserOrdersAccount =
-				dataType === 'buffer'
-					? this.decodeFn('SignedMsgUserOrders', data as Buffer)
-					: (data as SignedMsgUserOrdersAccount);
-
 			if (!skipEventEmitting) {
 				this.eventEmitter.emit(
 					'onAccountUpdate',
