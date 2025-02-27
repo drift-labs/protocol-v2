@@ -352,3 +352,8 @@ export function isRestingLimitOrder(order: Order, slot: number): boolean {
 export function isTakingOrder(order: Order, slot: number): boolean {
 	return isMarketOrder(order) || !isRestingLimitOrder(order, slot);
 }
+
+const FLAG_IS_SIGNED_MSG = 0x01;
+export function isSignedMsgOrder(order: Order): boolean {
+	return (order.bitFlags & FLAG_IS_SIGNED_MSG) !== 0;
+}

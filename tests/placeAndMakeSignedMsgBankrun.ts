@@ -561,6 +561,7 @@ describe('place and make signedMsg order', () => {
 			quoteAssetAmountFilled: ZERO,
 			quoteAssetAmount: ZERO,
 			userOrderId: 0,
+			bitFlags: 0,
 			postedSlotTail: 0,
 		};
 
@@ -756,6 +757,7 @@ describe('place and make signedMsg order', () => {
 			quoteAssetAmountFilled: ZERO,
 			quoteAssetAmount: ZERO,
 			userOrderId: 0,
+			bitFlags: 0,
 			postedSlotTail: 0,
 		};
 

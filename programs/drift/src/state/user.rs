@@ -1346,7 +1346,10 @@ pub struct Order {
     pub auction_duration: u8,
     /// Last 8 bits of the slot the order was posted on-chain (not order slot for signed msg orders)
     pub posted_slot_tail: u8,
-    pub padding: [u8; 2],
+    /// Bitflags for further classification
+    /// 0: is_signed_message
+    pub bit_flags: u8,
+    pub padding: [u8; 1],
 }
 
 #[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Eq, Debug)]
@@ -1593,6 +1596,20 @@ impl Order {
 
         Ok(self.post_only || self.is_auction_complete(slot)?)
     }
+
+    // Bit flags here
+    const FLAG_IS_SIGNED_MSG: u8 = 0x01;
+    pub fn set_signed_msg(&mut self, value: bool) {
+        if value {
+            self.bit_flags |= Self::FLAG_IS_SIGNED_MSG;
+        } else {
+            self.bit_flags &= !Self::FLAG_IS_SIGNED_MSG;
+        }
+    }
+
+    pub fn is_signed_msg(&self) -> bool {
+        (self.bit_flags & Self::FLAG_IS_SIGNED_MSG) != 0
+    }
 }
 
 impl Default for Order {
@@ -1622,7 +1639,8 @@ impl Default for Order {
             auction_duration: 0,
             max_ts: 0,
             posted_slot_tail: 0,
-            padding: [0; 2],
+            bit_flags: 0,
+            padding: [0; 1],
         }
     }
 }
