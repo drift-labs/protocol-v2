@@ -241,11 +241,15 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
 ) -> DriftResult<MarginCalculation> {
     let mut calculation = MarginCalculation::new(context);
 
-    let user_custom_margin_ratio = if context.margin_type == MarginRequirementType::Initial {
+    let mut user_custom_margin_ratio = if context.margin_type == MarginRequirementType::Initial {
         user.max_margin_ratio
     } else {
         0_u32
     };
+
+    if let Some(margin_ratio_override) = context.margin_ratio_override {
+        user_custom_margin_ratio = margin_ratio_override.max(user_custom_margin_ratio);
+    }
 
     let user_pool_id = user.pool_id;
     let user_high_leverage_mode = user.is_high_leverage_mode();

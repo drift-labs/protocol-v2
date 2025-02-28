@@ -26,7 +26,7 @@ mod test {
 
         let strict_sol_price = StrictOraclePrice::test(sol_price);
 
-        let margin_type = select_margin_type_for_swap(
+        let (margin_type, _) = select_margin_type_for_swap(
             &usdc_spot_market,
             &sol_spot_market,
             &strict_usdc_price,
@@ -62,7 +62,7 @@ mod test {
 
         let strict_sol_price = StrictOraclePrice::test(sol_price);
 
-        let margin_type = select_margin_type_for_swap(
+        let (margin_type, _) = select_margin_type_for_swap(
             &usdc_spot_market,
             &sol_spot_market,
             &strict_usdc_price,
@@ -97,7 +97,7 @@ mod test {
 
         let strict_sol_price = StrictOraclePrice::test(sol_price);
 
-        let margin_type = select_margin_type_for_swap(
+        let (margin_type, _) = select_margin_type_for_swap(
             &usdc_spot_market,
             &sol_spot_market,
             &strict_usdc_price,
@@ -132,7 +132,7 @@ mod test {
 
         let strict_sol_price = StrictOraclePrice::test(sol_price);
 
-        let margin_type = select_margin_type_for_swap(
+        let (margin_type, _) = select_margin_type_for_swap(
             &usdc_spot_market,
             &sol_spot_market,
             &strict_usdc_price,

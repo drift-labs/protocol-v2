@@ -3299,6 +3299,7 @@ pub mod fulfill_order {
             0,
             crate::state::perp_market::AMMAvailability::AfterMinDuration,
             FillMode::Fill,
+            false,
         )
         .unwrap();
 
@@ -3542,6 +3543,7 @@ pub mod fulfill_order {
             10,
             crate::state::perp_market::AMMAvailability::AfterMinDuration,
             FillMode::Fill,
+            false,
         )
         .unwrap();
 
@@ -3731,6 +3733,7 @@ pub mod fulfill_order {
             0,
             crate::state::perp_market::AMMAvailability::AfterMinDuration,
             FillMode::Fill,
+            false,
         )
         .unwrap();
 
@@ -3936,6 +3939,7 @@ pub mod fulfill_order {
             10,
             crate::state::perp_market::AMMAvailability::AfterMinDuration,
             FillMode::Fill,
+            false,
         )
         .unwrap();
 
@@ -4101,6 +4105,7 @@ pub mod fulfill_order {
             0,
             crate::state::perp_market::AMMAvailability::AfterMinDuration,
             FillMode::Fill,
+            false,
         )
         .unwrap();
 
@@ -4298,6 +4303,7 @@ pub mod fulfill_order {
             10,
             crate::state::perp_market::AMMAvailability::AfterMinDuration,
             FillMode::Fill,
+            false,
         );
 
         assert!(result.is_ok());
@@ -4484,6 +4490,7 @@ pub mod fulfill_order {
             10,
             crate::state::perp_market::AMMAvailability::AfterMinDuration,
             FillMode::Fill,
+            false,
         );
 
         assert_eq!(result, Err(ErrorCode::InsufficientCollateral));
@@ -4623,6 +4630,7 @@ pub mod fulfill_order {
             0,
             crate::state::perp_market::AMMAvailability::Immediate,
             FillMode::Fill,
+            false,
         )
         .unwrap();
 
@@ -4789,6 +4797,7 @@ pub mod fulfill_order {
             0,
             crate::state::perp_market::AMMAvailability::AfterMinDuration,
             FillMode::Fill,
+            false,
         )
         .unwrap();
 
@@ -5195,6 +5204,7 @@ pub mod fulfill_order {
             10,
             crate::state::perp_market::AMMAvailability::AfterMinDuration,
             FillMode::Fill,
+            false,
         )
         .unwrap();
 
@@ -5438,6 +5448,7 @@ pub mod fulfill_order {
             0,
             crate::state::perp_market::AMMAvailability::AfterMinDuration,
             FillMode::Fill,
+            false,
         )
         .unwrap();
 
