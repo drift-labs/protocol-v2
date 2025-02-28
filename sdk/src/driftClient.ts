@@ -277,7 +277,7 @@ export class DriftClient {
 		this.authority = config.authority ?? this.wallet.publicKey;
 		this.activeSubAccountId = config.activeSubAccountId ?? 0;
 		this.skipLoadUsers = config.skipLoadUsers ?? false;
-		this.txVersion = config.txVersion ? config.txVersion : this.getTxVersionForNewWallet(config.wallet);
+		this.txVersion = config.txVersion ?? this.getTxVersionForNewWallet(config.wallet);
 		this.txParams = {
 			computeUnits: config.txParams?.computeUnits ?? 600_000,
 			computeUnitsPrice: config.txParams?.computeUnitsPrice ?? 0,
