@@ -2,6 +2,7 @@ import {
 	Keypair,
 	PublicKey,
 	Transaction,
+	TransactionVersion,
 	VersionedTransaction,
 } from '@solana/web3.js';
 import { BN, ZERO } from '.';
@@ -1232,6 +1233,10 @@ export interface IWallet {
 	signAllTransactions(txs: Transaction[]): Promise<Transaction[]>;
 	publicKey: PublicKey;
 	payer?: Keypair;
+	supportedTransactionVersions?:
+		| ReadonlySet<TransactionVersion>
+		| null
+		| undefined;
 }
 export interface IVersionedWallet {
 	signVersionedTransaction(

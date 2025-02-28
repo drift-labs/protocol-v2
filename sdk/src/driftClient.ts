@@ -278,7 +278,8 @@ export class DriftClient {
 		this.authority = config.authority ?? this.wallet.publicKey;
 		this.activeSubAccountId = config.activeSubAccountId ?? 0;
 		this.skipLoadUsers = config.skipLoadUsers ?? false;
-		this.txVersion = config.txVersion ?? 0;
+		this.txVersion =
+			config.txVersion ?? this.getTxVersionForNewWallet(config.wallet);
 		this.txParams = {
 			computeUnits: config.txParams?.computeUnits ?? 600_000,
 			computeUnitsPrice: config.txParams?.computeUnitsPrice ?? 0,
@@ -732,6 +733,16 @@ export class DriftClient {
 		return lookupTableAccounts;
 	}
 
+	private getTxVersionForNewWallet(newWallet: IWallet) {
+		if (!newWallet?.supportedTransactionVersions) return 0; // Assume versioned txs supported if wallet doesn't have a supportedTransactionVersions property
+
+		const walletSupportsVersionedTxns =
+			newWallet.supportedTransactionVersions?.has(0) ||
+			(newWallet.supportedTransactionVersions?.size ?? 0) > 1;
+
+		return walletSupportsVersionedTxns ? 0 : 'legacy';
+	}
+
 	/**
 	 * Update the wallet to use for drift transactions and linked user account
 	 * @param newWallet
@@ -769,10 +780,7 @@ export class DriftClient {
 		this.activeSubAccountId = activeSubAccountId;
 		this.userStatsAccountPublicKey = undefined;
 		this.includeDelegates = includeDelegates ?? false;
-		const walletSupportsVersionedTxns =
-			//@ts-expect-error
-			(this.wallet.supportedTransactionVersions?.size ?? 0) > 1;
-		this.txVersion = walletSupportsVersionedTxns ? 0 : 'legacy';
+		this.txVersion = this.getTxVersionForNewWallet(this.wallet);
 
 		if (includeDelegates && subAccountIds) {
 			throw new Error(
@@ -842,10 +850,7 @@ export class DriftClient {
 		this.authority = emulateAuthority;
 		this.userStatsAccountPublicKey = undefined;
 		this.includeDelegates = true;
-		const walletSupportsVersionedTxns =
-			//@ts-ignore
-			this.wallet.supportedTransactionVersions?.size ?? 0 > 1;
-		this.txVersion = walletSupportsVersionedTxns ? 0 : 'legacy';
+		this.txVersion = this.getTxVersionForNewWallet(this.wallet);
 
 		this.authoritySubAccountMap = new Map<string, number[]>();
 
