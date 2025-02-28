@@ -732,7 +732,7 @@ export class DriftClient {
 	}
 
 	private getTxVersionForNewWallet(newWallet: IWallet) {
-		if (newWallet) return 0;
+		if (!newWallet?.supportedTransactionVersions) return 0; // Assume versioned txs supported if wallet doesn't have a supportedTransactionVersions property
 
 		const walletSupportsVersionedTxns =
 			newWallet.supportedTransactionVersions?.has(0) || (newWallet.supportedTransactionVersions?.size ?? 0) > 1;
