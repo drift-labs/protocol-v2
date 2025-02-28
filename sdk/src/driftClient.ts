@@ -277,7 +277,8 @@ export class DriftClient {
 		this.authority = config.authority ?? this.wallet.publicKey;
 		this.activeSubAccountId = config.activeSubAccountId ?? 0;
 		this.skipLoadUsers = config.skipLoadUsers ?? false;
-		this.txVersion = config.txVersion ?? this.getTxVersionForNewWallet(config.wallet);
+		this.txVersion =
+			config.txVersion ?? this.getTxVersionForNewWallet(config.wallet);
 		this.txParams = {
 			computeUnits: config.txParams?.computeUnits ?? 600_000,
 			computeUnitsPrice: config.txParams?.computeUnitsPrice ?? 0,
@@ -735,8 +736,9 @@ export class DriftClient {
 		if (!newWallet?.supportedTransactionVersions) return 0; // Assume versioned txs supported if wallet doesn't have a supportedTransactionVersions property
 
 		const walletSupportsVersionedTxns =
-			newWallet.supportedTransactionVersions?.has(0) || (newWallet.supportedTransactionVersions?.size ?? 0) > 1;
-			
+			newWallet.supportedTransactionVersions?.has(0) ||
+			(newWallet.supportedTransactionVersions?.size ?? 0) > 1;
+
 		return walletSupportsVersionedTxns ? 0 : 'legacy';
 	}
 

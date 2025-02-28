@@ -1232,7 +1232,10 @@ export interface IWallet {
 	signAllTransactions(txs: Transaction[]): Promise<Transaction[]>;
 	publicKey: PublicKey;
 	payer?: Keypair;
-	supportedTransactionVersions?: ReadonlySet<TransactionVersion> | null | undefined;
+	supportedTransactionVersions?:
+		| ReadonlySet<TransactionVersion>
+		| null
+		| undefined;
 }
 export interface IVersionedWallet {
 	signVersionedTransaction(
