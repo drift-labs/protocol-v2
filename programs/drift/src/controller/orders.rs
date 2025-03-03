@@ -1700,6 +1700,7 @@ fn fulfill_perp_order(
         perp_market.amm.order_tick_size,
         perp_market.is_prediction_market(),
     )?;
+    let perp_market_oi_before = perp_market.get_open_interest();
     drop(perp_market);
 
     let fulfillment_methods = {
@@ -1925,7 +1926,7 @@ fn fulfill_perp_order(
             Some(makers_and_referrer_stats.get_ref_mut(&maker.authority)?)
         };
 
-        let (margin_type, maker_position_increasing) = select_margin_type_for_perp_maker(
+        let (margin_type, maker_risk_increasing) = select_margin_type_for_perp_maker(
             &maker,
             maker_base_asset_amount_filled,
             market_index,
@@ -1937,12 +1938,12 @@ fn fulfill_perp_order(
 
         if oracle_stale_for_margin {
             validate!(
-                user_order_position_decreasing || !maker_position_increasing,
+                user_order_position_decreasing || !maker_risk_increasing,
                 ErrorCode::InvalidOracle,
                 "taker or maker must be reducing position if oracle stale for margin"
             )?;
 
-            if maker_position_increasing {
+            if maker_risk_increasing {
                 context = context.margin_ratio_override(MARGIN_PRECISION);
             }
         }
@@ -1975,6 +1976,15 @@ fn fulfill_perp_order(
             );
             return Err(ErrorCode::InsufficientCollateral);
         }
+    }
+
+    if oracle_stale_for_margin {
+        let perp_market_oi_after = perp_market_map.get_ref(&market_index)?.get_open_interest();
+        validate!(
+            perp_market_oi_after <= perp_market_oi_before,
+            ErrorCode::InvalidOracle,
+            "oracle stale for margin but open interest changed"
+        )?;
     }
 
     Ok((base_asset_amount, quote_asset_amount))
