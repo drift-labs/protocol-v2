@@ -1,6 +1,6 @@
 {
 	"name": "@drift-labs/sdk",
-	"version": "2.111.0",
+	"version": "2.112.0-beta.14",
 	"main": "lib/node/index.js",
 	"types": "lib/node/index.d.ts",
 	"browser": "./lib/browser/index.js",
@@ -39,7 +39,7 @@
 		"@coral-xyz/anchor": "0.29.0",
 		"@coral-xyz/anchor-30": "npm:@coral-xyz/anchor@0.30.1",
 		"@ellipsis-labs/phoenix-sdk": "1.4.5",
-		"@grpc/grpc-js": "^1.8.0",
+		"@grpc/grpc-js": "1.12.6",
 		"@openbook-dex/openbook-v2": "0.2.10",
 		"@project-serum/serum": "0.13.65",
 		"@pythnetwork/client": "2.5.3",

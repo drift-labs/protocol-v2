@@ -56,6 +56,7 @@ import {
 	TxParams,
 	UserAccount,
 	UserStatsAccount,
+	ProtectedMakerModeConfig,
 } from './types';
 import driftIDL from './idl/drift.json';
 
@@ -277,7 +278,8 @@ export class DriftClient {
 		this.authority = config.authority ?? this.wallet.publicKey;
 		this.activeSubAccountId = config.activeSubAccountId ?? 0;
 		this.skipLoadUsers = config.skipLoadUsers ?? false;
-		this.txVersion = config.txVersion ?? 0;
+		this.txVersion =
+			config.txVersion ?? this.getTxVersionForNewWallet(config.wallet);
 		this.txParams = {
 			computeUnits: config.txParams?.computeUnits ?? 600_000,
 			computeUnitsPrice: config.txParams?.computeUnitsPrice ?? 0,
@@ -731,6 +733,16 @@ export class DriftClient {
 		return lookupTableAccounts;
 	}
 
+	private getTxVersionForNewWallet(newWallet: IWallet) {
+		if (!newWallet?.supportedTransactionVersions) return 0; // Assume versioned txs supported if wallet doesn't have a supportedTransactionVersions property
+
+		const walletSupportsVersionedTxns =
+			newWallet.supportedTransactionVersions?.has(0) ||
+			(newWallet.supportedTransactionVersions?.size ?? 0) > 1;
+
+		return walletSupportsVersionedTxns ? 0 : 'legacy';
+	}
+
 	/**
 	 * Update the wallet to use for drift transactions and linked user account
 	 * @param newWallet
@@ -768,10 +780,7 @@ export class DriftClient {
 		this.activeSubAccountId = activeSubAccountId;
 		this.userStatsAccountPublicKey = undefined;
 		this.includeDelegates = includeDelegates ?? false;
-		const walletSupportsVersionedTxns =
-			//@ts-ignore
-			this.wallet.supportedTransactionVersions?.size ?? 0 > 1;
-		this.txVersion = walletSupportsVersionedTxns ? 0 : 'legacy';
+		this.txVersion = this.getTxVersionForNewWallet(this.wallet);
 
 		if (includeDelegates && subAccountIds) {
 			throw new Error(
@@ -841,10 +850,7 @@ export class DriftClient {
 		this.authority = emulateAuthority;
 		this.userStatsAccountPublicKey = undefined;
 		this.includeDelegates = true;
-		const walletSupportsVersionedTxns =
-			//@ts-ignore
-			this.wallet.supportedTransactionVersions?.size ?? 0 > 1;
-		this.txVersion = walletSupportsVersionedTxns ? 0 : 'legacy';
+		this.txVersion = this.getTxVersionForNewWallet(this.wallet);
 
 		this.authoritySubAccountMap = new Map<string, number[]>();
 
@@ -1006,7 +1012,8 @@ export class DriftClient {
 	public async getInitializeUserAccountIxs(
 		subAccountId = 0,
 		name?: string,
-		referrerInfo?: ReferrerInfo
+		referrerInfo?: ReferrerInfo,
+		poolId?: number
 	): Promise<[TransactionInstruction[], PublicKey]> {
 		const initializeIxs: TransactionInstruction[] = [];
 
@@ -1026,6 +1033,12 @@ export class DriftClient {
 		}
 
 		initializeIxs.push(initializeUserAccountIx);
+
+		if (poolId) {
+			initializeIxs.push(
+				await this.getUpdateUserPoolIdIx(poolId, subAccountId)
+			);
+		}
 
 		return [initializeIxs, userAccountPublicKey];
 	}
@@ -3230,7 +3243,8 @@ export class DriftClient {
 		depositAmount: BN | undefined,
 		borrowAmount: BN | undefined,
 		fromSubAccountId: number,
-		toSubAccountId: number
+		toSubAccountId: number,
+		isToNewSubAccount?: boolean
 	): Promise<TransactionInstruction> {
 		const fromUser = await getUserAccountPublicKey(
 			this.program.programId,
@@ -3243,10 +3257,11 @@ export class DriftClient {
 			toSubAccountId
 		);
 
-		const userAccounts = [
-			this.getUserAccount(fromSubAccountId),
-			this.getUserAccount(toSubAccountId),
-		];
+		const userAccounts = [this.getUserAccount(fromSubAccountId)];
+
+		if (!isToNewSubAccount) {
+			userAccounts.push(this.getUserAccount(toSubAccountId));
+		}
 
 		const remainingAccounts = this.getRemainingAccounts({
 			userAccounts,
@@ -6177,7 +6192,7 @@ export class DriftClient {
 			signingAuthority: PublicKey;
 		},
 		precedingIxs: TransactionInstruction[] = [],
-		overrideIxCount?: number,
+		overrideCustomIxIndex?: number,
 		txParams?: TxParams
 	): Promise<TransactionSignature> {
 		const ixs = await this.getPlaceSignedMsgTakerPerpOrderIxs(
@@ -6185,7 +6200,7 @@ export class DriftClient {
 			marketIndex,
 			takerInfo,
 			precedingIxs,
-			overrideIxCount
+			overrideCustomIxIndex
 		);
 		const { txSig } = await this.sendTransaction(
 			await this.buildTransaction(ixs, txParams),
@@ -6205,7 +6220,7 @@ export class DriftClient {
 			signingAuthority: PublicKey;
 		},
 		precedingIxs: TransactionInstruction[] = [],
-		overrideIxCount?: number
+		overrideCustomIxIndex?: number
 	): Promise<TransactionInstruction[]> {
 		const remainingAccounts = this.getRemainingAccounts({
 			userAccounts: [takerInfo.takerUserAccount],
@@ -6226,7 +6241,7 @@ export class DriftClient {
 		]);
 
 		const signedMsgOrderParamsSignatureIx = createMinimalEd25519VerifyIx(
-			overrideIxCount || precedingIxs.length + 1,
+			overrideCustomIxIndex || precedingIxs.length + 1,
 			12,
 			signedMsgIxData,
 			0
@@ -6272,7 +6287,7 @@ export class DriftClient {
 		txParams?: TxParams,
 		subAccountId?: number,
 		precedingIxs: TransactionInstruction[] = [],
-		overrideIxCount?: number
+		overrideCustomIxIndex?: number
 	): Promise<TransactionSignature> {
 		const ixs = await this.getPlaceAndMakeSignedMsgPerpOrderIxs(
 			signedSignedMsgOrderParams,
@@ -6282,7 +6297,7 @@ export class DriftClient {
 			referrerInfo,
 			subAccountId,
 			precedingIxs,
-			overrideIxCount
+			overrideCustomIxIndex
 		);
 		const { txSig, slot } = await this.sendTransaction(
 			await this.buildTransaction(ixs, txParams),
@@ -6307,7 +6322,7 @@ export class DriftClient {
 		referrerInfo?: ReferrerInfo,
 		subAccountId?: number,
 		precedingIxs: TransactionInstruction[] = [],
-		overrideIxCount?: number
+		overrideCustomIxIndex?: number
 	): Promise<TransactionInstruction[]> {
 		const [signedMsgOrderSignatureIx, placeTakerSignedMsgPerpOrderIx] =
 			await this.getPlaceSignedMsgTakerPerpOrderIxs(
@@ -6315,7 +6330,7 @@ export class DriftClient {
 				orderParams.marketIndex,
 				takerInfo,
 				precedingIxs,
-				overrideIxCount
+				overrideCustomIxIndex
 			);
 
 		orderParams = getOrderParams(orderParams, { marketType: MarketType.PERP });
@@ -9074,12 +9089,12 @@ export class DriftClient {
 		feedIds: number[],
 		pythMessageHex: string,
 		precedingIxs: TransactionInstruction[] = [],
-		overrideIxCount?: number
+		overrideCustomIxIndex?: number
 	): Promise<TransactionInstruction[]> {
 		const pythMessageBytes = Buffer.from(pythMessageHex, 'hex');
 
 		const verifyIx = createMinimalEd25519VerifyIx(
-			overrideIxCount || precedingIxs.length + 1,
+			overrideCustomIxIndex || precedingIxs.length + 1,
 			12,
 			pythMessageBytes
 		);
@@ -9337,6 +9352,13 @@ export class DriftClient {
 			getHighLeverageModeConfigPublicKey(this.program.programId)
 		);
 		return config as HighLeverageModeConfig;
+	}
+
+	public async fetchProtectedMakerModeConfig(): Promise<ProtectedMakerModeConfig> {
+		const config = await this.program.account.protectedMakerModeConfig.fetch(
+			getProtectedMakerModeConfigPublicKey(this.program.programId)
+		);
+		return config as ProtectedMakerModeConfig;
 	}
 
 	public async updateUserProtectedMakerOrders(

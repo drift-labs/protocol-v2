@@ -818,11 +818,20 @@ export class DLOB {
 				const newTakerOrder = { ...takerOrder };
 				newTakerOrder.baseAssetAmountFilled =
 					takerOrder.baseAssetAmountFilled.add(baseFilled);
-				this.getListForOnChainOrder(
-					newTakerOrder,
-					slot,
-					takerNode.isProtectedMaker
-				).update(newTakerOrder, takerNode.userAccount);
+
+				if (takerNode.isSignedMsg) {
+					const marketTypeStr = getVariant(marketType) as MarketTypeStr;
+					const orderList = isVariant(takerOrder.direction, 'long')
+						? this.orderLists.get(marketTypeStr).get(marketIndex).signedMsg.bid
+						: this.orderLists.get(marketTypeStr).get(marketIndex).signedMsg.ask;
+					orderList.update(newTakerOrder, takerNode.userAccount);
+				} else {
+					this.getListForOnChainOrder(
+						newTakerOrder,
+						slot,
+						takerNode.isProtectedMaker
+					).update(newTakerOrder, takerNode.userAccount);
+				}
 
 				if (
 					newTakerOrder.baseAssetAmountFilled.eq(takerOrder.baseAssetAmount)
@@ -934,7 +943,15 @@ export class DLOB {
 
 		for (const askGenerator of askGenerators) {
 			for (const ask of askGenerator) {
-				if (isOrderExpired(ask.order, ts, true, 25)) {
+				if (
+					ask.isSignedMsg &&
+					slot.gt(ask.order.slot.addn(ask.order.auctionDuration))
+				) {
+					this.orderLists
+						.get(marketTypeStr)
+						.get(marketIndex)
+						.signedMsg.ask.remove(ask.order, ask.userAccount);
+				} else if (isOrderExpired(ask.order, ts, true, 25)) {
 					nodesToFill.push({
 						node: ask,
 						makerNodes: [],

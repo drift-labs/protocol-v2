@@ -705,11 +705,10 @@ pub fn place_signed_msg_taker_order<'c: 'info, 'info>(
 
     // First order must be a taker order
     let matching_taker_order_params = &taker_order_params_message.signed_msg_order_params;
-    if (matching_taker_order_params.order_type != OrderType::Market
-        && matching_taker_order_params.order_type != OrderType::Oracle)
-        || matching_taker_order_params.market_type != MarketType::Perp
+    if matching_taker_order_params.market_type != MarketType::Perp
+        || !matching_taker_order_params.has_valid_auction_params()?
     {
-        msg!("First order must be a market or oracle perp taker order");
+        msg!("First order must be a perp taker order");
         return Err(print_error!(ErrorCode::InvalidSignedMsgOrderParam)().into());
     }
 
@@ -789,6 +788,7 @@ pub fn place_signed_msg_taker_order<'c: 'info, 'info>(
             clock,
             stop_loss_order,
             PlaceOrderOptions {
+                enforce_margin_check: false,
                 existing_position_direction_override: Some(matching_taker_order_params.direction),
                 ..PlaceOrderOptions::default()
             },
@@ -823,6 +823,7 @@ pub fn place_signed_msg_taker_order<'c: 'info, 'info>(
             clock,
             take_profit_order,
             PlaceOrderOptions {
+                enforce_margin_check: false,
                 existing_position_direction_override: Some(matching_taker_order_params.direction),
                 ..PlaceOrderOptions::default()
             },
@@ -841,6 +842,7 @@ pub fn place_signed_msg_taker_order<'c: 'info, 'info>(
         clock,
         *matching_taker_order_params,
         PlaceOrderOptions {
+            enforce_margin_check: true,
             signed_msg_taker_order_slot: Some(order_slot),
             ..PlaceOrderOptions::default()
         },

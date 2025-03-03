@@ -2,6 +2,7 @@ import {
 	Keypair,
 	PublicKey,
 	Transaction,
+	TransactionVersion,
 	VersionedTransaction,
 } from '@solana/web3.js';
 import { BN, ZERO } from '.';
@@ -1086,6 +1087,7 @@ export type Order = {
 	auctionStartPrice: BN;
 	auctionEndPrice: BN;
 	maxTs: BN;
+	bitFlags: number;
 	postedSlotTail: number;
 };
 
@@ -1231,6 +1233,10 @@ export interface IWallet {
 	signAllTransactions(txs: Transaction[]): Promise<Transaction[]>;
 	publicKey: PublicKey;
 	payer?: Keypair;
+	supportedTransactionVersions?:
+		| ReadonlySet<TransactionVersion>
+		| null
+		| undefined;
 }
 export interface IVersionedWallet {
 	signVersionedTransaction(
@@ -1413,6 +1419,12 @@ export type HighLeverageModeConfig = {
 	reduceOnly: boolean;
 };
 
+export type ProtectedMakerModeConfig = {
+	maxUsers: number;
+	currentUsers: number;
+	reduceOnly: boolean;
+};
+
 /* Represents proof of a signed msg taker order
  * It can be provided to drift program to fill a signed msg order
  */
@@ -1426,3 +1438,14 @@ export interface SignedMsgOrderParams {
 	 */
 	signature: Buffer;
 }
+
+export type SignedMsgOrderId = {
+	maxSlot: BN;
+	uuid: Uint8Array;
+	orderId: number;
+};
+
+export type SignedMsgUserOrdersAccount = {
+	authorityPubkey: PublicKey;
+	signedMsgOrderData: SignedMsgOrderId[];
+};

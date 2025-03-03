@@ -22,6 +22,11 @@ export type FastlaneOrderSubscriberConfig = {
 	driftEnv: DriftEnv;
 	endpoint?: string;
 	marketIndexes: number[];
+	/**
+		In the future, this will be used for verifying $DRIFT stake as we add
+		authentication for delegate signers
+		For now, pass a new keypair or a keypair to an empty wallet
+	*/
 	keypair: Keypair;
 };
 

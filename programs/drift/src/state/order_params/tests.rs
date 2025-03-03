@@ -1382,7 +1382,8 @@ mod get_close_perp_params {
             auction_duration: params.auction_duration.unwrap_or(0),
             max_ts: 100,
             posted_slot_tail: get_posted_slot_from_clock_slot(slot),
-            padding: [0; 2],
+            bit_flags: 0,
+            padding: [0; 1],
         }
     }
 

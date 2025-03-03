@@ -281,7 +281,8 @@ jobs:
             "drift-vaults",
             "drift-common",
             "drift-ffi-sys",
-            "drift-rs"
+            "drift-rs",
+            "fastlane-server"
           ]
     steps:
       - name: Checkout code with new updated version
