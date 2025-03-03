@@ -1012,7 +1012,8 @@ export class DriftClient {
 	public async getInitializeUserAccountIxs(
 		subAccountId = 0,
 		name?: string,
-		referrerInfo?: ReferrerInfo
+		referrerInfo?: ReferrerInfo,
+		poolId?: number
 	): Promise<[TransactionInstruction[], PublicKey]> {
 		const initializeIxs: TransactionInstruction[] = [];
 
@@ -1032,6 +1033,11 @@ export class DriftClient {
 		}
 
 		initializeIxs.push(initializeUserAccountIx);
+
+		if (poolId) {
+			initializeIxs.push(await this.getUpdateUserPoolIdIx(poolId, subAccountId));
+		}
+
 
 		return [initializeIxs, userAccountPublicKey];
 	}
@@ -3236,7 +3242,8 @@ export class DriftClient {
 		depositAmount: BN | undefined,
 		borrowAmount: BN | undefined,
 		fromSubAccountId: number,
-		toSubAccountId: number
+		toSubAccountId: number,
+		isToNewSubAccount?: boolean
 	): Promise<TransactionInstruction> {
 		const fromUser = await getUserAccountPublicKey(
 			this.program.programId,
@@ -3251,8 +3258,11 @@ export class DriftClient {
 
 		const userAccounts = [
 			this.getUserAccount(fromSubAccountId),
-			this.getUserAccount(toSubAccountId),
 		];
+
+		if (!isToNewSubAccount) {
+			userAccounts.push(this.getUserAccount(toSubAccountId));
+		}
 
 		const remainingAccounts = this.getRemainingAccounts({
 			userAccounts,
