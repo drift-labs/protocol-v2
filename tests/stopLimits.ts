@@ -308,7 +308,7 @@ describe('stop limit', () => {
 		assert(order.baseAssetAmount.eq(new BN(0)));
 		assert(order.price.eq(new BN(0)));
 		assert(order.marketIndex === 0);
-		assert(isVariant(order.status, 'init'));
+		assert(!isVariant(order.status, 'open'));
 		assert(isVariant(order.direction, 'long'));
 
 		const firstPosition = driftClientUser.getUserAccount().perpPositions[0];
@@ -398,7 +398,7 @@ describe('stop limit', () => {
 		assert(order.baseAssetAmount.eq(new BN(0)));
 		assert(order.price.eq(new BN(0)));
 		assert(order.marketIndex === 0);
-		assert(isVariant(order.status, 'init'));
+		assert(!isVariant(order.status, 'open'));
 		assert(isVariant(order.direction, 'long'));
 
 		const firstPosition = driftClientUser.getUserAccount().perpPositions[0];

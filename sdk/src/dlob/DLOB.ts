@@ -188,7 +188,7 @@ export class DLOB {
 		isUserProtectedMaker: boolean,
 		onInsert?: OrderBookCallback
 	): void {
-		if (isVariant(order.status, 'init')) {
+		if (!isVariant(order.status, 'open')) {
 			return;
 		}
 
@@ -290,7 +290,7 @@ export class DLOB {
 		isUserProtectedMaker: boolean,
 		onDelete?: OrderBookCallback
 	): void {
-		if (isVariant(order.status, 'init')) {
+		if (!isVariant(order.status, 'open')) {
 			return;
 		}
 

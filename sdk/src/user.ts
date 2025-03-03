@@ -3766,7 +3766,7 @@ export class User {
 		}
 
 		for (const order of userAccount.orders) {
-			if (!isVariant(order.status, 'init')) {
+			if (isVariant(order.status, 'open')) {
 				return false;
 			}
 		}

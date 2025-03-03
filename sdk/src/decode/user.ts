@@ -139,7 +139,7 @@ export function decodeUser(buffer: Buffer): UserAccount {
 	const orders: Order[] = [];
 	for (let i = 0; i < 32; i++) {
 		// skip order if it's not open
-		if (buffer.readUint8(offset + 82) === 0) {
+		if (buffer.readUint8(offset + 82) !== 1) {
 			offset += 96;
 			continue;
 		}

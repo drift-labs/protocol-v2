@@ -332,7 +332,7 @@ describe('serum spot market', () => {
 		assert(baseTokenAmount.eq(new BN(1000000000)));
 
 		const takerOrder = takerDriftClient.getUserAccount().orders[0];
-		assert(isVariant(takerOrder.status, 'init'));
+		assert(!isVariant(takerOrder.status, 'open'));
 
 		const orderActionRecord =
 			eventSubscriber.getEventsArray('OrderActionRecord')[0];
@@ -445,7 +445,7 @@ describe('serum spot market', () => {
 		assert(baseTokenAmount.eq(new BN(0)));
 
 		const takerOrder = takerDriftClient.getUserAccount().orders[0];
-		assert(isVariant(takerOrder.status, 'init'));
+		assert(!isVariant(takerOrder.status, 'open'));
 
 		const orderActionRecord =
 			eventSubscriber.getEventsArray('OrderActionRecord')[0];
@@ -562,7 +562,7 @@ describe('serum spot market', () => {
 		assert(baseTokenAmount.eq(new BN(1000000000)));
 
 		const takerOrder = takerDriftClient.getUserAccount().orders[0];
-		assert(isVariant(takerOrder.status, 'init'));
+		assert(!isVariant(takerOrder.status, 'open'));
 
 		const orderActionRecord =
 			eventSubscriber.getEventsArray('OrderActionRecord')[0];
@@ -673,7 +673,7 @@ describe('serum spot market', () => {
 		assert(baseTokenAmount.eq(ZERO));
 
 		const takerOrder = takerDriftClient.getUserAccount().orders[0];
-		assert(isVariant(takerOrder.status, 'init'));
+		assert(!isVariant(takerOrder.status, 'open'));
 
 		const orderActionRecord =
 			eventSubscriber.getEventsArray('OrderActionRecord')[0];

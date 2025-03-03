@@ -39,7 +39,7 @@ export class NodeList<NodeType extends keyof DLOBNodeMap>
 		isProtectedMaker: boolean,
 		applyProtectedMakerOffset: boolean
 	): void {
-		if (isVariant(order.status, 'init')) {
+		if (!isVariant(order.status, 'open')) {
 			return;
 		}
 
