@@ -4140,7 +4140,11 @@ export class AdminClient extends DriftClient {
 		currentUsers: undefined
 	): Promise<TransactionSignature> {
 		const updateProtectedMakerModeConfigIx =
-			await this.getUpdateProtectedMakerModeConfigIx(maxUsers, reduceOnly, currentUsers);
+			await this.getUpdateProtectedMakerModeConfigIx(
+				maxUsers,
+				reduceOnly,
+				currentUsers
+			);
 
 		const tx = await this.buildTransaction(updateProtectedMakerModeConfigIx);
 
