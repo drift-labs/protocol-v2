@@ -1983,7 +1983,7 @@ fn fulfill_perp_order(
         validate!(
             perp_market_oi_after <= perp_market_oi_before,
             ErrorCode::InvalidOracle,
-            "oracle stale for margin but open interest changed"
+            "oracle stale for margin but open interest increased"
         )?;
     }
 
