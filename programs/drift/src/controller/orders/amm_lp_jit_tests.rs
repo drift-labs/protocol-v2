@@ -3281,7 +3281,7 @@ pub mod amm_lp_jit {
             0,
             crate::state::perp_market::AMMAvailability::AfterMinDuration,
             FillMode::Fill,
-            false
+            false,
         )
         .unwrap();
 

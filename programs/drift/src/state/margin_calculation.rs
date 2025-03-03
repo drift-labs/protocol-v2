@@ -130,7 +130,10 @@ impl MarginContext {
     }
 
     pub fn margin_ratio_override(mut self, margin_ratio_override: u32) -> Self {
-        msg!("setting margin calculation margin_ratio_override: {}", margin_ratio_override);
+        msg!(
+            "setting margin calculation margin_ratio_override: {}",
+            margin_ratio_override
+        );
         self.margin_ratio_override = Some(margin_ratio_override);
         self
     }
