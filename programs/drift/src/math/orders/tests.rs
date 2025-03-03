@@ -3662,7 +3662,7 @@ mod select_margin_type_for_perp_maker {
             }),
             ..User::default()
         };
-        let margin_type =
+        let (margin_type, _) =
             select_margin_type_for_perp_maker(&user, base_asset_amount_filled, market_index)
                 .unwrap();
         assert_eq!(margin_type, MarginRequirementType::Maintenance);
@@ -3678,7 +3678,7 @@ mod select_margin_type_for_perp_maker {
             }),
             ..User::default()
         };
-        let margin_type =
+        let (margin_type, _) =
             select_margin_type_for_perp_maker(&user, base_asset_amount_filled, market_index)
                 .unwrap();
         assert_eq!(margin_type, MarginRequirementType::Maintenance);
@@ -3694,7 +3694,7 @@ mod select_margin_type_for_perp_maker {
             }),
             ..User::default()
         };
-        let margin_type =
+        let (margin_type, _) =
             select_margin_type_for_perp_maker(&user, base_asset_amount_filled, market_index)
                 .unwrap();
         assert_eq!(margin_type, MarginRequirementType::Fill);
@@ -3710,7 +3710,7 @@ mod select_margin_type_for_perp_maker {
             }),
             ..User::default()
         };
-        let margin_type =
+        let (margin_type, _) =
             select_margin_type_for_perp_maker(&user, base_asset_amount_filled, market_index)
                 .unwrap();
         assert_eq!(margin_type, MarginRequirementType::Fill);
@@ -3726,7 +3726,7 @@ mod select_margin_type_for_perp_maker {
             }),
             ..User::default()
         };
-        let margin_type =
+        let (margin_type, _) =
             select_margin_type_for_perp_maker(&user, base_asset_amount_filled, market_index)
                 .unwrap();
         assert_eq!(margin_type, MarginRequirementType::Maintenance);
@@ -3742,7 +3742,7 @@ mod select_margin_type_for_perp_maker {
             }),
             ..User::default()
         };
-        let margin_type =
+        let (margin_type, _) =
             select_margin_type_for_perp_maker(&user, base_asset_amount_filled, market_index)
                 .unwrap();
         assert_eq!(margin_type, MarginRequirementType::Maintenance);

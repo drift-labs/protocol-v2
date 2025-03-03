@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Features
 
+- program: use custom margin ratio if oracle too stale for margin ([#1505](https://github.com/drift-labs/protocol-v2/pull/1505))
 - program: enable limit orders with auctions in fastlane ([#1502](https://github.com/drift-labs/protocol-v2/pull/1502))
 - program: set is_signed_msg bitflag on orders ([#1504](https://github.com/drift-labs/protocol-v2/pull/1504))
 
