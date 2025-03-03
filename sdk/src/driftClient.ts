@@ -1035,9 +1035,10 @@ export class DriftClient {
 		initializeIxs.push(initializeUserAccountIx);
 
 		if (poolId) {
-			initializeIxs.push(await this.getUpdateUserPoolIdIx(poolId, subAccountId));
+			initializeIxs.push(
+				await this.getUpdateUserPoolIdIx(poolId, subAccountId)
+			);
 		}
-
 
 		return [initializeIxs, userAccountPublicKey];
 	}
@@ -3256,9 +3257,7 @@ export class DriftClient {
 			toSubAccountId
 		);
 
-		const userAccounts = [
-			this.getUserAccount(fromSubAccountId),
-		];
+		const userAccounts = [this.getUserAccount(fromSubAccountId)];
 
 		if (!isToNewSubAccount) {
 			userAccounts.push(this.getUserAccount(toSubAccountId));
