@@ -73,6 +73,20 @@ pub mod drift {
         handle_resize_signed_msg_user_orders(ctx, num_orders)
     }
 
+    pub fn initialize_signed_msg_ws_delegates<'c: 'info, 'info>(
+        ctx: Context<'_, '_, 'c, 'info, InitializeSignedMsgWsDelegates<'info>>,
+        delegates: Vec<Pubkey>,
+    ) -> Result<()> {
+        handle_initialize_signed_msg_ws_delegates(ctx, delegates)
+    }
+
+    pub fn add_signed_msg_ws_delegates<'c: 'info, 'info>(
+        ctx: Context<'_, '_, 'c, 'info, AddSignedMsgWsDelegates<'info>>,
+        delegates: Vec<Pubkey>,
+    ) -> Result<()> {
+        handle_add_signed_msg_ws_delegates(ctx, delegates)
+    }
+
     pub fn initialize_fuel_overflow<'c: 'info, 'info>(
         ctx: Context<'_, '_, 'c, 'info, InitializeFuelOverflow<'info>>,
     ) -> Result<()> {

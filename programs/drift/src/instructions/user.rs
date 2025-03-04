@@ -67,6 +67,8 @@ use crate::state::perp_market_map::{get_writable_perp_market_set, MarketSet};
 use crate::state::protected_maker_mode_config::ProtectedMakerModeConfig;
 use crate::state::signed_msg_user::SignedMsgOrderId;
 use crate::state::signed_msg_user::SignedMsgUserOrdersLoader;
+use crate::state::signed_msg_user::SignedMsgWsDelegates;
+use crate::state::signed_msg_user::SIGNED_MSG_WS_PDA_SEED;
 use crate::state::signed_msg_user::{SignedMsgUserOrders, SIGNED_MSG_PDA_SEED};
 use crate::state::spot_fulfillment_params::SpotFulfillmentParams;
 use crate::state::spot_market::SpotBalanceType;
@@ -298,6 +300,28 @@ pub fn handle_resize_signed_msg_user_orders<'c: 'info, 'info>(
         .signed_msg_order_data
         .resize_with(num_orders as usize, SignedMsgOrderId::default);
     signed_msg_user_orders.validate()?;
+    Ok(())
+}
+
+pub fn handle_initialize_signed_msg_ws_delegates<'c: 'info, 'info>(
+    ctx: Context<'_, '_, 'c, 'info, InitializeSignedMsgWsDelegates<'info>>,
+    delegates: Vec<Pubkey>,
+) -> Result<()> {
+    ctx.accounts
+        .signed_msg_ws_delegates
+        .delegates
+        .extend(delegates);
+    Ok(())
+}
+
+pub fn handle_add_signed_msg_ws_delegates<'c: 'info, 'info>(
+    ctx: Context<'_, '_, 'c, 'info, AddSignedMsgWsDelegates<'info>>,
+    delegates: Vec<Pubkey>,
+) -> Result<()> {
+    ctx.accounts
+        .signed_msg_ws_delegates
+        .delegates
+        .extend(delegates);
     Ok(())
 }
 
@@ -3727,6 +3751,33 @@ pub struct ResizeSignedMsgUserOrders<'info> {
     #[account(mut)]
     pub authority: Signer<'info>,
     pub system_program: Program<'info, System>,
+}
+
+#[derive(Accounts)]
+pub struct InitializeSignedMsgWsDelegates<'info> {
+    #[account(
+        seeds = [SIGNED_MSG_WS_PDA_SEED.as_ref(), authority.key().as_ref()],
+        bump,
+        init,
+        space = 12,
+        payer=authority
+    )]
+    pub signed_msg_ws_delegates: Account<'info, SignedMsgWsDelegates>,
+    #[account(mut)]
+    pub authority: Signer<'info>,
+    pub rent: Sysvar<'info, Rent>,
+    pub system_program: Program<'info, System>,
+}
+
+#[derive(Accounts)]
+pub struct AddSignedMsgWsDelegates<'info> {
+    #[account(
+        seeds = [SIGNED_MSG_WS_PDA_SEED.as_ref(), authority.key().as_ref()],
+        bump,
+    )]
+    pub signed_msg_ws_delegates: Account<'info, SignedMsgWsDelegates>,
+    #[account(mut)]
+    pub authority: Signer<'info>,
 }
 
 #[derive(Accounts)]
