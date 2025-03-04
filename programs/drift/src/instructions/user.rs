@@ -2803,6 +2803,17 @@ pub fn handle_update_user_protected_maker_orders(
 
     validate!(!user.is_being_liquidated(), ErrorCode::LiquidationsOngoing)?;
 
+    validate!(
+        protected_maker_orders != user.is_protected_maker(),
+        ErrorCode::DefaultError,
+        "user already {} protected maker mode",
+        if protected_maker_orders {
+            "in"
+        } else {
+            "out of"
+        }
+    )?;
+
     user.update_protected_maker_orders_status(protected_maker_orders)?;
 
     let mut config = load_mut!(ctx.accounts.protected_maker_mode_config)?;
@@ -3561,7 +3572,7 @@ pub fn handle_end_swap<'c: 'info, 'info>(
         true,
     );
 
-    let margin_type = spot_swap::select_margin_type_for_swap(
+    let (margin_type, _) = spot_swap::select_margin_type_for_swap(
         &in_spot_market,
         &out_spot_market,
         &in_strict_price,

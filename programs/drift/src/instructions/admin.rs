@@ -4386,9 +4386,13 @@ pub fn handle_update_protected_maker_mode_config(
     ctx: Context<UpdateProtectedMakerModeConfig>,
     max_users: u32,
     reduce_only: bool,
+    current_users: Option<u32>,
 ) -> Result<()> {
     let mut config = load_mut!(ctx.accounts.protected_maker_mode_config)?;
 
+    if current_users.is_some() {
+        config.current_users = current_users.unwrap();
+    }
     config.max_users = max_users;
     config.reduce_only = reduce_only as u8;
 

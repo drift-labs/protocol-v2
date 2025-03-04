@@ -4136,10 +4136,15 @@ export class AdminClient extends DriftClient {
 
 	public async updateProtectedMakerModeConfig(
 		maxUsers: number,
-		reduceOnly: boolean
+		reduceOnly: boolean,
+		currentUsers: undefined
 	): Promise<TransactionSignature> {
 		const updateProtectedMakerModeConfigIx =
-			await this.getUpdateProtectedMakerModeConfigIx(maxUsers, reduceOnly);
+			await this.getUpdateProtectedMakerModeConfigIx(
+				maxUsers,
+				reduceOnly,
+				currentUsers
+			);
 
 		const tx = await this.buildTransaction(updateProtectedMakerModeConfigIx);
 
@@ -4150,11 +4155,13 @@ export class AdminClient extends DriftClient {
 
 	public async getUpdateProtectedMakerModeConfigIx(
 		maxUsers: number,
-		reduceOnly: boolean
+		reduceOnly: boolean,
+		currentUsers: undefined
 	): Promise<TransactionInstruction> {
 		return await this.program.instruction.updateProtectedMakerModeConfig(
 			maxUsers,
 			reduceOnly,
+			currentUsers,
 			{
 				accounts: {
 					admin: this.isSubscribed

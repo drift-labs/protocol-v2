@@ -1361,23 +1361,23 @@ pub fn select_margin_type_for_perp_maker(
     maker: &User,
     base_asset_amount_filled: i64,
     market_index: u16,
-) -> DriftResult<MarginRequirementType> {
+) -> DriftResult<((MarginRequirementType, bool))> {
     let position_after_fill = maker
         .get_perp_position(market_index)
         .map_or(0, |p| p.base_asset_amount);
     let position_before = position_after_fill.safe_sub(base_asset_amount_filled)?;
 
     if position_after_fill == 0 {
-        return Ok(MarginRequirementType::Maintenance);
+        return Ok((MarginRequirementType::Maintenance, false));
     }
 
     if position_after_fill.signum() == position_before.signum()
         && position_after_fill.abs() < position_before.abs()
     {
-        return Ok(MarginRequirementType::Maintenance);
+        return Ok((MarginRequirementType::Maintenance, false));
     }
 
-    Ok(MarginRequirementType::Fill)
+    Ok((MarginRequirementType::Fill, true))
 }
 
 pub fn get_posted_slot_from_clock_slot(slot: u64) -> u8 {
