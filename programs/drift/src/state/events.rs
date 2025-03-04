@@ -345,6 +345,7 @@ pub enum OrderActionExplanation {
     OrderFilledWithLPJit,
     DeriskLp,
     OrderFilledWithOpenbookV2,
+    TransferPerpPosition,
 }
 
 #[event]
