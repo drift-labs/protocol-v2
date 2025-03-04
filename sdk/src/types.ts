@@ -174,6 +174,8 @@ export class MarketType {
 export class OrderStatus {
 	static readonly INIT = { init: {} };
 	static readonly OPEN = { open: {} };
+	static readonly FILLED = { filled: {} };
+	static readonly CANCELED = { canceled: {} };
 }
 
 export class OrderAction {

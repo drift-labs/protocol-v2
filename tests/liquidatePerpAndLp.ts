@@ -339,7 +339,7 @@ describe('liquidate perp and lp', () => {
 		assert(lpEvent.nShares.eq(new BN(8100000)));
 
 		for (let i = 0; i < 32; i++) {
-			assert(isVariant(driftClient.getUserAccount().orders[i].status, 'init'));
+			assert(!isVariant(driftClient.getUserAccount().orders[i].status, 'open'));
 		}
 
 		assert(

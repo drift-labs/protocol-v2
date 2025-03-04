@@ -1567,7 +1567,7 @@ describe('orders', () => {
 		console.log(orderRecord);
 		assert(orderRecord.baseAssetAmountFilled.eq(AMM_RESERVE_PRECISION));
 		assert(
-			isVariant(driftClientUser.getUserAccount().orders[1].status, 'init')
+			isVariant(driftClientUser.getUserAccount().orders[1].status, 'open')
 		);
 
 		await driftClient.placeAndTakePerpOrder(openPositionOrderParams);
@@ -1595,7 +1595,7 @@ describe('orders', () => {
 		orderRecord = eventSubscriber.getEventsArray('OrderActionRecord')[1];
 		assert(orderRecord.baseAssetAmountFilled.eq(AMM_RESERVE_PRECISION));
 		assert(
-			isVariant(driftClientUser.getUserAccount().orders[1].status, 'init')
+			!isVariant(driftClientUser.getUserAccount().orders[1].status, 'open')
 		);
 	});
 });

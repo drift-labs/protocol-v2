@@ -22,7 +22,7 @@ import {
 } from './amm';
 
 export function isOrderRiskIncreasing(user: User, order: Order): boolean {
-	if (isVariant(order.status, 'init')) {
+	if (!isVariant(order.status, 'open')) {
 		return false;
 	}
 
@@ -63,7 +63,7 @@ export function isOrderRiskIncreasingInSameDirection(
 	user: User,
 	order: Order
 ): boolean {
-	if (isVariant(order.status, 'init')) {
+	if (!isVariant(order.status, 'open')) {
 		return false;
 	}
 
@@ -93,7 +93,7 @@ export function isOrderRiskIncreasingInSameDirection(
 }
 
 export function isOrderReduceOnly(user: User, order: Order): boolean {
-	if (isVariant(order.status, 'init')) {
+	if (!isVariant(order.status, 'open')) {
 		return false;
 	}
 

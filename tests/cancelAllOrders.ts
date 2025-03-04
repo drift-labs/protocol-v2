@@ -131,7 +131,7 @@ describe('cancel all orders', () => {
 		// await printTxLogs(connection, txSig);
 
 		for (let i = 0; i < 32; i++) {
-			assert(isVariant(driftClient.getUserAccount().orders[i].status, 'init'));
+			assert(!isVariant(driftClient.getUserAccount().orders[i].status, 'open'));
 		}
 	});
 });
