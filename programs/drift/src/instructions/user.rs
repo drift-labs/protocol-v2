@@ -1544,6 +1544,20 @@ pub fn handle_transfer_perp_position<'c: 'info, 'info>(
         &clock,
     )?;
 
+    controller::lp::settle_funding_payment_then_lp(
+        &mut from_user,
+        &from_user_key,
+        &mut perp_market_map.get_ref_mut(&market_index)?,
+        now,
+    )?;
+
+    controller::lp::settle_funding_payment_then_lp(
+        &mut to_user,
+        &to_user_key,
+        &mut perp_market_map.get_ref_mut(&market_index)?,
+        now,
+    )?;
+
     let perp_market = perp_market_map.get_ref(&market_index)?;
     let oi_before = perp_market.get_open_interest();
     let oracle_price = oracle_map.get_price_data(&perp_market.oracle_id())?.price;
