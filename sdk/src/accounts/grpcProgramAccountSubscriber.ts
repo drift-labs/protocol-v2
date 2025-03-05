@@ -14,7 +14,7 @@ import {
 } from '../isomorphic/grpc';
 
 export class grpcProgramAccountSubscriber<
-	T
+	T,
 > extends WebSocketProgramAccountSubscriber<T> {
 	private client: Client;
 	private stream: ClientDuplexStream<SubscribeRequest, SubscribeUpdate>;
