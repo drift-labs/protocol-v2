@@ -72,7 +72,8 @@ export class grpcAccountSubscriber<T> extends WebSocketAccountSubscriber<T> {
 		}
 
 		// Subscribe with grpc
-		this.stream = await this.client.subscribe() as unknown as typeof this.stream ;
+		this.stream =
+			(await this.client.subscribe()) as unknown as typeof this.stream;
 		const request: SubscribeRequest = {
 			slots: {},
 			accounts: {

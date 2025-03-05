@@ -14,7 +14,7 @@ import {
 } from '../isomorphic/grpc';
 
 export class grpcProgramAccountSubscriber<
-	T,
+	T
 > extends WebSocketProgramAccountSubscriber<T> {
 	private client: Client;
 	private stream: ClientDuplexStream<SubscribeRequest, SubscribeUpdate>;
@@ -92,7 +92,8 @@ export class grpcProgramAccountSubscriber<
 		this.onChange = onChange;
 
 		// Subscribe with grpc
-		this.stream = await this.client.subscribe() as unknown as typeof this.stream ;
+		this.stream =
+			(await this.client.subscribe()) as unknown as typeof this.stream;
 		const filters = this.options.filters.map((filter) => {
 			return {
 				memcmp: {
