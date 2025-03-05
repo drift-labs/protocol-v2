@@ -247,7 +247,7 @@ impl SignedMsgWsDelegates {
         let delegate_count = if add {
             self.delegates.len() + 1
         } else {
-            self.delegates.len()
+            self.delegates.len() - 1
         };
         8 + 4 + delegate_count * 32
     }

@@ -150,6 +150,30 @@ describe('place and make signedMsg order', () => {
 	it('maker can remove ws delegates', async () => {
 		const newPubkey = new Keypair().publicKey;
 		const newPubkey2 = new Keypair().publicKey;
+
+		await makerDriftClient.addSignedMsgWsDelegate(
+			makerDriftClient.wallet.publicKey,
+			newPubkey
+		);
+
+		await makerDriftClient.addSignedMsgWsDelegate(
+			makerDriftClient.wallet.publicKey,
+			newPubkey2
+		);
+
+		let delegateAccountInfo =
+			await bankrunContextWrapper.connection.getAccountInfo(
+				getSignedMsgWsDelegatesAccountPublicKey(
+					makerDriftClient.program.programId,
+					makerDriftClient.wallet.publicKey
+				)
+			);
+
+		const pubkeysBefore = deserializePublicKeys(
+			delegateAccountInfo.data.slice(8)
+		);
+		assert(pubkeysBefore.length === 5);
+
 		await makerDriftClient.removeSignedMsgWsDelegate(
 			makerDriftClient.wallet.publicKey,
 			newPubkey
@@ -160,15 +184,15 @@ describe('place and make signedMsg order', () => {
 			newPubkey2
 		);
 
-		const delegateAccountInfo =
-			await bankrunContextWrapper.connection.getAccountInfo(
-				getSignedMsgWsDelegatesAccountPublicKey(
-					makerDriftClient.program.programId,
-					makerDriftClient.wallet.publicKey
-				)
-			);
+		delegateAccountInfo = await bankrunContextWrapper.connection.getAccountInfo(
+			getSignedMsgWsDelegatesAccountPublicKey(
+				makerDriftClient.program.programId,
+				makerDriftClient.wallet.publicKey
+			)
+		);
 
 		const pubkeys = deserializePublicKeys(delegateAccountInfo.data.slice(8));
+		assert(pubkeys.length === 3);
 		for (const pubkey of pubkeys) {
 			assert(!pubkey.equals(newPubkey) && !pubkey.equals(newPubkey2));
 		}
@@ -176,7 +200,6 @@ describe('place and make signedMsg order', () => {
 });
 
 function deserializePublicKeys(buffer: Buffer): PublicKey[] {
-	console.log(buffer.length);
 	const numKeys = buffer.readUInt32LE(0);
 	const keys: PublicKey[] = [];
 	let offset = 4;
