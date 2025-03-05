@@ -1,5 +1,6 @@
 use std::collections::HashSet;
 use std::convert::TryFrom;
+use std::ops::DerefMut;
 
 use anchor_lang::prelude::*;
 use anchor_lang::Discriminator;
@@ -38,6 +39,8 @@ use crate::math::margin::{
     calculate_max_withdrawable_amount, meets_maintenance_margin_requirement,
     meets_place_order_margin_requirement, validate_spot_margin_trading, MarginRequirementType,
 };
+use crate::math::oracle::is_oracle_valid_for_action;
+use crate::math::oracle::DriftAction;
 use crate::math::orders::get_position_delta_for_fill;
 use crate::math::orders::is_multiple_of_step_size;
 use crate::math::orders::standardize_price_i64;
@@ -1499,8 +1502,8 @@ pub fn handle_transfer_perp_position<'c: 'info, 'info>(
     let clock = Clock::get()?;
     let slot = clock.slot;
 
-    let to_user = &mut load_mut!(ctx.accounts.to_user)?;
-    let from_user = &mut load_mut!(ctx.accounts.from_user)?;
+    let mut to_user = &mut load_mut!(ctx.accounts.to_user)?;
+    let mut from_user = &mut load_mut!(ctx.accounts.from_user)?;
     let user_stats = &mut load_mut!(ctx.accounts.user_stats)?;
 
     let clock = Clock::get()?;
@@ -1547,28 +1550,43 @@ pub fn handle_transfer_perp_position<'c: 'info, 'info>(
     controller::lp::settle_funding_payment_then_lp(
         &mut from_user,
         &from_user_key,
-        &mut perp_market_map.get_ref_mut(&market_index)?,
+        perp_market_map.get_ref_mut(&market_index)?.deref_mut(),
         now,
     )?;
 
     controller::lp::settle_funding_payment_then_lp(
         &mut to_user,
         &to_user_key,
-        &mut perp_market_map.get_ref_mut(&market_index)?,
+        perp_market_map.get_ref_mut(&market_index)?.deref_mut(),
         now,
     )?;
 
     let perp_market = perp_market_map.get_ref(&market_index)?;
     let oi_before = perp_market.get_open_interest();
-    let oracle_price = oracle_map.get_price_data(&perp_market.oracle_id())?.price;
+    let (oracle_price_data, oracle_validity) = oracle_map.get_price_data_and_validity(
+        MarketType::Perp,
+        market_index,
+        &perp_market.oracle_id(),
+        perp_market.amm.historical_oracle_data.last_oracle_price_twap,
+        perp_market.get_max_confidence_interval_multiplier()?,
+    )?;
     let step_size = perp_market.amm.order_step_size;
     let tick_size = perp_market.amm.order_tick_size;
+
+    validate!(
+        is_oracle_valid_for_action(oracle_validity, Some(DriftAction::MarginCalc))?,
+        ErrorCode::InvalidTransferPerpPosition,
+        "oracle is not valid for action"
+    )?;
 
     validate!(
         !perp_market.is_operation_paused(PerpOperation::Fill),
         ErrorCode::InvalidTransferPerpPosition,
         "perp market fills paused"
     )?;
+
+    let oracle_price = oracle_price_data.price;
+    drop(oracle_price_data);
 
     drop(perp_market);
 
