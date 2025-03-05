@@ -102,6 +102,7 @@ import {
 	getUserAccountPublicKey,
 	getUserAccountPublicKeySync,
 	getUserStatsAccountPublicKey,
+	getSignedMsgWsDelegatesAccountPublicKey,
 } from './addresses/pda';
 import {
 	DataAndSlot,
@@ -1154,6 +1155,108 @@ export class DriftClient {
 			});
 
 		return resizeUserAccountIx;
+	}
+
+	public async initializeSignedMsgWsDelegatesAccount(
+		authority: PublicKey,
+		delegates: PublicKey[] = [],
+		txParams?: TxParams
+	): Promise<TransactionSignature> {
+		const ix = await this.getInitializeSignedMsgWsDelegatesAccountIx(
+			authority,
+			delegates
+		);
+		const tx = await this.buildTransaction([ix], txParams);
+		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+		return txSig;
+	}
+
+	public async getInitializeSignedMsgWsDelegatesAccountIx(
+		authority: PublicKey,
+		delegates: PublicKey[] = []
+	): Promise<TransactionInstruction> {
+		const signedMsgWsDelegates = getSignedMsgWsDelegatesAccountPublicKey(
+			this.program.programId,
+			authority
+		);
+		const ix = await this.program.instruction.initializeSignedMsgWsDelegates(
+			delegates,
+			{
+				accounts: {
+					signedMsgWsDelegates,
+					authority: this.wallet.publicKey,
+					rent: anchor.web3.SYSVAR_RENT_PUBKEY,
+					systemProgram: anchor.web3.SystemProgram.programId,
+				},
+			}
+		);
+		return ix;
+	}
+
+	public async addSignedMsgWsDelegate(
+		authority: PublicKey,
+		delegate: PublicKey,
+		txParams?: TxParams
+	): Promise<TransactionSignature> {
+		const ix = await this.getAddSignedMsgWsDelegateIx(authority, delegate);
+		const tx = await this.buildTransaction([ix], txParams);
+		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+		return txSig;
+	}
+
+	public async getAddSignedMsgWsDelegateIx(
+		authority: PublicKey,
+		delegate: PublicKey
+	): Promise<TransactionInstruction> {
+		const signedMsgWsDelegates = getSignedMsgWsDelegatesAccountPublicKey(
+			this.program.programId,
+			authority
+		);
+		const ix = await this.program.instruction.changeSignedMsgWsDelegateStatus(
+			delegate,
+			true,
+			{
+				accounts: {
+					signedMsgWsDelegates,
+					authority: this.wallet.publicKey,
+					systemProgram: anchor.web3.SystemProgram.programId,
+				},
+			}
+		);
+		return ix;
+	}
+
+	public async removeSignedMsgWsDelegate(
+		authority: PublicKey,
+		delegate: PublicKey,
+		txParams?: TxParams
+	): Promise<TransactionSignature> {
+		const ix = await this.getRemoveSignedMsgWsDelegateIx(authority, delegate);
+		const tx = await this.buildTransaction([ix], txParams);
+		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+		return txSig;
+	}
+
+	public async getRemoveSignedMsgWsDelegateIx(
+		authority: PublicKey,
+		delegate: PublicKey
+	): Promise<TransactionInstruction> {
+		const signedMsgWsDelegates = getSignedMsgWsDelegatesAccountPublicKey(
+			this.program.programId,
+			authority
+		);
+		const ix = await this.program.instruction.changeSignedMsgWsDelegateStatus(
+			delegate,
+			false,
+			{
+				accounts: {
+					signedMsgWsDelegates,
+					authority: this.wallet.publicKey,
+					systemProgram: anchor.web3.SystemProgram.programId,
+				},
+			}
+		);
+		return ix;
 	}
 
 	public async initializeFuelOverflow(
