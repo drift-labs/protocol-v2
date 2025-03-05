@@ -92,7 +92,7 @@ export class grpcProgramAccountSubscriber<
 		this.onChange = onChange;
 
 		// Subscribe with grpc
-		this.stream = await this.client.subscribe();
+		this.stream = await this.client.subscribe() as unknown as typeof this.stream ;
 		const filters = this.options.filters.map((filter) => {
 			return {
 				memcmp: {
