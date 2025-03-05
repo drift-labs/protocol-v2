@@ -67,6 +67,8 @@ use crate::state::perp_market_map::{get_writable_perp_market_set, MarketSet};
 use crate::state::protected_maker_mode_config::ProtectedMakerModeConfig;
 use crate::state::signed_msg_user::SignedMsgOrderId;
 use crate::state::signed_msg_user::SignedMsgUserOrdersLoader;
+use crate::state::signed_msg_user::SignedMsgWsDelegates;
+use crate::state::signed_msg_user::SIGNED_MSG_WS_PDA_SEED;
 use crate::state::signed_msg_user::{SignedMsgUserOrders, SIGNED_MSG_PDA_SEED};
 use crate::state::spot_fulfillment_params::SpotFulfillmentParams;
 use crate::state::spot_market::SpotBalanceType;
@@ -298,6 +300,37 @@ pub fn handle_resize_signed_msg_user_orders<'c: 'info, 'info>(
         .signed_msg_order_data
         .resize_with(num_orders as usize, SignedMsgOrderId::default);
     signed_msg_user_orders.validate()?;
+    Ok(())
+}
+
+pub fn handle_initialize_signed_msg_ws_delegates<'c: 'info, 'info>(
+    ctx: Context<'_, '_, 'c, 'info, InitializeSignedMsgWsDelegates<'info>>,
+    delegates: Vec<Pubkey>,
+) -> Result<()> {
+    ctx.accounts
+        .signed_msg_ws_delegates
+        .delegates
+        .extend(delegates);
+    Ok(())
+}
+
+pub fn handle_change_signed_msg_ws_delegate_status<'c: 'info, 'info>(
+    ctx: Context<'_, '_, 'c, 'info, ChangeSignedMsgWsDelegateStatus<'info>>,
+    delegate: Pubkey,
+    add: bool,
+) -> Result<()> {
+    if add {
+        ctx.accounts
+            .signed_msg_ws_delegates
+            .delegates
+            .push(delegate);
+    } else {
+        ctx.accounts
+            .signed_msg_ws_delegates
+            .delegates
+            .retain(|&pubkey| pubkey != delegate);
+    }
+
     Ok(())
 }
 
@@ -3724,6 +3757,40 @@ pub struct ResizeSignedMsgUserOrders<'info> {
         realloc::zero = false,
     )]
     pub signed_msg_user_orders: Box<Account<'info, SignedMsgUserOrders>>,
+    #[account(mut)]
+    pub authority: Signer<'info>,
+    pub system_program: Program<'info, System>,
+}
+
+#[derive(Accounts)]
+#[instruction(delegates: Vec<Pubkey>)]
+pub struct InitializeSignedMsgWsDelegates<'info> {
+    #[account(
+        seeds = [SIGNED_MSG_WS_PDA_SEED.as_ref(), authority.key().as_ref()],
+        bump,
+        init,
+        space = 8 + 4 + delegates.len() * 32,
+        payer=authority
+    )]
+    pub signed_msg_ws_delegates: Account<'info, SignedMsgWsDelegates>,
+    #[account(mut)]
+    pub authority: Signer<'info>,
+    pub rent: Sysvar<'info, Rent>,
+    pub system_program: Program<'info, System>,
+}
+
+#[derive(Accounts)]
+#[instruction(_delegate: Pubkey, add: bool)]
+pub struct ChangeSignedMsgWsDelegateStatus<'info> {
+    #[account(
+        mut,
+        seeds = [SIGNED_MSG_WS_PDA_SEED.as_ref(), authority.key().as_ref()],
+        bump,
+        realloc = SignedMsgWsDelegates::space(&signed_msg_ws_delegates, add),
+        realloc::payer = authority,
+        realloc::zero = false,
+    )]
+    pub signed_msg_ws_delegates: Account<'info, SignedMsgWsDelegates>,
     #[account(mut)]
     pub authority: Signer<'info>,
     pub system_program: Program<'info, System>,

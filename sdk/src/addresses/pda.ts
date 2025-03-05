@@ -98,6 +98,19 @@ export function getSignedMsgUserAccountPublicKey(
 	)[0];
 }
 
+export function getSignedMsgWsDelegatesAccountPublicKey(
+	programId: PublicKey,
+	authority: PublicKey
+): PublicKey {
+	return PublicKey.findProgramAddressSync(
+		[
+			Buffer.from(anchor.utils.bytes.utf8.encode('SIGNED_MSG_WS')),
+			authority.toBuffer(),
+		],
+		programId
+	)[0];
+}
+
 export async function getPerpMarketPublicKey(
 	programId: PublicKey,
 	marketIndex: number
