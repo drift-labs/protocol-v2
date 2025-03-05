@@ -15,6 +15,7 @@ import {
 	PYTH_LAZER_STORAGE_ACCOUNT_KEY,
 	PTYH_LAZER_PROGRAM_ID,
 	getSignedMsgWsDelegatesAccountPublicKey,
+	assert,
 } from '../sdk/src';
 
 import { mockOracleNoProgram } from './testHelpers';
@@ -115,11 +116,67 @@ describe('place and make signedMsg order', () => {
 			);
 
 		const pubkeys = deserializePublicKeys(delegateAccountInfo.data.slice(8));
-		console.log(pubkeys);
+		assert(pubkeys.length === 1);
+		assert(pubkeys[0].equals(newPubkey));
+	});
+
+	it('maker can add ws delegates', async () => {
+		const newPubkey = new Keypair().publicKey;
+		const newPubkey2 = new Keypair().publicKey;
+		await makerDriftClient.addSignedMsgWsDelegate(
+			makerDriftClient.wallet.publicKey,
+			newPubkey
+		);
+
+		await makerDriftClient.addSignedMsgWsDelegate(
+			makerDriftClient.wallet.publicKey,
+			newPubkey2
+		);
+
+		const delegateAccountInfo =
+			await bankrunContextWrapper.connection.getAccountInfo(
+				getSignedMsgWsDelegatesAccountPublicKey(
+					makerDriftClient.program.programId,
+					makerDriftClient.wallet.publicKey
+				)
+			);
+
+		const pubkeys = deserializePublicKeys(delegateAccountInfo.data.slice(8));
+		assert(pubkeys.length === 3);
+		assert(pubkeys[1].equals(newPubkey));
+		assert(pubkeys[2].equals(newPubkey2));
+	});
+
+	it('maker can remove ws delegates', async () => {
+		const newPubkey = new Keypair().publicKey;
+		const newPubkey2 = new Keypair().publicKey;
+		await makerDriftClient.removeSignedMsgWsDelegate(
+			makerDriftClient.wallet.publicKey,
+			newPubkey
+		);
+
+		await makerDriftClient.removeSignedMsgWsDelegate(
+			makerDriftClient.wallet.publicKey,
+			newPubkey2
+		);
+
+		const delegateAccountInfo =
+			await bankrunContextWrapper.connection.getAccountInfo(
+				getSignedMsgWsDelegatesAccountPublicKey(
+					makerDriftClient.program.programId,
+					makerDriftClient.wallet.publicKey
+				)
+			);
+
+		const pubkeys = deserializePublicKeys(delegateAccountInfo.data.slice(8));
+		for (const pubkey of pubkeys) {
+			assert(!pubkey.equals(newPubkey) && !pubkey.equals(newPubkey2));
+		}
 	});
 });
 
 function deserializePublicKeys(buffer: Buffer): PublicKey[] {
+	console.log(buffer.length);
 	const numKeys = buffer.readUInt32LE(0);
 	const keys: PublicKey[] = [];
 	let offset = 4;

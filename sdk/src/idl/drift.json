@@ -189,25 +189,32 @@
       ]
     },
     {
-      "name": "addSignedMsgWsDelegates",
+      "name": "changeSignedMsgWsDelegateStatus",
       "accounts": [
         {
           "name": "signedMsgWsDelegates",
-          "isMut": false,
+          "isMut": true,
           "isSigner": false
         },
         {
           "name": "authority",
           "isMut": true,
           "isSigner": true
+        },
+        {
+          "name": "systemProgram",
+          "isMut": false,
+          "isSigner": false
         }
       ],
       "args": [
         {
-          "name": "delegates",
-          "type": {
-            "vec": "publicKey"
-          }
+          "name": "delegate",
+          "type": "publicKey"
+        },
+        {
+          "name": "add",
+          "type": "bool"
         }
       ]
     },

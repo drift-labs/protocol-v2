@@ -314,14 +314,23 @@ pub fn handle_initialize_signed_msg_ws_delegates<'c: 'info, 'info>(
     Ok(())
 }
 
-pub fn handle_add_signed_msg_ws_delegates<'c: 'info, 'info>(
-    ctx: Context<'_, '_, 'c, 'info, AddSignedMsgWsDelegates<'info>>,
-    delegates: Vec<Pubkey>,
+pub fn handle_change_signed_msg_ws_delegate_status<'c: 'info, 'info>(
+    ctx: Context<'_, '_, 'c, 'info, ChangeSignedMsgWsDelegateStatus<'info>>,
+    delegate: Pubkey,
+    add: bool,
 ) -> Result<()> {
-    ctx.accounts
-        .signed_msg_ws_delegates
-        .delegates
-        .extend(delegates);
+    if add {
+        ctx.accounts
+            .signed_msg_ws_delegates
+            .delegates
+            .push(delegate);
+    } else {
+        ctx.accounts
+            .signed_msg_ws_delegates
+            .delegates
+            .retain(|&pubkey| pubkey != delegate);
+    }
+
     Ok(())
 }
 
@@ -3754,12 +3763,13 @@ pub struct ResizeSignedMsgUserOrders<'info> {
 }
 
 #[derive(Accounts)]
+#[instruction(delegates: Vec<Pubkey>)]
 pub struct InitializeSignedMsgWsDelegates<'info> {
     #[account(
         seeds = [SIGNED_MSG_WS_PDA_SEED.as_ref(), authority.key().as_ref()],
         bump,
         init,
-        space = 12,
+        space = 8 + 4 + delegates.len() * 32,
         payer=authority
     )]
     pub signed_msg_ws_delegates: Account<'info, SignedMsgWsDelegates>,
@@ -3770,14 +3780,20 @@ pub struct InitializeSignedMsgWsDelegates<'info> {
 }
 
 #[derive(Accounts)]
-pub struct AddSignedMsgWsDelegates<'info> {
+#[instruction(_delegate: Pubkey, add: bool)]
+pub struct ChangeSignedMsgWsDelegateStatus<'info> {
     #[account(
+        mut,
         seeds = [SIGNED_MSG_WS_PDA_SEED.as_ref(), authority.key().as_ref()],
         bump,
+        realloc = SignedMsgWsDelegates::space(&signed_msg_ws_delegates, add),
+        realloc::payer = authority,
+        realloc::zero = false,
     )]
     pub signed_msg_ws_delegates: Account<'info, SignedMsgWsDelegates>,
     #[account(mut)]
     pub authority: Signer<'info>,
+    pub system_program: Program<'info, System>,
 }
 
 #[derive(Accounts)]

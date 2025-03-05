@@ -80,11 +80,12 @@ pub mod drift {
         handle_initialize_signed_msg_ws_delegates(ctx, delegates)
     }
 
-    pub fn add_signed_msg_ws_delegates<'c: 'info, 'info>(
-        ctx: Context<'_, '_, 'c, 'info, AddSignedMsgWsDelegates<'info>>,
-        delegates: Vec<Pubkey>,
+    pub fn change_signed_msg_ws_delegate_status<'c: 'info, 'info>(
+        ctx: Context<'_, '_, 'c, 'info, ChangeSignedMsgWsDelegateStatus<'info>>,
+        delegate: Pubkey,
+        add: bool,
     ) -> Result<()> {
-        handle_add_signed_msg_ws_delegates(ctx, delegates)
+        handle_change_signed_msg_ws_delegate_status(ctx, delegate, add)
     }
 
     pub fn initialize_fuel_overflow<'c: 'info, 'info>(

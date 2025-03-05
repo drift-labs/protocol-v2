@@ -241,3 +241,14 @@ pub fn derive_signed_msg_user_pda(user_account_pubkey: &Pubkey) -> DriftResult<P
 pub struct SignedMsgWsDelegates {
     pub delegates: Vec<Pubkey>,
 }
+
+impl SignedMsgWsDelegates {
+    pub fn space(&self, add: bool) -> usize {
+        let delegate_count = if add {
+            self.delegates.len() + 1
+        } else {
+            self.delegates.len()
+        };
+        8 + 4 + delegate_count * 32
+    }
+}
