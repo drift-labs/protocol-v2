@@ -1596,19 +1596,19 @@ pub fn handle_transfer_perp_position<'c: 'info, 'info>(
         )
     };
 
-    let transfer_price = standardize_price_i64(oracle_price, tick_size.cast()?, direction_to_close)?;
+    let transfer_price =
+        standardize_price_i64(oracle_price, tick_size.cast()?, direction_to_close)?;
 
-    let base_asset_value =
-        calculate_base_asset_value_with_oracle_price(transfer_amount.cast::<i128>()?, transfer_price)?
-            .cast::<u64>()?;
+    let base_asset_value = calculate_base_asset_value_with_oracle_price(
+        transfer_amount.cast::<i128>()?,
+        transfer_price,
+    )?
+    .cast::<u64>()?;
 
     let transfer_amount_abs = transfer_amount.unsigned_abs();
 
-    let from_user_position_delta = get_position_delta_for_fill(
-        transfer_amount_abs,
-        base_asset_value,
-        direction_to_close,
-    )?;
+    let from_user_position_delta =
+        get_position_delta_for_fill(transfer_amount_abs, base_asset_value, direction_to_close)?;
 
     let to_user_position_delta = get_position_delta_for_fill(
         transfer_amount_abs,
@@ -1616,7 +1616,9 @@ pub fn handle_transfer_perp_position<'c: 'info, 'info>(
         direction_to_close.opposite(),
     )?;
 
-    let to_user_existing_position_direction = to_user.force_get_perp_position_mut(market_index).map(|position| position.get_direction())?;
+    let to_user_existing_position_direction = to_user
+        .force_get_perp_position_mut(market_index)
+        .map(|position| position.get_direction())?;
 
     {
         let mut market = perp_market_map.get_ref_mut(&market_index)?;
@@ -1633,13 +1635,15 @@ pub fn handle_transfer_perp_position<'c: 'info, 'info>(
         validate_perp_position_with_perp_market(to_user_position, &market)?;
     }
 
-    let from_user_margin_calculation = calculate_margin_requirement_and_total_collateral_and_liability_info(
-        &from_user,
-        &perp_market_map,
-        &spot_market_map,
-        &mut oracle_map,
-        MarginContext::standard(MarginRequirementType::Maintenance).fuel_perp_delta(market_index, transfer_amount),
-    )?;
+    let from_user_margin_calculation =
+        calculate_margin_requirement_and_total_collateral_and_liability_info(
+            &from_user,
+            &perp_market_map,
+            &spot_market_map,
+            &mut oracle_map,
+            MarginContext::standard(MarginRequirementType::Maintenance)
+                .fuel_perp_delta(market_index, transfer_amount),
+        )?;
 
     validate!(
         from_user_margin_calculation.meets_margin_requirement(),
@@ -1647,13 +1651,15 @@ pub fn handle_transfer_perp_position<'c: 'info, 'info>(
         "from user margin requirement is greater than total collateral"
     )?;
 
-    let to_user_margin_requirement = calculate_margin_requirement_and_total_collateral_and_liability_info(
-        &to_user,
-        &perp_market_map,
-        &spot_market_map,
-        &mut oracle_map,
-        MarginContext::standard(MarginRequirementType::Initial).fuel_perp_delta(market_index, -transfer_amount),
-    )?;
+    let to_user_margin_requirement =
+        calculate_margin_requirement_and_total_collateral_and_liability_info(
+            &to_user,
+            &perp_market_map,
+            &spot_market_map,
+            &mut oracle_map,
+            MarginContext::standard(MarginRequirementType::Initial)
+                .fuel_perp_delta(market_index, -transfer_amount),
+        )?;
 
     validate!(
         to_user_margin_requirement.meets_margin_requirement(),
@@ -1693,7 +1699,7 @@ pub fn handle_transfer_perp_position<'c: 'info, 'info>(
     emit_stack::<_, { OrderRecord::SIZE }>(OrderRecord {
         ts: now,
         user: from_user_key,
-        order: from_user_order
+        order: from_user_order,
     })?;
 
     let to_user_order_id = get_then_update_id!(to_user, next_order_id);
@@ -1714,7 +1720,7 @@ pub fn handle_transfer_perp_position<'c: 'info, 'info>(
     emit_stack::<_, { OrderRecord::SIZE }>(OrderRecord {
         ts: now,
         user: to_user_key,
-        order: to_user_order
+        order: to_user_order,
     })?;
 
     let fill_record_id = get_then_update_id!(perp_market, next_fill_record_id);
