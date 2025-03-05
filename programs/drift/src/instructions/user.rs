@@ -1559,7 +1559,7 @@ pub fn handle_transfer_perp_position<'c: 'info, 'info>(
     drop(perp_market);
 
     let (transfer_amount, direction_to_close) = if let Some(amount) = amount {
-        let existing_position = from_user.get_perp_position(market_index)?;
+        let existing_position = from_user.force_get_perp_position_mut(market_index)?;
         let existing_base_asset_amount = existing_position.base_asset_amount;
 
         validate!(
@@ -1582,7 +1582,7 @@ pub fn handle_transfer_perp_position<'c: 'info, 'info>(
 
         (amount, existing_position.get_direction_to_close())
     } else {
-        let position = from_user.get_perp_position(market_index)?;
+        let position = from_user.force_get_perp_position_mut(market_index)?;
 
         validate!(
             position.base_asset_amount != 0,
@@ -1616,16 +1616,16 @@ pub fn handle_transfer_perp_position<'c: 'info, 'info>(
         direction_to_close.opposite(),
     )?;
 
-    let to_user_existing_position_direction = to_user.get_perp_position(market_index).map(|position| position.direction).unwrap_or(PositionDirection::Long);
+    let to_user_existing_position_direction = to_user.force_get_perp_position_mut(market_index).map(|position| position.get_direction())?;
 
     {
         let mut market = perp_market_map.get_ref_mut(&market_index)?;
 
-        let from_user_position = from_user.get_perp_position_mut(market_index)?;
+        let from_user_position = from_user.force_get_perp_position_mut(market_index)?;
 
         update_position_and_market(from_user_position, &mut market, &from_user_position_delta)?;
 
-        let to_user_position = to_user.get_perp_position_mut(market_index)?;
+        let to_user_position = to_user.force_get_perp_position_mut(market_index)?;
 
         update_position_and_market(to_user_position, &mut market, &to_user_position_delta)?;
 
@@ -1661,13 +1661,15 @@ pub fn handle_transfer_perp_position<'c: 'info, 'info>(
         "to user margin requirement is greater than total collateral"
     )?;
 
-    let perp_market = perp_market_map.get_ref(&market_index)?;
+    let mut perp_market = perp_market_map.get_ref_mut(&market_index)?;
     let oi_after = perp_market.get_open_interest();
 
     validate!(
-        oi_before <= oi_after,
+        oi_after <= oi_before,
         ErrorCode::InvalidTransferPerpPosition,
-        "open interest must decrease after transfer"
+        "open interest must not increase after transfer. oi_before: {}, oi_after: {}",
+        oi_before,
+        oi_after
     )?;
 
     from_user.update_last_active_slot(slot);
@@ -1715,10 +1717,7 @@ pub fn handle_transfer_perp_position<'c: 'info, 'info>(
         order: to_user_order
     })?;
 
-    let fill_record_id = {
-        let mut market = perp_market_map.get_ref_mut(&market_index)?;
-        get_then_update_id!(market, next_fill_record_id)
-    };
+    let fill_record_id = get_then_update_id!(perp_market, next_fill_record_id);
 
     let fill_record = OrderActionRecord {
         ts: now,
