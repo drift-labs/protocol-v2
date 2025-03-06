@@ -3,19 +3,12 @@ import { assert } from 'chai';
 
 import { Program } from '@coral-xyz/anchor';
 
-import { Keypair } from '@solana/web3.js';
-
 import {
 	TestClient,
 	BN,
 	PRICE_PRECISION,
 	PositionDirection,
-	User,
-	Wallet,
 	getMarketOrderParams,
-	OrderTriggerCondition,
-	getTriggerMarketOrderParams,
-	getTriggerLimitOrderParams,
 	OracleGuardRails,
 } from '../sdk/src';
 
@@ -25,15 +18,11 @@ import {
 	mockUserUSDCAccount,
 	setFeedPriceNoProgram,
 	initializeQuoteSpotMarket,
-	printTxLogs,
 } from './testHelpers';
 import {
 	BASE_PRECISION,
-	convertToNumber,
 	OracleSource,
 	PERCENTAGE_PRECISION,
-	QUOTE_PRECISION,
-	ZERO,
 } from '../sdk';
 import { startAnchor } from 'solana-bankrun';
 import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
