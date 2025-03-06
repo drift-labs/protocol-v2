@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Features
 
+- program: add transfer_perp_position ix ([#1514](https://github.com/drift-labs/protocol-v2/pull/1514))
+
 ### Fixes
 
 ### Breaking
