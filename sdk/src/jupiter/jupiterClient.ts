@@ -374,7 +374,7 @@ export class JupiterClient {
 		if (!('swapTransaction' in resp)) {
 			throw new Error(
 				`swapTransaction not found, error from Jupiter: ${resp.error} ${
-					', ' + resp.message ?? ''
+					', ' + (resp.message ?? '')
 				}`
 			);
 		}

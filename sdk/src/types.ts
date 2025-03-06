@@ -1011,7 +1011,7 @@ export type UserStatsAccount = {
 
 export type FuelOverflowAccount = {
 	authority: PublicKey;
-	fuelInsurance: number;
+	fuelInsurance: BN;
 	fuelDeposits: BN;
 	fuelBorrows: BN;
 	fuelPositions: BN;
