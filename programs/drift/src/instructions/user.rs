@@ -1,5 +1,6 @@
 use std::collections::HashSet;
 use std::convert::TryFrom;
+use std::ops::DerefMut;
 
 use anchor_lang::prelude::*;
 use anchor_lang::Discriminator;
@@ -12,6 +13,7 @@ use solana_program::program::invoke;
 use solana_program::system_instruction::transfer;
 
 use crate::controller::orders::{cancel_orders, ModifyOrderId};
+use crate::controller::position::update_position_and_market;
 use crate::controller::position::PositionDirection;
 use crate::controller::spot_balance::update_revenue_pool_balances;
 use crate::controller::spot_position::{
@@ -31,11 +33,18 @@ use crate::instructions::optional_accounts::{
 use crate::instructions::SpotFulfillmentType;
 use crate::math::casting::Cast;
 use crate::math::liquidation::is_user_being_liquidated;
+use crate::math::margin::calculate_margin_requirement_and_total_collateral_and_liability_info;
 use crate::math::margin::meets_initial_margin_requirement;
 use crate::math::margin::{
     calculate_max_withdrawable_amount, meets_maintenance_margin_requirement,
     meets_place_order_margin_requirement, validate_spot_margin_trading, MarginRequirementType,
 };
+use crate::math::oracle::is_oracle_valid_for_action;
+use crate::math::oracle::DriftAction;
+use crate::math::orders::get_position_delta_for_fill;
+use crate::math::orders::is_multiple_of_step_size;
+use crate::math::orders::standardize_price_i64;
+use crate::math::position::calculate_base_asset_value_with_oracle_price;
 use crate::math::safe_math::SafeMath;
 use crate::math::spot_balance::get_token_value;
 use crate::math::spot_swap;
@@ -45,6 +54,10 @@ use crate::optional_accounts::{get_token_interface, get_token_mint};
 use crate::print_error;
 use crate::safe_decrement;
 use crate::safe_increment;
+use crate::state::events::emit_stack;
+use crate::state::events::OrderAction;
+use crate::state::events::OrderActionRecord;
+use crate::state::events::OrderRecord;
 use crate::state::events::{
     DepositDirection, DepositExplanation, DepositRecord, FuelSeasonRecord, FuelSweepRecord,
     LPAction, LPRecord, NewUserRecord, OrderActionExplanation, SwapRecord,
@@ -55,6 +68,7 @@ use crate::state::fulfillment_params::openbook_v2::OpenbookV2FulfillmentParams;
 use crate::state::fulfillment_params::phoenix::PhoenixFulfillmentParams;
 use crate::state::fulfillment_params::serum::SerumFulfillmentParams;
 use crate::state::high_leverage_mode_config::HighLeverageModeConfig;
+use crate::state::margin_calculation::MarginContext;
 use crate::state::oracle::StrictOraclePrice;
 use crate::state::order_params::{
     parse_optional_params, ModifyOrderParams, OrderParams, PlaceAndTakeOrderSuccessCondition,
@@ -78,6 +92,8 @@ use crate::state::spot_market_map::{
 };
 use crate::state::state::State;
 use crate::state::traits::Size;
+use crate::state::user::Order;
+use crate::state::user::OrderStatus;
 use crate::state::user::ReferrerStatus;
 use crate::state::user::{
     FuelOverflow, FuelOverflowProvider, MarginMode, MarketType, OrderType, ReferrerName, User,
@@ -85,6 +101,7 @@ use crate::state::user::{
 };
 use crate::state::user_map::{load_user_maps, UserMap, UserStatsMap};
 use crate::validate;
+use crate::validation::position::validate_perp_position_with_perp_market;
 use crate::validation::user::validate_user_deletion;
 use crate::validation::whitelist::validate_whitelist_token;
 use crate::{controller, math};
@@ -1498,6 +1515,316 @@ pub fn handle_transfer_pools<'c: 'info, 'info>(
         &borrow_to_spot_market,
         ctx.accounts.borrow_to_spot_market_vault.amount,
     )?;
+
+    Ok(())
+}
+
+#[access_control(
+    fill_not_paused(&ctx.accounts.state)
+)]
+pub fn handle_transfer_perp_position<'c: 'info, 'info>(
+    ctx: Context<'_, '_, 'c, 'info, TransferPerpPosition<'info>>,
+    market_index: u16,
+    amount: Option<i64>,
+) -> anchor_lang::Result<()> {
+    let authority_key = ctx.accounts.authority.key;
+    let to_user_key = ctx.accounts.to_user.key();
+    let from_user_key = ctx.accounts.from_user.key();
+
+    let state = &ctx.accounts.state;
+    let clock = Clock::get()?;
+    let slot = clock.slot;
+
+    let mut to_user = &mut load_mut!(ctx.accounts.to_user)?;
+    let mut from_user = &mut load_mut!(ctx.accounts.from_user)?;
+    let user_stats = &mut load_mut!(ctx.accounts.user_stats)?;
+
+    let clock = Clock::get()?;
+    let now = clock.unix_timestamp;
+
+    validate!(
+        !to_user.is_bankrupt(),
+        ErrorCode::UserBankrupt,
+        "to_user bankrupt"
+    )?;
+
+    validate!(
+        !from_user.is_bankrupt(),
+        ErrorCode::UserBankrupt,
+        "from_user bankrupt"
+    )?;
+
+    validate!(
+        from_user_key != to_user_key,
+        ErrorCode::CantTransferBetweenSameUserAccount,
+        "cant transfer between the same user account"
+    )?;
+
+    let AccountMaps {
+        perp_market_map,
+        spot_market_map,
+        mut oracle_map,
+    } = load_maps(
+        &mut ctx.remaining_accounts.iter().peekable(),
+        &get_writable_perp_market_set(market_index),
+        &MarketSet::new(),
+        clock.slot,
+        Some(state.oracle_guard_rails),
+    )?;
+
+    controller::repeg::update_amm(
+        market_index,
+        &perp_market_map,
+        &mut oracle_map,
+        &ctx.accounts.state,
+        &clock,
+    )?;
+
+    controller::lp::settle_funding_payment_then_lp(
+        &mut from_user,
+        &from_user_key,
+        perp_market_map.get_ref_mut(&market_index)?.deref_mut(),
+        now,
+    )?;
+
+    controller::lp::settle_funding_payment_then_lp(
+        &mut to_user,
+        &to_user_key,
+        perp_market_map.get_ref_mut(&market_index)?.deref_mut(),
+        now,
+    )?;
+
+    let perp_market = perp_market_map.get_ref(&market_index)?;
+    let oi_before = perp_market.get_open_interest();
+    let (oracle_price_data, oracle_validity) = oracle_map.get_price_data_and_validity(
+        MarketType::Perp,
+        market_index,
+        &perp_market.oracle_id(),
+        perp_market
+            .amm
+            .historical_oracle_data
+            .last_oracle_price_twap,
+        perp_market.get_max_confidence_interval_multiplier()?,
+    )?;
+    let step_size = perp_market.amm.order_step_size;
+    let tick_size = perp_market.amm.order_tick_size;
+
+    validate!(
+        is_oracle_valid_for_action(oracle_validity, Some(DriftAction::MarginCalc))?,
+        ErrorCode::InvalidTransferPerpPosition,
+        "oracle is not valid for action"
+    )?;
+
+    validate!(
+        !perp_market.is_operation_paused(PerpOperation::Fill),
+        ErrorCode::InvalidTransferPerpPosition,
+        "perp market fills paused"
+    )?;
+
+    let oracle_price = oracle_price_data.price;
+    drop(oracle_price_data);
+
+    drop(perp_market);
+
+    let (transfer_amount, direction_to_close) = if let Some(amount) = amount {
+        let existing_position = from_user.force_get_perp_position_mut(market_index)?;
+        let existing_base_asset_amount = existing_position.base_asset_amount;
+
+        validate!(
+            amount.signum() == existing_base_asset_amount.signum(),
+            ErrorCode::InvalidTransferPerpPosition,
+            "transfer perp position must reduce position (direction is opposite)"
+        )?;
+
+        validate!(
+            amount.abs() <= existing_base_asset_amount.abs(),
+            ErrorCode::InvalidTransferPerpPosition,
+            "transfer perp position amount is greater than existing position"
+        )?;
+
+        validate!(
+            is_multiple_of_step_size(amount.unsigned_abs(), step_size)?,
+            ErrorCode::InvalidTransferPerpPosition,
+            "transfer perp position amount is not a multiple of step size"
+        )?;
+
+        (amount, existing_position.get_direction_to_close())
+    } else {
+        let position = from_user.force_get_perp_position_mut(market_index)?;
+
+        validate!(
+            position.base_asset_amount != 0,
+            ErrorCode::InvalidTransferPerpPosition,
+            "from user has no position"
+        )?;
+
+        (
+            position.base_asset_amount,
+            position.get_direction_to_close(),
+        )
+    };
+
+    let transfer_price =
+        standardize_price_i64(oracle_price, tick_size.cast()?, direction_to_close)?;
+
+    let base_asset_value = calculate_base_asset_value_with_oracle_price(
+        transfer_amount.cast::<i128>()?,
+        transfer_price,
+    )?
+    .cast::<u64>()?;
+
+    let transfer_amount_abs = transfer_amount.unsigned_abs();
+
+    let from_user_position_delta =
+        get_position_delta_for_fill(transfer_amount_abs, base_asset_value, direction_to_close)?;
+
+    let to_user_position_delta = get_position_delta_for_fill(
+        transfer_amount_abs,
+        base_asset_value,
+        direction_to_close.opposite(),
+    )?;
+
+    let to_user_existing_position_direction = to_user
+        .force_get_perp_position_mut(market_index)
+        .map(|position| position.get_direction())?;
+
+    {
+        let mut market = perp_market_map.get_ref_mut(&market_index)?;
+
+        let from_user_position = from_user.force_get_perp_position_mut(market_index)?;
+
+        update_position_and_market(from_user_position, &mut market, &from_user_position_delta)?;
+
+        let to_user_position = to_user.force_get_perp_position_mut(market_index)?;
+
+        update_position_and_market(to_user_position, &mut market, &to_user_position_delta)?;
+
+        validate_perp_position_with_perp_market(from_user_position, &market)?;
+        validate_perp_position_with_perp_market(to_user_position, &market)?;
+    }
+
+    let from_user_margin_calculation =
+        calculate_margin_requirement_and_total_collateral_and_liability_info(
+            &from_user,
+            &perp_market_map,
+            &spot_market_map,
+            &mut oracle_map,
+            MarginContext::standard(MarginRequirementType::Maintenance)
+                .fuel_perp_delta(market_index, transfer_amount),
+        )?;
+
+    validate!(
+        from_user_margin_calculation.meets_margin_requirement(),
+        ErrorCode::InsufficientCollateral,
+        "from user margin requirement is greater than total collateral"
+    )?;
+
+    let to_user_margin_requirement =
+        calculate_margin_requirement_and_total_collateral_and_liability_info(
+            &to_user,
+            &perp_market_map,
+            &spot_market_map,
+            &mut oracle_map,
+            MarginContext::standard(MarginRequirementType::Initial)
+                .fuel_perp_delta(market_index, -transfer_amount),
+        )?;
+
+    validate!(
+        to_user_margin_requirement.meets_margin_requirement(),
+        ErrorCode::InsufficientCollateral,
+        "to user margin requirement is greater than total collateral"
+    )?;
+
+    let mut perp_market = perp_market_map.get_ref_mut(&market_index)?;
+    let oi_after = perp_market.get_open_interest();
+
+    validate!(
+        oi_after <= oi_before,
+        ErrorCode::InvalidTransferPerpPosition,
+        "open interest must not increase after transfer. oi_before: {}, oi_after: {}",
+        oi_before,
+        oi_after
+    )?;
+
+    from_user.update_last_active_slot(slot);
+    to_user.update_last_active_slot(slot);
+
+    let from_user_order_id = get_then_update_id!(from_user, next_order_id);
+    let from_user_order = Order {
+        slot,
+        base_asset_amount: transfer_amount_abs,
+        order_id: from_user_order_id,
+        market_index,
+        status: OrderStatus::Open,
+        order_type: OrderType::Limit,
+        market_type: MarketType::Perp,
+        price: transfer_price.unsigned_abs(),
+        direction: direction_to_close,
+        existing_position_direction: direction_to_close.opposite(),
+        ..Order::default()
+    };
+
+    emit_stack::<_, { OrderRecord::SIZE }>(OrderRecord {
+        ts: now,
+        user: from_user_key,
+        order: from_user_order,
+    })?;
+
+    let to_user_order_id = get_then_update_id!(to_user, next_order_id);
+    let to_user_order = Order {
+        slot,
+        base_asset_amount: transfer_amount_abs,
+        order_id: to_user_order_id,
+        market_index,
+        status: OrderStatus::Open,
+        order_type: OrderType::Limit,
+        market_type: MarketType::Perp,
+        price: transfer_price.unsigned_abs(),
+        direction: direction_to_close.opposite(),
+        existing_position_direction: to_user_existing_position_direction,
+        ..Order::default()
+    };
+
+    emit_stack::<_, { OrderRecord::SIZE }>(OrderRecord {
+        ts: now,
+        user: to_user_key,
+        order: to_user_order,
+    })?;
+
+    let fill_record_id = get_then_update_id!(perp_market, next_fill_record_id);
+
+    let fill_record = OrderActionRecord {
+        ts: now,
+        action: OrderAction::Fill,
+        action_explanation: OrderActionExplanation::TransferPerpPosition,
+        market_index,
+        market_type: MarketType::Perp,
+        filler: None,
+        filler_reward: None,
+        fill_record_id: Some(fill_record_id),
+        base_asset_amount_filled: Some(transfer_amount_abs),
+        quote_asset_amount_filled: Some(base_asset_value),
+        taker_fee: None,
+        maker_fee: None,
+        referrer_reward: None,
+        quote_asset_amount_surplus: None,
+        spot_fulfillment_method_fee: None,
+        taker: Some(to_user_key),
+        taker_order_id: Some(to_user_order_id),
+        taker_order_direction: Some(direction_to_close.opposite()),
+        taker_order_base_asset_amount: Some(transfer_amount_abs),
+        taker_order_cumulative_base_asset_amount_filled: Some(transfer_amount_abs),
+        taker_order_cumulative_quote_asset_amount_filled: Some(base_asset_value),
+        maker: Some(from_user_key),
+        maker_order_id: Some(from_user_order_id),
+        maker_order_direction: Some(direction_to_close),
+        maker_order_base_asset_amount: Some(transfer_amount_abs),
+        maker_order_cumulative_base_asset_amount_filled: Some(transfer_amount_abs),
+        maker_order_cumulative_quote_asset_amount_filled: Some(base_asset_value),
+        oracle_price,
+    };
+
+    emit_stack::<_, { OrderActionRecord::SIZE }>(fill_record)?;
 
     Ok(())
 }
@@ -4049,6 +4376,27 @@ pub struct TransferPools<'info> {
     )]
     /// CHECK: forced drift_signer
     pub drift_signer: AccountInfo<'info>,
+}
+
+#[derive(Accounts)]
+pub struct TransferPerpPosition<'info> {
+    #[account(
+        mut,
+        has_one = authority,
+    )]
+    pub from_user: AccountLoader<'info, User>,
+    #[account(
+        mut,
+        has_one = authority,
+    )]
+    pub to_user: AccountLoader<'info, User>,
+    #[account(
+        mut,
+        has_one = authority
+    )]
+    pub user_stats: AccountLoader<'info, UserStats>,
+    pub authority: Signer<'info>,
+    pub state: Box<Account<'info, State>>,
 }
 
 #[derive(Accounts)]
