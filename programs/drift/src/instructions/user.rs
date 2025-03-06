@@ -1567,7 +1567,10 @@ pub fn handle_transfer_perp_position<'c: 'info, 'info>(
         MarketType::Perp,
         market_index,
         &perp_market.oracle_id(),
-        perp_market.amm.historical_oracle_data.last_oracle_price_twap,
+        perp_market
+            .amm
+            .historical_oracle_data
+            .last_oracle_price_twap,
         perp_market.get_max_confidence_interval_multiplier()?,
     )?;
     let step_size = perp_market.amm.order_step_size;
