@@ -3431,6 +3431,71 @@ export class DriftClient {
 		);
 	}
 
+	public async transferPerpPosition(
+		fromSubAccountId: number,
+		toSubAccountId: number,
+		marketIndex: number,
+		amount: BN,
+		txParams?: TxParams
+	): Promise<TransactionSignature> {
+		const { txSig } = await this.sendTransaction(
+			await this.buildTransaction(
+				await this.getTransferPerpPositionIx(
+					fromSubAccountId,
+					toSubAccountId,
+					marketIndex,
+					amount
+				),
+				txParams
+			),
+			[],
+			this.opts
+		);
+		return txSig;
+	}
+
+	public async getTransferPerpPositionIx(
+		fromSubAccountId: number,
+		toSubAccountId: number,
+		marketIndex: number,
+		amount: BN
+	): Promise<TransactionInstruction> {
+		const fromUser = await getUserAccountPublicKey(
+			this.program.programId,
+			this.wallet.publicKey,
+			fromSubAccountId
+		);
+		const toUser = await getUserAccountPublicKey(
+			this.program.programId,
+			this.wallet.publicKey,
+			toSubAccountId
+		);
+
+		const remainingAccounts = this.getRemainingAccounts({
+			userAccounts: [
+				this.getUserAccount(fromSubAccountId),
+				this.getUserAccount(toSubAccountId),
+			],
+			useMarketLastSlotCache: true,
+			writablePerpMarketIndexes: [marketIndex],
+		});
+
+		return await this.program.instruction.transferPerpPosition(
+			marketIndex,
+			amount ?? null,
+			{
+				accounts: {
+					authority: this.wallet.publicKey,
+					fromUser,
+					toUser,
+					userStats: this.getUserStatsAccountPublicKey(),
+					state: await this.getStatePublicKey(),
+				},
+				remainingAccounts,
+			}
+		);
+	}
+
 	public async updateSpotMarketCumulativeInterest(
 		marketIndex: number,
 		txParams?: TxParams

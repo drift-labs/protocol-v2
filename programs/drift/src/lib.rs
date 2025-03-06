@@ -159,6 +159,14 @@ pub mod drift {
         )
     }
 
+    pub fn transfer_perp_position<'c: 'info, 'info>(
+        ctx: Context<'_, '_, 'c, 'info, TransferPerpPosition<'info>>,
+        market_index: u16,
+        amount: Option<i64>,
+    ) -> Result<()> {
+        handle_transfer_perp_position(ctx, market_index, amount)
+    }
+
     pub fn place_perp_order<'c: 'info, 'info>(
         ctx: Context<'_, '_, 'c, 'info, PlaceOrder>,
         params: OrderParams,

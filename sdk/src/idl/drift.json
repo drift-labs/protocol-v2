@@ -601,6 +601,48 @@
       ]
     },
     {
+      "name": "transferPerpPosition",
+      "accounts": [
+        {
+          "name": "fromUser",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "toUser",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "userStats",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "marketIndex",
+          "type": "u16"
+        },
+        {
+          "name": "amount",
+          "type": {
+            "option": "i64"
+          }
+        }
+      ]
+    },
+    {
       "name": "placePerpOrder",
       "accounts": [
         {
@@ -11356,6 +11398,9 @@
           },
           {
             "name": "OrderFilledWithOpenbookV2"
+          },
+          {
+            "name": "TransferPerpPosition"
           }
         ]
       }
@@ -14930,6 +14975,11 @@
       "code": 6311,
       "name": "FuelOverflowAccountNotFound",
       "msg": "FuelOverflow account not found"
+    },
+    {
+      "code": 6312,
+      "name": "InvalidTransferPerpPosition",
+      "msg": "Invalid Transfer Perp Position"
     }
   ],
   "metadata": {
