@@ -1594,37 +1594,40 @@ pub fn handle_transfer_perp_position<'c: 'info, 'info>(
         now,
     )?;
 
-    let perp_market = perp_market_map.get_ref(&market_index)?;
-    let oi_before = perp_market.get_open_interest();
-    let (oracle_price_data, oracle_validity) = oracle_map.get_price_data_and_validity(
-        MarketType::Perp,
-        market_index,
-        &perp_market.oracle_id(),
-        perp_market
-            .amm
-            .historical_oracle_data
-            .last_oracle_price_twap,
-        perp_market.get_max_confidence_interval_multiplier()?,
-    )?;
-    let step_size = perp_market.amm.order_step_size;
-    let tick_size = perp_market.amm.order_tick_size;
-
-    validate!(
-        is_oracle_valid_for_action(oracle_validity, Some(DriftAction::MarginCalc))?,
-        ErrorCode::InvalidTransferPerpPosition,
-        "oracle is not valid for action"
-    )?;
-
-    validate!(
-        !perp_market.is_operation_paused(PerpOperation::Fill),
-        ErrorCode::InvalidTransferPerpPosition,
-        "perp market fills paused"
-    )?;
-
-    let oracle_price = oracle_price_data.price;
-    drop(oracle_price_data);
-
-    drop(perp_market);
+    let oi_before;
+    let oracle_price;
+    let step_size;
+    let tick_size;
+    {
+        let perp_market = perp_market_map.get_ref(&market_index)?;
+        oi_before = perp_market.get_open_interest();
+        let (oracle_price_data, oracle_validity) = oracle_map.get_price_data_and_validity(
+            MarketType::Perp,
+            market_index,
+            &perp_market.oracle_id(),
+            perp_market
+                .amm
+                .historical_oracle_data
+                .last_oracle_price_twap,
+            perp_market.get_max_confidence_interval_multiplier()?,
+        )?;
+        step_size = perp_market.amm.order_step_size;
+        tick_size = perp_market.amm.order_tick_size;
+    
+        validate!(
+            is_oracle_valid_for_action(oracle_validity, Some(DriftAction::MarginCalc))?,
+            ErrorCode::InvalidTransferPerpPosition,
+            "oracle is not valid for action"
+        )?;
+    
+        validate!(
+            !perp_market.is_operation_paused(PerpOperation::Fill),
+            ErrorCode::InvalidTransferPerpPosition,
+            "perp market fills paused"
+        )?;
+    
+        oracle_price = oracle_price_data.price;
+    }
 
     let (transfer_amount, direction_to_close) = if let Some(amount) = amount {
         let existing_position = from_user.force_get_perp_position_mut(market_index)?;
