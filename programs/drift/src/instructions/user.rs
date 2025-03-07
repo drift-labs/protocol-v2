@@ -1609,19 +1609,19 @@ pub fn handle_transfer_perp_position<'c: 'info, 'info>(
         )?;
         step_size = perp_market.amm.order_step_size;
         tick_size = perp_market.amm.order_tick_size;
-    
+
         validate!(
             is_oracle_valid_for_action(oracle_validity, Some(DriftAction::MarginCalc))?,
             ErrorCode::InvalidTransferPerpPosition,
             "oracle is not valid for action"
         )?;
-    
+
         validate!(
             !perp_market.is_operation_paused(PerpOperation::Fill),
             ErrorCode::InvalidTransferPerpPosition,
             "perp market fills paused"
         )?;
-    
+
         oracle_price = oracle_price_data.price;
     }
 
