@@ -16,6 +16,7 @@ import nacl from 'tweetnacl';
 import { decodeUTF8 } from 'tweetnacl-util';
 import WebSocket from 'ws';
 
+// In practice, this for now is just an OrderSubscriber or a UserMap
 export interface AccountGetter {
 	mustGetUserAccount(publicKey: string): Promise<UserAccount>;
 }
@@ -39,7 +40,7 @@ export class SwiftOrderSubscriber {
 	private readonly heartbeatIntervalMs = 60000;
 	private ws: WebSocket | null = null;
 	private driftClient: DriftClient;
-	public userAccountGetter?: AccountGetter;
+	public userAccountGetter?: AccountGetter; // In practice, this for now is just an OrderSubscriber or a UserMap
 	public onOrder: (
 		orderMessageRaw: any,
 		signedMsgOrderParamsMessage: SignedMsgOrderParamsMessage
