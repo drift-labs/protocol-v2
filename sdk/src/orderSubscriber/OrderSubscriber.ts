@@ -245,6 +245,28 @@ export class OrderSubscriber {
 		return this.mostRecentSlot ?? 0;
 	}
 
+	public async addPubkey(userAccountPublicKey: PublicKey): Promise<void> {
+		const accountInfo =
+			await this.driftClient.connection.getAccountInfoAndContext(
+				userAccountPublicKey
+			);
+		if (accountInfo) {
+			this.tryUpdateUserAccount(
+				userAccountPublicKey.toString(),
+				'buffer',
+				accountInfo.value.data,
+				accountInfo.context.slot
+			);
+		}
+	}
+
+	public async mustGetUserAccount(key: string): Promise<UserAccount> {
+		if (!this.usersAccounts.has(key)) {
+			await this.addPubkey(new PublicKey(key));
+		}
+		return this.usersAccounts.get(key).userAccount;
+	}
+
 	public async unsubscribe(): Promise<void> {
 		this.usersAccounts.clear();
 		await this.subscription.unsubscribe();

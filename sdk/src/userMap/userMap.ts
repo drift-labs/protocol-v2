@@ -263,6 +263,11 @@ export class UserMap implements UserMapInterface {
 		return this.userMap.get(key);
 	}
 
+	public async mustGetUserAccount(key: string): Promise<UserAccount> {
+		const user = await this.mustGet(key);
+		return user.getUserAccount();
+	}
+
 	/**
 	 * gets the Authority for a particular userAccountPublicKey, if no User exists, undefined is returned
 	 * @param key userAccountPublicKey to get User for

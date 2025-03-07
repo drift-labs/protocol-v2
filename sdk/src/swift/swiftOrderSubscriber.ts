@@ -9,16 +9,20 @@ import {
 	OptionalOrderParams,
 	PostOnlyParams,
 	SignedMsgOrderParamsMessage,
-	UserMap,
+	UserAccount,
 } from '..';
 import { Keypair, PublicKey, TransactionInstruction } from '@solana/web3.js';
 import nacl from 'tweetnacl';
 import { decodeUTF8 } from 'tweetnacl-util';
 import WebSocket from 'ws';
 
+export interface AccountGetter {
+	mustGetUserAccount(publicKey: string): Promise<UserAccount>;
+}
+
 export type SwiftOrderSubscriberConfig = {
 	driftClient: DriftClient;
-	userMap: UserMap;
+	userAccountGetter?: AccountGetter;
 	driftEnv: DriftEnv;
 	endpoint?: string;
 	marketIndexes: number[];
@@ -35,7 +39,7 @@ export class SwiftOrderSubscriber {
 	private readonly heartbeatIntervalMs = 60000;
 	private ws: WebSocket | null = null;
 	private driftClient: DriftClient;
-	public userMap: UserMap;
+	public userAccountGetter?: AccountGetter;
 	public onOrder: (
 		orderMessageRaw: any,
 		signedMsgOrderParamsMessage: SignedMsgOrderParamsMessage
@@ -45,7 +49,7 @@ export class SwiftOrderSubscriber {
 
 	constructor(private config: SwiftOrderSubscriberConfig) {
 		this.driftClient = config.driftClient;
-		this.userMap = config.userMap;
+		this.userAccountGetter = config.userAccountGetter;
 	}
 
 	getSymbolForMarketIndex(marketIndex: number): string {
@@ -163,6 +167,10 @@ export class SwiftOrderSubscriber {
 		signedMsgOrderParamsMessage: SignedMsgOrderParamsMessage,
 		makerOrderParams: OptionalOrderParams
 	): Promise<TransactionInstruction[]> {
+		if (!this.userAccountGetter) {
+			throw new Error('userAccountGetter must be set to use this function');
+		}
+
 		const signedMsgOrderParamsBuf = Buffer.from(
 			orderMessageRaw['order_message'],
 			'hex'
@@ -176,9 +184,9 @@ export class SwiftOrderSubscriber {
 			takerAuthority,
 			signedMsgOrderParamsMessage.subAccountId
 		);
-		const takerUserAccount = (
-			await this.userMap.mustGet(takerUserPubkey.toString())
-		).getUserAccount();
+		const takerUserAccount = await this.userAccountGetter.mustGetUserAccount(
+			takerUserPubkey.toString()
+		);
 		const ixs = await this.driftClient.getPlaceAndMakeSignedMsgPerpOrderIxs(
 			{
 				orderParams: signedMsgOrderParamsBuf,
