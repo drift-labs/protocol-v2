@@ -248,7 +248,8 @@ export class OrderSubscriber {
 	public async addPubkey(userAccountPublicKey: PublicKey): Promise<void> {
 		const accountInfo =
 			await this.driftClient.connection.getAccountInfoAndContext(
-				userAccountPublicKey
+				userAccountPublicKey,
+				this.commitment
 			);
 		if (accountInfo) {
 			this.tryUpdateUserAccount(
