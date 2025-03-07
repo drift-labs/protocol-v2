@@ -30,6 +30,7 @@ export type OrderSubscriberConfig = {
 		  };
 	fastDecode?: boolean;
 	decodeData?: boolean;
+	fetchAllNonIdleUsers?: boolean;
 };
 
 export interface OrderSubscriberEvents {
