@@ -1,5 +1,3 @@
-use std::cmp::max;
-
 use borsh::{BorshDeserialize, BorshSerialize};
 use solana_program::msg;
 

@@ -1,4 +1,3 @@
-use std::collections::HashSet;
 use std::convert::TryFrom;
 use std::ops::DerefMut;
 
@@ -1069,7 +1068,6 @@ pub fn handle_transfer_pools<'c: 'info, 'info>(
     let user_stats = &mut load_mut!(ctx.accounts.user_stats)?;
 
     let clock = Clock::get()?;
-    let now = clock.unix_timestamp;
 
     validate!(
         !to_user.is_bankrupt(),
@@ -1527,7 +1525,6 @@ pub fn handle_transfer_perp_position<'c: 'info, 'info>(
     market_index: u16,
     amount: Option<i64>,
 ) -> anchor_lang::Result<()> {
-    let authority_key = ctx.accounts.authority.key;
     let to_user_key = ctx.accounts.to_user.key();
     let from_user_key = ctx.accounts.from_user.key();
 
@@ -1537,7 +1534,6 @@ pub fn handle_transfer_perp_position<'c: 'info, 'info>(
 
     let mut to_user = &mut load_mut!(ctx.accounts.to_user)?;
     let mut from_user = &mut load_mut!(ctx.accounts.from_user)?;
-    let user_stats = &mut load_mut!(ctx.accounts.user_stats)?;
 
     let clock = Clock::get()?;
     let now = clock.unix_timestamp;
