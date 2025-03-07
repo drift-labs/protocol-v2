@@ -242,6 +242,9 @@ export class OrderActionExplanation {
 	static readonly DERISK_LP = {
 		deriskLp: {},
 	};
+	static readonly TRANSFER_PERP_POSITION = {
+		transferPerpPosition: {},
+	};
 }
 
 export class OrderTriggerCondition {
