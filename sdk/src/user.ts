@@ -69,6 +69,7 @@ import {
 	SpotBalanceType,
 	SpotMarketAccount,
 	standardizeBaseAssetAmount,
+	UserStats,
 } from '.';
 import {
 	calculateAssetWeight,
@@ -907,7 +908,8 @@ export class User {
 	public getFuelBonus(
 		now: BN,
 		includeSettled = true,
-		includeUnsettled = true
+		includeUnsettled = true,
+		givenUserStats?: UserStats
 	): {
 		depositFuel: BN;
 		borrowFuel: BN;
@@ -927,7 +929,7 @@ export class User {
 			positionFuel: ZERO,
 		};
 
-		const userStats = this.driftClient.getUserStats();
+		const userStats = givenUserStats ?? this.driftClient.getUserStats();
 		const userStatsAccount: UserStatsAccount = userStats.getAccount();
 
 		if (includeSettled) {
