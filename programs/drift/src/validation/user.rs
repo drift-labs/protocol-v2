@@ -48,7 +48,7 @@ pub fn validate_user_deletion(
 
     for order in &user.orders {
         validate!(
-            order.status == OrderStatus::Init,
+            order.is_available(),
             ErrorCode::UserCantBeDeleted,
             "user has an open order"
         )?;
@@ -126,7 +126,7 @@ pub fn validate_user_is_idle(user: &User, slot: u64, accelerated: bool) -> Drift
 
     for order in &user.orders {
         validate!(
-            order.status == OrderStatus::Init,
+            order.is_available(),
             ErrorCode::UserNotInactive,
             "user has an open order"
         )?;
