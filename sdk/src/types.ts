@@ -1164,7 +1164,7 @@ export const DefaultOrderParams: OrderParams = {
 };
 
 export type SignedMsgOrderParamsMessage = {
-	signedMsgOrderParams: OptionalOrderParams;
+	signedMsgOrderParams: OrderParams;
 	subAccountId: number;
 	slot: BN;
 	uuid: Uint8Array;
