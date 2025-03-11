@@ -2671,22 +2671,9 @@ export class User {
 	}
 
 	/**
-	 * Get the maximum trade size for a given market, taking into account the user's current leverage, positions, collateral, etc.
-	 *
-	 * To Calculate Max Quote Available:
-	 *
-	 * Case 1: SameSide
-	 * 	=> Remaining quote to get to maxLeverage
-	 *
-	 * Case 2: NOT SameSide && currentLeverage <= maxLeverage
-	 * 	=> Current opposite position x2 + remaining to get to maxLeverage
-	 *
-	 * Case 3: NOT SameSide && currentLeverage > maxLeverage && otherPositions - currentPosition > maxLeverage
-	 * 	=> strictly reduce current position size
-	 *
-	 * Case 4: NOT SameSide && currentLeverage > maxLeverage && otherPositions - currentPosition < maxLeverage
-	 * 	=> current position + remaining to get to maxLeverage
-	 *
+	 * Separates the max trade size into two parts:
+	 * - tradeSize: The maximum trade size for target direction
+	 * - oppositeSideTradeSize: the trade size for closing the opposite direction
 	 * @param targetMarketIndex
 	 * @param tradeSide
 	 * @param isLp

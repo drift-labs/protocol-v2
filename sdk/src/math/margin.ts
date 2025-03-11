@@ -350,7 +350,7 @@ export function calculateUserMaxPerpOrderSize(
 	userAccount: UserAccount,
 	targetMarketIndex: number,
 	tradeSide: PositionDirection
-): BN {
+): { tradeSize: BN; oppositeSideTradeSize: BN } {
 	const userAccountSubscriber = new OneShotUserAccountSubscriber(
 		driftClient.program,
 		userAccountKey,
@@ -368,10 +368,5 @@ export function calculateUserMaxPerpOrderSize(
 
 	user.isSubscribed = true;
 
-	const { tradeSize, oppositeSideTradeSize } = user.getMaxTradeSizeUSDCForPerp(
-		targetMarketIndex,
-		tradeSide
-	);
-
-	return tradeSize.add(oppositeSideTradeSize);
+	return user.getMaxTradeSizeUSDCForPerp(targetMarketIndex, tradeSide);
 }
