@@ -110,10 +110,10 @@ macro_rules! digest_struct_hex {
 macro_rules! msg {
     ($msg:expr) => {
         #[cfg(not(feature = "drift-rs"))]
-        $crate::sol_log($msg)
+        solana_program::msg!($msg)
     };
     ($($arg:tt)*) => {
         #[cfg(not(feature = "drift-rs"))]
-        ($crate::sol_log(&format!($($arg)*)));
+        (solana_program::msg!(&format!($($arg)*)));
     }
 }

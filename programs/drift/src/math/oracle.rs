@@ -1,5 +1,4 @@
 use borsh::{BorshDeserialize, BorshSerialize};
-use solana_program::msg;
 
 use crate::error::{DriftResult, ErrorCode};
 use crate::math::amm;
