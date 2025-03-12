@@ -280,7 +280,10 @@ pub fn apply_protected_maker_limit_price_offset(
     params: PmmParams,
     standardize: bool,
 ) -> DriftResult<u64> {
-    let min_offset = params.tick_size.checked_shl(3).ok_or(ErrorCode::MathError)?;
+    let min_offset = params
+        .tick_size
+        .checked_shl(3)
+        .ok_or(ErrorCode::MathError)?;
 
     let limit_price_bps_divisor = if params.limit_price_divisor > 0 {
         10000 / params.limit_price_divisor as u64
