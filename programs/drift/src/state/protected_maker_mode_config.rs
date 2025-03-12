@@ -35,3 +35,10 @@ impl ProtectedMakerModeConfig {
         self.reduce_only > 0
     }
 }
+
+#[derive(Clone, Copy)]
+pub struct PmmParams {
+    pub limit_price_divisor: u8,
+    pub dynamic_offset: u64,
+    pub tick_size: u64,
+}
