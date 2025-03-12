@@ -543,6 +543,10 @@ pub fn liquidate_perp(
             .amm
             .total_liquidation_fee
             .safe_add(if_fee.unsigned_abs().cast()?)?;
+        market.amm.total_fee_minus_distributions = market
+            .amm
+            .total_fee_minus_distributions
+            .safe_add(if_fee.unsigned_abs().cast()?)?;
 
         (
             user_existing_position_direction,
@@ -1104,6 +1108,10 @@ pub fn liquidate_perp_with_fill(
         market.amm.total_liquidation_fee = market
             .amm
             .total_liquidation_fee
+            .safe_add(if_fee.unsigned_abs().cast()?)?;
+        market.amm.total_fee_minus_distributions = market
+            .amm
+            .total_fee_minus_distributions
             .safe_add(if_fee.unsigned_abs().cast()?)?;
     }
 

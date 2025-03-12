@@ -276,7 +276,6 @@ pub fn apply_cost_to_market(
             market.amm.total_fee_minus_distributions.safe_sub(cost)?;
 
         let fee_reserved_for_protocol = repeg::get_total_fee_lower_bound(market)?
-            .safe_add(market.amm.total_liquidation_fee)?
             .safe_sub(market.amm.total_fee_withdrawn)?
             .cast::<i128>()?;
         // Only a portion of the protocol fees are allocated to repegging
@@ -338,7 +337,6 @@ pub fn settle_expired_market(
 
     let spot_market = &mut spot_market_map.get_ref_mut(&QUOTE_SPOT_MARKET_INDEX)?;
     let fee_reserved_for_protocol = repeg::get_total_fee_lower_bound(market)?
-        .safe_add(market.amm.total_liquidation_fee)?
         .safe_sub(market.amm.total_fee_withdrawn)?
         .cast::<i128>()?;
     let budget = market

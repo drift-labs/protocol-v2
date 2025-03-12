@@ -508,7 +508,7 @@ pub fn update_pool_balances(
     let amm_target_max_fee_pool_token_amount = market
         .amm
         .total_fee_minus_distributions
-        .safe_add(market.amm.total_liquidation_fee.cast()?)?
+        // .safe_add(market.amm.total_liquidation_fee.cast()?)?
         .safe_sub(market.amm.total_fee_withdrawn.cast()?)?;
 
     if amm_target_max_fee_pool_token_amount <= amm_fee_pool_token_amount {
@@ -530,7 +530,7 @@ pub fn update_pool_balances(
 
     {
         let amm_target_min_fee_pool_token_amount = get_total_fee_lower_bound(market)?
-            .safe_add(market.amm.total_liquidation_fee)?
+            // .safe_add(market.amm.total_liquidation_fee)?
             .safe_sub(market.amm.total_fee_withdrawn)?;
 
         let amm_fee_pool_token_amount = get_token_amount(

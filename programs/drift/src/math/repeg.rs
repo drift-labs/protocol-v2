@@ -403,7 +403,6 @@ pub fn calculate_optimal_peg_and_budget(
 
 pub fn calculate_fee_pool(market: &PerpMarket) -> DriftResult<u128> {
     let total_fee_minus_distributions_lower_bound = get_total_fee_lower_bound(market)?
-        .safe_add(market.amm.total_liquidation_fee)?
         .safe_sub(market.amm.total_fee_withdrawn)?
         .cast::<i128>()
         .unwrap_or(0);
