@@ -724,7 +724,7 @@ impl PerpMarket {
 
     pub fn get_pmm_params(&self) -> PmmParams {
         let dynamic_offset = if self.pmm_dynamic_divisor > 0 {
-            self.amm.oracle_std / self.pmm_dynamic_divisor as u64
+            self.amm.oracle_std.max(self.amm.mark_std) / self.pmm_dynamic_divisor as u64
         } else {
             0
         };
