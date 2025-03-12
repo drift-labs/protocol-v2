@@ -10,7 +10,7 @@ use crate::math::amm::calculate_amm_available_liquidity;
 use crate::math::auction::is_amm_available_liquidity_source;
 use crate::math::casting::Cast;
 use crate::state::fill_mode::FillMode;
-use crate::state::protected_maker_mode_config::PmmParams;
+use crate::state::protected_maker_mode_config::ProtectedMakerParams;
 use crate::{
     load, math, FeeTier, State, BASE_PRECISION_I128, FEE_ADJUSTMENT_MAX,
     MAX_PREDICTION_MARKET_PRICE, MAX_PREDICTION_MARKET_PRICE_I64, OPEN_ORDER_MARGIN_REQUIREMENT,
@@ -277,7 +277,7 @@ pub fn standardize_price_i64(
 pub fn apply_protected_maker_limit_price_offset(
     price: u64,
     direction: PositionDirection,
-    params: PmmParams,
+    params: ProtectedMakerParams,
     standardize: bool,
 ) -> DriftResult<u64> {
     let min_offset = params
@@ -798,7 +798,7 @@ pub fn find_maker_orders(
     slot: u64,
     tick_size: u64,
     is_prediction_market: bool,
-    pmm_params: Option<PmmParams>,
+    protected_maker_params: Option<ProtectedMakerParams>,
 ) -> DriftResult<Vec<(usize, u64)>> {
     let mut orders: Vec<(usize, u64)> = Vec::with_capacity(32);
 
@@ -826,7 +826,7 @@ pub fn find_maker_orders(
             slot,
             tick_size,
             is_prediction_market,
-            pmm_params,
+            protected_maker_params,
         )?;
 
         orders.push((order_index, limit_price));

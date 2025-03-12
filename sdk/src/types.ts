@@ -749,8 +749,8 @@ export type PerpMarketAccount = {
 
 	highLeverageMarginRatioInitial: number;
 	highLeverageMarginRatioMaintenance: number;
-	pmmLimitPriceDivisor: number;
-	pmmDynamicDivisor: number;
+	protectedMakerLimitPriceDivisor: number;
+	protectedMakerDynamicDivisor: number;
 };
 
 export type HistoricalOracleData = {

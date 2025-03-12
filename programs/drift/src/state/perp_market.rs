@@ -43,7 +43,7 @@ use drift_macros::assert_no_slop;
 use static_assertions::const_assert_eq;
 
 use super::oracle_map::OracleIdentifier;
-use super::protected_maker_mode_config::PmmParams;
+use super::protected_maker_mode_config::ProtectedMakerParams;
 
 #[cfg(test)]
 mod tests;
@@ -248,8 +248,8 @@ pub struct PerpMarket {
     pub pool_id: u8,
     pub high_leverage_margin_ratio_initial: u16,
     pub high_leverage_margin_ratio_maintenance: u16,
-    pub pmm_limit_price_divisor: u8,
-    pub pmm_dynamic_divisor: u8,
+    pub protected_maker_limit_price_divisor: u8,
+    pub protected_maker_dynamic_divisor: u8,
     pub padding: [u8; 36],
 }
 
@@ -290,8 +290,8 @@ impl Default for PerpMarket {
             pool_id: 0,
             high_leverage_margin_ratio_initial: 0,
             high_leverage_margin_ratio_maintenance: 0,
-            pmm_limit_price_divisor: 0,
-            pmm_dynamic_divisor: 0,
+            protected_maker_limit_price_divisor: 0,
+            protected_maker_dynamic_divisor: 0,
             padding: [0; 36],
         }
     }
@@ -722,15 +722,15 @@ impl PerpMarket {
         ))
     }
 
-    pub fn get_pmm_params(&self) -> PmmParams {
-        let dynamic_offset = if self.pmm_dynamic_divisor > 0 {
-            self.amm.oracle_std.max(self.amm.mark_std) / self.pmm_dynamic_divisor as u64
+    pub fn get_protected_maker_params(&self) -> ProtectedMakerParams {
+        let dynamic_offset = if self.protected_maker_dynamic_divisor > 0 {
+            self.amm.oracle_std.max(self.amm.mark_std) / self.protected_maker_dynamic_divisor as u64
         } else {
             0
         };
 
-        PmmParams {
-            limit_price_divisor: self.pmm_limit_price_divisor,
+        ProtectedMakerParams {
+            limit_price_divisor: self.protected_maker_limit_price_divisor,
             dynamic_offset,
             tick_size: self.amm.order_tick_size,
         }

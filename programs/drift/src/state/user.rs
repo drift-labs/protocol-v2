@@ -1247,7 +1247,7 @@ pub(crate) type PerpPositions = [PerpPosition; 8];
 #[cfg(test)]
 use crate::math::constants::{AMM_TO_QUOTE_PRECISION_RATIO_I128, PRICE_PRECISION_I128};
 
-use super::protected_maker_mode_config::PmmParams;
+use super::protected_maker_mode_config::ProtectedMakerParams;
 #[cfg(test)]
 impl PerpPosition {
     pub fn get_breakeven_price(&self) -> DriftResult<i128> {
@@ -1377,7 +1377,7 @@ impl Order {
         slot: u64,
         tick_size: u64,
         is_prediction_market: bool,
-        pmm_params: Option<PmmParams>,
+        pmm_params: Option<ProtectedMakerParams>,
     ) -> DriftResult<Option<u64>> {
         let price = if self.has_auction_price(self.slot, self.auction_duration, slot)? {
             Some(calculate_auction_price(
@@ -1444,7 +1444,7 @@ impl Order {
         slot: u64,
         tick_size: u64,
         is_prediction_market: bool,
-        pmm_params: Option<PmmParams>,
+        pmm_params: Option<ProtectedMakerParams>,
     ) -> DriftResult<u64> {
         match self.get_limit_price(
             valid_oracle_price,
