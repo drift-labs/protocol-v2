@@ -25,11 +25,16 @@ use crate::state::user::PerpPosition;
 use crate::test_utils::{create_account_info, get_account_bytes};
 
 use crate::bn::U192;
+use crate::controller::amm::update_pool_balances;
 use crate::create_anchor_account_info;
 use crate::math::cp_curve::{adjust_k_cost, get_update_k_result, update_k};
+use crate::math::safe_math::SafeMath;
+use crate::math::spot_balance::get_token_amount;
 use crate::state::oracle::{HistoricalOracleData, OracleSource};
+use crate::state::spot_market::SpotBalance;
 use crate::state::spot_market::SpotMarket;
 use crate::state::spot_market_map::SpotMarketMap;
+use crate::state::user::SpotPosition;
 use crate::test_utils::get_anchor_account_bytes;
 use crate::test_utils::get_hardcoded_pyth_price;
 use crate::QUOTE_PRECISION_I64;
@@ -37,12 +42,6 @@ use anchor_lang::prelude::{AccountLoader, Clock};
 use anchor_lang::Owner;
 use solana_program::pubkey::Pubkey;
 use std::str::FromStr;
-use crate::state::spot_market::SpotBalance;
-use crate::math::safe_math::SafeMath;
-use crate::math::spot_balance::get_token_amount;
-use crate::controller::amm::update_pool_balances;
-use crate::state::user::SpotPosition;
-
 
 #[test]
 fn full_amm_split() {
@@ -115,9 +114,8 @@ fn amm_pool_balance_liq_fees_example() {
     );
     let mut oracle_map = OracleMap::load_one(&oracle_account_info, clock_slot, None).unwrap();
 
-
     let mut spot_market = SpotMarket {
-        cumulative_deposit_interest: 11425141382        ,
+        cumulative_deposit_interest: 11425141382,
         cumulative_borrow_interest: 12908327537,
         decimals: 6,
         ..SpotMarket::default()
@@ -135,22 +133,22 @@ fn amm_pool_balance_liq_fees_example() {
         assert_eq!(perp_market.amm.fee_pool.scaled_balance, 1349764971875250);
         let fee_before = perp_market.amm.fee_pool.scaled_balance;
 
-
         assert_eq!(perp_market.amm.total_fee_minus_distributions, 1276488252050);
 
         let new_total_fee_minus_distributions =
-        crate::controller::amm::calculate_perp_market_amm_summary_stats(
-            &perp_market,
-            &spot_market,
-            prelaunch_oracle_price.price,
-            true,
-        ).unwrap();
+            crate::controller::amm::calculate_perp_market_amm_summary_stats(
+                &perp_market,
+                &spot_market,
+                prelaunch_oracle_price.price,
+                true,
+            )
+            .unwrap();
         let fee_difference = new_total_fee_minus_distributions
-            .safe_sub(perp_market.amm.total_fee_minus_distributions).unwrap();
+            .safe_sub(perp_market.amm.total_fee_minus_distributions)
+            .unwrap();
         perp_market.amm.total_fee = perp_market.amm.total_fee.saturating_add(fee_difference);
         perp_market.amm.total_mm_fee = perp_market.amm.total_mm_fee.saturating_add(fee_difference);
         perp_market.amm.total_fee_minus_distributions = new_total_fee_minus_distributions;
-
 
         assert_eq!(new_total_fee_minus_distributions, 640881949608);
 
@@ -171,21 +169,21 @@ fn amm_pool_balance_liq_fees_example() {
             perp_market.pnl_pool.balance(),
             &spot_market,
             perp_market.pnl_pool.balance_type(),
-        ).unwrap();
+        )
+        .unwrap();
         assert_eq!(pnl_pool_token_amount, 265371537413); // 200k
 
         let fee_pool_token_amount = get_token_amount(
             perp_market.amm.fee_pool.balance(),
             &spot_market,
             perp_market.amm.fee_pool.balance_type(),
-        ).unwrap();
+        )
+        .unwrap();
         assert_eq!(fee_pool_token_amount, 1276764026200); // 1.27M
 
         // assert_eq!(perp_market.amm.fee_pool.scaled_balance, fee_before + 1000000000); // pre change
         assert!(perp_market.amm.fee_pool.scaled_balance < fee_before); // post change
-
     }
-
 }
 
 #[test]

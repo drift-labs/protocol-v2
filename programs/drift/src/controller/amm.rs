@@ -861,10 +861,9 @@ pub fn calculate_perp_market_amm_summary_stats(
     // amm's mm_fee can be incorrect with drifting integer math error
     let mut new_total_fee_minus_distributions = pnl_tokens_available.safe_sub(net_user_pnl)?;
 
-
     if exclude_liquidation_fee {
-        new_total_fee_minus_distributions = 
-        new_total_fee_minus_distributions.safe_sub(perp_market.amm.total_liquidation_fee.cast()?)?;
+        new_total_fee_minus_distributions = new_total_fee_minus_distributions
+            .safe_sub(perp_market.amm.total_liquidation_fee.cast()?)?;
     }
 
     Ok(new_total_fee_minus_distributions)
