@@ -40,12 +40,7 @@
   dependencies:
     regenerator-runtime "^0.14.0"
 
-"@common.js/quick-lru@^7.0.0":
-  version "7.0.0"
-  resolved "https://registry.yarnpkg.com/@common.js/quick-lru/-/quick-lru-7.0.0.tgz#1885393f1aa3f570bfacbdfa41a366da8c4fe025"
-  integrity sha512-DO3vApnH1vLizdWRSqzhg+S956vptHhtO+vw6PP6StJGDtaAGyfKSSPPGYWguJZu/Jlti6l6m6jB8NrKEQexLg==
-
-"@coral-xyz/anchor-30@npm:@coral-xyz/anchor@0.30.1", "@coral-xyz/anchor@^0.30.1":
+"@coral-xyz/anchor-30@npm:@coral-xyz/anchor@0.30.1":
   version "0.30.1"
   resolved "https://registry.yarnpkg.com/@coral-xyz/anchor/-/anchor-0.30.1.tgz#17f3e9134c28cd0ea83574c6bab4e410bcecec5d"
   integrity sha512-gDXFoF5oHgpriXAaLpxyWBHdCs8Awgf/gLHIo6crv7Aqm937CNdY+x+6hoj7QR5vaJV7MxWSQ0NGFzL3kPbWEQ==
@@ -160,6 +155,11 @@
     long "^5.0.0"
     protobufjs "^7.2.5"
     yargs "^17.7.2"
+
+"@isaacs/ttlcache@^1.4.1":
+  version "1.4.1"
+  resolved "https://registry.yarnpkg.com/@isaacs/ttlcache/-/ttlcache-1.4.1.tgz#21fb23db34e9b6220c6ba023a0118a2dd3461ea2"
+  integrity sha512-RQgQ4uQ+pLbqXfOmieB91ejmLwvSgv9nLx6sT6sD83s7umBypgg+OIBOBbEUiJXrfpnp9j0mRhYYdzp9uqq3lA==
 
 "@jest/expect-utils@^28.1.3":
   version "28.1.3"
@@ -728,13 +728,13 @@
     protobufjs "^7.4.0"
     yaml "^2.6.1"
 
-"@switchboard-xyz/on-demand@2.0.3":
-  version "2.0.3"
-  resolved "https://registry.yarnpkg.com/@switchboard-xyz/on-demand/-/on-demand-2.0.3.tgz#b906c391a19ed666f90cdc6dd93f374af2e50341"
-  integrity sha512-eP2oe6rfcQ/p9mSE/nPjk4SEz58fzy+WYS8/eQn+/EuInX6FLeyOA0rf62Da6FSuWQOfmM9p0bSuCve5/3bvIg==
+"@switchboard-xyz/on-demand@2.1.0":
+  version "2.1.0"
+  resolved "https://registry.yarnpkg.com/@switchboard-xyz/on-demand/-/on-demand-2.1.0.tgz#f870d2771d130073e3d5bf805287db91358bd37c"
+  integrity sha512-jRVozgMZi9XrN8tJ+Kkj4mLGDTVudOz+SS3864luy14wbQhbfMHc7D6SlhYtBg5yQnxojChKa+fTeRG5hmcS8w==
   dependencies:
-    "@common.js/quick-lru" "^7.0.0"
-    "@coral-xyz/anchor" "^0.30.1"
+    "@coral-xyz/anchor-30" "npm:@coral-xyz/anchor@0.30.1"
+    "@isaacs/ttlcache" "^1.4.1"
     "@switchboard-xyz/common" "^3"
     axios "^1.8.1"
     bs58 "^6.0.0"
