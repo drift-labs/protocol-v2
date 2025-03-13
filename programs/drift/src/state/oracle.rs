@@ -323,7 +323,9 @@ pub fn get_pyth_stable_coin_price(
     let confidence = oracle_price_data.confidence;
     let twenty_bps = 2000_i64;
 
-    if price.safe_sub(PRICE_PRECISION_I64)?.abs() <= twenty_bps.min(confidence.cast::<i64>()?.saturating_mul(5)) {
+    if price.safe_sub(PRICE_PRECISION_I64)?.abs()
+        <= twenty_bps.min(confidence.cast::<i64>()?.saturating_mul(5))
+    {
         oracle_price_data.price = PRICE_PRECISION_I64;
     }
 
