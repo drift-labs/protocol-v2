@@ -9000,6 +9000,12 @@
             "type": {
               "option": "bool"
             }
+          },
+          {
+            "name": "excludeTotalLiqFee",
+            "type": {
+              "option": "bool"
+            }
           }
         ]
       }
