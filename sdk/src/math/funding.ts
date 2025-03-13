@@ -120,12 +120,12 @@ function shrinkStaleTwaps(
  * @param periodAdjustment
  * @returns Estimated funding rate. : Precision //TODO-PRECISION
  */
-export async function calculateAllEstimatedFundingRate(
+export function calculateAllEstimatedFundingRate(
 	market: PerpMarketAccount,
 	oraclePriceData?: OraclePriceData,
 	markPrice?: BN,
 	now?: BN
-): Promise<[BN, BN, BN, BN, BN]> {
+): [BN, BN, BN, BN, BN] {
 	if (isVariant(market.status, 'uninitialized')) {
 		return [ZERO, ZERO, ZERO, ZERO, ZERO];
 	}
@@ -263,20 +263,20 @@ const getFundingRatePct = (rawFundingRate: BN) => {
  * Calculate funding rates in human-readable form. Values will have some lost precision and shouldn't be used in strict accounting.
  * @param period : 'hour' | 'year' :: Use 'hour' for the hourly payment as a percentage, 'year' for the payment as an estimated APR.
  */
-export async function calculateFormattedLiveFundingRate(
+export function calculateFormattedLiveFundingRate(
 	market: PerpMarketAccount,
 	oraclePriceData: OraclePriceData,
 	period: 'hour' | 'year'
-): Promise<{
+): {
 	longRate: number;
 	shortRate: number;
 	fundingRateUnit: string;
 	formattedFundingRateSummary: string;
-}> {
+} {
 	const nowBN = new BN(Date.now() / 1000);
 
 	const [_markTwapLive, _oracleTwapLive, longFundingRate, shortFundingRate] =
-		await calculateLongShortFundingRateAndLiveTwaps(
+		calculateLongShortFundingRateAndLiveTwaps(
 			market,
 			oraclePriceData,
 			undefined,
@@ -347,19 +347,18 @@ function getMaxPriceDivergenceForFundingRate(
  * @param periodAdjustment
  * @returns Estimated funding rate. : Precision //TODO-PRECISION
  */
-export async function calculateLongShortFundingRate(
+export function calculateLongShortFundingRate(
 	market: PerpMarketAccount,
 	oraclePriceData?: OraclePriceData,
 	markPrice?: BN,
 	now?: BN
-): Promise<[BN, BN]> {
-	const [_1, _2, _, cappedAltEst, interpEst] =
-		await calculateAllEstimatedFundingRate(
-			market,
-			oraclePriceData,
-			markPrice,
-			now
-		);
+): [BN, BN] {
+	const [_1, _2, _, cappedAltEst, interpEst] = calculateAllEstimatedFundingRate(
+		market,
+		oraclePriceData,
+		markPrice,
+		now
+	);
 
 	if (market.amm.baseAssetAmountLong.gt(market.amm.baseAssetAmountShort)) {
 		return [cappedAltEst, interpEst];
@@ -379,19 +378,14 @@ export async function calculateLongShortFundingRate(
  * @param periodAdjustment
  * @returns Estimated funding rate. : Precision //TODO-PRECISION
  */
-export async function calculateLongShortFundingRateAndLiveTwaps(
+export function calculateLongShortFundingRateAndLiveTwaps(
 	market: PerpMarketAccount,
 	oraclePriceData?: OraclePriceData,
 	markPrice?: BN,
 	now?: BN
-): Promise<[BN, BN, BN, BN]> {
+): [BN, BN, BN, BN] {
 	const [markTwapLive, oracleTwapLive, _2, cappedAltEst, interpEst] =
-		await calculateAllEstimatedFundingRate(
-			market,
-			oraclePriceData,
-			markPrice,
-			now
-		);
+		calculateAllEstimatedFundingRate(market, oraclePriceData, markPrice, now);
 
 	if (
 		market.amm.baseAssetAmountLong.gt(market.amm.baseAssetAmountShort.abs())
