@@ -9289,6 +9289,39 @@ export class DriftClient {
 		return [verifyIx, ix];
 	}
 
+	public async getPostManySwitchboardOnDemandUpdatesAtomicIxs(
+		feeds: PublicKey[],
+		recentSlothash?: Slothash,
+		numSignatures = 3
+	): Promise<TransactionInstruction[] | undefined> {
+		const program = await this.getSwitchboardOnDemandProgram();
+		for (const feed of feeds) {
+			const feedAccount = new PullFeed(program, feed);
+			if (!this.sbProgramFeedConfigs) {
+				this.sbProgramFeedConfigs = new Map();
+			}
+			if (!this.sbProgramFeedConfigs.has(feedAccount.pubkey.toString())) {
+				const feedConfig = await feedAccount.loadConfigs();
+				this.sbProgramFeedConfigs.set(feed.toString(), feedConfig);
+			}
+		}
+
+		const [pullIxs, _responses, success] = await PullFeed.fetchUpdateManyIx(
+			program,
+			{
+				feeds,
+				numSignatures,
+				recentSlothashes: recentSlothash
+					? [[new BN(recentSlothash.slot), recentSlothash.hash]]
+					: undefined,
+			}
+		);
+		if (!success) {
+			return undefined;
+		}
+		return pullIxs;
+	}
+
 	public async getPostSwitchboardOnDemandUpdateAtomicIx(
 		feed: PublicKey,
 		recentSlothash?: Slothash,
@@ -9303,18 +9336,20 @@ export class DriftClient {
 			const feedConfig = await feedAccount.loadConfigs();
 			this.sbProgramFeedConfigs.set(feed.toString(), feedConfig);
 		}
-		const [pullIx, _responses, success] = await feedAccount.fetchUpdateIx(
+		const [pullIx, _responses, success] = await PullFeed.fetchUpdateManyIx(
+			program,
 			{
+				feeds: [feed],
 				numSignatures,
-			},
-			recentSlothash
-				? [[new BN(recentSlothash.slot), recentSlothash.hash]]
-				: undefined
+				recentSlothashes: recentSlothash
+					? [[new BN(recentSlothash.slot), recentSlothash.hash]]
+					: undefined,
+			}
 		);
 		if (!success) {
 			return undefined;
 		}
-		return pullIx;
+		return pullIx[0];
 	}
 
 	public async postSwitchboardOnDemandUpdate(
