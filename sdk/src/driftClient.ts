@@ -2587,7 +2587,7 @@ export class DriftClient {
 		let remainingAccounts = [];
 		if (userInitialized) {
 			remainingAccounts = this.getRemainingAccounts({
-				userAccounts: [await this.forceGetUserAccount()],
+				userAccounts: [await this.forceGetUserAccount(subAccountId)],
 				useMarketLastSlotCache: true,
 				writableSpotMarketIndexes: [marketIndex],
 			});
