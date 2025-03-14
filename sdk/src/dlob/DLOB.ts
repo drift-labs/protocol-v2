@@ -25,6 +25,8 @@ import {
 	PerpMarketAccount,
 	PositionDirection,
 	PRICE_PRECISION,
+	ProtectedMakerParams,
+	ProtectMakerParamsMap,
 	QUOTE_PRECISION,
 	SlotSubscriber,
 	SpotMarketAccount,
@@ -113,10 +115,13 @@ export class DLOB {
 
 	initialized = false;
 
-	protectedMakerView: boolean;
+	protectedMakerParamsMap: ProtectMakerParamsMap;
 
-	public constructor(protectedMakerView?: boolean) {
-		this.protectedMakerView = protectedMakerView || false;
+	public constructor(protectedMakerParamsMap?: ProtectMakerParamsMap) {
+		this.protectedMakerParamsMap = protectedMakerParamsMap || {
+			perp: new Map<number, ProtectedMakerParams>(),
+			spot: new Map<number, ProtectedMakerParams>(),
+		};
 		this.init();
 	}
 
@@ -207,12 +212,13 @@ export class DLOB {
 				.get(marketType)
 				.add(getOrderSignature(order.orderId, userAccount));
 		}
+
 		this.getListForOnChainOrder(order, slot, isUserProtectedMaker)?.insert(
 			order,
 			marketType,
 			userAccount,
 			isUserProtectedMaker,
-			this.protectedMakerView
+			this.protectedMakerParamsMap[marketType].get(order.marketIndex)
 		);
 
 		if (onInsert) {
@@ -243,7 +249,7 @@ export class DLOB {
 				marketType,
 				userAccount,
 				isUserProtectedMaker,
-				this.protectedMakerView
+				this.protectedMakerParamsMap[marketType].get(order.marketIndex)
 			);
 		if (onInsert) {
 			onInsert();
@@ -394,7 +400,9 @@ export class DLOB {
 					marketTypeStr,
 					node.userAccount,
 					node.isProtectedMaker,
-					this.protectedMakerView
+					this.protectedMakerParamsMap[marketTypeStr].get(
+						node.order.marketIndex
+					)
 				);
 			}
 		}

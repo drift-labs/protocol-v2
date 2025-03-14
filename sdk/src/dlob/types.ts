@@ -1,5 +1,7 @@
 import { DLOB } from './DLOB';
 import { DriftClient } from '../driftClient';
+import { ProtectedMakerParams } from '../types';
+import { MarketTypeStr } from '../types';
 
 export type DLOBSubscriptionConfig = {
 	driftClient: DriftClient;
@@ -15,9 +17,16 @@ export interface DLOBSubscriberEvents {
 }
 
 export interface DLOBSource {
-	getDLOB(slot: number, protectedMakerView?: boolean): Promise<DLOB>;
+	getDLOB(
+		slot: number,
+		protectedMakerParamsMap?: ProtectMakerParamsMap
+	): Promise<DLOB>;
 }
 
 export interface SlotSource {
 	getSlot(): number;
 }
+
+export type ProtectMakerParamsMap = {
+	[marketType in MarketTypeStr]: Map<number, ProtectedMakerParams>;
+};

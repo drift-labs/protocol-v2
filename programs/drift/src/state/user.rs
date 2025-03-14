@@ -1246,6 +1246,8 @@ pub(crate) type PerpPositions = [PerpPosition; 8];
 
 #[cfg(test)]
 use crate::math::constants::{AMM_TO_QUOTE_PRECISION_RATIO_I128, PRICE_PRECISION_I128};
+
+use super::protected_maker_mode_config::ProtectedMakerParams;
 #[cfg(test)]
 impl PerpPosition {
     pub fn get_breakeven_price(&self) -> DriftResult<i128> {
@@ -1375,7 +1377,7 @@ impl Order {
         slot: u64,
         tick_size: u64,
         is_prediction_market: bool,
-        apply_protected_maker_offset: bool,
+        pmm_params: Option<ProtectedMakerParams>,
     ) -> DriftResult<Option<u64>> {
         let price = if self.has_auction_price(self.slot, self.auction_duration, slot)? {
             Some(calculate_auction_price(
@@ -1400,11 +1402,11 @@ impl Order {
                 limit_price = limit_price.min(MAX_PREDICTION_MARKET_PRICE)
             }
 
-            if apply_protected_maker_offset {
+            if let Some(pmm_params) = pmm_params {
                 limit_price = apply_protected_maker_limit_price_offset(
                     limit_price,
-                    tick_size,
                     self.direction,
+                    pmm_params,
                     false,
                 )?;
             }
@@ -1418,11 +1420,11 @@ impl Order {
         } else {
             let mut price = self.price;
 
-            if apply_protected_maker_offset {
+            if let Some(pmm_params) = pmm_params {
                 price = apply_protected_maker_limit_price_offset(
                     price,
-                    tick_size,
                     self.direction,
+                    pmm_params,
                     true,
                 )?;
             }
@@ -1442,7 +1444,7 @@ impl Order {
         slot: u64,
         tick_size: u64,
         is_prediction_market: bool,
-        apply_protected_maker_offset: bool,
+        pmm_params: Option<ProtectedMakerParams>,
     ) -> DriftResult<u64> {
         match self.get_limit_price(
             valid_oracle_price,
@@ -1450,7 +1452,7 @@ impl Order {
             slot,
             tick_size,
             is_prediction_market,
-            apply_protected_maker_offset,
+            pmm_params,
         )? {
             Some(price) => Ok(price),
             None => {

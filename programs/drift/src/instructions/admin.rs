@@ -947,7 +947,9 @@ pub fn handle_initialize_perp_market(
         pool_id: 0,
         high_leverage_margin_ratio_initial: 0,
         high_leverage_margin_ratio_maintenance: 0,
-        padding: [0; 38],
+        protected_maker_limit_price_divisor: 0,
+        protected_maker_dynamic_divisor: 0,
+        padding: [0; 36],
         amm: AMM {
             oracle: *ctx.accounts.oracle.key,
             oracle_source,

@@ -17,6 +17,7 @@ import {
 	UserSubscriptionConfig,
 	DataAndSlot,
 	OneShotUserAccountSubscriber,
+	ProtectMakerParamsMap,
 } from '..';
 
 import {
@@ -288,9 +289,9 @@ export class UserMap implements UserMapInterface {
 	 */
 	public async getDLOB(
 		slot: number,
-		protectedMakerView?: boolean
+		protectedMakerParamsMap?: ProtectMakerParamsMap
 	): Promise<DLOB> {
-		const dlob = new DLOB(protectedMakerView);
+		const dlob = new DLOB(protectedMakerParamsMap);
 		await dlob.initFromUserMap(this, slot);
 		return dlob;
 	}

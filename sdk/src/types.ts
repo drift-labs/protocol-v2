@@ -749,6 +749,8 @@ export type PerpMarketAccount = {
 
 	highLeverageMarginRatioInitial: number;
 	highLeverageMarginRatioMaintenance: number;
+	protectedMakerLimitPriceDivisor: number;
+	protectedMakerDynamicDivisor: number;
 };
 
 export type HistoricalOracleData = {
@@ -1428,6 +1430,12 @@ export type ProtectedMakerModeConfig = {
 	maxUsers: number;
 	currentUsers: number;
 	reduceOnly: boolean;
+};
+
+export type ProtectedMakerParams = {
+	limitPriceDivisor: number;
+	tickSize: BN;
+	dynamicOffset: BN;
 };
 
 /* Represents proof of a signed msg taker order

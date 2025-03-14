@@ -32,7 +32,7 @@ impl FillMode {
                     slot,
                     tick_size,
                     is_prediction_market,
-                    false,
+                    None,
                 ),
             FillMode::PlaceAndTake(_, auction_duration_percentage) => {
                 let auction_duration = order
@@ -58,7 +58,7 @@ impl FillMode {
                         slot,
                         tick_size,
                         is_prediction_market,
-                        false,
+                        None,
                     )
                 }
             }

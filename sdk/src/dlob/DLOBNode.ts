@@ -8,8 +8,8 @@ import {
 	OraclePriceData,
 	Order,
 	ZERO,
+	ProtectedMakerParams,
 } from '..';
-// import { PublicKey } from '@solana/web3.js';
 import { getOrderSignature } from './NodeList';
 
 export interface DLOBNode {
@@ -20,7 +20,7 @@ export interface DLOBNode {
 	haveFilled: boolean;
 	userAccount: string | undefined;
 	isProtectedMaker: boolean;
-	applyProtectedMakerOffset: boolean;
+	protectedMakerParams?: ProtectedMakerParams;
 	isSignedMsg: boolean | undefined;
 }
 
@@ -31,14 +31,14 @@ export abstract class OrderNode implements DLOBNode {
 	haveFilled = false;
 	haveTrigger = false;
 	isProtectedMaker: boolean;
-	applyProtectedMakerOffset: boolean;
+	protectedMakerParams?: ProtectedMakerParams;
 	isSignedMsg: boolean;
 
 	constructor(
 		order: Order,
 		userAccount: string,
 		isProtectedMaker: boolean,
-		applyProtectedMakerOffset: boolean,
+		protectedMakerParams?: ProtectedMakerParams,
 		isSignedMsg = false
 	) {
 		// Copy the order over to the node
@@ -46,7 +46,7 @@ export abstract class OrderNode implements DLOBNode {
 		this.userAccount = userAccount;
 		this.sortValue = this.getSortValue(order);
 		this.isProtectedMaker = isProtectedMaker;
-		this.applyProtectedMakerOffset = applyProtectedMakerOffset;
+		this.protectedMakerParams = protectedMakerParams;
 		this.isSignedMsg = isSignedMsg;
 	}
 
@@ -85,7 +85,7 @@ export abstract class OrderNode implements DLOBNode {
 			oraclePriceData,
 			slot,
 			undefined,
-			this.applyProtectedMakerOffset && this.isProtectedMaker
+			this.isProtectedMaker ? this.protectedMakerParams : undefined
 		);
 	}
 
@@ -113,7 +113,7 @@ export class RestingLimitOrderNode extends OrderNode {
 
 	getSortValue(order: Order): BN {
 		let sortValue = order.price;
-		if (this.applyProtectedMakerOffset && this.isProtectedMaker) {
+		if (this.protectedMakerParams && this.isProtectedMaker) {
 			const offset = sortValue.divn(1000);
 
 			if (isVariant(order.direction, 'long')) {
@@ -159,7 +159,7 @@ export class SignedMsgOrderNode extends OrderNode {
 	previous?: SignedMsgOrderNode;
 
 	constructor(order: Order, userAccount: string) {
-		super(order, userAccount, false, false, true);
+		super(order, userAccount, false, undefined, true);
 	}
 
 	getSortValue(order: Order): BN {
@@ -191,7 +191,7 @@ export function createNode<T extends DLOBNodeType>(
 	order: Order,
 	userAccount: string,
 	isProtectedMaker: boolean,
-	applyProtectedMakerOffset: boolean
+	protectedMakerParams?: ProtectedMakerParams
 ): DLOBNodeMap[T] {
 	switch (nodeType) {
 		case 'floatingLimit':
@@ -199,33 +199,43 @@ export function createNode<T extends DLOBNodeType>(
 				order,
 				userAccount,
 				isProtectedMaker,
-				applyProtectedMakerOffset
+				protectedMakerParams
 			);
 		case 'protectedFloatingLimit':
 			return new FloatingLimitOrderNode(
 				order,
 				userAccount,
 				isProtectedMaker,
-				applyProtectedMakerOffset
+				protectedMakerParams
 			);
 		case 'restingLimit':
 			return new RestingLimitOrderNode(
 				order,
 				userAccount,
 				isProtectedMaker,
-				applyProtectedMakerOffset
+				protectedMakerParams
 			);
 		case 'takingLimit':
 			return new TakingLimitOrderNode(
 				order,
 				userAccount,
 				isProtectedMaker,
-				applyProtectedMakerOffset
+				protectedMakerParams
 			);
 		case 'market':
-			return new MarketOrderNode(order, userAccount, isProtectedMaker, false);
+			return new MarketOrderNode(
+				order,
+				userAccount,
+				isProtectedMaker,
+				undefined
+			);
 		case 'trigger':
-			return new TriggerOrderNode(order, userAccount, isProtectedMaker, false);
+			return new TriggerOrderNode(
+				order,
+				userAccount,
+				isProtectedMaker,
+				undefined
+			);
 		case 'signedMsg':
 			return new SignedMsgOrderNode(order, userAccount);
 		default:
