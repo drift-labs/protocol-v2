@@ -2175,7 +2175,11 @@ export class DriftClient {
 			this.getRemainingAccountMapsForUsers(params.userAccounts);
 
 		if (params.useMarketLastSlotCache) {
-			const lastUserSlot = this.getUserAccountAndSlot(params.userAccounts[0].subAccountId)?.slot;
+			const lastUserSlot = this.getUserAccountAndSlot(
+				params.userAccounts.length === 1
+					? params.userAccounts[0].subAccountId
+					: this.activeSubAccountId
+			)?.slot;
 
 			for (const [
 				marketIndex,
