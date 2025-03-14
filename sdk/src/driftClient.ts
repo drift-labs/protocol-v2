@@ -2766,16 +2766,16 @@ export class DriftClient {
 				referrerInfo
 			);
 
-		const isSwiftUserOrdersAccountInitialized =
-			await this.isSwiftUserOrdersAccountInitialized(this.wallet.publicKey);
+		const isSignedMsgUserOrdersAccountInitialized =
+			await this.isSignedMsgUserOrdersAccountInitialized(this.wallet.publicKey);
 
-		if (!isSwiftUserOrdersAccountInitialized) {
-			const [, initializeSwiftUserOrdersAccountIx] =
-				await this.getInitializeSwiftUserOrdersAccountIx(
+		if (!isSignedMsgUserOrdersAccountInitialized) {
+			const [, initializeSignedMsgUserOrdersAccountIx] =
+				await this.getInitializeSignedMsgUserOrdersAccountIx(
 					this.wallet.publicKey,
 					8
 				);
-			ixs.push(initializeSwiftUserOrdersAccountIx);
+			ixs.push(initializeSignedMsgUserOrdersAccountIx);
 		}
 
 		const spotMarket = this.getSpotMarketAccount(marketIndex);
