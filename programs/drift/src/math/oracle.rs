@@ -1,5 +1,4 @@
 use borsh::{BorshDeserialize, BorshSerialize};
-use solana_program::msg;
 
 use crate::error::{DriftResult, ErrorCode};
 use crate::math::amm;
@@ -269,7 +268,7 @@ pub fn oracle_validity(
 
     if log_validity {
         if !has_sufficient_number_of_data_points {
-            msg!(
+            crate::msg!(
                 "Invalid {} {} Oracle: Insufficient Data Points",
                 market_type,
                 market_index
@@ -277,7 +276,7 @@ pub fn oracle_validity(
         }
 
         if is_oracle_price_nonpositive {
-            msg!(
+            crate::msg!(
                 "Invalid {} {} Oracle: Non-positive (oracle_price <=0)",
                 market_type,
                 market_index
@@ -285,7 +284,7 @@ pub fn oracle_validity(
         }
 
         if is_oracle_price_too_volatile {
-            msg!(
+            crate::msg!(
                 "Invalid {} {} Oracle: Too Volatile (last_oracle_price_twap={:?} vs oracle_price={:?})",
                 market_type,
                 market_index,
@@ -295,7 +294,7 @@ pub fn oracle_validity(
         }
 
         if is_conf_too_large {
-            msg!(
+            crate::msg!(
                 "Invalid {} {} Oracle: Confidence Too Large (is_conf_too_large={:?})",
                 market_type,
                 market_index,
@@ -304,7 +303,7 @@ pub fn oracle_validity(
         }
 
         if is_stale_for_amm || is_stale_for_margin {
-            msg!(
+            crate::msg!(
                 "Invalid {} {} Oracle: Stale (oracle_delay={:?})",
                 market_type,
                 market_index,
