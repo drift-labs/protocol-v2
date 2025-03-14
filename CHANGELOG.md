@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Features
 
+- program: make initting signedmsguserorder accounts permissionless ([#1533](https://github.com/drift-labs/protocol-v2/pull/1533))
+
 ### Fixes
 
 ### Breaking

@@ -1114,7 +1114,7 @@ export class DriftClient {
 			await this.program.instruction.initializeSignedMsgUserOrders(numOrders, {
 				accounts: {
 					signedMsgUserOrders: signedMsgUserAccountPublicKey,
-					authority: this.wallet.publicKey,
+					authority,
 					payer: this.wallet.publicKey,
 					rent: anchor.web3.SYSVAR_RENT_PUBKEY,
 					systemProgram: anchor.web3.SystemProgram.programId,
@@ -1149,7 +1149,8 @@ export class DriftClient {
 			await this.program.instruction.resizeSignedMsgUserOrders(numOrders, {
 				accounts: {
 					signedMsgUserOrders: signedMsgUserAccountPublicKey,
-					authority: this.wallet.publicKey,
+					authority,
+					payer: this.wallet.publicKey,
 					systemProgram: anchor.web3.SystemProgram.programId,
 				},
 			});
