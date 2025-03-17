@@ -728,10 +728,10 @@
     protobufjs "^7.4.0"
     yaml "^2.6.1"
 
-"@switchboard-xyz/on-demand@2.2.0":
-  version "2.2.0"
-  resolved "https://registry.yarnpkg.com/@switchboard-xyz/on-demand/-/on-demand-2.2.0.tgz#543dd8cba68cdf02838da6c427f0c0709875154b"
-  integrity sha512-3WOyvJW9kSnu2qC3sFczcx0XhC170A3E1LaEQVdRcLjmeWkLtTbhnxP7hKSJA+Y83MNdAfyGH0F8Eix/NmaagA==
+"@switchboard-xyz/on-demand@2.3.2":
+  version "2.3.2"
+  resolved "https://registry.yarnpkg.com/@switchboard-xyz/on-demand/-/on-demand-2.3.2.tgz#78dca1eced8b8cda0863c605447700d96f927ca6"
+  integrity sha512-oFkkjIsJGfY64rEFtJpk4oqEK/ELlVRRy/WrpdgDW3HWXLMZSP13rjuG/0BkJMqI5xXDDEwI/AMgpXhH0XEJTQ==
   dependencies:
     "@coral-xyz/anchor-30" "npm:@coral-xyz/anchor@0.30.1"
     "@isaacs/ttlcache" "^1.4.1"

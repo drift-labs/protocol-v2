@@ -9310,7 +9310,7 @@ export class DriftClient {
 			}
 		}
 
-		const [pullIxs, _responses, success] = await PullFeed.fetchUpdateManyIx(
+		const [pullIxs, _responses, success] = await PullFeed.fetchUpdateManyLightIx(
 			program,
 			{
 				feeds,
