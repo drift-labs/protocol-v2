@@ -8,11 +8,7 @@ import {
 	PositionDirection,
 	ProtectedMakerParams,
 } from '../types';
-import {
-	ZERO,
-	TWO,
-	ONE,
-} from '../constants/numericConstants';
+import { ZERO, TWO, ONE } from '../constants/numericConstants';
 import { BN } from '@coral-xyz/anchor';
 import { OraclePriceData } from '../oracles/types';
 import {
