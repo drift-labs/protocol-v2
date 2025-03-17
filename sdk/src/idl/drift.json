@@ -1,5 +1,5 @@
 {
-  "version": "2.112.0",
+  "version": "2.114.0",
   "name": "drift",
   "instructions": [
     {
@@ -152,6 +152,69 @@
         {
           "name": "numOrders",
           "type": "u16"
+        }
+      ]
+    },
+    {
+      "name": "initializeSignedMsgWsDelegates",
+      "accounts": [
+        {
+          "name": "signedMsgWsDelegates",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "rent",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "systemProgram",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "delegates",
+          "type": {
+            "vec": "publicKey"
+          }
+        }
+      ]
+    },
+    {
+      "name": "changeSignedMsgWsDelegateStatus",
+      "accounts": [
+        {
+          "name": "signedMsgWsDelegates",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "systemProgram",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "delegate",
+          "type": "publicKey"
+        },
+        {
+          "name": "add",
+          "type": "bool"
         }
       ]
     },
@@ -533,6 +596,48 @@
           "name": "borrowAmount",
           "type": {
             "option": "u64"
+          }
+        }
+      ]
+    },
+    {
+      "name": "transferPerpPosition",
+      "accounts": [
+        {
+          "name": "fromUser",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "toUser",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "userStats",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "marketIndex",
+          "type": "u16"
+        },
+        {
+          "name": "amount",
+          "type": {
+            "option": "i64"
           }
         }
       ]
@@ -6939,6 +7044,12 @@
         {
           "name": "reduceOnly",
           "type": "bool"
+        },
+        {
+          "name": "currentUsers",
+          "type": {
+            "option": "u32"
+          }
         }
       ]
     }
@@ -7676,6 +7787,23 @@
               "vec": {
                 "defined": "SignedMsgOrderId"
               }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "SignedMsgWsDelegates",
+      "docs": [
+        "* Used to store authenticated delegates for swift-like ws connections"
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "delegates",
+            "type": {
+              "vec": "publicKey"
             }
           }
         ]
@@ -8869,6 +8997,12 @@
           },
           {
             "name": "updateAmmSummaryStats",
+            "type": {
+              "option": "bool"
+            }
+          },
+          {
+            "name": "excludeTotalLiqFee",
             "type": {
               "option": "bool"
             }
@@ -11270,6 +11404,9 @@
           },
           {
             "name": "OrderFilledWithOpenbookV2"
+          },
+          {
+            "name": "TransferPerpPosition"
           }
         ]
       }
@@ -14844,6 +14981,11 @@
       "code": 6311,
       "name": "FuelOverflowAccountNotFound",
       "msg": "FuelOverflow account not found"
+    },
+    {
+      "code": 6312,
+      "name": "InvalidTransferPerpPosition",
+      "msg": "Invalid Transfer Perp Position"
     }
   ],
   "metadata": {

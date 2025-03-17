@@ -1303,7 +1303,7 @@ describe('AMM Tests', () => {
 		);
 	});
 
-	it('predicted funding rate mock1', async () => {
+	it('predicted funding rate mock1', () => {
 		const myMockPerpMarkets = _.cloneDeep(mockPerpMarkets);
 		const mockMarket1 = myMockPerpMarkets[0];
 
@@ -1350,7 +1350,7 @@ describe('AMM Tests', () => {
 			_lowerboundEst,
 			_cappedAltEst,
 			_interpEst,
-		] = await calculateAllEstimatedFundingRate(
+		] = calculateAllEstimatedFundingRate(
 			mockMarket1,
 			oraclePriceData,
 			currentMarkPrice,
@@ -1358,7 +1358,7 @@ describe('AMM Tests', () => {
 		);
 
 		const [markTwapLive, oracleTwapLive, est1, est2] =
-			await calculateLongShortFundingRateAndLiveTwaps(
+			calculateLongShortFundingRateAndLiveTwaps(
 				mockMarket1,
 				oraclePriceData,
 				currentMarkPrice,
@@ -1376,7 +1376,7 @@ describe('AMM Tests', () => {
 		assert(est2.eq(new BN('16525')));
 	});
 
-	it('predicted funding rate mock2', async () => {
+	it('predicted funding rate mock2', () => {
 		const myMockPerpMarkets = _.cloneDeep(mockPerpMarkets);
 		const mockMarket1 = myMockPerpMarkets[0];
 
@@ -1423,7 +1423,7 @@ describe('AMM Tests', () => {
 			_lowerboundEst,
 			_cappedAltEst,
 			_interpEst,
-		] = await calculateAllEstimatedFundingRate(
+		] = calculateAllEstimatedFundingRate(
 			mockMarket1,
 			oraclePriceData,
 			currentMarkPrice,
@@ -1438,7 +1438,7 @@ describe('AMM Tests', () => {
 		// console.log('-----');
 
 		const [markTwapLive, oracleTwapLive, est1, est2] =
-			await calculateLongShortFundingRateAndLiveTwaps(
+			calculateLongShortFundingRateAndLiveTwaps(
 				mockMarket1,
 				oraclePriceData,
 				currentMarkPrice,
@@ -1465,7 +1465,7 @@ describe('AMM Tests', () => {
 		assert(est2.eq(new BN('-719')));
 	});
 
-	it('predicted funding rate mock clamp', async () => {
+	it('predicted funding rate mock clamp', () => {
 		const myMockPerpMarkets = _.cloneDeep(mockPerpMarkets);
 		const mockMarket1 = myMockPerpMarkets[0];
 
@@ -1513,7 +1513,7 @@ describe('AMM Tests', () => {
 			_lowerboundEst,
 			_cappedAltEst,
 			_interpEst,
-		] = await calculateAllEstimatedFundingRate(
+		] = calculateAllEstimatedFundingRate(
 			mockMarket1,
 			oraclePriceData,
 			currentMarkPrice,
@@ -1528,7 +1528,7 @@ describe('AMM Tests', () => {
 		// console.log('-----');
 
 		let [markTwapLive, oracleTwapLive, est1, est2] =
-			await calculateLongShortFundingRateAndLiveTwaps(
+			calculateLongShortFundingRateAndLiveTwaps(
 				mockMarket1,
 				oraclePriceData,
 				currentMarkPrice,
@@ -1557,7 +1557,7 @@ describe('AMM Tests', () => {
 		mockMarket1.contractTier = ContractTier.C;
 
 		[markTwapLive, oracleTwapLive, est1, est2] =
-			await calculateLongShortFundingRateAndLiveTwaps(
+			calculateLongShortFundingRateAndLiveTwaps(
 				mockMarket1,
 				oraclePriceData,
 				currentMarkPrice,
@@ -1586,7 +1586,7 @@ describe('AMM Tests', () => {
 		mockMarket1.contractTier = ContractTier.SPECULATIVE;
 
 		[markTwapLive, oracleTwapLive, est1, est2] =
-			await calculateLongShortFundingRateAndLiveTwaps(
+			calculateLongShortFundingRateAndLiveTwaps(
 				mockMarket1,
 				oraclePriceData,
 				currentMarkPrice,

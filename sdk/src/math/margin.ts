@@ -17,8 +17,13 @@ import {
 	calculateMarketMarginRatio,
 	calculateScaledInitialAssetWeight,
 	DriftClient,
+	OneShotUserAccountSubscriber,
 	PerpMarketAccount,
 	PerpPosition,
+	PositionDirection,
+	PublicKey,
+	User,
+	UserAccount,
 } from '..';
 import { isVariant } from '../types';
 import { assert } from '../assert/assert';
@@ -337,4 +342,31 @@ export function calculateLiquidationPrice(
 	}
 
 	return liqPrice;
+}
+
+export function calculateUserMaxPerpOrderSize(
+	driftClient: DriftClient,
+	userAccountKey: PublicKey,
+	userAccount: UserAccount,
+	targetMarketIndex: number,
+	tradeSide: PositionDirection
+): { tradeSize: BN; oppositeSideTradeSize: BN } {
+	const userAccountSubscriber = new OneShotUserAccountSubscriber(
+		driftClient.program,
+		userAccountKey,
+		userAccount
+	);
+
+	const user = new User({
+		driftClient,
+		userAccountPublicKey: userAccountKey,
+		accountSubscription: {
+			type: 'custom',
+			userAccountSubscriber: userAccountSubscriber,
+		},
+	});
+
+	user.isSubscribed = true;
+
+	return user.getMaxTradeSizeUSDCForPerp(targetMarketIndex, tradeSide);
 }
