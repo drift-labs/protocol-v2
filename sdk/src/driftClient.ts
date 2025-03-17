@@ -3466,12 +3466,12 @@ export class DriftClient {
 	): Promise<TransactionInstruction> {
 		const fromUser = await getUserAccountPublicKey(
 			this.program.programId,
-			this.wallet.publicKey,
+			this.authority,
 			fromSubAccountId
 		);
 		const toUser = await getUserAccountPublicKey(
 			this.program.programId,
-			this.wallet.publicKey,
+			this.authority,
 			toSubAccountId
 		);
 
