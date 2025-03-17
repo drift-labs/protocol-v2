@@ -312,11 +312,15 @@ pub fn handle_resize_signed_msg_user_orders<'c: 'info, 'info>(
     num_orders: u16,
 ) -> Result<()> {
     let signed_msg_user_orders = &mut ctx.accounts.signed_msg_user_orders;
-    if (num_orders as usize) < signed_msg_user_orders.signed_msg_order_data.len()
-        && ctx.accounts.authority.key != ctx.accounts.payer.key
+    let user = load!(ctx.accounts.user)?;
+    if ctx.accounts.payer.key != ctx.accounts.authority.key
+        && ctx.accounts.payer.key != &user.delegate.key()
     {
-        msg!("payer must match authority if shrinking the signed msg user orders account size");
-        return Err(ErrorCode::InvalidSignedMsgUserOrdersResize.into());
+        validate!(
+            num_orders as usize >= signed_msg_user_orders.signed_msg_order_data.len(),
+            ErrorCode::InvalidSignedMsgUserOrdersResize,
+            "Invalid shrinking resize for payer != user authority or delegate"
+        )?;
     }
 
     signed_msg_user_orders
@@ -4093,6 +4097,7 @@ pub struct ResizeSignedMsgUserOrders<'info> {
     pub signed_msg_user_orders: Box<Account<'info, SignedMsgUserOrders>>,
     /// CHECK: authority
     pub authority: AccountInfo<'info>,
+    pub user: AccountLoader<'info, User>,
     #[account(mut)]
     pub payer: Signer<'info>,
     pub system_program: Program<'info, System>,

@@ -1127,10 +1127,15 @@ export class DriftClient {
 	public async resizeSignedMsgUserOrders(
 		authority: PublicKey,
 		numOrders: number,
+		userSubaccountId?: number,
 		txParams?: TxParams
 	): Promise<TransactionSignature> {
 		const resizeUserAccountIx =
-			await this.getResizeSignedMsgUserOrdersInstruction(authority, numOrders);
+			await this.getResizeSignedMsgUserOrdersInstruction(
+				authority,
+				numOrders,
+				userSubaccountId
+			);
 		const tx = await this.buildTransaction([resizeUserAccountIx], txParams);
 		const { txSig } = await this.sendTransaction(tx, [], this.opts);
 
@@ -1139,7 +1144,8 @@ export class DriftClient {
 
 	async getResizeSignedMsgUserOrdersInstruction(
 		authority: PublicKey,
-		numOrders: number
+		numOrders: number,
+		userSubaccountId?: number
 	): Promise<TransactionInstruction> {
 		const signedMsgUserAccountPublicKey = getSignedMsgUserAccountPublicKey(
 			this.program.programId,
@@ -1152,6 +1158,11 @@ export class DriftClient {
 					authority,
 					payer: this.wallet.publicKey,
 					systemProgram: anchor.web3.SystemProgram.programId,
+					user: await getUserAccountPublicKey(
+						this.program.programId,
+						authority,
+						userSubaccountId
+					),
 				},
 			});
 
