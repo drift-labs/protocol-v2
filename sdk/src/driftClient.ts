@@ -9310,16 +9310,14 @@ export class DriftClient {
 			}
 		}
 
-		const [pullIxs, _responses, success] = await PullFeed.fetchUpdateManyIx(
-			program,
-			{
+		const [pullIxs, _responses, success] =
+			await PullFeed.fetchUpdateManyLightIx(program, {
 				feeds,
 				numSignatures,
 				recentSlothashes: recentSlothash
 					? [[new BN(recentSlothash.slot), recentSlothash.hash]]
 					: undefined,
-			}
-		);
+			});
 		if (!success) {
 			return undefined;
 		}
