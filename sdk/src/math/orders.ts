@@ -12,7 +12,6 @@ import {
 	ZERO,
 	TWO,
 	ONE,
-	PERCENTAGE_PRECISION,
 } from '../constants/numericConstants';
 import { BN } from '@coral-xyz/anchor';
 import { OraclePriceData } from '../oracles/types';

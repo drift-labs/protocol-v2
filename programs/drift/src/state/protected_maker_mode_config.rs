@@ -36,7 +36,7 @@ impl ProtectedMakerModeConfig {
     }
 }
 
-#[derive(Clone, Copy,)]
+#[derive(Clone, Copy)]
 pub struct ProtectedMakerParams {
     pub limit_price_divisor: u8,
     pub dynamic_offset: u64,
