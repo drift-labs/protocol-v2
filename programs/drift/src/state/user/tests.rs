@@ -2033,7 +2033,7 @@ mod worst_case_liability_value {
 }
 
 mod get_limit_price {
-    use crate::state::protected_maker_mode_config::PmmParams;
+    use crate::state::protected_maker_mode_config::ProtectedMakerParams;
     use crate::state::user::{Order, OrderType};
     use crate::{
         PositionDirection, MAX_PREDICTION_MARKET_PRICE, MAX_PREDICTION_MARKET_PRICE_I64,
@@ -2071,10 +2071,10 @@ mod get_limit_price {
                 0,
                 1,
                 false,
-                Some(PmmParams {
+                Some(ProtectedMakerParams {
                     limit_price_divisor: 10,
                     tick_size: 1,
-                    ..PmmParams::default()
+                    ..ProtectedMakerParams::default()
                 }),
             )
             .unwrap();
@@ -2116,10 +2116,10 @@ mod get_limit_price {
                 0,
                 1,
                 false,
-                Some(PmmParams {
+                Some(ProtectedMakerParams {
                     limit_price_divisor: 10,
                     tick_size: 1,
-                    ..PmmParams::default()
+                    ..ProtectedMakerParams::default()
                 }),
             )
             .unwrap();
@@ -2161,9 +2161,9 @@ mod get_limit_price {
                 0,
                 100,
                 false,
-                Some(PmmParams {
+                Some(ProtectedMakerParams {
                     limit_price_divisor: 10,
-                    ..PmmParams::default()
+                    ..ProtectedMakerParams::default()
                 }),
             )
             .unwrap();
@@ -2198,10 +2198,10 @@ mod get_limit_price {
                 0,
                 10000,
                 false,
-                Some(PmmParams {
+                Some(ProtectedMakerParams {
                     limit_price_divisor: 10,
                     tick_size: 10000,
-                    ..PmmParams::default()
+                    ..ProtectedMakerParams::default()
                 }),
             )
             .unwrap();
