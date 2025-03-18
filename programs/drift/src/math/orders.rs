@@ -294,7 +294,8 @@ pub fn apply_protected_maker_limit_price_offset(
     let price_offset = price
         .safe_div(limit_price_bps_divisor)?
         .max(min_offset)
-        .max(params.dynamic_offset);
+        .max(params.dynamic_offset)
+        .min(price / 20);
 
     let price = match direction {
         PositionDirection::Long => price.saturating_sub(price_offset).max(params.tick_size),

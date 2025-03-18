@@ -196,9 +196,12 @@ export function applyProtectedMakerParams(
 		limitPriceBpsDivisor = 1000;
 	}
 
-	const limitPriceOffset = BN.max(
-		BN.max(limitPrice.divn(limitPriceBpsDivisor), minOffset),
-		protectedMakerParams.dynamicOffset
+	const limitPriceOffset = BN.min(
+		BN.max(
+			BN.max(limitPrice.divn(limitPriceBpsDivisor), minOffset),
+			protectedMakerParams.dynamicOffset
+		),
+		limitPrice.divn(20)
 	);
 
 	if (isVariant(direction, 'long')) {
