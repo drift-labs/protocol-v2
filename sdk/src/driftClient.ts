@@ -2079,16 +2079,18 @@ export class DriftClient {
 	 * @param subAccountId
 	 */
 	public async forceGetUserAccount(
-		subAccountId?: number
+		subAccountId?: number,
+		authority?: PublicKey
 	): Promise<UserAccount | undefined> {
-		await this.getUser(subAccountId).fetchAccounts();
-		return this.getUser(subAccountId).getUserAccount();
+		await this.getUser(subAccountId, authority).fetchAccounts();
+		return this.getUser(subAccountId, authority).getUserAccount();
 	}
 
 	public getUserAccountAndSlot(
-		subAccountId?: number
+		subAccountId?: number,
+		authority?: PublicKey
 	): DataAndSlot<UserAccount> | undefined {
-		return this.getUser(subAccountId).getUserAccountAndSlot();
+		return this.getUser(subAccountId, authority).getUserAccountAndSlot();
 	}
 
 	public getSpotPosition(
@@ -2190,7 +2192,10 @@ export class DriftClient {
 			const lastUserSlot = this.getUserAccountAndSlot(
 				params.userAccounts.length > 0
 					? params.userAccounts[0].subAccountId
-					: this.activeSubAccountId
+					: this.activeSubAccountId,
+				params.userAccounts.length > 0
+					? params.userAccounts[0].authority
+					: this.authority
 			)?.slot;
 
 			for (const [
