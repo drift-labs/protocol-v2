@@ -6,6 +6,7 @@ import {
 	AMM,
 	Order,
 	PositionDirection,
+	ProtectedMakerParams,
 } from '../types';
 import { ZERO, TWO, ONE } from '../constants/numericConstants';
 import { BN } from '@coral-xyz/anchor';
@@ -155,7 +156,7 @@ export function getLimitPrice(
 	oraclePriceData: OraclePriceData,
 	slot: number,
 	fallbackPrice?: BN,
-	protectedMaker?: boolean
+	protectedMakerParams?: ProtectedMakerParams
 ): BN | undefined {
 	let limitPrice;
 	if (hasAuctionPrice(order, slot)) {
@@ -171,17 +172,46 @@ export function getLimitPrice(
 		limitPrice = order.price;
 	}
 
-	if (protectedMaker) {
-		const offset = limitPrice.divn(1000);
-
-		if (isVariant(order.direction, 'long')) {
-			limitPrice = limitPrice.sub(offset);
-		} else {
-			limitPrice = limitPrice.add(offset);
-		}
+	if (protectedMakerParams) {
+		limitPrice = applyProtectedMakerParams(
+			limitPrice,
+			order.direction,
+			protectedMakerParams
+		);
 	}
 
 	return limitPrice;
+}
+
+export function applyProtectedMakerParams(
+	limitPrice: BN,
+	direction: PositionDirection,
+	protectedMakerParams: ProtectedMakerParams
+): BN {
+	const minOffset = protectedMakerParams.tickSize.muln(8);
+	let limitPriceBpsDivisor;
+	if (protectedMakerParams.limitPriceDivisor > 0) {
+		limitPriceBpsDivisor = 10000 / protectedMakerParams.limitPriceDivisor;
+	} else {
+		limitPriceBpsDivisor = 1000;
+	}
+
+	const limitPriceOffset = BN.min(
+		BN.max(
+			BN.max(limitPrice.divn(limitPriceBpsDivisor), minOffset),
+			protectedMakerParams.dynamicOffset
+		),
+		limitPrice.divn(20)
+	);
+
+	if (isVariant(direction, 'long')) {
+		return BN.max(
+			limitPrice.sub(limitPriceOffset),
+			protectedMakerParams.tickSize
+		);
+	} else {
+		return limitPrice.add(limitPriceOffset);
+	}
 }
 
 export function hasLimitPrice(order: Order, slot: number): boolean {

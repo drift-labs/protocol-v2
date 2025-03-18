@@ -1,6 +1,6 @@
 use std::cell::RefMut;
 use std::collections::BTreeMap;
-use std::ops::DerefMut;
+use std::ops::{Deref, DerefMut};
 use std::u64;
 
 use anchor_lang::prelude::*;
@@ -63,6 +63,7 @@ use crate::state::order_params::{
 use crate::state::paused_operations::{PerpOperation, SpotOperation};
 use crate::state::perp_market::{AMMAvailability, AMMLiquiditySplit, MarketStatus, PerpMarket};
 use crate::state::perp_market_map::PerpMarketMap;
+use crate::state::protected_maker_mode_config::ProtectedMakerParams;
 use crate::state::spot_fulfillment_params::{ExternalSpotFill, SpotFulfillmentParams};
 use crate::state::spot_market::{SpotBalanceType, SpotMarket};
 use crate::state::spot_market_map::SpotMarketMap;
@@ -1473,12 +1474,13 @@ fn get_maker_orders_info(
             slot,
             market.amm.order_tick_size,
             market.is_prediction_market(),
-            apply_protected_maker_offset(
+            get_protected_maker_params(
                 is_protected_maker,
                 jit_maker_order_id.is_some(),
                 user_can_skip_duration,
                 taker_order_age,
                 protected_maker_min_age,
+                market.deref(),
             ),
         )?;
 
@@ -1589,17 +1591,23 @@ fn get_maker_orders_info(
 }
 
 #[inline(always)]
-fn apply_protected_maker_offset(
+fn get_protected_maker_params(
     is_protected_maker: bool,
     jit_maker: bool,
     user_can_skip_duration: bool,
     taker_order_age: u64,
     protected_maker_min_age: u64,
-) -> bool {
-    is_protected_maker
+    market: &PerpMarket,
+) -> Option<ProtectedMakerParams> {
+    if is_protected_maker
         && !jit_maker
         && !user_can_skip_duration
         && taker_order_age < protected_maker_min_age
+    {
+        Some(market.get_protected_maker_params())
+    } else {
+        None
+    }
 }
 
 #[inline(always)]
@@ -4043,7 +4051,7 @@ fn get_spot_maker_orders_info(
             slot,
             market.order_tick_size,
             false,
-            false,
+            None,
         )?;
 
         if maker_order_price_and_indexes.is_empty() {
@@ -4236,7 +4244,7 @@ fn fulfill_spot_order(
         slot,
         base_market.order_tick_size,
         false,
-        false,
+        None,
     )?;
 
     let fulfillment_methods = determine_spot_fulfillment_methods(
@@ -4569,7 +4577,7 @@ pub fn fulfill_spot_order_with_match(
         slot,
         base_market.order_tick_size,
         false,
-        false,
+        None,
     )? {
         Some(price) => price,
         None => {
@@ -4594,7 +4602,7 @@ pub fn fulfill_spot_order_with_match(
         slot,
         base_market.order_tick_size,
         false,
-        false,
+        None,
     )?;
     let maker_direction = maker.orders[maker_order_index].direction;
     let maker_spot_position_index = maker.get_spot_position_index(market_index)?;
@@ -4909,7 +4917,7 @@ pub fn fulfill_spot_order_with_external_market(
         slot,
         base_market.order_tick_size,
         false,
-        false,
+        None,
     )?;
     let taker_token_amount = taker
         .force_get_spot_position_mut(base_market.market_index)?
