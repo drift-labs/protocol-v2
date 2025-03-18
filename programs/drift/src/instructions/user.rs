@@ -1,4 +1,3 @@
-use std::collections::HashSet;
 use std::convert::TryFrom;
 use std::ops::DerefMut;
 
@@ -313,6 +312,17 @@ pub fn handle_resize_signed_msg_user_orders<'c: 'info, 'info>(
     num_orders: u16,
 ) -> Result<()> {
     let signed_msg_user_orders = &mut ctx.accounts.signed_msg_user_orders;
+    let user = load!(ctx.accounts.user)?;
+    if ctx.accounts.payer.key != ctx.accounts.authority.key
+        && ctx.accounts.payer.key != &user.delegate.key()
+    {
+        validate!(
+            num_orders as usize >= signed_msg_user_orders.signed_msg_order_data.len(),
+            ErrorCode::InvalidSignedMsgUserOrdersResize,
+            "Invalid shrinking resize for payer != user authority or delegate"
+        )?;
+    }
+
     signed_msg_user_orders
         .signed_msg_order_data
         .resize_with(num_orders as usize, SignedMsgOrderId::default);
@@ -1069,7 +1079,6 @@ pub fn handle_transfer_pools<'c: 'info, 'info>(
     let user_stats = &mut load_mut!(ctx.accounts.user_stats)?;
 
     let clock = Clock::get()?;
-    let now = clock.unix_timestamp;
 
     validate!(
         !to_user.is_bankrupt(),
@@ -1527,7 +1536,6 @@ pub fn handle_transfer_perp_position<'c: 'info, 'info>(
     market_index: u16,
     amount: Option<i64>,
 ) -> anchor_lang::Result<()> {
-    let authority_key = ctx.accounts.authority.key;
     let to_user_key = ctx.accounts.to_user.key();
     let from_user_key = ctx.accounts.from_user.key();
 
@@ -1537,7 +1545,6 @@ pub fn handle_transfer_perp_position<'c: 'info, 'info>(
 
     let mut to_user = &mut load_mut!(ctx.accounts.to_user)?;
     let mut from_user = &mut load_mut!(ctx.accounts.from_user)?;
-    let user_stats = &mut load_mut!(ctx.accounts.user_stats)?;
 
     let clock = Clock::get()?;
     let now = clock.unix_timestamp;
@@ -1594,37 +1601,40 @@ pub fn handle_transfer_perp_position<'c: 'info, 'info>(
         now,
     )?;
 
-    let perp_market = perp_market_map.get_ref(&market_index)?;
-    let oi_before = perp_market.get_open_interest();
-    let (oracle_price_data, oracle_validity) = oracle_map.get_price_data_and_validity(
-        MarketType::Perp,
-        market_index,
-        &perp_market.oracle_id(),
-        perp_market
-            .amm
-            .historical_oracle_data
-            .last_oracle_price_twap,
-        perp_market.get_max_confidence_interval_multiplier()?,
-    )?;
-    let step_size = perp_market.amm.order_step_size;
-    let tick_size = perp_market.amm.order_tick_size;
+    let oi_before;
+    let oracle_price;
+    let step_size;
+    let tick_size;
+    {
+        let perp_market = perp_market_map.get_ref(&market_index)?;
+        oi_before = perp_market.get_open_interest();
+        let (oracle_price_data, oracle_validity) = oracle_map.get_price_data_and_validity(
+            MarketType::Perp,
+            market_index,
+            &perp_market.oracle_id(),
+            perp_market
+                .amm
+                .historical_oracle_data
+                .last_oracle_price_twap,
+            perp_market.get_max_confidence_interval_multiplier()?,
+        )?;
+        step_size = perp_market.amm.order_step_size;
+        tick_size = perp_market.amm.order_tick_size;
 
-    validate!(
-        is_oracle_valid_for_action(oracle_validity, Some(DriftAction::MarginCalc))?,
-        ErrorCode::InvalidTransferPerpPosition,
-        "oracle is not valid for action"
-    )?;
+        validate!(
+            is_oracle_valid_for_action(oracle_validity, Some(DriftAction::MarginCalc))?,
+            ErrorCode::InvalidTransferPerpPosition,
+            "oracle is not valid for action"
+        )?;
 
-    validate!(
-        !perp_market.is_operation_paused(PerpOperation::Fill),
-        ErrorCode::InvalidTransferPerpPosition,
-        "perp market fills paused"
-    )?;
+        validate!(
+            !perp_market.is_operation_paused(PerpOperation::Fill),
+            ErrorCode::InvalidTransferPerpPosition,
+            "perp market fills paused"
+        )?;
 
-    let oracle_price = oracle_price_data.price;
-    drop(oracle_price_data);
-
-    drop(perp_market);
+        oracle_price = oracle_price_data.price;
+    }
 
     let (transfer_amount, direction_to_close) = if let Some(amount) = amount {
         let existing_position = from_user.force_get_perp_position_mut(market_index)?;
@@ -4065,7 +4075,8 @@ pub struct InitializeSignedMsgUserOrders<'info> {
         payer = payer
     )]
     pub signed_msg_user_orders: Box<Account<'info, SignedMsgUserOrders>>,
-    pub authority: Signer<'info>,
+    /// CHECK: Just a normal authority account
+    pub authority: AccountInfo<'info>,
     #[account(mut)]
     pub payer: Signer<'info>,
     pub rent: Sysvar<'info, Rent>,
@@ -4080,12 +4091,15 @@ pub struct ResizeSignedMsgUserOrders<'info> {
         seeds = [SIGNED_MSG_PDA_SEED.as_ref(), authority.key().as_ref()],
         bump,
         realloc = SignedMsgUserOrders::space(num_orders as usize),
-        realloc::payer = authority,
+        realloc::payer = payer,
         realloc::zero = false,
     )]
     pub signed_msg_user_orders: Box<Account<'info, SignedMsgUserOrders>>,
+    /// CHECK: authority
+    pub authority: AccountInfo<'info>,
+    pub user: AccountLoader<'info, User>,
     #[account(mut)]
-    pub authority: Signer<'info>,
+    pub payer: Signer<'info>,
     pub system_program: Program<'info, System>,
 }
 

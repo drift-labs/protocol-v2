@@ -9,7 +9,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Features
 
+- program: make initting signedmsguserorder accounts permissionless ([#1533](https://github.com/drift-labs/protocol-v2/pull/1533))
+
+### Fixes
+
+- sdk: account for authority when useMarketLastSlotCache ([#1541](https://github.com/drift-labs/protocol-v2/pull/1541))
+
+### Breaking
+
+## [2.114.0] - 2025-03-13
+
+### Features
+
+### Fixes
+
+- program: add liq fees to calculate_perp_market_amm_summary_stats ([#1531](https://github.com/drift-labs/protocol-v2/pull/1531))
+
+### Breaking
+
+## [2.113.0] - 2025-03-06
+
+### Features
+
 - program: add transfer_perp_position ix ([#1514](https://github.com/drift-labs/protocol-v2/pull/1514))
+- program: add signed_msg ws delegate account ([#1515](https://github.com/drift-labs/protocol-v2/pull/1515))
 
 ### Fixes
 
@@ -22,7 +45,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - program: use custom margin ratio if oracle too stale for margin ([#1505](https://github.com/drift-labs/protocol-v2/pull/1505))
 - program: enable limit orders with auctions in fastlane ([#1502](https://github.com/drift-labs/protocol-v2/pull/1502))
 - program: set is_signed_msg bitflag on orders ([#1504](https://github.com/drift-labs/protocol-v2/pull/1504))
-- program: add signed_msg ws delegate account ([#1515](https://github.com/drift-labs/protocol-v2/pull/1515))
 
 ### Fixes
 

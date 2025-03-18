@@ -104,3 +104,16 @@ macro_rules! digest_struct_hex {
         hex::encode(digest_struct!($struct)).into_bytes()
     }};
 }
+
+/// same as `solana_program::msg!` but it can compile away for off-chain use
+#[macro_export]
+macro_rules! msg {
+    ($msg:expr) => {
+        #[cfg(not(feature = "drift-rs"))]
+        solana_program::msg!($msg)
+    };
+    ($($arg:tt)*) => {
+        #[cfg(not(feature = "drift-rs"))]
+        (solana_program::msg!(&format!($($arg)*)));
+    }
+}

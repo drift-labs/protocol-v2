@@ -3784,7 +3784,7 @@ pub fn fill_spot_order(
         slot,
     )?;
 
-    let mut oracle_stale_for_margin = false;
+    let oracle_stale_for_margin;
     {
         let mut quote_market = spot_market_map.get_quote_spot_market_mut()?;
         let oracle_price_data = oracle_map.get_price_data(&quote_market.oracle_id())?;

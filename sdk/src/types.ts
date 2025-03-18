@@ -242,6 +242,9 @@ export class OrderActionExplanation {
 	static readonly DERISK_LP = {
 		deriskLp: {},
 	};
+	static readonly TRANSFER_PERP_POSITION = {
+		transferPerpPosition: {},
+	};
 }
 
 export class OrderTriggerCondition {
@@ -1161,7 +1164,7 @@ export const DefaultOrderParams: OrderParams = {
 };
 
 export type SignedMsgOrderParamsMessage = {
-	signedMsgOrderParams: OptionalOrderParams;
+	signedMsgOrderParams: OrderParams;
 	subAccountId: number;
 	slot: BN;
 	uuid: Uint8Array;

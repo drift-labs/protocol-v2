@@ -1361,7 +1361,7 @@ pub fn select_margin_type_for_perp_maker(
     maker: &User,
     base_asset_amount_filled: i64,
     market_index: u16,
-) -> DriftResult<((MarginRequirementType, bool))> {
+) -> DriftResult<(MarginRequirementType, bool)> {
     let position_after_fill = maker
         .get_perp_position(market_index)
         .map_or(0, |p| p.base_asset_amount);
