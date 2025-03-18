@@ -5,6 +5,7 @@ import {
 	DLOBSource,
 	DLOBSubscriberEvents,
 	DLOBSubscriptionConfig,
+	ProtectMakerParamsMap,
 	SlotSource,
 } from './types';
 import { DriftClient } from '../driftClient';
@@ -16,6 +17,7 @@ import {
 	L2OrderBookGenerator,
 	L3OrderBook,
 } from './orderBookLevels';
+import { getProtectedMakerParamsMap } from '../math/protectedMakerParams';
 
 export class DLOBSubscriber {
 	driftClient: DriftClient;
@@ -32,7 +34,7 @@ export class DLOBSubscriber {
 		this.slotSource = config.slotSource;
 		this.updateFrequency = config.updateFrequency;
 		this.protectedMakerView = config.protectedMakerView || false;
-		this.dlob = new DLOB(this.protectedMakerView);
+		this.dlob = new DLOB(this.getProtectedMakerParamsMap());
 		this.eventEmitter = new EventEmitter();
 	}
 
@@ -53,10 +55,16 @@ export class DLOBSubscriber {
 		}, this.updateFrequency);
 	}
 
+	getProtectedMakerParamsMap(): ProtectMakerParamsMap | undefined {
+		return this.protectedMakerView
+			? getProtectedMakerParamsMap(this.driftClient.getPerpMarketAccounts())
+			: undefined;
+	}
+
 	async updateDLOB(): Promise<void> {
 		this.dlob = await this.dlobSource.getDLOB(
 			this.slotSource.getSlot(),
-			this.protectedMakerView
+			this.getProtectedMakerParamsMap()
 		);
 	}
 

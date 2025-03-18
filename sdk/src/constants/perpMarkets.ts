@@ -74,9 +74,9 @@ export const DevnetPerpMarkets: PerpMarketConfig[] = [
 		symbol: '1MBONK-PERP',
 		baseAssetSymbol: '1MBONK',
 		marketIndex: 4,
-		oracle: new PublicKey('GojbSnJuPdKDT1ZuHuAM5t9oz6bxTo1xhUKpTua2F72p'),
+		oracle: new PublicKey('BERaNi6cpEresbq6HC1EQGaB1H1UjvEo4NGnmYSSJof4'),
 		launchTs: 1677068931000,
-		oracleSource: OracleSource.PYTH_1M_PULL,
+		oracleSource: OracleSource.PYTH_LAZER_1M,
 		pythFeedId:
 			'0x72b021217ca3fe68922a19aaf990109cb9d84e9ad004b4d2025ad6f529314419',
 		pythLazerId: 9,
