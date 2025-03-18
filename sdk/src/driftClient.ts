@@ -6408,7 +6408,7 @@ export class DriftClient {
 	): Promise<TransactionInstruction[]> {
 		const remainingAccounts = this.getRemainingAccounts({
 			userAccounts: [takerInfo.takerUserAccount],
-			useMarketLastSlotCache: true,
+			useMarketLastSlotCache: false,
 			readablePerpMarketIndex: marketIndex,
 		});
 
@@ -6526,7 +6526,7 @@ export class DriftClient {
 				this.getUserAccount(subAccountId),
 				takerInfo.takerUserAccount,
 			],
-			useMarketLastSlotCache: true,
+			useMarketLastSlotCache: false,
 			writablePerpMarketIndexes: [orderParams.marketIndex],
 		});
 
