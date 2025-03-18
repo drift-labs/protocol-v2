@@ -610,12 +610,11 @@ export const MainnetPerpMarkets: PerpMarketConfig[] = [
 		symbol: 'RLB-PERP',
 		baseAssetSymbol: 'RLB',
 		marketIndex: 17,
-		oracle: new PublicKey('7BYvPq9wS9N78TnzTFTUuA2xLvh6KQgEH45wdh1ZwFnj'),
+		oracle: new PublicKey('4CyhPqyVK3UQHFWhEpk91Aw4WbBsN3JtyosXH6zjoRqG'),
 		launchTs: 1699265968000,
-		oracleSource: OracleSource.PYTH_LAZER,
+		oracleSource: OracleSource.PYTH_PULL,
 		pythFeedId:
 			'0x2f2d17abbc1e781bd87b4a5d52c8b2856886f5c482fa3593cebf6795040ab0b6',
-		pythLazerId: 267,
 	},
 	{
 		fullName: 'Pyth',
