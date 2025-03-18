@@ -266,9 +266,7 @@ describe('market order', () => {
 		const expectedFeeToMarket = new BN(1001);
 		assert(market.amm.totalFee.eq(expectedFeeToMarket));
 
-		assert(order.baseAssetAmount.eq(new BN(0)));
-		assert(order.price.eq(new BN(0)));
-		assert(order.marketIndex === 0);
+		assert(order.baseAssetAmount.eq(order.baseAssetAmountFilled));
 
 		const firstPosition = driftClientUser.getUserAccount().perpPositions[0];
 		assert(firstPosition.baseAssetAmount.eq(baseAssetAmount));

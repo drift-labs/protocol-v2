@@ -150,7 +150,7 @@ pub fn place_perp_order(
         let user_order_id_already_used = user
             .orders
             .iter()
-            .position(|order| order.user_order_id == params.user_order_id);
+            .position(|order| order.user_order_id == params.user_order_id && !order.is_available());
 
         if user_order_id_already_used.is_some() {
             msg!("user_order_id is already in use {}", params.user_order_id);
@@ -3449,7 +3449,7 @@ pub fn place_spot_order(
         let user_order_id_already_used = user
             .orders
             .iter()
-            .position(|order| order.user_order_id == params.user_order_id);
+            .position(|order| order.user_order_id == params.user_order_id && !order.is_available());
 
         if user_order_id_already_used.is_some() {
             msg!("user_order_id is already in use {}", params.user_order_id);

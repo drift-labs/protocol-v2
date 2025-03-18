@@ -3637,7 +3637,6 @@ export class DriftClient {
 
 		const remainingAccounts = this.getRemainingAccounts({
 			userAccounts: [userAccount],
-			useMarketLastSlotCache: true,
 			writablePerpMarketIndexes: [marketIndex],
 		});
 
@@ -7494,7 +7493,6 @@ export class DriftClient {
 				userAccount,
 				...makerInfos.map((makerInfo) => makerInfo.makerUserAccount),
 			],
-			useMarketLastSlotCache: true,
 			writablePerpMarketIndexes: [marketIndex],
 		});
 
@@ -8846,7 +8844,6 @@ export class DriftClient {
 	): Promise<TransactionInstruction> {
 		const remainingAccounts = this.getRemainingAccounts({
 			userAccounts: [this.getUserAccount()],
-			useMarketLastSlotCache: true,
 			writablePerpMarketIndexes: [perpMarketIndex],
 			writableSpotMarketIndexes: [spotMarketIndex],
 		});
