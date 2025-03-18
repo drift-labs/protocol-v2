@@ -2765,6 +2765,18 @@ export class DriftClient {
 				referrerInfo
 			);
 
+		const isSignedMsgUserOrdersAccountInitialized =
+			await this.isSignedMsgUserOrdersAccountInitialized(this.wallet.publicKey);
+
+		if (!isSignedMsgUserOrdersAccountInitialized) {
+			const [, initializeSignedMsgUserOrdersAccountIx] =
+				await this.getInitializeSignedMsgUserOrdersAccountIx(
+					this.wallet.publicKey,
+					8
+				);
+			ixs.push(initializeSignedMsgUserOrdersAccountIx);
+		}
+
 		const spotMarket = this.getSpotMarketAccount(marketIndex);
 
 		const isSolMarket = spotMarket.mint.equals(WRAPPED_SOL_MINT);
