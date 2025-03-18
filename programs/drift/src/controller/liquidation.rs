@@ -68,7 +68,7 @@ use crate::state::state::State;
 use crate::state::traits::Size;
 use crate::state::user::{MarketType, Order, OrderStatus, OrderType, User, UserStats};
 use crate::state::user_map::{UserMap, UserStatsMap};
-use crate::{get_then_update_id, load_mut};
+use crate::{get_then_update_id, load_mut, LST_POOL_ID};
 use crate::{validate, LIQUIDATION_FEE_PRECISION};
 
 #[cfg(test)]
@@ -1264,7 +1264,15 @@ pub fn liquidate_spot(
             e
         })?;
 
-    let (asset_amount, asset_price, asset_decimals, asset_weight, asset_liquidation_multiplier) = {
+    let (
+        asset_amount,
+        asset_price,
+        asset_decimals,
+        asset_weight,
+        asset_liquidation_multiplier,
+        asset_pool_id,
+        asset_oracle_delay,
+    ) = {
         let mut asset_market = spot_market_map.get_ref_mut(&asset_market_index)?;
         let (asset_price_data, validity_guard_rails) =
             oracle_map.get_price_data_and_guard_rails(&asset_market.oracle_id())?;
@@ -1304,6 +1312,8 @@ pub fn liquidate_spot(
                 asset_market.liquidator_fee,
                 LiquidationMultiplierType::Premium,
             )?,
+            asset_market.pool_id,
+            asset_price_data.delay,
         )
     };
 
@@ -1313,6 +1323,8 @@ pub fn liquidate_spot(
         liability_decimals,
         liability_weight,
         liability_liquidation_multiplier,
+        liability_pool_id,
+        liability_oracle_delay,
     ) = {
         let mut liability_market = spot_market_map.get_ref_mut(&liability_market_index)?;
         let (liability_price_data, validity_guard_rails) =
@@ -1354,8 +1366,20 @@ pub fn liquidate_spot(
                 liability_market.liquidator_fee,
                 LiquidationMultiplierType::Discount,
             )?,
+            liability_market.pool_id,
+            liability_price_data.delay,
         )
     };
+
+    if asset_pool_id == LST_POOL_ID && liability_pool_id == LST_POOL_ID {
+        validate!(
+            asset_oracle_delay == 0 && liability_oracle_delay == 0,
+            ErrorCode::InvalidLiquidation,
+            "asset oracle delay ({}) != 0 || liability oracle delay ({}) != 0",
+            asset_oracle_delay,
+            liability_oracle_delay
+        )?;
+    }
 
     let margin_context = MarginContext::liquidation(liquidation_margin_buffer_ratio)
         .track_market_margin_requirement(MarketIdentifier::spot(liability_market_index))?
@@ -1779,7 +1803,14 @@ pub fn liquidate_spot_with_swap_begin(
     drop(asset_spot_market);
     drop(liability_spot_market);
 
-    let (asset_amount, asset_price, asset_decimals, asset_weight) = {
+    let (
+        asset_amount,
+        asset_price,
+        asset_decimals,
+        asset_weight,
+        asset_pool_id,
+        asset_oracle_delay,
+    ) = {
         let mut asset_market = spot_market_map.get_ref_mut(&asset_market_index)?;
         let (asset_price_data, validity_guard_rails) =
             oracle_map.get_price_data_and_guard_rails(&asset_market.oracle_id())?;
@@ -1815,10 +1846,19 @@ pub fn liquidate_spot_with_swap_begin(
             asset_price,
             asset_market.decimals,
             asset_market.maintenance_asset_weight,
+            asset_market.pool_id,
+            asset_price_data.delay,
         )
     };
 
-    let (liability_price, liability_decimals, liability_weight, liability_if_fee) = {
+    let (
+        liability_price,
+        liability_decimals,
+        liability_weight,
+        liability_if_fee,
+        liability_pool_id,
+        liability_oracle_delay,
+    ) = {
         let mut liability_market = spot_market_map.get_ref_mut(&liability_market_index)?;
         let (liability_price_data, validity_guard_rails) =
             oracle_map.get_price_data_and_guard_rails(&liability_market.oracle_id())?;
@@ -1855,8 +1895,20 @@ pub fn liquidate_spot_with_swap_begin(
             liability_market.decimals,
             liability_market.maintenance_liability_weight,
             liability_market.if_liquidation_fee,
+            liability_market.pool_id,
+            liability_price_data.delay,
         )
     };
+
+    if asset_pool_id == LST_POOL_ID && liability_pool_id == LST_POOL_ID {
+        validate!(
+            asset_oracle_delay == 0 && liability_oracle_delay == 0,
+            ErrorCode::InvalidLiquidation,
+            "asset oracle delay ({}) != 0 || liability oracle delay ({}) != 0",
+            asset_oracle_delay,
+            liability_oracle_delay
+        )?;
+    }
 
     let margin_context = MarginContext::liquidation(liquidation_margin_buffer_ratio)
         .track_market_margin_requirement(MarketIdentifier::spot(liability_market_index))?

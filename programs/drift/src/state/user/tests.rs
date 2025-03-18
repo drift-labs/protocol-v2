@@ -2033,6 +2033,7 @@ mod worst_case_liability_value {
 }
 
 mod get_limit_price {
+    use crate::state::protected_maker_mode_config::ProtectedMakerParams;
     use crate::state::user::{Order, OrderType};
     use crate::{
         PositionDirection, MAX_PREDICTION_MARKET_PRICE, MAX_PREDICTION_MARKET_PRICE_I64,
@@ -2051,7 +2052,7 @@ mod get_limit_price {
         let oracle_price: Option<i64> = Some((101 * PRICE_PRECISION) as i64);
 
         let limit_price = long_order
-            .get_limit_price(oracle_price, None, 0, 1, false, false)
+            .get_limit_price(oracle_price, None, 0, 1, false, None)
             .unwrap();
 
         assert_eq!(limit_price, Some(long_order.price));
@@ -2064,7 +2065,18 @@ mod get_limit_price {
         };
 
         let limit_price = long_order
-            .get_limit_price(oracle_price, None, 0, 1, false, true)
+            .get_limit_price(
+                oracle_price,
+                None,
+                0,
+                1,
+                false,
+                Some(ProtectedMakerParams {
+                    limit_price_divisor: 10,
+                    tick_size: 1,
+                    ..ProtectedMakerParams::default()
+                }),
+            )
             .unwrap();
 
         assert_ne!(limit_price, Some(long_order.price));
@@ -2072,7 +2084,7 @@ mod get_limit_price {
 
         // double check no mut or state issues
         let limit_price = long_order
-            .get_limit_price(oracle_price, None, 0, 1, false, false)
+            .get_limit_price(oracle_price, None, 0, 1, false, None)
             .unwrap();
 
         assert_eq!(limit_price, Some(long_order.price));
@@ -2091,22 +2103,32 @@ mod get_limit_price {
 
         // Case 1: Protected maker mode disabled
         let limit_price = short_order
-            .get_limit_price(oracle_price, None, 0, 1, false, false)
+            .get_limit_price(oracle_price, None, 0, 1, false, None)
             .unwrap();
 
         assert_eq!(limit_price, Some(short_order.price));
 
         // Case 2: Protected maker mode enabled
         let limit_price = short_order
-            .get_limit_price(oracle_price, None, 0, 1, false, true)
+            .get_limit_price(
+                oracle_price,
+                None,
+                0,
+                1,
+                false,
+                Some(ProtectedMakerParams {
+                    limit_price_divisor: 10,
+                    tick_size: 1,
+                    ..ProtectedMakerParams::default()
+                }),
+            )
             .unwrap();
-
         assert_ne!(limit_price, Some(short_order.price));
         assert_eq!(limit_price, Some(100100000)); // 10bps adjusted price
 
         // Double-check no mutation or state issues
         let limit_price = short_order
-            .get_limit_price(oracle_price, None, 0, 1, false, false)
+            .get_limit_price(oracle_price, None, 0, 1, false, None)
             .unwrap();
 
         assert_eq!(limit_price, Some(short_order.price));
@@ -2126,14 +2148,24 @@ mod get_limit_price {
 
         // test min price
         let limit_price = long_order_small
-            .get_limit_price(oracle_price, None, 0, 100, false, false)
+            .get_limit_price(oracle_price, None, 0, 100, false, None)
             .unwrap();
 
         assert_eq!(limit_price, Some(10106600));
 
         // test min price
         let limit_price = long_order_small
-            .get_limit_price(oracle_price, None, 0, 100, false, true)
+            .get_limit_price(
+                oracle_price,
+                None,
+                0,
+                100,
+                false,
+                Some(ProtectedMakerParams {
+                    limit_price_divisor: 10,
+                    ..ProtectedMakerParams::default()
+                }),
+            )
             .unwrap();
 
         assert_eq!(limit_price, Some(10096500));
@@ -2153,16 +2185,26 @@ mod get_limit_price {
 
         // test min price
         let limit_price = long_order_small
-            .get_limit_price(oracle_price, None, 0, 10000, false, false)
+            .get_limit_price(oracle_price, None, 0, 10000, false, None)
             .unwrap();
 
         assert_eq!(limit_price, Some(20000));
 
         // test min price
         let limit_price = long_order_small
-            .get_limit_price(oracle_price, None, 0, 10000, false, true)
+            .get_limit_price(
+                oracle_price,
+                None,
+                0,
+                10000,
+                false,
+                Some(ProtectedMakerParams {
+                    limit_price_divisor: 10,
+                    tick_size: 10000,
+                    ..ProtectedMakerParams::default()
+                }),
+            )
             .unwrap();
-
         assert_eq!(limit_price, Some(10000));
     }
 
@@ -2177,7 +2219,7 @@ mod get_limit_price {
         let oracle_price = Some(MAX_PREDICTION_MARKET_PRICE_I64 / 2);
 
         let limit_price = order
-            .get_limit_price(oracle_price, None, 0, 1, true, false)
+            .get_limit_price(oracle_price, None, 0, 1, true, None)
             .unwrap();
 
         assert_eq!(limit_price, Some(MAX_PREDICTION_MARKET_PRICE));
@@ -2189,7 +2231,7 @@ mod get_limit_price {
         };
 
         let limit_price = order
-            .get_limit_price(oracle_price, None, 0, 1, true, false)
+            .get_limit_price(oracle_price, None, 0, 1, true, None)
             .unwrap();
 
         assert_eq!(limit_price, Some(1));
@@ -2205,7 +2247,7 @@ mod get_limit_price {
         };
 
         let limit_price = order
-            .get_limit_price(oracle_price, None, 2, 1, true, false)
+            .get_limit_price(oracle_price, None, 2, 1, true, None)
             .unwrap();
 
         assert_eq!(limit_price, Some(MAX_PREDICTION_MARKET_PRICE));
@@ -2222,7 +2264,7 @@ mod get_limit_price {
         };
 
         let limit_price = order
-            .get_limit_price(oracle_price, None, 2, 1, true, false)
+            .get_limit_price(oracle_price, None, 2, 1, true, None)
             .unwrap();
 
         assert_eq!(limit_price, Some(1));

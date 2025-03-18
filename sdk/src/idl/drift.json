@@ -104,7 +104,7 @@
         {
           "name": "authority",
           "isMut": false,
-          "isSigner": true
+          "isSigner": false
         },
         {
           "name": "payer",
@@ -139,6 +139,16 @@
         },
         {
           "name": "authority",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "user",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "payer",
           "isMut": true,
           "isSigner": true
         },
@@ -14986,6 +14996,11 @@
       "code": 6312,
       "name": "InvalidTransferPerpPosition",
       "msg": "Invalid Transfer Perp Position"
+    },
+    {
+      "code": 6313,
+      "name": "InvalidSignedMsgUserOrdersResize",
+      "msg": "Invalid SignedMsgUserOrders resize"
     }
   ],
   "metadata": {

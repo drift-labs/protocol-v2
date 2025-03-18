@@ -1,4 +1,4 @@
-import { isVariant, MarketTypeStr, Order } from '..';
+import { isVariant, MarketTypeStr, Order, ProtectedMakerParams } from '..';
 import { createNode, DLOBNode, DLOBNodeMap } from './DLOBNode';
 
 export type SortDirection = 'asc' | 'desc';
@@ -37,7 +37,7 @@ export class NodeList<NodeType extends keyof DLOBNodeMap>
 		marketType: MarketTypeStr,
 		userAccount: string,
 		isProtectedMaker: boolean,
-		applyProtectedMakerOffset: boolean
+		protectedMakerParamsMap?: ProtectedMakerParams
 	): void {
 		if (!isVariant(order.status, 'open')) {
 			return;
@@ -48,7 +48,7 @@ export class NodeList<NodeType extends keyof DLOBNodeMap>
 			order,
 			userAccount,
 			isProtectedMaker,
-			applyProtectedMakerOffset
+			protectedMakerParamsMap
 		);
 
 		const orderSignature = getOrderSignature(order.orderId, userAccount);

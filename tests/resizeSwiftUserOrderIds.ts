@@ -181,6 +181,87 @@ describe('place and make signedMsg order', () => {
 		await takerDriftClient.unsubscribe();
 	});
 
+	it('fails to decrease size if authority != payer', async () => {
+		const [takerDriftClient, takerDriftClientUser] =
+			await initializeNewTakerClientAndUser(
+				bankrunContextWrapper,
+				chProgram,
+				usdcMint,
+				usdcAmount,
+				marketIndexes,
+				spotMarketIndexes,
+				oracleInfos,
+				bulkAccountLoader
+			);
+		await takerDriftClientUser.fetchAccounts();
+
+		const signedMsgUserOrdersAccountPublicKey =
+			getSignedMsgUserAccountPublicKey(
+				takerDriftClient.program.programId,
+				takerDriftClientUser.getUserAccount().authority
+			);
+
+		try {
+			await makerDriftClient.resizeSignedMsgUserOrders(
+				takerDriftClientUser.getUserAccount().authority,
+				4
+			);
+			assert.fail('Expected an error');
+		} catch (error) {
+			assert.include(error.toString(), '0x18a9');
+		}
+
+		const signedMsgUserOrders =
+			(await takerDriftClient.program.account.signedMsgUserOrders.fetch(
+				signedMsgUserOrdersAccountPublicKey
+			)) as any;
+
+		assert.equal(signedMsgUserOrders.signedMsgOrderData.length, 32);
+
+		await takerDriftClientUser.unsubscribe();
+		await takerDriftClient.unsubscribe();
+	});
+
+	it('allows decrease size if authority is delegate', async () => {
+		const [takerDriftClient, takerDriftClientUser] =
+			await initializeNewTakerClientAndUser(
+				bankrunContextWrapper,
+				chProgram,
+				usdcMint,
+				usdcAmount,
+				marketIndexes,
+				spotMarketIndexes,
+				oracleInfos,
+				bulkAccountLoader
+			);
+		await takerDriftClientUser.fetchAccounts();
+
+		await takerDriftClient.updateUserDelegate(
+			makerDriftClient.wallet.publicKey
+		);
+
+		const signedMsgUserOrdersAccountPublicKey =
+			getSignedMsgUserAccountPublicKey(
+				takerDriftClient.program.programId,
+				takerDriftClientUser.getUserAccount().authority
+			);
+
+		await makerDriftClient.resizeSignedMsgUserOrders(
+			takerDriftClientUser.getUserAccount().authority,
+			4
+		);
+
+		const signedMsgUserOrders =
+			(await takerDriftClient.program.account.signedMsgUserOrders.fetch(
+				signedMsgUserOrdersAccountPublicKey
+			)) as any;
+
+		assert.equal(signedMsgUserOrders.signedMsgOrderData.length, 4);
+
+		await takerDriftClientUser.unsubscribe();
+		await takerDriftClient.unsubscribe();
+	});
+
 	it('decrease size of signedMsg user orders', async () => {
 		const [takerDriftClient, takerDriftClientUser] =
 			await initializeNewTakerClientAndUser(
