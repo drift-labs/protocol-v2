@@ -4396,12 +4396,12 @@ pub struct TransferPools<'info> {
 pub struct TransferPerpPosition<'info> {
     #[account(
         mut,
-        has_one = authority,
+        constraint = can_sign_for_user(&from_user, &authority)?
     )]
     pub from_user: AccountLoader<'info, User>,
     #[account(
         mut,
-        has_one = authority,
+        constraint = can_sign_for_user(&to_user, &authority)?
     )]
     pub to_user: AccountLoader<'info, User>,
     #[account(

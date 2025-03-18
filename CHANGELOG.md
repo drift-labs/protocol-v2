@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - program: init dynamic offset for pmm ([#1524](https://github.com/drift-labs/protocol-v2/pull/1524))
 - program: new order status logic to make tracking fills easier ([#1512](https://github.com/drift-labs/protocol-v2/pull/1512))
 - program: make initting signedmsguserorder accounts permissionless ([#1533](https://github.com/drift-labs/protocol-v2/pull/1533))
+- program: allow transfer perp position between two delegates ([#1538](https://github.com/drift-labs/protocol-v2/pull/1538))
 
 ### Fixes
 
