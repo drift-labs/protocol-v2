@@ -312,6 +312,17 @@ pub fn handle_resize_signed_msg_user_orders<'c: 'info, 'info>(
     num_orders: u16,
 ) -> Result<()> {
     let signed_msg_user_orders = &mut ctx.accounts.signed_msg_user_orders;
+    let user = load!(ctx.accounts.user)?;
+    if ctx.accounts.payer.key != ctx.accounts.authority.key
+        && ctx.accounts.payer.key != &user.delegate.key()
+    {
+        validate!(
+            num_orders as usize >= signed_msg_user_orders.signed_msg_order_data.len(),
+            ErrorCode::InvalidSignedMsgUserOrdersResize,
+            "Invalid shrinking resize for payer != user authority or delegate"
+        )?;
+    }
+
     signed_msg_user_orders
         .signed_msg_order_data
         .resize_with(num_orders as usize, SignedMsgOrderId::default);
@@ -4064,7 +4075,8 @@ pub struct InitializeSignedMsgUserOrders<'info> {
         payer = payer
     )]
     pub signed_msg_user_orders: Box<Account<'info, SignedMsgUserOrders>>,
-    pub authority: Signer<'info>,
+    /// CHECK: Just a normal authority account
+    pub authority: AccountInfo<'info>,
     #[account(mut)]
     pub payer: Signer<'info>,
     pub rent: Sysvar<'info, Rent>,
@@ -4079,12 +4091,15 @@ pub struct ResizeSignedMsgUserOrders<'info> {
         seeds = [SIGNED_MSG_PDA_SEED.as_ref(), authority.key().as_ref()],
         bump,
         realloc = SignedMsgUserOrders::space(num_orders as usize),
-        realloc::payer = authority,
+        realloc::payer = payer,
         realloc::zero = false,
     )]
     pub signed_msg_user_orders: Box<Account<'info, SignedMsgUserOrders>>,
+    /// CHECK: authority
+    pub authority: AccountInfo<'info>,
+    pub user: AccountLoader<'info, User>,
     #[account(mut)]
-    pub authority: Signer<'info>,
+    pub payer: Signer<'info>,
     pub system_program: Program<'info, System>,
 }
 

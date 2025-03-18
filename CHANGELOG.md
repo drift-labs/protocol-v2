@@ -9,7 +9,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Features
 
+- program: new order status logic to make tracking fills easier ([#1512](https://github.com/drift-labs/protocol-v2/pull/1512))
+- program: make initting signedmsguserorder accounts permissionless ([#1533](https://github.com/drift-labs/protocol-v2/pull/1533))
+
 ### Fixes
+
+- sdk: account for authority when useMarketLastSlotCache ([#1541](https://github.com/drift-labs/protocol-v2/pull/1541))
+
+### Breaking
+
+## [2.114.0] - 2025-03-13
+
+### Features
+
+### Fixes
+
+- program: add liq fees to calculate_perp_market_amm_summary_stats ([#1531](https://github.com/drift-labs/protocol-v2/pull/1531))
 
 ### Breaking
 

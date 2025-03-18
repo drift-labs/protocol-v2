@@ -25,11 +25,16 @@ use crate::state::user::PerpPosition;
 use crate::test_utils::{create_account_info, get_account_bytes};
 
 use crate::bn::U192;
+use crate::controller::amm::update_pool_balances;
 use crate::create_anchor_account_info;
 use crate::math::cp_curve::{adjust_k_cost, get_update_k_result, update_k};
+use crate::math::safe_math::SafeMath;
+use crate::math::spot_balance::get_token_amount;
 use crate::state::oracle::{HistoricalOracleData, OracleSource};
+use crate::state::spot_market::SpotBalance;
 use crate::state::spot_market::SpotMarket;
 use crate::state::spot_market_map::SpotMarketMap;
+use crate::state::user::SpotPosition;
 use crate::test_utils::get_anchor_account_bytes;
 use crate::test_utils::get_hardcoded_pyth_price;
 use crate::QUOTE_PRECISION_I64;
@@ -64,6 +69,121 @@ fn full_amm_split() {
         market.amm.base_asset_amount_with_amm,
         10 * AMM_RESERVE_PRECISION_I128
     );
+}
+
+#[test]
+fn amm_pool_balance_liq_fees_example() {
+    let perp_market_str = String::from("Ct8MLGv1N/dquEe6RHLCjPXRFs689/VXwfnq/aHEADtX6J/C8GaZXDKZ6iACt2rxmu8p8Fh+gR3ERNNiw5jAdKhvts0jU4yP8/YGAAAAAAAAAAAAAAAAAAEAAAAAAAAAYOoGAAAAAAD08AYAAAAAAFDQ0WcAAAAAU20cou///////////////zqG0jcAAAAAAAAAAAAAAACyy62lmssEAAAAAAAAAAAAAAAAAAAAAACuEBLjOOAUAAAAAAAAAAAAiQqZJDPTFAAAAAAAAAAAANiFEAAAAAAAAAAAAAAAAABEI0dQmUcTAAAAAAAAAAAAxIkaBDObFgAAAAAAAAAAAD4fkf+02RQAAAAAAAAAAABN+wYAAAAAAAAAAAAAAAAAy1BRbfXSFAAAAAAAAAAAAADOOHkhTQcAAAAAAAAAAAAAFBriILP4////////////SMyW3j0AAAAAAAAAAAAAALgVvHwEAAAAAAAAAAAAAAAAADQm9WscAAAAAAAAAAAAURkvFjoAAAAAAAAAAAAAAHIxjo/f/f/////////////TuoG31QEAAAAAAAAAAAAAP8QC+7L9/////////////3SO4oj1AQAAAAAAAAAAAAAAgFcGo5wAAAAAAAAAAAAAzxUAAAAAAADPFQAAAAAAAM8VAAAAAAAAPQwAAAAAAABk1DIXBgEAAAAAAAAAAAAAKqQCt7MAAAAAAAAAAAAAAP0Q55dSAAAAAAAAAAAAAACS+qA0KQEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAALB5hg2UAAAAAAAAAAAAAAAnMANRAAAAAAAAAAAAAAAAmdj/UAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAB+LAqY3t8UAAAAAAAAAAAAhk/TOI3TFAAAAAAAAAAAAG1uRreN4BQAAAAAAAAAAABkKKeG3tIUAAAAAAAAAAAA8/YGAAAAAAD+/////////2DqBgAAAAAA5OoGAAAAAACi6gYAAAAAAKzxBgAAAAAAMj1zEwAAAABIAgAAAAAAAIy24v//////tMvRZwAAAAAQDgAAAAAAAADKmjsAAAAAZAAAAAAAAAAA8gUqAQAAAAAAAAAAAAAAs3+BskEAAADIfXYRAAAAAIIeqQIAAAAAdb7RZwAAAABxDAAAAAAAAJMMAAAAAAAAUNDRZwAAAAD6AAAA1DAAAIQAAAB9AAAAfgAAAAAAAABkADIAZGQMAQAAAAADAAAAX79DBQAAAABIC9oEAwAAAK3TwZwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAFdJRi1QRVJQICAgICAgICAgICAgICAgICAgICAgICAgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADd4BgAAAAAAlCUAAAAAAAAcCgAAAAAAAGQAAABkAAAAqGEAAFDDAADECQAA4gQAAAAAAAAQJwAA2QAAAIgBAAAXAAEAAwAAAAAAAAEBAOgD9AEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==");
+    let mut decoded_bytes = base64::decode(perp_market_str).unwrap();
+    let perp_market_bytes = decoded_bytes.as_mut_slice();
+
+    let key = Pubkey::default();
+    let owner = Pubkey::from_str("dRiftyHA39MWEi3m9aunc5MzRF1JYuBsbn6VPcn33UH").unwrap();
+    let mut lamports = 0;
+    let perp_market_account_info =
+        create_account_info(&key, true, &mut lamports, perp_market_bytes, &owner);
+
+    let perp_market_loader: AccountLoader<PerpMarket> =
+        AccountLoader::try_from(&perp_market_account_info).unwrap();
+
+    let perp_market_map = PerpMarketMap::load_one(&perp_market_account_info, true).unwrap();
+
+    let now = 1725948560;
+    let clock_slot = 326319440;
+    let clock = Clock {
+        unix_timestamp: now,
+        slot: clock_slot,
+        ..Clock::default()
+    };
+
+    let mut state = State::default();
+
+    let mut prelaunch_oracle_price = PrelaunchOracle {
+        price: PRICE_PRECISION_I64,
+        confidence: 455_389,
+        ..PrelaunchOracle::default()
+    };
+
+    let prelaunch_oracle_price_key: Pubkey =
+        Pubkey::from_str("4QXWStoyEErTZFVsvKrvxuNa6QT8zpeA8jddZunSGvYE").unwrap();
+    create_anchor_account_info!(
+        prelaunch_oracle_price,
+        &prelaunch_oracle_price_key,
+        PrelaunchOracle,
+        oracle_account_info
+    );
+    let mut oracle_map = OracleMap::load_one(&oracle_account_info, clock_slot, None).unwrap();
+
+    let mut spot_market = SpotMarket {
+        cumulative_deposit_interest: 11425141382,
+        cumulative_borrow_interest: 12908327537,
+        decimals: 6,
+        ..SpotMarket::default()
+    };
+    spot_market.deposit_balance = 10_u128.pow(19_u32);
+    spot_market.deposit_token_twap = 10_u64.pow(16_u32);
+
+    let spot_position = SpotPosition::default();
+
+    {
+        let mut perp_market = perp_market_loader.load_mut().unwrap();
+        // assert_eq!(perp_market.amm.oracle, Pubkey::default());
+
+        assert_eq!(perp_market.pnl_pool.scaled_balance, 0);
+        assert_eq!(perp_market.amm.fee_pool.scaled_balance, 1349764971875250);
+        let fee_before = perp_market.amm.fee_pool.scaled_balance;
+
+        assert_eq!(perp_market.amm.total_fee_minus_distributions, 1276488252050);
+
+        let new_total_fee_minus_distributions =
+            crate::controller::amm::calculate_perp_market_amm_summary_stats(
+                &perp_market,
+                &spot_market,
+                prelaunch_oracle_price.price,
+                true,
+            )
+            .unwrap();
+        let fee_difference = new_total_fee_minus_distributions
+            .safe_sub(perp_market.amm.total_fee_minus_distributions)
+            .unwrap();
+        perp_market.amm.total_fee = perp_market.amm.total_fee.saturating_add(fee_difference);
+        perp_market.amm.total_mm_fee = perp_market.amm.total_mm_fee.saturating_add(fee_difference);
+        perp_market.amm.total_fee_minus_distributions = new_total_fee_minus_distributions;
+
+        assert_eq!(new_total_fee_minus_distributions, 640881949608);
+
+        let unsettled_pnl = -10_000_000;
+        let to_settle_with_user = update_pool_balances(
+            &mut perp_market,
+            &mut spot_market,
+            &spot_position,
+            unsettled_pnl,
+            now,
+        )
+        .unwrap();
+        assert_eq!(to_settle_with_user, unsettled_pnl);
+        // assert_eq!(perp_market.pnl_pool.scaled_balance, 8665100_648_642_458); // post change
+        // assert_eq!(perp_market.amm.fee_pool.scaled_balance, 1349764971875250);
+
+        let pnl_pool_token_amount = get_token_amount(
+            perp_market.pnl_pool.balance(),
+            &spot_market,
+            perp_market.pnl_pool.balance_type(),
+        )
+        .unwrap();
+        assert_eq!(pnl_pool_token_amount, 265371537413); // 200k
+
+        let fee_pool_token_amount = get_token_amount(
+            perp_market.amm.fee_pool.balance(),
+            &spot_market,
+            perp_market.amm.fee_pool.balance_type(),
+        )
+        .unwrap();
+        assert_eq!(fee_pool_token_amount, 1276764026200); // 1.27M
+
+        // assert_eq!(perp_market.amm.fee_pool.scaled_balance, fee_before + 1000000000); // pre change
+        assert!(perp_market.amm.fee_pool.scaled_balance < fee_before); // post change
+    }
 }
 
 #[test]
