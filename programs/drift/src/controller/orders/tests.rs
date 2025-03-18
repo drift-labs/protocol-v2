@@ -9542,7 +9542,10 @@ pub mod fulfill_spot_order {
         assert_eq!(maker_after.spot_positions, expected_maker.spot_positions);
 
         let second_maker_after = makers_and_referrers.get_ref(&second_maker_key).unwrap();
-        assert_eq!(second_maker_after.spot_positions, expected_maker.spot_positions);
+        assert_eq!(
+            second_maker_after.spot_positions,
+            expected_maker.spot_positions
+        );
 
         let maker_stats_after = maker_stats_account_loader.load().unwrap();
         assert_eq!(maker_stats_after.fees.total_fee_rebate, 40000);
