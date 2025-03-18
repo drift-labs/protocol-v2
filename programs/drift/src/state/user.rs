@@ -434,7 +434,7 @@ impl User {
 
     pub fn has_room_for_new_order(&self) -> bool {
         for order in self.orders.iter() {
-            if order.status == OrderStatus::Init {
+            if order.is_available() {
                 return true;
             }
         }
@@ -1605,6 +1605,10 @@ impl Order {
 
     pub fn is_signed_msg(&self) -> bool {
         (self.bit_flags & FLAG_IS_SIGNED_MSG) != 0
+    }
+
+    pub fn is_available(&self) -> bool {
+        self.status != OrderStatus::Open
     }
 }
 
