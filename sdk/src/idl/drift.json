@@ -7698,11 +7698,19 @@
             "type": "u16"
           },
           {
+            "name": "protectedMakerLimitPriceDivisor",
+            "type": "u8"
+          },
+          {
+            "name": "protectedMakerDynamicDivisor",
+            "type": "u8"
+          },
+          {
             "name": "padding",
             "type": {
               "array": [
                 "u8",
-                38
+                36
               ]
             }
           }

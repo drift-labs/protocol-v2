@@ -3637,7 +3637,7 @@ export class DriftClient {
 
 		const remainingAccounts = this.getRemainingAccounts({
 			userAccounts: [userAccount],
-			useMarketLastSlotCache: true,
+			useMarketLastSlotCache: false,
 			writablePerpMarketIndexes: [marketIndex],
 		});
 
@@ -7424,7 +7424,7 @@ export class DriftClient {
 
 		const remainingAccounts = this.getRemainingAccounts({
 			userAccounts: [this.getUserAccount(liquidatorSubAccountId), userAccount],
-			useMarketLastSlotCache: true,
+			useMarketLastSlotCache: false,
 			writablePerpMarketIndexes: [marketIndex],
 		});
 
@@ -7494,7 +7494,7 @@ export class DriftClient {
 				userAccount,
 				...makerInfos.map((makerInfo) => makerInfo.makerUserAccount),
 			],
-			useMarketLastSlotCache: true,
+			useMarketLastSlotCache: false,
 			writablePerpMarketIndexes: [marketIndex],
 		});
 
@@ -7576,7 +7576,7 @@ export class DriftClient {
 
 		const remainingAccounts = this.getRemainingAccounts({
 			userAccounts: [this.getUserAccount(liquidatorSubAccountId), userAccount],
-			useMarketLastSlotCache: true,
+			useMarketLastSlotCache: false,
 			writableSpotMarketIndexes: [liabilityMarketIndex, assetMarketIndex],
 		});
 
@@ -8846,7 +8846,7 @@ export class DriftClient {
 	): Promise<TransactionInstruction> {
 		const remainingAccounts = this.getRemainingAccounts({
 			userAccounts: [this.getUserAccount()],
-			useMarketLastSlotCache: true,
+			useMarketLastSlotCache: false,
 			writablePerpMarketIndexes: [perpMarketIndex],
 			writableSpotMarketIndexes: [spotMarketIndex],
 		});
