@@ -777,11 +777,12 @@ export const MainnetPerpMarkets: PerpMarketConfig[] = [
 		symbol: 'DRIFT-PERP',
 		baseAssetSymbol: 'DRIFT',
 		marketIndex: 30,
-		oracle: new PublicKey('23KmX7SNikmUr2axSCy6Zer7XPBnvmVcASALnDGqBVRR'),
+		oracle: new PublicKey('5VJou4ufN2vE11zyZUaLsKLTXhyzCTgiq6QDsts2YnnD'),
 		launchTs: 1716595200000,
-		oracleSource: OracleSource.PYTH_PULL,
+		oracleSource: OracleSource.PYTH_LAZER,
 		pythFeedId:
 			'0x5c1690b27bb02446db17cdda13ccc2c1d609ad6d2ef5bf4983a85ea8b6f19d07',
+		pythLazerId: 249,
 	},
 	{
 		fullName: 'Sanctum',
@@ -1194,11 +1195,12 @@ export const MainnetPerpMarkets: PerpMarketConfig[] = [
 		symbol: 'BERA-PERP',
 		baseAssetSymbol: 'BERA',
 		marketIndex: 66,
-		oracle: new PublicKey('53Ae7ArP9yCnjqL2CqxJ1zdv3ba64NoVTqRcwjrCg181'),
+		oracle: new PublicKey('r8eNLQ8jysUyk9rrWXuicwAoKZ7V3YngAB6737zfxmv'),
 		launchTs: 1738850177000,
-		oracleSource: OracleSource.PYTH_PULL,
+		oracleSource: OracleSource.PYTH_LAZER,
 		pythFeedId:
 			'0x962088abcfdbdb6e30db2e340c8cf887d9efb311b1f2f17b155a63dbb6d40265',
+		pythLazerId: 308,
 	},
 	{
 		fullName: 'NBAFINALS25-OKC',
@@ -1226,11 +1228,12 @@ export const MainnetPerpMarkets: PerpMarketConfig[] = [
 		symbol: 'KAITO-PERP',
 		baseAssetSymbol: 'KAITO',
 		marketIndex: 69,
-		oracle: new PublicKey('DRCNnwxET1URxGMvpCPncBkZsWf1Xh26TMxXNSGTrGpU'),
+		oracle: new PublicKey('8M8mjNJ42k2Xi12Q1zRnQRC3xhggu3WGuftiu5VZZmsF'),
 		launchTs: 1739545901000,
-		oracleSource: OracleSource.PYTH_PULL,
+		oracleSource: OracleSource.PYTH_LAZER,
 		pythFeedId:
 			'0x7302dee641a08507c297a7b0c8b3efa74a48a3baa6c040acab1e5209692b7e59',
+		pythLazerId: 306,
 	},
 	{
 		fullName: 'Story Protocol',
@@ -1238,11 +1241,12 @@ export const MainnetPerpMarkets: PerpMarketConfig[] = [
 		symbol: 'IP-PERP',
 		baseAssetSymbol: 'IP',
 		marketIndex: 70,
-		oracle: new PublicKey('E8A2iky96tzM8YuNNcJateE8S4e5N8FYspg17XHLp2aY'),
+		oracle: new PublicKey('AZVVDFve8ijzLAm9z6W53GFsoWbcycFsdxCL7WUjMz8S'),
 		launchTs: 1740150623000,
-		oracleSource: OracleSource.PYTH_PULL,
+		oracleSource: OracleSource.PYTH_LAZER,
 		pythFeedId:
 			'0xb620ba83044577029da7e4ded7a2abccf8e6afc2a0d4d26d89ccdd39ec109025',
+		pythLazerId: 309,
 	},
 ];
 
