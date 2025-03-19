@@ -168,6 +168,7 @@ export class SwiftOrderSubscriber {
 				response.statusCode
 			);
 			setTimeout(() => {
+				if (this.heartbeatTimeout) clearTimeout(this.heartbeatTimeout);
 				this.reconnect();
 			}, 5000);
 		});
@@ -178,6 +179,7 @@ export class SwiftOrderSubscriber {
 				response.statusCode
 			);
 			setTimeout(() => {
+				if (this.heartbeatTimeout) clearTimeout(this.heartbeatTimeout);
 				this.reconnect();
 			}, 1000);
 		});
