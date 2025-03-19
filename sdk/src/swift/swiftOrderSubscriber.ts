@@ -161,6 +161,26 @@ export class SwiftOrderSubscriber {
 				this.reconnect();
 			});
 		});
+
+		ws.on('unexpected-response', async (request, response) => {
+			console.error(
+				'Unexpected response, reconnecting in 5s:',
+				response.statusCode
+			);
+			setTimeout(() => {
+				this.reconnect();
+			}, 5000);
+		});
+
+		ws.on('error', async (request, response) => {
+			console.error(
+				'WS closed from error, reconnecting in 1s:',
+				response.statusCode
+			);
+			setTimeout(() => {
+				this.reconnect();
+			}, 1000);
+		});
 	}
 
 	async getPlaceAndMakeSignedMsgOrderIxs(
