@@ -621,11 +621,11 @@ impl User {
         oracle_price_offset: i32,
         oracle_price: i64,
     ) -> DriftResult<bool> {
-        if self.next_order_id > 3000 {
+        if self.next_order_id > 9000 {
             return Ok(false);
         }
 
-        if !is_auction || is_ioc {
+        if self.next_order_id > 1000 && (!is_auction || is_ioc) {
             return Ok(false);
         }
 

@@ -1238,7 +1238,7 @@ pub fn fill_perp_order(
             && (clock_slot_tail.wrapping_sub(order_posted_slot_tail)
                 < state.min_perp_auction_duration)
         {
-            msg!("Overriding toxic user from afterminduration to unavailble");
+            msg!("Overriding amm to unavailable for user atomic fill");
             AMMAvailability::Unavailable
         } else {
             AMMAvailability::AfterMinDuration
