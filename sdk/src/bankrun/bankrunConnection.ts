@@ -244,9 +244,9 @@ export class BankrunConnection {
 		if (banksTransactionMeta.result) {
 			// This hits occasionally in CI, we can safely ignore
 			if (
-				!banksTransactionMeta.result.includes(
-					'transaction has already been processed'
-				)
+				!banksTransactionMeta.result
+					.toLowerCase()
+					.includes('transaction has already been processed')
 			) {
 				throw new Error(banksTransactionMeta.result);
 			}
