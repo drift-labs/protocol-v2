@@ -6356,11 +6356,11 @@ export class DriftClient {
 			delegateSigner
 				? this.program.coder.types.encode(
 						'SignedMsgOrderParamsDelegateMessage',
-						orderParamsMessage
+						orderParamsMessage as SignedMsgOrderParamsDelegateMessage
 				  )
 				: this.program.coder.types.encode(
 						'SignedMsgOrderParamsMessage',
-						orderParamsMessage
+						orderParamsMessage as SignedMsgOrderParamsMessage
 				  ),
 		]);
 		return buf;

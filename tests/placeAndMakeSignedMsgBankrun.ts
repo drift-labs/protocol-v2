@@ -219,7 +219,7 @@ describe('place and make signedMsg order', () => {
 	});
 
 	it('makeSignedMsgOrder and reject bad orders', async () => {
-		slot = new BN(
+		const slot = new BN(
 			await bankrunContextWrapper.connection.toConnection().getSlot()
 		);
 		const [takerDriftClient, takerDriftClientUser] =
@@ -339,7 +339,7 @@ describe('place and make signedMsg order', () => {
 	});
 
 	it('should work with delegates', async () => {
-		slot = new BN(
+		const slot = new BN(
 			await bankrunContextWrapper.connection.toConnection().getSlot()
 		);
 		const [takerDriftClient, takerDriftClientUser] =
@@ -384,47 +384,9 @@ describe('place and make signedMsg order', () => {
 			takeProfitOrderParams: null,
 			stopLossOrderParams: null,
 		};
-		let signedOrderParams = makerDriftClient.signSignedMsgOrderParamsMessage(
-			takerOrderParamsMessage,
-			false
-		);
-		try {
-			await makerDriftClient.placeSignedMsgTakerOrder(
-				signedOrderParams,
-				marketIndex,
-				{
-					taker: await takerDriftClient.getUserAccountPublicKey(),
-					takerUserAccount: takerDriftClient.getUserAccount(),
-					takerStats: takerDriftClient.getUserStatsAccountPublicKey(),
-					signingAuthority: makerDriftClient.wallet.publicKey,
-				},
-				undefined,
-				2
-			);
-		} catch (e) {
-			assert(e.toString().includes('0x1776'));
-		}
-
-		// Should fail if we dont set delegate as signing authority
-		try {
-			await makerDriftClient.placeSignedMsgTakerOrder(
-				signedOrderParams,
-				marketIndex,
-				{
-					taker: await takerDriftClient.getUserAccountPublicKey(),
-					takerUserAccount: takerDriftClient.getUserAccount(),
-					takerStats: takerDriftClient.getUserStatsAccountPublicKey(),
-					signingAuthority: takerDriftClient.wallet.publicKey,
-				},
-				undefined,
-				2
-			);
-		} catch (e) {
-			assert(e.toString().includes('0x188e'));
-		}
 
 		// Should work if we encode properly
-		signedOrderParams = makerDriftClient.signSignedMsgOrderParamsMessage(
+		const signedOrderParams = makerDriftClient.signSignedMsgOrderParamsMessage(
 			takerOrderParamsMessage,
 			true
 		);
@@ -1297,7 +1259,7 @@ describe('place and make signedMsg order', () => {
 	});
 
 	it('should verify that auction params are not sanitized', async () => {
-		slot = new BN(
+		const slot = new BN(
 			await bankrunContextWrapper.connection.toConnection().getSlot()
 		);
 		const [takerDriftClient, takerDriftClientUser] =
@@ -1363,7 +1325,7 @@ describe('place and make signedMsg order', () => {
 	});
 
 	it('should fail on malicious subaccount id supplied to custom ix', async () => {
-		slot = new BN(
+		const slot = new BN(
 			await bankrunContextWrapper.connection.toConnection().getSlot()
 		);
 		const [takerDriftClient, takerDriftClientUser] =
@@ -1447,6 +1409,108 @@ describe('place and make signedMsg order', () => {
 		assert(takerPosition == undefined);
 
 		await takerDriftClientUser2.unsubscribe();
+		await takerDriftClientUser.unsubscribe();
+		await takerDriftClient.unsubscribe();
+	});
+
+	it('shouldnt work with improper delegate encoding', async () => {
+		const slot = new BN(
+			await bankrunContextWrapper.connection.toConnection().getSlot()
+		);
+		const [takerDriftClient, takerDriftClientUser] =
+			await initializeNewTakerClientAndUser(
+				bankrunContextWrapper,
+				chProgram,
+				usdcMint,
+				usdcAmount,
+				marketIndexes,
+				spotMarketIndexes,
+				oracleInfos,
+				bulkAccountLoader
+			);
+		await takerDriftClientUser.fetchAccounts();
+
+		await takerDriftClient.updateUserDelegate(
+			makerDriftClient.wallet.publicKey
+		);
+
+		const marketIndex = 0;
+		const baseAssetAmount = BASE_PRECISION;
+		const takerOrderParams = getMarketOrderParams({
+			marketIndex,
+			direction: PositionDirection.LONG,
+			baseAssetAmount: baseAssetAmount.muln(2),
+			price: new BN(224).mul(PRICE_PRECISION),
+			auctionStartPrice: new BN(223).mul(PRICE_PRECISION),
+			auctionEndPrice: new BN(224).mul(PRICE_PRECISION),
+			auctionDuration: 10,
+			userOrderId: 1,
+			postOnly: PostOnlyParams.NONE,
+			marketType: MarketType.PERP,
+		}) as OrderParams;
+		const uuid = Uint8Array.from(Buffer.from(nanoid(8)));
+
+		// Should fail if we try first without encoding properly
+		const takerOrderParamsMessage: SignedMsgOrderParamsDelegateMessage = {
+			signedMsgOrderParams: takerOrderParams,
+			takerPubkey: await takerDriftClient.getUserAccountPublicKey(),
+			slot,
+			uuid,
+			takeProfitOrderParams: null,
+			stopLossOrderParams: null,
+		};
+		let signedOrderParams = makerDriftClient.signSignedMsgOrderParamsMessage(
+			takerOrderParamsMessage,
+			false
+		);
+		try {
+			await makerDriftClient.placeSignedMsgTakerOrder(
+				signedOrderParams,
+				marketIndex,
+				{
+					taker: await takerDriftClient.getUserAccountPublicKey(),
+					takerUserAccount: takerDriftClient.getUserAccount(),
+					takerStats: takerDriftClient.getUserStatsAccountPublicKey(),
+					signingAuthority: makerDriftClient.wallet.publicKey,
+				},
+				undefined,
+				2
+			);
+			assert.fail('should fail');
+		} catch (e) {
+			assert(e.toString().includes('0x1776'));
+			const takerOrders = takerDriftClient.getUser().getOpenOrders();
+			assert(takerOrders.length == 0);
+		}
+
+		signedOrderParams = makerDriftClient.signSignedMsgOrderParamsMessage(
+			takerOrderParamsMessage,
+			true
+		);
+		// Should fail if we dont set delegate as signing authority
+		try {
+			await makerDriftClient.placeSignedMsgTakerOrder(
+				signedOrderParams,
+				marketIndex,
+				{
+					taker: await takerDriftClient.getUserAccountPublicKey(),
+					takerUserAccount: takerDriftClient.getUserAccount(),
+					takerStats: takerDriftClient.getUserStatsAccountPublicKey(),
+					signingAuthority: takerDriftClient.wallet.publicKey,
+				},
+				undefined,
+				2
+			);
+			assert.fail('should fail');
+		} catch (e) {
+			assert(e.toString().includes('0x1776'));
+			const takerOrders = takerDriftClient.getUser().getOpenOrders();
+			assert(takerOrders.length == 0);
+		}
+
+		const takerOrders = takerDriftClient.getUser().getOpenOrders();
+		assert(takerOrders.length == 0);
+
 		await takerDriftClientUser.unsubscribe();
 		await takerDriftClient.unsubscribe();
 	});
