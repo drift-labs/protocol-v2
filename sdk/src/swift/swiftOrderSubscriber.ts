@@ -104,7 +104,9 @@ export class SwiftOrderSubscriber {
 	async subscribe(
 		onOrder: (
 			orderMessageRaw: any,
-			signedMsgOrderParamsMessage: SignedMsgOrderParamsMessage | SignedMsgOrderParamsDelegateMessage
+			signedMsgOrderParamsMessage:
+				| SignedMsgOrderParamsMessage
+				| SignedMsgOrderParamsDelegateMessage
 		) => Promise<void>
 	): Promise<void> {
 		this.onOrder = onOrder;
@@ -134,7 +136,9 @@ export class SwiftOrderSubscriber {
 						order['order_message'],
 						'hex'
 					);
-					const signedMsgOrderParamsMessage: SignedMsgOrderParamsMessage | SignedMsgOrderParamsDelegateMessage =
+					const signedMsgOrderParamsMessage:
+						| SignedMsgOrderParamsMessage
+						| SignedMsgOrderParamsDelegateMessage =
 						this.driftClient.decodeSignedMsgOrderParamsMessage(
 							signedMsgOrderParamsBuf,
 							order['signing_authority'] == order['taker_authority']

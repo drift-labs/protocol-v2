@@ -6373,7 +6373,9 @@ export class DriftClient {
 		encodedMessage: Buffer,
 		delegateSigner?: boolean
 	): SignedMsgOrderParamsMessage | SignedMsgOrderParamsDelegateMessage {
-		const decodeStr = delegateSigner ? 'SignedMsgOrderParamsDelegateMessage' : 'SignedMsgOrderParamsMessage';
+		const decodeStr = delegateSigner
+			? 'SignedMsgOrderParamsDelegateMessage'
+			: 'SignedMsgOrderParamsMessage';
 		return this.program.coder.types.decode(
 			decodeStr,
 			encodedMessage.slice(8) // assumes discriminator
