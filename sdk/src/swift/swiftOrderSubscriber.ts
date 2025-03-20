@@ -141,8 +141,7 @@ export class SwiftOrderSubscriber {
 						| SignedMsgOrderParamsDelegateMessage =
 						this.driftClient.decodeSignedMsgOrderParamsMessage(
 							signedMsgOrderParamsBuf,
-							order['signing_authority'] &&
-								order['signing_authority'] != order['taker_authority']
+							order['signing_authority'] != order['taker_authority']
 						);
 
 					if (!signedMsgOrderParamsMessage.signedMsgOrderParams.price) {
