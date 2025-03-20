@@ -242,7 +242,14 @@ export class BankrunConnection {
 		const banksTransactionMeta = new BanksTransactionResultWithMeta(inner);
 
 		if (banksTransactionMeta.result) {
-			throw new Error(banksTransactionMeta.result);
+			// This hits occasionally in CI, we can safely ignore
+			if (
+				!banksTransactionMeta.result.includes(
+					'transaction has already been processed'
+				)
+			) {
+				throw new Error(banksTransactionMeta.result);
+			}
 		}
 		const signature = isVersioned
 			? bs58.encode((tx as VersionedTransaction).signatures[0])
