@@ -220,7 +220,7 @@ fn validate_post_only_order(
         slot,
         market.amm.order_tick_size,
         market.is_prediction_market(),
-        false,
+        None,
     )?;
 
     let base_asset_amount_market_can_fill = calculate_base_asset_amount_to_fill_up_to_limit_price(

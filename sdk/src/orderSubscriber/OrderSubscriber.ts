@@ -13,7 +13,7 @@ import { PollingSubscription } from './PollingSubscription';
 import { WebsocketSubscription } from './WebsocketSubscription';
 import StrictEventEmitter from 'strict-event-emitter-types';
 import { EventEmitter } from 'events';
-import { BN } from '../index';
+import { BN, ProtectMakerParamsMap } from '../index';
 import { decodeUser } from '../decode/user';
 import { grpcSubscription } from './grpcSubscription';
 import { isUserProtectedMaker } from '../math/userStatus';
@@ -234,15 +234,15 @@ export class OrderSubscriber {
 	 * caller to extend the DLOB Subscriber with a custom DLOB type.
 	 * @returns New, empty DLOB object.
 	 */
-	protected createDLOB(protectedMakerView?: boolean): DLOB {
-		return new DLOB(protectedMakerView);
+	protected createDLOB(protectedMakerParamsMap?: ProtectMakerParamsMap): DLOB {
+		return new DLOB(protectedMakerParamsMap);
 	}
 
 	public async getDLOB(
 		slot: number,
-		protectedMakerView?: boolean
+		protectedMakerParamsMap?: ProtectMakerParamsMap
 	): Promise<DLOB> {
-		const dlob = this.createDLOB(protectedMakerView);
+		const dlob = this.createDLOB(protectedMakerParamsMap);
 		for (const [key, { userAccount }] of this.usersAccounts.entries()) {
 			const protectedMaker = isUserProtectedMaker(userAccount);
 			for (const order of userAccount.orders) {

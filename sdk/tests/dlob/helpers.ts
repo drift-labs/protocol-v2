@@ -192,6 +192,8 @@ export const mockPerpMarkets: Array<PerpMarketAccount> = [
 		fuelBoostPosition: 0,
 		fuelBoostMaker: 0,
 		fuelBoostTaker: 0,
+		protectedMakerLimitPriceDivisor: 0,
+		protectedMakerDynamicDivisor: 0,
 	},
 	{
 		status: MarketStatus.INITIALIZED,
@@ -236,6 +238,8 @@ export const mockPerpMarkets: Array<PerpMarketAccount> = [
 		fuelBoostPosition: 0,
 		fuelBoostMaker: 0,
 		fuelBoostTaker: 0,
+		protectedMakerLimitPriceDivisor: 0,
+		protectedMakerDynamicDivisor: 0,
 	},
 	{
 		status: MarketStatus.INITIALIZED,
@@ -280,6 +284,8 @@ export const mockPerpMarkets: Array<PerpMarketAccount> = [
 		fuelBoostPosition: 0,
 		fuelBoostMaker: 0,
 		fuelBoostTaker: 0,
+		protectedMakerLimitPriceDivisor: 0,
+		protectedMakerDynamicDivisor: 0,
 	},
 ];
 

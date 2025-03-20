@@ -102,7 +102,7 @@ export class OpenbookV2Subscriber implements L2OrderBookGenerator {
 			return undefined;
 		}
 
-		return new BN(Math.floor(bestBid.price * PRICE_PRECISION.toNumber()));
+		return this.convertPriceInLotsToPricePrecision(bestBid.priceLots);
 	}
 
 	public getBestAsk(): BN | undefined {
@@ -112,7 +112,7 @@ export class OpenbookV2Subscriber implements L2OrderBookGenerator {
 			return undefined;
 		}
 
-		return new BN(Math.floor(bestAsk.price * PRICE_PRECISION.toNumber()));
+		return this.convertPriceInLotsToPricePrecision(bestAsk.priceLots);
 	}
 
 	public getL2Bids(): Generator<L2Level> {
@@ -123,17 +123,27 @@ export class OpenbookV2Subscriber implements L2OrderBookGenerator {
 		return this.getL2Levels('asks');
 	}
 
+	public convertSizeInBaseLotsToMarketPrecision(sizeInLots: BN): BN {
+		return sizeInLots.mul(this.market.account.baseLotSize);
+	}
+
+	public convertPriceInLotsToPricePrecision(priceInLots: BN): BN {
+		const adjPrice = priceInLots
+			.mul(PRICE_PRECISION)
+			.muln(
+				10 **
+					(this.market.account.baseDecimals - this.market.account.quoteDecimals)
+			)
+			.mul(this.market.account.quoteLotSize)
+			.div(this.market.account.baseLotSize);
+		return adjPrice;
+	}
+
 	*getL2Levels(side: 'bids' | 'asks'): Generator<L2Level> {
-		const basePrecision = Math.ceil(
-			1 / this.market.baseNativeFactor.toNumber()
-		);
-		const pricePrecision = PRICE_PRECISION.toNumber();
-
 		const levels = side === 'bids' ? this.market.bids : this.market.asks;
-
 		for (const order of levels?.items()) {
-			const size = new BN(order.size * basePrecision);
-			const price = new BN(order.price * pricePrecision);
+			const size = this.convertSizeInBaseLotsToMarketPrecision(order.sizeLots);
+			const price = this.convertPriceInLotsToPricePrecision(order.priceLots);
 			yield {
 				price,
 				size,

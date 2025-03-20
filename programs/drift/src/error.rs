@@ -631,6 +631,8 @@ pub enum ErrorCode {
     FuelOverflowAccountNotFound,
     #[msg("Invalid Transfer Perp Position")]
     InvalidTransferPerpPosition,
+    #[msg("Invalid SignedMsgUserOrders resize")]
+    InvalidSignedMsgUserOrdersResize,
 }
 
 #[macro_export]

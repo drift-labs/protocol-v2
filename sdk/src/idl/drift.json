@@ -104,7 +104,7 @@
         {
           "name": "authority",
           "isMut": false,
-          "isSigner": true
+          "isSigner": false
         },
         {
           "name": "payer",
@@ -139,6 +139,16 @@
         },
         {
           "name": "authority",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "user",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "payer",
           "isMut": true,
           "isSigner": true
         },
@@ -7688,11 +7698,19 @@
             "type": "u16"
           },
           {
+            "name": "protectedMakerLimitPriceDivisor",
+            "type": "u8"
+          },
+          {
+            "name": "protectedMakerDynamicDivisor",
+            "type": "u8"
+          },
+          {
             "name": "padding",
             "type": {
               "array": [
                 "u8",
-                38
+                36
               ]
             }
           }
@@ -14986,6 +15004,11 @@
       "code": 6312,
       "name": "InvalidTransferPerpPosition",
       "msg": "Invalid Transfer Perp Position"
+    },
+    {
+      "code": 6313,
+      "name": "InvalidSignedMsgUserOrdersResize",
+      "msg": "Invalid SignedMsgUserOrders resize"
     }
   ],
   "metadata": {
