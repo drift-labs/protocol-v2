@@ -167,6 +167,11 @@ pub fn update_spread_reserves(market: &mut PerpMarket) -> DriftResult {
             new_ask_quote_asset_reserve.max(market.amm.quote_asset_reserve);
         market.amm.bid_quote_asset_reserve =
             new_bid_quote_asset_reserve.min(market.amm.quote_asset_reserve);
+    } else {
+        market.amm.ask_base_asset_reserve = new_ask_base_asset_reserve;
+        market.amm.bid_base_asset_reserve = new_bid_base_asset_reserve;
+        market.amm.ask_quote_asset_reserve = new_ask_quote_asset_reserve;
+        market.amm.bid_quote_asset_reserve = new_bid_quote_asset_reserve;
     }
 
     Ok(())

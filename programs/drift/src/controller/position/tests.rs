@@ -591,7 +591,6 @@ fn amm_pred_market_example() {
     assert_eq!(cost, 6333935);
 }
 
-
 #[test]
 fn amm_perp_ref_offset() {
     let perp_market_str = String::from("Ct8MLGv1N/frxfcToe675SrQivb0F67YUSLVM3KDMaqsrnwc8fwczsz5oyRPeWWnXBDAXzWarbuAhSPT0bfoyy4yyWBLxtoIoFxsAAAAAAAAAAAAAAAAAAEAAAAAAAAAwt1rAAAAAAAiZmwAAAAAAES4yGcAAAAAtlzFXyUAAAAAAAAAAAAAALSB+4IAAAAAAAAAAAAAAAD2TULXx84AAAAAAAAAAAAAAAAAAAAAAABslCM7QZsQAAAAAAAAAAAAk4WjVa59CAAAAAAAAAAAADxrEgAAAAAAAAAAAAAAAAAFC7zM58ENAAAAAAAAAAAAemIeFLwLFAAAAAAAAAAAAFJYZFbh3wsAAAAAAAAAAAC57tMAAAAAAAAAAAAAAAAAHopkdKl9CAAAAAAAAAAAAACyqjNmBAAAAAAAAAAAAAAA3oQco/v/////////////IX9HiwkAAAAAAAAAAAAAAN8Q6MT///////////////8AgMakfo0DAAAAAAAAAAAANEmHdQAAAAAAAAAAAAAAAE/4Lvzz//////////////8XEpOoCwAAAAAAAAAAAAAABKUfVPP//////////////3ckDIgNAAAAAAAAAAAAAAAAGJUuKwMAAAAAAAAAAAAA/E0BAAAAAAD8TQEAAAAAAPxNAQAAAAAAFlABAAAAAADJ8AhjKAAAAAAAAAAAAAAADJaguhwAAAAAAAAAAAAAAKZ++bELAAAAAAAAAAAAAABae48GKAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMpu/m4UAAAAAAAAAAAAAACjl79nAQAAAAAAAAAAAAAAyZm9ZwEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABqle+hQHQQAAAAAAAAAAAAs/93w86RCAAAAAAAAAAAAGyUIztBmxAAAAAAAAAAAACThaNVrn0IAAAAAAAAAAAAoFxsAAAAAAAAAAAAAAAAAAHSawAAAAAAv+1rAAAAAADg32sAAAAAAAJnbAAAAAAAYVNcEwAAAAChAwAAAAAAADfd8f//////Q63IZwAAAAAQDgAAAAAAAADKmjsAAAAAZAAAAAAAAAAA8gUqAQAAAAAAAAAAAAAAzxOSPQAAAADE4TUGAAAAAAAAAAAAAAAAzHHIZwAAAACAfQAAAAAAAN5+AAAAAAAARLjIZwAAAADoAwAAkF8BAPgBAAD0AQAAqwEAABYBAADoAzIAyGQOAQAAAAAEAAAAYE+5CAAAAADJKrR8AQAAAFf04Pb/////UEYAAAAAAAAAAAAAAAAAAD7kkISSGgAAAAAAAAAAAAAAAAAAAAAAADFNUEVQRS1QRVJQICAgICAgICAgICAgICAgICAgICAgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAJflAAAAAAAAFj0AAAAAAADYGwAAAAAAAO4CAADuAgAAqGEAAFDDAADECQAA4gQAAAAAAAAQJwAAbQAAAKgAAAAKAAEAAwAAAAAAAAEBAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==");
@@ -609,13 +608,24 @@ fn amm_perp_ref_offset() {
     let mut perp_market = perp_market_loader.load_mut().unwrap();
 
     let reserve_price = perp_market.amm.reserve_price().unwrap();
-    let (b, a) = perp_market.amm.bid_ask_price(reserve_price).unwrap();
-    assert_eq!(b, 7098048);
-    assert_eq!(a, 7105178);
-    assert_eq!(perp_market.amm.historical_oracle_data.last_oracle_price, 7101600);
+    let (b1, a1) = perp_market.amm.bid_ask_price(reserve_price).unwrap();
+    assert_eq!(b1, 7098048);
+    assert_eq!(a1, 7105178);
+    assert_eq!(
+        perp_market.amm.historical_oracle_data.last_oracle_price,
+        7101600
+    );
     assert_eq!(perp_market.amm.reference_price_offset, 18000);
     assert_eq!(perp_market.amm.last_update_slot, 324817761);
-    assert_eq!(perp_market.amm.historical_oracle_data.last_oracle_price_twap_ts , 1741207620);
+    assert_eq!(
+        perp_market
+            .amm
+            .historical_oracle_data
+            .last_oracle_price_twap_ts,
+        1741207620
+    );
+    assert_eq!(perp_market.amm.bid_base_asset_reserve, 4674304094737516);
+    assert_eq!(perp_market.amm.ask_base_asset_reserve, 4631420570932586);
 
     let max_ref_offset = perp_market.amm.get_max_reference_price_offset().unwrap();
 
@@ -624,10 +634,18 @@ fn amm_perp_ref_offset() {
         perp_market.amm.base_asset_reserve,
         perp_market.amm.max_base_asset_reserve,
         perp_market.amm.min_base_asset_reserve,
-    ).unwrap();
+    )
+    .unwrap();
 
-    let signed_liquidity_ratio =
-        liquidity_ratio.checked_mul((perp_market.amm.get_protocol_owned_position().unwrap().signum() as i128)).unwrap();
+    let signed_liquidity_ratio = liquidity_ratio
+        .checked_mul(
+            (perp_market
+                .amm
+                .get_protocol_owned_position()
+                .unwrap()
+                .signum() as i128),
+        )
+        .unwrap();
 
     let res = crate::math::amm_spread::calculate_reference_price_offset(
         reserve_price,
@@ -638,21 +656,25 @@ fn amm_perp_ref_offset() {
             .amm
             .historical_oracle_data
             .last_oracle_price_twap_5min,
-            perp_market.amm.last_mark_price_twap_5min,
-            perp_market.amm.historical_oracle_data.last_oracle_price_twap,
-            perp_market.amm.last_mark_price_twap,
+        perp_market.amm.last_mark_price_twap_5min,
+        perp_market
+            .amm
+            .historical_oracle_data
+            .last_oracle_price_twap,
+        perp_market.amm.last_mark_price_twap,
         max_ref_offset,
-    ).unwrap();
+    )
+    .unwrap();
     assert_eq!(res, 18000);
+    assert_eq!(perp_market.amm.reference_price_offset, 18000);
 
-
-    let now = 1741207620 + 10;
-    let clock_slot =  324817761 + 5; // todo
+    let now = 1741207620 + 1;
+    let clock_slot = 324817761 + 1; // todo
     let state = State::default();
     let oracle_price_data = OraclePriceData {
         price: 7101600,
         confidence: PRICE_PRECISION_U64 / 1000,
-        delay: 4,
+        delay: 1,
         has_sufficient_number_of_data_points: true,
     };
     let cost = _update_amm(
@@ -663,17 +685,24 @@ fn amm_perp_ref_offset() {
         clock_slot,
     )
     .unwrap();
-
-    
+    assert_eq!(perp_market.amm.last_update_slot, clock_slot);
+    assert_eq!(perp_market.amm.last_oracle_valid, true);
 
     let r = perp_market.amm.reserve_price().unwrap();
     let (b, a) = perp_market.amm.bid_ask_price(r).unwrap();
     assert_eq!(b, 7098048);
     assert_eq!(a, 7105178);
-    assert_eq!(perp_market.amm.historical_oracle_data.last_oracle_price, 7101600);
+    assert_eq!(
+        perp_market.amm.historical_oracle_data.last_oracle_price,
+        7101600
+    );
     assert_eq!(perp_market.amm.reference_price_offset, 18000);
-}    
+    assert_eq!(perp_market.amm.max_spread, 90000);
 
+    assert_eq!(r, 7101599);
+    assert_eq!(perp_market.amm.bid_base_asset_reserve, 4633657972174584);
+    assert_eq!(perp_market.amm.ask_base_asset_reserve, 4631420570932586);
+}
 
 #[test]
 fn amm_split_large_k() {
