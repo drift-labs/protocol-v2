@@ -247,12 +247,12 @@ pub mod drift {
     pub fn place_signed_msg_taker_order<'c: 'info, 'info>(
         ctx: Context<'_, '_, 'c, 'info, PlaceSignedMsgTakerOrder<'info>>,
         signed_msg_order_params_message_bytes: Vec<u8>,
-        is_delegate_signer: bool,
+        taker_pubkey: Option<Pubkey>,
     ) -> Result<()> {
         handle_place_signed_msg_taker_order(
             ctx,
             signed_msg_order_params_message_bytes,
-            is_delegate_signer,
+            taker_pubkey,
         )
     }
 

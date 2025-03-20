@@ -6441,7 +6441,7 @@ export class DriftClient {
 		const placeTakerSignedMsgPerpOrderIx =
 			this.program.instruction.placeSignedMsgTakerOrder(
 				signedMsgIxData,
-				isDelegateSigner,
+				isDelegateSigner ? takerInfo.taker : null,
 				{
 					accounts: {
 						state: await this.getStatePublicKey(),

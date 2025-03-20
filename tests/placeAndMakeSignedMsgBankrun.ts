@@ -44,6 +44,7 @@ import {
 	getUserStatsAccountPublicKey,
 	UserStatsAccount,
 	convertToNumber,
+	OrderParams,
 } from '../sdk/src';
 
 import {
@@ -246,7 +247,7 @@ describe('place and make signedMsg order', () => {
 			userOrderId: 1,
 			postOnly: PostOnlyParams.NONE,
 			marketType: MarketType.PERP,
-		});
+		}) as OrderParams;
 		const uuid = Uint8Array.from(Buffer.from(nanoid(8)));
 		const takerOrderParamsMessage: SignedMsgOrderParamsMessage = {
 			signedMsgOrderParams: takerOrderParams,
@@ -369,7 +370,7 @@ describe('place and make signedMsg order', () => {
 			userOrderId: 1,
 			postOnly: PostOnlyParams.NONE,
 			marketType: MarketType.PERP,
-		});
+		}) as OrderParams;
 		const uuid = Uint8Array.from(Buffer.from(nanoid(8)));
 		const takerOrderParamsMessage: SignedMsgOrderParamsMessage = {
 			signedMsgOrderParams: takerOrderParams,
@@ -498,7 +499,7 @@ describe('place and make signedMsg order', () => {
 			auctionDuration: 30,
 			userOrderId: 1,
 			postOnly: PostOnlyParams.NONE,
-		});
+		}) as OrderParams;
 		const uuid = nanoid(8);
 		const signedMsgSlot = slot.subn(15);
 		const takerOrderParamsMessage: SignedMsgOrderParamsMessage = {
@@ -694,7 +695,7 @@ describe('place and make signedMsg order', () => {
 			auctionDuration: 30,
 			userOrderId: 1,
 			postOnly: PostOnlyParams.NONE,
-		});
+		}) as OrderParams;
 		const uuid = nanoid(8);
 		const signedMsgSlot = slot.subn(50);
 		const takerOrderParamsMessage: SignedMsgOrderParamsMessage = {
@@ -833,7 +834,7 @@ describe('place and make signedMsg order', () => {
 			userOrderId: 1,
 			postOnly: PostOnlyParams.NONE,
 			marketType: MarketType.PERP,
-		});
+		}) as OrderParams;
 		const stopLossTakerParams = getTriggerLimitOrderParams({
 			marketIndex,
 			direction: PositionDirection.SHORT,
@@ -865,7 +866,7 @@ describe('place and make signedMsg order', () => {
 			postOnly: PostOnlyParams.MUST_POST_ONLY,
 			immediateOrCancel: true,
 			marketType: MarketType.PERP,
-		});
+		}) as OrderParams;
 
 		const uuid = Uint8Array.from(Buffer.from(nanoid(8)));
 		const takerOrderParamsMessage: SignedMsgOrderParamsMessage = {
@@ -968,7 +969,7 @@ describe('place and make signedMsg order', () => {
 			price: new BN(224).mul(PRICE_PRECISION),
 			userOrderId: 1,
 			postOnly: PostOnlyParams.NONE,
-		});
+		}) as OrderParams;
 
 		await takerDriftClientUser.fetchAccounts();
 		const makerOrderParams = getLimitOrderParams({
@@ -978,7 +979,7 @@ describe('place and make signedMsg order', () => {
 			price: new BN(223).mul(PRICE_PRECISION),
 			postOnly: PostOnlyParams.MUST_POST_ONLY,
 			immediateOrCancel: true,
-		});
+		}) as OrderParams;
 
 		const uuid = Uint8Array.from(Buffer.from(nanoid(8)));
 		const takerOrderParamsMessage: SignedMsgOrderParamsMessage = {
@@ -1051,7 +1052,7 @@ describe('place and make signedMsg order', () => {
 			auctionDuration: 10,
 			userOrderId: 1,
 			postOnly: PostOnlyParams.NONE,
-		});
+		}) as OrderParams;
 
 		await takerDriftClientUser.fetchAccounts();
 
@@ -1126,7 +1127,7 @@ describe('place and make signedMsg order', () => {
 			auctionDuration: 10,
 			userOrderId: 1,
 			postOnly: PostOnlyParams.NONE,
-		});
+		}) as OrderParams;
 		const signedMsgSlot = slot.subn(5);
 		const uuid = Uint8Array.from(Buffer.from(nanoid(8)));
 		const takerOrderParamsMessage: SignedMsgOrderParamsMessage = {
@@ -1216,7 +1217,7 @@ describe('place and make signedMsg order', () => {
 			userOrderId: 1,
 			postOnly: PostOnlyParams.NONE,
 			marketType: MarketType.PERP,
-		});
+		}) as OrderParams;
 		const takerOrderParamsMessage: SignedMsgOrderParamsMessage = {
 			signedMsgOrderParams: takerOrderParams,
 			subAccountId: 0,
@@ -1281,7 +1282,7 @@ describe('place and make signedMsg order', () => {
 			userOrderId: 1,
 			postOnly: PostOnlyParams.NONE,
 			marketType: MarketType.PERP,
-		});
+		}) as OrderParams;
 		const takerOrderParamsMessage: SignedMsgOrderParamsMessage = {
 			signedMsgOrderParams: takerOrderParams,
 			subAccountId: 0,
@@ -1367,7 +1368,7 @@ describe('place and make signedMsg order', () => {
 			userOrderId: 1,
 			postOnly: PostOnlyParams.NONE,
 			marketType: MarketType.PERP,
-		});
+		}) as OrderParams;
 		const takerOrderParamsMessage: SignedMsgOrderParamsMessage = {
 			signedMsgOrderParams: takerOrderParams,
 			subAccountId: 0,
