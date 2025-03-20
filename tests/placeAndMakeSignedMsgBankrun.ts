@@ -45,6 +45,7 @@ import {
 	UserStatsAccount,
 	convertToNumber,
 	OrderParams,
+	SignedMsgOrderParamsDelegateMessage,
 } from '../sdk/src';
 
 import {
@@ -354,8 +355,9 @@ describe('place and make signedMsg order', () => {
 			);
 		await takerDriftClientUser.fetchAccounts();
 
-		const delegate = Keypair.generate();
-		await takerDriftClient.updateUserDelegate(delegate.publicKey);
+		await takerDriftClient.updateUserDelegate(
+			makerDriftClient.wallet.publicKey
+		);
 
 		const marketIndex = 0;
 		const baseAssetAmount = BASE_PRECISION;
@@ -372,19 +374,60 @@ describe('place and make signedMsg order', () => {
 			marketType: MarketType.PERP,
 		}) as OrderParams;
 		const uuid = Uint8Array.from(Buffer.from(nanoid(8)));
-		const takerOrderParamsMessage: SignedMsgOrderParamsMessage = {
+
+		// Should fail if we try first without encoding properly
+		const takerOrderParamsMessage: SignedMsgOrderParamsDelegateMessage = {
 			signedMsgOrderParams: takerOrderParams,
-			subAccountId: 0,
+			takerPubkey: await takerDriftClient.getUserAccountPublicKey(),
 			slot,
 			uuid,
 			takeProfitOrderParams: null,
 			stopLossOrderParams: null,
 		};
-
-		const signedOrderParams = takerDriftClient.signSignedMsgOrderParamsMessage(
-			takerOrderParamsMessage
+		let signedOrderParams = makerDriftClient.signSignedMsgOrderParamsMessage(
+			takerOrderParamsMessage,
+			false
 		);
+		try {
+			await makerDriftClient.placeSignedMsgTakerOrder(
+				signedOrderParams,
+				marketIndex,
+				{
+					taker: await takerDriftClient.getUserAccountPublicKey(),
+					takerUserAccount: takerDriftClient.getUserAccount(),
+					takerStats: takerDriftClient.getUserStatsAccountPublicKey(),
+					signingAuthority: makerDriftClient.wallet.publicKey,
+				},
+				undefined,
+				2
+			);
+		} catch (e) {
+			assert(e.toString().includes('0x1776'));
+		}
 
+		// Should fail if we dont set delegate as signing authority
+		try {
+			await makerDriftClient.placeSignedMsgTakerOrder(
+				signedOrderParams,
+				marketIndex,
+				{
+					taker: await takerDriftClient.getUserAccountPublicKey(),
+					takerUserAccount: takerDriftClient.getUserAccount(),
+					takerStats: takerDriftClient.getUserStatsAccountPublicKey(),
+					signingAuthority: takerDriftClient.wallet.publicKey,
+				},
+				undefined,
+				2
+			);
+		} catch (e) {
+			assert(e.toString().includes('0x188e'));
+		}
+
+		// Should work if we encode properly
+		signedOrderParams = makerDriftClient.signSignedMsgOrderParamsMessage(
+			takerOrderParamsMessage,
+			true
+		);
 		const txSig = await makerDriftClient.placeSignedMsgTakerOrder(
 			signedOrderParams,
 			marketIndex,
@@ -392,7 +435,7 @@ describe('place and make signedMsg order', () => {
 				taker: await takerDriftClient.getUserAccountPublicKey(),
 				takerUserAccount: takerDriftClient.getUserAccount(),
 				takerStats: takerDriftClient.getUserStatsAccountPublicKey(),
-				signingAuthority: delegate.publicKey,
+				signingAuthority: makerDriftClient.wallet.publicKey,
 			},
 			undefined,
 			2

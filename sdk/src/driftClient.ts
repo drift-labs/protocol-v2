@@ -57,6 +57,7 @@ import {
 	UserAccount,
 	UserStatsAccount,
 	ProtectedMakerModeConfig,
+	SignedMsgOrderParamsDelegateMessage,
 } from './types';
 import driftIDL from './idl/drift.json';
 
@@ -6323,9 +6324,15 @@ export class DriftClient {
 	}
 
 	public signSignedMsgOrderParamsMessage(
-		orderParamsMessage: SignedMsgOrderParamsMessage
+		orderParamsMessage:
+			| SignedMsgOrderParamsMessage
+			| SignedMsgOrderParamsDelegateMessage,
+		delegateSigner?: boolean
 	): SignedMsgOrderParams {
-		const borshBuf = this.encodeSignedMsgOrderParamsMessage(orderParamsMessage);
+		const borshBuf = this.encodeSignedMsgOrderParamsMessage(
+			orderParamsMessage,
+			delegateSigner
+		);
 		const orderParams = Buffer.from(borshBuf.toString('hex'));
 		return {
 			orderParams,
@@ -6337,16 +6344,24 @@ export class DriftClient {
 	 * Borsh encode signedMsg taker order params
 	 */
 	public encodeSignedMsgOrderParamsMessage(
-		orderParamsMessage: SignedMsgOrderParamsMessage
+		orderParamsMessage:
+			| SignedMsgOrderParamsMessage
+			| SignedMsgOrderParamsDelegateMessage,
+		delegateSigner?: boolean
 	): Buffer {
 		const anchorIxName = 'global' + ':' + 'SignedMsgOrderParamsMessage';
 		const prefix = Buffer.from(sha256(anchorIxName).slice(0, 8));
 		const buf = Buffer.concat([
 			prefix,
-			this.program.coder.types.encode(
-				'SignedMsgOrderParamsMessage',
-				orderParamsMessage
-			),
+			delegateSigner
+				? this.program.coder.types.encode(
+						'SignedMsgOrderParamsDelegateMessage',
+						orderParamsMessage
+				  )
+				: this.program.coder.types.encode(
+						'SignedMsgOrderParamsMessage',
+						orderParamsMessage
+				  ),
 		]);
 		return buf;
 	}
@@ -6441,7 +6456,7 @@ export class DriftClient {
 		const placeTakerSignedMsgPerpOrderIx =
 			this.program.instruction.placeSignedMsgTakerOrder(
 				signedMsgIxData,
-				isDelegateSigner ? takerInfo.taker : null,
+				isDelegateSigner,
 				{
 					accounts: {
 						state: await this.getStatePublicKey(),

@@ -1174,6 +1174,15 @@ export type SignedMsgOrderParamsMessage = {
 	stopLossOrderParams: SignedMsgTriggerOrderParams | null;
 };
 
+export type SignedMsgOrderParamsDelegateMessage = {
+	signedMsgOrderParams: OrderParams;
+	slot: BN;
+	uuid: Uint8Array;
+	takerPubkey: PublicKey;
+	takeProfitOrderParams: SignedMsgTriggerOrderParams | null;
+	stopLossOrderParams: SignedMsgTriggerOrderParams | null;
+};
+
 export type SignedMsgTriggerOrderParams = {
 	triggerPrice: BN;
 	baseAssetAmount: BN;

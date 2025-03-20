@@ -1060,10 +1060,8 @@
           "type": "bytes"
         },
         {
-          "name": "takerPubkey",
-          "type": {
-            "option": "publicKey"
-          }
+          "name": "isDelegateSigner",
+          "type": "bool"
         }
       ]
     },
@@ -9500,6 +9498,53 @@
           {
             "name": "subAccountId",
             "type": "u16"
+          },
+          {
+            "name": "slot",
+            "type": "u64"
+          },
+          {
+            "name": "uuid",
+            "type": {
+              "array": [
+                "u8",
+                8
+              ]
+            }
+          },
+          {
+            "name": "takeProfitOrderParams",
+            "type": {
+              "option": {
+                "defined": "SignedMsgTriggerOrderParams"
+              }
+            }
+          },
+          {
+            "name": "stopLossOrderParams",
+            "type": {
+              "option": {
+                "defined": "SignedMsgTriggerOrderParams"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "SignedMsgOrderParamsDelegateMessage",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "signedMsgOrderParams",
+            "type": {
+              "defined": "OrderParams"
+            }
+          },
+          {
+            "name": "takerPubkey",
+            "type": "publicKey"
           },
           {
             "name": "slot",
