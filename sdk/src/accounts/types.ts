@@ -113,6 +113,23 @@ export interface UserAccountSubscriber {
 	getUserAccountAndSlot(): DataAndSlot<UserAccount>;
 }
 
+export interface IFStakeAccountEvents {
+	ifStakeAccountUpdate: (payload: InsuranceFundStake) => void;
+	update: void;
+	error: (e: Error) => void;
+}
+
+export interface IFStakeAccountSubscriber {
+	eventEmitter: StrictEventEmitter<EventEmitter, IFStakeAccountEvents>;
+	isSubscribed: boolean;
+
+	subscribe(): Promise<boolean>;
+	fetch(): Promise<void>;
+	unsubscribe(): Promise<void>;
+
+	getIFStakeAccountAndSlot(): DataAndSlot<InsuranceFundStake>;
+}
+
 export interface TokenAccountEvents {
 	tokenAccountUpdate: (payload: Account) => void;
 	update: void;
