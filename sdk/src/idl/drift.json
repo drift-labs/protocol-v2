@@ -9532,6 +9532,53 @@
       }
     },
     {
+      "name": "SignedMsgOrderParamsDelegateMessage",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "signedMsgOrderParams",
+            "type": {
+              "defined": "OrderParams"
+            }
+          },
+          {
+            "name": "takerPubkey",
+            "type": "publicKey"
+          },
+          {
+            "name": "slot",
+            "type": "u64"
+          },
+          {
+            "name": "uuid",
+            "type": {
+              "array": [
+                "u8",
+                8
+              ]
+            }
+          },
+          {
+            "name": "takeProfitOrderParams",
+            "type": {
+              "option": {
+                "defined": "SignedMsgTriggerOrderParams"
+              }
+            }
+          },
+          {
+            "name": "stopLossOrderParams",
+            "type": {
+              "option": {
+                "defined": "SignedMsgTriggerOrderParams"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
       "name": "SignedMsgTriggerOrderParams",
       "type": {
         "kind": "struct",

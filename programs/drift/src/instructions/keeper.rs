@@ -62,7 +62,7 @@ use crate::state::user::{
     MarginMode, MarketType, OrderStatus, OrderTriggerCondition, OrderType, User, UserStats,
 };
 use crate::state::user_map::{load_user_map, load_user_maps, UserMap, UserStatsMap};
-use crate::validation::sig_verification::verify_ed25519_msg;
+use crate::validation::sig_verification::verify_and_decode_ed25519_msg;
 use crate::validation::user::{validate_user_deletion, validate_user_is_idle};
 use crate::{
     controller, load, math, print_error, safe_decrement, OracleSource, GOV_SPOT_MARKET_INDEX,
@@ -665,44 +665,51 @@ pub fn place_signed_msg_taker_order<'c: 'info, 'info>(
     // Verify data from verify ix
     let ix: Instruction = load_instruction_at_checked(ix_idx as usize - 1, ix_sysvar)?;
 
-    let signer = match is_delegate_signer {
-        true => taker.delegate.to_bytes(),
-        false => taker.authority.to_bytes(),
+    let signer = if is_delegate_signer {
+        taker.delegate.to_bytes()
+    } else {
+        taker.authority.to_bytes()
     };
-    let verified_message_and_signature = verify_ed25519_msg(
+    let verified_message_and_signature = verify_and_decode_ed25519_msg(
         &ix,
         ix_sysvar,
         ix_idx,
         &signer,
         &taker_order_params_message_bytes[..],
+        is_delegate_signer,
     )?;
 
-    let taker_order_params_message: SignedMsgOrderParamsMessage =
-        verified_message_and_signature.signed_msg_order_params_message;
-
-    // Verify taker passed to the ix matches pda derived from subaccount id + authority
-    let taker_pda = Pubkey::find_program_address(
-        &[
-            "user".as_bytes(),
-            &taker.authority.to_bytes(),
-            &taker_order_params_message.sub_account_id.to_le_bytes(),
-        ],
-        &ID,
-    );
-    if taker_pda.0 != taker_key {
-        msg!(
-            "Taker key {:?} does not match pda {:?}",
-            taker_key,
-            taker_pda.0
+    if is_delegate_signer {
+        validate!(
+            verified_message_and_signature.delegate_signed_taker_pubkey == Some(taker_key),
+            ErrorCode::SignedMsgUserContextUserMismatch,
+            "Delegate signed msg for taker pubkey different than supplied pubkey"
+        )?;
+    } else {
+        // Verify taker passed to the ix matches pda derived from subaccount id + authority
+        let taker_pda = Pubkey::find_program_address(
+            &[
+                "user".as_bytes(),
+                &taker.authority.to_bytes(),
+                &verified_message_and_signature
+                    .sub_account_id
+                    .unwrap()
+                    .to_le_bytes(),
+            ],
+            &ID,
         );
-        return Err(ErrorCode::SignedMsgUserContextUserMismatch.into());
-    }
+        validate!(
+            taker_pda.0 == taker_key,
+            ErrorCode::SignedMsgUserContextUserMismatch,
+            "Taker key does not match pda"
+        )?;
+    };
 
     let signature = verified_message_and_signature.signature;
     let clock = &Clock::get()?;
 
     // First order must be a taker order
-    let matching_taker_order_params = &taker_order_params_message.signed_msg_order_params;
+    let matching_taker_order_params = &verified_message_and_signature.signed_msg_order_params;
     if matching_taker_order_params.market_type != MarketType::Perp
         || !matching_taker_order_params.has_valid_auction_params()?
     {
@@ -720,7 +727,7 @@ pub fn place_signed_msg_taker_order<'c: 'info, 'info>(
     }
 
     // Set max slot for the order early so we set correct signed msg order id
-    let order_slot = taker_order_params_message.slot;
+    let order_slot = verified_message_and_signature.slot;
     if order_slot < clock.slot.saturating_sub(500) {
         msg!(
             "SignedMsg order slot {} is too old: must be within 500 slots of current slot",
@@ -749,7 +756,7 @@ pub fn place_signed_msg_taker_order<'c: 'info, 'info>(
     // Dont place order if signed msg order already exists
     let mut taker_order_id_to_use = taker.next_order_id;
     let mut signed_msg_order_id =
-        SignedMsgOrderId::new(taker_order_params_message.uuid, max_slot, 0);
+        SignedMsgOrderId::new(verified_message_and_signature.uuid, max_slot, 0);
     if signed_msg_account
         .check_exists_and_prune_stale_signed_msg_order_ids(signed_msg_order_id, clock.slot)
     {
@@ -758,7 +765,7 @@ pub fn place_signed_msg_taker_order<'c: 'info, 'info>(
     }
 
     // Good to place orders, do stop loss and take profit orders first
-    if let Some(stop_loss_order_params) = taker_order_params_message.stop_loss_order_params {
+    if let Some(stop_loss_order_params) = verified_message_and_signature.stop_loss_order_params {
         taker_order_id_to_use += 1;
         let stop_loss_order = OrderParams {
             order_type: OrderType::TriggerMarket,
@@ -793,7 +800,8 @@ pub fn place_signed_msg_taker_order<'c: 'info, 'info>(
         )?;
     }
 
-    if let Some(take_profit_order_params) = taker_order_params_message.take_profit_order_params {
+    if let Some(take_profit_order_params) = verified_message_and_signature.take_profit_order_params
+    {
         taker_order_id_to_use += 1;
         let take_profit_order = OrderParams {
             order_type: OrderType::TriggerMarket,

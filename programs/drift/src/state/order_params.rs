@@ -734,6 +734,16 @@ pub struct SignedMsgOrderParamsMessage {
 }
 
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Default, Eq, PartialEq, Debug)]
+pub struct SignedMsgOrderParamsDelegateMessage {
+    pub signed_msg_order_params: OrderParams,
+    pub taker_pubkey: Pubkey,
+    pub slot: u64,
+    pub uuid: [u8; 8],
+    pub take_profit_order_params: Option<SignedMsgTriggerOrderParams>,
+    pub stop_loss_order_params: Option<SignedMsgTriggerOrderParams>,
+}
+
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, Default, Eq, PartialEq, Debug)]
 pub struct SignedMsgTriggerOrderParams {
     pub trigger_price: u64,
     pub base_asset_amount: u64,
