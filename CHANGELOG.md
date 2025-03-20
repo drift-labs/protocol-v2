@@ -18,6 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixes
 
 - sdk: account for authority when useMarketLastSlotCache ([#1541](https://github.com/drift-labs/protocol-v2/pull/1541))
+- program: delegate wallets sign taker pubkey into message ([#1546](https://github.com/drift-labs/protocol-v2/pull/1546))
 
 ### Breaking
 
