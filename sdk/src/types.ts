@@ -174,6 +174,8 @@ export class MarketType {
 export class OrderStatus {
 	static readonly INIT = { init: {} };
 	static readonly OPEN = { open: {} };
+	static readonly FILLED = { filled: {} };
+	static readonly CANCELED = { canceled: {} };
 }
 
 export class OrderAction {
@@ -239,6 +241,9 @@ export class OrderActionExplanation {
 	};
 	static readonly DERISK_LP = {
 		deriskLp: {},
+	};
+	static readonly TRANSFER_PERP_POSITION = {
+		transferPerpPosition: {},
 	};
 }
 
@@ -744,6 +749,8 @@ export type PerpMarketAccount = {
 
 	highLeverageMarginRatioInitial: number;
 	highLeverageMarginRatioMaintenance: number;
+	protectedMakerLimitPriceDivisor: number;
+	protectedMakerDynamicDivisor: number;
 };
 
 export type HistoricalOracleData = {
@@ -1009,7 +1016,7 @@ export type UserStatsAccount = {
 
 export type FuelOverflowAccount = {
 	authority: PublicKey;
-	fuelInsurance: number;
+	fuelInsurance: BN;
 	fuelDeposits: BN;
 	fuelBorrows: BN;
 	fuelPositions: BN;
@@ -1159,7 +1166,7 @@ export const DefaultOrderParams: OrderParams = {
 };
 
 export type SignedMsgOrderParamsMessage = {
-	signedMsgOrderParams: OptionalOrderParams;
+	signedMsgOrderParams: OrderParams;
 	subAccountId: number;
 	slot: BN;
 	uuid: Uint8Array;
@@ -1423,6 +1430,12 @@ export type ProtectedMakerModeConfig = {
 	maxUsers: number;
 	currentUsers: number;
 	reduceOnly: boolean;
+};
+
+export type ProtectedMakerParams = {
+	limitPriceDivisor: number;
+	tickSize: BN;
+	dynamicOffset: BN;
 };
 
 /* Represents proof of a signed msg taker order

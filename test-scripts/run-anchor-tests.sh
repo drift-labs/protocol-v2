@@ -80,6 +80,7 @@ test_files=(
   tradingLP.ts
   triggerOrders.ts
   triggerSpotOrder.ts
+  transferPerpPosition.ts
   userAccount.ts
   userDelegate.ts
   userOrderId.ts

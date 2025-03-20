@@ -947,7 +947,9 @@ pub fn handle_initialize_perp_market(
         pool_id: 0,
         high_leverage_margin_ratio_initial: 0,
         high_leverage_margin_ratio_maintenance: 0,
-        padding: [0; 38],
+        protected_maker_limit_price_divisor: 0,
+        protected_maker_dynamic_divisor: 0,
+        padding: [0; 36],
         amm: AMM {
             oracle: *ctx.accounts.oracle.key,
             oracle_source,
@@ -1573,6 +1575,7 @@ pub struct UpdatePerpMarketSummaryStatsParams {
     pub quote_asset_amount_with_unsettled_lp: Option<i64>,
     pub net_unsettled_funding_pnl: Option<i64>,
     pub update_amm_summary_stats: Option<bool>,
+    pub exclude_total_liq_fee: Option<bool>,
 }
 
 #[access_control(
@@ -1629,6 +1632,7 @@ pub fn handle_update_perp_market_amm_summary_stats(
                 perp_market,
                 spot_market,
                 oracle_price,
+                params.exclude_total_liq_fee.unwrap_or(false),
             )?;
 
         msg!(
@@ -4386,9 +4390,13 @@ pub fn handle_update_protected_maker_mode_config(
     ctx: Context<UpdateProtectedMakerModeConfig>,
     max_users: u32,
     reduce_only: bool,
+    current_users: Option<u32>,
 ) -> Result<()> {
     let mut config = load_mut!(ctx.accounts.protected_maker_mode_config)?;
 
+    if current_users.is_some() {
+        config.current_users = current_users.unwrap();
+    }
     config.max_users = max_users;
     config.reduce_only = reduce_only as u8;
 

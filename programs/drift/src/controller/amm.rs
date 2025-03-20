@@ -158,14 +158,21 @@ pub fn update_spread_reserves(market: &mut PerpMarket) -> DriftResult {
     let (new_bid_base_asset_reserve, new_bid_quote_asset_reserve) =
         calculate_spread_reserves(market, PositionDirection::Short)?;
 
-    market.amm.ask_base_asset_reserve =
-        new_ask_base_asset_reserve.min(market.amm.base_asset_reserve);
-    market.amm.bid_base_asset_reserve =
-        new_bid_base_asset_reserve.max(market.amm.base_asset_reserve);
-    market.amm.ask_quote_asset_reserve =
-        new_ask_quote_asset_reserve.max(market.amm.quote_asset_reserve);
-    market.amm.bid_quote_asset_reserve =
-        new_bid_quote_asset_reserve.min(market.amm.quote_asset_reserve);
+    if market.amm.reference_price_offset == 0 {
+        market.amm.ask_base_asset_reserve =
+            new_ask_base_asset_reserve.min(market.amm.base_asset_reserve);
+        market.amm.bid_base_asset_reserve =
+            new_bid_base_asset_reserve.max(market.amm.base_asset_reserve);
+        market.amm.ask_quote_asset_reserve =
+            new_ask_quote_asset_reserve.max(market.amm.quote_asset_reserve);
+        market.amm.bid_quote_asset_reserve =
+            new_bid_quote_asset_reserve.min(market.amm.quote_asset_reserve);
+    } else {
+        market.amm.ask_base_asset_reserve = new_ask_base_asset_reserve;
+        market.amm.bid_base_asset_reserve = new_bid_base_asset_reserve;
+        market.amm.ask_quote_asset_reserve = new_ask_quote_asset_reserve;
+        market.amm.bid_quote_asset_reserve = new_bid_quote_asset_reserve;
+    }
 
     Ok(())
 }
@@ -838,6 +845,7 @@ pub fn calculate_perp_market_amm_summary_stats(
     perp_market: &PerpMarket,
     spot_market: &SpotMarket,
     perp_market_oracle_price: i64,
+    exclude_liquidation_fee: bool,
 ) -> DriftResult<i128> {
     let pnl_pool_token_amount = get_token_amount(
         perp_market.pnl_pool.scaled_balance,
@@ -858,7 +866,12 @@ pub fn calculate_perp_market_amm_summary_stats(
     let net_user_pnl = amm::calculate_net_user_pnl(&perp_market.amm, perp_market_oracle_price)?;
 
     // amm's mm_fee can be incorrect with drifting integer math error
-    let new_total_fee_minus_distributions = pnl_tokens_available.safe_sub(net_user_pnl)?;
+    let mut new_total_fee_minus_distributions = pnl_tokens_available.safe_sub(net_user_pnl)?;
+
+    if exclude_liquidation_fee {
+        new_total_fee_minus_distributions = new_total_fee_minus_distributions
+            .safe_sub(perp_market.amm.total_liquidation_fee.cast()?)?;
+    }
 
     Ok(new_total_fee_minus_distributions)
 }

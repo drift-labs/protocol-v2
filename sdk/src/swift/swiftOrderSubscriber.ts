@@ -9,16 +9,21 @@ import {
 	OptionalOrderParams,
 	PostOnlyParams,
 	SignedMsgOrderParamsMessage,
-	UserMap,
+	UserAccount,
 } from '..';
 import { Keypair, PublicKey, TransactionInstruction } from '@solana/web3.js';
 import nacl from 'tweetnacl';
 import { decodeUTF8 } from 'tweetnacl-util';
 import WebSocket from 'ws';
 
-export type FastlaneOrderSubscriberConfig = {
+// In practice, this for now is just an OrderSubscriber or a UserMap
+export interface AccountGetter {
+	mustGetUserAccount(publicKey: string): Promise<UserAccount>;
+}
+
+export type SwiftOrderSubscriberConfig = {
 	driftClient: DriftClient;
-	userMap: UserMap;
+	userAccountGetter?: AccountGetter;
 	driftEnv: DriftEnv;
 	endpoint?: string;
 	marketIndexes: number[];
@@ -30,12 +35,12 @@ export type FastlaneOrderSubscriberConfig = {
 	keypair: Keypair;
 };
 
-export class FastlaneOrderSubscriber {
+export class SwiftOrderSubscriber {
 	private heartbeatTimeout: NodeJS.Timeout | null = null;
 	private readonly heartbeatIntervalMs = 60000;
 	private ws: WebSocket | null = null;
 	private driftClient: DriftClient;
-	public userMap: UserMap;
+	public userAccountGetter?: AccountGetter; // In practice, this for now is just an OrderSubscriber or a UserMap
 	public onOrder: (
 		orderMessageRaw: any,
 		signedMsgOrderParamsMessage: SignedMsgOrderParamsMessage
@@ -43,9 +48,9 @@ export class FastlaneOrderSubscriber {
 
 	subscribed = false;
 
-	constructor(private config: FastlaneOrderSubscriberConfig) {
+	constructor(private config: SwiftOrderSubscriberConfig) {
 		this.driftClient = config.driftClient;
-		this.userMap = config.userMap;
+		this.userAccountGetter = config.userAccountGetter;
 	}
 
 	getSymbolForMarketIndex(marketIndex: number): string {
@@ -105,8 +110,8 @@ export class FastlaneOrderSubscriber {
 
 		const endpoint =
 			this.config.endpoint || this.config.driftEnv === 'devnet'
-				? 'wss://master.fastlane.drift.trade/ws'
-				: 'wss://fastlane.drift.trade/ws';
+				? 'wss://master.swift.drift.trade/ws'
+				: 'wss://swift.drift.trade/ws';
 		const ws = new WebSocket(
 			endpoint + '?pubkey=' + this.config.keypair.publicKey.toBase58()
 		);
@@ -156,6 +161,28 @@ export class FastlaneOrderSubscriber {
 				this.reconnect();
 			});
 		});
+
+		ws.on('unexpected-response', async (request, response) => {
+			console.error(
+				'Unexpected response, reconnecting in 5s:',
+				response.statusCode
+			);
+			setTimeout(() => {
+				if (this.heartbeatTimeout) clearTimeout(this.heartbeatTimeout);
+				this.reconnect();
+			}, 5000);
+		});
+
+		ws.on('error', async (request, response) => {
+			console.error(
+				'WS closed from error, reconnecting in 1s:',
+				response.statusCode
+			);
+			setTimeout(() => {
+				if (this.heartbeatTimeout) clearTimeout(this.heartbeatTimeout);
+				this.reconnect();
+			}, 1000);
+		});
 	}
 
 	async getPlaceAndMakeSignedMsgOrderIxs(
@@ -163,6 +190,10 @@ export class FastlaneOrderSubscriber {
 		signedMsgOrderParamsMessage: SignedMsgOrderParamsMessage,
 		makerOrderParams: OptionalOrderParams
 	): Promise<TransactionInstruction[]> {
+		if (!this.userAccountGetter) {
+			throw new Error('userAccountGetter must be set to use this function');
+		}
+
 		const signedMsgOrderParamsBuf = Buffer.from(
 			orderMessageRaw['order_message'],
 			'hex'
@@ -176,9 +207,9 @@ export class FastlaneOrderSubscriber {
 			takerAuthority,
 			signedMsgOrderParamsMessage.subAccountId
 		);
-		const takerUserAccount = (
-			await this.userMap.mustGet(takerUserPubkey.toString())
-		).getUserAccount();
+		const takerUserAccount = await this.userAccountGetter.mustGetUserAccount(
+			takerUserPubkey.toString()
+		);
 		const ixs = await this.driftClient.getPlaceAndMakeSignedMsgPerpOrderIxs(
 			{
 				orderParams: signedMsgOrderParamsBuf,

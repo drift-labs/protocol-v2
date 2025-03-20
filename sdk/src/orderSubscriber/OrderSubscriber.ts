@@ -1,6 +1,10 @@
 import { DriftClient } from '../driftClient';
 import { UserAccount } from '../types';
-import { getUserFilter, getUserWithOrderFilter } from '../memcmp';
+import {
+	getNonIdleUserFilter,
+	getUserFilter,
+	getUserWithOrderFilter,
+} from '../memcmp';
 import { Commitment, PublicKey, RpcResponseAndContext } from '@solana/web3.js';
 import { Buffer } from 'buffer';
 import { DLOB } from '../dlob/DLOB';
@@ -9,7 +13,7 @@ import { PollingSubscription } from './PollingSubscription';
 import { WebsocketSubscription } from './WebsocketSubscription';
 import StrictEventEmitter from 'strict-event-emitter-types';
 import { EventEmitter } from 'events';
-import { BN } from '../index';
+import { BN, ProtectMakerParamsMap } from '../index';
 import { decodeUser } from '../decode/user';
 import { grpcSubscription } from './grpcSubscription';
 import { isUserProtectedMaker } from '../math/userStatus';
@@ -27,6 +31,8 @@ export class OrderSubscriber {
 	mostRecentSlot: number;
 	decodeFn: (name: string, data: Buffer) => UserAccount;
 	decodeData?: boolean;
+
+	fetchAllNonIdleUsers?: boolean;
 
 	constructor(config: OrderSubscriberConfig) {
 		this.driftClient = config.driftClient;
@@ -70,6 +76,7 @@ export class OrderSubscriber {
 				);
 		}
 		this.eventEmitter = new EventEmitter();
+		this.fetchAllNonIdleUsers = config.fetchAllNonIdleUsers;
 	}
 
 	public async subscribe(): Promise<void> {
@@ -85,12 +92,16 @@ export class OrderSubscriber {
 			this.fetchPromiseResolver = resolver;
 		});
 
+		const filters = this.fetchAllNonIdleUsers
+			? [getUserFilter(), getNonIdleUserFilter()]
+			: [getUserFilter(), getUserWithOrderFilter()];
+
 		try {
 			const rpcRequestArgs = [
 				this.driftClient.program.programId.toBase58(),
 				{
 					commitment: this.commitment,
-					filters: [getUserFilter(), getUserWithOrderFilter()],
+					filters,
 					encoding: 'base64',
 					withContext: true,
 				},
@@ -223,15 +234,15 @@ export class OrderSubscriber {
 	 * caller to extend the DLOB Subscriber with a custom DLOB type.
 	 * @returns New, empty DLOB object.
 	 */
-	protected createDLOB(protectedMakerView?: boolean): DLOB {
-		return new DLOB(protectedMakerView);
+	protected createDLOB(protectedMakerParamsMap?: ProtectMakerParamsMap): DLOB {
+		return new DLOB(protectedMakerParamsMap);
 	}
 
 	public async getDLOB(
 		slot: number,
-		protectedMakerView?: boolean
+		protectedMakerParamsMap?: ProtectMakerParamsMap
 	): Promise<DLOB> {
-		const dlob = this.createDLOB(protectedMakerView);
+		const dlob = this.createDLOB(protectedMakerParamsMap);
 		for (const [key, { userAccount }] of this.usersAccounts.entries()) {
 			const protectedMaker = isUserProtectedMaker(userAccount);
 			for (const order of userAccount.orders) {
@@ -243,6 +254,29 @@ export class OrderSubscriber {
 
 	public getSlot(): number {
 		return this.mostRecentSlot ?? 0;
+	}
+
+	public async addPubkey(userAccountPublicKey: PublicKey): Promise<void> {
+		const accountInfo =
+			await this.driftClient.connection.getAccountInfoAndContext(
+				userAccountPublicKey,
+				this.commitment
+			);
+		if (accountInfo) {
+			this.tryUpdateUserAccount(
+				userAccountPublicKey.toString(),
+				'buffer',
+				accountInfo.value.data,
+				accountInfo.context.slot
+			);
+		}
+	}
+
+	public async mustGetUserAccount(key: string): Promise<UserAccount> {
+		if (!this.usersAccounts.has(key)) {
+			await this.addPubkey(new PublicKey(key));
+		}
+		return this.usersAccounts.get(key).userAccount;
 	}
 
 	public async unsubscribe(): Promise<void> {

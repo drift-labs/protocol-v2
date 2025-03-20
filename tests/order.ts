@@ -392,11 +392,8 @@ describe('orders', () => {
 		const order =
 			driftClientUser.getUserAccount().orders[orderIndex.toNumber()];
 
-		assert(order.baseAssetAmount.eq(new BN(0)));
-		assert(order.price.eq(new BN(0)));
-		assert(order.marketIndex === 0);
-		assert(enumsAreEqual(order.direction, PositionDirection.LONG));
-		assert(enumsAreEqual(order.status, OrderStatus.INIT));
+		assert(order.baseAssetAmountFilled.eq(new BN(0)));
+		assert(enumsAreEqual(order.status, OrderStatus.CANCELED));
 
 		const position = driftClientUser.getUserAccount().perpPositions[0];
 		assert(position.openOrders === 0);
@@ -491,11 +488,8 @@ describe('orders', () => {
 		const expectedFeeToMarket = new BN(901);
 		assert(market.amm.totalFee.eq(expectedFeeToMarket));
 
-		assert(order.baseAssetAmount.eq(new BN(0)));
-		assert(order.price.eq(new BN(0)));
-		assert(order.marketIndex === 0);
-		assert(enumsAreEqual(order.direction, PositionDirection.LONG));
-		assert(enumsAreEqual(order.status, OrderStatus.INIT));
+		assert(order.baseAssetAmount.eq(order.baseAssetAmountFilled));
+		assert(enumsAreEqual(order.status, OrderStatus.FILLED));
 
 		const firstPosition = driftClientUser.getUserAccount().perpPositions[0];
 		assert(firstPosition.baseAssetAmount.eq(baseAssetAmount));
@@ -622,11 +616,8 @@ describe('orders', () => {
 		const expectedFeeToMarket = new BN(1802);
 		assert(market.amm.totalFee.eq(expectedFeeToMarket));
 
-		assert(order.baseAssetAmount.eq(new BN(0)));
-		assert(order.price.eq(new BN(0)));
-		assert(order.marketIndex === 0);
-		assert(enumsAreEqual(order.direction, PositionDirection.LONG));
-		assert(enumsAreEqual(order.status, OrderStatus.INIT));
+		assert(order.baseAssetAmount.eq(order.baseAssetAmountFilled));
+		assert(enumsAreEqual(order.status, OrderStatus.FILLED));
 
 		const firstPosition = driftClientUser.getUserAccount().perpPositions[0];
 		const expectedBaseAssetAmount = new BN(0);
@@ -1567,7 +1558,7 @@ describe('orders', () => {
 		console.log(orderRecord);
 		assert(orderRecord.baseAssetAmountFilled.eq(AMM_RESERVE_PRECISION));
 		assert(
-			isVariant(driftClientUser.getUserAccount().orders[1].status, 'init')
+			!isVariant(driftClientUser.getUserAccount().orders[1].status, 'open')
 		);
 
 		await driftClient.placeAndTakePerpOrder(openPositionOrderParams);
@@ -1595,7 +1586,7 @@ describe('orders', () => {
 		orderRecord = eventSubscriber.getEventsArray('OrderActionRecord')[1];
 		assert(orderRecord.baseAssetAmountFilled.eq(AMM_RESERVE_PRECISION));
 		assert(
-			isVariant(driftClientUser.getUserAccount().orders[1].status, 'init')
+			!isVariant(driftClientUser.getUserAccount().orders[1].status, 'open')
 		);
 	});
 });

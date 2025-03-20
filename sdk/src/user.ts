@@ -69,6 +69,7 @@ import {
 	SpotBalanceType,
 	SpotMarketAccount,
 	standardizeBaseAssetAmount,
+	UserStats,
 } from '.';
 import {
 	calculateAssetWeight,
@@ -907,7 +908,8 @@ export class User {
 	public getFuelBonus(
 		now: BN,
 		includeSettled = true,
-		includeUnsettled = true
+		includeUnsettled = true,
+		givenUserStats?: UserStats
 	): {
 		depositFuel: BN;
 		borrowFuel: BN;
@@ -927,7 +929,7 @@ export class User {
 			positionFuel: ZERO,
 		};
 
-		const userStats = this.driftClient.getUserStats();
+		const userStats = givenUserStats ?? this.driftClient.getUserStats();
 		const userStatsAccount: UserStatsAccount = userStats.getAccount();
 
 		if (includeSettled) {
@@ -2669,22 +2671,9 @@ export class User {
 	}
 
 	/**
-	 * Get the maximum trade size for a given market, taking into account the user's current leverage, positions, collateral, etc.
-	 *
-	 * To Calculate Max Quote Available:
-	 *
-	 * Case 1: SameSide
-	 * 	=> Remaining quote to get to maxLeverage
-	 *
-	 * Case 2: NOT SameSide && currentLeverage <= maxLeverage
-	 * 	=> Current opposite position x2 + remaining to get to maxLeverage
-	 *
-	 * Case 3: NOT SameSide && currentLeverage > maxLeverage && otherPositions - currentPosition > maxLeverage
-	 * 	=> strictly reduce current position size
-	 *
-	 * Case 4: NOT SameSide && currentLeverage > maxLeverage && otherPositions - currentPosition < maxLeverage
-	 * 	=> current position + remaining to get to maxLeverage
-	 *
+	 * Separates the max trade size into two parts:
+	 * - tradeSize: The maximum trade size for target direction
+	 * - oppositeSideTradeSize: the trade size for closing the opposite direction
 	 * @param targetMarketIndex
 	 * @param tradeSide
 	 * @param isLp
@@ -3766,7 +3755,7 @@ export class User {
 		}
 
 		for (const order of userAccount.orders) {
-			if (!isVariant(order.status, 'init')) {
+			if (isVariant(order.status, 'open')) {
 				return false;
 			}
 		}

@@ -34,6 +34,7 @@ pub struct MarginContext {
     pub fuel_bonus: u64,
     pub fuel_perp_delta: Option<(u16, i64)>,
     pub fuel_spot_deltas: [(u16, i128); 2],
+    pub margin_ratio_override: Option<u32>,
 }
 
 #[derive(PartialEq, Eq, Copy, Clone, Debug, AnchorSerialize, AnchorDeserialize)]
@@ -72,6 +73,7 @@ impl MarginContext {
             fuel_bonus: 0,
             fuel_perp_delta: None,
             fuel_spot_deltas: [(0, 0); 2],
+            margin_ratio_override: None,
         }
     }
 
@@ -127,6 +129,15 @@ impl MarginContext {
         Ok(self)
     }
 
+    pub fn margin_ratio_override(mut self, margin_ratio_override: u32) -> Self {
+        msg!(
+            "Applying max margin ratio override: {} due to stale oracle",
+            margin_ratio_override
+        );
+        self.margin_ratio_override = Some(margin_ratio_override);
+        self
+    }
+
     pub fn liquidation(margin_buffer: u32) -> Self {
         Self {
             margin_type: MarginRequirementType::Maintenance,
@@ -140,6 +151,7 @@ impl MarginContext {
             fuel_bonus: 0,
             fuel_perp_delta: None,
             fuel_spot_deltas: [(0, 0); 2],
+            margin_ratio_override: None,
         }
     }
 

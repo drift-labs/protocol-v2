@@ -73,6 +73,21 @@ pub mod drift {
         handle_resize_signed_msg_user_orders(ctx, num_orders)
     }
 
+    pub fn initialize_signed_msg_ws_delegates<'c: 'info, 'info>(
+        ctx: Context<'_, '_, 'c, 'info, InitializeSignedMsgWsDelegates<'info>>,
+        delegates: Vec<Pubkey>,
+    ) -> Result<()> {
+        handle_initialize_signed_msg_ws_delegates(ctx, delegates)
+    }
+
+    pub fn change_signed_msg_ws_delegate_status<'c: 'info, 'info>(
+        ctx: Context<'_, '_, 'c, 'info, ChangeSignedMsgWsDelegateStatus<'info>>,
+        delegate: Pubkey,
+        add: bool,
+    ) -> Result<()> {
+        handle_change_signed_msg_ws_delegate_status(ctx, delegate, add)
+    }
+
     pub fn initialize_fuel_overflow<'c: 'info, 'info>(
         ctx: Context<'_, '_, 'c, 'info, InitializeFuelOverflow<'info>>,
     ) -> Result<()> {
@@ -142,6 +157,14 @@ pub mod drift {
             deposit_amount,
             borrow_amount,
         )
+    }
+
+    pub fn transfer_perp_position<'c: 'info, 'info>(
+        ctx: Context<'_, '_, 'c, 'info, TransferPerpPosition<'info>>,
+        market_index: u16,
+        amount: Option<i64>,
+    ) -> Result<()> {
+        handle_transfer_perp_position(ctx, market_index, amount)
     }
 
     pub fn place_perp_order<'c: 'info, 'info>(
@@ -1659,8 +1682,9 @@ pub mod drift {
         ctx: Context<UpdateProtectedMakerModeConfig>,
         max_users: u32,
         reduce_only: bool,
+        current_users: Option<u32>,
     ) -> Result<()> {
-        handle_update_protected_maker_mode_config(ctx, max_users, reduce_only)
+        handle_update_protected_maker_mode_config(ctx, max_users, reduce_only, current_users)
     }
 }
 
