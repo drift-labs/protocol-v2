@@ -254,7 +254,9 @@ export class BankrunConnection {
 		const signature = isVersioned
 			? bs58.encode((tx as VersionedTransaction).signatures[0])
 			: bs58.encode((tx as Transaction).signatures[0].signature);
-		this.transactionToMeta.set(signature, banksTransactionMeta);
+		if (!this.transactionToMeta.has(signature)) {
+			this.transactionToMeta.set(signature, banksTransactionMeta);
+		}
 		let finalizedCount = 0;
 		while (finalizedCount < 10) {
 			const signatureStatus = (await this.getSignatureStatus(signature)).value
