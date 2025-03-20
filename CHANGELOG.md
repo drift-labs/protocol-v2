@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Features
 
+### Fixes
+
+### Breaking
+
+## [2.115.0] - 2025-03-20
+
+### Features
+
 - program: force lst pool oracle updates into same slot for liquidations ([#1537](https://github.com/drift-labs/protocol-v2/pull/1537))
 - program: init dynamic offset for pmm ([#1524](https://github.com/drift-labs/protocol-v2/pull/1524))
 - program: new order status logic to make tracking fills easier ([#1512](https://github.com/drift-labs/protocol-v2/pull/1512))
