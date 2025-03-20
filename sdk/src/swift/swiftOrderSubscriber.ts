@@ -8,6 +8,7 @@ import {
 	MarketType,
 	OptionalOrderParams,
 	PostOnlyParams,
+	SignedMsgOrderParamsDelegateMessage,
 	SignedMsgOrderParamsMessage,
 	UserAccount,
 } from '..';
@@ -103,7 +104,7 @@ export class SwiftOrderSubscriber {
 	async subscribe(
 		onOrder: (
 			orderMessageRaw: any,
-			signedMsgOrderParamsMessage: SignedMsgOrderParamsMessage
+			signedMsgOrderParamsMessage: SignedMsgOrderParamsMessage | SignedMsgOrderParamsDelegateMessage
 		) => Promise<void>
 	): Promise<void> {
 		this.onOrder = onOrder;
@@ -133,9 +134,10 @@ export class SwiftOrderSubscriber {
 						order['order_message'],
 						'hex'
 					);
-					const signedMsgOrderParamsMessage: SignedMsgOrderParamsMessage =
+					const signedMsgOrderParamsMessage: SignedMsgOrderParamsMessage | SignedMsgOrderParamsDelegateMessage =
 						this.driftClient.decodeSignedMsgOrderParamsMessage(
-							signedMsgOrderParamsBuf
+							signedMsgOrderParamsBuf,
+							order['signing_authority'] == order['taker_authority']
 						);
 
 					if (!signedMsgOrderParamsMessage.signedMsgOrderParams.price) {
