@@ -2281,12 +2281,12 @@ pub fn handle_place_and_take_perp_order<'c: 'info, 'info>(
         ),
     )?;
 
-    let order_exists = load!(ctx.accounts.user)?
+    let order_unfilled = load!(ctx.accounts.user)?
         .orders
         .iter()
-        .any(|order| order.order_id == order_id);
+        .any(|order| order.order_id == order_id && order.status == OrderStatus::Open);
 
-    if is_immediate_or_cancel && order_exists {
+    if is_immediate_or_cancel && order_unfilled {
         controller::orders::cancel_order_by_order_id(
             order_id,
             &ctx.accounts.user,
@@ -2305,7 +2305,7 @@ pub fn handle_place_and_take_perp_order<'c: 'info, 'info>(
         )?;
     } else if success_condition == PlaceAndTakeOrderSuccessCondition::FullFill as u8 {
         validate!(
-            base_asset_amount_filled > 0 && !order_exists,
+            base_asset_amount_filled > 0 && !order_unfilled,
             ErrorCode::PlaceAndTakeOrderSuccessConditionFailed,
             "no full fill"
         )?;
@@ -2685,12 +2685,12 @@ pub fn handle_place_and_take_spot_order<'c: 'info, 'info>(
         fulfillment_params.as_mut(),
     )?;
 
-    let order_exists = load!(ctx.accounts.user)?
+    let order_unfilled = load!(ctx.accounts.user)?
         .orders
         .iter()
-        .any(|order| order.order_id == order_id);
+        .any(|order| order.order_id == order_id && order.status == OrderStatus::Open);
 
-    if is_immediate_or_cancel && order_exists {
+    if is_immediate_or_cancel && order_unfilled {
         controller::orders::cancel_order_by_order_id(
             order_id,
             &ctx.accounts.user,
