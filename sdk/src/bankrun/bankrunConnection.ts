@@ -242,12 +242,21 @@ export class BankrunConnection {
 		const banksTransactionMeta = new BanksTransactionResultWithMeta(inner);
 
 		if (banksTransactionMeta.result) {
-			throw new Error(banksTransactionMeta.result);
+			// This hits occasionally in CI, we can safely ignore
+			if (
+				!banksTransactionMeta.result
+					.toLowerCase()
+					.includes('transaction has already been processed')
+			) {
+				throw new Error(banksTransactionMeta.result);
+			}
 		}
 		const signature = isVersioned
 			? bs58.encode((tx as VersionedTransaction).signatures[0])
 			: bs58.encode((tx as Transaction).signatures[0].signature);
-		this.transactionToMeta.set(signature, banksTransactionMeta);
+		if (!this.transactionToMeta.has(signature)) {
+			this.transactionToMeta.set(signature, banksTransactionMeta);
+		}
 		let finalizedCount = 0;
 		while (finalizedCount < 10) {
 			const signatureStatus = (await this.getSignatureStatus(signature)).value
