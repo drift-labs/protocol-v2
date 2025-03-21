@@ -934,7 +934,7 @@ pub fn fill_perp_order(
     let order_index = user
         .orders
         .iter()
-        .position(|order| order.order_id == order_id)
+        .position(|order| order.order_id == order_id && order.status == OrderStatus::Open)
         .ok_or_else(print_error!(ErrorCode::OrderDoesNotExist))?;
 
     let (
@@ -2846,7 +2846,7 @@ pub fn trigger_order(
     let order_index = user
         .orders
         .iter()
-        .position(|order| order.order_id == order_id)
+        .position(|order| order.order_id == order_id && order.status == OrderStatus::Open)
         .ok_or_else(print_error!(ErrorCode::OrderDoesNotExist))?;
 
     let (order_status, market_index, market_type) =
@@ -3691,7 +3691,7 @@ pub fn fill_spot_order(
     let order_index = user
         .orders
         .iter()
-        .position(|order| order.order_id == order_id)
+        .position(|order| order.order_id == order_id && order.status == OrderStatus::Open)
         .ok_or_else(print_error!(ErrorCode::OrderDoesNotExist))?;
 
     let (order_status, order_market_index, order_market_type, order_direction) = get_struct_values!(
@@ -5174,7 +5174,7 @@ pub fn trigger_spot_order(
     let order_index = user
         .orders
         .iter()
-        .position(|order| order.order_id == order_id)
+        .position(|order| order.order_id == order_id && order.status == OrderStatus::Open)
         .ok_or_else(print_error!(ErrorCode::OrderDoesNotExist))?;
 
     let (order_status, market_index, market_type) =

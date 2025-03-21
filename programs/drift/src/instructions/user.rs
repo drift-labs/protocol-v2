@@ -2398,7 +2398,7 @@ pub fn handle_place_and_make_perp_order<'c: 'info, 'info>(
     let order_exists = load!(ctx.accounts.user)?
         .orders
         .iter()
-        .any(|order| order.order_id == order_id);
+        .any(|order| order.order_id == order_id && order.status == OrderStatus::Open);
 
     if order_exists {
         controller::orders::cancel_order_by_order_id(
@@ -2505,7 +2505,7 @@ pub fn handle_place_and_make_signed_msg_perp_order<'c: 'info, 'info>(
     let order_exists = load!(ctx.accounts.user)?
         .orders
         .iter()
-        .any(|order| order.order_id == order_id);
+        .any(|order| order.order_id == order_id && order.status == OrderStatus::Open);
 
     if order_exists {
         controller::orders::cancel_order_by_order_id(
@@ -2834,7 +2834,7 @@ pub fn handle_place_and_make_spot_order<'c: 'info, 'info>(
     let order_exists = load!(ctx.accounts.user)?
         .orders
         .iter()
-        .any(|order| order.order_id == order_id);
+        .any(|order| order.order_id == order_id && order.status == OrderStatus::Open);
 
     if order_exists {
         controller::orders::cancel_order_by_order_id(
