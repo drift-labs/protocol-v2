@@ -278,7 +278,9 @@ impl User {
     }
 
     pub fn get_order(&self, order_id: u32) -> Option<&Order> {
-        self.orders.iter().find(|order| order.order_id == order_id)
+        self.orders
+            .iter()
+            .find(|order| order.order_id == order_id && order.status == OrderStatus::Open)
     }
 
     pub fn get_last_order_id(&self) -> u32 {
