@@ -13,6 +13,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Breaking
 
+## [2.116.0] - 2025-03-21
+
+### Features
+
+### Fixes
+
+- program: program: fix order status checks ([#1549](https://github.com/drift-labs/protocol-v2/pull/1539))
+
+### Breaking
+
 ## [2.115.0] - 2025-03-20
 
 ### Features
