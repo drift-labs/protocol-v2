@@ -239,19 +239,13 @@
           "writable": true
         },
         {
-          "name": "stake_program",
-          "address": "SBSTk6t52R89MmCdD739Rdd97HdbTQUFHe41vCX7pTt",
-          "relations": [
-            "program_state"
-          ]
+          "name": "stake_program"
         },
         {
-          "name": "delegation_pool",
-          "writable": true
+          "name": "delegation_pool"
         },
         {
-          "name": "delegation_group",
-          "writable": true
+          "name": "delegation_group"
         }
       ],
       "args": [
@@ -260,6 +254,83 @@
           "type": {
             "defined": {
               "name": "OracleHeartbeatParams"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "oracle_heartbeat_v2",
+      "discriminator": [
+        122,
+        231,
+        66,
+        32,
+        226,
+        62,
+        144,
+        103
+      ],
+      "accounts": [
+        {
+          "name": "oracle",
+          "writable": true
+        },
+        {
+          "name": "oracle_stats",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  79,
+                  114,
+                  97,
+                  99,
+                  108,
+                  101,
+                  83,
+                  116,
+                  97,
+                  116,
+                  115
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "oracle"
+              }
+            ]
+          }
+        },
+        {
+          "name": "oracle_signer",
+          "signer": true
+        },
+        {
+          "name": "queue",
+          "writable": true,
+          "relations": [
+            "oracle",
+            "gc_node"
+          ]
+        },
+        {
+          "name": "gc_node",
+          "writable": true
+        },
+        {
+          "name": "program_state",
+          "writable": true
+        }
+      ],
+      "args": [
+        {
+          "name": "params",
+          "type": {
+            "defined": {
+              "name": "OracleHeartbeatV2Params"
             }
           }
         }
@@ -338,18 +409,6 @@
         {
           "name": "address_lookup_table_program",
           "address": "AddressLookupTab1e1111111111111111111111111"
-        },
-        {
-          "name": "stake_program",
-          "relations": [
-            "program_state"
-          ]
-        },
-        {
-          "name": "stake_pool",
-          "relations": [
-            "program_state"
-          ]
         }
       ],
       "args": [
@@ -358,6 +417,179 @@
           "type": {
             "defined": {
               "name": "OracleInitParams"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "oracle_init_svm",
+      "discriminator": [
+        106,
+        20,
+        36,
+        117,
+        166,
+        175,
+        131,
+        83
+      ],
+      "accounts": [
+        {
+          "name": "oracle",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  79,
+                  114,
+                  97,
+                  99,
+                  108,
+                  101
+                ]
+              },
+              {
+                "kind": "arg",
+                "path": "params.queue"
+              },
+              {
+                "kind": "arg",
+                "path": "params.source_oracle_key"
+              }
+            ]
+          }
+        },
+        {
+          "name": "oracle_stats",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  79,
+                  114,
+                  97,
+                  99,
+                  108,
+                  101,
+                  83,
+                  116,
+                  97,
+                  116,
+                  115
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "oracle"
+              }
+            ]
+          }
+        },
+        {
+          "name": "program_state",
+          "writable": true
+        },
+        {
+          "name": "payer",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        },
+        {
+          "name": "lut_signer"
+        },
+        {
+          "name": "lut",
+          "writable": true
+        },
+        {
+          "name": "address_lookup_table_program",
+          "address": "AddressLookupTab1e1111111111111111111111111"
+        },
+        {
+          "name": "stake_program"
+        },
+        {
+          "name": "stake_pool"
+        }
+      ],
+      "args": [
+        {
+          "name": "params",
+          "type": {
+            "defined": {
+              "name": "OracleInitSVMParams"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "oracle_reset_lut",
+      "discriminator": [
+        147,
+        244,
+        108,
+        198,
+        152,
+        219,
+        0,
+        22
+      ],
+      "accounts": [
+        {
+          "name": "oracle",
+          "writable": true
+        },
+        {
+          "name": "authority",
+          "signer": true,
+          "relations": [
+            "oracle"
+          ]
+        },
+        {
+          "name": "payer",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        },
+        {
+          "name": "program_state"
+        },
+        {
+          "name": "lut_signer"
+        },
+        {
+          "name": "lut",
+          "writable": true
+        },
+        {
+          "name": "address_lookup_table_program",
+          "address": "AddressLookupTab1e1111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "params",
+          "type": {
+            "defined": {
+              "name": "OracleResetLutParams"
             }
           }
         }
@@ -399,16 +631,16 @@
       ]
     },
     {
-      "name": "oracle_update_delegation",
+      "name": "oracle_set_operator",
       "discriminator": [
-        46,
-        198,
-        113,
-        223,
-        160,
-        189,
-        118,
-        90
+        210,
+        232,
+        155,
+        124,
+        69,
+        176,
+        242,
+        133
       ],
       "accounts": [
         {
@@ -416,31 +648,42 @@
           "writable": true
         },
         {
-          "name": "oracle_stats",
-          "pda": {
-            "seeds": [
-              {
-                "kind": "const",
-                "value": [
-                  79,
-                  114,
-                  97,
-                  99,
-                  108,
-                  101,
-                  83,
-                  116,
-                  97,
-                  116,
-                  115
-                ]
-              },
-              {
-                "kind": "account",
-                "path": "oracle"
-              }
-            ]
+          "name": "authority",
+          "signer": true,
+          "relations": [
+            "oracle"
+          ]
+        },
+        {
+          "name": "operator"
+        }
+      ],
+      "args": [
+        {
+          "name": "params",
+          "type": {
+            "defined": {
+              "name": "OracleSetOperatorParams"
+            }
           }
+        }
+      ]
+    },
+    {
+      "name": "oracle_sync_lut",
+      "discriminator": [
+        138,
+        99,
+        12,
+        59,
+        18,
+        170,
+        171,
+        45
+      ],
+      "accounts": [
+        {
+          "name": "oracle"
         },
         {
           "name": "queue",
@@ -449,29 +692,35 @@
           ]
         },
         {
+          "name": "ncn"
+        },
+        {
+          "name": "vault"
+        },
+        {
+          "name": "state"
+        },
+        {
           "name": "authority",
-          "signer": true
+          "signer": true,
+          "relations": [
+            "oracle"
+          ]
         },
         {
-          "name": "program_state",
-          "writable": true
+          "name": "operator",
+          "relations": [
+            "oracle"
+          ]
         },
         {
-          "name": "payer",
-          "writable": true,
-          "signer": true
+          "name": "ncn_operator_state"
         },
         {
-          "name": "system_program",
-          "address": "11111111111111111111111111111111"
+          "name": "operator_vault_ticket"
         },
         {
-          "name": "token_program",
-          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
-        },
-        {
-          "name": "delegation_pool",
-          "writable": true
+          "name": "vault_operator_delegation"
         },
         {
           "name": "lut_signer"
@@ -485,31 +734,12 @@
           "address": "AddressLookupTab1e1111111111111111111111111"
         },
         {
-          "name": "switch_mint"
+          "name": "payer",
+          "signer": true
         },
         {
-          "name": "native_mint",
-          "address": "So11111111111111111111111111111111111111112"
-        },
-        {
-          "name": "wsol_vault",
-          "writable": true
-        },
-        {
-          "name": "switch_vault",
-          "writable": true
-        },
-        {
-          "name": "stake_program",
-          "relations": [
-            "program_state"
-          ]
-        },
-        {
-          "name": "stake_pool"
-        },
-        {
-          "name": "delegation_group"
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
         }
       ],
       "args": [
@@ -517,7 +747,7 @@
           "name": "params",
           "type": {
             "defined": {
-              "name": "OracleUpdateDelegationParams"
+              "name": "OracleSyncLutParams"
             }
           }
         }
@@ -888,6 +1118,105 @@
       ]
     },
     {
+      "name": "pull_feed_submit_response_consensus",
+      "discriminator": [
+        239,
+        124,
+        39,
+        184,
+        147,
+        222,
+        16,
+        248
+      ],
+      "accounts": [
+        {
+          "name": "queue"
+        },
+        {
+          "name": "program_state"
+        },
+        {
+          "name": "recent_slothashes",
+          "address": "SysvarS1otHashes111111111111111111111111111"
+        },
+        {
+          "name": "payer",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        },
+        {
+          "name": "reward_vault",
+          "writable": true
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        },
+        {
+          "name": "token_mint",
+          "address": "So11111111111111111111111111111111111111112"
+        },
+        {
+          "name": "ix_sysvar",
+          "address": "Sysvar1nstructions1111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "params",
+          "type": {
+            "defined": {
+              "name": "PullFeedSubmitResponseConsensusParams"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "pull_feed_submit_response_consensus_light",
+      "discriminator": [
+        178,
+        179,
+        88,
+        144,
+        175,
+        130,
+        157,
+        87
+      ],
+      "accounts": [
+        {
+          "name": "queue"
+        },
+        {
+          "name": "program_state"
+        },
+        {
+          "name": "recent_slothashes",
+          "address": "SysvarS1otHashes111111111111111111111111111"
+        },
+        {
+          "name": "ix_sysvar",
+          "address": "Sysvar1nstructions1111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "params",
+          "type": {
+            "defined": {
+              "name": "PullFeedSubmitResponseConsensusLightParams"
+            }
+          }
+        }
+      ]
+    },
+    {
       "name": "pull_feed_submit_response_many",
       "discriminator": [
         47,
@@ -938,6 +1267,87 @@
           "type": {
             "defined": {
               "name": "PullFeedSubmitResponseManyParams"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "pull_feed_submit_response_svm",
+      "discriminator": [
+        123,
+        7,
+        190,
+        12,
+        220,
+        230,
+        198,
+        148
+      ],
+      "accounts": [
+        {
+          "name": "feed",
+          "writable": true
+        },
+        {
+          "name": "queue",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  81,
+                  117,
+                  101,
+                  117,
+                  101
+                ]
+              },
+              {
+                "kind": "arg",
+                "path": "params.source_queue_key"
+              }
+            ]
+          },
+          "relations": [
+            "feed"
+          ]
+        },
+        {
+          "name": "program_state"
+        },
+        {
+          "name": "recent_slothashes",
+          "address": "SysvarS1otHashes111111111111111111111111111"
+        },
+        {
+          "name": "payer",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        },
+        {
+          "name": "reward_vault",
+          "writable": true
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        },
+        {
+          "name": "token_mint",
+          "address": "So11111111111111111111111111111111111111112"
+        }
+      ],
+      "args": [
+        {
+          "name": "params",
+          "type": {
+            "defined": {
+              "name": "PullFeedSubmitResponseSVMParams"
             }
           }
         }
@@ -1222,21 +1632,132 @@
       ]
     },
     {
-      "name": "queue_init_delegation_group",
+      "name": "queue_init_svm",
       "discriminator": [
-        239,
-        146,
-        75,
-        158,
-        20,
-        166,
-        159,
-        14
+        175,
+        94,
+        119,
+        151,
+        45,
+        144,
+        173,
+        235
       ],
       "accounts": [
         {
           "name": "queue",
-          "writable": true
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  81,
+                  117,
+                  101,
+                  117,
+                  101
+                ]
+              },
+              {
+                "kind": "arg",
+                "path": "params.source_queue_key"
+              }
+            ]
+          }
+        },
+        {
+          "name": "queue_escrow",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "account",
+                "path": "queue"
+              },
+              {
+                "kind": "const",
+                "value": [
+                  6,
+                  221,
+                  246,
+                  225,
+                  215,
+                  101,
+                  161,
+                  147,
+                  217,
+                  203,
+                  225,
+                  70,
+                  206,
+                  235,
+                  121,
+                  172,
+                  28,
+                  180,
+                  133,
+                  237,
+                  95,
+                  91,
+                  55,
+                  145,
+                  58,
+                  140,
+                  245,
+                  133,
+                  126,
+                  255,
+                  0,
+                  169
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "native_mint"
+              }
+            ],
+            "program": {
+              "kind": "const",
+              "value": [
+                140,
+                151,
+                37,
+                143,
+                78,
+                36,
+                137,
+                241,
+                187,
+                61,
+                16,
+                41,
+                20,
+                142,
+                13,
+                131,
+                11,
+                90,
+                19,
+                153,
+                218,
+                255,
+                16,
+                132,
+                4,
+                142,
+                123,
+                216,
+                219,
+                233,
+                248,
+                89
+              ]
+            }
+          }
+        },
+        {
+          "name": "authority"
         },
         {
           "name": "payer",
@@ -1248,10 +1769,19 @@
           "address": "11111111111111111111111111111111"
         },
         {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        },
+        {
+          "name": "native_mint",
+          "address": "So11111111111111111111111111111111111111112"
+        },
+        {
           "name": "program_state"
         },
         {
-          "name": "lut_signer"
+          "name": "lut_signer",
+          "writable": true
         },
         {
           "name": "lut",
@@ -1262,17 +1792,8 @@
           "address": "AddressLookupTab1e1111111111111111111111111"
         },
         {
-          "name": "delegation_group",
-          "writable": true
-        },
-        {
-          "name": "stake_program",
-          "relations": [
-            "program_state"
-          ]
-        },
-        {
-          "name": "stake_pool"
+          "name": "associated_token_program",
+          "address": "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL"
         }
       ],
       "args": [
@@ -1280,7 +1801,289 @@
           "name": "params",
           "type": {
             "defined": {
-              "name": "QueueInitDelegationGroupParams"
+              "name": "QueueInitSVMParams"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "queue_override_svm",
+      "discriminator": [
+        43,
+        103,
+        15,
+        35,
+        89,
+        14,
+        244,
+        165
+      ],
+      "accounts": [
+        {
+          "name": "oracle",
+          "writable": true
+        },
+        {
+          "name": "queue",
+          "writable": true
+        },
+        {
+          "name": "authority",
+          "signer": true
+        },
+        {
+          "name": "state"
+        }
+      ],
+      "args": [
+        {
+          "name": "params",
+          "type": {
+            "defined": {
+              "name": "QueueOverrideSVMParams"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "queue_pay_subsidy",
+      "discriminator": [
+        85,
+        84,
+        51,
+        251,
+        144,
+        57,
+        105,
+        200
+      ],
+      "accounts": [
+        {
+          "name": "queue",
+          "writable": true
+        },
+        {
+          "name": "program_state"
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        },
+        {
+          "name": "vault"
+        },
+        {
+          "name": "reward_vault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "account",
+                "path": "vault"
+              },
+              {
+                "kind": "const",
+                "value": [
+                  6,
+                  221,
+                  246,
+                  225,
+                  215,
+                  101,
+                  161,
+                  147,
+                  217,
+                  203,
+                  225,
+                  70,
+                  206,
+                  235,
+                  121,
+                  172,
+                  28,
+                  180,
+                  133,
+                  237,
+                  95,
+                  91,
+                  55,
+                  145,
+                  58,
+                  140,
+                  245,
+                  133,
+                  126,
+                  255,
+                  0,
+                  169
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "switch_mint"
+              }
+            ],
+            "program": {
+              "kind": "const",
+              "value": [
+                140,
+                151,
+                37,
+                143,
+                78,
+                36,
+                137,
+                241,
+                187,
+                61,
+                16,
+                41,
+                20,
+                142,
+                13,
+                131,
+                11,
+                90,
+                19,
+                153,
+                218,
+                255,
+                16,
+                132,
+                4,
+                142,
+                123,
+                216,
+                219,
+                233,
+                248,
+                89
+              ]
+            }
+          }
+        },
+        {
+          "name": "subsidy_vault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "account",
+                "path": "program_state"
+              },
+              {
+                "kind": "const",
+                "value": [
+                  6,
+                  221,
+                  246,
+                  225,
+                  215,
+                  101,
+                  161,
+                  147,
+                  217,
+                  203,
+                  225,
+                  70,
+                  206,
+                  235,
+                  121,
+                  172,
+                  28,
+                  180,
+                  133,
+                  237,
+                  95,
+                  91,
+                  55,
+                  145,
+                  58,
+                  140,
+                  245,
+                  133,
+                  126,
+                  255,
+                  0,
+                  169
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "switch_mint"
+              }
+            ],
+            "program": {
+              "kind": "const",
+              "value": [
+                140,
+                151,
+                37,
+                143,
+                78,
+                36,
+                137,
+                241,
+                187,
+                61,
+                16,
+                41,
+                20,
+                142,
+                13,
+                131,
+                11,
+                90,
+                19,
+                153,
+                218,
+                255,
+                16,
+                132,
+                4,
+                142,
+                123,
+                216,
+                219,
+                233,
+                248,
+                89
+              ]
+            }
+          }
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        },
+        {
+          "name": "associated_token_program",
+          "address": "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL"
+        },
+        {
+          "name": "wsol_mint",
+          "address": "So11111111111111111111111111111111111111112"
+        },
+        {
+          "name": "switch_mint"
+        },
+        {
+          "name": "vault_config"
+        },
+        {
+          "name": "payer",
+          "writable": true,
+          "signer": true
+        }
+      ],
+      "args": [
+        {
+          "name": "params",
+          "type": {
+            "defined": {
+              "name": "QueuePaySubsidyParams"
             }
           }
         }
@@ -1326,6 +2129,51 @@
       ]
     },
     {
+      "name": "queue_reset_vault",
+      "discriminator": [
+        232,
+        255,
+        48,
+        111,
+        240,
+        168,
+        253,
+        40
+      ],
+      "accounts": [
+        {
+          "name": "queue",
+          "writable": true
+        },
+        {
+          "name": "authority",
+          "signer": true
+        },
+        {
+          "name": "state"
+        },
+        {
+          "name": "ncn",
+          "relations": [
+            "queue"
+          ]
+        },
+        {
+          "name": "vault"
+        }
+      ],
+      "args": [
+        {
+          "name": "params",
+          "type": {
+            "defined": {
+              "name": "QueueResetVaultParams"
+            }
+          }
+        }
+      ]
+    },
+    {
       "name": "queue_set_configs",
       "discriminator": [
         54,
@@ -1356,6 +2204,90 @@
           "type": {
             "defined": {
               "name": "QueueSetConfigsParams"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "queue_set_ncn",
+      "discriminator": [
+        232,
+        223,
+        179,
+        12,
+        20,
+        136,
+        181,
+        219
+      ],
+      "accounts": [
+        {
+          "name": "queue",
+          "writable": true
+        },
+        {
+          "name": "authority",
+          "signer": true
+        },
+        {
+          "name": "state"
+        },
+        {
+          "name": "ncn"
+        }
+      ],
+      "args": [
+        {
+          "name": "params",
+          "type": {
+            "defined": {
+              "name": "QueueSetNcnParams"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "queue_set_vault",
+      "discriminator": [
+        48,
+        47,
+        102,
+        99,
+        241,
+        249,
+        196,
+        246
+      ],
+      "accounts": [
+        {
+          "name": "queue",
+          "writable": true
+        },
+        {
+          "name": "authority",
+          "signer": true
+        },
+        {
+          "name": "state"
+        },
+        {
+          "name": "ncn",
+          "relations": [
+            "queue"
+          ]
+        },
+        {
+          "name": "vault"
+        }
+      ],
+      "args": [
+        {
+          "name": "params",
+          "type": {
+            "defined": {
+              "name": "QueueSetVaultParams"
             }
           }
         }
@@ -1785,6 +2717,38 @@
           "type": {
             "defined": {
               "name": "StateSetConfigsParams"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "test_update_oracle_stats",
+      "discriminator": [
+        175,
+        48,
+        162,
+        252,
+        154,
+        197,
+        149,
+        187
+      ],
+      "accounts": [
+        {
+          "name": "oracle_stats",
+          "docs": [
+            "The OracleStats account to update."
+          ],
+          "writable": true
+        }
+      ],
+      "args": [
+        {
+          "name": "params",
+          "type": {
+            "defined": {
+              "name": "TestUpdateOracleStatsParams"
             }
           }
         }
@@ -2284,6 +3248,74 @@
     {
       "code": 6053,
       "name": "GuardianReregisterAttempt"
+    },
+    {
+      "code": 6054,
+      "name": "InvalidManySubmissionCount"
+    },
+    {
+      "code": 6055,
+      "name": "MissingSecpIx"
+    },
+    {
+      "code": 6056,
+      "name": "ChecksumMismatch"
+    },
+    {
+      "code": 6057,
+      "name": "InvalidSubmissionFeedsCount"
+    },
+    {
+      "code": 6058,
+      "name": "InvalidSecpSignatureOraclesCount"
+    },
+    {
+      "code": 6059,
+      "name": "InvalidEthAddress"
+    },
+    {
+      "code": 6060,
+      "name": "NoLutKeysAdded"
+    },
+    {
+      "code": 6061,
+      "name": "InvalidVaultOperatorDelegation"
+    },
+    {
+      "code": 6062,
+      "name": "InvalidVaultTokenAccount"
+    },
+    {
+      "code": 6063,
+      "name": "InvalidRemainingAccounts"
+    },
+    {
+      "code": 6064,
+      "name": "SubsidiesNotAllowed"
+    },
+    {
+      "code": 6065,
+      "name": "MissingVod"
+    },
+    {
+      "code": 6066,
+      "name": "InvalidVodEpoch"
+    },
+    {
+      "code": 6067,
+      "name": "InvalidOracleSubsidyWallet"
+    },
+    {
+      "code": 6068,
+      "name": "InvalidOperator"
+    },
+    {
+      "code": 6069,
+      "name": "Max128SampleValue"
+    },
+    {
+      "code": 6070,
+      "name": "RewardAlreadyPaid"
     }
   ],
   "types": [
@@ -2329,6 +3361,20 @@
             "name": "feeds",
             "type": {
               "vec": "pubkey"
+            }
+          },
+          {
+            "name": "oracles",
+            "type": {
+              "vec": "pubkey"
+            }
+          },
+          {
+            "name": "values",
+            "type": {
+              "vec": {
+                "vec": "i128"
+              }
             }
           },
           {
@@ -2700,20 +3746,15 @@
             "type": "u64"
           },
           {
-            "name": "_ebuf4",
-            "type": {
-              "array": [
-                "u8",
-                16
-              ]
-            }
+            "name": "operator",
+            "type": "pubkey"
           },
           {
             "name": "_ebuf3",
             "type": {
               "array": [
                 "u8",
-                32
+                16
               ]
             }
           },
@@ -2756,7 +3797,7 @@
             "type": "u64"
           },
           {
-            "name": "slot_end",
+            "name": "_reserved",
             "type": "u64"
           },
           {
@@ -2792,6 +3833,25 @@
     },
     {
       "name": "OracleHeartbeatParams",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "gateway_uri",
+            "type": {
+              "option": {
+                "array": [
+                  "u8",
+                  64
+                ]
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "OracleHeartbeatV2Params",
       "type": {
         "kind": "struct",
         "fields": [
@@ -2853,6 +3913,41 @@
       }
     },
     {
+      "name": "OracleInitSVMParams",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "recent_slot",
+            "type": "u64"
+          },
+          {
+            "name": "authority",
+            "type": "pubkey"
+          },
+          {
+            "name": "queue",
+            "type": "pubkey"
+          },
+          {
+            "name": "secp_authority",
+            "type": {
+              "option": {
+                "array": [
+                  "u8",
+                  64
+                ]
+              }
+            }
+          },
+          {
+            "name": "source_oracle_key",
+            "type": "pubkey"
+          }
+        ]
+      }
+    },
+    {
       "name": "OracleQuoteOverrideEvent",
       "type": {
         "kind": "struct",
@@ -2897,6 +3992,18 @@
       }
     },
     {
+      "name": "OracleResetLutParams",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "recent_slot",
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
       "name": "OracleSetConfigsParams",
       "type": {
         "kind": "struct",
@@ -2919,6 +4026,13 @@
             }
           }
         ]
+      }
+    },
+    {
+      "name": "OracleSetOperatorParams",
+      "type": {
+        "kind": "struct",
+        "fields": []
       }
     },
     {
@@ -3043,15 +4157,10 @@
       }
     },
     {
-      "name": "OracleUpdateDelegationParams",
+      "name": "OracleSyncLutParams",
       "type": {
         "kind": "struct",
-        "fields": [
-          {
-            "name": "_reserved1",
-            "type": "u64"
-          }
-        ]
+        "fields": []
       }
     },
     {
@@ -3172,9 +4281,13 @@
             "type": {
               "array": [
                 "u8",
-                2
+                1
               ]
             }
+          },
+          {
+            "name": "permit_write_by_authority",
+            "type": "u8"
           },
           {
             "name": "historical_result_idx",
@@ -3254,11 +4367,11 @@
             }
           },
           {
-            "name": "_ebuf2",
+            "name": "submission_timestamps",
             "type": {
               "array": [
-                "u8",
-                256
+                "i64",
+                32
               ]
             }
           }
@@ -3339,6 +4452,12 @@
           {
             "name": "max_staleness",
             "type": "u32"
+          },
+          {
+            "name": "permit_write_by_authority",
+            "type": {
+              "option": "bool"
+            }
           }
         ]
       }
@@ -3410,6 +4529,48 @@
             "type": {
               "option": "u32"
             }
+          },
+          {
+            "name": "permit_write_by_authority",
+            "type": {
+              "option": "bool"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "PullFeedSubmitResponseConsensusLightParams",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "slot",
+            "type": "u64"
+          },
+          {
+            "name": "values",
+            "type": {
+              "vec": "i128"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "PullFeedSubmitResponseConsensusParams",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "slot",
+            "type": "u64"
+          },
+          {
+            "name": "values",
+            "type": {
+              "vec": "i128"
+            }
           }
         ]
       }
@@ -3450,10 +4611,40 @@
             "type": {
               "vec": {
                 "defined": {
-                  "name": "Submission"
+                  "name": "sb_on_demand::actions::pull_feed::pull_feed_submit_response_action::Submission"
                 }
               }
             }
+          }
+        ]
+      }
+    },
+    {
+      "name": "PullFeedSubmitResponseSVMParams",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "slot",
+            "type": "u64"
+          },
+          {
+            "name": "submissions",
+            "type": {
+              "vec": {
+                "defined": {
+                  "name": "sb_on_demand::actions::pull_feed::pull_feed_submit_response_svm_action::Submission"
+                }
+              }
+            }
+          },
+          {
+            "name": "source_queue_key",
+            "type": "pubkey"
+          },
+          {
+            "name": "queue_bump",
+            "type": "u8"
           }
         ]
       }
@@ -3640,22 +4831,31 @@
           },
           {
             "name": "_ebuf6",
-            "docs": [
-              "Reserved."
-            ],
             "type": {
               "array": [
                 "u8",
-                23
+                15
               ]
             }
           },
           {
-            "name": "_ebuf5",
+            "name": "ncn",
+            "type": "pubkey"
+          },
+          {
+            "name": "_resrved",
+            "type": "u64"
+          },
+          {
+            "name": "vaults",
             "type": {
               "array": [
-                "u8",
-                32
+                {
+                  "defined": {
+                    "name": "VaultInfo"
+                  }
+                },
+                4
               ]
             }
           },
@@ -3664,16 +4864,7 @@
             "type": {
               "array": [
                 "u8",
-                64
-              ]
-            }
-          },
-          {
-            "name": "_ebuf3",
-            "type": {
-              "array": [
-                "u8",
-                128
+                32
               ]
             }
           },
@@ -3761,13 +4952,6 @@
       }
     },
     {
-      "name": "QueueInitDelegationGroupParams",
-      "type": {
-        "kind": "struct",
-        "fields": []
-      }
-    },
-    {
       "name": "QueueInitEvent",
       "type": {
         "kind": "struct",
@@ -3816,6 +5000,87 @@
       }
     },
     {
+      "name": "QueueInitSVMParams",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "allow_authority_override_after",
+            "type": "u32"
+          },
+          {
+            "name": "require_authority_heartbeat_permission",
+            "type": "bool"
+          },
+          {
+            "name": "require_usage_permissions",
+            "type": "bool"
+          },
+          {
+            "name": "max_quote_verification_age",
+            "type": "u32"
+          },
+          {
+            "name": "reward",
+            "type": "u32"
+          },
+          {
+            "name": "node_timeout",
+            "type": "u32"
+          },
+          {
+            "name": "recent_slot",
+            "type": "u64"
+          },
+          {
+            "name": "source_queue_key",
+            "type": "pubkey"
+          }
+        ]
+      }
+    },
+    {
+      "name": "QueueOverrideSVMParams",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "secp256k1_signer",
+            "type": {
+              "array": [
+                "u8",
+                64
+              ]
+            }
+          },
+          {
+            "name": "max_quote_verification_age",
+            "type": "i64"
+          },
+          {
+            "name": "mr_enclave",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "slot",
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "QueuePaySubsidyParams",
+      "type": {
+        "kind": "struct",
+        "fields": []
+      }
+    },
+    {
       "name": "QueueRemoveMrEnclaveEvent",
       "type": {
         "kind": "struct",
@@ -3854,6 +5119,13 @@
       }
     },
     {
+      "name": "QueueResetVaultParams",
+      "type": {
+        "kind": "struct",
+        "fields": []
+      }
+    },
+    {
       "name": "QueueSetConfigsParams",
       "type": {
         "kind": "struct",
@@ -3875,6 +5147,25 @@
             "type": {
               "option": "i64"
             }
+          }
+        ]
+      }
+    },
+    {
+      "name": "QueueSetNcnParams",
+      "type": {
+        "kind": "struct",
+        "fields": []
+      }
+    },
+    {
+      "name": "QueueSetVaultParams",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "enable",
+            "type": "bool"
           }
         ]
       }
@@ -4026,6 +5317,15 @@
             }
           },
           {
+            "name": "eth_signer",
+            "type": {
+              "array": [
+                "u8",
+                20
+              ]
+            }
+          },
+          {
             "name": "_ebuf4",
             "docs": [
               "Reserved."
@@ -4033,7 +5333,7 @@
             "type": {
               "array": [
                 "u8",
-                32
+                12
               ]
             }
           },
@@ -4286,36 +5586,13 @@
             "type": "u64"
           },
           {
-            "name": "current_epoch",
+            "name": "reserved2",
             "type": {
-              "defined": {
-                "name": "StateEpochInfo"
-              }
+              "array": [
+                "u8",
+                136
+              ]
             }
-          },
-          {
-            "name": "next_epoch",
-            "type": {
-              "defined": {
-                "name": "StateEpochInfo"
-              }
-            }
-          },
-          {
-            "name": "finalized_epoch",
-            "type": {
-              "defined": {
-                "name": "StateEpochInfo"
-              }
-            }
-          },
-          {
-            "name": "stake_pool",
-            "type": "pubkey"
-          },
-          {
-            "name": "stake_program",
-            "type": "pubkey"
           },
           {
             "name": "switch_mint",
@@ -4347,7 +5624,7 @@
             "type": "u8"
           },
           {
-            "name": "subsidy_amount",
+            "name": "padding3",
             "type": "u32"
           },
           {
@@ -4359,11 +5636,24 @@
             "type": "u32"
           },
           {
+            "name": "padding4",
+            "type": {
+              "array": [
+                "u8",
+                4
+              ]
+            }
+          },
+          {
+            "name": "subsidy_amount",
+            "type": "u64"
+          },
+          {
             "name": "_ebuf6",
             "type": {
               "array": [
                 "u8",
-                28
+                16
               ]
             }
           },
@@ -4419,30 +5709,6 @@
       }
     },
     {
-      "name": "StateEpochInfo",
-      "serialization": "bytemuck",
-      "repr": {
-        "kind": "c"
-      },
-      "type": {
-        "kind": "struct",
-        "fields": [
-          {
-            "name": "id",
-            "type": "u64"
-          },
-          {
-            "name": "_reserved1",
-            "type": "u64"
-          },
-          {
-            "name": "slot_end",
-            "type": "u64"
-          }
-        ]
-      }
-    },
-    {
       "name": "StateInitParams",
       "type": {
         "kind": "struct",
@@ -4463,14 +5729,6 @@
             "type": "u8"
           },
           {
-            "name": "stake_pool",
-            "type": "pubkey"
-          },
-          {
-            "name": "stake_program",
-            "type": "pubkey"
-          },
-          {
             "name": "add_advisory",
             "type": "u16"
           },
@@ -4479,24 +5737,12 @@
             "type": "u16"
           },
           {
-            "name": "epoch_length",
-            "type": "u32"
-          },
-          {
-            "name": "reset_epochs",
-            "type": "bool"
-          },
-          {
             "name": "switch_mint",
             "type": "pubkey"
           },
           {
-            "name": "enable_staking",
-            "type": "u8"
-          },
-          {
             "name": "subsidy_amount",
-            "type": "u32"
+            "type": "u64"
           },
           {
             "name": "base_reward",
@@ -4514,7 +5760,39 @@
       }
     },
     {
-      "name": "Submission",
+      "name": "TestUpdateOracleStatsParams",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "new_reward_score",
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "VaultInfo",
+      "serialization": "bytemuck",
+      "repr": {
+        "kind": "c"
+      },
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "vault_key",
+            "type": "pubkey"
+          },
+          {
+            "name": "last_reward_epoch",
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "sb_on_demand::actions::pull_feed::pull_feed_submit_response_action::Submission",
       "type": {
         "kind": "struct",
         "fields": [
@@ -4537,6 +5815,31 @@
           },
           {
             "name": "offset",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "sb_on_demand::actions::pull_feed::pull_feed_submit_response_svm_action::Submission",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "value",
+            "type": "i128"
+          },
+          {
+            "name": "signature",
+            "type": {
+              "array": [
+                "u8",
+                64
+              ]
+            }
+          },
+          {
+            "name": "recovery_id",
             "type": "u8"
           }
         ]
