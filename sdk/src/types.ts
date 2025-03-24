@@ -617,6 +617,7 @@ export type OrderActionRecord = {
 	makerOrderCumulativeBaseAssetAmountFilled: BN | null;
 	makerOrderCumulativeQuoteAssetAmountFilled: BN | null;
 	oraclePrice: BN;
+	bitFlags: number;
 };
 
 export type SwapRecord = {

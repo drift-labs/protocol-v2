@@ -665,6 +665,7 @@ pub fn liquidate_perp(
         maker_order_cumulative_base_asset_amount_filled: Some(base_asset_amount),
         maker_order_cumulative_quote_asset_amount_filled: Some(base_asset_value),
         oracle_price,
+        bit_flags: 0,
     };
     emit!(fill_record);
 
