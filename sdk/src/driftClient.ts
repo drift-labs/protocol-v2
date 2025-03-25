@@ -6349,7 +6349,9 @@ export class DriftClient {
 			| SignedMsgOrderParamsDelegateMessage,
 		delegateSigner?: boolean
 	): Buffer {
-		const anchorIxName = 'global' + ':' + 'SignedMsgOrderParamsMessage';
+		const anchorIxName = delegateSigner
+			? 'global' + ':' + 'SignedMsgOrderParamsDelegateMessage'
+			: 'global' + ':' + 'SignedMsgOrderParamsMessage';
 		const prefix = Buffer.from(sha256(anchorIxName).slice(0, 8));
 		const buf = Buffer.concat([
 			prefix,
