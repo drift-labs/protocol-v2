@@ -107,7 +107,8 @@ export class SwiftOrderSubscriber {
 			orderMessageRaw: any,
 			signedMsgOrderParamsMessage:
 				| SignedMsgOrderParamsMessage
-				| SignedMsgOrderParamsDelegateMessage
+				| SignedMsgOrderParamsDelegateMessage,
+			isDelegateSigner?: boolean
 		) => Promise<void>
 	): Promise<void> {
 		this.onOrder = onOrder;
@@ -163,7 +164,7 @@ export class SwiftOrderSubscriber {
 						return;
 					}
 
-					onOrder(order, signedMsgOrderParamsMessage);
+					onOrder(order, signedMsgOrderParamsMessage, isDelegateSigner);
 				}
 			});
 
