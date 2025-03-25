@@ -16,6 +16,7 @@ import { Keypair, PublicKey, TransactionInstruction } from '@solana/web3.js';
 import nacl from 'tweetnacl';
 import { decodeUTF8 } from 'tweetnacl-util';
 import WebSocket from 'ws';
+import { sha256 } from '@noble/hashes/sha256';
 
 // In practice, this for now is just an OrderSubscriber or a UserMap
 export interface AccountGetter {
@@ -136,12 +137,21 @@ export class SwiftOrderSubscriber {
 						order['order_message'],
 						'hex'
 					);
+					const isDelegateSigner = !signedMsgOrderParamsBuf
+						.slice(0, 8)
+						.equals(
+							Uint8Array.from(
+								Buffer.from(
+									sha256('global' + ':' + 'SignedMsgOrderParamsMessage')
+								).slice(0, 8)
+							)
+						);
 					const signedMsgOrderParamsMessage:
 						| SignedMsgOrderParamsMessage
 						| SignedMsgOrderParamsDelegateMessage =
 						this.driftClient.decodeSignedMsgOrderParamsMessage(
 							signedMsgOrderParamsBuf,
-							order['signing_authority'] != order['taker_authority']
+							isDelegateSigner
 						);
 
 					if (!signedMsgOrderParamsMessage.signedMsgOrderParams.price) {
@@ -204,6 +214,7 @@ export class SwiftOrderSubscriber {
 			orderMessageRaw['order_message'],
 			'hex'
 		);
+
 		const takerAuthority = new PublicKey(orderMessageRaw['taker_authority']);
 		const signingAuthority = new PublicKey(
 			orderMessageRaw['signing_authority']
