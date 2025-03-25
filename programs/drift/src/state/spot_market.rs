@@ -164,9 +164,12 @@ pub struct SpotMarket {
     /// The asset tier affects how a deposit can be used as collateral and the priority for a borrow being liquidated
     pub asset_tier: AssetTier,
     pub paused_operations: u8,
-    pub padding2: u8,
+    pub if_paused_operations: u8,
     pub fee_adjustment: i16,
-    pub padding1: [u8; 2],
+    /// What fraction of max_token_deposits
+    /// disabled when 0, 1 => 1/10000 => .01% of max_token_deposits
+    /// precision: X/10000
+    pub max_token_borrows_fraction: u16,
     /// For swaps, the amount of token loaned out in the begin_swap ix
     /// precision: token mint precision
     pub flash_loan_amount: u64,
@@ -181,8 +184,28 @@ pub struct SpotMarket {
     /// disabled when 0
     /// precision: QUOTE_PRECISION
     pub scale_initial_asset_weight_start: u64,
-    pub padding: [u8; 40],
+    /// The min borrow rate for this market when the market regardless of utilization
+    /// 1 => 1/200 => .5%
+    /// precision: X/200
+    pub min_borrow_rate: u8,
+    /// fuel multiplier for spot deposits
+    /// precision: 10
+    pub fuel_boost_deposits: u8,
+    /// fuel multiplier for spot borrows
+    /// precision: 10
+    pub fuel_boost_borrows: u8,
+    /// fuel multiplier for spot taker
+    /// precision: 10
+    pub fuel_boost_taker: u8,
+    /// fuel multiplier for spot maker
+    /// precision: 10
+    pub fuel_boost_maker: u8,
+    /// fuel multiplier for spot insurance stake
+    /// precision: 10
+    pub fuel_boost_insurance: u8,
+    pub token_program: u8,
     pub pool_id: u8,
+    pub padding: [u8; 40],
 }
 
 impl Default for SpotMarket {
@@ -236,15 +259,22 @@ impl Default for SpotMarket {
             status: MarketStatus::default(),
             asset_tier: AssetTier::default(),
             paused_operations: 0,
-            padding2: 0,
+            if_paused_operations: 0,
             fee_adjustment: 0,
-            padding1: [0; 2],
+            max_token_borrows_fraction: 0,
             flash_loan_amount: 0,
             flash_loan_initial_token_amount: 0,
             total_swap_fee: 0,
             scale_initial_asset_weight_start: 0,
-            padding: [0; 40],
+            min_borrow_rate: 0,
+            fuel_boost_deposits: 0,
+            fuel_boost_borrows: 0,
+            fuel_boost_taker: 0,
+            fuel_boost_maker: 0,
+            fuel_boost_insurance: 0,
+            token_program: 0,
             pool_id: 0,
+            padding: [0; 40],
         }
     }
 }

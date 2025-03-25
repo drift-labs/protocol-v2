@@ -33,16 +33,17 @@ use crate::state::events::CurveRecord;
 use crate::state::fulfillment_params::serum::SerumContext;
 use crate::state::fulfillment_params::serum::SerumV3FulfillmentConfig;
 use crate::state::insurance_fund_stake::ProtocolIfSharesTransferConfig;
+use crate::state::oracle::get_sb_on_demand_price;
 use crate::state::oracle::{
     get_oracle_price, get_prelaunch_price, get_pyth_price, get_switchboard_price,
     HistoricalIndexData, HistoricalOracleData, OraclePriceData, OracleSource, PrelaunchOracle,
     PrelaunchOracleParams,
 };
-use crate::state::oracle::get_sb_on_demand_price;
 use crate::state::paused_operations::{PerpOperation, SpotOperation};
 use crate::state::perp_market::{
     ContractTier, ContractType, InsuranceClaim, MarketStatus, PerpMarket, PoolBalance, AMM,
 };
+use crate::state::pyth_lazer_oracle::{PythLazerOracle, PYTH_LAZER_ORACLE_SEED};
 use crate::state::spot_market::{
     AssetTier, InsuranceFund, SpotBalanceType, SpotFulfillmentConfigStatus, SpotMarket,
 };
@@ -51,7 +52,6 @@ use crate::state::traits::Size;
 use crate::state::user::UserStats;
 use crate::validate;
 use crate::validation::fee_structure::validate_fee_structure;
-use crate::state::pyth_lazer_oracle::{PythLazerOracle, PYTH_LAZER_ORACLE_SEED};
 use crate::validation::margin::{validate_margin, validate_margin_weights};
 use crate::validation::perp_market::validate_perp_market;
 use crate::validation::spot_market::validate_borrow_rate;

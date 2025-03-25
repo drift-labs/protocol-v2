@@ -1,19 +1,21 @@
-use anchor_lang::prelude::{AnchorSerialize, AnchorDeserialize, AccountInfo, msg, account, AccountLoader, zero_copy, Pubkey};
-use std::cell::Ref;
-use anchor_lang::AccountDeserialize;
+use crate::error::ErrorCode::{InvalidOracle, UnableToLoadOracle};
 use crate::error::{DriftResult, ErrorCode};
 use crate::math::casting::Cast;
 use crate::math::constants::{PRICE_PRECISION, PRICE_PRECISION_I64, PRICE_PRECISION_U64};
 use crate::math::safe_math::SafeMath;
-use crate::state::load_ref::load_ref;
-use switchboard::{AggregatorAccountData, SwitchboardDecimal};
-use switchboard_on_demand::{PullFeedAccountData, SB_ON_DEMAND_PRECISION};
-use crate::error::ErrorCode::{InvalidOracle, UnableToLoadOracle};
 use crate::math::safe_unwrap::SafeUnwrap;
+use crate::state::load_ref::load_ref;
 use crate::state::perp_market::PerpMarket;
 use crate::state::pyth_lazer_oracle::PythLazerOracle;
 use crate::state::traits::Size;
 use crate::{load, validate};
+use anchor_lang::prelude::{
+    account, msg, zero_copy, AccountInfo, AccountLoader, AnchorDeserialize, AnchorSerialize, Pubkey,
+};
+use anchor_lang::AccountDeserialize;
+use std::cell::Ref;
+use switchboard::{AggregatorAccountData, SwitchboardDecimal};
+use switchboard_on_demand::{PullFeedAccountData, SB_ON_DEMAND_PRECISION};
 
 #[cfg(test)]
 mod tests;
@@ -127,6 +129,7 @@ pub enum OracleSource {
     PythLazer,
     PythLazer1K,
     PythLazer1M,
+    PythLazerStableCoin,
 }
 
 impl OracleSource {
@@ -156,7 +159,8 @@ impl OracleSource {
             | OracleSource::PythPull
             | OracleSource::PythLazer
             | OracleSource::PythStableCoin
-            | OracleSource::PythStableCoinPull => 1,
+            | OracleSource::PythStableCoinPull
+            | OracleSource::PythLazerStableCoin => 1,
             OracleSource::Pyth1K | OracleSource::Pyth1KPull | OracleSource::PythLazer1K => 1000,
             OracleSource::Pyth1M | OracleSource::Pyth1MPull | OracleSource::PythLazer1M => 1000000,
             _ => {
@@ -215,6 +219,9 @@ pub fn get_oracle_price(
         OracleSource::PythLazer => get_pyth_price(price_oracle, clock_slot, oracle_source),
         OracleSource::PythLazer1K => get_pyth_price(price_oracle, clock_slot, oracle_source),
         OracleSource::PythLazer1M => get_pyth_price(price_oracle, clock_slot, oracle_source),
+        OracleSource::PythLazerStableCoin => {
+            get_pyth_stable_coin_price(price_oracle, clock_slot, oracle_source)
+        }
     }
 }
 

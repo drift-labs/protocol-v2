@@ -3,7 +3,6 @@ use anchor_lang::AccountDeserialize;
 use std::cmp::max;
 
 use crate::controller::position::{PositionDelta, PositionDirection};
-use crate::state::pyth_lazer_oracle::PythLazerOracle;
 use crate::error::{DriftResult, ErrorCode};
 use crate::math::amm;
 use crate::math::casting::Cast;
@@ -26,11 +25,11 @@ use crate::math::margin::{
 use crate::math::safe_math::SafeMath;
 use crate::math::stats;
 use crate::state::events::OrderActionExplanation;
+use crate::state::pyth_lazer_oracle::PythLazerOracle;
 use num_integer::Roots;
 
 use crate::state::oracle::{
-    get_prelaunch_price, get_switchboard_price, HistoricalOracleData,
-    OracleSource,
+    get_prelaunch_price, get_switchboard_price, HistoricalOracleData, OracleSource,
 };
 use crate::state::spot_market::{AssetTier, SpotBalance, SpotBalanceType};
 use crate::state::traits::{MarketIndexOffset, Size};

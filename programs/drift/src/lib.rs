@@ -2,8 +2,8 @@
 #![allow(clippy::bool_assert_comparison)]
 #![allow(clippy::comparison_chain)]
 
-use anchor_lang::prelude::*;
 use anchor_attribute_program::program;
+use anchor_lang::prelude::*;
 
 use instructions::*;
 #[cfg(test)]
@@ -44,7 +44,9 @@ pub trait ProgramAccountInfo<'info> {
     fn to_account_infos(&'info self) -> Vec<AccountInfo<'info>>;
 }
 
-impl<'info> ProgramAccountInfo<'info> for Context<'info, 'info, 'info, 'info, InitializeUser<'info>> {
+impl<'info> ProgramAccountInfo<'info>
+    for Context<'info, 'info, 'info, 'info, InitializeUser<'info>>
+{
     fn to_account_infos(&'info self) -> Vec<AccountInfo<'info>> {
         self.accounts.to_account_infos()
     }

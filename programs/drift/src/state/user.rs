@@ -12,8 +12,7 @@ use crate::math::margin::MarginRequirementType;
 use crate::math::orders::{standardize_base_asset_amount, standardize_price};
 use crate::math::position::{
     calculate_base_asset_value_and_pnl_with_oracle_price,
-    calculate_base_asset_value_with_oracle_price,
-    calculate_perp_liability_value,
+    calculate_base_asset_value_with_oracle_price, calculate_perp_liability_value,
 };
 use crate::math::safe_math::SafeMath;
 use crate::math::spot_balance::{

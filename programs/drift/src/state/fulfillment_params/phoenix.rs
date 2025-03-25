@@ -8,10 +8,10 @@ use arrayref::array_ref;
 //     quantities::{BaseLots, QuoteLots, Ticks, WrapperU64},
 //     state::{OrderPacket, Side},
 // };
+use super::phoenix_structs::MarketHeader;
 use solana_program::{msg, program::invoke_signed_unchecked};
 use std::convert::TryFrom;
 use std::{cell::Ref, convert::TryInto, mem::size_of, ops::Deref};
-use super::phoenix_structs::MarketHeader;
 
 use crate::{
     controller::position::PositionDirection,
