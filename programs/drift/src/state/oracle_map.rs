@@ -21,6 +21,8 @@ use super::state::ValidityGuardRails;
 use crate::math::safe_unwrap::SafeUnwrap;
 use crate::state::traits::Size;
 
+pub(crate) type OracleIdentifier = (Pubkey, OracleSource);
+
 pub struct AccountInfoAndOracleSource<'a> {
     /// CHECK: ownders are validated in OracleMap::load
     pub account_info: AccountInfo<'a>,

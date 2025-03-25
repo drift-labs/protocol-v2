@@ -23,6 +23,7 @@ use crate::math::spot_balance::{calculate_utilization, get_token_amount, get_tok
 
 use crate::math::stats::calculate_new_twap;
 use crate::state::oracle::{HistoricalIndexData, HistoricalOracleData, OracleSource};
+use crate::state::oracle_map::OracleIdentifier;
 use crate::state::paused_operations::SpotOperation;
 use crate::state::perp_market::{MarketStatus, PoolBalance};
 use crate::state::traits::{MarketIndexOffset, Size};
@@ -288,6 +289,10 @@ impl MarketIndexOffset for SpotMarket {
 }
 
 impl SpotMarket {
+    pub fn oracle_id(&self) -> OracleIdentifier {
+        (self.oracle, self.oracle_source)
+    }
+
     pub fn is_in_settlement(&self, now: i64) -> bool {
         let in_settlement = matches!(
             self.status,
