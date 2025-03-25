@@ -194,8 +194,8 @@ pub fn handle_initialize_spot_market(
             )?;
 
             (
-                HistoricalOracleData::default_with_current_oracle(oracle_price_data?),
-                HistoricalIndexData::default_with_current_oracle(oracle_price_data?)?,
+                HistoricalOracleData::default_with_current_oracle(oracle_price_data.unwrap()),
+                HistoricalIndexData::default_with_current_oracle(oracle_price_data.unwrap())?,
             )
         };
 
@@ -273,15 +273,22 @@ pub fn handle_initialize_spot_market(
         total_spot_fee: 0,
         orders_enabled: spot_market_index != 0,
         paused_operations: 0,
-        padding2: 0,
+        if_paused_operations: 0,
         fee_adjustment: 0,
-        padding1: [0; 2],
+        max_token_borrows_fraction: 0,
         flash_loan_amount: 0,
         flash_loan_initial_token_amount: 0,
         total_swap_fee: 0,
         scale_initial_asset_weight_start,
-        padding: [0; 40],
+        min_borrow_rate: 0,
+        fuel_boost_deposits: 0,
+        fuel_boost_borrows: 0,
+        fuel_boost_taker: 0,
+        fuel_boost_maker: 0,
+        fuel_boost_insurance: 0,
+        token_program: 0,
         pool_id: 0,
+        padding: [0; 40],
         insurance_fund: InsuranceFund {
             vault: *ctx.accounts.insurance_fund_vault.to_account_info().key,
             unstaking_period: THIRTEEN_DAY,
@@ -717,6 +724,18 @@ pub fn handle_initialize_perp_market(
                 .amm
                 .get_pyth_twap(&ctx.accounts.oracle, &OracleSource::PythLazer1M)?;
             (oracle_price, oracle_delay, last_oracle_price_twap)
+        }
+        OracleSource::PythLazerStableCoin => {
+            let OraclePriceData {
+                price: oracle_price,
+                delay: oracle_delay,
+                ..
+            } = get_pyth_price(
+                &ctx.accounts.oracle,
+                clock_slot,
+                &OracleSource::PythLazerStableCoin,
+            )?;
+            (oracle_price, oracle_delay, QUOTE_PRECISION_I64)
         }
     };
 
@@ -2817,59 +2836,6 @@ pub struct UpdateSerumFulfillmentConfig<'info> {
     #[account(mut)]
     pub admin: Signer<'info>,
 }
-
-// #[derive(Accounts)]
-// #[instruction(market_index: u16)]
-// pub struct InitializePhoenixFulfillmentConfig<'info> {
-//     #[account(
-//         seeds = [b"spot_market", market_index.to_le_bytes().as_ref()],
-//         bump,
-//     )]
-//     pub base_spot_market: AccountLoader<'info, SpotMarket>,
-//     #[account(
-//         seeds = [b"spot_market", 0_u16.to_le_bytes().as_ref()],
-//         bump,
-//     )]
-//     pub quote_spot_market: AccountLoader<'info, SpotMarket>,
-//     #[account(
-//         mut,
-//         has_one = admin
-//     )]
-//     pub state: Box<Account<'info, State>>,
-//     /// CHECK: checked in ix
-//     pub phoenix_program: AccountInfo<'info>,
-//     /// CHECK: checked in ix
-//     pub phoenix_market: AccountInfo<'info>,
-//     #[account(
-//         constraint = state.signer.eq(&drift_signer.key())
-//     )]
-//     /// CHECK: program signer
-//     pub drift_signer: AccountInfo<'info>,
-//     #[account(
-//         init,
-//         seeds = [b"phoenix_fulfillment_config".as_ref(), phoenix_market.key.as_ref()],
-//         space = PhoenixV1FulfillmentConfig::SIZE,
-//         bump,
-//         payer = admin,
-//     )]
-//     pub phoenix_fulfillment_config: AccountLoader<'info, PhoenixV1FulfillmentConfig>,
-//     #[account(mut)]
-//     pub admin: Signer<'info>,
-//     pub rent: Sysvar<'info, Rent>,
-//     pub system_program: Program<'info, System>,
-// }
-
-// #[derive(Accounts)]
-// pub struct UpdatePhoenixFulfillmentConfig<'info> {
-//     #[account(
-//         has_one = admin
-//     )]
-//     pub state: Box<Account<'info, State>>,
-//     #[account(mut)]
-//     pub phoenix_fulfillment_config: AccountLoader<'info, PhoenixV1FulfillmentConfig>,
-//     #[account(mut)]
-//     pub admin: Signer<'info>,
-// }
 
 #[derive(Accounts)]
 pub struct UpdateSerumVault<'info> {
