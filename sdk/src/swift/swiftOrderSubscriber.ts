@@ -137,12 +137,12 @@ export class SwiftOrderSubscriber {
 						order['order_message'],
 						'hex'
 					);
-					const isDelegateSigner = !signedMsgOrderParamsBuf
+					const isDelegateSigner = signedMsgOrderParamsBuf
 						.slice(0, 8)
 						.equals(
 							Uint8Array.from(
 								Buffer.from(
-									sha256('global' + ':' + 'SignedMsgOrderParamsMessage')
+									sha256('global' + ':' + 'SignedMsgOrderParamsDelegateMessage')
 								).slice(0, 8)
 							)
 						);
@@ -203,7 +203,9 @@ export class SwiftOrderSubscriber {
 
 	async getPlaceAndMakeSignedMsgOrderIxs(
 		orderMessageRaw: any,
-		signedMsgOrderParamsMessage: SignedMsgOrderParamsMessage,
+		signedMsgOrderParamsMessage:
+			| SignedMsgOrderParamsMessage
+			| SignedMsgOrderParamsDelegateMessage,
 		makerOrderParams: OptionalOrderParams
 	): Promise<TransactionInstruction[]> {
 		if (!this.userAccountGetter) {
@@ -215,15 +217,34 @@ export class SwiftOrderSubscriber {
 			'hex'
 		);
 
+		const isDelegateSigner = signedMsgOrderParamsBuf
+			.slice(0, 8)
+			.equals(
+				Uint8Array.from(
+					Buffer.from(
+						sha256('global' + ':' + 'SignedMsgOrderParamsDelegateMessage')
+					).slice(0, 8)
+				)
+			);
+		const signedMessage:
+			| SignedMsgOrderParamsMessage
+			| SignedMsgOrderParamsDelegateMessage =
+			this.driftClient.decodeSignedMsgOrderParamsMessage(
+				signedMsgOrderParamsBuf,
+				isDelegateSigner
+			);
+
 		const takerAuthority = new PublicKey(orderMessageRaw['taker_authority']);
 		const signingAuthority = new PublicKey(
 			orderMessageRaw['signing_authority']
 		);
-		const takerUserPubkey = await getUserAccountPublicKey(
-			this.driftClient.program.programId,
-			takerAuthority,
-			signedMsgOrderParamsMessage.subAccountId
-		);
+		const takerUserPubkey = isDelegateSigner
+			? (signedMessage as SignedMsgOrderParamsDelegateMessage).takerPubkey
+			: await getUserAccountPublicKey(
+					this.driftClient.program.programId,
+					takerAuthority,
+					(signedMessage as SignedMsgOrderParamsMessage).subAccountId
+			  );
 		const takerUserAccount = await this.userAccountGetter.mustGetUserAccount(
 			takerUserPubkey.toString()
 		);
