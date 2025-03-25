@@ -403,6 +403,7 @@ pub fn place_perp_order(
         maker,
         maker_order,
         oracle_map.get_price_data(&market.oracle_id())?.price,
+        bit_flags,
     )?;
     emit_stack::<_, { OrderActionRecord::SIZE }>(order_action_record)?;
 
@@ -677,6 +678,7 @@ pub fn cancel_order(
             maker,
             maker_order,
             oracle_map.get_price_data(&oracle_id)?.price,
+            0,
         )?;
         emit_stack::<_, { OrderActionRecord::SIZE }>(order_action_record)?;
     }
@@ -2333,6 +2335,11 @@ pub fn fulfill_perp_order_with_amm(
         (Some(_), Some(_)) => liquidity_split.get_order_action_explanation(),
         _ => OrderActionExplanation::OrderFilledWithAMM,
     };
+    let mut order_action_bit_flags: u8 = 0;
+    order_action_bit_flags = set_is_signed_msg_flag(
+        order_action_bit_flags,
+        user.orders[order_index].is_signed_msg(),
+    );
     let order_action_record = get_order_action_record(
         now,
         OrderAction::Fill,
@@ -2357,6 +2364,7 @@ pub fn fulfill_perp_order_with_amm(
         maker,
         maker_order,
         oracle_map.get_price_data(&market.oracle_id())?.price,
+        order_action_bit_flags,
     )?;
     emit_stack::<_, { OrderActionRecord::SIZE }>(order_action_record)?;
 
@@ -2752,6 +2760,11 @@ pub fn fulfill_perp_order_with_match(
     } else {
         OrderActionExplanation::OrderFilledWithMatch
     };
+    let mut order_action_bit_flags = 0;
+    order_action_bit_flags = set_is_signed_msg_flag(
+        order_action_bit_flags,
+        taker.orders[taker_order_index].is_signed_msg(),
+    );
     let order_action_record = get_order_action_record(
         now,
         OrderAction::Fill,
@@ -2772,6 +2785,7 @@ pub fn fulfill_perp_order_with_match(
         Some(*maker_key),
         Some(maker.orders[maker_order_index]),
         oracle_map.get_price_data(&market.oracle_id())?.price,
+        order_action_bit_flags,
     )?;
     emit_stack::<_, { OrderActionRecord::SIZE }>(order_action_record)?;
 
@@ -2988,6 +3002,7 @@ pub fn trigger_order(
         None,
         None,
         oracle_price,
+        0,
     )?;
     emit!(order_action_record);
 
@@ -3649,6 +3664,7 @@ pub fn place_spot_order(
         maker,
         maker_order,
         oracle_price_data.price,
+        0,
     )?;
     emit_stack::<_, { OrderActionRecord::SIZE }>(order_action_record)?;
 
@@ -4875,6 +4891,7 @@ pub fn fulfill_spot_order_with_match(
         Some(*maker_key),
         Some(maker.orders[maker_order_index]),
         oracle_map.get_price_data(&base_market.oracle_id())?.price,
+        0,
     )?;
     emit_stack::<_, { OrderActionRecord::SIZE }>(order_action_record)?;
 
@@ -5140,6 +5157,7 @@ pub fn fulfill_spot_order_with_external_market(
         None,
         None,
         oracle_price,
+        0,
     )?;
     emit_stack::<_, { OrderActionRecord::SIZE }>(order_action_record)?;
 
@@ -5331,6 +5349,7 @@ pub fn trigger_spot_order(
         None,
         None,
         oracle_price,
+        0,
     )?;
 
     emit!(order_action_record);
