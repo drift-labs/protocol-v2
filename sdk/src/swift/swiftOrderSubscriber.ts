@@ -45,7 +45,10 @@ export class SwiftOrderSubscriber {
 	public userAccountGetter?: AccountGetter; // In practice, this for now is just an OrderSubscriber or a UserMap
 	public onOrder: (
 		orderMessageRaw: any,
-		signedMsgOrderParamsMessage: SignedMsgOrderParamsMessage
+		signedMessage:
+			| SignedMsgOrderParamsMessage
+			| SignedMsgOrderParamsDelegateMessage,
+		isDelegateSigner?: boolean
 	) => Promise<void>;
 
 	subscribed = false;
@@ -105,7 +108,7 @@ export class SwiftOrderSubscriber {
 	async subscribe(
 		onOrder: (
 			orderMessageRaw: any,
-			signedMsgOrderParamsMessage:
+			signedMessage:
 				| SignedMsgOrderParamsMessage
 				| SignedMsgOrderParamsDelegateMessage,
 			isDelegateSigner?: boolean
@@ -147,7 +150,7 @@ export class SwiftOrderSubscriber {
 								).slice(0, 8)
 							)
 						);
-					const signedMsgOrderParamsMessage:
+					const signedMessage:
 						| SignedMsgOrderParamsMessage
 						| SignedMsgOrderParamsDelegateMessage =
 						this.driftClient.decodeSignedMsgOrderParamsMessage(
@@ -155,16 +158,16 @@ export class SwiftOrderSubscriber {
 							isDelegateSigner
 						);
 
-					if (!signedMsgOrderParamsMessage.signedMsgOrderParams.price) {
+					if (!signedMessage.signedMsgOrderParams.price) {
 						console.error(
 							`order has no price: ${JSON.stringify(
-								signedMsgOrderParamsMessage.signedMsgOrderParams
+								signedMessage.signedMsgOrderParams
 							)}`
 						);
 						return;
 					}
 
-					onOrder(order, signedMsgOrderParamsMessage, isDelegateSigner);
+					onOrder(order, signedMessage, isDelegateSigner);
 				}
 			});
 
