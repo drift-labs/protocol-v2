@@ -54,15 +54,19 @@ export class SignedMsgUserOrdersAccountSubscriber {
 		resyncIntervalMs,
 	}: {
 		driftClient: DriftClient;
-		commitment: Commitment;
+		commitment?: Commitment;
 		resubOpts?: ResubOpts;
-		decodeFn: (name: string, data: Buffer) => SignedMsgUserOrdersAccount;
+		decodeFn?: (name: string, data: Buffer) => SignedMsgUserOrdersAccount;
 		resyncIntervalMs?: number;
 	}) {
-		this.commitment = commitment;
+		this.commitment = commitment ?? 'confirmed';
 		this.resubOpts = resubOpts;
-		this.decodeFn = decodeFn;
 		this.driftClient = driftClient;
+		this.decodeFn =
+			decodeFn ??
+			this.driftClient.program.account.signedMsgUserOrders.coder.accounts.decodeUnchecked.bind(
+				this.driftClient.program.account.signedMsgUserOrders.coder.accounts
+			);
 		this.resyncIntervalMs = resyncIntervalMs;
 		this.eventEmitter = new EventEmitter();
 		this.resubOpts = resubOpts;
