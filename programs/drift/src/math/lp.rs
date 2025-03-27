@@ -2,7 +2,7 @@ use crate::error::{DriftResult, ErrorCode};
 use crate::{
     validate, MARGIN_PRECISION_U128, PRICE_PRECISION, PRICE_TIMES_AMM_TO_QUOTE_PRECISION_RATIO,
 };
-use solana_program::msg;
+use crate::msg;
 use std::u64;
 
 use crate::math::amm::calculate_market_open_bids_asks;

@@ -1,6 +1,6 @@
 use crate::error::{DriftResult, ErrorCode};
 use borsh::{BorshDeserialize, BorshSerialize};
-use solana_program::msg;
+use crate::msg;
 use std::panic::Location;
 
 #[cfg(test)]

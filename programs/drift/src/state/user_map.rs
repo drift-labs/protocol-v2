@@ -7,7 +7,7 @@ use anchor_lang::prelude::AccountLoader;
 use anchor_lang::Discriminator;
 use arrayref::array_ref;
 use solana_program::account_info::AccountInfo;
-use solana_program::msg;
+use crate::msg;
 use solana_program::pubkey::Pubkey;
 use std::cell::{Ref, RefMut};
 use std::collections::BTreeMap;

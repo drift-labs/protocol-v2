@@ -32,7 +32,7 @@ use crate::{safe_increment, SPOT_WEIGHT_PRECISION};
 use crate::{validate, MAX_PREDICTION_MARKET_PRICE};
 use anchor_lang::prelude::*;
 use borsh::{BorshDeserialize, BorshSerialize};
-use solana_program::msg;
+use crate::msg;
 use std::cmp::max;
 use std::fmt;
 use std::ops::Neg;

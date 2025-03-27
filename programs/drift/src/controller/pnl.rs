@@ -39,7 +39,7 @@ use crate::state::user::{MarketType, User};
 use crate::validate;
 use anchor_lang::prelude::Pubkey;
 use anchor_lang::prelude::*;
-use solana_program::msg;
+use crate::msg;
 use std::ops::DerefMut;
 
 #[cfg(test)]

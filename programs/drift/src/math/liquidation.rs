@@ -24,7 +24,7 @@ use crate::{
     validate, MarketType, OrderParams, PositionDirection, BASE_PRECISION,
     LIQUIDATION_FEE_INCREASE_PER_SLOT,
 };
-use solana_program::msg;
+use crate::msg;
 
 pub const LIQUIDATION_FEE_ADJUST_GRACE_PERIOD_SLOTS: u64 = 1_500; // ~10 minutes
 

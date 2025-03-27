@@ -6,7 +6,7 @@ use crate::math::orders::standardize_price;
 use crate::math::safe_math::SafeMath;
 use crate::state::oracle::OraclePriceData;
 use crate::state::user::{Order, OrderType};
-use solana_program::msg;
+use crate::msg;
 
 use crate::state::fill_mode::FillMode;
 use crate::state::perp_market::{AMMAvailability, PerpMarket};

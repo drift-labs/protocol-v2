@@ -1,7 +1,7 @@
 use std::cmp::{max, min};
 
 use anchor_lang::prelude::AccountInfo;
-use solana_program::msg;
+use crate::msg;
 
 use crate::error::*;
 use crate::math::amm;

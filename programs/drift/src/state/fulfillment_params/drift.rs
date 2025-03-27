@@ -14,7 +14,7 @@ use anchor_spl::token_interface::TokenAccount;
 use arrayref::array_ref;
 
 use solana_program::account_info::AccountInfo;
-use solana_program::msg;
+use crate::msg;
 use std::cell::Ref;
 
 pub struct MatchFulfillmentParams<'a> {

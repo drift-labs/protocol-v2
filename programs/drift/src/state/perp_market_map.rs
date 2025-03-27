@@ -15,7 +15,7 @@ use crate::state::user::PerpPositions;
 
 use crate::math::safe_unwrap::SafeUnwrap;
 use crate::state::traits::Size;
-use solana_program::msg;
+use crate::msg;
 use std::panic::Location;
 
 use super::user::SpotPosition;

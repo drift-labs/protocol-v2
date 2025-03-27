@@ -1,6 +1,6 @@
 use crate::error::{DriftResult, ErrorCode};
 use crate::math::bn::U192;
-use solana_program::msg;
+use crate::msg;
 use std::convert::TryInto;
 use std::panic::Location;
 

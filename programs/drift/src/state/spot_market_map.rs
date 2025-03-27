@@ -13,7 +13,7 @@ use arrayref::array_ref;
 
 use crate::math::safe_unwrap::SafeUnwrap;
 use crate::state::traits::Size;
-use solana_program::msg;
+use crate::msg;
 use std::panic::Location;
 
 pub struct SpotMarketMap<'a>(

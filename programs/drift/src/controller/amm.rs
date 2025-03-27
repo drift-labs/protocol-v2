@@ -1,7 +1,7 @@
 use std::cmp::{max, min, Ordering};
 
 use anchor_lang::prelude::*;
-use solana_program::msg;
+use crate::msg;
 
 use crate::controller::position::PositionDirection;
 use crate::controller::repeg::apply_cost_to_market;

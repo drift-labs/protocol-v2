@@ -17,7 +17,7 @@ use crate::state::state::{FeeStructure, FeeTier, OrderFillerRewardStructure};
 use crate::state::user::{MarketType, UserStats};
 
 use crate::{FEE_ADJUSTMENT_MAX, QUOTE_PRECISION_U64};
-use solana_program::msg;
+use crate::msg;
 
 #[cfg(test)]
 mod tests;

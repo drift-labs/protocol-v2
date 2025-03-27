@@ -1,4 +1,4 @@
-use solana_program::msg;
+use crate::msg;
 
 #[cfg(test)]
 mod tests;

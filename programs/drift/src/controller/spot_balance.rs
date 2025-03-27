@@ -3,7 +3,7 @@ use crate::state::state::ValidityGuardRails;
 use std::cmp::max; //, OracleValidity};
 
 use anchor_lang::prelude::*;
-use solana_program::msg;
+use crate::msg;
 
 use crate::error::{DriftResult, ErrorCode};
 use crate::math::amm::sanitize_new_price;

@@ -10,7 +10,7 @@ use crate::state::spot_market::SpotMarket;
 use crate::state::state::{ExchangeStatus, State};
 use crate::state::user::{User, UserStats};
 use crate::validate;
-use solana_program::msg;
+use crate::msg;
 
 pub fn can_sign_for_user(user: &AccountLoader<User>, signer: &Signer) -> anchor_lang::Result<bool> {
     user.load().map(|user| {

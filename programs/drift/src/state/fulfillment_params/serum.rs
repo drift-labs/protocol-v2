@@ -27,7 +27,7 @@ use serum_dex::matching::{OrderBookState, Side};
 use serum_dex::state::Market;
 use solana_program::account_info::AccountInfo;
 use solana_program::instruction::Instruction;
-use solana_program::msg;
+use crate::msg;
 use std::cell::Ref;
 use std::convert::TryFrom;
 use std::num::NonZeroU64;

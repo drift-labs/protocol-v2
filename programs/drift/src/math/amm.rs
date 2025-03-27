@@ -1,6 +1,6 @@
 use std::cmp::{max, min};
 
-use solana_program::msg;
+use crate::msg;
 
 use crate::controller::amm::SwapDirection;
 use crate::controller::position::PositionDirection;

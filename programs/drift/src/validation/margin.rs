@@ -4,7 +4,7 @@ use crate::math::constants::{
     SPOT_IMF_PRECISION, SPOT_WEIGHT_PRECISION,
 };
 use crate::{validate, HIGH_LEVERAGE_MIN_MARGIN_RATIO};
-use solana_program::msg;
+use crate::msg;
 
 pub fn validate_margin(
     margin_ratio_initial: u32,

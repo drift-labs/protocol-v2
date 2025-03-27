@@ -8,7 +8,7 @@ use anchor_lang::*;
 use anchor_lang::{account, zero_copy};
 use borsh::{BorshDeserialize, BorshSerialize};
 use prelude::AccountInfo;
-use solana_program::msg;
+use crate::msg;
 
 use crate::state::traits::Size;
 

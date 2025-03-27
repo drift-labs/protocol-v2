@@ -22,7 +22,7 @@ use anchor_spl::token::TokenAccount;
 use anchor_spl::token_interface::{Mint, TokenInterface};
 use arrayref::array_ref;
 use solana_program::account_info::next_account_info;
-use solana_program::msg;
+use crate::msg;
 use std::iter::Peekable;
 use std::ops::Deref;
 use std::slice::Iter;

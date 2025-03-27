@@ -9,7 +9,7 @@ use phoenix::quantities::WrapperU64;
 use pyth_solana_receiver_sdk::cpi::accounts::InitPriceUpdate;
 use pyth_solana_receiver_sdk::program::PythSolanaReceiver;
 use serum_dex::state::ToAlignedBytes;
-use solana_program::msg;
+use crate::msg;
 
 use crate::controller::token::close_vault;
 use crate::error::ErrorCode;

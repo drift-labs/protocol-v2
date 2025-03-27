@@ -6,7 +6,7 @@ use crate::math::safe_math::SafeMath;
 
 use crate::state::perp_market::{MarketStatus, PerpMarket, AMM};
 use crate::{validate, BID_ASK_SPREAD_PRECISION};
-use solana_program::msg;
+use crate::msg;
 
 #[allow(clippy::comparison_chain)]
 pub fn validate_perp_market(market: &PerpMarket) -> DriftResult {
