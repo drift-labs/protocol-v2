@@ -6349,7 +6349,9 @@ export class DriftClient {
 			| SignedMsgOrderParamsDelegateMessage,
 		delegateSigner?: boolean
 	): Buffer {
-		const anchorIxName = 'global' + ':' + 'SignedMsgOrderParamsMessage';
+		const anchorIxName = delegateSigner
+			? 'global' + ':' + 'SignedMsgOrderParamsDelegateMessage'
+			: 'global' + ':' + 'SignedMsgOrderParamsMessage';
 		const prefix = Buffer.from(sha256(anchorIxName).slice(0, 8));
 		const buf = Buffer.concat([
 			prefix,
@@ -6370,10 +6372,14 @@ export class DriftClient {
 	 * Decode signedMsg taker order params from borsh buffer
 	 */
 	public decodeSignedMsgOrderParamsMessage(
-		encodedMessage: Buffer
-	): SignedMsgOrderParamsMessage {
+		encodedMessage: Buffer,
+		delegateSigner?: boolean
+	): SignedMsgOrderParamsMessage | SignedMsgOrderParamsDelegateMessage {
+		const decodeStr = delegateSigner
+			? 'SignedMsgOrderParamsDelegateMessage'
+			: 'SignedMsgOrderParamsMessage';
 		return this.program.coder.types.decode(
-			'SignedMsgOrderParamsMessage',
+			decodeStr,
 			encodedMessage.slice(8) // assumes discriminator
 		);
 	}

@@ -8,6 +8,7 @@ import {
 	MarketType,
 	OptionalOrderParams,
 	PostOnlyParams,
+	SignedMsgOrderParamsDelegateMessage,
 	SignedMsgOrderParamsMessage,
 	UserAccount,
 } from '..';
@@ -15,6 +16,7 @@ import { Keypair, PublicKey, TransactionInstruction } from '@solana/web3.js';
 import nacl from 'tweetnacl';
 import { decodeUTF8 } from 'tweetnacl-util';
 import WebSocket from 'ws';
+import { sha256 } from '@noble/hashes/sha256';
 
 // In practice, this for now is just an OrderSubscriber or a UserMap
 export interface AccountGetter {
@@ -103,7 +105,10 @@ export class SwiftOrderSubscriber {
 	async subscribe(
 		onOrder: (
 			orderMessageRaw: any,
-			signedMsgOrderParamsMessage: SignedMsgOrderParamsMessage
+			signedMsgOrderParamsMessage:
+				| SignedMsgOrderParamsMessage
+				| SignedMsgOrderParamsDelegateMessage,
+			isDelegateSigner?: boolean
 		) => Promise<void>
 	): Promise<void> {
 		this.onOrder = onOrder;
@@ -133,9 +138,21 @@ export class SwiftOrderSubscriber {
 						order['order_message'],
 						'hex'
 					);
-					const signedMsgOrderParamsMessage: SignedMsgOrderParamsMessage =
+					const isDelegateSigner = signedMsgOrderParamsBuf
+						.slice(0, 8)
+						.equals(
+							Uint8Array.from(
+								Buffer.from(
+									sha256('global' + ':' + 'SignedMsgOrderParamsDelegateMessage')
+								).slice(0, 8)
+							)
+						);
+					const signedMsgOrderParamsMessage:
+						| SignedMsgOrderParamsMessage
+						| SignedMsgOrderParamsDelegateMessage =
 						this.driftClient.decodeSignedMsgOrderParamsMessage(
-							signedMsgOrderParamsBuf
+							signedMsgOrderParamsBuf,
+							isDelegateSigner
 						);
 
 					if (!signedMsgOrderParamsMessage.signedMsgOrderParams.price) {
@@ -147,7 +164,7 @@ export class SwiftOrderSubscriber {
 						return;
 					}
 
-					onOrder(order, signedMsgOrderParamsMessage);
+					onOrder(order, signedMsgOrderParamsMessage, isDelegateSigner);
 				}
 			});
 
@@ -187,7 +204,9 @@ export class SwiftOrderSubscriber {
 
 	async getPlaceAndMakeSignedMsgOrderIxs(
 		orderMessageRaw: any,
-		signedMsgOrderParamsMessage: SignedMsgOrderParamsMessage,
+		signedMsgOrderParamsMessage:
+			| SignedMsgOrderParamsMessage
+			| SignedMsgOrderParamsDelegateMessage,
 		makerOrderParams: OptionalOrderParams
 	): Promise<TransactionInstruction[]> {
 		if (!this.userAccountGetter) {
@@ -198,15 +217,35 @@ export class SwiftOrderSubscriber {
 			orderMessageRaw['order_message'],
 			'hex'
 		);
+
+		const isDelegateSigner = signedMsgOrderParamsBuf
+			.slice(0, 8)
+			.equals(
+				Uint8Array.from(
+					Buffer.from(
+						sha256('global' + ':' + 'SignedMsgOrderParamsDelegateMessage')
+					).slice(0, 8)
+				)
+			);
+		const signedMessage:
+			| SignedMsgOrderParamsMessage
+			| SignedMsgOrderParamsDelegateMessage =
+			this.driftClient.decodeSignedMsgOrderParamsMessage(
+				signedMsgOrderParamsBuf,
+				isDelegateSigner
+			);
+
 		const takerAuthority = new PublicKey(orderMessageRaw['taker_authority']);
 		const signingAuthority = new PublicKey(
 			orderMessageRaw['signing_authority']
 		);
-		const takerUserPubkey = await getUserAccountPublicKey(
-			this.driftClient.program.programId,
-			takerAuthority,
-			signedMsgOrderParamsMessage.subAccountId
-		);
+		const takerUserPubkey = isDelegateSigner
+			? (signedMessage as SignedMsgOrderParamsDelegateMessage).takerPubkey
+			: await getUserAccountPublicKey(
+					this.driftClient.program.programId,
+					takerAuthority,
+					(signedMessage as SignedMsgOrderParamsMessage).subAccountId
+			  );
 		const takerUserAccount = await this.userAccountGetter.mustGetUserAccount(
 			takerUserPubkey.toString()
 		);
