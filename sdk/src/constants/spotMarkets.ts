@@ -694,6 +694,18 @@ export const MainnetSpotMarkets: SpotMarketConfig[] = [
 			'0xd9912df360b5b7f21a122f15bdd5e27f62ce5e72bd316c291f7c86620e07fb2a',
 		launchTs: 1738255943000,
 	},
+	{
+		symbol: 'FARTCOIN',
+		marketIndex: 39,
+		poolId: 0,
+		oracle: new PublicKey('2sZomfWMDuQLcFak3nuharXorHrZ3hK8iaML6ZGSHtso'),
+		oracleSource: OracleSource.PYTH_LAZER,
+		mint: new PublicKey('9BB6NFEcjBCtnNLFko2FqVQBq8HHM13kCyYcdQbgpump'),
+		precision: new BN(10).pow(SIX),
+		precisionExp: SIX,
+		pythLazerId: 182,
+		launchTs: 1743086746000,
+	},
 ];
 
 export const SpotMarkets: { [key in DriftEnv]: SpotMarketConfig[] } = {
