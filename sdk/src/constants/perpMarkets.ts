@@ -1248,6 +1248,17 @@ export const MainnetPerpMarkets: PerpMarketConfig[] = [
 			'0xb620ba83044577029da7e4ded7a2abccf8e6afc2a0d4d26d89ccdd39ec109025',
 		pythLazerId: 309,
 	},
+	{
+		fullName: 'Fart Coin',
+		category: ['Meme'],
+		symbol: 'FARTCOIN-PERP',
+		baseAssetSymbol: 'FARTCOIN',
+		marketIndex: 71,
+		oracle: new PublicKey('2sZomfWMDuQLcFak3nuharXorHrZ3hK8iaML6ZGSHtso'),
+		launchTs: 1743086746000,
+		oracleSource: OracleSource.PYTH_LAZER,
+		pythLazerId: 182,
+	},
 ];
 
 export const PerpMarkets: { [key in DriftEnv]: PerpMarketConfig[] } = {
