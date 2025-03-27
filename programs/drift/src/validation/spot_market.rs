@@ -1,7 +1,7 @@
 use crate::error::{DriftResult, ErrorCode};
 use crate::math::constants::SPOT_UTILIZATION_PRECISION_U32;
-use crate::validate;
 use crate::msg;
+use crate::validate;
 
 pub fn validate_borrow_rate(
     optimal_utilization: u32,

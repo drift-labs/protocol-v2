@@ -1,7 +1,7 @@
 use std::cmp::{max, min};
 
-use anchor_lang::prelude::AccountInfo;
 use crate::msg;
+use anchor_lang::prelude::AccountInfo;
 
 use crate::error::*;
 use crate::math::amm;

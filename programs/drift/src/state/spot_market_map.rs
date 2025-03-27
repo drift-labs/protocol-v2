@@ -12,8 +12,8 @@ use anchor_lang::Discriminator;
 use arrayref::array_ref;
 
 use crate::math::safe_unwrap::SafeUnwrap;
-use crate::state::traits::Size;
 use crate::msg;
+use crate::state::traits::Size;
 use std::panic::Location;
 
 pub struct SpotMarketMap<'a>(

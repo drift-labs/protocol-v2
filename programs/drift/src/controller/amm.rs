@@ -1,7 +1,7 @@
 use std::cmp::{max, min, Ordering};
 
-use anchor_lang::prelude::*;
 use crate::msg;
+use anchor_lang::prelude::*;
 
 use crate::controller::position::PositionDirection;
 use crate::controller::repeg::apply_cost_to_market;

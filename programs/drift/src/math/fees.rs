@@ -16,8 +16,8 @@ use crate::math::safe_math::SafeMath;
 use crate::state::state::{FeeStructure, FeeTier, OrderFillerRewardStructure};
 use crate::state::user::{MarketType, UserStats};
 
-use crate::{FEE_ADJUSTMENT_MAX, QUOTE_PRECISION_U64};
 use crate::msg;
+use crate::{FEE_ADJUSTMENT_MAX, QUOTE_PRECISION_U64};
 
 #[cfg(test)]
 mod tests;

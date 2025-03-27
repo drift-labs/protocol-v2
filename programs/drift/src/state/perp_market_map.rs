@@ -14,8 +14,8 @@ use crate::state::perp_market::PerpMarket;
 use crate::state::user::PerpPositions;
 
 use crate::math::safe_unwrap::SafeUnwrap;
-use crate::state::traits::Size;
 use crate::msg;
+use crate::state::traits::Size;
 use std::panic::Location;
 
 use super::user::SpotPosition;
