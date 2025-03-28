@@ -285,6 +285,11 @@ pub fn handle_initialize_referrer_name(
         ErrorCode::InvalidReferrer,
         "must be subaccount 0"
     )?;
+    validate!(
+        user.pool_id == 0,
+        ErrorCode::InvalidReferrer,
+        "must be pool_id 0"
+    )?;
 
     referrer_name.authority = authority_key;
     referrer_name.user = user_key;
