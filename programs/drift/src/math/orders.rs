@@ -1,7 +1,7 @@
 use std::cmp::min;
 use std::ops::Sub;
 
-use solana_program::msg;
+use crate::msg;
 
 use crate::controller::position::PositionDelta;
 use crate::controller::position::PositionDirection;

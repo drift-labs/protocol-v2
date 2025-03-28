@@ -4,9 +4,9 @@ use crate::math::casting::Cast;
 use crate::math::constants::MAX_BASE_ASSET_AMOUNT_WITH_AMM;
 use crate::math::safe_math::SafeMath;
 
+use crate::msg;
 use crate::state::perp_market::{MarketStatus, PerpMarket, AMM};
 use crate::{validate, BID_ASK_SPREAD_PRECISION};
-use solana_program::msg;
 
 #[allow(clippy::comparison_chain)]
 pub fn validate_perp_market(market: &PerpMarket) -> DriftResult {

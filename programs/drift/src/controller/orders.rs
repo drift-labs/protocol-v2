@@ -3,8 +3,8 @@ use std::collections::BTreeMap;
 use std::ops::{Deref, DerefMut};
 use std::u64;
 
+use crate::msg;
 use anchor_lang::prelude::*;
-use solana_program::msg;
 
 use crate::controller::funding::settle_funding_payment;
 use crate::controller::lp::burn_lp_shares;

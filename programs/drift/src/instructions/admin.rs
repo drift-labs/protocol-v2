@@ -1,6 +1,7 @@
 use std::convert::identity;
 use std::mem::size_of;
 
+use crate::msg;
 use anchor_lang::prelude::*;
 use anchor_spl::token::Token;
 use anchor_spl::token_2022::Token2022;
@@ -9,7 +10,6 @@ use phoenix::quantities::WrapperU64;
 use pyth_solana_receiver_sdk::cpi::accounts::InitPriceUpdate;
 use pyth_solana_receiver_sdk::program::PythSolanaReceiver;
 use serum_dex::state::ToAlignedBytes;
-use solana_program::msg;
 
 use crate::controller::token::close_vault;
 use crate::error::ErrorCode;

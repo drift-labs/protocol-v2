@@ -1,8 +1,8 @@
 use crate::error::{DriftResult, ErrorCode};
+use crate::msg;
 use crate::state::spot_market::SpotBalanceType;
 use crate::state::user::{OrderStatus, User, UserStats};
 use crate::{validate, State, THIRTEEN_DAY};
-use solana_program::msg;
 
 pub fn validate_user_deletion(
     user: &User,

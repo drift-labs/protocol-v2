@@ -1,7 +1,7 @@
 use crate::error::{DriftResult, ErrorCode};
 use crate::math::constants::SPOT_UTILIZATION_PRECISION_U32;
+use crate::msg;
 use crate::validate;
-use solana_program::msg;
 
 pub fn validate_borrow_rate(
     optimal_utilization: u32,

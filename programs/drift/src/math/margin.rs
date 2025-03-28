@@ -16,6 +16,7 @@ use crate::math::oracle::{is_oracle_valid_for_action, DriftAction};
 use crate::math::spot_balance::{get_strict_token_value, get_token_value};
 
 use crate::math::safe_math::SafeMath;
+use crate::msg;
 use crate::state::margin_calculation::{MarginCalculation, MarginContext, MarketIdentifier};
 use crate::state::oracle::{OraclePriceData, StrictOraclePrice};
 use crate::state::oracle_map::OracleMap;
@@ -25,7 +26,6 @@ use crate::state::spot_market::{AssetTier, SpotBalanceType};
 use crate::state::spot_market_map::SpotMarketMap;
 use crate::state::user::{MarketType, OrderFillSimulation, PerpPosition, User};
 use num_integer::Roots;
-use solana_program::msg;
 use std::cmp::{max, min, Ordering};
 
 #[cfg(test)]

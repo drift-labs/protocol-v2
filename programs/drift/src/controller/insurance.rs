@@ -1,6 +1,6 @@
+use crate::msg;
 use anchor_lang::prelude::*;
 use anchor_spl::token_interface::{Mint, TokenAccount, TokenInterface};
-use solana_program::msg;
 
 use crate::controller::spot_balance::{
     update_revenue_pool_balances, update_spot_balances, update_spot_market_cumulative_interest,

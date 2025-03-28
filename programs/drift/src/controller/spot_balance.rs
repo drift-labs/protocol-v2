@@ -2,8 +2,8 @@ use crate::math::oracle::oracle_validity;
 use crate::state::state::ValidityGuardRails;
 use std::cmp::max; //, OracleValidity};
 
+use crate::msg;
 use anchor_lang::prelude::*;
-use solana_program::msg;
 
 use crate::error::{DriftResult, ErrorCode};
 use crate::math::amm::sanitize_new_price;
