@@ -883,6 +883,12 @@ pub fn handle_settle_pnl<'c: 'info, 'info>(
     let user_key = ctx.accounts.user.key();
     let user = &mut load_mut!(ctx.accounts.user)?;
 
+    validate!(
+        user.pool_id == 0,
+        ErrorCode::InvalidPoolId,
+        "user have pool_id 0"
+    )?;
+
     let AccountMaps {
         perp_market_map,
         spot_market_map,
