@@ -280,10 +280,17 @@ pub fn handle_initialize_referrer_name(
         .or(Err(ErrorCode::UnableToLoadAccountLoader))?;
 
     let user = load!(ctx.accounts.user)?;
+
     validate!(
         user.sub_account_id == 0,
         ErrorCode::InvalidReferrer,
         "must be subaccount 0"
+    )?;
+
+    validate!(
+        user.pool_id == 0,
+        ErrorCode::InvalidReferrer,
+        "must be pool_id 0"
     )?;
 
     referrer_name.authority = authority_key;
