@@ -244,7 +244,7 @@ pub struct OrderActionRecord {
 }
 
 impl Size for OrderActionRecord {
-    const SIZE: usize = 384;
+    const SIZE: usize = 385;
 }
 
 pub fn get_order_action_record(
