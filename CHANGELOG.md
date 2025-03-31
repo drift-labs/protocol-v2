@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Features
 
+- program: more lenient pool id check to allow users with referrer rewards to withdraw ([#1553](https://github.com/drift-labs/protocol-v2/pull/1553))
 - program: add bitflags to order aciton records ([#1550](https://github.com/drift-labs/protocol-v2/pull/1550))
 
 ### Fixes
