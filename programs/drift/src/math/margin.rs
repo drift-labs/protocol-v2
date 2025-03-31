@@ -337,6 +337,15 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
                     let token_value = token_value.unsigned_abs();
 
                     validate!(
+                        !skip_token_value,
+                        ErrorCode::InvalidPoolId,
+                        "attempting skip_token_value for token_value={} for token_amount={} in spot market_index={}",
+                        token_value,
+                        token_amount,
+                        spot_market.market_index
+                    )?;
+
+                    validate!(
                         token_value != 0,
                         ErrorCode::InvalidMarginRatio,
                         "token_value=0 for token_amount={} in spot market_index={}",
