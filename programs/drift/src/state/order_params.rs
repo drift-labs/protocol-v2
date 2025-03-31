@@ -283,9 +283,9 @@ impl OrderParams {
         oracle_price: i64,
         is_market_order: bool,
     ) -> DriftResult<bool> {
-        let auction_duration = self.auction_duration.clone();
-        let auction_start_price = self.auction_start_price.clone();
-        let auction_end_price = self.auction_end_price.clone();
+        let auction_duration = self.auction_duration;
+        let auction_start_price = self.auction_start_price;
+        let auction_end_price = self.auction_end_price;
 
         if self.auction_duration.is_none()
             || self.auction_start_price.is_none()
