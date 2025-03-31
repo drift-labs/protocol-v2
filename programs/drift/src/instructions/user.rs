@@ -4404,18 +4404,15 @@ pub struct TransferPools<'info> {
 pub struct TransferPerpPosition<'info> {
     #[account(
         mut,
-        constraint = can_sign_for_user(&from_user, &authority)?
+        constraint = can_sign_for_user(&from_user, &authority)? && is_stats_for_user(&from_user, &user_stats)?
     )]
     pub from_user: AccountLoader<'info, User>,
     #[account(
         mut,
-        constraint = can_sign_for_user(&to_user, &authority)?
+        constraint = can_sign_for_user(&to_user, &authority)? && is_stats_for_user(&to_user, &user_stats)?
     )]
     pub to_user: AccountLoader<'info, User>,
-    #[account(
-        mut,
-        has_one = authority
-    )]
+    #[account(mut)]
     pub user_stats: AccountLoader<'info, UserStats>,
     pub authority: Signer<'info>,
     pub state: Box<Account<'info, State>>,

@@ -14,6 +14,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixes
 
+- program: fix user stats check for transfer_perp_position ([#1557](https://github.com/drift-labs/protocol-v2/pull/1557))
+
 ### Breaking
 
 ## [2.116.0] - 2025-03-21
