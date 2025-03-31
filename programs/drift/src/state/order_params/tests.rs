@@ -88,13 +88,14 @@ mod update_perp_auction_params {
         assert_eq!(order_params_before.auction_end_price, Some(145_807_012));
 
         let mut order_params_after = order_params_before;
-        order_params_after
+        let sanitized = order_params_after
             .update_perp_auction_params(&perp_market, oracle_price)
             .unwrap();
 
         assert_eq!(order_params_after.auction_start_price, Some(-144807));
         assert_eq!(order_params_after.auction_end_price, Some(3_092_988));
         assert_eq!(order_params_after.auction_duration, Some(134));
+        assert_eq!(sanitized, true);
 
         let order_params_before2 = OrderParams {
             order_type: OrderType::Oracle,
@@ -700,6 +701,23 @@ mod update_perp_auction_params {
             order_params_before.auction_duration,
             order_params_after.auction_duration
         );
+
+        // Oracle market params are fine
+        let order_params_before = OrderParams {
+            order_type: OrderType::Oracle,
+            direction: PositionDirection::Short,
+            auction_start_price: Some(99 * PRICE_PRECISION_I64),
+            auction_end_price: Some(100 * PRICE_PRECISION_I64),
+            price: 100 * PRICE_PRECISION_U64,
+            auction_duration: Some(102),
+
+            ..OrderParams::default()
+        };
+        let mut order_params_after = order_params_before;
+        let sanitized = order_params_after
+            .update_perp_auction_params(&perp_market, oracle_price)
+            .unwrap();
+        assert_eq!(sanitized, false,);
     }
 
     #[test]
