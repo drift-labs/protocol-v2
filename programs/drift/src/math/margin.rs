@@ -271,7 +271,7 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
         )?;
 
         let mut skip_token_value = false;
-        if !(user_pool_id == 1 && spot_market.market_index == 0) {
+        if !(user_pool_id == 1 && spot_market.market_index == 0 && !spot_position.is_borrow()) {
             validate!(
                 user_pool_id == spot_market.pool_id,
                 ErrorCode::InvalidPoolId,
@@ -335,15 +335,6 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
                 }
                 SpotBalanceType::Borrow => {
                     let token_value = token_value.unsigned_abs();
-
-                    validate!(
-                        !skip_token_value,
-                        ErrorCode::InvalidPoolId,
-                        "attempting skip_token_value for token_value={} for token_amount={} in spot market_index={}",
-                        token_value,
-                        token_amount,
-                        spot_market.market_index
-                    )?;
 
                     validate!(
                         token_value != 0,
