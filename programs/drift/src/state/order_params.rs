@@ -60,15 +60,19 @@ impl OrderParams {
         &mut self,
         perp_market: &PerpMarket,
         oracle_price: i64,
-    ) -> DriftResult {
+    ) -> DriftResult<bool> {
         if self.post_only != PostOnlyParam::None {
-            return Ok(());
+            return Ok(false);
         }
+
+        let auction_duration = self.auction_duration.clone();
+        let auction_start_price = self.auction_start_price.clone();
+        let auction_end_price = self.auction_end_price.clone();
 
         let oracle_price_offset = self.oracle_price_offset.unwrap_or(0);
         let is_oracle_offset_oracle = oracle_price_offset != 0;
         if !is_oracle_offset_oracle && self.price == 0 {
-            return Ok(());
+            return Ok(false);
         }
 
         let auction_start_price_offset =
@@ -94,7 +98,7 @@ impl OrderParams {
 
                     if !crosses {
                         // if auction duration is empty and limit doesnt cross vamm premium, return early
-                        return Ok(());
+                        return Ok(false);
                     } else {
                         let mut new_auction_start_price =
                             new_auction_start_price.min(est_ask as i64);
@@ -136,7 +140,7 @@ impl OrderParams {
 
                     if !crosses {
                         // if auction duration is empty and limit doesnt cross vamm discount, return early
-                        return Ok(());
+                        return Ok(false);
                     } else {
                         let mut new_auction_start_price =
                             new_auction_start_price.max(est_bid as i64);
@@ -244,7 +248,9 @@ impl OrderParams {
             );
         }
 
-        Ok(())
+        Ok(auction_duration != self.auction_duration
+            || auction_start_price != self.auction_start_price
+            || auction_end_price != self.auction_end_price)
     }
 
     pub fn get_auction_start_price_offset(self, oracle_price: i64) -> DriftResult<i64> {
@@ -276,7 +282,11 @@ impl OrderParams {
         perp_market: &PerpMarket,
         oracle_price: i64,
         is_market_order: bool,
-    ) -> DriftResult {
+    ) -> DriftResult<bool> {
+        let auction_duration = self.auction_duration.clone();
+        let auction_start_price = self.auction_start_price.clone();
+        let auction_end_price = self.auction_end_price.clone();
+
         if self.auction_duration.is_none()
             || self.auction_start_price.is_none()
             || self.auction_end_price.is_none()
@@ -318,7 +328,7 @@ impl OrderParams {
                 self.auction_duration.safe_unwrap()?
             );
 
-            return Ok(());
+            return Ok(true);
         }
         // only update auction start price if the contract tier isn't Isolated
         if perp_market.can_sanitize_market_order_auctions() {
@@ -406,7 +416,9 @@ impl OrderParams {
             );
         }
 
-        Ok(())
+        return Ok(auction_duration != self.auction_duration
+            || auction_start_price != self.auction_start_price
+            || auction_end_price != self.auction_end_price);
     }
 
     pub fn derive_market_order_auction_params(
@@ -524,25 +536,24 @@ impl OrderParams {
         &mut self,
         perp_market: &PerpMarket,
         oracle_price: i64,
-    ) -> DriftResult {
+    ) -> DriftResult<bool> {
         #[cfg(feature = "anchor-test")]
-        return Ok(());
+        return Ok(false);
 
-        match self.order_type {
+        let sanitized: bool = match self.order_type {
             OrderType::Limit => {
-                self.update_perp_auction_params_limit_orders(perp_market, oracle_price)?;
+                self.update_perp_auction_params_limit_orders(perp_market, oracle_price)?
             }
-            OrderType::Market | OrderType::Oracle => {
-                self.update_perp_auction_params_market_and_oracle_orders(
+            OrderType::Market | OrderType::Oracle => self
+                .update_perp_auction_params_market_and_oracle_orders(
                     perp_market,
                     oracle_price,
                     self.order_type == OrderType::Market,
-                )?;
-            }
-            _ => {}
-        }
+                )?,
+            _ => false,
+        };
 
-        Ok(())
+        Ok(sanitized)
     }
 
     pub fn get_perp_baseline_start_price_offset(
