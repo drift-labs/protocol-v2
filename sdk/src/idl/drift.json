@@ -12913,6 +12913,11 @@
           "name": "oraclePrice",
           "type": "i64",
           "index": false
+        },
+        {
+          "name": "bitFlags",
+          "type": "u8",
+          "index": false
         }
       ]
     },
