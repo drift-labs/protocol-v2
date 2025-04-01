@@ -174,10 +174,12 @@ impl OrderParams {
             match self.auction_start_price {
                 Some(auction_start_price) => {
                     let improves_long = self.direction == PositionDirection::Long
-                        && new_auction_start_price < auction_start_price;
+                        && new_auction_start_price
+                            < auction_start_price.safe_mul(999)?.safe_div(1000)?;
 
                     let improves_short = self.direction == PositionDirection::Short
-                        && new_auction_start_price > auction_start_price;
+                        && new_auction_start_price
+                            > auction_start_price.safe_mul(1001)?.safe_div(1000)?;
 
                     if improves_long || improves_short {
                         if is_oracle_offset_oracle {
@@ -235,13 +237,17 @@ impl OrderParams {
             oracle_price.unsigned_abs(),
             perp_market.contract_tier,
         )?;
-        self.auction_duration = Some(
-            auction_duration_before
-                .unwrap_or(0)
-                .max(new_auction_duration),
-        );
+        if auction_duration_before
+            .unwrap_or(0)
+            .abs_diff(new_auction_duration)
+            > 10
+        {
+            self.auction_duration = Some(
+                auction_duration_before
+                    .unwrap_or(0)
+                    .max(new_auction_duration),
+            );
 
-        if auction_duration_before != self.auction_duration {
             msg!(
                 "Updating auction duration to {}",
                 self.auction_duration.safe_unwrap()?
@@ -342,7 +348,9 @@ impl OrderParams {
             let current_end_price_offset = self.get_auction_end_price_offset(oracle_price)?;
             match self.direction {
                 PositionDirection::Long => {
-                    if current_start_price_offset > new_start_price_offset {
+                    if current_start_price_offset
+                        > new_start_price_offset.safe_mul(1001)?.safe_div(1000)?
+                    {
                         self.auction_start_price = if !is_market_order {
                             Some(new_start_price_offset)
                         } else {
@@ -354,7 +362,9 @@ impl OrderParams {
                         );
                     }
 
-                    if current_end_price_offset > new_end_price_offset {
+                    if current_end_price_offset
+                        > new_end_price_offset.safe_mul(1001)?.safe_div(1000)?
+                    {
                         self.auction_end_price = if !is_market_order {
                             Some(new_end_price_offset)
                         } else {
@@ -367,7 +377,9 @@ impl OrderParams {
                     }
                 }
                 PositionDirection::Short => {
-                    if current_start_price_offset < new_start_price_offset {
+                    if current_start_price_offset.safe_mul(999)?.safe_div(1000)?
+                        < new_start_price_offset
+                    {
                         self.auction_start_price = if !is_market_order {
                             Some(new_start_price_offset)
                         } else {
@@ -379,7 +391,9 @@ impl OrderParams {
                         );
                     }
 
-                    if current_end_price_offset < new_end_price_offset {
+                    if current_end_price_offset.safe_mul(999)?.safe_div(1000)?
+                        < new_end_price_offset
+                    {
                         self.auction_end_price = if !is_market_order {
                             Some(new_end_price_offset)
                         } else {
@@ -403,13 +417,18 @@ impl OrderParams {
             oracle_price.unsigned_abs(),
             perp_market.contract_tier,
         )?;
-        self.auction_duration = Some(
-            auction_duration_before
-                .unwrap_or(0)
-                .max(new_auction_duration),
-        );
 
-        if auction_duration_before != self.auction_duration {
+        if auction_duration_before
+            .unwrap_or(0)
+            .abs_diff(new_auction_duration)
+            > 10
+        {
+            self.auction_duration = Some(
+                auction_duration_before
+                    .unwrap_or(0)
+                    .max(new_auction_duration),
+            );
+
             msg!(
                 "Updating auction duration to {}",
                 self.auction_duration.safe_unwrap()?
