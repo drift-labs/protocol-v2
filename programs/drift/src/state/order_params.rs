@@ -66,9 +66,9 @@ impl OrderParams {
             return Ok(false);
         }
 
-        let auction_duration = self.auction_duration.clone();
-        let auction_start_price = self.auction_start_price.clone();
-        let auction_end_price = self.auction_end_price.clone();
+        let auction_duration = self.auction_duration;
+        let auction_start_price = self.auction_start_price;
+        let auction_end_price = self.auction_end_price;
 
         let oracle_price_offset = self.oracle_price_offset.unwrap_or(0);
         let is_oracle_offset_oracle = oracle_price_offset != 0;
@@ -404,7 +404,7 @@ impl OrderParams {
                     } else {
                         new_end_price_offset
                     };
-                    if short_start_threshold < new_start_price_offset {
+                    if current_start_price_offset < short_start_threshold {
                         self.auction_start_price = if !is_market_order {
                             Some(new_start_price_offset)
                         } else {
@@ -416,7 +416,7 @@ impl OrderParams {
                         );
                     }
 
-                    if short_end_threshold < new_end_price_offset {
+                    if current_end_price_offset < short_end_threshold {
                         self.auction_end_price = if !is_market_order {
                             Some(new_end_price_offset)
                         } else {
