@@ -175,12 +175,12 @@ impl OrderParams {
             match self.auction_start_price {
                 Some(auction_start_price) => {
                     let threshold_long = if is_signed_msg {
-                        auction_start_price.safe_sub(auction_start_price.abs().safe_div(1000)?)?
+                        auction_start_price.safe_sub(auction_start_price.abs().safe_div(1024)?)?
                     } else {
                         auction_start_price
                     };
                     let threshold_short = if is_signed_msg {
-                        auction_start_price.safe_add(auction_start_price.abs().safe_div(1000)?)?
+                        auction_start_price.safe_add(auction_start_price.abs().safe_div(1024)?)?
                     } else {
                         auction_start_price
                     };
@@ -395,12 +395,12 @@ impl OrderParams {
                 }
                 PositionDirection::Short => {
                     let short_start_threshold = if is_signed_msg {
-                        new_start_price_offset.safe_sub(oracle_price.abs().safe_div(1000)?)?
+                        new_start_price_offset.safe_sub(oracle_price.abs().safe_div(1024)?)?
                     } else {
                         new_start_price_offset
                     };
                     let short_end_threshold = if is_signed_msg {
-                        new_end_price_offset.safe_sub(oracle_price.abs().safe_div(1000)?)?
+                        new_end_price_offset.safe_sub(oracle_price.abs().safe_div(1024)?)?
                     } else {
                         new_end_price_offset
                     };
