@@ -633,10 +633,18 @@ pub struct FuelSeasonRecord {
 }
 
 pub fn emit_stack<T: AnchorSerialize + Discriminator, const N: usize>(event: T) -> DriftResult {
-    let mut data_buf = [0u8; N];
-    let mut out_buf = [0u8; N];
+    #[cfg(not(feature = "drift-rs"))]
+    {
+        let mut data_buf = [0u8; N];
+        let mut out_buf = [0u8; N];
 
-    emit_buffers(event, &mut data_buf[..], &mut out_buf[..])
+        emit_buffers(event, &mut data_buf[..], &mut out_buf[..])
+    }
+    #[cfg(feature = "drift-rs")]
+    // don't emit anything for offchain use
+    {
+        Ok(())
+    }
 }
 
 pub fn emit_buffers<T: AnchorSerialize + Discriminator>(

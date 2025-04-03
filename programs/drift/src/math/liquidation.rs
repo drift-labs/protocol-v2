@@ -13,6 +13,7 @@ use crate::math::safe_math::SafeMath;
 use crate::math::spot_balance::get_token_amount;
 
 use crate::math::spot_swap::calculate_swap_price;
+use crate::msg;
 use crate::state::margin_calculation::MarginContext;
 use crate::state::oracle_map::OracleMap;
 use crate::state::perp_market::PerpMarket;
@@ -24,7 +25,6 @@ use crate::{
     validate, MarketType, OrderParams, PositionDirection, BASE_PRECISION,
     LIQUIDATION_FEE_INCREASE_PER_SLOT,
 };
-use solana_program::msg;
 
 pub const LIQUIDATION_FEE_ADJUST_GRACE_PERIOD_SLOTS: u64 = 1_500; // ~10 minutes
 

@@ -3,8 +3,8 @@ use std::collections::BTreeMap;
 use std::ops::{Deref, DerefMut};
 use std::u64;
 
+use crate::msg;
 use anchor_lang::prelude::*;
-use solana_program::msg;
 
 use crate::controller::funding::settle_funding_payment;
 use crate::controller::lp::burn_lp_shares;
@@ -1668,6 +1668,9 @@ fn get_referrer_info(
         }
 
         if referrer.sub_account_id == 0 {
+            if referrer.pool_id != 0 {
+                return Ok(None);
+            }
             referrer.update_last_active_slot(slot);
             referrer_user_key = *referrer_key;
             break;

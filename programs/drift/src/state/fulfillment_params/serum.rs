@@ -8,6 +8,7 @@ use crate::math::serum::{
     calculate_serum_max_coin_qty, calculate_serum_max_native_pc_quantity,
 };
 use crate::math::spot_withdraw::validate_spot_market_vault_amount;
+use crate::msg;
 use crate::signer::get_signer_seeds;
 use crate::state::events::OrderActionExplanation;
 use crate::state::spot_fulfillment_params::{ExternalSpotFill, SpotFulfillmentParams};
@@ -27,7 +28,6 @@ use serum_dex::matching::{OrderBookState, Side};
 use serum_dex::state::Market;
 use solana_program::account_info::AccountInfo;
 use solana_program::instruction::Instruction;
-use solana_program::msg;
 use std::cell::Ref;
 use std::convert::TryFrom;
 use std::num::NonZeroU64;

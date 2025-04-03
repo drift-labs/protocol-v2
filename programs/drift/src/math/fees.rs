@@ -16,8 +16,8 @@ use crate::math::safe_math::SafeMath;
 use crate::state::state::{FeeStructure, FeeTier, OrderFillerRewardStructure};
 use crate::state::user::{MarketType, UserStats};
 
+use crate::msg;
 use crate::{FEE_ADJUSTMENT_MAX, QUOTE_PRECISION_U64};
-use solana_program::msg;
 
 #[cfg(test)]
 mod tests;

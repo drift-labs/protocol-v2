@@ -22,6 +22,7 @@ use crate::math::spot_balance::{
     get_signed_token_amount, get_strict_token_value, get_token_amount, get_token_value,
 };
 use crate::math::stats::calculate_rolling_sum;
+use crate::msg;
 use crate::state::oracle::StrictOraclePrice;
 use crate::state::perp_market::{ContractType, PerpMarket};
 use crate::state::spot_market::{SpotBalance, SpotBalanceType, SpotMarket};
@@ -32,7 +33,6 @@ use crate::{safe_increment, SPOT_WEIGHT_PRECISION};
 use crate::{validate, MAX_PREDICTION_MARKET_PRICE};
 use anchor_lang::prelude::*;
 use borsh::{BorshDeserialize, BorshSerialize};
-use solana_program::msg;
 use std::cmp::max;
 use std::fmt;
 use std::ops::Neg;

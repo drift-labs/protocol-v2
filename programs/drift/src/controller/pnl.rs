@@ -26,6 +26,7 @@ use crate::math::safe_math::SafeMath;
 use crate::math::spot_balance::get_token_amount;
 use crate::state::margin_calculation::MarginContext;
 
+use crate::msg;
 use crate::state::events::{OrderActionExplanation, SettlePnlExplanation, SettlePnlRecord};
 use crate::state::oracle_map::OracleMap;
 use crate::state::paused_operations::PerpOperation;
@@ -39,7 +40,6 @@ use crate::state::user::{MarketType, User};
 use crate::validate;
 use anchor_lang::prelude::Pubkey;
 use anchor_lang::prelude::*;
-use solana_program::msg;
 use std::ops::DerefMut;
 
 #[cfg(test)]

@@ -1,8 +1,8 @@
 use std::cmp::min;
 
+use crate::msg;
 use anchor_lang::prelude::AccountInfo;
 use anchor_lang::prelude::*;
-use solana_program::msg;
 
 use crate::controller::amm::update_spreads;
 use crate::controller::spot_balance::update_spot_balances;

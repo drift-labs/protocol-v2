@@ -1259,6 +1259,17 @@ export const MainnetPerpMarkets: PerpMarketConfig[] = [
 		oracleSource: OracleSource.PYTH_LAZER,
 		pythLazerId: 182,
 	},
+	{
+		fullName: 'Cardano',
+		category: ['L1'],
+		symbol: 'ADA-PERP',
+		baseAssetSymbol: 'ADA',
+		marketIndex: 72,
+		oracle: new PublicKey('55722FS8VeAxRghz5h2ARJvNjkFiHyzkZ9BF7CEQWN6E'),
+		launchTs: 1743708559000,
+		oracleSource: OracleSource.PYTH_LAZER,
+		pythLazerId: 16,
+	},
 ];
 
 export const PerpMarkets: { [key in DriftEnv]: PerpMarketConfig[] } = {

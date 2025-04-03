@@ -5,6 +5,7 @@ use crate::ids::{
 };
 use crate::math::constants::PRICE_PRECISION_I64;
 use crate::math::oracle::{oracle_validity, OracleValidity};
+use crate::msg;
 use crate::state::oracle::{get_oracle_price, OraclePriceData, OracleSource, PrelaunchOracle};
 use crate::state::state::OracleGuardRails;
 use crate::state::user::MarketType;
@@ -12,7 +13,6 @@ use anchor_lang::prelude::{AccountInfo, Pubkey};
 use anchor_lang::Discriminator;
 use anchor_lang::Key;
 use arrayref::array_ref;
-use solana_program::msg;
 use std::collections::BTreeMap;
 use std::iter::Peekable;
 use std::slice::Iter;

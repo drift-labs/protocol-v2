@@ -280,10 +280,17 @@ pub fn handle_initialize_referrer_name(
         .or(Err(ErrorCode::UnableToLoadAccountLoader))?;
 
     let user = load!(ctx.accounts.user)?;
+
     validate!(
         user.sub_account_id == 0,
         ErrorCode::InvalidReferrer,
         "must be subaccount 0"
+    )?;
+
+    validate!(
+        user.pool_id == 0,
+        ErrorCode::InvalidReferrer,
+        "must be pool_id 0"
     )?;
 
     referrer_name.authority = authority_key;
@@ -4397,18 +4404,15 @@ pub struct TransferPools<'info> {
 pub struct TransferPerpPosition<'info> {
     #[account(
         mut,
-        constraint = can_sign_for_user(&from_user, &authority)?
+        constraint = can_sign_for_user(&from_user, &authority)? && is_stats_for_user(&from_user, &user_stats)?
     )]
     pub from_user: AccountLoader<'info, User>,
     #[account(
         mut,
-        constraint = can_sign_for_user(&to_user, &authority)?
+        constraint = can_sign_for_user(&to_user, &authority)? && is_stats_for_user(&to_user, &user_stats)?
     )]
     pub to_user: AccountLoader<'info, User>,
-    #[account(
-        mut,
-        has_one = authority
-    )]
+    #[account(mut)]
     pub user_stats: AccountLoader<'info, UserStats>,
     pub authority: Signer<'info>,
     pub state: Box<Account<'info, State>>,

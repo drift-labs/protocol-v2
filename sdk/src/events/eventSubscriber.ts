@@ -32,7 +32,7 @@ export class EventSubscriber {
 	private awaitTxPromises = new Map<string, Promise<void>>();
 	private awaitTxResolver = new Map<string, () => void>();
 	private logProvider: LogProvider;
-	private currentProviderType: LogProviderType;
+	private _currentProviderType: LogProviderType;
 	public eventEmitter: StrictEventEmitter<EventEmitter, EventSubscriberEvents>;
 	private lastSeenSlot: number;
 	private lastSeenBlockTime: number | undefined;
@@ -49,14 +49,18 @@ export class EventSubscriber {
 		this.eventListMap = new Map<EventType, EventList<EventType>>();
 		this.eventEmitter = new EventEmitter();
 
-		this.currentProviderType = this.options.logProviderConfig.type;
+		this._currentProviderType = this.options.logProviderConfig.type;
 		this.initializeLogProvider();
+	}
+
+	get currentProviderType() {
+		return this._currentProviderType;
 	}
 
 	private initializeLogProvider(subscribe = false) {
 		const logProviderConfig = this.options.logProviderConfig;
 
-		if (this.currentProviderType === 'websocket') {
+		if (this._currentProviderType === 'websocket') {
 			this.logProvider = new WebSocketLogProvider(
 				// @ts-ignore
 				this.connection,
@@ -66,7 +70,7 @@ export class EventSubscriber {
 					this.options.logProviderConfig as WebSocketLogProviderConfig
 				).resubTimeoutMs
 			);
-		} else if (this.currentProviderType === 'polling') {
+		} else if (this._currentProviderType === 'polling') {
 			const frequency =
 				'frequency' in logProviderConfig
 					? (logProviderConfig as PollingLogProviderConfig).frequency
@@ -84,14 +88,16 @@ export class EventSubscriber {
 				frequency,
 				batchSize
 			);
-		} else if (this.currentProviderType === 'events-server') {
+		} else if (this._currentProviderType === 'events-server') {
 			this.logProvider = new EventsServerLogProvider(
 				(logProviderConfig as EventsServerLogProviderConfig).url,
 				this.options.eventTypes,
 				this.options.address ? this.options.address.toString() : undefined
 			);
 		} else {
-			throw new Error(`Invalid log provider type: ${this.currentProviderType}`);
+			throw new Error(
+				`Invalid log provider type: ${this._currentProviderType}`
+			);
 		}
 
 		if (subscribe) {
@@ -102,7 +108,7 @@ export class EventSubscriber {
 						slot,
 						logs,
 						mostRecentBlockTime,
-						this.currentProviderType === 'events-server',
+						this._currentProviderType === 'events-server',
 						txSigIndex
 					);
 				},
@@ -137,19 +143,19 @@ export class EventSubscriber {
 			return;
 		}
 
-		let nextProviderType = this.currentProviderType;
-		if (this.currentProviderType === 'events-server') {
+		let nextProviderType = this._currentProviderType;
+		if (this._currentProviderType === 'events-server') {
 			nextProviderType = 'websocket';
-		} else if (this.currentProviderType === 'websocket') {
+		} else if (this._currentProviderType === 'websocket') {
 			nextProviderType = 'polling';
-		} else if (this.currentProviderType === 'polling') {
+		} else if (this._currentProviderType === 'polling') {
 			nextProviderType = 'polling';
 		}
 
 		console.log(
-			`EventSubscriber: Failing over providerType ${this.currentProviderType} to ${nextProviderType}`
+			`EventSubscriber: Failing over providerType ${this._currentProviderType} to ${nextProviderType}`
 		);
-		this.currentProviderType = nextProviderType;
+		this._currentProviderType = nextProviderType;
 	}
 
 	public async subscribe(): Promise<boolean> {
@@ -194,7 +200,7 @@ export class EventSubscriber {
 						slot,
 						logs,
 						mostRecentBlockTime,
-						this.currentProviderType === 'events-server',
+						this._currentProviderType === 'events-server',
 						txSigIndex
 					);
 				},
