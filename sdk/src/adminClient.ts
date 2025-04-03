@@ -1164,14 +1164,16 @@ export class AdminClient extends DriftClient {
 		perpMarketIndex: number,
 		updateAmmSummaryStats?: boolean,
 		quoteAssetAmountWithUnsettledLp?: BN,
-		netUnsettledFundingPnl?: BN
+		netUnsettledFundingPnl?: BN,
+		excludeTotalLiqFee?: boolean
 	): Promise<TransactionSignature> {
 		const updatePerpMarketMarginRatioIx =
 			await this.getUpdatePerpMarketAmmSummaryStatsIx(
 				perpMarketIndex,
 				updateAmmSummaryStats,
 				quoteAssetAmountWithUnsettledLp,
-				netUnsettledFundingPnl
+				netUnsettledFundingPnl,
+				excludeTotalLiqFee
 			);
 
 		const tx = await this.buildTransaction(updatePerpMarketMarginRatioIx);
@@ -1185,7 +1187,8 @@ export class AdminClient extends DriftClient {
 		perpMarketIndex: number,
 		updateAmmSummaryStats?: boolean,
 		quoteAssetAmountWithUnsettledLp?: BN,
-		netUnsettledFundingPnl?: BN
+		netUnsettledFundingPnl?: BN,
+		excludeTotalLiqFee?: boolean
 	): Promise<TransactionInstruction> {
 		return await this.program.instruction.updatePerpMarketAmmSummaryStats(
 			{
@@ -1193,6 +1196,7 @@ export class AdminClient extends DriftClient {
 				quoteAssetAmountWithUnsettledLp:
 					quoteAssetAmountWithUnsettledLp ?? null,
 				netUnsettledFundingPnl: netUnsettledFundingPnl ?? null,
+				excludeTotalLiqFee: excludeTotalLiqFee ?? null,
 			},
 			{
 				accounts: {
