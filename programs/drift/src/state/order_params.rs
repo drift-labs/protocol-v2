@@ -60,15 +60,20 @@ impl OrderParams {
         &mut self,
         perp_market: &PerpMarket,
         oracle_price: i64,
-    ) -> DriftResult {
+        is_signed_msg: bool,
+    ) -> DriftResult<bool> {
         if self.post_only != PostOnlyParam::None {
-            return Ok(());
+            return Ok(false);
         }
+
+        let auction_duration = self.auction_duration;
+        let auction_start_price = self.auction_start_price;
+        let auction_end_price = self.auction_end_price;
 
         let oracle_price_offset = self.oracle_price_offset.unwrap_or(0);
         let is_oracle_offset_oracle = oracle_price_offset != 0;
         if !is_oracle_offset_oracle && self.price == 0 {
-            return Ok(());
+            return Ok(false);
         }
 
         let auction_start_price_offset =
@@ -94,7 +99,7 @@ impl OrderParams {
 
                     if !crosses {
                         // if auction duration is empty and limit doesnt cross vamm premium, return early
-                        return Ok(());
+                        return Ok(false);
                     } else {
                         let mut new_auction_start_price =
                             new_auction_start_price.min(est_ask as i64);
@@ -136,7 +141,7 @@ impl OrderParams {
 
                     if !crosses {
                         // if auction duration is empty and limit doesnt cross vamm discount, return early
-                        return Ok(());
+                        return Ok(false);
                     } else {
                         let mut new_auction_start_price =
                             new_auction_start_price.max(est_bid as i64);
@@ -169,11 +174,21 @@ impl OrderParams {
         } else {
             match self.auction_start_price {
                 Some(auction_start_price) => {
+                    let threshold_long = if is_signed_msg {
+                        auction_start_price.safe_sub(auction_start_price.abs().safe_div(1000)?)?
+                    } else {
+                        auction_start_price
+                    };
+                    let threshold_short = if is_signed_msg {
+                        auction_start_price.safe_add(auction_start_price.abs().safe_div(1000)?)?
+                    } else {
+                        auction_start_price
+                    };
                     let improves_long = self.direction == PositionDirection::Long
-                        && new_auction_start_price < auction_start_price;
+                        && new_auction_start_price < threshold_long;
 
                     let improves_short = self.direction == PositionDirection::Short
-                        && new_auction_start_price > auction_start_price;
+                        && new_auction_start_price > threshold_short;
 
                     if improves_long || improves_short {
                         if is_oracle_offset_oracle {
@@ -231,20 +246,27 @@ impl OrderParams {
             oracle_price.unsigned_abs(),
             perp_market.contract_tier,
         )?;
-        self.auction_duration = Some(
-            auction_duration_before
-                .unwrap_or(0)
-                .max(new_auction_duration),
-        );
+        if auction_duration_before
+            .unwrap_or(0)
+            .abs_diff(new_auction_duration)
+            > 10
+            || !is_signed_msg
+        {
+            self.auction_duration = Some(
+                auction_duration_before
+                    .unwrap_or(0)
+                    .max(new_auction_duration),
+            );
 
-        if auction_duration_before != self.auction_duration {
             msg!(
                 "Updating auction duration to {}",
                 self.auction_duration.safe_unwrap()?
             );
         }
 
-        Ok(())
+        Ok(auction_duration != self.auction_duration
+            || auction_start_price != self.auction_start_price
+            || auction_end_price != self.auction_end_price)
     }
 
     pub fn get_auction_start_price_offset(self, oracle_price: i64) -> DriftResult<i64> {
@@ -276,7 +298,12 @@ impl OrderParams {
         perp_market: &PerpMarket,
         oracle_price: i64,
         is_market_order: bool,
-    ) -> DriftResult {
+        is_signed_msg: bool,
+    ) -> DriftResult<bool> {
+        let auction_duration = self.auction_duration;
+        let auction_start_price = self.auction_start_price;
+        let auction_end_price = self.auction_end_price;
+
         if self.auction_duration.is_none()
             || self.auction_start_price.is_none()
             || self.auction_end_price.is_none()
@@ -318,7 +345,7 @@ impl OrderParams {
                 self.auction_duration.safe_unwrap()?
             );
 
-            return Ok(());
+            return Ok(true);
         }
         // only update auction start price if the contract tier isn't Isolated
         if perp_market.can_sanitize_market_order_auctions() {
@@ -332,7 +359,17 @@ impl OrderParams {
             let current_end_price_offset = self.get_auction_end_price_offset(oracle_price)?;
             match self.direction {
                 PositionDirection::Long => {
-                    if current_start_price_offset > new_start_price_offset {
+                    let long_start_threshold = if is_signed_msg {
+                        new_start_price_offset.safe_add(oracle_price.abs().safe_div(1000)?)?
+                    } else {
+                        new_start_price_offset
+                    };
+                    let long_end_threshold = if is_signed_msg {
+                        new_end_price_offset.safe_add(oracle_price.abs().safe_div(1000)?)?
+                    } else {
+                        new_end_price_offset
+                    };
+                    if current_start_price_offset > long_start_threshold {
                         self.auction_start_price = if !is_market_order {
                             Some(new_start_price_offset)
                         } else {
@@ -344,7 +381,7 @@ impl OrderParams {
                         );
                     }
 
-                    if current_end_price_offset > new_end_price_offset {
+                    if current_end_price_offset > long_end_threshold {
                         self.auction_end_price = if !is_market_order {
                             Some(new_end_price_offset)
                         } else {
@@ -357,7 +394,17 @@ impl OrderParams {
                     }
                 }
                 PositionDirection::Short => {
-                    if current_start_price_offset < new_start_price_offset {
+                    let short_start_threshold = if is_signed_msg {
+                        new_start_price_offset.safe_sub(oracle_price.abs().safe_div(1000)?)?
+                    } else {
+                        new_start_price_offset
+                    };
+                    let short_end_threshold = if is_signed_msg {
+                        new_end_price_offset.safe_sub(oracle_price.abs().safe_div(1000)?)?
+                    } else {
+                        new_end_price_offset
+                    };
+                    if current_start_price_offset < short_start_threshold {
                         self.auction_start_price = if !is_market_order {
                             Some(new_start_price_offset)
                         } else {
@@ -369,7 +416,7 @@ impl OrderParams {
                         );
                     }
 
-                    if current_end_price_offset < new_end_price_offset {
+                    if current_end_price_offset < short_end_threshold {
                         self.auction_end_price = if !is_market_order {
                             Some(new_end_price_offset)
                         } else {
@@ -393,20 +440,28 @@ impl OrderParams {
             oracle_price.unsigned_abs(),
             perp_market.contract_tier,
         )?;
-        self.auction_duration = Some(
-            auction_duration_before
-                .unwrap_or(0)
-                .max(new_auction_duration),
-        );
 
-        if auction_duration_before != self.auction_duration {
+        if auction_duration_before
+            .unwrap_or(0)
+            .abs_diff(new_auction_duration)
+            > 10
+            || !is_signed_msg
+        {
+            self.auction_duration = Some(
+                auction_duration_before
+                    .unwrap_or(0)
+                    .max(new_auction_duration),
+            );
+
             msg!(
                 "Updating auction duration to {}",
                 self.auction_duration.safe_unwrap()?
             );
         }
 
-        Ok(())
+        return Ok(auction_duration != self.auction_duration
+            || auction_start_price != self.auction_start_price
+            || auction_end_price != self.auction_end_price);
     }
 
     pub fn derive_market_order_auction_params(
@@ -524,25 +579,28 @@ impl OrderParams {
         &mut self,
         perp_market: &PerpMarket,
         oracle_price: i64,
-    ) -> DriftResult {
+        is_signed_msg: bool,
+    ) -> DriftResult<bool> {
         #[cfg(feature = "anchor-test")]
-        return Ok(());
+        return Ok(false);
 
-        match self.order_type {
-            OrderType::Limit => {
-                self.update_perp_auction_params_limit_orders(perp_market, oracle_price)?;
-            }
-            OrderType::Market | OrderType::Oracle => {
-                self.update_perp_auction_params_market_and_oracle_orders(
+        let sanitized: bool = match self.order_type {
+            OrderType::Limit => self.update_perp_auction_params_limit_orders(
+                perp_market,
+                oracle_price,
+                is_signed_msg,
+            )?,
+            OrderType::Market | OrderType::Oracle => self
+                .update_perp_auction_params_market_and_oracle_orders(
                     perp_market,
                     oracle_price,
                     self.order_type == OrderType::Market,
-                )?;
-            }
-            _ => {}
-        }
+                    is_signed_msg,
+                )?,
+            _ => false,
+        };
 
-        Ok(())
+        Ok(sanitized)
     }
 
     pub fn get_perp_baseline_start_price_offset(

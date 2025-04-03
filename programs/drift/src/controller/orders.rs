@@ -228,8 +228,12 @@ pub fn place_perp_order(
 
     // updates auction params for crossing limit orders w/out auction duration
     // dont modify if it's a liquidation
-    if !options.is_liquidation() && !options.is_signed_msg_order() {
-        params.update_perp_auction_params(market, oracle_price_data.price)?;
+    if !options.is_liquidation() {
+        params.update_perp_auction_params(
+            market,
+            oracle_price_data.price,
+            options.is_signed_msg_order(),
+        )?;
     }
 
     let (auction_start_price, auction_end_price, auction_duration) = get_auction_params(
