@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Features
 
+- program: sanitize signed msg orders with wider thresholds ([#1554](https://github.com/drift-labs/protocol-v2/pull/1554))
+
 ### Fixes
 
 ### Breaking
