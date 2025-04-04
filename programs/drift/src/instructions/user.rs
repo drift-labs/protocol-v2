@@ -3128,6 +3128,31 @@ pub fn handle_update_user_pool_id<'c: 'info, 'info>(
     )?;
 
     let mut user = load_mut!(ctx.accounts.user)?;
+
+    validate!(
+        user.pool_id == 0,
+        ErrorCode::DefaultError,
+        "user must be pool_id 0"
+    )?;
+
+    validate!(
+        user.total_deposits == 0,
+        ErrorCode::DefaultError,
+        "user must be total_deposits 0"
+    )?;
+
+    validate!(
+        user.total_withdraws == 0,
+        ErrorCode::DefaultError,
+        "user must be total_withdraws 0"
+    )?;
+
+    validate!(
+        user.settled_perp_pnl == 0,
+        ErrorCode::DefaultError,
+        "user must be settled_perp_pnl 0"
+    )?;
+
     user.pool_id = pool_id;
 
     // will throw if user has deposits/positions in other pools
