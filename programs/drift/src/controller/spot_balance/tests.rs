@@ -1220,9 +1220,9 @@ fn check_fee_collection_larger_nums() {
 
     let br = calculate_borrow_rate(&spot_market, spot_market.get_utilization().unwrap()).unwrap();
     assert_eq!(br, 20173678);
-    assert_eq!(spot_market.revenue_pool.scaled_balance, 3453792637);
-    assert_eq!(spot_market.cumulative_deposit_interest, 10000310853);
-    assert_eq!(spot_market.cumulative_borrow_interest, 10000639013);
+    assert_eq!(spot_market.revenue_pool.scaled_balance, 3457492406);
+    assert_eq!(spot_market.cumulative_deposit_interest, 10000311188);
+    assert_eq!(spot_market.cumulative_borrow_interest, 10000639702);
     assert_eq!(spot_market.last_interest_ts, 100);
     assert_eq!(spot_market.last_twap_ts, 100);
     assert_eq!(spot_market.utilization_twap, 624);
@@ -1246,9 +1246,9 @@ fn check_fee_collection_larger_nums() {
     )
     .unwrap();
 
-    assert_eq!(deposit_tokens_1, 1000034539199);
-    assert_eq!(borrow_tokens_1, 540544539292);
-    assert_eq!(if_tokens_1, 3453899);
+    assert_eq!(deposit_tokens_1, 1000034576399);
+    assert_eq!(borrow_tokens_1, 540544576533);
+    assert_eq!(if_tokens_1, 3457599);
 
     update_spot_market_cumulative_interest(&mut spot_market, None, now + 7500).unwrap();
 
@@ -1256,9 +1256,9 @@ fn check_fee_collection_larger_nums() {
     assert_eq!(spot_market.last_twap_ts, 7500);
     assert_eq!(spot_market.utilization_twap, 46964);
 
-    assert_eq!(spot_market.cumulative_deposit_interest, 10023315437);
-    assert_eq!(spot_market.cumulative_borrow_interest, 10047929124);
-    assert_eq!(spot_market.revenue_pool.scaled_balance, 258466501362);
+    assert_eq!(spot_market.cumulative_deposit_interest, 10023340555);
+    assert_eq!(spot_market.cumulative_borrow_interest, 10047980763);
+    assert_eq!(spot_market.revenue_pool.scaled_balance, 258744322775);
 
     let deposit_tokens_2 = get_token_amount(
         spot_market.deposit_balance,
@@ -1279,14 +1279,14 @@ fn check_fee_collection_larger_nums() {
     )
     .unwrap();
 
-    assert_eq!(deposit_tokens_2, 1002590612827);
-    assert_eq!(borrow_tokens_2, 543100617082);
-    assert_eq!(if_tokens_2, 259069127);
+    assert_eq!(deposit_tokens_2, 1002593403746);
+    assert_eq!(borrow_tokens_2, 543103408221);
+    assert_eq!(if_tokens_2, 259348246);
 
     //assert >=0
     assert_eq!(
         (borrow_tokens_2 - borrow_tokens_1) - (deposit_tokens_2 - deposit_tokens_1),
-        4162
+        4341
     );
 
     update_spot_market_cumulative_interest(
@@ -1298,9 +1298,11 @@ fn check_fee_collection_larger_nums() {
 
     now = now + 750 + (60 * 60 * 24 * 365);
 
-    assert_eq!(spot_market.cumulative_deposit_interest, 108499120973);
-    assert_eq!(spot_market.cumulative_borrow_interest, 212534286266);
-    assert_eq!(spot_market.revenue_pool.scaled_balance, 101131027949611);
+    assert_eq!(spot_market.get_utilization().unwrap(), 961580);
+
+    assert_eq!(spot_market.cumulative_deposit_interest, 108608729074);
+    assert_eq!(spot_market.cumulative_borrow_interest, 212759822472);
+    assert_eq!(spot_market.revenue_pool.scaled_balance, 101141669831135);
 
     let deposit_tokens_3 = get_token_amount(
         spot_market.deposit_balance,
@@ -1321,24 +1323,24 @@ fn check_fee_collection_larger_nums() {
     )
     .unwrap();
 
-    assert_eq!(deposit_tokens_3, 11947174860862);
-    assert_eq!(borrow_tokens_3, 11487690706964);
-    assert_eq!(if_tokens_3, 1097262763562);
+    assert_eq!(deposit_tokens_3, 11959359729078);
+    assert_eq!(borrow_tokens_3, 11499881164435);
+    assert_eq!(if_tokens_3, 1098486821678);
 
-    assert_eq!((borrow_tokens_3 - borrow_tokens_2), 10944590089882);
-    assert_eq!((deposit_tokens_3 - deposit_tokens_2), 10944584248035);
+    assert_eq!((borrow_tokens_3 - borrow_tokens_2), 10956777756214);
+    assert_eq!((deposit_tokens_3 - deposit_tokens_2), 10956766325332);
 
     // assert >= 0
     assert_eq!(
         (borrow_tokens_3 - borrow_tokens_2) - (deposit_tokens_3 - deposit_tokens_2),
-        5_841_847 //$5.84 missing
+        11430882 //$11.43 missing
     );
 
     let mut if_balance_2 = 0;
 
     // settle IF pool to 100% utilization boundary
     // only half of depositors available claim was settled (to protect vault)
-    assert_eq!(spot_market.revenue_pool.scaled_balance, 101131027949611);
+    assert_eq!(spot_market.revenue_pool.scaled_balance, 101141669831135);
     spot_market.insurance_fund.revenue_settle_period = 1;
     let settle_amount = settle_revenue_to_insurance_fund(
         deposit_tokens_3 as u64,
@@ -1348,15 +1350,15 @@ fn check_fee_collection_larger_nums() {
         true,
     )
     .unwrap();
-    assert_eq!(settle_amount, 229742076750);
+    assert_eq!(settle_amount, 229739282275);
     assert_eq!(spot_market.insurance_fund.user_shares, 0);
     assert_eq!(spot_market.insurance_fund.total_shares, 0);
     if_balance_2 += settle_amount;
-    assert_eq!(if_balance_2, 229742076750);
-    assert_eq!(if_tokens_3 - (settle_amount as u128), 867520686812); // w/ update interest for settle_spot_market_to_if
+    assert_eq!(if_balance_2, 229739282275);
+    assert_eq!(if_tokens_3 - (settle_amount as u128), 868747539403); // w/ update interest for settle_spot_market_to_if
 
-    assert_eq!(spot_market.revenue_pool.scaled_balance, 79964469048169);
-    assert_eq!(spot_market.utilization_twap, 961540);
+    assert_eq!(spot_market.revenue_pool.scaled_balance, 79996002243946);
+    assert_eq!(spot_market.utilization_twap, 961580);
 
     let deposit_tokens_4 = get_token_amount(
         spot_market.deposit_balance,
@@ -1377,8 +1379,8 @@ fn check_fee_collection_larger_nums() {
     )
     .unwrap();
 
-    assert_eq!(deposit_tokens_4 - borrow_tokens_4, 229742076751);
-    assert_eq!(if_tokens_4, 867655809100);
+    assert_eq!(deposit_tokens_4 - borrow_tokens_4, 229739282275);
+    assert_eq!(if_tokens_4, 868870384546);
 }
 
 #[test]

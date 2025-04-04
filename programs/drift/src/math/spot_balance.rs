@@ -203,8 +203,8 @@ pub fn calculate_borrow_rate(spot_market: &SpotMarket, utilization: u128) -> Dri
         let mut prev_util = optimal_util;
 
         let breakpoints = [850_000, 900_000, 950_000, 990_000, 995_000, 1_000_000];
-        let weights = [5, 10, 15, 20, 25, 25]; // As integer percentages, sum = 100
-
+        let weights = [50, 100, 150, 200, 250, 250];
+        let weights_divisor = 1000; // sum of weights
         for (i, &bp) in breakpoints.iter().enumerate() {
             let segment_start = prev_util;
             let segment_end = bp.min(SPOT_UTILIZATION_PRECISION);
@@ -215,14 +215,14 @@ pub fn calculate_borrow_rate(spot_market: &SpotMarket, utilization: u128) -> Dri
                 let partial_util = utilization.safe_sub(segment_start)?;
                 let segment_rate = total_extra_rate
                     .safe_mul(weight)?
-                    .safe_div(100)?
+                    .safe_div(weights_divisor)?
                     .safe_mul(partial_util)?
                     .safe_div(segment_range)?;
                 rate = rate.safe_add(segment_rate)?;
                 return Ok(rate.max(spot_market.get_min_borrow_rate()?.cast()?));
             } else {
                 // Add full segment contribution
-                let segment_rate = total_extra_rate.safe_mul(weight)?.safe_div(100)?;
+                let segment_rate = total_extra_rate.safe_mul(weight)?.safe_div(weights_divisor)?;
                 rate = rate.safe_add(segment_rate)?;
                 prev_util = segment_end;
             }
