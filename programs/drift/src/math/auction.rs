@@ -100,10 +100,7 @@ pub fn calculate_auction_price(
                 is_prediction_market,
             )
         }
-        OrderType::TriggerMarket => {
-            calculate_auction_price_for_fixed_auction(order, slot, tick_size)
-        }
-        OrderType::Market | OrderType::TriggerLimit => {
+        OrderType::Market | OrderType::TriggerMarket | OrderType::TriggerLimit => {
             calculate_auction_price_for_fixed_auction(order, slot, tick_size)
         }
         OrderType::Limit => {
