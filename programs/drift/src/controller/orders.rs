@@ -2959,7 +2959,7 @@ pub fn trigger_order(
             &mut user.orders[order_index],
             oracle_price_data,
             slot,
-            30,
+            10,
             Some(&perp_market),
         )?;
 
@@ -5305,7 +5305,7 @@ pub fn trigger_spot_order(
             &mut user.orders[order_index],
             oracle_price_data,
             slot,
-            30,
+            10,
             None,
         )?;
 
