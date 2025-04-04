@@ -71,7 +71,7 @@ use crate::state::state::FeeStructure;
 use crate::state::state::*;
 use crate::state::traits::Size;
 use crate::state::user::{
-    AssetType, Order, OrderStatus, OrderTriggerCondition, OrderType, UserStats,
+    AssetType, Order, OrderBitFlag, OrderStatus, OrderTriggerCondition, OrderType, UserStats,
 };
 use crate::state::user::{MarketType, User};
 use crate::state::user_map::{UserMap, UserStatsMap};
@@ -1235,17 +1235,9 @@ pub fn fill_perp_order(
         return Ok((0, 0));
     }
 
-    let clock_slot_tail = get_posted_slot_from_clock_slot(slot);
-
     let amm_availability = if amm_is_available {
         if amm_can_skip_duration && user_can_skip_duration {
             AMMAvailability::Immediate
-        } else if !user_can_skip_duration
-            && (clock_slot_tail.wrapping_sub(order_posted_slot_tail)
-                < state.min_perp_auction_duration)
-        {
-            msg!("Overriding amm to unavailable for user atomic fill");
-            AMMAvailability::Unavailable
         } else {
             AMMAvailability::AfterMinDuration
         }
@@ -1671,6 +1663,7 @@ fn get_referrer_info(
             if referrer.pool_id != 0 {
                 return Ok(None);
             }
+
             referrer.update_last_active_slot(slot);
             referrer_user_key = *referrer_key;
             break;
@@ -3064,6 +3057,10 @@ fn update_trigger_order_params(
         }
     };
 
+    if slot.saturating_sub(order.slot) > 150 && order.reduce_only {
+        order.add_bit_flag(OrderBitFlag::SafeTriggerOrder);
+    }
+
     order.slot = slot;
 
     let (auction_duration, auction_start_price, auction_end_price) =
@@ -3084,6 +3081,8 @@ fn update_trigger_order_params(
     order.auction_duration = auction_duration;
     order.auction_start_price = auction_start_price;
     order.auction_end_price = auction_end_price;
+
+    order.add_bit_flag(OrderBitFlag::OracleTriggerMarket);
 
     Ok(())
 }
