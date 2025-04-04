@@ -180,7 +180,7 @@ pub fn validate_perp_market(market: &PerpMarket) -> DriftResult {
         validate!(
             market.amm.terminal_quote_asset_reserve <= market.amm.quote_asset_reserve,
             ErrorCode::InvalidAmmDetected,
-            "market {} terminal_quote_asset_reserve out of wack"
+            "market {} terminal_quote_asset_reserve out of wack",
             market.market_index,
         )?;
     } else if market.amm.base_asset_amount_with_amm < 0 {
