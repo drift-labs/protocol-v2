@@ -951,7 +951,6 @@ pub fn fill_perp_order(
         order_oracle_price_offset,
         order_direction,
         order_auction_duration,
-        order_posted_slot_tail,
     ) = get_struct_values!(
         user.orders[order_index],
         status,
@@ -960,8 +959,7 @@ pub fn fill_perp_order(
         price,
         oracle_price_offset,
         direction,
-        auction_duration,
-        posted_slot_tail
+        auction_duration
     );
 
     validate!(
