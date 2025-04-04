@@ -13,7 +13,6 @@ use solana_program::instruction::Instruction;
 use solana_program::program_memory::sol_memcmp;
 use solana_program::sysvar;
 use std::convert::TryInto;
-use std::f32::consts::E;
 
 const ED25519_PROGRAM_INPUT_HEADER_LEN: usize = 2;
 
