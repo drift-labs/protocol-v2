@@ -514,7 +514,7 @@ impl SpotMarket {
     }
 
     pub fn is_healthy_utilization(self) -> DriftResult<bool> {
-        let unhealthy_utilization = 800000; // 80%
+        let unhealthy_utilization = 900000; // 90%
         let utilization: u64 = self.get_utilization()?.cast()?;
         Ok(self.utilization_twap <= unhealthy_utilization && utilization <= unhealthy_utilization)
     }
