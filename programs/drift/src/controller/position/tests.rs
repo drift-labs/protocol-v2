@@ -702,6 +702,8 @@ fn amm_perp_ref_offset() {
     assert_eq!(r, 7101599);
     assert_eq!(perp_market.amm.bid_base_asset_reserve, 4633657972174584);
     assert_eq!(perp_market.amm.ask_base_asset_reserve, 4631420570932586);
+
+    crate::validation::perp_market::validate_perp_market(&perp_market).unwrap();
 }
 
 #[test]
