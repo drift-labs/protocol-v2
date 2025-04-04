@@ -86,17 +86,17 @@ fn amm_pool_balance_liq_fees_example() {
     let perp_market_loader: AccountLoader<PerpMarket> =
         AccountLoader::try_from(&perp_market_account_info).unwrap();
 
-    let perp_market_map = PerpMarketMap::load_one(&perp_market_account_info, true).unwrap();
+    let _perp_market_map = PerpMarketMap::load_one(&perp_market_account_info, true).unwrap();
 
     let now = 1725948560;
     let clock_slot = 326319440;
-    let clock = Clock {
-        unix_timestamp: now,
-        slot: clock_slot,
-        ..Clock::default()
-    };
+    // let clock = Clock {
+    //     unix_timestamp: now,
+    //     slot: clock_slot,
+    //     ..Clock::default()
+    // };
 
-    let mut state = State::default();
+    let state = State::default();
 
     let mut prelaunch_oracle_price = PrelaunchOracle {
         price: PRICE_PRECISION_I64,
@@ -112,7 +112,7 @@ fn amm_pool_balance_liq_fees_example() {
         PrelaunchOracle,
         oracle_account_info
     );
-    let mut oracle_map = OracleMap::load_one(&oracle_account_info, clock_slot, None).unwrap();
+    let oracle_map = OracleMap::load_one(&oracle_account_info, clock_slot, None).unwrap();
 
     let mut spot_market = SpotMarket {
         cumulative_deposit_interest: 11425141382,
@@ -639,11 +639,11 @@ fn amm_perp_ref_offset() {
 
     let signed_liquidity_ratio = liquidity_ratio
         .checked_mul(
-            (perp_market
+            perp_market
                 .amm
                 .get_protocol_owned_position()
                 .unwrap()
-                .signum() as i128),
+                .signum() as i128,
         )
         .unwrap();
 
@@ -677,7 +677,7 @@ fn amm_perp_ref_offset() {
         delay: 1,
         has_sufficient_number_of_data_points: true,
     };
-    let cost = _update_amm(
+    let _cost = _update_amm(
         &mut perp_market,
         &oracle_price_data,
         &state,

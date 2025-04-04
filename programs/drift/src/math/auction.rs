@@ -6,6 +6,7 @@ use crate::math::orders::standardize_price;
 use crate::math::safe_math::SafeMath;
 use crate::msg;
 use crate::state::oracle::OraclePriceData;
+use crate::state::perp_market::ContractTier;
 use crate::state::user::{Order, OrderType};
 
 use crate::state::fill_mode::FillMode;
@@ -255,7 +256,10 @@ pub fn calculate_auction_params_for_trigger_order(
 
     if let Some(perp_market) = perp_market {
         // negative buffer is crossing
-        let auction_start_buffer = if contract_tier.is_as_safe_as_contract(&ContractTier::B) {
+        let auction_start_buffer = if perp_market
+            .contract_tier
+            .is_as_safe_as_contract(&ContractTier::B)
+        {
             -500
         } else {
             -3_500
