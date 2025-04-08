@@ -28,11 +28,19 @@ pub struct LPPool {
 
     /// AUM of the vault in USD, updated lazily
     pub last_aum: u64,
+
+    /// timestamp of last AUM slot
+    pub last_aum_slot: u64,
     /// timestamp of last AUM update
     pub last_aum_ts: u64,
 
     /// timestamp of last vAMM revenue rebalance
     pub last_revenue_rebalance_ts: u64,
+
+    /// all revenue settles recieved
+    pub total_fees_received: u128,
+    /// all revenues paid out
+    pub total_fees_paid: u128,
 }
 
 #[zero_copy(unsafe)]

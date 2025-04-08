@@ -56,7 +56,7 @@ pub struct SpotMarket {
     /// Covers bankruptcies for borrows with this markets token and perps settling in this markets token
     pub insurance_fund: InsuranceFund,
     /// The total spot fees collected for this market
-    /// precision: QUOTE_PRECISIONPoolBalance
+    /// precision: QUOTE_PRECISION
     pub total_spot_fee: u128,
     /// The sum of the scaled balances for deposits across users and pool balances
     /// To convert to the deposit token amount, multiply by the cumulative deposit interest
