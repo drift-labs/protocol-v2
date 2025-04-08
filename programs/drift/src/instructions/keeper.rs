@@ -40,7 +40,7 @@ use crate::state::fulfillment_params::serum::SerumFulfillmentParams;
 use crate::state::high_leverage_mode_config::HighLeverageModeConfig;
 use crate::state::insurance_fund_stake::InsuranceFundStake;
 use crate::state::oracle_map::OracleMap;
-use crate::state::order_params::{OrderParams, PlaceOrderOptions, SignedMsgOrderParamsMessage};
+use crate::state::order_params::{OrderParams, PlaceOrderOptions};
 use crate::state::paused_operations::{PerpOperation, SpotOperation};
 use crate::state::perp_market::{ContractType, MarketStatus, PerpMarket};
 use crate::state::perp_market_map::{

@@ -10,8 +10,7 @@ use crate::math::constants::{
 use crate::math::lp::{calculate_lp_open_bids_asks, calculate_settle_lp_metrics};
 use crate::math::margin::MarginRequirementType;
 use crate::math::orders::{
-    apply_protected_maker_limit_price_offset, set_is_signed_msg_flag,
-    standardize_base_asset_amount, standardize_price, FLAG_IS_SIGNED_MSG,
+    apply_protected_maker_limit_price_offset, standardize_base_asset_amount, standardize_price,
 };
 use crate::math::position::{
     calculate_base_asset_value_and_pnl_with_oracle_price,
@@ -1602,13 +1601,16 @@ impl Order {
         Ok(self.post_only || self.is_auction_complete(slot)?)
     }
 
-    // Bit flags here
-    pub fn set_signed_msg(&mut self, value: bool) {
-        self.bit_flags = set_is_signed_msg_flag(self.bit_flags, value)
+    pub fn is_signed_msg(&self) -> bool {
+        self.is_bit_flag_set(OrderBitFlag::SignedMessage)
     }
 
-    pub fn is_signed_msg(&self) -> bool {
-        (self.bit_flags & FLAG_IS_SIGNED_MSG) != 0
+    pub fn add_bit_flag(&mut self, flag: OrderBitFlag) {
+        self.bit_flags |= flag as u8;
+    }
+
+    pub fn is_bit_flag_set(&self, flag: OrderBitFlag) -> bool {
+        (self.bit_flags & flag as u8) != 0
     }
 
     pub fn is_available(&self) -> bool {
@@ -1695,6 +1697,13 @@ impl fmt::Display for MarketType {
             MarketType::Perp => write!(f, "Perp"),
         }
     }
+}
+
+#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Debug, Eq)]
+pub enum OrderBitFlag {
+    SignedMessage = 0b00000001,
+    OracleTriggerMarket = 0b00000010,
+    SafeTriggerOrder = 0b00000100,
 }
 
 #[account(zero_copy(unsafe))]
