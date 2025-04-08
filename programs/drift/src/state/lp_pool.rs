@@ -1,9 +1,9 @@
 use crate::error::{DriftResult, ErrorCode};
+use crate::math::casting::Cast;
+use crate::math::safe_math::SafeMath;
 use crate::state::oracle::OracleSource;
 use crate::state::spot_market::{SpotBalance, SpotBalanceType, SpotMarket};
 use anchor_lang::prelude::*;
-use crate::math::safe_math::SafeMath;
-use crate::math::casting::Cast;
 
 pub struct LPPool {
     /// name of vault, TODO: check type + size
