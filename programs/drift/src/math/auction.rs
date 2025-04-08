@@ -6,8 +6,8 @@ use crate::math::orders::standardize_price;
 use crate::math::safe_math::SafeMath;
 use crate::msg;
 use crate::state::oracle::OraclePriceData;
-use crate::state::user::{Order, OrderBitFlag, OrderType};
 use crate::state::perp_market::ContractTier;
+use crate::state::user::{Order, OrderBitFlag, OrderType};
 
 use crate::state::fill_mode::FillMode;
 use crate::state::perp_market::{AMMAvailability, PerpMarket};
