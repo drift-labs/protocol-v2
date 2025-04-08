@@ -31,7 +31,7 @@ export class SignedMsgUserOrdersAccountSubscriber {
 		name: string,
 		data: Buffer
 	) => SignedMsgUserOrdersAccount;
-	protected signedMsgUserOrderAccounts = new Map<
+	public signedMsgUserOrderAccounts = new Map<
 		string,
 		{ slot: number; signedMsgUserOrdersAccount: SignedMsgUserOrdersAccount }
 	>();
