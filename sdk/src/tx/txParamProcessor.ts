@@ -33,15 +33,20 @@ export class TransactionParamProcessor {
 		tx: VersionedTransaction,
 		connection: Connection,
 		bufferMultiplier: number, // Making this a mandatory param to force the user to remember that simulated CU's can be inaccurate and a buffer should be applied
-		lowerBoundCu?: number
+		lowerBoundCu?: number,
+		simulatedTx?: SimulatedTransactionResponse
 	): Promise<{ success: boolean; computeUnits: number }> {
 		try {
 			if (TEST_SIMS_ALWAYS_FAIL)
 				throw new Error('Test Error::SIMS_ALWAYS_FAIL');
 
-			const simTxResult = await connection.simulateTransaction(tx, {
-				replaceRecentBlockhash: true, // This is important to ensure that the blockhash is not too new.. Otherwise we will very often receive a "blockHashNotFound" error
-			});
+			const simTxResult = simulatedTx
+				? ({
+						value: simulatedTx,
+				  } as RpcResponseAndContext<SimulatedTransactionResponse>)
+				: await connection.simulateTransaction(tx, {
+						replaceRecentBlockhash: true, // This is important to ensure that the blockhash is not too new.. Otherwise we will very often receive a "blockHashNotFound" error
+				  });
 
 			if (simTxResult?.value?.err) {
 				throw new Error(simTxResult?.value?.err?.toString());
@@ -84,6 +89,7 @@ export class TransactionParamProcessor {
 		processConfig: ProcessingTxParams;
 		processParams: {
 			connection: Connection;
+			simulatedTx?: SimulatedTransactionResponse;
 		};
 		txBuilder: (
 			baseTransactionProps: TransactionBuildingProps
@@ -115,7 +121,9 @@ export class TransactionParamProcessor {
 				txToSim,
 				processProps.connection,
 				processConfig?.computeUnitsBufferMultiplier ??
-					COMPUTE_UNIT_BUFFER_FACTOR
+					COMPUTE_UNIT_BUFFER_FACTOR,
+				undefined,
+				processProps.simulatedTx
 			);
 
 			if (txSimComputeUnitsResult.success) {

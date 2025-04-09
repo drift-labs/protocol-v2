@@ -5,7 +5,7 @@ import {
 	VersionedTransaction,
 } from '@solana/web3.js';
 
-const MAX_SIZE = 1232;
+export const MAX_TX_BYTE_SIZE = 1232;
 
 export const isVersionedTransaction = (
 	tx: Transaction | VersionedTransaction
@@ -85,39 +85,6 @@ export const getSizeOfTransaction = (
 		(versionedTransaction && addressLookupTables.length > 0 ? 2 : 0) +
 		numberOfAddressLookups
 	);
-};
-
-export const getCombinedInstructions = (
-	baseInstructions: TransactionInstruction[],
-	optionalInstructions: TransactionInstruction[] = [],
-	versionedTransaction = true,
-	addressLookupTables: AddressLookupTableAccount[] = []
-): TransactionInstruction[] => {
-	if (optionalInstructions.length === 0) {
-		return baseInstructions;
-	}
-
-	let allInstructions = [...optionalInstructions, ...baseInstructions];
-
-	let txSize = getSizeOfTransaction(
-		allInstructions,
-		versionedTransaction,
-		addressLookupTables
-	);
-
-	while (
-		txSize > MAX_SIZE &&
-		allInstructions.length > baseInstructions.length
-	) {
-		allInstructions = allInstructions.slice(1);
-		txSize = getSizeOfTransaction(
-			allInstructions,
-			versionedTransaction,
-			addressLookupTables
-		);
-	}
-
-	return allInstructions;
 };
 
 function getSizeOfCompressedU16(n: number) {

@@ -7291,7 +7291,8 @@ export class DriftClient {
 		settleeUserAccount: UserAccount,
 		marketIndexes: number[],
 		mode: SettlePnlMode,
-		txParams?: TxParams
+		txParams?: TxParams,
+		optionalIxs?: TransactionInstruction[]
 	): Promise<TransactionSignature[]> {
 		// need multiple TXs because settling more than 4 markets won't fit in a single TX
 		const txsToSign: (Transaction | VersionedTransaction)[] = [];
@@ -7311,7 +7312,7 @@ export class DriftClient {
 			const tx = await this.buildTransaction(ix, {
 				...txParams,
 				computeUnits,
-			});
+			}, undefined, undefined, undefined, undefined, optionalIxs);
 			txsToSign.push(tx);
 		}
 
