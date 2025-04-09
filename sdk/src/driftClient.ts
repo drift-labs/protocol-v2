@@ -7309,10 +7309,18 @@ export class DriftClient {
 				mode
 			);
 			const computeUnits = Math.min(300_000 * marketIndexes.length, 1_400_000);
-			const tx = await this.buildTransaction(ix, {
-				...txParams,
-				computeUnits,
-			}, undefined, undefined, undefined, undefined, optionalIxs);
+			const tx = await this.buildTransaction(
+				ix,
+				{
+					...txParams,
+					computeUnits,
+				},
+				undefined,
+				undefined,
+				undefined,
+				undefined,
+				optionalIxs
+			);
 			txsToSign.push(tx);
 		}
 
