@@ -9359,6 +9359,7 @@ export class DriftClient {
 		return pullIxs;
 	}
 
+	// @deprecated use getPostManySwitchboardOnDemandUpdatesAtomicIxs instead. This function no longer returns the required ixs due to upstream sdk changes.
 	public async getPostSwitchboardOnDemandUpdateAtomicIx(
 		feed: PublicKey,
 		recentSlothash?: Slothash,

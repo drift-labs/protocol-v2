@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- sdk: deprecate getPostSwitchboardOnDemandUpdateAtomicIx ([#1567](https://github.com/drift-labs/protocol-v2/pull/1567))
+
 ### Features
 
 - program: maker trigger market oracle offset and fill with amm faster ([#1564](https://github.com/drift-labs/protocol-v2/pull/1564))
