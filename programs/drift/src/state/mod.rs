@@ -5,6 +5,7 @@ pub mod fulfillment_params;
 pub mod high_leverage_mode_config;
 pub mod insurance_fund_stake;
 pub mod load_ref;
+pub mod lp_pool;
 pub mod margin_calculation;
 pub mod oracle;
 pub mod oracle_map;
