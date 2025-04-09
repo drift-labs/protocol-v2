@@ -1,9 +1,13 @@
 use crate::error::{DriftResult, ErrorCode};
 use crate::math::casting::Cast;
+use crate::math::constants::PERCENTAGE_PRECISION_U64;
 use crate::math::safe_math::SafeMath;
 use crate::state::oracle::OracleSource;
 use crate::state::spot_market::{SpotBalance, SpotBalanceType, SpotMarket};
 use anchor_lang::prelude::*;
+
+#[cfg(test)]
+mod tests;
 
 pub struct LPPool {
     /// name of vault, TODO: check type + size
@@ -141,7 +145,6 @@ pub struct AmmConstituentMapping {
     // columns in the matrix (VaultConstituents, spot markets)
     pub num_cols: u16,
     // flattened matrix elements, PERCENTAGE_PRECISION. Keep at the end of the account to allow expansion with new constituents.
-    // Apr 8: z: can make data vec<NewType> instead to store the age of each entry
     pub data: Vec<WeightDatum>,
 }
 
@@ -151,8 +154,67 @@ pub struct ConstituentTargetWeights {
     // columns in the matrix (0th is the weight, 1st is the last time the weight was updated)
     pub num_cols: u16,
     // ts of the oldest weight in data, for swaps to reference without traversing matrix
-    // Apr 8: z: can make data vec<NewType> instead to store the age of each entry
     pub oldest_weight_ts: u64,
     // PERCENTAGE_PRECISION. The weights of the target weight matrix. Updated async
     pub data: Vec<WeightDatum>,
+}
+
+impl Default for ConstituentTargetWeights {
+    fn default() -> Self {
+        ConstituentTargetWeights {
+            num_rows: 0,
+            num_cols: 0,
+            oldest_weight_ts: 0,
+            data: Vec::with_capacity(0),
+        }
+    }
+}
+
+impl ConstituentTargetWeights {
+    /// Update target weights based on amm_inventory and mapping
+    pub fn update_target_weights(
+        &mut self,
+        mapping: &AmmConstituentMapping,
+        amm_inventory: &[u64], // length = mapping.num_rows
+        constituents: &[Constituent],
+        prices: &[u64], // same order as constituents
+        aum: u64,
+        slot: u64,
+    ) -> DriftResult<()> {
+        // assert_ne!(aum, 0);
+        assert_eq!(constituents.len(), mapping.num_cols as usize);
+        assert_eq!(amm_inventory.len(), mapping.num_rows as usize);
+        assert_eq!(prices.len(), constituents.len());
+
+        self.data.clear();
+        self.num_rows = constituents.len() as u16;
+        self.num_cols = 2;
+        self.oldest_weight_ts = slot;
+
+        for (constituent_index, constituent) in constituents.iter().enumerate() {
+            let mut target_amount = 0u128;
+
+            for (row_index, &inventory) in amm_inventory.iter().enumerate() {
+                let idx = row_index * mapping.num_cols as usize + constituent_index;
+                let weight = mapping.data[idx].data as u128; // PERCENTAGE_PRECISION
+
+                target_amount += inventory as u128 * weight / PERCENTAGE_PRECISION_U64 as u128;
+            }
+
+            let price = prices[constituent_index] as u128;
+            let target_weight = target_amount
+                .saturating_mul(price)
+                .saturating_div(aum.max(1) as u128);
+
+            // PERCENTAGE_PRECISION capped
+            let weight_datum = (target_weight as u64).min(PERCENTAGE_PRECISION_U64);
+
+            self.data.push(WeightDatum {
+                data: weight_datum,
+                last_slot: slot,
+            });
+        }
+
+        Ok(())
+    }
 }
