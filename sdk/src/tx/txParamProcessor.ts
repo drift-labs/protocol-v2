@@ -49,7 +49,7 @@ export class TransactionParamProcessor {
 				  });
 
 			if (simTxResult?.value?.err) {
-				throw new Error(simTxResult?.value?.err?.toString());
+				throw simTxResult?.value?.err;
 			}
 
 			const computeUnits = await this.getComputeUnitsFromSim(simTxResult);
