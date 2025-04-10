@@ -506,6 +506,15 @@ impl OrderParams {
             } else {
                 auction_start_price = auction_start_price.safe_add(start_buffer_price)?;
             }
+
+            // also apply to end_price if more aggressive
+            if start_buffer < 0 {
+                if direction == PositionDirection::Long {
+                    auction_end_price = auction_end_price.safe_sub(start_buffer_price)?;
+                } else {
+                    auction_end_price = auction_end_price.safe_add(start_buffer_price)?;
+                }
+            }
         }
 
         if perp_market.is_prediction_market() {
@@ -531,7 +540,7 @@ impl OrderParams {
         oracle_price_offset: Option<i32>,
         start_buffer: i64,
     ) -> DriftResult<(i64, i64, u8)> {
-        let (mut auction_start_price, auction_end_price) = if let Some(oracle_price_offset) =
+        let (mut auction_start_price, mut auction_end_price) = if let Some(oracle_price_offset) =
             oracle_price_offset
         {
             let mut auction_start_price_offset =
@@ -561,6 +570,15 @@ impl OrderParams {
                 auction_start_price = auction_start_price.safe_sub(start_buffer_price)?;
             } else {
                 auction_start_price = auction_start_price.safe_add(start_buffer_price)?;
+            }
+
+            // also apply to end_price if more aggressive
+            if start_buffer < 0 {
+                if direction == PositionDirection::Long {
+                    auction_end_price = auction_end_price.safe_sub(start_buffer_price)?;
+                } else {
+                    auction_end_price = auction_end_price.safe_add(start_buffer_price)?;
+                }
             }
         }
 
