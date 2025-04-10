@@ -12158,6 +12158,23 @@
       }
     },
     {
+      "name": "OrderBitFlag",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "SignedMessage"
+          },
+          {
+            "name": "OracleTriggerMarket"
+          },
+          {
+            "name": "SafeTriggerOrder"
+          }
+        ]
+      }
+    },
+    {
       "name": "ReferrerStatus",
       "type": {
         "kind": "enum",

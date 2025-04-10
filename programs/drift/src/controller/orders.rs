@@ -3080,7 +3080,9 @@ fn update_trigger_order_params(
     order.auction_start_price = auction_start_price;
     order.auction_end_price = auction_end_price;
 
-    order.add_bit_flag(OrderBitFlag::OracleTriggerMarket);
+    if matches!(order.order_type, OrderType::TriggerMarket) {
+        order.add_bit_flag(OrderBitFlag::OracleTriggerMarket);
+    }
 
     Ok(())
 }
