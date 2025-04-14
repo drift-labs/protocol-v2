@@ -1270,6 +1270,17 @@ export const MainnetPerpMarkets: PerpMarketConfig[] = [
 		oracleSource: OracleSource.PYTH_LAZER,
 		pythLazerId: 16,
 	},
+	{
+		fullName: 'Pax Gold',
+		category: ['RWA'],
+		symbol: 'PAXG-PERP',
+		baseAssetSymbol: 'PAXG',
+		marketIndex: 73,
+		oracle: new PublicKey('8FauFNbX2gvjkPLH8w2kntXCcSGCwZL2prZjHBpvq6aE'),
+		launchTs: 1744402932000,
+		oracleSource: OracleSource.PYTH_LAZER,
+		pythLazerId: 163,
+	},
 ];
 
 export const PerpMarkets: { [key in DriftEnv]: PerpMarketConfig[] } = {
