@@ -3962,7 +3962,7 @@ pub fn handle_update_perp_market_protected_maker_params(
 
     if let Some(protected_maker_limit_price_divisor) = protected_maker_limit_price_divisor {
         msg!(
-            "perp_market.fuel_boost_taker: {:?} -> {:?}",
+            "perp_market.protected_maker_limit_price_divisor: {:?} -> {:?}",
             perp_market.protected_maker_limit_price_divisor,
             protected_maker_limit_price_divisor
         );
