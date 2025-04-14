@@ -3858,6 +3858,51 @@ export class AdminClient extends DriftClient {
 		);
 	}
 
+	public async updatePerpMarketProtectedMakerParams(
+		perpMarketIndex: number,
+		protectedMakerLimitPriceDivisor?: number,
+		protectedMakerDynamicDivisor?: number
+	): Promise<TransactionSignature> {
+		const updatePerpMarketProtectedMakerParamsIx =
+			await this.getUpdatePerpMarketProtectedMakerParamsIx(
+				perpMarketIndex,
+				protectedMakerLimitPriceDivisor || null,
+				protectedMakerDynamicDivisor || null
+			);
+
+		const tx = await this.buildTransaction(
+			updatePerpMarketProtectedMakerParamsIx
+		);
+		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+
+		return txSig;
+	}
+
+	public async getUpdatePerpMarketProtectedMakerParamsIx(
+		perpMarketIndex: number,
+		protectedMakerLimitPriceDivisor?: number,
+		protectedMakerDynamicDivisor?: number
+	): Promise<TransactionInstruction> {
+		const perpMarketPublicKey = await getPerpMarketPublicKey(
+			this.program.programId,
+			perpMarketIndex
+		);
+
+		return await this.program.instruction.updatePerpMarketProtectedMakerParams(
+			protectedMakerLimitPriceDivisor || null,
+			protectedMakerDynamicDivisor || null,
+			{
+				accounts: {
+					admin: this.isSubscribed
+						? this.getStateAccount().admin
+						: this.wallet.publicKey,
+					state: await this.getStatePublicKey(),
+					perpMarket: perpMarketPublicKey,
+				},
+			}
+		);
+	}
+
 	public async initUserFuel(
 		user: PublicKey,
 		authority: PublicKey,
