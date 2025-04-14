@@ -112,6 +112,8 @@ use anchor_spl::associated_token::AssociatedToken;
 use borsh::{BorshDeserialize, BorshSerialize};
 use solana_program::sysvar::instructions::ID as IX_ID;
 
+use super::optional_accounts::get_high_leverage_mode_config;
+
 pub fn handle_initialize_user<'c: 'info, 'info>(
     ctx: Context<'_, '_, 'c, 'info, InitializeUser<'info>>,
     sub_account_id: u16,
@@ -1869,6 +1871,8 @@ pub fn handle_place_perp_order<'c: 'info, 'info>(
         Some(state.oracle_guard_rails),
     )?;
 
+    let high_leverage_mode_config = get_high_leverage_mode_config(&mut ctx.remaining_accounts.iter().peekable())?;
+
     if params.is_immediate_or_cancel() {
         msg!("immediate_or_cancel order must be in place_and_make or place_and_take");
         return Err(print_error!(ErrorCode::InvalidOrderIOC)().into());
@@ -1884,6 +1888,7 @@ pub fn handle_place_perp_order<'c: 'info, 'info>(
         &perp_market_map,
         &spot_market_map,
         &mut oracle_map,
+        &high_leverage_mode_config,
         clock,
         params,
         PlaceOrderOptions::default(),
@@ -2147,6 +2152,8 @@ pub fn handle_place_orders<'c: 'info, 'info>(
         Some(state.oracle_guard_rails),
     )?;
 
+    let high_leverage_mode_config = get_high_leverage_mode_config(&mut ctx.remaining_accounts.iter().peekable())?;
+
     validate!(
         params.len() <= 32,
         ErrorCode::DefaultError,
@@ -2182,6 +2189,7 @@ pub fn handle_place_orders<'c: 'info, 'info>(
                 &perp_market_map,
                 &spot_market_map,
                 &mut oracle_map,
+                &high_leverage_mode_config,
                 clock,
                 *params,
                 options,
@@ -2228,6 +2236,8 @@ pub fn handle_place_and_take_perp_order<'c: 'info, 'info>(
         Some(state.oracle_guard_rails),
     )?;
 
+    let high_leverage_mode_config = get_high_leverage_mode_config(&mut ctx.remaining_accounts.iter().peekable())?;
+
     if params.post_only != PostOnlyParam::None {
         msg!("post_only cant be used in place_and_take");
         return Err(print_error!(ErrorCode::InvalidOrderPostOnly)().into());
@@ -2259,6 +2269,7 @@ pub fn handle_place_and_take_perp_order<'c: 'info, 'info>(
         &perp_market_map,
         &spot_market_map,
         &mut oracle_map,
+        &high_leverage_mode_config,
         &clock,
         params,
         PlaceOrderOptions::default(),
@@ -2372,6 +2383,7 @@ pub fn handle_place_and_make_perp_order<'c: 'info, 'info>(
         &perp_market_map,
         &spot_market_map,
         &mut oracle_map,
+        &None,
         clock,
         params,
         PlaceOrderOptions::default(),
@@ -2446,6 +2458,8 @@ pub fn handle_place_and_make_signed_msg_perp_order<'c: 'info, 'info>(
         Some(state.oracle_guard_rails),
     )?;
 
+    let high_leverage_mode_config = get_high_leverage_mode_config(&mut ctx.remaining_accounts.iter().peekable())?;
+
     if !params.is_immediate_or_cancel()
         || params.post_only == PostOnlyParam::None
         || params.order_type != OrderType::Limit
@@ -2472,6 +2486,7 @@ pub fn handle_place_and_make_signed_msg_perp_order<'c: 'info, 'info>(
         &perp_market_map,
         &spot_market_map,
         &mut oracle_map,
+        &high_leverage_mode_config,
         clock,
         params,
         PlaceOrderOptions::default(),
@@ -3359,19 +3374,9 @@ pub fn handle_enable_user_high_leverage_mode<'c: 'info, 'info>(
         &mut oracle_map,
     )?;
 
-    user.margin_mode = MarginMode::HighLeverage;
-
     let mut config = load_mut!(ctx.accounts.high_leverage_mode_config)?;
 
-    validate!(
-        !config.is_reduce_only(),
-        ErrorCode::DefaultError,
-        "high leverage mode config reduce only"
-    )?;
-
-    config.current_users = config.current_users.safe_add(1)?;
-
-    config.validate()?;
+    config.update_user(&mut user)?;
 
     Ok(())
 }

@@ -41,6 +41,7 @@ pub struct OrderParams {
 #[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Debug, Eq)]
 pub enum OrderParamsBitFlag {
     ImmediateOrCancel = 0b00000001,
+    UpdateHighLeverageMode = 0b00000010,
 }
 
 impl OrderParams {
@@ -805,6 +806,10 @@ impl OrderParams {
 
     pub fn is_immediate_or_cancel(&self) -> bool {
         self.bit_flags & OrderParamsBitFlag::ImmediateOrCancel as u8 != 0
+    }
+
+    pub fn is_update_high_leverage_mode(&self) -> bool {
+        self.bit_flags & OrderParamsBitFlag::UpdateHighLeverageMode as u8 != 0
     }
 }
 

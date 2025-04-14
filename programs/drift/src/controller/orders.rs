@@ -4,6 +4,7 @@ use std::ops::{Deref, DerefMut};
 use std::u64;
 
 use crate::msg;
+use crate::state::high_leverage_mode_config::HighLeverageModeConfig;
 use anchor_lang::prelude::*;
 
 use crate::controller::funding::settle_funding_payment;
@@ -101,6 +102,7 @@ pub fn place_perp_order(
     perp_market_map: &PerpMarketMap,
     spot_market_map: &SpotMarketMap,
     oracle_map: &mut OracleMap,
+    high_leverage_mode_config: &Option<AccountLoader<HighLeverageModeConfig>>,
     clock: &Clock,
     mut params: OrderParams,
     mut options: PlaceOrderOptions,
@@ -119,6 +121,16 @@ pub fn place_perp_order(
     }
 
     validate!(!user.is_bankrupt(), ErrorCode::UserBankrupt)?;
+
+    if params.is_update_high_leverage_mode() {
+        if let Some(config) = high_leverage_mode_config {
+            let mut config = load_mut!(config)?;
+            config.update_user(user)?;
+        } else {
+            msg!("high leverage mode config not found");
+            return Err(ErrorCode::InvalidOrder);
+        }
+    }
 
     if options.try_expire_orders {
         expire_orders(
@@ -801,6 +813,7 @@ pub fn modify_order(
                 perp_market_map,
                 spot_market_map,
                 oracle_map,
+                &None,
                 clock,
                 order_params,
                 PlaceOrderOptions::default(),
@@ -3321,6 +3334,7 @@ pub fn burn_user_lp_shares_for_risk_reduction(
             perp_market_map,
             spot_market_map,
             oracle_map,
+            &None,
             clock,
             params,
             PlaceOrderOptions::default().explanation(OrderActionExplanation::DeriskLp),
