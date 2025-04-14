@@ -1869,7 +1869,7 @@ pub fn handle_place_perp_order<'c: 'info, 'info>(
         Some(state.oracle_guard_rails),
     )?;
 
-    if params.immediate_or_cancel {
+    if params.is_immediate_or_cancel() {
         msg!("immediate_or_cancel order must be in place_and_make or place_and_take");
         return Err(print_error!(ErrorCode::InvalidOrderIOC)().into());
     }
@@ -2159,7 +2159,7 @@ pub fn handle_place_orders<'c: 'info, 'info>(
     let num_orders = params.len();
     for (i, params) in params.iter().enumerate() {
         validate!(
-            !params.immediate_or_cancel,
+            !params.is_immediate_or_cancel(),
             ErrorCode::InvalidOrderIOC,
             "immediate_or_cancel order must be in place_and_make or place_and_take"
         )?;
@@ -2236,7 +2236,7 @@ pub fn handle_place_and_take_perp_order<'c: 'info, 'info>(
     let (makers_and_referrer, makers_and_referrer_stats) =
         load_user_maps(remaining_accounts_iter, true)?;
 
-    let is_immediate_or_cancel = params.immediate_or_cancel;
+    let is_immediate_or_cancel = params.is_immediate_or_cancel();
 
     controller::repeg::update_amm(
         params.market_index,
@@ -2346,7 +2346,7 @@ pub fn handle_place_and_make_perp_order<'c: 'info, 'info>(
         Some(state.oracle_guard_rails),
     )?;
 
-    if !params.immediate_or_cancel
+    if !params.is_immediate_or_cancel()
         || params.post_only == PostOnlyParam::None
         || params.order_type != OrderType::Limit
     {
@@ -2446,7 +2446,7 @@ pub fn handle_place_and_make_signed_msg_perp_order<'c: 'info, 'info>(
         Some(state.oracle_guard_rails),
     )?;
 
-    if !params.immediate_or_cancel
+    if !params.is_immediate_or_cancel()
         || params.post_only == PostOnlyParam::None
         || params.order_type != OrderType::Limit
     {
@@ -2545,7 +2545,7 @@ pub fn handle_place_spot_order<'c: 'info, 'info>(
         None,
     )?;
 
-    if params.immediate_or_cancel {
+    if params.is_immediate_or_cancel() {
         msg!("immediate_or_cancel order must be in place_and_make or place_and_take");
         return Err(print_error!(ErrorCode::InvalidOrderIOC)().into());
     }
@@ -2603,7 +2603,7 @@ pub fn handle_place_and_take_spot_order<'c: 'info, 'info>(
         _ => (UserMap::empty(), UserStatsMap::empty()),
     };
 
-    let is_immediate_or_cancel = params.immediate_or_cancel;
+    let is_immediate_or_cancel = params.is_immediate_or_cancel();
 
     let mut fulfillment_params: Box<dyn SpotFulfillmentParams> = match fulfillment_type {
         SpotFulfillmentType::SerumV3 => {
@@ -2743,7 +2743,7 @@ pub fn handle_place_and_make_spot_order<'c: 'info, 'info>(
 
     let (_referrer, _referrer_stats) = get_referrer_and_referrer_stats(remaining_accounts_iter)?;
 
-    if !params.immediate_or_cancel
+    if !params.is_immediate_or_cancel()
         || params.post_only == PostOnlyParam::None
         || params.order_type != OrderType::Limit
     {
