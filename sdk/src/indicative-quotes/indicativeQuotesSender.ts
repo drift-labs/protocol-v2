@@ -42,7 +42,6 @@ export class IndicativeQuotesSender {
 			const signatureBase64 = this.generateChallengeResponse(message['nonce']);
 			this.ws?.send(
 				JSON.stringify({
-					stake_pubkey: this.keypair.publicKey.toBase58(),
 					pubkey: this.keypair.publicKey.toBase58(),
 					signature: signatureBase64,
 				})
