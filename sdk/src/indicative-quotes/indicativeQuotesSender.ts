@@ -12,6 +12,7 @@ type Quote = {
 	bidBaseAssetAmount: BN;
 	askBaseAssetAmount: BN;
 	marketIndex: number;
+	isOracleOffset?: boolean;
 };
 
 export class IndicativeQuotesSender {
@@ -19,6 +20,7 @@ export class IndicativeQuotesSender {
 	private sendQuotesInterval: NodeJS.Timeout | null = null;
 
 	private readonly heartbeatIntervalMs = 60000;
+	private reconnectDelay = 1000;
 	private ws: WebSocket | null = null;
 	private driftClient: DriftClient;
 	private connected = false;
@@ -63,6 +65,7 @@ export class IndicativeQuotesSender {
 		this.ws = ws;
 		ws.on('open', async () => {
 			console.log('Connected to the server');
+			this.reconnectDelay = 1000;
 
 			ws.on('message', async (data: WebSocket.Data) => {
 				let message: string;
@@ -92,8 +95,15 @@ export class IndicativeQuotesSender {
 									ask_price: quote.askPrice.toString(),
 									bid_size: quote.bidBaseAssetAmount.toString(),
 									ask_size: quote.askBaseAssetAmount.toString(),
+									is_oracle_offset: quote.isOracleOffset,
 								};
-								ws.send(JSON.stringify(message));
+								try {
+									if (this.ws?.readyState === WebSocket.OPEN) {
+										this.ws.send(JSON.stringify(message));
+									}
+								} catch (err) {
+									console.error('Error sending quote:', err);
+								}
 							}
 						}
 					}, SEND_INTERVAL);
@@ -153,9 +163,21 @@ export class IndicativeQuotesSender {
 			this.ws.terminate();
 		}
 
-		console.log('Reconnecting to WebSocket...');
+		if (this.heartbeatTimeout) {
+			clearTimeout(this.heartbeatTimeout);
+			this.heartbeatTimeout = null;
+		}
+		if (this.sendQuotesInterval) {
+			clearInterval(this.sendQuotesInterval);
+			this.sendQuotesInterval = null;
+		}
+
+		console.log(
+			`Reconnecting to WebSocket in ${this.reconnectDelay / 1000} seconds...`
+		);
 		setTimeout(() => {
 			this.connect();
-		}, 1000);
+			this.reconnectDelay = Math.min(this.reconnectDelay * 2, 30000);
+		}, this.reconnectDelay);
 	}
 }
