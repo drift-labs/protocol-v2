@@ -6,6 +6,7 @@ use anchor_lang::Discriminator;
 use anchor_spl::associated_token::get_associated_token_address_with_program_id;
 use anchor_spl::token_interface::{TokenAccount, TokenInterface};
 use solana_program::instruction::Instruction;
+use solana_program::pubkey;
 use solana_program::sysvar::instructions::{
     self, load_current_index_checked, load_instruction_at_checked, ID as IX_ID,
 };
@@ -2704,6 +2705,15 @@ pub fn handle_force_delete_user<'c: 'info, 'info>(
             "only admin hot wallet can force delete user"
         )?;
     }
+
+    // Pyra accounts are exempt from force_delete_user
+
+    let pyra_program = pubkey!("6JjHXLheGSNvvexgzMthEcgjkcirDrGduc3HAKB2P1v2");
+    validate!(
+        *ctx.accounts.authority.owner != pyra_program,
+        ErrorCode::DefaultError,
+        "pyra accounts are exempt from force_delete_user"
+    )?;
 
     let state = &ctx.accounts.state;
 
