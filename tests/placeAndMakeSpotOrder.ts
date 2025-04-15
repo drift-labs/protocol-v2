@@ -211,7 +211,7 @@ describe('place and make spot order', () => {
 			price: new BN(40).mul(PRICE_PRECISION),
 			userOrderId: 1,
 			postOnly: PostOnlyParams.MUST_POST_ONLY,
-			immediateOrCancel: true,
+			bitFlags: 1,
 		});
 
 		const txSig = await makerDriftClient.placeAndMakeSpotOrder(

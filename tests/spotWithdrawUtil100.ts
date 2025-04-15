@@ -610,7 +610,7 @@ describe('test function when spot market at >= 100% util', () => {
 			price: new BN(30).mul(PRICE_PRECISION),
 			userOrderId: 1,
 			postOnly: PostOnlyParams.MUST_POST_ONLY,
-			immediateOrCancel: true,
+			bitFlags: 1,
 		});
 
 		const txSig2 = await secondUserDriftClient.placeAndMakeSpotOrder(
@@ -718,7 +718,7 @@ describe('test function when spot market at >= 100% util', () => {
 			price: new BN(30.001 * PRICE_PRECISION.toNumber()),
 			userOrderId: 1,
 			postOnly: PostOnlyParams.MUST_POST_ONLY,
-			immediateOrCancel: true,
+			bitFlags: 1,
 		});
 		await takerDriftClientUser.fetchAccounts();
 

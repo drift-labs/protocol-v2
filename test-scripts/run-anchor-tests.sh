@@ -28,6 +28,7 @@ test_files=(
   depositIntoSpotMarketVault.ts
   driftClient.ts
   fillSpot.ts
+  highLeverageMode.ts
   insuranceFundStake.ts
   liquidateBorrowForPerpPnl.ts
   liquidateMaxLps.ts

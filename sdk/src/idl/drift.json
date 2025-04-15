@@ -1,5 +1,5 @@
 {
-  "version": "2.118.0",
+  "version": "2.118.0-beta.1",
   "name": "drift",
   "instructions": [
     {
@@ -9436,8 +9436,8 @@
             }
           },
           {
-            "name": "immediateOrCancel",
-            "type": "bool"
+            "name": "bitFlags",
+            "type": "u8"
           },
           {
             "name": "maxTs",
@@ -9636,7 +9636,7 @@
           {
             "name": "immediateOrCancel",
             "type": {
-              "option": "bool"
+              "option": "u8"
             }
           },
           {
@@ -11710,6 +11710,20 @@
           },
           {
             "name": "PythLazerStableCoin"
+          }
+        ]
+      }
+    },
+    {
+      "name": "OrderParamsBitFlag",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "ImmediateOrCancel"
+          },
+          {
+            "name": "UpdateHighLeverageMode"
           }
         ]
       }
@@ -15078,6 +15092,11 @@
       "code": 6313,
       "name": "InvalidSignedMsgUserOrdersResize",
       "msg": "Invalid SignedMsgUserOrders resize"
+    },
+    {
+      "code": 6314,
+      "name": "CouldNotDeserializeHighLeverageModeConfig",
+      "msg": "Could not deserialize high leverage mode config"
     }
   ],
   "metadata": {

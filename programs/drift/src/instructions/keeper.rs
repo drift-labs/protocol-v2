@@ -611,20 +611,21 @@ pub fn handle_place_signed_msg_taker_order<'c: 'info, 'info>(
 ) -> Result<()> {
     let state = &ctx.accounts.state;
 
+    let mut remaining_accounts = ctx.remaining_accounts.iter().peekable();
     // TODO: generalize to support multiple market types
     let AccountMaps {
         perp_market_map,
         spot_market_map,
         mut oracle_map,
     } = load_maps(
-        &mut ctx.remaining_accounts.iter().peekable(),
+        &mut remaining_accounts,
         &MarketSet::new(),
         &MarketSet::new(),
         Clock::get()?.slot,
         Some(state.oracle_guard_rails),
     )?;
 
-    let high_leverage_mode_config = get_high_leverage_mode_config(&mut ctx.remaining_accounts.iter().peekable())?;
+    let high_leverage_mode_config = get_high_leverage_mode_config(&mut remaining_accounts)?;
 
     let taker_key = ctx.accounts.user.key();
     let mut taker = load_mut!(ctx.accounts.user)?;

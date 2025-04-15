@@ -266,7 +266,7 @@ describe('place and make signedMsg order', () => {
 			price: new BN(223).mul(PRICE_PRECISION),
 			userOrderId: 1,
 			postOnly: PostOnlyParams.MUST_POST_ONLY,
-			immediateOrCancel: true,
+			bitFlags: 1,
 		});
 
 		const signedOrderParams = takerDriftClient.signSignedMsgOrderParamsMessage(
@@ -866,7 +866,7 @@ describe('place and make signedMsg order', () => {
 			baseAssetAmount,
 			price: new BN(223).mul(PRICE_PRECISION),
 			postOnly: PostOnlyParams.MUST_POST_ONLY,
-			immediateOrCancel: true,
+			bitFlags: 1,
 			marketType: MarketType.PERP,
 		}) as OrderParams;
 
@@ -980,7 +980,7 @@ describe('place and make signedMsg order', () => {
 			baseAssetAmount,
 			price: new BN(223).mul(PRICE_PRECISION),
 			postOnly: PostOnlyParams.MUST_POST_ONLY,
-			immediateOrCancel: true,
+			bitFlags: 1,
 		}) as OrderParams;
 
 		const uuid = Uint8Array.from(Buffer.from(nanoid(8)));
@@ -1166,7 +1166,7 @@ describe('place and make signedMsg order', () => {
 			baseAssetAmount,
 			price: new BN(225).mul(PRICE_PRECISION),
 			postOnly: PostOnlyParams.MUST_POST_ONLY,
-			immediateOrCancel: true,
+			bitFlags: 1,
 		});
 		await makerDriftClient.placeAndMakeSignedMsgPerpOrder(
 			signedOrderParams,

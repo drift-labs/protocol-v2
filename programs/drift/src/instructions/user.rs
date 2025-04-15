@@ -1859,19 +1859,20 @@ pub fn handle_place_perp_order<'c: 'info, 'info>(
     let clock = &Clock::get()?;
     let state = &ctx.accounts.state;
 
+    let mut remaining_accounts = ctx.remaining_accounts.iter().peekable();
     let AccountMaps {
         perp_market_map,
         spot_market_map,
         mut oracle_map,
     } = load_maps(
-        &mut ctx.remaining_accounts.iter().peekable(),
+        &mut remaining_accounts,
         &MarketSet::new(),
         &MarketSet::new(),
         clock.slot,
         Some(state.oracle_guard_rails),
     )?;
 
-    let high_leverage_mode_config = get_high_leverage_mode_config(&mut ctx.remaining_accounts.iter().peekable())?;
+    let high_leverage_mode_config = get_high_leverage_mode_config(&mut remaining_accounts)?;
 
     if params.is_immediate_or_cancel() {
         msg!("immediate_or_cancel order must be in place_and_make or place_and_take");
@@ -2140,19 +2141,20 @@ pub fn handle_place_orders<'c: 'info, 'info>(
     let clock = &Clock::get()?;
     let state = &ctx.accounts.state;
 
+    let mut remaining_accounts = ctx.remaining_accounts.iter().peekable();
     let AccountMaps {
         perp_market_map,
         spot_market_map,
         mut oracle_map,
     } = load_maps(
-        &mut ctx.remaining_accounts.iter().peekable(),
+        &mut remaining_accounts,
         &MarketSet::new(),
         &MarketSet::new(),
         clock.slot,
         Some(state.oracle_guard_rails),
     )?;
 
-    let high_leverage_mode_config = get_high_leverage_mode_config(&mut ctx.remaining_accounts.iter().peekable())?;
+    let high_leverage_mode_config = get_high_leverage_mode_config(&mut remaining_accounts)?;
 
     validate!(
         params.len() <= 32,
@@ -2236,7 +2238,7 @@ pub fn handle_place_and_take_perp_order<'c: 'info, 'info>(
         Some(state.oracle_guard_rails),
     )?;
 
-    let high_leverage_mode_config = get_high_leverage_mode_config(&mut ctx.remaining_accounts.iter().peekable())?;
+    let high_leverage_mode_config = get_high_leverage_mode_config(remaining_accounts_iter)?;
 
     if params.post_only != PostOnlyParam::None {
         msg!("post_only cant be used in place_and_take");
@@ -2458,7 +2460,7 @@ pub fn handle_place_and_make_signed_msg_perp_order<'c: 'info, 'info>(
         Some(state.oracle_guard_rails),
     )?;
 
-    let high_leverage_mode_config = get_high_leverage_mode_config(&mut ctx.remaining_accounts.iter().peekable())?;
+    let high_leverage_mode_config = get_high_leverage_mode_config(remaining_accounts_iter)?;
 
     if !params.is_immediate_or_cancel()
         || params.post_only == PostOnlyParam::None
