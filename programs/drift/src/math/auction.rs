@@ -290,13 +290,23 @@ pub fn calculate_auction_params_for_trigger_order(
         };
 
         let (auction_start_price, auction_end_price, derived_auction_duration) =
-            OrderParams::derive_oracle_order_auction_params(
-                perp_market,
-                order.direction,
-                oracle_price_data.price,
-                None,
-                auction_start_buffer,
-            )?;
+            if matches!(order.order_type, OrderType::TriggerMarket) {
+                OrderParams::derive_oracle_order_auction_params(
+                    perp_market,
+                    order.direction,
+                    oracle_price_data.price,
+                    None,
+                    auction_start_buffer,
+                )?
+            } else {
+                OrderParams::derive_market_order_auction_params(
+                    perp_market,
+                    order.direction,
+                    oracle_price_data.price,
+                    order.price,
+                    auction_start_buffer,
+                )?
+            };
 
         let auction_duration = auction_duration.max(derived_auction_duration);
 

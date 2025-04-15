@@ -606,10 +606,7 @@ describe('place and make signedMsg order', () => {
 
 		await takerDriftClient.fetchAccounts();
 		assert(
-			takerDriftClient
-				.getUser()
-				.getPerpPosition(0)
-				.baseAssetAmount.eq(ZERO)
+			takerDriftClient.getUser().getPerpPosition(0).baseAssetAmount.eq(ZERO)
 		);
 
 		await takerDriftClientUser.unsubscribe();

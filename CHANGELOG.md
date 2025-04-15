@@ -7,15 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-- sdk: deprecate getPostSwitchboardOnDemandUpdateAtomicIx ([#1567](https://github.com/drift-labs/protocol-v2/pull/1567))
+### Features
+
+### Fixes
+
+### Breaking
+
+## [2.118.0] - 2025-04-10
 
 ### Features
 
 - program: make Pyra accounts exempt from force_delete_user ([#1569](https://github.com/drift-labs/protocol-v2/pull/1569))
+- sdk: deprecate getPostSwitchboardOnDemandUpdateAtomicIx ([#1567](https://github.com/drift-labs/protocol-v2/pull/1567))
 - program: maker trigger market oracle offset and fill with amm faster ([#1564](https://github.com/drift-labs/protocol-v2/pull/1564))
 - program: sanitize signed msg orders with wider thresholds ([#1554](https://github.com/drift-labs/protocol-v2/pull/1554))
 
 ### Fixes
+
+- program: add crossing start buffer auction to end price ([#1568](https://github.com/drift-labs/protocol-v2/pull/1568))
 
 ### Breaking
 
