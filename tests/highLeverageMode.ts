@@ -232,7 +232,7 @@ describe('max leverage order params', () => {
 				marketIndex: 0,
 				baseAssetAmount: MAX_LEVERAGE_ORDER_SIZE,
 				userOrderId: 1,
-                bitFlags: OrderParamsBitFlag.UpdateHighLeverageMode,
+				bitFlags: OrderParamsBitFlag.UpdateHighLeverageMode,
 			})
 		);
 

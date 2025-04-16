@@ -4007,9 +4007,7 @@ export class DriftClient {
 
 		if (isUpdateHighLeverageMode(orderParams.bitFlags)) {
 			remainingAccounts.push({
-				pubkey: getHighLeverageModeConfigPublicKey(
-					this.program.programId,
-				),
+				pubkey: getHighLeverageModeConfigPublicKey(this.program.programId),
 				isWritable: true,
 				isSigner: false,
 			});
@@ -6238,14 +6236,11 @@ export class DriftClient {
 
 		if (isUpdateHighLeverageMode(orderParams.bitFlags)) {
 			remainingAccounts.push({
-				pubkey: getHighLeverageModeConfigPublicKey(
-					this.program.programId,
-				),
+				pubkey: getHighLeverageModeConfigPublicKey(this.program.programId),
 				isWritable: true,
 				isSigner: false,
 			});
 		}
-
 
 		let optionalParams = null;
 		if (auctionDurationPercentage || successCondition) {
@@ -6423,6 +6418,7 @@ export class DriftClient {
 		},
 		precedingIxs: TransactionInstruction[] = [],
 		overrideCustomIxIndex?: number,
+		includeHighLeverageModeConfig?: boolean,
 		txParams?: TxParams
 	): Promise<TransactionSignature> {
 		const ixs = await this.getPlaceSignedMsgTakerPerpOrderIxs(
@@ -6430,7 +6426,8 @@ export class DriftClient {
 			marketIndex,
 			takerInfo,
 			precedingIxs,
-			overrideCustomIxIndex
+			overrideCustomIxIndex,
+			includeHighLeverageModeConfig
 		);
 		const { txSig } = await this.sendTransaction(
 			await this.buildTransaction(ixs, txParams),
@@ -6450,13 +6447,22 @@ export class DriftClient {
 			signingAuthority: PublicKey;
 		},
 		precedingIxs: TransactionInstruction[] = [],
-		overrideCustomIxIndex?: number
+		overrideCustomIxIndex?: number,
+		includeHighLeverageModeConfig?: boolean
 	): Promise<TransactionInstruction[]> {
 		const remainingAccounts = this.getRemainingAccounts({
 			userAccounts: [takerInfo.takerUserAccount],
 			useMarketLastSlotCache: false,
 			readablePerpMarketIndex: marketIndex,
 		});
+
+		if (includeHighLeverageModeConfig) {
+			remainingAccounts.push({
+				pubkey: getHighLeverageModeConfigPublicKey(this.program.programId),
+				isWritable: true,
+				isSigner: false,
+			});
+		}
 
 		const messageLengthBuffer = Buffer.alloc(2);
 		messageLengthBuffer.writeUInt16LE(
@@ -7017,7 +7023,7 @@ export class DriftClient {
 			bitFlags: bitFlags != undefined ? bitFlags : null,
 			policy: policy || null,
 			maxTs: maxTs || null,
-		};	
+		};
 
 		return await this.program.instruction.modifyOrder(orderId, orderParams, {
 			accounts: {
