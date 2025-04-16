@@ -176,13 +176,24 @@ pub fn calculate_accumulated_interest(
         deposit_interest,
     })
 }
-
+#[inline(always)]
 pub fn calculate_borrow_rate(spot_market: &SpotMarket, utilization: u128) -> DriftResult<u128> {
     let optimal_util = spot_market.optimal_utilization.cast::<u128>()?;
     let optimal_rate = spot_market.optimal_borrow_rate.cast::<u128>()?;
     let max_rate = spot_market.max_borrow_rate.cast::<u128>()?;
+    let min_rate = spot_market.get_min_borrow_rate()?.cast::<u128>()?;
 
-    let mut borrow_rate = if utilization <= optimal_util {
+    let weights_divisor = 1000;
+    let segments: &[(u128, u128)] = &[
+        (850_000, 50),
+        (900_000, 100),
+        (950_000, 150),
+        (990_000, 200),
+        (995_000, 250),
+        (1_000_000, 250),
+    ];
+
+    let borrow_rate = if utilization <= optimal_util {
         let slope = optimal_rate
             .safe_mul(SPOT_UTILIZATION_PRECISION)?
             .safe_div(optimal_util)?;
@@ -190,48 +201,37 @@ pub fn calculate_borrow_rate(spot_market: &SpotMarket, utilization: u128) -> Dri
             .safe_mul(slope)?
             .safe_div(SPOT_UTILIZATION_PRECISION)?
     } else {
-        let extra_util = utilization.safe_sub(optimal_util)?;
         let total_extra_util = SPOT_UTILIZATION_PRECISION.safe_sub(optimal_util)?;
         let total_extra_rate = max_rate.safe_sub(optimal_rate)?;
-
-        // Base slope if linear
-        let base_slope = total_extra_rate
-            .safe_mul(SPOT_UTILIZATION_PRECISION)?
-            .safe_div(total_extra_util)?;
 
         let mut rate = optimal_rate;
         let mut prev_util = optimal_util;
 
-        let breakpoints = [850_000, 900_000, 950_000, 990_000, 995_000, 1_000_000];
-        let weights = [50, 100, 150, 200, 250, 250];
-        let weights_divisor = 1000; // sum of weights
-        for (i, &bp) in breakpoints.iter().enumerate() {
+        for &(bp, weight) in segments {
             let segment_start = prev_util;
             let segment_end = bp.min(SPOT_UTILIZATION_PRECISION);
             let segment_range = segment_end.safe_sub(segment_start)?;
-            let weight = weights[i] as u128;
+            let segment_rate_total = total_extra_rate
+                .safe_mul(weight as u128)?
+                .safe_div(weights_divisor)?;
 
             if utilization <= segment_end {
                 let partial_util = utilization.safe_sub(segment_start)?;
-                let segment_rate = total_extra_rate
-                    .safe_mul(weight)?
-                    .safe_div(weights_divisor)?
+                let partial_rate = segment_rate_total
                     .safe_mul(partial_util)?
                     .safe_div(segment_range)?;
-                rate = rate.safe_add(segment_rate)?;
-                return Ok(rate.max(spot_market.get_min_borrow_rate()?.cast()?));
+                rate = rate.safe_add(partial_rate)?;
+                break;
             } else {
-                // Add full segment contribution
-                let segment_rate = total_extra_rate.safe_mul(weight)?.safe_div(weights_divisor)?;
-                rate = rate.safe_add(segment_rate)?;
+                rate = rate.safe_add(segment_rate_total)?;
                 prev_util = segment_end;
             }
         }
+
         rate
     };
 
-    borrow_rate = borrow_rate.max(spot_market.get_min_borrow_rate()?.cast()?);
-    Ok(borrow_rate)
+    Ok(borrow_rate.max(min_rate))
 }
 
 #[cfg(feature = "drift-rs")]
