@@ -3952,6 +3952,39 @@ pub fn handle_update_perp_market_fuel(
     Ok(())
 }
 
+pub fn handle_update_perp_market_protected_maker_params(
+    ctx: Context<AdminUpdatePerpMarket>,
+    protected_maker_limit_price_divisor: Option<u8>,
+    protected_maker_dynamic_divisor: Option<u8>,
+) -> Result<()> {
+    let perp_market = &mut load_mut!(ctx.accounts.perp_market)?;
+    msg!("perp market {}", perp_market.market_index);
+
+    if let Some(protected_maker_limit_price_divisor) = protected_maker_limit_price_divisor {
+        msg!(
+            "perp_market.protected_maker_limit_price_divisor: {:?} -> {:?}",
+            perp_market.protected_maker_limit_price_divisor,
+            protected_maker_limit_price_divisor
+        );
+        perp_market.protected_maker_limit_price_divisor = protected_maker_limit_price_divisor;
+    } else {
+        msg!("perp_market.protected_maker_limit_price_divisor: unchanged");
+    }
+
+    if let Some(protected_maker_dynamic_divisor) = protected_maker_dynamic_divisor {
+        msg!(
+            "perp_market.protected_maker_dynamic_divisor: {:?} -> {:?}",
+            perp_market.protected_maker_dynamic_divisor,
+            protected_maker_dynamic_divisor
+        );
+        perp_market.protected_maker_dynamic_divisor = protected_maker_dynamic_divisor;
+    } else {
+        msg!("perp_market.protected_maker_dynamic_divisor: unchanged");
+    }
+
+    Ok(())
+}
+
 #[access_control(
     spot_market_valid(&ctx.accounts.spot_market)
 )]
