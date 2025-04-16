@@ -2238,8 +2238,6 @@ pub fn handle_place_and_take_perp_order<'c: 'info, 'info>(
         Some(state.oracle_guard_rails),
     )?;
 
-    let high_leverage_mode_config = get_high_leverage_mode_config(remaining_accounts_iter)?;
-
     if params.post_only != PostOnlyParam::None {
         msg!("post_only cant be used in place_and_take");
         return Err(print_error!(ErrorCode::InvalidOrderPostOnly)().into());
@@ -2247,6 +2245,8 @@ pub fn handle_place_and_take_perp_order<'c: 'info, 'info>(
 
     let (makers_and_referrer, makers_and_referrer_stats) =
         load_user_maps(remaining_accounts_iter, true)?;
+
+    let high_leverage_mode_config = get_high_leverage_mode_config(remaining_accounts_iter)?;
 
     let is_immediate_or_cancel = params.is_immediate_or_cancel();
 

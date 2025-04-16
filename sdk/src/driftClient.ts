@@ -4006,7 +4006,6 @@ export class DriftClient {
 		});
 
 		if (isUpdateHighLeverageMode(orderParams.bitFlags)) {
-			console.log('isUpdateHighLeverageMode', orderParams.bitFlags);
 			remainingAccounts.push({
 				pubkey: getHighLeverageModeConfigPublicKey(
 					this.program.programId,
