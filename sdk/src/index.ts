@@ -129,5 +129,6 @@ export * from './util/TransactionConfirmationManager';
 export * from './clock/clockSubscriber';
 export * from './math/userStatus';
 export * from './constants/txConstants';
+export * from './indicative-quotes/indicativeQuotesSender';
 
 export { BN, PublicKey, pyth };
