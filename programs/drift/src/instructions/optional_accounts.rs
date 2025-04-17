@@ -245,12 +245,15 @@ pub fn get_high_leverage_mode_config<'a>(
         return Ok(None);
     }
 
-    let high_leverage_mode_config_account_info = high_leverage_mode_config_account_info.safe_unwrap()?;
+    let high_leverage_mode_config_account_info =
+        high_leverage_mode_config_account_info.safe_unwrap()?;
 
-    let data = high_leverage_mode_config_account_info.try_borrow_data().map_err(|e| {
-        msg!("{:?}", e);
-        ErrorCode::CouldNotDeserializeHighLeverageModeConfig
-    })?;
+    let data = high_leverage_mode_config_account_info
+        .try_borrow_data()
+        .map_err(|e| {
+            msg!("{:?}", e);
+            ErrorCode::CouldNotDeserializeHighLeverageModeConfig
+        })?;
 
     if data.len() < HighLeverageModeConfig::SIZE {
         return Ok(None);
@@ -264,8 +267,9 @@ pub fn get_high_leverage_mode_config<'a>(
 
     let high_leverage_mode_config_account_info = account_info_iter.next().safe_unwrap()?;
 
-    let high_leverage_mode_config: AccountLoader<HighLeverageModeConfig> = AccountLoader::try_from(high_leverage_mode_config_account_info)
-        .or(Err(ErrorCode::CouldNotDeserializeHighLeverageModeConfig))?;
+    let high_leverage_mode_config: AccountLoader<HighLeverageModeConfig> =
+        AccountLoader::try_from(high_leverage_mode_config_account_info)
+            .or(Err(ErrorCode::CouldNotDeserializeHighLeverageModeConfig))?;
 
     Ok(Some(high_leverage_mode_config))
 }

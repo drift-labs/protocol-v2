@@ -56,9 +56,9 @@ impl HighLeverageModeConfig {
             ErrorCode::DefaultError,
             "high leverage mode config reduce only"
         )?;
-    
+
         self.current_users = self.current_users.safe_add(1)?;
-    
+
         self.validate()?;
 
         Ok(())
