@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Features
 
+- program: place perp order can update high leverage mode ([#1573](https://github.com/drift-labs/protocol-v2/pull/1573))
+
 ### Fixes
 
 ### Breaking
