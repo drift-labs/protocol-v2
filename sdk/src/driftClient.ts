@@ -153,7 +153,7 @@ import {
 import { getNonIdleUserFilter } from './memcmp';
 import { UserStatsSubscriptionConfig } from './userStatsConfig';
 import { getMarinadeDepositIx, getMarinadeFinanceProgram } from './marinade';
-import { getOrderParams } from './orderParams';
+import { getOrderParams, isUpdateHighLeverageMode } from './orderParams';
 import { numberToSafeBN } from './math/utils';
 import { TransactionParamProcessor } from './tx/txParamProcessor';
 import { isOracleValid, trimVaaSignatures } from './math/oracles';
@@ -4005,6 +4005,14 @@ export class DriftClient {
 				: undefined,
 		});
 
+		if (isUpdateHighLeverageMode(orderParams.bitFlags)) {
+			remainingAccounts.push({
+				pubkey: getHighLeverageModeConfigPublicKey(this.program.programId),
+				isWritable: true,
+				isSigner: false,
+			});
+		}
+
 		return await this.program.instruction.placePerpOrder(orderParams, {
 			accounts: {
 				state: await this.getStatePublicKey(),
@@ -6226,6 +6234,14 @@ export class DriftClient {
 			}
 		}
 
+		if (isUpdateHighLeverageMode(orderParams.bitFlags)) {
+			remainingAccounts.push({
+				pubkey: getHighLeverageModeConfigPublicKey(this.program.programId),
+				isWritable: true,
+				isSigner: false,
+			});
+		}
+
 		let optionalParams = null;
 		if (auctionDurationPercentage || successCondition) {
 			optionalParams =
@@ -6402,6 +6418,7 @@ export class DriftClient {
 		},
 		precedingIxs: TransactionInstruction[] = [],
 		overrideCustomIxIndex?: number,
+		includeHighLeverageModeConfig?: boolean,
 		txParams?: TxParams
 	): Promise<TransactionSignature> {
 		const ixs = await this.getPlaceSignedMsgTakerPerpOrderIxs(
@@ -6409,7 +6426,8 @@ export class DriftClient {
 			marketIndex,
 			takerInfo,
 			precedingIxs,
-			overrideCustomIxIndex
+			overrideCustomIxIndex,
+			includeHighLeverageModeConfig
 		);
 		const { txSig } = await this.sendTransaction(
 			await this.buildTransaction(ixs, txParams),
@@ -6429,13 +6447,22 @@ export class DriftClient {
 			signingAuthority: PublicKey;
 		},
 		precedingIxs: TransactionInstruction[] = [],
-		overrideCustomIxIndex?: number
+		overrideCustomIxIndex?: number,
+		includeHighLeverageModeConfig?: boolean
 	): Promise<TransactionInstruction[]> {
 		const remainingAccounts = this.getRemainingAccounts({
 			userAccounts: [takerInfo.takerUserAccount],
 			useMarketLastSlotCache: false,
 			readablePerpMarketIndex: marketIndex,
 		});
+
+		if (includeHighLeverageModeConfig) {
+			remainingAccounts.push({
+				pubkey: getHighLeverageModeConfigPublicKey(this.program.programId),
+				isWritable: true,
+				isSigner: false,
+			});
+		}
 
 		const messageLengthBuffer = Buffer.alloc(2);
 		messageLengthBuffer.writeUInt16LE(
@@ -6901,7 +6928,7 @@ export class DriftClient {
 	 * @param orderParams.auctionEndPrice:
 	 * @param orderParams.reduceOnly:
 	 * @param orderParams.postOnly:
-	 * @param orderParams.immediateOrCancel:
+	 * @param orderParams.bitFlags:
 	 * @param orderParams.policy:
 	 * @param orderParams.maxTs:
 	 * @returns
@@ -6920,7 +6947,7 @@ export class DriftClient {
 			auctionEndPrice?: BN;
 			reduceOnly?: boolean;
 			postOnly?: boolean;
-			immediateOrCancel?: boolean;
+			bitFlags?: number;
 			maxTs?: BN;
 			policy?: number;
 		},
@@ -6952,7 +6979,7 @@ export class DriftClient {
 			auctionEndPrice,
 			reduceOnly,
 			postOnly,
-			immediateOrCancel,
+			bitFlags,
 			maxTs,
 			policy,
 		}: {
@@ -6968,7 +6995,7 @@ export class DriftClient {
 			auctionEndPrice?: BN;
 			reduceOnly?: boolean;
 			postOnly?: boolean;
-			immediateOrCancel?: boolean;
+			bitFlags?: number;
 			maxTs?: BN;
 			policy?: number;
 		},
@@ -6993,8 +7020,7 @@ export class DriftClient {
 			auctionEndPrice: auctionEndPrice || null,
 			reduceOnly: reduceOnly != undefined ? reduceOnly : null,
 			postOnly: postOnly != undefined ? postOnly : null,
-			immediateOrCancel:
-				immediateOrCancel != undefined ? immediateOrCancel : null,
+			bitFlags: bitFlags != undefined ? bitFlags : null,
 			policy: policy || null,
 			maxTs: maxTs || null,
 		};
@@ -7023,7 +7049,7 @@ export class DriftClient {
 	 * @param orderParams.auctionEndPrice: Only required if order type changed to market from something else
 	 * @param orderParams.reduceOnly:
 	 * @param orderParams.postOnly:
-	 * @param orderParams.immediateOrCancel:
+	 * @param orderParams.bitFlags:
 	 * @param orderParams.policy:
 	 * @param orderParams.maxTs:
 	 * @returns
@@ -7042,7 +7068,7 @@ export class DriftClient {
 			auctionEndPrice?: BN;
 			reduceOnly?: boolean;
 			postOnly?: boolean;
-			immediateOrCancel?: boolean;
+			bitFlags?: number;
 			policy?: ModifyOrderPolicy;
 			maxTs?: BN;
 		},
@@ -7074,7 +7100,7 @@ export class DriftClient {
 			auctionEndPrice,
 			reduceOnly,
 			postOnly,
-			immediateOrCancel,
+			bitFlags,
 			maxTs,
 			policy,
 		}: {
@@ -7090,7 +7116,7 @@ export class DriftClient {
 			auctionEndPrice?: BN;
 			reduceOnly?: boolean;
 			postOnly?: boolean;
-			immediateOrCancel?: boolean;
+			bitFlags?: number;
 			policy?: ModifyOrderPolicy;
 			maxTs?: BN;
 			txParams?: TxParams;
@@ -7116,7 +7142,7 @@ export class DriftClient {
 			auctionEndPrice: auctionEndPrice || null,
 			reduceOnly: reduceOnly || false,
 			postOnly: postOnly || null,
-			immediateOrCancel: immediateOrCancel || false,
+			bitFlags: bitFlags || null,
 			policy: policy || null,
 			maxTs: maxTs || null,
 		};

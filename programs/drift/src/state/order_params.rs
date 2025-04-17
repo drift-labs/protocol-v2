@@ -28,7 +28,7 @@ pub struct OrderParams {
     pub market_index: u16,
     pub reduce_only: bool,
     pub post_only: PostOnlyParam,
-    pub immediate_or_cancel: bool,
+    pub bit_flags: u8,
     pub max_ts: Option<i64>,
     pub trigger_price: Option<u64>,
     pub trigger_condition: OrderTriggerCondition,
@@ -36,6 +36,12 @@ pub struct OrderParams {
     pub auction_duration: Option<u8>,     // specified in slots
     pub auction_start_price: Option<i64>, // specified in price or oracle_price_offset
     pub auction_end_price: Option<i64>,   // specified in price or oracle_price_offset
+}
+
+#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Debug, Eq)]
+pub enum OrderParamsBitFlag {
+    ImmediateOrCancel = 0b00000001,
+    UpdateHighLeverageMode = 0b00000010,
 }
 
 impl OrderParams {
@@ -797,6 +803,18 @@ impl OrderParams {
 
         Ok(params)
     }
+
+    pub fn is_immediate_or_cancel(&self) -> bool {
+        self.bit_flags & OrderParamsBitFlag::ImmediateOrCancel as u8 != 0
+    }
+
+    pub fn is_update_high_leverage_mode(&self) -> bool {
+        self.bit_flags & OrderParamsBitFlag::UpdateHighLeverageMode as u8 != 0
+    }
+
+    pub fn is_max_leverage_order(&self) -> bool {
+        self.base_asset_amount == u64::MAX
+    }
 }
 
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Default, Eq, PartialEq, Debug)]
@@ -860,7 +878,7 @@ pub struct ModifyOrderParams {
     pub price: Option<u64>,
     pub reduce_only: Option<bool>,
     pub post_only: Option<PostOnlyParam>,
-    pub immediate_or_cancel: Option<bool>,
+    pub bit_flags: Option<u8>,
     pub max_ts: Option<i64>,
     pub trigger_price: Option<u64>,
     pub trigger_condition: Option<OrderTriggerCondition>,

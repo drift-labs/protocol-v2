@@ -1,4 +1,5 @@
 use crate::error::{DriftResult, ErrorCode};
+use crate::state::high_leverage_mode_config::HighLeverageModeConfig;
 use std::cell::RefMut;
 use std::convert::TryFrom;
 
@@ -234,4 +235,41 @@ pub fn get_token_mint<'a>(
         Ok(mint) => Ok(Some(mint)),
         Err(_) => Ok(None),
     }
+}
+
+pub fn get_high_leverage_mode_config<'a>(
+    account_info_iter: &mut Peekable<Iter<'a, AccountInfo<'a>>>,
+) -> DriftResult<Option<AccountLoader<'a, HighLeverageModeConfig>>> {
+    let high_leverage_mode_config_account_info = account_info_iter.peek();
+    if high_leverage_mode_config_account_info.is_none() {
+        return Ok(None);
+    }
+
+    let high_leverage_mode_config_account_info =
+        high_leverage_mode_config_account_info.safe_unwrap()?;
+
+    let data = high_leverage_mode_config_account_info
+        .try_borrow_data()
+        .map_err(|e| {
+            msg!("{:?}", e);
+            ErrorCode::CouldNotDeserializeHighLeverageModeConfig
+        })?;
+
+    if data.len() < HighLeverageModeConfig::SIZE {
+        return Ok(None);
+    }
+
+    let high_leverage_mode_config_discriminator: [u8; 8] = HighLeverageModeConfig::discriminator();
+    let account_discriminator = array_ref![data, 0, 8];
+    if account_discriminator != &high_leverage_mode_config_discriminator {
+        return Ok(None);
+    }
+
+    let high_leverage_mode_config_account_info = account_info_iter.next().safe_unwrap()?;
+
+    let high_leverage_mode_config: AccountLoader<HighLeverageModeConfig> =
+        AccountLoader::try_from(high_leverage_mode_config_account_info)
+            .or(Err(ErrorCode::CouldNotDeserializeHighLeverageModeConfig))?;
+
+    Ok(Some(high_leverage_mode_config))
 }

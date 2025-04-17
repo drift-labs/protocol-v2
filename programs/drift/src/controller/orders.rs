@@ -4,6 +4,7 @@ use std::ops::{Deref, DerefMut};
 use std::u64;
 
 use crate::msg;
+use crate::state::high_leverage_mode_config::HighLeverageModeConfig;
 use anchor_lang::prelude::*;
 
 use crate::controller::funding::settle_funding_payment;
@@ -101,6 +102,7 @@ pub fn place_perp_order(
     perp_market_map: &PerpMarketMap,
     spot_market_map: &SpotMarketMap,
     oracle_map: &mut OracleMap,
+    high_leverage_mode_config: &Option<AccountLoader<HighLeverageModeConfig>>,
     clock: &Clock,
     mut params: OrderParams,
     mut options: PlaceOrderOptions,
@@ -119,6 +121,20 @@ pub fn place_perp_order(
     }
 
     validate!(!user.is_bankrupt(), ErrorCode::UserBankrupt)?;
+
+    if params.is_update_high_leverage_mode() {
+        if let Some(config) = high_leverage_mode_config {
+            let mut config = load_mut!(config)?;
+            if !config.is_full() || params.is_max_leverage_order() {
+                config.update_user(user)?;
+            } else {
+                msg!("high leverage mode config is full");
+            }
+        } else {
+            msg!("high leverage mode config not found");
+            return Err(ErrorCode::InvalidOrder);
+        }
+    }
 
     if options.try_expire_orders {
         expire_orders(
@@ -300,7 +316,7 @@ pub fn place_perp_order(
         trigger_condition: params.trigger_condition,
         post_only: params.post_only != PostOnlyParam::None,
         oracle_price_offset: params.oracle_price_offset.unwrap_or(0),
-        immediate_or_cancel: params.immediate_or_cancel,
+        immediate_or_cancel: params.is_immediate_or_cancel(),
         auction_start_price,
         auction_end_price,
         auction_duration,
@@ -801,6 +817,7 @@ pub fn modify_order(
                 perp_market_map,
                 spot_market_map,
                 oracle_map,
+                &None,
                 clock,
                 order_params,
                 PlaceOrderOptions::default(),
@@ -859,7 +876,7 @@ fn merge_modify_order_params_with_existing_order(
         } else {
             PostOnlyParam::None
         });
-    let immediate_or_cancel = false;
+    let bit_flags = 0;
     let max_ts = modify_order_params.max_ts.or(Some(existing_order.max_ts));
     let trigger_price = modify_order_params
         .trigger_price
@@ -902,7 +919,7 @@ fn merge_modify_order_params_with_existing_order(
         market_index,
         reduce_only,
         post_only,
-        immediate_or_cancel,
+        bit_flags,
         max_ts,
         trigger_price,
         trigger_condition,
@@ -3321,6 +3338,7 @@ pub fn burn_user_lp_shares_for_risk_reduction(
             perp_market_map,
             spot_market_map,
             oracle_map,
+            &None,
             clock,
             params,
             PlaceOrderOptions::default().explanation(OrderActionExplanation::DeriskLp),
@@ -3592,7 +3610,7 @@ pub fn place_spot_order(
         trigger_condition: params.trigger_condition,
         post_only: params.post_only != PostOnlyParam::None,
         oracle_price_offset: params.oracle_price_offset.unwrap_or(0),
-        immediate_or_cancel: params.immediate_or_cancel,
+        immediate_or_cancel: params.is_immediate_or_cancel(),
         auction_start_price,
         auction_end_price,
         auction_duration,
