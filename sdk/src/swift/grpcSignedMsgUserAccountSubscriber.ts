@@ -20,9 +20,9 @@ export class grpcSignedMsgUserOrdersAccountSubscriber extends SignedMsgUserOrder
 	}: {
 		grpcConfigs: GrpcConfigs;
 		driftClient: DriftClient;
-		commitment: Commitment;
+		commitment?: Commitment;
 		resubOpts?: ResubOpts;
-		decodeFn: (name: string, data: Buffer) => SignedMsgUserOrdersAccount;
+		decodeFn?: (name: string, data: Buffer) => SignedMsgUserOrdersAccount;
 		resyncIntervalMs?: number;
 	}) {
 		super({

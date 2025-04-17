@@ -8,6 +8,7 @@ import {
 	MarketType,
 	OptionalOrderParams,
 	PostOnlyParams,
+	SignedMsgOrderParamsDelegateMessage,
 	SignedMsgOrderParamsMessage,
 	UserAccount,
 } from '..';
@@ -15,6 +16,7 @@ import { Keypair, PublicKey, TransactionInstruction } from '@solana/web3.js';
 import nacl from 'tweetnacl';
 import { decodeUTF8 } from 'tweetnacl-util';
 import WebSocket from 'ws';
+import { sha256 } from '@noble/hashes/sha256';
 
 // In practice, this for now is just an OrderSubscriber or a UserMap
 export interface AccountGetter {
@@ -43,7 +45,10 @@ export class SwiftOrderSubscriber {
 	public userAccountGetter?: AccountGetter; // In practice, this for now is just an OrderSubscriber or a UserMap
 	public onOrder: (
 		orderMessageRaw: any,
-		signedMsgOrderParamsMessage: SignedMsgOrderParamsMessage
+		signedMessage:
+			| SignedMsgOrderParamsMessage
+			| SignedMsgOrderParamsDelegateMessage,
+		isDelegateSigner?: boolean
 	) => Promise<void>;
 
 	subscribed = false;
@@ -103,7 +108,10 @@ export class SwiftOrderSubscriber {
 	async subscribe(
 		onOrder: (
 			orderMessageRaw: any,
-			signedMsgOrderParamsMessage: SignedMsgOrderParamsMessage
+			signedMessage:
+				| SignedMsgOrderParamsMessage
+				| SignedMsgOrderParamsDelegateMessage,
+			isDelegateSigner?: boolean
 		) => Promise<void>
 	): Promise<void> {
 		this.onOrder = onOrder;
@@ -133,21 +141,33 @@ export class SwiftOrderSubscriber {
 						order['order_message'],
 						'hex'
 					);
-					const signedMsgOrderParamsMessage: SignedMsgOrderParamsMessage =
+					const isDelegateSigner = signedMsgOrderParamsBuf
+						.slice(0, 8)
+						.equals(
+							Uint8Array.from(
+								Buffer.from(
+									sha256('global' + ':' + 'SignedMsgOrderParamsDelegateMessage')
+								).slice(0, 8)
+							)
+						);
+					const signedMessage:
+						| SignedMsgOrderParamsMessage
+						| SignedMsgOrderParamsDelegateMessage =
 						this.driftClient.decodeSignedMsgOrderParamsMessage(
-							signedMsgOrderParamsBuf
+							signedMsgOrderParamsBuf,
+							isDelegateSigner
 						);
 
-					if (!signedMsgOrderParamsMessage.signedMsgOrderParams.price) {
+					if (!signedMessage.signedMsgOrderParams.price) {
 						console.error(
 							`order has no price: ${JSON.stringify(
-								signedMsgOrderParamsMessage.signedMsgOrderParams
+								signedMessage.signedMsgOrderParams
 							)}`
 						);
 						return;
 					}
 
-					onOrder(order, signedMsgOrderParamsMessage);
+					onOrder(order, signedMessage, isDelegateSigner);
 				}
 			});
 
@@ -161,11 +181,35 @@ export class SwiftOrderSubscriber {
 				this.reconnect();
 			});
 		});
+
+		ws.on('unexpected-response', async (request, response) => {
+			console.error(
+				'Unexpected response, reconnecting in 5s:',
+				response.statusCode
+			);
+			setTimeout(() => {
+				if (this.heartbeatTimeout) clearTimeout(this.heartbeatTimeout);
+				this.reconnect();
+			}, 5000);
+		});
+
+		ws.on('error', async (request, response) => {
+			console.error(
+				'WS closed from error, reconnecting in 1s:',
+				response.statusCode
+			);
+			setTimeout(() => {
+				if (this.heartbeatTimeout) clearTimeout(this.heartbeatTimeout);
+				this.reconnect();
+			}, 1000);
+		});
 	}
 
 	async getPlaceAndMakeSignedMsgOrderIxs(
 		orderMessageRaw: any,
-		signedMsgOrderParamsMessage: SignedMsgOrderParamsMessage,
+		signedMsgOrderParamsMessage:
+			| SignedMsgOrderParamsMessage
+			| SignedMsgOrderParamsDelegateMessage,
 		makerOrderParams: OptionalOrderParams
 	): Promise<TransactionInstruction[]> {
 		if (!this.userAccountGetter) {
@@ -176,15 +220,35 @@ export class SwiftOrderSubscriber {
 			orderMessageRaw['order_message'],
 			'hex'
 		);
+
+		const isDelegateSigner = signedMsgOrderParamsBuf
+			.slice(0, 8)
+			.equals(
+				Uint8Array.from(
+					Buffer.from(
+						sha256('global' + ':' + 'SignedMsgOrderParamsDelegateMessage')
+					).slice(0, 8)
+				)
+			);
+		const signedMessage:
+			| SignedMsgOrderParamsMessage
+			| SignedMsgOrderParamsDelegateMessage =
+			this.driftClient.decodeSignedMsgOrderParamsMessage(
+				signedMsgOrderParamsBuf,
+				isDelegateSigner
+			);
+
 		const takerAuthority = new PublicKey(orderMessageRaw['taker_authority']);
 		const signingAuthority = new PublicKey(
 			orderMessageRaw['signing_authority']
 		);
-		const takerUserPubkey = await getUserAccountPublicKey(
-			this.driftClient.program.programId,
-			takerAuthority,
-			signedMsgOrderParamsMessage.subAccountId
-		);
+		const takerUserPubkey = isDelegateSigner
+			? (signedMessage as SignedMsgOrderParamsDelegateMessage).takerPubkey
+			: await getUserAccountPublicKey(
+					this.driftClient.program.programId,
+					takerAuthority,
+					(signedMessage as SignedMsgOrderParamsMessage).subAccountId
+			  );
 		const takerUserAccount = await this.userAccountGetter.mustGetUserAccount(
 			takerUserPubkey.toString()
 		);

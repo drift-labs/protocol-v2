@@ -1,5 +1,5 @@
 use crate::error::{DriftResult, ErrorCode};
-use solana_program::msg;
+use crate::msg;
 use std::panic::Location;
 
 pub trait SafeUnwrap {

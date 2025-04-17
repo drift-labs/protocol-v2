@@ -237,6 +237,10 @@ pub struct OrderActionRecord {
 
     /// precision: PRICE_PRECISION
     pub oracle_price: i64,
+
+    /// Bit flags:
+    /// 0: is_signed_message
+    pub bit_flags: u8,
 }
 
 impl Size for OrderActionRecord {
@@ -263,6 +267,7 @@ pub fn get_order_action_record(
     maker: Option<Pubkey>,
     maker_order: Option<Order>,
     oracle_price: i64,
+    bit_flags: u8,
 ) -> DriftResult<OrderActionRecord> {
     Ok(OrderActionRecord {
         ts,
@@ -310,6 +315,7 @@ pub fn get_order_action_record(
         maker_order_cumulative_quote_asset_amount_filled: maker_order
             .map(|order| order.quote_asset_amount_filled),
         oracle_price,
+        bit_flags,
     })
 }
 
@@ -627,10 +633,18 @@ pub struct FuelSeasonRecord {
 }
 
 pub fn emit_stack<T: AnchorSerialize + Discriminator, const N: usize>(event: T) -> DriftResult {
-    let mut data_buf = [0u8; N];
-    let mut out_buf = [0u8; N];
+    #[cfg(not(feature = "drift-rs"))]
+    {
+        let mut data_buf = [0u8; N];
+        let mut out_buf = [0u8; N];
 
-    emit_buffers(event, &mut data_buf[..], &mut out_buf[..])
+        emit_buffers(event, &mut data_buf[..], &mut out_buf[..])
+    }
+    #[cfg(feature = "drift-rs")]
+    // don't emit anything for offchain use
+    {
+        Ok(())
+    }
 }
 
 pub fn emit_buffers<T: AnchorSerialize + Discriminator>(

@@ -1,7 +1,7 @@
 use crate::error::{DriftResult, ErrorCode};
+use crate::msg;
 use crate::validate;
 use anchor_lang::prelude::{AccountInfo, Pubkey};
-use solana_program::msg;
 use solana_program::rent::Rent;
 
 pub fn seed_and_create_pda<'a>(

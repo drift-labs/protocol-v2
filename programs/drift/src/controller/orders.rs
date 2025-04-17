@@ -1,10 +1,10 @@
 use std::cell::RefMut;
 use std::collections::BTreeMap;
-use std::ops::DerefMut;
+use std::ops::{Deref, DerefMut};
 use std::u64;
 
+use crate::msg;
 use anchor_lang::prelude::*;
-use solana_program::msg;
 
 use crate::controller::funding::settle_funding_payment;
 use crate::controller::lp::burn_lp_shares;
@@ -63,6 +63,7 @@ use crate::state::order_params::{
 use crate::state::paused_operations::{PerpOperation, SpotOperation};
 use crate::state::perp_market::{AMMAvailability, AMMLiquiditySplit, MarketStatus, PerpMarket};
 use crate::state::perp_market_map::PerpMarketMap;
+use crate::state::protected_maker_mode_config::ProtectedMakerParams;
 use crate::state::spot_fulfillment_params::{ExternalSpotFill, SpotFulfillmentParams};
 use crate::state::spot_market::{SpotBalanceType, SpotMarket};
 use crate::state::spot_market_map::SpotMarketMap;
@@ -70,7 +71,7 @@ use crate::state::state::FeeStructure;
 use crate::state::state::*;
 use crate::state::traits::Size;
 use crate::state::user::{
-    AssetType, Order, OrderStatus, OrderTriggerCondition, OrderType, UserStats,
+    AssetType, Order, OrderBitFlag, OrderStatus, OrderTriggerCondition, OrderType, UserStats,
 };
 use crate::state::user::{MarketType, User};
 use crate::state::user_map::{UserMap, UserStatsMap};
@@ -142,14 +143,14 @@ pub fn place_perp_order(
     let new_order_index = user
         .orders
         .iter()
-        .position(|order| order.status.eq(&OrderStatus::Init))
+        .position(|order| order.is_available())
         .ok_or(ErrorCode::MaxNumberOfOrders)?;
 
     if params.user_order_id > 0 {
         let user_order_id_already_used = user
             .orders
             .iter()
-            .position(|order| order.user_order_id == params.user_order_id);
+            .position(|order| order.user_order_id == params.user_order_id && !order.is_available());
 
         if user_order_id_already_used.is_some() {
             msg!("user_order_id is already in use {}", params.user_order_id);
@@ -227,8 +228,12 @@ pub fn place_perp_order(
 
     // updates auction params for crossing limit orders w/out auction duration
     // dont modify if it's a liquidation
-    if !options.is_liquidation() && !options.is_signed_msg_order() {
-        params.update_perp_auction_params(market, oracle_price_data.price)?;
+    if !options.is_liquidation() {
+        params.update_perp_auction_params(
+            market,
+            oracle_price_data.price,
+            options.is_signed_msg_order(),
+        )?;
     }
 
     let (auction_start_price, auction_end_price, auction_duration) = get_auction_params(
@@ -402,6 +407,7 @@ pub fn place_perp_order(
         maker,
         maker_order,
         oracle_map.get_price_data(&market.oracle_id())?.price,
+        bit_flags,
     )?;
     emit_stack::<_, { OrderActionRecord::SIZE }>(order_action_record)?;
 
@@ -676,6 +682,7 @@ pub fn cancel_order(
             maker,
             maker_order,
             oracle_map.get_price_data(&oracle_id)?.price,
+            0,
         )?;
         emit_stack::<_, { OrderActionRecord::SIZE }>(order_action_record)?;
     }
@@ -697,7 +704,7 @@ pub fn cancel_order(
         }
 
         user.perp_positions[position_index].open_orders -= 1;
-        user.orders[order_index] = Order::default();
+        user.orders[order_index].status = OrderStatus::Canceled;
     } else {
         let spot_position_index = user.get_spot_position_index(order_market_index)?;
 
@@ -712,7 +719,7 @@ pub fn cancel_order(
             )?;
         }
         user.spot_positions[spot_position_index].open_orders -= 1;
-        user.orders[order_index] = Order::default();
+        user.orders[order_index].status = OrderStatus::Canceled;
     }
 
     Ok(())
@@ -933,7 +940,7 @@ pub fn fill_perp_order(
     let order_index = user
         .orders
         .iter()
-        .position(|order| order.order_id == order_id)
+        .position(|order| order.order_id == order_id && order.status == OrderStatus::Open)
         .ok_or_else(print_error!(ErrorCode::OrderDoesNotExist))?;
 
     let (
@@ -944,7 +951,6 @@ pub fn fill_perp_order(
         order_oracle_price_offset,
         order_direction,
         order_auction_duration,
-        order_posted_slot_tail,
     ) = get_struct_values!(
         user.orders[order_index],
         status,
@@ -953,8 +959,7 @@ pub fn fill_perp_order(
         price,
         oracle_price_offset,
         direction,
-        auction_duration,
-        posted_slot_tail
+        auction_duration
     );
 
     validate!(
@@ -1228,17 +1233,9 @@ pub fn fill_perp_order(
         return Ok((0, 0));
     }
 
-    let clock_slot_tail = get_posted_slot_from_clock_slot(slot);
-
     let amm_availability = if amm_is_available {
         if amm_can_skip_duration && user_can_skip_duration {
             AMMAvailability::Immediate
-        } else if !user_can_skip_duration
-            && (clock_slot_tail.wrapping_sub(order_posted_slot_tail)
-                < state.min_perp_auction_duration)
-        {
-            msg!("Overriding toxic user from afterminduration to unavailble");
-            AMMAvailability::Unavailable
         } else {
             AMMAvailability::AfterMinDuration
         }
@@ -1473,12 +1470,13 @@ fn get_maker_orders_info(
             slot,
             market.amm.order_tick_size,
             market.is_prediction_market(),
-            apply_protected_maker_offset(
+            get_protected_maker_params(
                 is_protected_maker,
                 jit_maker_order_id.is_some(),
                 user_can_skip_duration,
                 taker_order_age,
                 protected_maker_min_age,
+                market.deref(),
             ),
         )?;
 
@@ -1589,17 +1587,23 @@ fn get_maker_orders_info(
 }
 
 #[inline(always)]
-fn apply_protected_maker_offset(
+fn get_protected_maker_params(
     is_protected_maker: bool,
     jit_maker: bool,
     user_can_skip_duration: bool,
     taker_order_age: u64,
     protected_maker_min_age: u64,
-) -> bool {
-    is_protected_maker
+    market: &PerpMarket,
+) -> Option<ProtectedMakerParams> {
+    if is_protected_maker
         && !jit_maker
         && !user_can_skip_duration
         && taker_order_age < protected_maker_min_age
+    {
+        Some(market.get_protected_maker_params())
+    } else {
+        None
+    }
 }
 
 #[inline(always)]
@@ -1654,6 +1658,10 @@ fn get_referrer_info(
         }
 
         if referrer.sub_account_id == 0 {
+            if referrer.pool_id != 0 {
+                return Ok(None);
+            }
+
             referrer.update_last_active_slot(slot);
             referrer_user_key = *referrer_key;
             break;
@@ -2325,6 +2333,11 @@ pub fn fulfill_perp_order_with_amm(
         (Some(_), Some(_)) => liquidity_split.get_order_action_explanation(),
         _ => OrderActionExplanation::OrderFilledWithAMM,
     };
+    let mut order_action_bit_flags: u8 = 0;
+    order_action_bit_flags = set_is_signed_msg_flag(
+        order_action_bit_flags,
+        user.orders[order_index].is_signed_msg(),
+    );
     let order_action_record = get_order_action_record(
         now,
         OrderAction::Fill,
@@ -2349,13 +2362,14 @@ pub fn fulfill_perp_order_with_amm(
         maker,
         maker_order,
         oracle_map.get_price_data(&market.oracle_id())?.price,
+        order_action_bit_flags,
     )?;
     emit_stack::<_, { OrderActionRecord::SIZE }>(order_action_record)?;
 
     // Cant reset order until after its logged
     if user.orders[order_index].get_base_asset_amount_unfilled(None)? == 0 {
         user.decrement_open_orders(user.orders[order_index].has_auction());
-        user.orders[order_index] = Order::default();
+        user.orders[order_index].status = OrderStatus::Filled;
         let market_position = &mut user.perp_positions[position_index];
         market_position.open_orders -= 1;
     }
@@ -2744,6 +2758,11 @@ pub fn fulfill_perp_order_with_match(
     } else {
         OrderActionExplanation::OrderFilledWithMatch
     };
+    let mut order_action_bit_flags = 0;
+    order_action_bit_flags = set_is_signed_msg_flag(
+        order_action_bit_flags,
+        taker.orders[taker_order_index].is_signed_msg(),
+    );
     let order_action_record = get_order_action_record(
         now,
         OrderAction::Fill,
@@ -2764,19 +2783,20 @@ pub fn fulfill_perp_order_with_match(
         Some(*maker_key),
         Some(maker.orders[maker_order_index]),
         oracle_map.get_price_data(&market.oracle_id())?.price,
+        order_action_bit_flags,
     )?;
     emit_stack::<_, { OrderActionRecord::SIZE }>(order_action_record)?;
 
     if taker.orders[taker_order_index].get_base_asset_amount_unfilled(None)? == 0 {
         taker.decrement_open_orders(taker.orders[taker_order_index].has_auction());
-        taker.orders[taker_order_index] = Order::default();
+        taker.orders[taker_order_index].status = OrderStatus::Filled;
         let market_position = &mut taker.perp_positions[taker_position_index];
         market_position.open_orders -= 1;
     }
 
     if maker.orders[maker_order_index].get_base_asset_amount_unfilled(None)? == 0 {
         maker.decrement_open_orders(maker.orders[maker_order_index].has_auction());
-        maker.orders[maker_order_index] = Order::default();
+        maker.orders[maker_order_index].status = OrderStatus::Filled;
         let market_position = &mut maker.perp_positions[maker_position_index];
         market_position.open_orders -= 1;
     }
@@ -2838,7 +2858,7 @@ pub fn trigger_order(
     let order_index = user
         .orders
         .iter()
-        .position(|order| order.order_id == order_id)
+        .position(|order| order.order_id == order_id && order.status == OrderStatus::Open)
         .ok_or_else(print_error!(ErrorCode::OrderDoesNotExist))?;
 
     let (order_status, market_index, market_type) =
@@ -2930,7 +2950,7 @@ pub fn trigger_order(
             &mut user.orders[order_index],
             oracle_price_data,
             slot,
-            30,
+            20,
             Some(&perp_market),
         )?;
 
@@ -2980,6 +3000,7 @@ pub fn trigger_order(
         None,
         None,
         oracle_price,
+        0,
     )?;
     emit!(order_action_record);
 
@@ -3034,6 +3055,10 @@ fn update_trigger_order_params(
         }
     };
 
+    if slot.saturating_sub(order.slot) > 150 && order.reduce_only {
+        order.add_bit_flag(OrderBitFlag::SafeTriggerOrder);
+    }
+
     order.slot = slot;
 
     let (auction_duration, auction_start_price, auction_end_price) =
@@ -3054,6 +3079,10 @@ fn update_trigger_order_params(
     order.auction_duration = auction_duration;
     order.auction_start_price = auction_start_price;
     order.auction_end_price = auction_end_price;
+
+    if matches!(order.order_type, OrderType::TriggerMarket) {
+        order.add_bit_flag(OrderBitFlag::OracleTriggerMarket);
+    }
 
     Ok(())
 }
@@ -3434,14 +3463,14 @@ pub fn place_spot_order(
     let new_order_index = user
         .orders
         .iter()
-        .position(|order| order.status.eq(&OrderStatus::Init))
+        .position(|order| order.is_available())
         .ok_or(ErrorCode::MaxNumberOfOrders)?;
 
     if params.user_order_id > 0 {
         let user_order_id_already_used = user
             .orders
             .iter()
-            .position(|order| order.user_order_id == params.user_order_id);
+            .position(|order| order.user_order_id == params.user_order_id && !order.is_available());
 
         if user_order_id_already_used.is_some() {
             msg!("user_order_id is already in use {}", params.user_order_id);
@@ -3641,6 +3670,7 @@ pub fn place_spot_order(
         maker,
         maker_order,
         oracle_price_data.price,
+        0,
     )?;
     emit_stack::<_, { OrderActionRecord::SIZE }>(order_action_record)?;
 
@@ -3683,7 +3713,7 @@ pub fn fill_spot_order(
     let order_index = user
         .orders
         .iter()
-        .position(|order| order.order_id == order_id)
+        .position(|order| order.order_id == order_id && order.status == OrderStatus::Open)
         .ok_or_else(print_error!(ErrorCode::OrderDoesNotExist))?;
 
     let (order_status, order_market_index, order_market_type, order_direction) = get_struct_values!(
@@ -4043,7 +4073,7 @@ fn get_spot_maker_orders_info(
             slot,
             market.order_tick_size,
             false,
-            false,
+            None,
         )?;
 
         if maker_order_price_and_indexes.is_empty() {
@@ -4236,7 +4266,7 @@ fn fulfill_spot_order(
         slot,
         base_market.order_tick_size,
         false,
-        false,
+        None,
     )?;
 
     let fulfillment_methods = determine_spot_fulfillment_methods(
@@ -4569,7 +4599,7 @@ pub fn fulfill_spot_order_with_match(
         slot,
         base_market.order_tick_size,
         false,
-        false,
+        None,
     )? {
         Some(price) => price,
         None => {
@@ -4594,7 +4624,7 @@ pub fn fulfill_spot_order_with_match(
         slot,
         base_market.order_tick_size,
         false,
-        false,
+        None,
     )?;
     let maker_direction = maker.orders[maker_order_index].direction;
     let maker_spot_position_index = maker.get_spot_position_index(market_index)?;
@@ -4867,19 +4897,20 @@ pub fn fulfill_spot_order_with_match(
         Some(*maker_key),
         Some(maker.orders[maker_order_index]),
         oracle_map.get_price_data(&base_market.oracle_id())?.price,
+        0,
     )?;
     emit_stack::<_, { OrderActionRecord::SIZE }>(order_action_record)?;
 
     // Clear taker/maker order if completely filled
     if taker.orders[taker_order_index].get_base_asset_amount_unfilled(None)? == 0 {
         taker.decrement_open_orders(taker.orders[taker_order_index].has_auction());
-        taker.orders[taker_order_index] = Order::default();
+        taker.orders[taker_order_index].status = OrderStatus::Filled;
         taker.spot_positions[taker_spot_position_index].open_orders -= 1;
     }
 
     if maker.orders[maker_order_index].get_base_asset_amount_unfilled(None)? == 0 {
         maker.decrement_open_orders(maker.orders[maker_order_index].has_auction());
-        maker.orders[maker_order_index] = Order::default();
+        maker.orders[maker_order_index].status = OrderStatus::Filled;
         maker.spot_positions[maker_spot_position_index].open_orders -= 1;
     }
 
@@ -4909,7 +4940,7 @@ pub fn fulfill_spot_order_with_external_market(
         slot,
         base_market.order_tick_size,
         false,
-        false,
+        None,
     )?;
     let taker_token_amount = taker
         .force_get_spot_position_mut(base_market.market_index)?
@@ -5132,12 +5163,13 @@ pub fn fulfill_spot_order_with_external_market(
         None,
         None,
         oracle_price,
+        0,
     )?;
     emit_stack::<_, { OrderActionRecord::SIZE }>(order_action_record)?;
 
     if taker.orders[taker_order_index].get_base_asset_amount_unfilled(None)? == 0 {
         taker.decrement_open_orders(taker.orders[taker_order_index].has_auction());
-        taker.orders[taker_order_index] = Order::default();
+        taker.orders[taker_order_index].status = OrderStatus::Filled;
         taker
             .force_get_spot_position_mut(base_market.market_index)?
             .open_orders -= 1;
@@ -5166,7 +5198,7 @@ pub fn trigger_spot_order(
     let order_index = user
         .orders
         .iter()
-        .position(|order| order.order_id == order_id)
+        .position(|order| order.order_id == order_id && order.status == OrderStatus::Open)
         .ok_or_else(print_error!(ErrorCode::OrderDoesNotExist))?;
 
     let (order_status, market_index, market_type) =
@@ -5272,7 +5304,7 @@ pub fn trigger_spot_order(
             &mut user.orders[order_index],
             oracle_price_data,
             slot,
-            30,
+            20,
             None,
         )?;
 
@@ -5323,6 +5355,7 @@ pub fn trigger_spot_order(
         None,
         None,
         oracle_price,
+        0,
     )?;
 
     emit!(order_action_record);

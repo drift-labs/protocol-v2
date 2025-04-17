@@ -2,7 +2,7 @@ use crate::error::{DriftResult, ErrorCode};
 use crate::math::bn::{U192, U256};
 use crate::math::ceil_div::CheckedCeilDiv;
 use crate::math::floor_div::CheckedFloorDiv;
-use solana_program::msg;
+use crate::msg;
 use std::panic::Location;
 
 pub trait SafeMath: Sized {

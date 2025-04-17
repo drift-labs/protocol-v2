@@ -4,8 +4,8 @@ import {
 	Client,
 	deserializeClockData,
 	toNum,
-	getMarketUiLadder,
 	Market,
+	getMarketLadder,
 } from '@ellipsis-labs/phoenix-sdk';
 import { PRICE_PRECISION } from '../constants/numericConstants';
 import { BN } from '@coral-xyz/anchor';
@@ -138,7 +138,7 @@ export class PhoenixSubscriber implements L2OrderBookGenerator {
 	}
 
 	public getBestBid(): BN | undefined {
-		const ladder = getMarketUiLadder(
+		const ladder = getMarketLadder(
 			this.market,
 			this.lastSlot,
 			this.lastUnixTimestamp,
@@ -148,11 +148,11 @@ export class PhoenixSubscriber implements L2OrderBookGenerator {
 		if (!bestBid) {
 			return undefined;
 		}
-		return new BN(Math.floor(bestBid.price * PRICE_PRECISION.toNumber()));
+		return this.convertPriceInTicksToPricePrecision(bestBid.priceInTicks);
 	}
 
 	public getBestAsk(): BN | undefined {
-		const ladder = getMarketUiLadder(
+		const ladder = getMarketLadder(
 			this.market,
 			this.lastSlot,
 			this.lastUnixTimestamp,
@@ -163,7 +163,24 @@ export class PhoenixSubscriber implements L2OrderBookGenerator {
 		if (!bestAsk) {
 			return undefined;
 		}
-		return new BN(Math.floor(bestAsk.price * PRICE_PRECISION.toNumber()));
+		return this.convertPriceInTicksToPricePrecision(bestAsk.priceInTicks);
+	}
+
+	public convertPriceInTicksToPricePrecision(priceInTicks: BN): BN {
+		const quotePrecision = new BN(
+			Math.pow(10, this.market.data.header.quoteParams.decimals)
+		);
+		const denom = quotePrecision.muln(
+			this.market.data.header.rawBaseUnitsPerBaseUnit
+		);
+		const price = priceInTicks
+			.muln(this.market.data.quoteLotsPerBaseUnitPerTick)
+			.muln(toNum(this.market.data.header.quoteLotSize));
+		return price.mul(PRICE_PRECISION).div(denom);
+	}
+
+	public convertSizeInBaseLotsToMarketPrecision(sizeInBaseLots: BN): BN {
+		return sizeInBaseLots.muln(toNum(this.market.data.header.baseLotSize));
 	}
 
 	public getL2Bids(): Generator<L2Level> {
@@ -175,14 +192,7 @@ export class PhoenixSubscriber implements L2OrderBookGenerator {
 	}
 
 	*getL2Levels(side: 'bids' | 'asks'): Generator<L2Level> {
-		const basePrecision = Math.pow(
-			10,
-			this.market.data.header.baseParams.decimals
-		);
-
-		const pricePrecision = PRICE_PRECISION.toNumber();
-
-		const ladder = getMarketUiLadder(
+		const ladder = getMarketLadder(
 			this.market,
 			this.lastSlot,
 			this.lastUnixTimestamp,
@@ -190,10 +200,12 @@ export class PhoenixSubscriber implements L2OrderBookGenerator {
 		);
 
 		for (let i = 0; i < ladder[side].length; i++) {
-			const { price, quantity } = ladder[side][i];
+			const { priceInTicks, sizeInBaseLots } = ladder[side][i];
 			try {
-				const size = new BN(quantity * basePrecision);
-				const updatedPrice = new BN(price * pricePrecision);
+				const size =
+					this.convertSizeInBaseLotsToMarketPrecision(sizeInBaseLots);
+				const updatedPrice =
+					this.convertPriceInTicksToPricePrecision(priceInTicks);
 				yield {
 					price: updatedPrice,
 					size,

@@ -1,6 +1,7 @@
 use std::convert::identity;
 use std::mem::size_of;
 
+use crate::msg;
 use anchor_lang::prelude::*;
 use anchor_spl::token::Token;
 use anchor_spl::token_2022::Token2022;
@@ -9,7 +10,6 @@ use phoenix::quantities::WrapperU64;
 use pyth_solana_receiver_sdk::cpi::accounts::InitPriceUpdate;
 use pyth_solana_receiver_sdk::program::PythSolanaReceiver;
 use serum_dex::state::ToAlignedBytes;
-use solana_program::msg;
 
 use crate::controller::token::close_vault;
 use crate::error::ErrorCode;
@@ -947,7 +947,9 @@ pub fn handle_initialize_perp_market(
         pool_id: 0,
         high_leverage_margin_ratio_initial: 0,
         high_leverage_margin_ratio_maintenance: 0,
-        padding: [0; 38],
+        protected_maker_limit_price_divisor: 0,
+        protected_maker_dynamic_divisor: 0,
+        padding: [0; 36],
         amm: AMM {
             oracle: *ctx.accounts.oracle.key,
             oracle_source,
@@ -1573,6 +1575,7 @@ pub struct UpdatePerpMarketSummaryStatsParams {
     pub quote_asset_amount_with_unsettled_lp: Option<i64>,
     pub net_unsettled_funding_pnl: Option<i64>,
     pub update_amm_summary_stats: Option<bool>,
+    pub exclude_total_liq_fee: Option<bool>,
 }
 
 #[access_control(
@@ -1629,6 +1632,7 @@ pub fn handle_update_perp_market_amm_summary_stats(
                 perp_market,
                 spot_market,
                 oracle_price,
+                params.exclude_total_liq_fee.unwrap_or(false),
             )?;
 
         msg!(
@@ -3943,6 +3947,39 @@ pub fn handle_update_perp_market_fuel(
         perp_market.fuel_boost_position = fuel_boost_position;
     } else {
         msg!("perp_market.fuel_boost_position: unchanged");
+    }
+
+    Ok(())
+}
+
+pub fn handle_update_perp_market_protected_maker_params(
+    ctx: Context<AdminUpdatePerpMarket>,
+    protected_maker_limit_price_divisor: Option<u8>,
+    protected_maker_dynamic_divisor: Option<u8>,
+) -> Result<()> {
+    let perp_market = &mut load_mut!(ctx.accounts.perp_market)?;
+    msg!("perp market {}", perp_market.market_index);
+
+    if let Some(protected_maker_limit_price_divisor) = protected_maker_limit_price_divisor {
+        msg!(
+            "perp_market.protected_maker_limit_price_divisor: {:?} -> {:?}",
+            perp_market.protected_maker_limit_price_divisor,
+            protected_maker_limit_price_divisor
+        );
+        perp_market.protected_maker_limit_price_divisor = protected_maker_limit_price_divisor;
+    } else {
+        msg!("perp_market.protected_maker_limit_price_divisor: unchanged");
+    }
+
+    if let Some(protected_maker_dynamic_divisor) = protected_maker_dynamic_divisor {
+        msg!(
+            "perp_market.protected_maker_dynamic_divisor: {:?} -> {:?}",
+            perp_market.protected_maker_dynamic_divisor,
+            protected_maker_dynamic_divisor
+        );
+        perp_market.protected_maker_dynamic_divisor = protected_maker_dynamic_divisor;
+    } else {
+        msg!("perp_market.protected_maker_dynamic_divisor: unchanged");
     }
 
     Ok(())

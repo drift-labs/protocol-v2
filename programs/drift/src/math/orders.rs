@@ -1,7 +1,7 @@
 use std::cmp::min;
 use std::ops::Sub;
 
-use solana_program::msg;
+use crate::msg;
 
 use crate::controller::position::PositionDelta;
 use crate::controller::position::PositionDirection;
@@ -10,6 +10,8 @@ use crate::math::amm::calculate_amm_available_liquidity;
 use crate::math::auction::is_amm_available_liquidity_source;
 use crate::math::casting::Cast;
 use crate::state::fill_mode::FillMode;
+use crate::state::protected_maker_mode_config::ProtectedMakerParams;
+use crate::state::user::OrderBitFlag;
 use crate::{
     load, math, FeeTier, State, BASE_PRECISION_I128, FEE_ADJUSTMENT_MAX,
     MAX_PREDICTION_MARKET_PRICE, MAX_PREDICTION_MARKET_PRICE_I64, OPEN_ORDER_MARGIN_REQUIREMENT,
@@ -275,22 +277,34 @@ pub fn standardize_price_i64(
 #[inline(always)]
 pub fn apply_protected_maker_limit_price_offset(
     price: u64,
-    tick_size: u64,
     direction: PositionDirection,
+    params: ProtectedMakerParams,
     standardize: bool,
 ) -> DriftResult<u64> {
-    let min_offset = tick_size.checked_shl(3).ok_or(ErrorCode::MathError)?;
+    let min_offset = params
+        .tick_size
+        .checked_shl(3)
+        .ok_or(ErrorCode::MathError)?;
+
+    let limit_price_bps_divisor = if params.limit_price_divisor > 0 {
+        10000 / params.limit_price_divisor as u64
+    } else {
+        1000_u64 // 10bps
+    };
+
     let price_offset = price
-        .safe_div(1000)? // 10 bps
-        .max(min_offset);
+        .safe_div(limit_price_bps_divisor)?
+        .max(min_offset)
+        .max(params.dynamic_offset)
+        .min(price / 20);
 
     let price = match direction {
-        PositionDirection::Long => price.saturating_sub(price_offset).max(tick_size),
+        PositionDirection::Long => price.saturating_sub(price_offset).max(params.tick_size),
         PositionDirection::Short => price.saturating_add(price_offset),
     };
 
     if standardize {
-        standardize_price(price, tick_size, direction)
+        standardize_price(price, params.tick_size, direction)
     } else {
         Ok(price)
     }
@@ -421,7 +435,7 @@ pub fn order_breaches_maker_oracle_price_bands(
         slot,
         tick_size,
         is_prediction_market,
-        false,
+        None,
     )?;
     limit_price_breaches_maker_oracle_price_bands(
         order_limit_price,
@@ -786,7 +800,7 @@ pub fn find_maker_orders(
     slot: u64,
     tick_size: u64,
     is_prediction_market: bool,
-    apply_protected_maker_offset: bool,
+    protected_maker_params: Option<ProtectedMakerParams>,
 ) -> DriftResult<Vec<(usize, u64)>> {
     let mut orders: Vec<(usize, u64)> = Vec::with_capacity(32);
 
@@ -814,7 +828,7 @@ pub fn find_maker_orders(
             slot,
             tick_size,
             is_prediction_market,
-            apply_protected_maker_offset,
+            protected_maker_params,
         )?;
 
         orders.push((order_index, limit_price));
@@ -1316,7 +1330,7 @@ pub fn find_bids_and_asks_from_users(
                 slot,
                 tick_size,
                 perp_market.is_prediction_market(),
-                false,
+                None,
             )?;
 
             insert_order(base_amount, limit_price, order.direction);
@@ -1385,12 +1399,11 @@ pub fn get_posted_slot_from_clock_slot(slot: u64) -> u8 {
 }
 
 // Bit flag operators
-pub const FLAG_IS_SIGNED_MSG: u8 = 0x01;
 pub fn set_is_signed_msg_flag(mut flags: u8, value: bool) -> u8 {
     if value {
-        flags |= FLAG_IS_SIGNED_MSG;
+        flags |= OrderBitFlag::SignedMessage as u8;
     } else {
-        flags &= !FLAG_IS_SIGNED_MSG;
+        flags &= !(OrderBitFlag::SignedMessage as u8);
     }
     flags
 }

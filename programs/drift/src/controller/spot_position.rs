@@ -1,4 +1,4 @@
-use solana_program::msg;
+use crate::msg;
 
 use crate::controller::position::PositionDirection;
 use crate::controller::spot_balance::update_spot_balances;

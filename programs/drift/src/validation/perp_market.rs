@@ -4,9 +4,9 @@ use crate::math::casting::Cast;
 use crate::math::constants::MAX_BASE_ASSET_AMOUNT_WITH_AMM;
 use crate::math::safe_math::SafeMath;
 
+use crate::msg;
 use crate::state::perp_market::{MarketStatus, PerpMarket, AMM};
 use crate::{validate, BID_ASK_SPREAD_PRECISION};
-use solana_program::msg;
 
 #[allow(clippy::comparison_chain)]
 pub fn validate_perp_market(market: &PerpMarket) -> DriftResult {
@@ -25,7 +25,8 @@ pub fn validate_perp_market(market: &PerpMarket) -> DriftResult {
     validate!(
         remainder_base_asset_amount_long == 0 && remainder_base_asset_amount_short == 0,
         ErrorCode::InvalidPositionDelta,
-        "invalid base_asset_amount_long/short vs order_step_size, remainder={}/{}",
+        "market {} invalid base_asset_amount_long/short vs order_step_size, remainder={}/{}",
+        market.market_index,
         remainder_base_asset_amount_short,
         market.amm.order_step_size
     )?;
@@ -49,21 +50,24 @@ pub fn validate_perp_market(market: &PerpMarket) -> DriftResult {
     validate!(
         market.amm.base_asset_amount_with_amm <= (MAX_BASE_ASSET_AMOUNT_WITH_AMM as i128),
         ErrorCode::InvalidAmmDetected,
-        "market.amm.base_asset_amount_with_amm={} is too large",
+        "market {} market.amm.base_asset_amount_with_amm={} is too large",
+        market.market_index,
         market.amm.base_asset_amount_with_amm
     )?;
 
     validate!(
         market.amm.peg_multiplier > 0,
         ErrorCode::InvalidAmmDetected,
-        "peg_multiplier out of wack"
+        "market {} peg_multiplier out of wack",
+        market.market_index,
     )?;
 
     if market.status != MarketStatus::ReduceOnly {
         validate!(
             market.amm.sqrt_k > market.amm.base_asset_amount_with_amm.unsigned_abs(),
             ErrorCode::InvalidAmmDetected,
-            "k out of wack: k={}, net_baa={}",
+            "market {} k out of wack: k={}, net_baa={}",
+            market.market_index,
             market.amm.sqrt_k,
             market.amm.base_asset_amount_with_amm
         )?;
@@ -73,7 +77,8 @@ pub fn validate_perp_market(market: &PerpMarket) -> DriftResult {
         market.amm.sqrt_k >= market.amm.base_asset_reserve
             || market.amm.sqrt_k >= market.amm.quote_asset_reserve,
         ErrorCode::InvalidAmmDetected,
-        "k out of wack: k={}, bar={}, qar={}",
+        "market {} k out of wack: k={}, bar={}, qar={}",
+        market.market_index,
         market.amm.sqrt_k,
         market.amm.base_asset_reserve,
         market.amm.quote_asset_reserve
@@ -82,7 +87,8 @@ pub fn validate_perp_market(market: &PerpMarket) -> DriftResult {
     validate!(
         market.amm.sqrt_k >= market.amm.user_lp_shares,
         ErrorCode::InvalidAmmDetected,
-        "market.amm.sqrt_k < market.amm.user_lp_shares: {} < {}",
+        "market {} market.amm.sqrt_k < market.amm.user_lp_shares: {} < {}",
+        market.market_index,
         market.amm.sqrt_k,
         market.amm.user_lp_shares,
     )?;
@@ -101,7 +107,8 @@ pub fn validate_perp_market(market: &PerpMarket) -> DriftResult {
     validate!(
         rounding_diff <= 15,
         ErrorCode::InvalidAmmDetected,
-        "qar/bar/k out of wack: k={}, bar={}, qar={}, qar'={} (rounding: {})",
+        "market {} amm qar/bar/k invalid: k={}, bar={}, qar={}, qar'={} (rounding: {})",
+        market.market_index,
         invariant,
         market.amm.base_asset_reserve,
         market.amm.quote_asset_reserve,
@@ -112,34 +119,41 @@ pub fn validate_perp_market(market: &PerpMarket) -> DriftResult {
     // todo
     if market.amm.base_spread > 0 {
         // bid quote/base < reserve q/b
-        validate!(
-            market.amm.bid_base_asset_reserve >= market.amm.base_asset_reserve
-                && market.amm.bid_quote_asset_reserve <= market.amm.quote_asset_reserve,
-            ErrorCode::InvalidAmmDetected,
-            "bid reserves out of wack: {} -> {}, quote: {} -> {}",
-            market.amm.bid_base_asset_reserve,
-            market.amm.base_asset_reserve,
-            market.amm.bid_quote_asset_reserve,
-            market.amm.quote_asset_reserve
-        )?;
+        if market.amm.reference_price_offset <= 0 {
+            validate!(
+                market.amm.bid_base_asset_reserve >= market.amm.base_asset_reserve
+                    && market.amm.bid_quote_asset_reserve <= market.amm.quote_asset_reserve,
+                ErrorCode::InvalidAmmDetected,
+                "market {} amm bid reserves invalid: {} -> {}, quote: {} -> {}",
+                market.market_index,
+                market.amm.bid_base_asset_reserve,
+                market.amm.base_asset_reserve,
+                market.amm.bid_quote_asset_reserve,
+                market.amm.quote_asset_reserve
+            )?;
+        }
 
-        // ask quote/base > reserve q/b
-        validate!(
-            market.amm.ask_base_asset_reserve <= market.amm.base_asset_reserve
-                && market.amm.ask_quote_asset_reserve >= market.amm.quote_asset_reserve,
-            ErrorCode::InvalidAmmDetected,
-            "ask reserves out of wack base: {} -> {}, quote: {} -> {}",
-            market.amm.ask_base_asset_reserve,
-            market.amm.base_asset_reserve,
-            market.amm.ask_quote_asset_reserve,
-            market.amm.quote_asset_reserve
-        )?;
+        if market.amm.reference_price_offset >= 0 {
+            // ask quote/base > reserve q/b
+            validate!(
+                market.amm.ask_base_asset_reserve <= market.amm.base_asset_reserve
+                    && market.amm.ask_quote_asset_reserve >= market.amm.quote_asset_reserve,
+                ErrorCode::InvalidAmmDetected,
+                "market {} amm ask reserves invalid: {} -> {}, quote: {} -> {}",
+                market.market_index,
+                market.amm.ask_base_asset_reserve,
+                market.amm.base_asset_reserve,
+                market.amm.ask_quote_asset_reserve,
+                market.amm.quote_asset_reserve
+            )?;
+        }
     }
 
     validate!(
         market.amm.long_spread + market.amm.short_spread >= market.amm.base_spread,
         ErrorCode::InvalidAmmDetected,
-        "long_spread + short_spread < base_spread: {} + {} < {}",
+        "market {} amm long_spread + short_spread < base_spread: {} + {} < {}",
+        market.market_index,
         market.amm.long_spread,
         market.amm.short_spread,
         market.amm.base_spread
@@ -153,7 +167,8 @@ pub fn validate_perp_market(market: &PerpMarket) -> DriftResult {
             .cast::<u64>()?
             <= BID_ASK_SPREAD_PRECISION,
         ErrorCode::InvalidAmmDetected,
-        "long_spread {} + short_spread {} > max bid-ask spread precision (max spread = {})",
+        "market {} amm long_spread {} + short_spread {} > max bid-ask spread precision (max spread = {})",
+        market.market_index,
         market.amm.long_spread,
         market.amm.short_spread,
         market.amm.max_spread,
@@ -165,13 +180,15 @@ pub fn validate_perp_market(market: &PerpMarket) -> DriftResult {
         validate!(
             market.amm.terminal_quote_asset_reserve <= market.amm.quote_asset_reserve,
             ErrorCode::InvalidAmmDetected,
-            "terminal_quote_asset_reserve out of wack"
+            "market {} terminal_quote_asset_reserve out of wack",
+            market.market_index,
         )?;
     } else if market.amm.base_asset_amount_with_amm < 0 {
         validate!(
             market.amm.terminal_quote_asset_reserve >= market.amm.quote_asset_reserve,
             ErrorCode::InvalidAmmDetected,
-            "terminal_quote_asset_reserve out of wack (terminal <) {} > {}",
+            "market {} terminal_quote_asset_reserve out of wack (terminal <) {} > {}",
+            market.market_index,
             market.amm.terminal_quote_asset_reserve,
             market.amm.quote_asset_reserve
         )?;
@@ -179,7 +196,8 @@ pub fn validate_perp_market(market: &PerpMarket) -> DriftResult {
         validate!(
             market.amm.terminal_quote_asset_reserve == market.amm.quote_asset_reserve,
             ErrorCode::InvalidAmmDetected,
-            "terminal_quote_asset_reserve out of wack {}!={}",
+            "market {} terminal_quote_asset_reserve out of wack {}!={}",
+            market.market_index,
             market.amm.terminal_quote_asset_reserve,
             market.amm.quote_asset_reserve
         )?;
@@ -190,7 +208,8 @@ pub fn validate_perp_market(market: &PerpMarket) -> DriftResult {
             market.amm.max_spread > market.amm.base_spread
                 && market.amm.max_spread < market.margin_ratio_initial * 100,
             ErrorCode::InvalidAmmDetected,
-            "invalid max_spread",
+            "market {} amm invalid max_spread",
+            market.market_index,
         )?;
     }
 
@@ -198,9 +217,10 @@ pub fn validate_perp_market(market: &PerpMarket) -> DriftResult {
         .insurance_claim
         .max_revenue_withdraw_per_period >= market.insurance_claim.revenue_withdraw_since_last_settle.unsigned_abs(),
         ErrorCode::InvalidAmmDetected,
-        "market
+        "{} market
         .insurance_claim
         .max_revenue_withdraw_per_period={} < |market.insurance_claim.revenue_withdraw_since_last_settle|={}",
+        market.market_index,
         market
         .insurance_claim
         .max_revenue_withdraw_per_period,
@@ -210,14 +230,16 @@ pub fn validate_perp_market(market: &PerpMarket) -> DriftResult {
     validate!(
         market.amm.base_asset_amount_per_lp < MAX_BASE_ASSET_AMOUNT_WITH_AMM as i128,
         ErrorCode::InvalidAmmDetected,
-        "market.amm.base_asset_amount_per_lp too large: {}",
+        "{} market.amm.base_asset_amount_per_lp too large: {}",
+        market.market_index,
         market.amm.base_asset_amount_per_lp
     )?;
 
     validate!(
         market.amm.quote_asset_amount_per_lp < MAX_BASE_ASSET_AMOUNT_WITH_AMM as i128,
         ErrorCode::InvalidAmmDetected,
-        "market.amm.quote_asset_amount_per_lp too large: {}",
+        "{} market.amm.quote_asset_amount_per_lp too large: {}",
+        market.market_index,
         market.amm.quote_asset_amount_per_lp
     )?;
 

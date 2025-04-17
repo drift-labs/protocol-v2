@@ -178,6 +178,12 @@ export class OrderStatus {
 	static readonly CANCELED = { canceled: {} };
 }
 
+export class OrderBitFlag {
+	static readonly SignedMessage = 1;
+	static readonly OracleTriggerMarket = 2;
+	static readonly SafeTriggerOrder = 4;
+}
+
 export class OrderAction {
 	static readonly PLACE = { place: {} };
 	static readonly CANCEL = { cancel: {} };
@@ -617,6 +623,7 @@ export type OrderActionRecord = {
 	makerOrderCumulativeBaseAssetAmountFilled: BN | null;
 	makerOrderCumulativeQuoteAssetAmountFilled: BN | null;
 	oraclePrice: BN;
+	bitFlags: number;
 };
 
 export type SwapRecord = {
@@ -749,6 +756,8 @@ export type PerpMarketAccount = {
 
 	highLeverageMarginRatioInitial: number;
 	highLeverageMarginRatioMaintenance: number;
+	protectedMakerLimitPriceDivisor: number;
+	protectedMakerDynamicDivisor: number;
 };
 
 export type HistoricalOracleData = {
@@ -1164,10 +1173,19 @@ export const DefaultOrderParams: OrderParams = {
 };
 
 export type SignedMsgOrderParamsMessage = {
-	signedMsgOrderParams: OptionalOrderParams;
+	signedMsgOrderParams: OrderParams;
 	subAccountId: number;
 	slot: BN;
 	uuid: Uint8Array;
+	takeProfitOrderParams: SignedMsgTriggerOrderParams | null;
+	stopLossOrderParams: SignedMsgTriggerOrderParams | null;
+};
+
+export type SignedMsgOrderParamsDelegateMessage = {
+	signedMsgOrderParams: OrderParams;
+	slot: BN;
+	uuid: Uint8Array;
+	takerPubkey: PublicKey;
 	takeProfitOrderParams: SignedMsgTriggerOrderParams | null;
 	stopLossOrderParams: SignedMsgTriggerOrderParams | null;
 };
@@ -1428,6 +1446,12 @@ export type ProtectedMakerModeConfig = {
 	maxUsers: number;
 	currentUsers: number;
 	reduceOnly: boolean;
+};
+
+export type ProtectedMakerParams = {
+	limitPriceDivisor: number;
+	tickSize: BN;
+	dynamicOffset: BN;
 };
 
 /* Represents proof of a signed msg taker order

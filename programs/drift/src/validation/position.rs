@@ -2,10 +2,10 @@ use crate::error::{DriftResult, ErrorCode};
 use crate::math::casting::Cast;
 use crate::math::constants::MAX_OPEN_ORDERS;
 use crate::math::orders::is_multiple_of_step_size;
+use crate::msg;
 use crate::state::perp_market::PerpMarket;
 use crate::state::user::{PerpPosition, SpotPosition};
 use crate::validate;
-use solana_program::msg;
 
 pub fn validate_perp_position_with_perp_market(
     position: &PerpPosition,

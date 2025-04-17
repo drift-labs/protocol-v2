@@ -229,6 +229,6 @@ describe('user order id', () => {
 		await driftClientUser.fetchAccounts();
 		const order = driftClientUser.getUserAccount().orders[0];
 
-		assert(order.userOrderId === 0);
+		assert(isVariant(order.status, 'canceled'));
 	});
 });

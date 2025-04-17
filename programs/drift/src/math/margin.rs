@@ -16,6 +16,7 @@ use crate::math::oracle::{is_oracle_valid_for_action, DriftAction};
 use crate::math::spot_balance::{get_strict_token_value, get_token_value};
 
 use crate::math::safe_math::SafeMath;
+use crate::msg;
 use crate::state::margin_calculation::{MarginCalculation, MarginContext, MarketIdentifier};
 use crate::state::oracle::{OraclePriceData, StrictOraclePrice};
 use crate::state::oracle_map::OracleMap;
@@ -25,7 +26,6 @@ use crate::state::spot_market::{AssetTier, SpotBalanceType};
 use crate::state::spot_market_map::SpotMarketMap;
 use crate::state::user::{MarketType, OrderFillSimulation, PerpPosition, User};
 use num_integer::Roots;
-use solana_program::msg;
 use std::cmp::{max, min, Ordering};
 
 #[cfg(test)]
@@ -270,13 +270,18 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
             spot_market.get_max_confidence_interval_multiplier()?,
         )?;
 
-        validate!(
-            user_pool_id == spot_market.pool_id,
-            ErrorCode::InvalidPoolId,
-            "user pool id ({}) == spot market pool id ({})",
-            user_pool_id,
-            spot_market.pool_id,
-        )?;
+        let mut skip_token_value = false;
+        if !(user_pool_id == 1 && spot_market.market_index == 0 && !spot_position.is_borrow()) {
+            validate!(
+                user_pool_id == spot_market.pool_id,
+                ErrorCode::InvalidPoolId,
+                "user pool id ({}) == spot market pool id ({})",
+                user_pool_id,
+                spot_market.pool_id,
+            )?;
+        } else {
+            skip_token_value = true;
+        }
 
         let oracle_valid =
             is_oracle_valid_for_action(oracle_validity, Some(DriftAction::MarginCalc))?;
@@ -314,6 +319,10 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
                             "token_value set to 0 for market_index={}",
                             spot_market.market_index
                         );
+                        token_value = 0;
+                    }
+
+                    if skip_token_value {
                         token_value = 0;
                     }
 

@@ -1164,14 +1164,16 @@ export class AdminClient extends DriftClient {
 		perpMarketIndex: number,
 		updateAmmSummaryStats?: boolean,
 		quoteAssetAmountWithUnsettledLp?: BN,
-		netUnsettledFundingPnl?: BN
+		netUnsettledFundingPnl?: BN,
+		excludeTotalLiqFee?: boolean
 	): Promise<TransactionSignature> {
 		const updatePerpMarketMarginRatioIx =
 			await this.getUpdatePerpMarketAmmSummaryStatsIx(
 				perpMarketIndex,
 				updateAmmSummaryStats,
 				quoteAssetAmountWithUnsettledLp,
-				netUnsettledFundingPnl
+				netUnsettledFundingPnl,
+				excludeTotalLiqFee
 			);
 
 		const tx = await this.buildTransaction(updatePerpMarketMarginRatioIx);
@@ -1185,7 +1187,8 @@ export class AdminClient extends DriftClient {
 		perpMarketIndex: number,
 		updateAmmSummaryStats?: boolean,
 		quoteAssetAmountWithUnsettledLp?: BN,
-		netUnsettledFundingPnl?: BN
+		netUnsettledFundingPnl?: BN,
+		excludeTotalLiqFee?: boolean
 	): Promise<TransactionInstruction> {
 		return await this.program.instruction.updatePerpMarketAmmSummaryStats(
 			{
@@ -1193,6 +1196,7 @@ export class AdminClient extends DriftClient {
 				quoteAssetAmountWithUnsettledLp:
 					quoteAssetAmountWithUnsettledLp ?? null,
 				netUnsettledFundingPnl: netUnsettledFundingPnl ?? null,
+				excludeTotalLiqFee: excludeTotalLiqFee ?? null,
 			},
 			{
 				accounts: {
@@ -3842,6 +3846,51 @@ export class AdminClient extends DriftClient {
 			fuelBoostTaker || null,
 			fuelBoostMaker || null,
 			fuelBoostPosition || null,
+			{
+				accounts: {
+					admin: this.isSubscribed
+						? this.getStateAccount().admin
+						: this.wallet.publicKey,
+					state: await this.getStatePublicKey(),
+					perpMarket: perpMarketPublicKey,
+				},
+			}
+		);
+	}
+
+	public async updatePerpMarketProtectedMakerParams(
+		perpMarketIndex: number,
+		protectedMakerLimitPriceDivisor?: number,
+		protectedMakerDynamicDivisor?: number
+	): Promise<TransactionSignature> {
+		const updatePerpMarketProtectedMakerParamsIx =
+			await this.getUpdatePerpMarketProtectedMakerParamsIx(
+				perpMarketIndex,
+				protectedMakerLimitPriceDivisor || null,
+				protectedMakerDynamicDivisor || null
+			);
+
+		const tx = await this.buildTransaction(
+			updatePerpMarketProtectedMakerParamsIx
+		);
+		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+
+		return txSig;
+	}
+
+	public async getUpdatePerpMarketProtectedMakerParamsIx(
+		perpMarketIndex: number,
+		protectedMakerLimitPriceDivisor?: number,
+		protectedMakerDynamicDivisor?: number
+	): Promise<TransactionInstruction> {
+		const perpMarketPublicKey = await getPerpMarketPublicKey(
+			this.program.programId,
+			perpMarketIndex
+		);
+
+		return await this.program.instruction.updatePerpMarketProtectedMakerParams(
+			protectedMakerLimitPriceDivisor || null,
+			protectedMakerDynamicDivisor || null,
 			{
 				accounts: {
 					admin: this.isSubscribed

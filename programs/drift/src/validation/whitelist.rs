@@ -1,8 +1,8 @@
 use crate::error::{DriftResult, ErrorCode};
+use crate::msg;
 use crate::validate;
 use anchor_lang::prelude::{Account, Pubkey};
 use anchor_spl::token::TokenAccount;
-use solana_program::msg;
 
 pub fn validate_whitelist_token(
     whitelist_token: Account<TokenAccount>,

@@ -1,6 +1,6 @@
+use crate::msg;
 use anchor_lang::prelude::*;
 use borsh::{BorshDeserialize, BorshSerialize};
-use solana_program::msg;
 
 use crate::controller;
 use crate::controller::amm::SwapDirection;

@@ -4,13 +4,13 @@ use anchor_lang::accounts::signer::Signer;
 use anchor_lang::prelude::{AccountInfo, Pubkey};
 
 use crate::error::ErrorCode;
+use crate::msg;
 use crate::state::insurance_fund_stake::InsuranceFundStake;
 use crate::state::perp_market::{MarketStatus, PerpMarket};
 use crate::state::spot_market::SpotMarket;
 use crate::state::state::{ExchangeStatus, State};
 use crate::state::user::{User, UserStats};
 use crate::validate;
-use solana_program::msg;
 
 pub fn can_sign_for_user(user: &AccountLoader<User>, signer: &Signer) -> anchor_lang::Result<bool> {
     user.load().map(|user| {

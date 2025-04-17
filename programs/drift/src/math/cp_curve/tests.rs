@@ -71,7 +71,8 @@ fn calculate_k_tests_with_spread() {
         market.amm.bid_base_asset_reserve >= market.amm.base_asset_reserve
             && market.amm.bid_quote_asset_reserve <= market.amm.quote_asset_reserve,
         ErrorCode::InvalidAmmDetected,
-        "bid reserves out of wack: {} -> {}, quote: {} -> {}",
+        "market index {} amm bid reserves invalid: {} -> {}, quote: {} -> {}",
+        market.market_index,
         market.amm.bid_base_asset_reserve,
         market.amm.base_asset_reserve,
         market.amm.bid_quote_asset_reserve,

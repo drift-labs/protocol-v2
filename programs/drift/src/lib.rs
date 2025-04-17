@@ -1521,6 +1521,18 @@ pub mod drift {
         handle_update_perp_market_fuel(ctx, fuel_boost_taker, fuel_boost_maker, fuel_boost_position)
     }
 
+    pub fn update_perp_market_protected_maker_params(
+        ctx: Context<AdminUpdatePerpMarket>,
+        protected_maker_limit_price_divisor: Option<u8>,
+        protected_maker_dynamic_divisor: Option<u8>,
+    ) -> Result<()> {
+        handle_update_perp_market_protected_maker_params(
+            ctx,
+            protected_maker_limit_price_divisor,
+            protected_maker_dynamic_divisor,
+        )
+    }
+
     pub fn update_spot_market_fuel(
         ctx: Context<AdminUpdateSpotMarket>,
         fuel_boost_deposits: Option<u8>,

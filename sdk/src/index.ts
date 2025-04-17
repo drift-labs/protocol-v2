@@ -88,7 +88,6 @@ export * from './oracles/pythPullClient';
 export * from './oracles/pythLazerClient';
 export * from './oracles/switchboardOnDemandClient';
 export * from './oracles/oracleId';
-export * from './fastlane/fastlaneOrderSubscriber';
 export * from './swift/swiftOrderSubscriber';
 export * from './swift/signedMsgUserAccountSubscriber';
 export * from './swift/grpcSignedMsgUserAccountSubscriber';
@@ -130,5 +129,6 @@ export * from './util/TransactionConfirmationManager';
 export * from './clock/clockSubscriber';
 export * from './math/userStatus';
 export * from './constants/txConstants';
+export * from './indicative-quotes/indicativeQuotesSender';
 
 export { BN, PublicKey, pyth };

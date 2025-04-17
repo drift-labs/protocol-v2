@@ -10,8 +10,7 @@ use crate::math::constants::{
 use crate::math::lp::{calculate_lp_open_bids_asks, calculate_settle_lp_metrics};
 use crate::math::margin::MarginRequirementType;
 use crate::math::orders::{
-    apply_protected_maker_limit_price_offset, set_is_signed_msg_flag,
-    standardize_base_asset_amount, standardize_price, FLAG_IS_SIGNED_MSG,
+    apply_protected_maker_limit_price_offset, standardize_base_asset_amount, standardize_price,
 };
 use crate::math::position::{
     calculate_base_asset_value_and_pnl_with_oracle_price,
@@ -22,6 +21,7 @@ use crate::math::spot_balance::{
     get_signed_token_amount, get_strict_token_value, get_token_amount, get_token_value,
 };
 use crate::math::stats::calculate_rolling_sum;
+use crate::msg;
 use crate::state::oracle::StrictOraclePrice;
 use crate::state::perp_market::{ContractType, PerpMarket};
 use crate::state::spot_market::{SpotBalance, SpotBalanceType, SpotMarket};
@@ -32,7 +32,6 @@ use crate::{safe_increment, SPOT_WEIGHT_PRECISION};
 use crate::{validate, MAX_PREDICTION_MARKET_PRICE};
 use anchor_lang::prelude::*;
 use borsh::{BorshDeserialize, BorshSerialize};
-use solana_program::msg;
 use std::cmp::max;
 use std::fmt;
 use std::ops::Neg;
@@ -278,7 +277,9 @@ impl User {
     }
 
     pub fn get_order(&self, order_id: u32) -> Option<&Order> {
-        self.orders.iter().find(|order| order.order_id == order_id)
+        self.orders
+            .iter()
+            .find(|order| order.order_id == order_id && order.status == OrderStatus::Open)
     }
 
     pub fn get_last_order_id(&self) -> u32 {
@@ -434,7 +435,7 @@ impl User {
 
     pub fn has_room_for_new_order(&self) -> bool {
         for order in self.orders.iter() {
-            if order.status == OrderStatus::Init {
+            if order.is_available() {
                 return true;
             }
         }
@@ -621,11 +622,11 @@ impl User {
         oracle_price_offset: i32,
         oracle_price: i64,
     ) -> DriftResult<bool> {
-        if self.next_order_id > 3000 {
+        if self.next_order_id > 9000 {
             return Ok(false);
         }
 
-        if !is_auction || is_ioc {
+        if self.next_order_id > 1000 && (!is_auction || is_ioc) {
             return Ok(false);
         }
 
@@ -1246,6 +1247,8 @@ pub(crate) type PerpPositions = [PerpPosition; 8];
 
 #[cfg(test)]
 use crate::math::constants::{AMM_TO_QUOTE_PRECISION_RATIO_I128, PRICE_PRECISION_I128};
+
+use super::protected_maker_mode_config::ProtectedMakerParams;
 #[cfg(test)]
 impl PerpPosition {
     pub fn get_breakeven_price(&self) -> DriftResult<i128> {
@@ -1375,7 +1378,7 @@ impl Order {
         slot: u64,
         tick_size: u64,
         is_prediction_market: bool,
-        apply_protected_maker_offset: bool,
+        pmm_params: Option<ProtectedMakerParams>,
     ) -> DriftResult<Option<u64>> {
         let price = if self.has_auction_price(self.slot, self.auction_duration, slot)? {
             Some(calculate_auction_price(
@@ -1400,11 +1403,11 @@ impl Order {
                 limit_price = limit_price.min(MAX_PREDICTION_MARKET_PRICE)
             }
 
-            if apply_protected_maker_offset {
+            if let Some(pmm_params) = pmm_params {
                 limit_price = apply_protected_maker_limit_price_offset(
                     limit_price,
-                    tick_size,
                     self.direction,
+                    pmm_params,
                     false,
                 )?;
             }
@@ -1418,11 +1421,11 @@ impl Order {
         } else {
             let mut price = self.price;
 
-            if apply_protected_maker_offset {
+            if let Some(pmm_params) = pmm_params {
                 price = apply_protected_maker_limit_price_offset(
                     price,
-                    tick_size,
                     self.direction,
+                    pmm_params,
                     true,
                 )?;
             }
@@ -1442,7 +1445,7 @@ impl Order {
         slot: u64,
         tick_size: u64,
         is_prediction_market: bool,
-        apply_protected_maker_offset: bool,
+        pmm_params: Option<ProtectedMakerParams>,
     ) -> DriftResult<u64> {
         match self.get_limit_price(
             valid_oracle_price,
@@ -1450,7 +1453,7 @@ impl Order {
             slot,
             tick_size,
             is_prediction_market,
-            apply_protected_maker_offset,
+            pmm_params,
         )? {
             Some(price) => Ok(price),
             None => {
@@ -1598,13 +1601,20 @@ impl Order {
         Ok(self.post_only || self.is_auction_complete(slot)?)
     }
 
-    // Bit flags here
-    pub fn set_signed_msg(&mut self, value: bool) {
-        self.bit_flags = set_is_signed_msg_flag(self.bit_flags, value)
+    pub fn is_signed_msg(&self) -> bool {
+        self.is_bit_flag_set(OrderBitFlag::SignedMessage)
     }
 
-    pub fn is_signed_msg(&self) -> bool {
-        (self.bit_flags & FLAG_IS_SIGNED_MSG) != 0
+    pub fn add_bit_flag(&mut self, flag: OrderBitFlag) {
+        self.bit_flags |= flag as u8;
+    }
+
+    pub fn is_bit_flag_set(&self, flag: OrderBitFlag) -> bool {
+        (self.bit_flags & flag as u8) != 0
+    }
+
+    pub fn is_available(&self) -> bool {
+        self.status != OrderStatus::Open
     }
 }
 
@@ -1687,6 +1697,13 @@ impl fmt::Display for MarketType {
             MarketType::Perp => write!(f, "Perp"),
         }
     }
+}
+
+#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Debug, Eq)]
+pub enum OrderBitFlag {
+    SignedMessage = 0b00000001,
+    OracleTriggerMarket = 0b00000010,
+    SafeTriggerOrder = 0b00000100,
 }
 
 #[account(zero_copy(unsafe))]

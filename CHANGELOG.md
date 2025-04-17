@@ -15,6 +15,73 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Breaking
 
+## [2.118.0] - 2025-04-10
+
+### Features
+
+- program: make Pyra accounts exempt from force_delete_user ([#1569](https://github.com/drift-labs/protocol-v2/pull/1569))
+- sdk: deprecate getPostSwitchboardOnDemandUpdateAtomicIx ([#1567](https://github.com/drift-labs/protocol-v2/pull/1567))
+- program: maker trigger market oracle offset and fill with amm faster ([#1564](https://github.com/drift-labs/protocol-v2/pull/1564))
+- program: sanitize signed msg orders with wider thresholds ([#1554](https://github.com/drift-labs/protocol-v2/pull/1554))
+
+### Fixes
+
+- program: add crossing start buffer auction to end price ([#1568](https://github.com/drift-labs/protocol-v2/pull/1568))
+
+### Breaking
+
+## [2.117.0] - 2025-03-31
+
+### Features
+
+- program: more lenient pool id check to allow users with referrer rewards to withdraw ([#1553](https://github.com/drift-labs/protocol-v2/pull/1553))
+- program: add bitflags to order aciton records ([#1550](https://github.com/drift-labs/protocol-v2/pull/1550))
+
+### Fixes
+
+- program: fix user stats check for transfer_perp_position ([#1557](https://github.com/drift-labs/protocol-v2/pull/1557))
+
+### Breaking
+
+## [2.116.0] - 2025-03-21
+
+### Features
+
+### Fixes
+
+- program: program: fix order status checks ([#1549](https://github.com/drift-labs/protocol-v2/pull/1539))
+
+### Breaking
+
+## [2.115.0] - 2025-03-20
+
+### Features
+
+- program: force lst pool oracle updates into same slot for liquidations ([#1537](https://github.com/drift-labs/protocol-v2/pull/1537))
+- program: init dynamic offset for pmm ([#1524](https://github.com/drift-labs/protocol-v2/pull/1524))
+- program: new order status logic to make tracking fills easier ([#1512](https://github.com/drift-labs/protocol-v2/pull/1512))
+- program: make initting signedmsguserorder accounts permissionless ([#1533](https://github.com/drift-labs/protocol-v2/pull/1533))
+- program: allow transfer perp position between two delegates ([#1538](https://github.com/drift-labs/protocol-v2/pull/1538))
+- program: relax user-skip-auction-duration ([#1545](https://github.com/drift-labs/protocol-v2/pull/1545))
+
+### Fixes
+
+- program: fix reference price offset reserves ([#1516](https://github.com/drift-labs/protocol-v2/pull/1516))
+- sdk: account for authority when useMarketLastSlotCache ([#1541](https://github.com/drift-labs/protocol-v2/pull/1541))
+- program: delegate wallets sign taker pubkey into message ([#1546](https://github.com/drift-labs/protocol-v2/pull/1546))
+
+### Breaking
+
+## [2.114.0] - 2025-03-13
+
+### Features
+
+### Fixes
+
+- program: add liq fees to calculate_perp_market_amm_summary_stats ([#1531](https://github.com/drift-labs/protocol-v2/pull/1531))
+
+### Breaking
+
 ## [2.113.0] - 2025-03-06
 
 ### Features

@@ -2,13 +2,13 @@ use std::cell::{Ref, RefMut};
 
 use crate::error::{DriftResult, ErrorCode};
 use crate::math::safe_unwrap::SafeUnwrap;
+use crate::msg;
 use crate::{validate, ID};
 use anchor_lang::prelude::Pubkey;
 use anchor_lang::*;
 use anchor_lang::{account, zero_copy};
 use borsh::{BorshDeserialize, BorshSerialize};
 use prelude::AccountInfo;
-use solana_program::msg;
 
 use crate::state::traits::Size;
 

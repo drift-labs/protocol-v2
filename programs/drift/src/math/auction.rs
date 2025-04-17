@@ -4,14 +4,17 @@ use crate::math::casting::Cast;
 use crate::math::constants::AUCTION_DERIVE_PRICE_FRACTION;
 use crate::math::orders::standardize_price;
 use crate::math::safe_math::SafeMath;
+use crate::msg;
 use crate::state::oracle::OraclePriceData;
-use crate::state::user::{Order, OrderType};
-use solana_program::msg;
+use crate::state::perp_market::ContractTier;
+use crate::state::user::{Order, OrderBitFlag, OrderType};
 
 use crate::state::fill_mode::FillMode;
 use crate::state::perp_market::{AMMAvailability, PerpMarket};
 use crate::{OrderParams, MAX_PREDICTION_MARKET_PRICE};
 use std::cmp::min;
+
+use super::orders::get_posted_slot_from_clock_slot;
 
 #[cfg(test)]
 mod tests;
@@ -89,6 +92,15 @@ pub fn calculate_auction_price(
     is_prediction_market: bool,
 ) -> DriftResult<u64> {
     match order.order_type {
+        OrderType::TriggerMarket if order.is_bit_flag_set(OrderBitFlag::OracleTriggerMarket) => {
+            calculate_auction_price_for_oracle_offset_auction(
+                order,
+                slot,
+                tick_size,
+                valid_oracle_price,
+                is_prediction_market,
+            )
+        }
         OrderType::Market | OrderType::TriggerMarket | OrderType::TriggerLimit => {
             calculate_auction_price_for_fixed_auction(order, slot, tick_size)
         }
@@ -242,7 +254,20 @@ pub fn is_amm_available_liquidity_source(
     slot: u64,
     fill_mode: FillMode,
 ) -> DriftResult<bool> {
-    Ok(is_auction_complete(order.slot, min_auction_duration, slot)? || fill_mode.is_liquidation())
+    if fill_mode.is_liquidation() {
+        return Ok(true);
+    }
+
+    if order.is_bit_flag_set(OrderBitFlag::SafeTriggerOrder) {
+        return Ok(true);
+    }
+
+    if order.is_signed_msg() {
+        let clock_slot_tail = get_posted_slot_from_clock_slot(slot);
+        return Ok(clock_slot_tail.wrapping_sub(order.posted_slot_tail) >= min_auction_duration);
+    }
+
+    Ok(is_auction_complete(order.slot, min_auction_duration, slot)?)
 }
 
 pub fn calculate_auction_params_for_trigger_order(
@@ -254,14 +279,34 @@ pub fn calculate_auction_params_for_trigger_order(
     let auction_duration = min_auction_duration;
 
     if let Some(perp_market) = perp_market {
+        // negative buffer is crossing
+        let auction_start_buffer = if perp_market
+            .contract_tier
+            .is_as_safe_as_contract(&ContractTier::B)
+        {
+            -500
+        } else {
+            -3_500
+        };
+
         let (auction_start_price, auction_end_price, derived_auction_duration) =
-            OrderParams::derive_market_order_auction_params(
-                perp_market,
-                order.direction,
-                oracle_price_data.price,
-                order.price,
-                0,
-            )?;
+            if matches!(order.order_type, OrderType::TriggerMarket) {
+                OrderParams::derive_oracle_order_auction_params(
+                    perp_market,
+                    order.direction,
+                    oracle_price_data.price,
+                    None,
+                    auction_start_buffer,
+                )?
+            } else {
+                OrderParams::derive_market_order_auction_params(
+                    perp_market,
+                    order.direction,
+                    oracle_price_data.price,
+                    order.price,
+                    auction_start_buffer,
+                )?
+            };
 
         let auction_duration = auction_duration.max(derived_auction_duration);
 

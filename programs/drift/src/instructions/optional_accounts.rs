@@ -4,6 +4,7 @@ use std::convert::TryFrom;
 
 use crate::error::ErrorCode::UnableToLoadOracle;
 use crate::math::safe_unwrap::SafeUnwrap;
+use crate::msg;
 use crate::state::load_ref::load_ref_mut;
 use crate::state::oracle::PrelaunchOracle;
 use crate::state::oracle_map::OracleMap;
@@ -22,7 +23,6 @@ use anchor_spl::token::TokenAccount;
 use anchor_spl::token_interface::{Mint, TokenInterface};
 use arrayref::array_ref;
 use solana_program::account_info::next_account_info;
-use solana_program::msg;
 use std::iter::Peekable;
 use std::ops::Deref;
 use std::slice::Iter;

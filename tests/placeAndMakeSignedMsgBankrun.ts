@@ -44,6 +44,8 @@ import {
 	getUserStatsAccountPublicKey,
 	UserStatsAccount,
 	convertToNumber,
+	OrderParams,
+	SignedMsgOrderParamsDelegateMessage,
 } from '../sdk/src';
 
 import {
@@ -217,7 +219,7 @@ describe('place and make signedMsg order', () => {
 	});
 
 	it('makeSignedMsgOrder and reject bad orders', async () => {
-		slot = new BN(
+		const slot = new BN(
 			await bankrunContextWrapper.connection.toConnection().getSlot()
 		);
 		const [takerDriftClient, takerDriftClientUser] =
@@ -246,7 +248,7 @@ describe('place and make signedMsg order', () => {
 			userOrderId: 1,
 			postOnly: PostOnlyParams.NONE,
 			marketType: MarketType.PERP,
-		});
+		}) as OrderParams;
 		const uuid = Uint8Array.from(Buffer.from(nanoid(8)));
 		const takerOrderParamsMessage: SignedMsgOrderParamsMessage = {
 			signedMsgOrderParams: takerOrderParams,
@@ -337,7 +339,7 @@ describe('place and make signedMsg order', () => {
 	});
 
 	it('should work with delegates', async () => {
-		slot = new BN(
+		const slot = new BN(
 			await bankrunContextWrapper.connection.toConnection().getSlot()
 		);
 		const [takerDriftClient, takerDriftClientUser] =
@@ -353,8 +355,9 @@ describe('place and make signedMsg order', () => {
 			);
 		await takerDriftClientUser.fetchAccounts();
 
-		const delegate = Keypair.generate();
-		await takerDriftClient.updateUserDelegate(delegate.publicKey);
+		await takerDriftClient.updateUserDelegate(
+			makerDriftClient.wallet.publicKey
+		);
 
 		const marketIndex = 0;
 		const baseAssetAmount = BASE_PRECISION;
@@ -369,21 +372,24 @@ describe('place and make signedMsg order', () => {
 			userOrderId: 1,
 			postOnly: PostOnlyParams.NONE,
 			marketType: MarketType.PERP,
-		});
+		}) as OrderParams;
 		const uuid = Uint8Array.from(Buffer.from(nanoid(8)));
-		const takerOrderParamsMessage: SignedMsgOrderParamsMessage = {
+
+		// Should fail if we try first without encoding properly
+		const takerOrderParamsMessage: SignedMsgOrderParamsDelegateMessage = {
 			signedMsgOrderParams: takerOrderParams,
-			subAccountId: 0,
+			takerPubkey: await takerDriftClient.getUserAccountPublicKey(),
 			slot,
 			uuid,
 			takeProfitOrderParams: null,
 			stopLossOrderParams: null,
 		};
 
-		const signedOrderParams = takerDriftClient.signSignedMsgOrderParamsMessage(
-			takerOrderParamsMessage
+		// Should work if we encode properly
+		const signedOrderParams = makerDriftClient.signSignedMsgOrderParamsMessage(
+			takerOrderParamsMessage,
+			true
 		);
-
 		const txSig = await makerDriftClient.placeSignedMsgTakerOrder(
 			signedOrderParams,
 			marketIndex,
@@ -391,7 +397,7 @@ describe('place and make signedMsg order', () => {
 				taker: await takerDriftClient.getUserAccountPublicKey(),
 				takerUserAccount: takerDriftClient.getUserAccount(),
 				takerStats: takerDriftClient.getUserStatsAccountPublicKey(),
-				signingAuthority: delegate.publicKey,
+				signingAuthority: makerDriftClient.wallet.publicKey,
 			},
 			undefined,
 			2
@@ -417,7 +423,7 @@ describe('place and make signedMsg order', () => {
 		await takerDriftClient.unsubscribe();
 	});
 
-	it('should work with pyth lazer crank and filling against vamm in one tx', async () => {
+	it('should not work with pyth lazer crank and filling against vamm in one tx', async () => {
 		const slot = new BN(
 			await bankrunContextWrapper.connection.toConnection().getSlot()
 		);
@@ -498,7 +504,7 @@ describe('place and make signedMsg order', () => {
 			auctionDuration: 30,
 			userOrderId: 1,
 			postOnly: PostOnlyParams.NONE,
-		});
+		}) as OrderParams;
 		const uuid = nanoid(8);
 		const signedMsgSlot = slot.subn(15);
 		const takerOrderParamsMessage: SignedMsgOrderParamsMessage = {
@@ -600,10 +606,7 @@ describe('place and make signedMsg order', () => {
 
 		await takerDriftClient.fetchAccounts();
 		assert(
-			takerDriftClient
-				.getUser()
-				.getPerpPosition(0)
-				.baseAssetAmount.eq(BASE_PRECISION)
+			takerDriftClient.getUser().getPerpPosition(0).baseAssetAmount.eq(ZERO)
 		);
 
 		await takerDriftClientUser.unsubscribe();
@@ -694,7 +697,7 @@ describe('place and make signedMsg order', () => {
 			auctionDuration: 30,
 			userOrderId: 1,
 			postOnly: PostOnlyParams.NONE,
-		});
+		}) as OrderParams;
 		const uuid = nanoid(8);
 		const signedMsgSlot = slot.subn(50);
 		const takerOrderParamsMessage: SignedMsgOrderParamsMessage = {
@@ -833,7 +836,7 @@ describe('place and make signedMsg order', () => {
 			userOrderId: 1,
 			postOnly: PostOnlyParams.NONE,
 			marketType: MarketType.PERP,
-		});
+		}) as OrderParams;
 		const stopLossTakerParams = getTriggerLimitOrderParams({
 			marketIndex,
 			direction: PositionDirection.SHORT,
@@ -865,7 +868,7 @@ describe('place and make signedMsg order', () => {
 			postOnly: PostOnlyParams.MUST_POST_ONLY,
 			immediateOrCancel: true,
 			marketType: MarketType.PERP,
-		});
+		}) as OrderParams;
 
 		const uuid = Uint8Array.from(Buffer.from(nanoid(8)));
 		const takerOrderParamsMessage: SignedMsgOrderParamsMessage = {
@@ -968,7 +971,7 @@ describe('place and make signedMsg order', () => {
 			price: new BN(224).mul(PRICE_PRECISION),
 			userOrderId: 1,
 			postOnly: PostOnlyParams.NONE,
-		});
+		}) as OrderParams;
 
 		await takerDriftClientUser.fetchAccounts();
 		const makerOrderParams = getLimitOrderParams({
@@ -978,7 +981,7 @@ describe('place and make signedMsg order', () => {
 			price: new BN(223).mul(PRICE_PRECISION),
 			postOnly: PostOnlyParams.MUST_POST_ONLY,
 			immediateOrCancel: true,
-		});
+		}) as OrderParams;
 
 		const uuid = Uint8Array.from(Buffer.from(nanoid(8)));
 		const takerOrderParamsMessage: SignedMsgOrderParamsMessage = {
@@ -1051,7 +1054,7 @@ describe('place and make signedMsg order', () => {
 			auctionDuration: 10,
 			userOrderId: 1,
 			postOnly: PostOnlyParams.NONE,
-		});
+		}) as OrderParams;
 
 		await takerDriftClientUser.fetchAccounts();
 
@@ -1126,7 +1129,7 @@ describe('place and make signedMsg order', () => {
 			auctionDuration: 10,
 			userOrderId: 1,
 			postOnly: PostOnlyParams.NONE,
-		});
+		}) as OrderParams;
 		const signedMsgSlot = slot.subn(5);
 		const uuid = Uint8Array.from(Buffer.from(nanoid(8)));
 		const takerOrderParamsMessage: SignedMsgOrderParamsMessage = {
@@ -1216,7 +1219,7 @@ describe('place and make signedMsg order', () => {
 			userOrderId: 1,
 			postOnly: PostOnlyParams.NONE,
 			marketType: MarketType.PERP,
-		});
+		}) as OrderParams;
 		const takerOrderParamsMessage: SignedMsgOrderParamsMessage = {
 			signedMsgOrderParams: takerOrderParams,
 			subAccountId: 0,
@@ -1253,7 +1256,7 @@ describe('place and make signedMsg order', () => {
 	});
 
 	it('should verify that auction params are not sanitized', async () => {
-		slot = new BN(
+		const slot = new BN(
 			await bankrunContextWrapper.connection.toConnection().getSlot()
 		);
 		const [takerDriftClient, takerDriftClientUser] =
@@ -1281,7 +1284,7 @@ describe('place and make signedMsg order', () => {
 			userOrderId: 1,
 			postOnly: PostOnlyParams.NONE,
 			marketType: MarketType.PERP,
-		});
+		}) as OrderParams;
 		const takerOrderParamsMessage: SignedMsgOrderParamsMessage = {
 			signedMsgOrderParams: takerOrderParams,
 			subAccountId: 0,
@@ -1319,7 +1322,7 @@ describe('place and make signedMsg order', () => {
 	});
 
 	it('should fail on malicious subaccount id supplied to custom ix', async () => {
-		slot = new BN(
+		const slot = new BN(
 			await bankrunContextWrapper.connection.toConnection().getSlot()
 		);
 		const [takerDriftClient, takerDriftClientUser] =
@@ -1367,7 +1370,7 @@ describe('place and make signedMsg order', () => {
 			userOrderId: 1,
 			postOnly: PostOnlyParams.NONE,
 			marketType: MarketType.PERP,
-		});
+		}) as OrderParams;
 		const takerOrderParamsMessage: SignedMsgOrderParamsMessage = {
 			signedMsgOrderParams: takerOrderParams,
 			subAccountId: 0,
@@ -1403,6 +1406,108 @@ describe('place and make signedMsg order', () => {
 		assert(takerPosition == undefined);
 
 		await takerDriftClientUser2.unsubscribe();
+		await takerDriftClientUser.unsubscribe();
+		await takerDriftClient.unsubscribe();
+	});
+
+	it('shouldnt work with improper delegate encoding', async () => {
+		const slot = new BN(
+			await bankrunContextWrapper.connection.toConnection().getSlot()
+		);
+		const [takerDriftClient, takerDriftClientUser] =
+			await initializeNewTakerClientAndUser(
+				bankrunContextWrapper,
+				chProgram,
+				usdcMint,
+				usdcAmount,
+				marketIndexes,
+				spotMarketIndexes,
+				oracleInfos,
+				bulkAccountLoader
+			);
+		await takerDriftClientUser.fetchAccounts();
+
+		await takerDriftClient.updateUserDelegate(
+			makerDriftClient.wallet.publicKey
+		);
+
+		const marketIndex = 0;
+		const baseAssetAmount = BASE_PRECISION;
+		const takerOrderParams = getMarketOrderParams({
+			marketIndex,
+			direction: PositionDirection.LONG,
+			baseAssetAmount: baseAssetAmount.muln(2),
+			price: new BN(224).mul(PRICE_PRECISION),
+			auctionStartPrice: new BN(223).mul(PRICE_PRECISION),
+			auctionEndPrice: new BN(224).mul(PRICE_PRECISION),
+			auctionDuration: 10,
+			userOrderId: 1,
+			postOnly: PostOnlyParams.NONE,
+			marketType: MarketType.PERP,
+		}) as OrderParams;
+		const uuid = Uint8Array.from(Buffer.from(nanoid(8)));
+
+		// Should fail if we try first without encoding properly
+		const takerOrderParamsMessage: SignedMsgOrderParamsDelegateMessage = {
+			signedMsgOrderParams: takerOrderParams,
+			takerPubkey: await takerDriftClient.getUserAccountPublicKey(),
+			slot,
+			uuid,
+			takeProfitOrderParams: null,
+			stopLossOrderParams: null,
+		};
+		let signedOrderParams = makerDriftClient.signSignedMsgOrderParamsMessage(
+			takerOrderParamsMessage,
+			false
+		);
+		try {
+			await makerDriftClient.placeSignedMsgTakerOrder(
+				signedOrderParams,
+				marketIndex,
+				{
+					taker: await takerDriftClient.getUserAccountPublicKey(),
+					takerUserAccount: takerDriftClient.getUserAccount(),
+					takerStats: takerDriftClient.getUserStatsAccountPublicKey(),
+					signingAuthority: makerDriftClient.wallet.publicKey,
+				},
+				undefined,
+				2
+			);
+			assert.fail('should fail');
+		} catch (e) {
+			assert(e.toString().includes('0x1776'));
+			const takerOrders = takerDriftClient.getUser().getOpenOrders();
+			assert(takerOrders.length == 0);
+		}
+
+		signedOrderParams = makerDriftClient.signSignedMsgOrderParamsMessage(
+			takerOrderParamsMessage,
+			true
+		);
+		// Should fail if we dont set delegate as signing authority
+		try {
+			await makerDriftClient.placeSignedMsgTakerOrder(
+				signedOrderParams,
+				marketIndex,
+				{
+					taker: await takerDriftClient.getUserAccountPublicKey(),
+					takerUserAccount: takerDriftClient.getUserAccount(),
+					takerStats: takerDriftClient.getUserStatsAccountPublicKey(),
+					signingAuthority: takerDriftClient.wallet.publicKey,
+				},
+				undefined,
+				2
+			);
+			assert.fail('should fail');
+		} catch (e) {
+			assert(e.toString().includes('0x1776'));
+			const takerOrders = takerDriftClient.getUser().getOpenOrders();
+			assert(takerOrders.length == 0);
+		}
+
+		const takerOrders = takerDriftClient.getUser().getOpenOrders();
+		assert(takerOrders.length == 0);
+
 		await takerDriftClientUser.unsubscribe();
 		await takerDriftClient.unsubscribe();
 	});
