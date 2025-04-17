@@ -41,7 +41,7 @@ impl HighLeverageModeConfig {
     }
 
     pub fn is_full(&self) -> bool {
-        self.current_users >= self.max_users
+        (self.current_users >= self.max_users) || self.is_reduce_only()
     }
 
     pub fn update_user(&mut self, user: &mut User) -> DriftResult {
