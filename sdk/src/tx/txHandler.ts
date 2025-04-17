@@ -8,6 +8,7 @@ import {
 	Message,
 	MessageV0,
 	Signer,
+	SimulatedTransactionResponse,
 	Transaction,
 	TransactionInstruction,
 	TransactionMessage,
@@ -28,7 +29,11 @@ import { containsComputeUnitIxs } from '../util/computeUnits';
 import { CachedBlockhashFetcher } from './blockhashFetcher/cachedBlockhashFetcher';
 import { BaseBlockhashFetcher } from './blockhashFetcher/baseBlockhashFetcher';
 import { BlockhashFetcher } from './blockhashFetcher/types';
-import { getCombinedInstructions, isVersionedTransaction } from './utils';
+import {
+	getSizeOfTransaction,
+	isVersionedTransaction,
+	MAX_TX_BYTE_SIZE,
+} from './utils';
 import { DEFAULT_CONFIRMATION_OPTS } from '../config';
 
 /**
@@ -58,6 +63,7 @@ export type TxBuildingProps = {
 	recentBlockhash?: BlockhashWithExpiryBlockHeight;
 	wallet?: IWallet;
 	optionalIxs?: TransactionInstruction[]; // additional instructions to add to the front of ixs if there's enough room, such as oracle cranks
+	simulatedTx?: SimulatedTransactionResponse; // we could have pre-simulated the tx and we can use this later to get compute units
 };
 
 export type TxHandlerConfig = {
@@ -364,6 +370,7 @@ export class TxHandler {
 			},
 			processParams: {
 				connection: this.connection,
+				simulatedTx: txBuildingProps.simulatedTx,
 			},
 		});
 
@@ -499,15 +506,21 @@ export class TxHandler {
 			: [instructions];
 
 		let instructionsToUse: TransactionInstruction[];
-
-		// add optional ixs if there's room (usually oracle cranks)
+		let simulatedTx: SimulatedTransactionResponse | undefined;
+		// add optional ixs if there's room and it doesn't fail simulation (usually oracle cranks)
 		if (props.optionalIxs && txVersion === 0) {
-			instructionsToUse = getCombinedInstructions(
-				instructionsArray,
-				props.optionalIxs,
-				txVersion === 0,
-				lookupTables
-			);
+			[instructionsToUse, simulatedTx] =
+				await this.simulateAndCalculateInstructions(
+					{
+						...props,
+						instructions: instructionsArray,
+						txVersion,
+						lookupTables,
+					},
+					props.optionalIxs,
+					txVersion === 0,
+					lookupTables
+				);
 		} else {
 			instructionsToUse = instructionsArray;
 		}
@@ -516,6 +529,7 @@ export class TxHandler {
 			const processedTxParams = await this.getProcessedTransactionParams({
 				...props,
 				instructions: instructionsToUse,
+				simulatedTx: simulatedTx,
 			});
 
 			baseTxParams = {
@@ -753,5 +767,64 @@ export class TxHandler {
 			: this.getSignedTransactionMap(builtTxs, props.wallet));
 
 		return preppedTransactions;
+	}
+
+	public async simulateAndCalculateInstructions(
+		txBuildingProps: TxBuildingProps,
+		optionalInstructions: TransactionInstruction[] = [],
+		versionedTransaction = true,
+		addressLookupTables: AddressLookupTableAccount[] = []
+	): Promise<
+		[TransactionInstruction[], SimulatedTransactionResponse | undefined]
+	> {
+		const baseInstructions = Array.isArray(txBuildingProps.instructions)
+			? txBuildingProps.instructions
+			: [txBuildingProps.instructions];
+		if (optionalInstructions.length === 0) {
+			return [baseInstructions, undefined];
+		}
+
+		let allInstructions = [...optionalInstructions, ...baseInstructions];
+
+		let txSize = getSizeOfTransaction(
+			allInstructions,
+			versionedTransaction,
+			addressLookupTables
+		);
+
+		while (
+			txSize > MAX_TX_BYTE_SIZE &&
+			allInstructions.length > baseInstructions.length
+		) {
+			allInstructions = allInstructions.slice(1);
+			txSize = getSizeOfTransaction(
+				allInstructions,
+				versionedTransaction,
+				addressLookupTables
+			);
+		}
+
+		const tx = await this.buildTransaction({
+			...txBuildingProps,
+			optionalIxs: undefined,
+			instructions: allInstructions,
+		});
+
+		const simulatedTx = await this.connection.simulateTransaction(
+			tx as VersionedTransaction
+		);
+
+		if (simulatedTx.value?.err) {
+			const tx = await this.buildTransaction({
+				...txBuildingProps,
+				optionalIxs: undefined,
+				instructions: baseInstructions,
+			});
+			const simulationWithoutOptionalIxs =
+				await this.connection.simulateTransaction(tx as VersionedTransaction);
+			return [baseInstructions, simulationWithoutOptionalIxs.value];
+		}
+
+		return [allInstructions, simulatedTx.value];
 	}
 }
