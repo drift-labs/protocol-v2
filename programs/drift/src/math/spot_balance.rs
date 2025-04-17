@@ -176,6 +176,7 @@ pub fn calculate_accumulated_interest(
         deposit_interest,
     })
 }
+
 #[inline(always)]
 pub fn calculate_borrow_rate(spot_market: &SpotMarket, utilization: u128) -> DriftResult<u128> {
     let optimal_util = spot_market.optimal_utilization.cast::<u128>()?;
