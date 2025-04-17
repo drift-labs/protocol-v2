@@ -2460,8 +2460,6 @@ pub fn handle_place_and_make_signed_msg_perp_order<'c: 'info, 'info>(
         Some(state.oracle_guard_rails),
     )?;
 
-    let high_leverage_mode_config = get_high_leverage_mode_config(remaining_accounts_iter)?;
-
     if !params.is_immediate_or_cancel()
         || params.post_only == PostOnlyParam::None
         || params.order_type != OrderType::Limit
@@ -2488,7 +2486,7 @@ pub fn handle_place_and_make_signed_msg_perp_order<'c: 'info, 'info>(
         &perp_market_map,
         &spot_market_map,
         &mut oracle_map,
-        &high_leverage_mode_config,
+        &None,
         clock,
         params,
         PlaceOrderOptions::default(),
