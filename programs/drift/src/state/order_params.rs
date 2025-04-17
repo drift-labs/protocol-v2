@@ -811,6 +811,10 @@ impl OrderParams {
     pub fn is_update_high_leverage_mode(&self) -> bool {
         self.bit_flags & OrderParamsBitFlag::UpdateHighLeverageMode as u8 != 0
     }
+
+    pub fn is_max_leverage_order(&self) -> bool {
+        self.base_asset_amount == u64::MAX
+    }
 }
 
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Default, Eq, PartialEq, Debug)]
@@ -874,7 +878,7 @@ pub struct ModifyOrderParams {
     pub price: Option<u64>,
     pub reduce_only: Option<bool>,
     pub post_only: Option<PostOnlyParam>,
-    pub immediate_or_cancel: Option<u8>,
+    pub bit_flags: Option<u8>,
     pub max_ts: Option<i64>,
     pub trigger_price: Option<u64>,
     pub trigger_condition: Option<OrderTriggerCondition>,

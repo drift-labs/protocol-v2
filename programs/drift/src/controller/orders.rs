@@ -125,7 +125,11 @@ pub fn place_perp_order(
     if params.is_update_high_leverage_mode() {
         if let Some(config) = high_leverage_mode_config {
             let mut config = load_mut!(config)?;
-            config.update_user(user)?;
+            if !config.is_full() || params.is_max_leverage_order() {
+                config.update_user(user)?;
+            } else {
+                msg!("high leverage mode config is full");
+            }
         } else {
             msg!("high leverage mode config not found");
             return Err(ErrorCode::InvalidOrder);

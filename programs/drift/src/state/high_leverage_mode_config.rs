@@ -42,6 +42,10 @@ impl HighLeverageModeConfig {
         self.reduce_only > 0
     }
 
+    pub fn is_full(&self) -> bool {
+        self.current_users >= self.max_users
+    }
+
     pub fn update_user(&mut self, user: &mut User) -> DriftResult {
         if user.margin_mode == MarginMode::HighLeverage {
             return Ok(());
