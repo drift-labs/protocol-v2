@@ -8,8 +8,11 @@ mod tests {
 
     const PERCENTAGE_PRECISION_U64: u64 = 1_000_000;
 
-    fn weight_datum(data: u64, last_slot: u64) -> WeightDatum {
-        WeightDatum { data, last_slot }
+    fn weight_datum(constituent_index: u16, data: u64, last_slot: u64) -> WeightDatum {
+        WeightDatum { constituent_index, data, last_slot }
+    }
+    fn amm_const_datum(perp_market_index: u16, constituent_index: u16, data: u64, last_slot: u64) -> AmmConstituentDatum {
+        AmmConstituentDatum { perp_market_index, constituent_index, data, last_slot }
     }
 
     fn dummy_constituent(index: u16) -> Constituent {
@@ -37,12 +40,10 @@ mod tests {
     #[test]
     fn test_single_zero_weight() {
         let mapping = AmmConstituentMapping {
-            num_rows: 1,
-            num_cols: 1,
-            data: vec![weight_datum(0, 0)],
+            data: vec![amm_const_datum(0, 1, 0, 0)],
         };
 
-        let amm_inventory = vec![1_000_000];
+        let amm_inventory: Vec<(u16, u64)> = vec![(0, 1_000_000)];
         let prices = vec![1_000_000];
         let constituents = vec![dummy_constituent(0)];
         let aum = 1_000_000;
@@ -68,12 +69,10 @@ mod tests {
     #[test]
     fn test_single_full_weight() {
         let mapping = AmmConstituentMapping {
-            num_rows: 1,
-            num_cols: 1,
-            data: vec![weight_datum(PERCENTAGE_PRECISION_U64, 0)],
+            data: vec![amm_const_datum(0, 1, PERCENTAGE_PRECISION_U64, 0)],
         };
 
-        let amm_inventory = vec![1_000_000];
+        let amm_inventory = vec![(0, 1_000_000)];
         let prices = vec![1_000_000];
         let constituents = vec![dummy_constituent(0)];
         let aum = 1_000_000;
@@ -99,15 +98,13 @@ mod tests {
     #[test]
     fn test_multiple_constituents_partial_weights() {
         let mapping = AmmConstituentMapping {
-            num_rows: 1,
-            num_cols: 2,
             data: vec![
-                weight_datum(PERCENTAGE_PRECISION_U64 / 2, 0),
-                weight_datum(PERCENTAGE_PRECISION_U64 / 2, 0),
+                amm_const_datum(0, 1, PERCENTAGE_PRECISION_U64 / 2, 0),
+                amm_const_datum(0, 2, PERCENTAGE_PRECISION_U64 / 2, 0),
             ],
         };
 
-        let amm_inventory = vec![1_000_000];
+        let amm_inventory = vec![(0, 1_000_000)];
         let prices = vec![1_000_000, 1_000_000];
         let constituents = vec![dummy_constituent(0), dummy_constituent(1)];
         let aum = 1_000_000;
@@ -136,12 +133,10 @@ mod tests {
     #[test]
     fn test_zero_aum_safe() {
         let mapping = AmmConstituentMapping {
-            num_rows: 1,
-            num_cols: 1,
-            data: vec![weight_datum(PERCENTAGE_PRECISION_U64, 0)],
+            data: vec![amm_const_datum(0, 1, PERCENTAGE_PRECISION_U64, 0)],
         };
 
-        let amm_inventory = vec![1_000_000];
+        let amm_inventory = vec![(0, 1_000_000)];
         let prices = vec![1_000_000];
         let constituents = vec![dummy_constituent(0)];
         let aum = 0;
@@ -167,12 +162,10 @@ mod tests {
     #[test]
     fn test_overflow_protection() {
         let mapping = AmmConstituentMapping {
-            num_rows: 1,
-            num_cols: 1,
-            data: vec![weight_datum(u64::MAX, 0)],
+            data: vec![amm_const_datum(0, 1, u64::MAX, 0)],
         };
 
-        let amm_inventory = vec![u64::MAX];
+        let amm_inventory = vec![(0, u64::MAX)];
         let prices = vec![u64::MAX];
         let constituents = vec![dummy_constituent(0)];
         let aum = 1;

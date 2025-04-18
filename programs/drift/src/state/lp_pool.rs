@@ -134,18 +134,24 @@ pub struct Constituent {
 //   pub struct PerpConstituent {
 //   }
 
+pub struct AmmConstituentDatum {
+    pub perp_market_index: u16,
+    pub constituent_index: u16,
+		/// PERCENTAGE_PRECISION. The weight this constituent has on the perp market
+    pub data: u64,
+    pub last_slot: u64,
+}
+
 pub struct WeightDatum {
+    pub constituent_index: u16,
+		/// PERCENTAGE_PRECISION. The weights of the target weight matrix
     pub data: u64,
     pub last_slot: u64,
 }
 
 pub struct AmmConstituentMapping {
-    // rows in the matrix, (perp markets)
-    pub num_rows: u16,
-    // columns in the matrix (VaultConstituents, spot markets)
-    pub num_cols: u16,
     // flattened matrix elements, PERCENTAGE_PRECISION. Keep at the end of the account to allow expansion with new constituents.
-    pub data: Vec<WeightDatum>,
+    pub data: Vec<AmmConstituentDatum>,
 }
 
 pub struct ConstituentTargetWeights {
@@ -175,15 +181,13 @@ impl ConstituentTargetWeights {
     pub fn update_target_weights(
         &mut self,
         mapping: &AmmConstituentMapping,
-        amm_inventory: &[u64], // length = mapping.num_rows
+        amm_inventory: &[(u16, u64)], // length = mapping.num_rows
         constituents: &[Constituent],
         prices: &[u64], // same order as constituents
         aum: u64,
         slot: u64,
     ) -> DriftResult<()> {
         // assert_ne!(aum, 0);
-        assert_eq!(constituents.len(), mapping.num_cols as usize);
-        assert_eq!(amm_inventory.len(), mapping.num_rows as usize);
         assert_eq!(prices.len(), constituents.len());
 
         self.data.clear();
@@ -194,11 +198,13 @@ impl ConstituentTargetWeights {
         for (constituent_index, constituent) in constituents.iter().enumerate() {
             let mut target_amount = 0u128;
 
-            for (row_index, &inventory) in amm_inventory.iter().enumerate() {
-                let idx = row_index * mapping.num_cols as usize + constituent_index;
+            for (perp_market_index, inventory) in amm_inventory.iter() {
+                let idx = mapping.data
+                    .iter()
+                    .position(|d| &d.perp_market_index == perp_market_index)
+                    .expect("missing mapping for this market index");
                 let weight = mapping.data[idx].data as u128; // PERCENTAGE_PRECISION
-
-                target_amount += inventory as u128 * weight / PERCENTAGE_PRECISION_U64 as u128;
+                target_amount += (*inventory) as u128 * weight / PERCENTAGE_PRECISION_U64 as u128;
             }
 
             let price = prices[constituent_index] as u128;
@@ -210,6 +216,7 @@ impl ConstituentTargetWeights {
             let weight_datum = (target_weight as u64).min(PERCENTAGE_PRECISION_U64);
 
             self.data.push(WeightDatum {
+                constituent_index: constituent_index as u16,
                 data: weight_datum,
                 last_slot: slot,
             });
