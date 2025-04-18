@@ -5,50 +5,61 @@ use crate::math::safe_math::SafeMath;
 use crate::state::oracle::OracleSource;
 use crate::state::spot_market::{SpotBalance, SpotBalanceType, SpotMarket};
 use anchor_lang::prelude::*;
+use borsh::{BorshDeserialize, BorshSerialize};
+use crate::state::traits::Size;
 
 #[cfg(test)]
 mod tests;
 
+#[account(zero_copy)]
+#[derive(Default, Debug)]
+#[repr(C)]
 pub struct LPPool {
     /// name of vault, TODO: check type + size
-    pub name: [u8; 32],
+    pub name: [u8; 32], // 32
     /// address of the vault.
-    pub pubkey: Pubkey,
+    pub pubkey: Pubkey, // 32, 64
     // vault token mint
-    pub mint: Pubkey,
+    pub mint: Pubkey, // 32, 96
     /// LPPool's token account
-    pub token_vault: Pubkey,
+    // pub token_vault: Pubkey, // 32, 128
 
     /// token_supply? to simplify NAV calculation, or load from mint account
     /// token_total_supply: u64
 
     /// The current number of VaultConstituents in the vault, each constituent is pda(LPPool.address, constituent_index)
-    pub constituents: u16,
     /// which constituent is the quote, receives revenue pool distributions. (maybe this should just be implied idx 0)
     /// pub quote_constituent_index: u16,
 
-    /// Max AUM. Prohibit minting new DLP beyond this
-    /// pub max_aum: u64,
+    /// QUOTE_PRECISION: Max AUM, Prohibit minting new DLP beyond this
+    pub max_aum: u64, // 8, 136
 
-    /// AUM of the vault in USD, updated lazily
-    pub last_aum: u64,
+    /// QUOTE_PRECISION: AUM of the vault in USD, updated lazily
+    pub last_aum: u64, // 8, 144
 
     /// timestamp of last AUM slot
-    pub last_aum_slot: u64,
+    pub last_aum_slot: u64, // 8, 152
     /// timestamp of last AUM update
-    pub last_aum_ts: u64,
+    pub last_aum_ts: u64, // 8, 160
 
     /// timestamp of last vAMM revenue rebalance
-    pub last_revenue_rebalance_ts: u64,
+    pub last_revenue_rebalance_ts: u64, // 8, 168
 
     /// all revenue settles recieved
-    pub total_fees_received: u128,
+    pub total_fees_received: u128, // 16, 176
     /// all revenues paid out
-    pub total_fees_paid: u128,
+    pub total_fees_paid: u128, // 16, 192
+
+    pub constituents: u16, // 2, 194
+    pub padding: [u8; 6], 
+}
+
+impl Size for LPPool {
+    const SIZE: usize = 1743;
 }
 
 #[zero_copy(unsafe)]
-#[derive(Default, Eq, PartialEq, Debug)]
+#[derive(Default, Eq, PartialEq, Debug, BorshDeserialize, BorshSerialize)]
 #[repr(C)]
 pub struct BLPosition {
     /// The scaled balance of the position. To get the token amount, multiply by the cumulative deposit/borrow
@@ -94,22 +105,15 @@ impl SpotBalance for BLPosition {
     }
 }
 
+#[account(zero_copy(unsafe))]
+#[derive(Default, Debug, BorshDeserialize, BorshSerialize)]
+#[repr(C)]
 pub struct Constituent {
     /// address of the constituent
     pub pubkey: Pubkey,
     /// idx in LPPool.constituents
     pub constituent_index: u16,
 
-    /// how to store actual DLP spot balances:
-    /// option 1) token account for the constituent (use this to isolate user deposits) - does not allow borrow/lend
-    /// pub token_account: Pubkey,
-    /// option 2) spot market balance (use this to deposit constituent balance into spot market and be exposed to borrow/lend interest)
-    /// pub scaled_balance: u64,
-    /// pub balance_type: BalanceType.
-
-    /// oracle used to price the constituent
-    pub oracle: Pubkey,
-    pub oracle_source: OracleSource,
     /// max deviation from target_weight allowed for the constituent
     /// precision: PERCENTAGE_PRECISION
     pub max_weight_deviation: u64,
@@ -129,38 +133,51 @@ pub struct Constituent {
 
     /// spot borrow-lend balance for constituent
     pub spot_balance: BLPosition, // should be in constituent base asset
+    pub padding: [u8; 16],
 }
 
 //   pub struct PerpConstituent {
 //   }
 
+#[zero_copy]
+#[derive(Debug, BorshDeserialize, BorshSerialize)]
+#[repr(C)]
 pub struct AmmConstituentDatum {
     pub perp_market_index: u16,
     pub constituent_index: u16,
-		/// PERCENTAGE_PRECISION. The weight this constituent has on the perp market
+    pub padding: [u8; 4],
+    /// PERCENTAGE_PRECISION. The weight this constituent has on the perp market
     pub data: u64,
     pub last_slot: u64,
 }
 
+#[zero_copy]
+#[derive(Debug, BorshDeserialize, BorshSerialize)]
+#[repr(C)]
 pub struct WeightDatum {
     pub constituent_index: u16,
-		/// PERCENTAGE_PRECISION. The weights of the target weight matrix
+    pub padding: [u8; 6],
+    /// PERCENTAGE_PRECISION. The weights of the target weight matrix
     pub data: u64,
     pub last_slot: u64,
 }
 
+#[account]
+#[derive(Debug)]
+#[repr(C)]
 pub struct AmmConstituentMapping {
     // flattened matrix elements, PERCENTAGE_PRECISION. Keep at the end of the account to allow expansion with new constituents.
     pub data: Vec<AmmConstituentDatum>,
 }
 
+#[account]
+#[derive(Debug)]
+#[repr(C)]
 pub struct ConstituentTargetWeights {
     // rows in the matrix (VaultConstituents)
     pub num_rows: u16,
     // columns in the matrix (0th is the weight, 1st is the last time the weight was updated)
     pub num_cols: u16,
-    // ts of the oldest weight in data, for swaps to reference without traversing matrix
-    pub oldest_weight_ts: u64,
     // PERCENTAGE_PRECISION. The weights of the target weight matrix. Updated async
     pub data: Vec<WeightDatum>,
 }
@@ -170,7 +187,6 @@ impl Default for ConstituentTargetWeights {
         ConstituentTargetWeights {
             num_rows: 0,
             num_cols: 0,
-            oldest_weight_ts: 0,
             data: Vec::with_capacity(0),
         }
     }
@@ -193,7 +209,6 @@ impl ConstituentTargetWeights {
         self.data.clear();
         self.num_rows = constituents.len() as u16;
         self.num_cols = 2;
-        self.oldest_weight_ts = slot;
 
         for (constituent_index, constituent) in constituents.iter().enumerate() {
             let mut target_amount = 0u128;
@@ -217,6 +232,7 @@ impl ConstituentTargetWeights {
 
             self.data.push(WeightDatum {
                 constituent_index: constituent_index as u16,
+                padding: [0; 6],
                 data: weight_datum,
                 last_slot: slot,
             });

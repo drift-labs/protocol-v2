@@ -1663,6 +1663,18 @@ pub mod drift {
         handle_initialize_high_leverage_mode_config(ctx, max_users)
     }
 
+    pub fn initialize_lp_pool(
+        ctx: Context<InitializeLpPool>,
+        name: [u8; 32],
+        token_name: String,
+        token_symbol: String,
+        token_uri: String,
+        token_decimals: u8,
+        max_aum: u64,
+    ) -> Result<()> {
+        handle_initialize_lp_pool(ctx, name, token_name, token_symbol, token_uri, token_decimals, max_aum)
+    }
+
     pub fn update_high_leverage_mode_config(
         ctx: Context<UpdateHighLeverageModeConfig>,
         max_users: u32,

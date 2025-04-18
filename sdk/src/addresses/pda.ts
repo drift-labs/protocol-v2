@@ -379,3 +379,24 @@ export function getProtectedMakerModeConfigPublicKey(
 		programId
 	)[0];
 }
+
+export function getLpPoolPublicKey(
+	programId: PublicKey,
+	name: string
+): PublicKey {
+	return PublicKey.findProgramAddressSync([
+		Buffer.from(anchor.utils.bytes.utf8.encode('lp_pool')),
+		Buffer.from(name)
+	], programId)[0];
+}
+
+export function getLpPoolMintPublicKey(
+	programId: PublicKey,
+	lpPoolPublicKey: PublicKey
+): PublicKey {
+	return PublicKey.findProgramAddressSync(
+		[Buffer.from('mint'), lpPoolPublicKey.toBuffer()],
+		programId
+	)[0];
+}
+

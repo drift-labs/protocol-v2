@@ -2,7 +2,15 @@ use std::convert::identity;
 use std::mem::size_of;
 
 use crate::msg;
+use crate::signer::get_signer_seeds;
+use crate::state::lp_pool::LPPool;
 use anchor_lang::prelude::*;
+use anchor_spl::{
+    metadata::{
+        create_metadata_accounts_v3, mpl_token_metadata::types::DataV2, CreateMetadataAccountsV3,
+        Metadata,
+    },
+};
 use anchor_spl::token::Token;
 use anchor_spl::token_2022::Token2022;
 use anchor_spl::token_interface::{Mint, TokenAccount, TokenInterface};
@@ -4359,6 +4367,67 @@ pub fn handle_initialize_high_leverage_mode_config(
     Ok(())
 }
 
+pub fn handle_initialize_lp_pool(
+    ctx: Context<InitializeLpPool>,
+    name: [u8; 32],
+    token_name: String,
+    token_symbol: String,
+    token_uri: String,
+    _token_decimals: u8,
+    max_aum: u64,
+) -> Result<()> {
+    let mut lp_pool = ctx.accounts.lp_pool.load_init()?;
+    let state = &mut ctx.accounts.state;
+
+    *lp_pool = LPPool {
+        name,
+        pubkey: ctx.accounts.lp_pool.key(),
+        mint: ctx.accounts.mint.key(),
+        // token_vault: ctx.accounts.token_vault.key(),
+        constituents: 0,
+        max_aum,
+        last_aum: 0,
+        last_aum_slot: 0,
+        last_aum_ts: 0,
+        last_revenue_rebalance_ts: 0,
+        total_fees_received: 0,
+        total_fees_paid: 0,
+        padding: [0; 6],
+    };
+
+    let signature_seeds = get_signer_seeds(&state.signer_nonce);
+    let signers = &[&signature_seeds[..]];
+
+    create_metadata_accounts_v3(
+        CpiContext::new_with_signer(
+            ctx.accounts.token_metadata_program.to_account_info(),
+            CreateMetadataAccountsV3 {
+                metadata: ctx.accounts.metadata_account.to_account_info(),
+                mint: ctx.accounts.mint.to_account_info(),
+                mint_authority: ctx.accounts.lp_pool.to_account_info(),
+                update_authority: ctx.accounts.lp_pool.to_account_info(),
+                payer: ctx.accounts.admin.to_account_info(),
+                system_program: ctx.accounts.system_program.to_account_info(),
+                rent: ctx.accounts.rent.to_account_info(),
+            },
+            signers,
+        ),
+        DataV2 {
+            name: token_name,
+            symbol: token_symbol,
+            uri: token_uri,
+            seller_fee_basis_points: 0,
+            creators: None,
+            collection: None,
+            uses: None,
+        },
+        false, // Is mutable
+        true,  // Update authority is signer
+        None,  // Collection details
+    )?; 
+
+    Ok(())
+}
 pub fn handle_update_high_leverage_mode_config(
     ctx: Context<UpdateHighLeverageModeConfig>,
     max_users: u32,
@@ -4394,8 +4463,8 @@ pub fn handle_update_protected_maker_mode_config(
 ) -> Result<()> {
     let mut config = load_mut!(ctx.accounts.protected_maker_mode_config)?;
 
-    if current_users.is_some() {
-        config.current_users = current_users.unwrap();
+    if let Some(users) = current_users {
+        config.current_users = users;
     }
     config.max_users = max_users;
     config.reduce_only = reduce_only as u8;
@@ -5129,4 +5198,56 @@ pub struct UpdateProtectedMakerModeConfig<'info> {
         has_one = admin
     )]
     pub state: Box<Account<'info, State>>,
+}
+
+#[derive(Accounts)]
+#[instruction(
+    name: [u8; 32],
+    token_decimals: u8,
+)]
+pub struct InitializeLpPool<'info> {
+    #[account(mut)]
+    pub admin: Signer<'info>,
+    #[account(
+        init,
+        seeds = [b"lp_pool", name.as_ref()],
+        space = LPPool::SIZE,
+        bump,
+        payer = admin
+    )]
+    pub lp_pool: AccountLoader<'info, LPPool>,
+    #[account(
+        init,
+        seeds = [b"mint", lp_pool.key().as_ref()],
+        bump,
+        payer = admin,
+        mint::decimals = token_decimals,
+        mint::authority = lp_pool.key(),
+        mint::freeze_authority = lp_pool.key(),
+    )]
+    pub mint: InterfaceAccount<'info, Mint>,
+    // #[account(
+    //     token::authority = lp_pool.key(),
+    //     token::mint = mint.key()
+    // )]
+    // pub token_vault: InterfaceAccount<'info, TokenAccount>,
+    #[account(
+        mut,
+        seeds = [b"metadata", token_metadata_program.key().as_ref(), mint.key().as_ref()],
+        bump,
+        seeds::program = token_metadata_program.key(),
+    )]
+    /// CHECK: Validate address by deriving pda
+    pub metadata_account: UncheckedAccount<'info>,
+
+    #[account(
+        has_one = admin
+    )]
+    pub state: Box<Account<'info, State>>,
+
+    pub token_program: Program<'info, Token>,
+    pub token_metadata_program: Program<'info, Metadata>,
+
+    pub rent: Sysvar<'info, Rent>,
+    pub system_program: Program<'info, System>,
 }

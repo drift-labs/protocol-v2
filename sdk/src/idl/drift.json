@@ -6962,6 +6962,87 @@
       ]
     },
     {
+      "name": "initializeLpPool",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "lpPool",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "mint",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "metadataAccount",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "tokenProgram",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "tokenMetadataProgram",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "rent",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "systemProgram",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "name",
+          "type": {
+            "array": [
+              "u8",
+              32
+            ]
+          }
+        },
+        {
+          "name": "tokenName",
+          "type": "string"
+        },
+        {
+          "name": "tokenSymbol",
+          "type": "string"
+        },
+        {
+          "name": "tokenUri",
+          "type": "string"
+        },
+        {
+          "name": "tokenDecimals",
+          "type": "u8"
+        },
+        {
+          "name": "maxAum",
+          "type": "u64"
+        }
+      ]
+    },
+    {
       "name": "updateHighLeverageModeConfig",
       "accounts": [
         {
@@ -7383,6 +7464,231 @@
                 "u128",
                 8
               ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "LPPool",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "name",
+            "docs": [
+              "name of vault, TODO: check type + size"
+            ],
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "pubkey",
+            "docs": [
+              "address of the vault."
+            ],
+            "type": "publicKey"
+          },
+          {
+            "name": "mint",
+            "type": "publicKey"
+          },
+          {
+            "name": "maxAum",
+            "docs": [
+              "LPPool's token account",
+              "token_supply? to simplify NAV calculation, or load from mint account",
+              "token_total_supply: u64",
+              "The current number of VaultConstituents in the vault, each constituent is pda(LPPool.address, constituent_index)",
+              "which constituent is the quote, receives revenue pool distributions. (maybe this should just be implied idx 0)",
+              "pub quote_constituent_index: u16,",
+              "QUOTE_PRECISION: Max AUM, Prohibit minting new DLP beyond this"
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "lastAum",
+            "docs": [
+              "QUOTE_PRECISION: AUM of the vault in USD, updated lazily"
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "lastAumSlot",
+            "docs": [
+              "timestamp of last AUM slot"
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "lastAumTs",
+            "docs": [
+              "timestamp of last AUM update"
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "lastRevenueRebalanceTs",
+            "docs": [
+              "timestamp of last vAMM revenue rebalance"
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "totalFeesReceived",
+            "docs": [
+              "all revenue settles recieved"
+            ],
+            "type": "u128"
+          },
+          {
+            "name": "totalFeesPaid",
+            "docs": [
+              "all revenues paid out"
+            ],
+            "type": "u128"
+          },
+          {
+            "name": "constituents",
+            "type": "u16"
+          },
+          {
+            "name": "padding",
+            "type": {
+              "array": [
+                "u8",
+                6
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "Constituent",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "pubkey",
+            "docs": [
+              "address of the constituent"
+            ],
+            "type": "publicKey"
+          },
+          {
+            "name": "constituentIndex",
+            "docs": [
+              "idx in LPPool.constituents"
+            ],
+            "type": "u16"
+          },
+          {
+            "name": "maxWeightDeviation",
+            "docs": [
+              "max deviation from target_weight allowed for the constituent",
+              "precision: PERCENTAGE_PRECISION"
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "swapFeeMin",
+            "docs": [
+              "min fee charged on swaps to this constituent",
+              "precision: PERCENTAGE_PRECISION"
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "maxFeePremium",
+            "docs": [
+              "max premium to be applied to swap_fee_min when the constituent is at max deviation from target_weight",
+              "precision: PERCENTAGE_PRECISION"
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "spotMarketIndex",
+            "docs": [
+              "underlying drift spot market index"
+            ],
+            "type": "u16"
+          },
+          {
+            "name": "lastOraclePrice",
+            "docs": [
+              "oracle price at last update",
+              "precision: PRICE_PRECISION_I64"
+            ],
+            "type": "i64"
+          },
+          {
+            "name": "lastOraclePriceTs",
+            "docs": [
+              "timestamp of last oracle price update:"
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "spotBalance",
+            "docs": [
+              "spot borrow-lend balance for constituent"
+            ],
+            "type": {
+              "defined": "BLPosition"
+            }
+          },
+          {
+            "name": "padding",
+            "type": {
+              "array": [
+                "u8",
+                16
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "AmmConstituentMapping",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "data",
+            "type": {
+              "vec": {
+                "defined": "AmmConstituentDatum"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "ConstituentTargetWeights",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "numRows",
+            "type": "u16"
+          },
+          {
+            "name": "numCols",
+            "type": "u16"
+          },
+          {
+            "name": "data",
+            "type": {
+              "vec": {
+                "defined": "WeightDatum"
+              }
             }
           }
         ]
@@ -9247,6 +9553,124 @@
           {
             "name": "cumulativeDepositInterestDelta",
             "type": "u128"
+          }
+        ]
+      }
+    },
+    {
+      "name": "BLPosition",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "scaledBalance",
+            "docs": [
+              "The scaled balance of the position. To get the token amount, multiply by the cumulative deposit/borrow",
+              "interest of corresponding market.",
+              "precision: SPOT_BALANCE_PRECISION"
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "cumulativeDeposits",
+            "docs": [
+              "The cumulative deposits/borrows a user has made into a market",
+              "precision: token mint precision"
+            ],
+            "type": "i64"
+          },
+          {
+            "name": "marketIndex",
+            "docs": [
+              "The market index of the corresponding spot market"
+            ],
+            "type": "u16"
+          },
+          {
+            "name": "balanceType",
+            "docs": [
+              "Whether the position is deposit or borrow"
+            ],
+            "type": {
+              "defined": "SpotBalanceType"
+            }
+          },
+          {
+            "name": "padding",
+            "type": {
+              "array": [
+                "u8",
+                4
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "AmmConstituentDatum",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "perpMarketIndex",
+            "type": "u16"
+          },
+          {
+            "name": "constituentIndex",
+            "type": "u16"
+          },
+          {
+            "name": "padding",
+            "type": {
+              "array": [
+                "u8",
+                4
+              ]
+            }
+          },
+          {
+            "name": "data",
+            "docs": [
+              "PERCENTAGE_PRECISION. The weight this constituent has on the perp market"
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "lastSlot",
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "WeightDatum",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "constituentIndex",
+            "type": "u16"
+          },
+          {
+            "name": "padding",
+            "type": {
+              "array": [
+                "u8",
+                6
+              ]
+            }
+          },
+          {
+            "name": "data",
+            "docs": [
+              "PERCENTAGE_PRECISION. The weights of the target weight matrix"
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "lastSlot",
+            "type": "u64"
           }
         ]
       }
