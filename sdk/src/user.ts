@@ -669,7 +669,7 @@ export class User {
 					perpPosition,
 					perpMarket,
 					oraclePriceData.price
-				)
+			  )
 			: ZERO;
 
 		const freeCollateral = this.getFreeCollateral().sub(collateralBuffer);
@@ -2669,7 +2669,7 @@ export class User {
 					currentPosition.baseAssetAmount,
 					oracleData.price,
 					isVariant(marketAccount.contractType, 'prediction')
-				);
+			  );
 
 		const maxPositionSize = this.getPerpBuyingPower(
 			targetMarketIndex,
@@ -3534,11 +3534,11 @@ export class User {
 				? {
 						numeratorScale: new BN(10).pow(new BN(spotMarket.decimals - 6)),
 						denominatorScale: new BN(1),
-					}
+				  }
 				: {
 						numeratorScale: new BN(1),
 						denominatorScale: new BN(10).pow(new BN(6 - spotMarket.decimals)),
-					};
+				  };
 
 		const { canBypass, depositAmount: userDepositAmount } =
 			this.canBypassWithdrawLimits(marketIndex);
