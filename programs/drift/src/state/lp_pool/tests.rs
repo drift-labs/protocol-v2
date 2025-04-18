@@ -9,18 +9,16 @@ mod tests {
     const PERCENTAGE_PRECISION_U64: u64 = 1_000_000;
 
     fn weight_datum(constituent_index: u16, data: u64, last_slot: u64) -> WeightDatum {
-        WeightDatum { constituent_index, data, last_slot }
+        WeightDatum { constituent_index, padding: [0; 6], data, last_slot }
     }
     fn amm_const_datum(perp_market_index: u16, constituent_index: u16, data: u64, last_slot: u64) -> AmmConstituentDatum {
-        AmmConstituentDatum { perp_market_index, constituent_index, data, last_slot }
+        AmmConstituentDatum { perp_market_index, constituent_index, padding: [0; 4], data, last_slot }
     }
 
     fn dummy_constituent(index: u16) -> Constituent {
         Constituent {
             pubkey: Pubkey::default(),
             constituent_index: index,
-            oracle: Pubkey::default(),
-            oracle_source: OracleSource::Pyth,
             max_weight_deviation: 0,
             swap_fee_min: 0,
             max_fee_premium: 0,
@@ -34,6 +32,7 @@ mod tests {
                 balance_type: SpotBalanceType::Deposit,
                 padding: [0; 4],
             },
+            padding: [0; 16],
         }
     }
 

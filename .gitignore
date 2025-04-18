@@ -12,3 +12,4 @@ sdk/src/**/*.js.map
 .vscode
 migrations
 /**/*.env
+vendor

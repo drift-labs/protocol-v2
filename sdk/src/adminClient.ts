@@ -36,9 +36,11 @@ import {
 	getPythLazerOraclePublicKey,
 	getProtectedMakerModeConfigPublicKey,
 	getFuelOverflowAccountPublicKey,
+	getLpPoolMintPublicKey,
+	getLpPoolPublicKey,
 } from './addresses/pda';
 import { squareRootBN } from './math/utils';
-import { TOKEN_PROGRAM_ID } from '@solana/spl-token';
+import { createAssociatedTokenAccountInstruction, getAssociatedTokenAddressSync, TOKEN_PROGRAM_ID } from '@solana/spl-token';
 import { DriftClient } from './driftClient';
 import {
 	PEG_PRECISION,
@@ -54,6 +56,9 @@ import { PROGRAM_ID as PHOENIX_PROGRAM_ID } from '@ellipsis-labs/phoenix-sdk';
 import { DRIFT_ORACLE_RECEIVER_ID } from './config';
 import { getFeedIdUint8Array } from './util/pythOracleUtils';
 import { FUEL_RESET_LOG_ACCOUNT } from './constants/txConstants';
+
+import { Metaplex } from '@metaplex-foundation/js';
+
 
 const OPENBOOK_PROGRAM_ID = new PublicKey(
 	'opnb2LAfJYbRMAHHvqjCwQxanZn7ReEHp1k81EohpZb'
@@ -4178,5 +4183,84 @@ export class AdminClient extends DriftClient {
 				},
 			}
 		);
+	}
+
+	public async initializeLpPool(
+		name: string,
+		tokenName: string,
+		tokenSymbol: string,
+		tokenUri: string,
+		tokenDecimals: number,
+		maxAum: BN
+	): Promise<TransactionSignature> {
+		const ixs = await this.getInitializeLpPoolIx(
+			name,
+			tokenName,
+			tokenSymbol,
+			tokenUri,
+			tokenDecimals,
+			maxAum
+		);
+		const tx = await this.buildTransaction(ixs);
+		const { txSig } = await this.sendTransaction(tx);
+		return txSig;
+	}
+
+	public async getInitializeLpPoolIx(
+		name: string,
+		tokenName: string,
+		tokenSymbol: string,
+		tokenUri: string,
+		tokenDecimals: number,
+		maxAum: BN
+	): Promise<TransactionInstruction[]> {
+		console.log(this.connection.rpcEndpoint)
+		const metaplex = new Metaplex(this.connection, {cluster: 'custom'});
+
+		const lpPool = getLpPoolPublicKey(this.program.programId, name);
+
+		const mint = getLpPoolMintPublicKey(this.program.programId, lpPool);
+
+		const lpPoolAta = getAssociatedTokenAddressSync(
+			mint,
+			lpPool,
+			true
+		);
+		const createAtaIx = createAssociatedTokenAccountInstruction(
+			this.wallet.publicKey,
+			lpPoolAta,
+			lpPool,
+			mint
+		);
+
+		const state = await this.getStatePublicKey();
+
+		return [
+			this.program.instruction.initializeLpPool(
+				Buffer.from(name),
+				tokenName,
+				tokenSymbol,
+				tokenUri,
+				tokenDecimals,
+				maxAum,
+				{
+					accounts: {
+						admin: this.wallet.publicKey,
+						lpPool,
+						mint,
+						// tokenVault: lpPoolAta,
+						metadataAccount: metaplex.nfts().pdas().metadata({
+							mint,
+						}),
+						state,
+						tokenProgram: TOKEN_PROGRAM_ID,
+						tokenMetadataProgram: metaplex.programs().getTokenMetadata().address,
+						rent: SYSVAR_RENT_PUBKEY,
+						systemProgram: SystemProgram.programId,
+					},
+				}
+			),
+			createAtaIx,
+		];
 	}
 }
