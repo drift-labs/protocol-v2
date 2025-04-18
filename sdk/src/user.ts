@@ -75,6 +75,8 @@ import {
 	calculateAssetWeight,
 	calculateLiabilityWeight,
 	calculateWithdrawLimit,
+	getSpotAssetValue,
+	getSpotLiabilityValue,
 	getTokenAmount,
 } from './math/spotBalance';
 import { calculateMarketOpenBidAsk } from './math/amm';
@@ -1256,41 +1258,14 @@ export class User {
 		marginCategory?: MarginCategory,
 		liquidationBuffer?: BN
 	): BN {
-		let liabilityValue = getStrictTokenValue(
+		return getSpotLiabilityValue(
 			tokenAmount,
-			spotMarketAccount.decimals,
-			strictOraclePrice
+			strictOraclePrice,
+			spotMarketAccount,
+			this.getUserAccount().maxMarginRatio,
+			marginCategory,
+			liquidationBuffer
 		);
-
-		if (marginCategory !== undefined) {
-			let weight = calculateLiabilityWeight(
-				tokenAmount,
-				spotMarketAccount,
-				marginCategory
-			);
-
-			if (
-				marginCategory === 'Initial' &&
-				spotMarketAccount.marketIndex !== QUOTE_SPOT_MARKET_INDEX
-			) {
-				weight = BN.max(
-					weight,
-					SPOT_MARKET_WEIGHT_PRECISION.addn(
-						this.getUserAccount().maxMarginRatio
-					)
-				);
-			}
-
-			if (liquidationBuffer !== undefined) {
-				weight = weight.add(liquidationBuffer);
-			}
-
-			liabilityValue = liabilityValue
-				.mul(weight)
-				.div(SPOT_MARKET_WEIGHT_PRECISION);
-		}
-
-		return liabilityValue;
 	}
 
 	public getSpotMarketAssetValue(
@@ -1317,37 +1292,13 @@ export class User {
 		spotMarketAccount: SpotMarketAccount,
 		marginCategory?: MarginCategory
 	): BN {
-		let assetValue = getStrictTokenValue(
+		return getSpotAssetValue(
 			tokenAmount,
-			spotMarketAccount.decimals,
-			strictOraclePrice
+			strictOraclePrice,
+			spotMarketAccount,
+			this.getUserAccount().maxMarginRatio,
+			marginCategory
 		);
-
-		if (marginCategory !== undefined) {
-			let weight = calculateAssetWeight(
-				tokenAmount,
-				strictOraclePrice.current,
-				spotMarketAccount,
-				marginCategory
-			);
-
-			if (
-				marginCategory === 'Initial' &&
-				spotMarketAccount.marketIndex !== QUOTE_SPOT_MARKET_INDEX
-			) {
-				const userCustomAssetWeight = BN.max(
-					ZERO,
-					SPOT_MARKET_WEIGHT_PRECISION.subn(
-						this.getUserAccount().maxMarginRatio
-					)
-				);
-				weight = BN.min(weight, userCustomAssetWeight);
-			}
-
-			assetValue = assetValue.mul(weight).div(SPOT_MARKET_WEIGHT_PRECISION);
-		}
-
-		return assetValue;
 	}
 
 	public getSpotPositionValue(
