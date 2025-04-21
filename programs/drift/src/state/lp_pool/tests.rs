@@ -4,9 +4,40 @@ mod tests {
     use crate::state::lp_pool::*;
     use crate::state::oracle::OracleSource;
     use crate::state::spot_market::SpotBalanceType;
+    use crate::state::zero_copy::ZeroCopyLoader;
     use anchor_lang::prelude::Pubkey;
 
     const PERCENTAGE_PRECISION_I64: i64 = 1_000_000;
+
+    fn constituent_target_weights_zc(
+    ) -> AccountZeroCopyMut<WeightDatum, ConstituentTargetWeightsFixed> {
+        let disc = ConstituentTargetWeights::discriminator();
+        let fixed = ConstituentTargetWeightsFixed { len: 1 };
+        let mut buf = Vec::new();
+        buf.extend_from_slice(&disc);
+        buf.extend_from_slice(bytemuck::bytes_of(&fixed));
+        buf.resize(buf.len() + std::mem::size_of::<WeightDatum>() * 1, 0);
+
+        // 2) wrap in AccountInfo
+        let mut lamports = 0u64;
+        let pubkey = Pubkey::default();
+        let owner = crate::ID;
+        let mut ai = AccountInfo::new(
+            &pubkey,
+            false,
+            true,
+            &mut lamports,
+            &mut buf,
+            &owner,
+            false,
+            0,
+        );
+
+        // 3) call your loader
+        let mut zc: AccountZeroCopyMut<WeightDatum, ConstituentTargetWeightsFixed> =
+            ai.load_zc_mut().unwrap();
+        zc
+    }
 
     fn weight_datum(constituent_index: u16, data: i64, last_slot: u64) -> WeightDatum {
         WeightDatum {
@@ -62,7 +93,7 @@ mod tests {
         let aum = 1_000_000;
         let now_ts = 1000;
 
-        let mut target = ConstituentTargetWeights::default();
+        let mut target = constituent_target_weights_zc();
         target
             .update_target_weights(
                 &mapping,
@@ -91,7 +122,7 @@ mod tests {
         let aum = 1_000_000;
         let now_ts = 1234;
 
-        let mut target = ConstituentTargetWeights::default();
+        let mut target = constituent_target_weights_zc();
         target
             .update_target_weights(
                 &mapping,
@@ -123,7 +154,7 @@ mod tests {
         let aum = 1_000_000;
         let now_ts = 999;
 
-        let mut target = ConstituentTargetWeights::default();
+        let mut target = constituent_target_weights_zc();
         target
             .update_target_weights(
                 &mapping,
@@ -180,7 +211,7 @@ mod tests {
 
         let amm_inventory = vec![(0, i64::MAX)];
         let prices = vec![u64::MAX];
-        let constituents = vec![dummy_constituent(0)];
+        let constituents = vec![0];
         let aum = 1;
         let now_ts = 222;
 

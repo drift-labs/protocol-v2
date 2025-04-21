@@ -1,17 +1,20 @@
-use crate::error::{DriftResult, ErrorCode};
+use crate::error::DriftResult;
 use crate::math::casting::Cast;
 use crate::math::constants::{PERCENTAGE_PRECISION_I128, PERCENTAGE_PRECISION_I64};
 use crate::math::safe_math::SafeMath;
-use crate::state::oracle::OracleSource;
-use crate::state::spot_market::{SpotBalance, SpotBalanceType, SpotMarket};
+use crate::state::spot_market::{SpotBalance, SpotBalanceType};
 use crate::state::traits::Size;
 use anchor_lang::prelude::*;
+use anchor_lang::Discriminator;
 use borsh::{BorshDeserialize, BorshSerialize};
+
+use super::zero_copy::{AccountZeroCopy, AccountZeroCopyMut, HasLen};
+use crate::impl_zero_copy_loader;
 
 #[cfg(test)]
 mod tests;
 
-#[account(zero_copy)]
+#[account(zero_copy(unsafe))]
 #[derive(Default, Debug)]
 #[repr(C)]
 pub struct LPPool {
@@ -40,7 +43,7 @@ pub struct LPPool {
     /// timestamp of last AUM slot
     pub last_aum_slot: u64, // 8, 152
     /// timestamp of last AUM update
-    pub last_aum_ts: u64, // 8, 160
+    pub last_aum_ts: u64, // 8, 160``
 
     /// timestamp of last vAMM revenue rebalance
     pub last_revenue_rebalance_ts: u64, // 8, 168
@@ -51,7 +54,7 @@ pub struct LPPool {
     pub total_fees_paid: u128, // 16, 192
 
     pub constituents: u16, // 2, 194
-    pub padding: [u8; 6],
+    pub _padding: [u8; 6],
 }
 
 impl Size for LPPool {
@@ -131,9 +134,6 @@ pub struct Constituent {
     pub padding: [u8; 16],
 }
 
-//   pub struct PerpConstituent {
-//   }
-
 #[zero_copy]
 #[derive(Debug, BorshDeserialize, BorshSerialize)]
 #[repr(C)]
@@ -147,14 +147,14 @@ pub struct AmmConstituentDatum {
 }
 
 #[zero_copy]
-#[derive(Debug, BorshDeserialize, BorshSerialize)]
-#[repr(C)]
-pub struct WeightDatum {
-    pub constituent_index: u16,
-    pub padding: [u8; 6],
-    /// PERCENTAGE_PRECISION. The weights of the target weight matrix
-    pub data: i64,
-    pub last_slot: u64,
+pub struct AmmConstituentMappingFixed {
+    pub len: u32,
+}
+
+impl HasLen for AmmConstituentMappingFixed {
+    fn len(&self) -> u32 {
+        self.len
+    }
 }
 
 #[account]
@@ -166,6 +166,39 @@ pub struct AmmConstituentMapping {
     pub data: Vec<AmmConstituentDatum>,
 }
 
+impl_zero_copy_loader!(
+    AmmConstituentMapping,
+    crate::id,
+    AmmConstituentMappingFixed,
+    AmmConstituentDatum,
+    AmmConstituentMapping::discriminator()
+);
+
+#[zero_copy]
+#[derive(Debug, BorshDeserialize, BorshSerialize)]
+#[repr(C)]
+pub struct WeightDatum {
+    pub constituent_index: u16,
+    pub padding: [u8; 6],
+    /// PERCENTAGE_PRECISION. The weights of the target weight matrix
+    pub data: i64,
+    pub last_slot: u64,
+}
+
+#[zero_copy]
+#[derive(Debug)]
+#[repr(C)]
+pub struct ConstituentTargetWeightsFixed {
+    /// total elements in the flattened `data` vec
+    pub len: u32,
+}
+
+impl HasLen for ConstituentTargetWeightsFixed {
+    fn len(&self) -> u32 {
+        self.len
+    }
+}
+
 #[account]
 #[derive(Debug)]
 #[repr(C)]
@@ -173,6 +206,14 @@ pub struct ConstituentTargetWeights {
     // PERCENTAGE_PRECISION. The weights of the target weight matrix. Updated async
     pub data: Vec<WeightDatum>,
 }
+
+impl_zero_copy_loader!(
+    ConstituentTargetWeights,
+    crate::id,
+    ConstituentTargetWeightsFixed,
+    WeightDatum,
+    ConstituentTargetWeights::discriminator()
+);
 
 impl Default for ConstituentTargetWeights {
     fn default() -> Self {
@@ -182,37 +223,32 @@ impl Default for ConstituentTargetWeights {
     }
 }
 
-impl ConstituentTargetWeights {
+impl<'a> AccountZeroCopyMut<'a, WeightDatum, ConstituentTargetWeightsFixed> {
     /// Update target weights based on amm_inventory and mapping
     pub fn update_target_weights(
         &mut self,
-        mapping: &AmmConstituentMapping,
-        amm_inventory: &[(u16, i64)],
-        constituents: &[Constituent],
-        prices: &[u64], // same order as constituents
+        mapping: &AccountZeroCopy<'a, AmmConstituentDatum, AmmConstituentMappingFixed>,
+        // (perp market index, inventory, price)
+        amm_inventory: &[(u16, i64)], // length = mapping.num_rows
+        constituents_indexes: &[u16],
+        prices: &[i64], // length = mapping.num_rows
         aum: u64,
         slot: u64,
     ) -> DriftResult<()> {
-        // assert_ne!(aum, 0);
-        assert_eq!(prices.len(), constituents.len());
-
-        self.data.clear();
-
-        for (constituent_index, constituent) in constituents.iter().enumerate() {
+        for (i, constituent_index) in constituents_indexes.iter().enumerate() {
             let mut target_amount = 0i128;
 
             for (perp_market_index, inventory) in amm_inventory.iter() {
                 let idx = mapping
-                    .data
                     .iter()
                     .position(|d| &d.perp_market_index == perp_market_index)
                     .expect("missing mapping for this market index");
-                let weight = mapping.data[idx].data; // PERCENTAGE_PRECISION
+                let weight = mapping.get(idx).data; // PERCENTAGE_PRECISION
                 target_amount +=
                     (*inventory as i128) * weight as i128 / PERCENTAGE_PRECISION_I64 as i128;
             }
 
-            let price = prices[constituent_index] as i128;
+            let price = prices[i] as i128;
             let target_weight = target_amount
                 .saturating_mul(price)
                 .saturating_div(aum.max(1) as i128);
@@ -220,23 +256,13 @@ impl ConstituentTargetWeights {
             // PERCENTAGE_PRECISION capped
             let weight_datum = (target_weight).min(PERCENTAGE_PRECISION_I128);
 
-            self.data.push(WeightDatum {
-                constituent_index: constituent_index as u16,
-                padding: [0; 6],
-                data: weight_datum as i64,
-                last_slot: slot,
-            });
+            let cell = self.get_mut(*constituent_index as u32);
+            cell.constituent_index = *constituent_index;
+            cell.padding = [0; 6];
+            cell.data = weight_datum as i64;
+            cell.last_slot = slot;
         }
 
         Ok(())
-    }
-
-    pub fn get_target_weight(&self, constituent_index: u16) -> DriftResult<i64> {
-        let weight_datum = self
-            .data
-            .iter()
-            .find(|d| d.constituent_index == constituent_index)
-            .expect("missing target weight for this constituent");
-        Ok(weight_datum.data)
     }
 }
