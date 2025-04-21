@@ -5,11 +5,9 @@ use crate::msg;
 use crate::signer::get_signer_seeds;
 use crate::state::lp_pool::LPPool;
 use anchor_lang::prelude::*;
-use anchor_spl::{
-    metadata::{
-        create_metadata_accounts_v3, mpl_token_metadata::types::DataV2, CreateMetadataAccountsV3,
-        Metadata,
-    },
+use anchor_spl::metadata::{
+    create_metadata_accounts_v3, mpl_token_metadata::types::DataV2, CreateMetadataAccountsV3,
+    Metadata,
 };
 use anchor_spl::token::Token;
 use anchor_spl::token_2022::Token2022;
@@ -4392,7 +4390,7 @@ pub fn handle_initialize_lp_pool(
         last_revenue_rebalance_ts: 0,
         total_fees_received: 0,
         total_fees_paid: 0,
-        padding: [0; 6],
+        _padding: [0; 6],
     };
 
     let signature_seeds = get_signer_seeds(&state.signer_nonce);
@@ -4424,7 +4422,7 @@ pub fn handle_initialize_lp_pool(
         false, // Is mutable
         true,  // Update authority is signer
         None,  // Collection details
-    )?; 
+    )?;
 
     Ok(())
 }
