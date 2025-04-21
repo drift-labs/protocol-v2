@@ -9634,7 +9634,7 @@
             }
           },
           {
-            "name": "immediateOrCancel",
+            "name": "bitFlags",
             "type": {
               "option": "u8"
             }
