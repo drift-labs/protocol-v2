@@ -18,6 +18,7 @@ use super::optional_accounts::{load_maps, AccountMaps};
 
 pub fn handle_update_dlp_target_weights<'info, 'c: 'info>(
     ctx: Context<'_, 'info, 'c, 'info, UpdateDlpTargetWeights<'info>>,
+    constituent_indexes: Vec<u16>,
 ) -> Result<()> {
     let state = &ctx.accounts.state;
     let lp_pool = &ctx.accounts.lp_pool.load()?;
@@ -29,7 +30,7 @@ pub fn handle_update_dlp_target_weights<'info, 'c: 'info>(
         AmmConstituentMappingFixed,
     > = ctx.accounts.amm_constituent_mapping.load_zc()?;
 
-    let target_weights: AccountZeroCopyMut<'info, WeightDatum, ConstituentTargetWeightsFixed> =
+    let mut target_weights: AccountZeroCopyMut<'info, WeightDatum, ConstituentTargetWeightsFixed> =
         ctx.accounts.constituent_target_weights.load_zc_mut()?;
 
     let AccountMaps {
@@ -62,11 +63,11 @@ pub fn handle_update_dlp_target_weights<'info, 'c: 'info>(
     target_weights.update_target_weights(
         &amm_constituent_mapping,
         amm_inventories.as_slice(),
-        constituents,
+        constituent_indexes.as_slice(),
         &oracle_prices.as_slice(),
         lp_pool.last_aum,
         slot,
-    );
+    )?;
 
     Ok(())
 }

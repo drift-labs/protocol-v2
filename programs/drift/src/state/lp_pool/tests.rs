@@ -4,15 +4,62 @@ mod tests {
     use crate::state::lp_pool::*;
     use crate::state::oracle::OracleSource;
     use crate::state::spot_market::SpotBalanceType;
+    use crate::state::zero_copy::ZeroCopyLoader;
     use anchor_lang::prelude::Pubkey;
 
-    const PERCENTAGE_PRECISION_U64: u64 = 1_000_000;
+    const PERCENTAGE_PRECISION_I64: i64 = 1_000_000;
 
-    fn weight_datum(constituent_index: u16, data: u64, last_slot: u64) -> WeightDatum {
-        WeightDatum { constituent_index, padding: [0; 6], data, last_slot }
+    fn constituent_target_weights_zc(
+    ) -> AccountZeroCopyMut<WeightDatum, ConstituentTargetWeightsFixed> {
+        let disc = ConstituentTargetWeights::discriminator();
+        let fixed = ConstituentTargetWeightsFixed { len: 1 };
+        let mut buf = Vec::new();
+        buf.extend_from_slice(&disc);
+        buf.extend_from_slice(bytemuck::bytes_of(&fixed));
+        buf.resize(buf.len() + std::mem::size_of::<WeightDatum>() * 1, 0);
+
+        // 2) wrap in AccountInfo
+        let mut lamports = 0u64;
+        let pubkey = Pubkey::default();
+        let owner = crate::ID;
+        let mut ai = AccountInfo::new(
+            &pubkey,
+            false,
+            true,
+            &mut lamports,
+            &mut buf,
+            &owner,
+            false,
+            0,
+        );
+
+        // 3) call your loader
+        let mut zc: AccountZeroCopyMut<WeightDatum, ConstituentTargetWeightsFixed> =
+            ai.load_zc_mut().unwrap();
+        zc
     }
-    fn amm_const_datum(perp_market_index: u16, constituent_index: u16, data: u64, last_slot: u64) -> AmmConstituentDatum {
-        AmmConstituentDatum { perp_market_index, constituent_index, padding: [0; 4], data, last_slot }
+
+    fn weight_datum(constituent_index: u16, data: i64, last_slot: u64) -> WeightDatum {
+        WeightDatum {
+            constituent_index,
+            padding: [0; 6],
+            data,
+            last_slot,
+        }
+    }
+    fn amm_const_datum(
+        perp_market_index: u16,
+        constituent_index: u16,
+        data: i64,
+        last_slot: u64,
+    ) -> AmmConstituentDatum {
+        AmmConstituentDatum {
+            perp_market_index,
+            constituent_index,
+            padding: [0; 4],
+            data,
+            last_slot,
+        }
     }
 
     fn dummy_constituent(index: u16) -> Constituent {
@@ -23,8 +70,6 @@ mod tests {
             swap_fee_min: 0,
             max_fee_premium: 0,
             spot_market_index: index,
-            last_oracle_price: 0,
-            last_oracle_price_ts: 0,
             spot_balance: BLPosition {
                 scaled_balance: 0,
                 cumulative_deposits: 0,
@@ -42,13 +87,13 @@ mod tests {
             data: vec![amm_const_datum(0, 1, 0, 0)],
         };
 
-        let amm_inventory: Vec<(u16, u64)> = vec![(0, 1_000_000)];
+        let amm_inventory: Vec<(u16, i64)> = vec![(0, 1_000_000)];
         let prices = vec![1_000_000];
         let constituents = vec![dummy_constituent(0)];
         let aum = 1_000_000;
         let now_ts = 1000;
 
-        let mut target = ConstituentTargetWeights::default();
+        let mut target = constituent_target_weights_zc();
         target
             .update_target_weights(
                 &mapping,
@@ -68,7 +113,7 @@ mod tests {
     #[test]
     fn test_single_full_weight() {
         let mapping = AmmConstituentMapping {
-            data: vec![amm_const_datum(0, 1, PERCENTAGE_PRECISION_U64, 0)],
+            data: vec![amm_const_datum(0, 1, PERCENTAGE_PRECISION_I64, 0)],
         };
 
         let amm_inventory = vec![(0, 1_000_000)];
@@ -77,7 +122,7 @@ mod tests {
         let aum = 1_000_000;
         let now_ts = 1234;
 
-        let mut target = ConstituentTargetWeights::default();
+        let mut target = constituent_target_weights_zc();
         target
             .update_target_weights(
                 &mapping,
@@ -90,7 +135,7 @@ mod tests {
             .unwrap();
 
         assert_eq!(target.data.len(), 1);
-        assert_eq!(target.data[0].data, PERCENTAGE_PRECISION_U64);
+        assert_eq!(target.data[0].data, PERCENTAGE_PRECISION_I64);
         assert_eq!(target.data[0].last_slot, now_ts);
     }
 
@@ -98,8 +143,8 @@ mod tests {
     fn test_multiple_constituents_partial_weights() {
         let mapping = AmmConstituentMapping {
             data: vec![
-                amm_const_datum(0, 1, PERCENTAGE_PRECISION_U64 / 2, 0),
-                amm_const_datum(0, 2, PERCENTAGE_PRECISION_U64 / 2, 0),
+                amm_const_datum(0, 1, PERCENTAGE_PRECISION_I64 / 2, 0),
+                amm_const_datum(0, 2, PERCENTAGE_PRECISION_I64 / 2, 0),
             ],
         };
 
@@ -109,7 +154,7 @@ mod tests {
         let aum = 1_000_000;
         let now_ts = 999;
 
-        let mut target = ConstituentTargetWeights::default();
+        let mut target = constituent_target_weights_zc();
         target
             .update_target_weights(
                 &mapping,
@@ -124,7 +169,7 @@ mod tests {
         assert_eq!(target.data.len(), 2);
 
         for datum in &target.data {
-            assert_eq!(datum.data, PERCENTAGE_PRECISION_U64 / 2);
+            assert_eq!(datum.data, PERCENTAGE_PRECISION_I64 / 2);
             assert_eq!(datum.last_slot, now_ts);
         }
     }
@@ -132,7 +177,7 @@ mod tests {
     #[test]
     fn test_zero_aum_safe() {
         let mapping = AmmConstituentMapping {
-            data: vec![amm_const_datum(0, 1, PERCENTAGE_PRECISION_U64, 0)],
+            data: vec![amm_const_datum(0, 1, PERCENTAGE_PRECISION_I64, 0)],
         };
 
         let amm_inventory = vec![(0, 1_000_000)];
@@ -154,19 +199,19 @@ mod tests {
             .unwrap();
 
         assert_eq!(target.data.len(), 1);
-        assert_eq!(target.data[0].data, PERCENTAGE_PRECISION_U64); // todo how to handle?
+        assert_eq!(target.data[0].data, PERCENTAGE_PRECISION_I64); // todo how to handle?
         assert_eq!(target.data[0].last_slot, now_ts);
     }
 
     #[test]
     fn test_overflow_protection() {
         let mapping = AmmConstituentMapping {
-            data: vec![amm_const_datum(0, 1, u64::MAX, 0)],
+            data: vec![amm_const_datum(0, 1, i64::MAX, 0)],
         };
 
-        let amm_inventory = vec![(0, u64::MAX)];
+        let amm_inventory = vec![(0, i64::MAX)];
         let prices = vec![u64::MAX];
-        let constituents = vec![dummy_constituent(0)];
+        let constituents = vec![0];
         let aum = 1;
         let now_ts = 222;
 
@@ -183,7 +228,7 @@ mod tests {
             .unwrap();
 
         assert_eq!(target.data.len(), 1);
-        assert!(target.data[0].data <= PERCENTAGE_PRECISION_U64);
+        assert!(target.data[0].data <= PERCENTAGE_PRECISION_I64);
         assert_eq!(target.data[0].last_slot, now_ts);
     }
 }
