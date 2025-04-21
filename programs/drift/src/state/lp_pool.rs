@@ -87,34 +87,34 @@ impl LPPool {
     pub fn get_swap_price(
         &self,
         oracle_map: &mut OracleMap,
-        in_constituent: Constituent,
-        out_constituent: Constituent,
+        in_spot_market: &SpotMarket,
+        out_spot_market: &SpotMarket,
         in_amount: u64,
     ) -> DriftResult<u64> {
         let in_price = oracle_map
-            .get_price_data(&(in_constituent.oracle, in_constituent.oracle_source))
+            .get_price_data(&(in_spot_market.oracle, in_spot_market.oracle_source))
             .expect("failed to get price data")
             .price
             .cast::<u64>()
             .expect("failed to cast price");
 
         let out_price = oracle_map
-            .get_price_data(&(out_constituent.oracle, out_constituent.oracle_source))
+            .get_price_data(&(out_spot_market.oracle, out_spot_market.oracle_source))
             .expect("failed to get price data")
             .price
             .cast::<u64>()
             .expect("failed to cast price");
 
         let (prec_diff_numerator, prec_diff_denominator) =
-            if out_constituent.decimals > in_constituent.decimals {
+            if out_spot_market.decimals > in_spot_market.decimals {
                 (
-                    10_u64.pow(out_constituent.decimals as u32 - in_constituent.decimals as u32),
+                    10_u64.pow(out_spot_market.decimals as u32 - in_spot_market.decimals as u32),
                     1,
                 )
             } else {
                 (
                     1,
-                    10_u64.pow(in_constituent.decimals as u32 - out_constituent.decimals as u32),
+                    10_u64.pow(in_spot_market.decimals as u32 - out_spot_market.decimals as u32),
                 )
             };
 
@@ -171,6 +171,8 @@ impl LPPool {
             .get_price_data(&(in_constituent.oracle, in_constituent.oracle_source))
             .expect("failed to get price data")
             .price;
+        let in_weight_before =
+            in_constituent.get_weight(in_price, in_token_balance, 0, self.last_aum)?;
         let in_weight_after = in_constituent.get_weight(
             in_price,
             in_token_balance,
@@ -179,7 +181,7 @@ impl LPPool {
         )?;
         let in_target_weight =
             target_weights.get_target_weight(in_constituent.constituent_index)?;
-        let in_weight_delta = in_target_weight.safe_sub(in_weight_after)?.abs();
+        let in_weight_delta = in_weight_after.safe_sub(in_target_weight)?;
         msg!(
             "in_weight_after: {}, in_target_weight: {}, in_weight_delta: {}",
             in_weight_after,
@@ -205,6 +207,8 @@ impl LPPool {
             .get_price_data(&(out_constituent.oracle, out_constituent.oracle_source))
             .expect("failed to get price data")
             .price;
+        let out_weight_before =
+            out_constituent.get_weight(out_price, out_token_balance, 0, self.last_aum)?;
         let out_weight_after = out_constituent.get_weight(
             out_price,
             out_token_balance,
@@ -213,7 +217,7 @@ impl LPPool {
         )?;
         let out_target_weight =
             target_weights.get_target_weight(out_constituent.constituent_index)?;
-        let out_weight_delta = out_target_weight.safe_sub(out_weight_after)?.abs();
+        let out_weight_delta = out_weight_after.safe_sub(out_target_weight)?;
         msg!(
             "out_weight_after: {}, out_target_weight: {}, out_weight_delta: {}",
             out_weight_after,
@@ -292,9 +296,6 @@ impl SpotBalance for BLPosition {
 pub struct Constituent {
     /// address of the constituent
     pub pubkey: Pubkey,
-
-    pub oracle: Pubkey,
-    pub oracle_source: OracleSource,
 
     /// underlying drift spot market index
     pub spot_market_index: u16,
@@ -392,8 +393,6 @@ pub struct AmmConstituentMapping {
 #[derive(Debug)]
 #[repr(C)]
 pub struct ConstituentTargetWeights {
-    // rows in the matrix (VaultConstituents)
-    pub num_rows: u16,
     // PERCENTAGE_PRECISION. The weights of the target weight matrix. Updated async
     pub data: Vec<WeightDatum>,
 }
@@ -401,7 +400,6 @@ pub struct ConstituentTargetWeights {
 impl Default for ConstituentTargetWeights {
     fn default() -> Self {
         ConstituentTargetWeights {
-            num_rows: 0,
             data: Vec::with_capacity(0),
         }
     }
@@ -412,7 +410,7 @@ impl ConstituentTargetWeights {
     pub fn update_target_weights(
         &mut self,
         mapping: &AmmConstituentMapping,
-        amm_inventory: &[(u16, u64)], // length = mapping.num_rows
+        amm_inventory: &[(u16, u64)],
         constituents: &[Constituent],
         prices: &[u64], // same order as constituents
         aum: u64,
@@ -422,7 +420,6 @@ impl ConstituentTargetWeights {
         assert_eq!(prices.len(), constituents.len());
 
         self.data.clear();
-        self.num_rows = constituents.len() as u16;
 
         for (constituent_index, constituent) in constituents.iter().enumerate() {
             let mut target_amount = 0u128;

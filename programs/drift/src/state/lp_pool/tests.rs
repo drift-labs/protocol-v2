@@ -73,7 +73,6 @@ mod tests {
 
     fn dummy_target_weights(weights: Vec<(u16, i64)>) -> ConstituentTargetWeights {
         ConstituentTargetWeights {
-            num_rows: weights.len() as u16,
             data: weights
                 .into_iter()
                 .enumerate()
@@ -263,8 +262,38 @@ mod tests {
         assert_eq!(weight, 1000);
     }
 
-    #[test]
-    fn test_get_swap_fees() {
+    fn setup_constituents(
+        sol_oracle_key: Pubkey,
+        btc_oracle_key: Pubkey,
+    ) -> (Constituent, Constituent) {
+        let mut in_constituent = dummy_constituent(0, 9);
+        in_constituent.swap_fee_min = 100; // 0.01% min fee
+        in_constituent.max_fee_premium = 5000; // 0.5% max premium
+        in_constituent.oracle = sol_oracle_key;
+        in_constituent.oracle_source = OracleSource::Pyth;
+
+        let mut out_constituent = dummy_constituent(1, 8);
+        out_constituent.swap_fee_min = 100; // 0.01% min fee
+        out_constituent.max_fee_premium = 5000; // 0.5% max premium
+        out_constituent.oracle = btc_oracle_key;
+        out_constituent.oracle_source = OracleSource::Pyth;
+
+        (in_constituent, out_constituent)
+    }
+
+    fn setup_lp_pool() -> LPPool {
+        let mut lp_pool = dummy_lp_pool();
+        lp_pool.last_aum = 1_000_000_000_000;
+        lp_pool
+    }
+
+    fn run_swap_fee_test(
+        target_weight: i64,
+        in_token_balance: u64,
+        out_token_balance: u64,
+        expected_in_fee: i64,
+        expected_out_fee: i64,
+    ) {
         let oracle_program = crate::ids::pyth_program::id();
         let sol_oracle_key = Pubkey::new_unique();
         create_account_info!(
@@ -289,29 +318,10 @@ mod tests {
             None,
         )
         .expect("failed to load oracle map");
+        let (in_constituent, out_constituent) = setup_constituents(sol_oracle_key, btc_oracle_key);
+        let mut lp_pool = setup_lp_pool();
 
-        let target_weights = dummy_target_weights(vec![
-            (0, PERCENTAGE_PRECISION_I64.safe_div(2).unwrap()), // target 50%
-            (1, PERCENTAGE_PRECISION_I64.safe_div(2).unwrap()), // target 50%
-        ]);
-
-        let mut in_constituent = dummy_constituent(0, 9);
-        in_constituent.swap_fee_min = 100; // 0.01% min fee
-        in_constituent.max_fee_premium = 5000; // 0.5% max premium
-        in_constituent.oracle = sol_oracle_key;
-        in_constituent.oracle_source = OracleSource::Pyth;
-
-        let mut out_constituent = dummy_constituent(1, 8);
-        out_constituent.swap_fee_min = 100; // 0.01% min fee
-        out_constituent.max_fee_premium = 5000; // 0.5% max premium
-        out_constituent.oracle = btc_oracle_key;
-        out_constituent.oracle_source = OracleSource::Pyth;
-
-        let in_token_balance = 1_000_000_000; // 1 SOL
-        let out_token_balance = 1_000_000_000; // 10 BTC
-
-        let mut lp_pool = dummy_lp_pool();
-        lp_pool.last_aum = 1_000_000_000_000;
+        let target_weights = dummy_target_weights(vec![(0, target_weight), (1, target_weight)]);
 
         let in_amount = 1_000_000_000; // 1 SOL
         let out_amount = 200_000; // 0.2 BTC
@@ -328,7 +338,60 @@ mod tests {
                 out_amount,
             )
             .expect("failed to get swap fees");
-        assert_eq!(in_fee, 5000); // 0.5% fee on input (max fee premium)
-        assert_eq!(out_fee, 5000); // 0.5% fee on output (max fee premium)
+
+        assert_eq!(
+            in_fee, expected_in_fee,
+            "in_fee: {}, expected_in_fee: {}",
+            in_fee, expected_in_fee
+        );
+        assert_eq!(
+            out_fee, expected_out_fee,
+            "out_fee: {}, expected_out_fee: {}",
+            out_fee, expected_out_fee
+        );
+    }
+
+    #[test]
+    fn test_get_swap_fees_pos_weights_1() {
+        run_swap_fee_test(
+            PERCENTAGE_PRECISION_I64.safe_div(2).unwrap(), // 50%
+            1_000_000_000,                                 // 1 SOL ($200)
+            1_000_000_000,                                 // 10 BTC ($1M)
+            -5000,                                         // -0.5% fee rebate to balance pool
+            5000,                                          // 0.5% fee on output (max fee premium)
+        );
+    }
+
+    #[test]
+    fn test_get_swap_fees_pos_weights_2() {
+        run_swap_fee_test(
+            PERCENTAGE_PRECISION_I64.safe_div(2).unwrap(), // 50%
+            5_000_000_000_000,                             // 50 SOL ($1M)
+            200_000,                                       // 0.2 BTC ($200)
+            5000,                                          // 0.5% fee on input (max fee premium)
+            -5000,                                         // -0.5% fee rebate to balance pool
+        );
+    }
+
+    #[test]
+    fn test_get_swap_fees_neg_weights_1() {
+        run_swap_fee_test(
+            -PERCENTAGE_PRECISION_I64.safe_div(2).unwrap(), // -50%
+            1_000_000_000,                                  // 1 SOL ($200)
+            1_000_000_000,                                  // 10 BTC ($1M)
+            5000,                                           // 0.5% fee on input (max fee premium)
+            -5000,                                          // -0.5% fee rebate to balance pool
+        );
+    }
+
+    #[test]
+    fn test_get_swap_fees_neg_weights_2() {
+        run_swap_fee_test(
+            -PERCENTAGE_PRECISION_I64.safe_div(2).unwrap(), // -50%
+            50_000_000_000,                                 // 50 SOL ($1M)
+            20_000,                                         // 0.2 BTC ($200)
+            5000,                                           // -0.5% fee rebate to balance pool
+            5000,                                           // 0.5% fee on output (max fee premium)
+        );
     }
 }

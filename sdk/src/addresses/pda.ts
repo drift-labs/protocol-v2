@@ -384,10 +384,10 @@ export function getLpPoolPublicKey(
 	programId: PublicKey,
 	name: string
 ): PublicKey {
-	return PublicKey.findProgramAddressSync([
-		Buffer.from(anchor.utils.bytes.utf8.encode('lp_pool')),
-		Buffer.from(name)
-	], programId)[0];
+	return PublicKey.findProgramAddressSync(
+		[Buffer.from(anchor.utils.bytes.utf8.encode('lp_pool')), Buffer.from(name)],
+		programId
+	)[0];
 }
 
 export function getLpPoolMintPublicKey(
@@ -399,4 +399,3 @@ export function getLpPoolMintPublicKey(
 		programId
 	)[0];
 }
-
