@@ -63,6 +63,7 @@ mod tests {
             max_aum: 100_000_000_000_000,
             last_aum: 1_000_000_000_000,
             last_aum_slot: 0,
+            last_aum_ts: 0,
             last_revenue_rebalance_ts: 0,
             total_fees_received: 0,
             total_fees_paid: 0,

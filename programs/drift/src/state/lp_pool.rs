@@ -51,7 +51,7 @@ pub struct LPPool {
     /// timestamp of last AUM slot
     pub last_aum_slot: u64, // 8, 152
     /// timestamp of last AUM update
-    // pub last_aum_ts: u64, // 8, 160
+    pub last_aum_ts: u64, // 8, 160
 
     /// timestamp of last vAMM revenue rebalance
     pub last_revenue_rebalance_ts: u64, // 8, 168

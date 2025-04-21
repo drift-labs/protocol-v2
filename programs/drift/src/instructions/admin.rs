@@ -4386,6 +4386,7 @@ pub fn handle_initialize_lp_pool(
         max_aum,
         last_aum: 0,
         last_aum_slot: 0,
+        last_aum_ts: 0,
         last_revenue_rebalance_ts: 0,
         total_fees_received: 0,
         total_fees_paid: 0,
