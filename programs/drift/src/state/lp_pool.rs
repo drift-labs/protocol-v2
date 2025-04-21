@@ -1,15 +1,15 @@
-use crate::error::DriftResult;
+use crate::error::{DriftResult, ErrorCode};
 use crate::math::casting::Cast;
 use crate::math::constants::{PERCENTAGE_PRECISION_I128, PERCENTAGE_PRECISION_I64};
 use crate::math::safe_math::SafeMath;
-use crate::state::spot_market::{SpotBalance, SpotBalanceType};
-use crate::state::traits::Size;
 use anchor_lang::prelude::*;
 use anchor_lang::Discriminator;
 use borsh::{BorshDeserialize, BorshSerialize};
 
 use super::zero_copy::{AccountZeroCopy, AccountZeroCopyMut, HasLen};
 use crate::impl_zero_copy_loader;
+use crate::state::spot_market::{SpotBalance, SpotBalanceType, SpotMarket};
+use crate::state::traits::Size;
 
 #[cfg(test)]
 mod tests;
@@ -223,8 +223,16 @@ impl Default for ConstituentTargetWeights {
     }
 }
 
+#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Debug, Eq)]
+pub enum WeightValidationFlags {
+    NONE = 0b0000_0000,
+    EnforceTotalWeight100 = 0b0000_0001,
+    NoNegativeWeights = 0b0000_0010,
+    NoOverweight = 0b0000_0100,
+}
+
+/// Update target weights based on amm_inventory and mapping
 impl<'a> AccountZeroCopyMut<'a, WeightDatum, ConstituentTargetWeightsFixed> {
-    /// Update target weights based on amm_inventory and mapping
     pub fn update_target_weights(
         &mut self,
         mapping: &AccountZeroCopy<'a, AmmConstituentDatum, AmmConstituentMappingFixed>,
@@ -234,7 +242,9 @@ impl<'a> AccountZeroCopyMut<'a, WeightDatum, ConstituentTargetWeightsFixed> {
         prices: &[i64], // length = mapping.num_rows
         aum: u64,
         slot: u64,
+        validation_flags: WeightValidationFlags,
     ) -> DriftResult<()> {
+        let mut total_weight: i128 = 0;
         for (i, constituent_index) in constituents_indexes.iter().enumerate() {
             let mut target_amount = 0i128;
 
@@ -244,23 +254,45 @@ impl<'a> AccountZeroCopyMut<'a, WeightDatum, ConstituentTargetWeightsFixed> {
                     .position(|d| &d.perp_market_index == perp_market_index)
                     .expect("missing mapping for this market index");
                 let weight = mapping.get(idx).data; // PERCENTAGE_PRECISION
-                target_amount +=
-                    (*inventory as i128) * weight as i128 / PERCENTAGE_PRECISION_I64 as i128;
+
+                target_amount += (*inventory as i128)
+                    .saturating_mul(weight)
+                    .saturating_div(PERCENTAGE_PRECISION_I64 as i128);
             }
 
             let price = prices[i] as i128;
-            let target_weight = target_amount
-                .saturating_mul(price)
-                .saturating_div(aum.max(1) as i128);
+            let target_weight = if aum > 0 {
+                target_amount
+                    .saturating_mul(price)
+                    .saturating_div(aum as i128)
+            } else {
+                0
+            };
 
-            // PERCENTAGE_PRECISION capped
-            let weight_datum = (target_weight).min(PERCENTAGE_PRECISION_I128);
+            if (validation_flags as u8 & (WeightValidationFlags::NoNegativeWeights as u8) != 0)
+                && target_weight < 0
+            {
+                return Err(ErrorCode::DefaultError);
+            }
+            if (validation_flags as u8 & (WeightValidationFlags::NoOverweight as u8) != 0)
+                && target_weight > PERCENTAGE_PRECISION_I64 as i128
+            {
+                return Err(ErrorCode::DefaultError);
+            }
 
             let cell = self.get_mut(*constituent_index as u32);
             cell.constituent_index = *constituent_index;
             cell.padding = [0; 6];
-            cell.data = weight_datum as i64;
+            cell.data = target_weight as i64;
             cell.last_slot = slot;
+        }
+
+        if (validation_flags as u8) & WeightValidationFlags::EnforceTotalWeight100 as u8 != 0 {
+            let deviation = (total_weight - PERCENTAGE_PRECISION_I64 as i128).abs();
+            let tolerance = 1;
+            if deviation > tolerance {
+                return Err(ErrorCode::DefaultError);
+            }
         }
 
         Ok(())

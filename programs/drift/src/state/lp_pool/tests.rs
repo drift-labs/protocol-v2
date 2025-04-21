@@ -102,6 +102,7 @@ mod tests {
                 &prices,
                 aum,
                 now_ts,
+                WeightValidationFlags::NONE,
             )
             .unwrap();
 
@@ -131,6 +132,7 @@ mod tests {
                 &prices,
                 aum,
                 now_ts,
+                WeightValidationFlags::NONE,
             )
             .unwrap();
 
@@ -163,6 +165,7 @@ mod tests {
                 &prices,
                 aum,
                 now_ts,
+                WeightValidationFlags::NONE,
             )
             .unwrap();
 
@@ -181,7 +184,7 @@ mod tests {
         };
 
         let amm_inventory = vec![(0, 1_000_000)];
-        let prices = vec![1_000_000];
+        let prices = vec![142_000_000];
         let constituents = vec![dummy_constituent(0)];
         let aum = 0;
         let now_ts = 111;
@@ -195,11 +198,12 @@ mod tests {
                 &prices,
                 aum,
                 now_ts,
+                WeightValidationFlags::NONE,
             )
             .unwrap();
 
         assert_eq!(target.data.len(), 1);
-        assert_eq!(target.data[0].data, PERCENTAGE_PRECISION_I64); // todo how to handle?
+        assert_eq!(target.data[0].data, 0); // no target
         assert_eq!(target.data[0].last_slot, now_ts);
     }
 
@@ -224,6 +228,7 @@ mod tests {
                 &prices,
                 aum,
                 now_ts,
+                WeightValidationFlags::NONE,
             )
             .unwrap();
 

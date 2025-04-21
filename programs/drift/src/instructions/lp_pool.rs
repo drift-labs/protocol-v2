@@ -6,7 +6,7 @@ use anchor_lang::{
 use crate::state::{
     lp_pool::{
         AmmConstituentDatum, AmmConstituentMappingFixed, ConstituentTargetWeightsFixed, LPPool,
-        WeightDatum,
+        WeightDatum, WeightValidationFlags,
     },
     perp_market_map::MarketSet,
     state::State,
@@ -67,6 +67,7 @@ pub fn handle_update_dlp_target_weights<'info, 'c: 'info>(
         &oracle_prices.as_slice(),
         lp_pool.last_aum,
         slot,
+        WeightValidationFlags::NONE,
     )?;
 
     Ok(())
