@@ -1,5 +1,5 @@
 {
-  "version": "2.118.0-beta.1",
+  "version": "2.119.0",
   "name": "drift",
   "instructions": [
     {
@@ -6409,6 +6409,40 @@
         },
         {
           "name": "fuelBoostPosition",
+          "type": {
+            "option": "u8"
+          }
+        }
+      ]
+    },
+    {
+      "name": "updatePerpMarketProtectedMakerParams",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "perpMarket",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "protectedMakerLimitPriceDivisor",
+          "type": {
+            "option": "u8"
+          }
+        },
+        {
+          "name": "protectedMakerDynamicDivisor",
           "type": {
             "option": "u8"
           }

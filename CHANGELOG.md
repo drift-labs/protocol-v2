@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Features
 
+### Fixes
+
+### Breaking
+
+## [2.119.0] - 2025-04-21
+
+### Features
+
 - program: place perp order can update high leverage mode ([#1573](https://github.com/drift-labs/protocol-v2/pull/1573))
 - sdk: generalized getSpotAssetValue and getSpotLiabilityValue to be able to be called without a user account ([#1577](https://github.com/drift-labs/protocol-v2/pull/1577))
 
