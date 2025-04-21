@@ -8,7 +8,7 @@ mod tests {
     use crate::test_utils::*;
     use anchor_lang::prelude::Pubkey;
 
-    const PERCENTAGE_PRECISION_U64: u64 = 1_000_000;
+    const PERCENTAGE_PRECISION_I64: i64 = 1_000_000;
 
     fn weight_datum(constituent_index: u16, data: i64, last_slot: u64) -> WeightDatum {
         WeightDatum {
@@ -88,7 +88,7 @@ mod tests {
             data: vec![amm_const_datum(0, 1, 0, 0)],
         };
 
-        let amm_inventory: Vec<(u16, u64)> = vec![(0, 1_000_000)];
+        let amm_inventory: Vec<(u16, i64)> = vec![(0, 1_000_000)];
         let prices = vec![1_000_000];
         let constituents = vec![dummy_constituent(0, 6)];
         let aum = 1_000_000;
@@ -210,7 +210,7 @@ mod tests {
             data: vec![amm_const_datum(0, 1, i64::MAX, 0)],
         };
 
-        let amm_inventory = vec![(0, u64::MAX)];
+        let amm_inventory = vec![(0, i64::MAX)];
         let prices = vec![u64::MAX];
         let constituents = vec![dummy_constituent(0, 6)];
         let aum = 1;
