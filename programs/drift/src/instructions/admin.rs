@@ -4390,7 +4390,7 @@ pub fn handle_initialize_lp_pool(
         last_revenue_rebalance_ts: 0,
         total_fees_received: 0,
         total_fees_paid: 0,
-        padding: [0; 6],
+        _padding: [0; 6],
     };
 
     let signature_seeds = get_signer_seeds(&state.signer_nonce);

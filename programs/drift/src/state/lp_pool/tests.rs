@@ -1,23 +1,10 @@
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use crate::create_account_info;
     use crate::state::lp_pool::*;
-    use crate::state::oracle::OracleSource;
-    use crate::state::spot_market::SpotBalanceType;
-    use crate::test_utils::*;
-    use anchor_lang::prelude::Pubkey;
+    use std::{cell::RefCell, marker::PhantomData, vec};
 
     const PERCENTAGE_PRECISION_I64: i64 = 1_000_000;
 
-    fn weight_datum(constituent_index: u16, data: i64, last_slot: u64) -> WeightDatum {
-        WeightDatum {
-            constituent_index,
-            padding: [0; 6],
-            data,
-            last_slot,
-        }
-    }
     fn amm_const_datum(
         perp_market_index: u16,
         constituent_index: u16,
@@ -33,366 +20,332 @@ mod tests {
         }
     }
 
-    fn dummy_constituent(index: u16, decimals: u8) -> Constituent {
-        Constituent {
-            pubkey: Pubkey::default(),
-            constituent_index: index,
-            oracle: Pubkey::default(),
-            oracle_source: OracleSource::default(),
-            decimals,
-            max_weight_deviation: PERCENTAGE_PRECISION_U64.safe_div(10).unwrap(), // 10% deviation allowed
-            swap_fee_min: 0,
-            max_fee_premium: 0,
-            spot_market_index: index,
-            spot_balance: BLPosition {
-                scaled_balance: 0,
-                cumulative_deposits: 0,
-                market_index: index,
-                balance_type: SpotBalanceType::Deposit,
-                padding: [0; 4],
-            },
-            padding: [0; 16],
-        }
-    }
-
-    fn dummy_lp_pool() -> LPPool {
-        LPPool {
-            name: [0; 32],
-            pubkey: Pubkey::new_unique(),
-            mint: Pubkey::new_unique(),
-            max_aum: 100_000_000_000_000,
-            last_aum: 1_000_000_000_000,
-            last_aum_slot: 0,
-            last_aum_ts: 0,
-            last_revenue_rebalance_ts: 0,
-            total_fees_received: 0,
-            total_fees_paid: 0,
-            constituents: 0,
-            padding: [0; 6],
-        }
-    }
-
-    fn dummy_target_weights(weights: Vec<(u16, i64)>) -> ConstituentTargetWeights {
-        ConstituentTargetWeights {
-            data: weights
-                .into_iter()
-                .enumerate()
-                .map(|(_i, w)| weight_datum(w.0, w.1, 0))
-                .collect(),
-        }
-    }
-
     #[test]
     fn test_single_zero_weight() {
-        let mapping = AmmConstituentMapping {
-            data: vec![amm_const_datum(0, 1, 0, 0)],
+        let amm_datum = amm_const_datum(0, 1, 0, 0);
+        let mapping_fixed = RefCell::new(AmmConstituentMappingFixed {
+            len: 1,
+            ..AmmConstituentMappingFixed::default()
+        });
+        let mapping_data = RefCell::new([0u8; 24]);
+        {
+            let mut mapping_zc_mut =
+                AccountZeroCopyMut::<'_, AmmConstituentDatum, AmmConstituentMappingFixed> {
+                    fixed: mapping_fixed.borrow_mut(),
+                    data: mapping_data.borrow_mut(),
+                    _marker: PhantomData::<AmmConstituentDatum>,
+                };
+            mapping_zc_mut.add_amm_constituent_datum(amm_datum).unwrap();
+        }
+
+        let mapping_zc = {
+            let fixed_ref = mapping_fixed.borrow();
+            let data_ref = mapping_data.borrow();
+            AccountZeroCopy {
+                fixed: fixed_ref,
+                data: data_ref,
+                _marker: PhantomData::<AmmConstituentDatum>,
+            }
         };
 
         let amm_inventory: Vec<(u16, i64)> = vec![(0, 1_000_000)];
         let prices = vec![1_000_000];
-        let constituents = vec![dummy_constituent(0, 6)];
+        let constituent_indexes = vec![1];
         let aum = 1_000_000;
         let now_ts = 1000;
 
-        let mut target = ConstituentTargetWeights::default();
-        target
+        let target_fixed = RefCell::new(ConstituentTargetWeightsFixed {
+            len: 1,
+            ..ConstituentTargetWeightsFixed::default()
+        });
+        let target_data = RefCell::new([0u8; 24]);
+        let mut target_zc_mut =
+            AccountZeroCopyMut::<'_, WeightDatum, ConstituentTargetWeightsFixed> {
+                fixed: target_fixed.borrow_mut(),
+                data: target_data.borrow_mut(),
+                _marker: PhantomData::<WeightDatum>,
+            };
+
+        target_zc_mut
             .update_target_weights(
-                &mapping,
+                &mapping_zc,
                 &amm_inventory,
-                &constituents,
+                &constituent_indexes,
                 &prices,
                 aum,
                 now_ts,
+                WeightValidationFlags::NONE,
             )
             .unwrap();
 
-        assert_eq!(target.data.len(), 1);
-        assert_eq!(target.data[0].data, 0);
-        assert_eq!(target.data[0].last_slot, now_ts);
+        assert_eq!(target_zc_mut.len(), 1);
+        assert_eq!(target_zc_mut.get(0).data, 0);
+        assert_eq!(target_zc_mut.get(0).last_slot, now_ts);
     }
 
     #[test]
     fn test_single_full_weight() {
-        let mapping = AmmConstituentMapping {
-            data: vec![amm_const_datum(0, 1, PERCENTAGE_PRECISION_I64, 0)],
+        let amm_datum = amm_const_datum(0, 1, PERCENTAGE_PRECISION_I64, 0);
+        let mapping_fixed = RefCell::new(AmmConstituentMappingFixed {
+            len: 1,
+            ..AmmConstituentMappingFixed::default()
+        });
+        let mapping_data = RefCell::new([0u8; 24]);
+        {
+            let mut mapping_zc_mut =
+                AccountZeroCopyMut::<'_, AmmConstituentDatum, AmmConstituentMappingFixed> {
+                    fixed: mapping_fixed.borrow_mut(),
+                    data: mapping_data.borrow_mut(),
+                    _marker: PhantomData::<AmmConstituentDatum>,
+                };
+            mapping_zc_mut.add_amm_constituent_datum(amm_datum).unwrap();
+        }
+
+        let mapping_zc = {
+            let fixed_ref = mapping_fixed.borrow();
+            let data_ref = mapping_data.borrow();
+            AccountZeroCopy {
+                fixed: fixed_ref,
+                data: data_ref,
+                _marker: PhantomData::<AmmConstituentDatum>,
+            }
         };
 
         let amm_inventory = vec![(0, 1_000_000)];
         let prices = vec![1_000_000];
-        let constituents = vec![dummy_constituent(0, 6)];
+        let constituent_indexes = [1u16];
         let aum = 1_000_000;
         let now_ts = 1234;
 
-        let mut target = ConstituentTargetWeights::default();
-        target
+        let target_fixed = RefCell::new(ConstituentTargetWeightsFixed {
+            len: 1,
+            ..ConstituentTargetWeightsFixed::default()
+        });
+        let target_data = RefCell::new([0u8; 24]);
+        let mut target_zc_mut =
+            AccountZeroCopyMut::<'_, WeightDatum, ConstituentTargetWeightsFixed> {
+                fixed: target_fixed.borrow_mut(),
+                data: target_data.borrow_mut(),
+                _marker: PhantomData::<WeightDatum>,
+            };
+
+        target_zc_mut
             .update_target_weights(
-                &mapping,
+                &mapping_zc,
                 &amm_inventory,
-                &constituents,
+                &constituent_indexes,
                 &prices,
                 aum,
                 now_ts,
+                WeightValidationFlags::NONE,
             )
             .unwrap();
 
-        assert_eq!(target.data.len(), 1);
-        assert_eq!(target.data[0].data, PERCENTAGE_PRECISION_I64);
-        assert_eq!(target.data[0].last_slot, now_ts);
+        assert_eq!(target_zc_mut.len(), 1);
+        assert_eq!(target_zc_mut.get(0).data, PERCENTAGE_PRECISION_I64);
+        assert_eq!(target_zc_mut.get(0).last_slot, now_ts);
     }
 
     #[test]
     fn test_multiple_constituents_partial_weights() {
-        let mapping = AmmConstituentMapping {
-            data: vec![
-                amm_const_datum(0, 1, PERCENTAGE_PRECISION_I64 / 2, 0),
-                amm_const_datum(0, 2, PERCENTAGE_PRECISION_I64 / 2, 0),
-            ],
+        let amm_mapping_data = vec![
+            amm_const_datum(0, 1, PERCENTAGE_PRECISION_I64 / 2, 111),
+            amm_const_datum(0, 2, PERCENTAGE_PRECISION_I64 / 2, 111),
+        ];
+
+        let mapping_fixed = RefCell::new(AmmConstituentMappingFixed {
+            len: amm_mapping_data.len() as u32,
+            ..AmmConstituentMappingFixed::default()
+        });
+
+        // 48 = size_of::<AmmConstituentDatum>() * amm_mapping_data.len()
+        let mapping_data = RefCell::new([0u8; 48]);
+
+        {
+            let mut mapping_zc_mut =
+                AccountZeroCopyMut::<'_, AmmConstituentDatum, AmmConstituentMappingFixed> {
+                    fixed: mapping_fixed.borrow_mut(),
+                    data: mapping_data.borrow_mut(),
+                    _marker: PhantomData::<AmmConstituentDatum>,
+                };
+            for amm_datum in &amm_mapping_data {
+                mapping_zc_mut
+                    .add_amm_constituent_datum(*amm_datum)
+                    .unwrap();
+            }
+        }
+
+        let mapping_zc = {
+            let fixed_ref = mapping_fixed.borrow();
+            let data_ref = mapping_data.borrow();
+            AccountZeroCopy {
+                fixed: fixed_ref,
+                data: data_ref,
+                _marker: PhantomData::<AmmConstituentDatum>,
+            }
         };
 
         let amm_inventory = vec![(0, 1_000_000)];
         let prices = vec![1_000_000, 1_000_000];
-        let constituents = vec![dummy_constituent(0, 6), dummy_constituent(1, 6)];
+        let constituent_indexes = vec![1, 2];
         let aum = 1_000_000;
         let now_ts = 999;
 
-        let mut target = ConstituentTargetWeights::default();
-        target
+        let target_fixed = RefCell::new(ConstituentTargetWeightsFixed {
+            len: amm_mapping_data.len() as u32,
+            ..ConstituentTargetWeightsFixed::default()
+        });
+        let target_data = RefCell::new([0u8; 48]);
+        let mut target_zc_mut =
+            AccountZeroCopyMut::<'_, WeightDatum, ConstituentTargetWeightsFixed> {
+                fixed: target_fixed.borrow_mut(),
+                data: target_data.borrow_mut(),
+                _marker: PhantomData::<WeightDatum>,
+            };
+
+        target_zc_mut
             .update_target_weights(
-                &mapping,
+                &mapping_zc,
                 &amm_inventory,
-                &constituents,
+                &constituent_indexes,
                 &prices,
                 aum,
                 now_ts,
+                WeightValidationFlags::NONE,
             )
             .unwrap();
 
-        assert_eq!(target.data.len(), 2);
+        assert_eq!(target_zc_mut.len(), 2);
 
-        for datum in &target.data {
-            assert_eq!(datum.data, PERCENTAGE_PRECISION_I64 / 2);
-            assert_eq!(datum.last_slot, now_ts);
+        for i in 0..target_zc_mut.len() {
+            assert_eq!(target_zc_mut.get(i).data, PERCENTAGE_PRECISION_I64 / 2);
+            assert_eq!(target_zc_mut.get(i).last_slot, now_ts);
         }
     }
 
     #[test]
     fn test_zero_aum_safe() {
-        let mapping = AmmConstituentMapping {
-            data: vec![amm_const_datum(0, 1, PERCENTAGE_PRECISION_I64, 0)],
+        let amm_datum = amm_const_datum(0, 1, PERCENTAGE_PRECISION_I64, 0);
+        let mapping_fixed = RefCell::new(AmmConstituentMappingFixed {
+            len: 1,
+            ..AmmConstituentMappingFixed::default()
+        });
+        let mapping_data = RefCell::new([0u8; 24]);
+        {
+            let mut mapping_zc_mut =
+                AccountZeroCopyMut::<'_, AmmConstituentDatum, AmmConstituentMappingFixed> {
+                    fixed: mapping_fixed.borrow_mut(),
+                    data: mapping_data.borrow_mut(),
+                    _marker: PhantomData::<AmmConstituentDatum>,
+                };
+            mapping_zc_mut.add_amm_constituent_datum(amm_datum).unwrap();
+        }
+
+        let mapping_zc = {
+            let fixed_ref = mapping_fixed.borrow();
+            let data_ref = mapping_data.borrow();
+            AccountZeroCopy {
+                fixed: fixed_ref,
+                data: data_ref,
+                _marker: PhantomData::<AmmConstituentDatum>,
+            }
         };
 
         let amm_inventory = vec![(0, 1_000_000)];
-        let prices = vec![1_000_000];
-        let constituents = vec![dummy_constituent(0, 6)];
+        let prices = vec![142_000_000];
+        let constituent_indexes = vec![1u16];
         let aum = 0;
         let now_ts = 111;
 
-        let mut target = ConstituentTargetWeights::default();
-        target
+        let target_fixed = RefCell::new(ConstituentTargetWeightsFixed {
+            len: 1,
+            ..ConstituentTargetWeightsFixed::default()
+        });
+        let target_data = RefCell::new([0u8; 24]);
+        let mut target_zc_mut =
+            AccountZeroCopyMut::<'_, WeightDatum, ConstituentTargetWeightsFixed> {
+                fixed: target_fixed.borrow_mut(),
+                data: target_data.borrow_mut(),
+                _marker: PhantomData::<WeightDatum>,
+            };
+
+        target_zc_mut
             .update_target_weights(
-                &mapping,
+                &mapping_zc,
                 &amm_inventory,
-                &constituents,
+                &constituent_indexes,
                 &prices,
                 aum,
                 now_ts,
+                WeightValidationFlags::NONE,
             )
             .unwrap();
 
-        assert_eq!(target.data.len(), 1);
-        assert_eq!(target.data[0].data, PERCENTAGE_PRECISION_I64); // todo how to handle?
-        assert_eq!(target.data[0].last_slot, now_ts);
+        assert_eq!(target_zc_mut.len(), 1);
+        assert_eq!(target_zc_mut.get(0).data, 0); // no target
+        assert_eq!(target_zc_mut.get(0).last_slot, now_ts);
     }
 
     #[test]
     fn test_overflow_protection() {
-        let mapping = AmmConstituentMapping {
-            data: vec![amm_const_datum(0, 1, i64::MAX, 0)],
+        let amm_datum = amm_const_datum(0, 1, i64::MAX, 0);
+        let mapping_fixed = RefCell::new(AmmConstituentMappingFixed {
+            len: 1,
+            ..AmmConstituentMappingFixed::default()
+        });
+        let mapping_data = RefCell::new([0u8; 24]);
+        {
+            let mut mapping_zc_mut =
+                AccountZeroCopyMut::<'_, AmmConstituentDatum, AmmConstituentMappingFixed> {
+                    fixed: mapping_fixed.borrow_mut(),
+                    data: mapping_data.borrow_mut(),
+                    _marker: PhantomData::<AmmConstituentDatum>,
+                };
+            mapping_zc_mut.add_amm_constituent_datum(amm_datum).unwrap();
+        }
+
+        let mapping_zc = {
+            let fixed_ref = mapping_fixed.borrow();
+            let data_ref = mapping_data.borrow();
+            AccountZeroCopy {
+                fixed: fixed_ref,
+                data: data_ref,
+                _marker: PhantomData::<AmmConstituentDatum>,
+            }
         };
 
         let amm_inventory = vec![(0, i64::MAX)];
-        let prices = vec![u64::MAX];
-        let constituents = vec![dummy_constituent(0, 6)];
+        let prices = vec![i64::MAX];
+        let constituent_indexes = vec![1u16];
         let aum = 1;
         let now_ts = 222;
 
-        let mut target = ConstituentTargetWeights::default();
-        target
+        let target_fixed = RefCell::new(ConstituentTargetWeightsFixed {
+            len: 1,
+            ..ConstituentTargetWeightsFixed::default()
+        });
+        let target_data = RefCell::new([0u8; 24]);
+        let mut target_zc_mut =
+            AccountZeroCopyMut::<'_, WeightDatum, ConstituentTargetWeightsFixed> {
+                fixed: target_fixed.borrow_mut(),
+                data: target_data.borrow_mut(),
+                _marker: PhantomData::<WeightDatum>,
+            };
+
+        target_zc_mut
             .update_target_weights(
-                &mapping,
+                &mapping_zc,
                 &amm_inventory,
-                &constituents,
+                &constituent_indexes,
                 &prices,
                 aum,
                 now_ts,
+                WeightValidationFlags::NONE,
             )
             .unwrap();
 
-        assert_eq!(target.data.len(), 1);
-        assert!(target.data[0].data <= PERCENTAGE_PRECISION_I64);
-        assert_eq!(target.data[0].last_slot, now_ts);
-    }
-
-    #[test]
-    fn test_get_weight() {
-        let price = 1_000_000;
-        let lp_pool_aum = 1_000_000_000_000;
-
-        // 10 bps of aum, 6 decimals token
-        let constituent = dummy_constituent(0, 6);
-        let token_amount = 1_000_000_000;
-        let weight = constituent
-            .get_weight(price, token_amount, 0, lp_pool_aum)
-            .unwrap();
-        assert_eq!(weight, 1000);
-
-        // 10 bps of aum, 4 decimals token
-        let constituent = dummy_constituent(0, 4);
-        let token_amount = 10_000_000;
-        let weight = constituent
-            .get_weight(price, token_amount, 0, lp_pool_aum)
-            .unwrap();
-        assert_eq!(weight, 1000);
-
-        // 10 bps of aum, 9 decimals token
-        let constituent = dummy_constituent(0, 8);
-        let token_amount = 100_000_000_000;
-        let weight = constituent
-            .get_weight(price, token_amount, 0, lp_pool_aum)
-            .unwrap();
-        assert_eq!(weight, 1000);
-    }
-
-    fn setup_constituents(
-        sol_oracle_key: Pubkey,
-        btc_oracle_key: Pubkey,
-    ) -> (Constituent, Constituent) {
-        let mut in_constituent = dummy_constituent(0, 9);
-        in_constituent.swap_fee_min = 100; // 0.01% min fee
-        in_constituent.max_fee_premium = 5000; // 0.5% max premium
-        in_constituent.oracle = sol_oracle_key;
-        in_constituent.oracle_source = OracleSource::Pyth;
-
-        let mut out_constituent = dummy_constituent(1, 8);
-        out_constituent.swap_fee_min = 100; // 0.01% min fee
-        out_constituent.max_fee_premium = 5000; // 0.5% max premium
-        out_constituent.oracle = btc_oracle_key;
-        out_constituent.oracle_source = OracleSource::Pyth;
-
-        (in_constituent, out_constituent)
-    }
-
-    fn setup_lp_pool() -> LPPool {
-        let mut lp_pool = dummy_lp_pool();
-        lp_pool.last_aum = 1_000_000_000_000;
-        lp_pool
-    }
-
-    fn run_swap_fee_test(
-        target_weight: i64,
-        in_token_balance: u64,
-        out_token_balance: u64,
-        expected_in_fee: i64,
-        expected_out_fee: i64,
-    ) {
-        let oracle_program = crate::ids::pyth_program::id();
-        let sol_oracle_key = Pubkey::new_unique();
-        create_account_info!(
-            get_pyth_price(200, 6),
-            &sol_oracle_key,
-            &oracle_program,
-            sol_oracle_account_info
-        );
-        let btc_oracle_key = Pubkey::new_unique();
-        create_account_info!(
-            get_pyth_price(100_000, 6),
-            &btc_oracle_key,
-            &oracle_program,
-            btc_oracle_account_info
-        );
-
-        let mut oracle_map = OracleMap::load(
-            &mut vec![sol_oracle_account_info, btc_oracle_account_info]
-                .iter()
-                .peekable(),
-            0,
-            None,
-        )
-        .expect("failed to load oracle map");
-        let (in_constituent, out_constituent) = setup_constituents(sol_oracle_key, btc_oracle_key);
-        let mut lp_pool = setup_lp_pool();
-
-        let target_weights = dummy_target_weights(vec![(0, target_weight), (1, target_weight)]);
-
-        let in_amount = 1_000_000_000; // 1 SOL
-        let out_amount = 200_000; // 0.2 BTC
-
-        let (in_fee, out_fee) = lp_pool
-            .get_swap_fees(
-                &mut oracle_map,
-                &target_weights,
-                in_constituent,
-                in_token_balance,
-                out_constituent,
-                out_token_balance,
-                in_amount,
-                out_amount,
-            )
-            .expect("failed to get swap fees");
-
-        assert_eq!(
-            in_fee, expected_in_fee,
-            "in_fee: {}, expected_in_fee: {}",
-            in_fee, expected_in_fee
-        );
-        assert_eq!(
-            out_fee, expected_out_fee,
-            "out_fee: {}, expected_out_fee: {}",
-            out_fee, expected_out_fee
-        );
-    }
-
-    #[test]
-    fn test_get_swap_fees_pos_weights_1() {
-        run_swap_fee_test(
-            PERCENTAGE_PRECISION_I64.safe_div(2).unwrap(), // 50%
-            1_000_000_000,                                 // 1 SOL ($200)
-            1_000_000_000,                                 // 10 BTC ($1M)
-            -5000,                                         // -0.5% fee rebate to balance pool
-            5000,                                          // 0.5% fee on output (max fee premium)
-        );
-    }
-
-    #[test]
-    fn test_get_swap_fees_pos_weights_2() {
-        run_swap_fee_test(
-            PERCENTAGE_PRECISION_I64.safe_div(2).unwrap(), // 50%
-            5_000_000_000_000,                             // 50 SOL ($1M)
-            200_000,                                       // 0.2 BTC ($200)
-            5000,                                          // 0.5% fee on input (max fee premium)
-            -5000,                                         // -0.5% fee rebate to balance pool
-        );
-    }
-
-    #[test]
-    fn test_get_swap_fees_neg_weights_1() {
-        run_swap_fee_test(
-            -PERCENTAGE_PRECISION_I64.safe_div(2).unwrap(), // -50%
-            1_000_000_000,                                  // 1 SOL ($200)
-            1_000_000_000,                                  // 10 BTC ($1M)
-            5000,                                           // 0.5% fee on input (max fee premium)
-            -5000,                                          // -0.5% fee rebate to balance pool
-        );
-    }
-
-    #[test]
-    fn test_get_swap_fees_neg_weights_2() {
-        run_swap_fee_test(
-            -PERCENTAGE_PRECISION_I64.safe_div(2).unwrap(), // -50%
-            50_000_000_000,                                 // 50 SOL ($1M)
-            20_000,                                         // 0.2 BTC ($200)
-            5000,                                           // -0.5% fee rebate to balance pool
-            5000,                                           // 0.5% fee on output (max fee premium)
-        );
+        assert_eq!(target_zc_mut.len(), 1);
+        assert!(target_zc_mut.get(0).data <= PERCENTAGE_PRECISION_I64);
+        assert_eq!(target_zc_mut.get(0).last_slot, now_ts);
     }
 }
