@@ -173,8 +173,7 @@ impl_zero_copy_loader!(
     AmmConstituentMapping,
     crate::id,
     AmmConstituentMappingFixed,
-    AmmConstituentDatum,
-    AmmConstituentMapping::discriminator()
+    AmmConstituentDatum
 );
 
 #[zero_copy]
@@ -215,8 +214,7 @@ impl_zero_copy_loader!(
     ConstituentTargetWeights,
     crate::id,
     ConstituentTargetWeightsFixed,
-    WeightDatum,
-    ConstituentTargetWeights::discriminator()
+    WeightDatum
 );
 
 impl Default for ConstituentTargetWeights {

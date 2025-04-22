@@ -153,14 +153,18 @@ pub trait ToZeroCopy<'info, Elem, Fixed> {
 
 #[macro_export]
 macro_rules! impl_zero_copy_loader {
-    ($Acc:ty, $ID:path, $Fixed:ty, $Elem:ty, $Disc:expr) => {
+    ($Acc:ty, $ID:path, $Fixed:ty, $Elem:ty) => {
         impl<'a> crate::state::zero_copy::ZeroCopyLoader<'a, $Elem, $Fixed> for AccountInfo<'a> {
             fn load_zc(
                 self: &'a Self,
             ) -> crate::error::DriftResult<
                 crate::state::zero_copy::AccountZeroCopy<'a, $Elem, $Fixed>,
             > {
-                crate::state::zero_copy::load_generic::<$Fixed, $Elem>(self, $Disc, $ID())
+                crate::state::zero_copy::load_generic::<$Fixed, $Elem>(
+                    self,
+                    <$Acc as anchor_lang::Discriminator>::discriminator(),
+                    $ID(),
+                )
             }
 
             fn load_zc_mut(
@@ -168,7 +172,11 @@ macro_rules! impl_zero_copy_loader {
             ) -> crate::error::DriftResult<
                 crate::state::zero_copy::AccountZeroCopyMut<'a, $Elem, $Fixed>,
             > {
-                crate::state::zero_copy::load_generic_mut::<$Fixed, $Elem>(self, $Disc, $ID())
+                crate::state::zero_copy::load_generic_mut::<$Fixed, $Elem>(
+                    self,
+                    <$Acc as anchor_lang::Discriminator>::discriminator(),
+                    $ID(),
+                )
             }
         }
     };
