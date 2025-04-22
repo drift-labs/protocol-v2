@@ -157,6 +157,8 @@ mod tests {
             len: amm_mapping_data.len() as u32,
             ..AmmConstituentMappingFixed::default()
         });
+
+        // 48 = size_of::<AmmConstituentDatum>() * amm_mapping_data.len()
         let mapping_data = RefCell::new([0u8; 48]);
 
         {

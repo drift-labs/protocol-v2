@@ -241,9 +241,9 @@ impl<'a> AccountZeroCopyMut<'a, WeightDatum, ConstituentTargetWeightsFixed> {
         &mut self,
         mapping: &AccountZeroCopy<'a, AmmConstituentDatum, AmmConstituentMappingFixed>,
         // (perp market index, inventory, price)
-        amm_inventory: &[(u16, i64)], // length = mapping.num_rows
+        amm_inventory: &[(u16, i64)],
         constituents_indexes: &[u16],
-        prices: &[i64], // length = mapping.num_rows
+        prices: &[i64],
         aum: u64,
         slot: u64,
         validation_flags: WeightValidationFlags,
