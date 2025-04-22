@@ -1,14 +1,14 @@
 use crate::error::{DriftResult, ErrorCode};
 use crate::math::casting::Cast;
-use crate::math::constants::{PERCENTAGE_PRECISION_I128, PERCENTAGE_PRECISION_I64};
+use crate::math::constants::PERCENTAGE_PRECISION_I64;
 use crate::math::safe_math::SafeMath;
 use anchor_lang::prelude::*;
 use anchor_lang::Discriminator;
 use borsh::{BorshDeserialize, BorshSerialize};
 
-use super::zero_copy::{AccountZeroCopy, AccountZeroCopyMut, HasLen};
+use super::zero_copy::{AccountZeroCopy, AccountZeroCopyMut, HasLen, ToZeroCopy, ZeroCopyLoader};
 use crate::impl_zero_copy_loader;
-use crate::state::spot_market::{SpotBalance, SpotBalanceType, SpotMarket};
+use crate::state::spot_market::{SpotBalance, SpotBalanceType};
 use crate::state::traits::Size;
 
 #[cfg(test)]
@@ -147,8 +147,11 @@ pub struct AmmConstituentDatum {
 }
 
 #[zero_copy]
+#[derive(Debug, Default)]
+#[repr(C)]
 pub struct AmmConstituentMappingFixed {
     pub len: u32,
+    pub _pad: [u8; 4],
 }
 
 impl HasLen for AmmConstituentMappingFixed {
@@ -186,11 +189,12 @@ pub struct WeightDatum {
 }
 
 #[zero_copy]
-#[derive(Debug)]
+#[derive(Debug, Default)]
 #[repr(C)]
 pub struct ConstituentTargetWeightsFixed {
     /// total elements in the flattened `data` vec
     pub len: u32,
+    pub _pad: [u8; 4],
 }
 
 impl HasLen for ConstituentTargetWeightsFixed {
@@ -253,10 +257,10 @@ impl<'a> AccountZeroCopyMut<'a, WeightDatum, ConstituentTargetWeightsFixed> {
                     .iter()
                     .position(|d| &d.perp_market_index == perp_market_index)
                     .expect("missing mapping for this market index");
-                let weight = mapping.get(idx).data; // PERCENTAGE_PRECISION
+                let weight = mapping.get(idx as u32).data; // PERCENTAGE_PRECISION
 
                 target_amount += (*inventory as i128)
-                    .saturating_mul(weight)
+                    .saturating_mul(weight as i128)
                     .saturating_div(PERCENTAGE_PRECISION_I64 as i128);
             }
 
@@ -280,7 +284,7 @@ impl<'a> AccountZeroCopyMut<'a, WeightDatum, ConstituentTargetWeightsFixed> {
                 return Err(ErrorCode::DefaultError);
             }
 
-            let cell = self.get_mut(*constituent_index as u32);
+            let cell = self.get_mut(i as u32);
             cell.constituent_index = *constituent_index;
             cell.padding = [0; 6];
             cell.data = target_weight as i64;
@@ -294,6 +298,29 @@ impl<'a> AccountZeroCopyMut<'a, WeightDatum, ConstituentTargetWeightsFixed> {
                 return Err(ErrorCode::DefaultError);
             }
         }
+
+        Ok(())
+    }
+}
+
+impl<'a> AccountZeroCopyMut<'a, AmmConstituentDatum, AmmConstituentMappingFixed> {
+    pub fn add_amm_constituent_datum(&mut self, datum: AmmConstituentDatum) -> DriftResult<()> {
+        let len = self.len();
+
+        let mut open_slot_index: Option<u32> = None;
+        for i in 0..len {
+            let cell = self.get(i as u32);
+            if cell.constituent_index == datum.constituent_index {
+                return Err(ErrorCode::DefaultError);
+            }
+            if cell.last_slot == 0 && open_slot_index.is_none() {
+                open_slot_index = Some(i);
+            }
+        }
+        let open_slot = open_slot_index.ok_or_else(|| ErrorCode::DefaultError.into())?;
+
+        let cell = self.get_mut(open_slot);
+        *cell = datum;
 
         Ok(())
     }

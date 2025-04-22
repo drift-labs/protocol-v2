@@ -47,7 +47,7 @@ pub fn handle_update_dlp_target_weights<'info, 'c: 'info>(
 
     let mut amm_inventories: Vec<(u16, i64)> = vec![];
     let mut oracle_prices: Vec<i64> = vec![];
-    for (i, datum) in amm_constituent_mapping.iter().enumerate() {
+    for (_, datum) in amm_constituent_mapping.iter().enumerate() {
         let perp_market = perp_market_map.get_ref(&datum.perp_market_index)?;
         let amm_inventory = perp_market.amm.get_protocol_owned_position()?;
         amm_inventories.push((datum.perp_market_index, amm_inventory));

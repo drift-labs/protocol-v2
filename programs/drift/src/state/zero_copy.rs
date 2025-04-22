@@ -17,7 +17,7 @@ pub trait HasLen {
 pub struct AccountZeroCopy<'a, T, F> {
     pub fixed: Ref<'a, F>,
     pub data: Ref<'a, [u8]>,
-    _marker: PhantomData<T>,
+    pub _marker: PhantomData<T>,
 }
 
 impl<'a, T, F> AccountZeroCopy<'a, T, F>
@@ -29,14 +29,14 @@ where
         self.fixed.len()
     }
 
-    pub fn get(&self, index: usize) -> &T {
+    pub fn get(&self, index: u32) -> &T {
         let size = std::mem::size_of::<T>();
-        let start = index * size;
+        let start = index as usize * size;
         bytemuck::from_bytes(&self.data[start..start + size])
     }
 
     pub fn iter(&self) -> impl Iterator<Item = &T> + '_ {
-        (0..self.len()).map(move |i| self.get(i as usize))
+        (0..self.len()).map(move |i| self.get(i))
     }
 }
 
@@ -59,6 +59,16 @@ where
         let size = std::mem::size_of::<T>();
         let start = index as usize * size;
         bytemuck::from_bytes_mut(&mut self.data[start..start + size])
+    }
+
+    pub fn get(&self, index: u32) -> &T {
+        let size = std::mem::size_of::<T>();
+        let start = index as usize * size;
+        bytemuck::from_bytes(&self.data[start..start + size])
+    }
+
+    pub fn iter(&self) -> impl Iterator<Item = &T> + '_ {
+        (0..self.len()).map(move |i| self.get(i))
     }
 }
 
@@ -133,6 +143,12 @@ where
         data: body,
         _marker: PhantomData,
     })
+}
+
+/// Anything that you can pull a zero‑copy view of `Elem`+`Fixed` out of.
+pub trait ToZeroCopy<'info, Elem, Fixed> {
+    fn to_zc(&self) -> DriftResult<AccountZeroCopy<'info, Elem, Fixed>>;
+    fn to_zc_mut(&self) -> DriftResult<AccountZeroCopyMut<'info, Elem, Fixed>>;
 }
 
 #[macro_export]
