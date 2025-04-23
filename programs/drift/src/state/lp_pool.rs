@@ -2,7 +2,7 @@ use std::ops::Neg;
 
 use crate::error::{DriftResult, ErrorCode};
 use crate::math::casting::Cast;
-use crate::math::constants::{PERCENTAGE_PRECISION_I64, PRICE_PRECISION_U64};
+use crate::math::constants::{PERCENTAGE_PRECISION_I64, PRICE_PRECISION_I64, PRICE_PRECISION_U64};
 use crate::math::safe_math::SafeMath;
 use anchor_lang::prelude::*;
 use anchor_spl::token::Mint;
@@ -123,7 +123,7 @@ impl LPPool {
     }
 
     ///
-    /// Returns the (out_amount, in_fee, out_fee) in the respective token units
+    /// Returns the (out_amount, in_fee, out_fee) in the respective token units. Amounts are gross fees.
     pub fn get_swap_amount(
         &self,
         oracle_map: &mut OracleMap,
@@ -136,22 +136,30 @@ impl LPPool {
         in_target_weight: i64,
         out_target_weight: i64,
         in_amount: u64,
-        swap_price: u64,
     ) -> DriftResult<(u64, u64, i64, i64)> {
-        let out_amount = in_amount
-            .safe_mul(swap_price)?
-            .safe_div(PRICE_PRECISION_U64)?;
-        let (in_fee, out_fee) = self.get_swap_fees(
+        let swap_price =
+            self.get_swap_price(oracle_map, in_spot_market, out_spot_market, in_amount)?;
+
+        let in_fee = self.get_swap_fees(
             oracle_map,
             in_constituent,
-            out_constituent,
             in_spot_market,
-            out_spot_market,
             in_token_balance,
-            out_token_balance,
             in_amount,
-            out_amount,
             in_target_weight,
+        )?;
+        let out_amount = in_amount
+            .cast::<i64>()?
+            .safe_sub(in_fee)?
+            .safe_mul(swap_price.cast::<i64>()?)?
+            .safe_div(PRICE_PRECISION_I64)?
+            .cast::<u64>()?;
+        let out_fee = self.get_swap_fees(
+            oracle_map,
+            out_constituent,
+            out_spot_market,
+            out_token_balance,
+            out_amount,
             out_target_weight,
         )?;
 
@@ -161,60 +169,25 @@ impl LPPool {
         Ok((in_amount, out_amount, in_fee, out_fee))
     }
 
-    /// returns (in_fee, out_fee) in PERCENTAGE_PRECISION
+    /// returns fee in PERCENTAGE_PRECISION
     pub fn get_swap_fees(
         &self,
         oracle_map: &mut OracleMap, // might not need oracle_map depending on how accounts are passed in
-        in_constituent: &Constituent,
-        out_constituent: &Constituent,
-        in_spot_market: &SpotMarket,
-        out_spot_market: &SpotMarket,
-        in_token_balance: u64,
-        out_token_balance: u64,
-        in_amount: u64,
-        out_amount: u64,
-        in_target_weight: i64,
-        out_target_weight: i64,
-    ) -> DriftResult<(i64, i64)> {
-        let in_price = oracle_map
-            .get_price_data(&(in_spot_market.oracle, in_spot_market.oracle_source))
+        constituent: &Constituent,
+        spot_market: &SpotMarket,
+        token_balance: u64,
+        amount: u64,
+        target_weight: i64,
+    ) -> DriftResult<i64> {
+        let price = oracle_map
+            .get_price_data(&(spot_market.oracle, spot_market.oracle_source))
             .expect("failed to get price data")
             .price;
-        let in_weight_after = in_constituent.get_weight(
-            in_price,
-            in_token_balance,
-            in_amount.cast::<i64>()?,
-            self.last_aum,
-        )?;
-        let in_weight_delta = in_weight_after.safe_sub(in_target_weight)?;
-        msg!(
-            "in_weight_after: {}, in_target_weight: {}, in_weight_delta: {}",
-            in_weight_after,
-            in_target_weight,
-            in_weight_delta
-        );
-        let in_fee = in_constituent.get_fee_to_charge(in_weight_after, in_target_weight)?;
+        let weight_after =
+            constituent.get_weight(price, token_balance, amount.cast::<i64>()?, self.last_aum)?;
+        let fee = constituent.get_fee_to_charge(weight_after, target_weight)?;
 
-        let out_price = oracle_map
-            .get_price_data(&(out_spot_market.oracle, out_spot_market.oracle_source))
-            .expect("failed to get price data")
-            .price;
-        let out_weight_after = out_constituent.get_weight(
-            out_price,
-            out_token_balance,
-            out_amount.cast::<i64>()?.neg(),
-            self.last_aum,
-        )?;
-        let out_weight_delta = out_weight_after.safe_sub(out_target_weight)?;
-        msg!(
-            "out_weight_after: {}, out_target_weight: {}, out_weight_delta: {}",
-            out_weight_after,
-            out_target_weight,
-            out_weight_delta
-        );
-        let out_fee = out_constituent.get_fee_to_charge(out_weight_after, out_target_weight)?;
-
-        Ok((in_fee, out_fee))
+        Ok(fee)
     }
 }
 
