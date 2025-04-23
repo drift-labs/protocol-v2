@@ -19,7 +19,7 @@ import { assert } from '../assert/assert';
 
 export function oraclePriceBands(
 	market: PerpMarketAccount,
-	oraclePriceData: OraclePriceData
+	oraclePriceData: Pick<OraclePriceData, 'price'>
 ): [BN, BN] {
 	const maxPercentDiff =
 		market.marginRatioInitial - market.marginRatioMaintenance;
