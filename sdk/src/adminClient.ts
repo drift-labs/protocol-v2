@@ -38,6 +38,7 @@ import {
 	getFuelOverflowAccountPublicKey,
 	getLpPoolMintPublicKey,
 	getLpPoolPublicKey,
+	getAmmConstituentMappingPublicKey,
 } from './addresses/pda';
 import { squareRootBN } from './math/utils';
 import { createAssociatedTokenAccountInstruction, getAssociatedTokenAddressSync, TOKEN_PROGRAM_ID } from '@solana/spl-token';
@@ -4214,12 +4215,17 @@ export class AdminClient extends DriftClient {
 		tokenDecimals: number,
 		maxAum: BN
 	): Promise<TransactionInstruction[]> {
-		console.log(this.connection.rpcEndpoint)
+		console.log(this.connection.rpcEndpoint);
 		const metaplex = new Metaplex(this.connection, {cluster: 'custom'});
 
 		const lpPool = getLpPoolPublicKey(this.program.programId, name);
 
 		const mint = getLpPoolMintPublicKey(this.program.programId, lpPool);
+
+		const ammConstituentMapping = getAmmConstituentMappingPublicKey(
+			this.program.programId,
+			lpPool
+		);
 
 		const lpPoolAta = getAssociatedTokenAddressSync(
 			mint,
@@ -4248,6 +4254,7 @@ export class AdminClient extends DriftClient {
 						admin: this.wallet.publicKey,
 						lpPool,
 						mint,
+						ammConstituentMapping,
 						// tokenVault: lpPoolAta,
 						metadataAccount: metaplex.nfts().pdas().metadata({
 							mint,
