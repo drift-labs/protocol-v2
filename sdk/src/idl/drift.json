@@ -6985,6 +6985,11 @@
           "isSigner": false
         },
         {
+          "name": "ammConstituentMapping",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
           "name": "state",
           "isMut": false,
           "isSigner": false
@@ -7581,6 +7586,13 @@
             "type": "publicKey"
           },
           {
+            "name": "spotMarketIndex",
+            "docs": [
+              "underlying drift spot market index"
+            ],
+            "type": "u16"
+          },
+          {
             "name": "constituentIndex",
             "docs": [
               "idx in LPPool.constituents"
@@ -7608,28 +7620,6 @@
             "docs": [
               "max premium to be applied to swap_fee_min when the constituent is at max deviation from target_weight",
               "precision: PERCENTAGE_PRECISION"
-            ],
-            "type": "u64"
-          },
-          {
-            "name": "spotMarketIndex",
-            "docs": [
-              "underlying drift spot market index"
-            ],
-            "type": "u16"
-          },
-          {
-            "name": "lastOraclePrice",
-            "docs": [
-              "oracle price at last update",
-              "precision: PRICE_PRECISION_I64"
-            ],
-            "type": "i64"
-          },
-          {
-            "name": "lastOraclePriceTs",
-            "docs": [
-              "timestamp of last oracle price update:"
             ],
             "type": "u64"
           },
@@ -7675,14 +7665,6 @@
       "type": {
         "kind": "struct",
         "fields": [
-          {
-            "name": "numRows",
-            "type": "u16"
-          },
-          {
-            "name": "numCols",
-            "type": "u16"
-          },
           {
             "name": "data",
             "type": {
@@ -9634,11 +9616,32 @@
             "docs": [
               "PERCENTAGE_PRECISION. The weight this constituent has on the perp market"
             ],
-            "type": "u64"
+            "type": "i64"
           },
           {
             "name": "lastSlot",
             "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "AmmConstituentMappingFixed",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "len",
+            "type": "u32"
+          },
+          {
+            "name": "pad",
+            "type": {
+              "array": [
+                "u8",
+                4
+              ]
+            }
           }
         ]
       }
@@ -9666,11 +9669,35 @@
             "docs": [
               "PERCENTAGE_PRECISION. The weights of the target weight matrix"
             ],
-            "type": "u64"
+            "type": "i64"
           },
           {
             "name": "lastSlot",
             "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "ConstituentTargetWeightsFixed",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "len",
+            "docs": [
+              "total elements in the flattened `data` vec"
+            ],
+            "type": "u32"
+          },
+          {
+            "name": "pad",
+            "type": {
+              "array": [
+                "u8",
+                4
+              ]
+            }
           }
         ]
       }
@@ -12048,6 +12075,26 @@
               "publicKey",
               "u16"
             ]
+          }
+        ]
+      }
+    },
+    {
+      "name": "WeightValidationFlags",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "NONE"
+          },
+          {
+            "name": "EnforceTotalWeight100"
+          },
+          {
+            "name": "NoNegativeWeights"
+          },
+          {
+            "name": "NoOverweight"
           }
         ]
       }

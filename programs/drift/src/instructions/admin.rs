@@ -3,7 +3,7 @@ use std::mem::size_of;
 
 use crate::msg;
 use crate::signer::get_signer_seeds;
-use crate::state::lp_pool::LPPool;
+use crate::state::lp_pool::{AmmConstituentDatum, AmmConstituentMapping, LPPool, AMM_MAP_PDA_SEED};
 use anchor_lang::prelude::*;
 use anchor_spl::metadata::{
     create_metadata_accounts_v3, mpl_token_metadata::types::DataV2, CreateMetadataAccountsV3,
@@ -4424,6 +4424,12 @@ pub fn handle_initialize_lp_pool(
         None,  // Collection details
     )?;
 
+    let amm_constituent_mapping = &mut ctx.accounts.amm_constituent_mapping;
+    amm_constituent_mapping
+        .data
+        .resize_with(0 as usize, AmmConstituentDatum::default);
+    amm_constituent_mapping.validate()?;
+
     Ok(())
 }
 pub fn handle_update_high_leverage_mode_config(
@@ -5237,6 +5243,15 @@ pub struct InitializeLpPool<'info> {
     )]
     /// CHECK: Validate address by deriving pda
     pub metadata_account: UncheckedAccount<'info>,
+
+    #[account(
+        init,
+        seeds = [AMM_MAP_PDA_SEED.as_ref(), lp_pool.key().as_ref()],
+        bump,
+        space = AmmConstituentMapping::space(0 as usize),
+        payer = admin,
+    )]
+    pub amm_constituent_mapping: Box<Account<'info, AmmConstituentMapping>>,
 
     #[account(
         has_one = admin

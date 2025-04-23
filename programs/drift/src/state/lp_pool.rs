@@ -15,6 +15,8 @@ use crate::state::spot_market::{SpotBalance, SpotBalanceType};
 use crate::state::traits::Size;
 use crate::{impl_zero_copy_loader, validate};
 
+pub const AMM_MAP_PDA_SEED: &str = "AMM_MAP";
+
 #[cfg(test)]
 mod tests;
 
@@ -333,7 +335,7 @@ impl Constituent {
 //   }
 
 #[zero_copy]
-#[derive(Debug, BorshDeserialize, BorshSerialize)]
+#[derive(Debug, Default, BorshDeserialize, BorshSerialize)]
 #[repr(C)]
 pub struct AmmConstituentDatum {
     pub perp_market_index: u16,
@@ -365,6 +367,21 @@ pub struct AmmConstituentMapping {
     // PERCENTAGE_PRECISION. Each datum represents the target weight for a single (AMM, Constituent) pair.
     // An AMM may be partially backed by multiple Constituents
     pub data: Vec<AmmConstituentDatum>,
+}
+
+impl AmmConstituentMapping {
+    pub fn space(num_init_constituent_slots: usize) -> usize {
+        8 + 8 + 4 + num_init_constituent_slots * 24
+    }
+
+    pub fn validate(&self) -> DriftResult<()> {
+        validate!(
+            self.data.len() >= 1 && self.data.len() <= 128,
+            ErrorCode::DefaultError,
+            "Number of constituents len must be between 1 and 128"
+        )?;
+        Ok(())
+    }
 }
 
 impl_zero_copy_loader!(

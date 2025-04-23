@@ -38,6 +38,7 @@ import {
 	getFuelOverflowAccountPublicKey,
 	getLpPoolMintPublicKey,
 	getLpPoolPublicKey,
+	getAmmConstituentMappingPublicKey,
 } from './addresses/pda';
 import { squareRootBN } from './math/utils';
 import {
@@ -4223,7 +4224,17 @@ export class AdminClient extends DriftClient {
 
 		const mint = getLpPoolMintPublicKey(this.program.programId, lpPool);
 
-		const lpPoolAta = getAssociatedTokenAddressSync(mint, lpPool, true);
+		const ammConstituentMapping = getAmmConstituentMappingPublicKey(
+			this.program.programId,
+			lpPool
+		);
+
+		const lpPoolAta = getAssociatedTokenAddressSync(
+			mint,
+			lpPool,
+			true
+		);
+
 		const createAtaIx = createAssociatedTokenAccountInstruction(
 			this.wallet.publicKey,
 			lpPoolAta,
@@ -4246,6 +4257,7 @@ export class AdminClient extends DriftClient {
 						admin: this.wallet.publicKey,
 						lpPool,
 						mint,
+						ammConstituentMapping,
 						// tokenVault: lpPoolAta,
 						metadataAccount: metaplex.nfts().pdas().metadata({
 							mint,

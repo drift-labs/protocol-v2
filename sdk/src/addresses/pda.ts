@@ -399,3 +399,13 @@ export function getLpPoolMintPublicKey(
 		programId
 	)[0];
 }
+
+export function getAmmConstituentMappingPublicKey(
+	programId: PublicKey,
+	lpPoolPublicKey: PublicKey
+): PublicKey {
+	return PublicKey.findProgramAddressSync([
+		Buffer.from(anchor.utils.bytes.utf8.encode('AMM_MAP')),
+		lpPoolPublicKey.toBuffer(),
+	], programId)[0];
+}

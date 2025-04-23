@@ -12,6 +12,7 @@ import {
 	UserStatsAccount,
 	parseLogs,
 	getLpPoolPublicKey,
+	getAmmConstituentMappingPublicKey,
 } from '../sdk/src';
 
 import {
@@ -83,14 +84,14 @@ describe('LP Pool', () => {
 		await initializeQuoteSpotMarket(adminClient, usdcMint.publicKey);
 
 
-        const tx = await adminClient.initializeLpPool(
+    const tx = await adminClient.initializeLpPool(
 			lpPoolName,
 			tokenName,
 			tokenSymbol,
 			tokenUri,
 			tokenDecimals,
 			new BN(100_000_000).mul(QUOTE_PRECISION)
-		)
+		);
 		await printTxLogs(bankrunContextWrapper.connection.toConnection(), tx);
 	});
 
@@ -103,6 +104,12 @@ describe('LP Pool', () => {
 		const lpPool = await adminClient.program.account.lpPool.fetch(lpPoolKey);
 		console.log(lpPool);
 
-		// check mint created with correct token params
+		// Check amm constituent map exists and has length 0
+		const ammConstituentMapPublicKey = await getAmmConstituentMappingPublicKey(
+			program.programId,
+			lpPoolKey
+		);
+		const ammConstituentMap = await adminClient.program.account.ammConstituentMap.fetch(ammConstituentMapPublicKey);
+		console.log(ammConstituentMap);
 	});
 });
