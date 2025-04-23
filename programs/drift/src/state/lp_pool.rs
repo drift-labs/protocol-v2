@@ -5,7 +5,6 @@ use crate::math::casting::Cast;
 use crate::math::constants::{PERCENTAGE_PRECISION_I64, PRICE_PRECISION_U64};
 use crate::math::safe_math::SafeMath;
 use anchor_lang::prelude::*;
-use anchor_lang::Discriminator;
 use anchor_spl::token::Mint;
 use borsh::{BorshDeserialize, BorshSerialize};
 
@@ -181,8 +180,6 @@ impl LPPool {
             .get_price_data(&(in_spot_market.oracle, in_spot_market.oracle_source))
             .expect("failed to get price data")
             .price;
-        let in_weight_before =
-            in_constituent.get_weight(in_price, in_token_balance, 0, self.last_aum)?;
         let in_weight_after = in_constituent.get_weight(
             in_price,
             in_token_balance,
@@ -196,27 +193,12 @@ impl LPPool {
             in_target_weight,
             in_weight_delta
         );
-        let in_fee = in_constituent
-            .swap_fee_min
-            .cast::<i64>()?
-            .safe_add(
-                in_constituent.max_fee_premium.cast::<i64>()?.safe_mul(
-                    in_weight_delta
-                        .cast::<i64>()?
-                        .safe_div(in_constituent.max_weight_deviation.cast::<i64>()?)?,
-                )?,
-            )?
-            .clamp(
-                in_constituent.max_fee_premium.cast::<i64>()?.neg(),
-                in_constituent.max_fee_premium.cast::<i64>()?,
-            );
+        let in_fee = in_constituent.get_fee_to_charge(in_weight_after, in_target_weight)?;
 
         let out_price = oracle_map
             .get_price_data(&(out_spot_market.oracle, out_spot_market.oracle_source))
             .expect("failed to get price data")
             .price;
-        let out_weight_before =
-            out_constituent.get_weight(out_price, out_token_balance, 0, self.last_aum)?;
         let out_weight_after = out_constituent.get_weight(
             out_price,
             out_token_balance,
@@ -230,20 +212,7 @@ impl LPPool {
             out_target_weight,
             out_weight_delta
         );
-        let out_fee = out_constituent
-            .swap_fee_min
-            .cast::<i64>()?
-            .safe_add(
-                out_constituent.max_fee_premium.cast::<i64>()?.safe_mul(
-                    out_weight_delta
-                        .cast::<i64>()?
-                        .safe_div(out_constituent.max_weight_deviation.cast::<i64>()?)?,
-                )?,
-            )?
-            .clamp(
-                out_constituent.max_fee_premium.cast::<i64>()?.neg(),
-                out_constituent.max_fee_premium.cast::<i64>()?,
-            );
+        let out_fee = out_constituent.get_fee_to_charge(out_weight_after, out_target_weight)?;
 
         Ok((in_fee, out_fee))
     }
@@ -311,13 +280,13 @@ pub struct Constituent {
 
     /// max deviation from target_weight allowed for the constituent
     /// precision: PERCENTAGE_PRECISION
-    pub max_weight_deviation: u64,
-    /// min fee charged on swaps to this constituent
+    pub max_weight_deviation: i64,
+    /// min fee charged on swaps to/from this constituent
     /// precision: PERCENTAGE_PRECISION
-    pub swap_fee_min: u64,
-    /// max premium to be applied to swap_fee_min when the constituent is at max deviation from target_weight
+    pub swap_fee_min: i64,
+    /// max fee charged on swaps to/from this constituent
     /// precision: PERCENTAGE_PRECISION
-    pub max_fee_premium: u64,
+    pub swap_fee_max: i64,
 
     /// spot borrow-lend balance for constituent
     pub spot_balance: BLPosition, // should be in constituent base asset
@@ -338,7 +307,8 @@ impl Constituent {
         }
     }
 
-    /// Current weight of this constituent = price * token_balance / pool aum
+    /// Current weight of this constituent = price * token_balance / lp_pool_aum
+    /// Note: lp_pool_aum is from LPPool.last_aum, which is a lagged value updated via crank
     pub fn get_weight(
         &self,
         price: i64,
@@ -357,6 +327,32 @@ impl Constituent {
             .safe_mul(PERCENTAGE_PRECISION_I64.cast::<i128>()?)?
             .safe_div(lp_pool_aum.cast::<i128>()?.safe_mul(token_precision)?)?
             .cast::<i64>()
+    }
+
+    /// Returns the fee to charge for a swap to/from this constituent
+    /// The fee is a linear interpolation between the swap_fee_min and swap_fee_max based on the post-swap deviation from the target weight
+    /// precision: PERCENTAGE_PRECISION
+    pub fn get_fee_to_charge(&self, post_swap_weight: i64, target_weight: i64) -> DriftResult<i64> {
+        let min_weight = target_weight.safe_sub(self.max_weight_deviation as i64)?;
+        let max_weight = target_weight.safe_add(self.max_weight_deviation as i64)?;
+        let (slope_numerator, slope_denominator) = if post_swap_weight > target_weight {
+            let num = self.swap_fee_max.safe_sub(self.swap_fee_min)?;
+            let denom = max_weight.safe_sub(target_weight)?;
+            (num, denom)
+        } else {
+            let num = self.swap_fee_min.safe_sub(self.swap_fee_max)?;
+            let denom = target_weight.safe_sub(min_weight)?;
+            (num, denom)
+        };
+
+        let b = self
+            .swap_fee_min
+            .safe_mul(slope_denominator)?
+            .safe_sub(target_weight.safe_mul(slope_numerator)?)?;
+        Ok(post_swap_weight
+            .safe_mul(slope_numerator)?
+            .safe_add(b)?
+            .safe_div(slope_denominator)?)
     }
 }
 
