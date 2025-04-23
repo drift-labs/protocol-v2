@@ -633,6 +633,8 @@ pub enum ErrorCode {
     InvalidTransferPerpPosition,
     #[msg("Invalid SignedMsgUserOrders resize")]
     InvalidSignedMsgUserOrdersResize,
+    #[msg("Invalid Constituent")]
+    InvalidConstituent,
 }
 
 #[macro_export]
