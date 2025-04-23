@@ -40,7 +40,11 @@ import {
 	getLpPoolPublicKey,
 } from './addresses/pda';
 import { squareRootBN } from './math/utils';
-import { createAssociatedTokenAccountInstruction, getAssociatedTokenAddressSync, TOKEN_PROGRAM_ID } from '@solana/spl-token';
+import {
+	createAssociatedTokenAccountInstruction,
+	getAssociatedTokenAddressSync,
+	TOKEN_PROGRAM_ID,
+} from '@solana/spl-token';
 import { DriftClient } from './driftClient';
 import {
 	PEG_PRECISION,
@@ -58,7 +62,6 @@ import { getFeedIdUint8Array } from './util/pythOracleUtils';
 import { FUEL_RESET_LOG_ACCOUNT } from './constants/txConstants';
 
 import { Metaplex } from '@metaplex-foundation/js';
-
 
 const OPENBOOK_PROGRAM_ID = new PublicKey(
 	'opnb2LAfJYbRMAHHvqjCwQxanZn7ReEHp1k81EohpZb'
@@ -4214,18 +4217,13 @@ export class AdminClient extends DriftClient {
 		tokenDecimals: number,
 		maxAum: BN
 	): Promise<TransactionInstruction[]> {
-		console.log(this.connection.rpcEndpoint)
-		const metaplex = new Metaplex(this.connection, {cluster: 'custom'});
+		const metaplex = new Metaplex(this.connection, { cluster: 'custom' });
 
 		const lpPool = getLpPoolPublicKey(this.program.programId, name);
 
 		const mint = getLpPoolMintPublicKey(this.program.programId, lpPool);
 
-		const lpPoolAta = getAssociatedTokenAddressSync(
-			mint,
-			lpPool,
-			true
-		);
+		const lpPoolAta = getAssociatedTokenAddressSync(mint, lpPool, true);
 		const createAtaIx = createAssociatedTokenAccountInstruction(
 			this.wallet.publicKey,
 			lpPoolAta,
@@ -4254,7 +4252,8 @@ export class AdminClient extends DriftClient {
 						}),
 						state,
 						tokenProgram: TOKEN_PROGRAM_ID,
-						tokenMetadataProgram: metaplex.programs().getTokenMetadata().address,
+						tokenMetadataProgram: metaplex.programs().getTokenMetadata()
+							.address,
 						rent: SYSVAR_RENT_PUBKEY,
 						systemProgram: SystemProgram.programId,
 					},

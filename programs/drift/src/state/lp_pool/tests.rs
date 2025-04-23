@@ -1,9 +1,8 @@
 #[cfg(test)]
 mod tests {
+    use crate::math::constants::PERCENTAGE_PRECISION_I64;
     use crate::state::lp_pool::*;
     use std::{cell::RefCell, marker::PhantomData, vec};
-
-    const PERCENTAGE_PRECISION_I64: i64 = 1_000_000;
 
     fn amm_const_datum(
         perp_market_index: u16,
@@ -347,5 +346,58 @@ mod tests {
         assert_eq!(target_zc_mut.len(), 1);
         assert!(target_zc_mut.get(0).data <= PERCENTAGE_PRECISION_I64);
         assert_eq!(target_zc_mut.get(0).last_slot, now_ts);
+    }
+
+    #[test]
+    fn test_constituent_fee_to_charge() {
+        let mut constituent = Constituent::default();
+        constituent.swap_fee_min = PERCENTAGE_PRECISION_I64 / 10000; // 1 bps
+        constituent.swap_fee_max = PERCENTAGE_PRECISION_I64 / 1000; // 10 bps;
+        constituent.max_weight_deviation = PERCENTAGE_PRECISION_I64 / 10; // max 10% deviation from target
+
+        // target weight is 50%, push the Constituent to 40% (max below target)
+        let fee = constituent
+            .get_fee_to_charge(
+                PERCENTAGE_PRECISION_I64 * 40 / 100,
+                PERCENTAGE_PRECISION_I64 / 2,
+            )
+            .unwrap();
+        assert_eq!(fee, PERCENTAGE_PRECISION_I64 / 1000); // 10 bps
+
+        // target weight is 50%, push the Constituent to 60% (max above target)
+        let fee = constituent
+            .get_fee_to_charge(
+                PERCENTAGE_PRECISION_I64 * 60 / 100,
+                PERCENTAGE_PRECISION_I64 / 2,
+            )
+            .unwrap();
+        assert_eq!(fee, PERCENTAGE_PRECISION_I64 / 1000); // 10 bps
+
+        // target weight is 50%, push the Constituent to 45% (half to min target)
+        let fee = constituent
+            .get_fee_to_charge(
+                PERCENTAGE_PRECISION_I64 * 45 / 100,
+                PERCENTAGE_PRECISION_I64 / 2,
+            )
+            .unwrap();
+        assert_eq!(fee, PERCENTAGE_PRECISION_I64 * 55 / 100000); // 5.5 bps
+
+        // target weight is 50%, push the Constituent to 55% (half to max target)
+        let fee = constituent
+            .get_fee_to_charge(
+                PERCENTAGE_PRECISION_I64 * 55 / 100,
+                PERCENTAGE_PRECISION_I64 / 2,
+            )
+            .unwrap();
+        assert_eq!(fee, PERCENTAGE_PRECISION_I64 * 55 / 100000); // 5.5 bps
+
+        // target weight is 50%, push the Constituent to 50% (target)
+        let fee = constituent
+            .get_fee_to_charge(
+                PERCENTAGE_PRECISION_I64 * 50 / 100,
+                PERCENTAGE_PRECISION_I64 / 2,
+            )
+            .unwrap();
+        assert_eq!(fee, PERCENTAGE_PRECISION_I64 / 10000); // 1 bps (min fee)
     }
 }

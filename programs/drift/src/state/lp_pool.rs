@@ -1,15 +1,19 @@
+use std::ops::Neg;
+
 use crate::error::{DriftResult, ErrorCode};
 use crate::math::casting::Cast;
-use crate::math::constants::PERCENTAGE_PRECISION_I64;
+use crate::math::constants::{PERCENTAGE_PRECISION_I64, PRICE_PRECISION_U64};
 use crate::math::safe_math::SafeMath;
 use anchor_lang::prelude::*;
-use anchor_lang::Discriminator;
+use anchor_spl::token::Mint;
 use borsh::{BorshDeserialize, BorshSerialize};
 
+use super::oracle_map::OracleMap;
+use super::spot_market::SpotMarket;
 use super::zero_copy::{AccountZeroCopy, AccountZeroCopyMut, HasLen, ToZeroCopy, ZeroCopyLoader};
-use crate::impl_zero_copy_loader;
 use crate::state::spot_market::{SpotBalance, SpotBalanceType};
 use crate::state::traits::Size;
+use crate::{impl_zero_copy_loader, validate};
 
 #[cfg(test)]
 mod tests;
@@ -43,7 +47,7 @@ pub struct LPPool {
     /// timestamp of last AUM slot
     pub last_aum_slot: u64, // 8, 152
     /// timestamp of last AUM update
-    pub last_aum_ts: u64, // 8, 160``
+    pub last_aum_ts: u64, // 8, 160
 
     /// timestamp of last vAMM revenue rebalance
     pub last_revenue_rebalance_ts: u64, // 8, 168
@@ -59,6 +63,159 @@ pub struct LPPool {
 
 impl Size for LPPool {
     const SIZE: usize = 1743;
+}
+
+impl LPPool {
+    pub fn get_nav(&self, mint: &Mint) -> Result<u64> {
+        match mint.supply {
+            0 => Ok(0),
+            supply => {
+                // TODO: assuming mint decimals = quote decimals = 6
+                self.last_aum
+                    .checked_div(supply)
+                    .ok_or(ErrorCode::MathError.into())
+            }
+        }
+    }
+
+    /// get the swap price between two (non-LP token) constituents
+    /// returns swap price in PRICE_PRECISION
+    pub fn get_swap_price(
+        &self,
+        oracle_map: &mut OracleMap,
+        in_spot_market: &SpotMarket,
+        out_spot_market: &SpotMarket,
+        in_amount: u64,
+    ) -> DriftResult<u64> {
+        let in_price = oracle_map
+            .get_price_data(&(in_spot_market.oracle, in_spot_market.oracle_source))
+            .expect("failed to get price data")
+            .price
+            .cast::<u64>()
+            .expect("failed to cast price");
+
+        let out_price = oracle_map
+            .get_price_data(&(out_spot_market.oracle, out_spot_market.oracle_source))
+            .expect("failed to get price data")
+            .price
+            .cast::<u64>()
+            .expect("failed to cast price");
+
+        let (prec_diff_numerator, prec_diff_denominator) =
+            if out_spot_market.decimals > in_spot_market.decimals {
+                (
+                    10_u64.pow(out_spot_market.decimals as u32 - in_spot_market.decimals as u32),
+                    1,
+                )
+            } else {
+                (
+                    1,
+                    10_u64.pow(in_spot_market.decimals as u32 - out_spot_market.decimals as u32),
+                )
+            };
+
+        let swap_price = in_amount
+            .safe_mul(in_price)?
+            .safe_mul(prec_diff_numerator)?
+            .safe_div(out_price.safe_mul(prec_diff_denominator)?)?;
+
+        Ok(swap_price)
+    }
+
+    ///
+    /// Returns the (out_amount, in_fee, out_fee) in the respective token units
+    pub fn get_swap_amount(
+        &self,
+        oracle_map: &mut OracleMap,
+        in_constituent: &Constituent,
+        out_constituent: &Constituent,
+        in_spot_market: &SpotMarket,
+        out_spot_market: &SpotMarket,
+        in_token_balance: u64,
+        out_token_balance: u64,
+        in_target_weight: i64,
+        out_target_weight: i64,
+        in_amount: u64,
+        swap_price: u64,
+    ) -> DriftResult<(u64, u64, i64, i64)> {
+        let out_amount = in_amount
+            .safe_mul(swap_price)?
+            .safe_div(PRICE_PRECISION_U64)?;
+        let (in_fee, out_fee) = self.get_swap_fees(
+            oracle_map,
+            in_constituent,
+            out_constituent,
+            in_spot_market,
+            out_spot_market,
+            in_token_balance,
+            out_token_balance,
+            in_amount,
+            out_amount,
+            in_target_weight,
+            out_target_weight,
+        )?;
+
+        // TODO: additional spot quoter logic can go here
+        // TODO: emit swap event
+
+        Ok((in_amount, out_amount, in_fee, out_fee))
+    }
+
+    /// returns (in_fee, out_fee) in PERCENTAGE_PRECISION
+    pub fn get_swap_fees(
+        &self,
+        oracle_map: &mut OracleMap, // might not need oracle_map depending on how accounts are passed in
+        in_constituent: &Constituent,
+        out_constituent: &Constituent,
+        in_spot_market: &SpotMarket,
+        out_spot_market: &SpotMarket,
+        in_token_balance: u64,
+        out_token_balance: u64,
+        in_amount: u64,
+        out_amount: u64,
+        in_target_weight: i64,
+        out_target_weight: i64,
+    ) -> DriftResult<(i64, i64)> {
+        let in_price = oracle_map
+            .get_price_data(&(in_spot_market.oracle, in_spot_market.oracle_source))
+            .expect("failed to get price data")
+            .price;
+        let in_weight_after = in_constituent.get_weight(
+            in_price,
+            in_token_balance,
+            in_amount.cast::<i64>()?,
+            self.last_aum,
+        )?;
+        let in_weight_delta = in_weight_after.safe_sub(in_target_weight)?;
+        msg!(
+            "in_weight_after: {}, in_target_weight: {}, in_weight_delta: {}",
+            in_weight_after,
+            in_target_weight,
+            in_weight_delta
+        );
+        let in_fee = in_constituent.get_fee_to_charge(in_weight_after, in_target_weight)?;
+
+        let out_price = oracle_map
+            .get_price_data(&(out_spot_market.oracle, out_spot_market.oracle_source))
+            .expect("failed to get price data")
+            .price;
+        let out_weight_after = out_constituent.get_weight(
+            out_price,
+            out_token_balance,
+            out_amount.cast::<i64>()?.neg(),
+            self.last_aum,
+        )?;
+        let out_weight_delta = out_weight_after.safe_sub(out_target_weight)?;
+        msg!(
+            "out_weight_after: {}, out_target_weight: {}, out_weight_delta: {}",
+            out_weight_after,
+            out_target_weight,
+            out_weight_delta
+        );
+        let out_fee = out_constituent.get_fee_to_charge(out_weight_after, out_target_weight)?;
+
+        Ok((in_fee, out_fee))
+    }
 }
 
 #[zero_copy(unsafe)]
@@ -119,20 +276,88 @@ pub struct Constituent {
     /// idx in LPPool.constituents
     pub constituent_index: u16,
 
+    pub decimals: u8,
+
     /// max deviation from target_weight allowed for the constituent
     /// precision: PERCENTAGE_PRECISION
-    pub max_weight_deviation: u64,
-    /// min fee charged on swaps to this constituent
+    pub max_weight_deviation: i64,
+    /// min fee charged on swaps to/from this constituent
     /// precision: PERCENTAGE_PRECISION
-    pub swap_fee_min: u64,
-    /// max premium to be applied to swap_fee_min when the constituent is at max deviation from target_weight
+    pub swap_fee_min: i64,
+    /// max fee charged on swaps to/from this constituent
     /// precision: PERCENTAGE_PRECISION
-    pub max_fee_premium: u64,
+    pub swap_fee_max: i64,
 
     /// spot borrow-lend balance for constituent
     pub spot_balance: BLPosition, // should be in constituent base asset
     pub padding: [u8; 16],
 }
+
+impl Constituent {
+    /// Returns the full balance of the Constituent, the total of the amount in Constituent's token
+    /// account and in Drift Borrow-Lend.
+    pub fn get_full_balance(&self, token_balance: u64) -> DriftResult<i128> {
+        match self.spot_balance.balance_type() {
+            SpotBalanceType::Deposit => token_balance
+                .cast::<i128>()?
+                .safe_add(self.spot_balance.balance().cast::<i128>()?),
+            SpotBalanceType::Borrow => token_balance
+                .cast::<i128>()?
+                .safe_sub(self.spot_balance.balance().cast::<i128>()?),
+        }
+    }
+
+    /// Current weight of this constituent = price * token_balance / lp_pool_aum
+    /// Note: lp_pool_aum is from LPPool.last_aum, which is a lagged value updated via crank
+    pub fn get_weight(
+        &self,
+        price: i64,
+        token_balance: u64,
+        token_amount_delta: i64,
+        lp_pool_aum: u64,
+    ) -> DriftResult<i64> {
+        let balance = self.get_full_balance(token_balance)?.cast::<i128>()?;
+        let token_precision = 10_i128.pow(self.decimals as u32);
+
+        let value_usd = balance
+            .safe_add(token_amount_delta.cast::<i128>()?)?
+            .safe_mul(price.cast::<i128>()?)?;
+
+        value_usd
+            .safe_mul(PERCENTAGE_PRECISION_I64.cast::<i128>()?)?
+            .safe_div(lp_pool_aum.cast::<i128>()?.safe_mul(token_precision)?)?
+            .cast::<i64>()
+    }
+
+    /// Returns the fee to charge for a swap to/from this constituent
+    /// The fee is a linear interpolation between the swap_fee_min and swap_fee_max based on the post-swap deviation from the target weight
+    /// precision: PERCENTAGE_PRECISION
+    pub fn get_fee_to_charge(&self, post_swap_weight: i64, target_weight: i64) -> DriftResult<i64> {
+        let min_weight = target_weight.safe_sub(self.max_weight_deviation as i64)?;
+        let max_weight = target_weight.safe_add(self.max_weight_deviation as i64)?;
+        let (slope_numerator, slope_denominator) = if post_swap_weight > target_weight {
+            let num = self.swap_fee_max.safe_sub(self.swap_fee_min)?;
+            let denom = max_weight.safe_sub(target_weight)?;
+            (num, denom)
+        } else {
+            let num = self.swap_fee_min.safe_sub(self.swap_fee_max)?;
+            let denom = target_weight.safe_sub(min_weight)?;
+            (num, denom)
+        };
+
+        let b = self
+            .swap_fee_min
+            .safe_mul(slope_denominator)?
+            .safe_sub(target_weight.safe_mul(slope_numerator)?)?;
+        Ok(post_swap_weight
+            .safe_mul(slope_numerator)?
+            .safe_add(b)?
+            .safe_div(slope_denominator)?)
+    }
+}
+
+//   pub struct PerpConstituent {
+//   }
 
 #[zero_copy]
 #[derive(Debug, BorshDeserialize, BorshSerialize)]
@@ -231,6 +456,27 @@ pub enum WeightValidationFlags {
     EnforceTotalWeight100 = 0b0000_0001,
     NoNegativeWeights = 0b0000_0010,
     NoOverweight = 0b0000_0100,
+}
+
+impl<'a> AccountZeroCopy<'a, WeightDatum, ConstituentTargetWeightsFixed> {
+    pub fn get_target_weight(&self, constituent_index: u16) -> DriftResult<i64> {
+        validate!(
+            constituent_index < self.len() as u16,
+            ErrorCode::InvalidConstituent,
+            "Invalid constituent_index = {}, ConstituentTargetWeights len = {}",
+            constituent_index,
+            self.len()
+        )?;
+        let datum = self.get(constituent_index as u32);
+        validate!(
+            datum.constituent_index == constituent_index,
+            ErrorCode::InvalidConstituent,
+            "Invalid constituent_index = {}, ConstituentTargetWeights len = {}",
+            datum.constituent_index,
+            self.len()
+        )?;
+        Ok(datum.data)
+    }
 }
 
 /// Update target weights based on amm_inventory and mapping
