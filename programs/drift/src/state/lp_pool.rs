@@ -208,7 +208,7 @@ pub struct BLPosition {
     pub market_index: u16,
     /// Whether the position is deposit or borrow
     pub balance_type: SpotBalanceType,
-    pub padding: [u8; 4],
+    pub padding: [u8; 5],
 }
 
 impl SpotBalance for BLPosition {
@@ -269,7 +269,7 @@ pub struct Constituent {
 }
 
 impl Size for Constituent {
-    const SIZE: usize = 108;
+    const SIZE: usize = 112;
 }
 
 impl Constituent {
@@ -433,7 +433,7 @@ impl ConstituentTargetWeights {
 
     pub fn validate(&self) -> DriftResult<()> {
         validate!(
-            self.data.len() >= 0 && self.data.len() <= 128,
+            self.data.len() <= 128,
             ErrorCode::DefaultError,
             "Number of constituents len must be between 1 and 128"
         )?;
