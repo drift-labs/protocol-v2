@@ -1473,27 +1473,27 @@ export type SignedMsgUserOrdersAccount = {
 	signedMsgOrderData: SignedMsgOrderId[];
 };
 
-export type InitAmmConstituentMappingDatum = {
+export type AddAmmConstituentMappingDatum = {
 	constituentIndex: number;
 	perpMarketIndex: number;
 };
 
-export type AmmConstituentDatum = InitAmmConstituentMappingDatum & {
-	data: BN;
+export type AmmConstituentDatum = AddAmmConstituentMappingDatum & {
+	weight: BN;
 	lastSlot: BN;
 };
 
 export type AmmConstituentMapping = {
-	data: AmmConstituentDatum[];
+	weights: AmmConstituentDatum[];
 };
 
 export type WeightDatum = {
-	data: BN;
+	weight: BN;
 	lastSlot: BN;
 };
 
 export type ConstituentTargetWeights = {
-	data: WeightDatum[];
+	weights: WeightDatum[];
 };
 
 export type LPPool = {

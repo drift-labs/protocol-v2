@@ -23,6 +23,8 @@ import {
 	PERCENTAGE_PRECISION,
 	PRICE_PRECISION,
 	PEG_PRECISION,
+	ConstituentTargetWeights,
+	AmmConstituentMapping,
 } from '../sdk/src';
 
 import {
@@ -160,22 +162,21 @@ describe('LP Pool', () => {
 			lpPoolKey
 		);
 		const ammConstituentMap =
-			await adminClient.program.account.ammConstituentMapping.fetch(
+			(await adminClient.program.account.ammConstituentMapping.fetch(
 				ammConstituentMapPublicKey
-			);
+			)) as AmmConstituentMapping;
 		expect(ammConstituentMap).to.not.be.null;
-		// @ts-ignore
-		assert(ammConstituentMap.data.length == 0);
+		assert(ammConstituentMap.weights.length == 0);
 
 		// check constituent target weights exists
 		const constituentTargetWeightsPublicKey =
 			getConstituentTargetWeightsPublicKey(program.programId, lpPoolKey);
 		const constituentTargetWeights =
-			await adminClient.program.account.constituentTargetWeights.fetch(
+			(await adminClient.program.account.constituentTargetWeights.fetch(
 				constituentTargetWeightsPublicKey
-			);
+			)) as ConstituentTargetWeights;
 		expect(constituentTargetWeights).to.not.be.null;
-		assert(constituentTargetWeights.data.length == 0);
+		assert(constituentTargetWeights.weights.length == 0);
 
 		// check mint and metadata created correctly
 		const mintAccountInfo =
@@ -209,11 +210,11 @@ describe('LP Pool', () => {
 		const constituentTargetWeightsPublicKey =
 			getConstituentTargetWeightsPublicKey(program.programId, lpPoolKey);
 		const constituentTargetWeights =
-			await adminClient.program.account.constituentTargetWeights.fetch(
+			(await adminClient.program.account.constituentTargetWeights.fetch(
 				constituentTargetWeightsPublicKey
-			);
+			)) as ConstituentTargetWeights;
 		expect(constituentTargetWeights).to.not.be.null;
-		assert(constituentTargetWeights.data.length == 1);
+		assert(constituentTargetWeights.weights.length == 1);
 	});
 
 	it('can add amm mapping datum', async () => {
@@ -232,11 +233,11 @@ describe('LP Pool', () => {
 			lpPoolKey
 		);
 		const ammMapping =
-			await adminClient.program.account.ammConstituentMapping.fetch(
+			(await adminClient.program.account.ammConstituentMapping.fetch(
 				ammConstituentMapping
-			);
+			)) as AmmConstituentMapping;
 		expect(ammMapping).to.not.be.null;
-		assert(ammMapping.data.length == 2);
+		assert(ammMapping.weights.length == 2);
 	});
 
 	it('fails adding datum with bad params', async () => {

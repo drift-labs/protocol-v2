@@ -7769,7 +7769,7 @@
         "kind": "struct",
         "fields": [
           {
-            "name": "data",
+            "name": "weights",
             "type": {
               "vec": {
                 "defined": "AmmConstituentDatum"
@@ -7785,7 +7785,7 @@
         "kind": "struct",
         "fields": [
           {
-            "name": "data",
+            "name": "weights",
             "type": {
               "vec": {
                 "defined": "WeightDatum"
@@ -9452,6 +9452,22 @@
       }
     },
     {
+      "name": "AddAmmConstituentMappingDatum",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "constituentIndex",
+            "type": "u16"
+          },
+          {
+            "name": "perpMarketIndex",
+            "type": "u16"
+          }
+        ]
+      }
+    },
+    {
       "name": "LiquidatePerpRecord",
       "type": {
         "kind": "struct",
@@ -9747,7 +9763,7 @@
             }
           },
           {
-            "name": "data",
+            "name": "weight",
             "docs": [
               "PERCENTAGE_PRECISION. The weight this constituent has on the perp market"
             ],
@@ -9787,7 +9803,7 @@
         "kind": "struct",
         "fields": [
           {
-            "name": "data",
+            "name": "weight",
             "type": "i64"
           },
           {

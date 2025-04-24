@@ -4515,13 +4515,13 @@ pub fn handle_initialize_lp_pool(
 
     let amm_constituent_mapping = &mut ctx.accounts.amm_constituent_mapping;
     amm_constituent_mapping
-        .data
+        .weights
         .resize_with(0 as usize, AmmConstituentDatum::default);
     amm_constituent_mapping.validate()?;
 
     let constituent_target_weights = &mut ctx.accounts.constituent_target_weights;
     constituent_target_weights
-        .data
+        .weights
         .resize_with(0 as usize, WeightDatum::default);
     constituent_target_weights.validate()?;
 
@@ -4584,10 +4584,10 @@ pub fn handle_initialize_constituent<'info>(
     let mut constituent = ctx.accounts.constituent.load_init()?;
 
     let constituent_target_weights = &mut ctx.accounts.constituent_target_weights;
-    let current_len = constituent_target_weights.data.len();
+    let current_len = constituent_target_weights.weights.len();
 
     constituent_target_weights
-        .data
+        .weights
         .resize_with((current_len + 1) as usize, WeightDatum::default);
     constituent_target_weights.validate()?;
 
@@ -4613,7 +4613,7 @@ pub fn handle_add_amm_constituent_data<'info>(
     let amm_mapping = &mut ctx.accounts.amm_constituent_mapping;
     let constituent_target_weights = &ctx.accounts.constituent_target_weights;
     let state = &ctx.accounts.state;
-    let mut current_len = amm_mapping.data.len();
+    let mut current_len = amm_mapping.weights.len();
 
     for init_datum in init_amm_constituent_mapping_data {
         let perp_market_index = init_datum.perp_market_index;
@@ -4625,7 +4625,7 @@ pub fn handle_add_amm_constituent_data<'info>(
         )?;
 
         validate!(
-            (init_datum.constituent_index as usize) < constituent_target_weights.data.len(),
+            (init_datum.constituent_index as usize) < constituent_target_weights.weights.len(),
             ErrorCode::InvalidAmmConstituentMappingArgument,
             "constituent_index too large compared to number of constituents in target weights"
         )?;
@@ -4636,7 +4636,7 @@ pub fn handle_add_amm_constituent_data<'info>(
         datum.constituent_index = constituent_index;
 
         // Check if the datum already exists
-        let exists = amm_mapping.data.iter().any(|d| {
+        let exists = amm_mapping.weights.iter().any(|d| {
             d.perp_market_index == perp_market_index && d.constituent_index == constituent_index
         });
 
@@ -4650,7 +4650,7 @@ pub fn handle_add_amm_constituent_data<'info>(
 
         // Add the new datum to the mapping
         current_len += 1;
-        amm_mapping.data.resize(current_len, datum);
+        amm_mapping.weights.resize(current_len, datum);
     }
 
     Ok(())
@@ -5451,7 +5451,7 @@ pub struct InitializeConstituent<'info> {
         mut,
         seeds = [CONSTITUENT_TARGET_WEIGHT_PDA_SEED.as_ref(), lp_pool.key().as_ref()],
         bump,
-        realloc = ConstituentTargetWeights::space(constituent_target_weights.data.len() + 1 as usize),
+        realloc = ConstituentTargetWeights::space(constituent_target_weights.weights.len() + 1 as usize),
         realloc::payer = admin,
         realloc::zero = false,
     )]
@@ -5469,10 +5469,16 @@ pub struct InitializeConstituent<'info> {
     pub system_program: Program<'info, System>,
 }
 
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, Default)]
+pub struct AddAmmConstituentMappingDatum {
+    pub constituent_index: u16,
+    pub perp_market_index: u16,
+}
+
 #[derive(Accounts)]
 #[instruction(
     lp_pool_name: [u8; 32],
-    market_index_constituent_index_pairs:  Vec<(u16, u16)>,
+    add_amm_constituent_mapping_data:  Vec<AddAmmConstituentMappingDatum>,
 )]
 pub struct AddAmmConstituentMappingData<'info> {
     #[account(mut)]
@@ -5488,7 +5494,7 @@ pub struct AddAmmConstituentMappingData<'info> {
         mut,
         seeds = [AMM_MAP_PDA_SEED.as_ref(), lp_pool.key().as_ref()],
         bump,
-        realloc = AmmConstituentMapping::space(amm_constituent_mapping.data.len() + market_index_constituent_index_pairs.len()),
+        realloc = AmmConstituentMapping::space(amm_constituent_mapping.weights.len() + add_amm_constituent_mapping_data.len()),
         realloc::payer = admin,
         realloc::zero = false,
     )]
@@ -5497,7 +5503,7 @@ pub struct AddAmmConstituentMappingData<'info> {
         mut,
         seeds = [CONSTITUENT_TARGET_WEIGHT_PDA_SEED.as_ref(), lp_pool.key().as_ref()],
         bump,
-        realloc = ConstituentTargetWeights::space(constituent_target_weights.data.len() + 1 as usize),
+        realloc = ConstituentTargetWeights::space(constituent_target_weights.weights.len() + 1 as usize),
         realloc::payer = admin,
         realloc::zero = false,
     )]

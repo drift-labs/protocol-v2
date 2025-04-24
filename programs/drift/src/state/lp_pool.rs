@@ -346,7 +346,7 @@ pub struct AmmConstituentDatum {
     pub constituent_index: u16,
     pub padding: [u8; 4],
     /// PERCENTAGE_PRECISION. The weight this constituent has on the perp market
-    pub data: i64,
+    pub weight: i64,
     pub last_slot: u64,
 }
 
@@ -370,7 +370,7 @@ impl HasLen for AmmConstituentMappingFixed {
 pub struct AmmConstituentMapping {
     // PERCENTAGE_PRECISION. Each datum represents the target weight for a single (AMM, Constituent) pair.
     // An AMM may be partially backed by multiple Constituents
-    pub data: Vec<AmmConstituentDatum>,
+    pub weights: Vec<AmmConstituentDatum>,
 }
 
 impl AmmConstituentMapping {
@@ -380,7 +380,7 @@ impl AmmConstituentMapping {
 
     pub fn validate(&self) -> DriftResult<()> {
         validate!(
-            self.data.len() >= 0 && self.data.len() <= 128,
+            self.weights.len() <= 128,
             ErrorCode::DefaultError,
             "Number of constituents len must be between 1 and 128"
         )?;
@@ -399,7 +399,7 @@ impl_zero_copy_loader!(
 #[derive(Debug, Default, BorshDeserialize, BorshSerialize)]
 #[repr(C)]
 pub struct WeightDatum {
-    pub data: i64,
+    pub weight: i64,
     pub last_slot: u64,
 }
 
@@ -423,7 +423,7 @@ impl HasLen for ConstituentTargetWeightsFixed {
 #[repr(C)]
 pub struct ConstituentTargetWeights {
     // PERCENTAGE_PRECISION. The weights of the target weight matrix. Updated async
-    pub data: Vec<WeightDatum>,
+    pub weights: Vec<WeightDatum>,
 }
 
 impl ConstituentTargetWeights {
@@ -433,7 +433,7 @@ impl ConstituentTargetWeights {
 
     pub fn validate(&self) -> DriftResult<()> {
         validate!(
-            self.data.len() <= 128,
+            self.weights.len() <= 128,
             ErrorCode::DefaultError,
             "Number of constituents len must be between 1 and 128"
         )?;
@@ -451,7 +451,7 @@ impl_zero_copy_loader!(
 impl Default for ConstituentTargetWeights {
     fn default() -> Self {
         ConstituentTargetWeights {
-            data: Vec::with_capacity(0),
+            weights: Vec::with_capacity(0),
         }
     }
 }
@@ -474,7 +474,7 @@ impl<'a> AccountZeroCopy<'a, WeightDatum, ConstituentTargetWeightsFixed> {
             self.len()
         )?;
         let datum = self.get(constituent_index as u32);
-        Ok(datum.data)
+        Ok(datum.weight)
     }
 }
 
@@ -500,7 +500,7 @@ impl<'a> AccountZeroCopyMut<'a, WeightDatum, ConstituentTargetWeightsFixed> {
                     .iter()
                     .position(|d| &d.perp_market_index == perp_market_index)
                     .expect("missing mapping for this market index");
-                let weight = mapping.get(idx as u32).data; // PERCENTAGE_PRECISION
+                let weight = mapping.get(idx as u32).weight; // PERCENTAGE_PRECISION
 
                 target_amount += (*inventory as i128)
                     .saturating_mul(weight as i128)
@@ -528,7 +528,7 @@ impl<'a> AccountZeroCopyMut<'a, WeightDatum, ConstituentTargetWeightsFixed> {
             }
 
             let cell = self.get_mut(i as u32);
-            cell.data = target_weight as i64;
+            cell.weight = target_weight as i64;
             cell.last_slot = slot;
         }
 

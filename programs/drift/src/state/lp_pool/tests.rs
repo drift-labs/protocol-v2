@@ -7,14 +7,14 @@ mod tests {
     fn amm_const_datum(
         perp_market_index: u16,
         constituent_index: u16,
-        data: i64,
+        weight: i64,
         last_slot: u64,
     ) -> AmmConstituentDatum {
         AmmConstituentDatum {
             perp_market_index,
             constituent_index,
             padding: [0; 4],
-            data,
+            weight,
             last_slot,
         }
     }
@@ -78,7 +78,7 @@ mod tests {
             .unwrap();
 
         assert_eq!(target_zc_mut.len(), 1);
-        assert_eq!(target_zc_mut.get(0).data, 0);
+        assert_eq!(target_zc_mut.get(0).weight, 0);
         assert_eq!(target_zc_mut.get(0).last_slot, now_ts);
     }
 
@@ -141,7 +141,7 @@ mod tests {
             .unwrap();
 
         assert_eq!(target_zc_mut.len(), 1);
-        assert_eq!(target_zc_mut.get(0).data, PERCENTAGE_PRECISION_I64);
+        assert_eq!(target_zc_mut.get(0).weight, PERCENTAGE_PRECISION_I64);
         assert_eq!(target_zc_mut.get(0).last_slot, now_ts);
     }
 
@@ -217,7 +217,7 @@ mod tests {
         assert_eq!(target_zc_mut.len(), 2);
 
         for i in 0..target_zc_mut.len() {
-            assert_eq!(target_zc_mut.get(i).data, PERCENTAGE_PRECISION_I64 / 2);
+            assert_eq!(target_zc_mut.get(i).weight, PERCENTAGE_PRECISION_I64 / 2);
             assert_eq!(target_zc_mut.get(i).last_slot, now_ts);
         }
     }
@@ -281,7 +281,7 @@ mod tests {
             .unwrap();
 
         assert_eq!(target_zc_mut.len(), 1);
-        assert_eq!(target_zc_mut.get(0).data, 0); // no target
+        assert_eq!(target_zc_mut.get(0).weight, 0); // no target
         assert_eq!(target_zc_mut.get(0).last_slot, now_ts);
     }
 
@@ -344,7 +344,7 @@ mod tests {
             .unwrap();
 
         assert_eq!(target_zc_mut.len(), 1);
-        assert!(target_zc_mut.get(0).data <= PERCENTAGE_PRECISION_I64);
+        assert!(target_zc_mut.get(0).weight <= PERCENTAGE_PRECISION_I64);
         assert_eq!(target_zc_mut.get(0).last_slot, now_ts);
     }
 

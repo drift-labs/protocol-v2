@@ -15,7 +15,7 @@ import {
 	ContractTier,
 	AssetTier,
 	SpotFulfillmentConfigStatus,
-	InitAmmConstituentMappingDatum,
+	AddAmmConstituentMappingDatum,
 } from './types';
 import { DEFAULT_MARKET_NAME, encodeName } from './userName';
 import { BN } from '@coral-xyz/anchor';
@@ -4339,7 +4339,7 @@ export class AdminClient extends DriftClient {
 
 	public async addInitAmmConstituentMappingData(
 		lpPoolName: number[],
-		marketIndexConstituentIndexPairs: InitAmmConstituentMappingDatum[]
+		marketIndexConstituentIndexPairs: AddAmmConstituentMappingDatum[]
 	): Promise<TransactionSignature> {
 		const ixs = await this.getAddInitAmmConstituentMappingDataIx(
 			lpPoolName,
@@ -4352,7 +4352,7 @@ export class AdminClient extends DriftClient {
 
 	public async getAddInitAmmConstituentMappingDataIx(
 		lpPoolName: number[],
-		marketIndexConstituentIndexPairs: InitAmmConstituentMappingDatum[]
+		addAmmConstituentMappingData: AddAmmConstituentMappingDatum[]
 	): Promise<TransactionInstruction[]> {
 		const lpPool = getLpPoolPublicKey(this.program.programId, lpPoolName);
 		const ammConstituentMapping = getAmmConstituentMappingPublicKey(
@@ -4366,7 +4366,7 @@ export class AdminClient extends DriftClient {
 		return [
 			this.program.instruction.addAmmConstituentMappingData(
 				lpPoolName,
-				marketIndexConstituentIndexPairs,
+				addAmmConstituentMappingData,
 				{
 					accounts: {
 						admin: this.wallet.publicKey,
