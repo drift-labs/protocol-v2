@@ -1706,6 +1706,24 @@ pub mod drift {
     ) -> Result<()> {
         handle_update_protected_maker_mode_config(ctx, max_users, reduce_only, current_users)
     }
+
+    pub fn initialize_constituent(
+        ctx: Context<InitializeConstituent>,
+        spot_market_index: u16,
+        decimals: u8,
+        max_weight_deviation: i64,
+        swap_fee_min: i64,
+        swap_fee_max: i64,
+    ) -> Result<()> {
+        handle_initialize_constituent(
+            ctx,
+            spot_market_index,
+            decimals,
+            max_weight_deviation,
+            swap_fee_min,
+            swap_fee_max,
+        )
+    }
 }
 
 #[cfg(not(feature = "no-entrypoint"))]

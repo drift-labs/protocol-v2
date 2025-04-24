@@ -4514,6 +4514,39 @@ pub fn handle_initialize_constituent<'info>(
     Ok(())
 }
 
+pub fn handle_add_amm_constituent_data<'info>(
+    ctx: Context<AddAmmConstituentData>,
+    market_index_constituent_index_pairs: Vec<(u16, u16)>,
+) -> Result<()> {
+    let mut amm_mapping = &mut ctx.accounts.amm_constituent_mapping;
+    let mut current_len = amm_mapping.data.len();
+
+    for (perp_market_index, constituent_index) in market_index_constituent_index_pairs {
+        let mut datum = AmmConstituentDatum::default();
+        datum.perp_market_index = perp_market_index;
+        datum.constituent_index = constituent_index;
+
+        // Check if the datum already exists
+        let exists = amm_mapping.data.iter().any(|d| {
+            d.perp_market_index == perp_market_index && d.constituent_index == constituent_index
+        });
+
+        validate!(
+            !exists,
+            ErrorCode::AmmMappingConstituentAlreadyExists,
+            "AmmConstituentDatum already exists for perp_market_index {} and constituent_index {}",
+            perp_market_index,
+            constituent_index
+        )?;
+
+        // Add the new datum to the mapping
+        current_len += 1;
+        amm_mapping.data.resize(current_len, datum);
+    }
+
+    Ok(())
+}
+
 #[derive(Accounts)]
 pub struct Initialize<'info> {
     #[account(mut)]
@@ -5344,6 +5377,35 @@ pub struct InitializeConstituent<'info> {
     )]
     pub constituent: AccountLoader<'info, Constituent>,
 
+    #[account(mut)]
+    pub payer: Signer<'info>,
+    pub system_program: Program<'info, System>,
+}
+
+#[derive(Accounts)]
+#[instruction(
+    lp_pool_name: [u8; 32],
+    market_index_constituent_index_pairs:  Vec<(u16, u16)>,
+)]
+pub struct AddAmmConstituentData<'info> {
+    #[account(mut)]
+    pub admin: Signer<'info>,
+
+    #[account(
+        seeds = [b"lp_pool", lp_pool_name.as_ref()],
+        bump,
+    )]
+    pub lp_pool: AccountLoader<'info, LPPool>,
+
+    #[account(
+        mut,
+        seeds = [AMM_MAP_PDA_SEED.as_ref(), lp_pool.key().as_ref()],
+        bump,
+        realloc = AmmConstituentMapping::space(amm_constituent_mapping.data.len() + market_index_constituent_index_pairs.len()),
+        realloc::payer = admin,
+        realloc::zero = false,
+    )]
+    pub amm_constituent_mapping: Box<Account<'info, AmmConstituentMapping>>,
     #[account(mut)]
     pub payer: Signer<'info>,
     pub system_program: Program<'info, System>,
