@@ -25,13 +25,13 @@ mod tests;
 #[repr(C)]
 pub struct LPPool {
     /// name of vault, TODO: check type + size
-    pub name: [u8; 32], // 32
+    pub name: [u8; 32],
     /// address of the vault.
-    pub pubkey: Pubkey, // 32, 64
+    pub pubkey: Pubkey,
     // vault token mint
-    pub mint: Pubkey, // 32, 96
+    pub mint: Pubkey,
     /// LPPool's token account
-    // pub token_vault: Pubkey, // 32, 128
+    // pub token_vault: Pubkey,
 
     /// token_supply? to simplify NAV calculation, or load from mint account
     /// token_total_supply: u64
@@ -41,25 +41,26 @@ pub struct LPPool {
     /// pub quote_constituent_index: u16,
 
     /// QUOTE_PRECISION: Max AUM, Prohibit minting new DLP beyond this
-    pub max_aum: u64, // 8, 136
+    pub max_aum: u64,
 
     /// QUOTE_PRECISION: AUM of the vault in USD, updated lazily
-    pub last_aum: u64, // 8, 144
+    pub last_aum: u64,
 
     /// timestamp of last AUM slot
-    pub last_aum_slot: u64, // 8, 152
+    pub last_aum_slot: u64,
     /// timestamp of last AUM update
-    pub last_aum_ts: u64, // 8, 160
+    pub last_aum_ts: u64,
 
     /// timestamp of last vAMM revenue rebalance
-    pub last_revenue_rebalance_ts: u64, // 8, 168
+    pub last_revenue_rebalance_ts: u64,
 
     /// all revenue settles recieved
-    pub total_fees_received: u128, // 16, 176
+    pub total_fees_received: u128,
     /// all revenues paid out
-    pub total_fees_paid: u128, // 16, 192
+    pub total_fees_paid: u128,
 
-    pub constituents: u16, // 2, 194
+    pub constituents: u16,
+    pub bump: u8,
     pub _padding: [u8; 6],
 }
 
@@ -252,6 +253,7 @@ pub struct Constituent {
     pub constituent_index: u16,
 
     pub decimals: u8,
+    pub bump: u8,
 
     /// max deviation from target_weight allowed for the constituent
     /// precision: PERCENTAGE_PRECISION
@@ -368,6 +370,7 @@ impl HasLen for AmmConstituentMappingFixed {
 #[derive(Debug)]
 #[repr(C)]
 pub struct AmmConstituentMapping {
+    pub bump: u8,
     // PERCENTAGE_PRECISION. Each datum represents the target weight for a single (AMM, Constituent) pair.
     // An AMM may be partially backed by multiple Constituents
     pub weights: Vec<AmmConstituentDatum>,
@@ -422,6 +425,7 @@ impl HasLen for ConstituentTargetWeightsFixed {
 #[derive(Debug)]
 #[repr(C)]
 pub struct ConstituentTargetWeights {
+    pub bump: u8,
     // PERCENTAGE_PRECISION. The weights of the target weight matrix. Updated async
     pub weights: Vec<WeightDatum>,
 }
@@ -451,6 +455,7 @@ impl_zero_copy_loader!(
 impl Default for ConstituentTargetWeights {
     fn default() -> Self {
         ConstituentTargetWeights {
+            bump: 0,
             weights: Vec::with_capacity(0),
         }
     }

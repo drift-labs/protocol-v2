@@ -4383,6 +4383,7 @@ pub fn handle_initialize_lp_pool(
         last_revenue_rebalance_ts: 0,
         total_fees_received: 0,
         total_fees_paid: 0,
+        bump: ctx.bumps.lp_pool,
         _padding: [0; 6],
     };
 
@@ -4390,12 +4391,22 @@ pub fn handle_initialize_lp_pool(
     amm_constituent_mapping
         .weights
         .resize_with(0 as usize, AmmConstituentDatum::default);
+    amm_constituent_mapping.bump = ctx.bumps.amm_constituent_mapping;
+    msg!(
+        "amm_constituent_mapping bump: {}",
+        amm_constituent_mapping.bump
+    );
     amm_constituent_mapping.validate()?;
 
     let constituent_target_weights = &mut ctx.accounts.constituent_target_weights;
     constituent_target_weights
         .weights
         .resize_with(0 as usize, WeightDatum::default);
+    constituent_target_weights.bump = ctx.bumps.constituent_target_weights;
+    msg!(
+        "constituent_target_weights bump: {}",
+        constituent_target_weights.bump
+    );
     constituent_target_weights.validate()?;
 
     Ok(())
@@ -4469,6 +4480,8 @@ pub fn handle_initialize_constituent<'info>(
     constituent.max_weight_deviation = max_weight_deviation;
     constituent.swap_fee_min = swap_fee_min;
     constituent.swap_fee_max = swap_fee_max;
+    constituent.bump = ctx.bumps.constituent;
+    msg!("constituent bump: {}", constituent.bump);
 
     Ok(())
 }
@@ -5319,14 +5332,14 @@ pub struct InitializeConstituent<'info> {
 
     #[account(
         seeds = [b"lp_pool", lp_pool_name.as_ref()],
-        bump,
+        bump = lp_pool.load()?.bump,
     )]
     pub lp_pool: AccountLoader<'info, LPPool>,
 
     #[account(
         mut,
         seeds = [CONSTITUENT_TARGET_WEIGHT_PDA_SEED.as_ref(), lp_pool.key().as_ref()],
-        bump,
+        bump = constituent_target_weights.bump,
         realloc = ConstituentTargetWeights::space(constituent_target_weights.weights.len() + 1 as usize),
         realloc::payer = admin,
         realloc::zero = false,
@@ -5336,8 +5349,8 @@ pub struct InitializeConstituent<'info> {
     #[account(
         init,
         seeds = [CONSITUENT_PDA_SEED.as_ref(), lp_pool.key().as_ref(), spot_market_index.to_le_bytes().as_ref()],
-        bump,
         space = Constituent::SIZE,
+        bump,
         payer = admin,
     )]
     pub constituent: AccountLoader<'info, Constituent>,
@@ -5362,14 +5375,14 @@ pub struct AddAmmConstituentMappingData<'info> {
 
     #[account(
         seeds = [b"lp_pool", lp_pool_name.as_ref()],
-        bump,
+        bump = lp_pool.load()?.bump,
     )]
     pub lp_pool: AccountLoader<'info, LPPool>,
 
     #[account(
         mut,
         seeds = [AMM_MAP_PDA_SEED.as_ref(), lp_pool.key().as_ref()],
-        bump,
+        bump = amm_constituent_mapping.bump,
         realloc = AmmConstituentMapping::space(amm_constituent_mapping.weights.len() + add_amm_constituent_mapping_data.len()),
         realloc::payer = admin,
         realloc::zero = false,
@@ -5378,7 +5391,7 @@ pub struct AddAmmConstituentMappingData<'info> {
     #[account(
         mut,
         seeds = [CONSTITUENT_TARGET_WEIGHT_PDA_SEED.as_ref(), lp_pool.key().as_ref()],
-        bump,
+        bump = constituent_target_weights.bump,
         realloc = ConstituentTargetWeights::space(constituent_target_weights.weights.len() + 1 as usize),
         realloc::payer = admin,
         realloc::zero = false,

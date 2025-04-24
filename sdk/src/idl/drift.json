@@ -7661,6 +7661,10 @@
             "type": "u16"
           },
           {
+            "name": "bump",
+            "type": "u8"
+          },
+          {
             "name": "padding",
             "type": {
               "array": [
@@ -7700,6 +7704,10 @@
           },
           {
             "name": "decimals",
+            "type": "u8"
+          },
+          {
+            "name": "bump",
             "type": "u8"
           },
           {
@@ -7753,6 +7761,10 @@
         "kind": "struct",
         "fields": [
           {
+            "name": "bump",
+            "type": "u8"
+          },
+          {
             "name": "weights",
             "type": {
               "vec": {
@@ -7768,6 +7780,10 @@
       "type": {
         "kind": "struct",
         "fields": [
+          {
+            "name": "bump",
+            "type": "u8"
+          },
           {
             "name": "weights",
             "type": {
