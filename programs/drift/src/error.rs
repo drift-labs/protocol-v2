@@ -635,6 +635,8 @@ pub enum ErrorCode {
     InvalidSignedMsgUserOrdersResize,
     #[msg("Invalid Constituent")]
     InvalidConstituent,
+    #[msg("Misatch amm mapping and constituent target weights")]
+    MismatchAmmConstituentMappingAndConstituentTargetWeights,
 }
 
 #[macro_export]

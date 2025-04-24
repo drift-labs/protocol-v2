@@ -1,8 +1,6 @@
-use std::ops::Neg;
-
 use crate::error::{DriftResult, ErrorCode};
 use crate::math::casting::Cast;
-use crate::math::constants::{PERCENTAGE_PRECISION_I64, PRICE_PRECISION_I64, PRICE_PRECISION_U64};
+use crate::math::constants::{PERCENTAGE_PRECISION_I64, PRICE_PRECISION_I64};
 use crate::math::safe_math::SafeMath;
 use anchor_lang::prelude::*;
 use anchor_spl::token::Mint;
@@ -10,12 +8,14 @@ use borsh::{BorshDeserialize, BorshSerialize};
 
 use super::oracle_map::OracleMap;
 use super::spot_market::SpotMarket;
-use super::zero_copy::{AccountZeroCopy, AccountZeroCopyMut, HasLen, ToZeroCopy, ZeroCopyLoader};
+use super::zero_copy::{AccountZeroCopy, AccountZeroCopyMut, HasLen};
 use crate::state::spot_market::{SpotBalance, SpotBalanceType};
 use crate::state::traits::Size;
 use crate::{impl_zero_copy_loader, validate};
 
 pub const AMM_MAP_PDA_SEED: &str = "AMM_MAP";
+pub const CONSITUENT_PDA_SEED: &str = "CONSTITUENT";
+pub const CONSTITUENT_TARGET_WEIGHT_PDA_SEED: &str = "CONSTITUENT_TARGET_WEIGHTS";
 
 #[cfg(test)]
 mod tests;
@@ -268,6 +268,10 @@ pub struct Constituent {
     pub padding: [u8; 16],
 }
 
+impl Size for Constituent {
+    const SIZE: usize = 108;
+}
+
 impl Constituent {
     /// Returns the full balance of the Constituent, the total of the amount in Constituent's token
     /// account and in Drift Borrow-Lend.
@@ -370,13 +374,13 @@ pub struct AmmConstituentMapping {
 }
 
 impl AmmConstituentMapping {
-    pub fn space(num_init_constituent_slots: usize) -> usize {
-        8 + 8 + 4 + num_init_constituent_slots * 24
+    pub fn space(num_constituents: usize) -> usize {
+        8 + 8 + 4 + num_constituents * 24
     }
 
     pub fn validate(&self) -> DriftResult<()> {
         validate!(
-            self.data.len() >= 1 && self.data.len() <= 128,
+            self.data.len() >= 0 && self.data.len() <= 128,
             ErrorCode::DefaultError,
             "Number of constituents len must be between 1 and 128"
         )?;
@@ -392,12 +396,9 @@ impl_zero_copy_loader!(
 );
 
 #[zero_copy]
-#[derive(Debug, BorshDeserialize, BorshSerialize)]
+#[derive(Debug, Default, BorshDeserialize, BorshSerialize)]
 #[repr(C)]
 pub struct WeightDatum {
-    pub constituent_index: u16,
-    pub padding: [u8; 6],
-    /// PERCENTAGE_PRECISION. The weights of the target weight matrix
     pub data: i64,
     pub last_slot: u64,
 }
@@ -423,6 +424,21 @@ impl HasLen for ConstituentTargetWeightsFixed {
 pub struct ConstituentTargetWeights {
     // PERCENTAGE_PRECISION. The weights of the target weight matrix. Updated async
     pub data: Vec<WeightDatum>,
+}
+
+impl ConstituentTargetWeights {
+    pub fn space(num_constituents: usize) -> usize {
+        8 + 8 + 4 + num_constituents * 16
+    }
+
+    pub fn validate(&self) -> DriftResult<()> {
+        validate!(
+            self.data.len() >= 0 && self.data.len() <= 128,
+            ErrorCode::DefaultError,
+            "Number of constituents len must be between 1 and 128"
+        )?;
+        Ok(())
+    }
 }
 
 impl_zero_copy_loader!(
@@ -458,13 +474,6 @@ impl<'a> AccountZeroCopy<'a, WeightDatum, ConstituentTargetWeightsFixed> {
             self.len()
         )?;
         let datum = self.get(constituent_index as u32);
-        validate!(
-            datum.constituent_index == constituent_index,
-            ErrorCode::InvalidConstituent,
-            "Invalid constituent_index = {}, ConstituentTargetWeights len = {}",
-            datum.constituent_index,
-            self.len()
-        )?;
         Ok(datum.data)
     }
 }
@@ -519,8 +528,6 @@ impl<'a> AccountZeroCopyMut<'a, WeightDatum, ConstituentTargetWeightsFixed> {
             }
 
             let cell = self.get_mut(i as u32);
-            cell.constituent_index = *constituent_index;
-            cell.padding = [0; 6];
             cell.data = target_weight as i64;
             cell.last_slot = slot;
         }

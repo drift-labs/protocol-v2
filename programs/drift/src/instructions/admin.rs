@@ -3,7 +3,10 @@ use std::mem::size_of;
 
 use crate::msg;
 use crate::signer::get_signer_seeds;
-use crate::state::lp_pool::{AmmConstituentDatum, AmmConstituentMapping, LPPool, AMM_MAP_PDA_SEED};
+use crate::state::lp_pool::{
+    AmmConstituentDatum, AmmConstituentMapping, Constituent, ConstituentTargetWeights, LPPool,
+    WeightDatum, AMM_MAP_PDA_SEED, CONSITUENT_PDA_SEED, CONSTITUENT_TARGET_WEIGHT_PDA_SEED,
+};
 use anchor_lang::prelude::*;
 use anchor_spl::metadata::{
     create_metadata_accounts_v3, mpl_token_metadata::types::DataV2, CreateMetadataAccountsV3,
@@ -4430,6 +4433,12 @@ pub fn handle_initialize_lp_pool(
         .resize_with(0 as usize, AmmConstituentDatum::default);
     amm_constituent_mapping.validate()?;
 
+    let constituent_target_weights = &mut ctx.accounts.constituent_target_weights;
+    constituent_target_weights
+        .data
+        .resize_with(0 as usize, WeightDatum::default);
+    constituent_target_weights.validate()?;
+
     Ok(())
 }
 pub fn handle_update_high_leverage_mode_config(
@@ -4474,6 +4483,33 @@ pub fn handle_update_protected_maker_mode_config(
     config.reduce_only = reduce_only as u8;
 
     config.validate()?;
+
+    Ok(())
+}
+
+pub fn handle_initialize_constituent<'info>(
+    ctx: Context<InitializeConstituent>,
+    spot_market_index: u16,
+    decimals: u8,
+    max_weight_deviation: i64,
+    swap_fee_min: i64,
+    swap_fee_max: i64,
+) -> Result<()> {
+    let mut constituent = ctx.accounts.constituent.load_init()?;
+
+    let constituent_target_weights = &mut ctx.accounts.constituent_target_weights;
+    let current_len = constituent_target_weights.data.len();
+
+    constituent_target_weights
+        .data
+        .resize_with((current_len + 1) as usize, WeightDatum::default);
+    constituent_target_weights.validate()?;
+
+    constituent.spot_market_index = spot_market_index;
+    constituent.decimals = decimals;
+    constituent.max_weight_deviation = max_weight_deviation;
+    constituent.swap_fee_min = swap_fee_min;
+    constituent.swap_fee_max = swap_fee_max;
 
     Ok(())
 }
@@ -5254,6 +5290,15 @@ pub struct InitializeLpPool<'info> {
     pub amm_constituent_mapping: Box<Account<'info, AmmConstituentMapping>>,
 
     #[account(
+        init,
+        seeds = [CONSTITUENT_TARGET_WEIGHT_PDA_SEED.as_ref(), lp_pool.key().as_ref()],
+        bump,
+        space = ConstituentTargetWeights::space(0 as usize),
+        payer = admin,
+    )]
+    pub constituent_target_weights: Box<Account<'info, ConstituentTargetWeights>>,
+
+    #[account(
         has_one = admin
     )]
     pub state: Box<Account<'info, State>>,
@@ -5262,5 +5307,44 @@ pub struct InitializeLpPool<'info> {
     pub token_metadata_program: Program<'info, Metadata>,
 
     pub rent: Sysvar<'info, Rent>,
+    pub system_program: Program<'info, System>,
+}
+
+#[derive(Accounts)]
+#[instruction(
+    lp_pool_name: [u8; 32],
+    spot_market_index: u16,
+)]
+pub struct InitializeConstituent<'info> {
+    #[account(mut)]
+    pub admin: Signer<'info>,
+
+    #[account(
+        seeds = [b"lp_pool", lp_pool_name.as_ref()],
+        bump,
+    )]
+    pub lp_pool: AccountLoader<'info, LPPool>,
+
+    #[account(
+        mut,
+        seeds = [CONSTITUENT_TARGET_WEIGHT_PDA_SEED.as_ref(), lp_pool.key().as_ref()],
+        bump,
+        realloc = ConstituentTargetWeights::space(constituent_target_weights.data.len() + 1 as usize),
+        realloc::payer = admin,
+        realloc::zero = false,
+    )]
+    pub constituent_target_weights: Box<Account<'info, ConstituentTargetWeights>>,
+
+    #[account(
+        init,
+        seeds = [CONSITUENT_PDA_SEED.as_ref(), lp_pool.key().as_ref(), spot_market_index.to_le_bytes().as_ref()],
+        bump,
+        space = Constituent::SIZE,
+        payer = admin,
+    )]
+    pub constituent: AccountLoader<'info, Constituent>,
+
+    #[account(mut)]
+    pub payer: Signer<'info>,
     pub system_program: Program<'info, System>,
 }

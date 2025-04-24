@@ -83,8 +83,7 @@ describe('LP Pool', () => {
 		await adminClient.subscribe();
 		await initializeQuoteSpotMarket(adminClient, usdcMint.publicKey);
 
-
-    const tx = await adminClient.initializeLpPool(
+		const tx = await adminClient.initializeLpPool(
 			lpPoolName,
 			tokenName,
 			tokenSymbol,
@@ -109,7 +108,10 @@ describe('LP Pool', () => {
 			program.programId,
 			lpPoolKey
 		);
-		const ammConstituentMap = await adminClient.program.account.ammConstituentMap.fetch(ammConstituentMapPublicKey);
+		const ammConstituentMap =
+			await adminClient.program.account.ammConstituentMap.fetch(
+				ammConstituentMapPublicKey
+			);
 		console.log(ammConstituentMap);
 	});
 });

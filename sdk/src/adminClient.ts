@@ -39,6 +39,7 @@ import {
 	getLpPoolMintPublicKey,
 	getLpPoolPublicKey,
 	getAmmConstituentMappingPublicKey,
+	getConstituentTargetWeightsPublicKey,
 } from './addresses/pda';
 import { squareRootBN } from './math/utils';
 import {
@@ -4229,11 +4230,12 @@ export class AdminClient extends DriftClient {
 			lpPool
 		);
 
-		const lpPoolAta = getAssociatedTokenAddressSync(
-			mint,
-			lpPool,
-			true
+		const constituentTargetWeights = getConstituentTargetWeightsPublicKey(
+			this.program.programId,
+			lpPool
 		);
+
+		const lpPoolAta = getAssociatedTokenAddressSync(mint, lpPool, true);
 
 		const createAtaIx = createAssociatedTokenAccountInstruction(
 			this.wallet.publicKey,
@@ -4258,6 +4260,7 @@ export class AdminClient extends DriftClient {
 						lpPool,
 						mint,
 						ammConstituentMapping,
+						constituentTargetWeights,
 						// tokenVault: lpPoolAta,
 						metadataAccount: metaplex.nfts().pdas().metadata({
 							mint,

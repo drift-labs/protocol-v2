@@ -57,7 +57,7 @@ mod tests {
             len: 1,
             ..ConstituentTargetWeightsFixed::default()
         });
-        let target_data = RefCell::new([0u8; 24]);
+        let target_data = RefCell::new([0u8; 16]);
         let mut target_zc_mut =
             AccountZeroCopyMut::<'_, WeightDatum, ConstituentTargetWeightsFixed> {
                 fixed: target_fixed.borrow_mut(),
@@ -120,7 +120,7 @@ mod tests {
             len: 1,
             ..ConstituentTargetWeightsFixed::default()
         });
-        let target_data = RefCell::new([0u8; 24]);
+        let target_data = RefCell::new([0u8; 16]);
         let mut target_zc_mut =
             AccountZeroCopyMut::<'_, WeightDatum, ConstituentTargetWeightsFixed> {
                 fixed: target_fixed.borrow_mut(),
@@ -194,7 +194,7 @@ mod tests {
             len: amm_mapping_data.len() as u32,
             ..ConstituentTargetWeightsFixed::default()
         });
-        let target_data = RefCell::new([0u8; 48]);
+        let target_data = RefCell::new([0u8; 32]);
         let mut target_zc_mut =
             AccountZeroCopyMut::<'_, WeightDatum, ConstituentTargetWeightsFixed> {
                 fixed: target_fixed.borrow_mut(),
@@ -260,7 +260,7 @@ mod tests {
             len: 1,
             ..ConstituentTargetWeightsFixed::default()
         });
-        let target_data = RefCell::new([0u8; 24]);
+        let target_data = RefCell::new([0u8; 16]);
         let mut target_zc_mut =
             AccountZeroCopyMut::<'_, WeightDatum, ConstituentTargetWeightsFixed> {
                 fixed: target_fixed.borrow_mut(),
@@ -323,7 +323,7 @@ mod tests {
             len: 1,
             ..ConstituentTargetWeightsFixed::default()
         });
-        let target_data = RefCell::new([0u8; 24]);
+        let target_data = RefCell::new([0u8; 16]);
         let mut target_zc_mut =
             AccountZeroCopyMut::<'_, WeightDatum, ConstituentTargetWeightsFixed> {
                 fixed: target_fixed.borrow_mut(),
