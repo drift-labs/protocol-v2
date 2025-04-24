@@ -273,4 +273,33 @@ describe('LP Pool', () => {
 			expect(e.message).to.contain('0x18ab');
 		}
 	});
+
+	it('can update constituent target weights', async () => {
+		const ammConstituentMappingPublicKey = getAmmConstituentMappingPublicKey(
+			program.programId,
+			lpPoolKey
+		);
+
+		const ammMapping =
+			(await adminClient.program.account.ammConstituentMapping.fetch(
+				ammConstituentMappingPublicKey
+			)) as AmmConstituentMapping;
+
+		await adminClient.updateDlpConstituentTargetWeights(
+			encodeName(lpPoolName),
+			[0],
+			ammMapping
+		);
+		const constituentTargetWeightsPublicKey =
+			getConstituentTargetWeightsPublicKey(program.programId, lpPoolKey);
+		const constituentTargetWeights =
+			(await adminClient.program.account.constituentTargetWeights.fetch(
+				constituentTargetWeightsPublicKey
+			)) as ConstituentTargetWeights;
+		expect(constituentTargetWeights).to.not.be.null;
+		assert(constituentTargetWeights.weights.length == 1);
+		expect(constituentTargetWeights.weights[0].weight.toNumber()).to.not.equal(
+			0
+		);
+	});
 });

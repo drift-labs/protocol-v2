@@ -637,6 +637,8 @@ pub enum ErrorCode {
     InvalidConstituent,
     #[msg("Invalid Amm Constituent Mapping argument")]
     InvalidAmmConstituentMappingArgument,
+    #[msg("Invalid update constituent update target weights argument")]
+    InvalidUpdateConstituentTargetWeightsArgument,
 }
 
 #[macro_export]
