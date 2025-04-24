@@ -7021,22 +7021,6 @@
           }
         },
         {
-          "name": "tokenName",
-          "type": "string"
-        },
-        {
-          "name": "tokenSymbol",
-          "type": "string"
-        },
-        {
-          "name": "tokenUri",
-          "type": "string"
-        },
-        {
-          "name": "tokenDecimals",
-          "type": "u8"
-        },
-        {
           "name": "maxAum",
           "type": "u64"
         }

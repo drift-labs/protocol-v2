@@ -48,7 +48,6 @@ import {
 	createAssociatedTokenAccountInstruction,
 	getAssociatedTokenAddressSync,
 	TOKEN_PROGRAM_ID,
-	TOKEN_2022_PROGRAM_ID,
 } from '@solana/spl-token';
 import { DriftClient } from './driftClient';
 import {
@@ -4193,22 +4192,10 @@ export class AdminClient extends DriftClient {
 
 	public async initializeLpPool(
 		name: string,
-		tokenName: string,
-		tokenSymbol: string,
-		tokenUri: string,
-		tokenDecimals: number,
 		maxAum: BN,
 		mint: Keypair
 	): Promise<TransactionSignature> {
-		const ixs = await this.getInitializeLpPoolIx(
-			name,
-			tokenName,
-			tokenSymbol,
-			tokenUri,
-			tokenDecimals,
-			maxAum,
-			mint
-		);
+		const ixs = await this.getInitializeLpPoolIx(name, maxAum, mint);
 		const tx = await this.buildTransaction(ixs);
 		const { txSig } = await this.sendTransaction(tx, [mint]);
 		return txSig;
@@ -4216,10 +4203,6 @@ export class AdminClient extends DriftClient {
 
 	public async getInitializeLpPoolIx(
 		name: string,
-		tokenName: string,
-		tokenSymbol: string,
-		tokenUri: string,
-		tokenDecimals: number,
 		maxAum: BN,
 		mint: Keypair
 	): Promise<TransactionInstruction[]> {
@@ -4236,41 +4219,33 @@ export class AdminClient extends DriftClient {
 			mint.publicKey,
 			lpPool,
 			true,
-			TOKEN_2022_PROGRAM_ID
+			TOKEN_PROGRAM_ID
 		);
 		const createAtaIx = createAssociatedTokenAccountInstruction(
 			this.wallet.publicKey,
 			lpPoolAta,
 			lpPool,
 			mint.publicKey,
-			TOKEN_2022_PROGRAM_ID
+			TOKEN_PROGRAM_ID
 		);
 
 		const state = await this.getStatePublicKey();
 
 		return [
-			this.program.instruction.initializeLpPool(
-				encodeName(name),
-				tokenName,
-				tokenSymbol,
-				tokenUri,
-				tokenDecimals,
-				maxAum,
-				{
-					accounts: {
-						admin: this.wallet.publicKey,
-						lpPool,
-						ammConstituentMapping,
-						constituentTargetWeights,
-						mint: mint.publicKey,
-						state,
-						tokenProgram: TOKEN_2022_PROGRAM_ID,
-						rent: SYSVAR_RENT_PUBKEY,
-						systemProgram: SystemProgram.programId,
-					},
-					signers: [mint],
-				}
-			),
+			this.program.instruction.initializeLpPool(encodeName(name), maxAum, {
+				accounts: {
+					admin: this.wallet.publicKey,
+					lpPool,
+					ammConstituentMapping,
+					constituentTargetWeights,
+					mint: mint.publicKey,
+					state,
+					tokenProgram: TOKEN_PROGRAM_ID,
+					rent: SYSVAR_RENT_PUBKEY,
+					systemProgram: SystemProgram.programId,
+				},
+				signers: [mint],
+			}),
 			createAtaIx,
 		];
 	}

@@ -4,13 +4,7 @@ import { expect, assert } from 'chai';
 import { Program } from '@coral-xyz/anchor';
 
 import { Keypair, PublicKey } from '@solana/web3.js';
-import { unpack } from '@solana/spl-token-metadata';
-import {
-	TOKEN_2022_PROGRAM_ID,
-	unpackMint,
-	ExtensionType,
-	getExtensionData,
-} from '@solana/spl-token';
+import { TOKEN_PROGRAM_ID, getMint } from '@solana/spl-token';
 
 import {
 	BN,
@@ -56,9 +50,6 @@ describe('LP Pool', () => {
 	let solUsd: PublicKey;
 
 	const lpPoolName = 'test pool 1';
-	const tokenName = 'test pool token';
-	const tokenSymbol = 'DLP-1';
-	const tokenUri = 'https://token.token.token.gov';
 	const tokenDecimals = 6;
 	const lpPoolKey = getLpPoolPublicKey(
 		program.programId,
@@ -139,10 +130,6 @@ describe('LP Pool', () => {
 
 		await adminClient.initializeLpPool(
 			lpPoolName,
-			tokenName,
-			tokenSymbol,
-			tokenUri,
-			tokenDecimals,
 			new BN(100_000_000).mul(QUOTE_PRECISION),
 			Keypair.generate()
 		);
@@ -178,24 +165,14 @@ describe('LP Pool', () => {
 		expect(constituentTargetWeights).to.not.be.null;
 		assert(constituentTargetWeights.weights.length == 0);
 
-		// check mint and metadata created correctly
-		const mintAccountInfo =
-			await bankrunContextWrapper.connection.getAccountInfo(
-				lpPool.mint as PublicKey
-			);
-		const mintData = unpackMint(
-			lpPool.mint,
-			mintAccountInfo,
-			TOKEN_2022_PROGRAM_ID
+		// check mint created correctly
+		const mintInfo = await getMint(
+			bankrunContextWrapper.connection.toConnection(),
+			lpPool.mint as PublicKey
 		);
-		const data = getExtensionData(
-			ExtensionType.TokenMetadata,
-			mintData.tlvData
-		);
-		const tokenMetadata = unpack(data);
-		expect(tokenMetadata.name).to.equal(tokenName);
-		expect(tokenMetadata.symbol).to.equal(tokenSymbol);
-		expect(tokenMetadata.uri).to.equal(tokenUri);
+		expect(mintInfo.decimals).to.equal(tokenDecimals);
+		expect(Number(mintInfo.supply)).to.equal(0);
+		expect(mintInfo.mintAuthority!.toBase58()).to.equal(lpPoolKey.toBase58());
 	});
 
 	it('can add constituent to LP Pool', async () => {
