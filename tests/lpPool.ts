@@ -19,6 +19,7 @@ import {
 	getLpPoolPublicKey,
 	getAmmConstituentMappingPublicKey,
 	encodeName,
+	getConstituentTargetWeightsPublicKey,
 } from '../sdk/src';
 
 import { initializeQuoteSpotMarket, mockUSDCMint } from './testHelpers';
@@ -116,7 +117,7 @@ describe('LP Pool', () => {
 		// check LpPool created
 		const lpPool = await adminClient.program.account.lpPool.fetch(lpPoolKey);
 
-		// Check amm constituent map exists and has length 0
+		// Check amm constituent map exists
 		const ammConstituentMapPublicKey = getAmmConstituentMappingPublicKey(
 			program.programId,
 			lpPoolKey
@@ -127,6 +128,18 @@ describe('LP Pool', () => {
 			);
 		expect(ammConstituentMap).to.not.be.null;
 
+		// check constituent target weights exists
+		const constituentTargetWeightsPublicKey = getConstituentTargetWeightsPublicKey(
+			program.programId,
+			lpPoolKey
+		);
+		const constituentTargetWeights =
+			await adminClient.program.account.constituentTargetWeights.fetch(
+				constituentTargetWeightsPublicKey
+			);
+		expect(constituentTargetWeights).to.not.be.null;
+
+		// check mint and metadata created correctly
 		const mintAccountInfo =
 			await bankrunContextWrapper.connection.getAccountInfo(
 				lpPool.mint as PublicKey
