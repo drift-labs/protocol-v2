@@ -1,4 +1,5 @@
 import {
+	Keypair,
 	PublicKey,
 	SystemProgram,
 	SYSVAR_RENT_PUBKEY,
@@ -36,7 +37,6 @@ import {
 	getPythLazerOraclePublicKey,
 	getProtectedMakerModeConfigPublicKey,
 	getFuelOverflowAccountPublicKey,
-	getLpPoolMintPublicKey,
 	getLpPoolPublicKey,
 	getAmmConstituentMappingPublicKey,
 	getConstituentTargetWeightsPublicKey,
@@ -46,6 +46,7 @@ import {
 	createAssociatedTokenAccountInstruction,
 	getAssociatedTokenAddressSync,
 	TOKEN_PROGRAM_ID,
+	TOKEN_2022_PROGRAM_ID,
 } from '@solana/spl-token';
 import { DriftClient } from './driftClient';
 import {
@@ -62,8 +63,6 @@ import { PROGRAM_ID as PHOENIX_PROGRAM_ID } from '@ellipsis-labs/phoenix-sdk';
 import { DRIFT_ORACLE_RECEIVER_ID } from './config';
 import { getFeedIdUint8Array } from './util/pythOracleUtils';
 import { FUEL_RESET_LOG_ACCOUNT } from './constants/txConstants';
-
-import { Metaplex } from '@metaplex-foundation/js';
 
 const OPENBOOK_PROGRAM_ID = new PublicKey(
 	'opnb2LAfJYbRMAHHvqjCwQxanZn7ReEHp1k81EohpZb'
@@ -4196,7 +4195,8 @@ export class AdminClient extends DriftClient {
 		tokenSymbol: string,
 		tokenUri: string,
 		tokenDecimals: number,
-		maxAum: BN
+		maxAum: BN,
+		mint: Keypair
 	): Promise<TransactionSignature> {
 		const ixs = await this.getInitializeLpPoolIx(
 			name,
@@ -4204,10 +4204,11 @@ export class AdminClient extends DriftClient {
 			tokenSymbol,
 			tokenUri,
 			tokenDecimals,
-			maxAum
+			maxAum,
+			mint
 		);
 		const tx = await this.buildTransaction(ixs);
-		const { txSig } = await this.sendTransaction(tx);
+		const { txSig } = await this.sendTransaction(tx, [mint]);
 		return txSig;
 	}
 
@@ -4217,38 +4218,37 @@ export class AdminClient extends DriftClient {
 		tokenSymbol: string,
 		tokenUri: string,
 		tokenDecimals: number,
-		maxAum: BN
+		maxAum: BN,
+		mint: Keypair
 	): Promise<TransactionInstruction[]> {
-		const metaplex = new Metaplex(this.connection, { cluster: 'custom' });
-
-		const lpPool = getLpPoolPublicKey(this.program.programId, name);
-
-		const mint = getLpPoolMintPublicKey(this.program.programId, lpPool);
-
+		const lpPool = getLpPoolPublicKey(this.program.programId, encodeName(name));
 		const ammConstituentMapping = getAmmConstituentMappingPublicKey(
 			this.program.programId,
 			lpPool
 		);
-
 		const constituentTargetWeights = getConstituentTargetWeightsPublicKey(
 			this.program.programId,
 			lpPool
 		);
-
-		const lpPoolAta = getAssociatedTokenAddressSync(mint, lpPool, true);
-
+		const lpPoolAta = getAssociatedTokenAddressSync(
+			mint.publicKey,
+			lpPool,
+			true,
+			TOKEN_2022_PROGRAM_ID
+		);
 		const createAtaIx = createAssociatedTokenAccountInstruction(
 			this.wallet.publicKey,
 			lpPoolAta,
 			lpPool,
-			mint
+			mint.publicKey,
+			TOKEN_2022_PROGRAM_ID
 		);
 
 		const state = await this.getStatePublicKey();
 
 		return [
 			this.program.instruction.initializeLpPool(
-				Buffer.from(name),
+				encodeName(name),
 				tokenName,
 				tokenSymbol,
 				tokenUri,
@@ -4258,20 +4258,15 @@ export class AdminClient extends DriftClient {
 					accounts: {
 						admin: this.wallet.publicKey,
 						lpPool,
-						mint,
 						ammConstituentMapping,
 						constituentTargetWeights,
-						// tokenVault: lpPoolAta,
-						metadataAccount: metaplex.nfts().pdas().metadata({
-							mint,
-						}),
+						mint: mint.publicKey,
 						state,
-						tokenProgram: TOKEN_PROGRAM_ID,
-						tokenMetadataProgram: metaplex.programs().getTokenMetadata()
-							.address,
+						tokenProgram: TOKEN_2022_PROGRAM_ID,
 						rent: SYSVAR_RENT_PUBKEY,
 						systemProgram: SystemProgram.programId,
 					},
+					signers: [mint],
 				}
 			),
 			createAtaIx,
