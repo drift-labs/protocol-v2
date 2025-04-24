@@ -7,8 +7,9 @@ import {
 	Order,
 	PositionDirection,
 	ProtectedMakerParams,
+	ContractTier
 } from '../types';
-import { ZERO, TWO, ONE } from '../constants/numericConstants';
+import { ZERO, TWO, ONE, QUOTE_PRECISION, PRICE_PRECISION, PERCENTAGE_PRECISION } from '../constants/numericConstants';
 import { BN } from '@coral-xyz/anchor';
 import { OraclePriceData } from '../oracles/types';
 import {
@@ -386,4 +387,75 @@ export function isTakingOrder(order: Order, slot: number): boolean {
 const FLAG_IS_SIGNED_MSG = 0x01;
 export function isSignedMsgOrder(order: Order): boolean {
 	return (order.bitFlags & FLAG_IS_SIGNED_MSG) !== 0;
+}
+
+export function getTriggerAuctionStartPrice(
+	perpMarket: PerpMarketAccount,
+    direction: PositionDirection,
+    oraclePrice: BN,
+): BN {
+	const startBuffer = (isVariant(perpMarket.contractTier, "a") ||
+	isVariant(perpMarket.contractTier, "b"))
+	? new BN(-500)
+	: new BN(-3500)
+
+	// detect TWAP mismatch or low volume
+	const timeDiff = perpMarket.amm.historicalOracleData.lastOraclePriceTwapTs
+	.sub(perpMarket.amm.lastMarkPriceTwapTs)
+	.abs()
+	const twapMismatch =
+	timeDiff.gte(new BN(60)) ||
+	perpMarket.amm.volume24H.lte(new BN(100_000).mul(QUOTE_PRECISION))
+
+	// default offset
+	let baselineStartOffset = new BN(0)
+
+	if (twapMismatch) {
+	const priceDivisor = (isVariant(perpMarket.contractTier, "a") ||
+	isVariant(perpMarket.contractTier, "b"))
+	? 500
+	: 100
+
+	// BN.divn does integer division (floored toward zero)
+	const twapOffset = direction === PositionDirection.LONG
+	? perpMarket.amm.lastBidPriceTwap.divn(priceDivisor)
+	: perpMarket.amm.lastAskPriceTwap.divn(priceDivisor)
+
+	// apply sign
+	baselineStartOffset = direction === PositionDirection.LONG
+	? twapOffset
+	: twapOffset.neg()
+
+	const slowTwap = direction === PositionDirection.LONG
+	? perpMarket.amm.lastBidPriceTwap
+	: perpMarket.amm.lastAskPriceTwap
+	const fastMark = perpMarket.amm.lastMarkPriceTwap5Min
+	const slowOracle = perpMarket.amm.historicalOracleData.lastOraclePriceTwap
+	const fastOracle = perpMarket.amm.historicalOracleData.lastOraclePriceTwap5Min
+
+	const offsetSlow = slowTwap.sub(slowOracle)
+	const offsetFast = fastMark.sub(fastOracle)
+
+	const spread = new BN(
+	direction === PositionDirection.LONG
+	? perpMarket.amm.longSpread
+	: perpMarket.amm.shortSpread
+	)
+	.mul(slowTwap)
+	.div(PRICE_PRECISION.muln(10))
+
+	baselineStartOffset = direction === PositionDirection.LONG
+	? BN.min(offsetSlow.add(spread), offsetFast.sub(spread))
+	: BN.max(offsetSlow.sub(spread), offsetFast.add(spread))
+	}
+
+	const startBufferPrice = oraclePrice
+	.mul(startBuffer)
+	.div(PERCENTAGE_PRECISION)
+
+	const auctionStartPrice = direction === PositionDirection.LONG
+	? oraclePrice.add(baselineStartOffset).sub(startBufferPrice)
+	: oraclePrice.add(baselineStartOffset).add(startBufferPrice)
+
+	return auctionStartPrice
 }
