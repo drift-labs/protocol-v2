@@ -1,26 +1,27 @@
 import * as anchor from '@coral-xyz/anchor';
-import { assert } from 'chai';
+import { expect } from 'chai';
 
 import { Program } from '@coral-xyz/anchor';
 
-import { AccountInfo, Keypair, PublicKey } from '@solana/web3.js';
+import { Keypair, PublicKey } from '@solana/web3.js';
+import { unpack } from '@solana/spl-token-metadata';
+import {
+	TOKEN_2022_PROGRAM_ID,
+	unpackMint,
+	ExtensionType,
+	getExtensionData,
+} from '@solana/spl-token';
 
 import {
 	BN,
 	TestClient,
 	QUOTE_PRECISION,
-	UserStatsAccount,
-	parseLogs,
 	getLpPoolPublicKey,
 	getAmmConstituentMappingPublicKey,
+	encodeName,
 } from '../sdk/src';
 
-import {
-	initializeQuoteSpotMarket,
-	mockUSDCMint,
-	mockUserUSDCAccount,
-	printTxLogs,
-} from './testHelpers';
+import { initializeQuoteSpotMarket, mockUSDCMint } from './testHelpers';
 import { startAnchor } from 'solana-bankrun';
 import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
 import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
@@ -34,17 +35,30 @@ describe('LP Pool', () => {
 
 	let adminClient: TestClient;
 	let usdcMint;
-	const usdcAmount = new BN(100 * 10 ** 6);
 
 	const lpPoolName = 'test pool 1';
 	const tokenName = 'test pool token';
 	const tokenSymbol = 'DLP-1';
 	const tokenUri = 'https://token.token.token.gov';
 	const tokenDecimals = 6;
-	const lpPoolKey = getLpPoolPublicKey(program.programId, lpPoolName);
+	const lpPoolKey = getLpPoolPublicKey(
+		program.programId,
+		encodeName(lpPoolName)
+	);
 
 	before(async () => {
-		const context = await startAnchor('', [], []);
+		const context = await startAnchor(
+			'',
+			[
+				{
+					name: 'token_2022',
+					programId: new PublicKey(
+						'TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb'
+					),
+				},
+			],
+			[]
+		);
 
 		// @ts-ignore
 		bankrunContextWrapper = new BankrunContextWrapper(context);
@@ -83,15 +97,15 @@ describe('LP Pool', () => {
 		await adminClient.subscribe();
 		await initializeQuoteSpotMarket(adminClient, usdcMint.publicKey);
 
-		const tx = await adminClient.initializeLpPool(
+		await adminClient.initializeLpPool(
 			lpPoolName,
 			tokenName,
 			tokenSymbol,
 			tokenUri,
 			tokenDecimals,
-			new BN(100_000_000).mul(QUOTE_PRECISION)
+			new BN(100_000_000).mul(QUOTE_PRECISION),
+			Keypair.generate()
 		);
-		await printTxLogs(bankrunContextWrapper.connection.toConnection(), tx);
 	});
 
 	after(async () => {
@@ -101,17 +115,34 @@ describe('LP Pool', () => {
 	it('can create a new LP Pool', async () => {
 		// check LpPool created
 		const lpPool = await adminClient.program.account.lpPool.fetch(lpPoolKey);
-		console.log(lpPool);
 
 		// Check amm constituent map exists and has length 0
-		const ammConstituentMapPublicKey = await getAmmConstituentMappingPublicKey(
+		const ammConstituentMapPublicKey = getAmmConstituentMappingPublicKey(
 			program.programId,
 			lpPoolKey
 		);
 		const ammConstituentMap =
-			await adminClient.program.account.ammConstituentMap.fetch(
+			await adminClient.program.account.ammConstituentMapping.fetch(
 				ammConstituentMapPublicKey
 			);
-		console.log(ammConstituentMap);
+		expect(ammConstituentMap).to.not.be.null;
+
+		const mintAccountInfo =
+			await bankrunContextWrapper.connection.getAccountInfo(
+				lpPool.mint as PublicKey
+			);
+		const mintData = unpackMint(
+			lpPool.mint,
+			mintAccountInfo,
+			TOKEN_2022_PROGRAM_ID
+		);
+		const data = getExtensionData(
+			ExtensionType.TokenMetadata,
+			mintData.tlvData
+		);
+		const tokenMetadata = unpack(data);
+		expect(tokenMetadata.name).to.equal(tokenName);
+		expect(tokenMetadata.symbol).to.equal(tokenSymbol);
+		expect(tokenMetadata.uri).to.equal(tokenUri);
 	});
 });

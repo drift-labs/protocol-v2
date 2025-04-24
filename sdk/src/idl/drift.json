@@ -6977,15 +6977,15 @@
         {
           "name": "mint",
           "isMut": true,
-          "isSigner": false
+          "isSigner": true
         },
         {
-          "name": "metadataAccount",
+          "name": "ammConstituentMapping",
           "isMut": true,
           "isSigner": false
         },
         {
-          "name": "ammConstituentMapping",
+          "name": "constituentTargetWeights",
           "isMut": true,
           "isSigner": false
         },
@@ -6996,11 +6996,6 @@
         },
         {
           "name": "tokenProgram",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "tokenMetadataProgram",
           "isMut": false,
           "isSigner": false
         },
@@ -7600,28 +7595,32 @@
             "type": "u16"
           },
           {
+            "name": "decimals",
+            "type": "u8"
+          },
+          {
             "name": "maxWeightDeviation",
             "docs": [
               "max deviation from target_weight allowed for the constituent",
               "precision: PERCENTAGE_PRECISION"
             ],
-            "type": "u64"
+            "type": "i64"
           },
           {
             "name": "swapFeeMin",
             "docs": [
-              "min fee charged on swaps to this constituent",
+              "min fee charged on swaps to/from this constituent",
               "precision: PERCENTAGE_PRECISION"
             ],
-            "type": "u64"
+            "type": "i64"
           },
           {
-            "name": "maxFeePremium",
+            "name": "swapFeeMax",
             "docs": [
-              "max premium to be applied to swap_fee_min when the constituent is at max deviation from target_weight",
+              "max fee charged on swaps to/from this constituent",
               "precision: PERCENTAGE_PRECISION"
             ],
-            "type": "u64"
+            "type": "i64"
           },
           {
             "name": "spotBalance",
@@ -9652,23 +9651,7 @@
         "kind": "struct",
         "fields": [
           {
-            "name": "constituentIndex",
-            "type": "u16"
-          },
-          {
-            "name": "padding",
-            "type": {
-              "array": [
-                "u8",
-                6
-              ]
-            }
-          },
-          {
             "name": "data",
-            "docs": [
-              "PERCENTAGE_PRECISION. The weights of the target weight matrix"
-            ],
             "type": "i64"
           },
           {
@@ -15532,6 +15515,16 @@
       "code": 6313,
       "name": "InvalidSignedMsgUserOrdersResize",
       "msg": "Invalid SignedMsgUserOrders resize"
+    },
+    {
+      "code": 6314,
+      "name": "InvalidConstituent",
+      "msg": "Invalid Constituent"
+    },
+    {
+      "code": 6315,
+      "name": "MismatchAmmConstituentMappingAndConstituentTargetWeights",
+      "msg": "Misatch amm mapping and constituent target weights"
     }
   ],
   "metadata": {

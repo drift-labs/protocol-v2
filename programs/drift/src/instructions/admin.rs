@@ -8,17 +8,24 @@ use crate::state::lp_pool::{
     WeightDatum, AMM_MAP_PDA_SEED, CONSITUENT_PDA_SEED, CONSTITUENT_TARGET_WEIGHT_PDA_SEED,
 };
 use anchor_lang::prelude::*;
-use anchor_spl::metadata::{
-    create_metadata_accounts_v3, mpl_token_metadata::types::DataV2, CreateMetadataAccountsV3,
-    Metadata,
-};
 use anchor_spl::token::Token;
+use anchor_spl::token_2022::spl_token_2022::{
+    extension::{metadata_pointer::instruction as mp_ix, ExtensionType},
+    instruction as token2022_ix,
+    state::Mint as Mint2022,
+    ID as TOKEN_2022_ID,
+};
 use anchor_spl::token_2022::Token2022;
+use anchor_spl::token_interface::spl_token_2022::extension::{
+    BaseStateWithExtensions, StateWithExtensions,
+};
 use anchor_spl::token_interface::{Mint, TokenAccount, TokenInterface};
 use phoenix::quantities::WrapperU64;
 use pyth_solana_receiver_sdk::cpi::accounts::InitPriceUpdate;
 use pyth_solana_receiver_sdk::program::PythSolanaReceiver;
 use serum_dex::state::ToAlignedBytes;
+use spl_token_metadata_interface::instruction::initialize as initialize_metadata_ix;
+use spl_token_metadata_interface::state::TokenMetadata;
 
 use crate::controller::token::close_vault;
 use crate::error::ErrorCode;
@@ -4374,17 +4381,20 @@ pub fn handle_initialize_lp_pool(
     token_name: String,
     token_symbol: String,
     token_uri: String,
-    _token_decimals: u8,
+    token_decimals: u8,
     max_aum: u64,
 ) -> Result<()> {
     let mut lp_pool = ctx.accounts.lp_pool.load_init()?;
     let state = &mut ctx.accounts.state;
+    let mint = ctx.accounts.mint.key();
+    let mint_authority = ctx.accounts.lp_pool.key();
+    let lp_pool_seeds = &[b"lp_pool" as &[u8], name.as_ref(), &[ctx.bumps.lp_pool]];
+    let mint_authority_signer = &[&lp_pool_seeds[..]];
 
     *lp_pool = LPPool {
         name,
         pubkey: ctx.accounts.lp_pool.key(),
-        mint: ctx.accounts.mint.key(),
-        // token_vault: ctx.accounts.token_vault.key(),
+        mint,
         constituents: 0,
         max_aum,
         last_aum: 0,
@@ -4396,35 +4406,111 @@ pub fn handle_initialize_lp_pool(
         _padding: [0; 6],
     };
 
-    let signature_seeds = get_signer_seeds(&state.signer_nonce);
-    let signers = &[&signature_seeds[..]];
+    drop(lp_pool);
 
-    create_metadata_accounts_v3(
-        CpiContext::new_with_signer(
-            ctx.accounts.token_metadata_program.to_account_info(),
-            CreateMetadataAccountsV3 {
-                metadata: ctx.accounts.metadata_account.to_account_info(),
-                mint: ctx.accounts.mint.to_account_info(),
-                mint_authority: ctx.accounts.lp_pool.to_account_info(),
-                update_authority: ctx.accounts.lp_pool.to_account_info(),
-                payer: ctx.accounts.admin.to_account_info(),
-                system_program: ctx.accounts.system_program.to_account_info(),
-                rent: ctx.accounts.rent.to_account_info(),
-            },
-            signers,
+    // 1) allocate space for mint account
+    let space =
+        ExtensionType::try_calculate_account_len::<Mint2022>(&[ExtensionType::MetadataPointer])?;
+    let lamports = Rent::get()?.minimum_balance(space);
+
+    anchor_lang::solana_program::program::invoke(
+        &anchor_lang::solana_program::system_instruction::create_account(
+            &ctx.accounts.admin.key(),
+            &mint,
+            lamports,
+            space as u64,
+            &TOKEN_2022_ID,
         ),
-        DataV2 {
-            name: token_name,
-            symbol: token_symbol,
-            uri: token_uri,
-            seller_fee_basis_points: 0,
-            creators: None,
-            collection: None,
-            uses: None,
-        },
-        false, // Is mutable
-        true,  // Update authority is signer
-        None,  // Collection details
+        &[
+            ctx.accounts.admin.to_account_info(),
+            ctx.accounts.mint.to_account_info(),
+            ctx.accounts.token_program.to_account_info(),
+            ctx.accounts.system_program.to_account_info(),
+        ],
+    )?;
+
+    // 2) init metadata pointer extension
+    let ix = mp_ix::initialize(
+        &TOKEN_2022_ID,
+        &mint,
+        Some(ctx.accounts.admin.key()),
+        Some(mint), // self reference since metadata is on the mint
+    )?;
+    anchor_lang::solana_program::program::invoke(
+        &ix,
+        &[
+            ctx.accounts.mint.to_account_info(),
+            ctx.accounts.admin.to_account_info(),
+        ],
+        // signers,
+    )?;
+
+    // 3) init mint account
+    let ix = token2022_ix::initialize_mint2(
+        &TOKEN_2022_ID,
+        &mint,
+        &mint_authority,
+        None, // no freeze auth
+        token_decimals,
+    )?;
+    anchor_lang::solana_program::program::invoke_signed(
+        &ix,
+        &[
+            ctx.accounts.mint.to_account_info(),
+            ctx.accounts.lp_pool.to_account_info(),
+            ctx.accounts.token_program.to_account_info(),
+        ],
+        mint_authority_signer,
+    )?;
+
+    // 4) ensure mint account has enough rent for metadata extension
+    let metadata = TokenMetadata {
+        name: token_name,
+        symbol: token_symbol,
+        uri: token_uri,
+        ..Default::default()
+    };
+    let mint_data = ctx.accounts.mint.try_borrow_data()?;
+    let mint_unpacked = StateWithExtensions::<Mint2022>::unpack(&mint_data)?;
+    let new_account_len = mint_unpacked
+        .try_get_new_account_len::<spl_token_metadata_interface::state::TokenMetadata>(&metadata)?;
+    let new_rent_exempt_minimum = Rent::get()?.minimum_balance(new_account_len);
+    let additional_rent = new_rent_exempt_minimum.saturating_sub(ctx.accounts.mint.lamports());
+    drop(mint_data);
+
+    anchor_lang::solana_program::program::invoke(
+        &anchor_lang::solana_program::system_instruction::transfer(
+            ctx.accounts.admin.key,
+            &mint,
+            additional_rent,
+        ),
+        &[
+            ctx.accounts.admin.to_account_info(),
+            ctx.accounts.mint.to_account_info(),
+            ctx.accounts.system_program.to_account_info(),
+        ],
+    )?;
+
+    // 5) write metadata info
+    let ix = initialize_metadata_ix(
+        &TOKEN_2022_ID,
+        &mint,
+        &ctx.accounts.admin.key(),
+        &mint,
+        &mint_authority,
+        metadata.name,
+        metadata.symbol,
+        metadata.uri,
+    );
+
+    anchor_lang::solana_program::program::invoke_signed(
+        &ix,
+        &[
+            ctx.accounts.mint.to_account_info(),
+            ctx.accounts.admin.to_account_info(),
+            ctx.accounts.lp_pool.to_account_info(),
+        ],
+        mint_authority_signer,
     )?;
 
     let amm_constituent_mapping = &mut ctx.accounts.amm_constituent_mapping;
@@ -5256,29 +5342,10 @@ pub struct InitializeLpPool<'info> {
         payer = admin
     )]
     pub lp_pool: AccountLoader<'info, LPPool>,
-    #[account(
-        init,
-        seeds = [b"mint", lp_pool.key().as_ref()],
-        bump,
-        payer = admin,
-        mint::decimals = token_decimals,
-        mint::authority = lp_pool.key(),
-        mint::freeze_authority = lp_pool.key(),
-    )]
-    pub mint: InterfaceAccount<'info, Mint>,
-    // #[account(
-    //     token::authority = lp_pool.key(),
-    //     token::mint = mint.key()
-    // )]
-    // pub token_vault: InterfaceAccount<'info, TokenAccount>,
-    #[account(
-        mut,
-        seeds = [b"metadata", token_metadata_program.key().as_ref(), mint.key().as_ref()],
-        bump,
-        seeds::program = token_metadata_program.key(),
-    )]
-    /// CHECK: Validate address by deriving pda
-    pub metadata_account: UncheckedAccount<'info>,
+
+    #[account(mut)]
+    /// CHECK: account created in ix
+    pub mint: Signer<'info>,
 
     #[account(
         init,
@@ -5303,8 +5370,7 @@ pub struct InitializeLpPool<'info> {
     )]
     pub state: Box<Account<'info, State>>,
 
-    pub token_program: Program<'info, Token>,
-    pub token_metadata_program: Program<'info, Metadata>,
+    pub token_program: Program<'info, Token2022>,
 
     pub rent: Sysvar<'info, Rent>,
     pub system_program: Program<'info, System>,
