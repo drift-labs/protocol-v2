@@ -404,8 +404,39 @@ export function getAmmConstituentMappingPublicKey(
 	programId: PublicKey,
 	lpPoolPublicKey: PublicKey
 ): PublicKey {
-	return PublicKey.findProgramAddressSync([
-		Buffer.from(anchor.utils.bytes.utf8.encode('AMM_MAP')),
-		lpPoolPublicKey.toBuffer(),
-	], programId)[0];
+	return PublicKey.findProgramAddressSync(
+		[
+			Buffer.from(anchor.utils.bytes.utf8.encode('AMM_MAP')),
+			lpPoolPublicKey.toBuffer(),
+		],
+		programId
+	)[0];
+}
+
+export function getConstituentTargetWeightsPublicKey(
+	programId: PublicKey,
+	lpPoolPublicKey: PublicKey
+): PublicKey {
+	return PublicKey.findProgramAddressSync(
+		[
+			Buffer.from(anchor.utils.bytes.utf8.encode('CONSTITUENT_TARGET_WEIGHTS')),
+			lpPoolPublicKey.toBuffer(),
+		],
+		programId
+	)[0];
+}
+
+export function getConstituentPublicKey(
+	programId: PublicKey,
+	lpPoolPublicKey: PublicKey,
+	spotMarketIndex: number
+): PublicKey {
+	return PublicKey.findProgramAddressSync(
+		[
+			Buffer.from(anchor.utils.bytes.utf8.encode('CONSTITUENT')),
+			lpPoolPublicKey.toBuffer(),
+			new anchor.BN(spotMarketIndex).toArrayLike(Buffer, 'le', 2),
+		],
+		programId
+	)[0];
 }
