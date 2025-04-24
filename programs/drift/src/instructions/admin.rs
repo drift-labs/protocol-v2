@@ -4600,14 +4600,37 @@ pub fn handle_initialize_constituent<'info>(
     Ok(())
 }
 
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, Default)]
+pub struct InitializeAmmConstituentMappingDatum {
+    pub constituent_index: u16,
+    pub perp_market_index: u16,
+}
+
 pub fn handle_add_amm_constituent_data<'info>(
-    ctx: Context<AddAmmConstituentData>,
-    market_index_constituent_index_pairs: Vec<(u16, u16)>,
+    ctx: Context<AddAmmConstituentMappingData>,
+    init_amm_constituent_mapping_data: Vec<InitializeAmmConstituentMappingDatum>,
 ) -> Result<()> {
-    let mut amm_mapping = &mut ctx.accounts.amm_constituent_mapping;
+    let amm_mapping = &mut ctx.accounts.amm_constituent_mapping;
+    let constituent_target_weights = &ctx.accounts.constituent_target_weights;
+    let state = &ctx.accounts.state;
     let mut current_len = amm_mapping.data.len();
 
-    for (perp_market_index, constituent_index) in market_index_constituent_index_pairs {
+    for init_datum in init_amm_constituent_mapping_data {
+        let perp_market_index = init_datum.perp_market_index;
+
+        validate!(
+            perp_market_index < state.number_of_markets,
+            ErrorCode::InvalidAmmConstituentMappingArgument,
+            "perp_market_index too large compared to number of markets"
+        )?;
+
+        validate!(
+            (init_datum.constituent_index as usize) < constituent_target_weights.data.len(),
+            ErrorCode::InvalidAmmConstituentMappingArgument,
+            "constituent_index too large compared to number of constituents in target weights"
+        )?;
+
+        let constituent_index = init_datum.constituent_index;
         let mut datum = AmmConstituentDatum::default();
         datum.perp_market_index = perp_market_index;
         datum.constituent_index = constituent_index;
@@ -4619,7 +4642,7 @@ pub fn handle_add_amm_constituent_data<'info>(
 
         validate!(
             !exists,
-            ErrorCode::AmmMappingConstituentAlreadyExists,
+            ErrorCode::InvalidAmmConstituentMappingArgument,
             "AmmConstituentDatum already exists for perp_market_index {} and constituent_index {}",
             perp_market_index,
             constituent_index
@@ -5442,9 +5465,7 @@ pub struct InitializeConstituent<'info> {
         payer = admin,
     )]
     pub constituent: AccountLoader<'info, Constituent>,
-
-    #[account(mut)]
-    pub payer: Signer<'info>,
+    pub rent: Sysvar<'info, Rent>,
     pub system_program: Program<'info, System>,
 }
 
@@ -5453,7 +5474,7 @@ pub struct InitializeConstituent<'info> {
     lp_pool_name: [u8; 32],
     market_index_constituent_index_pairs:  Vec<(u16, u16)>,
 )]
-pub struct AddAmmConstituentData<'info> {
+pub struct AddAmmConstituentMappingData<'info> {
     #[account(mut)]
     pub admin: Signer<'info>,
 
@@ -5472,7 +5493,15 @@ pub struct AddAmmConstituentData<'info> {
         realloc::zero = false,
     )]
     pub amm_constituent_mapping: Box<Account<'info, AmmConstituentMapping>>,
-    #[account(mut)]
-    pub payer: Signer<'info>,
+    #[account(
+        mut,
+        seeds = [CONSTITUENT_TARGET_WEIGHT_PDA_SEED.as_ref(), lp_pool.key().as_ref()],
+        bump,
+        realloc = ConstituentTargetWeights::space(constituent_target_weights.data.len() + 1 as usize),
+        realloc::payer = admin,
+        realloc::zero = false,
+    )]
+    pub constituent_target_weights: Box<Account<'info, ConstituentTargetWeights>>,
+    pub state: Box<Account<'info, State>>,
     pub system_program: Program<'info, System>,
 }

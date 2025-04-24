@@ -15,6 +15,7 @@ import {
 	ContractTier,
 	AssetTier,
 	SpotFulfillmentConfigStatus,
+	InitAmmConstituentMappingDatum,
 } from './types';
 import { DEFAULT_MARKET_NAME, encodeName } from './userName';
 import { BN } from '@coral-xyz/anchor';
@@ -40,6 +41,7 @@ import {
 	getLpPoolPublicKey,
 	getAmmConstituentMappingPublicKey,
 	getConstituentTargetWeightsPublicKey,
+	getConstituentPublicKey,
 } from './addresses/pda';
 import { squareRootBN } from './math/utils';
 import {
@@ -4270,6 +4272,113 @@ export class AdminClient extends DriftClient {
 				}
 			),
 			createAtaIx,
+		];
+	}
+
+	public async initializeConstituent(
+		lpPoolName: number[],
+		spotMarketIndex: number,
+		decimals: number,
+		maxWeightDeviation: BN,
+		swapFeeMin: BN,
+		swapFeeMax: BN
+	): Promise<TransactionSignature> {
+		const ixs = await this.getInitializeConstituentIx(
+			lpPoolName,
+			spotMarketIndex,
+			decimals,
+			maxWeightDeviation,
+			swapFeeMin,
+			swapFeeMax
+		);
+		const tx = await this.buildTransaction(ixs);
+		const { txSig } = await this.sendTransaction(tx, []);
+		return txSig;
+	}
+
+	public async getInitializeConstituentIx(
+		lpPoolName: number[],
+		spotMarketIndex: number,
+		decimals: number,
+		maxWeightDeviation: BN,
+		swapFeeMin: BN,
+		swapFeeMax: BN
+	): Promise<TransactionInstruction[]> {
+		const lpPool = getLpPoolPublicKey(this.program.programId, lpPoolName);
+		const constituentTargetWeights = getConstituentTargetWeightsPublicKey(
+			this.program.programId,
+			lpPool
+		);
+		const constituent = getConstituentPublicKey(
+			this.program.programId,
+			lpPool,
+			spotMarketIndex
+		);
+		return [
+			this.program.instruction.initializeConstituent(
+				lpPoolName,
+				spotMarketIndex,
+				decimals,
+				maxWeightDeviation,
+				swapFeeMin,
+				swapFeeMax,
+				{
+					accounts: {
+						admin: this.wallet.publicKey,
+						lpPool,
+						constituentTargetWeights,
+						constituent,
+						rent: SYSVAR_RENT_PUBKEY,
+						systemProgram: SystemProgram.programId,
+					},
+					signers: [],
+				}
+			),
+		];
+	}
+
+	public async addInitAmmConstituentMappingData(
+		lpPoolName: number[],
+		marketIndexConstituentIndexPairs: InitAmmConstituentMappingDatum[]
+	): Promise<TransactionSignature> {
+		const ixs = await this.getAddInitAmmConstituentMappingDataIx(
+			lpPoolName,
+			marketIndexConstituentIndexPairs
+		);
+		const tx = await this.buildTransaction(ixs);
+		const { txSig } = await this.sendTransaction(tx, []);
+		return txSig;
+	}
+
+	public async getAddInitAmmConstituentMappingDataIx(
+		lpPoolName: number[],
+		marketIndexConstituentIndexPairs: InitAmmConstituentMappingDatum[]
+	): Promise<TransactionInstruction[]> {
+		const lpPool = getLpPoolPublicKey(this.program.programId, lpPoolName);
+		const ammConstituentMapping = getAmmConstituentMappingPublicKey(
+			this.program.programId,
+			lpPool
+		);
+		const constituentTargetWeights = getConstituentTargetWeightsPublicKey(
+			this.program.programId,
+			lpPool
+		);
+		return [
+			this.program.instruction.addAmmConstituentMappingData(
+				lpPoolName,
+				marketIndexConstituentIndexPairs,
+				{
+					accounts: {
+						admin: this.wallet.publicKey,
+						lpPool,
+						ammConstituentMapping,
+						constituentTargetWeights,
+						rent: SYSVAR_RENT_PUBKEY,
+						systemProgram: SystemProgram.programId,
+						state: await this.getStatePublicKey(),
+					},
+				}
+			),
 		];
 	}
 }

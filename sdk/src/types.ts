@@ -1472,3 +1472,40 @@ export type SignedMsgUserOrdersAccount = {
 	authorityPubkey: PublicKey;
 	signedMsgOrderData: SignedMsgOrderId[];
 };
+
+export type InitAmmConstituentMappingDatum = {
+	constituentIndex: number;
+	perpMarketIndex: number;
+};
+
+export type AmmConstituentDatum = InitAmmConstituentMappingDatum & {
+	data: BN;
+	lastSlot: BN;
+};
+
+export type AmmConstituentMapping = {
+	data: AmmConstituentDatum[];
+};
+
+export type WeightDatum = {
+	data: BN;
+	lastSlot: BN;
+};
+
+export type ConstituentTargetWeights = {
+	data: WeightDatum[];
+};
+
+export type LPPool = {
+	name: number[];
+	pubkey: PublicKey;
+	mint: PublicKey;
+	maxAum: BN;
+	lastAum: BN;
+	lastAumSlot: BN;
+	lastAumTs: BN;
+	lastRevenueRebalanceTs: BN;
+	totalFeesReceived: BN;
+	totalFeesPaid: BN;
+	constituents: number;
+};

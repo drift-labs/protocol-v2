@@ -7143,6 +7143,126 @@
           }
         }
       ]
+    },
+    {
+      "name": "initializeConstituent",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "lpPool",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "constituentTargetWeights",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "constituent",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "rent",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "systemProgram",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "lpPoolName",
+          "type": {
+            "array": [
+              "u8",
+              32
+            ]
+          }
+        },
+        {
+          "name": "spotMarketIndex",
+          "type": "u16"
+        },
+        {
+          "name": "decimals",
+          "type": "u8"
+        },
+        {
+          "name": "maxWeightDeviation",
+          "type": "i64"
+        },
+        {
+          "name": "swapFeeMin",
+          "type": "i64"
+        },
+        {
+          "name": "swapFeeMax",
+          "type": "i64"
+        }
+      ]
+    },
+    {
+      "name": "addAmmConstituentMappingData",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "lpPool",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "ammConstituentMapping",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "constituentTargetWeights",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "systemProgram",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "lpPoolName",
+          "type": {
+            "array": [
+              "u8",
+              32
+            ]
+          }
+        },
+        {
+          "name": "initAmmConstituentMappingData",
+          "type": {
+            "vec": {
+              "defined": "InitializeAmmConstituentMappingDatum"
+            }
+          }
+        }
+      ]
     }
   ],
   "accounts": [
@@ -9316,6 +9436,22 @@
       }
     },
     {
+      "name": "InitializeAmmConstituentMappingDatum",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "constituentIndex",
+            "type": "u16"
+          },
+          {
+            "name": "perpMarketIndex",
+            "type": "u16"
+          }
+        ]
+      }
+    },
+    {
       "name": "LiquidatePerpRecord",
       "type": {
         "kind": "struct",
@@ -9581,7 +9717,7 @@
             "type": {
               "array": [
                 "u8",
-                4
+                5
               ]
             }
           }
@@ -15523,8 +15659,8 @@
     },
     {
       "code": 6315,
-      "name": "MismatchAmmConstituentMappingAndConstituentTargetWeights",
-      "msg": "Misatch amm mapping and constituent target weights"
+      "name": "InvalidAmmConstituentMappingArgument",
+      "msg": "Invalid Amm Constituent Mapping argument"
     }
   ],
   "metadata": {
