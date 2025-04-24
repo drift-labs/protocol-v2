@@ -29,7 +29,7 @@ import {
 } from '@solana/web3.js';
 import { assert } from 'chai';
 import buffer from 'buffer';
-import { BN, Wallet, OraclePriceData, OracleInfo } from '../sdk';
+import { BN, Wallet, OraclePriceData, OracleInfo, PerpMarketAccount } from '../sdk';
 import {
 	TestClient,
 	SPOT_MARKET_RATE_PRECISION,
@@ -1098,4 +1098,42 @@ export async function initializeSolSpotMarket(
 		new BN(10 ** 10).mul(QUOTE_PRECISION)
 	);
 	return txSig;
+}
+
+export async function overWritePerpMarket(
+	driftClient: TestClient,
+	bankrunContextWrapper: BankrunContextWrapper,
+	perpMarketKey: PublicKey,
+	perpMarket: AccountInfo<PerpMarketAccount>
+) {
+	bankrunContextWrapper.context.setAccount(perpMarketKey, {
+		executable: perpMarket.executable,
+		owner: perpMarket.owner,
+		lamports: perpMarket.lamports,
+		data: await driftClient.program.coder.accounts.encode(
+			'PerpMarket',
+			perpMarket.data
+		),
+		rentEpoch: perpMarket.rentEpoch,
+	});
+}
+
+export async function getPerpMarketDecoded(
+	driftClient: TestClient,
+	bankrunContextWrapper: BankrunContextWrapper,
+	perpMarketPublicKey: PublicKey
+): Promise<AccountInfo<PerpMarketAccount>> {
+	const accountInfo = await bankrunContextWrapper.connection.getAccountInfo(
+		perpMarketPublicKey
+	);
+	const perpMarketAccount: PerpMarketAccount =
+		driftClient.program.coder.accounts.decode(
+			'PerpMarket',
+			accountInfo!.data
+		);
+
+	// @ts-ignore
+	accountInfo.data = perpMarketAccount;
+	// @ts-ignore
+	return accountInfo;
 }

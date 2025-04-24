@@ -25,12 +25,16 @@ import {
 	PEG_PRECISION,
 	ConstituentTargetWeights,
 	AmmConstituentMapping,
+	BASE_PRECISION,
+	ZERO,
 } from '../sdk/src';
 
 import {
+	getPerpMarketDecoded,
 	initializeQuoteSpotMarket,
 	mockOracleNoProgram,
 	mockUSDCMint,
+	overWritePerpMarket,
 } from './testHelpers';
 import { startAnchor } from 'solana-bankrun';
 import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
@@ -76,7 +80,7 @@ describe('LP Pool', () => {
 					),
 				},
 			],
-			[]
+			[],
 		);
 
 		// @ts-ignore
@@ -104,7 +108,7 @@ describe('LP Pool', () => {
 			},
 			activeSubAccountId: 0,
 			subAccountIds: [],
-			perpMarketIndexes: [],
+			perpMarketIndexes: [0, 1],
 			spotMarketIndexes: [0],
 			oracleInfos: [],
 			accountSubscription: {
@@ -275,6 +279,24 @@ describe('LP Pool', () => {
 	});
 
 	it('can update constituent target weights', async () => {
+
+
+		const perpMarket = adminClient.getPerpMarketAccount(0);
+		const perpMarketAccountBefore = await getPerpMarketDecoded(
+			adminClient,
+			bankrunContextWrapper,
+			perpMarket.pubkey
+		);
+		perpMarketAccountBefore.data.amm.baseAssetAmountLong = BASE_PRECISION;
+		await overWritePerpMarket(
+			adminClient,
+			bankrunContextWrapper,
+			perpMarketAccountBefore.data.pubkey,
+			perpMarketAccountBefore,
+		);
+
+		assert(!perpMarket.amm.baseAssetAmountLong.eq(ZERO));
+
 		const ammConstituentMappingPublicKey = getAmmConstituentMappingPublicKey(
 			program.programId,
 			lpPoolKey
