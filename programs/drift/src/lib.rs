@@ -1721,6 +1721,14 @@ pub mod drift {
     ) -> Result<()> {
         handle_add_amm_constituent_data(ctx, init_amm_constituent_mapping_data)
     }
+
+    pub fn update_dlp_constituent_target_weights<'c: 'info, 'info>(
+        ctx: Context<'_, '_, 'c, 'info, UpdateConstituentTargetWeights<'info>>,
+        lp_pool_name: [u8; 32],
+        constituent_indexes: Vec<u16>,
+    ) -> Result<()> {
+        handle_update_constituent_target_weights(ctx, constituent_indexes)
+    }
 }
 
 #[cfg(not(feature = "no-entrypoint"))]

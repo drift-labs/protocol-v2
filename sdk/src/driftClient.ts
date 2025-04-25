@@ -58,6 +58,8 @@ import {
 	UserStatsAccount,
 	ProtectedMakerModeConfig,
 	SignedMsgOrderParamsDelegateMessage,
+	AmmConstituentMapping,
+	AmmConstituentDatum,
 } from './types';
 import driftIDL from './idl/drift.json';
 
@@ -104,6 +106,9 @@ import {
 	getUserAccountPublicKeySync,
 	getUserStatsAccountPublicKey,
 	getSignedMsgWsDelegatesAccountPublicKey,
+	getConstituentTargetWeightsPublicKey,
+	getAmmConstituentMappingPublicKey,
+	getLpPoolPublicKey,
 } from './addresses/pda';
 import {
 	DataAndSlot,
@@ -9677,6 +9682,73 @@ export class DriftClient {
 		);
 		return txSig;
 	}
+
+	public async updateDlpConstituentTargetWeights(
+		lpPoolName: number[],
+		constituentIndexesToUpdate: number[],
+		ammConstituentMapping: AmmConstituentMapping,
+		txParams?: TxParams
+	): Promise<TransactionSignature> {
+		const { txSig } = await this.sendTransaction(
+			await this.buildTransaction(
+				await this.getUpdateDlpConstituentTargetWeightsIx(
+					lpPoolName,
+					constituentIndexesToUpdate,
+					ammConstituentMapping
+				),
+				txParams
+			),
+			[],
+			this.opts
+		);
+		return txSig;
+	}
+
+	public async getUpdateDlpConstituentTargetWeightsIx(
+		lpPoolName: number[],
+		constituentIndexesToUpdate: number[],
+		ammConstituentMapping: AmmConstituentMapping
+	): Promise<TransactionInstruction> {
+		const lpPool = getLpPoolPublicKey(this.program.programId, lpPoolName);
+		const ammConstituentMappingPublicKey = getAmmConstituentMappingPublicKey(
+			this.program.programId,
+			lpPool
+		);
+		const constituentTargetWeights = getConstituentTargetWeightsPublicKey(
+			this.program.programId,
+			lpPool
+		);
+
+		const perpMarketIndexes = ammConstituentMapping.weights
+			.filter((datum: AmmConstituentDatum) => {
+				return constituentIndexesToUpdate.includes(datum.constituentIndex);
+			})
+			.map((datum: AmmConstituentDatum) => datum.perpMarketIndex);
+
+		const remainingAccounts = this.getRemainingAccounts({
+			readablePerpMarketIndex: perpMarketIndexes,
+			userAccounts: [],
+		});
+
+		return this.program.instruction.updateDlpConstituentTargetWeights(
+			lpPoolName,
+			constituentIndexesToUpdate,
+			{
+				accounts: {
+					keeper: this.wallet.publicKey,
+					lpPool,
+					ammConstituentMapping: ammConstituentMappingPublicKey,
+					constituentTargetWeights,
+					state: await this.getStatePublicKey(),
+				},
+				remainingAccounts,
+			}
+		);
+	}
+
+	/**
+	 * Below here are the transaction sending functions
+	 */
 
 	private handleSignedTransaction(signedTxs: SignedTxData[]) {
 		if (this.enableMetricsEvents && this.metricsEventEmitter) {

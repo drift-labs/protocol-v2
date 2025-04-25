@@ -529,6 +529,10 @@ impl<'a> AccountZeroCopyMut<'a, WeightDatum, ConstituentTargetWeightsFixed> {
                 return Err(ErrorCode::DefaultError);
             }
 
+            total_weight = total_weight
+                .saturating_add(target_weight)
+                .saturating_add(PERCENTAGE_PRECISION_I64 as i128);
+
             let cell = self.get_mut(i as u32);
             cell.weight = target_weight as i64;
             cell.last_slot = slot;
