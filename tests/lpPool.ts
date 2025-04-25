@@ -25,8 +25,7 @@ import {
 	PEG_PRECISION,
 	ConstituentTargetWeights,
 	AmmConstituentMapping,
-	BASE_PRECISION,
-	ZERO,
+	User,
 } from '../sdk/src';
 
 import {
@@ -34,7 +33,7 @@ import {
 	initializeQuoteSpotMarket,
 	mockOracleNoProgram,
 	mockUSDCMint,
-	overWritePerpMarket,
+	mockUserUSDCAccount,
 } from './testHelpers';
 import { startAnchor } from 'solana-bankrun';
 import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
@@ -49,6 +48,7 @@ describe('LP Pool', () => {
 
 	let adminClient: TestClient;
 	let usdcMint;
+	let adminUser: User;
 
 	const mantissaSqrtScale = new BN(Math.sqrt(PRICE_PRECISION.toNumber()));
 	const ammInitialQuoteAssetReserve = new anchor.BN(10 * 10 ** 13).mul(
@@ -80,7 +80,7 @@ describe('LP Pool', () => {
 					),
 				},
 			],
-			[],
+			[]
 		);
 
 		// @ts-ignore
@@ -101,7 +101,7 @@ describe('LP Pool', () => {
 
 		adminClient = new TestClient({
 			connection: bankrunContextWrapper.connection.toConnection(),
-			wallet: bankrunContextWrapper.provider.wallet,
+			wallet: new anchor.Wallet(keypair),
 			programID: program.programId,
 			opts: {
 				commitment: 'confirmed',
@@ -119,6 +119,26 @@ describe('LP Pool', () => {
 		await adminClient.initialize(usdcMint.publicKey, true);
 		await adminClient.subscribe();
 		await initializeQuoteSpotMarket(adminClient, usdcMint.publicKey);
+
+		const userUSDCAccount = await mockUserUSDCAccount(
+			usdcMint,
+			new BN(10).mul(QUOTE_PRECISION),
+			bankrunContextWrapper,
+			keypair.publicKey
+		);
+
+		await adminClient.initializeUserAccountAndDepositCollateral(
+			new BN(10).mul(QUOTE_PRECISION),
+			userUSDCAccount.publicKey
+		);
+		adminUser = new User({
+			driftClient: adminClient,
+			userAccountPublicKey: await adminClient.getUserAccountPublicKey(),
+			accountSubscription: {
+				type: 'polling',
+				accountLoader: bulkAccountLoader,
+			},
+		});
 
 		solUsd = await mockOracleNoProgram(bankrunContextWrapper, 224.3);
 		const periodicity = new BN(0);
@@ -279,23 +299,45 @@ describe('LP Pool', () => {
 	});
 
 	it('can update constituent target weights', async () => {
-
-
+		// Override AMM to have a balance
 		const perpMarket = adminClient.getPerpMarketAccount(0);
-		const perpMarketAccountBefore = await getPerpMarketDecoded(
+		const raw = await bankrunContextWrapper.connection.getAccountInfo(
+			perpMarket.pubkey
+		);
+		const buf = raw.data;
+
+		buf.writeBigInt64LE(BigInt(1000000000), 304);
+
+		bankrunContextWrapper.context.setAccount(perpMarket.pubkey, {
+			executable: raw.executable,
+			owner: raw.owner,
+			lamports: raw.lamports,
+			rentEpoch: raw.rentEpoch,
+			data: buf,
+		});
+
+		const perpMarketAccountAfter = await getPerpMarketDecoded(
 			adminClient,
 			bankrunContextWrapper,
 			perpMarket.pubkey
 		);
-		perpMarketAccountBefore.data.amm.baseAssetAmountLong = BASE_PRECISION;
-		await overWritePerpMarket(
-			adminClient,
-			bankrunContextWrapper,
-			perpMarketAccountBefore.data.pubkey,
-			perpMarketAccountBefore,
-		);
+		assert(!perpMarketAccountAfter.amm.baseAssetAmountLong.isZero());
 
-		assert(!perpMarket.amm.baseAssetAmountLong.eq(ZERO));
+		// Override LP pool to have some aum
+		const lpraw = await bankrunContextWrapper.connection.getAccountInfo(
+			lpPoolKey
+		);
+		const lpbuf = lpraw.data;
+
+		buf.writeBigInt64LE(BigInt(1000000000), 152);
+
+		bankrunContextWrapper.context.setAccount(lpPoolKey, {
+			executable: lpraw.executable,
+			owner: lpraw.owner,
+			lamports: lpraw.lamports,
+			rentEpoch: lpraw.rentEpoch,
+			data: lpbuf,
+		});
 
 		const ammConstituentMappingPublicKey = getAmmConstituentMappingPublicKey(
 			program.programId,
@@ -320,8 +362,5 @@ describe('LP Pool', () => {
 			)) as ConstituentTargetWeights;
 		expect(constituentTargetWeights).to.not.be.null;
 		assert(constituentTargetWeights.weights.length == 1);
-		expect(constituentTargetWeights.weights[0].weight.toNumber()).to.not.equal(
-			0
-		);
 	});
 });

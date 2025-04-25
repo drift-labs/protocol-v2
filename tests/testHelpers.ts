@@ -29,7 +29,14 @@ import {
 } from '@solana/web3.js';
 import { assert } from 'chai';
 import buffer from 'buffer';
-import { BN, Wallet, OraclePriceData, OracleInfo, PerpMarketAccount } from '../sdk';
+import {
+	BN,
+	Wallet,
+	OraclePriceData,
+	OracleInfo,
+	PerpMarketAccount,
+	UserAccount,
+} from '../sdk';
 import {
 	TestClient,
 	SPOT_MARKET_RATE_PRECISION,
@@ -1104,17 +1111,16 @@ export async function overWritePerpMarket(
 	driftClient: TestClient,
 	bankrunContextWrapper: BankrunContextWrapper,
 	perpMarketKey: PublicKey,
-	perpMarket: AccountInfo<PerpMarketAccount>
+	perpMarket: PerpMarketAccount
 ) {
 	bankrunContextWrapper.context.setAccount(perpMarketKey, {
-		executable: perpMarket.executable,
-		owner: perpMarket.owner,
-		lamports: perpMarket.lamports,
-		data: await driftClient.program.coder.accounts.encode(
+		executable: false,
+		owner: driftClient.program.programId,
+		lamports: LAMPORTS_PER_SOL,
+		data: await driftClient.program.account.perpMarket.coder.accounts.encode(
 			'PerpMarket',
-			perpMarket.data
+			perpMarket
 		),
-		rentEpoch: perpMarket.rentEpoch,
 	});
 }
 
@@ -1122,18 +1128,11 @@ export async function getPerpMarketDecoded(
 	driftClient: TestClient,
 	bankrunContextWrapper: BankrunContextWrapper,
 	perpMarketPublicKey: PublicKey
-): Promise<AccountInfo<PerpMarketAccount>> {
+): Promise<PerpMarketAccount> {
 	const accountInfo = await bankrunContextWrapper.connection.getAccountInfo(
 		perpMarketPublicKey
 	);
 	const perpMarketAccount: PerpMarketAccount =
-		driftClient.program.coder.accounts.decode(
-			'PerpMarket',
-			accountInfo!.data
-		);
-
-	// @ts-ignore
-	accountInfo.data = perpMarketAccount;
-	// @ts-ignore
-	return accountInfo;
+		driftClient.program.coder.accounts.decode('PerpMarket', accountInfo!.data);
+	return perpMarketAccount;
 }
