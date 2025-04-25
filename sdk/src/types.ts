@@ -1484,6 +1484,7 @@ export type AmmConstituentDatum = AddAmmConstituentMappingDatum & {
 };
 
 export type AmmConstituentMapping = {
+	bump: number;
 	weights: AmmConstituentDatum[];
 };
 
@@ -1494,6 +1495,7 @@ export type WeightDatum = {
 
 export type ConstituentTargetWeights = {
 	weights: WeightDatum[];
+	bump: number;
 };
 
 export type LPPool = {
@@ -1502,6 +1504,7 @@ export type LPPool = {
 	mint: PublicKey;
 	maxAum: BN;
 	lastAum: BN;
+	bump: number;
 	lastAumSlot: BN;
 	lastAumTs: BN;
 	lastRevenueRebalanceTs: BN;

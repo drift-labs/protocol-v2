@@ -61,11 +61,11 @@ pub struct LPPool {
 
     pub constituents: u16,
     pub bump: u8,
-    pub _padding: [u8; 6],
+    pub _padding: [u8; 13],
 }
 
 impl Size for LPPool {
-    const SIZE: usize = 1743;
+    const SIZE: usize = 200;
 }
 
 impl LPPool {
@@ -254,6 +254,7 @@ pub struct Constituent {
 
     pub decimals: u8,
     pub bump: u8,
+    pub _padding1: [u8; 2],
 
     /// max deviation from target_weight allowed for the constituent
     /// precision: PERCENTAGE_PRECISION
@@ -267,11 +268,10 @@ pub struct Constituent {
 
     /// spot borrow-lend balance for constituent
     pub spot_balance: BLPosition, // should be in constituent base asset
-    pub padding: [u8; 16],
 }
 
 impl Size for Constituent {
-    const SIZE: usize = 112;
+    const SIZE: usize = 96;
 }
 
 impl Constituent {
@@ -356,8 +356,9 @@ pub struct AmmConstituentDatum {
 #[derive(Debug, Default)]
 #[repr(C)]
 pub struct AmmConstituentMappingFixed {
+    pub bump: u8,
+    padding: [u8; 3],
     pub len: u32,
-    pub _pad: [u8; 4],
 }
 
 impl HasLen for AmmConstituentMappingFixed {
@@ -383,7 +384,7 @@ impl AmmConstituentMapping {
 
     pub fn validate(&self) -> DriftResult<()> {
         validate!(
-            self.weights.len() <= 128,
+            self.weights.len() <= 2000,
             ErrorCode::DefaultError,
             "Number of constituents len must be between 1 and 128"
         )?;
@@ -411,8 +412,9 @@ pub struct WeightDatum {
 #[repr(C)]
 pub struct ConstituentTargetWeightsFixed {
     /// total elements in the flattened `data` vec
+    pub bump: u8,
+    padding: [u8; 3],
     pub len: u32,
-    pub _pad: [u8; 4],
 }
 
 impl HasLen for ConstituentTargetWeightsFixed {
@@ -517,7 +519,7 @@ impl<'a> AccountZeroCopyMut<'a, WeightDatum, ConstituentTargetWeightsFixed> {
             // assumes PRICE_PRECISION = PERCENTAGE_PRECISION
             let target_weight = if aum > 0 {
                 target_amount
-                    .saturating_mul(price) 
+                    .saturating_mul(price)
                     .saturating_div(aum as i128)
             } else {
                 0

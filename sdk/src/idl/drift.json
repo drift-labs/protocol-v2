@@ -7716,7 +7716,7 @@
             "type": {
               "array": [
                 "u8",
-                6
+                13
               ]
             }
           }
@@ -7758,6 +7758,15 @@
             "type": "u8"
           },
           {
+            "name": "padding1",
+            "type": {
+              "array": [
+                "u8",
+                2
+              ]
+            }
+          },
+          {
             "name": "maxWeightDeviation",
             "docs": [
               "max deviation from target_weight allowed for the constituent",
@@ -7788,15 +7797,6 @@
             ],
             "type": {
               "defined": "BLPosition"
-            }
-          },
-          {
-            "name": "padding",
-            "type": {
-              "array": [
-                "u8",
-                16
-              ]
             }
           }
         ]
@@ -9829,17 +9829,21 @@
         "kind": "struct",
         "fields": [
           {
-            "name": "len",
-            "type": "u32"
+            "name": "bump",
+            "type": "u8"
           },
           {
-            "name": "pad",
+            "name": "padding",
             "type": {
               "array": [
                 "u8",
-                4
+                3
               ]
             }
+          },
+          {
+            "name": "len",
+            "type": "u32"
           }
         ]
       }
@@ -9866,20 +9870,24 @@
         "kind": "struct",
         "fields": [
           {
-            "name": "len",
+            "name": "bump",
             "docs": [
               "total elements in the flattened `data` vec"
             ],
-            "type": "u32"
+            "type": "u8"
           },
           {
-            "name": "pad",
+            "name": "padding",
             "type": {
               "array": [
                 "u8",
-                4
+                3
               ]
             }
+          },
+          {
+            "name": "len",
+            "type": "u32"
           }
         ]
       }

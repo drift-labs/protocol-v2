@@ -4384,7 +4384,7 @@ pub fn handle_initialize_lp_pool(
         total_fees_received: 0,
         total_fees_paid: 0,
         bump: ctx.bumps.lp_pool,
-        _padding: [0; 6],
+        _padding: [0; 13],
     };
 
     let amm_constituent_mapping = &mut ctx.accounts.amm_constituent_mapping;

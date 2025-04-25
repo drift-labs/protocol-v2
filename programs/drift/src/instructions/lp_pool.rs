@@ -5,11 +5,14 @@ use crate::{
     math::oracle::{is_oracle_valid_for_action, DriftAction},
     msg,
     state::{
-        lp_pool::{AmmConstituentDatum, AmmConstituentMappingFixed, LPPool, WeightValidationFlags},
+        lp_pool::{
+            AmmConstituentDatum, AmmConstituentMappingFixed, ConstituentTargetWeightsFixed, LPPool,
+            WeightDatum, WeightValidationFlags,
+        },
         perp_market_map::MarketSet,
         state::State,
         user::MarketType,
-        zero_copy::{AccountZeroCopy, ZeroCopyLoader},
+        zero_copy::{AccountZeroCopy, AccountZeroCopyMut, ZeroCopyLoader},
     },
     validate,
 };
@@ -20,13 +23,60 @@ use crate::state::lp_pool::{AMM_MAP_PDA_SEED, CONSTITUENT_TARGET_WEIGHT_PDA_SEED
 
 pub fn handle_update_constituent_target_weights<'c: 'info, 'info>(
     ctx: Context<'_, '_, 'c, 'info, UpdateConstituentTargetWeights<'info>>,
+    lp_pool_name: [u8; 32],
     constituent_indexes: Vec<u16>,
 ) -> Result<()> {
     let lp_pool = &ctx.accounts.lp_pool.load()?;
+    let lp_pool_key = &ctx.accounts.lp_pool.key();
+
     let state = &ctx.accounts.state;
-    let mut constituent_target_weights = ctx.accounts.constituent_target_weights.load_zc_mut()?;
+    let constituent_target_weights_key = &ctx.accounts.constituent_target_weights.key();
+    let amm_mapping_key = &ctx.accounts.amm_constituent_mapping.key();
+
+    // Validate lp pool pda
+    let expected_lp_pda = &Pubkey::create_program_address(
+        &[
+            b"lp_pool",
+            lp_pool_name.as_ref(),
+            lp_pool.bump.to_le_bytes().as_ref(),
+        ],
+        &crate::ID,
+    )
+    .map_err(|_| ErrorCode::InvalidPDA)?;
+    validate!(
+        expected_lp_pda.eq(lp_pool_key),
+        ErrorCode::InvalidPDA,
+        "Lp pool PDA does not match expected PDA"
+    )?;
+
+    let mut constituent_target_weights: AccountZeroCopyMut<
+        '_,
+        WeightDatum,
+        ConstituentTargetWeightsFixed,
+    > = ctx.accounts.constituent_target_weights.load_zc_mut()?;
+
+    let bump = constituent_target_weights.fixed.bump;
+    let expected_pda = &Pubkey::create_program_address(
+        &[
+            CONSTITUENT_TARGET_WEIGHT_PDA_SEED.as_ref(),
+            lp_pool.pubkey.as_ref(),
+            bump.to_le_bytes().as_ref(),
+        ],
+        &crate::ID,
+    )
+    .map_err(|_| ErrorCode::InvalidPDA)?;
+    validate!(
+        expected_pda.eq(constituent_target_weights_key),
+        ErrorCode::InvalidPDA,
+        "Constituent target weights PDA does not match expected PDA"
+    )?;
 
     let num_constituents = constituent_target_weights.len();
+    for datum in constituent_target_weights.iter() {
+        msg!("weight datum: {:?}", datum);
+    }
+
+    msg!("Number of constituents: {}", num_constituents);
     let exists_invalid_constituent_index = constituent_indexes
         .iter()
         .any(|index| *index as u32 >= num_constituents);
@@ -44,6 +94,22 @@ pub fn handle_update_constituent_target_weights<'c: 'info, 'info>(
         AmmConstituentDatum,
         AmmConstituentMappingFixed,
     > = ctx.accounts.amm_constituent_mapping.load_zc()?;
+
+    let amm_mapping_bump = amm_constituent_mapping.fixed.bump;
+    let expected_map_pda = &Pubkey::create_program_address(
+        &[
+            AMM_MAP_PDA_SEED.as_ref(),
+            lp_pool.pubkey.as_ref(),
+            amm_mapping_bump.to_le_bytes().as_ref(),
+        ],
+        &crate::ID,
+    )
+    .map_err(|_| ErrorCode::InvalidPDA)?;
+    validate!(
+        expected_map_pda.eq(amm_mapping_key),
+        ErrorCode::InvalidPDA,
+        "Amm mapping PDA does not match expected PDA"
+    )?;
 
     let AccountMaps {
         perp_market_map,
@@ -108,22 +174,10 @@ pub struct UpdateConstituentTargetWeights<'info> {
     pub state: Box<Account<'info, State>>,
     #[account(mut)]
     pub keeper: Signer<'info>,
-    #[account(
-        seeds = [AMM_MAP_PDA_SEED.as_ref(), lp_pool.key().as_ref()],
-        bump,
-    )]
     /// CHECK: checked in AmmConstituentMappingZeroCopy checks
     pub amm_constituent_mapping: AccountInfo<'info>,
-    #[account(
-        mut,
-        seeds = [CONSTITUENT_TARGET_WEIGHT_PDA_SEED.as_ref(), lp_pool.key().as_ref()],
-        bump,
-    )]
+    #[account(mut)]
     /// CHECK: checked in ConstituentTargetWeightsZeroCopy checks
     pub constituent_target_weights: AccountInfo<'info>,
-    #[account(
-        seeds = [b"lp_pool", lp_pool_name.as_ref()],
-        bump,
-    )]
     pub lp_pool: AccountLoader<'info, LPPool>,
 }

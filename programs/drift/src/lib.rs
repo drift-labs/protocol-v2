@@ -1727,7 +1727,7 @@ pub mod drift {
         lp_pool_name: [u8; 32],
         constituent_indexes: Vec<u16>,
     ) -> Result<()> {
-        handle_update_constituent_target_weights(ctx, constituent_indexes)
+        handle_update_constituent_target_weights(ctx, lp_pool_name, constituent_indexes)
     }
 }
 
