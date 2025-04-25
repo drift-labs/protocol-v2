@@ -1,35 +1,47 @@
-use anchor_lang::{prelude::*, Accounts, Key, Result, ToAccountInfo};
+use anchor_lang::{prelude::*, Accounts, Key, Result};
+use anchor_spl::token_interface::{Mint, TokenAccount, TokenInterface};
 
-use crate::{
-    error::ErrorCode,
-    math::oracle::{is_oracle_valid_for_action, DriftAction},
-    msg,
-    state::{
-        lp_pool::{AmmConstituentDatum, AmmConstituentMappingFixed, LPPool, WeightValidationFlags},
-        perp_market_map::MarketSet,
-        state::State,
-        user::MarketType,
-        zero_copy::{AccountZeroCopy, ZeroCopyLoader},
-    },
-    validate,
+use crate::error::ErrorCode;
+use crate::math::{
+    oracle::{is_oracle_valid_for_action, DriftAction},
+    safe_math::SafeMath,
 };
+use crate::msg;
+use crate::state::spot_market::SpotBalanceType;
+use crate::state::{
+    lp_pool::{
+        AmmConstituentDatum, AmmConstituentMappingFixed, Constituent, LPPool, WeightValidationFlags,
+    },
+    perp_market_map::MarketSet,
+    state::State,
+    user::MarketType,
+    zero_copy::{AccountZeroCopy, ZeroCopyLoader},
+};
+use crate::validate;
+
 use solana_program::sysvar::clock::Clock;
 
 use super::optional_accounts::{load_maps, AccountMaps};
+use crate::controller::spot_balance::update_spot_market_cumulative_interest;
+use crate::controller::token::{receive, send_from_program_vault};
+use crate::instructions::constraints::*;
 use crate::state::lp_pool::{AMM_MAP_PDA_SEED, CONSTITUENT_TARGET_WEIGHT_PDA_SEED};
 
 pub fn handle_update_constituent_target_weights<'c: 'info, 'info>(
     ctx: Context<'_, '_, 'c, 'info, UpdateConstituentTargetWeights<'info>>,
     constituent_indexes: Vec<u16>,
 ) -> Result<()> {
+    msg!("HIHI!");
     let lp_pool = &ctx.accounts.lp_pool.load()?;
     let state = &ctx.accounts.state;
+    msg!("datalen: {}", ctx.accounts.constituent_target_weights.data_len());
     let mut constituent_target_weights = ctx.accounts.constituent_target_weights.load_zc_mut()?;
 
     let num_constituents = constituent_target_weights.len();
     let exists_invalid_constituent_index = constituent_indexes
         .iter()
         .any(|index| *index as u32 >= num_constituents);
+    msg!("num_constituents: {} ", num_constituents);
 
     validate!(
         !exists_invalid_constituent_index,
@@ -44,6 +56,7 @@ pub fn handle_update_constituent_target_weights<'c: 'info, 'info>(
         AmmConstituentDatum,
         AmmConstituentMappingFixed,
     > = ctx.accounts.amm_constituent_mapping.load_zc()?;
+    msg!("amm constituent mapping weights: {} datalen: {}", amm_constituent_mapping.len(), ctx.accounts.amm_constituent_mapping.data_len());
 
     let AccountMaps {
         perp_market_map,
@@ -100,6 +113,150 @@ pub fn handle_update_constituent_target_weights<'c: 'info, 'info>(
     Ok(())
 }
 
+#[access_control(
+    fill_not_paused(&ctx.accounts.state)
+)]
+pub fn handle_lp_pool_swap<'c: 'info, 'info>(
+    ctx: Context<'_, '_, 'c, 'info, LPSwap<'info>>,
+    in_market_index: u16,
+    out_market_index: u16,
+    in_amount: u64,
+    min_out_amount: u64,
+) -> Result<()> {
+    validate!(
+        in_market_index != out_market_index,
+        ErrorCode::InvalidSpotMarketAccount,
+        "In and out spot market indices cannot be the same"
+    )?;
+
+    let slot = Clock::get()?.slot;
+    let now = Clock::get()?.unix_timestamp;
+    let state = &ctx.accounts.state;
+    let lp_pool = &ctx.accounts.lp_pool.load()?;
+
+    let mut in_constituent = ctx.accounts.in_constituent.load_mut()?;
+    let mut out_constituent = ctx.accounts.out_constituent.load_mut()?;
+
+    let in_constituent_token_account = &ctx.accounts.constituent_in_token_account;
+    let out_constituent_token_account = &ctx.accounts.constituent_out_token_account;
+
+    let constituent_target_weights = ctx.accounts.constituent_target_weights.load_zc()?;
+
+    let AccountMaps {
+        perp_market_map,
+        spot_market_map,
+        mut oracle_map,
+    } = load_maps(
+        &mut ctx.remaining_accounts.iter().peekable(),
+        &MarketSet::new(),
+        &MarketSet::new(),
+        slot,
+        Some(state.oracle_guard_rails),
+    )?;
+
+    let mut in_spot_market = spot_market_map.get_ref_mut(&in_market_index)?;
+    let mut out_spot_market = spot_market_map.get_ref_mut(&out_market_index)?;
+
+    let in_oracle_id = in_spot_market.oracle_id();
+    let out_oracle_id = out_spot_market.oracle_id();
+
+    let in_oracle = *oracle_map.get_price_data(&in_oracle_id)?;
+    let out_oracle = *oracle_map.get_price_data(&out_oracle_id)?;
+
+    update_spot_market_cumulative_interest(&mut in_spot_market, Some(&in_oracle), now)?;
+
+    update_spot_market_cumulative_interest(&mut out_spot_market, Some(&out_oracle), now)?;
+
+    let in_constituent_balance =
+        in_constituent.get_full_balance(in_constituent_token_account.amount)?;
+    msg!(
+        "in_constituent: {}, in_constituent_balance: {}",
+        in_constituent.constituent_index,
+        in_constituent_balance
+    );
+    let out_constituent_balance =
+        out_constituent.get_full_balance(out_constituent_token_account.amount)?;
+    msg!(
+        "out_constituent: {}, out_constituent_balance: {}",
+        out_constituent.constituent_index,
+        out_constituent_balance
+    );
+
+    let in_target_weight =
+        constituent_target_weights.get_target_weight(in_constituent.constituent_index)?;
+    let out_target_weight =
+        constituent_target_weights.get_target_weight(out_constituent.constituent_index)?;
+
+    let (in_amount, out_amount, in_fee, out_fee) = lp_pool.get_swap_amount(
+        &in_oracle,
+        &out_oracle,
+        &in_constituent,
+        &out_constituent,
+        &in_spot_market,
+        &out_spot_market,
+        in_constituent_token_account.amount,
+        out_constituent_token_account.amount,
+        in_target_weight,
+        out_target_weight,
+        in_amount,
+    )?;
+    let out_amount_net_fees = if out_fee > 0 {
+        out_amount.safe_sub(out_fee.unsigned_abs() as u64)?
+    } else {
+        out_amount.safe_add(out_fee.unsigned_abs() as u64)?
+    };
+
+    validate!(
+        out_amount_net_fees >= min_out_amount,
+        ErrorCode::SlippageOutsideLimit,
+        format!(
+            "Slippage outside limit: out_amount_net_fees({}) < min_out_amount({})",
+            out_amount_net_fees, min_out_amount
+        )
+        .as_str()
+    )?;
+
+    in_constituent.record_swap_fees(in_fee)?;
+    out_constituent.record_swap_fees(out_fee)?;
+
+    // interactions: CPIs
+
+    let (transfer_from_vault, transfer_from_constituent) = out_constituent
+        .get_amount_from_vaults_to_withdraw(
+            out_constituent_token_account.amount,
+            out_amount_net_fees,
+        )?;
+
+    // transfer in from user token account to token vault
+    receive(
+        &ctx.accounts.token_program,
+        &ctx.accounts.user_in_token_account,
+        &ctx.accounts.constituent_in_token_account,
+        &ctx.accounts.authority,
+        in_amount,
+        &Some((*ctx.accounts.in_market_mint).clone()),
+    )?;
+    ctx.accounts.constituent_in_token_account.reload()?;
+
+    // transfer out from token vault to constituent token account
+    if transfer_from_vault > 0 {
+        send_from_program_vault(
+            &ctx.accounts.token_program,
+            &ctx.accounts.out_spot_market_vault,
+            &ctx.accounts.constituent_out_token_account,
+            &ctx.accounts.drift_signer,
+            state.signer_nonce,
+            transfer_from_vault,
+            &Some((*ctx.accounts.out_market_mint).clone()),
+        )?;
+    }
+    ctx.accounts.constituent_out_token_account.reload()?;
+
+    // transfer out from constituent token account to user token account
+
+    Ok(())
+}
+
 #[derive(Accounts)]
 #[instruction(
     lp_pool_name: [u8; 32],
@@ -126,4 +283,58 @@ pub struct UpdateConstituentTargetWeights<'info> {
         bump,
     )]
     pub lp_pool: AccountLoader<'info, LPPool>,
+}
+
+#[derive(Accounts)]
+pub struct LPSwap<'info> {
+    /// CHECK: forced drift_signer
+    pub drift_signer: AccountInfo<'info>,
+    pub state: Box<Account<'info, State>>,
+    pub lp_pool: AccountLoader<'info, LPPool>,
+    #[account(
+        mut,
+        seeds = [CONSTITUENT_TARGET_WEIGHT_PDA_SEED.as_ref(), lp_pool.key().as_ref()],
+        bump,
+    )]
+    /// CHECK: checked in ConstituentTargetWeightsZeroCopy checks
+    pub constituent_target_weights: AccountInfo<'info>,
+
+    #[account(mut)]
+    pub constituent_in_token_account: Box<InterfaceAccount<'info, TokenAccount>>,
+    #[account(mut)]
+    pub constituent_out_token_account: Box<InterfaceAccount<'info, TokenAccount>>,
+
+    #[account(mut)]
+    pub user_in_token_account: Box<InterfaceAccount<'info, TokenAccount>>,
+    #[account(mut)]
+    pub user_out_token_account: Box<InterfaceAccount<'info, TokenAccount>>,
+
+    #[account(
+        mut,
+        constraint = &in_spot_market_vault.mint.eq(&in_market_mint.key())
+    )]
+    pub in_spot_market_vault: Box<InterfaceAccount<'info, TokenAccount>>,
+    #[account(
+        mut,
+        constraint = &out_spot_market_vault.mint.eq(&out_market_mint.key())
+    )]
+    pub out_spot_market_vault: Box<InterfaceAccount<'info, TokenAccount>>,
+
+    #[account(mut)]
+    pub in_constituent: AccountLoader<'info, Constituent>,
+    #[account(mut)]
+    pub out_constituent: AccountLoader<'info, Constituent>,
+
+    #[account(
+        constraint = in_market_mint.key() == in_constituent.load()?.mint,
+    )]
+    pub in_market_mint: Box<InterfaceAccount<'info, Mint>>,
+    #[account(
+        constraint = out_market_mint.key() == out_constituent.load()?.mint,
+    )]
+    pub out_market_mint: Box<InterfaceAccount<'info, Mint>>,
+
+    pub authority: Signer<'info>,
+
+    pub token_program: Interface<'info, TokenInterface>,
 }

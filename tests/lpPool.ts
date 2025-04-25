@@ -326,6 +326,7 @@ describe('LP Pool', () => {
 				ammConstituentMappingPublicKey
 			)) as AmmConstituentMapping;
 
+		console.log(`ok there should be ${ammMapping.weights.length} constituents`);
 		await adminClient.updateDlpConstituentTargetWeights(
 			encodeName(lpPoolName),
 			[0],

@@ -433,3 +433,18 @@ export function getConstituentPublicKey(
 		programId
 	)[0];
 }
+
+export function getConstituentVaultPublicKey(
+	programId: PublicKey,
+	lpPoolPublicKey: PublicKey,
+	spotMarketIndex: number
+): PublicKey {
+	return PublicKey.findProgramAddressSync(
+		[
+			Buffer.from(anchor.utils.bytes.utf8.encode('VAULT')),
+			lpPoolPublicKey.toBuffer(),
+			new anchor.BN(spotMarketIndex).toArrayLike(Buffer, 'le', 2),
+		],
+		programId
+	)[0];
+}

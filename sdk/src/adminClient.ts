@@ -42,6 +42,7 @@ import {
 	getAmmConstituentMappingPublicKey,
 	getConstituentTargetWeightsPublicKey,
 	getConstituentPublicKey,
+	getConstituentVaultPublicKey,
 } from './addresses/pda';
 import { squareRootBN } from './math/utils';
 import {
@@ -4289,6 +4290,7 @@ export class AdminClient extends DriftClient {
 			lpPool,
 			spotMarketIndex
 		);
+		const spotMarketAccount = this.getSpotMarketAccount(spotMarketIndex);
 		return [
 			this.program.instruction.initializeConstituent(
 				lpPoolName,
@@ -4305,6 +4307,15 @@ export class AdminClient extends DriftClient {
 						constituent,
 						rent: SYSVAR_RENT_PUBKEY,
 						systemProgram: SystemProgram.programId,
+						state: await this.getStatePublicKey(),
+						spotMarketMint: spotMarketAccount.mint,
+						constituentVault: getConstituentVaultPublicKey(
+							this.program.programId,
+							lpPool,
+							spotMarketIndex
+						),
+						driftSigner: this.getSignerPublicKey(),
+						tokenProgram: TOKEN_PROGRAM_ID,
 					},
 					signers: [],
 				}

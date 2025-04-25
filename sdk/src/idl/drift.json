@@ -7132,6 +7132,11 @@
       "name": "initializeConstituent",
       "accounts": [
         {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
           "name": "admin",
           "isMut": true,
           "isSigner": true
@@ -7152,12 +7157,32 @@
           "isSigner": false
         },
         {
+          "name": "spotMarketMint",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "constituentVault",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "driftSigner",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
           "name": "rent",
           "isMut": false,
           "isSigner": false
         },
         {
           "name": "systemProgram",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "tokenProgram",
           "isMut": false,
           "isSigner": false
         }
@@ -7732,6 +7757,10 @@
             "type": "publicKey"
           },
           {
+            "name": "mint",
+            "type": "publicKey"
+          },
+          {
             "name": "spotMarketIndex",
             "docs": [
               "underlying drift spot market index"
@@ -7772,6 +7801,13 @@
               "precision: PERCENTAGE_PRECISION"
             ],
             "type": "i64"
+          },
+          {
+            "name": "totalSwapFees",
+            "docs": [
+              "total fees received by the constituent. Positive = fees received, Negative = fees paid"
+            ],
+            "type": "i128"
           },
           {
             "name": "spotBalance",
@@ -14126,6 +14162,81 @@
         {
           "name": "fuelTotal",
           "type": "u128",
+          "index": false
+        }
+      ]
+    },
+    {
+      "name": "LPSwapRecord",
+      "fields": [
+        {
+          "name": "ts",
+          "type": "i64",
+          "index": false
+        },
+        {
+          "name": "authority",
+          "type": "publicKey",
+          "index": false
+        },
+        {
+          "name": "amountOut",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "amountIn",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "feeOut",
+          "type": "i64",
+          "index": false
+        },
+        {
+          "name": "feeIn",
+          "type": "i64",
+          "index": false
+        },
+        {
+          "name": "outSpotMarketIndex",
+          "type": "u16",
+          "index": false
+        },
+        {
+          "name": "inSpotMarketIndex",
+          "type": "u16",
+          "index": false
+        },
+        {
+          "name": "outConstituentIndex",
+          "type": "u16",
+          "index": false
+        },
+        {
+          "name": "inConstituentIndex",
+          "type": "u16",
+          "index": false
+        },
+        {
+          "name": "outOraclePrice",
+          "type": "i64",
+          "index": false
+        },
+        {
+          "name": "inOraclePrice",
+          "type": "i64",
+          "index": false
+        },
+        {
+          "name": "mintOut",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "mintIn",
+          "type": "u64",
           "index": false
         }
       ]
