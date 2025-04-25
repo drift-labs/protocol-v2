@@ -65,7 +65,7 @@ mod tests {
                 _marker: PhantomData::<WeightDatum>,
             };
 
-        target_zc_mut
+        let totalw = target_zc_mut
             .update_target_weights(
                 &mapping_zc,
                 &amm_inventory,
@@ -76,7 +76,8 @@ mod tests {
                 WeightValidationFlags::NONE,
             )
             .unwrap();
-
+        
+        assert_eq!(totalw, 0);
         assert_eq!(target_zc_mut.len(), 1);
         assert_eq!(target_zc_mut.get(0).weight, 0);
         assert_eq!(target_zc_mut.get(0).last_slot, now_ts);
@@ -128,7 +129,7 @@ mod tests {
                 _marker: PhantomData::<WeightDatum>,
             };
 
-        target_zc_mut
+        let totalw = target_zc_mut
             .update_target_weights(
                 &mapping_zc,
                 &amm_inventory,
@@ -139,6 +140,8 @@ mod tests {
                 WeightValidationFlags::NONE,
             )
             .unwrap();
+        
+        assert_eq!(totalw, 1000000);
 
         assert_eq!(target_zc_mut.len(), 1);
         assert_eq!(target_zc_mut.get(0).weight, PERCENTAGE_PRECISION_I64);

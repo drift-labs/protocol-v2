@@ -490,7 +490,7 @@ impl<'a> AccountZeroCopyMut<'a, WeightDatum, ConstituentTargetWeightsFixed> {
         aum: u64,
         slot: u64,
         validation_flags: WeightValidationFlags,
-    ) -> DriftResult<()> {
+    ) -> DriftResult<i128> {
         let mut total_weight: i128 = 0;
         for (i, constituent_index) in constituents_indexes.iter().enumerate() {
             let mut target_amount = 0i128;
@@ -529,10 +529,6 @@ impl<'a> AccountZeroCopyMut<'a, WeightDatum, ConstituentTargetWeightsFixed> {
                 return Err(ErrorCode::DefaultError);
             }
 
-            total_weight = total_weight
-                .saturating_add(target_weight)
-                .saturating_add(PERCENTAGE_PRECISION_I64 as i128);
-
             let cell = self.get_mut(i as u32);
             cell.weight = target_weight as i64;
             cell.last_slot = slot;
@@ -548,7 +544,7 @@ impl<'a> AccountZeroCopyMut<'a, WeightDatum, ConstituentTargetWeightsFixed> {
             }
         }
 
-        Ok(())
+        Ok(total_weight)
     }
 }
 
