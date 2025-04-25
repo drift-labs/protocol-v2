@@ -1,5 +1,7 @@
 use anchor_lang::prelude::*;
 
+use crate::state::lp_pool::Constituent;
+
 pub type DriftResult<T = ()> = std::result::Result<T, ErrorCode>;
 
 #[error_code]
@@ -639,6 +641,14 @@ pub enum ErrorCode {
     InvalidAmmConstituentMappingArgument,
     #[msg("Invalid update constituent update target weights argument")]
     InvalidUpdateConstituentTargetWeightsArgument,
+    #[msg("Constituent not found")]
+    ConstituentNotFound,
+    #[msg("Constituent could not load")]
+    ConstituentCouldNotLoad,
+    #[msg("Constituent wrong mutability")]
+    ConstituentWrongMutability,
+    #[msg("Wrong number of constituents passed to instruction")]
+    WrongNumberOfConstituents,
 }
 
 #[macro_export]

@@ -5,6 +5,7 @@ use crate::{
     math::oracle::{is_oracle_valid_for_action, DriftAction},
     msg,
     state::{
+        constituent_map::{ConstituentMap, ConstituentSet},
         lp_pool::{AmmConstituentDatum, AmmConstituentMappingFixed, LPPool, WeightValidationFlags},
         perp_market_map::MarketSet,
         state::State,
@@ -98,6 +99,76 @@ pub fn handle_update_constituent_target_weights<'c: 'info, 'info>(
     )?;
 
     Ok(())
+}
+
+pub fn handle_update_lp_pool_aum(ctx: Context<UpdateLPPoolAum>) -> Result<()> {
+    let lp_pool = &ctx.accounts.lp_pool.load_mut()?;
+    let state = &ctx.accounts.state;
+
+    let slot = Clock::get()?.slot;
+
+    let AccountMaps {
+        perp_market_map,
+        spot_market_map,
+        oracle_map,
+    } = load_maps(
+        &mut ctx.remaining_accounts.iter().peekable(),
+        &MarketSet::new(),
+        &MarketSet::new(),
+        slot,
+        Some(state.oracle_guard_rails),
+    )?;
+
+    let constituent_map = ConstituentMap::load(
+        &ConstituentSet::new(),
+        &mut ctx.remaining_accounts.iter().peekable(),
+    )?;
+
+    validate!(
+        constituent_map.0.len() == lp_pool.constituents as usize,
+        ErrorCode::WrongNumberOfConstituents,
+        "Constituent map length does not match lp pool constituent count"
+    )?;
+
+    for i in 0..lp_pool.constituents as usize {
+        let constituent = constituent_map;
+
+        let oracle_data = oracle_map.get_price_data_and_validity(
+            MarketType::Perp,
+            constituent.perp_market_index,
+            &perp_market.oracle_id(),
+            perp_market
+                .amm
+                .historical_oracle_data
+                .last_oracle_price_twap,
+            perp_market.get_max_confidence_interval_multiplier()?,
+        )?;
+
+        if !is_oracle_valid_for_action(oracle_data.1, Some(DriftAction::UpdateDlpLpPoolAum))? {
+            msg!(
+                "Oracle data for perp market {} is invalid. Skipping update",
+                constituent.perp_market_index
+            );
+            continue;
+        }
+    }
+
+    Ok(())
+}
+
+#[derive(Accounts)]
+#[instruction(
+    lp_pool_name: [u8; 32],
+)]
+pub struct UpdateLPPoolAum<'info> {
+    pub state: Box<Account<'info, State>>,
+    #[account(mut)]
+    pub keeper: Signer<'info>,
+    #[account(
+        seeds = [b"lp_pool", lp_pool_name.as_ref()],
+        bump,
+    )]
+    pub lp_pool: AccountLoader<'info, LPPool>,
 }
 
 #[derive(Accounts)]
