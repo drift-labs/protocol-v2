@@ -14,6 +14,7 @@ import {
 	ContractTier,
 	AssetTier,
 	SpotFulfillmentConfigStatus,
+	UserAccount,
 } from './types';
 import { DEFAULT_MARKET_NAME, encodeName } from './userName';
 import { BN } from '@coral-xyz/anchor';
@@ -4223,5 +4224,56 @@ export class AdminClient extends DriftClient {
 				},
 			}
 		);
+	}
+
+	public async adminDeposit(
+		marketIndex: number,
+		amount: BN,
+		depositUserAccount: UserAccount,
+		adminTokenAccount?: PublicKey
+	): Promise<TransactionSignature> {
+		const ix = await this.getAdminDepositIx(
+			marketIndex,
+			amount,
+			depositUserAccount,
+			adminTokenAccount
+		);
+		const tx = await this.buildTransaction(ix);
+		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+		return txSig;
+	}
+
+	public async getAdminDepositIx(
+		marketIndex: number,
+		amount: BN,
+		depositUserAccount: UserAccount,
+		adminTokenAccount?: PublicKey
+	): Promise<TransactionInstruction> {
+		const state = await this.getStatePublicKey();
+
+		const spotMarketVault = await getSpotMarketVaultPublicKey(
+			this.program.programId,
+			marketIndex
+		);
+
+		return this.program.instruction.adminDeposit(marketIndex, amount, {
+			remainingAccounts: this.getRemainingAccounts({
+				userAccounts: [depositUserAccount],
+				writableSpotMarketIndexes: [marketIndex],
+			}),
+			accounts: {
+				state,
+				user: await this.getUserAccountPublicKey(
+					depositUserAccount.subAccountId,
+					depositUserAccount.authority
+				),
+				admin: this.wallet.publicKey,
+				spotMarketVault,
+				adminTokenAccount:
+					adminTokenAccount ??
+					(await this.getAssociatedTokenAccount(marketIndex)),
+				tokenProgram: TOKEN_PROGRAM_ID,
+			},
+		});
 	}
 }
