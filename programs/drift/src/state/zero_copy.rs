@@ -77,8 +77,8 @@ pub trait ZeroCopyLoader<'a, T, F> {
     fn load_zc_mut(&'a self) -> DriftResult<AccountZeroCopyMut<'a, T, F>>;
 }
 
-pub fn load_generic<'a, F, T>(
-    acct: &'a AccountInfo<'a>,
+pub fn load_generic<'a, 'info, F, T>(
+    acct: &'a AccountInfo<'info>,
     expected_disc: [u8; 8],
     program_id: Pubkey,
 ) -> DriftResult<AccountZeroCopy<'a, T, F>>
@@ -111,8 +111,8 @@ where
     })
 }
 
-pub fn load_generic_mut<'a, F, T>(
-    acct: &'a AccountInfo<'a>,
+pub fn load_generic_mut<'a, 'info, F, T>(
+    acct: &'a AccountInfo<'info>,
     expected_disc: [u8; 8],
     program_id: Pubkey,
 ) -> DriftResult<AccountZeroCopyMut<'a, T, F>>
@@ -145,17 +145,13 @@ where
     })
 }
 
-/// Anything that you can pull a zero‑copy view of `Elem`+`Fixed` out of.
-pub trait ToZeroCopy<'info, Elem, Fixed> {
-    fn to_zc(&self) -> DriftResult<AccountZeroCopy<'info, Elem, Fixed>>;
-    fn to_zc_mut(&self) -> DriftResult<AccountZeroCopyMut<'info, Elem, Fixed>>;
-}
-
 #[macro_export]
 macro_rules! impl_zero_copy_loader {
     ($Acc:ty, $ID:path, $Fixed:ty, $Elem:ty) => {
-        impl<'a> crate::state::zero_copy::ZeroCopyLoader<'a, $Elem, $Fixed> for AccountInfo<'a> {
-            fn load_zc(
+        impl<'info> crate::state::zero_copy::ZeroCopyLoader<'_, $Elem, $Fixed>
+            for AccountInfo<'info>
+        {
+            fn load_zc<'a>(
                 self: &'a Self,
             ) -> crate::error::DriftResult<
                 crate::state::zero_copy::AccountZeroCopy<'a, $Elem, $Fixed>,
@@ -167,7 +163,7 @@ macro_rules! impl_zero_copy_loader {
                 )
             }
 
-            fn load_zc_mut(
+            fn load_zc_mut<'a>(
                 self: &'a Self,
             ) -> crate::error::DriftResult<
                 crate::state::zero_copy::AccountZeroCopyMut<'a, $Elem, $Fixed>,

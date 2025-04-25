@@ -1,6 +1,6 @@
 use crate::error::{DriftResult, ErrorCode};
 use crate::math::casting::Cast;
-use crate::math::constants::{PERCENTAGE_PRECISION_I64, PRICE_PRECISION_I64};
+use crate::math::constants::{PERCENTAGE_PRECISION_I64, PRICE_PRECISION, PRICE_PRECISION_I64};
 use crate::math::safe_math::SafeMath;
 use anchor_lang::prelude::*;
 use anchor_spl::token::Mint;
@@ -513,9 +513,11 @@ impl<'a> AccountZeroCopyMut<'a, WeightDatum, ConstituentTargetWeightsFixed> {
             }
 
             let price = prices[i] as i128;
+
+            // assumes PRICE_PRECISION = PERCENTAGE_PRECISION
             let target_weight = if aum > 0 {
                 target_amount
-                    .saturating_mul(price)
+                    .saturating_mul(price) 
                     .saturating_div(aum as i128)
             } else {
                 0
@@ -532,14 +534,20 @@ impl<'a> AccountZeroCopyMut<'a, WeightDatum, ConstituentTargetWeightsFixed> {
                 return Err(ErrorCode::DefaultError);
             }
 
+            total_weight = total_weight
+                .saturating_add(target_weight)
+                .saturating_add(PERCENTAGE_PRECISION_I64 as i128);
+
             let cell = self.get_mut(i as u32);
             cell.weight = target_weight as i64;
             cell.last_slot = slot;
+
+            total_weight = total_weight.saturating_add(target_weight);
         }
 
         if (validation_flags as u8) & WeightValidationFlags::EnforceTotalWeight100 as u8 != 0 {
             let deviation = (total_weight - PERCENTAGE_PRECISION_I64 as i128).abs();
-            let tolerance = 1;
+            let tolerance = 100;
             if deviation > tolerance {
                 return Err(ErrorCode::DefaultError);
             }

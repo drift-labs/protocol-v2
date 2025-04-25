@@ -69,6 +69,7 @@ pub enum DriftAction {
     UpdateTwap,
     UpdateAMMCurve,
     OracleOrderPrice,
+    UpdateDlpConstituentTargetWeights,
 }
 
 pub fn is_oracle_valid_for_action(
@@ -128,6 +129,9 @@ pub fn is_oracle_valid_for_action(
             ),
             DriftAction::UpdateTwap => !matches!(oracle_validity, OracleValidity::NonPositive),
             DriftAction::UpdateAMMCurve => !matches!(oracle_validity, OracleValidity::NonPositive),
+            DriftAction::UpdateDlpConstituentTargetWeights => {
+                !matches!(oracle_validity, OracleValidity::NonPositive)
+            }
         },
         None => {
             matches!(oracle_validity, OracleValidity::Valid)

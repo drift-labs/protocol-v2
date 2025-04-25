@@ -7247,6 +7247,53 @@
           }
         }
       ]
+    },
+    {
+      "name": "updateDlpConstituentTargetWeights",
+      "accounts": [
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "keeper",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "ammConstituentMapping",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "constituentTargetWeights",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "lpPool",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "lpPoolName",
+          "type": {
+            "array": [
+              "u8",
+              32
+            ]
+          }
+        },
+        {
+          "name": "constituentIndexes",
+          "type": {
+            "vec": "u16"
+          }
+        }
+      ]
     }
   ],
   "accounts": [
@@ -11907,6 +11954,9 @@
           },
           {
             "name": "OracleOrderPrice"
+          },
+          {
+            "name": "UpdateDlpConstituentTargetWeights"
           }
         ]
       }
@@ -15677,6 +15727,11 @@
       "code": 6315,
       "name": "InvalidAmmConstituentMappingArgument",
       "msg": "Invalid Amm Constituent Mapping argument"
+    },
+    {
+      "code": 6316,
+      "name": "InvalidUpdateConstituentTargetWeightsArgument",
+      "msg": "Invalid update constituent update target weights argument"
     }
   ],
   "metadata": {

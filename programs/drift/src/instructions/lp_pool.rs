@@ -1,37 +1,49 @@
-use anchor_lang::{
-    prelude::{Account, AccountInfo, AccountLoader, Context, Pubkey, Signer, SolanaSysvar},
-    Accounts, Result,
-};
+use anchor_lang::{prelude::*, Accounts, Key, Result, ToAccountInfo};
 
-use crate::state::{
-    lp_pool::{
-        AmmConstituentDatum, AmmConstituentMappingFixed, ConstituentTargetWeightsFixed, LPPool,
-        WeightDatum, WeightValidationFlags,
+use crate::{
+    error::ErrorCode,
+    math::oracle::{is_oracle_valid_for_action, DriftAction},
+    msg,
+    state::{
+        lp_pool::{AmmConstituentDatum, AmmConstituentMappingFixed, LPPool, WeightValidationFlags},
+        perp_market_map::MarketSet,
+        state::State,
+        user::MarketType,
+        zero_copy::{AccountZeroCopy, ZeroCopyLoader},
     },
-    perp_market_map::MarketSet,
-    state::State,
-    zero_copy::{AccountZeroCopy, AccountZeroCopyMut, ZeroCopyLoader},
+    validate,
 };
 use solana_program::sysvar::clock::Clock;
 
 use super::optional_accounts::{load_maps, AccountMaps};
+use crate::state::lp_pool::{AMM_MAP_PDA_SEED, CONSTITUENT_TARGET_WEIGHT_PDA_SEED};
 
-pub fn handle_update_dlp_target_weights<'info, 'c: 'info>(
-    ctx: Context<'_, 'info, 'c, 'info, UpdateDlpTargetWeights<'info>>,
+pub fn handle_update_constituent_target_weights<'c: 'info, 'info>(
+    ctx: Context<'_, '_, 'c, 'info, UpdateConstituentTargetWeights<'info>>,
     constituent_indexes: Vec<u16>,
 ) -> Result<()> {
-    let state = &ctx.accounts.state;
     let lp_pool = &ctx.accounts.lp_pool.load()?;
+    let state = &ctx.accounts.state;
+    let mut constituent_target_weights = ctx.accounts.constituent_target_weights.load_zc_mut()?;
+
+    let num_constituents = constituent_target_weights.len();
+    let exists_invalid_constituent_index = constituent_indexes
+        .iter()
+        .any(|index| *index as u32 >= num_constituents);
+
+    validate!(
+        !exists_invalid_constituent_index,
+        ErrorCode::InvalidUpdateConstituentTargetWeightsArgument,
+        "Constituent index larger than number of constituent target weights"
+    )?;
+
     let slot = Clock::get()?.slot;
 
     let amm_constituent_mapping: AccountZeroCopy<
-        'info,
+        '_,
         AmmConstituentDatum,
         AmmConstituentMappingFixed,
     > = ctx.accounts.amm_constituent_mapping.load_zc()?;
-
-    let mut target_weights: AccountZeroCopyMut<'info, WeightDatum, ConstituentTargetWeightsFixed> =
-        ctx.accounts.constituent_target_weights.load_zc_mut()?;
 
     let AccountMaps {
         perp_market_map,
@@ -49,18 +61,33 @@ pub fn handle_update_dlp_target_weights<'info, 'c: 'info>(
     let mut oracle_prices: Vec<i64> = vec![];
     for (_, datum) in amm_constituent_mapping.iter().enumerate() {
         let perp_market = perp_market_map.get_ref(&datum.perp_market_index)?;
+
+        let oracle_data = oracle_map.get_price_data_and_validity(
+            MarketType::Perp,
+            datum.perp_market_index,
+            &perp_market.oracle_id(),
+            perp_market
+                .amm
+                .historical_oracle_data
+                .last_oracle_price_twap,
+            perp_market.get_max_confidence_interval_multiplier()?,
+        )?;
+
+        if !is_oracle_valid_for_action(
+            oracle_data.1,
+            Some(DriftAction::UpdateDlpConstituentTargetWeights),
+        )? {
+            msg!("Oracle data for perp market {} and constituent index {} is invalid. Skipping update",
+                datum.perp_market_index, datum.constituent_index);
+            continue;
+        }
+
         let amm_inventory = perp_market.amm.get_protocol_owned_position()?;
         amm_inventories.push((datum.perp_market_index, amm_inventory));
-
-        let oracle_data = oracle_map.get_price_data_and_guard_rails(&(
-            perp_market.amm.oracle,
-            perp_market.amm.oracle_source,
-        ))?;
-
         oracle_prices.push(oracle_data.0.price);
     }
 
-    target_weights.update_target_weights(
+    constituent_target_weights.update_target_weights(
         &amm_constituent_mapping,
         amm_inventories.as_slice(),
         constituent_indexes.as_slice(),
@@ -74,13 +101,29 @@ pub fn handle_update_dlp_target_weights<'info, 'c: 'info>(
 }
 
 #[derive(Accounts)]
-pub struct UpdateDlpTargetWeights<'info> {
+#[instruction(
+    lp_pool_name: [u8; 32],
+)]
+pub struct UpdateConstituentTargetWeights<'info> {
     pub state: Box<Account<'info, State>>,
     #[account(mut)]
     pub keeper: Signer<'info>,
+    #[account(
+        seeds = [AMM_MAP_PDA_SEED.as_ref(), lp_pool.key().as_ref()],
+        bump,
+    )]
     /// CHECK: checked in AmmConstituentMappingZeroCopy checks
     pub amm_constituent_mapping: AccountInfo<'info>,
+    #[account(
+        mut,
+        seeds = [CONSTITUENT_TARGET_WEIGHT_PDA_SEED.as_ref(), lp_pool.key().as_ref()],
+        bump,
+    )]
     /// CHECK: checked in ConstituentTargetWeightsZeroCopy checks
     pub constituent_target_weights: AccountInfo<'info>,
+    #[account(
+        seeds = [b"lp_pool", lp_pool_name.as_ref()],
+        bump,
+    )]
     pub lp_pool: AccountLoader<'info, LPPool>,
 }

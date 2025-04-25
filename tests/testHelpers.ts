@@ -29,7 +29,14 @@ import {
 } from '@solana/web3.js';
 import { assert } from 'chai';
 import buffer from 'buffer';
-import { BN, Wallet, OraclePriceData, OracleInfo } from '../sdk';
+import {
+	BN,
+	Wallet,
+	OraclePriceData,
+	OracleInfo,
+	PerpMarketAccount,
+	UserAccount,
+} from '../sdk';
 import {
 	TestClient,
 	SPOT_MARKET_RATE_PRECISION,
@@ -1098,4 +1105,34 @@ export async function initializeSolSpotMarket(
 		new BN(10 ** 10).mul(QUOTE_PRECISION)
 	);
 	return txSig;
+}
+
+export async function overWritePerpMarket(
+	driftClient: TestClient,
+	bankrunContextWrapper: BankrunContextWrapper,
+	perpMarketKey: PublicKey,
+	perpMarket: PerpMarketAccount
+) {
+	bankrunContextWrapper.context.setAccount(perpMarketKey, {
+		executable: false,
+		owner: driftClient.program.programId,
+		lamports: LAMPORTS_PER_SOL,
+		data: await driftClient.program.account.perpMarket.coder.accounts.encode(
+			'PerpMarket',
+			perpMarket
+		),
+	});
+}
+
+export async function getPerpMarketDecoded(
+	driftClient: TestClient,
+	bankrunContextWrapper: BankrunContextWrapper,
+	perpMarketPublicKey: PublicKey
+): Promise<PerpMarketAccount> {
+	const accountInfo = await bankrunContextWrapper.connection.getAccountInfo(
+		perpMarketPublicKey
+	);
+	const perpMarketAccount: PerpMarketAccount =
+		driftClient.program.coder.accounts.decode('PerpMarket', accountInfo!.data);
+	return perpMarketAccount;
 }
