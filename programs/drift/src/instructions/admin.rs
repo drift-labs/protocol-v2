@@ -4595,7 +4595,7 @@ pub fn handle_admin_deposit<'c: 'info, 'info>(
         total_withdraws_after,
         market_index,
         explanation: DepositExplanation::Reward,
-        transfer_user: None,
+        transfer_user: Some(ctx.accounts.admin.key()),
     };
     emit!(deposit_record);
 
