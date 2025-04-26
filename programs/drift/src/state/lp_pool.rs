@@ -2,6 +2,7 @@ use crate::error::{DriftResult, ErrorCode};
 use crate::math::casting::Cast;
 use crate::math::constants::{PERCENTAGE_PRECISION_I64, PRICE_PRECISION, PRICE_PRECISION_I64};
 use crate::math::safe_math::SafeMath;
+use crate::math::spot_balance::get_token_amount;
 use anchor_lang::prelude::*;
 use anchor_spl::token::Mint;
 use borsh::{BorshDeserialize, BorshSerialize};
@@ -41,15 +42,15 @@ pub struct LPPool {
     /// pub quote_constituent_index: u16,
 
     /// QUOTE_PRECISION: Max AUM, Prohibit minting new DLP beyond this
-    pub max_aum: u64, // 8, 136
+    pub max_aum: u128, // 8, 136
 
     /// QUOTE_PRECISION: AUM of the vault in USD, updated lazily
-    pub last_aum: u64, // 8, 144
+    pub last_aum: u128, // 8, 144
 
     /// timestamp of last AUM slot
     pub last_aum_slot: u64, // 8, 152
     /// timestamp of last AUM update
-    pub last_aum_ts: u64, // 8, 160
+    pub last_aum_ts: i64, // 8, 160
 
     /// timestamp of last vAMM revenue rebalance
     pub last_revenue_rebalance_ts: u64, // 8, 168
@@ -68,13 +69,13 @@ impl Size for LPPool {
 }
 
 impl LPPool {
-    pub fn get_nav(&self, mint: &Mint) -> Result<u64> {
+    pub fn get_nav(&self, mint: &Mint) -> Result<u128> {
         match mint.supply {
             0 => Ok(0),
             supply => {
                 // TODO: assuming mint decimals = quote decimals = 6
                 self.last_aum
-                    .checked_div(supply)
+                    .checked_div(supply.into())
                     .ok_or(ErrorCode::MathError.into())
             }
         }
@@ -240,6 +241,12 @@ impl SpotBalance for BLPosition {
     }
 }
 
+impl BLPosition {
+    pub fn get_token_amount(&self, spot_market: &SpotMarket) -> DriftResult<u128> {
+        get_token_amount(self.scaled_balance.cast()?, spot_market, &self.balance_type)
+    }
+}
+
 #[account(zero_copy(unsafe))]
 #[derive(Default, Debug, BorshDeserialize, BorshSerialize)]
 #[repr(C)]
@@ -265,7 +272,9 @@ pub struct Constituent {
 
     /// spot borrow-lend balance for constituent
     pub spot_balance: BLPosition, // should be in constituent base asset
-    pub padding: [u8; 16],
+
+    pub last_oracle_price: i64,
+    pub last_oracle_slot: u64,
 }
 
 impl Size for Constituent {
@@ -293,7 +302,7 @@ impl Constituent {
         price: i64,
         token_balance: u64,
         token_amount_delta: i64,
-        lp_pool_aum: u64,
+        lp_pool_aum: u128,
     ) -> DriftResult<i64> {
         let balance = self.get_full_balance(token_balance)?.cast::<i128>()?;
         let token_precision = 10_i128.pow(self.decimals as u32);
@@ -487,7 +496,7 @@ impl<'a> AccountZeroCopyMut<'a, WeightDatum, ConstituentTargetWeightsFixed> {
         amm_inventory: &[(u16, i64)],
         constituents_indexes: &[u16],
         prices: &[i64],
-        aum: u64,
+        aum: u128,
         slot: u64,
         validation_flags: WeightValidationFlags,
     ) -> DriftResult<()> {
@@ -512,7 +521,7 @@ impl<'a> AccountZeroCopyMut<'a, WeightDatum, ConstituentTargetWeightsFixed> {
             // assumes PRICE_PRECISION = PERCENTAGE_PRECISION
             let target_weight = if aum > 0 {
                 target_amount
-                    .saturating_mul(price) 
+                    .saturating_mul(price)
                     .saturating_div(aum as i128)
             } else {
                 0

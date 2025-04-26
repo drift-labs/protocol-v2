@@ -4366,7 +4366,7 @@ pub fn handle_initialize_high_leverage_mode_config(
 pub fn handle_initialize_lp_pool(
     ctx: Context<InitializeLpPool>,
     name: [u8; 32],
-    max_aum: u64,
+    max_aum: u128,
 ) -> Result<()> {
     let mut lp_pool = ctx.accounts.lp_pool.load_init()?;
     let mint = ctx.accounts.mint.key();

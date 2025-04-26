@@ -7022,7 +7022,7 @@
         },
         {
           "name": "maxAum",
-          "type": "u64"
+          "type": "u128"
         }
       ]
     },
@@ -7659,14 +7659,14 @@
               "pub quote_constituent_index: u16,",
               "QUOTE_PRECISION: Max AUM, Prohibit minting new DLP beyond this"
             ],
-            "type": "u64"
+            "type": "u128"
           },
           {
             "name": "lastAum",
             "docs": [
               "QUOTE_PRECISION: AUM of the vault in USD, updated lazily"
             ],
-            "type": "u64"
+            "type": "u128"
           },
           {
             "name": "lastAumSlot",
@@ -7680,7 +7680,7 @@
             "docs": [
               "timestamp of last AUM update"
             ],
-            "type": "u64"
+            "type": "i64"
           },
           {
             "name": "lastRevenueRebalanceTs",
@@ -7783,13 +7783,12 @@
             }
           },
           {
-            "name": "padding",
-            "type": {
-              "array": [
-                "u8",
-                16
-              ]
-            }
+            "name": "lastOraclePrice",
+            "type": "i64"
+          },
+          {
+            "name": "lastOracleSlot",
+            "type": "u64"
           }
         ]
       }
@@ -11941,6 +11940,9 @@
           },
           {
             "name": "UpdateDlpConstituentTargetWeights"
+          },
+          {
+            "name": "UpdateLpPoolAum"
           }
         ]
       }
@@ -15716,6 +15718,31 @@
       "code": 6316,
       "name": "InvalidUpdateConstituentTargetWeightsArgument",
       "msg": "Invalid update constituent update target weights argument"
+    },
+    {
+      "code": 6317,
+      "name": "ConstituentNotFound",
+      "msg": "Constituent not found"
+    },
+    {
+      "code": 6318,
+      "name": "ConstituentCouldNotLoad",
+      "msg": "Constituent could not load"
+    },
+    {
+      "code": 6319,
+      "name": "ConstituentWrongMutability",
+      "msg": "Constituent wrong mutability"
+    },
+    {
+      "code": 6320,
+      "name": "WrongNumberOfConstituents",
+      "msg": "Wrong number of constituents passed to instruction"
+    },
+    {
+      "code": 6321,
+      "name": "OracleTooStaleForLPAUMUpdate",
+      "msg": "Oracle too stale for LP AUM update"
     }
   ],
   "metadata": {

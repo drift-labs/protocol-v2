@@ -1666,7 +1666,7 @@ pub mod drift {
     pub fn initialize_lp_pool(
         ctx: Context<InitializeLpPool>,
         name: [u8; 32],
-        max_aum: u64,
+        max_aum: u128,
     ) -> Result<()> {
         handle_initialize_lp_pool(ctx, name, max_aum)
     }

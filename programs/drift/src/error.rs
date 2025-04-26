@@ -649,6 +649,8 @@ pub enum ErrorCode {
     ConstituentWrongMutability,
     #[msg("Wrong number of constituents passed to instruction")]
     WrongNumberOfConstituents,
+    #[msg("Oracle too stale for LP AUM update")]
+    OracleTooStaleForLPAUMUpdate,
 }
 
 #[macro_export]

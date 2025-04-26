@@ -2,7 +2,11 @@ use anchor_lang::{prelude::*, Accounts, Key, Result, ToAccountInfo};
 
 use crate::{
     error::ErrorCode,
-    math::oracle::{is_oracle_valid_for_action, DriftAction},
+    math::{
+        casting::Cast,
+        oracle::{is_oracle_valid_for_action, DriftAction},
+        safe_math::SafeMath,
+    },
     msg,
     state::{
         constituent_map::{ConstituentMap, ConstituentSet},
@@ -101,8 +105,10 @@ pub fn handle_update_constituent_target_weights<'c: 'info, 'info>(
     Ok(())
 }
 
-pub fn handle_update_lp_pool_aum(ctx: Context<UpdateLPPoolAum>) -> Result<()> {
-    let lp_pool = &ctx.accounts.lp_pool.load_mut()?;
+pub fn handle_update_lp_pool_aum<'c: 'info, 'info>(
+    ctx: Context<'_, '_, 'c, 'info, UpdateLPPoolAum<'info>>,
+) -> Result<()> {
+    let mut lp_pool = ctx.accounts.lp_pool.load_mut()?;
     let state = &ctx.accounts.state;
 
     let slot = Clock::get()?.slot;
@@ -110,7 +116,7 @@ pub fn handle_update_lp_pool_aum(ctx: Context<UpdateLPPoolAum>) -> Result<()> {
     let AccountMaps {
         perp_market_map,
         spot_market_map,
-        oracle_map,
+        mut oracle_map,
     } = load_maps(
         &mut ctx.remaining_accounts.iter().peekable(),
         &MarketSet::new(),
@@ -130,28 +136,50 @@ pub fn handle_update_lp_pool_aum(ctx: Context<UpdateLPPoolAum>) -> Result<()> {
         "Constituent map length does not match lp pool constituent count"
     )?;
 
+    let mut aum: u128 = 0;
     for i in 0..lp_pool.constituents as usize {
-        let constituent = constituent_map;
+        let mut constituent = constituent_map.get_ref_mut(&(i as u16))?;
+        let spot_market = spot_market_map.get_ref(&constituent.spot_market_index)?;
 
         let oracle_data = oracle_map.get_price_data_and_validity(
-            MarketType::Perp,
-            constituent.perp_market_index,
-            &perp_market.oracle_id(),
-            perp_market
-                .amm
-                .historical_oracle_data
-                .last_oracle_price_twap,
-            perp_market.get_max_confidence_interval_multiplier()?,
+            MarketType::Spot,
+            constituent.spot_market_index,
+            &spot_market.oracle_id(),
+            spot_market.historical_oracle_data.last_oracle_price_twap,
+            spot_market.get_max_confidence_interval_multiplier()?,
         )?;
 
-        if !is_oracle_valid_for_action(oracle_data.1, Some(DriftAction::UpdateDlpLpPoolAum))? {
-            msg!(
-                "Oracle data for perp market {} is invalid. Skipping update",
-                constituent.perp_market_index
-            );
-            continue;
+        let oracle_price = {
+            if !is_oracle_valid_for_action(oracle_data.1, Some(DriftAction::UpdateLpPoolAum))? {
+                msg!(
+                    "Oracle data for spot market {} is invalid. Skipping update",
+                    spot_market.market_index,
+                );
+                if slot - constituent.last_oracle_slot > 400 {
+                    i64::MAX
+                } else {
+                    constituent.last_oracle_price
+                }
+            } else {
+                oracle_data.0.price
+            }
+        };
+
+        if oracle_price == i64::MAX {
+            return Err(ErrorCode::OracleTooStaleForLPAUMUpdate.into());
         }
+
+        constituent.last_oracle_price = oracle_price;
+        constituent.last_oracle_slot = slot;
+
+        let token_amount = constituent.spot_balance.get_token_amount(&spot_market)?;
+        let constituent_aum = token_amount.safe_mul(oracle_price.cast()?)?;
+        aum = aum.safe_add(constituent_aum)?;
     }
+
+    lp_pool.last_aum = aum;
+    lp_pool.last_aum_slot = slot;
+    lp_pool.last_aum_ts = Clock::get()?.unix_timestamp;
 
     Ok(())
 }
