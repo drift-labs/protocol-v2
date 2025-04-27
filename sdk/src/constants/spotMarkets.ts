@@ -706,6 +706,52 @@ export const MainnetSpotMarkets: SpotMarketConfig[] = [
 		pythLazerId: 182,
 		launchTs: 1743086746000,
 	},
+	{
+		symbol: 'JitoSOL-3',
+		marketIndex: 40,
+		poolId: 3,
+		oracle: new PublicKey('Fqv8vT5fdjvBbHd5k4B4ZvnXLH6bbdKP8cMv93ybCP8W'),
+		oracleSource: OracleSource.SWITCHBOARD_ON_DEMAND,
+		mint: new PublicKey('J1toso1uCk3RLmjorhTtrVwY9HJ7X8V9yYac6Y7kGCPn'),
+		precision: new BN(10).pow(NINE),
+		precisionExp: NINE,
+		serumMarket: new PublicKey('DkbVbMhFxswS32xnn1K2UY4aoBugXooBTxdzkWWDWRkH'),
+		phoenixMarket: new PublicKey(
+			'5LQLfGtqcC5rm2WuGxJf4tjqYmDjsQAbKo2AMLQ8KB7p'
+		),
+		pythFeedId:
+			'0x67be9f519b95cf24338801051f9a808eff0a578ccb388db73b7f6fe1de019ffb',
+	},
+	{
+		symbol: 'PT-fragSOL-15JUN25-3',
+		marketIndex: 41,
+		poolId: 3,
+		oracle: new PublicKey('CLjvwowzQ2L9PrmXA6zqbamxLVeDY9vE87aBxMZLJLoY'),
+		oracleSource: OracleSource.SWITCHBOARD_ON_DEMAND,
+		mint: new PublicKey('8adRViFUNTe3yexj2gbQtx929zBJtWJRM8TeTzYbQBgx'),
+		precision: new BN(10).pow(NINE),
+		precisionExp: NINE,
+	},
+	{
+		symbol: 'PT-kySOL-10JUL25-3',
+		marketIndex: 42,
+		poolId: 3,
+		oracle: new PublicKey('G4FdLzuezfaJxBd8eChuw1NU4Sq3n1rasGTwSh7dXegN'),
+		oracleSource: OracleSource.SWITCHBOARD_ON_DEMAND,
+		mint: new PublicKey('FxT7bPGvkS5jKF2vgnJ16MciHqtsNqxbcWTfFg7L136h'),
+		precision: new BN(10).pow(NINE),
+		precisionExp: NINE,
+	},
+	{
+		symbol: 'PT-dSOL-30JUN25-3',
+		marketIndex: 43,
+		poolId: 3,
+		oracle: new PublicKey('BR4NCRe2R8shvDAskUt6HE3n8Ej8HdMnVqshLz97BMm9'),
+		oracleSource: OracleSource.SWITCHBOARD_ON_DEMAND,
+		mint: new PublicKey('8H3tZ7WcgYPKEQ7fCCAFQuaNqKdMH1EtBp2ovUPpRK3k'),
+		precision: new BN(10).pow(NINE),
+		precisionExp: NINE,
+	},
 ];
 
 export const SpotMarkets: { [key in DriftEnv]: SpotMarketConfig[] } = {
