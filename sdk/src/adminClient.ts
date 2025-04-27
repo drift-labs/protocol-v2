@@ -4229,7 +4229,7 @@ export class AdminClient extends DriftClient {
 	public async adminDeposit(
 		marketIndex: number,
 		amount: BN,
-		depositUserAccount: UserAccount,
+		depositUserAccount: PublicKey,
 		adminTokenAccount?: PublicKey
 	): Promise<TransactionSignature> {
 		const ix = await this.getAdminDepositIx(
@@ -4246,7 +4246,7 @@ export class AdminClient extends DriftClient {
 	public async getAdminDepositIx(
 		marketIndex: number,
 		amount: BN,
-		depositUserAccount: UserAccount,
+		depositUserAccount: PublicKey,
 		adminTokenAccount?: PublicKey
 	): Promise<TransactionInstruction> {
 		const state = await this.getStatePublicKey();
@@ -4258,15 +4258,12 @@ export class AdminClient extends DriftClient {
 
 		return this.program.instruction.adminDeposit(marketIndex, amount, {
 			remainingAccounts: this.getRemainingAccounts({
-				userAccounts: [depositUserAccount],
+				userAccounts: [],
 				writableSpotMarketIndexes: [marketIndex],
 			}),
 			accounts: {
 				state,
-				user: await this.getUserAccountPublicKey(
-					depositUserAccount.subAccountId,
-					depositUserAccount.authority
-				),
+				user: depositUserAccount,
 				admin: this.wallet.publicKey,
 				spotMarketVault,
 				adminTokenAccount:

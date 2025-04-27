@@ -4459,7 +4459,7 @@ pub fn handle_admin_deposit<'c: 'info, 'info>(
 
     let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
     let AccountMaps {
-        perp_market_map,
+        perp_market_map: _,
         spot_market_map,
         mut oracle_map,
     } = load_maps(
@@ -4548,20 +4548,6 @@ pub fn handle_admin_deposit<'c: 'info, 'info>(
     }
 
     drop(spot_market);
-    if user.is_being_liquidated() {
-        // try to update liquidation status if user is was already being liq'd
-        let is_being_liquidated = is_user_being_liquidated(
-            user,
-            &perp_market_map,
-            &spot_market_map,
-            &mut oracle_map,
-            state.liquidation_margin_buffer_ratio,
-        )?;
-
-        if !is_being_liquidated {
-            user.exit_liquidation();
-        }
-    }
 
     user.update_last_active_slot(slot);
 
@@ -4576,6 +4562,7 @@ pub fn handle_admin_deposit<'c: 'info, 'info>(
         &mint,
     )?;
     ctx.accounts.spot_market_vault.reload()?;
+    validate_spot_market_vault_amount(spot_market, ctx.accounts.spot_market_vault.amount)?;
 
     let deposit_record_id = get_then_update_id!(spot_market, next_deposit_record_id);
     let oracle_price = oracle_price_data.price;
@@ -5336,7 +5323,10 @@ pub struct AdminDeposit<'info> {
     pub state: Box<Account<'info, State>>,
     #[account(mut)]
     pub user: AccountLoader<'info, User>,
-    #[account(mut)]
+    #[account(
+        mut,
+        constraint = admin.key() == admin_hot_wallet::id() || admin.key() == state.admin
+    )]
     pub admin: Signer<'info>,
     #[account(
         mut,
