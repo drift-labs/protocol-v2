@@ -259,6 +259,7 @@ pub struct Constituent {
     pub constituent_index: u16,
 
     pub decimals: u8,
+    _padding1: [u8; 3],
 
     /// max deviation from target_weight allowed for the constituent
     /// precision: PERCENTAGE_PRECISION

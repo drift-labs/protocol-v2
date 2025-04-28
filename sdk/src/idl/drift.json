@@ -7138,7 +7138,7 @@
         },
         {
           "name": "lpPool",
-          "isMut": false,
+          "isMut": true,
           "isSigner": false
         },
         {
@@ -7291,6 +7291,37 @@
           "name": "constituentIndexes",
           "type": {
             "vec": "u16"
+          }
+        }
+      ]
+    },
+    {
+      "name": "updateLpPoolAum",
+      "accounts": [
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "keeper",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "lpPool",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "lpPoolName",
+          "type": {
+            "array": [
+              "u8",
+              32
+            ]
           }
         }
       ]
@@ -7748,6 +7779,15 @@
           {
             "name": "decimals",
             "type": "u8"
+          },
+          {
+            "name": "padding1",
+            "type": {
+              "array": [
+                "u8",
+                3
+              ]
+            }
           },
           {
             "name": "maxWeightDeviation",

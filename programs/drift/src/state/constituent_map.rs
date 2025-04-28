@@ -102,11 +102,22 @@ impl<'a> ConstituentMap<'a> {
 
             let expected_data_len = Constituent::SIZE;
             if data.len() < expected_data_len {
+                msg!(
+                    "didnt match constituent size, {}, {}",
+                    data.len(),
+                    expected_data_len
+                );
                 break;
             }
 
             let account_discriminator = array_ref![data, 0, 8];
+            msg!("pubkey: {}", account_info.key);
             if account_discriminator != &constituent_discriminator {
+                msg!(
+                    "didnt match account discriminator {:?}, {:?}",
+                    account_discriminator,
+                    constituent_discriminator
+                );
                 break;
             }
 

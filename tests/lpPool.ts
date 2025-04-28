@@ -20,6 +20,7 @@ import {
 	ConstituentTargetWeights,
 	AmmConstituentMapping,
 	User,
+	LPPool,
 } from '../sdk/src';
 
 import {
@@ -214,6 +215,13 @@ describe('LP Pool', () => {
 			(await adminClient.program.account.constituentTargetWeights.fetch(
 				constituentTargetWeightsPublicKey
 			)) as ConstituentTargetWeights;
+
+		const lpPool = (await adminClient.program.account.lpPool.fetch(
+			lpPoolKey
+		)) as LPPool;
+
+		assert(lpPool.constituents == 1);
+
 		expect(constituentTargetWeights).to.not.be.null;
 		assert(constituentTargetWeights.weights.length == 1);
 	});
@@ -339,5 +347,31 @@ describe('LP Pool', () => {
 			)) as ConstituentTargetWeights;
 		expect(constituentTargetWeights).to.not.be.null;
 		assert(constituentTargetWeights.weights.length == 1);
+	});
+
+	it('can update pool aum', async () => {
+		const lpPool = (await adminClient.program.account.lpPool.fetch(
+			lpPoolKey
+		)) as LPPool;
+		assert(lpPool.constituents == 1);
+
+		await adminClient.updateDlpPoolAum(lpPool, [0]);
+
+		// Should fail if we initialize a second constituent and dont pass it in
+		await adminClient.initializeConstituent(
+			encodeName(lpPoolName),
+			1,
+			6,
+			new BN(10).mul(PERCENTAGE_PRECISION),
+			new BN(1).mul(PERCENTAGE_PRECISION),
+			new BN(2).mul(PERCENTAGE_PRECISION)
+		);
+
+		try {
+			await adminClient.updateDlpPoolAum(lpPool, [0]);
+			expect.fail('should have failed');
+		} catch (e) {
+			assert(e.message.includes('0x18b0'));
+		}
 	});
 });

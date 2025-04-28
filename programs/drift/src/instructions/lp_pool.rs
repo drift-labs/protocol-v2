@@ -113,22 +113,24 @@ pub fn handle_update_lp_pool_aum<'c: 'info, 'info>(
 
     let slot = Clock::get()?.slot;
 
+    let remaining_accounts = &mut ctx.remaining_accounts.iter().peekable();
+
     let AccountMaps {
-        perp_market_map,
+        perp_market_map: _,
         spot_market_map,
         mut oracle_map,
     } = load_maps(
-        &mut ctx.remaining_accounts.iter().peekable(),
+        remaining_accounts,
         &MarketSet::new(),
         &MarketSet::new(),
         slot,
         Some(state.oracle_guard_rails),
     )?;
 
-    let constituent_map = ConstituentMap::load(
-        &ConstituentSet::new(),
-        &mut ctx.remaining_accounts.iter().peekable(),
-    )?;
+    let constituent_map = ConstituentMap::load(&ConstituentSet::new(), remaining_accounts)?;
+
+    msg!("{}", constituent_map.0.len());
+    msg!("{}", lp_pool.constituents);
 
     validate!(
         constituent_map.0.len() == lp_pool.constituents as usize,
@@ -193,6 +195,7 @@ pub struct UpdateLPPoolAum<'info> {
     #[account(mut)]
     pub keeper: Signer<'info>,
     #[account(
+        mut,
         seeds = [b"lp_pool", lp_pool_name.as_ref()],
         bump,
     )]

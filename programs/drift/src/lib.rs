@@ -41,7 +41,7 @@ declare_id!("dRiftyHA39MWEi3m9aunc5MzRF1JYuBsbn6VPcn33UH");
 #[program]
 pub mod drift {
     use super::*;
-    use crate::state::spot_market::SpotFulfillmentConfigStatus;
+    use crate::{instruction::UpdateLpPoolAum, state::spot_market::SpotFulfillmentConfigStatus};
 
     // User Instructions
 
@@ -1728,6 +1728,13 @@ pub mod drift {
         constituent_indexes: Vec<u16>,
     ) -> Result<()> {
         handle_update_constituent_target_weights(ctx, constituent_indexes)
+    }
+
+    pub fn update_lp_pool_aum<'c: 'info, 'info>(
+        ctx: Context<'_, '_, 'c, 'info, UpdateLPPoolAum<'info>>,
+        lp_pool_name: [u8; 32],
+    ) -> Result<()> {
+        handle_update_lp_pool_aum(ctx)
     }
 }
 

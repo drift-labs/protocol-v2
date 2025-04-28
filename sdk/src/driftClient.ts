@@ -60,6 +60,7 @@ import {
 	SignedMsgOrderParamsDelegateMessage,
 	AmmConstituentMapping,
 	AmmConstituentDatum,
+	LPPool,
 } from './types';
 import driftIDL from './idl/drift.json';
 
@@ -109,6 +110,7 @@ import {
 	getConstituentTargetWeightsPublicKey,
 	getAmmConstituentMappingPublicKey,
 	getLpPoolPublicKey,
+	getConstituentPublicKey,
 } from './addresses/pda';
 import {
 	DataAndSlot,
@@ -9744,6 +9746,57 @@ export class DriftClient {
 				remainingAccounts,
 			}
 		);
+	}
+
+	public async updateDlpPoolAum(
+		lpPool: LPPool,
+		spotMarketIndexOfConstituents: number[],
+		txParams?: TxParams
+	): Promise<TransactionSignature> {
+		const { txSig } = await this.sendTransaction(
+			await this.buildTransaction(
+				await this.getUpdateDlpPoolAumIxs(
+					lpPool,
+					spotMarketIndexOfConstituents
+				),
+				txParams
+			),
+			[],
+			this.opts
+		);
+		return txSig;
+	}
+
+	public async getUpdateDlpPoolAumIxs(
+		lpPool: LPPool,
+		spotMarketIndexOfConstituents: number[]
+	): Promise<TransactionInstruction> {
+		const remainingAccounts = this.getRemainingAccounts({
+			userAccounts: [],
+			readableSpotMarketIndexes: spotMarketIndexOfConstituents,
+		});
+		remainingAccounts.push(
+			...spotMarketIndexOfConstituents.map((index) => {
+				return {
+					pubkey: getConstituentPublicKey(
+						this.program.programId,
+						lpPool.pubkey,
+						index
+					),
+					isSigner: false,
+					isWritable: true,
+				};
+			})
+		);
+
+		return this.program.instruction.updateLpPoolAum(lpPool.name, {
+			accounts: {
+				keeper: this.wallet.publicKey,
+				lpPool: lpPool.pubkey,
+				state: await this.getStatePublicKey(),
+			},
+			remainingAccounts,
+		});
 	}
 
 	/**

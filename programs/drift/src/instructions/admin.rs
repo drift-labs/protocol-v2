@@ -4455,6 +4455,7 @@ pub fn handle_initialize_constituent<'info>(
     swap_fee_max: i64,
 ) -> Result<()> {
     let mut constituent = ctx.accounts.constituent.load_init()?;
+    let mut lp_pool = ctx.accounts.lp_pool.load_mut()?;
 
     let constituent_target_weights = &mut ctx.accounts.constituent_target_weights;
     let current_len = constituent_target_weights.weights.len();
@@ -4469,6 +4470,7 @@ pub fn handle_initialize_constituent<'info>(
     constituent.max_weight_deviation = max_weight_deviation;
     constituent.swap_fee_min = swap_fee_min;
     constituent.swap_fee_max = swap_fee_max;
+    lp_pool.constituents += 1;
 
     Ok(())
 }
@@ -5318,6 +5320,7 @@ pub struct InitializeConstituent<'info> {
     pub admin: Signer<'info>,
 
     #[account(
+        mut,
         seeds = [b"lp_pool", lp_pool_name.as_ref()],
         bump,
     )]
