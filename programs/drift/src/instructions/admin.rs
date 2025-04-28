@@ -1,7 +1,6 @@
 use std::convert::identity;
 use std::mem::size_of;
 
-use crate::math::liquidation::is_user_being_liquidated;
 use crate::msg;
 use anchor_lang::prelude::*;
 use anchor_spl::token::Token;
