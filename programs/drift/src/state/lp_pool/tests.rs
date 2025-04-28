@@ -1,19 +1,18 @@
 #[cfg(test)]
 mod tests {
-    use crate::math::constants::PERCENTAGE_PRECISION_I64;
+    use crate::math::constants::PERCENTAGE_PRECISION_I32;
     use crate::state::lp_pool::*;
     use std::{cell::RefCell, marker::PhantomData, vec};
 
     fn amm_const_datum(
         perp_market_index: u16,
         constituent_index: u16,
-        weight: i64,
+        weight: i32,
         last_slot: u64,
     ) -> AmmConstituentDatum {
         AmmConstituentDatum {
             perp_market_index,
             constituent_index,
-            padding: [0; 4],
             weight,
             last_slot,
         }
@@ -26,7 +25,7 @@ mod tests {
             len: 1,
             ..AmmConstituentMappingFixed::default()
         });
-        let mapping_data = RefCell::new([0u8; 24]);
+        let mapping_data = RefCell::new([0u8; 16]);
         {
             let mut mapping_zc_mut =
                 AccountZeroCopyMut::<'_, AmmConstituentDatum, AmmConstituentMappingFixed> {
@@ -84,12 +83,12 @@ mod tests {
 
     #[test]
     fn test_single_full_weight() {
-        let amm_datum = amm_const_datum(0, 1, PERCENTAGE_PRECISION_I64, 0);
+        let amm_datum = amm_const_datum(0, 1, PERCENTAGE_PRECISION_I32, 0);
         let mapping_fixed = RefCell::new(AmmConstituentMappingFixed {
             len: 1,
             ..AmmConstituentMappingFixed::default()
         });
-        let mapping_data = RefCell::new([0u8; 24]);
+        let mapping_data = RefCell::new([0u8; 16]);
         {
             let mut mapping_zc_mut =
                 AccountZeroCopyMut::<'_, AmmConstituentDatum, AmmConstituentMappingFixed> {
@@ -141,15 +140,15 @@ mod tests {
             .unwrap();
 
         assert_eq!(target_zc_mut.len(), 1);
-        assert_eq!(target_zc_mut.get(0).weight, PERCENTAGE_PRECISION_I64);
+        assert_eq!(target_zc_mut.get(0).weight, PERCENTAGE_PRECISION_I32);
         assert_eq!(target_zc_mut.get(0).last_slot, now_ts);
     }
 
     #[test]
     fn test_multiple_constituents_partial_weights() {
         let amm_mapping_data = vec![
-            amm_const_datum(0, 1, PERCENTAGE_PRECISION_I64 / 2, 111),
-            amm_const_datum(0, 2, PERCENTAGE_PRECISION_I64 / 2, 111),
+            amm_const_datum(0, 1, PERCENTAGE_PRECISION_I32 / 2, 111),
+            amm_const_datum(0, 2, PERCENTAGE_PRECISION_I32 / 2, 111),
         ];
 
         let mapping_fixed = RefCell::new(AmmConstituentMappingFixed {
@@ -158,7 +157,7 @@ mod tests {
         });
 
         // 48 = size_of::<AmmConstituentDatum>() * amm_mapping_data.len()
-        let mapping_data = RefCell::new([0u8; 48]);
+        let mapping_data = RefCell::new([0u8; 32]);
 
         {
             let mut mapping_zc_mut =
@@ -217,19 +216,19 @@ mod tests {
         assert_eq!(target_zc_mut.len(), 2);
 
         for i in 0..target_zc_mut.len() {
-            assert_eq!(target_zc_mut.get(i).weight, PERCENTAGE_PRECISION_I64 / 2);
+            assert_eq!(target_zc_mut.get(i).weight, PERCENTAGE_PRECISION_I32 / 2);
             assert_eq!(target_zc_mut.get(i).last_slot, now_ts);
         }
     }
 
     #[test]
     fn test_zero_aum_safe() {
-        let amm_datum = amm_const_datum(0, 1, PERCENTAGE_PRECISION_I64, 0);
+        let amm_datum = amm_const_datum(0, 1, PERCENTAGE_PRECISION_I32, 0);
         let mapping_fixed = RefCell::new(AmmConstituentMappingFixed {
             len: 1,
             ..AmmConstituentMappingFixed::default()
         });
-        let mapping_data = RefCell::new([0u8; 24]);
+        let mapping_data = RefCell::new([0u8; 16]);
         {
             let mut mapping_zc_mut =
                 AccountZeroCopyMut::<'_, AmmConstituentDatum, AmmConstituentMappingFixed> {
@@ -287,12 +286,12 @@ mod tests {
 
     #[test]
     fn test_overflow_protection() {
-        let amm_datum = amm_const_datum(0, 1, i64::MAX, 0);
+        let amm_datum = amm_const_datum(0, 1, i32::MAX, 0);
         let mapping_fixed = RefCell::new(AmmConstituentMappingFixed {
             len: 1,
             ..AmmConstituentMappingFixed::default()
         });
-        let mapping_data = RefCell::new([0u8; 24]);
+        let mapping_data = RefCell::new([0u8; 16]);
         {
             let mut mapping_zc_mut =
                 AccountZeroCopyMut::<'_, AmmConstituentDatum, AmmConstituentMappingFixed> {
@@ -344,7 +343,7 @@ mod tests {
             .unwrap();
 
         assert_eq!(target_zc_mut.len(), 1);
-        assert!(target_zc_mut.get(0).weight <= PERCENTAGE_PRECISION_I64);
+        assert!(target_zc_mut.get(0).weight <= PERCENTAGE_PRECISION_I32);
         assert_eq!(target_zc_mut.get(0).last_slot, now_ts);
     }
 
