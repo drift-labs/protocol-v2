@@ -1,4 +1,4 @@
-use anchor_lang::{prelude::*, Accounts, Key, Result, ToAccountInfo};
+use anchor_lang::{prelude::*, Accounts, Key, Result};
 
 use crate::{
     error::ErrorCode,
@@ -52,7 +52,7 @@ pub fn handle_update_constituent_target_weights<'c: 'info, 'info>(
 
     let AccountMaps {
         perp_market_map,
-        spot_market_map,
+        spot_market_map: _,
         mut oracle_map,
     } = load_maps(
         &mut ctx.remaining_accounts.iter().peekable(),
@@ -151,32 +151,34 @@ pub fn handle_update_lp_pool_aum<'c: 'info, 'info>(
             spot_market.get_max_confidence_interval_multiplier()?,
         )?;
 
-        let oracle_price = {
+        let oracle_price: Option<i64> = {
             if !is_oracle_valid_for_action(oracle_data.1, Some(DriftAction::UpdateLpPoolAum))? {
                 msg!(
                     "Oracle data for spot market {} is invalid. Skipping update",
                     spot_market.market_index,
                 );
                 if slot - constituent.last_oracle_slot > 400 {
-                    i64::MAX
+                    None
                 } else {
-                    constituent.last_oracle_price
+                    Some(constituent.last_oracle_price)
                 }
             } else {
-                oracle_data.0.price
+                Some(oracle_data.0.price)
             }
         };
 
-        if oracle_price == i64::MAX {
+        if oracle_price.is_none() {
             return Err(ErrorCode::OracleTooStaleForLPAUMUpdate.into());
         }
 
-        constituent.last_oracle_price = oracle_price;
+        constituent.last_oracle_price = oracle_price.unwrap();
         constituent.last_oracle_slot = slot;
 
         let token_amount = constituent.spot_balance.get_token_amount(&spot_market)?;
-        let constituent_aum = token_amount.safe_mul(oracle_price.cast()?)?;
-        aum = aum.safe_add(constituent_aum)?;
+        let constituent_aum = constituent
+            .get_full_balance(token_amount)?
+            .safe_mul(oracle_price.unwrap() as i128)?;
+        aum = aum.safe_add(constituent_aum as u128)?;
     }
 
     lp_pool.last_aum = aum;
