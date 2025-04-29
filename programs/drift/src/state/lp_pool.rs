@@ -19,6 +19,7 @@ use crate::{impl_zero_copy_loader, validate};
 pub const AMM_MAP_PDA_SEED: &str = "AMM_MAP";
 pub const CONSTITUENT_PDA_SEED: &str = "CONSTITUENT";
 pub const CONSTITUENT_TARGET_WEIGHT_PDA_SEED: &str = "CONSTITUENT_TARGET_WEIGHTS";
+pub const CONSTITUENT_VAULT_PDA_SEED: &str = "CONSTITUENT_VAULT";
 
 #[cfg(test)]
 mod tests;
@@ -508,7 +509,7 @@ impl<'a> AccountZeroCopyMut<'a, WeightDatum, ConstituentTargetWeightsFixed> {
         aum: u128,
         slot: u64,
         validation_flags: WeightValidationFlags,
-    ) -> DriftResult<()> {
+    ) -> DriftResult<i128> {
         let mut total_weight: i128 = 0;
         let aum_i128 = aum.cast::<i128>()?;
         for (i, constituent_index) in constituents_indexes.iter().enumerate() {
@@ -546,10 +547,6 @@ impl<'a> AccountZeroCopyMut<'a, WeightDatum, ConstituentTargetWeightsFixed> {
                 return Err(ErrorCode::DefaultError);
             }
 
-            total_weight = total_weight
-                .saturating_add(target_weight)
-                .saturating_add(PERCENTAGE_PRECISION_I64 as i128);
-
             let cell = self.get_mut(i as u32);
             msg!(
                 "updating constituent index {} target weight to {}",
@@ -571,7 +568,7 @@ impl<'a> AccountZeroCopyMut<'a, WeightDatum, ConstituentTargetWeightsFixed> {
             }
         }
 
-        Ok(())
+        Ok(total_weight)
     }
 }
 

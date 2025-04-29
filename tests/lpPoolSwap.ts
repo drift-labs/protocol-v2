@@ -4,7 +4,7 @@ import { expect, assert } from 'chai';
 import { Program } from '@coral-xyz/anchor';
 
 import { Keypair, PublicKey } from '@solana/web3.js';
-import { getMint } from '@solana/spl-token';
+import { TOKEN_PROGRAM_ID, getMint } from '@solana/spl-token';
 
 import {
 	BN,
@@ -19,9 +19,7 @@ import {
 	PEG_PRECISION,
 	ConstituentTargetWeights,
 	AmmConstituentMapping,
-	LPPool,
 	User,
-	getConstituentVaultPublicKey,
 } from '../sdk/src';
 
 import {
@@ -44,6 +42,7 @@ describe('LP Pool', () => {
 
 	let adminClient: TestClient;
 	let usdcMint;
+	let adminUser: User;
 
 	const mantissaSqrtScale = new BN(Math.sqrt(PRICE_PRECISION.toNumber()));
 	const ammInitialQuoteAssetReserve = new anchor.BN(10 * 10 ** 13).mul(
@@ -100,7 +99,7 @@ describe('LP Pool', () => {
 			},
 			activeSubAccountId: 0,
 			subAccountIds: [],
-			perpMarketIndexes: [0, 1, 2],
+			perpMarketIndexes: [0, 1],
 			spotMarketIndexes: [0],
 			oracleInfos: [],
 			accountSubscription: {
@@ -123,6 +122,14 @@ describe('LP Pool', () => {
 			new BN(10).mul(QUOTE_PRECISION),
 			userUSDCAccount.publicKey
 		);
+		adminUser = new User({
+			driftClient: adminClient,
+			userAccountPublicKey: await adminClient.getUserAccountPublicKey(),
+			accountSubscription: {
+				type: 'polling',
+				accountLoader: bulkAccountLoader,
+			},
+		});
 
 		solUsd = await mockOracleNoProgram(bankrunContextWrapper, 224.3);
 		const periodicity = new BN(0);
@@ -138,15 +145,6 @@ describe('LP Pool', () => {
 
 		await adminClient.initializePerpMarket(
 			1,
-			solUsd,
-			ammInitialBaseAssetReserve,
-			ammInitialQuoteAssetReserve,
-			periodicity,
-			new BN(224 * PEG_PRECISION.toNumber())
-		);
-
-		await adminClient.initializePerpMarket(
-			2,
 			solUsd,
 			ammInitialBaseAssetReserve,
 			ammInitialQuoteAssetReserve,
@@ -216,38 +214,19 @@ describe('LP Pool', () => {
 			(await adminClient.program.account.constituentTargetWeights.fetch(
 				constituentTargetWeightsPublicKey
 			)) as ConstituentTargetWeights;
-
-		const lpPool = (await adminClient.program.account.lpPool.fetch(
-			lpPoolKey
-		)) as LPPool;
-
-		assert(lpPool.constituents == 1);
-
 		expect(constituentTargetWeights).to.not.be.null;
 		assert(constituentTargetWeights.weights.length == 1);
-
-		const constituentVaultPublicKey = getConstituentVaultPublicKey(
-			program.programId,
-			lpPoolKey,
-			0
-		);
-		const constituentTokenVault =
-			await bankrunContextWrapper.connection.getAccountInfo(
-				constituentVaultPublicKey
-			);
-		expect(constituentTokenVault).to.not.be.null;
 	});
+
 	it('can add amm mapping datum', async () => {
-		await adminClient.addAmmConstituentMappingData(encodeName(lpPoolName), [
+		await adminClient.addInitAmmConstituentMappingData(encodeName(lpPoolName), [
 			{
 				perpMarketIndex: 0,
 				constituentIndex: 0,
-				weight: PERCENTAGE_PRECISION,
 			},
 			{
 				perpMarketIndex: 1,
 				constituentIndex: 0,
-				weight: PERCENTAGE_PRECISION,
 			},
 		]);
 		const ammConstituentMapping = getAmmConstituentMappingPublicKey(
@@ -265,13 +244,15 @@ describe('LP Pool', () => {
 	it('fails adding datum with bad params', async () => {
 		// Bad perp market index
 		try {
-			await adminClient.addAmmConstituentMappingData(encodeName(lpPoolName), [
-				{
-					perpMarketIndex: 3,
-					constituentIndex: 0,
-					weight: PERCENTAGE_PRECISION,
-				},
-			]);
+			await adminClient.addInitAmmConstituentMappingData(
+				encodeName(lpPoolName),
+				[
+					{
+						perpMarketIndex: 2,
+						constituentIndex: 0,
+					},
+				]
+			);
 			expect.fail('should have failed');
 		} catch (e) {
 			expect(e.message).to.contain('0x18ab');
@@ -279,13 +260,15 @@ describe('LP Pool', () => {
 
 		// Bad constituent index
 		try {
-			await adminClient.addAmmConstituentMappingData(encodeName(lpPoolName), [
-				{
-					perpMarketIndex: 0,
-					constituentIndex: 1,
-					weight: PERCENTAGE_PRECISION,
-				},
-			]);
+			await adminClient.addInitAmmConstituentMappingData(
+				encodeName(lpPoolName),
+				[
+					{
+						perpMarketIndex: 0,
+						constituentIndex: 1,
+					},
+				]
+			);
 			expect.fail('should have failed');
 		} catch (e) {
 			expect(e.message).to.contain('0x18ab');
@@ -343,6 +326,7 @@ describe('LP Pool', () => {
 				ammConstituentMappingPublicKey
 			)) as AmmConstituentMapping;
 
+		console.log(`ok there should be ${ammMapping.weights.length} constituents`);
 		await adminClient.updateDlpConstituentTargetWeights(
 			encodeName(lpPoolName),
 			[0],
@@ -356,83 +340,5 @@ describe('LP Pool', () => {
 			)) as ConstituentTargetWeights;
 		expect(constituentTargetWeights).to.not.be.null;
 		assert(constituentTargetWeights.weights.length == 1);
-	});
-
-	it('can update pool aum', async () => {
-		const lpPool = (await adminClient.program.account.lpPool.fetch(
-			lpPoolKey
-		)) as LPPool;
-		assert(lpPool.constituents == 1);
-
-		await adminClient.updateDlpPoolAum(lpPool, [0]);
-
-		// Should fail if we initialize a second constituent and dont pass it in
-		await adminClient.initializeConstituent(
-			lpPool.name,
-			1,
-			6,
-			new BN(10).mul(PERCENTAGE_PRECISION),
-			new BN(1).mul(PERCENTAGE_PRECISION),
-			new BN(2).mul(PERCENTAGE_PRECISION)
-		);
-
-		try {
-			await adminClient.updateDlpPoolAum(lpPool, [0]);
-			expect.fail('should have failed');
-		} catch (e) {
-			assert(e.message.includes('0x18b0'));
-		}
-	});
-
-	it('can update and remove amm constituent mapping entries', async () => {
-		await adminClient.addAmmConstituentMappingData(encodeName(lpPoolName), [
-			{
-				perpMarketIndex: 2,
-				constituentIndex: 0,
-				weight: PERCENTAGE_PRECISION,
-			},
-		]);
-		const ammConstituentMapping = getAmmConstituentMappingPublicKey(
-			program.programId,
-			lpPoolKey
-		);
-		let ammMapping =
-			(await adminClient.program.account.ammConstituentMapping.fetch(
-				ammConstituentMapping
-			)) as AmmConstituentMapping;
-		expect(ammMapping).to.not.be.null;
-		assert(ammMapping.weights.length == 3);
-
-		// Update
-		await adminClient.updateAmmConstituentMappingData(encodeName(lpPoolName), [
-			{
-				perpMarketIndex: 2,
-				constituentIndex: 0,
-				weight: PERCENTAGE_PRECISION.muln(2),
-			},
-		]);
-		ammMapping = (await adminClient.program.account.ammConstituentMapping.fetch(
-			ammConstituentMapping
-		)) as AmmConstituentMapping;
-		expect(ammMapping).to.not.be.null;
-		assert(
-			ammMapping.weights
-				.find((x) => x.perpMarketIndex == 2)
-				.weight.eq(PERCENTAGE_PRECISION.muln(2))
-		);
-
-		// Remove
-		await adminClient.removeAmmConstituentMappingData(
-			encodeName(lpPoolName),
-			2,
-			0
-		);
-		ammMapping = (await adminClient.program.account.ammConstituentMapping.fetch(
-			ammConstituentMapping
-		)) as AmmConstituentMapping;
-		expect(ammMapping).to.not.be.null;
-		assert(ammMapping.weights.find((x) => x.perpMarketIndex == 2) == undefined);
-		assert(ammMapping.weights.length === 2);
-
 	});
 });

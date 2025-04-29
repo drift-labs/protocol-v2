@@ -5,6 +5,7 @@ use crate::msg;
 use crate::state::lp_pool::{
     AmmConstituentDatum, AmmConstituentMapping, Constituent, ConstituentTargetWeights, LPPool,
     WeightDatum, AMM_MAP_PDA_SEED, CONSTITUENT_PDA_SEED, CONSTITUENT_TARGET_WEIGHT_PDA_SEED,
+    CONSTITUENT_VAULT_PDA_SEED,
 };
 use anchor_lang::prelude::*;
 use anchor_spl::token::Token;
@@ -5379,7 +5380,12 @@ pub struct InitializeLpPool<'info> {
     spot_market_index: u16,
 )]
 pub struct InitializeConstituent<'info> {
-    #[account(mut)]
+    #[account()]
+    pub state: Box<Account<'info, State>>,
+    #[account(
+        mut,
+        constraint = admin.key() == admin_hot_wallet::id() || admin.key() == state.admin
+    )]
     pub admin: Signer<'info>,
 
     #[account(
@@ -5407,8 +5413,24 @@ pub struct InitializeConstituent<'info> {
         payer = admin,
     )]
     pub constituent: AccountLoader<'info, Constituent>,
+    pub spot_market_mint: Box<InterfaceAccount<'info, Mint>>,
+    #[account(
+        init,
+        seeds = [CONSTITUENT_VAULT_PDA_SEED.as_ref(), lp_pool.key().as_ref(), spot_market_index.to_le_bytes().as_ref()],
+        bump,
+        payer = admin,
+        token::mint = spot_market_mint,
+        token::authority = drift_signer
+    )]
+    pub constituent_vault: Box<InterfaceAccount<'info, TokenAccount>>,
+    #[account(
+        constraint = state.signer.eq(&drift_signer.key())
+    )]
+    /// CHECK: program signer
+    pub drift_signer: AccountInfo<'info>,
     pub rent: Sysvar<'info, Rent>,
     pub system_program: Program<'info, System>,
+    pub token_program: Interface<'info, TokenInterface>,
 }
 
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Default)]
