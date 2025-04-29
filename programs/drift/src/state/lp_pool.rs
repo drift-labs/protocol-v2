@@ -14,8 +14,9 @@ use crate::state::traits::Size;
 use crate::{impl_zero_copy_loader, validate};
 
 pub const AMM_MAP_PDA_SEED: &str = "AMM_MAP";
-pub const CONSITUENT_PDA_SEED: &str = "CONSTITUENT";
+pub const CONSTITUENT_PDA_SEED: &str = "CONSTITUENT";
 pub const CONSTITUENT_TARGET_WEIGHT_PDA_SEED: &str = "CONSTITUENT_TARGET_WEIGHTS";
+pub const CONSTITUENT_VAULT_PDA_SEED: &str = "CONSTITUENT_VAULT";
 
 #[cfg(test)]
 mod tests;
@@ -512,7 +513,7 @@ impl<'a> AccountZeroCopyMut<'a, WeightDatum, ConstituentTargetWeightsFixed> {
             // assumes PRICE_PRECISION = PERCENTAGE_PRECISION
             let target_weight = if aum > 0 {
                 target_amount
-                    .saturating_mul(price) 
+                    .saturating_mul(price)
                     .saturating_div(aum as i128)
             } else {
                 0
