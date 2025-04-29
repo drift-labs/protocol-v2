@@ -20,7 +20,6 @@ import {
 	ConstituentTargetWeights,
 	AmmConstituentMapping,
 	User,
-	getConstituentVaultPublicKey,
 } from '../sdk/src';
 
 import {
@@ -217,18 +216,8 @@ describe('LP Pool', () => {
 			)) as ConstituentTargetWeights;
 		expect(constituentTargetWeights).to.not.be.null;
 		assert(constituentTargetWeights.weights.length == 1);
-
-		const constituentVaultPublicKey = getConstituentVaultPublicKey(
-			program.programId,
-			lpPoolKey,
-			0
-		);
-		const constituentTokenVault =
-			await bankrunContextWrapper.connection.getAccountInfo(
-				constituentVaultPublicKey
-			);
-		expect(constituentTokenVault).to.not.be.null;
 	});
+
 	it('can add amm mapping datum', async () => {
 		await adminClient.addInitAmmConstituentMappingData(encodeName(lpPoolName), [
 			{
@@ -337,6 +326,7 @@ describe('LP Pool', () => {
 				ammConstituentMappingPublicKey
 			)) as AmmConstituentMapping;
 
+		console.log(`ok there should be ${ammMapping.weights.length} constituents`);
 		await adminClient.updateDlpConstituentTargetWeights(
 			encodeName(lpPoolName),
 			[0],

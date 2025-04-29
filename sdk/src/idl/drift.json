@@ -7132,6 +7132,11 @@
       "name": "initializeConstituent",
       "accounts": [
         {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
           "name": "admin",
           "isMut": true,
           "isSigner": true
@@ -7152,12 +7157,32 @@
           "isSigner": false
         },
         {
+          "name": "spotMarketMint",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "constituentVault",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "driftSigner",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
           "name": "rent",
           "isMut": false,
           "isSigner": false
         },
         {
           "name": "systemProgram",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "tokenProgram",
           "isMut": false,
           "isSigner": false
         }
