@@ -1,7 +1,10 @@
 use crate::error::{DriftResult, ErrorCode};
 use crate::math::casting::Cast;
-use crate::math::constants::{PERCENTAGE_PRECISION_I64, PRICE_PRECISION, PRICE_PRECISION_I64};
+use crate::math::constants::{
+    PERCENTAGE_PRECISION_I128, PERCENTAGE_PRECISION_I64, PRICE_PRECISION, PRICE_PRECISION_I64,
+};
 use crate::math::safe_math::SafeMath;
+use crate::math::spot_balance::get_token_amount;
 use anchor_lang::prelude::*;
 use anchor_spl::token::Mint;
 use borsh::{BorshDeserialize, BorshSerialize};
@@ -42,15 +45,18 @@ pub struct LPPool {
     /// pub quote_constituent_index: u16,
 
     /// QUOTE_PRECISION: Max AUM, Prohibit minting new DLP beyond this
-    pub max_aum: u64, // 8, 136
+    pub max_aum: u128, // 8, 136
 
     /// QUOTE_PRECISION: AUM of the vault in USD, updated lazily
-    pub last_aum: u64, // 8, 144
+    pub last_aum: u128, // 8, 144
 
     /// timestamp of last AUM slot
     pub last_aum_slot: u64, // 8, 152
     /// timestamp of last AUM update
-    pub last_aum_ts: u64, // 8, 160
+    pub last_aum_ts: i64, // 8, 160
+
+    /// Oldest slot of constituent oracles
+    pub oldest_oracle_slot: u64,
 
     /// timestamp of last vAMM revenue rebalance
     pub last_revenue_rebalance_ts: u64, // 8, 168
@@ -61,21 +67,22 @@ pub struct LPPool {
     pub total_fees_paid: u128, // 16, 192
 
     pub constituents: u16, // 2, 194
-    pub _padding: [u8; 6],
+
+    pub _padding: [u8; 13],
 }
 
 impl Size for LPPool {
-    const SIZE: usize = 1743;
+    const SIZE: usize = 216;
 }
 
 impl LPPool {
-    pub fn get_nav(&self, mint: &Mint) -> Result<u64> {
+    pub fn get_nav(&self, mint: &Mint) -> Result<u128> {
         match mint.supply {
             0 => Ok(0),
             supply => {
                 // TODO: assuming mint decimals = quote decimals = 6
                 self.last_aum
-                    .checked_div(supply)
+                    .checked_div(supply.into())
                     .ok_or(ErrorCode::MathError.into())
             }
         }
@@ -134,8 +141,6 @@ impl LPPool {
         out_constituent: &Constituent,
         in_spot_market: &SpotMarket,
         out_spot_market: &SpotMarket,
-        in_token_balance: u64,
-        out_token_balance: u64,
         in_target_weight: i64,
         out_target_weight: i64,
         in_amount: u64,
@@ -147,7 +152,6 @@ impl LPPool {
             oracle_map,
             in_constituent,
             in_spot_market,
-            in_token_balance,
             in_amount,
             in_target_weight,
         )?;
@@ -161,7 +165,6 @@ impl LPPool {
             oracle_map,
             out_constituent,
             out_spot_market,
-            out_token_balance,
             out_amount,
             out_target_weight,
         )?;
@@ -178,7 +181,6 @@ impl LPPool {
         oracle_map: &mut OracleMap, // might not need oracle_map depending on how accounts are passed in
         constituent: &Constituent,
         spot_market: &SpotMarket,
-        token_balance: u64,
         amount: u64,
         target_weight: i64,
     ) -> DriftResult<i64> {
@@ -187,7 +189,7 @@ impl LPPool {
             .expect("failed to get price data")
             .price;
         let weight_after =
-            constituent.get_weight(price, token_balance, amount.cast::<i64>()?, self.last_aum)?;
+            constituent.get_weight(price, spot_market, amount.cast::<i64>()?, self.last_aum)?;
         let fee = constituent.get_fee_to_charge(weight_after, target_weight)?;
 
         Ok(fee)
@@ -241,6 +243,12 @@ impl SpotBalance for BLPosition {
     }
 }
 
+impl BLPosition {
+    pub fn get_token_amount(&self, spot_market: &SpotMarket) -> DriftResult<u128> {
+        get_token_amount(self.scaled_balance.cast()?, spot_market, &self.balance_type)
+    }
+}
+
 #[account(zero_copy(unsafe))]
 #[derive(Default, Debug, BorshDeserialize, BorshSerialize)]
 #[repr(C)]
@@ -253,6 +261,7 @@ pub struct Constituent {
     pub constituent_index: u16,
 
     pub decimals: u8,
+    _padding1: [u8; 3],
 
     /// max deviation from target_weight allowed for the constituent
     /// precision: PERCENTAGE_PRECISION
@@ -264,26 +273,35 @@ pub struct Constituent {
     /// precision: PERCENTAGE_PRECISION
     pub swap_fee_max: i64,
 
+    /// ata token balance in SPOT_BALANCE_PRECISION
+    pub token_balance: u64,
+
     /// spot borrow-lend balance for constituent
     pub spot_balance: BLPosition, // should be in constituent base asset
-    pub padding: [u8; 16],
+
+    pub last_oracle_price: i64,
+    pub last_oracle_slot: u64,
 }
 
 impl Size for Constituent {
-    const SIZE: usize = 112;
+    const SIZE: usize = 120;
 }
 
 impl Constituent {
     /// Returns the full balance of the Constituent, the total of the amount in Constituent's token
     /// account and in Drift Borrow-Lend.
-    pub fn get_full_balance(&self, token_balance: u64) -> DriftResult<i128> {
+    pub fn get_full_balance(&self, spot_market: &SpotMarket) -> DriftResult<i128> {
         match self.spot_balance.balance_type() {
-            SpotBalanceType::Deposit => token_balance
-                .cast::<i128>()?
-                .safe_add(self.spot_balance.balance().cast::<i128>()?),
-            SpotBalanceType::Borrow => token_balance
-                .cast::<i128>()?
-                .safe_sub(self.spot_balance.balance().cast::<i128>()?),
+            SpotBalanceType::Deposit => self.token_balance.cast::<i128>()?.safe_add(
+                self.spot_balance
+                    .get_token_amount(spot_market)?
+                    .cast::<i128>()?,
+            ),
+            SpotBalanceType::Borrow => self.token_balance.cast::<i128>()?.safe_sub(
+                self.spot_balance
+                    .get_token_amount(spot_market)?
+                    .cast::<i128>()?,
+            ),
         }
     }
 
@@ -292,11 +310,11 @@ impl Constituent {
     pub fn get_weight(
         &self,
         price: i64,
-        token_balance: u64,
+        spot_market: &SpotMarket,
         token_amount_delta: i64,
-        lp_pool_aum: u64,
+        lp_pool_aum: u128,
     ) -> DriftResult<i64> {
-        let balance = self.get_full_balance(token_balance)?.cast::<i128>()?;
+        let balance = self.get_full_balance(spot_market)?.cast::<i128>()?;
         let token_precision = 10_i128.pow(self.decimals as u32);
 
         let value_usd = balance
@@ -345,10 +363,10 @@ impl Constituent {
 pub struct AmmConstituentDatum {
     pub perp_market_index: u16,
     pub constituent_index: u16,
-    pub padding: [u8; 4],
+    pub _padding: [u8; 4],
+    pub last_slot: u64,
     /// PERCENTAGE_PRECISION. The weight this constituent has on the perp market
     pub weight: i64,
-    pub last_slot: u64,
 }
 
 #[zero_copy]
@@ -400,8 +418,8 @@ impl_zero_copy_loader!(
 #[derive(Debug, Default, BorshDeserialize, BorshSerialize)]
 #[repr(C)]
 pub struct WeightDatum {
-    pub weight: i64,
     pub last_slot: u64,
+    pub weight: i64,
 }
 
 #[zero_copy]
@@ -488,11 +506,12 @@ impl<'a> AccountZeroCopyMut<'a, WeightDatum, ConstituentTargetWeightsFixed> {
         amm_inventory: &[(u16, i64)],
         constituents_indexes: &[u16],
         prices: &[i64],
-        aum: u64,
+        aum: u128,
         slot: u64,
         validation_flags: WeightValidationFlags,
     ) -> DriftResult<i128> {
         let mut total_weight: i128 = 0;
+        let aum_i128 = aum.cast::<i128>()?;
         for (i, constituent_index) in constituents_indexes.iter().enumerate() {
             let mut target_amount = 0i128;
 
@@ -511,10 +530,8 @@ impl<'a> AccountZeroCopyMut<'a, WeightDatum, ConstituentTargetWeightsFixed> {
             let price = prices[i] as i128;
 
             // assumes PRICE_PRECISION = PERCENTAGE_PRECISION
-            let target_weight = if aum > 0 {
-                target_amount
-                    .saturating_mul(price)
-                    .saturating_div(aum as i128)
+            let target_weight: i128 = if aum > 0 {
+                target_amount.saturating_mul(price).saturating_div(aum_i128)
             } else {
                 0
             };
@@ -531,14 +548,20 @@ impl<'a> AccountZeroCopyMut<'a, WeightDatum, ConstituentTargetWeightsFixed> {
             }
 
             let cell = self.get_mut(i as u32);
-            cell.weight = target_weight as i64;
+            msg!(
+                "updating constituent index {} target weight to {}",
+                constituent_index,
+                target_weight
+            );
+            cell.weight =
+                target_weight.clamp(-PERCENTAGE_PRECISION_I128, PERCENTAGE_PRECISION_I128) as i64;
             cell.last_slot = slot;
 
             total_weight = total_weight.saturating_add(target_weight);
         }
 
         if (validation_flags as u8) & WeightValidationFlags::EnforceTotalWeight100 as u8 != 0 {
-            let deviation = (total_weight - PERCENTAGE_PRECISION_I64 as i128).abs();
+            let deviation = (total_weight - PERCENTAGE_PRECISION_I128).abs();
             let tolerance = 100;
             if deviation > tolerance {
                 return Err(ErrorCode::DefaultError);

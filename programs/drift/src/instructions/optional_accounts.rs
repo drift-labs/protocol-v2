@@ -1,4 +1,5 @@
 use crate::error::{DriftResult, ErrorCode};
+use crate::state::constituent_map::ConstituentSet;
 use std::cell::RefMut;
 use std::convert::TryFrom;
 
