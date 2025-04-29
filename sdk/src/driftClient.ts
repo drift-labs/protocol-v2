@@ -9788,7 +9788,6 @@ export class DriftClient {
 				};
 			})
 		);
-
 		return this.program.instruction.updateLpPoolAum(lpPool.name, {
 			accounts: {
 				keeper: this.wallet.publicKey,

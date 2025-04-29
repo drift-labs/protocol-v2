@@ -1476,11 +1476,10 @@ export type SignedMsgUserOrdersAccount = {
 export type AddAmmConstituentMappingDatum = {
 	constituentIndex: number;
 	perpMarketIndex: number;
-	weight: number;
+	weight: BN;
 };
 
 export type AmmConstituentDatum = AddAmmConstituentMappingDatum & {
-	weight: number;
 	lastSlot: BN;
 };
 
@@ -1489,7 +1488,7 @@ export type AmmConstituentMapping = {
 };
 
 export type WeightDatum = {
-	weight: number;
+	weight: BN;
 	lastSlot: BN;
 };
 

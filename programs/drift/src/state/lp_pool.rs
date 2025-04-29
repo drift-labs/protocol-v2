@@ -356,9 +356,10 @@ impl Constituent {
 pub struct AmmConstituentDatum {
     pub perp_market_index: u16,
     pub constituent_index: u16,
-    /// PERCENTAGE_PRECISION. The weight this constituent has on the perp market
-    pub weight: i32,
+    pub _padding: [u8; 4],
     pub last_slot: u64,
+    /// PERCENTAGE_PRECISION. The weight this constituent has on the perp market
+    pub weight: i64,
 }
 
 #[zero_copy]
@@ -411,8 +412,7 @@ impl_zero_copy_loader!(
 #[repr(C)]
 pub struct WeightDatum {
     pub last_slot: u64,
-    pub weight: i32,
-    pub weight_padding: [u8; 4],
+    pub weight: i64,
 }
 
 #[zero_copy]
@@ -477,7 +477,7 @@ pub enum WeightValidationFlags {
 }
 
 impl<'a> AccountZeroCopy<'a, WeightDatum, ConstituentTargetWeightsFixed> {
-    pub fn get_target_weight(&self, constituent_index: u16) -> DriftResult<i32> {
+    pub fn get_target_weight(&self, constituent_index: u16) -> DriftResult<i64> {
         validate!(
             constituent_index < self.len() as u16,
             ErrorCode::InvalidConstituent,
@@ -550,7 +550,8 @@ impl<'a> AccountZeroCopyMut<'a, WeightDatum, ConstituentTargetWeightsFixed> {
                 constituent_index,
                 target_weight
             );
-            cell.weight = target_weight.cast::<i32>()?;
+            cell.weight =
+                target_weight.clamp(-PERCENTAGE_PRECISION_I128, PERCENTAGE_PRECISION_I128) as i64;
             cell.last_slot = slot;
 
             total_weight = total_weight.saturating_add(target_weight);

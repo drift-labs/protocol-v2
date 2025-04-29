@@ -147,7 +147,7 @@ pub fn handle_update_lp_pool_aum<'c: 'info, 'info>(
             &[
                 CONSTITUENT_PDA_SEED.as_ref(),
                 lp_pool.pubkey.as_ref(),
-                i.to_le_bytes().as_ref(),
+                constituent.spot_market_index.to_le_bytes().as_ref(),
             ],
             &crate::ID,
         );

@@ -4,7 +4,7 @@ import { expect, assert } from 'chai';
 import { Program } from '@coral-xyz/anchor';
 
 import { Keypair, PublicKey } from '@solana/web3.js';
-import { TOKEN_PROGRAM_ID, getMint } from '@solana/spl-token';
+import { getMint } from '@solana/spl-token';
 
 import {
 	BN,
@@ -19,7 +19,6 @@ import {
 	PEG_PRECISION,
 	ConstituentTargetWeights,
 	AmmConstituentMapping,
-	User,
 	LPPool,
 } from '../sdk/src';
 
@@ -43,7 +42,6 @@ describe('LP Pool', () => {
 
 	let adminClient: TestClient;
 	let usdcMint;
-	let adminUser: User;
 
 	const mantissaSqrtScale = new BN(Math.sqrt(PRICE_PRECISION.toNumber()));
 	const ammInitialQuoteAssetReserve = new anchor.BN(10 * 10 ** 13).mul(
@@ -123,14 +121,6 @@ describe('LP Pool', () => {
 			new BN(10).mul(QUOTE_PRECISION),
 			userUSDCAccount.publicKey
 		);
-		adminUser = new User({
-			driftClient: adminClient,
-			userAccountPublicKey: await adminClient.getUserAccountPublicKey(),
-			accountSubscription: {
-				type: 'polling',
-				accountLoader: bulkAccountLoader,
-			},
-		});
 
 		solUsd = await mockOracleNoProgram(bankrunContextWrapper, 224.3);
 		const periodicity = new BN(0);
@@ -231,10 +221,12 @@ describe('LP Pool', () => {
 			{
 				perpMarketIndex: 0,
 				constituentIndex: 0,
+				weight: PERCENTAGE_PRECISION,
 			},
 			{
 				perpMarketIndex: 1,
 				constituentIndex: 0,
+				weight: PERCENTAGE_PRECISION,
 			},
 		]);
 		const ammConstituentMapping = getAmmConstituentMappingPublicKey(
@@ -258,6 +250,7 @@ describe('LP Pool', () => {
 					{
 						perpMarketIndex: 2,
 						constituentIndex: 0,
+						weight: PERCENTAGE_PRECISION,
 					},
 				]
 			);
@@ -274,6 +267,7 @@ describe('LP Pool', () => {
 					{
 						perpMarketIndex: 0,
 						constituentIndex: 1,
+						weight: PERCENTAGE_PRECISION,
 					},
 				]
 			);
@@ -359,7 +353,7 @@ describe('LP Pool', () => {
 
 		// Should fail if we initialize a second constituent and dont pass it in
 		await adminClient.initializeConstituent(
-			encodeName(lpPoolName),
+			lpPool.name,
 			1,
 			6,
 			new BN(10).mul(PERCENTAGE_PRECISION),

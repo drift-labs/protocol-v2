@@ -4470,6 +4470,7 @@ pub fn handle_initialize_constituent<'info>(
     constituent.max_weight_deviation = max_weight_deviation;
     constituent.swap_fee_min = swap_fee_min;
     constituent.swap_fee_max = swap_fee_max;
+    constituent.pubkey = ctx.accounts.constituent.key();
     lp_pool.constituents += 1;
 
     Ok(())
@@ -4519,6 +4520,7 @@ pub fn handle_update_amm_constituent_mapping_data<'info>(
 pub struct InitializeAmmConstituentMappingDatum {
     pub constituent_index: u16,
     pub perp_market_index: u16,
+    pub weight: i64,
 }
 
 pub fn handle_add_amm_constituent_data<'info>(
@@ -5392,7 +5394,7 @@ pub struct InitializeConstituent<'info> {
 pub struct AddAmmConstituentMappingDatum {
     pub constituent_index: u16,
     pub perp_market_index: u16,
-    pub weight: i32,
+    pub weight: i64,
 }
 
 #[derive(Accounts)]
