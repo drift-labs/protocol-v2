@@ -7714,6 +7714,13 @@
             "type": "i64"
           },
           {
+            "name": "oldestOracleSlot",
+            "docs": [
+              "Oldest slot of constituent oracles"
+            ],
+            "type": "u64"
+          },
+          {
             "name": "lastRevenueRebalanceTs",
             "docs": [
               "timestamp of last vAMM revenue rebalance"
@@ -7743,7 +7750,7 @@
             "type": {
               "array": [
                 "u8",
-                6
+                13
               ]
             }
           }
@@ -7812,6 +7819,13 @@
               "precision: PERCENTAGE_PRECISION"
             ],
             "type": "i64"
+          },
+          {
+            "name": "tokenBalance",
+            "docs": [
+              "ata token balance in SPOT_BALANCE_PRECISION"
+            ],
+            "type": "u64"
           },
           {
             "name": "spotBalance",

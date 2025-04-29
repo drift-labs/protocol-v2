@@ -54,6 +54,9 @@ pub struct LPPool {
     /// timestamp of last AUM update
     pub last_aum_ts: i64, // 8, 160
 
+    /// Oldest slot of constituent oracles
+    pub oldest_oracle_slot: u64,
+
     /// timestamp of last vAMM revenue rebalance
     pub last_revenue_rebalance_ts: u64, // 8, 168
 
@@ -63,11 +66,12 @@ pub struct LPPool {
     pub total_fees_paid: u128, // 16, 192
 
     pub constituents: u16, // 2, 194
-    pub _padding: [u8; 6],
+
+    pub _padding: [u8; 13],
 }
 
 impl Size for LPPool {
-    const SIZE: usize = 1743;
+    const SIZE: usize = 216;
 }
 
 impl LPPool {
@@ -136,8 +140,6 @@ impl LPPool {
         out_constituent: &Constituent,
         in_spot_market: &SpotMarket,
         out_spot_market: &SpotMarket,
-        in_token_balance: u128,
-        out_token_balance: u128,
         in_target_weight: i64,
         out_target_weight: i64,
         in_amount: u64,
@@ -149,7 +151,6 @@ impl LPPool {
             oracle_map,
             in_constituent,
             in_spot_market,
-            in_token_balance,
             in_amount,
             in_target_weight,
         )?;
@@ -163,7 +164,6 @@ impl LPPool {
             oracle_map,
             out_constituent,
             out_spot_market,
-            out_token_balance,
             out_amount,
             out_target_weight,
         )?;
@@ -180,7 +180,6 @@ impl LPPool {
         oracle_map: &mut OracleMap, // might not need oracle_map depending on how accounts are passed in
         constituent: &Constituent,
         spot_market: &SpotMarket,
-        token_balance: u128,
         amount: u64,
         target_weight: i64,
     ) -> DriftResult<i64> {
@@ -189,7 +188,7 @@ impl LPPool {
             .expect("failed to get price data")
             .price;
         let weight_after =
-            constituent.get_weight(price, token_balance, amount.cast::<i64>()?, self.last_aum)?;
+            constituent.get_weight(price, spot_market, amount.cast::<i64>()?, self.last_aum)?;
         let fee = constituent.get_fee_to_charge(weight_after, target_weight)?;
 
         Ok(fee)
@@ -273,6 +272,9 @@ pub struct Constituent {
     /// precision: PERCENTAGE_PRECISION
     pub swap_fee_max: i64,
 
+    /// ata token balance in SPOT_BALANCE_PRECISION
+    pub token_balance: u64,
+
     /// spot borrow-lend balance for constituent
     pub spot_balance: BLPosition, // should be in constituent base asset
 
@@ -281,20 +283,24 @@ pub struct Constituent {
 }
 
 impl Size for Constituent {
-    const SIZE: usize = 112;
+    const SIZE: usize = 120;
 }
 
 impl Constituent {
     /// Returns the full balance of the Constituent, the total of the amount in Constituent's token
     /// account and in Drift Borrow-Lend.
-    pub fn get_full_balance(&self, token_balance: u128) -> DriftResult<i128> {
+    pub fn get_full_balance(&self, spot_market: &SpotMarket) -> DriftResult<i128> {
         match self.spot_balance.balance_type() {
-            SpotBalanceType::Deposit => token_balance
-                .cast::<i128>()?
-                .safe_add(self.spot_balance.balance().cast::<i128>()?),
-            SpotBalanceType::Borrow => token_balance
-                .cast::<i128>()?
-                .safe_sub(self.spot_balance.balance().cast::<i128>()?),
+            SpotBalanceType::Deposit => self.token_balance.cast::<i128>()?.safe_add(
+                self.spot_balance
+                    .get_token_amount(spot_market)?
+                    .cast::<i128>()?,
+            ),
+            SpotBalanceType::Borrow => self.token_balance.cast::<i128>()?.safe_sub(
+                self.spot_balance
+                    .get_token_amount(spot_market)?
+                    .cast::<i128>()?,
+            ),
         }
     }
 
@@ -303,11 +309,11 @@ impl Constituent {
     pub fn get_weight(
         &self,
         price: i64,
-        token_balance: u128,
+        spot_market: &SpotMarket,
         token_amount_delta: i64,
         lp_pool_aum: u128,
     ) -> DriftResult<i64> {
-        let balance = self.get_full_balance(token_balance)?.cast::<i128>()?;
+        let balance = self.get_full_balance(spot_market)?.cast::<i128>()?;
         let token_precision = 10_i128.pow(self.decimals as u32);
 
         let value_usd = balance

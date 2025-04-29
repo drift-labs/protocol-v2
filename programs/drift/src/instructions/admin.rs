@@ -4383,7 +4383,8 @@ pub fn handle_initialize_lp_pool(
         last_revenue_rebalance_ts: 0,
         total_fees_received: 0,
         total_fees_paid: 0,
-        _padding: [0; 6],
+        oldest_oracle_slot: 0,
+        _padding: [0; 13],
     };
 
     let amm_constituent_mapping = &mut ctx.accounts.amm_constituent_mapping;

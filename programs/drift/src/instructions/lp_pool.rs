@@ -3,7 +3,6 @@ use anchor_lang::{prelude::*, Accounts, Key, Result};
 use crate::{
     error::ErrorCode,
     math::{
-        casting::Cast,
         oracle::{is_oracle_valid_for_action, DriftAction},
         safe_math::SafeMath,
     },
@@ -139,6 +138,7 @@ pub fn handle_update_lp_pool_aum<'c: 'info, 'info>(
     )?;
 
     let mut aum: u128 = 0;
+    let mut oldest_slot = u64::MAX;
     for i in 0..lp_pool.constituents as usize {
         let mut constituent = constituent_map.get_ref_mut(&(i as u16))?;
 
@@ -190,9 +190,8 @@ pub fn handle_update_lp_pool_aum<'c: 'info, 'info>(
         constituent.last_oracle_price = oracle_price.unwrap();
         constituent.last_oracle_slot = slot;
 
-        let token_amount = constituent.spot_balance.get_token_amount(&spot_market)?;
         let constituent_aum = constituent
-            .get_full_balance(token_amount)?
+            .get_full_balance(&spot_market)?
             .safe_mul(oracle_price.unwrap() as i128)?;
         aum = aum.safe_add(constituent_aum as u128)?;
     }

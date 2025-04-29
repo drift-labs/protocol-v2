@@ -84,7 +84,7 @@ mod tests {
 
     #[test]
     fn test_single_full_weight() {
-        let amm_datum = amm_const_datum(0, 1, 64, 0);
+        let amm_datum = amm_const_datum(0, 1, PERCENTAGE_PRECISION_I64, 0);
         let mapping_fixed = RefCell::new(AmmConstituentMappingFixed {
             len: 1,
             ..AmmConstituentMappingFixed::default()
