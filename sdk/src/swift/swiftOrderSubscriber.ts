@@ -113,7 +113,7 @@ export class SwiftOrderSubscriber {
 				| SignedMsgOrderParamsDelegateMessage,
 			isDelegateSigner?: boolean
 		) => Promise<void>,
-		acceptSanitized: boolean = false
+		acceptSanitized = false
 	): Promise<void> {
 		this.onOrder = onOrder;
 
