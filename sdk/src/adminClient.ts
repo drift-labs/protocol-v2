@@ -177,7 +177,7 @@ export class AdminClient extends DriftClient {
 		liquidatorFee = 0,
 		ifLiquidationFee = 0,
 		activeStatus = true,
-		assetTier = AssetTier.COLLATERAL,
+		assetTier = undefined,
 		scaleInitialAssetWeightStart = ZERO,
 		withdrawGuardThreshold = ZERO,
 		orderTickSize = ONE,
@@ -228,9 +228,7 @@ export class AdminClient extends DriftClient {
 			nameBuffer,
 			{
 				accounts: {
-					admin: this.isSubscribed
-						? this.getStateAccount().admin
-						: this.wallet.publicKey,
+					admin: this.wallet.publicKey,
 					state: await this.getStatePublicKey(),
 					spotMarket,
 					spotMarketVault,

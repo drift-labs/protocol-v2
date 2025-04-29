@@ -752,6 +752,16 @@ export const MainnetSpotMarkets: SpotMarketConfig[] = [
 		precision: new BN(10).pow(NINE),
 		precisionExp: NINE,
 	},
+	{
+		symbol: 'JTO-3',
+		marketIndex: 44,
+		poolId: 3,
+		oracle: new PublicKey('DPvVSQYhZXQ2ygfT2Qjdg6iyeQVAyiz8okj88YRjy6NN'),
+		oracleSource: OracleSource.SWITCHBOARD_ON_DEMAND,
+		mint: new PublicKey('jtojtomepa8beP8AuQc6eXt5FriJwfFMwQx2v2f9mCL'),
+		precision: new BN(10).pow(NINE),
+		precisionExp: NINE,
+	},
 ];
 
 export const SpotMarkets: { [key in DriftEnv]: SpotMarketConfig[] } = {
