@@ -7216,6 +7216,56 @@
         {
           "name": "swapFeeMax",
           "type": "i64"
+        },
+        {
+          "name": "oracleStalenessThreshold",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "updateConstituentParams",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "constituent",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "maxWeightDeviation",
+          "type": {
+            "option": "i64"
+          }
+        },
+        {
+          "name": "swapFeeMin",
+          "type": {
+            "option": "i64"
+          }
+        },
+        {
+          "name": "swapFeeMax",
+          "type": {
+            "option": "i64"
+          }
+        },
+        {
+          "name": "oracleStalenessThreshold",
+          "type": {
+            "option": "u64"
+          }
         }
       ]
     },
@@ -7955,6 +8005,10 @@
           },
           {
             "name": "lastOracleSlot",
+            "type": "u64"
+          },
+          {
+            "name": "oracleStalenessThreshold",
             "type": "u64"
           }
         ]

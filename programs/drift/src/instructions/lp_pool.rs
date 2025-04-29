@@ -3,6 +3,7 @@ use anchor_lang::{prelude::*, Accounts, Key, Result};
 use crate::{
     error::ErrorCode,
     math::{
+        casting::Cast,
         oracle::{is_oracle_valid_for_action, DriftAction},
         safe_math::SafeMath,
     },
@@ -167,13 +168,17 @@ pub fn handle_update_lp_pool_aum<'c: 'info, 'info>(
             spot_market.get_max_confidence_interval_multiplier()?,
         )?;
 
+        let oracle_slot = slot - oracle_data.0.delay.cast::<u64>()?;
+
         let oracle_price: Option<i64> = {
             if !is_oracle_valid_for_action(oracle_data.1, Some(DriftAction::UpdateLpPoolAum))? {
                 msg!(
                     "Oracle data for spot market {} is invalid. Skipping update",
                     spot_market.market_index,
                 );
-                if slot - constituent.last_oracle_slot > 400 {
+                if slot.saturating_sub(constituent.last_oracle_slot)
+                    > constituent.oracle_staleness_threshold
+                {
                     None
                 } else {
                     Some(constituent.last_oracle_price)
@@ -188,7 +193,11 @@ pub fn handle_update_lp_pool_aum<'c: 'info, 'info>(
         }
 
         constituent.last_oracle_price = oracle_price.unwrap();
-        constituent.last_oracle_slot = slot;
+        constituent.last_oracle_slot = oracle_slot;
+
+        if oracle_slot < oldest_slot {
+            oldest_slot = oracle_slot;
+        }
 
         let constituent_aum = constituent
             .get_full_balance(&spot_market)?
@@ -196,6 +205,7 @@ pub fn handle_update_lp_pool_aum<'c: 'info, 'info>(
         aum = aum.safe_add(constituent_aum as u128)?;
     }
 
+    lp_pool.oldest_oracle_slot = oldest_slot;
     lp_pool.last_aum = aum;
     lp_pool.last_aum_slot = slot;
     lp_pool.last_aum_ts = Clock::get()?.unix_timestamp;

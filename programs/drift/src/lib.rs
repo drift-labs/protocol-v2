@@ -1703,6 +1703,7 @@ pub mod drift {
         max_weight_deviation: i64,
         swap_fee_min: i64,
         swap_fee_max: i64,
+        oracle_staleness_threshold: u64,
     ) -> Result<()> {
         handle_initialize_constituent(
             ctx,
@@ -1711,6 +1712,23 @@ pub mod drift {
             max_weight_deviation,
             swap_fee_min,
             swap_fee_max,
+            oracle_staleness_threshold,
+        )
+    }
+
+    pub fn update_constituent_params(
+        ctx: Context<UpdateConstituentParams>,
+        max_weight_deviation: Option<i64>,
+        swap_fee_min: Option<i64>,
+        swap_fee_max: Option<i64>,
+        oracle_staleness_threshold: Option<u64>,
+    ) -> Result<()> {
+        handle_update_constituent_params(
+            ctx,
+            max_weight_deviation,
+            swap_fee_min,
+            swap_fee_max,
+            oracle_staleness_threshold,
         )
     }
 

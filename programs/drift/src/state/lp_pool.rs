@@ -281,10 +281,12 @@ pub struct Constituent {
 
     pub last_oracle_price: i64,
     pub last_oracle_slot: u64,
+
+    pub oracle_staleness_threshold: u64,
 }
 
 impl Size for Constituent {
-    const SIZE: usize = 120;
+    const SIZE: usize = 128;
 }
 
 impl Constituent {

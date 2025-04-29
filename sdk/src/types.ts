@@ -1509,3 +1509,25 @@ export type LPPool = {
 	totalFeesPaid: BN;
 	constituents: number;
 };
+
+export type BLPosition = {
+	scaledBalance: BN;
+	cumulativeDeposits: BN;
+	marketIndex: number;
+	balanceType: SpotBalanceType;
+};
+
+export type Constituent = {
+	pubkey: PublicKey;
+	spotMarketIndex: number;
+	constituentIndex: number;
+	decimals: number;
+	maxWeightDeviation: BN;
+	swapFeeMin: BN;
+	swapFeeMax: BN;
+	tokenBalance: BN;
+	spotBalance: BLPosition;
+	lastOraclePrice: BN;
+	lastOracleSlot: BN;
+	oracleStalenessThreshold: BN;
+};

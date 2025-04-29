@@ -20,8 +20,10 @@ import {
 	ConstituentTargetWeights,
 	AmmConstituentMapping,
 	LPPool,
-	User,
 	getConstituentVaultPublicKey,
+	getConstituentPublicKey,
+	ZERO,
+	OracleSource,
 } from '../sdk/src';
 
 import {
@@ -91,6 +93,8 @@ describe('LP Pool', () => {
 
 		usdcMint = await mockUSDCMint(bankrunContextWrapper);
 
+		solUsd = await mockOracleNoProgram(bankrunContextWrapper, 224.3);
+
 		adminClient = new TestClient({
 			connection: bankrunContextWrapper.connection.toConnection(),
 			wallet: new anchor.Wallet(keypair),
@@ -102,7 +106,7 @@ describe('LP Pool', () => {
 			subAccountIds: [],
 			perpMarketIndexes: [0, 1, 2],
 			spotMarketIndexes: [0],
-			oracleInfos: [],
+			oracleInfos: [{ publicKey: solUsd, source: OracleSource.PYTH }],
 			accountSubscription: {
 				type: 'polling',
 				accountLoader: bulkAccountLoader,
@@ -124,7 +128,6 @@ describe('LP Pool', () => {
 			userUSDCAccount.publicKey
 		);
 
-		solUsd = await mockOracleNoProgram(bankrunContextWrapper, 224.3);
 		const periodicity = new BN(0);
 
 		await adminClient.initializePerpMarket(
@@ -208,7 +211,8 @@ describe('LP Pool', () => {
 			6,
 			new BN(10).mul(PERCENTAGE_PRECISION),
 			new BN(1).mul(PERCENTAGE_PRECISION),
-			new BN(2).mul(PERCENTAGE_PRECISION)
+			new BN(2).mul(PERCENTAGE_PRECISION),
+			new BN(400)
 		);
 		const constituentTargetWeightsPublicKey =
 			getConstituentTargetWeightsPublicKey(program.programId, lpPoolKey);
@@ -237,6 +241,7 @@ describe('LP Pool', () => {
 			);
 		expect(constituentTokenVault).to.not.be.null;
 	});
+
 	it('can add amm mapping datum', async () => {
 		await adminClient.addAmmConstituentMappingData(encodeName(lpPoolName), [
 			{
@@ -364,6 +369,11 @@ describe('LP Pool', () => {
 		)) as LPPool;
 		assert(lpPool.constituents == 1);
 
+		const constituentPublicKey = getConstituentPublicKey(
+			program.programId,
+			lpPoolKey,
+			0
+		);
 		await adminClient.updateDlpPoolAum(lpPool, [0]);
 
 		// Should fail if we initialize a second constituent and dont pass it in
@@ -373,7 +383,8 @@ describe('LP Pool', () => {
 			6,
 			new BN(10).mul(PERCENTAGE_PRECISION),
 			new BN(1).mul(PERCENTAGE_PRECISION),
-			new BN(2).mul(PERCENTAGE_PRECISION)
+			new BN(2).mul(PERCENTAGE_PRECISION),
+			new BN(400)
 		);
 
 		try {
@@ -382,6 +393,30 @@ describe('LP Pool', () => {
 		} catch (e) {
 			assert(e.message.includes('0x18b0'));
 		}
+
+		// Should fail if the oracle is too delayed
+		await adminClient.updateConstituentParams(
+			constituentPublicKey,
+			undefined,
+			undefined,
+			undefined,
+			ZERO
+		);
+
+		try {
+			await adminClient.updateDlpPoolAum(lpPool, [0]);
+			expect.fail('should have failed');
+		} catch (e) {
+			assert(e.message.includes('0x18b0'));
+		}
+
+		await adminClient.updateConstituentParams(
+			constituentPublicKey,
+			undefined,
+			undefined,
+			undefined,
+			new BN(400)
+		);
 	});
 
 	it('can update and remove amm constituent mapping entries', async () => {
@@ -433,6 +468,5 @@ describe('LP Pool', () => {
 		expect(ammMapping).to.not.be.null;
 		assert(ammMapping.weights.find((x) => x.perpMarketIndex == 2) == undefined);
 		assert(ammMapping.weights.length === 2);
-
 	});
 });
