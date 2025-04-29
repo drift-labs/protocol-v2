@@ -60,7 +60,7 @@ pub fn handle_update_constituent_target_weights<'c: 'info, 'info>(
 
     let AccountMaps {
         perp_market_map,
-        spot_market_map,
+        spot_market_map: _,
         mut oracle_map,
     } = load_maps(
         &mut ctx.remaining_accounts.iter().peekable(),
@@ -109,6 +109,102 @@ pub fn handle_update_constituent_target_weights<'c: 'info, 'info>(
         slot,
         WeightValidationFlags::NONE,
     )?;
+
+    Ok(())
+}
+
+pub fn handle_update_lp_pool_aum<'c: 'info, 'info>(
+    ctx: Context<'_, '_, 'c, 'info, UpdateLPPoolAum<'info>>,
+) -> Result<()> {
+    let mut lp_pool = ctx.accounts.lp_pool.load_mut()?;
+    let state = &ctx.accounts.state;
+
+    let slot = Clock::get()?.slot;
+
+    let remaining_accounts = &mut ctx.remaining_accounts.iter().peekable();
+
+    let AccountMaps {
+        perp_market_map: _,
+        spot_market_map,
+        mut oracle_map,
+    } = load_maps(
+        remaining_accounts,
+        &MarketSet::new(),
+        &MarketSet::new(),
+        slot,
+        Some(state.oracle_guard_rails),
+    )?;
+
+    let constituent_map = ConstituentMap::load(&ConstituentSet::new(), remaining_accounts)?;
+
+    validate!(
+        constituent_map.0.len() == lp_pool.constituents as usize,
+        ErrorCode::WrongNumberOfConstituents,
+        "Constituent map length does not match lp pool constituent count"
+    )?;
+
+    let mut aum: u128 = 0;
+    let mut oldest_slot = u64::MAX;
+    for i in 0..lp_pool.constituents as usize {
+        let mut constituent = constituent_map.get_ref_mut(&(i as u16))?;
+
+        // Validate PDA
+        let expected_pda = Pubkey::find_program_address(
+            &[
+                CONSTITUENT_PDA_SEED.as_ref(),
+                lp_pool.pubkey.as_ref(),
+                constituent.spot_market_index.to_le_bytes().as_ref(),
+            ],
+            &crate::ID,
+        );
+        validate!(
+            expected_pda.0 == constituent.pubkey,
+            ErrorCode::InvalidConstituent,
+            "Constituent PDA does not match expected PDA"
+        )?;
+
+        let spot_market = spot_market_map.get_ref(&constituent.spot_market_index)?;
+
+        let oracle_data = oracle_map.get_price_data_and_validity(
+            MarketType::Spot,
+            constituent.spot_market_index,
+            &spot_market.oracle_id(),
+            spot_market.historical_oracle_data.last_oracle_price_twap,
+            spot_market.get_max_confidence_interval_multiplier()?,
+        )?;
+
+        let oracle_price: Option<i64> = {
+            if !is_oracle_valid_for_action(oracle_data.1, Some(DriftAction::UpdateLpPoolAum))? {
+                msg!(
+                    "Oracle data for spot market {} is invalid. Skipping update",
+                    spot_market.market_index,
+                );
+                if slot - constituent.last_oracle_slot > 400 {
+                    None
+                } else {
+                    Some(constituent.last_oracle_price)
+                }
+            } else {
+                Some(oracle_data.0.price)
+            }
+        };
+
+        if oracle_price.is_none() {
+            return Err(ErrorCode::OracleTooStaleForLPAUMUpdate.into());
+        }
+
+        constituent.last_oracle_price = oracle_price.unwrap();
+        constituent.last_oracle_slot = slot;
+
+        let constituent_aum = constituent
+            .get_full_balance(&spot_market)?
+            .safe_mul(oracle_price.unwrap() as i128)?;
+        aum = aum.safe_add(constituent_aum as u128)?;
+    }
+
+    lp_pool.last_aum = aum;
+    lp_pool.last_aum_slot = slot;
+    lp_pool.last_aum_ts = Clock::get()?.unix_timestamp;
 
     Ok(())
 }
@@ -279,6 +375,22 @@ pub struct UpdateConstituentTargetWeights<'info> {
     /// CHECK: checked in ConstituentTargetWeightsZeroCopy checks
     pub constituent_target_weights: AccountInfo<'info>,
     #[account(
+        seeds = [b"lp_pool", lp_pool_name.as_ref()],
+        bump,
+    )]
+    pub lp_pool: AccountLoader<'info, LPPool>,
+}
+
+#[derive(Accounts)]
+#[instruction(
+    lp_pool_name: [u8; 32],
+)]
+pub struct UpdateLPPoolAum<'info> {
+    pub state: Box<Account<'info, State>>,
+    #[account(mut)]
+    pub keeper: Signer<'info>,
+    #[account(
+        mut,
         seeds = [b"lp_pool", lp_pool_name.as_ref()],
         bump,
     )]

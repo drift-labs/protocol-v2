@@ -13,9 +13,9 @@ mod tests {
         AmmConstituentDatum {
             perp_market_index,
             constituent_index,
-            padding: [0; 4],
             weight,
             last_slot,
+            ..AmmConstituentDatum::default()
         }
     }
 
