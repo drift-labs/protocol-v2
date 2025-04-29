@@ -14,7 +14,6 @@ import {
 	ContractTier,
 	AssetTier,
 	SpotFulfillmentConfigStatus,
-	UserAccount,
 } from './types';
 import { DEFAULT_MARKET_NAME, encodeName } from './userName';
 import { BN } from '@coral-xyz/anchor';
