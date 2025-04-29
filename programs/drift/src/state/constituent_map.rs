@@ -111,7 +111,6 @@ impl<'a> ConstituentMap<'a> {
             }
 
             let account_discriminator = array_ref![data, 0, 8];
-            msg!("pubkey: {}", account_info.key);
             if account_discriminator != &constituent_discriminator {
                 msg!(
                     "didnt match account discriminator {:?}, {:?}",

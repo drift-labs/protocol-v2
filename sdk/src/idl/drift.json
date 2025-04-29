@@ -9517,6 +9517,10 @@
           {
             "name": "perpMarketIndex",
             "type": "u16"
+          },
+          {
+            "name": "weight",
+            "type": "i64"
           }
         ]
       }
@@ -9533,6 +9537,10 @@
           {
             "name": "perpMarketIndex",
             "type": "u16"
+          },
+          {
+            "name": "weight",
+            "type": "i64"
           }
         ]
       }
@@ -9833,15 +9841,15 @@
             }
           },
           {
+            "name": "lastSlot",
+            "type": "u64"
+          },
+          {
             "name": "weight",
             "docs": [
               "PERCENTAGE_PRECISION. The weight this constituent has on the perp market"
             ],
             "type": "i64"
-          },
-          {
-            "name": "lastSlot",
-            "type": "u64"
           }
         ]
       }
@@ -9873,12 +9881,12 @@
         "kind": "struct",
         "fields": [
           {
-            "name": "weight",
-            "type": "i64"
-          },
-          {
             "name": "lastSlot",
             "type": "u64"
+          },
+          {
+            "name": "weight",
+            "type": "i64"
           }
         ]
       }

@@ -10,7 +10,10 @@ use crate::{
     msg,
     state::{
         constituent_map::{ConstituentMap, ConstituentSet},
-        lp_pool::{AmmConstituentDatum, AmmConstituentMappingFixed, LPPool, WeightValidationFlags},
+        lp_pool::{
+            AmmConstituentDatum, AmmConstituentMappingFixed, LPPool, WeightValidationFlags,
+            CONSTITUENT_PDA_SEED,
+        },
         perp_market_map::MarketSet,
         state::State,
         user::MarketType,
@@ -129,9 +132,6 @@ pub fn handle_update_lp_pool_aum<'c: 'info, 'info>(
 
     let constituent_map = ConstituentMap::load(&ConstituentSet::new(), remaining_accounts)?;
 
-    msg!("{}", constituent_map.0.len());
-    msg!("{}", lp_pool.constituents);
-
     validate!(
         constituent_map.0.len() == lp_pool.constituents as usize,
         ErrorCode::WrongNumberOfConstituents,
@@ -141,6 +141,22 @@ pub fn handle_update_lp_pool_aum<'c: 'info, 'info>(
     let mut aum: u128 = 0;
     for i in 0..lp_pool.constituents as usize {
         let mut constituent = constituent_map.get_ref_mut(&(i as u16))?;
+
+        // Validate PDA
+        let expected_pda = Pubkey::find_program_address(
+            &[
+                CONSTITUENT_PDA_SEED.as_ref(),
+                lp_pool.pubkey.as_ref(),
+                constituent.spot_market_index.to_le_bytes().as_ref(),
+            ],
+            &crate::ID,
+        );
+        validate!(
+            expected_pda.0 == constituent.pubkey,
+            ErrorCode::InvalidConstituent,
+            "Constituent PDA does not match expected PDA"
+        )?;
+
         let spot_market = spot_market_map.get_ref(&constituent.spot_market_index)?;
 
         let oracle_data = oracle_map.get_price_data_and_validity(

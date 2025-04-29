@@ -1,6 +1,8 @@
 use crate::error::{DriftResult, ErrorCode};
 use crate::math::casting::Cast;
-use crate::math::constants::{PERCENTAGE_PRECISION_I64, PRICE_PRECISION_I64};
+use crate::math::constants::{
+    PERCENTAGE_PRECISION_I128, PERCENTAGE_PRECISION_I64, PRICE_PRECISION, PRICE_PRECISION_I64,
+};
 use crate::math::safe_math::SafeMath;
 use crate::math::spot_balance::get_token_amount;
 use anchor_lang::prelude::*;
@@ -15,7 +17,7 @@ use crate::state::traits::Size;
 use crate::{impl_zero_copy_loader, validate};
 
 pub const AMM_MAP_PDA_SEED: &str = "AMM_MAP";
-pub const CONSITUENT_PDA_SEED: &str = "CONSTITUENT";
+pub const CONSTITUENT_PDA_SEED: &str = "CONSTITUENT";
 pub const CONSTITUENT_TARGET_WEIGHT_PDA_SEED: &str = "CONSTITUENT_TARGET_WEIGHTS";
 
 #[cfg(test)]
@@ -354,10 +356,10 @@ impl Constituent {
 pub struct AmmConstituentDatum {
     pub perp_market_index: u16,
     pub constituent_index: u16,
-    pub padding: [u8; 4],
+    pub _padding: [u8; 4],
+    pub last_slot: u64,
     /// PERCENTAGE_PRECISION. The weight this constituent has on the perp market
     pub weight: i64,
-    pub last_slot: u64,
 }
 
 #[zero_copy]
@@ -409,8 +411,8 @@ impl_zero_copy_loader!(
 #[derive(Debug, Default, BorshDeserialize, BorshSerialize)]
 #[repr(C)]
 pub struct WeightDatum {
-    pub weight: i64,
     pub last_slot: u64,
+    pub weight: i64,
 }
 
 #[zero_copy]
@@ -502,6 +504,7 @@ impl<'a> AccountZeroCopyMut<'a, WeightDatum, ConstituentTargetWeightsFixed> {
         validation_flags: WeightValidationFlags,
     ) -> DriftResult<()> {
         let mut total_weight: i128 = 0;
+        let aum_i128 = aum.cast::<i128>()?;
         for (i, constituent_index) in constituents_indexes.iter().enumerate() {
             let mut target_amount = 0i128;
 
@@ -520,10 +523,8 @@ impl<'a> AccountZeroCopyMut<'a, WeightDatum, ConstituentTargetWeightsFixed> {
             let price = prices[i] as i128;
 
             // assumes PRICE_PRECISION = PERCENTAGE_PRECISION
-            let target_weight = if aum > 0 {
-                target_amount
-                    .saturating_mul(price)
-                    .saturating_div(aum as i128)
+            let target_weight: i128 = if aum > 0 {
+                target_amount.saturating_mul(price).saturating_div(aum_i128)
             } else {
                 0
             };
@@ -544,14 +545,20 @@ impl<'a> AccountZeroCopyMut<'a, WeightDatum, ConstituentTargetWeightsFixed> {
                 .saturating_add(PERCENTAGE_PRECISION_I64 as i128);
 
             let cell = self.get_mut(i as u32);
-            cell.weight = target_weight as i64;
+            msg!(
+                "updating constituent index {} target weight to {}",
+                constituent_index,
+                target_weight
+            );
+            cell.weight =
+                target_weight.clamp(-PERCENTAGE_PRECISION_I128, PERCENTAGE_PRECISION_I128) as i64;
             cell.last_slot = slot;
 
             total_weight = total_weight.saturating_add(target_weight);
         }
 
         if (validation_flags as u8) & WeightValidationFlags::EnforceTotalWeight100 as u8 != 0 {
-            let deviation = (total_weight - PERCENTAGE_PRECISION_I64 as i128).abs();
+            let deviation = (total_weight - PERCENTAGE_PRECISION_I128).abs();
             let tolerance = 100;
             if deviation > tolerance {
                 return Err(ErrorCode::DefaultError);
