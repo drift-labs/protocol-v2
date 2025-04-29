@@ -7239,12 +7239,100 @@
           }
         },
         {
-          "name": "initAmmConstituentMappingData",
+          "name": "ammConstituentMappingData",
           "type": {
             "vec": {
-              "defined": "InitializeAmmConstituentMappingDatum"
+              "defined": "AddAmmConstituentMappingDatum"
             }
           }
+        }
+      ]
+    },
+    {
+      "name": "updateAmmConstituentMappingData",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "lpPool",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "ammConstituentMapping",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "systemProgram",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "lpPoolName",
+          "type": {
+            "array": [
+              "u8",
+              32
+            ]
+          }
+        },
+        {
+          "name": "ammConstituentMappingData",
+          "type": {
+            "vec": {
+              "defined": "AddAmmConstituentMappingDatum"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "removeAmmConstituentMappingData",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "lpPool",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "ammConstituentMapping",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "systemProgram",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "lpPoolName",
+          "type": {
+            "array": [
+              "u8",
+              32
+            ]
+          }
+        },
+        {
+          "name": "perpMarketIndex",
+          "type": "u16"
+        },
+        {
+          "name": "constituentIndex",
+          "type": "u16"
         }
       ]
     },
@@ -9515,26 +9603,6 @@
             "type": {
               "option": "bool"
             }
-          }
-        ]
-      }
-    },
-    {
-      "name": "InitializeAmmConstituentMappingDatum",
-      "type": {
-        "kind": "struct",
-        "fields": [
-          {
-            "name": "constituentIndex",
-            "type": "u16"
-          },
-          {
-            "name": "perpMarketIndex",
-            "type": "u16"
-          },
-          {
-            "name": "weight",
-            "type": "i64"
           }
         ]
       }

@@ -4312,20 +4312,20 @@ export class AdminClient extends DriftClient {
 		];
 	}
 
-	public async addInitAmmConstituentMappingData(
+	public async addAmmConstituentMappingData(
 		lpPoolName: number[],
-		marketIndexConstituentIndexPairs: AddAmmConstituentMappingDatum[]
+		addAmmConstituentMappingData: AddAmmConstituentMappingDatum[]
 	): Promise<TransactionSignature> {
-		const ixs = await this.getAddInitAmmConstituentMappingDataIx(
+		const ixs = await this.getAddAmmConstituentMappingDataIx(
 			lpPoolName,
-			marketIndexConstituentIndexPairs
+			addAmmConstituentMappingData
 		);
 		const tx = await this.buildTransaction(ixs);
 		const { txSig } = await this.sendTransaction(tx, []);
 		return txSig;
 	}
 
-	public async getAddInitAmmConstituentMappingDataIx(
+	public async getAddAmmConstituentMappingDataIx(
 		lpPoolName: number[],
 		addAmmConstituentMappingData: AddAmmConstituentMappingDatum[]
 	): Promise<TransactionInstruction[]> {
@@ -4351,6 +4351,87 @@ export class AdminClient extends DriftClient {
 						rent: SYSVAR_RENT_PUBKEY,
 						systemProgram: SystemProgram.programId,
 						state: await this.getStatePublicKey(),
+					},
+				}
+			),
+		];
+	}
+
+	public async updateAmmConstituentMappingData(
+		lpPoolName: number[],
+		addAmmConstituentMappingData: AddAmmConstituentMappingDatum[]
+	): Promise<TransactionSignature> {
+		const ixs = await this.getUpdateAmmConstituentMappingDataIx(
+			lpPoolName,
+			addAmmConstituentMappingData
+		);
+		const tx = await this.buildTransaction(ixs);
+		const { txSig } = await this.sendTransaction(tx, []);
+		return txSig;
+	}
+
+	public async getUpdateAmmConstituentMappingDataIx(
+		lpPoolName: number[],
+		addAmmConstituentMappingData: AddAmmConstituentMappingDatum[]
+	): Promise<TransactionInstruction[]> {
+		const lpPool = getLpPoolPublicKey(this.program.programId, lpPoolName);
+		const ammConstituentMapping = getAmmConstituentMappingPublicKey(
+			this.program.programId,
+			lpPool
+		);
+		return [
+			this.program.instruction.updateAmmConstituentMappingData(
+				lpPoolName,
+				addAmmConstituentMappingData,
+				{
+					accounts: {
+						admin: this.wallet.publicKey,
+						lpPool,
+						ammConstituentMapping,
+						systemProgram: SystemProgram.programId,
+					},
+				}
+			),
+		];
+	}
+
+	public async removeAmmConstituentMappingData(
+		lpPoolName: number[],
+		perpMarketIndex: number,
+		constituentIndex: number
+	): Promise<TransactionSignature> {
+		const ixs = await this.getRemoveAmmConstituentMappingDataIx(
+			lpPoolName,
+			perpMarketIndex,
+			constituentIndex
+		);
+		const tx = await this.buildTransaction(ixs);
+		const { txSig } = await this.sendTransaction(tx, []);
+		return txSig;
+	}
+
+	public async getRemoveAmmConstituentMappingDataIx(
+		lpPoolName: number[],
+		perpMarketIndex: number,
+		constituentIndex: number
+	): Promise<TransactionInstruction[]> {
+		const lpPool = getLpPoolPublicKey(this.program.programId, lpPoolName);
+		const ammConstituentMapping = getAmmConstituentMappingPublicKey(
+			this.program.programId,
+			lpPool
+		);
+
+		return [
+			this.program.instruction.removeAmmConstituentMappingData(
+				lpPoolName,
+				perpMarketIndex,
+				constituentIndex,
+				{
+					accounts: {
+						admin: this.wallet.publicKey,
+						lpPool,
+						ammConstituentMapping,
+						systemProgram: SystemProgram.programId,
 					},
 				}
 			),

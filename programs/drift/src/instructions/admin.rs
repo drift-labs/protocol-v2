@@ -4517,16 +4517,36 @@ pub fn handle_update_amm_constituent_mapping_data<'info>(
     Ok(())
 }
 
-#[derive(AnchorSerialize, AnchorDeserialize, Clone, Default)]
-pub struct InitializeAmmConstituentMappingDatum {
-    pub constituent_index: u16,
-    pub perp_market_index: u16,
-    pub weight: i64,
+pub fn handle_remove_amm_constituent_mapping_data<'info>(
+    ctx: Context<RemoveAmmConstituentMappingData>,
+    perp_market_index: u16,
+    constituent_index: u16,
+) -> Result<()> {
+    let amm_mapping = &mut ctx.accounts.amm_constituent_mapping;
+
+    let position = amm_mapping.weights.iter().position(|existing_datum| {
+        existing_datum.perp_market_index == perp_market_index
+            && existing_datum.constituent_index == constituent_index
+    });
+
+    if position.is_none() {
+        msg!(
+            "Not found for perp_market_index {} and constituent_index {}",
+            perp_market_index,
+            constituent_index
+        );
+        return Err(ErrorCode::InvalidAmmConstituentMappingArgument.into());
+    }
+
+    amm_mapping.weights.remove(position.unwrap());
+    amm_mapping.weights.shrink_to_fit();
+
+    Ok(())
 }
 
 pub fn handle_add_amm_constituent_data<'info>(
     ctx: Context<AddAmmConstituentMappingData>,
-    init_amm_constituent_mapping_data: Vec<InitializeAmmConstituentMappingDatum>,
+    init_amm_constituent_mapping_data: Vec<AddAmmConstituentMappingDatum>,
 ) -> Result<()> {
     let amm_mapping = &mut ctx.accounts.amm_constituent_mapping;
     let constituent_target_weights = &ctx.accounts.constituent_target_weights;
@@ -5456,6 +5476,31 @@ pub struct UpdateAmmConstituentMappingData<'info> {
         bump,
     )]
     pub amm_constituent_mapping: Box<Account<'info, AmmConstituentMapping>>,
-    pub state: Box<Account<'info, State>>,
+    pub system_program: Program<'info, System>,
+}
+
+#[derive(Accounts)]
+#[instruction(
+    lp_pool_name: [u8; 32],
+)]
+pub struct RemoveAmmConstituentMappingData<'info> {
+    #[account(mut)]
+    pub admin: Signer<'info>,
+
+    #[account(
+        seeds = [b"lp_pool", lp_pool_name.as_ref()],
+        bump,
+    )]
+    pub lp_pool: AccountLoader<'info, LPPool>,
+
+    #[account(
+        mut,
+        seeds = [AMM_MAP_PDA_SEED.as_ref(), lp_pool.key().as_ref()],
+        bump,
+        realloc = AmmConstituentMapping::space(amm_constituent_mapping.weights.len() - 1),
+        realloc::payer = admin,
+        realloc::zero = false,
+    )]
+    pub amm_constituent_mapping: Box<Account<'info, AmmConstituentMapping>>,
     pub system_program: Program<'info, System>,
 }

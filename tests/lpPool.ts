@@ -98,7 +98,7 @@ describe('LP Pool', () => {
 			},
 			activeSubAccountId: 0,
 			subAccountIds: [],
-			perpMarketIndexes: [0, 1],
+			perpMarketIndexes: [0, 1, 2],
 			spotMarketIndexes: [0],
 			oracleInfos: [],
 			accountSubscription: {
@@ -136,6 +136,15 @@ describe('LP Pool', () => {
 
 		await adminClient.initializePerpMarket(
 			1,
+			solUsd,
+			ammInitialBaseAssetReserve,
+			ammInitialQuoteAssetReserve,
+			periodicity,
+			new BN(224 * PEG_PRECISION.toNumber())
+		);
+
+		await adminClient.initializePerpMarket(
+			2,
 			solUsd,
 			ammInitialBaseAssetReserve,
 			ammInitialQuoteAssetReserve,
@@ -217,7 +226,7 @@ describe('LP Pool', () => {
 	});
 
 	it('can add amm mapping datum', async () => {
-		await adminClient.addInitAmmConstituentMappingData(encodeName(lpPoolName), [
+		await adminClient.addAmmConstituentMappingData(encodeName(lpPoolName), [
 			{
 				perpMarketIndex: 0,
 				constituentIndex: 0,
@@ -244,16 +253,13 @@ describe('LP Pool', () => {
 	it('fails adding datum with bad params', async () => {
 		// Bad perp market index
 		try {
-			await adminClient.addInitAmmConstituentMappingData(
-				encodeName(lpPoolName),
-				[
-					{
-						perpMarketIndex: 2,
-						constituentIndex: 0,
-						weight: PERCENTAGE_PRECISION,
-					},
-				]
-			);
+			await adminClient.addAmmConstituentMappingData(encodeName(lpPoolName), [
+				{
+					perpMarketIndex: 3,
+					constituentIndex: 0,
+					weight: PERCENTAGE_PRECISION,
+				},
+			]);
 			expect.fail('should have failed');
 		} catch (e) {
 			expect(e.message).to.contain('0x18ab');
@@ -261,16 +267,13 @@ describe('LP Pool', () => {
 
 		// Bad constituent index
 		try {
-			await adminClient.addInitAmmConstituentMappingData(
-				encodeName(lpPoolName),
-				[
-					{
-						perpMarketIndex: 0,
-						constituentIndex: 1,
-						weight: PERCENTAGE_PRECISION,
-					},
-				]
-			);
+			await adminClient.addAmmConstituentMappingData(encodeName(lpPoolName), [
+				{
+					perpMarketIndex: 0,
+					constituentIndex: 1,
+					weight: PERCENTAGE_PRECISION,
+				},
+			]);
 			expect.fail('should have failed');
 		} catch (e) {
 			expect(e.message).to.contain('0x18ab');
@@ -367,5 +370,57 @@ describe('LP Pool', () => {
 		} catch (e) {
 			assert(e.message.includes('0x18b0'));
 		}
+	});
+
+	it('can update and remove amm constituent mapping entries', async () => {
+		await adminClient.addAmmConstituentMappingData(encodeName(lpPoolName), [
+			{
+				perpMarketIndex: 2,
+				constituentIndex: 0,
+				weight: PERCENTAGE_PRECISION,
+			},
+		]);
+		const ammConstituentMapping = getAmmConstituentMappingPublicKey(
+			program.programId,
+			lpPoolKey
+		);
+		let ammMapping =
+			(await adminClient.program.account.ammConstituentMapping.fetch(
+				ammConstituentMapping
+			)) as AmmConstituentMapping;
+		expect(ammMapping).to.not.be.null;
+		assert(ammMapping.weights.length == 3);
+
+		// Update
+		await adminClient.updateAmmConstituentMappingData(encodeName(lpPoolName), [
+			{
+				perpMarketIndex: 2,
+				constituentIndex: 0,
+				weight: PERCENTAGE_PRECISION.muln(2),
+			},
+		]);
+		ammMapping = (await adminClient.program.account.ammConstituentMapping.fetch(
+			ammConstituentMapping
+		)) as AmmConstituentMapping;
+		expect(ammMapping).to.not.be.null;
+		assert(
+			ammMapping.weights
+				.find((x) => x.perpMarketIndex == 2)
+				.weight.eq(PERCENTAGE_PRECISION.muln(2))
+		);
+
+		// Remove
+		await adminClient.removeAmmConstituentMappingData(
+			encodeName(lpPoolName),
+			2,
+			0
+		);
+		ammMapping = (await adminClient.program.account.ammConstituentMapping.fetch(
+			ammConstituentMapping
+		)) as AmmConstituentMapping;
+		expect(ammMapping).to.not.be.null;
+		assert(ammMapping.weights.find((x) => x.perpMarketIndex == 2) == undefined);
+		assert(ammMapping.weights.length === 2);
+
 	});
 });

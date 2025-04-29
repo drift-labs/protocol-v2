@@ -1717,9 +1717,26 @@ pub mod drift {
     pub fn add_amm_constituent_mapping_data(
         ctx: Context<AddAmmConstituentMappingData>,
         lp_pool_name: [u8; 32],
-        init_amm_constituent_mapping_data: Vec<InitializeAmmConstituentMappingDatum>,
+        amm_constituent_mapping_data: Vec<AddAmmConstituentMappingDatum>,
     ) -> Result<()> {
-        handle_add_amm_constituent_data(ctx, init_amm_constituent_mapping_data)
+        handle_add_amm_constituent_data(ctx, amm_constituent_mapping_data)
+    }
+
+    pub fn update_amm_constituent_mapping_data(
+        ctx: Context<UpdateAmmConstituentMappingData>,
+        lp_pool_name: [u8; 32],
+        amm_constituent_mapping_data: Vec<AddAmmConstituentMappingDatum>,
+    ) -> Result<()> {
+        handle_update_amm_constituent_mapping_data(ctx, amm_constituent_mapping_data)
+    }
+
+    pub fn remove_amm_constituent_mapping_data<'c: 'info, 'info>(
+        ctx: Context<'_, '_, 'c, 'info, RemoveAmmConstituentMappingData<'info>>,
+        lp_pool_name: [u8; 32],
+        perp_market_index: u16,
+        constituent_index: u16,
+    ) -> Result<()> {
+        handle_remove_amm_constituent_mapping_data(ctx, perp_market_index, constituent_index)
     }
 
     pub fn update_dlp_constituent_target_weights<'c: 'info, 'info>(
