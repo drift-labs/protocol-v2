@@ -46,8 +46,8 @@ describe('LP Pool', () => {
 	let bulkAccountLoader: TestBulkAccountLoader;
 
 	let adminClient: TestClient;
-	let usdcMint;
-	let spotTokenMint;
+	let usdcMint: Keypair;
+	let spotTokenMint: Keypair;
 	let spotMarketIndex: number;
 	let spotMarketOracle: PublicKey;
 
@@ -91,12 +91,11 @@ describe('LP Pool', () => {
 		);
 
 		usdcMint = await mockUSDCMint(bankrunContextWrapper);
+		spotTokenMint = await mockUSDCMint(bankrunContextWrapper);
+		spotMarketOracle = await mockOracleNoProgram(bankrunContextWrapper, 200);
 
 		const keypair = new Keypair();
 		await bankrunContextWrapper.fundKeypair(keypair, 10 ** 9);
-
-		spotTokenMint = await mockUSDCMint(bankrunContextWrapper);
-		spotMarketOracle = await mockOracleNoProgram(bankrunContextWrapper, 200);
 
 		adminClient = new TestClient({
 			connection: bankrunContextWrapper.connection.toConnection(),
