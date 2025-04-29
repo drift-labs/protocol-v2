@@ -73,7 +73,7 @@ pub struct LPPool {
 }
 
 impl Size for LPPool {
-    const SIZE: usize = 192;
+    const SIZE: usize = 216;
 }
 
 impl LPPool {
@@ -148,9 +148,9 @@ impl LPPool {
         )?;
 
         let in_fee = self.get_swap_fees(
+            in_spot_market,
             in_oracle,
             in_constituent,
-            in_token_balance,
             in_amount.cast::<i64>()?,
             in_target_weight,
         )?;
@@ -161,9 +161,9 @@ impl LPPool {
             .safe_div(PRICE_PRECISION_I64)?
             .cast::<u64>()?;
         let out_fee = self.get_swap_fees(
+            out_spot_market,
             out_oracle,
             out_constituent,
-            out_token_balance,
             out_amount
                 .cast::<i64>()?
                 .checked_neg()
@@ -180,14 +180,14 @@ impl LPPool {
     /// returns fee in PERCENTAGE_PRECISION
     pub fn get_swap_fees(
         &self,
+        spot_market: &SpotMarket,
         oracle: &OraclePriceData,
         constituent: &Constituent,
-        token_balance: u64,
         amount: i64,
         target_weight: i64,
     ) -> DriftResult<i64> {
         let weight_after =
-            constituent.get_weight(oracle.price, token_balance, amount, self.last_aum)?;
+            constituent.get_weight(oracle.price, spot_market, amount, self.last_aum)?;
         let fee = constituent.get_fee_to_charge(weight_after, target_weight)?;
 
         Ok(fee)
@@ -280,7 +280,6 @@ pub struct Constituent {
 
     /// spot borrow-lend balance for constituent
     pub spot_balance: BLPosition, // should be in constituent base asset
-
 
     pub last_oracle_price: i64,
     pub last_oracle_slot: u64,

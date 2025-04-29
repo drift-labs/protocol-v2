@@ -7938,18 +7938,18 @@
             "type": "i64"
           },
           {
-            "name": "tokenBalance",
-            "docs": [
-              "ata token balance in SPOT_BALANCE_PRECISION"
-            ],
-            "type": "u64"
-          },
-          {
             "name": "totalSwapFees",
             "docs": [
               "total fees received by the constituent. Positive = fees received, Negative = fees paid"
             ],
             "type": "i128"
+          },
+          {
+            "name": "tokenBalance",
+            "docs": [
+              "ata token balance in SPOT_BALANCE_PRECISION"
+            ],
+            "type": "u64"
           },
           {
             "name": "spotBalance",

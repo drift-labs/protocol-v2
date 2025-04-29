@@ -22,6 +22,9 @@ import {
 	LPPool,
 	User,
 	getConstituentVaultPublicKey,
+	SPOT_MARKET_WEIGHT_PRECISION,
+	SPOT_MARKET_RATE_PRECISION,
+	OracleSource,
 } from '../sdk/src';
 
 import {
@@ -44,6 +47,9 @@ describe('LP Pool', () => {
 
 	let adminClient: TestClient;
 	let usdcMint;
+	let spotTokenMint;
+	let spotMarketIndex: number;
+	let spotMarketOracle: PublicKey;
 
 	const mantissaSqrtScale = new BN(Math.sqrt(PRICE_PRECISION.toNumber()));
 	const ammInitialQuoteAssetReserve = new anchor.BN(10 * 10 ** 13).mul(
@@ -89,7 +95,8 @@ describe('LP Pool', () => {
 		const keypair = new Keypair();
 		await bankrunContextWrapper.fundKeypair(keypair, 10 ** 9);
 
-		usdcMint = await mockUSDCMint(bankrunContextWrapper);
+		spotTokenMint = await mockUSDCMint(bankrunContextWrapper);
+		spotMarketOracle = await mockOracleNoProgram(bankrunContextWrapper, 200);
 
 		adminClient = new TestClient({
 			connection: bankrunContextWrapper.connection.toConnection(),
@@ -101,7 +108,7 @@ describe('LP Pool', () => {
 			activeSubAccountId: 0,
 			subAccountIds: [],
 			perpMarketIndexes: [0, 1, 2],
-			spotMarketIndexes: [0],
+			spotMarketIndexes: [0, 1],
 			oracleInfos: [],
 			accountSubscription: {
 				type: 'polling',
@@ -152,6 +159,32 @@ describe('LP Pool', () => {
 			ammInitialQuoteAssetReserve,
 			periodicity,
 			new BN(224 * PEG_PRECISION.toNumber())
+		);
+
+		const optimalUtilization = SPOT_MARKET_RATE_PRECISION.div(
+			new BN(2)
+		).toNumber(); // 50% utilization
+		const optimalRate = SPOT_MARKET_RATE_PRECISION.toNumber();
+		const maxRate = SPOT_MARKET_RATE_PRECISION.toNumber();
+		const initialAssetWeight = SPOT_MARKET_WEIGHT_PRECISION.toNumber();
+		const maintenanceAssetWeight = SPOT_MARKET_WEIGHT_PRECISION.toNumber();
+		const initialLiabilityWeight = SPOT_MARKET_WEIGHT_PRECISION.toNumber();
+		const maintenanceLiabilityWeight = SPOT_MARKET_WEIGHT_PRECISION.toNumber();
+		const imfFactor = 0;
+		spotMarketIndex = adminClient.getStateAccount().numberOfSpotMarkets;
+
+		await adminClient.initializeSpotMarket(
+			spotTokenMint.publicKey,
+			optimalUtilization,
+			optimalRate,
+			maxRate,
+			spotMarketOracle,
+			OracleSource.PYTH,
+			initialAssetWeight,
+			maintenanceAssetWeight,
+			initialLiabilityWeight,
+			maintenanceLiabilityWeight,
+			imfFactor
 		);
 
 		await adminClient.initializeLpPool(
@@ -434,6 +467,5 @@ describe('LP Pool', () => {
 		expect(ammMapping).to.not.be.null;
 		assert(ammMapping.weights.find((x) => x.perpMarketIndex == 2) == undefined);
 		assert(ammMapping.weights.length === 2);
-
 	});
 });

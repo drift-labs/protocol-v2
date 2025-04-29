@@ -7,6 +7,7 @@ use crate::math::{
     safe_math::SafeMath,
 };
 use crate::msg;
+use crate::state::constituent_map::{ConstituentMap, ConstituentSet};
 use crate::state::spot_market::SpotBalanceType;
 use crate::state::{
     lp_pool::{
@@ -25,23 +26,22 @@ use super::optional_accounts::{load_maps, AccountMaps};
 use crate::controller::spot_balance::update_spot_market_cumulative_interest;
 use crate::controller::token::{receive, send_from_program_vault};
 use crate::instructions::constraints::*;
-use crate::state::lp_pool::{AMM_MAP_PDA_SEED, CONSTITUENT_TARGET_WEIGHT_PDA_SEED};
+use crate::state::lp_pool::{
+    AMM_MAP_PDA_SEED, CONSTITUENT_PDA_SEED, CONSTITUENT_TARGET_WEIGHT_PDA_SEED,
+};
 
 pub fn handle_update_constituent_target_weights<'c: 'info, 'info>(
     ctx: Context<'_, '_, 'c, 'info, UpdateConstituentTargetWeights<'info>>,
     constituent_indexes: Vec<u16>,
 ) -> Result<()> {
-    msg!("HIHI!");
     let lp_pool = &ctx.accounts.lp_pool.load()?;
     let state = &ctx.accounts.state;
-    msg!("datalen: {}", ctx.accounts.constituent_target_weights.data_len());
     let mut constituent_target_weights = ctx.accounts.constituent_target_weights.load_zc_mut()?;
 
     let num_constituents = constituent_target_weights.len();
     let exists_invalid_constituent_index = constituent_indexes
         .iter()
         .any(|index| *index as u32 >= num_constituents);
-    msg!("num_constituents: {} ", num_constituents);
 
     validate!(
         !exists_invalid_constituent_index,
@@ -56,7 +56,6 @@ pub fn handle_update_constituent_target_weights<'c: 'info, 'info>(
         AmmConstituentDatum,
         AmmConstituentMappingFixed,
     > = ctx.accounts.amm_constituent_mapping.load_zc()?;
-    msg!("amm constituent mapping weights: {} datalen: {}", amm_constituent_mapping.len(), ctx.accounts.amm_constituent_mapping.data_len());
 
     let AccountMaps {
         perp_market_map,
@@ -263,21 +262,6 @@ pub fn handle_lp_pool_swap<'c: 'info, 'info>(
 
     update_spot_market_cumulative_interest(&mut out_spot_market, Some(&out_oracle), now)?;
 
-    let in_constituent_balance =
-        in_constituent.get_full_balance(in_constituent_token_account.amount)?;
-    msg!(
-        "in_constituent: {}, in_constituent_balance: {}",
-        in_constituent.constituent_index,
-        in_constituent_balance
-    );
-    let out_constituent_balance =
-        out_constituent.get_full_balance(out_constituent_token_account.amount)?;
-    msg!(
-        "out_constituent: {}, out_constituent_balance: {}",
-        out_constituent.constituent_index,
-        out_constituent_balance
-    );
-
     let in_target_weight =
         constituent_target_weights.get_target_weight(in_constituent.constituent_index)?;
     let out_target_weight =
@@ -290,8 +274,6 @@ pub fn handle_lp_pool_swap<'c: 'info, 'info>(
         &out_constituent,
         &in_spot_market,
         &out_spot_market,
-        in_constituent_token_account.amount,
-        out_constituent_token_account.amount,
         in_target_weight,
         out_target_weight,
         in_amount,
