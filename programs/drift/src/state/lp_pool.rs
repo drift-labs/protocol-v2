@@ -136,8 +136,8 @@ impl LPPool {
         out_constituent: &Constituent,
         in_spot_market: &SpotMarket,
         out_spot_market: &SpotMarket,
-        in_token_balance: u64,
-        out_token_balance: u64,
+        in_token_balance: u128,
+        out_token_balance: u128,
         in_target_weight: i64,
         out_target_weight: i64,
         in_amount: u64,
@@ -180,7 +180,7 @@ impl LPPool {
         oracle_map: &mut OracleMap, // might not need oracle_map depending on how accounts are passed in
         constituent: &Constituent,
         spot_market: &SpotMarket,
-        token_balance: u64,
+        token_balance: u128,
         amount: u64,
         target_weight: i64,
     ) -> DriftResult<i64> {
@@ -287,7 +287,7 @@ impl Size for Constituent {
 impl Constituent {
     /// Returns the full balance of the Constituent, the total of the amount in Constituent's token
     /// account and in Drift Borrow-Lend.
-    pub fn get_full_balance(&self, token_balance: u64) -> DriftResult<i128> {
+    pub fn get_full_balance(&self, token_balance: u128) -> DriftResult<i128> {
         match self.spot_balance.balance_type() {
             SpotBalanceType::Deposit => token_balance
                 .cast::<i128>()?
@@ -303,7 +303,7 @@ impl Constituent {
     pub fn get_weight(
         &self,
         price: i64,
-        token_balance: u64,
+        token_balance: u128,
         token_amount_delta: i64,
         lp_pool_aum: u128,
     ) -> DriftResult<i64> {
