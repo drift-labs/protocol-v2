@@ -441,7 +441,7 @@ export function getConstituentVaultPublicKey(
 ): PublicKey {
 	return PublicKey.findProgramAddressSync(
 		[
-			Buffer.from(anchor.utils.bytes.utf8.encode('VAULT')),
+			Buffer.from(anchor.utils.bytes.utf8.encode('CONSTITUENT_VAULT')),
 			lpPoolPublicKey.toBuffer(),
 			new anchor.BN(spotMarketIndex).toArrayLike(Buffer, 'le', 2),
 		],

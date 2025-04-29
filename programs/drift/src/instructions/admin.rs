@@ -5319,7 +5319,7 @@ pub struct InitializeConstituent<'info> {
     pub state: Box<Account<'info, State>>,
     #[account(
         mut,
-        // constraint = admin.key() == admin_hot_wallet::id() || admin.key() == state.admin
+        constraint = admin.key() == admin_hot_wallet::id() || admin.key() == state.admin
     )]
     pub admin: Signer<'info>,
 

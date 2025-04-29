@@ -4291,6 +4291,7 @@ export class AdminClient extends DriftClient {
 			spotMarketIndex
 		);
 		const spotMarketAccount = this.getSpotMarketAccount(spotMarketIndex);
+
 		return [
 			this.program.instruction.initializeConstituent(
 				lpPoolName,

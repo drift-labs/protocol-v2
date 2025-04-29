@@ -17,7 +17,7 @@ use crate::{impl_zero_copy_loader, validate};
 pub const AMM_MAP_PDA_SEED: &str = "AMM_MAP";
 pub const CONSTITUENT_PDA_SEED: &str = "CONSTITUENT";
 pub const CONSTITUENT_TARGET_WEIGHT_PDA_SEED: &str = "CONSTITUENT_TARGET_WEIGHTS";
-pub const CONSTITUENT_VAULT_PDA_SEED: &str = "VAULT";
+pub const CONSTITUENT_VAULT_PDA_SEED: &str = "CONSTITUENT_VAULT";
 
 #[cfg(test)]
 mod tests;
