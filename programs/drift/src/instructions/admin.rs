@@ -33,7 +33,9 @@ use crate::math::spot_balance::get_token_amount;
 use crate::math::spot_withdraw::validate_spot_market_vault_amount;
 use crate::math::{amm, bn};
 use crate::optional_accounts::get_token_mint;
-use crate::state::events::{CurveRecord, SpotMarketVaultDepositRecord};
+use crate::state::events::{
+    CurveRecord, DepositDirection, DepositExplanation, DepositRecord, SpotMarketVaultDepositRecord,
+};
 use crate::state::fulfillment_params::openbook_v2::{
     OpenbookV2Context, OpenbookV2FulfillmentConfig,
 };
@@ -54,7 +56,7 @@ use crate::state::paused_operations::{InsuranceFundOperation, PerpOperation, Spo
 use crate::state::perp_market::{
     ContractTier, ContractType, InsuranceClaim, MarketStatus, PerpMarket, PoolBalance, AMM,
 };
-use crate::state::perp_market_map::get_writable_perp_market_set;
+use crate::state::perp_market_map::{get_writable_perp_market_set, MarketSet};
 use crate::state::protected_maker_mode_config::ProtectedMakerModeConfig;
 use crate::state::pyth_lazer_oracle::{PythLazerOracle, PYTH_LAZER_ORACLE_SEED};
 use crate::state::spot_market::{
@@ -4438,6 +4440,156 @@ pub fn handle_update_protected_maker_mode_config(
     Ok(())
 }
 
+#[access_control(
+    deposit_not_paused(&ctx.accounts.state)
+)]
+pub fn handle_admin_deposit<'c: 'info, 'info>(
+    ctx: Context<'_, '_, 'c, 'info, AdminDeposit<'info>>,
+    market_index: u16,
+    amount: u64,
+) -> Result<()> {
+    let user_key = ctx.accounts.user.key();
+    let user = &mut load_mut!(ctx.accounts.user)?;
+
+    let state = &ctx.accounts.state;
+    let clock = Clock::get()?;
+    let now = clock.unix_timestamp;
+    let slot = clock.slot;
+
+    let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
+    let AccountMaps {
+        perp_market_map: _,
+        spot_market_map,
+        mut oracle_map,
+    } = load_maps(
+        remaining_accounts_iter,
+        &MarketSet::new(),
+        &get_writable_spot_market_set(market_index),
+        clock.slot,
+        Some(state.oracle_guard_rails),
+    )?;
+
+    let mint = get_token_mint(remaining_accounts_iter)?;
+
+    if amount == 0 {
+        return Err(ErrorCode::InsufficientDeposit.into());
+    }
+
+    validate!(!user.is_bankrupt(), ErrorCode::UserBankrupt)?;
+
+    let mut spot_market = spot_market_map.get_ref_mut(&market_index)?;
+    let oracle_price_data = *oracle_map.get_price_data(&spot_market.oracle_id())?;
+
+    validate!(
+        user.pool_id == spot_market.pool_id,
+        ErrorCode::InvalidPoolId,
+        "user pool id ({}) != market pool id ({})",
+        user.pool_id,
+        spot_market.pool_id
+    )?;
+
+    validate!(
+        !matches!(spot_market.status, MarketStatus::Initialized),
+        ErrorCode::MarketBeingInitialized,
+        "Market is being initialized"
+    )?;
+
+    controller::spot_balance::update_spot_market_cumulative_interest(
+        &mut spot_market,
+        Some(&oracle_price_data),
+        now,
+    )?;
+
+    let position_index = user.force_get_spot_position_index(spot_market.market_index)?;
+
+    // if reduce only, have to compare ix amount to current borrow amount
+    let amount = if (spot_market.is_reduce_only())
+        && user.spot_positions[position_index].balance_type == SpotBalanceType::Borrow
+    {
+        user.spot_positions[position_index]
+            .get_token_amount(&spot_market)?
+            .cast::<u64>()?
+            .min(amount)
+    } else {
+        amount
+    };
+
+    let total_deposits_after = user.total_deposits;
+    let total_withdraws_after = user.total_withdraws;
+
+    let spot_position = &mut user.spot_positions[position_index];
+    controller::spot_position::update_spot_balances_and_cumulative_deposits(
+        amount as u128,
+        &SpotBalanceType::Deposit,
+        &mut spot_market,
+        spot_position,
+        false,
+        None,
+    )?;
+
+    let token_amount = spot_position.get_token_amount(&spot_market)?;
+    if token_amount == 0 {
+        validate!(
+            spot_position.scaled_balance == 0,
+            ErrorCode::InvalidSpotPosition,
+            "deposit left user with invalid position. scaled balance = {} token amount = {}",
+            spot_position.scaled_balance,
+            token_amount
+        )?;
+    }
+
+    if spot_position.balance_type == SpotBalanceType::Deposit && spot_position.scaled_balance > 0 {
+        validate!(
+            matches!(spot_market.status, MarketStatus::Active),
+            ErrorCode::MarketActionPaused,
+            "spot_market not active",
+        )?;
+    }
+
+    drop(spot_market);
+
+    user.update_last_active_slot(slot);
+
+    let spot_market = &mut spot_market_map.get_ref_mut(&market_index)?;
+
+    controller::token::receive(
+        &ctx.accounts.token_program,
+        &ctx.accounts.admin_token_account,
+        &ctx.accounts.spot_market_vault,
+        &ctx.accounts.admin,
+        amount,
+        &mint,
+    )?;
+    ctx.accounts.spot_market_vault.reload()?;
+    validate_spot_market_vault_amount(spot_market, ctx.accounts.spot_market_vault.amount)?;
+
+    let deposit_record_id = get_then_update_id!(spot_market, next_deposit_record_id);
+    let oracle_price = oracle_price_data.price;
+    let deposit_record = DepositRecord {
+        ts: now,
+        deposit_record_id,
+        user_authority: user.authority,
+        user: user_key,
+        direction: DepositDirection::Deposit,
+        amount,
+        oracle_price,
+        market_deposit_balance: spot_market.deposit_balance,
+        market_withdraw_balance: spot_market.borrow_balance,
+        market_cumulative_deposit_interest: spot_market.cumulative_deposit_interest,
+        market_cumulative_borrow_interest: spot_market.cumulative_borrow_interest,
+        total_deposits_after,
+        total_withdraws_after,
+        market_index,
+        explanation: DepositExplanation::Reward,
+        transfer_user: None,
+    };
+    emit!(deposit_record);
+
+    spot_market.validate_max_token_deposits_and_borrows(false)?;
+
+    Ok(())
+}
+
 #[derive(Accounts)]
 pub struct Initialize<'info> {
     #[account(mut)]
@@ -5162,4 +5314,30 @@ pub struct UpdateProtectedMakerModeConfig<'info> {
         has_one = admin
     )]
     pub state: Box<Account<'info, State>>,
+}
+
+#[derive(Accounts)]
+#[instruction(market_index: u16,)]
+pub struct AdminDeposit<'info> {
+    pub state: Box<Account<'info, State>>,
+    #[account(mut)]
+    pub user: AccountLoader<'info, User>,
+    #[account(
+        mut,
+        constraint = admin.key() == admin_hot_wallet::id() || admin.key() == state.admin
+    )]
+    pub admin: Signer<'info>,
+    #[account(
+        mut,
+        seeds = [b"spot_market_vault".as_ref(), market_index.to_le_bytes().as_ref()],
+        bump,
+    )]
+    pub spot_market_vault: Box<InterfaceAccount<'info, TokenAccount>>,
+    #[account(
+        mut,
+        constraint = &spot_market_vault.mint.eq(&admin_token_account.mint),
+        token::authority = admin.key()
+    )]
+    pub admin_token_account: Box<InterfaceAccount<'info, TokenAccount>>,
+    pub token_program: Interface<'info, TokenInterface>,
 }

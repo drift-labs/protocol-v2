@@ -1698,6 +1698,14 @@ pub mod drift {
     ) -> Result<()> {
         handle_update_protected_maker_mode_config(ctx, max_users, reduce_only, current_users)
     }
+
+    pub fn admin_deposit<'c: 'info, 'info>(
+        ctx: Context<'_, '_, 'c, 'info, AdminDeposit<'info>>,
+        market_index: u16,
+        amount: u64,
+    ) -> Result<()> {
+        handle_admin_deposit(ctx, market_index, amount)
+    }
 }
 
 #[cfg(not(feature = "no-entrypoint"))]

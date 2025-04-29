@@ -4224,4 +4224,52 @@ export class AdminClient extends DriftClient {
 			}
 		);
 	}
+
+	public async adminDeposit(
+		marketIndex: number,
+		amount: BN,
+		depositUserAccount: PublicKey,
+		adminTokenAccount?: PublicKey
+	): Promise<TransactionSignature> {
+		const ix = await this.getAdminDepositIx(
+			marketIndex,
+			amount,
+			depositUserAccount,
+			adminTokenAccount
+		);
+		const tx = await this.buildTransaction(ix);
+		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+		return txSig;
+	}
+
+	public async getAdminDepositIx(
+		marketIndex: number,
+		amount: BN,
+		depositUserAccount: PublicKey,
+		adminTokenAccount?: PublicKey
+	): Promise<TransactionInstruction> {
+		const state = await this.getStatePublicKey();
+
+		const spotMarketVault = await getSpotMarketVaultPublicKey(
+			this.program.programId,
+			marketIndex
+		);
+
+		return this.program.instruction.adminDeposit(marketIndex, amount, {
+			remainingAccounts: this.getRemainingAccounts({
+				userAccounts: [],
+				writableSpotMarketIndexes: [marketIndex],
+			}),
+			accounts: {
+				state,
+				user: depositUserAccount,
+				admin: this.wallet.publicKey,
+				spotMarketVault,
+				adminTokenAccount:
+					adminTokenAccount ??
+					(await this.getAssociatedTokenAccount(marketIndex)),
+				tokenProgram: TOKEN_PROGRAM_ID,
+			},
+		});
+	}
 }

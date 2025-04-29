@@ -60,6 +60,7 @@ pub enum DepositExplanation {
     Transfer,
     Borrow,
     RepayBorrow,
+    Reward,
 }
 
 #[event]

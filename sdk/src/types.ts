@@ -275,6 +275,7 @@ export class DepositExplanation {
 	static readonly TRANSFER = { transfer: {} };
 	static readonly BORROW = { borrow: {} };
 	static readonly REPAY_BORROW = { repayBorrow: {} };
+	static readonly REWARD = { reward: {} };
 }
 
 export class SettlePnlExplanation {
