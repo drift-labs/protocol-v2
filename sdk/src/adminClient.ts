@@ -4330,17 +4330,16 @@ export class AdminClient extends DriftClient {
 
 	public async updateConstituentParams(
 		constituentPublicKey: PublicKey,
-		maxWeightDeviation?: BN,
-		swapFeeMin?: BN,
-		swapFeeMax?: BN,
-		oracleStalenessThreshold?: BN
+		updateConstituentParams: {
+			maxWeightDeviation?: BN;
+			swapFeeMin?: BN;
+			swapFeeMax?: BN;
+			oracleStalenessThreshold?: BN;
+		}
 	): Promise<TransactionSignature> {
 		const ixs = await this.getUpdateConstituentParamsIx(
 			constituentPublicKey,
-			maxWeightDeviation,
-			swapFeeMin,
-			swapFeeMax,
-			oracleStalenessThreshold
+			updateConstituentParams
 		);
 		const tx = await this.buildTransaction(ixs);
 		const { txSig } = await this.sendTransaction(tx, []);
@@ -4349,17 +4348,24 @@ export class AdminClient extends DriftClient {
 
 	public async getUpdateConstituentParamsIx(
 		constituentPublicKey: PublicKey,
-		maxWeightDeviation?: BN,
-		swapFeeMin?: BN,
-		swapFeeMax?: BN,
-		oracleStalenessThreshold?: BN
+		updateConstituentParams: {
+			maxWeightDeviation?: BN;
+			swapFeeMin?: BN;
+			swapFeeMax?: BN;
+			oracleStalenessThreshold?: BN;
+		}
 	): Promise<TransactionInstruction[]> {
 		return [
 			this.program.instruction.updateConstituentParams(
-				maxWeightDeviation,
-				swapFeeMin,
-				swapFeeMax,
-				oracleStalenessThreshold,
+				Object.assign(
+					{
+						maxWeightDeviation: null,
+						swapFeeMin: null,
+						swapFeeMax: null,
+						oracleStalenessThreshold: null,
+					},
+					updateConstituentParams
+				),
 				{
 					accounts: {
 						admin: this.wallet.publicKey,

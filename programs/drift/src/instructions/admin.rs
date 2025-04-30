@@ -4480,48 +4480,54 @@ pub fn handle_initialize_constituent<'info>(
     Ok(())
 }
 
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, Default)]
+pub struct ConstituentParams {
+    pub max_weight_deviation: Option<i64>,
+    pub swap_fee_min: Option<i64>,
+    pub swap_fee_max: Option<i64>,
+    pub oracle_staleness_threshold: Option<u64>,
+}
+
 pub fn handle_update_constituent_params<'info>(
     ctx: Context<UpdateConstituentParams>,
-    max_weight_deviation: Option<i64>,
-    swap_fee_min: Option<i64>,
-    swap_fee_max: Option<i64>,
-    oracle_staleness_threshold: Option<u64>,
+    constituent_params: ConstituentParams,
 ) -> Result<()> {
     let mut constituent = ctx.accounts.constituent.load_mut()?;
-    if max_weight_deviation.is_some() {
+    if constituent_params.max_weight_deviation.is_some() {
         msg!(
             "max_weight_deviation: {:?} -> {:?}",
             constituent.max_weight_deviation,
-            max_weight_deviation
+            constituent_params.max_weight_deviation
         );
-        constituent.max_weight_deviation = max_weight_deviation.unwrap();
+        constituent.max_weight_deviation = constituent_params.max_weight_deviation.unwrap();
     }
 
-    if swap_fee_min.is_some() {
+    if constituent_params.swap_fee_min.is_some() {
         msg!(
             "swap_fee_min: {:?} -> {:?}",
             constituent.swap_fee_min,
-            swap_fee_min
+            constituent_params.swap_fee_min
         );
-        constituent.swap_fee_min = swap_fee_min.unwrap();
+        constituent.swap_fee_min = constituent_params.swap_fee_min.unwrap();
     }
 
-    if swap_fee_max.is_some() {
+    if constituent_params.swap_fee_max.is_some() {
         msg!(
             "swap_fee_max: {:?} -> {:?}",
             constituent.swap_fee_max,
-            swap_fee_max
+            constituent_params.swap_fee_max
         );
-        constituent.swap_fee_max = swap_fee_max.unwrap();
+        constituent.swap_fee_max = constituent_params.swap_fee_max.unwrap();
     }
 
-    if oracle_staleness_threshold.is_some() {
+    if constituent_params.oracle_staleness_threshold.is_some() {
         msg!(
             "oracle_staleness_threshold: {:?} -> {:?}",
             constituent.oracle_staleness_threshold,
-            oracle_staleness_threshold
+            constituent_params.oracle_staleness_threshold
         );
-        constituent.oracle_staleness_threshold = oracle_staleness_threshold.unwrap();
+        constituent.oracle_staleness_threshold =
+            constituent_params.oracle_staleness_threshold.unwrap();
     }
 
     Ok(())
@@ -5489,9 +5495,8 @@ pub struct UpdateConstituentParams<'info> {
         constraint = admin.key() == admin_hot_wallet::id() || admin.key() == state.admin
     )]
     pub admin: Signer<'info>,
-    #[account()]
     pub state: Box<Account<'info, State>>,
-    /// CHECK: doesnt need type check since just updating params
+    #[account(mut)]
     pub constituent: AccountLoader<'info, Constituent>,
 }
 

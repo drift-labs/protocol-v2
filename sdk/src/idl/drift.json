@@ -7238,33 +7238,15 @@
         },
         {
           "name": "constituent",
-          "isMut": false,
+          "isMut": true,
           "isSigner": false
         }
       ],
       "args": [
         {
-          "name": "maxWeightDeviation",
+          "name": "constituentParams",
           "type": {
-            "option": "i64"
-          }
-        },
-        {
-          "name": "swapFeeMin",
-          "type": {
-            "option": "i64"
-          }
-        },
-        {
-          "name": "swapFeeMax",
-          "type": {
-            "option": "i64"
-          }
-        },
-        {
-          "name": "oracleStalenessThreshold",
-          "type": {
-            "option": "u64"
+            "defined": "ConstituentParams"
           }
         }
       ]
@@ -9681,6 +9663,38 @@
             "name": "excludeTotalLiqFee",
             "type": {
               "option": "bool"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "ConstituentParams",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "maxWeightDeviation",
+            "type": {
+              "option": "i64"
+            }
+          },
+          {
+            "name": "swapFeeMin",
+            "type": {
+              "option": "i64"
+            }
+          },
+          {
+            "name": "swapFeeMax",
+            "type": {
+              "option": "i64"
+            }
+          },
+          {
+            "name": "oracleStalenessThreshold",
+            "type": {
+              "option": "u64"
             }
           }
         ]

@@ -1718,18 +1718,9 @@ pub mod drift {
 
     pub fn update_constituent_params(
         ctx: Context<UpdateConstituentParams>,
-        max_weight_deviation: Option<i64>,
-        swap_fee_min: Option<i64>,
-        swap_fee_max: Option<i64>,
-        oracle_staleness_threshold: Option<u64>,
+        constituent_params: ConstituentParams,
     ) -> Result<()> {
-        handle_update_constituent_params(
-            ctx,
-            max_weight_deviation,
-            swap_fee_min,
-            swap_fee_max,
-            oracle_staleness_threshold,
-        )
+        handle_update_constituent_params(ctx, constituent_params)
     }
 
     pub fn add_amm_constituent_mapping_data(

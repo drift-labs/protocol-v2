@@ -24,6 +24,8 @@ import {
 	getConstituentPublicKey,
 	ZERO,
 	OracleSource,
+	SPOT_MARKET_WEIGHT_PRECISION,
+	SPOT_MARKET_RATE_PRECISION,
 } from '../sdk/src';
 
 import {
@@ -45,7 +47,10 @@ describe('LP Pool', () => {
 	let bulkAccountLoader: TestBulkAccountLoader;
 
 	let adminClient: TestClient;
-	let usdcMint;
+	let usdcMint: Keypair;
+	let spotTokenMint: Keypair;
+	let spotMarketIndex: number;
+	let spotMarketOracle: PublicKey;
 
 	const mantissaSqrtScale = new BN(Math.sqrt(PRICE_PRECISION.toNumber()));
 	const ammInitialQuoteAssetReserve = new anchor.BN(10 * 10 ** 13).mul(
@@ -87,6 +92,8 @@ describe('LP Pool', () => {
 		);
 
 		usdcMint = await mockUSDCMint(bankrunContextWrapper);
+		spotTokenMint = await mockUSDCMint(bankrunContextWrapper);
+		spotMarketOracle = await mockOracleNoProgram(bankrunContextWrapper, 200);
 
 		const keypair = new Keypair();
 		await bankrunContextWrapper.fundKeypair(keypair, 10 ** 9);
@@ -155,6 +162,32 @@ describe('LP Pool', () => {
 			ammInitialQuoteAssetReserve,
 			periodicity,
 			new BN(224 * PEG_PRECISION.toNumber())
+		);
+
+		const optimalUtilization = SPOT_MARKET_RATE_PRECISION.div(
+			new BN(2)
+		).toNumber(); // 50% utilization
+		const optimalRate = SPOT_MARKET_RATE_PRECISION.toNumber();
+		const maxRate = SPOT_MARKET_RATE_PRECISION.toNumber();
+		const initialAssetWeight = SPOT_MARKET_WEIGHT_PRECISION.toNumber();
+		const maintenanceAssetWeight = SPOT_MARKET_WEIGHT_PRECISION.toNumber();
+		const initialLiabilityWeight = SPOT_MARKET_WEIGHT_PRECISION.toNumber();
+		const maintenanceLiabilityWeight = SPOT_MARKET_WEIGHT_PRECISION.toNumber();
+		const imfFactor = 0;
+		spotMarketIndex = adminClient.getStateAccount().numberOfSpotMarkets;
+
+		await adminClient.initializeSpotMarket(
+			spotTokenMint.publicKey,
+			optimalUtilization,
+			optimalRate,
+			maxRate,
+			spotMarketOracle,
+			OracleSource.PYTH,
+			initialAssetWeight,
+			maintenanceAssetWeight,
+			initialLiabilityWeight,
+			maintenanceLiabilityWeight,
+			imfFactor
 		);
 
 		await adminClient.initializeLpPool(
@@ -395,14 +428,9 @@ describe('LP Pool', () => {
 		}
 
 		// Should fail if the oracle is too delayed
-		await adminClient.updateConstituentParams(
-			constituentPublicKey,
-			undefined,
-			undefined,
-			undefined,
-			ZERO
-		);
-
+		await adminClient.updateConstituentParams(constituentPublicKey, {
+			oracleStalenessThreshold: ZERO,
+		});
 		try {
 			await adminClient.updateDlpPoolAum(lpPool, [0]);
 			expect.fail('should have failed');
@@ -410,13 +438,9 @@ describe('LP Pool', () => {
 			assert(e.message.includes('0x18b0'));
 		}
 
-		await adminClient.updateConstituentParams(
-			constituentPublicKey,
-			undefined,
-			undefined,
-			undefined,
-			new BN(400)
-		);
+		await adminClient.updateConstituentParams(constituentPublicKey, {
+			oracleStalenessThreshold: new BN(400),
+		});
 	});
 
 	it('can update and remove amm constituent mapping entries', async () => {
