@@ -723,7 +723,7 @@ export const MainnetSpotMarkets: SpotMarketConfig[] = [
 			'0x67be9f519b95cf24338801051f9a808eff0a578ccb388db73b7f6fe1de019ffb',
 	},
 	{
-		symbol: 'PT-fragSOL-10JUL25-3',
+		symbol: 'PT-fragSOL-15JUN25-3',
 		marketIndex: 41,
 		poolId: 3,
 		oracle: new PublicKey('CLjvwowzQ2L9PrmXA6zqbamxLVeDY9vE87aBxMZLJLoY'),
@@ -733,7 +733,7 @@ export const MainnetSpotMarkets: SpotMarketConfig[] = [
 		precisionExp: NINE,
 	},
 	{
-		symbol: 'PT-kySOL-15JUN25-3',
+		symbol: 'PT-kySOL-10JUL25-3',
 		marketIndex: 42,
 		poolId: 3,
 		oracle: new PublicKey('G4FdLzuezfaJxBd8eChuw1NU4Sq3n1rasGTwSh7dXegN'),
