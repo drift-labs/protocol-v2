@@ -4,6 +4,10 @@ use crate::{
     error::ErrorCode,
     math::{
         casting::Cast,
+        constants::{
+            PRICE_PRECISION_I128, QUOTE_PRECISION, QUOTE_PRECISION_I128, SPOT_BALANCE_PRECISION,
+            SPOT_WEIGHT_PRECISION_I128,
+        },
         oracle::{is_oracle_valid_for_action, DriftAction},
         safe_math::SafeMath,
     },
@@ -201,7 +205,9 @@ pub fn handle_update_lp_pool_aum<'c: 'info, 'info>(
 
         let constituent_aum = constituent
             .get_full_balance(&spot_market)?
-            .safe_mul(oracle_price.unwrap() as i128)?;
+            .safe_mul(oracle_price.unwrap() as i128)?
+            .safe_mul(QUOTE_PRECISION_I128)?
+            .safe_div(SPOT_WEIGHT_PRECISION_I128)?;
         aum = aum.safe_add(constituent_aum as u128)?;
     }
 
