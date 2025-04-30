@@ -36,6 +36,7 @@ import {
 	getPythLazerOraclePublicKey,
 	getProtectedMakerModeConfigPublicKey,
 	getFuelOverflowAccountPublicKey,
+	getTokenProgramForSpotMarket,
 } from './addresses/pda';
 import { squareRootBN } from './math/utils';
 import { TOKEN_PROGRAM_ID } from '@solana/spl-token';
@@ -4249,26 +4250,24 @@ export class AdminClient extends DriftClient {
 		adminTokenAccount?: PublicKey
 	): Promise<TransactionInstruction> {
 		const state = await this.getStatePublicKey();
+		const spotMarket = this.getSpotMarketAccount(marketIndex);
 
-		const spotMarketVault = await getSpotMarketVaultPublicKey(
-			this.program.programId,
-			marketIndex
-		);
-
+		const remainingAccounts = this.getRemainingAccounts({
+			userAccounts: [],
+			writableSpotMarketIndexes: [marketIndex],
+		});
+		this.addTokenMintToRemainingAccounts(spotMarket, remainingAccounts);
 		return this.program.instruction.adminDeposit(marketIndex, amount, {
-			remainingAccounts: this.getRemainingAccounts({
-				userAccounts: [],
-				writableSpotMarketIndexes: [marketIndex],
-			}),
+			remainingAccounts,
 			accounts: {
 				state,
 				user: depositUserAccount,
 				admin: this.wallet.publicKey,
-				spotMarketVault,
+				spotMarketVault: spotMarket.vault,
 				adminTokenAccount:
 					adminTokenAccount ??
 					(await this.getAssociatedTokenAccount(marketIndex)),
-				tokenProgram: TOKEN_PROGRAM_ID,
+				tokenProgram: getTokenProgramForSpotMarket(spotMarket),
 			},
 		});
 	}
