@@ -173,7 +173,7 @@ import { getFeedIdUint8Array, trimFeedId } from './util/pythOracleUtils';
 import { createMinimalEd25519VerifyIx } from './util/ed25519Utils';
 import { isVersionedTransaction } from './tx/utils';
 import pythSolanaReceiverIdl from './idl/pyth_solana_receiver.json';
-import { asV0Tx, PullFeed } from '@switchboard-xyz/on-demand';
+import { asV0Tx, PullFeed, AnchorUtils } from '@switchboard-xyz/on-demand';
 import { gprcDriftClientAccountSubscriber } from './accounts/grpcDriftClientAccountSubscriber';
 import nacl from 'tweetnacl';
 import { Slothash } from './slot/SlothashSubscriber';
@@ -9088,12 +9088,10 @@ export class DriftClient {
 	}
 
 	public async getSwitchboardOnDemandProgram(): Promise<Program30<Idl30>> {
-		const idl = (await Program30.fetchIdl(
-			this.sbOnDemandProgramdId,
-			this.provider
-		))!;
 		if (this.sbOnDemandProgram === undefined) {
-			this.sbOnDemandProgram = new Program30(idl, this.provider);
+			this.sbOnDemandProgram = await AnchorUtils.loadProgramFromConnection(
+				this.connection
+			);
 		}
 		return this.sbOnDemandProgram;
 	}
@@ -9369,26 +9367,17 @@ export class DriftClient {
 		numSignatures = 3
 	): Promise<TransactionInstruction[] | undefined> {
 		const program = await this.getSwitchboardOnDemandProgram();
-		for (const feed of feeds) {
-			const feedAccount = new PullFeed(program, feed);
-			if (!this.sbProgramFeedConfigs) {
-				this.sbProgramFeedConfigs = new Map();
-			}
-			if (!this.sbProgramFeedConfigs.has(feedAccount.pubkey.toString())) {
-				const feedConfig = await feedAccount.loadConfigs();
-				this.sbProgramFeedConfigs.set(feed.toString(), feedConfig);
-			}
-		}
-
-		const [pullIxs, _responses, success] =
+		const [pullIxs, _luts, _rawResponse] =
 			await PullFeed.fetchUpdateManyLightIx(program, {
 				feeds,
 				numSignatures,
 				recentSlothashes: recentSlothash
 					? [[new BN(recentSlothash.slot), recentSlothash.hash]]
 					: undefined,
+				chain: 'solana',
+				network: this.env,
 			});
-		if (!success) {
+		if (!pullIxs) {
 			return undefined;
 		}
 		return pullIxs;
