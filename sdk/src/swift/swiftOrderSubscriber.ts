@@ -112,7 +112,8 @@ export class SwiftOrderSubscriber {
 				| SignedMsgOrderParamsMessage
 				| SignedMsgOrderParamsDelegateMessage,
 			isDelegateSigner?: boolean
-		) => Promise<void>
+		) => Promise<void>,
+		acceptSanitized = false
 	): Promise<void> {
 		this.onOrder = onOrder;
 
@@ -137,6 +138,10 @@ export class SwiftOrderSubscriber {
 
 				if (message['order']) {
 					const order = message['order'];
+					// ignore likely sanitized orders by default
+					if (order['will_sanitize'] === true && !acceptSanitized) {
+						return;
+					}
 					const signedMsgOrderParamsBuf = Buffer.from(
 						order['order_message'],
 						'hex'
