@@ -29,7 +29,11 @@ import {
 } from '@solana/web3.js';
 import { Buffer } from 'buffer';
 import { ZSTDDecoder } from 'zstddec';
-import { getNonIdleUserFilter, getUserFilter } from '../memcmp';
+import {
+	getNonIdleUserFilter,
+	getUserFilter,
+	getUsersWithPoolId,
+} from '../memcmp';
 import {
 	SyncConfig,
 	UserAccountFilterCriteria as UserFilterCriteria,
@@ -76,6 +80,7 @@ export class UserMap implements UserMapInterface {
 	private connection: Connection;
 	private commitment: Commitment;
 	private includeIdle: boolean;
+	private filterByPoolId?: number;
 	private additionalFilters?: MemcmpFilter[];
 	private disableSyncOnTotalAccountsChange: boolean;
 	private lastNumberOfSubAccounts: BN;
@@ -115,6 +120,7 @@ export class UserMap implements UserMapInterface {
 				  this.driftClient.opts.commitment
 				: this.driftClient.opts.commitment;
 		this.includeIdle = config.includeIdle ?? false;
+		this.filterByPoolId = config.filterByPoolId;
 		this.additionalFilters = config.additionalFilters;
 		this.disableSyncOnTotalAccountsChange =
 			config.disableSyncOnTotalAccountsChange ?? false;
@@ -394,6 +400,20 @@ export class UserMap implements UserMapInterface {
 		}
 	}
 
+	private getFilters(): MemcmpFilter[] {
+		const filters = [getUserFilter()];
+		if (!this.includeIdle) {
+			filters.push(getNonIdleUserFilter());
+		}
+		if (this.filterByPoolId !== undefined) {
+			filters.push(getUsersWithPoolId(this.filterByPoolId));
+		}
+		if (this.additionalFilters) {
+			filters.push(...this.additionalFilters);
+		}
+		return filters;
+	}
+
 	/**
 	 * Syncs the UserMap using the default sync method (single getProgramAccounts call with filters).
 	 * This method may fail when drift has too many users. (nodejs response size limits)
@@ -408,18 +428,11 @@ export class UserMap implements UserMapInterface {
 		});
 
 		try {
-			const filters = [getUserFilter()];
-			if (!this.includeIdle) {
-				filters.push(getNonIdleUserFilter());
-			}
-			if (this.additionalFilters) {
-				filters.push(...this.additionalFilters);
-			}
 			const rpcRequestArgs = [
 				this.driftClient.program.programId.toBase58(),
 				{
 					commitment: this.commitment,
-					filters,
+					filters: this.getFilters(),
 					encoding: 'base64+zstd',
 					withContext: true,
 				},
@@ -517,10 +530,7 @@ export class UserMap implements UserMapInterface {
 				this.driftClient.program.programId,
 				{
 					dataSlice: { offset: 0, length: 0 },
-					filters: [
-						getUserFilter(),
-						...(!this.includeIdle ? [getNonIdleUserFilter()] : []),
-					],
+					filters: this.getFilters(),
 				}
 			);
 			const accountPublicKeys = accountsPrefetch.map(
