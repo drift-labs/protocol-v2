@@ -168,8 +168,7 @@ pub fn handle_update_lp_pool_aum<'c: 'info, 'info>(
             spot_market.get_max_confidence_interval_multiplier()?,
         )?;
 
-        let oracle_slot = slot - oracle_data.0.delay.cast::<u64>()?;
-
+        let oracle_slot = slot - oracle_data.0.delay.max(0i64).cast::<u64>()?;
         let oracle_price: Option<i64> = {
             if !is_oracle_valid_for_action(oracle_data.1, Some(DriftAction::UpdateLpPoolAum))? {
                 msg!(
@@ -177,7 +176,7 @@ pub fn handle_update_lp_pool_aum<'c: 'info, 'info>(
                     spot_market.market_index,
                 );
                 if slot.saturating_sub(constituent.last_oracle_slot)
-                    > constituent.oracle_staleness_threshold
+                    >= constituent.oracle_staleness_threshold
                 {
                     None
                 } else {
@@ -189,6 +188,7 @@ pub fn handle_update_lp_pool_aum<'c: 'info, 'info>(
         };
 
         if oracle_price.is_none() {
+            msg!("hi");
             return Err(ErrorCode::OracleTooStaleForLPAUMUpdate.into());
         }
 

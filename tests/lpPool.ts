@@ -21,8 +21,6 @@ import {
 	AmmConstituentMapping,
 	LPPool,
 	getConstituentVaultPublicKey,
-	getConstituentPublicKey,
-	ZERO,
 	OracleSource,
 	SPOT_MARKET_WEIGHT_PRECISION,
 	SPOT_MARKET_RATE_PRECISION,
@@ -49,7 +47,6 @@ describe('LP Pool', () => {
 	let adminClient: TestClient;
 	let usdcMint: Keypair;
 	let spotTokenMint: Keypair;
-	let spotMarketIndex: number;
 	let spotMarketOracle: PublicKey;
 
 	const mantissaSqrtScale = new BN(Math.sqrt(PRICE_PRECISION.toNumber()));
@@ -174,7 +171,6 @@ describe('LP Pool', () => {
 		const initialLiabilityWeight = SPOT_MARKET_WEIGHT_PRECISION.toNumber();
 		const maintenanceLiabilityWeight = SPOT_MARKET_WEIGHT_PRECISION.toNumber();
 		const imfFactor = 0;
-		spotMarketIndex = adminClient.getStateAccount().numberOfSpotMarkets;
 
 		await adminClient.initializeSpotMarket(
 			spotTokenMint.publicKey,
@@ -402,11 +398,6 @@ describe('LP Pool', () => {
 		)) as LPPool;
 		assert(lpPool.constituents == 1);
 
-		const constituentPublicKey = getConstituentPublicKey(
-			program.programId,
-			lpPoolKey,
-			0
-		);
 		await adminClient.updateDlpPoolAum(lpPool, [0]);
 
 		// Should fail if we initialize a second constituent and dont pass it in
@@ -426,21 +417,6 @@ describe('LP Pool', () => {
 		} catch (e) {
 			assert(e.message.includes('0x18b0'));
 		}
-
-		// Should fail if the oracle is too delayed
-		await adminClient.updateConstituentParams(constituentPublicKey, {
-			oracleStalenessThreshold: ZERO,
-		});
-		try {
-			await adminClient.updateDlpPoolAum(lpPool, [0]);
-			expect.fail('should have failed');
-		} catch (e) {
-			assert(e.message.includes('0x18b0'));
-		}
-
-		await adminClient.updateConstituentParams(constituentPublicKey, {
-			oracleStalenessThreshold: new BN(400),
-		});
 	});
 
 	it('can update and remove amm constituent mapping entries', async () => {

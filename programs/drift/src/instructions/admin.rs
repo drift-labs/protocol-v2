@@ -4475,6 +4475,7 @@ pub fn handle_initialize_constituent<'info>(
     constituent.swap_fee_max = swap_fee_max;
     constituent.oracle_staleness_threshold = oracle_staleness_threshold;
     constituent.pubkey = ctx.accounts.constituent.key();
+    constituent.constituent_index = (constituent_target_weights.weights.len() - 1) as u16;
     lp_pool.constituents += 1;
 
     Ok(())
