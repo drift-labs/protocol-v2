@@ -19,7 +19,7 @@ import {
 	PEG_PRECISION,
 	ConstituentTargetWeights,
 	AmmConstituentMapping,
-	LPPool,
+	LPPoolAccount,
 	User,
 	getConstituentVaultPublicKey,
 	SPOT_MARKET_WEIGHT_PRECISION,
@@ -251,7 +251,7 @@ describe('LP Pool', () => {
 
 		const lpPool = (await adminClient.program.account.lpPool.fetch(
 			lpPoolKey
-		)) as LPPool;
+		)) as LPPoolAccount;
 
 		assert(lpPool.constituents == 1);
 
@@ -394,7 +394,7 @@ describe('LP Pool', () => {
 	it('can update pool aum', async () => {
 		const lpPool = (await adminClient.program.account.lpPool.fetch(
 			lpPoolKey
-		)) as LPPool;
+		)) as LPPoolAccount;
 		assert(lpPool.constituents == 1);
 
 		await adminClient.updateDlpPoolAum(lpPool, [0]);

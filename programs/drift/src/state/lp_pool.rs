@@ -253,7 +253,6 @@ impl BLPosition {
 pub struct Constituent {
     /// address of the constituent
     pub pubkey: Pubkey,
-    pub mint: Pubkey,
     /// underlying drift spot market index
     pub spot_market_index: u16,
     /// idx in LPPool.constituents
@@ -283,6 +282,8 @@ pub struct Constituent {
 
     pub last_oracle_price: i64,
     pub last_oracle_slot: u64,
+
+    pub mint: Pubkey,
 }
 
 impl Size for Constituent {
@@ -370,21 +371,6 @@ impl Constituent {
         // i.e. max +90% lending, 10% in token account
         // i.e. max -90% borrowed
         Ok((SpotBalanceType::Deposit, 0))
-    }
-
-    /// Calculates the amount to withdraw from BorrowLend, and the Constituent TokenAccount. The TokenAccount
-    /// will be exhausted before funds are pulled from BorrowLend.
-    pub fn get_amount_from_vaults_to_withdraw(
-        &self,
-        constituent_token_balance: u64,
-        amount_to_withdraw: u64,
-    ) -> DriftResult<(u64, u64)> {
-        if amount_to_withdraw <= constituent_token_balance {
-            Ok((0, amount_to_withdraw))
-        } else {
-            let amount_from_borrow_lend = amount_to_withdraw.safe_sub(constituent_token_balance)?;
-            Ok((amount_from_borrow_lend, constituent_token_balance))
-        }
     }
 }
 

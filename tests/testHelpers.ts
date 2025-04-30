@@ -15,6 +15,9 @@ import {
 	createInitializePermanentDelegateInstruction,
 	getMintLen,
 	ExtensionType,
+	unpackAccount,
+	type RawAccount,
+	AccountState,
 } from '@solana/spl-token';
 import {
 	AccountInfo,
@@ -45,6 +48,7 @@ import {
 	QUOTE_PRECISION,
 	User,
 	OracleSource,
+	ConstituentAccount,
 } from '../sdk/src';
 import {
 	BankrunContextWrapper,
@@ -52,6 +56,7 @@ import {
 } from '../sdk/src/bankrun/bankrunConnection';
 import pythIDL from '../sdk/src/idl/pyth.json';
 import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
+import { token } from '@coral-xyz/anchor-30/dist/cjs/utils';
 
 export async function mockOracle(
 	price: number = 50 * 10e7,
@@ -60,6 +65,7 @@ export async function mockOracle(
 ): Promise<PublicKey> {
 	// default: create a $50 coin oracle
 	const program = anchor.workspace.Pyth;
+	console.log('111');
 
 	anchor.setProvider(
 		anchor.AnchorProvider.local(undefined, {
@@ -67,17 +73,20 @@ export async function mockOracle(
 			preflightCommitment: 'confirmed',
 		})
 	);
+	console.log('222');
 	const priceFeedAddress = await createPriceFeed({
 		oracleProgram: program,
 		initPrice: price,
 		expo: expo,
 		confidence,
 	});
+	console.log('333');
 
 	const feedData = await getFeedData(program, priceFeedAddress);
 	if (feedData.price !== price) {
 		console.log('mockOracle precision error:', feedData.price, '!=', price);
 	}
+	console.log('444');
 	assert.ok(Math.abs(feedData.price - price) < 1e-10);
 
 	return priceFeedAddress;
@@ -1135,4 +1144,64 @@ export async function getPerpMarketDecoded(
 	const perpMarketAccount: PerpMarketAccount =
 		driftClient.program.coder.accounts.decode('PerpMarket', accountInfo!.data);
 	return perpMarketAccount;
+}
+
+export async function overWriteTokenAccountBalance(
+	bankrunContextWrapper: BankrunContextWrapper,
+	tokenAccount: PublicKey,
+	newBalance: bigint
+) {
+	const info = await bankrunContextWrapper.connection.getAccountInfo(
+		tokenAccount
+	);
+	const account = unpackAccount(tokenAccount, info, info.owner);
+	account.amount = newBalance;
+	const data = Buffer.alloc(AccountLayout.span);
+	const rawAccount: RawAccount = {
+		mint: account.mint,
+		owner: account.owner,
+		amount: account.amount,
+		delegateOption: account.delegate ? 1 : 0,
+		delegate: account.delegate || PublicKey.default,
+		state: account.isFrozen ? AccountState.Frozen : AccountState.Initialized,
+		isNativeOption: account.isNative ? 1 : 0,
+		isNative: account.rentExemptReserve || BigInt(0),
+		delegatedAmount: account.delegatedAmount,
+		closeAuthorityOption: account.closeAuthority ? 1 : 0,
+		closeAuthority: account.closeAuthority || PublicKey.default,
+	};
+	AccountLayout.encode(rawAccount, data);
+	bankrunContextWrapper.context.setAccount(tokenAccount, {
+		executable: info.executable,
+		owner: info.owner,
+		lamports: info.lamports,
+		data: data,
+		rentEpoch: info.rentEpoch,
+	});
+}
+
+export async function overwriteConstituentAccount(
+	bankrunContextWrapper: BankrunContextWrapper,
+	program: Program,
+	constituentPublicKey: PublicKey,
+	overwriteFields: Array<[key: keyof ConstituentAccount, value: any]>
+) {
+	const acc = await program.account.constituent.fetch(constituentPublicKey);
+	if (!acc) {
+		throw new Error(
+			`Constituent account ${constituentPublicKey.toBase58()} not found`
+		);
+	}
+	for (const [key, value] of overwriteFields) {
+		acc[key] = value;
+	}
+	bankrunContextWrapper.context.setAccount(constituentPublicKey, {
+		executable: false,
+		owner: program.programId,
+		lamports: LAMPORTS_PER_SOL,
+		data: await program.account.constituent.coder.accounts.encode(
+			'Constituent',
+			acc
+		),
+	});
 }

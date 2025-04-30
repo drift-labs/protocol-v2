@@ -4467,7 +4467,10 @@ pub fn handle_initialize_constituent<'info>(
         .resize_with((current_len + 1) as usize, WeightDatum::default);
     constituent_target_weights.validate()?;
 
+    msg!("initializing constituent {}", lp_pool.constituents);
+
     constituent.spot_market_index = spot_market_index;
+    constituent.constituent_index = lp_pool.constituents;
     constituent.decimals = decimals;
     constituent.max_weight_deviation = max_weight_deviation;
     constituent.swap_fee_min = swap_fee_min;

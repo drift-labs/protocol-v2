@@ -232,13 +232,10 @@ pub fn handle_lp_pool_swap<'c: 'info, 'info>(
     let mut in_constituent = ctx.accounts.in_constituent.load_mut()?;
     let mut out_constituent = ctx.accounts.out_constituent.load_mut()?;
 
-    let in_constituent_token_account = &ctx.accounts.constituent_in_token_account;
-    let out_constituent_token_account = &ctx.accounts.constituent_out_token_account;
-
     let constituent_target_weights = ctx.accounts.constituent_target_weights.load_zc()?;
 
     let AccountMaps {
-        perp_market_map,
+        perp_market_map: _,
         spot_market_map,
         mut oracle_map,
     } = load_maps(
@@ -248,6 +245,8 @@ pub fn handle_lp_pool_swap<'c: 'info, 'info>(
         slot,
         Some(state.oracle_guard_rails),
     )?;
+
+    // TODO check for oracle and constituent staleness
 
     let mut in_spot_market = spot_market_map.get_ref_mut(&in_market_index)?;
     let mut out_spot_market = spot_market_map.get_ref_mut(&out_market_index)?;
@@ -259,7 +258,6 @@ pub fn handle_lp_pool_swap<'c: 'info, 'info>(
     let out_oracle = *oracle_map.get_price_data(&out_oracle_id)?;
 
     update_spot_market_cumulative_interest(&mut in_spot_market, Some(&in_oracle), now)?;
-
     update_spot_market_cumulative_interest(&mut out_spot_market, Some(&out_oracle), now)?;
 
     let in_target_weight =
@@ -294,18 +292,19 @@ pub fn handle_lp_pool_swap<'c: 'info, 'info>(
         .as_str()
     )?;
 
+    validate!(
+        out_amount_net_fees <= out_constituent.token_balance,
+        ErrorCode::InsufficientConstituentTokenBalance,
+        format!(
+            "Insufficient out constituent balance: out_amount_net_fees({}) > out_constituent.token_balance({})",
+            out_amount_net_fees, out_constituent.token_balance
+        )
+        .as_str()
+    )?;
+
     in_constituent.record_swap_fees(in_fee)?;
     out_constituent.record_swap_fees(out_fee)?;
 
-    // interactions: CPIs
-
-    let (transfer_from_vault, transfer_from_constituent) = out_constituent
-        .get_amount_from_vaults_to_withdraw(
-            out_constituent_token_account.amount,
-            out_amount_net_fees,
-        )?;
-
-    // transfer in from user token account to token vault
     receive(
         &ctx.accounts.token_program,
         &ctx.accounts.user_in_token_account,
@@ -314,23 +313,16 @@ pub fn handle_lp_pool_swap<'c: 'info, 'info>(
         in_amount,
         &Some((*ctx.accounts.in_market_mint).clone()),
     )?;
-    ctx.accounts.constituent_in_token_account.reload()?;
 
-    // transfer out from token vault to constituent token account
-    if transfer_from_vault > 0 {
-        send_from_program_vault(
-            &ctx.accounts.token_program,
-            &ctx.accounts.out_spot_market_vault,
-            &ctx.accounts.constituent_out_token_account,
-            &ctx.accounts.drift_signer,
-            state.signer_nonce,
-            transfer_from_vault,
-            &Some((*ctx.accounts.out_market_mint).clone()),
-        )?;
-    }
-    ctx.accounts.constituent_out_token_account.reload()?;
-
-    // transfer out from constituent token account to user token account
+    send_from_program_vault(
+        &ctx.accounts.token_program,
+        &ctx.accounts.constituent_out_token_account,
+        &ctx.accounts.user_out_token_account,
+        &ctx.accounts.drift_signer,
+        state.signer_nonce,
+        out_amount_net_fees,
+        &Some((*ctx.accounts.out_market_mint).clone()),
+    )?;
 
     Ok(())
 }
@@ -379,6 +371,8 @@ pub struct UpdateLPPoolAum<'info> {
     pub lp_pool: AccountLoader<'info, LPPool>,
 }
 
+/// `in`/`out` is in the program's POV for this swap. So `user_in_token_account` is the user owned token account
+/// for the `in` token for this swap.
 #[derive(Accounts)]
 pub struct LPSwap<'info> {
     /// CHECK: forced drift_signer
@@ -398,25 +392,26 @@ pub struct LPSwap<'info> {
     #[account(mut)]
     pub constituent_out_token_account: Box<InterfaceAccount<'info, TokenAccount>>,
 
-    #[account(mut)]
+    #[account(
+        mut,
+        constraint = user_in_token_account.mint.eq(&constituent_in_token_account.mint)
+    )]
     pub user_in_token_account: Box<InterfaceAccount<'info, TokenAccount>>,
-    #[account(mut)]
+    #[account(
+        mut,
+        constraint = user_out_token_account.mint.eq(&constituent_out_token_account.mint)
+    )]
     pub user_out_token_account: Box<InterfaceAccount<'info, TokenAccount>>,
 
     #[account(
         mut,
-        constraint = &in_spot_market_vault.mint.eq(&in_market_mint.key())
+        constraint = in_constituent.load()?.mint.eq(&constituent_in_token_account.mint)
     )]
-    pub in_spot_market_vault: Box<InterfaceAccount<'info, TokenAccount>>,
+    pub in_constituent: AccountLoader<'info, Constituent>,
     #[account(
         mut,
-        constraint = &out_spot_market_vault.mint.eq(&out_market_mint.key())
+        constraint = out_constituent.load()?.mint.eq(&constituent_out_token_account.mint)
     )]
-    pub out_spot_market_vault: Box<InterfaceAccount<'info, TokenAccount>>,
-
-    #[account(mut)]
-    pub in_constituent: AccountLoader<'info, Constituent>,
-    #[account(mut)]
     pub out_constituent: AccountLoader<'info, Constituent>,
 
     #[account(

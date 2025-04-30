@@ -7883,10 +7883,6 @@
             "type": "publicKey"
           },
           {
-            "name": "mint",
-            "type": "publicKey"
-          },
-          {
             "name": "spotMarketIndex",
             "docs": [
               "underlying drift spot market index"
@@ -7967,6 +7963,10 @@
           {
             "name": "lastOracleSlot",
             "type": "u64"
+          },
+          {
+            "name": "mint",
+            "type": "publicKey"
           }
         ]
       }
@@ -15984,6 +15984,11 @@
       "code": 6321,
       "name": "OracleTooStaleForLPAUMUpdate",
       "msg": "Oracle too stale for LP AUM update"
+    },
+    {
+      "code": 6322,
+      "name": "InsufficientConstituentTokenBalance",
+      "msg": "Insufficient constituent token balance"
     }
   ],
   "metadata": {

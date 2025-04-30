@@ -1496,7 +1496,7 @@ export type ConstituentTargetWeights = {
 	weights: WeightDatum[];
 };
 
-export type LPPool = {
+export type LPPoolAccount = {
 	name: number[];
 	pubkey: PublicKey;
 	mint: PublicKey;
@@ -1504,8 +1504,32 @@ export type LPPool = {
 	lastAum: BN;
 	lastAumSlot: BN;
 	lastAumTs: BN;
+	oldestOracleSlot: BN;
 	lastRevenueRebalanceTs: BN;
 	totalFeesReceived: BN;
 	totalFeesPaid: BN;
 	constituents: number;
+};
+
+export type BLPosition = {
+	scaledBalance: BN;
+	cumulativeDeposits: BN;
+	marketIndex: number;
+	balanceType: SpotBalanceType;
+};
+
+export type ConstituentAccount = {
+	pubkey: PublicKey;
+	spotMarketIndex: number;
+	constituentIndex: number;
+	decimals: number;
+	maxWeightDeviation: BN;
+	swapFeeMin: BN;
+	swapFeeMax: BN;
+	totalSwapFees: BN;
+	tokenBalance: BN;
+	spotBalance: BLPosition;
+	lastOraclePrice: BN;
+	lastOracleSlot: BN;
+	mint: PublicKey;
 };

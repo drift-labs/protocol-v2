@@ -30,7 +30,7 @@ impl<'a> ConstituentMap<'a> {
             None => {
                 let caller = Location::caller();
                 msg!(
-                    "Could not find costituent {} at {}:{}",
+                    "Could not find constituent {} at {}:{}",
                     constituent_index,
                     caller.file(),
                     caller.line()

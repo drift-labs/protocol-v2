@@ -60,7 +60,7 @@ import {
 	SignedMsgOrderParamsDelegateMessage,
 	AmmConstituentMapping,
 	AmmConstituentDatum,
-	LPPool,
+	LPPoolAccount,
 } from './types';
 import driftIDL from './idl/drift.json';
 
@@ -9749,7 +9749,7 @@ export class DriftClient {
 	}
 
 	public async updateDlpPoolAum(
-		lpPool: LPPool,
+		lpPool: LPPoolAccount,
 		spotMarketIndexOfConstituents: number[],
 		txParams?: TxParams
 	): Promise<TransactionSignature> {
@@ -9768,7 +9768,7 @@ export class DriftClient {
 	}
 
 	public async getUpdateDlpPoolAumIxs(
-		lpPool: LPPool,
+		lpPool: LPPoolAccount,
 		spotMarketIndexOfConstituents: number[]
 	): Promise<TransactionInstruction> {
 		const remainingAccounts = this.getRemainingAccounts({

@@ -651,6 +651,8 @@ pub enum ErrorCode {
     WrongNumberOfConstituents,
     #[msg("Oracle too stale for LP AUM update")]
     OracleTooStaleForLPAUMUpdate,
+    #[msg("Insufficient constituent token balance")]
+    InsufficientConstituentTokenBalance,
 }
 
 #[macro_export]

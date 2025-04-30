@@ -20,14 +20,27 @@ import {
 	ConstituentTargetWeights,
 	AmmConstituentMapping,
 	User,
+	OracleSource,
+	SPOT_MARKET_RATE_PRECISION,
+	SPOT_MARKET_WEIGHT_PRECISION,
+	LPPoolAccount,
+	DriftClient,
+	convertToNumber,
+	getConstituentVaultPublicKey,
+	getConstituentPublicKey,
+	ConstituentAccount,
 } from '../sdk/src';
 
 import {
 	getPerpMarketDecoded,
 	initializeQuoteSpotMarket,
-	mockOracleNoProgram,
 	mockUSDCMint,
 	mockUserUSDCAccount,
+	mockOracleNoProgram,
+	setFeedPriceNoProgram,
+	overWriteTokenAccountBalance,
+	overwriteConstituentAccount,
+	overwritePerpMarketAccount,
 } from './testHelpers';
 import { startAnchor } from 'solana-bankrun';
 import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
@@ -41,7 +54,10 @@ describe('LP Pool', () => {
 	let bulkAccountLoader: TestBulkAccountLoader;
 
 	let adminClient: TestClient;
-	let usdcMint;
+	let usdcMint: Keypair;
+	let spotTokenMint: Keypair;
+	let spotMarketIndex: number;
+	let spotMarketOracle: PublicKey;
 	let adminUser: User;
 
 	const mantissaSqrtScale = new BN(Math.sqrt(PRICE_PRECISION.toNumber()));
@@ -51,7 +67,6 @@ describe('LP Pool', () => {
 	const ammInitialBaseAssetReserve = new anchor.BN(10 * 10 ** 13).mul(
 		mantissaSqrtScale
 	);
-	let solUsd: PublicKey;
 
 	const lpPoolName = 'test pool 1';
 	const tokenDecimals = 6;
@@ -61,18 +76,7 @@ describe('LP Pool', () => {
 	);
 
 	before(async () => {
-		const context = await startAnchor(
-			'',
-			[
-				{
-					name: 'token_2022',
-					programId: new PublicKey(
-						'TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb'
-					),
-				},
-			],
-			[]
-		);
+		const context = await startAnchor('', [], []);
 
 		// @ts-ignore
 		bankrunContextWrapper = new BankrunContextWrapper(context);
@@ -84,11 +88,13 @@ describe('LP Pool', () => {
 		);
 
 		usdcMint = await mockUSDCMint(bankrunContextWrapper);
+		spotTokenMint = await mockUSDCMint(bankrunContextWrapper);
+		console.log('try mockOracle');
+		spotMarketOracle = await mockOracleNoProgram(bankrunContextWrapper, 200.1);
+		console.log('spotMarketOracle', spotMarketOracle);
 
 		const keypair = new Keypair();
 		await bankrunContextWrapper.fundKeypair(keypair, 10 ** 9);
-
-		usdcMint = await mockUSDCMint(bankrunContextWrapper);
 
 		adminClient = new TestClient({
 			connection: bankrunContextWrapper.connection.toConnection(),
@@ -100,8 +106,13 @@ describe('LP Pool', () => {
 			activeSubAccountId: 0,
 			subAccountIds: [],
 			perpMarketIndexes: [0, 1],
-			spotMarketIndexes: [0],
-			oracleInfos: [],
+			spotMarketIndexes: [0, 1],
+			oracleInfos: [
+				{
+					publicKey: spotMarketOracle,
+					source: OracleSource.PYTH,
+				},
+			],
 			accountSubscription: {
 				type: 'polling',
 				accountLoader: bulkAccountLoader,
@@ -131,12 +142,11 @@ describe('LP Pool', () => {
 			},
 		});
 
-		solUsd = await mockOracleNoProgram(bankrunContextWrapper, 224.3);
 		const periodicity = new BN(0);
 
 		await adminClient.initializePerpMarket(
 			0,
-			solUsd,
+			spotMarketOracle,
 			ammInitialBaseAssetReserve,
 			ammInitialQuoteAssetReserve,
 			periodicity,
@@ -145,200 +155,183 @@ describe('LP Pool', () => {
 
 		await adminClient.initializePerpMarket(
 			1,
-			solUsd,
+			spotMarketOracle,
 			ammInitialBaseAssetReserve,
 			ammInitialQuoteAssetReserve,
 			periodicity,
 			new BN(224 * PEG_PRECISION.toNumber())
 		);
 
+		const optimalUtilization = SPOT_MARKET_RATE_PRECISION.div(
+			new BN(2)
+		).toNumber(); // 50% utilization
+		const optimalRate = SPOT_MARKET_RATE_PRECISION.toNumber();
+		const maxRate = SPOT_MARKET_RATE_PRECISION.toNumber();
+		const initialAssetWeight = SPOT_MARKET_WEIGHT_PRECISION.toNumber();
+		const maintenanceAssetWeight = SPOT_MARKET_WEIGHT_PRECISION.toNumber();
+		const initialLiabilityWeight = SPOT_MARKET_WEIGHT_PRECISION.toNumber();
+		const maintenanceLiabilityWeight = SPOT_MARKET_WEIGHT_PRECISION.toNumber();
+		const imfFactor = 0;
+		spotMarketIndex = adminClient.getStateAccount().numberOfSpotMarkets;
+
+		await adminClient.initializeSpotMarket(
+			spotTokenMint.publicKey,
+			optimalUtilization,
+			optimalRate,
+			maxRate,
+			spotMarketOracle,
+			OracleSource.PYTH,
+			initialAssetWeight,
+			maintenanceAssetWeight,
+			initialLiabilityWeight,
+			maintenanceLiabilityWeight,
+			imfFactor
+		);
+
 		await adminClient.initializeLpPool(
 			lpPoolName,
 			new BN(100_000_000).mul(QUOTE_PRECISION),
-			Keypair.generate()
+			Keypair.generate() // dlp mint
 		);
+		await adminClient.initializeConstituent(
+			encodeName(lpPoolName),
+			0,
+			6,
+			PERCENTAGE_PRECISION.divn(1000),
+			PERCENTAGE_PRECISION.divn(10000),
+			PERCENTAGE_PRECISION.divn(100)
+		);
+		await adminClient.initializeConstituent(
+			encodeName(lpPoolName),
+			1,
+			6,
+			PERCENTAGE_PRECISION.divn(1000),
+			PERCENTAGE_PRECISION.divn(10000),
+			PERCENTAGE_PRECISION.divn(100)
+		);
+
+		//
 	});
 
 	after(async () => {
 		await adminClient.unsubscribe();
 	});
 
-	it('can create a new LP Pool', async () => {
-		// check LpPool created
-		const lpPool = await adminClient.program.account.lpPool.fetch(lpPoolKey);
-
-		// Check amm constituent map exists
-		const ammConstituentMapPublicKey = getAmmConstituentMappingPublicKey(
-			program.programId,
-			lpPoolKey
-		);
-		const ammConstituentMap =
-			(await adminClient.program.account.ammConstituentMapping.fetch(
-				ammConstituentMapPublicKey
-			)) as AmmConstituentMapping;
-		expect(ammConstituentMap).to.not.be.null;
-		assert(ammConstituentMap.weights.length == 0);
-
-		// check constituent target weights exists
-		const constituentTargetWeightsPublicKey =
-			getConstituentTargetWeightsPublicKey(program.programId, lpPoolKey);
-		const constituentTargetWeights =
-			(await adminClient.program.account.constituentTargetWeights.fetch(
-				constituentTargetWeightsPublicKey
-			)) as ConstituentTargetWeights;
-		expect(constituentTargetWeights).to.not.be.null;
-		assert(constituentTargetWeights.weights.length == 0);
-
-		// check mint created correctly
-		const mintInfo = await getMint(
-			bankrunContextWrapper.connection.toConnection(),
-			lpPool.mint as PublicKey
-		);
-		expect(mintInfo.decimals).to.equal(tokenDecimals);
-		expect(Number(mintInfo.supply)).to.equal(0);
-		expect(mintInfo.mintAuthority!.toBase58()).to.equal(lpPoolKey.toBase58());
-	});
-
-	it('can add constituent to LP Pool', async () => {
-		await adminClient.initializeConstituent(
-			encodeName(lpPoolName),
-			0,
-			6,
-			new BN(10).mul(PERCENTAGE_PRECISION),
-			new BN(1).mul(PERCENTAGE_PRECISION),
-			new BN(2).mul(PERCENTAGE_PRECISION)
-		);
-		const constituentTargetWeightsPublicKey =
-			getConstituentTargetWeightsPublicKey(program.programId, lpPoolKey);
-		const constituentTargetWeights =
-			(await adminClient.program.account.constituentTargetWeights.fetch(
-				constituentTargetWeightsPublicKey
-			)) as ConstituentTargetWeights;
-		expect(constituentTargetWeights).to.not.be.null;
-		assert(constituentTargetWeights.weights.length == 1);
-	});
-
-	it('can add amm mapping datum', async () => {
-		await adminClient.addInitAmmConstituentMappingData(encodeName(lpPoolName), [
-			{
-				perpMarketIndex: 0,
-				constituentIndex: 0,
-			},
-			{
-				perpMarketIndex: 1,
-				constituentIndex: 0,
-			},
-		]);
-		const ammConstituentMapping = getAmmConstituentMappingPublicKey(
-			program.programId,
-			lpPoolKey
-		);
-		const ammMapping =
-			(await adminClient.program.account.ammConstituentMapping.fetch(
-				ammConstituentMapping
-			)) as AmmConstituentMapping;
-		expect(ammMapping).to.not.be.null;
-		assert(ammMapping.weights.length == 2);
-	});
-
-	it('fails adding datum with bad params', async () => {
-		// Bad perp market index
+	it('LP Pool init properly', async () => {
+		let lpPool: LPPoolAccount;
 		try {
-			await adminClient.addInitAmmConstituentMappingData(
-				encodeName(lpPoolName),
-				[
-					{
-						perpMarketIndex: 2,
-						constituentIndex: 0,
-					},
-				]
-			);
-			expect.fail('should have failed');
+			lpPool = (await adminClient.program.account.lpPool.fetch(
+				lpPoolKey
+			)) as LPPoolAccount;
+			expect(lpPool).to.not.be.null;
 		} catch (e) {
-			expect(e.message).to.contain('0x18ab');
+			expect.fail('LP Pool should have been created');
 		}
 
-		// Bad constituent index
 		try {
-			await adminClient.addInitAmmConstituentMappingData(
-				encodeName(lpPoolName),
-				[
-					{
-						perpMarketIndex: 0,
-						constituentIndex: 1,
-					},
-				]
-			);
-			expect.fail('should have failed');
+			const constituentTargetWeightsPublicKey =
+				getConstituentTargetWeightsPublicKey(program.programId, lpPoolKey);
+			const constituentTargetWeights =
+				(await adminClient.program.account.constituentTargetWeights.fetch(
+					constituentTargetWeightsPublicKey
+				)) as ConstituentTargetWeights;
+			expect(constituentTargetWeights).to.not.be.null;
+			assert(constituentTargetWeights.weights.length == 2);
 		} catch (e) {
-			expect(e.message).to.contain('0x18ab');
+			expect.fail('Amm constituent map should have been created');
 		}
 	});
 
-	it('can update constituent target weights', async () => {
-		// Override AMM to have a balance
-		const perpMarket = adminClient.getPerpMarketAccount(0);
-		const raw = await bankrunContextWrapper.connection.getAccountInfo(
-			perpMarket.pubkey
+	it('crank aum', async () => {
+		let spotOracle = adminClient.getOracleDataForSpotMarket(1);
+		console.log(spotOracle);
+		const price1 = convertToNumber(spotOracle.price);
+		console.log('price', price1);
+
+		await setFeedPriceNoProgram(bankrunContextWrapper, 224.3, spotMarketOracle);
+
+		await adminClient.fetchAccounts();
+
+		spotOracle = adminClient.getOracleDataForSpotMarket(1);
+		const price2 = convertToNumber(spotOracle.price);
+		assert(price2 > price1);
+
+		const const0TokenAccount = getConstituentVaultPublicKey(
+			program.programId,
+			lpPoolKey,
+			0
 		);
-		const buf = raw.data;
+		const const1TokenAccount = getConstituentVaultPublicKey(
+			program.programId,
+			lpPoolKey,
+			1
+		);
 
-		buf.writeBigInt64LE(BigInt(1000000000), 304);
+		const const0Key = getConstituentPublicKey(program.programId, lpPoolKey, 0);
+		const const1Key = getConstituentPublicKey(program.programId, lpPoolKey, 1);
 
-		bankrunContextWrapper.context.setAccount(perpMarket.pubkey, {
-			executable: raw.executable,
-			owner: raw.owner,
-			lamports: raw.lamports,
-			rentEpoch: raw.rentEpoch,
-			data: buf,
-		});
+		// console.log('constituent0TokenAccountInfo', constituent0TokenAccountInfo);
 
-		const perpMarketAccountAfter = await getPerpMarketDecoded(
-			adminClient,
+		const oracle0 = adminClient.getOracleDataForSpotMarket(0);
+		console.log('oracle0:', convertToNumber(oracle0.price));
+		const oracle1 = adminClient.getOracleDataForSpotMarket(1);
+		console.log('oracle1:', convertToNumber(oracle1.price));
+
+		const c0TokenBalance = new BN(100_000_000);
+		const c1TokenBalance = new BN(100_000_000);
+
+		await overWriteTokenAccountBalance(
 			bankrunContextWrapper,
-			perpMarket.pubkey
+			const0TokenAccount,
+			BigInt(c0TokenBalance.toString())
 		);
-		assert(!perpMarketAccountAfter.amm.baseAssetAmountLong.isZero());
+		await overwriteConstituentAccount(
+			bankrunContextWrapper,
+			adminClient.program,
+			const0Key,
+			[['tokenBalance', c0TokenBalance]]
+		);
 
-		// Override LP pool to have some aum
-		const lpraw = await bankrunContextWrapper.connection.getAccountInfo(
+		await overWriteTokenAccountBalance(
+			bankrunContextWrapper,
+			const1TokenAccount,
+			BigInt(c1TokenBalance.toString())
+		);
+		await overwriteConstituentAccount(
+			bankrunContextWrapper,
+			adminClient.program,
+			const1Key,
+			[['tokenBalance', c0TokenBalance]]
+		);
+
+		// check fields overwritten correctly
+		const c0 = (await adminClient.program.account.constituent.fetch(
+			const0Key
+		)) as ConstituentAccount;
+		expect(c0.tokenBalance.toString()).to.equal(c0TokenBalance.toString());
+
+		const c1 = (await adminClient.program.account.constituent.fetch(
+			const1Key
+		)) as ConstituentAccount;
+		expect(c1.tokenBalance.toString()).to.equal(c1TokenBalance.toString());
+
+		const prec = new BN(10).pow(new BN(tokenDecimals));
+		console.log(`const0 balance: ${convertToNumber(c0.tokenBalance, prec)}`);
+		console.log(`const1 balance: ${convertToNumber(c1.tokenBalance, prec)}`);
+
+		const lpPool1 = (await adminClient.program.account.lpPool.fetch(
 			lpPoolKey
-		);
-		const lpbuf = lpraw.data;
+		)) as LPPoolAccount;
+		expect(lpPool1.lastAumSlot.toNumber()).to.be.equal(0);
 
-		buf.writeBigInt64LE(BigInt(1000000000), 152);
+		await adminClient.updateDlpPoolAum(lpPool1, [1, 0]);
 
-		bankrunContextWrapper.context.setAccount(lpPoolKey, {
-			executable: lpraw.executable,
-			owner: lpraw.owner,
-			lamports: lpraw.lamports,
-			rentEpoch: lpraw.rentEpoch,
-			data: lpbuf,
-		});
-
-		const ammConstituentMappingPublicKey = getAmmConstituentMappingPublicKey(
-			program.programId,
+		const lpPool2 = (await adminClient.program.account.lpPool.fetch(
 			lpPoolKey
-		);
+		)) as LPPoolAccount;
 
-		const ammMapping =
-			(await adminClient.program.account.ammConstituentMapping.fetch(
-				ammConstituentMappingPublicKey
-			)) as AmmConstituentMapping;
-
-		console.log(`ok there should be ${ammMapping.weights.length} constituents`);
-		await adminClient.updateDlpConstituentTargetWeights(
-			encodeName(lpPoolName),
-			[0],
-			ammMapping
-		);
-		const constituentTargetWeightsPublicKey =
-			getConstituentTargetWeightsPublicKey(program.programId, lpPoolKey);
-		const constituentTargetWeights =
-			(await adminClient.program.account.constituentTargetWeights.fetch(
-				constituentTargetWeightsPublicKey
-			)) as ConstituentTargetWeights;
-		expect(constituentTargetWeights).to.not.be.null;
-		assert(constituentTargetWeights.weights.length == 1);
+		expect(lpPool2.lastAumSlot.toNumber()).to.be.greaterThan(0);
+		expect(lpPool2.lastAum.gt(lpPool1.lastAum)).to.be.true;
+		console.log(`AUM: ${convertToNumber(lpPool2.lastAum, QUOTE_PRECISION)}`);
 	});
 });
