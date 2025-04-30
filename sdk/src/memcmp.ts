@@ -66,6 +66,15 @@ export function getUserWithName(name: string): MemcmpFilter {
 	};
 }
 
+export function getUsersWithPoolId(poolId: number): MemcmpFilter {
+	return {
+		memcmp: {
+			offset: 4356,
+			bytes: bs58.encode(Uint8Array.from([poolId])),
+		},
+	};
+}
+
 export function getUserStatsFilter(): MemcmpFilter {
 	return {
 		memcmp: {
