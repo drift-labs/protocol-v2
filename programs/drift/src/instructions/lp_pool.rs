@@ -203,12 +203,20 @@ pub fn handle_update_lp_pool_aum<'c: 'info, 'info>(
             oldest_slot = oracle_slot;
         }
 
+        let (numerator_scale, denominator_scale) = if spot_market.decimals > 6 {
+            (10_i128.pow(spot_market.decimals - 6), 1)
+        } else {
+            (1, 10_i128.pow(6 - spot_market.decimals))
+        };
+
         let constituent_aum = constituent
             .get_full_balance(&spot_market)?
+            .safe_mul(numerator_scale)?
+            .safe_div(denominator_scale)?
             .safe_mul(oracle_price.unwrap() as i128)?
-            .safe_mul(QUOTE_PRECISION_I128)?
-            .safe_div(SPOT_WEIGHT_PRECISION_I128)?;
-        aum = aum.safe_add(constituent_aum as u128)?;
+            .safe_div(PRICE_PRECISION_I128)?
+            .max(0);
+        aum = aum.safe_add(constituent_aum.cast()?)?;
     }
 
     lp_pool.oldest_oracle_slot = oldest_slot;

@@ -7968,9 +7968,9 @@
           {
             "name": "tokenBalance",
             "docs": [
-              "ata token balance in SPOT_BALANCE_PRECISION"
+              "ata token balance in token precision"
             ],
-            "type": "u64"
+            "type": "u128"
           },
           {
             "name": "spotBalance",
@@ -7992,6 +7992,15 @@
           {
             "name": "oracleStalenessThreshold",
             "type": "u64"
+          },
+          {
+            "name": "padding2",
+            "type": {
+              "array": [
+                "u8",
+                8
+              ]
+            }
           }
         ]
       }
@@ -9953,9 +9962,9 @@
             "docs": [
               "The scaled balance of the position. To get the token amount, multiply by the cumulative deposit/borrow",
               "interest of corresponding market.",
-              "precision: SPOT_BALANCE_PRECISION"
+              "precision: token precision"
             ],
-            "type": "u64"
+            "type": "u128"
           },
           {
             "name": "cumulativeDeposits",
