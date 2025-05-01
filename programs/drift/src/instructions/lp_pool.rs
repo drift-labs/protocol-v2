@@ -9,6 +9,9 @@ use crate::math::{
 use crate::msg;
 use crate::state::constituent_map::{ConstituentMap, ConstituentSet};
 use crate::state::spot_market::SpotBalanceType;
+use crate::state::spot_market_map::{
+    get_writable_spot_market_set, get_writable_spot_market_set_from_many,
+};
 use crate::state::{
     lp_pool::{
         AmmConstituentDatum, AmmConstituentMappingFixed, Constituent, LPPool, WeightValidationFlags,
@@ -212,7 +215,7 @@ pub fn handle_update_lp_pool_aum<'c: 'info, 'info>(
     fill_not_paused(&ctx.accounts.state)
 )]
 pub fn handle_lp_pool_swap<'c: 'info, 'info>(
-    ctx: Context<'_, '_, 'c, 'info, LPSwap<'info>>,
+    ctx: Context<'_, '_, 'c, 'info, LPPoolSwap<'info>>,
     in_market_index: u16,
     out_market_index: u16,
     in_amount: u64,
@@ -241,7 +244,7 @@ pub fn handle_lp_pool_swap<'c: 'info, 'info>(
     } = load_maps(
         &mut ctx.remaining_accounts.iter().peekable(),
         &MarketSet::new(),
-        &MarketSet::new(),
+        &get_writable_spot_market_set_from_many(vec![in_market_index, out_market_index]),
         slot,
         Some(state.oracle_guard_rails),
     )?;
@@ -281,6 +284,13 @@ pub fn handle_lp_pool_swap<'c: 'info, 'info>(
     } else {
         out_amount.safe_add(out_fee.unsigned_abs() as u64)?
     };
+    msg!(
+        "in_amount: {}, out_amount: {}, in_fee: {}, out_fee: {}",
+        in_amount,
+        out_amount,
+        in_fee,
+        out_fee
+    );
 
     validate!(
         out_amount_net_fees >= min_out_amount,
@@ -374,7 +384,7 @@ pub struct UpdateLPPoolAum<'info> {
 /// `in`/`out` is in the program's POV for this swap. So `user_in_token_account` is the user owned token account
 /// for the `in` token for this swap.
 #[derive(Accounts)]
-pub struct LPSwap<'info> {
+pub struct LPPoolSwap<'info> {
     /// CHECK: forced drift_signer
     pub drift_signer: AccountInfo<'info>,
     pub state: Box<Account<'info, State>>,
@@ -425,5 +435,6 @@ pub struct LPSwap<'info> {
 
     pub authority: Signer<'info>,
 
+    // TODO: in/out token program
     pub token_program: Interface<'info, TokenInterface>,
 }

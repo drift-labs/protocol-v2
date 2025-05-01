@@ -4476,6 +4476,7 @@ pub fn handle_initialize_constituent<'info>(
     constituent.swap_fee_min = swap_fee_min;
     constituent.swap_fee_max = swap_fee_max;
     constituent.pubkey = ctx.accounts.constituent.key();
+    constituent.mint = ctx.accounts.spot_market_mint.key();
     lp_pool.constituents += 1;
 
     Ok(())

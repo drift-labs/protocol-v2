@@ -4,7 +4,12 @@ import { expect, assert } from 'chai';
 import { Program } from '@coral-xyz/anchor';
 
 import { Keypair, PublicKey } from '@solana/web3.js';
-import { TOKEN_PROGRAM_ID, getMint } from '@solana/spl-token';
+import {
+	TOKEN_PROGRAM_ID,
+	getAssociatedTokenAddress,
+	getAssociatedTokenAddressSync,
+	getMint,
+} from '@solana/spl-token';
 
 import {
 	BN,
@@ -40,7 +45,7 @@ import {
 	setFeedPriceNoProgram,
 	overWriteTokenAccountBalance,
 	overwriteConstituentAccount,
-	overwritePerpMarketAccount,
+	mockAtaTokenAccountForMint,
 } from './testHelpers';
 import { startAnchor } from 'solana-bankrun';
 import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
@@ -89,9 +94,7 @@ describe('LP Pool', () => {
 
 		usdcMint = await mockUSDCMint(bankrunContextWrapper);
 		spotTokenMint = await mockUSDCMint(bankrunContextWrapper);
-		console.log('try mockOracle');
 		spotMarketOracle = await mockOracleNoProgram(bankrunContextWrapper, 200.1);
-		console.log('spotMarketOracle', spotMarketOracle);
 
 		const keypair = new Keypair();
 		await bankrunContextWrapper.fundKeypair(keypair, 10 ** 9);
@@ -277,8 +280,8 @@ describe('LP Pool', () => {
 		const oracle1 = adminClient.getOracleDataForSpotMarket(1);
 		console.log('oracle1:', convertToNumber(oracle1.price));
 
-		const c0TokenBalance = new BN(100_000_000);
-		const c1TokenBalance = new BN(100_000_000);
+		const c0TokenBalance = new BN(1_000_000_000);
+		const c1TokenBalance = new BN(1_000_000_000);
 
 		await overWriteTokenAccountBalance(
 			bankrunContextWrapper,
@@ -333,5 +336,92 @@ describe('LP Pool', () => {
 		expect(lpPool2.lastAumSlot.toNumber()).to.be.greaterThan(0);
 		expect(lpPool2.lastAum.gt(lpPool1.lastAum)).to.be.true;
 		console.log(`AUM: ${convertToNumber(lpPool2.lastAum, QUOTE_PRECISION)}`);
+
+		const constituentTargetWeightsPublicKey =
+			getConstituentTargetWeightsPublicKey(program.programId, lpPoolKey);
+
+		// swap c0 for c1
+
+		const adminAuth = adminClient.wallet.publicKey;
+
+		// mint some tokens for user
+		const c0UserTokenAccount = await mockAtaTokenAccountForMint(
+			bankrunContextWrapper,
+			usdcMint.publicKey,
+			new BN(1_000_000_000),
+			adminAuth
+		);
+		const c1UserTokenAccount = await mockAtaTokenAccountForMint(
+			bankrunContextWrapper,
+			spotTokenMint.publicKey,
+			new BN(1_000_000_000),
+			adminAuth
+		);
+
+		// console.log(`0 mint: ${usdcMint.publicKey.toBase58()}`)
+		// console.log(`const0:`, await adminClient.program.account.constituent.fetch(const0Key))
+		// console.log(`1 mint: ${spotTokenMint.publicKey.toBase58()}`)
+		// console.log(`const1:`, await adminClient.program.account.constituent.fetch(const1Key))
+
+		// const m0 = await adminClient.getSpotMarketAccount(0);
+		// const m1 = await adminClient.getSpotMarketAccount(1);
+		// console.log(`m0 ${m0.pubkey.toBase58()}, ${m0.oracle.toBase58()}`)
+		// console.log(`m1 ${m1.pubkey.toBase58()}, ${m1.oracle.toBase58()}`)
+
+		const inTokenBalanceBefore =
+			await bankrunContextWrapper.connection.getTokenAccount(
+				c0UserTokenAccount
+			);
+		const outTokenBalanceBefore =
+			await bankrunContextWrapper.connection.getTokenAccount(
+				c1UserTokenAccount
+			);
+
+		// in = 0, out = 1
+		await adminClient.lpPoolSwap(
+			0,
+			1,
+			new BN(224_300_000),
+			new BN(0),
+			lpPoolKey,
+			constituentTargetWeightsPublicKey,
+			const0TokenAccount,
+			const1TokenAccount,
+			c0UserTokenAccount,
+			c1UserTokenAccount,
+			const0Key,
+			const1Key,
+			usdcMint.publicKey,
+			spotTokenMint.publicKey
+		);
+
+		const c0Oracle = adminClient.getOracleDataForSpotMarket(0);
+		const c1Oracle = adminClient.getOracleDataForSpotMarket(1);
+		console.log('in token oracle:', convertToNumber(c0Oracle.price));
+		console.log('out token oracle:', convertToNumber(c1Oracle.price));
+
+		const inTokenBalanceAfter =
+			await bankrunContextWrapper.connection.getTokenAccount(
+				c0UserTokenAccount
+			);
+		const outTokenBalanceAfter =
+			await bankrunContextWrapper.connection.getTokenAccount(
+				c1UserTokenAccount
+			);
+		const diffInToken =
+			inTokenBalanceAfter.amount - inTokenBalanceBefore.amount;
+		const diffOutToken =
+			outTokenBalanceAfter.amount - outTokenBalanceBefore.amount;
+
+		console.log(
+			`in Token:  ${inTokenBalanceBefore.amount} -> ${
+				inTokenBalanceAfter.amount
+			} (${Number(diffInToken) / 1e6})`
+		);
+		console.log(
+			`out Token: ${outTokenBalanceBefore.amount} -> ${
+				outTokenBalanceAfter.amount
+			} (${Number(diffOutToken) / 1e6})`
+		);
 	});
 });

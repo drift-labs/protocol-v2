@@ -233,6 +233,39 @@ export async function mockUserUSDCAccount(
 	return userUSDCAccount;
 }
 
+export async function mockAtaTokenAccountForMint(
+	context: BankrunContextWrapper,
+	tokenMint: PublicKey,
+	amount: BN,
+	owner: PublicKey
+): Promise<PublicKey> {
+	const userTokenAccount = getAssociatedTokenAddressSync(tokenMint, owner);
+	const newTx = new Transaction();
+
+	const tokenProgram = (await context.connection.getAccountInfo(tokenMint))
+		.owner;
+
+	newTx.add(
+		createAssociatedTokenAccountIdempotentInstruction(
+			context.context.payer.publicKey,
+			userTokenAccount,
+			owner,
+			tokenMint,
+			tokenProgram
+		)
+	);
+
+	await context.sendTransaction(newTx, [context.context.payer]);
+
+	await overWriteTokenAccountBalance(
+		context,
+		userTokenAccount,
+		BigInt(amount.toString())
+	);
+
+	return userTokenAccount;
+}
+
 export function getMockUserUsdcAccountInfo(
 	fakeUSDCMint: Keypair,
 	usdcMintAmount: BN,
