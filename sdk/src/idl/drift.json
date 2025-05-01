@@ -4218,6 +4218,11 @@
           "isSigner": false
         },
         {
+          "name": "ammPositionsCache",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
           "name": "oracle",
           "isMut": false,
           "isSigner": false
@@ -4344,6 +4349,37 @@
           }
         }
       ]
+    },
+    {
+      "name": "initializeAmmPositionsCache",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "state",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "ammPositionsCache",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "rent",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "systemProgram",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": []
     },
     {
       "name": "initializePredictionMarket",
@@ -7470,6 +7506,22 @@
           }
         }
       ]
+    },
+    {
+      "name": "updateAmmPositionsCache",
+      "accounts": [
+        {
+          "name": "keeper",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "ammPositionsCache",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": []
     }
   ],
   "accounts": [
@@ -8361,6 +8413,22 @@
                 "u8",
                 36
               ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "AmmPositionsCache",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "ammPositions",
+            "type": {
+              "vec": {
+                "defined": "PositionCacheInfo"
+              }
             }
           }
         ]
@@ -11253,6 +11321,46 @@
               "array": [
                 "u8",
                 12
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "PositionCacheInfo",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "position",
+            "docs": [
+              "BASE PRECISION"
+            ],
+            "type": "i64"
+          },
+          {
+            "name": "slot",
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "AmmPositionsCacheFixed",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "len",
+            "type": "u32"
+          },
+          {
+            "name": "pad",
+            "type": {
+              "array": [
+                "u8",
+                4
               ]
             }
           }

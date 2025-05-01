@@ -1531,3 +1531,7 @@ export type Constituent = {
 	lastOracleSlot: BN;
 	oracleStalenessThreshold: BN;
 };
+
+export type AmmPositionsCache = {
+	ammPositions: { position: BN; slot: BN }[];
+};

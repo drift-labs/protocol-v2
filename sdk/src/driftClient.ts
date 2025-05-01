@@ -111,6 +111,7 @@ import {
 	getAmmConstituentMappingPublicKey,
 	getLpPoolPublicKey,
 	getConstituentPublicKey,
+	getAmmPositionsCachePublicKey,
 } from './addresses/pda';
 import {
 	DataAndSlot,
@@ -9793,6 +9794,44 @@ export class DriftClient {
 				keeper: this.wallet.publicKey,
 				lpPool: lpPool.pubkey,
 				state: await this.getStatePublicKey(),
+			},
+			remainingAccounts,
+		});
+	}
+
+	public async updateAmmPositionsCache(
+		perpMarketIndexes: number[],
+		txParams?: TxParams
+	): Promise<TransactionSignature> {
+		const { txSig } = await this.sendTransaction(
+			await this.buildTransaction(
+				await this.getUpdateAmmPositionsCacheIx(perpMarketIndexes),
+				txParams
+			),
+			[],
+			this.opts
+		);
+		return txSig;
+	}
+
+	public async getUpdateAmmPositionsCacheIx(
+		perpMarketIndexes: number[]
+	): Promise<TransactionInstruction> {
+		if (perpMarketIndexes.length > 50) {
+			throw new Error('Cant update more than 50 markets at once');
+		}
+
+		const remainingAccounts = this.getRemainingAccounts({
+			userAccounts: [],
+			readablePerpMarketIndex: perpMarketIndexes,
+		});
+
+		return this.program.instruction.updateAmmPositionsCache({
+			accounts: {
+				keeper: this.wallet.publicKey,
+				ammPositionsCache: getAmmPositionsCachePublicKey(
+					this.program.programId
+				),
 			},
 			remainingAccounts,
 		});

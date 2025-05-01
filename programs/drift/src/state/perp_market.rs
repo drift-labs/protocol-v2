@@ -1,4 +1,5 @@
 use crate::state::pyth_lazer_oracle::PythLazerOracle;
+use crate::{impl_zero_copy_loader, validate};
 use anchor_lang::prelude::*;
 
 use crate::state::state::State;
@@ -44,6 +45,7 @@ use static_assertions::const_assert_eq;
 
 use super::oracle_map::OracleIdentifier;
 use super::protected_maker_mode_config::ProtectedMakerParams;
+use super::zero_copy::HasLen;
 
 #[cfg(test)]
 mod tests;
@@ -1669,3 +1671,66 @@ impl AMM {
         }
     }
 }
+
+pub const AMM_POSITIONS_CACHE: &str = "amm_positions_cache";
+
+#[account]
+#[derive(Debug)]
+#[repr(C)]
+pub struct AmmPositionsCache {
+    pub amm_positions: Vec<PositionCacheInfo>,
+}
+
+#[zero_copy]
+#[derive(AnchorSerialize, AnchorDeserialize, Debug)]
+#[repr(C)]
+pub struct PositionCacheInfo {
+    /// BASE PRECISION
+    pub position: i64,
+    pub slot: u64,
+}
+
+impl Default for PositionCacheInfo {
+    fn default() -> Self {
+        PositionCacheInfo {
+            position: 0,
+            slot: 0,
+        }
+    }
+}
+
+#[zero_copy]
+#[derive(Default, Debug)]
+#[repr(C)]
+pub struct AmmPositionsCacheFixed {
+    pub len: u32,
+    pub _pad: [u8; 4],
+}
+
+impl HasLen for AmmPositionsCacheFixed {
+    fn len(&self) -> u32 {
+        self.len
+    }
+}
+
+impl AmmPositionsCache {
+    pub fn space(num_constituents: usize) -> usize {
+        8 + 8 + 4 + num_constituents * 16
+    }
+
+    pub fn validate(&self, state: &State) -> DriftResult<()> {
+        validate!(
+            self.amm_positions.len() == state.number_of_markets as usize,
+            ErrorCode::DefaultError,
+            "Number of amm positions is different than number of markets"
+        )?;
+        Ok(())
+    }
+}
+
+impl_zero_copy_loader!(
+    AmmPositionsCache,
+    crate::id,
+    AmmPositionsCacheFixed,
+    PositionCacheInfo
+);

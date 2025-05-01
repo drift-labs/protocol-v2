@@ -448,3 +448,10 @@ export function getConstituentVaultPublicKey(
 		programId
 	)[0];
 }
+
+export function getAmmPositionsCachePublicKey(programId: PublicKey): PublicKey {
+	return PublicKey.findProgramAddressSync(
+		[Buffer.from(anchor.utils.bytes.utf8.encode('amm_positions_cache'))],
+		programId
+	)[0];
+}

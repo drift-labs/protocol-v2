@@ -24,6 +24,8 @@ import {
 	OracleSource,
 	SPOT_MARKET_WEIGHT_PRECISION,
 	SPOT_MARKET_RATE_PRECISION,
+	getAmmPositionsCachePublicKey,
+	AmmPositionsCache,
 } from '../sdk/src';
 
 import {
@@ -468,5 +470,15 @@ describe('LP Pool', () => {
 		expect(ammMapping).to.not.be.null;
 		assert(ammMapping.weights.find((x) => x.perpMarketIndex == 2) == undefined);
 		assert(ammMapping.weights.length === 2);
+	});
+
+	it('can crank amm positions into the cache', async () => {
+		await adminClient.updateAmmPositionsCache([0, 1, 2]);
+		const ammPositionsCache =
+			(await adminClient.program.account.ammPositionsCache.fetch(
+				getAmmPositionsCachePublicKey(program.programId)
+			)) as AmmPositionsCache;
+		expect(ammPositionsCache).to.not.be.null;
+		assert(ammPositionsCache.ammPositions.length == 3);
 	});
 });

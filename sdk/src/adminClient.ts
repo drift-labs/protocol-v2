@@ -16,6 +16,7 @@ import {
 	AssetTier,
 	SpotFulfillmentConfigStatus,
 	AddAmmConstituentMappingDatum,
+	TxParams,
 } from './types';
 import { DEFAULT_MARKET_NAME, encodeName } from './userName';
 import { BN } from '@coral-xyz/anchor';
@@ -43,6 +44,7 @@ import {
 	getConstituentTargetWeightsPublicKey,
 	getConstituentPublicKey,
 	getConstituentVaultPublicKey,
+	getAmmPositionsCachePublicKey,
 } from './addresses/pda';
 import { squareRootBN } from './math/utils';
 import {
@@ -485,7 +487,16 @@ export class AdminClient extends DriftClient {
 	): Promise<TransactionSignature> {
 		const currentPerpMarketIndex = this.getStateAccount().numberOfMarkets;
 
-		const initializeMarketIx = await this.getInitializePerpMarketIx(
+		const ammPositionsCachePublicKey = getAmmPositionsCachePublicKey(
+			this.program.programId
+		);
+		const ammPositionsCacheAccount = await this.connection.getAccountInfo(
+			ammPositionsCachePublicKey
+		);
+		const mustInitializeAmmPositionsCache =
+			ammPositionsCacheAccount?.data == null;
+
+		const initializeMarketIxs = await this.getInitializePerpMarketIx(
 			marketIndex,
 			priceOracle,
 			baseAssetReserve,
@@ -511,9 +522,10 @@ export class AdminClient extends DriftClient {
 			concentrationCoefScale,
 			curveUpdateIntensity,
 			ammJitIntensity,
-			name
+			name,
+			mustInitializeAmmPositionsCache
 		);
-		const tx = await this.buildTransaction(initializeMarketIx);
+		const tx = await this.buildTransaction(initializeMarketIxs);
 
 		const { txSig } = await this.sendTransaction(tx, [], this.opts);
 
@@ -557,15 +569,21 @@ export class AdminClient extends DriftClient {
 		concentrationCoefScale = ONE,
 		curveUpdateIntensity = 0,
 		ammJitIntensity = 0,
-		name = DEFAULT_MARKET_NAME
-	): Promise<TransactionInstruction> {
+		name = DEFAULT_MARKET_NAME,
+		includeInitAmmPositionsCacheIx = false
+	): Promise<TransactionInstruction[]> {
 		const perpMarketPublicKey = await getPerpMarketPublicKey(
 			this.program.programId,
 			marketIndex
 		);
 
+		const ixs: TransactionInstruction[] = [];
+		if (includeInitAmmPositionsCacheIx) {
+			ixs.push(await this.getInitializeAmmPositionsCacheIx());
+		}
+
 		const nameBuffer = encodeName(name);
-		return await this.program.instruction.initializePerpMarket(
+		const initPerpIx = await this.program.instruction.initializePerpMarket(
 			marketIndex,
 			baseAssetReserve,
 			quoteAssetReserve,
@@ -599,11 +617,48 @@ export class AdminClient extends DriftClient {
 						: this.wallet.publicKey,
 					oracle: priceOracle,
 					perpMarket: perpMarketPublicKey,
+					ammPositionsCache: getAmmPositionsCachePublicKey(
+						this.program.programId
+					),
 					rent: SYSVAR_RENT_PUBKEY,
 					systemProgram: anchor.web3.SystemProgram.programId,
 				},
 			}
 		);
+		ixs.push(initPerpIx);
+		return ixs;
+	}
+
+	public async initializeAmmPositionsCache(
+		txParams?: TxParams
+	): Promise<TransactionSignature> {
+		const initializeAmmPositionsCacheIx =
+			await this.getInitializeAmmPositionsCacheIx();
+
+		const tx = await this.buildTransaction(
+			initializeAmmPositionsCacheIx,
+			txParams
+		);
+
+		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+
+		return txSig;
+	}
+
+	public async getInitializeAmmPositionsCacheIx(): Promise<TransactionInstruction> {
+		return await this.program.instruction.initializeAmmPositionsCache({
+			accounts: {
+				state: await this.getStatePublicKey(),
+				admin: this.isSubscribed
+					? this.getStateAccount().admin
+					: this.wallet.publicKey,
+				ammPositionsCache: getAmmPositionsCachePublicKey(
+					this.program.programId
+				),
+				rent: SYSVAR_RENT_PUBKEY,
+				systemProgram: anchor.web3.SystemProgram.programId,
+			},
+		});
 	}
 
 	public async initializePredictionMarket(

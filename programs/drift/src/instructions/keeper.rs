@@ -42,6 +42,7 @@ use crate::state::insurance_fund_stake::InsuranceFundStake;
 use crate::state::oracle_map::OracleMap;
 use crate::state::order_params::{OrderParams, PlaceOrderOptions, SignedMsgOrderParamsMessage};
 use crate::state::paused_operations::{PerpOperation, SpotOperation};
+use crate::state::perp_market::PositionCacheInfo;
 use crate::state::perp_market::{ContractType, MarketStatus, PerpMarket};
 use crate::state::perp_market_map::{
     get_market_set_for_spot_positions, get_market_set_for_user_positions, get_market_set_from_list,
@@ -62,6 +63,8 @@ use crate::state::user::{
     MarginMode, MarketType, OrderStatus, OrderTriggerCondition, OrderType, User, UserStats,
 };
 use crate::state::user_map::{load_user_map, load_user_maps, UserMap, UserStatsMap};
+use crate::state::zero_copy::AccountZeroCopyMut;
+use crate::state::zero_copy::ZeroCopyLoader;
 use crate::validation::sig_verification::verify_and_decode_ed25519_msg;
 use crate::validation::user::{validate_user_deletion, validate_user_is_idle};
 use crate::{
@@ -78,6 +81,7 @@ use crate::math::margin::MarginRequirementType;
 use crate::state::margin_calculation::MarginContext;
 
 use super::optional_accounts::get_token_interface;
+use crate::state::perp_market::AMM_POSITIONS_CACHE;
 
 #[access_control(
     fill_not_paused(&ctx.accounts.state)
@@ -2909,6 +2913,48 @@ pub fn handle_pause_spot_market_deposit_withdraw(
     spot_market.paused_operations = spot_market.paused_operations | SpotOperation::Withdraw as u8;
 
     Ok(())
+}
+
+pub fn handle_update_amm_positions_cache<'c: 'info, 'info>(
+    ctx: Context<'_, '_, 'c, 'info, UpdateAmmPositionsCache<'info>>,
+) -> Result<()> {
+    let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
+    let mut amm_positions_cache: AccountZeroCopyMut<'_, PositionCacheInfo, _> =
+        ctx.accounts.amm_positions_cache.load_zc_mut()?;
+    let AccountMaps {
+        perp_market_map,
+        spot_market_map: _,
+        oracle_map: _,
+    } = load_maps(
+        remaining_accounts_iter,
+        &MarketSet::new(),
+        &MarketSet::new(),
+        Clock::get()?.slot,
+        None,
+    )?;
+    let slot = Clock::get()?.slot;
+
+    for (_, perp_market_loader) in perp_market_map.0.iter() {
+        let perp_market = perp_market_loader.load()?;
+        let amm_cache = amm_positions_cache.get_mut(perp_market.market_index as u32);
+        amm_cache.position = perp_market.amm.get_protocol_owned_position()?;
+        amm_cache.slot = slot;
+    }
+
+    Ok(())
+}
+
+#[derive(Accounts)]
+pub struct UpdateAmmPositionsCache<'info> {
+    #[account(mut)]
+    pub keeper: Signer<'info>,
+    #[account(
+        mut,
+        seeds = [AMM_POSITIONS_CACHE.as_ref()],
+        bump,
+    )]
+    /// CHECK: checked in AmmPositionsCacheZeroCopy checks
+    pub amm_positions_cache: AccountInfo<'info>,
 }
 
 #[derive(Accounts)]

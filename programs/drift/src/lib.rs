@@ -970,6 +970,12 @@ pub mod drift {
         )
     }
 
+    pub fn initialize_amm_positions_cache<'c: 'info, 'info>(
+        ctx: Context<'_, '_, 'c, 'info, InitializeAmmPositionsCache<'info>>,
+    ) -> Result<()> {
+        handle_initialize_amm_positions_cache(ctx)
+    }
+
     pub fn initialize_prediction_market<'c: 'info, 'info>(
         ctx: Context<'_, '_, 'c, 'info, AdminUpdatePerpMarket<'info>>,
     ) -> Result<()> {
@@ -1761,6 +1767,12 @@ pub mod drift {
         lp_pool_name: [u8; 32],
     ) -> Result<()> {
         handle_update_lp_pool_aum(ctx)
+    }
+
+    pub fn update_amm_positions_cache<'c: 'info, 'info>(
+        ctx: Context<'_, '_, 'c, 'info, UpdateAmmPositionsCache<'info>>,
+    ) -> Result<()> {
+        handle_update_amm_positions_cache(ctx)
     }
 }
 

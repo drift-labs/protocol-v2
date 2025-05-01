@@ -57,7 +57,8 @@ use crate::state::oracle::{
 use crate::state::oracle_map::OracleMap;
 use crate::state::paused_operations::{InsuranceFundOperation, PerpOperation, SpotOperation};
 use crate::state::perp_market::{
-    ContractTier, ContractType, InsuranceClaim, MarketStatus, PerpMarket, PoolBalance, AMM,
+    AmmPositionsCache, ContractTier, ContractType, InsuranceClaim, MarketStatus, PerpMarket,
+    PoolBalance, PositionCacheInfo, AMM, AMM_POSITIONS_CACHE,
 };
 use crate::state::perp_market_map::get_writable_perp_market_set;
 use crate::state::protected_maker_mode_config::ProtectedMakerModeConfig;
@@ -1055,6 +1056,14 @@ pub fn handle_initialize_perp_market(
 
     safe_increment!(state.number_of_markets, 1);
 
+    let amm_positions_cache = &mut ctx.accounts.amm_positions_cache;
+    let current_len = amm_positions_cache.amm_positions.len();
+    amm_positions_cache
+        .amm_positions
+        .resize_with(current_len + 1, PositionCacheInfo::default);
+    amm_positions_cache.amm_positions.last_mut().unwrap().slot = clock_slot;
+    amm_positions_cache.validate(state)?;
+
     controller::amm::update_concentration_coef(perp_market, concentration_coef_scale)?;
     crate::dlog!(oracle_price);
 
@@ -1066,6 +1075,18 @@ pub fn handle_initialize_perp_market(
     crate::dlog!(amm_bid_price, amm_ask_price);
 
     crate::validation::perp_market::validate_perp_market(perp_market)?;
+
+    Ok(())
+}
+
+pub fn handle_initialize_amm_positions_cache(
+    ctx: Context<InitializeAmmPositionsCache>,
+) -> Result<()> {
+    let amm_positions_cache = &mut ctx.accounts.amm_positions_cache;
+    let state = &ctx.accounts.state;
+    amm_positions_cache
+        .amm_positions
+        .resize_with(state.number_of_markets as usize, PositionCacheInfo::default);
 
     Ok(())
 }
@@ -4890,8 +4911,38 @@ pub struct InitializePerpMarket<'info> {
         payer = admin
     )]
     pub perp_market: AccountLoader<'info, PerpMarket>,
+    #[account(
+        mut,
+        seeds = [AMM_POSITIONS_CACHE.as_ref()],
+        bump,
+        realloc = AmmPositionsCache::space(amm_positions_cache.amm_positions.len() + 1 as usize),
+        realloc::payer = admin,
+        realloc::zero = false,
+    )]
+    pub amm_positions_cache: Box<Account<'info, AmmPositionsCache>>,
     /// CHECK: checked in `initialize_perp_market`
     pub oracle: AccountInfo<'info>,
+    pub rent: Sysvar<'info, Rent>,
+    pub system_program: Program<'info, System>,
+}
+
+#[derive(Accounts)]
+pub struct InitializeAmmPositionsCache<'info> {
+    #[account(
+        mut,
+        constraint = admin.key() == admin_hot_wallet::id() || admin.key() == state.admin
+    )]
+    pub admin: Signer<'info>,
+    #[account(mut)]
+    pub state: Box<Account<'info, State>>,
+    #[account(
+        init,
+        seeds = [AMM_POSITIONS_CACHE.as_ref()],
+        space = AmmPositionsCache::space(state.number_of_markets as usize),
+        bump,
+        payer = admin
+    )]
+    pub amm_positions_cache: Box<Account<'info, AmmPositionsCache>>,
     pub rent: Sysvar<'info, Rent>,
     pub system_program: Program<'info, System>,
 }
