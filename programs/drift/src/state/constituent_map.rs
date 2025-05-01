@@ -10,7 +10,6 @@ use anchor_lang::Discriminator;
 use arrayref::array_ref;
 
 use crate::error::{DriftResult, ErrorCode};
-use crate::state::user::PerpPositions;
 
 use crate::math::safe_unwrap::SafeUnwrap;
 use crate::msg;
@@ -96,6 +95,10 @@ impl<'a> ConstituentMap<'a> {
 
         let constituent_discriminator: [u8; 8] = Constituent::discriminator();
         while let Some(account_info) = account_info_iter.peek() {
+            if account_info.owner != &crate::ID {
+                break;
+            }
+
             let data = account_info
                 .try_borrow_data()
                 .or(Err(ErrorCode::ConstituentCouldNotLoad))?;
@@ -122,7 +125,6 @@ impl<'a> ConstituentMap<'a> {
 
             // constituent index 42 bytes from front of account
             let constituent_index = u16::from_le_bytes(*array_ref![data, 42, 2]);
-
             if constituent_map.0.contains_key(&constituent_index) {
                 msg!(
                     "Can not include same constituent index twice {}",

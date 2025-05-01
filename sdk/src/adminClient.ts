@@ -4257,7 +4257,8 @@ export class AdminClient extends DriftClient {
 		decimals: number,
 		maxWeightDeviation: BN,
 		swapFeeMin: BN,
-		swapFeeMax: BN
+		swapFeeMax: BN,
+		oracleStalenessThreshold: BN
 	): Promise<TransactionSignature> {
 		const ixs = await this.getInitializeConstituentIx(
 			lpPoolName,
@@ -4265,7 +4266,8 @@ export class AdminClient extends DriftClient {
 			decimals,
 			maxWeightDeviation,
 			swapFeeMin,
-			swapFeeMax
+			swapFeeMax,
+			oracleStalenessThreshold
 		);
 		const tx = await this.buildTransaction(ixs);
 		const { txSig } = await this.sendTransaction(tx, []);
@@ -4278,7 +4280,8 @@ export class AdminClient extends DriftClient {
 		decimals: number,
 		maxWeightDeviation: BN,
 		swapFeeMin: BN,
-		swapFeeMax: BN
+		swapFeeMax: BN,
+		oracleStalenessThreshold: BN
 	): Promise<TransactionInstruction[]> {
 		const lpPool = getLpPoolPublicKey(this.program.programId, lpPoolName);
 		const constituentTargetWeights = getConstituentTargetWeightsPublicKey(
@@ -4300,6 +4303,7 @@ export class AdminClient extends DriftClient {
 				maxWeightDeviation,
 				swapFeeMin,
 				swapFeeMax,
+				oracleStalenessThreshold,
 				{
 					accounts: {
 						admin: this.wallet.publicKey,
@@ -4317,6 +4321,56 @@ export class AdminClient extends DriftClient {
 						),
 						driftSigner: this.getSignerPublicKey(),
 						tokenProgram: TOKEN_PROGRAM_ID,
+					},
+					signers: [],
+				}
+			),
+		];
+	}
+
+	public async updateConstituentParams(
+		constituentPublicKey: PublicKey,
+		updateConstituentParams: {
+			maxWeightDeviation?: BN;
+			swapFeeMin?: BN;
+			swapFeeMax?: BN;
+			oracleStalenessThreshold?: BN;
+		}
+	): Promise<TransactionSignature> {
+		const ixs = await this.getUpdateConstituentParamsIx(
+			constituentPublicKey,
+			updateConstituentParams
+		);
+		const tx = await this.buildTransaction(ixs);
+		const { txSig } = await this.sendTransaction(tx, []);
+		return txSig;
+	}
+
+	public async getUpdateConstituentParamsIx(
+		constituentPublicKey: PublicKey,
+		updateConstituentParams: {
+			maxWeightDeviation?: BN;
+			swapFeeMin?: BN;
+			swapFeeMax?: BN;
+			oracleStalenessThreshold?: BN;
+		}
+	): Promise<TransactionInstruction[]> {
+		return [
+			this.program.instruction.updateConstituentParams(
+				Object.assign(
+					{
+						maxWeightDeviation: null,
+						swapFeeMin: null,
+						swapFeeMax: null,
+						oracleStalenessThreshold: null,
+					},
+					updateConstituentParams
+				),
+				{
+					accounts: {
+						admin: this.wallet.publicKey,
+						constituent: constituentPublicKey,
+						state: await this.getStatePublicKey(),
 					},
 					signers: [],
 				}

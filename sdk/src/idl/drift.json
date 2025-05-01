@@ -7216,6 +7216,38 @@
         {
           "name": "swapFeeMax",
           "type": "i64"
+        },
+        {
+          "name": "oracleStalenessThreshold",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "updateConstituentParams",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "constituent",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "constituentParams",
+          "type": {
+            "defined": "ConstituentParams"
+          }
         }
       ]
     },
@@ -7936,9 +7968,9 @@
           {
             "name": "tokenBalance",
             "docs": [
-              "ata token balance in SPOT_BALANCE_PRECISION"
+              "ata token balance in token precision"
             ],
-            "type": "u64"
+            "type": "u128"
           },
           {
             "name": "spotBalance",
@@ -7956,6 +7988,19 @@
           {
             "name": "lastOracleSlot",
             "type": "u64"
+          },
+          {
+            "name": "oracleStalenessThreshold",
+            "type": "u64"
+          },
+          {
+            "name": "padding2",
+            "type": {
+              "array": [
+                "u8",
+                8
+              ]
+            }
           }
         ]
       }
@@ -9633,6 +9678,38 @@
       }
     },
     {
+      "name": "ConstituentParams",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "maxWeightDeviation",
+            "type": {
+              "option": "i64"
+            }
+          },
+          {
+            "name": "swapFeeMin",
+            "type": {
+              "option": "i64"
+            }
+          },
+          {
+            "name": "swapFeeMax",
+            "type": {
+              "option": "i64"
+            }
+          },
+          {
+            "name": "oracleStalenessThreshold",
+            "type": {
+              "option": "u64"
+            }
+          }
+        ]
+      }
+    },
+    {
       "name": "AddAmmConstituentMappingDatum",
       "type": {
         "kind": "struct",
@@ -9885,9 +9962,9 @@
             "docs": [
               "The scaled balance of the position. To get the token amount, multiply by the cumulative deposit/borrow",
               "interest of corresponding market.",
-              "precision: SPOT_BALANCE_PRECISION"
+              "precision: token precision"
             ],
-            "type": "u64"
+            "type": "u128"
           },
           {
             "name": "cumulativeDeposits",
