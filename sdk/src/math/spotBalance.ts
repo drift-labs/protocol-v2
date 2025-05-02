@@ -3,7 +3,6 @@ import {
 	SpotBalanceType,
 	isVariant,
 	MarginCategory,
-	AssetTier,
 } from '../types';
 import { BN } from '@coral-xyz/anchor';
 import {
