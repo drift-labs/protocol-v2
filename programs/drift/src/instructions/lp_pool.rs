@@ -198,7 +198,6 @@ pub fn handle_update_lp_pool_aum<'c: 'info, 'info>(
         };
 
         if oracle_price.is_none() {
-            msg!("hi");
             return Err(ErrorCode::OracleTooStaleForLPAUMUpdate.into());
         }
 
@@ -271,16 +270,46 @@ pub fn handle_lp_pool_swap<'c: 'info, 'info>(
         Some(state.oracle_guard_rails),
     )?;
 
-    // TODO check for oracle and constituent staleness
-
     let mut in_spot_market = spot_market_map.get_ref_mut(&in_market_index)?;
     let mut out_spot_market = spot_market_map.get_ref_mut(&out_market_index)?;
 
     let in_oracle_id = in_spot_market.oracle_id();
     let out_oracle_id = out_spot_market.oracle_id();
 
-    let in_oracle = *oracle_map.get_price_data(&in_oracle_id)?;
-    let out_oracle = *oracle_map.get_price_data(&out_oracle_id)?;
+    let (in_oracle, in_oracle_validity) = oracle_map.get_price_data_and_validity(
+        MarketType::Spot,
+        in_spot_market.market_index,
+        &in_oracle_id,
+        in_spot_market.historical_oracle_data.last_oracle_price_twap,
+        in_spot_market.get_max_confidence_interval_multiplier()?,
+    )?;
+    let in_oracle = in_oracle.clone();
+
+    let (out_oracle, out_oracle_validity) = oracle_map.get_price_data_and_validity(
+        MarketType::Spot,
+        out_spot_market.market_index,
+        &out_oracle_id,
+        out_spot_market
+            .historical_oracle_data
+            .last_oracle_price_twap,
+        out_spot_market.get_max_confidence_interval_multiplier()?,
+    )?;
+
+    if !is_oracle_valid_for_action(in_oracle_validity, Some(DriftAction::LpPoolSwap))? {
+        msg!(
+            "In oracle data for spot market {} is invalid for lp pool swap.",
+            in_spot_market.market_index,
+        );
+        return Err(ErrorCode::InvalidOracle.into());
+    }
+
+    if !is_oracle_valid_for_action(out_oracle_validity, Some(DriftAction::LpPoolSwap))? {
+        msg!(
+            "Out oracle data for spot market {} is invalid for lp pool swap.",
+            out_spot_market.market_index,
+        );
+        return Err(ErrorCode::InvalidOracle.into());
+    }
 
     update_spot_market_cumulative_interest(&mut in_spot_market, Some(&in_oracle), now)?;
     update_spot_market_cumulative_interest(&mut out_spot_market, Some(&out_oracle), now)?;
@@ -373,6 +402,12 @@ pub fn handle_lp_pool_swap<'c: 'info, 'info>(
         &Some((*ctx.accounts.out_market_mint).clone()),
     )?;
 
+    ctx.accounts.constituent_in_token_account.reload()?;
+    ctx.accounts.constituent_out_token_account.reload()?;
+
+    in_constituent.sync_token_balance(ctx.accounts.constituent_in_token_account.amount);
+    out_constituent.sync_token_balance(ctx.accounts.constituent_out_token_account.amount);
+
     Ok(())
 }
 
@@ -423,6 +458,10 @@ pub struct UpdateLPPoolAum<'info> {
 /// `in`/`out` is in the program's POV for this swap. So `user_in_token_account` is the user owned token account
 /// for the `in` token for this swap.
 #[derive(Accounts)]
+#[instruction(
+    in_market_index: u16,
+    out_market_index: u16,
+)]
 pub struct LPPoolSwap<'info> {
     /// CHECK: forced drift_signer
     pub drift_signer: AccountInfo<'info>,
@@ -454,11 +493,15 @@ pub struct LPPoolSwap<'info> {
 
     #[account(
         mut,
+        seeds = [CONSTITUENT_PDA_SEED.as_ref(), lp_pool.key().as_ref(), in_market_index.to_le_bytes().as_ref()],
+        bump,
         constraint = in_constituent.load()?.mint.eq(&constituent_in_token_account.mint)
     )]
     pub in_constituent: AccountLoader<'info, Constituent>,
     #[account(
         mut,
+        seeds = [CONSTITUENT_PDA_SEED.as_ref(), lp_pool.key().as_ref(), out_market_index.to_le_bytes().as_ref()],
+        bump,
         constraint = out_constituent.load()?.mint.eq(&constituent_out_token_account.mint)
     )]
     pub out_constituent: AccountLoader<'info, Constituent>,

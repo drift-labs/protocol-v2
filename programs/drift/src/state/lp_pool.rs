@@ -7,6 +7,7 @@ use crate::math::safe_math::SafeMath;
 use crate::math::spot_balance::get_token_amount;
 use anchor_lang::prelude::*;
 use anchor_spl::token::Mint;
+use anchor_spl::token_interface::TokenAccount;
 use borsh::{BorshDeserialize, BorshSerialize};
 
 use super::oracle::OraclePriceData;
@@ -166,6 +167,7 @@ impl LPPool {
             out_target_weight,
         )?;
 
+        msg!("in_fee: {}, out_fee: {}", in_fee, out_fee);
         let out_fee_amount = out_amount
             .cast::<i64>()?
             .safe_mul(out_fee)?
@@ -183,6 +185,15 @@ impl LPPool {
         amount: i64,
         target_weight: i64,
     ) -> DriftResult<i64> {
+        // +4,976 CUs to log weight_before
+        let weight_before = constituent.get_weight(oracle.price, spot_market, 0, self.last_aum)?;
+        msg!(
+            "constituent {}: weight_before: {} target_weight: {}",
+            constituent.constituent_index,
+            weight_before,
+            target_weight
+        );
+
         let weight_after =
             constituent.get_weight(oracle.price, spot_market, amount, self.last_aum)?;
         msg!(
@@ -294,7 +305,7 @@ pub struct Constituent {
 }
 
 impl Size for Constituent {
-    const SIZE: usize = 184;
+    const SIZE: usize = 192;
 }
 
 impl Constituent {
@@ -367,7 +378,12 @@ impl Constituent {
         Ok(post_swap_weight
             .safe_mul(slope_numerator)?
             .safe_add(b)?
-            .safe_div(slope_denominator)?)
+            .safe_div(slope_denominator)?
+            .clamp(self.swap_fee_min, self.swap_fee_max))
+    }
+
+    pub fn sync_token_balance(&mut self, token_account_amount: u64) {
+        self.token_balance = token_account_amount;
     }
 }
 

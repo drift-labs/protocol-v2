@@ -8071,7 +8071,7 @@
             "docs": [
               "ata token balance in token precision"
             ],
-            "type": "u128"
+            "type": "u64"
           },
           {
             "name": "spotBalance",
@@ -8091,6 +8091,10 @@
             "type": "u64"
           },
           {
+            "name": "mint",
+            "type": "publicKey"
+          },
+          {
             "name": "oracleStalenessThreshold",
             "type": "u64"
           },
@@ -8102,10 +8106,6 @@
                 8
               ]
             }
-          },
-          {
-            "name": "mint",
-            "type": "publicKey"
           }
         ]
       }
@@ -12280,6 +12280,9 @@
           },
           {
             "name": "UpdateLpPoolAum"
+          },
+          {
+            "name": "LpPoolSwap"
           }
         ]
       }

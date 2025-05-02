@@ -71,6 +71,7 @@ pub enum DriftAction {
     OracleOrderPrice,
     UpdateDlpConstituentTargetWeights,
     UpdateLpPoolAum,
+    LpPoolSwap,
 }
 
 pub fn is_oracle_valid_for_action(
@@ -133,6 +134,12 @@ pub fn is_oracle_valid_for_action(
             DriftAction::UpdateDlpConstituentTargetWeights | DriftAction::UpdateLpPoolAum => {
                 !matches!(oracle_validity, OracleValidity::NonPositive)
             }
+            DriftAction::LpPoolSwap => !matches!(
+                oracle_validity,
+                OracleValidity::NonPositive
+                    | OracleValidity::StaleForAMM
+                    | OracleValidity::InsufficientDataPoints
+            ),
         },
         None => {
             matches!(oracle_validity, OracleValidity::Valid)

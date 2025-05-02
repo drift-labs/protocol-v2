@@ -174,20 +174,20 @@ describe('LP Pool', () => {
 			encodeName(lpPoolName),
 			0,
 			6,
-			PERCENTAGE_PRECISION.divn(1000), // min 1 bps
-			PERCENTAGE_PRECISION.divn(10000), // max 10 bps
-			PERCENTAGE_PRECISION.divn(100)
+			PERCENTAGE_PRECISION.divn(10), // 10% max dev
+			PERCENTAGE_PRECISION.divn(10000), // min fee 1 bps
+			PERCENTAGE_PRECISION.divn(100), // max 1%
+			new BN(100)
 		);
 		await adminClient.initializeConstituent(
 			encodeName(lpPoolName),
 			1,
 			6,
-			PERCENTAGE_PRECISION.divn(1000), // min 1 bps
-			PERCENTAGE_PRECISION.divn(10000), // max 10 bps
-			PERCENTAGE_PRECISION.divn(100)
+			PERCENTAGE_PRECISION.divn(10), // 10% max dev
+			PERCENTAGE_PRECISION.divn(10000), // min 1 bps
+			PERCENTAGE_PRECISION.divn(100), // max 1%
+			new BN(100)
 		);
-
-		//
 	});
 
 	after(async () => {
@@ -219,7 +219,7 @@ describe('LP Pool', () => {
 		}
 	});
 
-	it('crank aum', async () => {
+	it('lp pool swap', async () => {
 		let spotOracle = adminClient.getOracleDataForSpotMarket(1);
 		const price1 = convertToNumber(spotOracle.price);
 
@@ -245,7 +245,7 @@ describe('LP Pool', () => {
 		const const0Key = getConstituentPublicKey(program.programId, lpPoolKey, 0);
 		const const1Key = getConstituentPublicKey(program.programId, lpPoolKey, 1);
 
-		const c0TokenBalance = new BN(1_000_000_000);
+		const c0TokenBalance = new BN(224_300_000_000);
 		const c1TokenBalance = new BN(1_000_000_000);
 
 		await overWriteTokenAccountBalance(
@@ -269,7 +269,7 @@ describe('LP Pool', () => {
 			bankrunContextWrapper,
 			adminClient.program,
 			const1Key,
-			[['tokenBalance', c0TokenBalance]]
+			[['tokenBalance', c1TokenBalance]]
 		);
 
 		// check fields overwritten correctly
@@ -277,11 +277,13 @@ describe('LP Pool', () => {
 			const0Key
 		)) as ConstituentAccount;
 		expect(c0.tokenBalance.toString()).to.equal(c0TokenBalance.toString());
+		console.log('c0', c0);
 
 		const c1 = (await adminClient.program.account.constituent.fetch(
 			const1Key
 		)) as ConstituentAccount;
 		expect(c1.tokenBalance.toString()).to.equal(c1TokenBalance.toString());
+		console.log('c1', c1);
 
 		const prec = new BN(10).pow(new BN(tokenDecimals));
 		console.log(`const0 balance: ${convertToNumber(c0.tokenBalance, prec)}`);
@@ -313,7 +315,7 @@ describe('LP Pool', () => {
 		const c0UserTokenAccount = await mockAtaTokenAccountForMint(
 			bankrunContextWrapper,
 			usdcMint.publicKey,
-			new BN(1_000_000_000),
+			new BN(224_300_000_000),
 			adminAuth
 		);
 		const c1UserTokenAccount = await mockAtaTokenAccountForMint(
@@ -374,7 +376,7 @@ describe('LP Pool', () => {
 			outTokenBalanceAfter.amount - outTokenBalanceBefore.amount;
 
 		expect(Number(diffInToken)).to.be.equal(-224_300_000);
-		expect(Number(diffOutToken)).to.be.approximately(999800, 1);
+		expect(Number(diffOutToken)).to.be.approximately(980100, 1);
 
 		console.log(
 			`in Token:  ${inTokenBalanceBefore.amount} -> ${
