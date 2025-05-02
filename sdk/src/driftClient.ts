@@ -59,7 +59,8 @@ import {
 	ProtectedMakerModeConfig,
 	SignedMsgOrderParamsDelegateMessage,
 	AmmConstituentMapping,
-	LPPool,
+	AmmConstituentDatum,
+	LPPoolAccount,
 } from './types';
 import driftIDL from './idl/drift.json';
 
@@ -9738,7 +9739,7 @@ export class DriftClient {
 	}
 
 	public async updateDlpPoolAum(
-		lpPool: LPPool,
+		lpPool: LPPoolAccount,
 		spotMarketIndexOfConstituents: number[],
 		txParams?: TxParams
 	): Promise<TransactionSignature> {
@@ -9757,7 +9758,7 @@ export class DriftClient {
 	}
 
 	public async getUpdateDlpPoolAumIxs(
-		lpPool: LPPool,
+		lpPool: LPPoolAccount,
 		spotMarketIndexOfConstituents: number[]
 	): Promise<TransactionInstruction> {
 		const remainingAccounts = this.getRemainingAccounts({
@@ -9823,6 +9824,96 @@ export class DriftClient {
 		});
 	}
 
+	public async lpPoolSwap(
+		inMarketIndex: number,
+		outMarketIndex: number,
+		inAmount: BN,
+		minOutAmount: BN,
+		lpPool: PublicKey,
+		constituentTargetWeights: PublicKey,
+		constituentInTokenAccount: PublicKey,
+		constituentOutTokenAccount: PublicKey,
+		userInTokenAccount: PublicKey,
+		userOutTokenAccount: PublicKey,
+		inConstituent: PublicKey,
+		outConstituent: PublicKey,
+		inMarketMint: PublicKey,
+		outMarketMint: PublicKey,
+		txParams?: TxParams
+	): Promise<TransactionSignature> {
+		const { txSig } = await this.sendTransaction(
+			await this.buildTransaction(
+				await this.getLpPoolSwapIx(
+					inMarketIndex,
+					outMarketIndex,
+					inAmount,
+					minOutAmount,
+					lpPool,
+					constituentTargetWeights,
+					constituentInTokenAccount,
+					constituentOutTokenAccount,
+					userInTokenAccount,
+					userOutTokenAccount,
+					inConstituent,
+					outConstituent,
+					inMarketMint,
+					outMarketMint
+				),
+				txParams
+			),
+			[],
+			this.opts
+		);
+		return txSig;
+	}
+
+	public async getLpPoolSwapIx(
+		inMarketIndex: number,
+		outMarketIndex: number,
+		inAmount: BN,
+		minOutAmount: BN,
+		lpPool: PublicKey,
+		constituentTargetWeights: PublicKey,
+		constituentInTokenAccount: PublicKey,
+		constituentOutTokenAccount: PublicKey,
+		userInTokenAccount: PublicKey,
+		userOutTokenAccount: PublicKey,
+		inConstituent: PublicKey,
+		outConstituent: PublicKey,
+		inMarketMint: PublicKey,
+		outMarketMint: PublicKey
+	): Promise<TransactionInstruction> {
+		const remainingAccounts = this.getRemainingAccounts({
+			userAccounts: [],
+			writableSpotMarketIndexes: [inMarketIndex, outMarketIndex],
+		});
+
+		return this.program.instruction.lpPoolSwap(
+			inMarketIndex,
+			outMarketIndex,
+			inAmount,
+			minOutAmount,
+			{
+				remainingAccounts,
+				accounts: {
+					driftSigner: this.getSignerPublicKey(),
+					state: await this.getStatePublicKey(),
+					lpPool,
+					constituentTargetWeights,
+					constituentInTokenAccount,
+					constituentOutTokenAccount,
+					userInTokenAccount,
+					userOutTokenAccount,
+					inConstituent,
+					outConstituent,
+					inMarketMint,
+					outMarketMint,
+					authority: this.wallet.publicKey,
+					tokenProgram: TOKEN_PROGRAM_ID,
+				},
+			}
+		);
+	}
 	/**
 	 * Below here are the transaction sending functions
 	 */

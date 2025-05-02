@@ -7558,6 +7558,99 @@
         }
       ],
       "args": []
+    },
+    {
+      "name": "lpPoolSwap",
+      "accounts": [
+        {
+          "name": "driftSigner",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "lpPool",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "constituentTargetWeights",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "constituentInTokenAccount",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "constituentOutTokenAccount",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "userInTokenAccount",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "userOutTokenAccount",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "inConstituent",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "outConstituent",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "inMarketMint",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "outMarketMint",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "tokenProgram",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "inMarketIndex",
+          "type": "u16"
+        },
+        {
+          "name": "outMarketIndex",
+          "type": "u16"
+        },
+        {
+          "name": "inAmount",
+          "type": "u64"
+        },
+        {
+          "name": "minOutAmount",
+          "type": "u64"
+        }
+      ]
     }
   ],
   "accounts": [
@@ -8005,7 +8098,8 @@
           {
             "name": "spotMarketIndex",
             "docs": [
-              "underlying drift spot market index"
+              "underlying drift spot market index.",
+              "TODO: redundant with spot_balance.market_index"
             ],
             "type": "u16"
           },
@@ -8054,11 +8148,18 @@
             "type": "i64"
           },
           {
+            "name": "totalSwapFees",
+            "docs": [
+              "total fees received by the constituent. Positive = fees received, Negative = fees paid"
+            ],
+            "type": "i128"
+          },
+          {
             "name": "tokenBalance",
             "docs": [
               "ata token balance in token precision"
             ],
-            "type": "u128"
+            "type": "u64"
           },
           {
             "name": "spotBalance",
@@ -8076,6 +8177,10 @@
           {
             "name": "lastOracleSlot",
             "type": "u64"
+          },
+          {
+            "name": "mint",
+            "type": "publicKey"
           },
           {
             "name": "oracleStalenessThreshold",
@@ -12387,6 +12492,9 @@
           },
           {
             "name": "UpdateLpPoolAum"
+          },
+          {
+            "name": "LpPoolSwap"
           }
         ]
       }
@@ -14575,6 +14683,81 @@
           "index": false
         }
       ]
+    },
+    {
+      "name": "LPSwapRecord",
+      "fields": [
+        {
+          "name": "ts",
+          "type": "i64",
+          "index": false
+        },
+        {
+          "name": "authority",
+          "type": "publicKey",
+          "index": false
+        },
+        {
+          "name": "amountOut",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "amountIn",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "feeOut",
+          "type": "i64",
+          "index": false
+        },
+        {
+          "name": "feeIn",
+          "type": "i64",
+          "index": false
+        },
+        {
+          "name": "outSpotMarketIndex",
+          "type": "u16",
+          "index": false
+        },
+        {
+          "name": "inSpotMarketIndex",
+          "type": "u16",
+          "index": false
+        },
+        {
+          "name": "outConstituentIndex",
+          "type": "u16",
+          "index": false
+        },
+        {
+          "name": "inConstituentIndex",
+          "type": "u16",
+          "index": false
+        },
+        {
+          "name": "outOraclePrice",
+          "type": "i64",
+          "index": false
+        },
+        {
+          "name": "inOraclePrice",
+          "type": "i64",
+          "index": false
+        },
+        {
+          "name": "mintOut",
+          "type": "publicKey",
+          "index": false
+        },
+        {
+          "name": "mintIn",
+          "type": "publicKey",
+          "index": false
+        }
+      ]
     }
   ],
   "errors": [
@@ -16187,6 +16370,11 @@
       "code": 6321,
       "name": "OracleTooStaleForLPAUMUpdate",
       "msg": "Oracle too stale for LP AUM update"
+    },
+    {
+      "code": 6322,
+      "name": "InsufficientConstituentTokenBalance",
+      "msg": "Insufficient constituent token balance"
     }
   ],
   "metadata": {

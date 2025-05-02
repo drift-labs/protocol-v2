@@ -672,3 +672,34 @@ pub fn emit_buffers<T: AnchorSerialize + Discriminator>(
 
     Ok(())
 }
+
+#[event]
+#[derive(Default)]
+pub struct LPSwapRecord {
+    pub ts: i64,
+    pub authority: Pubkey,
+    /// precision: out market mint precision, gross fees
+    pub amount_out: u64,
+    /// precision: in market mint precision, gross fees
+    pub amount_in: u64,
+    /// precision: fee on amount_out, in market mint precision
+    pub fee_out: i64,
+    /// precision: fee on amount_in, out market mint precision
+    pub fee_in: i64,
+    // out spot market index
+    pub out_spot_market_index: u16,
+    // in spot market index
+    pub in_spot_market_index: u16,
+    // out constituent index
+    pub out_constituent_index: u16,
+    // in constituent index
+    pub in_constituent_index: u16,
+    /// precision: PRICE_PRECISION
+    pub out_oracle_price: i64,
+    /// precision: PRICE_PRECISION
+    pub in_oracle_price: i64,
+    /// out token mint
+    pub mint_out: Pubkey,
+    /// in token mint
+    pub mint_in: Pubkey,
+}
