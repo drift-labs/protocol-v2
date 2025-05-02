@@ -1542,7 +1542,7 @@ export type CacheInfo = {
 	oraclePrice: BN;
 	oracleDelay: BN;
 	oracleConfidence: BN;
-}
+};
 
 export type AmmCache = {
 	cache: CacheInfo[];

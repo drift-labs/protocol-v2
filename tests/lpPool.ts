@@ -472,20 +472,18 @@ describe('LP Pool', () => {
 		assert(ammMapping.weights.length === 2);
 	});
 
-	it('can crank amm positions into the cache', async () => {
-		let ammCache =
-			(await adminClient.program.account.ammCache.fetch(
-				getAmmCachePublicKey(program.programId)
-			)) as AmmCache;
-		
-		ammCache.cache.forEach((x) => console.log(x));
+	it('can crank amm info into the cache', async () => {
+		let ammCache = (await adminClient.program.account.ammCache.fetch(
+			getAmmCachePublicKey(program.programId)
+		)) as AmmCache;
 
 		await adminClient.updateAmmCache([0, 1, 2]);
-		ammCache =
-			(await adminClient.program.account.ammCache.fetch(
-				getAmmCachePublicKey(program.programId)
-			)) as AmmCache;
+		ammCache = (await adminClient.program.account.ammCache.fetch(
+			getAmmCachePublicKey(program.programId)
+		)) as AmmCache;
 		expect(ammCache).to.not.be.null;
 		assert(ammCache.cache.length == 3);
+		assert(ammCache.cache[0].oracle.equals(solUsd));
+		assert(ammCache.cache[0].oraclePrice.eq(new BN(224300000)));
 	});
 });

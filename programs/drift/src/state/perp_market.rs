@@ -1680,6 +1680,7 @@ pub const AMM_POSITIONS_CACHE: &str = "amm_positions_cache";
 #[derive(Debug)]
 #[repr(C)]
 pub struct AmmCache {
+    _padding: [u8; 4],
     pub cache: Vec<CacheInfo>,
 }
 
@@ -1687,7 +1688,6 @@ pub struct AmmCache {
 #[derive(AnchorSerialize, AnchorDeserialize, Debug)]
 #[repr(C)]
 pub struct CacheInfo {
-    pub oracle: Pubkey,
     /// BASE PRECISION
     pub position: i64,
     pub slot: u64,
@@ -1698,21 +1698,26 @@ pub struct CacheInfo {
     pub oracle_delay: i64,
     pub oracle_slot: u64,
     pub oracle_source: u64,
+    pub oracle: Pubkey,
+}
+
+impl Size for CacheInfo {
+    const SIZE: usize = 104;
 }
 
 impl Default for CacheInfo {
     fn default() -> Self {
         CacheInfo {
-            position: 0,
-            slot: 0,
-            max_confidence_interval_multiplier: 1,
-            oracle_price: 0,
-            oracle_confidence: 0,
-            oracle_delay: 0,
-            oracle_slot: 0,
+            position: 0i64,
+            slot: 0u64,
+            max_confidence_interval_multiplier: 1u64,
+            last_oracle_price_twap: 0i64,
+            oracle_price: 0i64,
+            oracle_confidence: 0u64,
+            oracle_delay: 0i64,
+            oracle_slot: 0u64,
+            oracle_source: 0u64,
             oracle: Pubkey::default(),
-            oracle_source: 0,
-            last_oracle_price_twap: 0,
         }
     }
 }
@@ -1732,8 +1737,8 @@ impl CacheInfo {
 #[derive(Default, Debug)]
 #[repr(C)]
 pub struct AmmCacheFixed {
+    _pad: [u8; 4],
     pub len: u32,
-    pub _pad: [u8; 4],
 }
 
 impl HasLen for AmmCacheFixed {
@@ -1744,7 +1749,7 @@ impl HasLen for AmmCacheFixed {
 
 impl AmmCache {
     pub fn space(num_markets: usize) -> usize {
-        8 + 8 + 4 + num_markets * 104
+        8 + 8 + 4 + num_markets * CacheInfo::SIZE
     }
 
     pub fn validate(&self, state: &State) -> DriftResult<()> {

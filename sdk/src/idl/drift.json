@@ -8099,6 +8099,15 @@
         "kind": "struct",
         "fields": [
           {
+            "name": "padding",
+            "type": {
+              "array": [
+                "u8",
+                4
+              ]
+            }
+          },
+          {
             "name": "weights",
             "type": {
               "vec": {
@@ -8114,6 +8123,15 @@
       "type": {
         "kind": "struct",
         "fields": [
+          {
+            "name": "padding",
+            "type": {
+              "array": [
+                "u8",
+                4
+              ]
+            }
+          },
           {
             "name": "weights",
             "type": {
@@ -8459,6 +8477,15 @@
       "type": {
         "kind": "struct",
         "fields": [
+          {
+            "name": "padding",
+            "type": {
+              "array": [
+                "u8",
+                4
+              ]
+            }
+          },
           {
             "name": "cache",
             "type": {
@@ -10148,10 +10175,6 @@
         "kind": "struct",
         "fields": [
           {
-            "name": "len",
-            "type": "u32"
-          },
-          {
             "name": "pad",
             "type": {
               "array": [
@@ -10159,6 +10182,10 @@
                 4
               ]
             }
+          },
+          {
+            "name": "len",
+            "type": "u32"
           }
         ]
       }
@@ -10185,20 +10212,20 @@
         "kind": "struct",
         "fields": [
           {
-            "name": "len",
+            "name": "pad",
             "docs": [
               "total elements in the flattened `data` vec"
             ],
-            "type": "u32"
-          },
-          {
-            "name": "pad",
             "type": {
               "array": [
                 "u8",
                 4
               ]
             }
+          },
+          {
+            "name": "len",
+            "type": "u32"
           }
         ]
       }
@@ -11369,10 +11396,6 @@
         "kind": "struct",
         "fields": [
           {
-            "name": "oracle",
-            "type": "publicKey"
-          },
-          {
             "name": "position",
             "docs": [
               "BASE PRECISION"
@@ -11410,6 +11433,10 @@
           {
             "name": "oracleSource",
             "type": "u64"
+          },
+          {
+            "name": "oracle",
+            "type": "publicKey"
           }
         ]
       }
@@ -11420,10 +11447,6 @@
         "kind": "struct",
         "fields": [
           {
-            "name": "len",
-            "type": "u32"
-          },
-          {
             "name": "pad",
             "type": {
               "array": [
@@ -11431,6 +11454,10 @@
                 4
               ]
             }
+          },
+          {
+            "name": "len",
+            "type": "u32"
           }
         ]
       }

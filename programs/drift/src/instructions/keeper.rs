@@ -2944,9 +2944,6 @@ pub fn handle_update_amm_cache<'c: 'info, 'info>(
             .historical_oracle_data
             .last_oracle_price_twap;
 
-        msg!("oracle_id = {:?}", perp_market.oracle_id());
-        msg!("cached_info.oracle_id = {:?}", cached_info);
-
         validate!(
             perp_market.oracle_id() == cached_info.oracle_id()?,
             ErrorCode::DefaultError,

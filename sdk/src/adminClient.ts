@@ -487,14 +487,11 @@ export class AdminClient extends DriftClient {
 	): Promise<TransactionSignature> {
 		const currentPerpMarketIndex = this.getStateAccount().numberOfMarkets;
 
-		const ammCachePublicKey = getAmmCachePublicKey(
-			this.program.programId
-		);
+		const ammCachePublicKey = getAmmCachePublicKey(this.program.programId);
 		const ammCacheAccount = await this.connection.getAccountInfo(
 			ammCachePublicKey
 		);
-		const mustInitializeAmmCache =
-			ammCacheAccount?.data == null;
+		const mustInitializeAmmCache = ammCacheAccount?.data == null;
 
 		const initializeMarketIxs = await this.getInitializePerpMarketIx(
 			marketIndex,
@@ -630,13 +627,9 @@ export class AdminClient extends DriftClient {
 	public async initializeAmmCache(
 		txParams?: TxParams
 	): Promise<TransactionSignature> {
-		const initializeAmmCacheIx =
-			await this.getInitializeAmmCacheIx();
+		const initializeAmmCacheIx = await this.getInitializeAmmCacheIx();
 
-		const tx = await this.buildTransaction(
-			initializeAmmCacheIx,
-			txParams
-		);
+		const tx = await this.buildTransaction(initializeAmmCacheIx, txParams);
 
 		const { txSig } = await this.sendTransaction(tx, [], this.opts);
 
@@ -661,15 +654,11 @@ export class AdminClient extends DriftClient {
 		perpMarketIndexes: number[],
 		txParams?: TxParams
 	): Promise<TransactionSignature> {
-		const initializeAmmCacheIx =
-			await this.getUpdateInitAmmCacheInfoIx(
-				perpMarketIndexes
-			);
-
-		const tx = await this.buildTransaction(
-			initializeAmmCacheIx,
-			txParams
+		const initializeAmmCacheIx = await this.getUpdateInitAmmCacheInfoIx(
+			perpMarketIndexes
 		);
+
+		const tx = await this.buildTransaction(initializeAmmCacheIx, txParams);
 
 		const { txSig } = await this.sendTransaction(tx, [], this.opts);
 
@@ -677,7 +666,7 @@ export class AdminClient extends DriftClient {
 	}
 
 	public async getUpdateInitAmmCacheInfoIx(
-		perpMarketIndexes: number[],
+		perpMarketIndexes: number[]
 	): Promise<TransactionInstruction> {
 		const remainingAccounts = this.getRemainingAccounts({
 			userAccounts: [],

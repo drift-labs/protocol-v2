@@ -4,10 +4,7 @@ use crate::{
     error::ErrorCode,
     math::{
         casting::Cast,
-        constants::{
-            PRICE_PRECISION_I128, QUOTE_PRECISION, QUOTE_PRECISION_I128, SPOT_BALANCE_PRECISION,
-            SPOT_WEIGHT_PRECISION_I128,
-        },
+        constants::PRICE_PRECISION_I128,
         oracle::{is_oracle_valid_for_action, oracle_validity, DriftAction},
         safe_math::SafeMath,
     },
