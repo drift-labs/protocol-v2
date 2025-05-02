@@ -63,7 +63,6 @@ export async function mockOracle(
 ): Promise<PublicKey> {
 	// default: create a $50 coin oracle
 	const program = anchor.workspace.Pyth;
-	console.log('111');
 
 	anchor.setProvider(
 		anchor.AnchorProvider.local(undefined, {
@@ -71,20 +70,17 @@ export async function mockOracle(
 			preflightCommitment: 'confirmed',
 		})
 	);
-	console.log('222');
 	const priceFeedAddress = await createPriceFeed({
 		oracleProgram: program,
 		initPrice: price,
 		expo: expo,
 		confidence,
 	});
-	console.log('333');
 
 	const feedData = await getFeedData(program, priceFeedAddress);
 	if (feedData.price !== price) {
 		console.log('mockOracle precision error:', feedData.price, '!=', price);
 	}
-	console.log('444');
 	assert.ok(Math.abs(feedData.price - price) < 1e-10);
 
 	return priceFeedAddress;
