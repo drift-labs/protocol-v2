@@ -111,6 +111,7 @@ import {
 	getAmmConstituentMappingPublicKey,
 	getLpPoolPublicKey,
 	getConstituentPublicKey,
+	getAmmCachePublicKey,
 } from './addresses/pda';
 import {
 	DataAndSlot,
@@ -9695,8 +9696,7 @@ export class DriftClient {
 			await this.buildTransaction(
 				await this.getUpdateDlpConstituentTargetWeightsIx(
 					lpPoolName,
-					constituentIndexesToUpdate,
-					ammConstituentMapping
+					constituentIndexesToUpdate
 				),
 				txParams
 			),
@@ -9708,8 +9708,7 @@ export class DriftClient {
 
 	public async getUpdateDlpConstituentTargetWeightsIx(
 		lpPoolName: number[],
-		constituentIndexesToUpdate: number[],
-		ammConstituentMapping: AmmConstituentMapping
+		constituentIndexesToUpdate: number[]
 	): Promise<TransactionInstruction> {
 		const lpPool = getLpPoolPublicKey(this.program.programId, lpPoolName);
 		const ammConstituentMappingPublicKey = getAmmConstituentMappingPublicKey(
@@ -9721,16 +9720,7 @@ export class DriftClient {
 			lpPool
 		);
 
-		const perpMarketIndexes = ammConstituentMapping.weights
-			.filter((datum: AmmConstituentDatum) => {
-				return constituentIndexesToUpdate.includes(datum.constituentIndex);
-			})
-			.map((datum: AmmConstituentDatum) => datum.perpMarketIndex);
-
-		const remainingAccounts = this.getRemainingAccounts({
-			readablePerpMarketIndex: perpMarketIndexes,
-			userAccounts: [],
-		});
+		const ammCache = getAmmCachePublicKey(this.program.programId);
 
 		return this.program.instruction.updateDlpConstituentTargetWeights(
 			lpPoolName,
@@ -9742,8 +9732,8 @@ export class DriftClient {
 					ammConstituentMapping: ammConstituentMappingPublicKey,
 					constituentTargetWeights,
 					state: await this.getStatePublicKey(),
+					ammCache,
 				},
-				remainingAccounts,
 			}
 		);
 	}
@@ -9793,6 +9783,42 @@ export class DriftClient {
 				keeper: this.wallet.publicKey,
 				lpPool: lpPool.pubkey,
 				state: await this.getStatePublicKey(),
+			},
+			remainingAccounts,
+		});
+	}
+
+	public async updateAmmCache(
+		perpMarketIndexes: number[],
+		txParams?: TxParams
+	): Promise<TransactionSignature> {
+		const { txSig } = await this.sendTransaction(
+			await this.buildTransaction(
+				await this.getUpdateAmmCacheIx(perpMarketIndexes),
+				txParams
+			),
+			[],
+			this.opts
+		);
+		return txSig;
+	}
+
+	public async getUpdateAmmCacheIx(
+		perpMarketIndexes: number[]
+	): Promise<TransactionInstruction> {
+		if (perpMarketIndexes.length > 50) {
+			throw new Error('Cant update more than 50 markets at once');
+		}
+
+		const remainingAccounts = this.getRemainingAccounts({
+			userAccounts: [],
+			readablePerpMarketIndex: perpMarketIndexes,
+		});
+
+		return this.program.instruction.updateAmmCache({
+			accounts: {
+				keeper: this.wallet.publicKey,
+				ammCache: getAmmCachePublicKey(this.program.programId),
 			},
 			remainingAccounts,
 		});

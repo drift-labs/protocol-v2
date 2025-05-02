@@ -1,7 +1,7 @@
 use crate::error::{DriftResult, ErrorCode};
 use crate::math::casting::Cast;
 use crate::math::constants::{
-    PERCENTAGE_PRECISION_I128, PERCENTAGE_PRECISION_I64, PRICE_PRECISION, PRICE_PRECISION_I64,
+    PERCENTAGE_PRECISION_I128, PERCENTAGE_PRECISION_I64, PRICE_PRECISION_I64,
 };
 use crate::math::safe_math::SafeMath;
 use crate::math::spot_balance::get_token_amount;
@@ -406,8 +406,8 @@ pub struct AmmConstituentDatum {
 #[derive(Debug, Default)]
 #[repr(C)]
 pub struct AmmConstituentMappingFixed {
-    pub len: u32,
     pub _pad: [u8; 4],
+    pub len: u32,
 }
 
 impl HasLen for AmmConstituentMappingFixed {
@@ -420,6 +420,7 @@ impl HasLen for AmmConstituentMappingFixed {
 #[derive(Debug)]
 #[repr(C)]
 pub struct AmmConstituentMapping {
+    _padding: [u8; 4],
     // PERCENTAGE_PRECISION. Each datum represents the target weight for a single (AMM, Constituent) pair.
     // An AMM may be partially backed by multiple Constituents
     pub weights: Vec<AmmConstituentDatum>,
@@ -460,8 +461,8 @@ pub struct WeightDatum {
 #[repr(C)]
 pub struct ConstituentTargetWeightsFixed {
     /// total elements in the flattened `data` vec
+    _pad: [u8; 4],
     pub len: u32,
-    pub _pad: [u8; 4],
 }
 
 impl HasLen for ConstituentTargetWeightsFixed {
@@ -474,6 +475,7 @@ impl HasLen for ConstituentTargetWeightsFixed {
 #[derive(Debug)]
 #[repr(C)]
 pub struct ConstituentTargetWeights {
+    _padding: [u8; 4],
     // PERCENTAGE_PRECISION. The weights of the target weight matrix. Updated async
     pub weights: Vec<WeightDatum>,
 }
@@ -503,6 +505,7 @@ impl_zero_copy_loader!(
 impl Default for ConstituentTargetWeights {
     fn default() -> Self {
         ConstituentTargetWeights {
+            _padding: [0; 4],
             weights: Vec::with_capacity(0),
         }
     }

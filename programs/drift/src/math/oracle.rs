@@ -234,7 +234,17 @@ pub fn oracle_validity(
         ..
     } = *oracle_price_data;
 
-    let is_oracle_price_nonpositive = oracle_price <= 0;
+    if oracle_price <= 0 {
+        // Return early so we dont panic with math errors later
+        if log_validity {
+            crate::msg!(
+                "Invalid {} {} Oracle: Non-positive (oracle_price <=0)",
+                market_type,
+                market_index
+            );
+        }
+        return Ok(OracleValidity::NonPositive);
+    }
 
     let is_oracle_price_too_volatile = (oracle_price.max(last_oracle_twap))
         .safe_div(last_oracle_twap.min(oracle_price).max(1))?
@@ -262,9 +272,7 @@ pub fn oracle_validity(
         oracle_delay.gt(&valid_oracle_guard_rails.slots_before_stale_for_margin)
     };
 
-    let oracle_validity = if is_oracle_price_nonpositive {
-        OracleValidity::NonPositive
-    } else if is_oracle_price_too_volatile {
+    let oracle_validity = if is_oracle_price_too_volatile {
         OracleValidity::TooVolatile
     } else if is_conf_too_large {
         OracleValidity::TooUncertain
@@ -282,14 +290,6 @@ pub fn oracle_validity(
         if !has_sufficient_number_of_data_points {
             crate::msg!(
                 "Invalid {} {} Oracle: Insufficient Data Points",
-                market_type,
-                market_index
-            );
-        }
-
-        if is_oracle_price_nonpositive {
-            crate::msg!(
-                "Invalid {} {} Oracle: Non-positive (oracle_price <=0)",
                 market_type,
                 market_index
             );

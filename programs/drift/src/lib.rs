@@ -970,6 +970,18 @@ pub mod drift {
         )
     }
 
+    pub fn initialize_amm_cache<'c: 'info, 'info>(
+        ctx: Context<'_, '_, 'c, 'info, InitializeAmmCache<'info>>,
+    ) -> Result<()> {
+        handle_initialize_amm_cache(ctx)
+    }
+
+    pub fn update_init_amm_cache_info<'c: 'info, 'info>(
+        ctx: Context<'_, '_, 'c, 'info, UpdateInitAmmCacheInfo<'info>>,
+    ) -> Result<()> {
+        handle_update_init_amm_cache_info(ctx)
+    }
+
     pub fn initialize_prediction_market<'c: 'info, 'info>(
         ctx: Context<'_, '_, 'c, 'info, AdminUpdatePerpMarket<'info>>,
     ) -> Result<()> {
@@ -1290,7 +1302,7 @@ pub mod drift {
     }
 
     pub fn update_perp_market_contract_tier(
-        ctx: Context<AdminUpdatePerpMarket>,
+        ctx: Context<AdminUpdatePerpMarketContractTier>,
         contract_tier: ContractTier,
     ) -> Result<()> {
         handle_update_perp_market_contract_tier(ctx, contract_tier)
@@ -1761,6 +1773,12 @@ pub mod drift {
         lp_pool_name: [u8; 32],
     ) -> Result<()> {
         handle_update_lp_pool_aum(ctx)
+    }
+
+    pub fn update_amm_cache<'c: 'info, 'info>(
+        ctx: Context<'_, '_, 'c, 'info, UpdateAmmCache<'info>>,
+    ) -> Result<()> {
+        handle_update_amm_cache(ctx)
     }
 
     pub fn lp_pool_swap<'c: 'info, 'info>(

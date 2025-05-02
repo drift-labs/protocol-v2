@@ -4218,6 +4218,11 @@
           "isSigner": false
         },
         {
+          "name": "ammCache",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
           "name": "oracle",
           "isMut": false,
           "isSigner": false
@@ -4344,6 +4349,58 @@
           }
         }
       ]
+    },
+    {
+      "name": "initializeAmmCache",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "ammCache",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "rent",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "systemProgram",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "updateInitAmmCacheInfo",
+      "accounts": [
+        {
+          "name": "state",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "ammCache",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": []
     },
     {
       "name": "initializePredictionMarket",
@@ -5609,6 +5666,11 @@
           "name": "perpMarket",
           "isMut": true,
           "isSigner": false
+        },
+        {
+          "name": "ammCache",
+          "isMut": true,
+          "isSigner": false
         }
       ],
       "args": [
@@ -6026,6 +6088,11 @@
         {
           "name": "oldOracle",
           "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "ammCache",
+          "isMut": true,
           "isSigner": false
         }
       ],
@@ -7417,6 +7484,11 @@
           "isSigner": false
         },
         {
+          "name": "ammCache",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
           "name": "lpPool",
           "isMut": false,
           "isSigner": false
@@ -7470,6 +7542,22 @@
           }
         }
       ]
+    },
+    {
+      "name": "updateAmmCache",
+      "accounts": [
+        {
+          "name": "keeper",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "ammCache",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": []
     },
     {
       "name": "lpPoolSwap",
@@ -8116,6 +8204,15 @@
         "kind": "struct",
         "fields": [
           {
+            "name": "padding",
+            "type": {
+              "array": [
+                "u8",
+                4
+              ]
+            }
+          },
+          {
             "name": "weights",
             "type": {
               "vec": {
@@ -8131,6 +8228,15 @@
       "type": {
         "kind": "struct",
         "fields": [
+          {
+            "name": "padding",
+            "type": {
+              "array": [
+                "u8",
+                4
+              ]
+            }
+          },
           {
             "name": "weights",
             "type": {
@@ -8466,6 +8572,31 @@
                 "u8",
                 36
               ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "AmmCache",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "padding",
+            "type": {
+              "array": [
+                "u8",
+                4
+              ]
+            }
+          },
+          {
+            "name": "cache",
+            "type": {
+              "vec": {
+                "defined": "CacheInfo"
+              }
             }
           }
         ]
@@ -10149,10 +10280,6 @@
         "kind": "struct",
         "fields": [
           {
-            "name": "len",
-            "type": "u32"
-          },
-          {
             "name": "pad",
             "type": {
               "array": [
@@ -10160,6 +10287,10 @@
                 4
               ]
             }
+          },
+          {
+            "name": "len",
+            "type": "u32"
           }
         ]
       }
@@ -10186,20 +10317,20 @@
         "kind": "struct",
         "fields": [
           {
-            "name": "len",
+            "name": "pad",
             "docs": [
               "total elements in the flattened `data` vec"
             ],
-            "type": "u32"
-          },
-          {
-            "name": "pad",
             "type": {
               "array": [
                 "u8",
                 4
               ]
             }
+          },
+          {
+            "name": "len",
+            "type": "u32"
           }
         ]
       }
@@ -11360,6 +11491,87 @@
                 12
               ]
             }
+          }
+        ]
+      }
+    },
+    {
+      "name": "CacheInfo",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "position",
+            "docs": [
+              "BASE PRECISION"
+            ],
+            "type": "i64"
+          },
+          {
+            "name": "slot",
+            "type": "u64"
+          },
+          {
+            "name": "maxConfidenceIntervalMultiplier",
+            "type": "u64"
+          },
+          {
+            "name": "lastOraclePriceTwap",
+            "type": "i64"
+          },
+          {
+            "name": "oraclePrice",
+            "type": "i64"
+          },
+          {
+            "name": "oracleConfidence",
+            "type": "u64"
+          },
+          {
+            "name": "oracleDelay",
+            "type": "i64"
+          },
+          {
+            "name": "oracleSlot",
+            "type": "u64"
+          },
+          {
+            "name": "oracle",
+            "type": "publicKey"
+          },
+          {
+            "name": "oracleSource",
+            "type": "u8"
+          },
+          {
+            "name": "padding",
+            "type": {
+              "array": [
+                "u8",
+                7
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "AmmCacheFixed",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "pad",
+            "type": {
+              "array": [
+                "u8",
+                4
+              ]
+            }
+          },
+          {
+            "name": "len",
+            "type": "u32"
           }
         ]
       }

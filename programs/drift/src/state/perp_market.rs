@@ -1,8 +1,10 @@
 use crate::state::pyth_lazer_oracle::PythLazerOracle;
+use crate::{impl_zero_copy_loader, validate};
 use anchor_lang::prelude::*;
 
 use crate::state::state::State;
 use std::cmp::max;
+use std::convert::TryFrom;
 
 use crate::controller::position::{PositionDelta, PositionDirection};
 use crate::error::{DriftResult, ErrorCode};
@@ -42,8 +44,10 @@ use crate::state::paused_operations::PerpOperation;
 use drift_macros::assert_no_slop;
 use static_assertions::const_assert_eq;
 
+use super::oracle::OraclePriceData;
 use super::oracle_map::OracleIdentifier;
 use super::protected_maker_mode_config::ProtectedMakerParams;
+use super::zero_copy::HasLen;
 
 #[cfg(test)]
 mod tests;
@@ -1669,3 +1673,95 @@ impl AMM {
         }
     }
 }
+
+pub const AMM_POSITIONS_CACHE: &str = "amm_positions_cache";
+
+#[account]
+#[derive(Debug)]
+#[repr(C)]
+pub struct AmmCache {
+    _padding: [u8; 4],
+    pub cache: Vec<CacheInfo>,
+}
+
+#[zero_copy]
+#[derive(AnchorSerialize, AnchorDeserialize, Debug)]
+#[repr(C)]
+pub struct CacheInfo {
+    /// BASE PRECISION
+    pub position: i64,
+    pub slot: u64,
+    pub max_confidence_interval_multiplier: u64,
+    pub last_oracle_price_twap: i64,
+    pub oracle_price: i64,
+    pub oracle_confidence: u64,
+    pub oracle_delay: i64,
+    pub oracle_slot: u64,
+    pub oracle: Pubkey,
+    pub oracle_source: u8,
+    _padding: [u8; 7],
+}
+
+impl Size for CacheInfo {
+    const SIZE: usize = 104;
+}
+
+impl Default for CacheInfo {
+    fn default() -> Self {
+        CacheInfo {
+            position: 0i64,
+            slot: 0u64,
+            max_confidence_interval_multiplier: 1u64,
+            last_oracle_price_twap: 0i64,
+            oracle_price: 0i64,
+            oracle_confidence: 0u64,
+            oracle_delay: 0i64,
+            oracle_slot: 0u64,
+            oracle: Pubkey::default(),
+            oracle_source: 0u8,
+            _padding: [0u8; 7],
+        }
+    }
+}
+
+impl CacheInfo {
+    pub fn get_oracle_source(&self) -> DriftResult<OracleSource> {
+        Ok(OracleSource::try_from(self.oracle_source)?)
+    }
+
+    pub fn oracle_id(&self) -> DriftResult<OracleIdentifier> {
+        let oracle_source = self.get_oracle_source()?;
+        Ok((self.oracle, oracle_source))
+    }
+}
+
+#[zero_copy]
+#[derive(Default, Debug)]
+#[repr(C)]
+pub struct AmmCacheFixed {
+    _pad: [u8; 4],
+    pub len: u32,
+}
+
+impl HasLen for AmmCacheFixed {
+    fn len(&self) -> u32 {
+        self.len
+    }
+}
+
+impl AmmCache {
+    pub fn space(num_markets: usize) -> usize {
+        8 + 8 + 4 + num_markets * CacheInfo::SIZE
+    }
+
+    pub fn validate(&self, state: &State) -> DriftResult<()> {
+        validate!(
+            self.cache.len() == state.number_of_markets as usize,
+            ErrorCode::DefaultError,
+            "Number of amm positions is different than number of markets"
+        )?;
+        Ok(())
+    }
+}
+
+impl_zero_copy_loader!(AmmCache, crate::id, AmmCacheFixed, CacheInfo);
