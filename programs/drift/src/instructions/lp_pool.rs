@@ -4,11 +4,8 @@ use crate::{
     error::ErrorCode,
     math::{
         casting::Cast,
-        constants::{
-            PRICE_PRECISION_I128, QUOTE_PRECISION, QUOTE_PRECISION_I128, SPOT_BALANCE_PRECISION,
-            SPOT_WEIGHT_PRECISION_I128,
-        },
-        oracle::{is_oracle_valid_for_action, DriftAction},
+        constants::PRICE_PRECISION_I128,
+        oracle::{is_oracle_valid_for_action, oracle_validity, DriftAction},
         safe_math::SafeMath,
     },
     msg,
@@ -18,6 +15,8 @@ use crate::{
             AmmConstituentDatum, AmmConstituentMappingFixed, LPPool, WeightValidationFlags,
             CONSTITUENT_PDA_SEED,
         },
+        oracle::OraclePriceData,
+        perp_market::{AmmCacheFixed, CacheInfo, AMM_POSITIONS_CACHE},
         perp_market_map::MarketSet,
         state::State,
         user::MarketType,
@@ -38,6 +37,9 @@ pub fn handle_update_constituent_target_weights<'c: 'info, 'info>(
     let state = &ctx.accounts.state;
     let mut constituent_target_weights = ctx.accounts.constituent_target_weights.load_zc_mut()?;
 
+    let amm_cache: AccountZeroCopy<'_, CacheInfo, AmmCacheFixed> =
+        ctx.accounts.amm_cache.load_zc()?;
+
     let num_constituents = constituent_target_weights.len();
     let exists_invalid_constituent_index = constituent_indexes
         .iter()
@@ -57,36 +59,29 @@ pub fn handle_update_constituent_target_weights<'c: 'info, 'info>(
         AmmConstituentMappingFixed,
     > = ctx.accounts.amm_constituent_mapping.load_zc()?;
 
-    let AccountMaps {
-        perp_market_map,
-        spot_market_map: _,
-        mut oracle_map,
-    } = load_maps(
-        &mut ctx.remaining_accounts.iter().peekable(),
-        &MarketSet::new(),
-        &MarketSet::new(),
-        slot,
-        Some(state.oracle_guard_rails),
-    )?;
-
     let mut amm_inventories: Vec<(u16, i64)> = vec![];
     let mut oracle_prices: Vec<i64> = vec![];
     for (_, datum) in amm_constituent_mapping.iter().enumerate() {
-        let perp_market = perp_market_map.get_ref(&datum.perp_market_index)?;
+        let cache_info = amm_cache.get(datum.perp_market_index as u32);
 
-        let oracle_data = oracle_map.get_price_data_and_validity(
+        let oracle_validity = oracle_validity(
             MarketType::Perp,
             datum.perp_market_index,
-            &perp_market.oracle_id(),
-            perp_market
-                .amm
-                .historical_oracle_data
-                .last_oracle_price_twap,
-            perp_market.get_max_confidence_interval_multiplier()?,
+            cache_info.last_oracle_price_twap,
+            &OraclePriceData {
+                price: cache_info.oracle_price,
+                confidence: cache_info.oracle_confidence,
+                delay: cache_info.oracle_delay,
+                has_sufficient_number_of_data_points: true,
+            },
+            &state.oracle_guard_rails.validity,
+            cache_info.max_confidence_interval_multiplier,
+            &cache_info.get_oracle_source()?,
+            true,
         )?;
 
         if !is_oracle_valid_for_action(
-            oracle_data.1,
+            oracle_validity,
             Some(DriftAction::UpdateDlpConstituentTargetWeights),
         )? {
             msg!("Oracle data for perp market {} and constituent index {} is invalid. Skipping update",
@@ -94,9 +89,13 @@ pub fn handle_update_constituent_target_weights<'c: 'info, 'info>(
             continue;
         }
 
-        let amm_inventory = perp_market.amm.get_protocol_owned_position()?;
-        amm_inventories.push((datum.perp_market_index, amm_inventory));
-        oracle_prices.push(oracle_data.0.price);
+        amm_inventories.push((datum.perp_market_index, cache_info.position));
+        oracle_prices.push(cache_info.oracle_price);
+    }
+
+    if amm_inventories.is_empty() {
+        msg!("No valid inventories found for constituent target weights update");
+        return Ok(());
     }
 
     constituent_target_weights.update_target_weights(
@@ -264,6 +263,13 @@ pub struct UpdateConstituentTargetWeights<'info> {
     )]
     /// CHECK: checked in ConstituentTargetWeightsZeroCopy checks
     pub constituent_target_weights: AccountInfo<'info>,
+    #[account(
+        mut,
+        seeds = [AMM_POSITIONS_CACHE.as_ref()],
+        bump,
+    )]
+    /// CHECK: checked in ConstituentTargetWeightsZeroCopy checks
+    pub amm_cache: AccountInfo<'info>,
     #[account(
         seeds = [b"lp_pool", lp_pool_name.as_ref()],
         bump,

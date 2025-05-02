@@ -40,8 +40,10 @@ use crate::state::fulfillment_params::serum::SerumFulfillmentParams;
 use crate::state::high_leverage_mode_config::HighLeverageModeConfig;
 use crate::state::insurance_fund_stake::InsuranceFundStake;
 use crate::state::oracle_map::OracleMap;
-use crate::state::order_params::{OrderParams, PlaceOrderOptions, SignedMsgOrderParamsMessage};
+use crate::state::order_params::{OrderParams, PlaceOrderOptions};
 use crate::state::paused_operations::{PerpOperation, SpotOperation};
+use crate::state::perp_market::CacheInfo;
+use crate::state::perp_market::AMM_POSITIONS_CACHE;
 use crate::state::perp_market::{ContractType, MarketStatus, PerpMarket};
 use crate::state::perp_market_map::{
     get_market_set_for_spot_positions, get_market_set_for_user_positions, get_market_set_from_list,
@@ -62,6 +64,8 @@ use crate::state::user::{
     MarginMode, MarketType, OrderStatus, OrderTriggerCondition, OrderType, User, UserStats,
 };
 use crate::state::user_map::{load_user_map, load_user_maps, UserMap, UserStatsMap};
+use crate::state::zero_copy::AccountZeroCopyMut;
+use crate::state::zero_copy::ZeroCopyLoader;
 use crate::validation::sig_verification::verify_and_decode_ed25519_msg;
 use crate::validation::user::{validate_user_deletion, validate_user_is_idle};
 use crate::{
@@ -2909,6 +2913,63 @@ pub fn handle_pause_spot_market_deposit_withdraw(
     spot_market.paused_operations = spot_market.paused_operations | SpotOperation::Withdraw as u8;
 
     Ok(())
+}
+
+pub fn handle_update_amm_cache<'c: 'info, 'info>(
+    ctx: Context<'_, '_, 'c, 'info, UpdateAmmCache<'info>>,
+) -> Result<()> {
+    let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
+    let mut amm_cache: AccountZeroCopyMut<'_, CacheInfo, _> =
+        ctx.accounts.amm_cache.load_zc_mut()?;
+    let AccountMaps {
+        perp_market_map,
+        spot_market_map: _,
+        mut oracle_map,
+    } = load_maps(
+        remaining_accounts_iter,
+        &MarketSet::new(),
+        &MarketSet::new(),
+        Clock::get()?.slot,
+        None,
+    )?;
+    let slot = Clock::get()?.slot;
+
+    for (_, perp_market_loader) in perp_market_map.0.iter() {
+        let perp_market = perp_market_loader.load()?;
+        let cached_info = amm_cache.get_mut(perp_market.market_index as u32);
+        cached_info.position = perp_market.amm.get_protocol_owned_position()?;
+        cached_info.slot = slot;
+        cached_info.last_oracle_price_twap = perp_market
+            .amm
+            .historical_oracle_data
+            .last_oracle_price_twap;
+
+        validate!(
+            perp_market.oracle_id() == cached_info.oracle_id()?,
+            ErrorCode::DefaultError,
+            "oracle id mismatch between amm cache and perp market"
+        )?;
+
+        let oracle_data = oracle_map.get_price_data(&perp_market.oracle_id())?;
+        cached_info.oracle_price = oracle_data.price;
+        cached_info.oracle_delay = oracle_data.delay;
+        cached_info.oracle_confidence = oracle_data.confidence;
+    }
+
+    Ok(())
+}
+
+#[derive(Accounts)]
+pub struct UpdateAmmCache<'info> {
+    #[account(mut)]
+    pub keeper: Signer<'info>,
+    #[account(
+        mut,
+        seeds = [AMM_POSITIONS_CACHE.as_ref()],
+        bump,
+    )]
+    /// CHECK: checked in AmmCacheZeroCopy checks
+    pub amm_cache: AccountInfo<'info>,
 }
 
 #[derive(Accounts)]

@@ -1531,3 +1531,19 @@ export type Constituent = {
 	lastOracleSlot: BN;
 	oracleStalenessThreshold: BN;
 };
+
+export type CacheInfo = {
+	slot: BN;
+	position: BN;
+	maxConfidenceIntervalMultiplier: BN;
+	lastOraclePriceTwap: BN;
+	oracle: PublicKey;
+	oracleSource: number;
+	oraclePrice: BN;
+	oracleDelay: BN;
+	oracleConfidence: BN;
+};
+
+export type AmmCache = {
+	cache: CacheInfo[];
+};
