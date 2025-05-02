@@ -12,22 +12,21 @@ use crate::{
     msg,
     state::{
         constituent_map::{ConstituentMap, ConstituentSet},
-        event::LPSwapRecord,
         lp_pool::{
-            AmmConstituentDatum, AmmConstituentMappingFixed, Constituent, LPPool, WeightValidationFlags,
-            CONSTITUENT_PDA_SEED,
+            AmmConstituentDatum, AmmConstituentMappingFixed, Constituent, LPPool,
+            WeightValidationFlags,
         },
         oracle::OraclePriceData,
         perp_market::{AmmCacheFixed, CacheInfo, AMM_POSITIONS_CACHE},
         perp_market_map::MarketSet,
-        state::State,
         spot_market_map::get_writable_spot_market_set_from_many,
+        state::State,
         user::MarketType,
         zero_copy::{AccountZeroCopy, ZeroCopyLoader},
+        events::LPSwapRecord,
     },
     validate,
 };
-use crate::validate;
 
 use solana_program::sysvar::clock::Clock;
 
