@@ -1697,8 +1697,9 @@ pub struct CacheInfo {
     pub oracle_confidence: u64,
     pub oracle_delay: i64,
     pub oracle_slot: u64,
-    pub oracle_source: u64,
     pub oracle: Pubkey,
+    pub oracle_source: u8,
+    _padding: [u8; 7],
 }
 
 impl Size for CacheInfo {
@@ -1716,8 +1717,9 @@ impl Default for CacheInfo {
             oracle_confidence: 0u64,
             oracle_delay: 0i64,
             oracle_slot: 0u64,
-            oracle_source: 0u64,
             oracle: Pubkey::default(),
+            oracle_source: 0u8,
+            _padding: [0u8; 7],
         }
     }
 }

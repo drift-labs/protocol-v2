@@ -1065,7 +1065,7 @@ pub fn handle_initialize_perp_market(
     current_market_info.slot = clock_slot;
 
     current_market_info.oracle = perp_market.amm.oracle;
-    current_market_info.oracle_source = u64::from(perp_market.amm.oracle_source);
+    current_market_info.oracle_source = u8::from(perp_market.amm.oracle_source);
     current_market_info.last_oracle_price_twap = perp_market
         .amm
         .historical_oracle_data
@@ -1119,7 +1119,7 @@ pub fn handle_update_init_amm_cache_info<'c: 'info, 'info>(
         let market_index = perp_market.market_index as usize;
         let cache = amm_cache.cache.get_mut(market_index).unwrap();
         cache.oracle = perp_market.amm.oracle;
-        cache.oracle_source = u64::from(perp_market.amm.oracle_source);
+        cache.oracle_source = u8::from(perp_market.amm.oracle_source);
         cache.last_oracle_price_twap = perp_market
             .amm
             .historical_oracle_data
@@ -3641,7 +3641,7 @@ pub fn handle_update_perp_market_oracle(
         .expect("value should exist for market index");
 
     amm_position_cache_info.oracle = oracle;
-    amm_position_cache_info.oracle_source = u64::from(oracle_source);
+    amm_position_cache_info.oracle_source = u8::from(oracle_source);
 
     Ok(())
 }

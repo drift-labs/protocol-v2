@@ -11431,12 +11431,21 @@
             "type": "u64"
           },
           {
-            "name": "oracleSource",
-            "type": "u64"
-          },
-          {
             "name": "oracle",
             "type": "publicKey"
+          },
+          {
+            "name": "oracleSource",
+            "type": "u8"
+          },
+          {
+            "name": "padding",
+            "type": {
+              "array": [
+                "u8",
+                7
+              ]
+            }
           }
         ]
       }

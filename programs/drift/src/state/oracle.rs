@@ -171,10 +171,10 @@ impl OracleSource {
     }
 }
 
-impl TryFrom<u64> for OracleSource {
+impl TryFrom<u8> for OracleSource {
     type Error = ErrorCode;
 
-    fn try_from(v: u64) -> DriftResult<Self> {
+    fn try_from(v: u8) -> DriftResult<Self> {
         match v {
             0 => Ok(OracleSource::Pyth),
             1 => Ok(OracleSource::Switchboard),
@@ -197,8 +197,8 @@ impl TryFrom<u64> for OracleSource {
     }
 }
 
-impl From<OracleSource> for u64 {
-    fn from(src: OracleSource) -> u64 {
+impl From<OracleSource> for u8 {
+    fn from(src: OracleSource) -> u8 {
         match src {
             OracleSource::Pyth => 0,
             OracleSource::Switchboard => 1,
