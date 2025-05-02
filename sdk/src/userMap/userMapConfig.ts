@@ -59,5 +59,8 @@ export type UserMapConfig = {
 	// Whether to throw an error if the userMap fails to sync. Defaults to true.
 	throwOnFailedSync?: boolean;
 
+	// Whether to filter users by poolId. Defaults to false (all users).
+	filterByPoolId?: number;
+
 	additionalFilters?: MemcmpFilter[];
 };

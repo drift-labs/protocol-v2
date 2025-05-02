@@ -635,6 +635,8 @@ pub enum ErrorCode {
     InvalidTransferPerpPosition,
     #[msg("Invalid SignedMsgUserOrders resize")]
     InvalidSignedMsgUserOrdersResize,
+    #[msg("Could not deserialize high leverage mode config")]
+    CouldNotDeserializeHighLeverageModeConfig,
     #[msg("Invalid Constituent")]
     InvalidConstituent,
     #[msg("Invalid Amm Constituent Mapping argument")]

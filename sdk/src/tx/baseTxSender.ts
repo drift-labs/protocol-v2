@@ -432,9 +432,6 @@ export abstract class BaseTxSender implements TxSender {
 
 	public getTxLandRate(): number {
 		if (!this.trackTxLandRate) {
-			console.warn(
-				'trackTxLandRate is false, returning default land rate of 0'
-			);
 			return this.txLandRate;
 		}
 		const keys = this.txSigCache.keys();
@@ -467,9 +464,6 @@ export abstract class BaseTxSender implements TxSender {
 
 	public getSuggestedPriorityFeeMultiplier(): number {
 		if (!this.trackTxLandRate) {
-			console.warn(
-				'trackTxLandRate is false, returning default multiplier of 1'
-			);
 			return 1;
 		}
 		return this.landRateToFeeFunc(this.getTxLandRate());

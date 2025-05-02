@@ -6,6 +6,7 @@ use anchor_lang::Discriminator;
 use anchor_spl::associated_token::get_associated_token_address_with_program_id;
 use anchor_spl::token_interface::{TokenAccount, TokenInterface};
 use solana_program::instruction::Instruction;
+use solana_program::pubkey;
 use solana_program::sysvar::instructions::{
     self, load_current_index_checked, load_instruction_at_checked, ID as IX_ID,
 };
@@ -81,6 +82,7 @@ use crate::math::margin::calculate_margin_requirement_and_total_collateral_and_l
 use crate::math::margin::MarginRequirementType;
 use crate::state::margin_calculation::MarginContext;
 
+use super::optional_accounts::get_high_leverage_mode_config;
 use super::optional_accounts::get_token_interface;
 
 #[access_control(
@@ -614,18 +616,21 @@ pub fn handle_place_signed_msg_taker_order<'c: 'info, 'info>(
 ) -> Result<()> {
     let state = &ctx.accounts.state;
 
+    let mut remaining_accounts = ctx.remaining_accounts.iter().peekable();
     // TODO: generalize to support multiple market types
     let AccountMaps {
         perp_market_map,
         spot_market_map,
         mut oracle_map,
     } = load_maps(
-        &mut ctx.remaining_accounts.iter().peekable(),
+        &mut remaining_accounts,
         &MarketSet::new(),
         &MarketSet::new(),
         Clock::get()?.slot,
         Some(state.oracle_guard_rails),
     )?;
+
+    let high_leverage_mode_config = get_high_leverage_mode_config(&mut remaining_accounts)?;
 
     let taker_key = ctx.accounts.user.key();
     let mut taker = load_mut!(ctx.accounts.user)?;
@@ -640,6 +645,7 @@ pub fn handle_place_signed_msg_taker_order<'c: 'info, 'info>(
         &perp_market_map,
         &spot_market_map,
         &mut oracle_map,
+        high_leverage_mode_config,
         state,
         is_delegate_signer,
     )?;
@@ -655,6 +661,7 @@ pub fn place_signed_msg_taker_order<'c: 'info, 'info>(
     perp_market_map: &PerpMarketMap,
     spot_market_map: &SpotMarketMap,
     oracle_map: &mut OracleMap,
+    high_leverage_mode_config: Option<AccountLoader<HighLeverageModeConfig>>,
     state: &State,
     is_delegate_signer: bool,
 ) -> Result<()> {
@@ -794,6 +801,7 @@ pub fn place_signed_msg_taker_order<'c: 'info, 'info>(
             perp_market_map,
             spot_market_map,
             oracle_map,
+            &None,
             clock,
             stop_loss_order,
             PlaceOrderOptions {
@@ -830,6 +838,7 @@ pub fn place_signed_msg_taker_order<'c: 'info, 'info>(
             perp_market_map,
             spot_market_map,
             oracle_map,
+            &None,
             clock,
             take_profit_order,
             PlaceOrderOptions {
@@ -849,7 +858,8 @@ pub fn place_signed_msg_taker_order<'c: 'info, 'info>(
         perp_market_map,
         spot_market_map,
         oracle_map,
-        clock,
+        &high_leverage_mode_config,
+        &clock,
         *matching_taker_order_params,
         PlaceOrderOptions {
             enforce_margin_check: true,
@@ -2708,6 +2718,15 @@ pub fn handle_force_delete_user<'c: 'info, 'info>(
             "only admin hot wallet can force delete user"
         )?;
     }
+
+    // Pyra accounts are exempt from force_delete_user
+
+    let pyra_program = pubkey!("6JjHXLheGSNvvexgzMthEcgjkcirDrGduc3HAKB2P1v2");
+    validate!(
+        *ctx.accounts.authority.owner != pyra_program,
+        ErrorCode::DefaultError,
+        "pyra accounts are exempt from force_delete_user"
+    )?;
 
     let state = &ctx.accounts.state;
 

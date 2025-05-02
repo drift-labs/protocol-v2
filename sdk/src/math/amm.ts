@@ -950,7 +950,7 @@ export function calculateSpreadReserves(
 	let referencePriceOffset = ZERO;
 	if (amm.curveUpdateIntensity > 100) {
 		maxOffset = Math.max(
-			amm.maxSpread / 5,
+			amm.maxSpread / 2,
 			(PERCENTAGE_PRECISION.toNumber() / 10000) *
 				(amm.curveUpdateIntensity - 100)
 		);

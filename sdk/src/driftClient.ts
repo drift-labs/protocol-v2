@@ -161,7 +161,7 @@ import {
 import { getNonIdleUserFilter } from './memcmp';
 import { UserStatsSubscriptionConfig } from './userStatsConfig';
 import { getMarinadeDepositIx, getMarinadeFinanceProgram } from './marinade';
-import { getOrderParams } from './orderParams';
+import { getOrderParams, isUpdateHighLeverageMode } from './orderParams';
 import { numberToSafeBN } from './math/utils';
 import { TransactionParamProcessor } from './tx/txParamProcessor';
 import { isOracleValid, trimVaaSignatures } from './math/oracles';
@@ -181,7 +181,7 @@ import { getFeedIdUint8Array, trimFeedId } from './util/pythOracleUtils';
 import { createMinimalEd25519VerifyIx } from './util/ed25519Utils';
 import { isVersionedTransaction } from './tx/utils';
 import pythSolanaReceiverIdl from './idl/pyth_solana_receiver.json';
-import { asV0Tx, PullFeed } from '@switchboard-xyz/on-demand';
+import { asV0Tx, PullFeed, AnchorUtils } from '@switchboard-xyz/on-demand';
 import { gprcDriftClientAccountSubscriber } from './accounts/grpcDriftClientAccountSubscriber';
 import nacl from 'tweetnacl';
 import { Slothash } from './slot/SlothashSubscriber';
@@ -4013,6 +4013,14 @@ export class DriftClient {
 				: undefined,
 		});
 
+		if (isUpdateHighLeverageMode(orderParams.bitFlags)) {
+			remainingAccounts.push({
+				pubkey: getHighLeverageModeConfigPublicKey(this.program.programId),
+				isWritable: true,
+				isSigner: false,
+			});
+		}
+
 		return await this.program.instruction.placePerpOrder(orderParams, {
 			accounts: {
 				state: await this.getStatePublicKey(),
@@ -6234,6 +6242,14 @@ export class DriftClient {
 			}
 		}
 
+		if (isUpdateHighLeverageMode(orderParams.bitFlags)) {
+			remainingAccounts.push({
+				pubkey: getHighLeverageModeConfigPublicKey(this.program.programId),
+				isWritable: true,
+				isSigner: false,
+			});
+		}
+
 		let optionalParams = null;
 		if (auctionDurationPercentage || successCondition) {
 			optionalParams =
@@ -6410,6 +6426,7 @@ export class DriftClient {
 		},
 		precedingIxs: TransactionInstruction[] = [],
 		overrideCustomIxIndex?: number,
+		includeHighLeverageModeConfig?: boolean,
 		txParams?: TxParams
 	): Promise<TransactionSignature> {
 		const ixs = await this.getPlaceSignedMsgTakerPerpOrderIxs(
@@ -6417,7 +6434,8 @@ export class DriftClient {
 			marketIndex,
 			takerInfo,
 			precedingIxs,
-			overrideCustomIxIndex
+			overrideCustomIxIndex,
+			includeHighLeverageModeConfig
 		);
 		const { txSig } = await this.sendTransaction(
 			await this.buildTransaction(ixs, txParams),
@@ -6437,13 +6455,22 @@ export class DriftClient {
 			signingAuthority: PublicKey;
 		},
 		precedingIxs: TransactionInstruction[] = [],
-		overrideCustomIxIndex?: number
+		overrideCustomIxIndex?: number,
+		includeHighLeverageModeConfig?: boolean
 	): Promise<TransactionInstruction[]> {
 		const remainingAccounts = this.getRemainingAccounts({
 			userAccounts: [takerInfo.takerUserAccount],
 			useMarketLastSlotCache: false,
 			readablePerpMarketIndex: marketIndex,
 		});
+
+		if (includeHighLeverageModeConfig) {
+			remainingAccounts.push({
+				pubkey: getHighLeverageModeConfigPublicKey(this.program.programId),
+				isWritable: true,
+				isSigner: false,
+			});
+		}
 
 		const messageLengthBuffer = Buffer.alloc(2);
 		messageLengthBuffer.writeUInt16LE(
@@ -6909,7 +6936,7 @@ export class DriftClient {
 	 * @param orderParams.auctionEndPrice:
 	 * @param orderParams.reduceOnly:
 	 * @param orderParams.postOnly:
-	 * @param orderParams.immediateOrCancel:
+	 * @param orderParams.bitFlags:
 	 * @param orderParams.policy:
 	 * @param orderParams.maxTs:
 	 * @returns
@@ -6928,7 +6955,7 @@ export class DriftClient {
 			auctionEndPrice?: BN;
 			reduceOnly?: boolean;
 			postOnly?: boolean;
-			immediateOrCancel?: boolean;
+			bitFlags?: number;
 			maxTs?: BN;
 			policy?: number;
 		},
@@ -6960,7 +6987,7 @@ export class DriftClient {
 			auctionEndPrice,
 			reduceOnly,
 			postOnly,
-			immediateOrCancel,
+			bitFlags,
 			maxTs,
 			policy,
 		}: {
@@ -6976,7 +7003,7 @@ export class DriftClient {
 			auctionEndPrice?: BN;
 			reduceOnly?: boolean;
 			postOnly?: boolean;
-			immediateOrCancel?: boolean;
+			bitFlags?: number;
 			maxTs?: BN;
 			policy?: number;
 		},
@@ -7001,8 +7028,7 @@ export class DriftClient {
 			auctionEndPrice: auctionEndPrice || null,
 			reduceOnly: reduceOnly != undefined ? reduceOnly : null,
 			postOnly: postOnly != undefined ? postOnly : null,
-			immediateOrCancel:
-				immediateOrCancel != undefined ? immediateOrCancel : null,
+			bitFlags: bitFlags != undefined ? bitFlags : null,
 			policy: policy || null,
 			maxTs: maxTs || null,
 		};
@@ -7031,7 +7057,7 @@ export class DriftClient {
 	 * @param orderParams.auctionEndPrice: Only required if order type changed to market from something else
 	 * @param orderParams.reduceOnly:
 	 * @param orderParams.postOnly:
-	 * @param orderParams.immediateOrCancel:
+	 * @param orderParams.bitFlags:
 	 * @param orderParams.policy:
 	 * @param orderParams.maxTs:
 	 * @returns
@@ -7050,7 +7076,7 @@ export class DriftClient {
 			auctionEndPrice?: BN;
 			reduceOnly?: boolean;
 			postOnly?: boolean;
-			immediateOrCancel?: boolean;
+			bitFlags?: number;
 			policy?: ModifyOrderPolicy;
 			maxTs?: BN;
 		},
@@ -7082,7 +7108,7 @@ export class DriftClient {
 			auctionEndPrice,
 			reduceOnly,
 			postOnly,
-			immediateOrCancel,
+			bitFlags,
 			maxTs,
 			policy,
 		}: {
@@ -7098,7 +7124,7 @@ export class DriftClient {
 			auctionEndPrice?: BN;
 			reduceOnly?: boolean;
 			postOnly?: boolean;
-			immediateOrCancel?: boolean;
+			bitFlags?: number;
 			policy?: ModifyOrderPolicy;
 			maxTs?: BN;
 			txParams?: TxParams;
@@ -7124,7 +7150,7 @@ export class DriftClient {
 			auctionEndPrice: auctionEndPrice || null,
 			reduceOnly: reduceOnly || false,
 			postOnly: postOnly || null,
-			immediateOrCancel: immediateOrCancel || false,
+			bitFlags: bitFlags || null,
 			policy: policy || null,
 			maxTs: maxTs || null,
 		};
@@ -7299,7 +7325,8 @@ export class DriftClient {
 		settleeUserAccount: UserAccount,
 		marketIndexes: number[],
 		mode: SettlePnlMode,
-		txParams?: TxParams
+		txParams?: TxParams,
+		optionalIxs?: TransactionInstruction[]
 	): Promise<TransactionSignature[]> {
 		// need multiple TXs because settling more than 4 markets won't fit in a single TX
 		const txsToSign: (Transaction | VersionedTransaction)[] = [];
@@ -7316,10 +7343,18 @@ export class DriftClient {
 				mode
 			);
 			const computeUnits = Math.min(300_000 * marketIndexes.length, 1_400_000);
-			const tx = await this.buildTransaction(ix, {
-				...txParams,
-				computeUnits,
-			});
+			const tx = await this.buildTransaction(
+				ix,
+				{
+					...txParams,
+					computeUnits,
+				},
+				undefined,
+				undefined,
+				undefined,
+				undefined,
+				optionalIxs
+			);
 			txsToSign.push(tx);
 		}
 
@@ -9061,12 +9096,10 @@ export class DriftClient {
 	}
 
 	public async getSwitchboardOnDemandProgram(): Promise<Program30<Idl30>> {
-		const idl = (await Program30.fetchIdl(
-			this.sbOnDemandProgramdId,
-			this.provider
-		))!;
 		if (this.sbOnDemandProgram === undefined) {
-			this.sbOnDemandProgram = new Program30(idl, this.provider);
+			this.sbOnDemandProgram = await AnchorUtils.loadProgramFromConnection(
+				this.connection
+			);
 		}
 		return this.sbOnDemandProgram;
 	}
@@ -9342,31 +9375,23 @@ export class DriftClient {
 		numSignatures = 3
 	): Promise<TransactionInstruction[] | undefined> {
 		const program = await this.getSwitchboardOnDemandProgram();
-		for (const feed of feeds) {
-			const feedAccount = new PullFeed(program, feed);
-			if (!this.sbProgramFeedConfigs) {
-				this.sbProgramFeedConfigs = new Map();
-			}
-			if (!this.sbProgramFeedConfigs.has(feedAccount.pubkey.toString())) {
-				const feedConfig = await feedAccount.loadConfigs();
-				this.sbProgramFeedConfigs.set(feed.toString(), feedConfig);
-			}
-		}
-
-		const [pullIxs, _responses, success] =
+		const [pullIxs, _luts, _rawResponse] =
 			await PullFeed.fetchUpdateManyLightIx(program, {
 				feeds,
 				numSignatures,
 				recentSlothashes: recentSlothash
 					? [[new BN(recentSlothash.slot), recentSlothash.hash]]
 					: undefined,
+				chain: 'solana',
+				network: this.env,
 			});
-		if (!success) {
+		if (!pullIxs) {
 			return undefined;
 		}
 		return pullIxs;
 	}
 
+	// @deprecated use getPostManySwitchboardOnDemandUpdatesAtomicIxs instead. This function no longer returns the required ixs due to upstream sdk changes.
 	public async getPostSwitchboardOnDemandUpdateAtomicIx(
 		feed: PublicKey,
 		recentSlothash?: Slothash,

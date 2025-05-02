@@ -1,5 +1,5 @@
 import { isOneOfVariant, isVariant, Order, PositionDirection } from '../types';
-import { BN, getVariant, ONE, ZERO } from '../.';
+import { BN, getVariant, ONE, OrderBitFlag, ZERO } from '../.';
 
 export function isAuctionComplete(order: Order, slot: number): boolean {
 	if (order.auctionDuration === 0) {
@@ -27,7 +27,9 @@ export function getAuctionPrice(
 	oraclePrice: BN
 ): BN {
 	if (
-		isOneOfVariant(order.orderType, ['market', 'triggerMarket', 'triggerLimit'])
+		isOneOfVariant(order.orderType, ['market', 'triggerLimit']) ||
+		(isVariant(order.orderType, 'triggerMarket') &&
+			(order.bitFlags & OrderBitFlag.OracleTriggerMarket) === 0)
 	) {
 		return getAuctionPriceForFixedAuction(order, slot);
 	} else if (isVariant(order.orderType, 'limit')) {
@@ -36,7 +38,11 @@ export function getAuctionPrice(
 		} else {
 			return getAuctionPriceForFixedAuction(order, slot);
 		}
-	} else if (isVariant(order.orderType, 'oracle')) {
+	} else if (
+		isVariant(order.orderType, 'oracle') ||
+		(isVariant(order.orderType, 'triggerMarket') &&
+			(order.bitFlags & OrderBitFlag.OracleTriggerMarket) !== 0)
+	) {
 		return getAuctionPriceForOracleOffsetAuction(order, slot, oraclePrice);
 	} else {
 		throw Error(

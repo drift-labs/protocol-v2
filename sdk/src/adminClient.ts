@@ -39,6 +39,7 @@ import {
 	getPythLazerOraclePublicKey,
 	getProtectedMakerModeConfigPublicKey,
 	getFuelOverflowAccountPublicKey,
+	getTokenProgramForSpotMarket,
 	getLpPoolPublicKey,
 	getAmmConstituentMappingPublicKey,
 	getConstituentTargetWeightsPublicKey,
@@ -3949,6 +3950,51 @@ export class AdminClient extends DriftClient {
 		);
 	}
 
+	public async updatePerpMarketProtectedMakerParams(
+		perpMarketIndex: number,
+		protectedMakerLimitPriceDivisor?: number,
+		protectedMakerDynamicDivisor?: number
+	): Promise<TransactionSignature> {
+		const updatePerpMarketProtectedMakerParamsIx =
+			await this.getUpdatePerpMarketProtectedMakerParamsIx(
+				perpMarketIndex,
+				protectedMakerLimitPriceDivisor || null,
+				protectedMakerDynamicDivisor || null
+			);
+
+		const tx = await this.buildTransaction(
+			updatePerpMarketProtectedMakerParamsIx
+		);
+		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+
+		return txSig;
+	}
+
+	public async getUpdatePerpMarketProtectedMakerParamsIx(
+		perpMarketIndex: number,
+		protectedMakerLimitPriceDivisor?: number,
+		protectedMakerDynamicDivisor?: number
+	): Promise<TransactionInstruction> {
+		const perpMarketPublicKey = await getPerpMarketPublicKey(
+			this.program.programId,
+			perpMarketIndex
+		);
+
+		return await this.program.instruction.updatePerpMarketProtectedMakerParams(
+			protectedMakerLimitPriceDivisor || null,
+			protectedMakerDynamicDivisor || null,
+			{
+				accounts: {
+					admin: this.isSubscribed
+						? this.getStateAccount().admin
+						: this.wallet.publicKey,
+					state: await this.getStatePublicKey(),
+					perpMarket: perpMarketPublicKey,
+				},
+			}
+		);
+	}
+
 	public async initUserFuel(
 		user: PublicKey,
 		authority: PublicKey,
@@ -4269,6 +4315,52 @@ export class AdminClient extends DriftClient {
 				},
 			}
 		);
+	}
+
+	public async adminDeposit(
+		marketIndex: number,
+		amount: BN,
+		depositUserAccount: PublicKey,
+		adminTokenAccount?: PublicKey
+	): Promise<TransactionSignature> {
+		const ix = await this.getAdminDepositIx(
+			marketIndex,
+			amount,
+			depositUserAccount,
+			adminTokenAccount
+		);
+		const tx = await this.buildTransaction(ix);
+		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+		return txSig;
+	}
+
+	public async getAdminDepositIx(
+		marketIndex: number,
+		amount: BN,
+		depositUserAccount: PublicKey,
+		adminTokenAccount?: PublicKey
+	): Promise<TransactionInstruction> {
+		const state = await this.getStatePublicKey();
+		const spotMarket = this.getSpotMarketAccount(marketIndex);
+
+		const remainingAccounts = this.getRemainingAccounts({
+			userAccounts: [],
+			writableSpotMarketIndexes: [marketIndex],
+		});
+		this.addTokenMintToRemainingAccounts(spotMarket, remainingAccounts);
+		return this.program.instruction.adminDeposit(marketIndex, amount, {
+			remainingAccounts,
+			accounts: {
+				state,
+				user: depositUserAccount,
+				admin: this.wallet.publicKey,
+				spotMarketVault: spotMarket.vault,
+				adminTokenAccount:
+					adminTokenAccount ??
+					(await this.getAssociatedTokenAccount(marketIndex)),
+				tokenProgram: getTokenProgramForSpotMarket(spotMarket),
+			},
+		});
 	}
 
 	public async initializeLpPool(

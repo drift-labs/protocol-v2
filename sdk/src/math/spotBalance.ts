@@ -14,6 +14,7 @@ import {
 	SPOT_MARKET_WEIGHT_PRECISION,
 	ONE_YEAR,
 	AMM_RESERVE_PRECISION,
+	QUOTE_SPOT_MARKET_INDEX,
 } from '../constants/numericConstants';
 import {
 	calculateSizeDiscountAssetWeight,
@@ -642,4 +643,85 @@ export function calculateWithdrawLimit(
 		currentDepositAmount: marketDepositTokenAmount,
 		currentBorrowAmount: marketBorrowTokenAmount,
 	};
+}
+
+export function getSpotAssetValue(
+	tokenAmount: BN,
+	strictOraclePrice: StrictOraclePrice,
+	spotMarketAccount: SpotMarketAccount,
+	maxMarginRatio: number,
+	marginCategory?: MarginCategory
+): BN {
+	let assetValue = getStrictTokenValue(
+		tokenAmount,
+		spotMarketAccount.decimals,
+		strictOraclePrice
+	);
+
+	if (marginCategory !== undefined) {
+		let weight = calculateAssetWeight(
+			tokenAmount,
+			strictOraclePrice.current,
+			spotMarketAccount,
+			marginCategory
+		);
+
+		if (
+			marginCategory === 'Initial' &&
+			spotMarketAccount.marketIndex !== QUOTE_SPOT_MARKET_INDEX
+		) {
+			const userCustomAssetWeight = BN.max(
+				ZERO,
+				SPOT_MARKET_WEIGHT_PRECISION.subn(maxMarginRatio)
+			);
+			weight = BN.min(weight, userCustomAssetWeight);
+		}
+
+		assetValue = assetValue.mul(weight).div(SPOT_MARKET_WEIGHT_PRECISION);
+	}
+
+	return assetValue;
+}
+
+export function getSpotLiabilityValue(
+	tokenAmount: BN,
+	strictOraclePrice: StrictOraclePrice,
+	spotMarketAccount: SpotMarketAccount,
+	maxMarginRatio: number,
+	marginCategory?: MarginCategory,
+	liquidationBuffer?: BN
+): BN {
+	let liabilityValue = getStrictTokenValue(
+		tokenAmount,
+		spotMarketAccount.decimals,
+		strictOraclePrice
+	);
+
+	if (marginCategory !== undefined) {
+		let weight = calculateLiabilityWeight(
+			tokenAmount,
+			spotMarketAccount,
+			marginCategory
+		);
+
+		if (
+			marginCategory === 'Initial' &&
+			spotMarketAccount.marketIndex !== QUOTE_SPOT_MARKET_INDEX
+		) {
+			weight = BN.max(
+				weight,
+				SPOT_MARKET_WEIGHT_PRECISION.addn(maxMarginRatio)
+			);
+		}
+
+		if (liquidationBuffer !== undefined) {
+			weight = weight.add(liquidationBuffer);
+		}
+
+		liabilityValue = liabilityValue
+			.mul(weight)
+			.div(SPOT_MARKET_WEIGHT_PRECISION);
+	}
+
+	return liabilityValue;
 }

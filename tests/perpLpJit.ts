@@ -445,7 +445,7 @@ describe('lp jit', () => {
 			price: new BN(1.011 * PRICE_PRECISION.toNumber()),
 			userOrderId: 1,
 			postOnly: PostOnlyParams.MUST_POST_ONLY,
-			immediateOrCancel: true,
+			bitFlags: true,
 		});
 
 		const txSig = await poorDriftClient.placeAndMakePerpOrder(
@@ -634,7 +634,7 @@ describe('lp jit', () => {
 			price: new BN(1.011 * PRICE_PRECISION.toNumber()),
 			userOrderId: 1,
 			postOnly: PostOnlyParams.MUST_POST_ONLY,
-			immediateOrCancel: true,
+			bitFlags: true,
 		});
 
 		const txSig = await poorDriftClient.placeAndMakePerpOrder(
@@ -840,7 +840,7 @@ describe('lp jit', () => {
 				price: new BN(1.011 * PRICE_PRECISION.toNumber()),
 				userOrderId: 1,
 				postOnly: PostOnlyParams.MUST_POST_ONLY,
-				immediateOrCancel: true,
+				bitFlags: true,
 			});
 			// console.log('maker:', makerOrderParams);
 
@@ -1063,7 +1063,7 @@ describe('lp jit', () => {
 			price: new BN(26488.88 * PRICE_PRECISION.toNumber()),
 			userOrderId: 1,
 			postOnly: PostOnlyParams.MUST_POST_ONLY,
-			immediateOrCancel: true,
+			bitFlags: true,
 		});
 
 		[bid, ask] = calculateBidAskPrice(
@@ -1158,7 +1158,7 @@ describe('lp jit', () => {
 			price: new BN(26488.88 * PRICE_PRECISION.toNumber()),
 			userOrderId: 1,
 			postOnly: PostOnlyParams.MUST_POST_ONLY,
-			immediateOrCancel: true,
+			bitFlags: true,
 		});
 
 		[bid, ask] = calculateBidAskPrice(

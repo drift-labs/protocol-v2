@@ -394,9 +394,9 @@ mod test {
         let max_ref_offset = market.amm.get_max_reference_price_offset().unwrap();
         assert_eq!(max_ref_offset, 10000); // 100 bps
 
-        market.amm.max_spread = 10000 * 10; // 10%
+        market.amm.max_spread = 10000 * 5; // 5%
         let max_ref_offset = market.amm.get_max_reference_price_offset().unwrap();
-        assert_eq!(max_ref_offset, 20000); // 200 bps (5% of max spread)
+        assert_eq!(max_ref_offset, 25000); // 250 bps (5% of max spread)
 
         let orig_price = calculate_price(
             amm.quote_asset_reserve,
