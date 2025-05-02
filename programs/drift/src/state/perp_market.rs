@@ -4,6 +4,7 @@ use anchor_lang::prelude::*;
 
 use crate::state::state::State;
 use std::cmp::max;
+use std::convert::TryFrom;
 
 use crate::controller::position::{PositionDelta, PositionDirection};
 use crate::error::{DriftResult, ErrorCode};
@@ -43,6 +44,7 @@ use crate::state::paused_operations::PerpOperation;
 use drift_macros::assert_no_slop;
 use static_assertions::const_assert_eq;
 
+use super::oracle::OraclePriceData;
 use super::oracle_map::OracleIdentifier;
 use super::protected_maker_mode_config::ProtectedMakerParams;
 use super::zero_copy::HasLen;
@@ -1677,50 +1679,77 @@ pub const AMM_POSITIONS_CACHE: &str = "amm_positions_cache";
 #[account]
 #[derive(Debug)]
 #[repr(C)]
-pub struct AmmPositionsCache {
-    pub amm_positions: Vec<PositionCacheInfo>,
+pub struct AmmCache {
+    pub cache: Vec<CacheInfo>,
 }
 
 #[zero_copy]
 #[derive(AnchorSerialize, AnchorDeserialize, Debug)]
 #[repr(C)]
-pub struct PositionCacheInfo {
+pub struct CacheInfo {
+    pub oracle: Pubkey,
     /// BASE PRECISION
     pub position: i64,
     pub slot: u64,
+    pub max_confidence_interval_multiplier: u64,
+    pub last_oracle_price_twap: i64,
+    pub oracle_price: i64,
+    pub oracle_confidence: u64,
+    pub oracle_delay: i64,
+    pub oracle_slot: u64,
+    pub oracle_source: u64,
 }
 
-impl Default for PositionCacheInfo {
+impl Default for CacheInfo {
     fn default() -> Self {
-        PositionCacheInfo {
+        CacheInfo {
             position: 0,
             slot: 0,
+            max_confidence_interval_multiplier: 1,
+            oracle_price: 0,
+            oracle_confidence: 0,
+            oracle_delay: 0,
+            oracle_slot: 0,
+            oracle: Pubkey::default(),
+            oracle_source: 0,
+            last_oracle_price_twap: 0,
         }
+    }
+}
+
+impl CacheInfo {
+    pub fn get_oracle_source(&self) -> DriftResult<OracleSource> {
+        Ok(OracleSource::try_from(self.oracle_source)?)
+    }
+
+    pub fn oracle_id(&self) -> DriftResult<OracleIdentifier> {
+        let oracle_source = self.get_oracle_source()?;
+        Ok((self.oracle, oracle_source))
     }
 }
 
 #[zero_copy]
 #[derive(Default, Debug)]
 #[repr(C)]
-pub struct AmmPositionsCacheFixed {
+pub struct AmmCacheFixed {
     pub len: u32,
     pub _pad: [u8; 4],
 }
 
-impl HasLen for AmmPositionsCacheFixed {
+impl HasLen for AmmCacheFixed {
     fn len(&self) -> u32 {
         self.len
     }
 }
 
-impl AmmPositionsCache {
-    pub fn space(num_constituents: usize) -> usize {
-        8 + 8 + 4 + num_constituents * 16
+impl AmmCache {
+    pub fn space(num_markets: usize) -> usize {
+        8 + 8 + 4 + num_markets * 104
     }
 
     pub fn validate(&self, state: &State) -> DriftResult<()> {
         validate!(
-            self.amm_positions.len() == state.number_of_markets as usize,
+            self.cache.len() == state.number_of_markets as usize,
             ErrorCode::DefaultError,
             "Number of amm positions is different than number of markets"
         )?;
@@ -1728,9 +1757,4 @@ impl AmmPositionsCache {
     }
 }
 
-impl_zero_copy_loader!(
-    AmmPositionsCache,
-    crate::id,
-    AmmPositionsCacheFixed,
-    PositionCacheInfo
-);
+impl_zero_copy_loader!(AmmCache, crate::id, AmmCacheFixed, CacheInfo);

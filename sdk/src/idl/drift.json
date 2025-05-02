@@ -4218,7 +4218,7 @@
           "isSigner": false
         },
         {
-          "name": "ammPositionsCache",
+          "name": "ammCache",
           "isMut": true,
           "isSigner": false
         },
@@ -4351,7 +4351,7 @@
       ]
     },
     {
-      "name": "initializeAmmPositionsCache",
+      "name": "initializeAmmCache",
       "accounts": [
         {
           "name": "admin",
@@ -4360,11 +4360,11 @@
         },
         {
           "name": "state",
-          "isMut": true,
+          "isMut": false,
           "isSigner": false
         },
         {
-          "name": "ammPositionsCache",
+          "name": "ammCache",
           "isMut": true,
           "isSigner": false
         },
@@ -4376,6 +4376,27 @@
         {
           "name": "systemProgram",
           "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "updateInitAmmCacheInfo",
+      "accounts": [
+        {
+          "name": "state",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "ammCache",
+          "isMut": true,
           "isSigner": false
         }
       ],
@@ -5645,6 +5666,11 @@
           "name": "perpMarket",
           "isMut": true,
           "isSigner": false
+        },
+        {
+          "name": "ammCache",
+          "isMut": true,
+          "isSigner": false
         }
       ],
       "args": [
@@ -6062,6 +6088,11 @@
         {
           "name": "oldOracle",
           "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "ammCache",
+          "isMut": true,
           "isSigner": false
         }
       ],
@@ -7453,6 +7484,11 @@
           "isSigner": false
         },
         {
+          "name": "ammCache",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
           "name": "lpPool",
           "isMut": false,
           "isSigner": false
@@ -7508,7 +7544,7 @@
       ]
     },
     {
-      "name": "updateAmmPositionsCache",
+      "name": "updateAmmCache",
       "accounts": [
         {
           "name": "keeper",
@@ -7516,7 +7552,7 @@
           "isSigner": true
         },
         {
-          "name": "ammPositionsCache",
+          "name": "ammCache",
           "isMut": true,
           "isSigner": false
         }
@@ -8419,15 +8455,15 @@
       }
     },
     {
-      "name": "AmmPositionsCache",
+      "name": "AmmCache",
       "type": {
         "kind": "struct",
         "fields": [
           {
-            "name": "ammPositions",
+            "name": "cache",
             "type": {
               "vec": {
-                "defined": "PositionCacheInfo"
+                "defined": "CacheInfo"
               }
             }
           }
@@ -11328,10 +11364,14 @@
       }
     },
     {
-      "name": "PositionCacheInfo",
+      "name": "CacheInfo",
       "type": {
         "kind": "struct",
         "fields": [
+          {
+            "name": "oracle",
+            "type": "publicKey"
+          },
           {
             "name": "position",
             "docs": [
@@ -11342,12 +11382,40 @@
           {
             "name": "slot",
             "type": "u64"
+          },
+          {
+            "name": "maxConfidenceIntervalMultiplier",
+            "type": "u64"
+          },
+          {
+            "name": "lastOraclePriceTwap",
+            "type": "i64"
+          },
+          {
+            "name": "oraclePrice",
+            "type": "i64"
+          },
+          {
+            "name": "oracleConfidence",
+            "type": "u64"
+          },
+          {
+            "name": "oracleDelay",
+            "type": "i64"
+          },
+          {
+            "name": "oracleSlot",
+            "type": "u64"
+          },
+          {
+            "name": "oracleSource",
+            "type": "u64"
           }
         ]
       }
     },
     {
-      "name": "AmmPositionsCacheFixed",
+      "name": "AmmCacheFixed",
       "type": {
         "kind": "struct",
         "fields": [

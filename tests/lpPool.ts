@@ -24,8 +24,8 @@ import {
 	OracleSource,
 	SPOT_MARKET_WEIGHT_PRECISION,
 	SPOT_MARKET_RATE_PRECISION,
-	getAmmPositionsCachePublicKey,
-	AmmPositionsCache,
+	getAmmCachePublicKey,
+	AmmCache,
 } from '../sdk/src';
 
 import {
@@ -473,12 +473,19 @@ describe('LP Pool', () => {
 	});
 
 	it('can crank amm positions into the cache', async () => {
-		await adminClient.updateAmmPositionsCache([0, 1, 2]);
-		const ammPositionsCache =
-			(await adminClient.program.account.ammPositionsCache.fetch(
-				getAmmPositionsCachePublicKey(program.programId)
-			)) as AmmPositionsCache;
-		expect(ammPositionsCache).to.not.be.null;
-		assert(ammPositionsCache.ammPositions.length == 3);
+		let ammCache =
+			(await adminClient.program.account.ammCache.fetch(
+				getAmmCachePublicKey(program.programId)
+			)) as AmmCache;
+		
+		ammCache.cache.forEach((x) => console.log(x));
+
+		await adminClient.updateAmmCache([0, 1, 2]);
+		ammCache =
+			(await adminClient.program.account.ammCache.fetch(
+				getAmmCachePublicKey(program.programId)
+			)) as AmmCache;
+		expect(ammCache).to.not.be.null;
+		assert(ammCache.cache.length == 3);
 	});
 });

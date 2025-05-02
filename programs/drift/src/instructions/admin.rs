@@ -57,10 +57,10 @@ use crate::state::oracle::{
 use crate::state::oracle_map::OracleMap;
 use crate::state::paused_operations::{InsuranceFundOperation, PerpOperation, SpotOperation};
 use crate::state::perp_market::{
-    AmmPositionsCache, ContractTier, ContractType, InsuranceClaim, MarketStatus, PerpMarket,
-    PoolBalance, PositionCacheInfo, AMM, AMM_POSITIONS_CACHE,
+    AmmCache, CacheInfo, ContractTier, ContractType, InsuranceClaim, MarketStatus, PerpMarket,
+    PoolBalance, AMM, AMM_POSITIONS_CACHE,
 };
-use crate::state::perp_market_map::get_writable_perp_market_set;
+use crate::state::perp_market_map::{get_writable_perp_market_set, MarketSet};
 use crate::state::protected_maker_mode_config::ProtectedMakerModeConfig;
 use crate::state::pyth_lazer_oracle::{PythLazerOracle, PYTH_LAZER_ORACLE_SEED};
 use crate::state::spot_market::{
@@ -1056,13 +1056,21 @@ pub fn handle_initialize_perp_market(
 
     safe_increment!(state.number_of_markets, 1);
 
-    let amm_positions_cache = &mut ctx.accounts.amm_positions_cache;
-    let current_len = amm_positions_cache.amm_positions.len();
-    amm_positions_cache
-        .amm_positions
-        .resize_with(current_len + 1, PositionCacheInfo::default);
-    amm_positions_cache.amm_positions.last_mut().unwrap().slot = clock_slot;
-    amm_positions_cache.validate(state)?;
+    let amm_cache = &mut ctx.accounts.amm_cache;
+    let current_len = amm_cache.cache.len();
+    amm_cache
+        .cache
+        .resize_with(current_len + 1, CacheInfo::default);
+    let current_market_info = amm_cache.cache.get_mut(current_len).unwrap();
+    current_market_info.slot = clock_slot;
+
+    current_market_info.oracle = perp_market.amm.oracle;
+    current_market_info.oracle_source = u64::from(perp_market.amm.oracle_source);
+    current_market_info.last_oracle_price_twap = perp_market
+        .amm
+        .historical_oracle_data
+        .last_oracle_price_twap;
+    amm_cache.validate(state)?;
 
     controller::amm::update_concentration_coef(perp_market, concentration_coef_scale)?;
     crate::dlog!(oracle_price);
@@ -1079,14 +1087,44 @@ pub fn handle_initialize_perp_market(
     Ok(())
 }
 
-pub fn handle_initialize_amm_positions_cache(
-    ctx: Context<InitializeAmmPositionsCache>,
-) -> Result<()> {
-    let amm_positions_cache = &mut ctx.accounts.amm_positions_cache;
+pub fn handle_initialize_amm_cache(ctx: Context<InitializeAmmCache>) -> Result<()> {
+    let amm_cache = &mut ctx.accounts.amm_cache;
     let state = &ctx.accounts.state;
-    amm_positions_cache
-        .amm_positions
-        .resize_with(state.number_of_markets as usize, PositionCacheInfo::default);
+    amm_cache
+        .cache
+        .resize_with(state.number_of_markets as usize, CacheInfo::default);
+
+    Ok(())
+}
+
+pub fn handle_update_init_amm_cache_info<'c: 'info, 'info>(
+    ctx: Context<'_, '_, 'c, 'info, UpdateInitAmmCacheInfo<'info>>,
+) -> Result<()> {
+    let amm_cache = &mut ctx.accounts.amm_cache;
+
+    let AccountMaps {
+        perp_market_map,
+        spot_market_map: _,
+        oracle_map: _,
+    } = load_maps(
+        &mut ctx.remaining_accounts.iter().peekable(),
+        &MarketSet::new(),
+        &MarketSet::new(),
+        Clock::get()?.slot,
+        None,
+    )?;
+
+    for (_, perp_market_loader) in perp_market_map.0 {
+        let perp_market = perp_market_loader.load()?;
+        let market_index = perp_market.market_index as usize;
+        let cache = amm_cache.cache.get_mut(market_index).unwrap();
+        cache.oracle = perp_market.amm.oracle;
+        cache.oracle_source = u64::from(perp_market.amm.oracle_source);
+        cache.last_oracle_price_twap = perp_market
+            .amm
+            .historical_oracle_data
+            .last_oracle_price_twap;
+    }
 
     Ok(())
 }
@@ -3149,10 +3187,11 @@ pub fn handle_update_perp_market_paused_operations(
     perp_market_valid(&ctx.accounts.perp_market)
 )]
 pub fn handle_update_perp_market_contract_tier(
-    ctx: Context<AdminUpdatePerpMarket>,
+    ctx: Context<AdminUpdatePerpMarketContractTier>,
     contract_tier: ContractTier,
 ) -> Result<()> {
     let perp_market = &mut load_mut!(ctx.accounts.perp_market)?;
+    let amm_cache = &mut ctx.accounts.amm_cache;
     msg!("perp market {}", perp_market.market_index);
 
     msg!(
@@ -3162,6 +3201,14 @@ pub fn handle_update_perp_market_contract_tier(
     );
 
     perp_market.contract_tier = contract_tier;
+    let max_confidence_interval_multiplier =
+        perp_market.get_max_confidence_interval_multiplier()?;
+    amm_cache
+        .cache
+        .get_mut(perp_market.market_index as usize)
+        .expect("value should exist for market index")
+        .max_confidence_interval_multiplier = max_confidence_interval_multiplier;
+
     Ok(())
 }
 
@@ -3509,6 +3556,7 @@ pub fn handle_update_perp_market_oracle(
     skip_invariant_check: bool,
 ) -> Result<()> {
     let perp_market = &mut load_mut!(ctx.accounts.perp_market)?;
+    let amm_cache = &mut ctx.accounts.amm_cache;
     msg!("perp market {}", perp_market.market_index);
 
     let clock = Clock::get()?;
@@ -3586,6 +3634,14 @@ pub fn handle_update_perp_market_oracle(
 
     perp_market.amm.oracle = oracle;
     perp_market.amm.oracle_source = oracle_source;
+
+    let amm_position_cache_info = amm_cache
+        .cache
+        .get_mut(perp_market.market_index as usize)
+        .expect("value should exist for market index");
+
+    amm_position_cache_info.oracle = oracle;
+    amm_position_cache_info.oracle_source = u64::from(oracle_source);
 
     Ok(())
 }
@@ -4915,11 +4971,11 @@ pub struct InitializePerpMarket<'info> {
         mut,
         seeds = [AMM_POSITIONS_CACHE.as_ref()],
         bump,
-        realloc = AmmPositionsCache::space(amm_positions_cache.amm_positions.len() + 1 as usize),
+        realloc = AmmCache::space(amm_cache.cache.len() + 1 as usize),
         realloc::payer = admin,
         realloc::zero = false,
     )]
-    pub amm_positions_cache: Box<Account<'info, AmmPositionsCache>>,
+    pub amm_cache: Box<Account<'info, AmmCache>>,
     /// CHECK: checked in `initialize_perp_market`
     pub oracle: AccountInfo<'info>,
     pub rent: Sysvar<'info, Rent>,
@@ -4927,24 +4983,39 @@ pub struct InitializePerpMarket<'info> {
 }
 
 #[derive(Accounts)]
-pub struct InitializeAmmPositionsCache<'info> {
+pub struct InitializeAmmCache<'info> {
     #[account(
         mut,
         constraint = admin.key() == admin_hot_wallet::id() || admin.key() == state.admin
     )]
     pub admin: Signer<'info>,
-    #[account(mut)]
     pub state: Box<Account<'info, State>>,
     #[account(
         init,
         seeds = [AMM_POSITIONS_CACHE.as_ref()],
-        space = AmmPositionsCache::space(state.number_of_markets as usize),
+        space = AmmCache::space(state.number_of_markets as usize),
         bump,
         payer = admin
     )]
-    pub amm_positions_cache: Box<Account<'info, AmmPositionsCache>>,
+    pub amm_cache: Box<Account<'info, AmmCache>>,
     pub rent: Sysvar<'info, Rent>,
     pub system_program: Program<'info, System>,
+}
+
+#[derive(Accounts)]
+pub struct UpdateInitAmmCacheInfo<'info> {
+    #[account(
+        mut,
+        constraint = admin.key() == admin_hot_wallet::id() || admin.key() == state.admin
+    )]
+    pub state: Box<Account<'info, State>>,
+    pub admin: Signer<'info>,
+    #[account(
+        mut,
+        seeds = [AMM_POSITIONS_CACHE.as_ref()],
+        bump,
+    )]
+    pub amm_cache: Box<Account<'info, AmmCache>>,
 }
 
 #[derive(Accounts)]
@@ -4969,6 +5040,23 @@ pub struct AdminUpdatePerpMarket<'info> {
     pub state: Box<Account<'info, State>>,
     #[account(mut)]
     pub perp_market: AccountLoader<'info, PerpMarket>,
+}
+
+#[derive(Accounts)]
+pub struct AdminUpdatePerpMarketContractTier<'info> {
+    pub admin: Signer<'info>,
+    #[account(
+        has_one = admin
+    )]
+    pub state: Box<Account<'info, State>>,
+    #[account(mut)]
+    pub perp_market: AccountLoader<'info, PerpMarket>,
+    #[account(
+        mut,
+        seeds = [AMM_POSITIONS_CACHE.as_ref()],
+        bump,
+    )]
+    pub amm_cache: Box<Account<'info, AmmCache>>,
 }
 
 #[derive(Accounts)]
@@ -5138,6 +5226,12 @@ pub struct AdminUpdatePerpMarketOracle<'info> {
     pub oracle: AccountInfo<'info>,
     /// CHECK: checked in `admin_update_perp_market_oracle` ix constraint
     pub old_oracle: AccountInfo<'info>,
+    #[account(
+        mut,
+        seeds = [AMM_POSITIONS_CACHE.as_ref()],
+        bump,
+    )]
+    pub amm_cache: Box<Account<'info, AmmCache>>,
 }
 
 #[derive(Accounts)]
