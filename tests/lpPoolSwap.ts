@@ -1,43 +1,28 @@
 import * as anchor from '@coral-xyz/anchor';
 import { expect, assert } from 'chai';
-
 import { Program } from '@coral-xyz/anchor';
-
 import { Keypair, PublicKey } from '@solana/web3.js';
-import {
-	TOKEN_PROGRAM_ID,
-	getAssociatedTokenAddress,
-	getAssociatedTokenAddressSync,
-	getMint,
-} from '@solana/spl-token';
-
 import {
 	BN,
 	TestClient,
 	QUOTE_PRECISION,
 	getLpPoolPublicKey,
-	getAmmConstituentMappingPublicKey,
 	encodeName,
 	getConstituentTargetWeightsPublicKey,
 	PERCENTAGE_PRECISION,
 	PRICE_PRECISION,
 	PEG_PRECISION,
 	ConstituentTargetWeights,
-	AmmConstituentMapping,
-	User,
 	OracleSource,
 	SPOT_MARKET_RATE_PRECISION,
 	SPOT_MARKET_WEIGHT_PRECISION,
 	LPPoolAccount,
-	DriftClient,
 	convertToNumber,
 	getConstituentVaultPublicKey,
 	getConstituentPublicKey,
 	ConstituentAccount,
 } from '../sdk/src';
-
 import {
-	getPerpMarketDecoded,
 	initializeQuoteSpotMarket,
 	mockUSDCMint,
 	mockUserUSDCAccount,
@@ -61,9 +46,7 @@ describe('LP Pool', () => {
 	let adminClient: TestClient;
 	let usdcMint: Keypair;
 	let spotTokenMint: Keypair;
-	let spotMarketIndex: number;
 	let spotMarketOracle: PublicKey;
-	let adminUser: User;
 
 	const mantissaSqrtScale = new BN(Math.sqrt(PRICE_PRECISION.toNumber()));
 	const ammInitialQuoteAssetReserve = new anchor.BN(10 * 10 ** 13).mul(
@@ -136,14 +119,6 @@ describe('LP Pool', () => {
 			new BN(10).mul(QUOTE_PRECISION),
 			userUSDCAccount.publicKey
 		);
-		adminUser = new User({
-			driftClient: adminClient,
-			userAccountPublicKey: await adminClient.getUserAccountPublicKey(),
-			accountSubscription: {
-				type: 'polling',
-				accountLoader: bulkAccountLoader,
-			},
-		});
 
 		const periodicity = new BN(0);
 
@@ -175,7 +150,6 @@ describe('LP Pool', () => {
 		const initialLiabilityWeight = SPOT_MARKET_WEIGHT_PRECISION.toNumber();
 		const maintenanceLiabilityWeight = SPOT_MARKET_WEIGHT_PRECISION.toNumber();
 		const imfFactor = 0;
-		spotMarketIndex = adminClient.getStateAccount().numberOfSpotMarkets;
 
 		await adminClient.initializeSpotMarket(
 			spotTokenMint.publicKey,

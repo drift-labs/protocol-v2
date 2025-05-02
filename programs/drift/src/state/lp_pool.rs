@@ -203,8 +203,8 @@ impl LPPool {
 pub struct BLPosition {
     /// The scaled balance of the position. To get the token amount, multiply by the cumulative deposit/borrow
     /// interest of corresponding market.
-    /// precision: SPOT_BALANCE_PRECISION
-    pub scaled_balance: u64,
+    /// precision: token precision
+    pub scaled_balance: u128,
     /// The cumulative deposits/borrows a user has made into a market
     /// precision: token mint precision
     pub cumulative_deposits: i64,
@@ -229,12 +229,12 @@ impl SpotBalance for BLPosition {
     }
 
     fn increase_balance(&mut self, delta: u128) -> DriftResult {
-        self.scaled_balance = self.scaled_balance.safe_add(delta.cast()?)?;
+        self.scaled_balance = self.scaled_balance.safe_add(delta)?;
         Ok(())
     }
 
     fn decrease_balance(&mut self, delta: u128) -> DriftResult {
-        self.scaled_balance = self.scaled_balance.safe_sub(delta.cast()?)?;
+        self.scaled_balance = self.scaled_balance.safe_sub(delta)?;
         Ok(())
     }
 
@@ -246,7 +246,7 @@ impl SpotBalance for BLPosition {
 
 impl BLPosition {
     pub fn get_token_amount(&self, spot_market: &SpotMarket) -> DriftResult<u128> {
-        get_token_amount(self.scaled_balance.cast()?, spot_market, &self.balance_type)
+        get_token_amount(self.scaled_balance, spot_market, &self.balance_type)
     }
 }
 
@@ -278,7 +278,7 @@ pub struct Constituent {
     /// total fees received by the constituent. Positive = fees received, Negative = fees paid
     pub total_swap_fees: i128,
 
-    /// ata token balance in SPOT_BALANCE_PRECISION
+    /// ata token balance in token precision
     pub token_balance: u64,
 
     /// spot borrow-lend balance for constituent
@@ -288,10 +288,13 @@ pub struct Constituent {
     pub last_oracle_slot: u64,
 
     pub mint: Pubkey,
+
+    pub oracle_staleness_threshold: u64,
+    _padding2: [u8; 8],
 }
 
 impl Size for Constituent {
-    const SIZE: usize = 168;
+    const SIZE: usize = 184;
 }
 
 impl Constituent {

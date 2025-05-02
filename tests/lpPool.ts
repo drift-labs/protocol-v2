@@ -20,11 +20,10 @@ import {
 	ConstituentTargetWeights,
 	AmmConstituentMapping,
 	LPPoolAccount,
-	User,
 	getConstituentVaultPublicKey,
+	OracleSource,
 	SPOT_MARKET_WEIGHT_PRECISION,
 	SPOT_MARKET_RATE_PRECISION,
-	OracleSource,
 } from '../sdk/src';
 
 import {
@@ -48,7 +47,6 @@ describe('LP Pool', () => {
 	let adminClient: TestClient;
 	let usdcMint: Keypair;
 	let spotTokenMint: Keypair;
-	let spotMarketIndex: number;
 	let spotMarketOracle: PublicKey;
 
 	const mantissaSqrtScale = new BN(Math.sqrt(PRICE_PRECISION.toNumber()));
@@ -97,6 +95,10 @@ describe('LP Pool', () => {
 		const keypair = new Keypair();
 		await bankrunContextWrapper.fundKeypair(keypair, 10 ** 9);
 
+		usdcMint = await mockUSDCMint(bankrunContextWrapper);
+
+		solUsd = await mockOracleNoProgram(bankrunContextWrapper, 224.3);
+
 		adminClient = new TestClient({
 			connection: bankrunContextWrapper.connection.toConnection(),
 			wallet: new anchor.Wallet(keypair),
@@ -108,7 +110,7 @@ describe('LP Pool', () => {
 			subAccountIds: [],
 			perpMarketIndexes: [0, 1, 2],
 			spotMarketIndexes: [0, 1],
-			oracleInfos: [],
+			oracleInfos: [{ publicKey: solUsd, source: OracleSource.PYTH }],
 			accountSubscription: {
 				type: 'polling',
 				accountLoader: bulkAccountLoader,
@@ -130,7 +132,6 @@ describe('LP Pool', () => {
 			userUSDCAccount.publicKey
 		);
 
-		solUsd = await mockOracleNoProgram(bankrunContextWrapper, 224.3);
 		const periodicity = new BN(0);
 
 		await adminClient.initializePerpMarket(
@@ -170,7 +171,6 @@ describe('LP Pool', () => {
 		const initialLiabilityWeight = SPOT_MARKET_WEIGHT_PRECISION.toNumber();
 		const maintenanceLiabilityWeight = SPOT_MARKET_WEIGHT_PRECISION.toNumber();
 		const imfFactor = 0;
-		spotMarketIndex = adminClient.getStateAccount().numberOfSpotMarkets;
 
 		await adminClient.initializeSpotMarket(
 			spotTokenMint.publicKey,
@@ -240,7 +240,8 @@ describe('LP Pool', () => {
 			6,
 			new BN(10).mul(PERCENTAGE_PRECISION),
 			new BN(1).mul(PERCENTAGE_PRECISION),
-			new BN(2).mul(PERCENTAGE_PRECISION)
+			new BN(2).mul(PERCENTAGE_PRECISION),
+			new BN(400)
 		);
 		const constituentTargetWeightsPublicKey =
 			getConstituentTargetWeightsPublicKey(program.programId, lpPoolKey);
@@ -269,6 +270,7 @@ describe('LP Pool', () => {
 			);
 		expect(constituentTokenVault).to.not.be.null;
 	});
+
 	it('can add amm mapping datum', async () => {
 		await adminClient.addAmmConstituentMappingData(encodeName(lpPoolName), [
 			{
@@ -406,7 +408,8 @@ describe('LP Pool', () => {
 			6,
 			new BN(10).mul(PERCENTAGE_PRECISION),
 			new BN(1).mul(PERCENTAGE_PRECISION),
-			new BN(2).mul(PERCENTAGE_PRECISION)
+			new BN(2).mul(PERCENTAGE_PRECISION),
+			new BN(400)
 		);
 
 		try {

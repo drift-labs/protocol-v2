@@ -38,7 +38,6 @@ import {
 	OraclePriceData,
 	OracleInfo,
 	PerpMarketAccount,
-	UserAccount,
 } from '../sdk';
 import {
 	TestClient,
@@ -56,7 +55,6 @@ import {
 } from '../sdk/src/bankrun/bankrunConnection';
 import pythIDL from '../sdk/src/idl/pyth.json';
 import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
-import { token } from '@coral-xyz/anchor-30/dist/cjs/utils';
 
 export async function mockOracle(
 	price: number = 50 * 10e7,

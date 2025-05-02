@@ -3,15 +3,18 @@ use anchor_spl::token_interface::{Mint, TokenAccount, TokenInterface};
 
 use crate::error::ErrorCode;
 use crate::math::{
+    casting::Cast,
+    constants::{
+        PRICE_PRECISION_I128, QUOTE_PRECISION, QUOTE_PRECISION_I128, SPOT_BALANCE_PRECISION,
+        SPOT_WEIGHT_PRECISION_I128,
+    },
     oracle::{is_oracle_valid_for_action, DriftAction},
     safe_math::SafeMath,
 };
 use crate::msg;
 use crate::state::constituent_map::{ConstituentMap, ConstituentSet};
 use crate::state::events::LPSwapRecord;
-use crate::state::spot_market_map::{
-    get_writable_spot_market_set_from_many,
-};
+use crate::state::spot_market_map::get_writable_spot_market_set_from_many;
 use crate::state::{
     lp_pool::{
         AmmConstituentDatum, AmmConstituentMappingFixed, Constituent, LPPool, WeightValidationFlags,
@@ -175,13 +178,16 @@ pub fn handle_update_lp_pool_aum<'c: 'info, 'info>(
             spot_market.get_max_confidence_interval_multiplier()?,
         )?;
 
+        let oracle_slot = slot - oracle_data.0.delay.max(0i64).cast::<u64>()?;
         let oracle_price: Option<i64> = {
             if !is_oracle_valid_for_action(oracle_data.1, Some(DriftAction::UpdateLpPoolAum))? {
                 msg!(
                     "Oracle data for spot market {} is invalid. Skipping update",
                     spot_market.market_index,
                 );
-                if slot - constituent.last_oracle_slot > 400 {
+                if slot.saturating_sub(constituent.last_oracle_slot)
+                    >= constituent.oracle_staleness_threshold
+                {
                     None
                 } else {
                     Some(constituent.last_oracle_price)
@@ -192,18 +198,34 @@ pub fn handle_update_lp_pool_aum<'c: 'info, 'info>(
         };
 
         if oracle_price.is_none() {
+            msg!("hi");
             return Err(ErrorCode::OracleTooStaleForLPAUMUpdate.into());
         }
 
         constituent.last_oracle_price = oracle_price.unwrap();
-        constituent.last_oracle_slot = slot;
+        constituent.last_oracle_slot = oracle_slot;
+
+        if oracle_slot < oldest_slot {
+            oldest_slot = oracle_slot;
+        }
+
+        let (numerator_scale, denominator_scale) = if spot_market.decimals > 6 {
+            (10_i128.pow(spot_market.decimals - 6), 1)
+        } else {
+            (1, 10_i128.pow(6 - spot_market.decimals))
+        };
 
         let constituent_aum = constituent
             .get_full_balance(&spot_market)?
-            .safe_mul(oracle_price.unwrap() as i128)?;
-        aum = aum.safe_add(constituent_aum as u128)?;
+            .safe_mul(numerator_scale)?
+            .safe_div(denominator_scale)?
+            .safe_mul(oracle_price.unwrap() as i128)?
+            .safe_div(PRICE_PRECISION_I128)?
+            .max(0);
+        aum = aum.safe_add(constituent_aum.cast()?)?;
     }
 
+    lp_pool.oldest_oracle_slot = oldest_slot;
     lp_pool.last_aum = aum;
     lp_pool.last_aum_slot = slot;
     lp_pool.last_aum_ts = Clock::get()?.unix_timestamp;
