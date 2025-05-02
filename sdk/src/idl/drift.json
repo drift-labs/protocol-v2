@@ -7978,7 +7978,8 @@
           {
             "name": "spotMarketIndex",
             "docs": [
-              "underlying drift spot market index"
+              "underlying drift spot market index.",
+              "TODO: redundant with spot_balance.market_index"
             ],
             "type": "u16"
           },
@@ -14456,12 +14457,12 @@
         },
         {
           "name": "mintOut",
-          "type": "u64",
+          "type": "publicKey",
           "index": false
         },
         {
           "name": "mintIn",
-          "type": "u64",
+          "type": "publicKey",
           "index": false
         }
       ]

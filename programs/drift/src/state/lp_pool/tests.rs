@@ -404,3 +404,333 @@ mod tests {
         assert_eq!(fee, PERCENTAGE_PRECISION_I64 / 10000); // 1 bps (min fee)
     }
 }
+
+#[cfg(test)]
+mod swap_tests {
+    use crate::math::constants::PERCENTAGE_PRECISION_I64;
+    use crate::state::lp_pool::*;
+
+    #[test]
+    fn test_get_swap_price() {
+        let lp_pool = LPPool::default();
+
+        let in_oracle = OraclePriceData {
+            price: 1_000_000,
+            ..OraclePriceData::default()
+        };
+        let out_oracle = OraclePriceData {
+            price: 233_400_000,
+            ..OraclePriceData::default()
+        };
+
+        // same decimals
+        let (price_num, price_denom) = lp_pool
+            .get_swap_price(6, 6, &in_oracle, &out_oracle)
+            .unwrap();
+        assert_eq!(price_num, 1_000_000);
+        assert_eq!(price_denom, 233_400_000);
+
+        let (price_num, price_denom) = lp_pool
+            .get_swap_price(6, 6, &out_oracle, &in_oracle)
+            .unwrap();
+        assert_eq!(price_num, 233_400_000);
+        assert_eq!(price_denom, 1_000_000);
+    }
+
+    fn get_swap_amount_decimals_scenario(
+        in_decimals: u32,
+        out_decimals: u32,
+        in_amount: u64,
+        expected_in_amount: u64,
+        expected_out_amount: u64,
+        expected_in_fee: i64,
+        expected_out_fee: i64,
+    ) {
+        let lp_pool = LPPool {
+            last_aum: 1_000_000_000_000,
+            ..LPPool::default()
+        };
+
+        let oracle_0 = OraclePriceData {
+            price: 1_000_000,
+            ..OraclePriceData::default()
+        };
+        let oracle_1 = OraclePriceData {
+            price: 233_400_000,
+            ..OraclePriceData::default()
+        };
+
+        let constituent_0 = Constituent {
+            decimals: in_decimals as u8,
+            swap_fee_min: PERCENTAGE_PRECISION_I64 / 10000,
+            swap_fee_max: PERCENTAGE_PRECISION_I64 / 1000,
+            // max_weight_deviation: PERCENTAGE_PRECISION_I64 / 10,
+            ..Constituent::default()
+        };
+        let constituent_1 = Constituent {
+            decimals: out_decimals as u8,
+            swap_fee_min: PERCENTAGE_PRECISION_I64 / 10000,
+            swap_fee_max: PERCENTAGE_PRECISION_I64 / 1000,
+            // max_weight_deviation: PERCENTAGE_PRECISION_I64 / 10,
+            ..Constituent::default()
+        };
+        let spot_market_0 = SpotMarket {
+            decimals: in_decimals,
+            ..SpotMarket::default()
+        };
+        let spot_market_1 = SpotMarket {
+            decimals: out_decimals,
+            ..SpotMarket::default()
+        };
+
+        let (in_amount, out_amount, in_fee, out_fee) = lp_pool
+            .get_swap_amount(
+                &oracle_0,
+                &oracle_1,
+                &constituent_0,
+                &constituent_1,
+                &spot_market_0,
+                &spot_market_1,
+                500_000,
+                500_000,
+                in_amount,
+            )
+            .unwrap();
+        assert_eq!(in_amount, expected_in_amount);
+        assert_eq!(out_amount, expected_out_amount);
+        assert_eq!(in_fee, expected_in_fee);
+        assert_eq!(out_fee, expected_out_fee);
+    }
+
+    #[test]
+    fn test_get_swap_amount_in_6_out_6() {
+        get_swap_amount_decimals_scenario(
+            6,
+            6,
+            233_400_000,
+            233_400_000,
+            999900,
+            23340, // 1 bps
+            99,
+        );
+    }
+
+    #[test]
+    fn test_get_swap_amount_in_6_out_9() {
+        get_swap_amount_decimals_scenario(6, 9, 233_400_000, 233_400_000, 999900000, 23340, 99990);
+    }
+
+    #[test]
+    fn test_get_swap_amount_in_9_out_6() {
+        get_swap_amount_decimals_scenario(
+            9,
+            6,
+            233_400_000_000,
+            233_400_000_000,
+            999900,
+            23340000,
+            99,
+        );
+    }
+
+    #[test]
+    fn test_get_fee_to_charge_positive_min_fee() {
+        let c = Constituent {
+            swap_fee_min: PERCENTAGE_PRECISION_I64 / 10000, // 1 bps
+            swap_fee_max: PERCENTAGE_PRECISION_I64 / 100,   // 100 bps
+            max_weight_deviation: PERCENTAGE_PRECISION_I64 / 10, // 10%
+            ..Constituent::default()
+        };
+
+        // swapping to target should incur minimum fee
+        let target_weight = PERCENTAGE_PRECISION_I64 / 2; // 50%
+        let post_swap_weight = target_weight; // 50%
+        let fee = c
+            .get_fee_to_charge(post_swap_weight, target_weight)
+            .unwrap();
+        assert_eq!(fee, c.swap_fee_min);
+
+        // positive target: swapping to max deviation above target should incur maximum fee
+        let post_swap_weight = target_weight + c.max_weight_deviation;
+        let fee = c
+            .get_fee_to_charge(post_swap_weight, target_weight)
+            .unwrap();
+        assert_eq!(fee, c.swap_fee_max);
+
+        // positive target: swapping to max deviation below target should incur minimum fee
+        let post_swap_weight = target_weight - c.max_weight_deviation;
+        let fee = c
+            .get_fee_to_charge(post_swap_weight, target_weight)
+            .unwrap();
+        assert_eq!(fee, c.swap_fee_max);
+
+        // negative target: swapping to max deviation above target should incur maximum fee
+        let post_swap_weight = -1 * target_weight + c.max_weight_deviation;
+        let fee = c
+            .get_fee_to_charge(post_swap_weight, -1 * target_weight)
+            .unwrap();
+        assert_eq!(fee, c.swap_fee_max);
+
+        // negative target: swapping to max deviation below target should incur minimum fee
+        let post_swap_weight = -1 * target_weight - c.max_weight_deviation;
+        let fee = c
+            .get_fee_to_charge(post_swap_weight, -1 * target_weight)
+            .unwrap();
+        assert_eq!(fee, c.swap_fee_max);
+
+        // positive target: swaps to +max_weight_deviation/2, should incur half of the max fee
+        let post_swap_weight = target_weight + c.max_weight_deviation / 2;
+        let fee = c
+            .get_fee_to_charge(post_swap_weight, target_weight)
+            .unwrap();
+        assert_eq!(fee, (c.swap_fee_max + c.swap_fee_min) / 2);
+
+        // positive target: swaps to -max_weight_deviation/2, should incur half of the max fee
+        let post_swap_weight = target_weight - c.max_weight_deviation / 2;
+        let fee = c
+            .get_fee_to_charge(post_swap_weight, target_weight)
+            .unwrap();
+        assert_eq!(fee, (c.swap_fee_max + c.swap_fee_min) / 2);
+
+        // negative target: swaps to +max_weight_deviation/2, should incur half of the max fee
+        let post_swap_weight = -1 * target_weight + c.max_weight_deviation / 2;
+        let fee = c
+            .get_fee_to_charge(post_swap_weight, -1 * target_weight)
+            .unwrap();
+        assert_eq!(fee, (c.swap_fee_max + c.swap_fee_min) / 2);
+
+        // negative target: swaps to -max_weight_deviation/2, should incur half of the max fee
+        let post_swap_weight = -1 * target_weight - c.max_weight_deviation / 2;
+        let fee = c
+            .get_fee_to_charge(post_swap_weight, -1 * target_weight)
+            .unwrap();
+        assert_eq!(fee, (c.swap_fee_max + c.swap_fee_min) / 2);
+    }
+
+    #[test]
+    fn test_get_fee_to_charge_negative_min_fee() {
+        let c = Constituent {
+            swap_fee_min: -1 * PERCENTAGE_PRECISION_I64 / 10000, // -1 bps (rebate)
+            swap_fee_max: PERCENTAGE_PRECISION_I64 / 100,        // 100 bps
+            max_weight_deviation: PERCENTAGE_PRECISION_I64 / 10, // 10%
+            ..Constituent::default()
+        };
+
+        // swapping to target should incur minimum fee
+        let target_weight = PERCENTAGE_PRECISION_I64 / 2; // 50%
+        let post_swap_weight = target_weight; // 50%
+        let fee = c
+            .get_fee_to_charge(post_swap_weight, target_weight)
+            .unwrap();
+        assert_eq!(fee, c.swap_fee_min);
+
+        // positive target: swapping to max deviation above target should incur maximum fee
+        let post_swap_weight = target_weight + c.max_weight_deviation;
+        let fee = c
+            .get_fee_to_charge(post_swap_weight, target_weight)
+            .unwrap();
+        assert_eq!(fee, c.swap_fee_max);
+
+        // positive target: swapping to max deviation below target should incur minimum fee
+        let post_swap_weight = target_weight - c.max_weight_deviation;
+        let fee = c
+            .get_fee_to_charge(post_swap_weight, target_weight)
+            .unwrap();
+        assert_eq!(fee, c.swap_fee_max);
+
+        // negative target: swapping to max deviation above target should incur maximum fee
+        let post_swap_weight = -1 * target_weight + c.max_weight_deviation;
+        let fee = c
+            .get_fee_to_charge(post_swap_weight, -1 * target_weight)
+            .unwrap();
+        assert_eq!(fee, c.swap_fee_max);
+
+        // negative target: swapping to max deviation below target should incur minimum fee
+        let post_swap_weight = -1 * target_weight - c.max_weight_deviation;
+        let fee = c
+            .get_fee_to_charge(post_swap_weight, -1 * target_weight)
+            .unwrap();
+        assert_eq!(fee, c.swap_fee_max);
+
+        // positive target: swaps to +max_weight_deviation/2, should incur half of the max fee
+        let post_swap_weight = target_weight + c.max_weight_deviation / 2;
+        let fee = c
+            .get_fee_to_charge(post_swap_weight, target_weight)
+            .unwrap();
+        assert_eq!(fee, (c.swap_fee_max + c.swap_fee_min) / 2);
+
+        // positive target: swaps to -max_weight_deviation/2, should incur half of the max fee
+        let post_swap_weight = target_weight - c.max_weight_deviation / 2;
+        let fee = c
+            .get_fee_to_charge(post_swap_weight, target_weight)
+            .unwrap();
+        assert_eq!(fee, (c.swap_fee_max + c.swap_fee_min) / 2);
+
+        // negative target: swaps to +max_weight_deviation/2, should incur half of the max fee
+        let post_swap_weight = -1 * target_weight + c.max_weight_deviation / 2;
+        let fee = c
+            .get_fee_to_charge(post_swap_weight, -1 * target_weight)
+            .unwrap();
+        assert_eq!(fee, (c.swap_fee_max + c.swap_fee_min) / 2);
+
+        // negative target: swaps to -max_weight_deviation/2, should incur half of the max fee
+        let post_swap_weight = -1 * target_weight - c.max_weight_deviation / 2;
+        let fee = c
+            .get_fee_to_charge(post_swap_weight, -1 * target_weight)
+            .unwrap();
+        assert_eq!(fee, (c.swap_fee_max + c.swap_fee_min) / 2);
+    }
+
+    #[test]
+    fn test_get_weight() {
+        let c = Constituent {
+            swap_fee_min: -1 * PERCENTAGE_PRECISION_I64 / 10000, // -1 bps (rebate)
+            swap_fee_max: PERCENTAGE_PRECISION_I64 / 100,        // 100 bps
+            max_weight_deviation: PERCENTAGE_PRECISION_I64 / 10, // 10%
+            spot_market_index: 0,
+            spot_balance: BLPosition {
+                scaled_balance: 500_000,
+                cumulative_deposits: 1_000_000,
+                balance_type: SpotBalanceType::Deposit,
+                market_index: 0,
+                ..BLPosition::default()
+            },
+            token_balance: 500_000,
+            decimals: 6,
+            ..Constituent::default()
+        };
+
+        let spot_market = SpotMarket {
+            market_index: 0,
+            decimals: 6,
+            cumulative_deposit_interest: 10_000_000_000_000,
+            ..SpotMarket::default()
+        };
+
+        let full_balance = c.get_full_balance(&spot_market).unwrap();
+        assert_eq!(full_balance, 1_000_000);
+
+        // 1/10 = 10%
+        let weight = c
+            .get_weight(
+                1_000_000, // $1
+                &spot_market,
+                0,
+                10_000_000,
+            )
+            .unwrap();
+        assert_eq!(weight, 100_000);
+
+        // (1+1)/10 = 20%
+        let weight = c
+            .get_weight(1_000_000, &spot_market, 1_000_000, 10_000_000)
+            .unwrap();
+        assert_eq!(weight, 200_000);
+
+        // (1-0.5)/10 = 0.5%
+        let weight = c
+            .get_weight(1_000_000, &spot_market, -500_000, 10_000_000)
+            .unwrap();
+        assert_eq!(weight, 50_000);
+    }
+}

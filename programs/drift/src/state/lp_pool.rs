@@ -89,38 +89,29 @@ impl LPPool {
         }
     }
 
-    /// get the swap price between two (non-LP token) constituents
+    /// Get the swap price between two (non-LP token) constituents.
+    /// Accounts for precision differences between in and out constituents
     /// returns swap price in PRICE_PRECISION
     pub fn get_swap_price(
         &self,
-        in_spot_market: &SpotMarket,
-        out_spot_market: &SpotMarket,
+        in_decimals: u32,
+        out_decimals: u32,
         in_oracle: &OraclePriceData,
         out_oracle: &OraclePriceData,
-        in_amount: u64,
-    ) -> DriftResult<u64> {
+    ) -> DriftResult<(u64, u64)> {
         let in_price = in_oracle.price.cast::<u64>()?;
         let out_price = out_oracle.price.cast::<u64>()?;
 
-        let (prec_diff_numerator, prec_diff_denominator) =
-            if out_spot_market.decimals > in_spot_market.decimals {
-                (
-                    10_u64.pow(out_spot_market.decimals as u32 - in_spot_market.decimals as u32),
-                    1,
-                )
-            } else {
-                (
-                    1,
-                    10_u64.pow(in_spot_market.decimals as u32 - out_spot_market.decimals as u32),
-                )
-            };
+        let (prec_diff_numerator, prec_diff_denominator) = if out_decimals > in_decimals {
+            (10_u64.pow(out_decimals - in_decimals), 1)
+        } else {
+            (1, 10_u64.pow(in_decimals - out_decimals))
+        };
 
-        let swap_price = in_amount
-            .safe_mul(in_price)?
-            .safe_mul(prec_diff_numerator)?
-            .safe_div(out_price.safe_mul(prec_diff_denominator)?)?;
+        let swap_price_num = in_price.safe_mul(prec_diff_numerator)?;
+        let swap_price_denom = out_price.safe_mul(prec_diff_denominator)?;
 
-        Ok(swap_price)
+        Ok((swap_price_num, swap_price_denom))
     }
 
     /// in the respective token units. Amounts are gross fees and in
@@ -139,12 +130,11 @@ impl LPPool {
         out_target_weight: i64,
         in_amount: u64,
     ) -> DriftResult<(u64, u64, i64, i64)> {
-        let swap_price = self.get_swap_price(
-            in_spot_market,
-            out_spot_market,
+        let (swap_price_num, swap_price_denom) = self.get_swap_price(
+            in_spot_market.decimals,
+            out_spot_market.decimals,
             in_oracle,
             out_oracle,
-            in_amount,
         )?;
 
         let in_fee = self.get_swap_fees(
@@ -154,11 +144,16 @@ impl LPPool {
             in_amount.cast::<i64>()?,
             in_target_weight,
         )?;
+        let in_fee_amount = in_amount
+            .cast::<i64>()?
+            .safe_mul(in_fee)?
+            .safe_div(PERCENTAGE_PRECISION_I64.cast::<i64>()?)?;
+
         let out_amount = in_amount
             .cast::<i64>()?
-            .safe_sub(in_fee)?
-            .safe_mul(swap_price.cast::<i64>()?)?
-            .safe_div(PRICE_PRECISION_I64)?
+            .safe_sub(in_fee_amount)?
+            .safe_mul(swap_price_num.cast::<i64>()?)?
+            .safe_div(swap_price_denom.cast::<i64>()?)?
             .cast::<u64>()?;
         let out_fee = self.get_swap_fees(
             out_spot_market,
@@ -171,10 +166,12 @@ impl LPPool {
             out_target_weight,
         )?;
 
-        // TODO: additional spot quoter logic can go here
-        // TODO: emit swap event
+        let out_fee_amount = out_amount
+            .cast::<i64>()?
+            .safe_mul(out_fee)?
+            .safe_div(PERCENTAGE_PRECISION_I64.cast::<i64>()?)?;
 
-        Ok((in_amount, out_amount, in_fee, out_fee))
+        Ok((in_amount, out_amount, in_fee_amount, out_fee_amount))
     }
 
     /// returns fee in PERCENTAGE_PRECISION
@@ -188,6 +185,12 @@ impl LPPool {
     ) -> DriftResult<i64> {
         let weight_after =
             constituent.get_weight(oracle.price, spot_market, amount, self.last_aum)?;
+        msg!(
+            "constituent {}: weight_after: {} target_weight: {}",
+            constituent.constituent_index,
+            weight_after,
+            target_weight
+        );
         let fee = constituent.get_fee_to_charge(weight_after, target_weight)?;
 
         Ok(fee)
@@ -253,7 +256,8 @@ impl BLPosition {
 pub struct Constituent {
     /// address of the constituent
     pub pubkey: Pubkey,
-    /// underlying drift spot market index
+    /// underlying drift spot market index.
+    /// TODO: redundant with spot_balance.market_index
     pub spot_market_index: u16,
     /// idx in LPPool.constituents
     pub constituent_index: u16,
@@ -350,7 +354,9 @@ impl Constituent {
             let denom = target_weight.safe_sub(min_weight)?;
             (num, denom)
         };
-
+        if slope_denominator == 0 {
+            return Ok(self.swap_fee_min);
+        }
         let b = self
             .swap_fee_min
             .safe_mul(slope_denominator)?
@@ -359,18 +365,6 @@ impl Constituent {
             .safe_mul(slope_numerator)?
             .safe_add(b)?
             .safe_div(slope_denominator)?)
-    }
-
-    /// Calculates the amount to transfer to (SpotBalanceType::Deposit) or from (SpotBalanceType::Borrow)
-    /// the constituent's SpotBalance to stay within limits.
-    pub fn get_amount_to_rebalance_borrow_lend(
-        &self,
-        token_balance: u64,
-        amount: u64,
-    ) -> DriftResult<(SpotBalanceType, u64)> {
-        // i.e. max +90% lending, 10% in token account
-        // i.e. max -90% borrowed
-        Ok((SpotBalanceType::Deposit, 0))
     }
 }
 

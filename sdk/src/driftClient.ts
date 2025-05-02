@@ -9861,7 +9861,6 @@ export class DriftClient {
 			userAccounts: [],
 			writableSpotMarketIndexes: [inMarketIndex, outMarketIndex],
 		});
-		console.log(remainingAccounts);
 
 		return this.program.instruction.lpPoolSwap(
 			inMarketIndex,

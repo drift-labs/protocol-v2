@@ -8,9 +8,9 @@ use crate::math::{
 };
 use crate::msg;
 use crate::state::constituent_map::{ConstituentMap, ConstituentSet};
-use crate::state::spot_market::SpotBalanceType;
+use crate::state::events::LPSwapRecord;
 use crate::state::spot_market_map::{
-    get_writable_spot_market_set, get_writable_spot_market_set_from_many,
+    get_writable_spot_market_set_from_many,
 };
 use crate::state::{
     lp_pool::{
@@ -279,11 +279,6 @@ pub fn handle_lp_pool_swap<'c: 'info, 'info>(
         out_target_weight,
         in_amount,
     )?;
-    let out_amount_net_fees = if out_fee > 0 {
-        out_amount.safe_sub(out_fee.unsigned_abs() as u64)?
-    } else {
-        out_amount.safe_add(out_fee.unsigned_abs() as u64)?
-    };
     msg!(
         "in_amount: {}, out_amount: {}, in_fee: {}, out_fee: {}",
         in_amount,
@@ -291,6 +286,11 @@ pub fn handle_lp_pool_swap<'c: 'info, 'info>(
         in_fee,
         out_fee
     );
+    let out_amount_net_fees = if out_fee > 0 {
+        out_amount.safe_sub(out_fee.unsigned_abs() as u64)?
+    } else {
+        out_amount.safe_add(out_fee.unsigned_abs() as u64)?
+    };
 
     validate!(
         out_amount_net_fees >= min_out_amount,
@@ -314,6 +314,23 @@ pub fn handle_lp_pool_swap<'c: 'info, 'info>(
 
     in_constituent.record_swap_fees(in_fee)?;
     out_constituent.record_swap_fees(out_fee)?;
+
+    emit!(LPSwapRecord {
+        ts: now,
+        authority: ctx.accounts.authority.key(),
+        amount_out: out_amount_net_fees,
+        amount_in: in_amount,
+        fee_out: out_fee,
+        fee_in: in_fee,
+        out_spot_market_index: out_market_index,
+        in_spot_market_index: in_market_index,
+        out_constituent_index: out_constituent.constituent_index,
+        in_constituent_index: in_constituent.constituent_index,
+        out_oracle_price: out_oracle.price,
+        in_oracle_price: in_oracle.price,
+        mint_out: out_constituent.mint,
+        mint_in: in_constituent.mint,
+    });
 
     receive(
         &ctx.accounts.token_program,

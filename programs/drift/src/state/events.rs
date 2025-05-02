@@ -699,7 +699,7 @@ pub struct LPSwapRecord {
     /// precision: PRICE_PRECISION
     pub in_oracle_price: i64,
     /// out token mint
-    pub mint_out: u64,
+    pub mint_out: Pubkey,
     /// in token mint
-    pub mint_in: u64,
+    pub mint_in: Pubkey,
 }

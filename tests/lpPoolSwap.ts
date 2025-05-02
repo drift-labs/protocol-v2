@@ -200,16 +200,16 @@ describe('LP Pool', () => {
 			encodeName(lpPoolName),
 			0,
 			6,
-			PERCENTAGE_PRECISION.divn(1000),
-			PERCENTAGE_PRECISION.divn(10000),
+			PERCENTAGE_PRECISION.divn(1000), // min 1 bps
+			PERCENTAGE_PRECISION.divn(10000), // max 10 bps
 			PERCENTAGE_PRECISION.divn(100)
 		);
 		await adminClient.initializeConstituent(
 			encodeName(lpPoolName),
 			1,
 			6,
-			PERCENTAGE_PRECISION.divn(1000),
-			PERCENTAGE_PRECISION.divn(10000),
+			PERCENTAGE_PRECISION.divn(1000), // min 1 bps
+			PERCENTAGE_PRECISION.divn(10000), // max 10 bps
 			PERCENTAGE_PRECISION.divn(100)
 		);
 
@@ -247,9 +247,7 @@ describe('LP Pool', () => {
 
 	it('crank aum', async () => {
 		let spotOracle = adminClient.getOracleDataForSpotMarket(1);
-		console.log(spotOracle);
 		const price1 = convertToNumber(spotOracle.price);
-		console.log('price', price1);
 
 		await setFeedPriceNoProgram(bankrunContextWrapper, 224.3, spotMarketOracle);
 
@@ -272,13 +270,6 @@ describe('LP Pool', () => {
 
 		const const0Key = getConstituentPublicKey(program.programId, lpPoolKey, 0);
 		const const1Key = getConstituentPublicKey(program.programId, lpPoolKey, 1);
-
-		// console.log('constituent0TokenAccountInfo', constituent0TokenAccountInfo);
-
-		const oracle0 = adminClient.getOracleDataForSpotMarket(0);
-		console.log('oracle0:', convertToNumber(oracle0.price));
-		const oracle1 = adminClient.getOracleDataForSpotMarket(1);
-		console.log('oracle1:', convertToNumber(oracle1.price));
 
 		const c0TokenBalance = new BN(1_000_000_000);
 		const c1TokenBalance = new BN(1_000_000_000);
@@ -395,11 +386,6 @@ describe('LP Pool', () => {
 			spotTokenMint.publicKey
 		);
 
-		const c0Oracle = adminClient.getOracleDataForSpotMarket(0);
-		const c1Oracle = adminClient.getOracleDataForSpotMarket(1);
-		console.log('in token oracle:', convertToNumber(c0Oracle.price));
-		console.log('out token oracle:', convertToNumber(c1Oracle.price));
-
 		const inTokenBalanceAfter =
 			await bankrunContextWrapper.connection.getTokenAccount(
 				c0UserTokenAccount
@@ -412,6 +398,9 @@ describe('LP Pool', () => {
 			inTokenBalanceAfter.amount - inTokenBalanceBefore.amount;
 		const diffOutToken =
 			outTokenBalanceAfter.amount - outTokenBalanceBefore.amount;
+
+		expect(Number(diffInToken)).to.be.equal(-224_300_000);
+		expect(Number(diffOutToken)).to.be.approximately(999800, 1);
 
 		console.log(
 			`in Token:  ${inTokenBalanceBefore.amount} -> ${
