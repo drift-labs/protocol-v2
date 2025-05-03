@@ -59,7 +59,6 @@ import {
 	ProtectedMakerModeConfig,
 	SignedMsgOrderParamsDelegateMessage,
 	AmmConstituentMapping,
-	AmmConstituentDatum,
 	LPPoolAccount,
 } from './types';
 import driftIDL from './idl/drift.json';

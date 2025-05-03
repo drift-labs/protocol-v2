@@ -277,13 +277,11 @@ describe('LP Pool', () => {
 			const0Key
 		)) as ConstituentAccount;
 		expect(c0.tokenBalance.toString()).to.equal(c0TokenBalance.toString());
-		console.log('c0', c0);
 
 		const c1 = (await adminClient.program.account.constituent.fetch(
 			const1Key
 		)) as ConstituentAccount;
 		expect(c1.tokenBalance.toString()).to.equal(c1TokenBalance.toString());
-		console.log('c1', c1);
 
 		const prec = new BN(10).pow(new BN(tokenDecimals));
 		console.log(`const0 balance: ${convertToNumber(c0.tokenBalance, prec)}`);

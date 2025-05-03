@@ -310,7 +310,7 @@ describe('LP Pool', () => {
 			]);
 			expect.fail('should have failed');
 		} catch (e) {
-			expect(e.message).to.contain('0x18ab');
+			expect(e.message).to.contain('0x18ac');
 		}
 
 		// Bad constituent index
@@ -324,7 +324,7 @@ describe('LP Pool', () => {
 			]);
 			expect.fail('should have failed');
 		} catch (e) {
-			expect(e.message).to.contain('0x18ab');
+			expect(e.message).to.contain('0x18ac');
 		}
 	});
 
@@ -417,7 +417,7 @@ describe('LP Pool', () => {
 			await adminClient.updateDlpPoolAum(lpPool, [0]);
 			expect.fail('should have failed');
 		} catch (e) {
-			assert(e.message.includes('0x18b0'));
+			assert(e.message.includes('0x18b1'));
 		}
 	});
 

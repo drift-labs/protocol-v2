@@ -12,6 +12,7 @@ use crate::{
     msg,
     state::{
         constituent_map::{ConstituentMap, ConstituentSet},
+        events::LPSwapRecord,
         lp_pool::{
             AmmConstituentDatum, AmmConstituentMappingFixed, Constituent, LPPool,
             WeightValidationFlags,
@@ -23,7 +24,6 @@ use crate::{
         state::State,
         user::MarketType,
         zero_copy::{AccountZeroCopy, ZeroCopyLoader},
-        events::LPSwapRecord,
     },
     validate,
 };

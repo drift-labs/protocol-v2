@@ -5711,6 +5711,7 @@ pub struct UpdateProtectedMakerModeConfig<'info> {
     pub state: Box<Account<'info, State>>,
 }
 
+#[derive(Accounts)]
 #[instruction(market_index: u16,)]
 pub struct AdminDeposit<'info> {
     pub state: Box<Account<'info, State>>,
