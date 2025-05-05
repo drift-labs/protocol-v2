@@ -733,4 +733,44 @@ mod swap_tests {
             .unwrap();
         assert_eq!(weight, 50_000);
     }
+
+    fn get_mint_redeem_fee_scenario(
+        now: u64,
+        amount_added: u64,
+        amount_remove: u64,
+        expected_fee: i64,
+    ) {
+        let lp_pool = LPPool {
+            last_revenue_rebalance_ts: 0,
+            revenue_rebalance_period: 3600, // hourly
+            max_mint_fee_premium: 2000,     // 20 bps
+            min_mint_fee: 100,              // 1 bps
+            ..LPPool::default()
+        };
+
+        let fee = lp_pool
+            .get_mint_redeem_fee(now, amount_added, amount_remove)
+            .unwrap();
+        assert_eq!(fee, expected_fee);
+    }
+
+    #[test]
+    fn test_get_mint_fee_before_dist() {
+        get_mint_redeem_fee_scenario(0, 1_000_000, 0, 100);
+    }
+
+    #[test]
+    fn test_get_mint_fee_after_dist() {
+        get_mint_redeem_fee_scenario(3600, 1_000_000, 0, 2100);
+    }
+
+    #[test]
+    fn test_get_redeem_fee_before_dist() {
+        get_mint_redeem_fee_scenario(0, 0, 1_000_000, 2100);
+    }
+
+    #[test]
+    fn test_get_redeem_fee_after_dist() {
+        get_mint_redeem_fee_scenario(3600, 0, 1_000_000, 100);
+    }
 }

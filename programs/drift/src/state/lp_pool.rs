@@ -62,11 +62,15 @@ pub struct LPPool {
 
     /// timestamp of last vAMM revenue rebalance
     pub last_revenue_rebalance_ts: u64, // 8, 168
+    pub revenue_rebalance_period: u64,
 
     /// all revenue settles recieved
     pub total_fees_received: u128, // 16, 176
     /// all revenues paid out
     pub total_fees_paid: u128, // 16, 192
+
+    pub min_mint_fee: i64,
+    pub max_mint_fee_premium: i64,
 
     pub constituents: u16, // 2, 194
 
@@ -74,7 +78,7 @@ pub struct LPPool {
 }
 
 impl Size for LPPool {
-    const SIZE: usize = 216;
+    const SIZE: usize = 240;
 }
 
 impl LPPool {
@@ -176,6 +180,40 @@ impl LPPool {
         Ok((in_amount, out_amount, in_fee_amount, out_fee_amount))
     }
 
+    /// Calculates the amount of LP tokens to mint for a given input of constituent tokens.
+    /// Fee is taken in the constituent.
+    /// Returns the mint_amount in lp token precision and fee to charge in constituent mint precision
+    pub fn get_add_liquidity_mint_amount(
+        &self,
+        now: u64,
+        constituent: &Constituent,
+        amount: u64,
+        oracle: &OraclePriceData,
+        dlp_total_supply: u64,
+    ) -> DriftResult<(u64, i64)> {
+        let fee_to_charge = self.get_mint_redeem_fee(now, amount, 0)?;
+
+        // price prec = 6
+        // token prec = x
+        let token_amount_usd = oracle.price.cast::<u64>()?.safe_mul(amount)?;
+        let lp_amount = if self.last_aum == 0 {
+            token_amount_usd
+        } else {
+            (token_amount_usd as u128)
+                .safe_mul(dlp_total_supply as u128)?
+                .safe_div(self.last_aum)?
+                .cast::<u64>()?
+        };
+        msg!(
+            "lp mint amount: {}, constituent fee: {}, constituent_index: {}",
+            lp_amount,
+            constituent.swap_fee_min,
+            constituent.constituent_index
+        );
+
+        Ok((lp_amount, fee_to_charge))
+    }
+
     /// returns fee in PERCENTAGE_PRECISION
     pub fn get_swap_fees(
         &self,
@@ -205,6 +243,42 @@ impl LPPool {
         let fee = constituent.get_fee_to_charge(weight_after, target_weight)?;
 
         Ok(fee)
+    }
+
+    pub fn get_mint_redeem_fee(
+        &self,
+        now: u64,
+        amount_added: u64,
+        amount_remove: u64,
+    ) -> DriftResult<i64> {
+        if amount_added > 0 && amount_remove > 0 {
+            return Err(ErrorCode::DefaultError);
+        }
+
+        let time_since_last_rebalance = now.safe_sub(self.last_revenue_rebalance_ts)?;
+        if amount_added > 0 {
+            // mint fee
+            self.min_mint_fee.safe_add(
+                self.max_mint_fee_premium.min(
+                    self.max_mint_fee_premium
+                        .safe_mul(time_since_last_rebalance.cast::<i64>()?)?
+                        .safe_div(self.revenue_rebalance_period.cast::<i64>()?)?,
+                ),
+            )
+        } else {
+            // burn fee
+            self.min_mint_fee.safe_add(
+                0_i64.max(
+                    self.max_mint_fee_premium.min(
+                        self.revenue_rebalance_period
+                            .safe_sub(time_since_last_rebalance)?
+                            .cast::<i64>()?
+                            .safe_mul(self.max_mint_fee_premium.cast::<i64>()?)?
+                            .safe_div(self.revenue_rebalance_period.cast::<i64>()?)?,
+                    ),
+                ),
+            )
+        }
     }
 }
 

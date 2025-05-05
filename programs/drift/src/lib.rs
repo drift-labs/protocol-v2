@@ -1690,9 +1690,19 @@ pub mod drift {
     pub fn initialize_lp_pool(
         ctx: Context<InitializeLpPool>,
         name: [u8; 32],
+        min_mint_fee: i64,
+        max_mint_fee: i64,
+        revenue_rebalance_period: u64,
         max_aum: u128,
     ) -> Result<()> {
-        handle_initialize_lp_pool(ctx, name, max_aum)
+        handle_initialize_lp_pool(
+            ctx,
+            name,
+            min_mint_fee,
+            max_mint_fee,
+            revenue_rebalance_period,
+            max_aum,
+        )
     }
 
     pub fn update_high_leverage_mode_config(

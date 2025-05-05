@@ -4479,6 +4479,9 @@ pub fn handle_initialize_high_leverage_mode_config(
 pub fn handle_initialize_lp_pool(
     ctx: Context<InitializeLpPool>,
     name: [u8; 32],
+    min_mint_fee: i64,
+    max_mint_fee: i64,
+    revenue_rebalance_period: u64,
     max_aum: u128,
 ) -> Result<()> {
     let mut lp_pool = ctx.accounts.lp_pool.load_init()?;
@@ -4497,6 +4500,9 @@ pub fn handle_initialize_lp_pool(
         total_fees_received: 0,
         total_fees_paid: 0,
         oldest_oracle_slot: 0,
+        min_mint_fee,
+        max_mint_fee_premium: max_mint_fee,
+        revenue_rebalance_period,
         _padding: [0; 13],
     };
 
