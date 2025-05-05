@@ -233,23 +233,6 @@ pub fn handle_update_lp_pool_aum<'c: 'info, 'info>(
     for i in 0..lp_pool.constituents as usize {
         let mut constituent = constituent_map.get_ref_mut(&(i as u16))?;
 
-        // Validate PDA
-        let expected_pda = Pubkey::create_program_address(
-            &[
-                CONSTITUENT_PDA_SEED.as_ref(),
-                lp_pool.pubkey.as_ref(),
-                constituent.spot_market_index.to_le_bytes().as_ref(),
-                constituent.bump.to_le_bytes().as_ref(),
-            ],
-            &crate::ID,
-        )
-        .unwrap();
-        validate!(
-            expected_pda == constituent.pubkey,
-            ErrorCode::InvalidConstituent,
-            "Constituent PDA does not match expected PDA"
-        )?;
-
         let spot_market = spot_market_map.get_ref(&constituent.spot_market_index)?;
 
         let oracle_data = oracle_map.get_price_data_and_validity(
