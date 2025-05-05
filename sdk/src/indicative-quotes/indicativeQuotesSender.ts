@@ -1,5 +1,5 @@
 import { Keypair } from '@solana/web3.js';
-import { BN, DriftClient } from '..';
+import { BN } from '..';
 import nacl from 'tweetnacl';
 import { decodeUTF8 } from 'tweetnacl-util';
 import WebSocket from 'ws';
@@ -22,7 +22,6 @@ export class IndicativeQuotesSender {
 	private readonly heartbeatIntervalMs = 60000;
 	private reconnectDelay = 1000;
 	private ws: WebSocket | null = null;
-	private driftClient: DriftClient;
 	private connected = false;
 
 	private quotes: Map<number, Quote> = new Map();
@@ -153,7 +152,10 @@ export class IndicativeQuotesSender {
 		}, this.heartbeatIntervalMs);
 	}
 
-	setQuote(quote: Quote) {
+	setQuote(quote: Quote): void {
+		if (!this.connected) {
+			console.warn('Setting quote before connected to the server, ignoring');
+		}
 		this.quotes.set(quote.marketIndex, quote);
 	}
 
