@@ -1095,6 +1095,7 @@ pub fn handle_initialize_amm_cache(ctx: Context<InitializeAmmCache>) -> Result<(
     amm_cache
         .cache
         .resize_with(state.number_of_markets as usize, CacheInfo::default);
+    amm_cache.bump = ctx.bumps.amm_cache;
 
     Ok(())
 }
@@ -4497,16 +4498,19 @@ pub fn handle_initialize_lp_pool(
         total_fees_received: 0,
         total_fees_paid: 0,
         oldest_oracle_slot: 0,
-        _padding: [0; 13],
+        bump: ctx.bumps.lp_pool,
+        _padding: [0; 12],
     };
 
     let amm_constituent_mapping = &mut ctx.accounts.amm_constituent_mapping;
+    amm_constituent_mapping.bump = ctx.bumps.amm_constituent_mapping;
     amm_constituent_mapping
         .weights
         .resize_with(0 as usize, AmmConstituentDatum::default);
     amm_constituent_mapping.validate()?;
 
     let constituent_target_weights = &mut ctx.accounts.constituent_target_weights;
+    constituent_target_weights.bump = ctx.bumps.constituent_target_weights;
     constituent_target_weights
         .weights
         .resize_with(0 as usize, WeightDatum::default);
@@ -4711,7 +4715,7 @@ pub fn handle_admin_deposit<'c: 'info, 'info>(
 }
 
 pub fn handle_initialize_constituent<'info>(
-    ctx: Context<InitializeConstituent>,
+    ctx: Context<'_, '_, '_, 'info, InitializeConstituent<'info>>,
     spot_market_index: u16,
     decimals: u8,
     max_weight_deviation: i64,
@@ -4741,6 +4745,7 @@ pub fn handle_initialize_constituent<'info>(
     constituent.oracle_staleness_threshold = oracle_staleness_threshold;
     constituent.pubkey = ctx.accounts.constituent.key();
     constituent.mint = ctx.accounts.spot_market_mint.key();
+    constituent.bump = ctx.bumps.constituent;
     constituent.constituent_index = (constituent_target_weights.weights.len() - 1) as u16;
     lp_pool.constituents += 1;
 
@@ -5159,7 +5164,7 @@ pub struct InitializePerpMarket<'info> {
     #[account(
         mut,
         seeds = [AMM_POSITIONS_CACHE.as_ref()],
-        bump,
+        bump = amm_cache.bump,
         realloc = AmmCache::space(amm_cache.cache.len() + 1 as usize),
         realloc::payer = admin,
         realloc::zero = false,
@@ -5202,7 +5207,7 @@ pub struct UpdateInitAmmCacheInfo<'info> {
     #[account(
         mut,
         seeds = [AMM_POSITIONS_CACHE.as_ref()],
-        bump,
+        bump = amm_cache.bump,
     )]
     pub amm_cache: Box<Account<'info, AmmCache>>,
 }
@@ -5243,7 +5248,7 @@ pub struct AdminUpdatePerpMarketContractTier<'info> {
     #[account(
         mut,
         seeds = [AMM_POSITIONS_CACHE.as_ref()],
-        bump,
+        bump = amm_cache.bump,
     )]
     pub amm_cache: Box<Account<'info, AmmCache>>,
 }
@@ -5418,7 +5423,7 @@ pub struct AdminUpdatePerpMarketOracle<'info> {
     #[account(
         mut,
         seeds = [AMM_POSITIONS_CACHE.as_ref()],
-        bump,
+        bump = amm_cache.bump,
     )]
     pub amm_cache: Box<Account<'info, AmmCache>>,
 }
@@ -5807,14 +5812,14 @@ pub struct InitializeConstituent<'info> {
     #[account(
         mut,
         seeds = [b"lp_pool", lp_pool_name.as_ref()],
-        bump,
+        bump = lp_pool.load()?.bump,
     )]
     pub lp_pool: AccountLoader<'info, LPPool>,
 
     #[account(
         mut,
         seeds = [CONSTITUENT_TARGET_WEIGHT_PDA_SEED.as_ref(), lp_pool.key().as_ref()],
-        bump,
+        bump = constituent_target_weights.bump,
         realloc = ConstituentTargetWeights::space(constituent_target_weights.weights.len() + 1 as usize),
         realloc::payer = admin,
         realloc::zero = false,

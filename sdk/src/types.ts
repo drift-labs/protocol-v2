@@ -1496,6 +1496,7 @@ export type AmmConstituentDatum = AddAmmConstituentMappingDatum & {
 };
 
 export type AmmConstituentMapping = {
+	bump: number;
 	weights: AmmConstituentDatum[];
 };
 
@@ -1505,6 +1506,7 @@ export type WeightDatum = {
 };
 
 export type ConstituentTargetWeights = {
+	bump: number;
 	weights: WeightDatum[];
 };
 
@@ -1516,6 +1518,7 @@ export type LPPoolAccount = {
 	lastAum: BN;
 	lastAumSlot: BN;
 	lastAumTs: BN;
+	bump: number;
 	oldestOracleSlot: BN;
 	lastRevenueRebalanceTs: BN;
 	totalFeesReceived: BN;
@@ -1544,6 +1547,7 @@ export type ConstituentAccount = {
 	lastOraclePrice: BN;
 	lastOracleSlot: BN;
 	mint: PublicKey;
+	bump: number;
 };
 
 export type CacheInfo = {

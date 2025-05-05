@@ -1680,7 +1680,8 @@ pub const AMM_POSITIONS_CACHE: &str = "amm_positions_cache";
 #[derive(Debug)]
 #[repr(C)]
 pub struct AmmCache {
-    _padding: [u8; 4],
+    pub bump: u8,
+    _padding: [u8; 3],
     pub cache: Vec<CacheInfo>,
 }
 
@@ -1739,7 +1740,8 @@ impl CacheInfo {
 #[derive(Default, Debug)]
 #[repr(C)]
 pub struct AmmCacheFixed {
-    _pad: [u8; 4],
+    pub bump: u8,
+    _pad: [u8; 3],
     pub len: u32,
 }
 
