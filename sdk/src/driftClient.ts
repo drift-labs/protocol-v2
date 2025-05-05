@@ -4429,6 +4429,16 @@ export class DriftClient {
 			useMarketLastSlotCache: true,
 		});
 
+		for (const param of params) {
+			if (isUpdateHighLeverageMode(param.bitFlags)) {
+				remainingAccounts.push({
+					pubkey: getHighLeverageModeConfigPublicKey(this.program.programId),
+					isWritable: true,
+					isSigner: false,
+				});
+			}
+		}
+
 		const formattedParams = params.map((item) => getOrderParams(item));
 
 		return await this.program.instruction.placeOrders(formattedParams, {

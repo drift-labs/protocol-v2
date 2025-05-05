@@ -655,7 +655,11 @@ export class User {
 	 * calculates Buying Power = free collateral / initial margin ratio
 	 * @returns : Precision QUOTE_PRECISION
 	 */
-	public getPerpBuyingPower(marketIndex: number, collateralBuffer = ZERO): BN {
+	public getPerpBuyingPower(
+		marketIndex: number,
+		collateralBuffer = ZERO,
+		enterHighLeverageMode = false
+	): BN {
 		const perpPosition = this.getPerpPositionWithLPSettle(
 			marketIndex,
 			undefined,
@@ -677,21 +681,23 @@ export class User {
 		return this.getPerpBuyingPowerFromFreeCollateralAndBaseAssetAmount(
 			marketIndex,
 			freeCollateral,
-			worstCaseBaseAssetAmount
+			worstCaseBaseAssetAmount,
+			enterHighLeverageMode
 		);
 	}
 
 	getPerpBuyingPowerFromFreeCollateralAndBaseAssetAmount(
 		marketIndex: number,
 		freeCollateral: BN,
-		baseAssetAmount: BN
+		baseAssetAmount: BN,
+		enterHighLeverageMode = false
 	): BN {
 		const marginRatio = calculateMarketMarginRatio(
 			this.driftClient.getPerpMarketAccount(marketIndex),
 			baseAssetAmount,
 			'Initial',
 			this.getUserAccount().maxMarginRatio,
-			this.isHighLeverageMode()
+			enterHighLeverageMode || this.isHighLeverageMode()
 		);
 
 		return freeCollateral.mul(MARGIN_PRECISION).div(new BN(marginRatio));
@@ -1860,12 +1866,14 @@ export class User {
 	 * for large sizes where imf factor activates, result is a lower bound
 	 * @param marginCategory {Initial, Maintenance}
 	 * @param isLp if calculating max leveraging for adding lp, need to add buffer
+	 * @param enterHighLeverageMode can pass this as true to calculate max leverage if the user was to enter high leverage mode
 	 * @returns : Precision TEN_THOUSAND
 	 */
 	public getMaxLeverageForPerp(
 		perpMarketIndex: number,
 		marginCategory: MarginCategory = 'Initial',
-		isLp = false
+		isLp = false,
+		enterHighLeverageMode = false
 	): BN {
 		const market = this.driftClient.getPerpMarketAccount(perpMarketIndex);
 		const marketPrice =
@@ -1923,7 +1931,7 @@ export class User {
 			maxSize,
 			marginCategory,
 			this.getUserAccount().maxMarginRatio,
-			this.isHighLeverageMode()
+			enterHighLeverageMode || this.isHighLeverageMode()
 		);
 
 		// use more fesible size since imf factor activated
@@ -1945,7 +1953,7 @@ export class User {
 				targetSize,
 				marginCategory,
 				this.getUserAccount().maxMarginRatio,
-				this.isHighLeverageMode()
+				enterHighLeverageMode || this.isHighLeverageMode()
 			);
 			attempts += 1;
 		}
@@ -2633,7 +2641,8 @@ export class User {
 	public getMaxTradeSizeUSDCForPerp(
 		targetMarketIndex: number,
 		tradeSide: PositionDirection,
-		isLp = false
+		isLp = false,
+		enterHighLeverageMode = false
 	): { tradeSize: BN; oppositeSideTradeSize: BN } {
 		let tradeSize = ZERO;
 		let oppositeSideTradeSize = ZERO;
@@ -2673,7 +2682,8 @@ export class User {
 
 		const maxPositionSize = this.getPerpBuyingPower(
 			targetMarketIndex,
-			lpBuffer
+			lpBuffer,
+			enterHighLeverageMode
 		);
 
 		if (maxPositionSize.gte(ZERO)) {
