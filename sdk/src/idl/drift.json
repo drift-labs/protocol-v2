@@ -7559,12 +7559,12 @@
         },
         {
           "name": "constituentTargetWeights",
-          "isMut": true,
+          "isMut": false,
           "isSigner": false
         },
         {
           "name": "ammCache",
-          "isMut": true,
+          "isMut": false,
           "isSigner": false
         },
         {
@@ -8151,11 +8151,15 @@
             "type": "u16"
           },
           {
+            "name": "bump",
+            "type": "u8"
+          },
+          {
             "name": "padding",
             "type": {
               "array": [
                 "u8",
-                13
+                12
               ]
             }
           }
@@ -8194,11 +8198,15 @@
             "type": "u8"
           },
           {
+            "name": "bump",
+            "type": "u8"
+          },
+          {
             "name": "padding1",
             "type": {
               "array": [
                 "u8",
-                3
+                2
               ]
             }
           },
@@ -8283,11 +8291,15 @@
         "kind": "struct",
         "fields": [
           {
+            "name": "bump",
+            "type": "u8"
+          },
+          {
             "name": "padding",
             "type": {
               "array": [
                 "u8",
-                4
+                3
               ]
             }
           },
@@ -8308,11 +8320,15 @@
         "kind": "struct",
         "fields": [
           {
+            "name": "bump",
+            "type": "u8"
+          },
+          {
             "name": "padding",
             "type": {
               "array": [
                 "u8",
-                4
+                3
               ]
             }
           },
@@ -8662,11 +8678,15 @@
         "kind": "struct",
         "fields": [
           {
+            "name": "bump",
+            "type": "u8"
+          },
+          {
             "name": "padding",
             "type": {
               "array": [
                 "u8",
-                4
+                3
               ]
             }
           },
@@ -10359,11 +10379,15 @@
         "kind": "struct",
         "fields": [
           {
+            "name": "bump",
+            "type": "u8"
+          },
+          {
             "name": "pad",
             "type": {
               "array": [
                 "u8",
-                4
+                3
               ]
             }
           },
@@ -10396,19 +10420,23 @@
         "kind": "struct",
         "fields": [
           {
+            "name": "bump",
+            "type": "u8"
+          },
+          {
             "name": "pad",
-            "docs": [
-              "total elements in the flattened `data` vec"
-            ],
             "type": {
               "array": [
                 "u8",
-                4
+                3
               ]
             }
           },
           {
             "name": "len",
+            "docs": [
+              "total elements in the flattened `data` vec"
+            ],
             "type": "u32"
           }
         ]
@@ -11640,11 +11668,15 @@
         "kind": "struct",
         "fields": [
           {
+            "name": "bump",
+            "type": "u8"
+          },
+          {
             "name": "pad",
             "type": {
               "array": [
                 "u8",
-                4
+                3
               ]
             }
           },

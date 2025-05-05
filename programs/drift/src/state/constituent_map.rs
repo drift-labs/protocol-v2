@@ -4,7 +4,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::iter::Peekable;
 use std::slice::Iter;
 
-use anchor_lang::prelude::AccountInfo;
+use anchor_lang::prelude::{AccountInfo, Pubkey};
 
 use anchor_lang::Discriminator;
 use arrayref::array_ref;
@@ -12,11 +12,11 @@ use arrayref::array_ref;
 use crate::error::{DriftResult, ErrorCode};
 
 use crate::math::safe_unwrap::SafeUnwrap;
-use crate::msg;
 use crate::state::traits::Size;
+use crate::{msg, validate};
 use std::panic::Location;
 
-use super::lp_pool::Constituent;
+use super::lp_pool::{Constituent, CONSTITUENT_PDA_SEED};
 
 pub struct ConstituentMap<'a>(pub BTreeMap<u16, AccountLoader<'a, Constituent>>);
 
@@ -89,6 +89,7 @@ impl<'a> ConstituentMap<'a> {
 
     pub fn load<'b, 'c>(
         writable_markets: &'b ConstituentSet,
+        lp_pool_key: &Pubkey,
         account_info_iter: &'c mut Peekable<Iter<'a, AccountInfo<'a>>>,
     ) -> DriftResult<ConstituentMap<'a>> {
         let mut constituent_map: ConstituentMap = ConstituentMap(BTreeMap::new());
@@ -122,6 +123,23 @@ impl<'a> ConstituentMap<'a> {
                 );
                 break;
             }
+
+            // // Check if valid pda
+            let expected_pda = &Pubkey::create_program_address(
+                &[
+                    CONSTITUENT_PDA_SEED.as_ref(),
+                    lp_pool_key.as_ref(),
+                    array_ref![data, 40, 2],
+                    array_ref![data, 45, 1],
+                ],
+                &crate::ID,
+            )
+            .map_err(|_| ErrorCode::InvalidPDA)?;
+            validate!(
+                expected_pda.eq(account_info.key),
+                ErrorCode::InvalidPDA,
+                "Constituent PDA does not match expected PDA"
+            )?;
 
             // constituent index 42 bytes from front of account
             let constituent_index = u16::from_le_bytes(*array_ref![data, 42, 2]);

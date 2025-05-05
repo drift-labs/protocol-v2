@@ -2938,8 +2938,24 @@ pub fn handle_update_amm_cache<'c: 'info, 'info>(
     ctx: Context<'_, '_, 'c, 'info, UpdateAmmCache<'info>>,
 ) -> Result<()> {
     let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
+    let amm_cache_key = &ctx.accounts.amm_cache.key();
     let mut amm_cache: AccountZeroCopyMut<'_, CacheInfo, _> =
         ctx.accounts.amm_cache.load_zc_mut()?;
+
+    let expected_pda = &Pubkey::create_program_address(
+        &[
+            AMM_POSITIONS_CACHE.as_ref(),
+            amm_cache.fixed.bump.to_le_bytes().as_ref(),
+        ],
+        &crate::ID,
+    )
+    .map_err(|_| ErrorCode::InvalidPDA)?;
+    validate!(
+        expected_pda.eq(amm_cache_key),
+        ErrorCode::InvalidPDA,
+        "Amm cache PDA does not match expected PDA"
+    )?;
+
     let AccountMaps {
         perp_market_map,
         spot_market_map: _,
@@ -2982,12 +2998,8 @@ pub fn handle_update_amm_cache<'c: 'info, 'info>(
 pub struct UpdateAmmCache<'info> {
     #[account(mut)]
     pub keeper: Signer<'info>,
-    #[account(
-        mut,
-        seeds = [AMM_POSITIONS_CACHE.as_ref()],
-        bump,
-    )]
     /// CHECK: checked in AmmCacheZeroCopy checks
+    #[account(mut)]
     pub amm_cache: AccountInfo<'info>,
 }
 
