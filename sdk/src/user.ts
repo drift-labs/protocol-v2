@@ -3501,12 +3501,17 @@ export class User {
 	 * @param quoteAmount
 	 * @returns feeForQuote : Precision QUOTE_PRECISION
 	 */
-	public calculateFeeForQuoteAmount(quoteAmount: BN, marketIndex?: number): BN {
+	public calculateFeeForQuoteAmount(
+		quoteAmount: BN,
+		marketIndex?: number,
+		enteringHighLeverageMode?: boolean
+	): BN {
 		if (marketIndex !== undefined) {
 			const takerFeeMultiplier = this.driftClient.getMarketFees(
 				MarketType.PERP,
 				marketIndex,
-				this
+				this,
+				enteringHighLeverageMode
 			).takerFee;
 			const feeAmountNum =
 				BigNum.from(quoteAmount, QUOTE_PRECISION_EXP).toNum() *
