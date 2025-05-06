@@ -6418,7 +6418,6 @@ export class DriftClient {
 		},
 		precedingIxs: TransactionInstruction[] = [],
 		overrideCustomIxIndex?: number,
-		includeHighLeverageModeConfig?: boolean,
 		txParams?: TxParams
 	): Promise<TransactionSignature> {
 		const ixs = await this.getPlaceSignedMsgTakerPerpOrderIxs(
@@ -6426,8 +6425,7 @@ export class DriftClient {
 			marketIndex,
 			takerInfo,
 			precedingIxs,
-			overrideCustomIxIndex,
-			includeHighLeverageModeConfig
+			overrideCustomIxIndex
 		);
 		const { txSig } = await this.sendTransaction(
 			await this.buildTransaction(ixs, txParams),
@@ -6447,8 +6445,7 @@ export class DriftClient {
 			signingAuthority: PublicKey;
 		},
 		precedingIxs: TransactionInstruction[] = [],
-		overrideCustomIxIndex?: number,
-		includeHighLeverageModeConfig?: boolean
+		overrideCustomIxIndex?: number
 	): Promise<TransactionInstruction[]> {
 		const remainingAccounts = this.getRemainingAccounts({
 			userAccounts: [takerInfo.takerUserAccount],
@@ -6456,7 +6453,14 @@ export class DriftClient {
 			readablePerpMarketIndex: marketIndex,
 		});
 
-		if (includeHighLeverageModeConfig) {
+		const isDelegateSigner = takerInfo.signingAuthority.equals(
+			takerInfo.takerUserAccount.delegate
+		);
+		const { signedMsgOrderParams } = this.decodeSignedMsgOrderParamsMessage(
+			signedSignedMsgOrderParams.orderParams,
+			isDelegateSigner
+		);
+		if (isUpdateHighLeverageMode(signedMsgOrderParams.bitFlags)) {
 			remainingAccounts.push({
 				pubkey: getHighLeverageModeConfigPublicKey(this.program.programId),
 				isWritable: true,
@@ -6483,9 +6487,6 @@ export class DriftClient {
 			0
 		);
 
-		const isDelegateSigner = takerInfo.signingAuthority.equals(
-			takerInfo.takerUserAccount.delegate
-		);
 		const placeTakerSignedMsgPerpOrderIx =
 			this.program.instruction.placeSignedMsgTakerOrder(
 				signedMsgIxData,
