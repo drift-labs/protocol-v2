@@ -1,5 +1,6 @@
 import {
 	Keypair,
+	LAMPORTS_PER_SOL,
 	PublicKey,
 	SystemProgram,
 	SYSVAR_RENT_PUBKEY,
@@ -46,11 +47,16 @@ import {
 	getConstituentPublicKey,
 	getConstituentVaultPublicKey,
 	getAmmCachePublicKey,
+	getLpPoolTokenVaultPublicKey,
 } from './addresses/pda';
 import { squareRootBN } from './math/utils';
 import {
 	createAssociatedTokenAccountInstruction,
+	createInitializeMint2Instruction,
+	createMint,
 	getAssociatedTokenAddressSync,
+	initializeMint2InstructionData,
+	MINT_SIZE,
 	TOKEN_PROGRAM_ID,
 } from '@solana/spl-token';
 import { DriftClient } from './driftClient';
@@ -4369,7 +4375,7 @@ export class AdminClient extends DriftClient {
 		maxMintFee: BN,
 		revenueRebalancePeriod: BN,
 		maxAum: BN,
-		mint: Keypair
+		mint: Keypair 
 	): Promise<TransactionSignature> {
 		const ixs = await this.getInitializeLpPoolIx(
 			name,
@@ -4390,7 +4396,7 @@ export class AdminClient extends DriftClient {
 		maxMintFee: BN,
 		revenueRebalancePeriod: BN,
 		maxAum: BN,
-		mint: Keypair
+		mint: Keypair,
 	): Promise<TransactionInstruction[]> {
 		const lpPool = getLpPoolPublicKey(this.program.programId, encodeName(name));
 		const ammConstituentMapping = getAmmConstituentMappingPublicKey(
@@ -4401,23 +4407,26 @@ export class AdminClient extends DriftClient {
 			this.program.programId,
 			lpPool
 		);
-		const lpPoolAta = getAssociatedTokenAddressSync(
-			mint.publicKey,
-			lpPool,
-			true,
-			TOKEN_PROGRAM_ID
-		);
-		const createAtaIx = createAssociatedTokenAccountInstruction(
-			this.wallet.publicKey,
-			lpPoolAta,
-			lpPool,
-			mint.publicKey,
-			TOKEN_PROGRAM_ID
-		);
 
-		const state = await this.getStatePublicKey();
+		const lamports = await this.program.provider.connection.getMinimumBalanceForRentExemption(MINT_SIZE);
+		const createMintAccountIx = SystemProgram.createAccount({
+			fromPubkey: this.wallet.publicKey,
+			newAccountPubkey: mint.publicKey,
+			space: MINT_SIZE,
+			lamports: Math.min(0.05 * LAMPORTS_PER_SOL, lamports), // should be 0.0014616 ? but bankrun returns 10 SOL
+			programId: TOKEN_PROGRAM_ID,
+		});
+		const createMintIx = createInitializeMint2Instruction(
+			mint.publicKey,
+			6,
+			this.getSignerPublicKey(),
+			null,
+			TOKEN_PROGRAM_ID
+		);
 
 		return [
+			createMintAccountIx,
+			createMintIx,
 			this.program.instruction.initializeLpPool(
 				encodeName(name),
 				minMintFee,
@@ -4428,19 +4437,22 @@ export class AdminClient extends DriftClient {
 					accounts: {
 						admin: this.wallet.publicKey,
 						lpPool,
+						lpPoolTokenVault: getLpPoolTokenVaultPublicKey(
+							this.program.programId,
+							lpPool,
+						),
 						ammConstituentMapping,
 						constituentTargetWeights,
 						mint: mint.publicKey,
-						state,
+						state: await this.getStatePublicKey(),
 						driftSigner: this.getSignerPublicKey(),
 						tokenProgram: TOKEN_PROGRAM_ID,
 						rent: SYSVAR_RENT_PUBKEY,
 						systemProgram: SystemProgram.programId,
 					},
 					signers: [mint],
-				}
+				},
 			),
-			createAtaIx,
 		];
 	}
 

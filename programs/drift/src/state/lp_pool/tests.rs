@@ -933,4 +933,148 @@ mod swap_tests {
             0,              // expected_in_fee_amount
         );
     }
+
+    fn get_remove_liquidity_mint_amount_scenario(
+        last_aum: u128,
+        now: i64,
+        in_decimals: u32,
+        lp_burn_amount: u64,
+        dlp_total_supply: u64,
+        expected_out_amount: u64,
+        expected_lp_fee: i64,
+        expected_out_fee_amount: i64,
+    ) {
+        let lp_pool = LPPool {
+            last_aum,
+            last_revenue_rebalance_ts: 0,
+            revenue_rebalance_period: 3600,
+            max_mint_fee_premium: 0,
+            min_mint_fee: 0,
+            ..LPPool::default()
+        };
+
+        let spot_market = SpotMarket {
+            decimals: in_decimals,
+            ..SpotMarket::default()
+        };
+
+        let token_balance = if in_decimals > 6 {
+            last_aum.safe_mul(10_u128.pow(in_decimals - 6)).unwrap()
+        } else {
+            last_aum.safe_div(10_u128.pow(6 - in_decimals)).unwrap()
+        };
+
+        let constituent = Constituent {
+            decimals: in_decimals as u8,
+            swap_fee_min: 0,
+            swap_fee_max: 0,
+            max_weight_deviation: PERCENTAGE_PRECISION_I64 / 10,
+            spot_market_index: 0,
+            spot_balance: BLPosition {
+                scaled_balance: 0,
+                cumulative_deposits: 0,
+                balance_type: SpotBalanceType::Deposit,
+                market_index: 0,
+                ..BLPosition::default()
+            },
+            token_balance: token_balance as u64,
+            ..Constituent::default()
+        };
+
+        let oracle = OraclePriceData {
+            price: PRICE_PRECISION_I64, // $1
+            ..OraclePriceData::default()
+        };
+
+        let (lp_amount_1, out_amount, lp_fee, out_fee_amount) = lp_pool
+            .get_remove_liquidity_amount(
+                now,
+                &spot_market,
+                &constituent,
+                lp_burn_amount,
+                &oracle,
+                PERCENTAGE_PRECISION_I64, // 100% target weight, to minimize fee for this test
+                dlp_total_supply,
+            )
+            .unwrap();
+
+        assert_eq!(lp_amount_1, lp_burn_amount);
+        assert_eq!(lp_fee, expected_lp_fee);
+        assert_eq!(out_amount, expected_out_amount);
+        assert_eq!(out_fee_amount, expected_out_fee_amount);
+    }
+
+    // test with 6 decimal constituent (matches dlp precision)
+    #[test]
+    fn test_get_remove_liquidity_mint_amount_with_existing_aum() {
+        get_remove_liquidity_mint_amount_scenario(
+            10_000_000_000, // last_aum ($10,000)
+            0,              // now
+            6,              // in_decimals
+            1_000_000,      // in_amount (1 token) = $1
+            10_000_000_000, // dlp_total_supply
+            1_000_000,      // expected_out_amount
+            0,              // expected_lp_fee
+            0,              // expected_out_fee_amount
+        );
+    }
+
+    // test with 8 decimal constituent
+    #[test]
+    fn test_get_remove_liquidity_mint_amount_with_existing_aum_8_decimals() {
+        get_remove_liquidity_mint_amount_scenario(
+            10_000_000_000, // last_aum ($10,000)
+            0,              // now
+            8,              // in_decimals
+            100_000_000,    // in_amount (1 token) = $1
+            10_000_000_000, // dlp_total_supply
+            100_000_000,    // expected_out_amount
+            0,              // expected_lp_fee
+            0,              // expected_out_fee_amount
+        );
+    }
+
+    // test with 4 decimal constituent
+    // there will be a problem with 4 decimal constituents with aum ~10M
+    #[test]
+    fn test_get_remove_liquidity_mint_amount_with_existing_aum_4_decimals() {
+        get_remove_liquidity_mint_amount_scenario(
+            10_000_000_000, // last_aum ($10,000)
+            0,              // now
+            4,              // in_decimals
+            10_000,         // in_amount (1 token) = 1/10000
+            10_000_000_000, // dlp_total_supply
+            10_000,         // expected_out_amount = 1
+            0,              // expected_lp_fee
+            0,              // expected_out_fee_amount
+        );
+    }
+
+    #[test]
+    fn test_get_remove_liquidity_mint_amount_with_existing_aum_6_decimals_large_aum() {
+        get_remove_liquidity_mint_amount_scenario(
+            100_000_000_000 * 1_000_000, // last_aum ($100,000,000,000)
+            0,                           // now
+            6,                           // in_decimals
+            100_000_000_000 * 1_000_000, // in_amount
+            100_000_000_000 * 1_000_000, // dlp_total_supply
+            100_000_000_000 * 1_000_000, // expected_out_amount
+            0,                           // expected_lp_fee
+            0,                           // expected_out_fee_amount
+        );
+    }
+
+    #[test]
+    fn test_get_remove_liquidity_mint_amount_with_existing_aum_8_decimals_large_aum() {
+        get_remove_liquidity_mint_amount_scenario(
+            10_000_000_000 * 1_000_000,   // last_aum ($10,000,000,000)
+            0,                            // now
+            8,                            // in_decimals
+            10_000_000_000 * 100_000_000, // in_amount
+            10_000_000_000 * 1_000_000,   // dlp_total_supply
+            10_000_000_000 * 100_000_000, // expected_out_amount
+            0,                            // expected_lp_fee
+            0,                            // expected_out_fee_amount
+        );
+    }
 }

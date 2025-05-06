@@ -111,6 +111,7 @@ import {
 	getLpPoolPublicKey,
 	getConstituentPublicKey,
 	getAmmCachePublicKey,
+	getLpPoolTokenVaultPublicKey,
 } from './addresses/pda';
 import {
 	DataAndSlot,
@@ -10015,6 +10016,97 @@ export class DriftClient {
 					constituentInTokenAccount,
 					userLpTokenAccount,
 					lpMint,
+					lpPoolTokenVault: getLpPoolTokenVaultPublicKey(
+						this.program.programId,
+						lpPool
+					),
+					constituentTargetWeights,
+					tokenProgram: TOKEN_PROGRAM_ID,
+				},
+			}
+		);
+	}
+
+	public async lpPoolRemoveLiquidity(
+		lpPoolName: number[],
+		outMarketIndex: number,
+		lpToBurn: BN,
+		minAmountOut: BN,
+		lpPool: PublicKey,
+		lpMint: PublicKey,
+		constituentTargetWeights: PublicKey,
+		constituentOutTokenAccount: PublicKey,
+		userOutTokenAccount: PublicKey,
+		userLpTokenAccount: PublicKey,
+		outMarketMint: PublicKey,
+		outConstituent: PublicKey,
+		txParams?: TxParams
+	): Promise<TransactionSignature> {
+		const { txSig } = await this.sendTransaction(
+			await this.buildTransaction(
+				await this.getLpPoolRemoveLiquidityIx(
+					lpPoolName,
+					outMarketIndex,
+					lpToBurn,
+					minAmountOut,
+					lpPool,
+					lpMint,
+					constituentTargetWeights,
+					constituentOutTokenAccount,
+					userOutTokenAccount,
+					userLpTokenAccount,
+					outMarketMint,
+					outConstituent
+				),
+				txParams
+			),
+			[],
+			this.opts
+		);
+		return txSig;
+	}
+
+	public async getLpPoolRemoveLiquidityIx(
+		lpPoolName: number[],
+		outMarketIndex: number,
+		lpToBurn: BN,
+		minAmountOut: BN,
+		lpPool: PublicKey,
+		lpMint: PublicKey,
+		constituentTargetWeights: PublicKey,
+		constituentOutTokenAccount: PublicKey,
+		userOutTokenAccount: PublicKey,
+		userLpTokenAccount: PublicKey,
+		outMarketMint: PublicKey,
+		outConstituent: PublicKey
+	): Promise<TransactionInstruction> {
+		const remainingAccounts = this.getRemainingAccounts({
+			userAccounts: [],
+			writableSpotMarketIndexes: [outMarketIndex],
+		});
+
+		return this.program.instruction.lpPoolRemoveLiquidity(
+			lpPoolName,
+			outMarketIndex,
+			lpToBurn,
+			minAmountOut,
+			{
+				remainingAccounts,
+				accounts: {
+					driftSigner: this.getSignerPublicKey(),
+					state: await this.getStatePublicKey(),
+					lpPool,
+					authority: this.wallet.publicKey,
+					outMarketMint,
+					outConstituent,
+					userOutTokenAccount,
+					constituentOutTokenAccount,
+					userLpTokenAccount,
+					lpMint,
+					lpPoolTokenVault: getLpPoolTokenVaultPublicKey(
+						this.program.programId,
+						lpPool
+					),
 					constituentTargetWeights,
 					tokenProgram: TOKEN_PROGRAM_ID,
 				},

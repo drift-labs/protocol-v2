@@ -7077,8 +7077,13 @@
         },
         {
           "name": "mint",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "lpPoolTokenVault",
           "isMut": true,
-          "isSigner": true
+          "isSigner": false
         },
         {
           "name": "ammConstituentMapping",
@@ -7807,6 +7812,11 @@
           "isSigner": false
         },
         {
+          "name": "lpPoolTokenVault",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
           "name": "tokenProgram",
           "isMut": false,
           "isSigner": false
@@ -7832,6 +7842,99 @@
         },
         {
           "name": "minMintAmount",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "lpPoolRemoveLiquidity",
+      "accounts": [
+        {
+          "name": "driftSigner",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "lpPool",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "outMarketMint",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "outConstituent",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "userOutTokenAccount",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "constituentOutTokenAccount",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "userLpTokenAccount",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "lpMint",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "constituentTargetWeights",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "lpPoolTokenVault",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "tokenProgram",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "lpPoolName",
+          "type": {
+            "array": [
+              "u8",
+              32
+            ]
+          }
+        },
+        {
+          "name": "inMarketIndex",
+          "type": "u16"
+        },
+        {
+          "name": "inAmount",
+          "type": "u64"
+        },
+        {
+          "name": "minOutAmount",
           "type": "u64"
         }
       ]
@@ -8192,7 +8295,6 @@
           {
             "name": "maxAum",
             "docs": [
-              "LPPool's token account",
               "token_supply? to simplify NAV calculation, or load from mint account",
               "token_total_supply: u64",
               "The current number of VaultConstituents in the vault, each constituent is pda(LPPool.address, constituent_index)",

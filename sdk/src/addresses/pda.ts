@@ -393,6 +393,18 @@ export function getLpPoolPublicKey(
 	)[0];
 }
 
+export function getLpPoolTokenVaultPublicKey(
+	programId: PublicKey,
+	lpPool: PublicKey
+): PublicKey {
+	return PublicKey.findProgramAddressSync(
+		[
+			Buffer.from(anchor.utils.bytes.utf8.encode('LP_POOL_TOKEN_VAULT')),
+			lpPool.toBuffer(),
+		],
+		programId
+	)[0];
+}
 export function getAmmConstituentMappingPublicKey(
 	programId: PublicKey,
 	lpPoolPublicKey: PublicKey

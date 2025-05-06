@@ -1,17 +1,15 @@
 use crate::error::{DriftResult, ErrorCode};
 use crate::math::casting::Cast;
 use crate::math::constants::{
-    PERCENTAGE_PRECISION, PERCENTAGE_PRECISION_I128, PERCENTAGE_PRECISION_I64, PRICE_PRECISION_I64,
+    PERCENTAGE_PRECISION_I128, PERCENTAGE_PRECISION_I64, PRICE_PRECISION_I64, QUOTE_PRECISION,
 };
 use crate::math::safe_math::SafeMath;
 use crate::math::spot_balance::get_token_amount;
 use anchor_lang::prelude::*;
 use anchor_spl::token::Mint;
-use anchor_spl::token_interface::TokenAccount;
 use borsh::{BorshDeserialize, BorshSerialize};
 
 use super::oracle::OraclePriceData;
-use super::oracle_map::OracleMap;
 use super::spot_market::SpotMarket;
 use super::zero_copy::{AccountZeroCopy, AccountZeroCopyMut, HasLen};
 use crate::state::spot_market::{SpotBalance, SpotBalanceType};
@@ -22,6 +20,7 @@ pub const AMM_MAP_PDA_SEED: &str = "AMM_MAP";
 pub const CONSTITUENT_PDA_SEED: &str = "CONSTITUENT";
 pub const CONSTITUENT_TARGET_WEIGHT_PDA_SEED: &str = "CONSTITUENT_TARGET_WEIGHTS";
 pub const CONSTITUENT_VAULT_PDA_SEED: &str = "CONSTITUENT_VAULT";
+pub const LP_POOL_TOKEN_VAULT_PDA_SEED: &str = "LP_POOL_TOKEN_VAULT";
 
 #[cfg(test)]
 mod tests;
@@ -36,8 +35,6 @@ pub struct LPPool {
     pub pubkey: Pubkey, // 32, 64
     // vault token mint
     pub mint: Pubkey, // 32, 96
-    /// LPPool's token account
-    // pub token_vault: Pubkey, // 32, 128
 
     /// token_supply? to simplify NAV calculation, or load from mint account
     /// token_total_supply: u64
@@ -80,7 +77,7 @@ pub struct LPPool {
 }
 
 impl Size for LPPool {
-    const SIZE: usize = 256;
+    const SIZE: usize = 288;
 }
 
 impl LPPool {
@@ -183,7 +180,6 @@ impl LPPool {
     }
 
     /// Calculates the amount of LP tokens to mint for a given input of constituent tokens.
-    /// Fee is taken in the constituent.
     /// Returns the mint_amount in lp token precision and fee to charge in constituent mint precision
     pub fn get_add_liquidity_mint_amount(
         &self,
@@ -195,7 +191,7 @@ impl LPPool {
         in_target_weight: i64,
         dlp_total_supply: u64,
     ) -> DriftResult<(u64, u64, i64, i64)> {
-        let in_fee = self.get_swap_fees(
+        let in_fee_pct = self.get_swap_fees(
             in_spot_market,
             in_oracle,
             in_constituent,
@@ -204,7 +200,7 @@ impl LPPool {
         )?;
         let in_fee_amount = in_amount
             .cast::<i64>()?
-            .safe_mul(in_fee)?
+            .safe_mul(in_fee_pct)?
             .safe_div(PERCENTAGE_PRECISION_I64.cast::<i64>()?)?;
 
         let in_amount_less_fees = in_amount
@@ -236,6 +232,63 @@ impl LPPool {
             in_amount,
             lp_fee_to_charge,
             in_fee_amount,
+        ))
+    }
+
+    /// Calculates the amount of constituent tokens to receive for a given amount of LP tokens to burn
+    /// Returns the mint_amount in lp token precision and fee to charge in constituent mint precision
+    pub fn get_remove_liquidity_amount(
+        &self,
+        now: i64,
+        out_spot_market: &SpotMarket,
+        out_constituent: &Constituent,
+        lp_burn_amount: u64,
+        out_oracle: &OraclePriceData,
+        out_target_weight: i64,
+        dlp_total_supply: u64,
+    ) -> DriftResult<(u64, u64, i64, i64)> {
+        let lp_fee_to_charge_pct = self.get_mint_redeem_fee(now, false)?;
+        let lp_fee_to_charge = lp_burn_amount
+            .cast::<i64>()?
+            .safe_mul(lp_fee_to_charge_pct)?
+            .safe_div(PERCENTAGE_PRECISION_I64)?;
+
+        let lp_amount_less_fees = (lp_burn_amount as i128).safe_sub(lp_fee_to_charge as i128)?;
+
+        let token_precision_denominator = 10_u128.pow(out_spot_market.decimals);
+
+        // Calculate proportion of LP tokens being burned
+        let proportion = lp_amount_less_fees
+            .cast::<u128>()?
+            .safe_mul(QUOTE_PRECISION)?
+            .safe_div(dlp_total_supply as u128)?;
+        msg!("proportion: {}", proportion);
+
+        // Apply proportion to AUM and convert to token amount
+        let out_amount = self
+            .last_aum
+            .safe_mul(proportion)?
+            .safe_div(out_oracle.price.cast::<u128>()?)?;
+        // .safe_div(token_precision_denominator)?;
+        msg!("out_amount: {}", out_amount);
+
+        let out_fee_pct = self.get_swap_fees(
+            out_spot_market,
+            out_oracle,
+            out_constituent,
+            out_amount.cast::<i64>()?,
+            out_target_weight,
+        )?;
+        let out_fee_amount = out_amount
+            .cast::<i64>()?
+            .safe_mul(out_fee_pct)?
+            .safe_div(PERCENTAGE_PRECISION_I64.cast::<i64>()?)?;
+
+        Ok((
+            lp_burn_amount,
+            out_amount.cast::<u64>()?,
+            lp_fee_to_charge,
+            out_fee_amount,
         ))
     }
 

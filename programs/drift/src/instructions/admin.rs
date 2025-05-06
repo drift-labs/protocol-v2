@@ -5760,13 +5760,17 @@ pub struct InitializeLpPool<'info> {
     )]
     pub lp_pool: AccountLoader<'info, LPPool>,
 
+    pub mint: Account<'info, anchor_spl::token::Mint>,
+
     #[account(
         init,
+        seeds = [b"LP_POOL_TOKEN_VAULT".as_ref(), lp_pool.key().as_ref()],
+        bump,
         payer = admin,
-        mint::decimals = 6,
-        mint::authority = drift_signer.key(),
+        token::mint = mint,
+        token::authority = drift_signer
     )]
-    pub mint: Account<'info, anchor_spl::token::Mint>,
+    pub lp_pool_token_vault: Box<InterfaceAccount<'info, TokenAccount>>,
 
     #[account(
         init,

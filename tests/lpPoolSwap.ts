@@ -39,7 +39,6 @@ import { startAnchor } from 'solana-bankrun';
 import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
 import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
 import dotenv from 'dotenv';
-import { getMint } from '@solana/spl-token';
 dotenv.config();
 
 describe('LP Pool', () => {
@@ -171,11 +170,11 @@ describe('LP Pool', () => {
 
 		await adminClient.initializeLpPool(
 			lpPoolName,
-			ZERO,
-			ZERO,
+			new BN(100), // 1 bps
+			ZERO, // 1 bps
 			new BN(3600),
 			new BN(100_000_000).mul(QUOTE_PRECISION),
-			Keypair.generate() // dlp mint
+			Keypair.generate()// dlp mint
 		);
 		await adminClient.initializeConstituent(
 			encodeName(lpPoolName),
@@ -391,7 +390,6 @@ describe('LP Pool', () => {
 		const c0 = (await adminClient.program.account.constituent.fetch(
 			const0Key
 		)) as ConstituentAccount;
-		const c0Balance0 = c0.tokenBalance;
 
 		// add c0 liquidity
 		const adminAuth = adminClient.wallet.publicKey;
@@ -474,7 +472,7 @@ describe('LP Pool', () => {
 			Number(userLpTokenBalanceAfter.amount) -
 			Number(userLpTokenBalanceBefore.amount);
 		expect(userLpTokenBalanceDiff).to.be.equal(
-			(tokensAdded.toNumber() * 99) / 100
-		); // max weight deviation, expect 1% fee
+			((tokensAdded.toNumber() * 99) / 100) * 9999/10000
+		); // max weight deviation: expect 1% fee on constituent, + 0.01% lp mint fee
 	});
 });
