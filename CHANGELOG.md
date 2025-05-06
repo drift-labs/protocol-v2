@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Features
 
+- sdk: fees and max perp trade size calculation functions allow an optional parameter for a user using bitFlags to enter high leverage mode
+
 ### Fixes
 
 ### Breaking
