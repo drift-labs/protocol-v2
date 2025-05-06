@@ -231,7 +231,7 @@ export class JupiterClient {
 
 	constructor({ connection, url }: { connection: Connection; url?: string }) {
 		this.connection = connection;
-		this.url = url ?? 'https://quote-api.jup.ag';
+		this.url = url ?? 'https://public.jupiterapi.com';
 	}
 
 	/**
