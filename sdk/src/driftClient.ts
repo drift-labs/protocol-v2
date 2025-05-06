@@ -4429,6 +4429,16 @@ export class DriftClient {
 			useMarketLastSlotCache: true,
 		});
 
+		for (const param of params) {
+			if (isUpdateHighLeverageMode(param.bitFlags)) {
+				remainingAccounts.push({
+					pubkey: getHighLeverageModeConfigPublicKey(this.program.programId),
+					isWritable: true,
+					isSigner: false,
+				});
+			}
+		}
+
 		const formattedParams = params.map((item) => getOrderParams(item));
 
 		return await this.program.instruction.placeOrders(formattedParams, {
@@ -9008,7 +9018,8 @@ export class DriftClient {
 	public getMarketFees(
 		marketType: MarketType,
 		marketIndex?: number,
-		user?: User
+		user?: User,
+		enteringHighLeverageMode?: boolean
 	) {
 		let feeTier;
 		if (user) {
@@ -9033,7 +9044,7 @@ export class DriftClient {
 			}
 
 			takerFee += (takerFee * marketAccount.feeAdjustment) / 100;
-			if (user && user.isHighLeverageMode()) {
+			if (user && (user.isHighLeverageMode() || enteringHighLeverageMode)) {
 				takerFee *= 2;
 			}
 			makerFee += (makerFee * marketAccount.feeAdjustment) / 100;
