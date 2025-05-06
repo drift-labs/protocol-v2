@@ -1051,6 +1051,20 @@ mod swap_tests {
     }
 
     #[test]
+    fn test_get_remove_liquidity_mint_amount_with_existing_aum_5_decimals_large_aum() {
+        get_remove_liquidity_mint_amount_scenario(
+            100_000_000_000 * 1_000_000, // last_aum ($100,000,000,000)
+            0,                           // now
+            5,                           // in_decimals
+            100_000_000_000 * 100_000,   // in_amount
+            100_000_000_000 * 1_000_000, // dlp_total_supply
+            100_000_000_000 * 100_000,   // expected_out_amount
+            0,                           // expected_lp_fee
+            0,                           // expected_out_fee_amount
+        );
+    }
+
+    #[test]
     fn test_get_remove_liquidity_mint_amount_with_existing_aum_6_decimals_large_aum() {
         get_remove_liquidity_mint_amount_scenario(
             100_000_000_000 * 1_000_000, // last_aum ($100,000,000,000)

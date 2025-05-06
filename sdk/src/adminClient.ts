@@ -4375,7 +4375,7 @@ export class AdminClient extends DriftClient {
 		maxMintFee: BN,
 		revenueRebalancePeriod: BN,
 		maxAum: BN,
-		mint: Keypair 
+		mint: Keypair
 	): Promise<TransactionSignature> {
 		const ixs = await this.getInitializeLpPoolIx(
 			name,
@@ -4396,7 +4396,7 @@ export class AdminClient extends DriftClient {
 		maxMintFee: BN,
 		revenueRebalancePeriod: BN,
 		maxAum: BN,
-		mint: Keypair,
+		mint: Keypair
 	): Promise<TransactionInstruction[]> {
 		const lpPool = getLpPoolPublicKey(this.program.programId, encodeName(name));
 		const ammConstituentMapping = getAmmConstituentMappingPublicKey(
@@ -4408,7 +4408,10 @@ export class AdminClient extends DriftClient {
 			lpPool
 		);
 
-		const lamports = await this.program.provider.connection.getMinimumBalanceForRentExemption(MINT_SIZE);
+		const lamports =
+			await this.program.provider.connection.getMinimumBalanceForRentExemption(
+				MINT_SIZE
+			);
 		const createMintAccountIx = SystemProgram.createAccount({
 			fromPubkey: this.wallet.publicKey,
 			newAccountPubkey: mint.publicKey,
@@ -4439,7 +4442,7 @@ export class AdminClient extends DriftClient {
 						lpPool,
 						lpPoolTokenVault: getLpPoolTokenVaultPublicKey(
 							this.program.programId,
-							lpPool,
+							lpPool
 						),
 						ammConstituentMapping,
 						constituentTargetWeights,
@@ -4451,7 +4454,7 @@ export class AdminClient extends DriftClient {
 						systemProgram: SystemProgram.programId,
 					},
 					signers: [mint],
-				},
+				}
 			),
 		];
 	}

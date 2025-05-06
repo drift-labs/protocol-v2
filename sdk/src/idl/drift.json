@@ -7680,7 +7680,7 @@
         },
         {
           "name": "constituentTargetWeights",
-          "isMut": true,
+          "isMut": false,
           "isSigner": false
         },
         {
@@ -7808,7 +7808,7 @@
         },
         {
           "name": "constituentTargetWeights",
-          "isMut": true,
+          "isMut": false,
           "isSigner": false
         },
         {
@@ -7901,7 +7901,7 @@
         },
         {
           "name": "constituentTargetWeights",
-          "isMut": true,
+          "isMut": false,
           "isSigner": false
         },
         {

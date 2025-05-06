@@ -691,12 +691,12 @@ pub fn handle_lp_pool_remove_liquidity<'c: 'info, 'info>(
         &ctx.accounts.lp_pool_token_vault,
         &ctx.accounts.authority,
         lp_burn_amount,
-        &Some((*ctx.accounts.out_market_mint).clone()),
+        &None,
     )?;
 
     burn_tokens(
         &ctx.accounts.token_program,
-        &ctx.accounts.user_lp_token_account,
+        &ctx.accounts.lp_pool_token_vault,
         &ctx.accounts.drift_signer,
         state.signer_nonce,
         lp_burn_amount_net_fees,
@@ -710,7 +710,7 @@ pub fn handle_lp_pool_remove_liquidity<'c: 'info, 'info>(
         &ctx.accounts.drift_signer,
         state.signer_nonce,
         out_amount_net_fees,
-        &Some((*ctx.accounts.out_market_mint).clone()),
+        &None,
     )?;
 
     lp_pool.last_aum = lp_pool.last_aum.safe_sub(
@@ -814,7 +814,6 @@ pub struct LPPoolSwap<'info> {
     pub state: Box<Account<'info, State>>,
     pub lp_pool: AccountLoader<'info, LPPool>,
     #[account(
-        mut,
         seeds = [CONSTITUENT_TARGET_WEIGHT_PDA_SEED.as_ref(), lp_pool.key().as_ref()],
         bump,
     )]
@@ -914,7 +913,6 @@ pub struct LPPoolAddLiquidity<'info> {
     )]
     pub lp_mint: Box<InterfaceAccount<'info, Mint>>,
     #[account(
-        mut,
         seeds = [CONSTITUENT_TARGET_WEIGHT_PDA_SEED.as_ref(), lp_pool.key().as_ref()],
         bump,
     )]
@@ -976,7 +974,6 @@ pub struct LPPoolRemoveLiquidity<'info> {
     )]
     pub lp_mint: Box<InterfaceAccount<'info, Mint>>,
     #[account(
-        mut,
         seeds = [CONSTITUENT_TARGET_WEIGHT_PDA_SEED.as_ref(), lp_pool.key().as_ref()],
         bump,
     )]

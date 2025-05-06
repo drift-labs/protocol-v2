@@ -325,15 +325,14 @@ impl LPPool {
 
     /// Returns the fee to charge for a mint or redeem in PERCENTAGE_PRECISION
     pub fn get_mint_redeem_fee(&self, now: i64, is_minting: bool) -> DriftResult<i64> {
-        let time_since_last_rebalance = now
-            .cast::<u64>()?
-            .safe_sub(self.last_revenue_rebalance_ts)?;
+        let time_since_last_rebalance =
+            now.safe_sub(self.last_revenue_rebalance_ts.cast::<i64>()?)?;
         if is_minting {
             // mint fee
             self.min_mint_fee.safe_add(
                 self.max_mint_fee_premium.min(
                     self.max_mint_fee_premium
-                        .safe_mul(time_since_last_rebalance.cast::<i64>()?)?
+                        .safe_mul(time_since_last_rebalance)?
                         .safe_div(self.revenue_rebalance_period.cast::<i64>()?)?,
                 ),
             )
@@ -343,6 +342,7 @@ impl LPPool {
                 0_i64.max(
                     self.max_mint_fee_premium.min(
                         self.revenue_rebalance_period
+                            .cast::<i64>()?
                             .safe_sub(time_since_last_rebalance)?
                             .cast::<i64>()?
                             .safe_mul(self.max_mint_fee_premium.cast::<i64>()?)?

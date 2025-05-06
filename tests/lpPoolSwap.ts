@@ -32,7 +32,6 @@ import {
 	overWriteTokenAccountBalance,
 	overwriteConstituentAccount,
 	mockAtaTokenAccountForMint,
-	printTxLogs,
 	overWriteMintAccount,
 } from './testHelpers';
 import { startAnchor } from 'solana-bankrun';
@@ -174,7 +173,7 @@ describe('LP Pool', () => {
 			ZERO, // 1 bps
 			new BN(3600),
 			new BN(100_000_000).mul(QUOTE_PRECISION),
-			Keypair.generate()// dlp mint
+			Keypair.generate() // dlp mint
 		);
 		await adminClient.initializeConstituent(
 			encodeName(lpPoolName),
@@ -384,7 +383,7 @@ describe('LP Pool', () => {
 		);
 	});
 
-	it('lp pool add liquidity', async () => {
+	it('lp pool add and remove liquidity', async () => {
 		const const0Key = getConstituentPublicKey(program.programId, lpPoolKey, 0);
 
 		const c0 = (await adminClient.program.account.constituent.fetch(
@@ -430,21 +429,25 @@ describe('LP Pool', () => {
 		);
 
 		const tokensAdded = new BN(1_000_000_000_000);
-		const tx = await adminClient.lpPoolAddLiquidity(
-			encodeName(lpPoolName),
-			0,
-			tokensAdded,
-			new BN(1),
+		const c0TokenAccount = getConstituentVaultPublicKey(
+			program.programId,
 			lpPoolKey,
-			lpPool.mint,
-			constituentTargetWeightsPublicKey,
-			getConstituentVaultPublicKey(program.programId, lpPoolKey, 0),
-			c0UserTokenAccount,
-			userLpTokenAccount,
-			c0.mint,
-			const0Key
+			0
 		);
-		await printTxLogs(bankrunContextWrapper.connection.toConnection(), tx);
+		await adminClient.lpPoolAddLiquidity({
+			lpPoolName: encodeName(lpPoolName),
+			inMarketIndex: 0,
+			inAmount: tokensAdded,
+			minMintAmount: new BN(1),
+			lpPool: lpPoolKey,
+			lpMint: lpPool.mint,
+			constituentTargetWeights: constituentTargetWeightsPublicKey,
+			constituentInTokenAccount: c0TokenAccount,
+			userInTokenAccount: c0UserTokenAccount,
+			userLpTokenAccount: userLpTokenAccount,
+			inMarketMint: c0.mint,
+			inConstituent: const0Key,
+		});
 
 		const userC0TokenBalanceAfter =
 			await bankrunContextWrapper.connection.getTokenAccount(
@@ -472,7 +475,46 @@ describe('LP Pool', () => {
 			Number(userLpTokenBalanceAfter.amount) -
 			Number(userLpTokenBalanceBefore.amount);
 		expect(userLpTokenBalanceDiff).to.be.equal(
-			((tokensAdded.toNumber() * 99) / 100) * 9999/10000
+			(((tokensAdded.toNumber() * 99) / 100) * 9999) / 10000
 		); // max weight deviation: expect 1% fee on constituent, + 0.01% lp mint fee
+
+		// remove liquidity
+		await adminClient.lpPoolRemoveLiquidity({
+			lpPoolName: encodeName(lpPoolName),
+			outMarketIndex: 0,
+			lpToBurn: new BN(userLpTokenBalanceAfter.amount.toString()),
+			minAmountOut: new BN(1),
+			lpPool: lpPoolKey,
+			lpMint: lpPool.mint,
+			constituentTargetWeights: constituentTargetWeightsPublicKey,
+			constituentOutTokenAccount: c0TokenAccount,
+			userOutTokenAccount: c0UserTokenAccount,
+			userLpTokenAccount: userLpTokenAccount,
+			outMarketMint: c0.mint,
+			outConstituent: const0Key,
+		});
+
+		const userC0TokenBalanceAfterBurn =
+			await bankrunContextWrapper.connection.getTokenAccount(
+				c0UserTokenAccount
+			);
+		const userLpTokenBalanceAfterBurn =
+			await bankrunContextWrapper.connection.getTokenAccount(
+				userLpTokenAccount
+			);
+
+		const userC0TokenBalanceAfterBurnDiff =
+			Number(userC0TokenBalanceAfterBurn.amount) -
+			Number(userC0TokenBalanceAfter.amount);
+
+		expect(userC0TokenBalanceAfterBurnDiff).to.be.greaterThan(0);
+		expect(Number(userLpTokenBalanceAfterBurn.amount)).to.be.equal(0);
+
+		const totalC0TokensLost = new BN(
+			userC0TokenBalanceAfterBurn.amount.toString()
+		).sub(tokensAdded);
+		const totalC0TokensLostPercent =
+			Number(totalC0TokensLost) / Number(tokensAdded);
+		expect(totalC0TokensLostPercent).to.be.approximately(-0.013, 0.001); // lost about 1.3 swapping in an out
 	});
 });
