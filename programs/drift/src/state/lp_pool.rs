@@ -1,7 +1,7 @@
 use crate::error::{DriftResult, ErrorCode};
 use crate::math::casting::Cast;
 use crate::math::constants::{
-    PERCENTAGE_PRECISION_I128, PERCENTAGE_PRECISION_I64, PRICE_PRECISION_I64,
+    PERCENTAGE_PRECISION, PERCENTAGE_PRECISION_I128, PERCENTAGE_PRECISION_I64, PRICE_PRECISION_I64,
 };
 use crate::math::safe_math::SafeMath;
 use crate::math::spot_balance::get_token_amount;
@@ -69,6 +69,8 @@ pub struct LPPool {
     /// all revenues paid out
     pub total_fees_paid: u128, // 16, 192
 
+    pub total_mint_redeem_fees_paid: i128,
+
     pub min_mint_fee: i64,
     pub max_mint_fee_premium: i64,
 
@@ -78,7 +80,7 @@ pub struct LPPool {
 }
 
 impl Size for LPPool {
-    const SIZE: usize = 240;
+    const SIZE: usize = 256;
 }
 
 impl LPPool {
@@ -185,33 +187,56 @@ impl LPPool {
     /// Returns the mint_amount in lp token precision and fee to charge in constituent mint precision
     pub fn get_add_liquidity_mint_amount(
         &self,
-        now: u64,
-        constituent: &Constituent,
-        amount: u64,
-        oracle: &OraclePriceData,
+        now: i64,
+        in_spot_market: &SpotMarket,
+        in_constituent: &Constituent,
+        in_amount: u64,
+        in_oracle: &OraclePriceData,
+        in_target_weight: i64,
         dlp_total_supply: u64,
-    ) -> DriftResult<(u64, i64)> {
-        let fee_to_charge = self.get_mint_redeem_fee(now, amount, 0)?;
+    ) -> DriftResult<(u64, u64, i64, i64)> {
+        let in_fee = self.get_swap_fees(
+            in_spot_market,
+            in_oracle,
+            in_constituent,
+            in_amount.cast::<i64>()?,
+            in_target_weight,
+        )?;
+        let in_fee_amount = in_amount
+            .cast::<i64>()?
+            .safe_mul(in_fee)?
+            .safe_div(PERCENTAGE_PRECISION_I64.cast::<i64>()?)?;
 
-        // price prec = 6
-        // token prec = x
-        let token_amount_usd = oracle.price.cast::<u64>()?.safe_mul(amount)?;
+        let in_amount_less_fees = in_amount
+            .cast::<i128>()?
+            .safe_sub(in_fee_amount as i128)?
+            .cast::<u128>()?;
+
+        let token_precision_denominator = 10_u128.pow(in_spot_market.decimals);
+        let token_amount_usd = in_oracle
+            .price
+            .cast::<u128>()?
+            .safe_mul(in_amount_less_fees)?;
         let lp_amount = if self.last_aum == 0 {
-            token_amount_usd
+            token_amount_usd.safe_div(token_precision_denominator)?
         } else {
-            (token_amount_usd as u128)
+            token_amount_usd
                 .safe_mul(dlp_total_supply as u128)?
-                .safe_div(self.last_aum)?
-                .cast::<u64>()?
+                .safe_div(self.last_aum.safe_mul(token_precision_denominator)?)?
         };
-        msg!(
-            "lp mint amount: {}, constituent fee: {}, constituent_index: {}",
-            lp_amount,
-            constituent.swap_fee_min,
-            constituent.constituent_index
-        );
 
-        Ok((lp_amount, fee_to_charge))
+        let lp_fee_to_charge_pct = self.get_mint_redeem_fee(now, true)?;
+        let lp_fee_to_charge = lp_amount
+            .cast::<i64>()?
+            .safe_mul(lp_fee_to_charge_pct)?
+            .safe_div(PERCENTAGE_PRECISION_I64)?;
+
+        Ok((
+            lp_amount.cast::<u64>()?,
+            in_amount,
+            lp_fee_to_charge,
+            in_fee_amount,
+        ))
     }
 
     /// returns fee in PERCENTAGE_PRECISION
@@ -245,18 +270,12 @@ impl LPPool {
         Ok(fee)
     }
 
-    pub fn get_mint_redeem_fee(
-        &self,
-        now: u64,
-        amount_added: u64,
-        amount_remove: u64,
-    ) -> DriftResult<i64> {
-        if amount_added > 0 && amount_remove > 0 {
-            return Err(ErrorCode::DefaultError);
-        }
-
-        let time_since_last_rebalance = now.safe_sub(self.last_revenue_rebalance_ts)?;
-        if amount_added > 0 {
+    /// Returns the fee to charge for a mint or redeem in PERCENTAGE_PRECISION
+    pub fn get_mint_redeem_fee(&self, now: i64, is_minting: bool) -> DriftResult<i64> {
+        let time_since_last_rebalance = now
+            .cast::<u64>()?
+            .safe_sub(self.last_revenue_rebalance_ts)?;
+        if is_minting {
             // mint fee
             self.min_mint_fee.safe_add(
                 self.max_mint_fee_premium.min(
@@ -279,6 +298,13 @@ impl LPPool {
                 ),
             )
         }
+    }
+
+    pub fn record_mint_redeem_fees(&mut self, amount: i64) -> DriftResult {
+        self.total_mint_redeem_fees_paid = self
+            .total_mint_redeem_fees_paid
+            .safe_add(amount.cast::<i128>()?)?;
+        Ok(())
     }
 }
 
@@ -414,6 +440,10 @@ impl Constituent {
         token_amount_delta: i64,
         lp_pool_aum: u128,
     ) -> DriftResult<i64> {
+        if lp_pool_aum == 0 {
+            return Ok(0);
+        }
+
         let balance = self.get_full_balance(spot_market)?.cast::<i128>()?;
         let token_precision = 10_i128.pow(self.decimals as u32);
 

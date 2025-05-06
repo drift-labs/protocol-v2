@@ -4499,6 +4499,7 @@ pub fn handle_initialize_lp_pool(
         last_revenue_rebalance_ts: 0,
         total_fees_received: 0,
         total_fees_paid: 0,
+        total_mint_redeem_fees_paid: 0,
         oldest_oracle_slot: 0,
         min_mint_fee,
         max_mint_fee_premium: max_mint_fee,
@@ -5763,7 +5764,7 @@ pub struct InitializeLpPool<'info> {
         init,
         payer = admin,
         mint::decimals = 6,
-        mint::authority = lp_pool.key(),
+        mint::authority = drift_signer.key(),
     )]
     pub mint: Account<'info, anchor_spl::token::Mint>,
 
@@ -5789,6 +5790,8 @@ pub struct InitializeLpPool<'info> {
         has_one = admin
     )]
     pub state: Box<Account<'info, State>>,
+    /// CHECK: program signer
+    pub drift_signer: AccountInfo<'info>,
 
     pub token_program: Program<'info, Token>,
 

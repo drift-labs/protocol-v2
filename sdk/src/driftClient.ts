@@ -9938,6 +9938,90 @@ export class DriftClient {
 			}
 		);
 	}
+
+	public async lpPoolAddLiquidity(
+		lpPoolName: number[],
+		inMarketIndex: number,
+		inAmount: BN,
+		minMintAmount: BN,
+		lpPool: PublicKey,
+		lpMint: PublicKey,
+		constituentTargetWeights: PublicKey,
+		constituentInTokenAccount: PublicKey,
+		userInTokenAccount: PublicKey,
+		userLpTokenAccount: PublicKey,
+		inMarketMint: PublicKey,
+		inConstituent: PublicKey,
+		txParams?: TxParams
+	): Promise<TransactionSignature> {
+		const { txSig } = await this.sendTransaction(
+			await this.buildTransaction(
+				await this.getLpPoolAddLiquidityIx(
+					lpPoolName,
+					inMarketIndex,
+					inAmount,
+					minMintAmount,
+					lpPool,
+					lpMint,
+					constituentTargetWeights,
+					constituentInTokenAccount,
+					userInTokenAccount,
+					userLpTokenAccount,
+					inMarketMint,
+					inConstituent
+				),
+				txParams
+			),
+			[],
+			this.opts
+		);
+		return txSig;
+	}
+
+	public async getLpPoolAddLiquidityIx(
+		lpPoolName: number[],
+		inMarketIndex: number,
+		inAmount: BN,
+		minMintAmount: BN,
+		lpPool: PublicKey,
+		lpMint: PublicKey,
+		constituentTargetWeights: PublicKey,
+		constituentInTokenAccount: PublicKey,
+		userInTokenAccount: PublicKey,
+		userLpTokenAccount: PublicKey,
+		inMarketMint: PublicKey,
+		inConstituent: PublicKey
+	): Promise<TransactionInstruction> {
+		const remainingAccounts = this.getRemainingAccounts({
+			userAccounts: [],
+			writableSpotMarketIndexes: [inMarketIndex],
+		});
+
+		return this.program.instruction.lpPoolAddLiquidity(
+			lpPoolName,
+			inMarketIndex,
+			inAmount,
+			minMintAmount,
+			{
+				remainingAccounts,
+				accounts: {
+					driftSigner: this.getSignerPublicKey(),
+					state: await this.getStatePublicKey(),
+					lpPool,
+					authority: this.wallet.publicKey,
+					inMarketMint,
+					inConstituent,
+					userInTokenAccount,
+					constituentInTokenAccount,
+					userLpTokenAccount,
+					lpMint,
+					constituentTargetWeights,
+					tokenProgram: TOKEN_PROGRAM_ID,
+				},
+			}
+		);
+	}
+
 	/**
 	 * Below here are the transaction sending functions
 	 */

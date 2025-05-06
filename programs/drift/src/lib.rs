@@ -1826,6 +1826,16 @@ pub mod drift {
             min_out_amount,
         )
     }
+
+    pub fn lp_pool_add_liquidity<'c: 'info, 'info>(
+        ctx: Context<'_, '_, 'c, 'info, LPPoolAddLiquidity<'info>>,
+        _lp_pool_name: [u8; 32],
+        in_market_index: u16,
+        in_amount: u64,
+        min_mint_amount: u64,
+    ) -> Result<()> {
+        handle_lp_pool_add_liquidity(ctx, in_market_index, in_amount, min_mint_amount)
+    }
 }
 
 #[cfg(not(feature = "no-entrypoint"))]

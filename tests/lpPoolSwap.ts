@@ -21,6 +21,7 @@ import {
 	getConstituentVaultPublicKey,
 	getConstituentPublicKey,
 	ConstituentAccount,
+	ZERO,
 } from '../sdk/src';
 import {
 	initializeQuoteSpotMarket,
@@ -31,11 +32,14 @@ import {
 	overWriteTokenAccountBalance,
 	overwriteConstituentAccount,
 	mockAtaTokenAccountForMint,
+	printTxLogs,
+	overWriteMintAccount,
 } from './testHelpers';
 import { startAnchor } from 'solana-bankrun';
 import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
 import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
 import dotenv from 'dotenv';
+import { getMint } from '@solana/spl-token';
 dotenv.config();
 
 describe('LP Pool', () => {
@@ -167,6 +171,9 @@ describe('LP Pool', () => {
 
 		await adminClient.initializeLpPool(
 			lpPoolName,
+			ZERO,
+			ZERO,
+			new BN(3600),
 			new BN(100_000_000).mul(QUOTE_PRECISION),
 			Keypair.generate() // dlp mint
 		);
@@ -323,16 +330,6 @@ describe('LP Pool', () => {
 			adminAuth
 		);
 
-		// console.log(`0 mint: ${usdcMint.publicKey.toBase58()}`)
-		// console.log(`const0:`, await adminClient.program.account.constituent.fetch(const0Key))
-		// console.log(`1 mint: ${spotTokenMint.publicKey.toBase58()}`)
-		// console.log(`const1:`, await adminClient.program.account.constituent.fetch(const1Key))
-
-		// const m0 = await adminClient.getSpotMarketAccount(0);
-		// const m1 = await adminClient.getSpotMarketAccount(1);
-		// console.log(`m0 ${m0.pubkey.toBase58()}, ${m0.oracle.toBase58()}`)
-		// console.log(`m1 ${m1.pubkey.toBase58()}, ${m1.oracle.toBase58()}`)
-
 		const inTokenBalanceBefore =
 			await bankrunContextWrapper.connection.getTokenAccount(
 				c0UserTokenAccount
@@ -386,5 +383,98 @@ describe('LP Pool', () => {
 				outTokenBalanceAfter.amount
 			} (${Number(diffOutToken) / 1e6})`
 		);
+	});
+
+	it('lp pool add liquidity', async () => {
+		const const0Key = getConstituentPublicKey(program.programId, lpPoolKey, 0);
+
+		const c0 = (await adminClient.program.account.constituent.fetch(
+			const0Key
+		)) as ConstituentAccount;
+		const c0Balance0 = c0.tokenBalance;
+
+		// add c0 liquidity
+		const adminAuth = adminClient.wallet.publicKey;
+		const c0UserTokenAccount = await mockAtaTokenAccountForMint(
+			bankrunContextWrapper,
+			usdcMint.publicKey,
+			new BN(1_000_000_000_000),
+			adminAuth
+		);
+
+		let lpPool = (await adminClient.program.account.lpPool.fetch(
+			lpPoolKey
+		)) as LPPoolAccount;
+		const lpPoolAumBefore = lpPool.lastAum;
+		const constituentTargetWeightsPublicKey =
+			getConstituentTargetWeightsPublicKey(program.programId, lpPoolKey);
+
+		const userLpTokenAccount = await mockAtaTokenAccountForMint(
+			bankrunContextWrapper,
+			lpPool.mint,
+			new BN(0),
+			adminAuth
+		);
+
+		const userC0TokenBalanceBefore =
+			await bankrunContextWrapper.connection.getTokenAccount(
+				c0UserTokenAccount
+			);
+		const userLpTokenBalanceBefore =
+			await bankrunContextWrapper.connection.getTokenAccount(
+				userLpTokenAccount
+			);
+
+		await overWriteMintAccount(
+			bankrunContextWrapper,
+			lpPool.mint,
+			BigInt(lpPool.lastAum.toNumber())
+		);
+
+		const tokensAdded = new BN(1_000_000_000_000);
+		const tx = await adminClient.lpPoolAddLiquidity(
+			encodeName(lpPoolName),
+			0,
+			tokensAdded,
+			new BN(1),
+			lpPoolKey,
+			lpPool.mint,
+			constituentTargetWeightsPublicKey,
+			getConstituentVaultPublicKey(program.programId, lpPoolKey, 0),
+			c0UserTokenAccount,
+			userLpTokenAccount,
+			c0.mint,
+			const0Key
+		);
+		await printTxLogs(bankrunContextWrapper.connection.toConnection(), tx);
+
+		const userC0TokenBalanceAfter =
+			await bankrunContextWrapper.connection.getTokenAccount(
+				c0UserTokenAccount
+			);
+		const userLpTokenBalanceAfter =
+			await bankrunContextWrapper.connection.getTokenAccount(
+				userLpTokenAccount
+			);
+		lpPool = (await adminClient.program.account.lpPool.fetch(
+			lpPoolKey
+		)) as LPPoolAccount;
+		const lpPoolAumAfter = lpPool.lastAum;
+		const lpPoolAumDiff = lpPoolAumAfter.sub(lpPoolAumBefore);
+		expect(lpPoolAumDiff.toString()).to.be.equal(tokensAdded.toString());
+
+		const userC0TokenBalanceDiff =
+			Number(userC0TokenBalanceAfter.amount) -
+			Number(userC0TokenBalanceBefore.amount);
+		expect(Number(userC0TokenBalanceDiff)).to.be.equal(
+			-1 * tokensAdded.toNumber()
+		);
+
+		const userLpTokenBalanceDiff =
+			Number(userLpTokenBalanceAfter.amount) -
+			Number(userLpTokenBalanceBefore.amount);
+		expect(userLpTokenBalanceDiff).to.be.equal(
+			(tokensAdded.toNumber() * 99) / 100
+		); // max weight deviation, expect 1% fee
 	});
 });

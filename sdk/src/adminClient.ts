@@ -4365,10 +4365,20 @@ export class AdminClient extends DriftClient {
 
 	public async initializeLpPool(
 		name: string,
+		minMintFee: BN,
+		maxMintFee: BN,
+		revenueRebalancePeriod: BN,
 		maxAum: BN,
 		mint: Keypair
 	): Promise<TransactionSignature> {
-		const ixs = await this.getInitializeLpPoolIx(name, maxAum, mint);
+		const ixs = await this.getInitializeLpPoolIx(
+			name,
+			minMintFee,
+			maxMintFee,
+			revenueRebalancePeriod,
+			maxAum,
+			mint
+		);
 		const tx = await this.buildTransaction(ixs);
 		const { txSig } = await this.sendTransaction(tx, [mint]);
 		return txSig;
@@ -4376,6 +4386,9 @@ export class AdminClient extends DriftClient {
 
 	public async getInitializeLpPoolIx(
 		name: string,
+		minMintFee: BN,
+		maxMintFee: BN,
+		revenueRebalancePeriod: BN,
 		maxAum: BN,
 		mint: Keypair
 	): Promise<TransactionInstruction[]> {
@@ -4405,20 +4418,28 @@ export class AdminClient extends DriftClient {
 		const state = await this.getStatePublicKey();
 
 		return [
-			this.program.instruction.initializeLpPool(encodeName(name), maxAum, {
-				accounts: {
-					admin: this.wallet.publicKey,
-					lpPool,
-					ammConstituentMapping,
-					constituentTargetWeights,
-					mint: mint.publicKey,
-					state,
-					tokenProgram: TOKEN_PROGRAM_ID,
-					rent: SYSVAR_RENT_PUBKEY,
-					systemProgram: SystemProgram.programId,
-				},
-				signers: [mint],
-			}),
+			this.program.instruction.initializeLpPool(
+				encodeName(name),
+				minMintFee,
+				maxMintFee,
+				revenueRebalancePeriod,
+				maxAum,
+				{
+					accounts: {
+						admin: this.wallet.publicKey,
+						lpPool,
+						ammConstituentMapping,
+						constituentTargetWeights,
+						mint: mint.publicKey,
+						state,
+						driftSigner: this.getSignerPublicKey(),
+						tokenProgram: TOKEN_PROGRAM_ID,
+						rent: SYSVAR_RENT_PUBKEY,
+						systemProgram: SystemProgram.programId,
+					},
+					signers: [mint],
+				}
+			),
 			createAtaIx,
 		];
 	}

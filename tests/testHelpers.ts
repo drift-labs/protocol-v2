@@ -18,6 +18,8 @@ import {
 	unpackAccount,
 	type RawAccount,
 	AccountState,
+	unpackMint,
+	RawMint,
 } from '@solana/spl-token';
 import {
 	AccountInfo,
@@ -1199,6 +1201,36 @@ export async function overWriteTokenAccountBalance(
 	};
 	AccountLayout.encode(rawAccount, data);
 	bankrunContextWrapper.context.setAccount(tokenAccount, {
+		executable: info.executable,
+		owner: info.owner,
+		lamports: info.lamports,
+		data: data,
+		rentEpoch: info.rentEpoch,
+	});
+}
+
+export async function overWriteMintAccount(
+	bankrunContextWrapper: BankrunContextWrapper,
+	mintAccount: PublicKey,
+	newSupply: bigint
+) {
+	const info = await bankrunContextWrapper.connection.getAccountInfo(
+		mintAccount
+	);
+	const mint = unpackMint(mintAccount, info, info.owner);
+	mint.supply = newSupply;
+	const data = Buffer.alloc(MintLayout.span);
+	const rawMint: RawMint = {
+		mintAuthorityOption: mint.mintAuthority ? 1 : 0,
+		mintAuthority: mint.mintAuthority || PublicKey.default,
+		supply: mint.supply,
+		decimals: mint.decimals,
+		isInitialized: mint.isInitialized,
+		freezeAuthorityOption: mint.freezeAuthority ? 1 : 0,
+		freezeAuthority: mint.freezeAuthority || PublicKey.default,
+	};
+	MintLayout.encode(rawMint, data);
+	bankrunContextWrapper.context.setAccount(mintAccount, {
 		executable: info.executable,
 		owner: info.owner,
 		lamports: info.lamports,
