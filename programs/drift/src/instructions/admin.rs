@@ -4734,7 +4734,11 @@ pub fn handle_initialize_constituent<'info>(
         .resize_with((current_len + 1) as usize, WeightDatum::default);
     constituent_target_weights.validate()?;
 
-    msg!("initializing constituent {}", lp_pool.constituents);
+    msg!(
+        "initializing constituent {} with spot market index {}",
+        lp_pool.constituents,
+        spot_market_index
+    );
 
     constituent.spot_market_index = spot_market_index;
     constituent.constituent_index = lp_pool.constituents;
@@ -4746,6 +4750,7 @@ pub fn handle_initialize_constituent<'info>(
     constituent.pubkey = ctx.accounts.constituent.key();
     constituent.mint = ctx.accounts.spot_market_mint.key();
     constituent.bump = ctx.bumps.constituent;
+    constituent.lp_pool = lp_pool.pubkey;
     constituent.constituent_index = (constituent_target_weights.weights.len() - 1) as u16;
     lp_pool.constituents += 1;
 
@@ -5879,7 +5884,10 @@ pub struct AddAmmConstituentMappingDatum {
     amm_constituent_mapping_data:  Vec<AddAmmConstituentMappingDatum>,
 )]
 pub struct AddAmmConstituentMappingData<'info> {
-    #[account(mut)]
+    #[account(
+        mut,
+        constraint = admin.key() == admin_hot_wallet::id() || admin.key() == state.admin
+    )]
     pub admin: Signer<'info>,
 
     #[account(
@@ -5916,7 +5924,10 @@ pub struct AddAmmConstituentMappingData<'info> {
     amm_constituent_mapping_data:  Vec<AddAmmConstituentMappingDatum>,
 )]
 pub struct UpdateAmmConstituentMappingData<'info> {
-    #[account(mut)]
+    #[account(
+        mut,
+        constraint = admin.key() == admin_hot_wallet::id() || admin.key() == state.admin
+    )]
     pub admin: Signer<'info>,
 
     #[account(
@@ -5932,6 +5943,7 @@ pub struct UpdateAmmConstituentMappingData<'info> {
     )]
     pub amm_constituent_mapping: Box<Account<'info, AmmConstituentMapping>>,
     pub system_program: Program<'info, System>,
+    pub state: Box<Account<'info, State>>,
 }
 
 #[derive(Accounts)]
@@ -5939,7 +5951,10 @@ pub struct UpdateAmmConstituentMappingData<'info> {
     lp_pool_name: [u8; 32],
 )]
 pub struct RemoveAmmConstituentMappingData<'info> {
-    #[account(mut)]
+    #[account(
+        mut,
+        constraint = admin.key() == admin_hot_wallet::id() || admin.key() == state.admin
+    )]
     pub admin: Signer<'info>,
 
     #[account(
@@ -5958,4 +5973,5 @@ pub struct RemoveAmmConstituentMappingData<'info> {
     )]
     pub amm_constituent_mapping: Box<Account<'info, AmmConstituentMapping>>,
     pub system_program: Program<'info, System>,
+    pub state: Box<Account<'info, State>>,
 }

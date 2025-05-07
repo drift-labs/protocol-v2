@@ -4627,6 +4627,7 @@ export class AdminClient extends DriftClient {
 						lpPool,
 						ammConstituentMapping,
 						systemProgram: SystemProgram.programId,
+						state: await this.getStatePublicKey(),
 					},
 				}
 			),
@@ -4670,6 +4671,7 @@ export class AdminClient extends DriftClient {
 						lpPool,
 						ammConstituentMapping,
 						systemProgram: SystemProgram.programId,
+						state: await this.getStatePublicKey(),
 					},
 				}
 			),

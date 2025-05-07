@@ -9710,7 +9710,7 @@ export class DriftClient {
 		return txSig;
 	}
 
-	public async updateDlpConstituentTargetWeights(
+	public async updateLpConstituentTargetWeights(
 		lpPoolName: number[],
 		constituentIndexesToUpdate: number[],
 		ammConstituentMapping: AmmConstituentMapping,
@@ -9718,7 +9718,7 @@ export class DriftClient {
 	): Promise<TransactionSignature> {
 		const { txSig } = await this.sendTransaction(
 			await this.buildTransaction(
-				await this.getUpdateDlpConstituentTargetWeightsIx(
+				await this.getUpdateLpConstituentTargetWeightsIx(
 					lpPoolName,
 					constituentIndexesToUpdate
 				),
@@ -9730,7 +9730,7 @@ export class DriftClient {
 		return txSig;
 	}
 
-	public async getUpdateDlpConstituentTargetWeightsIx(
+	public async getUpdateLpConstituentTargetWeightsIx(
 		lpPoolName: number[],
 		constituentIndexesToUpdate: number[]
 	): Promise<TransactionInstruction> {
@@ -9746,7 +9746,7 @@ export class DriftClient {
 
 		const ammCache = getAmmCachePublicKey(this.program.programId);
 
-		return this.program.instruction.updateDlpConstituentTargetWeights(
+		return this.program.instruction.updateLpConstituentTargetWeights(
 			lpPoolName,
 			constituentIndexesToUpdate,
 			{
@@ -9762,14 +9762,14 @@ export class DriftClient {
 		);
 	}
 
-	public async updateDlpPoolAum(
+	public async updateLpPoolAum(
 		lpPool: LPPoolAccount,
 		spotMarketIndexOfConstituents: number[],
 		txParams?: TxParams
 	): Promise<TransactionSignature> {
 		const { txSig } = await this.sendTransaction(
 			await this.buildTransaction(
-				await this.getUpdateDlpPoolAumIxs(
+				await this.getUpdateLpPoolAumIxs(
 					lpPool,
 					spotMarketIndexOfConstituents
 				),
@@ -9781,7 +9781,7 @@ export class DriftClient {
 		return txSig;
 	}
 
-	public async getUpdateDlpPoolAumIxs(
+	public async getUpdateLpPoolAumIxs(
 		lpPool: LPPoolAccount,
 		spotMarketIndexOfConstituents: number[]
 	): Promise<TransactionInstruction> {

@@ -7473,6 +7473,11 @@
           "name": "systemProgram",
           "isMut": false,
           "isSigner": false
+        },
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
         }
       ],
       "args": [
@@ -7517,6 +7522,11 @@
           "name": "systemProgram",
           "isMut": false,
           "isSigner": false
+        },
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
         }
       ],
       "args": [
@@ -7540,7 +7550,7 @@
       ]
     },
     {
-      "name": "updateDlpConstituentTargetWeights",
+      "name": "updateLpConstituentTargetWeights",
       "accounts": [
         {
           "name": "state",
@@ -8272,6 +8282,10 @@
           {
             "name": "oracleStalenessThreshold",
             "type": "u64"
+          },
+          {
+            "name": "lpPool",
+            "type": "publicKey"
           },
           {
             "name": "padding2",
@@ -12599,7 +12613,7 @@
             "name": "OracleOrderPrice"
           },
           {
-            "name": "UpdateDlpConstituentTargetWeights"
+            "name": "UpdateLpConstituentTargetWeights"
           },
           {
             "name": "UpdateLpPoolAum"

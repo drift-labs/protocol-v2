@@ -379,7 +379,7 @@ describe('LP Pool', () => {
 				ammConstituentMappingPublicKey
 			)) as AmmConstituentMapping;
 
-		await adminClient.updateDlpConstituentTargetWeights(
+		await adminClient.updateLpConstituentTargetWeights(
 			encodeName(lpPoolName),
 			[0],
 			ammMapping
@@ -400,7 +400,7 @@ describe('LP Pool', () => {
 		)) as LPPoolAccount;
 		assert(lpPool.constituents == 1);
 
-		await adminClient.updateDlpPoolAum(lpPool, [0]);
+		await adminClient.updateLpPoolAum(lpPool, [0]);
 
 		// Should fail if we initialize a second constituent and dont pass it in
 		await adminClient.initializeConstituent(
@@ -414,7 +414,7 @@ describe('LP Pool', () => {
 		);
 
 		try {
-			await adminClient.updateDlpPoolAum(lpPool, [0]);
+			await adminClient.updateLpPoolAum(lpPool, [0]);
 			expect.fail('should have failed');
 		} catch (e) {
 			assert(e.message.includes('0x18b1'));

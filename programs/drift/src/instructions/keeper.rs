@@ -2972,12 +2972,6 @@ pub fn handle_update_amm_cache<'c: 'info, 'info>(
     for (_, perp_market_loader) in perp_market_map.0.iter() {
         let perp_market = perp_market_loader.load()?;
         let cached_info = amm_cache.get_mut(perp_market.market_index as u32);
-        cached_info.position = perp_market.amm.get_protocol_owned_position()?;
-        cached_info.slot = slot;
-        cached_info.last_oracle_price_twap = perp_market
-            .amm
-            .historical_oracle_data
-            .last_oracle_price_twap;
 
         validate!(
             perp_market.oracle_id() == cached_info.oracle_id()?,
@@ -2986,9 +2980,18 @@ pub fn handle_update_amm_cache<'c: 'info, 'info>(
         )?;
 
         let oracle_data = oracle_map.get_price_data(&perp_market.oracle_id())?;
+
+        cached_info.position = perp_market.amm.get_protocol_owned_position()?;
+        cached_info.slot = slot;
+        cached_info.last_oracle_price_twap = perp_market
+            .amm
+            .historical_oracle_data
+            .last_oracle_price_twap;
         cached_info.oracle_price = oracle_data.price;
         cached_info.oracle_delay = oracle_data.delay;
         cached_info.oracle_confidence = oracle_data.confidence;
+        cached_info.max_confidence_interval_multiplier =
+            perp_market.get_max_confidence_interval_multiplier()?;
     }
 
     Ok(())
