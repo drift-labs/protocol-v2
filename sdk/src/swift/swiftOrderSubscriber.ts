@@ -58,6 +58,15 @@ export class SwiftOrderSubscriber {
 		this.userAccountGetter = config.userAccountGetter;
 	}
 
+	unsubscribe() {
+		if (this.subscribed) {
+			this.ws.removeAllListeners();
+			this.ws.terminate();
+			this.ws = null;
+			this.subscribed = false;
+		}
+	}
+
 	getSymbolForMarketIndex(marketIndex: number): string {
 		const markets =
 			this.config.driftEnv === 'devnet'
