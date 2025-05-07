@@ -297,7 +297,7 @@ describe('LP Pool', () => {
 		)) as LPPoolAccount;
 		expect(lpPool1.lastAumSlot.toNumber()).to.be.equal(0);
 
-		await adminClient.updateDlpPoolAum(lpPool1, [1, 0]);
+		await adminClient.updateLpPoolAum(lpPool1, [1, 0]);
 
 		const lpPool2 = (await adminClient.program.account.lpPool.fetch(
 			lpPoolKey

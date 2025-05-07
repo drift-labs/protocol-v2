@@ -9770,10 +9770,7 @@ export class DriftClient {
 	): Promise<TransactionSignature> {
 		const { txSig } = await this.sendTransaction(
 			await this.buildTransaction(
-				await this.getUpdateLpPoolAumIxs(
-					lpPool,
-					spotMarketIndexOfConstituents
-				),
+				await this.getUpdateLpPoolAumIxs(lpPool, spotMarketIndexOfConstituents),
 				txParams
 			),
 			[],
