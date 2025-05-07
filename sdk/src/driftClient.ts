@@ -6466,16 +6466,25 @@ export class DriftClient {
 		const isDelegateSigner = takerInfo.signingAuthority.equals(
 			takerInfo.takerUserAccount.delegate
 		);
-		const { signedMsgOrderParams } = this.decodeSignedMsgOrderParamsMessage(
-			signedSignedMsgOrderParams.orderParams,
-			isDelegateSigner
+
+		const borshBuf = Buffer.from(
+			signedSignedMsgOrderParams.orderParams.toString(),
+			'hex'
 		);
-		if (isUpdateHighLeverageMode(signedMsgOrderParams.bitFlags)) {
-			remainingAccounts.push({
-				pubkey: getHighLeverageModeConfigPublicKey(this.program.programId),
-				isWritable: true,
-				isSigner: false,
-			});
+		try {
+			const { signedMsgOrderParams } = this.decodeSignedMsgOrderParamsMessage(
+				borshBuf,
+				isDelegateSigner
+			);
+			if (isUpdateHighLeverageMode(signedMsgOrderParams.bitFlags)) {
+				remainingAccounts.push({
+					pubkey: getHighLeverageModeConfigPublicKey(this.program.programId),
+					isWritable: true,
+					isSigner: false,
+				});
+			}
+		} catch (err) {
+			console.error('invalid signed order encoding');
 		}
 
 		const messageLengthBuffer = Buffer.alloc(2);
