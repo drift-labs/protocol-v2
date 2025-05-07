@@ -196,8 +196,6 @@ export function getVammL2Generator({
 
 	const minOrderSize = marketAccount.amm.minOrderSize;
 	const orderTickSize = marketAccount.amm.orderTickSize;
-	const orderStepSize = marketAccount.amm.orderStepSize;
-
 	if (openBids.lt(minOrderSize.muln(2))) {
 		openBids = ZERO;
 	}
@@ -249,7 +247,6 @@ export function getVammL2Generator({
 				if (baseSwapped.eq(ZERO)) {
 					return;
 				}
-
 				if (remainingBaseLiquidity.lt(baseSwapped)) {
 					baseSwapped = remainingBaseLiquidity;
 					[afterSwapQuoteReserves, afterSwapBaseReserves] =
@@ -269,8 +266,10 @@ export function getVammL2Generator({
 				topOfBookBidSize = topOfBookBidSize.add(baseSwapped);
 				bidSize = openBids.sub(topOfBookBidSize).div(new BN(numBaseOrders));
 			} else {
-				baseSwapped = standardizeBaseAssetAmount(bidSize, orderStepSize);
-
+				baseSwapped = standardizeBaseAssetAmount(
+					bidSize,
+					marketAccount.amm.orderStepSize
+				);
 				[afterSwapQuoteReserves, afterSwapBaseReserves] =
 					calculateAmmReservesAfterSwap(
 						bidAmm,
@@ -341,7 +340,6 @@ export function getVammL2Generator({
 				if (baseSwapped.eq(ZERO)) {
 					return;
 				}
-
 				if (remainingBaseLiquidity.lt(baseSwapped)) {
 					baseSwapped = remainingBaseLiquidity;
 					[afterSwapQuoteReserves, afterSwapBaseReserves] =
