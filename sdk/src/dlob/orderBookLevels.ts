@@ -288,7 +288,7 @@ export function getVammL2Generator({
 			const price = standardizePrice(
 				quoteSwapped.mul(BASE_PRECISION).div(baseSwapped),
 				orderTickSize,
-				PositionDirection.SHORT
+				PositionDirection.LONG
 			);
 
 			bidAmm.baseAssetReserve = afterSwapBaseReserves;
@@ -384,7 +384,7 @@ export function getVammL2Generator({
 			const price = standardizePrice(
 				quoteSwapped.mul(BASE_PRECISION).div(baseSwapped),
 				orderTickSize,
-				PositionDirection.LONG
+				PositionDirection.SHORT
 			);
 			askAmm.baseAssetReserve = afterSwapBaseReserves;
 			askAmm.quoteAssetReserve = afterSwapQuoteReserves;
