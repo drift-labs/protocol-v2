@@ -194,6 +194,9 @@ export function getVammL2Generator({
 		  );
 
 	const minOrderSize = marketAccount.amm.minOrderSize;
+	const orderTickSize = marketAccount.amm.orderTickSize;
+	const orderStepSize = marketAccount.amm.orderStepSize;
+
 	if (openBids.lt(minOrderSize.muln(2))) {
 		openBids = ZERO;
 	}
@@ -242,6 +245,10 @@ export function getVammL2Generator({
 				if (baseSwapped.eq(ZERO)) {
 					return;
 				}
+
+
+				baseSwapped = baseSwapped.div(orderStepSize).mul(orderStepSize);
+
 				if (remainingBaseLiquidity.lt(baseSwapped)) {
 					baseSwapped = remainingBaseLiquidity;
 					[afterSwapQuoteReserves, afterSwapBaseReserves] =
@@ -261,7 +268,8 @@ export function getVammL2Generator({
 				topOfBookBidSize = topOfBookBidSize.add(baseSwapped);
 				bidSize = openBids.sub(topOfBookBidSize).div(new BN(numBaseOrders));
 			} else {
-				baseSwapped = bidSize;
+				baseSwapped = bidSize.div(orderStepSize).mul(orderStepSize);
+
 				[afterSwapQuoteReserves, afterSwapBaseReserves] =
 					calculateAmmReservesAfterSwap(
 						bidAmm,
@@ -277,7 +285,7 @@ export function getVammL2Generator({
 				);
 			}
 
-			const price = quoteSwapped.mul(BASE_PRECISION).div(baseSwapped);
+			const price = quoteSwapped.mul(BASE_PRECISION).div(baseSwapped).div(orderTickSize).mul(orderTickSize);
 
 			bidAmm.baseAssetReserve = afterSwapBaseReserves;
 			bidAmm.quoteAssetReserve = afterSwapQuoteReserves;
