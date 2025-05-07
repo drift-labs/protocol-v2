@@ -6467,7 +6467,7 @@ export class DriftClient {
 			takerInfo.takerUserAccount.delegate
 		);
 		const { signedMsgOrderParams } = this.decodeSignedMsgOrderParamsMessage(
-			signedSignedMsgOrderParams.orderParams,
+			Buffer.from(signedSignedMsgOrderParams.orderParams.toString(), 'hex'),
 			isDelegateSigner
 		);
 		if (isUpdateHighLeverageMode(signedMsgOrderParams.bitFlags)) {
