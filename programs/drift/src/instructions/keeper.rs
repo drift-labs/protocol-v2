@@ -2938,8 +2938,24 @@ pub fn handle_update_amm_cache<'c: 'info, 'info>(
     ctx: Context<'_, '_, 'c, 'info, UpdateAmmCache<'info>>,
 ) -> Result<()> {
     let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
+    let amm_cache_key = &ctx.accounts.amm_cache.key();
     let mut amm_cache: AccountZeroCopyMut<'_, CacheInfo, _> =
         ctx.accounts.amm_cache.load_zc_mut()?;
+
+    let expected_pda = &Pubkey::create_program_address(
+        &[
+            AMM_POSITIONS_CACHE.as_ref(),
+            amm_cache.fixed.bump.to_le_bytes().as_ref(),
+        ],
+        &crate::ID,
+    )
+    .map_err(|_| ErrorCode::InvalidPDA)?;
+    validate!(
+        expected_pda.eq(amm_cache_key),
+        ErrorCode::InvalidPDA,
+        "Amm cache PDA does not match expected PDA"
+    )?;
+
     let AccountMaps {
         perp_market_map,
         spot_market_map: _,
@@ -2956,12 +2972,6 @@ pub fn handle_update_amm_cache<'c: 'info, 'info>(
     for (_, perp_market_loader) in perp_market_map.0.iter() {
         let perp_market = perp_market_loader.load()?;
         let cached_info = amm_cache.get_mut(perp_market.market_index as u32);
-        cached_info.position = perp_market.amm.get_protocol_owned_position()?;
-        cached_info.slot = slot;
-        cached_info.last_oracle_price_twap = perp_market
-            .amm
-            .historical_oracle_data
-            .last_oracle_price_twap;
 
         validate!(
             perp_market.oracle_id() == cached_info.oracle_id()?,
@@ -2970,9 +2980,18 @@ pub fn handle_update_amm_cache<'c: 'info, 'info>(
         )?;
 
         let oracle_data = oracle_map.get_price_data(&perp_market.oracle_id())?;
+
+        cached_info.position = perp_market.amm.get_protocol_owned_position()?;
+        cached_info.slot = slot;
+        cached_info.last_oracle_price_twap = perp_market
+            .amm
+            .historical_oracle_data
+            .last_oracle_price_twap;
         cached_info.oracle_price = oracle_data.price;
         cached_info.oracle_delay = oracle_data.delay;
         cached_info.oracle_confidence = oracle_data.confidence;
+        cached_info.max_confidence_interval_multiplier =
+            perp_market.get_max_confidence_interval_multiplier()?;
     }
 
     Ok(())
@@ -2982,12 +3001,8 @@ pub fn handle_update_amm_cache<'c: 'info, 'info>(
 pub struct UpdateAmmCache<'info> {
     #[account(mut)]
     pub keeper: Signer<'info>,
-    #[account(
-        mut,
-        seeds = [AMM_POSITIONS_CACHE.as_ref()],
-        bump,
-    )]
     /// CHECK: checked in AmmCacheZeroCopy checks
+    #[account(mut)]
     pub amm_cache: AccountInfo<'info>,
 }
 

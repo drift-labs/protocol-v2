@@ -73,7 +73,9 @@ pub struct LPPool {
 
     pub constituents: u16, // 2, 194
 
-    pub _padding: [u8; 13],
+    pub bump: u8,
+
+    pub _padding: [u8; 12],
 }
 
 impl Size for LPPool {
@@ -427,7 +429,8 @@ pub struct Constituent {
     pub constituent_index: u16,
 
     pub decimals: u8,
-    _padding1: [u8; 3],
+    pub bump: u8,
+    _padding1: [u8; 2],
 
     /// max deviation from target_weight allowed for the constituent
     /// precision: PERCENTAGE_PRECISION
@@ -454,11 +457,13 @@ pub struct Constituent {
     pub mint: Pubkey,
 
     pub oracle_staleness_threshold: u64,
+
+    pub lp_pool: Pubkey,
     _padding2: [u8; 8],
 }
 
 impl Size for Constituent {
-    const SIZE: usize = 192;
+    const SIZE: usize = 224;
 }
 
 impl Constituent {
@@ -563,7 +568,8 @@ pub struct AmmConstituentDatum {
 #[derive(Debug, Default)]
 #[repr(C)]
 pub struct AmmConstituentMappingFixed {
-    pub _pad: [u8; 4],
+    pub bump: u8,
+    pub _pad: [u8; 3],
     pub len: u32,
 }
 
@@ -577,7 +583,8 @@ impl HasLen for AmmConstituentMappingFixed {
 #[derive(Debug)]
 #[repr(C)]
 pub struct AmmConstituentMapping {
-    _padding: [u8; 4],
+    pub bump: u8,
+    _padding: [u8; 3],
     // PERCENTAGE_PRECISION. Each datum represents the target weight for a single (AMM, Constituent) pair.
     // An AMM may be partially backed by multiple Constituents
     pub weights: Vec<AmmConstituentDatum>,
@@ -617,8 +624,9 @@ pub struct WeightDatum {
 #[derive(Debug, Default)]
 #[repr(C)]
 pub struct ConstituentTargetWeightsFixed {
+    pub bump: u8,
+    _pad: [u8; 3],
     /// total elements in the flattened `data` vec
-    _pad: [u8; 4],
     pub len: u32,
 }
 
@@ -632,7 +640,8 @@ impl HasLen for ConstituentTargetWeightsFixed {
 #[derive(Debug)]
 #[repr(C)]
 pub struct ConstituentTargetWeights {
-    _padding: [u8; 4],
+    pub bump: u8,
+    _padding: [u8; 3],
     // PERCENTAGE_PRECISION. The weights of the target weight matrix. Updated async
     pub weights: Vec<WeightDatum>,
 }
@@ -662,7 +671,8 @@ impl_zero_copy_loader!(
 impl Default for ConstituentTargetWeights {
     fn default() -> Self {
         ConstituentTargetWeights {
-            _padding: [0; 4],
+            bump: 0,
+            _padding: [0; 3],
             weights: Vec::with_capacity(0),
         }
     }
