@@ -124,22 +124,13 @@ impl<'a> ConstituentMap<'a> {
                 break;
             }
 
-            // // Check if valid pda
-            let expected_pda = &Pubkey::create_program_address(
-                &[
-                    CONSTITUENT_PDA_SEED.as_ref(),
-                    lp_pool_key.as_ref(),
-                    array_ref![data, 40, 2],
-                    array_ref![data, 45, 1],
-                ],
-                &crate::ID,
-            )
-            .map_err(|_| ErrorCode::InvalidPDA)?;
+            // Pubkey
+            let constituent_lp_key = Pubkey::from(*array_ref![data, 184, 32]);
             validate!(
-                expected_pda.eq(account_info.key),
-                ErrorCode::InvalidPDA,
-                "Constituent PDA does not match expected PDA"
-            )?;
+                &constituent_lp_key == lp_pool_key,
+                ErrorCode::InvalidConstituent,
+                "Constituent lp pool pubkey does not match lp pool pubkey"
+            );
 
             // constituent index 42 bytes from front of account
             let constituent_index = u16::from_le_bytes(*array_ref![data, 42, 2]);

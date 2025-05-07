@@ -304,11 +304,13 @@ pub struct Constituent {
     pub mint: Pubkey,
 
     pub oracle_staleness_threshold: u64,
+
+    pub lp_pool: Pubkey,
     _padding2: [u8; 8],
 }
 
 impl Size for Constituent {
-    const SIZE: usize = 192;
+    const SIZE: usize = 224;
 }
 
 impl Constituent {
