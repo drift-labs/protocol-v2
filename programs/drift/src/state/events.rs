@@ -704,3 +704,32 @@ pub struct LPSwapRecord {
     /// in token mint
     pub mint_in: Pubkey,
 }
+
+#[event]
+#[derive(Default)]
+pub struct LPMintRedeemRecord {
+    pub ts: i64,
+    pub authority: Pubkey,
+    pub is_minting: bool,
+    /// precision: continutent mint precision, gross fees
+    pub amount: u64,
+    /// precision: fee on amount, constituent market mint precision
+    pub fee: i64,
+    // spot market index
+    pub spot_market_index: u16,
+    // constituent index
+    pub constituent_index: u16,
+    /// precision: PRICE_PRECISION
+    pub oracle_price: i64,
+    /// token mint
+    pub mint: Pubkey,
+    /// lp mint
+    pub lp_mint: Pubkey,
+    /// lp amount, lp mint precision
+    pub lp_amount: u64,
+    /// lp fee, lp mint precision
+    pub lp_fee: i64,
+    /// lp nav, PRICE_PRECISION
+    pub lp_nav: u128,
+    pub mint_redeem_id: u64,
+}

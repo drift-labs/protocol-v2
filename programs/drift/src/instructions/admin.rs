@@ -4480,6 +4480,9 @@ pub fn handle_initialize_high_leverage_mode_config(
 pub fn handle_initialize_lp_pool(
     ctx: Context<InitializeLpPool>,
     name: [u8; 32],
+    min_mint_fee: i64,
+    max_mint_fee: i64,
+    revenue_rebalance_period: u64,
     max_aum: u128,
 ) -> Result<()> {
     let mut lp_pool = ctx.accounts.lp_pool.load_init()?;
@@ -4497,8 +4500,13 @@ pub fn handle_initialize_lp_pool(
         last_revenue_rebalance_ts: 0,
         total_fees_received: 0,
         total_fees_paid: 0,
+        total_mint_redeem_fees_paid: 0,
         oldest_oracle_slot: 0,
         bump: ctx.bumps.lp_pool,
+        min_mint_fee,
+        max_mint_fee_premium: max_mint_fee,
+        revenue_rebalance_period,
+        next_mint_redeem_id: 1,
         _padding: [0; 12],
     };
 
@@ -5763,13 +5771,17 @@ pub struct InitializeLpPool<'info> {
     )]
     pub lp_pool: AccountLoader<'info, LPPool>,
 
+    pub mint: Account<'info, anchor_spl::token::Mint>,
+
     #[account(
         init,
+        seeds = [b"LP_POOL_TOKEN_VAULT".as_ref(), lp_pool.key().as_ref()],
+        bump,
         payer = admin,
-        mint::decimals = 6,
-        mint::authority = lp_pool.key(),
+        token::mint = mint,
+        token::authority = drift_signer
     )]
-    pub mint: Account<'info, anchor_spl::token::Mint>,
+    pub lp_pool_token_vault: Box<InterfaceAccount<'info, TokenAccount>>,
 
     #[account(
         init,
@@ -5793,6 +5805,8 @@ pub struct InitializeLpPool<'info> {
         has_one = admin
     )]
     pub state: Box<Account<'info, State>>,
+    /// CHECK: program signer
+    pub drift_signer: AccountInfo<'info>,
 
     pub token_program: Program<'info, Token>,
 
