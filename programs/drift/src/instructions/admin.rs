@@ -2,6 +2,11 @@ use std::convert::identity;
 use std::mem::size_of;
 
 use crate::msg;
+use crate::state::lp_pool::{
+    AmmConstituentDatum, AmmConstituentMapping, Constituent, ConstituentTargetWeights, LPPool,
+    WeightDatum, AMM_MAP_PDA_SEED, CONSTITUENT_PDA_SEED, CONSTITUENT_TARGET_WEIGHT_PDA_SEED,
+    CONSTITUENT_VAULT_PDA_SEED,
+};
 use anchor_lang::prelude::*;
 use anchor_spl::token::Token;
 use anchor_spl::token_2022::Token2022;
@@ -54,7 +59,8 @@ use crate::state::oracle::{
 use crate::state::oracle_map::OracleMap;
 use crate::state::paused_operations::{InsuranceFundOperation, PerpOperation, SpotOperation};
 use crate::state::perp_market::{
-    ContractTier, ContractType, InsuranceClaim, MarketStatus, PerpMarket, PoolBalance, AMM,
+    AmmCache, CacheInfo, ContractTier, ContractType, InsuranceClaim, MarketStatus, PerpMarket,
+    PoolBalance, AMM, AMM_POSITIONS_CACHE,
 };
 use crate::state::perp_market_map::{get_writable_perp_market_set, MarketSet};
 use crate::state::protected_maker_mode_config::ProtectedMakerModeConfig;
@@ -1052,6 +1058,22 @@ pub fn handle_initialize_perp_market(
 
     safe_increment!(state.number_of_markets, 1);
 
+    let amm_cache = &mut ctx.accounts.amm_cache;
+    let current_len = amm_cache.cache.len();
+    amm_cache
+        .cache
+        .resize_with(current_len + 1, CacheInfo::default);
+    let current_market_info = amm_cache.cache.get_mut(current_len).unwrap();
+    current_market_info.slot = clock_slot;
+
+    current_market_info.oracle = perp_market.amm.oracle;
+    current_market_info.oracle_source = u8::from(perp_market.amm.oracle_source);
+    current_market_info.last_oracle_price_twap = perp_market
+        .amm
+        .historical_oracle_data
+        .last_oracle_price_twap;
+    amm_cache.validate(state)?;
+
     controller::amm::update_concentration_coef(perp_market, concentration_coef_scale)?;
     crate::dlog!(oracle_price);
 
@@ -1063,6 +1085,49 @@ pub fn handle_initialize_perp_market(
     crate::dlog!(amm_bid_price, amm_ask_price);
 
     crate::validation::perp_market::validate_perp_market(perp_market)?;
+
+    Ok(())
+}
+
+pub fn handle_initialize_amm_cache(ctx: Context<InitializeAmmCache>) -> Result<()> {
+    let amm_cache = &mut ctx.accounts.amm_cache;
+    let state = &ctx.accounts.state;
+    amm_cache
+        .cache
+        .resize_with(state.number_of_markets as usize, CacheInfo::default);
+    amm_cache.bump = ctx.bumps.amm_cache;
+
+    Ok(())
+}
+
+pub fn handle_update_init_amm_cache_info<'c: 'info, 'info>(
+    ctx: Context<'_, '_, 'c, 'info, UpdateInitAmmCacheInfo<'info>>,
+) -> Result<()> {
+    let amm_cache = &mut ctx.accounts.amm_cache;
+
+    let AccountMaps {
+        perp_market_map,
+        spot_market_map: _,
+        oracle_map: _,
+    } = load_maps(
+        &mut ctx.remaining_accounts.iter().peekable(),
+        &MarketSet::new(),
+        &MarketSet::new(),
+        Clock::get()?.slot,
+        None,
+    )?;
+
+    for (_, perp_market_loader) in perp_market_map.0 {
+        let perp_market = perp_market_loader.load()?;
+        let market_index = perp_market.market_index as usize;
+        let cache = amm_cache.cache.get_mut(market_index).unwrap();
+        cache.oracle = perp_market.amm.oracle;
+        cache.oracle_source = u8::from(perp_market.amm.oracle_source);
+        cache.last_oracle_price_twap = perp_market
+            .amm
+            .historical_oracle_data
+            .last_oracle_price_twap;
+    }
 
     Ok(())
 }
@@ -3125,10 +3190,11 @@ pub fn handle_update_perp_market_paused_operations(
     perp_market_valid(&ctx.accounts.perp_market)
 )]
 pub fn handle_update_perp_market_contract_tier(
-    ctx: Context<AdminUpdatePerpMarket>,
+    ctx: Context<AdminUpdatePerpMarketContractTier>,
     contract_tier: ContractTier,
 ) -> Result<()> {
     let perp_market = &mut load_mut!(ctx.accounts.perp_market)?;
+    let amm_cache = &mut ctx.accounts.amm_cache;
     msg!("perp market {}", perp_market.market_index);
 
     msg!(
@@ -3138,6 +3204,14 @@ pub fn handle_update_perp_market_contract_tier(
     );
 
     perp_market.contract_tier = contract_tier;
+    let max_confidence_interval_multiplier =
+        perp_market.get_max_confidence_interval_multiplier()?;
+    amm_cache
+        .cache
+        .get_mut(perp_market.market_index as usize)
+        .expect("value should exist for market index")
+        .max_confidence_interval_multiplier = max_confidence_interval_multiplier;
+
     Ok(())
 }
 
@@ -3485,6 +3559,7 @@ pub fn handle_update_perp_market_oracle(
     skip_invariant_check: bool,
 ) -> Result<()> {
     let perp_market = &mut load_mut!(ctx.accounts.perp_market)?;
+    let amm_cache = &mut ctx.accounts.amm_cache;
     msg!("perp market {}", perp_market.market_index);
 
     let clock = Clock::get()?;
@@ -3562,6 +3637,14 @@ pub fn handle_update_perp_market_oracle(
 
     perp_market.amm.oracle = oracle;
     perp_market.amm.oracle_source = oracle_source;
+
+    let amm_position_cache_info = amm_cache
+        .cache
+        .get_mut(perp_market.market_index as usize)
+        .expect("value should exist for market index");
+
+    amm_position_cache_info.oracle = oracle;
+    amm_position_cache_info.oracle_source = u8::from(oracle_source);
 
     Ok(())
 }
@@ -4394,6 +4477,55 @@ pub fn handle_initialize_high_leverage_mode_config(
     Ok(())
 }
 
+pub fn handle_initialize_lp_pool(
+    ctx: Context<InitializeLpPool>,
+    name: [u8; 32],
+    min_mint_fee: i64,
+    max_mint_fee: i64,
+    revenue_rebalance_period: u64,
+    max_aum: u128,
+) -> Result<()> {
+    let mut lp_pool = ctx.accounts.lp_pool.load_init()?;
+    let mint = ctx.accounts.mint.key();
+
+    *lp_pool = LPPool {
+        name,
+        pubkey: ctx.accounts.lp_pool.key(),
+        mint,
+        constituents: 0,
+        max_aum,
+        last_aum: 0,
+        last_aum_slot: 0,
+        last_aum_ts: 0,
+        last_revenue_rebalance_ts: 0,
+        total_fees_received: 0,
+        total_fees_paid: 0,
+        total_mint_redeem_fees_paid: 0,
+        oldest_oracle_slot: 0,
+        bump: ctx.bumps.lp_pool,
+        min_mint_fee,
+        max_mint_fee_premium: max_mint_fee,
+        revenue_rebalance_period,
+        next_mint_redeem_id: 1,
+        _padding: [0; 12],
+    };
+
+    let amm_constituent_mapping = &mut ctx.accounts.amm_constituent_mapping;
+    amm_constituent_mapping.bump = ctx.bumps.amm_constituent_mapping;
+    amm_constituent_mapping
+        .weights
+        .resize_with(0 as usize, AmmConstituentDatum::default);
+    amm_constituent_mapping.validate()?;
+
+    let constituent_target_weights = &mut ctx.accounts.constituent_target_weights;
+    constituent_target_weights.bump = ctx.bumps.constituent_target_weights;
+    constituent_target_weights
+        .weights
+        .resize_with(0 as usize, WeightDatum::default);
+    constituent_target_weights.validate()?;
+
+    Ok(())
+}
 pub fn handle_update_high_leverage_mode_config(
     ctx: Context<UpdateHighLeverageModeConfig>,
     max_users: u32,
@@ -4429,8 +4561,8 @@ pub fn handle_update_protected_maker_mode_config(
 ) -> Result<()> {
     let mut config = load_mut!(ctx.accounts.protected_maker_mode_config)?;
 
-    if current_users.is_some() {
-        config.current_users = current_users.unwrap();
+    if let Some(users) = current_users {
+        config.current_users = users;
     }
     config.max_users = max_users;
     config.reduce_only = reduce_only as u8;
@@ -4586,6 +4718,219 @@ pub fn handle_admin_deposit<'c: 'info, 'info>(
     emit!(deposit_record);
 
     spot_market.validate_max_token_deposits_and_borrows(false)?;
+
+    Ok(())
+}
+
+pub fn handle_initialize_constituent<'info>(
+    ctx: Context<'_, '_, '_, 'info, InitializeConstituent<'info>>,
+    spot_market_index: u16,
+    decimals: u8,
+    max_weight_deviation: i64,
+    swap_fee_min: i64,
+    swap_fee_max: i64,
+    oracle_staleness_threshold: u64,
+) -> Result<()> {
+    let mut constituent = ctx.accounts.constituent.load_init()?;
+    let mut lp_pool = ctx.accounts.lp_pool.load_mut()?;
+
+    let constituent_target_weights = &mut ctx.accounts.constituent_target_weights;
+    let current_len = constituent_target_weights.weights.len();
+
+    constituent_target_weights
+        .weights
+        .resize_with((current_len + 1) as usize, WeightDatum::default);
+    constituent_target_weights.validate()?;
+
+    msg!(
+        "initializing constituent {} with spot market index {}",
+        lp_pool.constituents,
+        spot_market_index
+    );
+
+    constituent.spot_market_index = spot_market_index;
+    constituent.constituent_index = lp_pool.constituents;
+    constituent.decimals = decimals;
+    constituent.max_weight_deviation = max_weight_deviation;
+    constituent.swap_fee_min = swap_fee_min;
+    constituent.swap_fee_max = swap_fee_max;
+    constituent.oracle_staleness_threshold = oracle_staleness_threshold;
+    constituent.pubkey = ctx.accounts.constituent.key();
+    constituent.mint = ctx.accounts.spot_market_mint.key();
+    constituent.bump = ctx.bumps.constituent;
+    constituent.lp_pool = lp_pool.pubkey;
+    constituent.constituent_index = (constituent_target_weights.weights.len() - 1) as u16;
+    lp_pool.constituents += 1;
+
+    Ok(())
+}
+
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, Default)]
+pub struct ConstituentParams {
+    pub max_weight_deviation: Option<i64>,
+    pub swap_fee_min: Option<i64>,
+    pub swap_fee_max: Option<i64>,
+    pub oracle_staleness_threshold: Option<u64>,
+}
+
+pub fn handle_update_constituent_params<'info>(
+    ctx: Context<UpdateConstituentParams>,
+    constituent_params: ConstituentParams,
+) -> Result<()> {
+    let mut constituent = ctx.accounts.constituent.load_mut()?;
+    if constituent_params.max_weight_deviation.is_some() {
+        msg!(
+            "max_weight_deviation: {:?} -> {:?}",
+            constituent.max_weight_deviation,
+            constituent_params.max_weight_deviation
+        );
+        constituent.max_weight_deviation = constituent_params.max_weight_deviation.unwrap();
+    }
+
+    if constituent_params.swap_fee_min.is_some() {
+        msg!(
+            "swap_fee_min: {:?} -> {:?}",
+            constituent.swap_fee_min,
+            constituent_params.swap_fee_min
+        );
+        constituent.swap_fee_min = constituent_params.swap_fee_min.unwrap();
+    }
+
+    if constituent_params.swap_fee_max.is_some() {
+        msg!(
+            "swap_fee_max: {:?} -> {:?}",
+            constituent.swap_fee_max,
+            constituent_params.swap_fee_max
+        );
+        constituent.swap_fee_max = constituent_params.swap_fee_max.unwrap();
+    }
+
+    if constituent_params.oracle_staleness_threshold.is_some() {
+        msg!(
+            "oracle_staleness_threshold: {:?} -> {:?}",
+            constituent.oracle_staleness_threshold,
+            constituent_params.oracle_staleness_threshold
+        );
+        constituent.oracle_staleness_threshold =
+            constituent_params.oracle_staleness_threshold.unwrap();
+    }
+
+    Ok(())
+}
+
+pub fn handle_update_amm_constituent_mapping_data<'info>(
+    ctx: Context<UpdateAmmConstituentMappingData>,
+    amm_constituent_mapping_data: Vec<AddAmmConstituentMappingDatum>,
+) -> Result<()> {
+    let amm_mapping = &mut ctx.accounts.amm_constituent_mapping;
+
+    for datum in amm_constituent_mapping_data {
+        let existing_datum = amm_mapping.weights.iter().position(|existing_datum| {
+            existing_datum.perp_market_index == datum.perp_market_index
+                && existing_datum.constituent_index == datum.constituent_index
+        });
+
+        if existing_datum.is_none() {
+            msg!(
+                "AmmConstituentDatum not found for perp_market_index {} and constituent_index {}",
+                datum.perp_market_index,
+                datum.constituent_index
+            );
+            return Err(ErrorCode::InvalidAmmConstituentMappingArgument.into());
+        }
+
+        amm_mapping.weights[existing_datum.unwrap()] = AmmConstituentDatum {
+            perp_market_index: datum.perp_market_index,
+            constituent_index: datum.constituent_index,
+            weight: datum.weight,
+            last_slot: Clock::get()?.slot,
+            ..AmmConstituentDatum::default()
+        };
+
+        msg!(
+            "Updated AmmConstituentDatum for perp_market_index {} and constituent_index {} to {}",
+            datum.perp_market_index,
+            datum.constituent_index,
+            datum.weight
+        );
+    }
+
+    Ok(())
+}
+
+pub fn handle_remove_amm_constituent_mapping_data<'info>(
+    ctx: Context<RemoveAmmConstituentMappingData>,
+    perp_market_index: u16,
+    constituent_index: u16,
+) -> Result<()> {
+    let amm_mapping = &mut ctx.accounts.amm_constituent_mapping;
+
+    let position = amm_mapping.weights.iter().position(|existing_datum| {
+        existing_datum.perp_market_index == perp_market_index
+            && existing_datum.constituent_index == constituent_index
+    });
+
+    if position.is_none() {
+        msg!(
+            "Not found for perp_market_index {} and constituent_index {}",
+            perp_market_index,
+            constituent_index
+        );
+        return Err(ErrorCode::InvalidAmmConstituentMappingArgument.into());
+    }
+
+    amm_mapping.weights.remove(position.unwrap());
+    amm_mapping.weights.shrink_to_fit();
+
+    Ok(())
+}
+
+pub fn handle_add_amm_constituent_data<'info>(
+    ctx: Context<AddAmmConstituentMappingData>,
+    init_amm_constituent_mapping_data: Vec<AddAmmConstituentMappingDatum>,
+) -> Result<()> {
+    let amm_mapping = &mut ctx.accounts.amm_constituent_mapping;
+    let constituent_target_weights = &ctx.accounts.constituent_target_weights;
+    let state = &ctx.accounts.state;
+    let mut current_len = amm_mapping.weights.len();
+
+    for init_datum in init_amm_constituent_mapping_data {
+        let perp_market_index = init_datum.perp_market_index;
+
+        validate!(
+            perp_market_index < state.number_of_markets,
+            ErrorCode::InvalidAmmConstituentMappingArgument,
+            "perp_market_index too large compared to number of markets"
+        )?;
+
+        validate!(
+            (init_datum.constituent_index as usize) < constituent_target_weights.weights.len(),
+            ErrorCode::InvalidAmmConstituentMappingArgument,
+            "constituent_index too large compared to number of constituents in target weights"
+        )?;
+
+        let constituent_index = init_datum.constituent_index;
+        let mut datum = AmmConstituentDatum::default();
+        datum.perp_market_index = perp_market_index;
+        datum.constituent_index = constituent_index;
+
+        // Check if the datum already exists
+        let exists = amm_mapping.weights.iter().any(|d| {
+            d.perp_market_index == perp_market_index && d.constituent_index == constituent_index
+        });
+
+        validate!(
+            !exists,
+            ErrorCode::InvalidAmmConstituentMappingArgument,
+            "AmmConstituentDatum already exists for perp_market_index {} and constituent_index {}",
+            perp_market_index,
+            constituent_index
+        )?;
+
+        // Add the new datum to the mapping
+        current_len += 1;
+        amm_mapping.weights.resize(current_len, datum);
+    }
 
     Ok(())
 }
@@ -4829,10 +5174,55 @@ pub struct InitializePerpMarket<'info> {
         payer = admin
     )]
     pub perp_market: AccountLoader<'info, PerpMarket>,
+    #[account(
+        mut,
+        seeds = [AMM_POSITIONS_CACHE.as_ref()],
+        bump = amm_cache.bump,
+        realloc = AmmCache::space(amm_cache.cache.len() + 1 as usize),
+        realloc::payer = admin,
+        realloc::zero = false,
+    )]
+    pub amm_cache: Box<Account<'info, AmmCache>>,
     /// CHECK: checked in `initialize_perp_market`
     pub oracle: AccountInfo<'info>,
     pub rent: Sysvar<'info, Rent>,
     pub system_program: Program<'info, System>,
+}
+
+#[derive(Accounts)]
+pub struct InitializeAmmCache<'info> {
+    #[account(
+        mut,
+        constraint = admin.key() == admin_hot_wallet::id() || admin.key() == state.admin
+    )]
+    pub admin: Signer<'info>,
+    pub state: Box<Account<'info, State>>,
+    #[account(
+        init,
+        seeds = [AMM_POSITIONS_CACHE.as_ref()],
+        space = AmmCache::space(state.number_of_markets as usize),
+        bump,
+        payer = admin
+    )]
+    pub amm_cache: Box<Account<'info, AmmCache>>,
+    pub rent: Sysvar<'info, Rent>,
+    pub system_program: Program<'info, System>,
+}
+
+#[derive(Accounts)]
+pub struct UpdateInitAmmCacheInfo<'info> {
+    #[account(
+        mut,
+        constraint = admin.key() == admin_hot_wallet::id() || admin.key() == state.admin
+    )]
+    pub state: Box<Account<'info, State>>,
+    pub admin: Signer<'info>,
+    #[account(
+        mut,
+        seeds = [AMM_POSITIONS_CACHE.as_ref()],
+        bump = amm_cache.bump,
+    )]
+    pub amm_cache: Box<Account<'info, AmmCache>>,
 }
 
 #[derive(Accounts)]
@@ -4857,6 +5247,23 @@ pub struct AdminUpdatePerpMarket<'info> {
     pub state: Box<Account<'info, State>>,
     #[account(mut)]
     pub perp_market: AccountLoader<'info, PerpMarket>,
+}
+
+#[derive(Accounts)]
+pub struct AdminUpdatePerpMarketContractTier<'info> {
+    pub admin: Signer<'info>,
+    #[account(
+        has_one = admin
+    )]
+    pub state: Box<Account<'info, State>>,
+    #[account(mut)]
+    pub perp_market: AccountLoader<'info, PerpMarket>,
+    #[account(
+        mut,
+        seeds = [AMM_POSITIONS_CACHE.as_ref()],
+        bump = amm_cache.bump,
+    )]
+    pub amm_cache: Box<Account<'info, AmmCache>>,
 }
 
 #[derive(Accounts)]
@@ -5026,6 +5433,12 @@ pub struct AdminUpdatePerpMarketOracle<'info> {
     pub oracle: AccountInfo<'info>,
     /// CHECK: checked in `admin_update_perp_market_oracle` ix constraint
     pub old_oracle: AccountInfo<'info>,
+    #[account(
+        mut,
+        seeds = [AMM_POSITIONS_CACHE.as_ref()],
+        bump = amm_cache.bump,
+    )]
+    pub amm_cache: Box<Account<'info, AmmCache>>,
 }
 
 #[derive(Accounts)]
@@ -5340,4 +5753,239 @@ pub struct AdminDeposit<'info> {
     )]
     pub admin_token_account: Box<InterfaceAccount<'info, TokenAccount>>,
     pub token_program: Interface<'info, TokenInterface>,
+}
+
+#[derive(Accounts)]
+#[instruction(
+    name: [u8; 32],
+)]
+pub struct InitializeLpPool<'info> {
+    #[account(mut)]
+    pub admin: Signer<'info>,
+    #[account(
+        init,
+        seeds = [b"lp_pool", name.as_ref()],
+        space = LPPool::SIZE,
+        bump,
+        payer = admin
+    )]
+    pub lp_pool: AccountLoader<'info, LPPool>,
+
+    pub mint: Account<'info, anchor_spl::token::Mint>,
+
+    #[account(
+        init,
+        seeds = [b"LP_POOL_TOKEN_VAULT".as_ref(), lp_pool.key().as_ref()],
+        bump,
+        payer = admin,
+        token::mint = mint,
+        token::authority = drift_signer
+    )]
+    pub lp_pool_token_vault: Box<InterfaceAccount<'info, TokenAccount>>,
+
+    #[account(
+        init,
+        seeds = [AMM_MAP_PDA_SEED.as_ref(), lp_pool.key().as_ref()],
+        bump,
+        space = AmmConstituentMapping::space(0 as usize),
+        payer = admin,
+    )]
+    pub amm_constituent_mapping: Box<Account<'info, AmmConstituentMapping>>,
+
+    #[account(
+        init,
+        seeds = [CONSTITUENT_TARGET_WEIGHT_PDA_SEED.as_ref(), lp_pool.key().as_ref()],
+        bump,
+        space = ConstituentTargetWeights::space(0 as usize),
+        payer = admin,
+    )]
+    pub constituent_target_weights: Box<Account<'info, ConstituentTargetWeights>>,
+
+    #[account(
+        has_one = admin
+    )]
+    pub state: Box<Account<'info, State>>,
+    /// CHECK: program signer
+    pub drift_signer: AccountInfo<'info>,
+
+    pub token_program: Program<'info, Token>,
+
+    pub rent: Sysvar<'info, Rent>,
+    pub system_program: Program<'info, System>,
+}
+
+#[derive(Accounts)]
+#[instruction(
+    lp_pool_name: [u8; 32],
+    spot_market_index: u16,
+)]
+pub struct InitializeConstituent<'info> {
+    #[account()]
+    pub state: Box<Account<'info, State>>,
+    #[account(
+        mut,
+        constraint = admin.key() == admin_hot_wallet::id() || admin.key() == state.admin
+    )]
+    pub admin: Signer<'info>,
+
+    #[account(
+        mut,
+        seeds = [b"lp_pool", lp_pool_name.as_ref()],
+        bump = lp_pool.load()?.bump,
+    )]
+    pub lp_pool: AccountLoader<'info, LPPool>,
+
+    #[account(
+        mut,
+        seeds = [CONSTITUENT_TARGET_WEIGHT_PDA_SEED.as_ref(), lp_pool.key().as_ref()],
+        bump = constituent_target_weights.bump,
+        realloc = ConstituentTargetWeights::space(constituent_target_weights.weights.len() + 1 as usize),
+        realloc::payer = admin,
+        realloc::zero = false,
+    )]
+    pub constituent_target_weights: Box<Account<'info, ConstituentTargetWeights>>,
+
+    #[account(
+        init,
+        seeds = [CONSTITUENT_PDA_SEED.as_ref(), lp_pool.key().as_ref(), spot_market_index.to_le_bytes().as_ref()],
+        bump,
+        space = Constituent::SIZE,
+        payer = admin,
+    )]
+    pub constituent: AccountLoader<'info, Constituent>,
+    pub spot_market_mint: Box<InterfaceAccount<'info, Mint>>,
+    #[account(
+        init,
+        seeds = [CONSTITUENT_VAULT_PDA_SEED.as_ref(), lp_pool.key().as_ref(), spot_market_index.to_le_bytes().as_ref()],
+        bump,
+        payer = admin,
+        token::mint = spot_market_mint,
+        token::authority = drift_signer
+    )]
+    pub constituent_vault: Box<InterfaceAccount<'info, TokenAccount>>,
+    #[account(
+        constraint = state.signer.eq(&drift_signer.key())
+    )]
+    /// CHECK: program signer
+    pub drift_signer: AccountInfo<'info>,
+    pub rent: Sysvar<'info, Rent>,
+    pub system_program: Program<'info, System>,
+    pub token_program: Interface<'info, TokenInterface>,
+}
+
+#[derive(Accounts)]
+pub struct UpdateConstituentParams<'info> {
+    #[account(
+        mut,
+        constraint = admin.key() == admin_hot_wallet::id() || admin.key() == state.admin
+    )]
+    pub admin: Signer<'info>,
+    pub state: Box<Account<'info, State>>,
+    #[account(mut)]
+    pub constituent: AccountLoader<'info, Constituent>,
+}
+
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, Default)]
+pub struct AddAmmConstituentMappingDatum {
+    pub constituent_index: u16,
+    pub perp_market_index: u16,
+    pub weight: i64,
+}
+
+#[derive(Accounts)]
+#[instruction(
+    lp_pool_name: [u8; 32],
+    amm_constituent_mapping_data:  Vec<AddAmmConstituentMappingDatum>,
+)]
+pub struct AddAmmConstituentMappingData<'info> {
+    #[account(
+        mut,
+        constraint = admin.key() == admin_hot_wallet::id() || admin.key() == state.admin
+    )]
+    pub admin: Signer<'info>,
+
+    #[account(
+        seeds = [b"lp_pool", lp_pool_name.as_ref()],
+        bump,
+    )]
+    pub lp_pool: AccountLoader<'info, LPPool>,
+
+    #[account(
+        mut,
+        seeds = [AMM_MAP_PDA_SEED.as_ref(), lp_pool.key().as_ref()],
+        bump,
+        realloc = AmmConstituentMapping::space(amm_constituent_mapping.weights.len() + amm_constituent_mapping_data.len()),
+        realloc::payer = admin,
+        realloc::zero = false,
+    )]
+    pub amm_constituent_mapping: Box<Account<'info, AmmConstituentMapping>>,
+    #[account(
+        mut,
+        seeds = [CONSTITUENT_TARGET_WEIGHT_PDA_SEED.as_ref(), lp_pool.key().as_ref()],
+        bump,
+        realloc = ConstituentTargetWeights::space(constituent_target_weights.weights.len() + 1 as usize),
+        realloc::payer = admin,
+        realloc::zero = false,
+    )]
+    pub constituent_target_weights: Box<Account<'info, ConstituentTargetWeights>>,
+    pub state: Box<Account<'info, State>>,
+    pub system_program: Program<'info, System>,
+}
+
+#[derive(Accounts)]
+#[instruction(
+    lp_pool_name: [u8; 32],
+    amm_constituent_mapping_data:  Vec<AddAmmConstituentMappingDatum>,
+)]
+pub struct UpdateAmmConstituentMappingData<'info> {
+    #[account(
+        mut,
+        constraint = admin.key() == admin_hot_wallet::id() || admin.key() == state.admin
+    )]
+    pub admin: Signer<'info>,
+
+    #[account(
+        seeds = [b"lp_pool", lp_pool_name.as_ref()],
+        bump,
+    )]
+    pub lp_pool: AccountLoader<'info, LPPool>,
+
+    #[account(
+        mut,
+        seeds = [AMM_MAP_PDA_SEED.as_ref(), lp_pool.key().as_ref()],
+        bump,
+    )]
+    pub amm_constituent_mapping: Box<Account<'info, AmmConstituentMapping>>,
+    pub system_program: Program<'info, System>,
+    pub state: Box<Account<'info, State>>,
+}
+
+#[derive(Accounts)]
+#[instruction(
+    lp_pool_name: [u8; 32],
+)]
+pub struct RemoveAmmConstituentMappingData<'info> {
+    #[account(
+        mut,
+        constraint = admin.key() == admin_hot_wallet::id() || admin.key() == state.admin
+    )]
+    pub admin: Signer<'info>,
+
+    #[account(
+        seeds = [b"lp_pool", lp_pool_name.as_ref()],
+        bump,
+    )]
+    pub lp_pool: AccountLoader<'info, LPPool>,
+
+    #[account(
+        mut,
+        seeds = [AMM_MAP_PDA_SEED.as_ref(), lp_pool.key().as_ref()],
+        bump,
+        realloc = AmmConstituentMapping::space(amm_constituent_mapping.weights.len() - 1),
+        realloc::payer = admin,
+        realloc::zero = false,
+    )]
+    pub amm_constituent_mapping: Box<Account<'info, AmmConstituentMapping>>,
+    pub system_program: Program<'info, System>,
+    pub state: Box<Account<'info, State>>,
 }

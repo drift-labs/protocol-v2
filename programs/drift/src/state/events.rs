@@ -673,3 +673,63 @@ pub fn emit_buffers<T: AnchorSerialize + Discriminator>(
 
     Ok(())
 }
+
+#[event]
+#[derive(Default)]
+pub struct LPSwapRecord {
+    pub ts: i64,
+    pub authority: Pubkey,
+    /// precision: out market mint precision, gross fees
+    pub amount_out: u64,
+    /// precision: in market mint precision, gross fees
+    pub amount_in: u64,
+    /// precision: fee on amount_out, in market mint precision
+    pub fee_out: i64,
+    /// precision: fee on amount_in, out market mint precision
+    pub fee_in: i64,
+    // out spot market index
+    pub out_spot_market_index: u16,
+    // in spot market index
+    pub in_spot_market_index: u16,
+    // out constituent index
+    pub out_constituent_index: u16,
+    // in constituent index
+    pub in_constituent_index: u16,
+    /// precision: PRICE_PRECISION
+    pub out_oracle_price: i64,
+    /// precision: PRICE_PRECISION
+    pub in_oracle_price: i64,
+    /// out token mint
+    pub mint_out: Pubkey,
+    /// in token mint
+    pub mint_in: Pubkey,
+}
+
+#[event]
+#[derive(Default)]
+pub struct LPMintRedeemRecord {
+    pub ts: i64,
+    pub authority: Pubkey,
+    pub is_minting: bool,
+    /// precision: continutent mint precision, gross fees
+    pub amount: u64,
+    /// precision: fee on amount, constituent market mint precision
+    pub fee: i64,
+    // spot market index
+    pub spot_market_index: u16,
+    // constituent index
+    pub constituent_index: u16,
+    /// precision: PRICE_PRECISION
+    pub oracle_price: i64,
+    /// token mint
+    pub mint: Pubkey,
+    /// lp mint
+    pub lp_mint: Pubkey,
+    /// lp amount, lp mint precision
+    pub lp_amount: u64,
+    /// lp fee, lp mint precision
+    pub lp_fee: i64,
+    /// lp nav, PRICE_PRECISION
+    pub lp_nav: u128,
+    pub mint_redeem_id: u64,
+}

@@ -1484,3 +1484,84 @@ export type SignedMsgUserOrdersAccount = {
 	authorityPubkey: PublicKey;
 	signedMsgOrderData: SignedMsgOrderId[];
 };
+
+export type AddAmmConstituentMappingDatum = {
+	constituentIndex: number;
+	perpMarketIndex: number;
+	weight: BN;
+};
+
+export type AmmConstituentDatum = AddAmmConstituentMappingDatum & {
+	lastSlot: BN;
+};
+
+export type AmmConstituentMapping = {
+	bump: number;
+	weights: AmmConstituentDatum[];
+};
+
+export type WeightDatum = {
+	weight: BN;
+	lastSlot: BN;
+};
+
+export type ConstituentTargetWeights = {
+	bump: number;
+	weights: WeightDatum[];
+};
+
+export type LPPoolAccount = {
+	name: number[];
+	pubkey: PublicKey;
+	mint: PublicKey;
+	maxAum: BN;
+	lastAum: BN;
+	lastAumSlot: BN;
+	lastAumTs: BN;
+	bump: number;
+	oldestOracleSlot: BN;
+	lastRevenueRebalanceTs: BN;
+	totalFeesReceived: BN;
+	totalFeesPaid: BN;
+	constituents: number;
+};
+
+export type BLPosition = {
+	scaledBalance: BN;
+	cumulativeDeposits: BN;
+	marketIndex: number;
+	balanceType: SpotBalanceType;
+};
+
+export type ConstituentAccount = {
+	pubkey: PublicKey;
+	spotMarketIndex: number;
+	constituentIndex: number;
+	decimals: number;
+	maxWeightDeviation: BN;
+	swapFeeMin: BN;
+	swapFeeMax: BN;
+	totalSwapFees: BN;
+	tokenBalance: BN;
+	spotBalance: BLPosition;
+	lastOraclePrice: BN;
+	lastOracleSlot: BN;
+	mint: PublicKey;
+	bump: number;
+};
+
+export type CacheInfo = {
+	slot: BN;
+	position: BN;
+	maxConfidenceIntervalMultiplier: BN;
+	lastOraclePriceTwap: BN;
+	oracle: PublicKey;
+	oracleSource: number;
+	oraclePrice: BN;
+	oracleDelay: BN;
+	oracleConfidence: BN;
+};
+
+export type AmmCache = {
+	cache: CacheInfo[];
+};

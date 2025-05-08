@@ -379,3 +379,91 @@ export function getProtectedMakerModeConfigPublicKey(
 		programId
 	)[0];
 }
+
+export function getLpPoolPublicKey(
+	programId: PublicKey,
+	nameBuffer: number[]
+): PublicKey {
+	return PublicKey.findProgramAddressSync(
+		[
+			Buffer.from(anchor.utils.bytes.utf8.encode('lp_pool')),
+			Buffer.from(nameBuffer),
+		],
+		programId
+	)[0];
+}
+
+export function getLpPoolTokenVaultPublicKey(
+	programId: PublicKey,
+	lpPool: PublicKey
+): PublicKey {
+	return PublicKey.findProgramAddressSync(
+		[
+			Buffer.from(anchor.utils.bytes.utf8.encode('LP_POOL_TOKEN_VAULT')),
+			lpPool.toBuffer(),
+		],
+		programId
+	)[0];
+}
+export function getAmmConstituentMappingPublicKey(
+	programId: PublicKey,
+	lpPoolPublicKey: PublicKey
+): PublicKey {
+	return PublicKey.findProgramAddressSync(
+		[
+			Buffer.from(anchor.utils.bytes.utf8.encode('AMM_MAP')),
+			lpPoolPublicKey.toBuffer(),
+		],
+		programId
+	)[0];
+}
+
+export function getConstituentTargetWeightsPublicKey(
+	programId: PublicKey,
+	lpPoolPublicKey: PublicKey
+): PublicKey {
+	return PublicKey.findProgramAddressSync(
+		[
+			Buffer.from(anchor.utils.bytes.utf8.encode('CONSTITUENT_TARGET_WEIGHTS')),
+			lpPoolPublicKey.toBuffer(),
+		],
+		programId
+	)[0];
+}
+
+export function getConstituentPublicKey(
+	programId: PublicKey,
+	lpPoolPublicKey: PublicKey,
+	spotMarketIndex: number
+): PublicKey {
+	return PublicKey.findProgramAddressSync(
+		[
+			Buffer.from(anchor.utils.bytes.utf8.encode('CONSTITUENT')),
+			lpPoolPublicKey.toBuffer(),
+			new anchor.BN(spotMarketIndex).toArrayLike(Buffer, 'le', 2),
+		],
+		programId
+	)[0];
+}
+
+export function getConstituentVaultPublicKey(
+	programId: PublicKey,
+	lpPoolPublicKey: PublicKey,
+	spotMarketIndex: number
+): PublicKey {
+	return PublicKey.findProgramAddressSync(
+		[
+			Buffer.from(anchor.utils.bytes.utf8.encode('CONSTITUENT_VAULT')),
+			lpPoolPublicKey.toBuffer(),
+			new anchor.BN(spotMarketIndex).toArrayLike(Buffer, 'le', 2),
+		],
+		programId
+	)[0];
+}
+
+export function getAmmCachePublicKey(programId: PublicKey): PublicKey {
+	return PublicKey.findProgramAddressSync(
+		[Buffer.from(anchor.utils.bytes.utf8.encode('amm_positions_cache'))],
+		programId
+	)[0];
+}

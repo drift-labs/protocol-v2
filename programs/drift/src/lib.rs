@@ -970,6 +970,18 @@ pub mod drift {
         )
     }
 
+    pub fn initialize_amm_cache<'c: 'info, 'info>(
+        ctx: Context<'_, '_, 'c, 'info, InitializeAmmCache<'info>>,
+    ) -> Result<()> {
+        handle_initialize_amm_cache(ctx)
+    }
+
+    pub fn update_init_amm_cache_info<'c: 'info, 'info>(
+        ctx: Context<'_, '_, 'c, 'info, UpdateInitAmmCacheInfo<'info>>,
+    ) -> Result<()> {
+        handle_update_init_amm_cache_info(ctx)
+    }
+
     pub fn initialize_prediction_market<'c: 'info, 'info>(
         ctx: Context<'_, '_, 'c, 'info, AdminUpdatePerpMarket<'info>>,
     ) -> Result<()> {
@@ -1290,7 +1302,7 @@ pub mod drift {
     }
 
     pub fn update_perp_market_contract_tier(
-        ctx: Context<AdminUpdatePerpMarket>,
+        ctx: Context<AdminUpdatePerpMarketContractTier>,
         contract_tier: ContractTier,
     ) -> Result<()> {
         handle_update_perp_market_contract_tier(ctx, contract_tier)
@@ -1675,6 +1687,24 @@ pub mod drift {
         handle_initialize_high_leverage_mode_config(ctx, max_users)
     }
 
+    pub fn initialize_lp_pool(
+        ctx: Context<InitializeLpPool>,
+        name: [u8; 32],
+        min_mint_fee: i64,
+        max_mint_fee: i64,
+        revenue_rebalance_period: u64,
+        max_aum: u128,
+    ) -> Result<()> {
+        handle_initialize_lp_pool(
+            ctx,
+            name,
+            min_mint_fee,
+            max_mint_fee,
+            revenue_rebalance_period,
+            max_aum,
+        )
+    }
+
     pub fn update_high_leverage_mode_config(
         ctx: Context<UpdateHighLeverageModeConfig>,
         max_users: u32,
@@ -1705,6 +1735,116 @@ pub mod drift {
         amount: u64,
     ) -> Result<()> {
         handle_admin_deposit(ctx, market_index, amount)
+    }
+
+    pub fn initialize_constituent<'info>(
+        ctx: Context<'_, '_, '_, 'info, InitializeConstituent<'info>>,
+        lp_pool_name: [u8; 32],
+        spot_market_index: u16,
+        decimals: u8,
+        max_weight_deviation: i64,
+        swap_fee_min: i64,
+        swap_fee_max: i64,
+        oracle_staleness_threshold: u64,
+    ) -> Result<()> {
+        handle_initialize_constituent(
+            ctx,
+            spot_market_index,
+            decimals,
+            max_weight_deviation,
+            swap_fee_min,
+            swap_fee_max,
+            oracle_staleness_threshold,
+        )
+    }
+
+    pub fn update_constituent_params(
+        ctx: Context<UpdateConstituentParams>,
+        constituent_params: ConstituentParams,
+    ) -> Result<()> {
+        handle_update_constituent_params(ctx, constituent_params)
+    }
+
+    pub fn add_amm_constituent_mapping_data(
+        ctx: Context<AddAmmConstituentMappingData>,
+        lp_pool_name: [u8; 32],
+        amm_constituent_mapping_data: Vec<AddAmmConstituentMappingDatum>,
+    ) -> Result<()> {
+        handle_add_amm_constituent_data(ctx, amm_constituent_mapping_data)
+    }
+
+    pub fn update_amm_constituent_mapping_data(
+        ctx: Context<UpdateAmmConstituentMappingData>,
+        lp_pool_name: [u8; 32],
+        amm_constituent_mapping_data: Vec<AddAmmConstituentMappingDatum>,
+    ) -> Result<()> {
+        handle_update_amm_constituent_mapping_data(ctx, amm_constituent_mapping_data)
+    }
+
+    pub fn remove_amm_constituent_mapping_data<'c: 'info, 'info>(
+        ctx: Context<'_, '_, 'c, 'info, RemoveAmmConstituentMappingData<'info>>,
+        lp_pool_name: [u8; 32],
+        perp_market_index: u16,
+        constituent_index: u16,
+    ) -> Result<()> {
+        handle_remove_amm_constituent_mapping_data(ctx, perp_market_index, constituent_index)
+    }
+
+    pub fn update_lp_constituent_target_weights<'c: 'info, 'info>(
+        ctx: Context<'_, '_, 'c, 'info, UpdateConstituentTargetWeights<'info>>,
+        lp_pool_name: [u8; 32],
+        constituent_indexes: Vec<u16>,
+    ) -> Result<()> {
+        handle_update_constituent_target_weights(ctx, lp_pool_name, constituent_indexes)
+    }
+
+    pub fn update_lp_pool_aum<'c: 'info, 'info>(
+        ctx: Context<'_, '_, 'c, 'info, UpdateLPPoolAum<'info>>,
+        lp_pool_name: [u8; 32],
+    ) -> Result<()> {
+        handle_update_lp_pool_aum(ctx)
+    }
+
+    pub fn update_amm_cache<'c: 'info, 'info>(
+        ctx: Context<'_, '_, 'c, 'info, UpdateAmmCache<'info>>,
+    ) -> Result<()> {
+        handle_update_amm_cache(ctx)
+    }
+
+    pub fn lp_pool_swap<'c: 'info, 'info>(
+        ctx: Context<'_, '_, 'c, 'info, LPPoolSwap<'info>>,
+        in_market_index: u16,
+        out_market_index: u16,
+        in_amount: u64,
+        min_out_amount: u64,
+    ) -> Result<()> {
+        handle_lp_pool_swap(
+            ctx,
+            in_market_index,
+            out_market_index,
+            in_amount,
+            min_out_amount,
+        )
+    }
+
+    pub fn lp_pool_add_liquidity<'c: 'info, 'info>(
+        ctx: Context<'_, '_, 'c, 'info, LPPoolAddLiquidity<'info>>,
+        _lp_pool_name: [u8; 32],
+        in_market_index: u16,
+        in_amount: u64,
+        min_mint_amount: u64,
+    ) -> Result<()> {
+        handle_lp_pool_add_liquidity(ctx, in_market_index, in_amount, min_mint_amount)
+    }
+
+    pub fn lp_pool_remove_liquidity<'c: 'info, 'info>(
+        ctx: Context<'_, '_, 'c, 'info, LPPoolRemoveLiquidity<'info>>,
+        _lp_pool_name: [u8; 32],
+        in_market_index: u16,
+        in_amount: u64,
+        min_out_amount: u64,
+    ) -> Result<()> {
+        handle_lp_pool_remove_liquidity(ctx, in_market_index, in_amount, min_out_amount)
     }
 }
 
