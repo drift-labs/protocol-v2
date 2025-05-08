@@ -543,21 +543,53 @@ impl<'a> AccountZeroCopy<'a, WeightDatum, ConstituentTargetWeightsFixed> {
     }
 }
 
-/// Update target weights based on amm_inventory and mapping
+calculate_target_weight() {
+
+
+
+    //.clamp(-PERCENTAGE_PRECISION_I128, PERCENTAGE_PRECISION_I128) as i64;
+
+
+    let price = prices[i] as i128;
+
+    // assumes PRICE_PRECISION = PERCENTAGE_PRECISION
+    let target_weight: i128 = target_amount;
+
+    if (validation_flags as u8 & (WeightValidationFlags::NoNegativeWeights as u8) != 0)
+        && target_weight < 0
+    {
+        return Err(ErrorCode::DefaultError);
+    }
+    if (validation_flags as u8 & (WeightValidationFlags::NoOverweight as u8) != 0)
+        && target_weight > PERCENTAGE_PRECISION_I64 as i128
+    {
+        return Err(ErrorCode::DefaultError);
+    }
+
+
+    if (validation_flags as u8) & WeightValidationFlags::EnforceTotalWeight100 as u8 != 0 {
+        let deviation = (total_weight - PERCENTAGE_PRECISION_I128).abs();
+        let tolerance = 100;
+        if deviation > tolerance {
+            return Err(ErrorCode::DefaultError);
+        }
+    }
+}
+
+/// Update target base based on amm_inventory and mapping
 impl<'a> AccountZeroCopyMut<'a, WeightDatum, ConstituentTargetWeightsFixed> {
-    pub fn update_target_weights(
+    pub fn update_target_base(
         &mut self,
         mapping: &AccountZeroCopy<'a, AmmConstituentDatum, AmmConstituentMappingFixed>,
         // (perp market index, inventory, price)
         amm_inventory: &[(u16, i64)],
         constituents_indexes: &[u16],
         prices: &[i64],
-        aum: u128,
         slot: u64,
         validation_flags: WeightValidationFlags,
     ) -> DriftResult<i128> {
-        let mut total_weight: i128 = 0;
-        let aum_i128 = aum.cast::<i128>()?;
+        let mut total_base: i128 = 0;
+        
         for (i, constituent_index) in constituents_indexes.iter().enumerate() {
             let mut target_amount = 0i128;
 
@@ -573,26 +605,6 @@ impl<'a> AccountZeroCopyMut<'a, WeightDatum, ConstituentTargetWeightsFixed> {
                     .saturating_div(PERCENTAGE_PRECISION_I64 as i128);
             }
 
-            let price = prices[i] as i128;
-
-            // assumes PRICE_PRECISION = PERCENTAGE_PRECISION
-            let target_weight: i128 = if aum > 0 {
-                target_amount.saturating_mul(price).saturating_div(aum_i128)
-            } else {
-                0
-            };
-
-            if (validation_flags as u8 & (WeightValidationFlags::NoNegativeWeights as u8) != 0)
-                && target_weight < 0
-            {
-                return Err(ErrorCode::DefaultError);
-            }
-            if (validation_flags as u8 & (WeightValidationFlags::NoOverweight as u8) != 0)
-                && target_weight > PERCENTAGE_PRECISION_I64 as i128
-            {
-                return Err(ErrorCode::DefaultError);
-            }
-
             let cell = self.get_mut(i as u32);
             msg!(
                 "updating constituent index {} target weight to {}",
@@ -600,18 +612,11 @@ impl<'a> AccountZeroCopyMut<'a, WeightDatum, ConstituentTargetWeightsFixed> {
                 target_weight
             );
             cell.weight =
-                target_weight.clamp(-PERCENTAGE_PRECISION_I128, PERCENTAGE_PRECISION_I128) as i64;
+            target_amount
+                
             cell.last_slot = slot;
 
-            total_weight = total_weight.saturating_add(target_weight);
-        }
-
-        if (validation_flags as u8) & WeightValidationFlags::EnforceTotalWeight100 as u8 != 0 {
-            let deviation = (total_weight - PERCENTAGE_PRECISION_I128).abs();
-            let tolerance = 100;
-            if deviation > tolerance {
-                return Err(ErrorCode::DefaultError);
-            }
+            total_base = total_base.saturating_add(total_base);
         }
 
         Ok(total_weight)

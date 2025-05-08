@@ -184,12 +184,11 @@ pub fn handle_update_constituent_target_weights<'c: 'info, 'info>(
         return Ok(());
     }
 
-    constituent_target_weights.update_target_weights(
+    constituent_target_weights.update_target_base(
         &amm_constituent_mapping,
         amm_inventories.as_slice(),
         constituent_indexes.as_slice(),
         &oracle_prices.as_slice(),
-        lp_pool.last_aum,
         slot,
         WeightValidationFlags::NONE,
     )?;

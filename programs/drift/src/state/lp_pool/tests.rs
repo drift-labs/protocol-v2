@@ -66,12 +66,11 @@ mod tests {
             };
 
         let totalw = target_zc_mut
-            .update_target_weights(
+            .update_target_base(
                 &mapping_zc,
                 &amm_inventory,
                 &constituent_indexes,
                 &prices,
-                aum,
                 now_ts,
                 WeightValidationFlags::NONE,
             )
@@ -130,12 +129,11 @@ mod tests {
             };
 
         let totalw = target_zc_mut
-            .update_target_weights(
+            .update_target_base(
                 &mapping_zc,
                 &amm_inventory,
                 &constituent_indexes,
                 &prices,
-                aum,
                 now_ts,
                 WeightValidationFlags::NONE,
             )
@@ -206,12 +204,11 @@ mod tests {
             };
 
         target_zc_mut
-            .update_target_weights(
+            .update_target_base(
                 &mapping_zc,
                 &amm_inventory,
                 &constituent_indexes,
                 &prices,
-                aum,
                 now_ts,
                 WeightValidationFlags::NONE,
             )
@@ -272,12 +269,11 @@ mod tests {
             };
 
         target_zc_mut
-            .update_target_weights(
+            .update_target_base(
                 &mapping_zc,
                 &amm_inventory,
                 &constituent_indexes,
                 &prices,
-                aum,
                 now_ts,
                 WeightValidationFlags::NONE,
             )
@@ -335,12 +331,11 @@ mod tests {
             };
 
         target_zc_mut
-            .update_target_weights(
+            .update_target_base(
                 &mapping_zc,
                 &amm_inventory,
                 &constituent_indexes,
                 &prices,
-                aum,
                 now_ts,
                 WeightValidationFlags::NONE,
             )
