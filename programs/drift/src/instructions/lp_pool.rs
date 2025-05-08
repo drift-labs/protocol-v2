@@ -4,6 +4,7 @@ use anchor_spl::token_interface::{Mint, TokenAccount, TokenInterface};
 use crate::{
     controller::token::{burn_tokens, mint_tokens},
     error::ErrorCode,
+    get_then_update_id,
     math::{
         casting::Cast,
         constants::PRICE_PRECISION_I128,
@@ -643,6 +644,8 @@ pub fn handle_lp_pool_add_liquidity<'c: 'info, 'info>(
     } else {
         0
     };
+
+    let mint_redeem_id = get_then_update_id!(lp_pool, next_mint_redeem_id);
     emit!(LPMintRedeemRecord {
         ts: now,
         authority: ctx.accounts.authority.key(),
@@ -657,6 +660,7 @@ pub fn handle_lp_pool_add_liquidity<'c: 'info, 'info>(
         lp_amount,
         lp_fee: lp_fee_amount,
         lp_nav,
+        mint_redeem_id,
     });
 
     Ok(())
@@ -813,6 +817,8 @@ pub fn handle_lp_pool_remove_liquidity<'c: 'info, 'info>(
     } else {
         0
     };
+
+    let mint_redeem_id = get_then_update_id!(lp_pool, next_mint_redeem_id);
     emit!(LPMintRedeemRecord {
         ts: now,
         authority: ctx.accounts.authority.key(),
@@ -827,6 +833,7 @@ pub fn handle_lp_pool_remove_liquidity<'c: 'info, 'info>(
         lp_amount: lp_burn_amount,
         lp_fee: lp_fee_amount,
         lp_nav,
+        mint_redeem_id,
     });
 
     Ok(())

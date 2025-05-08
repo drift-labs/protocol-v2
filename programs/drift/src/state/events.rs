@@ -731,4 +731,5 @@ pub struct LPMintRedeemRecord {
     pub lp_fee: i64,
     /// lp nav, PRICE_PRECISION
     pub lp_nav: u128,
+    pub mint_redeem_id: u64,
 }

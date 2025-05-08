@@ -4506,6 +4506,7 @@ pub fn handle_initialize_lp_pool(
         min_mint_fee,
         max_mint_fee_premium: max_mint_fee,
         revenue_rebalance_period,
+        next_mint_redeem_id: 1,
         _padding: [0; 12],
     };
 

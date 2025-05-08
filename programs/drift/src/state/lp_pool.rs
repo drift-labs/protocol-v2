@@ -61,6 +61,9 @@ pub struct LPPool {
     pub last_revenue_rebalance_ts: u64, // 8, 168
     pub revenue_rebalance_period: u64,
 
+    /// Every mint/redeem has a monotonically increasing id. This is the next id to use
+    pub next_mint_redeem_id: u64,
+
     /// all revenue settles recieved
     pub total_fees_received: u128, // 16, 176
     /// all revenues paid out
@@ -79,7 +82,7 @@ pub struct LPPool {
 }
 
 impl Size for LPPool {
-    const SIZE: usize = 288;
+    const SIZE: usize = 296;
 }
 
 impl LPPool {

@@ -8354,6 +8354,13 @@
             "type": "u64"
           },
           {
+            "name": "nextMintRedeemId",
+            "docs": [
+              "Every mint/redeem has a monotonically increasing id. This is the next id to use"
+            ],
+            "type": "u64"
+          },
+          {
             "name": "totalFeesReceived",
             "docs": [
               "all revenue settles recieved"
@@ -15207,6 +15214,11 @@
         {
           "name": "lpNav",
           "type": "u128",
+          "index": false
+        },
+        {
+          "name": "mintRedeemId",
+          "type": "u64",
           "index": false
         }
       ]
